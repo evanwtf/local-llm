@@ -1,0 +1,31 @@
+[2026-08-08 01:19:38] waiting for ds4f-q2 0731
+[2026-08-08 01:32:08] ds4f-q2 0731 complete (86720111488 bytes)
+[2026-08-08 01:32:08] waiting for ds4f-q2-q4 0731
+[2026-08-08 01:47:08] ds4f-q2-q4 0731 complete (97591747456 bytes)
+[2026-08-08 01:47:08] speed sweep: baseline
+[2026-08-08 01:51:46] speed sweep done: baseline (exit 0)
+[2026-08-08 01:51:46] speed sweep: q2_0731
+[2026-08-08 01:56:28] speed sweep done: q2_0731 (exit 0)
+[2026-08-08 01:56:28] speed sweep: q2q4_0731
+[2026-08-08 02:01:21] speed sweep done: q2q4_0731 (exit 0)
+[2026-08-08 02:01:21] perplexity: baseline
+[2026-08-08 02:18:39] perplexity done: baseline (exit 0)
+[2026-08-08 02:18:39] perplexity: q2_0731
+[2026-08-08 02:35:35] perplexity done: q2_0731 (exit 0)
+[2026-08-08 02:35:35] perplexity: q2q4_0731
+[2026-08-08 02:52:38] perplexity done: q2q4_0731 (exit 0)
+[2026-08-08 02:52:38] eval harness: baseline
+[2026-08-08 03:05:46] eval done: baseline (exit 1)
+[2026-08-08 03:05:46] eval harness: q2_0731
+[2026-08-08 03:15:11] eval done: q2_0731 (exit 1)
+[2026-08-08 03:15:11] eval harness: q2q4_0731
+[2026-08-08 03:24:07] eval done: q2q4_0731 (exit 1)
+[2026-08-08 03:24:07] ds4flash.gguf restored to baseline
+[2026-08-08 03:24:07] ALL DONE
+[2026-08-08 03:24:31] eval8k: baseline
+[2026-08-08 03:50:07] eval8k done: baseline (exit 1)
+[2026-08-08 03:50:07] eval8k: q2_0731
+[2026-08-08 04:05:49] eval8k done: q2_0731 (exit 1)
+[2026-08-08 04:05:49] eval8k: q2q4_0731
+[2026-08-08 04:18:32] eval8k done: q2q4_0731 (exit 0)
+[2026-08-08 04:18:32] EVAL8K ALL DONE

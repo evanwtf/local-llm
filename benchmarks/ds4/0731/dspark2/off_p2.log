@@ -1,0 +1,61 @@
+ds4: Metal device Apple M5 Max, 128.00 GiB RAM
+ds4: Metal 4 tensor API enabled for Tensor kernels
+ds4: drift-patch flags hc_stable=on norm_unify=on kv_raw_f32=off rope_exp2_log2=off math_safe=off tensor_matmul=on
+ds4: Metal model views created in 15.534 ms, residency requested in 1077.350 ms, warmup 3.847 ms (mapped 93065.67 MiB from offset 5.09 MiB)
+ds4: Metal mapped mmaped model as 2 overlapping shared buffers
+ds4: metal backend initialized for graph diagnostics
+ds4: memory: KV 0.61 GiB (raw 0.36 + compressed 0.25) + buffers 0.25 GiB + resident model 90.88 GiB = 91.74 GiB planned
+ds4: memory detail: ctx=32768 prefill_cap=4096 raw_kv_rows=4352 compressed_kv_rows=8194 backend=metal
+ds4: memory: KV 0.61 GiB (raw 0.36 + compressed 0.25) + buffers 0.25 GiB = 0.86 GiB context
+ds4: memory detail: ctx=32768 prefill_cap=4096 raw_kv_rows=4352 compressed_kv_rows=8194 backend=metal
+ds4: using GPU graph generation with graph prefill
+ds4: gpu prefill layer 1/43ds4: gpu prefill layer 2/43ds4: gpu prefill layer 3/43ds4: gpu prefill layer 4/43ds4: gpu prefill layer 5/43ds4: gpu prefill layer 6/43ds4: gpu prefill layer 7/43ds4: gpu prefill layer 8/43ds4: gpu prefill layer 9/43ds4: gpu prefill layer 10/43ds4: gpu prefill layer 11/43ds4: gpu prefill layer 12/43ds4: gpu prefill layer 13/43ds4: gpu prefill layer 14/43ds4: gpu prefill layer 15/43ds4: gpu prefill layer 16/43ds4: gpu prefill layer 17/43ds4: gpu prefill layer 18/43ds4: gpu prefill layer 19/43ds4: gpu prefill layer 20/43ds4: gpu prefill layer 21/43ds4: gpu prefill layer 22/43ds4: gpu prefill layer 23/43ds4: gpu prefill layer 24/43ds4: gpu prefill layer 25/43ds4: gpu prefill layer 26/43ds4: gpu prefill layer 27/43ds4: gpu prefill layer 28/43ds4: gpu prefill layer 29/43ds4: gpu prefill layer 30/43ds4: gpu prefill layer 31/43ds4: gpu prefill layer 32/43ds4: gpu prefill layer 33/43ds4: gpu prefill layer 34/43ds4: gpu prefill layer 35/43ds4: gpu prefill layer 36/43ds4: gpu prefill layer 37/43ds4: gpu prefill layer 38/43ds4: gpu prefill layer 39/43ds4: gpu prefill layer 40/43ds4: gpu prefill layer 41/43ds4: gpu prefill layer 42/43ds4: gpu prefill layer 43/43
+We need to write a complete Python implementation of an LRU cache with a doubly linked list and a dict. Include docstrings and type hints for every method.
+
+We'll implement a class LRUCache with methods: get, put, and maybe internal methods for moving nodes, removing, etc. We'll use a doubly linked list with sentinel head and tail to simplify. We'll have a dict mapping keys to nodes. Each node has key, value, prev, next.
+
+We'll include type hints: from typing import TypeVar, Generic, Optional, Dict, Any? Actually we can use generic for key and value types. We'll define class LRUCache(Generic[K, V]) with K and V as type parameters.
+
+We'll implement:
+
+- __init__(capacity: int) -> None
+- _move_to_front(node: _Node) -> None (or _add_to_front, _remove_node, _pop_tail)
+- get(key: K) -> Optional[V] (or maybe raise KeyError? Usually returns -1 or None. We'll return Optional[V] with None if not found)
+- put(key: K, value: V) -> None
+
+We'll also define a private _Node class with __slots__ for efficiency.
+
+We'll include docstrings for each method.
+
+Let's write the code.
+
+We'll also handle capacity <= 0? Usually capacity must be positive. We'll raise ValueError if capacity <= 0.
+
+We'll implement using sentinel head and tail to avoid edge cases.
+
+We'll also include a __repr__ maybe? Not required.
+
+Let's produce the final answer.
+```python
+from typing import Generic, TypeVar, Optional, Dict, Union
+from collections import OrderedDict  # Not used, but for reference
+
+K = TypeVar('K')  # Key type
+V = TypeVar('V')  # Value type
+
+
+class LRUCache(Generic[K, V]):
+    """
+    A thread‑unsafe LRU (Least Recently Used) cache implementation.
+
+    The cache is backed by a doubly linked list of nodes and a dictionary
+    mapping keys to nodes.  The doubly linked list maintains the order of
+    access: the most recently used item is at the head, the least recently
+    used item is at the tail.  When the cache reaches its capacity, the
+    least recently used item is evicted.
+
+    All operations run in O(1) average time.
+    """
+
+    class _
+ds4: prefill: 105.59 t/s, generation: 39.08 t/s
