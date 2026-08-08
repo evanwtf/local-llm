@@ -1,0 +1,9 @@
+ds4: Metal device Apple M5 Max, 128.00 GiB RAM
+ds4: Metal 4 tensor API enabled for Tensor kernels
+ds4: drift-patch flags hc_stable=on norm_unify=on kv_raw_f32=off rope_exp2_log2=off math_safe=off tensor_matmul=on
+ds4: Metal model views created in 2.668 ms, residency requested in 522.209 ms, warmup 3.622 ms (mapped 82697.67 MiB from offset 5.09 MiB)
+ds4: Metal mapped mmaped model as 2 overlapping shared buffers
+ds4: metal backend initialized for graph diagnostics
+ds4: memory: KV 0.61 GiB (raw 0.36 + compressed 0.25) + buffers 0.25 GiB + resident model 80.76 GiB = 81.62 GiB planned
+ds4: memory detail: ctx=32768 prefill_cap=4096 raw_kv_rows=4352 compressed_kv_rows=8194 backend=metal
+ds4-bench: context buffers 880.67 MiB (ctx=32768, backend=metal, prefill_chunk=4096, raw_kv_rows=4352, compressed_kv_rows=8194)

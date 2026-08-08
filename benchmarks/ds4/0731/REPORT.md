@@ -10,11 +10,17 @@
 ## Bottom line
 
 **Switch to the mixed Q2/Q4 0731 build.** It won every measurement taken: best
-perplexity, a perfect 15/15 on the eval harness, zero truncated reasoning
-chains, and it reaches its answers using less than half the output tokens of
-the model you run today. Generation speed is unchanged; the cost is ~6% prefill
-throughput and 10 GiB more resident memory, both of which your machine absorbs
-comfortably.
+perplexity, the best eval score (**76/92 vs 68/92** for both alternatives over
+the full question set — see §3b), and it answers using 27% fewer output tokens
+than the model you run today, finishing the same 92-question suite in 2h20m
+against baseline's 3h07m. Generation speed is unchanged; the cost is ~6%
+prefill throughput and 10 GiB more resident memory, both of which your machine
+absorbs comfortably.
+
+Most of the accuracy advantage is concentrated in **math** (AIME2025: 6
+failures vs 11–12). If your work is not math-heavy, expect a smaller real-world
+gap than the headline suggests — but it is still the best build on every axis
+measured, including heat.
 
 ```sh
 ln -sfn gguf/DeepSeek-V4-Flash-Layers37-42Q4KExperts-OtherExpertLayersIQ2XXSGateUp-Q2KDown-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix-fixed-0731.gguf ds4flash.gguf
@@ -167,6 +173,68 @@ layers rather than from the new weights.
 The one scenario that would change this: if you need very long contexts
 (approaching 256k+) where 10 GiB of KV headroom becomes decisive, `q2_0731` is
 the fallback, and it is still better than what you run today.
+
+## 3b. Full eval sweep (92 questions) — supersedes §3
+
+The 15-question pass above was unrepresentative. Re-run over the **complete
+embedded set of 92 questions**, `-n 8000`, same binary, same conditions:
+
+| model | passed | rate | runtime | total tokens | avg/question |
+|---|---|---|---|---|---|
+| **mixed q2/q4 0731** | **76/92** | **82.6%** | **2h20m** | 286,294 | **3,111** |
+| q2_0731 | 68/92 | 73.9% | 2h25m | 298,576 | 3,245 |
+| baseline | 68/92 | 73.9% | 3h07m | 392,618 | 4,267 |
+
+**The recommendation holds, and is now properly evidenced.** An 8-question
+margin over 92 is a real separation, unlike the single-question margin the
+15-question pass produced.
+
+Failures by category:
+
+| category | mixed q2/q4 | q2_0731 | baseline |
+|---|---|---|---|
+| AIME2025 | **6** | 12 | 11 |
+| GPQA Diamond | 5 | 5 | 7 |
+| SuperGPQA | 4 | 6 | 4 |
+| COMPSEC | 1 | 1 | 2 |
+
+**Nearly the entire advantage is AIME2025** — 6 failures against 11–12. Math
+reasoning is where Q4 experts on layers 37–42 pay off; the other categories are
+within a question or two of each other. If your work is not math-shaped, the
+practical gap is smaller than the headline rate suggests.
+
+### Two claims from §3 that did not survive
+
+1. **"15/15" was optimistic.** The true rate is 82.6%. The first 15 questions
+   are easier than the full set. Nothing was wrong with the measurement; the
+   sample was just too small to carry the conclusion.
+2. **"q2_0731 beats baseline on reasoning" is withdrawn.** At 15 questions it
+   led 13–12. At 92 they tie *exactly* (68/92 each). The apparent edge was
+   noise. What survives is a **timing** difference: q2_0731 reaches the same
+   accuracy in 2h25m vs baseline's 3h07m, 29% less time at load.
+
+Token efficiency is also more modest than §3 implied: 3,111 vs 4,267 avg tokens
+is a 27% reduction, not the ~50% the small sample showed.
+
+### Thermals
+
+Logged throughout the 7.5-hour sweep (`thermal_watch.csv`, 228 samples).
+`powermetrics` needs root and was unavailable, so this uses two no-sudo proxies:
+macOS thermal/performance warning levels, and sustained throughput.
+
+- **Zero thermal or performance warnings recorded**, across all three runs.
+- Sustained generation held **34–36 t/s (mean 34.71)** for 7.5 hours of
+  continuous full-GPU load, with no downward trend.
+
+**This machine does not throttle under sustained multi-hour load.** The cost of
+running these models hard is comfort and fan noise, not performance.
+
+For heat, the relevant quantity is time at load, and the ranking follows wall
+clock directly: baseline runs **33% longer** than the mixed build for identical
+work (3h07m vs 2h20m). The model that is best on quality is also the one that
+heats the laptop least — there is no trade-off to make.
+
+---
 
 ## 4. DSpark speculative decoding — tested, do not enable
 

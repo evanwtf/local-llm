@@ -1,0 +1,7 @@
+[2026-08-08 10:38:19] evalfull start: q2q4_0731
+[2026-08-08 12:58:38] evalfull done: q2q4_0731 -- ds4-eval: 76/92 passed, 16 failed, runtime 02h:20m
+[2026-08-08 12:58:38] evalfull start: q2_0731
+[2026-08-08 15:23:49] evalfull done: q2_0731 -- ds4-eval: 68/92 passed, 24 failed, runtime 02h:25m
+[2026-08-08 15:23:49] evalfull start: baseline
+[2026-08-08 18:31:33] evalfull done: baseline -- ds4-eval: 68/92 passed, 24 failed, runtime 03h:07m
+[2026-08-08 18:31:33] EVALFULL ALL DONE
