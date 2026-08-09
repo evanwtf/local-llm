@@ -133,10 +133,25 @@ conclusion rests on measured prefill throughput and holds regardless of coding
 ability. The claim that the mixed build is the best *resident* model rests on
 the general-reasoning eval.
 
-**Long-context behaviour is unmeasured beyond 64k** (issue #5). Agents
-accumulate context aggressively, and the mixed build uses 90.9 of 128 GiB,
-leaving less KV headroom than the q2 builds. `--ctx 100000` above is a
-reasonable starting point, not a validated ceiling.
+**Long context is now measured to 256k (issue #5) — `--ctx 100000` is
+validated.** At 98304 the mixed build runs 340 t/s prefill / 25.5 t/s
+generation, just past the knee where the steepest decay ends. Both resident
+models reached 262144 without failure.
+
+Memory is *not* the constraint: KV is ~13.8 KB/token, so 256k costs ~3.4 GiB and
+the mixed build totals ~94 of 128 GiB. Even 512k would fit. An earlier draft
+warned that the mixed build's smaller KV headroom might force a switch to
+`q2_0731` at long context — that concern was unfounded.
+
+`q2_0731` is 2–16% faster at long context (bandwidth, not capacity — it moves
+fewer bytes per token), but it is 8 questions worse on the eval. Not worth the
+trade. Use the mixed build at any context length.
+
+If your agent regularly exceeds ~100k, raise `--ctx` freely; decay is graceful
+(prefill −49%, generation −28% from 64k to 256k) with no cliff.
+
+**Long-context *quality* is unmeasured.** Only speed was tested. A model can
+stay fast while degrading at recall over long inputs.
 
 **The machine throttles under sustained load.** GPU clamps to ~1274–1295 MHz
 against a 1620 MHz ceiling under Heavy thermal pressure. Performance is stable

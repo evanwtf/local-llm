@@ -170,10 +170,13 @@ build's win comes from Q4 experts on the last six layers rather than from the
 new weights. (§3 originally claimed it beat baseline on reasoning, 13/15 vs
 12/15 — **withdrawn**; at 92 questions they tie exactly. See §3b.)
 
-The one scenario that would change this: if you need very long contexts
+~~The one scenario that would change this: if you need very long contexts
 (approaching 256k+) where 10 GiB of KV headroom becomes decisive, `q2_0731` is
-the fallback, and it is still better than what you run today. **Untested — see
-issue #5.**
+the fallback.~~ **Wrong premise — see §6.** Context is not memory-limited on
+this machine: KV is ~13.8 KB/token, so 256k needs only ~3.4 GiB and the mixed
+build sits at ~94 of 128 GiB there. `q2_0731` *is* faster at long context, but
+because of memory bandwidth, not capacity — and it is still 8 questions worse.
+The mixed build remains the recommendation at every context length tested.
 
 ## 3b. Full eval sweep (92 questions) — supersedes §3
 
@@ -421,6 +424,67 @@ the README documents a wrapper (`ANTHROPIC_BASE_URL=http://127.0.0.1:8000`,
 > assumption the two correlate. That assumption is untested here. A real coding
 > benchmark (SWE-bench-style, or HumanEval) would be needed before treating this
 > as a coding recommendation rather than a latency one.
+
+---
+
+## 6. Long context, 64k → 256k (issue #5)
+
+Both resident models swept from 65536 to 262144 in 32768 steps, 128 generated
+tokens per frontier. **Neither failed.** Flash trains to 1048576; 256k is the
+practical limit tested here, not a discovered ceiling.
+
+| ctx | q2q4 prefill | q2_0731 prefill | Δ | q2q4 gen | q2_0731 gen | Δ |
+|---|---|---|---|---|---|---|
+| 65,536 | 454.3 | 509.3 | +12.1% | 26.96 | 29.61 | +9.8% |
+| 98,304 | 340.5 | 385.0 | +13.1% | 25.50 | 26.86 | +5.3% |
+| 131,072 | 343.5 | 351.2 | +2.2% | 25.40 | 25.98 | +2.3% |
+| 163,840 | 324.3 | 343.7 | +6.0% | 24.43 | 25.35 | +3.8% |
+| 196,608 | 294.3 | 317.5 | +7.9% | 22.78 | 23.96 | +5.2% |
+| 229,376 | 257.4 | 293.8 | +14.1% | 21.18 | 22.97 | +8.5% |
+| 262,144 | 231.6 | 269.7 | +16.5% | 19.34 | 21.58 | +11.6% |
+
+### Memory is not the constraint
+
+KV measures **0.86 GiB at 65536**, i.e. ~13.8 KB/token. Extrapolated:
+
+| ctx | KV | mixed q2/q4 total | of 128 GiB |
+|---|---|---|---|
+| 100k | ~1.3 GiB | ~92.2 GiB | 72% |
+| 256k | ~3.4 GiB | ~94.3 GiB | 74% |
+| 512k | ~6.9 GiB | ~97.8 GiB | 76% |
+
+**This corrects a hypothesis in §Recommendation.** That section predicted
+`q2_0731` would become the pick at long context because its 10 GiB of extra
+headroom would "become decisive." It never does — context is nowhere near
+memory-limited. Even 512k would fit comfortably.
+
+### What actually differs: bandwidth
+
+`q2_0731` is faster at *every* context tested, by 2–16%, with the gap widening
+at the extremes (+16.5% prefill, +11.6% generation at 256k). The mechanism is
+memory traffic, not capacity: the smaller model moves fewer bytes per token, and
+long-context work is bandwidth-bound.
+
+**The recommendation does not change.** A 16% speed advantage at 256k does not
+buy back 8 questions of accuracy (76/92 vs 68/92). Use the mixed build at every
+context length.
+
+### Practical ceiling
+
+Decay from 64k to 256k is graceful — prefill −49%, generation −28% across a 4×
+context increase, with no cliff. `--ctx 100000` as suggested in
+`claude_code_recommendations.md` is **validated**: 98304 ran at 340 t/s prefill
+and 25.5 t/s generation, comfortably past the knee at ~98k where the steepest
+decay ends.
+
+Long-context prefill is also the **hottest workload measured** in this project:
+40–58 W at 1218–1480 MHz, versus ~22 W streaming and 16–18 W for resident evals.
+Pure compute with no I/O stalls.
+
+Data: `longctx_q2q4_0731.csv`, `longctx_q2_0731.csv`, `run_longctx.sh`.
+
+*Caveat:* speed only. Long-context **quality** (retrieval accuracy, needle-in-a-
+haystack) was not measured; a model can stay fast while degrading at recall.
 
 ---
 

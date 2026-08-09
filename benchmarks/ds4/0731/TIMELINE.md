@@ -122,4 +122,9 @@ All times local (America/New_York), 2026-08-08. Regenerate with `sh bench-0731/b
 [2026-08-08 19:46:41] evalfull start: mxfp4_stream
 [2026-08-08 22:49:48] evalfull done: mxfp4_stream -- ds4-eval: 80/92 passed, 12 failed, runtime 03h:03m
 [2026-08-08 22:49:48] EVALFULL MXFP4 DONE
+[2026-08-08 23:18:05] longctx sweep: q2q4_0731
+[2026-08-09 00:08:30] longctx done: q2q4_0731 (exit 0) -- last row: 262144,32768,231.59,128,19.34,211.129,127,19.97,0
+[2026-08-09 00:08:30] longctx sweep: q2_0731
+[2026-08-09 00:54:05] LONGCTX ALL DONE
+[2026-08-09 00:54:05] longctx done: q2_0731 (exit 0) -- last row: 262144,32768,269.71,128,21.58,58.345,127,21.81,0
 ```
