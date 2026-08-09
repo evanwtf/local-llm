@@ -1,0 +1,44 @@
+⚠ claude.ai connectors are disabled because ANTHROPIC_API_KEY or another auth source is set and takes precedence over your claude.ai login · Unset it to load your organization's connectors
+I've read all five `parse_options` implementations and the parser helper functions they call. Here are the genuine inconsistencies, most significant first.
+
+## 1. `--prefill-chunk` accepts 0/negative in ds4-bench, rejected everywhere else
+
+`ds4_bench.c:327-328` parses it with no positivity check:
+
+```c
+} else if (!strcmp(arg, "--prefill-chunk")) {
+    c.prefill_chunk = (uint32_t)parse_int(need_arg(&i, argc, argv, arg), arg);
+```
+
+The other four binaries all validate the same flag and refuse non-positive values: `ds4_cli.c:1919-1925`, `ds4_server.c:12946-12953`, `ds4_eval.c:1643-1649`, `ds4_agent.c:725-731` all check `v <= 0` and exit with "must be positive". Bench silently accepts a 0 or negative value, and a negative int cast to `uint32_t` becomes a huge chunk — a real correctness bug in the benchmark's memory estimation. This is the clearest behavioral inconsistency (same flag, different validation, and the lenient path is the one that produces wrong output).
+
+## 2. `--expert-profile` exists in cli/bench but is missing from server, eval, and agent
+
+`ds4_cli.c:1934-1935` and `ds4_bench.c:269-270` both parse `--expert-profile`. But the full parse loops in `ds4_server.c:12846-12993`, `ds4_eval.c:1561-1672`, and `ds4_agent.c:616-748` have no `--expert-profile` handler at all — it falls through to "unknown option". Since all five binaries drive the same engine (they all take `--model`, `--backend`, `--quality`, `--ssd-streaming`, etc.), the expert-routing profile is a shared engine feature that the production server and agent can't set while the CLI and bench can. Genuine "exists in some, not others."
+
+## 3. `--dir-steering-file` / `--dir-steering-ffn` / `--dir-steering-attn` missing from eval and bench
+
+Present in `ds4_cli.c:1932-1941`, `ds4_server.c:12960-12967`, and `ds4_agent.c:740-747`. But the `ds4_eval.c:1561-1672` and `ds4_bench.c:245-343` option loops have no directional-steering flags — passing `--dir-steering-file` to either produces "unknown option". Same category as #2: an engine-level feature (all three binaries share the engine/backend/model flags) that only some tools expose. I list it separately because it's a distinct flag family.
+
+## 4. Server's float parser accepts `inf`/`nan` that cli/eval/agent reject, for the same flags
+
+`ds4_server.c:12696-12704` (`parse_float_arg`) checks only range, not finiteness:
+
+```c
+if (!s[0] || *end || v < minv || v > maxv) { ... exit(2); }
+```
+
+The same flags are parsed with an `!isfinite(v)` check in `ds4_cli.c:211-219`, `ds4_eval.c:1469-1477`, and `ds4_agent.c:521-529`. So `--mtp-margin inf`, `--dspark-confidence nan`, and `--dir-steering-ffn inf` are silently accepted by `ds4-server` (server.c:12852, 12861-12864, 12962-12967) but rejected by ds4-cli/eval/agent. Same flag name, different validation behavior — and the lax path lets a non-finite value reach the engine.
+
+## 5. `--backend` parsed with three different helpers and different error handling
+
+The flag is handled identically in intent everywhere, but the underlying parser differs:
+- `ds4_cli.c:1944-1945` and `ds4_agent.c:672-673` call a single-arg `parse_backend(value)` (`ds4_cli.c:221`, `ds4_agent.c:531`) — no "valid backends are…" hint, and agent's version (agent.c:531-536) has no `DS4_ROCM_BUILD` rocm branch at all, so on a ROCm build `--backend rocm` is rejected by ds4-agent while accepted by cli/bench/eval/server.
+- `ds4_eval.c:1595-1596` and `ds4_bench.c:273-274` call a two-arg `parse_backend(value, arg)` which prints "invalid value for --backend" plus the valid-backends list.
+- `ds4_server.c:12985-12986` uses a differently-named `parse_backend_arg(value, arg)` (`ds4_server.c:12772`) that prints "invalid --backend value" and "valid *server* backends".
+
+Same flag, but the error text, the "valid backends" guidance, and the accepted rocm/cuda set all differ per binary. Mostly cosmetic, but it's a real "parsed differently" inconsistency.
+
+---
+
+**Not reported as top-5:** `-n`/`--tokens` and `-c`/`--ctx` have genuinely different meanings/defaults per tool (cli/agent = generation budget, server = per-request cap, eval = per-case cap with its `EVAL_MAX_CONTEXT` hard limit, bench = per-frontier gen tokens), but those differences are intentional per-tool design, not inconsistencies. The `--ssd-streaming-full-layers` helpers are named differently (`parse_nonneg_int_arg` vs `parse_nonnegative_int_arg` vs `parse_nonnegative_int`) but are semantically identical.

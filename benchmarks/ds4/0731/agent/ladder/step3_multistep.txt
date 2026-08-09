@@ -1,0 +1,15 @@
+⚠ claude.ai connectors are disabled because ANTHROPIC_API_KEY or another auth source is set and takes precedence over your claude.ai login · Unset it to load your organization's connectors
+Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer.
+Done. `./ds4-bench --version` prints `ds4-bench ffc082f-dirty` and exits 0.
+
+## What I did
+
+1. **Added the `--version` flag in `ds4_bench.c`** — inserted a check in the `parse_options()` argument loop (right after the `-h/--help` handling) that prints `ds4-bench <version>` to stdout and calls `exit(0)`. Because this lives in `parse_options()`, which runs at the top of `main()` before any engine/session creation, the flag exits cleanly without loading a model.
+
+2. **Added a version macro with a fallback** — `#ifndef DS4_BENCH_VERSION` → defaults to `"unknown"` so the file still compiles standalone.
+
+3. **Wired the version into the build in `Makefile`** — the `ds4_bench.o` rule now compiles with `-DDS4_BENCH_VERSION="$(shell git describe --tags --always --dirty 2>/dev/null || echo unknown)"`. Since the repo has no git tags, `git describe --always` resolves to the short commit hash — currently `ffc082f`, and `--dirty` appends `-dirty` because the working tree has uncommitted changes. This keeps the version accurate per build.
+
+4. **Rebuilt** with `make ds4-bench` (compiled cleanly, no warnings) and **verified**: `./ds4-bench --version` → `ds4-bench ffc082f-dirty`, exit code 0, and it printed only the version line — no model load.
+
+One note: the version shown reflects the current dirty working tree. If you'd prefer a stable `ffc082f` without the `-dirty` suffix, or a semantic version (e.g. `0.1.0`) instead of the git hash, I can adjust — just say the word.

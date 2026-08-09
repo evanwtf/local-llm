@@ -1,0 +1,7 @@
+⚠ claude.ai connectors are disabled because ANTHROPIC_API_KEY or another auth source is set and takes precedence over your claude.ai login · Unset it to load your organization's connectors
+Done. The local variable `acc` has been renamed to `checksum` in `bench-0731/agent/ladder/target.c`:
+
+- `compute_sum`: declaration (line 6), loop accumulation (lines 8–9), `return` (line 11)
+- `main`: declaration (line 16), `printf` argument (line 17)
+
+Nothing else was changed.

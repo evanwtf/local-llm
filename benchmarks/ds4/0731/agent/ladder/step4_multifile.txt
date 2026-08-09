@@ -1,0 +1,36 @@
+⚠ claude.ai connectors are disabled because ANTHROPIC_API_KEY or another auth source is set and takes precedence over your claude.ai login · Unset it to load your organization's connectors
+Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer.
+Done. All four binaries (plus `ds4-bench`) now support `--version`, printing `<binary-name> <version>` and exiting 0 before any model load.
+
+## What I changed
+
+**Makefile** — introduced a single shared version macro, computed once so every binary reports the same value:
+```make
+DS4_VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo unknown)
+```
+Threaded `-DDS4_VERSION=\"$(DS4_VERSION)\"` into the compile rules for `ds4_cli.o`, `ds4_server.o`, `ds4_eval.o`, `ds4_agent.o` (and their `*_cpu.o` variants so `make cpu` stays consistent), and swapped `ds4-bench`'s old per-binary `DS4_BENCH_VERSION` to the shared `DS4_VERSION`.
+
+**Source files** — in each of `ds4_cli.c`, `ds4_server.c`, `ds4_eval.c`, `ds4_agent.c`:
+- Added the `#ifndef DS4_VERSION / #define DS4_VERSION "unknown"` fallback (matching bench's existing pattern) so a build that omits the macro still compiles.
+- Added a `--version` check immediately after the `--help` block in each `parse_options` arg loop, printing and exiting 0 — e.g. `fprintf(stdout, "ds4-server %s\n", DS4_VERSION); exit(0);`. This sits in the arg-parsing loop before any model initialization, so it exits 0 without loading a model.
+
+**ds4_bench.c** — refactored `DS4_BENCH_VERSION` → `DS4_VERSION` to match (the `--version` handling was already there).
+
+## Build + verification
+
+`make` rebuilt all five cleanly — no warnings — each compile showing the shared macro, e.g. `cc ... -DDS4_VERSION=\"ffc082f-dirty\" -c -o ds4_server.o ds4_server.c`.
+
+```
+ds4 -> ds4 ffc082f-dirty
+exit=0
+ds4-server -> ds4-server ffc082f-dirty
+exit=0
+ds4-eval -> ds4-eval ffc082f-dirty
+exit=0
+ds4-agent -> ds4-agent ffc082f-dirty
+exit=0
+ds4-bench -> ds4-bench ffc082f-dirty
+exit=0
+```
+
+All five print `<binary-name> <version>` and exit 0. The `ffc082f-dirty` value is `git describe` output — `-dirty` because these edits aren't committed yet; it'll become the plain tag/hash once committed. The changes are uncommitted in the working tree (branch `agent-ladder-scratch`).

@@ -1,0 +1,19 @@
+# Cache decision summary (extracted from server_trace.log, which is not committed)
+#
+# The full trace is 29 MB and embeds the operator's private CLAUDE.md in every
+# request. This summary preserves the evidence for the prefix-cache claims in
+# AGENT_FINDINGS.md without publishing that.
+
+## cache_source distribution
+  84 cache_source: anthropic-tool-output
+  16 cache_source: none
+   8 cache_source: disk-text
+
+## miss reasons
+  76 memory_miss_reason: token-mismatch
+  31 memory_miss_reason: live-prefix-match
+   1 memory_miss_reason: no-live-checkpoint
+
+## token totals
+memory-cached tokens: 7272442
+disk-cached tokens:   163840
