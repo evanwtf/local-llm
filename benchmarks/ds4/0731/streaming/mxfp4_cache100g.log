@@ -1,0 +1,11 @@
+ds4: Metal device Apple M5 Max, 128.00 GiB RAM
+ds4: Metal 4 tensor API enabled for Tensor kernels
+ds4: drift-patch flags hc_stable=on norm_unify=on kv_raw_f32=off rope_exp2_log2=off math_safe=off tensor_matmul=on
+ds4: metal SSD streaming cache budget 100.00 GiB capped to 93.00 GiB to stay below the graph working-set pressure budget
+ds4: Metal SSD streaming mode enabled; full model residency and warmup are skipped
+ds4: metal SSD streaming total expert budget 93.00 GiB = 6.38 GiB prefill headroom + 86.62 GiB dynamic cache (6957 experts, 12.75 MiB each)
+ds4: SSD streaming initial metal model map restricted to token embedding (1 spans, 0.99 GiB tensor span)
+ds4: metal backend initialized for graph diagnostics
+ds4: memory: KV 0.42 GiB (raw 0.36 + compressed 0.06) + buffers 0.07 GiB + resident model 0.99 GiB + expert cache 86.62 GiB + prefill expert reserve 6.38 GiB = 94.47 GiB planned
+ds4: memory detail: ctx=8321 prefill_cap=4096 raw_kv_rows=4352 compressed_kv_rows=2082 backend=metal
+ds4-bench: context buffers 497.92 MiB (ctx=8321, backend=metal, prefill_chunk=4096, raw_kv_rows=4352, compressed_kv_rows=2082)

@@ -1,0 +1,5 @@
+[2026-08-08 18:42:24] ppl: mxfp4_stream
+[2026-08-08 19:12:20] ppl done: mxfp4_stream -- tokens=94826 scored=32736 nll=49293.841252978 avg_nll=1.505799159 ppl=4.507754602
+[2026-08-08 19:12:20] ppl: q4_stream
+[2026-08-08 19:46:12] ppl done: q4_stream -- tokens=94826 scored=32736 nll=49691.873684528 avg_nll=1.517958018 ppl=4.562898321
+[2026-08-08 19:46:12] STREAMING PPL DONE

@@ -218,16 +218,35 @@ is a 27% reduction, not the ~50% the small sample showed.
 
 ### Thermals
 
-Logged throughout the 7.5-hour sweep (`thermal_watch.csv`, 228 samples).
-`powermetrics` needs root and was unavailable, so this uses two no-sudo proxies:
-macOS thermal/performance warning levels, and sustained throughput.
+Logged throughout the 7.5-hour sweep (`thermal_watch.csv`, 228 samples), using
+two no-sudo proxies: macOS thermal/performance warning levels, and sustained
+throughput.
 
 - **Zero thermal or performance warnings recorded**, across all three runs.
 - Sustained generation held **34–36 t/s (mean 34.71)** for 7.5 hours of
   continuous full-GPU load, with no downward trend.
 
-**This machine does not throttle under sustained multi-hour load.** The cost of
-running these models hard is comfort and fan noise, not performance.
+> **CORRECTION (2026-08-08 20:22).** This section originally concluded "this
+> machine does not throttle under sustained multi-hour load." **That was wrong.**
+> Once a passwordless `powermetrics` rule was installed, direct measurement
+> showed thermal pressure **Heavy** and the GPU clamped at ~1274–1295 MHz
+> against a **1620 MHz** ceiling — zero residency at 1470/1578/1620 — while
+> requesting maximum P-state 100% of the time. It draws ~16–18 W in that state.
+>
+> Both proxies failed in the same direction. `pmset` never recorded a warning
+> despite Heavy pressure, and flat throughput showed only that the machine had
+> reached a *stable* state, not an *unthrottled* one. It throttles quickly, then
+> holds — externally indistinguishable from never throttling.
+>
+> What survives: performance is stable and predictable over many hours, so the
+> benchmark comparisons between models remain valid (all measured under the same
+> clamped conditions). What does not: the claim that no performance is being left
+> on the table. Roughly 21% of GPU clock is.
+>
+> Real telemetry now logged in `thermal_watch2.csv` via `thermal_watch2.sh`.
+
+The cost of running these models hard is comfort, fan noise, **and ~21% of GPU
+clock**.
 
 For heat, the relevant quantity is time at load, and the ranking follows wall
 clock directly: baseline runs **33% longer** than the mixed build for identical
