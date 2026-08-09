@@ -164,15 +164,16 @@ the best eval score, and the fewest runaway generations. The 10 GiB of extra
 resident memory is the real cost, and on 128 GiB it still leaves room for a
 normal working context.
 
-**Do not adopt `q2_0731`.** It is a genuine improvement over baseline on
-reasoning (13/15 vs 12/15, and far more token-efficient), but it is strictly
-dominated by the mixed build at no speed advantage. Its value is as evidence: it
-isolates how much of the mixed build's win comes from Q4 experts on the last six
-layers rather than from the new weights.
+**Do not adopt `q2_0731`.** It is strictly dominated by the mixed build at no
+speed advantage. Its value is as evidence: it isolates how much of the mixed
+build's win comes from Q4 experts on the last six layers rather than from the
+new weights. (§3 originally claimed it beat baseline on reasoning, 13/15 vs
+12/15 — **withdrawn**; at 92 questions they tie exactly. See §3b.)
 
 The one scenario that would change this: if you need very long contexts
 (approaching 256k+) where 10 GiB of KV headroom becomes decisive, `q2_0731` is
-the fallback, and it is still better than what you run today.
+the fallback, and it is still better than what you run today. **Untested — see
+issue #5.**
 
 ## 3b. Full eval sweep (92 questions) — supersedes §3
 
@@ -370,15 +371,69 @@ CUDA backend, where the kernel paths are quite different.
 
 ---
 
-### Worth following up
+---
 
-- **15 questions is a small sample.** 15/15 vs 12/15 is a real signal reinforced
-  by the perplexity and token-efficiency numbers, but a wider run (drop
-  `--questions`, default is the full set) would firm it up if you want more
-  confidence before committing.
-- The old `speed-bench/m5_max_128gb_resident.csv` is now stale in two ways (old
-  engine, old model). Worth replacing with `speed_q2q4_0731.csv` if you intend
-  to upstream numbers.
+## 5. Backing a coding agent (Claude Code, Codex, Pi)
+
+**Use the mixed q2/q4 build, resident, via `ds4-server`.** Not MXFP4, despite
+its better eval score.
+
+A coding agent is **prefill-dominated**. Every turn resends a large system
+prompt, tool definitions, file contents and a growing transcript; generation is
+a few hundred tokens against tens of thousands prefilled. That is precisely the
+axis where the models differ most:
+
+| | prefill @8192 | a 30k-token turn |
+|---|---|---|
+| mixed q2/q4 (resident) | 488.5 t/s | ~61 s |
+| MXFP4 (streamed) | 115.7 t/s | ~260 s |
+
+Four minutes of latency per turn makes an agent unusable. Agents amortise
+accuracy across many cheap turns rather than winning single hard problems, so
+MXFP4's +4 questions does not repay a 4× prefill cost.
+
+Two settings matter more here than anywhere else in this report:
+
+- **`--warm-weights`.** Only +3.3% mean on a benchmark sweep (§2 of issue #2),
+  but a server is the case it was built for: one long-lived load serving many
+  prompts, so the +36% on early prefill is paid once and never decays.
+- **Prefix caching.** `ds4-server` keeps a rax-backed KV store
+  (`ds4_kvstore.c`) so an unchanged system prompt and file context are reused
+  instead of re-prefilled. For agent workloads this plausibly matters more than
+  the choice of model.
+
+Suggested launch:
+
+```sh
+./ds4-server \
+  -m gguf/DeepSeek-V4-Flash-Layers37-42Q4KExperts-...-fixed-0731.gguf \
+  --warm-weights --ctx 100000
+```
+
+Claude Code connects through the Anthropic-compatible `/v1/messages` endpoint;
+the README documents a wrapper (`ANTHROPIC_BASE_URL=http://127.0.0.1:8000`,
+`ANTHROPIC_MODEL=deepseek-v4-flash`) around line 1258.
+
+> **Caveat — nothing here measured coding.** The 92-question set is GPQA
+> Diamond, SuperGPQA, AIME2025 and one COMPSEC category; only the last touches
+> code, and it is security analysis of C snippets, not code generation. The
+> 87.0% vs 82.6% ranking is *general reasoning*, extrapolated to coding on the
+> assumption the two correlate. That assumption is untested here. A real coding
+> benchmark (SWE-bench-style, or HumanEval) would be needed before treating this
+> as a coding recommendation rather than a latency one.
+
+---
+
+## Open questions
+
+| # | question | status |
+|---|---|---|
+| 5 | long-context behaviour beyond 64k | **not measured** — matters for agents; the mixed build uses 90.9 of 128 GiB, so KV headroom is tighter than the q2 builds |
+| 4 | GLM 5.2 as an alternative family | not started (197 GiB, streamed) |
+| 7 | refresh stale `speed-bench/m5_max_128gb_resident.csv` | superseded data exists here; upstream contribution should state whether it is a first-run or steady-state number |
+| 8 | disk: ~320 GiB reclaimable in `gguf/`, 636 GiB in Ollama | pruning deferred until #4/#5 finish |
+| — | coding benchmark | **gap** — see caveat above |
+| — | thermal follow-ups: cold-start ramp, `--power` sweep, joules per question | queued; `powermetrics` now available passwordless |
 
 ---
 
