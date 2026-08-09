@@ -156,12 +156,16 @@ choice"*. It is now measured:
 
 | cache source | count |
 |---|---|
-| `anthropic-tool-output` | 37 |
-| `disk-text` | 4 |
-| `none` (miss) | 12 |
+| `anthropic-tool-output` | 84 |
+| `disk-text` | 8 |
+| `none` (miss) | 16 |
 
-**3.54M tokens served from memory cache**, 81,920 from disk. Roughly 3:1 hits to
-misses across the ladder. This matters more than the raw prefill number: agent
+**7,272,442 tokens served from memory cache**, 163,840 from disk. Roughly 5:1
+hits to misses across both ladders.
+
+*(An earlier revision quoted 37/4/12 and 3.54M — those were mid-ladder counts
+read before the run finished. The figures above are the totals from
+[`cache_summary.txt`](cache_summary.txt), which is the authoritative extract.)* This matters more than the raw prefill number: agent
 turns resend a large unchanged prefix, and it is being reused rather than
 re-prefilled.
 
