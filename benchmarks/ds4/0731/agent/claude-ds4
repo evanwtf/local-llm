@@ -1,0 +1,36 @@
+#!/bin/sh
+# Claude Code backed by the local ds4-server (DeepSeek V4 Flash, mixed q2/q4 0731).
+#
+# Start the server first:
+#   cd ~/git/ds4 && ./ds4-server \
+#     -m gguf/DeepSeek-V4-Flash-Layers37-42Q4KExperts-...-fixed-0731.gguf \
+#     --warm-weights --ctx 100000 \
+#     --kv-disk-dir ~/.ds4/server-kv --kv-disk-space-mb 8192
+#
+# See evanwtf/ds4 issue #9 for scope, and bench-0731/claude_code_recommendations.md
+# for why this model and these flags.
+set -e
+
+if ! curl -s -m 2 http://127.0.0.1:8000/v1/models >/dev/null 2>&1; then
+    echo "claude-ds4: ds4-server is not responding on 127.0.0.1:8000" >&2
+    echo "claude-ds4: start it first (see comments in $0)" >&2
+    exit 1
+fi
+
+unset ANTHROPIC_API_KEY
+export ANTHROPIC_BASE_URL="http://127.0.0.1:8000"
+export ANTHROPIC_AUTH_TOKEN="dsv4-local"
+export ANTHROPIC_MODEL="deepseek-v4-flash"
+export ANTHROPIC_CUSTOM_MODEL_OPTION="deepseek-v4-flash"
+export ANTHROPIC_CUSTOM_MODEL_OPTION_NAME="DeepSeek V4 Flash local ds4"
+export ANTHROPIC_CUSTOM_MODEL_OPTION_DESCRIPTION="ds4.c local GGUF, mixed q2/q4 0731"
+export ANTHROPIC_DEFAULT_SONNET_MODEL="deepseek-v4-flash"
+export ANTHROPIC_DEFAULT_OPUS_MODEL="deepseek-v4-flash"
+export ANTHROPIC_DEFAULT_HAIKU_MODEL="deepseek-v4-flash"
+
+# ds4-server is started with --ctx 100000. Claude Code assumes 200k for models
+# it does not recognise, so without this auto-compact fires too late -- after
+# the server has already truncated. Keep the two numbers in sync.
+export CLAUDE_CODE_MAX_CONTEXT_TOKENS=100000
+
+exec claude "$@"

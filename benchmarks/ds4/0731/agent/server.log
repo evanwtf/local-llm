@@ -1,0 +1,82 @@
+ds4: warming mapped tensor pages: 90.88 GiB
+ds4: warmed tensor pages in 13.573s (checksum=729109072)
+ds4: Metal device Apple M5 Max, 128.00 GiB RAM
+ds4: Metal 4 tensor API enabled for Tensor kernels
+ds4: drift-patch flags hc_stable=on norm_unify=on kv_raw_f32=off rope_exp2_log2=off math_safe=off tensor_matmul=on
+ds4: Metal model views created in 1.934 ms, residency requested in 299.089 ms, warmup 5.748 ms (mapped 93065.67 MiB from offset 5.09 MiB)
+ds4: Metal mapped mmaped model as 2 overlapping shared buffers
+ds4: metal backend initialized for graph diagnostics
+ds4: memory: KV 1.12 GiB (raw 0.36 + compressed 0.77) + buffers 0.76 GiB + resident model 90.88 GiB = 92.77 GiB planned
+ds4: memory detail: ctx=100000 prefill_cap=4096 raw_kv_rows=4352 compressed_kv_rows=25002 backend=metal
+0809 10:50:01 ds4-server: context buffers 1933.21 MiB (ctx=100000, backend=metal, prefill_chunk=4096, raw_kv_rows=4352, compressed_kv_rows=25002)
+0809 10:50:01 ds4-server: KV disk cache /Users/evanhoffman/.ds4/server-kv (budget=8192 MiB, cross-quant=accept, min=512, cold_max=30000, continued=10000, trim=32, align=2048, hit_half_life=21600s)
+0809 10:50:01 ds4-server: tracing session to bench-0731/agent/server_trace.log
+0809 10:50:01 ds4-server: listening on http://127.0.0.1:8000
+0809 10:50:22 ds4-server: chat ctx=0..362:362 TOOLS prompt start
+0809 10:50:24 ds4-server: chat ctx=0..362:362 TOOLS prompt done 1.448s
+0809 10:50:25 ds4-server: chat ctx=362..412:50 gen=50 TOOLS DSML_START decoding chunk=39.95 t/s avg=39.95 t/s 1.251s
+0809 10:50:25 ds4-server: chat ctx=412..432:20 gen=70 TOOLS DSML_START DSML_END decoding chunk=40.06 t/s avg=39.98 t/s 1.751s
+0809 10:50:25 ds4-server: tool calls ctx=0..362:362 n=1 raw_tool_text=1 ids=[toolu_419d03ecf34ecaf642cfc5c2ff59a32a] names=[Read]
+0809 10:50:25 ds4-server: chat ctx=0..362:362 gen=70 TOOLS DSML_START DSML_END finish=tool_calls 3.199s
+0809 10:50:36 ds4-server: live kv cache miss live=432 prompt=332 common=257 reason=token-mismatch
+0809 10:50:36 ds4-server: chat ctx=0..332:332 TOOLS prompt start
+0809 10:50:37 ds4-server: chat ctx=0..332:332 TOOLS prompt done 1.192s
+0809 10:50:39 ds4-server: chat ctx=332..382:50 gen=50 TOOLS DSML_START decoding chunk=40.16 t/s avg=40.16 t/s 1.245s
+0809 10:50:39 ds4-server: chat ctx=382..401:19 gen=69 TOOLS DSML_START DSML_END decoding chunk=39.97 t/s avg=40.11 t/s 1.720s
+0809 10:50:39 ds4-server: tool calls ctx=0..332:332 n=1 raw_tool_text=1 ids=[toolu_035478abbea8f7376b65ddf6ada9fe28] names=[Bash]
+0809 10:50:39 ds4-server: chat ctx=0..332:332 gen=69 TOOLS DSML_START DSML_END finish=tool_calls 2.913s
+0809 10:50:39 ds4-server: live kv cache miss live=401 prompt=332 common=332 reason=token-mismatch
+0809 10:50:39 ds4-server: chat ctx=0..332:332 TOOLS prompt start
+0809 10:50:40 ds4-server: chat ctx=0..332:332 TOOLS prompt done 0.871s
+0809 10:50:41 ds4-server: chat ctx=332..382:50 gen=50 TOOLS DSML_START decoding chunk=40.02 t/s avg=40.02 t/s 1.249s
+0809 10:50:42 ds4-server: chat ctx=382..401:19 gen=69 TOOLS DSML_START DSML_END decoding chunk=39.87 t/s avg=39.98 t/s 1.726s
+0809 10:50:42 ds4-server: tool calls ctx=0..332:332 n=1 raw_tool_text=1 ids=[toolu_dc2b52a8317799322a8079fe51eb432c] names=[Bash]
+0809 10:50:42 ds4-server: chat ctx=0..332:332 gen=69 TOOLS DSML_START DSML_END finish=tool_calls 2.597s
+0809 10:51:05 ds4-server: live kv cache miss live=401 prompt=364 common=257 reason=token-mismatch
+0809 10:51:05 ds4-server: chat ctx=0..364:364 TOOLS prompt start
+0809 10:51:07 ds4-server: chat ctx=0..364:364 TOOLS prompt done 1.256s
+0809 10:51:08 ds4-server: chat ctx=364..414:50 gen=50 TOOLS DSML_START decoding chunk=40.07 t/s avg=40.07 t/s 1.248s
+0809 10:51:08 ds4-server: chat ctx=414..427:13 gen=63 TOOLS DSML_START DSML_END decoding chunk=40.17 t/s avg=40.09 t/s 1.572s
+0809 10:51:08 ds4-server: tool calls ctx=0..364:364 n=1 raw_tool_text=1 ids=[toolu_a5464f184c98aac12b09f95bd9db55dd] names=[Read]
+0809 10:51:08 ds4-server: chat ctx=0..364:364 gen=63 TOOLS DSML_START DSML_END finish=tool_calls 2.827s
+0809 10:51:50 ds4-server: live kv cache miss live=427 prompt=354 common=1 reason=token-mismatch
+0809 10:51:50 ds4-server: chat ctx=0..354:354 prompt start
+0809 10:51:51 ds4-server: chat ctx=0..354:354 prompt done 1.240s
+0809 10:51:53 ds4-server: chat ctx=354..404:50 gen=50 THINKING decoding chunk=39.35 t/s avg=39.35 t/s 1.271s
+0809 10:51:53 ds4-server: chat ctx=404..428:24 gen=74 decoding chunk=39.21 t/s avg=39.30 t/s 1.883s
+0809 10:51:53 ds4-server: thinking live checkpoint remembered ctx=0..354:354 live=428 visible=1644
+0809 10:51:53 ds4-server: chat ctx=0..354:354 gen=74 finish=stop 3.123s
+0809 10:51:53 ds4-server: live kv cache miss live=428 prompt=25868 common=1 reason=token-mismatch
+0809 10:51:53 ds4-server: chat ctx=0..25868:25868 TOOLS prompt start
+0809 10:51:53 ds4-server: chat ctx=0..25868:25868 TOOLS prefill chunk 0/25868 (0.0%) chunk=0.00 t/s avg=0.00 t/s 0.001s
+0809 10:51:59 ds4-server: chat ctx=0..25868:25868 TOOLS prefill chunk 4096/25868 (15.8%) chunk=710.79 t/s avg=710.73 t/s 5.763s
+0809 10:52:05 ds4-server: chat ctx=0..25868:25868 TOOLS prefill chunk 8192/25868 (31.7%) chunk=659.80 t/s avg=684.31 t/s 11.971s
+0809 10:52:12 ds4-server: chat ctx=0..25868:25868 TOOLS prefill chunk 12288/25868 (47.5%) chunk=628.64 t/s avg=664.69 t/s 18.487s
+0809 10:52:18 ds4-server: chat ctx=0..25868:25868 TOOLS prefill chunk 16384/25868 (63.3%) chunk=617.50 t/s avg=652.23 t/s 25.120s
+0809 10:52:25 ds4-server: chat ctx=0..25868:25868 TOOLS prefill chunk 20480/25868 (79.2%) chunk=575.86 t/s avg=635.38 t/s 32.233s
+0809 10:52:25 ds4-server: kv cache stored tokens=20480 trimmed=0 reason=continued key=token-text size=291.79 MiB save=34.5 ms
+0809 10:52:35 ds4-server: chat ctx=0..25868:25868 TOOLS prefill chunk 24439/25868 (94.5%) chunk=411.45 t/s avg=583.90 t/s 41.855s
+0809 10:52:35 ds4-server: kv cache stored tokens=24439 trimmed=1429 reason=cold key=token-text size=343.70 MiB save=47.0 ms
+0809 10:52:36 ds4-server: chat ctx=0..25868:25868 TOOLS prefill chunk 24576/25868 (95.0%) chunk=155.88 t/s avg=575.09 t/s 42.734s
+0809 10:52:39 ds4-server: chat ctx=0..25868:25868 TOOLS prefill chunk 25868/25868 (100.0%) chunk=451.78 t/s avg=567.36 t/s 45.594s
+0809 10:52:39 ds4-server: chat ctx=0..25868:25868 TOOLS prompt done 45.594s
+0809 10:52:39 ds4-server: chat ctx=25868..25883:15 gen=15 TOOLS decoding chunk=34.24 t/s avg=34.24 t/s 0.438s
+0809 10:52:39 ds4-server: chat ctx=0..25868:25868 gen=15 TOOLS finish=stop 46.035s
+0809 10:52:55 ds4-server: live kv cache miss live=25883 prompt=347 common=1 reason=token-mismatch
+0809 10:52:55 ds4-server: kv cache stored tokens=25883 trimmed=0 reason=evict key=token-text size=362.69 MiB save=39.0 ms
+0809 10:52:55 ds4-server: chat ctx=0..347:347 prompt start
+0809 10:52:56 ds4-server: chat ctx=0..347:347 prompt done 1.192s
+0809 10:52:57 ds4-server: chat ctx=347..397:50 gen=50 THINKING decoding chunk=39.20 t/s avg=39.20 t/s 1.275s
+0809 10:52:59 ds4-server: chat ctx=397..447:50 gen=100 THINKING decoding chunk=39.25 t/s avg=39.23 t/s 2.549s
+0809 10:53:00 ds4-server: chat ctx=447..496:49 gen=149 decoding chunk=39.21 t/s avg=39.22 t/s 3.799s
+0809 10:53:00 ds4-server: thinking live checkpoint remembered ctx=0..347:347 live=496 visible=1614
+0809 10:53:00 ds4-server: chat ctx=0..347:347 gen=149 finish=stop 4.991s
+0809 10:53:00 ds4-server: live kv cache miss live=496 prompt=25676 common=1 reason=token-mismatch
+0809 10:53:00 ds4-server: kv cache hit text tokens=20480 text=84625 quant=2 key=token-text load=68.6 ms file=/Users/evanhoffman/.ds4/server-kv/46432cf422d730731566f9ea7bcdf1d73f97fc0c.kv
+0809 10:53:00 ds4-server: chat ctx=20480..25676:5196 TOOLS prompt start
+0809 10:53:00 ds4-server: chat ctx=20480..25676:5196 TOOLS prefill chunk 0/5196 (0.0%) chunk=0.00 t/s avg=0.00 t/s 0.000s
+0809 10:53:07 ds4-server: chat ctx=20480..25676:5196 TOOLS prefill chunk 4096/5196 (78.8%) chunk=608.15 t/s avg=608.11 t/s 6.736s
+0809 10:53:09 ds4-server: chat ctx=20480..25676:5196 TOOLS prefill chunk 5196/5196 (100.0%) chunk=452.39 t/s avg=566.81 t/s 9.167s
+0809 10:53:09 ds4-server: chat ctx=20480..25676:5196 TOOLS prompt done 9.167s
+0809 10:53:10 ds4-server: chat ctx=25676..25695:19 gen=19 TOOLS decoding chunk=34.48 t/s avg=34.48 t/s 0.551s
+0809 10:53:10 ds4-server: chat ctx=20480..25676:5196 gen=19 TOOLS finish=stop 9.718s
