@@ -6,6 +6,11 @@ built from `main @ b030961`.
 
 ---
 
+> **Routing rules now live in [`agent/ROUTING.md`](agent/ROUTING.md)** — which
+> work to send to the local model, which to keep on a frontier model, and why.
+> Derived from two capability ladders. Read that first if you are deciding what
+> to run where; this document covers *how* to set it up.
+
 ## TL;DR
 
 Use the **mixed q2/q4 0731** build, **resident**, served by **`ds4-server`**
