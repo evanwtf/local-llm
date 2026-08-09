@@ -255,6 +255,71 @@ heats the laptop least — there is no trade-off to make.
 
 ---
 
+## 3c. SSD-streamed 4-bit models (issue #3) — better answers, much slower prompts
+
+MXFP4 (145.3 GiB) and Q4 (153.3 GiB) exceed 128 GiB and require
+`--ssd-streaming`. Both were measured; **MXFP4 wins on every axis** (better
+perplexity, faster, 8 GiB smaller), so it carried the full eval.
+
+### Quality
+
+| model | perplexity | eval | avg tokens/q | runtime |
+|---|---|---|---|---|
+| **MXFP4 0731 (streamed)** | **4.5078** | **80/92 (87.0%)** | **2,157** | 3h03m |
+| Q4 0731 (streamed) | 4.5629 | not run | — | — |
+| mixed q2/q4 0731 (resident) | 5.9082 | 76/92 (82.6%) | 3,111 | 2h20m |
+
+MXFP4 is genuinely better: **+4 questions and 31% fewer tokens per answer.**
+Two independent signals agree — a 23.7% perplexity advantage and a higher eval
+score — so this is not a lucky run.
+
+Failures by category:
+
+| category | MXFP4 | mixed q2/q4 |
+|---|---|---|
+| AIME2025 | **4** | 6 |
+| GPQA Diamond | **4** | 5 |
+| SuperGPQA | 4 | 4 |
+| COMPSEC | **0** | 1 |
+
+### Speed — the catch
+
+| | prefill @8192 | gen steady @8192 |
+|---|---|---|
+| mixed q2/q4 (resident) | **488.5** | **35.5** |
+| MXFP4 (streamed) | 115.7 | 18.1 |
+| MXFP4 (streamed, 100 GB expert cache) | 63.6 | 20.9 |
+
+Generation drops to ~51–59% of resident. **Prefill drops to 13–24%**, and that
+is what decides it. Concretely, a 30,000-token prompt:
+
+- resident mixed q2/q4: ~61 s
+- MXFP4 streamed: ~260 s
+
+Over four minutes versus one, on every long prompt.
+
+### Recommendation: depends on your workload
+
+**Short prompts, hard problems → MXFP4 streamed.** Chat-style reasoning, maths,
+one-shot questions. Better answers, fewer tokens, and the prompt is too short
+for the prefill penalty to bite. It is also *cooler*: mean 1430 MHz vs ~1274–1295
+for resident runs, because I/O stalls let the GPU shed heat (see thermals).
+
+**Long prompts, agentic work, large context → mixed q2/q4 resident.** Anything
+that repeatedly feeds large contexts pays the prefill penalty on every turn, and
+4 questions out of 92 does not buy back four minutes per prompt.
+
+**If you only want one: keep the mixed q2/q4 resident build.** The 87.0% vs
+82.6% gap is real but modest, and prefill throughput is felt constantly in
+interactive use whereas the accuracy difference shows up occasionally. MXFP4 is
+worth keeping on disk for hard one-off problems.
+
+Note the mixed build finished the suite in 2h20m against MXFP4's 3h03m *despite*
+generating 44% more tokens — streaming's per-token cost outweighs MXFP4's
+efficiency.
+
+---
+
 ## 4. DSpark speculative decoding — tested, do not enable
 
 **Result: DSpark is a consistent loss on this machine. Leave it off.**

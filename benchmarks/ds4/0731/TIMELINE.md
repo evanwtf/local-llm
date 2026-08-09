@@ -120,4 +120,6 @@ All times local (America/New_York), 2026-08-08. Regenerate with `sh bench-0731/b
 [2026-08-08 19:46:12] ppl done: q4_stream -- tokens=94826 scored=32736 nll=49691.873684528 avg_nll=1.517958018 ppl=4.562898321
 [2026-08-08 19:46:12] STREAMING PPL DONE
 [2026-08-08 19:46:41] evalfull start: mxfp4_stream
+[2026-08-08 22:49:48] evalfull done: mxfp4_stream -- ds4-eval: 80/92 passed, 12 failed, runtime 03h:03m
+[2026-08-08 22:49:48] EVALFULL MXFP4 DONE
 ```
