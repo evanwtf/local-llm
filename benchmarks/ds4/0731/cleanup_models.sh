@@ -12,6 +12,13 @@
 #   B  redundant by inspection (duplicate quants/tags, unusable runtimes)
 #   C  no evidence either way — your call, listed for review only
 #
+# DELIBERATELY NOT DELETED - gemma4 MLX bf16 variants (~77 GB):
+#   gemma4:26b-mlx-bf16, gemma4:e4b-mlx-bf16, gemma4:e2b-mlx-bf16
+#   Ollama cannot use these for inference, so they were previously listed as
+#   deletion candidates. Retained deliberately as an archive: open weights may
+#   not stay freely downloadable, and bf16 is the highest-fidelity copy on hand.
+#   Disk is not scarce (2.5 TiB free). Do not re-propose these.
+#
 # DELIBERATELY NOT DELETED (the two keepers, from REPORT.md):
 #   DeepSeek-V4-Flash-Layers37-42Q4KExperts-...-fixed-0731.gguf   90.9 GiB
 #       the recommendation: 76/92 eval, best resident model
@@ -33,9 +40,6 @@ gguf|DeepSeek-V4-Flash-IQ2XXS-w2Q2K-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix-0731.gg
 gguf|DeepSeek-V4-Flash-Q4KExperts-F16HC-F16Compressor-F16Indexer-Q8Attn-Q8Shared-Q8Out-chat-v2-imatrix-0731.gguf|A|Q4 0731: loses to MXFP4 on perplexity (4.5629 vs 4.5078), speed and size
 gguf|DeepSeek-V4-Flash-DSpark-support-0731.gguf|A|DSpark: measured 23-44% SLOWER at every setting; re-download ~15 min if a new checkpoint ships
 gguf|GLM-5.2-UD-IQ2_XXS_RoutedIQ2XXS_blk78Q2K.gguf|A|GLM 5.2: 3.9 t/s on this machine (~10% of DeepSeek); needs two machines
-ollama|gemma4:26b-mlx-bf16|B|MLX bf16 duplicate - only useful with an MLX runtime, not ollama
-ollama|gemma4:e4b-mlx-bf16|B|MLX bf16 duplicate - only useful with an MLX runtime, not ollama
-ollama|gemma4:e2b-mlx-bf16|B|MLX bf16 duplicate - only useful with an MLX runtime, not ollama
 ollama|hf.co/Jackrong/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled-GGUF:Q8_0|B|last Qwen3.5-based model; you removed the rest of the 3.5 family
 ollama|deepseek-r1:8b|B|superseded by DeepSeek V4 Flash locally; small, but an older generation
 ollama|gemma4:e2b|C|one of NINE gemma4 tags - review the family, keep the sizes you use
