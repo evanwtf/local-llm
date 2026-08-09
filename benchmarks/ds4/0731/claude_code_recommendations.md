@@ -18,6 +18,13 @@ with **`--warm-weights`**.
   --ctx 100000
 ```
 
+> **Do not add `--trace` casually.** It logs the full prompt of every request —
+> with Claude Code that means your `CLAUDE.md` and the contents of every file
+> the agent reads, on every turn. Useful for cache diagnostics, but the output
+> is private and must never be committed. See
+> [`agent/AGENT_FINDINGS.md`](agent/AGENT_FINDINGS.md) for the incident that
+> prompted this note.
+
 Then point Claude Code at it (wrapper below).
 
 **Do not** use the MXFP4 build for agent work, despite it scoring higher on the

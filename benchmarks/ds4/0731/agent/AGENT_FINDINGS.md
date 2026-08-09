@@ -31,8 +31,24 @@ which is untested.
   -m gguf/DeepSeek-V4-Flash-Layers37-42Q4KExperts-OtherExpertLayersIQ2XXSGateUp-Q2KDown-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix-fixed-0731.gguf \
   --warm-weights --ctx 100000 \
   --kv-disk-dir ~/.ds4/server-kv --kv-disk-space-mb 8192 \
-  --trace bench-0731/agent/server_trace.log
+  --trace bench-0731/agent/server_trace.log   # ⚠️ see warning below
 ```
+
+> ### ⚠️ `--trace` captures full prompts — never commit its output
+>
+> `--trace` logs the **entire prompt of every request**. With Claude Code that
+> means your global `CLAUDE.md` is written to the file on *every turn*, plus the
+> contents of any file the agent reads. In this session it produced a 29 MB log
+> containing the operator's `CLAUDE.md` ~1692 times, which was committed to a
+> public branch before being caught.
+>
+> It is genuinely useful for cache diagnostics (§ below) — but treat the output
+> as secret. `.gitignore` blocks `*_trace.log` and
+> `bench-0731/agent/server*.log`; do not override that. Omit `--trace` entirely
+> unless you are actively debugging cache behaviour.
+>
+> No credentials appear in it — the trace records prompts, not environment
+> variables — but the file is still private operational detail.
 
 - **92.77 GiB** planned at `--ctx 100000` (90.88 model + 1.12 KV + 0.76 buffers)
 - **4 s** to serving, despite warming 90.88 GiB of tensor pages
@@ -150,6 +166,7 @@ turns resend a large unchanged prefix, and it is being reused rather than
 re-prefilled.
 
 No server patching was needed — `--trace` emits `--- cache decision ---` blocks
+(**but see the warning above: its output must not be committed**)
 with `cache_source`, `memory_miss_reason`, `cached_tokens`, `disk_cached_tokens`,
 and `/v1/messages` responses carry `cache_read_input_tokens`.
 
@@ -226,7 +243,9 @@ harnesses.
 
 - Server + wrapper: [`claude-ds4`](claude-ds4)
 - Ladder transcripts: [`ladder/`](ladder/)
-- Cache/trace data: `server_trace.log`
+- Cache evidence: [`cache_summary.txt`](cache_summary.txt) — extracted from the
+  raw trace so the numbers stay checkable without publishing prompt contents.
+  The trace itself is gitignored and deliberately not in this repo.
 - Source changes produced by the agent: branch `agent-ladder-scratch`
   (all five binaries gained `--version`; cherry-pickable)
 
