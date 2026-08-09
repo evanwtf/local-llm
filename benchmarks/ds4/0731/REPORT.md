@@ -568,3 +568,89 @@ for its own sake.
 
 Data: `bench-0731/glm/`, `run_glm.sh`.
 
+
+---
+
+## 8. Energy and thermals
+
+`powermetrics` became available mid-session via a passwordless sudoers rule
+scoped to that one binary. Two experiments followed.
+
+### 8.1 Energy vs `--power` — race to idle wins
+
+Identical workload (2048 → 16384 sweep, 128 gen tokens per frontier) at four GPU
+duty-cycle targets, integrating GPU watts over each run:
+
+| `--power` | wall | energy | mean W | prefill @8k | vs 100% energy | vs 100% time |
+|---|---|---|---|---|---|---|
+| **100** | **59 s** | **3303 J** | 56.0 | 620.9 | — | — |
+| 85 | 71 s | 3617 J | 50.9 | 506.9 | **+9.5%** | +20% |
+| 70 | 91 s | 3618 J | 39.8 | 401.6 | **+9.5%** | +54% |
+| 50 | 132 s | 3562 J | 27.0 | 269.0 | **+7.8%** | +124% |
+
+**Full power is both fastest and most energy-efficient.** Capping the GPU costs
+**8–10% more total energy** while taking 20–124% longer.
+
+This refutes the hypothesis that motivated the experiment. GPUs usually gain
+efficiency at lower clocks because power scales superlinearly with
+voltage/frequency, so `--power 70` was expected to cut total joules at the cost
+of latency. It does not: mean draw falls roughly linearly (56 → 27 W) while
+runtime rises faster, so the integral moves the wrong way. Fixed overheads that
+run regardless of clock — memory, SoC, controllers — evidently dominate.
+
+**Practical rule: race to idle.** To minimise heat delivered or energy consumed,
+run at 100 and finish sooner. Over a fixed window, 59 s of work then idle beats
+132 s of grinding at lower wattage. Use `--power` only to buy quiet in the
+moment; it does not make the machine cooler overall, and it is not more
+efficient.
+
+This also settles the model-choice question on thermal grounds: the fastest
+model to complete a task is the coolest, which is why the mixed q2/q4 build
+(2h20m for the eval suite) beats baseline (3h07m) on heat as well as quality.
+
+
+### 8.2 Cold-start ramp — the boost window is minutes, not seconds
+
+15 minutes idle to reach baseline, then GPU clock, power and thermal pressure
+sampled at 1 Hz through 5 minutes of continuous load (2048 → 65536 sweep).
+
+| window | mean MHz | mean W | non-Nominal pressure |
+|---|---|---|---|
+| 0–30 s | **1606** | 64.4 | 0% |
+| 30–60 s | 1550 | 58.2 | 0% |
+| 60–120 s | 1546 | 56.7 | 0% |
+| 120–180 s | 1544 | 57.6 | 30% |
+| 180–240 s | 1553 | 57.7 | 100% |
+| 240–300 s | **1379** | 45.5 | 100% |
+
+43% of samples reached the full 1620 MHz. Peak draw hit **96–98 W** in the first
+20 seconds, against the 40–58 W typical of long runs.
+
+**This corrects an earlier claim.** During the session I asserted the cold-boost
+window was "perhaps the first 30–90 seconds" and that cooling the machine would
+change only the first minute of a long run. Wrong: a cold GPU holds ~1550 MHz
+for a full **four minutes**, and pressure does not even reach Heavy within five
+minutes — it peaks at Moderate.
+
+The **~1274–1295 MHz Heavy clamp** documented in §3b therefore takes *tens of
+minutes to hours* of sustained load to set in, not seconds. Both observations
+are correct; they describe different timescales.
+
+Consequences:
+
+- **Long runs:** unchanged. Five minutes of elevated clock is ~3.5% of a 2h20m
+  eval, so starting cold would have gained 1–2%. Re-running the suite for
+  thermal cleanliness would not have been worth it.
+- **Short interactive sessions:** a cool machine really is faster for the first
+  few minutes — a genuine effect, larger than previously credited.
+- **Benchmark methodology:** this is the mechanism behind the first-run vs
+  steady-state gap (775 t/s cold vs ~540–590 repeated). Any single-shot
+  measurement on a cool machine is measuring the boost window, not sustained
+  performance. Both numbers are real; they answer different questions.
+
+Data: `bench-0731/thermal/ramp2.txt`, `run_ramp.sh`.
+
+*Note:* a first attempt produced an empty file — the awk filter used `systime()`,
+a GNU extension absent from macOS BSD awk, so it died silently. `run_ramp.sh` is
+the corrected retry.
+

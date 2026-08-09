@@ -1,0 +1,5 @@
+[2026-08-09 03:55:40] waiting for the --power sweep to finish
+[2026-08-09 04:12:40] cooling 15 minutes to thermal baseline
+[2026-08-09 04:27:40] baseline reached; sampling at 1 Hz for 300 s
+[2026-08-09 04:31:52] ramp workload done
+[2026-08-09 04:32:43] RAMP DONE (     300 samples)
