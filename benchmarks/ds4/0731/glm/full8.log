@@ -1,0 +1,26 @@
+ds4: Metal device Apple M5 Max, 128.00 GiB RAM
+ds4: Metal 4 tensor API enabled for Tensor kernels
+ds4: drift-patch flags hc_stable=on norm_unify=on kv_raw_f32=off rope_exp2_log2=off math_safe=off tensor_matmul=on
+ds4: Metal SSD streaming mode enabled; full model residency and warmup are skipped
+ds4: SSD streaming auto cache budget
+ds4:   metal recommends 107.52 GiB working set
+ds4:   using 80% total for model + cached experts: 86.02 GiB
+ds4:   non-routed weights: 22.55 GiB
+ds4:   routed expert size: 9.28 MiB
+ds4:   expert budget before prefill/full-layer reserve: 1323 (11.99 GiB)
+ds4:   GLM graph auto cache capped at 12.00 GiB; pass --ssd-streaming-cache-experts NGB to override
+ds4: GLM SSD streaming full resident layers capped from 8 to 2 by 11.99 GiB total expert budget
+ds4: GLM SSD streaming full resident layers: 2 (4.64 GiB, explicit)
+ds4: metal SSD streaming total expert budget 11.99 GiB = 4.64 GiB prefill headroom + 4.64 GiB full layers + 2.71 GiB dynamic cache (299 experts, 9.28 MiB each)
+ds4: SSD streaming mixed-precision model: 1/76 routed layers off the slab size class will bypass the expert cache and read experts via mapped model views
+ds4: WARNING: SSD streaming expert cache (299 experts) is under twice the per-token routed working set (75 layers x 8 experts = 600); expect heavy thrashing below 10.88 GiB
+ds4: SSD streaming initial metal model map restricted to token embedding (1 spans, 0.94 GiB tensor span)
+ds4: metal backend initialized for graph diagnostics
+ds4: memory: KV 0.74 GiB (raw 0.00 + compressed 0.74) + buffers 4.07 GiB + resident model 0.94 GiB + full-layer experts 4.64 GiB + expert cache 2.71 GiB + prefill expert reserve 4.64 GiB = 17.74 GiB planned
+ds4: memory detail: ctx=8321 prefill_cap=4096 raw_kv_rows=0 compressed_kv_rows=8321 backend=metal
+ds4-bench: context buffers 4923.08 MiB (ctx=8321, backend=metal, prefill_chunk=4096, raw_kv_rows=0, compressed_kv_rows=8321)
+ds4: GLM session ctx=8321 (model max=1048576); full-attention prefill/work cap=8192; compact indexed decode is used beyond the cap
+ds4: GLM graph using compact DSA KV only; expanded full-attention KV cache is skipped
+ds4: GLM graph allocating compact DSA cache: rows=8321 logical_ctx=8321 kv_layers=78 indexer_layers=21 f16 0.74 GiB
+ds4: GLM compact indexed prefill chunk=4096 score_rows=4096 score_scratch=130.02 MiB
+ds4-bench: session payload snapshot is 1.09 GiB, above the 1.00 GiB benchmark limit; replaying prefixes instead (set DS4_BENCH_FORCE_SNAPSHOT=1 to force snapshots)

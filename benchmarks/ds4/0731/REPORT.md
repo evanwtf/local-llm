@@ -507,3 +507,64 @@ haystack) was not measured; a model can stay fast while degrading at recall.
 eval) in this directory drive everything. Both pass `-m` explicitly to every
 invocation and restore `ds4flash.gguf` to the baseline model on completion, so
 they never silently change your default.
+
+---
+
+## 7. GLM 5.2 on a single 128 GiB machine (issue #4) — not viable
+
+`GLM-5.2-UD-IQ2_XXS` is **196.6 GiB** against 128 GiB of RAM, so it streams far
+harder than the 145–153 GiB DeepSeek 4-bit models. Four configurations measured
+at 8192 ctx:
+
+| config | prefill | gen steady |
+|---|---|---|
+| default | 43.5 | 3.66 |
+| `--ssd-streaming-full-layers 8` | 40.3 | 3.72 |
+| `--ssd-streaming-preload-experts 256` | 40.5 | **3.94** |
+| `--ssd-streaming-cache-experts 80GB` | — | refused by memory guard |
+| **DeepSeek mixed q2/q4 (resident)** | **488.5** | **35.5** |
+
+**~8% of DeepSeek's prefill and ~10% of its generation.** A 2,000-token reply
+takes about 9 minutes.
+
+### Tuning does not rescue it
+
+GLM-specific controls moved the number by at most **+6%** (3.66 → 3.94).
+The bottleneck is raw I/O volume, not cache policy: thermal telemetry shows
+13.9 W at *Nominal* pressure with the GPU largely idle — it is waiting on the
+SSD, not computing.
+
+The 80 GB expert cache was refused outright:
+
+```
+ds4: GLM memory guard refused ctx=8321 compact_cap=8321
+     streamed active model map: 28.58 GiB (full GGUF 196.58 GiB)
+     required model+graph: 113.39 GiB; guard budget: 96.00 GiB
+     (base 128.00, fraction 0.99, reserve 32.00, transient 80.00)
+```
+
+Working as designed — the guard prevents an allocation that would not fit.
+
+### A second problem: KV footprint
+
+GLM's KV cache is **~7.5× larger** than DeepSeek's — 390 MB at 2048 tokens vs
+52 MB. Even ignoring speed, long context would be far more expensive, which
+matters given DeepSeek reached 256k comfortably (§6).
+
+### Conclusion
+
+**Do not run GLM 5.2 on this machine.** This matches the README, whose
+GLM-on-128GB material targets *two* MacBooks (188 GiB split across a pair).
+It is a distributed-inference model at this quant, not a single-laptop one.
+
+Neither perplexity nor the eval harness was run. At 3.9 t/s the 92-question
+suite would take **20+ hours**, and perplexity is not comparable across model
+families anyway (different tokenizer ⇒ different token counts for the same
+text). The speed result is decisive on its own.
+
+*Not tested:* smaller GLM quants, or GLM across two machines via the
+distributed/RDMA path the README documents. Those remain open if GLM is wanted
+for its own sake.
+
+Data: `bench-0731/glm/`, `run_glm.sh`.
+
