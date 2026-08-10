@@ -277,6 +277,12 @@ MXFP4 is genuinely better: **+4 questions and 31% fewer tokens per answer.**
 Two independent signals agree — a 23.7% perplexity advantage and a higher eval
 score — so this is not a lucky run.
 
+> **Third signal, 2026-08-10:** HumanEval agrees in direction (98.2% vs 96.3%)
+> but the margin is not significant (p = 0.453). The *token* advantage
+> replicates strongly and turns out to matter more than the score: MXFP4 uses
+> 34% fewer tokens per answer here, and mixed's excess is concentrated in a tail
+> of prompts it never finishes. See [`../bench-coding/RESULTS.md`](../bench-coding/RESULTS.md).
+
 Failures by category:
 
 | category | MXFP4 | mixed q2/q4 |
@@ -417,13 +423,18 @@ Claude Code connects through the Anthropic-compatible `/v1/messages` endpoint;
 the README documents a wrapper (`ANTHROPIC_BASE_URL=http://127.0.0.1:8000`,
 `ANTHROPIC_MODEL=deepseek-v4-flash`) around line 1258.
 
-> **Caveat — nothing here measured coding.** The 92-question set is GPQA
-> Diamond, SuperGPQA, AIME2025 and one COMPSEC category; only the last touches
-> code, and it is security analysis of C snippets, not code generation. The
-> 87.0% vs 82.6% ranking is *general reasoning*, extrapolated to coding on the
-> assumption the two correlate. That assumption is untested here. A real coding
-> benchmark (SWE-bench-style, or HumanEval) would be needed before treating this
-> as a coding recommendation rather than a latency one.
+> **Update 2026-08-10 — coding was measured; see
+> [`../bench-coding/RESULTS.md`](../bench-coding/RESULTS.md).** HumanEval 164,
+> pass@1: mixed **96.3%**, MXFP4 **98.2%**. Same direction as the general-
+> reasoning ranking, but **not significant** (paired McNemar, exact, p = 0.453),
+> and both models saturate the benchmark. Neither wrote a logically incorrect
+> program — all failures in both are non-termination at the token cap.
+>
+> So the extrapolation below was not wrong, but it is still not *confirmed*:
+> HumanEval lacks the resolution to rank these two. Separating them on code
+> needs SWE-bench Lite or a repo-local suite. The recommendation stands on
+> latency, as it always did — and end-to-end mixed also proved faster (118 min
+> vs 164 min) and lower-energy (54.8 vs 57.9 Wh) on the same 164 problems.
 
 ---
 

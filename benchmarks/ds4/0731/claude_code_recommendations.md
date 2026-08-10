@@ -134,16 +134,27 @@ Responses wire API (`/v1/responses`), Pi uses `~/.pi/agent/settings.json`.
 
 ## Caveats — read before trusting this
 
-**No coding benchmark was run.** The 92-question set is GPQA Diamond,
-SuperGPQA, AIME2025 and one COMPSEC category; only the last touches code, and it
-is security analysis of C snippets rather than code generation. The 82.6% vs
-87.0% ranking measures *general reasoning*. This document extrapolates to coding
-on the assumption the two correlate, which is untested here.
+**A coding benchmark has now been run — see
+[`../bench-coding/RESULTS.md`](../bench-coding/RESULTS.md).** HumanEval 164,
+pass@1, both models: mixed **96.3%**, MXFP4 **98.2%**. The 3-problem gap is
+**not significant** (paired McNemar, exact, p = 0.453), and neither model wrote
+a single logically incorrect program — every failure in both is the model
+running past the token cap without finishing.
 
-**The latency argument is solid; the quality ranking is inherited.** §2's
-conclusion rests on measured prefill throughput and holds regardless of coding
-ability. The claim that the mixed build is the best *resident* model rests on
-the general-reasoning eval.
+That is a null result, not a confirmation: HumanEval saturates at 96–98% and
+cannot rank these two. It does remove the older worry that coding might fall off
+a cliff relative to the general-reasoning score. Ranking them on code would need
+SWE-bench Lite or a repo-local suite.
+
+**The latency argument is solid and remains the deciding factor.** §2's
+conclusion rests on measured prefill throughput. End-to-end, mixed finished the
+same 164 problems in 118 min against MXFP4's 164 min, and used *less* total
+energy (54.8 vs 57.9 Wh) despite drawing 24% more power — race to idle again.
+
+**Cap generation and treat a cap-hit as a retry, not a result.** Mixed fails to
+terminate on ~4.9% of prompts (8/164 hit an 8192-token cap; MXFP4 4/164). Its
+median output is normal (783 tokens) — the problem is a fat right tail, so
+latency is usually fast and occasionally stalled.
 
 **Long context is now measured to 256k (issue #5) — `--ctx 100000` is
 validated.** At 98304 the mixed build runs 340 t/s prefill / 25.5 t/s
