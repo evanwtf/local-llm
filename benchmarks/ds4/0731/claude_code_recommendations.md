@@ -20,8 +20,12 @@ with **`--warm-weights`**.
 ./ds4-server \
   -m gguf/DeepSeek-V4-Flash-Layers37-42Q4KExperts-OtherExpertLayersIQ2XXSGateUp-Q2KDown-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix-fixed-0731.gguf \
   --warm-weights \
-  --ctx 100000
+  --ctx 100000 \
+  --kv-disk-dir ~/.ds4/server-kv --kv-disk-space-mb 8192
 ```
+
+`--kv-disk-dir` spills the prefix cache to disk, so a cache entry survives an
+eviction instead of forcing a full re-prefill. See §4.
 
 > **Do not add `--trace` casually.** It logs the full prompt of every request —
 > with Claude Code that means your `CLAUDE.md` and the contents of every file
@@ -99,27 +103,29 @@ actually occurring before tuning anything else.
 ## 5. Claude Code wrapper
 
 `ds4-server` exposes an Anthropic-compatible `/v1/messages` that returns proper
-`tool_use` blocks and streams thinking separately from text. Per README ~line
-1258, save as `~/bin/claude-ds4`:
+`tool_use` blocks and streams thinking separately from text.
 
-```sh
-#!/bin/sh
-unset ANTHROPIC_API_KEY
+**The wrapper is [`agent/claude-ds4`](agent/claude-ds4)** — the committed copy is
+byte-identical to the installed `~/bin/claude-ds4`. Run `claude-ds4` instead of
+`claude`. Note that `~/bin` is not on `PATH` by default.
 
-export ANTHROPIC_BASE_URL="http://127.0.0.1:8000"
-export ANTHROPIC_AUTH_TOKEN="dsv4-local"
-export ANTHROPIC_MODEL="deepseek-v4-flash"
+Two settings in it are easy to miss:
 
-export ANTHROPIC_CUSTOM_MODEL_OPTION="deepseek-v4-flash"
-export ANTHROPIC_CUSTOM_MODEL_OPTION_NAME="DeepSeek V4 Flash local ds4"
-export ANTHROPIC_CUSTOM_MODEL_OPTION_DESCRIPTION="ds4.c local GGUF"
-export ANTHROPIC_DEFAULT_SONNET_MODEL="deepseek-v4-flash"
+- `CLAUDE_CODE_MAX_CONTEXT_TOKENS=100000` must match the server's `--ctx`.
+  Claude Code assumes 200k for a model it does not recognise, so without this
+  auto-compact fires *after* the server has already truncated. Change both
+  numbers together.
+- `ANTHROPIC_DEFAULT_OPUS_MODEL` and `..._HAIKU_MODEL` are set alongside
+  `..._SONNET_MODEL`, so background and summarisation calls do not try to reach
+  a model the server does not serve.
 
-exec claude "$@"
-```
+Other agents are documented in README ~line 1258: Codex CLI uses the Responses
+wire API (`/v1/responses`), Pi uses `~/.pi/agent/settings.json`.
 
-Other agents are documented in the same README section: Codex CLI uses the
-Responses wire API (`/v1/responses`), Pi uses `~/.pi/agent/settings.json`.
+**Ollama is not an option here.** It speaks the OpenAI chat API, not
+`/v1/messages`, so Claude Code cannot drive it without a proxy that correctly
+round-trips `tool_use`/`tool_result` — and these GGUFs are built for `ds4`, a
+V4-Flash-specific engine.
 
 ## 6. Settings to avoid
 
