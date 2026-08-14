@@ -11,3 +11,4 @@ ds4: memory detail: ctx=100000 prefill_cap=4096 raw_kv_rows=4352 compressed_kv_r
 0810 16:46:35 ds4-server: context buffers 1933.21 MiB (ctx=100000, backend=metal, prefill_chunk=4096, raw_kv_rows=4352, compressed_kv_rows=25002)
 0810 16:46:35 ds4-server: KV disk cache /Users/evanhoffman/.ds4/server-kv (budget=8192 MiB, cross-quant=accept, min=512, cold_max=30000, continued=10000, trim=32, align=2048, hit_half_life=21600s)
 0810 16:46:35 ds4-server: listening on http://127.0.0.1:8000
+0811 09:05:04 ds4-server: shutdown requested, draining requests

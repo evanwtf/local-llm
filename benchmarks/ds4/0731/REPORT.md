@@ -55,7 +55,7 @@ compromise. Measured memory plans: 81.62 GiB (both Q2 builds) and 91.75 GiB
 ### Methodology note
 
 Every run in this report used the **same freshly built binary**. Your existing
-`speed-bench/m5_max_128gb_resident.csv` was produced on 2026-06-28 by a binary
+`speed-bench/local-runs/m5_max_128gb_resident.csv` was produced on 2026-06-28 by a binary
 that predates the Metal MoE and indexed-prefill commits, and it is **not** a
 valid baseline: rebuilt, the *same old model* went from 412 → 621 t/s prefill at
 2048 ctx. Comparing 0731 against that file would have credited a ~50% engine
@@ -505,7 +505,7 @@ haystack) was not measured; a model can stay fast while degrading at recall.
 |---|---|---|
 | 5 | long-context behaviour beyond 64k | **not measured** — matters for agents; the mixed build uses 90.9 of 128 GiB, so KV headroom is tighter than the q2 builds |
 | 4 | GLM 5.2 as an alternative family | not started (197 GiB, streamed) |
-| 7 | refresh stale `speed-bench/m5_max_128gb_resident.csv` | superseded data exists here; upstream contribution should state whether it is a first-run or steady-state number |
+| 7 | refresh stale `speed-bench/local-runs/m5_max_128gb_resident.csv` | superseded data exists here; kept out of the repo as a local run (old 6-column schema, pre-Metal-MoE binary); an upstream contribution should state whether it is a first-run or steady-state number |
 | 8 | disk: ~320 GiB reclaimable in `gguf/`, 636 GiB in Ollama | pruning deferred until #4/#5 finish |
 | — | coding benchmark | **gap** — see caveat above |
 | — | thermal follow-ups: cold-start ramp, `--power` sweep, joules per question | queued; `powermetrics` now available passwordless |

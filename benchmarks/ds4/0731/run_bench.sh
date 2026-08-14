@@ -35,7 +35,7 @@ wait_for "$Q2_0731" "$Q2_SIZE" "ds4f-q2 0731"
 wait_for "$Q2Q4_0731" "$Q2Q4_SIZE" "ds4f-q2-q4 0731"
 
 # --- speed sweeps -------------------------------------------------------
-# Grid is a superset of speed-bench/m5_max_128gb_resident.csv (2048..32768 by
+# Grid is a superset of speed-bench/local-runs/m5_max_128gb_resident.csv (2048..32768 by
 # 2048), extended to 65536 as the speed-bench README recommends.
 sweep() {
     model=$1; tag=$2
@@ -56,6 +56,12 @@ sweep "$Q2_0731"   "q2_0731"
 sweep "$Q2Q4_0731" "q2q4_0731"
 
 # --- perplexity (identical held-out text for all three) -----------------
+# The held-out slice is the LAST 300 KB of promessi_sposi.txt. The speed sweep
+# above prompts from the START of the same file, so the two do not overlap.
+# Use tail, not head, or the perplexity numbers are contaminated.
+[ -f "$OUT/ppl_heldout.txt" ] || \
+    tail -c 300000 "$ROOT/speed-bench/promessi_sposi.txt" > "$OUT/ppl_heldout.txt"
+
 ppl() {
     model=$1; tag=$2
     log "perplexity: $tag"

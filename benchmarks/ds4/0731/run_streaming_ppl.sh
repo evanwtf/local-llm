@@ -9,6 +9,12 @@ GGUF=$ROOT/gguf
 MXFP4="$GGUF/DeepSeek-V4-Flash-MXFP4Experts-F16HC-F16Compressor-F16Indexer-Q8Attn-Q8Shared-Q8Out-chat-v2-mxfp4-0731.gguf"
 Q4="$GGUF/DeepSeek-V4-Flash-Q4KExperts-F16HC-F16Compressor-F16Indexer-Q8Attn-Q8Shared-Q8Out-chat-v2-imatrix-0731.gguf"
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
+
+# Same held-out slice as run_bench.sh: the LAST 300 KB of promessi_sposi.txt,
+# disjoint from the speed-sweep prompt. Use tail, not head.
+[ -f "$OUT/ppl_heldout.txt" ] || \
+    tail -c 300000 "$ROOT/speed-bench/promessi_sposi.txt" > "$OUT/ppl_heldout.txt"
+
 ppl() {
     model=$1; tag=$2
     log "ppl: $tag"
