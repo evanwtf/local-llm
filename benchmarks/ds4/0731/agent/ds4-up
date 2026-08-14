@@ -1,0 +1,246 @@
+#!/bin/sh
+# Bring up ds4-server and hand off to Claude Code.
+#
+#   ds4-up              start the server if needed, then run Claude Code
+#   ds4-up <args...>    same, passing <args...> through to claude
+#   ds4-up start        start the server only
+#   ds4-up stop         stop the server (frees ~91 GiB for GPU work)
+#   ds4-up restart      stop, then start
+#   ds4-up status       report what is running
+#   ds4-up log          follow the server log
+#
+# Config lives in bench-0731/claude_code_recommendations.md. Runtime state
+# (pid, log, prefix cache) lives in ~/.ds4 so it never dirties the repo.
+set -eu
+
+# --- paths --------------------------------------------------------------
+# ROOT is the repo, derived from this script's location: bench-0731/agent/..
+AGENT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+ROOT=$(CDPATH= cd -- "$AGENT_DIR/../.." && pwd)
+
+MODEL=$ROOT/gguf/DeepSeek-V4-Flash-Layers37-42Q4KExperts-OtherExpertLayersIQ2XXSGateUp-Q2KDown-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix-fixed-0731.gguf
+SERVER=$ROOT/ds4-server
+CLAUDE_WRAPPER=$AGENT_DIR/claude-ds4
+
+STATE=$HOME/.ds4
+PIDFILE=$STATE/server.pid
+LOG=$STATE/server.log
+KVDIR=$STATE/server-kv
+
+PORT=8000
+URL=http://127.0.0.1:$PORT
+
+# --- tunables -----------------------------------------------------------
+# CTX must match CLAUDE_CODE_MAX_CONTEXT_TOKENS in claude-ds4. Claude Code
+# assumes 200k for a model it does not recognise, so a mismatch means
+# auto-compact fires after the server has already truncated. check_ctx()
+# below enforces this, so change the number in one place and run any command.
+CTX=100000
+KV_DISK_MB=8192
+# --warm-weights costs ~15s of page touching at startup and buys +36% prefill
+# on early requests. See claude_code_recommendations.md section 3.
+WARM=--warm-weights
+# How long to wait for "listening" before giving up. A cold page cache on a
+# 91 GiB model is the slow case.
+START_TIMEOUT=600
+
+say()  { printf '%s\n' "ds4-up: $*"; }
+warn() { printf '%s\n' "ds4-up: $*" >&2; }
+die()  { warn "$*"; exit 1; }
+
+# --- helpers ------------------------------------------------------------
+
+# Is something answering on the port? This, not the pidfile, is the source of
+# truth -- the server may have been started by hand.
+is_up() {
+    curl -s -m 2 "$URL/v1/models" >/dev/null 2>&1
+}
+
+# PID of the running server, whether we started it or not.
+server_pid() {
+    if [ -f "$PIDFILE" ]; then
+        pid=$(cat "$PIDFILE" 2>/dev/null || true)
+        if [ -n "${pid:-}" ] && kill -0 "$pid" 2>/dev/null; then
+            printf '%s' "$pid"
+            return 0
+        fi
+    fi
+    pgrep -f '[d]s4-server' | head -1
+}
+
+# The --ctx the server is actually running with may differ from $CTX if it was
+# started by hand. Report the real one where we can.
+running_ctx() {
+    pid=$1
+    ps -o command= -p "$pid" 2>/dev/null \
+        | tr ' ' '\n' | grep -A1 -x -- '--ctx' | tail -1
+}
+
+# Guard the coupling described above.
+check_ctx() {
+    want=$(grep -o 'CLAUDE_CODE_MAX_CONTEXT_TOKENS=[0-9]*' "$CLAUDE_WRAPPER" 2>/dev/null \
+           | head -1 | cut -d= -f2)
+    [ -n "${want:-}" ] || return 0
+    [ "$want" = "$CTX" ] && return 0
+    warn "WARNING: --ctx $CTX here, but claude-ds4 sets"
+    warn "         CLAUDE_CODE_MAX_CONTEXT_TOKENS=$want. Auto-compact will fire"
+    warn "         after the server truncates. Make the two numbers agree."
+}
+
+# --trace logs the FULL PROMPT of every request -- the operator's CLAUDE.md and
+# every file the agent reads. It was once left armed for a day unnoticed.
+check_trace() {
+    pid=$1
+    if ps -o command= -p "$pid" 2>/dev/null | grep -q -- '--trace'; then
+        warn ""
+        warn "  *** This server is running with --trace. ***"
+        warn "  Full prompts, including your CLAUDE.md and every file the agent"
+        warn "  reads, are being written to disk. Never commit that output."
+        warn ""
+    fi
+}
+
+# --- commands -----------------------------------------------------------
+
+do_start() {
+    if is_up; then
+        pid=$(server_pid || true)
+        say "already up on $URL${pid:+ (pid $pid)}"
+        [ -n "${pid:-}" ] && check_trace "$pid"
+        check_ctx
+        return 0
+    fi
+
+    # A server started by hand may be alive but still warming its weights.
+    # Never launch a second one -- that is 91 GiB and a port conflict.
+    existing=$(server_pid || true)
+    if [ -n "${existing:-}" ]; then
+        say "pid $existing is already starting; waiting for it"
+        wait_ready "$existing"
+        return $?
+    fi
+
+    [ -x "$SERVER" ] || die "no ds4-server at $SERVER -- run 'make' in $ROOT"
+    [ -f "$MODEL" ]  || die "model not found: $MODEL"
+
+    check_ctx
+    mkdir -p "$STATE" "$KVDIR"
+
+    say "starting (ctx=$CTX, warm weights, kv cache in $KVDIR)"
+    say "log: $LOG"
+
+    # Detached so the server outlives this script and the Claude session.
+    nohup "$SERVER" \
+        -m "$MODEL" \
+        $WARM \
+        --ctx "$CTX" \
+        --kv-disk-dir "$KVDIR" --kv-disk-space-mb "$KV_DISK_MB" \
+        >>"$LOG" 2>&1 &
+    echo $! > "$PIDFILE"
+    pid=$(cat "$PIDFILE")
+
+    wait_ready "$pid"
+}
+
+# Block until the server answers, it dies, or we run out of patience.
+wait_ready() {
+    pid=$1
+    printf 'ds4-up: warming weights'
+    waited=0
+    while [ "$waited" -lt "$START_TIMEOUT" ]; do
+        if is_up; then
+            printf '\n'
+            say "up on $URL in ${waited}s (pid $pid)"
+            check_trace "$pid"
+            return 0
+        fi
+        if ! kill -0 "$pid" 2>/dev/null; then
+            printf '\n'
+            warn "server exited during startup. Last 20 lines of $LOG:"
+            tail -20 "$LOG" >&2
+            rm -f "$PIDFILE"
+            exit 1
+        fi
+        printf '.'
+        sleep 2
+        waited=$((waited + 2))
+    done
+
+    printf '\n'
+    warn "still not answering after ${START_TIMEOUT}s. Last 20 lines of $LOG:"
+    tail -20 "$LOG" >&2
+    exit 1
+}
+
+do_stop() {
+    pid=$(server_pid || true)
+    if [ -z "${pid:-}" ]; then
+        say "not running"
+        rm -f "$PIDFILE"
+        return 0
+    fi
+
+    rss=$(ps -o rss= -p "$pid" 2>/dev/null | tr -d ' ' || true)
+    say "stopping pid $pid${rss:+ (${rss} KiB resident)}"
+    kill "$pid" 2>/dev/null || true
+
+    # The server drains in-flight requests first, so give it room.
+    waited=0
+    while [ "$waited" -lt 30 ]; do
+        kill -0 "$pid" 2>/dev/null || { say "stopped"; rm -f "$PIDFILE"; return 0; }
+        sleep 1
+        waited=$((waited + 1))
+    done
+
+    warn "still alive after 30s, sending SIGKILL"
+    kill -9 "$pid" 2>/dev/null || true
+    sleep 1
+    rm -f "$PIDFILE"
+    say "stopped"
+}
+
+do_status() {
+    pid=$(server_pid || true)
+    if [ -z "${pid:-}" ]; then
+        say "stopped"
+        return 1
+    fi
+    if ! is_up; then
+        # Alive but silent means it is still touching pages, not broken.
+        say "starting (pid $pid, warming weights -- not answering on $PORT yet)"
+        return 2
+    fi
+
+    rss=$(ps -o rss= -p "$pid" 2>/dev/null | tr -d ' ')
+    ctx=$(running_ctx "$pid")
+    # RSS is in KiB. Work in tenths of a GiB to stay in integer arithmetic.
+    tenths=$(( ${rss:-0} * 10 / 1048576 ))
+    say "up on $URL"
+    say "  pid      $pid"
+    say "  resident $(( tenths / 10 )).$(( tenths % 10 )) GiB"
+    say "  ctx      ${ctx:-unknown}"
+    say "  model    $(basename "$MODEL")"
+    say "  log      $LOG"
+    check_trace "$pid"
+    check_ctx
+}
+
+# --- dispatch -----------------------------------------------------------
+case "${1:-}" in
+    start)   do_start ;;
+    stop)    do_stop ;;
+    restart) do_stop; do_start ;;
+    status)  do_status ;;
+    log)     exec tail -f "$LOG" ;;
+    -h|--help|help)
+        # The header comment is the help text; stop at the first line of code.
+        awk 'NR>1 && /^#/ { sub(/^# ?/, ""); print; next } NR>1 { exit }' "$0"
+        ;;
+    *)
+        # Default: make sure the server is up, then become Claude Code.
+        do_start
+        [ -x "$CLAUDE_WRAPPER" ] || die "no claude-ds4 at $CLAUDE_WRAPPER"
+        say "starting Claude Code against the local model"
+        exec "$CLAUDE_WRAPPER" "$@"
+        ;;
+esac

@@ -16,6 +16,19 @@ built from `main @ b030961`.
 Use the **mixed q2/q4 0731** build, **resident**, served by **`ds4-server`**
 with **`--warm-weights`**.
 
+One command does the whole thing — it starts the server if it is not already
+up, waits for it, then hands off to Claude Code:
+
+```sh
+bench-0731/agent/ds4-up
+```
+
+`ds4-up stop` frees the ~91 GiB again for GPU work; `ds4-up status` reports what
+is running and warns if `--trace` is armed. Runtime state lives in `~/.ds4`.
+
+The rest of this section explains what that script does, and stays correct if
+you prefer to run the pieces by hand.
+
 ```sh
 ./ds4-server \
   -m gguf/DeepSeek-V4-Flash-Layers37-42Q4KExperts-OtherExpertLayersIQ2XXSGateUp-Q2KDown-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix-fixed-0731.gguf \
@@ -108,6 +121,7 @@ actually occurring before tuning anything else.
 **The wrapper is [`agent/claude-ds4`](agent/claude-ds4)** — the committed copy is
 byte-identical to the installed `~/bin/claude-ds4`. Run `claude-ds4` instead of
 `claude`. Note that `~/bin` is not on `PATH` by default.
+[`agent/ds4-up`](agent/ds4-up) calls it for you and starts the server first.
 
 Two settings in it are easy to miss:
 
