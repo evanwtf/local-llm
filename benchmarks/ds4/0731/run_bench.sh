@@ -4,9 +4,12 @@
 # sweep grid, so differences are attributable to the weights/quant alone.
 set -u
 
-ROOT=/Users/evanhoffman/git/ds4
-OUT=$ROOT/bench-0731
-GGUF=$ROOT/gguf
+# The ds4 engine and its weights still live in the ds4 checkout.
+# Results live beside this script, in this repo.
+DS4_ROOT=${DS4_ROOT:-/Users/evanhoffman/git/ds4}
+HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+OUT=$HERE
+GGUF=$DS4_ROOT/gguf
 
 BASELINE="$GGUF/DeepSeek-V4-Flash-IQ2XXS-w2Q2K-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix.gguf"
 Q2_0731="$GGUF/DeepSeek-V4-Flash-IQ2XXS-w2Q2K-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix-0731.gguf"
@@ -40,9 +43,9 @@ wait_for "$Q2Q4_0731" "$Q2Q4_SIZE" "ds4f-q2-q4 0731"
 sweep() {
     model=$1; tag=$2
     log "speed sweep: $tag"
-    "$ROOT/ds4-bench" \
+    "$DS4_ROOT/ds4-bench" \
         -m "$model" \
-        --prompt-file "$ROOT/speed-bench/promessi_sposi.txt" \
+        --prompt-file "$DS4_ROOT/speed-bench/promessi_sposi.txt" \
         --ctx-start 2048 \
         --ctx-max 65536 \
         --step-incr 2048 \
@@ -60,12 +63,12 @@ sweep "$Q2Q4_0731" "q2q4_0731"
 # above prompts from the START of the same file, so the two do not overlap.
 # Use tail, not head, or the perplexity numbers are contaminated.
 [ -f "$OUT/ppl_heldout.txt" ] || \
-    tail -c 300000 "$ROOT/speed-bench/promessi_sposi.txt" > "$OUT/ppl_heldout.txt"
+    tail -c 300000 "$DS4_ROOT/speed-bench/promessi_sposi.txt" > "$OUT/ppl_heldout.txt"
 
 ppl() {
     model=$1; tag=$2
     log "perplexity: $tag"
-    "$ROOT/ds4" -m "$model" --perplexity-file "$OUT/ppl_heldout.txt" \
+    "$DS4_ROOT/ds4" -m "$model" --perplexity-file "$OUT/ppl_heldout.txt" \
         > "$OUT/ppl_$tag.log" 2>&1
     log "perplexity done: $tag (exit $?)"
 }
@@ -78,7 +81,7 @@ ppl "$Q2Q4_0731" "q2q4_0731"
 evalrun() {
     model=$1; tag=$2
     log "eval harness: $tag"
-    "$ROOT/ds4-eval" -m "$model" --questions 15 -n 3000 \
+    "$DS4_ROOT/ds4-eval" -m "$model" --questions 15 -n 3000 \
         --trace "$OUT/eval_$tag.trace" > "$OUT/eval_$tag.log" 2>&1
     log "eval done: $tag (exit $?)"
 }
@@ -88,7 +91,7 @@ evalrun "$Q2_0731"   "q2_0731"
 evalrun "$Q2Q4_0731" "q2q4_0731"
 
 # --- restore the symlink the downloader repointed ----------------------
-ln -sfn "$BASELINE" "$ROOT/ds4flash.gguf"
+ln -sfn "$BASELINE" "$DS4_ROOT/ds4flash.gguf"
 log "ds4flash.gguf restored to baseline"
 
 log "ALL DONE"

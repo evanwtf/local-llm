@@ -31,7 +31,7 @@ which is untested.
   -m gguf/DeepSeek-V4-Flash-Layers37-42Q4KExperts-OtherExpertLayersIQ2XXSGateUp-Q2KDown-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix-fixed-0731.gguf \
   --warm-weights --ctx 100000 \
   --kv-disk-dir ~/.ds4/server-kv --kv-disk-space-mb 8192 \
-  --trace bench-0731/agent/server_trace.log   # ⚠️ see warning below
+  --trace benchmarks/ds4/0731/agent/server_trace.log   # ⚠️ see warning below
 ```
 
 > ### ⚠️ `--trace` captures full prompts — never commit its output
@@ -44,7 +44,7 @@ which is untested.
 >
 > It is genuinely useful for cache diagnostics (§ below) — but treat the output
 > as secret. `.gitignore` blocks `*_trace.log` and
-> `bench-0731/agent/server*.log`; do not override that. Omit `--trace` entirely
+> `benchmarks/ds4/0731/agent/server*.log`; do not override that. Omit `--trace` entirely
 > unless you are actively debugging cache behaviour.
 >
 > No credentials appear in it — the trace records prompts, not environment

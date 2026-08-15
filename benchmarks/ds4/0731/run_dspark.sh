@@ -11,9 +11,12 @@
 # win.
 set -u
 
-ROOT=/Users/evanhoffman/git/ds4
-OUT=$ROOT/bench-0731/dspark
-GGUF=$ROOT/gguf
+# The ds4 engine and its weights still live in the ds4 checkout.
+# Results live beside this script, in this repo.
+DS4_ROOT=${DS4_ROOT:-/Users/evanhoffman/git/ds4}
+HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+OUT=$HERE/dspark
+GGUF=$DS4_ROOT/gguf
 mkdir -p "$OUT"
 
 Q2_0731="$GGUF/DeepSeek-V4-Flash-IQ2XXS-w2Q2K-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix-0731.gguf"
@@ -40,7 +43,7 @@ P3="A train leaves station A at 60 mph. Another leaves station B, 240 miles away
 run_one() {
     model=$1; tag=$2; pnum=$3; prompt=$4
     shift 4
-    "$ROOT/ds4" -m "$model" --temp 0 -n 512 -p "$prompt" "$@" \
+    "$DS4_ROOT/ds4" -m "$model" --temp 0 -n 512 -p "$prompt" "$@" \
         > "$OUT/${tag}_p${pnum}.log" 2>&1
 }
 

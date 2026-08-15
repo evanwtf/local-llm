@@ -17,8 +17,11 @@
 #   tok_per_s     - sustained generation rate from the live eval log
 set -u
 
-ROOT=/Users/evanhoffman/git/ds4
-OUT=$ROOT/bench-0731/thermal_watch2.csv
+# The ds4 engine and its weights still live in the ds4 checkout.
+# Results live beside this script, in this repo.
+DS4_ROOT=${DS4_ROOT:-/Users/evanhoffman/git/ds4}
+HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+OUT=$OUT/thermal_watch2.csv
 
 [ -f "$OUT" ] || echo "timestamp,pressure,gpu_mhz,gpu_mw,gpu_active_pct,tok_per_s,questions_done" > "$OUT"
 
@@ -31,7 +34,7 @@ while :; do
     gpu_mw=$(printf '%s'  "$pm" | grep -i "GPU Power:" | awk '{print $3}')
     gpu_act=$(printf '%s' "$pm" | grep -i "GPU HW active residency:" | awk '{print $5}' | tr -d '%')
 
-    live=$(ls -t "$ROOT"/bench-0731/evalfull_*.log 2>/dev/null | grep -v orchestrator | head -1)
+    live=$(ls -t "$OUT"/evalfull_*.log 2>/dev/null | grep -v orchestrator | head -1)
     if [ -n "${live:-}" ]; then
         rate=$(grep -oE '\([0-9.]+s, [0-9]+ tokens\)' "$live" 2>/dev/null | tail -5 | \
             awk -F'[(,s ]+' '{sec+=$2; tok+=$3} END {if (sec>0) printf "%.2f", tok/sec; else print "na"}')

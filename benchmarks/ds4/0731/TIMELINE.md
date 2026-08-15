@@ -1,6 +1,6 @@
 # Session timeline — DeepSeek V4 Flash 0731 benchmarking
 
-All times local (America/New_York), 2026-08-08. Regenerate with `sh bench-0731/build_timeline.sh`.
+All times local (America/New_York), 2026-08-08. Regenerate with `sh benchmarks/ds4/0731/build_timeline.sh`.
 
 ```
 [2026-08-08 01:19:38] waiting for ds4f-q2 0731

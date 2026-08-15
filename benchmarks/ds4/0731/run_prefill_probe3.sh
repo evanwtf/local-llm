@@ -18,9 +18,12 @@
 # confounded with one.
 set -u
 
-ROOT=/Users/evanhoffman/git/ds4
-OUT=$ROOT/bench-0731/prefill_probe3
-GGUF=$ROOT/gguf
+# The ds4 engine and its weights still live in the ds4 checkout.
+# Results live beside this script, in this repo.
+DS4_ROOT=${DS4_ROOT:-/Users/evanhoffman/git/ds4}
+HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+OUT=$HERE/prefill_probe3
+GGUF=$DS4_ROOT/gguf
 mkdir -p "$OUT"
 
 Q2="$GGUF/DeepSeek-V4-Flash-IQ2XXS-w2Q2K-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix-0731.gguf"
@@ -30,8 +33,8 @@ log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
 run() {
     tag=$1; rep=$2
     shift 2
-    "$ROOT/ds4-bench" -m "$Q2" \
-        --prompt-file "$ROOT/speed-bench/promessi_sposi.txt" \
+    "$DS4_ROOT/ds4-bench" -m "$Q2" \
+        --prompt-file "$DS4_ROOT/speed-bench/promessi_sposi.txt" \
         --ctx-start 2048 --ctx-max 2048 --gen-tokens 128 \
         --csv "$OUT/${tag}_r${rep}.csv" "$@" > "$OUT/${tag}_r${rep}.log" 2>&1
 }

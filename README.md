@@ -1,11 +1,41 @@
 # local-llm
 
-Run Claude Code against a local model served by Ollama.
+Running local models as coding agents, and measuring them. Engine-agnostic by
+intent: `ds4`/DeepSeek V4 Flash and Ollama/Qwen3.8 are two entries here, not the
+subject.
+
+Everything is measured on one machine — MacBook Pro M5 Max, 128 GiB,
+macOS 26.5 — so numbers across engines share a hardware baseline.
+
+| | |
+|---|---|
+| [`ollama_claude_shim.py`](ollama_claude_shim.py), [`claude-ollama`](claude-ollama) | drive Claude Code with an Ollama model |
+| [`benchmarks/ollama/`](benchmarks/ollama/RESULTS.md) | Qwen3.8-27B: speed, agentic accuracy, speculative decoding |
+| [`benchmarks/ds4/0731/`](benchmarks/ds4/0731/REPORT.md) | DeepSeek V4 Flash quant comparison, thermals, long context |
+| [`benchmarks/ds4/coding/`](benchmarks/ds4/coding/RESULTS.md) | HumanEval, mixed q2/q4 vs MXFP4 |
+| [`CONVENTIONS.md`](CONVENTIONS.md) | standing rules — read before deleting weights or committing logs |
+
+The benchmark history moved here from `evanwtf/ds4`, with its commits intact.
+The ds4 engine and its weights still live in that checkout; scripts find them
+via `DS4_ROOT` and write results here.
+
+Headline comparison, same machine, ~12k context:
+
+| | prefill | generation | resident |
+|---|---|---|---|
+| Qwen3.8-27B via Ollama | 730.3 t/s | 46.3 t/s | 18 GB |
+| DeepSeek V4 Flash mixed q2/q4 via ds4 | 488.1 t/s | 34.4 t/s | 90.9 GiB |
+
+Prefill is measured differently by the two harnesses — see
+[`benchmarks/ollama/RESULTS.md`](benchmarks/ollama/RESULTS.md).
+
+---
+
+# The Ollama shim
 
 Ollama exposes an Anthropic-compatible `/v1/messages` endpoint and ships a
-`launch claude` integration. That integration does not currently work: Ollama
-rejects the request shape Claude Code sends. This repo is a small proxy that
-fixes the shape, plus a launcher.
+`launch claude` integration. On Ollama 0.32.13 and earlier that integration does
+not work: Ollama rejects the request shape Claude Code sends.
 
 Tested on macOS 26.5 with Ollama 0.32.13 and `qwen3.8:27b-mlx`.
 

@@ -1,15 +1,15 @@
 #!/bin/sh
-# Thermal record for the HumanEval runs. Same columns as bench-0731/thermal_watch2.sh
+# Thermal record for the HumanEval runs. Same columns as ../0731/thermal_watch2.sh
 # so the two are directly comparable, but it tracks progress from the generation
 # log instead of the eval log.
 #
 # Usage: thermal.sh <label> <generation-log>
 set -u
 
-ROOT=/Users/evanhoffman/git/ds4/bench-coding
+HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 LABEL="${1:-run}"
 GENLOG="${2:-}"
-OUT="$ROOT/thermal_${LABEL}.csv"
+OUT="$HERE/thermal_${LABEL}.csv"
 
 [ -f "$OUT" ] || echo "timestamp,pressure,gpu_mhz,gpu_mw,gpu_active_pct,problems_done" > "$OUT"
 

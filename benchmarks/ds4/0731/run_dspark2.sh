@@ -11,9 +11,12 @@
 # hidden-state capture from the speculation itself.
 set -u
 
-ROOT=/Users/evanhoffman/git/ds4
-OUT=$ROOT/bench-0731/dspark2
-GGUF=$ROOT/gguf
+# The ds4 engine and its weights still live in the ds4 checkout.
+# Results live beside this script, in this repo.
+DS4_ROOT=${DS4_ROOT:-/Users/evanhoffman/git/ds4}
+HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+OUT=$HERE/dspark2
+GGUF=$DS4_ROOT/gguf
 mkdir -p "$OUT"
 
 Q2Q4="$GGUF/DeepSeek-V4-Flash-Layers37-42Q4KExperts-OtherExpertLayersIQ2XXSGateUp-Q2KDown-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix-fixed-0731.gguf"
@@ -30,7 +33,7 @@ P3="Write a Python dataclass module with 8 dataclasses modelling a blog: User, P
 run_one() {
     tag=$1; pnum=$2; prompt=$3
     shift 3
-    "$ROOT/ds4" -m "$Q2Q4" --temp 0 -n 512 -p "$prompt" "$@" \
+    "$DS4_ROOT/ds4" -m "$Q2Q4" --temp 0 -n 512 -p "$prompt" "$@" \
         > "$OUT/${tag}_p${pnum}.log" 2>&1
 }
 

@@ -17,9 +17,12 @@
 # Defaults are unlikely to be right, so a bad default number is not GLM's verdict.
 set -u
 
-ROOT=/Users/evanhoffman/git/ds4
-OUT=$ROOT/bench-0731/glm
-GGUF=$ROOT/gguf
+# The ds4 engine and its weights still live in the ds4 checkout.
+# Results live beside this script, in this repo.
+DS4_ROOT=${DS4_ROOT:-/Users/evanhoffman/git/ds4}
+HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+OUT=$HERE/glm
+GGUF=$DS4_ROOT/gguf
 mkdir -p "$OUT"
 
 GLM="$GGUF/GLM-5.2-UD-IQ2_XXS_RoutedIQ2XXS_blk78Q2K.gguf"
@@ -37,14 +40,14 @@ done
 log "GLM download complete ($(stat -f %z "$GLM") bytes)"
 
 # download_model.sh repoints ds4flash.gguf; put it back immediately.
-ln -sfn "$BASELINE" "$ROOT/ds4flash.gguf"
+ln -sfn "$BASELINE" "$DS4_ROOT/ds4flash.gguf"
 log "ds4flash.gguf restored to DeepSeek baseline"
 
 probe() {
     tag=$1; shift
     log "glm probe: $tag"
-    "$ROOT/ds4-bench" -m "$GLM" \
-        --prompt-file "$ROOT/speed-bench/promessi_sposi.txt" \
+    "$DS4_ROOT/ds4-bench" -m "$GLM" \
+        --prompt-file "$DS4_ROOT/speed-bench/promessi_sposi.txt" \
         --ctx-start 2048 --ctx-max 8192 --step-incr 2048 --gen-tokens 128 \
         --ssd-streaming "$@" \
         --csv "$OUT/$tag.csv" > "$OUT/$tag.log" 2>&1

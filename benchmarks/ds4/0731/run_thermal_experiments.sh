@@ -20,9 +20,12 @@
 # power can still burn more total energy.
 set -u
 
-ROOT=/Users/evanhoffman/git/ds4
-OUT=$ROOT/bench-0731/thermal
-GGUF=$ROOT/gguf
+# The ds4 engine and its weights still live in the ds4 checkout.
+# Results live beside this script, in this repo.
+DS4_ROOT=${DS4_ROOT:-/Users/evanhoffman/git/ds4}
+HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+OUT=$HERE/thermal
+GGUF=$DS4_ROOT/gguf
 mkdir -p "$OUT"
 
 MODEL="$GGUF/DeepSeek-V4-Flash-Layers37-42Q4KExperts-OtherExpertLayersIQ2XXSGateUp-Q2KDown-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix-fixed-0731.gguf"
@@ -43,8 +46,8 @@ sudo -n powermetrics --samplers thermal,gpu_power -i 1000 -n 240 2>/dev/null \
 PMPID=$!
 
 sleep 2
-"$ROOT/ds4-bench" -m "$MODEL" \
-    --prompt-file "$ROOT/speed-bench/promessi_sposi.txt" \
+"$DS4_ROOT/ds4-bench" -m "$MODEL" \
+    --prompt-file "$DS4_ROOT/speed-bench/promessi_sposi.txt" \
     --ctx-start 2048 --ctx-max 16384 --step-incr 2048 --gen-tokens 128 \
     --csv "$OUT/ramp_bench.csv" > "$OUT/ramp_bench.log" 2>&1
 log "ramp workload done"
@@ -63,8 +66,8 @@ energy_run() {
     PM=$!
 
     start=$(date +%s)
-    "$ROOT/ds4-bench" -m "$MODEL" \
-        --prompt-file "$ROOT/speed-bench/promessi_sposi.txt" \
+    "$DS4_ROOT/ds4-bench" -m "$MODEL" \
+        --prompt-file "$DS4_ROOT/speed-bench/promessi_sposi.txt" \
         --ctx-start 2048 --ctx-max 16384 --step-incr 2048 --gen-tokens 128 \
         --power "$pw" \
         --csv "$OUT/power_${pw}.csv" > "$OUT/power_${pw}.log" 2>&1

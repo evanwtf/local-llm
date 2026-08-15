@@ -9,9 +9,12 @@
 # Baseline to beat: resident mixed q2/q4 at ~32 t/s generation, 76/92 eval.
 set -u
 
-ROOT=/Users/evanhoffman/git/ds4
-OUT=$ROOT/bench-0731/streaming
-GGUF=$ROOT/gguf
+# The ds4 engine and its weights still live in the ds4 checkout.
+# Results live beside this script, in this repo.
+DS4_ROOT=${DS4_ROOT:-/Users/evanhoffman/git/ds4}
+HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+OUT=$HERE/streaming
+GGUF=$DS4_ROOT/gguf
 mkdir -p "$OUT"
 
 MXFP4="$GGUF/DeepSeek-V4-Flash-MXFP4Experts-F16HC-F16Compressor-F16Indexer-Q8Attn-Q8Shared-Q8Out-chat-v2-mxfp4-0731.gguf"
@@ -25,8 +28,8 @@ probe() {
     model=$1; tag=$2
     shift 2
     log "streaming probe: $tag"
-    "$ROOT/ds4-bench" -m "$model" \
-        --prompt-file "$ROOT/speed-bench/promessi_sposi.txt" \
+    "$DS4_ROOT/ds4-bench" -m "$model" \
+        --prompt-file "$DS4_ROOT/speed-bench/promessi_sposi.txt" \
         --ctx-start 2048 --ctx-max 8192 --step-incr 2048 --gen-tokens 128 \
         --ssd-streaming "$@" \
         --csv "$OUT/$tag.csv" > "$OUT/$tag.log" 2>&1

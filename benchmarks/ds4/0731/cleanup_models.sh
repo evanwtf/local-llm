@@ -1,14 +1,14 @@
 #!/bin/sh
 # Interactive model cleanup — reclaim disk from superseded local models.
 #
-#   sh bench-0731/cleanup_models.sh            # normal (prompts per model)
-#   sh bench-0731/cleanup_models.sh --dry-run  # print the plan, delete nothing
+#   sh benchmarks/ds4/0731/cleanup_models.sh            # normal (prompts per model)
+#   sh benchmarks/ds4/0731/cleanup_models.sh --dry-run  # print the plan, delete nothing
 #
 # Prints the full plan with sizes first, then asks per model before deleting.
 # Nothing is removed without an explicit "y". Answer "q" to stop at any point.
 #
 # Tiers reflect how much evidence backs the recommendation:
-#   A  measured in bench-0731 — superseded on the numbers
+#   A  measured in benchmarks/ds4/0731 — superseded on the numbers
 #   B  redundant by inspection (duplicate quants/tags, unusable runtimes)
 #   C  no evidence either way — your call, listed for review only
 #
@@ -26,7 +26,7 @@
 #       best quality measured: 80/92, ppl 4.5078; keep for hard one-off problems
 set -u
 
-GGUF=/Users/evanhoffman/git/ds4/gguf
+GGUF=$DS4_ROOT/gguf
 LINK=/Users/evanhoffman/git/ds4/ds4flash.gguf
 KEEP_MIXED="$GGUF/DeepSeek-V4-Flash-Layers37-42Q4KExperts-OtherExpertLayersIQ2XXSGateUp-Q2KDown-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix-fixed-0731.gguf"
 

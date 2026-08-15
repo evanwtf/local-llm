@@ -20,7 +20,7 @@ One command does the whole thing — it starts the server if it is not already
 up, waits for it, then hands off to Claude Code:
 
 ```sh
-bench-0731/agent/ds4-up
+benchmarks/ds4/0731/agent/ds4-up
 ```
 
 `ds4-up stop` frees the ~91 GiB again for GPU work; `ds4-up status` reports what
@@ -155,7 +155,7 @@ V4-Flash-specific engine.
 ## Caveats — read before trusting this
 
 **A coding benchmark has now been run — see
-[`../bench-coding/RESULTS.md`](../bench-coding/RESULTS.md).** HumanEval 164,
+[`../coding/RESULTS.md`](../coding/RESULTS.md).** HumanEval 164,
 pass@1, both models: mixed **96.3%**, MXFP4 **98.2%**. The 3-problem gap is
 **not significant** (paired McNemar, exact, p = 0.453), and neither model wrote
 a single logically incorrect program — every failure in both is the model
@@ -202,5 +202,5 @@ and predictable, but absolute numbers here are steady-state, not peak.
 
 ---
 
-*Generated 2026-08-08 from `bench-0731/`. See [REPORT.md](REPORT.md) for full
+*Generated 2026-08-08 from `benchmarks/ds4/0731/`. See [REPORT.md](REPORT.md) for full
 methodology, raw data and the measurements behind every number above.*

@@ -2,7 +2,7 @@
 
 Answers the scoped question in [issue #14](https://github.com/evanwtf/ds4/issues/14):
 **does the coding ranking of the two 0731 quants match the general-reasoning
-ranking?** Both ladders in `bench-0731/agent/` ran only the mixed build, so the
+ranking?** Both ladders in `benchmarks/ds4/0731/agent/` ran only the mixed build, so the
 recommendation to prefer it over MXFP4 rested on general reasoning plus a
 prefill-latency argument, never on code.
 
@@ -90,7 +90,7 @@ one `powermetrics` sample per minute).
 **Race to idle wins again.** MXFP4 draws 24% less power and still uses **6% more
 total energy**, because it runs 39% longer. This is the third time this pattern
 has appeared on this machine, after the `--power` capping result in
-`../bench-0731/REPORT.md`.
+`../0731/REPORT.md`.
 
 The two also differ in *character*, not just level. Mixed pins the GPU at 99%
 active under Heavy pressure for the whole run. MXFP4 oscillates — 33.8 W at 99%
@@ -103,7 +103,7 @@ sample looks like its mean.
 
 - Coding correctness is a statistical tie (p = 0.453).
 - Mixed is 2.1× faster in generation and 39% faster end-to-end.
-- The prefill argument in `../bench-0731/claude_code_recommendations.md` §2 is
+- The prefill argument in `../0731/claude_code_recommendations.md` §2 is
   untouched and remains the deciding factor for agent work.
 
 **One caveat gets weaker.** §3c of `REPORT.md` calls MXFP4 "the better model"
@@ -126,7 +126,7 @@ it needs a token cap and should treat cap-hit as a retry signal, not a result.
 **Two harness decisions that affect the numbers:**
 
 1. **`max_tokens` 8192, not 2048.** A smoke test truncated 1 problem in 3 at
-   2048. The earlier eval in `bench-0731/` was capped at 3000 and the cap
+   2048. The earlier eval in `benchmarks/ds4/0731/` was capped at 3000 and the cap
    *inverted the model ranking*; that mistake is not repeated here. 8192 still
    binds on 8 problems for mixed, and those are reported as failures rather than
    excluded, because a model that cannot finish inside 8192 tokens on a

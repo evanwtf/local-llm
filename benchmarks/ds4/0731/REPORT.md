@@ -3,7 +3,7 @@
 **Machine:** MacBook Pro, Apple M5 Max, 128 GiB unified memory, macOS 26.5.2
 **Engine:** DwarfStar `ds4`, rebuilt from `main` @ `b030961`, Metal backend
 **Date:** 2026-08-08 (runs 01:47 → 04:18)
-**Results directory:** `/Users/evanhoffman/git/ds4/bench-0731/`
+**Results directory:** `/Users/evanhoffman/git/ds4/benchmarks/ds4/0731/`
 
 ---
 
@@ -281,7 +281,7 @@ score — so this is not a lucky run.
 > but the margin is not significant (p = 0.453). The *token* advantage
 > replicates strongly and turns out to matter more than the score: MXFP4 uses
 > 34% fewer tokens per answer here, and mixed's excess is concentrated in a tail
-> of prompts it never finishes. See [`../bench-coding/RESULTS.md`](../bench-coding/RESULTS.md).
+> of prompts it never finishes. See [`../coding/RESULTS.md`](../coding/RESULTS.md).
 
 Failures by category:
 
@@ -424,7 +424,7 @@ the README documents a wrapper (`ANTHROPIC_BASE_URL=http://127.0.0.1:8000`,
 `ANTHROPIC_MODEL=deepseek-v4-flash`) around line 1258.
 
 > **Update 2026-08-10 — coding was measured; see
-> [`../bench-coding/RESULTS.md`](../bench-coding/RESULTS.md).** HumanEval 164,
+> [`../coding/RESULTS.md`](../coding/RESULTS.md).** HumanEval 164,
 > pass@1: mixed **96.3%**, MXFP4 **98.2%**. Same direction as the general-
 > reasoning ranking, but **not significant** (paired McNemar, exact, p = 0.453),
 > and both models saturate the benchmark. Neither wrote a logically incorrect
@@ -577,7 +577,7 @@ text). The speed result is decisive on its own.
 distributed/RDMA path the README documents. Those remain open if GLM is wanted
 for its own sake.
 
-Data: `bench-0731/glm/`, `run_glm.sh`.
+Data: `benchmarks/ds4/0731/glm/`, `run_glm.sh`.
 
 
 ---
@@ -659,7 +659,7 @@ Consequences:
   measurement on a cool machine is measuring the boost window, not sustained
   performance. Both numbers are real; they answer different questions.
 
-Data: `bench-0731/thermal/ramp2.txt`, `run_ramp.sh`.
+Data: `benchmarks/ds4/0731/thermal/ramp2.txt`, `run_ramp.sh`.
 
 *Note:* a first attempt produced an empty file — the awk filter used `systime()`,
 a GNU extension absent from macOS BSD awk, so it died silently. `run_ramp.sh` is

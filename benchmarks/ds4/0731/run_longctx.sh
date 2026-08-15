@@ -14,9 +14,12 @@
 # numbers extend.
 set -u
 
-ROOT=/Users/evanhoffman/git/ds4
-OUT=$ROOT/bench-0731
-GGUF=$ROOT/gguf
+# The ds4 engine and its weights still live in the ds4 checkout.
+# Results live beside this script, in this repo.
+DS4_ROOT=${DS4_ROOT:-/Users/evanhoffman/git/ds4}
+HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+OUT=$HERE
+GGUF=$DS4_ROOT/gguf
 
 Q2="$GGUF/DeepSeek-V4-Flash-IQ2XXS-w2Q2K-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix-0731.gguf"
 Q2Q4="$GGUF/DeepSeek-V4-Flash-Layers37-42Q4KExperts-OtherExpertLayersIQ2XXSGateUp-Q2KDown-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix-fixed-0731.gguf"
@@ -26,8 +29,8 @@ log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
 sweep() {
     model=$1; tag=$2
     log "longctx sweep: $tag"
-    "$ROOT/ds4-bench" -m "$model" \
-        --prompt-file "$ROOT/speed-bench/promessi_sposi.txt" \
+    "$DS4_ROOT/ds4-bench" -m "$model" \
+        --prompt-file "$DS4_ROOT/speed-bench/promessi_sposi.txt" \
         --ctx-start 65536 --ctx-max 262144 --step-incr 32768 --gen-tokens 128 \
         --csv "$OUT/longctx_$tag.csv" > "$OUT/longctx_$tag.log" 2>&1
     rc=$?

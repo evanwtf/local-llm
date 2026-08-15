@@ -7,7 +7,7 @@
 #     --warm-weights --ctx 100000 \
 #     --kv-disk-dir ~/.ds4/server-kv --kv-disk-space-mb 8192
 #
-# See evanwtf/ds4 issue #9 for scope, and bench-0731/claude_code_recommendations.md
+# See evanwtf/ds4 issue #9 for scope, and ../claude_code_recommendations.md
 # for why this model and these flags.
 set -e
 

@@ -12,14 +12,17 @@
 # probes read faster than sweeps.
 set -u
 
-ROOT=/Users/evanhoffman/git/ds4
-OUT=$ROOT/bench-0731/thermal
-MODEL="$ROOT/gguf/DeepSeek-V4-Flash-Layers37-42Q4KExperts-OtherExpertLayersIQ2XXSGateUp-Q2KDown-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix-fixed-0731.gguf"
+# The ds4 engine and its weights still live in the ds4 checkout.
+# Results live beside this script, in this repo.
+DS4_ROOT=${DS4_ROOT:-/Users/evanhoffman/git/ds4}
+HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+OUT=$HERE/thermal
+MODEL="$DS4_ROOT/gguf/DeepSeek-V4-Flash-Layers37-42Q4KExperts-OtherExpertLayersIQ2XXSGateUp-Q2KDown-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix-fixed-0731.gguf"
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
 
 log "waiting for the --power sweep to finish"
-while ! grep -q "THERMAL EXPERIMENTS DONE" "$ROOT/bench-0731/thermal_experiments.log" 2>/dev/null; do
+while ! grep -q "THERMAL EXPERIMENTS DONE" "$OUT/thermal_experiments.log" 2>/dev/null; do
     sleep 30
 done
 
@@ -37,8 +40,8 @@ PM=$!
 
 sleep 2
 # Long single sweep so load is continuous for the whole sampling window.
-"$ROOT/ds4-bench" -m "$MODEL" \
-    --prompt-file "$ROOT/speed-bench/promessi_sposi.txt" \
+"$DS4_ROOT/ds4-bench" -m "$MODEL" \
+    --prompt-file "$DS4_ROOT/speed-bench/promessi_sposi.txt" \
     --ctx-start 2048 --ctx-max 65536 --step-incr 2048 --gen-tokens 128 \
     --csv "$OUT/ramp2_bench.csv" > "$OUT/ramp2_bench.log" 2>&1
 log "ramp workload done"

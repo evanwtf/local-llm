@@ -13,13 +13,16 @@
 #
 # Target to beat: resident mixed q2/q4 = 76/92 in 2h20m.
 set -u
-ROOT=/Users/evanhoffman/git/ds4
-OUT=$ROOT/bench-0731
-GGUF=$ROOT/gguf
+# The ds4 engine and its weights still live in the ds4 checkout.
+# Results live beside this script, in this repo.
+DS4_ROOT=${DS4_ROOT:-/Users/evanhoffman/git/ds4}
+HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+OUT=$HERE
+GGUF=$DS4_ROOT/gguf
 MXFP4="$GGUF/DeepSeek-V4-Flash-MXFP4Experts-F16HC-F16Compressor-F16Indexer-Q8Attn-Q8Shared-Q8Out-chat-v2-mxfp4-0731.gguf"
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
 log "evalfull start: mxfp4_stream"
-"$ROOT/ds4-eval" -m "$MXFP4" -n 8000 \
+"$DS4_ROOT/ds4-eval" -m "$MXFP4" -n 8000 \
     --ssd-streaming --ssd-streaming-cache-experts 100GB \
     --trace "$OUT/evalfull_mxfp4_stream.trace" > "$OUT/evalfull_mxfp4_stream.log" 2>&1
 log "evalfull done: mxfp4_stream -- $(grep -o 'ds4-eval: .*passed.*' "$OUT/evalfull_mxfp4_stream.log" | tail -1)"

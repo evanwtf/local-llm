@@ -9,17 +9,18 @@
 #   ds4-up status       report what is running
 #   ds4-up log          follow the server log
 #
-# Config lives in bench-0731/claude_code_recommendations.md. Runtime state
-# (pid, log, prefix cache) lives in ~/.ds4 so it never dirties the repo.
+# Config lives in ../claude_code_recommendations.md. Runtime state (pid, log,
+# prefix cache) lives in ~/.ds4 so it never dirties the repo.
 set -eu
 
 # --- paths --------------------------------------------------------------
-# ROOT is the repo, derived from this script's location: bench-0731/agent/..
+# This script lives in the local-llm repo, but the ds4 engine and its weights
+# live in the ds4 checkout. Override with DS4_ROOT if yours is elsewhere.
 AGENT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-ROOT=$(CDPATH= cd -- "$AGENT_DIR/../.." && pwd)
+DS4_ROOT=${DS4_ROOT:-/Users/evanhoffman/git/ds4}
 
-MODEL=$ROOT/gguf/DeepSeek-V4-Flash-Layers37-42Q4KExperts-OtherExpertLayersIQ2XXSGateUp-Q2KDown-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix-fixed-0731.gguf
-SERVER=$ROOT/ds4-server
+MODEL=$DS4_ROOT/gguf/DeepSeek-V4-Flash-Layers37-42Q4KExperts-OtherExpertLayersIQ2XXSGateUp-Q2KDown-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix-fixed-0731.gguf
+SERVER=$DS4_ROOT/ds4-server
 CLAUDE_WRAPPER=$AGENT_DIR/claude-ds4
 
 STATE=$HOME/.ds4
@@ -120,7 +121,7 @@ do_start() {
         return $?
     fi
 
-    [ -x "$SERVER" ] || die "no ds4-server at $SERVER -- run 'make' in $ROOT"
+    [ -x "$SERVER" ] || die "no ds4-server at $SERVER -- run 'make' in $DS4_ROOT"
     [ -f "$MODEL" ]  || die "model not found: $MODEL"
 
     check_ctx
