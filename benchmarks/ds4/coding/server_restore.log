@@ -1,0 +1,14 @@
+ds4: warming mapped tensor pages: 90.88 GiB
+ds4: warmed tensor pages in 15.201s (checksum=729109072)
+ds4: Metal device Apple M5 Max, 128.00 GiB RAM
+ds4: Metal 4 tensor API enabled for Tensor kernels
+ds4: drift-patch flags hc_stable=on norm_unify=on kv_raw_f32=off rope_exp2_log2=off math_safe=off tensor_matmul=on
+ds4: Metal model views created in 2.530 ms, residency requested in 517.264 ms, warmup 5.280 ms (mapped 93065.67 MiB from offset 5.09 MiB)
+ds4: Metal mapped mmaped model as 2 overlapping shared buffers
+ds4: metal backend initialized for graph diagnostics
+ds4: memory: KV 1.12 GiB (raw 0.36 + compressed 0.77) + buffers 0.76 GiB + resident model 90.88 GiB = 92.77 GiB planned
+ds4: memory detail: ctx=100000 prefill_cap=4096 raw_kv_rows=4352 compressed_kv_rows=25002 backend=metal
+0810 16:46:35 ds4-server: context buffers 1933.21 MiB (ctx=100000, backend=metal, prefill_chunk=4096, raw_kv_rows=4352, compressed_kv_rows=25002)
+0810 16:46:35 ds4-server: KV disk cache /Users/evanhoffman/.ds4/server-kv (budget=8192 MiB, cross-quant=accept, min=512, cold_max=30000, continued=10000, trim=32, align=2048, hit_half_life=21600s)
+0810 16:46:35 ds4-server: listening on http://127.0.0.1:8000
+0811 09:05:04 ds4-server: shutdown requested, draining requests

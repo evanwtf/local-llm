@@ -1,0 +1,26 @@
+[2026-08-09 03:38:35] cooling for 15 minutes to reach thermal baseline
+[2026-08-09 03:53:35] baseline reached; sampling ramp at 1 Hz
+awk: calling undefined function systime
+ input record number 22, file 
+ source line number 4
+[2026-08-09 03:54:45] ramp workload done
+[2026-08-09 03:54:45] ramp sampling done
+[2026-08-09 03:54:45] cooldown 180s before power=100
+[2026-08-09 03:57:45] energy run: --power 100
+[2026-08-09 03:58:44] power=100 done: 4 wall=59s energy=3303J
+[2026-08-09 03:58:44] cooldown 180s before power=85
+bench-0731/run_thermal_experiments.sh: line 55: 68333 Broken pipe: 13         sudo -n powermetrics --samplers gpu_power -i 1000 -n 600 2> /dev/null
+     68334 Terminated: 15          | awk '/GPU Power:/ {print $3; fflush()}' > "$OUT/power_${pw}.txt"
+[2026-08-09 04:01:44] energy run: --power 85
+[2026-08-09 04:02:55] power=85 done: 4 wall=71s energy=3617J
+[2026-08-09 04:02:55] cooldown 180s before power=70
+bench-0731/run_thermal_experiments.sh: line 55: 69010 Broken pipe: 13         sudo -n powermetrics --samplers gpu_power -i 1000 -n 600 2> /dev/null
+     69011 Terminated: 15          | awk '/GPU Power:/ {print $3; fflush()}' > "$OUT/power_${pw}.txt"
+[2026-08-09 04:05:55] energy run: --power 70
+[2026-08-09 04:07:26] power=70 done: 4 wall=91s energy=3618J
+[2026-08-09 04:07:26] cooldown 180s before power=50
+bench-0731/run_thermal_experiments.sh: line 55: 69615 Broken pipe: 13         sudo -n powermetrics --samplers gpu_power -i 1000 -n 600 2> /dev/null
+     69616 Terminated: 15          | awk '/GPU Power:/ {print $3; fflush()}' > "$OUT/power_${pw}.txt"
+[2026-08-09 04:10:26] energy run: --power 50
+[2026-08-09 04:12:38] power=50 done: 4 wall=132s energy=3562J
+[2026-08-09 04:12:38] THERMAL EXPERIMENTS DONE

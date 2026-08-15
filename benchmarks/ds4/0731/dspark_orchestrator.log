@@ -1,0 +1,19 @@
+[2026-08-08 07:21:35] waiting for DSpark support GGUF
+[2026-08-08 07:36:35] DSpark support GGUF complete
+[2026-08-08 07:36:35] q2q4 p1: off
+[2026-08-08 07:36:50] q2q4 p1: dspark draft1
+[2026-08-08 07:37:12] q2q4 p1: dspark draft2
+[2026-08-08 07:37:32] q2q4 p1: dspark draft3
+[2026-08-08 07:37:53] q2q4 p1: dspark draft4
+[2026-08-08 07:38:14] q2q4 p2: off
+[2026-08-08 07:38:29] q2q4 p2: dspark draft1
+[2026-08-08 07:38:50] q2q4 p2: dspark draft2
+[2026-08-08 07:39:12] q2q4 p2: dspark draft3
+[2026-08-08 07:39:33] q2q4 p2: dspark draft4
+[2026-08-08 07:39:55] q2q4 p3: off
+[2026-08-08 07:40:10] q2q4 p3: dspark draft1
+[2026-08-08 07:40:32] q2q4 p3: dspark draft2
+[2026-08-08 07:40:53] q2q4 p3: dspark draft3
+[2026-08-08 07:41:14] q2q4 p3: dspark draft4
+[2026-08-08 07:41:36] q2 p1: off
+[2026-08-08 07:42:00] q2 p1: dspark draft1

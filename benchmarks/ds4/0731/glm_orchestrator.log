@@ -1,0 +1,12 @@
+[2026-08-09 02:18:20] waiting for GLM download
+[2026-08-09 03:10:51] GLM download complete (211075856448 bytes)
+[2026-08-09 03:10:51] ds4flash.gguf restored to DeepSeek baseline
+[2026-08-09 03:10:51] glm probe: default
+[2026-08-09 03:18:13] glm probe done: default (exit 0) -- 8192,2048,43.53,128,3.40,2923.192,127,3.66,0
+[2026-08-09 03:18:13] glm probe: full8
+[2026-08-09 03:25:58] glm probe done: full8 (exit 0) -- 8192,2048,40.27,128,3.46,2763.710,127,3.72,0
+[2026-08-09 03:25:58] glm probe: preload256
+[2026-08-09 03:33:40] glm probe done: preload256 (exit 0) -- 8192,2048,40.46,128,3.62,3046.185,127,3.94,0
+[2026-08-09 03:33:40] glm probe: cache80g
+[2026-08-09 03:33:40] glm probe done: cache80g (exit 1) -- 
+[2026-08-09 03:33:40] GLM PROBE DONE

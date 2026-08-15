@@ -1,0 +1,41 @@
+⚠ claude.ai connectors are disabled because ANTHROPIC_API_KEY or another auth source is set and takes precedence over your claude.ai login · Unset it to load your organization's connectors
+I verified this empirically, and I need to correct myself: **my #1 finding was wrong.** You were right.
+
+## The #1 finding is retracted
+
+Your test results are exactly what I see. I ran all four binaries with `--prefill-chunk -1` and `--prefill-chunk 0` and captured the real exit codes:
+
+| binary | `-1` | `0` |
+|---|---|---|
+| ds4-bench | `invalid value for --prefill-chunk: -1`, exit 2 | `invalid value for --prefill-chunk: 0`, exit 2 |
+| ds4 | `ds4: invalid value …`, exit 2 | same |
+| ds4-server | `ds4-server: invalid value …`, exit 2 | same |
+| ds4-eval | `ds4-eval: invalid value …`, exit 2 | same |
+
+The reason is in the code: `ds4_bench.c:100`'s `parse_int` has a `v <= 0` guard that I apparently overlooked when I made the claim:
+
+```c
+if (s[0] == '\0' || *end != '\0' || v <= 0 || v > INT_MAX) {
+    fprintf(stderr, "ds4-bench: invalid value for %s: %s\n", opt, s);
+    exit(2);
+}
+```
+
+So `ds4-bench --prefill-chunk` goes through `parse_int` (line 328) and rejects 0/negatives identically to the other binaries. There is no discrepancy, and no correctness bug. The claim was a code-reading error on my part.
+
+## The other four findings
+
+I have to be straight with you: the prior audit was in an earlier session, and that report is not stored anywhere I can reach — it's not in the repo (no audit doc, not in git history) and not in my memory index. I can't faithfully tell you "the other four still stand" because I can't retrieve them verbatim, and I won't guess.
+
+What I can do is what you asked for anyway: I re-ran the argument-parsing audit empirically now. The finding is that **the parsing is consistent and well-validated across all four binaries** — the pattern in `ds4_bench.c`, `ds4_cli.c`, `ds4_server.c`, and `ds4_eval.c` is near-identical:
+
+- `parse_int`-family: rejects `≤ 0` (so no positive-int arg accepts 0 or negatives anywhere)
+- `parse_nonnegative_int`-family: rejects `< 0`
+- `--power`: all four check `1..100` after the positive-parse
+- `--temp`/`--top-p`/`--min-p`: all enforce the same float ranges (0–100 for temp, 0–1 for p-values)
+- `--seed` (parse_u64): rejects `0` in both cli and eval
+- `--ssd-streaming-cache-experts`: byte-for-byte identical parsing across all four
+
+The only cross-binary difference I found is intentional, not a defect: `ds4-bench --gen-tokens` uses `parse_nonnegative_int` and accepts `0`, while `ds4`/`ds4-server`/`ds4-eval` reject `0` for `-n`/`--tokens`. That's deliberate — bench needs to measure prefill with zero generated tokens.
+
+So if any of my prior findings were claims of cross-binary *inconsistency* in validation, the current code contradicts them the same way it contradicts the prefill-chunk claim. I can't confirm the specific wording of the other four, but my honest position is that the argument-parsing validation in this tree is uniform and correct, which makes it unlikely the other findings survive scrutiny either.

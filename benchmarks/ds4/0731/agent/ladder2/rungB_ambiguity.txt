@@ -1,0 +1,62 @@
+⚠ claude.ai connectors are disabled because ANTHROPIC_API_KEY or another auth source is set and takes precedence over your claude.ai login · Unset it to load your organization's connectors
+I've traced the full path. Here's what's actually happening.
+
+## The mechanism
+
+The CSV `kvcache_bytes` column is **not** a direct measurement of the KV cache. It's the size of a saved *session snapshot*, gated on whether a snapshot was actually taken:
+
+- `ds4_bench.c:817` writes `(unsigned long long)(have_snapshot ? snap.len : 0)`.
+- `snap.len` is set to `ds4_session_payload_bytes(s)` by `ds4_session_save_snapshot` (`ds4.c:51095` and `51125`).
+- `ds4_session_payload_bytes` (`ds4.c:50085`) computes the *serialized checkpoint size* — the live KV tensors (`session_payload_live_tensor_bytes`, `ds4.c:48725`: live rows × head dim × float per layer) plus vocab logits, token IDs, and per-layer state. So when non-zero, the value is a faithful proxy for the live KV footprint — but it's the checkpoint size, not the allocated cache size.
+
+`have_snapshot` is only set true under a narrow set of conditions (`ds4_bench.c:713-738`):
+
+```c
+const bool need_restore_after_generation =
+    cfg.gen_tokens > 0 && frontier < cfg.ctx_max;   // false on the LAST row
+bool have_snapshot = false;
+if (need_restore_after_generation && !distributed &&
+    getenv("DS4_BENCH_DISABLE_SNAPSHOT") == NULL) {
+    const uint64_t payload_bytes = ds4_session_payload_bytes(session);
+    if (payload_bytes > snapshot_max_bytes && !large_snapshot_forced) {
+        // warn "replaying prefixes instead"; NO snapshot
+    } else if (payload_bytes > 0) {
+        // save snapshot; have_snapshot = true
+    }
+}
+```
+
+So a row reports `0` under exactly two independent conditions:
+
+1. **The final row** (`frontier == ctx_max`): `need_restore_after_generation` is false because nothing depends on restoring the frontier state afterward. No snapshot is ever saved here, so the last row of *every* sweep is `0` regardless of actual KV size.
+2. **Any row whose payload exceeds `snapshot_max_bytes`** (default `1 GiB`, `ds4_bench.c:26`): the benchmark deliberately skips snapshots to stay within its memory budget (`ds4_bench.c:721`) and prints a one-time warning. Since the payload grows monotonically with the frontier, **all** rows from the crossing point onward report `0`.
+
+That reproduces both observations exactly:
+- Sweep `2048→65536`: payload stays under 1 GiB until the end, so the only `0` is the final row (cause #1).
+- Sweep `65536→262144`: once the payload crosses 1 GiB at some middle row, every row from there through the end is `0` (cause #2, plus the final row).
+
+## Judgement
+
+This is **expected behaviour of a flawed metric, not an accidental bug**. The code is internally consistent, and the large-snapshot case even warns. But the column is mislabeled/misleading:
+
+- It's named `kvcache_bytes` but is really "saved-snapshot payload size, else 0".
+- The final row of *every* sweep is guaranteed `0` no matter how large the KV cache actually is.
+- All large-context rows (>1 GiB payload, the default cap) report `0`, exactly the rows where the KV cache is biggest and most interesting.
+
+So it should be fixed — the zeros are a real gap in the data, even though they're not a crash or a wrong number.
+
+## The fix
+
+Minimal and faithful: **report the payload size directly instead of gating on the snapshot.** Compute `ds4_session_payload_bytes(session)` per row and write it, rather than `have_snapshot ? snap.len : 0`.
+
+- `snap.len` already equals that row's `payload_bytes` wherever a snapshot *was* saved, so values on existing non-zero rows stay identical.
+- It eliminates both zero-artifacts: the final row gets a real number (the checkpoint is valid after prefill to `ctx_max`), and large-context rows report their live KV size even though the snapshot was skipped for restore purposes.
+- The 1 GiB cap only governs whether a snapshot is *saved for replay* — it needn't constrain whether the size is *reported*.
+
+Mechanically, `payload_bytes` is currently scoped inside the `if` block at `ds4_bench.c:716-738`, so it isn't in scope at the write at line 807 — the fix hoists that one call (or recomputes it) to the row-write path.
+
+Two caveats worth noting:
+- In distributed-coordinator mode `ds4_session_payload_bytes` returns `0` (`ds4.c:50087`), so those rows would stay `0`. That's a separate limitation, but not worse than today.
+- If you want the column to mean the *allocated* KV cache size rather than the *live* payload, there's a truer source: `metal_graph_kv_cache_bytes_for_context` / the `kv_cache_bytes_out` from `metal_graph_context_bytes_for_kv_policy` (`ds4.c:16103`, `16135`). That's the actual allocated cache for the context, but it's metal-internal and would need a small session API to expose — a larger change. Given the current values already track the live payload, Option A is the right minimal fix.
+
+No code changes made, as requested.

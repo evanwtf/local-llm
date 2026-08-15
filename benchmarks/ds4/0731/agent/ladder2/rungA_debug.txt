@@ -1,0 +1,26 @@
+⚠ claude.ai connectors are disabled because ANTHROPIC_API_KEY or another auth source is set and takes precedence over your claude.ai login · Unset it to load your organization's connectors
+Fixed. The output is now exactly:
+
+```
+baseline: 465.1/31.9 | q2_0731: 465.1/32.1 | q2q4_0731: 439.2/32.0
+```
+
+Compiles clean under `-Wall -Wextra -Werror`, and runs clean under ASan/UBSan.
+
+## What was actually wrong
+
+The bug was in `report.c:7`: the buffer constant `SUMMARY_MAX` is **48 bytes**, but the full joined line is **66 characters + a NUL terminator = 67 bytes**.
+
+The joining code in `build_summary` was *correct* — it uses `strncat` with the proper bound `out_sz - strlen(out) - 1`, so it never overflows. The problem was purely that the caller (`main`) handed it a buffer too small to hold the content. When the buffer filled, `strncat` silently stopped appending, truncating the last row mid-string. Tracing the exact fill:
+
+1. `baseline: 465.1/31.9` → 20 chars
+2. `" | "` + `q2_0731: 465.1/32.1` → 42 chars
+3. `" | "` → 45 chars, then only **2 bytes** of room left in the 48-byte buffer, so `q2q4_0731: 439.2/32.0` got cut to just `q2`
+
+So the output `... | q2` — exactly the "cuts off partway through the last row" symptom.
+
+## The fix
+
+Rather than just bumping the constant (which stays fragile if rows or label lengths grow), I sized the buffer to the actual content: `main` now formats each row once via the existing `format_row` to measure its exact length, adds the `" | "` separators, allocates precisely that many bytes, and calls `build_summary` with the correct size. This makes the summary line correct for any number of rows and any label/numeric widths — the `strncat` bounds now never truncate.
+
+One note: `format_row` is called twice per row (once to measure, once inside `build_summary`). That's a harmless double-format in a tiny one-off report program, and it keeps the sizing logic exact rather than hardcoding numeric widths. If you'd rather avoid it, the alternative is a fixed constant set to ≥67 (e.g. `SUMMARY_MAX 128`) — simpler, but it reintroduces a magic number that breaks if the data ever outgrows it.

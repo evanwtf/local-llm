@@ -1,0 +1,18 @@
+ds4: Metal device Apple M5 Max, 128.00 GiB RAM
+ds4: Metal 4 tensor API enabled for Tensor kernels
+ds4: drift-patch flags hc_stable=on norm_unify=on kv_raw_f32=off rope_exp2_log2=off math_safe=off tensor_matmul=on
+ds4: Metal SSD streaming mode enabled; full model residency and warmup are skipped
+ds4: GLM SSD streaming full resident layers: 4 (9.28 GiB, auto)
+ds4: metal SSD streaming total expert budget 80.00 GiB = 4.64 GiB prefill headroom + 9.28 GiB full layers + 66.07 GiB dynamic cache (7290 experts, 9.28 MiB each)
+ds4: SSD streaming mixed-precision model: 1/76 routed layers off the slab size class will bypass the expert cache and read experts via mapped model views
+ds4: SSD streaming initial metal model map restricted to token embedding (1 spans, 0.94 GiB tensor span)
+ds4: metal backend initialized for graph diagnostics
+ds4: memory: KV 0.74 GiB (raw 0.00 + compressed 0.74) + buffers 4.07 GiB + resident model 0.94 GiB + full-layer experts 9.28 GiB + expert cache 66.07 GiB + prefill expert reserve 4.64 GiB = 85.75 GiB planned
+ds4: memory detail: ctx=8321 prefill_cap=4096 raw_kv_rows=0 compressed_kv_rows=8321 backend=metal
+ds4-bench: context buffers 4923.08 MiB (ctx=8321, backend=metal, prefill_chunk=4096, raw_kv_rows=0, compressed_kv_rows=8321)
+ds4: GLM memory guard refused ctx=8321 compact_cap=8321 before GLM graph allocation
+ds4:   streamed active model map: 28.58 GiB (full GGUF 196.58 GiB)
+ds4:   graph cache/scratch: 4.81 GiB (full KV 0.00 GiB, compact DSA 0.74 GiB, scratch 4.07 GiB)
+ds4:   required model+graph: 113.39 GiB; guard budget: 96.00 GiB (base 128.00 GiB, fraction 0.99, reserve 32.00 GiB, transient 80.00 GiB)
+ds4:   set DS4_GLM_MEMORY_GUARD=0 to bypass, use a smaller --ctx, or use SSD streaming
+ds4-bench: failed to create session

@@ -1,0 +1,19 @@
+[2026-08-08 07:42:44] p1: off
+[2026-08-08 07:43:08] p1: strict (capture cost only)
+[2026-08-08 07:43:25] p1: conf default 0.7
+[2026-08-08 07:43:45] p1: conf 0.5
+[2026-08-08 07:44:08] p1: conf 0.3
+[2026-08-08 07:44:32] p1: conf 0 (forced 5-token blocks)
+[2026-08-08 07:45:00] p2: off
+[2026-08-08 07:45:15] p2: strict (capture cost only)
+[2026-08-08 07:45:32] p2: conf default 0.7
+[2026-08-08 07:45:53] p2: conf 0.5
+[2026-08-08 07:46:16] p2: conf 0.3
+[2026-08-08 07:46:42] p2: conf 0 (forced 5-token blocks)
+[2026-08-08 07:47:10] p3: off
+[2026-08-08 07:47:26] p3: strict (capture cost only)
+[2026-08-08 07:47:43] p3: conf default 0.7
+[2026-08-08 07:48:05] p3: conf 0.5
+[2026-08-08 07:48:28] p3: conf 0.3
+[2026-08-08 07:48:54] p3: conf 0 (forced 5-token blocks)
+[2026-08-08 07:49:22] DSPARK2 ALL DONE
