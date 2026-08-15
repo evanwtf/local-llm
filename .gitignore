@@ -1,0 +1,9 @@
+# Failed-request dumps from --dump-failures contain FULL PROMPTS, including
+# the operator's CLAUDE.md and any file contents the agent read. Never commit.
+fail-*.json
+
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.DS_Store

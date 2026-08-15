@@ -1,0 +1,130 @@
+#!/bin/sh
+# Run Claude Code against a local Ollama model, through the system-message shim.
+#
+#   claude-ollama              start the shim if needed, then run Claude Code
+#   claude-ollama <args...>    same, passing <args...> through to claude
+#   claude-ollama start        start the shim only
+#   claude-ollama stop         stop the shim
+#   claude-ollama status       report what is running
+#
+# `ollama launch claude` cannot be used: it points Claude Code straight at
+# :11434, which rejects Claude Code's trailing system message. See README.md.
+#
+# Override the model with MODEL=..., e.g.
+#   MODEL=qwen3.8:27b-mxfp8 claude-ollama
+set -eu
+
+HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+SHIM=$HERE/ollama_claude_shim.py
+
+MODEL=${MODEL:-qwen3.8:27b-mlx}
+# Must match the model's real context window. Claude Code assumes 200k for a
+# model it does not recognise, so a mismatch means auto-compact fires after the
+# server has already truncated.
+CTX=${CTX:-262144}
+
+PORT=${PORT:-11500}
+OLLAMA=${OLLAMA:-http://127.0.0.1:11434}
+URL=http://127.0.0.1:$PORT
+
+STATE=${XDG_STATE_HOME:-$HOME/.local/state}/claude-ollama
+PIDFILE=$STATE/shim.pid
+LOG=$STATE/shim.log
+
+say()  { printf '%s\n' "claude-ollama: $*"; }
+warn() { printf '%s\n' "claude-ollama: $*" >&2; }
+die()  { warn "$*"; exit 1; }
+
+# The shim answers on the port. That, not the pidfile, is the source of truth.
+is_up() { curl -s -m 2 "$URL/v1/models" >/dev/null 2>&1; }
+
+shim_pid() {
+    if [ -f "$PIDFILE" ]; then
+        pid=$(cat "$PIDFILE" 2>/dev/null || true)
+        if [ -n "${pid:-}" ] && kill -0 "$pid" 2>/dev/null; then
+            printf '%s' "$pid"
+            return 0
+        fi
+    fi
+    pgrep -f '[o]llama_claude_shim.py' | head -1
+}
+
+do_start() {
+    if is_up; then
+        say "shim already up on $URL"
+        return 0
+    fi
+    curl -s -m 3 "$OLLAMA/api/tags" >/dev/null 2>&1 \
+        || die "ollama is not answering on $OLLAMA -- start it first"
+    [ -f "$SHIM" ] || die "shim not found at $SHIM"
+
+    mkdir -p "$STATE"
+    say "starting shim on $URL -> $OLLAMA"
+    nohup python3 "$SHIM" --port "$PORT" --upstream "$OLLAMA" >>"$LOG" 2>&1 &
+    echo $! > "$PIDFILE"
+    pid=$(cat "$PIDFILE")
+
+    waited=0
+    while [ "$waited" -lt 20 ]; do
+        is_up && { say "shim up (pid $pid), log: $LOG"; return 0; }
+        kill -0 "$pid" 2>/dev/null || {
+            warn "shim exited. Last 20 lines of $LOG:"
+            tail -20 "$LOG" >&2
+            rm -f "$PIDFILE"
+            exit 1
+        }
+        sleep 1
+        waited=$((waited + 1))
+    done
+    die "shim did not come up in 20s. See $LOG"
+}
+
+do_stop() {
+    pid=$(shim_pid || true)
+    [ -n "${pid:-}" ] || { say "not running"; rm -f "$PIDFILE"; return 0; }
+    kill "$pid" 2>/dev/null || true
+    rm -f "$PIDFILE"
+    say "stopped (pid $pid)"
+}
+
+do_status() {
+    pid=$(shim_pid || true)
+    if [ -z "${pid:-}" ]; then
+        # Something else may hold the port -- an older copy, or another proxy.
+        # Say so rather than reporting "stopped" while requests are answered.
+        if is_up; then
+            say "port $PORT is answering, but no shim process of ours is running"
+            say "  something else holds the port; stop it before using this script"
+            return 3
+        fi
+        say "shim stopped"
+        return 1
+    fi
+    is_up || { say "shim pid $pid alive but not answering on $PORT"; return 2; }
+    say "shim up on $URL -> $OLLAMA"
+    say "  pid    $pid"
+    say "  model  $MODEL"
+    say "  ctx    $CTX"
+    say "  log    $LOG"
+}
+
+case "${1:-}" in
+    start)  do_start ;;
+    stop)   do_stop ;;
+    status) do_status ;;
+    -h|--help|help)
+        awk 'NR>1 && /^#/ { sub(/^# ?/, ""); print; next } NR>1 { exit }' "$0"
+        ;;
+    *)
+        do_start
+        command -v claude >/dev/null 2>&1 || die "claude is not on PATH"
+        say "starting Claude Code against $MODEL"
+        ANTHROPIC_BASE_URL=$URL \
+        ANTHROPIC_AUTH_TOKEN=ollama \
+        ANTHROPIC_DEFAULT_SONNET_MODEL=$MODEL \
+        ANTHROPIC_DEFAULT_OPUS_MODEL=$MODEL \
+        ANTHROPIC_DEFAULT_HAIKU_MODEL=$MODEL \
+        CLAUDE_CODE_MAX_CONTEXT_TOKENS=$CTX \
+        exec claude "$@"
+        ;;
+esac

@@ -1,0 +1,16 @@
+[project]
+name = "local-llm"
+version = "0.1.0"
+description = "Run Claude Code against local models served by Ollama"
+requires-python = ">=3.11"
+dependencies = []
+
+[dependency-groups]
+dev = ["pytest>=8.0"]
+
+# Note: no `exclude-newer-span` here. uv 0.12.1 rejects the field, and this
+# project has no runtime dependencies -- pytest is the only thing resolved.
+# Add it if that changes and uv is new enough.
+
+[tool.pytest.ini_options]
+testpaths = ["."]
