@@ -122,11 +122,38 @@ The tests cover `hoist_system` directly: requests Ollama already accepts must
 pass through byte-identical, and the exact shape Claude Code sends must be
 rewritten correctly.
 
-## Upstream
+## Upstream: already fixed, not yet released
 
-This is an Ollama bug, not a misconfiguration. It affects Claude Code against
-*every* Ollama model, not just Qwen3.8. The fix upstream is to hoist stray
-system messages, or accept them at any index, in the Anthropic middleware.
+Ollama fixed this in `87abaa01`, "renderers/qwen: tolerate non-leading system
+messages" (#17757). The Qwen renderer no longer rejects the transcript; it
+renders non-leading system turns through the raw ChatML path.
+
+The timing is why you may still hit it. The fix was committed at
+**2026-08-14 21:12 UTC**; **v0.32.13** was cut at **19:16 UTC** the same day.
+It missed the release by under two hours, so the newest released Ollama still
+fails.
+
+**This shim is only needed on Ollama 0.32.13 and earlier.** Verified against a
+build of `main`: Claude Code drives `qwen3.8:27b-mlx` with no proxy at all.
+
+To drop the shim, either wait for the next release, or build from source:
+
+```sh
+git clone https://github.com/ollama/ollama && cd ollama
+go build -o ollama-dev .
+```
+
+A bare `go build` does not bundle the MLX libraries. On macOS the binary
+searches `../lib/ollama` and its own directory, so place it next to the ones
+the desktop app installed:
+
+```sh
+cp ollama-dev /Applications/Ollama.app/Contents/Resources/
+OLLAMA_HOST=127.0.0.1:11439 \
+    /Applications/Ollama.app/Contents/Resources/ollama-dev serve
+```
+
+Use a spare port so the desktop app keeps working on 11434.
 
 ## Why bother — measured
 
