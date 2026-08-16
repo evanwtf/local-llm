@@ -52,6 +52,28 @@ Both facts are load-bearing; see below.
 Total wall clock for 15 trials each: ds4 **42.1 min**, 3.6-coding **52.2 min**,
 qwen3.6 **67.3 min**, qwen3.8 **72.6 min**.
 
+> ## Correction, 2026-08-16 — the headline claim was too strong
+>
+> Earlier revisions of this report asserted that **"tokens per second is close
+> to irrelevant"** for agent work. Adding `gemma4:31b-mxfp8` (13.2 t/s) and
+> measuring Ornith (92.5 t/s) widened the range of generation rates from 3.2×
+> to 7× and falsified that.
+>
+> Neither variable predicts wall time alone. Their **ratio** does:
+>
+> ```
+> output tokens alone     r = +0.35
+> generation rate alone   r = -0.67
+> tokens / rate           r = +0.96
+> ```
+>
+> The corrected model is **wall ≈ tokens ÷ generation rate + per-turn
+> overhead**. See "What actually predicts wall time" below.
+>
+> Why the original claim looked true: across the first four backends,
+> generation rates spanned only 17.9–57.1 t/s while token counts spanned
+> 2,120–6,237. With both varying similarly, tokens happened to dominate.
+
 ## Two results, not one
 
 1. **Wall time tracks tokens per task, not tokens per second** (below).
@@ -367,3 +389,76 @@ Before Ornith, all 75 trials across five backends passed, and this report said
 the task set could not discriminate on correctness. It can. Ornith found a wall
 the others walked past — which raises the value of issue #4 (harder tasks)
 rather than lowering it.
+
+
+---
+
+## What actually predicts wall time
+
+Median values per backend, all 106 trials.
+
+| backend | tokens | gen t/s | tokens ÷ rate | wall | overhead |
+|---|---|---|---|---|---|
+| ornith | 2,857 | **92.5** | 30.9 s | **82.3 s** | 51.4 s |
+| qwen3.8 | **6,237** | 57.1 | 109.2 s | 272.2 s | **163.0 s** |
+| ds4 (synced) | 2,120 | 40.6 | 52.2 s | 140.9 s | 88.7 s |
+| ds4 (pre-sync) | 2,130 | 36.8 | 57.9 s | 164.4 s | 106.5 s |
+| qwen3.6 | 3,725 | 29.3 | 127.1 s | 248.4 s | 121.3 s |
+| qwen3.6-coding | 2,219 | 17.9 | 124.0 s | 213.5 s | 89.5 s |
+| gemma4 | 2,600 | **13.2** | 196.9 s | **355.4 s** | 158.5 s |
+
+```
+correlation with wall time
+  output tokens alone     r = +0.35
+  generation rate alone   r = -0.67
+  tokens / rate           r = +0.96
+```
+
+**`gemma4` is the case that forced this.** It emits *fewer* tokens than qwen3.8
+(2,600 vs 6,237) and uses the fewest turns of any backend (7), yet is the
+slowest overall — because it generates at 13.2 t/s.
+
+`overhead` is wall time minus generation time: tool calls, prefill, and the
+agent's own round trips. It is where thrashing shows up. Qwen3.8's 163 s is the
+worst in the set and matches its behaviour on `storage-blob-put`.
+
+### This also revises the Ornith story
+
+Ornith generates at **92.5 t/s**, the fastest measured here — and it emits
+*more* tokens than ds4 (2,857 vs 2,120). Its win is therefore substantially
+**engine and architecture**, not the terseness its system prompt advertises.
+
+It is a 34.7B MoE served through Ollama's llama.cpp path rather than MLX, so
+both sparsity and runtime favour it. The GGUF caveat attached to this backend is
+not a formality; it accounts for most of the gap.
+
+---
+
+## Gemma 4: slow, but well behaved
+
+`gemma4:31b-mxfp8` is the only non-Qwen, non-DeepSeek model tested, and the
+reason it was run (issue #1) was to check whether these findings are a property
+of agent loops or of one model family.
+
+| | value |
+|---|---|
+| pass rate | **16/16** |
+| median | 355.4 s — slowest of any backend |
+| spread | 3.0× — mid-field, no wild tails |
+| turns | **7** — fewest of any backend |
+| tokens | 2,600 — second fewest |
+| generation | 13.2 t/s — slowest of any backend |
+
+It is last on **every** task, consistently 2–3× synced ds4, while never failing
+and never producing an outlier run. Uniformly slow rather than erratic.
+
+One structural detail worth recording: for every Qwen build, `storage-blob-put`
+was the standout worst task. For gemma4 it is unremarkable — just another slow
+task. That is a further piece of evidence that the durability weakness is
+Qwen-specific rather than universal.
+
+Resident footprint was **45 GB** — 32 GB of weights plus ~13 GB of KV at the
+262,144-token context. The largest of any Ollama backend tested.
+
+*(16 rows rather than 15: a single-trial smoke test was run first to confirm
+tool calling worked before committing to the full matrix, and it is retained.)*
