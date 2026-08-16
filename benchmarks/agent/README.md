@@ -63,7 +63,7 @@ are kept too and skipped the same way. Deleting them would falsify the record.
 
 ## Tasks
 
-From [`gmail-archive`](https://github.com/evandhoffman/gmail-archive) — a real
+From [`gmail-archive`](https://github.com/evanwtf/gmail-archive) — a real
 project, 4,599 lines of Python, 166 tests that run in under 5 seconds. Fast
 tests matter: the oracle runs twice per trial.
 

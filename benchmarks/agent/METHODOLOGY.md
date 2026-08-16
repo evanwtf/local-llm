@@ -247,16 +247,28 @@ Honest accounting of what could make these numbers wrong.
 | Task measures nothing (skipped tests) | control run required to fail | none — this is checked every trial |
 | Trials contaminate each other | worktree per trial, destroyed after | none |
 | Memory pressure favours one model | phased runs, preload, one model resident | thermal drift across a long run |
-| Training-data contamination | `gmail-archive` is a private repo | the *libraries* it uses are public; a model may know `email.utils` well |
+| Training-data contamination | repo is small and recent, but **public** | cannot be ruled out; the libraries it uses are certainly in training data |
 | Single-trial noise | 3 trials, medians | small effects remain undetectable |
 | Prompt favours one model | identical prompt text for all backends | prompt style may suit one model's training |
 
-**The contamination point deserves emphasis.** `gmail-archive` is private, so
-the specific code is very unlikely to be in any training set. But the tasks
-involve `email`, `mailbox`, `hashlib` and RFC 2822 — well-documented standard
-library territory. A model that has seen a lot of Python will have an advantage
-that is real but not specific to this repository. That is arguably the correct
-thing to measure.
+**The contamination point deserves emphasis, and it got weaker.** An earlier
+revision of this document claimed `gmail-archive` is private and therefore
+almost certainly absent from any training set. **That was wrong — the repository
+is public** (`evanwtf/gmail-archive`).
+
+Contamination therefore cannot be ruled out by construction. Two things still
+limit it: the repository is small and recent, so its weight in any corpus is
+negligible; and the excised bodies are not distinctive enough to be memorised
+verbatim in a way that would not also be reconstructible from the docstring and
+tests.
+
+The tasks also involve `email`, `mailbox`, `hashlib` and RFC 2822 — well
+documented standard-library territory. A model that has seen a lot of Python has
+a real advantage there that is not specific to this repository, and that is
+arguably the correct thing to measure.
+
+**If contamination matters to a conclusion you are drawing, re-run the task
+against a repository written after the models' training cutoffs.**
 
 ### The empty-virtualenv confound
 

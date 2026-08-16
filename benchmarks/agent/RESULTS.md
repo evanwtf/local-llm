@@ -115,6 +115,77 @@ Both are kept rather than quietly edited away.
 ---
 
 
+## What the tests actually are
+
+Each trial deletes the **body** of one function from a real repository, leaving
+its signature, type annotations and docstring in place, and replaces the body
+with `raise NotImplementedError("removed for benchmark")`. The excision is
+committed, so the original is not recoverable from the working tree.
+
+The agent is given the repository and one instruction. This is the complete
+prompt for `storage-blob-put`; the others differ only in the name and path:
+
+> `BlobStore.put` in src/gmail_archive/storage.py has been removed and replaced
+> with a NotImplementedError. Implement it so the existing test suite passes.
+> Do not modify any test.
+
+**The prompt deliberately does not say which tests cover it.** Finding them is
+part of the task. Nothing else is provided: no hints, no examples, no
+description of the algorithm beyond the docstring that was already there.
+
+The agent then has full tool access — read, edit, run shell commands — in a
+throwaway git worktree. When it stops, the repository's own test suite runs.
+That is the only thing that decides pass or fail.
+
+### The target repository
+
+[`gmail-archive`](https://github.com/evanwtf/gmail-archive) — a real,
+working project that ingests a Gmail Takeout mbox export into Postgres and blob
+storage. 4,599 lines of Python, 166 tests that run in 4.7 s.
+
+It was chosen because the tests are fast (they run twice per trial), passing
+(so a failure is unambiguous), and written months before this benchmark existed
+for reasons unrelated to it — so they encode a real contract rather than one
+designed to be gameable.
+
+### The five tasks
+
+| task | function | what it must do | tests broken |
+|---|---|---|---|
+| `mbox-strip-envelope` | `mbox.strip_envelope` | Strip the `From_` envelope line from a raw mbox message, returning the RFC822 headers and body. Must handle a single-line message with no newline. | 3 |
+| `mbox-scan` | `mbox.scan` | Memory-map an mbox file and return `(offset, length)` boundaries for every message in a single pass. Must handle a missing file and an empty file. | 13 |
+| `storage-blob-put` | `storage.BlobStore.put` | Store bytes durably and return the sha256 digest — temp file, `fsync`, atomic rename, dedupe on an existing digest, and validate a caller-supplied digest. | 14 |
+| `parser-mbox-quoting` | `parser.unquote_mbox` | Reverse mbox `From_` quoting, returning `(unquoted, ambiguous)`. Must round-trip with `requote_mbox`, and flag lines whose quoting is genuinely ambiguous. | 34 |
+| `parser-date` | `parser._date` | Parse an RFC 2822 date header into a `datetime`, appending structured warnings for missing, unparseable, and out-of-range values rather than raising. | 49 |
+
+They span deliberately different kinds of work:
+
+- **`strip_envelope`** is a pure byte transform with one edge case — the
+  simplest thing in the set, and the only task any model has failed.
+- **`scan`** is file I/O with `mmap` and boundary detection.
+- **`BlobStore.put`** is durability semantics: `fsync` ordering, atomic rename,
+  content addressing. This is the task that separated the Qwen family.
+- **`unquote_mbox`** carries an *invariant* — it must invert another function
+  that the agent must find and read. The original docstring documents a real
+  mboxrd-vs-mboxo ambiguity measured against a live export, so the contract is
+  subtle rather than mechanical.
+- **`_date`** is standard-library integration plus a warnings protocol; it
+  breaks the most tests because the parser's main path depends on it.
+
+"Tests broken" is how many of the repository's tests fail once the function is
+removed — a rough proxy for blast radius, and the order the tables use.
+
+### What the agent has to work out for itself
+
+- Which test file covers the function, and how to run it. A fresh worktree has
+  no `.venv`, so it must discover `uv run pytest` — see the environment-tax
+  caveat.
+- The contract, from the docstring, the callers and the tests.
+- For `unquote_mbox`, that a *second* function exists which it must invert.
+- When it is done. Nothing tells it the tests pass; it has to check.
+
+---
+
 ## Per task
 
 Median wall seconds over 3 trials. Best per row in bold.
