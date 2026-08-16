@@ -130,7 +130,13 @@ do_start() {
     say "starting (ctx=$CTX, warm weights, kv cache in $KVDIR)"
     say "log: $LOG"
 
+    # ds4-server resolves its Metal shader sources relative to the working
+    # directory (metal/flash_attn.metal). Start it from DS4_ROOT or the Metal
+    # backend fails to initialise and startup aborts. This script no longer
+    # lives inside the ds4 checkout, so the cd is not optional.
+    #
     # Detached so the server outlives this script and the Claude session.
+    cd "$DS4_ROOT" || die "cannot cd to $DS4_ROOT"
     nohup "$SERVER" \
         -m "$MODEL" \
         $WARM \
