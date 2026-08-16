@@ -1,7 +1,7 @@
 # Qwen3.8-27B on Ollama — M5 Max 128 GiB
 
-Measured 2026-08-15. Ollama 0.32.13 (MLX backend), model `qwen3.8:27b-mlx`,
-18 GB on disk, fully GPU-resident.
+Measured 2026-08-15. Ollama MLX backend, model `qwen3.8:27b-mlx`, 18 GB on
+disk, fully GPU-resident.
 
 Machine: MacBook Pro M5 Max, 128 GiB, macOS 26.5. Same machine as every run in
 [`../ds4/0731/REPORT.md`](../ds4/0731/REPORT.md), so the numbers sit on the same
@@ -14,8 +14,13 @@ speed sweeps use — giving an 11,451-token prefill, then 128 generated tokens.
 
 | | prefill | generation |
 |---|---|---|
-| `qwen3.8:27b-mlx` @ 11,451 tokens | **730.3 t/s** (15.68 s) | **46.3 t/s** |
+| `qwen3.8:27b-mlx`, Ollama **0.32.14-rc0** | **789.2 t/s** | **57.1 t/s** |
+| `qwen3.8:27b-mlx`, Ollama 0.32.13 | 730.3 t/s (15.68 s) | 46.3 t/s |
 | ds4 mixed q2/q4 @ 12,288 ctx | 488.1 t/s | 34.4 t/s |
+
+**The `mlx update` in 0.32.14-rc0 is worth +8.1% prefill and +23.3%
+generation.** Identical prompt, options and method on both versions, minutes
+apart, so the delta is the MLX bump (`#17761`) and nothing else.
 
 **The prefill figures are not measured the same way.** `ds4-bench` reports
 throughput for a 2048-token prefill at a given context size; the Qwen figure is
@@ -67,7 +72,14 @@ This matches the ds4 finding independently: `--dspark` was lossless but 23–44%
 That harness measures on the same M5 Max / 128 GiB configuration. Its top
 submission reaches 56.7 decode t/s; its serial reference works out to roughly
 20.8 t/s. So the headline "172.7% faster" is against a baseline far slower than
-stock Ollama — the real headroom over what runs here today is about 20–25%.
+stock Ollama.
+
+**As of 0.32.14-rc0 the headroom is gone.** Stock Ollama generates at
+**57.1 t/s** here, against the leaderboard's best tuned submission at 56.7.
+The two are not measured identically — theirs is decode-only under their
+harness, mine is end-to-end after an 11.4k-token prefill — so treat this as
+parity, not a win. But the case for hand-tuning an MTP draft schedule to chase
+20–25% evaporated when the MLX bump delivered 23% for free.
 
 ## Prefix caching
 

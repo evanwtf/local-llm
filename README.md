@@ -23,7 +23,7 @@ Headline comparison, same machine, ~12k context:
 
 | | prefill | generation | resident |
 |---|---|---|---|
-| Qwen3.8-27B via Ollama | 730.3 t/s | 46.3 t/s | 18 GB |
+| Qwen3.8-27B via Ollama 0.32.14-rc0 | 789.2 t/s | 57.1 t/s | 18 GB |
 | DeepSeek V4 Flash mixed q2/q4 via ds4 | 488.1 t/s | 34.4 t/s | 90.9 GiB |
 
 Prefill is measured differently by the two harnesses — see
@@ -32,6 +32,11 @@ Prefill is measured differently by the two harnesses — see
 ---
 
 # The Ollama shim
+
+> **Not needed on Ollama 0.32.14-rc0 or later.** That release contains the
+> upstream fix, verified here: `ollama launch claude --model qwen3.8:27b-mlx`
+> works with no proxy and no environment variables. The shim is kept for older
+> Ollama, and in case a stable release lands behind the fix.
 
 Ollama exposes an Anthropic-compatible `/v1/messages` endpoint and ships a
 `launch claude` integration. On Ollama 0.32.13 and earlier that integration does
