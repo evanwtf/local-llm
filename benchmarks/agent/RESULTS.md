@@ -20,8 +20,8 @@ predictability, not accuracy — at least until the tasks get harder (issue #4).
 | backend | pass | median wall | tokens | gen t/s | spread | resident |
 |---|---|---|---|---|---|---|
 | `ornith:35b` | 13/15 | **82.3 s** | 2,857 | **92.5** | **30.4×** | 21 GB |
-| **`ds4` (synced)** | **15/15** | 140.9 s | **2,120** | 40.6 | 2.6× | 90.9 GiB |
-| `ds4` (pre-sync) | 15/15 | 164.4 s | 2,130 | 36.8 | **1.9×** | 90.9 GiB |
+| **`ds4` (synced, `fdcf3aa`)** | **15/15** | 140.9 s | **2,120** | 40.6 | 2.6× | 90.9 GiB |
+| `ds4` (pre-sync, `5be6b6c`) | 15/15 | 164.4 s | 2,130 | 36.8 | **1.9×** | 90.9 GiB |
 | `qwen3.6:27b-coding-mxfp8` | 15/15 | 213.5 s | 2,219 | 17.9 | 3.4× | 31 GB |
 | `qwen3.6:27b-mlx` | 15/15 | 248.4 s | 3,725 | 29.3 | 4.0× | 19 GB |
 | `qwen3.8:27b-mlx` | 15/15 | 272.2 s | 6,237 | 57.1 | 10.1× | 18 GB |
@@ -50,9 +50,10 @@ medians.
    task, across three builds, are slower than every ds4 run. It is unremarkable
    for Gemma, which is evidence the weakness is lineage-specific.
 
-5. **Syncing ds4 with upstream bought 14.3%** — median 164.4 s → 140.9 s — with
-   output tokens essentially unchanged (2,130 → 2,120). A clean engine-only
-   improvement.
+5. **Syncing the ds4 engine with upstream bought 14.3%** — median 164.4 s →
+   140.9 s — with output tokens essentially unchanged (2,130 → 2,120). Same
+   weights, same tasks, same machine; only the engine binary changed. A clean
+   engine-only improvement, and the cleanest test of the rate term above.
 
 ### Recommendation
 
@@ -93,8 +94,37 @@ but it is the only model that has silently produced wrong code, and its tail is
 | `ornith` | `ornith:35b`, agentic tune | Q4_K_M GGUF | 21 GB | 92.5 | 262,144 |
 | `gemma4` | `gemma4:31b-mxfp8` | mxfp8 | 32 GB | 13.2 | 262,144 |
 
-All Ollama backends served by 0.32.14-rc0. ds4 measured on two builds:
-`5be6b6c` (pre-sync) and `fdcf3aa` (post-sync).
+All Ollama backends served by Ollama 0.32.14-rc0.
+
+### "pre-sync" and "synced" — what those mean
+
+`ds4` is a fork ([`evanwtf/ds4`](https://github.com/evanwtf/ds4)) of
+[`antirez/ds4`](https://github.com/antirez/ds4), an open-source DeepSeek V4
+Flash inference engine. It was measured on **two builds of the engine**, before
+and after merging upstream changes. The model weights, the tasks, the machine
+and the harness are identical across both; only the engine binary differs.
+
+| | **pre-sync** | **synced** (a.k.a. post-sync) |
+|---|---|---|
+| fork commit | `5be6b6c` | `fdcf3aa` |
+| commit date | 2026-08-15 | 2026-08-16 |
+| binary built | 2026-08-10 | 2026-08-16 06:53 |
+| trials run | 2026-08-15 | 2026-08-16 |
+| generation | 36.8 t/s | **40.6 t/s** |
+| median wall | 164.4 s | **140.9 s** |
+
+`fdcf3aa` is the merge commit that brought in **32 commits from upstream
+`antirez/ds4`**, up to `84cc882`. The merge was clean, with no conflicts. The
+haul contained a large M5-specific decode optimization campaign plus two fixes
+on paths this benchmark exercises: `metal: fix long-context prefill and decode
+correctness`, and `server: recover truncated DSML tool calls`.
+
+Both builds appear in the tables because the sync landed mid-project, and
+replacing the earlier numbers would have discarded a controlled before/after on
+an engine change. See [Series 2](#series-2-the-upstream-sync-2026-08-16).
+
+Every row in `results.jsonl` records which build produced it, as
+`env.ds4_head`, so the two are separable in the raw data.
 
 ### Corrections to earlier revisions
 
@@ -363,8 +393,9 @@ Two harness fixes came out of it:
 
 ## Series 2: the upstream sync (2026-08-16)
 
-`ds4` was synced with `antirez/ds4` upstream — 32 commits, merged clean, rebuilt
-as `fdcf3aa`. The haul included a large M5-specific decode optimization campaign
+Partway through the project, the `ds4` fork was synced with its upstream —
+32 commits from `antirez/ds4` up to `84cc882`, merged clean into `fdcf3aa` on
+2026-08-16 and rebuilt. Everything except the engine binary was held constant. The haul included a large M5-specific decode optimization campaign
 and two fixes that land on paths this benchmark uses: `metal: fix long-context
 prefill and decode correctness` and `server: recover truncated DSML tool calls`.
 
