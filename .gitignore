@@ -10,3 +10,5 @@ __pycache__/
 
 # agent benchmark: accumulated run data, regenerate with run.py
 benchmarks/agent/results.jsonl
+benchmarks/agent/matrix*.log
+benchmarks/agent/results-smoke.jsonl

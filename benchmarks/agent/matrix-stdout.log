@@ -1,2 +1,5 @@
-20:37:10 === phase 1: ds4 (3 trials) ===
-20:37:20 ds4-up restart failed
+20:38:17 === phase 1: ds4 (3 trials) ===
+2026-08-15 20:38:26,901 INFO 5 task(s) x 1 backend(s) x 3 trial(s)
+2026-08-15 20:40:28,831 INFO mbox-strip-envelope-ds4-1: PASS in 120.3s (16 passed in 0.10s)
+2026-08-15 20:44:20,840 INFO parser-mbox-quoting-ds4-1: PASS in 226.0s (55 passed in 0.88s)
+2026-08-15 20:47:12,939 INFO storage-blob-put-ds4-1: PASS in 170.4s (17 passed in 0.07s)

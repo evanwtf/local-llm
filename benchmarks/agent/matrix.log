@@ -1,28 +1,17 @@
-20:37:10 === phase 1: ds4 (3 trials) ===
-ds4-up: stopping pid 28478 (28694272 KiB resident)
+20:38:17 === phase 1: ds4 (3 trials) ===
+ds4-up: stopping pid 55894 (95367376 KiB resident)
 ds4-up: stopped
 ds4-up: starting (ctx=100000, warm weights, kv cache in /Users/evanhoffman/.ds4/server-kv)
 ds4-up: log: /Users/evanhoffman/.ds4/server.log
 ds4-up: warming weights....
-ds4-up: server exited during startup. Last 20 lines of /Users/evanhoffman/.ds4/server.log:
-0815 20:28:10 ds4-server: chat ctx=32101..32155:54 gen=134 TOOLS DSML_START DSML_END finish=tool_calls 4.648s
-0815 20:28:10 ds4-server: anthropic live continuation match=tool-output-ids ids=1 cached=32289 prompt=32316
-0815 20:28:10 ds4-server: chat ctx=32289..32316:27 TOOLS prompt start
-0815 20:28:10 ds4-server: chat ctx=32289..32316:27 TOOLS prefill chunk 0/27 (0.0%) chunk=0.00 t/s avg=0.00 t/s 0.000s
-0815 20:28:10 ds4-server: chat ctx=32289..32316:27 TOOLS prefill chunk 27/27 (100.0%) chunk=78.49 t/s avg=78.47 t/s 0.344s
-0815 20:28:10 ds4-server: chat ctx=32289..32316:27 TOOLS prompt done 0.344s
-0815 20:28:12 ds4-server: chat ctx=32316..32366:50 gen=50 TOOLS decoding chunk=32.12 t/s avg=32.12 t/s 1.557s
-0815 20:28:13 ds4-server: chat ctx=32366..32416:50 gen=100 TOOLS decoding chunk=32.06 t/s avg=32.09 t/s 3.116s
-0815 20:28:15 ds4-server: chat ctx=32416..32459:43 gen=143 TOOLS decoding chunk=32.17 t/s avg=32.11 t/s 4.453s
-0815 20:28:15 ds4-server: chat ctx=32289..32316:27 gen=143 TOOLS finish=stop 4.797s
-0815 20:37:11 ds4-server: shutdown requested, draining requests
-0815 20:37:11 ds4-server: persisting resident KV cache before shutdown slot=0 tokens=32459
-0815 20:37:11 ds4-server: kv cache evicted reason=disk-cache-full tokens=20480 hits=0 size=291.79 MiB file=/Users/evanhoffman/.ds4/server-kv/7a9e9c360c9e522d566dc3769ab558c3a73d2e75.kv
-0815 20:37:11 ds4-server: kv cache evicted reason=disk-cache-full tokens=25111 hits=0 size=352.55 MiB file=/Users/evanhoffman/.ds4/server-kv/a969c1d7ecad2ad451126f29f73deacefc5c923a.kv
-0815 20:37:11 ds4-server: kv cache stored tokens=32459 trimmed=0 reason=shutdown key=token-text size=449.02 MiB save=53.2 ms
-ds4: warming mapped tensor pages: 90.88 GiB
-ds4: warmed tensor pages in 6.001s (checksum=729109072)
-ds4: Metal device Apple M5 Max, 128.00 GiB RAM
-ds4: Metal source metal/flash_attn.metal not found (set DS4_METAL_FLASH_ATTN_SOURCE to override)
-ds4: metal backend unavailable; aborting startup
-20:37:20 ds4-up restart failed
+ds4-up: up on http://127.0.0.1:8000 in 8s (pid 56093)
+ds4-up: up on http://127.0.0.1:8000
+ds4-up:   pid      56093
+ds4-up:   resident 90.9 GiB
+ds4-up:   ctx      100000
+ds4-up:   model    DeepSeek-V4-Flash-Layers37-42Q4KExperts-OtherExpertLayersIQ2XXSGateUp-Q2KDown-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix-fixed-0731.gguf
+ds4-up:   log      /Users/evanhoffman/.ds4/server.log
+2026-08-15 20:38:26,901 INFO 5 task(s) x 1 backend(s) x 3 trial(s)
+2026-08-15 20:40:28,831 INFO mbox-strip-envelope-ds4-1: PASS in 120.3s (16 passed in 0.10s)
+2026-08-15 20:44:20,840 INFO parser-mbox-quoting-ds4-1: PASS in 226.0s (55 passed in 0.88s)
+2026-08-15 20:47:12,939 INFO storage-blob-put-ds4-1: PASS in 170.4s (17 passed in 0.07s)

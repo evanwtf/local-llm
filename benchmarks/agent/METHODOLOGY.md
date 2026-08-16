@@ -1,0 +1,329 @@
+# Methodology
+
+Why this benchmark is built the way it is, what it can and cannot tell you, and
+how to extend it without breaking the parts that make it trustworthy.
+
+Read [`README.md`](README.md) first for how to run it. This document is about
+*why*.
+
+---
+
+## 1. What question is this answering?
+
+**"If I point Claude Code at this local model, will it finish a real coding
+task, and how long will I wait?"**
+
+That is deliberately narrower than "which model is better". A coding agent is a
+loop — read files, call tools, edit, re-read, decide it is done — and a model
+can be strong at code while being bad at that loop: not stopping, not reading
+before editing, forgetting what it changed.
+
+The other benchmarks in this repo measure the engine:
+
+| benchmark | measures |
+|---|---|
+| `benchmarks/ds4/0731/` | prefill and generation throughput, thermals, long context |
+| `benchmarks/ollama/` | the same, for Ollama's MLX backend |
+| `benchmarks/ds4/coding/` | HumanEval pass@1 — single-shot code generation |
+| **`benchmarks/agent/`** | **the whole agent loop, end to end** |
+
+HumanEval saturated at 96–98% for both DS4 quants and could not rank them
+(p = 0.453). That is the specific gap this fills: HumanEval asks "can it write a
+function"; this asks "can it operate a repository".
+
+---
+
+## 2. The oracle problem
+
+Every agent benchmark faces the same question: **who decides if the work is
+good?**
+
+The usual answers are all bad:
+
+- **A judging model.** Introduces the grader's own bias, and if the grader is
+  the same family as the subject, it grades its own homework.
+- **A rubric scored by hand.** Does not scale and is not reproducible.
+- **String or diff matching against the original code.** Punishes correct
+  solutions that differ from the original, which is most of them.
+
+This harness uses **the repository's own test suite**. The tests were written
+by a human, before the benchmark existed, for reasons unrelated to it. They
+encode the actual contract. The agent either satisfies it or does not.
+
+That gives a binary, reproducible, un-gameable-by-argument signal. The cost is
+that it is coarse: there is no partial credit, and a solution that is correct
+but slow, ugly, or insecure still passes. **This measures completion, not
+craftsmanship.**
+
+### Requirements this places on the target repository
+
+1. **Tests must be fast.** They run twice per trial (control + verification).
+   `gmail-archive` runs 166 tests in ~4.7 s. A suite that takes minutes would
+   dominate the measurement.
+2. **Tests must be deterministic.** A flaky test becomes a coin flip attributed
+   to the model.
+3. **Tests must not be skipped.** See §4.
+
+---
+
+## 3. Why excision, and why keep the signature
+
+Each task removes one function body and replaces it with
+`raise NotImplementedError`, **keeping the signature, type annotations, and
+docstring.**
+
+This mirrors the real situation. An engineer picking up a ticket has the
+contract — the name, the types, the docstring, the callers, and the tests — and
+has to supply the implementation. They are not guessing at an unknown API.
+
+Removing the docstring too would make the task "infer the contract from the
+tests", which is a different and much noisier skill. Removing the signature
+would break the callers and turn a focused task into a repo-wide refactor.
+
+The excision is done with the **AST** (`excise.py`), not with regexes or line
+numbers, so it works on methods, nested functions and decorated functions, and
+is indifferent to formatting.
+
+### Why the excision is committed
+
+After hollowing out the function, the harness commits it in the worktree.
+
+Without that, the original implementation sits in `HEAD` and the whole task
+collapses to `git checkout -- src/...` or `git stash pop`. Agents do try things
+like this — not maliciously, but because inspecting git history is a reasonable
+debugging move. Committing the excision makes the answer genuinely absent from
+the working tree's history.
+
+The original code is still recoverable from the base commit's parent if an agent
+goes looking hard enough. That is an accepted, documented residual risk: a
+`git log -p` deep enough to find it is itself real work, and `touched_tests`
+plus manual inspection of surprising passes is the backstop.
+
+---
+
+## 4. The control run, and the task it killed
+
+**Before the agent runs, the harness runs the tests and requires them to fail.**
+
+If the tests still pass after the excision, the task is measuring nothing — the
+model gets a free pass regardless of what it does. `run.py` records this as
+`control_fails_as_expected` and `summarize.py` discards any row where it is
+false.
+
+This is not hypothetical. The first task list included `query.search`, a
+221-line SQL surface that looked like the most interesting task of the five. The
+first dry run reported:
+
+```
+ERROR query-search-ds4-1: tests still pass after excision -- task is broken
+```
+
+`tests/test_query.py` skips every test without
+`GMAIL_ARCHIVE_TEST_DATABASE_URL`. All 8 tests were skipping, so deleting the
+function it tested changed nothing observable. **That task would have reported
+100% pass rates for both models while measuring nothing at all.**
+
+It was replaced with `mbox-scan`. To use the SQL surface as a task, bring up the
+compose stack and export the database URL first — then the control will pass and
+the task becomes valid.
+
+The general lesson: *a benchmark that cannot fail is not measuring anything.*
+Verify the negative case.
+
+---
+
+## 5. Isolation
+
+Each trial runs in its **own git worktree**, created from a pinned base commit
+and destroyed afterwards.
+
+This matters more than it looks:
+
+- **Trials cannot contaminate each other.** An agent that leaves a stray file,
+  a half-applied edit, or a `.pyc` cannot affect the next run.
+- **Task order does not matter.** Runs are independent, so they can be
+  reordered, re-run, or parallelised later without invalidating comparisons.
+- **The source repository is never modified.** The benchmark reads
+  `~/git/gmail-archive` and writes nothing to it.
+
+`base_commit` is pinned in `tasks.toml`. Results stay comparable as the target
+repository moves on; bumping it invalidates comparisons against older results
+and should be treated as starting a new series.
+
+---
+
+## 6. Fairness between backends
+
+### Context windows are deliberately different
+
+ds4 runs at 100,000 tokens; Qwen3.8 at 262,144.
+
+Equalising them would be the wrong kind of fair. Capping Qwen at 100k throws
+away a real capability; raising ds4 to 262k exceeds what `ds4-server` was
+started with, and Claude Code would then auto-compact *after* the server had
+already truncated — producing silent corruption rather than a fair fight.
+
+Each model gets its real window. The window is part of the product.
+
+### Memory pressure is controlled, not ignored
+
+ds4 is ~91 GiB resident and Qwen is ~18 GB. Both fit in 128 GiB, but not
+comfortably alongside a page cache. Whichever server is idle gets paged out and
+pays a large penalty on its first request.
+
+`run_matrix.sh` therefore runs **all ds4 trials, stops ds4 to free the 91 GiB,
+then runs all Qwen trials**, preloading each model first. Neither model is ever
+measured while paged out.
+
+The first smoke test ignored this and measured ds4 at ~27 GiB resident — a
+number that flattered Qwen. It is reported in the README with that caveat
+attached rather than quietly dropped.
+
+### Everything else is held constant
+
+Same prompt, same permission mode (`bypassPermissions`), same repository, same
+base commit, same tests, same machine, same `claude` binary. The only variables
+are the model and its context window.
+
+---
+
+## 7. What is measured
+
+| field | meaning | comparable across backends? |
+|---|---|---|
+| `passed` | the oracle: did the tests pass | **yes** |
+| `wall_seconds` | end to end, including tool calls | **yes** |
+| `num_turns` | agent round trips | **yes** |
+| `output_tokens` | tokens the model generated | yes, with care |
+| `input_tokens` | tokens the model consumed | **no — ds4 reports 0** |
+| `api_ms` | time inside API calls | yes |
+| `touched_tests` | did the agent edit the tests | cheat detector |
+| `total_cost_usd` | **fiction for local models** | no — ignore |
+
+**Wall time is the headline.** It includes the agent's own tool calls, its
+thinking, and every round trip — which is what a person actually waits for.
+
+**`num_turns` is diagnostic, not a score.** Fewer turns is not automatically
+better; an agent that solves a task in 4 turns and one that solves it in 12 both
+solved it. But a high turn count paired with a failure almost always means
+thrashing, and is worth reading the transcript over.
+
+**`total_cost_usd` prices local inference at Anthropic API rates.** A 124-second
+local run reported \$0.14. It is meaningless here.
+
+---
+
+## 8. Statistics
+
+`summarize.py` reports **medians, not means**.
+
+These runs have a fat right tail. An agent that goes down a wrong path can take
+five times as long as one that does not, and a single such run drags a mean
+somewhere unrepresentative. This mirrors the finding in
+[`../ds4/coding/RESULTS.md`](../ds4/coding/RESULTS.md): the mixed build's median
+output was a normal 783 tokens, but ~4.9% of prompts ran to the token cap. The
+median described the typical experience; the mean did not.
+
+**One trial is not a result.** These models sample; the same task can succeed and
+fail across runs. The default matrix is 3 trials, which is enough to notice a
+large difference and *not* enough to establish a small one. A 1-of-3 versus
+2-of-3 split is noise. Treat wall-time differences under ~20% on a single task
+as noise too.
+
+With 5 tasks × 3 trials = 15 runs per backend, a difference in overall pass rate
+of one or two runs is not significant. Report it as "no difference detected",
+not "they are equal".
+
+---
+
+## 9. Threats to validity
+
+Honest accounting of what could make these numbers wrong.
+
+| threat | mitigation | residual risk |
+|---|---|---|
+| Agent edits the tests to pass | `touched_tests` flag; counted as failure | none meaningful |
+| Agent recovers code from git history | excision is committed | possible via deep `git log -p`; inspect surprising fast passes |
+| Task measures nothing (skipped tests) | control run required to fail | none — this is checked every trial |
+| Trials contaminate each other | worktree per trial, destroyed after | none |
+| Memory pressure favours one model | phased runs, preload, one model resident | thermal drift across a long run |
+| Training-data contamination | `gmail-archive` is a private repo | the *libraries* it uses are public; a model may know `email.utils` well |
+| Single-trial noise | 3 trials, medians | small effects remain undetectable |
+| Prompt favours one model | identical prompt text for all backends | prompt style may suit one model's training |
+
+**The contamination point deserves emphasis.** `gmail-archive` is private, so
+the specific code is very unlikely to be in any training set. But the tasks
+involve `email`, `mailbox`, `hashlib` and RFC 2822 — well-documented standard
+library territory. A model that has seen a lot of Python will have an advantage
+that is real but not specific to this repository. That is arguably the correct
+thing to measure.
+
+### The empty-virtualenv confound
+
+**Known flaw in the first series.** A fresh git worktree has no `.venv`. The
+agent must therefore work out how to run the tests — `uv run pytest`,
+`uv sync` first, or discovering that `.venv/bin/python` does not exist here —
+before it can even see whether its implementation is correct.
+
+This was visible in the first ds4 trial, which ran
+`.venv/bin/python -m pytest` in a worktree that had no such path.
+
+The effect is real but **symmetric**: both backends face the identical empty
+worktree, so the comparison between them stays valid. What it damages is the
+*absolute* wall-time numbers, which include an environment-discovery tax that
+has nothing to do with the coding task, and the variance, since how quickly a
+model finds `uv run` is close to a coin flip.
+
+The fix for the next series is to run `uv sync` in the worktree before handing
+it to the agent, so every trial starts from a working environment. That changes
+the numbers, so it starts a new series rather than extending this one — do not
+pool results across the change.
+
+---
+
+## 10. Extending it
+
+### Adding a task
+
+1. Pick a function whose tests **run** — not skipped, not requiring services
+   you will not start.
+2. Add a `[[task]]` block to `tasks.toml`.
+3. Run `--dry-run` and confirm the control fails. **If it does not, the task is
+   invalid.** Fix it or discard it.
+4. Prefer tasks that break a meaningful number of tests. The current set spans
+   3 to 49, which gives a difficulty gradient.
+
+Do not name the tests in the prompt. Finding them is part of the task.
+
+### Adding a backend
+
+Add a `[backend.name]` block with `base_url`, `auth_token`, `model` and
+`context_tokens`. Anything speaking Anthropic `/v1/messages` works — that is
+the whole interface. Set `context_tokens` to the server's *real* window.
+
+For Ollama ≤ 0.32.13, point `base_url` at the shim on `:11500` rather than
+Ollama directly; see the repo README.
+
+### Adding a target repository
+
+`tasks.toml` currently assumes one repo. Supporting several means moving `repo`
+and `base_commit` into each task. The rest of the harness is already agnostic —
+it only needs a git repo, a way to run tests, and tests that fail when code is
+removed.
+
+---
+
+## 11. What this does not measure
+
+Stated plainly, so nobody over-reads the results:
+
+- **Code quality.** A passing solution may be unidiomatic, slow, or insecure.
+- **Long-horizon work.** Every task is a single function. Nothing here tests
+  multi-file refactors, or work spanning hours and compactions.
+- **Ambiguity handling.** The tasks are unambiguous by construction. Real work
+  is not, and knowing when to ask is a large part of being useful.
+- **Reading comprehension at long context.** Tasks fit comfortably in both
+  models' windows. Long-context *quality* remains unmeasured — the same gap
+  noted in `benchmarks/ds4/0731/claude_code_recommendations.md`.
+- **Tool breadth.** No web access, no MCP servers, no subagents.
+- **Recovery from its own mistakes** beyond what a single task exercises.
