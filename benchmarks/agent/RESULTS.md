@@ -6,12 +6,24 @@ Methodology in [`METHODOLOGY.md`](METHODOLOGY.md).
 
 | backend | model | quant | size | gen t/s | context |
 |---|---|---|---|---|---|
-| `ds4` | DeepSeek V4 Flash 0731, via `ds4-server` | mixed q2/q4 | 90.9 GiB | 34.4 | 100,000 |
+| `ds4` | DeepSeek V4 Flash 0731, via `ds4-server` | mixed q2/q4 | 90.9 GiB | 36.8 | 100,000 |
 | `qwen` | `qwen3.8:27b-mlx` | 4-bit affine | 18 GB | 57.1 | 262,144 |
 | `qwen36` | `qwen3.6:27b-mlx` | nvfp4 | 19 GB | 29.3 | 262,144 |
 | `qwen36coding` | `qwen3.6:27b-coding-mxfp8` | mxfp8 | 31 GB | 17.9 | 262,144 |
 
-All Qwen builds served by Ollama 0.32.14-rc0.
+All Qwen builds served by Ollama 0.32.14-rc0. ds4 built from `5be6b6c`
+(binary dated 2026-08-10).
+
+> **Correction, 2026-08-16.** Earlier revisions of this table listed ds4 at
+> 34.4 t/s generation. That figure came from `bench-0731/speed_q2q4_0731.csv`,
+> measured 2026-08-08 against an older build (`main @ b030961`) — not the
+> binary that ran these trials. Re-measured on the actual build:
+> **36.8 t/s** at 12,288 context. No conclusion changes; ds4 still generates
+> more slowly than Qwen3.8 and still wins the agent benchmark.
+>
+> Prefill is *not* restated here. The fresh sweep used a larger prefill chunk
+> than `bench-0731` did, and longer prefills batch better, so the two are not
+> comparable. See [`../ds4/sync/README.md`](../ds4/sync/README.md).
 
 ---
 
@@ -23,15 +35,30 @@ No failures. No timeouts. No run edited a test to pass. On this task set the
 difference between them is entirely *how long they take*, never *whether they
 get there*.
 
-| | pass | median wall | median turns | median output tokens | worst spread |
+| | pass | median wall | median turns | median output tokens | spread |
 |---|---|---|---|---|---|
-| **ds4** | 15/15 | **164.4 s** | **8** | **2,130** | **1.5×** |
-| qwen3.6-coding | 15/15 | 213.5 s | 10 | 2,219 | 1.8× |
-| qwen3.6 | 15/15 | 248.4 s | 13 | 3,725 | 2.5× |
-| qwen3.8 | 15/15 | 272.2 s | 13 | 6,237 | 3.3× |
+| ornith:35b | **13/15** | **82.3 s** | 12 | 2,857 | **30.4×** |
+| **ds4 (synced)** | **15/15** | 140.9 s | 9 | **2,120** | 2.6× |
+| ds4 (pre-sync) | 15/15 | 164.4 s | **8** | 2,130 | **1.9×** |
+| qwen3.6-coding | 15/15 | 213.5 s | 10 | 2,219 | 3.4× |
+| qwen3.6 | 15/15 | 248.4 s | 13 | 3,725 | 4.0× |
+| qwen3.8 | 15/15 | 272.2 s | 13 | 6,237 | 10.1× |
+
+`spread` is slowest run over fastest, across all 15 trials.
+
+**Ornith has the best median and is the only backend that has ever failed.**
+Both facts are load-bearing; see below.
 
 Total wall clock for 15 trials each: ds4 **42.1 min**, 3.6-coding **52.2 min**,
 qwen3.6 **67.3 min**, qwen3.8 **72.6 min**.
+
+## Two results, not one
+
+1. **Wall time tracks tokens per task, not tokens per second** (below).
+2. **The fastest median is not the best agent.** Ornith is 1.7× faster than
+   synced ds4 at the median and fails 2 of 15 trials, with a 30.4× spread and a
+   single run of 20.4 minutes. For work you sit and wait on, the tail and the
+   failure rate matter more than the median.
 
 ## The result: tokens per task, not tokens per second
 
@@ -41,7 +68,7 @@ ranking by agent performance:
 | | gen t/s (rank) | median wall (rank) |
 |---|---|---|
 | qwen3.8 | 57.1 (1st) | 272.2 s (4th) |
-| ds4 | 34.4 (2nd) | **164.4 s (1st)** |
+| ds4 | 36.8 (2nd) | **164.4 s (1st)** |
 | qwen3.6 | 29.3 (3rd) | 248.4 s (3rd) |
 | qwen3.6-coding | 17.9 (4th) | 213.5 s (2nd) |
 
@@ -237,3 +264,106 @@ Two harness fixes came out of it:
   failing every later attempt at that cell with `fatal: ... already exists`.
 - `summarize.py` honours an `excluded` key, so a retired row can stay in the
   data without contaminating the statistics.
+
+---
+
+## Series 2: the upstream sync (2026-08-16)
+
+`ds4` was synced with `antirez/ds4` upstream — 32 commits, merged clean, rebuilt
+as `fdcf3aa`. The haul included a large M5-specific decode optimization campaign
+and two fixes that land on paths this benchmark uses: `metal: fix long-context
+prefill and decode correctness` and `server: recover truncated DSML tool calls`.
+
+Engine speed, identical sweep settings on both builds, minutes apart:
+
+| ctx | prefill pre → post | generation pre → post |
+|---|---|---|
+| 8192 | 679.2 → 661.1 (−2.7%) | 37.3 → **40.3 (+7.9%)** |
+| 12288 | 640.2 → 632.9 (−1.1%) | 36.8 → **40.6 (+10.4%)** |
+| 16384 | 614.8 → 599.6 (−2.5%) | 36.4 → **39.9 (+9.6%)** |
+
+Agent benchmark, 15 trials each side:
+
+| task | pre | post | delta |
+|---|---|---|---|
+| `mbox-strip-envelope` | 127.2 s | 115.0 s | −9.6% |
+| `parser-mbox-quoting` | 211.6 s | 194.1 s | −8.3% |
+| `storage-blob-put` | 170.4 s | 138.0 s | **−19.0%** |
+| `parser-date` | 164.4 s | 140.9 s | −14.3% |
+| `mbox-scan` | 163.5 s | 144.4 s | −11.7% |
+| **overall median** | **164.4 s** | **140.9 s** | **−14.3%** |
+
+### Why this run is the cleanest evidence for the main finding
+
+**Median output tokens barely moved: 2,130 → 2,120.** Turns went 8 → 9. The
+model did the same amount of work; only the rate changed.
+
+Everywhere else in this report, wall-time differences came from models emitting
+*different numbers of tokens*. Here the token count is held constant by
+construction and only engine throughput varies — and wall time fell 14.3%,
+tracking the measured +8–10% generation gain plus prefill.
+
+That is the same relationship observed from the opposite direction, which is
+about as close to a controlled experiment as this setup allows.
+
+Sync was worth it on both counts: correctness fixes on the tool-call path, and
+ds4's lead over the next-best backend widens from 1.30× to 1.52×.
+
+---
+
+## Ornith: fastest median, only failures
+
+`ornith:35b` is a 34.7B MoE in 21 GB, MIT licensed, with an agentic system
+prompt baked into the model: *"Think step by step in a reasoning block, then
+act. Use the provided tools when they help. Be concise, correct, and direct."*
+
+It is the fastest backend measured, and the only one that has ever failed.
+
+| | value |
+|---|---|
+| median | **82.3 s** — 1.7× faster than synced ds4 |
+| fastest run | **40.3 s** — fastest single run in the project |
+| slowest run | **1,226.0 s** — slowest single run in the project |
+| spread | **30.4×** |
+| pass rate | **13/15** |
+
+### The failures are not random
+
+Both failures hit **`mbox-strip-envelope`**, the *easiest* task in the set
+(3 broken tests), and both produced the identical result: `3 failed, 13 passed`.
+Neither touched the tests.
+
+| trial | result | wall | turns | output tokens |
+|---|---|---|---|---|
+| 1 | PASS | 40.3 s | 12 | 1,636 |
+| 2 | **FAIL** | 46.8 s | 13 | 1,940 |
+| 3 | **FAIL** | 138.2 s | 33 | 4,973 |
+
+So it fails **2 of 3 attempts at the simplest task** while passing every harder
+one. Trial 3 rules out haste as the explanation: 33 turns and 4,973 tokens — its
+most effortful run anywhere — and it still got the same three tests wrong. This
+is a blind spot, not carelessness.
+
+### And it is capable of getting stuck
+
+`mbox-scan` ran 176.3 s, then **1,226.0 s** — 20.4 minutes, 8.5× synced ds4's
+median on that task.
+
+### Reading
+
+Ornith holds the fastest run, the only failures, and the longest run, all within
+15 trials. That is one coherent behaviour rather than three quirks: a model tuned
+hard for terseness commits early. Usually that is right and very fast. When it is
+wrong, it either ships a wrong answer quickly or cannot deliberate its way back.
+
+**Caveat that does not go away:** Ornith is a Q4_K_M GGUF, served through
+Ollama's llama.cpp path rather than MLX. Some of the speed advantage may be
+engine, not model. A 1.7× median gap is larger than that plausibly explains on
+its own, but the comparison is not clean and should not be presented as one.
+
+### It also answered an open question
+
+Before Ornith, all 75 trials across five backends passed, and this report said
+the task set could not discriminate on correctness. It can. Ornith found a wall
+the others walked past — which raises the value of issue #4 (harder tasks)
+rather than lowering it.

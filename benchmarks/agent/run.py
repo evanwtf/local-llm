@@ -52,6 +52,57 @@ def pytest_passes(worktree, tests, timeout):
     return r.returncode == 0, (tail[-1] if tail else "no output")
 
 
+def capture_versions(cfg, backends):
+    """Record the software stack, once, into every row of this run.
+
+    Without this, results.jsonl is undated evidence: six months on there is no
+    way to attribute a row to a Claude Code version, an Ollama build, or a
+    model that has since been re-pushed under the same tag. Prose in a report
+    drifts away from the data; this travels with it.
+    """
+    def out(cmd):
+        try:
+            r = run(cmd, cwd=None, timeout=30)
+            return r.stdout.strip().splitlines()[0] if r.stdout.strip() else None
+        except Exception:
+            return None
+
+    env = {
+        "claude": out(["claude", "--version"]),
+        "macos": out(["sw_vers", "-productVersion"]),
+        "machine": out(["sysctl", "-n", "machdep.cpu.brand_string"]),
+        "target_commit": cfg["base_commit"],
+    }
+
+    if any(b["base_url"].endswith(":11434") for b in backends.values()):
+        env["ollama"] = out(["ollama", "--version"])
+        # A tag can be re-pushed upstream; the digest cannot. Pin the digest.
+        digests = {}
+        listing = run(["ollama", "list"], cwd=None, timeout=30).stdout
+        for line in listing.splitlines()[1:]:
+            parts = line.split()
+            if len(parts) >= 2:
+                digests[parts[0]] = parts[1]
+        for name, b in backends.items():
+            if b["model"] in digests:
+                env[f"digest_{name}"] = digests[b["model"]]
+
+    if any(b["base_url"].endswith(":8000") for b in backends.values()):
+        ds4_root = pathlib.Path(os.environ.get("DS4_ROOT", "~/git/ds4")).expanduser()
+        if (ds4_root / ".git").exists():
+            try:
+                env["ds4_head"] = git(["rev-parse", "--short", "HEAD"], ds4_root)
+                env["ds4_dirty"] = bool(git(["status", "--porcelain"], ds4_root))
+            except RuntimeError:
+                pass
+        server = ds4_root / "ds4-server"
+        if server.exists():
+            # The binary may predate HEAD. Record when it was actually built.
+            env["ds4_server_mtime"] = time.strftime(
+                "%Y-%m-%dT%H:%M:%S", time.localtime(server.stat().st_mtime))
+    return {k: v for k, v in env.items() if v is not None}
+
+
 def agent_env(backend):
     env = dict(os.environ)
     env.pop("ANTHROPIC_API_KEY", None)
@@ -67,13 +118,16 @@ def agent_env(backend):
     return env
 
 
-def one_trial(cfg, task, backend_name, backend, trial, workdir, timeout, dry_run):
+def one_trial(cfg, task, backend_name, backend, trial, workdir, timeout, dry_run,
+              versions=None):
     repo = pathlib.Path(cfg["repo"]).expanduser()
     name = f"{task['name']}-{backend_name}-{trial}"
     worktree = workdir / name
     result = {
         "task": task["name"], "backend": backend_name, "trial": trial,
         "started": time.strftime("%Y-%m-%dT%H:%M:%S"),
+        "model": backend["model"], "context_tokens": backend["context_tokens"],
+        "env": versions or {},
     }
 
     # A previous run killed mid-flight leaves its worktree behind, and
@@ -170,13 +224,15 @@ def main():
     workdir = pathlib.Path(os.environ.get("TMPDIR", "/tmp")) / "agent-bench"
     workdir.mkdir(parents=True, exist_ok=True)
 
+    versions = capture_versions(cfg, backends)
     logger.info("%d task(s) x %d backend(s) x %d trial(s)",
                 len(tasks), len(backends), args.trials)
+    logger.info("stack: %s", ", ".join(f"{k}={v}" for k, v in sorted(versions.items())))
     for trial in range(1, args.trials + 1):
         for task in tasks:
             for bname, backend in backends.items():
                 r = one_trial(cfg, task, bname, backend, trial,
-                              workdir, args.timeout, args.dry_run)
+                              workdir, args.timeout, args.dry_run, versions)
                 with RESULTS.open("a") as fh:
                     fh.write(json.dumps(r) + "\n")
 

@@ -107,3 +107,29 @@ base_url = "http://127.0.0.1:11434"
 auth_token = "ollama"
 model = "qwen3.6:27b-coding-mxfp8"
 context_tokens = 262144
+
+# Purpose-built agentic coding assistant, MIT, 34.7B MoE in 21 GB. Its baked-in
+# system prompt tells it to be concise and to use tools -- the trait this
+# benchmark rewards -- so it is the most direct test of whether agent tuning
+# beats raw capability.
+#
+# CAVEAT: this is a Q4_K_M GGUF, not an MLX quant. Ollama serves GGUF through a
+# different backend, so a slow or fast result here confounds model with engine.
+# Record it; do not read it as a clean model-to-model comparison.
+[backend.ornith]
+description = "Ornith 35B, agentic coding tune, Q4_K_M GGUF"
+base_url = "http://127.0.0.1:11434"
+auth_token = "ollama"
+model = "ornith:35b"
+context_tokens = 262144
+
+# Different family entirely -- Google, not Qwen or DeepSeek. Matched against
+# qwen3.6:27b-coding-mxfp8 on quantization (mxfp8), size (32 GB vs 31 GB) and
+# backend, so the lineage is the only variable that moves. Tests whether the
+# tokens-per-task finding is a property of agent loops or of Qwen. See issue #1.
+[backend.gemma4]
+description = "Gemma 4 31B, mxfp8"
+base_url = "http://127.0.0.1:11434"
+auth_token = "ollama"
+model = "gemma4:31b-mxfp8"
+context_tokens = 262144

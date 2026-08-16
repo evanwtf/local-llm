@@ -27,6 +27,7 @@ def load(path):
     """Read rows, dropping the ones that cannot support a conclusion.
 
     A row is excluded when:
+      - it is a --dry-run row, which records the control check and no agent;
       - its control did not fail, so the excision was invisible to the tests;
       - it carries an explicit `excluded` key, used to retire a run whose
         conditions were known to be wrong (see RESULTS.md provenance).
@@ -39,7 +40,7 @@ def load(path):
         if not line.strip():
             continue
         r = json.loads(line)
-        if r.get("excluded"):
+        if r.get("excluded") or r.get("dry_run"):
             retired += 1
             continue
         if not r.get("control_fails_as_expected"):
