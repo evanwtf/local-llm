@@ -1,0 +1,72 @@
+"""Remove a function body, leaving the signature and docstring in place.
+
+The agent is given a real repository with one function hollowed out. Keeping
+the signature and docstring means the task is "implement this contract", not
+"guess what was here" -- which is the situation a coding agent actually faces.
+
+Uses the AST to find the target, so it works on methods and nested defs and
+does not care about formatting.
+"""
+import ast
+import pathlib
+
+
+class TargetNotFound(Exception):
+    pass
+
+
+def find(tree: ast.Module, symbol: str) -> ast.FunctionDef:
+    """Locate `func` or `Class.method` in a parsed module."""
+    parts = symbol.split(".")
+    if len(parts) == 1:
+        for node in tree.body:
+            if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef) and node.name == parts[0]:
+                return node
+        raise TargetNotFound(f"no top-level function {symbol!r}")
+
+    cls_name, func_name = parts
+    for node in tree.body:
+        if isinstance(node, ast.ClassDef) and node.name == cls_name:
+            for sub in node.body:
+                if isinstance(sub, ast.FunctionDef | ast.AsyncFunctionDef) and sub.name == func_name:
+                    return sub
+            raise TargetNotFound(f"class {cls_name!r} has no method {func_name!r}")
+    raise TargetNotFound(f"no class {cls_name!r}")
+
+
+def excise(path: pathlib.Path, symbol: str) -> str:
+    """Replace the body of `symbol` in `path`. Returns the removed source."""
+    source = path.read_text()
+    lines = source.splitlines(keepends=True)
+    node = find(ast.parse(source), symbol)
+
+    body = node.body
+    # Keep a leading docstring: it is the contract the agent implements against.
+    if (
+        body
+        and isinstance(body[0], ast.Expr)
+        and isinstance(body[0].value, ast.Constant)
+        and isinstance(body[0].value.value, str)
+    ):
+        if len(body) == 1:
+            raise TargetNotFound(f"{symbol!r} is only a docstring; nothing to remove")
+        first = body[1]
+    else:
+        first = body[0]
+
+    start = first.lineno - 1                      # 0-indexed, inclusive
+    end = node.body[-1].end_lineno                # 1-indexed, exclusive once used as a slice
+    indent = " " * first.col_offset
+
+    removed = "".join(lines[start:end])
+    stub = f'{indent}raise NotImplementedError("removed for benchmark")\n'
+    path.write_text("".join(lines[:start]) + stub + "".join(lines[end:]))
+    return removed
+
+
+if __name__ == "__main__":
+    import sys
+
+    if len(sys.argv) != 3:
+        raise SystemExit("usage: excise.py <file> <symbol>")
+    print(excise(pathlib.Path(sys.argv[1]), sys.argv[2]))

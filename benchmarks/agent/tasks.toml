@@ -1,0 +1,90 @@
+# Agent benchmark tasks.
+#
+# Each task removes one function body from a real repository and asks the agent
+# to restore it. The repo's own test suite is the oracle -- no judging model, no
+# rubric, no partial credit. The agent either makes the tests pass or it does
+# not.
+#
+# Targets were chosen to span difficulty: a pure byte transform, a
+# roundtrip-invariant pair, durable file IO, and SQL with ranking.
+#
+# repo         checkout the tasks run against
+# base_commit  pinned so results stay comparable as the repo moves on
+# file/symbol  what gets excised. "Class.method" addresses a method.
+# tests        pytest node ids that must pass, and that are run to verify
+# prompt       what the agent is told. Deliberately does not name the tests --
+#              finding them is part of the task.
+
+repo = "~/git/gmail-archive"
+base_commit = "56e55cc"
+
+[[task]]
+name = "mbox-strip-envelope"
+file = "src/gmail_archive/mbox.py"
+symbol = "strip_envelope"
+tests = ["tests/test_mbox.py"]
+prompt = """`strip_envelope` in src/gmail_archive/mbox.py has been removed and \
+replaced with a NotImplementedError. Implement it so the existing test suite \
+passes. Do not modify any test."""
+
+[[task]]
+name = "parser-mbox-quoting"
+file = "src/gmail_archive/parser.py"
+symbol = "unquote_mbox"
+tests = ["tests/test_parser.py"]
+prompt = """`unquote_mbox` in src/gmail_archive/parser.py has been removed and \
+replaced with a NotImplementedError. Implement it so the existing test suite \
+passes. Note that it must round-trip with `requote_mbox`. Do not modify any \
+test."""
+
+[[task]]
+name = "storage-blob-put"
+file = "src/gmail_archive/storage.py"
+symbol = "BlobStore.put"
+tests = ["tests/test_storage.py"]
+prompt = """`BlobStore.put` in src/gmail_archive/storage.py has been removed \
+and replaced with a NotImplementedError. Implement it so the existing test \
+suite passes. Do not modify any test."""
+
+[[task]]
+name = "parser-date"
+file = "src/gmail_archive/parser.py"
+symbol = "_date"
+tests = ["tests/test_parser.py"]
+prompt = """`_date` in src/gmail_archive/parser.py has been removed and \
+replaced with a NotImplementedError. Implement it so the existing test suite \
+passes. Do not modify any test."""
+
+# Not query.search: tests/test_query.py skips without
+# GMAIL_ARCHIVE_TEST_DATABASE_URL, so an excision there is invisible to the
+# oracle. The control check in run.py catches exactly this. To use the SQL
+# surface as a task, bring up the compose stack and export that variable first.
+
+[[task]]
+name = "mbox-scan"
+file = "src/gmail_archive/mbox.py"
+symbol = "scan"
+tests = ["tests/test_mbox.py"]
+prompt = """`scan` in src/gmail_archive/mbox.py has been removed and replaced \
+with a NotImplementedError. Implement it so the existing test suite passes. Do \
+not modify any test."""
+
+# --- backends ------------------------------------------------------------
+# Each backend is the environment Claude Code runs under. Context windows
+# differ on purpose: each model gets its real window, because capping a model
+# below its capability is not a fair comparison, and exceeding it makes
+# auto-compact fire after the server has already truncated.
+
+[backend.ds4]
+description = "DeepSeek V4 Flash mixed q2/q4 0731 via ds4-server"
+base_url = "http://127.0.0.1:8000"
+auth_token = "dsv4-local"
+model = "deepseek-v4-flash"
+context_tokens = 100000
+
+[backend.qwen]
+description = "Qwen3.8-27B via Ollama MLX"
+base_url = "http://127.0.0.1:11434"
+auth_token = "ollama"
+model = "qwen3.8:27b-mlx"
+context_tokens = 262144
