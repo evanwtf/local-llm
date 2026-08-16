@@ -1,147 +1,137 @@
-# Agent benchmark — ds4 vs three Qwen builds
+# Agent benchmark — seven local backends driving Claude Code
 
 Run 2026-08-15 to 2026-08-16. MacBook Pro M5 Max, 128 GiB, macOS 26.5.
-5 tasks × 4 backends × 3 trials = **60 trials**.
-Methodology in [`METHODOLOGY.md`](METHODOLOGY.md).
+5 tasks × 3 trials per backend, **106 trials**.
+Methodology in [`METHODOLOGY.md`](METHODOLOGY.md). Raw rows in `results.jsonl`.
+
+---
+
+## Executive summary
+
+**What was measured.** Whether a local model, driving Claude Code, can restore a
+function deleted from a real 4,599-line Python repository — and how long it
+takes. The repository's own 166 tests are the oracle: pass or fail, no rubric,
+no judging model.
+
+**Correctness barely separates them.** Six of seven backends scored 100%. Only
+`ornith:35b` ever failed, twice, both on the same task. Choose on latency and
+predictability, not accuracy — at least until the tasks get harder (issue #4).
+
+| backend | pass | median wall | tokens | gen t/s | spread | resident |
+|---|---|---|---|---|---|---|
+| `ornith:35b` | 13/15 | **82.3 s** | 2,857 | **92.5** | **30.4×** | 21 GB |
+| **`ds4` (synced)** | **15/15** | 140.9 s | **2,120** | 40.6 | 2.6× | 90.9 GiB |
+| `ds4` (pre-sync) | 15/15 | 164.4 s | 2,130 | 36.8 | **1.9×** | 90.9 GiB |
+| `qwen3.6:27b-coding-mxfp8` | 15/15 | 213.5 s | 2,219 | 17.9 | 3.4× | 31 GB |
+| `qwen3.6:27b-mlx` | 15/15 | 248.4 s | 3,725 | 29.3 | 4.0× | 19 GB |
+| `qwen3.8:27b-mlx` | 15/15 | 272.2 s | 6,237 | 57.1 | 10.1× | 18 GB |
+| `gemma4:31b-mxfp8` | 16/16 | 355.4 s | 2,600 | 13.2 | 3.0× | 45 GB |
+
+`spread` is the slowest run divided by the fastest. `tokens` and `wall` are
+medians.
+
+### The findings
+
+1. **Wall time ≈ output tokens ÷ generation rate, plus per-turn overhead.**
+   Neither term predicts on its own (r = +0.35 and −0.67); their ratio predicts
+   almost perfectly (**r = +0.96**). Benchmarking a model's tokens/sec tells you
+   little about how long it will take to finish a job.
+
+2. **Newer is not better.** Within the Qwen family the ordering inverts the
+   version numbers: 3.6-coding (213.5 s) beats 3.6 (248.4 s) beats 3.8
+   (272.2 s). Qwen3.8 generates fastest of the Qwens and finishes last, because
+   it emits 2.8× the tokens.
+
+3. **The fastest median is not the best agent.** Ornith leads on median by 1.7×
+   and is the only backend that has failed — twice on the *easiest* task — with
+   a 30.4× spread and one run of 20.4 minutes.
+
+4. **`storage-blob-put` is a Qwen-family weakness.** All nine Qwen runs on that
+   task, across three builds, are slower than every ds4 run. It is unremarkable
+   for Gemma, which is evidence the weakness is lineage-specific.
+
+5. **Syncing ds4 with upstream bought 14.3%** — median 164.4 s → 140.9 s — with
+   output tokens essentially unchanged (2,130 → 2,120). A clean engine-only
+   improvement.
+
+### Recommendation
+
+For agentic coding on a 128 GiB Mac: **`ds4` (synced)**. It is the only backend
+that is simultaneously perfect on correctness, second-fastest, and predictable
+(worst case 2.6× its median). The cost is 90.9 GiB resident — most of the
+machine.
+
+If that footprint is unacceptable, **`qwen3.6:27b-coding-mxfp8`** is the value
+pick: 31 GB, 15/15, 1.5× ds4's median.
+
+**`ornith:35b`** is the speed pick with a real caveat — fastest by a distance,
+but it is the only model that has silently produced wrong code, and its tail is
+30×.
+
+### Read these caveats before quoting anything
+
+- **Quality is unmeasured, not equal.** A binary oracle cannot rank six
+  backends that all pass. See "What this does not say".
+- **Three trials detects large effects only.** Differences under ~20% on a
+  single task are noise.
+- **Ornith is served through llama.cpp, not MLX**, so its advantage confounds
+  model with engine. Most of its win is generation rate, not conciseness.
+- **Absolute times include an environment tax** — a fresh worktree has no
+  `.venv`, so part of every number is the agent working out how to run pytest.
+  Symmetric across backends, so comparisons hold.
+
+---
+
+## Backends
 
 | backend | model | quant | size | gen t/s | context |
 |---|---|---|---|---|---|
-| `ds4` | DeepSeek V4 Flash 0731, via `ds4-server` | mixed q2/q4 | 90.9 GiB | 36.8 | 100,000 |
+| `ds4` | DeepSeek V4 Flash 0731, via `ds4-server` | mixed q2/q4 | 90.9 GiB | 36.8 → 40.6 | 100,000 |
 | `qwen` | `qwen3.8:27b-mlx` | 4-bit affine | 18 GB | 57.1 | 262,144 |
 | `qwen36` | `qwen3.6:27b-mlx` | nvfp4 | 19 GB | 29.3 | 262,144 |
 | `qwen36coding` | `qwen3.6:27b-coding-mxfp8` | mxfp8 | 31 GB | 17.9 | 262,144 |
+| `ornith` | `ornith:35b`, agentic tune | Q4_K_M GGUF | 21 GB | 92.5 | 262,144 |
+| `gemma4` | `gemma4:31b-mxfp8` | mxfp8 | 32 GB | 13.2 | 262,144 |
 
-All Qwen builds served by Ollama 0.32.14-rc0. ds4 built from `5be6b6c`
-(binary dated 2026-08-10).
+All Ollama backends served by 0.32.14-rc0. ds4 measured on two builds:
+`5be6b6c` (pre-sync) and `fdcf3aa` (post-sync).
 
-> **Correction, 2026-08-16.** Earlier revisions of this table listed ds4 at
-> 34.4 t/s generation. That figure came from `bench-0731/speed_q2q4_0731.csv`,
-> measured 2026-08-08 against an older build (`main @ b030961`) — not the
-> binary that ran these trials. Re-measured on the actual build:
-> **36.8 t/s** at 12,288 context. No conclusion changes; ds4 still generates
-> more slowly than Qwen3.8 and still wins the agent benchmark.
->
-> Prefill is *not* restated here. The fresh sweep used a larger prefill chunk
-> than `bench-0731` did, and longer prefills batch better, so the two are not
-> comparable. See [`../ds4/sync/README.md`](../ds4/sync/README.md).
+### Corrections to earlier revisions
 
----
+Both are kept rather than quietly edited away.
 
-## Headline
+1. **ds4 generation was listed as 34.4 t/s.** That came from
+   `bench-0731/speed_q2q4_0731.csv`, measured 2026-08-08 against an older build
+   — not the binary that ran these trials. Re-measured: **36.8 t/s** pre-sync.
+   Prefill is deliberately not restated; the fresh sweep used a larger prefill
+   chunk, so the two are not comparable.
 
-**Every model solved every task, every time. 60/60.**
-
-No failures. No timeouts. No run edited a test to pass. On this task set the
-difference between them is entirely *how long they take*, never *whether they
-get there*.
-
-| | pass | median wall | median turns | median output tokens | spread |
-|---|---|---|---|---|---|
-| ornith:35b | **13/15** | **82.3 s** | 12 | 2,857 | **30.4×** |
-| **ds4 (synced)** | **15/15** | 140.9 s | 9 | **2,120** | 2.6× |
-| ds4 (pre-sync) | 15/15 | 164.4 s | **8** | 2,130 | **1.9×** |
-| qwen3.6-coding | 15/15 | 213.5 s | 10 | 2,219 | 3.4× |
-| qwen3.6 | 15/15 | 248.4 s | 13 | 3,725 | 4.0× |
-| qwen3.8 | 15/15 | 272.2 s | 13 | 6,237 | 10.1× |
-
-`spread` is slowest run over fastest, across all 15 trials.
-
-**Ornith has the best median and is the only backend that has ever failed.**
-Both facts are load-bearing; see below.
-
-Total wall clock for 15 trials each: ds4 **42.1 min**, 3.6-coding **52.2 min**,
-qwen3.6 **67.3 min**, qwen3.8 **72.6 min**.
-
-> ## Correction, 2026-08-16 — the headline claim was too strong
->
-> Earlier revisions of this report asserted that **"tokens per second is close
-> to irrelevant"** for agent work. Adding `gemma4:31b-mxfp8` (13.2 t/s) and
-> measuring Ornith (92.5 t/s) widened the range of generation rates from 3.2×
-> to 7× and falsified that.
->
-> Neither variable predicts wall time alone. Their **ratio** does:
->
-> ```
-> output tokens alone     r = +0.35
-> generation rate alone   r = -0.67
-> tokens / rate           r = +0.96
-> ```
->
-> The corrected model is **wall ≈ tokens ÷ generation rate + per-turn
-> overhead**. See "What actually predicts wall time" below.
->
-> Why the original claim looked true: across the first four backends,
-> generation rates spanned only 17.9–57.1 t/s while token counts spanned
-> 2,120–6,237. With both varying similarly, tokens happened to dominate.
-
-## Two results, not one
-
-1. **Wall time tracks tokens per task, not tokens per second** (below).
-2. **The fastest median is not the best agent.** Ornith is 1.7× faster than
-   synced ds4 at the median and fails 2 of 15 trials, with a 30.4× spread and a
-   single run of 20.4 minutes. For work you sit and wait on, the tail and the
-   failure rate matter more than the median.
-
-## The result: tokens per task, not tokens per second
-
-Rank the models by generation speed and you get the **exact reverse** of the
-ranking by agent performance:
-
-| | gen t/s (rank) | median wall (rank) |
-|---|---|---|
-| qwen3.8 | 57.1 (1st) | 272.2 s (4th) |
-| ds4 | 36.8 (2nd) | **164.4 s (1st)** |
-| qwen3.6 | 29.3 (3rd) | 248.4 s (3rd) |
-| qwen3.6-coding | 17.9 (4th) | 213.5 s (2nd) |
-
-**The fastest-generating model finished last. The slowest finished second.**
-
-The mechanism is the output-token column. Median tokens emitted per task track
-wall time almost perfectly, and generation rate barely matters:
-
-- ds4: 2,130 tokens → 164.4 s
-- 3.6-coding: 2,219 tokens → 213.5 s
-- qwen3.6: 3,725 tokens → 248.4 s
-- qwen3.8: 6,237 tokens → 272.2 s
-
-Qwen3.8 generates **3.2× faster** than 3.6-coding and emits **2.8× more
-tokens** to do the same job. The two nearly cancel, and what is left is a loss.
-
-**For agent work, measure tokens per task. Tokens per second is close to
-irrelevant.**
-
-### Newer is not better; coding-tuned is
-
-Within the Qwen family, ordering is the opposite of what version numbers
-suggest:
-
-    qwen3.6-coding  213.5 s   <   qwen3.6  248.4 s   <   qwen3.8  272.2 s
-
-The coding tune is worth ~14% over the base 3.6 and ~22% over 3.8 — while
-being the slowest generator tested and the largest file (31 GB). It also needs
-**10 median turns against 13**, so it wastes fewer round trips as well as
-fewer tokens.
+2. **"Tokens per second is close to irrelevant" was too strong.** It held across
+   the first four backends only because their generation rates spanned 3.2×
+   while token counts spanned 2.9×. Adding Gemma (13.2 t/s) and measuring Ornith
+   (92.5 t/s) widened the rate range to 7× and falsified it. See "What actually
+   predicts wall time".
 
 ---
+
 
 ## Per task
 
-Median wall seconds over 3 trials.
+Median wall seconds over 3 trials. Best per row in bold.
 
-| task | broken | ds4 | qwen3.8 | qwen3.6 | 3.6-coding |
-|---|---|---|---|---|---|
-| `mbox-strip-envelope` | 3 | 127.2 | **123.6** | 149.6 | 156.2 |
-| `mbox-scan` | 13 | **163.5** | 173.3 | 331.1 | 217.7 |
-| `storage-blob-put` | 14 | **170.4** | 501.8 | 414.8 | 233.7 |
-| `parser-mbox-quoting` | 34 | **211.6** | 272.2 | 254.2 | 239.4 |
-| `parser-date` | 49 | **164.4** | 280.6 | 198.0 | 173.6 |
+| task | broken | ornith | ds4 sync | ds4 pre | 3.6-cod | 3.6 | 3.8 | gemma4 |
+|---|---|---|---|---|---|---|---|---|
+| `mbox-strip-envelope` | 3 | **46.8**† | 115.0 | 127.2 | 156.2 | 149.6 | 123.6 | 210.2 |
+| `mbox-scan` | 13 | 194.9 | **144.4** | 163.5 | 217.7 | 331.1 | 173.3 | 399.8 |
+| `storage-blob-put` | 14 | **82.3** | 138.0 | 170.4 | 233.7 | 414.8 | 501.8 | 294.4 |
+| `parser-mbox-quoting` | 34 | **102.3** | 194.1 | 211.6 | 239.4 | 254.2 | 272.2 | 459.4 |
+| `parser-date` | 49 | **68.7** | 140.9 | 164.4 | 173.6 | 198.0 | 280.6 | 385.8 |
 
-ds4 posts the best median on **four of five** tasks. Qwen3.8 takes
-`mbox-strip-envelope` — the easiest task, by 3.6 seconds, which is inside
-noise.
+† Ornith passed only **1 of 3** attempts at `mbox-strip-envelope`; that median
+is not comparable to the others. Every other cell in the table is 3/3.
 
-No Qwen is uniformly slower. All three are far more *variable*, and all three
-struggle on the same task.
+`ds4 sync` wins the one task Ornith cannot do reliably, and is second everywhere
+else. `gemma4` is last on four of five.
 
 ---
 
@@ -150,15 +140,23 @@ struggle on the same task.
 `BlobStore.put` writes a blob durably: temp file, `fsync`, atomic rename,
 sha256 verification. It breaks 14 tests, fewer than two other tasks.
 
-| trial | ds4 | qwen3.8 | qwen3.6 | 3.6-coding |
-|---|---|---|---|---|
-| 1 | 170.4 s | 853.6 s | 257.1 s | 210.1 s |
-| 2 | 216.5 s | 501.8 s | 456.9 s | 233.7 s |
-| 3 | 140.4 s | 386.5 s | 414.8 s | 371.7 s |
-| **median** | **170.4 s** | 501.8 s | 414.8 s | 233.7 s |
+| trial | ds4 (pre) | qwen3.8 | qwen3.6 | 3.6-coding | ornith | gemma4 |
+|---|---|---|---|---|---|---|
+| 1 | 170.4 s | 853.6 s | 257.1 s | 210.1 s | 91.2 s | 270.0 s |
+| 2 | 216.5 s | 501.8 s | 456.9 s | 233.7 s | 66.4 s | 294.4 s |
+| 3 | 140.4 s | 386.5 s | 414.8 s | 371.7 s | 82.3 s | 431.5 s |
+| **median** | **170.4 s** | 501.8 s | 414.8 s | 233.7 s | **82.3 s** | 294.4 s |
 
 **All nine Qwen runs on this task, across three builds, are slower than every
-ds4 run.** Nine for nine, no overlap at all.
+pre-sync ds4 run.** Nine for nine, no overlap at all. Post-sync ds4 is faster
+still, at a 138.0 s median.
+
+The two non-Qwen backends behave completely differently. Ornith is *fastest*
+here — 82.3 s median, its second-best task. Gemma is slow but this is not
+its worst task; it is last on four of five and merely mid-table on this one.
+
+That asymmetry is the evidence that the weakness is lineage-specific rather
+than a property of durable-write code being intrinsically hard.
 
 This is the strongest single-task result in the series, and it survived two
 attempts to explain it away:
@@ -190,38 +188,40 @@ in the methodology.
 
 ## Variance
 
-Ratio of slowest to fastest run on each task.
+Slowest run divided by fastest, per task.
 
-| task | ds4 | qwen3.8 | qwen3.6 | 3.6-coding |
-|---|---|---|---|---|
-| `mbox-strip-envelope` | 1.1× | 1.7× | 1.2× | 1.4× |
-| `mbox-scan` | 1.3× | **3.3×** | 2.5× | 1.6× |
-| `storage-blob-put` | 1.5× | 2.2× | 1.8× | 1.8× |
-| `parser-mbox-quoting` | 1.2× | 1.5× | **2.2×** | **1.1×** |
-| `parser-date` | 1.5× | 1.1× | 1.5× | 1.3× |
+| task | ornith | ds4 sync | ds4 pre | 3.6-cod | 3.6 | 3.8 | gemma4 |
+|---|---|---|---|---|---|---|---|
+| `mbox-strip-envelope` | 3.4× | 1.6× | 1.1× | 1.5× | 1.2× | 1.7× | 1.7× |
+| `mbox-scan` | **7.0×** | 1.7× | 1.3× | 1.6× | 2.5× | 3.3× | 1.2× |
+| `storage-blob-put` | 1.4× | 1.8× | 1.5× | 1.8× | 1.8× | 2.2× | 1.6× |
+| `parser-mbox-quoting` | 1.5× | 1.2× | 1.2× | 1.1× | 2.2× | 1.5× | 1.4× |
+| `parser-date` | 1.3× | 1.0× | 1.5× | 1.3× | 1.5× | 1.1× | 1.5× |
+| **overall** | **30.4×** | 2.6× | **1.9×** | 3.4× | 4.0× | 10.1× | 3.0× |
 
-**ds4 never exceeds 1.5× on any task.** Qwen3.8 and Qwen3.6 each exceed 2× on
-two tasks. The coding build is the most consistent Qwen, peaking at 1.8×.
+Per-task spreads understate the problem: a model can be consistent within a task
+and wildly inconsistent across them. Ornith's per-task figures look reasonable
+apart from `mbox-scan`, yet its overall range is 40.3 s to 1,226.0 s.
+
+**ds4 is the most predictable backend**, pre- or post-sync. Gemma is
+mid-field — slow, but not erratic. Qwen3.8 is the least predictable of the
+non-Ornith backends at 10.1×.
 
 The behaviour is bimodal rather than noisy: most runs are direct, then one
 wanders badly. Qwen3.6's `parser-mbox-quoting` went 248.4 s, 254.2 s — near
 identical — and then 537.2 s. **A model that looks stable over two trials is
 not necessarily stable.** This caught me twice during the run.
 
-**Practical reading:** ds4 is the most predictable agent backend by a clear
-margin, and the coding-tuned Qwen is the most predictable of the Qwens. All
-three Qwens are faster than their medians suggest when they go straight at a
-problem, and much slower when they do not.
-
 ---
 
 ## What this does not say
 
-- **Not a quality ranking.** All four scored 100%. This measures completion and
-  latency, not craftsmanship. A passing solution may still be ugly or slow.
+- **Not a quality ranking.** Six of seven backends scored 100%. This measures
+  completion and latency, not craftsmanship. A passing solution may still be
+  ugly, slow or insecure. Quality is **unmeasured, not equal** — see issue #4.
 - **Not a general claim.** Five single-function tasks in one Python repository,
-  all four backends run on one machine on one night.
-  Nothing here tests multi-file refactors, ambiguity, or long-context recall.
+  all backends run on one machine over two days. Nothing here tests multi-file
+  refactors, ambiguity, or long-context recall.
 - **Three trials detects large effects only.** The `storage-blob-put` gap
   (nine Qwen runs, none overlapping ds4) and the output-token ordering are
   large and consistent enough to believe. Differences under ~20% on a single
@@ -236,32 +236,33 @@ problem, and much slower when they do not.
 
 ## Practical recommendation
 
-If you are choosing a local backend for Claude Code on a 128 GiB Mac:
+See the [Executive summary](#executive-summary). In short: **ds4 (synced)** for
+correctness and predictability, **`qwen3.6:27b-coding-mxfp8`** if 90.9 GiB is
+too much machine to give up, **`ornith:35b`** only if you can tolerate a model
+that is occasionally confidently wrong.
 
-- **ds4 / DeepSeek V4 Flash is the fastest and most predictable** — but it
-  costs 90.9 GiB resident, which is most of the machine.
-- **`qwen3.6:27b-coding-mxfp8` is the best value.** 30% behind ds4 on median
-  wall time, in a 31 GB file, leaving the machine usable for everything else.
-- **`qwen3.8:27b-mlx` is the weakest agent tested**, despite being the newest
-  model and the fastest generator. Its 18 GB footprint is the smallest, which
-  is the argument for it.
-
-Correctness did not separate them at all. Choose on latency, predictability and
-memory.
+Correctness did not separate them. Choose on latency, predictability and memory.
 
 ## Cost of the run
 
-About 3 hours 40 minutes of wall time for 60 trials, phased so only one model
-was resident at a time — ds4 first at 90.9 GiB, then freed, then each Qwen in
-turn with an explicit unload between. No model was measured while paged out.
+Roughly 7 hours of wall time for 106 trials, phased so only one model was
+resident at a time — ds4 at 90.9 GiB, freed before each Ollama backend, and an
+explicit unload between backends. **No model was measured while paged out.**
+
+Per backend: ds4 42.1 min (pre-sync) and 37.0 min (post-sync), 3.6-coding
+52.2 min, qwen3.6 67.3 min, qwen3.8 72.6 min, ornith ~46 min, gemma4 ~89 min.
 
 ---
 
 ## Provenance
 
 - Target: `gmail-archive` @ `56e55cc`, 4,599 lines of Python, 166 tests.
-- Raw rows: `results.jsonl` (gitignored — regenerate with `run.py`).
-- Log: `matrix.log` (gitignored).
+- Raw rows: `results.jsonl` — **tracked in git**. Every row carries its own
+  environment capture (Claude Code version, Ollama version, model digest, ds4
+  commit, machine, OS), so old rows stay interpretable.
+- Logs: `matrix.log`, `matrix36.log`, `ornith.log`, `gemma4.log`,
+  `rerun_postsync.log` — also tracked.
+- Engine speed sweeps for the sync: `../ds4/sync/`.
 
 ### One cell was re-run, and why
 
@@ -315,18 +316,18 @@ Agent benchmark, 15 trials each side:
 | `mbox-scan` | 163.5 s | 144.4 s | −11.7% |
 | **overall median** | **164.4 s** | **140.9 s** | **−14.3%** |
 
-### Why this run is the cleanest evidence for the main finding
+### A controlled test of the generation-rate term
 
 **Median output tokens barely moved: 2,130 → 2,120.** Turns went 8 → 9. The
 model did the same amount of work; only the rate changed.
 
-Everywhere else in this report, wall-time differences came from models emitting
-*different numbers of tokens*. Here the token count is held constant by
-construction and only engine throughput varies — and wall time fell 14.3%,
-tracking the measured +8–10% generation gain plus prefill.
+That isolates one term of `wall ≈ tokens ÷ rate + overhead`. Token count is held
+constant by construction, generation rose 8–10%, and wall time fell 14.3%.
 
-That is the same relationship observed from the opposite direction, which is
-about as close to a controlled experiment as this setup allows.
+Across backends both terms move at once, which is what made the original
+tokens-only reading look sufficient. Here only the denominator moves, and it
+moves wall time — direct evidence that generation rate is not the irrelevant
+variable this report once called it.
 
 Sync was worth it on both counts: correctness fixes on the tool-call path, and
 ds4's lead over the next-best backend widens from 1.30× to 1.52×.
