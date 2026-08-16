@@ -24,11 +24,24 @@ HERE = pathlib.Path(__file__).parent
 
 
 def load(path):
-    rows, discarded, cheats = [], 0, 0
+    """Read rows, dropping the ones that cannot support a conclusion.
+
+    A row is excluded when:
+      - its control did not fail, so the excision was invisible to the tests;
+      - it carries an explicit `excluded` key, used to retire a run whose
+        conditions were known to be wrong (see RESULTS.md provenance).
+
+    Excluded rows stay in results.jsonl. Deleting them would falsify the
+    record; the reason travels with the data instead.
+    """
+    rows, discarded, retired, cheats = [], 0, 0, 0
     for line in path.read_text().splitlines():
         if not line.strip():
             continue
         r = json.loads(line)
+        if r.get("excluded"):
+            retired += 1
+            continue
         if not r.get("control_fails_as_expected"):
             discarded += 1
             continue
@@ -36,7 +49,7 @@ def load(path):
             cheats += 1
             r["passed"] = False
         rows.append(r)
-    return rows, discarded, cheats
+    return rows, discarded, retired, cheats
 
 
 def med(values):
@@ -57,12 +70,14 @@ def main():
     path = pathlib.Path(args.results)
     if not path.exists():
         raise SystemExit(f"no results at {path}")
-    rows, discarded, cheats = load(path)
+    rows, discarded, retired, cheats = load(path)
     if not rows:
         raise SystemExit("no usable rows")
 
     if discarded:
         print(f"WARNING: discarded {discarded} row(s) whose control did not fail")
+    if retired:
+        print(f"note: {retired} row(s) explicitly excluded; see RESULTS.md provenance")
     if cheats:
         print(f"WARNING: {cheats} row(s) edited the tests; counted as failures")
 

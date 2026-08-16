@@ -3,3 +3,43 @@
 2026-08-15 20:40:28,831 INFO mbox-strip-envelope-ds4-1: PASS in 120.3s (16 passed in 0.10s)
 2026-08-15 20:44:20,840 INFO parser-mbox-quoting-ds4-1: PASS in 226.0s (55 passed in 0.88s)
 2026-08-15 20:47:12,939 INFO storage-blob-put-ds4-1: PASS in 170.4s (17 passed in 0.07s)
+2026-08-15 20:50:45,203 INFO parser-date-ds4-1: PASS in 206.2s (55 passed in 0.91s)
+2026-08-15 20:53:08,411 INFO mbox-scan-ds4-1: PASS in 141.3s (16 passed in 0.10s)
+2026-08-15 20:55:17,398 INFO mbox-strip-envelope-ds4-2: PASS in 127.2s (16 passed in 0.10s)
+2026-08-15 20:58:34,419 INFO parser-mbox-quoting-ds4-2: PASS in 190.9s (55 passed in 0.89s)
+2026-08-15 21:02:12,707 INFO storage-blob-put-ds4-2: PASS in 216.5s (17 passed in 0.07s)
+2026-08-15 21:04:37,239 INFO parser-date-ds4-2: PASS in 138.2s (55 passed in 0.89s)
+2026-08-15 21:07:36,976 INFO mbox-scan-ds4-2: PASS in 178.1s (16 passed in 0.10s)
+2026-08-15 21:09:51,997 INFO mbox-strip-envelope-ds4-3: PASS in 133.3s (16 passed in 0.10s)
+2026-08-15 21:13:29,671 INFO parser-mbox-quoting-ds4-3: PASS in 211.6s (55 passed in 0.89s)
+2026-08-15 21:15:51,830 INFO storage-blob-put-ds4-3: PASS in 140.4s (17 passed in 0.07s)
+2026-08-15 21:18:42,316 INFO parser-date-ds4-3: PASS in 164.4s (55 passed in 0.89s)
+2026-08-15 21:21:27,390 INFO mbox-scan-ds4-3: PASS in 163.5s (16 passed in 0.10s)
+21:21:27 === freeing ds4 (~91 GiB) ===
+21:21:33 === phase 2: qwen (3 trials) ===
+2026-08-15 21:21:37,335 INFO 5 task(s) x 1 backend(s) x 3 trial(s)
+2026-08-15 21:23:42,420 INFO mbox-strip-envelope-qwen-1: PASS in 123.6s (16 passed in 0.10s)
+2026-08-15 21:29:18,982 INFO parser-mbox-quoting-qwen-1: PASS in 330.6s (55 passed in 0.88s)
+2026-08-15 21:43:34,262 INFO storage-blob-put-qwen-1: PASS in 853.6s (17 passed in 0.09s)
+2026-08-15 21:47:57,702 INFO parser-date-qwen-1: PASS in 257.2s (55 passed in 0.88s)
+2026-08-15 21:50:52,550 INFO mbox-scan-qwen-1: PASS in 173.3s (16 passed in 0.10s)
+2026-08-15 21:54:04,359 INFO mbox-strip-envelope-qwen-2: PASS in 190.2s (16 passed in 0.10s)
+2026-08-15 21:57:53,061 INFO parser-mbox-quoting-qwen-2: PASS in 222.5s (55 passed in 0.92s)
+2026-08-15 22:06:16,810 INFO storage-blob-put-qwen-2: PASS in 501.8s (17 passed in 0.08s)
+2026-08-15 22:11:14,418 INFO parser-date-qwen-2: PASS in 291.2s (55 passed in 0.88s)
+2026-08-15 22:12:40,386 INFO mbox-scan-qwen-2: PASS in 84.4s (16 passed in 0.10s)
+2026-08-15 22:14:31,325 INFO mbox-strip-envelope-qwen-3: PASS in 109.3s (16 passed in 0.10s)
+2026-08-15 22:19:09,481 INFO parser-mbox-quoting-qwen-3: PASS in 272.2s (55 passed in 0.90s)
+2026-08-15 22:25:37,670 INFO storage-blob-put-qwen-3: PASS in 386.5s (17 passed in 0.07s)
+2026-08-15 22:30:24,308 INFO parser-date-qwen-3: PASS in 280.6s (55 passed in 0.88s)
+2026-08-15 23:10:25,709 ERROR mbox-scan-qwen-3: timed out after 2400s
+23:10:25 === done; summarising ===
+task                    ds4 pass        qwen pass       ds4 median s    qwen median s 
+mbox-strip-envelope     3/3             3/3             127.2s          123.6s        
+parser-mbox-quoting     3/3             3/3             211.6s          272.2s        
+storage-blob-put        3/3             3/3             170.4s          501.8s        
+parser-date             3/3             3/3             164.4s          280.6s        
+mbox-scan               3/3             2/3             163.5s          128.9s        
+
+ds4    15/15 passed   median 164.4s   median turns 8   timeouts 0
+qwen   14/15 passed   median 264.7s   median turns 14   timeouts 1

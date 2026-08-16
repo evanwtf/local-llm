@@ -88,3 +88,22 @@ base_url = "http://127.0.0.1:11434"
 auth_token = "ollama"
 model = "qwen3.8:27b-mlx"
 context_tokens = 262144
+
+# One generation back, same size and same MLX backend as qwen3.8:27b-mlx.
+# The like-for-like control: only the model generation differs.
+[backend.qwen36]
+description = "Qwen3.6-27B via Ollama MLX"
+base_url = "http://127.0.0.1:11434"
+auth_token = "ollama"
+model = "qwen3.6:27b-mlx"
+context_tokens = 262144
+
+# Coding-tuned variant at mxfp8 rather than 4-bit. Two variables move at once
+# against qwen36 -- the tune and the quant -- so read it as its own data point,
+# not as an isolated measurement of either.
+[backend.qwen36coding]
+description = "Qwen3.6-27B coding-tuned, mxfp8"
+base_url = "http://127.0.0.1:11434"
+auth_token = "ollama"
+model = "qwen3.6:27b-coding-mxfp8"
+context_tokens = 262144

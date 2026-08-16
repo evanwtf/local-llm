@@ -76,6 +76,14 @@ def one_trial(cfg, task, backend_name, backend, trial, workdir, timeout, dry_run
         "started": time.strftime("%Y-%m-%dT%H:%M:%S"),
     }
 
+    # A previous run killed mid-flight leaves its worktree behind, and
+    # `git worktree add` then refuses the path. Clear it first so one aborted
+    # run cannot block every later attempt at the same cell.
+    if worktree.exists():
+        logger.warning("%s: removing stale worktree from an aborted run", name)
+        shutil.rmtree(worktree, ignore_errors=True)
+        run(["git", "worktree", "prune"], cwd=repo)
+
     git(["worktree", "add", "--detach", str(worktree), cfg["base_commit"]], repo)
     try:
         # 1. Hollow out the target and commit it, so `git checkout` cannot undo it.
