@@ -36,6 +36,31 @@ Both backends must be up first — `ds4-up` for ds4, Ollama for qwen.
 Results append to `results.jsonl`; nothing is overwritten, so runs accumulate
 and you can compare across days.
 
+## Raw data is committed
+
+`results.jsonl` and the run logs are **tracked in git, on purpose**. Each row
+costs minutes of wall time and a full matrix costs hours, so the data cannot be
+cheaply regenerated — and analyses nobody has thought of yet can only be run
+against data that still exists.
+
+Every row carries its own environment capture, so old rows stay interpretable
+after the stack moves on:
+
+```json
+"env": {"claude": "2.1.233", "ollama": "0.32.14-rc0",
+        "digest_qwen": "5642e97495e1", "ds4_head": "fdcf3aa",
+        "machine": "Apple M5 Max", "macos": "26.5.2",
+        "target_commit": "56e55cc"}
+```
+
+Model **digests** are recorded, not just tags — a tag can be re-pushed upstream,
+a digest cannot. `ds4_head` and `ds4_server_mtime` pin the engine build, since
+the binary can predate the checkout.
+
+Rows are never deleted. A run whose conditions were wrong is marked
+`"excluded": true` with a reason and skipped by `summarize.py`; `--dry-run` rows
+are kept too and skipped the same way. Deleting them would falsify the record.
+
 ## Tasks
 
 From [`gmail-archive`](https://github.com/evandhoffman/gmail-archive) — a real

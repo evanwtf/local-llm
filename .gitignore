@@ -8,8 +8,6 @@ __pycache__/
 .pytest_cache/
 .DS_Store
 
-# agent benchmark: accumulated run data, regenerate with run.py
-benchmarks/agent/results.jsonl
-benchmarks/agent/matrix*.log
-benchmarks/agent/results-smoke.jsonl
-benchmarks/agent/rerun.log
+# Agent benchmark raw data IS tracked -- results.jsonl and the run logs.
+# Each row is hours of wall time that cannot be cheaply regenerated, and rows
+# carry their own environment capture, so old runs stay interpretable.

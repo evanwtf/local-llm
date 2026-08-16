@@ -1,0 +1,3 @@
+2026-08-15 23:14:56,700 INFO 1 task(s) x 1 backend(s) x 1 trial(s)
+2026-08-15 23:14:56,700 WARNING mbox-scan-qwen-1: removing stale worktree from an aborted run
+2026-08-15 23:19:39,761 INFO mbox-scan-qwen-1: PASS in 281.4s (16 passed in 0.10s)

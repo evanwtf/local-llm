@@ -1,0 +1,51 @@
+23:27:16 === phase: qwen36 (3 trials) ===
+23:27:16 preloading qwen3.6:27b-mlx
+2026-08-15 23:27:16,640 INFO 5 task(s) x 1 backend(s) x 3 trial(s)
+2026-08-15 23:29:47,907 INFO mbox-strip-envelope-qwen36-1: PASS in 149.6s (16 passed in 0.10s)
+2026-08-15 23:34:02,126 INFO parser-mbox-quoting-qwen36-1: PASS in 248.4s (55 passed in 0.86s)
+2026-08-15 23:38:20,815 INFO storage-blob-put-qwen36-1: PASS in 257.1s (17 passed in 0.07s)
+2026-08-15 23:40:41,861 INFO parser-date-qwen36-1: PASS in 135.0s (55 passed in 0.87s)
+2026-08-15 23:43:19,888 INFO mbox-scan-qwen36-1: PASS in 156.4s (16 passed in 0.10s)
+2026-08-15 23:46:07,506 INFO mbox-strip-envelope-qwen36-2: PASS in 166.0s (16 passed in 0.09s)
+2026-08-15 23:50:27,663 INFO parser-mbox-quoting-qwen36-2: PASS in 254.2s (55 passed in 0.89s)
+2026-08-15 23:58:06,264 INFO storage-blob-put-qwen36-2: PASS in 456.9s (17 passed in 0.07s)
+2026-08-16 00:01:30,520 INFO parser-date-qwen36-2: PASS in 198.0s (55 passed in 0.90s)
+2026-08-16 00:07:03,360 INFO mbox-scan-qwen36-2: PASS in 331.1s (16 passed in 0.10s)
+2026-08-16 00:09:24,744 INFO mbox-strip-envelope-qwen36-3: PASS in 139.6s (16 passed in 0.10s)
+2026-08-16 00:18:28,030 INFO parser-mbox-quoting-qwen36-3: PASS in 537.2s (55 passed in 0.86s)
+2026-08-16 00:25:24,497 INFO storage-blob-put-qwen36-3: PASS in 414.8s (17 passed in 0.07s)
+2026-08-16 00:28:58,285 INFO parser-date-qwen36-3: PASS in 207.7s (55 passed in 0.87s)
+2026-08-16 00:35:26,492 INFO mbox-scan-qwen36-3: PASS in 386.5s (16 passed in 0.10s)
+00:35:26 unloading qwen3.6:27b-mlx
+00:35:31 === phase: qwen36coding (3 trials) ===
+00:35:31 preloading qwen3.6:27b-coding-mxfp8
+2026-08-16 00:35:34,951 INFO 5 task(s) x 1 backend(s) x 3 trial(s)
+2026-08-16 00:38:19,042 INFO mbox-strip-envelope-qwen36coding-1: PASS in 162.6s (16 passed in 0.10s)
+2026-08-16 00:42:24,233 INFO parser-mbox-quoting-qwen36coding-1: PASS in 239.4s (55 passed in 0.87s)
+2026-08-16 00:45:55,961 INFO storage-blob-put-qwen36coding-1: PASS in 210.1s (17 passed in 0.07s)
+2026-08-16 00:48:55,526 INFO parser-date-qwen36coding-1: PASS in 173.6s (55 passed in 0.87s)
+2026-08-16 00:51:29,097 INFO mbox-scan-qwen36coding-1: PASS in 152.0s (16 passed in 0.09s)
+2026-08-16 00:53:21,145 INFO mbox-strip-envelope-qwen36coding-2: PASS in 110.5s (16 passed in 0.09s)
+2026-08-16 00:57:36,320 INFO parser-mbox-quoting-qwen36coding-2: PASS in 249.3s (55 passed in 0.86s)
+2026-08-16 01:01:31,581 INFO storage-blob-put-qwen36coding-2: PASS in 233.7s (17 passed in 0.07s)
+2026-08-16 01:05:11,485 INFO parser-date-qwen36coding-2: PASS in 213.5s (55 passed in 0.90s)
+2026-08-16 01:08:50,837 INFO mbox-scan-qwen36coding-2: PASS in 217.7s (16 passed in 0.10s)
+2026-08-16 01:11:28,623 INFO mbox-strip-envelope-qwen36coding-3: PASS in 156.2s (16 passed in 0.09s)
+2026-08-16 01:15:30,284 INFO parser-mbox-quoting-qwen36coding-3: PASS in 235.7s (55 passed in 0.87s)
+2026-08-16 01:21:43,617 INFO storage-blob-put-qwen36coding-3: PASS in 371.7s (17 passed in 0.07s)
+2026-08-16 01:24:35,916 INFO parser-date-qwen36coding-3: PASS in 166.4s (55 passed in 0.87s)
+2026-08-16 01:28:34,915 INFO mbox-scan-qwen36coding-3: PASS in 237.4s (16 passed in 0.09s)
+01:28:35 unloading qwen3.6:27b-coding-mxfp8
+01:28:40 === done ===
+note: 1 row(s) explicitly excluded; see RESULTS.md provenance
+task                    ds4 pass        qwen pass       qwen36 pass     qwen36coding pass  ds4 median s    qwen median s   qwen36 median s  qwen36coding median s
+mbox-strip-envelope     3/3             3/3             3/3             3/3             127.2s          123.6s          149.6s          156.2s        
+parser-mbox-quoting     3/3             3/3             3/3             3/3             211.6s          272.2s          254.2s          239.4s        
+storage-blob-put        3/3             3/3             3/3             3/3             170.4s          501.8s          414.8s          233.7s        
+parser-date             3/3             3/3             3/3             3/3             164.4s          280.6s          198.0s          173.6s        
+mbox-scan               3/3             3/3             3/3             3/3             163.5s          173.3s          331.1s          217.7s        
+
+ds4    15/15 passed   median 164.4s   median turns 8   timeouts 0
+qwen   15/15 passed   median 272.2s   median turns 13   timeouts 0
+qwen36 15/15 passed   median 248.4s   median turns 13   timeouts 0
+qwen36coding 15/15 passed   median 213.5s   median turns 10   timeouts 0
