@@ -12,11 +12,29 @@ hardware baseline.
 Prompt: the first 40,000 bytes of `promessi_sposi.txt` — the same text the ds4
 speed sweeps use — giving an 11,451-token prefill, then 128 generated tokens.
 
-| | prefill | generation |
-|---|---|---|
-| `qwen3.8:27b-mlx`, Ollama **0.32.14-rc0** | **789.2 t/s** | **57.1 t/s** |
-| `qwen3.8:27b-mlx`, Ollama 0.32.13 | 730.3 t/s (15.68 s) | 46.3 t/s |
-| ds4 mixed q2/q4 @ 12,288 ctx | 488.1 t/s | 34.4 t/s |
+| | quant | prefill | generation |
+|---|---|---|---|
+| `qwen3.8:27b-mlx`, Ollama **0.32.14-rc0** | 4-bit affine | 789.2 t/s | **57.1 t/s** |
+| `qwen3.8:27b-mlx`, Ollama 0.32.13 | 4-bit affine | 730.3 t/s (15.68 s) | 46.3 t/s |
+| `qwen3.6:27b-mlx` | nvfp4 | **883.4 t/s** | 29.3 t/s |
+| `qwen3.6:27b-coding-mxfp8` | mxfp8 | 766.9 t/s | 17.9 t/s |
+| ds4 mixed q2/q4 @ 12,288 ctx | mixed q2/q4 | 488.1 t/s | 34.4 t/s |
+
+### Generation nearly doubled between Qwen3.6 and 3.8
+
+Same size (27.4B), same MLX backend, same machine, same prompt. Qwen3.6 has the
+**fastest prefill measured here** at 883.4 t/s, and roughly **half** the
+generation rate of 3.8 — 29.3 against 57.1 t/s.
+
+Prefill is compute-bound and generation is bandwidth-bound, so a quantization
+difference (nvfp4 vs 4-bit affine) moves them in opposite directions: 3.6's
+19 GB of nvfp4 weights cost more bytes per token to stream than 3.8's 18 GB.
+Some of the gap is likely also 3.8's multi-token prediction.
+
+`qwen3.6:27b-coding-mxfp8` is slowest to generate at 17.9 t/s, which is what
+31 GB of weights buys you. For an agent loop that is a poor trade unless the
+coding tune wins back the difference in turns — see
+[`../agent/RESULTS.md`](../agent/RESULTS.md).
 
 **The `mlx update` in 0.32.14-rc0 is worth +8.1% prefill and +23.3%
 generation.** Identical prompt, options and method on both versions, minutes
