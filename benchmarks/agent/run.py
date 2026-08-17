@@ -353,8 +353,10 @@ def main():
     p.add_argument("--dry-run", action="store_true",
                    help="verify each task's control failure, run no agent")
     p.add_argument("--tasks-file", default=str(HERE / "tasks.toml"))
-    p.add_argument("--client", choices=sorted(CLIENTS), default="claude",
-                   help="agent harness driving the backend (default: claude)")
+    p.add_argument("--client", action="append", choices=sorted(CLIENTS),
+                   help="repeatable; default claude. Multiple clients are "
+                        "interleaved per task so neither gets a systematically "
+                        "warmer or colder server than the other.")
     args = p.parse_args()
 
     logging.basicConfig(level=logging.INFO,
@@ -388,19 +390,26 @@ def main():
     workdir = pathlib.Path(os.environ.get("TMPDIR", "/tmp")) / "agent-bench"
     workdir.mkdir(parents=True, exist_ok=True)
 
+    clients = args.client or ["claude"]
     versions = capture_versions(cfg, backends)
-    versions["client"] = args.client
-    logger.info("%d task(s) x %d backend(s) x %d trial(s), client=%s",
-                len(tasks), len(backends), args.trials, args.client)
+    versions["client"] = ",".join(clients)
+    logger.info("%d task(s) x %d backend(s) x %d client(s) x %d trial(s)",
+                len(tasks), len(backends), len(clients), args.trials)
     logger.info("stack: %s", ", ".join(f"{k}={v}" for k, v in sorted(versions.items())))
     for trial in range(1, args.trials + 1):
         for task in tasks:
             for bname, backend in backends.items():
-                r = one_trial(cfg, task, bname, backend, trial,
-                              workdir, args.timeout, args.dry_run, versions,
-                              client=args.client)
-                with RESULTS.open("a") as fh:
-                    fh.write(json.dumps(r) + "\n")
+                # Clients innermost: the same task runs back to back on each,
+                # so server state drifts across the pair rather than between
+                # two runs hours apart.
+                for client in clients:
+                    r = one_trial(cfg, task, bname, backend, trial,
+                                  workdir, args.timeout, args.dry_run, versions,
+                                  client=client)
+                    # Inside the client loop. Outside it, only the last
+                    # client's row survives and half the run vanishes.
+                    with RESULTS.open("a") as fh:
+                        fh.write(json.dumps(r) + "\n")
 
 
 if __name__ == "__main__":
