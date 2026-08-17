@@ -65,6 +65,29 @@ Copying a working config from another tool's `connect` output is how it
 happened. A template answers "will this run", not "does this match the thing I
 am comparing against".
 
+## Always start from a known-good reference repo
+
+Before any run, the reference repository must be **clean and on the pinned
+`base_commit`**. `run.py` now refuses to start otherwise, and records
+`source_repo_intact` on every row.
+
+Check it by hand too, whenever you are about to trust a result:
+
+```sh
+cd ~/git/gmail-archive && git status --porcelain && git log --oneline -1
+```
+
+Empty output and the expected commit, or stop and find out why.
+
+This exists because on 2026-08-17 an agent left its sandbox, ran a checkout in
+the reference repo, and left it on a benchmark commit with agent edits in the
+working tree. Every trial after that exported its checkout from contaminated
+state, and nothing noticed for a whole run. A benchmark that starts from an
+unknown state measures nothing.
+
+If you find it dirty: stash rather than discard — the debris is evidence about
+what escaped, and it is worth reading before it is thrown away.
+
 ## Verify the oracle before trusting a run
 
 `--dry-run` checks that every excision still breaks the tests it should. Run it

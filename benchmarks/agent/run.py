@@ -222,6 +222,46 @@ CLIENTS = {
 }
 
 
+def source_repo_intact(repo, commit):
+    """Is the source repository still clean and on the commit we started from?
+
+    Cheap tripwire, recorded per trial. It cannot prevent an escape -- it
+    detects one that already happened, which is what was missing when this
+    went unnoticed for a whole run on 2026-08-17.
+    """
+    try:
+        dirty = bool(git(["status", "--porcelain"], repo))
+        head = git(["rev-parse", "--short", "HEAD"], repo)
+    except RuntimeError:
+        return False
+    return not dirty and head.startswith(commit[:len(head)][:7])
+
+
+def build_checkout(repo, commit, dest):
+    """Materialise `commit` as a standalone directory with no link to `repo`.
+
+    This used to be `git worktree add`. A linked worktree shares the parent's
+    object store and keeps a pointer back to it, and on 2026-08-17 an agent
+    followed that path: it reached the source repository and ran a checkout
+    there, leaving the operator's working copy on a benchmark commit with agent
+    edits in it. See METHODOLOGY.md.
+
+    A worktree isolates files. It does not isolate the agent, which has a shell
+    and can go anywhere. So the tree is now exported with `git archive` -- the
+    files arrive with no `.git` at all, and the caller creates a fresh
+    repository whose only commit is the already-excised state.
+
+    Two things follow. The parent repo is not reachable through anything in the
+    checkout, and the original function body is not recoverable from history,
+    because this checkout has no history that ever contained it.
+    """
+    dest.mkdir(parents=True, exist_ok=True)
+    archive = subprocess.run(["git", "archive", "--format=tar", commit],
+                             cwd=repo, capture_output=True, check=True)
+    subprocess.run(["tar", "-x", "-C", str(dest)],
+                   input=archive.stdout, check=True)
+
+
 def one_trial(cfg, task, backend_name, backend, trial, workdir, timeout, dry_run,
               versions=None, client="claude"):
     repo = pathlib.Path(cfg["repo"]).expanduser()
@@ -237,23 +277,25 @@ def one_trial(cfg, task, backend_name, backend, trial, workdir, timeout, dry_run
         "env": versions or {},
     }
 
-    # A previous run killed mid-flight leaves its worktree behind, and
-    # `git worktree add` then refuses the path. Clear it first so one aborted
-    # run cannot block every later attempt at the same cell.
+    # A previous run killed mid-flight leaves its directory behind. Clear it so
+    # one aborted run cannot block every later attempt at the same cell.
     if worktree.exists():
-        logger.warning("%s: removing stale worktree from an aborted run", name)
+        logger.warning("%s: removing stale checkout from an aborted run", name)
         shutil.rmtree(worktree, ignore_errors=True)
-        run(["git", "worktree", "prune"], cwd=repo)
 
-    git(["worktree", "add", "--detach", str(worktree), cfg["base_commit"]], repo)
+    build_checkout(repo, cfg["base_commit"], worktree)
     try:
-        # 1. Hollow out the target and commit it, so `git checkout` cannot undo it.
+        # 1. Hollow out the target, then make it the repository's only commit.
+        #    Committing the excised state as the initial commit means the
+        #    original body exists nowhere in this checkout -- not in history,
+        #    not in an object store shared with anything else.
         target = worktree / task["file"]
         removed = excise.excise(target, task["symbol"])
         result["removed_lines"] = len(removed.splitlines())
+        git(["init", "-q", "-b", "main"], worktree)
         git(["add", "-A"], worktree)
         git(["-c", "user.email=bench@local", "-c", "user.name=bench",
-             "commit", "-q", "-m", f"benchmark: remove {task['symbol']}"], worktree)
+             "commit", "-q", "-m", f"benchmark: {task['symbol']} removed"], worktree)
 
         # 2. Control: the tests must fail now, or the task proves nothing.
         ok, summary = pytest_passes(worktree, task["tests"], timeout)
@@ -286,6 +328,12 @@ def one_trial(cfg, task, backend_name, backend, trial, workdir, timeout, dry_run
         # Guard against the obvious cheat.
         diff = git(["diff", "HEAD", "--stat", "--", "tests/"], worktree)
         result["touched_tests"] = bool(diff)
+        # Did the agent leave the sandbox? The source repo should be untouched
+        # and on its original commit. An agent that wandered there invalidates
+        # both the isolation and, potentially, the excision.
+        result["source_repo_intact"] = source_repo_intact(repo, cfg["base_commit"])
+        if not result["source_repo_intact"]:
+            logger.error("%s: SOURCE REPO WAS MODIFIED -- agent left the sandbox", name)
         logger.info("%s: %s in %ss (%s)", name,
                     "PASS" if passed else "FAIL", result.get("wall_seconds"), summary)
     except subprocess.TimeoutExpired:
@@ -293,7 +341,6 @@ def one_trial(cfg, task, backend_name, backend, trial, workdir, timeout, dry_run
         logger.error("%s: timed out after %ss", name, timeout)
     finally:
         shutil.rmtree(worktree, ignore_errors=True)
-        run(["git", "worktree", "prune"], cwd=repo)
     return result
 
 
@@ -318,6 +365,25 @@ def main():
                 if not args.backend or k in args.backend}
     if not tasks or not backends:
         raise SystemExit("no tasks or no backends selected")
+
+    # Pre-flight: the reference repo must be clean and hold the pinned commit
+    # before anything runs. A dirty tree means a previous run leaked into it,
+    # and every trial after that would be exported from contaminated state --
+    # which is exactly how 2026-08-17 went unnoticed. Refuse rather than
+    # produce rows nobody can trust.
+    repo = pathlib.Path(cfg["repo"]).expanduser()
+    dirty = run(["git", "status", "--porcelain"], cwd=repo).stdout.strip()
+    if dirty:
+        raise SystemExit(
+            f"reference repo {repo} is dirty -- refusing to run.\n"
+            f"{dirty}\n"
+            "Commit, stash or discard these changes first. A benchmark that "
+            "starts from an unknown state measures nothing.")
+    if run(["git", "cat-file", "-e", f"{cfg['base_commit']}^{{commit}}"],
+           cwd=repo).returncode != 0:
+        raise SystemExit(
+            f"base_commit {cfg['base_commit']} not found in {repo}")
+    logger.info("reference repo clean, base_commit %s present", cfg["base_commit"])
 
     workdir = pathlib.Path(os.environ.get("TMPDIR", "/tmp")) / "agent-bench"
     workdir.mkdir(parents=True, exist_ok=True)

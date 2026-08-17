@@ -243,9 +243,9 @@ Honest accounting of what could make these numbers wrong.
 | threat | mitigation | residual risk |
 |---|---|---|
 | Agent edits the tests to pass | `touched_tests` flag; counted as failure | none meaningful |
-| Agent recovers code from git history | excision is committed | possible via deep `git log -p`; inspect surprising fast passes |
+| Agent recovers code from git history | trial repo's only commit is the excised state | none from history; the original body is not present in the checkout |
 | Task measures nothing (skipped tests) | control run required to fail | none — this is checked every trial |
-| Trials contaminate each other | worktree per trial, destroyed after | none |
+| Trials contaminate each other | isolated copy per trial, destroyed after | see "the sandbox was not a sandbox" below |
 | Memory pressure favours one model | phased runs, preload, one model resident | thermal drift across a long run |
 | Training-data contamination | repo is small and recent, but **public** | cannot be ruled out; the libraries it uses are certainly in training data |
 | Single-trial noise | 3 trials, medians | small effects remain undetectable |
@@ -269,6 +269,64 @@ arguably the correct thing to measure.
 
 **If contamination matters to a conclusion you are drawing, re-run the task
 against a repository written after the models' training cutoffs.**
+
+### The sandbox was not a sandbox
+
+**Discovered 2026-08-17, after 147 trials had already been run.**
+
+Until this date each trial ran in a `git worktree` of the reference repository.
+That was described here as making contamination between trials impossible.
+**It did not.**
+
+A linked worktree shares the parent's object store and keeps a pointer back to
+it. A worktree isolates *files*; it does not isolate the *agent*, which has a
+shell and can go anywhere on the machine. On 2026-08-17 one did: the reference
+repo `~/git/gmail-archive` was found on a benchmark commit
+(`benchmark: remove BlobStore.put`) in detached HEAD, with agent edits to
+`mbox.py` and `storage.py` in its working tree. Its reflog recorded
+`checkout: moving from main to 8d6183d`.
+
+Two consequences, and the second is worse than the first:
+
+1. **The operator's working copy was modified** by a benchmark run.
+2. **Every trial started after that point exported its checkout from a
+   contaminated reference repo**, and nothing detected it.
+
+There is also an answer-leak path implied by the same mechanism: a shared
+object store contains every commit, including the pristine original of the
+function under test. An agent that reaches the parent can read what it is
+being asked to reproduce.
+
+**What changed.** Trials no longer use worktrees. `build_checkout()` exports
+the pinned commit with `git archive` into a bare directory — no `.git`, no
+pointer to the parent, no shared objects — and the excised state is then
+committed as that repository's *only* commit. The original body is therefore
+absent from the checkout entirely, including from history.
+
+Three checks now exist where there were none:
+
+- `run.py` **refuses to start** unless the reference repo is clean and holds
+  the pinned `base_commit`.
+- Every row records `source_repo_intact`, checked after the agent runs.
+- An escape is logged loudly rather than passing silently.
+
+**What this does to the existing 147 trials.** They cannot be retroactively
+verified — `source_repo_intact` did not exist when they were written. The
+detected escape happened during the OpenCode series on 2026-08-17; how many
+earlier trials were affected, if any, is unknown. Treat pre-2026-08-17 results
+as measured under weaker isolation than this document previously claimed.
+
+**A leak check was run and found nothing.** If an agent had recovered the
+original body from the shared object store, the signature would be a fast pass
+in unusually few turns. Every trial under 90 s was inspected: all but three are
+`ornith:35b`, which is simply the fastest backend tested (92.5 t/s), and their
+turn counts are unremarkable (7-13). The two fastest low-turn passes -- ds4 at
+83.4 s / 6 turns, ornith at 76.5 s / 7 turns -- sit within the normal range for
+those backends, whose medians are 8 turns.
+
+This is weak evidence, not exoneration: the check is retrospective, and the
+telemetry that would settle it did not exist at the time. It is recorded so the
+question is not silently dropped.
 
 ### Authorship contamination, and why the hosted reference is time-only
 

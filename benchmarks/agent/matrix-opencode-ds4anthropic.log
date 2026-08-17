@@ -1,0 +1,11 @@
+2026-08-17 11:42:56,710 INFO 5 task(s) x 1 backend(s) x 3 trial(s), client=opencode
+2026-08-17 11:42:56,710 INFO stack: claude=2.1.233 (Claude Code), client=opencode, ds4_dirty=False, ds4_head=fdcf3aa, ds4_server_mtime=2026-08-16T06:53:08, machine=Apple M5 Max, macos=26.5.2, opencode=1.18.18, target_commit=56e55cc
+2026-08-17 11:46:31,351 INFO mbox-strip-envelope-ds4anthropic-opencode-1: PASS in 213.0s (16 passed in 0.10s)
+2026-08-17 11:49:17,570 INFO parser-mbox-quoting-ds4anthropic-opencode-1: PASS in 159.9s (55 passed in 0.85s)
+2026-08-17 11:55:35,194 INFO storage-blob-put-ds4anthropic-opencode-1: PASS in 375.9s (17 passed in 0.07s)
+2026-08-17 12:01:10,681 INFO parser-date-ds4anthropic-opencode-1: PASS in 329.1s (55 passed in 0.89s)
+2026-08-17 12:03:51,813 INFO mbox-scan-ds4anthropic-opencode-1: FAIL in 159.4s (13 failed, 3 passed in 0.09s)
+2026-08-17 12:07:37,978 INFO mbox-strip-envelope-ds4anthropic-opencode-2: FAIL in 223.6s (3 failed, 13 passed in 0.14s)
+2026-08-17 12:11:34,633 INFO parser-mbox-quoting-ds4anthropic-opencode-2: FAIL in 230.1s (34 failed, 21 passed in 0.88s)
+2026-08-17 12:16:05,504 INFO storage-blob-put-ds4anthropic-opencode-2: FAIL in 269.1s (14 failed, 3 passed in 0.11s)
+2026-08-17 12:18:27,989 INFO parser-date-ds4anthropic-opencode-2: FAIL in 136.1s (49 failed, 6 passed in 0.85s)
