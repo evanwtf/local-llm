@@ -123,6 +123,28 @@ auth_token = "ollama"
 model = "ornith:35b"
 context_tokens = 262144
 
+# Same weights as `qwen` -- Qwen3.8-27B -- but a different serving stack and a
+# different quant. MTPLX drives the model's native multi-token-prediction head
+# for self-speculative decoding: it drafts several tokens ahead and verifies
+# them in one forward pass, with no separate draft model. The quant is dynamic
+# 4-bit (8-bit embeddings/output head, 16-bit norms and the whole MTP head)
+# rather than Ollama's flat 4-bit MLX.
+#
+# This is the first backend here that is not served by Ollama or ds4-server.
+# MTPLX exposes its own Anthropic-compatible /v1/messages, so no shim is needed.
+#
+# CAVEAT: engine and quant move together against `qwen`. A gap measured here is
+# "this stack versus that stack", not an isolated measurement of MTP decoding.
+#
+# Port 8010, not 8000: run.py treats :8000 as ds4-server and would stamp ds4
+# build provenance onto these rows.
+[backend.mtplx]
+description = "Qwen3.8-27B via MTPLX, dynamic 4-bit, native MTP speculative decoding"
+base_url = "http://127.0.0.1:8010"
+auth_token = "mtplx-local"
+model = "mtplx-qwen38-27b-optimized-speed"
+context_tokens = 262144
+
 # Different family entirely -- Google, not Qwen or DeepSeek. Matched against
 # qwen3.6:27b-coding-mxfp8 on quantization (mxfp8), size (32 GB vs 31 GB) and
 # backend, so the lineage is the only variable that moves. Tests whether the
