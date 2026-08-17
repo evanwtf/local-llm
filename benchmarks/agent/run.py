@@ -162,12 +162,17 @@ def opencode_parse(stdout):
     step ends with a `step_finish` carrying that step's token counts, so turns
     are counted and tokens are summed. Input tokens are *not* summed: every
     step resends the conversation, so a sum would count the same prompt many
-    times over. The last step's input is the high-water mark instead.
+    times over. The peak step input is recorded instead.
+
+    Do not use the *last* step's input for this. A run's final step is often a
+    short wrap-up whose input is tiny -- one observed row ended at 148 tokens
+    after 12 turns -- so the last value is not a high-water mark. Rows written
+    before 2026-08-17 carry the last step's input rather than the peak.
     """
     turns = 0
     out_tokens = 0
     reasoning = 0
-    last_input = None
+    peak_input = None
     for line in stdout.splitlines():
         line = line.strip()
         if not line:
@@ -183,12 +188,12 @@ def opencode_parse(stdout):
         out_tokens += tokens.get("output") or 0
         reasoning += tokens.get("reasoning") or 0
         if tokens.get("input"):
-            last_input = tokens["input"]
+            peak_input = max(peak_input or 0, tokens["input"])
     if not turns:
         raise json.JSONDecodeError("no step_finish events", stdout[:200], 0)
     return dict(
         num_turns=turns,
-        input_tokens=last_input,
+        input_tokens=peak_input,
         output_tokens=out_tokens,
         reasoning_tokens=reasoning,
     )
