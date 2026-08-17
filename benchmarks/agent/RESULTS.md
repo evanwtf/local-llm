@@ -1,7 +1,7 @@
 # Agent benchmark — eight local backends driving Claude Code
 
 Run 2026-08-15 to 2026-08-17. MacBook Pro M5 Max, 128 GiB, macOS 26.5.
-5 tasks × 3 trials per backend, **122 trials**.
+5 tasks × 3 trials per backend, **177 trials**.
 Methodology in [`METHODOLOGY.md`](METHODOLOGY.md). Raw rows in `results.jsonl`.
 
 ---
@@ -58,7 +58,14 @@ placement is provisional. See [MTPLX](#mtplx-the-same-weights-on-a-different-eng
    (226.4 s / 2,026 tokens vs 272.2 s / 6,237). The model card's "2-3× faster"
    claim measures decode throughput; on a whole agent loop the gain is 17%.
 
-6. **Syncing the ds4 engine with upstream bought 14.3%** — median 164.4 s →
+6. **The agent client matters more than the backend.** Driving the same ds4
+   model, Claude Code passed 14/15 and OpenCode 6/15. All nine OpenCode
+   failures returned the test suite *exactly* as the excision left it — the
+   loop stopped believing it was done. Wall time differed by only 15%. Every
+   backend ranking above is therefore a statement about *backend plus Claude
+   Code*, not about the backend alone.
+
+7. **Syncing the ds4 engine with upstream bought 14.3%** — median 164.4 s →
    140.9 s — with output tokens essentially unchanged (2,130 → 2,120). Same
    weights, same tasks, same machine; only the engine binary changed. A clean
    engine-only improvement, and the cleanest test of the rate term above.
@@ -765,3 +772,100 @@ One `--print-logs` run would have shown the endpoint immediately.
 A logging proxy was then built to verify the endpoints properly and *that*
 failed too — it buffered responses instead of streaming SSE, and hung until it
 was killed. Verification needs a method suited to streaming.
+
+## Claude Code vs OpenCode, controlled (2026-08-17)
+
+**This is the run to cite.** Everything is held fixed except the client: same
+weights, same server process, same wire protocol, same tasks, same excisions,
+same oracle. 30 trials, 5 tasks x 3 rounds x 2 clients.
+
+Two design choices make it trustworthy where the earlier attempt was not:
+
+- **Interleaved.** The two clients run the same task back to back, so server
+  state drift lands on both equally instead of on whichever ran second.
+- **Same protocol.** Both reach ds4-server over `/v1/messages`. The first
+  attempt had OpenCode on `/v1/chat/completions` and could not attribute its
+  result; see the section above.
+
+| task | claude | | opencode | | delta |
+|---|---|---|---|---|---|
+| `mbox-strip-envelope` | 135.8 s | 3/3 | 271.3 s | 1/3 | +100% |
+| `parser-mbox-quoting` | 183.5 s | 3/3 | 242.9 s | 1/3 | +32% |
+| `storage-blob-put` | 208.1 s | 3/3 | 158.2 s | 2/3 | **-24%** |
+| `parser-date` | 347.7 s | 3/3 | 317.1 s | 2/3 | **-9%** |
+| `mbox-scan` | 199.0 s | 2/3 | 245.7 s | 0/3 | +23% |
+| **total of medians** | **1,074 s** | **14/15** | **1,235 s** | **6/15** | **+15%** |
+
+| | claude | opencode |
+|---|---|---|
+| passed | **14/15** | **6/15** |
+| median wall | 205.3 s | 242.9 s |
+| spread | 3.0x | 3.4x |
+| turns (median) | 10 | **17** |
+| output tokens (median) | 3,947 | **5,546** |
+| sandbox escapes | 0 | 0 |
+
+### The speed gap is real but modest
+
+**+15%** on the total of task medians. Per task it swings from -24% to +100%
+and OpenCode wins two of five outright, so this is high variance around a small
+penalty, not a uniform tax.
+
+The round totals were remarkably stable -- claude 1,058.5 s then 1,047.1 s,
+opencode 1,293.5 s then 1,274.5 s -- which is what interleaving bought. Cells
+swung wildly and two flipped sign; the aggregate reproduced almost exactly.
+
+**Earlier revisions of this report claimed +60%.** That figure came from the
+confounded run and is wrong. The confound and the timing drift both pushed the
+same way.
+
+### The correctness gap is large, and it is a different kind of failure
+
+**14/15 against 6/15.** OpenCode failed 9 of 15 trials, and every one of the
+five tasks failed at least once, so this is not a task-specific weakness.
+
+The signatures separate the two cleanly:
+
+| client | failures | pytest result |
+|---|---|---|
+| claude | 1 | `1 failed, 15 passed` -- repaired 12 of 13 broken tests, missed one edge case |
+| opencode | 9 | **exactly the control result, every time** |
+
+Claude Code's single failure did the work and got one case wrong. All nine
+OpenCode failures returned the test suite precisely as the excision left it:
+`3 failed, 13 passed`, `34 failed, 21 passed`, `13 failed, 3 passed`. Nothing
+changed at all.
+
+That distinction matters more than the rate. A near-miss is a model capability
+limit. An unchanged control result is a loop that terminated believing it had
+finished. Only the second is a property of the client, and it is the same model
+underneath in both columns.
+
+The failures are not slow timeouts either -- one came back in 114.5 s against a
+matched claude run of 272.3 s. Finishing early and reporting success is the
+characteristic shape.
+
+### What is still not known
+
+**Why OpenCode stops.** Two candidates remain: the loop terminates early, or
+edits fail to apply. The sandbox escape offered a tidy mechanism for the second
+and is now closed -- there is no parent repo to write into -- so misapplied
+edits would have to fail some other way. Reading a captured event stream from a
+failing trial is the next step and has not been done.
+
+**Whether this generalises past ds4.** One backend, one model. OpenCode drives
+75+ providers and is presumably tuned against hosted frontier models, not a
+local DeepSeek V4 Flash quant.
+
+### Two asymmetries that remain
+
+**Claude Code loads the operator's global `~/.claude/CLAUDE.md`** (~2 KB of
+style and tooling rules) into every trial. OpenCode never sees it. The target
+repo has neither `CLAUDE.md` nor `AGENTS.md`, so this is the only
+instruction-level difference -- but it is a real one and it favours Claude Code.
+
+**The protocol match is inferred, not observed.** `@ai-sdk/anthropic` can only
+call `/v1/messages`; that is an SDK contract, not a measurement. Two attempts to
+watch the traffic directly failed (a proxy that buffered instead of streaming
+SSE, and a path-recorder that OpenCode retried past). The inference is sound but
+it is an inference.
