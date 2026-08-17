@@ -1,7 +1,7 @@
-# Agent benchmark — seven local backends driving Claude Code
+# Agent benchmark — eight local backends driving Claude Code
 
-Run 2026-08-15 to 2026-08-16. MacBook Pro M5 Max, 128 GiB, macOS 26.5.
-5 tasks × 3 trials per backend, **106 trials**.
+Run 2026-08-15 to 2026-08-17. MacBook Pro M5 Max, 128 GiB, macOS 26.5.
+5 tasks × 3 trials per backend, **122 trials**.
 Methodology in [`METHODOLOGY.md`](METHODOLOGY.md). Raw rows in `results.jsonl`.
 
 ---
@@ -13,7 +13,7 @@ function deleted from a real 4,599-line Python repository — and how long it
 takes. The repository's own 166 tests are the oracle: pass or fail, no rubric,
 no judging model.
 
-**Correctness barely separates them.** Six of seven backends scored 100%. Only
+**Correctness barely separates them.** Seven of eight backends scored 100%. Only
 `ornith:35b` ever failed, twice, both on the same task. Choose on latency and
 predictability, not accuracy — at least until the tasks get harder (issue #4).
 
@@ -23,12 +23,15 @@ predictability, not accuracy — at least until the tasks get harder (issue #4).
 | **`ds4` (synced, `fdcf3aa`)** | **15/15** | 140.9 s | **2,120** | 40.6 | 2.6× | 90.9 GiB |
 | `ds4` (pre-sync, `5be6b6c`) | 15/15 | 164.4 s | 2,130 | 36.8 | **1.9×** | 90.9 GiB |
 | `qwen3.6:27b-coding-mxfp8` | 15/15 | 213.5 s | 2,219 | 17.9 | 3.4× | 31 GB |
+| `Qwen3.8-27B-MTPLX-Optimized-Speed` | 16/16 | 226.4 s | **2,026** | n/m | 3.5× | 26.8 GiB |
 | `qwen3.6:27b-mlx` | 15/15 | 248.4 s | 3,725 | 29.3 | 4.0× | 19 GB |
 | `qwen3.8:27b-mlx` | 15/15 | 272.2 s | 6,237 | 57.1 | 10.1× | 18 GB |
 | `gemma4:31b-mxfp8` | 16/16 | 355.4 s | 2,600 | 13.2 | 3.0× | 45 GB |
 
 `spread` is the slowest run divided by the fastest. `tokens` and `wall` are
-medians.
+medians. `n/m` = not measured: no standalone decode benchmark was run for
+MTPLX, and its trials show an unexplained downward trend across rounds, so its
+placement is provisional. See [MTPLX](#mtplx-the-same-weights-on-a-different-engine-2026-08-17).
 
 ### The findings
 
@@ -50,7 +53,12 @@ medians.
    task, across three builds, are slower than every ds4 run. It is unremarkable
    for Gemma, which is evidence the weakness is lineage-specific.
 
-5. **Syncing the ds4 engine with upstream bought 14.3%** — median 164.4 s →
+5. **The engine matters as much as the model.** The same Qwen3.8-27B weights
+   run 17% faster and emit 68% fewer tokens under MTPLX than under Ollama
+   (226.4 s / 2,026 tokens vs 272.2 s / 6,237). The model card's "2-3× faster"
+   claim measures decode throughput; on a whole agent loop the gain is 17%.
+
+6. **Syncing the ds4 engine with upstream bought 14.3%** — median 164.4 s →
    140.9 s — with output tokens essentially unchanged (2,130 → 2,120). Same
    weights, same tasks, same machine; only the engine binary changed. A clean
    engine-only improvement, and the cleanest test of the rate term above.
@@ -565,3 +573,114 @@ Resident footprint was **45 GB** — 32 GB of weights plus ~13 GB of KV at the
 
 *(16 rows rather than 15: a single-trial smoke test was run first to confirm
 tool calling worked before committing to the full matrix, and it is retained.)*
+
+## MTPLX: the same weights on a different engine (2026-08-17)
+
+`Youssofal/Qwen3.8-27B-MTPLX-Optimized-Speed` runs the **same Qwen3.8-27B
+weights** as `qwen3.8:27b-mlx`, through a different inference engine. It is the
+first backend here served by neither Ollama nor ds4-server.
+
+Two things change together against the Ollama row, and they cannot be
+separated:
+
+- **The engine.** MTPLX drives the model's native multi-token-prediction head
+  for self-speculative decoding — it drafts up to 3 tokens ahead and verifies
+  them in one forward pass, with no separate draft model.
+- **The quant.** Dynamic 4-bit: 4-bit at 32-weight groups for the bulk, 8-bit
+  for embeddings, output head and final MLP blocks, 16-bit for norms and the
+  entire MTP head. The author reports KL divergence 0.0220 to bf16 on coding,
+  1.7× closer than their own flat-4-bit build.
+
+| | MTPLX | `qwen3.8:27b-mlx` (Ollama) |
+|---|---|---|
+| pass rate | **16/16** | 15/15 |
+| median wall | **226.4 s** | 272.2 s |
+| tokens | **2,026** | 6,237 |
+| turns | 10 | — |
+| spread | 3.5× | 10.1× |
+| resident | 26.8 GiB | 18 GB |
+
+**Same weights, 17% faster, 68% fewer tokens.** The engine and quant together
+are worth a real improvement — and the token collapse is the larger effect.
+2,026 tokens is the **lowest median of any backend tested**, below synced ds4's
+2,120.
+
+The model card claims 2–3× speedup and 58.7 tok/s on an M5 Max. Measured
+end-to-end on agent work the gain is **17%**, not 2–3×. Those are not
+contradictory — the card measures decode throughput and this measures a whole
+agent loop, where prefill and tool calls dominate — but the card's number is not
+what a Claude Code user should expect.
+
+Against the full field MTPLX places **fifth of eight rows**: behind ornith,
+both ds4 builds and qwen3.6-coding, ahead of qwen3.6, qwen3.8-on-Ollama and
+gemma4. It does not change the recommendation.
+
+### Trials got faster as the run went on, and the cause is unknown
+
+Round totals fell monotonically across the three rounds:
+
+| round | total of 5 task medians |
+|---|---|
+| 1 | 1,780.5 s |
+| 2 | 1,253.4 s |
+| 3 | **1,021.3 s** |
+
+Round 3 is **57% of round 1**. Per task:
+
+| task | trial 1 → 2 → 3 |
+|---|---|
+| `parser-mbox-quoting` | 507.9 → 362.4 → 180.8 |
+| `storage-blob-put` | 483.2 → 236.8 → 216.9 |
+| `parser-date` | 267.5 → 235.8 → 193.0 |
+| `mbox-scan` | 364.1 → 210.0 → **283.5** |
+| `mbox-strip-envelope` | 162.9 → 208.4 → 147.1 |
+
+Three of five fall monotonically; two do not. **Two candidate mechanisms were
+proposed during the run and both were then disproved by the server's own
+counters:**
+
+- *SSD session cache warming.* MTPLX ships a session bank with an SSD cold tier
+  that restores KV state by prefix. After 169 requests: `restore_hits: 0`,
+  `restore_misses: 79`. **It never restored anything.** The cache cannot explain
+  the trend because it never worked.
+- *Background warm-up still running.* The startup ladder finishes during
+  startup — all three steps `ok` before the first trial, 42.5 then 62.9 tok/s.
+  It was already done.
+
+So the trend is present in the data and **unexplained**. One untested candidate
+remains: the turbo profile compiles specialised Metal verify kernels
+(`MTPLX_COMPILED_VERIFY`, active at contexts ≤ 32,768), and MLX caches compiled
+kernels — a compilation cost paid across early trials would produce this shape.
+That is a hypothesis, not a finding.
+
+**Consequence for the numbers above.** If the trend is real, the 226.4 s median
+blends a cold regime and a warm one and describes neither. Round 3 alone gives
+147.1 / 180.8 / 216.9 / 193.0 / 283.5 — a median near 193 s, which would place
+MTPLX third. The median reported in the table is the honest whole-run figure;
+the round-3 figure is not quoted as a result because the mechanism is unknown
+and `mbox-scan` contradicts it.
+
+Resolving this needs a dedicated run: restart the server and re-run round 1 on
+a cold process. Until then, treat MTPLX's placement as provisional.
+
+### Two things that are not like-for-like
+
+**The runtime is pre-tuned by the model author.** `mtplx_runtime.json` ships
+depth and draft settings, and the turbo profile sets ~40 environment knobs.
+Every Ollama backend here ran at stock defaults with nobody tuning anything.
+The asymmetry favours MTPLX and cannot be removed without deliberately
+handicapping it.
+
+**Reasoning is on by default** (`enable_thinking: true`). Thinking blocks are
+returned as `type: "thinking"` content and counted in `output_tokens`. Whether
+Ollama's inline `<think>` tags are counted the same way was not established, so
+the 2,026-vs-6,237 token comparison may not measure the same quantity. The wall
+times are unaffected.
+
+The profile also documents that its 4-bit verify kernels are
+"argmax- and sampler-distribution-validated, **not bit-exact** vs stock", while
+prefill and non-speculative decode stay bit-identical. With 16/16 passes the
+approximation cost nothing measurable at this difficulty.
+
+*(16 rows rather than 15: a smoke test was run first to confirm tool calling,
+and is retained.)*
