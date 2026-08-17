@@ -44,6 +44,11 @@ not work: Ollama rejects the request shape Claude Code sends.
 
 Tested on macOS 26.5 with Ollama 0.32.13 and `qwen3.8:27b-mlx`.
 
+## Which model should I run?
+
+See [**RECOMMENDATIONS.md**](RECOMMENDATIONS.md) — the current picks for this
+Mac (M5 Max, 128 GiB), with the evidence behind them and the gaps still open.
+
 ## Quick start
 
 ```sh
