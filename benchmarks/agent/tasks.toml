@@ -196,4 +196,5 @@ base_url = "http://127.0.0.1:8000"
 auth_token = "dsv4-local"
 model = "deepseek-v4-flash"
 opencode_model = "ds4anthropic/deepseek-v4-flash"
+codex_profile = "ds4"
 context_tokens = 100000

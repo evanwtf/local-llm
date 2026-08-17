@@ -32,9 +32,14 @@ RESULTS = HERE / "results.jsonl"
 
 
 def run(cmd, cwd, env=None, timeout=None):
+    # stdin must be closed, not inherited. `codex exec` prints "Reading
+    # additional input from stdin..." and blocks forever on an inherited stdin
+    # that never reaches EOF -- it hung a trial for 11 minutes before this was
+    # found. Any agent client may do the same; none of them should be waiting
+    # on input here.
     return subprocess.run(
         cmd, cwd=cwd, env=env, timeout=timeout,
-        capture_output=True, text=True,
+        stdin=subprocess.DEVNULL, capture_output=True, text=True,
     )
 
 
@@ -70,6 +75,7 @@ def capture_versions(cfg, backends):
     env = {
         "claude": out(["claude", "--version"]),
         "opencode": out(["opencode", "--version"]),
+        "codex": out(["codex", "--version"]),
         "macos": out(["sw_vers", "-productVersion"]),
         "machine": out(["sysctl", "-n", "machdep.cpu.brand_string"]),
         "target_commit": cfg["base_commit"],
@@ -216,9 +222,79 @@ def opencode_parse(stdout):
     )
 
 
+def codex_argv(task, backend):
+    profile = backend.get("codex_profile")
+    if not profile:
+        raise SystemExit(
+            f"backend {backend['model']!r} has no codex_profile in tasks.toml")
+    # `--ephemeral` keeps session rollout files off disk, which matters when a
+    # matrix writes hundreds of them. `workspace-write` is the least permission
+    # that lets the agent edit the checkout it was given.
+    return ["codex", "exec", "--profile", profile, "--json",
+            "--sandbox", "workspace-write", "--ephemeral",
+            task["prompt"]]
+
+
+def codex_parse(stdout):
+    """Read Codex's JSONL event stream.
+
+    **`num_turns` is deliberately None for Codex.** Codex emits one
+    `turn.completed` per *exec*, not per model round trip, so counting them
+    yields 1 for a session where Claude Code reports 10. Those numbers are not
+    the same quantity and putting them in one column would invite a false
+    comparison. Its work appears instead as `command_execution` and
+    `file_change` items, recorded as `tool_items`.
+
+    `codex_error_items` counts `error` items. These are not necessarily
+    failures: driving a model Codex has no metadata for emits one warning per
+    run ("Model metadata for ... not found. Defaulting to fallback metadata"),
+    which is itself worth recording -- see RESULTS.md.
+    """
+    out_tokens = 0
+    reasoning = 0
+    peak_input = None
+    exec_turns = 0
+    tool_items = 0
+    errors = 0
+    for line in stdout.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        kind = event.get("type")
+        if kind == "item.completed":
+            item_type = (event.get("item") or {}).get("type")
+            if item_type == "error":
+                errors += 1
+            elif item_type in ("command_execution", "file_change"):
+                tool_items += 1
+        elif kind == "turn.completed":
+            usage = event.get("usage", {})
+            exec_turns += 1
+            out_tokens += usage.get("output_tokens") or 0
+            reasoning += usage.get("reasoning_output_tokens") or 0
+            if usage.get("input_tokens"):
+                peak_input = max(peak_input or 0, usage["input_tokens"])
+    if not exec_turns:
+        raise json.JSONDecodeError("no turn.completed events", stdout[:200], 0)
+    return dict(
+        num_turns=None,
+        codex_exec_turns=exec_turns,
+        tool_items=tool_items,
+        input_tokens=peak_input,
+        output_tokens=out_tokens,
+        reasoning_tokens=reasoning,
+        codex_error_items=errors,
+    )
+
+
 CLIENTS = {
     "claude": (claude_argv, claude_parse),
     "opencode": (opencode_argv, opencode_parse),
+    "codex": (codex_argv, codex_parse),
 }
 
 
