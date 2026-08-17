@@ -115,8 +115,6 @@ def agent_env(backend):
     if not backend.get("base_url"):
         env["ANTHROPIC_MODEL"] = backend["model"]
         env["ANTHROPIC_DEFAULT_OPUS_MODEL"] = backend["model"]
-        if backend.get("reasoning_effort"):
-            env["MAX_THINKING_TOKENS"] = str(backend["reasoning_effort"])
         return env
 
     env.pop("ANTHROPIC_API_KEY", None)
@@ -142,8 +140,14 @@ def agent_env(backend):
 # and are recorded, not equated: see RESULTS.md.
 
 def claude_argv(task, backend):
-    return ["claude", "-p", task["prompt"], "--output-format", "json",
+    argv = ["claude", "-p", task["prompt"], "--output-format", "json",
             "--permission-mode", "bypassPermissions"]
+    # Reasoning effort is a client-side setting, not a server one: it belongs
+    # on the command line rather than in the environment. Local backends leave
+    # it unset and take the model's own default.
+    if backend.get("effort"):
+        argv += ["--effort", backend["effort"]]
+    return argv
 
 
 def claude_parse(stdout):
@@ -229,6 +233,7 @@ def one_trial(cfg, task, backend_name, backend, trial, workdir, timeout, dry_run
         "client": client,
         "started": time.strftime("%Y-%m-%dT%H:%M:%S"),
         "model": backend["model"], "context_tokens": backend["context_tokens"],
+        "effort": backend.get("effort"),
         "env": versions or {},
     }
 

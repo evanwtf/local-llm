@@ -173,5 +173,5 @@ context_tokens = 262144
 [backend.opus5]
 description = "REFERENCE: hosted Claude Opus 5, medium reasoning effort"
 model = "claude-opus-5"
-reasoning_effort = 10000
+effort = "medium"
 context_tokens = 200000
