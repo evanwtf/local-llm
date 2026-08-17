@@ -107,6 +107,7 @@ description = "Qwen3.6-27B coding-tuned, mxfp8"
 base_url = "http://127.0.0.1:11434"
 auth_token = "ollama"
 model = "qwen3.6:27b-coding-mxfp8"
+codex_profile = "qwen36coding"
 context_tokens = 262144
 
 # Purpose-built agentic coding assistant, MIT, 34.7B MoE in 21 GB. Its baked-in
