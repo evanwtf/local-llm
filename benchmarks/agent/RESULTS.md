@@ -1,7 +1,7 @@
 # Agent benchmark — eight local backends driving Claude Code
 
 Run 2026-08-15 to 2026-08-17. MacBook Pro M5 Max, 128 GiB, macOS 26.5.
-5 tasks × 3 trials per backend, **177 trials**.
+5 tasks × 3 trials per backend, **208 trials**.
 Methodology in [`METHODOLOGY.md`](METHODOLOGY.md). Raw rows in `results.jsonl`.
 
 ---
@@ -65,7 +65,13 @@ placement is provisional. See [MTPLX](#mtplx-the-same-weights-on-a-different-eng
    backend ranking above is therefore a statement about *backend plus Claude
    Code*, not about the backend alone.
 
-7. **Syncing the ds4 engine with upstream bought 14.3%** — median 164.4 s →
+7. **Codex matched Claude Code exactly and was 12% faster.** 15/15 for both,
+   with Codex the more consistent (2.9× spread vs 4.7×) — while running
+   *without* metadata for the model it was driving. Combined with OpenCode's
+   6/15, this shows client quality varies enormously between third-party
+   harnesses; "not Claude Code" explains nothing.
+
+8. **Syncing the ds4 engine with upstream bought 14.3%** — median 164.4 s →
    140.9 s — with output tokens essentially unchanged (2,130 → 2,120). Same
    weights, same tasks, same machine; only the engine binary changed. A clean
    engine-only improvement, and the cleanest test of the rate term above.
@@ -869,3 +875,86 @@ call `/v1/messages`; that is an SDK contract, not a measurement. Two attempts to
 watch the traffic directly failed (a proxy that buffered instead of streaming
 SSE, and a path-recorder that OpenCode retried past). The inference is sound but
 it is an inference.
+
+## Codex vs Claude Code, controlled (2026-08-17)
+
+Same design as the OpenCode comparison: interleaved, one ds4-server process,
+30 trials. Both clients reach the model over their **own native protocol** --
+Claude Code on `/v1/messages`, Codex on `/v1/responses` -- because ds4-server
+implements both. No translation layer sits in the measurement path.
+
+| task | claude | | codex | | delta |
+|---|---|---|---|---|---|
+| `mbox-strip-envelope` | 145.1 s | 3/3 | 105.5 s | 3/3 | **-27%** |
+| `parser-mbox-quoting` | 245.6 s | 3/3 | 171.0 s | 3/3 | **-30%** |
+| `storage-blob-put` | 182.4 s | 3/3 | 238.1 s | 3/3 | +31% |
+| `parser-date` | 329.5 s | 3/3 | 273.2 s | 3/3 | -17% |
+| `mbox-scan` | 207.8 s | 3/3 | 190.7 s | 3/3 | -8% |
+| **total of medians** | **1,110 s** | **15/15** | **978 s** | **15/15** | **-12%** |
+
+| | claude | codex |
+|---|---|---|
+| passed | **15/15** | **15/15** |
+| median wall | 214.1 s | **190.7 s** |
+| spread | 4.7x | **2.9x** |
+| output tokens (median) | 4,193 | 4,511 |
+| sandbox escapes | 0 | 0 |
+
+### Codex matched Claude Code on correctness and beat it on time
+
+**15/15 for both.** Neither client failed a single trial. Codex was **12%
+faster** on the total of medians, won four of five tasks, and had the
+**tighter spread** -- 2.9x against 4.7x.
+
+That last figure is the one worth noting. Across the whole day Claude Code was
+the *predictable* client; here Codex was more predictable still.
+
+### It did this without knowing what model it was talking to
+
+Every Codex run emitted the same warning, 15 times in 15 trials:
+
+```
+Model metadata for `deepseek-v4-flash` not found. Defaulting to fallback
+metadata; this can degrade performance and cause issues.
+```
+
+Codex has no entry for this model, so it is guessing at the context window and
+capabilities. Claude Code had `deepseek-v4-flash` explicitly configured with a
+100,000-token window. The handicap is real, it ran in Codex's disfavour, and
+Codex won anyway.
+
+### This reframes the OpenCode result
+
+Three clients, one backend, one harness, the same tasks:
+
+| client | passed | vs claude |
+|---|---|---|
+| Claude Code | 14/15, 15/15 | -- |
+| **Codex** | **15/15** | **-12%** |
+| OpenCode | 6/15 | +15% |
+
+Two third-party clients, opposite outcomes. **"Not being Claude Code" does not
+explain OpenCode's failures.** Codex is equally third-party, equally
+unaffiliated with the model, and matched the reference client exactly on
+correctness while beating it on speed and consistency.
+
+Whatever goes wrong with OpenCode on this backend is specific to OpenCode.
+
+### `num_turns` is absent for Codex, on purpose
+
+Codex emits one `turn.completed` per *exec*, not per model round trip, so
+counting them gives 1 where Claude Code reports 10. They are not the same
+quantity and a shared column would invite a false comparison. Codex's activity
+is recorded as `tool_items` (`command_execution` + `file_change`), median 12
+per trial. Do not compare that number to another client's turn count either.
+
+### Caveats
+
+**One backend, one model.** Everything here is ds4 / DeepSeek V4 Flash.
+
+**Claude Code still loads the operator's global `~/.claude/CLAUDE.md`**
+(~2 KB) that Codex never sees -- an asymmetry favouring Claude Code, which
+lost anyway.
+
+**Sandboxing differs.** Claude Code ran `--permission-mode bypassPermissions`,
+Codex `--sandbox workspace-write`. Codex was the more constrained of the two.
