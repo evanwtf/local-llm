@@ -157,3 +157,21 @@ base_url = "http://127.0.0.1:11434"
 auth_token = "ollama"
 model = "gemma4:31b-mxfp8"
 context_tokens = 262144
+
+# --- reference ------------------------------------------------------------
+# Not a fallback candidate. This is the hosted service the local backends are
+# a hedge against, run through the identical harness so every local number has
+# a denominator.
+#
+# No base_url: agent_env() leaves ambient auth untouched and overrides only the
+# model, so this uses the operator's normal Claude Code login. It bills real
+# money -- roughly 15 trials against a 4,599-line repo.
+#
+# It also calibrates task difficulty. If the reference scores 15/15 as easily
+# as the local backends do, that is direct evidence these tasks cannot
+# discriminate on quality at all (issue #4).
+[backend.opus5]
+description = "REFERENCE: hosted Claude Opus 5, medium reasoning effort"
+model = "claude-opus-5"
+reasoning_effort = 10000
+context_tokens = 200000

@@ -1,3 +1,5 @@
 2026-08-17 10:15:19,580 INFO 5 task(s) x 1 backend(s) x 3 trial(s), client=opencode
 2026-08-17 10:15:19,580 INFO stack: claude=2.1.233 (Claude Code), client=opencode, ds4_dirty=False, ds4_head=fdcf3aa, ds4_server_mtime=2026-08-16T06:53:08, machine=Apple M5 Max, macos=26.5.2, opencode=1.18.18, target_commit=56e55cc
 2026-08-17 10:17:43,009 INFO mbox-strip-envelope-ds4-opencode-1: FAIL in 141.8s (3 failed, 13 passed in 0.12s)
+2026-08-17 10:20:52,956 INFO parser-mbox-quoting-ds4-opencode-1: PASS in 184.0s (55 passed in 0.87s)
+2026-08-17 10:24:24,522 INFO storage-blob-put-ds4-opencode-1: PASS in 209.7s (17 passed in 0.07s)

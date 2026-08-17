@@ -106,6 +106,19 @@ def capture_versions(cfg, backends):
 
 def agent_env(backend):
     env = dict(os.environ)
+
+    # A backend with no base_url is the hosted API -- the reference point the
+    # local backends are measured against. Leave the ambient auth alone and
+    # override nothing but the model: pointing ANTHROPIC_BASE_URL at
+    # api.anthropic.com and clearing ANTHROPIC_API_KEY would break the normal
+    # subscription login.
+    if not backend.get("base_url"):
+        env["ANTHROPIC_MODEL"] = backend["model"]
+        env["ANTHROPIC_DEFAULT_OPUS_MODEL"] = backend["model"]
+        if backend.get("reasoning_effort"):
+            env["MAX_THINKING_TOKENS"] = str(backend["reasoning_effort"])
+        return env
+
     env.pop("ANTHROPIC_API_KEY", None)
     env.update(
         ANTHROPIC_BASE_URL=backend["base_url"],
