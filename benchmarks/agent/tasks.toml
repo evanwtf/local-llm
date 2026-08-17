@@ -80,6 +80,7 @@ description = "DeepSeek V4 Flash mixed q2/q4 0731 via ds4-server"
 base_url = "http://127.0.0.1:8000"
 auth_token = "dsv4-local"
 model = "deepseek-v4-flash"
+opencode_model = "ds4/deepseek-v4-flash"
 context_tokens = 100000
 
 [backend.qwen]
@@ -143,6 +144,7 @@ description = "Qwen3.8-27B via MTPLX, dynamic 4-bit, native MTP speculative deco
 base_url = "http://127.0.0.1:8010"
 auth_token = "mtplx-local"
 model = "mtplx-qwen38-27b-optimized-speed"
+opencode_model = "mtplx/mtplx-qwen38-27b-optimized-speed"
 context_tokens = 262144
 
 # Different family entirely -- Google, not Qwen or DeepSeek. Matched against

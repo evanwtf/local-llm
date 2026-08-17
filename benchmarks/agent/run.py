@@ -69,6 +69,7 @@ def capture_versions(cfg, backends):
 
     env = {
         "claude": out(["claude", "--version"]),
+        "opencode": out(["opencode", "--version"]),
         "macos": out(["sw_vers", "-productVersion"]),
         "machine": out(["sysctl", "-n", "machdep.cpu.brand_string"]),
         "target_commit": cfg["base_commit"],
@@ -118,13 +119,96 @@ def agent_env(backend):
     return env
 
 
+# --- clients --------------------------------------------------------------
+# The client is the second axis. Holding the backend fixed and swapping the
+# client asks whether the agent harness -- its system prompt, tool definitions
+# and loop -- accounts for any of the difference between backends.
+#
+# Only `passed`, `wall_seconds` and `touched_tests` are strictly comparable
+# across clients. Token and turn counts come from each client's own accounting
+# and are recorded, not equated: see RESULTS.md.
+
+def claude_argv(task, backend):
+    return ["claude", "-p", task["prompt"], "--output-format", "json",
+            "--permission-mode", "bypassPermissions"]
+
+
+def claude_parse(stdout):
+    payload = json.loads(stdout)
+    usage = payload.get("usage", {})
+    return dict(
+        num_turns=payload.get("num_turns"),
+        stop_reason=payload.get("stop_reason"),
+        api_ms=payload.get("duration_api_ms"),
+        input_tokens=usage.get("input_tokens"),
+        output_tokens=usage.get("output_tokens"),
+        agent_error=payload.get("is_error"),
+    )
+
+
+def opencode_argv(task, backend):
+    model = backend.get("opencode_model")
+    if not model:
+        raise SystemExit(
+            f"backend {backend['model']!r} has no opencode_model in tasks.toml")
+    return ["opencode", "run", "--model", model, "--format", "json",
+            "--auto", task["prompt"]]
+
+
+def opencode_parse(stdout):
+    """Sum OpenCode's per-step accounting into one row.
+
+    OpenCode emits a JSON event stream, not a summary object. Each assistant
+    step ends with a `step_finish` carrying that step's token counts, so turns
+    are counted and tokens are summed. Input tokens are *not* summed: every
+    step resends the conversation, so a sum would count the same prompt many
+    times over. The last step's input is the high-water mark instead.
+    """
+    turns = 0
+    out_tokens = 0
+    reasoning = 0
+    last_input = None
+    for line in stdout.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if event.get("type") != "step_finish":
+            continue
+        tokens = event.get("part", {}).get("tokens", {})
+        turns += 1
+        out_tokens += tokens.get("output") or 0
+        reasoning += tokens.get("reasoning") or 0
+        if tokens.get("input"):
+            last_input = tokens["input"]
+    if not turns:
+        raise json.JSONDecodeError("no step_finish events", stdout[:200], 0)
+    return dict(
+        num_turns=turns,
+        input_tokens=last_input,
+        output_tokens=out_tokens,
+        reasoning_tokens=reasoning,
+    )
+
+
+CLIENTS = {
+    "claude": (claude_argv, claude_parse),
+    "opencode": (opencode_argv, opencode_parse),
+}
+
+
 def one_trial(cfg, task, backend_name, backend, trial, workdir, timeout, dry_run,
-              versions=None):
+              versions=None, client="claude"):
     repo = pathlib.Path(cfg["repo"]).expanduser()
-    name = f"{task['name']}-{backend_name}-{trial}"
+    suffix = "" if client == "claude" else f"-{client}"
+    name = f"{task['name']}-{backend_name}{suffix}-{trial}"
     worktree = workdir / name
     result = {
         "task": task["name"], "backend": backend_name, "trial": trial,
+        "client": client,
         "started": time.strftime("%Y-%m-%dT%H:%M:%S"),
         "model": backend["model"], "context_tokens": backend["context_tokens"],
         "env": versions or {},
@@ -161,24 +245,13 @@ def one_trial(cfg, task, backend_name, backend, trial, workdir, timeout, dry_run
             return result
 
         # 3. Hand it to the agent.
+        build_argv, parse = CLIENTS[client]
         t0 = time.monotonic()
-        proc = run(
-            ["claude", "-p", task["prompt"], "--output-format", "json",
-             "--permission-mode", "bypassPermissions"],
-            cwd=worktree, env=agent_env(backend), timeout=timeout,
-        )
+        proc = run(build_argv(task, backend),
+                   cwd=worktree, env=agent_env(backend), timeout=timeout)
         result["wall_seconds"] = round(time.monotonic() - t0, 1)
         try:
-            payload = json.loads(proc.stdout)
-            usage = payload.get("usage", {})
-            result.update(
-                num_turns=payload.get("num_turns"),
-                stop_reason=payload.get("stop_reason"),
-                api_ms=payload.get("duration_api_ms"),
-                input_tokens=usage.get("input_tokens"),
-                output_tokens=usage.get("output_tokens"),
-                agent_error=payload.get("is_error"),
-            )
+            result.update(parse(proc.stdout))
         except json.JSONDecodeError:
             result["agent_error"] = True
             result["stderr_tail"] = proc.stderr[-400:]
@@ -210,6 +283,8 @@ def main():
     p.add_argument("--dry-run", action="store_true",
                    help="verify each task's control failure, run no agent")
     p.add_argument("--tasks-file", default=str(HERE / "tasks.toml"))
+    p.add_argument("--client", choices=sorted(CLIENTS), default="claude",
+                   help="agent harness driving the backend (default: claude)")
     args = p.parse_args()
 
     logging.basicConfig(level=logging.INFO,
@@ -225,14 +300,16 @@ def main():
     workdir.mkdir(parents=True, exist_ok=True)
 
     versions = capture_versions(cfg, backends)
-    logger.info("%d task(s) x %d backend(s) x %d trial(s)",
-                len(tasks), len(backends), args.trials)
+    versions["client"] = args.client
+    logger.info("%d task(s) x %d backend(s) x %d trial(s), client=%s",
+                len(tasks), len(backends), args.trials, args.client)
     logger.info("stack: %s", ", ".join(f"{k}={v}" for k, v in sorted(versions.items())))
     for trial in range(1, args.trials + 1):
         for task in tasks:
             for bname, backend in backends.items():
                 r = one_trial(cfg, task, bname, backend, trial,
-                              workdir, args.timeout, args.dry_run, versions)
+                              workdir, args.timeout, args.dry_run, versions,
+                              client=args.client)
                 with RESULTS.open("a") as fh:
                     fh.write(json.dumps(r) + "\n")
 
