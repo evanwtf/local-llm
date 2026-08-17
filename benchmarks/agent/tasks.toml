@@ -176,3 +176,24 @@ description = "REFERENCE: hosted Claude Opus 5, medium reasoning effort"
 model = "claude-opus-5"
 effort = "medium"
 context_tokens = 200000
+
+# Same weights, same server, same client as `ds4` under --client opencode --
+# but over the Anthropic wire protocol (/v1/messages) instead of the
+# OpenAI-compatible one (/v1/chat/completions).
+#
+# Why this exists: the first opencode+ds4 run varied two things at once. The
+# client changed AND the protocol changed, because OpenCode reached ds4-server
+# through its OpenAI-compatible path while Claude Code used the Anthropic path.
+# Those are different code paths with different tool-call serialization, so a
+# gap could belong to either. This backend holds the protocol fixed and leaves
+# the client as the only variable.
+#
+# Only meaningful with --client opencode. Under --client claude it is identical
+# to `ds4`.
+[backend.ds4anthropic]
+description = "ds4 over Anthropic /v1/messages, for the OpenCode protocol control"
+base_url = "http://127.0.0.1:8000"
+auth_token = "dsv4-local"
+model = "deepseek-v4-flash"
+opencode_model = "ds4anthropic/deepseek-v4-flash"
+context_tokens = 100000
