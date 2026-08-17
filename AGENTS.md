@@ -48,6 +48,23 @@ caveat into the backend block in `tasks.toml` at the moment you add it, not
 afterwards — engine, quant, tune, and default sampler settings all move
 together, and a result that cannot attribute its cause must say so.
 
+## Observe the wire call, not the status code
+
+When two components can talk over more than one protocol, check which one they
+actually used before drawing a comparison from the result. A 200 from both
+endpoints means both work; it does not mean the run you are comparing against
+used the same one.
+
+This cost a 13-trial run on 2026-08-17. OpenCode was pointed at ds4-server's
+OpenAI-compatible path while the Claude Code baseline used the Anthropic path,
+so client and protocol varied together and the +60% gap could not be
+attributed. Both endpoints had been curl-tested first; both returned 200; the
+choice was never registered as a choice.
+
+Copying a working config from another tool's `connect` output is how it
+happened. A template answers "will this run", not "does this match the thing I
+am comparing against".
+
 ## Verify the oracle before trusting a run
 
 `--dry-run` checks that every excision still breaks the tests it should. Run it

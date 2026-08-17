@@ -684,3 +684,84 @@ approximation cost nothing measurable at this difficulty.
 
 *(16 rows rather than 15: a smoke test was run first to confirm tool calling,
 and is retained.)*
+
+## The client comparison, and why its first run proves less than it looks (2026-08-17)
+
+**Do not quote the numbers in this section as a verdict on OpenCode.** They
+were produced by a run that varied two things at once. They are kept because
+deleting them would falsify the record, and because they do measure something
+real — just not the thing the run was designed to measure.
+
+### What was asked
+
+Every result above this section was produced through **one client**, Claude
+Code. Its system prompt, tool definitions and agent loop are a large share of
+the tokens and turns in every row. So the rankings are properly read as
+"backend *plus Claude Code*", and the obvious question is how much of the
+difference belongs to the client.
+
+The design was right: hold the backend fixed at `ds4` (synced, `fdcf3aa`) and
+swap the client.
+
+### What was actually run
+
+| | claude+ds4 | opencode+ds4 |
+|---|---|---|
+| pass rate | **15/15** | 9/13 |
+| median total (5 task medians) | 777 s | 1,243 s (**+60%**) |
+| turns (median, per task) | 8–10 | 14–16 |
+| output tokens (median, per task) | 1,633–3,957 | 3,291–6,034 |
+
+Roughly double the turns and double the tokens, on every task, in the same
+direction. By this report's own model — `wall ≈ tokens ÷ rate + per-turn
+overhead` — that fully accounts for the +60%.
+
+The run was aborted after 13 of 15 trials, once the confound below was
+understood.
+
+### The confound
+
+**OpenCode reached ds4-server over `/v1/chat/completions`. Claude Code uses
+`/v1/messages`.** Those are different code paths in ds4-server with different
+tool-call serialization.
+
+If tool calls parse less cleanly on the OpenAI path, the agent retries — which
+appears as extra turns — and edits may silently fail to apply, which appears as
+the failures. **One defect in a protocol adapter would produce both symptoms.**
+
+So the measured gap belongs to the client, or to the protocol, or to both, and
+this run cannot tell them apart. A protocol control (`ds4anthropic`, OpenCode
+over `/v1/messages`) is the next run.
+
+### What this run *can* say
+
+It is a valid measurement of the configuration a user gets by following the
+serving engine's own `connect` template, which emits an OpenAI-compatible
+provider block. That is a real-world default and it performed materially worse
+than Claude Code on the same weights. It is not evidence about OpenCode's agent
+loop in isolation.
+
+### The process failure
+
+This was avoidable, and the evidence was in hand at the time.
+
+Both endpoints were probed with `curl` before the run — **both returned 200** —
+and the conclusion drawn was "ds4 speaks both protocols, so OpenCode can drive
+it." That treated *it works* as the requirement. For a controlled comparison
+the requirement is *it matches*. Finding two paths is precisely the moment to
+notice a choice is being made.
+
+The provider config was copied from `mtplx connect opencode --json`, which
+emits an `@ai-sdk/openai-compatible` block. The template was adopted without
+asking whether it matched the client being compared against.
+
+[`AGENTS.md`](../../AGENTS.md) already required naming confounds in the backend
+block at the moment it is added. Other caveats were written into that block;
+this one was missed, hours after the rule was written.
+
+**What would have caught it:** observing the wire call, not the status code.
+One `--print-logs` run would have shown the endpoint immediately.
+
+A logging proxy was then built to verify the endpoints properly and *that*
+failed too — it buffered responses instead of streaming SSE, and hung until it
+was killed. Verification needs a method suited to streaming.

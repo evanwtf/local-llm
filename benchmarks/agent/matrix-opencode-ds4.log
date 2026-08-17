@@ -10,3 +10,5 @@
 2026-08-17 10:47:44,956 INFO storage-blob-put-ds4-opencode-2: PASS in 305.3s (17 passed in 0.07s)
 2026-08-17 10:52:21,313 INFO parser-date-ds4-opencode-2: PASS in 269.8s (55 passed in 0.85s)
 2026-08-17 10:56:28,763 INFO mbox-scan-ds4-opencode-2: PASS in 245.7s (16 passed in 0.10s)
+2026-08-17 10:57:21,506 INFO mbox-strip-envelope-ds4-opencode-3: FAIL in 50.8s (3 failed, 13 passed in 0.13s)
+2026-08-17 11:01:44,197 INFO parser-mbox-quoting-ds4-opencode-3: FAIL in 256.5s (34 failed, 21 passed in 0.88s)
