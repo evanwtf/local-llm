@@ -270,6 +270,24 @@ arguably the correct thing to measure.
 **If contamination matters to a conclusion you are drawing, re-run the task
 against a repository written after the models' training cutoffs.**
 
+### Authorship contamination, and why the hosted reference is time-only
+
+`gmail-archive` was itself written with Claude. That makes the hosted
+`opus5` reference a special case: it is being asked to restore functions from
+a codebase it authored, which is closer to recall than to problem-solving.
+
+**Read the reference row for wall time only.** Its pass rate is not evidence
+about task difficulty, and a 15/15 there must not be cited as showing the
+tasks are too easy (issue #4) — it would show authorship contamination
+instead. Answering issue #4 needs harder tasks in a repository no frontier
+model wrote.
+
+The local backends are not exempt from this either: they are restoring
+Claude-authored code, which may suit some model lineages better than others.
+It applies equally across them, so it does not distort the comparison between
+local backends — but it is a reason the whole suite flatters models trained on
+similar code.
+
 ### The empty-virtualenv confound
 
 **Known flaw in the first series.** A fresh git worktree has no `.venv`. The
