@@ -3,7 +3,7 @@
 **Hardware:** MacBook Pro, Apple M5 Max, 128 GiB unified memory, macOS 26.5.
 **Purpose:** a working fallback for agentic coding if hosted models become
 unavailable — price, policy, or otherwise.
-**Evidence:** 238 agent trials, 8 backends, 3 clients.
+**Evidence:** 243 agent trials, 8 backends, 3 clients, plus a hosted reference.
 See [`RESULTS.md`](benchmarks/agent/RESULTS.md).
 
 This is a fallback plan, not a daily driver plan. Measured through the same
@@ -50,6 +50,14 @@ it is not the fastest anywhere.
 returned the test suite *exactly* as the excision left it — the loop stopped
 believing it had finished, having changed nothing. Same model, same prompts;
 Claude Code went 14/15 on the identical setup.
+
+**That verdict is scoped to ds4, deliberately.** OpenCode has never been run
+against any other backend, and this project *proved* that clients invert across
+backends — Codex was 12% faster than Claude Code on ds4 and 63% slower on
+Ollama. So OpenCode's 6/15 may be an ds4-pairing failure rather than a client
+defect. A hand reproduction on a freshly restarted ds4-server also passed 5/5,
+which points the same way. Do not generalise it to "OpenCode is bad" until it
+has run somewhere else. See issue #5.
 
 ### The uncomfortable part
 
@@ -201,10 +209,14 @@ models, which suggests it expects to reach a catalogue somewhere.
 
 The gaps between "benchmarked" and "actually a fallback":
 
-1. **Weights are not backed up.** Everything lives on the working disk. One
-   drive failure is currently zero fallback, and re-downloading assumes the
-   distribution channel still exists — which is the scenario being hedged
-   against. Highest-value open item.
+1. **Backups are configured but unverified.** Time Machine has two destinations
+   and excludes none of the relevant paths — `~/.ollama`, `~/.mtplx/models`,
+   `~/git/ds4/gguf`, `~/.codex`, `~/.opencode`, `~/.local/bin` all report
+   `[Included]`. But `tmutil latestbackup` could not mount a destination, so no
+   completed backup is confirmed. A direct NAS copy of the essential ~143 GB is
+   planned: the 91 GB ds4 quant actually in service, ~31 GB for
+   `qwen3.6:27b-coding-mxfp8`, 20 GB for MTPLX, and ~900 MB of clients and
+   toolchain. Issue #6.
 2. **Neither is the toolchain, and that now includes the clients.** Ollama,
    MTPLX, the MLX wheels, the ds4 source, *and* the Claude Code and Codex
    binaries are all reacquired from the network today. Weights you cannot serve

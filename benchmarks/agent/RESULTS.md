@@ -973,9 +973,16 @@ explain OpenCode's failures.** Codex is equally third-party, equally
 unaffiliated with the model, and matched the reference client exactly on
 correctness while beating it on speed and consistency.
 
-Whatever goes wrong with OpenCode on this backend is specific to OpenCode --
-though see the reproduction attempt above, which failed to trigger it on a
-freshly restarted server and suggests the trigger is conditional.
+Whatever goes wrong with OpenCode **on this backend** is specific to OpenCode.
+
+**Do not read that as a general verdict on OpenCode.** It has only ever been
+run against ds4. This report separately demonstrates that clients invert across
+backends -- Codex was 12% faster than Claude Code on ds4 and 63% slower on
+Ollama -- so the same inversion is available to OpenCode and untested. Combined
+with the reproduction attempt above, which failed to trigger the failure on a
+freshly restarted server, the honest scope is "OpenCode paired with this ds4
+server, in these conditions". Issue #5 carries the coverage table and the run
+that would settle it.
 
 ### `num_turns` is absent for Codex, on purpose
 
