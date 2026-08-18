@@ -49,6 +49,11 @@ Tested on macOS 26.5 with Ollama 0.32.13 and `qwen3.8:27b-mlx`.
 See [**RECOMMENDATIONS.md**](RECOMMENDATIONS.md) — the current picks for this
 Mac (M5 Max, 128 GiB), with the evidence behind them and the gaps still open.
 
+It is **two choices, not one**: a model and an agent client. They interact, and
+no client is fastest on every backend. The
+[agent benchmark](benchmarks/agent/README.md) measures both axes over 238
+trials.
+
 ## Quick start
 
 ```sh
@@ -203,6 +208,10 @@ On a MacBook Pro M5 Max, 128 GiB, at ~12k context:
 |---|---|---|---|
 | `qwen3.8:27b-mlx` via Ollama | 730.3 t/s | 46.3 t/s | 18 GB |
 | DeepSeek V4 Flash mixed q2/q4 via `ds4` | 488.1 t/s | 34.4 t/s | 90.9 GiB |
+
+The ds4 generation figure is from build `b030961` (2026-08-08). The synced
+build `fdcf3aa` measures **40.6 t/s** — see
+[`benchmarks/agent/RESULTS.md`](benchmarks/agent/RESULTS.md).
 
 Caveat: the two are not measured identically. `ds4-bench` reports a
 2048-token prefill at a given context; the Qwen figure is a single 11,451-token

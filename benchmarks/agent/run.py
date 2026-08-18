@@ -1,16 +1,25 @@
 #!/usr/bin/env python3
-"""Benchmark local models as Claude Code backends.
+"""Benchmark local models, and the agent clients that drive them.
 
-Each trial hollows out one function in a real repository, hands the repo to
-Claude Code running against one backend, and then runs the repository's own
+Each trial hollows out one function in a real repository, hands the repo to an
+agent client running against one backend, and then runs the repository's own
 test suite. The suite is the oracle: pass or fail, no rubric, no judge model.
 
     uv run benchmarks/agent/run.py --trials 3
     uv run benchmarks/agent/run.py --backend qwen --task mbox-strip-envelope
     uv run benchmarks/agent/run.py --dry-run      # verify tasks, run no agent
 
-Every trial runs in its own git worktree, and the excision is committed there,
-so an agent cannot restore the answer with `git checkout`.
+    # Two clients, interleaved per task so server drift hits both equally:
+    uv run benchmarks/agent/run.py --backend ds4 --client claude --client codex
+
+Two axes: `--backend` selects the model and server, `--client` the agent
+harness (claude, opencode, codex). They interact -- no client is fastest on
+every backend -- so both belong in any conclusion.
+
+Each trial runs in a standalone copy of the pinned commit, exported with
+`git archive`, whose only commit is the already-excised state. There is no
+shared object store and no path back to the source repo: an agent can neither
+recover the original body from history nor reach the operator's checkout.
 
 Results append to results.jsonl. Nothing is overwritten, so runs accumulate.
 """

@@ -3,7 +3,8 @@
 **Hardware:** MacBook Pro, Apple M5 Max, 128 GiB unified memory, macOS 26.5.
 **Purpose:** a working fallback for agentic coding if hosted models become
 unavailable — price, policy, or otherwise.
-**Evidence:** 122 agent trials, 8 backends. See [`RESULTS.md`](benchmarks/agent/RESULTS.md).
+**Evidence:** 238 agent trials, 8 backends, 3 clients.
+See [`RESULTS.md`](benchmarks/agent/RESULTS.md).
 
 This is a fallback plan, not a daily driver plan. None of these is faster than
 hosted Claude. The reason to keep them working is that they keep working when
@@ -13,16 +14,59 @@ nothing else does.
 
 ## The short answer
 
-| role | model | why |
-|---|---|---|
-| **primary** | `ds4` synced (`fdcf3aa`) | fastest backend that never fails or stalls |
-| **secondary** | `qwen3.6:27b-coding-mxfp8` | fits alongside other work; shares no code with ds4 |
-| **watch** | `Qwen3.8-27B-MTPLX-Optimized-Speed` | best speed per GB, but placement unresolved |
+A local coding agent is **two choices, not one**: a model *and* a client. They
+interact, so pick them as a pair.
 
-Two models is the target, not one. The June 2026 suspension was
-**model-specific, not vendor-wide** — the failure mode to design against is a
-single thing going away, so the second entry exists to have a different
-everything: different weights, different engine, different maintainer.
+| role | pair | why |
+|---|---|---|
+| **primary** | `ds4` + **Claude Code** | 15/15, predictable, the safe default |
+| **fastest** | `ds4` + **Codex** | 15/15 and 12% quicker, tightest spread measured |
+| **secondary** | `qwen3.6:27b-coding-mxfp8` + **Claude Code** | 31 GB, independent failure surface |
+
+Two independent stacks is the target. The June 2026 Fable/Mythos suspension was
+**model-specific, not vendor-wide** — the failure mode to design against is one
+thing going away, so the secondary shares no weights, engine, or maintainer
+with the primary.
+
+---
+
+## Choose the client for the backend
+
+The single most surprising result in this project: **the client matters as much
+as the model, and no client is best everywhere.**
+
+| backend | Claude Code | Codex | OpenCode |
+|---|---|---|---|
+| `ds4` | 1,110 s, 15/15 | **978 s, 15/15** | 1,235 s, **6/15** |
+| `qwen3.6-coding` (Ollama) | **1,041 s, 15/15** | 1,699 s, 14/15 | not tested |
+
+Same binaries, same day, same tasks. Codex beats Claude Code by 12% on ds4 and
+loses to it by 63% on Ollama. **Claude Code is the only client that was
+consistent on both**, which is why it is the default recommendation even though
+it is not the fastest anywhere.
+
+**Do not use OpenCode against ds4.** It failed 9 of 15 trials, and every failure
+returned the test suite *exactly* as the excision left it — the loop stopped
+believing it had finished, having changed nothing. Same model, same prompts;
+Claude Code went 14/15 on the identical setup.
+
+### The uncomfortable part
+
+Both clients that work well are **proprietary and unmaintainable by you**:
+
+| client | licence | re-installable if the vendor is cut off? |
+|---|---|---|
+| Claude Code | proprietary (Anthropic) | **no** |
+| Codex | proprietary (OpenAI) | **no** |
+| OpenCode | open source | yes — and it is the one that fails |
+
+Both work offline once installed. Neither can be *re*-installed if its vendor
+becomes unavailable, which is the exact scenario this plan hedges against. The
+only client you could keep alive indefinitely is the one that performed worst.
+
+**Practical consequence:** keep the installed binaries backed up alongside the
+weights. A client you cannot reinstall is as perishable as a model you cannot
+re-download. See "Not done yet" below.
 
 ---
 
@@ -37,9 +81,9 @@ everything: different weights, different engine, different maintainer.
 | generation | 40.6 t/s |
 | resident | 90.9 GiB |
 
-The only backend that is both quick and dependable. Predictability is the
-reason it wins: a 2.6× spread means you can plan around it. `ornith:35b` has a
-better median (82.3 s) and is disqualified below.
+Quick and dependable. Predictability is the reason it wins: a 2.6× spread means
+you can plan around it. `ornith:35b` has a better median (82.3 s) and is
+disqualified below.
 
 **Start it:**
 
@@ -50,6 +94,10 @@ benchmarks/ds4/0731/agent/ds4-up restart
 `ds4-server` resolves its Metal shaders relative to the working directory, so
 the launcher must `cd "$DS4_ROOT"` first. It does. Do not "simplify" that away —
 it has broken once already.
+
+**It speaks all three protocols** — `/v1/messages`, `/v1/chat/completions` and
+`/v1/responses` — so every client drives it natively, with no shim in the path.
+That is unusual and it is why ds4 is the best-tested backend here.
 
 **The cost is the machine.** 90.9 GiB of 128 means ds4 owns the laptop while
 loaded. Fine when the model *is* the job; not fine if you also need Xcode or a
@@ -79,6 +127,9 @@ gone. That is precisely why there is a second entry.
 2. **Independent failure surface.** Ollama and ds4-server share no code. A
    fallback whose two options fail together is one option.
 
+**Use Claude Code with it.** Codex was 63% slower on this backend and produced
+the only unparseable-file failure recorded in this project.
+
 **Start it:**
 
 ```sh
@@ -98,11 +149,11 @@ gone. That is precisely why there is a second entry.
 | resident | 26.8 GiB |
 
 The best speed-per-GB in the field, and the same weights run 17% faster with
-68% fewer tokens under MTPLX than under Ollama. Not promoted yet because its
-trials got faster across rounds (1,780 s → 1,253 s → 1,021 s) for reasons that
-remain **unexplained** — the two obvious mechanisms were both disproved by the
-server's own counters. If the trend is real its warm median is ~193 s, which
-would place it second.
+68% fewer tokens under MTPLX than under Ollama. Not promoted because its trials
+got faster across rounds (1,780 → 1,253 → 1,021 s) for reasons that remain
+**unexplained** — the two obvious mechanisms were both disproved by the server's
+own counters. If the trend is real its warm median is ~193 s, which would place
+it second.
 
 One cold-restart run settles it. Until then its placement is provisional.
 
@@ -116,9 +167,9 @@ mtplx quickstart --model Youssofal/Qwen3.8-27B-MTPLX-Optimized-Speed \
 ## What not to bother with
 
 **`ornith:35b`** — fastest median in the field (82.3 s) and the only backend
-that has ever failed: 13/15, twice on the *easiest* task, with a **30.4×**
-spread and one run of 20.4 minutes. Fast-on-average and occasionally broken is
-the worst possible profile for something you depend on.
+that has ever failed under Claude Code: 13/15, twice on the *easiest* task, with
+a **30.4×** spread and one run of 20.4 minutes. Fast-on-average and occasionally
+broken is the worst possible profile for something you depend on.
 
 **`qwen3.8:27b-mlx` via Ollama** — strictly dominated. MTPLX runs the identical
 weights 17% faster on 68% fewer tokens. If you want Qwen3.8, use MTPLX.
@@ -138,24 +189,30 @@ blocks it.
 It prints two harmless notices: a warning that connectors are disabled, and
 `[claude-code:unrecognized_model]`. Both are cosmetic.
 
+**Not yet verified offline: Codex and OpenCode.** Both were only ever run with
+the network up. Codex in particular is worth checking, since it is the fastest
+pairing on ds4 — and it warns on every run that it has no metadata for local
+models, which suggests it expects to reach a catalogue somewhere.
+
 ---
 
 ## Not done yet
 
-These are the gaps between "benchmarked" and "actually a fallback":
+The gaps between "benchmarked" and "actually a fallback":
 
 1. **Weights are not backed up.** Everything lives on the working disk. One
    drive failure is currently zero fallback, and re-downloading assumes the
    distribution channel still exists — which is the scenario being hedged
-   against. This is the highest-value open item.
-2. **The toolchain is not archived.** Ollama, MTPLX (brew/pip), the MLX wheels
-   and the ds4 source are all reacquired from the network today. Weights you
-   cannot serve are not a fallback.
-3. **No cold-start runbook.** The Metal-shader trap above was rediscovered
+   against. Highest-value open item.
+2. **Neither is the toolchain, and that now includes the clients.** Ollama,
+   MTPLX, the MLX wheels, the ds4 source, *and* the Claude Code and Codex
+   binaries are all reacquired from the network today. Weights you cannot serve
+   are not a fallback; nor is a model you cannot drive.
+3. **Codex and OpenCode are unverified offline.** One test each, ~10 minutes.
+4. **No cold-start runbook.** The Metal-shader trap above was rediscovered
    under pressure once. Write the procedure down while it is calm.
-4. **Quality is unmeasured at real difficulty.** Seven of eight backends scored
-   100%, so these tasks cannot tell you which model is *better* — only that
-   each is competent at restoring one deleted function. Issue #4.
+5. **Quality is unmeasured at real difficulty.** Nearly every backend and client
+   scores near-perfect, so these tasks cannot tell you which is *better* — only
+   that each can restore one deleted function. Issue #4.
 
-Item 4 is the one that decides whether this plan is any good. The rest is
-logistics.
+Item 5 decides whether this plan is any good. The rest is logistics.

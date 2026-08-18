@@ -343,11 +343,12 @@ not necessarily stable.** This caught me twice during the run.
 
 ## What this does not say
 
-- **Not a quality ranking.** Six of seven backends scored 100%. This measures
+- **Not a quality ranking.** Seven of eight backends scored 100%, and so did
+  two of the three clients. This measures
   completion and latency, not craftsmanship. A passing solution may still be
   ugly, slow or insecure. Quality is **unmeasured, not equal** — see issue #4.
 - **Not a general claim.** Five single-function tasks in one Python repository,
-  all backends run on one machine over two days. Nothing here tests multi-file
+  all backends run on one machine over three days. Nothing here tests multi-file
   refactors, ambiguity, or long-context recall.
 - **Three trials detects large effects only.** The `storage-blob-put` gap
   (nine Qwen runs, none overlapping ds4) and the output-token ordering are
@@ -372,7 +373,8 @@ Correctness did not separate them. Choose on latency, predictability and memory.
 
 ## Cost of the run
 
-Roughly 7 hours of wall time for 106 trials, phased so only one model was
+Roughly 7 hours of wall time for the 106 trials of the backend series
+(2026-08-15/16), phased so only one model was
 resident at a time — ds4 at 90.9 GiB, freed before each Ollama backend, and an
 explicit unload between backends. **No model was measured while paged out.**
 
@@ -524,7 +526,9 @@ rather than lowering it.
 
 ## What actually predicts wall time
 
-Median values per backend, all 106 trials.
+Median values per backend, across the 106 trials of the backend series
+(2026-08-15/16). The later client comparisons are excluded: they hold the
+backend fixed and vary the client, so they do not belong in a per-backend table.
 
 | backend | tokens | gen t/s | tokens ÷ rate | wall | overhead |
 |---|---|---|---|---|---|

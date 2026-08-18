@@ -10,18 +10,26 @@ loop — model, tool use, file editing, and the agent's willingness to stop.
 
 Each trial:
 
-1. Creates a **git worktree** of a real repository at a pinned commit.
-2. **Hollows out one function**, keeping the signature and docstring, and
-   commits that — so the agent cannot `git checkout` its way to the answer.
+1. Exports a real repository at a pinned commit into a **standalone directory**
+   with `git archive` — no `.git`, no link to the source repo.
+2. **Hollows out one function**, keeping the signature and docstring, then makes
+   that the new repo's *only* commit — so the original body exists nowhere in
+   the checkout, history included.
 3. Verifies the repo's tests now **fail**. A task whose tests still pass proves
    nothing, and this check is not optional.
-4. Runs `claude -p` against one backend, in that worktree.
+4. Runs one **agent client** (`claude`, `codex` or `opencode`) against one
+   backend, in that directory.
 5. Runs the repository's own test suite.
 
 **The test suite is the oracle.** Pass or fail — no rubric, no partial credit,
 no judging model marking its own homework.
 
-The worktree is destroyed afterwards, so trials cannot contaminate each other.
+The directory is destroyed afterwards. It used to be a `git worktree`; that
+shared an object store with the source repo and kept a path back to it, and on
+2026-08-17 an agent followed that path and modified the operator's checkout.
+A worktree isolates files, not the agent. Every row now records
+`source_repo_intact`, and the runner refuses to start if the source repo is
+dirty or off its pinned commit. See METHODOLOGY.md.
 
 ## Running it
 
@@ -32,6 +40,21 @@ uv run benchmarks/agent/run.py --backend qwen --task mbox-scan
 ```
 
 Both backends must be up first — `ds4-up` for ds4, Ollama for qwen.
+
+## Two axes: backend and client
+
+`--client` selects the agent harness. They interact — **no client is fastest on
+every backend** — so a result belongs to a *pair*, not to either alone:
+
+```sh
+# Interleaved per task, so server drift hits both clients equally
+uv run benchmarks/agent/run.py --backend ds4 --client claude --client codex
+```
+
+Only `passed`, `wall_seconds` and `touched_tests` compare cleanly across
+clients. Token and turn counts come from each client's own accounting: Codex
+reports one "turn" per exec rather than per round trip, so it records
+`tool_items` instead and leaves `num_turns` empty.
 
 Results append to `results.jsonl`; nothing is overwritten, so runs accumulate
 and you can compare across days.
@@ -121,15 +144,13 @@ Qwen is ~18 GB. Running both servers at once means one of them is paged out and
 its first request pays for it. Bench one at a time, or accept the noise and say
 so.
 
-## First measurements
+## Results
 
-`mbox-strip-envelope`, one trial each, both passed:
+238 trials across 8 backends and 3 clients. Full report:
+[**RESULTS.md**](RESULTS.md). Picks for this machine:
+[**RECOMMENDATIONS.md**](../../RECOMMENDATIONS.md).
 
-| backend | wall | turns | output tokens |
-|---|---|---|---|
-| qwen3.8:27b-mlx | 124.1 s | 13 | 3,837 |
-| ds4 mixed q2/q4 | 130.1 s | 9 | 1,428 |
-
-Too close to call on one trial of the easiest task, which is the correct
-conclusion to draw from it. ds4 was also paged out to ~27 GiB resident when
-this ran, so its number is pessimistic.
+Headline: correctness barely separates the *backends* (seven of eight at 100%),
+but it separates the *clients* sharply on the same model — Claude Code 14/15,
+Codex 15/15, OpenCode 6/15 on ds4. And no client wins everywhere: Codex is 12%
+faster than Claude Code on ds4 and 63% slower on Ollama.
