@@ -90,7 +90,8 @@ def capture_versions(cfg, backends):
         "target_commit": cfg["base_commit"],
     }
 
-    if any(b["base_url"].endswith(":11434") for b in backends.values()):
+    # .get(): a hosted backend has no base_url at all.
+    if any((b.get("base_url") or "").endswith(":11434") for b in backends.values()):
         env["ollama"] = out(["ollama", "--version"])
         # A tag can be re-pushed upstream; the digest cannot. Pin the digest.
         digests = {}
@@ -103,7 +104,7 @@ def capture_versions(cfg, backends):
             if b["model"] in digests:
                 env[f"digest_{name}"] = digests[b["model"]]
 
-    if any(b["base_url"].endswith(":8000") for b in backends.values()):
+    if any((b.get("base_url") or "").endswith(":8000") for b in backends.values()):
         ds4_root = pathlib.Path(os.environ.get("DS4_ROOT", "~/git/ds4")).expanduser()
         if (ds4_root / ".git").exists():
             try:
