@@ -1,7 +1,7 @@
 # Agent benchmark — eight local backends driving Claude Code
 
 Run 2026-08-15 to 2026-08-17. MacBook Pro M5 Max, 128 GiB, macOS 26.5.
-5 tasks × 3 trials per backend, **238 trials**.
+5 tasks × 3 trials per backend, **243 trials**.
 Methodology in [`METHODOLOGY.md`](METHODOLOGY.md). Raw rows in `results.jsonl`.
 
 ---
@@ -76,7 +76,13 @@ placement is provisional. See [MTPLX](#mtplx-the-same-weights-on-a-different-eng
    same tasks. Claude Code was consistent on both. Pick the client for the
    backend, not in the abstract.
 
-9. **Syncing the ds4 engine with upstream bought 14.3%** — median 164.4 s →
+9. **Local takes ~5x the wall time of hosted.** Opus 5 through the same
+   harness finished the suite in 203 s against 1,116 s for the best local
+   pairing — **18% of the time**, consistent across all five tasks (14-23%).
+   Read for scale only: Opus wrote this repo, so its pass rate is
+   contaminated. That gap is the price of the hedge.
+
+10. **Syncing the ds4 engine with upstream bought 14.3%** — median 164.4 s →
    140.9 s — with output tokens essentially unchanged (2,130 → 2,120). Same
    weights, same tasks, same machine; only the engine binary changed. A clean
    engine-only improvement, and the cleanest test of the rate term above.
@@ -1063,3 +1069,52 @@ so the gap does not close with warming.
 **Codex ran without model metadata on both backends**, warning on every trial
 that it is guessing at capabilities. Constant across both, so it cannot explain
 an inversion, but it is a handicap it carried throughout.
+
+## The hosted reference: what the local numbers are measured against (2026-08-18)
+
+Every figure in this report is an absolute with no denominator. This run supplies
+one: hosted **Claude Opus 5**, `--effort medium`, through the identical harness,
+5 tasks x 1 trial.
+
+**Read it for time only.** `gmail-archive` was itself written with Claude, so
+asking Opus to restore a function it authored is closer to recall than to
+problem-solving. Its 5/5 is evidence of authorship contamination, not of task
+difficulty, and must not be cited against issue #4. See METHODOLOGY.md.
+
+| task | opus5 | ds4 + Claude Code | ds4 + Codex | opus5 as % of ds4+cc |
+|---|---|---|---|---|
+| `mbox-strip-envelope` | 32.1 s | 137.7 s | 102.5 s | 23% |
+| `parser-mbox-quoting` | 31.5 s | 229.8 s | 171.0 s | 14% |
+| `storage-blob-put` | 35.6 s | 206.7 s | 238.1 s | 17% |
+| `parser-date` | 59.6 s | 338.6 s | 273.2 s | 18% |
+| `mbox-scan` | 44.6 s | 203.4 s | 190.7 s | 22% |
+| **total** | **203.4 s** | **1,116.2 s** | **975.5 s** | **18%** |
+
+**The hosted reference takes 18% of the time of the primary local pairing, and
+21% of the time of the fastest local pairing.** Consistent across all five
+tasks: the range is 14-23%, with no task where local comes close.
+
+It is also more economical with tokens: median 1,629 output tokens over 7 turns,
+against 2,120 and ~10 for synced ds4 — the lowest of anything measured here.
+
+### What this means for the fallback
+
+Nothing changes about the recommendation. The local stack was never a speed
+play; it exists so that work is still possible when the hosted option is not.
+But the size of the gap is worth stating plainly rather than leaving implied:
+
+- A task that takes **3.5 minutes** hosted takes **18.6 minutes** on the best
+  local pairing measured here.
+- That is the price of the hedge, on this hardware, at this task difficulty.
+
+### Caveats
+
+**Single trial per task.** Enough for an order-of-magnitude denominator, not for
+ranking. The local figures it is compared against are medians of three.
+
+**Network and service variance are not controlled.** The local runs are
+machine-local; this one crosses the internet to a shared service.
+
+**Subscription, not API.** Run through the operator's normal Claude Code login —
+the harness leaves ambient auth untouched for backends with no `base_url`, so no
+API credit is involved. The cost is subscription usage.

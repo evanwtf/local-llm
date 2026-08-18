@@ -6,9 +6,10 @@ unavailable — price, policy, or otherwise.
 **Evidence:** 238 agent trials, 8 backends, 3 clients.
 See [`RESULTS.md`](benchmarks/agent/RESULTS.md).
 
-This is a fallback plan, not a daily driver plan. None of these is faster than
-hosted Claude. The reason to keep them working is that they keep working when
-nothing else does.
+This is a fallback plan, not a daily driver plan. Measured through the same
+harness, hosted Claude Opus 5 finishes the task suite in **18% of the time** the
+best local pairing needs — 203 s against 1,116 s. The reason to keep the local
+stack working is not speed; it is that it keeps working when nothing else does.
 
 ---
 
