@@ -1,7 +1,7 @@
 # Agent benchmark — eight local backends driving Claude Code
 
 Run 2026-08-15 to 2026-08-17. MacBook Pro M5 Max, 128 GiB, macOS 26.5.
-5 tasks × 3 trials per backend, **208 trials**.
+5 tasks × 3 trials per backend, **238 trials**.
 Methodology in [`METHODOLOGY.md`](METHODOLOGY.md). Raw rows in `results.jsonl`.
 
 ---
@@ -71,7 +71,12 @@ placement is provisional. See [MTPLX](#mtplx-the-same-weights-on-a-different-eng
    6/15, this shows client quality varies enormously between third-party
    harnesses; "not Claude Code" explains nothing.
 
-8. **Syncing the ds4 engine with upstream bought 14.3%** — median 164.4 s →
+8. **No harness is best everywhere — the pairing is the unit.** Codex beat
+   Claude Code by 12% on ds4 and lost to it by 63% on Qwen/Ollama, same day,
+   same tasks. Claude Code was consistent on both. Pick the client for the
+   backend, not in the abstract.
+
+9. **Syncing the ds4 engine with upstream bought 14.3%** — median 164.4 s →
    140.9 s — with output tokens essentially unchanged (2,130 → 2,120). Same
    weights, same tasks, same machine; only the engine binary changed. A clean
    engine-only improvement, and the cleanest test of the rate term above.
@@ -958,3 +963,77 @@ lost anyway.
 
 **Sandboxing differs.** Claude Code ran `--permission-mode bypassPermissions`,
 Codex `--sandbox workspace-write`. Codex was the more constrained of the two.
+
+## Does Codex's advantage generalise? No. (2026-08-17)
+
+Codex beat Claude Code on ds4. This run asks whether that is a property of the
+client or of the pairing, by repeating it on the second-place backend --
+`qwen3.6:27b-coding-mxfp8` via Ollama. Same design: interleaved, 30 trials,
+both clients over their own native protocol (Ollama implements Responses,
+chat/completions and messages).
+
+| task | claude | | codex | | delta |
+|---|---|---|---|---|---|
+| `mbox-strip-envelope` | 111.5 s | 3/3 | 115.5 s | 3/3 | +4% |
+| `parser-mbox-quoting` | 216.9 s | 3/3 | 421.6 s | 3/3 | +94% |
+| `storage-blob-put` | 322.7 s | 3/3 | 396.0 s | 2/3 | +23% |
+| `parser-date` | 231.3 s | 3/3 | 433.1 s | 3/3 | +87% |
+| `mbox-scan` | 158.5 s | 3/3 | 332.5 s | 3/3 | +110% |
+| **total of medians** | **1,041 s** | **15/15** | **1,699 s** | **14/15** | **+63%** |
+
+| | claude | codex |
+|---|---|---|
+| median wall | **216.9 s** | 397.9 s |
+| spread | 6.4x | **10.3x** |
+| output tokens (median) | **2,297** | 5,374 |
+
+### The result inverts
+
+| backend | claude | codex | winner |
+|---|---|---|---|
+| ds4 (ds4-server) | 1,110 s, 15/15, 4.7x | **978 s, 15/15, 2.9x** | **Codex, -12%** |
+| qwen3.6-coding (Ollama) | **1,041 s, 15/15, 6.4x** | 1,699 s, 14/15, 10.3x | **Claude Code, -39%** |
+
+Same two binaries, same day, same tasks, same harness. **Codex is not the
+better harness generally.** It is better on ds4 and worse on Ollama, while
+Claude Code performs consistently on both.
+
+**The client-backend pairing is the unit that matters**, not the client.
+
+### Why: Codex does more work per task here
+
+Median output tokens: **5,374 for Codex against 2,297 for Claude Code** -- 2.3x.
+Tool-call counts track it: the slow trials ran 39-41 `tool_items` where the fast
+ones ran 8-11. This is the report's central finding again -- `wall ~ tokens /
+rate + overhead` -- not a new mechanism.
+
+Two intermediate readings were wrong and are recorded as such. The first Codex
+trial (792.5 s) was called evidence the advantage "doesn't transfer"; it was
+cold start, and the next trial on that cell ran 115.5 s. Later, a process
+sampled in state `S` with Ollama at 0.0% CPU was called a stall; the token
+counts show it was thrashing, and the snapshot fell between requests.
+
+### A third failure signature
+
+Codex's one failure returned `1 error in 0.10s` -- a pytest **collection**
+error. It left `storage.py` unparseable.
+
+| client | signature | reading |
+|---|---|---|
+| claude | `1 failed, 15 passed` | attempted, missed an edge case |
+| opencode | exactly the control result | did not change anything |
+| **codex** | **`1 error`** | **left the file broken** |
+
+For unattended use the third is the worst: a broken import can take down code
+that previously worked.
+
+### Caveats
+
+**A warm-up trend runs through the whole run.** Round totals fell for both
+clients (claude 1,683 -> 1,021 s; codex 2,879 -> 1,537 s), so round 1
+overstates the gap. Round 3 alone: claude 1,148 s, codex 2,075 s -- **+81%**,
+so the gap does not close with warming.
+
+**Codex ran without model metadata on both backends**, warning on every trial
+that it is guessing at capabilities. Constant across both, so it cannot explain
+an inversion, but it is a handicap it carried throughout.
