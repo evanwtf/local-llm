@@ -862,8 +862,28 @@ characteristic shape.
 
 ### What is still not known
 
-**Why OpenCode stops.** Two candidates remain: the loop terminates early, or
-edits fail to apply. The sandbox escape offered a tidy mechanism for the second
+**Why OpenCode stops — and it did not reproduce.** On 2026-08-18 the failing
+cell (`mbox-strip-envelope`, 3/3 failures in the controlled run) was rebuilt by
+hand and rerun **five times against a freshly restarted ds4-server. All five
+passed**, writing a correct four-line implementation each time.
+
+So the failure is conditional on something the manual reproduction did not
+recreate. The most visible difference is server state: the matrix ran against a
+ds4-server that had been up for hours with its KV cache full and evicting at
+`hits=0` (441 evictions logged), while the reproduction ran six minutes after a
+restart with a warm, uncontended cache.
+
+**This weakens the claim that the failures are purely an OpenCode defect.** They
+may be OpenCode-under-degraded-server, which is a different finding and a
+different fix. The remaining candidates:
+
+- the loop terminates early, and does so more readily when responses are slow;
+- edits fail to apply under some condition not present in the reproduction;
+- something about back-to-back interleaved trials that a standalone run lacks.
+
+A reproduction needs to recreate the *conditions*, not just the command: run the
+full interleaved matrix against a long-running server, rather than one trial
+against a fresh one. The sandbox escape offered a tidy mechanism for the second
 and is now closed -- there is no parent repo to write into -- so misapplied
 edits would have to fail some other way. Reading a captured event stream from a
 failing trial is the next step and has not been done.
@@ -947,7 +967,9 @@ explain OpenCode's failures.** Codex is equally third-party, equally
 unaffiliated with the model, and matched the reference client exactly on
 correctness while beating it on speed and consistency.
 
-Whatever goes wrong with OpenCode on this backend is specific to OpenCode.
+Whatever goes wrong with OpenCode on this backend is specific to OpenCode --
+though see the reproduction attempt above, which failed to trigger it on a
+freshly restarted server and suggests the trigger is conditional.
 
 ### `num_turns` is absent for Codex, on purpose
 
