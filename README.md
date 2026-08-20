@@ -56,6 +56,22 @@ trials.
 
 ## Quick start
 
+### Fastest local coding agent: DS4 + Codex
+
+```sh
+# Run from this checkout. Starts ds4-server if needed (~91 GiB resident).
+benchmarks/ds4/0731/agent/ds4-up start
+
+# Uses $CODEX_HOME/ds4.config.toml and DS4's native Responses API.
+CODEX_API_KEY=dsv4-local codex --profile ds4
+```
+
+`dsv4-local` is a non-secret local API token. The server continues running
+after Codex exits; release its memory with
+`benchmarks/ds4/0731/agent/ds4-up stop`.
+
+### Qwen + Claude Code
+
 ```sh
 ollama pull qwen3.8:27b-mlx
 ./claude-ollama

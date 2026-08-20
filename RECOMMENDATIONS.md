@@ -24,6 +24,24 @@ interact, so pick them as a pair.
 | **fastest** | `ds4` + **Codex** | 15/15 and 12% quicker, tightest spread measured |
 | **secondary** | `qwen3.6:27b-coding-mxfp8` + **Claude Code** | 31 GB, independent failure surface |
 
+### Fastest local coding agent: DS4 + Codex
+
+Run these commands from this checkout:
+
+```sh
+# Starts ds4-server if it is not already running (~91 GiB resident).
+benchmarks/ds4/0731/agent/ds4-up start
+
+# Codex reaches DS4 directly through its native Responses endpoint.
+CODEX_API_KEY=dsv4-local codex --profile ds4
+```
+
+The `ds4` Codex profile is `$CODEX_HOME/ds4.config.toml`; it selects
+`deepseek-v4-flash` at `http://127.0.0.1:8000/v1` with `wire_api =
+"responses"`. `dsv4-local` is only the required non-empty local API token,
+not a secret. The server stays up after Codex exits; use
+`benchmarks/ds4/0731/agent/ds4-up stop` to release its memory.
+
 Two independent stacks is the target. The June 2026 Fable/Mythos suspension was
 **model-specific, not vendor-wide** — the failure mode to design against is one
 thing going away, so the secondary shares no weights, engine, or maintainer
