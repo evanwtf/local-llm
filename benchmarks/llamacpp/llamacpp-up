@@ -13,9 +13,13 @@
 # RECOMMENDATIONS.md, "Too big for this machine". The Unsloth 2-bit GGUF is
 # 78.9 GB and needs llama.cpp PR #27742; mainline does not know the arch.
 #
-# One server serves both clients. llama-server exposes the Anthropic Messages
-# API at /v1/messages for Claude Code and the OpenAI-compatible
-# /v1/chat/completions for Codex, so no shim sits in either path.
+# One server, two paths to it. Codex reaches llama-server directly on :8020
+# over /v1/responses. Claude Code cannot: it appends a role="system" message to
+# the END of the messages array and the Qwen chat template raises ("System
+# message must be at the beginning") -- the same request-shape bug Ollama had
+# at 0.32.13. So this script also starts ../../ollama_claude_shim.py on :11500,
+# pointed at :8020. The shim is named for the bug it was written for, not for
+# the only server that has it.
 #
 # Runtime state (pid, log) lives in ~/.llamacpp so it never dirties the repo.
 set -eu
@@ -34,16 +38,34 @@ ALIAS=qwen3.8-flash-next-q2
 STATE=$HOME/.llamacpp
 PIDFILE=$STATE/server.pid
 LOG=$STATE/server.log
+SHIM_PIDFILE=$STATE/shim.pid
+SHIM_LOG=$STATE/shim.log
 
 PORT=8020
 URL=http://127.0.0.1:$PORT
+
+# The shim Claude Code talks to. Must match base_url for backend.qwen38fnq2.
+SHIM=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)/ollama_claude_shim.py
+SHIM_PORT=11500
+SHIM_URL=http://127.0.0.1:$SHIM_PORT
 
 # --- tunables -----------------------------------------------------------
 # CTX must match context_tokens for backend.qwen38fnq2 in
 # benchmarks/agent/tasks.toml. Claude Code assumes 200k for a model it does
 # not recognise, so a mismatch means auto-compact fires after the server has
 # already truncated. check_ctx() enforces it.
-CTX=65536
+CTX=131072
+
+# One slot, not llama.cpp's default four. The benchmark runs one agent at a
+# time, and each slot holds its own full-size KV cache -- four of them cost
+# 4x the KV for concurrency nothing here uses. Spending that on -c instead is
+# what makes 128k affordable.
+PARALLEL="-np 1"
+
+# 65536 was not enough: Claude Code reported "Autocompact is thrashing: the
+# context refilled to the limit within 3 turns of the previous compact, 3
+# times in a row" and took 842s on a task Codex finished in 109.5s. A window
+# the agent keeps overrunning measures the window, not the model.
 
 # Sampler defaults are Qwen's own published values, not llama.cpp's.
 SAMPLER="--temp 1.0 --top-p 0.95 --top-k 20 --min-p 0.0"
@@ -66,6 +88,49 @@ die()  { warn "$*"; exit 1; }
 # truth -- the server may have been started by hand.
 is_up() {
     curl -s -m 2 "$URL/health" >/dev/null 2>&1
+}
+
+shim_up() {
+    curl -s -m 2 "$SHIM_URL/" >/dev/null 2>&1
+}
+
+shim_pid() {
+    if [ -f "$SHIM_PIDFILE" ]; then
+        pid=$(cat "$SHIM_PIDFILE" 2>/dev/null || true)
+        if [ -n "${pid:-}" ] && kill -0 "$pid" 2>/dev/null; then
+            printf '%s' "$pid"
+            return 0
+        fi
+    fi
+    pgrep -f "[o]llama_claude_shim.py" | head -1
+}
+
+start_shim() {
+    if shim_up; then
+        say "shim already up on $SHIM_URL"
+        return 0
+    fi
+    [ -f "$SHIM" ] || die "no shim at $SHIM"
+    nohup "$SHIM" --upstream "$URL" --port "$SHIM_PORT" \
+        >"$SHIM_LOG" 2>&1 &
+    printf '%s\n' "$!" >"$SHIM_PIDFILE"
+    i=0
+    while [ "$i" -lt 30 ]; do
+        shim_up && { say "shim up on $SHIM_URL -> $URL"; return 0; }
+        sleep 1
+        i=$((i + 1))
+    done
+    warn "shim did not come up; last log lines:"
+    tail -10 "$SHIM_LOG" >&2
+    return 1
+}
+
+stop_shim() {
+    pid=$(shim_pid || true)
+    [ -n "${pid:-}" ] || { rm -f "$SHIM_PIDFILE"; return 0; }
+    say "stopping shim pid $pid"
+    kill "$pid" 2>/dev/null || true
+    rm -f "$SHIM_PIDFILE"
 }
 
 server_pid() {
@@ -115,6 +180,7 @@ do_start() {
     if is_up; then
         say "already up on $URL"
         check_ctx
+        start_shim
         return 0
     fi
 
@@ -143,15 +209,18 @@ do_start() {
         --host 127.0.0.1 --port "$PORT" \
         -c "$CTX" \
         -ngl 999 \
+        $PARALLEL \
         $JINJA \
         $SAMPLER \
         >"$LOG" 2>&1 &
     pid=$!
     printf '%s\n' "$pid" >"$PIDFILE"
-    wait_ready "$pid"
+    wait_ready "$pid" || return 1
+    start_shim
 }
 
 do_stop() {
+    stop_shim
     pid=$(server_pid || true)
     if [ -z "${pid:-}" ]; then
         say "not running"
@@ -178,6 +247,11 @@ do_status() {
         printf '\n'
     else
         say "down"
+    fi
+    if shim_up; then
+        say "shim up on $SHIM_URL (Claude Code path)"
+    else
+        say "shim down -- Claude Code will fail with \"System message must be at the beginning\""
     fi
     check_ctx
 }

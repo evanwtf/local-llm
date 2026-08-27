@@ -122,7 +122,10 @@ def capture_versions(cfg, backends):
     # "llama.cpp" alone would not identify it. Pin the commit the way ds4_head
     # pins ds4. There is no digest to record for a GGUF -- hashing 79 GB per
     # run is not free -- so the file's name, size and mtime stand in for one.
-    if any((b.get("base_url") or "").endswith(":8020") for b in backends.values()):
+    # :11500 is the shim that fronts :8020 for Claude Code; either port means
+    # this stack is in the run.
+    if any((b.get("base_url") or "").endswith((":8020", ":11500"))
+           for b in backends.values()):
         lcpp = pathlib.Path(
             os.environ.get("LLAMACPP_ROOT", "~/git/llama.cpp")).expanduser()
         if (lcpp / ".git").exists():
@@ -376,7 +379,7 @@ def build_checkout(repo, commit, dest):
 
 
 def one_trial(cfg, task, backend_name, backend, trial, workdir, timeout, dry_run,
-              versions=None, client="claude"):
+              versions=None, client="claude", client_log=None):
     repo = pathlib.Path(cfg["repo"]).expanduser()
     suffix = "" if client == "claude" else f"-{client}"
     name = f"{task['name']}-{backend_name}{suffix}-{trial}"
@@ -428,6 +431,17 @@ def one_trial(cfg, task, backend_name, backend, trial, workdir, timeout, dry_run
         proc = run(build_argv(task, backend),
                    cwd=worktree, env=agent_env(backend), timeout=timeout)
         result["wall_seconds"] = round(time.monotonic() - t0, 1)
+        # A failed row records that the agent did not fix the code, never why.
+        # --client-log keeps the client's own event stream so the next failure
+        # is diagnosable instead of only countable. It is opt-in and written
+        # outside the repo by default: these transcripts carry file contents
+        # the agent read, and this repo does not commit prompts.
+        if client_log:
+            client_log.mkdir(parents=True, exist_ok=True)
+            (client_log / f"{name}.stdout.jsonl").write_text(proc.stdout)
+            if proc.stderr:
+                (client_log / f"{name}.stderr.log").write_text(proc.stderr)
+            result["client_log"] = str(client_log / f"{name}.stdout.jsonl")
         try:
             result.update(parse(proc.stdout))
         except json.JSONDecodeError:
@@ -466,6 +480,10 @@ def main():
     p.add_argument("--dry-run", action="store_true",
                    help="verify each task's control failure, run no agent")
     p.add_argument("--tasks-file", default=str(HERE / "tasks.toml"))
+    p.add_argument("--client-log", metavar="DIR",
+                   help="keep each trial's raw client event stream in DIR. "
+                        "Transcripts include file contents the agent read, so "
+                        "point this outside the repo and do not commit it.")
     p.add_argument("--client", action="append", choices=sorted(CLIENTS),
                    help="repeatable; default claude. Multiple clients are "
                         "interleaved per task so neither gets a systematically "
@@ -504,6 +522,8 @@ def main():
     workdir.mkdir(parents=True, exist_ok=True)
 
     clients = args.client or ["claude"]
+    client_log = pathlib.Path(args.client_log).expanduser() if args.client_log else None
+
     versions = capture_versions(cfg, backends)
     versions["client"] = ",".join(clients)
     logger.info("%d task(s) x %d backend(s) x %d client(s) x %d trial(s)",
@@ -518,7 +538,7 @@ def main():
                 for client in clients:
                     r = one_trial(cfg, task, bname, backend, trial,
                                   workdir, args.timeout, args.dry_run, versions,
-                                  client=client)
+                                  client=client, client_log=client_log)
                     # Inside the client loop. Outside it, only the last
                     # client's row survives and half the run vanishes.
                     with RESULTS.open("a") as fh:

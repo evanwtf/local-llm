@@ -203,19 +203,36 @@ context_tokens = 262144
 # backend fails a task the other backends pass, suspect the quant before the
 # model.
 #
-# One server, both clients: llama-server answers the Anthropic Messages API on
-# /v1/messages for Claude Code and /v1/chat/completions for Codex, so neither
-# path goes through a shim. Start it with benchmarks/llamacpp/llamacpp-up.
+# One server, both clients, but not the same path to it.
 #
-# Port 8020: :8000 is ds4-server and :8010 is MTPLX, and run.py stamps ds4
-# build provenance onto anything it sees on :8000.
+# Codex reaches llama-server directly on :8020 over /v1/responses. Codex
+# 0.148.0 removed `wire_api = "chat"`, so the profile uses "responses", which
+# llama-server also serves.
+#
+# Claude Code cannot go direct. It appends a role="system" message to the END
+# of the messages array, and the Qwen chat template raises on it:
+#
+#   Jinja Exception: System message must be at the beginning
+#
+# This is the same request-shape bug Ollama had at 0.32.13 and fixed upstream
+# in 0.32.14-rc0. llama.cpp's /v1/messages does not fix it, so this repo's
+# shim -- written for that Ollama bug and generic in its upstream -- is back in
+# service, on :11500 in front of :8020. llamacpp-up starts both.
+#
+# Ports: :8000 is ds4-server, :8010 is MTPLX, :11434 is Ollama. run.py stamps
+# ds4 provenance onto :8000 and Ollama digests onto :11434, so this stack stays
+# clear of both.
 [backend.qwen38fnq2]
 description = "Qwen3.8-Flash-Next 125B-A6B, Unsloth UD-Q2_K_XL, llama.cpp PR #27742"
-base_url = "http://127.0.0.1:8020"
+base_url = "http://127.0.0.1:11500"
 auth_token = "llamacpp-local"
 model = "qwen3.8-flash-next-q2"
 codex_profile = "qwen38fnq2"
-context_tokens = 65536
+# 131072, not the 65536 tried first: at 65536 Claude Code reported autocompact
+# thrashing -- three compactions in three turns -- and spent 842s on a task
+# Codex finished in 109.5s. Keep this equal to CTX in llamacpp-up; the script
+# checks.
+context_tokens = 131072
 
 # --- reference ------------------------------------------------------------
 # Not a fallback candidate. This is the hosted service the local backends are
