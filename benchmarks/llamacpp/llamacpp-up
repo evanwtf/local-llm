@@ -1,0 +1,192 @@
+#!/bin/sh
+# Bring up llama-server for Qwen3.8-Flash-Next.
+#
+#   llamacpp-up start     start the server if it is not already up
+#   llamacpp-up stop      stop the server (frees ~93 GiB)
+#   llamacpp-up restart   stop, then start
+#   llamacpp-up status    report what is running
+#   llamacpp-up log       follow the server log
+#
+# Why this engine and not Ollama: Ollama's only tag that fits the architecture
+# is the 112 GB nvfp4 one, and it peaks at 126.51 GiB against a 107.0 GiB Metal
+# budget on this machine -- it cannot serve an agent-sized prompt. See
+# RECOMMENDATIONS.md, "Too big for this machine". The Unsloth 2-bit GGUF is
+# 78.9 GB and needs llama.cpp PR #27742; mainline does not know the arch.
+#
+# One server serves both clients. llama-server exposes the Anthropic Messages
+# API at /v1/messages for Claude Code and the OpenAI-compatible
+# /v1/chat/completions for Codex, so no shim sits in either path.
+#
+# Runtime state (pid, log) lives in ~/.llamacpp so it never dirties the repo.
+set -eu
+
+# --- paths --------------------------------------------------------------
+# The engine and the weights live outside this repo; only the launcher is
+# tracked here. Override either with the environment.
+LLAMACPP_ROOT=${LLAMACPP_ROOT:-$HOME/git/llama.cpp}
+GGUF_ROOT=${GGUF_ROOT:-$HOME/models/Qwen3.8-Flash-Next-GGUF}
+
+SERVER=$LLAMACPP_ROOT/build/bin/llama-server
+# A split GGUF: pass the first shard and llama.cpp finds the rest.
+MODEL=$GGUF_ROOT/UD-Q2_K_XL/Qwen3.8-Flash-Next-UD-Q2_K_XL-00001-of-00003.gguf
+ALIAS=qwen3.8-flash-next-q2
+
+STATE=$HOME/.llamacpp
+PIDFILE=$STATE/server.pid
+LOG=$STATE/server.log
+
+PORT=8020
+URL=http://127.0.0.1:$PORT
+
+# --- tunables -----------------------------------------------------------
+# CTX must match context_tokens for backend.qwen38fnq2 in
+# benchmarks/agent/tasks.toml. Claude Code assumes 200k for a model it does
+# not recognise, so a mismatch means auto-compact fires after the server has
+# already truncated. check_ctx() enforces it.
+CTX=65536
+
+# Sampler defaults are Qwen's own published values, not llama.cpp's.
+SAMPLER="--temp 1.0 --top-p 0.95 --top-k 20 --min-p 0.0"
+
+# --jinja is not optional: tool calling goes through the model's chat template,
+# and without it both clients lose their tools and the benchmark measures
+# nothing.
+JINJA=--jinja
+
+# A cold page cache on a 79 GB model is the slow case.
+START_TIMEOUT=600
+
+say()  { printf '%s\n' "llamacpp-up: $*"; }
+warn() { printf '%s\n' "llamacpp-up: $*" >&2; }
+die()  { warn "$*"; exit 1; }
+
+# --- helpers ------------------------------------------------------------
+
+# Is something answering on the port? This, not the pidfile, is the source of
+# truth -- the server may have been started by hand.
+is_up() {
+    curl -s -m 2 "$URL/health" >/dev/null 2>&1
+}
+
+server_pid() {
+    if [ -f "$PIDFILE" ]; then
+        pid=$(cat "$PIDFILE" 2>/dev/null || true)
+        if [ -n "${pid:-}" ] && kill -0 "$pid" 2>/dev/null; then
+            printf '%s' "$pid"
+            return 0
+        fi
+    fi
+    pgrep -f "[l]lama-server.*$PORT" | head -1
+}
+
+# Guard the coupling described above.
+check_ctx() {
+    toml=$(CDPATH= cd -- "$(dirname -- "$0")/../agent" && pwd)/tasks.toml
+    [ -f "$toml" ] || return 0
+    want=$(awk '/^\[backend\.qwen38fnq2\]/{f=1} f&&/^context_tokens/{print $3; exit}' \
+           "$toml" 2>/dev/null)
+    [ -n "${want:-}" ] || return 0
+    [ "$want" = "$CTX" ] && return 0
+    warn "WARNING: -c $CTX here, but tasks.toml sets context_tokens = $want for"
+    warn "         backend.qwen38fnq2. Auto-compact will fire after the server"
+    warn "         truncates. Make the two numbers agree."
+}
+
+wait_ready() {
+    pid=$1
+    i=0
+    while [ "$i" -lt "$START_TIMEOUT" ]; do
+        if is_up; then
+            say "up on $URL (pid $pid)"
+            return 0
+        fi
+        kill -0 "$pid" 2>/dev/null || { warn "server died; last log lines:"; tail -20 "$LOG" >&2; return 1; }
+        sleep 1
+        i=$((i + 1))
+    done
+    warn "not ready after ${START_TIMEOUT}s; last log lines:"
+    tail -20 "$LOG" >&2
+    return 1
+}
+
+# --- commands -----------------------------------------------------------
+
+do_start() {
+    if is_up; then
+        say "already up on $URL"
+        check_ctx
+        return 0
+    fi
+
+    existing=$(server_pid || true)
+    if [ -n "${existing:-}" ]; then
+        say "pid $existing is already starting; waiting for it"
+        wait_ready "$existing"
+        return $?
+    fi
+
+    [ -x "$SERVER" ] || die "no llama-server at $SERVER -- build PR #27742, see the header"
+    [ -f "$MODEL" ]  || die "model not found: $MODEL"
+
+    check_ctx
+    mkdir -p "$STATE"
+
+    say "starting (ctx=$CTX, all layers on Metal)"
+    say "log: $LOG"
+
+    # -ngl 999 puts every layer on the GPU. Detached so the server outlives
+    # this script and the session that ran it.
+    # shellcheck disable=SC2086
+    nohup "$SERVER" \
+        --model "$MODEL" \
+        --alias "$ALIAS" \
+        --host 127.0.0.1 --port "$PORT" \
+        -c "$CTX" \
+        -ngl 999 \
+        $JINJA \
+        $SAMPLER \
+        >"$LOG" 2>&1 &
+    pid=$!
+    printf '%s\n' "$pid" >"$PIDFILE"
+    wait_ready "$pid"
+}
+
+do_stop() {
+    pid=$(server_pid || true)
+    if [ -z "${pid:-}" ]; then
+        say "not running"
+        rm -f "$PIDFILE"
+        return 0
+    fi
+    say "stopping pid $pid"
+    kill "$pid" 2>/dev/null || true
+    i=0
+    while kill -0 "$pid" 2>/dev/null && [ "$i" -lt 30 ]; do
+        sleep 1
+        i=$((i + 1))
+    done
+    kill -0 "$pid" 2>/dev/null && { warn "still alive; sending KILL"; kill -9 "$pid" 2>/dev/null || true; }
+    rm -f "$PIDFILE"
+    say "stopped"
+}
+
+do_status() {
+    if is_up; then
+        pid=$(server_pid || true)
+        say "up on $URL${pid:+ (pid $pid)}"
+        curl -s -m 5 "$URL/v1/models" || true
+        printf '\n'
+    else
+        say "down"
+    fi
+    check_ctx
+}
+
+case "${1:-start}" in
+    start)   do_start ;;
+    stop)    do_stop ;;
+    restart) do_stop; do_start ;;
+    status)  do_status ;;
+    log)     tail -f "$LOG" ;;
+    *)       die "usage: $(basename "$0") [start|stop|restart|status|log]" ;;
+esac

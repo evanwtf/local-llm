@@ -117,6 +117,33 @@ def capture_versions(cfg, backends):
             # The binary may predate HEAD. Record when it was actually built.
             env["ds4_server_mtime"] = time.strftime(
                 "%Y-%m-%dT%H:%M:%S", time.localtime(server.stat().st_mtime))
+
+    # llama.cpp is a source build off a pull request, not a released tag, so
+    # "llama.cpp" alone would not identify it. Pin the commit the way ds4_head
+    # pins ds4. There is no digest to record for a GGUF -- hashing 79 GB per
+    # run is not free -- so the file's name, size and mtime stand in for one.
+    if any((b.get("base_url") or "").endswith(":8020") for b in backends.values()):
+        lcpp = pathlib.Path(
+            os.environ.get("LLAMACPP_ROOT", "~/git/llama.cpp")).expanduser()
+        if (lcpp / ".git").exists():
+            try:
+                env["llamacpp_head"] = git(["rev-parse", "--short", "HEAD"], lcpp)
+                env["llamacpp_dirty"] = bool(git(["status", "--porcelain"], lcpp))
+            except RuntimeError:
+                pass
+        server = lcpp / "build" / "bin" / "llama-server"
+        if server.exists():
+            env["llamacpp_server_mtime"] = time.strftime(
+                "%Y-%m-%dT%H:%M:%S", time.localtime(server.stat().st_mtime))
+        gguf_root = pathlib.Path(
+            os.environ.get("GGUF_ROOT",
+                           "~/models/Qwen3.8-Flash-Next-GGUF")).expanduser()
+        shards = sorted(gguf_root.glob("*/*.gguf"))
+        if shards:
+            env["gguf_files"] = [f.name for f in shards]
+            env["gguf_bytes"] = sum(f.stat().st_size for f in shards)
+            env["gguf_mtime"] = time.strftime(
+                "%Y-%m-%dT%H:%M:%S", time.localtime(shards[0].stat().st_mtime))
     return {k: v for k, v in env.items() if v is not None}
 
 

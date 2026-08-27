@@ -190,6 +190,33 @@ model = "qwen3.8-flash-next:125b-mlx"
 codex_profile = "qwen38flashnext"
 context_tokens = 262144
 
+# The same model as backend.qwen38flashnext, at a quant that fits: Unsloth's
+# UD-Q2_K_XL GGUF, 78.9 GB against the 112 GB nvfp4 tag Ollama serves.
+#
+# CAVEAT -- ENGINE: this is the third engine in this file, after Ollama and
+# ds4-server, and the first served by llama.cpp -- specifically PR #27742,
+# since mainline does not know the qwen4exp architecture. Engine AND quant move
+# together against every other row. Read a gap here as "this stack versus that
+# stack", never as an isolated measurement of either.
+#
+# CAVEAT -- QUANT: 2-bit is a real quality risk, not a footnote. If this
+# backend fails a task the other backends pass, suspect the quant before the
+# model.
+#
+# One server, both clients: llama-server answers the Anthropic Messages API on
+# /v1/messages for Claude Code and /v1/chat/completions for Codex, so neither
+# path goes through a shim. Start it with benchmarks/llamacpp/llamacpp-up.
+#
+# Port 8020: :8000 is ds4-server and :8010 is MTPLX, and run.py stamps ds4
+# build provenance onto anything it sees on :8000.
+[backend.qwen38fnq2]
+description = "Qwen3.8-Flash-Next 125B-A6B, Unsloth UD-Q2_K_XL, llama.cpp PR #27742"
+base_url = "http://127.0.0.1:8020"
+auth_token = "llamacpp-local"
+model = "qwen3.8-flash-next-q2"
+codex_profile = "qwen38fnq2"
+context_tokens = 65536
+
 # --- reference ------------------------------------------------------------
 # Not a fallback candidate. This is the hosted service the local backends are
 # a hedge against, run through the identical harness so every local number has
