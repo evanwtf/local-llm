@@ -234,6 +234,34 @@ codex_profile = "qwen38fnq2"
 # checks.
 context_tokens = 131072
 
+# Ornith 1.5, the successor to `ornith`. Same quant (Q4_K_M), same engine, same
+# size class -- 22 GB against 21 GB -- so the model generation is the only
+# variable that moves. That is the cleanest control in this file.
+#
+# The question it exists to answer is specific. `ornith` is the fastest backend
+# measured here (82.3s median) and the only one that has ever failed under
+# Claude Code: 13/15, with BOTH failures on `mbox-strip-envelope`, the easiest
+# task in the suite, where its median is 40.3s. It solves the hardest task in
+# 68.7s and falls over on the simplest. A 30.4x spread says the same thing.
+# Does 1.5 fix the tail?
+#
+# 35.5B total, ~3B active, MIT, 262k context, tools + thinking + vision.
+# Published scores claim SWE-bench Verified 79% and Terminal-Bench 2.1 68.5%
+# measured through Claude Code -- neither of which this suite can confirm; see
+# issue #4.
+#
+# CAVEAT -- LINEAGE: `qwen35moe`. Ornith is a Qwen derivative, 1.0 and 1.5
+# alike. It is independent of ds4, which is what the secondary slot needs, but
+# it does NOT diversify away from Qwen. Three of four local backends now share
+# that ancestry.
+[backend.ornith15]
+description = "Ornith-1.5-35B-A3B, Q4_K_M, via Ollama"
+base_url = "http://127.0.0.1:11434"
+auth_token = "ollama"
+model = "ornith-1.5:35b"
+codex_profile = "ornith15"
+context_tokens = 262144
+
 # --- reference ------------------------------------------------------------
 # Not a fallback candidate. This is the hosted service the local backends are
 # a hedge against, run through the identical harness so every local number has
