@@ -378,6 +378,27 @@ def build_checkout(repo, commit, dest):
                    input=archive.stdout, check=True)
 
 
+def save_transcript(client_log, name, stdout, stderr, result, partial=False):
+    """Keep the client's own event stream for this trial, if asked to.
+
+    A results row records that the agent did not fix the code, never why. The
+    autocompact-thrashing message that explained a 842s run existed only here.
+
+    Opt-in and written outside the repo by default: transcripts carry file
+    contents the agent read, and this repo does not commit prompts.
+    """
+    if not client_log:
+        return
+    client_log.mkdir(parents=True, exist_ok=True)
+    suffix = ".partial" if partial else ""
+    out = client_log / f"{name}.stdout{suffix}.jsonl"
+    out.write_text(stdout or "")
+    if stderr:
+        (client_log / f"{name}.stderr{suffix}.log").write_text(stderr)
+    result["client_log"] = str(out)
+    result["client_log_partial"] = partial
+
+
 def one_trial(cfg, task, backend_name, backend, trial, workdir, timeout, dry_run,
               versions=None, client="claude", client_log=None):
     repo = pathlib.Path(cfg["repo"]).expanduser()
@@ -436,12 +457,7 @@ def one_trial(cfg, task, backend_name, backend, trial, workdir, timeout, dry_run
         # is diagnosable instead of only countable. It is opt-in and written
         # outside the repo by default: these transcripts carry file contents
         # the agent read, and this repo does not commit prompts.
-        if client_log:
-            client_log.mkdir(parents=True, exist_ok=True)
-            (client_log / f"{name}.stdout.jsonl").write_text(proc.stdout)
-            if proc.stderr:
-                (client_log / f"{name}.stderr.log").write_text(proc.stderr)
-            result["client_log"] = str(client_log / f"{name}.stdout.jsonl")
+        save_transcript(client_log, name, proc.stdout, proc.stderr, result)
         try:
             result.update(parse(proc.stdout))
         except json.JSONDecodeError:
@@ -463,8 +479,19 @@ def one_trial(cfg, task, backend_name, backend, trial, workdir, timeout, dry_run
             logger.error("%s: SOURCE REPO WAS MODIFIED -- agent left the sandbox", name)
         logger.info("%s: %s in %ss (%s)", name,
                     "PASS" if passed else "FAIL", result.get("wall_seconds"), summary)
-    except subprocess.TimeoutExpired:
+    except subprocess.TimeoutExpired as exc:
         result["error"] = "timeout"
+        # The killed process still has whatever it emitted before the deadline,
+        # and a timeout is the row you most want to read: it records only that
+        # the agent ran out of clock, never what it was doing with it. Decode
+        # defensively -- these are bytes on some platforms and may be cut
+        # mid-character.
+        def _text(v):
+            if v is None:
+                return ""
+            return v if isinstance(v, str) else v.decode("utf-8", "replace")
+        save_transcript(client_log, name, _text(exc.stdout), _text(exc.stderr),
+                        result, partial=True)
         logger.error("%s: timed out after %ss", name, timeout)
     finally:
         shutil.rmtree(worktree, ignore_errors=True)

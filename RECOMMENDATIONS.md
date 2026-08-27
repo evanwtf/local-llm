@@ -58,11 +58,20 @@ as the model, and no client is best everywhere.**
 |---|---|---|---|
 | `ds4` | 1,110 s, 15/15 | **978 s, 15/15** | 1,235 s, **6/15** |
 | `qwen3.6-coding` (Ollama) | **1,041 s, 15/15** | 1,699 s, 14/15 | not tested |
+| `qwen38fnq2` (llama.cpp) | 5,236 s, **13/16** | **1,251 s, 15/15** | not tested |
 
-Same binaries, same day, same tasks. Codex beats Claude Code by 12% on ds4 and
-loses to it by 63% on Ollama. **Claude Code is the only client that was
-consistent on both**, which is why it is the default recommendation even though
-it is not the fastest anywhere.
+Every cell is one pass through the five tasks. Same binaries, same day, same
+tasks. Codex beats Claude Code by 12% on ds4, loses to it by 63% on Ollama, and
+beats it by **4.2x** on llama.cpp — where it also went 15/15 against three
+timeouts. Three engines, three different answers, one of them not close.
+
+**Claude Code was the consistent choice on the first two backends**, which is
+why it is still the default recommendation. The llama.cpp result is the first
+that argues against it, and the cause looks like the serving path rather than
+the client: Claude Code reprocesses whole prompts there — one turn re-prefilled
+48972 tokens in 101 s — while Codex, which reaches the same server without the
+shim in front of it, does not. Read that row as a finding about a stack, and do
+not carry it to a backend where it has not been measured.
 
 **Do not use OpenCode against ds4.** It failed 9 of 15 trials, and every failure
 returned the test suite *exactly* as the excision left it — the loop stopped
@@ -206,45 +215,67 @@ behaved, never failed, no reason to choose it.
 
 ---
 
+## Benchmarked: `Qwen3.8-Flash-Next` at 2-bit
+
+Released 2026-08-26 as the preview of the Qwen4 architecture; measured the same
+day. **It runs, it passes, and it is the slowest backend in this project.** Keep
+it as evidence about the architecture, not as a fallback candidate.
+
+Full numbers in [`benchmarks/llamacpp/RESULTS.md`](benchmarks/llamacpp/RESULTS.md).
+
+| | |
+|---|---|
+| what fits | Unsloth `UD-Q2_K_XL`, 78.9 GB, **77.9 GiB resident** |
+| engine | llama.cpp PR #27742 — mainline does not know `qwen4exp` |
+| Codex | **15/15**, suite 1,251s |
+| Claude Code | **13/16**, suite 5,236s, 3 timeouts |
+| the field | last of six local backends; `ds4` medians 174.2s |
+
+**Ollama cannot serve it here at all.** Its only fitting tag is 112 GB nvfp4,
+which peaks at **126.51 GiB against a 107.0 GiB Metal budget** and dies on the
+first agent-sized prompt with `kIOGPUCommandBufferCallbackErrorOutOfMemory`.
+That peak is fixed — unchanged at 262144, 65536 and 32768 context, at
+`OLLAMA_NUM_PARALLEL=1`, and with a q8_0 KV cache. It is weights plus the
+resident 51B n-gram table, not KV, so no serving knob reaches it, and
+`iogpu.wired_limit_mb` cannot close a 19.5 GiB gap on a 128 GiB machine.
+
+**A 6B-active MoE is not a small model.** Active parameters set the speed; total
+resident weight sets whether it runs at all, and this architecture adds a 51B
+lookup table that is resident and does no arithmetic. Read "A6B" as a throughput
+claim, never as a memory one.
+
+**Codex is 4.2x faster than Claude Code against it, on every one of five
+tasks** — far beyond the 12% and 63% client gaps measured on ds4 and Ollama.
+Both clients emit comparable output tokens, so this is not the model working
+harder for one of them. The cost is re-prefill: Claude Code spends a median of
+84.1 seconds per turn, and the server log shows single turns reprocessing 48972
+tokens from scratch in 101.3s while neighbouring turns reprocess 2800 in five.
+The prompt cache works, then something invalidates it. `--cache-reuse` is the
+obvious thing to try and has not been tried. All three Claude Code failures are
+timeouts, which follows: 18 turns at 84s is 25 minutes before anything hard
+starts.
+
+**The transferable finding is that KV cache is nearly free on this
+architecture.** The first configuration served 65536 context across llama.cpp's
+default four KV slots, and Claude Code thrashed autocompact — three compactions
+in three turns. Dropping to `-np 1` bought **131072 context for 1.7 GiB**. The
+GDN + sparse-attention hybrid keeps almost no per-token KV state, so on a
+memory-bound Mac the trade is fewer slots and a much longer window. Worth
+testing against the other backends here.
+
+**The 2-bit quant is an untested risk.** These tasks are too easy to expose it —
+nearly every backend passes them, which is issue #4. If a harder benchmark shows
+this backend failing where others pass, suspect the quant before the model.
+Unsloth's "outperforms Claude-Opus-4.6 (Max)" claim is not something this suite
+can speak to either way.
+
+---
+
 ## Too big for this machine
 
-Not verdicts on the models — verdicts on 128 GiB. Both were checked on
-2026-08-26, the day each was released, and neither ever ran a trial.
+A verdict on 128 GiB, not on the model.
 
-**`Qwen3.8-Flash-Next` (`qwen3.8-flash-next:125b-mlx`, Ollama nvfp4, 112 GB)**
-— the preview of the Qwen4 architecture: 125B total, 6B active, plus a 51B
-n-gram embedding table and a 4B MTP head, GDN + Qwen Sparse Attention instead
-of the GDN + gated attention pairing in `qwen3.8:27b`.
-
-It loads at 100% GPU and answers a trivial `/api/generate` at **38.6 t/s**
-warm. Then the first agent-sized prompt kills the MLX runner:
-
-```
-panic: mlx: [METAL] Command buffer execution failed: Insufficient Memory
-(00000008:kIOGPUCommandBufferCallbackErrorOutOfMemory)
-```
-
-Ollama logs the arithmetic: **peak memory 126.51 GiB against a Metal budget of
-107.0 GiB**. That peak is fixed. It did not move at 262144, 65536 or 32768
-context, at `OLLAMA_NUM_PARALLEL=1`, or with a `q8_0` KV cache — the same figure
-to the byte every time. It is weights plus the resident n-gram table, not KV,
-so no serving knob reaches it, and `iogpu.wired_limit_mb` cannot close a 19.5
-GiB gap on a 128 GiB machine: 126.51 GiB would leave macOS about 1.5 GiB.
-
-The lesson generalises past this model. **A 6B-active MoE is not a small
-model.** Active parameters set the speed; total resident weight sets whether it
-runs at all, and this architecture adds a 51B lookup table that is resident and
-does no arithmetic. Read "A6B" as a throughput claim, never as a memory one.
-
-`[backend.qwen38flashnext]` and `~/.codex/qwen38flashnext.config.toml` are
-configured and the harness dry-run passes all five control checks, so a smaller
-quant is one `ollama pull` from a real run. Ollama's only other tag is bf16 at
-360 GB. Outside Ollama the candidates are `Sawfwair/…-MLX-Mixed-2bit` (73.1 GB)
-or Unsloth's `UD-Q2_K_XL` (78.9 GB) / `UD-IQ3_XXS` (82 GB), but all are
-OpenAI-wire only — Claude Code would need an Anthropic adapter first, which
-confounds engine and quant against every existing row.
-
-**`GLM-5.3-Flash`** — 320B total, 18B active, MIT, released the same day, and
+**`GLM-5.3-Flash`** — 320B total, 18B active, MIT, released 2026-08-26, and
 strong on paper (Terminal-Bench 2.1 84.3, DeepSWE 63.4). Never got as far as a
 download. The smallest published local quant is a 4-bit MLX at **177.5 GB**;
 Ollama lists only a `glm-5.3-flash:cloud` tag, with no local weights at all.
@@ -254,7 +285,8 @@ model is announced but unreleased, and DFlash is speculative decoding — it mak
 a model faster, not smaller. **antirez** is converting GGUF quants from the FP8
 release and reports picking Q4_K over MXFP4 on conversion error; a 4-bit quant
 of a 320B model lands near the 177.5 GB already measured. Revisit only if
-something under ~100 GB appears.
+something under ~100 GB appears — the Qwen3.8-Flash-Next result above shows a
+2-bit quant is a serving path, so that is the tier to watch for.
 
 ---
 

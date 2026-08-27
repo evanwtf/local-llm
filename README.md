@@ -13,6 +13,7 @@ macOS 26.5 — so numbers across engines share a hardware baseline.
 | [`benchmarks/ollama/`](benchmarks/ollama/RESULTS.md) | Qwen3.8-27B: speed, agentic accuracy, speculative decoding |
 | [`benchmarks/ds4/0731/`](benchmarks/ds4/0731/REPORT.md) | DeepSeek V4 Flash quant comparison, thermals, long context |
 | [`benchmarks/ds4/coding/`](benchmarks/ds4/coding/RESULTS.md) | HumanEval, mixed q2/q4 vs MXFP4 |
+| [`benchmarks/llamacpp/`](benchmarks/llamacpp/RESULTS.md) | Qwen3.8-Flash-Next at 2-bit: runs, passes, slowest measured |
 | [`CONVENTIONS.md`](CONVENTIONS.md) | standing rules — read before deleting weights or committing logs |
 
 The benchmark history moved here from `evanwtf/ds4`, with its commits intact.
@@ -34,22 +35,30 @@ Both rows were measured on Ollama 0.32.14-rc0. The installed engine is now
 an open loose end.
 
 **The ceiling on this machine is a resident-weight ceiling, not a speed one.**
-`qwen3.8-flash-next:125b-mlx` — 125B total but only 6B active — loads and
-generates at 38.6 t/s, then dies on the first agent-sized prompt: peak 126.51
-GiB against a 107.0 GiB Metal budget, and the peak does not move with context,
-parallelism or KV type. `GLM-5.3-Flash` never got as far as a download, its
-smallest local quant being 177.5 GB. Read "A6B" as a throughput claim, never a
-memory one. See
-[`RECOMMENDATIONS.md`](RECOMMENDATIONS.md#too-big-for-this-machine).
+Qwen3.8-Flash-Next is 125B total but only 6B active, and the quant decides
+whether it runs at all: Ollama's 112 GB nvfp4 tag peaks at 126.51 GiB against a
+107.0 GiB Metal budget and dies on the first agent-sized prompt, while Unsloth's
+78.9 GB 2-bit GGUF serves the same model in 77.9 GiB. Read "A6B" as a throughput
+claim, never a memory one. `GLM-5.3-Flash` never got as far as a download, its
+smallest local quant being 177.5 GB. See
+[`benchmarks/llamacpp/RESULTS.md`](benchmarks/llamacpp/RESULTS.md).
 
 ---
 
 # The Ollama shim
 
-> **Not needed on Ollama 0.32.14-rc0 or later.** That release contains the
-> upstream fix, verified here: `ollama launch claude --model qwen3.8:27b-mlx`
-> works with no proxy and no environment variables. The shim is kept for older
-> Ollama, and in case a stable release lands behind the fix.
+> **Not needed on Ollama 0.32.14-rc0 or later** — but still needed elsewhere.
+> That release contains the upstream fix, verified here: `ollama launch claude
+> --model qwen3.8:27b-mlx` works with no proxy and no environment variables.
+>
+> The bug is not Ollama's, though; it is a property of the request Claude Code
+> sends, so any server whose chat template rejects a trailing `system` message
+> hits it. **llama.cpp does**, as of 2026-08-26: its `/v1/messages` passes the
+> stray message through and the Qwen template raises. The shim fixed it
+> unchanged, pointed at llama-server with `--upstream`, and
+> [`benchmarks/llamacpp/llamacpp-up`](benchmarks/llamacpp/llamacpp-up) now
+> starts it as part of that stack. It is named for the bug it was written for,
+> not for the only server that has it.
 
 Ollama exposes an Anthropic-compatible `/v1/messages` endpoint and ships a
 `launch claude` integration. On Ollama 0.32.13 and earlier that integration does
