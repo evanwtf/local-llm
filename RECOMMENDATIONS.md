@@ -205,7 +205,33 @@ mtplx quickstart --model Youssofal/Qwen3.8-27B-MTPLX-Optimized-Speed \
 **`ornith:35b`** — fastest median in the field (82.3 s) and the only backend
 that has ever failed under Claude Code: 13/15, twice on the *easiest* task, with
 a **30.4×** spread and one run of 20.4 minutes. Fast-on-average and occasionally
-broken is the worst possible profile for something you depend on.
+broken is the worst possible profile for something you depend on. Superseded by
+1.5, below.
+
+**`ornith-1.5:35b`** — the successor, 54 trials, same quant and engine so only
+the generation moves. **It fixed the tail and not the reliability.**
+
+| | 1.0 | 1.5 Claude Code | 1.5 Codex |
+|---|---|---|---|
+| pass | 13/15 | 23/27 (85%) | 25/27 (93%) |
+| median | 82.3 s | 100.3 s | 107.5 s |
+| spread | **30.4×** | **6.6×** | 7.9× |
+| suite | 488 s | 680 s | 622 s |
+
+The catastrophic tail is gone — no 20-minute runs, spread under 8×, no
+timeouts — and the suite total *beats ds4* (774 s / 975 s). The failure that blacklisted 1.0 —
+`mbox-strip-envelope` — is fixed outright: 8/8 across both clients. But 85% is not 100%, and `ds4` is 31/31.
+
+What did change is the shape of failure. Four of six are near misses — `1
+failed, 54 passed`, `1 failed, 16 passed` — code written and one test wrong.
+1.0 failed by giving up; that mode still appears twice (`mbox-scan` left at the
+control state, Codex quitting `parser-date` after 27.5 s) but it is no longer
+the rule. Near misses are a quality signal this suite is normally too easy to
+produce, which makes it the most interesting backend here for issue #4.
+
+**Use it when speed matters and a retry is cheap. Do not put it in the fallback
+slot.** A fallback exists for the day nothing else works, and 85% is the wrong
+number for that day. See also the lineage caveat: it is `qwen35moe`.
 
 **`qwen3.8:27b-mlx` via Ollama** — strictly dominated. MTPLX runs the identical
 weights 17% faster on 68% fewer tokens. If you want Qwen3.8, use MTPLX.
