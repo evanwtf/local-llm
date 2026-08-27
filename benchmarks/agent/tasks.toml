@@ -159,6 +159,37 @@ auth_token = "ollama"
 model = "gemma4:31b-mxfp8"
 context_tokens = 262144
 
+# Qwen3.8-Flash-Next: the preview of the Qwen4 architecture, released
+# 2026-08-26. 125B total with 6B active, plus a 51B n-gram embedding table and
+# a 4B MTP head; GDN + Qwen Sparse Attention hybrid instead of the GDN + gated
+# attention pairing in qwen3.8:27b.
+#
+# DOES NOT RUN ON THIS MACHINE -- 2026-08-26. The tag loads (112 GB, 100% GPU)
+# and answers a trivial /api/generate at 38.6 t/s, but any agent-sized prompt
+# dies in the MLX runner:
+#
+#   panic: mlx: [METAL] Command buffer execution failed: Insufficient Memory
+#   (00000008:kIOGPUCommandBufferCallbackErrorOutOfMemory)
+#
+# Ollama logs the reason: peak memory 126.51 GiB against a Metal budget of
+# 107.0 GiB on 128 GiB of unified memory. The peak is FIXED -- it did not move
+# at 262144, 65536 or 32768 context, at OLLAMA_NUM_PARALLEL=1, or with a q8_0
+# KV cache. It is weights plus the resident 51B n-gram embedding table, not
+# KV, so no serving knob reaches it. Raising iogpu.wired_limit_mb cannot close
+# a 19.5 GiB gap on a 128 GiB machine either: 126.51 GiB leaves the OS ~1.5
+# GiB. This entry is kept so the next smaller quant has somewhere to land.
+#
+# CAVEAT -- ENGINE: needs Ollama 0.33.1 or later. Rows recorded against it are
+# the first in this file served by that build; earlier Ollama rows were 0.32.x.
+# The per-row env capture carries the version, so read across it with care.
+[backend.qwen38flashnext]
+description = "Qwen3.8-Flash-Next 125B-A6B via Ollama MLX (nvfp4)"
+base_url = "http://127.0.0.1:11434"
+auth_token = "ollama"
+model = "qwen3.8-flash-next:125b-mlx"
+codex_profile = "qwen38flashnext"
+context_tokens = 262144
+
 # --- reference ------------------------------------------------------------
 # Not a fallback candidate. This is the hosted service the local backends are
 # a hedge against, run through the identical harness so every local number has

@@ -29,6 +29,19 @@ Headline comparison, same machine, ~12k context:
 Prefill is measured differently by the two harnesses — see
 [`benchmarks/ollama/RESULTS.md`](benchmarks/ollama/RESULTS.md).
 
+Both rows were measured on Ollama 0.32.14-rc0. The installed engine is now
+**0.33.1**, so they predate it; re-baselining the Ollama rows under 0.33.1 is
+an open loose end.
+
+**The ceiling on this machine is a resident-weight ceiling, not a speed one.**
+`qwen3.8-flash-next:125b-mlx` — 125B total but only 6B active — loads and
+generates at 38.6 t/s, then dies on the first agent-sized prompt: peak 126.51
+GiB against a 107.0 GiB Metal budget, and the peak does not move with context,
+parallelism or KV type. `GLM-5.3-Flash` never got as far as a download, its
+smallest local quant being 177.5 GB. Read "A6B" as a throughput claim, never a
+memory one. See
+[`RECOMMENDATIONS.md`](RECOMMENDATIONS.md#too-big-for-this-machine).
+
 ---
 
 # The Ollama shim

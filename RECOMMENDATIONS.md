@@ -206,6 +206,58 @@ behaved, never failed, no reason to choose it.
 
 ---
 
+## Too big for this machine
+
+Not verdicts on the models — verdicts on 128 GiB. Both were checked on
+2026-08-26, the day each was released, and neither ever ran a trial.
+
+**`Qwen3.8-Flash-Next` (`qwen3.8-flash-next:125b-mlx`, Ollama nvfp4, 112 GB)**
+— the preview of the Qwen4 architecture: 125B total, 6B active, plus a 51B
+n-gram embedding table and a 4B MTP head, GDN + Qwen Sparse Attention instead
+of the GDN + gated attention pairing in `qwen3.8:27b`.
+
+It loads at 100% GPU and answers a trivial `/api/generate` at **38.6 t/s**
+warm. Then the first agent-sized prompt kills the MLX runner:
+
+```
+panic: mlx: [METAL] Command buffer execution failed: Insufficient Memory
+(00000008:kIOGPUCommandBufferCallbackErrorOutOfMemory)
+```
+
+Ollama logs the arithmetic: **peak memory 126.51 GiB against a Metal budget of
+107.0 GiB**. That peak is fixed. It did not move at 262144, 65536 or 32768
+context, at `OLLAMA_NUM_PARALLEL=1`, or with a `q8_0` KV cache — the same figure
+to the byte every time. It is weights plus the resident n-gram table, not KV,
+so no serving knob reaches it, and `iogpu.wired_limit_mb` cannot close a 19.5
+GiB gap on a 128 GiB machine: 126.51 GiB would leave macOS about 1.5 GiB.
+
+The lesson generalises past this model. **A 6B-active MoE is not a small
+model.** Active parameters set the speed; total resident weight sets whether it
+runs at all, and this architecture adds a 51B lookup table that is resident and
+does no arithmetic. Read "A6B" as a throughput claim, never as a memory one.
+
+`[backend.qwen38flashnext]` and `~/.codex/qwen38flashnext.config.toml` are
+configured and the harness dry-run passes all five control checks, so a smaller
+quant is one `ollama pull` from a real run. Ollama's only other tag is bf16 at
+360 GB. Outside Ollama the candidates are `Sawfwair/…-MLX-Mixed-2bit` (73.1 GB)
+or Unsloth's `UD-Q2_K_XL` (78.9 GB) / `UD-IQ3_XXS` (82 GB), but all are
+OpenAI-wire only — Claude Code would need an Anthropic adapter first, which
+confounds engine and quant against every existing row.
+
+**`GLM-5.3-Flash`** — 320B total, 18B active, MIT, released the same day, and
+strong on paper (Terminal-Bench 2.1 84.3, DeepSWE 63.4). Never got as far as a
+download. The smallest published local quant is a 4-bit MLX at **177.5 GB**;
+Ollama lists only a `glm-5.3-flash:cloud` tag, with no local weights at all.
+
+Two efforts are in flight and neither helps this machine. **DFlash 2** for the
+model is announced but unreleased, and DFlash is speculative decoding — it makes
+a model faster, not smaller. **antirez** is converting GGUF quants from the FP8
+release and reports picking Q4_K over MXFP4 on conversion error; a 4-bit quant
+of a 320B model lands near the 177.5 GB already measured. Revisit only if
+something under ~100 GB appears.
+
+---
+
 ## Verified
 
 **Claude Code works fully offline.** Tested 2026-08-17 with all outbound traffic
@@ -245,5 +297,10 @@ The gaps between "benchmarked" and "actually a fallback":
 5. **Quality is unmeasured at real difficulty.** Nearly every backend and client
    scores near-perfect, so these tasks cannot tell you which is *better* — only
    that each can restore one deleted function. Issue #4.
+6. **The Ollama rows predate the installed engine.** Ollama went 0.32.15 →
+   **0.33.1** on 2026-08-26 to get MLX support for Qwen3.8-Flash-Next, which
+   then did not fit. Every Ollama row in `results.jsonl` was recorded under
+   0.32.x. The per-row env capture keeps them readable, but `qwen36coding` — the
+   secondary — has not been re-run under the engine now installed.
 
 Item 5 decides whether this plan is any good. The rest is logistics.
