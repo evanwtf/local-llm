@@ -158,7 +158,11 @@ turned a 13/16 backend into a published 13/13.
 it.** The waiter's own command line matches, so the loop never exits.
 
 **Do not run anything else during a timing batch.** A 96 GB download overlapped
-one and produced an hour of chasing a regression that did not exist.
+one and produced an hour of chasing a regression that did not exist. The same
+mistake hides better when it is a *server*: weights stay resident whether or not
+anyone is using them. Run `uv run python benchmarks/agent/preflight.py` before
+every batch -- it names any server holding memory that this run does not want.
+`run.py` warns too, but by then the second server is already started.
 
 **Nothing may feed into `results.verdict()` except the oracle.** Gates, hashes
 and the verbatim check ride alongside a verdict and never into it; there is a

@@ -132,6 +132,53 @@ no client is fastest on every backend. The
 [agent benchmark](benchmarks/agent/README.md) measures both axes over 238
 trials.
 
+## Preflight: always check what is already running
+
+**Do this before starting a server, and before every benchmark batch.**
+
+```sh
+uv run python benchmarks/agent/preflight.py
+```
+
+It reports how much memory model servers are holding, how much headroom is left
+under the Metal ceiling, and — the point — **any server that is up which this
+run does not want**.
+
+```
+INFO preflight: 77.6 GiB held by model servers, 34.4 GiB headroom under a 112 GiB ceiling
+WARNING preflight: llama-server (pid 43967) is listening on :8030 and holding
+        77.6 GiB, but no selected backend uses that port. Stop it, or this batch
+        measures a contended machine.
+```
+
+**Why it matters more here than on a normal machine.** These models are sized to
+nearly fill unified memory: `glm53` is 100.6 GiB resident against a 112 GiB
+ceiling. A server left running from an earlier session does one of two things,
+and only one of them is obvious.
+
+* The next model **does not fit and fails to load**. Loud, immediate, cheap.
+* The next model **does fit**, and the two contend for memory and bandwidth for
+  the whole run. Quiet, and expensive: every number in that batch describes a
+  machine that was busy doing something else. An hour was already lost this way
+  once, to a 96 GB download that overlapped a timing batch — and a resident
+  77.6 GiB model is the same mistake with nothing as visible as a download to
+  notice it.
+
+A server does not stop when its client exits. `./claude-ollama stop` and
+`ds4-up stop` release theirs; a bare `llama-server` has to be killed. **Check,
+do not remember** — the memory is held whether or not anyone is using it.
+
+`run.py` runs this check itself before the first trial, so a stale server is
+named at the top of the log instead of being inferred from odd numbers a week
+later. It **warns and never refuses**: running two servers on purpose is
+legitimate, and a harness that will not start because it disapproves of the
+process table is worse than one that says what it sees.
+
+The ceiling is a stated assumption, not a reading. `sysctl iogpu.wired_limit_mb`
+reports `0` whether or not a limit is in force, so it cannot be trusted as a
+source; verify a changed ceiling with the Metal probe in issue #30. **The
+sysctl does not survive a reboot.**
+
 ## Quick start
 
 ### The local coding agent to run: DS4 + Codex

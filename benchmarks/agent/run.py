@@ -37,6 +37,7 @@ import urllib.request
 
 import excise
 import grade
+import preflight
 import results
 
 logger = logging.getLogger("agent-bench")
@@ -678,6 +679,12 @@ def main():
                   else pathlib.Path(args.client_log).expanduser())
     solutions = (None if args.no_solutions
                  else pathlib.Path(args.solutions).expanduser())
+
+    # What else is on this machine, and what is it holding? A server left up
+    # from an earlier session contends for memory and bandwidth for the whole
+    # batch, and the result is a timing measurement of a machine that was busy
+    # doing something else. Advisory: it warns and never refuses.
+    preflight.log_report(preflight.inspect(backends))
 
     versions = capture_versions(cfg, backends)
     versions["client"] = ",".join(clients)

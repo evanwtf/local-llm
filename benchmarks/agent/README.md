@@ -34,12 +34,28 @@ dirty or off its pinned commit. See METHODOLOGY.md.
 ## Running it
 
 ```sh
+uv run python benchmarks/agent/preflight.py       # FIRST. What is already up?
 uv run benchmarks/agent/run.py --dry-run          # verify tasks, run no agent
 uv run benchmarks/agent/run.py --trials 3         # the full matrix
 uv run benchmarks/agent/run.py --backend qwen --task mbox-scan
 ```
 
-Both backends must be up first — `ds4-up` for ds4, Ollama for qwen.
+The backends you select must be up first — `ds4-up` for ds4, Ollama for qwen.
+
+**Start with the preflight, every time.** A model server left running from an
+earlier session holds its weights whether or not anyone is using it, and these
+models are sized to nearly fill unified memory. If the new one still fits
+alongside the old one, nothing fails — the batch just spends hours measuring a
+contended machine, and the numbers look plausible. See the
+[preflight section in the top-level README](../../README.md#preflight-always-check-what-is-already-running).
+`run.py` runs the same check itself and warns, but by then the server is
+already started.
+
+Two more artifacts are written outside this repo, because both carry
+repository content: `--client-log` (default `~/bench-logs`) keeps the client's
+event stream, and `--solutions` (default `~/bench-solutions`) keeps each
+trial's diff. The solution's SHA-256 goes into the row itself, so the artifact
+can be cleaned up without losing the ability to tell two runs apart.
 
 ## Two axes: backend and client
 
