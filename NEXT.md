@@ -1,90 +1,111 @@
 # Where to pick up
 
-Written 2026-08-27 21:55, immediately before a laptop reboot. Work the issues in
-the order below. Each issue is self-contained; this file only sets priority and
-records the machine state a reboot destroys.
+Updated 2026-08-28 10:50, after the Qwen and GLM re-runs. Work the issues in the
+order below. Each issue is self-contained; this file only sets priority and
+records machine state that is not in git.
 
 ## Order
 
 | # | issue | why this position |
 |---|---|---|
-| 1 | **#30** Raise `iogpu.wired_limit_mb` | **Needs the operator + sudo.** Blocks #32 and unlocks a rung on #31. One command. |
-| 2 | **#31** Re-run Qwen3.8-Flash-Next at `UD-Q3_K_XL` | Does NOT need #30 -- 83.8 GiB fits the current default with 23 GiB spare. The 2-bit quant was never necessary, and this backend is already 15/15 with Codex. |
-| 3 | **#32** Retry GLM with Unsloth `UD-Q2_K_XL` + PR #27752 | Blocked on #30. A matched pair needing none of #25's seven patches, on the PR most likely to merge. Only candidate that reduces the Qwen monoculture (#16). |
-| 4 | **#26** ds4 wall time swings 3x between trials | Cheap, and it gates how every other number is read. |
-| 5 | **#24** Correct two published verdicts | Do after the re-runs -- they change what the corrected text should say. Now also needs the "107 GiB budget" language fixed (see #30). |
-| 6 | **#23** No combination clears 90% with confidence | Methodology. Should shape the rewrite in #24 and how future batches are sized. |
-| 7 | **#28** llama.cpp vs Ollama on identical weights | Targets the #14 re-prefill, the largest single measured cost here. |
-| 8 | **#27** Retire the ds4 fork | Blocked on upstream merging antirez/ds4#885 and #886. Housekeeping. |
+| 1 | **#24** Correct the published verdicts | The docs are now the weakest artifact here. `RESULTS.md` still calls `qwen38fnq2` "the slowest backend measured, not a fallback candidate" -- client-blind *and* superseded by Q3. `RECOMMENDATIONS.md` still files GLM-5.3-Flash under "too big" and quotes a 107 GiB ceiling. Cheap, and all the data exists. |
+| 2 | **#26** Wall time swings 3x between trials | Now replicated on a **third** backend: GLM ran `storage-blob-put` at 375.7 / 641.6 / 315.7 across three rounds. Every speed ranking in this project is noise until this is understood. Cheap to test. |
+| 3 | **#4** Harder tasks | **This is now the structural bottleneck.** Four Codex backends sit at 15/15 or better; the suite can no longer discriminate on correctness, and speed is the only remaining axis -- which #26 says is unreliable. Without harder tasks, more benchmarking produces no new information. |
+| 4 | **#33** Offload the n-gram PLE table to SSD | Concrete and lossless: ~29 GiB saving, which makes `UD-Q4_K_XL` comfortably resident. AtomicChat's `-M64` GGUFs need no MLX and no patches. |
+| 5 | **#34** Evaluate SSD offload as a strategy | Do **step 1 first** regardless of #33: nothing here records the machine's NVMe read bandwidth or random-read latency, and every "SSD offload is fine" claim rests on it. |
+| 6 | **#23** Nothing clears 90% with confidence | Methodology; shapes #24's language and how future batches are sized. |
+| 7 | **#28** llama.cpp vs Ollama on identical weights | Targets #14 re-prefill, the largest single measured cost here. |
+| 8 | **#35** Model evaluation queue | Standing index. Devstral (#3) is the highest-value entry -- it would add a fifth lineage. |
+| 9 | **#27** Retire the ds4 fork | Blocked on upstream merging antirez/ds4#885 and #886. Housekeeping. |
 
-**#22 (finals) is DONE** -- both finalists ran clean, 30/30. `ds4anthropic x codex`
-reached 36/36 lifetime and is the first combination here to clear 90% with 95%
-confidence. `ornith15 x codex` is 40/42 and ~1.6x faster.
+## Done since the last update
 
-**#25 (GLM via PR #27773) is a closed negative result** -- it loads and runs and
-emits gibberish. Superseded by #32.
-
-Then the older backlog: #13 (re-baseline Ollama 0.33.1), #17 (GLM background),
-#16 (monoculture), #4 (harder tasks -- increasingly the bottleneck).
+- **#30** sysctl applied and verified: Metal ceiling **107.52 -> 112.00 GiB**.
+  **NOT persisted** -- see machine state below.
+- **#31** Qwen3.8-Flash-Next at `UD-Q3_K_XL`: **15/15, 28.4% faster than 2-bit**,
+  faster on all five tasks. The bigger quant is the quicker one.
+- **#32** GLM-5.3-Flash: **15/15**, zero patches, zero warnings. The matched pair
+  (Unsloth `UD-Q2_K_XL` + PR #27752) was the whole trick.
+- **#22** finals: both finalists 15/15.
+- **#25** closed as a negative result -- GLM on PR #27773 loads, runs, and emits
+  gibberish.
+- **#16** materially addressed: GLM is the first non-Qwen, non-DeepSeek backend
+  that works. Five lineages now represented (#35).
 
 ## The open question all of this serves
 
-*What is the most useful model + harness for local coding if hosted providers are
-unavailable?*
+*What is the most useful model + engine + harness for local coding if hosted
+providers are unavailable?*
 
-Best current answer, stated with its uncertainty: **`ds4anthropic x codex`**,
-21/21 and 190.7s, on a self-contained C engine with no Python runtime and the
-only non-Qwen lineage in the field. The honest caveat is that 21/21 only
-establishes ">85%" (#23), and `ornith15 x codex` is 1.8x faster at a pass rate
-this data cannot distinguish from it. #22 is designed to break that tie.
+Codex only -- no Claude Code pairing exceeds 94%, on any backend, ever.
 
-One finding is already firm: **Codex beats Claude Code on every local backend
-measured.** No Claude Code pairing exceeds 94%.
+| combination | pass | 95% CI | suite |
+|---|---|---|---|
+| `ds4anthropic x codex` | 36/36 | **90-100%** | 975.3s |
+| `ornith15 x codex` | 40/42 | 84-99% | **597.0s** |
+| `qwen38fnq3 x codex` | 15/15 | 80-100% | 895.8s |
+| `glm53 x codex` | 15/15 | 80-100% | 1362.1s |
 
-## Correction carried into everything above
+**`ds4anthropic x codex` is still the only combination whose reliability is
+statistically established.** `ornith15 x codex` is 1.6x faster and cannot be
+distinguished from it on this data. The three at 15/15 need ~35 consecutive
+passes to clear 90%; they are promising, not proven.
 
-The **107.0 GiB "Metal budget"** quoted throughout `RECOMMENDATIONS.md`,
-`RESULTS.md` and `benchmarks/llamacpp/llamacpp-up` is a macOS **default**
-(`iogpu.wired_limit_mb = 0`), not a hardware wall. Several "too big for this
-machine" verdicts rest on it. See #30.
+Note what this table cannot tell you: **which writes better code.** All four pass
+everything. That is #4.
 
-It does not revive `qwen38flashnext` -- that peaked at 126.51 GiB, still above a
-raised 112 GiB ceiling.
+## Machine state
 
-## Settled tonight
+**Not persisted, and a reboot reverts it:**
 
-The `upstream/main` merge into ds4 (`399acbb`) is good: **25/25 PASS**
-post-merge across both clients. The apparent slowdown that showed up first was a
-warm-up artifact, not a regression -- see #26.
+```sh
+sudo sysctl iogpu.wired_limit_mb=114688     # currently applied, verify: 112.00 GiB
+```
 
-## Machine state a reboot destroys
+Verify with the Metal probe in #30, not with `sysctl` -- the sysctl reads `0`
+whether or not a limit is in force. **`glm53` will not load without this**
+(100.6 GiB resident against a 107.52 GiB default).
 
-- **`ds4-server` and Ollama are both stopped.** Restart ds4:
-  ```sh
-  cd ~/git/ds4 && ./ds4-server -m gguf/DeepSeek-V4-Flash-Layers37-42Q4KExperts-OtherExpertLayersIQ2XXSGateUp-Q2KDown-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix-fixed-0731.gguf \
-      --warm-weights --ctx 100000 --kv-disk-dir ~/.ds4/server-kv --kv-disk-space-mb 8192
-  ```
-  Binary is `399acbb` (the merge); `./ds4-server --version` confirms it. The
-  first trial after any restart is slow -- that is #26, not a regression.
-- **The session scratchpad is gone**, including `finals.sh`. Its commands are
-  reproduced in full in #22.
+**Servers:** a GLM `llama-server` may still be on :8030 with its shim on :11501.
+`ds4-server` and Ollama are stopped. Restart ds4 with:
 
-## Machine state a reboot preserves
+```sh
+cd ~/git/ds4 && ./ds4-server -m gguf/DeepSeek-V4-Flash-Layers37-42Q4KExperts-OtherExpertLayersIQ2XXSGateUp-Q2KDown-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix-fixed-0731.gguf \
+    --warm-weights --ctx 100000 --kv-disk-dir ~/.ds4/server-kv --kv-disk-space-mb 8192
+```
 
-- `~/git/ds4/gguf/GLM-5.3-Flash-Q2.gguf` -- 96.5 GB, downloaded, unused
-- `~/git/llama.cpp-glm53` -- worktree at `9370c82db` (PR #27773), **not built**
-- `~/git/llama.cpp` -- the qwen4exp build (`035e22731`). Do not `git pull` this
-  away; `qwen38fnq2`'s provenance stamp depends on it.
-- `~/.codex/*.config.toml` -- profiles, not in git. All need
-  `wire_api = "responses"`; Codex 0.148.0 removed `"chat"`.
+**Three llama.cpp worktrees, do not confuse them:**
 
-## Two traps worth not rediscovering
+| path | commit | purpose |
+|---|---|---|
+| `~/git/llama.cpp` | `035e22731` (PR #27742) | qwen4exp. **Every `qwen38fnq2`/`q3` row depends on it. Do not `git pull` this away.** |
+| `~/git/llama.cpp-glm52pr` | `8a8d0bcc4` (PR #27752) | serves `glm53`. Clean, unpatched. |
+| `~/git/llama.cpp-glm53` | `9370c82db` (PR #27773) | the failed attempt, **166 lines of uncommitted patches**. Two are independently upstream-worthy (#25). Do not build GLM here. |
 
-**Do not poll `pgrep -f 'benchmarks/agent/run.py'` from a shell that waits on it.**
-The waiter's own command line contains that string, so it matches itself and the
-loop never exits. This idled the machine for 4 minutes tonight. Sequential steps
-in one script need no polling at all.
+**Weights on disk:** `~/models/Qwen3.8-Flash-Next-GGUF` (157 GB, Q2 + Q3),
+`~/models/GLM-5.3-Flash-GGUF` (101 GB, Unsloth Q2),
+`~/git/ds4/gguf/GLM-5.3-Flash-Q2.gguf` (90 GB, antirez -- **unusable**, no engine
+loads it; keep per the archive convention or delete deliberately).
 
-**Do not run anything else while benchmarking.** A 96 GB download overlapped one
-timing batch tonight and produced an hour of chasing a regression that did not
-exist.
+**Codex profiles** in `~/.codex/*.config.toml` are not in git. All need
+`wire_api = "responses"`; 0.148.0 removed `"chat"`.
+
+## Traps worth not rediscovering
+
+**Write results through `results.py`.** Never hand-roll an exclusion filter --
+five different keys have meant "untrustworthy row", and an analysis that checked
+one silently counted fifteen bad rows as good data (#29).
+
+**`/health` answers before the model is loaded.** GLM answered at 4 s and did not
+finish loading until 33 s. A request in that window returns no `choices` and
+looks exactly like a broken model.
+
+**Coherence-check at temperature 0 before every benchmark.** A model can load,
+serve, and report plausible token counts while emitting noise -- that is #25, and
+it cost hours.
+
+**Do not poll `pgrep -f 'benchmarks/agent/run.py'` from a shell that waits on
+it.** The waiter's own command line matches, so the loop never exits.
+
+**Do not run anything else during a timing batch.** A 96 GB download overlapped
+one and produced an hour of chasing a regression that did not exist.
