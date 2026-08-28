@@ -134,7 +134,7 @@ trials.
 
 ## Quick start
 
-### Fastest local coding agent: DS4 + Codex
+### The local coding agent to run: DS4 + Codex
 
 ```sh
 # Run from this checkout. Starts ds4-server if needed (~91 GiB resident).

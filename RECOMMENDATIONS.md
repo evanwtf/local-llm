@@ -3,13 +3,14 @@
 **Hardware:** MacBook Pro, Apple M5 Max, 128 GiB unified memory, macOS 26.5.
 **Purpose:** a working fallback for agentic coding if hosted models become
 unavailable — price, policy, or otherwise.
-**Evidence:** 243 agent trials, 8 backends, 3 clients, plus a hosted reference.
-See [`RESULTS.md`](benchmarks/agent/RESULTS.md).
+**Evidence:** 398 agent trials, 13 backends, 3 clients, plus a hosted reference.
+See [`RESULTS.md`](benchmarks/agent/RESULTS.md). Last corrected 2026-08-28.
 
 This is a fallback plan, not a daily driver plan. Measured through the same
-harness, hosted Claude Opus 5 finishes the task suite in **18% of the time** the
-best local pairing needs — 203 s against 1,116 s. The reason to keep the local
-stack working is not speed; it is that it keeps working when nothing else does.
+harness, hosted Claude Opus 5 finishes the task suite in **21% of the time** the
+best reliable local pairing needs — 203 s against 975 s. The reason to keep the
+local stack working is not speed; it is that it keeps working when nothing else
+does.
 
 ---
 
@@ -20,11 +21,16 @@ interact, so pick them as a pair.
 
 | role | pair | why |
 |---|---|---|
-| **primary** | `ds4` + **Claude Code** | 15/15, predictable, the safe default |
-| **fastest** | `ds4` + **Codex** | 15/15 and 12% quicker, tightest spread measured |
-| **secondary** | `qwen3.6:27b-coding-mxfp8` + **Claude Code** | 31 GB, independent failure surface |
+| **primary** | `ds4` + **Claude Code** or **Codex** | 75/76 and 36/36. Same model, same server, different wire protocol; 982 s and 975 s. Nothing here separates them — pick on habit |
+| **secondary** | `qwen3.6:27b-coding-mxfp8` + **Claude Code** | 30/30, 31 GB, independent failure surface |
+| **do not** | anything + **OpenCode** | 13/29 on the same model both other clients pass. See below |
 
-### Fastest local coding agent: DS4 + Codex
+**Corrected 2026-08-28.** This table used to name Codex "fastest" on a 12% gap
+measured over 15 trials. At 76 and 36 trials the gap is 7 seconds across a
+five-task suite, and the confidence intervals overlap almost completely. The
+honest statement is that on `ds4` the two clients are indistinguishable.
+
+### The local coding agent to run: DS4 + Codex
 
 Run these commands from this checkout:
 
@@ -54,37 +60,49 @@ with the primary.
 The single most surprising result in this project: **the client matters as much
 as the model, and no client is best everywhere.**
 
-| backend | Claude Code | Codex | OpenCode |
+| backend (engine) | Claude Code | Codex | OpenCode |
 |---|---|---|---|
-| `ds4` | 1,110 s, 15/15 | **978 s, 15/15** | 1,235 s, **6/15** |
-| `qwen3.6-coding` (Ollama) | **1,041 s, 15/15** | 1,699 s, 14/15 | not tested |
+| `ds4` (ds4-server) | 982 s, **75/76** | 975 s, **36/36** | **13/29** |
+| `qwen3.6-coding` (Ollama) | **1,054 s, 30/30** | 1,797 s, 14/15 | not tested |
 | `qwen38fnq2` (llama.cpp) | 5,236 s, **13/16** | **1,251 s, 15/15** | not tested |
+| `qwen38fnq3` (llama.cpp) | not run | **896 s, 15/15** | not tested |
+| `glm53` (llama.cpp) | not run | **1,362 s, 15/15** | not tested |
 
-Every cell is one pass through the five tasks. Same binaries, same day, same
-tasks. Codex beats Claude Code by 12% on ds4, loses to it by 63% on Ollama, and
-beats it by **4.2x** on llama.cpp — where it also went 15/15 against three
-timeouts. Three engines, three different answers, one of them not close.
+Each cell pools every trial of that pairing; suites are the sum of per-task
+medians. The `ds4` row pools both wire protocols (`ds4` and `ds4anthropic` are
+the same weights on the same server).
 
-**Claude Code was the consistent choice on the first two backends**, which is
-why it is still the default recommendation. The llama.cpp result is the first
-that argues against it, and the cause looks like the serving path rather than
-the client: Claude Code reprocesses whole prompts there — one turn re-prefilled
-48972 tokens in 101 s — while Codex, which reaches the same server without the
-shim in front of it, does not. Read that row as a finding about a stack, and do
-not carry it to a backend where it has not been measured.
+**The client effect is real, but it is engine-specific, and it is not a ranking
+of clients.** On ds4 the two proprietary clients are indistinguishable — 7
+seconds apart over a five-task suite, with overlapping intervals. On Ollama
+Claude Code is 41% faster. On llama.cpp Codex is **4.2x** faster and Claude Code
+times out. Three engines, three different answers.
 
-**Do not use OpenCode against ds4.** It failed 9 of 15 trials, and every failure
-returned the test suite *exactly* as the excision left it — the loop stopped
-believing it had finished, having changed nothing. Same model, same prompts;
-Claude Code went 14/15 on the identical setup.
+**The llama.cpp gap is a property of the serving path, not of the client.**
+Claude Code reprocesses whole prompts there — one turn re-prefilled 48,972
+tokens in 101 s — while Codex, which reaches the same server without the shim in
+front of it, does not. All three Claude Code failures on that backend are
+timeouts, which follows directly. Read that row as a finding about a stack, and
+do not carry it to a backend where it has not been measured. Issue #14.
+
+**Corrected 2026-08-28.** An earlier revision of this table read "Codex beats
+Claude Code by 12% on ds4" from 15 trials per cell, and reported `qwen38fnq2`
+against Claude Code as 13/13. Three timeouts had been dropped by a reader that
+tested `"passed" in row`; a timeout writes no `passed` key. The OpenCode cells
+were computed over fourteen rows already marked `confound`. Both readers are
+fixed and the numbers above are recomputed.
+
+**Do not use OpenCode against ds4.** It failed 16 of 29 trials, and the failures
+returned the test suite *exactly* as the excision left it — the loop stopped,
+believing it had finished, having changed nothing. Same model, same server, same
+prompts; the other two clients went 75/76 and 36/36 on it.
 
 **That verdict is scoped to ds4, deliberately.** OpenCode has never been run
 against any other backend, and this project *proved* that clients invert across
-backends — Codex was 12% faster than Claude Code on ds4 and 63% slower on
-Ollama. So OpenCode's 6/15 may be an ds4-pairing failure rather than a client
-defect. A hand reproduction on a freshly restarted ds4-server also passed 5/5,
-which points the same way. Do not generalise it to "OpenCode is bad" until it
-has run somewhere else. See issue #5.
+backends. So 13/29 may be a ds4-pairing failure rather than a client defect. A
+hand reproduction on a freshly restarted ds4-server passed 5/5, which points the
+same way. Do not generalise it to "OpenCode is bad" until it has run somewhere
+else. See issue #5.
 
 ### The uncomfortable part
 
@@ -106,20 +124,29 @@ re-download. See "Not done yet" below.
 
 ---
 
-## Primary: `ds4` (synced, `fdcf3aa`)
+## Primary: `ds4`
+
+**124/141 lifetime across three server builds and three clients** — and 111/112
+once OpenCode is set aside. It is the most-tested backend here by a wide margin,
+and the only one whose reliability clears 90% at 95% confidence.
+
+| build | trials | median wall |
+|---|---|---|
+| pre-sync `5be6b6c` | 15/15 | 164.4 s |
+| synced `fdcf3aa` | 16/16 | 140.9 s |
+| post-merge `399acbb` | 15/15 | 264.3 s |
 
 | | |
 |---|---|
-| pass rate | **15/15** |
-| median wall | **140.9 s** |
-| spread | 2.6× |
+| resident | 90.9 GiB |
 | output tokens | 2,120 |
 | generation | 40.6 t/s |
-| resident | 90.9 GiB |
 
-Quick and dependable. Predictability is the reason it wins: a 2.6× spread means
-you can plan around it. `ornith:35b` has a better median (82.3 s) and is
-disqualified below.
+Dependable across every build it has been run on. **Its wall time is not
+dependable**: the medians above range 141 s to 264 s on identical work, and a
+single task has run 430.1 s and 145.7 s back to back. Plan around the pass rate,
+not the clock, until #26 explains the swing. `ornith:35b` has a better median
+(82.3 s) and is disqualified below.
 
 **Start it:**
 
@@ -151,20 +178,22 @@ gone. That is precisely why there is a second entry.
 
 | | |
 |---|---|
-| pass rate | **15/15** |
-| median wall | 213.5 s |
+| pass rate | **30/30** with Claude Code |
+| median wall | 215.2 s |
 | spread | 3.4× |
 | output tokens | 2,219 |
 | resident | **31 GB** |
 
-51% slower than ds4 and it leaves ~97 GiB free. Two jobs:
+Slower than ds4 and it leaves ~97 GiB free. Two jobs:
 
 1. **Concurrent use.** When the machine is doing something else.
 2. **Independent failure surface.** Ollama and ds4-server share no code. A
    fallback whose two options fail together is one option.
 
-**Use Claude Code with it.** Codex was 63% slower on this backend and produced
-the only unparseable-file failure recorded in this project.
+**Use Claude Code with it.** Codex was 70% slower on this backend (1,797 s
+against 1,054 s), went 14/15, and produced the only unparseable-file failure
+recorded in this project. This is the backend that inverts the llama.cpp
+result — which is why neither client is recommended everywhere.
 
 **Start it:**
 
@@ -241,29 +270,47 @@ behaved, never failed, no reason to choose it.
 
 ---
 
-## Benchmarked: `Qwen3.8-Flash-Next` at 2-bit
+## Benchmarked: `Qwen3.8-Flash-Next` — run it at 3-bit
 
-Released 2026-08-26 as the preview of the Qwen4 architecture; measured the same
-day. **It runs, it passes, and it is the slowest backend in this project.** Keep
-it as evidence about the architecture, not as a fallback candidate.
+Released 2026-08-26 as the preview of the Qwen4 architecture. **With Codex and
+the 3-bit quant it is 15/15 and the second-fastest backend measured** — a real
+fallback candidate, and the only one whose lineage is independent of both
+DeepSeek and GLM.
 
 Full numbers in [`benchmarks/llamacpp/RESULTS.md`](benchmarks/llamacpp/RESULTS.md).
 
-| | |
-|---|---|
-| what fits | Unsloth `UD-Q2_K_XL`, 78.9 GB, **77.9 GiB resident** |
-| engine | llama.cpp PR #27742 — mainline does not know `qwen4exp` |
-| Codex | **15/15**, suite 1,251s |
-| Claude Code | **13/16**, suite 5,236s, 3 timeouts |
-| the field | last of six local backends; `ds4` medians 174.2s |
+| | `UD-Q3_K_XL` — use this | `UD-Q2_K_XL` — superseded |
+|---|---|---|
+| resident | 83.8 GiB | 77.9 GiB |
+| Codex | **15/15, suite 896 s** | 15/15, suite 1,251 s |
+| Claude Code | not run | 13/16, suite 5,236 s, 3 timeouts |
+
+Engine is llama.cpp PR #27742 for both — mainline does not know `qwen4exp`.
+
+**The bigger quant is the faster one, by 28.4%, on all five tasks.** That is not
+a rounding artifact and it is not what a tokens/sec reading predicts: Q3 decodes
+*slower* per token than Q2. Re-prefill dominates the agent loop (#14), so the
+quant that needs fewer turns wins the wall clock even while losing the token
+rate. Anything that ranks these models on generation speed gets this backwards.
+
+**Corrected 2026-08-28.** This section previously read "it runs, it passes, and
+it is the slowest backend in this project — keep it as evidence about the
+architecture, not as a fallback candidate." That verdict was drawn from the
+Claude Code column of a single quant. The 2-bit weights were never necessary
+either; `UD-Q3_K_XL` always fit.
+
+**The 2-bit quant is an untested risk, and 3-bit only narrows it.** These tasks
+are too easy to expose quantisation damage — nearly every backend passes them,
+which is issue #4.
 
 **Ollama cannot serve it here at all.** Its only fitting tag is 112 GB nvfp4,
-which peaks at **126.51 GiB against a 107.0 GiB Metal budget** and dies on the
+which peaks at **126.51 GiB against a 112.00 GiB Metal budget** and dies on the
 first agent-sized prompt with `kIOGPUCommandBufferCallbackErrorOutOfMemory`.
 That peak is fixed — unchanged at 262144, 65536 and 32768 context, at
 `OLLAMA_NUM_PARALLEL=1`, and with a q8_0 KV cache. It is weights plus the
 resident 51B n-gram table, not KV, so no serving knob reaches it, and
-`iogpu.wired_limit_mb` cannot close a 19.5 GiB gap on a 128 GiB machine.
+`iogpu.wired_limit_mb` cannot close a 14.5 GiB gap on a 128 GiB machine, even
+raised to its practical maximum (#30).
 
 **A 6B-active MoE is not a small model.** Active parameters set the speed; total
 resident weight sets whether it runs at all, and this architecture adds a 51B
@@ -297,22 +344,51 @@ can speak to either way.
 
 ---
 
+## Benchmarked: `GLM-5.3-Flash` — it fits, and it works
+
+320B total, 18B active, MIT, released 2026-08-26. **15/15 with Codex, zero
+patches, zero warnings.** It is the slowest of the passing backends and it is
+the third independent model lineage in the fallback plan, which is the reason to
+keep it.
+
+| | |
+|---|---|
+| what fits | Unsloth `UD-Q2_K_XL`, **100.6 GiB resident** |
+| engine | llama.cpp PR #27752 — declares `glm5next`, ships the converter |
+| Codex | **15/15**, suite 1,362 s |
+| Claude Code | not run |
+
+**It only fits because the Metal ceiling was raised.** At 100.6 GiB resident it
+had under 7 GiB of headroom against the stock 107.52 GiB budget.
+`sudo sysctl iogpu.wired_limit_mb=114688` lifts that to 112.00 GiB (#30). The
+setting does **not** survive a reboot and is not yet persisted, so a fresh boot
+will fail to load this model.
+
+**The quant and the engine are a matched pair.** Unsloth's `UD-Q2_K_XL` with
+PR #27752 works first time. antirez's own `GLM-5.3-Flash-Q2.gguf` (90 GB) loads
+in no engine here, and PR #27773 loads a model that emits noise at temperature 0
+— it ships no converter, so its loader reads metadata keys nothing in its own
+tree writes. That cost hours; see #25. **Coherence-check at temperature 0 before
+trusting any new load.**
+
+**Corrected 2026-08-28.** This model was filed under "too big for this machine"
+on the basis of a 177.5 GB 4-bit MLX quant, which is neither the smallest nor
+the recommended one.
+
+---
+
 ## Too big for this machine
 
-A verdict on 128 GiB, not on the model.
+A verdict on 128 GiB, not on the models. Both are ruled out on published quant
+sizes, not on a failed attempt; see #35 for the standing queue.
 
-**`GLM-5.3-Flash`** — 320B total, 18B active, MIT, released 2026-08-26, and
-strong on paper (Terminal-Bench 2.1 84.3, DeepSWE 63.4). Never got as far as a
-download. The smallest published local quant is a 4-bit MLX at **177.5 GB**;
-Ollama lists only a `glm-5.3-flash:cloud` tag, with no local weights at all.
+| model | smallest published quant | verdict |
+|---|---|---|
+| `Kimi K3` | nothing under 108 GiB | no headroom for KV even at the raised ceiling |
+| `MiniMax M3` | nothing under 108 GiB | same |
 
-Two efforts are in flight and neither helps this machine. **DFlash 2** for the
-model is announced but unreleased, and DFlash is speculative decoding — it makes
-a model faster, not smaller. **antirez** is converting GGUF quants from the FP8
-release and reports picking Q4_K over MXFP4 on conversion error; a 4-bit quant
-of a 320B model lands near the 177.5 GB already measured. Revisit only if
-something under ~100 GB appears — the Qwen3.8-Flash-Next result above shows a
-2-bit quant is a serving path, so that is the tier to watch for.
+Revisit either if something under ~100 GiB appears. GLM-5.3-Flash moved out of
+this section by exactly that route, so the tier is worth watching.
 
 ---
 
