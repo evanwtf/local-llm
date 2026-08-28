@@ -234,6 +234,31 @@ codex_profile = "qwen38fnq2"
 # checks.
 context_tokens = 131072
 
+# GLM-5.3-Flash, Zhipu lineage -- the first backend here that is neither Qwen nor
+# DeepSeek. That is the whole point: issue #16 records that three of four local
+# backends were Qwen derivatives, which is a monoculture in a plan whose premise
+# is that hosted inference becomes unavailable.
+#
+# 101.3 GiB file, 98.4 GiB resident at -c 65536 -np 1. This backend exists only
+# because the Metal ceiling was raised from 107.52 to 112.00 GiB (issue #30) --
+# at the old default it had under 9 GiB for KV.
+#
+# Served by llama.cpp PR #27752 (8a8d0bcc4), which declares arch "glm5next" and
+# ships conversion/glm5next.py. A matched pair with Unsloth's GGUF: it loaded
+# with zero errors and zero warnings and needed no patches. The earlier attempt
+# (#25) paired antirez's GGUF with PR #27773, took seven source patches, and
+# still emitted gibberish -- the vocabularies did not match.
+#
+# PROVISIONAL: #27752 is mergeable but NOT merged, and the architecture name is
+# still contested upstream (glm5next vs glm5-next). Expect to redo this.
+[backend.glm53]
+description = "GLM-5.3-Flash, Unsloth UD-Q2_K_XL, llama.cpp PR #27752"
+base_url = "http://127.0.0.1:11501"
+auth_token = "llamacpp-local"
+model = "glm-5.3-flash-q2"
+codex_profile = "glm53"
+context_tokens = 65536
+
 # The 3-bit sibling of qwen38fnq2, and a correction rather than an addition.
 #
 # qwen38fnq2 was benchmarked at UD-Q2_K_XL (73.5 GiB) because that was the quant
