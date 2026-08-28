@@ -1254,3 +1254,84 @@ backend work at all" and "is this difference enormous". For anything else:
 - **Claiming >90% reliability:** 35 consecutive passes. There is no shortcut.
 - **A difference under 26% at n=3 is not a finding.** Say "no difference
   measured", never "X is faster than Y".
+
+---
+
+## The harder tasks, measured (2026-08-28, issue #4)
+
+18 trials: three new tasks × `ds4` under Claude Code and Codex × 3 trials.
+**18/18 passed.** Every measurement below is secondary to that verdict and none
+of it feeds into one.
+
+| task | client | pass | median | ruff Δ | mypy Δ | verbatim | distinct |
+|---|---|---|---|---|---|---|---|
+| `parser-mbox-quoting-nodoc` | claude | 3/3 | 283.7 s | +0.0 | +0.0 | 0/3 | 3/3 |
+| `parser-mbox-quoting-nodoc` | codex | 3/3 | 261.4 s | +0.0 | +0.7 | 0/3 | 3/3 |
+| `mbox-quoting-both-halves` | claude | 3/3 | 243.0 s | +0.0 | **+1.3** | 0/3 | 3/3 |
+| `mbox-quoting-both-halves` | codex | 3/3 | 208.7 s | +0.0 | **+2.0** | 0/3 | 3/3 |
+| `storage-put-and-sweep` | claude | 3/3 | 286.7 s | **−0.7** | +0.0 | 0/3 | 3/3 |
+| `storage-put-and-sweep` | codex | 3/3 | 231.0 s | **−0.3** | +0.0 | 0/3 | 3/3 |
+
+Suite totals: **Claude Code 813.4 s, Codex 701.1 s** — a 16% gap, which at n=3
+is inside the ±12.9% band from #23. **No difference measured.**
+
+### The tasks are harder in time, not in correctness
+
+Per-task median rose from **194.6 s to 270.6 s, +39%**, with no failures. Three
+axes of difficulty were added — a withheld contract, cross-module coordination,
+and a correctness property invisible to the oracle — and `ds4` cleared all three
+under both clients.
+
+**The ceiling is not an artifact of easy tasks.** That is the finding, and it is
+not the one this issue expected.
+
+### Nothing was recalled
+
+**`restored_verbatim` is 0/18, and all 18 solutions are distinct.** The
+authorship-contamination worry that METHODOLOGY has carried since day one does
+not apply to these results.
+
+The strongest single piece of evidence: with `unquote_mbox`'s docstring removed,
+the model **re-derived the mboxrd reasoning from scratch** — that mboxrd adds
+exactly one `>`, that stripping one is therefore the correct inverse, and that
+`>>From ` is ambiguous against mboxo and must be flagged. That docstring was
+chosen as the target *because* it gives the answer away. Two trials wrote it back
+in different words and different helper names, with the same logic.
+
+### One real defect, reproducible, that the oracle cannot see
+
+`mbox-quoting-both-halves` adds **exactly 2 mypy errors in 5 of 6 trials**, both
+clients:
+
+```python
+def _strip(match: re.Match) -> bytes:        # original: re.Match[bytes]
+    return quotes[1:] + match.group(2)
+```
+
+```
+src/gmail_archive/parser.py:124: error: Missing type arguments for generic type "Match"  [type-arg]
+src/gmail_archive/parser.py:129: error: Returning Any from function declared to return "bytes"  [no-any-return]
+```
+
+All 71 tests pass. The bare `re.Match` silently disables checking at the
+**bytes/str boundary**, which in a mail parser is exactly where the expensive
+bugs live — and this is a repository whose own config is `mypy --strict`.
+
+**This is the first "passes but is worse" result this project has recorded**, and
+it exists only because solutions are now saved and gated. It is small. It is also
+precisely the class of defect the issue predicted and the oracle was never going
+to catch.
+
+The sixth trial was clean by accident, not by discipline: it used a lambda and
+needed no annotation at all.
+
+### What this means for the issue
+
+Difficulty along these three axes buys **time, not discrimination**. To separate
+models on quality the suite needs defects that are *common*, not a 2-error
+signal in one of three tasks — larger surfaces, more places to be sloppy, and a
+gate stricter than "does the repo's own linter complain".
+
+The tasks are worth keeping. They cost 39% more wall clock, produce a real
+quality signal where the old five produce none, and they are honest about what
+they cannot do.

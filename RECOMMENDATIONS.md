@@ -3,7 +3,7 @@
 **Hardware:** MacBook Pro, Apple M5 Max, 128 GiB unified memory, macOS 26.5.
 **Purpose:** a working fallback for agentic coding if hosted models become
 unavailable — price, policy, or otherwise.
-**Evidence:** 398 agent trials, 13 backends, 3 clients, plus a hosted reference.
+**Evidence:** 416 agent trials, 13 backends, 3 clients, plus a hosted reference.
 See [`RESULTS.md`](benchmarks/agent/RESULTS.md). Last corrected 2026-08-28.
 
 This is a fallback plan, not a daily driver plan. Measured through the same
@@ -428,13 +428,23 @@ The gaps between "benchmarked" and "actually a fallback":
 3. **Codex and OpenCode are unverified offline.** One test each, ~10 minutes.
 4. **No cold-start runbook.** The Metal-shader trap above was rediscovered
    under pressure once. Write the procedure down while it is calm.
-5. **Quality is unmeasured at real difficulty.** Nearly every backend and client
-   scores near-perfect, so these tasks cannot tell you which is *better* — only
-   that each can restore one deleted function. Issue #4.
+5. **Quality is now measured, and it is good — but it still does not
+   discriminate.** Updated 2026-08-28. Three harder tasks (a withheld
+   docstring, a two-file change, a two-symbol convention) ran 18 trials against
+   `ds4` under both clients: **18/18 passed**, ruff clean, **0/18 recalled**,
+   18 distinct solutions. `BlobStore.put` came back with `fsync` + atomic
+   rename + directory fsync in every trial — a durability property no test
+   checks. The one defect found is real and reproducible: 5 of 6 trials on the
+   multi-file task annotate a callback `re.Match` instead of `re.Match[bytes]`,
+   adding 2 `mypy --strict` errors while passing all 71 tests. **The ceiling is
+   not an artifact of easy tasks.** Issue #4 stays open, but its premise has
+   changed: harder tasks bought +39% wall time and no additional failures.
 6. **The Ollama rows predate the installed engine.** Ollama went 0.32.15 →
    **0.33.1** on 2026-08-26 to get MLX support for Qwen3.8-Flash-Next, which
    then did not fit. Every Ollama row in `results.jsonl` was recorded under
    0.32.x. The per-row env capture keeps them readable, but `qwen36coding` — the
    secondary — has not been re-run under the engine now installed.
 
-Item 5 decides whether this plan is any good. The rest is logistics.
+Item 5 is answered for `ds4`: the code it writes is good, not merely passing.
+What remains unanswered is whether that distinguishes it from the other
+backends, which is a different and harder question. The rest is logistics.

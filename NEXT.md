@@ -8,15 +8,32 @@ records machine state that is not in git.
 
 | # | issue | why this position |
 |---|---|---|
-| 1 | **#4** Harder tasks | **In flight 2026-08-28.** Three new tasks, ds4 x {claude, codex}, 3 trials each. First result: `parser-mbox-quoting-nodoc` PASS in 283.7 s, against a historical ds4 x claude per-task median of 164-264 s. Removing the docstring did not break it. |
-| 2 | **#33** Offload the n-gram PLE table to SSD | Now has a disk baseline to reason against, and it is not the free win the issue assumed -- see below. **Needs a ~88 GiB download: do not start one while a batch is running.** |
-| 3 | **#34** SSD offload as a strategy | **Step 1 done.** Steps 2-4 need the AtomicChat GGUF from #33, so they follow it. |
-| 4 | **#28** llama.cpp vs Ollama on identical weights | **Promoted in substance.** No model here has ever run on more than two engines, so every llama.cpp-vs-Ollama claim in this repo is inferred across *different models*. That is a bigger hole than one more backend. |
-| 5 | **#35** Model evaluation queue | Standing index, updated 2026-08-28. Closing the 20-trial gap on GLM buys more than a sixth lineage does. |
-| 6 | **#27** Retire the ds4 fork | **Blocked, re-checked 2026-08-28:** antirez/ds4#885 and #886 both still open. |
+| 1 | **#33** Offload the n-gram PLE table to SSD | Cheapest remaining measurement, and the disk baseline says it is **not** the free win the issue assumed. Needs a ~88 GiB download -- machine is quiet now. |
+| 2 | **#34** SSD offload as a strategy | Step 1 done. Steps 2-4 need the GGUF from #33. |
+| 3 | **#28** llama.cpp vs Ollama on identical weights | **No model here has ever run on more than two engines**, so every llama.cpp-vs-Ollama claim in this repo is inferred across *different models*. The largest structural hole left. |
+| 4 | **#4** Harder tasks | **Measured 2026-08-28: 18/18.** Still open, premise changed -- difficulty along these axes buys time, not discrimination. Needs *common* defects, not a 2-error signal in one task. Not the next thing to spend hours on. |
+| 5 | **#35** Model evaluation queue | Standing index. Closing the 20-trial gap on GLM beats adding a sixth lineage. |
+| 6 | **#27** Retire the ds4 fork | Blocked, re-checked 2026-08-28: antirez/ds4#885 and #886 both open. |
 
 ## Done since the last update
 
+- **#4 measured: 18/18 pass.** Three new tasks x ds4 x {Claude Code, Codex} x 3.
+  **The ceiling is not an artifact of easy tasks.** Per-task median rose
+  194.6 -> 270.6 s (**+39%**) with **no** additional failures. Suites 813.4 s vs
+  701.1 s, a 16% gap that is inside #23's +/-12.9% band -- **no difference
+  measured**. `restored_verbatim` **0/18**, 18 distinct solutions: nothing is
+  recalled, and with `unquote_mbox`'s docstring removed the model re-derived the
+  mboxrd reasoning from scratch. One real defect, in 5 of 6 trials on the
+  multi-file task and reproducible across both clients: a callback annotated
+  `re.Match` instead of `re.Match[bytes]`, which adds 2 `mypy --strict` errors
+  while all 71 tests pass. First "passes but is worse" result recorded here.
+- **A latent harness defect, found by running unattended.** `agent_env()` never
+  set `CODEX_API_KEY`, so every Codex row ever recorded depended on the operator
+  having exported it in the launching shell. Unattended, Codex dies at config in
+  0.7 s and the row looks exactly like the model giving up. Fixed and tested.
+  The 4 rows it produced are marked excluded; **the historical record is
+  unaffected** -- all 140 Codex trials audited, all 3 failures genuine, none
+  under 10 s.
 - **#23** closed. **Three trials is a screening run, not a measurement.** Pass
   rate: an unbroken run's Wilson bound is `n/(n+z^2)`, so >90% needs **35**
   consecutive passes, >95% needs 73. One failure costs ~20 trials. Wall time,
