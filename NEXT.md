@@ -170,9 +170,11 @@ test asserting a filthy solution and a clean one get the same verdict. The
 moment a quality signal decides a pass, the harness is judging, and its whole
 claim is that it does not.
 
-**A 3-trial median is not a speed measurement.** The within-condition spread is
-1.74x median and reaches 7x, because the server samples at temperature 1.0 with
-a random seed and the model sometimes writes 7x the tokens for the same task
-(#26). Before attributing a wall-time difference to a model, an engine or a
-quant, check it against that spread -- most differences this project has
-reported are smaller.
+**A 3-trial median is not a speed measurement -- it carries +/-28%.** Measured,
+not estimated (#23): three trials pin one task's median to +/-27.9% and a
+five-task suite total to +/-12.9%. So two task medians need to differ by ~56%,
+and two suites by ~26%, before the difference is real. The cause is #26: the
+server samples at temperature 1.0 with a random seed, and the model sometimes
+writes 7x the tokens for the same task. **Below 26% at n=3, write "no difference
+measured", never "X is faster than Y."** Ranking on speed needs 10 trials, and
+20 to separate backends within 10% of each other.

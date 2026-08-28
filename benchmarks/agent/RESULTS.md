@@ -1173,3 +1173,84 @@ machine-local; this one crosses the internet to a shared service.
 **Subscription, not API.** Run through the operator's normal Claude Code login —
 the harness leaves ambient auth untouched for backends with no `base_url`, so no
 API credit is involved. The cost is subscription usage.
+
+---
+
+## How many trials does a claim need? (2026-08-28, issue #23)
+
+Computed by [`sizing.py`](sizing.py) over all 398 usable trials. Re-runnable.
+
+### Pass rate
+
+An unbroken run's Wilson lower bound is exactly `n / (n + z²)`, so the trial
+count needed is a closed form and the cost is sharply non-linear:
+
+| to be 95% confident the true rate exceeds | consecutive passes needed |
+|---|---|
+| 80% | 16 |
+| **90%** | **35** |
+| 95% | 73 |
+| 99% | 381 |
+
+**One failure costs about twenty trials.** `ds4 x claude` at 46/46 has a lower
+bound of 0.923; at 46/47 it would fall below 0.90. That asymmetry is why a
+single timeout is worth chasing down rather than averaging away.
+
+Where the measured combinations actually stand:
+
+| combination | result | lower bound | |
+|---|---|---|---|
+| `ds4 x claude` | 46/46 | **0.923** | clears 90% |
+| `ds4anthropic x codex` | 36/36 | **0.904** | clears 90% |
+| `qwen36coding x claude` | 30/30 | 0.886 | 5 more, if unbroken |
+| `ornith15 x codex` | 40/42 | 0.842 | cannot reach 90% without a long clean run |
+| `mtplx`, `gemma4`, `glm53`, `qwen38fnq3`, … | 15/15–16/16 | 0.796–0.806 | ~20 more each |
+
+The 15/15 backends are not "as good as ds4 pending more data". They are
+**unmeasured above 80%**, and closing that gap costs 20 trials each.
+
+### Wall time — the number that changes how this project reports speed
+
+Bootstrapped from the pooled, per-cell-normalised distribution of 198 wall times
+from every cell with at least 6 trials:
+
+| trials | one task's median | 5-task suite total |
+|---|---|---|
+| **3** | **± 27.9%** | **± 12.9%** |
+| 5 | ± 21.6% | ± 9.2% |
+| 10 | ± 13.5% | ± 5.4% |
+| 20 | ± 7.3% | ± 3.4% |
+| 35 | ± 4.9% | ± 2.2% |
+
+**A 3-trial task median carries ±28%.** Two such medians cannot be distinguished
+unless they differ by more than about 56%. This project has published per-task
+comparisons far narrower than that.
+
+Suite totals are much better behaved, because a total sums five independent
+medians and the errors partly cancel: **±12.9% at n=3**, so two suites separate
+only above roughly a 26% gap.
+
+Applying that to what is already published:
+
+| claim | gap | verdict at n=3 |
+|---|---|---|
+| Claude Code vs Codex on ds4 (982 s vs 975 s) | 0.7% | **far below resolution** — correctly called indistinguishable |
+| Q3 vs Q2 on Qwen3.8-Flash-Next (#31) | 28.4% | **marginal** — clears ~26% by a hair, and it held on all five tasks individually, which is the stronger evidence |
+| `ornith15` vs `ds4` suite (597 s vs 975 s) | 39% | clears |
+| Codex vs Claude Code on llama.cpp (4.2x) | 320% | clears easily |
+
+The Q3-vs-Q2 result survives, but not because the 28.4% headline is comfortable
+— it is barely outside the noise. What carries it is that Q3 won **all five
+tasks separately**; five independent coin-flips landing the same way is worth
+more than the aggregate.
+
+### The rule this produces
+
+**Three trials is a screening run, not a measurement.** It answers "does this
+backend work at all" and "is this difference enormous". For anything else:
+
+- **Ranking two backends on speed:** 10 trials minimum (±5.4% on a suite), 20 to
+  separate backends within 10% of each other.
+- **Claiming >90% reliability:** 35 consecutive passes. There is no shortcut.
+- **A difference under 26% at n=3 is not a finding.** Say "no difference
+  measured", never "X is faster than Y".

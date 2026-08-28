@@ -130,6 +130,26 @@ looks boring; that is when a stall hides longest.
 This rule exists because the cadence has been dropped mid-run before, and the
 operator had to ask where the updates went.
 
+## Know what a trial count can support
+
+Measured over 398 trials by `benchmarks/agent/sizing.py`, not estimated:
+
+| trials | one task's median | 5-task suite | pass rate claim |
+|---|---|---|---|
+| 3 | ± 27.9% | ± 12.9% | >0% only |
+| 10 | ± 13.5% | ± 5.4% | — |
+| 35 | ± 4.9% | ± 2.2% | **>90%, if unbroken** |
+
+**Three trials is a screening run.** It answers "does this work at all" and "is
+this difference enormous". Two suite totals separate only above a ~26% gap, and
+two task medians above ~56%. Below that the honest phrasing is "no difference
+measured", never "X is faster than Y".
+
+**A pass-rate claim above 90% needs 35 consecutive passes and there is no
+shortcut.** One failure costs about twenty trials: 46/46 clears 90%, 46/47 does
+not. A 15/15 backend is not "as good as ds4 pending data" -- it is unmeasured
+above 80%.
+
 ## One trial is not a result
 
 These models are sampled, not deterministic, and the wall-time distribution has
