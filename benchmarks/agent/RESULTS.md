@@ -1,8 +1,18 @@
-# Agent benchmark — eight local backends driving Claude Code
+# Agent benchmark — local backends driving a coding agent
 
-Run 2026-08-15 to 2026-08-17. MacBook Pro M5 Max, 128 GiB, macOS 26.5.
-5 tasks × 3 trials per backend, **243 trials**.
-Methodology in [`METHODOLOGY.md`](METHODOLOGY.md). Raw rows in `results.jsonl`.
+MacBook Pro M5 Max, 128 GiB, macOS 26.5. Methodology in
+[`METHODOLOGY.md`](METHODOLOGY.md). Raw rows in `results.jsonl`.
+
+This file is written in layers: the first sections report the original run of
+**8 backends × Claude Code, 243 trials, 2026-08-15 to 08-17**, and later dated
+sections append clients and backends to it. The running total is now **398
+trials, 13 backends, 3 clients**, plus a hosted reference.
+
+**Read "Corrections to earlier revisions" before quoting any figure from the
+older sections.** Two reader bugs found on 2026-08-28 mean some numbers below
+are known-wrong and are marked there rather than silently edited. For current
+verdicts see [`../../RECOMMENDATIONS.md`](../../RECOMMENDATIONS.md); regenerate
+any table with `uv run benchmarks/agent/summarize.py`.
 
 ---
 
@@ -173,6 +183,29 @@ Both are kept rather than quietly edited away.
    while token counts spanned 2.9×. Adding Gemma (13.2 t/s) and measuring Ornith
    (92.5 t/s) widened the rate range to 7× and falsified it. See "What actually
    predicts wall time".
+
+   It was also too *weak* in one direction, established 2026-08-27:
+   `Qwen3.8-Flash-Next` at `UD-Q3_K_XL` decodes **slower per token** than the
+   2-bit quant and finishes the suite **28.4% faster**, on all five tasks. A
+   tokens/sec reading does not merely under-predict here; it inverts the
+   ranking.
+
+3. **Every OpenCode number below this line was computed over confounded rows**
+   (added 2026-08-28). `summarize.py` filtered exclusions with a hand-rolled
+   `r.get("excluded")` and did not know the legacy `confound` and
+   `contaminated` keys, so it counted **fourteen** rows already marked
+   untrustworthy — thirteen of them `ds4 × opencode`. Recomputed through
+   `results.py`, OpenCode on ds4 is **13/29 (44.8%, CI 28–62%)**, not the 6/15
+   quoted in the sections that follow. The direction of the finding survives;
+   the figures in "Claude Code vs OpenCode, controlled" do not. Fixed in
+   e85ca07; see #29.
+
+4. **A timeout was not being counted as a failure** (added 2026-08-28). A
+   timed-out trial writes `error` and no `passed` key, and every reader that
+   tested `"passed" in row` dropped it from the denominator rather than counting
+   it. `qwen38fnq2 × claude` is **13/16 (81.2%)**, not 13/13. `results.py` now
+   exposes `verdict()` and `trials()`; nothing should test `row["passed"]`
+   directly again.
 
 ---
 
