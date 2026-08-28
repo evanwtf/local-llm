@@ -1,6 +1,6 @@
 # Where to pick up
 
-Updated 2026-08-28, after #24 and #26. Work the issues in the
+Updated 2026-08-28, after #24, #26 and the build half of #4. Work the issues in the
 order below. Each issue is self-contained; this file only sets priority and
 records machine state that is not in git.
 
@@ -8,7 +8,7 @@ records machine state that is not in git.
 
 | # | issue | why this position |
 |---|---|---|
-| 1 | **#4** Harder tasks | **The structural bottleneck, and #26 just removed the alternative.** Correctness no longer discriminates -- four Codex backends sit at 15/15 or better -- and speed now *cannot*: the within-condition spread is 1.74x median with 7x tails, wider than most differences this project reports, and it is sampling variance that no amount of warm-up or tuning removes. Harder tasks are the only remaining source of new information. |
+| 1 | **#4** Harder tasks -- **RUN THEM** | **The structural bottleneck, and #26 just removed the alternative.** **The build is done and pushed; the measurement is not.** Three new tasks and the machinery to grade solutions are on `tasks/4-harder-tasks`, validated with dry runs and a scripted agent at no model cost. What remains is model time, which nothing else can substitute for. Correctness no longer discriminates -- four Codex backends sit at 15/15 or better -- and speed *cannot*: the within-condition spread is 1.74x median with 7x tails, and it is sampling variance that no warm-up or tuning removes. |
 | 2 | **#33** Offload the n-gram PLE table to SSD | Concrete and lossless: ~29 GiB saving, which makes `UD-Q4_K_XL` comfortably resident. AtomicChat's `-M64` GGUFs need no MLX and no patches. |
 | 3 | **#34** Evaluate SSD offload as a strategy | Do **step 1 first** regardless of #33: nothing here records the machine's NVMe read bandwidth or random-read latency, and every "SSD offload is fine" claim rests on it. |
 | 4 | **#23** Sizing batches for confidence | **Promoted in substance by #26.** Two combinations now clear 90% (`ds4 x claude` 46/46, `ds4anthropic x codex` 36/36), so the original premise is spent -- but #26 showed a 3-trial median is not a measurement of *speed* either. The open question is how many trials a backend gets, for pass rate and wall time both. |
@@ -17,6 +17,27 @@ records machine state that is not in git.
 | 7 | **#27** Retire the ds4 fork | Blocked on upstream merging antirez/ds4#885 and #886. Housekeeping. |
 
 ## Done since the last update
+
+- **#4** build half done, on branch `tasks/4-harder-tasks`. **Not yet run.**
+  - `run.py` deleted every worktree in a `finally`, so **398 trials of produced
+    code were thrown away**. No claim about which model writes *better* code has
+    ever had evidence behind it. Solutions are now saved and hashed.
+  - ruff and mypy run as **deltas against the excised tree** -- the pristine repo
+    scores `ruff 0, mypy 18` and the stub itself adds a ruff violation, so
+    absolutes would bill the repo's debt to the model. They are the target
+    repo's own config, not a rubric written here, and they **never touch
+    `results.verdict()`**.
+  - `restored_verbatim` finally checks the authorship contamination
+    METHODOLOGY has warned about since day one.
+  - Three tasks, each moving one variable: a **matched no-docstring pair** on
+    `unquote_mbox` (whose docstring gives away the mboxrd reasoning outright),
+    a **two-file** task, and a **two-symbol convention** task. Controls verified
+    failing at 34, 37 and 14 tests.
+- **The empty-virtualenv confound is withdrawn -- it was never real.** The
+  control has run `uv run pytest` in the worktree before the agent since the
+  harness's first commit, which materialises a working `.venv`, and all 482 rows
+  carry a control result. The new tasks therefore **do not start a new series**,
+  and environment discovery is gone as a rival explanation for the #26 spread.
 
 - **#26** answered, and the hypothesis in the issue was wrong. It is **not** the
   KV disk cache and **not** warm-up: the first trial of a batch runs at 0.98x
@@ -138,6 +159,12 @@ it.** The waiter's own command line matches, so the loop never exits.
 
 **Do not run anything else during a timing batch.** A 96 GB download overlapped
 one and produced an hour of chasing a regression that did not exist.
+
+**Nothing may feed into `results.verdict()` except the oracle.** Gates, hashes
+and the verbatim check ride alongside a verdict and never into it; there is a
+test asserting a filthy solution and a clean one get the same verdict. The
+moment a quality signal decides a pass, the harness is judging, and its whole
+claim is that it does not.
 
 **A 3-trial median is not a speed measurement.** The within-condition spread is
 1.74x median and reaches 7x, because the server samples at temperature 1.0 with
