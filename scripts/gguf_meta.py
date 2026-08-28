@@ -24,12 +24,19 @@ SCALAR = {0: "<B", 1: "<b", 2: "<H", 3: "<h", 4: "<I", 5: "<i",
           6: "<f", 7: "<?", 10: "<Q", 11: "<q", 12: "<d"}
 
 
-def read(path: pathlib.Path) -> dict[str, object]:
-    """Parse the header. Arrays are summarised, not expanded."""
+def read(path: pathlib.Path, with_tensors: bool = False
+         ) -> dict[str, object] | tuple[dict[str, object], list[tuple[str, list[int], int]]]:
+    """Parse the header. Arrays are summarised, not expanded.
+
+    `with_tensors` also returns the tensor table as (name, dims, type). Tensor
+    names are what `--override-tensor` matches on, so placing a specific
+    structure -- the n-gram PLE table, say -- on a chosen backend needs them
+    (#33).
+    """
     with path.open("rb") as fh:
         if fh.read(4) != b"GGUF":
             raise ValueError(f"{path} is not a GGUF file")
-        _version, _n_tensors, n_kv = struct.unpack("<IQQ", fh.read(20))
+        _version, n_tensors, n_kv = struct.unpack("<IQQ", fh.read(20))
 
         def string() -> str:
             n = struct.unpack("<Q", fh.read(8))[0]
@@ -61,15 +68,37 @@ def read(path: pathlib.Path) -> dict[str, object]:
                                          fh.read(struct.calcsize(SCALAR[kind])))[0]
             else:
                 raise ValueError(f"unsupported value type {kind} for {key!r}")
-    return out
+
+        if not with_tensors:
+            return out
+
+        tensors = []
+        for _ in range(n_tensors):
+            name = string()
+            n_dims = struct.unpack("<I", fh.read(4))[0]
+            dims = list(struct.unpack(f"<{n_dims}Q", fh.read(8 * n_dims)))
+            ttype = struct.unpack("<I", fh.read(4))[0]
+            struct.unpack("<Q", fh.read(8))          # offset, unused here
+            tensors.append((name, dims, ttype))
+    return out, tensors
 
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("path")
     p.add_argument("--filter", help="only keys containing this substring")
+    p.add_argument("--tensors", action="store_true",
+                   help="list tensor names, dims and types instead of metadata")
     args = p.parse_args(argv)
     logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
+    if args.tensors:
+        _meta, tensors = read(pathlib.Path(args.path), with_tensors=True)
+        for name, dims, ttype in tensors:
+            if args.filter and args.filter.lower() not in name.lower():
+                continue
+            logger.info("%-56s dims=%-22s type=%d", name, dims, ttype)
+        return 0
+
     meta = read(pathlib.Path(args.path))
     for key in sorted(meta):
         if args.filter and args.filter.lower() not in key.lower():

@@ -30,11 +30,15 @@ numbers a week later.
 """
 from __future__ import annotations
 
+import argparse
 import dataclasses
 import logging
+import pathlib
 import subprocess
 import sys
 from urllib.parse import urlparse
+
+import staleness
 
 logger = logging.getLogger(__name__)
 
@@ -216,13 +220,81 @@ def log_report(report: Report) -> None:
         logger.warning("preflight: %s", warning)
 
 
+# Source builds this project measures through. Checked offline against
+# whatever refs the local clone has already fetched.
+BUILDS = {
+    "llama.cpp": pathlib.Path.home() / "git/llama.cpp",
+    "llama.cpp-glm52pr": pathlib.Path.home() / "git/llama.cpp-glm52pr",
+    "llama.cpp-glm53": pathlib.Path.home() / "git/llama.cpp-glm53",
+    "ds4": pathlib.Path.home() / "git/ds4",
+}
+
+# A fetch older than this makes "0 commits behind" meaningless.
+STALE_FETCH_DAYS = 2.0
+
+
+def log_versions(offline: bool = False) -> None:
+    """Report drift in the tools and builds a batch is about to measure through.
+
+    Advisory, like the rest of preflight. These move several times a day, and a
+    batch started today can be measuring a stack upstream replaced last week --
+    which is fine, because every row records its own versions, but it should be
+    a decision rather than a surprise.
+    """
+    have = staleness.installed_versions()
+    latest = staleness.latest_versions(offline=offline)
+    for name in sorted(have):
+        state = staleness.compare(have[name], latest.get(name))
+        line = (f"{name}: installed {have[name] or 'not found'}, "
+                f"latest {latest.get(name) or 'unknown'}")
+        if state == "behind":
+            logger.warning("preflight: %s  <- BEHIND", line)
+        elif state == "unknown":
+            logger.info("preflight: %s (could not compare)", line)
+        else:
+            logger.info("preflight: %s (%s)", line, state)
+
+    for name, path in BUILDS.items():
+        got = staleness.git_drift(path)
+        if not got:
+            continue
+        age = got["fetched_days_ago"]
+        stale_fetch = age is not None and age > STALE_FETCH_DAYS
+        note = ""
+        if got["dirty"]:
+            note += " [UNCOMMITTED CHANGES]"
+        if stale_fetch:
+            note += f" [last fetch {age:.0f} days ago -- run git fetch]"
+        behind = got["behind"]
+        if behind is None:
+            logger.info("preflight: %s at %s, no remote to compare%s",
+                        name, got["head"], note)
+        elif behind > 0:
+            logger.warning("preflight: %s at %s is %d commit(s) behind its "
+                           "remote%s", name, got["head"], behind, note)
+        else:
+            logger.info("preflight: %s at %s is current%s",
+                        name, got["head"], note)
+
+
 def main() -> int:
     logging.basicConfig(level=logging.INFO, stream=sys.stdout,
                         format="%(asctime)s %(levelname)s %(message)s")
+    p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    p.add_argument("--offline", action="store_true",
+                   help="skip the network; use cached upstream versions")
+    p.add_argument("--no-versions", action="store_true",
+                   help="report running servers only")
+    args = p.parse_args()
+
     report = inspect()
     log_report(report)
-    if not report.stale and not report.unmatched:
-        logger.info("preflight: nothing else is serving a model")
+    if not args.no_versions:
+        log_versions(offline=args.offline)
+    if not report.total_gib:
+        logger.info("preflight: nothing is serving a model")
+    elif not report.stale and not report.unmatched:
+        logger.info("preflight: no unexpected server is holding memory")
     if report.total_gib:
         logger.info("preflight: run this from run.py, or pass the backends you "
                     "plan to use, to be told which of these is unexpected")

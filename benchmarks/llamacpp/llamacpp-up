@@ -65,6 +65,14 @@ CTX=${CTX:-131072}
 # a second quant is silently validated against the first one's window.
 BACKEND=${BACKEND:-qwen38fnq2}
 
+# Unquoted on purpose below: this is a place to pass server flags that are
+# specific to one experiment rather than to the stack. #33 uses it to pin the
+# n-gram PLE table to CPU with
+#   EXTRA_FLAGS='--override-tensor per_layer_token_embd\.weight=CPU'
+# so it is not wired into a Metal buffer by -ngl 999, which is what makes the
+# -M64 split pointless by default.
+EXTRA_FLAGS=${EXTRA_FLAGS:-}
+
 # One slot, not llama.cpp's default four. The benchmark runs one agent at a
 # time, and each slot holds its own full-size KV cache -- four of them cost
 # 4x the KV for concurrency nothing here uses. Spending that on -c instead is
@@ -216,6 +224,7 @@ do_start() {
     nohup "$SERVER" \
         --model "$MODEL" \
         --alias "$ALIAS" \
+        $EXTRA_FLAGS \
         --host 127.0.0.1 --port "$PORT" \
         -c "$CTX" \
         -ngl 999 \
