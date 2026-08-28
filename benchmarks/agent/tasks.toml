@@ -234,6 +234,30 @@ codex_profile = "qwen38fnq2"
 # checks.
 context_tokens = 131072
 
+# The 3-bit sibling of qwen38fnq2, and a correction rather than an addition.
+#
+# qwen38fnq2 was benchmarked at UD-Q2_K_XL (73.5 GiB) because that was the quant
+# in the announcement, and the ladder was never re-checked. UD-Q3_K_XL is
+# 83.8 GiB and fits the Metal ceiling with ~24 GiB to spare -- it needed no
+# sysctl change and no cleverness. RESULTS.md carries a caveat that "the 2-bit
+# quant is a real quality risk that this suite is too easy to expose"; that risk
+# was avoidable the whole time. See issue #31.
+#
+# Kept as a SEPARATE backend, not an edit to qwen38fnq2: the quant is part of the
+# condition, so the two must stay distinguishable in results.jsonl. The 31
+# existing 2-bit rows are evidence.
+#
+# Everything else is held constant -- same engine build, same -c 131072 -np 1,
+# same Qwen sampler defaults -- so quantization is the only variable that moves.
+# Measured 88.2 GiB resident from an 83.8 GiB file.
+[backend.qwen38fnq3]
+description = "Qwen3.8-Flash-Next 125B-A6B, Unsloth UD-Q3_K_XL, llama.cpp PR #27742"
+base_url = "http://127.0.0.1:11500"
+auth_token = "llamacpp-local"
+model = "qwen3.8-flash-next-q3"
+codex_profile = "qwen38fnq3"
+context_tokens = 131072
+
 # Ornith 1.5, the successor to `ornith`. Same quant (Q4_K_M), same engine, same
 # size class -- 22 GB against 21 GB -- so the model generation is the only
 # variable that moves. That is the cleanest control in this file.
