@@ -130,6 +130,36 @@ looks boring; that is when a stall hides longest.
 This rule exists because the cadence has been dropped mid-run before, and the
 operator had to ask where the updates went.
 
+## Always measure the latest infrastructure
+
+llama.cpp, Ollama, Codex and OpenCode ship several times a day. **Update before
+a batch, not after it**, and take the newest release of every component this
+project measures through.
+
+```sh
+uv run python benchmarks/agent/preflight.py    # reports drift; run.py runs it too
+codex update                                   # self-updating
+opencode upgrade
+# Ollama is /Applications/Ollama.app -- update it from the app, not the shell
+cd ~/git/llama.cpp && git fetch && git log --oneline HEAD..origin/master
+```
+
+The reason is not tidiness. This project exists to say what a local coding stack
+can do *now*, and a result measured on a build that upstream replaced last week
+answers a question nobody asked. A merged PR is the common case: PR #27742 was a
+pinned worktree for two days and then landed in mainline, and NEXT.md still said
+"do not `git pull` this away" afterwards.
+
+**A version change starts a new series.** Every row already records the versions
+it was produced under, so old results stay readable — but do not pool across an
+upgrade, and say in RESULTS.md which side of it a number came from. That is a
+cost worth paying: an out-of-date measurement is wrong in a way no amount of
+extra trials fixes, while a series boundary is merely an inconvenience.
+
+**Tag a build before leaving it.** `git tag benchmark-<pr>-<date>` on a
+worktree you are moving off, so the rows that depend on it stay reproducible.
+A squash-merged PR does not leave its commits in mainline history.
+
 ## Know what a trial count can support
 
 Measured over 398 trials by `benchmarks/agent/sizing.py`, not estimated:

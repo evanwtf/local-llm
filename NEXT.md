@@ -123,11 +123,24 @@ cd ~/git/ds4 && ./ds4-server -m gguf/DeepSeek-V4-Flash-Layers37-42Q4KExperts-Oth
     --warm-weights --ctx 100000 --kv-disk-dir ~/.ds4/server-kv --kv-disk-space-mb 8192
 ```
 
+**Versions, 2026-08-28.** Everything is on the newest release; see the policy in
+AGENTS.md. `preflight.py` reports drift before every batch.
+
+| tool | version | note |
+|---|---|---|
+| Claude Code | 2.1.251 | current |
+| Codex | **0.150.1** | was 0.148.0 -- **every earlier Codex row is 0.148.x** |
+| OpenCode | **1.18.25** | was 1.18.18 |
+| Ollama | 0.33.1 | **0.33.2 available; it is `/Applications/Ollama.app`, update from the app** |
+| llama.cpp | **mainline `d7bd3bfca`** | PR #27742 **merged upstream 2026-08-27** |
+
+**These upgrades start a new series. Do not pool Codex rows across 0.148/0.150.**
+
 **Three llama.cpp worktrees, do not confuse them:**
 
 | path | commit | purpose |
 |---|---|---|
-| `~/git/llama.cpp` | `035e22731` (PR #27742) | qwen4exp. **Every `qwen38fnq2`/`q3` row depends on it. Do not `git pull` this away.** |
+| `~/git/llama.cpp` | **`d7bd3bfca` (mainline master)** | qwen4exp, now merged upstream. The old pinned build is tagged **`benchmark-pr27742-2026-08-26`** -- the PR was squash-merged, so its commits are NOT in mainline history and the tag is the only way back to the exact build every earlier `qwen38fnq2`/`q3` row used. |
 | `~/git/llama.cpp-glm52pr` | `8a8d0bcc4` (PR #27752) | serves `glm53`. Clean, unpatched. |
 | `~/git/llama.cpp-glm53` | `9370c82db` (PR #27773) | the failed attempt, **166 lines of uncommitted patches**. Two are independently upstream-worthy (#25). Do not build GLM here. |
 
