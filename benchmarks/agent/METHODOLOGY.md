@@ -346,26 +346,41 @@ It applies equally across them, so it does not distort the comparison between
 local backends — but it is a reason the whole suite flatters models trained on
 similar code.
 
-### The empty-virtualenv confound
+### The empty-virtualenv confound — withdrawn 2026-08-28
 
-**Known flaw in the first series.** A fresh git worktree has no `.venv`. The
-agent must therefore work out how to run the tests — `uv run pytest`,
-`uv sync` first, or discovering that `.venv/bin/python` does not exist here —
-before it can even see whether its implementation is correct.
+**This section described a flaw that does not exist and never did.** It is kept,
+corrected rather than deleted, because it was cited in issue #4 as work that had
+to land before the task set could change, and because a retracted claim is worth
+more visible than absent.
 
-This was visible in the first ds4 trial, which ran
-`.venv/bin/python -m pytest` in a worktree that had no such path.
+**What it said.** A fresh checkout has no `.venv`, so the agent must work out how
+to run the tests — `uv run pytest`, `uv sync` first, or discovering that
+`.venv/bin/python` is not there — before it can see whether its implementation is
+correct. The prescribed fix was to run `uv sync` before handover, and, because
+that would change every wall-time number, to start a new series and never pool
+across the change.
 
-The effect is real but **symmetric**: both backends face the identical empty
-worktree, so the comparison between them stays valid. What it damages is the
-*absolute* wall-time numbers, which include an environment-discovery tax that
-has nothing to do with the coding task, and the variance, since how quickly a
-model finds `uv run` is close to a coin flip.
+**Why it is wrong.** The control check runs `uv run pytest` in the worktree
+*before* the agent is invoked, and `uv run` materialises `.venv` with the project
+and pytest installed. That takes about 1.2 s and it has been the control's exact
+form since the harness's first commit. All 482 recorded rows carry a control
+result, so no trial has ever been handed an empty environment.
 
-The fix for the next series is to run `uv sync` in the worktree before handing
-it to the agent, so every trial starts from a working environment. That changes
-the numbers, so it starts a new series rather than extending this one — do not
-pool results across the change.
+The evidence originally cited — the first ds4 trial running
+`.venv/bin/python -m pytest` — was read backwards. That command works in the tree
+as handed over; it was verified directly. The agent guessed a path and the path
+was there.
+
+**What follows.** There is nothing to fix, so the harder tasks in #4 do **not**
+start a new series and results may be pooled across them. Environment discovery
+is not part of the wall-time numbers, which removes it as an explanation for the
+1.74x within-condition spread in #26 — that spread is sampling variance, and this
+was never a competing cause.
+
+`test_trial_integration.py` now guards the property directly: a scripted agent
+runs the tests through `.venv/bin/python` and the trial must pass. If the control
+is ever moved after the agent, or stops using `uv run`, the confound becomes real
+and that test goes red first.
 
 ---
 
@@ -382,6 +397,73 @@ pool results across the change.
    3 to 49, which gives a difficulty gradient.
 
 Do not name the tests in the prompt. Finding them is part of the task.
+
+A task may remove **more than one symbol**, and may remove the **docstring** as
+well as the body:
+
+```toml
+[[task]]
+name = "mbox-quoting-both-halves"
+tests = ["tests/test_mbox.py", "tests/test_parser.py"]
+targets = [
+    { file = "src/gmail_archive/mbox.py",   symbol = "strip_envelope" },
+    { file = "src/gmail_archive/parser.py", symbol = "unquote_mbox" },
+]
+
+[[task]]
+name = "parser-mbox-quoting-nodoc"
+file = "src/gmail_archive/parser.py"
+symbol = "unquote_mbox"
+keep_docstring = false          # the contract goes too
+```
+
+The inline `file`/`symbol` form still works and must keep working: recorded rows
+name tasks defined that way, and a task name has to keep meaning what it meant.
+
+**Check for a leading comment** before adding a target. A comment is not an AST
+node, so the first statement's line number points past it and the comment stays
+in the hollowed-out file. A comment that describes the algorithm hands over the
+answer. None of the current targets has one; `test_excise.py` pins the
+behaviour.
+
+### Measurements taken alongside the verdict
+
+The oracle is binary and stays the authority — `results.verdict()` is the only
+thing that decides a pass, and nothing below feeds into it. When seven of eight
+backends score 100%, the next question is whether the passing solutions are
+equally good, and these are what make that askable (issue #4).
+
+| key | what it says |
+|---|---|
+| `solution_patch`, `solution_sha256` | the agent's diff, kept and hashed |
+| `gates_before`, `gates_after`, `gates_delta` | ruff and mypy counts, and the change |
+| `restored_verbatim` | the body came back unchanged, modulo whitespace |
+| `removed_symbols`, `keep_docstring` | what the task actually withheld |
+
+Three properties are deliberate.
+
+**The gates are the target repository's own.** ruff and mypy as gmail-archive
+configures them, not a rubric written here. The harness's claim is that it does
+not judge, and inventing a quality standard would end that.
+
+**They are deltas, not absolutes.** gmail-archive carries 18 mypy errors at the
+pinned commit, and the `NotImplementedError` stub adds a ruff violation of its
+own. The baseline is measured on the excised tree, so the number describes the
+agent rather than the repository.
+
+**Absent is recorded as absent.** A gate that is missing, times out or crashes
+leaves its key out entirely; it is never present as `0`. A zero reads as "clean"
+and becomes a published claim.
+
+`restored_verbatim` exists because of authorship contamination. gmail-archive
+was written with Claude, so a model reproducing a function its own family wrote
+is recalling, not solving — the reason the hosted reference cannot calibrate
+difficulty. `excise` hands back the exact body it removed, so this is checkable,
+and until now it was never checked.
+
+Before 2026-08-28 the worktree was deleted with the solution still in it. 398
+trials produced code and none of it was kept, which is why no claim about *code
+quality* has ever had evidence behind it.
 
 ### Adding a backend
 

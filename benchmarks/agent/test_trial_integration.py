@@ -138,3 +138,41 @@ def test_an_agent_that_does_nothing_fails_and_says_so(monkeypatch, tmp_path):
     assert results.verdict(row) is False
     assert row["solution_empty"] is True
     assert "solution_patch" not in row
+
+
+@needs_repo
+def test_the_agent_is_handed_a_working_environment(monkeypatch, tmp_path):
+    """METHODOLOGY section 9 claimed the opposite. It was wrong.
+
+    The "empty-virtualenv confound" says a fresh checkout has no `.venv`, so
+    part of every wall-time number is the agent working out how to run pytest,
+    and prescribes running `uv sync` before handover -- a change that would
+    start a new series nobody may pool across.
+
+    None of it is true, and it never was. The control check runs `uv run pytest`
+    in the worktree before the agent is invoked, which materialises `.venv` with
+    the project and pytest installed. That has been the control's exact form
+    since the harness's first commit, and all 482 recorded rows carry a control
+    result, so no trial has ever met an empty environment.
+
+    This test is the guard. The agent here does nothing but the thing the
+    METHODOLOGY said would fail -- run the tests through `.venv/bin/python`, the
+    same command the first ds4 trial was cited as evidence for. If a future
+    change moves the control after the agent, or drops `uv run`, this goes red
+    and the confound becomes real without anyone noticing.
+    """
+    def argv(task, backend):
+        files = [t["file"] for t in run.targets(task)]
+        script = (
+            "import pathlib,shutil,subprocess,sys;"
+            "py=pathlib.Path('.venv/bin/python');"
+            "sys.exit('no virtualenv was prepared') if not py.exists() else None;"
+            f"src=pathlib.Path({str(REPO)!r});"
+            f"[shutil.copy(src/f, pathlib.Path(f)) for f in {files!r}];"
+            "sys.exit(subprocess.run([str(py),'-m','pytest','-q','tests/']).returncode)"
+        )
+        return ["python3", "-c", script]
+
+    monkeypatch.setitem(run.CLIENTS, "venv-user", (argv, lambda _o: {}))
+    row = _run("mbox-strip-envelope", tmp_path, "venv-user")
+    assert results.verdict(row) is True
