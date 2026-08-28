@@ -1,6 +1,6 @@
 # Where to pick up
 
-Updated 2026-08-28 10:50, after the Qwen and GLM re-runs. Work the issues in the
+Updated 2026-08-28, after #24 and the reader fixes it turned up. Work the issues in the
 order below. Each issue is self-contained; this file only sets priority and
 records machine state that is not in git.
 
@@ -8,18 +8,25 @@ records machine state that is not in git.
 
 | # | issue | why this position |
 |---|---|---|
-| 1 | **#24** Correct the published verdicts | The docs are now the weakest artifact here. `RESULTS.md` still calls `qwen38fnq2` "the slowest backend measured, not a fallback candidate" -- client-blind *and* superseded by Q3. `RECOMMENDATIONS.md` still files GLM-5.3-Flash under "too big" and quotes a 107 GiB ceiling. Cheap, and all the data exists. |
-| 2 | **#26** Wall time swings 3x between trials | Now replicated on a **third** backend: GLM ran `storage-blob-put` at 375.7 / 641.6 / 315.7 across three rounds. Every speed ranking in this project is noise until this is understood. Cheap to test. |
-| 3 | **#4** Harder tasks | **This is now the structural bottleneck.** Four Codex backends sit at 15/15 or better; the suite can no longer discriminate on correctness, and speed is the only remaining axis -- which #26 says is unreliable. Without harder tasks, more benchmarking produces no new information. |
-| 4 | **#33** Offload the n-gram PLE table to SSD | Concrete and lossless: ~29 GiB saving, which makes `UD-Q4_K_XL` comfortably resident. AtomicChat's `-M64` GGUFs need no MLX and no patches. |
-| 5 | **#34** Evaluate SSD offload as a strategy | Do **step 1 first** regardless of #33: nothing here records the machine's NVMe read bandwidth or random-read latency, and every "SSD offload is fine" claim rests on it. |
-| 6 | **#23** Nothing clears 90% with confidence | Methodology; shapes #24's language and how future batches are sized. |
-| 7 | **#28** llama.cpp vs Ollama on identical weights | Targets #14 re-prefill, the largest single measured cost here. |
-| 8 | **#35** Model evaluation queue | Standing index. Devstral (#3) is the highest-value entry -- it would add a fifth lineage. |
-| 9 | **#27** Retire the ds4 fork | Blocked on upstream merging antirez/ds4#885 and #886. Housekeeping. |
+| 1 | **#26** Wall time swings 3x between trials | Now replicated on a **third** backend: GLM ran `storage-blob-put` at 375.7 / 641.6 / 315.7 across three rounds. Every speed ranking in this project is noise until this is understood. Cheap to test. |
+| 2 | **#4** Harder tasks | **This is now the structural bottleneck.** Four Codex backends sit at 15/15 or better; the suite can no longer discriminate on correctness, and speed is the only remaining axis -- which #26 says is unreliable. Without harder tasks, more benchmarking produces no new information. |
+| 3 | **#33** Offload the n-gram PLE table to SSD | Concrete and lossless: ~29 GiB saving, which makes `UD-Q4_K_XL` comfortably resident. AtomicChat's `-M64` GGUFs need no MLX and no patches. |
+| 4 | **#34** Evaluate SSD offload as a strategy | Do **step 1 first** regardless of #33: nothing here records the machine's NVMe read bandwidth or random-read latency, and every "SSD offload is fine" claim rests on it. |
+| 5 | **#23** Sizing batches for confidence | Retitled in spirit: **two** combinations now clear 90% (`ds4 x claude` 46/46, `ds4anthropic x codex` 36/36), so the issue's premise is spent. What remains useful is the sizing rule -- ~35 consecutive passes to clear 90% -- and deciding how many trials a new backend gets. |
+| 6 | **#28** llama.cpp vs Ollama on identical weights | Targets #14 re-prefill, the largest single measured cost here. |
+| 7 | **#35** Model evaluation queue | Standing index. Devstral (#3) is the highest-value entry -- it would add a fifth lineage. |
+| 8 | **#27** Retire the ds4 fork | Blocked on upstream merging antirez/ds4#885 and #886. Housekeeping. |
 
 ## Done since the last update
 
+- **#24** published verdicts corrected. Auditing them turned up **two live
+  reader bugs**, both of which had already reached published tables:
+  a timeout writes no `passed` key, so `if "passed" in row` dropped three
+  `qwen38fnq2 x claude` failures and printed 13/13 for a 13/16 backend; and
+  `summarize.py` still hand-rolled `r.get("excluded")`, missing the fourteen
+  rows marked `confound`/`contaminated` -- every published OpenCode number was
+  computed over them. `results.py` gained `verdict()` and `trials()`;
+  `summarize.py` now reads through it. **Do not test `row["passed"]` directly.**
 - **#30** sysctl applied and verified: Metal ceiling **107.52 -> 112.00 GiB**.
   **NOT persisted** -- see machine state below.
 - **#31** Qwen3.8-Flash-Next at `UD-Q3_K_XL`: **15/15, 28.4% faster than 2-bit**,
@@ -37,22 +44,31 @@ records machine state that is not in git.
 *What is the most useful model + engine + harness for local coding if hosted
 providers are unavailable?*
 
-Codex only -- no Claude Code pairing exceeds 94%, on any backend, ever.
+**Answer: `ds4`, with either Claude Code or Codex.** Not "Codex only" -- that
+claim stood here until 2026-08-28 and the clean data refutes it.
 
 | combination | pass | 95% CI | suite |
 |---|---|---|---|
+| `ds4 x claude` | 46/46 | **92-100%** | 858.2s |
 | `ds4anthropic x codex` | 36/36 | **90-100%** | 975.3s |
+| `ds4anthropic x claude` | 29/30 | 83-99% | 1120.6s |
 | `ornith15 x codex` | 40/42 | 84-99% | **597.0s** |
 | `qwen38fnq3 x codex` | 15/15 | 80-100% | 895.8s |
 | `glm53 x codex` | 15/15 | 80-100% | 1362.1s |
+| `qwen38fnq2 x claude` | 13/16 | 57-93% | 5235.7s |
 
-**`ds4anthropic x codex` is still the only combination whose reliability is
-statistically established.** `ornith15 x codex` is 1.6x faster and cannot be
-distinguished from it on this data. The three at 15/15 need ~35 consecutive
-passes to clear 90%; they are promising, not proven.
+Pooling the two ds4 wire protocols -- same weights, same server -- gives
+**Claude Code 75/76 (982s) and Codex 36/36 (975s)**. Two clients, seven seconds
+apart, intervals almost entirely overlapping. Nothing here separates them.
 
-Note what this table cannot tell you: **which writes better code.** All four pass
-everything. That is #4.
+**Two combinations now clear 90% at 95% confidence, and they are the same model
+under different clients.** `ornith15 x codex` is 1.6x faster and still cannot be
+distinguished from either. The three at 15/15 need ~35 consecutive passes to
+clear 90%; they are promising, not proven.
+
+Note what this table cannot tell you: **which writes better code.** Nearly
+everything passes. That is #4, and it is why this table has stopped being
+informative.
 
 ## Machine state
 
@@ -103,6 +119,11 @@ looks exactly like a broken model.
 **Coherence-check at temperature 0 before every benchmark.** A model can load,
 serve, and report plausible token counts while emitting noise -- that is #25, and
 it cost hours.
+
+**A timeout is a failure, not an absence.** It writes `error` and no `passed`
+key. Read verdicts with `results.verdict()` and denominators with
+`results.trials()`; `if "passed" in row` silently shrinks the denominator and
+turned a 13/16 backend into a published 13/13.
 
 **Do not poll `pgrep -f 'benchmarks/agent/run.py'` from a shell that waits on
 it.** The waiter's own command line matches, so the loop never exits.
