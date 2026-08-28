@@ -75,16 +75,31 @@ placement is provisional. See [MTPLX](#mtplx-the-same-weights-on-a-different-eng
    backend ranking above is therefore a statement about *backend plus Claude
    Code*, not about the backend alone.
 
+   > **Superseded 2026-08-28.** The 6/15 counted rows already marked
+   > `confound`. At full sample OpenCode on ds4 is **13/29**. The finding
+   > holds; the figure does not. Correction 3.
+
 7. **Codex matched Claude Code exactly and was 12% faster.** 15/15 for both,
    with Codex the more consistent (2.9× spread vs 4.7×) — while running
    *without* metadata for the model it was driving. Combined with OpenCode's
    6/15, this shows client quality varies enormously between third-party
    harnesses; "not Claude Code" explains nothing.
 
+   > **Superseded 2026-08-28.** The 12% came from 15 trials per cell. At 76 and
+   > 36 trials the two clients are **7 seconds apart over a five-task suite**
+   > (982 s / 75-of-76 against 975 s / 36-of-36) with overlapping intervals —
+   > indistinguishable on ds4. What survives is that *OpenCode* differs from
+   > both, not that Codex beats Claude Code.
+
 8. **No harness is best everywhere — the pairing is the unit.** Codex beat
    Claude Code by 12% on ds4 and lost to it by 63% on Qwen/Ollama, same day,
    same tasks. Claude Code was consistent on both. Pick the client for the
    backend, not in the abstract.
+
+   > **Revised 2026-08-28, and the conclusion got stronger.** The ds4 leg of
+   > this is void — the clients are indistinguishable there. But llama.cpp,
+   > measured later, is a 4.2× gap the other way, with Claude Code timing out.
+   > The spread across engines is now 41% one way and 4.2× the other.
 
 9. **Local takes ~5x the wall time of hosted.** Opus 5 through the same
    harness finished the suite in 203 s against 1,116 s for the best local
