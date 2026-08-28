@@ -8,12 +8,21 @@ records the machine state a reboot destroys.
 
 | # | issue | why this position |
 |---|---|---|
-| 1 | **#22** Finals: 3 rounds of `ds4anthropic x codex` and `ornith15 x codex` | Interrupted mid-run. Commands are in the issue, and it is the only queued work that can *settle* a reliability claim rather than add to it. |
-| 2 | **#26** ds4 wall time swings 3x between trials | Cheap to test and it gates how every other number is read. Until it is understood, wall-time rankings across the project are suspect. |
-| 3 | **#25** GLM-5.3-Flash: build llama.cpp PR #27773 | Weights already on disk (89.9 GiB). The only new *capability* queued, and the only non-Qwen candidate besides ds4 (#16). |
-| 4 | **#24** Correct two published verdicts | Do after 1 and 2 -- both change what the corrected text should say. |
-| 5 | **#23** No combination clears 90% with confidence | Methodology. Should shape the rewrite in #24 and how future batches are sized. |
-| 6 | **#27** Retire the ds4 fork | Blocked on upstream merging antirez/ds4#885 and #886. Housekeeping. |
+| 1 | **#30** Raise `iogpu.wired_limit_mb` | **Needs the operator + sudo.** Blocks #32 and unlocks a rung on #31. One command. |
+| 2 | **#31** Re-run Qwen3.8-Flash-Next at `UD-Q3_K_XL` | Does NOT need #30 -- 83.8 GiB fits the current default with 23 GiB spare. The 2-bit quant was never necessary, and this backend is already 15/15 with Codex. |
+| 3 | **#32** Retry GLM with Unsloth `UD-Q2_K_XL` + PR #27752 | Blocked on #30. A matched pair needing none of #25's seven patches, on the PR most likely to merge. Only candidate that reduces the Qwen monoculture (#16). |
+| 4 | **#26** ds4 wall time swings 3x between trials | Cheap, and it gates how every other number is read. |
+| 5 | **#24** Correct two published verdicts | Do after the re-runs -- they change what the corrected text should say. Now also needs the "107 GiB budget" language fixed (see #30). |
+| 6 | **#23** No combination clears 90% with confidence | Methodology. Should shape the rewrite in #24 and how future batches are sized. |
+| 7 | **#28** llama.cpp vs Ollama on identical weights | Targets the #14 re-prefill, the largest single measured cost here. |
+| 8 | **#27** Retire the ds4 fork | Blocked on upstream merging antirez/ds4#885 and #886. Housekeeping. |
+
+**#22 (finals) is DONE** -- both finalists ran clean, 30/30. `ds4anthropic x codex`
+reached 36/36 lifetime and is the first combination here to clear 90% with 95%
+confidence. `ornith15 x codex` is 40/42 and ~1.6x faster.
+
+**#25 (GLM via PR #27773) is a closed negative result** -- it loads and runs and
+emits gibberish. Superseded by #32.
 
 Then the older backlog: #13 (re-baseline Ollama 0.33.1), #17 (GLM background),
 #16 (monoculture), #4 (harder tasks -- increasingly the bottleneck).
@@ -31,6 +40,16 @@ this data cannot distinguish from it. #22 is designed to break that tie.
 
 One finding is already firm: **Codex beats Claude Code on every local backend
 measured.** No Claude Code pairing exceeds 94%.
+
+## Correction carried into everything above
+
+The **107.0 GiB "Metal budget"** quoted throughout `RECOMMENDATIONS.md`,
+`RESULTS.md` and `benchmarks/llamacpp/llamacpp-up` is a macOS **default**
+(`iogpu.wired_limit_mb = 0`), not a hardware wall. Several "too big for this
+machine" verdicts rest on it. See #30.
+
+It does not revive `qwen38flashnext` -- that peaked at 126.51 GiB, still above a
+raised 112 GiB ceiling.
 
 ## Settled tonight
 
