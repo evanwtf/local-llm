@@ -430,6 +430,40 @@ codex_profile = "qwen38fnq4m64"
 props_url = "http://127.0.0.1:8020"
 context_tokens = 131072
 
+# THE ENGINE CONTROL (#28). The same bytes as `ornith15`, served by llama.cpp
+# instead of Ollama.
+#
+# This is the comparison this project has never had. Every llama.cpp-vs-Ollama
+# claim in RESULTS.md is inferred across *different models* -- ds4 exists only
+# on ds4-server, GLM only on llama.cpp, Qwen3.8-Flash-Next only on llama.cpp
+# because the Ollama tag cannot load. No model here has ever run on more than
+# two engines, and the only fixed-model engine pair measured is Ollama vs MTPLX.
+#
+# It needs no download. Ollama stores `ornith-1.5:35b` as a plain Q4_K_M GGUF
+# in its blob store, and llama.cpp reads it directly:
+#
+#   ~/.ollama/models/blobs/sha256-aaeb640f98a892980ef54876024293cc8d6987a86523aa1b947ffa9274ef800a
+#   general.architecture = qwen35moe, general.name = Ornith-1.5-35B, 20.22 GiB
+#
+# So the weights, the quant and the file are byte-identical between the two
+# backends and **the engine is the only variable that moves**. That has not been
+# true of any pair in this file before.
+#
+# DO NOT let Ollama garbage-collect that blob: `ollama rm ornith-1.5:35b` would
+# delete the file this backend serves.
+#
+# Codex reaches it through the shim on :11500, like every other llama.cpp
+# backend -- see the note on qwen38fnq4m64 for why the direct path stopped
+# working at Codex 0.150.1.
+[backend.ornith15llamacpp]
+description = "Ornith-1.5-35B-A3B Q4_K_M, the identical Ollama GGUF served by llama.cpp"
+base_url = "http://127.0.0.1:11500"
+auth_token = "llamacpp-local"
+model = "ornith-1.5-35b-llamacpp"
+codex_profile = "ornith15llamacpp"
+props_url = "http://127.0.0.1:8020"
+context_tokens = 262144
+
 # --- reference ------------------------------------------------------------
 # Not a fallback candidate. This is the hosted service the local backends are
 # a hedge against, run through the identical harness so every local number has
