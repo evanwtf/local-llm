@@ -1,11 +1,59 @@
 # local-llm
 
-Running local models as coding agents, and measuring them. Engine-agnostic by
-intent: `ds4`/DeepSeek V4 Flash and Ollama/Qwen3.8 are two entries here, not the
-subject.
+**Purpose: find and document the best model + engine + harness combination for
+running a coding agent locally, judged on code quality, problem solving, and
+speed.**
+
+The answer is a *combination*, not a model. That is the central finding here and
+it is why every result is reported on three axes:
+
+| axis | what it means | example |
+|---|---|---|
+| **model** | the weights, at a specific quantization | Qwen3.8-Flash-Next `UD-Q3_K_XL` |
+| **engine** | what serves them | llama.cpp, Ollama, ds4/DwarfStar |
+| **harness** | the agent driving the loop | Claude Code, Codex, OpenCode |
+
+The harness matters as much as the model, and the ranking **inverts** across
+backends — the same weights that are slowest under one client are among the
+fastest under another. A benchmark that reports a model without naming its engine
+and harness is not describing something you can reproduce.
+
+## What this is for
+
+A working fallback for when hosted inference is unavailable or unaffordable.
+Concretely: something that can be handed a real repository, told to fix a real
+failure, and left to run an implement-test-verify loop to a green test suite.
+
+## What this is NOT for
+
+- **Interactive chat.** Chatbot quality, conversational feel, persona, and
+  response latency in a REPL are all out of scope.
+- **Benchmark leaderboards.** Vendor scores (SWE-bench and friends) are recorded
+  as context, never reproduced or defended here.
+- **Vision, RAG, embeddings, creative writing.** Multimodal weights are used when
+  a model ships them, but nothing measures those capabilities.
+- **Chasing the fastest tokens/sec.** Raw generation speed is nearly irrelevant
+  to agent wall time — prompt re-prefill and context handling dominate. See
+  issue #14.
+
+## What is actually measured today
+
+Being precise, because the three criteria are not equally covered:
+
+| criterion | status |
+|---|---|
+| **problem solving** | **measured.** A function body is excised from a real repo at a pinned commit; the agent must restore it. The repo's own pytest suite is the sole oracle. Pass or fail, no partial credit, no judge. |
+| **speed** | **measured.** Wall seconds for the whole agent loop, which is the number a human waits on — not tokens/sec. |
+| **code quality** | **not yet measured.** The tasks are easy enough that nearly every backend passes, so the suite cannot currently distinguish good code from code that merely passes. This is the project's biggest known gap — issue #4. |
+
+Reliability turned out to matter more than any of the three: most
+backend×harness pairs fail a meaningful share of these easy tasks, and a
+combination that fails one task in five is not usable however fast it is.
+Pass rates are reported with confidence intervals for that reason — a perfect
+21/21 only establishes ">85%".
 
 Everything is measured on one machine — MacBook Pro M5 Max, 128 GiB,
-macOS 26.5 — so numbers across engines share a hardware baseline.
+macOS 26.6.2 — so numbers across engines share a hardware baseline.
 
 | | |
 |---|---|
@@ -36,11 +84,19 @@ an open loose end.
 
 **The ceiling on this machine is a resident-weight ceiling, not a speed one.**
 Qwen3.8-Flash-Next is 125B total but only 6B active, and the quant decides
-whether it runs at all: Ollama's 112 GB nvfp4 tag peaks at 126.51 GiB against a
-107.0 GiB Metal budget and dies on the first agent-sized prompt, while Unsloth's
-78.9 GB 2-bit GGUF serves the same model in 77.9 GiB. Read "A6B" as a throughput
-claim, never a memory one. `GLM-5.3-Flash` never got as far as a download, its
-smallest local quant being 177.5 GB. See
+whether it runs at all: Ollama's 112 GB nvfp4 tag peaks at 126.51 GiB and dies on
+the first agent-sized prompt, while Unsloth's 2-bit GGUF serves the same model in
+77.9 GiB. Read "A6B" as a throughput claim, never a memory one.
+
+That ceiling is **tunable, and this project got it wrong for a long time**. The
+"107.0 GiB Metal budget" quoted in older notes is `recommendedMaxWorkingSetSize`
+on a stock machine — a macOS default, not hardware. `iogpu.wired_limit_mb` now
+raises it to **112.00 GiB** (issue #30). Several "too big for this machine"
+verdicts rested on the old number and are being revisited.
+
+`GLM-5.3-Flash` is one of them: it *fits* (antirez's Q2 is 89.9 GiB, Unsloth's
+`UD-Q2_K_XL` is 101.3 GiB), but no working engine/weights pair exists for it yet
+— see issues #25 and #32. See
 [`benchmarks/llamacpp/RESULTS.md`](benchmarks/llamacpp/RESULTS.md).
 
 ---

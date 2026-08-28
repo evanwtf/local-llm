@@ -3,6 +3,38 @@
 Instructions for coding agents. [`CONVENTIONS.md`](CONVENTIONS.md) holds the
 standing rules about data and safety; this file covers how to work.
 
+## What this project is answering
+
+**Which model + engine + harness combination is best for running a coding agent
+locally, judged on code quality, problem solving, and speed?**
+
+Three axes, always reported together. A result that names a model without its
+engine and harness is not reproducible and does not belong here — the ranking
+*inverts* across backends, and the same weights can be the slowest option under
+one client and among the fastest under another.
+
+The use case is a fallback for when hosted inference is unavailable: hand it a
+real repository, point it at a real failure, let it run an implement-test-verify
+loop to a green suite.
+
+**Out of scope, and say so when a task drifts toward them:** interactive chat and
+chatbot feel; vendor leaderboard scores; vision, RAG, embeddings, creative
+writing; and raw tokens/sec, which is nearly irrelevant to agent wall time
+because re-prefill and context handling dominate it.
+
+### Do not overstate what is measured
+
+Of the three criteria, **problem solving** and **speed** are measured. **Code
+quality is not** — the tasks are easy enough that nearly every backend passes, so
+the suite cannot distinguish good code from code that merely passes (issue #4).
+Write "passes the suite", never "writes better code", until that changes.
+
+**Reliability outranks all three in practice.** Most backend×harness pairs fail a
+meaningful share of these easy tasks, and a pair that fails one in five is
+unusable however fast it is. Quote pass rates with their confidence interval: a
+perfect 21/21 only establishes ">85%", and on current sample sizes most
+combinations cannot be told apart (issue #23).
+
 ## Post a status update every 5 minutes during long runs
 
 Benchmark runs here take hours. A silent agent is indistinguishable from a
