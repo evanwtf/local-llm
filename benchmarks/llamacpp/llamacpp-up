@@ -32,8 +32,12 @@ GGUF_ROOT=${GGUF_ROOT:-$HOME/models/Qwen3.8-Flash-Next-GGUF}
 
 SERVER=$LLAMACPP_ROOT/build/bin/llama-server
 # A split GGUF: pass the first shard and llama.cpp finds the rest.
-MODEL=$GGUF_ROOT/UD-Q2_K_XL/Qwen3.8-Flash-Next-UD-Q2_K_XL-00001-of-00003.gguf
-ALIAS=qwen3.8-flash-next-q2
+# MODEL and ALIAS are overridable for the same reason the roots are: a second
+# quant of the same architecture is served by the same binary and the same
+# flags, and forking this script to change one path is how two launchers drift
+# apart. #33 serves AtomicChat's -M64 build through it.
+MODEL=${MODEL:-$GGUF_ROOT/UD-Q2_K_XL/Qwen3.8-Flash-Next-UD-Q2_K_XL-00001-of-00003.gguf}
+ALIAS=${ALIAS:-qwen3.8-flash-next-q2}
 
 STATE=$HOME/.llamacpp
 PIDFILE=$STATE/server.pid
@@ -54,7 +58,12 @@ SHIM_URL=http://127.0.0.1:$SHIM_PORT
 # benchmarks/agent/tasks.toml. Claude Code assumes 200k for a model it does
 # not recognise, so a mismatch means auto-compact fires after the server has
 # already truncated. check_ctx() enforces it.
-CTX=131072
+CTX=${CTX:-131072}
+
+# Which tasks.toml backend this server is standing up. check_ctx compares the
+# context window against that entry, so it has to move with MODEL -- otherwise
+# a second quant is silently validated against the first one's window.
+BACKEND=${BACKEND:-qwen38fnq2}
 
 # One slot, not llama.cpp's default four. The benchmark runs one agent at a
 # time, and each slot holds its own full-size KV cache -- four of them cost
@@ -148,12 +157,13 @@ server_pid() {
 check_ctx() {
     toml=$(CDPATH= cd -- "$(dirname -- "$0")/../agent" && pwd)/tasks.toml
     [ -f "$toml" ] || return 0
-    want=$(awk '/^\[backend\.qwen38fnq2\]/{f=1} f&&/^context_tokens/{print $3; exit}' \
+    want=$(awk -v b="[backend.$BACKEND]" \
+           '$0==b{f=1} f&&/^context_tokens/{print $3; exit}' \
            "$toml" 2>/dev/null)
     [ -n "${want:-}" ] || return 0
     [ "$want" = "$CTX" ] && return 0
     warn "WARNING: -c $CTX here, but tasks.toml sets context_tokens = $want for"
-    warn "         backend.qwen38fnq2. Auto-compact will fire after the server"
+    warn "         backend.$BACKEND. Auto-compact will fire after the server"
     warn "         truncates. Make the two numbers agree."
 }
 

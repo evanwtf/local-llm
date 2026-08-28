@@ -389,6 +389,39 @@ model = "ornith-1.5:35b"
 codex_profile = "ornith15"
 context_tokens = 262144
 
+# AtomicChat's `-M64` build of Qwen3.8-Flash-Next: the same model as
+# qwen38fnq2/q3, at a BETTER quant (Q4_K_M, 4.27bpw) that should not fit --
+# 88.0 GiB of file against a 112.00 GiB Metal ceiling, before KV.
+#
+# It is here to test one claim (#33, #34): the 51B n-gram PLE table is a lookup
+# structure that does no arithmetic, and `-M64` isolates it into its own shard
+# so it can be paged from SSD instead of held resident. Shard 00002 is
+# 35.76 GiB; the other 32 are 0.65-1.9 GiB each. If the split works, resident
+# lands far below 88 GiB and a 4-bit quant becomes affordable on this machine
+# for the first time.
+#
+# THE MEASUREMENT IS `resident vs file size`, not pass rate. Compare against
+# qwen38fnq3 (83.8 GiB file, 88.2 GiB resident -- 4.4 GiB ABOVE its file).
+#
+# CAVEAT -- COST IS NOT ZERO. The disk baseline (benchmarks/disk/RESULTS.md)
+# says a ~100-byte PLE lookup cannot cost less than one 4 KiB block: 61 us.
+# One lookup per token is free; eight would put prefill 30% into disk wait, and
+# #14 established that re-prefill dominates agent wall time here. "Lossless" in
+# the source claim is about output, not about time. Read the suite wall clock,
+# not just the verdict.
+#
+# Same engine build and flags as qwen38fnq2/q3 (PR #27742), so the quant and
+# the PLE split are what move. Started with:
+#   MODEL=... ALIAS=qwen3.8-flash-next-q4m64 BACKEND=qwen38fnq4m64 llamacpp-up start
+[backend.qwen38fnq4m64]
+description = "Qwen3.8-Flash-Next, AtomicChat AD-4.27bpw-Q4_K_M-M64, PLE table split for SSD paging"
+base_url = "http://127.0.0.1:11500"
+auth_token = "llamacpp-local"
+model = "qwen3.8-flash-next-q4m64"
+codex_profile = "qwen38fnq4m64"
+props_url = "http://127.0.0.1:8020"
+context_tokens = 131072
+
 # --- reference ------------------------------------------------------------
 # Not a fallback candidate. This is the hosted service the local backends are
 # a hedge against, run through the identical harness so every local number has
