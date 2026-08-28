@@ -34,12 +34,16 @@ def find(tree: ast.Module, symbol: str) -> ast.FunctionDef:
     raise TargetNotFound(f"no class {cls_name!r}")
 
 
-def excise(path: pathlib.Path, symbol: str) -> str:
-    """Replace the body of `symbol` in `path`. Returns the removed source."""
-    source = path.read_text()
-    lines = source.splitlines(keepends=True)
-    node = find(ast.parse(source), symbol)
+def _span(source: str, symbol: str) -> tuple[int, int, str]:
+    """Locate the body of `symbol`, after any docstring.
 
+    Returns (start, end, indent) as a slice over `source.splitlines(True)`.
+    One function computes this because two callers depend on the answer being
+    the same span: `excise` removes it, and `body_source` reads back what the
+    agent wrote in its place. If they drifted, `restored_verbatim` would compare
+    a body against a body-plus-docstring and never fire.
+    """
+    node = find(ast.parse(source), symbol)
     body = node.body
     # Keep a leading docstring: it is the contract the agent implements against.
     if (
@@ -56,7 +60,27 @@ def excise(path: pathlib.Path, symbol: str) -> str:
 
     start = first.lineno - 1                      # 0-indexed, inclusive
     end = node.body[-1].end_lineno                # 1-indexed, exclusive once used as a slice
-    indent = " " * first.col_offset
+    return start, end, " " * first.col_offset
+
+
+def body_source(path: pathlib.Path, symbol: str) -> str:
+    """Return the body of `symbol` without changing the file.
+
+    The read half of `excise`. Comparing this against what `excise` removed is
+    how a trial reports `restored_verbatim` -- a model that reproduces the
+    original body byte for byte is recalling it, not solving the task, and
+    gmail-archive was written with Claude. See issue #4.
+    """
+    source = path.read_text()
+    start, end, _ = _span(source, symbol)
+    return "".join(source.splitlines(keepends=True)[start:end])
+
+
+def excise(path: pathlib.Path, symbol: str) -> str:
+    """Replace the body of `symbol` in `path`. Returns the removed source."""
+    source = path.read_text()
+    lines = source.splitlines(keepends=True)
+    start, end, indent = _span(source, symbol)
 
     removed = "".join(lines[start:end])
     stub = f'{indent}raise NotImplementedError("removed for benchmark")\n'

@@ -36,6 +36,7 @@ import urllib.error
 import urllib.request
 
 import excise
+import grade
 import results
 
 logger = logging.getLogger("agent-bench")
@@ -44,6 +45,11 @@ RESULTS = HERE / "results.jsonl"
 # Outside the repo on purpose: transcripts carry file contents the agent
 # read, and this repo does not commit prompts.
 DEFAULT_CLIENT_LOG = "~/bench-logs"
+DEFAULT_SOLUTIONS = "~/bench-solutions"
+# Gates are cheap next to a trial -- ruff is under a second, mypy runs cold in
+# a fresh worktree and still finishes in seconds -- but they must never be the
+# thing that hangs a run, so they get their own short deadline.
+GATE_TIMEOUT = 300
 
 
 def run(cmd, cwd, env=None, timeout=None):
@@ -450,7 +456,8 @@ def save_transcript(client_log, name, stdout, stderr, result, partial=False):
 
 
 def one_trial(cfg, task, backend_name, backend, trial, workdir, timeout, dry_run,
-              versions=None, client="claude", client_log=None):
+              versions=None, client="claude", client_log=None, solutions=None,
+              gates=True):
     repo = pathlib.Path(cfg["repo"]).expanduser()
     suffix = "" if client == "claude" else f"-{client}"
     name = f"{task['name']}-{backend_name}{suffix}-{trial}"
@@ -487,6 +494,11 @@ def one_trial(cfg, task, backend_name, backend, trial, workdir, timeout, dry_run
         # 2. Control: the tests must fail now, or the task proves nothing.
         ok, summary = pytest_passes(worktree, task["tests"], timeout)
         result["control_fails_as_expected"] = not ok
+        # Baseline the quality gates here, on the excised tree. gmail-archive
+        # carries 18 mypy errors of its own, so only a delta against this state
+        # says anything about what the agent wrote.
+        if gates and not dry_run:
+            result["gates_before"] = grade.gates(worktree, GATE_TIMEOUT)
         if ok:
             logger.error("%s: tests still pass after excision -- task is broken", name)
             result["error"] = "control passed"
@@ -524,6 +536,15 @@ def one_trial(cfg, task, backend_name, backend, trial, workdir, timeout, dry_run
         # Did the agent leave the sandbox? The source repo should be untouched
         # and on its original commit. An agent that wandered there invalidates
         # both the isolation and, potentially, the excision.
+        # Secondary measurements. None of these reaches results.verdict() --
+        # the oracle stays the authority; these only describe the solution it
+        # accepted or rejected. See grade.py.
+        if gates:
+            after = grade.gates(worktree, GATE_TIMEOUT)
+            result["gates_after"] = after
+            result["gates_delta"] = grade.delta(result.get("gates_before") or {}, after)
+        result["restored_verbatim"] = grade.restored_verbatim(target, task["symbol"],
+                                                              removed)
         result["source_repo_intact"] = source_repo_intact(repo, cfg["base_commit"])
         if not result["source_repo_intact"]:
             logger.error("%s: SOURCE REPO WAS MODIFIED -- agent left the sandbox", name)
@@ -544,6 +565,11 @@ def one_trial(cfg, task, backend_name, backend, trial, workdir, timeout, dry_run
                         result, partial=True)
         logger.error("%s: timed out after %ss", name, timeout)
     finally:
+        # Before the tree goes. In `finally` on purpose: a timed-out trial has
+        # written code too, and that half-finished patch is the most diagnostic
+        # artifact a timeout produces.
+        if solutions and not dry_run and worktree.exists():
+            result.update(grade.save_solution(solutions, name, worktree))
         shutil.rmtree(worktree, ignore_errors=True)
     return result
 
@@ -567,6 +593,20 @@ def main():
                         "the repo and is never committed.")
     p.add_argument("--no-client-log", action="store_true",
                    help="disable transcript capture entirely.")
+    # The worktree used to be deleted with the solution still in it, so no
+    # trial before 2026-08-28 has one. That is why #4 could never ask which
+    # model writes better code -- the evidence was thrown away 398 times.
+    p.add_argument("--solutions", metavar="DIR", default=DEFAULT_SOLUTIONS,
+                   help="keep each trial's diff in DIR "
+                        f"(default: {DEFAULT_SOLUTIONS}). Patches carry "
+                        "repository content, so this points outside the repo "
+                        "and is never committed.")
+    p.add_argument("--no-solutions", action="store_true",
+                   help="disable solution capture entirely.")
+    p.add_argument("--no-gates", action="store_true",
+                   help="skip ruff and mypy. They are measurements only and "
+                        "never change a verdict, but they cost a few seconds "
+                        "per trial.")
     p.add_argument("--client", action="append", choices=sorted(CLIENTS),
                    help="repeatable; default claude. Multiple clients are "
                         "interleaved per task so neither gets a systematically "
@@ -607,6 +647,8 @@ def main():
     clients = args.client or ["claude"]
     client_log = (None if args.no_client_log
                   else pathlib.Path(args.client_log).expanduser())
+    solutions = (None if args.no_solutions
+                 else pathlib.Path(args.solutions).expanduser())
 
     versions = capture_versions(cfg, backends)
     versions["client"] = ",".join(clients)
@@ -622,7 +664,8 @@ def main():
                 for client in clients:
                     r = one_trial(cfg, task, bname, backend, trial,
                                   workdir, args.timeout, args.dry_run, versions,
-                                  client=client, client_log=client_log)
+                                  client=client, client_log=client_log,
+                                  solutions=solutions, gates=not args.no_gates)
                     # Inside the client loop. Outside it, only the last
                     # client's row survives and half the run vanishes.
                     # write_row validates, stamps schema_valid/schema_errors
