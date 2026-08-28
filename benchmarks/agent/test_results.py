@@ -7,18 +7,22 @@ that knew about one of them silently counted the other fifteen.
 from __future__ import annotations
 
 import json
+import pathlib
 
 import pytest
-
 from results import (
     LEGACY_EXCLUSION_KEYS,
     SCHEMA_VERSION,
     is_excluded,
     load,
     new_row,
+    trials,
     validate,
+    verdict,
     write_row,
 )
+
+REAL_RESULTS = pathlib.Path(__file__).parent / "results.jsonl"
 
 
 def good_row(**over):
@@ -183,8 +187,7 @@ def test_load_does_not_rewrite_the_file(tmp_path):
 
 def test_the_real_results_file_has_no_unknown_exclusion_keys():
     """Guards against a sixth variant appearing without anyone noticing."""
-    import pathlib
-    real = pathlib.Path(__file__).parent / "results.jsonl"
+    real = REAL_RESULTS
     if not real.exists():
         pytest.skip("results.jsonl not present")
     known = set(LEGACY_EXCLUSION_KEYS)
@@ -194,3 +197,85 @@ def test_the_real_results_file_has_no_unknown_exclusion_keys():
             if ("exclud" in k or "confound" in k or "contaminat" in k) and k not in known:
                 suspicious.add(k)
     assert suspicious == set()
+
+
+# --- verdicts -------------------------------------------------------------
+#
+# A trial that timed out writes a row with `error` and no `passed` key. The
+# obvious idiom for reading verdicts -- `if "passed" in row` -- drops those
+# rows instead of counting them, which silently turned a 13/16 backend into a
+# 13/13 one in a published table. `verdict()` and `trials()` exist so that
+# cannot happen again.
+
+
+def test_verdict_is_false_when_the_trial_timed_out():
+    row = good_row()
+    del row["passed"]
+    row["error"] = "timeout"
+    assert verdict(row) is False
+
+
+def test_verdict_is_false_when_there_is_no_passed_key_at_all():
+    row = good_row()
+    del row["passed"]
+    assert verdict(row) is False
+
+
+def test_verdict_is_false_when_the_agent_edited_the_tests():
+    assert verdict(good_row(passed=True, touched_tests=True)) is False
+
+
+def test_verdict_is_false_when_the_control_did_not_fail():
+    assert verdict(good_row(passed=True, control_fails_as_expected=False)) is False
+
+
+def test_verdict_is_false_when_the_agent_escaped_the_sandbox():
+    assert verdict(good_row(passed=True, source_repo_intact=False)) is False
+
+
+def test_verdict_is_true_for_a_clean_pass():
+    assert verdict(good_row()) is True
+
+
+def test_a_dry_run_has_no_verdict_to_give():
+    with pytest.raises(ValueError):
+        verdict(good_row(dry_run=True))
+
+
+def test_trials_drops_dry_runs_and_exclusions_but_keeps_timeouts(tmp_path):
+    path = tmp_path / "r.jsonl"
+    timed_out = good_row(trial=2)
+    del timed_out["passed"]
+    timed_out["error"] = "timeout"
+    rows = [
+        good_row(trial=1),
+        timed_out,
+        good_row(trial=3, dry_run=True),
+        good_row(trial=4, excluded=True, exclusion_reason="ran during a download"),
+    ]
+    path.write_text("".join(json.dumps(r) + "\n" for r in rows))
+
+    got = trials(path)
+    assert [r["trial"] for r in got] == [1, 2]
+    assert [verdict(r) for r in got] == [True, False]
+
+
+def test_trials_agrees_with_summarize_on_the_real_results_file():
+    """The two readers of results.jsonl must not disagree about the denominator."""
+    if not REAL_RESULTS.exists():
+        pytest.skip("results.jsonl not present")
+    import summarize
+
+    mine = trials(REAL_RESULTS)
+    theirs, _discarded, _retired, _cheats = summarize.load(REAL_RESULTS)
+    assert len(mine) == len(theirs)
+    assert sum(verdict(r) for r in mine) == sum(bool(r.get("passed")) for r in theirs)
+
+
+def test_the_real_results_file_counts_its_timeouts_as_failures():
+    if not REAL_RESULTS.exists():
+        pytest.skip("results.jsonl not present")
+    rows = trials(REAL_RESULTS)
+    timed_out = [r for r in rows if "passed" not in r]
+    assert timed_out, "expected the known qwen38fnq2 timeouts to still be present"
+    assert all(verdict(r) is False for r in timed_out)

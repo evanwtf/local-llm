@@ -218,3 +218,35 @@ def load(path: pathlib.Path) -> list[dict[str, Any]]:
 def usable(path: pathlib.Path) -> list[dict[str, Any]]:
     """Every row that belongs in an aggregate: normalised, minus exclusions."""
     return [r for r in load(path) if not r["excluded"]]
+
+
+def verdict(row: dict[str, Any]) -> bool:
+    """Did this trial actually restore the function? One place decides.
+
+    A trial passes only if the oracle passed *and* every guard held. It fails if
+    it timed out -- a timeout writes `error` and no `passed` key, and reading
+    verdicts with `if "passed" in row` drops those rows rather than counting
+    them. That is how a 13/16 backend reached a published table as 13/13.
+
+    Raises ValueError for a dry run, which is a setup check and has no verdict.
+    """
+    if row.get("dry_run"):
+        raise ValueError("a dry run has no verdict; filter it out with trials()")
+    if not row.get("passed"):
+        return False
+    if row.get("touched_tests"):
+        return False  # edited the oracle; the pass is meaningless
+    if row.get("source_repo_intact") is False:
+        return False  # escaped the sandbox
+    if row.get("control_fails_as_expected") is False:  # noqa: SIM103
+        return False  # the excision was invisible to the tests
+    return True
+
+
+def trials(path: pathlib.Path) -> list[dict[str, Any]]:
+    """Every real benchmark trial: usable rows, minus dry runs.
+
+    Timeouts are kept -- they are failures, not absences. Pair this with
+    `verdict()`; do not test `row["passed"]` directly.
+    """
+    return [r for r in usable(path) if not r.get("dry_run")]

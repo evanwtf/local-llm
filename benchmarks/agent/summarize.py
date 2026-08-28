@@ -15,10 +15,11 @@ the agent edited the tests are counted as failures regardless of what pytest
 said, and called out separately -- that is a cheat, not a pass.
 """
 import argparse
-import json
 import pathlib
 import statistics
 from collections import defaultdict
+
+import results
 
 HERE = pathlib.Path(__file__).parent
 
@@ -26,29 +27,32 @@ HERE = pathlib.Path(__file__).parent
 def load(path):
     """Read rows, dropping the ones that cannot support a conclusion.
 
-    A row is excluded when:
+    Delegates to `results.py`, which is the only supported reader of
+    results.jsonl. It used to filter exclusions here with `r.get("excluded")`,
+    and missed the fourteen rows marked with the legacy `confound` and
+    `contaminated` keys -- every published OpenCode number was computed over
+    them. Do not reintroduce a hand-rolled filter (#29).
+
+    A row is dropped when:
       - it is a --dry-run row, which records the control check and no agent;
       - its control did not fail, so the excision was invisible to the tests;
-      - it carries an explicit `excluded` key, used to retire a run whose
-        conditions were known to be wrong (see RESULTS.md provenance).
+      - it is marked excluded by any of the keys `results.py` knows about.
 
     Excluded rows stay in results.jsonl. Deleting them would falsify the
     record; the reason travels with the data instead.
     """
     rows, discarded, retired, cheats = [], 0, 0, 0
-    for line in path.read_text().splitlines():
-        if not line.strip():
-            continue
-        r = json.loads(line)
-        if r.get("excluded") or r.get("dry_run"):
-            retired += 1
-            continue
-        if not r.get("control_fails_as_expected"):
+    everything = results.load(path)
+    retired = sum(1 for r in everything if r["excluded"] or r.get("dry_run"))
+    for r in results.trials(path):
+        if r.get("control_fails_as_expected") is False:
             discarded += 1
             continue
         if r.get("touched_tests"):
             cheats += 1
-            r["passed"] = False
+        # One place decides what a pass is; a timeout has no `passed` key and
+        # must land here as False rather than vanish from the denominator.
+        r["passed"] = results.verdict(r)
         rows.append(r)
     return rows, discarded, retired, cheats
 
@@ -78,7 +82,8 @@ def main():
     if discarded:
         print(f"WARNING: discarded {discarded} row(s) whose control did not fail")
     if retired:
-        print(f"note: {retired} row(s) explicitly excluded; see RESULTS.md provenance")
+        print(f"note: {retired} row(s) set aside (marked excluded, or dry runs); "
+              "see RESULTS.md provenance")
     if cheats:
         print(f"WARNING: {cheats} row(s) edited the tests; counted as failures")
 
