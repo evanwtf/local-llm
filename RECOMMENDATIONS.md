@@ -279,13 +279,22 @@ DeepSeek and GLM.
 
 Full numbers in [`benchmarks/llamacpp/RESULTS.md`](benchmarks/llamacpp/RESULTS.md).
 
-| | `UD-Q3_K_XL` — use this | `UD-Q2_K_XL` — superseded |
-|---|---|---|
-| resident | 83.8 GiB | 77.9 GiB |
-| Codex | **15/15, suite 896 s** | 15/15, suite 1,251 s |
-| Claude Code | not run | 13/16, suite 5,236 s, 3 timeouts |
+| | `UD-Q3_K_XL` — use this | `UD-Q2_K_XL` — superseded | `AD-4.27bpw-Q4_K_M-M64` — tested, rejected |
+|---|---|---|---|
+| file size | 83.8 GiB | 77.9 GiB | 88.0 GiB |
+| Codex | **15/15, suite 995 s** | 15/15, suite 1,251 s | 16/16, suite **1,276 s (+28%)** |
+| Claude Code | not run | 13/16, suite 5,236 s, 3 timeouts | not run |
 
 Engine is llama.cpp PR #27742 for both — mainline does not know `qwen4exp`.
+
+**4-bit was tested and rejected, 2026-08-28.** AtomicChat's `-M64` build splits
+the 51B n-gram PLE table into its own shard so it can be paged from SSD (#33).
+It loads, it is 16/16, and it is **28% slower** than 3-bit on an identical stack
+— four of five tasks +26% to +35%. The memory saving never appeared because
+llama.cpp's mmap already makes every weight page evictable: physical footprint
+is ~5 GB against 92 GiB of RSS whether or not the table is pinned to CPU. The
+q3 suite figure above is the same-stack re-run (995 s), not the older 896 s,
+which was measured on a different engine build and client.
 
 **The bigger quant is the faster one, by 28.4%, on all five tasks.** That is not
 a rounding artifact and it is not what a tokens/sec reading predicts: Q3 decodes

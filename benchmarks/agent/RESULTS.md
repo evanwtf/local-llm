@@ -1335,3 +1335,88 @@ gate stricter than "does the repo's own linter complain".
 The tasks are worth keeping. They cost 39% more wall clock, produce a real
 quality signal where the old five produce none, and they are honest about what
 they cannot do.
+
+---
+
+## The PLE offload does not pay (2026-08-28, issues #33 / #34)
+
+**New series.** llama.cpp mainline `d7bd3bfca`, Codex 0.150.1, both backends
+reached through the shim. Do not pool with anything above this line: the engine,
+the client and the request path all moved. That is why `qwen38fnq3` was re-run
+rather than compared against its earlier 895.8 s.
+
+| task | `qwen38fnq3` 3-bit | `qwen38fnq4m64` 4-bit | delta |
+|---|---|---|---|
+| `mbox-strip-envelope` | 111.0 s | 103.1 s | −7% |
+| `parser-mbox-quoting` | 155.3 s | 196.2 s | +26% |
+| `storage-blob-put` | 140.5 s | 189.3 s | +35% |
+| `mbox-scan` | 150.5 s | 195.2 s | +30% |
+| `parser-date` | 437.8 s | 592.3 s | +35% |
+| **suite** | **995.1 s** | **1,276.0 s** | **+28%** |
+
+Correctness: **15/15** and **16/16**. Neither clears 90% at 95% confidence
+(#23); both need ~20 more consecutive passes.
+
+**+28% clears the ~26% resolution floor for a 3-trial suite, but only just.**
+What carries it is that four of five tasks move the same way, at +26% to +35%.
+The fifth is −7%, inside the noise. That is the same standard applied to the
+Q3-vs-Q2 result, and it lands the same way: real, and not comfortable.
+
+### Why the memory saving never appeared
+
+The premise of #33 is that the 51B n-gram PLE table is a lookup structure doing
+no arithmetic, so paging it from SSD is a lossless ~29 GiB win. AtomicChat's
+`-M64` build isolates it into a single 35.76 GiB shard for exactly that.
+
+**It changes no tensors.** Against Unsloth's build, from the GGUF headers:
+
+```
+split.tensors.count      1224   ==   1224
+qwen4exp.ple.*           identical
+split.count                 3   vs     33
+```
+
+It is purely a re-sharding, so whether it saves anything is a question about
+llama.cpp's mmap behaviour, not about the model.
+
+**And mmap already does it.** `vmmap` on the running server:
+
+| config | RSS | physical footprint |
+|---|---|---|
+| default `-ngl 999` | 92.2 GiB | **4.8 GB** |
+| PLE pinned to CPU | 91.9 GiB | **5.0 GB** |
+
+RSS counts clean file-backed pages the kernel can drop at any time. The number
+that describes memory the process actually owns is the footprint, and it is ~5 GB
+either way. **All 88 GiB of weights are already evictable, in both configs, with
+no flag and no special build.** `--override-tensor per_layer_token_embd\.weight=CPU`
+moved the tensor and changed nothing measurable — on unified memory a CPU buffer
+and a Metal buffer are the same physical RAM.
+
+### The cost side, which the source claim omits
+
+The GGUF metadata answers the question #33 could not: `qwen4exp.ple.ngram_size
+= 3`, **`heads_per_ngram = 8`**, with 16 head offsets defined. Not the one or
+two lookups per token that would make this free.
+
+Against the measured disk baseline (`benchmarks/disk/RESULTS.md`, random 4 KiB =
+**61 µs**), a ~100-byte lookup cannot cost less than one block. As throughput
+that is ~9,600 random reads/s at 600 tok/s prefill against 25,559 IOPS —
+feasible, not free, and landing on prefill, which #14 established dominates
+agent wall time here.
+
+**"Lossless" is a claim about output, not about time.** It is almost certainly
+true of the logits and says nothing about the clock.
+
+### What to do
+
+**Keep `UD-Q3_K_XL`.** The better quant costs 28% of the wall clock and buys no
+measured correctness. The 4-bit build works, fits, and is worth keeping as
+evidence that a 125B model at 4-bit runs on this machine at all — but it is not
+the backend to run.
+
+**#34 step 3 is still open and now better motivated.** Expert streaming is a
+different proposition: an expert block is hundreds of KiB to a few MiB, which
+lands in the 1 MiB row at 6.32 GiB/s rather than the 4 KiB row at 0.10 GiB/s.
+Block size is what costs on this device, and ds4's `--ssd-streaming-*` is the
+implementation that reads at the right size.
