@@ -1,6 +1,6 @@
 # Where to pick up
 
-Updated 2026-08-28, after #24 and the reader fixes it turned up. Work the issues in the
+Updated 2026-08-28, after #24 and #26. Work the issues in the
 order below. Each issue is self-contained; this file only sets priority and
 records machine state that is not in git.
 
@@ -8,17 +8,25 @@ records machine state that is not in git.
 
 | # | issue | why this position |
 |---|---|---|
-| 1 | **#26** Wall time swings 3x between trials | Now replicated on a **third** backend: GLM ran `storage-blob-put` at 375.7 / 641.6 / 315.7 across three rounds. Every speed ranking in this project is noise until this is understood. Cheap to test. |
-| 2 | **#4** Harder tasks | **This is now the structural bottleneck.** Four Codex backends sit at 15/15 or better; the suite can no longer discriminate on correctness, and speed is the only remaining axis -- which #26 says is unreliable. Without harder tasks, more benchmarking produces no new information. |
-| 3 | **#33** Offload the n-gram PLE table to SSD | Concrete and lossless: ~29 GiB saving, which makes `UD-Q4_K_XL` comfortably resident. AtomicChat's `-M64` GGUFs need no MLX and no patches. |
-| 4 | **#34** Evaluate SSD offload as a strategy | Do **step 1 first** regardless of #33: nothing here records the machine's NVMe read bandwidth or random-read latency, and every "SSD offload is fine" claim rests on it. |
-| 5 | **#23** Sizing batches for confidence | Retitled in spirit: **two** combinations now clear 90% (`ds4 x claude` 46/46, `ds4anthropic x codex` 36/36), so the issue's premise is spent. What remains useful is the sizing rule -- ~35 consecutive passes to clear 90% -- and deciding how many trials a new backend gets. |
-| 6 | **#28** llama.cpp vs Ollama on identical weights | Targets #14 re-prefill, the largest single measured cost here. |
-| 7 | **#35** Model evaluation queue | Standing index. Devstral (#3) is the highest-value entry -- it would add a fifth lineage. |
-| 8 | **#27** Retire the ds4 fork | Blocked on upstream merging antirez/ds4#885 and #886. Housekeeping. |
+| 1 | **#4** Harder tasks | **The structural bottleneck, and #26 just removed the alternative.** Correctness no longer discriminates -- four Codex backends sit at 15/15 or better -- and speed now *cannot*: the within-condition spread is 1.74x median with 7x tails, wider than most differences this project reports, and it is sampling variance that no amount of warm-up or tuning removes. Harder tasks are the only remaining source of new information. |
+| 2 | **#33** Offload the n-gram PLE table to SSD | Concrete and lossless: ~29 GiB saving, which makes `UD-Q4_K_XL` comfortably resident. AtomicChat's `-M64` GGUFs need no MLX and no patches. |
+| 3 | **#34** Evaluate SSD offload as a strategy | Do **step 1 first** regardless of #33: nothing here records the machine's NVMe read bandwidth or random-read latency, and every "SSD offload is fine" claim rests on it. |
+| 4 | **#23** Sizing batches for confidence | **Promoted in substance by #26.** Two combinations now clear 90% (`ds4 x claude` 46/46, `ds4anthropic x codex` 36/36), so the original premise is spent -- but #26 showed a 3-trial median is not a measurement of *speed* either. The open question is how many trials a backend gets, for pass rate and wall time both. |
+| 5 | **#28** llama.cpp vs Ollama on identical weights | Targets #14 re-prefill, the largest single measured cost here. |
+| 6 | **#35** Model evaluation queue | Standing index. Devstral (#3) is the highest-value entry -- it would add a fifth lineage. |
+| 7 | **#27** Retire the ds4 fork | Blocked on upstream merging antirez/ds4#885 and #886. Housekeeping. |
 
 ## Done since the last update
 
+- **#26** answered, and the hypothesis in the issue was wrong. It is **not** the
+  KV disk cache and **not** warm-up: the first trial of a batch runs at 0.98x
+  the median of the rest (92 batches), and 0.97x for the ds4 pairing the issue
+  was opened on. Wall time tracks **output tokens at r = 0.98**; slowest vs
+  fastest trial in a cell is 1.74x wall but only **1.25x seconds-per-turn**.
+  The server serves at **temperature 1.0 with a fresh random seed per request**
+  -- every trial is an independent draw, and the harness never recorded it.
+  Added `variance.py` (re-runnable) and a `/props` probe in `run.py`. Nothing
+  to fix in the cache; the consequence is a methodology question, now #23.
 - **#24** published verdicts corrected. Auditing them turned up **two live
   reader bugs**, both of which had already reached published tables:
   a timeout writes no `passed` key, so `if "passed" in row` dropped three
@@ -130,3 +138,10 @@ it.** The waiter's own command line matches, so the loop never exits.
 
 **Do not run anything else during a timing batch.** A 96 GB download overlapped
 one and produced an hour of chasing a regression that did not exist.
+
+**A 3-trial median is not a speed measurement.** The within-condition spread is
+1.74x median and reaches 7x, because the server samples at temperature 1.0 with
+a random seed and the model sometimes writes 7x the tokens for the same task
+(#26). Before attributing a wall-time difference to a model, an engine or a
+quant, check it against that spread -- most differences this project has
+reported are smaller.
