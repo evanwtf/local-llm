@@ -1,6 +1,6 @@
 # Where to pick up
 
-Updated 2026-08-28, after #24, #26 and the build half of #4. Work the issues in the
+Updated 2026-08-28, after #23, #24, #26, #34 step 1, and the build half of #4. Work the issues in the
 order below. Each issue is self-contained; this file only sets priority and
 records machine state that is not in git.
 
@@ -8,65 +8,49 @@ records machine state that is not in git.
 
 | # | issue | why this position |
 |---|---|---|
-| 1 | **#4** Harder tasks -- **RUN THEM** | **The structural bottleneck, and #26 just removed the alternative.** **The build is done and pushed; the measurement is not.** Three new tasks and the machinery to grade solutions are on `tasks/4-harder-tasks`, validated with dry runs and a scripted agent at no model cost. What remains is model time, which nothing else can substitute for. Correctness no longer discriminates -- four Codex backends sit at 15/15 or better -- and speed *cannot*: the within-condition spread is 1.74x median with 7x tails, and it is sampling variance that no warm-up or tuning removes. |
-| 2 | **#33** Offload the n-gram PLE table to SSD | Concrete and lossless: ~29 GiB saving, which makes `UD-Q4_K_XL` comfortably resident. AtomicChat's `-M64` GGUFs need no MLX and no patches. |
-| 3 | **#34** Evaluate SSD offload as a strategy | Do **step 1 first** regardless of #33: nothing here records the machine's NVMe read bandwidth or random-read latency, and every "SSD offload is fine" claim rests on it. |
-| 4 | **#23** Sizing batches for confidence | **Promoted in substance by #26.** Two combinations now clear 90% (`ds4 x claude` 46/46, `ds4anthropic x codex` 36/36), so the original premise is spent -- but #26 showed a 3-trial median is not a measurement of *speed* either. The open question is how many trials a backend gets, for pass rate and wall time both. |
-| 5 | **#28** llama.cpp vs Ollama on identical weights | Targets #14 re-prefill, the largest single measured cost here. |
-| 6 | **#35** Model evaluation queue | Standing index. Devstral (#3) is the highest-value entry -- it would add a fifth lineage. |
-| 7 | **#27** Retire the ds4 fork | Blocked on upstream merging antirez/ds4#885 and #886. Housekeeping. |
+| 1 | **#4** Harder tasks | **In flight 2026-08-28.** Three new tasks, ds4 x {claude, codex}, 3 trials each. First result: `parser-mbox-quoting-nodoc` PASS in 283.7 s, against a historical ds4 x claude per-task median of 164-264 s. Removing the docstring did not break it. |
+| 2 | **#33** Offload the n-gram PLE table to SSD | Now has a disk baseline to reason against, and it is not the free win the issue assumed -- see below. **Needs a ~88 GiB download: do not start one while a batch is running.** |
+| 3 | **#34** SSD offload as a strategy | **Step 1 done.** Steps 2-4 need the AtomicChat GGUF from #33, so they follow it. |
+| 4 | **#28** llama.cpp vs Ollama on identical weights | **Promoted in substance.** No model here has ever run on more than two engines, so every llama.cpp-vs-Ollama claim in this repo is inferred across *different models*. That is a bigger hole than one more backend. |
+| 5 | **#35** Model evaluation queue | Standing index, updated 2026-08-28. Closing the 20-trial gap on GLM buys more than a sixth lineage does. |
+| 6 | **#27** Retire the ds4 fork | **Blocked, re-checked 2026-08-28:** antirez/ds4#885 and #886 both still open. |
 
 ## Done since the last update
 
-- **#4** build half done, on branch `tasks/4-harder-tasks`. **Not yet run.**
-  - `run.py` deleted every worktree in a `finally`, so **398 trials of produced
-    code were thrown away**. No claim about which model writes *better* code has
-    ever had evidence behind it. Solutions are now saved and hashed.
-  - ruff and mypy run as **deltas against the excised tree** -- the pristine repo
-    scores `ruff 0, mypy 18` and the stub itself adds a ruff violation, so
-    absolutes would bill the repo's debt to the model. They are the target
-    repo's own config, not a rubric written here, and they **never touch
-    `results.verdict()`**.
-  - `restored_verbatim` finally checks the authorship contamination
-    METHODOLOGY has warned about since day one.
-  - Three tasks, each moving one variable: a **matched no-docstring pair** on
-    `unquote_mbox` (whose docstring gives away the mboxrd reasoning outright),
-    a **two-file** task, and a **two-symbol convention** task. Controls verified
-    failing at 34, 37 and 14 tests.
+- **#23** closed. **Three trials is a screening run, not a measurement.** Pass
+  rate: an unbroken run's Wilson bound is `n/(n+z^2)`, so >90% needs **35**
+  consecutive passes, >95% needs 73. One failure costs ~20 trials. Wall time,
+  bootstrapped over 198 observations: n=3 pins a task median to **+/-27.9%** and
+  a 5-task suite to **+/-12.9%**, so suites separate only above a ~26% gap. Every
+  published speed claim was re-checked against that -- all survive, but Q3-vs-Q2
+  (#31) clears by a hair and rests on winning all five tasks separately.
+  `sizing.py` is re-runnable. The rule is in AGENTS.md.
+- **#34 step 1** done: the NVMe is measured for the first time
+  (`benchmarks/disk/RESULTS.md`). Sequential **9.45 GiB/s**; random 1 MiB
+  **198 us / 6.32 GiB/s**; random 4 KiB **61 us / 0.10 GiB/s**. **Block size is
+  what costs, not randomness** -- 1 MiB random reads reach 67% of sequential,
+  4 KiB reads reach 1.1%. Streaming MoE expert blocks is arithmetically viable
+  (~2 ms per fully-cold token, a 500 tok/s ceiling); the n-gram PLE table is the
+  hard case and its cost depends on lookups per token, which is **unmeasured**.
+- **#4** build half done and merged. `run.py` had deleted every worktree in a
+  `finally`, so **398 trials of produced code were thrown away**; solutions are
+  now saved and hashed, ruff and mypy run as deltas against the excised tree, and
+  `restored_verbatim` checks the authorship contamination METHODOLOGY has warned
+  about since day one. Three new tasks, each moving one variable.
 - **The empty-virtualenv confound is withdrawn -- it was never real.** The
-  control has run `uv run pytest` in the worktree before the agent since the
-  harness's first commit, which materialises a working `.venv`, and all 482 rows
-  carry a control result. The new tasks therefore **do not start a new series**,
-  and environment discovery is gone as a rival explanation for the #26 spread.
-
-- **#26** answered, and the hypothesis in the issue was wrong. It is **not** the
-  KV disk cache and **not** warm-up: the first trial of a batch runs at 0.98x
-  the median of the rest (92 batches), and 0.97x for the ds4 pairing the issue
-  was opened on. Wall time tracks **output tokens at r = 0.98**; slowest vs
-  fastest trial in a cell is 1.74x wall but only **1.25x seconds-per-turn**.
-  The server serves at **temperature 1.0 with a fresh random seed per request**
-  -- every trial is an independent draw, and the harness never recorded it.
-  Added `variance.py` (re-runnable) and a `/props` probe in `run.py`. Nothing
-  to fix in the cache; the consequence is a methodology question, now #23.
-- **#24** published verdicts corrected. Auditing them turned up **two live
-  reader bugs**, both of which had already reached published tables:
-  a timeout writes no `passed` key, so `if "passed" in row` dropped three
-  `qwen38fnq2 x claude` failures and printed 13/13 for a 13/16 backend; and
-  `summarize.py` still hand-rolled `r.get("excluded")`, missing the fourteen
-  rows marked `confound`/`contaminated` -- every published OpenCode number was
-  computed over them. `results.py` gained `verdict()` and `trials()`;
-  `summarize.py` now reads through it. **Do not test `row["passed"]` directly.**
-- **#30** sysctl applied and verified: Metal ceiling **107.52 -> 112.00 GiB**.
-  **NOT persisted** -- see machine state below.
-- **#31** Qwen3.8-Flash-Next at `UD-Q3_K_XL`: **15/15, 28.4% faster than 2-bit**,
-  faster on all five tasks. The bigger quant is the quicker one.
-- **#32** GLM-5.3-Flash: **15/15**, zero patches, zero warnings. The matched pair
-  (Unsloth `UD-Q2_K_XL` + PR #27752) was the whole trick.
-- **#22** finals: both finalists 15/15.
-- **#25** closed as a negative result -- GLM on PR #27773 loads, runs, and emits
-  gibberish.
-- **#16** materially addressed: GLM is the first non-Qwen, non-DeepSeek backend
-  that works. Five lineages now represented (#35).
+  control has run `uv run pytest` before the agent since the first commit, and
+  all 482 rows carry a control result. The new tasks **do not start a new
+  series**.
+- **#26** answered and its hypothesis refuted: not the KV cache, not warm-up
+  (first trial of a batch is 0.98x the rest over 92 batches). Wall time tracks
+  output tokens at r=0.98. The server samples at **temperature 1.0 with a fresh
+  seed per request**, which #23 has now turned into a trial-count rule.
+- **#24** published verdicts corrected, after two live reader bugs -- a timeout
+  writes no `passed` key, and `summarize.py` still hand-rolled its exclusion
+  filter over fourteen `confound` rows. **Do not test `row["passed"]` directly.**
+- **#30/#31/#32/#22/#25/#16**: Metal ceiling raised to 112.00 GiB; Qwen3.8-Flash-Next
+  is best at `UD-Q3_K_XL` (15/15); GLM-5.3-Flash works (15/15) and is the fifth
+  lineage. Details in RESULTS.md and RECOMMENDATIONS.md -- all have landed.
 
 ## The open question all of this serves
 
@@ -111,8 +95,11 @@ Verify with the Metal probe in #30, not with `sysctl` -- the sysctl reads `0`
 whether or not a limit is in force. **`glm53` will not load without this**
 (100.6 GiB resident against a 107.52 GiB default).
 
-**Servers:** a GLM `llama-server` may still be on :8030 with its shim on :11501.
-`ds4-server` and Ollama are stopped. Restart ds4 with:
+**Check before every batch:** `uv run python benchmarks/agent/preflight.py`.
+
+**Servers:** the GLM `llama-server` and its shim were stopped 2026-08-28.
+`ds4-server` was started for the #4 run and may still be up on :8000 holding
+~91 GiB. Ollama is stopped. Restart ds4 with:
 
 ```sh
 cd ~/git/ds4 && ./ds4-server -m gguf/DeepSeek-V4-Flash-Layers37-42Q4KExperts-OtherExpertLayersIQ2XXSGateUp-Q2KDown-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix-fixed-0731.gguf \
@@ -131,6 +118,10 @@ cd ~/git/ds4 && ./ds4-server -m gguf/DeepSeek-V4-Flash-Layers37-42Q4KExperts-Oth
 `~/models/GLM-5.3-Flash-GGUF` (101 GB, Unsloth Q2),
 `~/git/ds4/gguf/GLM-5.3-Flash-Q2.gguf` (90 GB, antirez -- **unusable**, no engine
 loads it; keep per the archive convention or delete deliberately).
+
+**Disk, measured 2026-08-28** (`benchmarks/disk/RESULTS.md`): sequential
+9.45 GiB/s, random 1 MiB 198 us, random 4 KiB **61 us**. A 100-byte lookup costs
+one 4 KiB block -- there is no smaller unit.
 
 **Codex profiles** in `~/.codex/*.config.toml` are not in git. All need
 `wire_api = "responses"`; 0.148.0 removed `"chat"`.
