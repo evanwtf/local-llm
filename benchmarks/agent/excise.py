@@ -34,8 +34,12 @@ def find(tree: ast.Module, symbol: str) -> ast.FunctionDef:
     raise TargetNotFound(f"no class {cls_name!r}")
 
 
-def _span(source: str, symbol: str) -> tuple[int, int, str]:
+def _span(source: str, symbol: str,
+          keep_docstring: bool = True) -> tuple[int, int, str]:
     """Locate the body of `symbol`, after any docstring.
+
+    With `keep_docstring=False` the docstring goes too, and the agent gets a
+    signature and nothing else. See issue #4, direction 4.
 
     Returns (start, end, indent) as a slice over `source.splitlines(True)`.
     One function computes this because two callers depend on the answer being
@@ -45,9 +49,11 @@ def _span(source: str, symbol: str) -> tuple[int, int, str]:
     """
     node = find(ast.parse(source), symbol)
     body = node.body
-    # Keep a leading docstring: it is the contract the agent implements against.
+    # By default keep a leading docstring: it is the contract the agent
+    # implements against. A task can ask for it to go as well.
     if (
-        body
+        keep_docstring
+        and body
         and isinstance(body[0], ast.Expr)
         and isinstance(body[0].value, ast.Constant)
         and isinstance(body[0].value.value, str)
@@ -63,7 +69,8 @@ def _span(source: str, symbol: str) -> tuple[int, int, str]:
     return start, end, " " * first.col_offset
 
 
-def body_source(path: pathlib.Path, symbol: str) -> str:
+def body_source(path: pathlib.Path, symbol: str,
+                keep_docstring: bool = True) -> str:
     """Return the body of `symbol` without changing the file.
 
     The read half of `excise`. Comparing this against what `excise` removed is
@@ -72,15 +79,15 @@ def body_source(path: pathlib.Path, symbol: str) -> str:
     gmail-archive was written with Claude. See issue #4.
     """
     source = path.read_text()
-    start, end, _ = _span(source, symbol)
+    start, end, _ = _span(source, symbol, keep_docstring)
     return "".join(source.splitlines(keepends=True)[start:end])
 
 
-def excise(path: pathlib.Path, symbol: str) -> str:
+def excise(path: pathlib.Path, symbol: str, keep_docstring: bool = True) -> str:
     """Replace the body of `symbol` in `path`. Returns the removed source."""
     source = path.read_text()
     lines = source.splitlines(keepends=True)
-    start, end, indent = _span(source, symbol)
+    start, end, indent = _span(source, symbol, keep_docstring)
 
     removed = "".join(lines[start:end])
     stub = f'{indent}raise NotImplementedError("removed for benchmark")\n'

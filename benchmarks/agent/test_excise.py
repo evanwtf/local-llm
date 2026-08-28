@@ -10,7 +10,6 @@ from __future__ import annotations
 import pathlib
 
 import pytest
-
 from excise import TargetNotFound, body_source, excise
 
 SAMPLE = '''\
@@ -103,3 +102,44 @@ def test_a_docstring_only_function_has_nothing_to_remove(tmp_path):
     p.write_text('def f():\n    """Just this."""\n')
     with pytest.raises(TargetNotFound):
         excise(p, "f")
+
+
+# --- direction 4: taking the contract away --------------------------------
+
+def test_excise_can_take_the_docstring_too(sample):
+    """`keep_docstring = false` is how a task stops being "implement this".
+
+    The contract then has to be inferred from the tests and the callers, which
+    is the situation the issue actually cares about. gmail-archive's
+    `unquote_mbox` is the motivating case: its docstring states the mboxrd
+    reasoning and the ambiguity rule outright, so with it present the task is
+    transcription.
+    """
+    removed = excise(sample, "target", keep_docstring=False)
+    after = sample.read_text()
+    assert "The contract stays." in removed
+    assert "The contract stays." not in after
+    assert "total = a + b" not in after
+    assert "def target(a, b):" in after
+
+
+def test_body_source_matches_excise_when_the_docstring_goes_too(sample):
+    """Both halves must agree, or `restored_verbatim` compares unequal spans."""
+    before = body_source(sample, "target", keep_docstring=False)
+    assert before == excise(sample, "target", keep_docstring=False)
+
+
+def test_the_two_settings_do_not_return_the_same_span(sample):
+    """Guards against the flag being accepted and then quietly ignored."""
+    assert body_source(sample, "target", keep_docstring=False) != body_source(
+        sample, "target"
+    )
+
+
+def test_a_docstring_only_function_can_still_be_hollowed_out(tmp_path):
+    """With the docstring gone there is a body to remove, so this is legal now."""
+    p = tmp_path / "m.py"
+    p.write_text('def f():\n    """Just this."""\n')
+    removed = excise(p, "f", keep_docstring=False)
+    assert "Just this." in removed
+    assert "NotImplementedError" in p.read_text()

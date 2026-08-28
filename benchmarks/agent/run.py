@@ -455,6 +455,27 @@ def save_transcript(client_log, name, stdout, stderr, result, partial=False):
     result["client_log_partial"] = partial
 
 
+def targets(task):
+    """Every symbol a task hollows out, in the order tasks.toml lists them.
+
+    A task names either one target inline (`file` + `symbol`) or several under
+    `targets`. The inline form is kept because 398 recorded rows name tasks
+    defined that way, and a task name has to keep meaning what it meant.
+
+    Several targets is direction 1 of issue #4: every task in the original suite
+    was a single function, so nothing tested whether an agent can hold two
+    pieces of a convention in agreement across modules -- which is where real
+    changes go wrong.
+
+    Raises KeyError for a task that names neither. A task that removes nothing
+    would leave the control check passing, and the run would record
+    `control_fails_as_expected: false` for every trial instead of failing here.
+    """
+    if "targets" in task:
+        return task["targets"]
+    return [{"file": task["file"], "symbol": task["symbol"]}]
+
+
 def one_trial(cfg, task, backend_name, backend, trial, workdir, timeout, dry_run,
               versions=None, client="claude", client_log=None, solutions=None,
               gates=True):
@@ -483,13 +504,20 @@ def one_trial(cfg, task, backend_name, backend, trial, workdir, timeout, dry_run
         #    Committing the excised state as the initial commit means the
         #    original body exists nowhere in this checkout -- not in history,
         #    not in an object store shared with anything else.
-        target = worktree / task["file"]
-        removed = excise.excise(target, task["symbol"])
-        result["removed_lines"] = len(removed.splitlines())
+        keep_doc = task.get("keep_docstring", True)
+        result["keep_docstring"] = keep_doc
+        excised = []
+        for t in targets(task):
+            path = worktree / t["file"]
+            body = excise.excise(path, t["symbol"], keep_docstring=keep_doc)
+            excised.append((path, t["symbol"], body))
+        result["removed_lines"] = sum(len(b.splitlines()) for _, _, b in excised)
+        result["removed_symbols"] = [t["symbol"] for t in targets(task)]
         git(["init", "-q", "-b", "main"], worktree)
         git(["add", "-A"], worktree)
         git(["-c", "user.email=bench@local", "-c", "user.name=bench",
-             "commit", "-q", "-m", f"benchmark: {task['symbol']} removed"], worktree)
+             "commit", "-q", "-m",
+             f"benchmark: {', '.join(result['removed_symbols'])} removed"], worktree)
 
         # 2. Control: the tests must fail now, or the task proves nothing.
         ok, summary = pytest_passes(worktree, task["tests"], timeout)
@@ -543,8 +571,9 @@ def one_trial(cfg, task, backend_name, backend, trial, workdir, timeout, dry_run
             after = grade.gates(worktree, GATE_TIMEOUT)
             result["gates_after"] = after
             result["gates_delta"] = grade.delta(result.get("gates_before") or {}, after)
-        result["restored_verbatim"] = grade.restored_verbatim(target, task["symbol"],
-                                                              removed)
+        # True only if every hollowed-out symbol came back unchanged; None if
+        # any of them is unreadable. A partial match is not recall.
+        result["restored_verbatim"] = grade.all_restored_verbatim(excised, keep_doc)
         result["source_repo_intact"] = source_repo_intact(repo, cfg["base_commit"])
         if not result["source_repo_intact"]:
             logger.error("%s: SOURCE REPO WAS MODIFIED -- agent left the sandbox", name)

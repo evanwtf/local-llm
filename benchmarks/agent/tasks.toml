@@ -69,6 +69,84 @@ prompt = """`scan` in src/gmail_archive/mbox.py has been removed and replaced \
 with a NotImplementedError. Implement it so the existing test suite passes. Do \
 not modify any test."""
 
+# --- harder tasks (issue #4) ---------------------------------------------
+# The five tasks above are a ceiling: seven of eight backends score 100% across
+# 243 trials, so adding backends stopped producing information. They are kept --
+# they still separate *clients* sharply (Codex 15/15, Claude Code 14/15,
+# OpenCode 6/15 on identical weights), which is a real measurement -- but they
+# cannot separate models.
+#
+# These three change one thing each, so a difficulty gap is attributable.
+
+# Direction 4: the contract goes away.
+#
+# A matched pair with `parser-mbox-quoting` -- same repo, same function, same
+# tests, same oracle. The ONLY difference is that the docstring is removed too.
+# That makes the difficulty delta attributable to the missing contract and
+# nothing else, which is why this is a variant rather than a new target.
+#
+# The target was chosen because its docstring is unusually load-bearing: it
+# states that the corpus is mboxrd rather than mboxo, that stripping exactly one
+# `>` is therefore the correct inverse, and that any line carrying more than one
+# `>` must be reported as ambiguous. With it present the task is transcription.
+# Without it, the agent has to infer the convention from `requote_mbox` and from
+# the tests -- and the ambiguity flag is a second return value that no signature
+# explains.
+[[task]]
+name = "parser-mbox-quoting-nodoc"
+file = "src/gmail_archive/parser.py"
+symbol = "unquote_mbox"
+keep_docstring = false
+tests = ["tests/test_parser.py"]
+prompt = """`unquote_mbox` in src/gmail_archive/parser.py has been removed and \
+replaced with a NotImplementedError. Implement it so the existing test suite \
+passes. Do not modify any test."""
+
+# Direction 1: two files that have to agree.
+#
+# `strip_envelope` removes the mbox `From_` envelope line; `unquote_mbox`
+# reverses the `>From ` escaping that the same format applies to the body. They
+# are the two halves of one convention, they live in different modules, and
+# each has its own test file. Restoring either alone is a task already in this
+# suite; restoring both means holding one format in mind across two edits.
+#
+# Both test files are the oracle, so a solution that fixes one half and breaks
+# the other fails.
+[[task]]
+name = "mbox-quoting-both-halves"
+tests = ["tests/test_mbox.py", "tests/test_parser.py"]
+targets = [
+    { file = "src/gmail_archive/mbox.py", symbol = "strip_envelope" },
+    { file = "src/gmail_archive/parser.py", symbol = "unquote_mbox" },
+]
+prompt = """Two functions have been removed and replaced with \
+NotImplementedError: `strip_envelope` in src/gmail_archive/mbox.py and \
+`unquote_mbox` in src/gmail_archive/parser.py. Implement both so the existing \
+test suite passes. Do not modify any test."""
+
+# Direction 1 again, on a convention that is shared rather than sequential.
+#
+# `BlobStore.put` writes to a temporary and renames it into place;
+# `sweep_temporaries` deletes the temporaries a killed run left behind. Nothing
+# in the type signatures connects them -- the only link is the name the
+# temporary file is given, which one function chooses and the other must match.
+# An agent that picks a different scheme in each half passes neither.
+#
+# This is also the durability target: put must fsync before the rename, which
+# no test can observe directly. Read the gate deltas on this task, not just the
+# verdict.
+[[task]]
+name = "storage-put-and-sweep"
+tests = ["tests/test_storage.py"]
+targets = [
+    { file = "src/gmail_archive/storage.py", symbol = "BlobStore.put" },
+    { file = "src/gmail_archive/storage.py", symbol = "BlobStore.sweep_temporaries" },
+]
+prompt = """Two methods have been removed from src/gmail_archive/storage.py \
+and replaced with NotImplementedError: `BlobStore.put` and \
+`BlobStore.sweep_temporaries`. Implement both so the existing test suite \
+passes. Do not modify any test."""
+
 # --- backends ------------------------------------------------------------
 # Each backend is the environment Claude Code runs under. Context windows
 # differ on purpose: each model gets its real window, because capping a model

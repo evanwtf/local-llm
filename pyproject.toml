@@ -14,3 +14,6 @@ dev = ["pytest>=8.0"]
 
 [tool.pytest.ini_options]
 testpaths = ["."]
+markers = [
+    "integration: needs ~/git/gmail-archive at the pinned commit and uv",
+]

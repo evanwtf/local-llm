@@ -58,7 +58,8 @@ def _normalize(body: str) -> str:
     return " ".join(body.split())
 
 
-def restored_verbatim(path: pathlib.Path, symbol: str, original: str) -> bool | None:
+def restored_verbatim(path: pathlib.Path, symbol: str, original: str,
+                      keep_docstring: bool = True) -> bool | None:
     """Did the agent reproduce the original body?
 
     True means byte-for-byte modulo whitespace -- strong evidence of recall
@@ -70,7 +71,7 @@ def restored_verbatim(path: pathlib.Path, symbol: str, original: str) -> bool | 
     the oracle already records; it is not a crash here.
     """
     try:
-        produced = excise.body_source(path, symbol)
+        produced = excise.body_source(path, symbol, keep_docstring)
     except (OSError, SyntaxError, ValueError, excise.TargetNotFound) as exc:
         logger.debug("cannot read %s from %s: %s", symbol, path, exc)
         return None
@@ -171,3 +172,21 @@ def delta(before: dict[str, int], after: dict[str, int]) -> dict[str, int]:
     if not before or not after or set(before) != set(after):
         return {}
     return {k: after[k] - before[k] for k in before}
+
+
+def all_restored_verbatim(excised: list[tuple[pathlib.Path, str, str]],
+                          keep_docstring: bool = True) -> bool | None:
+    """Did every hollowed-out symbol come back unchanged?
+
+    True only if all of them did. A task that removes two coupled functions and
+    gets one back verbatim is not a recall case -- it is a solved half -- so a
+    partial match reports False.
+
+    None if any target is unreadable, because "some were verbatim and one file
+    no longer parses" is not an answer worth writing down.
+    """
+    answers = [restored_verbatim(p, sym, body, keep_docstring)
+               for p, sym, body in excised]
+    if not answers or None in answers:
+        return None
+    return all(answers)

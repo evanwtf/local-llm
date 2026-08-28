@@ -120,3 +120,40 @@ def test_a_server_with_no_sampling_block_still_records_what_it_has(serves):
     serves.payload = {"model_path": "/x.gguf", "build_info": "b1"}
     got = run.probe_server({"base_url": "http://127.0.0.1:8000"})
     assert got == {"model_path": "/x.gguf", "build_info": "b1"}
+
+
+# --- direction 1: more than one symbol per task ---------------------------
+
+def test_a_single_symbol_task_still_describes_itself_the_old_way():
+    """398 rows name tasks defined with file/symbol. Do not break them."""
+    task = {"name": "t", "file": "src/a.py", "symbol": "f", "tests": ["tests/"]}
+    assert run.targets(task) == [{"file": "src/a.py", "symbol": "f"}]
+
+
+def test_a_task_may_hollow_out_several_symbols():
+    task = {"name": "t", "tests": ["tests/"], "targets": [
+        {"file": "src/a.py", "symbol": "f"},
+        {"file": "src/b.py", "symbol": "g"},
+    ]}
+    assert len(run.targets(task)) == 2
+    assert {t["file"] for t in run.targets(task)} == {"src/a.py", "src/b.py"}
+
+
+def test_a_task_with_neither_form_is_refused_loudly():
+    """A typo in tasks.toml must not silently produce a task that removes nothing.
+
+    That would excise nothing, pass the control check trivially... no: it would
+    make the control check FAIL to fail, and the trial would be recorded with
+    `control_fails_as_expected` false. Better to refuse at load.
+    """
+    with pytest.raises(KeyError):
+        run.targets({"name": "t", "tests": ["tests/"]})
+
+
+def test_targets_are_returned_in_a_stable_order():
+    """Excision order decides which file the stub lands in first; keep it fixed."""
+    task = {"name": "t", "tests": [], "targets": [
+        {"file": "src/z.py", "symbol": "z"},
+        {"file": "src/a.py", "symbol": "a"},
+    ]}
+    assert [t["symbol"] for t in run.targets(task)] == ["z", "a"]

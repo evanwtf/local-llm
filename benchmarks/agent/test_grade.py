@@ -10,9 +10,8 @@ import json
 import pathlib
 import subprocess
 
-import pytest
-
 import grade
+import pytest
 import results
 
 ORIGINAL = "    return a + b\n"
