@@ -94,3 +94,51 @@ what escaped, and it is worth reading before it is thrown away.
 after touching `tasks.toml` or bumping the target commit. A task whose tests
 still pass measures nothing, and the control check is the only thing that
 catches it.
+
+## Write results through `results.py`, never by hand
+
+`benchmarks/agent/results.py` owns the schema for `results.jsonl`. Use it:
+
+```python
+import results
+row = results.new_row(task=..., backend=..., client=..., trial=..., ...)
+row["finished"] = time.strftime("%Y-%m-%dT%H:%M:%S")
+results.write_row(row, RESULTS)      # validates, stamps, appends
+```
+
+And to read — **this is the part that matters**:
+
+```python
+rows = results.usable(RESULTS)   # normalised, exclusions already dropped
+rows = results.load(RESULTS)     # normalised, exclusions still marked
+```
+
+**Never filter exclusions with a hand-written `r.get("excluded")`.** Four
+different keys have meant "do not trust this row" — `excluded`, `exclude_reason`,
+`excluded_reason`, `contaminated`, `confound`. An analysis that checked only the
+first silently counted fifteen bad rows as good data, and published percentages
+from them. `results.is_excluded()` knows all five; a hand-rolled filter knows
+whichever one you happened to remember.
+
+`error` is deliberately *not* an exclusion. A timeout is a real outcome — the
+trial genuinely failed and belongs in the pass rate.
+
+Rows written from 2026-08-28 are schema v2 and carry `schema_version`. Older
+rows are v1 and are **not rewritten**: the file is append-only evidence.
+`load()` normalises them in memory instead.
+
+A row that fails validation is still written, stamped `schema_valid: false` with
+the violations, and logged at ERROR. A trial costs up to half an hour; losing one
+to a schema bug is worse than storing a flagged row. Check for them with:
+
+```sh
+grep -c '"schema_valid": false' benchmarks/agent/results.jsonl
+```
+
+## Transcripts are on by default
+
+`--client-log` defaults to `~/bench-logs`. A results row records *that* a trial
+failed, never *why*; the autocompact finding in #15 was only visible in a
+transcript. Transcripts stay outside the repo because they carry file contents
+the agent read, and this repo does not commit prompts. Disable with
+`--no-client-log`.

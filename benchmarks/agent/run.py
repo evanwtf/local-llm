@@ -34,10 +34,14 @@ import time
 import tomllib
 
 import excise
+import results
 
 logger = logging.getLogger("agent-bench")
 HERE = pathlib.Path(__file__).parent
 RESULTS = HERE / "results.jsonl"
+# Outside the repo on purpose: transcripts carry file contents the agent
+# read, and this repo does not commit prompts.
+DEFAULT_CLIENT_LOG = "~/bench-logs"
 
 
 def run(cmd, cwd, env=None, timeout=None):
@@ -405,14 +409,14 @@ def one_trial(cfg, task, backend_name, backend, trial, workdir, timeout, dry_run
     suffix = "" if client == "claude" else f"-{client}"
     name = f"{task['name']}-{backend_name}{suffix}-{trial}"
     worktree = workdir / name
-    result = {
-        "task": task["name"], "backend": backend_name, "trial": trial,
-        "client": client,
-        "started": time.strftime("%Y-%m-%dT%H:%M:%S"),
-        "model": backend["model"], "context_tokens": backend["context_tokens"],
-        "effort": backend.get("effort"),
-        "env": versions or {},
-    }
+    # results.new_row is the only place a row is shaped. It stamps the schema
+    # version and sets both exclusion keys explicitly -- see results.py for why
+    # "absent" must never be allowed to mean "not excluded".
+    result = results.new_row(
+        task=task["name"], backend=backend_name, client=client, trial=trial,
+        model=backend["model"], context_tokens=backend["context_tokens"],
+        effort=backend.get("effort"), env=versions or {},
+    )
 
     # A previous run killed mid-flight leaves its directory behind. Clear it so
     # one aborted run cannot block every later attempt at the same cell.
@@ -507,10 +511,16 @@ def main():
     p.add_argument("--dry-run", action="store_true",
                    help="verify each task's control failure, run no agent")
     p.add_argument("--tasks-file", default=str(HERE / "tasks.toml"))
-    p.add_argument("--client-log", metavar="DIR",
-                   help="keep each trial's raw client event stream in DIR. "
-                        "Transcripts include file contents the agent read, so "
-                        "point this outside the repo and do not commit it.")
+    # On by default: a results row records THAT a trial failed, never why.
+    # Only 138 of the first 439 rows had a transcript and most of those files
+    # are already gone, so the interesting failures were unreconstructable.
+    p.add_argument("--client-log", metavar="DIR", default=DEFAULT_CLIENT_LOG,
+                   help="keep each trial's raw client event stream in DIR "
+                        f"(default: {DEFAULT_CLIENT_LOG}). Transcripts include "
+                        "file contents the agent read, so this points outside "
+                        "the repo and is never committed.")
+    p.add_argument("--no-client-log", action="store_true",
+                   help="disable transcript capture entirely.")
     p.add_argument("--client", action="append", choices=sorted(CLIENTS),
                    help="repeatable; default claude. Multiple clients are "
                         "interleaved per task so neither gets a systematically "
@@ -549,7 +559,8 @@ def main():
     workdir.mkdir(parents=True, exist_ok=True)
 
     clients = args.client or ["claude"]
-    client_log = pathlib.Path(args.client_log).expanduser() if args.client_log else None
+    client_log = (None if args.no_client_log
+                  else pathlib.Path(args.client_log).expanduser())
 
     versions = capture_versions(cfg, backends)
     versions["client"] = ",".join(clients)
@@ -568,8 +579,12 @@ def main():
                                   client=client, client_log=client_log)
                     # Inside the client loop. Outside it, only the last
                     # client's row survives and half the run vanishes.
-                    with RESULTS.open("a") as fh:
-                        fh.write(json.dumps(r) + "\n")
+                    # write_row validates, stamps schema_valid/schema_errors
+                    # and appends. A row that violates the schema is still
+                    # written -- a trial costs up to half an hour and losing one
+                    # to a schema bug is worse than storing a flagged row.
+                    r["finished"] = time.strftime("%Y-%m-%dT%H:%M:%S")
+                    results.write_row(r, RESULTS)
 
 
 if __name__ == "__main__":
