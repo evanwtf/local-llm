@@ -35,6 +35,60 @@ unusable however fast it is. Quote pass rates with their confidence interval: a
 perfect 21/21 only establishes ">85%", and on current sample sizes most
 combinations cannot be told apart (issue #23).
 
+## The working loop
+
+Five documents, each with one job. Keeping them in their lanes is what stops
+this project turning into a pile of findings nobody can act on.
+
+| document | holds | lifetime |
+|---|---|---|
+| **GitHub issues** | every piece of work, one per issue | until closed |
+| [`NEXT.md`](NEXT.md) | the agenda: what order to work in | rewritten constantly |
+| `benchmarks/*/RESULTS.md` | the numbers, and how they were obtained | append-only |
+| [`RECOMMENDATIONS.md`](RECOMMENDATIONS.md) | the top 1-3 picks, and how to run them | replaced as evidence changes |
+| `AGENTS.md`, `CONVENTIONS.md`, `METHODOLOGY.md` | lessons that outlive the task | permanent |
+
+**New work becomes an issue first.** Not a note in `NEXT.md`, not a TODO in a
+comment. An issue carries its own reasoning and can be argued with; `NEXT.md`
+only says what to do next, and it says it by number.
+
+**`NEXT.md` sets order and nothing else.** Each issue must stand on its own, so
+this file never restates one. It carries the ordered table, the machine state
+that is not in git, and the traps.
+
+**Close the loop the same day you finish.** When a task lands:
+
+1. **Comment on the issue** with what was found -- including the parts that
+   contradict the issue's own premise. #26 was opened blaming a KV cache and the
+   data refuted it; #4 named a blocker that turned out never to have existed.
+   Write that down. An issue closed with "done" teaches nobody.
+2. **Close it.** A finished issue left open makes the agenda lie.
+3. **Prune `NEXT.md`.** Reorder the table, and move each finished item out of
+   "Done since the last update" **once its lesson has a permanent home.** That
+   is the release condition -- not age. A finding still only recorded in
+   `NEXT.md` has not landed anywhere yet.
+
+**Two parts of `NEXT.md` are exempt from pruning.** "Traps worth not
+rediscovering" and "Machine state" are the reason the file is worth reading, and
+they grow rather than shrink. A trap leaves only when it becomes impossible --
+fixed in code, or pinned by a test that would go red first. Prefer that to
+prose: an entry that can be made mechanical should be.
+
+**Results go to the `RESULTS.md` for the area that produced them** --
+`benchmarks/agent/`, `benchmarks/llamacpp/`, `benchmarks/ollama/`,
+`benchmarks/ds4/coding/`. Raw rows live in `results.jsonl` and are the record;
+`RESULTS.md` is the narrative over them, layered by date, and **corrections are
+added rather than substituted.** A superseded finding stays visible with a
+marker saying what replaced it. See "Keep the historical record honest".
+
+**`RECOMMENDATIONS.md` answers one question: what should someone run today?**
+The table at the top holds **one to three pairings** -- a model *and* a client,
+never a model alone -- with the commands to start each. Everything below it is
+support for that table: why a backend was ruled out, what a correction changed.
+When new evidence moves the top table, say what it used to say and why it moved.
+It has been wrong twice, and both times the old claim is more useful visible
+than deleted.
+
 ## Post a status update every 5 minutes during long runs
 
 Benchmark runs here take hours. A silent agent is indistinguishable from a

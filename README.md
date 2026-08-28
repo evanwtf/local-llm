@@ -132,6 +132,15 @@ no client is fastest on every backend. The
 [agent benchmark](benchmarks/agent/README.md) measures both axes over 238
 trials.
 
+## How this project is run
+
+Work is tracked as GitHub issues; [`NEXT.md`](NEXT.md) holds the order to work
+in and the machine state that is not in git;
+[`RECOMMENDATIONS.md`](RECOMMENDATIONS.md) holds the current top picks and how
+to start them. Measurements land in the `RESULTS.md` beside the benchmark that
+produced them. The full loop, and what belongs in which file, is in
+[`AGENTS.md`](AGENTS.md).
+
 ## Preflight: always check what is already running
 
 **Do this before starting a server, and before every benchmark batch.**
