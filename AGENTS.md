@@ -74,6 +74,28 @@ they grow rather than shrink. A trap leaves only when it becomes impossible --
 fixed in code, or pinned by a test that would go red first. Prefer that to
 prose: an entry that can be made mechanical should be.
 
+**Branch per piece of work, then merge it yourself.** A branch keeps one line
+of work separable while it is in progress, which is worth having. It is not a
+review gate: **do not open a pull request, and do not wait for approval.** When
+the work is done and the tests pass, merge to `main` and push.
+
+```sh
+git checkout -b <kind>/<issue>-<slug>     # docs/24-..., analysis/26-..., tasks/4-...
+# ... work, commit, push as you go ...
+git checkout main && git merge --ff-only <branch> && git push
+git branch -d <branch> && git push origin --delete <branch>
+```
+
+**Delete the branch once it is merged.** A merged branch left behind reads as
+work still in flight. Three of them accumulated before this rule was written,
+stacked on each other, and `main` sat fourteen commits behind the code its own
+README described.
+
+Prefer a fast-forward. The branches here are usually a stack -- each one built
+on the last, because the next task starts before the previous is merged -- and a
+stack fast-forwards cleanly if nothing lands on `main` in between. Merge from
+the bottom up if it does not.
+
 **Results go to the `RESULTS.md` for the area that produced them** --
 `benchmarks/agent/`, `benchmarks/llamacpp/`, `benchmarks/ollama/`,
 `benchmarks/ds4/coding/`. Raw rows live in `results.jsonl` and are the record;
