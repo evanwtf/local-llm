@@ -32,6 +32,8 @@ import shutil
 import subprocess
 import time
 import tomllib
+import urllib.error
+import urllib.request
 
 import excise
 import results
@@ -68,6 +70,47 @@ def pytest_passes(worktree, tests, timeout):
     r = run(["uv", "run", "pytest", "-q", *tests], cwd=worktree, timeout=timeout)
     tail = [ln for ln in r.stdout.splitlines() if ln.strip()]
     return r.returncode == 0, (tail[-1] if tail else "no output")
+
+
+def probe_server(backend):
+    """Ask the running server what it is actually serving.
+
+    `/props` answers with the exact GGUF path, the build the binary was made
+    from, and -- the reason this exists -- the sampling parameters in force.
+
+    Those parameters were never recorded, and #26 spent its life blaming a KV
+    cache for a 1.74x median wall-time spread that is really the model emitting
+    1.4x the tokens on an unlucky draw. llama.cpp serves at temperature 1.0,
+    top_p 0.95, top_k 40 and a fresh random seed per request, so every trial is
+    an independent sample from a wide distribution. That is a legitimate thing
+    to measure -- it is what the model does in real use -- but it has to be on
+    the row, or the next person reads a median as if it were a measurement.
+
+    A server behind the Claude Code shim does not answer GET, so a backend can
+    name `props_url` to point at the real server. Returns {} on any failure:
+    this is provenance, and it must never take a trial down with it.
+    """
+    url = backend.get("props_url") or backend.get("base_url")
+    if not url:
+        return {}
+    try:
+        with urllib.request.urlopen(url.rstrip("/") + "/props", timeout=10) as fh:
+            props = json.load(fh)
+    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError) as exc:
+        logger.debug("no /props from %s: %s", url, exc)
+        return {}
+
+    got = {}
+    for key in ("model_path", "model_alias", "build_info", "total_slots"):
+        if props.get(key) is not None:
+            got[key] = props[key]
+    params = (props.get("default_generation_settings") or {}).get("params") or {}
+    sampling = {k: params[k] for k in
+                ("temperature", "top_p", "top_k", "min_p", "seed", "samplers")
+                if k in params}
+    if sampling:
+        got["sampling"] = sampling
+    return got
 
 
 def capture_versions(cfg, backends):
@@ -142,15 +185,18 @@ def capture_versions(cfg, backends):
         if server.exists():
             env["llamacpp_server_mtime"] = time.strftime(
                 "%Y-%m-%dT%H:%M:%S", time.localtime(server.stat().st_mtime))
-        gguf_root = pathlib.Path(
-            os.environ.get("GGUF_ROOT",
-                           "~/models/Qwen3.8-Flash-Next-GGUF")).expanduser()
-        shards = sorted(gguf_root.glob("*/*.gguf"))
-        if shards:
-            env["gguf_files"] = [f.name for f in shards]
-            env["gguf_bytes"] = sum(f.stat().st_size for f in shards)
-            env["gguf_mtime"] = time.strftime(
-                "%Y-%m-%dT%H:%M:%S", time.localtime(shards[0].stat().st_mtime))
+    # Which GGUF is in service comes from the server itself, below. An earlier
+    # revision globbed `GGUF_ROOT/*/*.gguf`, which spans every quant sitting in
+    # that directory: rows recorded during the Q3 runs list the Q2 shards too,
+    # and `gguf_bytes` sums both quants into a number that describes neither.
+    # Those rows are still in results.jsonl; read `servers` instead.
+
+    # One probe per backend, keyed by name, because a run can span several and
+    # each row records which one it used.
+    servers = {name: probe_server(b) for name, b in backends.items()}
+    servers = {k: v for k, v in servers.items() if v}
+    if servers:
+        env["servers"] = servers
     return {k: v for k, v in env.items() if v is not None}
 
 
