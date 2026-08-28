@@ -84,13 +84,72 @@ def hoist_system(body: bytes) -> bytes:
     return json.dumps(payload).encode()
 
 
+def _text_of(content: object) -> str:
+    """Flatten a Responses-API content field to plain text.
+
+    It is either a string or a list of typed blocks. Stringifying the list
+    would put `{'type': 'input_text', ...}` into the prompt.
+    """
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = []
+        for block in content:
+            if isinstance(block, dict):
+                text = block.get("text") or block.get("content")
+                if isinstance(text, str):
+                    parts.append(text)
+            elif isinstance(block, str):
+                parts.append(block)
+        return "\n".join(parts)
+    return ""
+
+
+def fold_developer(body: bytes) -> bytes:
+    """Merge a `developer`/`system` item in `input` into `instructions`.
+
+    The Responses-API counterpart of `hoist_system`. Codex 0.150.1 sends BOTH a
+    top-level `instructions` string and a `role="developer"` item inside
+    `input`; llama-server maps each to a chat system message, so the Qwen
+    template sees [system, system, user, ...] and raises "System message must be
+    at the beginning". Codex 0.148 sent only one, which is why the direct path
+    worked until the client was upgraded.
+
+    Folding both into `instructions` yields exactly one system message and
+    changes no content. Returns the body unchanged when there is nothing to do.
+    """
+    try:
+        payload = json.loads(body)
+    except ValueError:
+        return body
+    items = payload.get("input")
+    if not isinstance(items, list):
+        return body
+    strays = [i for i in items
+              if isinstance(i, dict) and i.get("role") in ("developer", "system")]
+    if not strays:
+        return body
+
+    # Instructions first: it is the agent's own prompt, and the folded items
+    # are repository-level context that reads as an addendum to it.
+    parts = [p for p in [payload.get("instructions") or ""] if p]
+    parts += [t for t in (_text_of(i.get("content")) for i in strays) if t]
+    payload["instructions"] = "\n\n".join(parts)
+    payload["input"] = [i for i in items
+                        if not (isinstance(i, dict)
+                                and i.get("role") in ("developer", "system"))]
+    logger.info("folded %d developer/system item(s) into instructions", len(strays))
+    return json.dumps(payload).encode()
+
+
 class Proxy(http.server.BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
     def do_POST(self):
         global fails
         body = self.rfile.read(int(self.headers.get("Content-Length", 0)))
-        body = hoist_system(body)
+        body = hoist_system(body)     # /v1/messages, /v1/chat/completions
+        body = fold_developer(body)   # /v1/responses
         headers = {
             k: v
             for k, v in self.headers.items()

@@ -410,8 +410,16 @@ context_tokens = 262144
 # the source claim is about output, not about time. Read the suite wall clock,
 # not just the verdict.
 #
-# Same engine build and flags as qwen38fnq2/q3 (PR #27742), so the quant and
-# the PLE split are what move. Started with:
+# CODEX GOES THROUGH THE SHIM NOW, not direct to :8020. Codex 0.150.1 sends a
+# top-level `instructions` string AND a role="developer" item inside `input`;
+# llama-server maps each to a chat system message, and the Qwen template raises
+# "System message must be at the beginning" on the second. 0.148 sent only one,
+# so the direct path worked until the client was upgraded on 2026-08-28. The
+# shim's fold_developer() merges them. Every llama.cpp codex profile was moved
+# to the shim port for the same reason.
+#
+# Same engine and flags as qwen38fnq2/q3, so the quant and the PLE split are
+# what move. Started with:
 #   MODEL=... ALIAS=qwen3.8-flash-next-q4m64 BACKEND=qwen38fnq4m64 llamacpp-up start
 [backend.qwen38fnq4m64]
 description = "Qwen3.8-Flash-Next, AtomicChat AD-4.27bpw-Q4_K_M-M64, PLE table split for SSD paging"
