@@ -229,6 +229,14 @@ def agent_env(backend):
         ANTHROPIC_DEFAULT_OPUS_MODEL=backend["model"],
         ANTHROPIC_DEFAULT_HAIKU_MODEL=backend["model"],
         CLAUDE_CODE_MAX_CONTEXT_TOKENS=str(backend["context_tokens"]),
+        # Codex profiles declare `env_key = "CODEX_API_KEY"`. The harness never
+        # set it, so every Codex row before 2026-08-28 depended on the operator
+        # having exported it in the shell that launched the run. Unattended,
+        # Codex exits in 0.7 s with "Missing environment variable" and the row
+        # records as a model failure -- indistinguishable, on the row, from the
+        # model giving up. Same token as the Anthropic path: both are the local
+        # server's non-secret local credential.
+        CODEX_API_KEY=backend["auth_token"],
     )
     return env
 

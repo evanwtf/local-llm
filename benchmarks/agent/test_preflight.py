@@ -122,6 +122,13 @@ def test_headroom_is_what_is_left_under_the_metal_ceiling():
     assert round(got.headroom_gib, 1) == 32.4
 
 
+def test_a_shell_that_merely_mentions_a_server_is_not_a_server():
+    """The self-match trap. `pgrep -f` has bitten this project once already."""
+    ps = ("  PID    RSS COMMAND\n"
+          "87535   9184 /bin/zsh -c grep llama-server /var/log/x\n")
+    assert preflight.parse_ps(ps) == []
+
+
 def test_an_inference_process_with_no_listener_is_still_counted():
     """A server still loading has not bound its port yet. It holds memory now."""
     ps = "  PID    RSS COMMAND\n99 52428800 ./build/bin/llama-server --model x.gguf\n"
@@ -143,3 +150,20 @@ def test_the_warning_names_the_pid_and_the_memory_so_it_can_be_acted_on():
     got = preflight.check(PS, LSOF, expected_ports={8000})
     text = " ".join(got.warnings())
     assert "43967" in text and "77.6" in text
+
+
+def test_standalone_use_judges_nothing_stale():
+    """`expected_ports=None` means no run was planned, so nothing conflicts.
+
+    An empty set would be a different claim -- "a run is planned and uses no
+    ports" -- and would mark every healthy server stale. Running the tool by
+    hand warned about ds4-server while ds4-server was the intended backend.
+    """
+    got = preflight.check(PS, LSOF, expected_ports=None)
+    assert got.stale == []
+    assert round(got.total_gib, 1) == 79.6   # still reports what is held
+
+
+def test_an_empty_set_still_means_everything_is_unexpected():
+    """The distinction must survive: a planned run with no ports is a conflict."""
+    assert len(preflight.check(PS, LSOF, expected_ports=set()).stale) == 1

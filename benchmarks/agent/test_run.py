@@ -157,3 +157,35 @@ def test_targets_are_returned_in_a_stable_order():
         {"file": "src/a.py", "symbol": "a"},
     ]}
     assert [t["symbol"] for t in run.targets(task)] == ["z", "a"]
+
+
+# --- the environment handed to the client --------------------------------
+
+def test_codex_gets_its_api_key_from_the_backend():
+    """Codex profiles declare `env_key = "CODEX_API_KEY"` and the harness must
+    supply it.
+
+    It did not, for the life of the project. Every Codex row until 2026-08-28
+    was produced with the variable exported in the operator's interactive
+    shell, so the harness silently depended on ambient state it neither set nor
+    recorded. Unattended, Codex exits in 0.7 s with "Missing environment
+    variable: CODEX_API_KEY" and the row lands as a model failure, which is
+    what it looks like and is not what it is.
+    """
+    env = run.agent_env({"base_url": "http://127.0.0.1:8000", "model": "m",
+                         "auth_token": "tok", "context_tokens": 1})
+    assert env["CODEX_API_KEY"] == "tok"
+
+
+def test_the_hosted_reference_keeps_its_ambient_auth():
+    """No base_url means the operator's real login. Do not inject a token."""
+    env = run.agent_env({"model": "claude-opus-5"})
+    assert "CODEX_API_KEY" not in env or env.get("CODEX_API_KEY") != "tok"
+    assert env["ANTHROPIC_MODEL"] == "claude-opus-5"
+
+
+def test_a_local_backend_never_leaks_a_real_anthropic_key():
+    env = run.agent_env({"base_url": "http://127.0.0.1:8000", "model": "m",
+                         "auth_token": "tok", "context_tokens": 1})
+    assert "ANTHROPIC_API_KEY" not in env
+    assert env["ANTHROPIC_AUTH_TOKEN"] == "tok"

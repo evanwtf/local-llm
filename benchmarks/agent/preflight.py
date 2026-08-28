@@ -82,7 +82,13 @@ def parse_ps(text: str) -> list[Proc]:
         if len(parts) < 3:
             continue
         pid, rss, command = parts
-        if not any(marker in command for marker in INFERENCE):
+        # Match the executable, not the whole command line. A shell running a
+        # script that merely mentions llama-server has the marker in its
+        # arguments, and matching those made this tool report the shell that
+        # invoked it. That is the same self-match NEXT.md records for
+        # `pgrep -f run.py`, and it is worth not rediscovering twice.
+        binary = command.split()[0] if command.split() else ""
+        if not any(marker in binary for marker in INFERENCE):
             continue
         try:
             procs.append(Proc(int(pid), int(rss) / KIB_PER_GIB, command.strip()))
@@ -156,9 +162,16 @@ class Report:
         return out
 
 
-def check(ps_text: str, lsof_text: str, expected_ports: set[int],
+def check(ps_text: str, lsof_text: str, expected_ports: set[int] | None,
           ceiling_gib: float = DEFAULT_CEILING_GIB) -> Report:
-    """Compare what is running against what this run expects to use."""
+    """Compare what is running against what this run expects to use.
+
+    `expected_ports=None` means "no run is being planned" -- the standalone
+    case, where the tool is being asked what is up rather than whether it
+    conflicts. Nothing is stale then, because nothing was selected. Passing an
+    empty set instead would mark every running server stale and warn on a
+    perfectly healthy machine, which is how a warning becomes noise.
+    """
     listeners = parse_lsof(lsof_text)
     by_pid = {pid: port for port, pid in listeners.items()}
     stale, unmatched, total = [], [], 0.0
@@ -166,8 +179,12 @@ def check(ps_text: str, lsof_text: str, expected_ports: set[int],
         total += proc.rss_gib
         port = by_pid.get(proc.pid)
         if port is None:
-            unmatched.append(proc)
-        elif port not in expected_ports and proc.rss_gib >= SIGNIFICANT_GIB:
+            # A server still loading holds real memory; a process holding
+            # nothing is not worth a sentence either way.
+            if proc.rss_gib >= SIGNIFICANT_GIB:
+                unmatched.append(proc)
+        elif (expected_ports is not None and port not in expected_ports
+              and proc.rss_gib >= SIGNIFICANT_GIB):
             stale.append(dataclasses.replace(proc, port=port))
     return Report(stale, unmatched, total, ceiling_gib - total)
 
@@ -179,11 +196,14 @@ def _capture(argv: list[str]) -> str:
 
 
 def inspect(backends: dict[str, dict] | None = None) -> Report:
-    """Run the check against this machine right now."""
+    """Run the check against this machine right now.
+
+    `backends=None` reports without judging: see `check`.
+    """
     return check(
         _capture(["ps", "-eo", "pid,rss,command"]),
         _capture(["lsof", "-nP", "-iTCP", "-sTCP:LISTEN"]),
-        backend_ports(backends or {}),
+        None if backends is None else backend_ports(backends),
     )
 
 
@@ -203,6 +223,9 @@ def main() -> int:
     log_report(report)
     if not report.stale and not report.unmatched:
         logger.info("preflight: nothing else is serving a model")
+    if report.total_gib:
+        logger.info("preflight: run this from run.py, or pass the backends you "
+                    "plan to use, to be told which of these is unexpected")
     return 0
 
 
