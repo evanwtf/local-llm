@@ -1,24 +1,28 @@
 # Where to pick up
 
-Updated 2026-08-29 04:10, after an overnight run that closed #23, #28, #33, #34
-and #36, answered #35 and #4, and filed #37. Work the issues in the order below.
-Each issue is self-contained; this file only sets priority and records machine
-state that is not in git.
+Updated 2026-08-29 09:40. **GLM testing is top priority** — the current GLM-5.3
+results were measured on the wrong stack, and the supported one may fix the
+single-client problem. Work the issues in the order below. Each issue is
+self-contained; this file only sets priority and records machine state that is
+not in git.
 
 ## Order
 
 | # | issue | why this position |
 |---|---|---|
-| 1 | **#4** A second target repository | **Needs a decision, not more benchmarking.** Not "harder tasks" -- a different repo. gmail-archive is 1,833 source lines, 52 functions, median 13 lines, and exactly **one** function with a nested def -- the one that produced the only defect found in 18 trials. Nothing left to find in it. A new repo also retires the authorship-contamination caveat, which task selection cannot. |
-| 2 | **#35** Model queue, criteria revised | Admission needs a **second criterion: decodes within ~3x of the primary**. GLM-5.2 streams into 30.8 GiB from 196.6 -- the memory wall is gone -- but at ~4 tok/s it cannot be benchmarked at all. Kimi K3 / MiniMax M3 remain out for **engine support**, not size. |
-| 3 | **#27** Retire the ds4 fork | Blocked, re-checked 2026-08-28: antirez/ds4#885 and #886 both open. |
+| 1 | **#38** GLM-5.3-Flash on **ds4**, the supported stack | **Everything measured about GLM-5.3 used the wrong engine.** `backend.glm53` is Unsloth `UD-Q2_K_XL` on llama.cpp PR #27752 through the shim; antirez's supported path is ds4 with his own layout, and ds4 is **not** a general GGUF loader. ds4 also removes the shim -- which is in the path of every `glm53` trial and is the prime suspect for the Claude Code timeout. It is the engine the primary already runs at 55/55 and 45/45. |
+| 2 | **#39** ds4 embedded MTP (`--mtp`, `--mtp-timing`) | **The only lever measured here that attacks decode rate**, which is exactly what killed `glm53 x claude`: 12.11 t/s, 5,181-7,175 tokens per turn, 428-605 s per turn. `--mtp-timing` reports acceptance directly, so this is measurable rather than anecdotal. **May also apply to the ds4 primary**, which would matter more than anything GLM does. Note `--mtp` alters the sampling distribution, and #36 showed that moves pass rate -- so run `--mtp-exact-sampling` too. |
+| 3 | **#40** GLM-5.3 quant ladder on ds4 (q2 vs q4) | Depends on #38. #31 is the precedent: the *bigger* quant was 28.4% **faster** because re-prefill dominates. But #34 priced streaming at **+76%**, so q4-streamed starts in a hole. Expect q2-resident to win; an opposite result is the interesting one. |
+| 4 | **#4** A second target repository | Needs a decision, not machine time. gmail-archive is 1,833 source lines with exactly **one** function carrying the surface that produced the only defect found in 18 trials. Nothing left to find in it. |
+| 5 | **#35** Model queue, criteria revised | Admission needs a second criterion: **decodes within ~3x of the primary**. Kimi K3 / MiniMax M3 are out for **engine support**, not size. |
+| 6 | **#27** Retire the ds4 fork | Blocked, re-checked 2026-08-28: antirez/ds4#885 and #886 both open. |
 
-**The sampler blind spot is closed as far as the engines permit** (#36, #37).
-llama.cpp reports via `/props`, Ollama via `/api/show`, and ds4 explicitly
-reports that it *cannot* report -- `sampling_source: "engine defaults (not
-reported by ds4)"`. ds4's source carries two conflicting default sets
-(`ds4.h` top_p 1.0 vs `ds4_cli.c` top_p 0.95) and reading it does not settle
-which reaches the server, so the row records the ambiguity rather than a guess.
+**What the GLM-5.3 result currently is, and is not.** `glm53 x codex` is
+**15/15**, suite 1,362 s. `glm53 x claude` **timed out at 3,600 s on the easiest
+task**, which Codex does in 133.1 s. The mechanism is measured -- 12.11 t/s and
+5-7k tokens per turn -- and it is **not** #14 re-prefill: the prompt cache was
+working, 4 tokens re-evaluated. All of it is on llama.cpp + shim, i.e. the
+unsupported stack.
 
 ## Done since the last update
 

@@ -45,12 +45,12 @@ LOG=$STATE/server.log
 SHIM_PIDFILE=$STATE/shim.pid
 SHIM_LOG=$STATE/shim.log
 
-PORT=8020
+PORT=${PORT:-8020}
 URL=http://127.0.0.1:$PORT
 
 # The shim Claude Code talks to. Must match base_url for backend.qwen38fnq2.
 SHIM=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)/ollama_claude_shim.py
-SHIM_PORT=11500
+SHIM_PORT=${SHIM_PORT:-11500}
 SHIM_URL=http://127.0.0.1:$SHIM_PORT
 
 # --- tunables -----------------------------------------------------------

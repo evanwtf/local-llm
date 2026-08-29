@@ -56,3 +56,41 @@ def test_a_version_below_a_warning_line_is_still_found():
     install as unknown."""
     assert staleness.parse("Warning: could not connect to a running Ollama "
                            "instance\nollama version is 0.33.1") == (0, 33, 1)
+
+
+def test_a_feature_branch_is_not_reported_as_behind_master():
+    """A worktree parked on a PR branch diverges from master by design.
+
+    `~/git/llama.cpp-glm52pr` sits on `glm53-pr27752` because PR #27752 is not
+    merged. Comparing it to origin/master reported "9 commits behind" -- which
+    is mainline moving on, not the branch going stale, and pulling would have
+    destroyed the build every glm53 row depends on. A warning that fires on a
+    correct state is the kind nobody reads.
+    """
+    got = staleness.describe_drift(branch="glm53-pr27752", behind=9,
+                                   tracking=None)
+    assert got["stale"] is False
+    assert "pr branch" in got["note"].lower()
+
+
+def test_a_branch_tracking_its_own_upstream_is_judged_against_that():
+    got = staleness.describe_drift(branch="main", behind=4,
+                                   tracking="origin/main")
+    assert got["stale"] is True
+
+
+def test_a_branch_on_master_and_behind_is_stale():
+    got = staleness.describe_drift(branch="master", behind=44, tracking=None)
+    assert got["stale"] is True
+
+
+def test_a_branch_on_master_and_current_is_not_stale():
+    assert staleness.describe_drift(branch="master", behind=0,
+                                    tracking=None)["stale"] is False
+
+
+def test_a_git_error_string_is_not_mistaken_for_an_upstream_name():
+    """`git rev-parse @{u}` prints "fatal: no upstream configured" to stderr,
+    and _run falls back to stderr when stdout is empty. Treating that as a
+    branch name made every PR branch look like it tracked something."""
+    assert staleness.describe_drift("glm53-pr27752", 9, None)["stale"] is False

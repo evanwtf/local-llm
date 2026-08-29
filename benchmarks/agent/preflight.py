@@ -265,16 +265,15 @@ def log_versions(offline: bool = False) -> None:
             note += " [UNCOMMITTED CHANGES]"
         if stale_fetch:
             note += f" [last fetch {age:.0f} days ago -- run git fetch]"
-        behind = got["behind"]
-        if behind is None:
-            logger.info("preflight: %s at %s, no remote to compare%s",
-                        name, got["head"], note)
-        elif behind > 0:
-            logger.warning("preflight: %s at %s is %d commit(s) behind its "
-                           "remote%s", name, got["head"], behind, note)
+        # `stale` comes from describe_drift, which knows a PR branch diverging
+        # from master is not staleness. Warning on a correct state is how a
+        # check becomes noise nobody reads.
+        if got.get("stale"):
+            logger.warning("preflight: %s at %s is %s%s",
+                           name, got["head"], got.get("note", "behind"), note)
         else:
-            logger.info("preflight: %s at %s is current%s",
-                        name, got["head"], note)
+            logger.info("preflight: %s at %s -- %s%s",
+                        name, got["head"], got.get("note", "current"), note)
 
 
 def main() -> int:

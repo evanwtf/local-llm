@@ -132,6 +132,37 @@ def latest_versions(offline: bool = False) -> dict[str, str | None]:
     return versions
 
 
+# Branch names that mean "I am following mainline". Anything else is a
+# deliberate parking spot -- a PR branch, a bisect, a patched build -- and
+# being behind master is its normal state, not a problem.
+MAINLINE = {"main", "master", "HEAD"}
+
+
+def describe_drift(branch: str | None, behind: int | None,
+                   tracking: str | None) -> dict[str, Any]:
+    """Is this checkout actually stale, or just parked on a branch?
+
+    A worktree on a PR branch diverges from master by design.
+    `~/git/llama.cpp-glm52pr` sits on `glm53-pr27752` because PR #27752 is not
+    merged, and reporting it "9 commits behind origin/master" is noise --
+    pulling would destroy the build every glm53 row depends on.
+
+    Judge against the branch's own upstream when it has one; otherwise only
+    call it stale if it claims to be following mainline.
+    """
+    if behind is None:
+        return {"stale": False, "note": "no remote to compare"}
+    if tracking:
+        return {"stale": behind > 0,
+                "note": f"{behind} behind {tracking}" if behind else "current"}
+    if branch and branch not in MAINLINE:
+        return {"stale": False,
+                "note": f"on PR branch {branch!r}; {behind} behind master "
+                        f"is expected divergence, not staleness"}
+    return {"stale": behind > 0,
+            "note": f"{behind} behind mainline" if behind else "current"}
+
+
 def git_drift(repo: pathlib.Path) -> dict[str, Any] | None:
     """How far behind its remote-tracking branch is this checkout?
 
@@ -155,5 +186,14 @@ def git_drift(repo: pathlib.Path) -> dict[str, Any] | None:
     age = None
     if fetch_head.is_file():
         age = (time.time() - fetch_head.stat().st_mtime) / 86400
-    return {"head": head, "behind": behind,
-            "dirty": bool(dirty), "fetched_days_ago": age}
+    branch = _run(["git", "-C", str(repo), "rev-parse", "--abbrev-ref", "HEAD"])
+    # `_run` falls back to stderr, and `@{u}` on a branch with no upstream
+    # prints "fatal: no upstream configured". That is an absence, not a name.
+    tracking = _run(["git", "-C", str(repo), "rev-parse", "--abbrev-ref",
+                     "--symbolic-full-name", "@{u}"])
+    if tracking and (tracking.startswith("fatal:") or " " in tracking):
+        tracking = None
+    verdict = describe_drift(branch, behind, tracking)
+    return {"head": head, "behind": behind, "branch": branch,
+            "dirty": bool(dirty), "fetched_days_ago": age,
+            "stale": verdict["stale"], "note": verdict["note"]}
