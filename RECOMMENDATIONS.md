@@ -365,7 +365,22 @@ can speak to either way.
 
 ---
 
-## Benchmarked: `GLM-5.3-Flash` — it fits, and it works
+## Benchmarked: `GLM-5.3-Flash` — on the wrong stack
+
+> **Methodology correction, 2026-08-29.** Everything below was measured with
+> **Unsloth's `UD-Q2_K_XL` on llama.cpp PR #27752, through the shim.** That is
+> not how this model is meant to be run: antirez ships GLM for Mac through **ds4
+> (DwarfStar)** with his own GGUF layout, and ds4 is explicitly *not* a general
+> GGUF loader. The two artifacts are not interchangeable — his GGUF declares
+> `glm5-next`, Unsloth's declares `glm5next`, and neither engine reads the
+> other's. **Treat the numbers below as a property of that stack, not of the
+> model.** Re-test is #38.
+>
+> The result that exposed it: **`glm53 x claude` times out at 3,600 s** on the
+> task Codex does in 133.1 s. Measured cause is 12.11 t/s decode with 5–7k
+> tokens per turn — not re-prefill; the prompt cache was working.
+
+
 
 320B total, 18B active, MIT, released 2026-08-26. **15/15 with Codex, zero
 patches, zero warnings.** It is the slowest of the passing backends and it is

@@ -94,3 +94,11 @@ def test_a_git_error_string_is_not_mistaken_for_an_upstream_name():
     and _run falls back to stderr when stdout is empty. Treating that as a
     branch name made every PR branch look like it tracked something."""
     assert staleness.describe_drift("glm53-pr27752", 9, None)["stale"] is False
+
+
+def test_known_branches_are_not_re_announced():
+    """Once a branch is being used, stop shouting about it."""
+    import pathlib as _p
+    got = staleness.new_remote_branches(_p.Path.home() / "git/ds4",
+                                        known={"glm-5.3-flash"})
+    assert "glm-5.3-flash" not in got

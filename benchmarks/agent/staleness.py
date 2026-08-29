@@ -163,6 +163,40 @@ def describe_drift(branch: str | None, behind: int | None,
             "note": f"{behind} behind mainline" if behind else "current"}
 
 
+def new_remote_branches(repo: pathlib.Path, known: set[str] | None = None,
+                        days: int = 14) -> list[str]:
+    """Remote branches updated recently that the local checkout is not on.
+
+    ds4 is the reference implementation for this hardware and antirez ships
+    fast: GLM-5.3-Flash arrived on a preview branch while this project was
+    benchmarking the model on an unsupported stack, and the branch had existed
+    the whole time (#38). A new branch on that remote is a signal, not noise.
+
+    Offline -- reads refs already fetched, so it is only as fresh as the last
+    `git fetch`, which `git_drift` reports separately.
+    """
+    out = _run(["git", "-C", str(repo), "for-each-ref", "--sort=-committerdate",
+                f"--format=%(refname:short)%09%(committerdate:unix)",
+                "refs/remotes"])
+    if not out:
+        return []
+    import time as _time
+    cutoff = _time.time() - days * 86400
+    fresh = []
+    for line in out.splitlines():
+        parts = line.split("\t")
+        if len(parts) != 2 or not parts[1].isdigit():
+            continue
+        name, when = parts[0], int(parts[1])
+        if when < cutoff or name.endswith("/HEAD"):
+            continue
+        short = name.split("/", 1)[-1]
+        if short in {"main", "master"} or (known and short in known):
+            continue
+        fresh.append(short)
+    return fresh
+
+
 def git_drift(repo: pathlib.Path) -> dict[str, Any] | None:
     """How far behind its remote-tracking branch is this checkout?
 

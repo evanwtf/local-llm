@@ -232,6 +232,12 @@ BUILDS = {
 # A fetch older than this makes "0 commits behind" meaningless.
 STALE_FETCH_DAYS = 2.0
 
+# The reference implementation for this hardware. antirez ships models here
+# first, often on a preview branch -- GLM-5.3-Flash landed on one while this
+# project was benchmarking the model on an unsupported stack (#38). A new branch
+# on this remote is a signal worth surfacing before a run, not after.
+SHERPA = "ds4"
+
 
 def log_versions(offline: bool = False) -> None:
     """Report drift in the tools and builds a batch is about to measure through.
@@ -253,6 +259,14 @@ def log_versions(offline: bool = False) -> None:
             logger.info("preflight: %s (could not compare)", line)
         else:
             logger.info("preflight: %s (%s)", line, state)
+
+    sherpa = BUILDS.get(SHERPA)
+    if sherpa is not None:
+        for branch in staleness.new_remote_branches(sherpa):
+            logger.warning("preflight: %s has a recent branch %r you are not on "
+                           "-- antirez ships models on preview branches; check "
+                           "before concluding one does not run here",
+                           SHERPA, branch)
 
     for name, path in BUILDS.items():
         got = staleness.git_drift(path)

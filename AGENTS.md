@@ -130,6 +130,46 @@ looks boring; that is when a stall hides longest.
 This rule exists because the cadence has been dropped mid-run before, and the
 operator had to ask where the updates went.
 
+## antirez is the sherpa — check his path before designing your own
+
+**ds4 (DwarfStar) is the reference implementation for this hardware.** antirez
+runs these models on the machines this project targets — 128 GiB Apple Silicon —
+and publishes what works. When a model he has shipped is being evaluated here,
+**his current guidance is the starting point, not a footnote.**
+
+Before designing any experiment on a model he covers:
+
+```sh
+cd ~/git/ds4 && git fetch --all
+git branch -a                       # preview branches carry unreleased models
+git log --oneline main..upstream/<branch>
+grep -oE "^\s+[a-z0-9-]+\)" download_model.sh   # supported layouts
+```
+
+**ds4 is not a general GGUF loader.** Only layouts from its own
+`download_model.sh` are supported. A GGUF of the "same" model from elsewhere is
+a different artifact, and the metadata says so out loud:
+
+```
+antirez GLM-5.3   general.architecture = glm5-next
+Unsloth  GLM-5.3  general.architecture = glm5next
+```
+
+Neither engine reads the other's file. That single hyphen is why #25 burned
+hours on a model that "loads and emits gibberish".
+
+**The cost of not checking, measured 2026-08-29.** GLM-5.3-Flash was evaluated
+on Unsloth's GGUF via llama.cpp PR #27752 through the shim, and produced
+`glm53 x codex` 15/15 plus a **3,600 s timeout** under Claude Code. On the
+supported ds4 path the same question at temperature 0 answered in **3.2 s using
+47 completion tokens**, against **76 s and 854 tokens** on the unsupported one.
+**18x fewer tokens.** The pathology was the stack, not the model — and the
+branch that fixed it had existed the whole time.
+
+**He is also fast.** A model can go from unsupported to shipped in a day, and
+preview branches are where it lands first. Re-check before concluding a model
+does not work here.
+
 ## Always measure the latest infrastructure
 
 llama.cpp, Ollama, Codex and OpenCode ship several times a day. **Update before

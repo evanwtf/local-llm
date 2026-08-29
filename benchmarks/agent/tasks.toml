@@ -327,8 +327,40 @@ context_tokens = 131072
 # (#25) paired antirez's GGUF with PR #27773, took seven source patches, and
 # still emitted gibberish -- the vocabularies did not match.
 #
-# PROVISIONAL: #27752 is mergeable but NOT merged, and the architecture name is
-# still contested upstream (glm5next vs glm5-next). Expect to redo this.
+# ================= WRONG STACK. Read before quoting these rows. =================
+#
+# **This is not how GLM-5.3-Flash is meant to be run**, and every row recorded
+# against this backend measures a stack antirez does not support. He ships GLM
+# for Mac through ds4 (DwarfStar) with his own GGUF layout, and states plainly
+# that ds4 is **not a general GGUF loader** -- only layouts from its
+# `download_model.sh` work. See #38.
+#
+# What that means for the numbers here:
+#
+#   glm53 x codex   15/15, suite 1362s   -- a property of THIS stack, not of GLM
+#   glm53 x claude  TIMED OUT at 3600s on the easiest task, which Codex does in
+#                   133.1s. Measured cause: 12.11 t/s decode, 5181-7175 tokens
+#                   per turn, 428-605s per turn. The prompt cache was working
+#                   (4 tokens re-evaluated), so NOT the #14 re-prefill problem.
+#
+# The shim is in the path of every one of those trials, and it is the prime
+# suspect for the timeout -- ds4 speaks all three protocols natively and needs
+# no shim, which is why the same client reaches the ds4 primary at 55/55.
+#
+# The architecture-name split is the concrete tell that these are different
+# artifacts, and it is why #25 failed:
+#
+#   Unsloth GGUF (this backend)  general.architecture = glm5next
+#   antirez GGUF (ds4, #38)      general.architecture = glm5-next
+#
+# PR #27752 declares `glm5next`, so it can never load antirez's file, and ds4
+# can never load this one. They are not interchangeable.
+#
+# KEEP these rows -- they are a valid measurement of Unsloth-on-llama.cpp, and
+# the quant differs too. Do not pool them with #38's results and do not read
+# "glm53 15/15" as "GLM-5.3-Flash works".
+#
+# PROVISIONAL: #27752 is mergeable but NOT merged.
 [backend.glm53]
 description = "GLM-5.3-Flash, Unsloth UD-Q2_K_XL, llama.cpp PR #27752"
 base_url = "http://127.0.0.1:11501"
@@ -496,6 +528,45 @@ auth_token = "dsv4-local"
 model = "glm-5.2"
 opencode_model = "ds4/glm-5.2"
 codex_profile = "glm52ds4"
+context_tokens = 100000
+
+# GLM-5.3-Flash on ds4 -- **the supported stack** (#38).
+#
+# antirez ships GLM for Mac through ds4 (DwarfStar) with his own GGUF layout and
+# states plainly that ds4 is not a general GGUF loader. `backend.glm53` is the
+# other thing: Unsloth's GGUF on llama.cpp PR #27752 through the shim. They are
+# not interchangeable and the metadata proves it --
+#
+#   antirez GGUF (this)  general.architecture = glm5-next
+#   Unsloth GGUF (glm53) general.architecture = glm5next
+#
+# -- which is also why #25 failed: PR #27773 declares one name and the file
+# carries the other.
+#
+# The behavioural gap is large and was visible in the first coherence check,
+# same prompt at temperature 0:
+#
+#   llama.cpp + Unsloth   ~76 s, 854 completion tokens (mostly reasoning)
+#   ds4 + antirez          3.2 s,  47 completion tokens
+#
+# 18x fewer tokens. The reasoning explosion that timed out Claude Code on the
+# other stack (12.11 t/s, 5-7k tokens per turn, 3600 s timeout) is a property of
+# that stack, not of the model.
+#
+# No shim: ds4 serves /v1/messages, /v1/chat/completions and /v1/responses
+# natively, so both clients reach it directly -- the same reason the ds4 primary
+# works with Claude Code at 55/55.
+#
+# The weights were already on disk. They were downloaded for #25, found
+# unloadable by every engine then available, and kept under the archive
+# convention rather than deleted. This is the engine that reads them.
+[backend.glm53ds4]
+description = "GLM-5.3-Flash Q2, antirez GGUF on ds4 glm-5.3-flash branch"
+base_url = "http://127.0.0.1:8000"
+auth_token = "dsv4-local"
+model = "glm-5.3-flash"
+opencode_model = "ds4/glm-5.3-flash"
+codex_profile = "glm53ds4"
 context_tokens = 100000
 
 # --- reference ------------------------------------------------------------
