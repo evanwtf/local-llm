@@ -236,6 +236,31 @@ four-cell sweep in which every control cell happened to share the same `top_p`.
 A control that changes a group is not a control; it only tells you the group
 matters.
 
+## A wall-time difference is a token-count hypothesis
+
+**Check seconds-per-1k-output-tokens before attributing a speed gap to
+anything.** Three times now a difference that looked like a property of an
+engine, a stack or a client turned out to be how many tokens the model was
+induced to emit:
+
+| claim | reality |
+|---|---|
+| llama.cpp is 66% slower than Ollama (#28) | identical throughput; 4x the tokens. Four sampler defaults |
+| MTPLX is 17% faster on 68% fewer tokens | never re-checked; same shape, marked provisional |
+| Codex is 2.14x slower than Claude Code on Swift (#44) | **39.6 vs 47.6 s/1k — Codex is *faster* per token, and emits 2.37x more** |
+
+The arithmetic is one line and it settles the question:
+
+```
+seconds_per_1k = wall_seconds / output_tokens * 1000
+```
+
+If the rates match, the gap is token count — a prompting or sampling effect,
+and portable. If they differ, it is throughput, and belongs to the stack.
+
+**Say which one it is.** "X is slower than Y" without this check has been wrong
+every time it has been examined here.
+
 ## Know what a trial count can support
 
 Measured over 398 trials by `benchmarks/agent/sizing.py`, not estimated:
