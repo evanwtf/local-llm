@@ -40,10 +40,20 @@ CTX=100000
 KV_DISK_MB=8192
 # --warm-weights costs ~15s of page touching at startup and buys +36% prefill
 # on early requests. See claude_code_recommendations.md section 3.
-WARM=--warm-weights
+# Overridable: --warm-weights touches every page at startup, which is exactly
+# what SSD streaming exists to avoid. Set WARM= (empty) for a streaming run, or
+# the server pages the whole model in and reports full residency (#34).
+WARM=${WARM---warm-weights}
 # How long to wait for "listening" before giving up. A cold page cache on a
 # 91 GiB model is the slow case.
 START_TIMEOUT=600
+
+# Unquoted below on purpose: server flags specific to one experiment rather
+# than to the stack. #34 uses it for expert streaming, e.g.
+#   EXTRA_FLAGS='--ssd-streaming --ssd-streaming-cache-experts 40GB'
+# The same escape hatch llamacpp-up has, for the same reason: forking a
+# launcher to add a flag is how two launchers drift apart.
+EXTRA_FLAGS=${EXTRA_FLAGS:-}
 
 say()  { printf '%s\n' "ds4-up: $*"; }
 warn() { printf '%s\n' "ds4-up: $*" >&2; }
@@ -142,6 +152,7 @@ do_start() {
         $WARM \
         --ctx "$CTX" \
         --kv-disk-dir "$KVDIR" --kv-disk-space-mb "$KV_DISK_MB" \
+        $EXTRA_FLAGS \
         >>"$LOG" 2>&1 &
     echo $! > "$PIDFILE"
     pid=$(cat "$PIDFILE")

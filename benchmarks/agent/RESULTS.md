@@ -1514,3 +1514,82 @@ may not be. It has not been re-checked.
 **A fair engine comparison must pin the sampler on both sides.** `llamacpp-up`
 now takes `TEMP`, `TOP_P`, `TOP_K` and `MIN_P` from the environment so that is
 possible; before today it was not.
+
+---
+
+## What SSD offload costs: the two techniques measured (2026-08-28, issue #34)
+
+The question #34 asked for: **memory saved against suite wall time, per
+technique, on this machine.** Both techniques now have an answer, and they are
+opposite.
+
+| technique | memory | suite wall time | correctness |
+|---|---|---|---|
+| **MoE expert streaming** (ds4 `--ssd-streaming`) | **91.0 → 36.7 GiB (−60%)** | 992.8 → 1748.6 s (**+76%**) | 16/16, no cost |
+| n-gram PLE offload (AtomicChat `-M64`) | **no saving** | 995.1 → 1276.0 s (+28%) | 16/16, no cost |
+
+**Expert streaming is a real option. The PLE offload is not.** Both were filed
+here as "SSD offload"; the disk baseline said they were different propositions
+and they are.
+
+### Expert streaming, measured
+
+`ds4anthropic x codex`, five tasks, three trials each, identical stack.
+
+| task | resident | streaming | cost |
+|---|---|---|---|
+| `mbox-scan` | 317.7 s | 330.8 s | **+4%** |
+| `parser-date` | 246.9 s | 456.6 s | +85% |
+| `mbox-strip-envelope` | 94.7 s | 184.8 s | +95% |
+| `storage-blob-put` | 200.2 s | 422.6 s | +111% |
+| `parser-mbox-quoting` | 133.3 s | 353.8 s | +165% |
+| **suite** | **992.8 s** | **1748.6 s** | **+76%** |
+
+Correctness **15/15 resident and 16/16 streaming.** Across 31 trials the
+technique never changed an answer — it is lossless in output, as claimed.
+
+Startup differs sharply too: **2 s to serving streamed, 16-30 s resident**,
+because streaming loads nothing upfront. Irrelevant for a server left running;
+not irrelevant for a cold-start fallback.
+
+**Memory is bounded, not merely lower.** RSS settled at 36.7 GiB after the first
+request and read 37.1 GiB after ten agent trials. A cache that crept upward
+would erase the benefit over a long session; this one does not.
+
+**The per-task cost is not uniform** — +4% to +165%. `mbox-scan` is nearly free
+while `parser-mbox-quoting` costs 2.5x. The plausible mechanism is how much
+*distinct* expert routing a task provokes rather than how long it runs, since the
+cache serves repeats cheaply. That is a hypothesis; these rows cannot prove it.
+
+### The trap that makes streaming look broken
+
+`ds4-up` hardcoded `--warm-weights`, which touches every page at startup and
+directly contradicts `--ssd-streaming`. With both set the server reported
+**90.9 GiB — full residency, streaming apparently doing nothing**, and nothing
+warns you. `WARM` is now overridable; a streaming run needs `WARM=''`.
+
+Both launchers now also take `EXTRA_FLAGS`, so a per-experiment flag does not
+require forking the script.
+
+### Against the upstream claim
+
+[@EyalToledano reported](https://x.com/EyalToledano/status/2093429897188299113)
+Qwen3.8-Flash-Next with 60% of experts on disk at **37 GB and 40 tok/s** on an
+M4 Max. Independently, ds4 with expert streaming lands at **36.7 GiB** on a
+different model with the same technique — a striking convergence.
+
+**What that post cannot say, and this can:** 40 tok/s is a decode figure, and
+#14 established that re-prefill dominates agent wall time here. The measured
+agent cost is **+76%**, which is the number that decides whether to use it.
+
+### When to use it
+
+**Only when memory is the binding constraint.** On this machine ds4 fits
+resident with 21 GiB to spare, so streaming buys nothing and costs 76%.
+
+It changes the answer where a model does not fit at all. GLM-5.2 was rejected on
+size (#17, smallest quant 211 GB); Kimi K3 and MiniMax M3 on "nothing under
+108 GiB". All three are MoE, all three read at the block size this device is good
+at, and a 60% resident reduction moves them from impossible to slow. **That is
+the finding: expert streaming does not make a fitting model faster, it makes a
+non-fitting model possible.**

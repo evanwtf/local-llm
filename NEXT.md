@@ -8,13 +8,25 @@ records machine state that is not in git.
 
 | # | issue | why this position |
 |---|---|---|
-| 1 | **#34** SSD offload, step 3: **expert streaming** | **Upstream just did it.** @EyalToledano ran Qwen3.8-Flash-Next with 60% of experts on disk, full experts, **37 GB and 40 tok/s** on an M4 Max. The disk baseline predicted this would work (1 MiB random = 6.32 GiB/s) and that #33's 4 KiB PLE lookups would not -- both confirmed. `ds4` already ships `--ssd-streaming-*`, never benchmarked, on the best-measured backend here. **The open question is prefill, not decode:** decode routes one token to 10 of 512 experts and caches well; a 49k re-prefill touches far more. |
-| 2 | **#28** Engine comparison -- **reopened by its own result** | Two things it now points at: the residual **1.9x at matched sampling** (thinking-mode template handling is the hypothesis), and re-checking the MTPLX "17% faster on 68% fewer tokens" claim, which is the same shape and was attributed to the stack. |
-| 3 | **#4** Harder tasks | 18/18. Premise revised: difficulty along these axes buys time, not discrimination. Needs *common* defects. |
-| 4 | **#35** Model evaluation queue | Standing index. Closing the 20-trial gap on GLM beats a sixth lineage. |
-| 5 | **#27** Retire the ds4 fork | Blocked, re-checked 2026-08-28: antirez/ds4#885 and #886 both open. |
+| 1 | **#35** Re-examine the "too big" tier against streaming | **#34 turned that tier from a verdict into a queue.** GLM-5.2 (211 GB, #17), Kimi K3 and MiniMax M3 were all rejected on size. All three are MoE, so they read at the block size this NVMe is good at, and a 60% resident cut moves them from impossible to slow. Cheapest real gain left. |
+| 2 | **#28** Engine comparison -- reopened by its own result | The residual **1.9x at matched sampling** (thinking-mode template handling is the hypothesis), and re-checking the MTPLX "17% faster on 68% fewer tokens" claim, which is the same shape and was attributed to the stack. |
+| 3 | **#4** Harder tasks | 18/18. Premise revised: difficulty along these axes buys time, not discrimination. Needs *common* defects, not a 2-error signal in one task. |
+| 4 | **#27** Retire the ds4 fork | Blocked, re-checked 2026-08-28: antirez/ds4#885 and #886 both open. |
 
 ## Done since the last update
+
+- **#34 closed. The cost curve exists.** MoE expert streaming: **91.0 -> 36.7 GiB
+  (-60%) for +76% suite wall time**, 16/16, no correctness cost across 31 trials.
+  Memory is *bounded* (36.7 GiB after one request, 37.1 after ten trials), and
+  startup drops 16-30s to **2s**. The PLE offload (#33) by contrast saved
+  **nothing** and cost 28%. **Streaming does not make a fitting model faster; it
+  makes a non-fitting model possible** -- which reopens the "too big" tier.
+  Independently lands within 1% of the 37 GB @EyalToledano reported for the same
+  technique on a different model.
+- **Trap:** `ds4-up` hardcoded `--warm-weights`, which touches every page and
+  contradicts `--ssd-streaming`. Together they report **90.9 GiB -- full
+  residency, streaming apparently doing nothing**, with no warning. `WARM` is now
+  overridable; both launchers take `EXTRA_FLAGS`.
 
 - **#28 answered, and the headline is an artifact -- do not quote "+66%".** First
   fixed-model engine comparison here, using the identical GGUF out of Ollama's

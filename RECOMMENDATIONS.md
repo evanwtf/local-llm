@@ -386,15 +386,28 @@ the recommended one.
 
 ---
 
-## Too big for this machine
+## Too big for this machine — reopened 2026-08-28
 
-A verdict on 128 GiB, not on the models. Both are ruled out on published quant
+**This tier is now a queue, not a verdict.** ds4's expert streaming was measured
+(#34): **91.0 → 36.7 GiB resident, −60%, for +76% suite wall time and no
+correctness cost** (16/16 across 31 trials). It does not make a fitting model
+faster — ds4 fits here with 21 GiB to spare, so streaming only costs. It makes a
+**non-fitting model possible.**
+
+All three models below are MoE, so their weights read at the block size this
+NVMe is good at — random 1 MiB at 6.32 GiB/s against 4 KiB at 0.10 GiB/s
+(`benchmarks/disk/RESULTS.md`). A 60% resident reduction moves them from
+impossible to slow. They should be re-examined against `--ssd-streaming` rather
+than left ruled out on file size.
+
+A verdict on 128 GiB, not on the models. All are ruled out on published quant
 sizes, not on a failed attempt; see #35 for the standing queue.
 
 | model | smallest published quant | verdict |
 |---|---|---|
-| `Kimi K3` | nothing under 108 GiB | no headroom for KV even at the raised ceiling |
+| `Kimi K3` | nothing under 108 GiB | no headroom for KV **resident** — re-examine with streaming |
 | `MiniMax M3` | nothing under 108 GiB | same |
+| `GLM-5.2` | 211 GB (#17) | rejected on size; MoE, so streaming may reach it |
 
 Revisit either if something under ~100 GiB appears. GLM-5.3-Flash moved out of
 this section by exactly that route, so the tier is worth watching.
