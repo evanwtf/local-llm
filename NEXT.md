@@ -1,24 +1,46 @@
 # Where to pick up
 
-Updated 2026-08-28, after #23, #24, #26, #34 step 1, and the build half of #4. Work the issues in the
-order below. Each issue is self-contained; this file only sets priority and
-records machine state that is not in git.
+Updated 2026-08-29 04:10, after an overnight run that closed #23, #28, #33, #34
+and #36, answered #35 and #4, and filed #37. Work the issues in the order below.
+Each issue is self-contained; this file only sets priority and records machine
+state that is not in git.
 
 ## Order
 
 | # | issue | why this position |
 |---|---|---|
-| 1 | **#35** GLM-5.2 via streaming | **In flight overnight 2026-08-29.** 196.6 GiB of file, impossible resident, projected ~79 GiB streamed. Arch verified `glm-dsa` from the partial file; ds4 has dedicated GLM kernels. Tests whether #34 converts a size-rejected model into a working backend. |
-| 2 | **#36** Does the sampler move pass rate? | **Filed 2026-08-29. Possibly the most consequential open item.** `storage-blob-put` went **3/3 at temp 1.0 and 0/3 at temp 0.8**, three identical near misses. Every launcher sets a different sampler and nobody chose them deliberately, so the backend table may be partly a sampler table. ~1.5 h of machine time to settle. |
-| 3 | **#28** Engine residual, narrowed | Not re-prefill and not thinking tokens -- input scales with output and `reasoning_tokens` is 0 both sides. **`repeat_penalty` is the prime suspect: Ollama defaults 1.1, llama.cpp 1.0 and `llamacpp-up` never sets it.** One run tests it. Also still owed: re-check the MTPLX "17% faster on 68% fewer tokens" claim, which is the same shape as the artifact #28 found. |
-| 4 | **#4** Harder tasks | 18/18. Needs *common* defects, not a 2-error signal in one task. The one defect found was a missing type parameter, so annotation-heavy surfaces are the lead. |
-| 5 | **#27** Retire the ds4 fork | Blocked, re-checked 2026-08-28: antirez/ds4#885 and #886 both open. |
-
-**Ruled out for a different reason now:** Kimi K3 and MiniMax M3 are no longer
-blocked on size -- #34 would reach them -- but **no engine here can serve them
-at all.** That is an engine-support problem, not a memory one.
+| 1 | **#37** ds4 reports no sampler | **The last blind spot of the kind that caused #28 and #36.** llama.cpp rows carry sampling via `/props`, Ollama rows via `/api/show`. ds4 carries nothing -- and it is the primary backend behind every headline number. Small fix, high leverage. |
+| 2 | **#4** A second target repository | **Not "harder tasks" -- a different repo.** gmail-archive is 1,833 source lines, 52 functions, median 13 lines, and exactly **one** function with a nested def, which is the one that produced the only defect found in 18 trials. There is nothing left to find in it. A new repo also retires the authorship-contamination caveat, which task selection cannot. |
+| 3 | **#35** Model queue, criteria revised | Admission needs a **second criterion: decodes within ~3x of the primary**. GLM-5.2 streams into 30.8 GiB from 196.6 -- the memory wall is gone -- but at ~4 tok/s it cannot be benchmarked at all. Kimi K3 / MiniMax M3 remain out for **engine support**, not size. |
+| 4 | **#27** Retire the ds4 fork | Blocked, re-checked 2026-08-28: antirez/ds4#885 and #886 both open. |
 
 ## Done since the last update
+
+**Overnight 2026-08-28/29. Seven evaluations, 190 trials.**
+
+- **#28 closed: there is no engine difference.** On byte-identical weights
+  (Ollama's own ornith-1.5 GGUF served by both) llama.cpp and Ollama decode at
+  the same rate -- 14.1 vs 15.0 s/1k tokens. A measured **+66%** collapsed to
+  **+5-10%** once four sampler parameters were matched. `repeat_penalty` was the
+  missing one: Ollama 1.1, llama.cpp 1.0, `llamacpp-up` never set it.
+- **#36 closed: `top_p` moves pass rate, and it is coupled to `repeat_penalty`.**
+  36 trials: `top_p 0.95` no-rp **17/18**; `top_p 0.90` no-rp **7/12**;
+  `top_p 0.90` + `rp 1.1` **6/6**. Temperature and top_k are innocent.
+- **#34 closed: expert streaming is -60% memory for +76% wall time**, lossless
+  across 31 trials. It does **not** make a fitting model faster; it makes a
+  non-fitting model possible.
+- **#33 closed: the PLE offload does not pay** -- 4-bit `-M64` is +28% slower
+  than 3-bit and saves **nothing**, because mmap already makes every weight page
+  evictable (footprint ~5 GB against ~92 GiB RSS).
+- **#35 answered: GLM-5.2 runs.** 196.6 GiB streams into **30.8 GiB** and passes
+  a real agent task -- in 2,585 s, **14x** ds4. Possible, not practical.
+- **#23 closed:** three trials pins a suite to **+/-12.9%**; nothing under a ~26%
+  gap is a finding. 35 consecutive passes for a >90% claim.
+- **#4 answered, and the answer is the repository.** 18/18 on the harder tasks.
+  gmail-archive has one function with the surface that produced the one defect.
+- **Infrastructure moved to latest** (Codex 0.150.1, OpenCode 1.18.25, llama.cpp
+  mainline `d7bd3bfca` after PR #27742 merged). Codex 0.150.1 broke the
+  llama.cpp path within minutes; `fold_developer()` in the shim fixes it.
 
 - **#34 closed. The cost curve exists.** MoE expert streaming: **91.0 -> 36.7 GiB
   (-60%) for +76% suite wall time**, 16/16, no correctness cost across 31 trials.
@@ -152,9 +174,9 @@ whether or not a limit is in force. **`glm53` will not load without this**
 
 **Check before every batch:** `uv run python benchmarks/agent/preflight.py`.
 
-**Servers:** the GLM `llama-server` and its shim were stopped 2026-08-28.
-`ds4-server` was started for the #4 run and may still be up on :8000 holding
-~91 GiB. Ollama is stopped. Restart ds4 with:
+**Servers, as of 2026-08-29 04:10:** a `llama-server` may be up on :8020 with
+its shim on :11500 from the #36 sweep. `ds4-server` and Ollama are stopped.
+**Run the preflight first, always.** Restart ds4 with:
 
 ```sh
 cd ~/git/ds4 && ./ds4-server -m gguf/DeepSeek-V4-Flash-Layers37-42Q4KExperts-OtherExpertLayersIQ2XXSGateUp-Q2KDown-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix-fixed-0731.gguf \
@@ -191,8 +213,26 @@ loads it; keep per the archive convention or delete deliberately).
 9.45 GiB/s, random 1 MiB 198 us, random 4 KiB **61 us**. A 100-byte lookup costs
 one 4 KiB block -- there is no smaller unit.
 
+**Both launchers now take overrides** -- `MODEL`, `ALIAS`, `CTX`, `BACKEND`,
+`EXTRA_FLAGS`, and for llama.cpp `TEMP/TOP_P/TOP_K/MIN_P`. `ds4-up` also takes
+`WARM=''`, which is **required** for streaming: `--warm-weights` touches every
+page and defeats `--ssd-streaming` silently, reporting full residency.
+
+**New weights on disk 2026-08-29:** `~/models/GLM-5.2-GGUF` (196.6 GiB, IQ2_XXS
+-- streams into 30.8 GiB but is 14x too slow to use),
+`~/models/AtomicChat-Qwen3.8-Flash-Next` (88 GiB, 4-bit `-M64` -- tested and
+rejected, +28% slower than 3-bit). Both are keepable-or-deletable; neither is in
+the recommended set.
+
+**Large single-file downloads need `HF_HUB_ENABLE_HF_TRANSFER=1`.** HF speed
+depends on shard count, not bandwidth: a 33-shard model pulled at 5.9 GiB/min
+while a single 196 GiB file managed 0.45 until hf_transfer was installed.
+
 **Codex profiles** in `~/.codex/*.config.toml` are not in git. All need
-`wire_api = "responses"`; 0.148.0 removed `"chat"`.
+`wire_api = "responses"`; 0.148.0 removed `"chat"`. **All llama.cpp profiles now
+point at the shim (:11500/:11501), not the server** -- Codex 0.150.1 sends both
+`instructions` and a `role=developer` item, which llama-server turns into two
+chat system messages and the Qwen template rejects.
 
 ## Traps worth not rediscovering
 
