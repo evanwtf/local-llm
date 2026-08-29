@@ -39,6 +39,7 @@ import excise
 import grade
 import preflight
 import results
+import swift_excise
 
 logger = logging.getLogger("agent-bench")
 HERE = pathlib.Path(__file__).parent
@@ -72,9 +73,45 @@ def git(args, cwd):
     return r.stdout.strip()
 
 
-def pytest_passes(worktree, tests, timeout):
-    """Run the oracle. Returns (passed, summary_line)."""
-    r = run(["uv", "run", "pytest", "-q", *tests], cwd=worktree, timeout=timeout)
+# Which excision implementation reads which language. Dispatching on the file
+# extension rather than guessing: handing a .swift file to the Python `ast`
+# parser does not crash, it finds nothing -- and a task that excises nothing
+# leaves the control check passing, which records a broken task as a valid one.
+EXCISERS = {".py": excise, ".swift": swift_excise}
+
+
+def exciser_for(path):
+    """The excision module for a source file, by extension."""
+    suffix = pathlib.PurePath(path).suffix
+    module = EXCISERS.get(suffix)
+    if module is None:
+        raise ValueError(f"no excision support for {suffix!r} ({path})")
+    return module.excise
+
+
+def task_target(cfg, task):
+    """Where this task's repo, commit and test command come from.
+
+    A task may name its own; otherwise it inherits the file-level defaults.
+    Inheritance matters: 558 recorded rows name tasks defined before this
+    existed, and a task name has to keep meaning what it meant.
+    """
+    return {
+        "repo": task.get("repo", cfg["repo"]),
+        "base_commit": task.get("base_commit", cfg["base_commit"]),
+        "test_command": task.get("test_command",
+                                 cfg.get("test_command", "uv run pytest -q")),
+    }
+
+
+def tests_pass(worktree, tests, timeout, command="uv run pytest -q"):
+    """Run the oracle. Returns (passed, summary_line).
+
+    `command` is per-repo: `uv run pytest -q` for Python, `swift test` for a
+    SwiftPM package. Test node ids are appended for pytest; a runner that does
+    not take them gets none, which is why `tests` may be empty.
+    """
+    r = run([*command.split(), *tests], cwd=worktree, timeout=timeout)
     tail = [ln for ln in r.stdout.splitlines() if ln.strip()]
     return r.returncode == 0, (tail[-1] if tail else "no output")
 
@@ -584,7 +621,8 @@ def targets(task):
 def one_trial(cfg, task, backend_name, backend, trial, workdir, timeout, dry_run,
               versions=None, client="claude", client_log=None, solutions=None,
               gates=True):
-    repo = pathlib.Path(cfg["repo"]).expanduser()
+    target = task_target(cfg, task)
+    repo = pathlib.Path(target["repo"]).expanduser()
     suffix = "" if client == "claude" else f"-{client}"
     name = f"{task['name']}-{backend_name}{suffix}-{trial}"
     worktree = workdir / name
@@ -603,7 +641,7 @@ def one_trial(cfg, task, backend_name, backend, trial, workdir, timeout, dry_run
         logger.warning("%s: removing stale checkout from an aborted run", name)
         shutil.rmtree(worktree, ignore_errors=True)
 
-    build_checkout(repo, cfg["base_commit"], worktree)
+    build_checkout(repo, target["base_commit"], worktree)
     try:
         # 1. Hollow out the target, then make it the repository's only commit.
         #    Committing the excised state as the initial commit means the
@@ -614,7 +652,8 @@ def one_trial(cfg, task, backend_name, backend, trial, workdir, timeout, dry_run
         excised = []
         for t in targets(task):
             path = worktree / t["file"]
-            body = excise.excise(path, t["symbol"], keep_docstring=keep_doc)
+            body = exciser_for(t["file"])(path, t["symbol"],
+                                          keep_docstring=keep_doc)
             excised.append((path, t["symbol"], body))
         result["removed_lines"] = sum(len(b.splitlines()) for _, _, b in excised)
         result["removed_symbols"] = [t["symbol"] for t in targets(task)]
@@ -625,7 +664,8 @@ def one_trial(cfg, task, backend_name, backend, trial, workdir, timeout, dry_run
              f"benchmark: {', '.join(result['removed_symbols'])} removed"], worktree)
 
         # 2. Control: the tests must fail now, or the task proves nothing.
-        ok, summary = pytest_passes(worktree, task["tests"], timeout)
+        ok, summary = tests_pass(worktree, task["tests"], timeout,
+                                 target["test_command"])
         result["control_fails_as_expected"] = not ok
         # Baseline the quality gates here, on the excised tree. gmail-archive
         # carries 18 mypy errors of its own, so only a delta against this state
@@ -660,7 +700,8 @@ def one_trial(cfg, task, backend_name, backend, trial, workdir, timeout, dry_run
             result["stderr_tail"] = proc.stderr[-400:]
 
         # 4. The oracle.
-        passed, summary = pytest_passes(worktree, task["tests"], timeout)
+        passed, summary = tests_pass(worktree, task["tests"], timeout,
+                                     target["test_command"])
         result["passed"] = passed
         result["pytest"] = summary
         # Guard against the obvious cheat.
@@ -679,7 +720,9 @@ def one_trial(cfg, task, backend_name, backend, trial, workdir, timeout, dry_run
         # True only if every hollowed-out symbol came back unchanged; None if
         # any of them is unreadable. A partial match is not recall.
         result["restored_verbatim"] = grade.all_restored_verbatim(excised, keep_doc)
-        result["source_repo_intact"] = source_repo_intact(repo, cfg["base_commit"])
+        result["target_repo"] = target["repo"]
+        result["source_repo_intact"] = source_repo_intact(repo,
+                                                          target["base_commit"])
         if not result["source_repo_intact"]:
             logger.error("%s: SOURCE REPO WAS MODIFIED -- agent left the sandbox", name)
         logger.info("%s: %s in %ss (%s)", name,
@@ -761,6 +804,27 @@ def main():
     # and every trial after that would be exported from contaminated state --
     # which is exactly how 2026-08-17 went unnoticed. Refuse rather than
     # produce rows nobody can trust.
+    # Every repo any selected task uses -- not just the file-level default.
+    # A second target repo that is dirty, or missing its pinned commit, must
+    # stop the run for the same reason the first one does.
+    targets = {}
+    for t in tasks:
+        got = task_target(cfg, t)
+        targets[(got["repo"], got["base_commit"])] = got
+    for (repo_str, commit), got in targets.items():
+        repo = pathlib.Path(repo_str).expanduser()
+        dirty_t = run(["git", "status", "--porcelain"], cwd=repo).stdout.strip()
+        if dirty_t:
+            raise SystemExit(
+                f"reference repo {repo} is dirty -- refusing to run.\n{dirty_t}\n"
+                "Commit, stash or discard these changes first. A benchmark that "
+                "starts from an unknown state measures nothing.")
+        if run(["git", "cat-file", "-e", f"{commit}^{{commit}}"],
+               cwd=repo).returncode != 0:
+            raise SystemExit(f"base_commit {commit} not found in {repo}")
+        logger.info("target ok: %s @ %s via %r", repo, commit,
+                    got["test_command"])
+
     repo = pathlib.Path(cfg["repo"]).expanduser()
     dirty = run(["git", "status", "--porcelain"], cwd=repo).stdout.strip()
     if dirty:

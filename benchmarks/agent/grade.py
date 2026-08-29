@@ -40,6 +40,7 @@ import subprocess
 from typing import Any
 
 import excise
+import swift_excise
 
 logger = logging.getLogger(__name__)
 
@@ -70,9 +71,15 @@ def restored_verbatim(path: pathlib.Path, symbol: str, original: str,
     unparseable or removed the function outright. That is a failed trial, which
     the oracle already records; it is not a crash here.
     """
+    # Same dispatch as run.py: the Python `ast` parser raises on Swift, which
+    # would surface as `restored_verbatim: None` -- an unreadable file -- and
+    # quietly lose the recall signal for a whole repository.
+    reader = (swift_excise if pathlib.PurePath(path).suffix == ".swift"
+              else excise)
     try:
-        produced = excise.body_source(path, symbol, keep_docstring)
-    except (OSError, SyntaxError, ValueError, excise.TargetNotFound) as exc:
+        produced = reader.body_source(path, symbol, keep_docstring)
+    except (OSError, SyntaxError, ValueError, excise.TargetNotFound,
+            swift_excise.TargetNotFound) as exc:
         logger.debug("cannot read %s from %s: %s", symbol, path, exc)
         return None
     return _normalize(produced) == _normalize(original)

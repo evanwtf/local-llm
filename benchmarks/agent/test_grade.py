@@ -144,3 +144,12 @@ def test_every_gate_key_survives_a_round_trip_through_json(worktree, tmp_path):
         worktree / "src/m.py", "add", ORIGINAL
     )
     assert json.loads(json.dumps(row)) == row
+
+
+def test_verbatim_uses_the_right_parser_for_the_language(tmp_path):
+    """A Swift file handed to the Python parser raises, and `restored_verbatim`
+    would report None -- an unreadable file -- rather than a real comparison.
+    Silently losing the recall signal on a whole repository."""
+    p = tmp_path / "X.swift"
+    p.write_text('enum X {\n    static func f() -> Int {\n        return 1\n    }\n}\n')
+    assert grade.restored_verbatim(p, "X.f", "\n        return 1\n    ") is True

@@ -83,6 +83,68 @@ prompt = """`scan` in src/gmail_archive/mbox.py has been removed and replaced \
 with a NotImplementedError. Implement it so the existing test suite passes. Do \
 not modify any test."""
 
+# --- a second target repository: Swift (#42, subtask of #4) --------------
+#
+# #4 established that the *repository* is the limit, not the task set:
+# gmail-archive is 1,833 source lines with exactly one function carrying the
+# surface that produced the only defect found in 18 trials.
+#
+# `~/git/monitor` is 11,265 Swift lines with 215 tests that run in 0.705 s via
+# SwiftPM -- no simulator, no xcodebuild. `Package.swift` rather than an
+# `.xcodeproj` is what makes it viable as an oracle that runs twice per trial.
+#
+# These tasks name their own `repo`, `base_commit` and `test_command`; anything
+# that does not inherits the file-level defaults, so the 558 recorded rows keep
+# meaning what they meant.
+#
+# `tests` is empty on purpose: `swift test` runs the whole suite and does not
+# take pytest-style node ids. At 0.7 s that costs nothing.
+#
+# NOTE the stub is `fatalError`, so an excised build **crashes** the test
+# bundle rather than reporting "N failed, M passed". The oracle only needs
+# pass/fail, but the summary line will be a crash message.
+#
+# The target is pinned on its own branch for the reason gmail-archive is:
+# origin/main there was 73 commits ahead of the pinned base while the checkout
+# sat held back, and a routine `git pull` would have changed what every trial
+# measures.
+
+[[task]]
+name = "swift-downsample-buckets"
+repo = "~/git/monitor"
+base_commit = "cbb85ca"
+test_command = "swift test"
+file = "Sources/MonitorCore/Downsample.swift"
+symbol = "Downsample.buckets"
+tests = []
+prompt = """`Downsample.buckets` in Sources/MonitorCore/Downsample.swift has \
+been removed and replaced with a fatalError. Implement it so the existing test \
+suite passes. Do not modify any test."""
+
+[[task]]
+name = "swift-csv-text"
+repo = "~/git/monitor"
+base_commit = "cbb85ca"
+test_command = "swift test"
+file = "Sources/MonitorCore/CSVExport.swift"
+symbol = "CSVExport.text"
+tests = []
+prompt = """`CSVExport.text` in Sources/MonitorCore/CSVExport.swift has been \
+removed and replaced with a fatalError. Implement it so the existing test \
+suite passes. Do not modify any test."""
+
+[[task]]
+name = "swift-chartaxis-spacing"
+repo = "~/git/monitor"
+base_commit = "cbb85ca"
+test_command = "swift test"
+file = "Sources/MonitorCore/ChartAxis.swift"
+symbol = "ChartAxis.spacing"
+tests = []
+prompt = """`ChartAxis.spacing` in Sources/MonitorCore/ChartAxis.swift has been \
+removed and replaced with a fatalError. Implement it so the existing test \
+suite passes. Do not modify any test."""
+
 # --- harder tasks (issue #4) ---------------------------------------------
 # The five tasks above are a ceiling: seven of eight backends score 100% across
 # 243 trials, so adding backends stopped producing information. They are kept --

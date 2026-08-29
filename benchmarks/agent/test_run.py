@@ -251,3 +251,52 @@ def test_ds4_records_that_its_sampler_is_unreported_not_that_it_is_absent():
 def test_a_models_response_from_something_else_is_ignored():
     assert run.parse_ds4_models({"data": [{"id": "gpt-4"}]}) == {}
     assert run.parse_ds4_models({}) == {}
+
+
+# --- a second target repository, in another language (#42) ----------------
+
+def test_a_task_inherits_the_global_repo_when_it_names_none():
+    """558 recorded rows name tasks defined against the global repo. Do not
+    change what they mean."""
+    cfg = {"repo": "~/git/gmail-archive", "base_commit": "56e55cc",
+           "test_command": "uv run pytest -q"}
+    got = run.task_target(cfg, {"name": "t"})
+    assert got["repo"] == "~/git/gmail-archive"
+    assert got["base_commit"] == "56e55cc"
+    assert got["test_command"] == "uv run pytest -q"
+
+
+def test_a_task_may_name_its_own_repo_and_test_command():
+    cfg = {"repo": "~/git/gmail-archive", "base_commit": "56e55cc",
+           "test_command": "uv run pytest -q"}
+    task = {"name": "t", "repo": "~/git/monitor", "base_commit": "cbb85ca",
+            "test_command": "swift test"}
+    got = run.task_target(cfg, task)
+    assert got["repo"] == "~/git/monitor"
+    assert got["base_commit"] == "cbb85ca"
+    assert got["test_command"] == "swift test"
+
+
+def test_a_task_may_override_only_some_fields():
+    cfg = {"repo": "~/git/a", "base_commit": "aaa", "test_command": "x"}
+    got = run.task_target(cfg, {"name": "t", "base_commit": "bbb"})
+    assert (got["repo"], got["base_commit"], got["test_command"]) == \
+           ("~/git/a", "bbb", "x")
+
+
+def test_excision_dispatches_on_file_extension():
+    """Python goes through `ast`; Swift through the brace scanner. Choosing the
+    wrong one does not crash, it finds nothing or cuts the wrong span."""
+    assert run.exciser_for("src/gmail_archive/mbox.py").__name__ == "excise"
+    assert run.exciser_for("Sources/MonitorCore/Downsample.swift").__name__ \
+        == "excise"
+    # different modules, same function name -- check the module, not the name
+    assert run.exciser_for("a.py").__module__ == "excise"
+    assert run.exciser_for("a.swift").__module__ == "swift_excise"
+
+
+def test_an_unsupported_language_is_refused_loudly():
+    """Silently picking the Python parser for a .rs file would excise nothing
+    and the control check would then pass, recording a broken task as valid."""
+    with pytest.raises(ValueError, match="no excision support"):
+        run.exciser_for("src/main.rs")
