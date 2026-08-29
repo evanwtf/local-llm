@@ -128,6 +128,52 @@ def probe_ollama(backend):
         return {}
 
 
+# What ds4 says its sampler is: nothing. `/v1/models` lists the parameters it
+# *accepts* and there is no endpoint for the values in force. The source has two
+# conflicting sets -- ds4.h defines TOP_P 1.0 / MIN_P 0.05, while ds4_cli.c:520
+# overrides to top_p 0.95 / min_p 0.0 for CLI and agent paths -- and which one
+# reaches the server cannot be settled by reading it. See #37.
+DS4_SAMPLER_NOTE = "engine defaults (not reported by ds4)"
+
+
+def parse_ds4_models(models):
+    """Read what ds4's `/v1/models` can tell us about sampling. Which is: not much.
+
+    Records `accepts_sampling` (the parameters the API takes) and an explicit
+    note that the effective values are unreported. That distinction is the
+    point: #28 and #36 both came from a sampler nobody wrote down, and an
+    explicit unknown is a warning where silence is not.
+    """
+    data = (models or {}).get("data") or []
+    entry = next((d for d in data if "ds4" in str(d.get("id", ""))
+                  or "deepseek" in str(d.get("id", "")).lower()), None)
+    if entry is None:
+        return {}
+    got = {"sampling": {}, "sampling_source": DS4_SAMPLER_NOTE}
+    if entry.get("supported_parameters"):
+        got["accepts_sampling"] = list(entry["supported_parameters"])
+    if entry.get("context_length"):
+        got["context_length"] = entry["context_length"]
+    return got
+
+
+def probe_ds4(backend):
+    """Ask ds4 what it is serving. Returns {} on any failure."""
+    url = backend.get("base_url")
+    if not url:
+        return {}
+    request = urllib.request.Request(
+        url.rstrip("/") + "/v1/models",
+        headers={"Authorization": f"Bearer {backend.get('auth_token', '')}"})
+    try:
+        with urllib.request.urlopen(request, timeout=10) as fh:
+            return parse_ds4_models(json.load(fh))
+    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError,
+            OSError) as exc:
+        logger.debug("no /v1/models from %s: %s", url, exc)
+        return {}
+
+
 def probe_server(backend):
     """Ask the running server what it is actually serving.
 
@@ -249,7 +295,7 @@ def capture_versions(cfg, backends):
 
     # One probe per backend, keyed by name, because a run can span several and
     # each row records which one it used.
-    servers = {name: (probe_server(b) or probe_ollama(b))
+    servers = {name: (probe_server(b) or probe_ollama(b) or probe_ds4(b))
                for name, b in backends.items()}
     servers = {k: v for k, v in servers.items() if v}
     if servers:

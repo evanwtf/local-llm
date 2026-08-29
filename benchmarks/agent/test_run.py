@@ -223,3 +223,31 @@ def test_a_malformed_parameter_line_is_skipped_not_guessed():
 def test_a_show_response_without_a_modelfile_yields_nothing():
     assert run.parse_ollama_show({}) == {}
     assert run.parse_ollama_show({"modelfile": ""}) == {}
+
+
+def test_ds4_records_that_its_sampler_is_unreported_not_that_it_is_absent():
+    """ds4 exposes which parameters it accepts, never the values in force.
+
+    `/v1/models` lists `supported_parameters`; there is no endpoint for the
+    effective sampler, and the source carries two conflicting sets -- ds4.h has
+    TOP_P 1.0 / MIN_P 0.05, ds4_cli.c overrides to 0.95 / 0.0 for CLI and agent
+    paths. Which applies to the server cannot be settled by reading it.
+
+    So the row records the ambiguity rather than a guess. #28 and #36 both came
+    from a sampler nobody wrote down; a confident wrong value would be worse
+    than an explicit unknown.
+    """
+    models = {"data": [{"id": "deepseek-v4-flash", "context_length": 100000,
+                        "supported_parameters": ["temperature", "top_p",
+                                                 "top_k", "min_p", "seed"]}]}
+    got = run.parse_ds4_models(models)
+    assert got["sampling"] == {}
+    assert got["sampling_source"] == "engine defaults (not reported by ds4)"
+    assert set(got["accepts_sampling"]) == {"temperature", "top_p", "top_k",
+                                            "min_p", "seed"}
+    assert got["context_length"] == 100000
+
+
+def test_a_models_response_from_something_else_is_ignored():
+    assert run.parse_ds4_models({"data": [{"id": "gpt-4"}]}) == {}
+    assert run.parse_ds4_models({}) == {}
