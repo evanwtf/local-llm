@@ -42,7 +42,7 @@ Being precise, because the three criteria are not equally covered:
 
 | criterion | status |
 |---|---|
-| **problem solving** | **measured.** A function body is excised from a real repo at a pinned commit; the agent must restore it. The repo's own pytest suite is the sole oracle. Pass or fail, no partial credit, no judge. |
+| **problem solving** | **measured.** A function body is excised from a real repo at a pinned commit; the agent must restore it. The repo's **own test suite** is the sole oracle — `uv run pytest          # 199 tests: the harness's own, not the benchmark's` for the Python target, `swift test` for the Swift one. Pass or fail, no partial credit, no judge. |
 | **speed** | **measured.** Wall seconds for the whole agent loop, which is the number a human waits on — not tokens/sec. |
 | **code quality** | **not yet measured.** The tasks are easy enough that nearly every backend passes, so the suite cannot currently distinguish good code from code that merely passes. This is the project's biggest known gap — issue #4. |
 
@@ -141,6 +141,30 @@ to start them. Measurements land in the `RESULTS.md` beside the benchmark that
 produced them. The full loop, and what belongs in which file, is in
 [`AGENTS.md`](AGENTS.md).
 
+## Two target repositories, two languages
+
+The benchmark excises a function from a real repository and asks the agent to
+restore it. There are two:
+
+| repo | language | size | tests | oracle |
+|---|---|---|---|---|
+| `~/git/gmail-archive` | Python | 1,833 lines | 71 | `uv run pytest -q`, ~0.85 s |
+| `~/git/monitor` | Swift | 11,265 lines | 215 | `swift test`, 0.705 s |
+
+**The second exists because the first ran out of things to find.** gmail-archive
+has 52 functions, a median of 13 lines, and exactly *one* function carrying the
+surface that produced the only code-quality defect in 18 trials. A larger
+codebase in a language these models see less often is the test of whether that
+was the task set or the repository (#4, #42).
+
+Both are pinned on a `local-llm-benchmark` branch. That is not ceremony: on
+gmail-archive, `origin/main` had moved **73 commits** ahead of the pinned base
+while the working checkout sat held back, and a routine `git pull` would have
+silently changed what every trial measures.
+
+**Results from the two are not pooled.** Different repository, language and
+oracle — a new series.
+
 ## Preflight: always check what is already running
 
 **Do this before starting a server, and before every benchmark batch.**
@@ -149,16 +173,32 @@ produced them. The full loop, and what belongs in which file, is in
 uv run python benchmarks/agent/preflight.py
 ```
 
-It reports how much memory model servers are holding, how much headroom is left
-under the Metal ceiling, and — the point — **any server that is up which this
-run does not want**.
+It reports **five kinds of machine state that silently change results**, each
+added after it caused a real problem:
+
+| check | why |
+|---|---|
+| running model servers | a server left up contends for memory and bandwidth all run |
+| **Metal ceiling** | `iogpu.wired_limit_mb` raises it 107.52 → 112.00 GiB and **does not survive a reboot**; it decides whether a large model loads |
+| tool versions | Codex, Ollama, OpenCode and llama.cpp ship several times a day |
+| **sherpa branches** | antirez ships models on preview branches; one existed for GLM-5.3 while this project benchmarked it on an unsupported stack |
+| GitHub notifications | mentions on `antirez/ds4` and `ggml-org/llama.cpp`, CI noise excluded |
+
+The headline line answers the first two:
 
 ```
-INFO preflight: 77.6 GiB held by model servers, 34.4 GiB headroom under a 112 GiB ceiling
+INFO preflight: 0.0 GiB held by model servers, 112.0 GiB headroom under a
+     112.00 GiB Metal ceiling (RAISED by sysctl -- does not survive a reboot)
 WARNING preflight: llama-server (pid 43967) is listening on :8030 and holding
         77.6 GiB, but no selected backend uses that port. Stop it, or this batch
         measures a contended machine.
+WARNING preflight: ds4 has a recent branch 'glm-5.3-flash' you are not on
 ```
+
+**The ceiling line is not decoration.** A disagreement with upstream about
+whether a GLM-5.3 bug reproduced turned entirely on it: ds4 plans a 108.01 GiB
+working set that fits under a raised 112 GiB ceiling and fails under the 107.52
+GiB default. Neither side had checked, because nothing reported it.
 
 **Why it matters more here than on a normal machine.** These models are sized to
 nearly fill unified memory: `glm53` is 100.6 GiB resident against a 112 GiB
