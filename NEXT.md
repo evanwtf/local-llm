@@ -9,10 +9,16 @@ state that is not in git.
 
 | # | issue | why this position |
 |---|---|---|
-| 1 | **#37** ds4 reports no sampler | **The last blind spot of the kind that caused #28 and #36.** llama.cpp rows carry sampling via `/props`, Ollama rows via `/api/show`. ds4 carries nothing -- and it is the primary backend behind every headline number. Small fix, high leverage. |
-| 2 | **#4** A second target repository | **Not "harder tasks" -- a different repo.** gmail-archive is 1,833 source lines, 52 functions, median 13 lines, and exactly **one** function with a nested def, which is the one that produced the only defect found in 18 trials. There is nothing left to find in it. A new repo also retires the authorship-contamination caveat, which task selection cannot. |
-| 3 | **#35** Model queue, criteria revised | Admission needs a **second criterion: decodes within ~3x of the primary**. GLM-5.2 streams into 30.8 GiB from 196.6 -- the memory wall is gone -- but at ~4 tok/s it cannot be benchmarked at all. Kimi K3 / MiniMax M3 remain out for **engine support**, not size. |
-| 4 | **#27** Retire the ds4 fork | Blocked, re-checked 2026-08-28: antirez/ds4#885 and #886 both open. |
+| 1 | **#4** A second target repository | **Needs a decision, not more benchmarking.** Not "harder tasks" -- a different repo. gmail-archive is 1,833 source lines, 52 functions, median 13 lines, and exactly **one** function with a nested def -- the one that produced the only defect found in 18 trials. Nothing left to find in it. A new repo also retires the authorship-contamination caveat, which task selection cannot. |
+| 2 | **#35** Model queue, criteria revised | Admission needs a **second criterion: decodes within ~3x of the primary**. GLM-5.2 streams into 30.8 GiB from 196.6 -- the memory wall is gone -- but at ~4 tok/s it cannot be benchmarked at all. Kimi K3 / MiniMax M3 remain out for **engine support**, not size. |
+| 3 | **#27** Retire the ds4 fork | Blocked, re-checked 2026-08-28: antirez/ds4#885 and #886 both open. |
+
+**The sampler blind spot is closed as far as the engines permit** (#36, #37).
+llama.cpp reports via `/props`, Ollama via `/api/show`, and ds4 explicitly
+reports that it *cannot* report -- `sampling_source: "engine defaults (not
+reported by ds4)"`. ds4's source carries two conflicting default sets
+(`ds4.h` top_p 1.0 vs `ds4_cli.c` top_p 0.95) and reading it does not settle
+which reaches the server, so the row records the ambiguity rather than a guess.
 
 ## Done since the last update
 
