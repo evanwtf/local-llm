@@ -72,6 +72,13 @@ Each cell pools every trial of that pairing; suites are the sum of per-task
 medians. The `ds4` row pools both wire protocols (`ds4` and `ds4anthropic` are
 the same weights on the same server).
 
+> **Sampler caveat, 2026-08-29 (#28, #36).** Every row in this table was
+> measured at whatever sampler its launcher happened to set, and those differ:
+> `llamacpp-up` hardcoded `top_p 0.95`, Ollama fell back to its own `0.9`, and
+> neither set `repeat_penalty`. A measured "+66% engine difference" collapsed to
+> **+5-10%** once all four parameters were matched, and `top_p` alone moves a
+> pass rate from **20/21 to 7/15**. **Cross-engine rows here are provisional.**
+
 **The client effect is real, but it is engine-specific, and it is not a ranking
 of clients.** On ds4 the two proprietary clients are indistinguishable — 7
 seconds apart over a five-task suite, with overlapping intervals. On Ollama

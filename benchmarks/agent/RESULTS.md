@@ -1515,6 +1515,33 @@ may not be. It has not been re-checked.
 now takes `TEMP`, `TOP_P`, `TOP_K` and `MIN_P` from the environment so that is
 possible; before today it was not.
 
+### Resolved 2026-08-29: there is no engine difference
+
+`repeat_penalty` was the missing parameter — Ollama defaults to **1.1**,
+llama.cpp to **1.0**, and `llamacpp-up` never set it.
+
+| config | `parser-date` | `storage-blob-put` |
+|---|---|---|
+| llama.cpp original | 421.8 s / 29,906 tok | 133.6 s / 9,460 tok |
+| llama.cpp, three params matched | 212.1 s / 14,167 tok | 139.9 s / 8,310 tok |
+| **llama.cpp + `repeat_penalty 1.1`** | **147.1 s / 10,363 tok** | **118.6 s / 8,772 tok** |
+| **Ollama (its own defaults)** | **133.9 s / 7,694 tok** | **112.5 s / 7,526 tok** |
+
+**+10% and +5% — inside the noise.** On byte-identical weights the two engines
+decode at the same rate and, once sampled alike, take the same time. **The
+entire +66% was four sampler defaults nobody chose**, in two launchers that each
+inherited a different set.
+
+**This puts the MTPLX result under suspicion.** "17% faster on 68% fewer tokens"
+than Ollama on the same weights, attributed above to the serving stack, is
+exactly this shape — a token-count difference read as an engine property, and it
+was measured before any sampler was pinned. **Not re-checked. Treat it as
+provisional.**
+
+The transferable rule: **a fewer-tokens-therefore-faster result is a sampler
+hypothesis until the samplers are shown to match.** Both instances of it in this
+file turned out that way.
+
 ---
 
 ## What SSD offload costs: the two techniques measured (2026-08-28, issue #34)
