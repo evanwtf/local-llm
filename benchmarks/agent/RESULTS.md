@@ -1791,3 +1791,88 @@ three parameters at once; then a four-cell sweep whose control cells all shared
 one `top_p`; then a conclusion stated without noticing that `repeat_penalty`
 differed too. A control which changes a "set" of related settings is not a
 control — it only tells you the set matters.
+
+---
+
+## GLM-5.3-Flash on the supported stack (2026-08-29, issues #38 / #41)
+
+**Everything previously recorded about GLM-5.3-Flash was measured on a stack
+antirez does not support.** `backend.glm53` is Unsloth's `UD-Q2_K_XL` on
+llama.cpp PR #27752 through the shim. He ships GLM for Mac through **ds4
+(DwarfStar)** with his own GGUF layout, and ds4 is explicitly not a general GGUF
+loader. The artifacts are not interchangeable:
+
+```
+antirez GGUF   general.architecture = glm5-next
+Unsloth GGUF   general.architecture = glm5next
+```
+
+One hyphen. Neither engine reads the other's file — which is also the root cause
+of #25, where a model "loaded and emitted gibberish".
+
+### The supported stack is dramatically better, and still not usable
+
+Same prompt, temperature 0:
+
+| | llama.cpp + Unsloth | **ds4 + antirez** |
+|---|---|---|
+| response | ~76 s | **3.2 s** |
+| completion tokens | 854 (mostly reasoning) | **47** |
+| decode rate | 12.11 t/s | **27.8 t/s** |
+| load time | slow | **10–14 s** |
+| `mbox-strip-envelope` × Claude Code | **timeout at 3,600 s** | **PASS in 166.9 s** |
+
+**18x fewer tokens, 2.3x the decode rate, and the timeout gone.** The reasoning
+explosion is a property of the llama.cpp+Unsloth path, not of the model.
+
+**But 166.9 s did not reproduce**, and chasing it found the real constraint:
+
+```
+prefill          361 t/s
+context          39,903 tokens
+per turn         ~110 s of re-prefill
+KV cache         529 entries stored, hits = 0
+decode           27.8 t/s  (2,544 tokens = 91 s -- never the problem)
+```
+
+**Every turn re-prefills the entire 40k context because the cache never hits.**
+~110 s x 12+ turns is the whole 3,362 s wall clock. This is #14 in its purest
+form, on ds4 rather than llama.cpp.
+
+The chain is: GLM-5.3 is verbose → 40k contexts → 110 s re-prefill per turn →
+~56 minutes per task. **DeepSeek on the same engine and client runs a five-task
+suite in 860 s**, because its contexts are a fraction of the size.
+
+### The KV budget is sized for DeepSeek, and #26's hypothesis is right here
+
+```
+DeepSeek KV entries   ~560 MiB
+GLM-5.3 KV entries    6,012 - 8,061 MiB      (~12x)
+ds4-up's budget       8,192 MiB              -> one entry, evicts every turn
+```
+
+436 evictions in a single trial. `KV_DISK_MB` is now overridable and was raised
+to 64 GB — which did **not** help, because the cache achieves `hits=0` at any
+size.
+
+**Note the symmetry with #26.** That issue claimed "wall time swings 3x — KV disk
+cache is at its cap" and was refuted for DeepSeek, where sampling was the real
+cause. For GLM the original hypothesis is correct. Same engine, same flag,
+opposite answer — the KV footprint differs 12x by architecture.
+
+### Codex is blocked separately (#41)
+
+GLM-5.3 on ds4 emits `"false"` as a JSON **string** where Codex's tool schema
+declares a **boolean**: `failed to parse function arguments: invalid type:
+string "false", expected a boolean`. **78 parse errors in one trial**, 53
+minutes, never recovered. Claude Code tolerates the same output.
+
+**So GLM-5.3-Flash is currently unusable with either client on the supported
+stack** — Claude Code by re-prefill, Codex by tool-call parsing.
+
+### A configuration trap worth not repeating
+
+`WARM=''` without `--ssd-streaming` leaves weights **neither resident nor
+streamed**. RSS sat at 3.1 GiB for an 89.9 GiB model and every forward pass
+faulted from disk; a trial that should have decoded in 91 s took 2,470 s.
+`WARM=''` is only correct *together with* streaming.

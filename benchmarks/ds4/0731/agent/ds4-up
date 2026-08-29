@@ -41,8 +41,14 @@ URL=http://127.0.0.1:$PORT
 # assumes 200k for a model it does not recognise, so a mismatch means
 # auto-compact fires after the server has already truncated. check_ctx()
 # below enforces this, so change the number in one place and run any command.
-CTX=100000
-KV_DISK_MB=8192
+CTX=${CTX:-100000}
+# Overridable, and it MUST be for any model that is not DeepSeek. This budget
+# was sized for DeepSeek V4 Flash, whose KV entries are ~560 MiB. GLM-5.3-Flash
+# entries are **6,000-8,061 MiB** -- roughly 12x -- so 8192 holds a single entry
+# and sometimes not even that. The result is an eviction and a full 40k-token
+# re-prefill on every turn: 436 evictions in one trial, 91s of decode inside a
+# 3,362s wall clock. See #38.
+KV_DISK_MB=${KV_DISK_MB:-8192}
 # --warm-weights costs ~15s of page touching at startup and buys +36% prefill
 # on early requests. See claude_code_recommendations.md section 3.
 # Overridable: --warm-weights touches every page at startup, which is exactly
