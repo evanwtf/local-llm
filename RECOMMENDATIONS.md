@@ -274,8 +274,17 @@ produce, which makes it the most interesting backend here for issue #4.
 slot.** A fallback exists for the day nothing else works, and 85% is the wrong
 number for that day. See also the lineage caveat: it is `qwen35moe`.
 
-**`qwen3.8:27b-mlx` via Ollama** — strictly dominated. MTPLX runs the identical
-weights 17% faster on 68% fewer tokens. If you want Qwen3.8, use MTPLX.
+**`qwen3.8:27b-mlx` via Ollama** — dominated, **provisionally**. MTPLX was
+measured running the identical weights 17% faster on 68% fewer tokens.
+
+> **That claim is now suspect and has not been re-checked.** It is the same
+> shape as two results that turned out to be artifacts: a token-count difference
+> attributed to the serving stack. #28 found a "+66% engine difference" between
+> llama.cpp and Ollama on byte-identical weights that collapsed to +5–10% once
+> four sampler parameters were matched — the engines decode at the same rate.
+> The MTPLX comparison predates any sampler pinning, and MTPLX's sampler was
+> never recorded. **A fewer-tokens-therefore-faster result is a sampler
+> hypothesis until the samplers are shown to match.**
 
 **`gemma4:31b-mxfp8`** — last on every task (355.4 s), 45 GB resident. Well
 behaved, never failed, no reason to choose it.
@@ -413,6 +422,34 @@ the recommended one.
 
 ---
 
+## GLM-5.3-Flash on the supported stack — better, still blocked
+
+Re-run on **ds4 (DwarfStar)**, which is how antirez actually ships GLM for Mac
+(#38). The stack change is dramatic and does not make the model usable:
+
+| | llama.cpp + Unsloth | **ds4 + antirez** |
+|---|---|---|
+| same prompt, temp 0 | ~76 s, 854 tokens | **3.2 s, 47 tokens** |
+| decode | 12.11 t/s | **27.8 t/s** |
+| `mbox-strip-envelope` × Claude Code | timeout at 3,600 s | **PASS in 166.9 s** |
+
+**18x fewer tokens and 2.3x the decode rate.** The reasoning explosion that
+timed out Claude Code belongs to the llama.cpp+Unsloth path, not the model. The
+two GGUFs are not interchangeable and one hyphen says so — antirez's declares
+`glm5-next`, Unsloth's `glm5next`, and neither engine reads the other's.
+
+**It is still unusable, for two reasons that are upstream and already reported:**
+
+- [ds4#569](https://github.com/antirez/ds4/issues/569) — the GLM tool-call
+  parser stringifies every argument, so Codex sees `"false"` where a boolean is
+  declared. **78 parse errors in one trial**, 53 minutes, no recovery. Open
+  since 2026-07-17 and not specific to 5.3.
+- [ds4#816](https://github.com/antirez/ds4/issues/816) — stateless clients never
+  reuse the KV session, so every turn re-prefills. At 40k context that is ~110 s
+  per turn: **529 cache stores, 0 hits.**
+
+Neither is ours to fix. **Do not put GLM in the plan until both land.**
+
 ## Too big for this machine — reopened 2026-08-28
 
 **This tier is now a queue, not a verdict — but speed is the new wall.**
@@ -519,8 +556,12 @@ The gaps between "benchmarked" and "actually a fallback":
 3. **Codex and OpenCode are unverified offline.** One test each, ~10 minutes.
 4. **No cold-start runbook.** The Metal-shader trap above was rediscovered
    under pressure once. Write the procedure down while it is calm.
-5. **Quality is now measured, and it is good — but it still does not
-   discriminate.** Updated 2026-08-28. Three harder tasks (a withheld
+5. **Quality is measured and good; discrimination now depends on the second
+   repository.** Updated 2026-08-29: #4 traced the ceiling to the *repository*,
+   not the task set — gmail-archive is 1,833 source lines with exactly one
+   function carrying defect surface. `~/git/monitor` (11,265 Swift lines, 215
+   tests) is wired as a second target (#42) and the first runs against it are
+   #44. Updated 2026-08-28. Three harder tasks (a withheld
    docstring, a two-file change, a two-symbol convention) ran 18 trials against
    `ds4` under both clients: **18/18 passed**, ruff clean, **0/18 recalled**,
    18 distinct solutions. `BlobStore.put` came back with `fsync` + atomic
