@@ -1,28 +1,29 @@
 # Where to pick up
 
-Updated 2026-08-29 09:40. **GLM testing is top priority** — the current GLM-5.3
-results were measured on the wrong stack, and the supported one may fix the
-single-client problem. Work the issues in the order below. Each issue is
-self-contained; this file only sets priority and records machine state that is
-not in git.
+Updated 2026-08-29 16:00. **#44 is the run that matters** -- the Swift repo is
+wired and unmeasured, and #4 said the repository was the limit. Work the issues
+in the order below. Each issue is self-contained; this file only sets priority
+and records machine state that is not in git.
 
 ## Order
 
 | # | issue | why this position |
 |---|---|---|
-| 1 | **#38** GLM-5.3-Flash on **ds4**, the supported stack | **Everything measured about GLM-5.3 used the wrong engine.** `backend.glm53` is Unsloth `UD-Q2_K_XL` on llama.cpp PR #27752 through the shim; antirez's supported path is ds4 with his own layout, and ds4 is **not** a general GGUF loader. ds4 also removes the shim -- which is in the path of every `glm53` trial and is the prime suspect for the Claude Code timeout. It is the engine the primary already runs at 55/55 and 45/45. |
-| 2 | **#39** ds4 embedded MTP (`--mtp`, `--mtp-timing`) | **The only lever measured here that attacks decode rate**, which is exactly what killed `glm53 x claude`: 12.11 t/s, 5,181-7,175 tokens per turn, 428-605 s per turn. `--mtp-timing` reports acceptance directly, so this is measurable rather than anecdotal. **May also apply to the ds4 primary**, which would matter more than anything GLM does. Note `--mtp` alters the sampling distribution, and #36 showed that moves pass rate -- so run `--mtp-exact-sampling` too. |
-| 3 | **#40** GLM-5.3 quant ladder on ds4 (q2 vs q4) | Depends on #38. #31 is the precedent: the *bigger* quant was 28.4% **faster** because re-prefill dominates. But #34 priced streaming at **+76%**, so q4-streamed starts in a hole. Expect q2-resident to win; an opposite result is the interesting one. |
-| 4 | **#4** A second target repository | Needs a decision, not machine time. gmail-archive is 1,833 source lines with exactly **one** function carrying the surface that produced the only defect found in 18 trials. Nothing left to find in it. |
-| 5 | **#35** Model queue, criteria revised | Admission needs a second criterion: **decodes within ~3x of the primary**. Kimi K3 / MiniMax M3 are out for **engine support**, not size. |
-| 6 | **#27** Retire the ds4 fork | Blocked, re-checked 2026-08-28: antirez/ds4#885 and #886 both open. |
+| 1 | **#44** Run the top 5 pairs against the Swift repo | **The measurement #42 was built for, and nothing has been run on it.** #4 concluded the *repository* was the limit -- gmail-archive is 1,833 lines with exactly one function carrying defect surface. 11,265 Swift lines in a language these models see less of is the test of that. 45 trials, grouped by server to minimise loads. **The question is not "do they pass" but whether Swift separates backends that the old five tasks could not.** |
+| 2 | **#43** Full documentation pass | README still describes a single-repo Python-only harness; AGENTS.md has grown by accretion; RECOMMENDATIONS carries claims the sampler work (#28, #36) qualified and the GLM ds4 result (#38) never folded in. No machine time. |
+| 3 | **#39** ds4 embedded MTP | **Blocked in practice.** `--mtp` sets `c.engine.glm_mtp` -- it is GLM-gated -- and GLM is unusable behind ds4#569 and ds4#816. The DeepSeek GGUF *does* carry an MTP head (`deepseek4.nextn_predict_layers = 1`), so the primary could benefit, but no flag reaches it. Worth an upstream question, not a run. |
+| 4 | **#40** GLM-5.3 quant ladder | Depends on #38 being usable. It is not. |
+| 5 | **#4** A third target repository | #42 answered the immediate need. A genuinely third-party repo remains the ideal. |
+| 6 | **#35** Model queue, criteria revised | Needs the second criterion: decodes within ~3x of the primary. |
+| 7 | **#27** Retire the ds4 fork | Blocked: antirez/ds4#885 and #886 both open. |
 
-**What the GLM-5.3 result currently is, and is not.** `glm53 x codex` is
-**15/15**, suite 1,362 s. `glm53 x claude` **timed out at 3,600 s on the easiest
-task**, which Codex does in 133.1 s. The mechanism is measured -- 12.11 t/s and
-5-7k tokens per turn -- and it is **not** #14 re-prefill: the prompt cache was
-working, 4 tokens re-evaluated. All of it is on llama.cpp + shim, i.e. the
-unsupported stack.
+**Blocked on upstream, do not re-investigate:** GLM-5.3 is unusable on the
+supported stack for two reasons that are already reported --
+[ds4#569](https://github.com/antirez/ds4/issues/569) stringifies every tool
+argument, which blocks Codex, and
+[ds4#816](https://github.com/antirez/ds4/issues/816) means stateless clients
+never reuse the KV session, costing ~110 s of re-prefill per turn at 40k
+context. Neither is ours to fix.
 
 ## Done since the last update
 
