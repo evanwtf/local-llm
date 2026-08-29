@@ -300,3 +300,24 @@ def test_an_unsupported_language_is_refused_loudly():
     and the control check would then pass, recording a broken task as valid."""
     with pytest.raises(ValueError, match="no excision support"):
         run.exciser_for("src/main.rs")
+
+
+def test_the_summary_falls_back_to_stderr_when_stdout_is_empty():
+    """Swift compile errors go to stderr and leave stdout empty.
+
+    The first Swift failure recorded `pytest: "no output"` -- true, useless, and
+    indistinguishable from a harness fault. The agent had written code that did
+    not compile, which is a real and interesting failure, and the diagnosis was
+    thrown away.
+    """
+    got = run.summarise_run("", "error: cannot find 'Buckets' in scope\n")
+    assert "cannot find 'Buckets'" in got
+
+
+def test_stdout_still_wins_when_present():
+    got = run.summarise_run("17 passed in 0.07s\n", "some warning\n")
+    assert got == "17 passed in 0.07s"
+
+
+def test_both_empty_is_still_reported_rather_than_crashing():
+    assert run.summarise_run("", "") == "no output"

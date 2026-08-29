@@ -112,8 +112,22 @@ def tests_pass(worktree, tests, timeout, command="uv run pytest -q"):
     not take them gets none, which is why `tests` may be empty.
     """
     r = run([*command.split(), *tests], cwd=worktree, timeout=timeout)
-    tail = [ln for ln in r.stdout.splitlines() if ln.strip()]
-    return r.returncode == 0, (tail[-1] if tail else "no output")
+    return r.returncode == 0, summarise_run(r.stdout, r.stderr)
+
+
+def summarise_run(stdout, stderr):
+    """One line describing a test run, preferring stdout but falling back.
+
+    `swift test` writes compile errors to **stderr** and leaves stdout empty, so
+    reading only stdout reported `"no output"` for the first Swift failure --
+    true, useless, and indistinguishable from a harness fault. The agent had
+    written code that did not compile, which is a real and diagnosable failure.
+    """
+    for stream in (stdout, stderr):
+        lines = [ln for ln in (stream or "").splitlines() if ln.strip()]
+        if lines:
+            return lines[-1][:300]
+    return "no output"
 
 
 def parse_ollama_show(show):
