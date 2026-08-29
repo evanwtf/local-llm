@@ -386,6 +386,7 @@ codex_profile = "qwen38fnq2"
 # thrashing -- three compactions in three turns -- and spent 842s on a task
 # Codex finished in 109.5s. Keep this equal to CTX in llamacpp-up; the script
 # checks.
+props_url = "http://127.0.0.1:8020"
 context_tokens = 131072
 
 # GLM-5.3-Flash, Zhipu lineage -- the first backend here that is neither Qwen nor
@@ -443,6 +444,7 @@ base_url = "http://127.0.0.1:11501"
 auth_token = "llamacpp-local"
 model = "glm-5.3-flash-q2"
 codex_profile = "glm53"
+props_url = "http://127.0.0.1:8030"
 context_tokens = 65536
 
 # The 3-bit sibling of qwen38fnq2, and a correction rather than an addition.
@@ -467,6 +469,7 @@ base_url = "http://127.0.0.1:11500"
 auth_token = "llamacpp-local"
 model = "qwen3.8-flash-next-q3"
 codex_profile = "qwen38fnq3"
+props_url = "http://127.0.0.1:8020"
 context_tokens = 131072
 
 # Ornith 1.5, the successor to `ornith`. Same quant (Q4_K_M), same engine, same
