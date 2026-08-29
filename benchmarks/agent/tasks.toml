@@ -464,6 +464,40 @@ codex_profile = "ornith15llamacpp"
 props_url = "http://127.0.0.1:8020"
 context_tokens = 262144
 
+# GLM-5.2 via ds4 SSD streaming. **A model this project ruled out on size.**
+#
+# 196.6 GiB of file against a 112.00 GiB Metal ceiling: impossible resident, and
+# that is why #17 stalled and why #35 filed it under "too big for this machine".
+# #34 changed the premise -- ds4 expert streaming measured **91.0 -> 36.7 GiB
+# (-60%) for +76% suite wall time and no correctness cost**. At that ratio this
+# lands near ~79 GiB, which fits.
+#
+# It is the cheapest reach for a genuinely independent lineage: ds4 (DwarfStar)
+# serves GLM natively, so it is the same engine, the same ds4-up launcher and
+# the same Anthropic endpoint ds4anthropic already uses. No shim, no new build.
+# The other two rejected models (Kimi K3, MiniMax M3) have no engine here that
+# can serve them at all, so streaming does not help them yet.
+#
+# MUST be started with streaming AND without warming, or it will not load:
+#   EXTRA_FLAGS='--ssd-streaming --ssd-streaming-cache-experts 40GB' WARM='' \
+#     MODEL=~/models/GLM-5.2-GGUF/GLM-5.2-UD-IQ2_XXS_RoutedIQ2XXS_blk78Q2K.gguf \
+#     benchmarks/ds4/0731/agent/ds4-up start
+#
+# --warm-weights touches every page and defeats streaming outright -- with both
+# set, ds4 reported full residency and streaming appeared to do nothing (#34).
+#
+# CAVEAT -- QUANT: IQ2_XXS is the most aggressive quant in this file by some
+# margin, and #4 showed this suite is too easy to expose quantisation damage.
+# If it fails where others pass, suspect the quant before the model.
+[backend.glm52ds4]
+description = "GLM-5.2 IQ2_XXS routed, ds4-server with SSD expert streaming"
+base_url = "http://127.0.0.1:8000"
+auth_token = "dsv4-local"
+model = "glm-5.2"
+opencode_model = "ds4/glm-5.2"
+codex_profile = "glm52ds4"
+context_tokens = 100000
+
 # --- reference ------------------------------------------------------------
 # Not a fallback candidate. This is the hosted service the local backends are
 # a hedge against, run through the identical harness so every local number has
