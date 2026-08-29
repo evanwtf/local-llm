@@ -244,6 +244,22 @@ point at the shim (:11500/:11501), not the server** -- Codex 0.150.1 sends both
 `instructions` and a `role=developer` item, which llama-server turns into two
 chat system messages and the Qwen template rejects.
 
+## Upstream issues we are blocked on or tracking
+
+**Check these before re-investigating anything GLM- or ds4-related.** All three
+were found independently here and turned out to be already reported — one of
+them six weeks old.
+
+| upstream | what it blocks | our issue |
+|---|---|---|
+| **[ds4#569](https://github.com/antirez/ds4/issues/569)** | **Codex against any GLM on ds4.** Tool-call parser stringifies every argument value; `"false"` where a boolean is declared. Open since 2026-07-17, hits GLM-5.2 too. | #41 |
+| **[ds4#816](https://github.com/antirez/ds4/issues/816)** | **Claude Code at long context.** Stateless clients never extend the live KV session — 787/787 misses, `reason=token-mismatch`. Structural, so KV budget does not fix it. | #38, #14 |
+| **[ds4#890](https://github.com/antirez/ds4/issues/890)** | Nothing here — **does not reproduce on macOS 26.6.2**. [We commented](https://github.com/antirez/ds4/issues/890#issuecomment-5464032442) with the 5k/10k/20k scaling table; likely macOS 27 specific. | #38 |
+
+**Check upstream before writing up a finding.** All three of ours were already
+there, which is reassuring about the measurements and would have saved hours of
+diagnosis.
+
 ## Traps worth not rediscovering
 
 **A sampler default nobody chose can halve the pass rate.** `top_p 0.95` is
@@ -251,6 +267,20 @@ chat system messages and the Qwen template rejects.
 Temperature and top_k are innocent. `llamacpp-up` hardcoded 0.95 for everything;
 Ollama fell back to 0.9. **Cross-engine pass rates are provisional until both
 sides are sampler-matched**, and Ollama/ds4 rows still do not record sampling.
+
+**A one-hyphen architecture name decides which engine can load a GGUF.**
+antirez's GLM-5.3 declares `glm5-next`, Unsloth's declares `glm5next`, and
+neither engine reads the other's file. That is the whole of #25's "loads and
+emits gibberish". Check `general.architecture` against the engine's declared
+name -- `uv run python scripts/gguf_meta.py <file>` -- before debugging output.
+
+**`WARM=''` is only correct together with `--ssd-streaming`.** Alone it leaves
+weights neither resident nor streamed: RSS 3.1 GiB for an 89.9 GiB model, every
+forward pass faulting from disk, 91 s of decode inside a 2,470 s trial.
+
+**`KV_DISK_MB` is sized for DeepSeek.** Its entries are ~560 MiB; GLM-5.3's are
+**6,012-8,061 MiB**, so the 8192 default holds one and evicts every turn. Raise
+it for any non-DeepSeek model -- though per ds4#816 it will not fix `hits=0`.
 
 **Write results through `results.py`.** Never hand-roll an exclusion filter --
 five different keys have meant "untrustworthy row", and an analysis that checked
