@@ -160,6 +160,28 @@ extra trials fixes, while a series boundary is merely an inconvenience.
 worktree you are moving off, so the rows that depend on it stay reproducible.
 A squash-merged PR does not leave its commits in mainline history.
 
+## Pin the sampler, and vary one thing at a time
+
+**A sampler parameter can halve the pass rate.** Measured over 30 trials (#36):
+`top_p 0.95` gives 20/21 and `top_p 0.90` gives 7/15 on the same task, model,
+engine and client. Temperature and top_k were each isolated and are innocent.
+The intervals do not overlap.
+
+Every launcher sets a different sampler and **nobody chose them**: `llamacpp-up`
+hardcoded Qwen's `0.95` for every model it served; Ollama uses each modelfile,
+which for `ornith-1.5:35b` sets nothing and falls back to Ollama's `0.9`.
+
+So: **a cross-engine or cross-backend comparison is not valid unless both sides
+are sampler-matched**, and the sampler belongs on the row. `llamacpp-up` takes
+`TEMP/TOP_P/TOP_K/MIN_P`; llama.cpp rows carry sampling via the `/props` probe.
+Ollama and ds4 rows do not yet, which is a known gap.
+
+**Vary one parameter at a time.** This effect was missed twice by controls that
+moved a *set* of related settings together — first three at once, then a
+four-cell sweep in which every control cell happened to share the same `top_p`.
+A control that changes a group is not a control; it only tells you the group
+matters.
+
 ## Know what a trial count can support
 
 Measured over 398 trials by `benchmarks/agent/sizing.py`, not estimated:

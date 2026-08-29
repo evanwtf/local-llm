@@ -196,6 +196,12 @@ one 4 KiB block -- there is no smaller unit.
 
 ## Traps worth not rediscovering
 
+**A sampler default nobody chose can halve the pass rate.** `top_p 0.95` is
+20/21 and `top_p 0.90` is 7/15 on the same task/model/engine/client (#36).
+Temperature and top_k are innocent. `llamacpp-up` hardcoded 0.95 for everything;
+Ollama fell back to 0.9. **Cross-engine pass rates are provisional until both
+sides are sampler-matched**, and Ollama/ds4 rows still do not record sampling.
+
 **Write results through `results.py`.** Never hand-roll an exclusion filter --
 five different keys have meant "untrustworthy row", and an analysis that checked
 one silently counted fifteen bad rows as good data (#29).

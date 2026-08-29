@@ -1657,3 +1657,69 @@ Both launchers now take `MODEL` and `EXTRA_FLAGS`. **Check the running process's
 own command line rather than trusting a launcher's output**, and treat an
 identical answer from a supposedly different model as a defect, not a
 coincidence.
+
+---
+
+## A sampler parameter halves the pass rate (2026-08-29, issue #36)
+
+30 trials, `ornith-1.5:35b` on llama.cpp, `storage-blob-put`, Codex. Everything
+held fixed except the named parameter.
+
+| cell | temp | top_p | top_k | pass |
+|---|---|---|---|---|
+| original | 1.0 | **0.95** | 20 | **6/6** |
+| temperature alone | **0.8** | 0.95 | 20 | **6/6** |
+| top_k alone | 1.0 | 0.95 | **40** | **5/6** |
+| all three | 0.8 | **0.90** | 40 | 3/6 |
+| **top_p alone** | 1.0 | **0.90** | 20 | **4/6** |
+
+Pooled with the trials that raised it:
+
+| | pass | rate | Wilson 95% lower |
+|---|---|---|---|
+| `top_p 0.95` | **20/21** | 95% | **0.79** |
+| `top_p 0.90` | **7/15** | 47% | 0.25 |
+
+**Non-overlapping intervals. One sampler parameter roughly halves the pass rate
+on this task.** Temperature and top_k were each isolated and are innocent —
+6/6 and 5/6.
+
+**A narrower nucleus performs worse**, which is the opposite of the usual
+intuition for code generation. With `top_k 20` already limiting candidates,
+dropping `top_p` to 0.90 appears to cut tokens needed for a correct
+continuation: the failures are overwhelmingly the near miss `1 failed, 16
+passed` — working code with one behaviour wrong — not a collapse.
+
+### Every pass rate in this file was measured at an unchosen top_p
+
+- `llamacpp-up` hardcoded **0.95** for every model it served, Qwen-lineage or not.
+- Ollama uses each model's modelfile. `ornith-1.5:35b` sets no parameters, so
+  **Ollama's default 0.9** applied.
+- `ds4-server` has its own defaults, and does not report them.
+
+So `ornith15` (Ollama) and `ornith15llamacpp` were **never sampled alike**, and
+most cross-engine comparisons above share that confound. #28 found the same
+defect in wall time; this is it in **pass rate**.
+
+**Treat cross-engine pass-rate comparisons in this file as provisional until
+both sides are sampler-matched.**
+
+### Scope
+
+One task, one model, one client. `storage-blob-put` may be unusually sensitive,
+and Ornith 1.5 is `qwen35moe` — Qwen's own recommendation is `top_p 0.95, top_k
+20`, so the model may simply be tuned for it. **This does not establish that
+`top_p 0.9` is worse in general.** It establishes that it is worse here,
+decisively, and that a sampler default nobody chose was silently deciding
+results.
+
+### How it was nearly missed twice
+
+The trials that raised this moved **three parameters at once**, and the first
+reading blamed temperature. A four-cell sweep still could not attribute it,
+because cells 1–3 all happened to hold `top_p 0.95` — the only cell that varied
+it also varied everything else. A fifth cell, top_p alone, closed it.
+
+**Both errors were the same error: varying more than one thing.** Worth the
+reminder that a control which changes a "set" of related settings is not a
+control.
