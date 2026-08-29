@@ -102,3 +102,68 @@ def test_known_branches_are_not_re_announced():
     got = staleness.new_remote_branches(_p.Path.home() / "git/ds4",
                                         known={"glm-5.3-flash"})
     assert "glm-5.3-flash" not in got
+
+
+# --- GitHub notifications -------------------------------------------------
+
+NOTIFS = [
+    {"reason": "mention", "unread": True,
+     "updated_at": "2026-08-29T19:22:00Z",
+     "repository": {"full_name": "antirez/ds4"},
+     "subject": {"title": "metal: scale GLM 5.3 memory guard with host RAM",
+                 "type": "PullRequest"}},
+    {"reason": "comment", "unread": False,
+     "updated_at": "2026-08-29T19:22:00Z",
+     "repository": {"full_name": "antirez/ds4"},
+     "subject": {"title": "GLM-5.3-Flash Metal: prefill fails", "type": "Issue"}},
+    {"reason": "ci_activity", "unread": True,
+     "updated_at": "2026-08-28T14:01:00Z",
+     "repository": {"full_name": "evanwtf/monitor"},
+     "subject": {"title": "Release workflow run failed", "type": "CheckSuite"}},
+    {"reason": "mention", "unread": True,
+     "updated_at": "2026-08-27T10:00:00Z",
+     "repository": {"full_name": "evanwtf/some-other-repo"},
+     "subject": {"title": "unrelated", "type": "Issue"}},
+]
+
+
+def test_only_repos_this_project_depends_on_are_reported():
+    """41 of 41 notifications on this account were CI noise from other repos.
+
+    A check that reports all of them is one nobody reads -- the same failure as
+    warning about a healthy server.
+    """
+    got = staleness.interesting_notifications(NOTIFS, repos={"antirez/ds4"})
+    assert {n["repo"] for n in got} == {"antirez/ds4"}
+
+
+def test_ci_activity_is_dropped():
+    got = staleness.interesting_notifications(
+        NOTIFS, repos={"antirez/ds4", "evanwtf/monitor"})
+    assert all(n["reason"] != "ci_activity" for n in got)
+
+
+def test_a_mention_outranks_a_comment():
+    """A mention is addressed to you; a comment is a thread you follow."""
+    got = staleness.interesting_notifications(NOTIFS, repos={"antirez/ds4"})
+    assert got[0]["reason"] == "mention"
+
+
+def test_read_items_are_kept_because_email_marks_them_read():
+    """The ds4 mention arrived by email and was already `read` via the API.
+
+    Filtering to unread would have hidden the one notification that mattered.
+    """
+    got = staleness.interesting_notifications(NOTIFS, repos={"antirez/ds4"})
+    assert len(got) == 2
+    assert any(not n["unread"] for n in got)
+
+
+def test_the_subject_type_is_kept_so_a_pr_is_distinguishable():
+    got = staleness.interesting_notifications(NOTIFS, repos={"antirez/ds4"})
+    assert got[0]["type"] == "PullRequest"
+
+
+def test_malformed_entries_are_skipped_not_fatal():
+    assert staleness.interesting_notifications([{}, {"reason": "mention"}],
+                                               repos={"antirez/ds4"}) == []

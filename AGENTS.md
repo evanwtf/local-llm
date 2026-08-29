@@ -170,6 +170,12 @@ branch that fixed it had existed the whole time.
 preview branches are where it lands first. Re-check before concluding a model
 does not work here.
 
+**preflight reports GitHub notifications for `antirez/ds4`, `ggml-org/llama.cpp`
+and this repo**, mentions first. It excludes `ci_activity` and keeps *read*
+items: the ds4 mention that mattered arrived by email, was already marked read
+through the API, and sat under 41 CI failures from unrelated repos. Filtering to
+unread would have hidden the only notification worth seeing.
+
 ## Always measure the latest infrastructure
 
 llama.cpp, Ollama, Codex and OpenCode ship several times a day. **Update before
@@ -177,7 +183,7 @@ a batch, not after it**, and take the newest release of every component this
 project measures through.
 
 ```sh
-uv run python benchmarks/agent/preflight.py    # reports drift; run.py runs it too
+uv run python benchmarks/agent/preflight.py    # servers, memory, versions, notifications
 codex update                                   # self-updating
 opencode upgrade
 # Ollama is /Applications/Ollama.app -- update it from the app, not the shell

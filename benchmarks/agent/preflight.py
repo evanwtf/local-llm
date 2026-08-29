@@ -283,6 +283,12 @@ STALE_FETCH_DAYS = 2.0
 # on this remote is a signal worth surfacing before a run, not after.
 SHERPA = "ds4"
 
+# Repos whose GitHub notifications bear on this project. Everything else is
+# noise here -- 41 of 41 notifications on this account were CI failures from
+# unrelated repos, and the one that mattered (a mention on a ds4 PR citing our
+# measurement) was buried under them and already marked read by email.
+WATCHED_REPOS = {"antirez/ds4", "ggml-org/llama.cpp", "evanwtf/local-llm"}
+
 
 def log_versions(offline: bool = False) -> None:
     """Report drift in the tools and builds a batch is about to measure through.
@@ -304,6 +310,15 @@ def log_versions(offline: bool = False) -> None:
             logger.info("preflight: %s (could not compare)", line)
         else:
             logger.info("preflight: %s (%s)", line, state)
+
+    for note in staleness.interesting_notifications(
+            staleness.fetch_notifications(), WATCHED_REPOS):
+        line = (f"{note['repo']} [{note['reason']}] {note['type']}: "
+                f"{note['title']}")
+        if note["reason"] in ("mention", "review_requested", "assign"):
+            logger.warning("preflight: %s  <- addressed to you", line)
+        else:
+            logger.info("preflight: %s", line)
 
     sherpa = BUILDS.get(SHERPA)
     if sherpa is not None:

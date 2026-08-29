@@ -163,6 +163,58 @@ def describe_drift(branch: str | None, behind: int | None,
             "note": f"{behind} behind mainline" if behind else "current"}
 
 
+# Notification reasons that mean somebody is talking to you, most direct first.
+# `ci_activity` is deliberately absent: 41 of 41 notifications on this account
+# were CI noise from unrelated repos, and a check that reports those is one
+# nobody reads.
+NOTIFY_REASONS = ("mention", "review_requested", "assign", "author",
+                  "comment", "subscribed")
+
+
+def interesting_notifications(items, repos, reasons=NOTIFY_REASONS):
+    """Notifications from repos this project depends on, ranked by directness.
+
+    **Read items are kept.** The ds4 mention that mattered arrived by email and
+    was already marked read through the API; filtering to unread would have
+    hidden the one notification worth seeing.
+    """
+    out = []
+    for item in items or []:
+        try:
+            repo = item["repository"]["full_name"]
+            reason = item["reason"]
+            subject = item["subject"]
+        except (KeyError, TypeError):
+            continue
+        if repo not in repos or reason not in reasons:
+            continue
+        out.append({
+            "repo": repo,
+            "reason": reason,
+            "unread": bool(item.get("unread")),
+            "title": (subject.get("title") or "")[:80],
+            "type": subject.get("type") or "",
+            "updated": (item.get("updated_at") or "")[:16],
+        })
+    order = {r: i for i, r in enumerate(reasons)}
+    out.sort(key=lambda n: (order.get(n["reason"], 99), n["updated"]))
+    return out
+
+
+def fetch_notifications(days: int = 14) -> list[dict[str, Any]]:
+    """Recent notifications including read ones. [] on any failure."""
+    since = time.strftime("%Y-%m-%dT%H:%M:%SZ",
+                          time.gmtime(time.time() - days * 86400))
+    out = _run(["gh", "api", f"notifications?all=true&since={since}",
+                "--paginate"], timeout=25)
+    if not out or not out.startswith("["):
+        return []
+    try:
+        return json.loads(out)
+    except json.JSONDecodeError:
+        return []
+
+
 def new_remote_branches(repo: pathlib.Path, known: set[str] | None = None,
                         days: int = 14) -> list[str]:
     """Remote branches updated recently that the local checkout is not on.
@@ -176,7 +228,7 @@ def new_remote_branches(repo: pathlib.Path, known: set[str] | None = None,
     `git fetch`, which `git_drift` reports separately.
     """
     out = _run(["git", "-C", str(repo), "for-each-ref", "--sort=-committerdate",
-                f"--format=%(refname:short)%09%(committerdate:unix)",
+                "--format=%(refname:short)%09%(committerdate:unix)",
                 "refs/remotes"])
     if not out:
         return []
