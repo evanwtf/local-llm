@@ -8,14 +8,35 @@ records machine state that is not in git.
 
 | # | issue | why this position |
 |---|---|---|
-| 1 | **#33** Offload the n-gram PLE table to SSD | Cheapest remaining measurement, and the disk baseline says it is **not** the free win the issue assumed. Needs a ~88 GiB download -- machine is quiet now. |
-| 2 | **#34** SSD offload as a strategy | Step 1 done. Steps 2-4 need the GGUF from #33. |
-| 3 | **#28** llama.cpp vs Ollama on identical weights | **No model here has ever run on more than two engines**, so every llama.cpp-vs-Ollama claim in this repo is inferred across *different models*. The largest structural hole left. |
-| 4 | **#4** Harder tasks | **Measured 2026-08-28: 18/18.** Still open, premise changed -- difficulty along these axes buys time, not discrimination. Needs *common* defects, not a 2-error signal in one task. Not the next thing to spend hours on. |
-| 5 | **#35** Model evaluation queue | Standing index. Closing the 20-trial gap on GLM beats adding a sixth lineage. |
-| 6 | **#27** Retire the ds4 fork | Blocked, re-checked 2026-08-28: antirez/ds4#885 and #886 both open. |
+| 1 | **#34** SSD offload, step 3: **expert streaming** | **Upstream just did it.** @EyalToledano ran Qwen3.8-Flash-Next with 60% of experts on disk, full experts, **37 GB and 40 tok/s** on an M4 Max. The disk baseline predicted this would work (1 MiB random = 6.32 GiB/s) and that #33's 4 KiB PLE lookups would not -- both confirmed. `ds4` already ships `--ssd-streaming-*`, never benchmarked, on the best-measured backend here. **The open question is prefill, not decode:** decode routes one token to 10 of 512 experts and caches well; a 49k re-prefill touches far more. |
+| 2 | **#28** Engine comparison -- **reopened by its own result** | Two things it now points at: the residual **1.9x at matched sampling** (thinking-mode template handling is the hypothesis), and re-checking the MTPLX "17% faster on 68% fewer tokens" claim, which is the same shape and was attributed to the stack. |
+| 3 | **#4** Harder tasks | 18/18. Premise revised: difficulty along these axes buys time, not discrimination. Needs *common* defects. |
+| 4 | **#35** Model evaluation queue | Standing index. Closing the 20-trial gap on GLM beats a sixth lineage. |
+| 5 | **#27** Retire the ds4 fork | Blocked, re-checked 2026-08-28: antirez/ds4#885 and #886 both open. |
 
 ## Done since the last update
+
+- **#28 answered, and the headline is an artifact -- do not quote "+66%".** First
+  fixed-model engine comparison here, using the identical GGUF out of Ollama's
+  blob store. Suite: Ollama 523.1s vs llama.cpp 870.8s. **The entire gap is one
+  task** -- minus `parser-date` it is +9%, inside the noise. **Throughput is
+  identical**: 14.1 vs 15.0 s per 1k output tokens. llama.cpp was slower because
+  it emitted **29,906 tokens against 7,449** on that task, because `llamacpp-up`
+  hardcoded `--temp 1.0` while Ollama's modelfile sets nothing. Matching the
+  sampler halved both tokens and clock (422s -> 212s) and closed **half** the
+  gap; the residual 1.9x is unexplained. **`storage-blob-put` went 3/3 at t=1.0
+  and 0/3 at t=0.8** -- sampler settings move pass rate, not just wall time.
+- **#33 closed: the PLE offload does not pay.** 4-bit `-M64` is **+28% slower**
+  than 3-bit on an identical stack, 16/16 vs 15/15. The memory saving was never
+  available: `-M64` changes no tensors (1224 both, 3 shards vs 33), and `vmmap`
+  shows mmap already makes every weight page evictable -- physical footprint
+  **~5 GB against ~92 GiB RSS**, with or without pinning the table to CPU.
+- **Infrastructure moved to latest**, and it broke something within minutes:
+  Codex 0.150.1 sends `instructions` **and** a `role=developer` item, which
+  llama-server turns into two system messages and the Qwen template rejects.
+  `fold_developer()` in the shim fixes it; all llama.cpp codex profiles now go
+  through the shim. **PR #27742 merged upstream** -- `~/git/llama.cpp` is on
+  mainline `d7bd3bfca`, old build tagged `benchmark-pr27742-2026-08-26`.
 
 - **#4 measured: 18/18 pass.** Three new tasks x ds4 x {Claude Code, Codex} x 3.
   **The ceiling is not an artifact of easy tasks.** Per-task median rose

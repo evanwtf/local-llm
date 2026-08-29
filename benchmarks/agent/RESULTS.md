@@ -1420,3 +1420,97 @@ different proposition: an expert block is hundreds of KiB to a few MiB, which
 lands in the 1 MiB row at 6.32 GiB/s rather than the 4 KiB row at 0.10 GiB/s.
 Block size is what costs on this device, and ds4's `--ssd-streaming-*` is the
 implementation that reads at the right size.
+
+---
+
+## llama.cpp vs Ollama on identical weights (2026-08-28, issue #28)
+
+**The first fixed-model engine comparison in this project**, and it needed no
+download. Ollama stores `ornith-1.5:35b` as a plain Q4_K_M GGUF in its blob
+store, and llama.cpp reads that file directly:
+
+```
+~/.ollama/models/blobs/sha256-aaeb640f98a892980ef54876024293cc8d6987a86523aa1b947ffa9274ef800a
+general.architecture = qwen35moe   general.name = Ornith-1.5-35B   20.22 GiB
+```
+
+Byte-identical weights, same quant, same client (Codex 0.150.1), same tasks.
+
+| task | Ollama | llama.cpp | delta |
+|---|---|---|---|
+| `mbox-scan` | 155.0 s | 127.4 s | **−18%** |
+| `parser-mbox-quoting` | 118.7 s | 133.6 s | +13% |
+| `mbox-strip-envelope` | 42.8 s | 54.4 s | +27% |
+| `storage-blob-put` | 94.8 s | 133.6 s | +41% |
+| `parser-date` | 111.8 s | 421.8 s | **+277%** |
+| **suite** | **523.1 s** | **870.8 s** | **+66%** |
+| suite **minus `parser-date`** | 411.4 s | 449.0 s | **+9%** |
+
+Correctness: **14/16** and **14/15**. No separation.
+
+### The headline is an artifact. Do not quote the 66%.
+
+**Throughput is identical.** Seconds per 1,000 output tokens, by task and engine:
+
+| task | Ollama | llama.cpp |
+|---|---|---|
+| `parser-date` | 15.0 | 14.1 |
+| `storage-blob-put` | 14.2 | 14.1 |
+| `mbox-strip-envelope` | 16.8 | 18.5 |
+
+llama.cpp is not slower per token. On `parser-date` it emitted **29,906 output
+tokens against Ollama's 7,449** for the same task. The wall clock followed the
+token count, as #26 already established it does (r = 0.98).
+
+**The cause is configuration, not engine.** `llamacpp-up` hardcoded Qwen's
+recommended sampler — `--temp 1.0 --top-p 0.95 --top-k 20` — while Ollama's
+modelfile for this model sets no parameters at all and uses Ollama's own
+defaults. The two halves were never sampled the same way.
+
+### The control
+
+llama.cpp re-run with Ollama's sampling (`temp 0.8, top-p 0.9, top-k 40`):
+
+| config | task | median | output tokens | pass |
+|---|---|---|---|---|
+| llama.cpp t=1.0 | `parser-date` | 421.8 s | 29,906 | 3/3 |
+| **llama.cpp t=0.8** | `parser-date` | **212.1 s** | **14,167** | 3/3 |
+| Ollama (defaults) | `parser-date` | 111.8 s | 7,449 | 2/3 |
+| llama.cpp t=1.0 | `storage-blob-put` | 133.6 s | 9,460 | **3/3** |
+| **llama.cpp t=0.8** | `storage-blob-put` | 139.9 s | 8,310 | **0/3** |
+| Ollama (defaults) | `storage-blob-put` | 94.8 s | 6,668 | 2/3 |
+
+**Lowering the temperature halved both the tokens and the clock** on
+`parser-date` — 29,906 → 14,167 and 421.8 s → 212.1 s. Sampling is confirmed as
+the driver.
+
+**It closes half the gap, not all of it.** At matched sampling llama.cpp still
+emits ~1.9x Ollama's tokens and takes ~1.9x as long. The remainder is not
+explained here. The most likely candidate is template handling of this model's
+*thinking* mode — Ollama declares `thinking` as a capability for this model and
+llama.cpp is driven with `--jinja` against the GGUF's own template — but that is
+a hypothesis, not a measurement.
+
+### An unexpected correctness result
+
+`storage-blob-put` went **3/3 at temp 1.0 and 0/3 at temp 0.8**, three identical
+near misses (`1 failed, 16 passed`). Lowering the temperature made the model
+reproducibly *wrong* on that task. n = 3 each side, so this is a flag rather
+than a finding — but it is the first evidence here that sampler settings move
+pass rate and not only wall time.
+
+### What this means for every engine comparison in this file
+
+**"Which engine is faster" is the wrong question.** On identical weights the
+engines decode at the same rate. What differs is how many tokens each *default
+configuration* induces the model to emit, and that is portable — it is a flag,
+not a property of the engine.
+
+Read every earlier cross-engine claim here with that in mind. The MTPLX-vs-Ollama
+result ("17% faster on 68% fewer tokens") is the same shape and was attributed to
+the serving stack; on this evidence the token count is the finding and the stack
+may not be. It has not been re-checked.
+
+**A fair engine comparison must pin the sampler on both sides.** `llamacpp-up`
+now takes `TEMP`, `TOP_P`, `TOP_K` and `MIN_P` from the environment so that is
+possible; before today it was not.

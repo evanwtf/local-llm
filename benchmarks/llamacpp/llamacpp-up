@@ -85,7 +85,7 @@ PARALLEL="-np 1"
 # the agent keeps overrunning measures the window, not the model.
 
 # Sampler defaults are Qwen's own published values, not llama.cpp's.
-SAMPLER="--temp 1.0 --top-p 0.95 --top-k 20 --min-p 0.0"
+SAMPLER="--temp ${TEMP:-1.0} --top-p ${TOP_P:-0.95} --top-k ${TOP_K:-20} --min-p ${MIN_P:-0.0}"
 
 # --jinja is not optional: tool calling goes through the model's chat template,
 # and without it both clients lose their tools and the benchmark measures
