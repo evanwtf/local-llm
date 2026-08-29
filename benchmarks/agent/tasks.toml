@@ -15,6 +15,20 @@
 # prompt       what the agent is told. Deliberately does not name the tests --
 #              finding them is part of the task.
 
+# The target repository, pinned. `base_commit` is what the harness actually
+# exports with `git archive`, so it is a commit hash and stays one -- a branch
+# name would follow the branch and quietly change what is being measured.
+#
+# The branch exists as a safety net, not as the pin. `origin/main` was **73
+# commits ahead** of this base while the local checkout sat held back on `main`,
+# so a single `git pull` would have broken every benchmark with no warning.
+# `local-llm-benchmark` gives the pinned state a name that nothing else wants to
+# move, and lets `main` track upstream normally again.
+#
+#   cd ~/git/gmail-archive && git checkout local-llm-benchmark
+#
+# run.py refuses to start if this repo is dirty, and verifies base_commit
+# exists -- but it does not check the branch, because the export is by commit.
 repo = "~/git/gmail-archive"
 base_commit = "56e55cc"
 

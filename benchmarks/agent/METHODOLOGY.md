@@ -474,6 +474,23 @@ the whole interface. Set `context_tokens` to the server's *real* window.
 For Ollama ≤ 0.32.13, point `base_url` at the shim on `:11500` rather than
 Ollama directly; see the repo README.
 
+### The target repository is on its own branch
+
+`~/git/gmail-archive` sits on **`local-llm-benchmark`**, a branch pinned at
+`56e55cc`. It exists because the local checkout had been held back on `main`
+while `origin/main` moved **73 commits ahead** — one `git pull` would have
+changed what every trial measures, silently and irreversibly for past
+comparisons.
+
+The pin is still the **commit**, not the branch: `run.py` exports with
+`git archive <base_commit>`, and a branch name would follow the branch. The
+branch is a label on the pinned state so that nothing routine wants to move it,
+and so `main` can track upstream normally.
+
+```sh
+cd ~/git/gmail-archive && git checkout local-llm-benchmark
+```
+
 ### Adding a target repository
 
 `tasks.toml` currently assumes one repo. Supporting several means moving `repo`

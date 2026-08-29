@@ -206,6 +206,11 @@ AGENTS.md. `preflight.py` reports drift before every batch.
 
 **These upgrades start a new series. Do not pool Codex rows across 0.148/0.150.**
 
+**The benchmark target is on its own branch.** `~/git/gmail-archive` sits on
+**`local-llm-benchmark`** @ `56e55cc`. `origin/main` was **73 commits ahead** of
+that while the checkout was held back on `main`, so a `git pull` would have
+broken every benchmark silently. `main` can now track upstream freely.
+
 **Three llama.cpp worktrees, do not confuse them:**
 
 | path | commit | purpose |
