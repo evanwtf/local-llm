@@ -79,6 +79,55 @@ def pytest_passes(worktree, tests, timeout):
     return r.returncode == 0, (tail[-1] if tail else "no output")
 
 
+def parse_ollama_show(show):
+    """Read the sampler out of an Ollama `/api/show` response.
+
+    Ollama reports a model's *modelfile*, not the sampler actually in force. If
+    the modelfile sets no PARAMETER lines the engine's built-in defaults apply
+    and the API does not say what they are.
+
+    That silence is the whole reason #28 and #36 happened: `ornith-1.5:35b`
+    sets none, so Ollama's defaults (top_p 0.9, repeat_penalty 1.1) applied
+    while `llamacpp-up` used 0.95 and never set repeat_penalty. Two backends,
+    two different samplers, nothing on either row saying so.
+
+    So an empty modelfile records `engine defaults (unrecorded)` rather than
+    nothing at all. A missing key reads as "not checked"; an explicit string
+    reads as "checked, and the answer is that we cannot see it".
+    """
+    modelfile = show.get("modelfile") if isinstance(show, dict) else None
+    if not modelfile:
+        return {}
+    sampling = {}
+    for line in modelfile.splitlines():
+        parts = line.split()
+        if len(parts) >= 3 and parts[0].upper() == "PARAMETER":
+            sampling[parts[1]] = parts[2]
+    return {
+        "sampling": sampling,
+        "sampling_source": "modelfile" if sampling
+                           else "engine defaults (unrecorded)",
+    }
+
+
+def probe_ollama(backend):
+    """Ask Ollama what sampler a model declares. Returns {} on any failure."""
+    url = backend.get("base_url")
+    if not url:
+        return {}
+    body = json.dumps({"model": backend["model"]}).encode()
+    request = urllib.request.Request(
+        url.rstrip("/") + "/api/show", body,
+        {"Content-Type": "application/json"}, method="POST")
+    try:
+        with urllib.request.urlopen(request, timeout=10) as fh:
+            return parse_ollama_show(json.load(fh))
+    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError,
+            OSError, KeyError) as exc:
+        logger.debug("no /api/show from %s: %s", url, exc)
+        return {}
+
+
 def probe_server(backend):
     """Ask the running server what it is actually serving.
 
@@ -200,7 +249,8 @@ def capture_versions(cfg, backends):
 
     # One probe per backend, keyed by name, because a run can span several and
     # each row records which one it used.
-    servers = {name: probe_server(b) for name, b in backends.items()}
+    servers = {name: (probe_server(b) or probe_ollama(b))
+               for name, b in backends.items()}
     servers = {k: v for k, v in servers.items() if v}
     if servers:
         env["servers"] = servers

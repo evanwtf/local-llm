@@ -189,3 +189,37 @@ def test_a_local_backend_never_leaks_a_real_anthropic_key():
                          "auth_token": "tok", "context_tokens": 1})
     assert "ANTHROPIC_API_KEY" not in env
     assert env["ANTHROPIC_AUTH_TOKEN"] == "tok"
+
+
+# --- recording the sampler on every backend (#36) -------------------------
+
+def test_ollama_modelfile_parameters_are_recorded():
+    """A modelfile that sets the sampler is the one case Ollama tells us about."""
+    show = {"modelfile": "FROM x\nPARAMETER temperature 0.6\nPARAMETER top_p 0.95\n"}
+    got = run.parse_ollama_show(show)
+    assert got["sampling"] == {"temperature": "0.6", "top_p": "0.95"}
+    assert got["sampling_source"] == "modelfile"
+
+
+def test_an_empty_modelfile_records_that_defaults_apply_rather_than_nothing():
+    """The case that caused #28 and #36.
+
+    `ornith-1.5:35b` sets no PARAMETER lines, so Ollama's built-in defaults
+    applied -- top_p 0.9, repeat_penalty 1.1 -- while llamacpp-up used 0.95 and
+    never set repeat_penalty. Recording silence as silence is what made the
+    confound invisible. An explicit "engine defaults, unrecorded" is a warning;
+    a missing key is not.
+    """
+    got = run.parse_ollama_show({"modelfile": "FROM x\nTEMPLATE y\n"})
+    assert got["sampling"] == {}
+    assert got["sampling_source"] == "engine defaults (unrecorded)"
+
+
+def test_a_malformed_parameter_line_is_skipped_not_guessed():
+    got = run.parse_ollama_show({"modelfile": "PARAMETER\nPARAMETER top_k 40\n"})
+    assert got["sampling"] == {"top_k": "40"}
+
+
+def test_a_show_response_without_a_modelfile_yields_nothing():
+    assert run.parse_ollama_show({}) == {}
+    assert run.parse_ollama_show({"modelfile": ""}) == {}
