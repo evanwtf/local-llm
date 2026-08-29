@@ -388,7 +388,14 @@ the recommended one.
 
 ## Too big for this machine — reopened 2026-08-28
 
-**This tier is now a queue, not a verdict.** ds4's expert streaming was measured
+**This tier is now a queue, not a verdict — but speed is the new wall.**
+GLM-5.2 was run on 2026-08-29 (#35): **196.6 GiB of file streamed into 30.8 GiB
+resident, −84%**, coherent, and it **passed a real agent task**. It also took
+**2,585 s on the easiest task in the suite against ds4's 184.8 s — 14x** — and
+`--ssd-streaming-cache-experts 80GB` fails outright, so the spare headroom
+cannot be spent on speed. **The Metal ceiling is not a hard wall; decode rate
+is.** A model belongs here only if it streams *and* decodes within a few times
+of the resident primary. ds4's expert streaming was measured
 (#34): **91.0 → 36.7 GiB resident, −60%, for +76% suite wall time and no
 correctness cost** (16/16 across 31 trials). It does not make a fitting model
 faster — ds4 fits here with 21 GiB to spare, so streaming only costs. It makes a
@@ -407,7 +414,7 @@ sizes, not on a failed attempt; see #35 for the standing queue.
 |---|---|---|
 | `Kimi K3` | nothing under 108 GiB | no headroom for KV **resident** — re-examine with streaming |
 | `MiniMax M3` | nothing under 108 GiB | same |
-| `GLM-5.2` | 211 GB (#17) | rejected on size; MoE, so streaming may reach it |
+| `GLM-5.2` | 196.6 GiB IQ2_XXS | **RUN 2026-08-29: streams in 30.8 GiB and passes an agent task — but at ~4 tok/s, 14x slower than ds4. Possible, not practical.** |
 
 Revisit either if something under ~100 GiB appears. GLM-5.3-Flash moved out of
 this section by exactly that route, so the tier is worth watching.

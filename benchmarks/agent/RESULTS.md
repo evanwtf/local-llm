@@ -1593,3 +1593,67 @@ size (#17, smallest quant 211 GB); Kimi K3 and MiniMax M3 on "nothing under
 at, and a 60% resident reduction moves them from impossible to slow. **That is
 the finding: expert streaming does not make a fitting model faster, it makes a
 non-fitting model possible.**
+
+---
+
+## GLM-5.2: possible, but not practical (2026-08-29, issue #35)
+
+**A model this project ruled out on size, run.** #34 measured ds4 expert
+streaming at −60% resident for +76% wall time, which reopened the "too big for
+this machine" tier. GLM-5.2 was the only one of the three rejected models with a
+path today — ds4 (DwarfStar) serves `glm-dsa` natively with dedicated GLM
+kernels, so it needed no shim and no new build.
+
+| | |
+|---|---|
+| file | `GLM-5.2-UD-IQ2_XXS_RoutedIQ2XXS_blk78Q2K.gguf`, **196.6 GiB** |
+| Metal ceiling | 112.00 GiB — **impossible resident** |
+| **resident, streamed** | **30.8 GiB (−84%)** |
+| startup | 4 s |
+| coherence at temp 0 | **passes** |
+| warm decode | **~3.4–4.1 tok/s** |
+| **agent task** (`mbox-strip-envelope`) | **PASS in 2,585.5 s** |
+
+**It works.** It loads, it is coherent, and it completed a real multi-turn agent
+task correctly. The premise of the "too big" tier — that the Metal ceiling is a
+hard wall — is wrong.
+
+**It is also not usable.** 2,585.5 s on the *easiest* task in the suite, against
+184.8 s for ds4 under the same streaming mode: **14x slower**. Decode is ~4 tok/s
+against ds4's 40.6. At that rate the tasks that need 2,000–9,000 output tokens
+cost 8–37 minutes of pure decode each, so a five-task suite is multi-hour per
+trial and cannot be measured at the three-trial standard this project uses.
+
+**The cache cannot be enlarged to fix it.** `--ssd-streaming-cache-experts 80GB`
+fails outright with `failed to create metal session`; ds4's own guard fires and
+suggests a smaller `--ctx` or SSD streaming. That is the "GLM Metal caps lower"
+note in `ds4_help.c` made concrete — 40GB is near the usable limit here, so the
+81 GiB of unused headroom cannot be spent on speed.
+
+### What this changes about the tier
+
+**Streaming converts "impossible" into "possible but impractical", not into
+"available".** That is a real distinction and it should be applied per model:
+
+- The tier is no longer blocked on **memory**. It is blocked on **speed**.
+- **Kimi K3 and MiniMax M3 remain out for a different reason entirely** — no
+  engine here can serve them at all. That is engine support, not capacity, and
+  streaming does not touch it.
+- A model only becomes a candidate if its streamed decode rate is within a few
+  times of the resident primary. GLM-5.2 at 10x slower is not.
+
+### A near-miss worth recording
+
+The first load reported success while serving **DeepSeek V4 Flash**, because
+`ds4-up` assigned `MODEL=` with a plain assignment and silently ignored the
+exported override. It answered coherently, because it was a working model —
+just not the one under test.
+
+The only tell was a **byte-identical answer to the previous coherence check and
+identical token usage (32/127/159)**. Without that coincidence this section would
+have reported "GLM-5.2 runs in 36.7 GiB" about the wrong model entirely.
+
+Both launchers now take `MODEL` and `EXTRA_FLAGS`. **Check the running process's
+own command line rather than trusting a launcher's output**, and treat an
+identical answer from a supposedly different model as a defect, not a
+coincidence.
