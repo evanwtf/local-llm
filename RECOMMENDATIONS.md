@@ -3,8 +3,13 @@
 **Hardware:** MacBook Pro, Apple M5 Max, 128 GiB unified memory, macOS 26.5.
 **Purpose:** a working fallback for agentic coding if hosted models become
 unavailable — price, policy, or otherwise.
-**Evidence:** 416 agent trials, 13 backends, 3 clients, plus a hosted reference.
-See [`RESULTS.md`](benchmarks/agent/RESULTS.md). Last corrected 2026-08-28.
+**Evidence:** 558 agent trials, 17 backends, 3 clients, plus a hosted reference.
+See [`RESULTS.md`](benchmarks/agent/RESULTS.md). Last corrected **2026-08-29**.
+
+> **Read the series boundary.** Codex moved 0.148 → 0.150.1 and llama.cpp moved
+> from PR #27742 to mainline `d7bd3bfca` on 2026-08-28. Numbers either side are
+> **not pooled**, per the policy in `AGENTS.md`. Where a figure below is from
+> one series only, it says so.
 
 This is a fallback plan, not a daily driver plan. Measured through the same
 harness, hosted Claude Opus 5 finishes the task suite in **21% of the time** the
@@ -21,7 +26,7 @@ interact, so pick them as a pair.
 
 | role | pair | why |
 |---|---|---|
-| **primary** | `ds4` + **Claude Code** or **Codex** | 75/76 and 36/36. Same model, same server, different wire protocol; 982 s and 975 s. Nothing here separates them — pick on habit |
+| **primary** | `ds4` + **Claude Code** or **Codex** | **55/55** and **45/45** pre-upgrade; **31/31** post-upgrade for Codex. The most-tested pairing here by a wide margin, and the only one whose lower bound clears **0.92** |
 | **secondary** | `qwen3.6:27b-coding-mxfp8` + **Claude Code** | 30/30, 31 GB, independent failure surface |
 | **do not** | anything + **OpenCode** | 13/29 on the same model both other clients pass. See below |
 
@@ -444,6 +449,41 @@ pairing on ds4 — and it warns on every run that it has no metadata for local
 models, which suggests it expects to reach a catalogue somewhere.
 
 ---
+
+## What the 2026-08-29 overnight run changed
+
+Seven evaluations, 190 trials. Full detail in
+[`RESULTS.md`](benchmarks/agent/RESULTS.md); the parts that change a decision:
+
+**Nothing in the primary/secondary picks moved.** `ds4` remains the recommendation
+and got stronger — 55/55 with Claude Code and 45/45 with Codex pre-upgrade,
+31/31 with Codex after. No candidate displaced it.
+
+**Two techniques were tested and rejected, which is worth as much as an
+adoption:**
+
+| technique | verdict |
+|---|---|
+| 4-bit `-M64` quant with the n-gram table split for SSD (#33) | **+28% slower than 3-bit, saves nothing.** mmap already makes every weight page evictable |
+| GLM-5.2 at 196.6 GiB via expert streaming (#35) | **Runs in 30.8 GiB and passes — at 14x ds4.** Possible, not practical |
+
+**One technique is real but narrow:** ds4 expert streaming is **−60% memory for
++76% wall time**, lossless across 31 trials. It does not make a fitting model
+faster; it makes a non-fitting model possible. Use it only when memory is the
+binding constraint.
+
+**Two engine/speed claims in this file turned out to be sampler artifacts** (#28,
+#36). The engines are equivalent on identical weights; a "+66% difference" was
+four sampler defaults nobody chose. And `top_p 0.90` without a repetition penalty
+scores **7/12** against **17/18** at 0.95 — sampler settings move **pass rate**,
+not just the clock. Cross-engine rows here are provisional until both sides are
+sampler-matched, and **`ds4-server` still reports no sampler at all** (#37).
+
+**The benchmark itself is at its ceiling for the wrong reason.** The harder tasks
+went 18/18 (#4), and the target repository turns out to be the limit: 1,833
+source lines, median function 13 lines, and exactly one function carrying the
+surface that produced the only defect found. The next move is a second
+repository, not harder tasks.
 
 ## Not done yet
 
