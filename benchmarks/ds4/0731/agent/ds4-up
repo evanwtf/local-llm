@@ -19,7 +19,12 @@ set -eu
 AGENT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 DS4_ROOT=${DS4_ROOT:-/Users/evanhoffman/git/ds4}
 
-MODEL=$DS4_ROOT/gguf/DeepSeek-V4-Flash-Layers37-42Q4KExperts-OtherExpertLayersIQ2XXSGateUp-Q2KDown-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix-fixed-0731.gguf
+# Overridable, like LLAMACPP's. A plain assignment here silently ignored an
+# exported MODEL and started the DeepSeek primary while claiming to serve
+# GLM-5.2 (#35). The tell was a byte-identical answer and identical token
+# usage to the previous model -- easy to miss, and it would have published
+# "GLM-5.2 runs in 36.7 GiB" about the wrong model entirely.
+MODEL=${MODEL:-$DS4_ROOT/gguf/DeepSeek-V4-Flash-Layers37-42Q4KExperts-OtherExpertLayersIQ2XXSGateUp-Q2KDown-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix-fixed-0731.gguf}
 SERVER=$DS4_ROOT/ds4-server
 CLAUDE_WRAPPER=$AGENT_DIR/claude-ds4
 
