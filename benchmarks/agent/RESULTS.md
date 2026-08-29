@@ -1740,13 +1740,54 @@ and Ornith 1.5 is `qwen35moe` — Qwen's own recommendation is `top_p 0.95, top_
 decisively, and that a sampler default nobody chose was silently deciding
 results.
 
-### How it was nearly missed twice
+### Resolved: it is an interaction with `repeat_penalty`
+
+A sixth cell ran `top_p 0.9` **with** `repeat_penalty 1.1` — Ollama's paired
+default — on llama.cpp, instead of inferring it across engines.
+
+| configuration | pass | rate | Wilson 95% lower |
+|---|---|---|---|
+| `top_p 0.95`, no repetition penalty | **17/18** | 94% | 0.74 |
+| `top_p 0.90`, **no** repetition penalty | **7/12** | 58% | 0.32 |
+| **`top_p 0.90` + `repeat_penalty 1.1`** | **6/6** | **100%** | 0.61 |
+
+**`top_p 0.90` is only harmful without a repetition penalty.** That explains why
+`ornith15` on Ollama — which runs `top_p 0.9` *and* `repeat_penalty 1.1`, because
+those are Ollama's paired defaults — scores 14/16 tonight and 40/42 lifetime
+rather than the ~58% llama.cpp showed at 0.9 alone.
+
+The failure shape fits: every failure in the affected cells is the near miss
+`1 failed, 16 passed`, consistent with the model settling into a slightly-wrong
+repeated formulation that a repetition penalty pushes it out of.
+
+### The sampler each Ollama backend has actually been running
+
+Recorded for the first time by `probe_ollama` (`/api/show`):
+
+| backend | temp | top_p | top_k | rep pen |
+|---|---|---|---|---|
+| `qwen`, `qwen36`, `qwen38flashnext` | 1 | 0.95 | 20 | 1 |
+| `qwen36coding` | **0.6** | 0.95 | 20 | 1 |
+| `ornith` | **0.6** | 0.95 | 20 | unset |
+| `gemma4` | 1 | 0.95 | **64** | unset |
+| **`ornith15`** | — | — | — | **engine defaults (unrecorded)** |
+
+**Every Ollama model that declares a sampler uses `top_p 0.95`.** `ornith15` is
+the only backend in the project that falls back to Ollama's `0.9` — and it is
+the model this was measured on.
+
+**`ds4-server` reports nothing at all**, and it is the primary backend. That is
+the largest remaining blind spot; issue #37.
+
+### How it was nearly missed three times
 
 The trials that raised this moved **three parameters at once**, and the first
 reading blamed temperature. A four-cell sweep still could not attribute it,
 because cells 1–3 all happened to hold `top_p 0.95` — the only cell that varied
 it also varied everything else. A fifth cell, top_p alone, closed it.
 
-**Both errors were the same error: varying more than one thing.** Worth the
-reminder that a control which changes a "set" of related settings is not a
-control.
+**All three errors were the same error: varying more than one thing.** First
+three parameters at once; then a four-cell sweep whose control cells all shared
+one `top_p`; then a conclusion stated without noticing that `repeat_penalty`
+differed too. A control which changes a "set" of related settings is not a
+control — it only tells you the set matters.

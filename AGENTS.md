@@ -162,10 +162,18 @@ A squash-merged PR does not leave its commits in mainline history.
 
 ## Pin the sampler, and vary one thing at a time
 
-**A sampler parameter can halve the pass rate.** Measured over 30 trials (#36):
-`top_p 0.95` gives 20/21 and `top_p 0.90` gives 7/15 on the same task, model,
-engine and client. Temperature and top_k were each isolated and are innocent.
-The intervals do not overlap.
+**A sampler parameter can halve the pass rate, and the parameters interact.**
+Measured over 36 trials (#36), same task, model, engine and client:
+
+| configuration | pass |
+|---|---|
+| `top_p 0.95`, no repetition penalty | **17/18** |
+| `top_p 0.90`, **no** repetition penalty | **7/12** |
+| `top_p 0.90` + `repeat_penalty 1.1` | **6/6** |
+
+Temperature and top_k were each isolated and are innocent. `top_p 0.90` is
+harmful **only** without a repetition penalty — the two are coupled, and no
+launcher treats them that way.
 
 Every launcher sets a different sampler and **nobody chose them**: `llamacpp-up`
 hardcoded Qwen's `0.95` for every model it served; Ollama uses each modelfile,
