@@ -47,10 +47,13 @@ logger = logging.getLogger(__name__)
 # land. Deliberately not the shim: it holds no weights and its memory is noise.
 INFERENCE = ("llama-server", "ollama", "ds4-server", "mtplx")
 
-# The Metal budget after issue #30's sysctl. Not read from the system: the
-# sysctl reports 0 whether or not a limit is in force, so a probe is the only
-# honest source and this is a stated assumption instead.
-DEFAULT_CEILING_GIB = 112.0
+# The stock Metal working set on this machine, measured with a Metal probe
+# before #30's sysctl was applied. Used when no override is in force.
+STOCK_CEILING_GIB = 107.52
+
+# Kept as the name other code imports; it is now the *stock* value and the real
+# ceiling is computed per run by `ceiling_gib`.
+DEFAULT_CEILING_GIB = STOCK_CEILING_GIB
 
 KIB_PER_GIB = 1048576
 
@@ -72,6 +75,28 @@ class Proc:
     @property
     def short(self) -> str:
         return self.command.split()[0].rsplit("/", 1)[-1]
+
+
+def parse_wired_limit(text: str) -> float | None:
+    """GiB from `sysctl iogpu.wired_limit_mb`, or None when no override is set.
+
+    The sysctl reports the override in MB and **0 when there is none** -- which
+    means "device default", not "no memory". Returning 0.0 GiB would be a lie
+    that reads as a machine with no GPU budget at all.
+    """
+    if not text or ":" not in text:
+        return None
+    try:
+        mb = int(text.split(":", 1)[1].strip())
+    except ValueError:
+        return None
+    return mb / 1024 if mb > 0 else None
+
+
+def ceiling_gib(text: str) -> float:
+    """The Metal ceiling actually in force: the override, or the stock value."""
+    got = parse_wired_limit(text)
+    return got if got is not None else STOCK_CEILING_GIB
 
 
 def parse_ps(text: str) -> list[Proc]:
@@ -199,6 +224,22 @@ def _capture(argv: list[str]) -> str:
     return got.stdout
 
 
+def metal_ceiling() -> tuple[float, bool]:
+    """(ceiling in GiB, whether an override is in force) for this machine now.
+
+    This is the machine fact that silently decides whether a large model loads,
+    and **it does not survive a reboot** (#30). It explained an entire
+    disagreement with upstream: ds4 plans a 108.01 GiB working set that fits
+    under a raised 112 GiB ceiling and fails under the 107.52 GiB default, so
+    the same binary and model "reproduced" for one machine and not another
+    (antirez/ds4#890). Neither side checked it, because nothing reported it.
+    """
+    raw = _capture(["sysctl", "iogpu.wired_limit_mb"])
+    override = parse_wired_limit(raw)
+    return (override if override is not None else STOCK_CEILING_GIB,
+            override is not None)
+
+
 def inspect(backends: dict[str, dict] | None = None) -> Report:
     """Run the check against this machine right now.
 
@@ -208,14 +249,18 @@ def inspect(backends: dict[str, dict] | None = None) -> Report:
         _capture(["ps", "-eo", "pid,rss,command"]),
         _capture(["lsof", "-nP", "-iTCP", "-sTCP:LISTEN"]),
         None if backends is None else backend_ports(backends),
+        ceiling_gib=metal_ceiling()[0],
     )
 
 
 def log_report(report: Report) -> None:
     """Say what was found, at a level matching how much it matters."""
+    ceiling, raised = metal_ceiling()
     logger.info("preflight: %.1f GiB held by model servers, %.1f GiB headroom "
-                "under a %.0f GiB ceiling",
-                report.total_gib, report.headroom_gib, DEFAULT_CEILING_GIB)
+                "under a %.2f GiB Metal ceiling%s",
+                report.total_gib, ceiling - report.total_gib, ceiling,
+                " (RAISED by sysctl -- does not survive a reboot)" if raised
+                else " (stock)")
     for warning in report.warnings():
         logger.warning("preflight: %s", warning)
 

@@ -167,3 +167,31 @@ def test_standalone_use_judges_nothing_stale():
 def test_an_empty_set_still_means_everything_is_unexpected():
     """The distinction must survive: a planned run with no ports is a conflict."""
     assert len(preflight.check(PS, LSOF, expected_ports=set()).stale) == 1
+
+
+# --- the Metal ceiling is machine state that does not survive a reboot ------
+
+def test_a_raised_ceiling_is_read_from_the_sysctl():
+    """`iogpu.wired_limit_mb` reports the override in MB, or 0 for the default."""
+    assert preflight.parse_wired_limit("iogpu.wired_limit_mb: 114688") == 112.0
+
+
+def test_an_unset_limit_reports_none_not_zero_gib():
+    """0 means "no override", not "no memory". Reporting 0.0 GiB would be a lie."""
+    assert preflight.parse_wired_limit("iogpu.wired_limit_mb: 0") is None
+    assert preflight.parse_wired_limit("") is None
+    assert preflight.parse_wired_limit("sysctl: unknown oid") is None
+
+
+def test_the_ceiling_falls_back_to_the_stock_default_when_unset():
+    """Measured on this machine at 107.52 GiB before #30's sysctl was applied.
+
+    preflight hardcoded 112.0, which is only true *because* the sysctl is set --
+    and it does not survive a reboot. On a fresh boot the old constant would
+    have overstated headroom by 4.5 GiB, which is the difference between a
+    model fitting and ds4 planning a working set the device cannot honour
+    (antirez/ds4#890).
+    """
+    assert preflight.ceiling_gib("iogpu.wired_limit_mb: 114688") == 112.0
+    assert preflight.ceiling_gib("iogpu.wired_limit_mb: 0") == preflight.STOCK_CEILING_GIB
+    assert preflight.STOCK_CEILING_GIB == 107.52

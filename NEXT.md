@@ -178,8 +178,10 @@ informative.
 sudo sysctl iogpu.wired_limit_mb=114688     # currently applied, verify: 112.00 GiB
 ```
 
-Verify with the Metal probe in #30, not with `sysctl` -- the sysctl reads `0`
-whether or not a limit is in force. **`glm53` will not load without this**
+**`preflight.py` now reports this on every run**, and says whether it is stock
+or raised. The sysctl reads the override in MB, or `0` when none is set -- 0
+means "device default", not "no ceiling". The Metal probe in #30 gives the
+authoritative figure. **`glm53` will not load without this**
 (100.6 GiB resident against a 107.52 GiB default).
 
 **Check before every batch:** `uv run python benchmarks/agent/preflight.py`.
