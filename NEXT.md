@@ -8,10 +8,15 @@ records machine state that is not in git.
 
 | # | issue | why this position |
 |---|---|---|
-| 1 | **#35** Re-examine the "too big" tier against streaming | **#34 turned that tier from a verdict into a queue.** GLM-5.2 (211 GB, #17), Kimi K3 and MiniMax M3 were all rejected on size. All three are MoE, so they read at the block size this NVMe is good at, and a 60% resident cut moves them from impossible to slow. Cheapest real gain left. |
-| 2 | **#28** Engine comparison -- reopened by its own result | The residual **1.9x at matched sampling** (thinking-mode template handling is the hypothesis), and re-checking the MTPLX "17% faster on 68% fewer tokens" claim, which is the same shape and was attributed to the stack. |
-| 3 | **#4** Harder tasks | 18/18. Premise revised: difficulty along these axes buys time, not discrimination. Needs *common* defects, not a 2-error signal in one task. |
-| 4 | **#27** Retire the ds4 fork | Blocked, re-checked 2026-08-28: antirez/ds4#885 and #886 both open. |
+| 1 | **#35** GLM-5.2 via streaming | **In flight overnight 2026-08-29.** 196.6 GiB of file, impossible resident, projected ~79 GiB streamed. Arch verified `glm-dsa` from the partial file; ds4 has dedicated GLM kernels. Tests whether #34 converts a size-rejected model into a working backend. |
+| 2 | **#36** Does the sampler move pass rate? | **Filed 2026-08-29. Possibly the most consequential open item.** `storage-blob-put` went **3/3 at temp 1.0 and 0/3 at temp 0.8**, three identical near misses. Every launcher sets a different sampler and nobody chose them deliberately, so the backend table may be partly a sampler table. ~1.5 h of machine time to settle. |
+| 3 | **#28** Engine residual, narrowed | Not re-prefill and not thinking tokens -- input scales with output and `reasoning_tokens` is 0 both sides. **`repeat_penalty` is the prime suspect: Ollama defaults 1.1, llama.cpp 1.0 and `llamacpp-up` never sets it.** One run tests it. Also still owed: re-check the MTPLX "17% faster on 68% fewer tokens" claim, which is the same shape as the artifact #28 found. |
+| 4 | **#4** Harder tasks | 18/18. Needs *common* defects, not a 2-error signal in one task. The one defect found was a missing type parameter, so annotation-heavy surfaces are the lead. |
+| 5 | **#27** Retire the ds4 fork | Blocked, re-checked 2026-08-28: antirez/ds4#885 and #886 both open. |
+
+**Ruled out for a different reason now:** Kimi K3 and MiniMax M3 are no longer
+blocked on size -- #34 would reach them -- but **no engine here can serve them
+at all.** That is an engine-support problem, not a memory one.
 
 ## Done since the last update
 
