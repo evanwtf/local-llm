@@ -305,13 +305,31 @@ Before any run, the reference repository must be **clean and on the pinned
 `base_commit`**. `run.py` now refuses to start otherwise, and records
 `source_repo_intact` on every row.
 
-Check it by hand too, whenever you are about to trust a result:
+**There are two of them**, and `run.py` validates every repo a selected task
+uses, not just the file-level default:
+
+| repo | language | pinned branch | oracle |
+|---|---|---|---|
+| `~/git/gmail-archive` | Python | `local-llm-benchmark` @ `56e55cc` | `uv run pytest -q` |
+| `~/git/monitor` | Swift | `local-llm-benchmark` @ `cbb85ca` | `swift test` |
+
+Check them by hand too, whenever you are about to trust a result:
 
 ```sh
-cd ~/git/gmail-archive && git status --porcelain && git log --oneline -1
+for r in ~/git/gmail-archive ~/git/monitor; do
+  git -C "$r" status --porcelain; git -C "$r" log --oneline -1
+done
 ```
 
 Empty output and the expected commit, or stop and find out why.
+
+**Both are pinned on their own branch rather than tracking `main`**, and that is
+not ceremony. On gmail-archive `origin/main` had moved **73 commits ahead** of
+the pinned base while the checkout sat held back — a routine `git pull` would
+have changed what every trial measures, silently, and irreversibly for
+comparison against 600 existing rows. The pin is still the **commit**:
+`git archive <base_commit>` is what exports, and a branch name would follow the
+branch.
 
 This exists because on 2026-08-17 an agent left its sandbox, ran a checkout in
 the reference repo, and left it on a benchmark commit with agent edits in the
@@ -328,6 +346,32 @@ what escaped, and it is worth reading before it is thrown away.
 after touching `tasks.toml` or bumping the target commit. A task whose tests
 still pass measures nothing, and the control check is the only thing that
 catches it.
+
+## Adding a language means two things, and one of them is a parser
+
+`tasks.toml` takes a per-task `repo`, `base_commit` and `test_command`; anything
+that omits them inherits the file-level defaults, so recorded rows keep meaning
+what they meant. Adding a language needs:
+
+1. **A test command.** `swift test`, `uv run pytest -q`. It must return a
+   non-zero exit when the excision is in place — that is the control check.
+2. **An excision module** exposing `excise` and `body_source`, registered in
+   `EXCISERS` by file extension.
+
+**The parser is the dangerous half.** Python gets spans from `ast`, which either
+parses or raises. `swift_excise.py` matches braces, and a scanner that stops at
+the `}` in `let brace = "}"` cuts the wrong span and leaves a file that **may
+still compile** — it does not crash, it silently changes what the task is. So it
+skips strings, line comments and nested block comments, and the tests pin those
+cases specifically.
+
+`body_source` must return **exactly** the span `excise` removes. If they drift,
+`restored_verbatim` compares different things and never fires — losing the
+recall signal for a whole repository without any error.
+
+`exciser_for` **refuses** an unknown extension rather than defaulting. Handing a
+`.rs` file to the Python parser would excise nothing, leave the control check
+*passing*, and record a broken task as a valid one.
 
 ## Write results through `results.py`, never by hand
 
