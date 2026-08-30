@@ -2041,3 +2041,83 @@ gates are not wrong, they are *absent*, and an absent gate that reports `0` read
 exactly like a gate that passed. The quality axis is unmeasured on Swift — which
 matters because "passes but is worse" (#4) was found by exactly these gates on
 the Python side.
+
+## #48 — The F16 tensors are required by the engine, not left behind (2026-08-30)
+
+**The hypothesis is refuted, and by reading the engine rather than by measurement.**
+
+@ShankPeople measured **+20% decode** moving GLM-5.3's KDA projection and head
+from BF16 to Q8, and antirez agreed the choice was inefficient. Our primary's
+GGUF has an analogous set of F16 tensors, so the question was whether the same
+win was available on the model we actually run.
+
+**It is not. `ds4` hardcodes F16 for almost every tensor involved.**
+
+```
+ds4: tensor blk.0.hc_attn_fn.weight has type q8_0, expected f16
+```
+
+From `ds4.c`, these are load-time requirements, not preferences:
+
+| tensor family | GiB | engine constraint |
+|---|---|---|
+| `indexer.attn_q_b` | 0.328 | **`f16 or q8_0`** — the only eligible one |
+| `attn_compressor_{gate,kv,ape}` | 0.487 | `tensor_expect_layout(..., DS4_TENSOR_F16, ...)` |
+| `indexer_compressor_{gate,kv,ape}` | 0.082 | hardcoded F16 |
+| `hc_attn_fn`, `hc_ffn_fn` | 0.062 | hardcoded F16 |
+| `indexer.proj` | 0.010 | hardcoded F16 |
+
+It is not only a load check. The Metal fused paths branch on the type as well —
+`layer->attn_compressor_kv->type == DS4_TENSOR_F16` gates the fast kernels, and
+one error message says outright: *"Metal graph indexer compressor expects paired
+F16 projections"*. Quantizing these would not merely be rejected; on a build
+that accepted them it would fall off the optimised path.
+
+**So the eligible saving is `indexer.attn_q_b` alone: 0.154 GiB, or 1.7% of
+per-token traffic.** That is below anything this instrument can resolve and is
+not worth 104 minutes of requantization to chase.
+
+**The GLM finding does not transfer.** GLM-5.3 and DeepSeek V4 Flash are
+different code paths in the same engine. antirez's BF16 choice for GLM was a
+choice; F16 here is a constraint.
+
+### What the run produced anyway
+
+Both arms were generated in full before the engine rejected arm B, so the work
+is not wasted:
+
+| arm | size | F16 | Q8_0 | loads |
+|---|---|---|---|---|
+| A — regenerated, unchanged | 90.889 GiB | 359 | 345 | **yes**, coherent, 45.39 t/s |
+| B — `--attention q8_0` | 90.449 GiB | 88 | 616 | **no** — engine refuses |
+
+**The pipeline is validated end to end.** Arm A regenerates the published model's
+exact tensor-type structure (1328 tensors, F16=359, Q8_0=345, IQ2_XXS=74,
+Q2_K=37, Q4_K=18), loads, and writes correct Python at `--temp 0`.
+
+**But it does not reproduce the published bytes.** `--compare-tensor` fails on
+both an expert tensor and `attn_q_a`, which does not depend on the imatrix — so
+the difference is the HF revision, the quantizer version, or whatever `-fixed`
+means in the published filename. **That is why both arms had to be regenerated**
+rather than comparing against the shipped GGUF: otherwise every tensor would
+have differed, including the 82 GiB of routed experts.
+
+### The question that remains open
+
+We still do not know **what binds decode on this model.** Two results narrow it:
+
+- Speculation **costs** 23–44% here (#39), which is not what a dispatch-bound
+  workload does.
+- The bandwidth lever is now untestable by this route, because the bytes in
+  question are structurally F16.
+
+A cheaper probe is needed, or the decode-rate line closes. Recorded in #48.
+
+### Corrections made during this work
+
+Two of my own numbers were wrong and are fixed in the issue:
+
+- **`token_embd` is not per-token traffic.** It is a lookup — one row, ~8 KB per
+  token, not 0.99 GiB. Counting it inflated the F16 share from 11.5% to 20.2%.
+- **The saving was 4.8%, not 9.5%**, once the embedding was excluded and only
+  `--attention` tensors counted.

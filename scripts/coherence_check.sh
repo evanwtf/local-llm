@@ -16,6 +16,7 @@ for gguf in "$@"; do
   echo "============================================================"
   echo "MODEL: $(basename "$gguf")"
   echo "============================================================"
-  "$DS4/ds4" -m "$gguf" -p "$PROMPT" --temp 0 --ctx 8192 2>&1 | tail -n "$TOKENS"
+  # ds4 resolves metal/*.metal relative to its own tree, so run from there.
+  ( cd "$DS4" && ./ds4 -m "$gguf" -p "$PROMPT" --temp 0 --ctx 8192 ) 2>&1 | tail -n "$TOKENS"
   echo
 done
