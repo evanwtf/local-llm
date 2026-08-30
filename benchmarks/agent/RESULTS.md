@@ -2121,3 +2121,79 @@ Two of my own numbers were wrong and are fixed in the issue:
   token, not 0.99 GiB. Counting it inflated the F16 share from 11.5% to 20.2%.
 - **The saving was 4.8%, not 9.5%**, once the embedding was excluded and only
   `--attention` tensors counted.
+
+## GLM-5.3-Flash on the `glm-5.3-flash` branch — it works (2026-08-30)
+
+**Three claims in this project's own notes were wrong, and all three are now
+retired by measurement.**
+
+Built `antirez/ds4` at `767e517` (branch tip) in `~/git/ds4-glm53`, ran
+antirez's own `GLM-5.3-Flash-Q2.gguf` (90 GB, `glm5-next`) with his own recipe.
+
+| run | ctx | prefill | generation |
+|---|---|---|---|
+| short prompt | 32768 | 78.88 t/s | **35.92 t/s** |
+| **~7–8k token prompt** | 32768 | **460.21 t/s** | 29.57 t/s |
+| coherence prompt | 8192 | 101.90 t/s | 35.86 t/s |
+
+Planned memory at ctx 32768: **93.21 GiB** = 89.87 resident model + 2.98
+buffers + 0.37 KV.
+
+### 1. "Unusable — no engine loads it" is false
+
+`GLM-5.3-Flash-Q2.gguf` loads, runs, and is **coherent at `--temp 0`** — correct
+Python and a correct one-sentence explanation. The note in NEXT.md came from
+trying it on the *wrong engine build*; the file was always fine, our engine was
+not.
+
+### 2. ds4#890's ">4096 tokens fails" does not reproduce here
+
+A ~30 KB prompt prefilled at **460.21 t/s with no OOM and no failure**, on a
+build that logs `full-attention prefill/work cap=4096; compact indexed decode is
+used beyond the cap` — i.e. it genuinely crossed onto the compact indexed path
+that #890 reports failing.
+
+**So #890 is a memory-budget failure, not a prefill-path defect**, which is what
+the thread concluded after our correction: the root cause was the Metal working
+set, not the prompt length.
+
+### 3. Our numbers independently corroborate ds4#892
+
+That PR reports, on an M5 Max 128 GB — the same machine class:
+
+| | ds4#892 | here |
+|---|---|---|
+| prefill, long prompt | 474 t/s @ 4500 tok | **460.21 t/s @ ~7–8k** |
+| decode, serial | 33.0 t/s | **35.9 t/s** |
+
+Two machines, same class, agreeing closely. That is a useful cross-check on both.
+
+### Why it fits at all: the sysctl is load-bearing
+
+`b0c31af` replaced the unconditional 110 GiB cap with host-aware budgeting, and
+`budget_base = ds4_gpu_recommended_working_set_size()` — which returns Metal's
+`recommendedMaxWorkingSetSize` (`ds4_metal.m:4244`). Tracing the arithmetic on
+this host:
+
+| | stock (107.52 GiB) | raised (112.00 GiB) |
+|---|---|---|
+| `base_gib >= 120`? | no | **no** — 112 < 120 |
+| reserve applied | 32 GiB generic | 32 GiB generic |
+| budget before override | 75.5 GiB | 80 GiB |
+| sysctl override (−2 GiB margin) | none | **110 GiB** |
+
+**The 128 GiB-host branch (`base_gib >= 120.0`) cannot fire on a 128 GiB Mac**,
+because the *working set* is 107.52–112.00 GiB, never ≥ 120. So the budget comes
+entirely from the sysctl-override path — and without
+`iogpu.wired_limit_mb = 114688` the budget would be **75.5 GiB against a 89.87
+GiB model.** The raised ceiling is not an optimisation here; it is the reason
+this runs at all.
+
+### What is still not answered
+
+**Whether GLM-5.3 can drive an agent.** ds4#569 (tool-call parser stringifies
+every argument) and ds4#816 (stateless clients never reuse the KV session) are
+both still open and neither is touched by this branch. Everything above is
+one-shot CLI generation, not an agent loop. **Do not promote GLM on this
+evidence** — it clears the "does it run" bar and says nothing about the bar that
+actually matters here.

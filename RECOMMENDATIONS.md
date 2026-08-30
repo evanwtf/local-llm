@@ -596,12 +596,45 @@ primary work.** Two consequences:
   earlier uniform-quant results suggested — those were measuring the quant as
   much as the model.
 
+### Measured on the branch, 2026-08-30 — it runs, and it is coherent
+
+Built at branch tip `767e517` and ran antirez's own `GLM-5.3-Flash-Q2.gguf`:
+
+| run | ctx | prefill | generation |
+|---|---|---|---|
+| short prompt | 32768 | 78.88 t/s | **35.92 t/s** |
+| ~7–8k token prompt | 32768 | **460.21 t/s** | 29.57 t/s |
+| coherence prompt | 8192 | 101.90 t/s | 35.86 t/s |
+
+93.21 GiB planned at ctx 32768. Coherent at `--temp 0`. This corroborates
+ds4#892's M5 Max figures closely (474 t/s prefill, 33.0 t/s decode).
+
+**Two things this project recorded were wrong and are now retired:** that the
+antirez GGUF was "unusable, no engine loads it" (it was tested on the wrong
+engine build), and that ds4#890's ">4096 tokens fails" applies here (a ~30 KB
+prompt prefills at 460 t/s, having genuinely crossed onto the compact indexed
+path).
+
+**The raised Metal ceiling is required, not optional.** `b0c31af` budgets from
+Metal's `recommendedMaxWorkingSetSize`, and its 128 GiB-host branch tests
+`base_gib >= 120.0` — which a 128 GiB Mac never reaches, because its working set
+is 107.52–112.00 GiB. So the budget comes from the sysctl override: **75.5 GiB
+stock against an 89.87 GiB model (refusal), 110 GiB raised (runs).**
+
+**None of this makes GLM-5.3 usable as a coding agent, and the recommendation
+does not move.** Everything above is one-shot CLI generation. ds4#569 and
+ds4#816 are untouched by this branch, and they are what break the agent loop.
+**Do not promote GLM on this evidence** — it clears "does it run", not the bar
+this document is about.
+
 **And the memory arithmetic is now fixed.**
 [ds4#893](https://github.com/antirez/ds4/pull/893) keeps a fixed **110 GiB**
 GLM-5.3 budget for 128 GiB-class hosts and relaxes it only for 256/512 GiB
 machines. Our raised Metal ceiling is **112.00 GiB** — *above* ds4's own budget.
-**Raising `iogpu.wired_limit_mb` past 110 GiB buys nothing for GLM-5.3 on ds4,
-and a resident q4 is unreachable on this machine regardless of the sysctl.**
+**Superseded:** ds4#893 is closed and `b0c31af` now reads the sysctl and lets it
+*override* the heuristic. At our 112.00 GiB the override yields exactly 110 GiB,
+so the old "buys nothing" conclusion held by coincidence rather than for the
+reason given. **A resident q4 (177 GiB) remains unreachable on this machine.**
 
 ## Too big for this machine — reopened 2026-08-28
 

@@ -386,6 +386,15 @@ informative.
 sudo sysctl iogpu.wired_limit_mb=114688     # currently applied, verify: 112.00 GiB
 ```
 
+**The sysctl is REQUIRED for GLM-5.3, not an optimisation.** `b0c31af` sets
+`budget_base = ds4_gpu_recommended_working_set_size()` (Metal's
+`recommendedMaxWorkingSetSize`). The guard's 128 GiB-host branch tests
+`base_gib >= 120.0`, but the *working set* on a 128 GiB Mac is 107.52-112.00 GiB
+and never reaches 120 -- **so that branch cannot fire on the hosts it names**,
+and the budget comes entirely from the sysctl-override path. Stock gives a
+**75.5 GiB** budget against an **89.87 GiB** model: a refusal. Raised gives
+110 GiB and it runs.
+
 **`preflight.py` now reports this on every run**, and says whether it is stock
 or raised. The sysctl reads the override in MB, or `0` when none is set -- 0
 means "device default", not "no ceiling". The Metal probe in #30 gives the
@@ -431,8 +440,10 @@ broken every benchmark silently. `main` can now track upstream freely.
 
 **Weights on disk:** `~/models/Qwen3.8-Flash-Next-GGUF` (157 GB, Q2 + Q3),
 `~/models/GLM-5.3-Flash-GGUF` (101 GB, Unsloth Q2),
-`~/git/ds4/gguf/GLM-5.3-Flash-Q2.gguf` (90 GB, antirez -- **unusable**, no engine
-loads it; keep per the archive convention or delete deliberately).
+`~/git/ds4/gguf/GLM-5.3-Flash-Q2.gguf` (90 GB, antirez -- **works**, verified
+2026-08-30 on the `glm-5.3-flash` branch: loads, coherent at `--temp 0`,
+**35.9 t/s** decode. The old "unusable, no engine loads it" note was wrong -- it
+was tested on the wrong engine build.)
 
 **Disk, measured 2026-08-28** (`benchmarks/disk/RESULTS.md`): sequential
 9.45 GiB/s, random 1 MiB 198 us, random 4 KiB **61 us**. A 100-byte lookup costs
@@ -558,8 +569,8 @@ draft GGUFs exist (qwen3-arch, same tokenizer) but the machinery lives in an
 
 | upstream | why we care |
 |---|---|
-| **[ds4#890](https://github.com/antirez/ds4/issues/890)** | GLM-5.3 Metal prefill above 4096 tokens. Our first comment was **wrong** (guessed macOS 27 without reading the thread); [corrected](https://github.com/antirez/ds4/issues/890). Root cause was **our own raised Metal ceiling**. #892 reports 4500 tokens working — reconcile before trusting either. |
-| **[ds4#893](https://github.com/antirez/ds4/pull/893)** | Keeps the fixed **110 GiB** GLM-5.3 ceiling for 128 GiB hosts like this one; relaxes it only for 256/512 GiB. Our wired limit is **112.00 GiB**, *above* ds4's budget. **Raising it past 110 buys nothing for GLM-5.3, and q4 resident is unreachable here.** |
+| **[ds4#890](https://github.com/antirez/ds4/issues/890)** | **Reconciled 2026-08-30: does not reproduce here.** A ~30 KB prompt prefills at **460 t/s**, on a build that logs crossing the 4096 cap onto the compact indexed path. It is a **memory-budget failure, not a prefill defect**. Our 107.52 GiB stock measurement is now cited upstream as a second machine; the 128 GiB half of the guard is still open. |
+| **[ds4#893](https://github.com/antirez/ds4/pull/893)** | **CLOSED, superseded by `b0c31af`.** My earlier note here -- "keeps the fixed 110 GiB ceiling, raising the sysctl buys nothing" -- is **wrong now**: the sysctl is read and *overrides* the heuristic. At 112 GiB it yields exactly 110 GiB, so the conclusion held by coincidence, not for the stated reason. **q4 resident is still unreachable** (177 GiB). |
 | **[ds4#891](https://github.com/antirez/ds4/issues/891)** | GLM-5.2 Metal + `--ssd-streaming` fails above 8192 tokens. We measured GLM-5.2 streaming at 30.8 GiB (#35) and called it possible-but-impractical; this caps it further. |
 | **#894, #897, #899, #904, #906** | A cluster on GLM thinking/tool replay and KV alignment: prefill ending in `</think>` misfiled, compaction failing when think-mode overshoots. **If GLM-5.3 becomes runnable here, these are the defects to expect**, and they hit exactly the agent loop we benchmark. |
 | **[ds4#901](https://github.com/antirez/ds4/issues/901)** | SIGSEGV running GLM-5.3 distributed. Not our configuration (single host), noted so it is not mistaken for our bug. |
