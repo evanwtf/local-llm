@@ -506,6 +506,27 @@ context_tokens = 65536
 # Everything else is held constant -- same engine build, same -c 131072 -np 1,
 # same Qwen sampler defaults -- so quantization is the only variable that moves.
 # Measured 88.2 GiB resident from an 83.8 GiB file.
+# Same weights as qwen38fnq3 (Unsloth UD-Q3_K_XL, byte-exact against the Hub),
+# served by LM Studio 0.4.23 instead of our llama.cpp (#53). LM Studio is
+# llama.cpp-based but ships its own server, tool-call parser and chat-template
+# handling -- which is the layer that failed when OpenCode scored 1/15 against
+# our llama.cpp, writing no file in 14 of 15 trials. It speaks BOTH the OpenAI
+# and Anthropic protocols on :1234, so one backend serves both clients.
+#
+# DEVIATION FROM LM STUDIO DEFAULTS, recorded because #53 asks for defaults:
+# default context is 8192, which is below the ~25-30k our agent prompts reach,
+# so it would fail on configuration rather than capability. Loaded instead at
+# --context-length 131072 to match the llama.cpp cell exactly, and --ttl 21600
+# so the model cannot auto-unload mid-run (default TTL is 1h). GPU offload and
+# everything else left at LM Studio defaults. PARALLEL=4 is its default.
+[backend.qwen38fnq3lms]
+description = "Qwen3.8-Flash-Next UD-Q3_K_XL via LM Studio 0.4.23"
+base_url = "http://127.0.0.1:1234"
+auth_token = "lm-studio"
+model = "qwen3.8-flash-next-ud"
+opencode_model = "lmstudio/qwen3.8-flash-next-ud"
+context_tokens = 131072
+
 [backend.qwen38fnq3]
 description = "Qwen3.8-Flash-Next 125B-A6B, Unsloth UD-Q3_K_XL, llama.cpp PR #27742"
 base_url = "http://127.0.0.1:11500"
