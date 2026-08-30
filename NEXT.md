@@ -544,6 +544,25 @@ and would have saved hours of diagnosis.
 
 ## Traps worth not rediscovering
 
+**antirez force-pushes the `glm-5.3-flash` preview branch.** Our worktree at
+`~/git/ds4-glm53` sat on `a60a2a0 "Add GLM 5.3 Flash inference"`; the branch tip
+carries a commit with the **same message and a different SHA** (`147109a`), and
+`git merge-base --is-ancestor` says our old HEAD is **not an ancestor** of the
+tip. So "14 commits behind" understated it -- the history was rewritten, not
+extended. **Check ancestry, not just the count**, before assuming a rebuild is
+an increment. A preview branch is not a stable base and may never be one.
+
+**Two of those commits matter to us and the rest do not.**
+`b0c31af "Improve GLM 5.3 attention memory and batching"` and
+`9f95d9f "Fix GLM 5.3 vision in compact prefill"` touch the compact prefill path
+that [ds4#890](https://github.com/antirez/ds4/issues/890) names. Everything else
+on the branch since our checkout is vision or ROCm, which are out of scope here.
+**This is why branch activity is a poor proxy for progress** -- read the commits.
+
+**`swift_excise.excise(path, symbol)` writes the file.** It returns the removed
+text, so calling it to *inspect* a span modifies the real working tree. Use
+`body_source()` to look; only `run.py`'s worktrees should ever see `excise()`.
+
 **A sampler default nobody chose can halve the pass rate.** `top_p 0.95` is
 20/21 and `top_p 0.90` is 7/15 on the same task/model/engine/client (#36).
 Temperature and top_k are innocent. `llamacpp-up` hardcoded 0.95 for everything;
