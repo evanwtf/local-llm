@@ -1,26 +1,28 @@
 # Where to pick up
 
-Updated 2026-08-30 afternoon. **#52 is first:** Giorgio asked for an M5 Max
-number on [ds4#621](https://github.com/antirez/ds4/pull/621), and nobody has
-one. Work the issues in the order below. Each issue is self-contained; this
-file only sets priority and records machine state that is not in git.
+Updated 2026-08-30. **#52 is first** (ds4#621 on this M5 Max, in flight).
+**#53 is second** (Unsloth `UD-Q3_K_XL` through LM Studio + OpenCode). Work the
+issues in the order below. Each issue is self-contained; this file only sets
+priority and records machine state that is not in git. The table is the queue.
+It has no calendar.
 
 ## Order
 
 | # | issue | why this position |
 |---|---|---|
-| 1 | **#52** Measure ds4 PR #621 on this M5 Max | **Promised this afternoon, and it is the only decode lever that is actually loadable.** #48 closed F16 requant (engine-required). Giorgio's stack is a published AProjQ4 GGUF plus a branch that can run it; M3 Ultra / Strix Halo / DGX Spark are measured, M5 is not. Hypothesis: break 50 t/s. Not #51 — different engine, different tensors, OutQ8 not OutQ4. |
-| 2 | **#49** What actually binds decode? | Wait on #52. If AProjQ4 moves decode, the constraint is no longer a mystery. If it does not, the four cheap probes (especially upstream's `m5_max.csv`) are next. |
-| 3 | **#51** Q4_K attention+head (Ivan) | Behind #52. Same *shape* of question, different recipe: his branch, attention **and** head, our requantize. Do not fold a 621 number into it. |
-| 4 | **#46** Swift trials report a clean gate that never ran | **Small, and it protects the only quality signal this project has.** `gates_delta = {"ruff": 0}` on 13 Swift rows, from linters that never ran. #4's one real finding came from these gates, so on Swift that axis is **off and does not say so**. Same shape as #29. Can run while #52 downloads. |
-| 5 | **#50** Claude Code poisons the ds4 KV prefix | Shim is on `main`. Remaining work is the cheap half: trace the **primary**, then A/B the agent loop. |
-| 6 | **GLM-5.3 on the branch** (#38/#40) | CLI bring-up is done (35.9 t/s, coherent, 4096-token blocker retired). Agent loop still unmeasured; ds4#569 and #816 still block. Behind #50's shim measurement. |
-| 7 | **#4** A third target repository | #45's inflation result is the argument: 1.34x vs 2.05x scaling measured on **one** repo cannot separate a pair property from a `~/git/monitor` property. |
-| 8 | **#45** Does verbosity predict unbuildable code? | Open, and needs a different instrument. 1 in 53 trials; sampling harder is the wrong tool. |
-| 9 | **#39** ds4 embedded MTP | **Premise corrected: this is a re-test of a measured negative, not an unexplored lever.** Only `--mtp-draft` without DSpark is untested. Retest at a new operating point only if #52 moves decode. |
-| 10 | **#19** DFlash2 / speculative decoding | ds4#892 states DFlash2 for GLM **does not exist**. The Ollama native MTP arm is still live. |
-| 11 | **#35** Model queue, criteria revised | Criteria written down, including the fourth: a candidate is a model x engine x **client** triple. |
-| 12 | **#27** Retire the ds4 fork | Blocked: antirez/ds4#885 and #886 both open, unchanged. |
+| 1 | **#52** Measure ds4 PR #621 on this M5 Max | **In flight.** Only decode lever that is actually loadable after #48 closed F16 requant. Giorgio's stack: published AProjQ4 GGUF + 621 worktree. M3 Ultra / Strix Halo / DGX Spark are measured; M5 is not. Hypothesis: break 50 t/s. Not #51 — different engine, different tensors, OutQ8 not OutQ4. |
+| 2 | **#53** Unsloth `UD-Q3_K_XL` via LM Studio + OpenCode | **The friend's stack, unmeasured.** Same quant already went 15/15 through llama.cpp + Codex; that does not transfer. OpenCode has never run against anything but ds4 (13/29). Weights already on disk. Starts when #52 releases the GPU. |
+| 3 | **#49** What actually binds decode? | Wait on #52. If AProjQ4 moves decode, the constraint is no longer a mystery. If it does not, the four cheap probes (especially upstream's `m5_max.csv`) are next. |
+| 4 | **#51** Q4_K attention+head (Ivan) | Behind #52. Same *shape* of question, different recipe: his branch, attention **and** head, our requantize. Do not fold a 621 number into it. |
+| 5 | **#46** Swift trials report a clean gate that never ran | **Small, and it protects the only quality signal this project has.** `gates_delta = {"ruff": 0}` on 13 Swift rows, from linters that never ran. #4's one real finding came from these gates, so on Swift that axis is **off and does not say so**. Same shape as #29. |
+| 6 | **#50** Claude Code poisons the ds4 KV prefix | Shim is on `main`. Remaining work is the cheap half: trace the **primary**, then A/B the agent loop. |
+| 7 | **GLM-5.3 on the branch** (#38/#40) | CLI bring-up is done (35.9 t/s, coherent, 4096-token blocker retired). Agent loop still unmeasured; ds4#569 and #816 still block. Behind #50's shim measurement. |
+| 8 | **#4** A third target repository | #45's inflation result is the argument: 1.34x vs 2.05x scaling measured on **one** repo cannot separate a pair property from a `~/git/monitor` property. |
+| 9 | **#45** Does verbosity predict unbuildable code? | Open, and needs a different instrument. 1 in 53 trials; sampling harder is the wrong tool. |
+| 10 | **#39** ds4 embedded MTP | **Premise corrected: this is a re-test of a measured negative, not an unexplored lever.** Only `--mtp-draft` without DSpark is untested. Retest at a new operating point only if #52 moves decode. |
+| 11 | **#19** DFlash2 / speculative decoding | ds4#892 states DFlash2 for GLM **does not exist**. The Ollama native MTP arm is still live. |
+| 12 | **#35** Model queue, criteria revised | Criteria written down, including the fourth: a candidate is a model x engine x **client** triple. |
+| 13 | **#27** Retire the ds4 fork | Blocked: antirez/ds4#885 and #886 both open, unchanged. |
 
 **Blocked on upstream, do not re-investigate:** GLM-5.3 remains unusable *as an
 agent* on the supported stack for two reasons already reported --
@@ -32,47 +34,16 @@ context. Neither is ours to fix. **This does not block measuring decode rate**,
 which is what #39 now needs and what ds4#892 has already shown is possible on
 this hardware.
 
-## Tomorrow: ordered by what they teach per hour
+## Not queued
 
-Rewritten 2026-08-30 afternoon, after Giorgio asked for an M5 Max number on
-ds4#621 and we split that work out of #51 as **#52**. The theme is unchanged:
-**this project has stopped learning from pass rates**, so every task measures
-something else. **Scope: the coding-agent use case only. Vision is out of scope.**
+Open issues that are not in the table, and why they stay off it:
 
-**1. #52 — ds4#621 on this M5 Max. (~download + build + one `ds4-bench`)**
-The promised afternoon. Published AProjQ4 GGUF, matched AProjQ8 control, 621
-worktree, coherence then decode. Hypothesis: **>50 t/s** and Q4 faster than Q8.
-Either outcome teaches: a decode win on a loadable stack, or the 50 t/s claim
-does not transfer to this chip. **Do not requantize, do not use our primary,
-do not load Q4 on `main`.**
-
-**2. While #52 downloads: #46. (~1 h)**
-An inapplicable gate must record `null`, not `0`. Today a Swift row reports
-`{"ruff": 0}` from a linter that never ran.
-
-**3. #50 on DeepSeek, if #52 is in a long sweep. (~1 h)**
-The shim is written. The remaining work is tracing the primary.
-
-**4. #51 only after #52 reports.** Different recipe. Do not start a 104-minute
-requantize until we know whether 621 even runs here.
-
-### Not tomorrow, and why
-
-- **Ivan's attention+head requantize (#51).** Behind #52. Same question shape,
-  different engine and tensors.
-- **#49's remaining probes.** Wait on #52; that run *is* the bandwidth test
-  #48 could not do.
-- **A mixed-precision GLM-5.3 quant (#40).** The right question, behind a
-  working agent path.
-- **#45's compile-failure question.** 1 in 53 trials. Needs tasks with real
-  type-level surface, not more sampling.
-- **The GLM thinking/tool-replay cluster (ds4#894, #897, #899, #904, #906).**
-  Defects we would inherit, not ones we can act on while #569 and #816 stand.
+- **#40 mixed-precision GLM-5.3.** Right question, behind a working agent path.
+- **GLM thinking/tool-replay (ds4#894, #897, #899, #904, #906).** Defects we would inherit while #569 and #816 stand.
 - **Vision, vector steering, ROCm.** Out of scope, and not shipped.
-- **Ollama 0.33.2.** GUI-only, on a machine the user shares. Their call.
 - **More trials on saturated cells.** New axes, not more samples.
 
-### How to read antirez's X feed, since we now do
+## How to read antirez's X feed, since we now do
 
 `/grok` reads X; `WebFetch` on an x.com URL hits a login wall. **Always run
 `~/.claude/skills/grok/verify-posts.py` on anything before repeating it as
@@ -511,7 +482,8 @@ has now run exactly that combination on our hardware and published the numbers.
 It also reports a **4500-token prompt succeeding at ctx 8192**, which is above
 the 4096 boundary in [ds4#890](https://github.com/antirez/ds4/issues/890) -- so
 either #890 is narrower than we recorded or the branch already fixes it. **That
-is tomorrow's first question and it is cheap to answer.**
+question is cheap to answer and is no longer open here** (measured on the
+branch: a ~30 KB prompt prefills at 460 t/s).
 
 Two further findings from #892 worth not re-deriving:
 
