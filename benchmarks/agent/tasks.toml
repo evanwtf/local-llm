@@ -682,6 +682,20 @@ context_tokens = 100000
 # The weights were already on disk. They were downloaded for #25, found
 # unloadable by every engine then available, and kept under the archive
 # convention rather than deleted. This is the engine that reads them.
+# GLM-5.3 on ds4, fronted by ds4_claude_shim.py (#50). Identical weights and
+# server to glm53ds4; the shim rewrites two Claude Code behaviours that ds4 does
+# not handle: thinking={type:adaptive} (which ds4 does not recognise, so every
+# request ran think_mode:high) and the injected <total_tokens> counter (whose
+# changing value pinned live_prompt_common at 20,321 while prompts grew to
+# 30,781). Paired against glm53ds4 this isolates the client tax from the model.
+[backend.glm53ds4shim]
+description = "GLM-5.3-Flash Q2 on ds4 branch, via ds4_claude_shim (thinking + KV fix)"
+base_url = "http://127.0.0.1:8100"
+props_url = "http://127.0.0.1:8000/v1/models"
+auth_token = "dsv4-local"
+model = "glm-5.3-flash"
+context_tokens = 100000
+
 [backend.glm53ds4]
 description = "GLM-5.3-Flash Q2, antirez GGUF on ds4 glm-5.3-flash branch"
 base_url = "http://127.0.0.1:8000"
