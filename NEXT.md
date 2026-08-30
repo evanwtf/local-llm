@@ -15,15 +15,14 @@ not in git.
 | # | issue | why this position |
 |---|---|---|
 | 1 | **#48** F16 -> Q8 on the primary | **The best lead on decode rate this project has had, on the model we run every day.** 20.2% of per-token traffic sits in F16 tensors that are 2.3% of the file; Q8_0 cuts traffic 9.5%. @ShankPeople measured **+20% decode** from the same change on GLM-5.3 and antirez agreed the BF16 choice was inefficient. Cheap, and **either outcome is informative** -- a faster primary, or the bandwidth hypothesis dies and #39 becomes the only lever. |
-| 2 | **#47** Qwen Flash or GLM 5.3 Flash as the second horse | **The sherpa is asking our exact question and asked for real-world feedback.** His own poll went **GLM 63.9% / DeepSeek 21.3%** on 4,302 votes, while we measure DeepSeek at 55/55 and GLM as unusable behind ds4#569 and ds4#816. **A poll cannot see a tool-call parser.** Needs a branch re-measure first. |
-| 3 | **#39** ds4 embedded MTP | **Unblocked by [ds4#892](https://github.com/antirez/ds4/pull/892)**, which measured `--mtp` at **33.0 -> 40.5 t/s** on an M5 Max 128 GB -- this machine. Our primary's GGUF carries `deepseek4.nextn_predict_layers = 1`, so the head exists; the flag is GLM-gated. **Ask upstream, do not patch. Do not test width > 2.** Promotes to first if #48 shows decode is not bandwidth-bound. |
-| 4 | **#46** Swift trials report a clean gate that never ran | **Small, and it protects the only quality signal this project has.** `gates_delta = {"ruff": 0}` on 13 Swift rows, from linters that never ran. #4's one real finding came from these gates, so on Swift that axis is **off and does not say so**. Same shape as #29. |
-| 5 | **#4** A third target repository | #45's inflation result is the argument: 1.34x vs 2.05x scaling measured on **one** repo cannot separate a pair property from a `~/git/monitor` property. |
-| 6 | **#38 / #40** GLM-5.3 on ds4, and the quant strategy | **Re-open the question, do not re-run the old plan.** All our GLM numbers predate the `glm-5.3-flash` branch. #893 caps us at 110 GiB so **q4 resident is dead**; the live question is a **mixed-precision** build -- Q8 everywhere, very low-bit routed experts -- which is what #48 tests on a model we already have. |
-| 7 | **#45** Does verbosity predict unbuildable code? | Open, and needs a different instrument. 1 in 53 trials; sampling harder is the wrong tool. |
-| 8 | **#19** DFlash2 / speculative decoding | ds4#892 states DFlash2 for GLM **does not exist** -- machinery is bound to the Qwen graph. The Ollama native MTP arm is still live. |
-| 9 | **#35** Model queue, criteria revised | Criteria now written down, including the fourth: a candidate is a model x engine x **client** triple. |
-| 10 | **#27** Retire the ds4 fork | Blocked: antirez/ds4#885 and #886 both open, unchanged. |
+| 2 | **#39** ds4 embedded MTP | **Unblocked by [ds4#892](https://github.com/antirez/ds4/pull/892)**, which measured `--mtp` at **33.0 -> 40.5 t/s** on an M5 Max 128 GB -- this machine. Our primary's GGUF carries `deepseek4.nextn_predict_layers = 1`, so the head exists; the flag is GLM-gated. **Ask upstream, do not patch. Do not test width > 2.** Promotes to first if #48 shows decode is not bandwidth-bound. |
+| 3 | **#46** Swift trials report a clean gate that never ran | **Small, and it protects the only quality signal this project has.** `gates_delta = {"ruff": 0}` on 13 Swift rows, from linters that never ran. #4's one real finding came from these gates, so on Swift that axis is **off and does not say so**. Same shape as #29. |
+| 4 | **#4** A third target repository | #45's inflation result is the argument: 1.34x vs 2.05x scaling measured on **one** repo cannot separate a pair property from a `~/git/monitor` property. |
+| 5 | **#38 / #40** GLM-5.3 on ds4, and the quant strategy | **Re-open the question, do not re-run the old plan.** All our GLM numbers predate the `glm-5.3-flash` branch. #893 caps us at 110 GiB so **q4 resident is dead**; the live question is a **mixed-precision** build -- Q8 everywhere, very low-bit routed experts -- which is what #48 tests on a model we already have. |
+| 6 | **#45** Does verbosity predict unbuildable code? | Open, and needs a different instrument. 1 in 53 trials; sampling harder is the wrong tool. |
+| 7 | **#19** DFlash2 / speculative decoding | ds4#892 states DFlash2 for GLM **does not exist** -- machinery is bound to the Qwen graph. The Ollama native MTP arm is still live. |
+| 8 | **#35** Model queue, criteria revised | Criteria now written down, including the fourth: a candidate is a model x engine x **client** triple. |
+| 9 | **#27** Retire the ds4 fork | Blocked: antirez/ds4#885 and #886 both open, unchanged. |
 
 **Blocked on upstream, do not re-investigate:** GLM-5.3 remains unusable *as an
 agent* on the supported stack for two reasons already reported --
@@ -35,7 +34,7 @@ context. Neither is ours to fix. **This does not block measuring decode rate**,
 which is what #39 now needs and what ds4#892 has already shown is possible on
 this hardware.
 
-## Tomorrow: six tasks, ordered by what they teach per hour
+## Tomorrow: five tasks, ordered by what they teach per hour
 
 Rewritten 2026-08-30 after reading antirez's last 24 hours on X directly (every
 post verified through `fxtwitter`, not relayed on trust). The theme is that
@@ -63,14 +62,12 @@ including **`--ctx 32768`** -- a third datapoint against ds4#890's ">4096 fails"
 after ds4#892's 4500-token prompt at ctx 8192. **The cheapest possible outcome is
 that a blocker we have carried for days is not real.** Feeds #38, #39, #40, #47.
 
-**3. Answer the sherpa's question: Qwen Flash or GLM 5.3 Flash? (#47, ~2 h)**
-Still open -- verified, he has not answered it. One minute after asking, he
-**polled it: 4,302 votes, GLM 5.3 Flash 63.9%, DeepSeek v4 Flash 21.3%, Qwen 3.8
-Next Flash 14.8%.** So the crowd prefers GLM 3:1 over the model we measure at
-**55/55**, while GLM on the same server is **unusable as an agent** behind
-ds4#569 and ds4#816. **A poll cannot see a tool-call parser.** That gap between
-perceived and measured is what this project exists to close, and it is the
-contribution -- but only against the branch (task 2 first).
+**3. #39, below, moves up.** #47 is **closed: we are not commenting upstream.**
+His poll (4,302 votes -- GLM 63.9%, DeepSeek 21.3%, Qwen 14.8%) is sufficient
+feedback and a far larger sample than we could contribute. **Direction recorded:
+GLM is the preferred second horse.** The technical residue stays live on #38,
+#41, #16 and #35 -- in particular that **wanting GLM does not make a tool-call
+parser work**, and ds4#569 and ds4#816 still decide whether it can hold the slot.
 
 **4. Does `--mtp` reach the DeepSeek MTP head? (#39, ~1-2 h)**
 `--mtp` is GLM-gated, but our primary's GGUF carries
