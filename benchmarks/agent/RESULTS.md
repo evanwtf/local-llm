@@ -1963,3 +1963,81 @@ warned that llama-server on :8020 was unexpected while it served exactly the
 selected backend, because `qwen38fnq2`, `qwen38fnq3` and `glm53` named only the
 shim. Fourth false positive of the same shape, and a check that fires on a
 correct state is one nobody reads.
+
+## #45 — Verbosity compounds with difficulty (2026-08-29, 8 trials)
+
+**The question:** #44's single failure was `ornith15 × codex` emitting Swift that
+did not compile, and that pair was also the one that inflated most moving from
+Python to Swift (2.73x, against 1.19x for `ds4 × claude`). Does writing more, on
+less familiar ground, predict producing code that will not build?
+
+**Design.** Two harder Swift tasks against the two *extremes* of the #44
+inflation table, not the whole field. Each target leans on a Swift construct with
+no Python equivalent, so a model transferring Python habits has somewhere to
+slip: `ScaleLadder.snap` uses `if`-as-expression assigned to a `let`, and
+`SevenSegment.glyphs` mutates an array of value types in place — `Glyph` is a
+struct, so the body cannot mutate `result.last` and has to rebuild the element
+and assign it back. Both controls verified: each stubs to `fatalError` and fails
+the 215-test suite before the agent runs.
+
+**This is a screening run, not a measurement.** 2 trials per cell, well under
+#23's 10-trial bar. The token ratios below are large and consistent and are the
+trustworthy part; nothing here supports a pass-rate claim.
+
+| pair | set | n | pass | median s | median out_tok | s/1k |
+|---|---|---|---|---|---|---|
+| `ornith15 × codex` | 1 (easier) | 9 | 8/9 | 318.9 | 20,788 | **15.3** |
+| `ornith15 × codex` | 2 (harder) | 4 | 4/4 | 645.9 | 42,545 | **15.2** |
+| `ds4 × claude` | 1 (easier) | 9 | 9/9 | 180.5 | 3,835 | 47.1 |
+| `ds4 × claude` | 2 (harder) | 4 | 4/4 | 220.7 | 5,152 | 42.8 |
+
+### The finding: the verbosity gap is not a stable pair property. It widens.
+
+| | tokens | time |
+|---|---|---|
+| gap on set 1 | 5.42x | 1.77x |
+| gap on set 2 | **8.26x** | **2.93x** |
+
+Scaling from the easier set to the harder one, per pair:
+
+| pair | time | tokens |
+|---|---|---|
+| `ornith15 × codex` | 2.03x | **2.05x** |
+| `ds4 × claude` | 1.22x | **1.34x** |
+
+**The terse pair degrades gracefully and the verbose pair inflates further.**
+Harder tasks cost `ds4 × claude` 34% more output; they cost `ornith15 × codex`
+105% more. This was the open question from #44 — whether 1.19x-2.73x was a fixed
+trait — and the answer is that it is not fixed. It gets worse with difficulty,
+which makes the cheap easy-task measurement an *under*-estimate of the spread on
+hard work.
+
+### Throughput did not move, so all of this is tokens
+
+`ornith15 × codex` decoded at **15.3 s/1k on the easier set and 15.2 on the
+harder one.** Time scaled 2.03x and tokens 2.05x. Harder tasks did not make the
+model slower by any measurable amount; every extra second is an extra token.
+Third time in this project a wall-time difference has resolved to a token count —
+the rule in AGENTS.md holds on new material.
+
+### The headline question is still n=1
+
+**8/8 passed. No compile failures.** The unbuildable result from #44 did not
+recur in four harder attempts on the pair that produced it. So verbosity has not
+been shown to predict unbuildable code — the run answered the *secondary*
+question cleanly and left the primary one where it was.
+
+That is worth stating plainly: this run was designed around a hypothesis it did
+not confirm, and the useful output came from the control variable.
+
+### `restored_verbatim` 0/8, and a gate that is silently inert
+
+Nothing was recalled: 0/8 verbatim, 7 distinct solutions across 8 trials
+(`ornith15` produced the same code twice).
+
+**`gates_delta` reports `{"ruff": 0}` on every Swift row.** ruff and mypy are
+Python tools; on a Swift task they lint nothing and return a clean delta. The
+gates are not wrong, they are *absent*, and an absent gate that reports `0` reads
+exactly like a gate that passed. The quality axis is unmeasured on Swift — which
+matters because "passes but is worse" (#4) was found by exactly these gates on
+the Python side.

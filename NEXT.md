@@ -1,10 +1,12 @@
 # Where to pick up
 
-Updated 2026-08-29 20:55. **#45 is the run that matters.** #44 is done and it
-did not answer #4 the way it was meant to -- Swift did not make the tasks harder
-to pass (44/45). What it did produce is one run that emitted code which **did not
-compile**, a failure mode Python cannot express in this harness. That single row
-is the only unexhausted axis left. Work the issues in the order below. Each issue
+Updated 2026-08-29 22:00. **#45 ran and did not confirm its own hypothesis.** 8/8 passed on two harder Swift
+tasks, so "verbosity predicts unbuildable code" is still **n=1**. The run's value
+came from its control variable: **the verbosity gap between two pairs widens with
+difficulty** (5.42x -> 8.26x on tokens), so measuring inflation on easy tasks
+under-estimates the spread on hard work. Compile failures are rare enough -- one
+in 53 Swift trials -- that sampling for them with a pass/fail suite is the wrong
+instrument. Work the issues in the order below. Each issue
 is self-contained; this file only sets priority and records machine state that is
 not in git.
 
@@ -12,12 +14,13 @@ not in git.
 
 | # | issue | why this position |
 |---|---|---|
-| 1 | **#45** Does verbosity predict unbuildable code? | **The only axis that has not saturated.** Correctness is 44/45 on Swift and near-perfect on Python; #4 established the task set cannot separate models on quality. But `swift test` has a **build step**, and one run failed it -- `ornith15 x codex`, which is also the pair that inflated most moving Python -> Swift (**2.73x**, against 1.19x for `ds4 x claude`). Does writing more, on less familiar ground, predict producing code that will not build? n=1 so far. Two harder Swift tasks added and controls verified; running the two extremes, not the field. |
-| 2 | **#4** A third target repository | #42 answered the immediate need and #45 is mining it. A genuinely third-party repo -- not written by this account -- remains the ideal, and the inflation measurement is the argument for it: it needs a *third* point to know whether 1.19x-2.73x is a property of the pair or of `~/git/monitor`. |
-| 3 | **#39** ds4 embedded MTP | **Blocked in practice.** `--mtp` sets `c.engine.glm_mtp` -- it is GLM-gated -- and GLM is unusable behind ds4#569 and ds4#816. The DeepSeek GGUF *does* carry an MTP head (`deepseek4.nextn_predict_layers = 1`), so the primary could benefit, but no flag reaches it. Worth an upstream question, not a run. |
-| 4 | **#40** GLM-5.3 quant ladder | Depends on #38 being usable. It is not. **And ds4#893 now caps what it could ever show here:** q4 resident is unreachable on a 128 GiB host regardless of the wired limit. |
-| 5 | **#35** Model queue, criteria revised | Needs the second criterion: decodes within ~3x of the primary. |
-| 6 | **#27** Retire the ds4 fork | Blocked: antirez/ds4#885 and #886 both open. |
+| 1 | **#46** Swift trials report a clean gate that never ran | **Small, and it protects the only quality signal this project has.** Every Swift row carries `gates_delta = {"ruff": 0}`; ruff and mypy are Python tools, so on Swift they lint nothing and return a clean delta that reads exactly like a pass. 13 rows are affected. #4's one real finding -- `re.Match` vs `re.Match[bytes]`, 2 mypy errors under 71 passing tests -- came from these gates, so on Swift that axis is **off and does not say so**. Same shape as #29. |
+| 2 | **#45** Does verbosity predict unbuildable code? | **Open, and needs a different instrument.** Four harder trials on the pair that produced the one compile failure produced none. Chasing a 1-in-53 event with a pass/fail suite is the wrong tool. Two routes: tasks with real type-level surface (generics, protocol conformances, `inout`, actor isolation), and grading the *build* separately from the tests -- today both land as `passed: false`. #46 makes the second recordable. |
+| 3 | **#4** A third target repository | The inflation result is now the strongest argument for it. Set 1 -> set 2 scaling was 1.34x for `ds4 x claude` and 2.05x for `ornith15 x codex`, measured on **one** repo. A third point is what separates "property of the pair" from "property of `~/git/monitor`". |
+| 4 | **#39** ds4 embedded MTP | **Blocked in practice.** `--mtp` sets `c.engine.glm_mtp` -- it is GLM-gated -- and GLM is unusable behind ds4#569 and ds4#816. The DeepSeek GGUF *does* carry an MTP head (`deepseek4.nextn_predict_layers = 1`), so the primary could benefit, but no flag reaches it. Worth an upstream question, not a run. |
+| 5 | **#40** GLM-5.3 quant ladder | Depends on #38 being usable. It is not. **And ds4#893 now caps what it could ever show here:** q4 resident is unreachable on a 128 GiB host regardless of the wired limit. |
+| 6 | **#35** Model queue, criteria revised | Needs the second criterion: decodes within ~3x of the primary. |
+| 7 | **#27** Retire the ds4 fork | Blocked: antirez/ds4#885 and #886 both open. |
 
 **Blocked on upstream, do not re-investigate:** GLM-5.3 is unusable on the
 supported stack for two reasons that are already reported --
@@ -28,6 +31,29 @@ never reuse the KV session, costing ~110 s of re-prefill per turn at 40k
 context. Neither is ours to fix.
 
 ## Done since the last update
+
+**2026-08-29 22:00. #45 run: 8 trials, and the finding is not the one it asked for.**
+
+- **The hypothesis is unconfirmed. 8/8 passed, no compile failures.** The
+  unbuildable result from #44 did not recur in four harder attempts on the pair
+  that produced it.
+- **The verbosity gap widens with difficulty.** Between `ornith15 x codex` and
+  `ds4 x claude`: **5.42x -> 8.26x on tokens**, 1.77x -> 2.93x on time. Per pair,
+  easier set -> harder set: `ds4 x claude` **1.34x** tokens, `ornith15 x codex`
+  **2.05x**. The terse pair degrades gracefully; the verbose one inflates
+  further. #44 left open whether inflation was a fixed pair trait -- **it is
+  not**, and easy-task measurements under-estimate the spread on hard work.
+- **Throughput did not move: 15.3 -> 15.2 s/1k** for `ornith15 x codex`, with
+  time 2.03x and tokens 2.05x. Harder tasks did not slow decoding measurably.
+  Third time here a wall-time difference resolved to a token count.
+- **Screening run, 2 trials per cell**, under #23's bar. Rescoped mid-run: the
+  harder tasks cost 571-999s per trial against a planned ~94s, so 16 trials
+  needed 3.5 h. Stopped Phase A balanced at 2-per-task rather than finish one
+  pair and never measure the other.
+- **#46 filed:** Swift rows report `gates_delta = {"ruff": 0}` from linters that
+  never ran.
+- **Correction:** the monitor suite is **215 tests**, not the 202 stated in the
+  #42 close comment and an earlier note. Fixed here and on #42.
 
 **2026-08-29 evening. #44, #43, #42 closed; #45 opened and running.**
 
@@ -69,7 +95,7 @@ context. Neither is ours to fix.
 - **#43 closed:** README, AGENTS.md and RECOMMENDATIONS all updated. Doing it
   *after* #44 was right -- the docs would otherwise have been accurate and wrong.
 - **#42 closed:** `~/git/monitor` is pinned at `local-llm-benchmark` @ `cbb85ca`,
-  202 hermetic tests, five tasks.
+  215 hermetic tests, five tasks.
 - **Trap found the hard way:** `swift_excise.excise(path, symbol)` **writes the
   file** and returns the removed text. Calling it to inspect a span modifies the
   real working tree. Use `body_source()` to look; only `run.py`'s worktrees
