@@ -35,65 +35,62 @@ this hardware.
 
 ## Tomorrow: five tasks, ordered by what they teach per hour
 
-Written 2026-08-29 22:30 after a full issue sweep and an upstream check. The
-theme is that **this project has stopped learning from pass rates** -- 44/45 on
-Swift, 8/8 on the harder set, near-perfect on Python -- so every task below
-measures something other than "did it pass".
+Rewritten 2026-08-30 after antirez's 48-hour run of posts. The theme is that
+**this project has stopped learning from pass rates** -- 44/45 on Swift, 8/8 on
+the harder set, near-perfect on Python -- so every task below measures something
+else. **Scope: the coding-agent use case only. Vision is out of scope**, which
+matters because most of the branch's recent movement is vision work.
 
-**1. Reconcile ds4#892 against our own GLM-5.3 record. (~1 h, highest value)**
-Someone published GLM-5.3 Flash numbers on an M5 Max 128 GB, our exact machine,
-including a **4500-token prompt at ctx 8192** -- above the 4096 boundary we
-recorded as a hard blocker in ds4#890. Either #890 is narrower than we wrote
-down, or `glm-5.3-flash` already fixes it, or their configuration differs from
-ours in a way worth knowing. Build the branch, run their case, compare. **The
-cheapest possible outcome is that a blocker we have carried for days is not
-real.** Success: our #38 note either cites the reproduction or states the exact
-configuration difference.
+**1. Bring up GLM-5.3 on the branch and re-measure. (~2 h, unblocks three issues)**
+Everything else about GLM here is stale: our numbers predate `glm-5.3-flash`, and
+GLM-5.3 is **not on main** (main has one commit, the download script; the branch
+is 13 ahead / 0 behind). Use the maintainer's own recipe, including **`--ctx
+32768`** -- which is a third datapoint against ds4#890's ">4096 fails", after
+ds4#892's 4500-token prompt at ctx 8192. **The cheapest possible outcome is that
+a blocker we have carried for days is not real.** Feeds #38, #39, #40, #47.
 
-**2. Does `--mtp` reach the DeepSeek MTP head? (~1-2 h, attacks the primary)**
-`--mtp` sets `c.engine.glm_mtp` and is GLM-gated, but our primary's GGUF carries
-`deepseek4.nextn_predict_layers = 1`. #892 shows the mechanism is worth **+23%
-decode** when it engages. Decode rate is the number that decides whether local
-inference is usable at all, and it is the one axis we have never moved. Read the
-gate in `ds4.c`, determine whether it is a deliberate restriction or an unwired
-path, and **ask upstream rather than patching** -- antirez is the sherpa.
-Success: either a measured decode delta on DeepSeek, or a precise upstream
-question. **Do not test width > 2**; #892 measured 3/4/6 and all are worse.
+**2. Answer the sherpa's question: Qwen Flash or GLM 5.3 Flash? (#47, ~2 h)**
+antirez is deciding which is the right **second horse next to DeepSeek V4 Flash**
+and asked for real-world feedback before merging. That is #16 and #35 restated by
+the person whose engine we run, and **we have both lineages measured on one
+harness, one machine, same clients** -- which is the thing he asked for and is
+not common. The strongest thing we know is not a pass rate: it is that
+**ds4#569 and ds4#816 stop GLM driving an agent today**, with reproductions.
+Draft it; **posting outside `evanwtf`/`evandhoffman` needs approval.**
 
-**3. Fix #46, then backfill the 13 Swift rows. (~1 h, protects the record)**
+**3. Does `--mtp` reach the DeepSeek MTP head? (#39, ~1-2 h)**
+`--mtp` is GLM-gated, but our primary's GGUF carries
+`deepseek4.nextn_predict_layers = 1` -- the head is *there*. ds4#892 measured the
+mechanism at **+23% decode** on this exact hardware. Decode rate is the one axis
+we have never moved and the one that decides whether local inference is usable.
+Read the gate in `ds4.c`, then **ask upstream rather than patching**. **Do not
+test width > 2** -- #892 measured 3/4/6 and all are worse.
+
+**4. Fix #46, then backfill the 13 Swift rows. (~1 h, protects the record)**
 An inapplicable gate must record `null`, not `0`. Today a Swift row reports
-`{"ruff": 0}` from a linter that never ran, which is indistinguishable from
-clean code -- and the gates are where #4's only "passes but is worse" finding
-came from. Add `swift build -Xswiftc -warnings-as-errors` as the Swift
-equivalent, and **write down that it is weaker than `mypy --strict`** rather
-than pretending the axes match. Success: no row claims a measurement that did
-not happen.
+`{"ruff": 0}` from a linter that never ran, which is indistinguishable from clean
+code -- and the gates are where #4's only "passes but is worse" finding came
+from. Add `swift build -Xswiftc -warnings-as-errors`, and **write down that it is
+weaker than `mypy --strict`** rather than pretending the axes match.
 
-**4. A third target repository, chosen for defect surface. (~2 h, unblocks #4)**
+**5. A third target repository, chosen for defect surface. (#4, ~2 h)**
 #45 showed inflation scaling of 1.34x and 2.05x -- measured on **one** repo, so
-we cannot yet tell a property of the pair from a property of `~/git/monitor`. A
-third point settles it. **Pick for the oracle first:** green at HEAD, hermetic,
-fast, and not written by this account. StationCast failed that bar (172/555 tests
-red from a Docker-only `LOG_FILE_PATH`) and re-litigating it is not the task.
-Success: a pinned `local-llm-benchmark` branch and three tasks with verified
-controls.
-
-**5. Give #45 a real instrument, or retire it. (~2 h, honest either way)**
-Compile failures are 1 in 53 Swift trials. Sampling for them with a pass/fail
-suite is the wrong tool and #23's arithmetic says so. Either write tasks with
-genuine type-level surface -- generics, protocol conformances, `inout`, actor
-isolation, where a Python habit yields something that *cannot compile* rather
-than something that fails a test -- or close the issue and record that the
-harness cannot measure it. **Both outcomes are worth an hour; drifting is not.**
+we cannot yet separate a property of the pair from a property of `~/git/monitor`.
+**Pick for the oracle first:** green at HEAD, hermetic, fast, not written by this
+account. StationCast failed that bar (172/555 red from a Docker-only
+`LOG_FILE_PATH`) and re-litigating it is not the task.
 
 ### Not tomorrow, and why
 
+- **A mixed-precision GLM-5.3 quant (#40).** The right question now -- Q8
+  attention/KDA/shared/output with very low-bit routed experts, which is exactly
+  what our 55/55 DeepSeek GGUF already does -- but it sits behind task 1.
+- **#45's compile-failure question.** 1 in 53 trials. It needs tasks with real
+  type-level surface, not more sampling. Worth an hour when there is one.
 - **The GLM thinking/tool-replay cluster (ds4#894, #897, #899, #904, #906).**
-  These hit exactly the agent loop we benchmark, but #569 and #816 still block
-  GLM as an agent here, so they are defects we would inherit, not ones we can act
-  on. Read them the day GLM-5.3 becomes usable.
-- **Ollama 0.33.2.** GUI-only update, and this machine is shared -- it is the
-  user's call, not something to drive.
+  Defects we would inherit, not ones we can act on while #569 and #816 stand.
+- **Vision, vector steering, ROCm.** Out of scope, and not shipped.
+- **Ollama 0.33.2.** GUI-only, on a machine the user shares. Their call.
 - **More trials on saturated cells.** 8/8 and 44/45 do not become informative at
   n=20. New axes, not more samples.
 
@@ -422,6 +419,52 @@ chat system messages and the Qwen template rejects.
 **Swept 2026-08-29 22:30.** antirez/ds4 is in a burst of GLM-5.3 work -- eleven
 issues and eight PRs touched it in three days. Check this table before
 re-investigating anything GLM- or ds4-related.
+
+### Merge status, verified 2026-08-30 — do not assume main
+
+**GLM-5.3 is NOT merged to ds4 main, and the practical Mac recipe is the preview
+branch.** Verified locally, not inferred:
+
+```
+upstream/main GLM-5.3 commits:  1  (8db89fe "download: add GLM 5.3 Flash models")
+upstream/glm-5.3-flash:         13 commits ahead of main, 0 behind
+branch tip 2026-08-29 17:55 +0200   main tip 2026-08-28 23:25 +0200
+```
+
+Main has the **download script only**. Everything that runs the model lives on
+the branch, which is a clean fast-forwardable superset of main (0 behind), so it
+is a sound base rather than a divergent experiment.
+
+**The recipe, unchanged:**
+
+```sh
+git clone https://github.com/antirez/ds4 && cd ds4
+git checkout glm-5.3-flash
+./download_model.sh glm53-q2        # ~90 GB, fits a 128 GB Mac
+make
+./ds4 -m gguf/GLM-5.3-Flash-Q2.gguf --ctx 32768
+```
+
+Q4 on one Mac needs `--ssd-streaming`. Q4 across two 128 GB Macs needs the RDMA
+tensor-parallel path (~37 t/s generate, ~500 t/s prefill) and is not our
+configuration.
+
+**Note `--ctx 32768` in antirez's own recipe.** That is a third datapoint against
+[ds4#890](https://github.com/antirez/ds4/issues/890)'s ">4096 tokens fails":
+ds4#892 ran a 4500-token prompt at ctx 8192, and the maintainer's published
+command allocates 32k. **Do not treat 4096 as a settled boundary.**
+
+**What is promised but NOT shipped on main:** vision, vector steering (including
+an anti-refusal vector), ROCm, better Metal / DGX Spark. **Do not plan around any
+of it** -- plan around Q2 on the branch.
+
+**Scope: vision is out of scope for this project.** We measure the coding-agent
+use case only. Most of the branch's recent movement is vision work, so **branch
+activity is a poor proxy for progress on anything we care about** -- read the
+commits, not the commit count. The parts of the promised merge that would matter
+here are the Metal improvements and anything touching the tool-call parser
+(ds4#569) or KV session reuse (ds4#816); nothing else on that list changes a
+coding-agent result.
 
 ### The one that changes our plan
 

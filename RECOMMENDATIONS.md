@@ -503,6 +503,68 @@ and they are what break the agent loop. What changed is that GLM-5.3 is now wort
 measuring for *decode rate* on this machine, which is a different question from
 whether it can drive Claude Code.
 
+### Merge status: not on main. Use the branch. (verified 2026-08-30)
+
+**GLM-5.3 is not merged to ds4 main.** Verified locally rather than assumed:
+`upstream/main` carries exactly one GLM-5.3 commit — `8db89fe download: add GLM
+5.3 Flash models` — while `glm-5.3-flash` is **13 commits ahead of main and 0
+behind**. Everything that runs the model is on the branch, which is a clean
+fast-forwardable superset rather than a divergent experiment.
+
+```sh
+git clone https://github.com/antirez/ds4 && cd ds4
+git checkout glm-5.3-flash
+./download_model.sh glm53-q2        # ~90 GB, fits a 128 GB Mac
+make
+./ds4 -m gguf/GLM-5.3-Flash-Q2.gguf --ctx 32768
+```
+
+Q4 on one Mac needs `--ssd-streaming`; Q4 across two 128 GB Macs needs the RDMA
+tensor-parallel path (~37 t/s generate, ~500 t/s prefill) and is not this
+machine's configuration.
+
+Vision, vector steering, ROCm and better Metal support are promised for the real
+merge and are **not shipped**. Vision is out of scope here in any case — this
+document is about the coding-agent use case — so **branch activity is a poor
+proxy for progress on anything measured here.**
+
+**`--ctx 32768` in the maintainer's own recipe** is a third datapoint against
+[ds4#890](https://github.com/antirez/ds4/issues/890)'s ">4096 fails": #892 ran a
+4500-token prompt at ctx 8192, and this allocates 32k. **4096 is not a settled
+boundary.**
+
+### The quant principle — and we are already running it
+
+antirez's quant notes (2026-08-30) describe where GLM's bits should go:
+
+- the official "FP8" files keep the **KDA projection and head in BF16**; those
+  can go to **Q8** and save ~4 GB
+- **routed experts can stay extremely low-bit**, because most traffic does not
+  flow through those tensors — but the trick only works **if everything else
+  stays Q8**
+
+**That is the exact recipe our primary already uses.** The DeepSeek GGUF we run
+is:
+
+```
+Layers37-42Q4KExperts · OtherExpertLayersIQ2XXSGateUp · Q2KDown
+                      · AProjQ8 · SExpQ8 · OutQ8
+```
+
+Attention projection, shared experts and output at **Q8**; routed experts down at
+**IQ2_XXS** gate/up and **Q2_K** down. Low-bit where the traffic is not, Q8
+everywhere it is — and that model scores **55/55** here.
+
+**So the principle is not speculative on this machine; it is what makes the
+primary work.** Two consequences:
+
+- A GLM-5.3 quant built this way is the one worth testing, not a uniform q2 or a
+  uniform q4. This **replaces** the "q2 resident vs q4 streamed" ladder in #40,
+  whose q4-resident arm is dead anyway on the 110 GiB budget below.
+- It is a reason to expect a mixed-precision GLM to behave better than our
+  earlier uniform-quant results suggested — those were measuring the quant as
+  much as the model.
+
 **And the memory arithmetic is now fixed.**
 [ds4#893](https://github.com/antirez/ds4/pull/893) keeps a fixed **110 GiB**
 GLM-5.3 budget for 128 GiB-class hosts and relaxes it only for 256/512 GiB
