@@ -50,17 +50,24 @@ def main(argv: list[str]) -> int:
         logger.info("%-10d %12.2f %12.2f %8.3f", ctx, ma, mb, mb / ma)
 
     logger.info("")
+    # Name both directions. Labels sort alphabetically, so which arm lands in
+    # the numerator is an accident of naming -- and a bare "0.872" has already
+    # been misread once as the wrong way round.
+    median = st.median(ratios)
     logger.info(
-        "paired median ratio: %.3f  (%+.1f%%)",
-        st.median(ratios),
-        (st.median(ratios) - 1) * 100,
+        "paired median %s/%s: %.3f  (%+.1f%%)", b, a, median, (median - 1) * 100
     )
-    logger.info("range across frontiers: %.3f - %.3f", min(ratios), max(ratios))
+    logger.info(
+        "paired median %s/%s: %.3f  (%+.1f%%)", a, b, 1 / median, (1 / median - 1) * 100
+    )
+    logger.info(
+        "range of %s/%s across frontiers: %.3f - %.3f", b, a, min(ratios), max(ratios)
+    )
     if len(ratios) > 1:
+        wins = sum(1 for r in ratios if r > 1)
+        logger.info("frontiers where %s > %s: %d of %d", b, a, wins, len(ratios))
         logger.info(
-            "frontiers where b > a: %d of %d",
-            sum(1 for r in ratios if r > 1),
-            len(ratios),
+            "frontiers where %s > %s: %d of %d", a, b, len(ratios) - wins, len(ratios)
         )
     return 0
 

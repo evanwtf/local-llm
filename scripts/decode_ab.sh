@@ -30,10 +30,12 @@ for rep in $(seq 1 "$REPS"); do
     label=${pair%%:*}; gguf=${pair#*:}
     csv="$OUT/${label}-rep${rep}.csv"
     echo "[$(date +%H:%M:%S)] $label rep $rep -> $csv"
-    "$DS4/ds4-bench" -m "$gguf" --metal \
+    # ds4-bench resolves metal/*.metal relative to its own tree, so run from
+    # there. Without this it dies with "metal/activations.metal not found".
+    ( cd "$DS4" && ./ds4-bench -m "$gguf" --metal \
       --prompt-file "$PROMPT" \
       --ctx-start "$CTX_START" --ctx-max "$CTX_MAX" --step-incr "$STEP" \
-      --gen-tokens "$GEN" --csv "$csv"
+      --gen-tokens "$GEN" --csv "$csv" )
   done
 done
 echo "done: $OUT"
