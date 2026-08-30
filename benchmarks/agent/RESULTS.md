@@ -1876,3 +1876,90 @@ stack** — Claude Code by re-prefill, Codex by tool-call parsing.
 streamed**. RSS sat at 3.1 GiB for an 89.9 GiB model and every forward pass
 faulted from disk; a trial that should have decoded in 91 s took 2,470 s.
 `WARM=''` is only correct *together with* streaming.
+
+---
+
+## The Swift repository: what a second target actually bought (2026-08-29, #44)
+
+**45 trials, 44 correct.** Five backend × client pairs × three tasks × three
+trials on `~/git/monitor` — 11,265 Swift lines, 215 tests, `swift test` in
+0.705 s. New series: different repository, language and oracle. **Do not pool
+with gmail-archive.**
+
+| pair | pass | suite | median out_tok | s per 1k tok |
+|---|---|---|---|---|
+| **`ds4` × claude** | **9/9** | **522 s** | **3,835** | 47.6 |
+| `ornith15` × codex | 8/9 | 844 s | 20,788 | **14.7** |
+| `qwen38fnq3` × codex | 9/9 | 1,086 s | 5,932 | 61.5 |
+| `ds4anthropic` × codex | 9/9 | 1,115 s | 9,082 | 39.6 |
+| `qwen36coding` × claude | 9/9 | 1,393 s | 5,232 | 84.3 |
+
+### It did not make the tasks harder to pass
+
+**44 of 45.** Correctness is as saturated here as on gmail-archive, so the
+hypothesis that a larger, less-familiar codebase would produce failures is
+**not supported**. Whatever these models lack, it is not the ability to restore
+a Swift function against a green test suite.
+
+### It did separate the pairs, on speed and on why
+
+The suite spread is **2.7x**, and it decomposes into two independent mechanisms
+that a wall-clock total conflates:
+
+- **`ornith15` is 3.2x faster per token than `ds4`** (14.7 vs 47.6 s/1k) and
+  still finishes second, because it emits **5.4x the tokens**.
+- **`qwen36coding` writes little** (5,232) and finishes last, because it is the
+  slowest per token (84.3 s/1k).
+
+Two pairs land within 25% of each other on the clock for opposite reasons.
+**`ds4 × claude` is the only pair that wins on both terms** — fewest tokens and
+a mid-pack rate — which is why it wins by 1.6x over second place.
+
+### The finding worth keeping: token inflation under an unfamiliar language
+
+Every pair writes more Swift than Python. **How much more varies 2.3x across
+pairs**, and that is the discriminator gmail-archive never produced:
+
+| pair | Python | Swift | inflation |
+|---|---|---|---|
+| **`ds4` × claude** | 3,234 | 3,835 | **1.19x** |
+| `qwen38fnq3` × codex | 3,152 | 6,120 | 1.94x |
+| `ds4anthropic` × codex | 4,662 | 9,082 | 1.95x |
+| `qwen36coding` × claude | 2,268 | 5,232 | 2.31x |
+| `ornith15` × codex | 7,618 | 20,788 | **2.73x** |
+
+All five faced identical tasks, so the *relative* spread is meaningful even
+though the Swift tasks are not difficulty-matched to the Python five — that
+caveat bounds the absolute inflation figures, not the ordering.
+
+**`ds4 × claude` barely notices the language change. `ornith15 × codex` nearly
+triples.** Since token volume is the dominant term in agent wall time, how
+gracefully a pair degrades on unfamiliar territory is arguably a better proxy
+for real use than a pass rate everything saturates.
+
+### The one failure was a compile failure
+
+`ornith15 × codex` on `swift-downsample-buckets`: the agent worked normally —
+18,694 output tokens, 30 tool calls, clean `turn.completed` — and produced Swift
+that **did not compile**. Not a wrong answer; unbuildable code.
+
+That is a failure mode Python cannot produce in this harness, and the pair that
+produced it is the one that writes 2.7x more under Swift. One instance is not a
+pattern, but "verbosity correlates with unbuildable output" is now a question
+this data can be pointed at.
+
+### Two harness defects the second repository exposed
+
+Both were invisible to three days of Python-only runs:
+
+**`swift test` writes compile errors to stderr and leaves stdout empty.**
+`tests_pass` read only stdout, so the run's one real failure was recorded as
+`"no output"` — true, useless, and indistinguishable from a harness fault.
+`summarise_run` now falls back to stderr. pytest never had this: a Python syntax
+error is a collection error on stdout.
+
+**Shim-fronted backends did not declare their real server port.** `preflight`
+warned that llama-server on :8020 was unexpected while it served exactly the
+selected backend, because `qwen38fnq2`, `qwen38fnq3` and `glm53` named only the
+shim. Fourth false positive of the same shape, and a check that fires on a
+correct state is one nobody reads.

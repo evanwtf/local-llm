@@ -26,7 +26,7 @@ interact, so pick them as a pair.
 
 | role | pair | why |
 |---|---|---|
-| **primary** | `ds4` + **Claude Code** or **Codex** | **55/55** and **45/45** pre-upgrade; **31/31** post-upgrade for Codex. The most-tested pairing here by a wide margin, and the only one whose lower bound clears **0.92** |
+| **primary** | `ds4` + **Claude Code** | **55/55** on Python, **9/9** on Swift, and the only pair that wins on both token volume and rate. Lower bound **0.935**. Codex on the same weights is equal on Python but **2.14x slower on Swift** — prefer Claude Code |
 | **secondary** | `qwen3.6:27b-coding-mxfp8` + **Claude Code** | 30/30, 31 GB, independent failure surface |
 | **do not** | anything + **OpenCode** | 13/29 on the same model both other clients pass. See below |
 
@@ -501,6 +501,52 @@ pairing on ds4 — and it warns on every run that it has no metadata for local
 models, which suggests it expects to reach a catalogue somewhere.
 
 ---
+
+## Measured on a second codebase, in a second language (2026-08-29)
+
+45 trials on `~/git/monitor` — 11,265 Swift lines, 215 tests (#44). A new
+series; not pooled with the Python figures elsewhere in this file.
+
+| pair | pass | suite | median out_tok | s per 1k tok |
+|---|---|---|---|---|
+| **`ds4` + Claude Code** | **9/9** | **522 s** | **3,835** | 47.6 |
+| `ornith-1.5` + Codex | 8/9 | 844 s | 20,788 | **14.7** |
+| `qwen38fnq3` + Codex | 9/9 | 1,086 s | 5,932 | 61.5 |
+| `ds4` + Codex | 9/9 | 1,115 s | 9,082 | 39.6 |
+| `qwen3.6-coding` + Claude Code | 9/9 | 1,393 s | 5,232 | 84.3 |
+
+**This strengthens the primary pick and changes one thing about it.** On the
+Python repo, `ds4` with Claude Code and with Codex were indistinguishable — 982 s
+against 975 s. **On Swift they separate by 2.14x**, and `ds4 + Claude Code` wins
+the whole field by 1.6x over second place.
+
+It is the only pair that wins on *both* terms — fewest tokens **and** a
+respectable rate. Every other pair trades one against the other: `ornith-1.5` is
+3.2x faster per token and writes 5.4x more; `qwen3.6-coding` writes little and is
+slowest per token.
+
+**So on the current evidence, prefer Claude Code with `ds4` rather than picking
+on habit.** That advice was "pick either" while only Python was measured.
+
+### How gracefully a pair handles an unfamiliar language
+
+Every pair writes more Swift than Python. **How much more varies 2.3x:**
+
+| pair | Python | Swift | inflation |
+|---|---|---|---|
+| **`ds4` + Claude Code** | 3,234 | 3,835 | **1.19x** |
+| `ds4` + Codex | 4,662 | 9,082 | 1.95x |
+| `qwen3.6-coding` + Claude Code | 2,268 | 5,232 | 2.31x |
+| `ornith-1.5` + Codex | 7,618 | 20,788 | **2.73x** |
+
+Token volume is the dominant term in agent wall time, so this is a practical
+number: it says how much a pair costs you on code that is not its comfort zone.
+**Caveat:** the Swift tasks are not difficulty-matched to the Python ones, so
+the ordering is sound and the absolute ratios are not.
+
+**Correctness did not discriminate — 44 of 45.** A 6x larger codebase in a less
+familiar language did not make these tasks harder to pass. It made the pairs
+distinguishable on *how* they get there.
 
 ## What the 2026-08-29 overnight run changed
 
