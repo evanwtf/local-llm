@@ -533,6 +533,37 @@ proxy for progress on anything measured here.**
 4500-token prompt at ctx 8192, and this allocates 32k. **4096 is not a settled
 boundary.**
 
+### The primary may be leaving decode on the table (#48)
+
+**Our own GGUF does not satisfy the rule antirez states below**, and the gap is
+measurable. Read with `scripts/gguf_meta.py`; the computed 90.31 GiB matches the
+file on disk.
+
+| | GiB per token | share of per-token traffic |
+|---|---|---|
+| dense weights | 8.20 | 81.0% |
+| routed experts (**82.11 GiB on disk**) | 1.92 | 19.0% |
+| **of the dense: F16 tensors** | **2.04** | **20.2%** |
+
+**91% of the file is routed experts and they are 19% of the traffic. The F16
+tensors are 2.3% of the file and 20.2% of the traffic.** The filename advertises
+`AProjQ8-SExpQ8-OutQ8` and those *are* Q8 — but the compressor, indexer and
+hyper-connection paths were left at F16 (`attn_compressor_*`,
+`indexer_compressor_*`, `indexer.proj`, `indexer.attn_q_b`, `hc_attn_fn`,
+`hc_ffn_fn`, `token_embd`).
+
+**Requantizing those 359 tensors to Q8_0 would cut per-token traffic by 9.5%.**
+[@ShankPeople](https://x.com/ShankPeople/status/2093826778011676775) measured
+**+20% decode at the same quality** from exactly this change on GLM-5.3, and
+antirez replied that the BF16 choice was *"kinda of an inefficient choice"*.
+
+**Do not treat that as a promised 9.5% speedup.** ds4#892, on this same hardware,
+finds decode is **dispatch-bound rather than bandwidth-bound** — a 2-token
+forward costs only 1.23x a 1-token forward. The two claims can both be true, and
+which one dominates here is unmeasured. **Either result is worth having:** a
+faster primary, or the bandwidth hypothesis dies and speculative decoding (#39)
+becomes the only remaining lever on decode rate.
+
 ### The quant principle — and we are already running it
 
 antirez's quant notes (2026-08-30) describe where GLM's bits should go:
