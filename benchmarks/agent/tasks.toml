@@ -535,6 +535,12 @@ context_tokens = 131072
 # alike. It is independent of ds4, which is what the secondary slot needs, but
 # it does NOT diversify away from Qwen. Three of four local backends now share
 # that ancestry.
+# OpenCode reaches llama-server directly on :8020 (OpenAI protocol); the shim
+# on :11500 exists for Codex/Anthropic and is not in this path. Provider
+# "llamacpp" added to ~/.config/opencode/opencode.json. Sampler recorded from
+# /props at run time: temp 1.0, top_p 0.95, top_k 20, min_p 0.0, rp 1.0 (#36).
+opencode_model = "llamacpp/qwen3.8-flash-next-q3"
+
 [backend.ornith15]
 description = "Ornith-1.5-35B-A3B, Q4_K_M, via Ollama"
 base_url = "http://127.0.0.1:11434"
