@@ -4,6 +4,7 @@ It is a binary parser whose output gets quoted in conclusions -- #33 turns on
 `split.count` and `split.tensors.count` differing between two builds. A
 misparse would be invisible and would read as a finding about the model.
 """
+
 from __future__ import annotations
 
 import pathlib
@@ -37,10 +38,16 @@ def sample(tmp_path: pathlib.Path) -> pathlib.Path:
         ("split.tensors.count", 10, struct.pack("<Q", 1224)),
         ("qwen4exp.ple.heads_per_ngram", 4, struct.pack("<I", 8)),
         # A short array is kept whole; a long one is summarised.
-        ("qwen4exp.ple.head_offsets", 9,
-         struct.pack("<IQ", 10, 3) + struct.pack("<3Q", 0, 20000003, 40000026)),
-        ("tokenizer.ggml.tokens", 9,
-         struct.pack("<IQ", 8, 6) + b"".join(_string(t) for t in "abcdef")),
+        (
+            "qwen4exp.ple.head_offsets",
+            9,
+            struct.pack("<IQ", 10, 3) + struct.pack("<3Q", 0, 20000003, 40000026),
+        ),
+        (
+            "tokenizer.ggml.tokens",
+            9,
+            struct.pack("<IQ", 8, 6) + b"".join(_string(t) for t in "abcdef"),
+        ),
     ]
     p = tmp_path / "m.gguf"
     p.write_bytes(_build(pairs))
@@ -49,7 +56,7 @@ def sample(tmp_path: pathlib.Path) -> pathlib.Path:
 
 def test_scalars_of_different_widths_are_read_correctly(sample):
     got = gguf_meta.read(sample)
-    assert got["split.count"] == 33            # uint32
+    assert got["split.count"] == 33  # uint32
     assert got["split.tensors.count"] == 1224  # uint64
     assert got["qwen4exp.ple.heads_per_ngram"] == 8
 
@@ -60,7 +67,11 @@ def test_strings_are_decoded(sample):
 
 def test_a_short_numeric_array_is_kept_whole(sample):
     """head_offsets is compared between builds; summarising it would hide a diff."""
-    assert gguf_meta.read(sample)["qwen4exp.ple.head_offsets"] == [0, 20000003, 40000026]
+    assert gguf_meta.read(sample)["qwen4exp.ple.head_offsets"] == [
+        0,
+        20000003,
+        40000026,
+    ]
 
 
 def test_a_long_string_array_is_summarised_not_expanded(sample):

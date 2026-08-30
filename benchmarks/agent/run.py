@@ -23,11 +23,13 @@ recover the original body from history nor reach the operator's checkout.
 
 Results append to results.jsonl. Nothing is overwritten, so runs accumulate.
 """
+
 import argparse
 import json
 import logging
 import os
 import pathlib
+import re
 import shutil
 import subprocess
 import time
@@ -61,8 +63,13 @@ def run(cmd, cwd, env=None, timeout=None):
     # found. Any agent client may do the same; none of them should be waiting
     # on input here.
     return subprocess.run(
-        cmd, cwd=cwd, env=env, timeout=timeout,
-        stdin=subprocess.DEVNULL, capture_output=True, text=True,
+        cmd,
+        cwd=cwd,
+        env=env,
+        timeout=timeout,
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
     )
 
 
@@ -99,8 +106,9 @@ def task_target(cfg, task):
     return {
         "repo": task.get("repo", cfg["repo"]),
         "base_commit": task.get("base_commit", cfg["base_commit"]),
-        "test_command": task.get("test_command",
-                                 cfg.get("test_command", "uv run pytest -q")),
+        "test_command": task.get(
+            "test_command", cfg.get("test_command", "uv run pytest -q")
+        ),
     }
 
 
@@ -156,8 +164,7 @@ def parse_ollama_show(show):
             sampling[parts[1]] = parts[2]
     return {
         "sampling": sampling,
-        "sampling_source": "modelfile" if sampling
-                           else "engine defaults (unrecorded)",
+        "sampling_source": "modelfile" if sampling else "engine defaults (unrecorded)",
     }
 
 
@@ -168,13 +175,21 @@ def probe_ollama(backend):
         return {}
     body = json.dumps({"model": backend["model"]}).encode()
     request = urllib.request.Request(
-        url.rstrip("/") + "/api/show", body,
-        {"Content-Type": "application/json"}, method="POST")
+        url.rstrip("/") + "/api/show",
+        body,
+        {"Content-Type": "application/json"},
+        method="POST",
+    )
     try:
         with urllib.request.urlopen(request, timeout=10) as fh:
             return parse_ollama_show(json.load(fh))
-    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError,
-            OSError, KeyError) as exc:
+    except (
+        urllib.error.URLError,
+        TimeoutError,
+        json.JSONDecodeError,
+        OSError,
+        KeyError,
+    ) as exc:
         logger.debug("no /api/show from %s: %s", url, exc)
         return {}
 
@@ -196,8 +211,15 @@ def parse_ds4_models(models):
     explicit unknown is a warning where silence is not.
     """
     data = (models or {}).get("data") or []
-    entry = next((d for d in data if "ds4" in str(d.get("id", ""))
-                  or "deepseek" in str(d.get("id", "")).lower()), None)
+    entry = next(
+        (
+            d
+            for d in data
+            if "ds4" in str(d.get("id", ""))
+            or "deepseek" in str(d.get("id", "")).lower()
+        ),
+        None,
+    )
     if entry is None:
         return {}
     got = {"sampling": {}, "sampling_source": DS4_SAMPLER_NOTE}
@@ -215,12 +237,12 @@ def probe_ds4(backend):
         return {}
     request = urllib.request.Request(
         url.rstrip("/") + "/v1/models",
-        headers={"Authorization": f"Bearer {backend.get('auth_token', '')}"})
+        headers={"Authorization": f"Bearer {backend.get('auth_token', '')}"},
+    )
     try:
         with urllib.request.urlopen(request, timeout=10) as fh:
             return parse_ds4_models(json.load(fh))
-    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError,
-            OSError) as exc:
+    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError) as exc:
         logger.debug("no /v1/models from %s: %s", url, exc)
         return {}
 
@@ -258,9 +280,11 @@ def probe_server(backend):
         if props.get(key) is not None:
             got[key] = props[key]
     params = (props.get("default_generation_settings") or {}).get("params") or {}
-    sampling = {k: params[k] for k in
-                ("temperature", "top_p", "top_k", "min_p", "seed", "samplers")
-                if k in params}
+    sampling = {
+        k: params[k]
+        for k in ("temperature", "top_p", "top_k", "min_p", "seed", "samplers")
+        if k in params
+    }
     if sampling:
         got["sampling"] = sampling
     return got
@@ -274,6 +298,7 @@ def capture_versions(cfg, backends):
     model that has since been re-pushed under the same tag. Prose in a report
     drifts away from the data; this travels with it.
     """
+
     def out(cmd):
         try:
             r = run(cmd, cwd=None, timeout=30)
@@ -316,7 +341,8 @@ def capture_versions(cfg, backends):
         if server.exists():
             # The binary may predate HEAD. Record when it was actually built.
             env["ds4_server_mtime"] = time.strftime(
-                "%Y-%m-%dT%H:%M:%S", time.localtime(server.stat().st_mtime))
+                "%Y-%m-%dT%H:%M:%S", time.localtime(server.stat().st_mtime)
+            )
 
     # llama.cpp is a source build off a pull request, not a released tag, so
     # "llama.cpp" alone would not identify it. Pin the commit the way ds4_head
@@ -324,10 +350,13 @@ def capture_versions(cfg, backends):
     # run is not free -- so the file's name, size and mtime stand in for one.
     # :11500 is the shim that fronts :8020 for Claude Code; either port means
     # this stack is in the run.
-    if any((b.get("base_url") or "").endswith((":8020", ":11500"))
-           for b in backends.values()):
+    if any(
+        (b.get("base_url") or "").endswith((":8020", ":11500"))
+        for b in backends.values()
+    ):
         lcpp = pathlib.Path(
-            os.environ.get("LLAMACPP_ROOT", "~/git/llama.cpp")).expanduser()
+            os.environ.get("LLAMACPP_ROOT", "~/git/llama.cpp")
+        ).expanduser()
         if (lcpp / ".git").exists():
             try:
                 env["llamacpp_head"] = git(["rev-parse", "--short", "HEAD"], lcpp)
@@ -337,7 +366,8 @@ def capture_versions(cfg, backends):
         server = lcpp / "build" / "bin" / "llama-server"
         if server.exists():
             env["llamacpp_server_mtime"] = time.strftime(
-                "%Y-%m-%dT%H:%M:%S", time.localtime(server.stat().st_mtime))
+                "%Y-%m-%dT%H:%M:%S", time.localtime(server.stat().st_mtime)
+            )
     # Which GGUF is in service comes from the server itself, below. An earlier
     # revision globbed `GGUF_ROOT/*/*.gguf`, which spans every quant sitting in
     # that directory: rows recorded during the Q3 runs list the Q2 shards too,
@@ -346,8 +376,10 @@ def capture_versions(cfg, backends):
 
     # One probe per backend, keyed by name, because a run can span several and
     # each row records which one it used.
-    servers = {name: (probe_server(b) or probe_ollama(b) or probe_ds4(b))
-               for name, b in backends.items()}
+    servers = {
+        name: (probe_server(b) or probe_ollama(b) or probe_ds4(b))
+        for name, b in backends.items()
+    }
     servers = {k: v for k, v in servers.items() if v}
     if servers:
         env["servers"] = servers
@@ -397,9 +429,17 @@ def agent_env(backend):
 # across clients. Token and turn counts come from each client's own accounting
 # and are recorded, not equated: see RESULTS.md.
 
+
 def claude_argv(task, backend):
-    argv = ["claude", "-p", task["prompt"], "--output-format", "json",
-            "--permission-mode", "bypassPermissions"]
+    argv = [
+        "claude",
+        "-p",
+        task["prompt"],
+        "--output-format",
+        "json",
+        "--permission-mode",
+        "bypassPermissions",
+    ]
     # Reasoning effort is a client-side setting, not a server one: it belongs
     # on the command line rather than in the environment. Local backends leave
     # it unset and take the model's own default.
@@ -425,9 +465,18 @@ def opencode_argv(task, backend):
     model = backend.get("opencode_model")
     if not model:
         raise SystemExit(
-            f"backend {backend['model']!r} has no opencode_model in tasks.toml")
-    return ["opencode", "run", "--model", model, "--format", "json",
-            "--auto", task["prompt"]]
+            f"backend {backend['model']!r} has no opencode_model in tasks.toml"
+        )
+    return [
+        "opencode",
+        "run",
+        "--model",
+        model,
+        "--format",
+        "json",
+        "--auto",
+        task["prompt"],
+    ]
 
 
 def opencode_parse(stdout):
@@ -478,13 +527,22 @@ def codex_argv(task, backend):
     profile = backend.get("codex_profile")
     if not profile:
         raise SystemExit(
-            f"backend {backend['model']!r} has no codex_profile in tasks.toml")
+            f"backend {backend['model']!r} has no codex_profile in tasks.toml"
+        )
     # `--ephemeral` keeps session rollout files off disk, which matters when a
     # matrix writes hundreds of them. `workspace-write` is the least permission
     # that lets the agent edit the checkout it was given.
-    return ["codex", "exec", "--profile", profile, "--json",
-            "--sandbox", "workspace-write", "--ephemeral",
-            task["prompt"]]
+    return [
+        "codex",
+        "exec",
+        "--profile",
+        profile,
+        "--json",
+        "--sandbox",
+        "workspace-write",
+        "--ephemeral",
+        task["prompt"],
+    ]
 
 
 def codex_parse(stdout):
@@ -562,7 +620,7 @@ def source_repo_intact(repo, commit):
         head = git(["rev-parse", "--short", "HEAD"], repo)
     except RuntimeError:
         return False
-    return not dirty and head.startswith(commit[:len(head)][:7])
+    return not dirty and head.startswith(commit[: len(head)][:7])
 
 
 def build_checkout(repo, commit, dest):
@@ -584,10 +642,51 @@ def build_checkout(repo, commit, dest):
     because this checkout has no history that ever contained it.
     """
     dest.mkdir(parents=True, exist_ok=True)
-    archive = subprocess.run(["git", "archive", "--format=tar", commit],
-                             cwd=repo, capture_output=True, check=True)
-    subprocess.run(["tar", "-x", "-C", str(dest)],
-                   input=archive.stdout, check=True)
+    archive = subprocess.run(
+        ["git", "archive", "--format=tar", commit],
+        cwd=repo,
+        capture_output=True,
+        check=True,
+    )
+    subprocess.run(["tar", "-x", "-C", str(dest)], input=archive.stdout, check=True)
+
+
+def paths_outside(stdout, worktree):
+    """Absolute paths the client touched that are not inside the trial checkout.
+
+    #54: OpenCode was observed grepping, reading and running pytest in the
+    operator's REAL repository -- which is not excised, so its tests pass and
+    the agent correctly concludes there is nothing to do. It then writes
+    nothing, and the row looks like a model failure: patch absent, no error,
+    and the control's exact test counts.
+
+    The trial checkout is not the problem. run.py exports with `git archive`,
+    so the files arrive with no `.git`, and OpenCode respects cwd when run in
+    an isolated directory. The model appears to guess a plausible absolute path
+    -- `~/git/gmail-archive` is exactly what a prompt naming
+    `src/gmail_archive/parser.py` suggests -- and the client executes there
+    without confining tools to the workspace.
+
+    Reads cannot be prevented from here, but they can be *recorded*, so a row
+    that measured the wrong tree is never mistaken for a model verdict.
+    Returns the distinct offending prefixes, most-mentioned first.
+    """
+    home = str(pathlib.Path.home())
+    inside = str(pathlib.Path(worktree).resolve())
+    seen: dict[str, int] = {}
+    # Match the whole path so the noise filter can see all of it, then report
+    # only the two leading segments -- the tree, not every file inside it.
+    for match in re.finditer(rf"{re.escape(home)}(?:/[A-Za-z0-9_.-]+)+", stdout or ""):
+        full = match.group(0)
+        if full.startswith(inside):
+            continue
+        # Every `uv run` prints its venv and cache; those are not escapes.
+        if "/.cache/" in full or "/.venv" in full or "/Library/" in full:
+            continue
+        parts = full[len(home) + 1 :].split("/")[:2]
+        tree = f"{home}/" + "/".join(parts)
+        seen[tree] = seen.get(tree, 0) + 1
+    return sorted(seen, key=lambda k: -seen[k])
 
 
 def save_transcript(client_log, name, stdout, stderr, result, partial=False):
@@ -609,6 +708,12 @@ def save_transcript(client_log, name, stdout, stderr, result, partial=False):
         (client_log / f"{name}.stderr{suffix}.log").write_text(stderr)
     result["client_log"] = str(out)
     result["client_log_partial"] = partial
+    # #54: record when the agent worked outside the trial checkout. A row that
+    # measured the wrong tree is not a model verdict and must not be counted
+    # as one.
+    escaped = paths_outside(stdout, result.get("_worktree", ""))
+    if escaped:
+        result["workspace_escapes"] = escaped
 
 
 def targets(task):
@@ -632,9 +737,21 @@ def targets(task):
     return [{"file": task["file"], "symbol": task["symbol"]}]
 
 
-def one_trial(cfg, task, backend_name, backend, trial, workdir, timeout, dry_run,
-              versions=None, client="claude", client_log=None, solutions=None,
-              gates=True):
+def one_trial(
+    cfg,
+    task,
+    backend_name,
+    backend,
+    trial,
+    workdir,
+    timeout,
+    dry_run,
+    versions=None,
+    client="claude",
+    client_log=None,
+    solutions=None,
+    gates=True,
+):
     target = task_target(cfg, task)
     repo = pathlib.Path(target["repo"]).expanduser()
     suffix = "" if client == "claude" else f"-{client}"
@@ -644,9 +761,14 @@ def one_trial(cfg, task, backend_name, backend, trial, workdir, timeout, dry_run
     # version and sets both exclusion keys explicitly -- see results.py for why
     # "absent" must never be allowed to mean "not excluded".
     result = results.new_row(
-        task=task["name"], backend=backend_name, client=client, trial=trial,
-        model=backend["model"], context_tokens=backend["context_tokens"],
-        effort=backend.get("effort"), env=versions or {},
+        task=task["name"],
+        backend=backend_name,
+        client=client,
+        trial=trial,
+        model=backend["model"],
+        context_tokens=backend["context_tokens"],
+        effort=backend.get("effort"),
+        env=versions or {},
     )
 
     # A previous run killed mid-flight leaves its directory behind. Clear it so
@@ -666,20 +788,30 @@ def one_trial(cfg, task, backend_name, backend, trial, workdir, timeout, dry_run
         excised = []
         for t in targets(task):
             path = worktree / t["file"]
-            body = exciser_for(t["file"])(path, t["symbol"],
-                                          keep_docstring=keep_doc)
+            body = exciser_for(t["file"])(path, t["symbol"], keep_docstring=keep_doc)
             excised.append((path, t["symbol"], body))
         result["removed_lines"] = sum(len(b.splitlines()) for _, _, b in excised)
         result["removed_symbols"] = [t["symbol"] for t in targets(task)]
         git(["init", "-q", "-b", "main"], worktree)
         git(["add", "-A"], worktree)
-        git(["-c", "user.email=bench@local", "-c", "user.name=bench",
-             "commit", "-q", "-m",
-             f"benchmark: {', '.join(result['removed_symbols'])} removed"], worktree)
+        git(
+            [
+                "-c",
+                "user.email=bench@local",
+                "-c",
+                "user.name=bench",
+                "commit",
+                "-q",
+                "-m",
+                f"benchmark: {', '.join(result['removed_symbols'])} removed",
+            ],
+            worktree,
+        )
 
         # 2. Control: the tests must fail now, or the task proves nothing.
-        ok, summary = tests_pass(worktree, task["tests"], timeout,
-                                 target["test_command"])
+        ok, summary = tests_pass(
+            worktree, task["tests"], timeout, target["test_command"]
+        )
         result["control_fails_as_expected"] = not ok
         # Baseline the quality gates here, on the excised tree. gmail-archive
         # carries 18 mypy errors of its own, so only a delta against this state
@@ -698,8 +830,12 @@ def one_trial(cfg, task, backend_name, backend, trial, workdir, timeout, dry_run
         # 3. Hand it to the agent.
         build_argv, parse = CLIENTS[client]
         t0 = time.monotonic()
-        proc = run(build_argv(task, backend),
-                   cwd=worktree, env=agent_env(backend), timeout=timeout)
+        proc = run(
+            build_argv(task, backend),
+            cwd=worktree,
+            env=agent_env(backend),
+            timeout=timeout,
+        )
         result["wall_seconds"] = round(time.monotonic() - t0, 1)
         # A failed row records that the agent did not fix the code, never why.
         # --client-log keeps the client's own event stream so the next failure
@@ -714,8 +850,9 @@ def one_trial(cfg, task, backend_name, backend, trial, workdir, timeout, dry_run
             result["stderr_tail"] = proc.stderr[-400:]
 
         # 4. The oracle.
-        passed, summary = tests_pass(worktree, task["tests"], timeout,
-                                     target["test_command"])
+        passed, summary = tests_pass(
+            worktree, task["tests"], timeout, target["test_command"]
+        )
         result["passed"] = passed
         result["pytest"] = summary
         # Guard against the obvious cheat.
@@ -735,14 +872,19 @@ def one_trial(cfg, task, backend_name, backend, trial, workdir, timeout, dry_run
         # any of them is unreadable. A partial match is not recall.
         result["restored_verbatim"] = grade.all_restored_verbatim(excised, keep_doc)
         result["target_repo"] = target["repo"]
-        result["source_repo_intact"] = source_repo_intact(repo,
-                                                          target["base_commit"])
+        result["source_repo_intact"] = source_repo_intact(repo, target["base_commit"])
         if not result["source_repo_intact"]:
             logger.error("%s: SOURCE REPO WAS MODIFIED -- agent left the sandbox", name)
-        logger.info("%s: %s in %ss (%s)", name,
-                    "PASS" if passed else "FAIL", result.get("wall_seconds"), summary)
+        logger.info(
+            "%s: %s in %ss (%s)",
+            name,
+            "PASS" if passed else "FAIL",
+            result.get("wall_seconds"),
+            summary,
+        )
     except subprocess.TimeoutExpired as exc:
         result["error"] = "timeout"
+
         # The killed process still has whatever it emitted before the deadline,
         # and a timeout is the row you most want to read: it records only that
         # the agent ran out of clock, never what it was doing with it. Decode
@@ -752,8 +894,10 @@ def one_trial(cfg, task, backend_name, backend, trial, workdir, timeout, dry_run
             if v is None:
                 return ""
             return v if isinstance(v, str) else v.decode("utf-8", "replace")
-        save_transcript(client_log, name, _text(exc.stdout), _text(exc.stderr),
-                        result, partial=True)
+
+        save_transcript(
+            client_log, name, _text(exc.stdout), _text(exc.stderr), result, partial=True
+        )
         logger.error("%s: timed out after %ss", name, timeout)
     finally:
         # Before the tree goes. In `finally` on purpose: a timed-out trial has
@@ -771,45 +915,69 @@ def main():
     p.add_argument("--backend", action="append", help="repeatable; default all")
     p.add_argument("--task", action="append", help="repeatable; default all")
     p.add_argument("--timeout", type=int, default=1800, help="seconds per step")
-    p.add_argument("--dry-run", action="store_true",
-                   help="verify each task's control failure, run no agent")
+    p.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="verify each task's control failure, run no agent",
+    )
     p.add_argument("--tasks-file", default=str(HERE / "tasks.toml"))
     # On by default: a results row records THAT a trial failed, never why.
     # Only 138 of the first 439 rows had a transcript and most of those files
     # are already gone, so the interesting failures were unreconstructable.
-    p.add_argument("--client-log", metavar="DIR", default=DEFAULT_CLIENT_LOG,
-                   help="keep each trial's raw client event stream in DIR "
-                        f"(default: {DEFAULT_CLIENT_LOG}). Transcripts include "
-                        "file contents the agent read, so this points outside "
-                        "the repo and is never committed.")
-    p.add_argument("--no-client-log", action="store_true",
-                   help="disable transcript capture entirely.")
+    p.add_argument(
+        "--client-log",
+        metavar="DIR",
+        default=DEFAULT_CLIENT_LOG,
+        help="keep each trial's raw client event stream in DIR "
+        f"(default: {DEFAULT_CLIENT_LOG}). Transcripts include "
+        "file contents the agent read, so this points outside "
+        "the repo and is never committed.",
+    )
+    p.add_argument(
+        "--no-client-log",
+        action="store_true",
+        help="disable transcript capture entirely.",
+    )
     # The worktree used to be deleted with the solution still in it, so no
     # trial before 2026-08-28 has one. That is why #4 could never ask which
     # model writes better code -- the evidence was thrown away 398 times.
-    p.add_argument("--solutions", metavar="DIR", default=DEFAULT_SOLUTIONS,
-                   help="keep each trial's diff in DIR "
-                        f"(default: {DEFAULT_SOLUTIONS}). Patches carry "
-                        "repository content, so this points outside the repo "
-                        "and is never committed.")
-    p.add_argument("--no-solutions", action="store_true",
-                   help="disable solution capture entirely.")
-    p.add_argument("--no-gates", action="store_true",
-                   help="skip ruff and mypy. They are measurements only and "
-                        "never change a verdict, but they cost a few seconds "
-                        "per trial.")
-    p.add_argument("--client", action="append", choices=sorted(CLIENTS),
-                   help="repeatable; default claude. Multiple clients are "
-                        "interleaved per task so neither gets a systematically "
-                        "warmer or colder server than the other.")
+    p.add_argument(
+        "--solutions",
+        metavar="DIR",
+        default=DEFAULT_SOLUTIONS,
+        help="keep each trial's diff in DIR "
+        f"(default: {DEFAULT_SOLUTIONS}). Patches carry "
+        "repository content, so this points outside the repo "
+        "and is never committed.",
+    )
+    p.add_argument(
+        "--no-solutions", action="store_true", help="disable solution capture entirely."
+    )
+    p.add_argument(
+        "--no-gates",
+        action="store_true",
+        help="skip ruff and mypy. They are measurements only and "
+        "never change a verdict, but they cost a few seconds "
+        "per trial.",
+    )
+    p.add_argument(
+        "--client",
+        action="append",
+        choices=sorted(CLIENTS),
+        help="repeatable; default claude. Multiple clients are "
+        "interleaved per task so neither gets a systematically "
+        "warmer or colder server than the other.",
+    )
     args = p.parse_args()
 
-    logging.basicConfig(level=logging.INFO,
-                        format="%(asctime)s %(levelname)s %(message)s")
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s"
+    )
     cfg = tomllib.loads(pathlib.Path(args.tasks_file).read_text())
     tasks = [t for t in cfg["task"] if not args.task or t["name"] in args.task]
-    backends = {k: v for k, v in cfg["backend"].items()
-                if not args.backend or k in args.backend}
+    backends = {
+        k: v for k, v in cfg["backend"].items() if not args.backend or k in args.backend
+    }
     if not tasks or not backends:
         raise SystemExit("no tasks or no backends selected")
 
@@ -832,12 +1000,14 @@ def main():
             raise SystemExit(
                 f"reference repo {repo} is dirty -- refusing to run.\n{dirty_t}\n"
                 "Commit, stash or discard these changes first. A benchmark that "
-                "starts from an unknown state measures nothing.")
-        if run(["git", "cat-file", "-e", f"{commit}^{{commit}}"],
-               cwd=repo).returncode != 0:
+                "starts from an unknown state measures nothing."
+            )
+        if (
+            run(["git", "cat-file", "-e", f"{commit}^{{commit}}"], cwd=repo).returncode
+            != 0
+        ):
             raise SystemExit(f"base_commit {commit} not found in {repo}")
-        logger.info("target ok: %s @ %s via %r", repo, commit,
-                    got["test_command"])
+        logger.info("target ok: %s @ %s via %r", repo, commit, got["test_command"])
 
     repo = pathlib.Path(cfg["repo"]).expanduser()
     dirty = run(["git", "status", "--porcelain"], cwd=repo).stdout.strip()
@@ -846,21 +1016,25 @@ def main():
             f"reference repo {repo} is dirty -- refusing to run.\n"
             f"{dirty}\n"
             "Commit, stash or discard these changes first. A benchmark that "
-            "starts from an unknown state measures nothing.")
-    if run(["git", "cat-file", "-e", f"{cfg['base_commit']}^{{commit}}"],
-           cwd=repo).returncode != 0:
-        raise SystemExit(
-            f"base_commit {cfg['base_commit']} not found in {repo}")
+            "starts from an unknown state measures nothing."
+        )
+    if (
+        run(
+            ["git", "cat-file", "-e", f"{cfg['base_commit']}^{{commit}}"], cwd=repo
+        ).returncode
+        != 0
+    ):
+        raise SystemExit(f"base_commit {cfg['base_commit']} not found in {repo}")
     logger.info("reference repo clean, base_commit %s present", cfg["base_commit"])
 
     workdir = pathlib.Path(os.environ.get("TMPDIR", "/tmp")) / "agent-bench"
     workdir.mkdir(parents=True, exist_ok=True)
 
     clients = args.client or ["claude"]
-    client_log = (None if args.no_client_log
-                  else pathlib.Path(args.client_log).expanduser())
-    solutions = (None if args.no_solutions
-                 else pathlib.Path(args.solutions).expanduser())
+    client_log = (
+        None if args.no_client_log else pathlib.Path(args.client_log).expanduser()
+    )
+    solutions = None if args.no_solutions else pathlib.Path(args.solutions).expanduser()
 
     # What else is on this machine, and what is it holding? A server left up
     # from an earlier session contends for memory and bandwidth for the whole
@@ -870,8 +1044,13 @@ def main():
 
     versions = capture_versions(cfg, backends)
     versions["client"] = ",".join(clients)
-    logger.info("%d task(s) x %d backend(s) x %d client(s) x %d trial(s)",
-                len(tasks), len(backends), len(clients), args.trials)
+    logger.info(
+        "%d task(s) x %d backend(s) x %d client(s) x %d trial(s)",
+        len(tasks),
+        len(backends),
+        len(clients),
+        args.trials,
+    )
     logger.info("stack: %s", ", ".join(f"{k}={v}" for k, v in sorted(versions.items())))
     for trial in range(1, args.trials + 1):
         for task in tasks:
@@ -880,10 +1059,21 @@ def main():
                 # so server state drifts across the pair rather than between
                 # two runs hours apart.
                 for client in clients:
-                    r = one_trial(cfg, task, bname, backend, trial,
-                                  workdir, args.timeout, args.dry_run, versions,
-                                  client=client, client_log=client_log,
-                                  solutions=solutions, gates=not args.no_gates)
+                    r = one_trial(
+                        cfg,
+                        task,
+                        bname,
+                        backend,
+                        trial,
+                        workdir,
+                        args.timeout,
+                        args.dry_run,
+                        versions,
+                        client=client,
+                        client_log=client_log,
+                        solutions=solutions,
+                        gates=not args.no_gates,
+                    )
                     # Inside the client loop. Outside it, only the last
                     # client's row survives and half the run vanishes.
                     # write_row validates, stamps schema_valid/schema_errors

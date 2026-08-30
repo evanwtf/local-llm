@@ -26,6 +26,7 @@ reports the speed of memory.
 Do NOT run this while a benchmark batch is in flight. It saturates the disk, and
 disk contention during a timing run is how an hour was lost on 2026-08-27.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -69,7 +70,7 @@ def make_file(path: pathlib.Path, size_gib: float) -> None:
         return
     logger.info("writing %.1f GiB to %s", size_gib, path)
     t_write = time.monotonic()
-    chunk = os.urandom(4 * 1024 * 1024)      # random: no filesystem compression
+    chunk = os.urandom(4 * 1024 * 1024)  # random: no filesystem compression
     written = 0
     target = int(size_gib * BYTES_PER_GIB)
     fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC)
@@ -80,9 +81,12 @@ def make_file(path: pathlib.Path, size_gib: float) -> None:
         os.fsync(fd)
     finally:
         os.close(fd)
-    logger.info("wrote %.1f GiB in %.1f s (%.2f GiB/s)", written / BYTES_PER_GIB,
-                time.monotonic() - t_write,
-                (written / BYTES_PER_GIB) / (time.monotonic() - t_write))
+    logger.info(
+        "wrote %.1f GiB in %.1f s (%.2f GiB/s)",
+        written / BYTES_PER_GIB,
+        time.monotonic() - t_write,
+        (written / BYTES_PER_GIB) / (time.monotonic() - t_write),
+    )
 
 
 def sequential_read(path: pathlib.Path, block: int = 4 * 1024 * 1024) -> float:
@@ -105,8 +109,9 @@ def sequential_read(path: pathlib.Path, block: int = 4 * 1024 * 1024) -> float:
     return (read / BYTES_PER_GIB) / elapsed
 
 
-def random_read(path: pathlib.Path, block: int, count: int,
-                seed: int = 20260828) -> dict[str, float]:
+def random_read(
+    path: pathlib.Path, block: int, count: int, seed: int = 20260828
+) -> dict[str, float]:
     """`count` random reads of `block` bytes. Returns latency stats and IOPS.
 
     **Offsets are aligned to `BLOCK_ALIGN`.** F_NOCACHE only bypasses the buffer
@@ -131,7 +136,7 @@ def random_read(path: pathlib.Path, block: int, count: int,
         for off in offsets:
             start = time.perf_counter()
             os.pread(fd, block, off)
-            latencies.append((time.perf_counter() - start) * 1e6)   # microseconds
+            latencies.append((time.perf_counter() - start) * 1e6)  # microseconds
         wall = time.monotonic() - t0
     finally:
         os.close(fd)
@@ -153,28 +158,42 @@ def main(argv: list[str] | None = None) -> int:
     # `purge` would fix it in one line and needs sudo, which an unattended run
     # does not have. Outrunning the cache needs no privileges.
     p.add_argument("--size-gib", type=float, default=160.0)
-    p.add_argument("--count", type=int, default=20000,
-                   help="random reads per block size")
-    p.add_argument("--path", default=None,
-                   help="test file location; default is a temp file beside $TMPDIR")
+    p.add_argument(
+        "--count", type=int, default=20000, help="random reads per block size"
+    )
+    p.add_argument(
+        "--path",
+        default=None,
+        help="test file location; default is a temp file beside $TMPDIR",
+    )
     p.add_argument("--keep", action="store_true", help="do not delete the test file")
     args = p.parse_args(argv)
 
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout,
-                        format="%(asctime)s %(levelname)s %(message)s")
-    path = pathlib.Path(args.path or (os.environ.get("TMPDIR", "/tmp") + "/nvme-baseline.bin"))
+    logging.basicConfig(
+        level=logging.INFO,
+        stream=sys.stdout,
+        format="%(asctime)s %(levelname)s %(message)s",
+    )
+    path = pathlib.Path(
+        args.path or (os.environ.get("TMPDIR", "/tmp") + "/nvme-baseline.bin")
+    )
 
     free = os.statvfs(path.parent)
     free_gib = free.f_bavail * free.f_frsize / BYTES_PER_GIB
     if free_gib < args.size_gib * 1.2:
-        raise SystemExit(f"only {free_gib:.1f} GiB free at {path.parent}; need "
-                         f"~{args.size_gib * 1.2:.1f} GiB")
+        raise SystemExit(
+            f"only {free_gib:.1f} GiB free at {path.parent}; need "
+            f"~{args.size_gib * 1.2:.1f} GiB"
+        )
 
     physical = os.sysconf("SC_PHYS_PAGES") * os.sysconf("SC_PAGE_SIZE") / BYTES_PER_GIB
     if args.size_gib < physical:
         logger.warning(
             "test file is %.0f GiB against %.0f GiB of RAM -- it may stay resident "
-            "and the medians will describe the cache", args.size_gib, physical)
+            "and the medians will describe the cache",
+            args.size_gib,
+            physical,
+        )
 
     try:
         make_file(path, args.size_gib)
@@ -184,20 +203,31 @@ def main(argv: list[str] | None = None) -> int:
         # 4 KiB is the floor. A 100-byte PLE lookup cannot cost less than one
         # block, so "128 B" is not a separate measurement -- it is this one.
         suspect = False
-        for block, label in ((1024 * 1024, "1 MiB"), (65536, "64 KiB"), (4096, "4 KiB")):
+        for block, label in (
+            (1024 * 1024, "1 MiB"),
+            (65536, "64 KiB"),
+            (4096, "4 KiB"),
+        ):
             n = args.count if block <= 65536 else max(1000, args.count // 10)
             got = random_read(path, block, n)
             logger.info(
                 "random %-6s x%-6d  median %8.1f us  p99 %8.1f us  "
                 "%9.0f IOPS  %6.2f GiB/s",
-                label, n, got["median_us"], got["p99_us"], got["iops"], got["gib_s"])
+                label,
+                n,
+                got["median_us"],
+                got["p99_us"],
+                got["iops"],
+                got["gib_s"],
+            )
             suspect |= got["median_us"] < IMPLAUSIBLE_US
         if suspect or seq > 20.0:
             logger.error(
                 "these numbers describe the buffer cache, not the device: a "
                 "median under %.0f us or a sequential rate over 20 GiB/s is RAM. "
                 "The run is void -- check F_NOCACHE and offset alignment.",
-                IMPLAUSIBLE_US)
+                IMPLAUSIBLE_US,
+            )
             return 1
     finally:
         if not args.keep and path.exists():

@@ -8,6 +8,7 @@ download or a load.
 
     uv run python scripts/gguf_meta.py <file.gguf> [--filter ple]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -20,12 +21,24 @@ logger = logging.getLogger(__name__)
 
 # GGUF value type ids -> struct format. Type 8 is a string and 9 an array;
 # both are length-prefixed and handled separately.
-SCALAR = {0: "<B", 1: "<b", 2: "<H", 3: "<h", 4: "<I", 5: "<i",
-          6: "<f", 7: "<?", 10: "<Q", 11: "<q", 12: "<d"}
+SCALAR = {
+    0: "<B",
+    1: "<b",
+    2: "<H",
+    3: "<h",
+    4: "<I",
+    5: "<i",
+    6: "<f",
+    7: "<?",
+    10: "<Q",
+    11: "<q",
+    12: "<d",
+}
 
 
-def read(path: pathlib.Path, with_tensors: bool = False
-         ) -> dict[str, object] | tuple[dict[str, object], list[tuple[str, list[int], int]]]:
+def read(
+    path: pathlib.Path, with_tensors: bool = False
+) -> dict[str, object] | tuple[dict[str, object], list[tuple[str, list[int], int]]]:
     """Parse the header. Arrays are summarised, not expanded.
 
     `with_tensors` also returns the tensor table as (name, dims, type). Tensor
@@ -64,8 +77,9 @@ def read(path: pathlib.Path, with_tensors: bool = False
                 else:
                     raise ValueError(f"unsupported array element type {elem}")
             elif kind in SCALAR:
-                out[key] = struct.unpack(SCALAR[kind],
-                                         fh.read(struct.calcsize(SCALAR[kind])))[0]
+                out[key] = struct.unpack(
+                    SCALAR[kind], fh.read(struct.calcsize(SCALAR[kind]))
+                )[0]
             else:
                 raise ValueError(f"unsupported value type {kind} for {key!r}")
 
@@ -78,7 +92,7 @@ def read(path: pathlib.Path, with_tensors: bool = False
             n_dims = struct.unpack("<I", fh.read(4))[0]
             dims = list(struct.unpack(f"<{n_dims}Q", fh.read(8 * n_dims)))
             ttype = struct.unpack("<I", fh.read(4))[0]
-            struct.unpack("<Q", fh.read(8))          # offset, unused here
+            struct.unpack("<Q", fh.read(8))  # offset, unused here
             tensors.append((name, dims, ttype))
     return out, tensors
 
@@ -87,8 +101,11 @@ def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("path")
     p.add_argument("--filter", help="only keys containing this substring")
-    p.add_argument("--tensors", action="store_true",
-                   help="list tensor names, dims and types instead of metadata")
+    p.add_argument(
+        "--tensors",
+        action="store_true",
+        help="list tensor names, dims and types instead of metadata",
+    )
     args = p.parse_args(argv)
     logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
     if args.tensors:
