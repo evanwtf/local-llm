@@ -223,6 +223,49 @@ and replaced with NotImplementedError: `BlobStore.put` and \
 `BlobStore.sweep_temporaries`. Implement both so the existing test suite \
 passes. Do not modify any test."""
 
+
+# --- Swift, second set (issue #45) ---------------------------------------
+# #44 produced one failure in 45 trials: `ornith15 x codex` emitted Swift that
+# did not compile, from a run that otherwise looked normal. That pair is also
+# the one that inflated most moving from Python to Swift (2.73x, against 1.19x
+# for `ds4 x claude`). #45 asks whether those two facts are related.
+#
+# These two targets are chosen for *surface*, not for trickiness -- more lines
+# emitted is more chances to emit something unbuildable -- and each leans on a
+# Swift construct with no Python equivalent, so a model transferring Python
+# habits has somewhere to slip.
+
+# `if` as an expression. The body assigns a `let` from a multi-branch `if`,
+# which is a Swift 5.9 construct; the Python habit is a ternary chain or an
+# early return, and both compile to something else here.
+[[task]]
+name = "swift-scaleladder-snap"
+repo = "~/git/monitor"
+base_commit = "cbb85ca"
+test_command = "swift test"
+file = "Sources/MonitorCore/GaugeScale.swift"
+symbol = "ScaleLadder.snap"
+tests = []
+prompt = """`ScaleLadder.snap` in Sources/MonitorCore/GaugeScale.swift has \
+been removed and replaced with a fatalError. Implement it so the existing test \
+suite passes. Do not modify any test."""
+
+# In-place mutation of an array of structs. `Glyph` is a value type, so the
+# body cannot mutate `result.last` -- it has to rebuild the element and assign
+# it back. A model reaching for Python's reference semantics writes something
+# that does not compile rather than something that fails a test.
+[[task]]
+name = "swift-sevensegment-glyphs"
+repo = "~/git/monitor"
+base_commit = "cbb85ca"
+test_command = "swift test"
+file = "Sources/MonitorCore/SevenSegment.swift"
+symbol = "SevenSegment.glyphs"
+tests = []
+prompt = """`SevenSegment.glyphs` in Sources/MonitorCore/SevenSegment.swift \
+has been removed and replaced with a fatalError. Implement it so the existing \
+test suite passes. Do not modify any test."""
+
 # --- backends ------------------------------------------------------------
 # Each backend is the environment Claude Code runs under. Context windows
 # differ on purpose: each model gets its real window, because capping a model
