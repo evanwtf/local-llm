@@ -1,6 +1,6 @@
 # Where to pick up
 
-Updated 2026-08-29 22:00. **#45 ran and did not confirm its own hypothesis.** 8/8 passed on two harder Swift
+Updated 2026-08-29 22:50 after a full issue sweep and upstream check. **#45 ran and did not confirm its own hypothesis.** 8/8 passed on two harder Swift
 tasks, so "verbosity predicts unbuildable code" is still **n=1**. The run's value
 came from its control variable: **the verbosity gap between two pairs widens with
 difficulty** (5.42x -> 8.26x on tokens), so measuring inflation on easy tasks
@@ -98,6 +98,30 @@ harness cannot measure it. **Both outcomes are worth an hour; drifting is not.**
   n=20. New axes, not more samples.
 
 ## Done since the last update
+
+**2026-08-29 22:50. Full sweep of 26 open issues and every tracked upstream.**
+
+- **ds4#892 changes the plan: #39 is unblocked and now first.** GLM-5.3 Flash
+  brought up on an **M5 Max 128 GB** -- this machine -- decode **33.0 -> 40.5
+  t/s** with `--mtp`, 89.6% acceptance. Our note that "no flag reaches a working
+  model" is obsolete.
+- **ds4#893 kills half of #40.** A fixed 110 GiB GLM-5.3 budget stands for
+  128 GiB hosts; our 112.00 GiB wired limit is already above it, so **resident q4
+  is unreachable here** and no sysctl changes that.
+- **Two runbooks contradicted their own tables.** README and RECOMMENDATIONS both
+  still told the reader to start Codex, though the primary pick became
+  `ds4` + Claude Code in #44. Both fixed, with the `ANTHROPIC_API_KEY`
+  precedence trap written down.
+- **#21 closed** (session state, long since landed in the machine-state section
+  below) and **#13 closed** (Ollama 0.33.1 re-baseline, overtaken -- preflight
+  now stamps versions into `env` on every trial, so the series boundary is
+  recorded rather than remembered).
+- **#35 given its admission criteria**, including a fourth the data forced:
+  a candidate is a model x engine x **client** triple, because the same weights
+  under two clients separated 2.14x on Swift.
+- **#14 cross-referenced to ds4#816.** Same failure shape on both engines: a
+  stateless client meeting a server that keys its cache on an exact prefix. Not
+  a llama.cpp quirk.
 
 **2026-08-29 22:00. #45 run: 8 trials, and the finding is not the one it asked for.**
 
