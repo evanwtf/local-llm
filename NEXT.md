@@ -1,21 +1,23 @@
 # Where to pick up
 
-Updated 2026-08-29 16:00. **#44 is the run that matters** -- the Swift repo is
-wired and unmeasured, and #4 said the repository was the limit. Work the issues
-in the order below. Each issue is self-contained; this file only sets priority
-and records machine state that is not in git.
+Updated 2026-08-29 20:55. **#45 is the run that matters.** #44 is done and it
+did not answer #4 the way it was meant to -- Swift did not make the tasks harder
+to pass (44/45). What it did produce is one run that emitted code which **did not
+compile**, a failure mode Python cannot express in this harness. That single row
+is the only unexhausted axis left. Work the issues in the order below. Each issue
+is self-contained; this file only sets priority and records machine state that is
+not in git.
 
 ## Order
 
 | # | issue | why this position |
 |---|---|---|
-| 1 | **#44** Run the top 5 pairs against the Swift repo | **The measurement #42 was built for, and nothing has been run on it.** #4 concluded the *repository* was the limit -- gmail-archive is 1,833 lines with exactly one function carrying defect surface. 11,265 Swift lines in a language these models see less of is the test of that. 45 trials, grouped by server to minimise loads. **The question is not "do they pass" but whether Swift separates backends that the old five tasks could not.** |
-| 2 | **#43** Full documentation pass | README still describes a single-repo Python-only harness; AGENTS.md has grown by accretion; RECOMMENDATIONS carries claims the sampler work (#28, #36) qualified and the GLM ds4 result (#38) never folded in. No machine time. |
+| 1 | **#45** Does verbosity predict unbuildable code? | **The only axis that has not saturated.** Correctness is 44/45 on Swift and near-perfect on Python; #4 established the task set cannot separate models on quality. But `swift test` has a **build step**, and one run failed it -- `ornith15 x codex`, which is also the pair that inflated most moving Python -> Swift (**2.73x**, against 1.19x for `ds4 x claude`). Does writing more, on less familiar ground, predict producing code that will not build? n=1 so far. Two harder Swift tasks added and controls verified; running the two extremes, not the field. |
+| 2 | **#4** A third target repository | #42 answered the immediate need and #45 is mining it. A genuinely third-party repo -- not written by this account -- remains the ideal, and the inflation measurement is the argument for it: it needs a *third* point to know whether 1.19x-2.73x is a property of the pair or of `~/git/monitor`. |
 | 3 | **#39** ds4 embedded MTP | **Blocked in practice.** `--mtp` sets `c.engine.glm_mtp` -- it is GLM-gated -- and GLM is unusable behind ds4#569 and ds4#816. The DeepSeek GGUF *does* carry an MTP head (`deepseek4.nextn_predict_layers = 1`), so the primary could benefit, but no flag reaches it. Worth an upstream question, not a run. |
-| 4 | **#40** GLM-5.3 quant ladder | Depends on #38 being usable. It is not. |
-| 5 | **#4** A third target repository | #42 answered the immediate need. A genuinely third-party repo remains the ideal. |
-| 6 | **#35** Model queue, criteria revised | Needs the second criterion: decodes within ~3x of the primary. |
-| 7 | **#27** Retire the ds4 fork | Blocked: antirez/ds4#885 and #886 both open. |
+| 4 | **#40** GLM-5.3 quant ladder | Depends on #38 being usable. It is not. **And ds4#893 now caps what it could ever show here:** q4 resident is unreachable on a 128 GiB host regardless of the wired limit. |
+| 5 | **#35** Model queue, criteria revised | Needs the second criterion: decodes within ~3x of the primary. |
+| 6 | **#27** Retire the ds4 fork | Blocked: antirez/ds4#885 and #886 both open. |
 
 **Blocked on upstream, do not re-investigate:** GLM-5.3 is unusable on the
 supported stack for two reasons that are already reported --
@@ -26,6 +28,52 @@ never reuse the KV session, costing ~110 s of re-prefill per turn at 40k
 context. Neither is ours to fix.
 
 ## Done since the last update
+
+**2026-08-29 evening. #44, #43, #42 closed; #45 opened and running.**
+
+- **#44 closed: the Swift repo did not raise difficulty, and that is the finding.**
+  45 trials, five pairs, **44/45** -- as saturated on 11,265 Swift lines as on
+  1,833 Python ones. #4's hypothesis is **not supported on correctness.**
+- **It changed the primary recommendation anyway.** On Python, `ds4` under Claude
+  Code and under Codex were indistinguishable (982s vs 975s) and the honest
+  advice was "pick on habit". On Swift they separate **2.14x**. RECOMMENDATIONS
+  now says **`ds4` + Claude Code**, not "either".
+
+  | pair | pass | suite | out_tok | s/1k |
+  |---|---|---|---|---|
+  | **`ds4` x claude** | **9/9** | **522s** | **3,835** | 47.6 |
+  | `ornith15` x codex | 8/9 | 844s | 20,788 | **14.7** |
+  | `qwen38fnq3` x codex | 9/9 | 1,086s | 5,932 | 61.5 |
+  | `ds4anthropic` x codex | 9/9 | 1,115s | 9,082 | 39.6 |
+  | `qwen36coding` x claude | 9/9 | 1,393s | 5,232 | 84.3 |
+
+- **The unexpected number: token inflation on unfamiliar ground varies 2.3x
+  across pairs.** Python -> Swift, same tasks: `ds4 x claude` **1.19x**,
+  `ornith15 x codex` **2.73x**. Since wall time tracks output tokens at r=0.98,
+  *how gracefully a pair degrades off its comfort zone* may predict real use
+  better than a saturated pass rate. **Caveat recorded:** the Swift tasks are not
+  difficulty-matched to the Python ones, so the ordering is sound and the
+  absolute ratios are not.
+- **The single failure is the interesting row, and it is now #45.**
+  `ornith15 x codex` produced Swift that **did not compile**, from a run that
+  looked entirely normal -- 18,694 output tokens, 30 tool calls, clean
+  `turn.completed`, no `agent_error`. **Python cannot produce this failure in
+  this harness:** a syntax error is a pytest collection error, not a separate
+  build step.
+- **#45 opened and running.** Two harder Swift tasks added, each leaning on a
+  construct with no Python equivalent -- `ScaleLadder.snap` (if-as-expression
+  assigned to a `let`) and `SevenSegment.glyphs` (in-place mutation of an array
+  of value types). Controls verified: both stub to `fatalError` and fail the
+  suite before the agent runs. Running the two **extremes** -- 2.73x against
+  1.19x -- not the whole field.
+- **#43 closed:** README, AGENTS.md and RECOMMENDATIONS all updated. Doing it
+  *after* #44 was right -- the docs would otherwise have been accurate and wrong.
+- **#42 closed:** `~/git/monitor` is pinned at `local-llm-benchmark` @ `cbb85ca`,
+  202 hermetic tests, five tasks.
+- **Trap found the hard way:** `swift_excise.excise(path, symbol)` **writes the
+  file** and returns the removed text. Calling it to inspect a span modifies the
+  real working tree. Use `body_source()` to look; only `run.py`'s worktrees
+  should ever see `excise()`.
 
 **Overnight 2026-08-28/29. Seven evaluations, 190 trials.**
 
@@ -262,7 +310,8 @@ them six weeks old.
 |---|---|---|
 | **[ds4#569](https://github.com/antirez/ds4/issues/569)** | **Codex against any GLM on ds4.** Tool-call parser stringifies every argument value; `"false"` where a boolean is declared. Open since 2026-07-17, hits GLM-5.2 too. | #41 |
 | **[ds4#816](https://github.com/antirez/ds4/issues/816)** | **Claude Code at long context.** Stateless clients never extend the live KV session — 787/787 misses, `reason=token-mismatch`. Structural, so KV budget does not fix it. | #38, #14 |
-| **[ds4#890](https://github.com/antirez/ds4/issues/890)** | Nothing here — **does not reproduce on macOS 26.6.2**. [We commented](https://github.com/antirez/ds4/issues/890#issuecomment-5464032442) with the 5k/10k/20k scaling table; likely macOS 27 specific. | #38 |
+| **[ds4#890](https://github.com/antirez/ds4/issues/890)** | Nothing here — does not reproduce on macOS 26.6.2. **Our first comment was wrong** (guessed macOS 27 without reading the thread, where the maintainer had already run the controlled experiment); [corrected](https://github.com/antirez/ds4/issues/890). Root cause was **our own raised Metal ceiling**. | #38 |
+| **[ds4#893](https://github.com/antirez/ds4/pull/893)** | Nothing — but **read it before sizing a GLM-5.3 quant.** It keeps the fixed **110 GiB** GLM-5.3 ceiling for 128 GiB-class hosts like this one and relaxes it only for 256/512 GiB machines. Our wired limit is **112.00 GiB**, *above* ds4's budget: raising it past 110 buys nothing for GLM-5.3. | #38, #40 |
 
 **Check upstream before writing up a finding.** All three of ours were already
 there, which is reassuring about the measurements and would have saved hours of
