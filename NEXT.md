@@ -14,21 +14,88 @@ not in git.
 
 | # | issue | why this position |
 |---|---|---|
-| 1 | **#46** Swift trials report a clean gate that never ran | **Small, and it protects the only quality signal this project has.** Every Swift row carries `gates_delta = {"ruff": 0}`; ruff and mypy are Python tools, so on Swift they lint nothing and return a clean delta that reads exactly like a pass. 13 rows are affected. #4's one real finding -- `re.Match` vs `re.Match[bytes]`, 2 mypy errors under 71 passing tests -- came from these gates, so on Swift that axis is **off and does not say so**. Same shape as #29. |
-| 2 | **#45** Does verbosity predict unbuildable code? | **Open, and needs a different instrument.** Four harder trials on the pair that produced the one compile failure produced none. Chasing a 1-in-53 event with a pass/fail suite is the wrong tool. Two routes: tasks with real type-level surface (generics, protocol conformances, `inout`, actor isolation), and grading the *build* separately from the tests -- today both land as `passed: false`. #46 makes the second recordable. |
-| 3 | **#4** A third target repository | The inflation result is now the strongest argument for it. Set 1 -> set 2 scaling was 1.34x for `ds4 x claude` and 2.05x for `ornith15 x codex`, measured on **one** repo. A third point is what separates "property of the pair" from "property of `~/git/monitor`". |
-| 4 | **#39** ds4 embedded MTP | **Blocked in practice.** `--mtp` sets `c.engine.glm_mtp` -- it is GLM-gated -- and GLM is unusable behind ds4#569 and ds4#816. The DeepSeek GGUF *does* carry an MTP head (`deepseek4.nextn_predict_layers = 1`), so the primary could benefit, but no flag reaches it. Worth an upstream question, not a run. |
-| 5 | **#40** GLM-5.3 quant ladder | Depends on #38 being usable. It is not. **And ds4#893 now caps what it could ever show here:** q4 resident is unreachable on a 128 GiB host regardless of the wired limit. |
-| 6 | **#35** Model queue, criteria revised | Needs the second criterion: decodes within ~3x of the primary. |
-| 7 | **#27** Retire the ds4 fork | Blocked: antirez/ds4#885 and #886 both open. |
+| 1 | **#39** ds4 embedded MTP | **Unblocked by [ds4#892](https://github.com/antirez/ds4/pull/892), and it is the only lever that attacks decode rate.** Someone ran GLM-5.3 + `--mtp` on an M5 Max 128 GB -- this machine -- and measured **33.0 -> 40.5 t/s** decode at 89.6% acceptance. Our note said "no flag reaches a working model"; that is now false. Two questions, both cheap: does `--mtp` reach the **DeepSeek** MTP head (`deepseek4.nextn_predict_layers = 1`) on our primary, and does the branch's 4500-token prompt contradict ds4#890's 4096 boundary? **Do not test width > 2** -- #892 already measured 3/4/6 and all are worse. |
+| 2 | **#46** Swift trials report a clean gate that never ran | **Small, and it protects the only quality signal this project has.** Every Swift row carries `gates_delta = {"ruff": 0}`; ruff and mypy are Python tools, so on Swift they lint nothing and return a clean delta that reads exactly like a pass. 13 rows affected. #4's one real finding -- `re.Match` vs `re.Match[bytes]`, 2 mypy errors under 71 passing tests -- came from these gates, so on Swift that axis is **off and does not say so**. Same shape as #29. |
+| 3 | **#4** A third target repository | The #45 inflation result is now the strongest argument for it. Set 1 -> set 2 scaling was 1.34x for `ds4 x claude` and 2.05x for `ornith15 x codex`, measured on **one** repo. A third point separates "property of the pair" from "property of `~/git/monitor`". |
+| 4 | **#45** Does verbosity predict unbuildable code? | **Open, and needs a different instrument.** Four harder trials on the pair that produced the one compile failure produced none. Chasing a 1-in-53 event with a pass/fail suite is the wrong tool. Two routes: tasks with real type-level surface (generics, protocol conformances, `inout`, actor isolation), and grading the *build* separately from the tests. #46 makes the second recordable. |
+| 5 | **#19** DFlash2 / speculative decoding | Reweighted by #892, which states plainly that **DFlash2 draft support for GLM-5.3 does not exist** -- draft GGUFs exist (qwen3-arch, same tokenizer) but the machinery is bound to the Qwen graph on an `ornith15` branch. So for GLM the in-GGUF nextn MTP is the only draft mechanism, and #39 is the way in. |
+| 6 | **#38 / #40** GLM-5.3 on ds4, and the quant ladder | **Re-open the question, do not re-run the old plan.** #892 got Q2 up on our hardware; #893 caps us at a 110 GiB budget so **q4 resident is unreachable** and half of #40 is dead. #569 and #816 still block the *agent* use, so the near-term value is a decode-rate measurement, not a pass-rate one. |
+| 7 | **#35** Model queue, criteria revised | Needs the second criterion: decodes within ~3x of the primary. |
+| 8 | **#27** Retire the ds4 fork | Blocked: antirez/ds4#885 and #886 both open, unchanged. |
 
-**Blocked on upstream, do not re-investigate:** GLM-5.3 is unusable on the
-supported stack for two reasons that are already reported --
+**Blocked on upstream, do not re-investigate:** GLM-5.3 remains unusable *as an
+agent* on the supported stack for two reasons already reported --
 [ds4#569](https://github.com/antirez/ds4/issues/569) stringifies every tool
 argument, which blocks Codex, and
 [ds4#816](https://github.com/antirez/ds4/issues/816) means stateless clients
 never reuse the KV session, costing ~110 s of re-prefill per turn at 40k
-context. Neither is ours to fix.
+context. Neither is ours to fix. **This does not block measuring decode rate**,
+which is what #39 now needs and what ds4#892 has already shown is possible on
+this hardware.
+
+## Tomorrow: five tasks, ordered by what they teach per hour
+
+Written 2026-08-29 22:30 after a full issue sweep and an upstream check. The
+theme is that **this project has stopped learning from pass rates** -- 44/45 on
+Swift, 8/8 on the harder set, near-perfect on Python -- so every task below
+measures something other than "did it pass".
+
+**1. Reconcile ds4#892 against our own GLM-5.3 record. (~1 h, highest value)**
+Someone published GLM-5.3 Flash numbers on an M5 Max 128 GB, our exact machine,
+including a **4500-token prompt at ctx 8192** -- above the 4096 boundary we
+recorded as a hard blocker in ds4#890. Either #890 is narrower than we wrote
+down, or `glm-5.3-flash` already fixes it, or their configuration differs from
+ours in a way worth knowing. Build the branch, run their case, compare. **The
+cheapest possible outcome is that a blocker we have carried for days is not
+real.** Success: our #38 note either cites the reproduction or states the exact
+configuration difference.
+
+**2. Does `--mtp` reach the DeepSeek MTP head? (~1-2 h, attacks the primary)**
+`--mtp` sets `c.engine.glm_mtp` and is GLM-gated, but our primary's GGUF carries
+`deepseek4.nextn_predict_layers = 1`. #892 shows the mechanism is worth **+23%
+decode** when it engages. Decode rate is the number that decides whether local
+inference is usable at all, and it is the one axis we have never moved. Read the
+gate in `ds4.c`, determine whether it is a deliberate restriction or an unwired
+path, and **ask upstream rather than patching** -- antirez is the sherpa.
+Success: either a measured decode delta on DeepSeek, or a precise upstream
+question. **Do not test width > 2**; #892 measured 3/4/6 and all are worse.
+
+**3. Fix #46, then backfill the 13 Swift rows. (~1 h, protects the record)**
+An inapplicable gate must record `null`, not `0`. Today a Swift row reports
+`{"ruff": 0}` from a linter that never ran, which is indistinguishable from
+clean code -- and the gates are where #4's only "passes but is worse" finding
+came from. Add `swift build -Xswiftc -warnings-as-errors` as the Swift
+equivalent, and **write down that it is weaker than `mypy --strict`** rather
+than pretending the axes match. Success: no row claims a measurement that did
+not happen.
+
+**4. A third target repository, chosen for defect surface. (~2 h, unblocks #4)**
+#45 showed inflation scaling of 1.34x and 2.05x -- measured on **one** repo, so
+we cannot yet tell a property of the pair from a property of `~/git/monitor`. A
+third point settles it. **Pick for the oracle first:** green at HEAD, hermetic,
+fast, and not written by this account. StationCast failed that bar (172/555 tests
+red from a Docker-only `LOG_FILE_PATH`) and re-litigating it is not the task.
+Success: a pinned `local-llm-benchmark` branch and three tasks with verified
+controls.
+
+**5. Give #45 a real instrument, or retire it. (~2 h, honest either way)**
+Compile failures are 1 in 53 Swift trials. Sampling for them with a pass/fail
+suite is the wrong tool and #23's arithmetic says so. Either write tasks with
+genuine type-level surface -- generics, protocol conformances, `inout`, actor
+isolation, where a Python habit yields something that *cannot compile* rather
+than something that fails a test -- or close the issue and record that the
+harness cannot measure it. **Both outcomes are worth an hour; drifting is not.**
+
+### Not tomorrow, and why
+
+- **The GLM thinking/tool-replay cluster (ds4#894, #897, #899, #904, #906).**
+  These hit exactly the agent loop we benchmark, but #569 and #816 still block
+  GLM as an agent here, so they are defects we would inherit, not ones we can act
+  on. Read them the day GLM-5.3 becomes usable.
+- **Ollama 0.33.2.** GUI-only update, and this machine is shared -- it is the
+  user's call, not something to drive.
+- **More trials on saturated cells.** 8/8 and 44/45 do not become informative at
+  n=20. New axes, not more samples.
 
 ## Done since the last update
 
@@ -328,20 +395,67 @@ chat system messages and the Qwen template rejects.
 
 ## Upstream issues we are blocked on or tracking
 
-**Check these before re-investigating anything GLM- or ds4-related.** All three
-were found independently here and turned out to be already reported — one of
-them six weeks old.
+**Swept 2026-08-29 22:30.** antirez/ds4 is in a burst of GLM-5.3 work -- eleven
+issues and eight PRs touched it in three days. Check this table before
+re-investigating anything GLM- or ds4-related.
+
+### The one that changes our plan
+
+**[ds4#892](https://github.com/antirez/ds4/pull/892) -- GLM-5.3 Flash brought up
+on an M5 Max 128 GB, which is this machine.** Branch `glm53-mtp-width`, author
+`audreyt`. Q2 GGUF, ctx 8192, greedy `--temp 0`:
+
+| mode | prefill | decode |
+|---|---|---|
+| serial | 76-80 t/s (474 t/s @ 4500-tok prompt) | 33.0 t/s |
+| `--mtp` (width 2, upstream) | same | **40.5 t/s** |
+
+MTP acceptance **89.6%** over 135 cycles. `make test-glm53-kda` PASS. Greedy
+goldens byte-identical across serial, `--mtp`, and widths 3/4/6.
+
+**This retires "#39 is blocked in practice."** The claim there was that `--mtp`
+is GLM-gated and GLM does not run, so no flag reaches a working model. Someone
+has now run exactly that combination on our hardware and published the numbers.
+It also reports a **4500-token prompt succeeding at ctx 8192**, which is above
+the 4096 boundary in [ds4#890](https://github.com/antirez/ds4/issues/890) -- so
+either #890 is narrower than we recorded or the branch already fixes it. **That
+is tomorrow's first question and it is cheap to answer.**
+
+Two further findings from #892 worth not re-deriving:
+
+- **Decode is dispatch-bound, not kernel-bound.** A 2-token forward costs 1.23x a
+  1-token forward (37.4 ms vs 30.3 ms). Speculative *width* is the lever, not
+  kernel speed -- which matches our own Qwen3.8 result that n_tok=2 is near-flat.
+- **Wider is worse, with evidence.** Depth-2 acceptance falls to ~45% from 89.6%,
+  and each reject costs a KDA restore plus prefix replay: W=3 -> 30.6 t/s,
+  W=4 -> 20.8, W=6 -> 16. All below width 2. **Do not spend time on width > 2.**
+
+It also states that **DFlash2 draft support for GLM-5.3 does not exist** -- the
+draft GGUFs exist (qwen3-arch, same tokenizer) but the machinery lives in an
+`ornith15` branch bound to the Qwen graph. That is directly relevant to #19.
+
+### Still blocking us, unchanged
 
 | upstream | what it blocks | our issue |
 |---|---|---|
 | **[ds4#569](https://github.com/antirez/ds4/issues/569)** | **Codex against any GLM on ds4.** Tool-call parser stringifies every argument value; `"false"` where a boolean is declared. Open since 2026-07-17, hits GLM-5.2 too. | #41 |
 | **[ds4#816](https://github.com/antirez/ds4/issues/816)** | **Claude Code at long context.** Stateless clients never extend the live KV session — 787/787 misses, `reason=token-mismatch`. Structural, so KV budget does not fix it. | #38, #14 |
-| **[ds4#890](https://github.com/antirez/ds4/issues/890)** | Nothing here — does not reproduce on macOS 26.6.2. **Our first comment was wrong** (guessed macOS 27 without reading the thread, where the maintainer had already run the controlled experiment); [corrected](https://github.com/antirez/ds4/issues/890). Root cause was **our own raised Metal ceiling**. | #38 |
-| **[ds4#893](https://github.com/antirez/ds4/pull/893)** | Nothing — but **read it before sizing a GLM-5.3 quant.** It keeps the fixed **110 GiB** GLM-5.3 ceiling for 128 GiB-class hosts like this one and relaxes it only for 256/512 GiB machines. Our wired limit is **112.00 GiB**, *above* ds4's budget: raising it past 110 buys nothing for GLM-5.3. | #38, #40 |
+| **[ds4#885](https://github.com/antirez/ds4/pull/885)**, **[#886](https://github.com/antirez/ds4/pull/886)** | Retiring our fork. Both still open. | #27 |
 
-**Check upstream before writing up a finding.** All three of ours were already
-there, which is reassuring about the measurements and would have saved hours of
-diagnosis.
+### Tracking, not blocking
+
+| upstream | why we care |
+|---|---|
+| **[ds4#890](https://github.com/antirez/ds4/issues/890)** | GLM-5.3 Metal prefill above 4096 tokens. Our first comment was **wrong** (guessed macOS 27 without reading the thread); [corrected](https://github.com/antirez/ds4/issues/890). Root cause was **our own raised Metal ceiling**. #892 reports 4500 tokens working — reconcile before trusting either. |
+| **[ds4#893](https://github.com/antirez/ds4/pull/893)** | Keeps the fixed **110 GiB** GLM-5.3 ceiling for 128 GiB hosts like this one; relaxes it only for 256/512 GiB. Our wired limit is **112.00 GiB**, *above* ds4's budget. **Raising it past 110 buys nothing for GLM-5.3, and q4 resident is unreachable here.** |
+| **[ds4#891](https://github.com/antirez/ds4/issues/891)** | GLM-5.2 Metal + `--ssd-streaming` fails above 8192 tokens. We measured GLM-5.2 streaming at 30.8 GiB (#35) and called it possible-but-impractical; this caps it further. |
+| **#894, #897, #899, #904, #906** | A cluster on GLM thinking/tool replay and KV alignment: prefill ending in `</think>` misfiled, compaction failing when think-mode overshoots. **If GLM-5.3 becomes runnable here, these are the defects to expect**, and they hit exactly the agent loop we benchmark. |
+| **[ds4#901](https://github.com/antirez/ds4/issues/901)** | SIGSEGV running GLM-5.3 distributed. Not our configuration (single host), noted so it is not mistaken for our bug. |
+| **llama.cpp [#27752](https://github.com/ggml-org/llama.cpp/pull/27752), [#27773](https://github.com/ggml-org/llama.cpp/pull/27773)** | Both **still open** as of 2026-08-29. Our two GLM worktrees track them; neither has merged, so neither is a stable base. |
+
+**Check upstream before writing up a finding.** Every defect we have found
+independently was already reported. That is reassuring about the measurements
+and would have saved hours of diagnosis.
 
 ## Traps worth not rediscovering
 

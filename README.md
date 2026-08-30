@@ -165,6 +165,25 @@ silently changed what every trial measures.
 **Results from the two are not pooled.** Different repository, language and
 oracle — a new series.
 
+**What the second repository actually taught, which was not the question asked.**
+Swift did **not** make the tasks harder to pass — 44/45 on the first set, 8/8 on
+a harder second set (#44, #45). The repository was not the limit on correctness.
+What it exposed instead is a measurement Python cannot produce here:
+
+- **`swift test` has a build step**, so an agent can fail by emitting code that
+  does not compile. A Python syntax error is a pytest collection error; there is
+  no separate build to fail. One trial in 53 has failed this way.
+- **How much more a pair writes on unfamiliar ground varies 2.3x**, from 1.19x
+  to 2.73x moving Python → Swift. Wall time tracks output tokens at r=0.98, so
+  this is a practical number, not a curiosity.
+- **That gap widens with difficulty** (#45): between the terse and verbose pairs
+  it went 5.42x → 8.26x on tokens when the tasks got harder. Measuring inflation
+  on easy tasks *under*-estimates the spread on hard work.
+
+**Caveat carried on every one of those numbers:** the Swift tasks are not
+difficulty-matched to the Python ones, so the ordering is sound and the absolute
+ratios are not.
+
 ## Preflight: always check what is already running
 
 **Do this before starting a server, and before every benchmark batch.**
@@ -230,18 +249,35 @@ sysctl does not survive a reboot.**
 
 ## Quick start
 
-### The local coding agent to run: DS4 + Codex
+### The local coding agent to run: DS4 + Claude Code
 
 ```sh
-# Run from this checkout. Starts ds4-server if needed (~91 GiB resident).
+# Run from this checkout. Starts ds4-server if needed (~91 GiB resident, ~26 s).
 benchmarks/ds4/0731/agent/ds4-up start
 
-# Uses $CODEX_HOME/ds4.config.toml and DS4's native Responses API.
+# Every alias must be set: the client picks a different model per role, and an
+# unset alias silently reaches for a hosted model.
+ANTHROPIC_BASE_URL=http://127.0.0.1:8000 \
+ANTHROPIC_AUTH_TOKEN=dsv4-local \
+ANTHROPIC_MODEL=deepseek-v4-flash \
+ANTHROPIC_DEFAULT_SONNET_MODEL=deepseek-v4-flash \
+ANTHROPIC_DEFAULT_OPUS_MODEL=deepseek-v4-flash \
+ANTHROPIC_DEFAULT_HAIKU_MODEL=deepseek-v4-flash \
+  claude
+```
+
+**Unset `ANTHROPIC_API_KEY` in that shell** — if it is set it wins, and the
+session silently runs against the hosted API. `run.py` pops it for this reason.
+
+Codex on the same weights is a supported alternative, equal on Python but
+**2.14x slower on Swift** (#44), so it is no longer the default:
+
+```sh
 CODEX_API_KEY=dsv4-local codex --profile ds4
 ```
 
 `dsv4-local` is a non-secret local API token. The server continues running
-after Codex exits; release its memory with
+after either client exits; release its memory with
 `benchmarks/ds4/0731/agent/ds4-up stop`.
 
 ### Qwen + Claude Code

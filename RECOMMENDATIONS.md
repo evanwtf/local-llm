@@ -470,6 +470,46 @@ two GGUFs are not interchangeable and one hyphen says so — antirez's declares
 
 Neither is ours to fix. **Do not put GLM in the plan until both land.**
 
+### Upstream got there first, on this exact machine (2026-08-29)
+
+[ds4#892](https://github.com/antirez/ds4/pull/892) brings GLM-5.3 Flash up on an
+**M5 Max 128 GB** — the same hardware this document describes — and publishes
+measurements. Q2 GGUF, ctx 8192, greedy `--temp 0`:
+
+| mode | prefill | decode |
+|---|---|---|
+| serial | 76–80 t/s (474 t/s @ 4500-tok prompt) | 33.0 t/s |
+| `--mtp` (width 2) | same | **40.5 t/s** |
+
+**MTP acceptance 89.6%**, greedy goldens byte-identical across serial, `--mtp`
+and widths 3/4/6. Their serial decode of 33.0 t/s is in the same neighbourhood
+as the 27.8 t/s we measured, which is a useful cross-check on our own numbers.
+
+Three things this changes:
+
+- **`--mtp` is worth +23% decode and it works on this hardware.** That is the
+  only lever anyone has demonstrated against decode rate here, and decode rate is
+  what the "too big" tier below says is the real wall.
+- **Do not spend time on speculative width above 2.** #892 measured it: depth-2
+  acceptance collapses to ~45% and every reject costs a KDA restore plus prefix
+  replay. W=3 → 30.6 t/s, W=4 → 20.8, W=6 → 16, all worse than width 2.
+- **A 4500-token prompt succeeded at ctx 8192**, above the 4096 boundary
+  [ds4#890](https://github.com/antirez/ds4/issues/890) describes and we recorded
+  as a hard blocker. Either #890 is narrower than we wrote down or the branch
+  already fixes it. **Unreconciled — do not treat 4096 as settled either way.**
+
+**None of this makes GLM usable as an agent here.** #569 and #816 are untouched,
+and they are what break the agent loop. What changed is that GLM-5.3 is now worth
+measuring for *decode rate* on this machine, which is a different question from
+whether it can drive Claude Code.
+
+**And the memory arithmetic is now fixed.**
+[ds4#893](https://github.com/antirez/ds4/pull/893) keeps a fixed **110 GiB**
+GLM-5.3 budget for 128 GiB-class hosts and relaxes it only for 256/512 GiB
+machines. Our raised Metal ceiling is **112.00 GiB** — *above* ds4's own budget.
+**Raising `iogpu.wired_limit_mb` past 110 GiB buys nothing for GLM-5.3 on ds4,
+and a resident q4 is unreachable on this machine regardless of the sysctl.**
+
 ## Too big for this machine — reopened 2026-08-28
 
 **This tier is now a queue, not a verdict — but speed is the new wall.**
