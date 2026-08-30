@@ -29,7 +29,7 @@
 #
 # run.py refuses to start if this repo is dirty, and verifies base_commit
 # exists -- but it does not check the branch, because the export is by commit.
-repo = "~/git/gmail-archive"
+repo = "~/git/local-llm-testing/gmail-archive"
 base_commit = "56e55cc"
 
 [[task]]
@@ -111,7 +111,7 @@ not modify any test."""
 
 [[task]]
 name = "swift-downsample-buckets"
-repo = "~/git/monitor"
+repo = "~/git/local-llm-testing/monitor"
 base_commit = "cbb85ca"
 test_command = "swift test"
 file = "Sources/MonitorCore/Downsample.swift"
@@ -123,7 +123,7 @@ suite passes. Do not modify any test."""
 
 [[task]]
 name = "swift-csv-text"
-repo = "~/git/monitor"
+repo = "~/git/local-llm-testing/monitor"
 base_commit = "cbb85ca"
 test_command = "swift test"
 file = "Sources/MonitorCore/CSVExport.swift"
@@ -135,7 +135,7 @@ suite passes. Do not modify any test."""
 
 [[task]]
 name = "swift-chartaxis-spacing"
-repo = "~/git/monitor"
+repo = "~/git/local-llm-testing/monitor"
 base_commit = "cbb85ca"
 test_command = "swift test"
 file = "Sources/MonitorCore/ChartAxis.swift"
@@ -240,7 +240,7 @@ passes. Do not modify any test."""
 # early return, and both compile to something else here.
 [[task]]
 name = "swift-scaleladder-snap"
-repo = "~/git/monitor"
+repo = "~/git/local-llm-testing/monitor"
 base_commit = "cbb85ca"
 test_command = "swift test"
 file = "Sources/MonitorCore/GaugeScale.swift"
@@ -256,7 +256,7 @@ suite passes. Do not modify any test."""
 # that does not compile rather than something that fails a test.
 [[task]]
 name = "swift-sevensegment-glyphs"
-repo = "~/git/monitor"
+repo = "~/git/local-llm-testing/monitor"
 base_commit = "cbb85ca"
 test_command = "swift test"
 file = "Sources/MonitorCore/SevenSegment.swift"
@@ -519,6 +519,26 @@ context_tokens = 65536
 # --context-length 131072 to match the llama.cpp cell exactly, and --ttl 21600
 # so the model cannot auto-unload mid-run (default TTL is 1h). GPU offload and
 # everything else left at LM Studio defaults. PARALLEL=4 is its default.
+# Claude Code CANNOT reach LM Studio directly. LM Studio serves /v1/messages,
+# but Claude Code appends a role="system" message at the END of the messages
+# array (the agent-type listing for the Agent tool) and the Qwen chat template
+# raises on it:
+#
+#   HTTP 500 -- Jinja Exception: System message must be at the beginning
+#
+# 4 trials were burned learning that; they are in results.jsonl marked
+# excluded, with 0 output tokens and 1 turn -- no request ever reached the
+# model. This is the exact defect ollama_claude_shim.py hoist_system() was
+# written for against Ollama, and the same fix works here. Same weights, same
+# LM Studio server, same everything as qwen38fnq3lms; only the shim differs.
+[backend.qwen38fnq3lmsshim]
+description = "Qwen3.8-Flash-Next UD-Q3_K_XL via LM Studio 0.4.23, behind ollama_claude_shim"
+base_url = "http://127.0.0.1:11502"
+props_url = "http://127.0.0.1:1234/v1/models"
+auth_token = "lm-studio"
+model = "qwen3.8-flash-next-ud"
+context_tokens = 131072
+
 [backend.qwen38fnq3lms]
 description = "Qwen3.8-Flash-Next UD-Q3_K_XL via LM Studio 0.4.23"
 base_url = "http://127.0.0.1:1234"
