@@ -35,22 +35,42 @@ measured over 15 trials. At 76 and 36 trials the gap is 7 seconds across a
 five-task suite, and the confidence intervals overlap almost completely. The
 honest statement is that on `ds4` the two clients are indistinguishable.
 
-### The local coding agent to run: DS4 + Codex
+### The local coding agent to run: DS4 + Claude Code
 
 Run these commands from this checkout:
 
 ```sh
-# Starts ds4-server if it is not already running (~91 GiB resident).
+# Starts ds4-server if it is not already running (~91 GiB resident, up in ~26s).
 benchmarks/ds4/0731/agent/ds4-up start
 
-# Codex reaches DS4 directly through its native Responses endpoint.
+# Claude Code against the local model. Every model alias must be set: the
+# client picks a different one per role, and an unset alias silently reaches
+# for a hosted model.
+ANTHROPIC_BASE_URL=http://127.0.0.1:8000 \
+ANTHROPIC_AUTH_TOKEN=dsv4-local \
+ANTHROPIC_MODEL=deepseek-v4-flash \
+ANTHROPIC_DEFAULT_SONNET_MODEL=deepseek-v4-flash \
+ANTHROPIC_DEFAULT_OPUS_MODEL=deepseek-v4-flash \
+ANTHROPIC_DEFAULT_HAIKU_MODEL=deepseek-v4-flash \
+  claude
+```
+
+**Unset `ANTHROPIC_API_KEY` in that shell.** If it is set it takes precedence
+and the session silently runs against the hosted API — `run.py` pops it for
+exactly this reason.
+
+Codex on the same weights remains a supported alternative and is equal on
+Python, but it is **2.14x slower on Swift** and its verbosity gap widens
+further on harder tasks (#45), so it is no longer the default:
+
+```sh
 CODEX_API_KEY=dsv4-local codex --profile ds4
 ```
 
 The `ds4` Codex profile is `$CODEX_HOME/ds4.config.toml`; it selects
 `deepseek-v4-flash` at `http://127.0.0.1:8000/v1` with `wire_api =
 "responses"`. `dsv4-local` is only the required non-empty local API token,
-not a secret. The server stays up after Codex exits; use
+not a secret. The server stays up after either client exits; use
 `benchmarks/ds4/0731/agent/ds4-up stop` to release its memory.
 
 Two independent stacks is the target. The June 2026 Fable/Mythos suspension was
@@ -547,6 +567,31 @@ the ordering is sound and the absolute ratios are not.
 **Correctness did not discriminate — 44 of 45.** A 6x larger codebase in a less
 familiar language did not make these tasks harder to pass. It made the pairs
 distinguishable on *how* they get there.
+
+**The gap is not fixed — it widens with difficulty (#45, 2026-08-29).** Two
+harder Swift tasks, run against the two extremes above:
+
+| pair | easier set | harder set | scaling |
+|---|---|---|---|
+| **`ds4` + Claude Code** | 3,835 | 5,152 | **1.34x** |
+| `ornith-1.5` + Codex | 20,788 | 42,545 | **2.05x** |
+
+The gap between the two pairs goes **5.42x -> 8.26x on tokens** and 1.77x ->
+2.93x on wall time. Harder tasks cost the terse pair 34% more output and the
+verbose one 105% more.
+
+**Read the inflation table above as a floor, not an estimate.** It was measured
+on the easier tasks, and the spread on hard work is larger. This is the second
+reason to prefer Claude Code with `ds4`: it is not merely ahead, it pulls further
+ahead exactly where the work gets harder — which is the scenario this whole
+document exists for.
+
+Throughput is not the mechanism. `ornith-1.5` + Codex decoded at **15.3 s/1k on
+the easier set and 15.2 on the harder one**; time scaled 2.03x and tokens 2.05x.
+The model does not get slower on hard tasks, it gets wordier.
+
+**Screening run — 2 trials per cell**, under the 10-trial bar in AGENTS.md. The
+token ratios are large and consistent; no pass-rate claim rests on it.
 
 ## What the 2026-08-29 overnight run changed
 
