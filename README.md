@@ -11,7 +11,7 @@ it is why every result is reported on three axes:
 |---|---|---|
 | **model** | the weights, at a specific quantization | Qwen3.8-Flash-Next `UD-Q3_K_XL` |
 | **engine** | what serves them | llama.cpp, Ollama, ds4/DwarfStar |
-| **harness** | the agent driving the loop | Claude Code, Codex, OpenCode |
+| **harness** | the agent driving the loop | **OpenCode** (primary), Claude Code, Codex |
 
 The harness matters as much as the model, and the ranking **inverts** across
 backends — the same weights that are slowest under one client are among the
@@ -23,6 +23,37 @@ and harness is not describing something you can reproduce.
 A working fallback for when hosted inference is unavailable or unaffordable.
 Concretely: something that can be handed a real repository, told to fix a real
 failure, and left to run an implement-test-verify loop to a green test suite.
+
+### The target stack is open end to end
+
+**OpenCode + an open model + an open engine, on hardware we own.** All three
+have to be things that survive a vendor deciding otherwise:
+
+| layer | what it must be | current candidate |
+|---|---|---|
+| **agent** | open source, installable from source | **OpenCode** |
+| **model** | open weights, on local disk | DeepSeek V4 Flash, Qwen3.8-Flash-Next, GLM-5.3-Flash |
+| **engine** | open source, runs offline | llama.cpp, ds4/DwarfStar, Ollama |
+| **hardware** | owned, not rented | M5 Max 128 GB |
+
+**An open model on an open engine driven by a proprietary client is not a
+fallback — it fails with the vendor.** That is why the agent layer is now held
+to the same standard as the other three, and why **OpenCode is the primary
+harness this project measures.** Claude Code and Codex remain in the suite as
+*reference points*: they establish what a task's ceiling looks like, and a gap
+between them and OpenCode is a defect to chase rather than a result to publish.
+
+This is a change of priority, made 2026-08-30. Earlier results ranked clients
+neutrally and the recommendation followed whichever scored best. It now follows
+the stack that still works when a vendor stops answering — and "OpenCode runs
+this suite reliably" is a project goal, not an observation to record.
+
+**Status: it does not yet.** OpenCode's measured results here are under
+investigation and none of them should be cited (#54, #55). The short version:
+`opencode run` is headless, `external_directory` defaults to `ask`, and with
+nobody to ask, agents were observed reading — and in one case destructively
+editing — repositories outside the trial checkout. Every OpenCode number
+predates that discovery and has to be re-measured under confinement.
 
 ## What this is NOT for
 

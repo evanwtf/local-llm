@@ -3,6 +3,30 @@
 Instructions for coding agents. [`CONVENTIONS.md`](CONVENTIONS.md) holds the
 standing rules about data and safety; this file covers how to work.
 
+## OpenCode is the primary harness (2026-08-30)
+
+The project exists as a fallback for when hosted inference is unavailable or
+unaffordable. **An open model on an open engine driven by a proprietary client
+is not a fallback -- it fails with the vendor.** So the agent layer is held to
+the same standard as the model and the engine, and the target stack is
+**OpenCode + open model + open engine on owned hardware**.
+
+Claude Code and Codex stay in the suite as **reference points**: they establish
+a task's ceiling. A gap between them and OpenCode is **a defect to chase, not a
+result to publish**.
+
+Practical consequences:
+
+- A new backend is measured with OpenCode first. The others calibrate it.
+- "OpenCode cannot do X" is a bug report, not a benchmark row, until the cause
+  is known. #54 is why: its entire measured record turned out to be an artifact
+  of running headless without workspace confinement.
+- **`opencode run` is headless and `external_directory` defaults to `ask`.**
+  With nobody to ask, agents read -- and in one case destructively edited --
+  repositories outside the trial checkout. Always set
+  `permission.external_directory` explicitly, and check `workspace_escapes` on
+  every row before believing it.
+
 ## What this project is answering
 
 **Which model + engine + harness combination is best for running a coding agent

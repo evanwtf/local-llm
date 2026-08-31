@@ -54,3 +54,20 @@ def test_empty_and_missing_output_are_safe() -> None:
 def test_each_escape_is_reported_once() -> None:
     log = f"{HOME}/git/gmail-archive/a {HOME}/git/gmail-archive/b {HOME}/git/gmail-archive/c"
     assert run.paths_outside(log, "/nowhere") == [f"{HOME}/git/gmail-archive"]
+
+
+def test_a_tree_holding_answers_is_recognised() -> None:
+    """~/bench-solutions holds one correct patch per trial; ~/git/local-llm's
+    tracked results.jsonl records their absolute paths. Either one can hand the
+    agent the answer, so a trial that worked in them is confounded (#54)."""
+    assert run.ANSWER_TREES.intersection(f"{HOME}/bench-solutions".split("/"))
+    assert run.ANSWER_TREES.intersection(f"{HOME}/git/local-llm".split("/"))
+
+
+def test_an_ordinary_target_repo_is_not_treated_as_tainted() -> None:
+    """Escaping into a target repo is still wrong, but it is a different fault
+    from reading the answers, and must not be silently reclassified."""
+    assert not run.ANSWER_TREES.intersection(f"{HOME}/git/monitor".split("/"))
+    assert not run.ANSWER_TREES.intersection(
+        f"{HOME}/git/local-llm-testing/gmail-archive".split("/")
+    )

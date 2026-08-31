@@ -199,6 +199,12 @@ def probe_ollama(backend):
 # conflicting sets -- ds4.h defines TOP_P 1.0 / MIN_P 0.05, while ds4_cli.c:520
 # overrides to top_p 0.95 / min_p 0.0 for CLI and agent paths -- and which one
 # reaches the server cannot be settled by reading it. See #37.
+# Trees an agent must never be working in. ~/bench-solutions accumulates one
+# complete correct patch per trial, and this repo's tracked results.jsonl
+# records their absolute paths -- so grepping either can hand the agent the
+# answer. A trial that touched one is confounded (#54).
+ANSWER_TREES = {"bench-solutions", "local-llm"}
+
 DS4_SAMPLER_NOTE = "engine defaults (not reported by ds4)"
 
 
@@ -714,6 +720,21 @@ def save_transcript(client_log, name, stdout, stderr, result, partial=False):
     escaped = paths_outside(stdout, result.get("_worktree", ""))
     if escaped:
         result["workspace_escapes"] = escaped
+        # An escape into a tree that holds answers is a confound, not a verdict.
+        # ~/bench-solutions accumulates a complete correct patch per trial, and
+        # this repo's tracked results.jsonl records their absolute paths -- so
+        # grepping either one can hand the agent the solution. Every other guard
+        # here (touched_tests, source_repo_intact, restored_verbatim) looks
+        # inward at the trial checkout and would report clean.
+        tainted = [e for e in escaped if ANSWER_TREES.intersection(e.split("/"))]
+        if tainted and not result.get("excluded"):
+            result["excluded"] = True
+            result["exclusion_reason"] = (
+                "Answer exposure (#54): agent worked in "
+                + ", ".join(tainted)
+                + ", which can disclose a previous trial's solution patch. "
+                "Not a verdict about the model."
+            )
 
 
 def targets(task):
