@@ -29,7 +29,7 @@ def _post_good(base_url, token, model, prompt, timeout):
     for name, text in GOOD.items():
         if name == "reverse" and "reverse_string" in prompt:
             return text, "end_turn"
-        if name == "fib" and "Fibonacci" in prompt:
+        if name == "fib" and "fib(" in prompt:
             return text, "end_turn"
         if name == "mergesorted" and "merge_sorted" in prompt:
             return text, "end_turn"
@@ -46,7 +46,7 @@ def test_gate_refuses_one_wrong_answer() -> None:
     """The 2026-08-31 case: the server answers, and the answer is wrong."""
 
     def post(base_url, token, model, prompt, timeout):
-        if "Fibonacci" in prompt:
+        if "fib(" in prompt:
             # fib(10) -> 10, not 55
             return "```python\ndef fib(n):\n    return n\n```", "end_turn"
         return _post_good(base_url, token, model, prompt, timeout)
@@ -152,7 +152,7 @@ def test_slow_does_not_refuse_the_batch() -> None:
     """
 
     def post(base_url, token, model, prompt, timeout):
-        if "Fibonacci" in prompt:
+        if "fib(" in prompt:
             return "", "max_tokens"
         return _post_good(base_url, token, model, prompt, timeout)
 
@@ -164,7 +164,7 @@ def test_a_wrong_answer_still_refuses_even_beside_a_slow_one() -> None:
     """Slowness is forgiven; a confidently wrong answer is not."""
 
     def post(base_url, token, model, prompt, timeout):
-        if "Fibonacci" in prompt:
+        if "fib(" in prompt:
             return "", "max_tokens"
         if "reverse_string" in prompt:
             return "```python\ndef reverse_string(s):\n    return s\n```", "end_turn"
@@ -176,8 +176,35 @@ def test_a_wrong_answer_still_refuses_even_beside_a_slow_one() -> None:
 
 def test_a_timeout_is_slow_not_wrong() -> None:
     def post(base_url, token, model, prompt, timeout):
-        if "Fibonacci" in prompt:
+        if "fib(" in prompt:
             raise TimeoutError("timed out")
         return _post_good(base_url, token, model, prompt, timeout)
 
     assert len(smoke.gate(BACKEND, "timeout-is-slow", post=post)) == 3
+
+
+def test_every_prompt_is_self_contained() -> None:
+    """A probe must not require world knowledge to answer.
+
+    `fib` originally named the Fibonacci sequence and supplied only the two base
+    cases, so a model that did not recall the recurrence had nothing to derive
+    it from -- making it a knowledge probe, not a capability one. It cannot then
+    distinguish a degraded backend from an ignorant one, which is the gate's
+    entire job. qwen3.6-coding spent >900s on it while answering the two
+    self-contained tasks correctly.
+
+    This guards the property, not the wording: no prompt may lean on a named
+    concept the model has to look up.
+    """
+    named_concepts = ("fibonacci", "quicksort", "levenshtein", "fizzbuzz", "ackermann")
+    for name, prompt, _ in smoke.SMOKE_TASKS:
+        low = prompt.lower()
+        for concept in named_concepts:
+            assert concept not in low, f"{name} leans on the name {concept!r}"
+
+
+def test_fib_states_its_own_recurrence() -> None:
+    """The one task that could not be inferred from its description now can."""
+    _, prompt, _ = smoke.SMOKE_TASKS[1]
+    assert "fib(n - 1) + fib(n - 2)" in prompt
+    assert "fib(0) = 0" in prompt and "fib(1) = 1" in prompt

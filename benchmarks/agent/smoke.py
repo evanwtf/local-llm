@@ -24,9 +24,16 @@ detector rather than a formality:
     mergesorted   548 tok / 19s wrong (off)   431 tok / 15s right (on)
 
 They span string handling, recursion and list merging, and the healthy arm
-finished each in under 20 s. The 300 s budget is therefore ~15x headroom: it
-catches a wedged or looping server without ever firing on a slow-but-working
-one.
+finished each in under 20 s.
+
+**Every prompt states its whole specification.** `fib` originally named the
+Fibonacci sequence and gave only the two base cases, so a model that did not
+recall the recurrence had nothing to derive it from. That is a *knowledge*
+probe, not a capability one, and it cannot distinguish a degraded backend from
+an ignorant one -- `qwen3.6:27b-coding-mxfp8`, a coding-tuned mxfp8 quant, spent
+over 900 s on it while answering the two self-contained tasks correctly in 19 s
+and 59 s. The recurrence is now written out, and the word "Fibonacci" is gone.
+A probe that can fail for want of world knowledge is not a health check.
 
 Protocol
 --------
@@ -69,9 +76,10 @@ SMOKE_TASKS: tuple[tuple[str, str, str], ...] = (
     (
         "fib",
         (
-            "Write a Python function fib(n: int) -> int returning the nth Fibonacci "
-            "number, with fib(0)=0 and fib(1)=1. Reply with the function in a single "
-            "```python code block and nothing else."
+            "Write a Python function fib(n: int) -> int where fib(0) = 0, "
+            "fib(1) = 1, and fib(n) = fib(n - 1) + fib(n - 2) for n >= 2. "
+            "Reply with the function in a single ```python code block and "
+            "nothing else."
         ),
         "assert fib(0) == 0 and fib(1) == 1 and fib(10) == 55",
     ),
