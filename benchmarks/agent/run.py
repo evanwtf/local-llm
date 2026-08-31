@@ -25,6 +25,7 @@ Results append to results.jsonl. Nothing is overwritten, so runs accumulate.
 """
 
 import argparse
+import atexit
 import json
 import logging
 import os
@@ -629,6 +630,66 @@ def source_repo_intact(repo, commit):
     return not dirty and head.startswith(commit[: len(head)][:7])
 
 
+STASH_MARKER = pathlib.Path.home() / ".local-llm-bench-stash.json"
+
+
+def stash_targets(pairs):
+    """Move each real repository aside and stand the export in its place.
+
+    #54: a model asked to implement `src/gmail_archive/parser.py` guesses that
+    the repo lives at `~/git/gmail-archive`, and it is right. Under the old
+    layout that guess reached an *un-excised* copy: tests green, nothing to fix,
+    agent writes nothing, row looks like a model failure.
+
+    Fighting the guess did not work -- OpenCode cannot be confined by its own
+    config (anomalyco/opencode#41067). So satisfy it instead. The path the model
+    guesses now holds the export: the right files, already excised, with no
+    `.git` history the original body was ever in.
+
+    The real checkout moves to `<name>-real` for the duration. A marker records
+    the move so a run killed mid-batch is recoverable -- `restore_targets()`
+    runs from preflight as well as from here.
+
+    Returns [(export_path, source_path)] for the caller to materialise into.
+    """
+    if STASH_MARKER.exists():
+        raise SystemExit(
+            f"{STASH_MARKER} exists: a previous run left repositories moved "
+            "aside. Run preflight.py to restore them before starting."
+        )
+    moved = []
+    for repo, _commit in pairs:
+        repo = pathlib.Path(repo).expanduser()
+        real = repo.with_name(repo.name + "-real")
+        if real.exists():
+            raise SystemExit(f"{real} already exists; refusing to overwrite it.")
+        repo.rename(real)
+        moved.append({"export": str(repo), "real": str(real)})
+        logger.info("stashed %s -> %s", repo.name, real.name)
+    STASH_MARKER.write_text(json.dumps({"moved": moved, "pid": os.getpid()}, indent=1))
+    return [(pathlib.Path(m["export"]), pathlib.Path(m["real"])) for m in moved]
+
+
+def restore_targets():
+    """Put the real repositories back. Safe to call when nothing is stashed."""
+    if not STASH_MARKER.exists():
+        return []
+    state = json.loads(STASH_MARKER.read_text())
+    restored = []
+    for m in state.get("moved", []):
+        export, real = pathlib.Path(m["export"]), pathlib.Path(m["real"])
+        if not real.exists():
+            logger.error("%s is missing; cannot restore %s", real, export)
+            continue
+        if export.exists():
+            shutil.rmtree(export, ignore_errors=True)
+        real.rename(export)
+        restored.append(export.name)
+        logger.info("restored %s", export.name)
+    STASH_MARKER.unlink(missing_ok=True)
+    return restored
+
+
 def build_checkout(repo, commit, dest):
     """Materialise `commit` as a standalone directory with no link to `repo`.
 
@@ -773,14 +834,21 @@ def sandbox_profile(worktree, repo):
     home = pathlib.Path.home()
     keep = str(pathlib.Path(worktree).resolve())
     denied = []
-    for path in (
+    repo_path = pathlib.Path(repo).expanduser().resolve()
+    candidates = [
         home / "git/gmail-archive",
         home / "git/monitor",
         home / "git/local-llm-testing",
         home / "bench-solutions",
         home / "bench-logs",
-        pathlib.Path(repo).expanduser().resolve(),
-    ):
+        repo_path,
+        # The stashed real checkout keeps full history, so `git show
+        # <commit>:path` there would hand over the original body. Deny it too.
+        repo_path.with_name(repo_path.name + "-real"),
+        home / "git/gmail-archive-real",
+        home / "git/monitor-real",
+    ]
+    for path in candidates:
         path = str(path)
         if path == keep or keep.startswith(path + "/"):
             continue  # never hide the tree the trial is supposed to edit
@@ -886,7 +954,11 @@ def one_trial(
     repo = pathlib.Path(target["repo"]).expanduser()
     suffix = "" if client == "claude" else f"-{client}"
     name = f"{task['name']}-{backend_name}{suffix}-{trial}"
-    worktree = workdir / name
+    # #54: while the real checkout is stashed at <name>-real, the export stands
+    # in its place, so the path a model guesses holds the excised tree. Trials
+    # are serial, so one export at a time is fine.
+    stashed_source = repo.with_name(repo.name + "-real")
+    worktree = repo if stashed_source.exists() else workdir / name
     # results.new_row is the only place a row is shaped. It stamps the schema
     # version and sets both exclusion keys explicitly -- see results.py for why
     # "absent" must never be allowed to mean "not excluded".
@@ -907,7 +979,13 @@ def one_trial(
         logger.warning("%s: removing stale checkout from an aborted run", name)
         shutil.rmtree(worktree, ignore_errors=True)
 
-    build_checkout(repo, target["base_commit"], worktree)
+    # The export is materialised FROM the stashed real checkout, INTO the path
+    # the model guesses. `source` differs from `repo` only while stashed.
+    build_checkout(
+        stashed_source if stashed_source.exists() else repo,
+        target["base_commit"],
+        worktree,
+    )
     try:
         # 1. Hollow out the target, then make it the repository's only commit.
         #    Committing the excised state as the initial commit means the
@@ -1194,13 +1272,21 @@ def main():
     # before a single trial runs. A benchmark that starts from an unknown state
     # measures nothing -- and an agent has already damaged a checkout it was
     # never pointed at.
-    for repo, commit in sorted(
+    pairs = sorted(
         {
             (task_target(cfg, t)["repo"], task_target(cfg, t)["base_commit"])
             for t in tasks
         }
-    ):
+    )
+    for repo, commit in pairs:
         ensure_pristine(repo, commit)
+
+    # #54: stand the export where the model expects the repo to be, so a
+    # guessed path reaches the excised tree instead of an intact one. The real
+    # checkouts move to <name>-real until the batch ends.
+    restore_targets()  # in case a previous run died mid-batch
+    stash_targets(pairs)
+    atexit.register(restore_targets)
 
     logger.info(
         "%d task(s) x %d backend(s) x %d client(s) x %d trial(s)",

@@ -351,6 +351,22 @@ def log_versions(offline: bool = False) -> None:
 
 
 def main() -> int:
+    # #54: a run killed mid-batch leaves the real repositories moved aside at
+    # <name>-real with the export standing in their place. Restore before
+    # anything else looks at them, so a crashed run never becomes a silent
+    # wrong baseline.
+    try:
+        import run as _run
+
+        restored = _run.restore_targets()
+        if restored:
+            logger.warning(
+                "restored %s from a previous run that did not finish",
+                ", ".join(restored),
+            )
+    except Exception as exc:  # noqa: BLE001 -- preflight must never hard-fail
+        logger.error("could not check for stashed repositories: %s", exc)
+
     logging.basicConfig(level=logging.INFO, stream=sys.stdout,
                         format="%(asctime)s %(levelname)s %(message)s")
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
