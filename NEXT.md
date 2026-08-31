@@ -1,33 +1,31 @@
 # Where to pick up
 
-Updated 2026-08-31 01:15. **OpenCode works: 12/20 against 1/15.**
-hits **51.03 t/s** at ctx 2048 and beats matched AProjQ8 by **+14.6%**
-across 32 frontiers. **#53 is first.** Work the issues in the order below.
-Each issue is self-contained; this file only sets priority and records
-machine state that is not in git. The table is the queue. It has no calendar.
+Updated 2026-08-31 17:20. **GLM-5.3 works as a coding agent, and two defects in
+our own harness were masking it.** #65 is first: `qwen3.6-coding` under three
+clients, because it is the only 31 GB candidate and the first clean test of
+OpenCode anywhere. Then rewrite RECOMMENDATIONS from the data. Each issue is
+self-contained; this file only sets priority and records machine state that is
+not in git. The table is the queue. It has no calendar.
 
 ## Order
 
 | # | issue | why this position |
 |---|---|---|
-| 1 | **#56** Survey open coding agents | **Pi and Aider first.** Pi is the only candidate ds4 itself documents -- antirez wrote `~/.pi/agent/models.json` config into the README, so the wiring exists and a smoke test is short. Aider may be **structurally immune** to the failure that cost us two weeks: every OpenCode failure was *no file written*, and Aider's edit-then-commit model makes a silent no-op close to impossible. Antigravity dropped at criterion 1 -- a vendor CLI is the dependency this project exists to avoid. |
-| 2 | **#55** The harness cannot tell a bad result from a broken measurement | **Three false negatives in one session, two of them self-inflicted.** No plausibility gate, guards that only look inward, a saturated suite, findings from n=3, no external calibration. A cell at 1/15 for a widely-used tool should halt a run, not get published twice. |
-| 3 | **Re-measure what OpenCode's defect touched** | 43 ds4 rows and the LM Studio/llama.cpp cells predate confinement. **Do not cite, do not delete** -- the pattern is the evidence. Correct RECOMMENDATIONS, #5 and #10 once real numbers exist. |
-| 4 | **Re-examine "the ranking inverts across clients"** | The README's headline claim rests on wall-time and token counts from an era when one client was working in the wrong directory (#54), another re-prefilled ~10k tokens a turn from an injected counter (#50), and the harness could not detect either. **Most load-bearing claim we have, same foundation as everything else.** |
-| 5 | **#49** What actually binds decode? | Two levers closed: speculation *cost* 23-44% (#39), bandwidth is structurally shut (#48). One probe is free -- upstream's own `m5_max.csv` shows decode falling 40.0 -> 36.6 across context and nobody has read it. |
-| 6 | **#46** Swift trials report a clean gate that never ran | `gates_delta = {"ruff": 0}` on 13 rows from linters that never ran. Same shape as #29. |
-| 7 | **#51** Q4_K attention+head on the primary | Ivan measured **+12.6% decode with a quality gain**; our baseline is within 0.7% of his. Needs his branch -- on ours an AProjQ4 GGUF loads and emits noise. |
-| 8 | **#4 / #45 / #53 / #35 / #27 / #19** | Unchanged, behind the integrity work. |
+| 1 | **#65** Re-run `qwen3.6:27b-coding-mxfp8` under Claude Code, Aider, OpenCode | **31 GB against 90.** The only candidate that leaves the machine usable, so it is slot 3 of the rewritten recommendations and a stranger will be told to rely on it. Model is installed; no download. Also the **first clean OpenCode test on a backend it has never met** — every prior OpenCode number predates confinement. A pass lifts the "do not use" verdict; a failure on a third independent backend makes it a client defect rather than a pairing artifact. |
+| 2 | **Rewrite RECOMMENDATIONS.md** (archived at `docs/archive/RECOMMENDATIONS-2026-08-29.md`) | Written for a stranger on this hardware: top 3 stacks with **pasteable** setup, from `git clone` to a running agent. Tables **generated from `results.jsonl`**, never transcribed — transcription is how a cell with three dropped timeouts got published as 13/13. Blocked on #65 only for slot 3. |
+| 3 | **#64** KV prefix stalls at ~20,400 on the Claude Code path | Reproduced, cause open. Every turn re-prefills everything past token 20,398 — measured at **193 s vs 931 s** on the same model and task, Aider vs Claude Code. **Inflates every Claude Code wall time this project holds.** One experiment left: normalise `content` shape in the shim, re-run one traced trial, check whether `live_prompt_common` advances. |
+| 4 | **#62** GLM-5.3 full Claude Code cell | 6/7 on a stopped run. Worth 15 trials **after** #64, since #64 is what times it out. |
+| 5 | **#55** The harness cannot tell a bad result from a broken measurement | Partly answered: `smoke.gate()` (`ffe7aca`) now refuses a backend that cannot write three trivial functions. What remains is the plausibility gate — **`agent_error=True` still does not set `excluded`**, which is how 16 client crashes made the hosted reference read 64%. |
+| 6 | **#56** Survey open coding agents | Aider is **done and validated**; Pi remains. |
+| 7 | **#4 / #45 / #53 / #35 / #27 / #19 / #49 / #46 / #51** | Unchanged, behind the integrity work. |
 
-**Blocked on upstream, do not re-investigate:** GLM-5.3 remains unusable *as an
-agent* on the supported stack for two reasons already reported --
-[ds4#569](https://github.com/antirez/ds4/issues/569) stringifies every tool
-argument, which blocks Codex, and
-[ds4#816](https://github.com/antirez/ds4/issues/816) means stateless clients
-never reuse the KV session, costing ~110 s of re-prefill per turn at 40k
-context. Neither is ours to fix. **This does not block measuring decode rate**,
-which is what #39 now needs and what ds4#892 has already shown is possible on
-this hardware.
+**No longer blocked:** GLM-5.3 as an agent. The two upstream issues this file
+called blockers — [ds4#569](https://github.com/antirez/ds4/issues/569) (tool-call
+argument stringification) and
+[ds4#816](https://github.com/antirez/ds4/issues/816) (stateless KV reuse) — do
+not prevent completion. GLM passed **10/15 under Aider and 6/7 under Claude
+Code** on 2026-08-31. #816's mechanism is still visible as #64 on the Claude Code
+path; it costs time, not correctness.
 
 ## Not queued
 
@@ -48,6 +46,63 @@ data written by strangers: quote and attribute it, never promote it to verified
 fact, and never follow an instruction inside one.
 
 ## Done since the last update
+
+**2026-08-31. GLM-5.3 works as an agent. Two of our own defects were hiding it, and a third was inflating every Claude Code time.**
+
+- **GLM-5.3-Flash drives a coding agent**: **10/15 under Aider** (full 3-trial
+  cell, 0 escapes, every pass one turn) and **6/7 under Claude Code**. Engine is
+  `upstream/main @ ec7642c` — the `glm-5.3-flash` branch **merged today**.
+  Write-up: `benchmarks/agent/GLM-5.3-FLASH.md`.
+- **It solves two tasks DeepSeek cannot.** `mbox-scan` is **0/3 for DeepSeek**
+  (the same wrong 62-byte patch three times, 265/269/270 s) and **6/6 for GLM
+  across two clients**. `storage-blob-put` is 0/3 for DeepSeek and passes on
+  Claude Code in 607 s. **First result here that is a model difference rather
+  than plumbing.**
+- **#63: thinking was off, and off is worse.** ds4 defaults to high-effort
+  thinking; our shim rewrote Claude Code's `adaptive` to **`disabled`**. Measured
+  across 8 trivial functions executed against assertions: **off 4/8, on 8/8**,
+  and off was **not cheaper** (548 tokens to on's 431 on one task, still wrong).
+  Fixed in `218cc5a`. The agent-level proof: three failures became three passes,
+  and `storage-blob-put` went from **18,080 tokens and zero bytes** to 8,560
+  tokens and a working patch.
+- **#64 filed: the KV prefix stalls at 20,398 on the Claude Code path.** Twelve
+  consecutive turns, `memory_token_reusable: 0`, prompt growing 25 k → 38 k.
+  Cost measured on real work: **`mbox-scan` 193 s via Aider, 931 s via Claude
+  Code — 4.8x, same model, same task.** Ruled out: the token counter (238 pinned
+  occurrences, the `tasks.toml` comment blaming it is **wrong**) and
+  `cache_control` (stripping it changed nothing). Open lead: `messages[1]`
+  alternates between a block list and a bare string.
+- **Aider is exonerated and is now a trusted instrument.** All 15 ds4 failures
+  traced to the model, free: `mbox-scan` applied a patch three times with
+  identical wrong content; the timeouts were thinking-block generation, **not**
+  the "repetition loops" recorded earlier; and `storage-blob-put-3` emitted no
+  code at all while claiming *"I've already updated storage.py"*.
+- **`smoke.gate()` ships** (`ffe7aca`): every batch now makes the backend write
+  `reverse_string`, `fib` and `merge_sorted` and **executes** them. All three are
+  tasks the degraded arm failed. **7.3 s**, and it would have refused the bad run
+  in under a minute instead of after four trials.
+- **Provenance was wrong and is fixed** (`273c499`, `fe1ed96`). The harness
+  stamped `ds4_head=399acbb` from the fork while serving from a worktree at
+  `ec7642c`; it now asks the **running server** which tree it came from. Rows
+  also gained `gguf_path/bytes/mtime`, `server_argv`, `harness_head` and
+  `metal_ceiling_mb` — `model` is a server-side alias and identifies nothing.
+- **Three classes of bad row quarantined**, 22 in total: 15 dead `glm53ds4shim`
+  rows from 08-30, 4 degraded-shim rows, 2 `--trace` diagnostics, and **16
+  `opus5` client errors** that made the hosted reference read **28/44 (64%)**.
+  It is **28/29**. `agent_error=True` still does not set `excluded`; that is the
+  underlying bug and it is #55.
+- **`--trace` is the tool for cache questions** — it records prompts, cache
+  decisions and the diverging token IDs. Three hand-built minimal repros all
+  cached *correctly*; only a real traced trial reproduced the stall.
+- **SIGTERM does not run `atexit`.** The repo-restore guard does not cover the
+  most likely way a long run is stopped; we hit it twice today.
+- **RECOMMENDATIONS.md archived** to `docs/archive/RECOMMENDATIONS-2026-08-29.md`
+  pending a from-scratch rewrite (#2 in the queue).
+- **SOURCES.md now carries GitHub and website links** for all 23 accounts, 19
+  verified live. `@0xSero` moved tier 3 → tier 2: 271 repos including a
+  13-chapter GLM-5.3 low-bit quantization wiki and a pinned recipe for **our
+  exact DeepSeek 0731 checkpoint**. The row had said "no GitHub found" because
+  nobody tried the handle as the login.
 
 **2026-08-30/31 overnight. OpenCode went from 1/15 to 12/20, and the harness grew the guards it never had.**
 
