@@ -43,6 +43,7 @@ import excise
 import grade
 import preflight
 import results
+import smoke
 import swift_excise
 
 logger = logging.getLogger("agent-bench")
@@ -1325,6 +1326,14 @@ def main():
         "interleaved per task so neither gets a systematically "
         "warmer or colder server than the other.",
     )
+    p.add_argument(
+        "--skip-smoke",
+        action="store_true",
+        help="skip the pre-batch coding gate (#63). The gate makes each backend "
+        "write three trivial functions and executes them, which catches a server "
+        "that is answering in a degraded mode -- the failure preflight cannot see. "
+        "Skip it only when you are deliberately measuring a broken backend.",
+    )
     args = p.parse_args()
 
     logging.basicConfig(
@@ -1398,6 +1407,19 @@ def main():
     # batch, and the result is a timing measurement of a machine that was busy
     # doing something else. Advisory: it warns and never refuses.
     preflight.log_report(preflight.inspect(backends))
+
+    # #63: preflight proves the machine is ready; this proves the *model* is.
+    # A backend can be up, current, and pristine while answering in a degraded
+    # mode -- on 2026-08-31 a shim rewrote thinking to `disabled` and a GLM cell
+    # produced three empty patches before anyone noticed. Every request returned
+    # 200 OK. Three trivial functions, executed rather than eyeballed, catch it
+    # in under a minute. Runs before the targets are stashed, so a refusal never
+    # leaves a checkout moved aside.
+    if not args.skip_smoke:
+        for backend_name in sorted(backends):
+            smoke.gate(backends[backend_name], backend_name)
+    else:
+        logger.warning("smoke gate skipped (--skip-smoke): rows are not trustworthy")
 
     versions = capture_versions(cfg, backends)
     versions["client"] = ",".join(clients)
