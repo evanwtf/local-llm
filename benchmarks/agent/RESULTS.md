@@ -2197,3 +2197,100 @@ both still open and neither is touched by this branch. Everything above is
 one-shot CLI generation, not an agent loop. **Do not promote GLM on this
 evidence** — it clears the "does it run" bar and says nothing about the bar that
 actually matters here.
+
+## #54 — OpenCode works: 1/15 → 12/20, and the fix was the environment (2026-08-31)
+
+**The client was never the whole story. We were handing it an un-excised copy of the answer.**
+
+A model asked to implement `src/gmail_archive/parser.py` guesses the repo is at
+`~/git/gmail-archive`, and it was right. That path held the **real, intact**
+checkout: tests green, nothing to fix. OpenCode looked, correctly concluded
+there was no work to do, and wrote nothing — recorded as a model failure with
+the control's exact test counts.
+
+| | pass rate |
+|---|---|
+| before, `ds4 × opencode` | **1/15 (7%)** |
+| after, same backend/tasks | **12/20 (60%)**, Wilson 95% CI **39–78%** |
+
+Per task, over the 15-trial run:
+
+| task | result |
+|---|---|
+| `mbox-scan` | **3/3** |
+| `parser-mbox-quoting` | **3/3** |
+| `storage-blob-put` | 2/3 |
+| `parser-date` | 1/3 |
+| `mbox-strip-envelope` | **0/3** — passed in the earlier 5-trial run |
+
+Two tasks are now fully reliable, which the pooled figure hides. Per-task rates
+are **not** stable at n=3: four of five tasks flipped verdict between runs.
+
+### Why OpenCode and not the others
+
+From 276 retained client logs: **27 of 35 OpenCode trials worked outside the
+trial checkout. Codex 0 of 135. Claude Code 0 of 106** — and Claude Code runs
+here with `--permission-mode bypassPermissions`, so nothing was stopping it. It
+stays put because its tools are workspace-rooted by construction. Codex ships an
+OS sandbox on by default and calls bypassing it "dangerous".
+
+OpenCode's boundary is `external_directory: {"*": "ask"}` (`agent.ts:122`).
+Interactively a human declines the prompt. Under `opencode run` there is
+**nobody to ask**. And [#41067](https://github.com/anomalyco/opencode/issues/41067)
+means out-of-worktree paths reach the matcher as `../…`, so an explicit `deny`
+never fires — confirmed on 1.18.25, where a `{"*": "deny"}` rule loaded, ordered
+last, and was bypassed.
+
+**Its safety model assumes a human in the loop, and unattended benchmarking
+removes the human.** Every external source that praises it was using the TUI.
+
+### What the fix actually was
+
+Stand the **export** at the path the model guesses. The real checkout moves to
+`<name>-real` for the batch; `git archive` puts the excised tree at
+`~/git/gmail-archive` — right files, already excised, **no `.git` history the
+original body was ever in**.
+
+Running in-place was considered and rejected: `git show 56e55cc:…` hands over
+the answer, and inspecting history is an obvious first move for a coding agent.
+
+Supporting work, all client-agnostic:
+
+- **`sandbox-exec` confinement below the client** — inherited through
+  `bash → sh → cat`, proof against symlinked dirs, symlinked files, hard links
+  and local `git clone`. Path *shape* is irrelevant because the kernel resolves
+  before checking, which is exactly why it defeats #41067 where config cannot.
+- **`ensure_pristine()`** — fetch, assert the pinned commit is reachable from an
+  `origin/*` ref, `reset --hard`, `clean -ffd`, assert clean. Refuses rather
+  than warns. A commit that exists only locally is rejected.
+- **Crash recovery** — marker file, `restore_targets()` from `atexit`, batch
+  start **and preflight**. It was needed within an hour of being written.
+- **`paths_outside()`** — records `workspace_escapes` per row; answer-tree
+  escapes auto-exclude.
+
+### Three false negatives caught, two of them mine
+
+Worth recording because it is #55's thesis in miniature — **the harness could
+not tell a broken measurement from a bad result**:
+
+1. **`source_repo_intact` inverted.** It watched the export, which is *supposed*
+   to be modified. `verdict()` treats that as an escape, so a genuine pass would
+   have been filed as a failure.
+2. **`paths_outside` was handed a key that is never set**, so the worktree
+   itself counted as an escape on every row.
+3. **Denying `~/git/local-llm` killed every trial in 0.4s** — OpenCode `lstat`s
+   the launcher's cwd. Seven rows excluded with cause. **Confinement has to
+   leave the agent able to run.**
+
+### The claim, stated narrowly
+
+OpenCode runs this suite at roughly **60%** against a local model on local
+hardware. It is not yet a client to trust unattended, and the variance is large
+(47 s to a 1800 s timeout on the same task). But the open stack —
+**OpenCode + DeepSeek V4 Flash + ds4 on an M5 Max** — works, which it did not
+appear to this morning.
+
+`passed == wrote_file` held across every trial. **OpenCode has never once
+written incorrect code here.** Its failures are missing edits, not wrong ones —
+a plumbing failure, not a reasoning one, which is why #56 asks whether a
+different open agent charges less for the same property.
