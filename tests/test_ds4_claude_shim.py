@@ -20,9 +20,15 @@ def _rewrite(payload: dict) -> dict:
     return json.loads(shim.rewrite(json.dumps(payload).encode()))
 
 
-def test_adaptive_thinking_becomes_disabled() -> None:
+def test_adaptive_thinking_becomes_enabled() -> None:
+    """`adaptive` maps to `enabled`, matching ds4's own default.
+
+    It mapped to `disabled` until #63 measured that arm at 4/8 correct on
+    trivial functions against 8/8 for thinking on. A shim that silently
+    halves correctness to save 30% of tokens is worse than no shim.
+    """
     out = _rewrite({"thinking": {"type": "adaptive"}, "messages": []})
-    assert out["thinking"] == {"type": "disabled"}
+    assert out["thinking"] == {"type": "enabled"}
 
 
 def test_explicit_client_choices_are_left_alone() -> None:

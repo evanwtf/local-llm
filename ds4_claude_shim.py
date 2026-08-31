@@ -13,6 +13,12 @@ account for most of the wall time:
    trace ran `think_mode: high`. On one trivial prompt that is 295 output
    tokens against 12 with thinking off.
 
+   **Superseded by #63.** Those cheap tokens were wrong tokens: thinking off
+   scores 4/8 on trivial functions against 8/8 for on. The rewrite now sends
+   `enabled`, which matches ds4's own default. This shim no longer changes
+   what the model does -- it only stops `adaptive` from being a silent,
+   undeclared fall-through, so every run records the mode it used.
+
 2. **A live token counter injected as a system message.** Claude Code sends
 
        {"role":"system","content":"<total_tokens>14969546 tokens left</total_tokens>"}
@@ -69,11 +75,22 @@ def normalise_thinking(payload: dict) -> bool:
     Returns True if the payload changed. Only `adaptive` is rewritten: an
     explicit `disabled` or `enabled` from the client is a deliberate choice and
     is left alone.
+
+    `adaptive` becomes `enabled`, not `disabled`. This shim originally chose
+    `disabled` to cut tokens (#50). #63 measured what that cost: across 8
+    trivial functions, thinking off scored **4/8** against **8/8** for on, and
+    failed `fib(10)` and reversing a string. It was not reliably cheaper
+    either -- on one task off spent 548 tokens to on's 431 and was still
+    wrong. Median saving was 30% of tokens and three seconds, for half the
+    correct answers.
+
+    ds4's own default for an unrecognised mode is high-effort thinking, so
+    `enabled` is also what the request would have got with no shim at all.
     """
     thinking = payload.get("thinking")
     if not isinstance(thinking, dict) or thinking.get("type") != "adaptive":
         return False
-    payload["thinking"] = {"type": "disabled"}
+    payload["thinking"] = {"type": "enabled"}
     return True
 
 
