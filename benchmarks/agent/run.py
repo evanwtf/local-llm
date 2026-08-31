@@ -841,6 +841,11 @@ def sandbox_profile(worktree, repo):
         home / "git/local-llm-testing",
         home / "bench-solutions",
         home / "bench-logs",
+        # The harness itself: results.jsonl records solution_patch paths, so
+        # grepping this repo for a task's symbol returns a pointer to the
+        # answer. It is also where 22 turns went in one trial instead of into
+        # the task. The agent never needs it.
+        home / "git/local-llm",
         repo_path,
         # The stashed real checkout keeps full history, so `git show
         # <commit>:path` there would hand over the original body. Deny it too.
@@ -871,7 +876,8 @@ def sandboxed(argv, worktree, repo, tmpdir):
     return ["/usr/bin/sandbox-exec", "-f", str(path), *argv], denied
 
 
-def save_transcript(client_log, name, stdout, stderr, result, partial=False):
+def save_transcript(client_log, name, stdout, stderr, result, partial=False,
+                    worktree=""):
     """Keep the client's own event stream for this trial, if asked to.
 
     A results row records that the agent did not fix the code, never why. The
@@ -893,7 +899,7 @@ def save_transcript(client_log, name, stdout, stderr, result, partial=False):
     # #54: record when the agent worked outside the trial checkout. A row that
     # measured the wrong tree is not a model verdict and must not be counted
     # as one.
-    escaped = paths_outside(stdout, result.get("_worktree", ""))
+    escaped = paths_outside(stdout, worktree)
     if escaped:
         result["workspace_escapes"] = escaped
         # An escape into a tree that holds answers is a confound, not a verdict.
@@ -1065,7 +1071,9 @@ def one_trial(
         # is diagnosable instead of only countable. It is opt-in and written
         # outside the repo by default: these transcripts carry file contents
         # the agent read, and this repo does not commit prompts.
-        save_transcript(client_log, name, proc.stdout, proc.stderr, result)
+        save_transcript(
+            client_log, name, proc.stdout, proc.stderr, result, worktree=worktree
+        )
         try:
             result.update(parse(proc.stdout))
         except json.JSONDecodeError:
@@ -1095,7 +1103,16 @@ def one_trial(
         # any of them is unreadable. A partial match is not recall.
         result["restored_verbatim"] = grade.all_restored_verbatim(excised, keep_doc)
         result["target_repo"] = target["repo"]
-        result["source_repo_intact"] = source_repo_intact(repo, target["base_commit"])
+            # #54: while stashed, the real checkout is at <name>-real and the
+    # export stands at `repo`. The tripwire has to watch the real one --
+    # the export is *supposed* to be modified, that is the trial.
+        # #54: while stashed, the real checkout is at <name>-real and the
+        # export stands at `repo`. The tripwire has to watch the real one --
+        # the export is *supposed* to be modified; that is the trial.
+        guarded = repo.with_name(repo.name + "-real")
+        result["source_repo_intact"] = source_repo_intact(
+            guarded if guarded.exists() else repo, target["base_commit"]
+        )
         if not result["source_repo_intact"]:
             logger.error("%s: SOURCE REPO WAS MODIFIED -- agent left the sandbox", name)
         logger.info(
