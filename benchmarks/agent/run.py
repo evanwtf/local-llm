@@ -841,11 +841,14 @@ def sandbox_profile(worktree, repo):
         home / "git/local-llm-testing",
         home / "bench-solutions",
         home / "bench-logs",
-        # The harness itself: results.jsonl records solution_patch paths, so
-        # grepping this repo for a task's symbol returns a pointer to the
-        # answer. It is also where 22 turns went in one trial instead of into
-        # the task. The agent never needs it.
-        home / "git/local-llm",
+        # NOT ~/git/local-llm. Denying it kills OpenCode before it starts:
+        # it lstat()s the launching process's cwd, which is
+        # benchmarks/agent, and dies with EPERM in 0.4s. The pointer leak it
+        # would close is already harmless -- results.jsonl names patch paths,
+        # but ~/bench-solutions is denied, so those paths cannot be opened.
+        # Measured: one trial enumerated 39 of them and read zero (no diff
+        # headers, no permission errors). Confinement has to leave the agent
+        # able to run.
         repo_path,
         # The stashed real checkout keeps full history, so `git show
         # <commit>:path` there would hand over the original body. Deny it too.
