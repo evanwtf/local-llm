@@ -6,6 +6,27 @@ unavailable — price, policy, or otherwise.
 **Evidence:** 558 agent trials, 17 backends, 3 clients, plus a hosted reference.
 See [`RESULTS.md`](benchmarks/agent/RESULTS.md). Last corrected **2026-08-29**.
 
+> [!WARNING]
+> **Every claim in this document is unproven until re-derived (#59).**
+>
+> Two published claims inverted under scrutiny in three days: `--dspark` went
+> from "23–44% slower" to **+3.8%/+7.5%** (#58), and "do not use OpenCode"
+> turned out to be an artifact of the agent reading an un-excised copy of the
+> answer (#54). Two inversions is a pattern.
+>
+> Until #59's triage lands, read as follows:
+>
+> | tier | what | how to read |
+> |---|---|---|
+> | **A** | correctness / pass rates from **Claude Code or Codex** | trustworthy — 0 escapes in 106 and 135 retained logs, and pass/fail is robust to thermal drift |
+> | **B** | anything resting on **wall time, tok/s, or a speed comparison** | **provisional.** ~4% of throughput is lost to 15 min of sustained load (#58); Claude Code re-prefills ~10k tokens/turn (#50); a 3-trial median carries ±27.9% (#23) |
+> | **C** | anything about **OpenCode**, or client-to-client *timing* | **retired.** Do not cite |
+>
+> This includes the README's headline claim that rankings invert across
+> clients: it rests entirely on cross-client wall time gathered while one
+> client was working in the wrong directory. It may be true. It is not
+> currently supported.
+
 > **Read the series boundary.** Codex moved 0.148 → 0.150.1 and llama.cpp moved
 > from PR #27742 to mainline `d7bd3bfca` on 2026-08-28. Numbers either side are
 > **not pooled**, per the policy in `AGENTS.md`. Where a figure below is from
