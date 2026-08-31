@@ -266,6 +266,32 @@ prompt = """`SevenSegment.glyphs` in Sources/MonitorCore/SevenSegment.swift \
 has been removed and replaced with a fatalError. Implement it so the existing \
 test suite passes. Do not modify any test."""
 
+# --- script tasks -----------------------------------------------------------
+# A different measurement from the excision tasks above. There the agent gets a
+# repository, a failing suite and a signature, and fills in a body. Here it
+# starts with an EMPTY directory and must produce a runnable artifact: correct
+# filename, argv read, output on stdout. Trivial logic, real boilerplate -- and
+# the boilerplate is exactly what is never exercised when scaffolding exists.
+#
+# No repo, so no excision, no pinned fixture, no -real stash and no answer to
+# leak. That is why these are cheap enough to run across every backend x client.
+#
+# `checks` are [argument, expected stdout]. The checked inputs are NOT the one
+# shown in the prompt: a script that hardcodes the demonstrated case fails.
+
+[[task]]
+name = "script-reverse"
+kind = "script"
+entrypoint = "reverse.py"
+prompt = """Create a Python script that we can call from the command line that \
+takes a string as input and reverses it. A successful implementation will be \
+called with `python3 reverse.py hello` and will output `olleh` on a new line."""
+checks = [
+    ["Benchmarking", "gnikramhcneB"],
+    ["a", "a"],
+    ["ab cd", "dc ba"],
+]
+
 # --- backends ------------------------------------------------------------
 # Each backend is the environment Claude Code runs under. Context windows
 # differ on purpose: each model gets its real window, because capping a model

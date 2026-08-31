@@ -146,3 +146,9 @@ repo `~/git/monitor` · @ `cbb85ca` · oracle `swift test`
 `SevenSegment.glyphs` in Sources/MonitorCore/SevenSegment.swift has been removed and replaced with a fatalError. Implement it so the existing test suite passes. Do not modify any test.
 ```
 
+### `script-reverse`
+
+```text
+Create a Python script that we can call from the command line that takes a string as input and reverses it. A successful implementation will be called with `python3 reverse.py hello` and will output `olleh` on a new line.
+```
+

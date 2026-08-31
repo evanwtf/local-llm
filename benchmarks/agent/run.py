@@ -115,6 +115,68 @@ def task_target(cfg, task):
     }
 
 
+def script_checks(worktree, entrypoint, checks, timeout):
+    """Oracle for a script task: run the thing and look at what it prints.
+
+    Returns (passed, summary), matching tests_pass() so both kinds of task
+    share a call site.
+
+    This is a different measurement from the excision tasks. There, the agent
+    is handed a repository, a failing suite and a function signature, and has
+    only to fill in a body. Here it starts with an empty directory and must
+    produce a runnable artifact: the right filename, an argv read, and output
+    on stdout. Trivial logic, real boilerplate -- and the boilerplate is the
+    part that is never tested when scaffolding already exists.
+
+    Two properties are recorded separately, because conflating them would
+    measure formatting compliance as if it were capability:
+
+      * `passed` compares stripped stdout, so a missing trailing newline does
+        not fail an otherwise correct script.
+      * `exact` notes whether the output matched byte for byte, newline
+        included, since the prompt does ask for it.
+
+    The checked inputs are NOT the input shown in the prompt. A script that
+    hardcodes the demonstrated case fails here, the same rule the smoke probes
+    follow.
+    """
+    script = pathlib.Path(worktree) / entrypoint
+    if not script.exists():
+        return False, f"{entrypoint} was never created"
+
+    failures = []
+    exact = True
+    for arg, want in checks:
+        try:
+            proc = subprocess.run(
+                ["python3", entrypoint, arg],
+                cwd=worktree,
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                check=False,
+            )
+        except subprocess.TimeoutExpired:
+            return False, f"{entrypoint} {arg!r} timed out"
+        got = proc.stdout
+        if got.strip() != want:
+            detail = (
+                (got.strip() or proc.stderr.strip().splitlines()[-1:] or [""])[0]
+                if not got.strip()
+                else got.strip()
+            )
+            failures.append(f"{arg!r} -> {detail[:60]!r} (want {want!r})")
+        elif got != want + "\n":
+            exact = False
+
+    if failures:
+        return False, f"{len(failures)}/{len(checks)} failed: " + "; ".join(
+            failures[:2]
+        )
+    note = "" if exact else " (output not exactly one trailing newline)"
+    return True, f"{len(checks)}/{len(checks)} checks passed{note}"
+
+
 def tests_pass(worktree, tests, timeout, command="uv run pytest -q"):
     """Run the oracle. Returns (passed, summary_line).
 
@@ -1205,7 +1267,15 @@ def one_trial(
     # in its place, so the path a model guesses holds the excised tree. Trials
     # are serial, so one export at a time is fine.
     stashed_source = repo.with_name(repo.name + "-real")
-    worktree = repo if stashed_source.exists() else workdir / name
+    is_script = task.get("kind") == "script"
+    # A script task starts from an empty directory: no repo, so no export, no
+    # stash, no excision and nothing to leak. It never stands in the guessed
+    # path, because there is no answer anywhere on disk to find.
+    worktree = (
+        workdir / name
+        if is_script
+        else (repo if stashed_source.exists() else workdir / name)
+    )
     # results.new_row is the only place a row is shaped. It stamps the schema
     # version and sets both exclusion keys explicitly -- see results.py for why
     # "absent" must never be allowed to mean "not excluded".
@@ -1226,57 +1296,81 @@ def one_trial(
         logger.warning("%s: removing stale checkout from an aborted run", name)
         shutil.rmtree(worktree, ignore_errors=True)
 
-    # The export is materialised FROM the stashed real checkout, INTO the path
-    # the model guesses. `source` differs from `repo` only while stashed.
-    build_checkout(
-        stashed_source if stashed_source.exists() else repo,
-        target["base_commit"],
-        worktree,
-    )
-    try:
-        # 1. Hollow out the target, then make it the repository's only commit.
-        #    Committing the excised state as the initial commit means the
-        #    original body exists nowhere in this checkout -- not in history,
-        #    not in an object store shared with anything else.
-        keep_doc = task.get("keep_docstring", True)
-        result["keep_docstring"] = keep_doc
-        excised = []
-        for t in targets(task):
-            path = worktree / t["file"]
-            body = exciser_for(t["file"])(path, t["symbol"], keep_docstring=keep_doc)
-            excised.append((path, t["symbol"], body))
-        result["removed_lines"] = sum(len(b.splitlines()) for _, _, b in excised)
-        result["removed_symbols"] = [t["symbol"] for t in targets(task)]
-        git(["init", "-q", "-b", "main"], worktree)
-        git(["add", "-A"], worktree)
-        git(
-            [
-                "-c",
-                "user.email=bench@local",
-                "-c",
-                "user.name=bench",
-                "commit",
-                "-q",
-                "-m",
-                f"benchmark: {', '.join(result['removed_symbols'])} removed",
-            ],
+    if is_script:
+        worktree.mkdir(parents=True, exist_ok=True)
+        # The control for a script task is trivial and worth asserting anyway:
+        # an empty directory must fail its own oracle, or the task proves
+        # nothing. Same role as `control_fails_as_expected` on an excision.
+        control_ok, _ = script_checks(
+            worktree, task["entrypoint"], task["checks"], GATE_TIMEOUT
+        )
+        result["control_fails_as_expected"] = not control_ok
+        result["removed_lines"] = 0
+        result["removed_symbols"] = []
+    else:
+        # The export is materialised FROM the stashed real checkout, INTO the
+        # path the model guesses. `source` differs from `repo` only while
+        # stashed.
+        build_checkout(
+            stashed_source if stashed_source.exists() else repo,
+            target["base_commit"],
             worktree,
         )
+    try:
+        if not is_script:
+            # 1. Hollow out the target, then make it the repository's only commit.
+            #    Committing the excised state as the initial commit means the
+            #    original body exists nowhere in this checkout -- not in history,
+            #    not in an object store shared with anything else.
+            keep_doc = task.get("keep_docstring", True)
+            result["keep_docstring"] = keep_doc
+            excised = []
+            for t in targets(task):
+                path = worktree / t["file"]
+                body = exciser_for(t["file"])(
+                    path, t["symbol"], keep_docstring=keep_doc
+                )
+                excised.append((path, t["symbol"], body))
+            result["removed_lines"] = sum(len(b.splitlines()) for _, _, b in excised)
+            result["removed_symbols"] = [t["symbol"] for t in targets(task)]
+            git(["init", "-q", "-b", "main"], worktree)
+            git(["add", "-A"], worktree)
+            git(
+                [
+                    "-c",
+                    "user.email=bench@local",
+                    "-c",
+                    "user.name=bench",
+                    "commit",
+                    "-q",
+                    "-m",
+                    f"benchmark: {', '.join(result['removed_symbols'])} removed",
+                ],
+                worktree,
+            )
 
-        # 2. Control: the tests must fail now, or the task proves nothing.
-        ok, summary = tests_pass(
-            worktree, task["tests"], timeout, target["test_command"]
-        )
-        result["control_fails_as_expected"] = not ok
-        # Baseline the quality gates here, on the excised tree. gmail-archive
-        # carries 18 mypy errors of its own, so only a delta against this state
-        # says anything about what the agent wrote.
-        if gates and not dry_run:
-            result["gates_before"] = grade.gates(worktree, GATE_TIMEOUT)
-        if ok:
-            logger.error("%s: tests still pass after excision -- task is broken", name)
-            result["error"] = "control passed"
-            return result
+            # 2. Control: the tests must fail now, or the task proves nothing.
+            ok, summary = tests_pass(
+                worktree, task["tests"], timeout, target["test_command"]
+            )
+            result["control_fails_as_expected"] = not ok
+            # Baseline the quality gates here, on the excised tree. gmail-archive
+            # carries 18 mypy errors of its own, so only a delta against this state
+            # says anything about what the agent wrote.
+            if gates and not dry_run:
+                result["gates_before"] = grade.gates(worktree, GATE_TIMEOUT)
+            if ok:
+                logger.error(
+                    "%s: tests still pass after excision -- task is broken", name
+                )
+                result["error"] = "control passed"
+                return result
+
+        if gates and not dry_run and is_script:
+            # No excised tree to baseline against; an empty directory is the
+            # baseline, so the gates start from nothing.
+            result["gates_before"] = {}
+
         if dry_run:
             result["dry_run"] = True
             logger.info("%s: control ok (%s)", name, summary)
@@ -1322,14 +1416,23 @@ def one_trial(
             result["stderr_tail"] = proc.stderr[-400:]
 
         # 4. The oracle.
-        passed, summary = tests_pass(
-            worktree, task["tests"], timeout, target["test_command"]
-        )
+        if is_script:
+            passed, summary = script_checks(
+                worktree, task["entrypoint"], task["checks"], GATE_TIMEOUT
+            )
+        else:
+            passed, summary = tests_pass(
+                worktree, task["tests"], timeout, target["test_command"]
+            )
         result["passed"] = passed
         result["pytest"] = summary
-        # Guard against the obvious cheat.
-        diff = git(["diff", "HEAD", "--stat", "--", "tests/"], worktree)
-        result["touched_tests"] = bool(diff)
+        # Guard against the obvious cheat. A script task ships no tests to
+        # tamper with and has no git history to diff against.
+        if is_script:
+            result["touched_tests"] = False
+        else:
+            diff = git(["diff", "HEAD", "--stat", "--", "tests/"], worktree)
+            result["touched_tests"] = bool(diff)
         # Did the agent leave the sandbox? The source repo should be untouched
         # and on its original commit. An agent that wandered there invalidates
         # both the isolation and, potentially, the excision.
