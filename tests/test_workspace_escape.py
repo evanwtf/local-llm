@@ -88,3 +88,26 @@ def test_shell_state_does_not_reach_a_trial() -> None:
     finally:
         for key in run.LEAKY_ENV:
             os.environ.pop(key, None)
+
+
+def test_a_client_naming_its_own_installation_is_not_an_escape() -> None:
+    """Aider prints its own interpreter when it runs the suite.
+
+    "## Running: ~/.local/share/uv/tools/aider-chat/bin/python -m pytest" was
+    flagged on 2 of 2 qwen36coding trials, against 0 of 30 on backends where
+    aider happened not to print that line. Recording it would have published
+    "Aider escapes on Ollama backends" from a tool invoking its own binary.
+    """
+    home = pathlib.Path.home()
+    stdout = f"## Running: {home}/.local/share/uv/tools/aider-chat/bin/python -m pytest"
+    assert run.paths_outside(stdout, "/tmp/worktree") == []
+
+
+def test_a_real_escape_is_still_caught_beside_a_self_reference() -> None:
+    """The filter must not swallow the thing it sits next to."""
+    home = pathlib.Path.home()
+    stdout = (
+        f"## Running: {home}/.local/share/uv/tools/aider-chat/bin/python -m pytest\n"
+        f"reading {home}/git/gmail-archive/src/gmail_archive/parser.py\n"
+    )
+    assert run.paths_outside(stdout, "/tmp/worktree") == [f"{home}/git/gmail-archive"]
