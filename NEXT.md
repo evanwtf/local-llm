@@ -1,7 +1,9 @@
 # Where to pick up
 
 Updated 2026-08-31 17:20. **GLM-5.3 works as a coding agent, and two defects in
-our own harness were masking it.** #65 is first: `qwen3.6-coding` under three
+our own harness were masking it.** #65 is running to a 20:00 timebox; **#66 is
+next** -- a new task class where the agent builds a script from an empty
+directory, with a clean Opus baseline. #65 is: `qwen3.6-coding` under three
 clients, because it is the only 31 GB candidate and the first clean test of
 OpenCode anywhere. Then rewrite RECOMMENDATIONS from the data. Each issue is
 self-contained; this file only sets priority and records machine state that is
@@ -12,12 +14,13 @@ not in git. The table is the queue. It has no calendar.
 | # | issue | why this position |
 |---|---|---|
 | 1 | **#65** Re-run `qwen3.6:27b-coding-mxfp8` under Claude Code, Aider, OpenCode | **31 GB against 90.** The only candidate that leaves the machine usable, so it is slot 3 of the rewritten recommendations and a stranger will be told to rely on it. Model is installed; no download. Also the **first clean OpenCode test on a backend it has never met** — every prior OpenCode number predates confinement. A pass lifts the "do not use" verdict; a failure on a third independent backend makes it a client defect rather than a pairing artifact. |
-| 2 | **Rewrite RECOMMENDATIONS.md** (archived at `docs/archive/RECOMMENDATIONS-2026-08-29.md`) | Written for a stranger on this hardware: top 3 stacks with **pasteable** setup, from `git clone` to a running agent. Tables **generated from `results.jsonl`**, never transcribed — transcription is how a cell with three dropped timeouts got published as 13/13. Blocked on #65 only for slot 3. |
-| 3 | **#64** KV prefix stalls at ~20,400 on the Claude Code path | Reproduced, cause open. Every turn re-prefills everything past token 20,398 — measured at **193 s vs 931 s** on the same model and task, Aider vs Claude Code. **Inflates every Claude Code wall time this project holds.** One experiment left: normalise `content` shape in the shim, re-run one traced trial, check whether `live_prompt_common` advances. |
-| 4 | **#62** GLM-5.3 full Claude Code cell | 6/7 on a stopped run. Worth 15 trials **after** #64, since #64 is what times it out. |
-| 5 | **#55** The harness cannot tell a bad result from a broken measurement | Partly answered: `smoke.gate()` (`ffe7aca`) now refuses a backend that cannot write three trivial functions. What remains is the plausibility gate — **`agent_error=True` still does not set `excluded`**, which is how 16 client crashes made the hosted reference read 64%. |
-| 6 | **#56** Survey open coding agents | Aider is **done and validated**; Pi remains. |
-| 7 | **#4 / #45 / #53 / #35 / #27 / #19 / #49 / #46 / #51** | Unchanged, behind the integrity work. |
+| 2 | **#66** Run the new script-task class everywhere, **Opus baseline first** | Landed in `cb583b1`. The agent starts in an **empty directory** and must build a runnable `reverse.py` -- filename, argv, stdout. Trivial logic, real boilerplate, and boilerplate is what an excision task can never exercise. No repo means no fixture, no stash, no history to leak and nothing to tamper with, so it is cheap enough to sweep every backend x client. **The first task class where the hosted reference is clean**: opus5's excision rows measure authorship contamination (Opus wrote gmail-archive); nobody wrote a greenfield script. Expected ~30 s, giving every local pairing a ratio against a real ceiling. |
+| 3 | **Rewrite RECOMMENDATIONS.md** (archived at `docs/archive/RECOMMENDATIONS-2026-08-29.md`) | Written for a stranger on this hardware: top 3 stacks with **pasteable** setup, from `git clone` to a running agent. Tables **generated from `results.jsonl`**, never transcribed — transcription is how a cell with three dropped timeouts got published as 13/13. Blocked on #65 only for slot 3. |
+| 4 | **#64** KV prefix stalls at ~20,400 on the Claude Code path | Reproduced, cause open. Every turn re-prefills everything past token 20,398 — measured at **193 s vs 931 s** on the same model and task, Aider vs Claude Code. **Inflates every Claude Code wall time this project holds.** One experiment left: normalise `content` shape in the shim, re-run one traced trial, check whether `live_prompt_common` advances. |
+| 5 | **#62** GLM-5.3 full Claude Code cell | 6/7 on a stopped run. Worth 15 trials **after** #64, since #64 is what times it out. |
+| 6 | **#55** The harness cannot tell a bad result from a broken measurement | Partly answered: `smoke.gate()` (`ffe7aca`) now refuses a backend that cannot write three trivial functions. What remains is the plausibility gate — **`agent_error=True` still does not set `excluded`**, which is how 16 client crashes made the hosted reference read 64%. |
+| 7 | **#56** Survey open coding agents | Aider is **done and validated**; Pi remains. |
+| 8 | **#4 / #45 / #53 / #35 / #27 / #19 / #49 / #46 / #51** | Unchanged, behind the integrity work. |
 
 **No longer blocked:** GLM-5.3 as an agent. The two upstream issues this file
 called blockers — [ds4#569](https://github.com/antirez/ds4/issues/569) (tool-call
