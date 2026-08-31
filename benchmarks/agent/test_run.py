@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import io
 import json
+import pathlib
 import urllib.error
 
 import pytest
@@ -400,3 +401,24 @@ def test_serving_ds4_root_is_a_git_tree_or_none() -> None:
     """
     root = run.serving_ds4_root()
     assert root is None or (root / ".git").exists()
+
+
+def test_serving_gguf_reports_a_real_file_or_none() -> None:
+    """A row must be able to name the weights that produced it.
+
+    `model` is a server-side alias: ds4 serves whatever GGUF it was started
+    with regardless of the name requested, and on 2026-08-31 it advertised
+    `glm-5.2*` while holding a GLM-5.3 file. Best-effort and never fatal.
+    """
+    info = run.serving_gguf()
+    if info is None:
+        return
+    assert pathlib.Path(info["gguf_path"]).exists()
+    assert info["gguf_bytes"] > 0
+    assert info["server_argv"]
+
+
+def test_metal_ceiling_is_an_int_or_none() -> None:
+    """The ceiling decides whether a ~90 GiB model loads, and resets on reboot."""
+    ceiling = run.metal_ceiling_mb()
+    assert ceiling is None or isinstance(ceiling, int)

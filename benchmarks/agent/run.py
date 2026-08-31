@@ -334,6 +334,65 @@ def serving_ds4_root():
     return None
 
 
+def serving_gguf(root=None):
+    """The weights the running ds4-server actually has open, or None.
+
+    `model` in a row is a server-side alias -- `glm-5.3-flash`, `deepseek-v4-flash`
+    -- and ds4 serves whatever GGUF it was started with regardless of the name
+    requested. On 2026-08-31 the server advertised `glm-5.2*` aliases while
+    holding a GLM-5.3 file. Without the path, a row cannot say which weights
+    produced it, and a re-quantised checkpoint at the same filename is
+    indistinguishable from the original.
+
+    Returns path, size and mtime. No hash: the file is ~90 GB and hashing it on
+    every run is not free. Size plus mtime catches a swapped or re-downloaded
+    checkpoint, which is the realistic failure.
+    """
+    try:
+        out = subprocess.run(
+            ["ps", "ax", "-o", "command="], capture_output=True, text=True, check=False
+        ).stdout
+        for line in out.splitlines():
+            if "ds4-server" not in line or "-m" not in line:
+                continue
+            parts = line.split()
+            for i, tok in enumerate(parts):
+                if tok in ("-m", "--model") and i + 1 < len(parts):
+                    gguf = pathlib.Path(parts[i + 1]).expanduser()
+                    if gguf.exists():
+                        stat = gguf.stat()
+                        return {
+                            "gguf_path": str(gguf),
+                            "gguf_bytes": stat.st_size,
+                            "gguf_mtime": time.strftime(
+                                "%Y-%m-%dT%H:%M:%S", time.localtime(stat.st_mtime)
+                            ),
+                            "server_argv": " ".join(parts),
+                        }
+    except Exception:  # noqa: BLE001 - provenance is best-effort
+        return None
+    return None
+
+
+def metal_ceiling_mb():
+    """The Metal wired limit. Decides whether a ~90 GiB model loads at all.
+
+    Raised with `sysctl iogpu.wired_limit_mb` and **does not survive a reboot**,
+    so two runs a reboot apart can differ on whether a model runs, with nothing
+    in the row to explain it.
+    """
+    try:
+        out = subprocess.run(
+            ["sysctl", "-n", "iogpu.wired_limit_mb"],
+            capture_output=True,
+            text=True,
+            check=False,
+        ).stdout.strip()
+        return int(out) if out.isdigit() else None
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def capture_versions(cfg, backends):
     """Record the software stack, once, into every row of this run.
 
@@ -357,7 +416,24 @@ def capture_versions(cfg, backends):
         "macos": out(["sw_vers", "-productVersion"]),
         "machine": out(["sysctl", "-n", "machdep.cpu.brand_string"]),
         "target_commit": cfg["base_commit"],
+        # aider is a client like the others; it was the only one not recorded.
+        "aider": out(["aider", "--version"]),
     }
+
+    # The harness itself: which run.py produced this row. A row that cannot name
+    # its own code cannot be re-derived once the code moves on.
+    try:
+        env["harness_head"] = git(["rev-parse", "--short", "HEAD"], HERE)
+        env["harness_dirty"] = bool(
+            git(["status", "--porcelain", "--untracked-files=no"], HERE)
+        )
+    except RuntimeError:
+        pass
+
+    # Decides whether a ~90 GiB model loads at all, and does not survive a reboot.
+    ceiling = metal_ceiling_mb()
+    if ceiling:
+        env["metal_ceiling_mb"] = ceiling
 
     # .get(): a hosted backend has no base_url at all.
     if any((b.get("base_url") or "").endswith(":11434") for b in backends.values()):
@@ -381,9 +457,18 @@ def capture_versions(cfg, backends):
         if (ds4_root / ".git").exists():
             try:
                 env["ds4_head"] = git(["rev-parse", "--short", "HEAD"], ds4_root)
-                env["ds4_dirty"] = bool(git(["status", "--porcelain"], ds4_root))
+                # --untracked-files=no: a gguf/ directory of weights is not source drift,
+                # and reporting dirty for it trains the reader to ignore the field.
+                env["ds4_dirty"] = bool(
+                    git(["status", "--porcelain", "--untracked-files=no"], ds4_root)
+                )
             except RuntimeError:
                 pass
+        # #64/#62: the alias in `model` does not identify the weights.
+        weights = serving_gguf()
+        if weights:
+            env.update(weights)
+
         server = ds4_root / "ds4-server"
         if server.exists():
             # The binary may predate HEAD. Record when it was actually built.
