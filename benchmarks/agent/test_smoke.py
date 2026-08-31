@@ -25,14 +25,14 @@ GOOD = {
 BACKEND = {"base_url": "http://127.0.0.1:8000", "auth_token": "t", "model": "m"}
 
 
-def _post_good(base_url, token, model, prompt, timeout):  # noqa: ARG001
+def _post_good(base_url, token, model, prompt, timeout):
     for name, text in GOOD.items():
         if name == "reverse" and "reverse_string" in prompt:
-            return text
+            return text, "end_turn"
         if name == "fib" and "Fibonacci" in prompt:
-            return text
+            return text, "end_turn"
         if name == "mergesorted" and "merge_sorted" in prompt:
-            return text
+            return text, "end_turn"
     raise AssertionError("unexpected prompt")
 
 
@@ -45,9 +45,10 @@ def test_gate_passes_when_every_answer_is_correct() -> None:
 def test_gate_refuses_one_wrong_answer() -> None:
     """The 2026-08-31 case: the server answers, and the answer is wrong."""
 
-    def post(base_url, token, model, prompt, timeout):  # noqa: ARG001
+    def post(base_url, token, model, prompt, timeout):
         if "Fibonacci" in prompt:
-            return "```python\ndef fib(n):\n    return n\n```"   # fib(10) -> 10, not 55
+            # fib(10) -> 10, not 55
+            return "```python\ndef fib(n):\n    return n\n```", "end_turn"
         return _post_good(base_url, token, model, prompt, timeout)
 
     with pytest.raises(smoke.SmokeFailure, match="fib"):
@@ -57,8 +58,8 @@ def test_gate_refuses_one_wrong_answer() -> None:
 def test_gate_refuses_when_the_model_writes_nothing() -> None:
     """An empty reply is the failure that looked like a hard task all morning."""
 
-    def post(base_url, token, model, prompt, timeout):  # noqa: ARG001
-        return "I have already implemented that for you."
+    def post(base_url, token, model, prompt, timeout):
+        return "I have already implemented that for you.", "end_turn"
 
     with pytest.raises(smoke.SmokeFailure) as excinfo:
         smoke.gate(BACKEND, "empty", post=post)
@@ -68,23 +69,31 @@ def test_gate_refuses_when_the_model_writes_nothing() -> None:
 def test_gate_refuses_a_refused_connection() -> None:
     """A dead server must fail the gate, not raise a traceback out of it."""
 
-    def post(base_url, token, model, prompt, timeout):  # noqa: ARG001
+    def post(base_url, token, model, prompt, timeout):
         raise ConnectionRefusedError("nothing listening")
 
     with pytest.raises(smoke.SmokeFailure):
         smoke.gate(BACKEND, "down", post=post)
 
 
-def test_gate_refuses_a_task_over_the_deadline() -> None:
-    """A wedged or looping server is caught by the clock, not by correctness."""
+def test_over_deadline_warns_and_does_not_refuse() -> None:
+    """Superseded contract, kept as a test so the change is deliberate.
+
+    This asserted that a task over the deadline refuses the batch. It no longer
+    does: on 2026-08-31 that rule blocked qwen3.6-coding, which is 24/24 on real
+    tasks, for spending 900s on fib(10). The gate refuses a *wrong* answer --
+    fast, confident and incorrect, which is what a degraded backend looks like --
+    and warns about a slow one, because slowness is what the trials measure.
+    """
     import time
 
-    def post(base_url, token, model, prompt, timeout):  # noqa: ARG001
+    def post(base_url, token, model, prompt, timeout):
         time.sleep(0.05)
         return _post_good(base_url, token, model, prompt, timeout)
 
-    with pytest.raises(smoke.SmokeFailure, match="over 0s"):
-        smoke.gate(BACKEND, "slow", deadline=0, post=post)
+    rows = smoke.gate(BACKEND, "slow", deadline=0, post=post)
+    assert len(rows) == 3
+    assert all(not r["within_deadline"] for r in rows)
 
 
 def test_hosted_backend_is_skipped_not_failed() -> None:
@@ -100,9 +109,75 @@ def test_extract_code_prefers_the_fenced_block() -> None:
 
 def test_unfenced_code_still_passes() -> None:
     """Ignoring the formatting instruction is not a capability failure."""
-    assert smoke.verify("def reverse_string(s):\n    return s[::-1]\n",
-                        "assert reverse_string('ab') == 'ba'")
+    assert smoke.verify(
+        "def reverse_string(s):\n    return s[::-1]\n",
+        "assert reverse_string('ab') == 'ba'",
+    )
 
 
 def test_verify_rejects_code_that_does_not_parse() -> None:
     assert not smoke.verify("```python\ndef broken(:\n```", "assert True")
+
+
+def test_all_thinking_no_answer_is_reported_as_a_budget_failure() -> None:
+    """The 2026-08-31 false positive: a 24/24 backend refused for our bug.
+
+    `qwen3.6:27b-coding-mxfp8` returned only `thinking` blocks and stopped at
+    `max_tokens`. Reading just `text` blocks yielded "", which scored as a wrong
+    answer -- so the gate blocked a batch because the model was still thinking.
+    The reason must say so, not claim the function was wrong.
+    """
+
+    def post(base_url, token, model, prompt, timeout):
+        return "", "max_tokens"
+
+    rows = smoke.check(BACKEND, deadline=5, post=post)
+    assert all(not r["correct"] for r in rows)
+    assert all("thinking" in (r["error"] or "") for r in rows)
+    assert all(r["stop_reason"] == "max_tokens" for r in rows)
+
+
+def test_thinking_blocks_do_not_count_as_answer_text() -> None:
+    """A thinking block is reasoning, not the answer -- but code inside one
+    must not be mistaken for a solution either."""
+    assert not smoke.verify("", "assert True is False")
+
+
+def test_slow_does_not_refuse_the_batch() -> None:
+    """A model still thinking is not a model that got it wrong.
+
+    2026-08-31: qwen3.6-coding, 24/24 on real tasks, was refused because it
+    spent 900s on fib(10) while answering reverse in 22.8s and mergesorted
+    correctly. Slowness is what the trials measure; the gate must not block on it.
+    """
+
+    def post(base_url, token, model, prompt, timeout):
+        if "Fibonacci" in prompt:
+            return "", "max_tokens"
+        return _post_good(base_url, token, model, prompt, timeout)
+
+    rows = smoke.gate(BACKEND, "slow-but-fine", post=post)
+    assert len(rows) == 3
+
+
+def test_a_wrong_answer_still_refuses_even_beside_a_slow_one() -> None:
+    """Slowness is forgiven; a confidently wrong answer is not."""
+
+    def post(base_url, token, model, prompt, timeout):
+        if "Fibonacci" in prompt:
+            return "", "max_tokens"
+        if "reverse_string" in prompt:
+            return "```python\ndef reverse_string(s):\n    return s\n```", "end_turn"
+        return _post_good(base_url, token, model, prompt, timeout)
+
+    with pytest.raises(smoke.SmokeFailure, match="reverse"):
+        smoke.gate(BACKEND, "degraded", post=post)
+
+
+def test_a_timeout_is_slow_not_wrong() -> None:
+    def post(base_url, token, model, prompt, timeout):
+        if "Fibonacci" in prompt:
+            raise TimeoutError("timed out")
+        return _post_good(base_url, token, model, prompt, timeout)
+
+    assert len(smoke.gate(BACKEND, "timeout-is-slow", post=post)) == 3

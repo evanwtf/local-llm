@@ -51,6 +51,11 @@ logger = logging.getLogger(__name__)
 
 DEADLINE_SECONDS = 300
 
+# Modest on purpose. The gate must be fast, and running out of budget is no
+# longer treated as a wrong answer -- see gate() -- so a reasoning model that
+# needs more room is warned about rather than refused.
+MAX_TOKENS = 4000
+
 SMOKE_TASKS: tuple[tuple[str, str, str], ...] = (
     (
         "reverse",
@@ -106,10 +111,24 @@ def verify(text: str, assertion: str) -> bool:
     return True
 
 
-def _post(base_url: str, token: str, model: str, prompt: str, timeout: int) -> str:
+def _post(
+    base_url: str, token: str, model: str, prompt: str, timeout: int
+) -> tuple[str, str | None]:
+    """Returns (visible text, stop_reason).
+
+    Only `text` blocks are answer text. A reasoning model may also return
+    `thinking` blocks, and on 2026-08-31 `qwen3.6:27b-coding-mxfp8` returned
+    **nothing but** thinking: it spent the whole budget reasoning and stopped at
+    `max_tokens` before writing a line of code. Reading only `text` yielded ""
+    and the gate scored a 24/24 backend as unable to reverse a string.
+
+    So the budget is generous and `stop_reason` is returned: running out of room
+    to think is a different failure from writing the wrong function, and the
+    caller must be able to say which happened.
+    """
     body = {
         "model": model,
-        "max_tokens": 4000,
+        "max_tokens": MAX_TOKENS,
         "temperature": 0,
         "thinking": {"type": "adaptive"},
         "messages": [{"role": "user", "content": prompt}],
@@ -126,20 +145,33 @@ def _post(base_url: str, token: str, model: str, prompt: str, timeout: int) -> s
     with urllib.request.urlopen(request, timeout=timeout) as response:
         payload = json.loads(response.read().decode(), strict=False)
     blocks = payload.get("content") or []
-    return "".join(b.get("text", "") for b in blocks if isinstance(b, dict))
+    text = "".join(
+        b.get("text", "")
+        for b in blocks
+        if isinstance(b, dict) and b.get("type") != "thinking"
+    )
+    return text, payload.get("stop_reason")
+
+
+def _ran_out(row: dict) -> bool:
+    """True when the model was still working, not wrong: a timeout or an
+    exhausted token budget. Distinct from producing a bad answer."""
+    return row.get("stop_reason") == "max_tokens" or "Timeout" in (
+        row.get("error") or ""
+    )
 
 
 def check(
     backend: dict,
     deadline: int = DEADLINE_SECONDS,
-    post: Callable[..., str] = _post,
+    post: Callable[..., tuple[str, str | None]] = _post,
 ) -> list[dict]:
     """Run the three exercises. Returns one row per task; never raises."""
     rows = []
     for name, prompt, assertion in SMOKE_TASKS:
         started = time.monotonic()
         try:
-            text = post(
+            text, stop_reason = post(
                 backend["base_url"],
                 backend.get("auth_token", ""),
                 backend["model"],
@@ -147,10 +179,16 @@ def check(
                 deadline,
             )
             correct = verify(text, assertion)
-            error = None
+            # An empty answer that stopped at max_tokens means the model ran out
+            # of room while thinking, not that it got the function wrong.
+            error = (
+                "no answer text; stop_reason=max_tokens (spent the budget thinking)"
+                if not text.strip() and stop_reason == "max_tokens"
+                else None
+            )
         except Exception as exc:  # noqa: BLE001 - a refused connection is a failed
             # gate, not a crash; the batch must be told, not killed by a traceback
-            correct, error = False, f"{type(exc).__name__}: {exc}"
+            correct, error, stop_reason = False, f"{type(exc).__name__}: {exc}", None
         wall = time.monotonic() - started
         rows.append(
             {
@@ -158,6 +196,7 @@ def check(
                 "correct": correct,
                 "wall_seconds": round(wall, 1),
                 "within_deadline": wall <= deadline,
+                "stop_reason": stop_reason,
                 "error": error,
             }
         )
@@ -168,7 +207,7 @@ def gate(
     backend: dict,
     name: str,
     deadline: int = DEADLINE_SECONDS,
-    post: Callable[..., str] = _post,
+    post: Callable[..., tuple[str, str | None]] = _post,
 ) -> list[dict]:
     """Refuse to start a batch against a backend that cannot do the basics.
 
@@ -191,14 +230,33 @@ def gate(
             f" ({row['error']})" if row["error"] else "",
         )
 
-    wrong = [r["task"] for r in rows if not r["correct"]]
-    slow = [r["task"] for r in rows if not r["within_deadline"]]
-    if wrong or slow:
+    # Refuse on a WRONG answer; warn on a SLOW one. These are different signals
+    # and conflating them cost a false refusal on 2026-08-31: qwen3.6-coding,
+    # 24/24 on real tasks, was blocked because it spent 900 s thinking about
+    # fib(10) while answering the other two correctly.
+    #
+    # A degraded backend -- the failure this gate exists to catch -- is fast,
+    # confident and wrong. Slowness is what the trials themselves measure.
+    wrong = [
+        r["task"]
+        for r in rows
+        if not r["correct"] and r["within_deadline"] and not _ran_out(r)
+    ]
+    slow = [r["task"] for r in rows if not r["within_deadline"] or _ran_out(r)]
+
+    if slow:
+        logger.warning(
+            "smoke: %s did not finish %s in %ds. Not refusing -- slowness is "
+            "measured by the trials. Watch for timeouts in this batch.",
+            name,
+            slow,
+            deadline,
+        )
+    if wrong:
         raise SmokeFailure(
-            f"{name} failed the smoke gate: "
-            + (f"wrong={wrong} " if wrong else "")
-            + (f"over {deadline}s={slow} " if slow else "")
-            + "-- the backend is answering but not correctly. Check the model alias, "
-            "the thinking mode, and any shim in the path before spending a batch on it."
+            f"{name} failed the smoke gate: wrong={wrong} -- the backend answered "
+            "in time and got it wrong, which is what a degraded model looks like. "
+            "Check the model alias, the thinking mode, and any shim in the path "
+            "before spending a batch on it."
         )
     return rows

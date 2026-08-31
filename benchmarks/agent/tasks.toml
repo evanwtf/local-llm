@@ -308,6 +308,12 @@ base_url = "http://127.0.0.1:11434"
 auth_token = "ollama"
 model = "qwen3.6:27b-coding-mxfp8"
 codex_profile = "qwen36coding"
+# #65. 31 GB against ds4's 91 -- the only candidate that leaves the machine
+# usable, so it is the "run it beside Xcode" slot. Never tested under aider or
+# opencode; the opencode provider `ollama` was added to ~/.config/opencode/
+# opencode.json, which is NOT in git.
+aider_model = "openai/qwen3.6:27b-coding-mxfp8"
+opencode_model = "ollama/qwen3.6:27b-coding-mxfp8"
 context_tokens = 262144
 
 # Purpose-built agentic coding assistant, MIT, 34.7B MoE in 21 GB. Its baked-in
