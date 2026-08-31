@@ -695,6 +695,64 @@ def paths_outside(stdout, worktree):
     return sorted(seen, key=lambda k: -seen[k])
 
 
+def sandbox_profile(worktree, repo):
+    """A macOS sandbox profile that hides every other copy of the answer.
+
+    #54: OpenCode is not confined to its workspace. `opencode run` is headless,
+    `external_directory` defaults to `ask`, and with nobody to ask it read the
+    operator's real un-excised repository -- saw green tests, concluded nothing
+    needed fixing, and wrote nothing. One trial went further and deleted 33
+    lines from a working function in a checkout it was never pointed at.
+
+    Configuration cannot fix this on 1.18.25. A `{"*": "deny"}` rule loads and
+    orders last, and is still bypassed, because anomalyco/opencode#41067
+    submits out-of-worktree paths as `../...` which cannot match. The client's
+    own permission layer is the wrong place to enforce this.
+
+    So enforce it below the client. `sandbox-exec` denies the read in the
+    kernel, is inherited by every descendant (verified bash -> sh -> cat), and
+    does not care what shape the path took.
+
+    Denied: every other checkout of the target repos, plus the directories that
+    hold previous trials' solutions and transcripts -- `~/bench-solutions` has
+    186 correct patches and this repo's tracked results.jsonl names their paths.
+
+    `allow default` on purpose: the agent still needs its venv, caches, the
+    model server and the trial checkout. This hides the answers, nothing else.
+    """
+    home = pathlib.Path.home()
+    keep = str(pathlib.Path(worktree).resolve())
+    denied = []
+    for path in (
+        home / "git/gmail-archive",
+        home / "git/monitor",
+        home / "git/local-llm-testing",
+        home / "bench-solutions",
+        home / "bench-logs",
+        pathlib.Path(repo).expanduser().resolve(),
+    ):
+        path = str(path)
+        if path == keep or keep.startswith(path + "/"):
+            continue  # never hide the tree the trial is supposed to edit
+        if path not in denied:
+            denied.append(path)
+    rules = "\n".join(f'(deny file-read* (subpath "{d}"))' for d in denied)
+    return f"(version 1)\n(allow default)\n{rules}\n", denied
+
+
+def sandboxed(argv, worktree, repo, tmpdir):
+    """Wrap an agent invocation in the sandbox. Returns argv unchanged if the
+    platform has no sandbox-exec, so this degrades to today's behaviour rather
+    than silently not running."""
+    if not pathlib.Path("/usr/bin/sandbox-exec").exists():
+        logger.warning("no sandbox-exec on this platform; agent runs unconfined")
+        return argv, []
+    profile, denied = sandbox_profile(worktree, repo)
+    path = pathlib.Path(tmpdir) / "confine.sb"
+    path.write_text(profile)
+    return ["/usr/bin/sandbox-exec", "-f", str(path), *argv], denied
+
+
 def save_transcript(client_log, name, stdout, stderr, result, partial=False):
     """Keep the client's own event stream for this trial, if asked to.
 
@@ -772,6 +830,7 @@ def one_trial(
     client_log=None,
     solutions=None,
     gates=True,
+    sandbox=True,
 ):
     target = task_target(cfg, task)
     repo = pathlib.Path(target["repo"]).expanduser()
@@ -851,8 +910,23 @@ def one_trial(
         # 3. Hand it to the agent.
         build_argv, parse = CLIENTS[client]
         t0 = time.monotonic()
+        # #54: confine the agent below the client. Its own permission layer
+        # cannot do this (anomalyco/opencode#41067 submits out-of-worktree
+        # paths as `../...`, which no pattern matches), so the kernel does.
+        # sandbox=False only for the integration fixtures, whose stub agent
+        # "solves" a task by copying from the un-excised reference -- the very
+        # shortcut this confinement exists to stop.
+        argv, denied = (
+            sandboxed(
+                build_argv(task, backend), worktree, target["repo"], worktree.parent
+            )
+            if sandbox
+            else (build_argv(task, backend), [])
+        )
+        if denied:
+            result["sandbox_denied"] = denied
         proc = run(
-            build_argv(task, backend),
+            argv,
             cwd=worktree,
             env=agent_env(backend),
             timeout=timeout,

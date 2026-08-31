@@ -15,6 +15,7 @@ Needs ~/git/gmail-archive at the pinned commit and a working `uv`; skips
 cleanly without them. Marked `integration`: it runs the oracle twice and both
 gates, which is seconds, not milliseconds.
 """
+
 from __future__ import annotations
 
 import pathlib
@@ -36,18 +37,24 @@ pytestmark = pytest.mark.integration
 def _available() -> bool:
     if not REPO.is_dir() or shutil.which("uv") is None:
         return False
-    got = subprocess.run(["git", "cat-file", "-e", f"{CFG['base_commit']}^{{commit}}"],
-                         cwd=REPO, capture_output=True, check=False)
+    got = subprocess.run(
+        ["git", "cat-file", "-e", f"{CFG['base_commit']}^{{commit}}"],
+        cwd=REPO,
+        capture_output=True,
+        check=False,
+    )
     return got.returncode == 0
 
 
-needs_repo = pytest.mark.skipif(not _available(),
-                                reason="gmail-archive at the pinned commit, and uv")
+needs_repo = pytest.mark.skipif(
+    not _available(), reason="gmail-archive at the pinned commit, and uv"
+)
 
 
 @pytest.fixture
 def scripted_agent(monkeypatch):
     """A client that solves the task by copying the original file back."""
+
     def argv(task, backend):
         files = [t["file"] for t in run.targets(task)]
         script = (
@@ -67,9 +74,21 @@ def _task(name: str) -> dict:
 
 def _run(task_name, tmp_path, client, **kw):
     return run.one_trial(
-        CFG, _task(task_name), "stub", {"model": "stub", "context_tokens": 1},
-        trial=1, workdir=tmp_path, timeout=600, dry_run=False,
-        client=client, solutions=tmp_path / "solutions", **kw,
+        CFG,
+        _task(task_name),
+        "stub",
+        {"model": "stub", "context_tokens": 1},
+        trial=1,
+        workdir=tmp_path,
+        timeout=600,
+        dry_run=False,
+        client=client,
+        solutions=tmp_path / "solutions",
+        # The stub agent copies from the un-excised reference repo, which the
+        # #54 sandbox denies. That denial is correct; it just means these
+        # plumbing tests have to opt out of it.
+        sandbox=False,
+        **kw,
     )
 
 
@@ -161,6 +180,7 @@ def test_the_agent_is_handed_a_working_environment(monkeypatch, tmp_path):
     change moves the control after the agent, or drops `uv run`, this goes red
     and the confound becomes real without anyone noticing.
     """
+
     def argv(task, backend):
         files = [t["file"] for t in run.targets(task)]
         script = (
