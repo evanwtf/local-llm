@@ -71,3 +71,20 @@ def test_an_ordinary_target_repo_is_not_treated_as_tainted() -> None:
     assert not run.ANSWER_TREES.intersection(
         f"{HOME}/git/local-llm-testing/gmail-archive".split("/")
     )
+
+
+def test_shell_state_does_not_reach_a_trial() -> None:
+    """A benchmark whose result depends on which shell started it is not
+    reproducible. VIRTUAL_ENV is the one that actually leaked: an agent was
+    observed reading uv's mismatched-venv warning in its own tool output."""
+    import os
+
+    for key in run.LEAKY_ENV:
+        os.environ[key] = "/should/not/reach/the/agent"
+    try:
+        env = run.agent_env({"model": "m", "context_tokens": 1})
+        for key in run.LEAKY_ENV:
+            assert key not in env, f"{key} leaked into the agent environment"
+    finally:
+        for key in run.LEAKY_ENV:
+            os.environ.pop(key, None)

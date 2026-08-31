@@ -279,6 +279,9 @@ auth_token = "dsv4-local"
 model = "deepseek-v4-flash"
 opencode_model = "ds4/deepseek-v4-flash"
 context_tokens = 100000
+# Aider drives ds4 through the OpenAI-compatible endpoint. litellm needs the
+# openai/ prefix to route to a custom base URL rather than a hosted provider.
+aider_model = "openai/deepseek-v4-flash"
 
 [backend.qwen]
 description = "Qwen3.8-27B via Ollama MLX"

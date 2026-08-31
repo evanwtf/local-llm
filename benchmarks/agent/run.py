@@ -33,6 +33,7 @@ import pathlib
 import re
 import shutil
 import subprocess
+import tempfile
 import time
 import tomllib
 import urllib.error
@@ -393,8 +394,26 @@ def capture_versions(cfg, backends):
     return {k: v for k, v in env.items() if v is not None}
 
 
+# Shell state that must not reach a trial. VIRTUAL_ENV is the one that has
+# actually caused trouble: a trial log shows the agent reading
+# "warning: VIRTUAL_ENV=... does not match the project environment path .venv
+# and will be ignored" in its own tool output, because the harness passed the
+# launching shell's environment through wholesale. A benchmark whose result
+# depends on which shell started it is not reproducible.
+LEAKY_ENV = (
+    "VIRTUAL_ENV",
+    "PYTHONHOME",
+    "PYTHONPATH",
+    "CONDA_PREFIX",
+    "CONDA_DEFAULT_ENV",
+    "UV_PROJECT_ENVIRONMENT",
+)
+
+
 def agent_env(backend):
     env = dict(os.environ)
+    for key in LEAKY_ENV:
+        env.pop(key, None)
 
     # A backend with no base_url is the hosted API -- the reference point the
     # local backends are measured against. Leave the ambient auth alone and
@@ -484,6 +503,99 @@ def opencode_argv(task, backend):
         "--auto",
         task["prompt"],
     ]
+
+
+def aider_argv(task, backend):
+    """Aider, one-shot and headless (#61).
+
+    Flags chosen deliberately:
+
+    `--yes-always` is required for unattended operation and is also the thing
+    that removes Aider's own confinement. `allowed_to_edit` guards edits with
+    `io.confirm_ask` prompts rather than a repo-root check, so with this flag an
+    absolute path outside the checkout would be edited without objection. That
+    is the same structural weakness as OpenCode's `external_directory: ask`
+    (#54), and the reason the sandbox sits below the client rather than being
+    left to it. Aider *does* guard user-initiated `/add` -- there is a test for
+    it citing Aider-AI/aider#178 -- but that is a different code path.
+
+    `--no-gitignore` because Aider appends `.aider*` to `.gitignore` on startup.
+    Our trial checkout is a fresh repo whose only commit is the excised state,
+    so that write would dirty the tree and land in `solution_patch`.
+
+    `--no-auto-commits` so the diff we grade is the working tree, the same
+    surface every other client is graded on. Aider would otherwise commit its
+    own edits, which is exactly the property that makes a silent no-op hard --
+    but it would also make our patch capture inconsistent between clients.
+
+    `--no-analytics` and `--no-check-update` keep the run offline and quiet.
+    """
+    model = backend.get("aider_model")
+    if not model:
+        raise SystemExit(
+            f"backend {backend['model']!r} has no aider_model in tasks.toml"
+        )
+    argv = [
+        "aider",
+        "--model",
+        model,
+        "--message",
+        task["prompt"],
+        "--yes-always",
+        "--no-auto-commits",
+        "--no-gitignore",
+        "--no-analytics",
+        "--no-check-update",
+        "--no-show-model-warnings",
+        # Aider writes .aider.chat.history.md, .aider.input.history and
+        # .aider.tags.cache.v4/ into the working directory. Left there they
+        # land in `solution_patch` and in every guard that reads
+        # `git status --porcelain`, so they go to the system temp dir instead.
+        # --no-gitignore above stops the alternative, which is Aider editing
+        # the repo's .gitignore on startup.
+        "--chat-history-file",
+        str(pathlib.Path(tempfile.gettempdir()) / "aider-chat-history.md"),
+        "--input-history-file",
+        str(pathlib.Path(tempfile.gettempdir()) / "aider-input-history"),
+    ]
+    base = backend.get("base_url")
+    if base:
+        argv[1:1] = [
+            "--openai-api-base",
+            base.rstrip("/") + "/v1",
+            "--openai-api-key",
+            backend.get("auth_token", "local"),
+        ]
+    return argv
+
+
+def aider_parse(stdout):
+    """Aider prints a human report, not an event stream.
+
+    There is no machine-readable output mode, but it does print a token line
+    per exchange:
+
+        Tokens: 807 sent, 162 received.
+
+    Sum those. Sent tokens are *summed* rather than peaked because Aider makes
+    one exchange per message by default, unlike OpenCode's multi-step loop
+    where summing would count the same prompt many times (see opencode_parse).
+
+    Anything not printed is left absent. `results.new_row` treats absent as
+    absent, never as zero (#29).
+    """
+    sent = received = turns = 0
+    for m in re.finditer(
+        r"Tokens:\s*([\d.]+)([kM]?)\s*sent,\s*([\d.]+)([kM]?)\s*received", stdout or ""
+    ):
+        scale = {"": 1, "k": 1_000, "M": 1_000_000}
+        sent += int(float(m.group(1)) * scale[m.group(2)])
+        received += int(float(m.group(3)) * scale[m.group(4)])
+        turns += 1
+    out = {}
+    if turns:
+        out = {"input_tokens": sent, "output_tokens": received, "num_turns": turns}
+    return out
 
 
 def opencode_parse(stdout):
@@ -612,6 +724,7 @@ CLIENTS = {
     "claude": (claude_argv, claude_parse),
     "opencode": (opencode_argv, opencode_parse),
     "codex": (codex_argv, codex_parse),
+    "aider": (aider_argv, aider_parse),
 }
 
 
@@ -879,8 +992,9 @@ def sandboxed(argv, worktree, repo, tmpdir):
     return ["/usr/bin/sandbox-exec", "-f", str(path), *argv], denied
 
 
-def save_transcript(client_log, name, stdout, stderr, result, partial=False,
-                    worktree=""):
+def save_transcript(
+    client_log, name, stdout, stderr, result, partial=False, worktree=""
+):
     """Keep the client's own event stream for this trial, if asked to.
 
     A results row records that the agent did not fix the code, never why. The
@@ -1106,9 +1220,9 @@ def one_trial(
         # any of them is unreadable. A partial match is not recall.
         result["restored_verbatim"] = grade.all_restored_verbatim(excised, keep_doc)
         result["target_repo"] = target["repo"]
-            # #54: while stashed, the real checkout is at <name>-real and the
-    # export stands at `repo`. The tripwire has to watch the real one --
-    # the export is *supposed* to be modified, that is the trial.
+        # #54: while stashed, the real checkout is at <name>-real and the
+        # export stands at `repo`. The tripwire has to watch the real one --
+        # the export is *supposed* to be modified, that is the trial.
         # #54: while stashed, the real checkout is at <name>-real and the
         # export stands at `repo`. The tripwire has to watch the real one --
         # the export is *supposed* to be modified; that is the trial.
