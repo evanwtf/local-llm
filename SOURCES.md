@@ -13,34 +13,42 @@ than this project measures. Two engines shipped double-digit improvements in a
 
 ## Tier 1 — check every time
 
-| handle | what they are | why |
-|---|---|---|
-| [@antirez](https://x.com/antirez) | DwarfStar / ds4 author | **Our primary engine.** Ships models on preview branches and announces them here before the README catches up. `glm-5.3-flash` was on X days before it was documented. |
-| [@ivanfioravanti](https://x.com/ivanfioravanti) | daily benchmarker, M3 Ultra / multi-Mac | Highest-volume tester on Apple Silicon. #51 came from one of his posts: Q8_0→Q4_K attention+head, **+12.6% decode with a quality gain**. |
-| [@ddalcu](https://x.com/ddalcu) | mlx-serve, `llmprobe` | **Benchmarks on a 1x M5 Max 128 GB laptop — our exact machine.** Ported ds4's evals into a cross-engine harness (`npx llmprobe --eval`). |
-| [@Spangler3000](https://x.com/Spangler3000) | oMLX Metal kernels (QSA, DFlash2) | Densest Metal-kernel signal in the field. His PRs are why oMLX leads on prefill — **and prefill is our bottleneck** (#14, #50, ds4#816). |
-| [@jundotkim](https://x.com/jundotkim) | oMLX author | oMLX 0.6.4: PP 32k **834 → 1114 tok/s**, TG **40 → 46**. Untested here (#60). |
+| handle | links | what they are | why |
+|---|---|---|---|
+| **@antirez** | [X](https://x.com/antirez) · [GitHub](https://github.com/antirez) · [invece.org](http://invece.org) | DwarfStar / ds4 author | **Our primary engine.** Ships models on preview branches and announces them here before the README catches up. `glm-5.3-flash` was on X days before it was documented. |
+| **@ivanfioravanti** | [X](https://x.com/ivanfioravanti) · [GitHub](https://github.com/ivanfioravanti) | daily benchmarker, M3 Ultra / multi-Mac | Highest-volume tester on Apple Silicon. #51 came from one of his posts: Q8_0→Q4_K attention+head, **+12.6% decode with a quality gain**. |
+| **@ddalcu** | [X](https://x.com/ddalcu) · [GitHub](https://github.com/ddalcu) · [mlxserve.com](http://mlxserve.com) · [dalcu.com](http://www.dalcu.com) | mlx-serve, `llmprobe` | **Benchmarks on a 1x M5 Max 128 GB laptop — our exact machine.** Ported ds4's evals into a cross-engine harness (`npx llmprobe --eval`). |
+| **@Spangler3000** | [X](https://x.com/Spangler3000) · [GitHub](https://github.com/jonathan308) | oMLX Metal kernels (QSA, DFlash2) | Densest Metal-kernel signal in the field. His PRs are why oMLX leads on prefill — **and prefill is our bottleneck** (#14, #50, ds4#816). |
+| **@jundotkim** | [X](https://x.com/jundotkim) · [GitHub](https://github.com/jundot) · [omlx.ai](https://omlx.ai) | oMLX author | oMLX 0.6.4: PP 32k **834 → 1114 tok/s**, TG **40 → 46**. Untested here (#60). |
 
 ## Tier 2 — check weekly
 
-| handle | what they are |
-|---|---|
-| [@Youssofal_](https://x.com/Youssofal_) | MTPLX — MTP speculative decoding, custom Metal kernels. We hold an old, unreplicated MTPLX number marked provisional. |
-| [@Raullen](https://x.com/Raullen) | Rapid-MLX (#57). Apache 2.0, OpenAI-compatible, claims 12x prefix cache. |
-| [@awnihannun](https://x.com/awnihannun) | Co-created MLX. Lower volume since leaving Apple, still framework source-of-truth. |
-| [@zcbenz](https://x.com/zcbenz) | mlx-lm maintainer. |
-| [@N8Programs](https://x.com/N8Programs) | Quant conversions, custom kernels, training on Silicon. |
-| [@Prince_Canuma](https://x.com/Prince_Canuma) | mlx-vlm, mlx-audio — the multimodal side. Out of scope today (coding agents only) but the place vision lands first. |
-| [@ShankPeople](https://x.com/ShankPeople) | GGUF quant surgery. Measured **+20% decode** moving GLM-5.3 KDA proj/head to Q8 — the thread that produced #51. |
-| [@Kevrsub](https://x.com/Kevrsub) | Runs real coding benchmarks, regression-tests older models. Found oMLX's **stock MTP depth 3 vs 5 → 50→60 tok/s**. |
-| [@TheDavidTai](https://x.com/TheDavidTai) | Runner and drafting optimisation — MTPLX PR #391 (Qwen 3.8 Flash Next **50 → 85 t/s**), Qwen 3.8 27B at **113 t/s** via adaptive DFlash2 + mlx.fast, mlx 0.32.2 kernel notes. **Mostly replies; originals arrive in bursts** — a sweep of his last 12 posts found 10 replies, 2 quotes, 0 originals, so judge him on a week, not a day. Ties @Youssofal_'s MTPLX to @jundotkim's oMLX. |
+| handle | links | what they are |
+|---|---|---|
+| **@Youssofal_** | [X](https://x.com/Youssofal_) · [GitHub](https://github.com/youssofal) | MTPLX — MTP speculative decoding, custom Metal kernels. We hold an old, unreplicated MTPLX number marked provisional. |
+| **@Raullen** | [X](https://x.com/Raullen) · [GitHub](https://github.com/raullenchai) | Rapid-MLX (#57). Apache 2.0, OpenAI-compatible, claims 12x prefix cache. |
+| **@awnihannun** | [X](https://x.com/awnihannun) · [GitHub](https://github.com/awni) · [awnihannun.com](https://awnihannun.com/) | Co-created MLX. Lower volume since leaving Apple, still framework source-of-truth. |
+| **@zcbenz** | [X](https://x.com/zcbenz) · [GitHub](https://github.com/zcbenz) · [zcbenz.com](https://zcbenz.com) | mlx-lm maintainer. |
+| **@N8Programs** | [X](https://x.com/N8Programs) · [GitHub](https://github.com/N8python) | Quant conversions, custom kernels, training on Silicon. |
+| **@Prince_Canuma** | [X](https://x.com/Prince_Canuma) · [GitHub](https://github.com/Blaizzy) | mlx-vlm, mlx-audio — the multimodal side. Out of scope today (coding agents only) but the place vision lands first. |
+| **@ShankPeople** | [X](https://x.com/ShankPeople) | GGUF quant surgery. Measured **+20% decode** moving GLM-5.3 KDA proj/head to Q8 — the thread that produced #51. GitHub unresolved: `markshank` matches the name but its repos are macOS/BSD systems work with no LLM presence, so it is **not** linked here. |
+| **@Kevrsub** | [X](https://x.com/Kevrsub) | Runs real coding benchmarks, regression-tests older models. Found oMLX's **stock MTP depth 3 vs 5 → 50→60 tok/s**. No GitHub found. |
+| **@TheDavidTai** | [X](https://x.com/TheDavidTai) · [GitHub](https://github.com/davidtai) · [davidt.ai](https://davidt.ai) | Runner and drafting optimisation — MTPLX PR #391 (Qwen 3.8 Flash Next **50 → 85 t/s**), Qwen 3.8 27B at **113 t/s** via adaptive DFlash2 + mlx.fast. **Mostly replies; originals arrive in bursts** — a sweep of his last 12 posts found 10 replies, 2 quotes, 0 originals, so judge him on a week, not a day. Ties @Youssofal_'s MTPLX to @jundotkim's oMLX. |
 
 ## Tier 3 — occasional
 
-@TeksEdge (runnable oMLX/DFlash recipes) · @digitalix (Alex Ziskind — distributed MLX demos) ·
-@MitjaMartini (DwarfStar Metal numbers on M3 Ultra) · @onthexitter69 (**ANE offload PR, +33.8% GDN projection**) ·
-@0xSero, @bleysg (Mac vs DGX Spark arguments — heat, occasionally light) ·
-@angeloskath, @DiganiJagrit, @trebolloc (MLX team) · [mlx-community](https://huggingface.co/mlx-community) (where weights appear first)
+| handle | links | what they are |
+|---|---|---|
+| **@TeksEdge** | [X](https://x.com/TeksEdge) · [teksed.com](https://teksed.com) | Runnable oMLX/DFlash recipes. No GitHub found. |
+| **@digitalix** | [X](https://x.com/digitalix) · [GitHub](https://github.com/alexziskind1) · [YouTube](https://youtube.com/@azisk) | Alex Ziskind — distributed MLX demos. |
+| **@MitjaMartini** | [X](https://x.com/MitjaMartini) · [GitHub](https://github.com/mitja) · [mitjamartini.com](https://mitjamartini.com) | DwarfStar Metal numbers on M3 Ultra. GitHub is a **probable** match — name and `llamatunnel` corroborate, not confirmed. |
+| **@onthexitter69** | [X](https://x.com/onthexitter69) · [GitHub](https://github.com/onthehub97) | **ANE offload PR, +33.8% GDN projection.** |
+| **@angeloskath** | [X](https://x.com/angeloskath) · [GitHub](https://github.com/angeloskath) · [angeloskath.github.io](https://angeloskath.github.io/) | MLX team, Apple. |
+| **@DiganiJagrit** | [X](https://x.com/DiganiJagrit) · [GitHub](https://github.com/jagrit06) | MLX team, Apple. |
+| **@trebolloc** | [X](https://x.com/trebolloc) · [GitHub](https://github.com/andresy) · [ronan.collobert.com](https://ronan.collobert.com) | Ronan Collobert — OG Torch, MLX team, Apple. |
+| **@0xSero** | [X](https://x.com/0xSero) · [YouTube](https://www.youtube.com/@0xSero) | Mac vs DGX Spark arguments. No GitHub found. |
+| **@bleysg** | [X](https://x.com/bleysg) · [GitHub](https://github.com/bleys) | Mac vs DGX Spark arguments — heat, occasionally light. GitHub is a **probable** match — name and `Auto-GPT` corroborate, not confirmed. |
+| — | [mlx-community](https://huggingface.co/mlx-community) | Where weights appear first. |
 
 ---
 
