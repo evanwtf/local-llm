@@ -208,3 +208,33 @@ def test_fib_states_its_own_recurrence() -> None:
     _, prompt, _ = smoke.SMOKE_TASKS[1]
     assert "fib(n - 1) + fib(n - 2)" in prompt
     assert "fib(0) = 0" in prompt and "fib(1) = 1" in prompt
+
+
+def test_every_probe_shows_a_worked_example() -> None:
+    """A worked example removes the last of the ambiguity a spec can carry."""
+    for name, prompt, _ in smoke.SMOKE_TASKS:
+        assert "For example" in prompt, f"{name} has no worked example"
+
+
+def test_examples_never_reuse_the_assertion_inputs() -> None:
+    """The example must not be the test.
+
+    If the prompt demonstrates the exact case the assertion checks, a model that
+    hardcodes the demonstrated answer passes without writing a working function.
+    `reverse_string('cat')` is shown, `'hello'` is checked.
+    """
+    shown_vs_checked = {
+        "reverse": ("'cat'", "'hello'"),
+        "fib": ("fib(6)", "fib(10)"),
+        "mergesorted": ("[2, 7]", "[1, 3, 5]"),
+    }
+    for name, prompt, assertion in smoke.SMOKE_TASKS:
+        shown, checked = shown_vs_checked[name]
+        assert shown in prompt, f"{name}: example {shown} missing from the prompt"
+        assert shown not in assertion, (
+            f"{name}: example {shown} leaks into the assertion"
+        )
+        assert checked in assertion, f"{name}: assertion no longer checks {checked}"
+        assert checked not in prompt, (
+            f"{name}: the checked case {checked} is given away"
+        )

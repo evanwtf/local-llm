@@ -26,6 +26,10 @@ detector rather than a formality:
 They span string handling, recursion and list merging, and the healthy arm
 finished each in under 20 s.
 
+**Every prompt carries a worked example, and the example never uses the
+assertion's own inputs.** `reverse_string('cat')` is shown; `'hello'` is
+checked. A model that hardcodes the demonstrated case still fails.
+
 **Every prompt states its whole specification.** `fib` originally named the
 Fibonacci sequence and gave only the two base cases, so a model that did not
 recall the recurrence had nothing to derive it from. That is a *knowledge*
@@ -68,7 +72,8 @@ SMOKE_TASKS: tuple[tuple[str, str, str], ...] = (
         "reverse",
         (
             "Write a Python function reverse_string(s: str) -> str that reverses a "
-            "string. Reply with the function in a single ```python code block and "
+            "string. For example, reverse_string('cat') should return 'tac'. "
+            "Reply with the function in a single ```python code block and "
             "nothing else."
         ),
         "assert reverse_string('hello') == 'olleh'",
@@ -78,6 +83,7 @@ SMOKE_TASKS: tuple[tuple[str, str, str], ...] = (
         (
             "Write a Python function fib(n: int) -> int where fib(0) = 0, "
             "fib(1) = 1, and fib(n) = fib(n - 1) + fib(n - 2) for n >= 2. "
+            "For example, fib(6) should return 8. "
             "Reply with the function in a single ```python code block and "
             "nothing else."
         ),
@@ -86,9 +92,11 @@ SMOKE_TASKS: tuple[tuple[str, str, str], ...] = (
     (
         "mergesorted",
         (
-            "Write a Python function merge_sorted(a: list, b: list) -> list that merges "
-            "two sorted lists into one sorted list. Reply with the function in a single "
-            "```python code block and nothing else."
+            "Write a Python function merge_sorted(a: list, b: list) -> list that "
+            "merges two sorted lists into one sorted list. For example, "
+            "merge_sorted([2, 7], [1, 3, 9]) should return [1, 2, 3, 7, 9]. "
+            "Reply with the function in a single ```python code block and "
+            "nothing else."
         ),
         "assert merge_sorted([1, 3, 5], [2, 4]) == [1, 2, 3, 4, 5]",
     ),

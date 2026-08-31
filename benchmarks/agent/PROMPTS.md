@@ -6,9 +6,51 @@ Two kinds of prompt reach a model here: the **agent tasks**, which are the measu
 
 ## What else the model receives
 
-The prompt below is the *only* text this harness composes. Everything else in the model's context is put there by the client — its own system prompt, tool definitions, and whatever it reads from the repository. Those differ per client and per version, which is one reason the same model scores differently under Claude Code, Aider and OpenCode.
+The prompts below are the *only* text this harness composes. Everything else in the model's context is put there by the client — its own system prompt, tool definitions, and whatever it reads from the repository. Those differ per client and per version, which is one reason the same model scores differently under Claude Code, Aider and OpenCode.
 
 The agent is given a checkout in which one function body has been replaced by `NotImplementedError`, and the repository's own test suite is the sole oracle. No test is shown to the model as a target, and modifying tests is forbidden by the prompt and checked afterwards (`touched_tests`).
+
+## Smoke probes
+
+Sent to `/v1/messages` with `thinking: {"type": "adaptive"}`, `temperature 0`, `max_tokens 4000`, deadline 300s. The reply is **executed** against the assertion; the gate refuses a wrong answer that arrived in time and warns about a slow one.
+
+**Every probe states its whole specification and shows a worked example, and the example never uses the assertion's own inputs.** `reverse_string('cat')` is demonstrated; `'hello'` is checked, so a model that hardcodes the shown case still fails. A probe that can fail for want of world knowledge cannot tell a degraded backend from an ignorant one — see the `fib` note in `smoke.py`.
+
+### `reverse`
+
+```text
+Write a Python function reverse_string(s: str) -> str that reverses a string. For example, reverse_string('cat') should return 'tac'. Reply with the function in a single ```python code block and nothing else.
+```
+
+Checked with:
+
+```python
+assert reverse_string('hello') == 'olleh'
+```
+
+### `fib`
+
+```text
+Write a Python function fib(n: int) -> int where fib(0) = 0, fib(1) = 1, and fib(n) = fib(n - 1) + fib(n - 2) for n >= 2. For example, fib(6) should return 8. Reply with the function in a single ```python code block and nothing else.
+```
+
+Checked with:
+
+```python
+assert fib(0) == 0 and fib(1) == 1 and fib(10) == 55
+```
+
+### `mergesorted`
+
+```text
+Write a Python function merge_sorted(a: list, b: list) -> list that merges two sorted lists into one sorted list. For example, merge_sorted([2, 7], [1, 3, 9]) should return [1, 2, 3, 7, 9]. Reply with the function in a single ```python code block and nothing else.
+```
+
+Checked with:
+
+```python
+assert merge_sorted([1, 3, 5], [2, 4]) == [1, 2, 3, 4, 5]
+```
 
 ## Agent tasks
 
@@ -102,47 +144,5 @@ repo `~/git/monitor` · @ `cbb85ca` · oracle `swift test`
 
 ```text
 `SevenSegment.glyphs` in Sources/MonitorCore/SevenSegment.swift has been removed and replaced with a fatalError. Implement it so the existing test suite passes. Do not modify any test.
-```
-
-## Smoke probes
-
-Sent to `/v1/messages` with `thinking: {"type": "adaptive"}`, `temperature 0`, `max_tokens 4000`, deadline 300s. The reply is **executed** against the assertion; the gate refuses a wrong answer that arrived in time and warns about a slow one.
-
-**Every probe states its whole specification.** A probe that can fail for want of world knowledge cannot tell a degraded backend from an ignorant one — see the `fib` note in `smoke.py`.
-
-### `reverse`
-
-```text
-Write a Python function reverse_string(s: str) -> str that reverses a string. Reply with the function in a single ```python code block and nothing else.
-```
-
-Checked with:
-
-```python
-assert reverse_string('hello') == 'olleh'
-```
-
-### `fib`
-
-```text
-Write a Python function fib(n: int) -> int where fib(0) = 0, fib(1) = 1, and fib(n) = fib(n - 1) + fib(n - 2) for n >= 2. Reply with the function in a single ```python code block and nothing else.
-```
-
-Checked with:
-
-```python
-assert fib(0) == 0 and fib(1) == 1 and fib(10) == 55
-```
-
-### `mergesorted`
-
-```text
-Write a Python function merge_sorted(a: list, b: list) -> list that merges two sorted lists into one sorted list. Reply with the function in a single ```python code block and nothing else.
-```
-
-Checked with:
-
-```python
-assert merge_sorted([1, 3, 5], [2, 4]) == [1, 2, 3, 4, 5]
 ```
 

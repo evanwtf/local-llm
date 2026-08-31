@@ -37,7 +37,7 @@ def main() -> None:
     add("## What else the model receives")
     add("")
     add(
-        "The prompt below is the *only* text this harness composes. Everything else "
+        "The prompts below are the *only* text this harness composes. Everything else "
         "in the model's context is put there by the client — its own system prompt, "
         "tool definitions, and whatever it reads from the repository. Those differ "
         "per client and per version, which is one reason the same model scores "
@@ -51,6 +51,38 @@ def main() -> None:
         "forbidden by the prompt and checked afterwards (`touched_tests`)."
     )
     add("")
+
+    add("## Smoke probes")
+    add("")
+    add(
+        f'Sent to `/v1/messages` with `thinking: {{"type": "adaptive"}}`, '
+        f"`temperature 0`, `max_tokens {smoke.MAX_TOKENS}`, deadline "
+        f"{smoke.DEADLINE_SECONDS}s. The reply is **executed** against the assertion; "
+        "the gate refuses a wrong answer that arrived in time and warns about a slow one."
+    )
+    add("")
+    add(
+        "**Every probe states its whole specification and shows a worked "
+        "example, and the example never uses the assertion's own inputs.** "
+        "`reverse_string('cat')` is demonstrated; `'hello'` is checked, so a "
+        "model that hardcodes the shown case still fails. A probe that can fail "
+        "for want of world knowledge cannot tell a degraded backend from an "
+        "ignorant one — see the `fib` note in `smoke.py`."
+    )
+    add("")
+    for name, prompt, assertion in smoke.SMOKE_TASKS:
+        add(f"### `{name}`")
+        add("")
+        add("```text")
+        add(prompt)
+        add("```")
+        add("")
+        add("Checked with:")
+        add("")
+        add("```python")
+        add(assertion)
+        add("```")
+        add("")
 
     add("## Agent tasks")
     add("")
@@ -75,35 +107,6 @@ def main() -> None:
             add("")
         add("```text")
         add(task["prompt"].strip())
-        add("```")
-        add("")
-
-    add("## Smoke probes")
-    add("")
-    add(
-        f'Sent to `/v1/messages` with `thinking: {{"type": "adaptive"}}`, '
-        f"`temperature 0`, `max_tokens {smoke.MAX_TOKENS}`, deadline "
-        f"{smoke.DEADLINE_SECONDS}s. The reply is **executed** against the assertion; "
-        "the gate refuses a wrong answer that arrived in time and warns about a slow one."
-    )
-    add("")
-    add(
-        "**Every probe states its whole specification.** A probe that can fail for "
-        "want of world knowledge cannot tell a degraded backend from an ignorant "
-        "one — see the `fib` note in `smoke.py`."
-    )
-    add("")
-    for name, prompt, assertion in smoke.SMOKE_TASKS:
-        add(f"### `{name}`")
-        add("")
-        add("```text")
-        add(prompt)
-        add("```")
-        add("")
-        add("Checked with:")
-        add("")
-        add("```python")
-        add(assertion)
         add("```")
         add("")
 
