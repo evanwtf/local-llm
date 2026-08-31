@@ -422,3 +422,30 @@ def test_metal_ceiling_is_an_int_or_none() -> None:
     """The ceiling decides whether a ~90 GiB model loads, and resets on reboot."""
     ceiling = run.metal_ceiling_mb()
     assert ceiling is None or isinstance(ceiling, int)
+
+
+def test_prompts_doc_is_current() -> None:
+    """PROMPTS.md must match what the harness actually sends.
+
+    A published prompt that has drifted from the code is worse than none: it
+    reports a benchmark nobody ran. Regenerate with
+    `uv run python gen_prompts.py > PROMPTS.md`.
+    """
+    import subprocess
+
+    here = pathlib.Path(__file__).parent
+    doc = here / "PROMPTS.md"
+    if not doc.exists():
+        return
+    fresh = subprocess.run(
+        ["uv", "run", "python", "gen_prompts.py"],
+        cwd=here,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if fresh.returncode != 0:
+        return
+    assert fresh.stdout == doc.read_text(), (
+        "PROMPTS.md is stale -- regenerate: uv run python gen_prompts.py > PROMPTS.md"
+    )
