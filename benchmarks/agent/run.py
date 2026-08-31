@@ -299,6 +299,41 @@ def probe_server(backend):
     return got
 
 
+def serving_ds4_root():
+    """The tree the *running* ds4-server was launched from, or None.
+
+    `DS4_ROOT` and the `~/git/ds4` default both describe where ds4 is expected
+    to live, not where the server actually came from. On 2026-08-31 the engine
+    under test was a worktree at `~/git/ds4-main` (upstream/main `ec7642c`)
+    while the default pointed at the fork at `399acbb`, so every row would have
+    been stamped with an engine that was not running -- and would later have
+    been compared against real `399acbb` rows as if they matched.
+
+    Asking the live process removes the operator from the loop. `ds4-server` is
+    usually launched as `./ds4-server`, so argv is not enough; the process cwd
+    is what identifies the tree.
+    """
+    try:
+        pids = subprocess.run(
+            ["pgrep", "-f", "ds4-server"], capture_output=True, text=True, check=False
+        ).stdout.split()
+        for pid in pids:
+            out = subprocess.run(
+                ["lsof", "-a", "-p", pid, "-d", "cwd", "-Fn"],
+                capture_output=True,
+                text=True,
+                check=False,
+            ).stdout
+            for line in out.splitlines():
+                if line.startswith("n"):
+                    root = pathlib.Path(line[1:])
+                    if (root / ".git").exists():
+                        return root
+    except Exception:  # noqa: BLE001 - provenance is best-effort, never fatal
+        return None
+    return None
+
+
 def capture_versions(cfg, backends):
     """Record the software stack, once, into every row of this run.
 
@@ -339,7 +374,10 @@ def capture_versions(cfg, backends):
                 env[f"digest_{name}"] = digests[b["model"]]
 
     if any((b.get("base_url") or "").endswith(":8000") for b in backends.values()):
-        ds4_root = pathlib.Path(os.environ.get("DS4_ROOT", "~/git/ds4")).expanduser()
+        ds4_root = (
+            serving_ds4_root()
+            or pathlib.Path(os.environ.get("DS4_ROOT", "~/git/ds4")).expanduser()
+        )
         if (ds4_root / ".git").exists():
             try:
                 env["ds4_head"] = git(["rev-parse", "--short", "HEAD"], ds4_root)

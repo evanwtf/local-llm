@@ -747,12 +747,18 @@ model = "glm-5.3-flash"
 context_tokens = 100000
 
 [backend.glm53ds4]
-description = "GLM-5.3-Flash Q2, antirez GGUF on ds4 glm-5.3-flash branch"
+description = "GLM-5.3-Flash Q2, antirez GGUF on ds4 upstream/main ec7642c"
 base_url = "http://127.0.0.1:8000"
 auth_token = "dsv4-local"
 model = "glm-5.3-flash"
 opencode_model = "ds4/glm-5.3-flash"
 codex_profile = "glm53ds4"
+# Aider speaks the OpenAI API, so it never sends an Anthropic thinking block
+# and never needs the shim. ds4's default for an unrecognised mode is
+# high-effort thinking, which #63 measured at 8/8 on trivial functions against
+# 4/8 with thinking off -- so the default is the mode we want, and this
+# backend inherits it deliberately rather than by accident.
+aider_model = "openai/glm-5.3-flash"
 context_tokens = 100000
 
 # --- reference ------------------------------------------------------------

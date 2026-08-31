@@ -6,6 +6,7 @@ absence let #26 blame a KV cache for ordinary sampling spread. It must record
 what it can and return {} for everything else: losing provenance is bad, and
 losing a half-hour trial to a provenance bug is worse.
 """
+
 from __future__ import annotations
 
 import io
@@ -13,6 +14,7 @@ import json
 import urllib.error
 
 import pytest
+
 import run
 
 PROPS = {
@@ -24,8 +26,12 @@ PROPS = {
     "default_generation_settings": {
         "n_ctx": 65536,
         "params": {
-            "temperature": 1.0, "top_p": 0.95, "top_k": 40,
-            "min_p": 0.05, "seed": 4294967295, "samplers": ["top_k", "temperature"],
+            "temperature": 1.0,
+            "top_p": 0.95,
+            "top_k": 40,
+            "min_p": 0.05,
+            "seed": 4294967295,
+            "samplers": ["top_k", "temperature"],
             "n_predict": -1,
         },
     },
@@ -43,14 +49,21 @@ class _Serves:
         self.url = url
         if isinstance(self.payload, Exception):
             raise self.payload
-        body = self.payload if isinstance(self.payload, str) else json.dumps(self.payload)
+        body = (
+            self.payload if isinstance(self.payload, str) else json.dumps(self.payload)
+        )
         return _closing(io.StringIO(body))
 
 
 class _closing:
-    def __init__(self, fh): self.fh = fh
-    def __enter__(self): return self.fh
-    def __exit__(self, *a): return False
+    def __init__(self, fh):
+        self.fh = fh
+
+    def __enter__(self):
+        return self.fh
+
+    def __exit__(self, *a):
+        return False
 
 
 @pytest.fixture
@@ -85,8 +98,9 @@ def test_does_not_haul_the_chat_template_into_every_row(serves):
 
 def test_props_url_overrides_base_url_for_a_shimmed_backend(serves):
     serves.payload = PROPS
-    run.probe_server({"base_url": "http://127.0.0.1:11501",
-                      "props_url": "http://127.0.0.1:8030"})
+    run.probe_server(
+        {"base_url": "http://127.0.0.1:11501", "props_url": "http://127.0.0.1:8030"}
+    )
     assert serves.url == "http://127.0.0.1:8030/props"
 
 
@@ -124,6 +138,7 @@ def test_a_server_with_no_sampling_block_still_records_what_it_has(serves):
 
 # --- direction 1: more than one symbol per task ---------------------------
 
+
 def test_a_single_symbol_task_still_describes_itself_the_old_way():
     """398 rows name tasks defined with file/symbol. Do not break them."""
     task = {"name": "t", "file": "src/a.py", "symbol": "f", "tests": ["tests/"]}
@@ -131,10 +146,14 @@ def test_a_single_symbol_task_still_describes_itself_the_old_way():
 
 
 def test_a_task_may_hollow_out_several_symbols():
-    task = {"name": "t", "tests": ["tests/"], "targets": [
-        {"file": "src/a.py", "symbol": "f"},
-        {"file": "src/b.py", "symbol": "g"},
-    ]}
+    task = {
+        "name": "t",
+        "tests": ["tests/"],
+        "targets": [
+            {"file": "src/a.py", "symbol": "f"},
+            {"file": "src/b.py", "symbol": "g"},
+        ],
+    }
     assert len(run.targets(task)) == 2
     assert {t["file"] for t in run.targets(task)} == {"src/a.py", "src/b.py"}
 
@@ -152,14 +171,19 @@ def test_a_task_with_neither_form_is_refused_loudly():
 
 def test_targets_are_returned_in_a_stable_order():
     """Excision order decides which file the stub lands in first; keep it fixed."""
-    task = {"name": "t", "tests": [], "targets": [
-        {"file": "src/z.py", "symbol": "z"},
-        {"file": "src/a.py", "symbol": "a"},
-    ]}
+    task = {
+        "name": "t",
+        "tests": [],
+        "targets": [
+            {"file": "src/z.py", "symbol": "z"},
+            {"file": "src/a.py", "symbol": "a"},
+        ],
+    }
     assert [t["symbol"] for t in run.targets(task)] == ["z", "a"]
 
 
 # --- the environment handed to the client --------------------------------
+
 
 def test_codex_gets_its_api_key_from_the_backend():
     """Codex profiles declare `env_key = "CODEX_API_KEY"` and the harness must
@@ -172,8 +196,14 @@ def test_codex_gets_its_api_key_from_the_backend():
     variable: CODEX_API_KEY" and the row lands as a model failure, which is
     what it looks like and is not what it is.
     """
-    env = run.agent_env({"base_url": "http://127.0.0.1:8000", "model": "m",
-                         "auth_token": "tok", "context_tokens": 1})
+    env = run.agent_env(
+        {
+            "base_url": "http://127.0.0.1:8000",
+            "model": "m",
+            "auth_token": "tok",
+            "context_tokens": 1,
+        }
+    )
     assert env["CODEX_API_KEY"] == "tok"
 
 
@@ -185,13 +215,20 @@ def test_the_hosted_reference_keeps_its_ambient_auth():
 
 
 def test_a_local_backend_never_leaks_a_real_anthropic_key():
-    env = run.agent_env({"base_url": "http://127.0.0.1:8000", "model": "m",
-                         "auth_token": "tok", "context_tokens": 1})
+    env = run.agent_env(
+        {
+            "base_url": "http://127.0.0.1:8000",
+            "model": "m",
+            "auth_token": "tok",
+            "context_tokens": 1,
+        }
+    )
     assert "ANTHROPIC_API_KEY" not in env
     assert env["ANTHROPIC_AUTH_TOKEN"] == "tok"
 
 
 # --- recording the sampler on every backend (#36) -------------------------
+
 
 def test_ollama_modelfile_parameters_are_recorded():
     """A modelfile that sets the sampler is the one case Ollama tells us about."""
@@ -237,14 +274,31 @@ def test_ds4_records_that_its_sampler_is_unreported_not_that_it_is_absent():
     from a sampler nobody wrote down; a confident wrong value would be worse
     than an explicit unknown.
     """
-    models = {"data": [{"id": "deepseek-v4-flash", "context_length": 100000,
-                        "supported_parameters": ["temperature", "top_p",
-                                                 "top_k", "min_p", "seed"]}]}
+    models = {
+        "data": [
+            {
+                "id": "deepseek-v4-flash",
+                "context_length": 100000,
+                "supported_parameters": [
+                    "temperature",
+                    "top_p",
+                    "top_k",
+                    "min_p",
+                    "seed",
+                ],
+            }
+        ]
+    }
     got = run.parse_ds4_models(models)
     assert got["sampling"] == {}
     assert got["sampling_source"] == "engine defaults (not reported by ds4)"
-    assert set(got["accepts_sampling"]) == {"temperature", "top_p", "top_k",
-                                            "min_p", "seed"}
+    assert set(got["accepts_sampling"]) == {
+        "temperature",
+        "top_p",
+        "top_k",
+        "min_p",
+        "seed",
+    }
     assert got["context_length"] == 100000
 
 
@@ -255,11 +309,15 @@ def test_a_models_response_from_something_else_is_ignored():
 
 # --- a second target repository, in another language (#42) ----------------
 
+
 def test_a_task_inherits_the_global_repo_when_it_names_none():
     """558 recorded rows name tasks defined against the global repo. Do not
     change what they mean."""
-    cfg = {"repo": "~/git/gmail-archive", "base_commit": "56e55cc",
-           "test_command": "uv run pytest -q"}
+    cfg = {
+        "repo": "~/git/gmail-archive",
+        "base_commit": "56e55cc",
+        "test_command": "uv run pytest -q",
+    }
     got = run.task_target(cfg, {"name": "t"})
     assert got["repo"] == "~/git/gmail-archive"
     assert got["base_commit"] == "56e55cc"
@@ -267,10 +325,17 @@ def test_a_task_inherits_the_global_repo_when_it_names_none():
 
 
 def test_a_task_may_name_its_own_repo_and_test_command():
-    cfg = {"repo": "~/git/gmail-archive", "base_commit": "56e55cc",
-           "test_command": "uv run pytest -q"}
-    task = {"name": "t", "repo": "~/git/monitor", "base_commit": "cbb85ca",
-            "test_command": "swift test"}
+    cfg = {
+        "repo": "~/git/gmail-archive",
+        "base_commit": "56e55cc",
+        "test_command": "uv run pytest -q",
+    }
+    task = {
+        "name": "t",
+        "repo": "~/git/monitor",
+        "base_commit": "cbb85ca",
+        "test_command": "swift test",
+    }
     got = run.task_target(cfg, task)
     assert got["repo"] == "~/git/monitor"
     assert got["base_commit"] == "cbb85ca"
@@ -280,16 +345,18 @@ def test_a_task_may_name_its_own_repo_and_test_command():
 def test_a_task_may_override_only_some_fields():
     cfg = {"repo": "~/git/a", "base_commit": "aaa", "test_command": "x"}
     got = run.task_target(cfg, {"name": "t", "base_commit": "bbb"})
-    assert (got["repo"], got["base_commit"], got["test_command"]) == \
-           ("~/git/a", "bbb", "x")
+    assert (got["repo"], got["base_commit"], got["test_command"]) == (
+        "~/git/a",
+        "bbb",
+        "x",
+    )
 
 
 def test_excision_dispatches_on_file_extension():
     """Python goes through `ast`; Swift through the brace scanner. Choosing the
     wrong one does not crash, it finds nothing or cuts the wrong span."""
     assert run.exciser_for("src/gmail_archive/mbox.py").__name__ == "excise"
-    assert run.exciser_for("Sources/MonitorCore/Downsample.swift").__name__ \
-        == "excise"
+    assert run.exciser_for("Sources/MonitorCore/Downsample.swift").__name__ == "excise"
     # different modules, same function name -- check the module, not the name
     assert run.exciser_for("a.py").__module__ == "excise"
     assert run.exciser_for("a.swift").__module__ == "swift_excise"
@@ -321,3 +388,15 @@ def test_stdout_still_wins_when_present():
 
 def test_both_empty_is_still_reported_rather_than_crashing():
     assert run.summarise_run("", "") == "no output"
+
+
+def test_serving_ds4_root_is_a_git_tree_or_none() -> None:
+    """Provenance must come from the running server, not from a default path.
+
+    On 2026-08-31 the engine under test was a worktree (`~/git/ds4-main` at
+    upstream/main) while the default pointed at the fork, so rows would have
+    recorded an engine that was not running. This never raises: bad provenance
+    is worth a warning, never a dead batch.
+    """
+    root = run.serving_ds4_root()
+    assert root is None or (root / ".git").exists()
