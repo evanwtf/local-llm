@@ -29,7 +29,7 @@
 #
 # run.py refuses to start if this repo is dirty, and verifies base_commit
 # exists -- but it does not check the branch, because the export is by commit.
-repo = "~/git/local-llm-testing/gmail-archive"
+repo = "~/git/gmail-archive"
 base_commit = "56e55cc"
 
 [[task]]
@@ -111,7 +111,7 @@ not modify any test."""
 
 [[task]]
 name = "swift-downsample-buckets"
-repo = "~/git/local-llm-testing/monitor"
+repo = "~/git/monitor"
 base_commit = "cbb85ca"
 test_command = "swift test"
 file = "Sources/MonitorCore/Downsample.swift"
@@ -123,7 +123,7 @@ suite passes. Do not modify any test."""
 
 [[task]]
 name = "swift-csv-text"
-repo = "~/git/local-llm-testing/monitor"
+repo = "~/git/monitor"
 base_commit = "cbb85ca"
 test_command = "swift test"
 file = "Sources/MonitorCore/CSVExport.swift"
@@ -135,7 +135,7 @@ suite passes. Do not modify any test."""
 
 [[task]]
 name = "swift-chartaxis-spacing"
-repo = "~/git/local-llm-testing/monitor"
+repo = "~/git/monitor"
 base_commit = "cbb85ca"
 test_command = "swift test"
 file = "Sources/MonitorCore/ChartAxis.swift"
@@ -240,7 +240,7 @@ passes. Do not modify any test."""
 # early return, and both compile to something else here.
 [[task]]
 name = "swift-scaleladder-snap"
-repo = "~/git/local-llm-testing/monitor"
+repo = "~/git/monitor"
 base_commit = "cbb85ca"
 test_command = "swift test"
 file = "Sources/MonitorCore/GaugeScale.swift"
@@ -256,7 +256,7 @@ suite passes. Do not modify any test."""
 # that does not compile rather than something that fails a test.
 [[task]]
 name = "swift-sevensegment-glyphs"
-repo = "~/git/local-llm-testing/monitor"
+repo = "~/git/monitor"
 base_commit = "cbb85ca"
 test_command = "swift test"
 file = "Sources/MonitorCore/SevenSegment.swift"

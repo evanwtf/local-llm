@@ -695,6 +695,56 @@ def paths_outside(stdout, worktree):
     return sorted(seen, key=lambda k: -seen[k])
 
 
+def ensure_pristine(repo, commit):
+    """Put a target repository into a known-good state, or refuse to run.
+
+    The operator's requirement, and it is the right one: **a known commit hash
+    that is synced with upstream, and no stray files.** A benchmark that starts
+    from an unknown state measures nothing, and this project has already had an
+    agent delete 33 lines from a checkout it was never pointed at (#54).
+
+    Four things, in order, each of which can refuse:
+
+    1. fetch, so "synced with upstream" is checked against something current
+    2. assert the pinned commit is reachable from an `origin/*` ref -- a local
+       commit that exists nowhere else is not a baseline anyone can reproduce
+    3. `reset --hard` to it, then `clean -ffd`
+    4. assert the tree is clean afterwards
+
+    `clean` deliberately omits `-x`: every stray here is an ignored build
+    artifact (`.venv`, `.build`, caches), and deleting those would force a full
+    recompile per trial while removing nothing an agent could have planted.
+    Untracked *source* files are still removed, which is the case that matters.
+
+    Returns the verified sha. Raises on anything it cannot guarantee.
+    """
+    repo = pathlib.Path(repo).expanduser()
+    # Tolerate an offline machine: a stale fetch still lets the
+    # containment check below run against what we last saw.
+    run(["git", "fetch", "--quiet", "origin"], repo)
+
+    refs = run(["git", "branch", "-r", "--contains", commit], repo).stdout
+    upstream = [r.strip() for r in refs.splitlines() if r.strip().startswith("origin/")]
+    if not upstream:
+        raise SystemExit(
+            f"{repo}: {commit} is not reachable from any origin/* ref. "
+            "A baseline that exists only on this machine is not reproducible."
+        )
+
+    git(["reset", "--hard", "--quiet", commit], repo)
+    git(["clean", "-ffd", "--quiet"], repo)
+
+    dirty = run(["git", "status", "--porcelain"], repo).stdout.strip()
+    if dirty:
+        raise SystemExit(f"{repo}: still dirty after reset+clean:\n{dirty}")
+
+    sha = run(["git", "rev-parse", "HEAD"], repo).stdout.strip()
+    logger.info(
+        "%s: pristine at %s (upstream: %s)", repo.name, sha[:9], ", ".join(upstream[:2])
+    )
+    return sha
+
+
 def sandbox_profile(worktree, repo):
     """A macOS sandbox profile that hides every other copy of the answer.
 
@@ -1139,6 +1189,19 @@ def main():
 
     versions = capture_versions(cfg, backends)
     versions["client"] = ",".join(clients)
+
+    # #54: every target at a known commit that exists upstream, with no strays,
+    # before a single trial runs. A benchmark that starts from an unknown state
+    # measures nothing -- and an agent has already damaged a checkout it was
+    # never pointed at.
+    for repo, commit in sorted(
+        {
+            (task_target(cfg, t)["repo"], task_target(cfg, t)["base_commit"])
+            for t in tasks
+        }
+    ):
+        ensure_pristine(repo, commit)
+
     logger.info(
         "%d task(s) x %d backend(s) x %d client(s) x %d trial(s)",
         len(tasks),
