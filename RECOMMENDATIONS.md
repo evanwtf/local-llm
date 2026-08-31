@@ -837,3 +837,48 @@ The gaps between "benchmarked" and "actually a fallback":
 Item 5 is answered for `ds4`: the code it writes is good, not merely passing.
 What remains unanswered is whether that distinguishes it from the other
 backends, which is a different and harder question. The rest is logistics.
+
+## `--dspark` is now a small win, not a loss (2026-08-31)
+
+**This reverses published guidance.** The "settings to avoid" table said
+`--dspark` was *lossless but 23–44% slower at every confidence setting tried*.
+That was measured **2026-08-08**, the build SHA was never recorded, and it no
+longer reproduces.
+
+Re-measured this morning against two heads, `--temp 0`, three prompts per
+configuration, 512 tokens each:
+
+| model | baseline | `--dspark` d1 | gain |
+|---|---:|---:|---:|
+| `IQ2XXS-w2Q2K-AProjQ8` (q2) | 43.39 t/s | 46.64 | **+7.5%** |
+| `Layers37-42Q4K…imatrix-fixed` (our primary) | 45.71 t/s | 47.44 | **+3.8%** |
+
+`main` @ `8db89fe`; PR #915 @ `88bd78a` gives +6.6% and +3.0% — the same within
+drift.
+
+**Draft depth is irrelevant.** d1 through d4 sit within ~1% on both models, so
+the gain comes from first-token acceptance, not from speculating deeper. That
+matches ds4#892's finding on GLM, where every width above 2 lost.
+
+### The control that stopped a false finding
+
+Run back to back, PR #915's *baseline* came in ~8% below `main`'s, which reads
+as a regression. **A-B-A says it is not.** Re-running `main` on the now-warm
+machine:
+
+| model | A `main` 07:15 | B PR#915 07:22 | A `main` 07:30 |
+|---|---:|---:|---:|
+| q2q4 baseline | 45.71 | 42.09 | **43.81** |
+| q2 baseline | 43.39 | 40.96 | **41.65** |
+
+**~4% of absolute throughput is lost to fifteen minutes of continuous load**,
+and PR #915 sits between the two `main` runs. The *ratio* is stable across all
+three sweeps while the absolute sags — the same conclusion #52 reached for
+`ds4-bench`: **quote the ratio, never the absolute.**
+
+Reported upstream at
+[ds4#913](https://github.com/antirez/ds4/issues/913#issuecomment-5477787083).
+
+**Caveat:** three prompts per configuration, one machine. Enough to retire a
+claim that pointed the other way; not enough to promote `--dspark` into the
+recommended run commands.

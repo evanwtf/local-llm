@@ -1,0 +1,77 @@
+ds4: DSpark support model detected: /Users/evanhoffman/git/ds4-main/gguf/DeepSeek-V4-Flash-DSpark-support-0731.gguf (stages=3 block=5 markov_rank=256 tensors=81 missing=0 invalid=0 metadata_errors=0); use --dspark to enable experimental runtime decode
+ds4: DSpark direct verifier-state commits enabled; output may differ from one-token decode due to batched floating-point operation order
+ds4: Metal device Apple M5 Max, 128.00 GiB RAM
+ds4: Metal 4 tensor API enabled for Tensor kernels
+ds4: drift-patch flags hc_stable=on norm_unify=on kv_raw_f32=off rope_exp2_log2=off math_safe=off tensor_matmul=on
+ds4: Metal model views created in 2.993 ms, residency requested in 878.031 ms, warmup 4.244 ms (mapped 93065.67 MiB from offset 5.09 MiB)
+ds4: Metal mapped mmaped model as 2 overlapping shared buffers
+ds4: Metal model views created in 0.220 ms, residency requested in 1374.370 ms, warmup 2.042 ms (mapped 5711.67 MiB from offset 0.01 MiB)
+ds4: Metal mapped mmaped model as 3 overlapping shared buffers
+ds4: metal backend initialized for graph diagnostics
+ds4: memory: KV 0.61 GiB (raw 0.36 + compressed 0.25) + buffers 0.25 GiB + resident model 90.88 GiB = 91.74 GiB planned
+ds4: memory detail: ctx=32768 prefill_cap=4096 raw_kv_rows=4352 compressed_kv_rows=8194 backend=metal
+ds4: memory: KV 0.61 GiB (raw 0.36 + compressed 0.25) + buffers 0.25 GiB = 0.86 GiB context
+ds4: memory detail: ctx=32768 prefill_cap=4096 raw_kv_rows=4352 compressed_kv_rows=8194 backend=metal
+ds4: DSpark target-hidden capture enabled: layers=40,41,42
+We need to write a complete Python implementation of an LRU cache with a doubly linked list and a dict. Include docstrings.
+
+We'll implement a class LRUCache with methods get and put. Use a doubly linked list to maintain order of access, and a dict mapping keys to nodes. Each node stores key, value, prev, next. We'll have dummy head and tail to simplify.
+
+We'll include docstrings for class and methods.
+
+We'll also handle capacity, eviction.
+
+We'll write code with proper type hints? The user didn't specify, but we can include.
+
+We'll produce a complete implementation.
+
+Let's write.
+```python
+from typing import Any, Optional
+
+
+class _Node:
+    """Doubly linked list node for LRU cache."""
+    def __init__(self, key: Any, value: Any) -> None:
+        self.key = key
+        self.value = value
+        self.prev: Optional[_Node] = None
+        self.next: Optional[_Node] = None
+
+
+class LRUCache:
+    """
+    Least Recently Used (LRU) cache implemented with a doubly linked list
+    and a dictionary.
+
+    The doubly linked list maintains the order of access: the most recently
+    used items are at the head, and the least recently used items are at the
+    tail. The dictionary provides O(1) access to nodes by key.
+
+    Attributes:
+        capacity (int): Maximum number of items the cache can hold.
+        _cache (dict): Maps keys to corresponding nodes.
+        _head (_Node): Dummy head node of the doubly linked list.
+        _tail (_Node): Dummy tail node of the doubly linked list.
+        _size (int): Current number of items in the cache.
+    """
+
+    def __init__(self, capacity: int) -> None:
+        """
+        Initialize the LRU cache with a given capacity.
+
+        Args:
+            capacity (int): Maximum number of items the cache can hold.
+                Must be a positive integer.
+
+        Raises:
+            ValueError: If capacity is not a positive integer.
+        """
+        if capacity <= 0:
+            raise ValueError("Capacity must be a positive integer")
+        self.capacity = capacity
+        self._cache: dict[Any, _Node] = {}
+        self._head = _Node(None, None)  # Dummy head
+        self._tail = _Node(None, None)  # Dummy tail
+        self._head.next =
+ds4: prefill: 82.56 t/s, generation: 51.38 t/s

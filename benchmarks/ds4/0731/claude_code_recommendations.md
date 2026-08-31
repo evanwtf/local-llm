@@ -145,7 +145,7 @@ V4-Flash-specific engine.
 
 | setting | why not |
 |---|---|
-| `--dspark` | Lossless but **23–44% slower** generation at every confidence setting tried. The cost is speculation itself, not instrumentation (`--dspark-strict` matches baseline). |
+| ~~`--dspark`~~ | **RETIRED 2026-08-31 — no longer reproduces.** This said "lossless but 23–44% slower at every confidence setting tried". Re-measured on current ds4 (`main` @ `8db89fe`, PR #915 @ `88bd78a`), the same models on the same machine give **+3.8%** (this mixed q2/q4 build) and **+7.5%** (q2) at `--temp 0`. The 2026-08-08 run recorded no build SHA, so it is retired rather than reconciled. See `RECOMMENDATIONS.md` and [ds4#913](https://github.com/antirez/ds4/issues/913#issuecomment-5477787083). |
 | `--quality` | ~48% prefill cost (371.7 vs 720.2 t/s) for exact kernels. |
 | `--ssd-streaming` (for agents) | See §2. Fine for one-off hard problems, wrong for an agent loop. |
 | `--mtp-draft` | Inert with DSpark — it drives the legacy one-stage MTP path that DSpark replaces. |

@@ -43,7 +43,10 @@ P3="A train leaves station A at 60 mph. Another leaves station B, 240 miles away
 run_one() {
     model=$1; tag=$2; pnum=$3; prompt=$4
     shift 4
-    "$DS4_ROOT/ds4" -m "$model" --temp 0 -n 512 -p "$prompt" "$@" \
+    # ds4 resolves metal/*.metal relative to its own tree, so run from there.
+    # Without this it aborts with "metal backend unavailable" and the whole
+    # sweep completes in seconds having measured nothing.
+    ( cd "$DS4_ROOT" && ./ds4 -m "$model" --temp 0 -n 512 -p "$prompt" "$@" ) \
         > "$OUT/${tag}_p${pnum}.log" 2>&1
 }
 
