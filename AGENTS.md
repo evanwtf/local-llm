@@ -3,6 +3,20 @@
 Instructions for coding agents. [`CONVENTIONS.md`](CONVENTIONS.md) holds the
 standing rules about data and safety; this file covers how to work.
 
+## Check the field before concluding something is not possible
+
+[`SOURCES.md`](SOURCES.md) lists who to watch on X and how to sweep them safely.
+Run it when a result looks anomalous, when planning a week, or when about to
+conclude that something cannot be done on this hardware -- somebody may have
+done it last Tuesday.
+
+Two hard rules, both from mistakes:
+
+- **Verify before repeating.** `~/.claude/skills/grok/verify-posts.py` on
+  anything before it reaches an issue. grok has fabricated a post outright.
+- **Date and version every claim.** Sources describing a tool from six months
+  ago may describe several major versions back (#55).
+
 ## OpenCode is the primary harness (2026-08-30)
 
 The project exists as a fallback for when hosted inference is unavailable or

@@ -172,6 +172,21 @@ to start them. Measurements land in the `RESULTS.md` beside the benchmark that
 produced them. The full loop, and what belongs in which file, is in
 [`AGENTS.md`](AGENTS.md).
 
+## Keeping up with the field
+
+[`SOURCES.md`](SOURCES.md) lists who to check on X, in tiers, with the sweep
+prompt and the verification rules. Say *"check our influencer list for updates
+over the past week"* to run it.
+
+It exists because this field moves faster than the project measures: two engines
+shipped double-digit improvements in one 48-hour window while these docs still
+described a three-engine world (#60). Two of our own issues (#51, #57) started
+as posts there.
+
+Everything from it is a **lead, not a result** — mostly measured on M3 Ultra
+512 GB hardware, and per #59 nothing enters `RECOMMENDATIONS.md` without our own
+controlled measurement.
+
 ## Two target repositories, two languages
 
 The benchmark excises a function from a real repository and asks the agent to
