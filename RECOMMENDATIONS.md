@@ -88,12 +88,13 @@ median hides how bad the bad runs get.
 
 <!-- BEGIN GENERATED -->
 
-*Generated from `results.jsonl` — 1020 rows, sha256 1b5982ed44db.*
+*Generated from `results.jsonl` — 1041 rows, sha256 b998a718e70d.*
 
 #### Every stack measured under OpenCode
 
 | stack | passed | median | worst | spread |
 |---|---|---|---|---|
+| ornith15 | 21/21 | 44s | 93s | 5.9x |
 | Qwen3.8-Flash-Next Q3 - llama.cpp | 30/30 | 90s | 208s | 4.8x |
 | DeepSeek-V4-Flash - ds4 (Anthropic wire) | 18/18 | 110s | 221s | 4.3x |
 | DeepSeek-V4-Flash - ds4 | 30/30 | 115s | 230s | 4.3x |
@@ -119,6 +120,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 
 | stack | seconds per 1k output tokens |
 |---|---|
+| ornith15 | 21s |
 | Qwen3.8-Flash-Next Q3 - llama.cpp | 43s |
 | DeepSeek-V4-Flash - ds4 (Anthropic wire) | 54s |
 | GLM-5.3-Flash - ds4 | 55s |
