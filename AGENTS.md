@@ -283,6 +283,25 @@ items: the ds4 mention that mattered arrived by email, was already marked read
 through the API, and sat under 41 CI failures from unrelated repos. Filtering to
 unread would have hidden the only notification worth seeing.
 
+## Finishing a batch includes regenerating the derived documents
+
+New rows in `results.jsonl` make `RECOMMENDATIONS.md` stale by definition — its
+tables are a function of that file, and `test_recommendations.py` fails until
+they are regenerated:
+
+```sh
+uv run python benchmarks/agent/splice_tables.py
+```
+
+The failing test is correct behaviour, not noise. A document quoting a pass
+rate the data no longer supports is exactly what this project has published
+three times.
+
+**Check pytest's exit code, not the last line of its output.**
+`pytest -q | tail -2 && git commit` always commits: `tail` exits 0 whatever
+pytest did. That mistake put a red commit on main on 2026-09-01. Run the suite
+as its own command and read the result, or use `set -o pipefail`.
+
 ## Stamp every line with the code that produced it
 
 **Never call `logging.basicConfig` in this package. Call `provenance.configure()`.**

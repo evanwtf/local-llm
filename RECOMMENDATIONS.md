@@ -88,7 +88,7 @@ median hides how bad the bad runs get.
 
 <!-- BEGIN GENERATED -->
 
-*Generated from `results.jsonl` — 972 rows, sha256 1395a574f037.*
+*Generated from `results.jsonl` — 976 rows, sha256 8ad29eae5fe8.*
 
 #### Every stack measured under OpenCode
 
@@ -98,7 +98,7 @@ median hides how bad the bad runs get.
 | DeepSeek-V4-Flash - ds4 (Anthropic wire) | 18/18 | 110s | 221s | 4.3x |
 | DeepSeek-V4-Flash - ds4 | 21/21 | 115s | 230s | 4.3x |
 | Qwen3.8-Flash-Next Q3 - LM Studio | 18/18 | 122s | 261s | 4.2x |
-| Qwen3.6-27B-coding - Ollama | 18/18 | 167s | 700s | 12.6x |
+| Qwen3.6-27B-coding - Ollama | 19/19 | 167s | 700s | 12.6x |
 | GLM-5.3-Flash - ds4 | 16/18 | 368s | 1227s | 18.0x |
 
 Excision tasks only; `script-*` excluded because they are a different class. **Spread is worst / best on the same task**, and it is the column most people forget to ask for.
@@ -122,7 +122,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | GLM-5.3-Flash - ds4 | 47s |
 | DeepSeek-V4-Flash - ds4 (Anthropic wire) | 54s |
 | DeepSeek-V4-Flash - ds4 | 54s |
-| Qwen3.6-27B-coding - Ollama | 69s |
+| Qwen3.6-27B-coding - Ollama | 70s |
 | Qwen3.8-Flash-Next Q3 - LM Studio | 134s |
 
 <!-- END GENERATED -->
