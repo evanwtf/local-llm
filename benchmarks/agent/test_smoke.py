@@ -238,3 +238,30 @@ def test_examples_never_reuse_the_assertion_inputs() -> None:
         assert checked not in prompt, (
             f"{name}: the checked case {checked} is given away"
         )
+
+
+def test_a_server_still_loading_is_reported_as_unavailable_not_wrong() -> None:
+    """503 is not a wrong answer.
+
+    llama.cpp accepts connections, and answers /health with {"status":"ok"},
+    while an 84 GB model is still being read off disk -- completions return 503
+    throughout. Reporting that as "answered in time and got it wrong" sends the
+    reader to check the model alias and the thinking mode when the real problem
+    is that nothing has answered at all.
+    """
+    import urllib.error
+
+    def post(base_url, token, model, prompt, timeout):
+        raise urllib.error.HTTPError("u", 503, "Service Unavailable", {}, None)
+
+    with pytest.raises(smoke.SmokeFailure, match="did not answer"):
+        smoke.gate(BACKEND, "loading", deadline=5, post=post)
+
+
+def test_a_refused_connection_is_unavailable_too() -> None:
+    def post(base_url, token, model, prompt, timeout):
+        raise ConnectionRefusedError("nothing listening")
+
+    with pytest.raises(smoke.SmokeFailure) as excinfo:
+        smoke.gate(BACKEND, "down", deadline=5, post=post)
+    assert "did not answer" in str(excinfo.value)

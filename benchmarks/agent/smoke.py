@@ -177,6 +177,28 @@ def _ran_out(row: dict) -> bool:
     )
 
 
+def _unavailable(row: dict) -> bool:
+    """True when the backend never answered at all.
+
+    A server that is listening but still loading returns 503; a stopped one
+    refuses the connection. Neither is a wrong answer, and reporting them as
+    "answered in time and got it wrong" sends the reader to check the model
+    alias and the thinking mode when the real problem is that an 84 GB model is
+    still being read off disk. llama.cpp accepts connections long before it can
+    serve them.
+    """
+    error = row.get("error") or ""
+    return any(
+        marker in error
+        for marker in (
+            "HTTPError",
+            "URLError",
+            "ConnectionRefused",
+            "RemoteDisconnected",
+        )
+    )
+
+
 def check(
     backend: dict,
     deadline: int = DEADLINE_SECONDS,
@@ -253,12 +275,25 @@ def gate(
     #
     # A degraded backend -- the failure this gate exists to catch -- is fast,
     # confident and wrong. Slowness is what the trials themselves measure.
+    unavailable = [r["task"] for r in rows if _unavailable(r)]
     wrong = [
         r["task"]
         for r in rows
-        if not r["correct"] and r["within_deadline"] and not _ran_out(r)
+        if not r["correct"]
+        and r["within_deadline"]
+        and not _ran_out(r)
+        and not _unavailable(r)
     ]
     slow = [r["task"] for r in rows if not r["within_deadline"] or _ran_out(r)]
+
+    if unavailable:
+        detail = next((r["error"] for r in rows if _unavailable(r)), "")
+        raise SmokeFailure(
+            f"{name} did not answer: {detail}. The backend is not reachable or "
+            "not ready -- a server that is listening but still loading returns "
+            "503, and llama.cpp accepts connections long before it can serve "
+            "them. Wait for a real completion, not for the port to open."
+        )
 
     if slow:
         logger.warning(
