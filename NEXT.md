@@ -12,6 +12,9 @@ GLM x OpenCode data:
 | llama.cpp Q3 | 1/12 | **18/18** |
 | LM Studio | 4/14 | **18/18** |
 | GLM-5.3 | *no valid measurement* | **16/18** |
+| qwen3.6-coding | 0/1 | **18/18** |
+
+**#67 is closed.** 108 trials, six backends, one client. 103 passed.
 
 **Three separate bugs manufactured the old numbers**, none of them OpenCode's:
 
@@ -52,7 +55,8 @@ state that is not in git. The table is the queue. It has no calendar.
 | # | issue | why this position |
 |---|---|---|
 | 1 | **Rewrite RECOMMENDATIONS.md** (archived at `docs/archive/RECOMMENDATIONS-2026-08-29.md`) | **Unblocked.** #67 closed the OpenCode column for five backends. The headline has changed twice over: the client is the dominant cost on any large local model, *and* four of the five stacks the archived text ranks were ranked on numbers that measured our own bugs. Written for a stranger on this hardware: top 3 stacks, pasteable from `git clone` to a running agent, tables generated from `results.jsonl`. |
-| 2 | **#69** `opencode.json` is not in git | An undeclared provider model voided a whole cell tonight and cost six trials. Every OpenCode number depends on a file nobody can review or reproduce; `tasks.toml` already admits this in a comment. A preflight check that every `opencode_model` resolves would have turned six wasted trials into one line of output. |
+| 2 | **#73** Two of six backends swing 12x on wall time, cause unknown | Filed at the end of #67. `glm53ds4` and `qwen36coding` vary by an order of magnitude on the same task and server; `ds4`, llama.cpp and LM Studio cluster to within 4%. Ruled out: trial-index drift, cold start alone, model size, correctness, the task. **This blocks the honest form of position 1** -- a backend that varies 12x cannot be recommended on a median. Most obvious untested factor: both wide backends run behind a prefix/KV cache, both tight GGUF ones do not. |
+| 3 | **#69** `opencode.json` is not in git | An undeclared provider model voided a whole cell tonight and cost six trials. Every OpenCode number depends on a file nobody can review or reproduce; `tasks.toml` already admits this in a comment. A preflight check that every `opencode_model` resolves would have turned six wasted trials into one line of output. |
 | 3 | **#66** Finish the script-task sweep | OpenCode is now covered on five backends (#67), and `script-reverse` ran in every one of them. What remains is `script-transform`: the spec is written (`SCRIPT-TRANSFORM.md`) and it has still never run in the harness. **The class keeps earning its place** -- it was the only task GLM ran consistently (36.3-41.9s against 12.4x spreads on every repo-based task). |
 | 4 | **#68** llama.cpp has fa-vec tunings for seven Apple chips and none for M5 | **Premise weakened, question still open.** Upstream is still landing these one chip at a time -- the 2026-09-01 pull was literally `metal: add fa-vec tunings for M1 Ultra (#28088)`. But llama.cpp was the *fastest* engine measured tonight on identical weights (beating LM Studio on five of six tasks) while running the supposedly crippled generic path. So "every llama.cpp number was measured on an untuned decode path" is no longer a safe assumption. Still cheap to test (`-fa on/off`). |
 | 5 | **#64** KV prefix stalls at ~20,400 tokens on the Claude Code path | Reproduced, cause open, one experiment left (normalise `content` shape, re-run one traced trial). Cost measured on real work: **193 s against 931 s** on the same model and task, Aider vs Claude Code. Inflates every Claude Code wall time we hold. Aider does not pay it, which is why this is no longer blocking. |
