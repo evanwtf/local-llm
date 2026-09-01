@@ -710,3 +710,16 @@ def test_the_guard_is_inert_when_this_machine_is_unknown():
     """If we cannot identify ourselves we cannot accuse anyone else."""
     rows = [{"env": {"arch": "x86_64", "cpu": "Ryzen"}}]
     assert results.foreign_hardware(rows, {}) == set()
+
+
+def test_dry_run_reports_a_script_task_without_crashing(tmp_path, monkeypatch):
+    """--dry-run raised UnboundLocalError on every script task.
+
+    `summary` is bound only inside the excision branch, and the dry-run log
+    line named it unconditionally. Script tasks have no excision, so the one
+    path that exists to verify a task before spending an agent on it crashed
+    for the whole class -- since the class was added, because nobody ran a dry
+    run on one.
+    """
+    source = (HERE / "run.py").read_text()
+    assert 'summary if not is_script else "script task; no control to check"' in source

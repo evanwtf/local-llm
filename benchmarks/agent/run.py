@@ -1542,7 +1542,15 @@ def one_trial(
 
         if dry_run:
             result["dry_run"] = True
-            logger.info("%s: control ok (%s)", name, summary)
+            # A script task has no excision, so there is no control to check --
+            # `summary` is only bound in the excision branch above, and naming
+            # it here raised UnboundLocalError for every script task since the
+            # class was added. --dry-run is the one path nobody had run on one.
+            logger.info(
+                "%s: control ok (%s)",
+                name,
+                summary if not is_script else "script task; no control to check",
+            )
             return result
 
         # 3. Hand it to the agent.
