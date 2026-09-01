@@ -8,8 +8,9 @@
 > or compare against those numbers.** Cause, cutover and replacements:
 > [docs/archive/results-opencode-pre-dir.md](docs/archive/results-opencode-pre-dir.md). Other clients are unaffected.
 
-Updated 2026-09-01 05:00. **#67 is done for five backends, and OpenCode was
-never broken.** 90 trials overnight. Four cells that had published failing
+Updated 2026-09-01 17:35 EDT. **An 18h upstream sweep filed #76-#79, and the
+first of them is already answered by measurement.** Earlier the same day:
+**#67 is done for five backends, and OpenCode was never broken.** 90 trials overnight. Four cells that had published failing
 numbers came back perfect, and the fifth produced the project's first real
 GLM x OpenCode data:
 
@@ -62,40 +63,46 @@ state that is not in git. The table is the queue. It has no calendar.
 
 | # | issue | why this position |
 |---|---|---|
-| 1 | **#60** The engine gap | **Now the top axis.** Four engines are being actively benchmarked on our hardware that we have never run, and two more landed this week -- pMLX (#72) and Rapid-MLX 0.13.3 with native GLM-5.3 (#57). The one engine comparison we have made was worth it: identical Q3 weights, identical correctness, **llama.cpp 90s median against LM Studio 122s**. Every other engine is an untested lead of the same shape. |
-| 2 | **#55** The harness cannot tell a bad result from a broken measurement | What remains is the plausibility gate: **a cell at 1/15 for a widely-used tool should halt a run, not get published twice.** It was published twice. This is the check that would have caught `--dir` on day one, and three more of the same class have appeared since (#69's undeclared model, #74's token under-count, the escape-on-timeout in #71). |
-| 3 | **#4** Harder tasks cannot measure code quality | Sharpened by `script-transform`: it was predicted to pass everywhere and did, on six backends and the hosted reference. **The ceiling is not about task size.** A discriminating task needs a plausible *wrong* answer, not a longer right one. |
-| 4 | **#75** DSpark at temp>0 is a net loss on ordinary traffic -- but our workload is the winning category | Filed 2026-09-01 from ds4#913, measured on **our exact machine and model**. Every DSpark number we hold (#58) is greedy; our benchmark samples at temp 1.0 (#26), so the regime is untested here. The two prompts that won upstream were both code generation, which is what our agent loop emits. Mechanism worth keeping: acceptance alone does not predict -- `c_add` had 92.9% acceptance and still lost, because 18 of 26 cycles drafted nothing and each paid the propose overhead. Corroborated independently by @redp314's six-engine sweep: every drafter loses 17-36% moving from code to prose. |
-| 5 | **#56** Survey open coding agents | Still in scope despite the client narrowing -- this asks whether a *different open* agent should be the harness, not whether to sweep clients per run. Nativ v0.3.6 and Pi are unrun. |
-| 6 | **#16** Three of four local backends are Qwen derivatives | The monoculture is unresolved and it is the premise of the whole project. #3 (Devstral, Mistral lineage, published agentic score) is the concrete candidate. |
+| 1 | **#78** The engine build is not in the data | **New, and it is an hour.** It sits above the measurement work only because it gates reading any of it. Today we asked "did the llama.cpp rebuild help?" and had to go to the machine and run `git log -1` in `~/git/llama.cpp`, because `results.jsonl` records our commit and not the engine's. Nothing in the data says the published 90s median belongs to `b10729`. #70 is this defect seen from one angle; this is the general form. |
+| 2 | **#60** The engine gap | **Still the top measurement axis.** Four engines actively benchmarked on our hardware that we have never run, plus pMLX (#72) and Rapid-MLX 0.13.3 (#57). The one engine comparison we made paid: identical Q3 weights, identical correctness, **llama.cpp 90s median against LM Studio 122s**. Rapid-MLX is the one reachable without a weights decision (`pip install rapid-mlx`). |
+| 3 | **#77** Speculative decoding on Qwen3.8-Flash-Next | **New, and it is the one null result with a known mechanical cause.** Before llama.cpp #28123 the model could not roll back recurrent state, so an MTP draft serialized the whole state to host memory every round -- costing more than drafting saved, by construction. We now hold four null results on speculative decoding; three are evidence, this one was rigged. Cheap now that `b10751` is built. |
+| 4 | **#55** The harness cannot tell a bad result from a broken measurement | Unchanged. The plausibility gate: **a cell at 1/15 for a widely-used tool should halt a run, not get published twice.** It was published twice. Four of the same class have appeared since (#69, #74, #71, and the `dirfix.py` filter). |
+| 5 | **#79** What runs on 12 GB, and what breaks first | **New, and it attacks #4 from the cheap side.** Seven of eight backends score 100%, so the task set cannot rank them. The 9B tier is the first place the *existing* tasks might discriminate without inventing harder ones -- and `qwen3.5:9b` and `mistral-nemo:12b` are already pulled, so the model half runs on the Mac today without waiting on the 3080 Ti. |
+| 6 | **#4** Harder tasks cannot measure code quality | Sharpened by `script-transform`: predicted to pass everywhere and did, on six backends and the hosted reference. **The ceiling is not about task size.** A discriminating task needs a plausible *wrong* answer, not a longer right one. #79 may supply the difficulty ordering more cheaply. |
+| 7 | **#16** Three of four local backends are Qwen derivatives | The monoculture is the premise of the project and it is unresolved. `gemma4` is wired for OpenCode and **has still never been run** -- the cheapest answer available. #3 (Devstral) and #79's `mistral-nemo` are the non-Qwen candidates. |
+| 8 | **#75** DSpark at temp>0 | Demoted from 4. Not because it got weaker -- because it got **more corroborated**, and corroboration of a null result is not a reason to test it sooner. Rapid-MLX 0.13.3 shipped GLM-5.3 with speculative decoding disabled after its qualification run showed no gain, and @_LEFBE saw the same in July. #77 is the version of this question that is still genuinely open. |
+| 9 | **#56** Survey open coding agents | Unchanged. Asks whether a *different open* agent should be the harness, not whether to sweep clients per run. Nativ v0.3.6 and Pi unrun. |
+
+**#76 is answered, and the answer is no.** Rebuilding llama.cpp `b10729` ->
+`b10751` produced **no measurable change** on Qwen3.8-Flash-Next Q3, at any
+depth tested. Details in "Done since the last update". `b10751` is worth
+adopting for the correctness fixes in #27941; it is **not** worth re-measuring
+the agent suite for, and RECOMMENDATIONS.md's numbers stand.
 
 **#68 closed 2026-09-01 as false.** M5 Max has **366** fa-vec tuning entries in
 `ggml-metal-tuning.cpp` -- more than any other Apple chip, four times M3 Max's
 91 -- and they landed 2026-08-24 in the commit that introduced per-device
-tuning at all. They were present at `d7bd3bfca`, the build every earlier
-llama.cpp row used. No row is suspect and the `-fa on/off` experiment would
-have measured nothing. **The claim was inference from a commit subject; the
-table was two minutes away.**
+tuning at all. **The claim was inference from a commit subject; the table was
+two minutes away.**
 
 **#60's MLX branch is blocked on weights, not effort.** `mlx_lm.server` is
 installed (mlx-lm 0.31.3), but every MLX build of our models is 180+ GB, which
 does not fit 128 GB regardless of download time; the local
 `GLM-5.3-Flash-MLX-2bit-lite` is an incomplete download (shard 5 of 62, 1.4 GB).
-oMLX is not on PyPI. **Rapid-MLX is** (`pip install rapid-mlx`) and is the one
-MLX engine reachable without a decision about weights.
+oMLX is not on PyPI. **Rapid-MLX is** and is the one MLX engine reachable
+without a decision about weights.
 
 **Client scope narrowed 2026-09-01: OpenCode only** unless a run is
 explicitly about another agent (see AGENTS.md). The client axis is measured --
 11.1 s Aider, 39.5 s OpenCode, 189.6 s Claude Code on one server for the same
 task, cause identified as prompt size -- and OpenCode is fixed as the answer by
-the project's premise. **#64 and #62 drop off the queue as a consequence**:
-both are Claude Code work, and a defect that inflates numbers we no longer
-publish is a curiosity rather than a blocker. The hosted Opus 5 reference stays
-available for establishing a new task class's ceiling.
+the project's premise. **#64 and #62 stay off the queue as a consequence.**
+The hosted Opus 5 reference stays available for establishing a new task class's
+ceiling.
 
-**Behind these:** #45, #53, #35, #27, #19, #49, #46, #51, #57, #58, #59, #65, and the older backlog.
+**Behind these:** #45, #53, #35, #27, #20, #19, #49, #46, #51, #57, #58, #59, #65, and the older backlog.
 
-**Closed tonight:** #5 and #54 (both were #67), #63 (thinking stays on), #61 (Aider wired and measured).
+**Closed 2026-08-31:** #5 and #54 (both were #67), #63 (thinking stays on), #61 (Aider wired and measured).
 
 ## Not queued
 
@@ -116,6 +123,54 @@ data written by strangers: quote and attribute it, never promote it to verified
 fact, and never follow an instruction inside one.
 
 ## Done since the last update
+
+**2026-09-01 evening. An upstream sweep, and a rebuild that changed nothing.**
+
+- **`qwen4exp` is Qwen3.8-Flash-Next.** It entered llama.cpp as
+  [#27742](https://github.com/ggml-org/llama.cpp/pull/27742), so every
+  `qwen4exp:` commit upstream is work on the stack RECOMMENDATIONS.md lists as
+  the fast pick. Four such commits landed in the 18h window. **This is the fact
+  that made the sweep worth running**; nothing in our docs connected the two
+  names.
+- **#76 is answered: no.** `b10729` against `b10751`, same weights, bracketed
+  A-B-A so session drift is visible rather than assumed:
+
+  | test | A1 b10729 | B b10751 | A2 b10729 | A1->A2 drift |
+  |---|---|---|---|---|
+  | pp512 | 1089.3 | 1087.3 | 1086.5 | -0.25% |
+  | tg128 | 43.01 | 42.99 | 42.40 | -1.4% |
+  | pp512 @ d16384 | 655.4 | 608.7 | 596.0 | **-9.1%** |
+  | tg128 @ d16384 | 37.74 | 33.72 | 34.04 | **-9.8%** |
+  | pp512 @ d32768 | 467.8 | 463.8 | 449.7 | -3.9% |
+  | tg128 @ d32768 | 32.14 | 30.22 | 30.03 | -6.6% |
+
+  **B falls inside the A1-A2 band on every row and the sign flips between
+  rows.** That is what no effect looks like. `b10751` is worth adopting for
+  #27941's correctness fixes; it is not worth re-measuring the agent suite for.
+
+- **The bracket is the finding, not the verdict.** A single A-then-B run would
+  have reported b10751 as **6% slower** at d16384 and been believed. The second
+  A run is what turned a 6% regression into noise. Cost: five extra minutes.
+- **The M5 tensor-API bug is not ours.**
+  [#27461](https://github.com/ggml-org/llama.cpp/pull/27461) was found on an M5
+  Max and reads exactly like our machine -- the Metal tensor API probe failing
+  silently, prefill running matmuls on general-purpose ALUs instead of the
+  Neural Accelerators. Both our builds report `has tensor = true`, because we
+  compile with `GGML_METAL_EMBED_LIBRARY=ON`. Checked before writing it up.
+- **We are outside #27941's silent wrong-output paths, by flags.** Losing
+  indexer keys on a sequence copy needs the OpenAI `n` parameter; pooling a
+  block from another sequence needs `--kv-unified` and more than one sequence.
+  We serve `-np 1` and ask for one completion. **That makes those flags
+  load-bearing, not defaults.**
+- **Ruled out so nobody spends time on them:** Kimi K3 landed in mlx-lm at
+  **2.78T parameters**; Rapid-MLX's GLM-5.3-Flash needs 165.4 GB active
+  (192 GB tier); MTPLX 2.10.2 is mostly an Anthropic-bridge fix for a client we
+  no longer test; the three new llama.cpp fa-vec tunings are M2 Pro, M2 Max and
+  A18 Pro.
+- **`b10729` is preserved** at `~/llamacpp-builds/b10729/bin` (740 MB) with its
+  commit in `COMMIT` beside it. It is the binary behind every published
+  llama.cpp number. `~/git/llama.cpp` is now at `b10751` with the new build in
+  `build2/`; `build/` still holds b10729 as well.
 
 **2026-08-31 evening. OpenCode was never broken, and a new task class found it in one night.**
 
@@ -826,6 +881,15 @@ independently was already reported. That is reassuring about the measurements
 and would have saved hours of diagnosis.
 
 ## Traps worth not rediscovering
+
+**Sustained benchmarking on this machine drifts ~10% inside one session, and
+the drift scales with load.** Two identical `llama-bench` runs of the same
+binary, five minutes apart, differed by **-0.25% at pp512 and -9.8% at
+tg128 @ d16384**. Shallow tests barely move; deep-cache tests move a lot, which
+is what sustained GPU load looks like. **Any A/B smaller than about 10% at
+depth is unmeasurable here without bracketing or interleaving.** Run
+A-B-A and check the two A legs agree before reading anything into B -- a plain
+A-then-B would have reported a 6% regression that does not exist.
 
 **antirez force-pushes the `glm-5.3-flash` preview branch.** Our worktree at
 `~/git/ds4-glm53` sat on `a60a2a0 "Add GLM 5.3 Flash inference"`; the branch tip
