@@ -74,3 +74,11 @@ def test_a_cell_missing_one_era_prints_a_dash_not_a_zero() -> None:
     """'0/0' would read as a measured failure. It is an absence."""
     lines = dirfix.report({("ds4", "script", "after"): [3, 3]})
     assert lines[1].split() == ["ds4", "script", "-", "3/3"]
+
+
+def test_a_client_that_never_ran_is_excluded_without_a_stored_flag() -> None:
+    """agent_error rows carry excluded=False on disk; results.is_excluded knows
+    better. Counting them as model failures is how a config bug becomes a
+    published benchmark number -- which is what #67 is about."""
+    counts = dirfix.tally([row(head="x", passed=False, agent_error=True)], {"x"})
+    assert counts == {}

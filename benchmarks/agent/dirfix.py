@@ -18,6 +18,8 @@ import pathlib
 import subprocess
 import sys
 
+import results
+
 logger = logging.getLogger(__name__)
 
 FIX = "7356460"  # opencode_argv gained --dir
@@ -65,7 +67,12 @@ def task_class(row: dict) -> str:
 def tally(rows: list[dict], after: set[str]) -> dict[tuple[str, str, str], list[int]]:
     out: dict[tuple[str, str, str], list[int]] = collections.defaultdict(lambda: [0, 0])
     for r in rows:
-        if r.get("client") != "opencode" or r.get("excluded"):
+        # results.is_excluded, never a hand-rolled r.get("excluded"). The
+        # stored field misses agent_error rows -- a client that died at
+        # config never made a model attempt -- and it misses the legacy
+        # confound/contaminated keys. Hand-rolling this check already
+        # miscounted fourteen rows once; see RESULTS.md.
+        if r.get("client") != "opencode" or results.is_excluded(r):
             continue
         cell = out[(r.get("backend"), task_class(r), era(r, after))]
         cell[0] += bool(r.get("passed"))
