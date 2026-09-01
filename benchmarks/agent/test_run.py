@@ -17,6 +17,7 @@ import urllib.error
 
 import pytest
 
+import results
 import run
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -670,3 +671,42 @@ def test_retired_backends_are_documented_not_deleted():
     for name, backend in retired.items():
         assert backend.get("description"), name
         assert isinstance(backend["retired"], str) and backend["retired"], name
+
+
+# --- one file, one machine (#20) ------------------------------------------
+
+
+def test_foreign_hardware_is_detected():
+    """The near-miss: a Linux run appended 13 rows to the Mac's results file."""
+    rows = [
+        {"env": {"arch": "arm64", "cpu": "Apple M5 Max"}},
+        {"env": {"arch": "x86_64", "cpu": "AMD Ryzen 9 7900X 12-Core Processor"}},
+    ]
+    facts = {"arch": "arm64", "cpu": "Apple M5 Max"}
+    assert results.foreign_hardware(rows, facts) == {
+        ("x86_64", "AMD Ryzen 9 7900X 12-Core Processor")
+    }
+
+
+def test_same_hardware_is_not_foreign():
+    rows = [{"env": {"arch": "arm64", "cpu": "Apple M5 Max"}}] * 3
+    facts = {"arch": "arm64", "cpu": "Apple M5 Max"}
+    assert results.foreign_hardware(rows, facts) == set()
+
+
+def test_rows_that_do_not_say_are_not_treated_as_foreign():
+    """979 existing rows predate machine_facts; they must not trip the guard.
+
+    An unstamped row is unknown, not different. Refusing to run against the
+    project's entire history would make the guard the first thing anyone
+    disabled.
+    """
+    rows = [{"env": {"claude": "2.1.252"}}, {"env": {}}, {}]
+    facts = {"arch": "arm64", "cpu": "Apple M5 Max"}
+    assert results.foreign_hardware(rows, facts) == set()
+
+
+def test_the_guard_is_inert_when_this_machine_is_unknown():
+    """If we cannot identify ourselves we cannot accuse anyone else."""
+    rows = [{"env": {"arch": "x86_64", "cpu": "Ryzen"}}]
+    assert results.foreign_hardware(rows, {}) == set()

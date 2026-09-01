@@ -276,3 +276,34 @@ def trials(path: pathlib.Path) -> list[dict[str, Any]]:
     `verdict()`; do not test `row["passed"]` directly.
     """
     return [r for r in usable(path) if not r.get("dry_run")]
+
+
+# --- one file, one machine (#20) ------------------------------------------
+
+HARDWARE_KEYS = ("arch", "cpu")
+
+
+def hardware_of(row: dict[str, Any]) -> tuple[str, ...] | None:
+    """The hardware identity a row claims, or None when it does not say."""
+    env = row.get("env") or {}
+    got = tuple(str(env[k]) for k in HARDWARE_KEYS if env.get(k))
+    return got if len(got) == len(HARDWARE_KEYS) else None
+
+
+def foreign_hardware(rows: list[dict[str, Any]], facts: dict[str, object]) -> set:
+    """Hardware identities already in this file that are not `facts`.
+
+    This project's premise is one machine, so every comparison in
+    results.jsonl shares a hardware baseline. #20 adds a second machine on
+    purpose, and the first time the harness ran there it appended 13 rows to
+    the tracked results.jsonl -- caught only because `git pull` refused to
+    merge over them. Nothing in the harness objected.
+
+    Mixing hardware does not corrupt a row; it corrupts every comparison drawn
+    across the file, silently and after the fact.
+    """
+    mine = tuple(str(facts[k]) for k in HARDWARE_KEYS if facts.get(k))
+    if len(mine) != len(HARDWARE_KEYS):
+        return set()
+    seen = {h for h in (hardware_of(r) for r in rows) if h is not None}
+    return seen - {mine}

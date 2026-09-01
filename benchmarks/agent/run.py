@@ -1739,6 +1739,13 @@ def main():
         "known to be broken (#55).",
     )
     p.add_argument(
+        "--allow-foreign-hardware",
+        action="store_true",
+        help="append rows even though results.jsonl holds rows from other "
+        "hardware. One file, one hardware baseline (#20): every comparison in "
+        "it assumes a shared machine, so mixing breaks them silently.",
+    )
+    p.add_argument(
         "--skip-smoke",
         action="store_true",
         help="skip the pre-batch coding gate (#63). The gate makes each backend "
@@ -1876,6 +1883,23 @@ def main():
     logger.info("stack: %s", ", ".join(f"{k}={v}" for k, v in sorted(versions.items())))
     # Every trustworthy row already on disk, read once: the gate calibrates
     # against this project's own record rather than anyone's claims.
+    # #20: one file, one machine. The first Linux run appended 13 rows to the
+    # tracked results.jsonl and nothing objected -- it surfaced only because
+    # `git pull` refused to merge over them. Mixing hardware does not corrupt a
+    # row, it corrupts every comparison drawn across the file, after the fact.
+    foreign = results.foreign_hardware(
+        results.trials(RESULTS), preflight.machine_facts()
+    )
+    if foreign and not args.allow_foreign_hardware:
+        raise SystemExit(
+            f"{RESULTS} already holds rows from other hardware: "
+            + "; ".join(" / ".join(f) for f in sorted(foreign))
+            + f"\nThis machine is {preflight.machine_facts().get('cpu')}. "
+            "One file, one hardware baseline (#20) -- point --results at a "
+            "separate tier file, or pass --allow-foreign-hardware if you have "
+            "decided the mixing is correct."
+        )
+
     history = [r for r in results.trials(RESULTS) if not results.is_excluded(r)]
     cell: dict[tuple[str, str], list[dict]] = {}
     for trial in range(1, args.trials + 1):
