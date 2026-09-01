@@ -670,6 +670,33 @@ def claude_argv(task, backend, worktree=None):
     return argv
 
 
+def claude_prompt_tokens(usage):
+    """Every input token the server had to process, cached or not.
+
+    #74. Claude Code splits input three ways and `input_tokens` counts only the
+    UNCACHED remainder:
+
+        "input_tokens": 0,
+        "cache_creation_input_tokens": 26494,
+        "cache_read_input_tokens": 26636,
+
+    Reading `input_tokens` alone reported **0** against ds4 for a prompt of
+    53,130 tokens. Cache reads are cheaper than fresh prefill but they are not
+    free, and they are exactly what #64 is about -- so the sum is the number
+    that belongs in a row.
+
+    Returns None when the usage block carries none of the three, because absent
+    must never be recorded as zero (#29).
+    """
+    keys = (
+        "input_tokens",
+        "cache_creation_input_tokens",
+        "cache_read_input_tokens",
+    )
+    present = [usage.get(k) for k in keys if isinstance(usage.get(k), int)]
+    return sum(present) if present else None
+
+
 def claude_parse(stdout):
     payload = json.loads(stdout)
     usage = payload.get("usage", {})
@@ -677,7 +704,9 @@ def claude_parse(stdout):
         num_turns=payload.get("num_turns"),
         stop_reason=payload.get("stop_reason"),
         api_ms=payload.get("duration_api_ms"),
-        input_tokens=usage.get("input_tokens"),
+        input_tokens=claude_prompt_tokens(usage),
+        uncached_input_tokens=usage.get("input_tokens"),
+        cache_read_input_tokens=usage.get("cache_read_input_tokens"),
         output_tokens=usage.get("output_tokens"),
         agent_error=payload.get("is_error"),
     )

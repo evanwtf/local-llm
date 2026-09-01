@@ -495,3 +495,63 @@ def test_every_client_is_offered_the_worktree(tmp_path) -> None:
     for name, (build, _parse) in run.CLIENTS.items():
         params = list(inspect.signature(build).parameters)
         assert params[2:3] == ["worktree"], f"{name} does not take a worktree"
+
+
+# --- #74: Claude Code splits input across three fields --------------------
+#
+# `input_tokens` counts only the UNCACHED remainder. Against ds4 it read 0 for
+# a prompt of 53,130 tokens, because everything was cache-created or cache-read.
+# Cache reads are cheaper than fresh prefill but not free, and they are the
+# whole subject of #64.
+
+
+def test_prompt_tokens_sums_all_three_input_fields() -> None:
+    usage = {
+        "input_tokens": 0,
+        "cache_creation_input_tokens": 26494,
+        "cache_read_input_tokens": 26636,
+    }
+    assert run.claude_prompt_tokens(usage) == 53130
+
+
+def test_a_plain_uncached_prompt_is_unchanged() -> None:
+    assert run.claude_prompt_tokens({"input_tokens": 4200}) == 4200
+
+
+def test_absent_usage_is_none_not_zero() -> None:
+    """#29: absent must never be recorded as zero. A literal 0 is
+    indistinguishable from a real measurement and gets averaged in."""
+    assert run.claude_prompt_tokens({}) is None
+    assert run.claude_prompt_tokens({"output_tokens": 100}) is None
+
+
+def test_a_real_zero_is_still_zero() -> None:
+    """Distinct from absent: the field was reported and said none."""
+    assert run.claude_prompt_tokens({"input_tokens": 0}) == 0
+
+
+def test_non_integer_values_are_ignored_not_summed() -> None:
+    assert (
+        run.claude_prompt_tokens({"input_tokens": None, "cache_read_input_tokens": 7})
+        == 7
+    )
+
+
+def test_the_parser_keeps_the_split_for_later_analysis() -> None:
+    """The total is what a row reports, but cache_read vs fresh prefill is the
+    distinction #64 needs, so both are retained."""
+    out = run.claude_parse(
+        json.dumps(
+            {
+                "usage": {
+                    "input_tokens": 0,
+                    "cache_creation_input_tokens": 10,
+                    "cache_read_input_tokens": 90,
+                    "output_tokens": 5,
+                }
+            }
+        )
+    )
+    assert out["input_tokens"] == 100
+    assert out["uncached_input_tokens"] == 0
+    assert out["cache_read_input_tokens"] == 90
