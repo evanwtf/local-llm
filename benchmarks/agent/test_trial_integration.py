@@ -55,7 +55,7 @@ needs_repo = pytest.mark.skipif(
 def scripted_agent(monkeypatch):
     """A client that solves the task by copying the original file back."""
 
-    def argv(task, backend):
+    def argv(task, backend, worktree=None):
         files = [t["file"] for t in run.targets(task)]
         script = (
             "import pathlib,shutil;"
@@ -152,7 +152,9 @@ def test_a_no_docstring_task_really_withholds_the_contract(scripted_agent, tmp_p
 @needs_repo
 def test_an_agent_that_does_nothing_fails_and_says_so(monkeypatch, tmp_path):
     """The negative case: no edit, no pass, and no crash on the way out."""
-    monkeypatch.setitem(run.CLIENTS, "idle", (lambda t, b: ["true"], lambda _o: {}))
+    monkeypatch.setitem(
+        run.CLIENTS, "idle", (lambda t, b, w=None: ["true"], lambda _o: {})
+    )
     row = _run("mbox-strip-envelope", tmp_path, "idle")
     assert results.verdict(row) is False
     assert row["solution_empty"] is True
@@ -181,7 +183,7 @@ def test_the_agent_is_handed_a_working_environment(monkeypatch, tmp_path):
     and the confound becomes real without anyone noticing.
     """
 
-    def argv(task, backend):
+    def argv(task, backend, worktree=None):
         files = [t["file"] for t in run.targets(task)]
         script = (
             "import pathlib,shutil,subprocess,sys;"

@@ -642,7 +642,7 @@ def agent_env(backend):
 # and are recorded, not equated: see RESULTS.md.
 
 
-def claude_argv(task, backend):
+def claude_argv(task, backend, worktree=None):
     argv = [
         "claude",
         "-p",
@@ -673,15 +673,26 @@ def claude_parse(stdout):
     )
 
 
-def opencode_argv(task, backend):
+def opencode_argv(task, backend, worktree=None):
     model = backend.get("opencode_model")
     if not model:
         raise SystemExit(
             f"backend {backend['model']!r} has no opencode_model in tasks.toml"
         )
+    # --dir is REQUIRED, not a nicety. `opencode run` attaches to a persistent
+    # server ("path on remote server if attaching"), and that server holds the
+    # working directory it was started with -- not the cwd of the invoking
+    # process, which run.py sets correctly to the worktree.
+    #
+    # Without it, OpenCode solved script-reverse and wrote the answer to
+    # ~/git/local-llm/benchmarks/agent/reverse.py -- run.py's own directory --
+    # and scored 0/3 with "reverse.py was never created". The recovered file
+    # passed all three checks. #67.
+    directory = ["--dir", str(worktree)] if worktree else []
     return [
         "opencode",
         "run",
+        *directory,
         "--model",
         model,
         "--format",
@@ -691,7 +702,7 @@ def opencode_argv(task, backend):
     ]
 
 
-def aider_argv(task, backend):
+def aider_argv(task, backend, worktree=None):
     """Aider, one-shot and headless (#61).
 
     Flags chosen deliberately:
@@ -828,7 +839,7 @@ def opencode_parse(stdout):
     )
 
 
-def codex_argv(task, backend):
+def codex_argv(task, backend, worktree=None):
     profile = backend.get("codex_profile")
     if not profile:
         raise SystemExit(
@@ -1420,10 +1431,13 @@ def one_trial(
         # shortcut this confinement exists to stop.
         argv, denied = (
             sandboxed(
-                build_argv(task, backend), worktree, target["repo"], worktree.parent
+                build_argv(task, backend, worktree),
+                worktree,
+                target["repo"],
+                worktree.parent,
             )
             if sandbox
-            else (build_argv(task, backend), [])
+            else (build_argv(task, backend, worktree), [])
         )
         if denied:
             result["sandbox_denied"] = denied
