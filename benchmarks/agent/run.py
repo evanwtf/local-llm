@@ -42,6 +42,7 @@ import urllib.request
 import excise
 import grade
 import preflight
+import provenance
 import results
 import smoke
 import swift_excise
@@ -1626,9 +1627,7 @@ def main():
     )
     args = p.parse_args()
 
-    logging.basicConfig(
-        level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s"
-    )
+    provenance.configure()
     cfg = tomllib.loads(pathlib.Path(args.tasks_file).read_text())
     tasks = [t for t in cfg["task"] if not args.task or t["name"] in args.task]
     backends = {

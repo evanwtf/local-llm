@@ -35,6 +35,7 @@ import sys
 
 import results
 import variance
+import provenance
 
 logger = logging.getLogger(__name__)
 
@@ -167,8 +168,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--results", default=str(pathlib.Path(__file__).parent
                                             / "results.jsonl"))
     args = p.parse_args(argv)
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout,
-                        format="%(asctime)s %(levelname)s %(message)s")
+    provenance.configure()
     report(pathlib.Path(args.results))
     return 0
 

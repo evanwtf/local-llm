@@ -18,6 +18,7 @@ import pathlib
 import subprocess
 import sys
 
+import provenance
 import results
 
 logger = logging.getLogger(__name__)
@@ -102,7 +103,7 @@ def report(counts: dict[tuple[str, str, str], list[int]]) -> list[str]:
 
 
 def main() -> None:
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
+    provenance.configure()
     p = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else "results.jsonl")
     rows = [json.loads(line) for line in p.read_text().splitlines()]
     if ARCHIVE.exists():

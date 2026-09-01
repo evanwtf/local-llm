@@ -283,6 +283,49 @@ items: the ds4 mention that mattered arrived by email, was already marked read
 through the API, and sat under 41 CI failures from unrelated repos. Filtering to
 unread would have hidden the only notification worth seeing.
 
+## Stamp every line with the code that produced it
+
+**Never call `logging.basicConfig` in this package. Call `provenance.configure()`.**
+There is a test that fails if you do.
+
+```
+2026-09-01 07:08:35 INFO [c263902-dirty] ds4  excision  4/14  15/15
+```
+
+The bracketed field is the harness commit. **`-dirty` means the tree had
+uncommitted changes**, so that line came from code that exists nowhere but the
+machine that printed it and is not reproducible from any commit. A number
+carrying `-dirty` may be used to decide what to do next; it may not be
+published.
+
+**Why this is not bureaucracy.** This project has published three separate sets
+of figures that turned out to measure its own bugs, and in each case the
+expensive part was not the bug — it was that nobody could tell which numbers
+predated the fix. Rows in `results.jsonl` have carried provenance since
+`273c499`; log lines, tool output and test reports carried none, and those are
+what get pasted into issues and commit messages.
+
+Concretely:
+
+- **Every entry point** logs through `provenance.configure()`.
+- **Every test session** prints the harness commit and a fingerprint of
+  `results.jsonl` (`conftest.py` → `pytest_report_header`). The fingerprint is
+  row count plus a content hash, so two runs over the same data are visibly
+  the same run and an edited file is visibly not.
+- **Generated documents** record the *data* fingerprint, not the commit.
+  `RECOMMENDATIONS.md`'s tables are a function of `results.jsonl`; stamping
+  them with a HEAD that changes on every unrelated edit would churn the file
+  and train people to skim the diff.
+- **When quoting a measurement anywhere** — an issue, a commit message, a
+  comment upstream — carry the versions with it. `env` in each row already has
+  `harness_head`, `ds4_head`, the client versions, `gguf_*` and
+  `metal_ceiling_mb`. Quoting a wall time without them is how "13/27" survived
+  two weeks.
+
+**The absence cases have to be honest too.** Outside a git tree the stamp reads
+`nogit`, never a blank or a plausible-looking sha. A wrong attribution is worse
+than a missing one, because it is believed.
+
 ## Never put backticks in a `-m` message
 
 `git commit -m "... `foo` ..."` and `git tag -m` run **command substitution**.

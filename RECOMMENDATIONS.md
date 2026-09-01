@@ -88,6 +88,8 @@ median hides how bad the bad runs get.
 
 <!-- BEGIN GENERATED -->
 
+*Generated from `results.jsonl` — 972 rows, sha256 1395a574f037.*
+
 #### Every stack measured under OpenCode
 
 | stack | passed | median | worst | spread |

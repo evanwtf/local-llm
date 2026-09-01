@@ -23,6 +23,7 @@ import statistics
 import subprocess
 from typing import Any
 
+import provenance
 import results
 
 HERE = pathlib.Path(__file__).parent
@@ -135,6 +136,13 @@ LABELS = {
 def render(rows: list[dict[str, Any]] | None = None) -> str:
     rows = load() if rows is None else rows
     out: list[str] = []
+    # The data fingerprint, not the HEAD commit: these tables are a function of
+    # results.jsonl, and stamping them with a commit that moves on every
+    # unrelated edit would churn the document and train people to skim it.
+    out += [
+        f"*Generated from `results.jsonl` — {provenance.fingerprint(HERE / 'results.jsonl')}.*",
+        "",
+    ]
     out += ["#### Every stack measured under OpenCode", ""]
     out += stack_table(rows, LABELS)
     out += [

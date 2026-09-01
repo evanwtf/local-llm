@@ -21,6 +21,7 @@ from collections import defaultdict
 from typing import Any
 
 import results
+import provenance
 
 logger = logging.getLogger(__name__)
 
@@ -65,8 +66,7 @@ def main(argv: list[str] | None = None) -> int:
                                             / "results.jsonl"))
     p.add_argument("--task", action="append", help="repeatable; default all")
     args = p.parse_args(argv)
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout,
-                        format="%(asctime)s %(levelname)s %(message)s")
+    provenance.configure()
 
     rows = results.trials(pathlib.Path(args.results))
     if args.task:

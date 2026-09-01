@@ -25,10 +25,11 @@ from __future__ import annotations
 import argparse
 import json
 import logging
-import sys
 import time
 import urllib.error
 import urllib.request
+
+import provenance
 
 logger = logging.getLogger(__name__)
 
@@ -121,11 +122,7 @@ def main() -> int:
     parser.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT)
     parser.add_argument("--interval", type=int, default=DEFAULT_INTERVAL)
     args = parser.parse_args()
-    logging.basicConfig(
-        level=logging.INFO,
-        stream=sys.stdout,
-        format="%(asctime)s %(levelname)s %(message)s",
-    )
+    provenance.configure()
     return (
         0
         if ready(args.base_url, args.model, args.token, args.timeout, args.interval)

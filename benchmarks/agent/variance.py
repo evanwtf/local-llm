@@ -31,6 +31,7 @@ import sys
 from typing import Any
 
 import results
+import provenance
 
 logger = logging.getLogger(__name__)
 
@@ -156,7 +157,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--worst", type=int, default=10, help="how many wide cells to list")
     args = parser.parse_args(argv)
 
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
+    provenance.configure()
 
     rows = [r for r in results.trials(args.results) if results.verdict(r)]
     if not rows:

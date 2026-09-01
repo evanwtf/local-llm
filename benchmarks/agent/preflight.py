@@ -36,10 +36,10 @@ import dataclasses
 import logging
 import pathlib
 import subprocess
-import sys
 from urllib.parse import urlparse
 
 import opencode_config
+import provenance
 import staleness
 
 logger = logging.getLogger(__name__)
@@ -406,11 +406,7 @@ def main() -> int:
     except Exception as exc:  # noqa: BLE001 -- preflight must never hard-fail
         logger.error("could not check for stashed repositories: %s", exc)
 
-    logging.basicConfig(
-        level=logging.INFO,
-        stream=sys.stdout,
-        format="%(asctime)s %(levelname)s %(message)s",
-    )
+    provenance.configure()
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument(
         "--offline",
