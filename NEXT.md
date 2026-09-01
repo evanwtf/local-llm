@@ -523,11 +523,24 @@ informative.
 
 ## Machine state
 
-**Not persisted, and a reboot reverts it:**
+**Now persisted across reboots (2026-09-01).** A LaunchDaemon sets it at boot:
 
 ```sh
-sudo sysctl iogpu.wired_limit_mb=114688     # currently applied, verify: 112.00 GiB
+scripts/install-metal-ceiling.sh            # one-time, needs sudo
+sysctl -n iogpu.wired_limit_mb              # expect 114688
 ```
+
+It was previously manual and a reboot reverted it, which is a silent failure:
+ds4 simply refuses to load GLM-5.3 and the reason is a number nobody checked.
+
+**It is a cap, not a reservation.** With the ceiling at 112 GiB and no model
+loaded, wired memory sits at ~5 GiB. Persisting it costs nothing on a normal
+day; what costs is leaving a 90 GiB model resident, which `preflight.py`
+reports on every run.
+
+**`sysctl` reports `0` when no override is set, and `0` means "device
+default", not "no ceiling".** A 0 after a reboot means the daemon did not fire.
+The authoritative reading is the Metal probe in #30.
 
 **The sysctl is REQUIRED for GLM-5.3, not an optimisation.** `b0c31af` sets
 `budget_base = ds4_gpu_recommended_working_set_size()` (Metal's

@@ -244,7 +244,7 @@ added after it caused a real problem:
 | check | why |
 |---|---|
 | running model servers | a server left up contends for memory and bandwidth all run |
-| **Metal ceiling** | `iogpu.wired_limit_mb` raises it 107.52 → 112.00 GiB and **does not survive a reboot**; it decides whether a large model loads |
+| **Metal ceiling** | `iogpu.wired_limit_mb` raises it 107.52 → 112.00 GiB; it decides whether a large model loads. **Persisted since 2026-09-01** by `scripts/install-metal-ceiling.sh`; before that a reboot silently reverted it |
 | tool versions | Codex, Ollama, OpenCode and llama.cpp ship several times a day |
 | **sherpa branches** | antirez ships models on preview branches; one existed for GLM-5.3 while this project benchmarked it on an unsupported stack |
 | GitHub notifications | mentions on `antirez/ds4` and `ggml-org/llama.cpp`, CI noise excluded |
@@ -253,7 +253,8 @@ The headline line answers the first two:
 
 ```
 INFO preflight: 0.0 GiB held by model servers, 112.0 GiB headroom under a
-     112.00 GiB Metal ceiling (RAISED by sysctl -- does not survive a reboot)
+     112.00 GiB Metal ceiling (RAISED by sysctl, persisted by
+     scripts/install-metal-ceiling.sh)
 WARNING preflight: llama-server (pid 43967) is listening on :8030 and holding
         77.6 GiB, but no selected backend uses that port. Stop it, or this batch
         measures a contended machine.
@@ -291,7 +292,8 @@ process table is worse than one that says what it sees.
 The ceiling is a stated assumption, not a reading. `sysctl iogpu.wired_limit_mb`
 reports `0` whether or not a limit is in force, so it cannot be trusted as a
 source; verify a changed ceiling with the Metal probe in issue #30. **The
-sysctl does not survive a reboot.**
+sysctl is persisted by `scripts/install-metal-ceiling.sh` (2026-09-01); before
+that a reboot reverted it and ds4 would simply refuse to load GLM-5.3.**
 
 ## Quick start
 

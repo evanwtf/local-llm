@@ -28,6 +28,7 @@ Standalone:
 a stale server is named at the top of the log rather than inferred from the
 numbers a week later.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -106,7 +107,7 @@ def parse_ps(text: str) -> list[Proc]:
     KiB on macOS.
     """
     procs = []
-    for line in text.splitlines()[1:]:          # skip the header
+    for line in text.splitlines()[1:]:  # skip the header
         parts = line.split(None, 2)
         if len(parts) < 3:
             continue
@@ -191,8 +192,12 @@ class Report:
         return out
 
 
-def check(ps_text: str, lsof_text: str, expected_ports: set[int] | None,
-          ceiling_gib: float = DEFAULT_CEILING_GIB) -> Report:
+def check(
+    ps_text: str,
+    lsof_text: str,
+    expected_ports: set[int] | None,
+    ceiling_gib: float = DEFAULT_CEILING_GIB,
+) -> Report:
     """Compare what is running against what this run expects to use.
 
     `expected_ports=None` means "no run is being planned" -- the standalone
@@ -212,15 +217,24 @@ def check(ps_text: str, lsof_text: str, expected_ports: set[int] | None,
             # nothing is not worth a sentence either way.
             if proc.rss_gib >= SIGNIFICANT_GIB:
                 unmatched.append(proc)
-        elif (expected_ports is not None and port not in expected_ports
-              and proc.rss_gib >= SIGNIFICANT_GIB):
+        elif (
+            expected_ports is not None
+            and port not in expected_ports
+            and proc.rss_gib >= SIGNIFICANT_GIB
+        ):
             stale.append(dataclasses.replace(proc, port=port))
     return Report(stale, unmatched, total, ceiling_gib - total)
 
 
 def _capture(argv: list[str]) -> str:
-    got = subprocess.run(argv, capture_output=True, text=True, check=False,
-                         stdin=subprocess.DEVNULL, timeout=30)
+    got = subprocess.run(
+        argv,
+        capture_output=True,
+        text=True,
+        check=False,
+        stdin=subprocess.DEVNULL,
+        timeout=30,
+    )
     return got.stdout
 
 
@@ -228,7 +242,9 @@ def metal_ceiling() -> tuple[float, bool]:
     """(ceiling in GiB, whether an override is in force) for this machine now.
 
     This is the machine fact that silently decides whether a large model loads,
-    and **it does not survive a reboot** (#30). It explained an entire
+    and it was **not persisted until 2026-09-01**, when
+    scripts/install-metal-ceiling.sh made it survive a reboot (#30). It
+    explained an entire
     disagreement with upstream: ds4 plans a 108.01 GiB working set that fits
     under a raised 112 GiB ceiling and fails under the 107.52 GiB default, so
     the same binary and model "reproduced" for one machine and not another
@@ -236,8 +252,10 @@ def metal_ceiling() -> tuple[float, bool]:
     """
     raw = _capture(["sysctl", "iogpu.wired_limit_mb"])
     override = parse_wired_limit(raw)
-    return (override if override is not None else STOCK_CEILING_GIB,
-            override is not None)
+    return (
+        override if override is not None else STOCK_CEILING_GIB,
+        override is not None,
+    )
 
 
 def inspect(backends: dict[str, dict] | None = None) -> Report:
@@ -256,11 +274,16 @@ def inspect(backends: dict[str, dict] | None = None) -> Report:
 def log_report(report: Report) -> None:
     """Say what was found, at a level matching how much it matters."""
     ceiling, raised = metal_ceiling()
-    logger.info("preflight: %.1f GiB held by model servers, %.1f GiB headroom "
-                "under a %.2f GiB Metal ceiling%s",
-                report.total_gib, ceiling - report.total_gib, ceiling,
-                " (RAISED by sysctl -- does not survive a reboot)" if raised
-                else " (stock)")
+    logger.info(
+        "preflight: %.1f GiB held by model servers, %.1f GiB headroom "
+        "under a %.2f GiB Metal ceiling%s",
+        report.total_gib,
+        ceiling - report.total_gib,
+        ceiling,
+        " (RAISED by sysctl, persisted by scripts/install-metal-ceiling.sh)"
+        if raised
+        else " (stock)",
+    )
     for warning in report.warnings():
         logger.warning("preflight: %s", warning)
 
@@ -302,8 +325,10 @@ def log_versions(offline: bool = False) -> None:
     latest = staleness.latest_versions(offline=offline)
     for name in sorted(have):
         state = staleness.compare(have[name], latest.get(name))
-        line = (f"{name}: installed {have[name] or 'not found'}, "
-                f"latest {latest.get(name) or 'unknown'}")
+        line = (
+            f"{name}: installed {have[name] or 'not found'}, "
+            f"latest {latest.get(name) or 'unknown'}"
+        )
         if state == "behind":
             logger.warning("preflight: %s  <- BEHIND", line)
         elif state == "unknown":
@@ -312,9 +337,9 @@ def log_versions(offline: bool = False) -> None:
             logger.info("preflight: %s (%s)", line, state)
 
     for note in staleness.interesting_notifications(
-            staleness.fetch_notifications(), WATCHED_REPOS):
-        line = (f"{note['repo']} [{note['reason']}] {note['type']}: "
-                f"{note['title']}")
+        staleness.fetch_notifications(), WATCHED_REPOS
+    ):
+        line = f"{note['repo']} [{note['reason']}] {note['type']}: {note['title']}"
         if note["reason"] in ("mention", "review_requested", "assign"):
             logger.warning("preflight: %s  <- addressed to you", line)
         else:
@@ -323,10 +348,13 @@ def log_versions(offline: bool = False) -> None:
     sherpa = BUILDS.get(SHERPA)
     if sherpa is not None:
         for branch in staleness.new_remote_branches(sherpa):
-            logger.warning("preflight: %s has a recent branch %r you are not on "
-                           "-- antirez ships models on preview branches; check "
-                           "before concluding one does not run here",
-                           SHERPA, branch)
+            logger.warning(
+                "preflight: %s has a recent branch %r you are not on "
+                "-- antirez ships models on preview branches; check "
+                "before concluding one does not run here",
+                SHERPA,
+                branch,
+            )
 
     for name, path in BUILDS.items():
         got = staleness.git_drift(path)
@@ -343,11 +371,21 @@ def log_versions(offline: bool = False) -> None:
         # from master is not staleness. Warning on a correct state is how a
         # check becomes noise nobody reads.
         if got.get("stale"):
-            logger.warning("preflight: %s at %s is %s%s",
-                           name, got["head"], got.get("note", "behind"), note)
+            logger.warning(
+                "preflight: %s at %s is %s%s",
+                name,
+                got["head"],
+                got.get("note", "behind"),
+                note,
+            )
         else:
-            logger.info("preflight: %s at %s -- %s%s",
-                        name, got["head"], got.get("note", "current"), note)
+            logger.info(
+                "preflight: %s at %s -- %s%s",
+                name,
+                got["head"],
+                got.get("note", "current"),
+                note,
+            )
 
 
 def main() -> int:
@@ -367,13 +405,20 @@ def main() -> int:
     except Exception as exc:  # noqa: BLE001 -- preflight must never hard-fail
         logger.error("could not check for stashed repositories: %s", exc)
 
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout,
-                        format="%(asctime)s %(levelname)s %(message)s")
+    logging.basicConfig(
+        level=logging.INFO,
+        stream=sys.stdout,
+        format="%(asctime)s %(levelname)s %(message)s",
+    )
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    p.add_argument("--offline", action="store_true",
-                   help="skip the network; use cached upstream versions")
-    p.add_argument("--no-versions", action="store_true",
-                   help="report running servers only")
+    p.add_argument(
+        "--offline",
+        action="store_true",
+        help="skip the network; use cached upstream versions",
+    )
+    p.add_argument(
+        "--no-versions", action="store_true", help="report running servers only"
+    )
     args = p.parse_args()
 
     report = inspect()
@@ -385,8 +430,10 @@ def main() -> int:
     elif not report.stale and not report.unmatched:
         logger.info("preflight: no unexpected server is holding memory")
     if report.total_gib:
-        logger.info("preflight: run this from run.py, or pass the backends you "
-                    "plan to use, to be told which of these is unexpected")
+        logger.info(
+            "preflight: run this from run.py, or pass the backends you "
+            "plan to use, to be told which of these is unexpected"
+        )
     return 0
 
 

@@ -5,6 +5,7 @@ fails silently: a format drift makes every check pass vacuously and the warning
 that should have fired never does. The samples below are real output captured
 on this machine on 2026-08-28, with a GLM llama-server holding 77.6 GiB.
 """
+
 from __future__ import annotations
 
 import preflight
@@ -74,12 +75,17 @@ def test_backend_ports_come_from_the_selected_backends_only():
 
 def test_a_props_url_port_counts_as_expected_too():
     """A backend behind the shim names the real server; both ports are ours."""
-    backends = {"glm53": {"base_url": "http://127.0.0.1:11501",
-                          "props_url": "http://127.0.0.1:8030"}}
+    backends = {
+        "glm53": {
+            "base_url": "http://127.0.0.1:11501",
+            "props_url": "http://127.0.0.1:8030",
+        }
+    }
     assert preflight.backend_ports(backends) == {11501, 8030}
 
 
 # --- the check itself -----------------------------------------------------
+
 
 def test_a_server_on_an_unselected_port_is_flagged_with_its_memory():
     """The case that prompted this: GLM left up, holding 77.6 GiB, unused."""
@@ -101,8 +107,7 @@ def test_an_idle_daemon_on_an_unselected_port_is_not_worth_a_warning():
 
 def test_the_same_daemon_is_flagged_once_it_has_a_model_loaded():
     """The threshold is about resident weights, not about which process it is."""
-    loaded = PS.replace("83210 2097152 ollama serve",
-                        "83210 62914560 ollama serve")
+    loaded = PS.replace("83210 2097152 ollama serve", "83210 62914560 ollama serve")
     got = preflight.check(loaded, LSOF, expected_ports={8000})
     assert 83210 in [p.pid for p in got.stale]
 
@@ -124,16 +129,16 @@ def test_headroom_is_what_is_left_under_the_metal_ceiling():
 
 def test_a_shell_that_merely_mentions_a_server_is_not_a_server():
     """The self-match trap. `pgrep -f` has bitten this project once already."""
-    ps = ("  PID    RSS COMMAND\n"
-          "87535   9184 /bin/zsh -c grep llama-server /var/log/x\n")
+    ps = "  PID    RSS COMMAND\n87535   9184 /bin/zsh -c grep llama-server /var/log/x\n"
     assert preflight.parse_ps(ps) == []
 
 
 def test_an_inference_process_with_no_listener_is_still_counted():
     """A server still loading has not bound its port yet. It holds memory now."""
     ps = "  PID    RSS COMMAND\n99 52428800 ./build/bin/llama-server --model x.gguf\n"
-    got = preflight.check(ps, "COMMAND PID USER FD TYPE DEVICE SIZE NODE NAME\n",
-                          expected_ports={8000})
+    got = preflight.check(
+        ps, "COMMAND PID USER FD TYPE DEVICE SIZE NODE NAME\n", expected_ports={8000}
+    )
     assert round(got.total_gib, 1) == 50.0
     # No port, so it cannot be matched to a backend -- report it, do not guess.
     assert got.stale == [] and len(got.unmatched) == 1
@@ -161,7 +166,7 @@ def test_standalone_use_judges_nothing_stale():
     """
     got = preflight.check(PS, LSOF, expected_ports=None)
     assert got.stale == []
-    assert round(got.total_gib, 1) == 79.6   # still reports what is held
+    assert round(got.total_gib, 1) == 79.6  # still reports what is held
 
 
 def test_an_empty_set_still_means_everything_is_unexpected():
@@ -170,6 +175,7 @@ def test_an_empty_set_still_means_everything_is_unexpected():
 
 
 # --- the Metal ceiling is machine state that does not survive a reboot ------
+
 
 def test_a_raised_ceiling_is_read_from_the_sysctl():
     """`iogpu.wired_limit_mb` reports the override in MB, or 0 for the default."""
@@ -187,11 +193,13 @@ def test_the_ceiling_falls_back_to_the_stock_default_when_unset():
     """Measured on this machine at 107.52 GiB before #30's sysctl was applied.
 
     preflight hardcoded 112.0, which is only true *because* the sysctl is set --
-    and it does not survive a reboot. On a fresh boot the old constant would
+    and until 2026-09-01 it did not survive a reboot. On a fresh boot the old constant would
     have overstated headroom by 4.5 GiB, which is the difference between a
     model fitting and ds4 planning a working set the device cannot honour
     (antirez/ds4#890).
     """
     assert preflight.ceiling_gib("iogpu.wired_limit_mb: 114688") == 112.0
-    assert preflight.ceiling_gib("iogpu.wired_limit_mb: 0") == preflight.STOCK_CEILING_GIB
+    assert (
+        preflight.ceiling_gib("iogpu.wired_limit_mb: 0") == preflight.STOCK_CEILING_GIB
+    )
     assert preflight.STOCK_CEILING_GIB == 107.52

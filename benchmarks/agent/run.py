@@ -439,9 +439,11 @@ def serving_gguf(root=None):
 def metal_ceiling_mb():
     """The Metal wired limit. Decides whether a ~90 GiB model loads at all.
 
-    Raised with `sysctl iogpu.wired_limit_mb` and **does not survive a reboot**,
-    so two runs a reboot apart can differ on whether a model runs, with nothing
-    in the row to explain it.
+    Raised with `sysctl iogpu.wired_limit_mb`. Persisted since 2026-09-01 by
+    scripts/install-metal-ceiling.sh; before that a reboot reverted it, so two
+    runs a reboot apart could differ on whether a model ran with nothing in the
+    row to explain it. Recorded regardless -- a persisted setting can still be
+    unloaded.
     """
     try:
         out = subprocess.run(
@@ -492,7 +494,7 @@ def capture_versions(cfg, backends):
     except RuntimeError:
         pass
 
-    # Decides whether a ~90 GiB model loads at all, and does not survive a reboot.
+    # Decides whether a ~90 GiB model loads at all. Persisted since 2026-09-01.
     ceiling = metal_ceiling_mb()
     if ceiling:
         env["metal_ceiling_mb"] = ceiling

@@ -36,8 +36,8 @@ numbers, because a previous run of this same cell recorded the wrong engine.
 
 **The Metal ceiling is required.** `sudo sysctl iogpu.wired_limit_mb=114688`
 lifts the working set to 112.00 GiB. A 94.09 GiB plan does not fit the stock
-107.52 GiB budget once ds4's own GLM guard applies. **It does not survive a
-reboot.**
+107.52 GiB budget once ds4's own GLM guard applies. **Persisted since 2026-09-01** by
+`scripts/install-metal-ceiling.sh`; before that a reboot reverted it.
 
 ---
 
@@ -239,7 +239,7 @@ git -C ~/git/ds4 fetch upstream
 git -C ~/git/ds4 worktree add --detach ~/git/ds4-main ec7642c
 cd ~/git/ds4-main && make -j"$(sysctl -n hw.ncpu)"
 
-sudo sysctl iogpu.wired_limit_mb=114688          # does not survive a reboot
+sudo sysctl iogpu.wired_limit_mb=114688          # or scripts/install-metal-ceiling.sh to persist
 ./ds4-server -m ~/git/ds4/gguf/GLM-5.3-Flash-Q2.gguf -c 100000 --port 8000 &
 
 # Claude Code needs the shim; aider does not.

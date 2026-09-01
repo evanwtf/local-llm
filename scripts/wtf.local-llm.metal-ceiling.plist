@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>wtf.local-llm.metal-ceiling</string>
+    <!-- Raise the Metal wired limit to 112 GiB at boot.
+         This is a CAP on what the GPU may wire, not a reservation: with it set
+         and no model loaded, wired memory sits at ~5 GiB. Without it, ds4 gets
+         a 75.5 GiB budget and refuses to load a 90 GiB GLM-5.3.
+         Reverting: unload this job and reboot, or set the value back to 0. -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/sbin/sysctl</string>
+        <string>-w</string>
+        <string>iogpu.wired_limit_mb=114688</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/var/log/metal-ceiling.log</string>
+    <key>StandardErrorPath</key>
+    <string>/var/log/metal-ceiling.log</string>
+</dict>
+</plist>
