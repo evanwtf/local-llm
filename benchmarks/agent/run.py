@@ -1177,7 +1177,24 @@ def sandbox_profile(worktree, repo):
             continue  # never hide the tree the trial is supposed to edit
         if path not in denied:
             denied.append(path)
-    rules = "\n".join(f'(deny file-read* (subpath "{d}"))' for d in denied)
+
+    # `~/git/local-llm` stays readable (see above), but two files inside it are
+    # answers. `tasks.toml` carries every prompt AND, for a script task, the
+    # exact checks -- "Benchmarking" -> "gnikramhcneB". An agent that reads it
+    # has the test.
+    #
+    # This cost the whole 2026-08-31 OpenCode cell: 9 of 12 rows auto-excluded
+    # for answer exposure, leaving nothing citable about the project's own
+    # designated primary harness. Denying the two files rather than the tree
+    # keeps OpenCode able to start while closing the leak.
+    for leak in (HERE / "tasks.toml", HERE / "results.jsonl"):
+        leak = str(leak.resolve())
+        if not keep.startswith(leak) and leak not in denied:
+            denied.append(leak)
+    rules = "\n".join(
+        f'(deny file-read* ({"literal" if pathlib.Path(d).is_file() else "subpath"} "{d}"))'
+        for d in denied
+    )
     return f"(version 1)\n(allow default)\n{rules}\n", denied
 
 

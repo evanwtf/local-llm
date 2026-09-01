@@ -111,3 +111,31 @@ def test_a_real_escape_is_still_caught_beside_a_self_reference() -> None:
         f"reading {home}/git/gmail-archive/src/gmail_archive/parser.py\n"
     )
     assert run.paths_outside(stdout, "/tmp/worktree") == [f"{home}/git/gmail-archive"]
+
+
+def test_the_task_definitions_are_denied_to_the_agent() -> None:
+    """tasks.toml holds the prompts AND the script tasks' expected outputs.
+
+    "Benchmarking" -> "gnikramhcneB" is in that file. An agent that reads it
+    has the test. On 2026-08-31 this cost the entire OpenCode script-task cell:
+    9 of 12 rows auto-excluded for answer exposure, leaving nothing citable
+    about the project's own designated primary harness.
+    """
+    import tempfile
+
+    profile, denied = run.sandbox_profile(
+        tempfile.mkdtemp(), str(pathlib.Path.home() / "git/gmail-archive")
+    )
+    assert any(d.endswith("tasks.toml") for d in denied)
+    assert 'literal "' in profile, "a file must be denied as a literal, not a subpath"
+
+
+def test_the_repo_itself_is_still_readable() -> None:
+    """Denying ~/git/local-llm wholesale kills OpenCode: it lstat()s the
+    launcher's cwd and dies with EPERM in 0.4s. The fix must be the two files,
+    never the tree."""
+    _, denied = run.sandbox_profile(
+        "/tmp/worktree", str(pathlib.Path.home() / "git/gmail-archive")
+    )
+    repo = str(pathlib.Path.home() / "git/local-llm")
+    assert repo not in denied
