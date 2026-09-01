@@ -64,23 +64,47 @@ write the files somewhere else. This cost us two weeks and 130 wasted trials.
 
 ## The three stacks worth running
 
-| | model | server | download | pass rate | median task |
+**These rows are not a ranking.** Each one is here for a different reason, and
+the reason is the first column. The quick-start above installs the first row.
+
+| pick this if | model | server | download | pass rate | median task |
 |---|---|---|---|---|---|
-| **1. Fastest** | Qwen3.8-Flash-Next `UD-Q3_K_XL` | llama.cpp | 84 GB | **21/21** | **90s** |
-| **2. Different lineage** | DeepSeek-V4-Flash | ds4 (DwarfStar) | 91 GB | **21/21** | 115s |
-| **3. Start here** | Qwen3.6-27B-coding `mxfp8` | Ollama | 31 GB | **18/18** | 167s |
+| **you are starting out** | Qwen3.6-27B-coding `mxfp8` | Ollama | 31 GB | **18/18** | 167s |
+| **you want it fast** | Qwen3.8-Flash-Next `UD-Q3_K_XL` | llama.cpp | 84 GB | **21/21** | **90s** |
+| **you want a second lineage** | DeepSeek-V4-Flash | ds4 (DwarfStar) | 91 GB | **21/21** | 115s |
 
 All three drive **OpenCode**, and that is deliberate. The whole point of a local
 setup is that it keeps working when a vendor does not — so the agent has to be
 open too. A proprietary client on an open model fails with its vendor.
 
-**Why you might want #2 rather than #1.** #1 and #3 are both Qwen models. If
-your reason for running locally is that a model might become unavailable, then
-two of the three share a maintainer. DeepSeek-V4-Flash is the only stack here
-with a genuinely independent lineage.
+**Why the slowest one is the one to install first.** It is 31 GB against 84 GB,
+it installs with two `brew`/`ollama` commands, and it leaves enough memory that
+you can keep working while it runs. The two faster stacks want most of a 128 GB
+machine. Median task time of 167s against 90s is a real difference, but it is
+the difference between a coffee and a shorter coffee — it is not what will
+decide whether you keep using this.
 
-**Why we do not rank them by speed alone.** See the spread column below. A
-median hides how bad the bad runs get.
+**Why a second lineage is worth 91 GB.** The first two rows are both Qwen
+models. If your reason for running locally is that a model might one day be
+unavailable to you, then betting on one maintainer rebuilds the problem you
+were trying to escape. DeepSeek-V4-Flash is the only stack here with a
+genuinely independent lineage.
+
+**Why we do not rank on median alone.** See the spread column below. A median
+hides how bad the bad runs get.
+
+**Why the fastest measured backend is not on this list.** `ornith15` tops the
+table below — 21/21 under OpenCode, 44s median, faster than anything else we
+have run. It is still not the one to install, for two reasons that the median
+hides. It is **the only backend in this project's whole record that has
+produced wrong code**: it failed twice on an excision task under an earlier
+client, and it emitted Swift that did not compile from a run that otherwise
+looked completely normal — clean exit, no error, 30 tool calls
+([#45](https://github.com/evanwtf/local-llm/issues/45)). And its **worst run is
+30x its median**, against 4–6x for everything above. Fastest-on-average and
+occasionally, quietly wrong is a bad trade when you are not watching. The
+numbers are published because they are real; the recommendation withholds it on
+purpose.
 
 ---
 
@@ -211,7 +235,7 @@ holds about 5 GB. It does not survive a reboot on its own; this repo has
 **A reading of `0` means "system default", not "no limit".** After a reboot, `0`
 means your setting did not apply.
 
-### Stack 1 — Qwen3.8-Flash-Next on llama.cpp (fastest)
+### Qwen3.8-Flash-Next on llama.cpp — the fast one
 
 ```sh
 brew install cmake
@@ -255,7 +279,7 @@ Then add this provider to `~/.config/opencode/opencode.json` and set
 
 Pass the **first shard** of the three; llama.cpp finds the rest.
 
-### Stack 2 — DeepSeek-V4-Flash on ds4
+### DeepSeek-V4-Flash on ds4 — the second lineage
 
 ```sh
 git clone https://github.com/antirez/ds4 ~/git/ds4
@@ -278,7 +302,7 @@ Provider block, with `"model": "ds4/deepseek-v4-flash"`:
 **Run `ds4-server` from inside its own directory.** It looks for its Metal
 shaders relative to the working directory and fails to start if you do not.
 
-### Stack 3 — see the top of this file
+### Qwen3.6-27B-coding on Ollama — see the top of this file
 
 ---
 
@@ -311,8 +335,9 @@ paid. See `benchmarks/agent/RESULTS.md`.
 **The pass rates are strong; the speed rankings are weaker than they look.**
 
 - Three trials pins a task's median to about **±28%**, so two stacks need to
-  differ by roughly 56% before the difference is real. Stacks 1 and 2 (90s vs
-  115s) are **not** reliably distinguishable. Stack 3 (167s) is.
+  differ by roughly 56% before the difference is real. Qwen3.8-Flash-Next
+  (90s) and DeepSeek-V4-Flash (115s) are **not** reliably distinguishable.
+  Qwen3.6-27B-coding (167s) is.
 - A perfect run of 21/21 supports "above 85%" at 95% confidence, not "100%".
   Nothing here has run the ~35 consecutive trials a >90% claim needs.
 - Every stack was measured on **one machine**, on **one repository**, on six
