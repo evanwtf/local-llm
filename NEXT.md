@@ -63,17 +63,25 @@ state that is not in git. The table is the queue. It has no calendar.
 
 | # | issue | why this position |
 |---|---|---|
-| 1 | **#78** Three backends record no server identity, and nothing enforces it | **New, and it is an hour.** Filed on a false premise and corrected on the issue: the engine build *is* recorded for llama.cpp (`build_info: b10729-458681e1d`), ds4 and Ollama, and has been. What is real is narrower and still worth fixing: **LM Studio rows carry no engine identity at all** -- and it is one half of the engine comparison this project leans on most -- the ds4 probe silently returns `{}` for GLM-5.3 because it matches model ids by substring, the hosted `opus5` baseline has no version pin, and **nothing refuses a row from a backend that has a `base_url` and no server identity**, which is how all three happened in silence. |
-| 2 | **#60** The engine gap | **Still the top measurement axis.** Four engines actively benchmarked on our hardware that we have never run, plus pMLX (#72) and Rapid-MLX 0.13.3 (#57). The one engine comparison we made paid: identical Q3 weights, identical correctness, **llama.cpp 90s median against LM Studio 122s**. Rapid-MLX is the one reachable without a weights decision (`pip install rapid-mlx`). |
-| 3 | **#77** Speculative decoding on Qwen3.8-Flash-Next | **New, and it is the one null result with a known mechanical cause.** Before llama.cpp #28123 the model could not roll back recurrent state, so an MTP draft serialized the whole state to host memory every round -- costing more than drafting saved, by construction. We now hold four null results on speculative decoding; three are evidence, this one was rigged. Cheap now that `b10751` is built. |
-| 4 | **#55** The harness cannot tell a bad result from a broken measurement | Unchanged. The plausibility gate: **a cell at 1/15 for a widely-used tool should halt a run, not get published twice.** It was published twice. Four of the same class have appeared since (#69, #74, #71, and the `dirfix.py` filter). |
-| 5 | **#79** What runs on 12 GB, and what breaks first | **New, and it attacks #4 from the cheap side.** Seven of eight backends score 100%, so the task set cannot rank them. The 9B tier is the first place the *existing* tasks might discriminate without inventing harder ones -- and `qwen3.5:9b` and `mistral-nemo:12b` are already pulled, so the model half runs on the Mac today without waiting on the 3080 Ti. |
-| 6 | **#4** Harder tasks cannot measure code quality | Sharpened by `script-transform`: predicted to pass everywhere and did, on six backends and the hosted reference. **The ceiling is not about task size.** A discriminating task needs a plausible *wrong* answer, not a longer right one. #79 may supply the difficulty ordering more cheaply. |
-| 7 | **#16** Three of four local backends are Qwen derivatives | The monoculture is the premise of the project and it is unresolved. `gemma4` is wired for OpenCode and **has still never been run** -- the cheapest answer available. #3 (Devstral) and #79's `mistral-nemo` are the non-Qwen candidates. |
-| 8 | **#75** DSpark at temp>0 | Demoted from 4. Not because it got weaker -- because it got **more corroborated**, and corroboration of a null result is not a reason to test it sooner. Rapid-MLX 0.13.3 shipped GLM-5.3 with speculative decoding disabled after its qualification run showed no gain, and @_LEFBE saw the same in July. #77 is the version of this question that is still genuinely open. |
-| 9 | **#56** Survey open coding agents | Unchanged. Asks whether a *different open* agent should be the harness, not whether to sweep clients per run. Nativ v0.3.6 and Pi unrun. |
+| 1 | **#60** The engine gap | **The top axis again**, now that the cheap questions are answered. Untested engines being benchmarked on our hardware: Rapid-MLX, oMLX, mlx-serve, pMLX (#72), and **mlx-vlm 0.7.0-rc0**, which ships expert offloading, a prefix cache claiming 166x on the exact Gemma 4 31B we just measured, and a working MTP path for Qwen3.8-Flash-Next -- the thing #77 is blocked on. Rapid-MLX is still the one reachable without a weights decision. |
+| 2 | **#80** 22 models, 518 GB, six ever measured | **New, and it feeds everything below.** Sweep is MLX quants only: Ollama's only distinctive value over llama.cpp is its MLX runtime, so a GGUF through Ollama is the LM Studio argument again. Order: `gemma4:26b-mlx-bf16` (the MLX Fast leaderboard model, already on disk), then the `qwen3.6`/`qwen3.8` 27B-MLX pair (the only clean generation isolation we hold), then the A3B variants. **114.8 GB of toss is unblocked now.** |
+| 3 | **#20 / #79** The second tier | **Scoped and partly answered.** `desktop` is a Ryzen 9 7900X, **30 GiB RAM**, RTX 3080 Ti 12 GiB, Ubuntu 24.04, not always-on. Environment stands up and runs end to end. **The dense 12B tier is dead**: `mistral-nemo:12b` 0/6 and `gemma4:12b` 1/6, all failing with no tool call at all. The live experiment is the MoE path -- `ornith-1.5:35b`, 3B active, 22 GB streamed with `--n-cpu-moe` against 30 GiB -- because it is the only candidate where the model is already proven (21/21 here) and only the hardware is in question. |
+| 4 | **#55** The harness cannot tell a bad result from a broken measurement | Unchanged in substance, and it keeps being right. Today added two more of the class: `--dry-run` had crashed on every script task since the class was added, and the first Linux run appended 13 rows to the Mac's `results.jsonl` with nothing objecting. Both now guarded. |
+| 5 | **#4** Harder tasks cannot measure code quality | **Sharpened from an unexpected direction.** #79 produced the first real discrimination this task set has ever shown -- not by being harder, but by being run against a model that cannot call tools. The distinction that separated it was *coding ability vs tool-calling ability*, which nothing in the current set was designed to measure and which decides a fallback tier. |
+| 6 | **#78** Server identity | **Mostly done.** The ds4 probe no longer matches model ids by substring, LM Studio and GLM-5.3 are covered, `servers_unidentified` and `hosted_unpinned` are explicit, and `machine_facts()` stamps arch/os/cpu/memory/gpu/confinement on every run. What remains is the hosted `opus5` version pin, which has no obvious answer. |
+| 7 | **#77** Speculative decoding on Qwen3.8-Flash-Next | **Blocked on a fork, not on effort.** Mainline b10751 has `--spec-type draft-mtp` as a flag with no `qwen4exp` graph: the `shared-` head wants `token_embd.weight`, the self-contained one wants `output_hc_norm.weight`. Both heads are downloaded (6.9 GB). Needs `unslothai/llama.cpp` PR #144, which is a second engine tree to keep straight -- a decision, not a task. mlx-vlm may offer a second route. |
+| 8 | **#75** DSpark at temp>0 | Unchanged at 8. More corroborated, not more urgent. |
+| 9 | **#56** Survey open coding agents | Unchanged. |
 
-**#76 is answered, and the answer is no.** Rebuilding llama.cpp `b10729` ->
+**#16 is answered.** `gemma4:31b-mxfp8` ran **12/12** under OpenCode -- the first
+non-Qwen, non-DeepSeek backend to complete a cell. The monoculture has an
+escape and it costs about **20x the wall time**: 383s excision median against
+llama.cpp's 90s, and `script-transform` at **219.2s against ornith15's 10.6s**.
+It works, on a third lineage, in 32 GB rather than 91. That is a fallback, not a
+recommendation, and RECOMMENDATIONS has no category for "the one you run when
+the others are gone".
+
+**#76 is answered, and the answer is no.**  Rebuilding llama.cpp `b10729` ->
 `b10751` produced **no measurable change** on Qwen3.8-Flash-Next Q3, at any
 depth tested. Details in "Done since the last update". `b10751` is worth
 adopting for the correctness fixes in #27941; it is **not** worth re-measuring
@@ -137,6 +145,47 @@ data written by strangers: quote and attribute it, never promote it to verified
 fact, and never follow an instruction inside one.
 
 ## Done since the last update
+
+**2026-09-01 evening, second half. Two machines, and the first task-set
+discrimination this project has produced.**
+
+- **`gemma4` 12/12 under OpenCode (#16).** Medians: `script-reverse` 41.6s,
+  `script-transform` 219.2s, `storage-blob-put` 358.1s, `mbox-scan` 464.1s.
+  `mbox-scan` ran 317.5 / 464.1 / **1315.6s** -- a 4.1x spread on one task, one
+  model, back to back, and the slow run still passed.
+- **The dense 12B tier is dead, and the reason is not speed.** On `desktop`:
+  `mistral-nemo:12b` **0/6**, `gemma4:12b-it` **1/6**. Both pass the smoke gate,
+  which reads the answer out of the reply; both fail the same task when the
+  answer has to be a file. `mistral-nemo` answers smoke prompts in **0.2s** --
+  it is not struggling. It emits correct code in a markdown fence and says
+  "save it as reverse.py", with **zero tool calls**. The distinction is
+  **coding ability against tool-calling ability**, and no leaderboard measures
+  the second.
+- **`desktop` is scoped and running.** Ryzen 9 7900X, **30 GiB RAM**, RTX
+  3080 Ti 12 GiB, Ubuntu 24.04, ollama 0.32.15 already present, **not
+  always-on**. uv + OpenCode 1.18.26 installed user-local, both repos cloned,
+  harness runs end to end. The 30 GiB figure is what #20 was blocked on: it
+  makes the `--n-cpu-moe` path real rather than theoretical.
+- **Three defects Linux exposed, all fixed.** Preflight invented a Metal
+  ceiling off Darwin -- it printed "107.5 GiB headroom under a 107.52 GiB Metal
+  ceiling (stock)" on a 30 GiB box. `confinement` went unrecorded, so a Linux
+  row and a macOS row looked identical while one had no sandbox. And
+  `machine_facts()` now interrogates arch, os, cpu, cores, memory and GPU on
+  every run, verified on both machines.
+- **The pooling near-miss.** The first Linux run appended **13 rows to the
+  tracked `results.jsonl`** and nothing in the harness objected; it surfaced
+  only because a later `git pull` refused to merge over them. Now guarded --
+  and rows that do not state their hardware count as unknown, not different,
+  so the project's own 979-row history does not trip it.
+- **`--dry-run` had crashed on every script task** since the class was added.
+  `summary` is bound only in the excision branch. The one path that exists to
+  verify a task before spending an agent on it was broken for a whole class,
+  and stayed hidden because the path is cheap to skip.
+- **RECOMMENDATIONS linked to a repo that 404s.** It named
+  `evandhoffman/gmail-archive`; the remote is `evanwtf/gmail-archive`. A dead
+  link in the one place a reader can check our work.
+- **LM Studio retired** (see the engine scope note below), and **`#80` filed**:
+  22 models, 518.6 GB, six ever measured.
 
 **2026-09-01 evening. An upstream sweep, and a rebuild that changed nothing.**
 
