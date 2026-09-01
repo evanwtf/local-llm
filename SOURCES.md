@@ -65,28 +65,30 @@ a follower count is not the property we need.
 
 | who | links | what they are |
 |---|---|---|
-| **Flor1an-B** | [GitHub](https://github.com/Flor1an-B) · [ds4 issues](https://github.com/antirez/ds4/issues?q=author%3AFlor1an-B) | No X, no blog, 3 followers, account opened 2026-02-19 — and **15 authored issues and PRs on `antirez/ds4`, all engine internals**, several landing exactly where we are stuck. [#789](https://github.com/antirez/ds4/pull/789) ports visible-KV checkpoint fixes for tool turns, which is the token-mismatch failure of ds4#816 that blocks #64. [#691](https://github.com/antirez/ds4/issues/691) is KV cache reuse breaking for tool clients that do not replay reasoning — the same bug from the client side. [#695](https://github.com/antirez/ds4/issues/695) argues the DSpark scheduler's break-even model ignores replay cost. [#750](https://github.com/antirez/ds4/issues/750) is native MTP corrupting output at `--mtp-draft>=2` (#39). **Benchmarks on an M5 Max 128 GB with DeepSeek-V4-Flash 0731 — our exact machine and primary model** — which almost nobody else does; #75 came from their temp>0 DSpark table on that setup. **Read the ds4 issue list, not a feed.** |
+| **Flor1an-B** | [GitHub](https://github.com/Flor1an-B) · [ds4 issues](https://github.com/antirez/ds4/issues?q=author%3AFlor1an-B) · [X @_LEFBE](https://x.com/_LEFBE) · [Ka1zen](https://github.com/Flor1an-B/Ka1zen) | Bertaux Florian, Paris. **He does have an X account — @_LEFBE** — which this entry previously said he did not; the two are the same person, and the corroboration is his own X profile linking `Flor1an-B/Ka1zen`, not an assertion. 3 GitHub followers, 51 on X, account opened 2026-02-19 — and **15 authored issues and PRs on `antirez/ds4`, all engine internals**, several landing exactly where we are stuck. [#789](https://github.com/antirez/ds4/pull/789) ports visible-KV checkpoint fixes for tool turns, which is the token-mismatch failure of ds4#816 that blocks #64. [#691](https://github.com/antirez/ds4/issues/691) is KV cache reuse breaking for tool clients that do not replay reasoning — the same bug from the client side. [#695](https://github.com/antirez/ds4/issues/695) argues the DSpark scheduler's break-even model ignores replay cost. [#750](https://github.com/antirez/ds4/issues/750) is native MTP corrupting output at `--mtp-draft>=2` (#39). **Benchmarks on an M5 Max 128 GB with DeepSeek-V4-Flash 0731 — our exact machine and primary model** — which almost nobody else does; #75 came from their temp>0 DSpark table on that setup. **The X feed is worth a pass now that we have it**, though it is mostly replies to @antirez and @ivanfioravanti. Two items already line up with our own work: on 2026-07-20 he saw **no improvement from DSpark** and asked antirez for numbers, which is where #58 and #75 landed months later; and on 2026-07-26 he reported **the same prompt and model giving different answers under Claude Code, OpenCode and ds4**, and said he wanted benchmarks of real fix-and-create work rather than leaderboard tok/s — which is this repo's thesis, arrived at independently. `Ka1zen` (13★) is his offline MLX chat app for Apple Silicon. **Still read the ds4 issue list first**: the feed is chatter, the issues are the work. |
 
 ## How to run it
 
-`/grok` reads X. `WebFetch` on an `x.com` URL fails — it now returns HTTP 402,
-not a login page, so the failure looks like a billing problem and is not one.
+`/grok` reads X. `WebFetch` on an `x.com` URL fails — it returns HTTP 402, not a
+login page, so the failure looks like a billing problem and is not one.
 
-**To read one post whose URL you already have, skip grok.** X's own syndication
-endpoint returns the full text with no model in the loop, so nothing can be
-paraphrased or invented:
+**Two tools, two jobs.** `/grok` *searches* — a week of accounts, or a topic.
+The **fixers** (`fixupx.com`, `vxtwitter.com`) *read one post* whose URL you
+already have. Reach for a fixer whenever someone hands you a link: it is exact,
+with no model in the loop to paraphrase or invent.
+
+From an agent, call the API host with curl rather than pointing `WebFetch` at
+the fixer — `api.fxtwitter.com` is the same service `verify-posts.py` already
+uses, and it returns the **quoted post**, which is often where the substance is:
 
 ```sh
-curl -s "https://cdn.syndication.twimg.com/tweet-result?id=<POST_ID>&token=a" \
-    -H 'User-Agent: Mozilla/5.0'
+curl -s "https://api.fxtwitter.com/status/<POST_ID>" -H 'User-Agent: curl/8'
 ```
 
-It returns the author, the UTC timestamp, the untruncated text, expanded links,
-**and the quoted post** — which is often where the substance is. Use grok to
-*search* a week of accounts; use this to read a post exactly. `verify-posts.py`
-checks the same facts through `api.fxtwitter.com`, a third-party mirror; this
-endpoint is X's own and also gives you the quoted post, so prefer it when the
-question is what a specific post actually said.
+**Why not `WebFetch` on `fixupx.com`.** The fixers serve their embed only to bot
+user-agents. `WebFetch` sends a browser one, so `fixupx.com` answers `302` back
+to `x.com` and `vxtwitter.com` answers `403` — neither is a sign the post is
+gone. In a browser, or with curl and a bot user-agent, both work fine.
 
 Ask for a **structured summary per account**, not a transcript — six accounts over
 a week is a firehose. One call with several questions beats many small calls
@@ -149,7 +151,7 @@ widely liked and still failed here, and **not one external source mentioned the
 headless problem** because every author was using the TUI (#54).
 
 **Popularity is not the property we need.** A tool nobody posts about may be
-unfashionable and correct — and so may a person. Flor1an-B has three followers
-and no X account, and produced the only DSpark measurement anyone has taken at
-real sampling on our exact machine and model (#75). **Judge a source by whether
+unfashionable and correct — and so may a person. Flor1an-B has three GitHub
+followers and fifty-one on X, and produced the only DSpark measurement anyone
+has taken at real sampling on our exact machine and model (#75). **Judge a source by whether
 its claims are checkable and whether it runs hardware like ours, not by reach.**
