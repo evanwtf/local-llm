@@ -56,6 +56,16 @@ than this project measures. Two engines shipped double-digit improvements in a
 
 ---
 
+## Not on X — check GitHub directly
+
+This file is organised around X because that is where most of this field
+announces itself. Some of the most useful people do not post there at all, and
+a follower count is not the property we need.
+
+| who | links | what they are |
+|---|---|---|
+| **Flor1an-B** | [GitHub](https://github.com/Flor1an-B) · [ds4 issues](https://github.com/antirez/ds4/issues?q=author%3AFlor1an-B) | No X, no blog, 3 followers, account opened 2026-02-19 — and **15 authored issues and PRs on `antirez/ds4`, all engine internals**, several landing exactly where we are stuck. [#789](https://github.com/antirez/ds4/pull/789) ports visible-KV checkpoint fixes for tool turns, which is the token-mismatch failure of ds4#816 that blocks #64. [#691](https://github.com/antirez/ds4/issues/691) is KV cache reuse breaking for tool clients that do not replay reasoning — the same bug from the client side. [#695](https://github.com/antirez/ds4/issues/695) argues the DSpark scheduler's break-even model ignores replay cost. [#750](https://github.com/antirez/ds4/issues/750) is native MTP corrupting output at `--mtp-draft>=2` (#39). **Benchmarks on an M5 Max 128 GB with DeepSeek-V4-Flash 0731 — our exact machine and primary model** — which almost nobody else does; #75 came from their temp>0 DSpark table on that setup. **Read the ds4 issue list, not a feed.** |
+
 ## How to run it
 
 `/grok` reads X. `WebFetch` on an `x.com` URL hits a login wall and will not work.
@@ -121,4 +131,7 @@ widely liked and still failed here, and **not one external source mentioned the
 headless problem** because every author was using the TUI (#54).
 
 **Popularity is not the property we need.** A tool nobody posts about may be
-unfashionable and correct.
+unfashionable and correct — and so may a person. Flor1an-B has three followers
+and no X account, and produced the only DSpark measurement anyone has taken at
+real sampling on our exact machine and model (#75). **Judge a source by whether
+its claims are checkable and whether it runs hardware like ours, not by reach.**
