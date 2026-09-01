@@ -457,7 +457,7 @@ Pooling the two ds4 wire protocols -- same weights, same server -- gives
 apart, intervals almost entirely overlapping. Nothing here separates them.
 
 **Two combinations now clear 90% at 95% confidence, and they are the same model
-under different clients.** `ornith15 x codex` is 1.6x faster and still cannot be
+under different clients.** `ornith15 x codex` finishes in 62% of the time and still cannot be
 distinguished from either. The three at 15/15 need ~35 consecutive passes to
 clear 90%; they are promising, not proven.
 

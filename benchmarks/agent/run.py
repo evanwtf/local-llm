@@ -1461,7 +1461,13 @@ def one_trial(
             result["gates_delta"] = grade.delta(result.get("gates_before") or {}, after)
         # True only if every hollowed-out symbol came back unchanged; None if
         # any of them is unreadable. A partial match is not recall.
-        result["restored_verbatim"] = grade.all_restored_verbatim(excised, keep_doc)
+        #
+        # Meaningless for a script task: nothing was hollowed out, so there is
+        # no original text to have recalled. Left as None rather than False,
+        # since False would assert the agent wrote something new -- a claim this
+        # check cannot make when there was never a reference.
+        if not is_script:
+            result["restored_verbatim"] = grade.all_restored_verbatim(excised, keep_doc)
         result["target_repo"] = target["repo"]
         # #54: while stashed, the real checkout is at <name>-real and the
         # export stands at `repo`. The tripwire has to watch the real one --

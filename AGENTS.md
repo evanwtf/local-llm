@@ -73,6 +73,28 @@ unusable however fast it is. Quote pass rates with their confidence interval: a
 perfect 21/21 only establishes ">85%", and on current sample sizes most
 combinations cannot be told apart (issue #23).
 
+### Never write "N times faster"
+
+It is ambiguous and it hides which way the ratio runs. "4x faster" can be read
+as four times the rate, four times *less* time, or faster *by* a factor of four,
+and readers pick differently.
+
+Write the time instead:
+
+| write this | not this |
+|---|---|
+| finished in **1/4 the time** | 4x faster |
+| took **75% less time** | 4x faster |
+| **193 s against 931 s** | 4.8x faster |
+| took **6x as long** | 6x slower |
+
+The bare pair of numbers is usually best: it carries the ratio, the magnitudes
+and the units at once, and cannot be misread. Reserve a multiplier for "as long
+as" phrasing, where the direction is explicit.
+
+This applies to throughput too. "2x the tokens per second" is fine because the
+quantity is named; "2x faster decode" is not.
+
 ## The working loop
 
 Five documents, each with one job. Keeping them in their lanes is what stops

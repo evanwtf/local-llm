@@ -1646,7 +1646,7 @@ task correctly. The premise of the "too big" tier — that the Metal ceiling is 
 hard wall — is wrong.
 
 **It is also not usable.** 2,585.5 s on the *easiest* task in the suite, against
-184.8 s for ds4 under the same streaming mode: **14x slower**. Decode is ~4 tok/s
+184.8 s for ds4 under the same streaming mode: **14x as long**. Decode is ~4 tok/s
 against ds4's 40.6. At that rate the tasks that need 2,000–9,000 output tokens
 cost 8–37 minutes of pure decode each, so a five-task suite is multi-hour per
 trial and cannot be measured at the three-trial standard this project uses.
@@ -1667,7 +1667,7 @@ note in `ds4_help.c` made concrete — 40GB is near the usable limit here, so th
   engine here can serve them at all. That is engine support, not capacity, and
   streaming does not touch it.
 - A model only becomes a candidate if its streamed decode rate is within a few
-  times of the resident primary. GLM-5.2 at 10x slower is not.
+  times of the resident primary. GLM-5.2, at 10x as long, is not.
 
 ### A near-miss worth recording
 
@@ -1906,7 +1906,7 @@ a Swift function against a green test suite.
 The suite spread is **2.7x**, and it decomposes into two independent mechanisms
 that a wall-clock total conflates:
 
-- **`ornith15` is 3.2x faster per token than `ds4`** (14.7 vs 47.6 s/1k) and
+- **`ornith15` spends 3.2x fewer seconds per 1k tokens than `ds4`** (14.7 vs 47.6 s/1k) and
   still finishes second, because it emits **5.4x the tokens**.
 - **`qwen36coding` writes little** (5,232) and finishes last, because it is the
   slowest per token (84.3 s/1k).

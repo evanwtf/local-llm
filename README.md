@@ -316,7 +316,7 @@ ANTHROPIC_DEFAULT_HAIKU_MODEL=deepseek-v4-flash \
 session silently runs against the hosted API. `run.py` pops it for this reason.
 
 Codex on the same weights is a supported alternative, equal on Python but
-**2.14x slower on Swift** (#44), so it is no longer the default:
+**takes 2.14x as long on Swift** (#44), so it is no longer the default:
 
 ```sh
 CODEX_API_KEY=dsv4-local codex --profile ds4

@@ -588,6 +588,11 @@ base_url = "http://127.0.0.1:11500"
 auth_token = "llamacpp-local"
 model = "qwen3.8-flash-next-q3"
 codex_profile = "qwen38fnq3"
+# #66: aider was never wired here. It speaks the OpenAI API, so it reaches the
+# shim on :11500 like the others -- the shim exists because Codex 0.150.1 sends
+# both `instructions` and a role=developer item, which llama-server turns into
+# two system messages that the Qwen template rejects.
+aider_model = "openai/qwen3.8-flash-next-q3"
 props_url = "http://127.0.0.1:8020"
 context_tokens = 131072
 

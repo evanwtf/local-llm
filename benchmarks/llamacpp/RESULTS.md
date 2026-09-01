@@ -54,9 +54,9 @@ It is last, and it is the only backend in the project with any timeouts.
 
 ---
 
-## Codex is 4.2x faster than Claude Code here, on every task
+## Codex finishes in under a quarter of Claude Code's time here, on every task
 
-4.2x over the suite, 4.9x on per-trial medians. Not one task is an exception,
+The suite takes 4.2x as long under Claude Code, and per-trial medians 4.9x. Not one task is an exception,
 and the effect is far larger than the client gaps measured on other backends
 (12% on ds4, 63% on Ollama). Both clients do
 comparable work -- 5087 output tokens median for Claude Code against 4161 for
