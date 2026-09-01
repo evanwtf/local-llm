@@ -65,9 +65,23 @@ state that is not in git. The table is the queue. It has no calendar.
 | 1 | **#60** The engine gap | **Now the top axis.** Four engines are being actively benchmarked on our hardware that we have never run, and two more landed this week -- pMLX (#72) and Rapid-MLX 0.13.3 with native GLM-5.3 (#57). The one engine comparison we have made was worth it: identical Q3 weights, identical correctness, **llama.cpp 90s median against LM Studio 122s**. Every other engine is an untested lead of the same shape. |
 | 2 | **#55** The harness cannot tell a bad result from a broken measurement | What remains is the plausibility gate: **a cell at 1/15 for a widely-used tool should halt a run, not get published twice.** It was published twice. This is the check that would have caught `--dir` on day one, and three more of the same class have appeared since (#69's undeclared model, #74's token under-count, the escape-on-timeout in #71). |
 | 3 | **#4** Harder tasks cannot measure code quality | Sharpened by `script-transform`: it was predicted to pass everywhere and did, on six backends and the hosted reference. **The ceiling is not about task size.** A discriminating task needs a plausible *wrong* answer, not a longer right one. |
-| 4 | **#68** llama.cpp fa-vec tunings exist for seven Apple chips, none for M5 | Cheap to test (`-fa on/off`). **Premise already weakened**: llama.cpp was the fastest engine measured on identical weights while running the supposedly untuned generic path. |
-| 5 | **#56** Survey open coding agents | Still in scope despite the client narrowing -- this asks whether a *different open* agent should be the harness, not whether to sweep clients per run. Nativ v0.3.6 and Pi are unrun. |
-| 6 | **#16** Three of four local backends are Qwen derivatives | The monoculture is unresolved and it is the premise of the whole project. #3 (Devstral, Mistral lineage, published agentic score) is the concrete candidate. |
+| 4 | **#56** Survey open coding agents | Still in scope despite the client narrowing -- this asks whether a *different open* agent should be the harness, not whether to sweep clients per run. Nativ v0.3.6 and Pi are unrun. |
+| 5 | **#16** Three of four local backends are Qwen derivatives | The monoculture is unresolved and it is the premise of the whole project. #3 (Devstral, Mistral lineage, published agentic score) is the concrete candidate. |
+
+**#68 closed 2026-09-01 as false.** M5 Max has **366** fa-vec tuning entries in
+`ggml-metal-tuning.cpp` -- more than any other Apple chip, four times M3 Max's
+91 -- and they landed 2026-08-24 in the commit that introduced per-device
+tuning at all. They were present at `d7bd3bfca`, the build every earlier
+llama.cpp row used. No row is suspect and the `-fa on/off` experiment would
+have measured nothing. **The claim was inference from a commit subject; the
+table was two minutes away.**
+
+**#60's MLX branch is blocked on weights, not effort.** `mlx_lm.server` is
+installed (mlx-lm 0.31.3), but every MLX build of our models is 180+ GB, which
+does not fit 128 GB regardless of download time; the local
+`GLM-5.3-Flash-MLX-2bit-lite` is an incomplete download (shard 5 of 62, 1.4 GB).
+oMLX is not on PyPI. **Rapid-MLX is** (`pip install rapid-mlx`) and is the one
+MLX engine reachable without a decision about weights.
 
 **Client scope narrowed 2026-09-01: OpenCode only** unless a run is
 explicitly about another agent (see AGENTS.md). The client axis is measured --
