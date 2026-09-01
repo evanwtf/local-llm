@@ -88,7 +88,7 @@ median hides how bad the bad runs get.
 
 <!-- BEGIN GENERATED -->
 
-*Generated from `results.jsonl` — 1011 rows, sha256 daaa7048d5a7.*
+*Generated from `results.jsonl` — 1020 rows, sha256 1b5982ed44db.*
 
 #### Every stack measured under OpenCode
 
@@ -96,7 +96,7 @@ median hides how bad the bad runs get.
 |---|---|---|---|---|
 | Qwen3.8-Flash-Next Q3 - llama.cpp | 30/30 | 90s | 208s | 4.8x |
 | DeepSeek-V4-Flash - ds4 (Anthropic wire) | 18/18 | 110s | 221s | 4.3x |
-| DeepSeek-V4-Flash - ds4 | 27/27 | 115s | 230s | 4.3x |
+| DeepSeek-V4-Flash - ds4 | 30/30 | 115s | 230s | 4.3x |
 | Qwen3.8-Flash-Next Q3 - LM Studio | 21/21 | 122s | 261s | 4.2x |
 | Qwen3.6-27B-coding - Ollama | 24/24 | 167s | 700s | 12.6x |
 | GLM-5.3-Flash - ds4 | 22/24 | 368s | 1227s | 18.0x |
