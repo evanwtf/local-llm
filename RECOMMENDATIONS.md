@@ -245,14 +245,16 @@ easiest way to get a model running. But it served the *identical* file at
 **134 seconds per 1,000 tokens against llama.cpp's 42**, and lost on five of six
 tasks. If you want a GUI, use it; if you want the machine's speed, do not.
 
-**GLM-5.3-Flash.** 16/18 and genuinely fast per token, but an 18x spread on the
-same task. Excellent model, unpredictable to plan around. Revisit it.
+**GLM-5.3-Flash.** 16/18 and genuinely fast per token, but on one task its
+three runs took 99 s, 378 s and 1,227 s. Excellent model, unpredictable to plan
+around. Revisit it.
 
 **Anything ranked by tokens per second.** This project has now measured three
 times that decode rate does not predict how long a real task takes. The 3-bit
 quant of Qwen3.8-Flash-Next decodes *slower per token* than the 2-bit one and
 finishes the suite **28% faster**. Two engines served identical weights with
-identical correctness and 1.9x different wall clock. Tokens per second is the
+identical correctness and wall clocks of 80.5 s against 151.7 s on one task.
+Tokens per second is the
 number everyone publishes and it inverted our ranking.
 
 **A second machine, a bigger quant, exotic offloading.** All measured, none

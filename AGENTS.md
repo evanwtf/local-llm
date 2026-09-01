@@ -120,19 +120,30 @@ unusable however fast it is. Quote pass rates with their confidence interval: a
 perfect 21/21 only establishes ">85%", and on current sample sizes most
 combinations cannot be told apart (issue #23).
 
-### Never write "N times faster"
+### Never express a speed comparison as a multiplier
 
-It is ambiguous and it hides which way the ratio runs. "4x faster" can be read
-as four times the rate, four times *less* time, or faster *by* a factor of four,
-and readers pick differently.
+Not "4x faster", and **not a bare "4x" either**. The bare form is the same
+ambiguity with the misleading word removed: "4x" can be read as four times the
+rate, four times less time, or faster by a factor of four, and readers pick
+differently. Dropping "faster" does not fix it.
 
-Write the time instead:
+Write the time, or the share of it:
 
 | write this | not this |
 |---|---|
-| finished in **1/4 the time** | 4x faster |
-| took **75% less time** | 4x faster |
-| **193 s against 931 s** | 4.8x faster |
+| **193 s against 931 s** | 4.8x faster, or 4.8x |
+| finished in **1/4 the time** | 4x faster, or 4x |
+| took **75% less time** | 4x faster, or 4x |
+| Aider **11.9 s**, Claude Code **152.5 s** — Aider used **8%** of the time | Aider was 12.8x faster, or "12.8x between them" |
+
+**The loophole was used the day after this rule was written**, in the form
+"12.8x between Aider and Claude Code". If you are reaching for a multiplier to
+describe time, write the two times and let the reader divide.
+
+**A dispersion ratio is not a speed comparison.** The `spread` column in
+`RECOMMENDATIONS.md` is worst-divided-by-best *within one cell*, a measure of
+how unstable a stack is rather than a claim that one thing beats another. It is
+labelled as such and it stays. The rule is about comparing A to B.
 | took **6x as long** | 6x slower |
 
 The bare pair of numbers is usually best: it carries the ratio, the magnitudes
