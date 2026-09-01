@@ -21,6 +21,7 @@ Schema v2 rules, for rows written from 2026-08-28:
     with the specific violations. A trial costs up to half an hour; losing one
     to a schema bug is worse than storing a flagged row.
 """
+
 from __future__ import annotations
 
 import json
@@ -117,9 +118,7 @@ def validate(row: dict[str, Any]) -> list[str]:
         if key not in row:
             errors.append(f"missing required field: {key}")
         elif not _type_ok(row[key], want):
-            errors.append(
-                f"wrong type for {key}: {type(row[key]).__name__}"
-            )
+            errors.append(f"wrong type for {key}: {type(row[key]).__name__}")
 
     has_verdict = not row.get("dry_run") and "error" not in row
     if has_verdict:
@@ -152,8 +151,11 @@ def write_row(row: dict[str, Any], path: pathlib.Path) -> dict[str, Any]:
     if errors:
         logger.error(
             "%s-%s-%s: row violates schema v%d: %s",
-            row.get("task"), row.get("backend"), row.get("trial"),
-            SCHEMA_VERSION, "; ".join(errors),
+            row.get("task"),
+            row.get("backend"),
+            row.get("trial"),
+            SCHEMA_VERSION,
+            "; ".join(errors),
         )
     with pathlib.Path(path).open("a") as fh:
         fh.write(json.dumps(row) + "\n")
@@ -168,7 +170,27 @@ def is_excluded(row: dict[str, Any]) -> bool:
     """
     if row.get("excluded"):
         return True
+    if _client_never_ran(row):
+        return True
     return any(row.get(k) for k in LEGACY_EXCLUSION_KEYS if k != "excluded")
+
+
+def _client_never_ran(row: dict[str, Any]) -> bool:
+    """The client crashed, so no model attempt was made.
+
+    `agent_error` means the harness could not parse a result out of the client
+    -- it died at config, crashed, or returned an error object. That is not a
+    task failure and must not be counted as one.
+
+    It was counted as one three times on 2026-08-31: 16 opus5 rows made the
+    hosted reference read 28/44 (64%) when its record was 28/29, and an
+    OpenCode row that died in 0.7s with `UnknownError: Unexpected server error`
+    would have joined a genuine 0/9 as if it were a tenth failure.
+
+    Guarded by `not passed`: if the client errored and the oracle passed
+    anyway, the trial produced a real result and stays.
+    """
+    return bool(row.get("agent_error")) and not row.get("passed")
 
 
 def normalize(row: dict[str, Any]) -> dict[str, Any]:
@@ -181,7 +203,11 @@ def normalize(row: dict[str, Any]) -> dict[str, Any]:
 
     excluded = is_excluded(out)
     out["excluded"] = excluded
-    if excluded and not out.get("exclusion_reason"):
+    if excluded and not out.get("exclusion_reason") and _client_never_ran(out):
+        out["exclusion_reason"] = (
+            "agent_error: the client never ran, so no model attempt was made"
+        )
+    elif excluded and not out.get("exclusion_reason"):
         for key in LEGACY_EXCLUSION_KEYS:
             if key == "excluded":
                 continue

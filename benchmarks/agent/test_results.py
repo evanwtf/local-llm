@@ -4,18 +4,21 @@ A results row is the only durable evidence a trial ever ran. These tests exist
 because four different keys once meant "do not trust this row", and an analysis
 that knew about one of them silently counted the other fifteen.
 """
+
 from __future__ import annotations
 
 import json
 import pathlib
 
 import pytest
+
 from results import (
     LEGACY_EXCLUSION_KEYS,
     SCHEMA_VERSION,
     is_excluded,
     load,
     new_row,
+    normalize,
     trials,
     validate,
     verdict,
@@ -59,17 +62,32 @@ def test_a_complete_row_validates_clean():
 
 
 def test_new_row_stamps_the_schema_version():
-    assert new_row(
-        task="t", backend="b", client="codex", trial=1,
-        model="m", context_tokens=1, effort=None, env={},
-    )["schema_version"] == SCHEMA_VERSION
+    assert (
+        new_row(
+            task="t",
+            backend="b",
+            client="codex",
+            trial=1,
+            model="m",
+            context_tokens=1,
+            effort=None,
+            env={},
+        )["schema_version"]
+        == SCHEMA_VERSION
+    )
 
 
 def test_new_row_starts_unexcluded_with_an_explicit_null_reason():
     """Absent is not the same as false. Both keys are always present."""
     row = new_row(
-        task="t", backend="b", client="codex", trial=1,
-        model="m", context_tokens=1, effort=None, env={},
+        task="t",
+        backend="b",
+        client="codex",
+        trial=1,
+        model="m",
+        context_tokens=1,
+        effort=None,
+        env={},
     )
     assert row["excluded"] is False
     assert row["exclusion_reason"] is None
@@ -77,8 +95,18 @@ def test_new_row_starts_unexcluded_with_an_explicit_null_reason():
 
 @pytest.mark.parametrize(
     "missing",
-    ["task", "backend", "client", "trial", "started", "finished", "env",
-     "excluded", "exclusion_reason", "schema_version"],
+    [
+        "task",
+        "backend",
+        "client",
+        "trial",
+        "started",
+        "finished",
+        "env",
+        "excluded",
+        "exclusion_reason",
+        "schema_version",
+    ],
 )
 def test_a_missing_required_field_is_a_violation(missing):
     row = good_row()
@@ -159,7 +187,9 @@ def test_every_legacy_exclusion_key_is_honoured_on_read(tmp_path, legacy):
 def test_a_timeout_is_an_outcome_not_an_exclusion(tmp_path):
     """`error: timeout` means the run failed, not that the row is untrustworthy."""
     path = tmp_path / "r.jsonl"
-    path.write_text(json.dumps({"task": "t", "backend": "b", "error": "timeout"}) + "\n")
+    path.write_text(
+        json.dumps({"task": "t", "backend": "b", "error": "timeout"}) + "\n"
+    )
     assert is_excluded(load(path)[0]) is False
 
 
@@ -194,7 +224,9 @@ def test_the_real_results_file_has_no_unknown_exclusion_keys():
     suspicious = set()
     for row in load(real):
         for k in row:
-            if ("exclud" in k or "confound" in k or "contaminat" in k) and k not in known:
+            if (
+                "exclud" in k or "confound" in k or "contaminat" in k
+            ) and k not in known:
                 suspicious.add(k)
     assert suspicious == set()
 
@@ -279,3 +311,34 @@ def test_the_real_results_file_counts_its_timeouts_as_failures():
     timed_out = [r for r in rows if "passed" not in r]
     assert timed_out, "expected the known qwen38fnq2 timeouts to still be present"
     assert all(verdict(r) is False for r in timed_out)
+
+
+def test_a_crashed_client_is_excluded_automatically() -> None:
+    """agent_error means no model attempt was made -- never a task failure.
+
+    Counted as failures three times on 2026-08-31: 16 opus5 rows made the
+    hosted reference read 28/44 (64%) against a real 28/29, and an OpenCode row
+    that died in 0.7s with "UnknownError: Unexpected server error" would have
+    joined a genuine 0/9 as a tenth failure. The field existed; nothing used it.
+    """
+    row = normalize({"task": "t", "agent_error": True, "passed": False})
+    assert row["excluded"] is True
+    assert "never ran" in row["exclusion_reason"]
+
+
+def test_a_client_that_errored_but_still_passed_is_kept() -> None:
+    """If the oracle passed, the trial produced a real result."""
+    row = normalize({"task": "t", "agent_error": True, "passed": True})
+    assert row["excluded"] is False
+
+
+def test_a_genuine_failure_is_not_excluded() -> None:
+    """The guard must not swallow real failures -- that is the whole record."""
+    row = normalize({"task": "t", "agent_error": False, "passed": False})
+    assert row["excluded"] is False
+
+
+def test_a_timeout_is_still_a_real_outcome() -> None:
+    """`error` is deliberately not an exclusion: the trial genuinely failed."""
+    row = normalize({"task": "t", "error": "timeout", "passed": False})
+    assert row["excluded"] is False
