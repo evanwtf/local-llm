@@ -23,6 +23,13 @@ import results
 logger = logging.getLogger(__name__)
 
 FIX = "7356460"  # opencode_argv gained --dir
+# The pre---dir rows were moved out of results.jsonl by
+# scripts/archive_pre_dir_rows.py, so this reads both files. Without the
+# archive the "before" column silently empties and the fix looks unmeasured.
+ARCHIVE = (
+    pathlib.Path(__file__).resolve().parents[2]
+    / "docs/archive/results-opencode-pre-dir.jsonl"
+)
 
 
 def fixed_commits(repo: pathlib.Path) -> set[str]:
@@ -98,6 +105,10 @@ def main() -> None:
     logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
     p = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else "results.jsonl")
     rows = [json.loads(line) for line in p.read_text().splitlines()]
+    if ARCHIVE.exists():
+        rows += [json.loads(line) for line in ARCHIVE.read_text().splitlines()]
+    else:
+        logger.warning("%s is missing; the before column will be empty", ARCHIVE)
     for line in report(tally(rows, fixed_commits(p.resolve().parent))):
         logger.info("%s", line)
 

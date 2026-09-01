@@ -1,5 +1,13 @@
 # Methodology
 
+> ## ⚠️ OpenCode results before 2026-08-31 21:47 EDT are INVALID
+>
+> Any OpenCode trial recorded before `2026-08-31T21:47:18-04:00` measures a
+> harness bug -- the client was never told which directory to work in, so it
+> solved each task and wrote the answer somewhere else. **Do not quote, pool,
+> or compare against those numbers.** Cause, cutover and replacements:
+> [docs/archive/results-opencode-pre-dir.md](../../docs/archive/results-opencode-pre-dir.md). Other clients are unaffected.
+
 Why this benchmark is built the way it is, what it can and cannot tell you, and
 how to extend it without breaking the parts that make it trustworthy.
 

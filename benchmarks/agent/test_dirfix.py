@@ -8,6 +8,7 @@ wrong directory and returned nothing.
 
 from __future__ import annotations
 
+import json
 import pathlib
 
 import pytest
@@ -82,3 +83,30 @@ def test_a_client_that_never_ran_is_excluded_without_a_stored_flag() -> None:
     published benchmark number -- which is what #67 is about."""
     counts = dirfix.tally([row(head="x", passed=False, agent_error=True)], {"x"})
     assert counts == {}
+
+
+def test_the_archive_is_still_where_dirfix_expects_it() -> None:
+    """The pre---dir rows live outside results.jsonl. If the archive moves or is
+    deleted, the "before" column empties and the fix silently looks unmeasured —
+    which is the same class of failure as the git-log bug above."""
+    assert dirfix.ARCHIVE.exists(), f"{dirfix.ARCHIVE} is missing"
+    heads = dirfix.fixed_commits(pathlib.Path(__file__).resolve().parent)
+    rows = [json.loads(x) for x in dirfix.ARCHIVE.read_text().splitlines()]
+    assert rows, "archive is empty"
+    assert all(r.get("client") == "opencode" for r in rows)
+    assert all(dirfix.era(r, heads) == "before" for r in rows), (
+        "a post-fix row is in the pre-fix archive"
+    )
+
+
+def test_no_pre_dir_opencode_rows_remain_in_results() -> None:
+    """Live results must contain only trials that measured the client."""
+    live = pathlib.Path(__file__).resolve().parent / "results.jsonl"
+    heads = dirfix.fixed_commits(live.parent)
+    stragglers = [
+        json.loads(x)
+        for x in live.read_text().splitlines()
+        if json.loads(x).get("client") == "opencode"
+        and dirfix.era(json.loads(x), heads) == "before"
+    ]
+    assert not stragglers, f"{len(stragglers)} pre---dir rows still in results.jsonl"

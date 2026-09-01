@@ -1,5 +1,13 @@
 # Agent benchmark — local models as Claude Code backends
 
+> ## ⚠️ OpenCode results before 2026-08-31 21:47 EDT are INVALID
+>
+> Any OpenCode trial recorded before `2026-08-31T21:47:18-04:00` measures a
+> harness bug -- the client was never told which directory to work in, so it
+> solved each task and wrote the answer somewhere else. **Do not quote, pool,
+> or compare against those numbers.** Cause, cutover and replacements:
+> [docs/archive/results-opencode-pre-dir.md](../../docs/archive/results-opencode-pre-dir.md). Other clients are unaffected.
+
 Measures what actually matters for a coding agent: **does it finish the job,
 and how long does it take?**
 
