@@ -120,38 +120,28 @@ unusable however fast it is. Quote pass rates with their confidence interval: a
 perfect 21/21 only establishes ">85%", and on current sample sizes most
 combinations cannot be told apart (issue #23).
 
-### Never express a speed comparison as a multiplier
+### Never write "N times faster" or "N times slower"
 
-Not "4x faster", and **not a bare "4x" either**. The bare form is the same
-ambiguity with the misleading word removed: "4x" can be read as four times the
-rate, four times less time, or faster by a factor of four, and readers pick
-differently. Dropping "faster" does not fix it.
+The comparative form hides which way the ratio runs. "4x faster" can be read as
+four times the rate, four times *less* time, or faster *by* a factor of four,
+and readers pick differently. "3x slower" is worse — it has no agreed meaning
+at all.
 
-Write the time, or the share of it:
+**A multiplier is fine when it says what it multiplies.** The problem is the
+comparative adjective, not the number.
 
 | write this | not this |
 |---|---|
-| **193 s against 931 s** | 4.8x faster, or 4.8x |
-| finished in **1/4 the time** | 4x faster, or 4x |
-| took **75% less time** | 4x faster, or 4x |
-| Aider **11.9 s**, Claude Code **152.5 s** — Aider used **8%** of the time | Aider was 12.8x faster, or "12.8x between them" |
+| took **5.2x as long** | 5.2x slower |
+| finished in **1/4 the time** | 4x faster |
+| took **75% less time** | 4x faster |
+| **193 s against 931 s** | 4.8x faster |
+| Aider **11.1 s**, Claude Code **189.6 s** | Aider was 17x faster |
 
-**The loophole was used the day after this rule was written**, in the form
-"12.8x between Aider and Claude Code". If you are reaching for a multiplier to
-describe time, write the two times and let the reader divide.
-
-**A dispersion ratio is not a speed comparison.** The `spread` column in
-`RECOMMENDATIONS.md` is worst-divided-by-best *within one cell*, a measure of
-how unstable a stack is rather than a claim that one thing beats another. It is
-labelled as such and it stays. The rule is about comparing A to B.
-| took **6x as long** | 6x slower |
-
-The bare pair of numbers is usually best: it carries the ratio, the magnitudes
-and the units at once, and cannot be misread. Reserve a multiplier for "as long
-as" phrasing, where the direction is explicit.
-
-This applies to throughput too. "2x the tokens per second" is fine because the
-quantity is named; "2x faster decode" is not.
+**A dispersion ratio is not a comparison and needs no rewriting.** "An 18x
+spread on one task" is worst-over-best *within a single cell* — a statement
+about how unstable one thing is, not a claim that A beats B. The `spread`
+column in `RECOMMENDATIONS.md` stays as it is.
 
 ## The working loop
 
