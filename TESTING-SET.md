@@ -24,12 +24,30 @@ with no model loaded, wired memory sits around 5 GiB — but it is *required*,
 not an optimisation: stock gives ds4 a 75.5 GiB budget against an 89.87 GiB
 GLM-5.3, which is a refusal.
 
-**A second tier is planned and not yet real.** An RTX 3080 Ti, 12 GB, Ampere
-`sm_86` (#20, #79). When it arrives its trials **do not go in
-`results.jsonl` beside the Mac's** — mixing hardware would quietly break every
-existing comparison. It needs its own labelled tier. Its system RAM is
-unrecorded, which is the fact that decides whether MoE CPU-offload is real
-there or theoretical.
+**A second tier exists and has run trials.** `desktop`, reachable over ssh:
+
+| | |
+|---|---|
+| **GPU** | RTX 3080 Ti, **12 GiB**, Ampere `sm_86`, driver 595.71.05, CUDA 13.2 |
+| **CPU** | AMD Ryzen 9 7900X, 12 cores / 24 threads |
+| **RAM** | **30 GiB** |
+| **Disk** | 1.8 TB NVMe, 1.3 TB free |
+| **OS** | Ubuntu 24.04 · **not always-on** |
+| **Confinement** | **none** — `sandbox-exec` is macOS-only, so `workspace_escapes` is unenforced there |
+
+The 30 GiB figure is the one that matters: with 12 GiB of VRAM it makes the
+MoE CPU-offload path real rather than theoretical, which is the live experiment
+in #20.
+
+**No FP8 and no NVFP4** on Ampere, and no MLX at all — so most of the model
+list above is Mac-only.
+
+**Its trials do not go in `results.jsonl` beside the Mac's.** Mixing hardware
+would quietly break every existing comparison. This is now enforced: the
+harness refuses to append when the file already holds rows from other
+hardware. It is enforced because it already happened — the first Linux run
+appended 13 rows and nothing objected, surfacing only when a later `git pull`
+refused to merge over them.
 
 ---
 
@@ -100,6 +118,7 @@ be drawn from — OpenCode, after the `--dir` cutover, not excluded.
 | `glm53ds4` | GLM-5.3-Flash | ds4 | — | 28 |
 | `qwen36coding` | `qwen3.6:27b-coding-mxfp8` | Ollama | 31 GB | 24 |
 | `ornith15` | `ornith-1.5:35b` | Ollama | 22 GB | 21 |
+| `gemma4` | `gemma4:31b-mxfp8` | Ollama | 32 GB | 12 |
 | `ds4anthropic` | DeepSeek-V4-Flash 0731 | ds4 (Anthropic wire) | 90.9 GiB | 18 |
 
 `ds4` and `ds4anthropic` are the clean wire-format isolation: identical weights
@@ -113,12 +132,14 @@ results:
 `qwen38fnq4m64` · `ornith15llamacpp` · `glm53` · `glm52ds4` · `glm53ds4shim` ·
 `mtplx` · `opus5`
 
-**`gemma4` is the one that matters**: it is the cheapest available answer to
-#16, the Qwen monoculture, and it has never been run.
+**`gemma4` has now been run**: 12/12 under OpenCode, the first non-Qwen and
+non-DeepSeek backend to complete a cell (#16). It is the slowest stack measured
+— a 383s excision median against llama.cpp's 90s — so it is a fallback rather
+than a recommendation.
 
-**The monoculture is real.** Of the six measured, four are Qwen derivatives.
-DeepSeek-V4-Flash is the only genuinely independent lineage, and GLM-5.3 the
-only other non-Qwen.
+**The monoculture is real but no longer unanswered.** Of the seven measured,
+four are Qwen derivatives. DeepSeek-V4-Flash, GLM-5.3 and now Gemma 4 are the
+three other lineages.
 
 ---
 
