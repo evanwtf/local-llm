@@ -283,6 +283,25 @@ items: the ds4 mention that mattered arrived by email, was already marked read
 through the API, and sat under 41 CI failures from unrelated repos. Filtering to
 unread would have hidden the only notification worth seeing.
 
+## Another Mac's result is a lead, not noise
+
+**Do not dismiss a finding because it was measured on an M3 or M4.** Most
+people building these engines are on M3/M4 hardware, so that is where a new
+kernel, flag or scheduling change shows up first. The **mechanism** usually
+transfers to M5 even when the **number** does not.
+
+The right shape for such a note is *"X gained 30% on an M4; test the flag
+here"*, never *"not our hardware"*. Three things genuinely do not carry over,
+and they are narrower than they look:
+
+- a configuration that **does not fit** in 128 GB — ask which quant does
+- the **absolute figure** — thermal state alone moves ~4% (#58), and a 3-trial
+  median carries ±28% (#23), so quote ratios and rankings
+- **CUDA/ROCm kernels** — the quantization reasoning transfers, the kernels do not
+
+Our own measurement is the bar for **publishing** a claim (#59). It is not a
+filter on what is worth trying.
+
 ## Finishing a batch includes regenerating the derived documents
 
 New rows in `results.jsonl` make `RECOMMENDATIONS.md` stale by definition — its
