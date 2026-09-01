@@ -39,6 +39,7 @@ than this project measures. Two engines shipped double-digit improvements in a
 | **@redp314** | [X](https://x.com/redp314) | Paolo Rosson, Head of Applied AI at Dext. **Benchmarks six MLX engines against each other on one machine**, which almost nobody does — mlx-serve, oMLX, Ollama, mlx-dspark, MTPLX, mlx-vlm on an M3 Max 96 GB. His 2026-09-01 result is the one to remember: **speculative decoding's gain depends on what you generate.** Every drafter loses 17–36% moving from code to prose, because acceptance falls (mlx-serve: 2.2 accepted tok/round on code, 1.3 on prose). **This is load-bearing for us: we measure code, the favourable case**, so any MTP figure quoted at us is close to a best case. His own conclusion is the right one — "a single tok/s is really a coding number or a prose number, say which one you measured". Measured on an M3 Max 96 GB; the **ranking between engines is the transferable part**, and mlx-serve winning all three categories is a reason to test it here. #60. |
 | **@_ARahim_** | [X](https://x.com/_ARahim_) · [GitHub](https://github.com/ARahim3) · [mlx-dspark](https://github.com/ARahim3/mlx-dspark) | Abdur Rahim. **mlx-dspark** (MIT, 627★, pushed 2026-09-01): a native MLX port of DeepSeek's DSpark and z-lab's DFlash speculative decoding, claiming up to 4x lossless decode across Gemma-4, Qwen3.8, Nemotron, Ornith-1.0 and others. Relevant to #19 (DFlash2 drafters) and #39. **Read our #58 first**: our own DSpark measurement on ds4 inverted once re-measured on current heads, and ds4#913 reports no net win on M5 Max — so a DSpark speedup claim needs checking on this machine before it is believed, whatever the engine. |
 | **@TheDavidTai** | [X](https://x.com/TheDavidTai) · [GitHub](https://github.com/davidtai) · [davidt.ai](https://davidt.ai) | Runner and drafting optimisation — MTPLX PR #391 (Qwen 3.8 Flash Next **50 → 85 t/s**), Qwen 3.8 27B at **113 t/s** via adaptive DFlash2 + mlx.fast. **Mostly replies; originals arrive in bursts** — a sweep of his last 12 posts found 10 replies, 2 quotes, 0 originals, so judge him on a week, not a day. Ties @Youssofal_'s MTPLX to @jundotkim's oMLX. |
+| **@0xkydo** | [X](https://x.com/0xkydo) · [MLX Fast leaderboard](https://www.yukon.org/mlxfast) · [engine](https://github.com/Layr-Labs/mlxfast-gemma4-26b-a4b-engine) | Kydo, Eigen Labs. Runs **MLX Fast**, a public leaderboard for making **Gemma 4 26B A4B** run faster on Apple Silicon — the thing @TheDavidTai's entry above already referenced before we documented it. `mlx.fast` redirects to `yukon.org/mlxfast`; the second is canonical. Top entry is **+130.8% over baseline — 573.7 tok/s decode, 6,940.6 tok/s prefill**, and Google's own @googlegemma amplified it on 2026-09-01. Official runs pair baseline and candidate on the same Mac under a thermal gate, eight prompts in one batch — a better method than most claims we see. **Two things to hold in mind.** It scores `prefill^0.25 · decode^0.75`, so decode carries three quarters of the rank, and decode rate is the one metric this project has measured three times as non-predictive of agent wall time — **`gemma4` is the backend that forced that finding**: it emits fewer tokens than qwen3.8 and still finishes last at 355.4s. And the leaderboard's model is **26B A4B, which we do not hold** — our gemma4 numbers are a 31B mxfp8 build, so nothing we have measured is a baseline for it. Engine is Swift, four stars, first pushed 2026-09-01. **The lead is real and unmeasured here**: #16 has been waiting on a non-Qwen backend since 2026-08-27, and this is a live, Google-endorsed push to make exactly that backend fast. #16, #60. |
 
 ## Tier 3 — occasional
 
@@ -68,7 +69,24 @@ a follower count is not the property we need.
 
 ## How to run it
 
-`/grok` reads X. `WebFetch` on an `x.com` URL hits a login wall and will not work.
+`/grok` reads X. `WebFetch` on an `x.com` URL fails — it now returns HTTP 402,
+not a login page, so the failure looks like a billing problem and is not one.
+
+**To read one post whose URL you already have, skip grok.** X's own syndication
+endpoint returns the full text with no model in the loop, so nothing can be
+paraphrased or invented:
+
+```sh
+curl -s "https://cdn.syndication.twimg.com/tweet-result?id=<POST_ID>&token=a" \
+    -H 'User-Agent: Mozilla/5.0'
+```
+
+It returns the author, the UTC timestamp, the untruncated text, expanded links,
+**and the quoted post** — which is often where the substance is. Use grok to
+*search* a week of accounts; use this to read a post exactly. `verify-posts.py`
+checks the same facts through `api.fxtwitter.com`, a third-party mirror; this
+endpoint is X's own and also gives you the quoted post, so prefer it when the
+question is what a specific post actually said.
 
 Ask for a **structured summary per account**, not a transcript — six accounts over
 a week is a firehose. One call with several questions beats many small calls
