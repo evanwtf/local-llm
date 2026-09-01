@@ -1,21 +1,60 @@
 # Where to pick up
 
-Updated 2026-09-01 00:15. **OpenCode was never broken — we were calling it
-wrong.** `opencode run` attaches to a persistent server that ignores the
-caller's `cwd`; the missing `--dir` flag took the worst cell from **1/15 to
-3/3**. Every OpenCode number this project published measured our invocation.
-**#67 is first: re-measure all of it.** Each issue is self-contained; this file
-only sets priority and records machine state that is not in git. The table is
-the queue. It has no calendar.
+Updated 2026-09-01 05:00. **#67 is done for five backends, and OpenCode was
+never broken.** 90 trials overnight. Four cells that had published failing
+numbers came back perfect, and the fifth produced the project's first real
+GLM x OpenCode data:
+
+| cell | published | re-measured |
+|---|---|---|
+| ds4 | 4/14 | **15/15** |
+| ds4anthropic | 11/26 | **18/18** |
+| llama.cpp Q3 | 1/12 | **18/18** |
+| LM Studio | 4/14 | **18/18** |
+| GLM-5.3 | *no valid measurement* | **16/18** |
+
+**Three separate bugs manufactured the old numbers**, none of them OpenCode's:
+
+1. **A missing `--dir`.** `opencode run` attaches to a persistent server that
+   ignores the caller's `cwd`. The client solved tasks and wrote the answers
+   into the launcher's directory. Fixed in `7356460`; `opencode_argv` now
+   refuses to build an argv without a worktree (`28b1da6`).
+2. **An undeclared provider model.** `ds4/glm-5.3-flash` was not in
+   `~/.config/opencode/opencode.json`, so the client exited in 0.6s, six times,
+   and six model failures were recorded. That is GLM's entire published
+   OpenCode record. **#69.**
+3. **A hand-rolled exclusion filter.** `dirfix.py` read `r.get("excluded")`
+   instead of `results.is_excluded()`, so `agent_error` rows counted as model
+   failures -- the same mistake RESULTS.md already records having miscounted
+   fourteen rows. This is why the "published" column above is worse than the
+   figures quoted before tonight.
+
+**The clean isolations are ds4 and ds4anthropic** (identical weights and server,
+OpenAI vs Anthropic wire format, tracking trial for trial). llama.cpp, LM Studio
+and GLM each moved an engine or a config alongside `--dir`, so they corroborate
+rather than isolate.
+
+**Two results worth carrying into RECOMMENDATIONS:**
+
+- **The engine control is positive.** Same Q3_K_XL weights, same client, same
+  tasks: llama.cpp beats LM Studio on five of six tasks (storage-blob-put 80.5s
+  against 151.7s). Correctness is identical; the cost is wall time.
+- **GLM cannot be ranked on a median.** Its per-task spread reaches 12.4x
+  (storage-blob-put 99.3s to 1227.3s) while ds4, llama.cpp and LM Studio all
+  cluster tightly. The one stable GLM task is `script-reverse` -- the only one
+  with no repository to navigate -- at 36.3-41.9s.
+
+Each issue is self-contained; this file only sets priority and records machine
+state that is not in git. The table is the queue. It has no calendar.
 
 ## Order
 
 | # | issue | why this position |
 |---|---|---|
-| 1 | **#67** Re-measure everything OpenCode | The whole record is void, and it is void in the project's favour. 13/29 on ds4, 4/14 on LM Studio, 1/12 on llama.cpp, 0/9 on the script task -- all our flag. Re-run: script tasks first (minutes), then the excision cells. **This decides whether the open stack is viable**, which is what the README is about. |
-| 2 | **Rewrite RECOMMENDATIONS.md** (archived at `docs/archive/RECOMMENDATIONS-2026-08-29.md`) | Blocked on #67 only for the OpenCode column. Everything else is ready and the headline has changed completely: **the client is the dominant cost on any large local model.** GLM-5.3 finished the same task in **6.4 s under Aider and 103.3 s under Claude Code**. A recommendation naming a model without naming a client is close to meaningless at that spread. Written for a stranger on this hardware: top 3 stacks, pasteable from `git clone` to a running agent. |
-| 3 | **#66** Finish the script-task sweep | 27 live trials done across Opus, GLM, DeepSeek, Q3, Qwen3.6. Missing: OpenCode everywhere (#67), and `script-transform` (spec written, `SCRIPT-TRANSFORM.md`) has never run in the harness. **This class produced more signal in 40 minutes than the excision suite managed in four hours.** |
-| 4 | **#68** llama.cpp fa-vec tunings exist for seven Apple chips and none for M5 | Filed tonight from the upstream sweep. If unknown hardware falls back to a generic profile, every llama.cpp number here was measured on an untuned decode path -- and it may explain why `qwen38fnq3` costs 196.5 s under Claude Code against DeepSeek's 73.6 s. Cheap to test (`-fa on/off`), and upstream is visibly accepting these tunings. |
+| 1 | **Rewrite RECOMMENDATIONS.md** (archived at `docs/archive/RECOMMENDATIONS-2026-08-29.md`) | **Unblocked.** #67 closed the OpenCode column for five backends. The headline has changed twice over: the client is the dominant cost on any large local model, *and* four of the five stacks the archived text ranks were ranked on numbers that measured our own bugs. Written for a stranger on this hardware: top 3 stacks, pasteable from `git clone` to a running agent, tables generated from `results.jsonl`. |
+| 2 | **#69** `opencode.json` is not in git | An undeclared provider model voided a whole cell tonight and cost six trials. Every OpenCode number depends on a file nobody can review or reproduce; `tasks.toml` already admits this in a comment. A preflight check that every `opencode_model` resolves would have turned six wasted trials into one line of output. |
+| 3 | **#66** Finish the script-task sweep | OpenCode is now covered on five backends (#67), and `script-reverse` ran in every one of them. What remains is `script-transform`: the spec is written (`SCRIPT-TRANSFORM.md`) and it has still never run in the harness. **The class keeps earning its place** -- it was the only task GLM ran consistently (36.3-41.9s against 12.4x spreads on every repo-based task). |
+| 4 | **#68** llama.cpp has fa-vec tunings for seven Apple chips and none for M5 | **Premise weakened, question still open.** Upstream is still landing these one chip at a time -- the 2026-09-01 pull was literally `metal: add fa-vec tunings for M1 Ultra (#28088)`. But llama.cpp was the *fastest* engine measured tonight on identical weights (beating LM Studio on five of six tasks) while running the supposedly crippled generic path. So "every llama.cpp number was measured on an untuned decode path" is no longer a safe assumption. Still cheap to test (`-fa on/off`). |
 | 5 | **#64** KV prefix stalls at ~20,400 tokens on the Claude Code path | Reproduced, cause open, one experiment left (normalise `content` shape, re-run one traced trial). Cost measured on real work: **193 s against 931 s** on the same model and task, Aider vs Claude Code. Inflates every Claude Code wall time we hold. Aider does not pay it, which is why this is no longer blocking. |
 | 6 | **#55** The harness cannot tell a bad result from a broken measurement | Three parts shipped tonight -- `smoke.gate()`, `agent_error` auto-exclusion, `wait_ready.py`. What remains is the plausibility gate: **a cell at 1/15 for a widely-used tool should halt a run, not get published twice.** It was published twice. |
 | 7 | **#62** GLM-5.3 full Claude Code cell | 6/7 on a stopped run, and GLM is the fastest local pairing measured (**6.4 s under Aider, beating hosted Opus at 9.7 s**). Worth the full 15 trials after #64. |
