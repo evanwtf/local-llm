@@ -39,6 +39,7 @@ import subprocess
 import sys
 from urllib.parse import urlparse
 
+import opencode_config
 import staleness
 
 logger = logging.getLogger(__name__)
@@ -425,6 +426,15 @@ def main() -> int:
     log_report(report)
     if not args.no_versions:
         log_versions(offline=args.offline)
+    # #69: an opencode_model that OpenCode cannot resolve makes the client
+    # exit in 0.6s, and the row reads as a model failure. Cheap to check here.
+    try:
+        import tomllib
+
+        with (pathlib.Path(__file__).parent / "tasks.toml").open("rb") as fh:
+            opencode_config.log_report(tomllib.load(fh).get("backend", {}))
+    except Exception as exc:  # noqa: BLE001 -- preflight must never hard-fail
+        logger.error("could not check the opencode config: %s", exc)
     if not report.total_gib:
         logger.info("preflight: nothing is serving a model")
     elif not report.stale and not report.unmatched:

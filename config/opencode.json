@@ -1,0 +1,172 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "mtplx/mtplx-qwen38-27b-optimized-speed",
+  "permission": {
+    "external_directory": {
+      "*": "deny"
+    }
+  },
+  "provider": {
+    "ds4": {
+      "models": {
+        "deepseek-v4-flash": {
+          "limit": {
+            "context": 100000,
+            "output": 100000
+          },
+          "name": "ds4 (local)",
+          "reasoning": false,
+          "temperature": false,
+          "tool_call": true
+        },
+        "glm-5.3-flash": {
+          "limit": {
+            "context": 100000,
+            "output": 100000
+          },
+          "name": "GLM-5.3-Flash (local, ds4)",
+          "reasoning": false,
+          "temperature": false,
+          "tool_call": true
+        }
+      },
+      "name": "ds4 (local)",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "apiKey": "local",
+        "baseURL": "http://127.0.0.1:8000/v1",
+        "chunkTimeout": 900000,
+        "timeout": false
+      }
+    },
+    "ds4anthropic": {
+      "models": {
+        "deepseek-v4-flash": {
+          "limit": {
+            "context": 100000,
+            "output": 100000
+          },
+          "name": "ds4 via /v1/messages",
+          "reasoning": false,
+          "temperature": false,
+          "tool_call": true
+        }
+      },
+      "name": "ds4 (local, Anthropic protocol)",
+      "npm": "@ai-sdk/anthropic",
+      "options": {
+        "apiKey": "dsv4-local",
+        "baseURL": "http://127.0.0.1:8000/v1",
+        "chunkTimeout": 900000,
+        "timeout": false
+      }
+    },
+    "llamacpp": {
+      "models": {
+        "qwen3.8-flash-next-q3": {
+          "limit": {
+            "context": 131072,
+            "output": 131072
+          },
+          "name": "Qwen3.8-Flash-Next UD-Q3_K_XL via llama.cpp",
+          "reasoning": false,
+          "temperature": false,
+          "tool_call": true
+        }
+      },
+      "name": "llama.cpp (local)",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "apiKey": "local",
+        "baseURL": "http://127.0.0.1:8020/v1",
+        "chunkTimeout": 900000,
+        "timeout": false
+      }
+    },
+    "lmstudio": {
+      "models": {
+        "qwen3.8-flash-next-ud": {
+          "limit": {
+            "context": 131072,
+            "output": 131072
+          },
+          "name": "Qwen3.8-Flash-Next UD-Q3_K_XL via LM Studio",
+          "reasoning": false,
+          "temperature": false,
+          "tool_call": true
+        }
+      },
+      "name": "LM Studio (local)",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "apiKey": "lm-studio",
+        "baseURL": "http://127.0.0.1:1234/v1",
+        "chunkTimeout": 900000,
+        "timeout": false
+      }
+    },
+    "mtplx": {
+      "models": {
+        "mtplx-qwen38-27b-optimized-speed": {
+          "limit": {
+            "context": 262144,
+            "output": 262144
+          },
+          "modalities": {
+            "input": [
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "name": "MTPLX local",
+          "reasoning": false,
+          "temperature": false,
+          "tool_call": true
+        }
+      },
+      "name": "MTPLX (local)",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "apiKey": "$MTPLX_API_KEY",
+        "baseURL": "http://127.0.0.1:8010/v1",
+        "chunkTimeout": 900000,
+        "headers": {
+          "x-mtplx-client": "opencode"
+        },
+        "timeout": false
+      }
+    },
+    "ollama": {
+      "models": {
+        "qwen3.6:27b-coding-mxfp8": {
+          "limit": {
+            "context": 262144,
+            "output": 262144
+          },
+          "modalities": {
+            "input": [
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "name": "Qwen3.6 27B coding mxfp8",
+          "reasoning": false,
+          "temperature": false,
+          "tool_call": true
+        }
+      },
+      "name": "Ollama (local)",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "apiKey": "ollama",
+        "baseURL": "http://127.0.0.1:11434/v1",
+        "chunkTimeout": 900000
+      }
+    }
+  },
+  "small_model": "mtplx/mtplx-qwen38-27b-optimized-speed"
+}
