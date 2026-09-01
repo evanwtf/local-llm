@@ -25,6 +25,40 @@ Two hard rules, both from mistakes:
 - **Date and version every claim.** Sources describing a tool from six months
   ago may describe several major versions back (#55).
 
+## Measure OpenCode only, unless the run is about another client (2026-09-01)
+
+**Default to `--client opencode` and nothing else.** Aider, Claude Code and
+Codex are run only when the question is specifically about them — a client
+defect, a parser fix, or a deliberate reference point — and the reason is
+stated when they are.
+
+This is a scope decision, not a finding. The client axis has been measured
+enough to act on:
+
+- The client is the dominant cost on a large local model. On one server, one
+  session, `script-transform` took **11.1 s under Aider, 39.5 s under OpenCode
+  and 189.6 s under Claude Code**, and the cause is prompt size — the client's
+  own scaffolding, prefilled every turn.
+- OpenCode is the one that fits the premise. An open model on an open engine
+  driven by a proprietary client fails with the vendor.
+- Aider is cheaper but does less: **22/34** inside a repository against
+  OpenCode's **91/93**.
+
+Continuing to sweep every client multiplies machine time across an axis whose
+answer is already known and whose winner is fixed by the project's own
+requirements. Spend the trials on models, engines and tasks instead.
+
+**Consequences to keep in mind:**
+
+- A Claude-Code-specific defect (#64) is now a **lower-priority** curiosity
+  rather than something inflating numbers we publish, because we no longer
+  publish Claude Code numbers.
+- The hosted **Opus 5 reference** still has a use: establishing a new task
+  class's ceiling, as it did for `script-transform`. That is "explicitly
+  testing another agent" and is fine when said out loud.
+- Historical multi-client rows stay in `results.jsonl` and stay valid. This
+  changes what we run next, not what we already know.
+
 ## OpenCode is the primary harness (2026-08-30)
 
 The project exists as a fallback for when hosted inference is unavailable or

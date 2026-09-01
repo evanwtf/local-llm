@@ -1649,9 +1649,10 @@ def main():
         "--client",
         action="append",
         choices=sorted(CLIENTS),
-        help="repeatable; default claude. Multiple clients are "
-        "interleaved per task so neither gets a systematically "
-        "warmer or colder server than the other.",
+        help="repeatable; DEFAULT opencode. Name another client only when "
+        "the run is about that client. Multiple clients are interleaved "
+        "per task so neither gets a systematically warmer or colder "
+        "server than the other.",
     )
     p.add_argument(
         "--skip-smoke",
@@ -1721,7 +1722,10 @@ def main():
     workdir = pathlib.Path(os.environ.get("TMPDIR", "/tmp")) / "agent-bench"
     workdir.mkdir(parents=True, exist_ok=True)
 
-    clients = args.client or ["claude"]
+    # 2026-09-01: OpenCode is the default and usually the only client.
+    # Sweeping every client multiplies machine time across an axis that is
+    # already measured, and the interesting axes are models and engines.
+    clients = args.client or ["opencode"]
     client_log = (
         None if args.no_client_log else pathlib.Path(args.client_log).expanduser()
     )

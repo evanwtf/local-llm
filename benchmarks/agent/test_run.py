@@ -555,3 +555,15 @@ def test_the_parser_keeps_the_split_for_later_analysis() -> None:
     assert out["input_tokens"] == 100
     assert out["uncached_input_tokens"] == 0
     assert out["cache_read_input_tokens"] == 90
+
+
+def test_opencode_is_the_default_client() -> None:
+    """2026-09-01: OpenCode is the default and usually the only client.
+
+    Sweeping every client multiplies machine time across an axis that is
+    already measured -- 11.1s Aider, 39.5s OpenCode, 189.6s Claude Code on one
+    server for the same task -- and whose winner is fixed by the project's
+    premise. The interesting axes are models and engines.
+    """
+    src = (pathlib.Path(__file__).parent / "run.py").read_text()
+    assert 'clients = args.client or ["opencode"]' in src
