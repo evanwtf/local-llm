@@ -140,6 +140,26 @@
     },
     "ollama": {
       "models": {
+        "gemma4:31b-mxfp8": {
+          "limit": {
+            "context": 131072,
+            "output": 131072
+          },
+          "name": "Gemma-4-31B (local, ollama)",
+          "reasoning": false,
+          "temperature": false,
+          "tool_call": true
+        },
+        "ornith-1.5:35b": {
+          "limit": {
+            "context": 262144,
+            "output": 262144
+          },
+          "name": "Ornith-1.5-35B (local, ollama)",
+          "reasoning": false,
+          "temperature": false,
+          "tool_call": true
+        },
         "qwen3.6:27b-coding-mxfp8": {
           "limit": {
             "context": 262144,

@@ -390,6 +390,10 @@ base_url = "http://127.0.0.1:11434"
 auth_token = "ollama"
 model = "gemma4:31b-mxfp8"
 context_tokens = 262144
+# 2026-09-01: Google lineage -- the only non-Qwen/DeepSeek/Zhipu backend on
+# disk. #16: the fallback plan is a Qwen monoculture and this is the
+# cheapest available answer to it.
+opencode_model = "ollama/gemma4:31b-mxfp8"
 
 # Qwen3.8-Flash-Next: the preview of the Qwen4 architecture, released
 # 2026-08-26. 125B total with 6B active, plus a 51B n-gram embedding table and
@@ -629,6 +633,10 @@ auth_token = "ollama"
 model = "ornith-1.5:35b"
 codex_profile = "ornith15"
 context_tokens = 262144
+# 2026-09-01: never run under OpenCode -- it had no opencode_model, so the
+# fastest backend this project has measured (102s median under Claude Code)
+# was invisible to the only client we now use.
+opencode_model = "ollama/ornith-1.5:35b"
 
 # AtomicChat's `-M64` build of Qwen3.8-Flash-Next: the same model as
 # qwen38fnq2/q3, at a BETTER quant (Q4_K_M, 4.27bpw) that should not fit --
