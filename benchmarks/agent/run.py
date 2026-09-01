@@ -140,6 +140,11 @@ def script_checks(worktree, entrypoint, checks, timeout):
     The checked inputs are NOT the input shown in the prompt. A script that
     hardcodes the demonstrated case fails here, the same rule the smoke probes
     follow.
+
+    A check's first element is either a single argument or a list of them, so a
+    task with flags (`script-transform`) uses the same oracle as one with a
+    bare positional (`script-reverse`). It is never shell-interpreted: argv is
+    passed as a list, so an input containing a space is one argument.
     """
     script = pathlib.Path(worktree) / entrypoint
     if not script.exists():
@@ -148,9 +153,10 @@ def script_checks(worktree, entrypoint, checks, timeout):
     failures = []
     exact = True
     for arg, want in checks:
+        argv = [arg] if isinstance(arg, str) else list(arg)
         try:
             proc = subprocess.run(
-                ["python3", entrypoint, arg],
+                ["python3", entrypoint, *argv],
                 cwd=worktree,
                 capture_output=True,
                 text=True,
@@ -158,7 +164,7 @@ def script_checks(worktree, entrypoint, checks, timeout):
                 check=False,
             )
         except subprocess.TimeoutExpired:
-            return False, f"{entrypoint} {arg!r} timed out"
+            return False, f"{entrypoint} {' '.join(argv)!r} timed out"
         got = proc.stdout
         if got.strip() != want:
             detail = (
@@ -166,7 +172,8 @@ def script_checks(worktree, entrypoint, checks, timeout):
                 if not got.strip()
                 else got.strip()
             )
-            failures.append(f"{arg!r} -> {detail[:60]!r} (want {want!r})")
+            shown = " ".join(argv)
+            failures.append(f"{shown!r} -> {detail[:60]!r} (want {want!r})")
         elif got != want + "\n":
             exact = False
 

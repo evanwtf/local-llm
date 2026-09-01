@@ -838,3 +838,36 @@ model = "deepseek-v4-flash"
 opencode_model = "ds4anthropic/deepseek-v4-flash"
 codex_profile = "ds4"
 context_tokens = 100000
+
+[[task]]
+name = "script-transform"
+kind = "script"
+entrypoint = "transform.py"
+# Prompt is verbatim from SCRIPT-TRANSFORM.md; test_script_transform.py
+# fails if the two drift. Every expected value below is recomputed from
+# the operation definitions rather than copied.
+prompt = """Create a Python script called transform.py that transforms a string from the
+command line.
+
+It takes --input STRING, plus any combination of these operation flags:
+
+  --reverse   reverse the characters of the value
+  --sort      sort the characters of the value ascending by Unicode code point
+  --sha256    replace the value with the lowercase hex SHA-256 of its UTF-8 bytes
+
+Operations apply in this fixed order regardless of the order the flags are
+given on the command line: reverse first, then sort, then sha256.
+
+With no operation flags, print the input unchanged.
+
+Print the final result on one line.
+
+For example, `python3 transform.py --input hello --reverse` prints `olleh`."""
+checks = [
+    [["--input", "banana", "--sort"], "aaabnn"],
+    [["--input", "abc", "--sha256"], "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"],
+    [["--input", "abc", "--reverse", "--sha256"], "6d970874d0db767a7058798973f22cf6589601edab57996312f2ef7b56e5584d"],
+    [["--input", "hello world", "--sort", "--sha256"], "b990b0a2fb0a571f541a0cd35bd81271a2ef8e06a10484526e8308651e1d0562"],
+    [["--input", "Benchmarking", "--reverse", "--sort", "--sha256"], "4e5c331b4e299d20e4d5cce3c91febf10914e469461b55530a44ce5edde634b5"],
+    [["--input", "plain"], "plain"],
+]

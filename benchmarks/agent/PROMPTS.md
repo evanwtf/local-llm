@@ -152,3 +152,25 @@ repo `~/git/monitor` · @ `cbb85ca` · oracle `swift test`
 Create a Python script that we can call from the command line that takes a string as input and reverses it. A successful implementation will be called with `python3 reverse.py hello` and will output `olleh` on a new line.
 ```
 
+### `script-transform`
+
+```text
+Create a Python script called transform.py that transforms a string from the
+command line.
+
+It takes --input STRING, plus any combination of these operation flags:
+
+  --reverse   reverse the characters of the value
+  --sort      sort the characters of the value ascending by Unicode code point
+  --sha256    replace the value with the lowercase hex SHA-256 of its UTF-8 bytes
+
+Operations apply in this fixed order regardless of the order the flags are
+given on the command line: reverse first, then sort, then sha256.
+
+With no operation flags, print the input unchanged.
+
+Print the final result on one line.
+
+For example, `python3 transform.py --input hello --reverse` prints `olleh`.
+```
+
