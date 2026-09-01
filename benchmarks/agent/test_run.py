@@ -449,3 +449,49 @@ def test_prompts_doc_is_current() -> None:
     assert fresh.stdout == doc.read_text(), (
         "PROMPTS.md is stale -- regenerate: uv run python gen_prompts.py > PROMPTS.md"
     )
+
+
+# --- #67: the --dir contract -------------------------------------------------
+#
+# `opencode run` attaches to a persistent server, and that server holds its own
+# working directory. Setting cwd= on the child process does nothing. There is no
+# error when --dir is missing: the client runs, solves the task, and writes the
+# answer into the server's directory, so the oracle reports a model failure.
+# 64 published trials were wrong for this reason. These tests are the guard.
+
+
+def _opencode_backend():
+    return {"model": "qwen38fnq3", "opencode_model": "local/qwen"}
+
+
+def test_opencode_is_told_where_to_work(tmp_path) -> None:
+    argv = run.opencode_argv({"prompt": "go"}, _opencode_backend(), tmp_path)
+    assert "--dir" in argv
+    assert argv[argv.index("--dir") + 1] == str(tmp_path)
+
+
+def test_opencode_refuses_to_run_without_a_worktree() -> None:
+    """A missing --dir must fail loudly, not fall back to the server's cwd.
+
+    The optional third parameter exists because the four argv builders share a
+    signature. For OpenCode specifically, defaulting is the bug.
+    """
+    with pytest.raises(SystemExit, match="--dir"):
+        run.opencode_argv({"prompt": "go"}, _opencode_backend(), None)
+
+
+def test_the_directory_precedes_the_prompt() -> None:
+    """--dir is a flag on `run`, so it cannot follow the positional prompt."""
+    argv = run.opencode_argv({"prompt": "go"}, _opencode_backend(), "/w")
+    assert argv.index("--dir") < argv.index("go")
+    assert argv[-1] == "go"
+
+
+def test_every_client_is_offered_the_worktree(tmp_path) -> None:
+    """The builders share one signature, so a new client cannot silently
+    lose the argument the way OpenCode silently ignored the cwd."""
+    import inspect
+
+    for name, (build, _parse) in run.CLIENTS.items():
+        params = list(inspect.signature(build).parameters)
+        assert params[2:3] == ["worktree"], f"{name} does not take a worktree"

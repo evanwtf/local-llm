@@ -690,11 +690,20 @@ def opencode_argv(task, backend, worktree=None):
     # ~/git/local-llm/benchmarks/agent/reverse.py -- run.py's own directory --
     # and scored 0/3 with "reverse.py was never created". The recovered file
     # passed all three checks. #67.
-    directory = ["--dir", str(worktree)] if worktree else []
+    # Refuse rather than default. A missing --dir does not fail: the client
+    # runs, solves the task, writes the answer somewhere else, and the oracle
+    # reports a model failure. That silent mode is what voided 64 trials, so
+    # the only safe default is no default.
+    if worktree is None:
+        raise SystemExit(
+            "opencode_argv requires a worktree: without --dir the client writes "
+            "to the server's directory and every trial scores as a model failure (#67)"
+        )
     return [
         "opencode",
         "run",
-        *directory,
+        "--dir",
+        str(worktree),
         "--model",
         model,
         "--format",

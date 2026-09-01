@@ -41,6 +41,45 @@ Practical consequences:
   `permission.external_directory` explicitly, and check `workspace_escapes` on
   every row before believing it.
 
+### How to call OpenCode (2026-09-01)
+
+**`opencode run` ignores the caller's working directory. Always pass `--dir`.**
+
+```sh
+opencode run --dir "$WORKTREE" --model "$MODEL" --format json --auto "$PROMPT"
+```
+
+`run` attaches to a **persistent server**, and that server works in the
+directory *it* was started with. Setting `cwd=` on the child process is
+correct, has always been correct in `run.py`, and has no effect. `run.py` now
+refuses to build the argv without a worktree; `test_run.py` guards the flag,
+its position, and the refusal.
+
+**This is the most expensive class of bug this project has hit, so learn the
+shape and not just the flag.** A missing `--dir` produces no error. The client
+starts, reasons well, solves the task, writes a correct answer into the
+server's directory, and exits 0. The oracle then finds no file and records a
+model failure. **64 trials across three engines were published as evidence that
+an open client was weak, when they measured our own invocation.** The corrected
+cell went from **1/15 to 3/3**.
+
+Two rules follow, and they generalise past OpenCode:
+
+- **A client that scores far below its public reputation is a bug report until
+  the cause is known.** 1/15 for a widely-used tool is not a finding. Read a
+  failing transcript before publishing a number like that -- the bug was found
+  in an *excluded* row, whose transcript named the file it had written and the
+  wrong directory it had written it to.
+- **Check that the harness and the client agree on where work happens.** `cwd`
+  is a request, not a contract; any client with a daemon, a server, or a
+  session can hold its own. Assert the workspace, do not assume it.
+
+Whether OpenCode is good enough to be the tier-1 harness in practice is **still
+open**: the corrected evidence is 3/3 on one cell of one model. #67 is the
+re-measurement that answers it. Do not restate the old numbers, and do not
+promote the new one past what three trials can carry (see "Know what a trial
+count can support").
+
 ## What this project is answering
 
 **Which model + engine + harness combination is best for running a coding agent
