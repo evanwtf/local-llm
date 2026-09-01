@@ -523,12 +523,30 @@ informative.
 
 ## Machine state
 
-**Now persisted across reboots (2026-09-01).** A LaunchDaemon sets it at boot:
+**Persisted across reboots, and verified by an actual reboot (2026-09-01).**
+A LaunchDaemon sets it at boot:
 
 ```sh
 scripts/install-metal-ceiling.sh            # one-time, needs sudo
 sysctl -n iogpu.wired_limit_mb              # expect 114688
 ```
+
+`install-metal-ceiling.sh` printed `Load failed: 5: Input/output error` on the
+first install and the ceiling was correct anyway -- because it had been set by
+hand minutes earlier. **That pair is a trap: a correct `sysctl` reading is
+equally consistent with a daemon that never ran.** The reboot settled it. From
+`/var/log/metal-ceiling.log`:
+
+```
+iogpu.wired_limit_mb: 114688 -> 114688     # install time, a no-op
+iogpu.wired_limit_mb: 0 -> 114688          # 23:14, after the 23:13:43 boot
+```
+
+The `0 ->` line is the evidence. The kernel came up at device default and the
+daemon raised it, so the daemon is what is holding the value now. The script
+was rewritten to use `launchctl bootstrap` (the legacy `load -w` is what
+emitted the spurious error) and it now reports the job's load state and the
+log's last line instead of a bare `sysctl` reading.
 
 It was previously manual and a reboot reverted it, which is a silent failure:
 ds4 simply refuses to load GLM-5.3 and the reason is a number nobody checked.
