@@ -114,7 +114,7 @@ Every number below comes from a real coding agent doing a real task, timed end
 to end. There are two kinds of task, and they measure different things.
 
 **Excision tasks.** The agent gets a checkout of a real Python repository
-([`gmail-archive`](https://github.com/evandhoffman/gmail-archive), pinned at one
+([`gmail-archive`](https://github.com/evanwtf/gmail-archive), pinned at one
 commit) in which **one function body has been deleted** and replaced with
 `raise NotImplementedError`. The repository's own test suite is the only oracle.
 No test is shown to the agent as a target, and editing tests is forbidden and
@@ -153,7 +153,7 @@ other is telling you something.
 
 <!-- BEGIN GENERATED -->
 
-*Generated from `results.jsonl` — 1041 rows, sha256 b998a718e70d.*
+*Generated from `results.jsonl` — 1053 rows, sha256 7ad30271ae58.*
 
 #### Every stack measured under OpenCode
 
@@ -166,6 +166,7 @@ other is telling you something.
 | Qwen3.8-Flash-Next Q3 - LM Studio | 21/21 | 122s | 261s | 4.2x |
 | Qwen3.6-27B-coding - Ollama | 24/24 | 167s | 700s | 12.6x |
 | GLM-5.3-Flash - ds4 | 22/24 | 368s | 1227s | 18.0x |
+| gemma4 | 12/12 | 383s | 1316s | 4.8x |
 
 Excision tasks only; `script-*` excluded because they are a different class. **Spread is worst / best on the same task**, and it is the column most people forget to ask for.
 
@@ -191,6 +192,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | GLM-5.3-Flash - ds4 | 55s |
 | Qwen3.6-27B-coding - Ollama | 69s |
 | DeepSeek-V4-Flash - ds4 | 71s |
+| gemma4 | 84s |
 | Qwen3.8-Flash-Next Q3 - LM Studio | 115s |
 
 <!-- END GENERATED -->

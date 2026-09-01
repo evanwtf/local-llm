@@ -114,3 +114,18 @@ def test_every_task_in_the_stack_tables_is_described() -> None:
     doc = DOC.read_text()
     for task in gen_tables.TASK_SUMMARY:
         assert f"PROMPTS.md#{task}" in doc, f"{task} is never linked or described"
+
+
+def test_the_target_repo_link_matches_the_actual_remote():
+    """RECOMMENDATIONS pointed at a GitHub repo that does not exist.
+
+    The doc told a stranger the excision tasks come from
+    `evandhoffman/gmail-archive`; the remote is `evanwtf/gmail-archive`. A
+    404 in the one link that lets a reader check our work is worse than no
+    link -- it looks verifiable and is not.
+    """
+    doc = (
+        pathlib.Path(__file__).resolve().parent.parent.parent / "RECOMMENDATIONS.md"
+    ).read_text()
+    assert "evanwtf/gmail-archive" in doc
+    assert "evandhoffman/gmail-archive" not in doc

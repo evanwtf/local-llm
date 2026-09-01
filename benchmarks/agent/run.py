@@ -33,6 +33,7 @@ import pathlib
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import time
 import tomllib
@@ -512,6 +513,8 @@ def capture_versions(cfg, backends):
         "claude": out(["claude", "--version"]),
         "opencode": out(["opencode", "--version"]),
         "codex": out(["codex", "--version"]),
+        # macos/machine kept for continuity with 979 existing rows; the
+        # portable facts arrive below from preflight.machine_facts().
         "macos": out(["sw_vers", "-productVersion"]),
         "machine": out(["sysctl", "-n", "machdep.cpu.brand_string"]),
         "target_commit": cfg["base_commit"],
@@ -533,6 +536,14 @@ def capture_versions(cfg, backends):
     ceiling = metal_ceiling_mb()
     if ceiling:
         env["metal_ceiling_mb"] = ceiling
+
+    # Interrogate the machine on every run rather than assuming last time's.
+    # `macos` and `machine` above are Darwin sysctls and were simply absent on
+    # Linux, so a desktop row could not say what hardware produced it. Includes
+    # `confinement`, because sandbox-exec is macOS-only and a Linux row's
+    # workspace_escapes gate is unenforced -- without it the two rows look
+    # identical in results.jsonl while meaning different things (#81).
+    env.update(preflight.machine_facts())
 
     # .get(): a hosted backend has no base_url at all.
     if any((b.get("base_url") or "").endswith(":11434") for b in backends.values()):

@@ -36,7 +36,9 @@ import dataclasses
 import logging
 import os
 import pathlib
+import platform
 import subprocess
+import sys
 from urllib.parse import urlparse
 
 import opencode_config
@@ -78,6 +80,113 @@ class Proc:
     @property
     def short(self) -> str:
         return self.command.split()[0].rsplit("/", 1)[-1]
+
+
+def _first_match(text: str, prefix: str) -> str | None:
+    """The value after the first line beginning with `prefix`."""
+    for line in text.splitlines():
+        if line.strip().startswith(prefix):
+            return line.split(":", 1)[1].strip() if ":" in line else None
+    return None
+
+
+def total_memory_gib() -> float | None:
+    """Physical RAM, portably. None when it cannot be read.
+
+    macOS reports bytes from a sysctl; Linux reports kB in /proc/meminfo. Both
+    are cheap enough to read on every run, which is the point: the machine is a
+    variable and it has to be on the row, not in a README.
+    """
+    if sys.platform == "darwin":
+        raw = _capture(["sysctl", "-n", "hw.memsize"]).strip()
+        try:
+            return round(int(raw) / 1024**3, 1)
+        except ValueError:
+            return None
+    meminfo = pathlib.Path("/proc/meminfo")
+    if meminfo.exists():
+        kb = _first_match(meminfo.read_text(), "MemTotal")
+        if kb:
+            try:
+                return round(int(kb.split()[0]) / 1024**2, 1)
+            except (ValueError, IndexError):
+                return None
+    return None
+
+
+def cpu_model() -> str | None:
+    """The CPU's own name for itself."""
+    if sys.platform == "darwin":
+        return _capture(["sysctl", "-n", "machdep.cpu.brand_string"]).strip() or None
+    cpuinfo = pathlib.Path("/proc/cpuinfo")
+    if cpuinfo.exists():
+        return _first_match(cpuinfo.read_text(), "model name")
+    return None
+
+
+def gpu_description() -> str | None:
+    """What will actually run the model.
+
+    On Apple Silicon the GPU is the SoC, so the chip name is the honest answer
+    and `cpu_model()` already has it. On a discrete-GPU box the VRAM is the
+    binding constraint and it is nothing like the system RAM -- 12 GiB against
+    30 GiB on the machine that motivated this -- so reporting only RAM would
+    describe the wrong limit.
+    """
+    if sys.platform == "darwin":
+        return cpu_model()
+    try:
+        raw = _capture(
+            [
+                "nvidia-smi",
+                "--query-gpu=name,memory.total",
+                "--format=csv,noheader",
+            ]
+        ).strip()
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return raw.splitlines()[0].strip() if raw else None
+
+
+def machine_facts() -> dict[str, object]:
+    """Interrogate the machine on every run, rather than assuming last time's.
+
+    Every field here was previously either hardcoded, macOS-only, or absent.
+    `machine` came from a Darwin sysctl and was simply missing on Linux; the
+    Metal ceiling was invented off Darwin (#81). A benchmark whose rows cannot
+    say what hardware produced them cannot be compared across machines -- and
+    #20 adds a second machine deliberately, so this stops being hypothetical.
+    """
+    facts: dict[str, object] = {
+        "arch": platform.machine(),
+        "os": f"{platform.system()} {platform.release()}",
+        "cpu": cpu_model(),
+        "cpu_count": os.cpu_count(),
+        "memory_gib": total_memory_gib(),
+        "gpu": gpu_description(),
+        "confinement": confinement(),
+    }
+    ceiling, raised = metal_ceiling()
+    if ceiling is not None:
+        facts["metal_ceiling_gib"] = ceiling
+        facts["metal_ceiling_raised"] = raised
+    return {k: v for k, v in facts.items() if v is not None}
+
+
+def has_metal() -> bool:
+    """Whether a Metal ceiling is a meaningful thing to report here."""
+    return sys.platform == "darwin"
+
+
+def confinement() -> str:
+    """What actually confined the agent, for the row to record.
+
+    `workspace_escapes` and `source_repo_intact` are what make a pass mean
+    something, and `sandbox-exec` is macOS-only. Without this, a Linux row and
+    a macOS row look identical in results.jsonl while carrying different
+    guarantees (#81).
+    """
+    return "sandbox-exec" if sys.platform == "darwin" else "none"
 
 
 def parse_wired_limit(text: str) -> float | None:
@@ -252,6 +361,14 @@ def metal_ceiling() -> tuple[float, bool]:
     the same binary and model "reproduced" for one machine and not another
     (antirez/ds4#890). Neither side checked it, because nothing reported it.
     """
+    if not has_metal():
+        # #81: on Linux the sysctl is absent, the fallback returned the macOS
+        # 128 GiB-host default, and preflight printed "107.5 GiB headroom under
+        # a 107.52 GiB Metal ceiling (stock)" on a 30 GiB box with no GPU
+        # budget of that kind at all. A fabricated number is worse than an
+        # absent one: it is the confident kind of wrong, on the machine fact
+        # this project treats as load-bearing.
+        return (None, False)
     raw = _capture(["sysctl", "iogpu.wired_limit_mb"])
     override = parse_wired_limit(raw)
     return (
@@ -325,23 +442,31 @@ def inspect(backends: dict[str, dict] | None = None) -> Report:
         _capture(["ps", "-eo", "pid,rss,command"]),
         _capture(["lsof", "-nP", "-iTCP", "-sTCP:LISTEN"]),
         None if backends is None else backend_ports(backends),
-        ceiling_gib=metal_ceiling()[0],
+        ceiling_gib=metal_ceiling()[0] or DEFAULT_CEILING_GIB,
     )
 
 
 def log_report(report: Report) -> None:
     """Say what was found, at a level matching how much it matters."""
     ceiling, raised = metal_ceiling()
-    logger.info(
-        "preflight: %.1f GiB held by model servers, %.1f GiB headroom "
-        "under a %.2f GiB Metal ceiling%s",
-        report.total_gib,
-        ceiling - report.total_gib,
-        ceiling,
-        " (RAISED by sysctl, persisted by scripts/install-metal-ceiling.sh)"
-        if raised
-        else " (stock)",
-    )
+    if ceiling is None:
+        logger.info(
+            "preflight: %.1f GiB held by model servers; no Metal ceiling on "
+            "this platform (confinement: %s)",
+            report.total_gib,
+            confinement(),
+        )
+    else:
+        logger.info(
+            "preflight: %.1f GiB held by model servers, %.1f GiB headroom "
+            "under a %.2f GiB Metal ceiling%s",
+            report.total_gib,
+            ceiling - report.total_gib,
+            ceiling,
+            " (RAISED by sysctl, persisted by scripts/install-metal-ceiling.sh)"
+            if raised
+            else " (stock)",
+        )
     for warning in report.warnings():
         logger.warning("preflight: %s", warning)
 

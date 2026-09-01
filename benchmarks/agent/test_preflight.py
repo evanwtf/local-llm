@@ -268,3 +268,77 @@ def test_metal_tensor_prefers_the_newer_build_dir(tmp_path):
         binary.write_text(f"#!/bin/sh\necho 'has tensor = {value}' >&2\n")
         binary.chmod(0o755)
     assert preflight.metal_tensor_api(root) is True
+
+
+# --- platform honesty (#81) -----------------------------------------------
+
+
+def test_no_metal_ceiling_is_reported_off_darwin(monkeypatch):
+    """A fabricated number is worse than an absent one.
+
+    On Linux the sysctl is absent and the old fallback returned the macOS
+    128 GiB-host default, so preflight printed "107.5 GiB headroom under a
+    107.52 GiB Metal ceiling (stock)" on a 30 GiB box. That is the confident
+    kind of wrong, on the machine fact this project treats as load-bearing.
+    """
+    monkeypatch.setattr(preflight.sys, "platform", "linux")
+    ceiling, raised = preflight.metal_ceiling()
+    assert ceiling is None
+    assert raised is False
+
+
+def test_the_ceiling_is_still_read_on_darwin(monkeypatch):
+    monkeypatch.setattr(preflight.sys, "platform", "darwin")
+    monkeypatch.setattr(
+        preflight, "_capture", lambda argv: "iogpu.wired_limit_mb: 114688"
+    )
+    ceiling, raised = preflight.metal_ceiling()
+    assert ceiling == 112.0
+    assert raised is True
+
+
+def test_confinement_names_what_actually_confined_the_agent(monkeypatch):
+    monkeypatch.setattr(preflight.sys, "platform", "darwin")
+    assert preflight.confinement() == "sandbox-exec"
+    monkeypatch.setattr(preflight.sys, "platform", "linux")
+    assert preflight.confinement() == "none"
+
+
+def test_log_report_does_not_print_a_ceiling_off_darwin(monkeypatch, caplog):
+    monkeypatch.setattr(preflight.sys, "platform", "linux")
+    report = preflight.Report([], [], 0.0, 0.0)
+    with caplog.at_level("INFO"):
+        preflight.log_report(report)
+    text = caplog.text
+    assert "Metal ceiling" not in text or "no Metal ceiling" in text
+    assert "confinement: none" in text
+
+
+def test_machine_facts_describe_this_machine(monkeypatch):
+    """Whatever the platform, the row must be able to name its hardware."""
+    facts = preflight.machine_facts()
+    assert facts["arch"]
+    assert facts["os"]
+    assert facts["confinement"] in {"sandbox-exec", "none"}
+    assert isinstance(facts["cpu_count"], int)
+
+
+def test_machine_facts_omit_the_metal_ceiling_off_darwin(monkeypatch):
+    monkeypatch.setattr(preflight.sys, "platform", "linux")
+    facts = preflight.machine_facts()
+    assert "metal_ceiling_gib" not in facts
+    assert facts["confinement"] == "none"
+
+
+def test_memory_is_read_from_proc_on_linux(monkeypatch, tmp_path):
+    """Linux reports kB in /proc/meminfo; macOS reports bytes from a sysctl."""
+    monkeypatch.setattr(preflight.sys, "platform", "linux")
+    meminfo = tmp_path / "meminfo"
+    meminfo.write_text("MemTotal:       32821180 kB\nMemFree: 1 kB\n")
+    monkeypatch.setattr(preflight.pathlib, "Path", lambda p: meminfo)
+    assert preflight.total_memory_gib() == 31.3
+
+
+def test_first_match_returns_none_when_absent():
+    assert preflight._first_match("a: 1\nb: 2\n", "c") is None
+    assert preflight._first_match("model name\t: Ryzen", "model name") == "Ryzen"
