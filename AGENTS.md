@@ -384,6 +384,33 @@ Copying a working config from another tool's `connect` output is how it
 happened. A template answers "will this run", not "does this match the thing I
 am comparing against".
 
+## Wait for a completion, never for /health
+
+`/health` lies. On 2026-08-31 a llama.cpp server answered it with
+`{"status":"ok"}` and HTTP 200 while every completion returned **503**, because
+an 84 GB model was still being read off disk. A batch started on that signal
+failed its smoke gate three times in the same second and reported a degraded
+model.
+
+`curl` compounds it: a 503 is a *successful* HTTP transaction, so
+`curl -s .../health` exits **0** unless you pass `--fail`. A bare health check
+is wrong twice over.
+
+Use the poller, from a shell script or as an import:
+
+```sh
+uv run python benchmarks/agent/wait_ready.py \
+    --base-url http://127.0.0.1:8020 --model qwen3.8-flash-next-q3
+```
+
+It sends a one-token completion every 5 s for up to 300 s and exits 0 only when
+that succeeds. It logs `/health` alongside, because the **gap** between the two
+is the diagnostic: health ok + completion 503 means "still loading", both
+failing means "nothing is listening".
+
+The general rule: **probe with the kind of request the benchmark will actually
+send.** A status endpoint describes the server's opinion of itself.
+
 ## Always start from a known-good reference repo
 
 Before any run, the reference repository must be **clean and on the pinned
