@@ -34,6 +34,7 @@ from __future__ import annotations
 import argparse
 import dataclasses
 import logging
+import os
 import pathlib
 import subprocess
 from urllib.parse import urlparse
@@ -259,6 +260,62 @@ def metal_ceiling() -> tuple[float, bool]:
     )
 
 
+TENSOR_LINE = "has tensor"
+
+
+def parse_metal_tensor(text: str) -> bool | None:
+    """Whether llama.cpp's Metal backend has the tensor API on. None if unknown.
+
+    On an M5 this decides whether prefill uses the Neural Accelerators or falls
+    back to general-purpose shader ALUs. ggml-org/llama.cpp#27461 shipped a
+    build where the probe failed on **every** M5: the tensor API compiled
+    against a Metal language version that did not expose its headers, so
+    `has_tensor` was cleared during device init and prefill quietly ran on the
+    wrong units. The only symptom is one warning line and then normal output.
+
+    We build with GGML_METAL_EMBED_LIBRARY=ON, which is why we are unaffected --
+    and that is a build flag, not a law. #27461 also added a guard that clears
+    `has_tensor` when the library comes from a pre-compiled metallib, so a
+    future change to how we build could switch the M5's matmul units off with no
+    error and no failing test. This is the check that would say so.
+    """
+    for line in text.splitlines():
+        if TENSOR_LINE in line and "=" in line:
+            return line.rsplit("=", 1)[1].strip() == "true"
+    return None
+
+
+def metal_tensor_api(llamacpp_root: pathlib.Path | None = None) -> bool | None:
+    """Ask the local llama.cpp build whether the tensor API is live.
+
+    `--list-devices` is the cheapest binary that initialises the Metal device;
+    `--version` does not, so it reports nothing useful here.
+    """
+    root = (
+        llamacpp_root
+        or pathlib.Path(os.environ.get("LLAMACPP_ROOT", "~/git/llama.cpp")).expanduser()
+    )
+    for build in ("build2", "build"):
+        binary = root / build / "bin" / "llama-bench"
+        if binary.exists():
+            try:
+                # ggml logs device init to stderr, not stdout, so _capture()
+                # alone reads an empty string and reports "unknown" for a
+                # perfectly healthy build. Merge the streams.
+                got = subprocess.run(
+                    [str(binary), "--list-devices"],
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                    stdin=subprocess.DEVNULL,
+                    timeout=60,
+                )
+                return parse_metal_tensor(got.stdout + got.stderr)
+            except (OSError, subprocess.SubprocessError):
+                return None
+    return None
+
+
 def inspect(backends: dict[str, dict] | None = None) -> Report:
     """Run the check against this machine right now.
 
@@ -287,6 +344,22 @@ def log_report(report: Report) -> None:
     )
     for warning in report.warnings():
         logger.warning("preflight: %s", warning)
+
+    # #78. On an M5 this decides whether prefill uses the Neural Accelerators.
+    # Reported every run because the failure mode is silence: llama.cpp#27461
+    # shipped with the probe broken on every M5 and the only symptom was one
+    # warning line during device init.
+    tensor = metal_tensor_api()
+    if tensor is False:
+        logger.warning(
+            "preflight: llama.cpp reports 'has tensor = false' -- prefill will "
+            "run on general-purpose ALUs, not the M5 Neural Accelerators. "
+            "Check GGML_METAL_EMBED_LIBRARY (llama.cpp#27461)"
+        )
+    elif tensor is None:
+        logger.debug("preflight: could not read the Metal tensor API state")
+    else:
+        logger.info("preflight: llama.cpp Metal tensor API is on")
 
 
 # Source builds this project measures through. Checked offline against

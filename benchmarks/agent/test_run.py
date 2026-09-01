@@ -304,8 +304,22 @@ def test_ds4_records_that_its_sampler_is_unreported_not_that_it_is_absent():
 
 
 def test_a_models_response_from_something_else_is_ignored():
-    assert run.parse_ds4_models({"data": [{"id": "gpt-4"}]}) == {}
+    """Ambiguity is ignored; a lone entry is not.
+
+    This used to assert that a single `gpt-4` entry yielded {}, because the
+    parser only accepted ids containing "ds4" or "deepseek". That rule is what
+    #78 fixed: it also rejected `glm-5.3-flash` served by ds4, and every LM
+    Studio model, so those rows carried an empty `servers` entry in silence.
+
+    We choose the base_url, so a server answering with exactly one model is
+    telling us what it serves and recording it is right. What must still be
+    ignored is a response we cannot resolve to one model.
+    """
+    assert run.parse_ds4_models({"data": [{"id": "a"}, {"id": "b"}]}) == {}
     assert run.parse_ds4_models({}) == {}
+    assert run.parse_ds4_models({"data": [{"id": "gpt-4"}]})["served_model_id"] == (
+        "gpt-4"
+    )
 
 
 # --- a second target repository, in another language (#42) ----------------
@@ -567,3 +581,71 @@ def test_opencode_is_the_default_client() -> None:
     """
     src = (pathlib.Path(__file__).parent / "run.py").read_text()
     assert 'clients = args.client or ["opencode"]' in src
+
+
+# --- /v1/models selection (#78) -------------------------------------------
+#
+# The old parser matched the entry whose id contained "ds4" or "deepseek".
+# That silently returned {} for GLM-5.3 (served by ds4 as `glm-5.3-flash`) and
+# for LM Studio, so those rows carried an empty `servers` entry and nobody
+# noticed. These pin the selection rule instead of the substring.
+
+
+def test_openai_models_selects_the_id_the_backend_declares():
+    models = {
+        "data": [
+            {"id": "deepseek-v4-flash", "context_length": 100000},
+            {"id": "glm-5.3-flash", "context_length": 131072},
+        ]
+    }
+    got = run.parse_openai_models(models, {"model": "glm-5.3-flash"})
+    assert got["served_model_id"] == "glm-5.3-flash"
+    assert got["context_length"] == 131072
+
+
+def test_openai_models_reads_glm_which_the_substring_match_dropped():
+    """The exact regression: ds4 serving GLM used to yield {}."""
+    models = {"data": [{"id": "glm-5.3-flash", "context_length": 131072}]}
+    assert run.parse_openai_models(models, {"model": "glm-5.3-flash"})
+
+
+def test_openai_models_falls_back_to_a_lone_entry():
+    """A server with one model needs no declaration to be identifiable."""
+    models = {"data": [{"id": "qwen3.8-flash-next-ud", "quantization": "Q3_K_XL"}]}
+    got = run.parse_openai_models(models, {"model": "something-else"})
+    assert got["served_model_id"] == "qwen3.8-flash-next-ud"
+    assert got["quantization"] == "Q3_K_XL"
+
+
+def test_openai_models_refuses_to_guess_between_several():
+    """Ambiguity must return nothing, not the first row.
+
+    Attributing one model's context length to another is worse than an empty
+    record: an empty record is visibly absent, a wrong one is not.
+    """
+    models = {"data": [{"id": "a", "context_length": 1}, {"id": "b"}]}
+    assert run.parse_openai_models(models, {"model": "c"}) == {}
+
+
+def test_openai_models_keeps_lmstudio_build_fields():
+    models = {
+        "data": [
+            {
+                "id": "qwen3.8-flash-next-ud",
+                "quantization": "Q3_K_XL",
+                "arch": "qwen4exp",
+                "publisher": "unsloth",
+                "max_context_length": 131072,
+            }
+        ]
+    }
+    got = run.parse_openai_models(models, {"model": "qwen3.8-flash-next-ud"})
+    assert got["arch"] == "qwen4exp"
+    assert got["publisher"] == "unsloth"
+    assert got["max_context_length"] == 131072
+
+
+def test_openai_models_handles_nothing():
+    assert run.parse_openai_models({}, {"model": "x"}) == {}
+    assert run.parse_openai_models(None, {"model": "x"}) == {}
+    assert run.parse_openai_models({"data": []}, {"model": "x"}) == {}

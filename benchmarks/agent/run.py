@@ -282,8 +282,21 @@ ANSWER_TREES = {"bench-solutions", "local-llm"}
 DS4_SAMPLER_NOTE = "engine defaults (not reported by ds4)"
 
 
-def parse_ds4_models(models):
-    """Read what ds4's `/v1/models` can tell us about sampling. Which is: not much.
+def parse_openai_models(models, backend=None):
+    """Read what an OpenAI-compatible `/v1/models` can tell us about a backend.
+
+    Every server we run except Ollama answers this endpoint -- ds4, LM Studio,
+    MTPLX -- so one parser covers them. It used to match the entry whose id
+    contained "ds4" or "deepseek", which silently returned {} for anything
+    else: GLM-5.3 is served by ds4 under the id `glm-5.3-flash`, so every
+    `glm53ds4` row carries full `ds4_head` provenance and an empty `servers`
+    entry, and LM Studio was dropped from `servers` entirely. **A substring
+    match against a model name is not a probe.**
+
+    Selection is now, in order: the id the backend declares, then the only
+    entry if there is exactly one. Anything else is ambiguous and returns {}
+    rather than guessing -- picking the wrong row here would attribute one
+    model's context length to another.
 
     Records `accepts_sampling` (the parameters the API takes) and an explicit
     note that the effective values are unreported. That distinction is the
@@ -291,27 +304,37 @@ def parse_ds4_models(models):
     explicit unknown is a warning where silence is not.
     """
     data = (models or {}).get("data") or []
-    entry = next(
-        (
-            d
-            for d in data
-            if "ds4" in str(d.get("id", ""))
-            or "deepseek" in str(d.get("id", "")).lower()
-        ),
-        None,
-    )
+    if not data:
+        return {}
+    wanted = (backend or {}).get("model")
+    entry = next((d for d in data if str(d.get("id", "")) == wanted), None)
+    if entry is None and len(data) == 1:
+        entry = data[0]
     if entry is None:
         return {}
+
     got = {"sampling": {}, "sampling_source": DS4_SAMPLER_NOTE}
+    if entry.get("id"):
+        got["served_model_id"] = entry["id"]
     if entry.get("supported_parameters"):
         got["accepts_sampling"] = list(entry["supported_parameters"])
     if entry.get("context_length"):
         got["context_length"] = entry["context_length"]
+    # LM Studio's /v1/models carries the fields that actually identify a build.
+    for key in ("quantization", "arch", "publisher", "state", "max_context_length"):
+        if entry.get(key) is not None:
+            got[key] = entry[key]
     return got
 
 
-def probe_ds4(backend):
-    """Ask ds4 what it is serving. Returns {} on any failure."""
+# Kept as the old name so callers and tests that predate the generalisation
+# keep working; ds4 is now one of several servers this reads.
+def parse_ds4_models(models):
+    return parse_openai_models(models)
+
+
+def probe_openai_models(backend):
+    """Ask an OpenAI-compatible server what it is serving. {} on any failure."""
     url = backend.get("base_url")
     if not url:
         return {}
@@ -321,10 +344,13 @@ def probe_ds4(backend):
     )
     try:
         with urllib.request.urlopen(request, timeout=10) as fh:
-            return parse_ds4_models(json.load(fh))
+            return parse_openai_models(json.load(fh), backend)
     except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError) as exc:
         logger.debug("no /v1/models from %s: %s", url, exc)
         return {}
+
+
+probe_ds4 = probe_openai_models
 
 
 def probe_server(backend):
@@ -579,13 +605,52 @@ def capture_versions(cfg, backends):
     # and `gguf_bytes` sums both quants into a number that describes neither.
     # Those rows are still in results.jsonl; read `servers` instead.
 
+    # LM Studio's version lived only in a tasks.toml `description` string
+    # ("LM Studio 0.4.23"), which is prose: it goes stale the next time the app
+    # updates itself and nothing notices. `lms --version` reports the CLI's
+    # commit, not the app build -- an incomplete answer, recorded under a name
+    # that says which one it is rather than implying the app version.
+    if any((b.get("base_url") or "").endswith(":1234") for b in backends.values()):
+        env["lmstudio_cli"] = out(["lms", "--version"])
+
     # One probe per backend, keyed by name, because a run can span several and
     # each row records which one it used.
     servers = {
-        name: (probe_server(b) or probe_ollama(b) or probe_ds4(b))
+        name: (probe_server(b) or probe_ollama(b) or probe_openai_models(b))
         for name, b in backends.items()
     }
     servers = {k: v for k, v in servers.items() if v}
+
+    # #78: every gap in this record arrived the same way -- a backend was added,
+    # no probe covered it, and the rows came out unstamped in silence. LM Studio
+    # went six backends' worth of comparison with no server identity at all, and
+    # GLM-5.3 lost its `servers` entry to a substring match. Say so on the row.
+    #
+    # A warning, not a refusal: this is provenance, and the surrounding probes
+    # are all documented as never taking a trial down. But an explicit absence
+    # is a warning where silence is not -- the same reason `sampling_source`
+    # records "engine defaults (unrecorded)" rather than omitting the key.
+    unstamped = sorted(
+        name
+        for name, b in backends.items()
+        if b.get("base_url") and name not in servers
+    )
+    if unstamped:
+        env["servers_unidentified"] = unstamped
+        logger.warning(
+            "no server identity for %s -- rows will not name the engine that "
+            "served them (#78)",
+            ", ".join(unstamped),
+        )
+
+    # A hosted backend has no base_url and no build to pin. That is not the same
+    # as a local server we failed to probe, and it must not read as one: the
+    # hosted model is the reference the task ceilings are set against, so it is
+    # the row where an unnoticed change upstream does the most damage.
+    hosted = sorted(name for name, b in backends.items() if not b.get("base_url"))
+    if hosted:
+        env["hosted_unpinned"] = hosted
+
     if servers:
         env["servers"] = servers
     return {k: v for k, v in env.items() if v is not None}

@@ -203,3 +203,68 @@ def test_the_ceiling_falls_back_to_the_stock_default_when_unset():
         preflight.ceiling_gib("iogpu.wired_limit_mb: 0") == preflight.STOCK_CEILING_GIB
     )
     assert preflight.STOCK_CEILING_GIB == 107.52
+
+
+# --- Metal tensor API (#78) ------------------------------------------------
+#
+# ggml-org/llama.cpp#27461: on an M5 the tensor API probe could fail silently
+# and prefill would run on general-purpose ALUs instead of the Neural
+# Accelerators. One warning line during device init, then normal output.
+
+
+def test_metal_tensor_reads_the_enabled_line():
+    text = (
+        "ggml_metal_device_init: has unified memory    = true\n"
+        "ggml_metal_device_init: has bfloat            = true\n"
+        "ggml_metal_device_init: has tensor            = true\n"
+    )
+    assert preflight.parse_metal_tensor(text) is True
+
+
+def test_metal_tensor_reads_the_disabled_line():
+    text = (
+        "ggml_metal_device_init: - the tensor API is not supported in this "
+        "environment - disabling\n"
+        "ggml_metal_device_init: has tensor            = false\n"
+    )
+    assert preflight.parse_metal_tensor(text) is False
+
+
+def test_metal_tensor_is_unknown_when_absent():
+    """A missing line must not read as False.
+
+    Absent means we could not tell -- an older binary, a non-Metal build. A
+    False would send someone chasing a regression that is really a parse gap.
+    """
+    assert (
+        preflight.parse_metal_tensor("ggml_metal_device_init: has bfloat = true\n")
+        is None
+    )
+    assert preflight.parse_metal_tensor("") is None
+
+
+def test_metal_tensor_reads_stderr_not_just_stdout(tmp_path, monkeypatch):
+    """ggml logs device init to stderr.
+
+    The first version of this check read stdout only, returned None against a
+    healthy build, and would have reported "unknown" forever. Caught by running
+    it against the real binary, not by the unit tests -- which is the argument
+    for keeping this one.
+    """
+    root = tmp_path / "llama.cpp"
+    binary = root / "build" / "bin" / "llama-bench"
+    binary.parent.mkdir(parents=True)
+    binary.write_text("#!/bin/sh\necho 'has tensor = true' >&2\n")
+    binary.chmod(0o755)
+    assert preflight.metal_tensor_api(root) is True
+
+
+def test_metal_tensor_prefers_the_newer_build_dir(tmp_path):
+    """build2/ is the current build; build/ may be a preserved older one."""
+    root = tmp_path / "llama.cpp"
+    for name, value in (("build", "false"), ("build2", "true")):
+        binary = root / name / "bin" / "llama-bench"
+        binary.parent.mkdir(parents=True)
+        binary.write_text(f"#!/bin/sh\necho 'has tensor = {value}' >&2\n")
+        binary.chmod(0o755)
+    assert preflight.metal_tensor_api(root) is True
