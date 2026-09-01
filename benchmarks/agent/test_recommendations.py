@@ -93,3 +93,24 @@ def test_the_full_config_snippet_parses() -> None:
     assert cfg["model"] in {
         f"{p}/{k}" for p, spec in cfg["provider"].items() for k in spec["models"]
     }, "the default model is not one this config declares"
+
+
+def test_every_task_link_resolves_to_a_real_prompt_heading() -> None:
+    """A reader meeting `mbox-scan` needs the prompt one click away, and a
+    broken anchor is worse than no link: it looks authoritative and goes
+    nowhere. PROMPTS.md is generated, so its headings move when tasks change.
+    """
+    doc = DOC.read_text()
+    prompts = (pathlib.Path(__file__).parent / "PROMPTS.md").read_text()
+    headings = set(re.findall(r"^### `([^`]+)`", prompts, re.MULTILINE))
+    linked = set(re.findall(r"\(benchmarks/agent/PROMPTS\.md#([a-z0-9-]+)\)", doc))
+    assert linked, "no task links found in RECOMMENDATIONS.md"
+    assert linked <= headings, f"dangling links: {sorted(linked - headings)}"
+
+
+def test_every_task_in_the_stack_tables_is_described() -> None:
+    """No task name should appear in a results table without the reader having
+    been told what it is."""
+    doc = DOC.read_text()
+    for task in gen_tables.TASK_SUMMARY:
+        assert f"PROMPTS.md#{task}" in doc, f"{task} is never linked or described"

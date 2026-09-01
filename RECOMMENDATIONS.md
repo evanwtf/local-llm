@@ -84,6 +84,47 @@ median hides how bad the bad runs get.
 
 ---
 
+## What is being measured
+
+Every number below comes from a real coding agent doing a real task, timed end
+to end. There are two kinds of task, and they measure different things.
+
+**Excision tasks.** The agent gets a checkout of a real Python repository
+([`gmail-archive`](https://github.com/evandhoffman/gmail-archive), pinned at one
+commit) in which **one function body has been deleted** and replaced with
+`raise NotImplementedError`. The repository's own test suite is the only oracle.
+No test is shown to the agent as a target, and editing tests is forbidden and
+checked afterwards. This measures whether a stack can find its way around code
+it has never seen.
+
+| task | what the agent is asked to do |
+|---|---|
+| [`mbox-strip-envelope`](benchmarks/agent/PROMPTS.md#mbox-strip-envelope) | implement `strip_envelope` in an mbox parser |
+| [`parser-mbox-quoting`](benchmarks/agent/PROMPTS.md#parser-mbox-quoting) | implement `unquote_mbox`, which must round-trip with `requote_mbox` |
+| [`storage-blob-put`](benchmarks/agent/PROMPTS.md#storage-blob-put) | implement `BlobStore.put` |
+| [`parser-date`](benchmarks/agent/PROMPTS.md#parser-date) | implement `_date`, an email date parser |
+| [`mbox-scan`](benchmarks/agent/PROMPTS.md#mbox-scan) | implement `scan`, which walks an mbox file |
+
+**Script tasks.** The agent starts in an **empty directory** and must produce a
+working command-line program — the right filename, reading `argv`, printing to
+stdout. Trivial logic, real boilerplate, and no repository to navigate.
+
+| task | what the agent is asked to do |
+|---|---|
+| [`script-reverse`](benchmarks/agent/PROMPTS.md#script-reverse) | write `reverse.py`: take a string, print it reversed |
+| [`script-transform`](benchmarks/agent/PROMPTS.md#script-transform) | write `transform.py`: `--input` plus `--reverse`, `--sort` and `--sha256`, applied in a fixed order whatever order the flags arrive in |
+
+**The exact prompt for every task is published** in
+[`benchmarks/agent/PROMPTS.md`](benchmarks/agent/PROMPTS.md), generated from the
+file the harness actually reads, with a test that fails if the two drift. If a
+number here looks surprising, read the prompt that produced it.
+
+**Why both kinds.** The script tasks have almost no variance (1.0–2.1x between
+the best and worst run of the same task) because there is no codebase to get
+lost in, which makes them the fair way to compare stacks. The excision tasks are
+noisier but closer to real work. A stack that does well on one and badly on the
+other is telling you something.
+
 ## Measured results
 
 <!-- BEGIN GENERATED -->
@@ -106,15 +147,15 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 
 #### Same weights, two engines
 
-| task | llama.cpp | LM Studio |
-|---|---|---|
-| `mbox-scan` | 108s | 140s |
-| `mbox-strip-envelope` | 50s | 94s |
-| `parser-date` | 164s | 238s |
-| `parser-mbox-quoting` | 70s | 93s |
-| `script-reverse` | 41s | 57s |
-| `script-transform` | 39s | 70s |
-| `storage-blob-put` | 89s | 124s |
+| task | what it asks for | llama.cpp | LM Studio |
+|---|---|---|---|
+| [`mbox-scan`](benchmarks/agent/PROMPTS.md#mbox-scan) | implement `scan`, which walks an mbox file | 108s | 140s |
+| [`mbox-strip-envelope`](benchmarks/agent/PROMPTS.md#mbox-strip-envelope) | implement `strip_envelope` in an mbox parser | 50s | 94s |
+| [`parser-date`](benchmarks/agent/PROMPTS.md#parser-date) | implement `_date`, an email date parser | 164s | 238s |
+| [`parser-mbox-quoting`](benchmarks/agent/PROMPTS.md#parser-mbox-quoting) | implement `unquote_mbox`, round-tripping with `requote_mbox` | 70s | 93s |
+| [`script-reverse`](benchmarks/agent/PROMPTS.md#script-reverse) | write `reverse.py` from nothing: read argv, print reversed | 41s | 57s |
+| [`script-transform`](benchmarks/agent/PROMPTS.md#script-transform) | write `transform.py`: `--input` plus three composable flags | 39s | 70s |
+| [`storage-blob-put`](benchmarks/agent/PROMPTS.md#storage-blob-put) | implement `BlobStore.put` | 89s | 124s |
 
 #### How fast each stack actually serves tokens
 

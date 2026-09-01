@@ -29,6 +29,21 @@ import results
 HERE = pathlib.Path(__file__).parent
 FIX = "7356460"
 
+# RECOMMENDATIONS.md sits at the repo root; PROMPTS.md publishes the exact text
+# of every task, generated from tasks.toml. A reader meeting "mbox-scan" for
+# the first time needs one line here and the prompt itself one click away.
+PROMPTS = "benchmarks/agent/PROMPTS.md"
+
+TASK_SUMMARY = {
+    "mbox-strip-envelope": "implement `strip_envelope` in an mbox parser",
+    "parser-mbox-quoting": "implement `unquote_mbox`, round-tripping with `requote_mbox`",
+    "storage-blob-put": "implement `BlobStore.put`",
+    "parser-date": "implement `_date`, an email date parser",
+    "mbox-scan": "implement `scan`, which walks an mbox file",
+    "script-reverse": "write `reverse.py` from nothing: read argv, print reversed",
+    "script-transform": "write `transform.py`: `--input` plus three composable flags",
+}
+
 
 def _after_fix() -> set[str]:
     out = subprocess.run(
@@ -99,13 +114,14 @@ def engine_table(rows: list[dict[str, Any]], a: str, b: str) -> list[str]:
     for r in valid_opencode(rows):
         if r["backend"] in (a, b) and r.get("wall_seconds"):
             by[r["task"]].setdefault(r["backend"], []).append(r["wall_seconds"])
-    out = ["| task | llama.cpp | LM Studio |", "|---|---|---|"]
+    out = ["| task | what it asks for | llama.cpp | LM Studio |", "|---|---|---|---|"]
     for task in sorted(by):
         cell = by[task]
         if a not in cell or b not in cell:
             continue
         out.append(
-            f"| `{task}` | {statistics.median(cell[a]):.0f}s | "
+            f"| [`{task}`]({PROMPTS}#{task}) | {TASK_SUMMARY.get(task, '')} | "
+            f"{statistics.median(cell[a]):.0f}s | "
             f"{statistics.median(cell[b]):.0f}s |"
         )
     return out
