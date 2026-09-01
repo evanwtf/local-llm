@@ -41,6 +41,7 @@ import urllib.request
 
 import excise
 import grade
+import plausibility
 import preflight
 import provenance
 import results
@@ -1655,6 +1656,13 @@ def main():
         "server than the other.",
     )
     p.add_argument(
+        "--allow-implausible",
+        action="store_true",
+        help="do not halt when a cell collapses against this backend's record "
+        "under another client. Use only when deliberately measuring a setup "
+        "known to be broken (#55).",
+    )
+    p.add_argument(
         "--skip-smoke",
         action="store_true",
         help="skip the pre-batch coding gate (#63). The gate makes each backend "
@@ -1781,6 +1789,10 @@ def main():
         args.trials,
     )
     logger.info("stack: %s", ", ".join(f"{k}={v}" for k, v in sorted(versions.items())))
+    # Every trustworthy row already on disk, read once: the gate calibrates
+    # against this project's own record rather than anyone's claims.
+    history = [r for r in results.trials(RESULTS) if not results.is_excluded(r)]
+    cell: dict[tuple[str, str], list[dict]] = {}
     for trial in range(1, args.trials + 1):
         for task in tasks:
             for bname, backend in backends.items():
@@ -1811,6 +1823,21 @@ def main():
                     # to a schema bug is worse than storing a flagged row.
                     r["finished"] = time.strftime("%Y-%m-%dT%H:%M:%S")
                     results.write_row(r, RESULTS)
+
+                    # #55: let the batch disbelieve itself. A widely-used
+                    # client collapsing on a backend that works under another
+                    # client is the shape a harness bug makes -- it is what
+                    # --dir produced, and it was published twice before anyone
+                    # asked. Check after every trial so the alarm costs four
+                    # trials rather than fifteen.
+                    cell.setdefault((bname, client), []).append(r)
+                    if not args.allow_implausible:
+                        why = plausibility.implausible(
+                            cell[(bname, client)], history, bname, client
+                        )
+                        if why:
+                            logger.error("IMPLAUSIBLE: %s", why)
+                            raise SystemExit("halted by the plausibility gate (#55)")
 
 
 if __name__ == "__main__":
