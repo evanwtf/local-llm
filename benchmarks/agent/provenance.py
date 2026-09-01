@@ -43,18 +43,40 @@ def _git(*args: str, cwd: pathlib.Path = HERE) -> str | None:
     return r.stdout.strip() if r.returncode == 0 else None
 
 
+# Files a run legitimately appends to. A benchmark writes results.jsonl, so
+# treating that as "dirty" would flag every run after the first and the flag
+# would stop meaning anything. `-dirty` must mean the CODE is uncommitted.
+DATA_SUFFIXES = (".jsonl", ".log")
+
+
+def _code_is_dirty(cwd: pathlib.Path) -> bool:
+    status = _git("status", "--porcelain", cwd=cwd)
+    if not status:
+        return False
+    for line in status.splitlines():
+        path = line[3:].strip().strip('"')
+        # A rename is "old -> new"; judge the destination.
+        path = path.split(" -> ")[-1]
+        if not path.endswith(DATA_SUFFIXES):
+            return True
+    return False
+
+
 @functools.cache
 def head(cwd: pathlib.Path = HERE) -> str:
-    """Short HEAD, with `-dirty` when the tree has uncommitted changes.
+    """Short HEAD, with `-dirty` when uncommitted CODE is present.
 
-    Cached: it is read once per process, and a commit made mid-run would
-    otherwise make two lines from the same run disagree.
+    Data files a run appends to (`.jsonl`, `.log`) do not count: the first
+    trial of any batch modifies results.jsonl, and a flag that fires on every
+    run is a flag nobody reads.
+
+    Cached: read once per process, so a commit made mid-run cannot make two
+    lines from the same run disagree.
     """
     sha = _git("rev-parse", "--short=7", "HEAD", cwd=cwd)
     if sha is None:
         return UNKNOWN
-    dirty = _git("status", "--porcelain", cwd=cwd)
-    return f"{sha}-dirty" if dirty else sha
+    return f"{sha}-dirty" if _code_is_dirty(cwd) else sha
 
 
 class _Stamp(logging.Filter):

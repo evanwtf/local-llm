@@ -95,3 +95,58 @@ def test_no_entry_point_calls_basicConfig_directly() -> None:
         if p.name not in exempt and "logging.basicConfig(" in p.read_text()
     ]
     assert not offenders, f"{offenders} bypass provenance.configure()"
+
+
+def _repo(tmp_path):
+    import subprocess
+
+    def git(*a):
+        subprocess.run(["git", *a], cwd=tmp_path, check=True, capture_output=True)
+
+    git("init", "-q")
+    git("config", "user.email", "t@example.com")
+    git("config", "user.name", "t")
+    (tmp_path / "code.py").write_text("x = 1\n")
+    (tmp_path / "results.jsonl").write_text('{"a":1}\n')
+    git("add", "-A")
+    git("commit", "-qm", "initial")
+    return tmp_path
+
+
+def test_appending_to_a_data_file_is_not_dirty(tmp_path) -> None:
+    """A benchmark writes results.jsonl on its first trial. If that counted as
+    dirty, every run after the first would be flagged and the flag would stop
+    being read."""
+    repo = _repo(tmp_path)
+    (repo / "results.jsonl").write_text('{"a":1}\n{"a":2}\n')
+    assert not provenance._code_is_dirty(repo)
+
+
+def test_changing_code_is_dirty(tmp_path) -> None:
+    repo = _repo(tmp_path)
+    (repo / "code.py").write_text("x = 2\n")
+    assert provenance._code_is_dirty(repo)
+
+
+def test_a_new_untracked_source_file_is_dirty(tmp_path) -> None:
+    repo = _repo(tmp_path)
+    (repo / "new.py").write_text("y = 1\n")
+    assert provenance._code_is_dirty(repo)
+
+
+def test_a_new_log_file_is_not_dirty(tmp_path) -> None:
+    repo = _repo(tmp_path)
+    (repo / "run.log").write_text("noise\n")
+    assert not provenance._code_is_dirty(repo)
+
+
+def test_code_and_data_together_are_dirty(tmp_path) -> None:
+    """The data change must not mask the code change."""
+    repo = _repo(tmp_path)
+    (repo / "results.jsonl").write_text('{"a":9}\n')
+    (repo / "code.py").write_text("x = 3\n")
+    assert provenance._code_is_dirty(repo)
+
+
+def test_a_clean_tree_is_clean(tmp_path) -> None:
+    assert not provenance._code_is_dirty(_repo(tmp_path))
