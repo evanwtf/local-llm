@@ -570,16 +570,40 @@ context_tokens = 65536
 # model. This is the exact defect ollama_claude_shim.py hoist_system() was
 # written for against Ollama, and the same fix works here. Same weights, same
 # LM Studio server, same everything as qwen38fnq3lms; only the shim differs.
+# RETIRED 2026-09-01. LM Studio is a wrapper whose runtime is llama.cpp, so on
+# the same GGUF it cannot beat llama.cpp -- it can only add a layer, and it does:
+# identical UD-Q3_K_XL weights, identical client, identical tasks, and
+# **llama.cpp 90s median against LM Studio 122s** with correctness identical.
+# It is also the only backend that recorded no server identity at all (#78), so
+# it was a variable we could not pin. Its one unique offering was an MLX
+# runtime, and #60's MLX branch is blocked on weights regardless.
+#
+# Kept in this file, not deleted: the 27 rows it produced stay valid and the
+# configuration above is the record of how they were made. `retired` removes it
+# from the default matrix; naming it with --backend still runs it.
 [backend.qwen38fnq3lmsshim]
 description = "Qwen3.8-Flash-Next UD-Q3_K_XL via LM Studio 0.4.23, behind ollama_claude_shim"
+retired = "superseded by llamacpp; see the note above (2026-09-01)"
 base_url = "http://127.0.0.1:11502"
 props_url = "http://127.0.0.1:1234/v1/models"
 auth_token = "lm-studio"
 model = "qwen3.8-flash-next-ud"
 context_tokens = 131072
 
+# RETIRED 2026-09-01. LM Studio is a wrapper whose runtime is llama.cpp, so on
+# the same GGUF it cannot beat llama.cpp -- it can only add a layer, and it does:
+# identical UD-Q3_K_XL weights, identical client, identical tasks, and
+# **llama.cpp 90s median against LM Studio 122s** with correctness identical.
+# It is also the only backend that recorded no server identity at all (#78), so
+# it was a variable we could not pin. Its one unique offering was an MLX
+# runtime, and #60's MLX branch is blocked on weights regardless.
+#
+# Kept in this file, not deleted: the 27 rows it produced stay valid and the
+# configuration above is the record of how they were made. `retired` removes it
+# from the default matrix; naming it with --backend still runs it.
 [backend.qwen38fnq3lms]
 description = "Qwen3.8-Flash-Next UD-Q3_K_XL via LM Studio 0.4.23"
+retired = "superseded by llamacpp; see the note above (2026-09-01)"
 base_url = "http://127.0.0.1:1234"
 auth_token = "lm-studio"
 model = "qwen3.8-flash-next-ud"

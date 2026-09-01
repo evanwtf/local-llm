@@ -313,6 +313,11 @@ easiest way to get a model running. But it served the *identical* file at
 **134 seconds per 1,000 tokens against llama.cpp's 42**, and lost on five of six
 tasks. If you want a GUI, use it; if you want the machine's speed, do not.
 
+We also stopped *testing* it on 2026-09-01. Its runtime is llama.cpp
+underneath, so on the same GGUF it cannot win — it can only add a layer, and
+the measurement above is that layer. The numbers here stand; they are simply
+not going to be re-taken.
+
 **GLM-5.3-Flash.** 16/18 and genuinely fast per token, but an 18x spread on one
 task — its three runs took 99 s, 378 s and 1,227 s. Excellent model,
 unpredictable to plan around. Revisit it.

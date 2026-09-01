@@ -1743,6 +1743,15 @@ def main():
     backends = {
         k: v for k, v in cfg["backend"].items() if not args.backend or k in args.backend
     }
+    # A retired backend stays in tasks.toml -- its rows are still valid and the
+    # config is the record of how they were made -- but it is out of the default
+    # matrix. Naming it explicitly still runs it, so a retirement can be
+    # revisited without editing config back in.
+    if not args.backend:
+        for name, b in sorted(backends.items()):
+            if b.get("retired"):
+                logger.info("skipping retired backend %s: %s", name, b["retired"])
+        backends = {k: v for k, v in backends.items() if not v.get("retired")}
     if not tasks or not backends:
         raise SystemExit("no tasks or no backends selected")
 

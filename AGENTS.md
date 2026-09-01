@@ -25,6 +25,29 @@ Two hard rules, both from mistakes:
 - **Date and version every claim.** Sources describing a tool from six months
   ago may describe several major versions back (#55).
 
+## Three engines, not four: LM Studio is retired (2026-09-01)
+
+**llama.cpp, ds4 and Ollama.** Each earns its slot for a different reason --
+llama.cpp is the fast pick, ds4 is the only engine that runs our one
+independent lineage, and Ollama is the 31 GB entry point and the only path for
+`ornith15`, `gemma4` and `qwen36coding`. Ollama is here on friction, not speed;
+dropping it would delete the recommendation a newcomer actually follows.
+
+**LM Studio is `retired` in tasks.toml.** Its runtime is llama.cpp underneath,
+so on the same GGUF it cannot beat llama.cpp -- it can only add a layer, and it
+does: identical UD-Q3_K_XL weights, identical client and tasks, **90s median
+against 122s**, correctness identical. It was also the only backend recording
+no server identity at all (#78).
+
+**Retire, do not delete.** The config block stays in tasks.toml because 27 rows
+in results.jsonl reference it, and those rows are unexplainable without the
+sampler, context length and documented deviations that block records. `retired`
+removes a backend from the default matrix; naming it with `--backend` still
+runs it, so a retirement can be revisited without editing config back in.
+
+**This does not narrow #60.** That issue is about engines we have never run.
+This drops one we measured and found dominated -- the opposite operation.
+
 ## Measure OpenCode only, unless the run is about another client (2026-09-01)
 
 **Default to `--client opencode` and nothing else.** Aider, Claude Code and

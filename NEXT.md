@@ -92,6 +92,15 @@ does not fit 128 GB regardless of download time; the local
 oMLX is not on PyPI. **Rapid-MLX is** and is the one MLX engine reachable
 without a decision about weights.
 
+**Engine scope narrowed 2026-09-01: three engines.** llama.cpp (the fast pick),
+ds4 (the only engine that runs our one independent lineage) and Ollama (the
+31 GB "start here" pick, and the only path for `ornith15`, `gemma4` and
+`qwen36coding`). **LM Studio is retired** -- `retired` in tasks.toml, kept there
+rather than deleted because 27 rows reference it. It is a wrapper over
+llama.cpp, so on the same GGUF it can only add a layer, and it does: 90s median
+against 122s, correctness identical. This does not narrow #60, which is about
+engines we have **never** run; it drops one we measured and found dominated.
+
 **Client scope narrowed 2026-09-01: OpenCode only** unless a run is
 explicitly about another agent (see AGENTS.md). The client axis is measured --
 11.1 s Aider, 39.5 s OpenCode, 189.6 s Claude Code on one server for the same

@@ -12,11 +12,14 @@ from __future__ import annotations
 import io
 import json
 import pathlib
+import tomllib
 import urllib.error
 
 import pytest
 
 import run
+
+HERE = pathlib.Path(__file__).resolve().parent
 
 PROPS = {
     "model_path": "/models/GLM-5.3-Flash-GGUF/UD-Q2_K_XL/GLM-00001-of-00004.gguf",
@@ -649,3 +652,21 @@ def test_openai_models_handles_nothing():
     assert run.parse_openai_models({}, {"model": "x"}) == {}
     assert run.parse_openai_models(None, {"model": "x"}) == {}
     assert run.parse_openai_models({"data": []}, {"model": "x"}) == {}
+
+
+# --- retired backends -----------------------------------------------------
+
+
+def test_retired_backends_are_documented_not_deleted():
+    """LM Studio is retired but its config must survive.
+
+    27 rows in results.jsonl name these backends. Deleting the blocks would
+    leave those rows unexplainable -- which sampler, which context length,
+    which deviations from LM Studio's defaults. The config is the record.
+    """
+    cfg = tomllib.loads((HERE / "tasks.toml").read_text())
+    retired = {k: v for k, v in cfg["backend"].items() if v.get("retired")}
+    assert "qwen38fnq3lms" in retired
+    for name, backend in retired.items():
+        assert backend.get("description"), name
+        assert isinstance(backend["retired"], str) and backend["retired"], name
