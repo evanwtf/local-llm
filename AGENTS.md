@@ -25,6 +25,14 @@ Two hard rules, both from mistakes:
 - **Date and version every claim.** Sources describing a tool from six months
   ago may describe several major versions back (#55).
 
+## The testing set is written down (2026-09-01)
+
+[`TESTING-SET.md`](TESTING-SET.md) lists the four axes -- hardware, client,
+engine, model -- plus the task set, and marks which backends have valid current
+data against which are configured and unmeasured. **Read it before adding a
+variable**, and update it in the same commit that changes one; a test fails if a
+live backend in `tasks.toml` is missing from it.
+
 ## Three engines, not four: LM Studio is retired (2026-09-01)
 
 **llama.cpp, ds4 and Ollama.** Each earns its slot for a different reason --

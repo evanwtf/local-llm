@@ -92,6 +92,11 @@ does not fit 128 GB regardless of download time; the local
 oMLX is not on PyPI. **Rapid-MLX is** and is the one MLX engine reachable
 without a decision about weights.
 
+**The testing set is written down**, in [`TESTING-SET.md`](TESTING-SET.md):
+hardware, client, engine, model and the task set, with the six backends that
+have valid current data separated from the thirteen that are configured and
+unmeasured. A test fails if it drifts from `tasks.toml`.
+
 **Engine scope narrowed 2026-09-01: three engines.** llama.cpp (the fast pick),
 ds4 (the only engine that runs our one independent lineage) and Ollama (the
 31 GB "start here" pick, and the only path for `ornith15`, `gemma4` and
