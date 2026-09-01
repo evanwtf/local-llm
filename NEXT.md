@@ -1,34 +1,31 @@
 # Where to pick up
 
-Updated 2026-08-31 17:20. **GLM-5.3 works as a coding agent, and two defects in
-our own harness were masking it.** #65 is running to a 20:00 timebox; **#66 is
-next** -- a new task class where the agent builds a script from an empty
-directory, with a clean Opus baseline. #65 is: `qwen3.6-coding` under three
-clients, because it is the only 31 GB candidate and the first clean test of
-OpenCode anywhere. Then rewrite RECOMMENDATIONS from the data. Each issue is
-self-contained; this file only sets priority and records machine state that is
-not in git. The table is the queue. It has no calendar.
+Updated 2026-09-01 00:15. **OpenCode was never broken — we were calling it
+wrong.** `opencode run` attaches to a persistent server that ignores the
+caller's `cwd`; the missing `--dir` flag took the worst cell from **1/15 to
+3/3**. Every OpenCode number this project published measured our invocation.
+**#67 is first: re-measure all of it.** Each issue is self-contained; this file
+only sets priority and records machine state that is not in git. The table is
+the queue. It has no calendar.
 
 ## Order
 
 | # | issue | why this position |
 |---|---|---|
-| 1 | **#65** Re-run `qwen3.6:27b-coding-mxfp8` under Claude Code, Aider, OpenCode | **31 GB against 90.** The only candidate that leaves the machine usable, so it is slot 3 of the rewritten recommendations and a stranger will be told to rely on it. Model is installed; no download. Also the **first clean OpenCode test on a backend it has never met** — every prior OpenCode number predates confinement. A pass lifts the "do not use" verdict; a failure on a third independent backend makes it a client defect rather than a pairing artifact. |
-| 2 | **#66** Run the new script-task class everywhere, **Opus baseline first** | Landed in `cb583b1`. The agent starts in an **empty directory** and must build a runnable `reverse.py` -- filename, argv, stdout. Trivial logic, real boilerplate, and boilerplate is what an excision task can never exercise. No repo means no fixture, no stash, no history to leak and nothing to tamper with, so it is cheap enough to sweep every backend x client. **The first task class where the hosted reference is clean**: opus5's excision rows measure authorship contamination (Opus wrote gmail-archive); nobody wrote a greenfield script. Expected ~30 s, giving every local pairing a ratio against a real ceiling. |
-| 3 | **Rewrite RECOMMENDATIONS.md** (archived at `docs/archive/RECOMMENDATIONS-2026-08-29.md`) | Written for a stranger on this hardware: top 3 stacks with **pasteable** setup, from `git clone` to a running agent. Tables **generated from `results.jsonl`**, never transcribed — transcription is how a cell with three dropped timeouts got published as 13/13. Blocked on #65 only for slot 3. |
-| 4 | **#64** KV prefix stalls at ~20,400 on the Claude Code path | Reproduced, cause open. Every turn re-prefills everything past token 20,398 — measured at **193 s vs 931 s** on the same model and task, Aider vs Claude Code. **Inflates every Claude Code wall time this project holds.** One experiment left: normalise `content` shape in the shim, re-run one traced trial, check whether `live_prompt_common` advances. |
-| 5 | **#62** GLM-5.3 full Claude Code cell | 6/7 on a stopped run. Worth 15 trials **after** #64, since #64 is what times it out. |
-| 6 | **#55** The harness cannot tell a bad result from a broken measurement | Partly answered: `smoke.gate()` (`ffe7aca`) now refuses a backend that cannot write three trivial functions. What remains is the plausibility gate — **`agent_error=True` still does not set `excluded`**, which is how 16 client crashes made the hosted reference read 64%. |
-| 7 | **#56** Survey open coding agents | Aider is **done and validated**; Pi remains. |
-| 8 | **#4 / #45 / #53 / #35 / #27 / #19 / #49 / #46 / #51** | Unchanged, behind the integrity work. |
+| 1 | **#67** Re-measure everything OpenCode | The whole record is void, and it is void in the project's favour. 13/29 on ds4, 4/14 on LM Studio, 1/12 on llama.cpp, 0/9 on the script task -- all our flag. Re-run: script tasks first (minutes), then the excision cells. **This decides whether the open stack is viable**, which is what the README is about. |
+| 2 | **Rewrite RECOMMENDATIONS.md** (archived at `docs/archive/RECOMMENDATIONS-2026-08-29.md`) | Blocked on #67 only for the OpenCode column. Everything else is ready and the headline has changed completely: **the client is the dominant cost on any large local model.** GLM-5.3 finished the same task in **6.4 s under Aider and 103.3 s under Claude Code**. A recommendation naming a model without naming a client is close to meaningless at that spread. Written for a stranger on this hardware: top 3 stacks, pasteable from `git clone` to a running agent. |
+| 3 | **#66** Finish the script-task sweep | 27 live trials done across Opus, GLM, DeepSeek, Q3, Qwen3.6. Missing: OpenCode everywhere (#67), and `script-transform` (spec written, `SCRIPT-TRANSFORM.md`) has never run in the harness. **This class produced more signal in 40 minutes than the excision suite managed in four hours.** |
+| 4 | **#68** llama.cpp fa-vec tunings exist for seven Apple chips and none for M5 | Filed tonight from the upstream sweep. If unknown hardware falls back to a generic profile, every llama.cpp number here was measured on an untuned decode path -- and it may explain why `qwen38fnq3` costs 196.5 s under Claude Code against DeepSeek's 73.6 s. Cheap to test (`-fa on/off`), and upstream is visibly accepting these tunings. |
+| 5 | **#64** KV prefix stalls at ~20,400 tokens on the Claude Code path | Reproduced, cause open, one experiment left (normalise `content` shape, re-run one traced trial). Cost measured on real work: **193 s against 931 s** on the same model and task, Aider vs Claude Code. Inflates every Claude Code wall time we hold. Aider does not pay it, which is why this is no longer blocking. |
+| 6 | **#55** The harness cannot tell a bad result from a broken measurement | Three parts shipped tonight -- `smoke.gate()`, `agent_error` auto-exclusion, `wait_ready.py`. What remains is the plausibility gate: **a cell at 1/15 for a widely-used tool should halt a run, not get published twice.** It was published twice. |
+| 7 | **#62** GLM-5.3 full Claude Code cell | 6/7 on a stopped run, and GLM is the fastest local pairing measured (**6.4 s under Aider, beating hosted Opus at 9.7 s**). Worth the full 15 trials after #64. |
+| 8 | **#56** Survey open coding agents | Aider done and validated. **Nativ v0.3.6** flagged tonight by two tier-1 sources -- a new Apple Silicon agent client, and after tonight a new client is a bigger lead than a new quant. Pi still unrun. |
+| 9 | **#60** The engine gap | Four engines being actively benchmarked on our hardware that we have never run. QSA now has an implementer, an independent confirmer on a second engine, and a 105 GB one-shot with a published transcript -- from someone on **our exact machine**. |
+| 10 | **#4** Harder tasks cannot measure code quality | Unchanged in priority but sharpened: `script-transform` was predicted to pass everywhere and did, first try, in 36 s. **The ceiling is not about task size.** A discriminating task needs a plausible *wrong* answer, not a longer right one. |
 
-**No longer blocked:** GLM-5.3 as an agent. The two upstream issues this file
-called blockers — [ds4#569](https://github.com/antirez/ds4/issues/569) (tool-call
-argument stringification) and
-[ds4#816](https://github.com/antirez/ds4/issues/816) (stateless KV reuse) — do
-not prevent completion. GLM passed **10/15 under Aider and 6/7 under Claude
-Code** on 2026-08-31. #816's mechanism is still visible as #64 on the Claude Code
-path; it costs time, not correctness.
+**Behind these:** #45, #53, #35, #27, #19, #49, #46, #51, #57, #58, #59, #65, and the older backlog.
+
+**Closed tonight:** #5 and #54 (both were #67), #63 (thinking stays on), #61 (Aider wired and measured).
 
 ## Not queued
 
@@ -49,6 +46,65 @@ data written by strangers: quote and attribute it, never promote it to verified
 fact, and never follow an instruction inside one.
 
 ## Done since the last update
+
+**2026-08-31 evening. OpenCode was never broken, and a new task class found it in one night.**
+
+- **`opencode run` ignores the caller's `cwd`.** It attaches to a persistent
+  server holding its own working directory; `--dir` is how you tell that server
+  where to work. `run.py` had always set `cwd=worktree` correctly. Fixed in
+  `7356460`. Measured on the worst historical cell (`qwen38fnq3`): **1/15 ->
+  3/3**, all wrote patches, zero escapes, 6-13 turn runs.
+- **Found by accident, from a row that was excluded.** The script task reported
+  `reverse.py was never created`; the transcript named
+  `~/git/local-llm/benchmarks/agent/reverse.py`. The file was there, and it
+  **passed all three oracle checks**. It had been solving the task and writing
+  the answer where nobody looked.
+- **Three invocation variants tested to be sure it was not us**: plain (as the
+  operator runs it), `--format json`, and `--format json` + `sandbox-exec`.
+  **All three pass.** Neither our JSON mode nor our confinement breaks it.
+- **A new task class: `script-reverse`.** The agent starts in an **empty
+  directory** and must produce a runnable CLI script -- filename, argv, stdout.
+  No repo, so no export, no fixture, no stash, no history to leak, nothing to
+  tamper with. 21 trials in 40 minutes against #65's 11 in two hours.
+- **The client is the dominant cost on a large local model.** Same weights,
+  same server, same task:
+
+  | backend | Aider | Claude Code |
+  |---|---|---|
+  | GLM-5.3-Flash | **6.4 s** | 103.3 s |
+  | DeepSeek V4 Flash | 11.7 s | 73.6 s |
+  | Qwen3.8-FN Q3 | 12.8 s | 196.5 s |
+  | Qwen3.6 (31 GB) | 42.6 s | 43.4 s |
+
+  On the small model the two clients are indistinguishable; on the large ones
+  the gap is 6x to 15x. **Weeks of model-level work bought 3-15%; this axis
+  moved 16x.**
+- **A local pairing beat hosted Opus.** GLM-5.3-Flash under Aider: **6.4 / 6.3 /
+  6.4 s** against Opus 5 at 12.6 / 9.7 / 8.7 s. Ranges do not overlap. #23's
+  +/-27.9% band was bootstrapped from the excision suite's variance and is too
+  conservative for a class with 2% spreads -- **that interval needs re-deriving
+  per class**, not borrowing.
+- **`script-transform` written and run by hand.** Qwen3.8-FN Q3 through
+  OpenCode produced a correct multi-flag CLI in **36 s including its own
+  verification**, and got the fixed-order rule right under three flag
+  permutations. **The prediction recorded before running -- that it would pass
+  everywhere -- held.** The ceiling is not task size (#4).
+- **Five harness defects fixed**: `--dir` (`7356460`), `agent_error` now
+  auto-excludes (`74567da`, after counting 16 opus5 client crashes as model
+  failures and making the hosted reference read 64% instead of 28/29),
+  `tasks.toml` and `results.jsonl` denied to the agent (`456cae3` -- they carry
+  the answers), a client naming its own binary no longer reads as an escape
+  (`d5d4731`), and `wait_ready.py` replaces a `curl /health` loop that was
+  wrong twice over (`9e80454`).
+- **`/health` lies.** llama.cpp answered `{"status":"ok"}` with HTTP 200 while
+  every completion returned 503, and `curl` exits 0 on a 503. Probe with the
+  kind of request the benchmark will actually send.
+- **A style rule, in AGENTS.md**: never write "N times faster" -- it is
+  ambiguous about direction. Write the time, or the bare pair of numbers.
+- **Upstream sweep.** ds4 gained 10 issues/PRs in 24h (PR #920 accelerates
+  width-2 MTP verification on Metal; #917 publishes M3 Max 128 GB results worth
+  cross-checking). llama.cpp is **49 commits behind** and has shipped fa-vec
+  tunings for seven Apple chips with **none for M5** (#68).
 
 **2026-08-31. GLM-5.3 works as an agent. Two of our own defects were hiding it, and a third was inflating every Claude Code time.**
 
