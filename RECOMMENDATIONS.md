@@ -276,9 +276,52 @@ paid. See `benchmarks/agent/RESULTS.md`.
   tasks. Your code is not our code.
 
 **What we are confident about**: all three stacks work, none of them is a trap,
-and the client you drive them with matters more than most model choices — on
-identical weights and server, we measured the same task at **6.4 seconds under
-one client and 103.3 seconds under another**.
+and **the client you drive them with matters more than the model you pick** —
+see below.
+
+## The client matters more than the model
+
+Three clients, same server, same model, same session, same task, interleaved so
+none of them got a warmer server. `script-transform` on Qwen3.8-Flash-Next Q3:
+
+| client | median | slowest run | prompt sent | turns |
+|---|---|---|---|---|
+| **Aider** | **11.1s** | 11.9s | **737 tokens** | 1 |
+| **OpenCode** | 39.5s | 55.3s | 11,721 tokens | 5 |
+| **Claude Code** | 189.6s | 339.4s | **85,413 tokens** | 3 |
+
+Aider used **6%** of Claude Code's time. All nine runs produced correct output.
+
+**The cause is how much prompt the client sends.** This task starts in an empty
+directory and writes one file — there is no repository to read. Claude Code
+still sends 85,000 tokens of its own scaffolding, and the server prefills that
+on every turn. Output volume does not explain the gap: Claude Code wrote 1,524
+tokens against Aider's 395, under four times as many, for seventeen times the
+clock.
+
+This is why the gap grows with model size. Prefill cost scales with the model,
+so an oversized prompt is nearly free on a 31 GB model and expensive on a 90 GB
+one.
+
+### So should you use Aider?
+
+**For a self-contained script, yes — it is dramatically cheaper.** For changing
+code inside an existing repository, no:
+
+| client | one-file script tasks | tasks inside a repository |
+|---|---|---|
+| OpenCode | 15/15 | **91/93** |
+| Aider | 15/15 | **22/34** |
+
+Aider's speed comes partly from doing less — one turn, no exploration. That is
+exactly right for "write me this script" and not enough for "find where this
+behaviour lives and change it". **The recommendation stays OpenCode**, with
+Aider worth reaching for on small self-contained jobs.
+
+**Claude Code is the reference point, not a recommendation here.** It is
+proprietary, so it cannot be part of a fallback that survives a vendor, and on
+these measurements it is both the slowest and the least consistent (152.5s,
+339.4s, 189.6s on the same task).
 
 ## Reproducing this
 
