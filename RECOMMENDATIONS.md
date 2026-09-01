@@ -153,7 +153,7 @@ other is telling you something.
 
 <!-- BEGIN GENERATED -->
 
-*Generated from `results.jsonl` — 1053 rows, sha256 7ad30271ae58.*
+*Generated from `results.jsonl` — 1055 rows, sha256 fb6f3ea6697f.*
 
 #### Every stack measured under OpenCode
 
@@ -166,7 +166,7 @@ other is telling you something.
 | Qwen3.8-Flash-Next Q3 - LM Studio | 21/21 | 122s | 261s | 4.2x |
 | Qwen3.6-27B-coding - Ollama | 24/24 | 167s | 700s | 12.6x |
 | GLM-5.3-Flash - ds4 | 22/24 | 368s | 1227s | 18.0x |
-| gemma4 | 12/12 | 383s | 1316s | 4.8x |
+| gemma4 | 12/14 | 383s | 1316s | 4.8x |
 
 Excision tasks only; `script-*` excluded because they are a different class. **Spread is worst / best on the same task**, and it is the column most people forget to ask for.
 
