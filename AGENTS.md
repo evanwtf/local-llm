@@ -283,6 +283,28 @@ items: the ds4 mention that mattered arrived by email, was already marked read
 through the API, and sat under 41 CI failures from unrelated repos. Filtering to
 unread would have hidden the only notification worth seeing.
 
+## Never put backticks in a `-m` message
+
+`git commit -m "... `foo` ..."` and `git tag -m` run **command substitution**.
+The shell executes what is inside the backticks, deletes it from the message,
+and neither git nor the shell says anything. On 2026-09-01 a commit message
+recording that a documented command had been verified came out as *"ran
+against an empty directory"* -- the evidence for the claim removed itself, and
+the stray `opencode run` actually executed.
+
+**Use `-F`**, which does no interpretation:
+
+```sh
+git commit -F - <<'EOF'
+... `backticks` are safe here ...
+EOF
+```
+
+The heredoc delimiter must be quoted (`<<'EOF'`, not `<<EOF`) for the same
+reason. This is already the rule for release notes; it applies to every commit
+and tag message, and single quotes around a command name are the cheap
+alternative when a heredoc is overkill.
+
 ## Always measure the latest infrastructure
 
 llama.cpp, Ollama, Codex and OpenCode ship several times a day. **Update before
