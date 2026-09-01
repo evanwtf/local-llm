@@ -297,6 +297,12 @@ The failing test is correct behaviour, not noise. A document quoting a pass
 rate the data no longer supports is exactly what this project has published
 three times.
 
+**While a batch is running the check skips**, because `results.jsonl` is
+mid-write and the document is being compared against a moving target — an
+unrelated commit should not be blocked by a run in flight. It is meaningful
+only once the data is quiescent, which is why re-splicing belongs at the end of
+a batch rather than during one.
+
 **Check pytest's exit code, not the last line of its output.**
 `pytest -q | tail -2 && git commit` always commits: `tail` exits 0 whatever
 pytest did. That mistake put a red commit on main on 2026-09-01. Run the suite
