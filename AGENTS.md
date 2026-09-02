@@ -770,3 +770,25 @@ failed, never *why*; the autocompact finding in #15 was only visible in a
 transcript. Transcripts stay outside the repo because they carry file contents
 the agent read, and this repo does not commit prompts. Disable with
 `--no-client-log`.
+
+## Report results with the script, not by hand (2026-09-01)
+
+```sh
+uv run python scripts/report.py --backend gemma426
+uv run python scripts/report.py --backend qwen --backend qwen36 --since 2026-09-01T20:50
+```
+
+**Hand-rolling this analysis has now produced two wrong answers in one
+evening.** `gen_tables.load()` filtered on `is_excluded()` alone and counted 127
+`--dry-run` control checks as failures in the published tables. And a
+hand-computed comparison divided smaller-by-larger, reporting a **56% gap as a
+36% reduction** and calling three real differences noise.
+
+`scripts/report.py` calls `results.trials()` and `results.verdict()` and
+nothing else, and applies #23's rule -- a 3-trial median carries +/-27.9%, so
+two medians must differ by about **56%** before the gap is real. **The gap is
+measured against the smaller median.** Both accessors and the threshold are
+pinned by tests using the literal numbers that were got wrong.
+
+Never read `row["passed"]` directly: a timeout carries `None` and is a failure,
+not an absence.
