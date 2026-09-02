@@ -93,3 +93,85 @@ def test_the_placeholder_directory_matches_the_derived_name():
         "vram_gb": 12,
     }
     assert (REPO / "hardware" / hw.directory_name(facts, "linux")).is_dir()
+
+
+CI_RUNNER = {
+    "cpu": "AMD Ryzen 7 PRO 8845HS w/ Radeon 780M Graphics",
+    "memory_gb": 32,
+    "gpu": "AMD Radeon 780M Graphics",
+}
+
+
+def test_an_integrated_gpu_suffix_never_becomes_a_path_separator():
+    """The exact string that broke CI on the self-hosted runner.
+
+    "Ryzen 7 PRO 8845HS w/ Radeon 780M Graphics" put a FORWARD SLASH in the
+    derived directory name, which did not fail -- it silently became a nested
+    path, so results.default_path() pointed at a directory that did not exist
+    and every run on that machine died with FileNotFoundError.
+    """
+    name = hw.directory_name(CI_RUNNER, "linux")
+    assert "/" not in name, name
+    assert name == "Ryzen7-PRO-8845HS-32GB-780MGraphics"
+
+
+def test_the_slug_is_path_safe_too():
+    """It goes into filenames, so the same hazard applies."""
+    assert "/" not in hw.short_slug(CI_RUNNER, "linux")
+
+
+def test_no_derived_name_may_contain_a_separator():
+    """A general guard, not one string.
+
+    Vendors put arbitrary text in model strings; the directory name must
+    survive whatever they choose. Failing loudly would be acceptable; silently
+    nesting is not.
+    """
+    hostile = {
+        "cpu": "Weird/Vendor CPU w/ Thing",
+        "memory_gb": 16,
+        "gpu": "Some/GPU",
+        "vram_gb": 8,
+    }
+    for platform, facts in (
+        ("linux", hostile),
+        (
+            "darwin",
+            {
+                "model_name": "Mac Pro",
+                "chip": "Apple M9 Ultra",
+                "memory_gb": 512,
+                "model_number": "Z9ZZ0000ZZZ/A",
+            },
+        ),
+    ):
+        name = hw.directory_name(facts, platform)
+        assert "/" not in name and "\\" not in name, (platform, name)
+
+
+def test_the_other_two_machines_are_unchanged():
+    """The fix must not rename directories that already hold data."""
+    assert (
+        hw.directory_name(
+            {
+                "cpu": "AMD Ryzen 9 7900X 12-Core Processor",
+                "memory_gb": 32,
+                "gpu": "NVIDIA GeForce RTX 3080 Ti",
+                "vram_gb": 12,
+            },
+            "linux",
+        )
+        == "Ryzen9-7900X-32GB-RTX3080Ti-12GB"
+    )
+    assert (
+        hw.directory_name(
+            {
+                "model_name": "MacBook Pro",
+                "chip": "Apple M5 Max",
+                "memory_gb": 128,
+                "model_number": "Z1MZ0002NLL/A",
+            },
+            "darwin",
+        )
+        == "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A"
+    )

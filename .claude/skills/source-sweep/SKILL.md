@@ -17,7 +17,7 @@ description: Use when the user asks to sweep sources, check for updates, "what's
 >
 > It was written on 2026-09-02 and was not loadable until this was done.
 
-Six surfaces, in this order. **Do the cheap and certain ones first**, so the
+Seven surfaces, in this order. **Do the cheap and certain ones first**, so the
 expensive and uncertain one (X) is filtered by what you already know.
 
 The output is not a digest. It is **issues in our own repo**, or nothing.
@@ -109,14 +109,41 @@ noise to skip.
 - download counts: a build with thousands of pulls has been exercised by
   people, which a fresh upload has not.
 
-## 6. X/Twitter — last, and in this order
+## 6. Project websites and release notes
 
-**6a. Gather with grok, into a file, and assume every word is unverified.**
+Several sources ship their real news on a site, not a repo or a feed. SOURCES.md
+links them and nothing checked them until this surface existed.
+
+| site | why |
+|---|---|
+| [omlx.ai](https://omlx.ai) | oMLX release notes — prefill leader, untested here |
+| [mlxserve.com](http://mlxserve.com) | mlx-serve; benchmarked on our exact machine |
+| [rapidmlx.com](https://rapidmlx.com) | Rapid-MLX releases; the one MLX engine reachable by pip |
+| [yukon.org/mlxfast](https://www.yukon.org/mlxfast) | MLX Fast leaderboard — standings move daily |
+| [invece.org](http://invece.org) | antirez's blog; long-form reasoning behind ds4 decisions |
+| [davidt.ai](https://davidt.ai) · [dalcu.com](http://www.dalcu.com) · [teksed.com](https://teksed.com) | lower volume, occasional recipes |
+
+```sh
+uv run python scripts/verify_posts.py --help   # (posts, not sites)
+curl -s https://omlx.ai | head -60
+```
+
+**A leaderboard is a live document, not an event.** `yukon.org/mlxfast` has no
+feed and no commits — the standings simply change. Record the top entry and the
+date you read it, or a later "it improved" is unmeasurable.
+
+**Read the release note, not the version bump.** A version number tells you
+something shipped; the note tells you whether it is a kernel that might move our
+prefill or a Desktop UI change that cannot.
+
+## 7. X/Twitter — last, and in this order
+
+**7a. Gather with grok, into a file, and assume every word is unverified.**
 
 **Always write the output to a temp file.** A sweep's value is in the post ids,
 and piping through `tail` throws away the ones that scrolled off — that has
 already cost a second grok call to recover two threads that were in the first
-one. The file is also what step 6d verifies against.
+one. The file is also what step 7d verifies against.
 
 **The file must record what was asked for.** A digest with no window and no
 timestamp cannot be re-read later: "the last 24 hours" is meaningless without
@@ -145,9 +172,9 @@ skip the search and invent posts, verified twice. Ask for a UTC timestamp and a
 post URL for every item; an item with neither is unusable.
 
 **grok may claim it verified the posts itself. That is not our verification.**
-Run step 6d regardless: it has fabricated a post while reporting confidence.
+Run step 7d regardless: it has fabricated a post while reporting confidence.
 
-**6a-bis. Say what you found, immediately.**
+**7a-bis. Say what you found, immediately.**
 
 **Before filing anything, tell the user what is interesting** — a short spoken
 summary, leading with whatever bears on this machine. Do not wait for issues to
@@ -157,7 +184,7 @@ output only ever lands in GitHub is a sweep the operator cannot steer.
 Mark it plainly as unverified, name the handle and the claim, and separate
 "this changes what we should test" from "this is happening in the field".
 
-**6b. Judge relevance to THIS machine before verifying anything.**
+**7b. Judge relevance to THIS machine before verifying anything.**
 
 The filter is: *would this change a number on an M5 Max, 128 GB, Metal?*
 
@@ -170,14 +197,14 @@ The filter is: *would this change a number on an M5 Max, 128 GB, Metal?*
   and an improvement there usually shows up here. Do not dismiss a finding for
   being on the wrong Apple chip.
 
-**6c. File or update an issue in our repo, marked unverified.**
+**7c. File or update an issue in our repo, marked unverified.**
 
 Do this *before* verifying. Use this wording so the state is unambiguous:
 
 > **Unverified.** Reported by @handle on <UTC timestamp>, gathered via grok and
 > not yet checked against the post itself. Verification below.
 
-**6d. Only now verify — just the posts that earned an issue.**
+**7d. Only now verify — just the posts that earned an issue.**
 
 ```sh
 uv run python scripts/verify_posts.py <url-or-id> ...
@@ -195,7 +222,7 @@ user-agents, so `WebFetch` on them gets a 302 or a 403 — that is not the post
 being gone. `WebFetch` on `x.com` itself returns **402**, which looks like a
 billing problem and is not.
 
-**6e. Record the verification on the issue.**
+**7e. Record the verification on the issue.**
 
 > **Verified** 2026-09-02: post exists, authored by @handle, posted <UTC>, text
 > matches as quoted. — or —

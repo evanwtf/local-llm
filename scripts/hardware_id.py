@@ -76,6 +76,12 @@ def normalise_cpu(raw: str) -> str:
     s = re.sub(r"\bCPU\b.*$", "", s)
     s = re.sub(r"\bProcessor\b", "", s, flags=re.IGNORECASE)
     s = re.sub(r"^(AMD|Intel|Apple)\s+", "", s, flags=re.IGNORECASE)
+    # "Ryzen 7 PRO 8845HS w/ Radeon 780M Graphics" -- the integrated-GPU
+    # suffix is not part of the CPU's identity, and its "w/" put a FORWARD
+    # SLASH into a directory name, which silently became a nested path and
+    # broke every run on that machine. The Apple branch already swapped "/"
+    # for "_" in the model number; nothing did it for CPU strings.
+    s = re.sub(r"\s+w/\s+.*$", "", s, flags=re.IGNORECASE)
     s = s.strip()
     # "Ryzen 9 7900X" -> "Ryzen9-7900X"; "Core i9-13900K" -> "Corei9-13900K"
     s = re.sub(r"\b(Ryzen|Core)\s+(\w+)", r"\1\2", s)
@@ -168,7 +174,10 @@ def directory_name(facts: dict, platform: str) -> str:
     name = "-".join(p for p in parts if p)
     if not name:
         raise SystemExit("could not identify this machine; refusing to guess")
-    return name
+    # Belt and braces: a directory name must never contain a path separator,
+    # whatever a vendor puts in a model string. A slash does not fail here --
+    # it silently creates a nested path, which is worse than an error.
+    return name.replace("/", "_").replace("\\", "_")
 
 
 def short_slug(facts: dict, platform: str) -> str:
@@ -188,7 +197,8 @@ def short_slug(facts: dict, platform: str) -> str:
         return f"{chip}{mem}"
     cpu = normalise_cpu(facts.get("cpu", "")) or "cpu"
     gpu = normalise_gpu(facts.get("gpu", ""))
-    return f"{cpu}-{gpu}" if gpu else cpu
+    slug = f"{cpu}-{gpu}" if gpu else cpu
+    return slug.replace("/", "_").replace("\\", "_")
 
 
 def facts_for_this_machine() -> tuple[dict, str]:
