@@ -805,3 +805,18 @@ def test_peak_rss_uses_the_right_unit_per_platform(monkeypatch):
     monkeypatch.setattr(run.resource, "getrusage", lambda who: FakeLinux())
     monkeypatch.setattr(run.sys, "platform", "linux")
     assert run.peak_child_rss_gib() == 2.0
+
+
+def test_the_results_path_is_an_option():
+    """The hardware guard's error message told people to use --results.
+
+    It did not exist. An error that gives impossible advice is worse than a
+    bare refusal: it sends the reader looking for a flag, and the real fix --
+    a per-machine results file (#85) -- stays invisible.
+    """
+    source = (HERE / "run.py").read_text()
+    assert '"--results"' in source
+    assert "results.write_row(r, args.results)" in source
+    assert "results.trials(args.results)" in source
+    # The guard must test the file being written, not a hardcoded default.
+    assert "results.trials(RESULTS)" not in source

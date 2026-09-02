@@ -1791,6 +1791,15 @@ def main():
         "known to be broken (#55).",
     )
     p.add_argument(
+        "--results",
+        type=pathlib.Path,
+        default=RESULTS,
+        help="where rows are appended (default: benchmarks/agent/results.jsonl). "
+        "One file, one hardware baseline (#20): a second machine writes to its "
+        "own file under hardware/<machine>/, whose name comes from "
+        "`uv run python scripts/hardware_id.py`.",
+    )
+    p.add_argument(
         "--allow-foreign-hardware",
         action="store_true",
         help="append rows even though results.jsonl holds rows from other "
@@ -1950,11 +1959,11 @@ def main():
     # `git pull` refused to merge over them. Mixing hardware does not corrupt a
     # row, it corrupts every comparison drawn across the file, after the fact.
     foreign = results.foreign_hardware(
-        results.trials(RESULTS), preflight.machine_facts()
+        results.trials(args.results), preflight.machine_facts()
     )
     if foreign and not args.allow_foreign_hardware:
         raise SystemExit(
-            f"{RESULTS} already holds rows from other hardware: "
+            f"{args.results} already holds rows from other hardware: "
             + "; ".join(" / ".join(f) for f in sorted(foreign))
             + f"\nThis machine is {preflight.machine_facts().get('cpu')}. "
             "One file, one hardware baseline (#20) -- point --results at a "
@@ -1962,7 +1971,7 @@ def main():
             "decided the mixing is correct."
         )
 
-    history = [r for r in results.trials(RESULTS) if not results.is_excluded(r)]
+    history = [r for r in results.trials(args.results) if not results.is_excluded(r)]
     cell: dict[tuple[str, str], list[dict]] = {}
     for trial in range(1, args.trials + 1):
         for task in tasks:
@@ -1993,7 +2002,7 @@ def main():
                     # written -- a trial costs up to half an hour and losing one
                     # to a schema bug is worse than storing a flagged row.
                     r["finished"] = time.strftime("%Y-%m-%dT%H:%M:%S")
-                    results.write_row(r, RESULTS)
+                    results.write_row(r, args.results)
 
                     # #55: let the batch disbelieve itself. A widely-used
                     # client collapsing on a backend that works under another
