@@ -314,6 +314,7 @@ description = "Qwen3.8-27B via Ollama MLX"
 base_url = "http://127.0.0.1:11434"
 auth_token = "ollama"
 model = "qwen3.8:27b-mlx"
+opencode_model = "ollama/qwen3.8:27b-mlx"
 context_tokens = 262144
 
 # One generation back, same size and same MLX backend as qwen3.8:27b-mlx.
@@ -323,6 +324,7 @@ description = "Qwen3.6-27B via Ollama MLX"
 base_url = "http://127.0.0.1:11434"
 auth_token = "ollama"
 model = "qwen3.6:27b-mlx"
+opencode_model = "ollama/qwen3.6:27b-mlx"
 context_tokens = 262144
 
 # Coding-tuned variant at mxfp8 rather than 4-bit. Two variables move at once
@@ -340,6 +342,17 @@ codex_profile = "qwen36coding"
 # opencode.json, which is NOT in git.
 aider_model = "openai/qwen3.6:27b-coding-mxfp8"
 opencode_model = "ollama/qwen3.6:27b-coding-mxfp8"
+context_tokens = 262144
+
+# 35B total, 3B active. The MoE shape, and the only coding-tuned MLX MoE on
+# disk. Also the shape #20 needs on a 12 GiB card with 30 GiB of RAM, so a
+# number here prices that experiment before anything is pulled to the desktop.
+[backend.qwen36a3b]
+description = "Qwen3.6-35B-A3B coding-tuned, mxfp8 (3B active)"
+base_url = "http://127.0.0.1:11434"
+auth_token = "ollama"
+model = "qwen3.6:35b-a3b-coding-mxfp8"
+opencode_model = "ollama/qwen3.6:35b-a3b-coding-mxfp8"
 context_tokens = 262144
 
 # Purpose-built agentic coding assistant, MIT, 34.7B MoE in 21 GB. Its baked-in
