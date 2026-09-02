@@ -756,3 +756,52 @@ def test_every_ollama_backend_declares_an_opencode_model():
         and not b.get("opencode_model")
     )
     assert not missing, f"Ollama backends with no opencode_model: {missing}"
+
+
+# --- the oracle's own bounds (#82) ----------------------------------------
+
+
+def test_the_oracle_has_its_own_deadline():
+    """It used to inherit the agent's --timeout of 1800s.
+
+    A passing excision oracle finishes in about 0.1s. Handing it the agent's
+    budget let a runaway test run hold 49 GB for half an hour before anything
+    would have stopped it. Script tasks already used GATE_TIMEOUT; only the
+    excision path did not.
+    """
+    assert run.ORACLE_TIMEOUT <= 300
+    source = (HERE / "run.py").read_text()
+    assert 'task["tests"], ORACLE_TIMEOUT, target["test_command"]' in source
+
+
+def test_peak_rss_is_recorded_and_plausible():
+    """A pathological implementation is invisible to a binary oracle.
+
+    `gemma426` wrote a `scan` that made the oracle allocate 49 GB. Nothing in
+    the row said so. Peak RSS is one call and turns that into a column.
+    """
+    got = run.peak_child_rss_gib()
+    assert isinstance(got, float)
+    assert 0.0 <= got < 1024.0
+
+
+def test_peak_rss_uses_the_right_unit_per_platform(monkeypatch):
+    """ru_maxrss is bytes on macOS and kilobytes on Linux.
+
+    Getting this backwards would report 49 GB as 0.05, or 0.05 GB as 48,000 --
+    either way the column would be useless in exactly the case it exists for.
+    """
+
+    class Fake:
+        ru_maxrss = 2 * 1024**3  # 2 GiB expressed in bytes
+
+    monkeypatch.setattr(run.resource, "getrusage", lambda who: Fake())
+    monkeypatch.setattr(run.sys, "platform", "darwin")
+    assert run.peak_child_rss_gib() == 2.0
+
+    class FakeLinux:
+        ru_maxrss = 2 * 1024**2  # 2 GiB expressed in kB
+
+    monkeypatch.setattr(run.resource, "getrusage", lambda who: FakeLinux())
+    monkeypatch.setattr(run.sys, "platform", "linux")
+    assert run.peak_child_rss_gib() == 2.0

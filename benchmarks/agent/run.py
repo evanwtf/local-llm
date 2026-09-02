@@ -31,6 +31,7 @@ import logging
 import os
 import pathlib
 import re
+import resource
 import shutil
 import subprocess
 import sys
@@ -60,6 +61,11 @@ DEFAULT_SOLUTIONS = "~/bench-solutions"
 # a fresh worktree and still finishes in seconds -- but they must never be the
 # thing that hangs a run, so they get their own short deadline.
 GATE_TIMEOUT = 300
+# The oracle's own deadline. A passing excision oracle finishes in about 0.1s
+# ("17 passed in 0.09s"), so this is already three orders of magnitude of
+# headroom. It previously inherited the agent's --timeout of 1800s, which let a
+# runaway test run hold 49 GB for half an hour (#82).
+ORACLE_TIMEOUT = 300
 
 
 def run(cmd, cwd, env=None, timeout=None):
@@ -187,12 +193,33 @@ def script_checks(worktree, entrypoint, checks, timeout):
     return True, f"{len(checks)}/{len(checks)} checks passed{note}"
 
 
+def peak_child_rss_gib() -> float:
+    """Peak RSS of any child reaped so far, in GiB.
+
+    Cheap, and it makes a whole failure class visible as data. A correct-but-
+    pathological implementation -- one that buffers a file the task says to
+    stream -- is invisible to a binary oracle and obvious here. `gemma426`
+    wrote a `scan` whose test run reached 49 GB and drove the machine into
+    swap; nothing recorded that except the operator noticing (#82).
+
+    ru_maxrss is bytes on macOS and kilobytes on Linux.
+    """
+    raw = resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss
+    divisor = 1024**3 if sys.platform == "darwin" else 1024**2
+    return round(raw / divisor, 2)
+
+
 def tests_pass(worktree, tests, timeout, command="uv run pytest -q"):
     """Run the oracle. Returns (passed, summary_line).
 
     `command` is per-repo: `uv run pytest -q` for Python, `swift test` for a
     SwiftPM package. Test node ids are appended for pytest; a runner that does
     not take them gets none, which is why `tests` may be empty.
+
+    `timeout` is the ORACLE's deadline, not the agent's. It used to be handed
+    the agent's `--timeout` -- 1800s by default -- for a step that takes about
+    0.1s when it passes: four orders of magnitude of slack, chosen by nobody.
+    Script tasks already used GATE_TIMEOUT; only this path did not (#82).
     """
     r = run([*command.split(), *tests], cwd=worktree, timeout=timeout)
     return r.returncode == 0, summarise_run(r.stdout, r.stderr)
@@ -1602,10 +1629,13 @@ def one_trial(
             )
         else:
             passed, summary = tests_pass(
-                worktree, task["tests"], timeout, target["test_command"]
+                worktree, task["tests"], ORACLE_TIMEOUT, target["test_command"]
             )
         result["passed"] = passed
         result["pytest"] = summary
+        # #82: the number that would have caught a 49 GB oracle run before the
+        # machine noticed. Recorded for every trial, pass or fail.
+        result["peak_rss_gib"] = peak_child_rss_gib()
         # Guard against the obvious cheat. A script task ships no tests to
         # tamper with and has no git history to diff against.
         if is_script:
