@@ -116,6 +116,50 @@ change that moves our numbers. This is already recorded as a trap.
 
 ## How to run it
 
+**Use the `/source-sweep` skill.** It covers five surfaces in order — GitHub
+inbox, watched repos, branches, upstream issues and PRs, then X — and encodes
+the order below. What follows is the detail behind it.
+
+### X: gather, judge, file, then verify
+
+**The order is the point.** Verification cost scales with the number of
+*relevant* leads, not with the volume grok returns; verifying everything spends
+most of the effort on CUDA benchmarks and vision releases.
+
+1. **Gather with grok, and assume every word is unverified.**
+2. **Judge relevance to this machine first** — would it change a number on an
+   M5 Max, 128 GB, Metal? A result on an M3 or M4 is a **lead, not noise**.
+3. **File or update an issue in our own repo, marked `Unverified`**, with the
+   handle and UTC timestamp. Doing it before verifying means the reasoning
+   about relevance gets written down while it is fresh.
+4. **Then verify, only the posts that earned an issue**:
+   `uv run python scripts/verify_posts.py <url-or-id> ...`
+5. **Record the result on the issue.** A claim that fails verification is
+   itself a finding about the source — note it, do not delete it.
+
+**Use the `/source-sweep` skill.** It covers all five surfaces in order —
+GitHub inbox, watched repos, branches, upstream issues and PRs, then X — and
+encodes the order of operations below. What follows is the detail behind it.
+
+### X: gather, judge, file, then verify
+
+**In that order, and the order is the point.** Verification cost scales with
+the number of *relevant* leads, not with the volume grok returns; a sweep that
+verifies everything spends most of its effort on CUDA benchmarks and vision
+releases.
+
+1. **Gather with grok, and assume every word is unverified.**
+2. **Judge relevance to this machine first** — would it change a number on an
+   M5 Max, 128 GB, Metal? A result on an M3 or M4 is a **lead, not noise**.
+3. **File or update an issue in our own repo, marked `Unverified`**, with the
+   handle and UTC timestamp. Doing this before verifying means the reasoning
+   about relevance is written down while it is fresh.
+4. **Only then verify**, and only the posts that earned an issue.
+5. **Record the result on the issue** — verified, or could not be verified.
+   A claim that fails verification is itself a finding about the source; note
+   it, do not delete it.
+
+
 `/grok` reads X. `WebFetch` on an `x.com` URL fails — it returns HTTP 402, not a
 login page, so the failure looks like a billing problem and is not one.
 
