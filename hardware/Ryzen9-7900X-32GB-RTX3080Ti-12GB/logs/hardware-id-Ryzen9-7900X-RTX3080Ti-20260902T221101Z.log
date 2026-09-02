@@ -1,0 +1,4 @@
+2026-09-02 22:11:01,922 INFO [230eeeb-dirty@Ryzen9-7900X-RTX3080Ti] 2026-09-02T22:11:01Z (22:11:01 UTC) | harness 230eeeb-dirty
+2026-09-02 22:11:01,949 INFO [230eeeb-dirty@Ryzen9-7900X-RTX3080Ti]   machine: x86_64, AMD Ryzen 9 7900X 12-Core Processor, 24 cores, 30.5 GiB, NVIDIA GeForce RTX 3080 Ti, 12288 MiB, confinement none
+2026-09-02 22:11:01,969 INFO [230eeeb-dirty@Ryzen9-7900X-RTX3080Ti] Ryzen9-7900X-32GB-RTX3080Ti-12GB
+2026-09-02 22:11:01,969 INFO [230eeeb-dirty@Ryzen9-7900X-RTX3080Ti] log: /home/evan/git/local-llm/hardware/Ryzen9-7900X-32GB-RTX3080Ti-12GB/logs/hardware-id-Ryzen9-7900X-RTX3080Ti-20260902T221101Z.log
