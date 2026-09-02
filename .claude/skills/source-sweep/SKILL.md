@@ -5,6 +5,18 @@ description: Use when the user asks to sweep sources, check for updates, "what's
 
 # Sweeping the sources
 
+> **Install note.** This skill lives in the repo so it is version-controlled,
+> but Claude Code discovers project skills relative to the session's working
+> directory. When a session starts above this repo, the skill is invisible.
+> A symlink makes it available everywhere while keeping the repo the source of
+> truth:
+>
+> ```sh
+> ln -sfn "$PWD/.claude/skills/source-sweep" ~/.claude/skills/source-sweep
+> ```
+>
+> It was written on 2026-09-02 and was not loadable until this was done.
+
 Six surfaces, in this order. **Do the cheap and certain ones first**, so the
 expensive and uncertain one (X) is filtered by what you already know.
 
