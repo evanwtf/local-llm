@@ -53,7 +53,7 @@ import swift_excise
 
 logger = logging.getLogger("agent-bench")
 HERE = pathlib.Path(__file__).parent
-RESULTS = HERE / "results.jsonl"
+RESULTS = results.default_path()
 # Outside the repo on purpose: transcripts carry file contents the agent
 # read, and this repo does not commit prompts.
 DEFAULT_CLIENT_LOG = "~/bench-logs"
@@ -1364,7 +1364,7 @@ def sandbox_profile(worktree, repo):
     # for answer exposure, leaving nothing citable about the project's own
     # designated primary harness. Denying the two files rather than the tree
     # keeps OpenCode able to start while closing the leak.
-    for leak in (HERE / "tasks.toml", HERE / "results.jsonl"):
+    for leak in (HERE / "tasks.toml", RESULTS):
         leak = str(leak.resolve())
         if not keep.startswith(leak) and leak not in denied:
             denied.append(leak)

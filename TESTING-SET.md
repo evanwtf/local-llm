@@ -134,7 +134,7 @@ and server, only the protocol differs.
 `tasks.toml` and carry no valid OpenCode rows. They are candidates, not
 results:
 
-`gemma426` · `qwen36a3b` · `qwen` · `qwen36` · `qwen38flashnext` · `qwen38fnq2` ·
+`qwen38fnq3reap` · `gemma426` · `qwen36a3b` · `qwen` · `qwen36` · `qwen38flashnext` · `qwen38fnq2` ·
 `qwen38fnq4m64` · `ornith15llamacpp` · `glm53` · `glm52ds4` · `glm53ds4shim` ·
 `mtplx` · `opus5`
 

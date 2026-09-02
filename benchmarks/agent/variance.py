@@ -17,6 +17,7 @@ because the agent wrote more, not because the hardware was cold.
 Read `seconds-per-turn ratio` as the machine's contribution and `turn ratio` as
 the agent's. They are not close.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -27,11 +28,10 @@ import logging
 import math
 import pathlib
 import statistics
-import sys
 from typing import Any
 
-import results
 import provenance
+import results
 
 logger = logging.getLogger(__name__)
 
@@ -42,9 +42,13 @@ logger = logging.getLogger(__name__)
 BATCH_GAP_SECONDS = 5400
 
 
-def cells(rows: list[dict[str, Any]]) -> dict[tuple[str, str, str], list[dict[str, Any]]]:
+def cells(
+    rows: list[dict[str, Any]],
+) -> dict[tuple[str, str, str], list[dict[str, Any]]]:
     """Group passing trials by the condition that is meant to be held fixed."""
-    out: dict[tuple[str, str, str], list[dict[str, Any]]] = collections.defaultdict(list)
+    out: dict[tuple[str, str, str], list[dict[str, Any]]] = collections.defaultdict(
+        list
+    )
     for r in rows:
         out[(r["backend"], r["client"], r["task"])].append(r)
     return out
@@ -90,11 +94,19 @@ def report_warmup(grouped: dict[tuple[str, str, str], list[dict[str, Any]]]) -> 
     every: list[float] = []
     for (backend, client), ratios in sorted(per_pair.items()):
         every += ratios
-        logger.info("  %-26s %2d batches  %.2fx", f"{backend} x {client}", len(ratios),
-                    statistics.median(ratios))
+        logger.info(
+            "  %-26s %2d batches  %.2fx",
+            f"{backend} x {client}",
+            len(ratios),
+            statistics.median(ratios),
+        )
     if every:
-        logger.info("  %-26s %2d batches  %.2fx  <-- overall", "ALL", len(every),
-                    statistics.median(every))
+        logger.info(
+            "  %-26s %2d batches  %.2fx  <-- overall",
+            "ALL",
+            len(every),
+            statistics.median(every),
+        )
 
 
 def report_drivers(grouped: dict[tuple[str, str, str], list[dict[str, Any]]]) -> None:
@@ -116,22 +128,34 @@ def report_drivers(grouped: dict[tuple[str, str, str], list[dict[str, Any]]]) ->
             slow, fast = ordered[-1], ordered[0]
             wall_r.append(slow["wall_seconds"] / fast["wall_seconds"])
             turn_r.append(slow["num_turns"] / fast["num_turns"])
-            spt_r.append((slow["wall_seconds"] / slow["num_turns"])
-                         / (fast["wall_seconds"] / fast["num_turns"]))
+            spt_r.append(
+                (slow["wall_seconds"] / slow["num_turns"])
+                / (fast["wall_seconds"] / fast["num_turns"])
+            )
     if corr_tokens:
-        logger.info("  correlation with output tokens : %.2f", statistics.median(corr_tokens))
-        logger.info("  correlation with turns         : %.2f", statistics.median(corr_turns))
+        logger.info(
+            "  correlation with output tokens : %.2f", statistics.median(corr_tokens)
+        )
+        logger.info(
+            "  correlation with turns         : %.2f", statistics.median(corr_turns)
+        )
     if wall_r:
         logger.info("")
         logger.info("  Slowest vs fastest trial in each cell:")
         logger.info("    wall time            %.2fx", statistics.median(wall_r))
-        logger.info("    turns taken          %.2fx   <-- the agent's contribution",
-                    statistics.median(turn_r))
-        logger.info("    seconds per turn     %.2fx   <-- the machine's contribution",
-                    statistics.median(spt_r))
+        logger.info(
+            "    turns taken          %.2fx   <-- the agent's contribution",
+            statistics.median(turn_r),
+        )
+        logger.info(
+            "    seconds per turn     %.2fx   <-- the machine's contribution",
+            statistics.median(spt_r),
+        )
 
 
-def report_worst(grouped: dict[tuple[str, str, str], list[dict[str, Any]]], limit: int) -> None:
+def report_worst(
+    grouped: dict[tuple[str, str, str], list[dict[str, Any]]], limit: int
+) -> None:
     logger.info("")
     logger.info("Widest cells, and what moved:")
     logger.info("  %-40s %16s %10s %15s", "cell", "wall", "turns", "output tokens")
@@ -141,20 +165,37 @@ def report_worst(grouped: dict[tuple[str, str, str], list[dict[str, Any]]], limi
         if len(usable) < 3:
             continue
         ordered = sorted(usable, key=lambda r: r["wall_seconds"])
-        ranked.append((ordered[-1]["wall_seconds"] / ordered[0]["wall_seconds"],
-                       key, ordered[0], ordered[-1]))
+        ranked.append(
+            (
+                ordered[-1]["wall_seconds"] / ordered[0]["wall_seconds"],
+                key,
+                ordered[0],
+                ordered[-1],
+            )
+        )
     for _spread, key, fast, slow in sorted(ranked, reverse=True)[:limit]:
-        logger.info("  %-40s %5.0f->%-5.0fs %4d->%-4d %6d->%-6d",
-                    " ".join(key), fast["wall_seconds"], slow["wall_seconds"],
-                    fast["num_turns"], slow["num_turns"],
-                    fast["output_tokens"], slow["output_tokens"])
+        logger.info(
+            "  %-40s %5.0f->%-5.0fs %4d->%-4d %6d->%-6d",
+            " ".join(key),
+            fast["wall_seconds"],
+            slow["wall_seconds"],
+            fast["num_turns"],
+            slow["num_turns"],
+            fast["output_tokens"],
+            slow["output_tokens"],
+        )
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--results", type=pathlib.Path,
-                        default=pathlib.Path(__file__).parent / "results.jsonl")
-    parser.add_argument("--worst", type=int, default=10, help="how many wide cells to list")
+    parser.add_argument(
+        "--results",
+        type=pathlib.Path,
+        default=pathlib.Path(__file__).parent / "results.jsonl",
+    )
+    parser.add_argument(
+        "--worst", type=int, default=10, help="how many wide cells to list"
+    )
     args = parser.parse_args(argv)
 
     provenance.configure()
@@ -167,7 +208,9 @@ def main(argv: list[str] | None = None) -> int:
         r["_t"] = dt.datetime.fromisoformat(r["started"])
 
     grouped = cells(rows)
-    logger.info("%d passing trials, %d cells (backend x client x task)", len(rows), len(grouped))
+    logger.info(
+        "%d passing trials, %d cells (backend x client x task)", len(rows), len(grouped)
+    )
     report_warmup(grouped)
     report_drivers(grouped)
     report_worst(grouped, args.worst)

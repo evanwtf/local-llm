@@ -16,7 +16,6 @@ import tomllib
 import urllib.error
 
 import pytest
-
 import results
 import run
 

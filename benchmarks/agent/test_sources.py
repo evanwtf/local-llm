@@ -15,7 +15,7 @@ import pytest
 REPO = pathlib.Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(REPO / "scripts"))
 
-from upstream_sweep import WATCHED  # noqa: E402
+from upstream_sweep import WATCHED
 
 
 @pytest.fixture(scope="module")

@@ -321,3 +321,33 @@ def foreign_hardware(rows: list[dict[str, Any]], facts: dict[str, object]) -> se
         return set()
     seen = {h for h in (hardware_of(r) for r in rows) if h is not None}
     return seen - {mine}
+
+
+# --- where this machine's rows live (#85) -----------------------------------
+
+_REPO = pathlib.Path(__file__).resolve().parent.parent.parent
+
+
+def machine_dir() -> pathlib.Path:
+    """`hardware/<this machine>/`, derived rather than typed.
+
+    The name comes from `scripts/hardware_id.py` so it cannot disagree with the
+    hardware it claims to describe.
+    """
+    import sys
+
+    sys.path.insert(0, str(_REPO / "scripts"))
+    import hardware_id
+
+    facts, platform = hardware_id.facts_for_this_machine()
+    return _REPO / "hardware" / hardware_id.directory_name(facts, platform)
+
+
+def default_path() -> pathlib.Path:
+    """This machine's results file.
+
+    One file, one hardware baseline (#20). Every comparison in a results file
+    assumes a shared machine, so the path is derived from the machine rather
+    than being a constant that a second machine would silently inherit.
+    """
+    return machine_dir() / "results.jsonl"

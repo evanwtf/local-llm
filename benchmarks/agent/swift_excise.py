@@ -10,6 +10,7 @@ The interface mirrors `excise.py` deliberately, because `run.py` and `grade.py`
 call both the same way and `restored_verbatim` depends on `body_source`
 returning **exactly** the span `excise` removes.
 """
+
 from __future__ import annotations
 
 import pathlib
@@ -23,15 +24,19 @@ class TargetNotFound(Exception):
 # `public static func buckets(` — modifiers vary and are not worth enumerating
 # beyond "words before `func`".
 def _func_pattern(name: str) -> re.Pattern[str]:
-    return re.compile(r"(?m)^[ \t]*(?:[\w@()]+[ \t]+)*func[ \t]+"
-                      + re.escape(name) + r"\b")
+    return re.compile(
+        r"(?m)^[ \t]*(?:[\w@()]+[ \t]+)*func[ \t]+" + re.escape(name) + r"\b"
+    )
 
 
 def _type_pattern(name: str) -> re.Pattern[str]:
     """`enum Downsample {`, `struct X {`, `final class Y: Z {`."""
-    return re.compile(r"(?m)^[ \t]*(?:[\w@()]+[ \t]+)*"
-                      r"(?:enum|struct|class|actor|extension|protocol)[ \t]+"
-                      + re.escape(name) + r"\b")
+    return re.compile(
+        r"(?m)^[ \t]*(?:[\w@()]+[ \t]+)*"
+        r"(?:enum|struct|class|actor|extension|protocol)[ \t]+"
+        + re.escape(name)
+        + r"\b"
+    )
 
 
 def _skip_to_body_open(source: str, start: int) -> int:
@@ -170,16 +175,14 @@ def _span(source: str, symbol: str, keep_docstring: bool = True) -> tuple[int, i
     return _doc_comment_start(source, fmatch.start()), close_idx - 1
 
 
-def body_source(path: pathlib.Path, symbol: str,
-                keep_docstring: bool = True) -> str:
+def body_source(path: pathlib.Path, symbol: str, keep_docstring: bool = True) -> str:
     """Return what `excise` would remove, without changing the file."""
     source = path.read_text()
     start, end = _span(source, symbol, keep_docstring)
     return source[start:end]
 
 
-def excise(path: pathlib.Path, symbol: str,
-           keep_docstring: bool = True) -> str:
+def excise(path: pathlib.Path, symbol: str, keep_docstring: bool = True) -> str:
     """Replace the body of `symbol` in `path`. Returns the removed source."""
     source = path.read_text()
     start, end = _span(source, symbol, keep_docstring)
@@ -190,7 +193,7 @@ def excise(path: pathlib.Path, symbol: str,
     else:
         # The doc comment and body both went; put the signature back with a stub.
         sig_start = _func_pattern(symbol.split(".")[-1]).search(source, start)
-        head = source[sig_start.start():source.index("{", sig_start.start()) + 1]
+        head = source[sig_start.start() : source.index("{", sig_start.start()) + 1]
         stub = head + '\n        fatalError("removed for benchmark")\n    '
         path.write_text(source[:start] + stub + source[end:])
     return removed

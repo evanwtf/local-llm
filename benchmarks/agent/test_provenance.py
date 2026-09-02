@@ -12,6 +12,7 @@ import pathlib
 import subprocess
 
 import provenance
+import results
 
 
 def test_head_is_a_short_sha_or_a_named_absence() -> None:
@@ -75,7 +76,7 @@ def test_fingerprint_identifies_content_not_path(tmp_path) -> None:
 
 
 def test_fingerprint_counts_rows() -> None:
-    p = pathlib.Path(__file__).resolve().parent / "results.jsonl"
+    p = results.default_path()
     assert provenance.fingerprint(p).split()[0].isdigit()
 
 

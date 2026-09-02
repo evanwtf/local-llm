@@ -18,7 +18,7 @@ BANDED = [
     "README.md",
     "NEXT.md",
     "AGENTS.md",
-    "benchmarks/agent/RESULTS.md",
+    "hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/RESULTS-agent.md",
     "benchmarks/agent/README.md",
     "benchmarks/agent/METHODOLOGY.md",
 ]

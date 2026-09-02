@@ -5,6 +5,7 @@ machine time this project spends. An off-by-one in the algebra would be
 invisible and expensive, so the closed forms are pinned against values computed
 by hand.
 """
+
 from __future__ import annotations
 
 import sizing
@@ -51,6 +52,7 @@ def test_a_total_failure_has_a_zero_lower_bound():
 
 # --- wall time ------------------------------------------------------------
 
+
 def test_a_tight_distribution_needs_few_trials_to_pin_its_median():
     tight = [100.0, 101.0, 99.0, 100.5, 100.2] * 8
     got = sizing.median_precision(tight, n=5, draws=400, seed=1)
@@ -89,5 +91,6 @@ def test_a_suite_total_is_tighter_than_any_one_task_median():
 
 def test_suite_precision_declines_with_more_tasks():
     wide = [100.0, 120.0, 95.0, 300.0, 105.0, 700.0] * 6
-    assert (sizing.suite_precision(wide, tasks=10, n=3, draws=800, seed=5)
-            < sizing.suite_precision(wide, tasks=2, n=3, draws=800, seed=5))
+    assert sizing.suite_precision(
+        wide, tasks=10, n=3, draws=800, seed=5
+    ) < sizing.suite_precision(wide, tasks=2, n=3, draws=800, seed=5)

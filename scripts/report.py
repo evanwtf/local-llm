@@ -34,7 +34,7 @@ import summarize
 
 logger = logging.getLogger(__name__)
 
-RESULTS = HERE.parent / "benchmarks" / "agent" / "results.jsonl"
+RESULTS = results.default_path()
 
 # #23: a 3-trial median carries +/-27.9%, so two medians must differ by about
 # this much before the gap is real rather than sampling.

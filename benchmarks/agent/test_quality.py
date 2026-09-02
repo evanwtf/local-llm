@@ -1,22 +1,32 @@
 """Tests for the secondary-measurement report."""
+
 from __future__ import annotations
 
 import quality
 
 
 def _row(**kw):
-    base = {"task": "t", "backend": "b", "client": "claude", "passed": True,
-            "excluded": False, "control_fails_as_expected": True}
+    base = {
+        "task": "t",
+        "backend": "b",
+        "client": "claude",
+        "passed": True,
+        "excluded": False,
+        "control_fails_as_expected": True,
+    }
     base.update(kw)
     return base
 
 
 def test_gate_deltas_are_averaged_only_over_rows_that_measured_them():
     """An absent gate is not a zero. Averaging it in would report cleanliness."""
-    rows = [_row(gates_delta={"ruff": 2, "mypy": 0}), _row(gates_delta={}),
-            _row(gates_delta={"ruff": 4, "mypy": 2})]
+    rows = [
+        _row(gates_delta={"ruff": 2, "mypy": 0}),
+        _row(gates_delta={}),
+        _row(gates_delta={"ruff": 4, "mypy": 2}),
+    ]
     got = quality.summarise(rows)[("t", "b", "claude")]
-    assert got["ruff"] == 3.0          # (2 + 4) / 2, not / 3
+    assert got["ruff"] == 3.0  # (2 + 4) / 2, not / 3
     assert got["mypy"] == 1.0
     assert got["gated"] == 2
 
@@ -28,16 +38,22 @@ def test_a_cell_with_no_gates_at_all_reports_none_not_zero():
 
 def test_verbatim_counts_only_decided_rows():
     """None means unreadable, and must not count as "not recalled"."""
-    rows = [_row(restored_verbatim=True), _row(restored_verbatim=False),
-            _row(restored_verbatim=None)]
+    rows = [
+        _row(restored_verbatim=True),
+        _row(restored_verbatim=False),
+        _row(restored_verbatim=None),
+    ]
     got = quality.summarise(rows)[("t", "b", "claude")]
     assert got["verbatim"] == 1 and got["verbatim_of"] == 2
 
 
 def test_distinct_solutions_measures_determinism():
     """Same hash twice at temperature 1.0 is worth knowing (#26)."""
-    rows = [_row(solution_sha256="aa"), _row(solution_sha256="aa"),
-            _row(solution_sha256="bb")]
+    rows = [
+        _row(solution_sha256="aa"),
+        _row(solution_sha256="aa"),
+        _row(solution_sha256="bb"),
+    ]
     got = quality.summarise(rows)[("t", "b", "claude")]
     assert got["distinct"] == 2 and got["hashed"] == 3
 

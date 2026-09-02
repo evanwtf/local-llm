@@ -21,5 +21,5 @@ HERE = pathlib.Path(__file__).resolve().parent
 def pytest_report_header() -> list[str]:
     return [
         f"harness: {provenance.head()}",
-        f"results.jsonl: {provenance.fingerprint(HERE / 'results.jsonl')}",
+        f"results.jsonl: {provenance.fingerprint(results.default_path())}",
     ]

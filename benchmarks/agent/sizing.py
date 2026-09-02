@@ -23,6 +23,7 @@ own observed times to answer: at n trials, how tightly is the median pinned?
 
     uv run python benchmarks/agent/sizing.py
 """
+
 from __future__ import annotations
 
 import argparse
@@ -31,11 +32,10 @@ import math
 import pathlib
 import random
 import statistics
-import sys
 
+import provenance
 import results
 import variance
-import provenance
 
 logger = logging.getLogger(__name__)
 
@@ -54,8 +54,11 @@ def wilson_lower(passes: int, trials: int, z: float = Z95) -> float:
     p = passes / trials
     z2 = z * z
     centre = (p + z2 / (2 * trials)) / (1 + z2 / trials)
-    half = (z * math.sqrt(p * (1 - p) / trials + z2 / (4 * trials * trials))
-            / (1 + z2 / trials))
+    half = (
+        z
+        * math.sqrt(p * (1 - p) / trials + z2 / (4 * trials * trials))
+        / (1 + z2 / trials)
+    )
     return max(0.0, centre - half)
 
 
@@ -71,8 +74,9 @@ def trials_for(target: float, z: float = Z95) -> int:
     return math.ceil(target * z * z / (1 - target))
 
 
-def median_precision(samples: list[float], n: int, draws: int = 2000,
-                     seed: int = 20260828) -> float | None:
+def median_precision(
+    samples: list[float], n: int, draws: int = 2000, seed: int = 20260828
+) -> float | None:
     """How tightly do `n` trials pin the median? Returns a relative half-width.
 
     Resamples `n` values from the observed distribution, `draws` times, and
@@ -92,15 +96,15 @@ def median_precision(samples: list[float], n: int, draws: int = 2000,
     point = statistics.median(samples)
     if point <= 0:
         return None
-    medians = sorted(statistics.median(rng.choices(samples, k=n))
-                     for _ in range(draws))
+    medians = sorted(statistics.median(rng.choices(samples, k=n)) for _ in range(draws))
     lo = medians[int(draws * 0.05)]
     hi = medians[int(draws * 0.95)]
     return (hi - lo) / 2 / point
 
 
-def suite_precision(samples: list[float], tasks: int, n: int, draws: int = 2000,
-                    seed: int = 20260828) -> float | None:
+def suite_precision(
+    samples: list[float], tasks: int, n: int, draws: int = 2000, seed: int = 20260828
+) -> float | None:
     """Same question for a whole suite, which is what RESULTS.md actually reports.
 
     A suite total is the sum of one median per task, so it averages over `tasks`
@@ -127,8 +131,12 @@ def report(path: pathlib.Path) -> None:
 
     logger.info("=== pass rate: consecutive passes needed ===")
     for target in (0.80, 0.90, 0.95, 0.99):
-        logger.info("  %.0f%% confident of >%.0f%%: %d trials",
-                    95, target * 100, trials_for(target))
+        logger.info(
+            "  %.0f%% confident of >%.0f%%: %d trials",
+            95,
+            target * 100,
+            trials_for(target),
+        )
 
     logger.info("=== where each measured combination stands ===")
     cells: dict[tuple[str, str], list[dict]] = {}
@@ -140,9 +148,20 @@ def report(path: pathlib.Path) -> None:
         k = sum(results.verdict(r) for r in cell)
         ranked.append((wilson_lower(k, n), backend, client, k, n))
     for lower, backend, client, k, n in sorted(ranked, reverse=True):
-        need = "" if lower >= 0.90 else f"  (needs {max(0, trials_for(0.90) - n)} more if unbroken)"
-        logger.info("  %-14s x %-8s %3d/%-3d  lower bound %.3f%s",
-                    backend, client, k, n, lower, need)
+        need = (
+            ""
+            if lower >= 0.90
+            else f"  (needs {max(0, trials_for(0.90) - n)} more if unbroken)"
+        )
+        logger.info(
+            "  %-14s x %-8s %3d/%-3d  lower bound %.3f%s",
+            backend,
+            client,
+            k,
+            n,
+            lower,
+            need,
+        )
 
     logger.info("=== wall time: how much does a trial count buy? ===")
     grouped = variance.cells(rows)
@@ -151,22 +170,28 @@ def report(path: pathlib.Path) -> None:
         times = [r["wall_seconds"] for r in cell if r.get("wall_seconds")]
         if len(times) >= 6:
             med = statistics.median(times)
-            pooled.extend(t / med for t in times)   # normalise, then pool
-    logger.info("  pooled from %d observations across cells with >=6 trials",
-                len(pooled))
+            pooled.extend(t / med for t in times)  # normalise, then pool
+    logger.info(
+        "  pooled from %d observations across cells with >=6 trials", len(pooled)
+    )
     logger.info("  per task, and for a 5-task suite total:")
     for n in (3, 5, 10, 20, 35):
         one = median_precision(pooled, n)
         suite = suite_precision(pooled, 5, n)
         if one is not None and suite is not None:
-            logger.info("  n=%-3d task median +/- %4.1f%%   suite total +/- %4.1f%%",
-                        n, one * 100, suite * 100)
+            logger.info(
+                "  n=%-3d task median +/- %4.1f%%   suite total +/- %4.1f%%",
+                n,
+                one * 100,
+                suite * 100,
+            )
 
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    p.add_argument("--results", default=str(pathlib.Path(__file__).parent
-                                            / "results.jsonl"))
+    p.add_argument(
+        "--results", default=str(pathlib.Path(__file__).parent / "results.jsonl")
+    )
     args = p.parse_args(argv)
     provenance.configure()
     report(pathlib.Path(args.results))

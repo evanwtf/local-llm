@@ -17,7 +17,6 @@ docs/archive/results-opencode-pre-dir.md.
 from __future__ import annotations
 
 import collections
-import json
 import pathlib
 import statistics
 import subprocess
@@ -75,7 +74,7 @@ def load(path: pathlib.Path | None = None) -> list[dict[str, Any]]:
     calling it is the same mistake as `dirfix.py` hand-rolling `r.get(
     "excluded")`, which RESULTS.md already records having miscounted 14 rows.
     """
-    return results.trials(path or HERE / "results.jsonl")
+    return results.trials(path or results.default_path())
 
 
 def valid_opencode(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -169,7 +168,8 @@ def render(rows: list[dict[str, Any]] | None = None) -> str:
     # results.jsonl, and stamping them with a commit that moves on every
     # unrelated edit would churn the document and train people to skim it.
     out += [
-        f"*Generated from `results.jsonl` — {provenance.fingerprint(HERE / 'results.jsonl')}.*",
+        f"*Generated from `results.jsonl` — "
+        f"{provenance.fingerprint(results.default_path())}.*",
         "",
     ]
     out += ["#### Every stack measured under OpenCode", ""]

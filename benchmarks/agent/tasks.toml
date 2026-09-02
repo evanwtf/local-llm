@@ -643,6 +643,30 @@ model = "qwen3.8-flash-next-ud"
 opencode_model = "lmstudio/qwen3.8-flash-next-ud"
 context_tokens = 131072
 
+# The same UD-Q3_K_XL quant as qwen38fnq3 with the expert count pruned from
+# 512 to 320 (#89). `expert_used_count` is 10 in both, and every other hparam
+# matches -- verified with scripts/gguf_meta.py, not assumed from the name.
+#
+# 69.0 GB against 90.0 GB. This is the cleanest one-variable comparison this
+# project has had: same weights, same quant, same engine, same client, measured
+# against qwen38fnq3's 30/30 at a 90s median.
+#
+# Pruned-expert builds are young and this was pruned by an individual, not the
+# model's publisher. A GOOD result needs replication before it displaces the
+# default; a bad one is the first quality signal a model change has produced.
+[backend.qwen38fnq3reap]
+description = "Qwen3.8-Flash-Next UD-Q3_K_XL, REAP-320 (320 of 512 experts)"
+# :8020 is llama-server itself. qwen38fnq3 names :11500 because the shim fronts
+# it for Anthropic-dialect clients; OpenCode talks to :8020 directly, and this
+# cell is OpenCode-only. Copying the shim port cost a smoke gate -- preflight
+# caught it, warning that a server was holding 42 GiB on a port no selected
+# backend used.
+base_url = "http://127.0.0.1:8020"
+auth_token = "llamacpp-local"
+model = "qwen3.8-flash-next-q3-reap320"
+opencode_model = "llamacpp/qwen3.8-flash-next-q3-reap320"
+context_tokens = 131072
+
 [backend.qwen38fnq3]
 description = "Qwen3.8-Flash-Next 125B-A6B, Unsloth UD-Q3_K_XL, llama.cpp PR #27742"
 base_url = "http://127.0.0.1:11500"

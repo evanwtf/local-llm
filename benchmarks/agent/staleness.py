@@ -19,6 +19,7 @@ GitHub is slow is worse than no version check. Every lookup is time-bounded and
 every failure degrades to "unknown", which is printed -- an unparseable version
 must never read as agreement, because then the operator stops looking.
 """
+
 from __future__ import annotations
 
 import json
@@ -41,7 +42,7 @@ TOOLS: dict[str, tuple[list[str], str]] = {
     "ollama": (["ollama", "--version"], "ollama/ollama"),
     "codex": (["codex", "--version"], "openai/codex"),
     "opencode": (["opencode", "--version"], "sst/opencode"),
-    "claude": (["claude", "--version"], ""),   # npm, not a GitHub release
+    "claude": (["claude", "--version"], ""),  # npm, not a GitHub release
 }
 
 CACHE = pathlib.Path.home() / ".cache" / "local-llm" / "upstream-versions.json"
@@ -77,8 +78,14 @@ def compare(installed: str | None, latest: str | None) -> str:
 
 def _run(argv: list[str], timeout: int = 15) -> str | None:
     try:
-        got = subprocess.run(argv, capture_output=True, text=True, check=False,
-                             timeout=timeout, stdin=subprocess.DEVNULL)
+        got = subprocess.run(
+            argv,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=timeout,
+            stdin=subprocess.DEVNULL,
+        )
     except (OSError, subprocess.SubprocessError):
         return None
     out = (got.stdout or got.stderr or "").strip()
@@ -118,15 +125,31 @@ def latest_versions(offline: bool = False) -> dict[str, str | None]:
     versions: dict[str, str | None] = {}
     for name, (_argv, repo) in TOOLS.items():
         if not repo:
-            versions[name] = _run(["npm", "view", "@anthropic-ai/claude-code",
-                                   "version"], timeout=20) if name == "claude" else None
+            versions[name] = (
+                _run(
+                    ["npm", "view", "@anthropic-ai/claude-code", "version"], timeout=20
+                )
+                if name == "claude"
+                else None
+            )
             continue
-        versions[name] = _run(["gh", "release", "view", "--repo", repo,
-                               "--json", "tagName", "-q", ".tagName"], timeout=20)
+        versions[name] = _run(
+            [
+                "gh",
+                "release",
+                "view",
+                "--repo",
+                repo,
+                "--json",
+                "tagName",
+                "-q",
+                ".tagName",
+            ],
+            timeout=20,
+        )
     try:
         CACHE.parent.mkdir(parents=True, exist_ok=True)
-        CACHE.write_text(json.dumps({"fetched_at": time.time(),
-                                     "versions": versions}))
+        CACHE.write_text(json.dumps({"fetched_at": time.time(), "versions": versions}))
     except OSError as exc:
         logger.debug("could not cache upstream versions: %s", exc)
     return versions
@@ -138,8 +161,9 @@ def latest_versions(offline: bool = False) -> dict[str, str | None]:
 MAINLINE = {"main", "master", "HEAD"}
 
 
-def describe_drift(branch: str | None, behind: int | None,
-                   tracking: str | None) -> dict[str, Any]:
+def describe_drift(
+    branch: str | None, behind: int | None, tracking: str | None
+) -> dict[str, Any]:
     """Is this checkout actually stale, or just parked on a branch?
 
     A worktree on a PR branch diverges from master by design.
@@ -153,22 +177,34 @@ def describe_drift(branch: str | None, behind: int | None,
     if behind is None:
         return {"stale": False, "note": "no remote to compare"}
     if tracking:
-        return {"stale": behind > 0,
-                "note": f"{behind} behind {tracking}" if behind else "current"}
+        return {
+            "stale": behind > 0,
+            "note": f"{behind} behind {tracking}" if behind else "current",
+        }
     if branch and branch not in MAINLINE:
-        return {"stale": False,
-                "note": f"on PR branch {branch!r}; {behind} behind master "
-                        f"is expected divergence, not staleness"}
-    return {"stale": behind > 0,
-            "note": f"{behind} behind mainline" if behind else "current"}
+        return {
+            "stale": False,
+            "note": f"on PR branch {branch!r}; {behind} behind master "
+            f"is expected divergence, not staleness",
+        }
+    return {
+        "stale": behind > 0,
+        "note": f"{behind} behind mainline" if behind else "current",
+    }
 
 
 # Notification reasons that mean somebody is talking to you, most direct first.
 # `ci_activity` is deliberately absent: 41 of 41 notifications on this account
 # were CI noise from unrelated repos, and a check that reports those is one
 # nobody reads.
-NOTIFY_REASONS = ("mention", "review_requested", "assign", "author",
-                  "comment", "subscribed")
+NOTIFY_REASONS = (
+    "mention",
+    "review_requested",
+    "assign",
+    "author",
+    "comment",
+    "subscribed",
+)
 
 
 def interesting_notifications(items, repos, reasons=NOTIFY_REASONS):
@@ -188,14 +224,16 @@ def interesting_notifications(items, repos, reasons=NOTIFY_REASONS):
             continue
         if repo not in repos or reason not in reasons:
             continue
-        out.append({
-            "repo": repo,
-            "reason": reason,
-            "unread": bool(item.get("unread")),
-            "title": (subject.get("title") or "")[:80],
-            "type": subject.get("type") or "",
-            "updated": (item.get("updated_at") or "")[:16],
-        })
+        out.append(
+            {
+                "repo": repo,
+                "reason": reason,
+                "unread": bool(item.get("unread")),
+                "title": (subject.get("title") or "")[:80],
+                "type": subject.get("type") or "",
+                "updated": (item.get("updated_at") or "")[:16],
+            }
+        )
     order = {r: i for i, r in enumerate(reasons)}
     out.sort(key=lambda n: (order.get(n["reason"], 99), n["updated"]))
     return out
@@ -203,10 +241,10 @@ def interesting_notifications(items, repos, reasons=NOTIFY_REASONS):
 
 def fetch_notifications(days: int = 14) -> list[dict[str, Any]]:
     """Recent notifications including read ones. [] on any failure."""
-    since = time.strftime("%Y-%m-%dT%H:%M:%SZ",
-                          time.gmtime(time.time() - days * 86400))
-    out = _run(["gh", "api", f"notifications?all=true&since={since}",
-                "--paginate"], timeout=25)
+    since = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(time.time() - days * 86400))
+    out = _run(
+        ["gh", "api", f"notifications?all=true&since={since}", "--paginate"], timeout=25
+    )
     if not out or not out.startswith("["):
         return []
     try:
@@ -215,8 +253,9 @@ def fetch_notifications(days: int = 14) -> list[dict[str, Any]]:
         return []
 
 
-def new_remote_branches(repo: pathlib.Path, known: set[str] | None = None,
-                        days: int = 14) -> list[str]:
+def new_remote_branches(
+    repo: pathlib.Path, known: set[str] | None = None, days: int = 14
+) -> list[str]:
     """Remote branches updated recently that the local checkout is not on.
 
     ds4 is the reference implementation for this hardware and antirez ships
@@ -227,12 +266,21 @@ def new_remote_branches(repo: pathlib.Path, known: set[str] | None = None,
     Offline -- reads refs already fetched, so it is only as fresh as the last
     `git fetch`, which `git_drift` reports separately.
     """
-    out = _run(["git", "-C", str(repo), "for-each-ref", "--sort=-committerdate",
-                "--format=%(refname:short)%09%(committerdate:unix)",
-                "refs/remotes"])
+    out = _run(
+        [
+            "git",
+            "-C",
+            str(repo),
+            "for-each-ref",
+            "--sort=-committerdate",
+            "--format=%(refname:short)%09%(committerdate:unix)",
+            "refs/remotes",
+        ]
+    )
     if not out:
         return []
     import time as _time
+
     cutoff = _time.time() - days * 86400
     fresh = []
     for line in out.splitlines():
@@ -275,11 +323,26 @@ def git_drift(repo: pathlib.Path) -> dict[str, Any] | None:
     branch = _run(["git", "-C", str(repo), "rev-parse", "--abbrev-ref", "HEAD"])
     # `_run` falls back to stderr, and `@{u}` on a branch with no upstream
     # prints "fatal: no upstream configured". That is an absence, not a name.
-    tracking = _run(["git", "-C", str(repo), "rev-parse", "--abbrev-ref",
-                     "--symbolic-full-name", "@{u}"])
+    tracking = _run(
+        [
+            "git",
+            "-C",
+            str(repo),
+            "rev-parse",
+            "--abbrev-ref",
+            "--symbolic-full-name",
+            "@{u}",
+        ]
+    )
     if tracking and (tracking.startswith("fatal:") or " " in tracking):
         tracking = None
     verdict = describe_drift(branch, behind, tracking)
-    return {"head": head, "behind": behind, "branch": branch,
-            "dirty": bool(dirty), "fetched_days_ago": age,
-            "stale": verdict["stale"], "note": verdict["note"]}
+    return {
+        "head": head,
+        "behind": behind,
+        "branch": branch,
+        "dirty": bool(dirty),
+        "fetched_days_ago": age,
+        "stale": verdict["stale"],
+        "note": verdict["note"],
+    }

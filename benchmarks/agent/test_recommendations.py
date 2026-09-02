@@ -13,9 +13,8 @@ import json
 import pathlib
 import re
 
-import pytest
-
 import gen_tables
+import pytest
 import splice_tables
 
 DOC = pathlib.Path(__file__).resolve().parents[2] / "RECOMMENDATIONS.md"

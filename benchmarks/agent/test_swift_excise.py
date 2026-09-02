@@ -6,6 +6,7 @@ understand strings and comments will cut in the wrong place and produce a file
 that still compiles. That is the failure mode worth engineering against: a
 wrong span does not crash, it silently changes what the task is.
 """
+
 from __future__ import annotations
 
 import pathlib
@@ -13,7 +14,7 @@ import pathlib
 import pytest
 from swift_excise import TargetNotFound, body_source, excise
 
-SAMPLE = '''\
+SAMPLE = """\
 import Foundation
 
 /// Bucket samples for display.
@@ -36,7 +37,7 @@ public enum Downsample {
 func topLevel() -> Int {
     return 1
 }
-'''
+"""
 
 
 @pytest.fixture

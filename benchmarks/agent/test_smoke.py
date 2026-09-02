@@ -8,7 +8,6 @@ meaningless rows -- so the cases that matter are the ones where it must say no.
 from __future__ import annotations
 
 import pytest
-
 import smoke
 
 GOOD = {

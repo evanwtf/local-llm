@@ -73,7 +73,7 @@ def fmt(value, suffix="", nd=1):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    p.add_argument("--results", default=str(HERE / "results.jsonl"))
+    p.add_argument("--results", default=str(results.default_path()))
     p.add_argument("--markdown", action="store_true", help="emit a markdown table")
     args = p.parse_args()
     provenance.configure()

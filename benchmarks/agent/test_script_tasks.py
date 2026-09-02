@@ -13,7 +13,6 @@ import pathlib
 import tempfile
 
 import pytest
-
 import run
 
 CHECKS = [["Benchmarking", "gnikramhcneB"], ["a", "a"], ["ab cd", "dc ba"]]

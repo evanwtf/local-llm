@@ -11,9 +11,9 @@ from __future__ import annotations
 import json
 import pathlib
 
-import pytest
-
 import dirfix
+import results
+import pytest
 
 
 def row(**kw):
@@ -101,7 +101,7 @@ def test_the_archive_is_still_where_dirfix_expects_it() -> None:
 
 def test_no_pre_dir_opencode_rows_remain_in_results() -> None:
     """Live results must contain only trials that measured the client."""
-    live = pathlib.Path(__file__).resolve().parent / "results.jsonl"
+    live = results.default_path()
     heads = dirfix.fixed_commits(live.parent)
     stragglers = [
         json.loads(x)

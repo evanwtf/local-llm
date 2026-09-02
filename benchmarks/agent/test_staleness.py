@@ -4,6 +4,7 @@ The failure that matters is a false "current": a comparison that cannot parse a
 tag and quietly reports no drift is worse than one that reports nothing, because
 the operator stops looking. Every unknown must stay visibly unknown.
 """
+
 from __future__ import annotations
 
 import staleness
@@ -19,7 +20,7 @@ def test_tags_are_compared_regardless_of_their_decoration():
 
 
 def test_numeric_order_not_string_order():
-    """"0.9.0" > "0.10.0" as strings. That would hide a whole release."""
+    """ "0.9.0" > "0.10.0" as strings. That would hide a whole release."""
     assert staleness.compare("0.9.0", "0.10.0") == "behind"
     assert staleness.compare("0.148.0", "0.150.1") == "behind"
 
@@ -54,8 +55,10 @@ def test_a_version_below_a_warning_line_is_still_found():
     """`ollama --version` leads with a connection warning when the daemon is
     down and prints the version underneath. Taking line one reported a healthy
     install as unknown."""
-    assert staleness.parse("Warning: could not connect to a running Ollama "
-                           "instance\nollama version is 0.33.1") == (0, 33, 1)
+    assert staleness.parse(
+        "Warning: could not connect to a running Ollama "
+        "instance\nollama version is 0.33.1"
+    ) == (0, 33, 1)
 
 
 def test_a_feature_branch_is_not_reported_as_behind_master():
@@ -67,15 +70,13 @@ def test_a_feature_branch_is_not_reported_as_behind_master():
     destroyed the build every glm53 row depends on. A warning that fires on a
     correct state is the kind nobody reads.
     """
-    got = staleness.describe_drift(branch="glm53-pr27752", behind=9,
-                                   tracking=None)
+    got = staleness.describe_drift(branch="glm53-pr27752", behind=9, tracking=None)
     assert got["stale"] is False
     assert "pr branch" in got["note"].lower()
 
 
 def test_a_branch_tracking_its_own_upstream_is_judged_against_that():
-    got = staleness.describe_drift(branch="main", behind=4,
-                                   tracking="origin/main")
+    got = staleness.describe_drift(branch="main", behind=4, tracking="origin/main")
     assert got["stale"] is True
 
 
@@ -85,8 +86,10 @@ def test_a_branch_on_master_and_behind_is_stale():
 
 
 def test_a_branch_on_master_and_current_is_not_stale():
-    assert staleness.describe_drift(branch="master", behind=0,
-                                    tracking=None)["stale"] is False
+    assert (
+        staleness.describe_drift(branch="master", behind=0, tracking=None)["stale"]
+        is False
+    )
 
 
 def test_a_git_error_string_is_not_mistaken_for_an_upstream_name():
@@ -99,31 +102,47 @@ def test_a_git_error_string_is_not_mistaken_for_an_upstream_name():
 def test_known_branches_are_not_re_announced():
     """Once a branch is being used, stop shouting about it."""
     import pathlib as _p
-    got = staleness.new_remote_branches(_p.Path.home() / "git/ds4",
-                                        known={"glm-5.3-flash"})
+
+    got = staleness.new_remote_branches(
+        _p.Path.home() / "git/ds4", known={"glm-5.3-flash"}
+    )
     assert "glm-5.3-flash" not in got
 
 
 # --- GitHub notifications -------------------------------------------------
 
 NOTIFS = [
-    {"reason": "mention", "unread": True,
-     "updated_at": "2026-08-29T19:22:00Z",
-     "repository": {"full_name": "antirez/ds4"},
-     "subject": {"title": "metal: scale GLM 5.3 memory guard with host RAM",
-                 "type": "PullRequest"}},
-    {"reason": "comment", "unread": False,
-     "updated_at": "2026-08-29T19:22:00Z",
-     "repository": {"full_name": "antirez/ds4"},
-     "subject": {"title": "GLM-5.3-Flash Metal: prefill fails", "type": "Issue"}},
-    {"reason": "ci_activity", "unread": True,
-     "updated_at": "2026-08-28T14:01:00Z",
-     "repository": {"full_name": "evanwtf/monitor"},
-     "subject": {"title": "Release workflow run failed", "type": "CheckSuite"}},
-    {"reason": "mention", "unread": True,
-     "updated_at": "2026-08-27T10:00:00Z",
-     "repository": {"full_name": "evanwtf/some-other-repo"},
-     "subject": {"title": "unrelated", "type": "Issue"}},
+    {
+        "reason": "mention",
+        "unread": True,
+        "updated_at": "2026-08-29T19:22:00Z",
+        "repository": {"full_name": "antirez/ds4"},
+        "subject": {
+            "title": "metal: scale GLM 5.3 memory guard with host RAM",
+            "type": "PullRequest",
+        },
+    },
+    {
+        "reason": "comment",
+        "unread": False,
+        "updated_at": "2026-08-29T19:22:00Z",
+        "repository": {"full_name": "antirez/ds4"},
+        "subject": {"title": "GLM-5.3-Flash Metal: prefill fails", "type": "Issue"},
+    },
+    {
+        "reason": "ci_activity",
+        "unread": True,
+        "updated_at": "2026-08-28T14:01:00Z",
+        "repository": {"full_name": "evanwtf/monitor"},
+        "subject": {"title": "Release workflow run failed", "type": "CheckSuite"},
+    },
+    {
+        "reason": "mention",
+        "unread": True,
+        "updated_at": "2026-08-27T10:00:00Z",
+        "repository": {"full_name": "evanwtf/some-other-repo"},
+        "subject": {"title": "unrelated", "type": "Issue"},
+    },
 ]
 
 
@@ -139,7 +158,8 @@ def test_only_repos_this_project_depends_on_are_reported():
 
 def test_ci_activity_is_dropped():
     got = staleness.interesting_notifications(
-        NOTIFS, repos={"antirez/ds4", "evanwtf/monitor"})
+        NOTIFS, repos={"antirez/ds4", "evanwtf/monitor"}
+    )
     assert all(n["reason"] != "ci_activity" for n in got)
 
 
@@ -165,5 +185,9 @@ def test_the_subject_type_is_kept_so_a_pr_is_distinguishable():
 
 
 def test_malformed_entries_are_skipped_not_fatal():
-    assert staleness.interesting_notifications([{}, {"reason": "mention"}],
-                                               repos={"antirez/ds4"}) == []
+    assert (
+        staleness.interesting_notifications(
+            [{}, {"reason": "mention"}], repos={"antirez/ds4"}
+        )
+        == []
+    )

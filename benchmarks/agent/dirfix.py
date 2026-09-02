@@ -104,7 +104,7 @@ def report(counts: dict[tuple[str, str, str], list[int]]) -> list[str]:
 
 def main() -> None:
     provenance.configure()
-    p = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else "results.jsonl")
+    p = pathlib.Path(sys.argv[1]) if len(sys.argv) > 1 else results.default_path()
     rows = [json.loads(line) for line in p.read_text().splitlines()]
     if ARCHIVE.exists():
         rows += [json.loads(line) for line in ARCHIVE.read_text().splitlines()]

@@ -4,6 +4,7 @@ These record what the oracle cannot: whether the solution is lint-clean, whether
 it type-checks, and whether it is the original body reproduced from memory. None
 of them may change a verdict -- the oracle stays binary and stays the authority.
 """
+
 from __future__ import annotations
 
 import json
@@ -28,7 +29,8 @@ def worktree(tmp_path: pathlib.Path) -> pathlib.Path:
     subprocess.run(["git", "add", "-A"], cwd=wt, check=True)
     subprocess.run(
         ["git", "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "-m", "x"],
-        cwd=wt, check=True,
+        cwd=wt,
+        check=True,
     )
     return wt
 
@@ -38,6 +40,7 @@ def _solve(worktree: pathlib.Path, body: str) -> None:
 
 
 # --- the recall detector -------------------------------------------------
+
 
 def test_an_exact_reproduction_of_the_original_is_flagged(worktree):
     _solve(worktree, ORIGINAL)
@@ -65,6 +68,7 @@ def test_a_still_stubbed_function_is_not_a_verbatim_restore(worktree):
 
 
 # --- the saved artifact --------------------------------------------------
+
 
 def test_the_solution_patch_is_written_and_hashed(worktree, tmp_path):
     _solve(worktree, ORIGINAL)
@@ -98,6 +102,7 @@ def test_saving_never_raises_when_the_destination_is_unusable(worktree, tmp_path
 
 
 # --- the gates -----------------------------------------------------------
+
 
 def test_gates_report_counts_not_verdicts(worktree):
     """A gate returns numbers. Deciding what they mean is not its job."""
@@ -151,5 +156,5 @@ def test_verbatim_uses_the_right_parser_for_the_language(tmp_path):
     would report None -- an unreadable file -- rather than a real comparison.
     Silently losing the recall signal on a whole repository."""
     p = tmp_path / "X.swift"
-    p.write_text('enum X {\n    static func f() -> Int {\n        return 1\n    }\n}\n')
+    p.write_text("enum X {\n    static func f() -> Int {\n        return 1\n    }\n}\n")
     assert grade.restored_verbatim(p, "X.f", "\n        return 1\n    ") is True

@@ -5,6 +5,7 @@ counts as the original, so both directions need pinning: `excise` must remove
 exactly the body and keep the docstring, and `body_source` must return the same
 span without touching the file.
 """
+
 from __future__ import annotations
 
 import pathlib
@@ -105,6 +106,7 @@ def test_a_docstring_only_function_has_nothing_to_remove(tmp_path):
 
 
 # --- direction 4: taking the contract away --------------------------------
+
 
 def test_excise_can_take_the_docstring_too(sample):
     """`keep_docstring = false` is how a task stops being "implement this".

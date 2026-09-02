@@ -6,6 +6,7 @@ quietly if wrong: splitting trials into batches, and the correlation. An
 off-by-one in the batch split would move the "first trial" ratio without
 raising anything.
 """
+
 from __future__ import annotations
 
 import datetime as dt
@@ -57,12 +58,14 @@ def test_a_single_trial_is_a_batch():
 
 
 def test_cells_separate_client_and_task_but_not_trial_number():
-    grouped = cells([
-        row(0, task="mbox-scan", trial=1),
-        row(1, task="mbox-scan", trial=2),
-        row(2, task="parser-date"),
-        row(3, client="codex"),
-    ])
+    grouped = cells(
+        [
+            row(0, task="mbox-scan", trial=1),
+            row(1, task="mbox-scan", trial=2),
+            row(2, task="parser-date"),
+            row(3, client="codex"),
+        ]
+    )
     assert len(grouped) == 3
     assert len(grouped[("ds4", "claude", "mbox-scan")]) == 2
 

@@ -11,7 +11,6 @@ import json
 import pathlib
 
 import pytest
-
 from results import (
     LEGACY_EXCLUSION_KEYS,
     SCHEMA_VERSION,

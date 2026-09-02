@@ -7,6 +7,7 @@ the signature and docstring means the task is "implement this contract", not
 Uses the AST to find the target, so it works on methods and nested defs and
 does not care about formatting.
 """
+
 import ast
 import pathlib
 
@@ -20,7 +21,10 @@ def find(tree: ast.Module, symbol: str) -> ast.FunctionDef:
     parts = symbol.split(".")
     if len(parts) == 1:
         for node in tree.body:
-            if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef) and node.name == parts[0]:
+            if (
+                isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
+                and node.name == parts[0]
+            ):
                 return node
         raise TargetNotFound(f"no top-level function {symbol!r}")
 
@@ -28,14 +32,18 @@ def find(tree: ast.Module, symbol: str) -> ast.FunctionDef:
     for node in tree.body:
         if isinstance(node, ast.ClassDef) and node.name == cls_name:
             for sub in node.body:
-                if isinstance(sub, ast.FunctionDef | ast.AsyncFunctionDef) and sub.name == func_name:
+                if (
+                    isinstance(sub, ast.FunctionDef | ast.AsyncFunctionDef)
+                    and sub.name == func_name
+                ):
                     return sub
             raise TargetNotFound(f"class {cls_name!r} has no method {func_name!r}")
     raise TargetNotFound(f"no class {cls_name!r}")
 
 
-def _span(source: str, symbol: str,
-          keep_docstring: bool = True) -> tuple[int, int, str]:
+def _span(
+    source: str, symbol: str, keep_docstring: bool = True
+) -> tuple[int, int, str]:
     """Locate the body of `symbol`, after any docstring.
 
     With `keep_docstring=False` the docstring goes too, and the agent gets a
@@ -64,13 +72,12 @@ def _span(source: str, symbol: str,
     else:
         first = body[0]
 
-    start = first.lineno - 1                      # 0-indexed, inclusive
-    end = node.body[-1].end_lineno                # 1-indexed, exclusive once used as a slice
+    start = first.lineno - 1  # 0-indexed, inclusive
+    end = node.body[-1].end_lineno  # 1-indexed, exclusive once used as a slice
     return start, end, " " * first.col_offset
 
 
-def body_source(path: pathlib.Path, symbol: str,
-                keep_docstring: bool = True) -> str:
+def body_source(path: pathlib.Path, symbol: str, keep_docstring: bool = True) -> str:
     """Return the body of `symbol` without changing the file.
 
     The read half of `excise`. Comparing this against what `excise` removed is

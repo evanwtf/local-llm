@@ -31,6 +31,7 @@ take down a trial that has already cost twenty minutes of wall clock -- the same
 rule `probe_server` follows. Absent is recorded as absent, never as zero: a zero
 reads as "clean" and becomes a published claim.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -59,8 +60,9 @@ def _normalize(body: str) -> str:
     return " ".join(body.split())
 
 
-def restored_verbatim(path: pathlib.Path, symbol: str, original: str,
-                      keep_docstring: bool = True) -> bool | None:
+def restored_verbatim(
+    path: pathlib.Path, symbol: str, original: str, keep_docstring: bool = True
+) -> bool | None:
     """Did the agent reproduce the original body?
 
     True means byte-for-byte modulo whitespace -- strong evidence of recall
@@ -74,19 +76,24 @@ def restored_verbatim(path: pathlib.Path, symbol: str, original: str,
     # Same dispatch as run.py: the Python `ast` parser raises on Swift, which
     # would surface as `restored_verbatim: None` -- an unreadable file -- and
     # quietly lose the recall signal for a whole repository.
-    reader = (swift_excise if pathlib.PurePath(path).suffix == ".swift"
-              else excise)
+    reader = swift_excise if pathlib.PurePath(path).suffix == ".swift" else excise
     try:
         produced = reader.body_source(path, symbol, keep_docstring)
-    except (OSError, SyntaxError, ValueError, excise.TargetNotFound,
-            swift_excise.TargetNotFound) as exc:
+    except (
+        OSError,
+        SyntaxError,
+        ValueError,
+        excise.TargetNotFound,
+        swift_excise.TargetNotFound,
+    ) as exc:
         logger.debug("cannot read %s from %s: %s", symbol, path, exc)
         return None
     return _normalize(produced) == _normalize(original)
 
 
-def save_solution(dest: pathlib.Path, name: str,
-                  worktree: pathlib.Path) -> dict[str, Any]:
+def save_solution(
+    dest: pathlib.Path, name: str, worktree: pathlib.Path
+) -> dict[str, Any]:
     """Keep the agent's diff, and hash it.
 
     The hash is the cheap half and the interesting one: identical hashes across
@@ -99,8 +106,13 @@ def save_solution(dest: pathlib.Path, name: str,
     """
     try:
         proc = subprocess.run(
-            ["git", "diff", "HEAD"], cwd=worktree, capture_output=True,
-            text=True, timeout=60, stdin=subprocess.DEVNULL, check=False,
+            ["git", "diff", "HEAD"],
+            cwd=worktree,
+            capture_output=True,
+            text=True,
+            timeout=60,
+            stdin=subprocess.DEVNULL,
+            check=False,
         )
         if proc.returncode != 0:
             logger.debug("git diff failed in %s: %s", worktree, proc.stderr.strip())
@@ -133,8 +145,9 @@ COUNTERS = {"ruff": _count_ruff, "mypy": _count_mypy}
 ARGV = {"ruff": ["ruff", "check", "."], "mypy": ["mypy"]}
 
 
-def gates(worktree: pathlib.Path, timeout: int,
-          tools: list[str] | None = None) -> dict[str, int]:
+def gates(
+    worktree: pathlib.Path, timeout: int, tools: list[str] | None = None
+) -> dict[str, int]:
     """Run the repository's own checkers and count what they say.
 
     Returns a count per tool that ran. A tool that is missing, times out, or
@@ -146,8 +159,13 @@ def gates(worktree: pathlib.Path, timeout: int,
         argv = ARGV.get(tool, [tool])
         try:
             proc = subprocess.run(
-                ["uv", "run", *argv], cwd=worktree, capture_output=True,
-                text=True, timeout=timeout, stdin=subprocess.DEVNULL, check=False,
+                ["uv", "run", *argv],
+                cwd=worktree,
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                stdin=subprocess.DEVNULL,
+                check=False,
             )
         except (OSError, subprocess.SubprocessError) as exc:
             logger.debug("gate %s did not run: %s", tool, exc)
@@ -156,7 +174,9 @@ def gates(worktree: pathlib.Path, timeout: int,
         # "tool is not installed". Only the first has a count to read, and the
         # second must not be recorded as a clean zero.
         if proc.returncode != 0 and not proc.stdout.strip():
-            logger.debug("gate %s produced nothing: %s", tool, proc.stderr.strip()[:200])
+            logger.debug(
+                "gate %s produced nothing: %s", tool, proc.stderr.strip()[:200]
+            )
             continue
         counter = COUNTERS.get(tool)
         if counter is None:
@@ -181,8 +201,9 @@ def delta(before: dict[str, int], after: dict[str, int]) -> dict[str, int]:
     return {k: after[k] - before[k] for k in before}
 
 
-def all_restored_verbatim(excised: list[tuple[pathlib.Path, str, str]],
-                          keep_docstring: bool = True) -> bool | None:
+def all_restored_verbatim(
+    excised: list[tuple[pathlib.Path, str, str]], keep_docstring: bool = True
+) -> bool | None:
     """Did every hollowed-out symbol come back unchanged?
 
     True only if all of them did. A task that removes two coupled functions and
@@ -192,8 +213,9 @@ def all_restored_verbatim(excised: list[tuple[pathlib.Path, str, str]],
     None if any target is unreadable, because "some were verbatim and one file
     no longer parses" is not an answer worth writing down.
     """
-    answers = [restored_verbatim(p, sym, body, keep_docstring)
-               for p, sym, body in excised]
+    answers = [
+        restored_verbatim(p, sym, body, keep_docstring) for p, sym, body in excised
+    ]
     if not answers or None in answers:
         return None
     return all(answers)

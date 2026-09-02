@@ -11,9 +11,8 @@ import pathlib
 import sys
 import textwrap
 
-import pytest
-
 import memcap
+import pytest
 
 HOG = textwrap.dedent("""
     import time
