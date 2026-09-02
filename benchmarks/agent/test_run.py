@@ -820,3 +820,29 @@ def test_the_results_path_is_an_option():
     assert "results.trials(args.results)" in source
     # The guard must test the file being written, not a hardcoded default.
     assert "results.trials(RESULTS)" not in source
+
+
+def test_a_missing_results_file_is_an_empty_history(tmp_path):
+    """The first run on a new machine writes to a file that does not exist.
+
+    load() raised FileNotFoundError, so the desktop's first real run crashed
+    after its smoke gate had already passed -- the most expensive place to
+    discover it.
+    """
+    assert results.load(tmp_path / "nope.jsonl") == []
+    assert results.trials(tmp_path / "nope.jsonl") == []
+
+
+def test_write_row_creates_the_machine_directory(tmp_path):
+    """A per-machine run must need no setup step someone can forget."""
+    target = tmp_path / "hardware" / "Some-Machine" / "results.jsonl"
+    row = {
+        "schema_version": 2,
+        "task": "t",
+        "backend": "b",
+        "client": "opencode",
+        "trial": 1,
+    }
+    results.write_row(dict(row), target)
+    assert target.exists()
+    assert len(results.load(target)) == 1

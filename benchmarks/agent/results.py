@@ -157,7 +157,12 @@ def write_row(row: dict[str, Any], path: pathlib.Path) -> dict[str, Any]:
             SCHEMA_VERSION,
             "; ".join(errors),
         )
-    with pathlib.Path(path).open("a") as fh:
+    path = pathlib.Path(path)
+    # A new machine's directory may exist without its results file, or not
+    # exist at all. Creating it here means a per-machine run needs no setup
+    # step that someone can forget (#85).
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a") as fh:
         fh.write(json.dumps(row) + "\n")
     return row
 
@@ -227,9 +232,18 @@ def load(path: pathlib.Path) -> list[dict[str, Any]]:
 
     This is the only supported way to read results.jsonl. Reading it by hand is
     how the four exclusion keys went unnoticed.
+
+    A missing file is an empty history, not an error. The first thing a new
+    machine does is write to a results file that does not exist yet -- which is
+    exactly what `--results hardware/<machine>/results.jsonl` creates (#85) --
+    and raising there crashed the desktop's first real run after the smoke gate
+    had already passed.
     """
     rows: list[dict[str, Any]] = []
-    with pathlib.Path(path).open() as fh:
+    path = pathlib.Path(path)
+    if not path.exists():
+        return rows
+    with path.open() as fh:
         for n, line in enumerate(fh, 1):
             line = line.strip()
             if not line:
