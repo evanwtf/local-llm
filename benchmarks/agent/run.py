@@ -43,6 +43,7 @@ import urllib.request
 
 import excise
 import grade
+import memcap
 import plausibility
 import preflight
 import provenance
@@ -66,6 +67,10 @@ GATE_TIMEOUT = 300
 # headroom. It previously inherited the agent's --timeout of 1800s, which let a
 # runaway test run hold 49 GB for half an hour (#82).
 ORACLE_TIMEOUT = 300
+# The oracle's memory ceiling. A passing run on these tasks stays well under a
+# gigabyte; 8 GiB is generous and would have stopped the 49 GB run in #82 before
+# the machine reached swap. A timeout shortens an outage, a cap prevents one.
+ORACLE_MEM_CAP_GIB = 8.0
 
 
 def run(cmd, cwd, env=None, timeout=None):
@@ -221,7 +226,16 @@ def tests_pass(worktree, tests, timeout, command="uv run pytest -q"):
     0.1s when it passes: four orders of magnitude of slack, chosen by nobody.
     Script tasks already used GATE_TIMEOUT; only this path did not (#82).
     """
-    r = run([*command.split(), *tests], cwd=worktree, timeout=timeout)
+    r, peak, killed = memcap.run_capped(
+        [*command.split(), *tests],
+        cwd=worktree,
+        timeout=timeout,
+        cap_gib=ORACLE_MEM_CAP_GIB,
+    )
+    if killed:
+        # Distinct from a model failure and from a timeout: the code may well
+        # be correct and is certainly not runnable. Say which (#82).
+        return False, f"oracle killed at {peak:.1f} GiB (cap {ORACLE_MEM_CAP_GIB} GiB)"
     return r.returncode == 0, summarise_run(r.stdout, r.stderr)
 
 
