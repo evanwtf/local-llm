@@ -384,6 +384,24 @@ context_tokens = 262144
 # qwen3.6:27b-coding-mxfp8 on quantization (mxfp8), size (32 GB vs 31 GB) and
 # backend, so the lineage is the only variable that moves. Tests whether the
 # tokens-per-task finding is a property of agent loops or of Qwen. See issue #1.
+# Gemma 4 26B A4B -- the model on Eigen Labs' MLX Fast leaderboard, which
+# Google's own account amplified on 2026-09-01 ("2x faster on a Mac"). We
+# already held the weights, so the baseline is measurable here without waiting
+# for the leaderboard's kernels to reach a runtime we can use.
+#
+# Read the leaderboard's metric before comparing: it scores
+# prefill^0.25 * decode^0.75, and this project has measured three times that
+# decode rate does not predict agent wall time -- with gemma4 as the backend
+# that forced the finding. bf16 at 51 GB is also the unquantised baseline, so
+# it is slower than the quantised entries the leaderboard ranks.
+[backend.gemma426]
+description = "Gemma 4 26B A4B, MLX bf16 -- the MLX Fast leaderboard model"
+base_url = "http://127.0.0.1:11434"
+auth_token = "ollama"
+model = "gemma4:26b-mlx-bf16"
+opencode_model = "ollama/gemma4:26b-mlx-bf16"
+context_tokens = 262144
+
 [backend.gemma4]
 description = "Gemma 4 31B, mxfp8"
 base_url = "http://127.0.0.1:11434"
