@@ -68,3 +68,21 @@ def test_the_tracked_reference_config_is_valid_and_declares_providers() -> None:
     data = json.loads(ref.read_text())
     assert data["provider"], "reference config declares no providers"
     assert opencode_config.declared_models(ref)
+
+
+def test_other_machines_backends_are_not_reported_missing(tmp_path):
+    """A desktop-tier backend will never run on this Mac.
+
+    Warning that it is undeclared is noise, and noise in the check that exists
+    to catch #69 is how a real warning gets skimmed past.
+    """
+    config = tmp_path / "opencode.json"
+    config.write_text('{"provider": {"ollama": {"models": {"here:1b": {}}}}}')
+    backends = {
+        "local": {"opencode_model": "ollama/here:1b"},
+        "elsewhere": {"opencode_model": "ollama/there:1b", "tier": "desktop-3080ti"},
+        "gone": {"opencode_model": "ollama/old:1b", "retired": "superseded"},
+        "real": {"opencode_model": "ollama/undeclared:1b"},
+    }
+    got = opencode_config.missing(backends, config)
+    assert got == ["real -> ollama/undeclared:1b"]

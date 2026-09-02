@@ -50,7 +50,14 @@ def missing(backends: dict[str, dict], config: pathlib.Path = CONFIG) -> list[st
     return sorted(
         f"{name} -> {spec['opencode_model']}"
         for name, spec in backends.items()
-        if spec.get("opencode_model") and spec["opencode_model"] not in declared
+        if spec.get("opencode_model")
+        and spec["opencode_model"] not in declared
+        # A backend belonging to another machine's tier, or a retired one, will
+        # never run here, so warning about its client declaration is noise --
+        # and noise in a check that exists to catch #69 is how a real warning
+        # gets skimmed past. run.py already drops both from the default matrix.
+        and not spec.get("tier")
+        and not spec.get("retired")
     )
 
 

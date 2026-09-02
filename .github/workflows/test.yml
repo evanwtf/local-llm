@@ -10,9 +10,21 @@ jobs:
     runs-on: [self-hosted, Linux, X64]
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history, not a shallow clone. Five tests resolve the `--dir`
+          # fix commit (7356460) to separate valid OpenCode rows from the 130
+          # that measured a harness bug, and `git rev-list 7356460~1..HEAD`
+          # cannot see it at depth 1. Every run failed on this, and the code
+          # was never at fault -- the checkout was.
+          fetch-depth: 0
+
+      # A shared runner accumulates cache files across runs that this job's
+      # user cannot always read; scope it to the run.
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
+        env:
+          UV_CACHE_DIR: ${{ runner.temp }}/uv-${{ github.run_id }}-${{ github.run_attempt }}
 
       - name: Sync
         run: uv sync
