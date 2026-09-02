@@ -79,8 +79,28 @@ def head(cwd: pathlib.Path = HERE) -> str:
     return f"{sha}-dirty" if _code_is_dirty(cwd) else sha
 
 
+@functools.cache
+def machine_slug() -> str:
+    """A compact machine token, e.g. `M5-Max-128GB` or `Ryzen9-7900X-RTX3080Ti`.
+
+    Goes on every log line. A line reading `[abc1234]` could have come from
+    either machine; a run on DeepSeek on the MacBook must never be mistakable
+    for one on ornith on the Linux box with a 3080 Ti.
+    """
+    try:
+        import sys as _sys
+
+        _sys.path.insert(0, str(REPO / "scripts"))
+        import hardware_id
+
+        facts, platform = hardware_id.facts_for_this_machine()
+        return hardware_id.short_slug(facts, platform) or "unknown-machine"
+    except Exception:  # noqa: BLE001 -- a stamp must never take a run down
+        return "unknown-machine"
+
+
 class _Stamp(logging.Filter):
-    """Attach the harness commit to every record, including library ones."""
+    """Attach the harness commit and the machine to every record."""
 
     def __init__(self, value: str) -> None:
         super().__init__()
@@ -88,6 +108,7 @@ class _Stamp(logging.Filter):
 
     def filter(self, record: logging.LogRecord) -> bool:
         record.harness = self.value
+        record.machine = machine_slug()
         return True
 
 
@@ -106,7 +127,7 @@ def configure(
     logging.basicConfig(
         level=level,
         stream=stream or sys.stdout,
-        format=f"%(asctime)s {name}%(levelname)s [%(harness)s] %(message)s",
+        format=f"%(asctime)s {name}%(levelname)s [%(harness)s@%(machine)s] %(message)s",
         force=True,
     )
     for handler in logging.getLogger().handlers:
@@ -126,3 +147,156 @@ def fingerprint(path: pathlib.Path) -> str:
     raw = path.read_bytes()
     rows = raw.count(b"\n")
     return f"{rows} rows, sha256 {hashlib.sha256(raw).hexdigest()[:12]}"
+
+
+# --- the banner every script prints -----------------------------------------
+#
+# A script's output is evidence. Six weeks on, a pasted table cannot be
+# re-derived unless it says which code, which machine, which engine builds and
+# which moment produced it -- and this project has twice published numbers that
+# measured something other than what the reader assumed.
+#
+# `configure()` stamps the harness commit onto every LINE. This stamps the
+# context onto every RUN, once, at the top.
+
+
+@functools.cache
+def _cmd(*argv: str) -> str | None:
+    """First line of a command's stdout, or None. Never raises, never blocks."""
+    try:
+        r = subprocess.run(
+            list(argv), capture_output=True, text=True, timeout=15, check=False
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    out = (r.stdout or "").strip().splitlines()
+    return out[0].strip() if out and r.returncode == 0 else None
+
+
+@functools.cache
+def engine_versions() -> dict[str, str]:
+    """Which engine builds are installed right now. Best effort, cached.
+
+    Absent engines are omitted rather than reported as unknown: a machine
+    without ds4 is not a machine with a broken ds4.
+    """
+    got: dict[str, str] = {}
+    for name, root in (
+        ("llama.cpp", pathlib.Path.home() / "git/llama.cpp"),
+        ("ds4", pathlib.Path.home() / "git/ds4"),
+    ):
+        if (root / ".git").exists():
+            sha = _git("rev-parse", "--short", "HEAD", cwd=root)
+            if sha:
+                got[name] = sha
+    ollama = _cmd("ollama", "--version")
+    if ollama:
+        got["ollama"] = ollama.replace("ollama version is ", "")
+    opencode = _cmd("opencode", "--version")
+    if opencode:
+        got["opencode"] = opencode
+    return got
+
+
+def banner(log: logging.Logger, *, engines: bool = True, extra: str = "") -> None:
+    """Log who, what, where and when, once, at the start of a run.
+
+    `engines=False` for tools that touch no model -- reading X posts does not
+    need llama.cpp's commit, and the subprocess calls are not free.
+    """
+    import datetime as _dt
+
+    now = _dt.datetime.now(_dt.UTC)
+    local = now.astimezone()
+    log.info(
+        "%s (%s) | harness %s%s",
+        now.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        local.strftime("%H:%M:%S %Z"),
+        head(),
+        f" | {extra}" if extra else "",
+    )
+
+    try:  # preflight imports this module, so import it lazily to avoid a cycle
+        import preflight
+
+        facts = preflight.machine_facts()
+    except Exception:  # noqa: BLE001 -- a banner must never take a run down
+        facts = {}
+    if facts:
+        bits = [
+            f"{facts.get('arch', '?')}",
+            facts.get("cpu", "?"),
+            f"{facts.get('cpu_count', '?')} cores",
+            f"{facts.get('memory_gib', '?')} GiB",
+        ]
+        if facts.get("gpu") and facts["gpu"] != facts.get("cpu"):
+            bits.append(facts["gpu"])
+        if facts.get("metal_ceiling_gib"):
+            raised = " raised" if facts.get("metal_ceiling_raised") else " stock"
+            bits.append(f"Metal ceiling {facts['metal_ceiling_gib']} GiB{raised}")
+        bits.append(f"confinement {facts.get('confinement', '?')}")
+        log.info("  machine: %s", ", ".join(str(b) for b in bits))
+
+    if engines:
+        got = engine_versions()
+        if got:
+            log.info(
+                "  stack:   %s", " | ".join(f"{k} {v}" for k, v in sorted(got.items()))
+            )
+
+
+# --- keeping the output ------------------------------------------------------
+
+REPO = HERE.parent.parent
+
+
+def log_path(script: str, *, machine_specific: bool = True) -> pathlib.Path:
+    """Where this script's output is kept, so it can be read again later.
+
+    Machine-specific output lives under the machine's own directory (#85):
+    a preflight or a benchmark report only means anything next to the hardware
+    that produced it. Sweeps do not -- what the field looked like on a given
+    day is the same fact on either machine, so they are shared.
+
+    One file per run, named for the UTC minute, so a day's runs sort and
+    nothing is overwritten.
+    """
+    import datetime as _dt
+
+    stamp = _dt.datetime.now(_dt.UTC).strftime("%Y%m%dT%H%M%SZ")
+    slug = machine_slug()
+    if machine_specific:
+        try:
+            import sys as _sys
+
+            _sys.path.insert(0, str(REPO / "scripts"))
+            import hardware_id
+
+            facts, platform = hardware_id.facts_for_this_machine()
+            machine = hardware_id.directory_name(facts, platform)
+        except Exception:  # noqa: BLE001 -- never take a run down over a filename
+            machine = "unknown-machine"
+        base = REPO / "hardware" / machine / "logs"
+    else:
+        base = REPO / "logs" / "sweeps"
+    # The slug is in the name as well as the directory: a file copied out of
+    # its directory must still say which machine wrote it.
+    return base / f"{script}-{slug}-{stamp}.log"
+
+
+def tee(script: str, *, machine_specific: bool = True) -> pathlib.Path:
+    """Send this run's log to a file as well as stdout, and return the path.
+
+    Call after `configure()`. The file gets the same stamped format, so a log
+    read six weeks later still names the commit that wrote each line.
+    """
+    path = log_path(script, machine_specific=machine_specific)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    handler = logging.FileHandler(path, encoding="utf-8")
+    root = logging.getLogger()
+    fmt = root.handlers[0].formatter if root.handlers else None
+    if fmt:
+        handler.setFormatter(fmt)
+    handler.addFilter(_Stamp(head()))
+    root.addHandler(handler)
+    return path

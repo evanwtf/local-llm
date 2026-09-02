@@ -1,0 +1,12 @@
+2026-09-02 07:06:05,551 INFO [88ed87b-dirty@M5-Max-128GB] 2026-09-02T11:06:05Z (07:06:05 EDT) | harness 88ed87b-dirty
+2026-09-02 07:06:05,567 INFO [88ed87b-dirty@M5-Max-128GB]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-02 07:06:05,785 INFO [88ed87b-dirty@M5-Max-128GB]   stack:   ds4 399acbb | llama.cpp 3466812d1 | ollama 0.33.2 | opencode 1.18.26
+2026-09-02 07:06:05,797 INFO [88ed87b-dirty@M5-Max-128GB] | task | gemma426 |
+2026-09-02 07:06:05,797 INFO [88ed87b-dirty@M5-Max-128GB] |---|---|
+2026-09-02 07:06:05,797 INFO [88ed87b-dirty@M5-Max-128GB] | `mbox-scan` | 123.0s (2/2) |
+2026-09-02 07:06:05,797 INFO [88ed87b-dirty@M5-Max-128GB] | `script-reverse` | 16.5s (3/3) |
+2026-09-02 07:06:05,797 INFO [88ed87b-dirty@M5-Max-128GB] | `script-transform` | 40.7s (3/3) |
+2026-09-02 07:06:05,797 INFO [88ed87b-dirty@M5-Max-128GB] | `storage-blob-put` | 158.0s (3/3) |
+2026-09-02 07:06:05,797 INFO [88ed87b-dirty@M5-Max-128GB] 
+2026-09-02 07:06:05,797 INFO [88ed87b-dirty@M5-Max-128GB] **gemma426** excision: 5/5 passed, median 149.6s, worst 159.9s, spread 1.7x
+2026-09-02 07:06:05,797 INFO [88ed87b-dirty@M5-Max-128GB] log: /Users/evanhoffman/git/local-llm/hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/logs/report-M5-Max-128GB-20260902T110605Z.log

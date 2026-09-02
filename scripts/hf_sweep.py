@@ -20,10 +20,17 @@ import argparse
 import datetime as dt
 import json
 import logging
+import pathlib
 import sys
 import urllib.error
 import urllib.parse
 import urllib.request
+
+sys.path.insert(
+    0, str(pathlib.Path(__file__).resolve().parent.parent / "benchmarks" / "agent")
+)
+
+import provenance
 
 logger = logging.getLogger(__name__)
 
@@ -108,7 +115,9 @@ def main() -> int:
     p.add_argument("--all", action="store_true", help="include unusable formats")
     p.add_argument("--limit", type=int, default=30, help="results per family")
     args = p.parse_args()
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
+    provenance.configure()
+    log_file = provenance.tee("hf-sweep", machine_specific=False)
+    provenance.banner(logger, engines=False)
 
     cutoff = dt.datetime.now(dt.UTC) - dt.timedelta(hours=args.hours)
     logger.info(
@@ -162,6 +171,7 @@ def main() -> int:
             hidden,
         )
     logger.info("\nLegend:  (blank) loads here   ? unclassified, check it   x hidden")
+    logger.info("log: %s", log_file)
     return 0
 
 

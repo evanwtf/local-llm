@@ -22,6 +22,12 @@ import re
 import subprocess
 import sys
 
+sys.path.insert(
+    0, str(pathlib.Path(__file__).resolve().parent.parent / "benchmarks" / "agent")
+)
+
+import provenance
+
 logger = logging.getLogger(__name__)
 
 # Sizes DIMMs actually ship in. The OS reports usable memory -- 30.5 GiB on a
@@ -165,11 +171,38 @@ def directory_name(facts: dict, platform: str) -> str:
     return name
 
 
+def short_slug(facts: dict, platform: str) -> str:
+    """A compact machine token for log lines and filenames.
+
+    The full directory name is right for a directory and too long for every
+    line of output. This has to survive being copied out of context: a line
+    reading `[abc1234]` could have come from either machine, and a run on
+    DeepSeek on the MacBook must never be mistakable for ornith on the Linux
+    box with a 3080 Ti.
+
+        M5-Max-128GB          Ryzen9-7900X-RTX3080Ti
+    """
+    if platform == "darwin":
+        chip = normalise_cpu(facts.get("chip", "")) or "Mac"
+        mem = f"-{facts['memory_gb']}GB" if facts.get("memory_gb") else ""
+        return f"{chip}{mem}"
+    cpu = normalise_cpu(facts.get("cpu", "")) or "cpu"
+    gpu = normalise_gpu(facts.get("gpu", ""))
+    return f"{cpu}-{gpu}" if gpu else cpu
+
+
+def facts_for_this_machine() -> tuple[dict, str]:
+    """(facts, platform) for the machine running this process."""
+    return (_darwin() if sys.platform == "darwin" else _linux()), sys.platform
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--json", action="store_true", help="print the facts too")
     args = p.parse_args()
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
+    provenance.configure()
+    log_file = provenance.tee("hardware-id", machine_specific=True)
+    provenance.banner(logger, engines=False)
 
     facts = _darwin() if sys.platform == "darwin" else _linux()
     name = directory_name(facts, sys.platform)
@@ -177,6 +210,7 @@ def main() -> int:
         logger.info(json.dumps({"directory": name, "facts": facts}, indent=2))
     else:
         logger.info(name)
+    logger.info("log: %s", log_file)
     return 0
 
 

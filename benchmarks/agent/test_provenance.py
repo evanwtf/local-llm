@@ -150,3 +150,56 @@ def test_code_and_data_together_are_dirty(tmp_path) -> None:
 
 def test_a_clean_tree_is_clean(tmp_path) -> None:
     assert not provenance._code_is_dirty(_repo(tmp_path))
+
+
+# --- a log line must name its machine (#85) ---------------------------------
+
+
+def test_the_machine_slug_distinguishes_our_two_machines():
+    """A line reading `[abc1234]` could have come from either machine.
+
+    The guiding principle: a run on DeepSeek on the MacBook must never be
+    mistakable for one on ornith on the Linux box with a 3080 Ti.
+    """
+    import sys
+
+    sys.path.insert(
+        0, str(pathlib.Path(__file__).resolve().parent.parent.parent / "scripts")
+    )
+    import hardware_id as hw
+
+    mac = hw.short_slug({"chip": "Apple M5 Max", "memory_gb": 128}, "darwin")
+    linux = hw.short_slug(
+        {
+            "cpu": "AMD Ryzen 9 7900X 12-Core Processor",
+            "gpu": "NVIDIA GeForce RTX 3080 Ti",
+        },
+        "linux",
+    )
+    assert mac == "M5-Max-128GB"
+    assert linux == "Ryzen9-7900X-RTX3080Ti"
+    assert mac != linux
+
+
+def test_every_log_line_carries_commit_and_machine(caplog):
+    """Not only the banner. A pasted line has to stand on its own."""
+    stamp = provenance._Stamp("abc1234")
+    record = logging.LogRecord("t", logging.INFO, __file__, 1, "hello", None, None)
+    assert stamp.filter(record) is True
+    assert record.harness == "abc1234"
+    assert record.machine
+    assert record.machine != "unknown-machine"
+
+
+def test_the_log_format_includes_both():
+    source = pathlib.Path(provenance.__file__).read_text()
+    assert "[%(harness)s@%(machine)s]" in source
+
+
+def test_the_filename_names_the_machine_too():
+    """A file copied out of its directory must still say which machine wrote it."""
+    path = provenance.log_path("report", machine_specific=True)
+    assert provenance.machine_slug() in path.name
+    assert path.parent.name == "logs"
+    shared = provenance.log_path("hf-sweep", machine_specific=False)
+    assert shared.parent.parts[-2:] == ("logs", "sweeps")

@@ -28,7 +28,9 @@ import sys
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent / "benchmarks" / "agent"))
 
+import provenance
 import results
+import summarize
 
 logger = logging.getLogger(__name__)
 
@@ -136,8 +138,22 @@ def main() -> int:
     p.add_argument("--since", help="ISO timestamp; only rows started after it")
     args = p.parse_args()
 
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
-    rows = results.trials(RESULTS)
+    provenance.configure()
+    log_file = provenance.tee("report", machine_specific=True)
+    provenance.banner(logger, engines=True)
+    # summarize.load() is the tested reader: it drops dry runs, drops rows
+    # whose control did not fail (an excision the tests could not see), and
+    # normalises `passed` through verdict() so a timeout lands as False rather
+    # than vanishing from the denominator. Reading results.jsonl any other way
+    # is how fourteen legacy-keyed rows got counted (#29).
+    rows, discarded, retired, cheats = summarize.load(RESULTS)
+    if discarded or cheats:
+        logger.info(
+            "  dropped: %d control-did-not-fail, %d touched tests; %d excluded/dry-run",
+            discarded,
+            cheats,
+            retired,
+        )
     if args.since:
         rows = [r for r in rows if (r.get("started") or "") > args.since]
     by_cell = cells(rows, set(args.backend), args.client)
@@ -146,6 +162,7 @@ def main() -> int:
         return 1
     for line in render(by_cell, args.backend):
         logger.info(line)
+    logger.info("log: %s", log_file)
     return 0
 
 

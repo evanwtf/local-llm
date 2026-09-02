@@ -14,12 +14,17 @@ invisible to the test suite, so the trial proves nothing either way. Rows where
 the agent edited the tests are counted as failures regardless of what pytest
 said, and called out separately -- that is a cheat, not a pass.
 """
+
 import argparse
+import logging
 import pathlib
 import statistics
 from collections import defaultdict
 
+import provenance
 import results
+
+logger = logging.getLogger(__name__)
 
 HERE = pathlib.Path(__file__).parent
 
@@ -71,6 +76,9 @@ def main():
     p.add_argument("--results", default=str(HERE / "results.jsonl"))
     p.add_argument("--markdown", action="store_true", help="emit a markdown table")
     args = p.parse_args()
+    provenance.configure()
+    log_file = provenance.tee("summarize", machine_specific=True)
+    provenance.banner(logger, engines=True)
 
     path = pathlib.Path(args.results)
     if not path.exists():
@@ -80,12 +88,14 @@ def main():
         raise SystemExit("no usable rows")
 
     if discarded:
-        print(f"WARNING: discarded {discarded} row(s) whose control did not fail")
+        logger.info(f"WARNING: discarded {discarded} row(s) whose control did not fail")
     if retired:
-        print(f"note: {retired} row(s) set aside (marked excluded, or dry runs); "
-              "see RESULTS.md provenance")
+        logger.info(
+            f"note: {retired} row(s) set aside (marked excluded, or dry runs); "
+            "see RESULTS.md provenance"
+        )
     if cheats:
-        print(f"WARNING: {cheats} row(s) edited the tests; counted as failures")
+        logger.info(f"WARNING: {cheats} row(s) edited the tests; counted as failures")
 
     backends = sorted({r["backend"] for r in rows})
     tasks = list(dict.fromkeys(r["task"] for r in rows))
@@ -94,38 +104,50 @@ def main():
         by[(r["task"], r["backend"])].append(r)
 
     sep = " | " if args.markdown else "  "
-    head = ["task"] + [f"{b} pass" for b in backends] + [f"{b} median s" for b in backends]
+    head = (
+        ["task"] + [f"{b} pass" for b in backends] + [f"{b} median s" for b in backends]
+    )
     if args.markdown:
-        print("| " + " | ".join(head) + " |")
-        print("|" + "|".join(["---"] * len(head)) + "|")
+        logger.info("| " + " | ".join(head) + " |")
+        logger.info("|" + "|".join(["---"] * len(head)) + "|")
     else:
-        print(sep.join(f"{h:<22}" if i == 0 else f"{h:<14}" for i, h in enumerate(head)))
+        logger.info(
+            sep.join(f"{h:<22}" if i == 0 else f"{h:<14}" for i, h in enumerate(head))
+        )
 
     for task in tasks:
         cells = [task]
         for b in backends:
             rs = by.get((task, b), [])
-            cells.append(f"{sum(bool(r.get('passed')) for r in rs)}/{len(rs)}" if rs else "-")
+            cells.append(
+                f"{sum(bool(r.get('passed')) for r in rs)}/{len(rs)}" if rs else "-"
+            )
         for b in backends:
             rs = by.get((task, b), [])
             cells.append(fmt(med([r.get("wall_seconds") for r in rs]), "s"))
         if args.markdown:
-            print("| " + " | ".join(cells) + " |")
+            logger.info("| " + " | ".join(cells) + " |")
         else:
-            print(sep.join(f"{c:<22}" if i == 0 else f"{c:<14}" for i, c in enumerate(cells)))
+            logger.info(
+                sep.join(
+                    f"{c:<22}" if i == 0 else f"{c:<14}" for i, c in enumerate(cells)
+                )
+            )
 
-    print()
+    logger.info()
     for b in backends:
         rs = [r for r in rows if r["backend"] == b]
         passed = sum(bool(r.get("passed")) for r in rs)
         timeouts = sum(r.get("error") == "timeout" for r in rs)
-        print(
+        logger.info(
             f"{b:<6} {passed}/{len(rs)} passed"
             f"   median {fmt(med([r.get('wall_seconds') for r in rs]), 's')}"
             f"   median turns {fmt(med([r.get('num_turns') for r in rs]), '', 0)}"
             f"   timeouts {timeouts}"
         )
 
+
+# (log path is reported by main)
 
 if __name__ == "__main__":
     main()

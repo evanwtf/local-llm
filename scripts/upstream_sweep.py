@@ -19,8 +19,15 @@ import argparse
 import datetime as dt
 import json
 import logging
+import pathlib
 import subprocess
 import sys
+
+sys.path.insert(
+    0, str(pathlib.Path(__file__).resolve().parent.parent / "benchmarks" / "agent")
+)
+
+import provenance
 
 logger = logging.getLogger(__name__)
 
@@ -90,7 +97,9 @@ def main() -> int:
     p.add_argument("--quiet-empty", action="store_true", help="hide idle repos")
     args = p.parse_args()
 
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
+    provenance.configure()
+    log_file = provenance.tee("upstream-sweep", machine_specific=False)
+    provenance.banner(logger, engines=False)
     since = (dt.datetime.now(dt.UTC) - dt.timedelta(hours=args.hours)).strftime(
         "%Y-%m-%dT%H:%M:%SZ"
     )
@@ -123,6 +132,7 @@ def main() -> int:
             "UNREACHABLE (renamed, private, or gh not authed): %s",
             ", ".join(unreachable),
         )
+    logger.info("log: %s", log_file)
     return 0
 
 

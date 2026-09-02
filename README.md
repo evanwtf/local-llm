@@ -26,6 +26,49 @@ backends — the same weights that are slowest under one client are among the
 fastest under another. A benchmark that reports a model without naming its engine
 and harness is not describing something you can reproduce.
 
+## The tools
+
+Every script logs the same way: **each line carries the harness commit and the
+machine** (`[88ed87b@M5-Max-128GB]`), each run opens with the machine, engine
+and client versions, and the output is written to a file that is committed. A
+line pasted out of context still says what produced it, and a run on the
+MacBook can never be mistaken for one on the Linux box.
+
+Machine-specific output goes to `hardware/<machine>/logs/`; sweeps, which are
+the same fact on either machine, go to `logs/sweeps/`.
+
+### Measuring
+
+| script | what it does |
+|---|---|
+| `benchmarks/agent/run.py` | **The harness.** Runs trials: model x task x client. `--results` sends rows to a per-machine file |
+| `benchmarks/agent/preflight.py` | What is holding memory, the Metal ceiling, engine drift, undeclared client models. **Run it before a batch** |
+| `scripts/report.py` | Summarise or compare cells, with #23's rule applied — two medians must differ by ~56% before three trials can tell them apart |
+| `benchmarks/agent/summarize.py` | The full per-task table across every backend, and the tested reader (`load()`) the others build on |
+| `benchmarks/agent/variance.py` | Where the wall-time spread comes from. It is token count, not the KV cache |
+| `benchmarks/agent/sizing.py` | How many trials a claim needs |
+| `benchmarks/agent/wait_ready.py` | Block until a server can actually serve. **Do not poll `/health`** — one answered `ok` while every completion returned 503 |
+| `benchmarks/agent/memcap.py` | Run a subprocess under a memory ceiling. A runaway oracle once reached 49 GB |
+
+### Watching the field
+
+| script | what it does |
+|---|---|
+| `scripts/upstream_sweep.py` | Commits and releases across the 18 repos we depend on |
+| `scripts/hf_sweep.py` | New quants of models we run, hiding what cannot load on Metal |
+| `scripts/verify_posts.py` | Verify X posts before repeating a claim. It has caught a fabricated one |
+| `/source-sweep` skill | All six surfaces in order: GitHub inbox, repos, branches, upstream issues, Hugging Face, then X |
+
+### Describing the machine
+
+| script | what it does |
+|---|---|
+| `scripts/hardware_id.py` | Derives this machine's results-directory name. **Never type one by hand** |
+| `scripts/gguf_meta.py` | Read a GGUF's metadata without loading it |
+| `scripts/install-metal-ceiling.sh` | Persist the Metal wired limit across reboots. Required for a 90 GB model, not an optimisation |
+| `benchmarks/agent/gen_tables.py`, `splice_tables.py` | Regenerate RECOMMENDATIONS' tables from `results.jsonl` |
+| `benchmarks/agent/gen_prompts.py` | Regenerate `PROMPTS.md` from the file the harness reads |
+
 ## What this is for
 
 A working fallback for when hosted inference is unavailable or unaffordable.

@@ -22,10 +22,17 @@ import argparse
 import datetime as dt
 import json
 import logging
+import pathlib
 import re
 import sys
 import urllib.error
 import urllib.request
+
+sys.path.insert(
+    0, str(pathlib.Path(__file__).resolve().parent.parent / "benchmarks" / "agent")
+)
+
+import provenance
 
 logger = logging.getLogger(__name__)
 
@@ -122,7 +129,9 @@ def main() -> int:
     p.add_argument("post", nargs="*", help="post URLs or ids; omit to read stdin")
     p.add_argument("--json", action="store_true")
     args = p.parse_args()
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
+    provenance.configure()
+    log_file = provenance.tee("verify-posts", machine_specific=False)
+    provenance.banner(logger, engines=False)
 
     raw = " ".join(args.post) if args.post else sys.stdin.read()
     posts = ids_from(raw)
@@ -182,6 +191,7 @@ def main() -> int:
                     today,
                     r["reason"],
                 )
+    logger.info("log: %s", log_file)
     return 0 if ok else 1
 
 
