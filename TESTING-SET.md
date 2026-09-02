@@ -33,6 +33,7 @@ GLM-5.3, which is a refusal.
 | **RAM** | **30 GiB** |
 | **Disk** | 1.8 TB NVMe, 1.3 TB free |
 | **OS** | Ubuntu 24.04 · **not always-on** |
+| **Backends** | `dtmistralnemo`, `dtgemma412b`, `dtornith15` — `tier = "desktop-3080ti"` in `tasks.toml` |
 | **Confinement** | **none** — `sandbox-exec` is macOS-only, so `workspace_escapes` is unenforced there |
 
 The 30 GiB figure is the one that matters: with 12 GiB of VRAM it makes the
@@ -90,6 +91,10 @@ Three, each for a different reason.
 Ollama is here on **friction, not speed**. Dropping it would delete the
 recommendation a newcomer actually follows.
 
+**Retired: LM Studio and `ornith:35b`** (2026-09-01). `ornith:35b` is
+superseded by `ornith-1.5:35b`, which has 21 valid rows, and it is a GGUF
+served through Ollama — llama.cpp with a wrapper, by the rule above.
+
 **Retired: LM Studio** (2026-09-01). Its runtime is llama.cpp underneath, so on
 the same GGUF it can only add a layer — and it does: identical UD-Q3_K_XL
 weights and client, **90 s median against 122 s**, correctness identical. Kept
@@ -128,9 +133,15 @@ and server, only the protocol differs.
 `tasks.toml` and carry no valid OpenCode rows. They are candidates, not
 results:
 
-`gemma426` · `qwen36a3b` · `ornith` · `qwen` · `qwen36` · `qwen38flashnext` · `qwen38fnq2` ·
+`gemma426` · `qwen36a3b` · `qwen` · `qwen36` · `qwen38flashnext` · `qwen38fnq2` ·
 `qwen38fnq4m64` · `ornith15llamacpp` · `glm53` · `glm52ds4` · `glm53ds4shim` ·
 `mtplx` · `opus5`
+
+Every one of these now has a backend block **and** an `opencode_model`, which a
+test enforces. Three did not until 2026-09-01: `qwen3.6:35b-a3b-coding-mxfp8`
+had no block at all — 37 GB installed with no name the harness could call —
+and the two 27B MLX builds had blocks but no client declaration, which is #69's
+0.6s-exit trap. **Installed in Ollama is not the same as testable.**
 
 **`gemma426` is next up.** `gemma4:26b-mlx-bf16` is Gemma 4 26B A4B — the model
 on Eigen Labs' MLX Fast leaderboard that Google amplified on 2026-09-01 with a

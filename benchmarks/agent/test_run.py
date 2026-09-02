@@ -723,3 +723,36 @@ def test_dry_run_reports_a_script_task_without_crashing(tmp_path, monkeypatch):
     """
     source = (HERE / "run.py").read_text()
     assert 'summary if not is_script else "script task; no control to check"' in source
+
+
+def test_tiered_backends_are_out_of_the_default_matrix():
+    """Another machine's backends must not run here by default.
+
+    Their config belongs in the repo -- it is the record of how the desktop's
+    rows were made, and it lived in an untracked /tmp file before that. But a
+    tier names hardware this machine is not, so it cannot be in the default
+    matrix. `--backend` still selects one, on the machine that can serve it.
+    """
+    cfg = tomllib.loads((HERE / "tasks.toml").read_text())
+    tiered = {k: v for k, v in cfg["backend"].items() if v.get("tier")}
+    assert tiered, "expected the desktop tier to be configured"
+    for name, backend in tiered.items():
+        assert backend["tier"] == "desktop-3080ti", name
+        assert backend.get("opencode_model"), name
+
+
+def test_every_ollama_backend_declares_an_opencode_model():
+    """A backend with no opencode_model cannot be run by our only client.
+
+    #69: an undeclared model exits in 0.6s and the row records a model failure.
+    The same shape as a missing backend block -- installed is not testable.
+    """
+    cfg = tomllib.loads((HERE / "tasks.toml").read_text())
+    missing = sorted(
+        name
+        for name, b in cfg["backend"].items()
+        if (b.get("base_url") or "").endswith(":11434")
+        and not b.get("retired")
+        and not b.get("opencode_model")
+    )
+    assert not missing, f"Ollama backends with no opencode_model: {missing}"

@@ -365,6 +365,7 @@ context_tokens = 262144
 # Record it; do not read it as a clean model-to-model comparison.
 [backend.ornith]
 description = "Ornith 35B, agentic coding tune, Q4_K_M GGUF"
+retired = "superseded by ornith15 (ornith-1.5:35b), which has 21 valid rows; also a GGUF served through Ollama, which is llama.cpp with a wrapper (2026-09-01)"
 base_url = "http://127.0.0.1:11434"
 auth_token = "ollama"
 model = "ornith:35b"
@@ -454,6 +455,7 @@ description = "Qwen3.8-Flash-Next 125B-A6B via Ollama MLX (nvfp4)"
 base_url = "http://127.0.0.1:11434"
 auth_token = "ollama"
 model = "qwen3.8-flash-next:125b-mlx"
+opencode_model = "ollama/qwen3.8-flash-next:125b-mlx"
 codex_profile = "qwen38flashnext"
 context_tokens = 262144
 
@@ -934,3 +936,49 @@ checks = [
     [["--input", "Benchmarking", "--reverse", "--sort", "--sha256"], "4e5c331b4e299d20e4d5cce3c91febf10914e469461b55530a44ce5edde634b5"],
     [["--input", "plain"], "plain"],
 ]
+
+# --- tier: desktop-3080ti --------------------------------------------------
+# RTX 3080 Ti 12 GiB, Ryzen 9 7900X, 30 GiB RAM, Ubuntu 24.04. Reached over ssh
+# as `desktop`; not always on.
+#
+# `tier` keeps these out of the default matrix on any other machine, the same
+# way `retired` does -- naming one with --backend still runs it. Their ROWS are
+# kept apart by results.foreign_hardware(), which refuses to append to a file
+# holding another machine's rows: one file, one hardware baseline (#20).
+#
+# Both dense 12B models below are MEASURED AND RULED OUT (#79): mistral-nemo
+# 0/6, gemma4:12b 1/6. Both pass the smoke gate, which reads the answer out of
+# the reply, then fail the same task when the answer has to be a file on disk --
+# zero tool calls, correct code in a markdown fence. The blocks stay so the
+# result is reproducible, not because the models are candidates.
+
+[backend.dtmistralnemo]
+description = "Mistral-Nemo 12B instruct Q4_K_M via Ollama (desktop 3080 Ti)"
+tier = "desktop-3080ti"
+base_url = "http://127.0.0.1:11434"
+auth_token = "ollama"
+model = "mistral-nemo:12b-instruct-2407-q4_K_M"
+opencode_model = "ollama/mistral-nemo:12b-instruct-2407-q4_K_M"
+context_tokens = 131072
+
+[backend.dtgemma412b]
+description = "Gemma 4 12B IT Q4_K_M via Ollama (desktop 3080 Ti)"
+tier = "desktop-3080ti"
+base_url = "http://127.0.0.1:11434"
+auth_token = "ollama"
+model = "gemma4:12b-it-q4_K_M"
+opencode_model = "ollama/gemma4:12b-it-q4_K_M"
+context_tokens = 131072
+
+# The live experiment for this tier (#20). 35B total, 3B active, 22 GB against
+# 12 GiB of VRAM and 30 GiB of RAM -- so it needs --n-cpu-moe to stream routed
+# experts from system memory. It is the only candidate where the MODEL is
+# already proven (21/21 on the Mac) and only the hardware is in question.
+[backend.dtornith15]
+description = "Ornith-1.5 35B-A3B via Ollama, expert offload (desktop 3080 Ti)"
+tier = "desktop-3080ti"
+base_url = "http://127.0.0.1:11434"
+auth_token = "ollama"
+model = "ornith-1.5:35b"
+opencode_model = "ollama/ornith-1.5:35b"
+context_tokens = 131072

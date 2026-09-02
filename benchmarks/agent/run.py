@@ -1777,7 +1777,17 @@ def main():
         for name, b in sorted(backends.items()):
             if b.get("retired"):
                 logger.info("skipping retired backend %s: %s", name, b["retired"])
-        backends = {k: v for k, v in backends.items() if not v.get("retired")}
+            elif b.get("tier"):
+                # A tier belongs to other hardware. Its config lives here so the
+                # rows it produced are reproducible, but it must never join the
+                # default matrix on a machine that cannot serve it -- and its
+                # rows are kept out of this file by foreign_hardware() (#20).
+                logger.info("skipping backend %s: tier %s", name, b["tier"])
+        backends = {
+            k: v
+            for k, v in backends.items()
+            if not v.get("retired") and not v.get("tier")
+        }
     if not tasks or not backends:
         raise SystemExit("no tasks or no backends selected")
 
