@@ -69,15 +69,41 @@ file in our own repo.
 
 ## 5. X/Twitter — last, and in this order
 
-**5a. Gather with grok, and assume every word is unverified.**
+**5a. Gather with grok, into a file, and assume every word is unverified.**
+
+**Always write the output to a temp file.** A sweep's value is in the post ids,
+and piping through `tail` throws away the ones that scrolled off — that has
+already cost a second grok call to recover two threads that were in the first
+one. The file is also what step 5d verifies against.
+
+**The file must record what was asked for.** A digest with no window and no
+timestamp cannot be re-read later: "the last 24 hours" is meaningless without
+knowing when it was said.
 
 ```bash
-GROK_CLAUDE_SKILLS_ENABLED=false grok -p "<request>" 2>&1 | tail -60
+WINDOW="last 24 hours"
+QUERY="Search X for posts and replies from @antirez, @ivanfioravanti, ... in the $WINDOW. ..."
+OUT="/tmp/grok-sweep-$(date -u +%Y%m%dT%H%M%SZ).txt"
+{
+  echo "# grok sweep"
+  echo "# requested window: $WINDOW"
+  echo "# written:  $(date -u '+%Y-%m-%dT%H:%M:%SZ')  (local: $(date '+%Y-%m-%d %H:%M:%S %Z'))"
+  echo "# query:    $QUERY"
+  echo
+  GROK_CLAUDE_SKILLS_ENABLED=false grok -p "$QUERY" 2>&1
+} > "$OUT"
+echo "wrote $OUT"
 ```
+
+Then read the file — `grep -oE 'https://x\.com/[A-Za-z0-9_]+/status/[0-9]+' "$OUT" | sort -u`
+gives every post id it found, and the whole file can be piped to the verifier.
 
 Set the Bash timeout to `400000`. Never use `--json-schema` — it makes grok
 skip the search and invent posts, verified twice. Ask for a UTC timestamp and a
 post URL for every item; an item with neither is unusable.
+
+**grok may claim it verified the posts itself. That is not our verification.**
+Run step 5d regardless: it has fabricated a post while reporting confidence.
 
 **5a-bis. Say what you found, immediately.**
 
