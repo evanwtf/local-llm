@@ -34,7 +34,7 @@ GLM-5.3, which is a refusal.
 | **Disk** | 1.8 TB NVMe, 1.3 TB free |
 | **OS** | Ubuntu 24.04 · **not always-on** |
 | **Backends** | `dtmistralnemo`, `dtgemma412b`, `dtornith15` — `tier = "desktop-3080ti"` in `tasks.toml` |
-| **Data** | **none.** The 2026-09-01 preliminary rows were discarded; this tier starts fresh |
+| **Data** | [`hardware/Ryzen9-7900X-32GB-RTX3080Ti-12GB/`](hardware/Ryzen9-7900X-32GB-RTX3080Ti-12GB/RESULTS.md) — `gemma4:12b-it` **0/12** (2026-09-02) |
 | **Confinement** | **none** — `sandbox-exec` is macOS-only, so `workspace_escapes` is unenforced there |
 
 The 30 GiB figure is the one that matters: with 12 GiB of VRAM it makes the

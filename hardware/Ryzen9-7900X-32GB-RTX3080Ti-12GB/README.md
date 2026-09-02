@@ -1,8 +1,11 @@
 # Ryzen9-7900X-32GB-RTX3080Ti-12GB
 
-**Placeholder — no results yet.** The 2026-09-01 run on this machine was
-preliminary, taken while the environment was still being stood up, and its rows
-were discarded deliberately. This tier starts fresh.
+**First measured run: 2026-09-02.** See [`RESULTS.md`](RESULTS.md) —
+`gemma4:12b-it-q4_K_M` scored **0/12** under OpenCode.
+
+The 2026-09-01 preliminary run was discarded: it was taken while the
+environment was still being stood up, on Ollama 0.32.15 and with an incomplete
+client config.
 
 Reached over ssh as `desktop`. **Not always on.**
 
