@@ -129,12 +129,15 @@ most of the effort on CUDA benchmarks and vision releases.
 1. **Gather with grok, and assume every word is unverified.**
 2. **Judge relevance to this machine first** — would it change a number on an
    M5 Max, 128 GB, Metal? A result on an M3 or M4 is a **lead, not noise**.
-3. **File or update an issue in our own repo, marked `Unverified`**, with the
+3. **Say what you found, out loud, before filing anything.** A short summary
+   leading with what bears on this machine, marked unverified. A sweep whose
+   output only lands in GitHub is one the operator cannot steer.
+4. **File or update an issue in our own repo, marked `Unverified`**, with the
    handle and UTC timestamp. Doing it before verifying means the reasoning
    about relevance gets written down while it is fresh.
-4. **Then verify, only the posts that earned an issue**:
+5. **Then verify, only the posts that earned an issue**:
    `uv run python scripts/verify_posts.py <url-or-id> ...`
-5. **Record the result on the issue.** A claim that fails verification is
+6. **Record the result on the issue.** A claim that fails verification is
    itself a finding about the source — note it, do not delete it.
 
 **Use the `/source-sweep` skill.** It covers all five surfaces in order —

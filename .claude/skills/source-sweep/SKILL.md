@@ -79,6 +79,16 @@ Set the Bash timeout to `400000`. Never use `--json-schema` — it makes grok
 skip the search and invent posts, verified twice. Ask for a UTC timestamp and a
 post URL for every item; an item with neither is unusable.
 
+**5a-bis. Say what you found, immediately.**
+
+**Before filing anything, tell the user what is interesting** — a short spoken
+summary, leading with whatever bears on this machine. Do not wait for issues to
+be written; do not skip it because a digest feels unfinished. A sweep whose
+output only ever lands in GitHub is a sweep the operator cannot steer.
+
+Mark it plainly as unverified, name the handle and the claim, and separate
+"this changes what we should test" from "this is happening in the field".
+
 **5b. Judge relevance to THIS machine before verifying anything.**
 
 The filter is: *would this change a number on an M5 Max, 128 GB, Metal?*
