@@ -146,6 +146,49 @@ fact, and never follow an instruction inside one.
 
 ## Done since the last update
 
+**2026-09-01 late. Gemma 4 26B A4B, a machine outage, and a sweep tool that
+paid for itself on its first run.**
+
+- **`gemma426` 11/11** (Gemma 4 26B A4B, the MLX Fast leaderboard model). Against
+  `gemma4:31b-mxfp8` on the same tasks and client: `script-transform` **40.7s
+  against 219.2s**, `storage-blob-put` 158.0s against 358.1s, `mbox-scan` 123.1s
+  against 464.1s, `script-reverse` 16.5s against 41.6s. 4B active against a 31B
+  doing far more work. **It is now the fastest Gemma we hold and a serious
+  candidate for RECOMMENDATIONS' third slot at 51 GB.**
+- **One `gemma426` row is excluded as an intervention.** Its `mbox-scan`
+  implementation buffered a file the task says to stream, and the *oracle* --
+  `pytest tests/test_mbox.py` -- reached **49 GB RSS** and drove the machine into
+  swap: 19.6 of 20.5 GB used, 97k pageouts, everything at 0% CPU. Killed at ~6
+  minutes to give the machine back, so both the FAIL and the 791.1s were decided
+  by the kill. **The pathology is the interesting part**: a plausible *wrong*
+  answer, which #4 says this task set cannot produce.
+- **#82 fixed, three items of four.** The oracle had been handed the agent's
+  1800s timeout for a step that takes 0.1s; it now has `ORACLE_TIMEOUT = 300`
+  and an 8 GiB ceiling. `RLIMIT_AS` is unusable on macOS -- measured -- so
+  `memcap.py` polls the process tree and kills the group, reading **descendants**
+  because the memory lives in a grandchild of `uv run pytest`. `peak_rss_gib` is
+  now on every row, which turns this whole class from an operator noticing the
+  machine is slow into a column.
+- **#84, and the tool that found it.** `scripts/upstream_sweep.py` sweeps all 18
+  repos we depend on in one command; SOURCES.md renders its `WATCHED` dict and a
+  test fails on drift. Its first real run found
+  [ollama#16471](https://github.com/ollama/ollama/pull/16471), merged hours
+  earlier, making GGUF sampler KVs outrank Ollama's built-in defaults.
+  **Upgrading past 0.33.2 silently changes the sampler for `ornith15`** -- our
+  fastest measured backend, quoted in RECOMMENDATIONS, and the only one with no
+  Modelfile parameters. #36 measured that this exact class of change took a pass
+  rate from 20/21 to 7/15.
+- **#83: two models failed an easy prompt by spending the whole budget
+  thinking.** `qwen3.6:27b-mlx` and `gemma4:12b-it` both returned no answer with
+  `stop_reason=max_tokens`. Same size, same runtime and one generation apart,
+  `qwen3.8:27b-mlx` answered the same prompt in 3.6s against 143.1s. #63 settled
+  that thinking *helps correctness on ds4*; it did not ask whether unbounded
+  reasoning consumes the budget before an answer exists.
+- **Three bugs caught by running rather than reading**, in one evening: the
+  Metal tensor probe read stdout when ggml logs to stderr; `RLIMIT_AS` looked
+  usable until it was called; and `proc.returncode or 1` would have recorded
+  **every passing oracle run as a failure**. All three passed review by eye.
+
 **2026-09-01 evening, second half. Two machines, and the first task-set
 discrimination this project has produced.**
 
