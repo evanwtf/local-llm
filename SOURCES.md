@@ -67,6 +67,52 @@ a follower count is not the property we need.
 |---|---|---|
 | **Flor1an-B** | [GitHub](https://github.com/Flor1an-B) · [ds4 issues](https://github.com/antirez/ds4/issues?q=author%3AFlor1an-B) · [X @_LEFBE](https://x.com/_LEFBE) · [Ka1zen](https://github.com/Flor1an-B/Ka1zen) | Bertaux Florian, Paris. **He does have an X account — @_LEFBE** — which this entry previously said he did not; the two are the same person, and the corroboration is his own X profile linking `Flor1an-B/Ka1zen`, not an assertion. 3 GitHub followers, 51 on X, account opened 2026-02-19 — and **15 authored issues and PRs on `antirez/ds4`, all engine internals**, several landing exactly where we are stuck. [#789](https://github.com/antirez/ds4/pull/789) ports visible-KV checkpoint fixes for tool turns, which is the token-mismatch failure of ds4#816 that blocks #64. [#691](https://github.com/antirez/ds4/issues/691) is KV cache reuse breaking for tool clients that do not replay reasoning — the same bug from the client side. [#695](https://github.com/antirez/ds4/issues/695) argues the DSpark scheduler's break-even model ignores replay cost. [#750](https://github.com/antirez/ds4/issues/750) is native MTP corrupting output at `--mtp-draft>=2` (#39). **Benchmarks on an M5 Max 128 GB with DeepSeek-V4-Flash 0731 — our exact machine and primary model** — which almost nobody else does; #75 came from their temp>0 DSpark table on that setup. **The X feed is worth a pass now that we have it**, though it is mostly replies to @antirez and @ivanfioravanti. Two items already line up with our own work: on 2026-07-20 he saw **no improvement from DSpark** and asked antirez for numbers, which is where #58 and #75 landed months later; and on 2026-07-26 he reported **the same prompt and model giving different answers under Claude Code, OpenCode and ds4**, and said he wanted benchmarks of real fix-and-create work rather than leaderboard tok/s — which is this repo's thesis, arrived at independently. `Ka1zen` (13★) is his offline MLX chat app for Apple Silicon. **Still read the ds4 issue list first**: the feed is chatter, the issues are the work. |
 
+## Repositories to watch
+
+**Every repo this project depends on, in one place.** X is where the field
+announces itself; GitHub is where it ships. The 2026-09-01 sweep found the fact
+that mattered most that day -- `qwen4exp` is Qwen3.8-Flash-Next, so llama.cpp
+commits under that name are work on our own fast pick -- and it nearly missed
+two repos because this file linked authors' profiles rather than their code.
+
+Run it rather than reading it:
+
+```sh
+uv run python scripts/upstream_sweep.py --hours 24
+uv run python scripts/upstream_sweep.py --hours 168 --quiet-empty   # a week
+```
+
+The script's `WATCHED` dict is the source of truth and a test fails if this
+table drifts from it. It reports releases and commit subjects, and it says
+explicitly when a repo is **unreachable** -- a renamed or private repo
+otherwise looks exactly like a quiet one, and "nothing happened upstream" is
+the wrong conclusion to draw from an auth failure.
+
+| repo | why we watch it |
+|---|---|
+| [`antirez/ds4`](https://github.com/antirez/ds4) | our primary engine; the only one that runs DeepSeek-V4-Flash and GLM-5.3 |
+| [`ggml-org/llama.cpp`](https://github.com/ggml-org/llama.cpp) | our fast pick's engine; `qwen4exp` IS Qwen3.8-Flash-Next |
+| [`ollama/ollama`](https://github.com/ollama/ollama) | the 31 GB entry point, and our only MLX runtime |
+| [`anomalyco/opencode`](https://github.com/anomalyco/opencode) | our only client |
+| [`evanwtf/local-llm`](https://github.com/evanwtf/local-llm) | this project |
+| [`evanwtf/gmail-archive`](https://github.com/evanwtf/gmail-archive) | the excision tasks' target repository |
+| [`evanwtf/ds4`](https://github.com/evanwtf/ds4) | our ds4 fork (#27 asks whether it can be retired) |
+| [`ml-explore/mlx`](https://github.com/ml-explore/mlx) | the framework everything MLX sits on |
+| [`ml-explore/mlx-lm`](https://github.com/ml-explore/mlx-lm) | reference MLX server; new architectures land here first |
+| [`jundot/omlx`](https://github.com/jundot/omlx) | oMLX -- prefill leader, untested here (#60) |
+| [`ddalcu/mlx-serve`](https://github.com/ddalcu/mlx-serve) | benchmarked on our exact machine; llmprobe's author |
+| [`youssofal/MTPLX`](https://github.com/youssofal/MTPLX) | MTP speculative decoding; we hold one unreplicated number |
+| [`raullenchai/Rapid-MLX`](https://github.com/raullenchai/Rapid-MLX) | the one MLX engine reachable by pip (#57, #60) |
+| [`ARahim3/mlx-dspark`](https://github.com/ARahim3/mlx-dspark) | DSpark/DFlash ported to MLX (#19, #58, #75) |
+| [`Blaizzy/mlx-vlm`](https://github.com/Blaizzy/mlx-vlm) | expert offloading, prefix caching, Qwen3.8-Flash-Next MTP |
+| [`unslothai/llama.cpp`](https://github.com/unslothai/llama.cpp) | the fork with a working qwen4exp MTP graph (#77) |
+| [`Layr-Labs/mlxfast-gemma4-26b-a4b-engine`](https://github.com/Layr-Labs/mlxfast-gemma4-26b-a4b-engine) | MLX Fast leaderboard harness (#80) |
+| [`sudoingX/qwen38-mtp`](https://github.com/sudoingX/qwen38-mtp) | 61 paired baseline-vs-MTP runs, disciplined method (#19, #39) |
+
+**Read commits, not activity counts.** A branch can be busy with vision and
+ROCm work that is out of scope here, and a two-commit day can carry the one
+change that moves our numbers. This is already recorded as a trap.
+
 ## How to run it
 
 `/grok` reads X. `WebFetch` on an `x.com` URL fails — it returns HTTP 402, not a
