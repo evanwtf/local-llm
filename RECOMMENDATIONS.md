@@ -153,7 +153,7 @@ other is telling you something.
 
 <!-- BEGIN GENERATED -->
 
-*Generated from `results.jsonl` — 1067 rows, sha256 51c30f340433.*
+*Generated from `results.jsonl` — 1092 rows, sha256 63ad7ec09e6c.*
 
 #### Every stack measured under OpenCode
 
@@ -166,8 +166,10 @@ other is telling you something.
 | Qwen3.8-Flash-Next Q3 - LM Studio | 21/21 | 122s | 261s | 4.2x |
 | gemma426 | 11/11 | 150s | 160s | 1.7x |
 | Qwen3.6-27B-coding - Ollama | 24/24 | 167s | 700s | 12.6x |
+| qwen36 | 11/12 | 173s | 565s | 5.7x |
+| qwen | 12/12 | 247s | 406s | 4.0x |
 | GLM-5.3-Flash - ds4 | 22/24 | 368s | 1227s | 18.0x |
-| gemma4 | 12/14 | 383s | 1316s | 4.8x |
+| gemma4 | 12/12 | 383s | 1316s | 4.8x |
 
 Excision tasks only; `script-*` excluded because they are a different class. **Spread is worst / best on the same task**, and it is the column most people forget to ask for.
 
@@ -189,7 +191,9 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 |---|---|
 | ornith15 | 21s |
 | gemma426 | 21s |
+| qwen | 31s |
 | Qwen3.8-Flash-Next Q3 - llama.cpp | 43s |
+| qwen36 | 50s |
 | DeepSeek-V4-Flash - ds4 (Anthropic wire) | 54s |
 | GLM-5.3-Flash - ds4 | 55s |
 | Qwen3.6-27B-coding - Ollama | 69s |

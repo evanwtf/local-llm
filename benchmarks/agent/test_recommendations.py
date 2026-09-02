@@ -129,3 +129,29 @@ def test_the_target_repo_link_matches_the_actual_remote():
     ).read_text()
     assert "evanwtf/gmail-archive" in doc
     assert "evandhoffman/gmail-archive" not in doc
+
+
+def test_generated_tables_count_only_real_trials():
+    """A --dry-run control check is not a failed trial.
+
+    gen_tables.load() filtered on is_excluded() alone, which lets through every
+    row that is not a trial: dry runs carry `passed: None`, so they landed in
+    the denominator and never the numerator. 127 of them reached the published
+    tables, showing gemma4 as 12/14 when it went 12/12.
+
+    results.trials() is exactly this filter. Hand-rolling a narrower one is the
+    same mistake dirfix.py made with r.get("excluded"), which RESULTS.md
+    records having miscounted 14 rows.
+    """
+    import gen_tables
+
+    rows = gen_tables.load()
+    assert rows, "expected some trials"
+    assert not [r for r in rows if r.get("dry_run")]
+
+    # Timeouts DO belong here -- results.trials() keeps them deliberately
+    # ("failures, not absences") and they carry `passed: None`, which is why
+    # its docstring says not to test row["passed"] directly. The 13 such rows
+    # are all timeouts, so their presence is correct and a dry run's is not.
+    stray = [r for r in rows if r.get("passed") is None and r.get("error") != "timeout"]
+    assert not stray, f"non-timeout rows with no verdict: {len(stray)}"

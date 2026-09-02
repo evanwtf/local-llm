@@ -60,9 +60,22 @@ def _after_fix() -> set[str]:
 
 
 def load(path: pathlib.Path | None = None) -> list[dict[str, Any]]:
-    p = path or HERE / "results.jsonl"
-    rows = [json.loads(x) for x in p.read_text().splitlines()]
-    return [r for r in rows if not results.is_excluded(r)]
+    """Real trials only.
+
+    This used to filter on `is_excluded()` alone, which lets through every row
+    that is not a trial at all -- `--dry-run` control checks, which carry
+    `passed: None`. 127 of them reached the published tables, counted in the
+    denominator and never in the numerator, so RECOMMENDATIONS showed `gemma4`
+    as **12/14** when it went 12/12 and `gemma426` as **11/12** when it went
+    11/11. Every one of those "failures" was a control check the harness ran on
+    purpose.
+
+    `results.trials()` is exactly this filter and says so in its docstring --
+    "usable rows, minus dry runs", "do not test row['passed'] directly". Not
+    calling it is the same mistake as `dirfix.py` hand-rolling `r.get(
+    "excluded")`, which RESULTS.md already records having miscounted 14 rows.
+    """
+    return results.trials(path or HERE / "results.jsonl")
 
 
 def valid_opencode(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
