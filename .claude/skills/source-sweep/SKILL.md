@@ -5,7 +5,7 @@ description: Use when the user asks to sweep sources, check for updates, "what's
 
 # Sweeping the sources
 
-Five surfaces, in this order. **Do the cheap and certain ones first**, so the
+Six surfaces, in this order. **Do the cheap and certain ones first**, so the
 expensive and uncertain one (X) is filtered by what you already know.
 
 The output is not a digest. It is **issues in our own repo**, or nothing.
@@ -67,14 +67,44 @@ gh pr list   --repo ggml-org/llama.cpp --limit 15 --search "sort:updated-desc"
 **Never post to a repository outside `evanwtf` or `evandhoffman`.** Read, and
 file in our own repo.
 
-## 5. X/Twitter — last, and in this order
+## 5. Hugging Face — new quants of models we already run
 
-**5a. Gather with grok, into a file, and assume every word is unverified.**
+```sh
+uv run python scripts/hf_sweep.py --hours 24
+uv run python scripts/hf_sweep.py --hours 168 --all    # a week, unfiltered
+```
+
+Engines are watched by `upstream_sweep.py`; this watches **models**. A new GGUF
+or MLX build of something already in our matrix would otherwise appear with
+nobody knowing, and #84 established that a quant's own declared sampler can
+move our numbers — a re-quant is not cosmetic.
+
+**It hides what cannot load on Metal, and says how many.** Most new quants of
+our models target CUDA or ROCm: on 2026-09-02 the two most recent builds of our
+fastest model were `ROCMFP4_STRIX` and `NVFP4-QSA-FP8`. A count of hidden
+results is the difference between "nothing shipped" and "nothing that runs here
+shipped", which are very different facts.
+
+**`?` means unclassified, not uninteresting.** A bare name, or a scheme the
+classifier has not seen (`VQ-4.4bpw`, `JANG_4M`), is a question to answer, not
+noise to skip.
+
+**What to look for**, beyond a newer build of the same thing:
+- a quant format we have never measured (ternary, VQ, mixed-quant),
+- **MTP or PLE in the name** — #77 is blocked on mainline llama.cpp having no
+  `qwen4exp` MTP graph, so a GGUF that carries one is a direct unblock,
+- expert-offload or SSD-streaming builds, which bear on #20's 12 GiB tier,
+- download counts: a build with thousands of pulls has been exercised by
+  people, which a fresh upload has not.
+
+## 6. X/Twitter — last, and in this order
+
+**6a. Gather with grok, into a file, and assume every word is unverified.**
 
 **Always write the output to a temp file.** A sweep's value is in the post ids,
 and piping through `tail` throws away the ones that scrolled off — that has
 already cost a second grok call to recover two threads that were in the first
-one. The file is also what step 5d verifies against.
+one. The file is also what step 6d verifies against.
 
 **The file must record what was asked for.** A digest with no window and no
 timestamp cannot be re-read later: "the last 24 hours" is meaningless without
@@ -103,9 +133,9 @@ skip the search and invent posts, verified twice. Ask for a UTC timestamp and a
 post URL for every item; an item with neither is unusable.
 
 **grok may claim it verified the posts itself. That is not our verification.**
-Run step 5d regardless: it has fabricated a post while reporting confidence.
+Run step 6d regardless: it has fabricated a post while reporting confidence.
 
-**5a-bis. Say what you found, immediately.**
+**6a-bis. Say what you found, immediately.**
 
 **Before filing anything, tell the user what is interesting** — a short spoken
 summary, leading with whatever bears on this machine. Do not wait for issues to
@@ -115,7 +145,7 @@ output only ever lands in GitHub is a sweep the operator cannot steer.
 Mark it plainly as unverified, name the handle and the claim, and separate
 "this changes what we should test" from "this is happening in the field".
 
-**5b. Judge relevance to THIS machine before verifying anything.**
+**6b. Judge relevance to THIS machine before verifying anything.**
 
 The filter is: *would this change a number on an M5 Max, 128 GB, Metal?*
 
@@ -128,14 +158,14 @@ The filter is: *would this change a number on an M5 Max, 128 GB, Metal?*
   and an improvement there usually shows up here. Do not dismiss a finding for
   being on the wrong Apple chip.
 
-**5c. File or update an issue in our repo, marked unverified.**
+**6c. File or update an issue in our repo, marked unverified.**
 
 Do this *before* verifying. Use this wording so the state is unambiguous:
 
 > **Unverified.** Reported by @handle on <UTC timestamp>, gathered via grok and
 > not yet checked against the post itself. Verification below.
 
-**5d. Only now verify — just the posts that earned an issue.**
+**6d. Only now verify — just the posts that earned an issue.**
 
 ```sh
 uv run python scripts/verify_posts.py <url-or-id> ...
@@ -153,7 +183,7 @@ user-agents, so `WebFetch` on them gets a 302 or a 403 — that is not the post
 being gone. `WebFetch` on `x.com` itself returns **402**, which looks like a
 billing problem and is not.
 
-**5e. Record the verification on the issue.**
+**6e. Record the verification on the issue.**
 
 > **Verified** 2026-09-02: post exists, authored by @handle, posted <UTC>, text
 > matches as quoted. — or —
