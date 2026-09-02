@@ -1,0 +1,26 @@
+2026-09-02 13:16:41,480 INFO [c6eecc6@M5-Max-128GB] 2026-09-02T17:16:41Z (13:16:41 EDT) | harness c6eecc6
+2026-09-02 13:16:41,502 INFO [c6eecc6@M5-Max-128GB]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-02 13:16:41,738 INFO [c6eecc6@M5-Max-128GB]   stack:   ds4 399acbb | llama.cpp 3466812d1 | ollama 0.33.2 | opencode 1.18.26
+2026-09-02 13:16:41,757 INFO [c6eecc6@M5-Max-128GB] | task | qwen38fnq3reap | qwen38fnq3 |
+2026-09-02 13:16:41,757 INFO [c6eecc6@M5-Max-128GB] |---|---|---|
+2026-09-02 13:16:41,757 INFO [c6eecc6@M5-Max-128GB] | `mbox-scan` | 110.4s (3/3) | 107.5s (4/4) |
+2026-09-02 13:16:41,757 INFO [c6eecc6@M5-Max-128GB] | `mbox-strip-envelope` | 42.2s (3/3) | 50.2s (4/4) |
+2026-09-02 13:16:41,757 INFO [c6eecc6@M5-Max-128GB] | `parser-date` | 207.9s (3/3) | 164.0s (3/3) |
+2026-09-02 13:16:41,757 INFO [c6eecc6@M5-Max-128GB] | `parser-mbox-quoting` | 77.8s (3/3) | 69.7s (4/4) |
+2026-09-02 13:16:41,757 INFO [c6eecc6@M5-Max-128GB] | `script-reverse` | 46.7s (3/3) | 40.8s (6/6) |
+2026-09-02 13:16:41,757 INFO [c6eecc6@M5-Max-128GB] | `script-transform` | 46.4s (3/3) | 38.9s (6/6) |
+2026-09-02 13:16:41,757 INFO [c6eecc6@M5-Max-128GB] | `storage-blob-put` | 133.0s (3/3) | 89.1s (3/3) |
+2026-09-02 13:16:41,757 INFO [c6eecc6@M5-Max-128GB] 
+2026-09-02 13:16:41,757 INFO [c6eecc6@M5-Max-128GB] **qwen38fnq3reap** excision: 15/15 passed, median 110.4s, worst 260.6s, spread 6.8x
+2026-09-02 13:16:41,757 INFO [c6eecc6@M5-Max-128GB] **qwen38fnq3** excision: 18/18 passed, median 89.6s, worst 207.9s, spread 4.8x
+2026-09-02 13:16:41,757 INFO [c6eecc6@M5-Max-128GB] 
+2026-09-02 13:16:41,757 INFO [c6eecc6@M5-Max-128GB] **Can three trials tell them apart?**
+2026-09-02 13:16:41,757 INFO [c6eecc6@M5-Max-128GB] 
+2026-09-02 13:16:41,757 INFO [c6eecc6@M5-Max-128GB] - `mbox-scan`: 3% apart -- **no** (needs 56%; #23)
+2026-09-02 13:16:41,757 INFO [c6eecc6@M5-Max-128GB] - `mbox-strip-envelope`: 19% apart -- **no** (needs 56%; #23)
+2026-09-02 13:16:41,757 INFO [c6eecc6@M5-Max-128GB] - `parser-date`: 27% apart -- **no** (needs 56%; #23)
+2026-09-02 13:16:41,757 INFO [c6eecc6@M5-Max-128GB] - `parser-mbox-quoting`: 12% apart -- **no** (needs 56%; #23)
+2026-09-02 13:16:41,757 INFO [c6eecc6@M5-Max-128GB] - `script-reverse`: 14% apart -- **no** (needs 56%; #23)
+2026-09-02 13:16:41,757 INFO [c6eecc6@M5-Max-128GB] - `script-transform`: 19% apart -- **no** (needs 56%; #23)
+2026-09-02 13:16:41,757 INFO [c6eecc6@M5-Max-128GB] - `storage-blob-put`: 49% apart -- **no** (needs 56%; #23)
+2026-09-02 13:16:41,757 INFO [c6eecc6@M5-Max-128GB] log: /Users/evanhoffman/git/local-llm/hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/logs/report-M5-Max-128GB-20260902T171641Z.log
