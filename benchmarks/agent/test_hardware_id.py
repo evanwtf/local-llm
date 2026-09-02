@@ -175,3 +175,34 @@ def test_the_other_two_machines_are_unchanged():
         )
         == "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A"
     )
+
+
+def test_path_safe_is_a_whitelist_not_a_blacklist():
+    """The next surprise will not be a slash.
+
+    Vendors put arbitrary text in model strings, so allow `A-Za-z0-9._-` and
+    replace everything else rather than enumerating hazards one at a time.
+    """
+    assert (
+        hw.path_safe("Weird Vendor: CPU (x2) @3.5GHz")
+        == "Weird_Vendor__CPU__x2___3.5GHz"
+    )
+    assert hw.path_safe("a/b\\c") == "a_b_c"
+    for hostile in ("a:b", "a b", "a*b", "a|b", "a\nb", "a..b/../c"):
+        got = hw.path_safe(hostile)
+        assert not set(got) - set(
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-"
+        ), (hostile, got)
+
+
+def test_our_own_separators_survive():
+    """`-` joins parts and `_` already stands in for Apple's slash.
+
+    Replacing them would rename the two directories holding our data.
+    """
+    assert hw.path_safe("MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A") == (
+        "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A"
+    )
+    assert hw.path_safe("Ryzen9-7900X-32GB-RTX3080Ti-12GB") == (
+        "Ryzen9-7900X-32GB-RTX3080Ti-12GB"
+    )

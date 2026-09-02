@@ -63,6 +63,22 @@ def installed_memory_gb(usable_bytes: int) -> int:
     return round(usable_gb)
 
 
+def path_safe(name: str) -> str:
+    """Anything not `A-Za-z0-9-_.` becomes an underscore.
+
+    A whitelist, not a blacklist: vendors put arbitrary text in model strings
+    and the next surprise will not be a slash. "Ryzen 7 PRO 8845HS w/ Radeon
+    780M Graphics" is the one that bit -- its "w/" did not fail, it silently
+    made a nested path and every run on that machine died with
+    FileNotFoundError.
+
+    `-` and `_` are kept because they are OUR separators: `-` joins the parts
+    of a name and `_` already stands in for the slash in Apple's model number.
+    Replacing them would rename the two directories that hold our data.
+    """
+    return re.sub(r"[^A-Za-z0-9._-]", "_", name)
+
+
 def normalise_cpu(raw: str) -> str:
     """A CPU's marketing string down to the part that identifies it.
 
@@ -174,10 +190,7 @@ def directory_name(facts: dict, platform: str) -> str:
     name = "-".join(p for p in parts if p)
     if not name:
         raise SystemExit("could not identify this machine; refusing to guess")
-    # Belt and braces: a directory name must never contain a path separator,
-    # whatever a vendor puts in a model string. A slash does not fail here --
-    # it silently creates a nested path, which is worse than an error.
-    return name.replace("/", "_").replace("\\", "_")
+    return path_safe(name)
 
 
 def short_slug(facts: dict, platform: str) -> str:
@@ -197,8 +210,7 @@ def short_slug(facts: dict, platform: str) -> str:
         return f"{chip}{mem}"
     cpu = normalise_cpu(facts.get("cpu", "")) or "cpu"
     gpu = normalise_gpu(facts.get("gpu", ""))
-    slug = f"{cpu}-{gpu}" if gpu else cpu
-    return slug.replace("/", "_").replace("\\", "_")
+    return path_safe(f"{cpu}-{gpu}" if gpu else cpu)
 
 
 def facts_for_this_machine() -> tuple[dict, str]:

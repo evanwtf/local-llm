@@ -1,0 +1,138 @@
+2026-09-02 18:31:42,345 INFO [20ebf30@M5-Max-128GB] 2026-09-02T22:31:42Z (18:31:42 EDT) | harness 20ebf30
+2026-09-02 18:31:42,364 INFO [20ebf30@M5-Max-128GB]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-02 18:31:42,364 INFO [20ebf30@M5-Max-128GB] Upstream sweep since 2026-09-01T22:31:42Z (24h)
+
+2026-09-02 18:31:43,722 INFO [20ebf30@M5-Max-128GB] == ggml-org/llama.cpp -- our fast pick's engine; `qwen4exp` IS Qwen3.8-Flash-Next
+2026-09-02 18:31:43,723 INFO [20ebf30@M5-Max-128GB]    releases: b10766, b10764, b10763, b10762, b10760, b10759, b10758, b10757, b10756, b10754
+2026-09-02 18:31:43,723 INFO [20ebf30@M5-Max-128GB]    finetune: fix no KV cache (#27199)
+2026-09-02 18:31:43,723 INFO [20ebf30@M5-Max-128GB]    server : accept data: URLs for input_video and input_audio (#27735)
+2026-09-02 18:31:43,723 INFO [20ebf30@M5-Max-128GB]    ggml-hexagon: add F16 support for unary ops (#28228)
+2026-09-02 18:31:43,723 INFO [20ebf30@M5-Max-128GB]    mtmd: add mtmd_tokenize_from_parts() (#28250)
+2026-09-02 18:31:43,723 INFO [20ebf30@M5-Max-128GB]    metal : add fa-vec tunings for M3 (#28236)
+2026-09-02 18:31:43,723 INFO [20ebf30@M5-Max-128GB]    metal : fix memory query under low-memory conditions (#27701)
+2026-09-02 18:31:43,723 INFO [20ebf30@M5-Max-128GB]    ci : check for missing autoreleasepools (#27884)
+2026-09-02 18:31:43,723 INFO [20ebf30@M5-Max-128GB]    Update ROCm to 10.0.0 release (#27803)
+2026-09-02 18:31:43,723 INFO [20ebf30@M5-Max-128GB]    model: correctly support input vision for deepseek4 (#28154)
+2026-09-02 18:31:43,723 INFO [20ebf30@M5-Max-128GB]    ci : enable hf-jobs on server-cuda (#28258)
+2026-09-02 18:31:43,723 INFO [20ebf30@M5-Max-128GB]    ggml-cuda : remove unused vars (#28235)
+2026-09-02 18:31:43,723 INFO [20ebf30@M5-Max-128GB]    common, server : enable preserve_reasoning kwarg by default, log its effective state (#28174)
+2026-09-02 18:31:43,723 INFO [20ebf30@M5-Max-128GB]    ... and 11 more
+2026-09-02 18:31:43,723 INFO [20ebf30@M5-Max-128GB] 
+2026-09-02 18:31:44,620 INFO [20ebf30@M5-Max-128GB] == ollama/ollama -- the 31 GB entry point, and our only MLX runtime
+2026-09-02 18:31:44,620 INFO [20ebf30@M5-Max-128GB]    releases: v0.33.3-rc1
+2026-09-02 18:31:44,620 INFO [20ebf30@M5-Max-128GB]    gemma4: image and audio input support
+2026-09-02 18:31:44,620 INFO [20ebf30@M5-Max-128GB]    mlxrunner: shared audio decoding and chunking for audio models
+2026-09-02 18:31:44,620 INFO [20ebf30@M5-Max-128GB]    mlxrunner: check every mlx-c call in the MLX bindings
+2026-09-02 18:31:44,620 INFO [20ebf30@M5-Max-128GB]    mlxrunner: capture MLX errors in a single buffer read after every call
+2026-09-02 18:31:44,620 INFO [20ebf30@M5-Max-128GB]    mlx: fix mtp_test unit test (#18203)
+2026-09-02 18:31:44,620 INFO [20ebf30@M5-Max-128GB]    llama.cpp: version bump b10760 (#18199)
+2026-09-02 18:31:44,620 INFO [20ebf30@M5-Max-128GB]    Report cached prompt tokens (#17943)
+2026-09-02 18:31:44,620 INFO [20ebf30@M5-Max-128GB]    ci: wire up MLX unit tests for PR runs (#17022)
+2026-09-02 18:31:44,620 INFO [20ebf30@M5-Max-128GB]    llama.cpp: version bump b10729 (#18160)
+2026-09-02 18:31:44,620 INFO [20ebf30@M5-Max-128GB]    MLX, MLX-C: version bump (#18080)
+2026-09-02 18:31:44,620 INFO [20ebf30@M5-Max-128GB] 
+2026-09-02 18:31:45,524 INFO [20ebf30@M5-Max-128GB] == anomalyco/opencode -- our only client
+2026-09-02 18:31:45,524 INFO [20ebf30@M5-Max-128GB]    releases: v1.18.27
+2026-09-02 18:31:45,524 INFO [20ebf30@M5-Max-128GB]    sync release versions for v1.18.27
+2026-09-02 18:31:45,524 INFO [20ebf30@M5-Max-128GB]    fix(opencode): default header timeout to five minutes (#46903)
+2026-09-02 18:31:45,524 INFO [20ebf30@M5-Max-128GB]    fix(opencode): default chunk timeout to five minutes (#46890)
+2026-09-02 18:31:45,524 INFO [20ebf30@M5-Max-128GB]    fix(opencode): let config opt out of Anthropic thinking blockBinding (#46820)
+2026-09-02 18:31:45,524 INFO [20ebf30@M5-Max-128GB]    fix(console): restore migrated inference proxy requests (#46854)
+2026-09-02 18:31:45,524 INFO [20ebf30@M5-Max-128GB]    fix(provider): scope thinking binding to Claude 5.1+ (#46848)
+2026-09-02 18:31:45,524 INFO [20ebf30@M5-Max-128GB]    chore: generate
+2026-09-02 18:31:45,524 INFO [20ebf30@M5-Max-128GB]    feat(console): add Muse Spark 1.3 and Gemini 3.8 Flash (#46836)
+2026-09-02 18:31:45,524 INFO [20ebf30@M5-Max-128GB]    feat(console): keep migrated teams on the new Console (#46830)
+2026-09-02 18:31:45,524 INFO [20ebf30@M5-Max-128GB]    fix(provider): handle SSE reader cancel rejections (#44944)
+2026-09-02 18:31:45,524 INFO [20ebf30@M5-Max-128GB]    docs(zen): add Claude Fable 5.1 (#46728)
+2026-09-02 18:31:45,525 INFO [20ebf30@M5-Max-128GB] 
+2026-09-02 18:31:46,232 INFO [20ebf30@M5-Max-128GB] == evanwtf/local-llm -- this project
+2026-09-02 18:31:46,234 INFO [20ebf30@M5-Max-128GB]    hardware_id: a CPU string with "w/" put a slash in a directory name
+2026-09-02 18:31:46,234 INFO [20ebf30@M5-Max-128GB]    skill: record that source-sweep needs a symlink to be discoverable
+2026-09-02 18:31:46,234 INFO [20ebf30@M5-Max-128GB]    hf_sweep: pick a model for a given machine, not just watch for new ones
+2026-09-02 18:31:46,234 INFO [20ebf30@M5-Max-128GB]    thermals: read die temperature with a timestamp, without sudo
+2026-09-02 18:31:46,234 INFO [20ebf30@M5-Max-128GB]    reap320: 15/15, and nothing distinguishable from the baseline (#89)
+2026-09-02 18:31:46,234 INFO [20ebf30@M5-Max-128GB]    context: refuse a run whose server serves less than the backend declares
+2026-09-02 18:31:46,234 INFO [20ebf30@M5-Max-128GB]    hardware: move this machine's data under its own directory (#85)
+2026-09-02 18:31:46,234 INFO [20ebf30@M5-Max-128GB]    logs: drop the three that could not name their own machine
+2026-09-02 18:31:46,234 INFO [20ebf30@M5-Max-128GB]    tooling: every script names its machine, its commit and its stack
+2026-09-02 18:31:46,234 INFO [20ebf30@M5-Max-128GB]    next: reorder by value per hour, and file two issues from the HF sweep
+2026-09-02 18:31:46,234 INFO [20ebf30@M5-Max-128GB]    sweep: watch Hugging Face for new quants of models we run
+2026-09-02 18:31:46,234 INFO [20ebf30@M5-Max-128GB]    sweep: write grok's output to a dated file, with the window recorded
+2026-09-02 18:31:46,234 INFO [20ebf30@M5-Max-128GB]    ... and 25 more
+2026-09-02 18:31:46,234 INFO [20ebf30@M5-Max-128GB] 
+2026-09-02 18:31:48,226 INFO [20ebf30@M5-Max-128GB] == ml-explore/mlx -- the framework everything MLX sits on
+2026-09-02 18:31:48,226 INFO [20ebf30@M5-Max-128GB]    [Metal] Use hypot for complex ops (#4345)
+2026-09-02 18:31:48,227 INFO [20ebf30@M5-Max-128GB]    Fix save and save_safetensors corrupting a lazily loaded source file (#4434)
+2026-09-02 18:31:48,227 INFO [20ebf30@M5-Max-128GB]    python: Make iter() throw TypeError for 0-dim array (#4425)
+2026-09-02 18:31:48,227 INFO [20ebf30@M5-Max-128GB]    python: Make unstack return tuple instead of list (#4448)
+2026-09-02 18:31:48,227 INFO [20ebf30@M5-Max-128GB]    Make head-dim-256 prefill with array mask run fused NAX kernel (#4416)
+2026-09-02 18:31:48,227 INFO [20ebf30@M5-Max-128GB]    Fix sdpa_vector_2pass_1_gqa kernel batch offset for K/V in gqa decode (#4431)
+2026-09-02 18:31:48,227 INFO [20ebf30@M5-Max-128GB] 
+2026-09-02 18:31:48,896 INFO [20ebf30@M5-Max-128GB] == ml-explore/mlx-lm -- reference MLX server; new architectures land here first
+2026-09-02 18:31:48,896 INFO [20ebf30@M5-Max-128GB]    Fix float32 promotion in BatchKVCache and BatchRotatingKVCache extend() (#1491)
+2026-09-02 18:31:48,897 INFO [20ebf30@M5-Max-128GB] 
+2026-09-02 18:31:49,617 INFO [20ebf30@M5-Max-128GB] == jundot/omlx -- oMLX -- prefill leader, untested here (#60)
+2026-09-02 18:31:49,617 INFO [20ebf30@M5-Max-128GB]    fix: keep restored-prefix VLM prefill inputs off the default stream (#3305)
+2026-09-02 18:31:49,617 INFO [20ebf30@M5-Max-128GB]    fix: preserve Qwen4 PLE mmap admission fallback
+2026-09-02 18:31:49,617 INFO [20ebf30@M5-Max-128GB]    fix(engine_pool): keep the Qwen4 PLE table resident across a model swap (#3299)
+2026-09-02 18:31:49,617 INFO [20ebf30@M5-Max-128GB]    refactor: simplify Qwen4 prefill memory accounting (#3350)
+2026-09-02 18:31:49,617 INFO [20ebf30@M5-Max-128GB]    fix(qwen4): reject corrupt QSA prefix states (#3294)
+2026-09-02 18:31:49,617 INFO [20ebf30@M5-Max-128GB]    fix(qwen4): isolate gathered prefill memory history (#3350)
+2026-09-02 18:31:49,617 INFO [20ebf30@M5-Max-128GB]    fix(qwen4_exp): price gathered QSA prefill memory (#3351)
+2026-09-02 18:31:49,617 INFO [20ebf30@M5-Max-128GB]    fix(qwen4): preserve gathered prefill across mRoPE rebinds (#3355)
+2026-09-02 18:31:49,617 INFO [20ebf30@M5-Max-128GB]    fix(qwen4): harden QSA batch cache joins (#3294)
+2026-09-02 18:31:49,617 INFO [20ebf30@M5-Max-128GB]    fix(qwen4): handle mixed-rank QSA cache joins (#3369)
+2026-09-02 18:31:49,617 INFO [20ebf30@M5-Max-128GB] 
+2026-09-02 18:31:51,790 INFO [20ebf30@M5-Max-128GB] == raullenchai/Rapid-MLX -- the one MLX engine reachable by pip (#57, #60)
+2026-09-02 18:31:51,790 INFO [20ebf30@M5-Max-128GB]    feat(video): add LTX 2.5, Wan 2.1, and CogVideoX-Fun to Desktop (#2947)
+2026-09-02 18:31:51,790 INFO [20ebf30@M5-Max-128GB]    docs: qualify headless macOS service deployment (#2952)
+2026-09-02 18:31:51,790 INFO [20ebf30@M5-Max-128GB]    catalog: consume atomic recommendation policy (#2871)
+2026-09-02 18:31:51,790 INFO [20ebf30@M5-Max-128GB]    feat(markdown): preview Mermaid diagrams securely (#2812)
+2026-09-02 18:31:51,790 INFO [20ebf30@M5-Max-128GB]    docs: refresh 0.13.4 large-model benchmarks (#2942)
+2026-09-02 18:31:51,790 INFO [20ebf30@M5-Max-128GB]    [codex] Add lightweight desktop update discovery card (#2919)
+2026-09-02 18:31:51,790 INFO [20ebf30@M5-Max-128GB]    Expose per-model request performance metrics (#2915)
+2026-09-02 18:31:51,790 INFO [20ebf30@M5-Max-128GB]    test(mac): wait for authoritative drop completion before retry (#2938)
+2026-09-02 18:31:51,791 INFO [20ebf30@M5-Max-128GB]    fix(mtp): preserve requests on admission failure (#2934)
+2026-09-02 18:31:51,791 INFO [20ebf30@M5-Max-128GB]    feat(catalog): add atomic product model registry (#2857)
+2026-09-02 18:31:51,791 INFO [20ebf30@M5-Max-128GB]    feat(mac): add experimental Video workspace (#2844)
+2026-09-02 18:31:51,791 INFO [20ebf30@M5-Max-128GB]    fix(doctor): keep runtime probe within five-second contract (#2926)
+2026-09-02 18:31:51,791 INFO [20ebf30@M5-Max-128GB]    ... and 2 more
+2026-09-02 18:31:51,791 INFO [20ebf30@M5-Max-128GB] 
+2026-09-02 18:31:53,063 INFO [20ebf30@M5-Max-128GB] == Blaizzy/mlx-vlm -- expert offloading, prefix caching, Qwen3.8-Flash-Next MTP
+2026-09-02 18:31:53,063 INFO [20ebf30@M5-Max-128GB]    Keep quantized APC checkpoints packed (#2090)
+2026-09-02 18:31:53,063 INFO [20ebf30@M5-Max-128GB]    Optimize exact Qwen verifier QMV unrolling (#2140)
+2026-09-02 18:31:53,063 INFO [20ebf30@M5-Max-128GB]    Register the qwen3_vl_embedding auto-processor patch (#2146)
+2026-09-02 18:31:53,063 INFO [20ebf30@M5-Max-128GB]    granite4_vision: align deepstack injection with chunked prefill via cache offset (#2134) (#2143)
+2026-09-02 18:31:53,063 INFO [20ebf30@M5-Max-128GB]    Add DeepSeek-V4 Flash Vision EXP support (#2136)
+2026-09-02 18:31:53,063 INFO [20ebf30@M5-Max-128GB]    Merge pull request #2142 from Micha0827/fix/qwen3-vl-video-timestamps
+2026-09-02 18:31:53,064 INFO [20ebf30@M5-Max-128GB]    qwen3_vl: render per-group video timestamps like the reference processor
+2026-09-02 18:31:53,064 INFO [20ebf30@M5-Max-128GB]    Add DSpark drafter for Gemma 4 (#2137)
+2026-09-02 18:31:53,064 INFO [20ebf30@M5-Max-128GB] 
+2026-09-02 18:31:53,947 INFO [20ebf30@M5-Max-128GB] == unslothai/llama.cpp -- the fork with a working qwen4exp MTP graph (#77)
+2026-09-02 18:31:53,947 INFO [20ebf30@M5-Max-128GB]    unsloth: pin ggml-org#28133
+2026-09-02 18:31:53,947 INFO [20ebf30@M5-Max-128GB]    unsloth: repin #144 onto its base, dropping the commit upstream squashed as #28123 (#168)
+2026-09-02 18:31:53,947 INFO [20ebf30@M5-Max-128GB]    unsloth: drop merged #27941 pin
+2026-09-02 18:31:53,947 INFO [20ebf30@M5-Max-128GB] 
+2026-09-02 18:31:54,639 INFO [20ebf30@M5-Max-128GB] == Layr-Labs/mlxfast-gemma4-26b-a4b-engine -- MLX Fast leaderboard harness (#80)
+2026-09-02 18:31:54,639 INFO [20ebf30@M5-Max-128GB]    Validate submission 037649e4-97cb-48d5-bfea-aedb4fabeb2d
+2026-09-02 18:31:54,639 INFO [20ebf30@M5-Max-128GB]    Validate submission 12f87884-f1f2-451b-aaa4-b6c1951500eb
+2026-09-02 18:31:54,639 INFO [20ebf30@M5-Max-128GB]    Accept submission c35cb7dc-996e-49c5-88a0-e5856e2fdcf5
+2026-09-02 18:31:54,639 INFO [20ebf30@M5-Max-128GB]    Validate submission 0e136990-a1d5-4697-90da-813b4e0e606f
+2026-09-02 18:31:54,639 INFO [20ebf30@M5-Max-128GB]    Validate submission 212cb6fa-a986-4d48-8883-9a99e61f8864
+2026-09-02 18:31:54,639 INFO [20ebf30@M5-Max-128GB]    Validate submission db1c75b5-05b8-4ea5-af6e-d80889bb3b9a
+2026-09-02 18:31:54,639 INFO [20ebf30@M5-Max-128GB]    Validate submission d22cfcdf-3064-4e7b-8cb0-70aaadc40c50
+2026-09-02 18:31:54,639 INFO [20ebf30@M5-Max-128GB]    Validate submission 5b2ae45b-0ad4-45dc-a4d0-6ab758f98de2
+2026-09-02 18:31:54,639 INFO [20ebf30@M5-Max-128GB]    Validate submission ed72c62c-51a6-421d-a56b-847c89725eab
+2026-09-02 18:31:54,639 INFO [20ebf30@M5-Max-128GB]    Validate submission 369aa83f-da56-445d-b91d-aa4b47ef9b29
+2026-09-02 18:31:54,639 INFO [20ebf30@M5-Max-128GB]    Validate submission ff7c3f3b-00e0-4d2b-a3ee-5256b1ed0938
+2026-09-02 18:31:54,639 INFO [20ebf30@M5-Max-128GB]    Validate submission 604e2dc1-e45f-4da0-92fc-3621205178a4
+2026-09-02 18:31:54,639 INFO [20ebf30@M5-Max-128GB]    ... and 6 more
+2026-09-02 18:31:54,639 INFO [20ebf30@M5-Max-128GB] 
+2026-09-02 18:31:55,193 INFO [20ebf30@M5-Max-128GB] == sudoingX/qwen38-mtp -- 61 paired baseline-vs-MTP runs, disciplined method (#19, #39)
+2026-09-02 18:31:55,193 INFO [20ebf30@M5-Max-128GB]    Wire cmp-50hx deep-dive into sweep indexes
+2026-09-02 18:31:55,193 INFO [20ebf30@M5-Max-128GB]    Merge PR #71: CMP 50HX deep-dive docs
+2026-09-02 18:31:55,193 INFO [20ebf30@M5-Max-128GB]    Merge PR #72: R9700 Windows/Vulkan row and radeon sweep
+2026-09-02 18:31:55,193 INFO [20ebf30@M5-Max-128GB]    Merge PR #69: Radeon 780M iGPU row and apu sweep
+2026-09-02 18:31:55,193 INFO [20ebf30@M5-Max-128GB]    Merge PR #65: mismatched 2070+5060 Ti x1-riser row and multi-gpu findings
+2026-09-02 18:31:55,193 INFO [20ebf30@M5-Max-128GB] 
+2026-09-02 18:31:55,193 INFO [20ebf30@M5-Max-128GB] log: /Users/evanhoffman/git/local-llm/logs/sweeps/upstream-sweep-M5-Max-128GB-20260902T223142Z.log
