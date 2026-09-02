@@ -995,9 +995,14 @@ description = "Gemma 4 12B IT Q4_K_M via Ollama (desktop 3080 Ti)"
 tier = "desktop-3080ti"
 base_url = "http://127.0.0.1:11434"
 auth_token = "ollama"
-model = "gemma4:12b-it-q4_K_M"
-opencode_model = "ollama/gemma4:12b-it-q4_K_M"
-context_tokens = 131072
+model = "gemma4-12b-it-32768"
+opencode_model = "ollama/gemma4-12b-it-32768"
+# 32768, matching dtornith159b so the two are comparable. The 0/12 recorded on
+# 2026-09-02 was served Ollama's 4096 default while claiming 131072; see the
+# banner in this machine's RESULTS.md. Gemma4's sliding-window attention makes
+# the KV cache nearly free here -- 7.80 GiB resident at 8k against 7.84 GiB at
+# 32k, fully on the GPU either way -- so the larger window costs nothing.
+context_tokens = 32768
 
 # The live experiment for this tier (#20). 35B total, 3B active, 22 GB against
 # 12 GiB of VRAM and 30 GiB of RAM -- so it needs --n-cpu-moe to stream routed

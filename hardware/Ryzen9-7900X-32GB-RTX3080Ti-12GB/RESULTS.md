@@ -53,14 +53,14 @@ the Mac's and the rows say so.
 
 ## 2026-09-02: `gemma4:12b-it-q4_K_M` under OpenCode — **0/12**
 
-> ### ⚠️ These rows were measured in a 4,096-token window
+> ### ⚠️ SUPERSEDED — these rows were measured in a 4,096-token window
 >
 > They record `context_tokens: 131072`. The server served **4096** — Ollama's
-> default, never overridden. Nothing checked, so the field recorded what the
-> backend asked for rather than what it got. **The 0/12 and the reading below
-> are not safe to cite**, and the same bug turned an ornith trial from a
-> 1566.9s failure into a 93.5s pass once corrected. Re-run before quoting.
-> Guard added in `230eeeb`; see the ornith section below.
+> default, never overridden. **All twelve are now marked excluded.** Re-run at
+> a verified 32,768 the same day, the same backend scored **3/12**, so the
+> 0/12 below measured our own truncation. The reading is retained as a record
+> of what was concluded and why it was wrong; do not cite its numbers.
+> Guard added in `230eeeb`. Corrected result: "gemma4 at 32k" below.
 
 
 Sampler from the model's own Modelfile: `temperature 1, top_k 64, top_p 0.95`.
@@ -191,3 +191,84 @@ Ollama 0.33.2, OpenCode 1.18.26, harness `230eeeb`, target `gmail-archive`
 'modelfile'}` — where the gemma4 run recorded `engine defaults (unrecorded)`.
 Setting the parameter explicitly is what made the server identity recordable
 at all (#78).
+
+
+---
+
+## 2026-09-02: `gemma4:12b-it` at a verified 32k — **3/12**, not 0/12
+
+The same backend, same tasks, same day, with the context window fixed.
+
+| task | trial 1 | trial 2 | trial 3 | verdict |
+|---|---|---|---|---|
+| `storage-blob-put` | FAIL 30.6s | FAIL 215.4s | FAIL 73.4s | 0/3 |
+| `mbox-scan` | FAIL 284.9s | FAIL 193.7s | FAIL 289.7s | 0/3 |
+| `script-reverse` | **PASS 21.2s** | **PASS 49.0s** | **PASS 26.3s** | **3/3** |
+| `script-transform` | FAIL 32.8s | FAIL 27.1s | FAIL 25.9s | 0/3 |
+
+`summarize.py`: `dtgemma412b 3/12 passed, median 40.9s, median turns 3`
+against `dtornith159b 12/13 passed, median 75.9s, median turns 10`.
+
+### The model was never the problem the old rows described
+
+The superseded section concluded "this model is not a coding agent on this
+hardware" and "completes none of 12 real tasks". Both are false. It completes
+`script-reverse` **3 times out of 3**, reproducibly.
+
+Three distinct failure mechanisms replace the single one recorded before:
+
+* **`mbox-scan` — control unchanged.** 13 failed / 3 passed before and after,
+  three times, after 194-290s of work. The file is never touched.
+* **`script-transform` — no file.** `transform.py` is never created. This is
+  the only place the old "code in a markdown fence" behaviour survives.
+* **`storage-blob-put` — it tries.** Trial 1 and 2 broke the import outright
+  (`1 error`, module unloadable). **Trial 3 reached `2 failed, 15 passed`** --
+  two tests short of solving the hardest task in the set, from a control state
+  of 14 failed / 3 passed.
+
+That last row is the one to remember. At 4k this cell left the file untouched.
+At 32k it gets within two tests of green.
+
+### What this says about the task set (#79)
+
+**The set discriminates between models at this tier, not within one.** #79
+hoped a 9B would fail some tasks and pass others, giving the project its first
+difficulty ordering. Ornith did not provide it -- 11/12, still saturated.
+Gemma4 does, and cleanly: the same task passes or fails deterministically
+across all three trials, never mixed.
+
+The ordering that falls out, easiest first:
+
+1. `script-reverse` -- no repository to navigate. Both models, 3/3.
+2. `script-transform` -- a file must be created from nothing. Ornith 3/3,
+   gemma4 0/3.
+3. `mbox-scan`, `storage-blob-put` -- find and modify code in an existing
+   tree. Ornith 5/7, gemma4 0/6.
+
+**It also makes the case for #4 better than any previous run.** The oracle is
+binary, so `2 failed, 15 passed` and `transform.py was never created` are both
+"FAIL" -- identical in the table, opposite in meaning. A graded signal would
+have separated a near-miss from a no-op without anyone reading a transcript.
+
+### Confound: OpenCode updated mid-session
+
+**Ornith ran on OpenCode 1.18.26; this run on 1.18.27.** The client
+auto-updated between the two batches, unasked. Both rows record their own
+version, so the comparison is not silently wrong -- but it is not a clean
+isolation either, and the head-to-head above crosses a client version.
+
+Neither model's result looks version-sensitive: gemma4's `script-reverse`
+passes and `mbox-scan` leaves the control untouched on both `.26` and `.27`.
+Still, ornith should be re-run on `.27` before the two are ranked against each
+other. #55's rule applies -- date and version every claim.
+
+### Provenance
+
+Ollama 0.33.2, OpenCode **1.18.27**, harness `c8794f6`, target `gmail-archive`
+@ `56e55cc`, model `gemma4-12b-it-32768` (Modelfile `num_ctx 32768`; 7.84 GiB
+resident, fully on GPU -- gemma4's sliding-window attention makes the window
+nearly free, 7.80 GiB at 8k against 7.84 GiB at 32k).
+
+The `fib` smoke probe still fails at `stop_reason=max_tokens (spent the budget
+thinking)`. It now has done so across two Ollama versions **and** an 8x larger
+context, so it is neither a version nor a truncation artifact (#83).
