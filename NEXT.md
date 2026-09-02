@@ -8,7 +8,7 @@
 > or compare against those numbers.** Cause, cutover and replacements:
 > [docs/archive/results-opencode-pre-dir.md](docs/archive/results-opencode-pre-dir.md). Other clients are unaffected.
 
-Updated **2026-09-02 06:45 EDT**. The queue below is ordered by **value per
+Updated **2026-09-02 18:44 EDT**. The queue below is ordered by **value per
 hour**, not by issue age.
 
 **Where the project stands.** Six backends have valid current data; four of the
@@ -37,25 +37,31 @@ state that is not in git. The table is the queue. It has no calendar.
 
 ## Order
 
-**Ranked by value per hour, not by issue age.** The top three are all things we
-can finish; below that the cost or the blocker grows.
+**Ranked by value per hour, not by issue age.** The top item is running now; the
+next three are things we can finish. Below that the cost or the blocker grows.
 
 | # | issue | why here |
 |---|---|---|
-| 1 | **#89** REAP-320: 320 of 512 experts, our exact quant | **Best ratio available.** One variable — same `UD-Q3_K_XL` weights, same engine, same client, 512 experts against 320 — measured against **30/30 at a 90s median**, the largest clean cell we have. 69 GB against our 90 GB. All three outcomes pay: 21 GB back and a better default; or expert count is not the binding constraint; or the **first quality signal this task set has produced from a model change**, which #4 says it cannot currently do. |
-| 2 | **#87** ds4's Mac prefill, and antirez's mechanism | **The engine author named the cause of our documented bottleneck**: "very costly synchronizations in Metal if you are not in a situation to fuse." We have measured *that* prefill costs us for weeks and never *why it degrades with context*. `llama-bench -d` gave that curve for llama.cpp — 1089 → 596 → 450 t/s across the depths we run in — and **we have no equivalent for ds4**, the engine we depend on most. Costs machine time, no downloads. |
-| 3 | **#80** the MLX model sweep | Half done: `gemma426` **11/11** and the 27B generation pair both landed overnight. Remaining: `qwen36a3b` (3B active — also the shape #20 needs), and **`qwen3.8-flash-next:125b-mlx`**, which is the experiment that decides whether to keep 112 GB. Now wired and declared, so it is a run away. **114.8 GB of deletions unblocked.** |
-| 4 | **#85** one directory per hardware platform | **Two machines now have data** and the desktop's had nowhere to live until yesterday. `hardware_id.py` derives the names and `--results` exists; what remains is the `git mv` of 1,092 rows in a commit that changes nothing else, and a `hardware.toml` so a misfiled row is a failing run rather than silent contamination. Cost grows with every row. |
-| 5 | **#60** the engine gap | Still the widest axis and the most expensive. Rapid-MLX remains the one reachable by pip. mlx-vlm 0.7.0-rc0 is the newest lead — expert offloading, a prefix cache claiming 166x on the Gemma 4 31B we measured, and a working MTP path for our fastest model. **166x is a cache-hit figure**; read it as repeated-prefix work, not first-token. |
-| 6 | **#55** the harness cannot tell a bad result from a broken measurement | It keeps being right. Yesterday alone: `--dry-run` crashed on every script task since the class was added; 127 dry-run rows were counted as failures in the **published** tables; `--results` pointed at a new file crashed after the smoke gate passed; and **CI had failed 40 consecutive runs** on a shallow clone. Every one was invisible where it mattered. |
-| 7 | **#20 / #79** the second tier | Scoped and measured. `gemma4:12b-it` **0/12** — and the failure moved: it now calls tools (7 steps, 6 `tool_use`) and leaves the repository byte-identical to the control. **The dense 12B tier is dead.** The live experiment is `ornith-1.5:35b`, 3B active, 22 GB streamed with `--n-cpu-moe` against 32 GB — the only candidate where the *model* is proven (21/21 here) and only the hardware is in question. |
-| 8 | **#4** harder tasks cannot measure quality | Sharpened twice from outside. #79 produced the first real discrimination the set has shown — separating *coding ability* from *tool-calling ability*, which decides a fallback tier. And #82's 49 GB oracle run was a **plausible wrong answer** arrived at by accident: an implementation that buffers a file the task says to stream. #89 may supply the quality signal more cheaply than new tasks. |
-| 9 | **#90** the PLE and MTP builds | **A metadata read, not a download.** Shard 1 answers whether the MTP build carries MTP tensors and what the SSD-PLE build keeps resident. A Q5 smaller than our Q3 needs explaining before it is believed. |
-| 10 | **#86** MTPLX loops at 4-bit and 8-bit | Do not spend a slot on MTPLX until this is understood. A loop reads as slowness in our rows and nothing would say otherwise. |
-| 11 | **#83** unbounded thinking | Two models returned no answer at all with `stop_reason=max_tokens`. #63 settled that thinking helps correctness *on ds4*; it never asked whether reasoning consumes the budget before an answer exists. May be confounding the 27B generation comparison already taken. |
-| 12 | **#77** speculative decoding on Qwen3.8-Flash-Next | **Blocked on a fork**, not on effort. Both heads are downloaded (6.9 GB). #90 might unblock it for the cost of a metadata read, which is why it sits below #90. |
+| 1 | **#94** Qwen3.8-Flash-Next on ds4, with an MTP head | **The missing cell, and it is downloadable now.** We have measured this model on llama.cpp only, so engine is fully confounded with model — this is the one artifact that separates them, on the engine we depend on most. It also carries the **1.6 GB MTP head** that #77 has been blocked on, so speculative decoding becomes a variable rather than a wish. Both feared blockers are already gone: the runtime branch was **renamed**, not missing, and **M5 TensorOps landed 2026-09-03 00:28 +0200** — the build is clean with no patches. 113 GB on disk, ~81 GB resident if the PLE sidecar really streams from SSD, which is itself a claim to measure against the 112 GiB ceiling. Baseline to beat: **llama.cpp Q3 under OpenCode, 18/18 at an 89.6s median.** |
+| 2 | **#80** the MLX model sweep | Half done: `gemma426` **11/11** and the 27B generation pair both landed overnight. Remaining: `qwen36a3b` (3B active — also the shape #20 needs), and **`qwen3.8-flash-next:125b-mlx`**, which is the experiment that decides whether to keep 112 GB. Now wired and declared, so it is a run away. **114.8 GB of deletions unblocked.** |
+| 3 | **#85** one directory per hardware platform | **Two machines now have data** and the desktop's had nowhere to live until yesterday. `hardware_id.py` derives the names and `--results` exists; what remains is the `git mv` of 1,092 rows in a commit that changes nothing else, and a `hardware.toml` so a misfiled row is a failing run rather than silent contamination. Cost grows with every row. |
+| 4 | **#60** the engine gap | Still the widest axis and the most expensive. Rapid-MLX remains the one reachable by pip. mlx-vlm 0.7.0-rc0 is the newest lead — expert offloading, a prefix cache claiming 166x on the Gemma 4 31B we measured, and a working MTP path for our fastest model. **166x is a cache-hit figure**; read it as repeated-prefix work, not first-token. |
+| 5 | **#55** the harness cannot tell a bad result from a broken measurement | It keeps being right. Yesterday alone: `--dry-run` crashed on every script task since the class was added; 127 dry-run rows were counted as failures in the **published** tables; `--results` pointed at a new file crashed after the smoke gate passed; and **CI had failed 40 consecutive runs** on a shallow clone. Every one was invisible where it mattered. |
+| 6 | **#20 / #79** the second tier | Scoped and measured. `gemma4:12b-it` **0/12** — and the failure moved: it now calls tools (7 steps, 6 `tool_use`) and leaves the repository byte-identical to the control. **The dense 12B tier is dead.** The live experiment is `ornith-1.5:35b`, 3B active, 22 GB streamed with `--n-cpu-moe` against 32 GB — the only candidate where the *model* is proven (21/21 here) and only the hardware is in question. |
+| 7 | **#4** harder tasks cannot measure quality | Sharpened twice from outside. #79 produced the first real discrimination the set has shown — separating *coding ability* from *tool-calling ability*, which decides a fallback tier. And #82's 49 GB oracle run was a **plausible wrong answer** arrived at by accident: an implementation that buffers a file the task says to stream. #89 may supply the quality signal more cheaply than new tasks. |
+| 8 | **#86** MTPLX loops at 4-bit and 8-bit | Do not spend a slot on MTPLX until this is understood. A loop reads as slowness in our rows and nothing would say otherwise. |
+| 9 | **#83** unbounded thinking | Two models returned no answer at all with `stop_reason=max_tokens`. #63 settled that thinking helps correctness *on ds4*; it never asked whether reasoning consumes the budget before an answer exists. May be confounding the 27B generation comparison already taken. |
+| 10 | **#77** speculative decoding on Qwen3.8-Flash-Next | **#94 unblocks this.** The ds4 fast-pack ships a 1.6 GB MTP head and a `--mtp-draft` flag, so the fork that blocked this is no longer needed — MTP becomes a variable we can switch on and off in the same binary. Keep the row until #94 has actually served the head; then this is a measurement, not a blocker. |
 
-**Behind these:** #75, #56, #84, #45, #53, #35, #27, #19, #51, #57, #58, #59, #65, #66, and the older backlog.
+**Behind these:** #96 (oMLX per-turn TTFT), #97 (the screensaver confound), #95 (ds4 PR
+#953), then #75, #56, #84, #45, #53, #35, #27, #19, #51, #57, #58, #59, #65, #66, and the
+older backlog.
+
+**From the 2026-09-02 sweep.** #96 is the one outside claim large enough for our harness
+to resolve — per-turn TTFT 3-4s to 0.3s clears #23's ~56% bar, where #95's +4-7% prefill
+gain does not and cannot be measured by us at three trials. #97 is a confound in our own
+published numbers, not someone else's news: a screensaver on the GPU has the same shape as
+our unexplained ~10% session drift, which we already ruled out as thermal.
 
 **#16 is answered.** `gemma4:31b-mxfp8` went **12/12** — the first non-Qwen,
 non-DeepSeek backend to complete a cell — at **383s against llama.cpp's 90s**.
