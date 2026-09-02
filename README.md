@@ -64,6 +64,7 @@ the same fact on either machine, go to `logs/sweeps/`.
 | script | what it does |
 |---|---|
 | `scripts/hardware_id.py` | Derives this machine's results-directory name. **Never type one by hand** |
+| `scripts/thermals.py` | Die temperatures with a timestamp, no sudo. `--watch 300` samples during a run — a benchmark that drifts needs a temperature beside it |
 | `scripts/gguf_meta.py` | Read a GGUF's metadata without loading it |
 | `scripts/install-metal-ceiling.sh` | Persist the Metal wired limit across reboots. Required for a 90 GB model, not an optimisation |
 | `benchmarks/agent/gen_tables.py`, `splice_tables.py` | Regenerate RECOMMENDATIONS' tables from `results.jsonl` |
