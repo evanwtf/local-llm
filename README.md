@@ -55,7 +55,7 @@ the same fact on either machine, go to `logs/sweeps/`.
 | script | what it does |
 |---|---|
 | `scripts/upstream_sweep.py` | Commits and releases across the 18 repos we depend on |
-| `scripts/hf_sweep.py` | New quants of models we run, hiding what cannot load on Metal |
+| `scripts/hf_sweep.py` | New quants of models we run, and **`--find` to pick a model for a machine**. `--profile rtx3080ti --find small --sizes` answers "what runs on the 12 GiB card" |
 | `scripts/verify_posts.py` | Verify X posts before repeating a claim. It has caught a fabricated one |
 | `/source-sweep` skill | All six surfaces in order: GitHub inbox, repos, branches, upstream issues, Hugging Face, then X |
 
