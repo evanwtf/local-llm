@@ -946,11 +946,16 @@ checks = [
 # kept apart by results.foreign_hardware(), which refuses to append to a file
 # holding another machine's rows: one file, one hardware baseline (#20).
 #
-# Both dense 12B models below are MEASURED AND RULED OUT (#79): mistral-nemo
-# 0/6, gemma4:12b 1/6. Both pass the smoke gate, which reads the answer out of
-# the reply, then fail the same task when the answer has to be a file on disk --
-# zero tool calls, correct code in a markdown fence. The blocks stay so the
-# result is reproducible, not because the models are candidates.
+# NO DATA. The 2026-09-01 run on this tier was preliminary and its rows were
+# discarded on purpose -- the tier starts fresh rather than carrying numbers
+# taken while the environment was still being stood up.
+#
+# What that run showed is recorded on #79 and is worth knowing before spending
+# time here: both dense 12B models passed the smoke gate, which reads the answer
+# out of the reply, and then failed the same task when the answer had to be a
+# file on disk -- zero tool calls, correct code in a markdown fence. Treat that
+# as an observation to re-test, not as a measurement: the rows behind it are
+# gone.
 
 [backend.dtmistralnemo]
 description = "Mistral-Nemo 12B instruct Q4_K_M via Ollama (desktop 3080 Ti)"

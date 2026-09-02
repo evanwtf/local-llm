@@ -34,6 +34,7 @@ GLM-5.3, which is a refusal.
 | **Disk** | 1.8 TB NVMe, 1.3 TB free |
 | **OS** | Ubuntu 24.04 · **not always-on** |
 | **Backends** | `dtmistralnemo`, `dtgemma412b`, `dtornith15` — `tier = "desktop-3080ti"` in `tasks.toml` |
+| **Data** | **none.** The 2026-09-01 preliminary rows were discarded; this tier starts fresh |
 | **Confinement** | **none** — `sandbox-exec` is macOS-only, so `workspace_escapes` is unenforced there |
 
 The 30 GiB figure is the one that matters: with 12 GiB of VRAM it makes the
