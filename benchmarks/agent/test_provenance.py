@@ -203,3 +203,19 @@ def test_the_filename_names_the_machine_too():
     assert path.parent.name == "logs"
     shared = provenance.log_path("hf-sweep", machine_specific=False)
     assert shared.parent.parts[-2:] == ("logs", "sweeps")
+
+
+def test_committed_logs_all_name_their_machine():
+    """Every kept log must be attributable from its filename alone.
+
+    Three files were committed before the slug was in the name -- including a
+    `demo-` artifact -- which is exactly the ambiguity this is meant to remove.
+    """
+    repo = pathlib.Path(__file__).resolve().parent.parent.parent
+    for log in (repo / "hardware").rglob("logs/*.log"):
+        stem = log.stem
+        assert not stem.startswith("demo-"), f"test artifact committed: {log}"
+        # `<script>-<slug>-<UTC>`: at least three dash-separated parts, and the
+        # timestamp is last.
+        assert stem.split("-")[-1].endswith("Z"), f"no UTC stamp: {log}"
+        assert len(stem.split("-")) >= 3, f"filename does not name a machine: {log}"

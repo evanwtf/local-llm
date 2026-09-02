@@ -1,4 +1,0 @@
-2026-09-02 07:03:52,287 INFO [88ed87b-dirty] 2026-09-02T11:03:52Z (07:03:52 EDT) | harness 88ed87b-dirty | wiring test
-2026-09-02 07:03:52,302 INFO [88ed87b-dirty]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
-2026-09-02 07:03:52,517 INFO [88ed87b-dirty]   stack:   ds4 399acbb | llama.cpp 3466812d1 | ollama 0.33.2 | opencode 1.18.26
-2026-09-02 07:03:52,517 INFO [88ed87b-dirty] this line is in both places

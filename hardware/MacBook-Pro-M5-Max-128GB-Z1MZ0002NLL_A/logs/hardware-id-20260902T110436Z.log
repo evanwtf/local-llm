@@ -1,4 +1,0 @@
-2026-09-02 07:04:36,275 INFO [88ed87b-dirty] 2026-09-02T11:04:36Z (07:04:36 EDT) | harness 88ed87b-dirty
-2026-09-02 07:04:36,294 INFO [88ed87b-dirty]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
-2026-09-02 07:04:36,360 INFO [88ed87b-dirty] MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A
-2026-09-02 07:04:36,360 INFO [88ed87b-dirty] log: /Users/evanhoffman/git/local-llm/hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/logs/hardware-id-20260902T110436Z.log
