@@ -643,3 +643,67 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+
+# --- served context (#79) --------------------------------------------------
+#
+# `context_tokens` in tasks.toml is what the backend ASKS for. Until 2026-09-02
+# nothing checked what the server actually SERVED, and the two disagreed by 32x:
+# Ollama serves a 4096 default unless a Modelfile sets `num_ctx`, while every
+# desktop backend declared 131072 copied from the Mac's entries. A 9B model then
+# ran a repository task in a 4096-token window, looped for 1566.9s, and wrote a
+# row stamped `context_tokens: 131072`.
+#
+# That is the #78 family -- a server fact the row asserts without ever reading
+# it back. The value only becomes observable once the model is resident, so this
+# runs after the smoke gate rather than with the other preflight checks.
+
+
+def served_context(model: str, base_url: str) -> int | None:
+    """The context length Ollama has actually loaded `model` with.
+
+    None when it cannot be determined -- the server is unreachable, the model is
+    not resident, or the endpoint is not Ollama's. None means "cannot tell",
+    which must never be reported as a mismatch.
+    """
+    import json
+    import urllib.error
+    import urllib.request
+
+    url = base_url.rstrip("/") + "/api/ps"
+    try:
+        with urllib.request.urlopen(url, timeout=10) as fh:
+            data = json.loads(fh.read())
+    except (OSError, urllib.error.URLError, json.JSONDecodeError, ValueError):
+        return None
+    for entry in data.get("models") or []:
+        name = str(entry.get("name", ""))
+        if name == model or name.split(":")[0] == model.split(":")[0]:
+            got = entry.get("context_length")
+            return int(got) if got is not None else None
+    return None
+
+
+def check_served_context(backends: dict[str, dict]) -> list[str]:
+    """Backends whose served context is smaller than the one they declare.
+
+    Returns a list of human-readable mismatches, empty when every backend agrees
+    or cannot be checked. Smaller is the failure that matters: a window shorter
+    than the declared one silently truncates the task.
+    """
+    bad = []
+    for name, spec in sorted(backends.items()):
+        want = spec.get("context_tokens")
+        model, base_url = spec.get("model"), spec.get("base_url")
+        if not want or not model or not base_url:
+            continue
+        got = served_context(model, base_url)
+        if got is None:
+            continue
+        if got < want:
+            bad.append(
+                f"{name}: declares context_tokens={want} but the server loaded "
+                f"{model} with {got}. Set num_ctx in a Modelfile, or lower "
+                f"context_tokens to what the card can hold."
+            )
+    return bad

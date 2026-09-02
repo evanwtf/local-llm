@@ -1921,6 +1921,14 @@ def main():
     else:
         logger.warning("smoke gate skipped (--skip-smoke): rows are not trustworthy")
 
+    # The smoke gate is what makes the model resident, so the served context is
+    # only observable from here. `context_tokens` is written into every row, and
+    # until 2026-09-02 nothing checked it against what the server loaded: a 9B
+    # ran a repository task in a 4096 window while its rows claimed 131072.
+    # Refuse rather than measure a truncation (#79).
+    for gap in preflight.check_served_context(backends):
+        raise SystemExit(f"served context is smaller than declared -- {gap}")
+
     versions = capture_versions(cfg, backends)
     versions["client"] = ",".join(clients)
 

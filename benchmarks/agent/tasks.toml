@@ -1011,3 +1011,27 @@ auth_token = "ollama"
 model = "ornith-1.5:35b"
 opencode_model = "ollama/ornith-1.5:35b"
 context_tokens = 131072
+
+# The 9B tier, and the first candidate #79 names. Unlike `dtornith15` this one
+# fits entirely in 12 GiB with no expert offload, so it isolates nothing about
+# the hardware -- it asks the other half of #79: does the task set discriminate
+# at 9B at all, or does it stay saturated until the model cannot fit?
+#
+# Chosen over the 35B-A3B because it is the model the field actually runs on
+# this card. That is a lead, not evidence: every number behind it is decode
+# rate, which this project has measured three times as non-predictive of agent
+# wall time -- and `gemma4:12b-it` is the standing proof, 72 tok/s and 0/12.
+[backend.dtornith159b]
+description = "Ornith-1.5 9B dense via Ollama (desktop 3080 Ti)"
+tier = "desktop-3080ti"
+base_url = "http://127.0.0.1:11434"
+auth_token = "ollama"
+model = "ornith-1.5-9b-32k"
+opencode_model = "ollama/ornith-1.5-9b-32k"
+# 32768, not the 131072 copied from the Mac's backends: Ollama serves its 4096
+# default unless a Modelfile sets num_ctx, and 131072 was never reachable here.
+# 4 KV heads x (256+256) x 32 layers = 128 KiB/token, so 131072 needs 16 GiB of
+# KV against a 12 GiB card. 32768 is the largest that stays fully on the GPU:
+# verified 6.11 GiB resident, size_vram == size. Derived model built with
+#   printf 'FROM ornith-1.5:9b\nPARAMETER num_ctx 32768\n' | ollama create ornith-1.5-9b-32k -f -
+context_tokens = 32768

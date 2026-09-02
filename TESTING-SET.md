@@ -33,7 +33,7 @@ GLM-5.3, which is a refusal.
 | **RAM** | **30 GiB** |
 | **Disk** | 1.8 TB NVMe, 1.3 TB free |
 | **OS** | Ubuntu 24.04 · **not always-on** |
-| **Backends** | `dtmistralnemo`, `dtgemma412b`, `dtornith15` — `tier = "desktop-3080ti"` in `tasks.toml` |
+| **Backends** | `dtmistralnemo`, `dtgemma412b`, `dtornith15`, `dtornith159b` — `tier = "desktop-3080ti"` in `tasks.toml` |
 | **Data** | [`hardware/Ryzen9-7900X-32GB-RTX3080Ti-12GB/`](hardware/Ryzen9-7900X-32GB-RTX3080Ti-12GB/RESULTS.md) — `gemma4:12b-it` **0/12** (2026-09-02) |
 | **Confinement** | **none** — `sandbox-exec` is macOS-only, so `workspace_escapes` is unenforced there |
 
