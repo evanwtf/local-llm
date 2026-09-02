@@ -128,9 +128,15 @@ and server, only the protocol differs.
 `tasks.toml` and carry no valid OpenCode rows. They are candidates, not
 results:
 
-`gemma4` · `ornith` · `qwen` · `qwen36` · `qwen38flashnext` · `qwen38fnq2` ·
+`gemma426` · `ornith` · `qwen` · `qwen36` · `qwen38flashnext` · `qwen38fnq2` ·
 `qwen38fnq4m64` · `ornith15llamacpp` · `glm53` · `glm52ds4` · `glm53ds4shim` ·
 `mtplx` · `opus5`
+
+**`gemma426` is next up.** `gemma4:26b-mlx-bf16` is Gemma 4 26B A4B — the model
+on Eigen Labs' MLX Fast leaderboard that Google amplified on 2026-09-01 with a
+"2x faster on a Mac" claim. We already held the weights, so the baseline is
+measurable here without waiting for the leaderboard's kernels to reach a
+runtime we can use.
 
 **`gemma4` has now been run**: 12/12 under OpenCode, the first non-Qwen and
 non-DeepSeek backend to complete a cell (#16). It is the slowest stack measured

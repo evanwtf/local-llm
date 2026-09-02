@@ -25,6 +25,22 @@ Two hard rules, both from mistakes:
 - **Date and version every claim.** Sources describing a tool from six months
   ago may describe several major versions back (#55).
 
+## Check the exit status, not the tail (2026-09-01, twice)
+
+**`uv run pytest -q | tail -2 && git commit` commits on a red suite.** The pipe
+makes `tail`'s status the command's status, and `tail` succeeds whatever pytest
+did. This is already recorded as a trap and it still happened **twice in one
+session** -- the shape is too convenient to resist under time pressure.
+
+Use one of these instead, and read the number:
+
+```sh
+set -o pipefail; uv run pytest -q 2>&1 | tail -2; echo "EXIT=$?"
+uv run pytest -q                       # no pipe, no problem
+```
+
+A drift test firing is the system working. Committing through it is not.
+
 ## The testing set is written down (2026-09-01)
 
 [`TESTING-SET.md`](TESTING-SET.md) lists the four axes -- hardware, client,
