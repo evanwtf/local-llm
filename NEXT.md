@@ -8,123 +8,75 @@
 > or compare against those numbers.** Cause, cutover and replacements:
 > [docs/archive/results-opencode-pre-dir.md](docs/archive/results-opencode-pre-dir.md). Other clients are unaffected.
 
-Updated 2026-09-01 17:35 EDT. **An 18h upstream sweep filed #76-#79, and the
-first of them is already answered by measurement.** Earlier the same day:
-**#67 is done for five backends, and OpenCode was never broken.** 90 trials overnight. Four cells that had published failing
-numbers came back perfect, and the fifth produced the project's first real
-GLM x OpenCode data:
+Updated **2026-09-02 06:45 EDT**. The queue below is ordered by **value per
+hour**, not by issue age.
 
-| cell | published | re-measured |
-|---|---|---|
-| ds4 | 4/14 | **15/15** |
-| ds4anthropic | 11/26 | **18/18** |
-| llama.cpp Q3 | 1/12 | **18/18** |
-| LM Studio | 4/14 | **18/18** |
-| GLM-5.3 | *no valid measurement* | **16/18** |
-| qwen3.6-coding | 0/1 | **18/18** |
+**Where the project stands.** Six backends have valid current data; four of the
+six are Qwen derivatives, and the monoculture now has a measured escape
+(`gemma4` 12/12, at about 20x llama.cpp's wall time). A second machine exists,
+is scoped, and has produced its first real numbers. The apparatus grew a
+memory-bounded oracle, per-row hardware facts, a hardware guard, a results
+reporter that applies #23's resolution rule, and six-surface source sweeping —
+most of it because something broke first.
 
-**#67 is closed.** 108 trials, six backends, one client. 103 passed.
+**What broke, and is now guarded.** CI had failed **40 consecutive runs** on a
+shallow clone and nobody had looked. 127 `--dry-run` rows were counted as
+failures in the *published* tables. `--dry-run` itself crashed on every script
+task since the class was added. A runaway oracle reached **49 GB** and drove
+the machine into swap. The first Linux run appended 13 rows to the Mac's
+results file and nothing objected. Each is a test now.
 
-**Three separate bugs manufactured the old numbers**, none of them OpenCode's:
-
-1. **A missing `--dir`.** `opencode run` attaches to a persistent server that
-   ignores the caller's `cwd`. The client solved tasks and wrote the answers
-   into the launcher's directory. Fixed in `7356460`; `opencode_argv` now
-   refuses to build an argv without a worktree (`28b1da6`).
-2. **An undeclared provider model.** `ds4/glm-5.3-flash` was not in
-   `~/.config/opencode/opencode.json`, so the client exited in 0.6s, six times,
-   and six model failures were recorded. That is GLM's entire published
-   OpenCode record. **#69.**
-3. **A hand-rolled exclusion filter.** `dirfix.py` read `r.get("excluded")`
-   instead of `results.is_excluded()`, so `agent_error` rows counted as model
-   failures -- the same mistake RESULTS.md already records having miscounted
-   fourteen rows. This is why the "published" column above is worse than the
-   figures quoted before tonight.
-
-**The clean isolations are ds4 and ds4anthropic** (identical weights and server,
-OpenAI vs Anthropic wire format, tracking trial for trial). llama.cpp, LM Studio
-and GLM each moved an engine or a config alongside `--dir`, so they corroborate
-rather than isolate.
-
-**Two results worth carrying into RECOMMENDATIONS:**
-
-- **The engine control is positive.** Same Q3_K_XL weights, same client, same
-  tasks: llama.cpp beats LM Studio on five of six tasks (storage-blob-put 80.5s
-  against 151.7s). Correctness is identical; the cost is wall time.
-- **GLM cannot be ranked on a median.** Its per-task spread reaches 12.4x
-  (storage-blob-put 99.3s to 1227.3s) while ds4, llama.cpp and LM Studio all
-  cluster tightly. The one stable GLM task is `script-reverse` -- the only one
-  with no repository to navigate -- at 36.3-41.9s.
+**The measurement rule that keeps mattering.** A 3-trial median carries
+**±27.9%**, so two medians must differ by roughly **56%** before the gap is
+real — measured against the *smaller* median. `scripts/report.py` applies it;
+a hand-computed version got the denominator backwards and called three real
+differences noise.
 
 Each issue is self-contained; this file only sets priority and records machine
 state that is not in git. The table is the queue. It has no calendar.
 
 ## Order
 
-| # | issue | why this position |
+**Ranked by value per hour, not by issue age.** The top three are all things we
+can finish; below that the cost or the blocker grows.
+
+| # | issue | why here |
 |---|---|---|
-| 1 | **#60** The engine gap | **The top axis again**, now that the cheap questions are answered. Untested engines being benchmarked on our hardware: Rapid-MLX, oMLX, mlx-serve, pMLX (#72), and **mlx-vlm 0.7.0-rc0**, which ships expert offloading, a prefix cache claiming 166x on the exact Gemma 4 31B we just measured, and a working MTP path for Qwen3.8-Flash-Next -- the thing #77 is blocked on. Rapid-MLX is still the one reachable without a weights decision. |
-| 2 | **#80** 22 models, 518 GB, six ever measured | **New, and it feeds everything below.** Sweep is MLX quants only: Ollama's only distinctive value over llama.cpp is its MLX runtime, so a GGUF through Ollama is the LM Studio argument again. Order: `gemma4:26b-mlx-bf16` (the MLX Fast leaderboard model, already on disk), then the `qwen3.6`/`qwen3.8` 27B-MLX pair (the only clean generation isolation we hold), then the A3B variants. **114.8 GB of toss is unblocked now.** |
-| 3 | **#20 / #79** The second tier | **Scoped and partly answered.** `desktop` is a Ryzen 9 7900X, **30 GiB RAM**, RTX 3080 Ti 12 GiB, Ubuntu 24.04, not always-on. Environment stands up and runs end to end. **The dense 12B tier is dead**: `mistral-nemo:12b` 0/6 and `gemma4:12b` 1/6, all failing with no tool call at all. The live experiment is the MoE path -- `ornith-1.5:35b`, 3B active, 22 GB streamed with `--n-cpu-moe` against 30 GiB -- because it is the only candidate where the model is already proven (21/21 here) and only the hardware is in question. |
-| 4 | **#55** The harness cannot tell a bad result from a broken measurement | Unchanged in substance, and it keeps being right. Today added two more of the class: `--dry-run` had crashed on every script task since the class was added, and the first Linux run appended 13 rows to the Mac's `results.jsonl` with nothing objecting. Both now guarded. |
-| 5 | **#4** Harder tasks cannot measure code quality | **Sharpened from an unexpected direction.** #79 produced the first real discrimination this task set has ever shown -- not by being harder, but by being run against a model that cannot call tools. The distinction that separated it was *coding ability vs tool-calling ability*, which nothing in the current set was designed to measure and which decides a fallback tier. |
-| 6 | **#78** Server identity | **Mostly done.** The ds4 probe no longer matches model ids by substring, LM Studio and GLM-5.3 are covered, `servers_unidentified` and `hosted_unpinned` are explicit, and `machine_facts()` stamps arch/os/cpu/memory/gpu/confinement on every run. What remains is the hosted `opus5` version pin, which has no obvious answer. |
-| 7 | **#77** Speculative decoding on Qwen3.8-Flash-Next | **Blocked on a fork, not on effort.** Mainline b10751 has `--spec-type draft-mtp` as a flag with no `qwen4exp` graph: the `shared-` head wants `token_embd.weight`, the self-contained one wants `output_hc_norm.weight`. Both heads are downloaded (6.9 GB). Needs `unslothai/llama.cpp` PR #144, which is a second engine tree to keep straight -- a decision, not a task. mlx-vlm may offer a second route. |
-| 8 | **#75** DSpark at temp>0 | Unchanged at 8. More corroborated, not more urgent. |
-| 9 | **#56** Survey open coding agents | Unchanged. |
+| 1 | **#89** REAP-320: 320 of 512 experts, our exact quant | **Best ratio available.** One variable — same `UD-Q3_K_XL` weights, same engine, same client, 512 experts against 320 — measured against **30/30 at a 90s median**, the largest clean cell we have. 69 GB against our 90 GB. All three outcomes pay: 21 GB back and a better default; or expert count is not the binding constraint; or the **first quality signal this task set has produced from a model change**, which #4 says it cannot currently do. |
+| 2 | **#87** ds4's Mac prefill, and antirez's mechanism | **The engine author named the cause of our documented bottleneck**: "very costly synchronizations in Metal if you are not in a situation to fuse." We have measured *that* prefill costs us for weeks and never *why it degrades with context*. `llama-bench -d` gave that curve for llama.cpp — 1089 → 596 → 450 t/s across the depths we run in — and **we have no equivalent for ds4**, the engine we depend on most. Costs machine time, no downloads. |
+| 3 | **#80** the MLX model sweep | Half done: `gemma426` **11/11** and the 27B generation pair both landed overnight. Remaining: `qwen36a3b` (3B active — also the shape #20 needs), and **`qwen3.8-flash-next:125b-mlx`**, which is the experiment that decides whether to keep 112 GB. Now wired and declared, so it is a run away. **114.8 GB of deletions unblocked.** |
+| 4 | **#85** one directory per hardware platform | **Two machines now have data** and the desktop's had nowhere to live until yesterday. `hardware_id.py` derives the names and `--results` exists; what remains is the `git mv` of 1,092 rows in a commit that changes nothing else, and a `hardware.toml` so a misfiled row is a failing run rather than silent contamination. Cost grows with every row. |
+| 5 | **#60** the engine gap | Still the widest axis and the most expensive. Rapid-MLX remains the one reachable by pip. mlx-vlm 0.7.0-rc0 is the newest lead — expert offloading, a prefix cache claiming 166x on the Gemma 4 31B we measured, and a working MTP path for our fastest model. **166x is a cache-hit figure**; read it as repeated-prefix work, not first-token. |
+| 6 | **#55** the harness cannot tell a bad result from a broken measurement | It keeps being right. Yesterday alone: `--dry-run` crashed on every script task since the class was added; 127 dry-run rows were counted as failures in the **published** tables; `--results` pointed at a new file crashed after the smoke gate passed; and **CI had failed 40 consecutive runs** on a shallow clone. Every one was invisible where it mattered. |
+| 7 | **#20 / #79** the second tier | Scoped and measured. `gemma4:12b-it` **0/12** — and the failure moved: it now calls tools (7 steps, 6 `tool_use`) and leaves the repository byte-identical to the control. **The dense 12B tier is dead.** The live experiment is `ornith-1.5:35b`, 3B active, 22 GB streamed with `--n-cpu-moe` against 32 GB — the only candidate where the *model* is proven (21/21 here) and only the hardware is in question. |
+| 8 | **#4** harder tasks cannot measure quality | Sharpened twice from outside. #79 produced the first real discrimination the set has shown — separating *coding ability* from *tool-calling ability*, which decides a fallback tier. And #82's 49 GB oracle run was a **plausible wrong answer** arrived at by accident: an implementation that buffers a file the task says to stream. #89 may supply the quality signal more cheaply than new tasks. |
+| 9 | **#90** the PLE and MTP builds | **A metadata read, not a download.** Shard 1 answers whether the MTP build carries MTP tensors and what the SSD-PLE build keeps resident. A Q5 smaller than our Q3 needs explaining before it is believed. |
+| 10 | **#86** MTPLX loops at 4-bit and 8-bit | Do not spend a slot on MTPLX until this is understood. A loop reads as slowness in our rows and nothing would say otherwise. |
+| 11 | **#83** unbounded thinking | Two models returned no answer at all with `stop_reason=max_tokens`. #63 settled that thinking helps correctness *on ds4*; it never asked whether reasoning consumes the budget before an answer exists. May be confounding the 27B generation comparison already taken. |
+| 12 | **#77** speculative decoding on Qwen3.8-Flash-Next | **Blocked on a fork**, not on effort. Both heads are downloaded (6.9 GB). #90 might unblock it for the cost of a metadata read, which is why it sits below #90. |
 
-**#16 is answered.** `gemma4:31b-mxfp8` ran **12/12** under OpenCode -- the first
-non-Qwen, non-DeepSeek backend to complete a cell. The monoculture has an
-escape and it costs about **20x the wall time**: 383s excision median against
-llama.cpp's 90s, and `script-transform` at **219.2s against ornith15's 10.6s**.
-It works, on a third lineage, in 32 GB rather than 91. That is a fallback, not a
-recommendation, and RECOMMENDATIONS has no category for "the one you run when
-the others are gone".
+**Behind these:** #75, #56, #84, #45, #53, #35, #27, #19, #51, #57, #58, #59, #65, #66, and the older backlog.
 
-**#76 is answered, and the answer is no.**  Rebuilding llama.cpp `b10729` ->
-`b10751` produced **no measurable change** on Qwen3.8-Flash-Next Q3, at any
-depth tested. Details in "Done since the last update". `b10751` is worth
-adopting for the correctness fixes in #27941; it is **not** worth re-measuring
-the agent suite for, and RECOMMENDATIONS.md's numbers stand.
+**#16 is answered.** `gemma4:31b-mxfp8` went **12/12** — the first non-Qwen,
+non-DeepSeek backend to complete a cell — at **383s against llama.cpp's 90s**.
+The monoculture has an escape and it costs about 20x the wall time. That is a
+fallback, not a recommendation, and RECOMMENDATIONS has no category for "the
+one you run when the others are gone".
 
-**#68 closed 2026-09-01 as false.** M5 Max has **366** fa-vec tuning entries in
-`ggml-metal-tuning.cpp` -- more than any other Apple chip, four times M3 Max's
-91 -- and they landed 2026-08-24 in the commit that introduced per-device
-tuning at all. **The claim was inference from a commit subject; the table was
-two minutes away.**
+**#76 is answered, and the answer is no.** `b10729` against `b10751` showed no
+measurable change at any depth, bracketed A-B-A. The bracket is the finding: a
+plain A-then-B would have reported b10751 as **6% slower** at d16384 and been
+believed, and the second A leg showed the machine drifting 9.8% on that row by
+itself.
 
-**#60's MLX branch is blocked on weights, not effort.** `mlx_lm.server` is
-installed (mlx-lm 0.31.3), but every MLX build of our models is 180+ GB, which
-does not fit 128 GB regardless of download time; the local
-`GLM-5.3-Flash-MLX-2bit-lite` is an incomplete download (shard 5 of 62, 1.4 GB).
-oMLX is not on PyPI. **Rapid-MLX is** and is the one MLX engine reachable
-without a decision about weights.
+**Engine scope: three.** llama.cpp, ds4, Ollama — and Ollama earns its slot on
+**MLX quants only**, because a GGUF served through Ollama is llama.cpp with a
+wrapper. LM Studio and `ornith:35b` are `retired` in `tasks.toml`, kept there
+rather than deleted because rows reference them.
 
-**The testing set is written down**, in [`TESTING-SET.md`](TESTING-SET.md):
-hardware, client, engine, model and the task set, with the six backends that
-have valid current data separated from the thirteen that are configured and
-unmeasured. A test fails if it drifts from `tasks.toml`.
-
-**Engine scope narrowed 2026-09-01: three engines.** llama.cpp (the fast pick),
-ds4 (the only engine that runs our one independent lineage) and Ollama (the
-31 GB "start here" pick, and the only path for `ornith15`, `gemma4` and
-`qwen36coding`). **LM Studio is retired** -- `retired` in tasks.toml, kept there
-rather than deleted because 27 rows reference it. It is a wrapper over
-llama.cpp, so on the same GGUF it can only add a layer, and it does: 90s median
-against 122s, correctness identical. This does not narrow #60, which is about
-engines we have **never** run; it drops one we measured and found dominated.
-
-**Client scope narrowed 2026-09-01: OpenCode only** unless a run is
-explicitly about another agent (see AGENTS.md). The client axis is measured --
-11.1 s Aider, 39.5 s OpenCode, 189.6 s Claude Code on one server for the same
-task, cause identified as prompt size -- and OpenCode is fixed as the answer by
-the project's premise. **#64 and #62 stay off the queue as a consequence.**
-The hosted Opus 5 reference stays available for establishing a new task class's
-ceiling.
-
-**Behind these:** #45, #53, #35, #27, #20, #19, #49, #46, #51, #57, #58, #59, #65, and the older backlog.
-
-**Closed 2026-08-31:** #5 and #54 (both were #67), #63 (thinking stays on), #61 (Aider wired and measured).
+**Client scope: OpenCode only.** Measured and closed — 11.1s Aider, 39.5s
+OpenCode, 189.6s Claude Code on one server, cause identified as prompt size.
+**Both machines now run 1.18.26**; they were split until 2026-09-02.
 
 ## Not queued
 
