@@ -362,6 +362,23 @@ stale; prefer `uv run python scripts/upstream_sweep.py --hours 168` and the
 
 ## Traps worth not rediscovering
 
+**Never `pkill` `run.py`. It restores the reference repositories from `atexit`
+(2026-09-03).** The harness *moves* the real checkouts aside to `<name>-real`
+and puts a benchmark export in their place. A `pkill` skips the restore, so
+`~/git/gmail-archive` is left as the benchmark tree at
+`benchmark: _date removed`, and the next run refuses to start with
+`base_commit 56e55cc not found`. That refusal is the guard working -- the
+dangerous version is not noticing.
+
+The fix is the harness's own function, never `mv` by hand:
+
+```sh
+cd benchmarks/agent && uv run python -c "import run; print(run.restore_targets())"
+```
+
+It reads `~/.local-llm-bench-stash.json`, is idempotent, and clears the marker.
+Send `SIGINT` (or `kill` without `-9`) if a run must be stopped early.
+
 **An engine flag that changes the KV format silently invalidates the disk cache,
 and the only symptom is that one arm looks slower (2026-09-03).** Turning MTP on
 made ds4 reject every checkpoint in `~/.ds4/server-kv` --
