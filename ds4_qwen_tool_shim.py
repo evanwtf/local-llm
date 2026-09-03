@@ -214,13 +214,33 @@ def rewrite(body: bytes) -> bytes:
 # Note the values sit on their own lines. The surrounding whitespace is layout,
 # not data, so it is stripped -- an unstripped "\n/tmp/x.py\n" is a path that
 # does not exist, and the tool would fail for a second, unrelated reason.
+# The `<tool_call>` open is deliberately NOT required before `<function=`. In a
+# real transcript the model stacked 38 bare opens before the call it meant, so
+# anchoring on the pair would have missed it.
 XML_CALL = re.compile(
-    r"<tool_call>\s*<function=(?P<name>[^>\s]+)\s*>(?P<body>.*?)</function>\s*</tool_call>",
+    r"<function=(?P<name>[^>\s]+)\s*>(?P<body>.*?)</function>",
     re.DOTALL,
 )
 XML_PARAM = re.compile(
     r"<parameter=(?P<key>[^>\s]+)\s*>(?P<value>.*?)</parameter>", re.DOTALL
 )
+
+# A third dialect, found in an arm A transcript on 2026-09-03: under pressure
+# this model also reaches for Claude's tool syntax, which puts the name in an
+# attribute rather than in the tag. Same meaning, different spelling.
+INVOKE_CALL = re.compile(
+    r"""<invoke\s+name\s*=\s*["'](?P<name>[^"']+)["']\s*>(?P<body>.*?)</invoke>""",
+    re.DOTALL,
+)
+INVOKE_PARAM = re.compile(
+    r"""<parameter\s+name\s*=\s*["'](?P<key>[^"']+)["']\s*>(?P<value>.*?)</parameter>""",
+    re.DOTALL,
+)
+
+# Both dialects, each with the parameter pattern that belongs to it. Pairing
+# them matters: `<parameter=x>` and `<parameter name="x">` are different
+# spellings and reading one with the other's pattern silently finds nothing.
+DIALECTS = ((XML_CALL, XML_PARAM), (INVOKE_CALL, INVOKE_PARAM))
 
 
 def parse_xml_tool_calls(text: str) -> list[dict] | None:
@@ -234,14 +254,22 @@ def parse_xml_tool_calls(text: str) -> list[dict] | None:
     message carrying it has already been dealt with upstream. Translating it
     again would risk emitting the same call twice.
     """
-    if not text or "<function=" not in text:
+    if not text:
         return None
+    # Collect from both dialects, then order by position so a message mixing
+    # them keeps the sequence the model wrote.
+    found: list[tuple[int, str, dict[str, str]]] = []
+    for call_pattern, param_pattern in DIALECTS:
+        for match in call_pattern.finditer(text):
+            arguments = {
+                param.group("key"): param.group("value").strip()
+                for param in param_pattern.finditer(match.group("body"))
+            }
+            found.append((match.start(), match.group("name").strip(), arguments))
+    found.sort(key=lambda item: item[0])
+
     calls: list[dict] = []
-    for index, match in enumerate(XML_CALL.finditer(text)):
-        arguments = {
-            param.group("key"): param.group("value").strip()
-            for param in XML_PARAM.finditer(match.group("body"))
-        }
+    for index, (_, name, arguments) in enumerate(found):
         calls.append(
             {
                 # A distinct id per call: OpenCode keys tool results by id, and
@@ -249,10 +277,7 @@ def parse_xml_tool_calls(text: str) -> list[dict] | None:
                 "id": "call_" + secrets.token_hex(16),
                 "index": index,
                 "type": "function",
-                "function": {
-                    "name": match.group("name").strip(),
-                    "arguments": json.dumps(arguments),
-                },
+                "function": {"name": name, "arguments": json.dumps(arguments)},
             }
         )
     return calls or None
@@ -273,7 +298,14 @@ def translate_response(payload: dict) -> bool:
         # Keep any prose the model wrote around the call, but remove the call
         # itself -- leaving it in content would show the user raw XML next to a
         # tool result, and some clients echo content back into the next prompt.
-        message["content"] = XML_CALL.sub("", message["content"]).strip()
+        content = message["content"]
+        for call_pattern, _ in DIALECTS:
+            content = call_pattern.sub("", content)
+        # The bare <tool_call> opens the degeneration loop leaves behind are
+        # scaffolding, not prose, and echoing them back invites more of them.
+        message["content"] = (
+            content.replace("<tool_call>", "").replace("</tool_call>", "").strip()
+        )
         message["tool_calls"] = calls
         choice["finish_reason"] = "tool_calls"
         changed = True
@@ -306,9 +338,7 @@ def synthesise_sse(body: dict) -> list[bytes]:
 
     def chunk(index: int, delta: dict, finish: object = None) -> bytes:
         payload = dict(base)
-        payload["choices"] = [
-            {"index": index, "delta": delta, "finish_reason": finish}
-        ]
+        payload["choices"] = [{"index": index, "delta": delta, "finish_reason": finish}]
         return _event(payload)
 
     out: list[bytes] = []
@@ -317,7 +347,9 @@ def synthesise_sse(body: dict) -> list[bytes]:
         message = choice.get("message") or {}
         out.append(chunk(index, {"role": message.get("role") or "assistant"}))
         if message.get("reasoning_content"):
-            out.append(chunk(index, {"reasoning_content": message["reasoning_content"]}))
+            out.append(
+                chunk(index, {"reasoning_content": message["reasoning_content"]})
+            )
         if message.get("content"):
             out.append(chunk(index, {"content": message["content"]}))
         for call in message.get("tool_calls") or []:

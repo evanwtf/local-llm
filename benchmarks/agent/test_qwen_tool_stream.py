@@ -229,8 +229,11 @@ def test_the_first_event_announces_the_assistant_role() -> None:
         "model": "m",
         "created": 1,
         "choices": [
-            {"index": 0, "message": {"role": "assistant", "content": "hi"},
-             "finish_reason": "stop"}
+            {
+                "index": 0,
+                "message": {"role": "assistant", "content": "hi"},
+                "finish_reason": "stop",
+            }
         ],
     }
     events = sse_events(shim.synthesise_sse(body))
@@ -269,8 +272,11 @@ def test_usage_is_carried_through_when_present() -> None:
         "model": "m",
         "created": 1,
         "choices": [
-            {"index": 0, "message": {"role": "assistant", "content": "hi"},
-             "finish_reason": "stop"}
+            {
+                "index": 0,
+                "message": {"role": "assistant", "content": "hi"},
+                "finish_reason": "stop",
+            }
         ],
         "usage": {"prompt_tokens": 10, "completion_tokens": 2, "total_tokens": 12},
     }
@@ -310,8 +316,13 @@ def test_a_response_that_already_has_tool_calls_is_untouched() -> None:
                 "message": {
                     "role": "assistant",
                     "content": "",
-                    "tool_calls": [{"id": "a", "type": "function",
-                                    "function": {"name": "read", "arguments": "{}"}}],
+                    "tool_calls": [
+                        {
+                            "id": "a",
+                            "type": "function",
+                            "function": {"name": "read", "arguments": "{}"},
+                        }
+                    ],
                 },
                 "finish_reason": "tool_calls",
             }
@@ -325,8 +336,11 @@ def test_a_response_that_already_has_tool_calls_is_untouched() -> None:
 def test_a_plain_text_answer_is_untouched() -> None:
     body = {
         "choices": [
-            {"index": 0, "message": {"role": "assistant", "content": "The file adds."},
-             "finish_reason": "stop"}
+            {
+                "index": 0,
+                "message": {"role": "assistant", "content": "The file adds."},
+                "finish_reason": "stop",
+            }
         ]
     }
     assert shim.translate_response(body) is False
@@ -340,8 +354,11 @@ def test_a_streaming_tool_request_is_sent_upstream_unstreamed() -> None:
     """This is the fix. ds4's streaming path drops the fallback text entirely."""
     prepared = shim.prepare(
         json.dumps(
-            {"messages": [{"role": "system", "content": "hi"}],
-             "tools": TOOLS, "stream": True}
+            {
+                "messages": [{"role": "system", "content": "hi"}],
+                "tools": TOOLS,
+                "stream": True,
+            }
         ).encode()
     )
     assert prepared.client_wants_stream is True
@@ -351,8 +368,9 @@ def test_a_streaming_tool_request_is_sent_upstream_unstreamed() -> None:
 def test_a_streaming_request_without_tools_is_left_streaming() -> None:
     """No tools means no tool call to lose, so keep real streaming."""
     prepared = shim.prepare(
-        json.dumps({"messages": [{"role": "user", "content": "hi"}],
-                    "stream": True}).encode()
+        json.dumps(
+            {"messages": [{"role": "user", "content": "hi"}], "stream": True}
+        ).encode()
     )
     assert prepared.client_wants_stream is False, "should pass through untouched"
     assert json.loads(prepared.body)["stream"] is True
@@ -360,8 +378,9 @@ def test_a_streaming_request_without_tools_is_left_streaming() -> None:
 
 def test_a_non_streaming_request_stays_non_streaming() -> None:
     prepared = shim.prepare(
-        json.dumps({"messages": [{"role": "system", "content": "hi"}],
-                    "tools": TOOLS}).encode()
+        json.dumps(
+            {"messages": [{"role": "system", "content": "hi"}], "tools": TOOLS}
+        ).encode()
     )
     assert prepared.client_wants_stream is False
     assert json.loads(prepared.body).get("stream") in (None, False)
@@ -371,3 +390,75 @@ def test_a_non_json_body_is_passed_through() -> None:
     prepared = shim.prepare(b"not json")
     assert prepared.body == b"not json"
     assert prepared.client_wants_stream is False
+
+
+# --- the third dialect ----------------------------------------------------
+#
+# Found in a trial transcript from the 45-trial arm A run on 2026-09-03. Under
+# pressure the model does not only fall back to the Qwen XML dialect -- it also
+# reaches for Claude's, which uses name= attributes rather than an `=` in the
+# tag itself. The 45 trials did NOT run through the code below; it is an
+# addition made after them and is so far unmeasured against the suite.
+
+
+INVOKE_FROM_THE_WIRE = """The tool call format was invalid. Please use correct JSON.
+</think>
+
+<tool_call>
+<invoke name="read">
+<parameter name="filePath">/Users/evanhoffman/git/gmail-archive/src/storage.py</parameter>
+</invoke>
+</tool_call>"""
+
+
+def test_it_parses_the_claude_invoke_dialect() -> None:
+    calls = shim.parse_xml_tool_calls(INVOKE_FROM_THE_WIRE)
+    assert calls is not None and len(calls) == 1
+    assert calls[0]["function"]["name"] == "read"
+    assert json.loads(calls[0]["function"]["arguments"]) == {
+        "filePath": "/Users/evanhoffman/git/gmail-archive/src/storage.py"
+    }
+
+
+def test_the_invoke_dialect_survives_stray_tool_call_opens() -> None:
+    """The real transcript had bare <tool_call> opens stacked before the call."""
+    text = (
+        "</think>\n<tool_call>\n<tool_call>\n<tool_call>\n"
+        '<invoke name="read">\n'
+        '<parameter name="filePath">/a.py</parameter>\n'
+        "</invoke>\n</tool_call>"
+    )
+    calls = shim.parse_xml_tool_calls(text)
+    assert calls is not None
+    assert json.loads(calls[0]["function"]["arguments"]) == {"filePath": "/a.py"}
+
+
+def test_the_degeneration_loop_yields_nothing() -> None:
+    """Stacked bare opens carry no function name, so there is no call to recover.
+
+    This is the residual failure mode after the streaming fix: 9 of 45 trials.
+    The translator must decline it rather than invent a call -- a fabricated
+    tool call would be far worse than an empty turn, because it would run.
+    """
+    assert shim.parse_xml_tool_calls("<tool_call>\n" * 38) is None
+    assert (
+        shim.parse_xml_tool_calls(
+            "The tool call format is wrong. I have to use the correct format: "
+            '<tool_call>{"name": "read", "arguments": {...}}</tool_call>'
+        )
+        is None
+    )
+
+
+def test_the_two_dialects_do_not_double_count() -> None:
+    """A message carrying both shapes must yield each call exactly once."""
+    text = (
+        "<tool_call><function=read><parameter=filePath>/a</parameter>"
+        "</function></tool_call>\n"
+        '<tool_call><invoke name="read">'
+        '<parameter name="filePath">/b</parameter></invoke></tool_call>'
+    )
+    calls = shim.parse_xml_tool_calls(text)
+    assert calls is not None and len(calls) == 2
+    paths = [json.loads(c["function"]["arguments"])["filePath"] for c in calls]
+    assert sorted(paths) == ["/a", "/b"]
