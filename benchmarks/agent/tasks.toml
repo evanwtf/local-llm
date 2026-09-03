@@ -1112,6 +1112,32 @@ context_tokens = 100000
 #
 # `qwen38fnds4` vs `qwen38fnds4shim` is the pair that measures the total cost,
 # and neither is comparable to llama.cpp without saying all of this out loud.
+# Arm B. Identical to qwen38fnds4shim in every respect EXCEPT that the
+# ds4-server behind the shim runs with the embedded MTP head:
+#
+#     --mtp-model ~/models/.../qwen3.8-flash-next-q4-mtp.gguf --mtp-draft 7 --mtp-timing
+#
+# Depth 7 is this pack's own measured optimum (QWEN38_FLASH_NEXT.md: acceptance
+# 5.737/7, and depth 8 goes EV-negative). It carries all three shim confounds
+# plus MTP, and exists as a SEPARATE backend name purely so its rows cannot be
+# pooled with arm A's -- same port, same shim, different engine configuration.
+#
+# **Read a null carefully.** The scheduler bypasses MTP on families where drafts
+# are not accepted, so a loss reads as "about the same" rather than as a
+# regression. --mtp-timing is not optional here: without the acceptance and
+# bypass counters, "MTP did nothing" and "MTP was never engaged" are the same
+# row. The pack author measured his own code-continuation family being bypassed
+# exactly like novel prose, and #105 reports speculative decoding making batch-1
+# decode 18% slower in another engine on this hardware. A negative result is a
+# real possibility and is worth having.
+[backend.qwen38fnds4mtp7shim]
+description = "Qwen3.8-Flash-Next Q4 fast-pack on ds4-metal ba01f5d via the tool-format shim, embedded MTP --mtp-draft 7"
+base_url = "http://127.0.0.1:8101"
+auth_token = "dsv4-local"
+model = "qwen3.8-flash-next-q4"
+opencode_model = "ds4qwenshim/qwen3.8-flash-next-q4"
+context_tokens = 100000
+
 [backend.qwen38fnds4shim]
 description = "Qwen3.8-Flash-Next Q4 fast-pack on ds4-metal ba01f5d via the tool-format shim (non-streaming upstream), MTP off"
 base_url = "http://127.0.0.1:8101"

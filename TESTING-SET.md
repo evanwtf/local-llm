@@ -136,7 +136,8 @@ results:
 
 `qwen38fnq3reap` · `gemma426` · `qwen36a3b` · `qwen` · `qwen36` · `qwen38flashnext` · `qwen38fnq2` ·
 `qwen38fnq4m64` · `ornith15llamacpp` · `glm53` · `glm52ds4` · `glm53ds4shim` ·
-`mtplx` · `opus5` · `qwen38fnds4` · `qwen38fnds4mtp7` · `qwen38fnds4shim`
+`mtplx` · `opus5` · `qwen38fnds4` · `qwen38fnds4mtp7` · `qwen38fnds4shim` ·
+`qwen38fnds4mtp7shim`
 
 **`qwen38fnds4` and `qwen38fnds4mtp7` are the engine isolation for
 Qwen3.8-Flash-Next** (#94), the pair that answers a question the set could not
@@ -145,14 +146,32 @@ faster" and "this model is faster" have never been separable. Both backends are
 the same weights on the same binary; only MTP speculation differs, so the pair
 also isolates speculative decoding without changing the model.
 
-**`qwen38fnds4shim` is the same server behind a one-line prompt rewrite** and is the
-only backend in the set that carries a deliberate prompt confound. `ds4_qwen_tool_shim.py`
-appends a system line naming the tool-call format, because this model emits the XML
-dialect about half the time and ds4 retries only once before giving up. Without it a run
-is 45 trials and 0 passes with `num_turns=1` on every row; with it, tool calls measured
-12/12 against 9/12 direct. The line names a serialisation format and gives no task help,
-which is what makes it defensible, but `qwen38fnds4` vs `qwen38fnds4shim` is the pair that
-measures its cost and any comparison to llama.cpp must state it.
+**`qwen38fnds4shim` is the same server behind a proxy that does three things**, and it
+carries the only deliberate confounds in the set. `ds4_qwen_tool_shim.py` (a) appends a
+system line naming the tool-call format, (b) **takes tool requests off ds4's streaming
+path**, and (c) translates the XML tool dialect into real `tool_calls`.
+
+(b) is the one that matters. ds4 logs `invalid tool call returned as assistant text
+finish=stop [text_len=231 ...]` and off-stream that text arrives; **on-stream it is
+dropped**, so the client sees an empty turn. OpenCode sets `stream: true`. Measured on one
+identical request, interleaved, 12 samples each (2026-09-03):
+
+    stream:true    tool_calls 1/12   nothing at all 11/12
+    stream:false   tool_calls 7/12   XML as text     5/12
+
+That is the whole of the earlier 45 trials / 0 passes with `num_turns=1` on every row.
+Through the shim the same request measures **12/12**, and the full suite went **0/45 to
+36/45**. A row from this backend therefore **did not stream from the engine** — wall time
+should be unaffected, since a tool call cannot be acted on before it is complete, but it
+is not comparable to a streaming backend. `qwen38fnds4` vs `qwen38fnds4shim` is the pair
+that measures the total cost, and any comparison to llama.cpp must state all of it —
+including that the quant differs (Q4_0-routed here, Q3 there).
+
+**`qwen38fnds4mtp7shim` is arm B**: the identical shim path with the embedded MTP head on
+at `--mtp-draft 7`, this pack's own measured optimum. It exists as a separate backend name
+purely so its rows cannot be pooled with arm A's — same port, same shim, different engine
+configuration. Run it with `--mtp-timing`, because the scheduler bypasses MTP on families
+it loses on and a bypass and a null look identical in a row.
 
 The pack is `ivanfioravanti/Qwen3.8-Flash-Next-DS4-Q4`, a **DS4 fast-pack, not
 a llama.cpp GGUF** — standard GGUF tools will not load it. Runtime is the
