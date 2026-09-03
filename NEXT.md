@@ -57,6 +57,7 @@ documents carry what used to be in it:
 | [`docs/changelog.md`](docs/changelog.md) | **what shipped, and why** — the running record, newest first. Look here for how a result was reached or why a guard exists. |
 | [`docs/upstream.md`](docs/upstream.md) | upstream issues and PRs we track. A snapshot; prefer `scripts/upstream_sweep.py` for current state. |
 | [`docs/sources/`](docs/sources/) | **one file per source sweep**, newest last. Read the newest before sweeping: it records where each surface stood, so a later sweep can diff rather than re-derive. |
+| [`docs/candidates-by-vram.md`](docs/candidates-by-vram.md) | **what to try next, by memory class** — one outside bench book, quoted and attributed. Claims, not results; nothing in it is measured here. Its 12 GB rows are the live ones ([#79](https://github.com/evanwtf/local-llm/issues/79)). |
 | [`RECOMMENDATIONS.md`](RECOMMENDATIONS.md) | the current picks, and how to run them. |
 
 ## Order
