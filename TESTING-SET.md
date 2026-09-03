@@ -136,7 +136,22 @@ results:
 
 `qwen38fnq3reap` · `gemma426` · `qwen36a3b` · `qwen` · `qwen36` · `qwen38flashnext` · `qwen38fnq2` ·
 `qwen38fnq4m64` · `ornith15llamacpp` · `glm53` · `glm52ds4` · `glm53ds4shim` ·
-`mtplx` · `opus5`
+`mtplx` · `opus5` · `qwen38fnds4` · `qwen38fnds4mtp7`
+
+**`qwen38fnds4` and `qwen38fnds4mtp7` are the engine isolation for
+Qwen3.8-Flash-Next** (#94), the pair that answers a question the set could not
+previously ask. Every row we have for this model is llama.cpp, so "ds4 is
+faster" and "this model is faster" have never been separable. Both backends are
+the same weights on the same binary; only MTP speculation differs, so the pair
+also isolates speculative decoding without changing the model.
+
+The pack is `ivanfioravanti/Qwen3.8-Flash-Next-DS4-Q4`, a **DS4 fast-pack, not
+a llama.cpp GGUF** — standard GGUF tools will not load it. Runtime is the
+`ds4-metal` fork, branch `qwen3.8-flash-next` at `2021dda`. 73.57 GiB of
+tensors are resident; the 32 GB PLE n-gram table is **not** (the server reports
+`PLE=SSD-pread/Q4_1-to-BF16-double-buffer`, RSS settles at 74.3 GiB). Note the
+quant differs from `qwen38fnq3` (Q4_0-routed here, `UD-Q3_K_XL` there), so the
+pair isolates the engine but not the quant.
 
 Every one of these now has a backend block **and** an `opencode_model`, which a
 test enforces. Three did not until 2026-09-01: `qwen3.6:35b-a3b-coding-mxfp8`

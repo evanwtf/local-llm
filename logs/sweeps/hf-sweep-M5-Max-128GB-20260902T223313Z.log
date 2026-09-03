@@ -1,0 +1,103 @@
+2026-09-02 18:33:13,552 INFO [e8642d0@M5-Max-128GB] 2026-09-02T22:33:13Z (18:33:13 EDT) | harness e8642d0
+2026-09-02 18:33:13,566 INFO [e8642d0@M5-Max-128GB]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-02 18:33:13,566 INFO [e8642d0@M5-Max-128GB] Hugging Face sweep since 2026-09-01T22:33:13Z (24h)
+
+2026-09-02 18:33:13,665 INFO [e8642d0@M5-Max-128GB] == Qwen3.8-Flash-Next -- our fastest stack (llama.cpp Q3, and the 112 GB MLX build)
+2026-09-02 18:33:13,666 INFO [e8642d0@M5-Max-128GB]     kingjones777/Qwen3.8-Flash-Next-MTP-Heads-GGUF             2026-09-02T21:24         dl=0
+2026-09-02 18:33:13,666 INFO [e8642d0@M5-Max-128GB]   ? ivanfioravanti/Qwen3.8-Flash-Next-DS4-Q4                   2026-09-02T19:50         dl=0
+2026-09-02 18:33:13,666 INFO [e8642d0@M5-Max-128GB]     AesSedai/Qwen3.8-Flash-Next-GGUF                           2026-09-02T18:15         dl=2318
+2026-09-02 18:33:13,666 INFO [e8642d0@M5-Max-128GB]     agentionai/Qwen3.8-Flash-Next-MTP-Q8_0-GGUF                2026-09-02T17:27         dl=3073
+2026-09-02 18:33:13,666 INFO [e8642d0@M5-Max-128GB]     peasantsmith/Qwen3.8-Flash-Next-PS-IQ2_XXS-GGUF            2026-09-02T17:15         dl=452
+2026-09-02 18:33:13,666 INFO [e8642d0@M5-Max-128GB]     agentionai/Qwen3.8-Flash-Next-AP-GGUF                      2026-09-02T15:07         dl=3639
+2026-09-02 18:33:13,666 INFO [e8642d0@M5-Max-128GB]     carloslfu/Qwen3.8-Flash-Next-MLX-4bit                      2026-09-02T14:07         dl=203
+2026-09-02 18:33:13,666 INFO [e8642d0@M5-Max-128GB]     unsloth/Qwen3.8-Flash-Next-GGUF                            2026-09-02T14:02         dl=431339
+2026-09-02 18:33:13,666 INFO [e8642d0@M5-Max-128GB]   ? myllmbox/Qwen3.8-Flash-Next-hibrid46                       2026-09-02T13:44         dl=0
+2026-09-02 18:33:13,666 INFO [e8642d0@M5-Max-128GB]     mlx-community/Qwen3.8-Flash-Next-4bit                      2026-09-02T12:24         dl=88
+2026-09-02 18:33:13,666 INFO [e8642d0@M5-Max-128GB]   ? asig23/Qwen3.8-Flash-Next                                  2026-09-02T07:53         dl=0
+2026-09-02 18:33:13,666 INFO [e8642d0@M5-Max-128GB]     jean-philippe-gire/Qwen3.8-Flash-Next-heretic-2-IQ4_XS-GGU 2026-09-02T07:51         dl=0
+2026-09-02 18:33:13,666 INFO [e8642d0@M5-Max-128GB]     FlagRelease/Qwen3.8-Flash-Next-BF16-ascend-FlagOS          2026-09-02T06:23         dl=55
+2026-09-02 18:33:13,666 INFO [e8642d0@M5-Max-128GB]     FlagRelease/Qwen3.8-Flash-Next-BF16-hygon-FlagOS           2026-09-02T06:23         dl=117
+2026-09-02 18:33:13,666 INFO [e8642d0@M5-Max-128GB]     FlagRelease/Qwen3.8-Flash-Next-BF16-metax-FlagOS           2026-09-02T06:23         dl=94
+2026-09-02 18:33:13,666 INFO [e8642d0@M5-Max-128GB]     FlagRelease/Qwen3.8-Flash-Next-BF16-mthreads-FlagOS        2026-09-02T06:23         dl=33
+2026-09-02 18:33:13,666 INFO [e8642d0@M5-Max-128GB]     FlagRelease/Qwen3.8-Flash-Next-BF16-zhenwu-FlagOS          2026-09-02T06:23         dl=75
+2026-09-02 18:33:13,666 INFO [e8642d0@M5-Max-128GB]     FlagRelease/Qwen3.8-Flash-Next-BF16-sunrise-FlagOS         2026-09-02T06:22         dl=0
+2026-09-02 18:33:13,666 INFO [e8642d0@M5-Max-128GB] 
+2026-09-02 18:33:13,745 INFO [e8642d0@M5-Max-128GB] == DeepSeek-V4-Flash -- our only independent lineage; ds4 serves it
+2026-09-02 18:33:13,745 INFO [e8642d0@M5-Max-128GB]     takanori-ishikawa/DeepSeek-V4-Flash-0731-Pruned-155B-A13B- 2026-09-02T22:08         dl=2260
+2026-09-02 18:33:13,745 INFO [e8642d0@M5-Max-128GB]     Tinker-Stack/DeepSeek-V4-Flash-0731-REAP-150b-TQ3_4S-GGUF  2026-09-02T21:42         dl=1026
+2026-09-02 18:33:13,745 INFO [e8642d0@M5-Max-128GB]     ggml-org/DeepSeek-V4-Flash-Vision-Exp-GGUF                 2026-09-02T21:00         dl=0
+2026-09-02 18:33:13,745 INFO [e8642d0@M5-Max-128GB]     prometheusAIR/DeepSeek-V4-Flash-Vision-Exp-GGUF            2026-09-02T19:50         dl=0
+2026-09-02 18:33:13,745 INFO [e8642d0@M5-Max-128GB]     inferencerlabs/DeepSeek-V4-Flash-Vision-Exp-MLX            2026-09-02T19:46         dl=0
+2026-09-02 18:33:13,745 INFO [e8642d0@M5-Max-128GB]     QuantaPlanta/DeepSeek-V4-Flash-Vision-Exp-MXFP4-GGUF       2026-09-02T19:36         dl=0
+2026-09-02 18:33:13,745 INFO [e8642d0@M5-Max-128GB]   ? primitive-ai/DeepSeek-V4-Flash-Vision-Exp-REAP-145B        2026-09-02T18:59         dl=202
+2026-09-02 18:33:13,745 INFO [e8642d0@M5-Max-128GB]     orcarouter/DeepSeek-V4-Flash-Vision-Uncensored-MLX         2026-09-02T15:11         dl=0
+2026-09-02 18:33:13,745 INFO [e8642d0@M5-Max-128GB]     unsloth/DeepSeek-V4-Flash-Vision-Exp-GGUF                  2026-09-02T14:57         dl=1570
+2026-09-02 18:33:13,745 INFO [e8642d0@M5-Max-128GB]     orcarouter/DeepSeek-V4-Flash-Vision-Uncensored-GGUF        2026-09-02T04:29         dl=0
+2026-09-02 18:33:13,745 INFO [e8642d0@M5-Max-128GB]     audreyt/DeepSeek-V4-Flash-Vision-Exp-Abliterated-GGUF      2026-09-02T00:22         dl=0
+2026-09-02 18:33:13,745 INFO [e8642d0@M5-Max-128GB]   ? apetersson/DeepSeek-V4-Flash-Vision-Exp-Abliterated        2026-09-01T23:21         dl=21
+2026-09-02 18:33:13,745 INFO [e8642d0@M5-Max-128GB] 
+2026-09-02 18:33:13,822 INFO [e8642d0@M5-Max-128GB] == GLM-5.3-Flash -- the other non-Qwen on ds4
+2026-09-02 18:33:13,822 INFO [e8642d0@M5-Max-128GB]     local-inference-lab/GLM-5.3-Flash-DFlash2-MXFP8            2026-09-02T18:49         dl=318
+2026-09-02 18:33:13,822 INFO [e8642d0@M5-Max-128GB]   ? local-inference-lab/GLM-5.3-Flash-DFlash2                  2026-09-02T18:49         dl=238
+2026-09-02 18:33:13,822 INFO [e8642d0@M5-Max-128GB]   ? Capicua25x/GLM-5.3-Flash-DSpark                            2026-09-02T17:45         dl=29
+2026-09-02 18:33:13,822 INFO [e8642d0@M5-Max-128GB]   ? RSLtm/GLM-5.3-Flash-oQ6e                                   2026-09-02T17:41         dl=0
+2026-09-02 18:33:13,822 INFO [e8642d0@M5-Max-128GB]     Olt1z/GLM-5.3-Flash-Uncensored-BF16                        2026-09-02T17:09         dl=0
+2026-09-02 18:33:13,822 INFO [e8642d0@M5-Max-128GB]   ? amd/GLM-5.3-Flash-Quark-MXFP4                              2026-09-02T16:43         dl=5
+2026-09-02 18:33:13,822 INFO [e8642d0@M5-Max-128GB]   ? GreenBitAI/GLM-5.3-Flash-4bit-paged                        2026-09-02T15:00         dl=0
+2026-09-02 18:33:13,822 INFO [e8642d0@M5-Max-128GB]     AliceThirty/GLM-5.3-Flash-UNCENSORED-GGUF                  2026-09-02T13:49         dl=4572
+2026-09-02 18:33:13,822 INFO [e8642d0@M5-Max-128GB]   ? ginsongsong/GLM-5.3-Flash-PTPC                             2026-09-02T11:19         dl=0
+2026-09-02 18:33:13,822 INFO [e8642d0@M5-Max-128GB]     avlp12/GLM-5.3-Flash-Alis-MLX-4bit                         2026-09-02T06:54         dl=843
+2026-09-02 18:33:13,822 INFO [e8642d0@M5-Max-128GB]   ? JANGQ-AI/GLM-5.3-Flash-JANG-MTP                            2026-09-02T05:17         dl=277
+2026-09-02 18:33:13,822 INFO [e8642d0@M5-Max-128GB]   ? JANGQ-AI/GLM-5.3-Flash-JANG                                2026-09-02T05:17         dl=247
+2026-09-02 18:33:13,822 INFO [e8642d0@M5-Max-128GB]     grant-ai/GLM-5.3-Flash-Abliterated-MLX-4bit                2026-09-02T01:24         dl=658
+2026-09-02 18:33:13,822 INFO [e8642d0@M5-Max-128GB]     zurichquants/GLM-5.3-Flash-BF16                            2026-09-01T23:24         dl=0
+2026-09-02 18:33:13,822 INFO [e8642d0@M5-Max-128GB]     zurichquants/GLM-5.3-Flash-UD-Q4_K_XL-layers               2026-09-01T23:21         dl=0
+2026-09-02 18:33:13,822 INFO [e8642d0@M5-Max-128GB]   ? zurichquants/GLM-5.3-Flash                                 2026-09-01T23:18         dl=0
+2026-09-02 18:33:13,822 INFO [e8642d0@M5-Max-128GB]     zurichquants/GLM-5.3-Flash-GGUF                            2026-09-01T23:17         dl=0
+2026-09-02 18:33:13,822 INFO [e8642d0@M5-Max-128GB] 
+2026-09-02 18:33:13,901 INFO [e8642d0@M5-Max-128GB] == Qwen3.6-27B -- the 31 GB 'start here' pick
+2026-09-02 18:33:13,901 INFO [e8642d0@M5-Max-128GB]   ? ManniX-ITA/Qwen3.6-27B-Omnimerge-v4                        2026-09-02T21:38         dl=55
+2026-09-02 18:33:13,901 INFO [e8642d0@M5-Max-128GB]     ManniX-ITA/Qwen3.6-27B-Omnimerge-v4-GGUF                   2026-09-02T21:35         dl=5145
+2026-09-02 18:33:13,901 INFO [e8642d0@M5-Max-128GB]   ? TFMC/Qwen3.8-27B-Qwen3.6-27B-E2K2                          2026-09-02T19:16         dl=0
+2026-09-02 18:33:13,901 INFO [e8642d0@M5-Max-128GB]     Solstice-AI/ThinkingCap-Qwen3.6-27B-mlx-6Bit               2026-09-02T17:15         dl=79
+2026-09-02 18:33:13,901 INFO [e8642d0@M5-Max-128GB]   ? Johneeee/Qwen3.6-27B-Fable-Fusion-711-Uncensored-Heretic-N 2026-09-02T16:30         dl=37
+2026-09-02 18:33:13,901 INFO [e8642d0@M5-Max-128GB]   ? Johneeee/Qwen3.6-27B-Fable-Fusion-711-Uncensored-Heretic-N 2026-09-02T16:29         dl=55
+2026-09-02 18:33:13,901 INFO [e8642d0@M5-Max-128GB]   ? Johneeee/Qwen3.6-27B-Fable-Fusion-711-Uncensored-Heretic-N 2026-09-02T16:29         dl=84
+2026-09-02 18:33:13,901 INFO [e8642d0@M5-Max-128GB]   ? Johneeee/Qwen3.6-27B-Fable-Fusion-711-Uncensored-Heretic-N 2026-09-02T16:28         dl=38
+2026-09-02 18:33:13,901 INFO [e8642d0@M5-Max-128GB]     Brooooooklyn/Qwen3.6-27B-MXFP4-mlx                         2026-09-02T15:07         dl=31
+2026-09-02 18:33:13,901 INFO [e8642d0@M5-Max-128GB] 
+2026-09-02 18:33:13,974 INFO [e8642d0@M5-Max-128GB] == Ornith-1.5 -- fastest measured backend
+2026-09-02 18:33:13,974 INFO [e8642d0@M5-Max-128GB]     NANI-Nithin/Ornith-1.5-9B-GGUF                             2026-09-02T19:31         dl=415
+2026-09-02 18:33:13,974 INFO [e8642d0@M5-Max-128GB]     cdanis/Ornith-1.5-397B-GGUF-imatrix                        2026-09-02T12:51         dl=0
+2026-09-02 18:33:13,974 INFO [e8642d0@M5-Max-128GB]   ? Artie101/shisa-ai-Ornith-1.5-35B-A3B-MTP-MTPLX             2026-09-02T08:22         dl=0
+2026-09-02 18:33:13,974 INFO [e8642d0@M5-Max-128GB]   ? Artie101/Ornith-1.5-9B-8bit-MTPLX                          2026-09-02T08:11         dl=0
+2026-09-02 18:33:13,974 INFO [e8642d0@M5-Max-128GB]     npario/Ornith-1.5-9B-MLX-6bit                              2026-09-02T01:48         dl=0
+2026-09-02 18:33:13,974 INFO [e8642d0@M5-Max-128GB]     Ttimms/Ornith-1.5-35B-A3B-REAP-50-GGUF                     2026-09-02T00:49         dl=351
+2026-09-02 18:33:13,974 INFO [e8642d0@M5-Max-128GB]     Ttimms/Ornith-1.5-35B-A3B-REAP-50-bf16                     2026-09-02T00:05         dl=483
+2026-09-02 18:33:13,974 INFO [e8642d0@M5-Max-128GB] 
+2026-09-02 18:33:14,050 INFO [e8642d0@M5-Max-128GB] == gemma-4-26b -- the MLX Fast leaderboard model; measured 11/11
+2026-09-02 18:33:14,050 INFO [e8642d0@M5-Max-128GB]   ? Wiself/gemma-4-26B-A4B-Styletune-V2-Voice                  2026-09-02T21:52         dl=0
+2026-09-02 18:33:14,050 INFO [e8642d0@M5-Max-128GB]   ? Wiself/gemma-4-26B-A4B-QAT-Styletune-V2-Voice              2026-09-02T21:51         dl=0
+2026-09-02 18:33:14,050 INFO [e8642d0@M5-Max-128GB]   ? arcadia-impact/scimt-dispatch-rlvr-gemma4-26b-v1           2026-09-02T21:07         dl=0
+2026-09-02 18:33:14,050 INFO [e8642d0@M5-Max-128GB]   ? JWei05/gemma-4-26B-A4B-DeepScaleR-hard-s42-fullckpt-step47 2026-09-02T20:55         dl=0
+2026-09-02 18:33:14,050 INFO [e8642d0@M5-Max-128GB]   ? danmoreng/gemma-4-26B-A4B-it-GEM16                         2026-09-02T20:04         dl=324
+2026-09-02 18:33:14,050 INFO [e8642d0@M5-Max-128GB]     Jommarn-Ai/UNSEEN_Gemma_4_26B_NSFW-IQ2_M-GGUF              2026-09-02T16:43         dl=0
+2026-09-02 18:33:14,050 INFO [e8642d0@M5-Max-128GB]   ? khazic/gemma4-26b-a4b-sft-v5                               2026-09-02T14:56         dl=0
+2026-09-02 18:33:14,050 INFO [e8642d0@M5-Max-128GB]   ? hsk0201/gemma-4-26B-A4B-qat-oQ4e-fp16                      2026-09-02T02:49         dl=0
+2026-09-02 18:33:14,050 INFO [e8642d0@M5-Max-128GB] 
+2026-09-02 18:33:14,133 INFO [e8642d0@M5-Max-128GB] == gemma-4-31b -- the Google-lineage backend, measured 12/12
+2026-09-02 18:33:14,133 INFO [e8642d0@M5-Max-128GB]   ? ConicCat/Gemma4-Writer-31B-A                               2026-09-02T22:16         dl=0
+2026-09-02 18:33:14,133 INFO [e8642d0@M5-Max-128GB]     deadbydawn101/RavenX-Apex-Wolf-Gemma4-31B-Dense-Wealthmake 2026-09-02T21:58         dl=0
+2026-09-02 18:33:14,133 INFO [e8642d0@M5-Max-128GB]   ? Wiself/gemma-4-31B-Styletune-Voice                         2026-09-02T21:52         dl=0
+2026-09-02 18:33:14,133 INFO [e8642d0@M5-Max-128GB]     Solstice-AI/gemma-4-31b-claude-opus-4.6-thinking-distilled 2026-09-02T17:15         dl=22
+2026-09-02 18:33:14,133 INFO [e8642d0@M5-Max-128GB]   ? jakemaly/Gemma4-31B-Socratic-LoRA                          2026-09-02T17:09         dl=0
+2026-09-02 18:33:14,133 INFO [e8642d0@M5-Max-128GB]     mradermacher/gemma-4-31b-it-3MPER0RR-abliterated-i1-GGUF   2026-09-02T12:43         dl=0
+2026-09-02 18:33:14,133 INFO [e8642d0@M5-Max-128GB]     mradermacher/gemma-4-31b-it-3MPER0RR-abliterated-GGUF      2026-09-02T10:56         dl=0
+2026-09-02 18:33:14,133 INFO [e8642d0@M5-Max-128GB]   ? vaghawan/gemma-4-31b-it-merged-16bit-checkpoint-10700      2026-09-02T08:03         dl=0
+2026-09-02 18:33:14,133 INFO [e8642d0@M5-Max-128GB]     Alberto-Codes/gemma-4-31B-it-fit24gib-GGUF                 2026-09-02T05:36         dl=937
+2026-09-02 18:33:14,133 INFO [e8642d0@M5-Max-128GB]     fl0rm/Gemma-4-Gembrain-X-Core-31B-mlx-8Bit                 2026-09-02T00:08         dl=0
+2026-09-02 18:33:14,133 INFO [e8642d0@M5-Max-128GB] 
+2026-09-02 18:33:14,133 INFO [e8642d0@M5-Max-128GB] 37 result(s) hidden as unloadable on Metal (NVFP4/FP8/ROCm/AWQ/GPTQ/EXL). Re-run with --all to see them.
+2026-09-02 18:33:14,134 INFO [e8642d0@M5-Max-128GB] 
+Legend:  (blank) loads here   ? unclassified, check it   x hidden
+2026-09-02 18:33:14,134 INFO [e8642d0@M5-Max-128GB] log: /Users/evanhoffman/git/local-llm/logs/sweeps/hf-sweep-M5-Max-128GB-20260902T223313Z.log

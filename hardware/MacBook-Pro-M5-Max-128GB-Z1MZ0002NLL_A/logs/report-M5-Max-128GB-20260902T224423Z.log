@@ -1,0 +1,15 @@
+2026-09-02 18:44:23,806 INFO [e8642d0@M5-Max-128GB] 2026-09-02T22:44:23Z (18:44:23 EDT) | harness e8642d0
+2026-09-02 18:44:23,825 INFO [e8642d0@M5-Max-128GB]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-02 18:44:24,080 INFO [e8642d0@M5-Max-128GB]   stack:   ds4 399acbb | llama.cpp 3466812d1 | ollama 0.33.2 | opencode 1.18.27
+2026-09-02 18:44:24,094 INFO [e8642d0@M5-Max-128GB] | task | qwen38fnq3 |
+2026-09-02 18:44:24,094 INFO [e8642d0@M5-Max-128GB] |---|---|
+2026-09-02 18:44:24,094 INFO [e8642d0@M5-Max-128GB] | `mbox-scan` | 107.5s (4/4) |
+2026-09-02 18:44:24,094 INFO [e8642d0@M5-Max-128GB] | `mbox-strip-envelope` | 50.2s (4/4) |
+2026-09-02 18:44:24,094 INFO [e8642d0@M5-Max-128GB] | `parser-date` | 164.0s (3/3) |
+2026-09-02 18:44:24,094 INFO [e8642d0@M5-Max-128GB] | `parser-mbox-quoting` | 69.7s (4/4) |
+2026-09-02 18:44:24,094 INFO [e8642d0@M5-Max-128GB] | `script-reverse` | 40.8s (6/6) |
+2026-09-02 18:44:24,094 INFO [e8642d0@M5-Max-128GB] | `script-transform` | 38.9s (6/6) |
+2026-09-02 18:44:24,094 INFO [e8642d0@M5-Max-128GB] | `storage-blob-put` | 89.1s (3/3) |
+2026-09-02 18:44:24,094 INFO [e8642d0@M5-Max-128GB] 
+2026-09-02 18:44:24,094 INFO [e8642d0@M5-Max-128GB] **qwen38fnq3** excision: 18/18 passed, median 89.6s, worst 207.9s, spread 4.8x
+2026-09-02 18:44:24,094 INFO [e8642d0@M5-Max-128GB] log: /Users/evanhoffman/git/local-llm/hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/logs/report-M5-Max-128GB-20260902T224423Z.log

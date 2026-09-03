@@ -1,0 +1,10 @@
+2026-09-02 21:02:18,008 INFO [5614c33-dirty@M5-Max-128GB] 2026-09-03T01:02:18Z (21:02:18 EDT) | harness 5614c33-dirty
+2026-09-02 21:02:18,023 INFO [5614c33-dirty@M5-Max-128GB]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-02 21:02:18,203 INFO [5614c33-dirty@M5-Max-128GB] 2095243141456781499  VERIFIED post  @denisyarats  Wed Sep 02 20:11:07 +0000 2026  via fxtwitter
+2026-09-02 21:02:18,203 INFO [5614c33-dirty@M5-Max-128GB]     we are open-sourcing Lily, lightweight local inference engine for Apple Silicon, optimized directly for the Qwen MoE architecture and implemented on top of custom Metal kernels and a compact Rust runt
+2026-09-02 21:02:18,203 INFO [5614c33-dirty@M5-Max-128GB]     quotes @perplexity_ai: Today we’re open-sourcing Lily, the local inference engine we built for hybrid compute in Perplexity Computer.  Lily is specialized for Qwen3.6-35B-A3B on Apple
+2026-09-02 21:02:18,203 INFO [5614c33-dirty@M5-Max-128GB] 
+2026-09-02 21:02:18,203 INFO [5614c33-dirty@M5-Max-128GB] Verified 1: 1 confirmed, 0 not.
+2026-09-02 21:02:18,203 INFO [5614c33-dirty@M5-Max-128GB] Paste onto the issue:
+2026-09-02 21:02:18,203 INFO [5614c33-dirty@M5-Max-128GB]   **Verified** 2026-09-03: post exists, authored by @denisyarats, posted Wed Sep 02 20:11:07 +0000 2026.
+2026-09-02 21:02:18,203 INFO [5614c33-dirty@M5-Max-128GB] log: /Users/evanhoffman/git/local-llm/logs/sweeps/verify-posts-M5-Max-128GB-20260903T010217Z.log

@@ -1,0 +1,4 @@
+2026-09-02 21:13:00,158 INFO [5614c33-dirty@M5-Max-128GB] 2026-09-03T01:13:00Z (21:13:00 EDT) | harness 5614c33-dirty
+2026-09-02 21:13:00,176 INFO [5614c33-dirty@M5-Max-128GB]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-02 21:13:00,641 INFO [5614c33-dirty@M5-Max-128GB]   stack:   ds4 399acbb | llama.cpp 3466812d1 | ollama 0.33.2 | opencode 1.18.27
+2026-09-02 21:13:00,654 INFO [5614c33-dirty@M5-Max-128GB] no trials for ['qwen38fnds4'] under opencode

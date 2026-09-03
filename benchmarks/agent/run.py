@@ -1561,7 +1561,7 @@ def one_trial(
 
             # 2. Control: the tests must fail now, or the task proves nothing.
             ok, summary = tests_pass(
-                worktree, task["tests"], timeout, target["test_command"]
+                worktree, task["tests"], ORACLE_TIMEOUT, target["test_command"]
             )
             result["control_fails_as_expected"] = not ok
             # Baseline the quality gates here, on the excised tree. gmail-archive

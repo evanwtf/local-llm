@@ -1,0 +1,28 @@
+2026-09-02 18:37:23,900 INFO [e8642d0@M5-Max-128GB] 2026-09-02T22:37:23Z (18:37:23 EDT) | harness e8642d0
+2026-09-02 18:37:23,916 INFO [e8642d0@M5-Max-128GB]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-02 18:37:24,118 INFO [e8642d0@M5-Max-128GB] 2095244795476111738  VERIFIED post  @ivanfioravanti  Wed Sep 02 20:17:41 +0000 2026  via fxtwitter
+2026-09-02 18:37:24,118 INFO [e8642d0@M5-Max-128GB]     Qwen 3.8 Flash Next on DwarfStart: work in progress! Pre-M5 nearly ready, M5 tensorops will follow and then something to run this on 64GB. 🚀
+2026-09-02 18:37:24,118 INFO [e8642d0@M5-Max-128GB]     quotes @antirez: Given that 51B of n-grams can stay on the SSD disk, Qwen 3.8 Flash Next with a 2 bit quantization could be the best DwarfStar bet for a 64GB MacBook local infer
+2026-09-02 18:37:24,279 INFO [e8642d0@M5-Max-128GB] 2095257107503226886  VERIFIED reply  @ivanfioravanti  Wed Sep 02 21:06:37 +0000 2026  via fxtwitter
+2026-09-02 18:37:24,279 INFO [e8642d0@M5-Max-128GB]     @antirez I've improved accuracy of Q2 on M5 kernel just a little, and added a small 7% increase in performance. PR here: https://github.com/antirez/ds4/pull/953
+2026-09-02 18:37:24,463 INFO [e8642d0@M5-Max-128GB] 2095262350848786796  VERIFIED post  @ivanfioravanti  Wed Sep 02 21:27:27 +0000 2026  via fxtwitter
+2026-09-02 18:37:24,463 INFO [e8642d0@M5-Max-128GB]     Another PR for DwarfStar for a small speedup of DeepSeek V4 Flash mxfp4 on pre-M5 Apple Silicon devices! Sorry @antirez acceleration before China's vacation.   Done in August but retested, with the he
+2026-09-02 18:37:24,590 INFO [e8642d0@M5-Max-128GB] 2095075948274098201  VERIFIED post  @antirez  Wed Sep 02 09:06:45 +0000 2026  via fxtwitter
+2026-09-02 18:37:24,590 INFO [e8642d0@M5-Max-128GB]     If you develop Metal kernels using remote machines, beware that the freaking screen saver burns GPU cycles and must be replaced with solid or disabled to have reliable benchmarks. My kindly donated tw
+2026-09-02 18:37:24,739 INFO [e8642d0@M5-Max-128GB] 2095091509741691244  VERIFIED post  @antirez  Wed Sep 02 10:08:35 +0000 2026  via fxtwitter
+2026-09-02 18:37:24,739 INFO [e8642d0@M5-Max-128GB]     I'm optimizing tensor parallel execution across two MacBook M5 Max systems using RDMA. This is how fast DeepSeek v4 Flash Exp Vision can run in MXFP4 (full precision) right now *without* DSpark, so th
+2026-09-02 18:37:24,871 INFO [e8642d0@M5-Max-128GB] 2094930394235932976  VERIFIED post  @Spangler3000  Tue Sep 01 23:28:22 +0000 2026  via fxtwitter
+2026-09-02 18:37:24,871 INFO [e8642d0@M5-Max-128GB]     Follow up on draft post   :) pr up with a few other related ones .   Bit exact tail continuation.   Lossless by design ( as always )   Speeds up ttft on turns by a ton . Drops from avg of 3-4 seconds 
+2026-09-02 18:37:25,014 INFO [e8642d0@M5-Max-128GB] 2095111880985731300  VERIFIED reply  @Spangler3000  Wed Sep 02 11:29:32 +0000 2026  via fxtwitter
+2026-09-02 18:37:25,014 INFO [e8642d0@M5-Max-128GB]     @ivanfioravanti @antirez Try it on omlx fusion fork while we wait for the merge I got it working very well across rdma with m5 max and m3u
+2026-09-02 18:37:25,014 INFO [e8642d0@M5-Max-128GB] 
+2026-09-02 18:37:25,014 INFO [e8642d0@M5-Max-128GB] Verified 7: 7 confirmed, 0 not.
+2026-09-02 18:37:25,014 INFO [e8642d0@M5-Max-128GB] Paste onto the issue:
+2026-09-02 18:37:25,014 INFO [e8642d0@M5-Max-128GB]   **Verified** 2026-09-02: post exists, authored by @ivanfioravanti, posted Wed Sep 02 20:17:41 +0000 2026.
+2026-09-02 18:37:25,014 INFO [e8642d0@M5-Max-128GB]   **Verified** 2026-09-02: post exists, authored by @ivanfioravanti, posted Wed Sep 02 21:06:37 +0000 2026.
+2026-09-02 18:37:25,014 INFO [e8642d0@M5-Max-128GB]   **Verified** 2026-09-02: post exists, authored by @ivanfioravanti, posted Wed Sep 02 21:27:27 +0000 2026.
+2026-09-02 18:37:25,014 INFO [e8642d0@M5-Max-128GB]   **Verified** 2026-09-02: post exists, authored by @antirez, posted Wed Sep 02 09:06:45 +0000 2026.
+2026-09-02 18:37:25,014 INFO [e8642d0@M5-Max-128GB]   **Verified** 2026-09-02: post exists, authored by @antirez, posted Wed Sep 02 10:08:35 +0000 2026.
+2026-09-02 18:37:25,015 INFO [e8642d0@M5-Max-128GB]   **Verified** 2026-09-02: post exists, authored by @Spangler3000, posted Tue Sep 01 23:28:22 +0000 2026.
+2026-09-02 18:37:25,015 INFO [e8642d0@M5-Max-128GB]   **Verified** 2026-09-02: post exists, authored by @Spangler3000, posted Wed Sep 02 11:29:32 +0000 2026.
+2026-09-02 18:37:25,015 INFO [e8642d0@M5-Max-128GB] log: /Users/evanhoffman/git/local-llm/logs/sweeps/verify-posts-M5-Max-128GB-20260902T223723Z.log

@@ -21,6 +21,7 @@ import logging
 import os
 import signal
 import subprocess
+import tempfile
 import time
 
 logger = logging.getLogger(__name__)
@@ -81,13 +82,30 @@ def run_capped(cmd, cwd, timeout, cap_gib, env=None):
 
     Returns (CompletedProcess-like, peak_gib, killed_for_memory).
     """
+    # Spool to temp files, NOT to pipes. A pipe holds ~64 KiB; once the child
+    # fills it the child blocks in write() at 0% CPU and `proc.poll()` never
+    # returns, so this loop polls until the deadline and then SIGKILLs a process
+    # that had already finished its work. The kill sets returncode -9, which
+    # `tests_pass` reads as "tests failed" -- a verbose but honest test failure
+    # was silently converted into a timeout and then recorded as a model
+    # failure, with killed=False so nothing flagged it. Measured: a command
+    # writing 200 KB and exiting immediately burned a full 15s timeout and
+    # returned exactly 65536 bytes of truncated output.
+    with (
+        tempfile.TemporaryFile(mode="w+", encoding="utf-8", errors="replace") as out_f,
+        tempfile.TemporaryFile(mode="w+", encoding="utf-8", errors="replace") as err_f,
+    ):
+        return _run_capped_spooled(cmd, cwd, timeout, cap_gib, env, out_f, err_f)
+
+
+def _run_capped_spooled(cmd, cwd, timeout, cap_gib, env, out_f, err_f):
     proc = subprocess.Popen(
         cmd,
         cwd=cwd,
         env=env,
         stdin=subprocess.DEVNULL,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        stdout=out_f,
+        stderr=err_f,
         text=True,
         start_new_session=True,  # own process group, so we can kill the tree
     )
@@ -113,7 +131,12 @@ def run_capped(cmd, cwd, timeout, cap_gib, env=None):
             os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
         except (ProcessLookupError, PermissionError):
             proc.kill()
-    stdout, stderr = proc.communicate()
+    proc.wait()
+    out_f.flush()
+    err_f.flush()
+    out_f.seek(0)
+    err_f.seek(0)
+    stdout, stderr = out_f.read(), err_f.read()
     # `proc.returncode or 1` would turn a successful 0 into a 1 -- every passing
     # oracle run would have been recorded as a failure.
     rc = proc.returncode if proc.returncode is not None else 1
