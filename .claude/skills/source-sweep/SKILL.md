@@ -233,6 +233,61 @@ claim that failed verification is itself a finding about the source.
 
 ---
 
+## 8. Record the sweep in `docs/sources/`
+
+**Every sweep writes one file**, whether or not it produced issues:
+
+```sh
+docs/sources/$(date -u +%Y-%m-%d-%H-%M-%S).md      # UTC, always
+```
+
+Seconds are in the name deliberately: two sweeps can land in the same minute
+while chasing something, and a collision would overwrite the earlier one.
+
+A sweep's value compounds only if the previous one is readable. Without a local
+record, each sweep re-derives what the last already established, and "the
+leaderboard improved" or "that branch moved" is unmeasurable because nothing
+wrote down where it stood before. Two sweeps on 2026-09-02 both had to re-check
+the same ds4 branches and the same MLX Fast standing.
+
+**The file is the sweep's own output, not a copy of the issues.** Issues carry
+the reasoning; this carries the *state* — what each surface looked like at a
+moment, so the next sweep can diff against it.
+
+Use this shape. Keep it short; a sweep record nobody reads is worse than none:
+
+```markdown
+# Sweep YYYY-MM-DDTHH:MM:SSZ
+
+**Window:** last N hours. **Previous:** docs/sources/<file>.
+
+| surface | state |
+|---|---|
+| 1 CI / inbox | green at <sha>, or: red N runs since <sha> |
+| 2 watched repos | the commits that mattered, not the counts |
+| 3 branches | branch -> sha, and whether it moved since last sweep |
+| 4 upstream issues/PRs | numbers and one line each |
+| 5 Hugging Face | new builds that load on Metal; count hidden |
+| 6 websites | leaderboard standing + the date read |
+| 7 X | gather file path, ids found, ids verified |
+
+**Filed / updated:** #N, #N.
+**Numbers to diff next time:** the two or three values that will move.
+```
+
+**Record the numbers a later sweep can compare against.** The MLX Fast standing,
+a branch tip sha, a download count, our own CI streak. A sweep that only records
+prose cannot show change.
+
+**Copy the grok gather next to it**, because `/tmp` is cleared on reboot and the
+gather is what step 7d verified against:
+
+```sh
+cp "$OUT" logs/sweeps/
+```
+
+Commit both with the issues they produced.
+
 ## Why this order
 
 Verification cost scales with the number of *relevant* leads, not with the

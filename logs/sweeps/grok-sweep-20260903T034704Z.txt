@@ -1,0 +1,290 @@
+# grok sweep
+# requested window: last 12 hours
+# written:  2026-09-03T03:47:04Z  (local: 2026-09-02 23:47:04 EDT)
+# prior sweep: /tmp/grok-sweep-20260902T222944Z.txt (2026-09-02T22:29:44Z)
+# query:    Search X for posts and replies from @antirez, @ivanfioravanti, @Spangler3000, @Youssofal_, @denisyarats, @jundotkim, @rapidmlx, @theotherpomp, @nobody_qwert, @_lefbe, @0xkydo, @prince_canuma, @awnihannun, @perplexity_ai in the last 12 hours. Focus on: Apple Silicon / Metal / MLX inference engines, DeepSeek-V4-Flash, GLM-5.3-Flash, Qwen3.8-Flash-Next, DwarfStar/ds4, speculative decoding and MTP, prefill and prefix caching, quantization recipes, local coding agents. For EVERY item give the exact post URL (https://x.com/<handle>/status/<id>) and its UTC timestamp. Do not summarise without a URL. Include replies. If a post quotes another, say what it quotes.
+
+I'll sweep those accounts for the last 12 hours, then verify each post before listing it. First I need the current time, the project's X-sweep notes, and the post-verification helper.Window is 2026-09-02 15:47 UTC through 2026-09-03 03:47 UTC. Searching each account for posts and replies in that window.Paging accounts that hit the 10-post cap, and pulling thread context so quotes and replies have the parent post.Window: **2026-09-02 15:47 UTC → 2026-09-03 03:47 UTC**. Every URL below was checked with `verify-posts.py` (85/85). Timestamps are UTC.
+
+The main story in this window is **Perplexity Lily** (custom Metal, M5 Max 128 GB) and **Ivan’s DwarfStar work** (DeepSeek-V4-Flash mxfp4, GLM-5.3 Q2, Qwen3.8-Flash-Next Q4).
+
+---
+
+## @perplexity_ai — Lily, Apple Silicon, prefill/decode
+
+**Post** — 2026-09-02 20:04:46Z  
+https://x.com/perplexity_ai/status/2095241544383226274  
+
+Open-sources **Lily**, a local inference engine for hybrid compute in Perplexity Computer. Specialized for **Qwen3.6-35B-A3B on Apple silicon**. Blog: https://www.perplexity.ai/hub/blog/optimizing-on-device-inference-for-apple-silicon
+
+Thread (all replies to that post):
+
+- **Reply** — 2026-09-02 20:04:50Z — https://x.com/perplexity_ai/status/2095241561282068780  
+  Hybrid compute splits work between cloud and a local Mac model. MLX-LM is general-purpose; Lily is built for this workload.
+
+- **Reply** — 2026-09-02 20:04:54Z — https://x.com/perplexity_ai/status/2095241578088718574  
+  Prefill and decode are treated as different workloads. Prefill reuses weights across many prompt tokens. Decode is one token at a time and is more bandwidth-bound.
+
+- **Reply** — 2026-09-02 20:04:57Z — https://x.com/perplexity_ai/status/2095241592399606119  
+  Bench on an **M5 Max MacBook Pro**, ten prompt lengths and ten decode contexts. Lily vs MLX-LM: **1.23× prefill throughput**, **1.35× decode throughput**, quality “effectively unchanged.” Chart in the post: Qwen3.6-35B-A3B Q4, batch 1, 40-core GPU, 128 GB. Mean prefill **4,156 tok/s** vs **3,388**; mean decode **170.0** vs **126.4**.
+
+- **Reply** — 2026-09-02 20:05:00Z — https://x.com/perplexity_ai/status/2095241604407996468  
+  Lily maps Qwen ops onto Apple silicon compute and memory. Code: https://github.com/perplexityai/pplx-garden/tree/main/lily
+
+The blog those posts point to (same hardware as this project: M5 Max, 128 GB) also says **speculative decoding made batch-1 decode 18% slower** on this engine, and that MoE GEMM/GEMV already sit at 97.9% / 90.3% of the fastest sustained weight-read rates.
+
+---
+
+## @denisyarats — Lily + Metal kernels
+
+**Post** — 2026-09-02 20:11:07Z  
+https://x.com/denisyarats/status/2095243141456781499  
+
+**Quotes** Perplexity’s Lily announcement (https://x.com/perplexity_ai/status/2095241544383226274). Adds: Lily is a Rust runtime plus **custom Metal kernels**, specialized to Qwen MoE dimensions (matrix/vector kernels for prefill/decode, less data movement on expert/attention/recurrent paths). Same claim: **1.23× prefill and 1.35× decode vs MLX-LM** on Qwen3.6-35B-A3B Q4. Code + blog linked.
+
+**Reply** — 2026-09-02 22:28:29Z  
+https://x.com/denisyarats/status/2095277713590456424  
+Reply to @justALEXWORTEGA (“Do you have plans to publish smaller models?”) in the Lily thread: “yes, we are going to open source many models.”
+
+**Reply** — 2026-09-03 00:58:09Z  
+https://x.com/denisyarats/status/2095315376313954749  
+Reply to @runinference, who said Lily **zero-fills the whole KV cache** and commits **2.5 GiB at 0 tokens** when max-seq is 131K, and that deleting one memset fixed it. Denis: “DM me!” Parent: https://x.com/runinference/status/2095308928401957254
+
+**Post** — 2026-09-02 20:21:15Z  
+https://x.com/denisyarats/status/2095245692344389691  
+Quote of @aimalysheva / Mostik (latent-space handoff, 753B → 4B). Off the local-engine topic except as a quote.
+
+---
+
+## @ivanfioravanti — DwarfStar / DeepSeek-V4-Flash / GLM-5.3 / Qwen3.8-Flash-Next
+
+**Post** — 2026-09-02 21:27:27Z  
+https://x.com/ivanfioravanti/status/2095262350848786796  
+
+DwarfStar PR for a **small speedup of DeepSeek V4 Flash mxfp4 on pre-M5 Apple Silicon**. Mentions @antirez. Retested with **GLM 5.3** after recent ds4 improvements. PR: https://github.com/antirez/ds4/pull/954  
+
+Screenshot (M3 Ultra, 512 GiB, `DeepSeek-V4-Flash-MXFP4…-0731.gguf`):
+
+| | main | this branch |
+|---|---|---|
+| greedy decode (temp 0) | 42.49 / 43.93 t/s | **46.14 / 46.14 t/s** (+5.0–8.6%) |
+| prefill 2048 | 638.4 | 646.9 (+1.3%) |
+| prefill 4096 | 578.6 | 604.3 (+4.4%) |
+| prefill 8192 | 566.4 | 589.1 (+4.0%) |
+
+First-token at ctx 2048: 28.1 ms → **24.3 ms**. Transcript hash identical (bit-exact).
+
+**Reply** — 2026-09-02 21:06:37Z  
+https://x.com/ivanfioravanti/status/2095257107503226886  
+Reply to @antirez (2026-08-31, GLM 5.3 Flash on ds4 main): “I've improved accuracy of Q2 on **M5 kernel** just a little, and added a small **7% increase in performance**. PR: https://github.com/antirez/ds4/pull/953”  
+Parent: https://x.com/antirez/status/2094421702226677841
+
+**Post** — 2026-09-02 20:17:41Z  
+https://x.com/ivanfioravanti/status/2095244795476111738  
+
+**Quotes** @antirez (2026-08-30): Qwen 3.8 Flash Next at 2-bit could be the best DwarfStar bet for a **64 GB MacBook**, with 51B n-grams on SSD. https://x.com/antirez/status/2094065201838510200  
+
+Ivan: “Qwen 3.8 Flash Next on DwarfStar: work in progress! Pre-M5 nearly ready, M5 tensorops will follow and then something to run this on 64GB.”  
+
+Screenshot is a **private** HF card `ivanfioravanti/Qwen3.8-Flash-Next-DS4-Q4`. It is **not a llama.cpp GGUF**. Recipe in the image:
+
+- routed experts (gate/up/down): **Q4_0**
+- dense GDN/QSA, shared experts, output: **Q8_0**
+- embedding, router, hyper-connections, norms, control: **BF16 / F32**
+- PLE n-gram rows (51B): **Q4_1, served from SSD, never fully resident**
+- hardware line: Apple M5 Max (128 GB); 4-bit ~32 GB, 16-bit ~79 GB
+- runtime: ds4-metal, branch `qwen3.8-flash-next-q4`
+
+Replies in that thread from Ivan:
+
+- **Reply** — 2026-09-02 20:20:51Z — https://x.com/ivanfioravanti/status/2095245591244665332  
+  To @ddalcu “Go team Italia”: “We are all The Global Team for Local AI”
+
+- **Reply** — 2026-09-02 20:26:53Z — https://x.com/ivanfioravanti/status/2095247109117112551  
+  To @TheDavidTai (“thankful you got this out”): “Let's see the final result first”
+
+- **Reply** — 2026-09-02 21:30:04Z — https://x.com/ivanfioravanti/status/2095263009228607790  
+  To @moskstraum21745 (“The SSD is not a disk”) on the old antirez Qwen 2-bit thread: jokes that the pedant ignored the rest of the thread.
+
+**Reply** — 2026-09-02 18:03:31Z  
+https://x.com/ivanfioravanti/status/2095211031589011627  
+Reply to @d0rc on Ivan’s earlier M3 Ultra vs M5 Max GLM-5.3-Flash-Q2 comparison (outside this window: https://x.com/ivanfioravanti/status/2095074189463982545). d0rc said M3 had FP issues fixed on M5. Ivan: “I've found **small issues in the kernel on both M3 and M5**, now better. Final tests in progress.”
+
+**Post** — 2026-09-02 15:54:00Z  
+https://x.com/ivanfioravanti/status/2095178435513798733  
+
+vLLM **0.28.0 vs 0.25.2** for **DeepSeek v4 Flash 2× DGX Spark** (MiaAI recipe). 0.25.2 still better. **Only prefill improved in 0.28**; bugs block the move. Will retry on 0.29. This is NVIDIA, not Metal.
+
+Follow-ups:
+
+- **Reply** — 2026-09-02 16:04:33Z — https://x.com/ivanfioravanti/status/2095181093129330882  
+  “@anemll you did magic on that 0.25.2 didn't you?”
+
+- **Reply** — 2026-09-02 16:07:42Z — https://x.com/ivanfioravanti/status/2095181882358935571  
+  To @anemll (prefill speedup on 0.25 A4W4, slight decode drop): “Same that is happening with 0.28.”
+
+- **Reply** — 2026-09-02 16:07:23Z — https://x.com/ivanfioravanti/status/2095181803833155817  
+  To @MiaAI_lab celebrating the DeepSeek v4 Flash DSpark 2× Spark recipe in Tokyo: “Amazing!!!!!!!” Parent: https://x.com/MiaAI_lab/status/2095180773984698669
+
+**Reply** — 2026-09-02 19:25:03Z  
+https://x.com/ivanfioravanti/status/2095231547305554137  
+To Hao AI Lab: FastH3 now on **DGX Spark and Apple Silicon through MLX**. Ivan: “On it!” Parent: https://x.com/haoailab/status/2095223988201120039 (video generation, not LLM decode).
+
+Ivan also posted a lot in this window that is **not** local Metal/LLM (Muse Spark 1.3, Grok 4.7, Minimax H3 video, Vision Pro). On-topic items are the ones above.
+
+---
+
+## @Spangler3000 — Qwen 3.8 Flash decode, Mac Studios
+
+Two replies only.
+
+**Reply** — 2026-09-03 02:29:40Z  
+https://x.com/Spangler3000/status/2095338406104764459  
+To @TheDavidTai: “This is awesome ! this is on **m4 max**? what **Q** ?”  
+
+Parent (not on the watch list, but this is what he is asking about) — 2026-09-03 02:00:28Z — https://x.com/TheDavidTai/status/2095331058245902763  
+“Qwen 3.8 Flash update... Well I couldn't fix the bug in **ple** so can't hit 85 but I can hit **80tps** after a big grind with **Fable 5.1**. Updated PR with quality benchmarks and comparisons with state of the art tomorrow. I haven't even merged in all the **prefill optimizations** yet.”
+
+**Reply** — 2026-09-03 02:31:29Z  
+https://x.com/Spangler3000/status/2095338866492522850  
+To @alexandr_wang on Muse Spark: “Can’t wait for **open weights** !! Any hints on size ? Approximately how many **Mac studios**”
+
+---
+
+## @Youssofal_ — Qwen3.8-Flash-Next, 35B MoE, Metal, local agents
+
+**Reply** — 2026-09-02 22:31:30Z  
+https://x.com/Youssofal_/status/2095278470117151141  
+To @julianharris (“Try **qwen-3.8-flash-next** it’s phenomenal.”): “Wait till you see how it will be later today with the new update. Muuuuch faster.”
+
+**Reply** — 2026-09-02 22:48:59Z  
+https://x.com/Youssofal_/status/2095282872492183870  
+Same thread: “What **harness** do you use it in BTW?”
+
+**Reply** — 2026-09-02 22:30:24Z  
+https://x.com/Youssofal_/status/2095278195977400747  
+To @bijanbowen (BIJAN-27B): tempted to make “a **3.8 27B** specifically benchmaxed for the prompts in your videos.”
+
+**Reply** — 2026-09-03 00:35:32Z  
+https://x.com/Youssofal_/status/2095309683326431240  
+To @DJLougen, who quoted the Lily post and called Qwen3.6-35B “old” / “meh”: “It’s still the **best 35B class moe** today.”
+
+**Reply** — 2026-09-03 03:23:36Z  
+https://x.com/Youssofal_/status/2095351982156628149  
+To @TheDavidTai’s follow-up on the 80 t/s Qwen 3.8 Flash run: “You’ve actually used **Haiku**?!?” Parent: https://x.com/TheDavidTai/status/2095335761847431677
+
+**Post** — 2026-09-02 22:54:45Z  
+https://x.com/Youssofal_/status/2095284322974789763  
+**Quotes** @LLMJunky on Cua attribution (https://x.com/LLMJunky/status/2095176054860063048). Local **coding-agent** angle: uses Cua for a Swift app and QA; banned Claude Code’s native computer-use in favour of Cua; replaced OpenClaw computer-use on “my agents **mac mini**.”
+
+**Reply** — 2026-09-02 23:01:47Z  
+https://x.com/Youssofal_/status/2095286090756444579  
+Same Cua thread: “In that case! I **optimised metal kernels**. Call me Mr Metal, CEO of Apple.” (joke in that thread, not a new MTPLX number.)
+
+**Reply** — 2026-09-02 23:05:20Z  
+https://x.com/Youssofal_/status/2095286984403193940  
+Same thread: custom agent memory (5 years of chats/docs) does not transfer to Hermes well.
+
+Other Youssofal replies in-window are off-topic (Muse Spark size 700B/1T, casino, Karpathy prompt joke).
+
+---
+
+## @theotherpomp — GLM-5.3-Flash TP4 quant recipe (not Apple Silicon)
+
+**Post** — 2026-09-02 21:14:19Z  
+https://x.com/theotherpomp/status/2095259048337625539  
+
+“Update on the **Fable-driven optimization of GLM 5.3 Flash TP4** using @karpathy autoresearch, starting from @MiaAI_lab recipe.” Screenshot:
+
+| metric | this morning | tuned |
+|---|---|---|
+| soak: requests / 30 min / errors | 66 / 0 | 188 / 0 |
+| soak: aggregate generation tok/s | 18.4 | **53.7** |
+| soak: short request p50 | 51 s | **0.54 s** |
+| soak: 24k prompt p50 | 116 s | **21 s** |
+| cold 282k prompt: **prefill tok/s** | 731 | **1162** |
+| cold 282k: warm follow-up | 8.3 s | **1.6 s** |
+| 8 concurrent streams: aggregate tok/s | 84 | 128 |
+| 8 streams: worst first token | 27 s | 1.3 s |
+| lowest free memory on any rank | 1.3 GiB | 6.4 GiB |
+
+“Rank” / TP4 means this is **multi-GPU**, not a 128 GB Mac. Prefill and warm-follow-up (prefix reuse) are the transferable bits.
+
+**Reply** — 2026-09-02 21:18:28Z  
+https://x.com/theotherpomp/status/2095260093356900648  
+To @MiaAI_lab (“share it?”): “I definitely will! I'm running more tests and passes”
+
+**Reply** — 2026-09-02 21:55:32Z  
+https://x.com/theotherpomp/status/2095269420918776058  
+To @runsonai (GLM prefill is the Achilles heel on 2 Sparks; wants 1500+ prefill): “I think @Tech2Wild got it there”
+
+**Reply** — 2026-09-02 20:29:58Z  
+https://x.com/theotherpomp/status/2095247886690955432  
+To @MiaAI_lab (Claude sub): canceled Claude; “fable 5.1 is really good though, **iterating on glm tp4** right now”
+
+**Reply** — 2026-09-02 20:31:51Z  
+https://x.com/theotherpomp/status/2095248359191650650  
+Same thread: “Yep good decision!”
+
+---
+
+## @0xkydo — MLX Fast / Lily
+
+**Reply** — 2026-09-02 22:25:33Z  
+https://x.com/0xkydo/status/2095276974642229288  
+Reply to Denis’s Lily post: welcome to MLX. Points at https://www.yukon.org/mlxfast. Says community challenges on **Laguna, Qwen, and Gemma** got **more than 100% improvements across decode and prefill**. Offers a Lily challenge.
+
+Other in-window posts: Heesch tiling challenge (https://x.com/0xkydo/status/2095209953808072884, quotes @yukonresearch) and a bio joke. Not inference.
+
+---
+
+## @Prince_Canuma — local Mac app / MLX, not a new engine number
+
+**Post** — 2026-09-02 17:21:35Z  
+https://x.com/Prince_Canuma/status/2095200477667299697  
+**Quotes** his own 2026-07-20 Nativ launch (https://x.com/Prince_Canuma/status/2079259470304362921): local Mac app on **mlx-vlm**, “plug your **coding agents** into a local endpoint.” Caption: “We have come a long way!”
+
+**Post** — 2026-09-02 17:27:17Z  
+https://x.com/Prince_Canuma/status/2095201912777789810  
+300k+ words transcribed on Mac with @Nativ_AI, Cohere Transcribe, no cloud.
+
+**Post** — 2026-09-02 16:47:46Z  
+https://x.com/Prince_Canuma/status/2095191968796078310  
+**Quotes** @Nativ_AI HF-browser-in-app video (https://x.com/Nativ_AI/status/2095186960151114216). “Shoutout to @huggingface”
+
+**Post** — 2026-09-02 16:26:32Z  
+https://x.com/Prince_Canuma/status/2095186624631984553  
+Same shoutout; links https://x.com/nativ_ai/status/2095183175265…
+
+**Reply** — 2026-09-02 19:00:13Z  
+https://x.com/Prince_Canuma/status/2095225299663310993  
+“Because I’m the **MLX King :)”**
+
+No new mlx-vlm / prefix-cache / Qwen3.8 MTP numbers in this window.
+
+---
+
+## Quiet in this 12-hour window
+
+These accounts had **no posts or replies after 15:47 UTC on 2026-09-02**. Last item I found, for context (outside the window):
+
+| handle | last in/near window | URL | UTC |
+|---|---|---|---|
+| **@antirez** | DeepSeek v4 Flash “still the king of local inference,” now with vision | https://x.com/antirez/status/2095096561915052399 | 2026-09-02 **10:28:40Z** |
+| | tensor-parallel DeepSeek v4 Flash Exp Vision MXFP4 across two M5 Max via RDMA, without DSpark | https://x.com/antirez/status/2095091509741691244 | 2026-09-02 10:08:35Z |
+| | Metal kernel benches: disable screensaver or it burns GPU | https://x.com/antirez/status/2095075948274098201 | 2026-09-02 09:06:45Z |
+| **@jundotkim** | week off in Australia; oMLX urgent-only | https://x.com/jundotkim/status/2094771279756972342 | 2026-09-01 12:56:06Z |
+| **@rapidmlx** | community post; prior day was Rapid-MLX 0.13.3 GLM-5.3-Flash (165 GB, 192 GB+ Macs) | https://x.com/rapidmlx/status/2094830701212467291 | 2026-09-01 16:52:13Z |
+| **@nobody_qwert** | GLM/quant looping on **FastMlx + OpenCode / PI / LM Studio**, M3 Ultra 96 GB | https://x.com/nobody_qwert/status/2095095791664697443 | 2026-09-02 **10:25:36Z** |
+| **@_lefbe** | “Amazing” (reply) | https://x.com/_LEFBE/status/2095133258392469988 | 2026-09-02 **12:54:29Z** |
+| **@awnihannun** | “Cool to see some validation of our thesis!” | https://x.com/awnihannun/status/2094469067826684384 | 2026-08-31 16:55:13Z |
+
+---
+
+## What actually bears on this machine
+
+1. **Lily** is a new Apple Silicon engine, measured on an **M5 Max 128 GB**, vs MLX-LM, on Qwen3.6-35B-A3B Q4 — not Qwen3.8-Flash-Next. Prefill **4,156 vs 3,388 tok/s**; decode **170 vs 126**. Speculative decoding **lost** on this stack. https://x.com/perplexity_ai/status/2095241544383226274  
+2. **ds4 PRs 953 and 954** from Ivan: M5 Q2 kernel (~7%) and pre-M5 DeepSeek-V4-Flash mxfp4 decode +5.0–8.6% / prefill ~+4%. https://x.com/ivanfioravanti/status/2095257107503226886 · https://x.com/ivanfioravanti/status/2095262350848786796  
+3. **Qwen3.8-Flash-Next on DwarfStar** is in progress (private DS4-Q4, SSD PLE). Not llama.cpp. https://x.com/ivanfioravanti/status/2095244795476111738  
+4. **TheDavidTai 80 t/s** on Qwen 3.8 Flash (PLE bug blocked 85); Spangler asked hardware and quant. https://x.com/Spangler3000/status/2095338406104764459  
+5. **GLM-5.3-Flash TP4** Fable tune is a Spark/CUDA recipe, not Metal. Prefill 731 → 1162 tok/s; warm follow-up 8.3 s → 1.6 s. https://x.com/theotherpomp/status/2095259048337625539

@@ -1166,3 +1166,7 @@ ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-bu
 </function>
 </tool_call>
 0902 22:32:21 ds4-server: chat ctx=11413..11414:1 gen=57 TOOLS DSML_START DSML_END finish=stop 3.183s
+0902 23:59:13 ds4-server: shutdown requested, draining requests
+0902 23:59:13 ds4-server: persisting resident KV cache before shutdown slot=0 tokens=11585
+0902 23:59:14 ds4-server: kv cache evicted reason=disk-cache-full tokens=10240 hits=0 size=392.50 MiB file=/Users/evanhoffman/.ds4/server-kv/2be7a7dbe21315de8bf27c95d37b99d1e6df5e39.kv
+0902 23:59:14 ds4-server: kv cache stored tokens=11585 trimmed=0 reason=shutdown key=token-text size=428.96 MiB save=91.9 ms
