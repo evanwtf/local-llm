@@ -1035,3 +1035,49 @@ opencode_model = "ollama/ornith-1.5-9b-32k"
 # verified 6.11 GiB resident, size_vram == size. Derived model built with
 #   printf 'FROM ornith-1.5:9b\nPARAMETER num_ctx 32768\n' | ollama create ornith-1.5-9b-32k -f -
 context_tokens = 32768
+
+# --- Qwen3.8-Flash-Next on ds4 (#94) --------------------------------------
+# The cell that separates engine from model. Every prior number for this model
+# is llama.cpp, so "ds4 is faster" and "this model is faster" have never been
+# distinguishable. Same model, different engine, same client.
+#
+# Pack: ivanfioravanti/Qwen3.8-Flash-Next-DS4-Q4, a DS4 fast-pack -- NOT a
+# llama.cpp GGUF and standard GGUF tools will not load it. Runtime is
+# ivanfioravanti/ds4-metal branch `qwen3.8-flash-next` (the model card says
+# `-q4`; that branch was renamed and GitHub does not redirect renamed branches).
+#
+# 73.57 GiB of tensors are resident; the 32 GB PLE n-gram table is NOT --
+# the server reports `PLE=SSD-pread/Q4_1-to-BF16-double-buffer` and RSS settles
+# at 74.3 GiB, leaving 37.6 GiB under the 112 GiB ceiling. That was the risk
+# that could have made this unrunnable, and it is measured, not assumed.
+#
+# Startup log confirms the M5 path is live: "Metal 4 tensor API enabled for
+# Tensor kernels" and "complete fast path and 8K scratch admitted".
+# `ds4 --inspect` prints every specialization as `fallback` -- that is inspect
+# never initialising Metal, not a real fallback. Do not read it as one.
+[backend.qwen38fnds4]
+description = "Qwen3.8-Flash-Next Q4_0-routed fast-pack on ds4-metal qwen3.8-flash-next 2021dda, MTP off"
+base_url = "http://127.0.0.1:8000"
+auth_token = "dsv4-local"
+model = "qwen3.8-flash-next-q4"
+opencode_model = "ds4/qwen3.8-flash-next-q4"
+context_tokens = 100000
+
+# Same pack, same binary, MTP speculation on at the depth the runtime's own
+# QWEN38_FLASH_NEXT.md measures as this pack's optimum (5-7; 8 goes EV-negative).
+#
+# Treat a null result here as unproven, not as absence: the scheduler BYPASSES
+# MTP on families where drafts are not accepted, so a loss shows up as
+# "about the same", not as a regression. The author measured his own
+# code-continuation family being bypassed exactly like novel prose
+# (acceptance 0.33-0.5) while deterministic continuations won +42-57%.
+# Our agent turns are structured (tool JSON, repeated paths, diff hunks) and
+# may land on either side. Run the server with --mtp-timing so the acceptance
+# and bypass counters are recorded; without them a null is not diagnosable.
+[backend.qwen38fnds4mtp7]
+description = "Qwen3.8-Flash-Next Q4 fast-pack on ds4-metal 2021dda, embedded MTP --mtp-draft 7"
+base_url = "http://127.0.0.1:8000"
+auth_token = "dsv4-local"
+model = "qwen3.8-flash-next-q4"
+opencode_model = "ds4/qwen3.8-flash-next-q4"
+context_tokens = 100000
