@@ -362,6 +362,24 @@ stale; prefer `uv run python scripts/upstream_sweep.py --hours 168` and the
 
 ## Traps worth not rediscovering
 
+**An engine flag that changes the KV format silently invalidates the disk cache,
+and the only symptom is that one arm looks slower (2026-09-03).** Turning MTP on
+made ds4 reject every checkpoint in `~/.ds4/server-kv` --
+`Qwen checkpoint MTP state is incompatible` -- so arm B re-prefilled exactly
+where the arm A rows it is compared against got cache hits. Nothing in a results
+row says this; it reads as speculative decoding being a regression. **Give each
+engine configuration its own `--kv-disk-dir`**, and read the server log for
+`kv cache load failed` before trusting an A/B. Caught three trials in, from the
+log rather than from the numbers.
+
+**MTP is not a speed-only flag.** ds4 defaults do **not** preserve the sampling
+distribution: without `--mtp-exact-sampling` it accepts drafts matching what the
+target would greedily produce, and `--mtp-margin` (default 3) tunes that
+acceptance. So an MTP-on/off difference in **pass rate** is not attributable to
+speculation -- the model is sampled differently. Wall time is the cleaner
+comparison, and only if token counts match. Isolating speculation needs a third
+arm with `--mtp-exact-sampling`; see #36 on varying one parameter at a time.
+
 **A control that differs in an unregistered variable is not a control, and the
 tell is usually already in a log (2026-09-03).** The ds4 Qwen shim measured
 **12/12 on synthetic prompts and 0/6 under OpenCode** on the same instruction
