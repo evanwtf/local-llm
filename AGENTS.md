@@ -542,6 +542,43 @@ four-cell sweep in which every control cell happened to share the same `top_p`.
 A control that changes a group is not a control; it only tells you the group
 matters.
 
+## Restart the model server between arms, and between trials while #112 is open
+
+**A server that has been up for an hour is not the same server.** Measured
+2026-09-03 across two arms of #77, three trials each, every trial a fresh
+OpenCode conversation:
+
+| | trial 1 | trial 2 | trial 3 |
+|---|---|---|---|
+| `qwen38fnds4shim` (MTP off) | 13/15 | 13/15 | **10/15** |
+| `qwen38fnds4mtp7shim` (MTP 7) | 10/15 | 9/15 | **6/15** |
+
+Both arms are worst in their third trial, and arm B declines monotonically
+across a 90-minute session. Because each trial starts a new conversation, this
+cannot be the model's context degrading -- it is state that outlives the
+conversation, which leaves the server or the machine. **This is #112 and it is
+not yet understood.**
+
+Until it is:
+
+- **Restart `ds4-server` between arms.** Always. An A/B where arm A ran on a
+  cold server and arm B inherited ninety minutes of state is not a comparison
+  of the two arms.
+- **Prefer restarting between trials too** while #112 is open. It costs about
+  10 s of warm-up against a 30-minute trial, and it is the cheapest way to stop
+  a session-state effect being read as a property of a backend.
+- **Give each engine configuration its own `--kv-disk-dir`.** A flag that
+  changes the KV format makes the server reject the other configuration's
+  checkpoints, so one arm re-prefills where the other got cache hits, and the
+  only symptom is that it looks slower. MTP on/off is exactly such a pair:
+  `~/.ds4/server-kv` is MTP-off, `~/.ds4/server-kv-mtp` is MTP-on.
+- **Record it.** A row does not currently say how long the server had been up
+  when it was produced, which is why this took two arms and six trials to see.
+
+The restart itself is the argv in `NEXT.md`'s machine-state section, and
+`wait_ready.py` is what tells you it is back -- not `/health`, which answers
+before the model is loaded.
+
 ## A failing arm looks fast, so pair the tasks before comparing totals
 
 **A failed trial is usually a short trial.** It dies on turn one, or the agent

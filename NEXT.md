@@ -168,7 +168,7 @@ informative.
 
 ### As left at 2026-09-03 05:45 EDT, for the next session
 
-**Nothing is running.** Arm B finished 06:15; `run.py` restored both reference
+**Nothing is benchmarking.** Arm B finished 06:15; `run.py` restored both reference
 repos (`gmail-archive` @ `56e55cc`, `monitor` @ `cbb85ca`) and the tables are
 re-spliced. Still up and holding memory, deliberately, for the next MTP arm:
 
@@ -177,8 +177,19 @@ re-spliced. Still up and holding memory, deliberately, for the next MTP arm:
 | `ds4-server` | :8000, **MTP on** `--mtp-draft 7 --mtp-timing`, `--kv-disk-dir ~/.ds4/server-kv-mtp`, ~74 GiB |
 | `ds4_qwen_tool_shim.py` | :8101 -> :8000 |
 
+**`ds4-server` was restarted fresh at 06:30** and has served no benchmark
+traffic, so the next arm starts from a cold server rather than inheriting the
+previous run's state. That is now the rule, not a courtesy -- see below.
+
 **Stop both before any batch that is not `qwen38fnds4*`.** Run
 `uv run python benchmarks/agent/preflight.py` first; it names them.
+
+**Restart `ds4-server` between arms, and preferably between trials.** Both arms
+of #77 got monotonically worse across their session -- 13/15, 13/15, 10/15 and
+10/15, 9/15, 6/15 -- in fresh conversations each time, so it is server or
+machine state, not model context (#112). A restart costs ~10 s of warm-up
+against a 30-minute trial. `AGENTS.md` carries the full rule and the argv is
+below.
 
 **Arm A vs arm B, three trials, paired on the 20 cells passing in both arms:**
 wall B/A **1.19**, throughput **67.9 vs 75.7 s/1k**, tokens B/A **1.33**,
