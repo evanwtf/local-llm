@@ -1130,6 +1130,29 @@ context_tokens = 100000
 # exactly like novel prose, and #105 reports speculative decoding making batch-1
 # decode 18% slower in another engine on this hardware. A negative result is a
 # real possibility and is worth having.
+#
+# **ARM B VARIES TWO THINGS, NOT ONE, AND THE SECOND IS NOT SPEED.** ds4's MTP
+# defaults do not preserve the sampling distribution:
+#
+#     --mtp-exact-sampling   "Preserve the ordinary temperature distribution
+#                             instead of accepting target-matching greedy
+#                             drafts directly."   <- NOT set here
+#     --mtp-margin F          verifier confidence margin for fast acceptance,
+#                             default 3           <- left at default
+#
+# Without `--mtp-exact-sampling` the engine accepts drafts that match what the
+# target would greedily produce, which biases output toward greedy at any
+# temperature above 0. So an arm A vs arm B difference in **pass rate** is not
+# attributable to speculation alone -- the model is being sampled differently.
+# Wall time is the cleaner comparison, and even that is only clean if the token
+# counts match (see AGENTS.md: "a wall-time difference is a token-count
+# hypothesis").
+#
+# This is deliberate for the first run: it measures MTP **as a user would
+# switch it on**, which is a real question. It is NOT the isolation of
+# speculative decoding, and #36's rule -- vary one parameter at a time -- says
+# a third arm with `--mtp-exact-sampling` is what separates the two. Do not
+# report an arm A/B pass-rate gap as a property of speculation without it.
 [backend.qwen38fnds4mtp7shim]
 description = "Qwen3.8-Flash-Next Q4 fast-pack on ds4-metal ba01f5d via the tool-format shim, embedded MTP --mtp-draft 7"
 base_url = "http://127.0.0.1:8101"
