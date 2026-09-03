@@ -16,10 +16,12 @@ import re
 import gen_tables
 import pytest
 import splice_tables
+from conftest import HAS_LOCAL_RESULTS, SKIP_NO_RESULTS
 
 DOC = pathlib.Path(__file__).resolve().parents[2] / "RECOMMENDATIONS.md"
 
 
+@pytest.mark.skipif(not HAS_LOCAL_RESULTS, reason=SKIP_NO_RESULTS)
 def test_the_generated_tables_are_current() -> None:
     # A batch in flight is appending to results.jsonl, so the document is
     # being compared against a moving target. Skipping keeps an unrelated
@@ -46,6 +48,7 @@ def test_the_dir_flag_is_taught() -> None:
     assert "--dir" in DOC.read_text()
 
 
+@pytest.mark.skipif(not HAS_LOCAL_RESULTS, reason=SKIP_NO_RESULTS)
 def test_no_pre_fix_opencode_data_is_quoted() -> None:
     """Every figure must come from valid rows. The generator filters to
     post-fix trials; this asserts the doc did not also inherit an old number."""
@@ -130,6 +133,7 @@ def test_the_target_repo_link_matches_the_actual_remote():
     assert "evandhoffman/gmail-archive" not in doc
 
 
+@pytest.mark.skipif(not HAS_LOCAL_RESULTS, reason=SKIP_NO_RESULTS)
 def test_generated_tables_count_only_real_trials():
     """A --dry-run control check is not a failed trial.
 

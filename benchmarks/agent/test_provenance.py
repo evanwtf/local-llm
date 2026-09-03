@@ -12,7 +12,9 @@ import pathlib
 import subprocess
 
 import provenance
+import pytest
 import results
+from conftest import HAS_LOCAL_RESULTS, SKIP_NO_RESULTS
 
 
 def test_head_is_a_short_sha_or_a_named_absence() -> None:
@@ -75,6 +77,7 @@ def test_fingerprint_identifies_content_not_path(tmp_path) -> None:
     assert provenance.fingerprint(a) != provenance.fingerprint(b)
 
 
+@pytest.mark.skipif(not HAS_LOCAL_RESULTS, reason=SKIP_NO_RESULTS)
 def test_fingerprint_counts_rows() -> None:
     p = results.default_path()
     assert provenance.fingerprint(p).split()[0].isdigit()

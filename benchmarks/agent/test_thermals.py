@@ -10,6 +10,8 @@ from __future__ import annotations
 import pathlib
 import sys
 
+import pytest
+
 REPO = pathlib.Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(REPO / "scripts"))
 
@@ -47,8 +49,18 @@ def test_a_reading_carries_the_system_clock():
     assert got["local"]
 
 
+@pytest.mark.skipif(
+    not thermals.SUPPORTED,
+    reason="IOKit thermal sensors are macOS-only; there is no Linux equivalent to read",
+)
 def test_the_machine_reports_plausible_die_temperatures():
-    """Live check. A laptop that is on is between 10 C and 120 C."""
+    """Live check. A laptop that is on is between 10 C and 120 C.
+
+    Skipped off macOS, and the skip is keyed on `thermals.SUPPORTED` rather than
+    on a platform string in this file, so the day a Linux backend is added the
+    test starts running instead of staying quietly skipped. A skipping test is
+    not a passing test: on the machine that owns the sensors this still runs.
+    """
     got = thermals.reading()
     assert got.get("sensors", 0) > 0, "no thermal sensors readable"
     assert 10.0 < got["die_max_c"] < 120.0

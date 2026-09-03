@@ -12,8 +12,9 @@ import json
 import pathlib
 
 import dirfix
-import results
 import pytest
+import results
+from conftest import HAS_LOCAL_RESULTS, SKIP_NO_RESULTS
 
 
 def row(**kw):
@@ -99,6 +100,7 @@ def test_the_archive_is_still_where_dirfix_expects_it() -> None:
     )
 
 
+@pytest.mark.skipif(not HAS_LOCAL_RESULTS, reason=SKIP_NO_RESULTS)
 def test_no_pre_dir_opencode_rows_remain_in_results() -> None:
     """Live results must contain only trials that measured the client."""
     live = results.default_path()

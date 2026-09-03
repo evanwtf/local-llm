@@ -80,8 +80,20 @@ def _frameworks():
     return iokit, cf
 
 
+#: These sensors are Apple's IOKit HID services. There is no equivalent read on
+#: Linux, and the Linux CI runner has neither IOKit nor CoreFoundation, so
+#: `ctypes.CDLL(None)` there resolves to the process itself and every lookup
+#: fails with `undefined symbol: CFStringCreateWithCString`. That crash made CI
+#: red for 20 consecutive runs. Report "unsupported" instead of raising, so a
+#: caller on another platform gets an empty reading with a real clock rather
+#: than a traceback.
+SUPPORTED = sys.platform == "darwin"
+
+
 def read_sensors() -> list[tuple[str, float]]:
     """[(sensor name, celsius)] for every readable thermal sensor."""
+    if not SUPPORTED:
+        return []
     iokit, cf = _frameworks()
 
     def cfstr(s: str):
