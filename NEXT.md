@@ -8,81 +8,82 @@
 > or compare against those numbers.** Cause, cutover and replacements:
 > [docs/archive/results-opencode-pre-dir.md](docs/archive/results-opencode-pre-dir.md). Other clients are unaffected.
 
-Updated **2026-09-02 18:44 EDT**. The queue below is ordered by **value per
-hour**, not by issue age.
+Updated **2026-09-02 22:56 EDT**. The queue below is ordered by **value per
+hour**, not by issue age. Ten items; everything else is in the tracker.
 
-**Where the project stands.** Six backends have valid current data; four of the
-six are Qwen derivatives, and the monoculture now has a measured escape
-(`gemma4` 12/12, at about 20x llama.cpp's wall time). A second machine exists,
-is scoped, and has produced its first real numbers. The apparatus grew a
-memory-bounded oracle, per-row hardware facts, a hardware guard, a results
-reporter that applies #23's resolution rule, and six-surface source sweeping —
-most of it because something broke first.
+**Where the project stands.** Six backends have valid current data on the Mac.
+A second machine exists and is scoped, but **it cannot yet produce trustworthy
+rows** — four separate defects (#98, #99, #101, #102) sit between it and a
+clean run, and they are why the Linux tier occupies four of the ten slots
+below. On the Mac, the newest and most interesting artifact —
+Qwen3.8-Flash-Next as a ds4 fast-pack with an MTP head — loads, runs fast, and
+cannot yet complete a task, for a reason now fully diagnosed.
+
+**The thing to worry about first.** OpenCode auto-updated **1.18.26 → 1.18.27**
+between two batches, unasked, and roughly **doubled turns** on repository tasks
+with every other variable held. The client is the one constant underneath every
+number in this repository, and **nothing pins its version**. That is a validity
+problem for recent data and for all future data, and it is the cheapest item
+here to act on.
 
 **What broke, and is now guarded.** CI had failed **40 consecutive runs** on a
-shallow clone and nobody had looked. 127 `--dry-run` rows were counted as
-failures in the *published* tables. `--dry-run` itself crashed on every script
-task since the class was added. A runaway oracle reached **49 GB** and drove
-the machine into swap. The first Linux run appended 13 rows to the Mac's
-results file and nothing objected. Each is a test now.
+shallow clone and nobody had looked. A `w/` in a CPU string put a slash in a
+directory name and broke CI on every commit after the hardware restructure. The
+oracle deadlocked on its own output whenever it exceeded a 64 KiB pipe buffer,
+and recorded the resulting kill as a **model** failure — present since the
+function was written, and only reachable once a backend did zero work. 127
+`--dry-run` rows were counted as failures in the *published* tables. A runaway
+oracle reached **49 GB**. Each is a test now.
 
 **The measurement rule that keeps mattering.** A 3-trial median carries
 **±27.9%**, so two medians must differ by roughly **56%** before the gap is
 real — measured against the *smaller* median. `scripts/report.py` applies it;
 a hand-computed version got the denominator backwards and called three real
-differences noise.
+differences noise. Most claims arriving from outside do not clear this bar, and
+saying so early saves the run.
 
 Each issue is self-contained; this file only sets priority and records machine
 state that is not in git. The table is the queue. It has no calendar.
 
 ## Order
 
-**Ranked by value per hour, not by issue age.** The top item is running now; the
-next three are things we can finish. Below that the cost or the blocker grows.
+**Ranked by value per hour, not by issue age.** Items 1 and 3 are cheap and
+protect everything else, so they come before the interesting science.
 
 | # | issue | why here |
 |---|---|---|
-| 1 | **#94** Qwen3.8-Flash-Next on ds4, with an MTP head | **The missing cell, and it is downloadable now.** We have measured this model on llama.cpp only, so engine is fully confounded with model — this is the one artifact that separates them, on the engine we depend on most. It also carries the **1.6 GB MTP head** that #77 has been blocked on, so speculative decoding becomes a variable rather than a wish. Both feared blockers are already gone: the runtime branch was **renamed**, not missing, and **M5 TensorOps landed 2026-09-03 00:28 +0200** — the build is clean with no patches. 113 GB on disk, ~81 GB resident if the PLE sidecar really streams from SSD, which is itself a claim to measure against the 112 GiB ceiling. Baseline to beat: **llama.cpp Q3 under OpenCode, 18/18 at an 89.6s median.** |
-| 2 | **#80** the MLX model sweep | Half done: `gemma426` **11/11** and the 27B generation pair both landed overnight. Remaining: `qwen36a3b` (3B active — also the shape #20 needs), and **`qwen3.8-flash-next:125b-mlx`**, which is the experiment that decides whether to keep 112 GB. Now wired and declared, so it is a run away. **114.8 GB of deletions unblocked.** |
-| 3 | **#85** one directory per hardware platform | **Two machines now have data** and the desktop's had nowhere to live until yesterday. `hardware_id.py` derives the names and `--results` exists; what remains is the `git mv` of 1,092 rows in a commit that changes nothing else, and a `hardware.toml` so a misfiled row is a failing run rather than silent contamination. Cost grows with every row. |
-| 4 | **#60** the engine gap | Still the widest axis and the most expensive. Rapid-MLX remains the one reachable by pip. mlx-vlm 0.7.0-rc0 is the newest lead — expert offloading, a prefix cache claiming 166x on the Gemma 4 31B we measured, and a working MTP path for our fastest model. **166x is a cache-hit figure**; read it as repeated-prefix work, not first-token. |
-| 5 | **#55** the harness cannot tell a bad result from a broken measurement | It keeps being right. Yesterday alone: `--dry-run` crashed on every script task since the class was added; 127 dry-run rows were counted as failures in the **published** tables; `--results` pointed at a new file crashed after the smoke gate passed; and **CI had failed 40 consecutive runs** on a shallow clone. Every one was invisible where it mattered. |
-| 6 | **#20 / #79** the second tier | Scoped and measured. `gemma4:12b-it` **0/12** — and the failure moved: it now calls tools (7 steps, 6 `tool_use`) and leaves the repository byte-identical to the control. **The dense 12B tier is dead.** The live experiment is `ornith-1.5:35b`, 3B active, 22 GB streamed with `--n-cpu-moe` against 32 GB — the only candidate where the *model* is proven (21/21 here) and only the hardware is in question. |
-| 7 | **#4** harder tasks cannot measure quality | Sharpened twice from outside. #79 produced the first real discrimination the set has shown — separating *coding ability* from *tool-calling ability*, which decides a fallback tier. And #82's 49 GB oracle run was a **plausible wrong answer** arrived at by accident: an implementation that buffers a file the task says to stream. #89 may supply the quality signal more cheaply than new tasks. |
-| 8 | **#86** MTPLX loops at 4-bit and 8-bit | Do not spend a slot on MTPLX until this is understood. A loop reads as slowness in our rows and nothing would say otherwise. |
-| 9 | **#83** unbounded thinking | Two models returned no answer at all with `stop_reason=max_tokens`. #63 settled that thinking helps correctness *on ds4*; it never asked whether reasoning consumes the budget before an answer exists. May be confounding the 27B generation comparison already taken. |
-| 10 | **#77** speculative decoding on Qwen3.8-Flash-Next | **#94 unblocks this.** The ds4 fast-pack ships a 1.6 GB MTP head and a `--mtp-draft` flag, so the fork that blocked this is no longer needed — MTP becomes a variable we can switch on and off in the same binary. Keep the row until #94 has actually served the head; then this is a measurement, not a blocker. |
+| 1 | **#104** the client changed under us | **Nothing in this repo pins OpenCode, and it auto-updated mid-session.** 1.18.26 → 1.18.27 roughly **doubled median turns** on repository tasks — same model digest, same Ollama, same window, same machine, ninety minutes apart. The client is the single constant beneath every row we have; if it moves silently, cross-date comparison is unsound and nobody would see it. Pin the version, record it per row, then decide what needs re-baselining. Hours, not days, and it protects the whole dataset. |
+| 2 | **#94** Qwen3.8-Flash-Next on ds4, with an MTP head | **The missing cell, and the blocker is now bounded.** Every number we hold for this model is llama.cpp, so engine and model have never been separable. The pack loads clean, the M5 TensorOps route is live, **74.3 GiB resident with the 32 GB PLE table genuinely streaming from SSD**, decode **40.2 t/s** and prefill **1107 t/s**. It cannot finish a task because the model emits the XML tool dialect and ds4 retries exactly once. Instruction does not fix it under OpenCode (0/6 → 1/6 on the real prompt). The fix is an **SSE-level tool-call translator** in the shim — real work, but known work. Closes the engine half of #60 and unblocks #77. |
+| 3 | **#103** transcripts have no run identity | **Cheap, and it is the evidence layer under every other item.** `<task>-<backend>-<client>-<trial>.stdout.jsonl` carries no run, commit, or client version, so a re-run silently overwrites its predecessor. It already destroyed twelve transcripts — the 1.18.26 half of the very comparison #104 rests on. Every investigation above and below this line depends on transcripts surviving. Fix before running anything twice. |
+| 4 | **#102** the Linux tier dies before trial one | A default-matrix run on the desktop exits with a raw `FileNotFoundError` traceback for a missing `~/git/monitor`, before any trial. The surrounding code refuses a *dirty* repo and a *missing base commit* with written explanations; a missing repo alone has no case. **This is the gate on the second machine doing anything at all**, and it is a small, well-scoped fix. |
+| 5 | **#101** every Linux row is stamped dirty | uv 0.12.9 rewrites `uv.lock` on **every** `uv run`, stripping the `exclude-newer` block, so `harness_dirty` is always true and the `[commit@machine]` stamp means nothing there. Provenance that is always dirty is provenance that says nothing — and #84 established that a lockfile changing under us is a real variable, not cosmetic. Blocks trusting any desktop row. |
+| 6 | **#99 / #98** the suite is red on Linux | `thermals.py` reaches CoreFoundation through `ctypes` with no platform guard, so two tests fail on Linux with an undefined symbol; and `test_the_generated_tables_are_current` can only pass on the Mac, because `gen_tables.load()` is now machine-aware and the obvious "fix" would pool two machines' data. **A red suite on a machine is a machine nobody can safely commit from.** Both are small; #99 needs a decision, not just code. |
+| 7 | **#100** the #69 guard is blind exactly where it is needed | `opencode_config.missing()` exists because an undeclared model makes `opencode run` exit in 0.6s and the harness records client crashes as model failures — that is how GLM-5.3's entire published OpenCode record was manufactured. The check **skips any backend carrying a `tier` key**, which is every desktop backend, on the machine where they actually run. The guard is absent precisely where the failure it prevents is most likely. |
+| 8 | **#80** the MLX model sweep, and 114.8 GB | Half done: `gemma426` **11/11** and the 27B generation pair landed. Remaining: `qwen36a3b` (3B active — also the shape #79 needs) and **`qwen3.8-flash-next:125b-mlx`**, the run that decides whether 112 GB stays on disk. **114.8 GB of deletions wait on it**, and it is wired, declared, and a run away. Pure machine time, no new code. |
+| 9 | **#96** oMLX per-turn TTFT | **The one claim from outside large enough for our harness to resolve.** 3–4s → 0.3s per turn, claimed bit-exact and lossless, validated by its author on Qwen3.8-Flash-Next. Agent tasks are many short turns over a growing prefix, and per-turn TTFT is the part of wall time we have never attacked — unlike #95's +4–7%, which we cannot see at three trials and said so on the issue. First step is cheap and useful regardless: **we have no per-turn TTFT metric at all.** |
+| 10 | **#55 / #82** the harness still cannot always tell a bad result from a broken measurement | It was right twice more today. The oracle deadlock (#106) recorded a harness fault as a model failure with `killed=False`, and #82's fourth item is still unbuilt: a memory kill returns a plain failure rather than a distinct exclusion category, so "the code was wrong" and "the code could not run" remain indistinguishable in a row. Everything above produces data this thread decides whether to believe. |
 
-**Behind these:** #96 (oMLX per-turn TTFT), #97 (the screensaver confound), #95 (ds4 PR
-#953), then #75, #56, #84, #45, #53, #35, #27, #19, #51, #57, #58, #59, #65, #66, and the
-older backlog.
+**Behind these:** #105 (Perplexity's Lily — a Metal/Rust engine for a model we
+already have, though its 1.23x/1.35x claims sit below our resolution), #86
+(MTPLX looping), #83 (unbounded thinking), #4 (harder tasks), #79 (the 12 GB
+tier), #107 (finish labelling: closed issues, and the third-label decision),
+#95, #77, #60, #70, #78, #27, and the older backlog.
 
-**From the 2026-09-02 sweep.** #96 is the one outside claim large enough for our harness
-to resolve — per-turn TTFT 3-4s to 0.3s clears #23's ~56% bar, where #95's +4-7% prefill
-gain does not and cannot be measured by us at three trials. #97 is a confound in our own
-published numbers, not someone else's news: a screensaver on the GPU has the same shape as
-our unexplained ~10% session drift, which we already ruled out as thermal.
-
-**#16 is answered.** `gemma4:31b-mxfp8` went **12/12** — the first non-Qwen,
-non-DeepSeek backend to complete a cell — at **383s against llama.cpp's 90s**.
-The monoculture has an escape and it costs about 20x the wall time. That is a
-fallback, not a recommendation, and RECOMMENDATIONS has no category for "the
-one you run when the others are gone".
-
-**#76 is answered, and the answer is no.** `b10729` against `b10751` showed no
-measurable change at any depth, bracketed A-B-A. The bracket is the finding: a
-plain A-then-B would have reported b10751 as **6% slower** at d16384 and been
-believed, and the second A leg showed the machine drifting 9.8% on that row by
-itself.
+**Closed today:** #85 (hardware restructure — the move is done and
+`RECOMMENDATIONS.md` stayed at root), #91 (ds4 PR #621 re-tested at `6a20b13`:
+decode 1.155, 32/32, and #952 supersedes it at the same commit), #106 (the
+oracle deadlock, fixed in `44c3519`; 1,181 rows audited and no evidence of past
+corruption). Earlier: #89, #87, #90.
 
 **Engine scope: three.** llama.cpp, ds4, Ollama — and Ollama earns its slot on
 **MLX quants only**, because a GGUF served through Ollama is llama.cpp with a
-wrapper. LM Studio and `ornith:35b` are `retired` in `tasks.toml`, kept there
-rather than deleted because rows reference them.
+wrapper. LM Studio and `ornith:35b` are `retired` in `tasks.toml`.
 
 **Client scope: OpenCode only.** Measured and closed — 11.1s Aider, 39.5s
 OpenCode, 189.6s Claude Code on one server, cause identified as prompt size.
-**Both machines now run 1.18.26**; they were split until 2026-09-02.
+**Both machines now run 1.18.27, and see item 1: that version arrived by
+itself.**
+
 
 ## Not queued
 
