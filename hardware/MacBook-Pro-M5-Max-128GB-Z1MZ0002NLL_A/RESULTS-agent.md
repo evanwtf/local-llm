@@ -2423,3 +2423,67 @@ suite totals would need to differ by ~26% before a difference is real.
 **A ds4 bug worth reporting upstream, independent of our shim.** The streaming
 path drops assistant text it has explicitly decided to return, and it does so
 silently — any streaming client sees an empty turn and no error.
+
+### 2026-09-03, same day — arm B: MTP at depth 7 buys throughput and no wall time
+
+**`qwen38fnds4mtp7shim`, the identical shim path with `--mtp-draft 7 --mtp-timing`.
+Two trials complete of three; trial 3 was still running when this was written.**
+
+Paired against arm A on the **16 cells that passed in both arms in the same trial**
+— see *"A failing arm looks fast"* in `AGENTS.md` for why the comparison has to be
+paired:
+
+| | arm A (MTP off) | arm B (MTP 7) | B/A |
+|---|---|---|---|
+| wall, paired cells | 2030 s | 1973 s | **0.97** |
+| median, paired cells | 120.2 s | 112.5 s | — |
+| output tokens | 24,795 | 30,046 | **1.21** |
+| **seconds per 1k output tokens** | 81.9 | **65.7** | **0.80** |
+| pass, trials 1-2 | 26/30 | 19/30 | — |
+
+**Three things are happening at once and only the third is a null.**
+
+1. **MTP genuinely works on this workload.** It is not being bypassed into
+   irrelevance: across the run the server logged 179 MTP cycles, **57 drafting
+   and 122 `scheduler-bypass`**, and the accepted-length histogram has a heavy
+   tail at full depth — `1=13 2=6 3=7 4=1 5=2 6=1 **7=22**`. When it engages it
+   frequently accepts all seven drafted tokens. This is the counter the issue
+   insisted on capturing, and it is what makes the rest of this readable rather
+   than a shrug.
+2. **Throughput improves about 20%** — 65.7 s/1k output tokens against 81.9.
+3. **Wall time does not move: B/A = 0.97.** The model emits **21% more tokens**
+   under arm B, and the two effects very nearly cancel.
+
+**So the honest headline is "no wall-time difference measured".** A 3% gap is far
+inside the resolution of this suite — #23 puts a 5-task suite total at ±12.9% at
+three trials, and this is two — and the repo's own rule is that below ~26% the
+phrasing is "no difference measured", never "faster". The 20% throughput figure
+is a rate rather than a suite total and is more stable, but it is still n=2 and
+is reported as a direction, not a result.
+
+**Why the extra tokens are not a surprise, and why the pass rate cannot be read.**
+ds4's MTP defaults do **not** preserve the sampling distribution: without
+`--mtp-exact-sampling` the engine accepts drafts matching what the target would
+greedily produce, and `--mtp-margin` (default 3) tunes that acceptance. So arm B
+is a *differently sampled model*, not merely a faster one. That is enough to
+explain both the token growth and the 19/30 against 26/30, and it means
+**the pass-rate gap must not be attributed to speculative decoding.** Isolating
+speculation needs a third arm at `--mtp-exact-sampling`; #36's rule is to vary
+one parameter at a time, and this run deliberately varies two because it measures
+MTP *as a user would switch it on*.
+
+**One excluded set worth knowing about.** The first arm B attempt was aborted
+three trials in: ds4 rejected every disk KV checkpoint in `~/.ds4/server-kv`
+(`Qwen checkpoint MTP state is incompatible`) because they were written with MTP
+off, so arm B was re-prefilling where arm A got cache hits. Those three rows are
+excluded with the reason; the run was restarted against a dedicated
+`--kv-disk-dir`. **An engine flag that changes the KV format silently invalidates
+the cache, and the only symptom in the results is that one arm looks slower.**
+
+**What this does to #77.** The question — does speculative decoding help a local
+coding agent — now has a measured answer on this pack, and it is *not on wall
+time at batch 1*. That is consistent with #105's report of speculative decoding
+making batch-1 decode 18% slower in a different engine on the same hardware, and
+with the pack author's own finding that code continuation is bypassed like prose.
+The throughput gain is real; the agent does not get it back, because the sampler
+change spends it on extra tokens.

@@ -8,7 +8,7 @@
 > or compare against those numbers.** Cause, cutover and replacements:
 > [docs/archive/results-opencode-pre-dir.md](docs/archive/results-opencode-pre-dir.md). Other clients are unaffected.
 
-Updated **2026-09-03 04:40 EDT**. **This file is the queue for _this machine_ —
+Updated **2026-09-03 05:45 EDT**. **This file is the queue for _this machine_ —
 the MacBook Pro, M5 Max, 128 GB.** Every item below is labelled `macOS` in the
 tracker. The Linux/RTX 3080 Ti tier has its own nine open issues ([#20](https://github.com/evanwtf/local-llm/issues/20), [#79](https://github.com/evanwtf/local-llm/issues/79),
 [#98](https://github.com/evanwtf/local-llm/issues/98)–[#104](https://github.com/evanwtf/local-llm/issues/104)) and they are deliberately **not** here; see `hardware/` and the
@@ -166,7 +166,34 @@ informative.
 
 ## Machine state
 
-### As left at 2026-09-03 04:40 EDT, for the next session
+### As left at 2026-09-03 05:45 EDT, for the next session
+
+**A BATCH IS STILL RUNNING.** Arm B trial 3 (`qwen38fnds4mtp7shim`), started
+04:44, trials 1-2 complete, trial 3 expected to finish about **06:10**. Do not
+start anything else until it does -- `run.py` restores the reference repos from
+`atexit` and will print `restored gmail-archive` / `restored monitor` when done.
+
+| what | where |
+|---|---|
+| `run.py` | arm B, 15 tasks x 3 trials, log in the session scratchpad |
+| `ds4-server` | :8000, **MTP on** `--mtp-draft 7 --mtp-timing`, `--kv-disk-dir ~/.ds4/server-kv-mtp` |
+| `ds4_qwen_tool_shim.py` | :8101 -> :8000 |
+
+**When it finishes**, re-run `uv run python benchmarks/agent/splice_tables.py`
+and update the arm B table in `RESULTS-agent.md` from two trials to three. The
+section already written says two, and says so explicitly.
+
+**Two KV directories now, on purpose.** `~/.ds4/server-kv` is MTP-off,
+`~/.ds4/server-kv-mtp` is MTP-on. They are not interchangeable -- ds4 rejects
+the other's checkpoints -- and mixing them is what the trap above describes.
+
+**Arm A vs arm B, two trials, paired on the 16 cells that passed in both:**
+wall B/A **0.97** (no difference measured), throughput **65.7 vs 81.9 s/1k**,
+but arm B emits **21% more tokens**, so the throughput gain does not reach wall
+time. Pass 26/30 vs 19/30, and that gap is **not** attributable to speculation
+because MTP also changes the sampler.
+
+### As left at 2026-09-03 04:40 EDT, for the previous session
 
 **Left running on purpose, because item 1 (#77 arm B) uses both:**
 

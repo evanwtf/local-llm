@@ -153,7 +153,7 @@ other is telling you something.
 
 <!-- BEGIN GENERATED -->
 
-*Generated from `results.jsonl` — 1211 rows, sha256 2742c226e136.*
+*Generated from `results.jsonl` — 1245 rows, sha256 6fa7d0399a55.*
 
 #### Every stack measured under OpenCode
 
@@ -161,6 +161,7 @@ other is telling you something.
 |---|---|---|---|---|
 | ornith15 | 21/21 | 44s | 93s | 5.9x |
 | Qwen3.8-Flash-Next Q3 - llama.cpp | 30/30 | 90s | 208s | 4.8x |
+| qwen38fnds4mtp7shim | 19/31 | 93s | 304s | 35.0x |
 | DeepSeek-V4-Flash - ds4 (Anthropic wire) | 18/18 | 110s | 221s | 4.3x |
 | qwen38fnq3reap | 21/21 | 110s | 261s | 6.8x |
 | DeepSeek-V4-Flash - ds4 | 30/30 | 115s | 230s | 4.3x |
@@ -200,6 +201,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | DeepSeek-V4-Flash - ds4 (Anthropic wire) | 54s |
 | GLM-5.3-Flash - ds4 | 55s |
 | Qwen3.6-27B-coding - Ollama | 69s |
+| qwen38fnds4mtp7shim | 69s |
 | DeepSeek-V4-Flash - ds4 | 71s |
 | gemma4 | 84s |
 | qwen38fnds4shim | 87s |
