@@ -2526,3 +2526,68 @@ monotonic decline across a 90-minute session, and arm A did the same thing (13, 
 Both arms' third trials are the worst, in fresh conversations. Until that is understood,
 **arm B's 25/45 is not a measurement of MTP** — it is a measurement of MTP plus whatever is
 degrading the session, and the two are not separated.
+
+### 2026-09-03, later: restart-between-trials eliminates the trial-3 collapse (#112)
+
+Three trials of `qwen38fnds4shim` under OpenCode, each in its own `run.py`
+invocation with a fresh `ds4-server` restart between each trial. Same argv,
+same shim, same weights, same reference repos as the original arm A. Only
+change: server state cleared between trials.
+
+**Per-trial pass rates, restart-between vs the original arm A three-trial run:**
+
+| trial | original arm A | restart-between | delta |
+|---|---|---|---|
+| 1 | 13/15 | **14/15** | +1 |
+| 2 | 13/15 | **14/15** | +1 |
+| 3 | **10/15** | **14/15** | **+4** |
+| total | 36/45 (80%) | **42/45 (93%)** | +6 |
+
+**The trial-3 collapse vanishes.** Restart-between holds a flat 14/15 across
+all three trials. Every trial's single failure is a *different* task
+(`mbox-strip-envelope` in T1, `storage-put-and-sweep` in T2, `parser-date` in
+T3), so nothing failed consistently. Two of the three fails are the classic
+turn-1 fast-fail (6.4 s, 8.5 s) and the third is a proper wrong-code failure
+(261.8 s, 49/6 pass). Stochastic per-trial noise, not systematic decline.
+
+**Wall times per trial also stopped drifting.**
+
+| trial | original arm A median | restart-between median |
+|---|---|---|
+| 1 | 111.8 s | 142.3 s |
+| 2 | 130.9 s | 116.8 s |
+| 3 | (declining) | 117.1 s |
+
+The restart cycle's trial 3 median (117.1 s) matches trial 2 (116.8 s)
+almost exactly. The original run's trial 3 wall times had been drifting
+upward alongside its declining pass rate; here they do not.
+
+**What is settled and what is not:**
+
+- **Server state is the cause of the trial-3 decline.** Not model context (each
+  trial is a fresh conversation, in both cycles), not machine state per se — a
+  ds4-server restart is enough to clear it. The disk KV budget candidate
+  NEXT.md flagged is the plausible mechanism: 8192 MB is sized for DeepSeek
+  and Qwen3.8-Flash-Next's entries are larger; the cache thrashes as the
+  session progresses.
+- **What ds4-server actually accumulates has not been identified.** The disk
+  KV budget is a hypothesis, not a proof; other candidates (internal buffer
+  pools, prefix-cache metadata) remain. But whichever mechanism it is, a
+  restart clears it, which makes the operational fix trivial.
+- **The improvement passes #23's resolution bar in the per-trial pattern**
+  (10/15 → 14/15 in trial 3 is 40%, well above ~26%). It does not clear it on
+  the pooled 36/45 → 42/45 total, whose 95% Clopper-Pearson intervals overlap
+  (65-90% vs 82-99%). So the finding to state is "the per-trial decline is
+  gone", not "arm A is now 93%".
+
+**Consequence for [#77](https://github.com/evanwtf/local-llm/issues/77) arm B.** That run degraded to 6/15 in its own trial 3,
+and it inherited the same server-state contamination. Its pass-rate result
+(19/30 vs A's 26/30) measured MTP-plus-state, not MTP. A re-run of arm B
+with restart-between-trials is now the honest measurement, and it would go
+head-to-head against the 42/45 baseline recorded here.
+
+**Consequence for the harness generally.** `scripts/restart_between_trials.sh`
+committed today is the recipe. Making it the default -- e.g. `run.py` restarts
+the server between trials for ds4 backends -- is a real change and worth
+considering. Do not do that quietly; it would invalidate every existing ds4
+row's comparability to a future one.

@@ -1,0 +1,9 @@
+2026-09-03 11:19:22,527 INFO [2077bee@M5-Max-128GB] 2026-09-03T15:19:22Z (11:19:22 EDT) | harness 2077bee
+2026-09-03 11:19:22,543 INFO [2077bee@M5-Max-128GB]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-03 11:19:22,742 INFO [2077bee@M5-Max-128GB] 2095469288908095920  VERIFIED post  @Beamsters1  Thu Sep 03 11:09:45 +0000 2026  via fxtwitter
+2026-09-03 11:19:22,742 INFO [2077bee@M5-Max-128GB]     Qwen3.8 Flash Next upgraded to 1m context. Fits with 92.4GB so Mac 96 GB can use up to 512/768k easily. Per at long ladder is thermal throttle so real thing will be a lot faster than that. (at least 4
+2026-09-03 11:19:22,742 INFO [2077bee@M5-Max-128GB] 
+2026-09-03 11:19:22,742 INFO [2077bee@M5-Max-128GB] Verified 1: 1 confirmed, 0 not.
+2026-09-03 11:19:22,742 INFO [2077bee@M5-Max-128GB] Paste onto the issue:
+2026-09-03 11:19:22,742 INFO [2077bee@M5-Max-128GB]   **Verified** 2026-09-03: post exists, authored by @Beamsters1, posted Thu Sep 03 11:09:45 +0000 2026.
+2026-09-03 11:19:22,742 INFO [2077bee@M5-Max-128GB] log: /Users/evanhoffman/git/local-llm/logs/sweeps/verify-posts-M5-Max-128GB-20260903T151922Z.log
