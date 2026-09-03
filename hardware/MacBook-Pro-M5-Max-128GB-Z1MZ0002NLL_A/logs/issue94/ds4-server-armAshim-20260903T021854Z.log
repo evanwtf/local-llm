@@ -1,0 +1,16 @@
+ds4: warming mapped tensor pages: 73.57 GiB
+ds4: warmed tensor pages in 4.329s (checksum=626506950)
+ds4: trusted local Qwen artifacts; payload checksum scan skipped
+ds4: Qwen tensor directory bound: 1211 tensors (1211 graph inputs), 48 layers, Q4_K/Q4_K routed + BF16 embedding/control + Q8_0 GDN/QSA + Q8_0 shared/output
+ds4: Qwen fast pack accepted: id=cbadff6365a353a938aef98e469b831b version=3 profile=q4_k base_files=1 tensor_manifest=93e91b17c9ccf1bd...
+ds4: derived Q8_0 hyper-connection profile: 194 matrices, 0.63 GiB (from 1.18 GiB BF16) in 0.024s
+ds4: Metal device Apple M5 Max, 128.00 GiB RAM
+ds4: Metal 4 tensor API enabled for Tensor kernels
+ds4: drift-patch flags hc_stable=on norm_unify=on kv_raw_f32=off rope_exp2_log2=off math_safe=off tensor_matmul=on
+ds4: Metal model views created in 1.685 ms, residency requested in 271.517 ms, warmup 3.097 ms (mapped 75984.34 MiB from offset 0.00 MiB)
+ds4: Metal mapped 2 Qwen GGUF artifacts as 2 shared views
+ds4: Qwen prefill admission: cap=8192 required=3.37 GiB available=27.11 GiB recommended_working_set=112.00 GiB reason=complete fast path and 8K scratch admitted
+0902 22:18:58 ds4-server: context buffers 384.19 MiB (ctx=100000, backend=metal, prefill_chunk=8192, raw_kv_rows=8192, compressed_kv_rows=3)
+ds4: Qwen graph allocated: ctx=100000 work_cap=8192 QSA=BF16 microtile=512 PLE=SSD-pread/Q4_1-to-BF16-double-buffer GDN-control=BF16 GDN-state=BF16 GDN-qkvz=Q8-concat GDN-out=Q8-HC-fused MoE-down=Q4_0-expert-split MTP=off verifier=off
+0902 22:18:58 ds4-server: KV disk cache /Users/evanhoffman/.ds4/server-kv (budget=8192 MiB, cross-quant=accept, min=512, cold_max=30000, continued=10000, trim=32, align=2048, hit_half_life=21600s)
+0902 22:18:58 ds4-server: listening on http://127.0.0.1:8000

@@ -136,7 +136,7 @@ results:
 
 `qwen38fnq3reap` · `gemma426` · `qwen36a3b` · `qwen` · `qwen36` · `qwen38flashnext` · `qwen38fnq2` ·
 `qwen38fnq4m64` · `ornith15llamacpp` · `glm53` · `glm52ds4` · `glm53ds4shim` ·
-`mtplx` · `opus5` · `qwen38fnds4` · `qwen38fnds4mtp7`
+`mtplx` · `opus5` · `qwen38fnds4` · `qwen38fnds4mtp7` · `qwen38fnds4shim`
 
 **`qwen38fnds4` and `qwen38fnds4mtp7` are the engine isolation for
 Qwen3.8-Flash-Next** (#94), the pair that answers a question the set could not
@@ -144,6 +144,15 @@ previously ask. Every row we have for this model is llama.cpp, so "ds4 is
 faster" and "this model is faster" have never been separable. Both backends are
 the same weights on the same binary; only MTP speculation differs, so the pair
 also isolates speculative decoding without changing the model.
+
+**`qwen38fnds4shim` is the same server behind a one-line prompt rewrite** and is the
+only backend in the set that carries a deliberate prompt confound. `ds4_qwen_tool_shim.py`
+appends a system line naming the tool-call format, because this model emits the XML
+dialect about half the time and ds4 retries only once before giving up. Without it a run
+is 45 trials and 0 passes with `num_turns=1` on every row; with it, tool calls measured
+12/12 against 9/12 direct. The line names a serialisation format and gives no task help,
+which is what makes it defensible, but `qwen38fnds4` vs `qwen38fnds4shim` is the pair that
+measures its cost and any comparison to llama.cpp must state it.
 
 The pack is `ivanfioravanti/Qwen3.8-Flash-Next-DS4-Q4`, a **DS4 fast-pack, not
 a llama.cpp GGUF** — standard GGUF tools will not load it. Runtime is the
