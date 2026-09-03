@@ -2302,3 +2302,124 @@ appear to this morning.
 written incorrect code here.** Its failures are missing edits, not wrong ones —
 a plumbing failure, not a reasoning one, which is why #56 asks whether a
 different open agent charges less for the same property.
+
+---
+
+## 2026-09-03 — Qwen3.8-Flash-Next on ds4: the missing engine cell, and why it read as 0/45
+
+**Backend `qwen38fnds4shim`, OpenCode 1.18.27, 15 tasks x 3 trials, harness `47a1d9f`.**
+
+| | |
+|---|---|
+| excision tasks | **30/39**, median **139.9 s**, worst 791.6 s, spread 113.1x |
+| script tasks | **6/6** |
+| **all trials** | **36/45** |
+
+The previous measurement of this backend was **0/45**. Nothing about the model
+or the engine changed between the two. What changed is that the shim now takes
+tool requests off ds4's **streaming** path.
+
+### The defect the 0/45 actually measured
+
+ds4's server log had been saying it plainly all along:
+
+```
+TOOLS invalid tool call returned as assistant text finish=stop [text_len=231 saw_start=1 saw_end=1 ...]
+```
+
+`text_len=231` — ds4 believes it is handing back 231 characters of assistant
+text. Off-stream it does. **On-stream it does not**: the client receives no
+content, no `tool_calls`, and `finish_reason=stop` — a completely empty turn.
+
+One identical request, both arms interleaved so session drift hit them equally,
+12 samples each:
+
+| arm | `tool_calls` | XML as text | nothing at all |
+|---|---|---|---|
+| `stream: true` | 1/12 | 0/12 | **11/12** |
+| `stream: false` | 7/12 | 5/12 | 0/12 |
+
+OpenCode sets `stream: true`. The 45 trials ended on turn one with
+`solution_empty: true` because the turn genuinely arrived empty.
+
+**This is why the earlier prompt-engineering results made no sense.** The shim's
+format instruction measured **12/12 synthetic** and **0/6 → 1/6 under OpenCode**
+on the same text. The synthetic harness sent `stream: false`; OpenCode sent
+`stream: true`. Two arms differing in a variable nobody had registered as one —
+the failure this repo already names in *"Observe the wire call, not the status
+code"*. The instruction was never weak; it was measured through a path that
+discards its effect.
+
+### The fix, and what it costs
+
+The shim asks upstream for a non-streaming completion whenever the request
+carries tools, translates the XML dialect if it still appears, and synthesises
+the SSE stream the client asked for. Three arms, interleaved, same server:
+
+| arm | valid tool call |
+|---|---|
+| direct, streaming | **0/12** |
+| direct, non-streaming | 4/12 |
+| **through the shim** | **12/12** |
+
+**The XML translator fired 28 times across the 45 trials.** It never fired on
+the twelve synthetic samples, where the instruction alone was enough. That gap
+is the measurement: under OpenCode's 26 KB prompt the model reaches for the XML
+dialect far more often, exactly as the earlier comment suspected — it just was
+not what made the runs unrecoverable.
+
+**Confounds, all three.** A `qwen38fnds4shim` row (a) carries one system line
+naming the tool-call format, (b) **did not stream from the engine**, and (c) may
+have had its tool call rewritten in flight. Wall time should be unaffected — a
+tool call cannot be acted on before it is complete — but this row is not
+comparable to a streaming backend, and the quant differs from the llama.cpp
+`qwen38fnq3` cell (Q4_0-routed here, Q3 there), so engine and quant are still
+not separated by that pair alone.
+
+### What the nine failures are, and they are all one thing
+
+Every one of the nine is `solution_empty: true`. None is wrong code. Reading the
+transcripts, the residual mode is a **degeneration loop**, and it is a different
+defect from the one just fixed:
+
+```
+"The tool call format got broken. I need to output valid JSON inside the invoke tag."
+</think>
+<tool_call>
+<tool_call>
+<tool_call>
+<tool_call>            <- x38, no function name, nothing to translate
+```
+
+Once a tool error enters the conversation the model starts **narrating about the
+format instead of calling**, then emits stacked bare `<tool_call>` opens. The
+translator declines these correctly: there is no `<function=` and so no call to
+recover.
+
+One transcript shows a **third dialect** the translator does not yet handle:
+
+```
+<invoke name="read">
+  <parameter name="filePath">/Users/.../storage.py</parameter>
+</invoke>
+```
+
+That is the Claude/Anthropic tool syntax. It is cheap to add and is **not** in
+the code these 45 trials ran through.
+
+The failures also cluster late — 2, 2 and 5 across trials 1, 2 and 3. That is
+consistent with a context-poisoning cascade rather than a per-call coin flip,
+but three trials cannot establish it and it is not claimed here.
+
+### What this does and does not settle
+
+**#60's engine-isolation cell is now reachable**, which it was not this morning.
+It is not yet *clean*: 36/45 is 80%, and at this sample size the honest reading
+is ">62%" — not a number to rank against `qwen38fnq3`'s 30/30. Per #23, the
+suite totals would need to differ by ~26% before a difference is real.
+
+**#77 is unblocked.** MTP arm B can now run, because arm A completes tasks.
+
+**A ds4 bug worth reporting upstream, independent of our shim.** The streaming
+path drops assistant text it has explicitly decided to return, and it does so
+silently — any streaming client sees an empty turn and no error.

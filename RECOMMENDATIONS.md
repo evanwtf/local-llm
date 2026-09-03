@@ -153,7 +153,7 @@ other is telling you something.
 
 <!-- BEGIN GENERATED -->
 
-*Generated from `results.jsonl` — 1166 rows, sha256 6b3d613eb6e8.*
+*Generated from `results.jsonl` — 1211 rows, sha256 2742c226e136.*
 
 #### Every stack measured under OpenCode
 
@@ -165,8 +165,8 @@ other is telling you something.
 | qwen38fnq3reap | 21/21 | 110s | 261s | 6.8x |
 | DeepSeek-V4-Flash - ds4 | 30/30 | 115s | 230s | 4.3x |
 | Qwen3.8-Flash-Next Q3 - LM Studio | 21/21 | 122s | 261s | 4.2x |
+| qwen38fnds4shim | 36/45 | 140s | 792s | 113.1x |
 | gemma426 | 11/11 | 150s | 160s | 1.7x |
-| qwen38fnds4shim | 1/1 | 151s | 151s | 1.0x |
 | Qwen3.6-27B-coding - Ollama | 24/24 | 167s | 700s | 12.6x |
 | qwen36 | 11/12 | 173s | 565s | 5.7x |
 | qwen | 12/12 | 247s | 406s | 4.0x |
@@ -202,8 +202,8 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | Qwen3.6-27B-coding - Ollama | 69s |
 | DeepSeek-V4-Flash - ds4 | 71s |
 | gemma4 | 84s |
+| qwen38fnds4shim | 87s |
 | Qwen3.8-Flash-Next Q3 - LM Studio | 115s |
-| qwen38fnds4shim | 171s |
 
 <!-- END GENERATED -->
 
