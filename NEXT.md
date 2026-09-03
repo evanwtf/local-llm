@@ -18,12 +18,12 @@ Ordered by **value per hour**, not by issue age. Ten items; everything else is
 in the tracker.
 
 **Where this machine stands.** Six backends have valid current data. The
-Qwen3.8-Flash-Next ds4 fast-pack is now the best-measured new cell — 36/45 for
-arm A (median 139.9 s) after [#94](https://github.com/evanwtf/local-llm/issues/94) fixed ds4's streaming path, and arm B at
-`--mtp-draft 7` measured no wall-time gain over three trials. But both arms
-degrade monotonically across their session (A 13/13/10, B 10/9/6), in fresh
-conversations. **That is item 1**, and it is the actual blocker on every other
-MTP question here.
+Qwen3.8-Flash-Next ds4 fast-pack is the best-measured new cell — 42/45 for arm
+A (14/14/14) when `ds4-server` is restarted between trials, up from 36/45
+(13/13/10) with a single continuous server. The decline was server state, not
+model context ([#112](https://github.com/evanwtf/local-llm/issues/112)). The arm B (MTP 7) measurement of 19/30 vs 25/45 was
+taken under the same contamination and needs re-running under restart-between
+before it says anything about MTP itself.
 
 **The cross-cutting risk, which has no Mac issue of its own.** OpenCode
 auto-updated **1.18.26 → 1.18.27** unasked, and on the Linux tier that roughly
@@ -69,7 +69,7 @@ expires — Ollama updates itself from the GUI — so it sits above better scien
 
 | # | issue | why here |
 |---|---|---|
-| 1 | **[#112](https://github.com/evanwtf/local-llm/issues/112)** the session-state degradation, restart-between-trials test | **Now the blocker on every ds4 Qwen result.** Both arms of #77 degrade monotonically across their session — arm A 13/15, 13/15, **10/15** and arm B 10/15, 9/15, **6/15**, every trial a fresh conversation. That rules out model context; it points at server or machine state. Until it is separated, any pass-rate difference on this backend measures state-plus-effect rather than the effect. **Cheapest first test: restart `ds4-server` between trials on arm A and see whether the per-trial decline disappears.** ~90 minutes of unattended machine time; needs no new code, only three `--trials 1` invocations with a restart between each. Recovering the 9 failed trials on `qwen38fnds4shim` would take that cell from 36/45 into rankable territory against `qwen38fnq3`'s 30/30. |
+| 1 | **[#112](https://github.com/evanwtf/local-llm/issues/112) → server-state identified, mechanism unknown; and re-run #77 arm B under the same restart** | **Restart-between-trials landed 14/14/14 for arm A**, against the original 13/13/10 (measured 2026-09-03). Server state is the cause; model context is ruled out. Which piece of server state is not yet identified — disk KV budget (`--kv-disk-space-mb 8192`, sized for DeepSeek not Qwen) is the leading hypothesis. **Two cheap next tests:** raise the disk KV budget to 32768 and re-run **without** restart — if the decline reappears the KV is confirmed, if it does not the effect is elsewhere. Then re-run #77 arm B (`qwen38fnds4mtp7shim`) under restart-between-trials, since its 19/30 result was MTP-plus-state and needs to be MTP-only for the MTP question to be answered. Reference: `scripts/restart_between_trials.sh`. |
 | 2 | **[#109](https://github.com/evanwtf/local-llm/issues/109)** llama.cpp claims >2x qwen4exp prefill by bypassing mmap | **The only outside claim this week that clears our resolution with room to spare**, and it lands on `qwen38fnq3` — our most-measured backend (30/30, 89.6s median). The author traced real-world prefill collapsing 700+ → 300 t/s to **mmap over-read on the PLE table**. Measured on a DGX Spark, so it is a lead, not a result. **The discriminating experiment does not need the PR at all**: measure prefill on a repeated-token prompt against a real agent prompt of the same length on our current build. If the gap reproduces on Metal the mechanism is here; if prefill is flat, it is a CUDA story and we stop. Either way it tells us how much our prefill numbers depend on prompt *content*, which we have never established. |
 | 3 | **[#84](https://github.com/evanwtf/local-llm/issues/84)** upgrading Ollama silently changes the sampler | **A loaded gun, not yet fired.** [ollama#16471](https://github.com/ollama/ollama/pull/16471) ships in 0.33.3 and honors model-authored sampler defaults, which would silently change `ornith15`'s sampler — *the exact class of change that took a pass rate from 20/21 to 7/15 in [#36](https://github.com/evanwtf/local-llm/issues/36)*. We are on 0.33.2 and the app updates itself from the GUI. Decide and pin **before** anyone clicks update; afterwards the rows look normal and the cause is invisible. Cheap, and it expires. |
 | 4 | **[#96](https://github.com/evanwtf/local-llm/issues/96)** oMLX per-turn TTFT | **First step landed 2026-09-03 in `ee0228e`**: every OpenCode row now carries `step_ttft_ms_median`, `model_step_ttft_ms_median`, and a `_p90`. So the metric exists before oMLX is built, and our current per-turn TTFT is measurable rather than guessed at. Real transcript: 6.7 s and 4.8 s per real model turn, comfortably in @Spangler3000's claimed 3-4 s baseline range. The 0.3 s claim would be a ~90% reduction, well above #23's ±27.9%. Remaining work is the oMLX build and a direct comparison — machine time and Rust deps, no new harness code. |
@@ -169,7 +169,7 @@ informative.
 
 ### As left at 2026-09-03 05:45 EDT, for the next session
 
-**Nothing is benchmarking.** Arm B finished 06:15; `run.py` restored both reference
+**Nothing is benchmarking.** #112 restart-between-trials cycle finished 12:16 (42/45, 14/14/14). Arm B (MTP 7) needs re-running under restart. Earlier: arm B finished 06:15; `run.py` restored both reference
 repos (`gmail-archive` @ `56e55cc`, `monitor` @ `cbb85ca`) and the tables are
 re-spliced. Still up and holding memory, deliberately, for the next MTP arm:
 
