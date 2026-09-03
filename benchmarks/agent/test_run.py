@@ -253,7 +253,13 @@ def test_an_empty_modelfile_records_that_defaults_apply_rather_than_nothing():
     """
     got = run.parse_ollama_show({"modelfile": "FROM x\nTEMPLATE y\n"})
     assert got["sampling"] == {}
-    assert got["sampling_source"] == "engine defaults (unrecorded)"
+    # The string now also names WHICH engine rule applied: ollama#16471 changed
+    # sampler precedence in 0.33.3, so a bare "engine defaults (unrecorded)"
+    # described two different samplers either side of that release (#84).
+    # It must still read as unrecorded -- naming the regime is not reading the
+    # resolved values. test_ollama_sampler_regime.py pins the boundary.
+    assert "unrecorded" in got["sampling_source"]
+    assert got["sampling_source"].startswith("engine defaults")
 
 
 def test_a_malformed_parameter_line_is_skipped_not_guessed():

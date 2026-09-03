@@ -254,7 +254,33 @@ def summarise_run(stdout, stderr):
     return "no output"
 
 
-def parse_ollama_show(show):
+# ollama#16471 shipped in 0.33.3-rc0 and changed sampler precedence so that
+# model-authored defaults (GGUF KVs, MLX generation_config.json) beat Ollama's
+# own built-ins. See #84. The boundary is pinned by a test using these literals.
+OLLAMA_MODEL_DEFAULTS_FROM = (0, 33, 3)
+
+
+def ollama_honors_model_defaults(version):
+    """True from 0.33.3, False before it, None when the version is unreadable.
+
+    None rather than False on purpose: guessing "old" would let a row taken
+    after the upgrade claim the pre-upgrade sampler, which is the silent
+    mislabelling this whole guard exists to prevent.
+    """
+    if not version:
+        return None
+    head = str(version).strip().lstrip("v").split("-")[0]
+    parts = head.split(".")
+    try:
+        numbers = tuple(int(part) for part in parts[:3])
+    except ValueError:
+        return None
+    if len(numbers) < 3:
+        return None
+    return numbers >= OLLAMA_MODEL_DEFAULTS_FROM
+
+
+def parse_ollama_show(show, ollama_version=None):
     """Read the sampler out of an Ollama `/api/show` response.
 
     Ollama reports a model's *modelfile*, not the sampler actually in force. If
@@ -278,10 +304,29 @@ def parse_ollama_show(show):
         parts = line.split()
         if len(parts) >= 3 and parts[0].upper() == "PARAMETER":
             sampling[parts[1]] = parts[2]
-    return {
-        "sampling": sampling,
-        "sampling_source": "modelfile" if sampling else "engine defaults (unrecorded)",
-    }
+    if sampling:
+        # Precedence 2 still wins after ollama#16471, so these rows keep their
+        # meaning across the upgrade.
+        return {"sampling": sampling, "sampling_source": "modelfile"}
+
+    # No modelfile parameters: the engine decides, and WHICH engine rule applies
+    # changed in 0.33.3. Naming the regime is not the same as reading the
+    # resolved values -- it stays "unrecorded" either way -- but it stops one
+    # string describing two different samplers.
+    honors = ollama_honors_model_defaults(ollama_version)
+    if honors is None:
+        regime = "engine defaults (unrecorded; ollama version unknown)"
+    elif honors:
+        regime = (
+            "engine defaults (unrecorded; model-authored GGUF/generation_config "
+            "defaults honored, ollama >= 0.33.3)"
+        )
+    else:
+        regime = (
+            "engine defaults (unrecorded; ollama built-in defaults, "
+            "ollama <= 0.33.2)"
+        )
+    return {"sampling": sampling, "sampling_source": regime}
 
 
 def probe_ollama(backend):
@@ -298,7 +343,13 @@ def probe_ollama(backend):
     )
     try:
         with urllib.request.urlopen(request, timeout=10) as fh:
-            return parse_ollama_show(json.load(fh))
+            # The installed version decides which sampler precedence applies,
+            # so the row records the regime rather than a bare "engine
+            # defaults" that means two different things either side of 0.33.3.
+            return parse_ollama_show(
+                json.load(fh),
+                ollama_version=provenance.engine_versions().get("ollama"),
+            )
     except (
         urllib.error.URLError,
         TimeoutError,
