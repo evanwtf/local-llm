@@ -17,8 +17,27 @@ run: 15 tasks x 3 trials, 0 passed, `num_turns=1` and `solution_empty=true` on
 every row, while the engine underneath was doing 40 t/s decode and 1107 t/s
 prefill.
 
-Naming the format in the system message fixes it -- measured 10/10 against a
-8/10 baseline on the same prompts and sizes.
+Naming the format in the system message fixes it **on synthetic prompts** --
+measured 12/12 through this shim against 9/12 direct, and 5/5 against 2/5 with
+ten tools declared.
+
+**It does NOT fix it under OpenCode, and that is the open problem.** Against
+OpenCode's real 26 KB system prompt, measured on the captured payload:
+
+    no instruction                     0/6
+    instruction (naming the XML too)   1/6
+    instruction (positive shape only)  1/6
+
+So the client's prompt, not prompt size and not tool count, is what drives this
+model to the XML dialect -- and a system line barely dents it. OpenCode's prompt
+contains no XML tool syntax of its own, so this is not imitation of an example.
+The negation theory ("never use <function=...>" showing the model the very
+syntax) is also dead: both variants measure the same.
+
+The fix this points to is translation, not instruction: buffer the response and
+convert an XML tool call into a proper JSON tool call, so the model never has to
+comply. OpenCode sets stream:true, so that means rewriting the SSE stream rather
+than a single JSON body. Not yet implemented.
 
 **This is a confound and must be recorded as one.** A backend behind this shim
 runs with one system line no other backend gets. It names a serialisation
@@ -40,6 +59,8 @@ import argparse
 import http.server
 import json
 import logging
+import os
+import pathlib
 import sys
 import urllib.error
 import urllib.request
@@ -130,8 +151,26 @@ def rewrite(body: bytes) -> bytes:
     if not isinstance(payload, dict) or not needs_instruction(payload):
         return body
     if not add_instruction(payload):
+        logger.warning(
+            "could NOT add instruction; message roles=%s",
+            [
+                m.get("role")
+                for m in payload.get("messages") or []
+                if isinstance(m, dict)
+            ],
+        )
         return body
     stats["instructed"] += 1
+    dump = os.environ.get("SHIM_DUMP")
+    if dump and stats["instructed"] == 1:
+        pathlib.Path(dump).write_text(json.dumps(payload, indent=1))
+        logger.info("dumped first instructed payload to %s", dump)
+    logger.info(
+        "instructed request %d (tools=%d, messages=%d)",
+        stats["instructed"],
+        len(payload.get("tools") or []),
+        len(payload.get("messages") or []),
+    )
     return json.dumps(payload).encode()
 
 

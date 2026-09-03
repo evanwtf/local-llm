@@ -68,8 +68,16 @@ def test_a_non_json_body_passes_through_unchanged() -> None:
     assert shim.rewrite(b"not json at all") == b"not json at all"
 
 
-def test_the_instruction_names_both_dialects() -> None:
-    """It must say what to emit AND what not to -- naming only one measured worse."""
+def test_the_instruction_states_the_json_shape() -> None:
+    """It must name the shape ds4 parses.
+
+    An earlier version of this test asserted the instruction should also name
+    the XML dialect it forbids, on the theory that saying both worked better.
+    That was written from a guess, not a measurement, and the measurement
+    disagrees: against OpenCode's real 26k system prompt the two variants are
+    indistinguishable -- 1/6 valid either way, against 0/6 with no instruction
+    at all. Naming the forbidden dialect neither helps nor primes. Only the
+    positive shape is asserted here.
+    """
     assert '"name" and "arguments"' in shim.INSTRUCTION
     assert "<tool_call>" in shim.INSTRUCTION
-    assert "<function=" in shim.INSTRUCTION

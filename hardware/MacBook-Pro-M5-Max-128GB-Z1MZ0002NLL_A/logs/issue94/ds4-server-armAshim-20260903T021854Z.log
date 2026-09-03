@@ -14,3 +14,1155 @@ ds4: Qwen prefill admission: cap=8192 required=3.37 GiB available=27.11 GiB reco
 ds4: Qwen graph allocated: ctx=100000 work_cap=8192 QSA=BF16 microtile=512 PLE=SSD-pread/Q4_1-to-BF16-double-buffer GDN-control=BF16 GDN-state=BF16 GDN-qkvz=Q8-concat GDN-out=Q8-HC-fused MoE-down=Q4_0-expert-split MTP=off verifier=off
 0902 22:18:58 ds4-server: KV disk cache /Users/evanhoffman/.ds4/server-kv (budget=8192 MiB, cross-quant=accept, min=512, cold_max=30000, continued=10000, trim=32, align=2048, hit_half_life=21600s)
 0902 22:18:58 ds4-server: listening on http://127.0.0.1:8000
+0902 22:20:51 ds4-server: chat ctx=0..56:56 prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=uncached suffix shorter than 8192
+0902 22:20:52 ds4-server: chat ctx=0..56:56 prefill chunk 56/56 (100.0%) chunk=0.00 t/s avg=103.59 t/s 0.541s
+0902 22:20:52 ds4-server: chat ctx=0..56:56 prompt done 0.541s
+0902 22:20:53 ds4-server: chat ctx=56..104:48 gen=48 decoding chunk=45.79 t/s avg=45.79 t/s 1.048s
+0902 22:20:53 ds4-server: thinking live checkpoint remembered ctx=0..56:56 live=104 visible=348
+0902 22:20:53 ds4-server: chat ctx=0..56:56 gen=48 finish=stop 1.589s
+0902 22:20:53 ds4-server: live kv cache miss live=104 prompt=89 common=7 reason=token-mismatch
+0902 22:20:53 ds4-server: chat ctx=0..89:89 prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=uncached suffix shorter than 8192
+0902 22:20:53 ds4-server: chat ctx=0..89:89 prefill chunk 89/89 (100.0%) chunk=0.00 t/s avg=263.66 t/s 0.338s
+0902 22:20:53 ds4-server: chat ctx=0..89:89 prompt done 0.338s
+0902 22:20:54 ds4-server: chat ctx=89..139:50 gen=50 THINKING decoding chunk=46.01 t/s avg=46.01 t/s 1.087s
+0902 22:20:55 ds4-server: chat ctx=139..189:50 gen=100 decoding chunk=45.86 t/s avg=45.93 t/s 2.177s
+0902 22:20:56 ds4-server: chat ctx=189..233:44 gen=144 decoding chunk=45.70 t/s avg=45.86 t/s 3.140s
+0902 22:20:56 ds4-server: thinking live checkpoint remembered ctx=0..89:89 live=233 visible=490
+0902 22:20:56 ds4-server: chat ctx=0..89:89 gen=144 finish=stop 3.477s
+0902 22:20:56 ds4-server: live kv cache miss live=233 prompt=88 common=7 reason=token-mismatch
+0902 22:20:56 ds4-server: chat ctx=0..88:88 prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=uncached suffix shorter than 8192
+0902 22:20:56 ds4-server: chat ctx=0..88:88 prefill chunk 88/88 (100.0%) chunk=0.00 t/s avg=263.64 t/s 0.334s
+0902 22:20:56 ds4-server: chat ctx=0..88:88 prompt done 0.334s
+0902 22:20:57 ds4-server: chat ctx=88..138:50 gen=50 THINKING decoding chunk=45.66 t/s avg=45.66 t/s 1.095s
+0902 22:20:59 ds4-server: chat ctx=138..188:50 gen=100 decoding chunk=45.95 t/s avg=45.81 t/s 2.183s
+0902 22:21:00 ds4-server: chat ctx=188..238:50 gen=150 decoding chunk=45.79 t/s avg=45.80 t/s 3.275s
+0902 22:21:01 ds4-server: chat ctx=238..288:50 gen=200 decoding chunk=45.96 t/s avg=45.84 t/s 4.363s
+0902 22:21:01 ds4-server: chat ctx=288..293:5 gen=205 decoding chunk=45.91 t/s avg=45.84 t/s 4.472s
+0902 22:21:01 ds4-server: thinking live checkpoint remembered ctx=0..88:88 live=293 visible=672
+0902 22:21:01 ds4-server: chat ctx=0..88:88 gen=205 finish=stop 4.806s
+0902 22:21:10 ds4-server: live kv cache miss live=293 prompt=11434 common=1 reason=token-mismatch
+0902 22:21:10 ds4-server: chat ctx=0..11434:11434 TOOLS prompt start
+ds4: Qwen prefill selected chunk=8192 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=cold Qwen native path
+0902 22:21:17 ds4-server: chat ctx=0..11434:11434 TOOLS prefill chunk 8192/11434 (71.6%) chunk=0.00 t/s avg=1270.52 t/s 6.448s
+0902 22:21:19 ds4-server: chat ctx=0..11434:11434 TOOLS prefill chunk 10240/11434 (89.6%) chunk=1121.60 t/s avg=1237.65 t/s 8.274s
+0902 22:21:19 ds4-server: kv cache evicted reason=disk-cache-full tokens=17758 hits=0 size=596.34 MiB file=/Users/evanhoffman/.ds4/server-kv/2775969081d7b65c1af4d4d9016b0acbfc706b3c.kv
+0902 22:21:19 ds4-server: kv cache stored tokens=10240 trimmed=1194 reason=cold key=token-text size=392.50 MiB save=63.8 ms
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:21:20 ds4-server: chat ctx=0..11434:11434 TOOLS prefill chunk 11434/11434 (100.0%) chunk=873.09 t/s avg=1185.94 t/s 9.641s
+0902 22:21:20 ds4-server: chat ctx=0..11434:11434 TOOLS prompt done 9.641s
+0902 22:21:21 ds4-server: chat ctx=11434..11484:50 gen=50 TOOLS DSML_START decoding chunk=39.90 t/s avg=39.90 t/s 1.253s
+0902 22:21:21 ds4-server: chat ctx=11484..11494:10 gen=60 TOOLS DSML_START DSML_END decoding chunk=40.16 t/s avg=39.94 t/s 1.502s
+0902 22:21:21 ds4-server: chat ctx=0..11434:11434 TOOLS invalid tool call returned as assistant text finish=stop [text_len=241 saw_start=1 saw_end=1 text_snippet: I'll start by looking through the codebase to understand what we're working with.
+</think>
+
+<tool_call>
+<function=read>
+<parameter=filePath>
+/Users/evanhoffman/git/gmail-archive/src/gmail_archive/mbox.py
+</parameter>
+</function>
+</tool_call>]
+0902 22:21:21 ds4-server: chat ctx=0..11434:11434 TOOLS invalid tool call dsml_snippet: <tool_call>
+<function=read>
+<parameter=filePath>
+/Users/evanhoffman/git/gmail-archive/src/gmail_archive/mbox.py
+</parameter>
+</function>
+</tool_call>
+0902 22:21:21 ds4-server: chat ctx=0..11434:11434 gen=60 TOOLS DSML_START DSML_END finish=stop 11.144s
+0902 22:21:35 ds4-server: live kv cache miss live=11494 prompt=11447 common=11290 reason=token-mismatch
+0902 22:21:35 ds4-server: kv cache evicted reason=disk-cache-full tokens=10240 hits=0 size=392.50 MiB file=/Users/evanhoffman/.ds4/server-kv/2be7a7dbe21315de8bf27c95d37b99d1e6df5e39.kv
+0902 22:21:35 ds4-server: kv cache stored tokens=11494 trimmed=0 reason=evict key=token-text size=426.49 MiB save=40.2 ms
+0902 22:21:35 ds4-server: chat ctx=0..11447:11447 TOOLS prompt start
+ds4: Qwen prefill selected chunk=8192 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=cold Qwen native path
+0902 22:21:42 ds4-server: chat ctx=0..11447:11447 TOOLS prefill chunk 8192/11447 (71.6%) chunk=0.00 t/s avg=1268.62 t/s 6.457s
+0902 22:21:44 ds4-server: chat ctx=0..11447:11447 TOOLS prefill chunk 10240/11447 (89.5%) chunk=1123.60 t/s avg=1236.69 t/s 8.280s
+0902 22:21:44 ds4-server: kv cache evicted reason=disk-cache-full tokens=11494 hits=0 size=426.49 MiB file=/Users/evanhoffman/.ds4/server-kv/d787f620608c8c464a25ffb550240f2ec2f725e5.kv
+0902 22:21:44 ds4-server: kv cache stored tokens=10240 trimmed=1207 reason=cold key=token-text size=392.50 MiB save=42.7 ms
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:21:45 ds4-server: chat ctx=0..11447:11447 TOOLS prefill chunk 11447/11447 (100.0%) chunk=884.35 t/s avg=1186.83 t/s 9.645s
+0902 22:21:45 ds4-server: chat ctx=0..11447:11447 TOOLS prompt done 9.645s
+0902 22:21:46 ds4-server: chat ctx=11447..11497:50 gen=50 TOOLS DSML_START decoding chunk=40.01 t/s avg=40.01 t/s 1.250s
+0902 22:21:46 ds4-server: chat ctx=11497..11501:4 gen=54 TOOLS DSML_START DSML_END decoding chunk=40.10 t/s avg=40.01 t/s 1.350s
+0902 22:21:46 ds4-server: chat ctx=0..11447:11447 TOOLS invalid tool call returned as assistant text finish=stop [text_len=226 saw_start=1 saw_end=1 text_snippet: I'm checking the parser file and reviewing the associated tests.
+</think>
+
+<tool_call>
+<function=read>
+<parameter=filePath>
+/Users/evanhoffman/git/gmail-archive/src/gmail_archive/parser.py
+</parameter>
+</function>
+</tool_call>]
+0902 22:21:46 ds4-server: chat ctx=0..11447:11447 TOOLS invalid tool call dsml_snippet: <tool_call>
+<function=read>
+<parameter=filePath>
+/Users/evanhoffman/git/gmail-archive/src/gmail_archive/parser.py
+</parameter>
+</function>
+</tool_call>
+0902 22:21:46 ds4-server: chat ctx=0..11447:11447 gen=54 TOOLS DSML_START DSML_END finish=stop 10.995s
+0902 22:21:56 ds4-server: live kv cache miss live=11501 prompt=11433 common=11290 reason=token-mismatch
+0902 22:21:56 ds4-server: kv cache evicted reason=disk-cache-full tokens=10240 hits=0 size=392.50 MiB file=/Users/evanhoffman/.ds4/server-kv/2be7a7dbe21315de8bf27c95d37b99d1e6df5e39.kv
+0902 22:21:56 ds4-server: kv cache stored tokens=11501 trimmed=0 reason=evict key=token-text size=426.69 MiB save=46.6 ms
+0902 22:21:56 ds4-server: chat ctx=0..11433:11433 TOOLS prompt start
+ds4: Qwen prefill selected chunk=8192 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=cold Qwen native path
+0902 22:22:03 ds4-server: chat ctx=0..11433:11433 TOOLS prefill chunk 8192/11433 (71.7%) chunk=0.00 t/s avg=1210.17 t/s 6.769s
+0902 22:22:05 ds4-server: chat ctx=0..11433:11433 TOOLS prefill chunk 10240/11433 (89.6%) chunk=1053.61 t/s avg=1175.25 t/s 8.713s
+0902 22:22:05 ds4-server: kv cache evicted reason=disk-cache-full tokens=11501 hits=0 size=426.69 MiB file=/Users/evanhoffman/.ds4/server-kv/ff8409ded8729aa4a99b04932e073dade59a5d4e.kv
+0902 22:22:05 ds4-server: kv cache stored tokens=10240 trimmed=1193 reason=cold key=token-text size=392.50 MiB save=39.8 ms
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:22:06 ds4-server: chat ctx=0..11433:11433 TOOLS prefill chunk 11433/11433 (100.0%) chunk=843.58 t/s avg=1128.93 t/s 10.127s
+0902 22:22:06 ds4-server: chat ctx=0..11433:11433 TOOLS prompt done 10.127s
+0902 22:22:07 ds4-server: chat ctx=11433..11483:50 gen=50 TOOLS DSML_START decoding chunk=39.69 t/s avg=39.69 t/s 1.260s
+0902 22:22:07 ds4-server: chat ctx=11483..11486:3 gen=53 TOOLS DSML_START DSML_END decoding chunk=39.79 t/s avg=39.70 t/s 1.335s
+0902 22:22:07 ds4-server: chat ctx=0..11433:11433 TOOLS invalid tool call returned as assistant text finish=stop [text_len=208 saw_start=1 saw_end=1 text_snippet: I'll check the file and try running the test.
+</think>
+
+<tool_call>
+<function=read>
+<parameter=filePath>
+/Users/evanhoffman/git/gmail-archive/src/gmail_archive/storage.py
+</parameter>
+</function>
+</tool_call>]
+0902 22:22:07 ds4-server: chat ctx=0..11433:11433 TOOLS invalid tool call dsml_snippet: <tool_call>
+<function=read>
+<parameter=filePath>
+/Users/evanhoffman/git/gmail-archive/src/gmail_archive/storage.py
+</parameter>
+</function>
+</tool_call>
+0902 22:22:07 ds4-server: chat ctx=0..11433:11433 gen=53 TOOLS DSML_START DSML_END finish=stop 11.463s
+0902 22:22:21 ds4-server: live kv cache miss live=11486 prompt=11434 common=10537 reason=token-mismatch
+0902 22:22:21 ds4-server: kv cache evicted reason=disk-cache-full tokens=10240 hits=0 size=392.50 MiB file=/Users/evanhoffman/.ds4/server-kv/2be7a7dbe21315de8bf27c95d37b99d1e6df5e39.kv
+0902 22:22:21 ds4-server: kv cache stored tokens=11486 trimmed=0 reason=evict key=token-text size=426.28 MiB save=40.6 ms
+0902 22:22:21 ds4-server: chat ctx=0..11434:11434 TOOLS prompt start
+ds4: Qwen prefill selected chunk=8192 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=cold Qwen native path
+0902 22:22:28 ds4-server: chat ctx=0..11434:11434 TOOLS prefill chunk 8192/11434 (71.6%) chunk=0.00 t/s avg=1224.10 t/s 6.692s
+0902 22:22:30 ds4-server: chat ctx=0..11434:11434 TOOLS prefill chunk 10240/11434 (89.6%) chunk=1066.96 t/s avg=1189.07 t/s 8.612s
+0902 22:22:30 ds4-server: kv cache evicted reason=disk-cache-full tokens=11486 hits=0 size=426.28 MiB file=/Users/evanhoffman/.ds4/server-kv/4df1ab9cd24f5115250ce3c1a6ac6ef27827288e.kv
+0902 22:22:30 ds4-server: kv cache stored tokens=10240 trimmed=1194 reason=cold key=token-text size=392.50 MiB save=39.9 ms
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:22:31 ds4-server: chat ctx=0..11434:11434 TOOLS prefill chunk 11434/11434 (100.0%) chunk=858.85 t/s avg=1143.17 t/s 10.002s
+0902 22:22:31 ds4-server: chat ctx=0..11434:11434 TOOLS prompt done 10.002s
+0902 22:22:33 ds4-server: chat ctx=11434..11484:50 gen=50 TOOLS DSML_START decoding chunk=39.02 t/s avg=39.02 t/s 1.281s
+0902 22:22:33 ds4-server: chat ctx=11484..11493:9 gen=59 TOOLS DSML_START DSML_END decoding chunk=39.76 t/s avg=39.13 t/s 1.508s
+0902 22:22:33 ds4-server: chat ctx=0..11434:11434 TOOLS invalid tool call returned as assistant text finish=stop [text_len=232 saw_start=1 saw_end=1 text_snippet: I'll check the parser.py file and try to look for tests related to it.
+</think>
+
+<tool_call>
+<function=read>
+<parameter=filePath>
+/Users/evanhoffman/git/gmail-archive/src/gmail_archive/parser.py
+</parameter>
+</function>
+</tool_call>]
+0902 22:22:33 ds4-server: chat ctx=0..11434:11434 TOOLS invalid tool call dsml_snippet: <tool_call>
+<function=read>
+<parameter=filePath>
+/Users/evanhoffman/git/gmail-archive/src/gmail_archive/parser.py
+</parameter>
+</function>
+</tool_call>
+0902 22:22:33 ds4-server: chat ctx=0..11434:11434 gen=59 TOOLS DSML_START DSML_END finish=stop 11.510s
+0902 22:22:43 ds4-server: live kv cache miss live=11493 prompt=11430 common=10537 reason=token-mismatch
+0902 22:22:43 ds4-server: kv cache evicted reason=disk-cache-full tokens=10240 hits=0 size=392.50 MiB file=/Users/evanhoffman/.ds4/server-kv/2be7a7dbe21315de8bf27c95d37b99d1e6df5e39.kv
+0902 22:22:43 ds4-server: kv cache stored tokens=11493 trimmed=0 reason=evict key=token-text size=426.47 MiB save=43.6 ms
+0902 22:22:43 ds4-server: chat ctx=0..11430:11430 TOOLS prompt start
+ds4: Qwen prefill selected chunk=8192 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=cold Qwen native path
+0902 22:22:49 ds4-server: chat ctx=0..11430:11430 TOOLS prefill chunk 8192/11430 (71.7%) chunk=0.00 t/s avg=1239.30 t/s 6.610s
+0902 22:22:51 ds4-server: chat ctx=0..11430:11430 TOOLS prefill chunk 10240/11430 (89.6%) chunk=1111.62 t/s avg=1211.47 t/s 8.453s
+0902 22:22:51 ds4-server: kv cache evicted reason=disk-cache-full tokens=11493 hits=0 size=426.47 MiB file=/Users/evanhoffman/.ds4/server-kv/b4f29d3e7cd5e598637b9d819cacc50d8bf09b9a.kv
+0902 22:22:51 ds4-server: kv cache stored tokens=10240 trimmed=1190 reason=cold key=token-text size=392.50 MiB save=40.5 ms
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:22:53 ds4-server: chat ctx=0..11430:11430 TOOLS prefill chunk 11430/11430 (100.0%) chunk=896.81 t/s avg=1168.77 t/s 9.779s
+0902 22:22:53 ds4-server: chat ctx=0..11430:11430 TOOLS prompt done 9.780s
+0902 22:22:54 ds4-server: chat ctx=11430..11480:50 gen=50 TOOLS DSML_START decoding chunk=39.20 t/s avg=39.20 t/s 1.276s
+0902 22:22:54 ds4-server: chat ctx=11480..11486:6 gen=56 TOOLS DSML_START DSML_END decoding chunk=39.58 t/s avg=39.24 t/s 1.427s
+0902 22:22:54 ds4-server: chat ctx=0..11430:11430 TOOLS invalid tool call returned as assistant text finish=stop [text_len=219 saw_start=1 saw_end=1 text_snippet: I'll check the files and tests to understand what's needed.
+</think>
+
+<tool_call>
+<function=read>
+<parameter=filePath>
+/Users/evanhoffman/git/gmail-archive/src/gmail_archive/mbox.py
+</parameter>
+</function>
+</tool_call>]
+0902 22:22:54 ds4-server: chat ctx=0..11430:11430 TOOLS invalid tool call dsml_snippet: <tool_call>
+<function=read>
+<parameter=filePath>
+/Users/evanhoffman/git/gmail-archive/src/gmail_archive/mbox.py
+</parameter>
+</function>
+</tool_call>
+0902 22:22:54 ds4-server: chat ctx=0..11430:11430 gen=56 TOOLS DSML_START DSML_END finish=stop 11.207s
+0902 22:23:08 ds4-server: live kv cache miss live=11486 prompt=20023 common=6762 reason=token-mismatch
+0902 22:23:08 ds4-server: kv cache evicted reason=disk-cache-full tokens=10240 hits=0 size=392.50 MiB file=/Users/evanhoffman/.ds4/server-kv/2be7a7dbe21315de8bf27c95d37b99d1e6df5e39.kv
+0902 22:23:08 ds4-server: kv cache stored tokens=11486 trimmed=0 reason=evict key=token-text size=426.28 MiB save=48.6 ms
+0902 22:23:08 ds4-server: chat ctx=0..20023:20023 TOOLS prompt start
+ds4: Qwen prefill selected chunk=8192 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=cold Qwen native path
+0902 22:23:17 ds4-server: chat ctx=0..20023:20023 TOOLS prefill chunk 8192/20023 (40.9%) chunk=0.00 t/s avg=918.98 t/s 8.914s
+0902 22:23:26 ds4-server: chat ctx=0..20023:20023 TOOLS prefill chunk 16384/20023 (81.8%) chunk=896.37 t/s avg=907.54 t/s 18.053s
+0902 22:23:29 ds4-server: chat ctx=0..20023:20023 TOOLS prefill chunk 18432/20023 (92.1%) chunk=817.23 t/s avg=896.53 t/s 20.559s
+0902 22:23:29 ds4-server: kv cache evicted reason=disk-cache-full tokens=11486 hits=0 size=426.28 MiB file=/Users/evanhoffman/.ds4/server-kv/95487838b7f92588e900d34a0b1d0ea5b621ad76.kv
+0902 22:23:29 ds4-server: kv cache stored tokens=18432 trimmed=1591 reason=cold key=token-text size=614.57 MiB save=109.8 ms
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:23:31 ds4-server: chat ctx=0..20023:20023 TOOLS prefill chunk 20023/20023 (100.0%) chunk=672.81 t/s avg=873.45 t/s 22.924s
+0902 22:23:31 ds4-server: chat ctx=0..20023:20023 TOOLS prompt done 22.924s
+0902 22:23:33 ds4-server: chat ctx=20023..20073:50 gen=50 TOOLS DSML_START decoding chunk=36.63 t/s avg=36.63 t/s 1.365s
+0902 22:23:33 ds4-server: chat ctx=20073..20084:11 gen=61 TOOLS DSML_START DSML_END decoding chunk=40.15 t/s avg=37.22 t/s 1.639s
+0902 22:23:33 ds4-server: chat ctx=0..20023:20023 TOOLS invalid tool call returned as assistant text finish=stop [text_len=240 saw_start=1 saw_end=1 text_snippet: I need to look at the file and tests to understand what's being asked here.
+</think>
+
+<tool_call>
+<function=read>
+<parameter=filePath>
+/Users/evanhoffman/git/monitor/Sources/MonitorCore/Downsample.swift
+</parameter>
+</function>
+</tool_call>]
+0902 22:23:33 ds4-server: chat ctx=0..20023:20023 TOOLS invalid tool call dsml_snippet: <tool_call>
+<function=read>
+<parameter=filePath>
+/Users/evanhoffman/git/monitor/Sources/MonitorCore/Downsample.swift
+</parameter>
+</function>
+</tool_call>
+0902 22:23:33 ds4-server: chat ctx=0..20023:20023 gen=61 TOOLS DSML_START DSML_END finish=stop 24.563s
+0902 22:24:11 ds4-server: live kv cache miss live=20084 prompt=11433 common=6762 reason=token-mismatch
+0902 22:24:11 ds4-server: kv cache evicted reason=disk-cache-full tokens=18432 hits=0 size=614.57 MiB file=/Users/evanhoffman/.ds4/server-kv/ec9ada4ec2571be93a5f859796147abb77ad5812.kv
+0902 22:24:11 ds4-server: kv cache stored tokens=20084 trimmed=0 reason=evict key=token-text size=659.35 MiB save=97.1 ms
+0902 22:24:11 ds4-server: chat ctx=0..11433:11433 TOOLS prompt start
+ds4: Qwen prefill selected chunk=8192 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=cold Qwen native path
+0902 22:24:20 ds4-server: chat ctx=0..11433:11433 TOOLS prefill chunk 8192/11433 (71.7%) chunk=0.00 t/s avg=916.94 t/s 8.934s
+0902 22:24:22 ds4-server: chat ctx=0..11433:11433 TOOLS prefill chunk 10240/11433 (89.6%) chunk=892.90 t/s avg=912.03 t/s 11.228s
+0902 22:24:23 ds4-server: kv cache evicted reason=disk-cache-full tokens=20084 hits=0 size=659.35 MiB file=/Users/evanhoffman/.ds4/server-kv/3e3c70d0108ad0fddd000598c289df3af74b2475.kv
+0902 22:24:23 ds4-server: kv cache stored tokens=10240 trimmed=1193 reason=cold key=token-text size=392.50 MiB save=38.9 ms
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:24:24 ds4-server: chat ctx=0..11433:11433 TOOLS prefill chunk 11433/11433 (100.0%) chunk=765.91 t/s avg=894.23 t/s 12.785s
+0902 22:24:24 ds4-server: chat ctx=0..11433:11433 TOOLS prompt done 12.785s
+0902 22:24:25 ds4-server: chat ctx=11433..11483:50 gen=50 TOOLS DSML_START decoding chunk=37.40 t/s avg=37.40 t/s 1.337s
+0902 22:24:26 ds4-server: chat ctx=11483..11507:24 gen=74 TOOLS DSML_START DSML_END decoding chunk=38.93 t/s avg=37.88 t/s 1.953s
+0902 22:24:26 ds4-server: chat ctx=0..11433:11433 TOOLS invalid tool call returned as assistant text finish=stop [text_len=270 saw_start=1 saw_end=1 text_snippet: I'll check the files and try to look for tests related to strip_envelope.
+</think>
+
+<tool_call>
+<|im_start|>function>
+<parameter name="command">rg -n "strip_envelope" -C 5 src/gmail_archive/mbox.py; rg -rn "strip_envelope" tests/ -l
+</parameter>
+</function>
+</tool_call>]
+0902 22:24:26 ds4-server: chat ctx=0..11433:11433 TOOLS invalid tool call dsml_snippet: <tool_call>
+<|im_start|>function>
+<parameter name="command">rg -n "strip_envelope" -C 5 src/gmail_archive/mbox.py; rg -rn "strip_envelope" tests/ -l
+</parameter>
+</function>
+</tool_call>
+0902 22:24:26 ds4-server: chat ctx=0..11433:11433 gen=74 TOOLS DSML_START DSML_END finish=stop 14.739s
+0902 22:24:46 ds4-server: live kv cache miss live=11507 prompt=200 common=42 reason=token-mismatch
+0902 22:24:46 ds4-server: kv cache evicted reason=disk-cache-full tokens=10240 hits=0 size=392.50 MiB file=/Users/evanhoffman/.ds4/server-kv/2be7a7dbe21315de8bf27c95d37b99d1e6df5e39.kv
+0902 22:24:46 ds4-server: kv cache stored tokens=11507 trimmed=0 reason=evict key=token-text size=426.85 MiB save=49.2 ms
+0902 22:24:46 ds4-server: chat ctx=0..200:200 TOOLS prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=uncached suffix shorter than 8192
+0902 22:24:47 ds4-server: chat ctx=0..200:200 TOOLS prefill chunk 200/200 (100.0%) chunk=0.00 t/s avg=204.56 t/s 0.978s
+0902 22:24:47 ds4-server: chat ctx=0..200:200 TOOLS prompt done 0.978s
+0902 22:24:48 ds4-server: chat ctx=200..250:50 gen=50 TOOLS DSML_START decoding chunk=44.13 t/s avg=44.13 t/s 1.133s
+0902 22:24:49 ds4-server: chat ctx=250..265:15 gen=65 TOOLS DSML_START DSML_END decoding chunk=45.38 t/s avg=44.42 t/s 1.463s
+0902 22:24:49 ds4-server: tool calls ctx=0..200:200 n=1 raw_tool_text=1 ids=[call_a67b86a70424f3bfe08c2b8ab490b7eb] names=[read]
+0902 22:24:49 ds4-server: chat ctx=0..200:200 gen=65 TOOLS DSML_START DSML_END finish=tool_calls 2.441s
+0902 22:24:49 ds4-server: live kv cache miss live=265 prompt=4919 common=176 reason=token-mismatch
+0902 22:24:49 ds4-server: chat ctx=0..4919:4919 TOOLS prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=uncached suffix shorter than 8192
+0902 22:24:50 ds4-server: chat ctx=0..4919:4919 TOOLS prefill chunk 2048/4919 (41.6%) chunk=0.00 t/s avg=1442.89 t/s 1.419s
+0902 22:24:52 ds4-server: chat ctx=0..4919:4919 TOOLS prefill chunk 4096/4919 (83.3%) chunk=1270.30 t/s avg=1351.10 t/s 3.032s
+0902 22:24:52 ds4-server: kv cache stored tokens=4096 trimmed=823 reason=cold key=token-text size=225.96 MiB save=26.8 ms
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:24:53 ds4-server: chat ctx=0..4919:4919 TOOLS prefill chunk 4919/4919 (100.0%) chunk=942.56 t/s avg=1259.75 t/s 3.905s
+0902 22:24:53 ds4-server: chat ctx=0..4919:4919 TOOLS prompt done 3.905s
+0902 22:24:53 ds4-server: chat ctx=4919..4960:41 gen=41 TOOLS DSML_START DSML_END decoding chunk=43.04 t/s avg=43.04 t/s 0.953s
+0902 22:24:53 ds4-server: tool calls ctx=0..4919:4919 n=1 raw_tool_text=1 ids=[call_a1110a6413cbe5023486c451311292bf] names=[read]
+0902 22:24:53 ds4-server: chat ctx=0..4919:4919 gen=41 TOOLS DSML_START DSML_END finish=tool_calls 4.858s
+0902 22:24:53 ds4-server: live kv cache miss live=4960 prompt=9511 common=4894 reason=token-mismatch
+0902 22:24:54 ds4-server: kv cache evicted reason=disk-cache-full tokens=4096 hits=0 size=225.96 MiB file=/Users/evanhoffman/.ds4/server-kv/7db20b35b559b4f0621d15ba2bfea43246d582c1.kv
+0902 22:24:54 ds4-server: kv cache evicted reason=disk-cache-full tokens=11507 hits=0 size=426.85 MiB file=/Users/evanhoffman/.ds4/server-kv/1c3ac6b5649d31a8db90cb205dc925af9e260d12.kv
+0902 22:24:54 ds4-server: kv cache stored tokens=4960 trimmed=0 reason=evict key=token-text size=249.39 MiB save=29.2 ms
+0902 22:24:54 ds4-server: chat ctx=0..9511:9511 TOOLS prompt start
+ds4: Qwen prefill selected chunk=8192 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=cold Qwen native path
+0902 22:25:00 ds4-server: chat ctx=0..9511:9511 TOOLS prefill chunk 8192/9511 (86.1%) chunk=0.00 t/s avg=1279.44 t/s 6.403s
+0902 22:25:00 ds4-server: kv cache stored tokens=8192 trimmed=1319 reason=cold key=token-text size=337.01 MiB save=41.5 ms
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:25:01 ds4-server: chat ctx=0..9511:9511 TOOLS prefill chunk 9511/9511 (100.0%) chunk=952.30 t/s avg=1221.26 t/s 7.788s
+0902 22:25:01 ds4-server: chat ctx=0..9511:9511 TOOLS prompt done 7.788s
+0902 22:25:02 ds4-server: chat ctx=9511..9557:46 gen=46 TOOLS DSML_START DSML_END decoding chunk=41.48 t/s avg=41.48 t/s 1.109s
+0902 22:25:02 ds4-server: chat ctx=0..9511:9511 TOOLS invalid tool call; continuing with model-visible tool error
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:25:03 ds4-server: chat ctx=0..9511:9511 TOOLS tool-error continuation appended 60 tokens
+0902 22:25:04 ds4-server: chat ctx=9511..9554:43 gen=43 TOOLS DSML_START DSML_END decoding chunk=41.77 t/s avg=41.77 t/s 1.029s
+0902 22:25:04 ds4-server: chat ctx=0..9511:9511 TOOLS invalid tool call returned as assistant text finish=stop [text_len=170 saw_start=1 saw_end=1 text_snippet: The tool call failed. Let me try again with the correct format.
+</think>
+
+<tool_call>
+<function=read>
+<parameter=filePath>
+/tmp/x.py
+</parameter>
+</function>
+</tool_call>]
+0902 22:25:04 ds4-server: chat ctx=0..9511:9511 TOOLS invalid tool call dsml_snippet: <tool_call>
+<function=read>
+<parameter=filePath>
+/tmp/x.py
+</parameter>
+</function>
+</tool_call>
+0902 22:25:04 ds4-server: chat ctx=0..9511:9511 gen=43 TOOLS DSML_START DSML_END finish=stop 10.190s
+0902 22:25:04 ds4-server: live kv cache miss live=9660 prompt=200 common=176 reason=token-mismatch
+0902 22:25:04 ds4-server: kv cache evicted reason=disk-cache-full tokens=4960 hits=0 size=249.39 MiB file=/Users/evanhoffman/.ds4/server-kv/eded19c336645a81069bd0f6d0a55dd08348baba.kv
+0902 22:25:04 ds4-server: kv cache evicted reason=disk-cache-full tokens=8192 hits=0 size=337.01 MiB file=/Users/evanhoffman/.ds4/server-kv/1124654427424f25ea19740d3f81540df26e8f92.kv
+0902 22:25:04 ds4-server: kv cache stored tokens=9660 trimmed=0 reason=evict key=token-text size=376.80 MiB save=45.0 ms
+0902 22:25:04 ds4-server: chat ctx=0..200:200 TOOLS prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=uncached suffix shorter than 8192
+0902 22:25:05 ds4-server: chat ctx=0..200:200 TOOLS prefill chunk 200/200 (100.0%) chunk=0.00 t/s avg=294.84 t/s 0.678s
+0902 22:25:05 ds4-server: chat ctx=0..200:200 TOOLS prompt done 0.678s
+0902 22:25:06 ds4-server: chat ctx=200..250:50 gen=50 TOOLS DSML_START decoding chunk=45.51 t/s avg=45.51 t/s 1.099s
+0902 22:25:06 ds4-server: chat ctx=250..265:15 gen=65 TOOLS DSML_START DSML_END decoding chunk=45.51 t/s avg=45.51 t/s 1.428s
+0902 22:25:06 ds4-server: tool calls ctx=0..200:200 n=1 raw_tool_text=1 ids=[call_45cee2a488350b63b3a7729e2cc2f748] names=[read]
+0902 22:25:06 ds4-server: chat ctx=0..200:200 gen=65 TOOLS DSML_START DSML_END finish=tool_calls 2.107s
+0902 22:25:06 ds4-server: live kv cache miss live=265 prompt=9511 common=176 reason=token-mismatch
+0902 22:25:06 ds4-server: chat ctx=0..9511:9511 TOOLS prompt start
+ds4: Qwen prefill selected chunk=8192 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=cold Qwen native path
+0902 22:25:12 ds4-server: chat ctx=0..9511:9511 TOOLS prefill chunk 8192/9511 (86.1%) chunk=0.00 t/s avg=1313.58 t/s 6.236s
+0902 22:25:12 ds4-server: kv cache evicted reason=disk-cache-full tokens=9660 hits=0 size=376.80 MiB file=/Users/evanhoffman/.ds4/server-kv/cde6cad84f673ee0dd47f3ac41f53e7d4b92c879.kv
+0902 22:25:12 ds4-server: kv cache stored tokens=8192 trimmed=1319 reason=cold key=token-text size=337.01 MiB save=40.5 ms
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:25:14 ds4-server: chat ctx=0..9511:9511 TOOLS prefill chunk 9511/9511 (100.0%) chunk=918.09 t/s avg=1239.53 t/s 7.673s
+0902 22:25:14 ds4-server: chat ctx=0..9511:9511 TOOLS prompt done 7.673s
+0902 22:25:15 ds4-server: chat ctx=9511..9557:46 gen=46 TOOLS DSML_START DSML_END decoding chunk=41.03 t/s avg=41.03 t/s 1.121s
+0902 22:25:15 ds4-server: chat ctx=0..9511:9511 TOOLS invalid tool call; continuing with model-visible tool error
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:25:15 ds4-server: chat ctx=0..9511:9511 TOOLS tool-error continuation appended 60 tokens
+0902 22:25:16 ds4-server: chat ctx=9511..9554:43 gen=43 TOOLS DSML_START DSML_END decoding chunk=41.92 t/s avg=41.92 t/s 1.026s
+0902 22:25:16 ds4-server: chat ctx=0..9511:9511 TOOLS invalid tool call returned as assistant text finish=stop [text_len=170 saw_start=1 saw_end=1 text_snippet: The tool call failed. Let me try again with the correct format.
+</think>
+
+<tool_call>
+<function=read>
+<parameter=filePath>
+/tmp/x.py
+</parameter>
+</function>
+</tool_call>]
+0902 22:25:16 ds4-server: chat ctx=0..9511:9511 TOOLS invalid tool call dsml_snippet: <tool_call>
+<function=read>
+<parameter=filePath>
+/tmp/x.py
+</parameter>
+</function>
+</tool_call>
+0902 22:25:16 ds4-server: chat ctx=0..9511:9511 gen=43 TOOLS DSML_START DSML_END finish=stop 10.085s
+0902 22:25:16 ds4-server: live kv cache miss live=9660 prompt=268 common=175 reason=token-mismatch
+0902 22:25:16 ds4-server: kv cache evicted reason=disk-cache-full tokens=8192 hits=0 size=337.01 MiB file=/Users/evanhoffman/.ds4/server-kv/1124654427424f25ea19740d3f81540df26e8f92.kv
+0902 22:25:16 ds4-server: kv cache stored tokens=9660 trimmed=0 reason=evict key=token-text size=376.80 MiB save=46.0 ms
+0902 22:25:16 ds4-server: chat ctx=0..268:268 TOOLS prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=uncached suffix shorter than 8192
+0902 22:25:17 ds4-server: chat ctx=0..268:268 TOOLS prefill chunk 268/268 (100.0%) chunk=0.00 t/s avg=297.69 t/s 0.900s
+0902 22:25:17 ds4-server: chat ctx=0..268:268 TOOLS prompt done 0.900s
+0902 22:25:18 ds4-server: chat ctx=268..308:40 gen=40 TOOLS DSML_START DSML_END decoding chunk=45.24 t/s avg=45.24 t/s 0.884s
+0902 22:25:18 ds4-server: tool calls ctx=0..268:268 n=1 raw_tool_text=1 ids=[call_f8e81d0de2e8ac78e67e01c3905eefbf] names=[read]
+0902 22:25:18 ds4-server: chat ctx=0..268:268 gen=40 TOOLS DSML_START DSML_END finish=tool_calls 1.785s
+0902 22:25:18 ds4-server: live kv cache miss live=308 prompt=4987 common=175 reason=token-mismatch
+0902 22:25:18 ds4-server: chat ctx=0..4987:4987 TOOLS prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=uncached suffix shorter than 8192
+0902 22:25:19 ds4-server: chat ctx=0..4987:4987 TOOLS prefill chunk 2048/4987 (41.1%) chunk=0.00 t/s avg=1388.41 t/s 1.475s
+0902 22:25:21 ds4-server: chat ctx=0..4987:4987 TOOLS prefill chunk 4096/4987 (82.1%) chunk=1159.41 t/s avg=1263.62 t/s 3.241s
+0902 22:25:21 ds4-server: kv cache stored tokens=4096 trimmed=891 reason=cold key=token-text size=225.96 MiB save=26.7 ms
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:25:22 ds4-server: chat ctx=0..4987:4987 TOOLS prefill chunk 4987/4987 (100.0%) chunk=874.99 t/s avg=1170.72 t/s 4.260s
+0902 22:25:22 ds4-server: chat ctx=0..4987:4987 TOOLS prompt done 4.260s
+0902 22:25:23 ds4-server: chat ctx=4987..5028:41 gen=41 TOOLS DSML_START DSML_END decoding chunk=41.89 t/s avg=41.89 t/s 0.979s
+0902 22:25:23 ds4-server: tool calls ctx=0..4987:4987 n=1 raw_tool_text=1 ids=[call_96c11b9fea80d4fe49ce36e31765f0f1] names=[read]
+0902 22:25:23 ds4-server: chat ctx=0..4987:4987 gen=41 TOOLS DSML_START DSML_END finish=tool_calls 5.239s
+0902 22:25:23 ds4-server: live kv cache miss live=5028 prompt=9579 common=4894 reason=token-mismatch
+0902 22:25:23 ds4-server: kv cache evicted reason=disk-cache-full tokens=4096 hits=0 size=225.96 MiB file=/Users/evanhoffman/.ds4/server-kv/7db20b35b559b4f0621d15ba2bfea43246d582c1.kv
+0902 22:25:23 ds4-server: kv cache stored tokens=5028 trimmed=0 reason=evict key=token-text size=251.23 MiB save=30.4 ms
+0902 22:25:23 ds4-server: chat ctx=0..9579:9579 TOOLS prompt start
+ds4: Qwen prefill selected chunk=8192 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=cold Qwen native path
+0902 22:25:30 ds4-server: chat ctx=0..9579:9579 TOOLS prefill chunk 8192/9579 (85.5%) chunk=0.00 t/s avg=1219.21 t/s 6.719s
+0902 22:25:30 ds4-server: kv cache evicted reason=disk-cache-full tokens=5028 hits=0 size=251.23 MiB file=/Users/evanhoffman/.ds4/server-kv/abc54c9e339116a111cf422a61e31a7d09e7dcca.kv
+0902 22:25:30 ds4-server: kv cache evicted reason=disk-cache-full tokens=9660 hits=0 size=376.80 MiB file=/Users/evanhoffman/.ds4/server-kv/cde6cad84f673ee0dd47f3ac41f53e7d4b92c879.kv
+0902 22:25:30 ds4-server: kv cache stored tokens=8192 trimmed=1387 reason=cold key=token-text size=337.01 MiB save=40.1 ms
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:25:32 ds4-server: chat ctx=0..9579:9579 TOOLS prefill chunk 9579/9579 (100.0%) chunk=906.21 t/s avg=1161.14 t/s 8.250s
+0902 22:25:32 ds4-server: chat ctx=0..9579:9579 TOOLS prompt done 8.250s
+0902 22:25:33 ds4-server: chat ctx=9579..9620:41 gen=41 TOOLS DSML_START DSML_END decoding chunk=40.51 t/s avg=40.51 t/s 1.012s
+0902 22:25:33 ds4-server: tool calls ctx=0..9579:9579 n=1 raw_tool_text=1 ids=[call_a944093e3964b7dad5689786d1d65b33] names=[read]
+0902 22:25:33 ds4-server: chat ctx=0..9579:9579 gen=41 TOOLS DSML_START DSML_END finish=tool_calls 9.262s
+0902 22:25:33 ds4-server: live kv cache miss live=9620 prompt=268 common=175 reason=token-mismatch
+0902 22:25:33 ds4-server: kv cache evicted reason=disk-cache-full tokens=8192 hits=0 size=337.01 MiB file=/Users/evanhoffman/.ds4/server-kv/1124654427424f25ea19740d3f81540df26e8f92.kv
+0902 22:25:33 ds4-server: kv cache stored tokens=9620 trimmed=0 reason=evict key=token-text size=375.72 MiB save=45.1 ms
+0902 22:25:33 ds4-server: chat ctx=0..268:268 TOOLS prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=uncached suffix shorter than 8192
+0902 22:25:34 ds4-server: chat ctx=0..268:268 TOOLS prefill chunk 268/268 (100.0%) chunk=0.00 t/s avg=285.54 t/s 0.939s
+0902 22:25:34 ds4-server: chat ctx=0..268:268 TOOLS prompt done 0.939s
+0902 22:25:34 ds4-server: chat ctx=268..308:40 gen=40 TOOLS DSML_START DSML_END decoding chunk=44.76 t/s avg=44.76 t/s 0.894s
+0902 22:25:34 ds4-server: tool calls ctx=0..268:268 n=1 raw_tool_text=1 ids=[call_fe3fe545563e943ee76cbba2b3d7cba3] names=[read]
+0902 22:25:34 ds4-server: chat ctx=0..268:268 gen=40 TOOLS DSML_START DSML_END finish=tool_calls 1.832s
+0902 22:25:34 ds4-server: live kv cache miss live=308 prompt=9579 common=175 reason=token-mismatch
+0902 22:25:34 ds4-server: chat ctx=0..9579:9579 TOOLS prompt start
+ds4: Qwen prefill selected chunk=8192 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=cold Qwen native path
+0902 22:25:41 ds4-server: chat ctx=0..9579:9579 TOOLS prefill chunk 8192/9579 (85.5%) chunk=0.00 t/s avg=1206.34 t/s 6.791s
+0902 22:25:41 ds4-server: kv cache evicted reason=disk-cache-full tokens=9620 hits=0 size=375.72 MiB file=/Users/evanhoffman/.ds4/server-kv/d8c9256478b8605eeacb09c2e8b941e03de39cf4.kv
+0902 22:25:41 ds4-server: kv cache stored tokens=8192 trimmed=1387 reason=cold key=token-text size=337.01 MiB save=39.8 ms
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:25:43 ds4-server: chat ctx=0..9579:9579 TOOLS prefill chunk 9579/9579 (100.0%) chunk=906.55 t/s avg=1151.22 t/s 8.321s
+0902 22:25:43 ds4-server: chat ctx=0..9579:9579 TOOLS prompt done 8.321s
+0902 22:25:44 ds4-server: chat ctx=9579..9620:41 gen=41 TOOLS DSML_START DSML_END decoding chunk=40.91 t/s avg=40.91 t/s 1.002s
+0902 22:25:44 ds4-server: tool calls ctx=0..9579:9579 n=1 raw_tool_text=1 ids=[call_6e3da38f9eb75946c78fbf3a5d26f7ac] names=[read]
+0902 22:25:44 ds4-server: chat ctx=0..9579:9579 gen=41 TOOLS DSML_START DSML_END finish=tool_calls 9.323s
+0902 22:25:44 ds4-server: live kv cache miss live=9620 prompt=1031 common=130 reason=token-mismatch
+0902 22:25:44 ds4-server: kv cache evicted reason=disk-cache-full tokens=8192 hits=0 size=337.01 MiB file=/Users/evanhoffman/.ds4/server-kv/1124654427424f25ea19740d3f81540df26e8f92.kv
+0902 22:25:44 ds4-server: kv cache stored tokens=9620 trimmed=0 reason=evict key=token-text size=375.72 MiB save=45.6 ms
+0902 22:25:44 ds4-server: chat ctx=0..1031:1031 TOOLS prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=uncached suffix shorter than 8192
+0902 22:25:45 ds4-server: chat ctx=0..1031:1031 TOOLS prefill chunk 1031/1031 (100.0%) chunk=0.00 t/s avg=1222.13 t/s 0.844s
+0902 22:25:45 ds4-server: chat ctx=0..1031:1031 TOOLS prompt done 0.844s
+0902 22:25:45 ds4-server: kv cache stored tokens=1031 trimmed=0 reason=cold key=token-text size=142.87 MiB save=19.8 ms
+0902 22:25:46 ds4-server: chat ctx=1031..1074:43 gen=43 TOOLS DSML_START DSML_END decoding chunk=43.36 t/s avg=43.36 t/s 0.992s
+0902 22:25:46 ds4-server: tool calls ctx=0..1031:1031 n=1 raw_tool_text=1 ids=[call_d1c0f620484678f2e389531383024871] names=[read]
+0902 22:25:46 ds4-server: chat ctx=0..1031:1031 gen=43 TOOLS DSML_START DSML_END finish=tool_calls 1.884s
+0902 22:25:46 ds4-server: live kv cache miss live=1074 prompt=5750 common=1007 reason=token-mismatch
+0902 22:25:46 ds4-server: kv cache evicted reason=disk-cache-full tokens=1031 hits=0 size=142.87 MiB file=/Users/evanhoffman/.ds4/server-kv/5dccbc59cc4ccfc2ede8562ab8711344913ca237.kv
+0902 22:25:46 ds4-server: kv cache stored tokens=1074 trimmed=0 reason=evict key=token-text size=144.04 MiB save=16.6 ms
+0902 22:25:46 ds4-server: chat ctx=0..5750:5750 TOOLS prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=uncached suffix shorter than 8192
+0902 22:25:47 ds4-server: chat ctx=0..5750:5750 TOOLS prefill chunk 2048/5750 (35.6%) chunk=0.00 t/s avg=1306.53 t/s 1.568s
+0902 22:25:49 ds4-server: chat ctx=0..5750:5750 TOOLS prefill chunk 4096/5750 (71.2%) chunk=1116.77 t/s avg=1204.22 t/s 3.401s
+0902 22:25:49 ds4-server: kv cache evicted reason=disk-cache-full tokens=1074 hits=0 size=144.04 MiB file=/Users/evanhoffman/.ds4/server-kv/7a1d4d6e98e1d9f249a68587ef3b4e076f3e671d.kv
+0902 22:25:49 ds4-server: kv cache stored tokens=4096 trimmed=1654 reason=cold key=token-text size=225.96 MiB save=27.4 ms
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:25:51 ds4-server: chat ctx=0..5750:5750 TOOLS prefill chunk 5750/5750 (100.0%) chunk=887.74 t/s avg=1092.22 t/s 5.265s
+0902 22:25:51 ds4-server: chat ctx=0..5750:5750 TOOLS prompt done 5.265s
+0902 22:25:52 ds4-server: chat ctx=5750..5800:50 gen=50 TOOLS DSML_START decoding chunk=41.45 t/s avg=41.45 t/s 1.206s
+0902 22:25:52 ds4-server: chat ctx=5800..5802:2 gen=52 TOOLS DSML_START DSML_END decoding chunk=42.28 t/s avg=41.48 t/s 1.253s
+0902 22:25:52 ds4-server: chat ctx=0..5750:5750 TOOLS invalid tool call; continuing with model-visible tool error
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:25:53 ds4-server: chat ctx=0..5750:5750 TOOLS tool-error continuation appended 60 tokens
+0902 22:25:54 ds4-server: chat ctx=5750..5795:45 gen=45 TOOLS DSML_START DSML_END decoding chunk=42.31 t/s avg=42.31 t/s 1.064s
+0902 22:25:54 ds4-server: chat ctx=0..5750:5750 TOOLS invalid tool call returned as assistant text finish=stop [text_len=179 saw_start=1 saw_end=1 text_snippet: It seems the tool call failed. Let me try again with the correct format.
+</think>
+
+<tool_call>
+<function=read>
+<parameter=filePath>
+/tmp/x.py
+</parameter>
+</function>
+</tool_call>]
+0902 22:25:54 ds4-server: chat ctx=0..5750:5750 TOOLS invalid tool call dsml_snippet: <tool_call>
+<function=read>
+<parameter=filePath>
+/tmp/x.py
+</parameter>
+</function>
+</tool_call>
+0902 22:25:54 ds4-server: chat ctx=0..5750:5750 gen=45 TOOLS DSML_START DSML_END finish=stop 7.844s
+0902 22:25:54 ds4-server: live kv cache miss live=5907 prompt=10342 common=5725 reason=token-mismatch
+0902 22:25:54 ds4-server: kv cache evicted reason=disk-cache-full tokens=4096 hits=0 size=225.96 MiB file=/Users/evanhoffman/.ds4/server-kv/2b964678ba536042e8b1a01b03830dbdf56bf6df.kv
+0902 22:25:54 ds4-server: kv cache stored tokens=5907 trimmed=0 reason=evict key=token-text size=275.06 MiB save=27.6 ms
+0902 22:25:54 ds4-server: chat ctx=0..10342:10342 TOOLS prompt start
+ds4: Qwen prefill selected chunk=8192 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=cold Qwen native path
+0902 22:26:01 ds4-server: chat ctx=0..10342:10342 TOOLS prefill chunk 8192/10342 (79.2%) chunk=0.00 t/s avg=1120.46 t/s 7.311s
+0902 22:26:03 ds4-server: chat ctx=0..10342:10342 TOOLS prefill chunk 10240/10342 (99.0%) chunk=1083.79 t/s avg=1112.93 t/s 9.201s
+0902 22:26:03 ds4-server: kv cache evicted reason=disk-cache-full tokens=5907 hits=0 size=275.06 MiB file=/Users/evanhoffman/.ds4/server-kv/ffe16ad05de61d30d3fdded7b4a4e6f750497aa6.kv
+0902 22:26:03 ds4-server: kv cache evicted reason=disk-cache-full tokens=9620 hits=0 size=375.72 MiB file=/Users/evanhoffman/.ds4/server-kv/d8c9256478b8605eeacb09c2e8b941e03de39cf4.kv
+0902 22:26:03 ds4-server: kv cache stored tokens=10240 trimmed=102 reason=cold key=token-text size=392.53 MiB save=41.4 ms
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:26:04 ds4-server: chat ctx=0..10342:10342 TOOLS prefill chunk 10342/10342 (100.0%) chunk=189.72 t/s avg=1061.96 t/s 9.739s
+0902 22:26:04 ds4-server: chat ctx=0..10342:10342 TOOLS prompt done 9.739s
+0902 22:26:05 ds4-server: chat ctx=10342..10392:50 gen=50 TOOLS DSML_START decoding chunk=41.26 t/s avg=41.26 t/s 1.212s
+0902 22:26:05 ds4-server: chat ctx=10392..10412:20 gen=70 TOOLS DSML_START DSML_END decoding chunk=40.89 t/s avg=41.15 t/s 1.701s
+0902 22:26:05 ds4-server: chat ctx=0..10342:10342 TOOLS invalid tool call; continuing with model-visible tool error
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:26:05 ds4-server: chat ctx=0..10342:10342 TOOLS tool-error continuation appended 60 tokens
+0902 22:26:07 ds4-server: chat ctx=10342..10392:50 gen=50 TOOLS DSML_START decoding chunk=40.88 t/s avg=40.88 t/s 1.223s
+0902 22:26:07 ds4-server: chat ctx=10392..10404:12 gen=62 TOOLS DSML_START DSML_END decoding chunk=41.06 t/s avg=40.92 t/s 1.515s
+0902 22:26:07 ds4-server: chat ctx=0..10342:10342 TOOLS invalid tool call returned as assistant text finish=stop [text_len=272 saw_start=1 saw_end=1 text_snippet: The tool call failed. Let me try again with the correct format. The read tool takes filePath and pattern parameters. Let me make sure the JSON is properly formatted.
+</think>
+
+<tool_call>
+<function=read>
+<parameter=filePath>
+/tmp/x.py
+</parameter>
+</function>
+</tool_call>]
+0902 22:26:07 ds4-server: chat ctx=0..10342:10342 TOOLS invalid tool call dsml_snippet: <tool_call>
+<function=read>
+<parameter=filePath>
+/tmp/x.py
+</parameter>
+</function>
+</tool_call>
+0902 22:26:07 ds4-server: chat ctx=0..10342:10342 gen=62 TOOLS DSML_START DSML_END finish=stop 13.220s
+0902 22:26:07 ds4-server: live kv cache miss live=10534 prompt=1031 common=1007 reason=token-mismatch
+0902 22:26:07 ds4-server: kv cache evicted reason=disk-cache-full tokens=10240 hits=0 size=392.53 MiB file=/Users/evanhoffman/.ds4/server-kv/4848162aa421e11aff4347d60b3df7c3a70c2fb6.kv
+0902 22:26:07 ds4-server: kv cache stored tokens=10534 trimmed=0 reason=evict key=token-text size=400.49 MiB save=46.9 ms
+0902 22:26:07 ds4-server: chat ctx=0..1031:1031 TOOLS prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=uncached suffix shorter than 8192
+0902 22:26:08 ds4-server: chat ctx=0..1031:1031 TOOLS prefill chunk 1031/1031 (100.0%) chunk=0.00 t/s avg=1265.12 t/s 0.815s
+0902 22:26:08 ds4-server: chat ctx=0..1031:1031 TOOLS prompt done 0.815s
+0902 22:26:08 ds4-server: kv cache stored tokens=1031 trimmed=0 reason=cold key=token-text size=142.87 MiB save=17.4 ms
+0902 22:26:09 ds4-server: chat ctx=1031..1074:43 gen=43 TOOLS DSML_START DSML_END decoding chunk=43.58 t/s avg=43.58 t/s 0.987s
+0902 22:26:09 ds4-server: tool calls ctx=0..1031:1031 n=1 raw_tool_text=1 ids=[call_df2f5a28a41eacabc414e1aab7415ecd] names=[read]
+0902 22:26:09 ds4-server: chat ctx=0..1031:1031 gen=43 TOOLS DSML_START DSML_END finish=tool_calls 1.837s
+0902 22:26:09 ds4-server: live kv cache miss live=1074 prompt=10342 common=1007 reason=token-mismatch
+0902 22:26:09 ds4-server: kv cache evicted reason=disk-cache-full tokens=1031 hits=0 size=142.87 MiB file=/Users/evanhoffman/.ds4/server-kv/5dccbc59cc4ccfc2ede8562ab8711344913ca237.kv
+0902 22:26:09 ds4-server: kv cache stored tokens=1074 trimmed=0 reason=evict key=token-text size=144.04 MiB save=17.0 ms
+0902 22:26:09 ds4-server: chat ctx=0..10342:10342 TOOLS prompt start
+ds4: Qwen prefill selected chunk=8192 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=cold Qwen native path
+0902 22:26:16 ds4-server: chat ctx=0..10342:10342 TOOLS prefill chunk 8192/10342 (79.2%) chunk=0.00 t/s avg=1128.16 t/s 7.261s
+0902 22:26:18 ds4-server: chat ctx=0..10342:10342 TOOLS prefill chunk 10240/10342 (99.0%) chunk=1068.69 t/s avg=1115.74 t/s 9.178s
+0902 22:26:18 ds4-server: kv cache evicted reason=disk-cache-full tokens=1074 hits=0 size=144.04 MiB file=/Users/evanhoffman/.ds4/server-kv/7a1d4d6e98e1d9f249a68587ef3b4e076f3e671d.kv
+0902 22:26:18 ds4-server: kv cache evicted reason=disk-cache-full tokens=10534 hits=0 size=400.49 MiB file=/Users/evanhoffman/.ds4/server-kv/f3864ed69ca914b1fcc25c65a30a12f0131d2240.kv
+0902 22:26:18 ds4-server: kv cache stored tokens=10240 trimmed=102 reason=cold key=token-text size=392.53 MiB save=43.7 ms
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:26:19 ds4-server: chat ctx=0..10342:10342 TOOLS prefill chunk 10342/10342 (100.0%) chunk=196.09 t/s avg=1066.41 t/s 9.698s
+0902 22:26:19 ds4-server: chat ctx=0..10342:10342 TOOLS prompt done 9.698s
+0902 22:26:20 ds4-server: chat ctx=10342..10392:50 gen=50 TOOLS DSML_START decoding chunk=41.55 t/s avg=41.55 t/s 1.203s
+0902 22:26:20 ds4-server: chat ctx=10392..10412:20 gen=70 TOOLS DSML_START DSML_END decoding chunk=41.48 t/s avg=41.53 t/s 1.686s
+0902 22:26:20 ds4-server: chat ctx=0..10342:10342 TOOLS invalid tool call; continuing with model-visible tool error
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:26:21 ds4-server: chat ctx=0..10342:10342 TOOLS tool-error continuation appended 60 tokens
+0902 22:26:22 ds4-server: chat ctx=10342..10392:50 gen=50 TOOLS DSML_START decoding chunk=41.57 t/s avg=41.57 t/s 1.203s
+0902 22:26:22 ds4-server: chat ctx=10392..10404:12 gen=62 TOOLS DSML_START DSML_END decoding chunk=41.61 t/s avg=41.58 t/s 1.491s
+0902 22:26:22 ds4-server: chat ctx=0..10342:10342 TOOLS invalid tool call returned as assistant text finish=stop [text_len=272 saw_start=1 saw_end=1 text_snippet: The tool call failed. Let me try again with the correct format. The read tool takes filePath and pattern parameters. Let me make sure the JSON is properly formatted.
+</think>
+
+<tool_call>
+<function=read>
+<parameter=filePath>
+/tmp/x.py
+</parameter>
+</function>
+</tool_call>]
+0902 22:26:22 ds4-server: chat ctx=0..10342:10342 TOOLS invalid tool call dsml_snippet: <tool_call>
+<function=read>
+<parameter=filePath>
+/tmp/x.py
+</parameter>
+</function>
+</tool_call>
+0902 22:26:22 ds4-server: chat ctx=0..10342:10342 gen=62 TOOLS DSML_START DSML_END finish=stop 13.138s
+0902 22:26:22 ds4-server: live kv cache miss live=10534 prompt=1099 common=1006 reason=token-mismatch
+0902 22:26:22 ds4-server: kv cache evicted reason=disk-cache-full tokens=10240 hits=0 size=392.53 MiB file=/Users/evanhoffman/.ds4/server-kv/4848162aa421e11aff4347d60b3df7c3a70c2fb6.kv
+0902 22:26:22 ds4-server: kv cache stored tokens=10534 trimmed=0 reason=evict key=token-text size=400.49 MiB save=47.8 ms
+0902 22:26:22 ds4-server: chat ctx=0..1099:1099 TOOLS prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=uncached suffix shorter than 8192
+0902 22:26:23 ds4-server: chat ctx=0..1099:1099 TOOLS prefill chunk 1099/1099 (100.0%) chunk=0.00 t/s avg=1272.95 t/s 0.863s
+0902 22:26:23 ds4-server: chat ctx=0..1099:1099 TOOLS prompt done 0.863s
+0902 22:26:23 ds4-server: kv cache stored tokens=1099 trimmed=0 reason=cold key=token-text size=144.71 MiB save=17.8 ms
+0902 22:26:24 ds4-server: chat ctx=1099..1146:47 gen=47 TOOLS DSML_START DSML_END decoding chunk=43.26 t/s avg=43.26 t/s 1.086s
+0902 22:26:24 ds4-server: tool calls ctx=0..1099:1099 n=1 raw_tool_text=1 ids=[call_dfcb14fdea4f0fa970a5901fecc35e4d] names=[read]
+0902 22:26:24 ds4-server: chat ctx=0..1099:1099 gen=47 TOOLS DSML_START DSML_END finish=tool_calls 1.995s
+0902 22:26:24 ds4-server: live kv cache miss live=1146 prompt=5818 common=1006 reason=token-mismatch
+0902 22:26:24 ds4-server: kv cache evicted reason=disk-cache-full tokens=1099 hits=0 size=144.71 MiB file=/Users/evanhoffman/.ds4/server-kv/8b2a8043b92628cb0dce771b57a50ae98eaef829.kv
+0902 22:26:24 ds4-server: kv cache stored tokens=1146 trimmed=0 reason=evict key=token-text size=145.99 MiB save=18.2 ms
+0902 22:26:24 ds4-server: chat ctx=0..5818:5818 TOOLS prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=uncached suffix shorter than 8192
+0902 22:26:26 ds4-server: chat ctx=0..5818:5818 TOOLS prefill chunk 2048/5818 (35.2%) chunk=0.00 t/s avg=1295.20 t/s 1.581s
+0902 22:26:28 ds4-server: chat ctx=0..5818:5818 TOOLS prefill chunk 4096/5818 (70.4%) chunk=1066.74 t/s avg=1169.92 t/s 3.501s
+0902 22:26:28 ds4-server: kv cache evicted reason=disk-cache-full tokens=1146 hits=0 size=145.99 MiB file=/Users/evanhoffman/.ds4/server-kv/1eb9921030e99d293b9e3d668ab6368fb6907da7.kv
+0902 22:26:28 ds4-server: kv cache stored tokens=4096 trimmed=1722 reason=cold key=token-text size=225.96 MiB save=26.3 ms
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:26:30 ds4-server: chat ctx=0..5818:5818 TOOLS prefill chunk 5818/5818 (100.0%) chunk=916.64 t/s avg=1081.48 t/s 5.380s
+0902 22:26:30 ds4-server: chat ctx=0..5818:5818 TOOLS prompt done 5.380s
+0902 22:26:31 ds4-server: chat ctx=5818..5859:41 gen=41 TOOLS DSML_START DSML_END decoding chunk=40.83 t/s avg=40.83 t/s 1.004s
+0902 22:26:31 ds4-server: tool calls ctx=0..5818:5818 n=1 raw_tool_text=1 ids=[call_ad6b36a9146ef9e7578af1a6eeb38c1c] names=[read]
+0902 22:26:31 ds4-server: chat ctx=0..5818:5818 gen=41 TOOLS DSML_START DSML_END finish=tool_calls 6.384s
+0902 22:26:31 ds4-server: live kv cache miss live=5859 prompt=10410 common=5725 reason=token-mismatch
+0902 22:26:31 ds4-server: kv cache evicted reason=disk-cache-full tokens=4096 hits=0 size=225.96 MiB file=/Users/evanhoffman/.ds4/server-kv/2b964678ba536042e8b1a01b03830dbdf56bf6df.kv
+0902 22:26:31 ds4-server: kv cache evicted reason=disk-cache-full tokens=10534 hits=0 size=400.49 MiB file=/Users/evanhoffman/.ds4/server-kv/f3864ed69ca914b1fcc25c65a30a12f0131d2240.kv
+0902 22:26:31 ds4-server: kv cache stored tokens=5859 trimmed=0 reason=evict key=token-text size=273.76 MiB save=34.4 ms
+0902 22:26:31 ds4-server: chat ctx=0..10410:10410 TOOLS prompt start
+ds4: Qwen prefill selected chunk=8192 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=cold Qwen native path
+0902 22:26:38 ds4-server: chat ctx=0..10410:10410 TOOLS prefill chunk 8192/10410 (78.7%) chunk=0.00 t/s avg=1112.77 t/s 7.362s
+0902 22:26:40 ds4-server: chat ctx=0..10410:10410 TOOLS prefill chunk 10240/10410 (98.4%) chunk=1054.06 t/s avg=1100.51 t/s 9.305s
+0902 22:26:40 ds4-server: kv cache evicted reason=disk-cache-full tokens=5859 hits=0 size=273.76 MiB file=/Users/evanhoffman/.ds4/server-kv/06fc3620b3d4c585e36a037f69db316a2b67e8d8.kv
+0902 22:26:40 ds4-server: kv cache stored tokens=10240 trimmed=170 reason=cold key=token-text size=392.53 MiB save=45.4 ms
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:26:41 ds4-server: chat ctx=0..10410:10410 TOOLS prefill chunk 10410/10410 (100.0%) chunk=220.53 t/s avg=1033.19 t/s 10.076s
+0902 22:26:41 ds4-server: chat ctx=0..10410:10410 TOOLS prompt done 10.076s
+0902 22:26:42 ds4-server: chat ctx=10410..10451:41 gen=41 TOOLS DSML_START DSML_END decoding chunk=41.14 t/s avg=41.14 t/s 0.997s
+0902 22:26:42 ds4-server: tool calls ctx=0..10410:10410 n=1 raw_tool_text=1 ids=[call_58cd5573b8e30749e15b6062a389b8e4] names=[read]
+0902 22:26:42 ds4-server: chat ctx=0..10410:10410 gen=41 TOOLS DSML_START DSML_END finish=tool_calls 11.072s
+0902 22:26:42 ds4-server: live kv cache miss live=10451 prompt=1099 common=1006 reason=token-mismatch
+0902 22:26:42 ds4-server: kv cache evicted reason=disk-cache-full tokens=10240 hits=0 size=392.53 MiB file=/Users/evanhoffman/.ds4/server-kv/4848162aa421e11aff4347d60b3df7c3a70c2fb6.kv
+0902 22:26:42 ds4-server: kv cache stored tokens=10451 trimmed=0 reason=evict key=token-text size=398.24 MiB save=50.9 ms
+0902 22:26:42 ds4-server: chat ctx=0..1099:1099 TOOLS prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=uncached suffix shorter than 8192
+0902 22:26:43 ds4-server: chat ctx=0..1099:1099 TOOLS prefill chunk 1099/1099 (100.0%) chunk=0.00 t/s avg=1240.53 t/s 0.886s
+0902 22:26:43 ds4-server: chat ctx=0..1099:1099 TOOLS prompt done 0.886s
+0902 22:26:43 ds4-server: kv cache stored tokens=1099 trimmed=0 reason=cold key=token-text size=144.71 MiB save=15.3 ms
+0902 22:26:44 ds4-server: chat ctx=1099..1146:47 gen=47 TOOLS DSML_START DSML_END decoding chunk=43.29 t/s avg=43.29 t/s 1.086s
+0902 22:26:44 ds4-server: tool calls ctx=0..1099:1099 n=1 raw_tool_text=1 ids=[call_d332e86d22ae458a0eeac920ca2b47a8] names=[read]
+0902 22:26:44 ds4-server: chat ctx=0..1099:1099 gen=47 TOOLS DSML_START DSML_END finish=tool_calls 2.002s
+0902 22:26:44 ds4-server: live kv cache miss live=1146 prompt=10410 common=1006 reason=token-mismatch
+0902 22:26:44 ds4-server: kv cache evicted reason=disk-cache-full tokens=1099 hits=0 size=144.71 MiB file=/Users/evanhoffman/.ds4/server-kv/8b2a8043b92628cb0dce771b57a50ae98eaef829.kv
+0902 22:26:44 ds4-server: kv cache stored tokens=1146 trimmed=0 reason=evict key=token-text size=145.99 MiB save=15.7 ms
+0902 22:26:44 ds4-server: chat ctx=0..10410:10410 TOOLS prompt start
+ds4: Qwen prefill selected chunk=8192 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=cold Qwen native path
+0902 22:26:51 ds4-server: chat ctx=0..10410:10410 TOOLS prefill chunk 8192/10410 (78.7%) chunk=0.00 t/s avg=1114.10 t/s 7.353s
+0902 22:26:53 ds4-server: chat ctx=0..10410:10410 TOOLS prefill chunk 10240/10410 (98.4%) chunk=1024.64 t/s avg=1094.98 t/s 9.352s
+0902 22:26:53 ds4-server: kv cache evicted reason=disk-cache-full tokens=1146 hits=0 size=145.99 MiB file=/Users/evanhoffman/.ds4/server-kv/1eb9921030e99d293b9e3d668ab6368fb6907da7.kv
+0902 22:26:53 ds4-server: kv cache evicted reason=disk-cache-full tokens=10451 hits=0 size=398.24 MiB file=/Users/evanhoffman/.ds4/server-kv/b02b972313413092a05cda17c28114aa02062de9.kv
+0902 22:26:53 ds4-server: kv cache stored tokens=10240 trimmed=170 reason=cold key=token-text size=392.53 MiB save=47.3 ms
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:26:54 ds4-server: chat ctx=0..10410:10410 TOOLS prefill chunk 10410/10410 (100.0%) chunk=211.45 t/s avg=1025.04 t/s 10.156s
+0902 22:26:54 ds4-server: chat ctx=0..10410:10410 TOOLS prompt done 10.156s
+0902 22:26:55 ds4-server: chat ctx=10410..10451:41 gen=41 TOOLS DSML_START DSML_END decoding chunk=40.03 t/s avg=40.03 t/s 1.024s
+0902 22:26:55 ds4-server: tool calls ctx=0..10410:10410 n=1 raw_tool_text=1 ids=[call_696b8113f811d8dad23c896a627ab7ca] names=[read]
+0902 22:26:55 ds4-server: chat ctx=0..10410:10410 gen=41 TOOLS DSML_START DSML_END finish=tool_calls 11.180s
+0902 22:27:35 ds4-server: live kv cache miss live=10451 prompt=11434 common=42 reason=token-mismatch
+0902 22:27:35 ds4-server: kv cache evicted reason=disk-cache-full tokens=10240 hits=0 size=392.53 MiB file=/Users/evanhoffman/.ds4/server-kv/4848162aa421e11aff4347d60b3df7c3a70c2fb6.kv
+0902 22:27:35 ds4-server: kv cache stored tokens=10451 trimmed=0 reason=evict key=token-text size=398.24 MiB save=43.2 ms
+0902 22:27:35 ds4-server: chat ctx=0..11434:11434 TOOLS prompt start
+ds4: Qwen prefill selected chunk=8192 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=cold Qwen native path
+0902 22:27:43 ds4-server: chat ctx=0..11434:11434 TOOLS prefill chunk 8192/11434 (71.6%) chunk=0.00 t/s avg=1103.99 t/s 7.420s
+0902 22:27:45 ds4-server: chat ctx=0..11434:11434 TOOLS prefill chunk 10240/11434 (89.6%) chunk=1030.61 t/s avg=1088.49 t/s 9.408s
+0902 22:27:45 ds4-server: kv cache evicted reason=disk-cache-full tokens=10451 hits=0 size=398.24 MiB file=/Users/evanhoffman/.ds4/server-kv/b02b972313413092a05cda17c28114aa02062de9.kv
+0902 22:27:45 ds4-server: kv cache stored tokens=10240 trimmed=1194 reason=cold key=token-text size=392.50 MiB save=46.7 ms
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:27:46 ds4-server: chat ctx=0..11434:11434 TOOLS prefill chunk 11434/11434 (100.0%) chunk=863.94 t/s avg=1059.73 t/s 10.790s
+0902 22:27:46 ds4-server: chat ctx=0..11434:11434 TOOLS prompt done 10.790s
+0902 22:27:47 ds4-server: chat ctx=11434..11484:50 gen=50 TOOLS DSML_START decoding chunk=39.50 t/s avg=39.50 t/s 1.266s
+0902 22:27:48 ds4-server: chat ctx=11484..11494:10 gen=60 TOOLS DSML_START DSML_END decoding chunk=40.20 t/s avg=39.61 t/s 1.515s
+0902 22:27:48 ds4-server: chat ctx=0..11434:11434 TOOLS invalid tool call returned as assistant text finish=stop [text_len=232 saw_start=1 saw_end=1 text_snippet: I'll check the file and try to look for tests related to strip_envelope.
+</think>
+
+<tool_call>
+<function=read>
+<parameter=filePath>
+/Users/evanhoffman/git/gmail-archive/src/gmail_archive/mbox.py
+</parameter>
+</function>
+</tool_call>]
+0902 22:27:48 ds4-server: chat ctx=0..11434:11434 TOOLS invalid tool call dsml_snippet: <tool_call>
+<function=read>
+<parameter=filePath>
+/Users/evanhoffman/git/gmail-archive/src/gmail_archive/mbox.py
+</parameter>
+</function>
+</tool_call>
+0902 22:27:48 ds4-server: chat ctx=0..11434:11434 gen=60 TOOLS DSML_START DSML_END finish=stop 12.304s
+0902 22:28:10 ds4-server: live kv cache miss live=11494 prompt=11365 common=11316 reason=token-mismatch
+0902 22:28:10 ds4-server: kv cache evicted reason=disk-cache-full tokens=10240 hits=0 size=392.50 MiB file=/Users/evanhoffman/.ds4/server-kv/2be7a7dbe21315de8bf27c95d37b99d1e6df5e39.kv
+0902 22:28:10 ds4-server: kv cache stored tokens=11494 trimmed=0 reason=evict key=token-text size=426.49 MiB save=49.6 ms
+0902 22:28:10 ds4-server: chat ctx=0..11365:11365 TOOLS prompt start
+ds4: Qwen prefill selected chunk=8192 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=cold Qwen native path
+0902 22:28:17 ds4-server: chat ctx=0..11365:11365 TOOLS prefill chunk 8192/11365 (72.1%) chunk=0.00 t/s avg=1169.94 t/s 7.002s
+0902 22:28:19 ds4-server: chat ctx=0..11365:11365 TOOLS prefill chunk 10240/11365 (90.1%) chunk=1086.62 t/s avg=1152.27 t/s 8.887s
+0902 22:28:19 ds4-server: kv cache evicted reason=disk-cache-full tokens=11494 hits=0 size=426.49 MiB file=/Users/evanhoffman/.ds4/server-kv/f962eb3d8fa534302f2b85ee27103fa88000ad5e.kv
+0902 22:28:19 ds4-server: kv cache stored tokens=10240 trimmed=1125 reason=cold key=token-text size=392.50 MiB save=49.1 ms
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:28:20 ds4-server: chat ctx=0..11365:11365 TOOLS prefill chunk 11365/11365 (100.0%) chunk=864.19 t/s avg=1115.47 t/s 10.189s
+0902 22:28:20 ds4-server: chat ctx=0..11365:11365 TOOLS prompt done 10.189s
+0902 22:28:21 ds4-server: chat ctx=11365..11415:50 gen=50 TOOLS DSML_START decoding chunk=39.61 t/s avg=39.61 t/s 1.262s
+0902 22:28:21 ds4-server: chat ctx=11415..11419:4 gen=54 TOOLS DSML_START DSML_END decoding chunk=40.16 t/s avg=39.65 t/s 1.362s
+0902 22:28:21 ds4-server: chat ctx=0..11365:11365 TOOLS invalid tool call; continuing with model-visible tool error
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:28:22 ds4-server: chat ctx=0..11365:11365 TOOLS tool-error continuation appended 60 tokens
+0902 22:28:23 ds4-server: chat ctx=11365..11415:50 gen=50 TOOLS DSML_START decoding chunk=39.92 t/s avg=39.92 t/s 1.253s
+0902 22:28:23 ds4-server: chat ctx=11415..11422:7 gen=57 TOOLS DSML_START DSML_END decoding chunk=40.23 t/s avg=39.96 t/s 1.427s
+0902 22:28:23 ds4-server: chat ctx=0..11365:11365 TOOLS invalid tool call returned as assistant text finish=stop [text_len=221 saw_start=1 saw_end=1 text_snippet: The tool call failed. Let me retry with a proper JSON object.
+</think>
+
+<tool_call>
+<function=read>
+<parameter=filePath>
+/Users/evanhoffman/git/gmail-archive/src/gmail_archive/mbox.py
+</parameter>
+</function>
+</tool_call>]
+0902 22:28:23 ds4-server: chat ctx=0..11365:11365 TOOLS invalid tool call dsml_snippet: <tool_call>
+<function=read>
+<parameter=filePath>
+/Users/evanhoffman/git/gmail-archive/src/gmail_archive/mbox.py
+</parameter>
+</function>
+</tool_call>
+0902 22:28:23 ds4-server: chat ctx=0..11365:11365 gen=57 TOOLS DSML_START DSML_END finish=stop 13.241s
+0902 22:28:32 ds4-server: rewound GLM live prefix from 11536 to 11364; final prompt token will be reevaluated
+0902 22:28:32 ds4-server: chat ctx=11364..11365:1 TOOLS prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:28:32 ds4-server: chat ctx=11364..11365:1 TOOLS prefill chunk 1/1 (100.0%) chunk=0.00 t/s avg=33.10 t/s 0.030s
+0902 22:28:32 ds4-server: chat ctx=11364..11365:1 TOOLS prompt done 0.030s
+0902 22:28:34 ds4-server: chat ctx=11365..11415:50 gen=50 TOOLS DSML_START decoding chunk=39.06 t/s avg=39.06 t/s 1.280s
+0902 22:28:34 ds4-server: chat ctx=11415..11442:27 gen=77 TOOLS DSML_START DSML_END decoding chunk=39.85 t/s avg=39.33 t/s 1.958s
+0902 22:28:34 ds4-server: chat ctx=11364..11365:1 TOOLS invalid tool call; continuing with model-visible tool error
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:28:35 ds4-server: chat ctx=11364..11365:1 TOOLS tool-error continuation appended 60 tokens
+0902 22:28:36 ds4-server: chat ctx=11365..11415:50 gen=50 TOOLS DSML_START decoding chunk=39.55 t/s avg=39.55 t/s 1.264s
+0902 22:28:36 ds4-server: chat ctx=11415..11425:10 gen=60 TOOLS DSML_START DSML_END decoding chunk=39.99 t/s avg=39.62 t/s 1.514s
+0902 22:28:36 ds4-server: chat ctx=11364..11365:1 TOOLS invalid tool call returned as assistant text finish=stop [text_len=232 saw_start=1 saw_end=1 text_snippet: I made an invalid tool call (empty). Let me issue the correct read call.
+</think>
+
+<tool_call>
+<function=read>
+<parameter=filePath>
+/Users/evanhoffman/git/gmail-archive/src/gmail_archive/mbox.py
+</parameter>
+</function>
+</tool_call>]
+0902 22:28:36 ds4-server: chat ctx=11364..11365:1 TOOLS invalid tool call dsml_snippet: <tool_call>
+<function=read>
+<parameter=filePath>
+/Users/evanhoffman/git/gmail-archive/src/gmail_archive/mbox.py
+</parameter>
+</function>
+</tool_call>
+0902 22:28:36 ds4-server: chat ctx=11364..11365:1 gen=60 TOOLS DSML_START DSML_END finish=stop 3.767s
+0902 22:28:46 ds4-server: rewound GLM live prefix from 11562 to 11364; final prompt token will be reevaluated
+0902 22:28:46 ds4-server: chat ctx=11364..11365:1 TOOLS prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:28:46 ds4-server: chat ctx=11364..11365:1 TOOLS prefill chunk 1/1 (100.0%) chunk=0.00 t/s avg=33.87 t/s 0.030s
+0902 22:28:46 ds4-server: chat ctx=11364..11365:1 TOOLS prompt done 0.030s
+0902 22:28:47 ds4-server: chat ctx=11365..11415:50 gen=50 TOOLS DSML_START decoding chunk=39.62 t/s avg=39.62 t/s 1.262s
+0902 22:28:47 ds4-server: chat ctx=11415..11417:2 gen=52 TOOLS DSML_START DSML_END decoding chunk=39.98 t/s avg=39.63 t/s 1.312s
+0902 22:28:47 ds4-server: chat ctx=11364..11365:1 TOOLS invalid tool call; continuing with model-visible tool error
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:28:47 ds4-server: chat ctx=11364..11365:1 TOOLS tool-error continuation appended 60 tokens
+0902 22:28:48 ds4-server: chat ctx=11365..11408:43 gen=43 TOOLS DSML_START DSML_END decoding chunk=39.59 t/s avg=39.59 t/s 1.086s
+0902 22:28:48 ds4-server: chat ctx=11364..11365:1 TOOLS invalid tool call returned as assistant text finish=stop [text_len=153 saw_start=1 saw_end=1 text_snippet: I'm making a tool call now.
+</think>
+
+<tool_call>
+<function=bash>
+<parameter=command>
+cat src/gmail_archive/mbox.py
+</parameter>
+</function>
+</tool_call>]
+0902 22:28:48 ds4-server: chat ctx=11364..11365:1 TOOLS invalid tool call dsml_snippet: <tool_call>
+<function=bash>
+<parameter=command>
+cat src/gmail_archive/mbox.py
+</parameter>
+</function>
+</tool_call>
+0902 22:28:48 ds4-server: chat ctx=11364..11365:1 gen=43 TOOLS DSML_START DSML_END finish=stop 2.691s
+0902 22:28:58 ds4-server: rewound GLM live prefix from 11520 to 11364; final prompt token will be reevaluated
+0902 22:28:58 ds4-server: chat ctx=11364..11365:1 TOOLS prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:28:58 ds4-server: chat ctx=11364..11365:1 TOOLS prefill chunk 1/1 (100.0%) chunk=0.00 t/s avg=33.37 t/s 0.030s
+0902 22:28:58 ds4-server: chat ctx=11364..11365:1 TOOLS prompt done 0.030s
+0902 22:29:00 ds4-server: chat ctx=11365..11415:50 gen=50 TOOLS DSML_START decoding chunk=39.06 t/s avg=39.06 t/s 1.280s
+0902 22:29:01 ds4-server: chat ctx=11415..11455:40 gen=90 TOOLS DSML_START DSML_END decoding chunk=39.08 t/s avg=39.07 t/s 2.303s
+0902 22:29:01 ds4-server: chat ctx=11364..11365:1 TOOLS invalid tool call; continuing with model-visible tool error
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:29:01 ds4-server: chat ctx=11364..11365:1 TOOLS tool-error continuation appended 60 tokens
+0902 22:29:02 ds4-server: chat ctx=11365..11415:50 gen=50 TOOLS DSML_START decoding chunk=38.75 t/s avg=38.75 t/s 1.290s
+0902 22:29:02 ds4-server: chat ctx=11415..11423:8 gen=58 TOOLS DSML_START DSML_END decoding chunk=40.15 t/s avg=38.94 t/s 1.490s
+0902 22:29:02 ds4-server: chat ctx=11364..11365:1 TOOLS invalid tool call returned as assistant text finish=stop [text_len=216 saw_start=1 saw_end=1 text_snippet: The tool call was not executed. I'll retry with the correct format.
+</think>
+
+<tool_call>
+<function=grep>
+<parameter=pattern>
+strip_envelope
+</parameter>
+<parameter=include>
+*.py
+</parameter>
+</function>
+</tool_call>]
+0902 22:29:02 ds4-server: chat ctx=11364..11365:1 TOOLS invalid tool call dsml_snippet: <tool_call>
+<function=grep>
+<parameter=pattern>
+strip_envelope
+</parameter>
+<parameter=include>
+*.py
+</parameter>
+</function>
+</tool_call>
+0902 22:29:02 ds4-server: chat ctx=11364..11365:1 gen=58 TOOLS DSML_START DSML_END finish=stop 4.087s
+0902 22:29:12 ds4-server: rewound GLM live prefix from 11573 to 11364; final prompt token will be reevaluated
+0902 22:29:12 ds4-server: chat ctx=11364..11365:1 TOOLS prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:29:12 ds4-server: chat ctx=11364..11365:1 TOOLS prefill chunk 1/1 (100.0%) chunk=0.00 t/s avg=32.20 t/s 0.031s
+0902 22:29:12 ds4-server: chat ctx=11364..11365:1 TOOLS prompt done 0.031s
+0902 22:29:13 ds4-server: chat ctx=11365..11415:50 gen=50 TOOLS DSML_START decoding chunk=38.86 t/s avg=38.86 t/s 1.287s
+0902 22:29:14 ds4-server: chat ctx=11415..11440:25 gen=75 TOOLS DSML_START DSML_END decoding chunk=39.98 t/s avg=39.22 t/s 1.912s
+0902 22:29:14 ds4-server: chat ctx=11364..11365:1 TOOLS invalid tool call; continuing with model-visible tool error
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:29:14 ds4-server: chat ctx=11364..11365:1 TOOLS tool-error continuation appended 60 tokens
+0902 22:29:15 ds4-server: chat ctx=11365..11415:50 gen=50 TOOLS THINKING decoding chunk=38.75 t/s avg=38.75 t/s 1.290s
+0902 22:29:17 ds4-server: chat ctx=11415..11463:48 gen=98 TOOLS DSML_START DSML_END decoding chunk=39.63 t/s avg=39.18 t/s 2.502s
+0902 22:29:17 ds4-server: chat ctx=11364..11365:1 TOOLS invalid tool call returned as assistant text finish=stop [text_len=403 saw_start=1 saw_end=1 text_snippet: The tool call format was broken. Let me issue it correctly. I want to read the file. The reason it was invalid might be because I wrote "read" instead of the proper name, or there was a formatting error in the JSON. Let me try again correctly.
+</think>
+
+<tool_call>
+<function=read>
+<parameter=filePat]
+0902 22:29:17 ds4-server: chat ctx=11364..11365:1 TOOLS invalid tool call dsml_snippet: <tool_call>
+<function=read>
+<parameter=filePath>
+/Users/evanhoffman/git/gmail-archive/src/gmail_archive/mbox.py
+</parameter>
+</function>
+</tool_call>
+0902 22:29:17 ds4-server: chat ctx=11364..11365:1 gen=98 TOOLS DSML_START DSML_END finish=stop 4.709s
+0902 22:29:27 ds4-server: rewound GLM live prefix from 11598 to 11364; final prompt token will be reevaluated
+0902 22:29:27 ds4-server: chat ctx=11364..11365:1 TOOLS prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:29:27 ds4-server: chat ctx=11364..11365:1 TOOLS prefill chunk 1/1 (100.0%) chunk=0.00 t/s avg=31.53 t/s 0.032s
+0902 22:29:27 ds4-server: chat ctx=11364..11365:1 TOOLS prompt done 0.032s
+0902 22:29:28 ds4-server: chat ctx=11365..11415:50 gen=50 TOOLS DSML_START decoding chunk=39.33 t/s avg=39.33 t/s 1.271s
+0902 22:29:28 ds4-server: chat ctx=11415..11422:7 gen=57 TOOLS DSML_START DSML_END decoding chunk=39.88 t/s avg=39.39 t/s 1.447s
+0902 22:29:28 ds4-server: chat ctx=11364..11365:1 TOOLS invalid tool call; continuing with model-visible tool error
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:29:28 ds4-server: chat ctx=11364..11365:1 TOOLS tool-error continuation appended 60 tokens
+0902 22:29:30 ds4-server: chat ctx=11365..11415:50 gen=50 TOOLS DSML_START decoding chunk=39.13 t/s avg=39.13 t/s 1.278s
+0902 22:29:30 ds4-server: chat ctx=11415..11417:2 gen=52 TOOLS DSML_START DSML_END decoding chunk=39.39 t/s avg=39.14 t/s 1.329s
+0902 22:29:30 ds4-server: chat ctx=11364..11365:1 TOOLS invalid tool call returned as assistant text finish=stop [text_len=199 saw_start=1 saw_end=1 text_snippet: My tool call format was broken. I need to output a proper JSON tool call.
+</think>
+
+<tool_call>
+<function=bash>
+<parameter=command>
+cat src/gmail_archive/mbox.py
+</parameter>
+</function>
+</tool_call>]
+0902 22:29:30 ds4-server: chat ctx=11364..11365:1 TOOLS invalid tool call dsml_snippet: <tool_call>
+<function=bash>
+<parameter=command>
+cat src/gmail_archive/mbox.py
+</parameter>
+</function>
+</tool_call>
+0902 22:29:30 ds4-server: chat ctx=11364..11365:1 gen=52 TOOLS DSML_START DSML_END finish=stop 3.071s
+0902 22:29:30 ds4-server: live kv cache miss live=11534 prompt=11434 common=11316 reason=token-mismatch
+0902 22:29:30 ds4-server: kv cache evicted reason=disk-cache-full tokens=10240 hits=0 size=392.50 MiB file=/Users/evanhoffman/.ds4/server-kv/2be7a7dbe21315de8bf27c95d37b99d1e6df5e39.kv
+0902 22:29:30 ds4-server: kv cache stored tokens=11534 trimmed=0 reason=evict key=token-text size=427.58 MiB save=44.0 ms
+0902 22:29:30 ds4-server: chat ctx=0..11434:11434 TOOLS prompt start
+ds4: Qwen prefill selected chunk=8192 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=cold Qwen native path
+0902 22:29:37 ds4-server: chat ctx=0..11434:11434 TOOLS prefill chunk 8192/11434 (71.6%) chunk=0.00 t/s avg=1203.10 t/s 6.809s
+0902 22:29:39 ds4-server: chat ctx=0..11434:11434 TOOLS prefill chunk 10240/11434 (89.6%) chunk=985.97 t/s avg=1152.35 t/s 8.886s
+0902 22:29:39 ds4-server: kv cache evicted reason=disk-cache-full tokens=11534 hits=0 size=427.58 MiB file=/Users/evanhoffman/.ds4/server-kv/6dcb490483eb324d8d569dd5dea6bc3068ea4c7f.kv
+0902 22:29:39 ds4-server: kv cache stored tokens=10240 trimmed=1194 reason=cold key=token-text size=392.50 MiB save=42.5 ms
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:29:40 ds4-server: chat ctx=0..11434:11434 TOOLS prefill chunk 11434/11434 (100.0%) chunk=843.05 t/s avg=1109.83 t/s 10.303s
+0902 22:29:40 ds4-server: chat ctx=0..11434:11434 TOOLS prompt done 10.303s
+0902 22:29:41 ds4-server: chat ctx=11434..11484:50 gen=50 TOOLS DSML_START decoding chunk=39.13 t/s avg=39.13 t/s 1.278s
+0902 22:29:42 ds4-server: chat ctx=11484..11495:11 gen=61 TOOLS DSML_START DSML_END decoding chunk=40.10 t/s avg=39.30 t/s 1.552s
+0902 22:29:42 ds4-server: chat ctx=0..11434:11434 TOOLS invalid tool call; continuing with model-visible tool error
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:29:42 ds4-server: chat ctx=0..11434:11434 TOOLS tool-error continuation appended 60 tokens
+0902 22:29:43 ds4-server: chat ctx=11434..11484:50 gen=50 TOOLS DSML_START decoding chunk=39.13 t/s avg=39.13 t/s 1.278s
+0902 22:29:44 ds4-server: chat ctx=11484..11502:18 gen=68 TOOLS DSML_START DSML_END decoding chunk=39.91 t/s avg=39.33 t/s 1.729s
+0902 22:29:44 ds4-server: chat ctx=0..11434:11434 TOOLS invalid tool call returned as assistant text finish=stop [text_len=275 saw_start=1 saw_end=1 text_snippet: I need to make the tool call correctly. The problem was the tool call format for my previous attempt. Let me retry.
+</think>
+
+<tool_call>
+<function=read>
+<parameter=filePath>
+/Users/evanhoffman/git/gmail-archive/src/gmail_archive/mbox.py
+</parameter>
+</function>
+</tool_call>]
+0902 22:29:44 ds4-server: chat ctx=0..11434:11434 TOOLS invalid tool call dsml_snippet: <tool_call>
+<function=read>
+<parameter=filePath>
+/Users/evanhoffman/git/gmail-archive/src/gmail_archive/mbox.py
+</parameter>
+</function>
+</tool_call>
+0902 22:29:44 ds4-server: chat ctx=0..11434:11434 gen=68 TOOLS DSML_START DSML_END finish=stop 13.848s
+0902 22:29:54 ds4-server: rewound GLM live prefix from 11623 to 11433; final prompt token will be reevaluated
+0902 22:29:54 ds4-server: chat ctx=11433..11434:1 TOOLS prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:29:54 ds4-server: chat ctx=11433..11434:1 TOOLS prefill chunk 1/1 (100.0%) chunk=0.00 t/s avg=30.78 t/s 0.032s
+0902 22:29:54 ds4-server: chat ctx=11433..11434:1 TOOLS prompt done 0.033s
+0902 22:29:55 ds4-server: chat ctx=11434..11484:50 gen=50 TOOLS DSML_START decoding chunk=39.20 t/s avg=39.20 t/s 1.276s
+0902 22:29:56 ds4-server: chat ctx=11433..11434:1 TOOLS unterminated tool call; continuing with model-visible tool error
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:29:56 ds4-server: chat ctx=11433..11434:1 TOOLS tool-error continuation appended 61 tokens
+0902 22:29:57 ds4-server: chat ctx=11434..11484:50 gen=50 TOOLS DSML_START decoding chunk=39.38 t/s avg=39.38 t/s 1.270s
+0902 22:29:57 ds4-server: chat ctx=11484..11491:7 gen=57 TOOLS DSML_START DSML_END decoding chunk=39.76 t/s avg=39.42 t/s 1.446s
+0902 22:29:57 ds4-server: chat ctx=11433..11434:1 TOOLS invalid tool call returned as assistant text finish=stop [text_len=221 saw_start=1 saw_end=1 text_snippet: I need to look into this further. Let me confirm the details.
+</think>
+
+<tool_call>
+<function=read>
+<parameter=filePath>
+/Users/evanhoffman/git/gmail-archive/src/gmail_archive/mbox.py
+</parameter>
+</function>
+</tool_call>]
+0902 22:29:57 ds4-server: chat ctx=11433..11434:1 TOOLS invalid tool call dsml_snippet: <tool_call>
+<function=read>
+<parameter=filePath>
+/Users/evanhoffman/git/gmail-archive/src/gmail_archive/mbox.py
+</parameter>
+</function>
+</tool_call>
+0902 22:29:57 ds4-server: chat ctx=11433..11434:1 gen=57 TOOLS DSML_START DSML_END finish=stop 3.230s
+0902 22:30:08 ds4-server: rewound GLM live prefix from 11610 to 11433; final prompt token will be reevaluated
+0902 22:30:08 ds4-server: chat ctx=11433..11434:1 TOOLS prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:30:08 ds4-server: chat ctx=11433..11434:1 TOOLS prefill chunk 1/1 (100.0%) chunk=0.00 t/s avg=32.22 t/s 0.031s
+0902 22:30:08 ds4-server: chat ctx=11433..11434:1 TOOLS prompt done 0.031s
+0902 22:30:09 ds4-server: chat ctx=11434..11484:50 gen=50 TOOLS DSML_START decoding chunk=39.10 t/s avg=39.10 t/s 1.279s
+0902 22:30:10 ds4-server: chat ctx=11484..11500:16 gen=66 TOOLS DSML_START DSML_END decoding chunk=38.85 t/s avg=39.04 t/s 1.691s
+0902 22:30:10 ds4-server: chat ctx=11433..11434:1 TOOLS invalid tool call; continuing with model-visible tool error
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:30:10 ds4-server: chat ctx=11433..11434:1 TOOLS tool-error continuation appended 60 tokens
+0902 22:30:11 ds4-server: chat ctx=11434..11484:50 gen=50 TOOLS DSML_START decoding chunk=38.99 t/s avg=38.99 t/s 1.282s
+0902 22:30:11 ds4-server: chat ctx=11484..11501:17 gen=67 TOOLS DSML_START DSML_END decoding chunk=39.80 t/s avg=39.19 t/s 1.709s
+0902 22:30:11 ds4-server: tool calls ctx=11433..11434:1 n=1 raw_tool_text=1 ids=[call_571bde1ae1047a771f5ea785abce3457] names=[read]
+0902 22:30:11 ds4-server: chat ctx=11433..11434:1 gen=67 TOOLS DSML_START DSML_END finish=tool_calls 3.696s
+0902 22:30:22 ds4-server: rewound GLM live prefix from 11627 to 11433; final prompt token will be reevaluated
+0902 22:30:22 ds4-server: chat ctx=11433..11434:1 TOOLS prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:30:22 ds4-server: chat ctx=11433..11434:1 TOOLS prefill chunk 1/1 (100.0%) chunk=0.00 t/s avg=32.56 t/s 0.031s
+0902 22:30:22 ds4-server: chat ctx=11433..11434:1 TOOLS prompt done 0.031s
+0902 22:30:23 ds4-server: chat ctx=11434..11484:50 gen=50 TOOLS DSML_START decoding chunk=39.18 t/s avg=39.18 t/s 1.276s
+0902 22:30:23 ds4-server: chat ctx=11484..11489:5 gen=55 TOOLS DSML_START DSML_END decoding chunk=39.83 t/s avg=39.24 t/s 1.402s
+0902 22:30:23 ds4-server: chat ctx=11433..11434:1 TOOLS invalid tool call; continuing with model-visible tool error
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:30:24 ds4-server: chat ctx=11433..11434:1 TOOLS tool-error continuation appended 60 tokens
+0902 22:30:25 ds4-server: chat ctx=11434..11484:50 gen=50 TOOLS DSML_START decoding chunk=38.86 t/s avg=38.86 t/s 1.287s
+0902 22:30:25 ds4-server: chat ctx=11484..11491:7 gen=57 TOOLS DSML_START DSML_END decoding chunk=39.86 t/s avg=38.98 t/s 1.462s
+0902 22:30:25 ds4-server: chat ctx=11433..11434:1 TOOLS invalid tool call returned as assistant text finish=stop [text_len=224 saw_start=1 saw_end=1 text_snippet: The tool call failed. This is because I didn't output anything before it. Let me redo it correctly.
+</think>
+
+<tool_call>
+<function=bash>
+<parameter=command>
+ls src/gmail_archive/ tests/
+</parameter>
+</function>
+</tool_call>]
+0902 22:30:25 ds4-server: chat ctx=11433..11434:1 TOOLS invalid tool call dsml_snippet: <tool_call>
+<function=bash>
+<parameter=command>
+ls src/gmail_archive/ tests/
+</parameter>
+</function>
+</tool_call>
+0902 22:30:25 ds4-server: chat ctx=11433..11434:1 gen=57 TOOLS DSML_START DSML_END finish=stop 3.159s
+0902 22:30:36 ds4-server: rewound GLM live prefix from 11606 to 11433; final prompt token will be reevaluated
+0902 22:30:36 ds4-server: chat ctx=11433..11434:1 TOOLS prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:30:36 ds4-server: chat ctx=11433..11434:1 TOOLS prefill chunk 1/1 (100.0%) chunk=0.00 t/s avg=32.03 t/s 0.031s
+0902 22:30:36 ds4-server: chat ctx=11433..11434:1 TOOLS prompt done 0.031s
+0902 22:30:37 ds4-server: chat ctx=11434..11484:50 gen=50 TOOLS DSML_START decoding chunk=39.42 t/s avg=39.42 t/s 1.268s
+0902 22:30:38 ds4-server: chat ctx=11484..11501:17 gen=67 TOOLS DSML_START DSML_END decoding chunk=39.25 t/s avg=39.38 t/s 1.702s
+0902 22:30:38 ds4-server: chat ctx=11433..11434:1 TOOLS invalid tool call; continuing with model-visible tool error
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:30:38 ds4-server: chat ctx=11433..11434:1 TOOLS tool-error continuation appended 60 tokens
+0902 22:30:39 ds4-server: chat ctx=11434..11484:50 gen=50 TOOLS THINKING decoding chunk=38.63 t/s avg=38.63 t/s 1.294s
+0902 22:30:40 ds4-server: chat ctx=11484..11534:50 gen=100 TOOLS DSML_START decoding chunk=39.22 t/s avg=38.92 t/s 2.569s
+0902 22:30:41 ds4-server: chat ctx=11534..11556:22 gen=122 TOOLS DSML_START decoding chunk=39.49 t/s avg=39.02 t/s 3.126s
+0902 22:30:41 ds4-server: chat ctx=11433..11434:1 gen=122 TOOLS DSML_START finish=error error="unterminated tool call" 5.124s
+0902 22:30:52 ds4-server: rewound GLM live prefix from 11683 to 11433; final prompt token will be reevaluated
+0902 22:30:52 ds4-server: chat ctx=11433..11434:1 TOOLS prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:30:52 ds4-server: chat ctx=11433..11434:1 TOOLS prefill chunk 1/1 (100.0%) chunk=0.00 t/s avg=29.91 t/s 0.033s
+0902 22:30:52 ds4-server: chat ctx=11433..11434:1 TOOLS prompt done 0.033s
+0902 22:30:53 ds4-server: chat ctx=11434..11484:50 gen=50 TOOLS DSML_START decoding chunk=38.84 t/s avg=38.84 t/s 1.287s
+0902 22:30:53 ds4-server: chat ctx=11484..11501:17 gen=67 TOOLS DSML_START DSML_END decoding chunk=39.96 t/s avg=39.12 t/s 1.713s
+0902 22:30:53 ds4-server: chat ctx=11433..11434:1 TOOLS invalid tool call; continuing with model-visible tool error
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:30:54 ds4-server: chat ctx=11433..11434:1 TOOLS tool-error continuation appended 60 tokens
+0902 22:30:55 ds4-server: chat ctx=11434..11484:50 gen=50 TOOLS DSML_START decoding chunk=39.44 t/s avg=39.44 t/s 1.268s
+0902 22:30:55 ds4-server: chat ctx=11484..11491:7 gen=57 TOOLS DSML_START DSML_END decoding chunk=40.04 t/s avg=39.51 t/s 1.443s
+0902 22:30:55 ds4-server: chat ctx=11433..11434:1 TOOLS invalid tool call returned as assistant text finish=stop [text_len=221 saw_start=1 saw_end=1 text_snippet: I need to look into this further. Let me confirm the details.
+</think>
+
+<tool_call>
+<function=read>
+<parameter=filePath>
+/Users/evanhoffman/git/gmail-archive/src/gmail_archive/mbox.py
+</parameter>
+</function>
+</tool_call>]
+0902 22:30:55 ds4-server: chat ctx=11433..11434:1 TOOLS invalid tool call dsml_snippet: <tool_call>
+<function=read>
+<parameter=filePath>
+/Users/evanhoffman/git/gmail-archive/src/gmail_archive/mbox.py
+</parameter>
+</function>
+</tool_call>
+0902 22:30:55 ds4-server: chat ctx=11433..11434:1 gen=57 TOOLS DSML_START DSML_END finish=stop 3.457s
+0902 22:30:55 ds4-server: live kv cache miss live=11618 prompt=11414 common=11323 reason=token-mismatch
+0902 22:30:55 ds4-server: kv cache evicted reason=disk-cache-full tokens=10240 hits=0 size=392.50 MiB file=/Users/evanhoffman/.ds4/server-kv/2be7a7dbe21315de8bf27c95d37b99d1e6df5e39.kv
+0902 22:30:55 ds4-server: kv cache stored tokens=11618 trimmed=0 reason=evict key=token-text size=429.86 MiB save=47.5 ms
+0902 22:30:55 ds4-server: chat ctx=0..11414:11414 TOOLS prompt start
+ds4: Qwen prefill selected chunk=8192 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=cold Qwen native path
+0902 22:31:03 ds4-server: chat ctx=0..11414:11414 TOOLS prefill chunk 8192/11414 (71.8%) chunk=0.00 t/s avg=1095.38 t/s 7.479s
+0902 22:31:05 ds4-server: chat ctx=0..11414:11414 TOOLS prefill chunk 10240/11414 (89.7%) chunk=955.04 t/s avg=1064.10 t/s 9.623s
+0902 22:31:05 ds4-server: kv cache evicted reason=disk-cache-full tokens=11618 hits=0 size=429.86 MiB file=/Users/evanhoffman/.ds4/server-kv/3b03b9c84cde2300bfb5fe6dbf238e4eb4c71364.kv
+0902 22:31:05 ds4-server: kv cache stored tokens=10240 trimmed=1174 reason=cold key=token-text size=392.50 MiB save=43.6 ms
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:31:06 ds4-server: chat ctx=0..11414:11414 TOOLS prefill chunk 11414/11414 (100.0%) chunk=813.54 t/s avg=1031.43 t/s 11.066s
+0902 22:31:06 ds4-server: chat ctx=0..11414:11414 TOOLS prompt done 11.066s
+0902 22:31:08 ds4-server: chat ctx=11414..11464:50 gen=50 TOOLS DSML_START decoding chunk=37.94 t/s avg=37.94 t/s 1.318s
+0902 22:31:08 ds4-server: chat ctx=11464..11475:11 gen=61 TOOLS DSML_START DSML_END decoding chunk=38.65 t/s avg=38.06 t/s 1.603s
+0902 22:31:08 ds4-server: chat ctx=0..11414:11414 TOOLS invalid tool call; continuing with model-visible tool error
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:31:08 ds4-server: chat ctx=0..11414:11414 TOOLS tool-error continuation appended 60 tokens
+0902 22:31:09 ds4-server: chat ctx=11414..11464:50 gen=50 TOOLS DSML_START decoding chunk=39.03 t/s avg=39.03 t/s 1.281s
+0902 22:31:10 ds4-server: chat ctx=11464..11471:7 gen=57 TOOLS DSML_START DSML_END decoding chunk=39.95 t/s avg=39.14 t/s 1.456s
+0902 22:31:10 ds4-server: chat ctx=0..11414:11414 TOOLS invalid tool call returned as assistant text finish=stop [text_len=231 saw_start=1 saw_end=1 text_snippet: There was an error in my tool call. I'll redo it correctly.
+</think>
+
+<tool_call>
+<|im_start|>function_calls
+{"name": "read", "arguments": {"filePath": "/Users/evanhoffman/git/gmail-archive/src/gmail_archive/mbox.py"}}
+</tool_call>]
+0902 22:31:10 ds4-server: chat ctx=0..11414:11414 TOOLS invalid tool call dsml_snippet: <tool_call>
+<|im_start|>function_calls
+{"name": "read", "arguments": {"filePath": "/Users/evanhoffman/git/gmail-archive/src/gmail_archive/mbox.py"}}
+</tool_call>
+0902 22:31:10 ds4-server: chat ctx=0..11414:11414 gen=57 TOOLS DSML_START DSML_END finish=stop 14.400s
+0902 22:31:21 ds4-server: rewound GLM live prefix from 11592 to 11413; final prompt token will be reevaluated
+0902 22:31:21 ds4-server: chat ctx=11413..11414:1 TOOLS prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:31:21 ds4-server: chat ctx=11413..11414:1 TOOLS prefill chunk 1/1 (100.0%) chunk=0.00 t/s avg=29.01 t/s 0.034s
+0902 22:31:21 ds4-server: chat ctx=11413..11414:1 TOOLS prompt done 0.035s
+0902 22:31:22 ds4-server: chat ctx=11414..11464:50 gen=50 TOOLS DSML_START decoding chunk=38.30 t/s avg=38.30 t/s 1.305s
+0902 22:31:22 ds4-server: chat ctx=11464..11468:4 gen=54 TOOLS DSML_START DSML_END decoding chunk=37.00 t/s avg=38.20 t/s 1.414s
+0902 22:31:22 ds4-server: chat ctx=11413..11414:1 TOOLS invalid tool call; continuing with model-visible tool error
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:31:22 ds4-server: chat ctx=11413..11414:1 TOOLS tool-error continuation appended 60 tokens
+0902 22:31:23 ds4-server: chat ctx=11413..11414:1 TOOLS recovered a complete tool call from unclosed reasoning after 35 generated tokens
+0902 22:31:23 ds4-server: chat ctx=11414..11449:35 gen=35 TOOLS THINKING DSML_START DSML_END decoding chunk=38.30 t/s avg=38.30 t/s 0.914s
+0902 22:31:23 ds4-server: tool calls ctx=11413..11414:1 n=1 raw_tool_text=1 ids=[call_010373e3cdd7689a196a3a177ed3abf3] names=[read]
+0902 22:31:23 ds4-server: chat ctx=11413..11414:1 gen=35 TOOLS THINKING DSML_START DSML_END finish=tool_calls 2.631s
+0902 22:31:34 ds4-server: rewound GLM live prefix from 11563 to 11413; final prompt token will be reevaluated
+0902 22:31:34 ds4-server: chat ctx=11413..11414:1 TOOLS prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:31:34 ds4-server: chat ctx=11413..11414:1 TOOLS prefill chunk 1/1 (100.0%) chunk=0.00 t/s avg=29.49 t/s 0.034s
+0902 22:31:34 ds4-server: chat ctx=11413..11414:1 TOOLS prompt done 0.034s
+0902 22:31:36 ds4-server: chat ctx=11414..11464:50 gen=50 TOOLS DSML_START decoding chunk=38.74 t/s avg=38.74 t/s 1.291s
+0902 22:31:36 ds4-server: chat ctx=11464..11474:10 gen=60 TOOLS DSML_START DSML_END decoding chunk=39.98 t/s avg=38.94 t/s 1.541s
+0902 22:31:36 ds4-server: chat ctx=11413..11414:1 TOOLS invalid tool call; continuing with model-visible tool error
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:31:36 ds4-server: chat ctx=11413..11414:1 TOOLS tool-error continuation appended 60 tokens
+0902 22:31:38 ds4-server: chat ctx=11414..11464:50 gen=50 TOOLS DSML_START decoding chunk=38.49 t/s avg=38.49 t/s 1.299s
+0902 22:31:38 ds4-server: chat ctx=11464..11469:5 gen=55 TOOLS DSML_START DSML_END decoding chunk=39.86 t/s avg=38.61 t/s 1.425s
+0902 22:31:38 ds4-server: chat ctx=11413..11414:1 TOOLS invalid tool call returned as assistant text finish=stop [text_len=213 saw_start=1 saw_end=1 text_snippet: That's strange. Let me retry with the correct format.
+</think>
+
+<tool_call>
+<function=read>
+<parameter=filePath>
+/Users/evanhoffman/git/gmail-archive/src/gmail_archive/mbox.py
+</parameter>
+</function>
+</tool_call>]
+0902 22:31:38 ds4-server: chat ctx=11413..11414:1 TOOLS invalid tool call dsml_snippet: <tool_call>
+<function=read>
+<parameter=filePath>
+/Users/evanhoffman/git/gmail-archive/src/gmail_archive/mbox.py
+</parameter>
+</function>
+</tool_call>
+0902 22:31:38 ds4-server: chat ctx=11413..11414:1 gen=55 TOOLS DSML_START DSML_END finish=stop 3.276s
+0902 22:31:49 ds4-server: rewound GLM live prefix from 11589 to 11413; final prompt token will be reevaluated
+0902 22:31:49 ds4-server: chat ctx=11413..11414:1 TOOLS prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:31:49 ds4-server: chat ctx=11413..11414:1 TOOLS prefill chunk 1/1 (100.0%) chunk=0.00 t/s avg=30.46 t/s 0.033s
+0902 22:31:49 ds4-server: chat ctx=11413..11414:1 TOOLS prompt done 0.033s
+0902 22:31:50 ds4-server: chat ctx=11414..11464:50 gen=50 TOOLS DSML_START decoding chunk=38.57 t/s avg=38.57 t/s 1.296s
+0902 22:31:50 ds4-server: chat ctx=11464..11469:5 gen=55 TOOLS DSML_START DSML_END decoding chunk=39.73 t/s avg=38.67 t/s 1.422s
+0902 22:31:50 ds4-server: chat ctx=11413..11414:1 TOOLS invalid tool call; continuing with model-visible tool error
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:31:51 ds4-server: chat ctx=11413..11414:1 TOOLS tool-error continuation appended 60 tokens
+0902 22:31:52 ds4-server: chat ctx=11414..11464:50 gen=50 TOOLS DSML_START decoding chunk=38.65 t/s avg=38.65 t/s 1.294s
+0902 22:31:52 ds4-server: chat ctx=11464..11473:9 gen=59 TOOLS DSML_START DSML_END decoding chunk=39.79 t/s avg=38.82 t/s 1.520s
+0902 22:31:52 ds4-server: chat ctx=11413..11414:1 TOOLS invalid tool call returned as assistant text finish=stop [text_len=232 saw_start=1 saw_end=1 text_snippet: There was a problem with my tool call format. Let me retry it correctly.
+</think>
+
+<tool_call>
+<function=read>
+<parameter=filePath>
+/Users/evanhoffman/git/gmail-archive/src/gmail_archive/mbox.py
+</parameter>
+</function>
+</tool_call>]
+0902 22:31:52 ds4-server: chat ctx=11413..11414:1 TOOLS invalid tool call dsml_snippet: <tool_call>
+<function=read>
+<parameter=filePath>
+/Users/evanhoffman/git/gmail-archive/src/gmail_archive/mbox.py
+</parameter>
+</function>
+</tool_call>
+0902 22:31:52 ds4-server: chat ctx=11413..11414:1 gen=59 TOOLS DSML_START DSML_END finish=stop 3.247s
+0902 22:32:03 ds4-server: rewound GLM live prefix from 11588 to 11413; final prompt token will be reevaluated
+0902 22:32:03 ds4-server: chat ctx=11413..11414:1 TOOLS prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:32:03 ds4-server: chat ctx=11413..11414:1 TOOLS prefill chunk 1/1 (100.0%) chunk=0.00 t/s avg=30.69 t/s 0.033s
+0902 22:32:03 ds4-server: chat ctx=11413..11414:1 TOOLS prompt done 0.033s
+0902 22:32:05 ds4-server: chat ctx=11414..11464:50 gen=50 TOOLS DSML_START decoding chunk=38.53 t/s avg=38.53 t/s 1.298s
+0902 22:32:05 ds4-server: chat ctx=11464..11474:10 gen=60 TOOLS DSML_START DSML_END decoding chunk=39.91 t/s avg=38.75 t/s 1.548s
+0902 22:32:05 ds4-server: chat ctx=11413..11414:1 TOOLS invalid tool call; continuing with model-visible tool error
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:32:05 ds4-server: chat ctx=11413..11414:1 TOOLS tool-error continuation appended 60 tokens
+0902 22:32:07 ds4-server: chat ctx=11414..11464:50 gen=50 TOOLS DSML_START decoding chunk=38.42 t/s avg=38.42 t/s 1.301s
+0902 22:32:07 ds4-server: chat ctx=11464..11472:8 gen=58 TOOLS DSML_START DSML_END decoding chunk=39.92 t/s avg=38.62 t/s 1.502s
+0902 22:32:07 ds4-server: chat ctx=11413..11414:1 TOOLS invalid tool call returned as assistant text finish=stop [text_len=238 saw_start=1 saw_end=1 text_snippet: There was a problem with the tool call format. I'll retry correctly using the proper JSON inside the invoke tag.
+</think>
+
+<tool_call>
+<function=bash>
+<parameter=command>
+cat src/gmail_archive/mbox.py
+</parameter>
+</function>
+</tool_call>]
+0902 22:32:07 ds4-server: chat ctx=11413..11414:1 TOOLS invalid tool call dsml_snippet: <tool_call>
+<function=bash>
+<parameter=command>
+cat src/gmail_archive/mbox.py
+</parameter>
+</function>
+</tool_call>
+0902 22:32:07 ds4-server: chat ctx=11413..11414:1 gen=58 TOOLS DSML_START DSML_END finish=stop 3.357s
+0902 22:32:18 ds4-server: rewound GLM live prefix from 11592 to 11413; final prompt token will be reevaluated
+0902 22:32:18 ds4-server: chat ctx=11413..11414:1 TOOLS prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:32:18 ds4-server: chat ctx=11413..11414:1 TOOLS prefill chunk 1/1 (100.0%) chunk=0.00 t/s avg=27.15 t/s 0.037s
+0902 22:32:18 ds4-server: chat ctx=11413..11414:1 TOOLS prompt done 0.037s
+0902 22:32:19 ds4-server: chat ctx=11414..11464:50 gen=50 TOOLS DSML_START decoding chunk=38.17 t/s avg=38.17 t/s 1.310s
+0902 22:32:19 ds4-server: chat ctx=11464..11468:4 gen=54 TOOLS DSML_START DSML_END decoding chunk=39.78 t/s avg=38.29 t/s 1.410s
+0902 22:32:19 ds4-server: chat ctx=11413..11414:1 TOOLS invalid tool call; continuing with model-visible tool error
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0902 22:32:20 ds4-server: chat ctx=11413..11414:1 TOOLS tool-error continuation appended 60 tokens
+0902 22:32:21 ds4-server: chat ctx=11414..11464:50 gen=50 TOOLS DSML_START decoding chunk=38.93 t/s avg=38.93 t/s 1.284s
+0902 22:32:21 ds4-server: chat ctx=11464..11471:7 gen=57 TOOLS DSML_START DSML_END decoding chunk=39.91 t/s avg=39.05 t/s 1.460s
+0902 22:32:21 ds4-server: chat ctx=11413..11414:1 TOOLS invalid tool call returned as assistant text finish=stop [text_len=221 saw_start=1 saw_end=1 text_snippet: I need to look into this further. Let me confirm the details.
+</think>
+
+<tool_call>
+<function=read>
+<parameter=filePath>
+/Users/evanhoffman/git/gmail-archive/src/gmail_archive/mbox.py
+</parameter>
+</function>
+</tool_call>]
+0902 22:32:21 ds4-server: chat ctx=11413..11414:1 TOOLS invalid tool call dsml_snippet: <tool_call>
+<function=read>
+<parameter=filePath>
+/Users/evanhoffman/git/gmail-archive/src/gmail_archive/mbox.py
+</parameter>
+</function>
+</tool_call>
+0902 22:32:21 ds4-server: chat ctx=11413..11414:1 gen=57 TOOLS DSML_START DSML_END finish=stop 3.183s
