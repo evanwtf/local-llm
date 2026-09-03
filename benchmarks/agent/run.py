@@ -1034,11 +1034,26 @@ def opencode_parse(stdout):
     short wrap-up whose input is tiny -- one observed row ended at 148 tokens
     after 12 turns -- so the last value is not a high-water mark. Rows written
     before 2026-08-17 carry the last step's input rather than the peak.
+
+    Also records per-step TTFT (#96). The transcript stamps every event with a
+    millisecond timestamp, and each real step brackets `step_start` -> first
+    `text`/`tool_use` -> `step_finish`. The delta from step_start to the first
+    content event is the closest thing to per-turn TTFT we can compute from
+    this transcript: it is what the agent USER experienced, including OpenCode's
+    own serialization overhead. It is not the wire TTFT from ds4's perspective.
+
+    Tool-response acknowledgment steps -- where OpenCode records a tool result
+    with no model call -- also produce a step_start/step_finish pair with a
+    TTFT of a few milliseconds. Those are filtered by a > 100 ms threshold so
+    the recorded median describes real model turns, not stream bookkeeping.
     """
     turns = 0
     out_tokens = 0
     reasoning = 0
     peak_input = None
+    step_ttfts_ms: list[int] = []
+    current_step_open: int | None = None
+    current_step_saw_content = False
     for line in stdout.splitlines():
         line = line.strip()
         if not line:
@@ -1047,22 +1062,72 @@ def opencode_parse(stdout):
             event = json.loads(line)
         except json.JSONDecodeError:
             continue
-        if event.get("type") != "step_finish":
-            continue
-        tokens = event.get("part", {}).get("tokens", {})
-        turns += 1
-        out_tokens += tokens.get("output") or 0
-        reasoning += tokens.get("reasoning") or 0
-        if tokens.get("input"):
-            peak_input = max(peak_input or 0, tokens["input"])
+        etype = event.get("type")
+        ts = event.get("timestamp")
+        if etype == "step_start":
+            current_step_open = ts
+            current_step_saw_content = False
+        elif (
+            etype in ("text", "tool_use")
+            and not current_step_saw_content
+            and current_step_open is not None
+            and isinstance(ts, int)
+        ):
+            step_ttfts_ms.append(ts - current_step_open)
+            current_step_saw_content = True
+        elif etype == "step_finish":
+            tokens = event.get("part", {}).get("tokens", {})
+            turns += 1
+            out_tokens += tokens.get("output") or 0
+            reasoning += tokens.get("reasoning") or 0
+            if tokens.get("input"):
+                peak_input = max(peak_input or 0, tokens["input"])
+            current_step_open = None
+            current_step_saw_content = False
     if not turns:
         raise json.JSONDecodeError("no step_finish events", stdout[:200], 0)
-    return dict(
+
+    row = dict(
         num_turns=turns,
         input_tokens=peak_input,
         output_tokens=out_tokens,
         reasoning_tokens=reasoning,
     )
+    # A trial with no timestamps (a very old transcript, or a client that
+    # emits none) records no TTFT rather than a bogus zero. Absence is a
+    # different signal than "0 ms".
+    if step_ttfts_ms:
+        real_model_ttfts = [t for t in step_ttfts_ms if t > 100]
+        row["step_ttft_ms_median"] = _median_int(step_ttfts_ms)
+        row["step_ttft_ms_p90"] = _percentile_int(step_ttfts_ms, 0.90)
+        row["num_steps"] = len(step_ttfts_ms)
+        row["num_model_steps"] = len(real_model_ttfts)
+        if real_model_ttfts:
+            row["model_step_ttft_ms_median"] = _median_int(real_model_ttfts)
+    return row
+
+
+def _median_int(values: list[int]) -> int:
+    ordered = sorted(values)
+    n = len(ordered)
+    if n % 2:
+        return ordered[n // 2]
+    return (ordered[n // 2 - 1] + ordered[n // 2]) // 2
+
+
+def _percentile_int(values: list[int], p: float) -> int:
+    """Nearest-rank percentile in the closed interval [min, max].
+
+    Not linear interpolation: with n=1 the p90 must be the single sample, not
+    itself; with n=10 the p90 is the 9th-ranked value. Interpolation would
+    produce fractional answers for token/millisecond quantities, which are
+    integers by construction.
+    """
+    ordered = sorted(values)
+    if not ordered:
+        return 0
+    k = max(0, min(len(ordered) - 1, round(p * (len(ordered) - 1))))
+    return ordered[k]
 
 
 def codex_argv(task, backend, worktree=None):
