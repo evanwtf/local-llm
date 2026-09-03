@@ -207,3 +207,61 @@ def test_no_keep_entry_carries_a_redownload_command(tier: str) -> None:
     for entry in pm.PLAN:
         if entry.tier == tier:
             assert entry.redownload == "", entry.name
+
+
+# --- the backup guard ----------------------------------------------------
+#
+# Added after a near miss: a 410 GB `rsync ~/.ollama/models` to a NAS was in
+# flight while this script was about to `ollama rm` six tags. That backup would
+# have completed successfully and been missing the models it was taken to
+# preserve -- worse than either deleting or not backing up, because it looks
+# like it worked.
+
+
+def _ps_returning(lines: list[str], monkeypatch) -> None:
+    class Result:
+        returncode = 0
+        stdout = "PID COMMAND\n" + "\n".join(lines)
+        stderr = ""
+
+    monkeypatch.setattr(pm.subprocess, "run", lambda *a, **k: Result())
+
+
+def test_an_rsync_of_the_ollama_store_is_detected(monkeypatch) -> None:
+    _ps_returning(
+        [
+            "7208 rsync --progress -a /Users/evanhoffman/.ollama/models "
+            "lunix:/tank/data/models/ollama-models"
+        ],
+        monkeypatch,
+    )
+    found = pm.check_no_backup_running()
+    assert found and "rsync" in found[0]
+
+
+def test_an_rsync_of_the_gguf_directory_is_detected(monkeypatch) -> None:
+    _ps_returning(
+        ["999 rsync -a /Users/evanhoffman/git/ds4/gguf nas:/backup"], monkeypatch
+    )
+    assert pm.check_no_backup_running()
+
+
+def test_an_rsync_of_something_unrelated_is_ignored(monkeypatch) -> None:
+    """The guard must not block on every rsync on the machine."""
+    _ps_returning(
+        ["999 rsync -a /Users/evanhoffman/Documents nas:/backup"], monkeypatch
+    )
+    assert pm.check_no_backup_running() == []
+
+
+def test_no_copy_processes_means_no_finding(monkeypatch) -> None:
+    _ps_returning(["999 /usr/bin/ssh somewhere", "1000 zsh"], monkeypatch)
+    assert pm.check_no_backup_running() == []
+
+
+def test_the_script_itself_is_not_mistaken_for_a_backup(monkeypatch) -> None:
+    """Its own argv mentions the watched paths and must not self-block."""
+    _ps_returning(
+        ["123 python scripts/prune_models.py --delete /models rsync"], monkeypatch
+    )
+    assert pm.check_no_backup_running() == []

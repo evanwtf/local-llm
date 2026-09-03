@@ -315,6 +315,37 @@ PLAN: tuple[Entry, ...] = (
 )
 
 
+# Directories whose contents this script can delete. An rsync/rclone/cp reading
+# any of them is a backup in flight, and deleting underneath it produces a
+# silently incomplete copy of the very models being backed up.
+BACKUP_WATCHED = ("/.ollama/models", "/models", "/ds4/gguf")
+
+
+def check_no_backup_running() -> list[str]:
+    """Name any copy process reading a directory we delete from.
+
+    This exists because of a near miss: a 410 GB `rsync ~/.ollama/models` to a
+    NAS was running while this script was about to `ollama rm` six tags. The
+    backup would have completed successfully and been missing the models it was
+    taken to preserve, which is worse than either outcome alone.
+    """
+    found = []
+    probe = subprocess.run(
+        ["ps", "-Ao", "pid,command"], capture_output=True, text=True, check=False
+    )
+    if probe.returncode != 0:
+        return found
+    for line in probe.stdout.splitlines()[1:]:
+        lowered = line.lower()
+        if not any(tool in lowered for tool in ("rsync", "rclone", "/cp ", " cp ")):
+            continue
+        if "prune_models" in lowered:
+            continue
+        if any(watched in line for watched in BACKUP_WATCHED):
+            found.append(line.strip()[:160])
+    return found
+
+
 def check_no_server_running() -> list[str]:
     """Name any model server holding weights. Deleting under one is unsafe."""
     running = []
@@ -515,6 +546,17 @@ def main() -> int:
         for e in selected:
             remove(e, dry_run=True)
         return 0
+
+    backups = check_no_backup_running()
+    if backups and not args.force:
+        logger.error("")
+        logger.error("REFUSING TO DELETE: a backup appears to be reading these:")
+        for line in backups:
+            logger.error("    %s", line)
+        logger.error("Let it finish. Deleting underneath a running backup gives")
+        logger.error("you a copy that completes successfully and is missing the")
+        logger.error("models it was taken to preserve.")
+        return 1
 
     running = check_no_server_running()
     if running and not args.force:
