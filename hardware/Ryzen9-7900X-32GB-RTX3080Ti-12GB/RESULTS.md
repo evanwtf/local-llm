@@ -453,3 +453,160 @@ resident, `size_vram == size`, fully on GPU). Same verified window as
 
 `qwen3.5:9b` was already on disk -- #79 listed it as a candidate on 2026-09-01
 and it cost no download.
+
+
+---
+
+## 2026-09-03: the four remaining #114 candidates — and the oracle is now the bottleneck
+
+Ran `mistral-nemo:12b`, `qwen3.5:9b-q8_0`, `gemma4:e4b-it-q4_K_M` and
+`Bonsai-27B-Q1_0`. Seven backends now have data on this card.
+
+| backend | passed | median wall | median turns | resident @ ctx |
+|---|---|---|---|---|
+| `dtornith159b` | **21/25** | 75.9s | 9 | 6.11 GiB @ 32k |
+| `dtqwen359b` | 9/12 | 82.7s | 6 | 6.13 GiB @ 32k |
+| `dtqwen359bq8` | 9/12 | 101.2s | 6 | 9.27 GiB @ 32k |
+| `dtgemma4e4b` | 6/12 | **17.6s** | 3 | **3.03 GiB** @ 32k |
+| `dtbonsai27b` | 5/12 | 61.2s | 4 | 5.66 GiB @ 32k |
+| `dtgemma412b` | 3/12 | 40.9s | 3 | 7.84 GiB @ 32k |
+| `dtmistralnemo` | **0/12** | 6.8s | 1 | 9.23 GiB @ **16k** |
+
+Per task:
+
+| task | ornith | qwen Q4 | qwen Q8 | E4B | bonsai | gemma 12B | nemo |
+|---|---|---|---|---|---|---|---|
+| `storage-blob-put` | 6/7 | 1/3 | 2/3 | 0/3 | 0/3 | 0/3 | 0/3 |
+| `mbox-scan` | 4/6 | 2/3 | 1/3 | 0/3 | 0/3 | 0/3 | 0/3 |
+| `script-reverse` | 5/6 | 3/3 | 3/3 | 3/3 | 2/3 | 3/3 | 0/3 |
+| `script-transform` | 6/6 | 3/3 | 3/3 | 3/3 | 3/3 | 0/3 | 0/3 |
+
+**Only ornith solves repository tasks reliably.** Every other backend is 0-2 of
+3 on `storage-blob-put` and `mbox-scan`. That is the tier's real ceiling.
+
+### The headline: eleven near-misses, and the oracle cannot see any of them
+
+A binary oracle records "did not touch the file" and "one test short of green"
+identically. Across the seven backends, **eleven failed trials fixed most of
+the suite**, eight of them within three tests:
+
+| backend | task | result | control |
+|---|---|---|---|
+| `dtqwen359bq8` | `mbox-scan` t2 | **1 failed / 15 passed** | 13/3 |
+| `dtgemma412b` | `storage-blob-put` t3 | 2 failed / 15 passed | 14/3 |
+| `dtqwen359bq8` | `storage-blob-put` t2 | 2 failed / 15 passed | 14/3 |
+| `dtgemma4e4b` | `storage-blob-put` t1 | 2 failed / 15 passed | 14/3 |
+| `dtqwen359b` | `mbox-scan` t2 | 2 failed / 14 passed | 13/3 |
+| `dtqwen359bq8` | `mbox-scan` t3 | 2 failed / 14 passed | 13/3 |
+| `dtbonsai27b` | `storage-blob-put` t2 | 3 failed / 14 passed | 14/3 |
+| `dtgemma4e4b` | `mbox-scan` t2 | 3 failed / 13 passed | 13/3 |
+
+**#4 is no longer a hypothesis about the oracle. It is the dominant
+measurement artifact at this tier.** Six of seven backends produced at least
+one near-miss; `dtmistralnemo` is the only one that never came close, and it
+is the only one that never called a tool.
+
+### Q8 vs Q4: identical score, different model
+
+`qwen3.5:9b` at Q8_0 and Q4_K_M both score **9/12**. The metric says they are
+the same model. The evidence says otherwise:
+
+* **Q4's failures include not engaging.** One `storage-blob-put` trial left the
+  control untouched (14/3); another reached only 13/4.
+* **Q8's three failures are all near-misses** -- 15/17, 15/16, 14/16. It always
+  engages and nearly finishes.
+* **Q8 costs about 2x wall time** (median 101.2s against 82.7s; smoke probes
+  ran 12-44s against 7-21s), for 3.14 GiB more resident memory.
+
+Two quantisations of the same weights, indistinguishable on the metric,
+plainly different in the evidence. This is the cleanest #4 case available.
+
+### `gemma4:e4b` beats `gemma4:12b`, at 39% of the memory
+
+**6/12 against 3/12**, 3.03 GiB resident against 7.84 GiB, and a median wall of
+17.6s against 40.9s. The entire difference is `script-transform`, which the 12B
+never once completed and E4B passed 3/3 in 13.7-19.7s.
+
+E4B is also the most consistent backend measured here on the tasks it can do:
+`script-reverse` at 10.2 / 10.3 / 10.4s, tighter than ornith.
+
+Its failure mode on repository tasks is bimodal rather than graded -- trials
+either come within two tests or never touch the file, with nothing in between.
+
+**Footprint note.** E4B is 9.6 GB on disk but **3.03 GiB resident**. It is a
+MatFormer-style nested model, so the download size and the loaded size are
+different questions. #114's ~4 GB estimate was right about memory and wrong
+about download.
+
+### `Bonsai-27B` at Q1_0: the sub-1-bit class works, and is not competitive
+
+**5/12.** A 27B at roughly one bit per weight, 3.54 GiB on disk, **5.66 GiB
+resident at 32k**, fully on GPU. #114's "a 27B in 12 GB" claim holds on memory.
+
+More interesting: **Q1_0 is coherent.** It passes two of three smoke probes and
+completes `script-transform` 3/3 and `script-reverse` 2/3. Its
+`storage-blob-put` trial 2 reached 3 failed / 14 passed -- eleven tests fixed
+from the control.
+
+Three caveats for anyone reading the claim:
+
+1. **`general.architecture` is `qwen35`.** Bonsai is Qwen lineage and does
+   **not** satisfy #16's non-Qwen requirement.
+2. **The 128K context claim does not survive arithmetic here.** 24 heads /
+   4 KV, key+value 256, 64 blocks is 256 KiB/token, so 128K needs ~32 GiB of
+   KV at f16. It fits 32k in 5.66 GiB; it does not fit 128K on 12 GiB without
+   KV quantisation.
+3. **It found a new failure mode.** `mbox-scan` trial 1 wrote code that made
+   the test run consume 8.4 GiB, and #82's memory ceiling killed the oracle.
+   Peak RSS for that trial was 27.0 GiB against 30.5 GiB of system memory.
+   Without that guard the trial would have taken the machine and the batch.
+   First time the #82 cap has fired here, and it paid for itself.
+
+### `mistral-nemo:12b`: 0/12, zero tool calls
+
+It never calls a tool. It restates the task in prose and stops:
+
+> "Based on your instructions, I understand that you want me to implement the
+> `BlobStore.put` method in the `storage.py` file..."
+
+Every trial ended in 2.7-16.9s, median 1 turn. `Mistral-Nemo-Instruct-2407`
+predates the tool-calling training these tasks require; `"tool_call": true` in
+the client config is an assertion, not a capability.
+
+**This is the answer for #16.** The non-Qwen candidate already on disk cannot
+drive an agent loop at all. Combined with bonsai being Qwen lineage after all,
+this tier currently has **no working non-Qwen backend**.
+
+It also cannot reach 32k: 12.26 GiB at 32768 and it spills (10.15 GiB
+resident); 24576 spills too. It ran at **16,384**, the largest that fits at
+9.23 GiB. Its rows are not comparable to the others on context-sensitive work
+-- though at 1 median turn, context was not what stopped it.
+
+### On #83
+
+Three models now fail a smoke probe at `stop_reason=max_tokens (spent the
+budget thinking)`, and the affected probe differs by model:
+
+* `gemma4:12b-it` fails `fib` -- every run, both Ollama versions, both context
+  sizes
+* `Bonsai-27B` fails `mergesorted`
+* `gemma4:e4b`, both qwens, ornith and mistral-nemo pass all three
+
+So it is model-specific, not a property of the probe, the tier, or the gemma4
+family -- E4B passes the probe its 12B sibling always fails.
+
+**A wording bug in the gate.** It logs `did not finish ['fib'] in 300s` when
+the probe returned in 47.9s by exhausting its token budget. That misdescribes
+every instance of this failure as a timeout.
+
+### Provenance
+
+Ollama 0.33.2, OpenCode 1.18.27, harness `10d8573`, target `gmail-archive`
+@ `56e55cc`. All backends at a verified 32,768 window except `dtmistralnemo`
+at 16,384 (the card's limit for it). Each backend ran as its own `run.py`
+invocation with the previous model stopped between arms (#112).
+
+Bonsai resolved to
+[`prism-ml/Bonsai-27B-gguf`](https://huggingface.co/prism-ml/Bonsai-27B-gguf)
+-> `Bonsai-27B-Q1_0.gguf`, 3.54 GiB, recorded in `~/models/bonsai-27b/SOURCE.txt`
+so #111 does not repeat.

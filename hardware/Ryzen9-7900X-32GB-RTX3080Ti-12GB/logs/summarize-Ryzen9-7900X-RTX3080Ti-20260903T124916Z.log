@@ -1,0 +1,18 @@
+2026-09-03 12:49:16,603 INFO [10d8573-dirty@Ryzen9-7900X-RTX3080Ti] 2026-09-03T12:49:16Z (12:49:16 UTC) | harness 10d8573-dirty
+2026-09-03 12:49:16,630 INFO [10d8573-dirty@Ryzen9-7900X-RTX3080Ti]   machine: x86_64, AMD Ryzen 9 7900X 12-Core Processor, 24 cores, 30.5 GiB, NVIDIA GeForce RTX 3080 Ti, 12288 MiB, confinement none
+2026-09-03 12:49:16,982 INFO [10d8573-dirty@Ryzen9-7900X-RTX3080Ti]   stack:   ollama 0.33.2 | opencode 1.18.27
+2026-09-03 12:49:16,984 INFO [10d8573-dirty@Ryzen9-7900X-RTX3080Ti] note: 15 row(s) set aside (marked excluded, or dry runs); see RESULTS.md provenance
+2026-09-03 12:49:16,984 INFO [10d8573-dirty@Ryzen9-7900X-RTX3080Ti] | task | dtbonsai27b pass | dtgemma412b pass | dtgemma4e4b pass | dtmistralnemo pass | dtornith159b pass | dtqwen359b pass | dtqwen359bq8 pass | dtbonsai27b median s | dtgemma412b median s | dtgemma4e4b median s | dtmistralnemo median s | dtornith159b median s | dtqwen359b median s | dtqwen359bq8 median s |
+2026-09-03 12:49:16,984 INFO [10d8573-dirty@Ryzen9-7900X-RTX3080Ti] |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+2026-09-03 12:49:16,984 INFO [10d8573-dirty@Ryzen9-7900X-RTX3080Ti] | storage-blob-put | 0/3 | 0/3 | 0/3 | 0/3 | 6/7 | 1/3 | 2/3 | 177.0s | 73.4s | 19.1s | 7.8s | 133.0s | 130.0s | 119.1s |
+2026-09-03 12:49:16,984 INFO [10d8573-dirty@Ryzen9-7900X-RTX3080Ti] | mbox-scan | 0/3 | 0/3 | 0/3 | 0/3 | 4/6 | 2/3 | 1/3 | 121.0s | 284.9s | 23.0s | 6.6s | 217.5s | 97.6s | 214.1s |
+2026-09-03 12:49:16,984 INFO [10d8573-dirty@Ryzen9-7900X-RTX3080Ti] | script-reverse | 2/3 | 3/3 | 3/3 | 0/3 | 5/6 | 3/3 | 3/3 | 38.0s | 26.3s | 10.3s | 6.0s | 8.7s | 26.0s | 72.6s |
+2026-09-03 12:49:16,984 INFO [10d8573-dirty@Ryzen9-7900X-RTX3080Ti] | script-transform | 3/3 | 0/3 | 3/3 | 0/3 | 6/6 | 3/3 | 3/3 | 49.9s | 27.1s | 14.6s | 7.6s | 12.1s | 51.8s | 96.8s |
+2026-09-03 12:49:16,984 INFO [10d8573-dirty@Ryzen9-7900X-RTX3080Ti] 
+2026-09-03 12:49:16,985 INFO [10d8573-dirty@Ryzen9-7900X-RTX3080Ti] dtbonsai27b 5/12 passed   median 61.2s   median turns 4   timeouts 0
+2026-09-03 12:49:16,985 INFO [10d8573-dirty@Ryzen9-7900X-RTX3080Ti] dtgemma412b 3/12 passed   median 40.9s   median turns 3   timeouts 0
+2026-09-03 12:49:16,985 INFO [10d8573-dirty@Ryzen9-7900X-RTX3080Ti] dtgemma4e4b 6/12 passed   median 17.6s   median turns 3   timeouts 0
+2026-09-03 12:49:16,985 INFO [10d8573-dirty@Ryzen9-7900X-RTX3080Ti] dtmistralnemo 0/12 passed   median 6.8s   median turns 1   timeouts 0
+2026-09-03 12:49:16,985 INFO [10d8573-dirty@Ryzen9-7900X-RTX3080Ti] dtornith159b 21/25 passed   median 75.9s   median turns 9   timeouts 0
+2026-09-03 12:49:16,985 INFO [10d8573-dirty@Ryzen9-7900X-RTX3080Ti] dtqwen359b 9/12 passed   median 82.7s   median turns 6   timeouts 0
+2026-09-03 12:49:16,985 INFO [10d8573-dirty@Ryzen9-7900X-RTX3080Ti] dtqwen359bq8 9/12 passed   median 101.2s   median turns 6   timeouts 0

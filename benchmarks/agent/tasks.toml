@@ -986,9 +986,15 @@ description = "Mistral-Nemo 12B instruct Q4_K_M via Ollama (desktop 3080 Ti)"
 tier = "desktop-3080ti"
 base_url = "http://127.0.0.1:11434"
 auth_token = "ollama"
-model = "mistral-nemo:12b-instruct-2407-q4_K_M"
-opencode_model = "ollama/mistral-nemo:12b-instruct-2407-q4_K_M"
-context_tokens = 131072
+model = "mistral-nemo-12b-16384"
+opencode_model = "ollama/mistral-nemo-12b-16384"
+# 16384, NOT the 32768 the other desktop backends use. Mistral-Nemo has no
+# sliding-window attention and a heavier KV than the qwen35 pair: 32768 needs
+# 12.26 GiB and spills (10.15 GiB resident), 24576 spills too, 16384 fits at
+# 9.23 GiB with size_vram == size. Its results are therefore NOT directly
+# comparable to dtgemma412b / dtornith159b / dtqwen359b on context-sensitive
+# tasks -- the card, not the model, sets this ceiling (#114).
+context_tokens = 16384
 
 [backend.dtgemma412b]
 description = "Gemma 4 12B IT Q4_K_M via Ollama (desktop 3080 Ti)"
@@ -1033,6 +1039,44 @@ context_tokens = 131072
 # test. Already on disk, 6.6 GB, fits entirely in VRAM: 6.13 GiB resident at
 # 32768, size_vram == size. Same window as the other two, so the three are
 # directly comparable (#79).
+# Q8_0 of the same weights as dtqwen359b -- #114's "quality pick". 9.27 GiB
+# resident at 32768, size_vram == size, so the quality/context trade costs
+# 3.14 GiB over the Q4_K_M and still fits.
+[backend.dtqwen359bq8]
+description = "Qwen3.5 9B Q8_0 via Ollama (desktop 3080 Ti)"
+tier = "desktop-3080ti"
+base_url = "http://127.0.0.1:11434"
+auth_token = "ollama"
+model = "qwen3.5-9b-q8-32768"
+opencode_model = "ollama/qwen3.5-9b-q8-32768"
+context_tokens = 32768
+
+# Gemma 4 E4B (#114). 9.6 GB on disk but only 3.03 GiB resident at 32768 --
+# a MatFormer-style nested model, so the download size and the loaded size
+# are very different things. The lightest backend on this tier by far.
+[backend.dtgemma4e4b]
+description = "Gemma 4 E4B IT Q4_K_M via Ollama (desktop 3080 Ti)"
+tier = "desktop-3080ti"
+base_url = "http://127.0.0.1:11434"
+auth_token = "ollama"
+model = "gemma4-e4b-32768"
+opencode_model = "ollama/gemma4-e4b-32768"
+context_tokens = 32768
+
+# The sub-1-bit class #114 raises: a 27B in 12 GiB. 5.66 GiB resident at 32768,
+# fully on GPU, from a 3.54 GiB Q1_0 GGUF.
+#   https://huggingface.co/prism-ml/Bonsai-27B-gguf -> Bonsai-27B-Q1_0.gguf
+# general.architecture = qwen35, so it is Qwen lineage and does NOT satisfy
+# the non-Qwen requirement of #16. 24 heads / 4 KV, 64 blocks, SSM layers.
+[backend.dtbonsai27b]
+description = "Bonsai-27B Q1_0 GGUF via Ollama (desktop 3080 Ti)"
+tier = "desktop-3080ti"
+base_url = "http://127.0.0.1:11434"
+auth_token = "ollama"
+model = "bonsai-27b-q1-32768"
+opencode_model = "ollama/bonsai-27b-q1-32768"
+context_tokens = 32768
+
 [backend.dtqwen359b]
 description = "Qwen3.5 9B Q4_K_M via Ollama (desktop 3080 Ti)"
 tier = "desktop-3080ti"
