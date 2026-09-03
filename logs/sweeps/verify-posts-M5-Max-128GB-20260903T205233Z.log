@@ -1,0 +1,110 @@
+2026-09-03 16:52:33,236 INFO [757fa1b@M5-Max-128GB] 2026-09-03T20:52:33Z (16:52:33 EDT) | harness 757fa1b
+2026-09-03 16:52:33,250 INFO [757fa1b@M5-Max-128GB]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-03 16:52:33,412 INFO [757fa1b@M5-Max-128GB] 2095414042990887327  VERIFIED post  @ivanfioravanti  Thu Sep 03 07:30:13 +0000 2026  via fxtwitter
+2026-09-03 16:52:33,412 INFO [757fa1b@M5-Max-128GB]     My contribution to DwarfStar is continuing! I use it in my "Production" AI Lab so I keep pushing it.  - PR 953: GLM 5.3 Flash +3.5% prefill and improved mathematical accuracy on M5 (TensorOps) kernel 
+2026-09-03 16:52:33,547 INFO [757fa1b@M5-Max-128GB] 2095469288908095920  VERIFIED post  @Beamsters1  Thu Sep 03 11:09:45 +0000 2026  via fxtwitter
+2026-09-03 16:52:33,548 INFO [757fa1b@M5-Max-128GB]     Qwen3.8 Flash Next upgraded to 1m context. Fits with 92.4GB so Mac 96 GB can use up to 512/768k easily. Per at long ladder is thermal throttle so real thing will be a lot faster than that. (at least 4
+2026-09-03 16:52:33,688 INFO [757fa1b@M5-Max-128GB] 2095560846831464759  VERIFIED reply  @Beamsters1  Thu Sep 03 17:13:34 +0000 2026  via fxtwitter
+2026-09-03 16:52:33,688 INFO [757fa1b@M5-Max-128GB]     First optimization round, greedy - MTP is breaking 110 tok/s coding at depth=5. Still recommend auto for real work. More to come, M5 Max.
+2026-09-03 16:52:33,870 INFO [757fa1b@M5-Max-128GB] 2095413658562269481  VERIFIED post  @Beamsters1  Thu Sep 03 07:28:41 +0000 2026  via fxtwitter
+2026-09-03 16:52:33,871 INFO [757fa1b@M5-Max-128GB]     Testing mlx-serve's qwen3.8 flash next (4b-8b quality model) with latest long context decoding with Opencode2. Temp 1.0, not greedy path, ~100k context in - perf still great.  Log: 97371+649 tokens st
+2026-09-03 16:52:34,002 INFO [757fa1b@M5-Max-128GB] 2095376798758646103  VERIFIED post  @Beamsters1  Thu Sep 03 05:02:13 +0000 2026  via fxtwitter
+2026-09-03 16:52:34,002 INFO [757fa1b@M5-Max-128GB]     So next PR for mlx-serve's Qwen3.8-Flash-Next - Long context QSA mask with decode improvement. 2.8x decode only. @ddalcu
+2026-09-03 16:52:34,162 INFO [757fa1b@M5-Max-128GB] 2095600237955952847  VERIFIED post  @ddalcu  Thu Sep 03 19:50:05 +0000 2026  via fxtwitter
+2026-09-03 16:52:34,162 INFO [757fa1b@M5-Max-128GB]     MLX-Serve v26.9.1 is now released ! Another @pidotdev + @Alibaba_Qwen Flash one shot, this model is truly amazing.  I simply pasted a screenshot of @bijanbowen prompt and this was the output.  Huge th
+2026-09-03 16:52:34,308 INFO [757fa1b@M5-Max-128GB] 2095487305196642647  VERIFIED post  @antirez  Thu Sep 03 12:21:20 +0000 2026  via fxtwitter
+2026-09-03 16:52:34,308 INFO [757fa1b@M5-Max-128GB]     Asymmetric access to LLMs for cyber security workis bad. I decided to release the steering vector that you can use with DwarfStar --dir-steering-file <file> and --dist-steering-ffn (try 2, 3, 4 based 
+2026-09-03 16:52:34,473 INFO [757fa1b@M5-Max-128GB] 2095469079440109722  VERIFIED post  @antirez  Thu Sep 03 11:08:55 +0000 2026  via fxtwitter
+2026-09-03 16:52:34,473 INFO [757fa1b@M5-Max-128GB]     To understand why benchmarks often do not align with the real world model behaviors, do yourself a favor and open a few tests in one of the top coding benchmarks used by labs. It is, mostly, crap, str
+2026-09-03 16:52:34,659 INFO [757fa1b@M5-Max-128GB] 2095456070311301547  VERIFIED post  @ivanfioravanti  Thu Sep 03 10:17:13 +0000 2026  via fxtwitter
+2026-09-03 16:52:34,659 INFO [757fa1b@M5-Max-128GB]     Get ready to fly on MTPLX!  Inference engines release are becoming like model ones, multiple per days, all bringing goodies for users!
+2026-09-03 16:52:34,659 INFO [757fa1b@M5-Max-128GB]     quotes @Youssofal_: Apologies, no MTPLX release today. Delayed by 1 day.   @TheDavidTai decided to merge 200k lines of code for Qwen Next just as I was preparing a release 🙃  Good 
+2026-09-03 16:52:34,785 INFO [757fa1b@M5-Max-128GB] 2095511612928991390  VERIFIED post  @ivanfioravanti  Thu Sep 03 13:57:55 +0000 2026  via fxtwitter
+2026-09-03 16:52:34,785 INFO [757fa1b@M5-Max-128GB]     Everyone complaining about Fable 5.1 cost, follow me down this journey...  Do you remember one year ago, August 2025, when top intelligence was represented by Opus 4.1 and pricing was $15/$75 per MTok
+2026-09-03 16:52:34,912 INFO [757fa1b@M5-Max-128GB] 2095463001499263139  VERIFIED reply  @ivanfioravanti  Thu Sep 03 10:44:46 +0000 2026  via fxtwitter
+2026-09-03 16:52:34,912 INFO [757fa1b@M5-Max-128GB]     @atomtanstudio @victormustar The beauty of Qwen 3.8 Flash Next is QSA that keep speed up even at 256K context! Incredible. Ds4f slows down but bearable. Usually I don’t start with a fresh new 128K con
+2026-09-03 16:52:35,265 INFO [757fa1b@M5-Max-128GB] 2095459953985106037  VERIFIED reply  @ivanfioravanti  Thu Sep 03 10:32:39 +0000 2026  via fxtwitter
+2026-09-03 16:52:35,265 INFO [757fa1b@M5-Max-128GB]     @victormustar Yes! Try Q2 imatrix on Mac 128GB using DwarfStar, great quality, trust me 🙌
+2026-09-03 16:52:35,394 INFO [757fa1b@M5-Max-128GB] 2095459173051801971  VERIFIED reply  @ivanfioravanti  Thu Sep 03 10:29:33 +0000 2026  via fxtwitter
+2026-09-03 16:52:35,394 INFO [757fa1b@M5-Max-128GB]     @victormustar I still prefer ds4f vision exp overall, better writing style and less thinking. I bet final release of vision will be the best! (for 2 months probably, LOL)
+2026-09-03 16:52:35,658 INFO [757fa1b@M5-Max-128GB] 2095458053319479313  VERIFIED post  @ivanfioravanti  Thu Sep 03 10:25:06 +0000 2026  via fxtwitter
+2026-09-03 16:52:35,659 INFO [757fa1b@M5-Max-128GB]     Is anyone with macOS 27 Beta experiencing some slow down of GPU frequency when in High Power battery mode? I have fan 100%, good room temperature, but I see throttling here and there, wondering if it'
+2026-09-03 16:52:35,789 INFO [757fa1b@M5-Max-128GB] 2095472795454976366  VERIFIED post  @ivanfioravanti  Thu Sep 03 11:23:41 +0000 2026  via fxtwitter
+2026-09-03 16:52:35,789 INFO [757fa1b@M5-Max-128GB]     Confirmed! I'll have a meeting with @Apple in Shanghai at the Apple Developers Center during my trip to China!   I hope to be able to play with an M5 Ultra with some MLX people while I'm there! 🤞  Kee
+2026-09-03 16:52:36,008 INFO [757fa1b@M5-Max-128GB] 2095478944309129654  VERIFIED reply  @Spangler3000  Thu Sep 03 11:48:07 +0000 2026  via fxtwitter
+2026-09-03 16:52:36,008 INFO [757fa1b@M5-Max-128GB]     @TheDavidTai 🔥🔥
+2026-09-03 16:52:36,193 INFO [757fa1b@M5-Max-128GB] 2095430837680713786  VERIFIED post  @sudoingX  Thu Sep 03 08:36:57 +0000 2026  via fxtwitter
+2026-09-03 16:52:36,193 INFO [757fa1b@M5-Max-128GB]     before you serve ling 3.0 flash, know exactly what you will face. this chart is the honest spec sheet.  where it lacks is speed under load. decode opens at 39.5 tok/s and every layer of context eats i
+2026-09-03 16:52:36,193 INFO [757fa1b@M5-Max-128GB]     quotes @sudoingX: open weight ai fight film is here anon. two of the biggest open models that fit one dgx spark, the exact same 157 line octopus invaders game prompt, the same he
+2026-09-03 16:52:36,342 INFO [757fa1b@M5-Max-128GB] 2095495589798850863  VERIFIED reply  @sudoingX  Thu Sep 03 12:54:15 +0000 2026  via fxtwitter
+2026-09-03 16:52:36,342 INFO [757fa1b@M5-Max-128GB]     @bsteinthorsson better numbers than i've published on mine, 73.1 tok/s at 187K context is a clean 5090 mobile record. a real paired run with quants and flags named, put it in the repo anon, the mobile
+2026-09-03 16:52:36,492 INFO [757fa1b@M5-Max-128GB] 2095546427384709366  VERIFIED post  @perplexity_ai  Thu Sep 03 16:16:16 +0000 2026  via fxtwitter
+2026-09-03 16:52:36,493 INFO [757fa1b@M5-Max-128GB]     Portable Computer is now available on Linux for @NVIDIA RTX GPUs with 24GB of VRAM or higher.
+2026-09-03 16:52:36,493 INFO [757fa1b@M5-Max-128GB]     quotes @perplexity_ai: Today we’re launching Portable Computer on @NVIDIA DGX Spark.  Portable Computer is a fully local version of Perplexity Computer, where the entire runtime: orch
+2026-09-03 16:52:36,619 INFO [757fa1b@M5-Max-128GB] 2095584532590395442  VERIFIED reply  @UnslothAI  Thu Sep 03 18:47:41 +0000 2026  via fxtwitter
+2026-09-03 16:52:36,619 INFO [757fa1b@M5-Max-128GB]     @JensenHuang @huggingface Congrats guys! This is super exciting for open-source and local AI! 💚🤗
+2026-09-03 16:52:36,758 INFO [757fa1b@M5-Max-128GB] 2095539776472461664  VERIFIED post  @ddalcu  Thu Sep 03 15:49:50 +0000 2026  via fxtwitter
+2026-09-03 16:52:36,758 INFO [757fa1b@M5-Max-128GB]     Integrated terminals coming in MLX-Serve 26.9.1, one click and you have Hermes/Pi in a VM Sandbox connected to your Local AI, no cloud, no setup.   Local AI needs to be easy, it's  too complicated rig
+2026-09-03 16:52:36,892 INFO [757fa1b@M5-Max-128GB] 2095481948730978685  VERIFIED post  @sudoingX  Thu Sep 03 12:00:03 +0000 2026  via fxtwitter
+2026-09-03 16:52:36,893 INFO [757fa1b@M5-Max-128GB]     i am so happy with this laptop man. rog strix scar 18, core ultra 9 275HX, 24 cores, 64gb ram, rtx 5090 with 24gb vram, an 18 inch 240hz panel, 2TB nvme. a portable beast.  i run a 27b dense with the 
+2026-09-03 16:52:37,055 INFO [757fa1b@M5-Max-128GB] 2095451741538111522  VERIFIED post  @sudoingX  Thu Sep 03 10:00:01 +0000 2026  via fxtwitter
+2026-09-03 16:52:37,055 INFO [757fa1b@M5-Max-128GB]     out of every local model i have run, the one that surprised me most is this line of the sheet:  > bonsai 27b at 1-bit Q1_0, 20.5 tok/s, 8K context, 3.5GB of weights, a 27b thinking on a 6gb card.  a 2
+2026-09-03 16:52:37,055 INFO [757fa1b@M5-Max-128GB]     quotes @sudoingX: my model recommendations for every gpu class, 6gb card to a 256gb double dgx spark cluster, from my bench book:  ────── 6GB ──────  > bonsai 27b at 1-bit Q1_0: 
+2026-09-03 16:52:37,242 INFO [757fa1b@M5-Max-128GB] 2095437740607144162  VERIFIED post  @TheDavidTai  Thu Sep 03 09:04:23 +0000 2026  via fxtwitter
+2026-09-03 16:52:37,242 INFO [757fa1b@M5-Max-128GB]     I made the fastest runner for Qwen 3.8 Flash Next with receipts this time and no bugs for MTPLX!  100.49 tps decode on the vanity run.  But lets be real that's a crap metric.  The actual impressive me
+2026-09-03 16:52:37,404 INFO [757fa1b@M5-Max-128GB] 2095469353713963420  VERIFIED reply  @antirez  Thu Sep 03 11:10:00 +0000 2026  via fxtwitter
+2026-09-03 16:52:37,404 INFO [757fa1b@M5-Max-128GB]     The progresses we see in the models have very little to do, during training, with the kind of benchmarks that are later used to evaluate the models. And I bet every large AI lab has its private set of
+2026-09-03 16:52:37,623 INFO [757fa1b@M5-Max-128GB] 2095487307243520122  VERIFIED reply  @antirez  Thu Sep 03 12:21:20 +0000 2026  via fxtwitter
+2026-09-03 16:52:37,623 INFO [757fa1b@M5-Max-128GB]     This is a better way to do steering than GGUFs that are pre-cooked at a fixed vector steering cancellation IMHO. Moreover, with DwarfStar cli / agent, you can reset the steering after some time, since
+2026-09-03 16:52:37,937 INFO [757fa1b@M5-Max-128GB] 2095494631987331391  VERIFIED post  @antirez  Thu Sep 03 12:50:27 +0000 2026  via fxtwitter
+2026-09-03 16:52:37,937 INFO [757fa1b@M5-Max-128GB]     P.S. wrong URL! The steering file is at https://antirez.com/misc/refusal_train400_en_it_plus20_nothink_ffn_out.f32
+2026-09-03 16:52:37,937 INFO [757fa1b@M5-Max-128GB]     quotes @antirez: Asymmetric access to LLMs for cyber security workis bad. I decided to release the steering vector that you can use with DwarfStar --dir-steering-file <file> and
+2026-09-03 16:52:38,123 INFO [757fa1b@M5-Max-128GB] 2095378250155413771  VERIFIED reply  @ddalcu  Thu Sep 03 05:07:59 +0000 2026  via fxtwitter
+2026-09-03 16:52:38,123 INFO [757fa1b@M5-Max-128GB]     @Beamsters1 Nice !! That’s impressive. Make sure to pull rebase with my +10% speed increase on top of that 😁… I think this will be pretty close to hardware limits now.
+2026-09-03 16:52:38,264 INFO [757fa1b@M5-Max-128GB] 2095380949924266365  VERIFIED reply  @Beamsters1  Thu Sep 03 05:18:43 +0000 2026  via fxtwitter
+2026-09-03 16:52:38,265 INFO [757fa1b@M5-Max-128GB]     @ddalcu yes, but I think you may push mtp further, it's not optimised yet. custom drafter, higher acceptance rate, etc.
+2026-09-03 16:52:38,465 INFO [757fa1b@M5-Max-128GB] 2095428236578893964  VERIFIED reply  @Beamsters1  Thu Sep 03 08:26:37 +0000 2026  via fxtwitter
+2026-09-03 16:52:38,465 INFO [757fa1b@M5-Max-128GB]     @ddalcu One more headache stuff, your QSA have about 32x kv-cache context in memory leak and that oom-ed my 128gb machine that should be able to run this at 1m context.
+2026-09-03 16:52:38,627 INFO [757fa1b@M5-Max-128GB] 2095600240006971510  VERIFIED reply  @ddalcu  Thu Sep 03 19:50:06 +0000 2026  via fxtwitter
+2026-09-03 16:52:38,627 INFO [757fa1b@M5-Max-128GB]     Engine + Release notes + Charts + Download https://github.com/ddalcu/mlx-serve/releases/tag/v26.9.1
+2026-09-03 16:52:38,781 INFO [757fa1b@M5-Max-128GB] 2095600242443894832  VERIFIED reply  @ddalcu  Thu Sep 03 19:50:06 +0000 2026  via fxtwitter
+2026-09-03 16:52:38,781 INFO [757fa1b@M5-Max-128GB]     Model: https://huggingface.co/ddalcu/Qwen3.8-Flash-Next-MLX-Serve-mixed-4-8bit
+2026-09-03 16:52:38,938 INFO [757fa1b@M5-Max-128GB] 2095494850032357786  VERIFIED reply  @antirez  Thu Sep 03 12:51:19 +0000 2026  via fxtwitter
+2026-09-03 16:52:38,939 INFO [757fa1b@M5-Max-128GB]     I'm not sure if I can upload this to HuggingFace so it will stay on my website for now.
+2026-09-03 16:52:38,939 INFO [757fa1b@M5-Max-128GB] 
+2026-09-03 16:52:38,939 INFO [757fa1b@M5-Max-128GB] Verified 33: 33 confirmed, 0 not.
+2026-09-03 16:52:38,939 INFO [757fa1b@M5-Max-128GB] Paste onto the issue:
+2026-09-03 16:52:38,939 INFO [757fa1b@M5-Max-128GB]   **Verified** 2026-09-03: post exists, authored by @ivanfioravanti, posted Thu Sep 03 07:30:13 +0000 2026.
+2026-09-03 16:52:38,939 INFO [757fa1b@M5-Max-128GB]   **Verified** 2026-09-03: post exists, authored by @Beamsters1, posted Thu Sep 03 11:09:45 +0000 2026.
+2026-09-03 16:52:38,939 INFO [757fa1b@M5-Max-128GB]   **Verified** 2026-09-03: post exists, authored by @Beamsters1, posted Thu Sep 03 17:13:34 +0000 2026.
+2026-09-03 16:52:38,939 INFO [757fa1b@M5-Max-128GB]   **Verified** 2026-09-03: post exists, authored by @Beamsters1, posted Thu Sep 03 07:28:41 +0000 2026.
+2026-09-03 16:52:38,939 INFO [757fa1b@M5-Max-128GB]   **Verified** 2026-09-03: post exists, authored by @Beamsters1, posted Thu Sep 03 05:02:13 +0000 2026.
+2026-09-03 16:52:38,939 INFO [757fa1b@M5-Max-128GB]   **Verified** 2026-09-03: post exists, authored by @ddalcu, posted Thu Sep 03 19:50:05 +0000 2026.
+2026-09-03 16:52:38,939 INFO [757fa1b@M5-Max-128GB]   **Verified** 2026-09-03: post exists, authored by @antirez, posted Thu Sep 03 12:21:20 +0000 2026.
+2026-09-03 16:52:38,939 INFO [757fa1b@M5-Max-128GB]   **Verified** 2026-09-03: post exists, authored by @antirez, posted Thu Sep 03 11:08:55 +0000 2026.
+2026-09-03 16:52:38,939 INFO [757fa1b@M5-Max-128GB]   **Verified** 2026-09-03: post exists, authored by @ivanfioravanti, posted Thu Sep 03 10:17:13 +0000 2026.
+2026-09-03 16:52:38,939 INFO [757fa1b@M5-Max-128GB]   **Verified** 2026-09-03: post exists, authored by @ivanfioravanti, posted Thu Sep 03 13:57:55 +0000 2026.
+2026-09-03 16:52:38,939 INFO [757fa1b@M5-Max-128GB]   **Verified** 2026-09-03: post exists, authored by @ivanfioravanti, posted Thu Sep 03 10:44:46 +0000 2026.
+2026-09-03 16:52:38,939 INFO [757fa1b@M5-Max-128GB]   **Verified** 2026-09-03: post exists, authored by @ivanfioravanti, posted Thu Sep 03 10:32:39 +0000 2026.
+2026-09-03 16:52:38,939 INFO [757fa1b@M5-Max-128GB]   **Verified** 2026-09-03: post exists, authored by @ivanfioravanti, posted Thu Sep 03 10:29:33 +0000 2026.
+2026-09-03 16:52:38,939 INFO [757fa1b@M5-Max-128GB]   **Verified** 2026-09-03: post exists, authored by @ivanfioravanti, posted Thu Sep 03 10:25:06 +0000 2026.
+2026-09-03 16:52:38,940 INFO [757fa1b@M5-Max-128GB]   **Verified** 2026-09-03: post exists, authored by @ivanfioravanti, posted Thu Sep 03 11:23:41 +0000 2026.
+2026-09-03 16:52:38,940 INFO [757fa1b@M5-Max-128GB]   **Verified** 2026-09-03: post exists, authored by @Spangler3000, posted Thu Sep 03 11:48:07 +0000 2026.
+2026-09-03 16:52:38,940 INFO [757fa1b@M5-Max-128GB]   **Verified** 2026-09-03: post exists, authored by @sudoingX, posted Thu Sep 03 08:36:57 +0000 2026.
+2026-09-03 16:52:38,940 INFO [757fa1b@M5-Max-128GB]   **Verified** 2026-09-03: post exists, authored by @sudoingX, posted Thu Sep 03 12:54:15 +0000 2026.
+2026-09-03 16:52:38,940 INFO [757fa1b@M5-Max-128GB]   **Verified** 2026-09-03: post exists, authored by @perplexity_ai, posted Thu Sep 03 16:16:16 +0000 2026.
+2026-09-03 16:52:38,940 INFO [757fa1b@M5-Max-128GB]   **Verified** 2026-09-03: post exists, authored by @UnslothAI, posted Thu Sep 03 18:47:41 +0000 2026.
+2026-09-03 16:52:38,940 INFO [757fa1b@M5-Max-128GB]   **Verified** 2026-09-03: post exists, authored by @ddalcu, posted Thu Sep 03 15:49:50 +0000 2026.
+2026-09-03 16:52:38,940 INFO [757fa1b@M5-Max-128GB]   **Verified** 2026-09-03: post exists, authored by @sudoingX, posted Thu Sep 03 12:00:03 +0000 2026.
+2026-09-03 16:52:38,940 INFO [757fa1b@M5-Max-128GB]   **Verified** 2026-09-03: post exists, authored by @sudoingX, posted Thu Sep 03 10:00:01 +0000 2026.
+2026-09-03 16:52:38,940 INFO [757fa1b@M5-Max-128GB]   **Verified** 2026-09-03: post exists, authored by @TheDavidTai, posted Thu Sep 03 09:04:23 +0000 2026.
+2026-09-03 16:52:38,940 INFO [757fa1b@M5-Max-128GB]   **Verified** 2026-09-03: post exists, authored by @antirez, posted Thu Sep 03 11:10:00 +0000 2026.
+2026-09-03 16:52:38,940 INFO [757fa1b@M5-Max-128GB]   **Verified** 2026-09-03: post exists, authored by @antirez, posted Thu Sep 03 12:21:20 +0000 2026.
+2026-09-03 16:52:38,940 INFO [757fa1b@M5-Max-128GB]   **Verified** 2026-09-03: post exists, authored by @antirez, posted Thu Sep 03 12:50:27 +0000 2026.
+2026-09-03 16:52:38,940 INFO [757fa1b@M5-Max-128GB]   **Verified** 2026-09-03: post exists, authored by @ddalcu, posted Thu Sep 03 05:07:59 +0000 2026.
+2026-09-03 16:52:38,940 INFO [757fa1b@M5-Max-128GB]   **Verified** 2026-09-03: post exists, authored by @Beamsters1, posted Thu Sep 03 05:18:43 +0000 2026.
+2026-09-03 16:52:38,940 INFO [757fa1b@M5-Max-128GB]   **Verified** 2026-09-03: post exists, authored by @Beamsters1, posted Thu Sep 03 08:26:37 +0000 2026.
+2026-09-03 16:52:38,940 INFO [757fa1b@M5-Max-128GB]   **Verified** 2026-09-03: post exists, authored by @ddalcu, posted Thu Sep 03 19:50:06 +0000 2026.
+2026-09-03 16:52:38,940 INFO [757fa1b@M5-Max-128GB]   **Verified** 2026-09-03: post exists, authored by @ddalcu, posted Thu Sep 03 19:50:06 +0000 2026.
+2026-09-03 16:52:38,940 INFO [757fa1b@M5-Max-128GB]   **Verified** 2026-09-03: post exists, authored by @antirez, posted Thu Sep 03 12:51:19 +0000 2026.
+2026-09-03 16:52:38,940 INFO [757fa1b@M5-Max-128GB] log: /Users/evanhoffman/git/local-llm/logs/sweeps/verify-posts-M5-Max-128GB-20260903T205233Z.log
