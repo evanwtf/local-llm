@@ -228,7 +228,7 @@ local run reported \$0.14. It is meaningless here.
 These runs have a fat right tail. An agent that goes down a wrong path can take
 five times as long as one that does not, and a single such run drags a mean
 somewhere unrepresentative. This mirrors the finding in
-[`../ds4/coding/RESULTS.md`](../ds4/coding/RESULTS.md): the mixed build's median
+[`../ds4/coding/RESULTS.md`](../../hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/benchmarks/ds4/coding/RESULTS.md): the mixed build's median
 output was a normal 783 tokens, but ~4.9% of prompts ran to the token cap. The
 median described the typical experience; the mean did not.
 

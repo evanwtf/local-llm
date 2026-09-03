@@ -141,10 +141,10 @@ macOS 26.6.2 — so numbers across engines share a hardware baseline.
 | | |
 |---|---|
 | [`ollama_claude_shim.py`](ollama_claude_shim.py), [`claude-ollama`](claude-ollama) | drive Claude Code with an Ollama model |
-| [`benchmarks/ollama/`](benchmarks/ollama/RESULTS.md) | Qwen3.8-27B: speed, agentic accuracy, speculative decoding |
-| [`benchmarks/ds4/0731/`](benchmarks/ds4/0731/REPORT.md) | DeepSeek V4 Flash quant comparison, thermals, long context |
-| [`benchmarks/ds4/coding/`](benchmarks/ds4/coding/RESULTS.md) | HumanEval, mixed q2/q4 vs MXFP4 |
-| [`benchmarks/llamacpp/`](benchmarks/llamacpp/RESULTS.md) | Qwen3.8-Flash-Next at 2-bit: runs, passes, slowest measured |
+| [`benchmarks/ollama/`](hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/benchmarks/ollama/RESULTS.md) | Qwen3.8-27B: speed, agentic accuracy, speculative decoding |
+| [`benchmarks/ds4/0731/`](hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/benchmarks/ds4/0731/REPORT.md) | DeepSeek V4 Flash quant comparison, thermals, long context |
+| [`benchmarks/ds4/coding/`](hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/benchmarks/ds4/coding/RESULTS.md) | HumanEval, mixed q2/q4 vs MXFP4 |
+| [`benchmarks/llamacpp/`](hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/benchmarks/llamacpp/RESULTS.md) | Qwen3.8-Flash-Next at 2-bit: runs, passes, slowest measured |
 | [`CONVENTIONS.md`](CONVENTIONS.md) | standing rules — read before deleting weights or committing logs |
 
 The benchmark history moved here from `evanwtf/ds4`, with its commits intact.
@@ -159,7 +159,7 @@ Headline comparison, same machine, ~12k context:
 | DeepSeek V4 Flash mixed q2/q4 via ds4 | 488.1 t/s | 34.4 t/s | 90.9 GiB |
 
 Prefill is measured differently by the two harnesses — see
-[`benchmarks/ollama/RESULTS.md`](benchmarks/ollama/RESULTS.md).
+[`benchmarks/ollama/RESULTS.md`](hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/benchmarks/ollama/RESULTS.md).
 
 Both rows were measured on Ollama 0.32.14-rc0. The installed engine is now
 **0.33.1**, so they predate it; re-baselining the Ollama rows under 0.33.1 is
@@ -180,7 +180,7 @@ verdicts rested on the old number and are being revisited.
 `GLM-5.3-Flash` is one of them: it *fits* (antirez's Q2 is 89.9 GiB, Unsloth's
 `UD-Q2_K_XL` is 101.3 GiB), but no working engine/weights pair exists for it yet
 — see issues #25 and #32. See
-[`benchmarks/llamacpp/RESULTS.md`](benchmarks/llamacpp/RESULTS.md).
+[`benchmarks/llamacpp/RESULTS.md`](hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/benchmarks/llamacpp/RESULTS.md).
 
 ---
 
@@ -195,7 +195,7 @@ verdicts rested on the old number and are being revisited.
 > hits it. **llama.cpp does**, as of 2026-08-26: its `/v1/messages` passes the
 > stray message through and the Qwen template raises. The shim fixed it
 > unchanged, pointed at llama-server with `--upstream`, and
-> [`benchmarks/llamacpp/llamacpp-up`](benchmarks/llamacpp/llamacpp-up) now
+> [`benchmarks/llamacpp/llamacpp-up`](hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/benchmarks/llamacpp/llamacpp-up) now
 > starts it as part of that stack. It is named for the bug it was written for,
 > not for the only server that has it.
 
@@ -544,7 +544,7 @@ On a MacBook Pro M5 Max, 128 GiB, at ~12k context:
 
 The ds4 generation figure is from build `b030961` (2026-08-08). The synced
 build `fdcf3aa` measures **40.6 t/s** — see
-[`benchmarks/agent/RESULTS.md`](benchmarks/agent/RESULTS.md).
+[`benchmarks/agent/RESULTS.md`](hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/RESULTS-agent.md).
 
 Caveat: the two are not measured identically. `ds4-bench` reports a
 2048-token prefill at a given context; the Qwen figure is a single 11,451-token

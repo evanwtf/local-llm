@@ -171,7 +171,7 @@ so.
 ## Results
 
 238 trials across 8 backends and 3 clients. Full report:
-[**RESULTS.md**](RESULTS.md). Picks for this machine:
+[**RESULTS.md**](../../hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/RESULTS-agent.md). Picks for this machine:
 [**RECOMMENDATIONS.md**](../../RECOMMENDATIONS.md).
 
 Headline: correctness barely separates the *backends* (seven of eight at 100%),
