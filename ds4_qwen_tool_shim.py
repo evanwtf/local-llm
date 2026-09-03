@@ -34,10 +34,30 @@ contains no XML tool syntax of its own, so this is not imitation of an example.
 The negation theory ("never use <function=...>" showing the model the very
 syntax) is also dead: both variants measure the same.
 
-The fix this points to is translation, not instruction: buffer the response and
-convert an XML tool call into a proper JSON tool call, so the model never has to
-comply. OpenCode sets stream:true, so that means rewriting the SSE stream rather
-than a single JSON body. Not yet implemented.
+**The real cause turned out to be the streaming path, not the dialect.**
+Measured 2026-09-03 on one identical request, interleaved so session drift hit
+both arms equally:
+
+    stream:true    tool_calls  1/12    nothing at all  11/12
+    stream:false   tool_calls  7/12    XML as text      5/12
+
+ds4's own log says it is handing the failed call back as assistant text --
+`invalid tool call returned as assistant text finish=stop [text_len=231 ...]`
+-- and off-stream that text does arrive. On-stream it does not: the client gets
+no content, no tool_calls, and finish=stop. OpenCode sets stream:true, which is
+why the 45-trial run scored 0/45 while the same prompts answered off-stream.
+The dialect coin-flip is real and underlies both arms, but it is not what made
+the agent runs unrecoverable, and no amount of prompting could have fixed it.
+
+So this shim does three things, and each is a confound to record:
+
+1. appends the format instruction (helps the model emit JSON at all);
+2. asks upstream for a **non-streaming** completion whenever the request
+   carries tools, because that path does not drop the fallback;
+3. **translates** the XML dialect into real tool_calls if it still appears,
+   then synthesises the SSE stream the client asked for.
+
+Step 2 is the one that matters. Step 3 makes step 2's remaining 5/12 usable.
 
 **This is a confound and must be recorded as one.** A backend behind this shim
 runs with one system line no other backend gets. It names a serialisation
@@ -56,12 +76,16 @@ the model is worse than it is.
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import http.server
 import json
 import logging
 import os
 import pathlib
+import re
+import secrets
 import sys
+import time
 import urllib.error
 import urllib.request
 
@@ -81,7 +105,7 @@ INSTRUCTION = (
 )
 
 upstream = DEFAULT_UPSTREAM
-stats = {"requests": 0, "instructed": 0}
+stats = {"requests": 0, "instructed": 0, "unstreamed": 0, "translated": 0}
 
 
 def needs_instruction(payload: dict) -> bool:
@@ -174,6 +198,175 @@ def rewrite(body: bytes) -> bytes:
     return json.dumps(payload).encode()
 
 
+# --- the XML dialect ------------------------------------------------------
+#
+# What the model actually emits when it loses the coin flip, copied off a ds4
+# server log:
+#
+#     <tool_call>
+#     <function=read>
+#     <parameter=filePath>
+#     /tmp/x.py
+#     </parameter>
+#     </function>
+#     </tool_call>
+#
+# Note the values sit on their own lines. The surrounding whitespace is layout,
+# not data, so it is stripped -- an unstripped "\n/tmp/x.py\n" is a path that
+# does not exist, and the tool would fail for a second, unrelated reason.
+XML_CALL = re.compile(
+    r"<tool_call>\s*<function=(?P<name>[^>\s]+)\s*>(?P<body>.*?)</function>\s*</tool_call>",
+    re.DOTALL,
+)
+XML_PARAM = re.compile(
+    r"<parameter=(?P<key>[^>\s]+)\s*>(?P<value>.*?)</parameter>", re.DOTALL
+)
+
+
+def parse_xml_tool_calls(text: str) -> list[dict] | None:
+    """Convert the XML dialect into OpenAI tool_calls. None if there is none.
+
+    Returns None rather than an empty list so a caller cannot accidentally
+    treat "no tool call here" as "a message with zero tool calls", which would
+    set finish_reason=tool_calls on ordinary prose.
+
+    The JSON dialect is deliberately NOT handled: ds4 parses that itself, and a
+    message carrying it has already been dealt with upstream. Translating it
+    again would risk emitting the same call twice.
+    """
+    if not text or "<function=" not in text:
+        return None
+    calls: list[dict] = []
+    for index, match in enumerate(XML_CALL.finditer(text)):
+        arguments = {
+            param.group("key"): param.group("value").strip()
+            for param in XML_PARAM.finditer(match.group("body"))
+        }
+        calls.append(
+            {
+                # A distinct id per call: OpenCode keys tool results by id, and
+                # two calls sharing one would silently lose a result.
+                "id": "call_" + secrets.token_hex(16),
+                "index": index,
+                "type": "function",
+                "function": {
+                    "name": match.group("name").strip(),
+                    "arguments": json.dumps(arguments),
+                },
+            }
+        )
+    return calls or None
+
+
+def translate_response(payload: dict) -> bool:
+    """Rewrite an XML-dialect fallback into a real tool call. True if changed."""
+    changed = False
+    for choice in payload.get("choices") or []:
+        if not isinstance(choice, dict):
+            continue
+        message = choice.get("message")
+        if not isinstance(message, dict) or message.get("tool_calls"):
+            continue
+        calls = parse_xml_tool_calls(message.get("content") or "")
+        if not calls:
+            continue
+        # Keep any prose the model wrote around the call, but remove the call
+        # itself -- leaving it in content would show the user raw XML next to a
+        # tool result, and some clients echo content back into the next prompt.
+        message["content"] = XML_CALL.sub("", message["content"]).strip()
+        message["tool_calls"] = calls
+        choice["finish_reason"] = "tool_calls"
+        changed = True
+        stats["translated"] += 1
+    return changed
+
+
+# --- SSE synthesis --------------------------------------------------------
+
+
+def _event(payload: dict) -> bytes:
+    return b"data: " + json.dumps(payload).encode() + b"\n\n"
+
+
+def synthesise_sse(body: dict) -> list[bytes]:
+    """Turn a completed chat response into the SSE stream the client expected.
+
+    The client asked for `stream: true` and we asked upstream for `false`, so
+    the stream is reconstructed here. It is not incremental -- every delta is
+    emitted once the full answer is known -- which costs the client its
+    token-by-token display but nothing in wall time, since a tool call cannot
+    be acted on before it is complete anyway.
+    """
+    base = {
+        "id": body.get("id", "chatcmpl-shim"),
+        "object": "chat.completion.chunk",
+        "created": body.get("created") or int(time.time()),
+        "model": body.get("model", ""),
+    }
+
+    def chunk(index: int, delta: dict, finish: object = None) -> bytes:
+        payload = dict(base)
+        payload["choices"] = [
+            {"index": index, "delta": delta, "finish_reason": finish}
+        ]
+        return _event(payload)
+
+    out: list[bytes] = []
+    for choice in body.get("choices") or []:
+        index = choice.get("index", 0)
+        message = choice.get("message") or {}
+        out.append(chunk(index, {"role": message.get("role") or "assistant"}))
+        if message.get("reasoning_content"):
+            out.append(chunk(index, {"reasoning_content": message["reasoning_content"]}))
+        if message.get("content"):
+            out.append(chunk(index, {"content": message["content"]}))
+        for call in message.get("tool_calls") or []:
+            out.append(chunk(index, {"tool_calls": [call]}))
+        out.append(chunk(index, {}, choice.get("finish_reason")))
+    if body.get("usage"):
+        payload = dict(base)
+        payload["choices"] = []
+        payload["usage"] = body["usage"]
+        out.append(_event(payload))
+    out.append(b"data: [DONE]\n\n")
+    return out
+
+
+# --- request preparation --------------------------------------------------
+
+
+@dataclasses.dataclass
+class Prepared:
+    """A request as it should go upstream, plus what the client is owed back."""
+
+    body: bytes
+    client_wants_stream: bool
+
+
+def prepare(body: bytes) -> Prepared:
+    """Add the instruction, and take a tool request off the streaming path.
+
+    `client_wants_stream` is True only when we have *changed* the request --
+    i.e. the client asked to stream and we must synthesise that stream back.
+    A request we pass through untouched reports False whatever it asked for,
+    because the upstream response can simply be relayed.
+    """
+    instructed = rewrite(body)
+    try:
+        payload = json.loads(instructed)
+    except ValueError:
+        return Prepared(instructed, False)
+    if not isinstance(payload, dict):
+        return Prepared(instructed, False)
+    # Only tool requests are diverted. A request with no tools cannot lose a
+    # tool call, and real streaming is worth keeping where it costs nothing.
+    if not payload.get("tools") or not payload.get("stream"):
+        return Prepared(instructed, False)
+    payload["stream"] = False
+    stats["unstreamed"] += 1
+    return Prepared(json.dumps(payload).encode(), True)
+
+
 class Proxy(http.server.BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
@@ -183,7 +376,8 @@ class Proxy(http.server.BaseHTTPRequestHandler):
     def do_POST(self) -> None:
         body = self.rfile.read(int(self.headers.get("Content-Length", 0)))
         stats["requests"] += 1
-        body = rewrite(body)
+        prepared = prepare(body)
+        body = prepared.body
         headers = {
             k: v
             for k, v in self.headers.items()
@@ -206,6 +400,10 @@ class Proxy(http.server.BaseHTTPRequestHandler):
             logger.error("%s -> %s: %s", self.path, err.code, data[:200])
             return
 
+        if prepared.client_wants_stream:
+            self._synthesise(response)
+            return
+
         self.send_response(response.status)
         for key, value in response.headers.items():
             if key.lower() in ("content-length", "transfer-encoding", "connection"):
@@ -223,6 +421,42 @@ class Proxy(http.server.BaseHTTPRequestHandler):
             self.wfile.write(b"0\r\n\r\n")
         finally:
             response.close()
+
+    def _synthesise(self, response: object) -> None:
+        """Relay a non-streaming upstream answer as the SSE stream we promised."""
+        try:
+            raw = response.read()
+        finally:
+            response.close()
+        try:
+            payload = json.loads(raw)
+        except ValueError:
+            # Nothing to synthesise from. Send it as-is rather than inventing a
+            # stream: a malformed body is a real failure and must stay visible.
+            logger.error("upstream body was not JSON (%d bytes)", len(raw))
+            self.send_response(502)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(raw)))
+            self.end_headers()
+            self.wfile.write(raw)
+            return
+
+        if translate_response(payload):
+            logger.info(
+                "translated an XML tool call (%d so far of %d unstreamed)",
+                stats["translated"],
+                stats["unstreamed"],
+            )
+
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream")
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("Transfer-Encoding", "chunked")
+        self.end_headers()
+        for event in synthesise_sse(payload):
+            self.wfile.write(b"%X\r\n%s\r\n" % (len(event), event))
+        self.wfile.write(b"0\r\n\r\n")
+        self.wfile.flush()
 
     def do_GET(self) -> None:
         try:

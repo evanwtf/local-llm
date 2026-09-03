@@ -1082,22 +1082,38 @@ model = "qwen3.8-flash-next-q4"
 opencode_model = "ds4/qwen3.8-flash-next-q4"
 context_tokens = 100000
 
-# Same weights, same ds4-server, same everything -- plus one system line naming
-# the tool-call format. See ds4_qwen_tool_shim.py for why that line exists and
-# what it costs.
+# Same weights, same ds4-server -- plus a shim that does THREE things. Each is
+# a confound, and the third is the largest. See ds4_qwen_tool_shim.py.
 #
-# THIS BACKEND CARRIES A CONFOUND and rows from it say so. It runs with an
-# instruction no other backend gets. The instruction names a serialisation
-# format and offers no help with the task, which is what makes it defensible --
-# it is closer to a chat template than to a hint -- but `qwen38fnds4` vs
-# `qwen38fnds4shim` is the pair that measures its cost, and neither is
-# comparable to llama.cpp without saying this out loud.
+# 1. It appends one system line naming the tool-call format. That line names a
+#    serialisation format and offers no help with the task, which is what makes
+#    it defensible -- closer to a chat template than to a hint.
 #
-# Measured on identical prompts at five context sizes: direct ds4 9/12 valid
-# tool calls, through the shim 12/12. Without it the agent ends on turn one
-# having written nothing, which produced 45 trials and 0 passes.
+# 2. **It takes tool requests off ds4's streaming path**, asking upstream for
+#    stream:false and synthesising the SSE stream back to the client. This is
+#    the one that mattered. ds4 logs `invalid tool call returned as assistant
+#    text finish=stop [text_len=231 ...]` and off-stream that text arrives; ON
+#    stream it is dropped, so the client sees nothing at all. Measured on one
+#    identical request, interleaved (2026-09-03):
+#
+#        stream:true    tool_calls 1/12   nothing at all 11/12
+#        stream:false   tool_calls 7/12   XML as text     5/12
+#
+#    OpenCode sets stream:true. That is the whole of the earlier 0/45.
+#
+# 3. It translates the XML tool dialect into real tool_calls when it appears.
+#
+# **A row from this backend did not stream from the engine.** Wall time is
+# unaffected -- a tool call cannot be acted on before it is complete -- but do
+# not compare it to a streaming backend without saying this.
+#
+# Three arms, interleaved, same server, same request (2026-09-03):
+#     direct streaming 0/12   direct non-streaming 4/12   through the shim 12/12
+#
+# `qwen38fnds4` vs `qwen38fnds4shim` is the pair that measures the total cost,
+# and neither is comparable to llama.cpp without saying all of this out loud.
 [backend.qwen38fnds4shim]
-description = "Qwen3.8-Flash-Next Q4 fast-pack on ds4-metal 2021dda via the tool-format shim, MTP off"
+description = "Qwen3.8-Flash-Next Q4 fast-pack on ds4-metal ba01f5d via the tool-format shim (non-streaming upstream), MTP off"
 base_url = "http://127.0.0.1:8101"
 auth_token = "dsv4-local"
 model = "qwen3.8-flash-next-q4"
