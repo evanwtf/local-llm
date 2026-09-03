@@ -8,72 +8,76 @@
 > or compare against those numbers.** Cause, cutover and replacements:
 > [docs/archive/results-opencode-pre-dir.md](docs/archive/results-opencode-pre-dir.md). Other clients are unaffected.
 
-Updated **2026-09-02 22:56 EDT**. The queue below is ordered by **value per
-hour**, not by issue age. Ten items; everything else is in the tracker.
+Updated **2026-09-02 23:05 EDT**. **This file is the queue for _this machine_ —
+the MacBook Pro, M5 Max, 128 GB.** Every item below is labelled `macOS` in the
+tracker. The Linux/RTX 3080 Ti tier has its own nine open issues ([#20](https://github.com/evanwtf/local-llm/issues/20), [#79](https://github.com/evanwtf/local-llm/issues/79),
+[#98](https://github.com/evanwtf/local-llm/issues/98)–[#104](https://github.com/evanwtf/local-llm/issues/104)) and they are deliberately **not** here; see `hardware/` and the
+`Nvidia` label.
 
-**Where the project stands.** Six backends have valid current data on the Mac.
-A second machine exists and is scoped, but **it cannot yet produce trustworthy
-rows** — four separate defects (#98, #99, #101, #102) sit between it and a
-clean run, and they are why the Linux tier occupies four of the ten slots
-below. On the Mac, the newest and most interesting artifact —
-Qwen3.8-Flash-Next as a ds4 fast-pack with an MTP head — loads, runs fast, and
-cannot yet complete a task, for a reason now fully diagnosed.
+Ordered by **value per hour**, not by issue age. Ten items; everything else is
+in the tracker.
 
-**The thing to worry about first.** OpenCode auto-updated **1.18.26 → 1.18.27**
-between two batches, unasked, and roughly **doubled turns** on repository tasks
-with every other variable held. The client is the one constant underneath every
-number in this repository, and **nothing pins its version**. That is a validity
-problem for recent data and for all future data, and it is the cheapest item
-here to act on.
+**Where this machine stands.** Six backends have valid current data. The newest
+and most interesting artifact — Qwen3.8-Flash-Next as a ds4 fast-pack with an
+MTP head — loads clean, runs fast (**74.3 GiB resident**, decode **40.2 t/s**,
+prefill **1107 t/s**, the 32 GB PLE table genuinely streaming from SSD), and
+cannot yet finish a task for a reason now fully diagnosed. That is item 1.
 
-**What broke, and is now guarded.** CI had failed **40 consecutive runs** on a
-shallow clone and nobody had looked. A `w/` in a CPU string put a slash in a
-directory name and broke CI on every commit after the hardware restructure. The
-oracle deadlocked on its own output whenever it exceeded a 64 KiB pipe buffer,
-and recorded the resulting kill as a **model** failure — present since the
-function was written, and only reachable once a backend did zero work. 127
-`--dry-run` rows were counted as failures in the *published* tables. A runaway
-oracle reached **49 GB**. Each is a test now.
+**The cross-cutting risk, which has no Mac issue of its own.** OpenCode
+auto-updated **1.18.26 → 1.18.27** unasked, and on the Linux tier that roughly
+**doubled median turns** on repository tasks with every other variable held
+([#104](https://github.com/evanwtf/local-llm/issues/104), `Nvidia`). **This machine is on 1.18.27 too, and it also arrived by
+itself.** Nothing in this repo pins the client. The measurement was taken over
+there; the exposure is shared. Item 3 is the same disease in a different
+package, and pinning the client belongs alongside it.
+
+**What broke here, and is now guarded.** The oracle deadlocked on its own
+output whenever it exceeded a 64 KiB pipe buffer and recorded the resulting
+kill as a **model** failure — present since the function was written, reachable
+only once a backend did zero work ([#106](https://github.com/evanwtf/local-llm/issues/106), fixed). CI had failed **40 consecutive
+runs** on a shallow clone, then broke again when a `w/` in a CPU string put a
+slash in a directory name. 127 `--dry-run` rows were counted as failures in the
+*published* tables. A runaway oracle reached **49 GB**. Each is a test now.
 
 **The measurement rule that keeps mattering.** A 3-trial median carries
 **±27.9%**, so two medians must differ by roughly **56%** before the gap is
-real — measured against the *smaller* median. `scripts/report.py` applies it;
-a hand-computed version got the denominator backwards and called three real
-differences noise. Most claims arriving from outside do not clear this bar, and
-saying so early saves the run.
+real — measured against the *smaller* median. `scripts/report.py` applies it.
+Most claims arriving from outside do not clear this bar, and saying so before
+the run saves the run: [#95](https://github.com/evanwtf/local-llm/issues/95)'s +4–7% prefill gain is on our exact chip and we
+still cannot see it at three trials.
 
 Each issue is self-contained; this file only sets priority and records machine
 state that is not in git. The table is the queue. It has no calendar.
 
 ## Order
 
-**Ranked by value per hour, not by issue age.** Items 1 and 3 are cheap and
-protect everything else, so they come before the interesting science.
+**Ranked by value per hour, not by issue age.** Items 3 and 5 are cheap guards
+that protect everything else, so they sit above better science.
 
 | # | issue | why here |
 |---|---|---|
-| 1 | **#104** the client changed under us | **Nothing in this repo pins OpenCode, and it auto-updated mid-session.** 1.18.26 → 1.18.27 roughly **doubled median turns** on repository tasks — same model digest, same Ollama, same window, same machine, ninety minutes apart. The client is the single constant beneath every row we have; if it moves silently, cross-date comparison is unsound and nobody would see it. Pin the version, record it per row, then decide what needs re-baselining. Hours, not days, and it protects the whole dataset. |
-| 2 | **#94** Qwen3.8-Flash-Next on ds4, with an MTP head | **The missing cell, and the blocker is now bounded.** Every number we hold for this model is llama.cpp, so engine and model have never been separable. The pack loads clean, the M5 TensorOps route is live, **74.3 GiB resident with the 32 GB PLE table genuinely streaming from SSD**, decode **40.2 t/s** and prefill **1107 t/s**. It cannot finish a task because the model emits the XML tool dialect and ds4 retries exactly once. Instruction does not fix it under OpenCode (0/6 → 1/6 on the real prompt). The fix is an **SSE-level tool-call translator** in the shim — real work, but known work. Closes the engine half of #60 and unblocks #77. |
-| 3 | **#103** transcripts have no run identity | **Cheap, and it is the evidence layer under every other item.** `<task>-<backend>-<client>-<trial>.stdout.jsonl` carries no run, commit, or client version, so a re-run silently overwrites its predecessor. It already destroyed twelve transcripts — the 1.18.26 half of the very comparison #104 rests on. Every investigation above and below this line depends on transcripts surviving. Fix before running anything twice. |
-| 4 | **#102** the Linux tier dies before trial one | A default-matrix run on the desktop exits with a raw `FileNotFoundError` traceback for a missing `~/git/monitor`, before any trial. The surrounding code refuses a *dirty* repo and a *missing base commit* with written explanations; a missing repo alone has no case. **This is the gate on the second machine doing anything at all**, and it is a small, well-scoped fix. |
-| 5 | **#101** every Linux row is stamped dirty | uv 0.12.9 rewrites `uv.lock` on **every** `uv run`, stripping the `exclude-newer` block, so `harness_dirty` is always true and the `[commit@machine]` stamp means nothing there. Provenance that is always dirty is provenance that says nothing — and #84 established that a lockfile changing under us is a real variable, not cosmetic. Blocks trusting any desktop row. |
-| 6 | **#99 / #98** the suite is red on Linux | `thermals.py` reaches CoreFoundation through `ctypes` with no platform guard, so two tests fail on Linux with an undefined symbol; and `test_the_generated_tables_are_current` can only pass on the Mac, because `gen_tables.load()` is now machine-aware and the obvious "fix" would pool two machines' data. **A red suite on a machine is a machine nobody can safely commit from.** Both are small; #99 needs a decision, not just code. |
-| 7 | **#100** the #69 guard is blind exactly where it is needed | `opencode_config.missing()` exists because an undeclared model makes `opencode run` exit in 0.6s and the harness records client crashes as model failures — that is how GLM-5.3's entire published OpenCode record was manufactured. The check **skips any backend carrying a `tier` key**, which is every desktop backend, on the machine where they actually run. The guard is absent precisely where the failure it prevents is most likely. |
-| 8 | **#80** the MLX model sweep, and 114.8 GB | Half done: `gemma426` **11/11** and the 27B generation pair landed. Remaining: `qwen36a3b` (3B active — also the shape #79 needs) and **`qwen3.8-flash-next:125b-mlx`**, the run that decides whether 112 GB stays on disk. **114.8 GB of deletions wait on it**, and it is wired, declared, and a run away. Pure machine time, no new code. |
-| 9 | **#96** oMLX per-turn TTFT | **The one claim from outside large enough for our harness to resolve.** 3–4s → 0.3s per turn, claimed bit-exact and lossless, validated by its author on Qwen3.8-Flash-Next. Agent tasks are many short turns over a growing prefix, and per-turn TTFT is the part of wall time we have never attacked — unlike #95's +4–7%, which we cannot see at three trials and said so on the issue. First step is cheap and useful regardless: **we have no per-turn TTFT metric at all.** |
-| 10 | **#55 / #82** the harness still cannot always tell a bad result from a broken measurement | It was right twice more today. The oracle deadlock (#106) recorded a harness fault as a model failure with `killed=False`, and #82's fourth item is still unbuilt: a memory kill returns a plain failure rather than a distinct exclusion category, so "the code was wrong" and "the code could not run" remain indistinguishable in a row. Everything above produces data this thread decides whether to believe. |
+| 1 | **[#94](https://github.com/evanwtf/local-llm/issues/94)** Qwen3.8-Flash-Next on ds4, with an MTP head | **The missing cell, and the blocker is now bounded.** Every number we hold for this model is llama.cpp, so engine and model have never been separable. The pack loads, the M5 TensorOps route is live, and the engine is fast — **74.3 GiB resident, decode 40.2 t/s, prefill 1107 t/s**, with the 32 GB PLE table streaming from SSD rather than paging in. It cannot finish a task because the model emits the XML tool dialect and **ds4 retries exactly once**; a system-prompt instruction fixes this on synthetic prompts (12/12) and **not** under OpenCode's real 26 KB prompt (0/6 → 1/6). The fix is an **SSE-level tool-call translator** in `ds4_qwen_tool_shim.py` — real work, but known work. Closes the engine half of **[#60](https://github.com/evanwtf/local-llm/issues/60)** and unblocks **[#77](https://github.com/evanwtf/local-llm/issues/77)**. |
+| 2 | **[#80](https://github.com/evanwtf/local-llm/issues/80)** the MLX model sweep, and 114.8 GB | Half done: `gemma426` **11/11** and the 27B generation pair landed. Remaining: `qwen36a3b` (3B active) and **`qwen3.8-flash-next:125b-mlx`**, the run that decides whether 112 GB stays on disk. **114.8 GB of deletions wait on this**, and it is wired, declared, and a run away. Pure machine time, no new code — the best ratio on the board. |
+| 3 | **[#84](https://github.com/evanwtf/local-llm/issues/84)** upgrading Ollama silently changes the sampler | **A loaded gun, not yet fired.** [ollama#16471](https://github.com/ollama/ollama/pull/16471) ships in 0.33.3 and honors model-authored sampler defaults, which would silently change `ornith15`'s sampler — *the exact class of change that halved a pass rate in [#36](https://github.com/evanwtf/local-llm/issues/36)*. We are on 0.33.2 and the app updates itself from the GUI. Decide and pin **before** anyone clicks update, because afterwards the rows look normal and the cause is invisible. Same disease as [#104](https://github.com/evanwtf/local-llm/issues/104) on the other machine. Cheap, and it expires. |
+| 4 | **[#96](https://github.com/evanwtf/local-llm/issues/96)** oMLX per-turn TTFT | **The one claim from outside large enough for our harness to resolve.** 3–4s → 0.3s per turn, claimed bit-exact and lossless, validated by its author on Qwen3.8-Flash-Next. An agent task is many short turns over a growing prefix, and per-turn TTFT is the part of wall time we have never attacked. The first step pays regardless of whether oMLX is any good: **we have no per-turn TTFT metric at all**, so we cannot currently describe our own latency. |
+| 5 | **[#55](https://github.com/evanwtf/local-llm/issues/55) / [#82](https://github.com/evanwtf/local-llm/issues/82)** a bad result still looks like a broken measurement | It was right twice more today. The oracle deadlock recorded a harness fault as a *model* failure with `killed=False`, and **[#82](https://github.com/evanwtf/local-llm/issues/82)'s fourth item is still unbuilt**: a memory kill returns a plain failure rather than a distinct exclusion category, so "the code was wrong" and "the code could not run" remain indistinguishable in a row. Everything above produces data that this thread decides whether to believe. |
+| 6 | **[#86](https://github.com/evanwtf/local-llm/issues/86)** MTPLX loops, and our oracle cannot see it | Two reports that MTPLX loops on complex prompts at both 4-bit and 8-bit. **A loop reads as slowness in our rows and nothing would say otherwise** — we hold one unreplicated provisional number for `mtplx`. Either the number is wrong or the backend is unusable, and both matter before another slot is spent on it. |
+| 7 | **[#51](https://github.com/evanwtf/local-llm/issues/51)** Q4_K attention+head, +12.6% decode with a *quality gain* | Largely answered by our own work and worth collecting: **[#91](https://github.com/evanwtf/local-llm/issues/91) measured the upstream implementation at decode 1.155 and 32/32** on our chip, replicating the claim. What remains is adoption, which waits on [ds4#952](https://github.com/antirez/ds4/pull/952) merging — it supersedes #621 at the exact commit we tested. Low effort, real decode win, blocked on someone else's merge button. |
+| 8 | **[#83](https://github.com/evanwtf/local-llm/issues/83)** unbounded thinking eats the whole budget | Two models returned **no answer at all** with `stop_reason=max_tokens`. [#63](https://github.com/evanwtf/local-llm/issues/63) settled that thinking helps correctness *on ds4*; it never asked whether reasoning consumes the budget before an answer exists. This may already be confounding the 27B generation comparison we have taken — which makes it a correction to published data, not just a new measurement. |
+| 9 | **[#4](https://github.com/evanwtf/local-llm/issues/4)** harder tasks cannot measure quality | The oldest structural gap. Sharpened twice from outside: [#79](https://github.com/evanwtf/local-llm/issues/79) separated *coding ability* from *tool-calling ability*, and [#82](https://github.com/evanwtf/local-llm/issues/82)'s 49 GB oracle run was a **plausible wrong answer** — an implementation that buffers a file the task says to stream. Expensive, and the reason every result here is a time and not a judgement. |
+| 10 | **[#105](https://github.com/evanwtf/local-llm/issues/105)** Perplexity's Lily | A **Metal + Rust** engine, open-sourced today, specialized for **Qwen3.6-35B-A3B — a model we already have declared**. Corporate-backed rather than a hobby fork. Read the claims carefully: 1.23x prefill and 1.35x decode against MLX-LM, both **below our ±27.9% resolution**, so this is a microbenchmark question, not an agent-task one. Settle one thing first, cheaply: **does it serve an OpenAI-compatible HTTP API?** If not, it is a shim, not a config line, and it drops behind [#60](https://github.com/evanwtf/local-llm/issues/60)'s other candidates. |
 
-**Behind these:** #105 (Perplexity's Lily — a Metal/Rust engine for a model we
-already have, though its 1.23x/1.35x claims sit below our resolution), #86
-(MTPLX looping), #83 (unbounded thinking), #4 (harder tasks), #79 (the 12 GB
-tier), #107 (finish labelling: closed issues, and the third-label decision),
-#95, #77, #60, #70, #78, #27, and the older backlog.
+**Behind these:** [#60](https://github.com/evanwtf/local-llm/issues/60) and [#77](https://github.com/evanwtf/local-llm/issues/77) (both largely served by item 1), [#95](https://github.com/evanwtf/local-llm/issues/95) (+4–7% on our
+chip, below our resolution — said so on the issue), [#64](https://github.com/evanwtf/local-llm/issues/64), [#65](https://github.com/evanwtf/local-llm/issues/65), [#66](https://github.com/evanwtf/local-llm/issues/66), [#62](https://github.com/evanwtf/local-llm/issues/62), [#56](https://github.com/evanwtf/local-llm/issues/56),
+[#57](https://github.com/evanwtf/local-llm/issues/57), [#72](https://github.com/evanwtf/local-llm/issues/72), [#50](https://github.com/evanwtf/local-llm/issues/50), [#41](https://github.com/evanwtf/local-llm/issues/41), [#45](https://github.com/evanwtf/local-llm/issues/45), [#46](https://github.com/evanwtf/local-llm/issues/46), [#70](https://github.com/evanwtf/local-llm/issues/70), [#71](https://github.com/evanwtf/local-llm/issues/71), [#78](https://github.com/evanwtf/local-llm/issues/78), [#27](https://github.com/evanwtf/local-llm/issues/27), [#35](https://github.com/evanwtf/local-llm/issues/35), [#39](https://github.com/evanwtf/local-llm/issues/39), [#40](https://github.com/evanwtf/local-llm/issues/40), [#16](https://github.com/evanwtf/local-llm/issues/16), [#18](https://github.com/evanwtf/local-llm/issues/18), [#19](https://github.com/evanwtf/local-llm/issues/19),
+[#75](https://github.com/evanwtf/local-llm/issues/75), [#88](https://github.com/evanwtf/local-llm/issues/88), [#92](https://github.com/evanwtf/local-llm/issues/92), [#93](https://github.com/evanwtf/local-llm/issues/93), [#97](https://github.com/evanwtf/local-llm/issues/97), [#107](https://github.com/evanwtf/local-llm/issues/107), and the older operational backlog ([#3](https://github.com/evanwtf/local-llm/issues/3), [#6](https://github.com/evanwtf/local-llm/issues/6), [#7](https://github.com/evanwtf/local-llm/issues/7),
+[#9](https://github.com/evanwtf/local-llm/issues/9)).
 
-**Closed today:** #85 (hardware restructure — the move is done and
-`RECOMMENDATIONS.md` stayed at root), #91 (ds4 PR #621 re-tested at `6a20b13`:
-decode 1.155, 32/32, and #952 supersedes it at the same commit), #106 (the
-oracle deadlock, fixed in `44c3519`; 1,181 rows audited and no evidence of past
-corruption). Earlier: #89, #87, #90.
+**Closed today:** [#85](https://github.com/evanwtf/local-llm/issues/85) (hardware restructure — the move is done and
+`RECOMMENDATIONS.md` stayed at root), [#91](https://github.com/evanwtf/local-llm/issues/91) (ds4 PR #621 re-tested at `6a20b13`:
+decode 1.155, 32/32; #952 supersedes it at the same commit), [#106](https://github.com/evanwtf/local-llm/issues/106) (the oracle
+deadlock, fixed in `44c3519`; 1,181 rows audited, no evidence of past
+corruption). Earlier: [#89](https://github.com/evanwtf/local-llm/issues/89), [#87](https://github.com/evanwtf/local-llm/issues/87), [#90](https://github.com/evanwtf/local-llm/issues/90).
 
 **Engine scope: three.** llama.cpp, ds4, Ollama — and Ollama earns its slot on
 **MLX quants only**, because a GGUF served through Ollama is llama.cpp with a
@@ -81,15 +85,15 @@ wrapper. LM Studio and `ornith:35b` are `retired` in `tasks.toml`.
 
 **Client scope: OpenCode only.** Measured and closed — 11.1s Aider, 39.5s
 OpenCode, 189.6s Claude Code on one server, cause identified as prompt size.
-**Both machines now run 1.18.27, and see item 1: that version arrived by
-itself.**
+**This machine runs 1.18.27, and that version arrived by itself** — see the
+cross-cutting note above.
 
 
 ## Not queued
 
 Open issues that are not in the table, and why they stay off it:
 
-- **#40 mixed-precision GLM-5.3.** Right question, behind a working agent path.
+- **[#40](https://github.com/evanwtf/local-llm/issues/40) mixed-precision GLM-5.3.** Right question, behind a working agent path.
 - **GLM thinking/tool-replay (ds4#894, #897, #899, #904, #906).** Defects we would inherit while #569 and #816 stand.
 - **Vision, vector steering, ROCm.** Out of scope, and not shipped.
 - **More trials on saturated cells.** New axes, not more samples.
@@ -120,27 +124,27 @@ paid for itself on its first run.**
   swap: 19.6 of 20.5 GB used, 97k pageouts, everything at 0% CPU. Killed at ~6
   minutes to give the machine back, so both the FAIL and the 791.1s were decided
   by the kill. **The pathology is the interesting part**: a plausible *wrong*
-  answer, which #4 says this task set cannot produce.
-- **#82 fixed, three items of four.** The oracle had been handed the agent's
+  answer, which [#4](https://github.com/evanwtf/local-llm/issues/4) says this task set cannot produce.
+- **[#82](https://github.com/evanwtf/local-llm/issues/82) fixed, three items of four.** The oracle had been handed the agent's
   1800s timeout for a step that takes 0.1s; it now has `ORACLE_TIMEOUT = 300`
   and an 8 GiB ceiling. `RLIMIT_AS` is unusable on macOS -- measured -- so
   `memcap.py` polls the process tree and kills the group, reading **descendants**
   because the memory lives in a grandchild of `uv run pytest`. `peak_rss_gib` is
   now on every row, which turns this whole class from an operator noticing the
   machine is slow into a column.
-- **#84, and the tool that found it.** `scripts/upstream_sweep.py` sweeps all 18
+- **[#84](https://github.com/evanwtf/local-llm/issues/84), and the tool that found it.** `scripts/upstream_sweep.py` sweeps all 18
   repos we depend on in one command; SOURCES.md renders its `WATCHED` dict and a
   test fails on drift. Its first real run found
   [ollama#16471](https://github.com/ollama/ollama/pull/16471), merged hours
   earlier, making GGUF sampler KVs outrank Ollama's built-in defaults.
   **Upgrading past 0.33.2 silently changes the sampler for `ornith15`** -- our
   fastest measured backend, quoted in RECOMMENDATIONS, and the only one with no
-  Modelfile parameters. #36 measured that this exact class of change took a pass
+  Modelfile parameters. [#36](https://github.com/evanwtf/local-llm/issues/36) measured that this exact class of change took a pass
   rate from 20/21 to 7/15.
-- **#83: two models failed an easy prompt by spending the whole budget
+- **[#83](https://github.com/evanwtf/local-llm/issues/83): two models failed an easy prompt by spending the whole budget
   thinking.** `qwen3.6:27b-mlx` and `gemma4:12b-it` both returned no answer with
   `stop_reason=max_tokens`. Same size, same runtime and one generation apart,
-  `qwen3.8:27b-mlx` answered the same prompt in 3.6s against 143.1s. #63 settled
+  `qwen3.8:27b-mlx` answered the same prompt in 3.6s against 143.1s. [#63](https://github.com/evanwtf/local-llm/issues/63) settled
   that thinking *helps correctness on ds4*; it did not ask whether unbounded
   reasoning consumes the budget before an answer exists.
 - **Three bugs caught by running rather than reading**, in one evening: the
@@ -151,7 +155,7 @@ paid for itself on its first run.**
 **2026-09-01 evening, second half. Two machines, and the first task-set
 discrimination this project has produced.**
 
-- **`gemma4` 12/12 under OpenCode (#16).** Medians: `script-reverse` 41.6s,
+- **`gemma4` 12/12 under OpenCode ([#16](https://github.com/evanwtf/local-llm/issues/16)).** Medians: `script-reverse` 41.6s,
   `script-transform` 219.2s, `storage-blob-put` 358.1s, `mbox-scan` 464.1s.
   `mbox-scan` ran 317.5 / 464.1 / **1315.6s** -- a 4.1x spread on one task, one
   model, back to back, and the slow run still passed.
@@ -166,7 +170,7 @@ discrimination this project has produced.**
 - **`desktop` is scoped and running.** Ryzen 9 7900X, **30 GiB RAM**, RTX
   3080 Ti 12 GiB, Ubuntu 24.04, ollama 0.32.15 already present, **not
   always-on**. uv + OpenCode 1.18.26 installed user-local, both repos cloned,
-  harness runs end to end. The 30 GiB figure is what #20 was blocked on: it
+  harness runs end to end. The 30 GiB figure is what [#20](https://github.com/evanwtf/local-llm/issues/20) was blocked on: it
   makes the `--n-cpu-moe` path real rather than theoretical.
 - **Three defects Linux exposed, all fixed.** Preflight invented a Metal
   ceiling off Darwin -- it printed "107.5 GiB headroom under a 107.52 GiB Metal
@@ -186,7 +190,7 @@ discrimination this project has produced.**
 - **RECOMMENDATIONS linked to a repo that 404s.** It named
   `evandhoffman/gmail-archive`; the remote is `evanwtf/gmail-archive`. A dead
   link in the one place a reader can check our work.
-- **LM Studio retired** (see the engine scope note below), and **`#80` filed**:
+- **LM Studio retired** (see the engine scope note below), and **`[#80](https://github.com/evanwtf/local-llm/issues/80)` filed**:
   22 models, 518.6 GB, six ever measured.
 
 **2026-09-01 evening. An upstream sweep, and a rebuild that changed nothing.**
@@ -197,7 +201,7 @@ discrimination this project has produced.**
   the fast pick. Four such commits landed in the 18h window. **This is the fact
   that made the sweep worth running**; nothing in our docs connected the two
   names.
-- **#76 is answered: no.** `b10729` against `b10751`, same weights, bracketed
+- **[#76](https://github.com/evanwtf/local-llm/issues/76) is answered: no.** `b10729` against `b10751`, same weights, bracketed
   A-B-A so session drift is visible rather than assumed:
 
   | test | A1 b10729 | B b10751 | A2 b10729 | A1->A2 drift |
@@ -255,7 +259,7 @@ discrimination this project has produced.**
 - **A new task class: `script-reverse`.** The agent starts in an **empty
   directory** and must produce a runnable CLI script -- filename, argv, stdout.
   No repo, so no export, no fixture, no stash, no history to leak, nothing to
-  tamper with. 21 trials in 40 minutes against #65's 11 in two hours.
+  tamper with. 21 trials in 40 minutes against [#65](https://github.com/evanwtf/local-llm/issues/65)'s 11 in two hours.
 - **The client is the dominant cost on a large local model.** Same weights,
   same server, same task:
 
@@ -270,7 +274,7 @@ discrimination this project has produced.**
   the gap is 6x to 15x. **Weeks of model-level work bought 3-15%; this axis
   moved 16x.**
 - **A local pairing beat hosted Opus.** GLM-5.3-Flash under Aider: **6.4 / 6.3 /
-  6.4 s** against Opus 5 at 12.6 / 9.7 / 8.7 s. Ranges do not overlap. #23's
+  6.4 s** against Opus 5 at 12.6 / 9.7 / 8.7 s. Ranges do not overlap. [#23](https://github.com/evanwtf/local-llm/issues/23)'s
   +/-27.9% band was bootstrapped from the excision suite's variance and is too
   conservative for a class with 2% spreads -- **that interval needs re-deriving
   per class**, not borrowing.
@@ -278,7 +282,7 @@ discrimination this project has produced.**
   OpenCode produced a correct multi-flag CLI in **36 s including its own
   verification**, and got the fixed-order rule right under three flag
   permutations. **The prediction recorded before running -- that it would pass
-  everywhere -- held.** The ceiling is not task size (#4).
+  everywhere -- held.** The ceiling is not task size ([#4](https://github.com/evanwtf/local-llm/issues/4)).
 - **Five harness defects fixed**: `--dir` (`7356460`), `agent_error` now
   auto-excludes (`74567da`, after counting 16 opus5 client crashes as model
   failures and making the hosted reference read 64% instead of 28/29),
@@ -294,7 +298,7 @@ discrimination this project has produced.**
 - **Upstream sweep.** ds4 gained 10 issues/PRs in 24h (PR #920 accelerates
   width-2 MTP verification on Metal; #917 publishes M3 Max 128 GB results worth
   cross-checking). llama.cpp is **49 commits behind** and has shipped fa-vec
-  tunings for seven Apple chips with **none for M5** (#68).
+  tunings for seven Apple chips with **none for M5** ([#68](https://github.com/evanwtf/local-llm/issues/68)).
 
 **2026-08-31. GLM-5.3 works as an agent. Two of our own defects were hiding it, and a third was inflating every Claude Code time.**
 
@@ -307,14 +311,14 @@ discrimination this project has produced.**
   across two clients**. `storage-blob-put` is 0/3 for DeepSeek and passes on
   Claude Code in 607 s. **First result here that is a model difference rather
   than plumbing.**
-- **#63: thinking was off, and off is worse.** ds4 defaults to high-effort
+- **[#63](https://github.com/evanwtf/local-llm/issues/63): thinking was off, and off is worse.** ds4 defaults to high-effort
   thinking; our shim rewrote Claude Code's `adaptive` to **`disabled`**. Measured
   across 8 trivial functions executed against assertions: **off 4/8, on 8/8**,
   and off was **not cheaper** (548 tokens to on's 431 on one task, still wrong).
   Fixed in `218cc5a`. The agent-level proof: three failures became three passes,
   and `storage-blob-put` went from **18,080 tokens and zero bytes** to 8,560
   tokens and a working patch.
-- **#64 filed: the KV prefix stalls at 20,398 on the Claude Code path.** Twelve
+- **[#64](https://github.com/evanwtf/local-llm/issues/64) filed: the KV prefix stalls at 20,398 on the Claude Code path.** Twelve
   consecutive turns, `memory_token_reusable: 0`, prompt growing 25 k → 38 k.
   Cost measured on real work: **`mbox-scan` 193 s via Aider, 931 s via Claude
   Code — 4.8x, same model, same task.** Ruled out: the token counter (238 pinned
@@ -339,14 +343,14 @@ discrimination this project has produced.**
   rows from 08-30, 4 degraded-shim rows, 2 `--trace` diagnostics, and **16
   `opus5` client errors** that made the hosted reference read **28/44 (64%)**.
   It is **28/29**. `agent_error=True` still does not set `excluded`; that is the
-  underlying bug and it is #55.
+  underlying bug and it is [#55](https://github.com/evanwtf/local-llm/issues/55).
 - **`--trace` is the tool for cache questions** — it records prompts, cache
   decisions and the diverging token IDs. Three hand-built minimal repros all
   cached *correctly*; only a real traced trial reproduced the stall.
 - **SIGTERM does not run `atexit`.** The repo-restore guard does not cover the
   most likely way a long run is stopped; we hit it twice today.
 - **RECOMMENDATIONS.md archived** to `docs/archive/RECOMMENDATIONS-2026-08-29.md`
-  pending a from-scratch rewrite (#2 in the queue).
+  pending a from-scratch rewrite ([#2](https://github.com/evanwtf/local-llm/issues/2) in the queue).
 - **SOURCES.md now carries GitHub and website links** for all 23 accounts, 19
   verified live. `@0xSero` moved tier 3 → tier 2: 271 repos including a
   13-chapter GLM-5.3 low-bit quantization wiki and a pinned recipe for **our
@@ -395,7 +399,7 @@ discrimination this project has produced.**
   fallback** -- it fails with the vendor. Claude Code and Codex become
   reference points that establish a task's ceiling; a gap between them and
   OpenCode is a **defect to chase, not a result to publish**.
-- **And it does not work.** #54: `opencode run` is headless,
+- **And it does not work.** [#54](https://github.com/evanwtf/local-llm/issues/54): `opencode run` is headless,
   `external_directory` defaults to `ask`, and with nobody to ask it read the
   operator's real un-excised repo -- seeing green tests and correctly
   concluding nothing needed fixing. That is why every OpenCode failure has
@@ -418,9 +422,9 @@ discrimination this project has produced.**
   auto-exclusion for answer trees. **27 of 35 OpenCode trials touched
   `~/git/local-llm`; Claude Code 0 of 106, Codex 0 of 135.**
 
-**2026-08-30 afternoon. #52 replicated and reported upstream; #53 half-answered.**
+**2026-08-30 afternoon. [#52](https://github.com/evanwtf/local-llm/issues/52) replicated and reported upstream; [#53](https://github.com/evanwtf/local-llm/issues/53) half-answered.**
 
-- **#52 closed.** ds4 PR#621 AProjQ4 on this M5 Max, measured **twice**:
+- **[#52](https://github.com/evanwtf/local-llm/issues/52) closed.** ds4 PR#621 AProjQ4 on this M5 Max, measured **twice**:
   **53.35 t/s** at isolated ctx-2048 (clears 50 by 6.7%) and **q4/q8 = 1.155**
   across **32/32** frontiers. Reported to
   [ds4#621](https://github.com/antirez/ds4/pull/621#issuecomment-5470605362).
@@ -428,26 +432,26 @@ discrimination this project has produced.**
   read prefill as "slightly ahead on Q8" from a 2.7% gap; three reps give
   824 vs 825, ratio **0.998**. The gain is **decode and only decode**.
 - **`ds4-bench` precision is now measured**: **+/-0.4-0.6%** within a session,
-  ~50x tighter than the agent suite's +/-27.9% (#23). But **between** sessions
+  ~50x tighter than the agent suite's +/-27.9% ([#23](https://github.com/evanwtf/local-llm/issues/23)). But **between** sessions
   both arms drifted **3-4.5%** after unrelated heavy work -- so **quote the
   ratio, not the absolute**.
-- **#53: OpenCode = 1/15 on llama.cpp + Qwen `UD-Q3_K_XL`, and 14 of 15 wrote
+- **[#53](https://github.com/evanwtf/local-llm/issues/53): OpenCode = 1/15 on llama.cpp + Qwen `UD-Q3_K_XL`, and 14 of 15 wrote
   no file at all** -- `agent_error` and `stop_reason` both `None`, controls
   live, tests untouched, 80-250 s and thousands of tokens per trial. **This is
   not bad code, it is no code**, on weights that score **15/15 under Codex**.
   That lifts the standing "do not generalise OpenCode's ds4 result" caveat.
 - **LM Studio installed (0.4.23) but not yet launched** -- its CLI registers
   only on first GUI launch, and this is a shared machine. Operator is doing it.
-  Full resume checklist is on #53.
+  Full resume checklist is on [#53](https://github.com/evanwtf/local-llm/issues/53).
 
-**2026-08-30 12:01. #52 closed: AProjQ4 on ds4#621 breaks 50 t/s here.**
+**2026-08-30 12:01. [#52](https://github.com/evanwtf/local-llm/issues/52) closed: AProjQ4 on ds4#621 breaks 50 t/s here.**
 
 - Isolated `--ctx-max 2048` (ctx alloc 2177): Q4 **51.03** `gen_steady_tps`, Q8 44.27 (**+15.3%**). Both coherent at `--temp 0`.
 - Sweep 2048→65536, 3 reps, 64k allocation: Q4 > Q8 on **32/32** frontiers, paired median **+14.6%**. Under that alloc the ctx-2048 frontier is 45.95 / 40.37 — do not pool with the isolated run.
 - Engine `2669a8e` in `~/git/ds4-pr621`. CSVs in `benchmarks/ds4/pr621-m5max/`. Not posted upstream.
 - `decode_ab.sh` must run with cwd = the engine tree or Metal shaders are missing.
 
-**2026-08-30 overnight. #48 run and closed: refuted, by reading the engine.**
+**2026-08-30 overnight. [#48](https://github.com/evanwtf/local-llm/issues/48) run and closed: refuted, by reading the engine.**
 
 - **The F16 tensors our primary spends 11.5% of per-token traffic on are
   *required* F16 by `ds4.c`** -- `attn_compressor_*`, `indexer_compressor_*`,
@@ -469,63 +473,63 @@ discrimination this project has produced.**
 - **The pipeline is validated**: arm A reproduces the published tensor-type
   structure exactly, loads, and writes correct Python at `--temp 0`, **45.39
   t/s**.
-- **#49 filed:** we still do not know what binds decode, and two levers are now
+- **[#49](https://github.com/evanwtf/local-llm/issues/49) filed:** we still do not know what binds decode, and two levers are now
   closed. Four cheap probes listed; one is free.
 - **~330 GiB left on disk** (148.7 GiB safetensors + two 90 GiB arms). Nothing
   deleted -- weights are kept unless removal is a deliberate decision.
 
 **2026-08-29 22:50. Full sweep of 26 open issues and every tracked upstream.**
 
-- **ds4#892 changes the plan: #39 is unblocked and now first.** GLM-5.3 Flash
+- **ds4#892 changes the plan: [#39](https://github.com/evanwtf/local-llm/issues/39) is unblocked and now first.** GLM-5.3 Flash
   brought up on an **M5 Max 128 GB** -- this machine -- decode **33.0 -> 40.5
   t/s** with `--mtp`, 89.6% acceptance. Our note that "no flag reaches a working
   model" is obsolete.
-- **ds4#893 kills half of #40.** A fixed 110 GiB GLM-5.3 budget stands for
+- **ds4#893 kills half of [#40](https://github.com/evanwtf/local-llm/issues/40).** A fixed 110 GiB GLM-5.3 budget stands for
   128 GiB hosts; our 112.00 GiB wired limit is already above it, so **resident q4
   is unreachable here** and no sysctl changes that.
 - **Two runbooks contradicted their own tables.** README and RECOMMENDATIONS both
   still told the reader to start Codex, though the primary pick became
-  `ds4` + Claude Code in #44. Both fixed, with the `ANTHROPIC_API_KEY`
+  `ds4` + Claude Code in [#44](https://github.com/evanwtf/local-llm/issues/44). Both fixed, with the `ANTHROPIC_API_KEY`
   precedence trap written down.
-- **#21 closed** (session state, long since landed in the machine-state section
-  below) and **#13 closed** (Ollama 0.33.1 re-baseline, overtaken -- preflight
+- **[#21](https://github.com/evanwtf/local-llm/issues/21) closed** (session state, long since landed in the machine-state section
+  below) and **[#13](https://github.com/evanwtf/local-llm/issues/13) closed** (Ollama 0.33.1 re-baseline, overtaken -- preflight
   now stamps versions into `env` on every trial, so the series boundary is
   recorded rather than remembered).
-- **#35 given its admission criteria**, including a fourth the data forced:
+- **[#35](https://github.com/evanwtf/local-llm/issues/35) given its admission criteria**, including a fourth the data forced:
   a candidate is a model x engine x **client** triple, because the same weights
   under two clients separated 2.14x on Swift.
-- **#14 cross-referenced to ds4#816.** Same failure shape on both engines: a
+- **[#14](https://github.com/evanwtf/local-llm/issues/14) cross-referenced to ds4#816.** Same failure shape on both engines: a
   stateless client meeting a server that keys its cache on an exact prefix. Not
   a llama.cpp quirk.
 
-**2026-08-29 22:00. #45 run: 8 trials, and the finding is not the one it asked for.**
+**2026-08-29 22:00. [#45](https://github.com/evanwtf/local-llm/issues/45) run: 8 trials, and the finding is not the one it asked for.**
 
 - **The hypothesis is unconfirmed. 8/8 passed, no compile failures.** The
-  unbuildable result from #44 did not recur in four harder attempts on the pair
+  unbuildable result from [#44](https://github.com/evanwtf/local-llm/issues/44) did not recur in four harder attempts on the pair
   that produced it.
 - **The verbosity gap widens with difficulty.** Between `ornith15 x codex` and
   `ds4 x claude`: **5.42x -> 8.26x on tokens**, 1.77x -> 2.93x on time. Per pair,
   easier set -> harder set: `ds4 x claude` **1.34x** tokens, `ornith15 x codex`
   **2.05x**. The terse pair degrades gracefully; the verbose one inflates
-  further. #44 left open whether inflation was a fixed pair trait -- **it is
+  further. [#44](https://github.com/evanwtf/local-llm/issues/44) left open whether inflation was a fixed pair trait -- **it is
   not**, and easy-task measurements under-estimate the spread on hard work.
 - **Throughput did not move: 15.3 -> 15.2 s/1k** for `ornith15 x codex`, with
   time 2.03x and tokens 2.05x. Harder tasks did not slow decoding measurably.
   Third time here a wall-time difference resolved to a token count.
-- **Screening run, 2 trials per cell**, under #23's bar. Rescoped mid-run: the
+- **Screening run, 2 trials per cell**, under [#23](https://github.com/evanwtf/local-llm/issues/23)'s bar. Rescoped mid-run: the
   harder tasks cost 571-999s per trial against a planned ~94s, so 16 trials
   needed 3.5 h. Stopped Phase A balanced at 2-per-task rather than finish one
   pair and never measure the other.
-- **#46 filed:** Swift rows report `gates_delta = {"ruff": 0}` from linters that
+- **[#46](https://github.com/evanwtf/local-llm/issues/46) filed:** Swift rows report `gates_delta = {"ruff": 0}` from linters that
   never ran.
 - **Correction:** the monitor suite is **215 tests**, not the 202 stated in the
-  #42 close comment and an earlier note. Fixed here and on #42.
+  [#42](https://github.com/evanwtf/local-llm/issues/42) close comment and an earlier note. Fixed here and on [#42](https://github.com/evanwtf/local-llm/issues/42).
 
-**2026-08-29 evening. #44, #43, #42 closed; #45 opened and running.**
+**2026-08-29 evening. [#44](https://github.com/evanwtf/local-llm/issues/44), [#43](https://github.com/evanwtf/local-llm/issues/43), [#42](https://github.com/evanwtf/local-llm/issues/42) closed; [#45](https://github.com/evanwtf/local-llm/issues/45) opened and running.**
 
-- **#44 closed: the Swift repo did not raise difficulty, and that is the finding.**
+- **[#44](https://github.com/evanwtf/local-llm/issues/44) closed: the Swift repo did not raise difficulty, and that is the finding.**
   45 trials, five pairs, **44/45** -- as saturated on 11,265 Swift lines as on
-  1,833 Python ones. #4's hypothesis is **not supported on correctness.**
+  1,833 Python ones. [#4](https://github.com/evanwtf/local-llm/issues/4)'s hypothesis is **not supported on correctness.**
 - **It changed the primary recommendation anyway.** On Python, `ds4` under Claude
   Code and under Codex were indistinguishable (982s vs 975s) and the honest
   advice was "pick on habit". On Swift they separate **2.14x**. RECOMMENDATIONS
@@ -546,21 +550,21 @@ discrimination this project has produced.**
   better than a saturated pass rate. **Caveat recorded:** the Swift tasks are not
   difficulty-matched to the Python ones, so the ordering is sound and the
   absolute ratios are not.
-- **The single failure is the interesting row, and it is now #45.**
+- **The single failure is the interesting row, and it is now [#45](https://github.com/evanwtf/local-llm/issues/45).**
   `ornith15 x codex` produced Swift that **did not compile**, from a run that
   looked entirely normal -- 18,694 output tokens, 30 tool calls, clean
   `turn.completed`, no `agent_error`. **Python cannot produce this failure in
   this harness:** a syntax error is a pytest collection error, not a separate
   build step.
-- **#45 opened and running.** Two harder Swift tasks added, each leaning on a
+- **[#45](https://github.com/evanwtf/local-llm/issues/45) opened and running.** Two harder Swift tasks added, each leaning on a
   construct with no Python equivalent -- `ScaleLadder.snap` (if-as-expression
   assigned to a `let`) and `SevenSegment.glyphs` (in-place mutation of an array
   of value types). Controls verified: both stub to `fatalError` and fail the
   suite before the agent runs. Running the two **extremes** -- 2.73x against
   1.19x -- not the whole field.
-- **#43 closed:** README, AGENTS.md and RECOMMENDATIONS all updated. Doing it
-  *after* #44 was right -- the docs would otherwise have been accurate and wrong.
-- **#42 closed:** `~/git/monitor` is pinned at `local-llm-benchmark` @ `cbb85ca`,
+- **[#43](https://github.com/evanwtf/local-llm/issues/43) closed:** README, AGENTS.md and RECOMMENDATIONS all updated. Doing it
+  *after* [#44](https://github.com/evanwtf/local-llm/issues/44) was right -- the docs would otherwise have been accurate and wrong.
+- **[#42](https://github.com/evanwtf/local-llm/issues/42) closed:** `~/git/monitor` is pinned at `local-llm-benchmark` @ `cbb85ca`,
   215 hermetic tests, five tasks.
 - **Trap found the hard way:** `swift_excise.excise(path, symbol)` **writes the
   file** and returns the removed text. Calling it to inspect a span modifies the
@@ -569,34 +573,34 @@ discrimination this project has produced.**
 
 **Overnight 2026-08-28/29. Seven evaluations, 190 trials.**
 
-- **#28 closed: there is no engine difference.** On byte-identical weights
+- **[#28](https://github.com/evanwtf/local-llm/issues/28) closed: there is no engine difference.** On byte-identical weights
   (Ollama's own ornith-1.5 GGUF served by both) llama.cpp and Ollama decode at
   the same rate -- 14.1 vs 15.0 s/1k tokens. A measured **+66%** collapsed to
   **+5-10%** once four sampler parameters were matched. `repeat_penalty` was the
   missing one: Ollama 1.1, llama.cpp 1.0, `llamacpp-up` never set it.
-- **#36 closed: `top_p` moves pass rate, and it is coupled to `repeat_penalty`.**
+- **[#36](https://github.com/evanwtf/local-llm/issues/36) closed: `top_p` moves pass rate, and it is coupled to `repeat_penalty`.**
   36 trials: `top_p 0.95` no-rp **17/18**; `top_p 0.90` no-rp **7/12**;
   `top_p 0.90` + `rp 1.1` **6/6**. Temperature and top_k are innocent.
-- **#34 closed: expert streaming is -60% memory for +76% wall time**, lossless
+- **[#34](https://github.com/evanwtf/local-llm/issues/34) closed: expert streaming is -60% memory for +76% wall time**, lossless
   across 31 trials. It does **not** make a fitting model faster; it makes a
   non-fitting model possible.
-- **#33 closed: the PLE offload does not pay** -- 4-bit `-M64` is +28% slower
+- **[#33](https://github.com/evanwtf/local-llm/issues/33) closed: the PLE offload does not pay** -- 4-bit `-M64` is +28% slower
   than 3-bit and saves **nothing**, because mmap already makes every weight page
   evictable (footprint ~5 GB against ~92 GiB RSS).
-- **#35 answered: GLM-5.2 runs.** 196.6 GiB streams into **30.8 GiB** and passes
+- **[#35](https://github.com/evanwtf/local-llm/issues/35) answered: GLM-5.2 runs.** 196.6 GiB streams into **30.8 GiB** and passes
   a real agent task -- in 2,585 s, **14x** ds4. Possible, not practical.
-- **#23 closed:** three trials pins a suite to **+/-12.9%**; nothing under a ~26%
+- **[#23](https://github.com/evanwtf/local-llm/issues/23) closed:** three trials pins a suite to **+/-12.9%**; nothing under a ~26%
   gap is a finding. 35 consecutive passes for a >90% claim.
-- **#4 answered, and the answer is the repository.** 18/18 on the harder tasks.
+- **[#4](https://github.com/evanwtf/local-llm/issues/4) answered, and the answer is the repository.** 18/18 on the harder tasks.
   gmail-archive has one function with the surface that produced the one defect.
 - **Infrastructure moved to latest** (Codex 0.150.1, OpenCode 1.18.25, llama.cpp
   mainline `d7bd3bfca` after PR #27742 merged). Codex 0.150.1 broke the
   llama.cpp path within minutes; `fold_developer()` in the shim fixes it.
 
-- **#34 closed. The cost curve exists.** MoE expert streaming: **91.0 -> 36.7 GiB
+- **[#34](https://github.com/evanwtf/local-llm/issues/34) closed. The cost curve exists.** MoE expert streaming: **91.0 -> 36.7 GiB
   (-60%) for +76% suite wall time**, 16/16, no correctness cost across 31 trials.
   Memory is *bounded* (36.7 GiB after one request, 37.1 after ten trials), and
-  startup drops 16-30s to **2s**. The PLE offload (#33) by contrast saved
+  startup drops 16-30s to **2s**. The PLE offload ([#33](https://github.com/evanwtf/local-llm/issues/33)) by contrast saved
   **nothing** and cost 28%. **Streaming does not make a fitting model faster; it
   makes a non-fitting model possible** -- which reopens the "too big" tier.
   Independently lands within 1% of the 37 GB @EyalToledano reported for the same
@@ -606,7 +610,7 @@ discrimination this project has produced.**
   residency, streaming apparently doing nothing**, with no warning. `WARM` is now
   overridable; both launchers take `EXTRA_FLAGS`.
 
-- **#28 answered, and the headline is an artifact -- do not quote "+66%".** First
+- **[#28](https://github.com/evanwtf/local-llm/issues/28) answered, and the headline is an artifact -- do not quote "+66%".** First
   fixed-model engine comparison here, using the identical GGUF out of Ollama's
   blob store. Suite: Ollama 523.1s vs llama.cpp 870.8s. **The entire gap is one
   task** -- minus `parser-date` it is +9%, inside the noise. **Throughput is
@@ -616,7 +620,7 @@ discrimination this project has produced.**
   sampler halved both tokens and clock (422s -> 212s) and closed **half** the
   gap; the residual 1.9x is unexplained. **`storage-blob-put` went 3/3 at t=1.0
   and 0/3 at t=0.8** -- sampler settings move pass rate, not just wall time.
-- **#33 closed: the PLE offload does not pay.** 4-bit `-M64` is **+28% slower**
+- **[#33](https://github.com/evanwtf/local-llm/issues/33) closed: the PLE offload does not pay.** 4-bit `-M64` is **+28% slower**
   than 3-bit on an identical stack, 16/16 vs 15/15. The memory saving was never
   available: `-M64` changes no tensors (1224 both, 3 shards vs 33), and `vmmap`
   shows mmap already makes every weight page evictable -- physical footprint
@@ -628,10 +632,10 @@ discrimination this project has produced.**
   through the shim. **PR #27742 merged upstream** -- `~/git/llama.cpp` is on
   mainline `d7bd3bfca`, old build tagged `benchmark-pr27742-2026-08-26`.
 
-- **#4 measured: 18/18 pass.** Three new tasks x ds4 x {Claude Code, Codex} x 3.
+- **[#4](https://github.com/evanwtf/local-llm/issues/4) measured: 18/18 pass.** Three new tasks x ds4 x {Claude Code, Codex} x 3.
   **The ceiling is not an artifact of easy tasks.** Per-task median rose
   194.6 -> 270.6 s (**+39%**) with **no** additional failures. Suites 813.4 s vs
-  701.1 s, a 16% gap that is inside #23's +/-12.9% band -- **no difference
+  701.1 s, a 16% gap that is inside [#23](https://github.com/evanwtf/local-llm/issues/23)'s +/-12.9% band -- **no difference
   measured**. `restored_verbatim` **0/18**, 18 distinct solutions: nothing is
   recalled, and with `unquote_mbox`'s docstring removed the model re-derived the
   mboxrd reasoning from scratch. One real defect, in 5 of 6 trials on the
@@ -645,22 +649,22 @@ discrimination this project has produced.**
   The 4 rows it produced are marked excluded; **the historical record is
   unaffected** -- all 140 Codex trials audited, all 3 failures genuine, none
   under 10 s.
-- **#23** closed. **Three trials is a screening run, not a measurement.** Pass
+- **[#23](https://github.com/evanwtf/local-llm/issues/23)** closed. **Three trials is a screening run, not a measurement.** Pass
   rate: an unbroken run's Wilson bound is `n/(n+z^2)`, so >90% needs **35**
   consecutive passes, >95% needs 73. One failure costs ~20 trials. Wall time,
   bootstrapped over 198 observations: n=3 pins a task median to **+/-27.9%** and
   a 5-task suite to **+/-12.9%**, so suites separate only above a ~26% gap. Every
   published speed claim was re-checked against that -- all survive, but Q3-vs-Q2
-  (#31) clears by a hair and rests on winning all five tasks separately.
+  ([#31](https://github.com/evanwtf/local-llm/issues/31)) clears by a hair and rests on winning all five tasks separately.
   `sizing.py` is re-runnable. The rule is in AGENTS.md.
-- **#34 step 1** done: the NVMe is measured for the first time
+- **[#34](https://github.com/evanwtf/local-llm/issues/34) step 1** done: the NVMe is measured for the first time
   (`benchmarks/disk/RESULTS.md`). Sequential **9.45 GiB/s**; random 1 MiB
   **198 us / 6.32 GiB/s**; random 4 KiB **61 us / 0.10 GiB/s**. **Block size is
   what costs, not randomness** -- 1 MiB random reads reach 67% of sequential,
   4 KiB reads reach 1.1%. Streaming MoE expert blocks is arithmetically viable
   (~2 ms per fully-cold token, a 500 tok/s ceiling); the n-gram PLE table is the
   hard case and its cost depends on lookups per token, which is **unmeasured**.
-- **#4** build half done and merged. `run.py` had deleted every worktree in a
+- **[#4](https://github.com/evanwtf/local-llm/issues/4)** build half done and merged. `run.py` had deleted every worktree in a
   `finally`, so **398 trials of produced code were thrown away**; solutions are
   now saved and hashed, ruff and mypy run as deltas against the excised tree, and
   `restored_verbatim` checks the authorship contamination METHODOLOGY has warned
@@ -669,14 +673,14 @@ discrimination this project has produced.**
   control has run `uv run pytest` before the agent since the first commit, and
   all 482 rows carry a control result. The new tasks **do not start a new
   series**.
-- **#26** answered and its hypothesis refuted: not the KV cache, not warm-up
+- **[#26](https://github.com/evanwtf/local-llm/issues/26)** answered and its hypothesis refuted: not the KV cache, not warm-up
   (first trial of a batch is 0.98x the rest over 92 batches). Wall time tracks
   output tokens at r=0.98. The server samples at **temperature 1.0 with a fresh
-  seed per request**, which #23 has now turned into a trial-count rule.
-- **#24** published verdicts corrected, after two live reader bugs -- a timeout
+  seed per request**, which [#23](https://github.com/evanwtf/local-llm/issues/23) has now turned into a trial-count rule.
+- **[#24](https://github.com/evanwtf/local-llm/issues/24)** published verdicts corrected, after two live reader bugs -- a timeout
   writes no `passed` key, and `summarize.py` still hand-rolled its exclusion
   filter over fourteen `confound` rows. **Do not test `row["passed"]` directly.**
-- **#30/#31/#32/#22/#25/#16**: Metal ceiling raised to 112.00 GiB; Qwen3.8-Flash-Next
+- **[#30](https://github.com/evanwtf/local-llm/issues/30)/#31/#32/#22/#25/#16**: Metal ceiling raised to 112.00 GiB; Qwen3.8-Flash-Next
   is best at `UD-Q3_K_XL` (15/15); GLM-5.3-Flash works (15/15) and is the fifth
   lineage. Details in RESULTS.md and RECOMMENDATIONS.md -- all have landed.
 
@@ -708,7 +712,7 @@ distinguished from either. The three at 15/15 need ~35 consecutive passes to
 clear 90%; they are promising, not proven.
 
 Note what this table cannot tell you: **which writes better code.** Nearly
-everything passes. That is #4, and it is why this table has stopped being
+everything passes. That is [#4](https://github.com/evanwtf/local-llm/issues/4), and it is why this table has stopped being
 informative.
 
 ## Machine state
@@ -748,7 +752,7 @@ reports on every run.
 
 **`sysctl` reports `0` when no override is set, and `0` means "device
 default", not "no ceiling".** A 0 after a reboot means the daemon did not fire.
-The authoritative reading is the Metal probe in #30.
+The authoritative reading is the Metal probe in [#30](https://github.com/evanwtf/local-llm/issues/30).
 
 **The sysctl is REQUIRED for GLM-5.3, not an optimisation.** `b0c31af` sets
 `budget_base = ds4_gpu_recommended_working_set_size()` (Metal's
@@ -761,14 +765,14 @@ and the budget comes entirely from the sysctl-override path. Stock gives a
 
 **`preflight.py` now reports this on every run**, and says whether it is stock
 or raised. The sysctl reads the override in MB, or `0` when none is set -- 0
-means "device default", not "no ceiling". The Metal probe in #30 gives the
+means "device default", not "no ceiling". The Metal probe in [#30](https://github.com/evanwtf/local-llm/issues/30) gives the
 authoritative figure. **`glm53` will not load without this**
 (100.6 GiB resident against a 107.52 GiB default).
 
 **Check before every batch:** `uv run python benchmarks/agent/preflight.py`.
 
 **Servers, as of 2026-08-29 04:10:** a `llama-server` may be up on :8020 with
-its shim on :11500 from the #36 sweep. `ds4-server` and Ollama are stopped.
+its shim on :11500 from the [#36](https://github.com/evanwtf/local-llm/issues/36) sweep. `ds4-server` and Ollama are stopped.
 **Run the preflight first, always.** Restart ds4 with:
 
 ```sh
@@ -800,7 +804,7 @@ broken every benchmark silently. `main` can now track upstream freely.
 |---|---|---|
 | `~/git/llama.cpp` | **`d7bd3bfca` (mainline master)** | qwen4exp, now merged upstream. The old pinned build is tagged **`benchmark-pr27742-2026-08-26`** -- the PR was squash-merged, so its commits are NOT in mainline history and the tag is the only way back to the exact build every earlier `qwen38fnq2`/`q3` row used. |
 | `~/git/llama.cpp-glm52pr` | `8a8d0bcc4` (PR #27752) | serves `glm53`. Clean, unpatched. |
-| `~/git/llama.cpp-glm53` | `9370c82db` (PR #27773) | the failed attempt, **166 lines of uncommitted patches**. Two are independently upstream-worthy (#25). Do not build GLM here. |
+| `~/git/llama.cpp-glm53` | `9370c82db` (PR #27773) | the failed attempt, **166 lines of uncommitted patches**. Two are independently upstream-worthy ([#25](https://github.com/evanwtf/local-llm/issues/25)). Do not build GLM here. |
 
 **Weights on disk:** `~/models/Qwen3.8-Flash-Next-GGUF` (157 GB, Q2 + Q3),
 `~/models/GLM-5.3-Flash-GGUF` (101 GB, Unsloth Q2),
@@ -900,7 +904,7 @@ on an M5 Max 128 GB, which is this machine.** Branch `glm53-mtp-width`, author
 MTP acceptance **89.6%** over 135 cycles. `make test-glm53-kda` PASS. Greedy
 goldens byte-identical across serial, `--mtp`, and widths 3/4/6.
 
-**This retires "#39 is blocked in practice."** The claim there was that `--mtp`
+**This retires "[#39](https://github.com/evanwtf/local-llm/issues/39) is blocked in practice."** The claim there was that `--mtp`
 is GLM-gated and GLM does not run, so no flag reaches a working model. Someone
 has now run exactly that combination on our hardware and published the numbers.
 It also reports a **4500-token prompt succeeding at ctx 8192**, which is above
@@ -920,15 +924,15 @@ Two further findings from #892 worth not re-deriving:
 
 It also states that **DFlash2 draft support for GLM-5.3 does not exist** -- the
 draft GGUFs exist (qwen3-arch, same tokenizer) but the machinery lives in an
-`ornith15` branch bound to the Qwen graph. That is directly relevant to #19.
+`ornith15` branch bound to the Qwen graph. That is directly relevant to [#19](https://github.com/evanwtf/local-llm/issues/19).
 
 ### Still blocking us, unchanged
 
 | upstream | what it blocks | our issue |
 |---|---|---|
-| **[ds4#569](https://github.com/antirez/ds4/issues/569)** | **Codex against any GLM on ds4.** Tool-call parser stringifies every argument value; `"false"` where a boolean is declared. Open since 2026-07-17, hits GLM-5.2 too. | #41 |
-| **[ds4#816](https://github.com/antirez/ds4/issues/816)** | **Claude Code at long context.** Stateless clients never extend the live KV session — 787/787 misses, `reason=token-mismatch`. Structural, so KV budget does not fix it. | #38, #14 |
-| **[ds4#885](https://github.com/antirez/ds4/pull/885)**, **[#886](https://github.com/antirez/ds4/pull/886)** | Retiring our fork. Both still open. | #27 |
+| **[ds4#569](https://github.com/antirez/ds4/issues/569)** | **Codex against any GLM on ds4.** Tool-call parser stringifies every argument value; `"false"` where a boolean is declared. Open since 2026-07-17, hits GLM-5.2 too. | [#41](https://github.com/evanwtf/local-llm/issues/41) |
+| **[ds4#816](https://github.com/antirez/ds4/issues/816)** | **Claude Code at long context.** Stateless clients never extend the live KV session — 787/787 misses, `reason=token-mismatch`. Structural, so KV budget does not fix it. | [#38](https://github.com/evanwtf/local-llm/issues/38), [#14](https://github.com/evanwtf/local-llm/issues/14) |
+| **[ds4#885](https://github.com/antirez/ds4/pull/885)**, **[#886](https://github.com/antirez/ds4/pull/886)** | Retiring our fork. Both still open. | [#27](https://github.com/evanwtf/local-llm/issues/27) |
 
 ### Tracking, not blocking
 
@@ -936,7 +940,7 @@ draft GGUFs exist (qwen3-arch, same tokenizer) but the machinery lives in an
 |---|---|
 | **[ds4#890](https://github.com/antirez/ds4/issues/890)** | **Reconciled 2026-08-30: does not reproduce here.** A ~30 KB prompt prefills at **460 t/s**, on a build that logs crossing the 4096 cap onto the compact indexed path. It is a **memory-budget failure, not a prefill defect**. Our 107.52 GiB stock measurement is now cited upstream as a second machine; the 128 GiB half of the guard is still open. |
 | **[ds4#893](https://github.com/antirez/ds4/pull/893)** | **CLOSED, superseded by `b0c31af`.** My earlier note here -- "keeps the fixed 110 GiB ceiling, raising the sysctl buys nothing" -- is **wrong now**: the sysctl is read and *overrides* the heuristic. At 112 GiB it yields exactly 110 GiB, so the conclusion held by coincidence, not for the stated reason. **q4 resident is still unreachable** (177 GiB). |
-| **[ds4#891](https://github.com/antirez/ds4/issues/891)** | GLM-5.2 Metal + `--ssd-streaming` fails above 8192 tokens. We measured GLM-5.2 streaming at 30.8 GiB (#35) and called it possible-but-impractical; this caps it further. |
+| **[ds4#891](https://github.com/antirez/ds4/issues/891)** | GLM-5.2 Metal + `--ssd-streaming` fails above 8192 tokens. We measured GLM-5.2 streaming at 30.8 GiB ([#35](https://github.com/evanwtf/local-llm/issues/35)) and called it possible-but-impractical; this caps it further. |
 | **#894, #897, #899, #904, #906** | A cluster on GLM thinking/tool replay and KV alignment: prefill ending in `</think>` misfiled, compaction failing when think-mode overshoots. **If GLM-5.3 becomes runnable here, these are the defects to expect**, and they hit exactly the agent loop we benchmark. |
 | **[ds4#901](https://github.com/antirez/ds4/issues/901)** | SIGSEGV running GLM-5.3 distributed. Not our configuration (single host), noted so it is not mistaken for our bug. |
 | **llama.cpp [#27752](https://github.com/ggml-org/llama.cpp/pull/27752), [#27773](https://github.com/ggml-org/llama.cpp/pull/27773)** | Both **still open** as of 2026-08-29. Our two GLM worktrees track them; neither has merged, so neither is a stable base. |
@@ -976,14 +980,14 @@ text, so calling it to *inspect* a span modifies the real working tree. Use
 `body_source()` to look; only `run.py`'s worktrees should ever see `excise()`.
 
 **A sampler default nobody chose can halve the pass rate.** `top_p 0.95` is
-20/21 and `top_p 0.90` is 7/15 on the same task/model/engine/client (#36).
+20/21 and `top_p 0.90` is 7/15 on the same task/model/engine/client ([#36](https://github.com/evanwtf/local-llm/issues/36)).
 Temperature and top_k are innocent. `llamacpp-up` hardcoded 0.95 for everything;
 Ollama fell back to 0.9. **Cross-engine pass rates are provisional until both
 sides are sampler-matched**, and Ollama/ds4 rows still do not record sampling.
 
 **A one-hyphen architecture name decides which engine can load a GGUF.**
 antirez's GLM-5.3 declares `glm5-next`, Unsloth's declares `glm5next`, and
-neither engine reads the other's file. That is the whole of #25's "loads and
+neither engine reads the other's file. That is the whole of [#25](https://github.com/evanwtf/local-llm/issues/25)'s "loads and
 emits gibberish". Check `general.architecture` against the engine's declared
 name -- `uv run python scripts/gguf_meta.py <file>` -- before debugging output.
 
@@ -997,14 +1001,14 @@ it for any non-DeepSeek model -- though per ds4#816 it will not fix `hits=0`.
 
 **Write results through `results.py`.** Never hand-roll an exclusion filter --
 five different keys have meant "untrustworthy row", and an analysis that checked
-one silently counted fifteen bad rows as good data (#29).
+one silently counted fifteen bad rows as good data ([#29](https://github.com/evanwtf/local-llm/issues/29)).
 
 **`/health` answers before the model is loaded.** GLM answered at 4 s and did not
 finish loading until 33 s. A request in that window returns no `choices` and
 looks exactly like a broken model.
 
 **Coherence-check at temperature 0 before every benchmark.** A model can load,
-serve, and report plausible token counts while emitting noise -- that is #25, and
+serve, and report plausible token counts while emitting noise -- that is [#25](https://github.com/evanwtf/local-llm/issues/25), and
 it cost hours.
 
 **A timeout is a failure, not an absence.** It writes `error` and no `passed`
@@ -1029,9 +1033,9 @@ moment a quality signal decides a pass, the harness is judging, and its whole
 claim is that it does not.
 
 **A 3-trial median is not a speed measurement -- it carries +/-28%.** Measured,
-not estimated (#23): three trials pin one task's median to +/-27.9% and a
+not estimated ([#23](https://github.com/evanwtf/local-llm/issues/23)): three trials pin one task's median to +/-27.9% and a
 five-task suite total to +/-12.9%. So two task medians need to differ by ~56%,
-and two suites by ~26%, before the difference is real. The cause is #26: the
+and two suites by ~26%, before the difference is real. The cause is [#26](https://github.com/evanwtf/local-llm/issues/26): the
 server samples at temperature 1.0 with a random seed, and the model sometimes
 writes 7x the tokens for the same task. **Below 26% at n=3, write "no difference
 measured", never "X is faster than Y."** Ranking on speed needs 10 trials, and
