@@ -79,6 +79,29 @@ def distinguishable(a: float, b: float) -> bool:
     return (hi - lo) / lo >= RESOLUTION
 
 
+def saturated_cells(by_cell, min_trials: int = 3):
+    """Cells where every trial passed. Saturation is not excellence (#55 A4).
+
+    A 100% cell says the task is too easy for this backend to fail, which is a
+    property of the TASK -- not of the backend. Ranking backends on saturated
+    tasks flatters whoever met the low bar first, and #4 exists because the
+    whole task set is close to saturated.
+
+    n=3 is the minimum reported here for the same reason #23 gives: below it,
+    100% is 100% of a very small denominator. A 3/3 cell clears >37% by exact
+    binomial, but not 90%; a 15/15 cell clears >85%. Both are worth flagging,
+    with the caveat proportional to sample size.
+    """
+    saturated = []
+    for (backend, task), rows in by_cell.items():
+        if len(rows) < min_trials:
+            continue
+        n_passed = sum(1 for r in rows if results.verdict(r))
+        if n_passed == len(rows):
+            saturated.append((backend, task, len(rows)))
+    return sorted(saturated)
+
+
 def untouched_cells(by_cell):
     """Cells where every trial failed with the same oracle output (#55 A3).
 
@@ -198,6 +221,19 @@ def main() -> int:
         )
         for backend, task, out in untouched:
             logger.warning("  %s %s: %s", backend, task, out[:80])
+
+    # #55 A4: saturation is not excellence. A 100% cell says the task is too
+    # easy for this backend to fail, which is a property of the task, not the
+    # backend. Flagged as info so rankings do not read the wrong signal off it.
+    saturated = saturated_cells(by_cell)
+    if saturated:
+        logger.info("")
+        logger.info(
+            "%d cell(s) at 100%% -- SATURATED, not necessarily excellent (#55 / #4):",
+            len(saturated),
+        )
+        for backend, task, n in saturated:
+            logger.info("  %s %s: %d/%d", backend, task, n, n)
 
     logger.info("log: %s", log_file)
     return 0

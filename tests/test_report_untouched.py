@@ -128,3 +128,46 @@ def test_a_script_task_all_pass_identical_is_not_flagged() -> None:
         ],
     }
     assert report.untouched_cells(cells) == []
+
+
+# --- saturation (#55 A4) ------------------------------------------------
+
+
+def test_a_100_percent_cell_is_saturated_at_n3() -> None:
+    cells = {
+        ("b", "t"): [
+            row("b", "t", 1, True, "1 passed"),
+            row("b", "t", 2, True, "1 passed"),
+            row("b", "t", 3, True, "1 passed"),
+        ],
+    }
+    got = report.saturated_cells(cells)
+    assert got == [("b", "t", 3)]
+
+
+def test_below_min_trials_does_not_flag_saturation() -> None:
+    """3/3 clears >37% by exact binomial, not 90%. Below n=3 is even weaker,
+    and #23's whole point is that small denominators mislead."""
+    cells = {("b", "t"): [row("b", "t", 1, True, "1 passed")]}
+    assert report.saturated_cells(cells) == []
+
+
+def test_a_single_failure_disqualifies_saturation() -> None:
+    cells = {
+        ("b", "t"): [
+            row("b", "t", 1, True, "1 passed"),
+            row("b", "t", 2, True, "1 passed"),
+            row("b", "t", 3, False, "1 failed"),
+        ],
+    }
+    assert report.saturated_cells(cells) == []
+
+
+def test_saturation_lists_multiple_cells() -> None:
+    cells = {
+        ("b", "t1"): [row("b", "t1", i, True, "1 passed") for i in range(1, 4)],
+        ("b", "t2"): [row("b", "t2", i, True, "1 passed") for i in range(1, 4)],
+    }
+    got = report.saturated_cells(cells)
+    assert len(got) == 2
+    assert {t for _, t, _ in got} == {"t1", "t2"}
