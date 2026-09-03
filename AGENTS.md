@@ -235,6 +235,7 @@ this project turning into a pile of findings nobody can act on.
 | [`NEXT.md`](NEXT.md) | the agenda: what order to work in | rewritten constantly |
 | `benchmarks/*/RESULTS.md` | the numbers, and how they were obtained | append-only |
 | [`RECOMMENDATIONS.md`](RECOMMENDATIONS.md) | the top 1-3 picks, and how to run them | replaced as evidence changes |
+| [`docs/changelog.md`](docs/changelog.md) | what shipped, and why | append-only |
 | `AGENTS.md`, `CONVENTIONS.md`, `METHODOLOGY.md` | lessons that outlive the task | permanent |
 
 **New work becomes an issue first.** Not a note in `NEXT.md`, not a TODO in a
