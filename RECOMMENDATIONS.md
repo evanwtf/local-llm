@@ -153,7 +153,7 @@ other is telling you something.
 
 <!-- BEGIN GENERATED -->
 
-*Generated from `results.jsonl` — 1113 rows, sha256 78ba066c2905.*
+*Generated from `results.jsonl` — 1159 rows, sha256 9034cd5c89e1.*
 
 #### Every stack measured under OpenCode
 
