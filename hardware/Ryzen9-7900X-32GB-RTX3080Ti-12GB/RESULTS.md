@@ -366,3 +366,90 @@ on the engine command line, 6.11 GiB resident, fully on GPU).
 Preflight warned that `llama-server (pid 110844)` held 8.9 GiB and was not
 listening. That was gemma4's server mid-unload from the previous batch; by the
 first trial only ornith was resident. Not a contended run.
+
+
+---
+
+## 2026-09-03: `qwen3.5:9b` — **9/12**, and the chart's near-tie is not one
+
+Run to test #113. 0xSero's `local.ai` chart puts Qwen3.5 9B Q4_K_M at ~50%
+Intelligence against Gemma-4-12B's ~51% -- a one-point gap, with Qwen faster.
+If an Intelligence Index predicted agent success, these two should land
+together.
+
+| task | trial 1 | trial 2 | trial 3 | qwen | gemma4 | ornith |
+|---|---|---|---|---|---|---|
+| `storage-blob-put` | FAIL 80.6s | **PASS 155.8s** | FAIL 130.0s | 1/3 | 0/3 | 6/7 |
+| `mbox-scan` | **PASS 97.6s** | FAIL 277.1s | **PASS 84.8s** | 2/3 | 0/3 | 4/6 |
+| `script-reverse` | PASS 26.0s | PASS 40.7s | PASS 19.3s | 3/3 | 3/3 | 5/6 |
+| `script-transform` | PASS 92.2s | PASS 51.8s | PASS 39.0s | 3/3 | 0/3 | 6/6 |
+
+`summarize.py`:
+
+| backend | passed | median wall | median turns |
+|---|---|---|---|
+| `dtgemma412b` | **3/12** | 40.9s | 3 |
+| `dtqwen359b` | **9/12** | 82.7s | 6 |
+| `dtornith159b` | **21/25** | 75.9s | 9 |
+
+(ornith's 25 pools its 1.18.26 and 1.18.27 runs; see the section above.)
+
+### The finding
+
+**A one-point gap on the Intelligence Index is a 3x gap in task completion.**
+Gemma-4-12B and Qwen3.5-9B are neighbours on that chart. Here they are 3/12
+and 9/12, and the difference is not marginal -- gemma4 never once solved a
+task requiring it to modify code in a repository, and qwen solved seven.
+
+Ranked by the chart, the order is gemma4 > qwen, with ornith absent. Ranked by
+work completed on this card, it is ornith > qwen >> gemma4. The chart does not
+merely mis-rank; the model it omits entirely is the one that wins, and its top
+pick is last.
+
+This is the clearest evidence the project has that **an intelligence aggregate
+and a single-card task time do not predict whether an agent closes a loop on a
+real repository**. Per #59 nothing from a leaderboard enters RECOMMENDATIONS
+without our own measurement; this is why.
+
+### Where qwen actually differs from ornith
+
+Not in what it can do -- both clear all four task types -- but in consistency
+and speed.
+
+* **`script-reverse`: 26.0 / 40.7 / 19.3s** against ornith's metronomic
+  8.5-8.9s. Three to five times slower on the simplest task in the set.
+* **`storage-blob-put` is where it loses.** The three trials read
+  `14 failed / 3 passed` (control, untouched), `17 passed` (solved), then
+  `13 failed / 4 passed` (one test of progress). Untouched, solved, barely
+  started -- on identical work.
+* **It is fastest where it succeeds.** `mbox-scan` at 84.8s is the quickest
+  anything has cleared that task, against ornith's 152.2s median.
+
+### Another near-miss the oracle flattens (#4)
+
+`mbox-scan` trial 2 finished at **`2 failed, 14 passed`** against a control of
+`13 failed, 3 passed`. It took the file from 3 passing tests to 14 and missed
+green by two. The table records that identically to gemma4 leaving the file
+untouched.
+
+That is the second such case in two days -- gemma4's `storage-blob-put` trial 3
+reached 15/17 -- now across two different models. A binary oracle cannot tell a
+near-miss from a no-op, and both keep appearing at this tier precisely because
+these models are near the edge of capable.
+
+### On #83
+
+`qwen3.5:9b` passes the `fib` smoke probe in 21.2s. gemma4 fails it at
+`stop_reason=max_tokens (spent the budget thinking)` on every run, both Ollama
+versions and both context sizes. So that failure is model-specific, not a
+property of the probe or of the 9B tier.
+
+### Provenance
+
+Ollama 0.33.2, OpenCode 1.18.27, harness `7d3455c`, target `gmail-archive`
+@ `56e55cc`, model `qwen3.5-9b-32768` (Modelfile `num_ctx 32768`; 6.13 GiB
+resident, `size_vram == size`, fully on GPU). Same verified window as
+`dtgemma412b` and `dtornith159b`, so the three are directly comparable.
+
+`qwen3.5:9b` was already on disk -- #79 listed it as a candidate on 2026-09-01
+and it cost no download.

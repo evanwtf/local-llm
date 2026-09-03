@@ -1026,6 +1026,22 @@ context_tokens = 131072
 # this card. That is a lead, not evidence: every number behind it is decode
 # rate, which this project has measured three times as non-predictive of agent
 # wall time -- and `gemma4:12b-it` is the standing proof, 72 tok/s and 0/12.
+# The chart's near-tie (#113). 0xSero's local.ai scatter puts Qwen3.5 9B Q4_K_M
+# at ~50% Intelligence against Gemma-4-12B's ~51%, and faster -- so if an
+# Intelligence Index predicted agent success, this and dtgemma412b should land
+# together. dtgemma412b scores 3/12 here and dtornith159b 9-11/12, which is the
+# test. Already on disk, 6.6 GB, fits entirely in VRAM: 6.13 GiB resident at
+# 32768, size_vram == size. Same window as the other two, so the three are
+# directly comparable (#79).
+[backend.dtqwen359b]
+description = "Qwen3.5 9B Q4_K_M via Ollama (desktop 3080 Ti)"
+tier = "desktop-3080ti"
+base_url = "http://127.0.0.1:11434"
+auth_token = "ollama"
+model = "qwen3.5-9b-32768"
+opencode_model = "ollama/qwen3.5-9b-32768"
+context_tokens = 32768
+
 [backend.dtornith159b]
 description = "Ornith-1.5 9B dense via Ollama (desktop 3080 Ti)"
 tier = "desktop-3080ti"
