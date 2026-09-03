@@ -215,7 +215,7 @@ def peak_child_rss_gib() -> float:
 
 
 def tests_pass(worktree, tests, timeout, command="uv run pytest -q"):
-    """Run the oracle. Returns (passed, summary_line).
+    """Run the oracle. Returns (passed, summary_line, killed_for_memory).
 
     `command` is per-repo: `uv run pytest -q` for Python, `swift test` for a
     SwiftPM package. Test node ids are appended for pytest; a runner that does
@@ -225,6 +225,13 @@ def tests_pass(worktree, tests, timeout, command="uv run pytest -q"):
     the agent's `--timeout` -- 1800s by default -- for a step that takes about
     0.1s when it passes: four orders of magnitude of slack, chosen by nobody.
     Script tasks already used GATE_TIMEOUT; only this path did not (#82).
+
+    The third return is item 4 of #82. A memcap kill means the code may well be
+    correct and is certainly not runnable; without carrying that flag up, the
+    caller sees passed=False and cannot tell it apart from "the model wrote
+    wrong code". The row is then excluded rather than pooled with real
+    failures. Matching the summary string here would be a fragile substitute
+    that any refactor could quietly break.
     """
     r, peak, killed = memcap.run_capped(
         [*command.split(), *tests],
@@ -233,10 +240,12 @@ def tests_pass(worktree, tests, timeout, command="uv run pytest -q"):
         cap_gib=ORACLE_MEM_CAP_GIB,
     )
     if killed:
-        # Distinct from a model failure and from a timeout: the code may well
-        # be correct and is certainly not runnable. Say which (#82).
-        return False, f"oracle killed at {peak:.1f} GiB (cap {ORACLE_MEM_CAP_GIB} GiB)"
-    return r.returncode == 0, summarise_run(r.stdout, r.stderr)
+        return (
+            False,
+            f"oracle memory-killed at {peak:.1f} GiB (cap {ORACLE_MEM_CAP_GIB:.1f} GiB)",
+            True,
+        )
+    return r.returncode == 0, summarise_run(r.stdout, r.stderr), False
 
 
 def summarise_run(stdout, stderr):
@@ -1611,7 +1620,10 @@ def one_trial(
             )
 
             # 2. Control: the tests must fail now, or the task proves nothing.
-            ok, summary = tests_pass(
+            # A memcap kill here would mean the control check itself hit the cap,
+            # which is a different failure mode than a memkill on the trial's
+            # oracle and is left for a separate fix.
+            ok, summary, _control_killed = tests_pass(
                 worktree, task["tests"], ORACLE_TIMEOUT, target["test_command"]
             )
             result["control_fails_as_expected"] = not ok
@@ -1693,9 +1705,17 @@ def one_trial(
                 worktree, task["entrypoint"], task["checks"], GATE_TIMEOUT
             )
         else:
-            passed, summary = tests_pass(
+            passed, summary, oracle_killed = tests_pass(
                 worktree, task["tests"], ORACLE_TIMEOUT, target["test_command"]
             )
+            if oracle_killed:
+                # #82 item 4. Do not count a memkill as a model failure --
+                # the code may be correct, and it is certainly not runnable
+                # by this oracle. results.usable() drops the row on this flag,
+                # so it never enters a pass rate.
+                result["oracle_killed"] = True
+                result["excluded"] = True
+                result["exclusion_reason"] = summary
         result["passed"] = passed
         result["pytest"] = summary
         # #82: the number that would have caught a 49 GB oracle run before the
