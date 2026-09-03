@@ -79,6 +79,29 @@ def distinguishable(a: float, b: float) -> bool:
     return (hi - lo) / lo >= RESOLUTION
 
 
+def untouched_cells(by_cell):
+    """Cells where every trial failed with the same oracle output (#55 A3).
+
+    An excision is applied and every trial produces the same failure message ->
+    the agent never touched the file. The oracle is the excised control, and
+    the failure is what a virgin tree gives. This is a distinct diagnosis from
+    "the model wrote wrong code": a wrong fix produces a different failure.
+
+    Identical PASS output is filtered out. `script-reverse` and friends emit a
+    terse fixed string on success ("3/3 checks passed"), which is not the
+    signal this check is looking for.
+    """
+    suspect = []
+    for (backend, task), rows in by_cell.items():
+        if len(rows) < 2:
+            continue
+        outs = {r.get("pytest", "") for r in rows if not r.get("passed")}
+        n_failed = sum(1 for r in rows if not results.verdict(r))
+        if n_failed == len(rows) and len(outs) == 1 and outs != {""}:
+            suspect.append((backend, task, next(iter(outs))))
+    return suspect
+
+
 def render(by_cell, backends) -> list[str]:
     tasks = sorted({task for _, task in by_cell})
     out = [f"| task | {' | '.join(backends)} |", "|---" * (len(backends) + 1) + "|"]
@@ -162,6 +185,20 @@ def main() -> int:
         return 1
     for line in render(by_cell, args.backend):
         logger.info(line)
+
+    # #55 A3: a cell where every trial fails with the same oracle output is a
+    # cell where the tree was never touched. Model wrote wrong code produces a
+    # DIFFERENT failure; a virgin excision produces the SAME one every time.
+    untouched = untouched_cells(by_cell)
+    if untouched:
+        logger.warning("")
+        logger.warning(
+            "%d cell(s) look UNTOUCHED -- every trial failed with the same "
+            "oracle output (#55):", len(untouched),
+        )
+        for backend, task, out in untouched:
+            logger.warning("  %s %s: %s", backend, task, out[:80])
+
     logger.info("log: %s", log_file)
     return 0
 

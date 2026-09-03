@@ -1,0 +1,26 @@
+2026-09-03 10:34:41,215 INFO [ee0228e-dirty@M5-Max-128GB] 2026-09-03T14:34:41Z (10:34:41 EDT) | harness ee0228e-dirty
+2026-09-03 10:34:41,234 INFO [ee0228e-dirty@M5-Max-128GB]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-03 10:34:41,513 INFO [ee0228e-dirty@M5-Max-128GB]   stack:   ds4 399acbb | llama.cpp 3466812d1 | ollama 0.33.2 | opencode 1.18.27
+2026-09-03 10:34:41,530 INFO [ee0228e-dirty@M5-Max-128GB] | task | qwen38fnds4mtp7shim |
+2026-09-03 10:34:41,530 INFO [ee0228e-dirty@M5-Max-128GB] |---|---|
+2026-09-03 10:34:41,530 INFO [ee0228e-dirty@M5-Max-128GB] | `mbox-quoting-both-halves` | 216.8s (2/3) |
+2026-09-03 10:34:41,530 INFO [ee0228e-dirty@M5-Max-128GB] | `mbox-scan` | 13.0s (0/3) |
+2026-09-03 10:34:41,530 INFO [ee0228e-dirty@M5-Max-128GB] | `mbox-strip-envelope` | 74.4s (2/3) |
+2026-09-03 10:34:41,530 INFO [ee0228e-dirty@M5-Max-128GB] | `parser-date` | 23.7s (1/3) |
+2026-09-03 10:34:41,530 INFO [ee0228e-dirty@M5-Max-128GB] | `parser-mbox-quoting` | 34.4s (1/3) |
+2026-09-03 10:34:41,530 INFO [ee0228e-dirty@M5-Max-128GB] | `parser-mbox-quoting-nodoc` | 117.0s (3/3) |
+2026-09-03 10:34:41,530 INFO [ee0228e-dirty@M5-Max-128GB] | `script-reverse` | 38.7s (3/3) |
+2026-09-03 10:34:41,530 INFO [ee0228e-dirty@M5-Max-128GB] | `script-transform` | 42.4s (2/3) |
+2026-09-03 10:34:41,530 INFO [ee0228e-dirty@M5-Max-128GB] | `storage-blob-put` | 175.6s (2/3) |
+2026-09-03 10:34:41,530 INFO [ee0228e-dirty@M5-Max-128GB] | `storage-put-and-sweep` | 14.4s (1/3) |
+2026-09-03 10:34:41,530 INFO [ee0228e-dirty@M5-Max-128GB] | `swift-chartaxis-spacing` | 304.5s (3/3) |
+2026-09-03 10:34:41,530 INFO [ee0228e-dirty@M5-Max-128GB] | `swift-csv-text` | 118.3s (2/3) |
+2026-09-03 10:34:41,530 INFO [ee0228e-dirty@M5-Max-128GB] | `swift-downsample-buckets` | 9.6s (0/3) |
+2026-09-03 10:34:41,530 INFO [ee0228e-dirty@M5-Max-128GB] | `swift-scaleladder-snap` | 19.9s (1/3) |
+2026-09-03 10:34:41,530 INFO [ee0228e-dirty@M5-Max-128GB] | `swift-sevensegment-glyphs` | 108.1s (2/3) |
+2026-09-03 10:34:41,530 INFO [ee0228e-dirty@M5-Max-128GB] 
+2026-09-03 10:34:41,530 INFO [ee0228e-dirty@M5-Max-128GB] **qwen38fnds4mtp7shim** excision: 20/39 passed, median 83.7s, worst 638.1s, spread 77.8x
+2026-09-03 10:34:41,530 WARNING [ee0228e-dirty@M5-Max-128GB] 
+2026-09-03 10:34:41,530 WARNING [ee0228e-dirty@M5-Max-128GB] 1 cell(s) look UNTOUCHED -- every trial failed with the same oracle output (#55):
+2026-09-03 10:34:41,530 WARNING [ee0228e-dirty@M5-Max-128GB]   qwen38fnds4mtp7shim swift-downsample-buckets: MonitorCore/Downsample.swift:44: Fatal error: removed for benchmark
+2026-09-03 10:34:41,530 INFO [ee0228e-dirty@M5-Max-128GB] log: /Users/evanhoffman/git/local-llm/hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/logs/report-M5-Max-128GB-20260903T143440Z.log
