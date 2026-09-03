@@ -2487,3 +2487,42 @@ making batch-1 decode 18% slower in a different engine on the same hardware, and
 with the pack author's own finding that code continuation is bypassed like prose.
 The throughput gain is real; the agent does not get it back, because the sampler
 change spends it on extra tokens.
+
+#### Correction, same day: the third trial moved both numbers
+
+The section above was written from **two** trials and said so. The third trial landed at
+06:15 and **both headline figures moved materially.** Superseding rather than editing,
+per this file's own rule.
+
+| paired on cells passing in both arms | 2 trials (16 cells) | **3 trials (20 cells)** |
+|---|---|---|
+| wall B/A | 0.97 | **1.19** |
+| seconds per 1k output tokens | 65.7 vs 81.9 (**0.80**) | 67.9 vs 75.7 (**0.90**) |
+| output tokens B/A | 1.21 | **1.33** |
+| pass | A 26/30, B 19/30 | **A 36/45, B 25/45** |
+
+Per-trial: A **13/15, 13/15, 10/15**; B **10/15, 9/15, 6/15**.
+
+**What survives.** The shape of the finding does: MTP raises per-token throughput and the
+model emits more tokens, and the second eats the first. What does *not* survive is either
+specific number — the throughput gain halved from 20% to 10%, and wall time went from
+"no difference" to arm B taking **19% longer**.
+
+**Neither figure clears the bar, and 19% does not make MTP slower.** #23 requires roughly
+26% between two suite totals before the difference is real. So the honest statement remains
+**"no wall-time difference measured"**, now with the direction pointing the other way than
+it did at two trials. That is not a reversal to report; it is two readings of the same
+unresolved quantity.
+
+**This is #23's thesis demonstrated on our own work, which is worth more than the result.**
+A two-trial reading was written up in good faith with the caveat that it was two trials,
+and one more trial moved the throughput gain by half and flipped the sign of the wall-time
+comparison. The caveat did its job. The lesson is not "we were wrong" — it is that at n=2
+and n=3 these quantities are simply not pinned, and a number that moves this much between
+trials should never be quoted without its trial count attached.
+
+**The arm B degradation is the real finding here**, and it is #112: 10/15, 9/15, 6/15 is a
+monotonic decline across a 90-minute session, and arm A did the same thing (13, 13, 10).
+Both arms' third trials are the worst, in fresh conversations. Until that is understood,
+**arm B's 25/45 is not a measurement of MTP** — it is a measurement of MTP plus whatever is
+degrading the session, and the two are not separated.

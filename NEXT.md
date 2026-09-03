@@ -168,27 +168,23 @@ informative.
 
 ### As left at 2026-09-03 05:45 EDT, for the next session
 
-**A BATCH IS STILL RUNNING.** Arm B trial 3 (`qwen38fnds4mtp7shim`), started
-04:44, trials 1-2 complete, trial 3 expected to finish about **06:10**. Do not
-start anything else until it does -- `run.py` restores the reference repos from
-`atexit` and will print `restored gmail-archive` / `restored monitor` when done.
+**Nothing is running.** Arm B finished 06:15; `run.py` restored both reference
+repos (`gmail-archive` @ `56e55cc`, `monitor` @ `cbb85ca`) and the tables are
+re-spliced. Still up and holding memory, deliberately, for the next MTP arm:
 
 | what | where |
 |---|---|
-| `run.py` | arm B, 15 tasks x 3 trials, log in the session scratchpad |
-| `ds4-server` | :8000, **MTP on** `--mtp-draft 7 --mtp-timing`, `--kv-disk-dir ~/.ds4/server-kv-mtp` |
+| `ds4-server` | :8000, **MTP on** `--mtp-draft 7 --mtp-timing`, `--kv-disk-dir ~/.ds4/server-kv-mtp`, ~74 GiB |
 | `ds4_qwen_tool_shim.py` | :8101 -> :8000 |
 
-**Arm B trial 3 is collapsing as this was written — 0/6 at 05:44**, against 10/15 and
-9/15 in trials 1 and 2. Arm A did the same thing in *its* third trial (10/15 against 13/15
-twice). Do not read the final arm B pass rate without accounting for this; the honest
-comparison is trials 1-2, which is what `RESULTS-agent.md` reports. This degradation is
-now the substance of #112 and it is **not** the within-conversation effect that issue was
-opened on.
+**Stop both before any batch that is not `qwen38fnds4*`.** Run
+`uv run python benchmarks/agent/preflight.py` first; it names them.
 
-**When it finishes**, re-run `uv run python benchmarks/agent/splice_tables.py`
-and update the arm B table in `RESULTS-agent.md` from two trials to three. The
-section already written says two, and says so explicitly.
+**Arm A vs arm B, three trials, paired on the 20 cells passing in both arms:**
+wall B/A **1.19**, throughput **67.9 vs 75.7 s/1k**, tokens B/A **1.33**,
+pass **36/45 vs 25/45**. Both headline numbers moved from the two-trial reading
+(0.97 and 0.80) -- the correction is in `RESULTS-agent.md`. Neither clears #23's
+~26% bar, so it stays **"no wall-time difference measured"**.
 
 **Two KV directories now, on purpose.** `~/.ds4/server-kv` is MTP-off,
 `~/.ds4/server-kv-mtp` is MTP-on. They are not interchangeable -- ds4 rejects
