@@ -272,3 +272,97 @@ nearly free, 7.80 GiB at 8k against 7.84 GiB at 32k).
 The `fib` smoke probe still fails at `stop_reason=max_tokens (spent the budget
 thinking)`. It now has done so across two Ollama versions **and** an 8x larger
 context, so it is neither a version nor a truncation artifact (#83).
+
+
+---
+
+## 2026-09-02: ornith re-run on OpenCode 1.18.27 — **9/12**, down from 11/12
+
+Run to close the client-version confound recorded above. It did not close it.
+It found one.
+
+| task | trial 1 | trial 2 | trial 3 | 1.18.27 | 1.18.26 |
+|---|---|---|---|---|---|
+| `storage-blob-put` | PASS 165.7s | PASS 133.0s | **FAIL 151.9s** | 2/3 | 4/4 |
+| `mbox-scan` | **FAIL 282.8s** | PASS 100.9s | PASS 534.4s | 2/3 | 2/3 |
+| `script-reverse` | PASS 7.0s | **FAIL 8.3s** | PASS 9.2s | 2/3 | 3/3 |
+| `script-transform` | PASS 10.6s | PASS 12.2s | PASS 12.0s | 3/3 | 3/3 |
+
+### The measurable difference: turns on repository tasks doubled
+
+Restricted to the two tasks that require finding and modifying code in a tree:
+
+| client | median turns | values |
+|---|---|---|
+| 1.18.26 | **12.0** | 9, 10, 10, 12, 19, 24, 36 |
+| 1.18.27 | **27.5** | 8, 18, 22, 33, 40, 45 |
+
+OpenCode is the only variable that changed: same model digest
+(`ornith-1.5-9b-32k`), same Ollama 0.33.2, same harness, same tasks, same
+served 32,768 window, same machine, ninety minutes apart.
+
+**9/12 against 11/12 is not a significant difference at n=12** and this section
+does not claim the client caused the failures. The turn inflation is the
+finding; the pass-rate drop is within noise.
+
+### Three failures, three unrelated mechanisms
+
+**`script-reverse` trial 2 — the model wrote to the wrong directory.** It
+produced a correct script, ran it, and got the right answer:
+
+    write → /tmp/script-reverse-dtornith159b-opencode-2/reverse.py
+    bash  → python3 /tmp/script-reverse-.../reverse.py hello  →  olleh
+
+The workspace is `/tmp/agent-bench/<trial>/`. It dropped the `agent-bench/`
+segment, then **verified against its own wrong absolute path**, so its
+self-check passed and it never noticed. The oracle was correct: nothing was
+created in the workspace. The two passing trials wrote to
+`/tmp/agent-bench/<trial>/reverse.py` and ran `python3 reverse.py hello`
+relative to the cwd.
+
+This is a self-consistent error the model cannot detect, and it is a cousin of
+#54 -- the client solving the task and putting the answer somewhere else --
+except here the harness passed `--dir` correctly and the model invented the
+path anyway.
+
+**`storage-blob-put` trial 3 and `mbox-scan` trial 1 — the `edit` tool bounced.**
+Both are dominated by repeated:
+
+    Could not find oldString in the file. It must match exactly,
+    including whitespace, indentation, and line endings.
+
+`storage-blob-put` trial 3 spent **40 turns** (the highest in either run) across
+13 `edit` and 15 `bash` calls and finished with the control state untouched.
+`mbox-scan` trial 1 made partial progress -- 11 failed / 5 passed against a
+control of 13 / 3 -- over 33 turns and 10 `edit` calls.
+
+The model also emitted raw tool-call markup as message content in
+`storage-blob-put` trial 3, which OpenCode tried to treat as a path:
+
+    NotFound: FileSystem.access (/home/evan/git/gmail-archive
+    </parameter></function></tool_call><tool_call><function=bash>...
+
+That is a Hermes/Qwen-style `<tool_call>` block leaking into the text channel
+instead of being emitted as a structured call.
+
+### What cannot be checked, and why
+
+**The 1.18.26 transcripts no longer exist.** `--client-log` names files
+`<task>-<backend>-<client>-<trial>.stdout.jsonl` with no run, commit or client
+version in the name, so the 1.18.27 run overwrote all twelve of its
+predecessor's transcripts. There is no way to tell whether the `oldString`
+failures are new in 1.18.27 or were always there.
+
+That is the same gap `500491a` closed for logs -- machine, commit and stack in
+every filename -- one level down, in the artifact that actually holds the
+evidence. Worth fixing before the next paired comparison.
+
+### Provenance
+
+Ollama 0.33.2, OpenCode **1.18.27**, harness `84a85f6`, target `gmail-archive`
+@ `56e55cc`, `ornith-1.5-9b-32k` at a verified 32,768 (`llama-server -c 32768`
+on the engine command line, 6.11 GiB resident, fully on GPU).
+
+Preflight warned that `llama-server (pid 110844)` held 8.9 GiB and was not
+listening. That was gemma4's server mid-unload from the previous batch; by the
+first trial only ornith was resident. Not a contended run.
