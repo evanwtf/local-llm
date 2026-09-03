@@ -22,6 +22,69 @@ picks in `RECOMMENDATIONS.md`, and the current queue in `NEXT.md`.
 
 ---
 
+**2026-09-03. The ds4 Qwen cell, from 0/45 to 36/45, and the variable nobody
+had registered as one.** ([#94](https://github.com/evanwtf/local-llm/issues/94))
+
+`qwen38fnds4shim` under OpenCode: **30/39 excision (median 139.9 s) + 6/6
+script = 36/45**, harness `47a1d9f`. The previous measurement of the same
+model, engine and pack was **0/45**.
+
+**What the 0/45 measured was `stream: true`.** ds4 logs `invalid tool call
+returned as assistant text finish=stop [text_len=231 ...]` -- it believes it is
+handing back 231 characters of assistant text, and off-stream it does. On-stream
+it does not: no content, no `tool_calls`, `finish_reason=stop`, an empty turn.
+One identical request, arms interleaved, 12 samples each:
+
+    stream:true    tool_calls 1/12   nothing at all 11/12
+    stream:false   tool_calls 7/12   XML as text     5/12
+
+OpenCode sets `stream: true`. Every one of those 45 trials ended on turn one
+with `solution_empty: true` because the turn genuinely arrived empty.
+
+**The lesson is one this repo already had, and still paid for.** The shim's
+format instruction measured 12/12 synthetic and 0/6 -> 1/6 under OpenCode on the
+same text, and three sessions were spent varying the instruction. The synthetic
+harness sent `stream: false` and OpenCode sent `stream: true`: the two arms
+differed in a variable that was never registered as one. That is exactly
+*"Observe the wire call, not the status code"*, which was written after the same
+mistake cost a 13-trial run in August. **A control that differs in an
+unregistered variable is not a control**, and the tell was available the whole
+time -- the server log said `text_len=231` while the client received zero bytes.
+
+Also: **the engine numbers were never the problem.** Decode 40.2 t/s, prefill
+1107 t/s, 74.3 GiB resident with the 32 GB PLE table genuinely streaming from
+SSD. All of that was true on the day the same setup scored 0/45. A backend can
+be fast, correctly quantised, thermally fine and completely unusable, and only
+the agent harness says so.
+
+The shim now asks upstream for a non-streaming completion when a request carries
+tools, translates the XML dialect if it still appears, and synthesises the SSE
+stream back. **The translator fired 28 times in 45 trials** and zero times on
+the twelve synthetic samples -- so OpenCode's 26 KB prompt really does drive the
+dialect, it just was not the thing breaking the runs. Three confounds now ride
+on this backend and `tasks.toml` names all three; the biggest is that its rows
+did not stream from the engine.
+
+**Residual, and it is a different defect.** All nine failures are
+`solution_empty`, none is wrong code. After a tool error enters the conversation
+the model narrates about the format and then emits stacked bare `<tool_call>`
+opens -- 38 of them in one transcript -- with no function name to recover. The
+translator declines these on purpose; a fabricated tool call would be worse than
+an empty turn because it would run. A third dialect (Claude's `<invoke
+name=...>`) was found in the same transcripts and is now handled, **after** the
+45 trials and so unmeasured.
+
+**Rebuilding ds4-metal onto `ba01f5d` was a no-op for the binary.** Both commits
+touch only `QWEN38_FLASH_NEXT.md`, a test fixture and a repack script; `make`
+reports up to date. Our existing measurements were already on his commit
+functionally -- worth knowing before anyone re-runs a batch to "get onto it".
+
+**Still worth reporting upstream:** ds4's streaming path silently drops
+assistant text it has explicitly decided to return. Any streaming client sees an
+empty turn and no error.
+
+---
+
 **2026-09-01 late. Gemma 4 26B A4B, a machine outage, and a sweep tool that
 paid for itself on its first run.**
 

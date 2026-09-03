@@ -8,7 +8,7 @@
 > or compare against those numbers.** Cause, cutover and replacements:
 > [docs/archive/results-opencode-pre-dir.md](docs/archive/results-opencode-pre-dir.md). Other clients are unaffected.
 
-Updated **2026-09-02 23:05 EDT**. **This file is the queue for _this machine_ —
+Updated **2026-09-03 04:40 EDT**. **This file is the queue for _this machine_ —
 the MacBook Pro, M5 Max, 128 GB.** Every item below is labelled `macOS` in the
 tracker. The Linux/RTX 3080 Ti tier has its own nine open issues ([#20](https://github.com/evanwtf/local-llm/issues/20), [#79](https://github.com/evanwtf/local-llm/issues/79),
 [#98](https://github.com/evanwtf/local-llm/issues/98)–[#104](https://github.com/evanwtf/local-llm/issues/104)) and they are deliberately **not** here; see `hardware/` and the
@@ -61,23 +61,24 @@ documents carry what used to be in it:
 
 ## Order
 
-**Ranked by value per hour, not by issue age.** Items 3 and 5 are cheap guards
-that protect everything else, so they sit above better science.
+**Ranked by value per hour, not by issue age.** Item 5 is a cheap guard that
+expires — Ollama updates itself from the GUI — so it sits above better science.
 
 | # | issue | why here |
 |---|---|---|
-| 1 | **[#94](https://github.com/evanwtf/local-llm/issues/94)** Qwen3.8-Flash-Next on ds4, with an MTP head | **The missing cell, and the blocker is bounded.** Engine side is done and now independently corroborated: the pack's author published his own **M5 Max** figures (prefill 1236→891 t/s across 32K→262K with TensorOps on, vs 737→611 with the kill switches, decode unchanged) and **our 1107 median / 1279 peak sits inside that band**. 74.3 GiB resident, PLE streaming from SSD. It still cannot finish a task: the model emits the XML tool dialect and ds4 retries **once**. A system-prompt instruction fixes this synthetically (12/12) and **not** under OpenCode's 26 KB prompt (0/6 → 1/6). Remaining work is an **SSE-level tool-call translator** in `ds4_qwen_tool_shim.py`. Rebuild onto `ba01f5d` first — two commits, cheap, puts us on the same commit as his numbers. |
+| 1 | **[#77](https://github.com/evanwtf/local-llm/issues/77)** MTP arm B on the ds4 Qwen pack | **Unblocked as of 2026-09-03, and the machine is already set up for it.** Arm A now completes tasks (**36/45**, median 139.9 s) after [#94](https://github.com/evanwtf/local-llm/issues/94) found that ds4's *streaming* path silently drops tool calls. Arm B is `--mtp-draft 7` — the depth this pack's own docs measure as optimum — against the arm A rows already in `results.jsonl`. Read a null carefully: the scheduler **bypasses** MTP on families it loses on, so run with `--mtp-timing` and record the engagement/bypass counters, or "no change" and "never engaged" are indistinguishable. #23 binds: at 3 trials the arms must differ ~26% on suite total before it is real, and the author's own code-continuation family was bypassed like prose. |
 | 2 | **[#109](https://github.com/evanwtf/local-llm/issues/109)** llama.cpp claims >2x qwen4exp prefill by bypassing mmap | **The only outside claim this week that clears our resolution with room to spare**, and it lands on `qwen38fnq3` — our most-measured backend (30/30, 89.6s median). The author traced real-world prefill collapsing 700+ → 300 t/s to **mmap over-read on the PLE table**. Measured on a DGX Spark, so it is a lead, not a result. **The discriminating experiment does not need the PR at all**: measure prefill on a repeated-token prompt against a real agent prompt of the same length on our current build. If the gap reproduces on Metal the mechanism is here; if prefill is flat, it is a CUDA story and we stop. Either way it tells us how much our prefill numbers depend on prompt *content*, which we have never established. |
-| 3 | **[#80](https://github.com/evanwtf/local-llm/issues/80)** the MLX model sweep, and 114.8 GB | Half done: `gemma426` **11/11** and the 27B generation pair landed. Remaining: `qwen36a3b` and **`qwen3.8-flash-next:125b-mlx`**, the run that decides whether 112 GB stays on disk. **114.8 GB of deletions wait on it**, and it is wired, declared, and a run away. Pure machine time, no new code. |
-| 4 | **[#84](https://github.com/evanwtf/local-llm/issues/84)** upgrading Ollama silently changes the sampler | **A loaded gun, not yet fired.** [ollama#16471](https://github.com/ollama/ollama/pull/16471) ships in 0.33.3 and honors model-authored sampler defaults, which would silently change `ornith15`'s sampler — *the exact class of change that took a pass rate from 20/21 to 7/15 in [#36](https://github.com/evanwtf/local-llm/issues/36)*. We are on 0.33.2 and the app updates itself from the GUI. Decide and pin **before** anyone clicks update; afterwards the rows look normal and the cause is invisible. Cheap, and it expires. |
-| 5 | **[#96](https://github.com/evanwtf/local-llm/issues/96)** oMLX per-turn TTFT | 3–4s → 0.3s per turn, claimed bit-exact and lossless, validated by its author on Qwen3.8-Flash-Next. An agent task is many short turns over a growing prefix, and per-turn TTFT is the part of wall time we have never attacked. The first step pays regardless of whether oMLX is any good: **we have no per-turn TTFT metric at all**, so we cannot currently describe our own latency. |
-| 6 | **[#55](https://github.com/evanwtf/local-llm/issues/55) / [#82](https://github.com/evanwtf/local-llm/issues/82)** a bad result still looks like a broken measurement | Right repeatedly on 2026-09-02. The oracle deadlock recorded a harness fault as a *model* failure with `killed=False`; **[#82](https://github.com/evanwtf/local-llm/issues/82)'s fourth item is still unbuilt** — a memory kill returns a plain failure rather than a distinct exclusion category, so "the code was wrong" and "the code could not run" stay indistinguishable in a row. Everything above produces data this thread decides whether to believe. |
-| 7 | **[#105](https://github.com/evanwtf/local-llm/issues/105)** Perplexity's Lily | **Upgraded: benchmarked on our exact configuration** — Qwen3.6-35B-A3B Q4, batch 1, M5 Max, 40-core GPU, 128 GB. 1.23x prefill / 1.35x decode over MLX-LM (still below our ~56% bar, so a microbenchmark question). Two side findings matter more: the blog reports **speculative decoding made batch-1 decode 18% slower** on this engine and the same hardware, and **MoE GEMM/GEMV at 97.9% / 90.3% of sustained weight-read rates** — i.e. the MoE path may already be at the bandwidth ceiling. Settle one thing first, cheaply: **does it serve an OpenAI-compatible HTTP API?** If not it is a shim, not a config line. |
-| 8 | **[#99](https://github.com/evanwtf/local-llm/issues/99)** which machine's rows generate the published tables | Now a **decision, not code**. The CI half is fixed ([#108](https://github.com/evanwtf/local-llm/issues/108)) — `test_the_generated_tables_are_current` skips where there are no local rows — but that leaves the real question untouched: `RECOMMENDATIONS.md` is generated from one machine's `results.jsonl`, and the naive fix pools two machines' data, which every comparison in a results file forbids. Answer it before the desktop produces enough rows for someone to try. |
-| 9 | **[#86](https://github.com/evanwtf/local-llm/issues/86)** MTPLX loops, and our oracle cannot see it | Two reports that MTPLX loops on complex prompts at both 4-bit and 8-bit. **A loop reads as slowness in our rows and nothing would say otherwise** — we hold one unreplicated provisional number for `mtplx`. Either that number is wrong or the backend is unusable; both matter before another slot is spent on it. |
-| 10 | **[#110](https://github.com/evanwtf/local-llm/issues/110)** mainline llama.cpp is getting a Qwen3.8-Flash-Next MTP graph | **[#77](https://github.com/evanwtf/local-llm/issues/77)'s blocker, landing in mainline** ([#28243](https://github.com/ggml-org/llama.cpp/pull/28243), draft, Unsloth). Claims 1.3–2x with shared MTP modules. **Do not build against a draft** — this slot is a watch, already covered by `upstream_sweep.py`. Read the 1.3x end against our ±27.9%: it would be unmeasurable here. And [#94](https://github.com/evanwtf/local-llm/issues/94) plus item 7 both now carry evidence that speculative decoding is not a free win at batch 1. |
+| 3 | **[#112](https://github.com/evanwtf/local-llm/issues/112)** the tool-call degeneration loop | **The whole residual failure of the ds4 Qwen cell: 9 of 9 failures, all `solution_empty`, none wrong code.** After a tool error enters the conversation the model narrates about the format and then emits stacked bare `<tool_call>` opens — 38 in one transcript — with no function name to recover. Failures cluster late (2, 2, 5 across trials), which looks like context poisoning rather than a per-call coin flip, though 3 trials cannot establish that. Fixing it is worth ~9 trials on our best-measured new cell, and the mechanism likely generalises to [#41](https://github.com/evanwtf/local-llm/issues/41) and [#50](https://github.com/evanwtf/local-llm/issues/50). |
+| 4 | **[#80](https://github.com/evanwtf/local-llm/issues/80)** the MLX model sweep, and 114.8 GB | Half done: `gemma426` **11/11** and the 27B generation pair landed. Remaining: `qwen36a3b` and **`qwen3.8-flash-next:125b-mlx`**, the run that decides whether 112 GB stays on disk. **114.8 GB of deletions wait on it**, and it is wired, declared, and a run away. Pure machine time, no new code. |
+| 5 | **[#84](https://github.com/evanwtf/local-llm/issues/84)** upgrading Ollama silently changes the sampler | **A loaded gun, not yet fired.** [ollama#16471](https://github.com/ollama/ollama/pull/16471) ships in 0.33.3 and honors model-authored sampler defaults, which would silently change `ornith15`'s sampler — *the exact class of change that took a pass rate from 20/21 to 7/15 in [#36](https://github.com/evanwtf/local-llm/issues/36)*. We are on 0.33.2 and the app updates itself from the GUI. Decide and pin **before** anyone clicks update; afterwards the rows look normal and the cause is invisible. Cheap, and it expires. |
+| 6 | **[#96](https://github.com/evanwtf/local-llm/issues/96)** oMLX per-turn TTFT | 3–4s → 0.3s per turn, claimed bit-exact and lossless, validated by its author on Qwen3.8-Flash-Next. An agent task is many short turns over a growing prefix, and per-turn TTFT is the part of wall time we have never attacked. The first step pays regardless of whether oMLX is any good: **we have no per-turn TTFT metric at all**, so we cannot currently describe our own latency. |
+| 7 | **[#55](https://github.com/evanwtf/local-llm/issues/55) / [#82](https://github.com/evanwtf/local-llm/issues/82)** a bad result still looks like a broken measurement | Right repeatedly on 2026-09-02. The oracle deadlock recorded a harness fault as a *model* failure with `killed=False`; **[#82](https://github.com/evanwtf/local-llm/issues/82)'s fourth item is still unbuilt** — a memory kill returns a plain failure rather than a distinct exclusion category, so "the code was wrong" and "the code could not run" stay indistinguishable in a row. Everything above produces data this thread decides whether to believe. |
+| 8 | **[#105](https://github.com/evanwtf/local-llm/issues/105)** Perplexity's Lily | **Upgraded: benchmarked on our exact configuration** — Qwen3.6-35B-A3B Q4, batch 1, M5 Max, 40-core GPU, 128 GB. 1.23x prefill / 1.35x decode over MLX-LM (still below our ~56% bar, so a microbenchmark question). Two side findings matter more: the blog reports **speculative decoding made batch-1 decode 18% slower** on this engine and the same hardware, and **MoE GEMM/GEMV at 97.9% / 90.3% of sustained weight-read rates** — i.e. the MoE path may already be at the bandwidth ceiling. Settle one thing first, cheaply: **does it serve an OpenAI-compatible HTTP API?** If not it is a shim, not a config line. |
+| 9 | **[#99](https://github.com/evanwtf/local-llm/issues/99)** which machine's rows generate the published tables | Now a **decision, not code**. The CI half is fixed ([#108](https://github.com/evanwtf/local-llm/issues/108)) — `test_the_generated_tables_are_current` skips where there are no local rows — but that leaves the real question untouched: `RECOMMENDATIONS.md` is generated from one machine's `results.jsonl`, and the naive fix pools two machines' data, which every comparison in a results file forbids. Answer it before the desktop produces enough rows for someone to try. |
+| 10 | **[#86](https://github.com/evanwtf/local-llm/issues/86)** MTPLX loops, and our oracle cannot see it | Two reports that MTPLX loops on complex prompts at both 4-bit and 8-bit. **A loop reads as slowness in our rows and nothing would say otherwise** — we hold one unreplicated provisional number for `mtplx`. Either that number is wrong or the backend is unusable; both matter before another slot is spent on it. |
+| 11 | **[#110](https://github.com/evanwtf/local-llm/issues/110)** mainline llama.cpp is getting a Qwen3.8-Flash-Next MTP graph | **[#77](https://github.com/evanwtf/local-llm/issues/77)'s blocker, landing in mainline** ([#28243](https://github.com/ggml-org/llama.cpp/pull/28243), draft, Unsloth). Claims 1.3–2x with shared MTP modules. **Do not build against a draft** — this slot is a watch, already covered by `upstream_sweep.py`. Read the 1.3x end against our ±27.9%: it would be unmeasurable here. And [#94](https://github.com/evanwtf/local-llm/issues/94) plus item 8 both now carry evidence that speculative decoding is not a free win at batch 1. |
 
-**Behind these:** [#60](https://github.com/evanwtf/local-llm/issues/60) and [#77](https://github.com/evanwtf/local-llm/issues/77) (both largely served by item 1), [#95](https://github.com/evanwtf/local-llm/issues/95) (+4–7% on our
+**Behind these:** [#60](https://github.com/evanwtf/local-llm/issues/60) (its engine-isolation cell is now reachable — see [#94](https://github.com/evanwtf/local-llm/issues/94) — but 36/45 is not yet clean enough to rank), [#95](https://github.com/evanwtf/local-llm/issues/95) (+4–7% on our
 chip, below our resolution — said so on the issue), [#51](https://github.com/evanwtf/local-llm/issues/51) (measured at +15.5% in [#91](https://github.com/evanwtf/local-llm/issues/91); waiting
 on ds4#952 to merge), [#83](https://github.com/evanwtf/local-llm/issues/83) (unbounded thinking), [#4](https://github.com/evanwtf/local-llm/issues/4) (harder tasks), [#64](https://github.com/evanwtf/local-llm/issues/64), [#65](https://github.com/evanwtf/local-llm/issues/65), [#66](https://github.com/evanwtf/local-llm/issues/66), [#62](https://github.com/evanwtf/local-llm/issues/62), [#56](https://github.com/evanwtf/local-llm/issues/56),
 [#57](https://github.com/evanwtf/local-llm/issues/57), [#72](https://github.com/evanwtf/local-llm/issues/72), [#50](https://github.com/evanwtf/local-llm/issues/50), [#41](https://github.com/evanwtf/local-llm/issues/41), [#45](https://github.com/evanwtf/local-llm/issues/45), [#46](https://github.com/evanwtf/local-llm/issues/46), [#70](https://github.com/evanwtf/local-llm/issues/70), [#71](https://github.com/evanwtf/local-llm/issues/71), [#78](https://github.com/evanwtf/local-llm/issues/78), [#27](https://github.com/evanwtf/local-llm/issues/27), [#35](https://github.com/evanwtf/local-llm/issues/35), [#39](https://github.com/evanwtf/local-llm/issues/39), [#40](https://github.com/evanwtf/local-llm/issues/40), [#16](https://github.com/evanwtf/local-llm/issues/16), [#18](https://github.com/evanwtf/local-llm/issues/18), [#19](https://github.com/evanwtf/local-llm/issues/19),
@@ -165,7 +166,32 @@ informative.
 
 ## Machine state
 
-### As left at 2026-09-03 00:05 EDT, for the next session
+### As left at 2026-09-03 04:40 EDT, for the next session
+
+**Left running on purpose, because item 1 (#77 arm B) uses both:**
+
+| what | where |
+|---|---|
+| `ds4-server` | :8000, the #94 argv below, **74.4 GiB resident**, MTP **off** |
+| `ds4_qwen_tool_shim.py` | :8101 -> :8000, 388 requests served, 28 XML translations |
+
+Stop both before any batch that is not `qwen38fnds4*`, and run
+`uv run python benchmarks/agent/preflight.py` first -- it names them.
+
+**Note a preflight false alarm:** it warns that `ds4-server` on :8000 is held by
+no selected backend when only `qwen38fnds4shim` is selected, because the shim
+sits on :8101 and proxies to :8000. The warning is correct about the ports and
+wrong about the conclusion. Not yet filed.
+
+**Tree:** `main` at the #94 merge, clean, CI green. `ds4-metal` fast-forwarded to
+**`ba01f5d`** -- and that rebuild was a **no-op for the binary**: both commits
+touch only `QWEN38_FLASH_NEXT.md`, a test fixture and a repack script, so `make`
+reports up to date and every earlier number was already on his commit.
+
+**Reference repos** are back in their real state (`gmail-archive` @ `56e55cc`,
+`monitor` @ `cbb85ca`), both restored by `run.py` at 02:38.
+
+### As left at 2026-09-03 00:05 EDT, for the previous session
 
 **Nothing is running.** `ds4-server` was stopped; preflight reports **0.0 GiB held, 112.0
 GiB headroom**. No thermals logger, no shim, no benchmark. Ollama.app's own service is up
@@ -335,6 +361,31 @@ stale; prefer `uv run python scripts/upstream_sweep.py --hours 168` and the
 `source-sweep` skill, which read the current state.
 
 ## Traps worth not rediscovering
+
+**A control that differs in an unregistered variable is not a control, and the
+tell is usually already in a log (2026-09-03).** The ds4 Qwen shim measured
+**12/12 on synthetic prompts and 0/6 under OpenCode** on the same instruction
+text, and three sessions went into varying the instruction. The two harnesses
+differed in `stream`: synthetic sent `false`, OpenCode sent `true`, and **ds4's
+streaming path silently drops the assistant text it has decided to return.**
+Interleaved, 12 samples each, one identical request:
+
+    stream:true    tool_calls 1/12   nothing at all 11/12
+    stream:false   tool_calls 7/12   XML as text     5/12
+
+That is the whole of a published **0/45**. This repo already has the rule --
+*"Observe the wire call, not the status code"* -- written after the same mistake
+cost a 13-trial run in August, and it still happened, because the varying
+parameter was set by the *client* rather than by us. **Diff the actual request
+bodies between two arms before believing a difference between them.** The
+server log said `text_len=231` while the client received zero bytes; nobody read
+the two together.
+
+**A backend can be fast, correctly quantised, thermally fine and completely
+unusable.** The same setup that scored 0/45 was doing 40.2 t/s decode, 1107 t/s
+prefill, 74.3 GiB resident with a 32 GB PLE table streaming from SSD, 77.7 C die
+max. Every engine-level number was good and the cell was worth nothing. Engine
+rates are a reason to test, never a result.
 
 **Sustained benchmarking on this machine drifts ~10% inside one session, and
 the drift scales with load.** Two identical `llama-bench` runs of the same
