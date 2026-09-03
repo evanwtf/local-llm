@@ -462,6 +462,13 @@ recording that a documented command had been verified came out as *"ran
 against an empty directory"* -- the evidence for the claim removed itself, and
 the stray `opencode run` actually executed.
 
+**This is not only a git rule. `gh issue comment --body "..."` has the same
+shape and it fired on 2026-09-03**, silently deleting two backticked identifiers
+from a posted comment. Any command taking prose through a double-quoted shell
+argument does command substitution: `gh issue comment`, `gh pr create --body`,
+`gh issue create --title`. Use `--body-file` (and `-F body=@file` for the API),
+or a quoted heredoc.
+
 **Use `-F`**, which does no interpretation:
 
 ```sh
