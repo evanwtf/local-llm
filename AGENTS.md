@@ -535,6 +535,34 @@ four-cell sweep in which every control cell happened to share the same `top_p`.
 A control that changes a group is not a control; it only tells you the group
 matters.
 
+## A failing arm looks fast, so pair the tasks before comparing totals
+
+**A failed trial is usually a short trial.** It dies on turn one, or the agent
+gives up, and it contributes a small number to the arm's total wall time. So an
+arm that fails more looks *faster* on any total or median taken over all rows,
+and the effect is large enough to invert a comparison.
+
+Measured on the #77 MTP arms, trial 1, same tasks and client (2026-09-03):
+
+| comparison | arm A (MTP off) | arm B (MTP on) | reading |
+|---|---|---|---|
+| total wall, **all 15 rows** | 3074 s | 1726 s | "B takes 56% of the time" |
+| total wall, **the 8 tasks that passed in both** | 1106 s | 1036 s | **B/A = 0.94** |
+
+The first row is an artefact of arm B failing five tasks fast against arm A's
+two. The second is the comparison worth having, and it is nowhere near the ~26%
+that #23 requires before a suite difference is real.
+
+**So: restrict a wall-time comparison to the tasks that passed in *both* arms**,
+and say how many that was. A pass-rate difference is a separate finding and gets
+reported separately -- never folded into a speed number.
+
+The same run shows why the token-count check below it is not optional. Arm B's
+throughput was genuinely better -- **66.0 s/1k output tokens against 107.9** --
+and its wall time still barely moved, because it emitted **53% more tokens** for
+the same eight tasks (15,704 against 10,247). Two real effects in opposite
+directions, and either one quoted alone is misleading.
+
 ## A wall-time difference is a token-count hypothesis
 
 **Check seconds-per-1k-output-tokens before attributing a speed gap to
