@@ -2,7 +2,8 @@
 
 What shipped, and why. Newest first.
 
-This is the permanent home for entries that used to accumulate in `NEXT.md`
+This is the permanent home for entries that used to accumulate in
+[`NEXT.md`](../NEXT.md)
 under "Done since the last update". That section is a **staging area**, not an
 archive: `AGENTS.md` says `NEXT.md` "sets order and nothing else" and carries
 only the ordered table, the machine state that is not in git, and the traps. An

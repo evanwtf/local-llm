@@ -219,6 +219,7 @@ trials.
 
 Work is tracked as GitHub issues; [`NEXT.md`](NEXT.md) holds the order to work
 in and the machine state that is not in git;
+[`docs/changelog.md`](docs/changelog.md) holds what shipped and why;
 [`RECOMMENDATIONS.md`](RECOMMENDATIONS.md) holds the current top picks and how
 to start them. Measurements land in the `RESULTS.md` beside the benchmark that
 produced them. The full loop, and what belongs in which file, is in
