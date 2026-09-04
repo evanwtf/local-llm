@@ -65,6 +65,12 @@ when one is *behind* its release rather than refusing when it has moved. See
    the remaining half is whether upstream ever carries PLE, which is not ours.
    *Done when:* upstream carries PLE, or we stop depending on it.
 
+6. **[#142](https://github.com/evanwtf/local-llm/issues/142)** The stack table rewards failing fast
+   The warning shipped; the ranking did not change. A table sorted by median
+   wall time promotes a 55.6% backend above every stack that passes
+   everything, because a failed trial is a short one.
+   *Done when:* the table sorts on something that does not reward failure, or we decide on the record that prose is enough.
+
 ### Standing problems, not finishable in one sitting
 
 5. **[#64](https://github.com/evanwtf/local-llm/issues/64)** KV cache prefix stalls at ~20,400 tokens
