@@ -911,13 +911,27 @@ def check_client_pins() -> bool:
             how,
         )
     drifted = client_pins.drift(staleness.installed_versions(), pins)
-    for name, want, got in drifted:
+    # An absent client and a drifted one are different facts. A client that is
+    # not installed cannot corrupt a run, and this repo spans two machines and
+    # a CI runner that drive different clients -- refusing on absence made
+    # preflight refuse everywhere but this laptop, which CI caught and the
+    # local suite could not.
+    missing = [d for d in drifted if d[2] == "not found"]
+    mismatched = [d for d in drifted if d[2] != "not found"]
+    for name, want, _ in missing:
+        logger.info(
+            "preflight: %s is pinned at %s but is not installed here -- "
+            "not a refusal, it cannot take a row (#131)",
+            name,
+            want,
+        )
+    for name, want, got in mismatched:
         logger.error(
             "preflight: %s is pinned at %s but %s is installed (#131)", name, want, got
         )
     if not drifted:
         logger.info("preflight: all %d pinned clients match", len(pins))
-    return bool(drifted)
+    return bool(mismatched)
 
 
 def log_ci_status(offline: bool = False) -> None:

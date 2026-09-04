@@ -116,3 +116,25 @@ def test_preflight_reports_autoupdate_but_does_not_change_the_config():
     assert "opencode_autoupdate_disabled" in text
     for forbidden in ("opencode.json", "write_text", "opencode upgrade"):
         assert forbidden not in text.split("def check_client_pins")[1].split("def ")[0]
+
+
+def test_no_clients_installed_is_not_a_refusal(monkeypatch):
+    """The case CI caught and the local suite could not: a machine that drives
+    none of the pinned clients -- the Linux runner -- must still run preflight.
+
+    An absent client cannot take a row, so it cannot corrupt a comparison.
+    Refusing on absence made preflight refuse everywhere but this laptop.
+    """
+    import preflight
+
+    monkeypatch.setattr(preflight.staleness, "installed_versions", lambda: {})
+    assert preflight.check_client_pins() is False
+
+
+def test_an_installed_but_wrong_version_is_still_a_refusal(monkeypatch):
+    import preflight
+
+    pins = client_pins.load_pins()
+    wrong = {name: "0.0.1" for name in pins}
+    monkeypatch.setattr(preflight.staleness, "installed_versions", lambda: wrong)
+    assert preflight.check_client_pins() is True
