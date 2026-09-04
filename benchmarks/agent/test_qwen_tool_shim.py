@@ -119,3 +119,70 @@ def test_a_broken_prefix_log_never_breaks_the_request(tmp_path, monkeypatch):
     monkeypatch.setenv("SHIM_PREFIX_LOG", str(tmp_path / "nope" / "x.jsonl"))
     shim.log_prefix_blocks(b"not json at all")
     shim.log_prefix_blocks(b'{"messages":[]}')
+
+
+# --- #112 remedy 2: the shim strips its own scaffolding -------------------
+
+
+def _assistant(content):
+    return {"choices": [{"message": {"role": "assistant", "content": content}}]}
+
+
+def test_a_translated_call_leaves_no_raw_xml_in_content():
+    """Leaving it would show the user raw XML beside a tool result, and some
+    clients echo content back into the next prompt."""
+    payload = _assistant(
+        "I will read it.\n"
+        "<tool_call><function=read><parameter=filePath>/tmp/a.py</parameter>"
+        "</function></tool_call>"
+    )
+    assert shim.translate_response(payload) is True
+    content = payload["choices"][0]["message"]["content"]
+    assert "<tool_call>" not in content
+    assert "<function=" not in content
+    assert "I will read it." in content
+
+
+def test_stacked_bare_opens_are_stripped_from_content():
+    """#112's degeneration loop: the model stops calling tools and emits
+    stacked bare opens. Echoing them back invites more of them, which is what
+    remedy 2 is for -- shipped 2026-09-03 and until now untested."""
+    payload = _assistant(
+        "<tool_call>\n<tool_call>\n<tool_call>\n"
+        "<tool_call><function=read><parameter=filePath>/tmp/a.py</parameter>"
+        "</function></tool_call>"
+    )
+    assert shim.translate_response(payload) is True
+    content = payload["choices"][0]["message"]["content"]
+    assert "<tool_call>" not in content
+    assert content.strip() == ""
+
+
+def test_prose_around_a_call_survives():
+    """Stripping scaffolding must not eat the model's actual words."""
+    payload = _assistant(
+        "First I check the file.\n"
+        "<tool_call><function=read><parameter=filePath>/tmp/a.py</parameter>"
+        "</function></tool_call>\n"
+        "Then I will patch it."
+    )
+    shim.translate_response(payload)
+    content = payload["choices"][0]["message"]["content"]
+    assert "First I check the file." in content
+    assert "Then I will patch it." in content
+
+
+def test_a_response_with_no_call_is_left_alone():
+    """A turn that is pure narration -- the #112 failure shape -- must not be
+    rewritten, or the row stops showing what the model actually produced."""
+    payload = _assistant("The tool call format was invalid. I will try again.")
+    assert shim.translate_response(payload) is False
+    assert payload["choices"][0]["message"]["content"].startswith("The tool call")
+
+
+def test_bare_opens_with_no_real_call_are_left_alone():
+    """No call means nothing to translate, so the content stays verbatim --
+    otherwise the evidence of the loop would be erased from the transcript."""
+    payload = _assistant("<tool_call>\n<tool_call>\n<tool_call>\n")
+    assert shim.translate_response(payload) is False
+    assert "<tool_call>" in payload["choices"][0]["message"]["content"]
