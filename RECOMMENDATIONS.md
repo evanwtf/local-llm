@@ -428,3 +428,27 @@ uv run python benchmarks/agent/run.py --client opencode --backend qwen38fnq3 --t
 The tables above are generated from `benchmarks/agent/results.jsonl` by
 `gen_tables.py` and spliced in by `splice_tables.py` — they are never typed by
 hand, and a test fails if this file drifts from the data.
+
+### One row here cannot be reproduced from upstream sources
+
+The `qwen38fnds4shim` and `qwen38fnds4mtp7shim` rows need **PLE sidecar
+support**, and that exists only on ivanfioravanti's forks:
+[`ivanfioravanti/ds4-metal`](https://github.com/ivanfioravanti/ds4-metal) and
+[`ivanfioravanti/ds4`](https://github.com/ivanfioravanti/ds4) branch
+`qwen3.8-flash-next`. `antirez/ds4` main has no `ple_path` anywhere, so a
+build from upstream **will not load these weights at all** — it fails with
+`required tensor is missing: per_layer_token_embd.weight`.
+
+Two consequences worth stating plainly rather than discovering:
+
+* Cloning upstream `ds4` and following this file will not reproduce those
+  rows. Clone the fork named above.
+* Those rows depend on one person's branches staying available. That is a real
+  durability risk for a recommendation, tracked as
+  [#141](https://github.com/evanwtf/local-llm/issues/141), and it is a reason
+  to prefer the llama.cpp stack when either would do.
+
+The `--ple` flag is also undocumented — it is absent from `ds4-bench --help`
+and present in the parser. Passing no sidecar produces the same missing-tensor
+error as an upstream build, which reads exactly like the model being
+unsupported. It is not.
