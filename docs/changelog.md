@@ -22,6 +22,44 @@ picks in `RECOMMENDATIONS.md`, and the current queue in `NEXT.md`.
 
 ---
 
+**2026-09-04. Backfilling one field found a confound in the published
+recommendations ([#137](https://github.com/evanwtf/local-llm/issues/137)).**
+
+`client_version` was added to new rows this morning so #104's finding could be
+applied to a single row. Backfilling it onto the 1204 historical rows where it
+is derivable took ten minutes and immediately showed something nobody had
+looked for:
+
+    1.18.25   ds4, ds4anthropic, gemma4, gemma426, glm53ds4, ornith15,
+              qwen, qwen36, qwen36coding, qwen38fnq3, qwen38fnq3lms
+    1.18.26   qwen38fnq3reap
+    1.18.27   qwen38fnds4, qwen38fnds4mtp7shim, qwen38fnds4shim
+
+**No cell mixes versions -- every backend is internally consistent. But the
+split falls along the axis we compare.** The three newest ds4 backends ran
+under OpenCode 1.18.27 and everything older under 1.18.25, so every
+cross-backend OpenCode comparison involving them is also a comparison of two
+client versions. 35 backend pairs are disjoint this way.
+
+`RESULTS-agent.md` is clean. **`RECOMMENDATIONS.md` has two affected tables**,
+both wall-time -- median/worst/spread, and seconds per 1k output tokens --
+which is precisely the axis #104 measured the client moving, by roughly
+doubling median turns on the other tier.
+
+Nothing has been edited in either document. Whether this warrants a footnote,
+a column, or re-running the older cells depends on measuring whether the
+boundary matters on this machine, and no cell spans it so the rows cannot
+say. The pin from this morning stops the next boundary being crossed
+unnoticed; it cannot un-confound what is already taken.
+
+**The data was always there.** The version sat on every row from the start,
+keyed by client name inside `env` alongside every other client on the
+machine, so seeing this needed a join across 1394 rows and nobody had a
+reason to make it. That is the argument for `client_version` as a field
+rather than a lookup: the first thing the lookup found was this.
+
+---
+
 **2026-09-04, late afternoon. The queue worked in order until the clock, and
 what the tools said back.**
 
