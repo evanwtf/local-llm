@@ -1,0 +1,10 @@
+2026-09-04 07:24:32,441 INFO [dcda4b7-dirty@M5-Max-128GB] 2026-09-04T11:24:32Z (07:24:32 EDT) | harness dcda4b7-dirty
+2026-09-04 07:24:32,458 INFO [dcda4b7-dirty@M5-Max-128GB]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-04 07:24:32,664 INFO [dcda4b7-dirty@M5-Max-128GB] 2095668080030757087  VERIFIED post  @Oluwaphilemon1  Fri Sep 04 00:19:40 +0000 2026  via fxtwitter
+2026-09-04 07:24:32,664 INFO [dcda4b7-dirty@M5-Max-128GB]     105 tok/s for a local 27B model on an M5 Max.  That’s the number that caught my attention.  This is Qwen3.6-27B running speculative decoding through uzu, specifically optimized around Apple’s M5 Neura
+2026-09-04 07:24:32,664 INFO [dcda4b7-dirty@M5-Max-128GB]     quotes @Oluwaphilemon1: Codex running Computer Use entirely locally with Qwen3.8-27B is kind of a big deal.  No GPT subscription limits.  No cloud API bill every time the agent takes a
+2026-09-04 07:24:32,664 INFO [dcda4b7-dirty@M5-Max-128GB] 
+2026-09-04 07:24:32,664 INFO [dcda4b7-dirty@M5-Max-128GB] Verified 1: 1 confirmed, 0 not.
+2026-09-04 07:24:32,664 INFO [dcda4b7-dirty@M5-Max-128GB] Paste onto the issue:
+2026-09-04 07:24:32,664 INFO [dcda4b7-dirty@M5-Max-128GB]   **Verified** 2026-09-04: post exists, authored by @Oluwaphilemon1, posted Fri Sep 04 00:19:40 +0000 2026.
+2026-09-04 07:24:32,664 INFO [dcda4b7-dirty@M5-Max-128GB] log: /Users/evanhoffman/git/local-llm/logs/sweeps/verify-posts-M5-Max-128GB-20260904T112432Z.log

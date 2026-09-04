@@ -52,6 +52,7 @@ WATCHED: dict[str, str] = {
     "unslothai/llama.cpp": "the fork with a working qwen4exp MTP graph (#77)",
     "Layr-Labs/mlxfast-gemma4-26b-a4b-engine": "MLX Fast leaderboard harness (#80)",
     "sudoingX/qwen38-mtp": "61 paired baseline-vs-MTP runs, disciplined method (#19, #39)",
+    "trymirai/uzu": "Apple-only Rust engine, reachable by pip; claims 2x MTPLX (#134)",
 }
 
 
