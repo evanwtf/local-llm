@@ -13,6 +13,8 @@ import pathlib
 import pytest
 from results import (
     LEGACY_EXCLUSION_KEYS,
+    REQUIRED,
+    REQUIRED_WITH_VERDICT,
     SCHEMA_VERSION,
     is_excluded,
     load,
@@ -341,3 +343,74 @@ def test_a_timeout_is_still_a_real_outcome() -> None:
     """`error` is deliberately not an exclusion: the trial genuinely failed."""
     row = normalize({"task": "t", "error": "timeout", "passed": False})
     assert row["excluded"] is False
+
+
+def test_the_row_names_the_version_of_the_client_that_ran():
+    """#131: the client version must be readable without a join.
+
+    `env` carries a version for every client installed, so a reader had to
+    know to look up `env[row["client"]]`. #104's finding -- OpenCode
+    1.18.26 -> 1.18.27 roughly doubling median turns -- cannot be applied to a
+    single row that way.
+    """
+    row = new_row(
+        task="t",
+        backend="b",
+        client="opencode",
+        trial=1,
+        model="m",
+        context_tokens=8192,
+        effort=None,
+        env={"opencode": "1.18.27", "codex": "codex-cli 0.152.0"},
+    )
+    assert row["client_version"] == "1.18.27"
+
+
+def test_the_version_is_stored_exactly_as_the_tool_printed_it():
+    """Normalising would invent a format and lose what the tool said."""
+    row = new_row(
+        task="t",
+        backend="b",
+        client="codex",
+        trial=1,
+        model="m",
+        context_tokens=8192,
+        effort=None,
+        env={"opencode": "1.18.27", "codex": "codex-cli 0.152.0"},
+    )
+    assert row["client_version"] == "codex-cli 0.152.0"
+
+
+def test_an_unestablished_client_version_is_none_not_a_guess():
+    """Absent means "not established", never "same as now"."""
+    row = new_row(
+        task="t",
+        backend="b",
+        client="aider",
+        trial=1,
+        model="m",
+        context_tokens=8192,
+        effort=None,
+        env={"opencode": "1.18.27"},
+    )
+    assert row["client_version"] is None
+
+
+def test_a_blank_version_string_is_none_rather_than_empty():
+    row = new_row(
+        task="t",
+        backend="b",
+        client="opencode",
+        trial=1,
+        model="m",
+        context_tokens=8192,
+        effort=None,
+        env={"opencode": "   "},
+    )
+    assert row["client_version"] is None
+
+
+def test_client_version_is_not_required_so_existing_rows_still_validate():
+    """979 rows predate this field and `validate` runs on read (#131)."""
+    assert "client_version" not in REQUIRED
+    assert "client_version" not in REQUIRED_WITH_VERDICT

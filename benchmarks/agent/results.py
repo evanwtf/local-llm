@@ -75,6 +75,20 @@ def _now() -> str:
     return time.strftime("%Y-%m-%dT%H:%M:%S")
 
 
+def client_version(client: str, env: dict[str, Any]) -> str | None:
+    """The version of the client this row actually used, or None.
+
+    `env` holds a version for every client on the machine, not just the one
+    that ran. The strings are whatever each tool prints -- "1.18.27" from
+    OpenCode, "codex-cli 0.152.0", "aider 0.86.2", "2.1.260 (Claude Code)" --
+    and they are stored unchanged. Normalising them here would invent a format
+    and lose what the tool actually said, which is the thing a later reader
+    needs in order to compare against a release note.
+    """
+    value = env.get(client)
+    return value if isinstance(value, str) and value.strip() else None
+
+
 def new_row(
     *,
     task: str,
@@ -98,6 +112,15 @@ def new_row(
         "context_tokens": context_tokens,
         "effort": effort,
         "env": env,
+        # #131. The client version was always in `env`, but keyed by client
+        # name alongside every other client's version -- so reading it back
+        # meant joining `client` to `env` and knowing to do so. #104 measured
+        # OpenCode 1.18.26 -> 1.18.27 roughly doubling median turns with
+        # everything else held; a finding like that has to be applicable to one
+        # row without a join. Not in REQUIRED: 979 existing rows predate it and
+        # `validate` runs on read, so demanding it would retroactively condemn
+        # them. Absent means "not established", never "same as now".
+        "client_version": client_version(client, env),
         "excluded": False,
         "exclusion_reason": None,
     }
