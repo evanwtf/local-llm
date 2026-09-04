@@ -166,6 +166,40 @@ def add_instruction(payload: dict) -> bool:
     return True
 
 
+def log_prefix_blocks(body: bytes) -> None:
+    """Append one line of hashed prompt blocks per request, if asked (#50, #64).
+
+    `SHIM_DUMP` writes a whole payload, which carries the operator's CLAUDE.md
+    and every file the agent has read -- `.gitignore` says those dumps must
+    never be committed. This writes digests instead: enough for
+    `scripts/prefix_stability.py` to say which cached block changed between
+    two turns, and incapable of leaking a prompt.
+
+    Set `SHIM_PREFIX_LOG=/path/to/blocks.jsonl` to turn it on. Off by default,
+    and any failure is swallowed: an audit aid must never be able to break a
+    request that is mid-trial.
+    """
+    path = os.environ.get("SHIM_PREFIX_LOG")
+    if not path:
+        return
+    try:
+        sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "scripts"))
+        import prefix_stability
+
+        blocks = prefix_stability.blocks(json.loads(body))
+        line = json.dumps(
+            {
+                "t": time.time(),
+                "horizon": prefix_stability.cache_horizon(blocks),
+                "blocks": [dataclasses.asdict(b) for b in blocks],
+            }
+        )
+        with open(path, "a") as fh:
+            fh.write(line + "\n")
+    except Exception as exc:  # noqa: BLE001 -- never break a live request
+        logger.debug("prefix block log skipped: %s", exc)
+
+
 def rewrite(body: bytes) -> bytes:
     """Apply the rewrite. Returns the original body on any doubt."""
     try:
@@ -384,6 +418,7 @@ def prepare(body: bytes) -> Prepared:
     because the upstream response can simply be relayed.
     """
     instructed = rewrite(body)
+    log_prefix_blocks(body)
     try:
         payload = json.loads(instructed)
     except ValueError:

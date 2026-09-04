@@ -81,3 +81,41 @@ def test_the_instruction_states_the_json_shape() -> None:
     """
     assert '"name" and "arguments"' in shim.INSTRUCTION
     assert "<tool_call>" in shim.INSTRUCTION
+
+
+def test_prefix_block_log_is_off_unless_asked(tmp_path, monkeypatch):
+    """An audit aid must not write anything by default (#50)."""
+    monkeypatch.delenv("SHIM_PREFIX_LOG", raising=False)
+    shim.log_prefix_blocks(b'{"messages":[{"role":"user","content":"hi"}]}')
+    assert not list(tmp_path.iterdir())
+
+
+def test_prefix_block_log_writes_digests_not_prompts(tmp_path, monkeypatch):
+    """SHIM_DUMP writes whole payloads; this must not be able to leak one."""
+    out = tmp_path / "blocks.jsonl"
+    monkeypatch.setenv("SHIM_PREFIX_LOG", str(out))
+    body = json.dumps(
+        {
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "SECRET CLAUDE.md CONTENTS",
+                    "cache_control": {"type": "ephemeral"},
+                }
+            ]
+        }
+    ).encode()
+    shim.log_prefix_blocks(body)
+    text = out.read_text()
+    assert "SECRET" not in text
+    assert "CLAUDE.md" not in text
+    row = json.loads(text.splitlines()[0])
+    assert row["horizon"] == 0
+    assert row["blocks"][0]["cacheable"] is True
+
+
+def test_a_broken_prefix_log_never_breaks_the_request(tmp_path, monkeypatch):
+    """Mid-trial, an audit aid failing must be invisible."""
+    monkeypatch.setenv("SHIM_PREFIX_LOG", str(tmp_path / "nope" / "x.jsonl"))
+    shim.log_prefix_blocks(b"not json at all")
+    shim.log_prefix_blocks(b'{"messages":[]}')
