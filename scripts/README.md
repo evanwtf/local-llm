@@ -16,6 +16,7 @@ documentation.
 | `backfill_prompt_meta.py` | Write an inferred prompt sidecar for runs measured before #140. |
 | `client_version_split.py` | Which client version took which rows, and what that confounds (#137, #131). |
 | `client_versions.py` | Read the recorded agent client versions, and say which have moved (#131). |
+| `cohort_split.py` | Split one backend's rows at a moment in time and compare the halves. |
 | `decode_ab_report.py` | Summarise a paired decode A/B produced by scripts/decode_ab.sh (#48). |
 | `disk_baseline.py` | Measure the internal NVMe: read bandwidth and random-read latency. |
 | `gguf_meta.py` | Print a GGUF file's metadata without loading the model. |

@@ -1,0 +1,11 @@
+# stack A/B, 2026-09-04T18:57:37 EDT
+A label=q40old
+A engine=/Users/evanhoffman/git/ds4-metal @ ba01f5d
+A gguf=/Users/evanhoffman/models/qwen3.8-flash-next-ds4-q4/Qwen3.8-Flash-Next-Q40RoutedExperts-BF16Emb-BF16Control-Q8GDN-Q8QSA-Q8Shared-Q8Out.gguf (79010984960 bytes)
+A ple=/Users/evanhoffman/models/qwen3.8-flash-next-ds4-q4/Qwen3.8-Flash-Next-PLE-Q4_1.gguf
+B label=q4kimat
+B engine=/Users/evanhoffman/git/ds4-ivan-qwen38fn @ bd9cfbc
+B gguf=/Users/evanhoffman/models/qwen3.8-flash-next-ds4-q4k-imatrix/Qwen3.8-Flash-Next-Q4KImatrixExperts-MXFP4Down-BF16Emb-BF16Control-Q8GDN-Q8QSA-Q8Shared-Q8Out.gguf (73371680704 bytes)
+B ple=/Users/evanhoffman/models/qwen3.8-flash-next-ds4-q4k-imatrix/Qwen3.8-Flash-Next-PLE-Q4_1.gguf
+# TWO VARIABLES: engine and weights move together. Report as a stack
+# comparison; neither half can be attributed on its own (#138).
