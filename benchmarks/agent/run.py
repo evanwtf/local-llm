@@ -332,8 +332,7 @@ def parse_ollama_show(show, ollama_version=None):
         )
     else:
         regime = (
-            "engine defaults (unrecorded; ollama built-in defaults, "
-            "ollama <= 0.33.2)"
+            "engine defaults (unrecorded; ollama built-in defaults, ollama <= 0.33.2)"
         )
     return {"sampling": sampling, "sampling_source": regime}
 
@@ -1578,6 +1577,27 @@ def targets(task):
     return [{"file": task["file"], "symbol": task["symbol"]}]
 
 
+def trial_order(backends, trial):
+    """The backends for one trial, in the order they should run (#130).
+
+    Throughput declines across a measurement window, so a fixed order
+    penalises whichever backend always runs last. @adamlawi measured that
+    bias on antirez/ds4#952 as larger than three of the four effects being
+    compared -- at one frontier the sign of the result depended only on which
+    arm loaded first.
+
+    Odd trials run in order, even trials reversed, so the drift divides
+    between the arms instead of landing on one. With an odd number of trials
+    the split is uneven -- 2 of 3 in the first position -- which is better
+    than 3 of 3 and is why the count is worth recording on the row rather
+    than assumed to cancel.
+    """
+    ordered = list(backends.items())
+    if trial % 2 == 0:
+        ordered.reverse()
+    return ordered
+
+
 def one_trial(
     cfg,
     task,
@@ -1593,6 +1613,8 @@ def one_trial(
     solutions=None,
     gates=True,
     sandbox=True,
+    run_position=None,
+    run_arms=None,
 ):
     target = task_target(cfg, task)
     repo = pathlib.Path(target["repo"]).expanduser()
@@ -1623,6 +1645,8 @@ def one_trial(
         context_tokens=backend["context_tokens"],
         effort=backend.get("effort"),
         env=versions or {},
+        run_position=run_position,
+        run_arms=run_arms,
     )
 
     # A previous run killed mid-flight leaves its directory behind. Clear it so
@@ -2118,8 +2142,16 @@ def main():
     history = [r for r in results.trials(args.results) if not results.is_excluded(r)]
     cell: dict[tuple[str, str], list[dict]] = {}
     for trial in range(1, args.trials + 1):
+        # #130: alternate which backend runs first. Throughput declines across
+        # a measurement window, so a fixed order penalises whichever backend
+        # always runs last. @adamlawi measured that bias on antirez/ds4#952 as
+        # larger than three of the four effects being compared. Odd trials run
+        # the backends in order, even trials reversed, so the drift divides
+        # between them instead of landing on one. The client loop stays
+        # innermost for the reason below.
+        ordered = trial_order(backends, trial)
         for task in tasks:
-            for bname, backend in backends.items():
+            for position, (bname, backend) in enumerate(ordered, start=1):
                 # Clients innermost: the same task runs back to back on each,
                 # so server state drifts across the pair rather than between
                 # two runs hours apart.
@@ -2138,6 +2170,8 @@ def main():
                         client_log=client_log,
                         solutions=solutions,
                         gates=not args.no_gates,
+                        run_position=position,
+                        run_arms=len(ordered),
                     )
                     # Inside the client loop. Outside it, only the last
                     # client's row survives and half the run vanishes.

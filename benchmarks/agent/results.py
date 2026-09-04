@@ -99,6 +99,8 @@ def new_row(
     context_tokens: int,
     effort: str | None,
     env: dict[str, Any],
+    run_position: int | None = None,
+    run_arms: int | None = None,
 ) -> dict[str, Any]:
     """Start a row. Both exclusion keys are set explicitly from birth."""
     return {
@@ -121,6 +123,15 @@ def new_row(
         # `validate` runs on read, so demanding it would retroactively condemn
         # them. Absent means "not established", never "same as now".
         "client_version": client_version(client, env),
+        # #130. Throughput declines across a measurement window, so whichever
+        # arm always runs last is penalised -- @adamlawi measured that bias on
+        # antirez/ds4#952 as larger than three of the four effects being
+        # compared. run.py now alternates the order between trials, but a row
+        # that does not say where it sat cannot be checked for the bias
+        # afterwards, and no existing row can be retro-corrected. None means
+        # the order was not recorded, which is what every row before this is.
+        "run_position": run_position,
+        "run_arms": run_arms,
         "excluded": False,
         "exclusion_reason": None,
     }

@@ -26,10 +26,28 @@ REPS=${REPS:-3}
 
 mkdir -p "$OUT"
 for rep in $(seq 1 "$REPS"); do
-  for pair in "$LABEL_A:$GGUF_A" "$LABEL_B:$GGUF_B"; do
+  # #130: alternate which arm runs first. Throughput declines across a
+  # measurement window, so a fixed order penalises whichever arm always runs
+  # second. @adamlawi measured the positional bias on antirez/ds4#952 as
+  # larger than three of the four effects being compared -- at one frontier
+  # the SIGN of the result depended only on load order. Odd reps run A-B,
+  # even reps B-A, so the drift divides between the arms instead of landing
+  # on one. decode_ab_engine.sh has done this since it was written; this
+  # script predates the finding.
+  if [ $((rep % 2)) -eq 0 ]; then
+    order=("$LABEL_B:$GGUF_B" "$LABEL_A:$GGUF_A")
+  else
+    order=("$LABEL_A:$GGUF_A" "$LABEL_B:$GGUF_B")
+  fi
+  position=0
+  for pair in "${order[@]}"; do
+    position=$((position + 1))
     label=${pair%%:*}; gguf=${pair#*:}
     csv="$OUT/${label}-rep${rep}.csv"
-    echo "[$(date +%H:%M:%S)] $label rep $rep -> $csv"
+    # Record the order this arm ran in, so a later reader can test for
+    # positional bias instead of assuming it away (#130 item 3).
+    echo "rep=$rep position=$position of 2 label=$label" >> "$OUT/run-order.txt"
+    echo "[$(date +%H:%M:%S)] $label rep $rep (position $position) -> $csv"
     # ds4-bench resolves metal/*.metal relative to its own tree, so run from
     # there. Without this it dies with "metal/activations.metal not found".
     ( cd "$DS4" && ./ds4-bench -m "$gguf" --metal \

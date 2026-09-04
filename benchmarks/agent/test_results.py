@@ -414,3 +414,44 @@ def test_client_version_is_not_required_so_existing_rows_still_validate():
     """979 rows predate this field and `validate` runs on read (#131)."""
     assert "client_version" not in REQUIRED
     assert "client_version" not in REQUIRED_WITH_VERDICT
+
+
+def test_the_row_records_where_it_sat_in_the_running_order():
+    """#130: a row that does not say where it sat cannot be checked for
+    positional bias afterwards, and none of the existing rows can be."""
+    row = new_row(
+        task="t",
+        backend="b",
+        client="opencode",
+        trial=2,
+        model="m",
+        context_tokens=8192,
+        effort=None,
+        env={},
+        run_position=2,
+        run_arms=3,
+    )
+    assert row["run_position"] == 2
+    assert row["run_arms"] == 3
+
+
+def test_an_unrecorded_running_order_is_none_not_first():
+    """Every row written before #130 has no order. Defaulting to 1 would
+    claim they all ran first, which is exactly the bias being looked for."""
+    row = new_row(
+        task="t",
+        backend="b",
+        client="opencode",
+        trial=1,
+        model="m",
+        context_tokens=8192,
+        effort=None,
+        env={},
+    )
+    assert row["run_position"] is None
+    assert row["run_arms"] is None
+
+
+def test_run_position_is_not_required_so_existing_rows_still_validate():
+    assert "run_position" not in REQUIRED
+    assert "run_arms" not in REQUIRED

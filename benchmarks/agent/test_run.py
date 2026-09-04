@@ -851,3 +851,35 @@ def test_write_row_creates_the_machine_directory(tmp_path):
     results.write_row(dict(row), target)
     assert target.exists()
     assert len(results.load(target)) == 1
+
+
+def test_odd_trials_run_the_backends_in_order():
+    """#130: position bias is real, so the order must not be constant."""
+    backends = {"a": {}, "b": {}, "c": {}}
+    assert [n for n, _ in run.trial_order(backends, 1)] == ["a", "b", "c"]
+    assert [n for n, _ in run.trial_order(backends, 3)] == ["a", "b", "c"]
+
+
+def test_even_trials_reverse_the_backends():
+    backends = {"a": {}, "b": {}, "c": {}}
+    assert [n for n, _ in run.trial_order(backends, 2)] == ["c", "b", "a"]
+
+
+def test_no_backend_holds_the_last_position_in_every_trial():
+    """The bias lands on whichever arm always runs last. None may."""
+    backends = {"a": {}, "b": {}}
+    last = {run.trial_order(backends, t)[-1][0] for t in (1, 2, 3, 4)}
+    assert last == {"a", "b"}
+
+
+def test_ordering_does_not_drop_or_duplicate_a_backend():
+    backends = {"a": {}, "b": {}, "c": {}, "d": {}}
+    for trial in range(1, 6):
+        names = [n for n, _ in run.trial_order(backends, trial)]
+        assert sorted(names) == ["a", "b", "c", "d"]
+
+
+def test_a_single_backend_is_unaffected_by_alternation():
+    backends = {"only": {}}
+    for trial in (1, 2, 3):
+        assert [n for n, _ in run.trial_order(backends, trial)] == ["only"]
