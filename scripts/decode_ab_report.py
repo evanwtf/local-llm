@@ -399,6 +399,36 @@ def log_runs_needed(got: list[tuple[pathlib.Path, Summary]]) -> None:
         )
 
 
+def quotable(got: list[tuple[pathlib.Path, Summary]]) -> str:
+    """One line fit to paste into an issue, carrying its own run count.
+
+    #136 item 3: a figure with no run count cannot be read. Enforcing that by
+    linting prose is brittle -- the fix is to make the quotable form cheaper
+    than the bare number, so the count travels by default instead of by
+    discipline.
+
+    Names the direction, the number of runs, the spread, and the per-run
+    figures, because the spread is what says whether those runs were enough
+    for this particular comparison.
+    """
+    if not got:
+        return "no runs"
+    a, b = got[0][1].a, got[0][1].b
+    medians = [s.median for _, s in got]
+    med = st.median(medians)
+    lo, hi = min(medians), max(medians)
+    each = ", ".join(f"{m:.3f}" for m in medians)
+    if len(medians) == 1:
+        return (
+            f"{b}/{a} {med:.3f} ({(med - 1) * 100:+.1f}%) from a SINGLE run -- "
+            f"one run is not a measurement (#136)"
+        )
+    return (
+        f"{b}/{a} median {med:.3f} ({(med - 1) * 100:+.1f}%) over {len(medians)} "
+        f"runs [{each}], spread {(hi - lo) * 100:.1f} pp"
+    )
+
+
 def main(argv: list[str]) -> int:
     logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
     legacy = "--legacy" in argv
@@ -420,7 +450,8 @@ def main(argv: list[str]) -> int:
             log_runs_needed(runs)
             if legacy:
                 log_legacy_comparison(runs, column)
-            logger.info("")
+        logger.info("quote: %s", quotable(runs))
+        logger.info("")
         # Per-run detail below. With one directory this is the whole report.
         outdir, got = runs[0]
         data = load(outdir, column)

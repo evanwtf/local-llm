@@ -318,3 +318,31 @@ def test_the_block_is_silent_below_three_runs(tmp_path, caplog):
     with caplog.at_level("INFO"):
         report.log_runs_needed(runs)
     assert not caplog.records
+
+
+def test_the_quotable_line_always_carries_a_run_count(tmp_path):
+    """#136 item 3: a figure with no run count cannot be read. Make the
+    quotable form cheaper than the bare number so the count travels."""
+    runs = []
+    for name, r in (("r1", 1.10), ("r2", 1.20), ("r3", 1.15)):
+        d = _write_run(tmp_path, name, {1: r, 2: r})
+        runs.append((d, report.summarize(report.load(d))))
+    line = report.quotable(runs)
+    assert "over 3 runs" in line
+    assert "spread" in line
+    assert "1.100" in line and "1.200" in line
+
+
+def test_a_single_run_quote_says_it_is_not_a_measurement(tmp_path):
+    """The one case where the number must arrive with a warning attached."""
+    d = _write_run(tmp_path, "only", {1: 1.10, 2: 1.10})
+    runs = [(d, report.summarize(report.load(d)))]
+    line = report.quotable(runs)
+    assert "SINGLE run" in line
+    assert "not a measurement" in line
+    assert "over 1 runs" not in line
+
+
+def test_quotable_names_the_direction():
+    """A bare ratio has been misread the wrong way round once already."""
+    assert report.quotable([]) == "no runs"
