@@ -1,0 +1,104 @@
+# grok sweep
+# requested window: last 24 hours
+# written:  2026-09-04T03:29:58Z  (local: 2026-09-03 23:29:58 EDT)
+# query:    Search X for posts and replies from the last 24 hours by @antirez, @ivanfioravanti, @TheDavidTai, @Beamsters1, @0xSero, @GiorgioOppo, @danielhanchen, @jundot, @ddalcu, @raullenchai, @Blaizzy, @sudosudoX about local LLM inference on Apple Silicon (M5 Max, Metal, MLX), speculative decoding, MTP, quantization, prefill, decode speed, or new model/engine releases. For each item give: handle, UTC timestamp, whether post or reply, the full text, and the post URL. Newest first, max 20. If you find nothing recent, say so plainly rather than guessing.
+
+I'll search X for those accounts over the last 24 hours, using the project's source list and keyword/semantic queries so we only keep on-topic posts.SOURCES.md lists some of those accounts under different handles, so I am searching both the names you gave and the documented ones, then I’ll verify the on-topic posts.I have a first pass of hits. Next I will fill gaps for the remaining accounts, then verify only the on-topic posts.I have enough candidates. Next I’ll fetch a few threads for full text, then verify the post IDs before listing them.Window: last 24 hours from **2026-09-04 03:32 UTC**. Newest first. All 20 IDs verified against fxtwitter. Quote posts are listed as **post**.
+
+Exact handles with **no on-topic hits**: `@0xSero` (posted, off-topic), `@GiorgioOppo`, `@jundot`, `@raullenchai`, `@Blaizzy`, `@sudosudoX`. Documented aliases `@jundotkim`, `@Raullen`, `@Prince_Canuma`, `@sudoingX` were searched too; `@jundotkim` was also silent.
+
+---
+
+1. **@Beamsters1** · 2026-09-04 01:25:53 UTC · **reply**  
+   `@humanrunway @ddalcu yes 128 gb m5 max`  
+   https://x.com/Beamsters1/status/2095684745279811608
+
+2. **@Beamsters1** · 2026-09-04 01:25:44 UTC · **reply**  
+   `@sliiQ yes, you can try it with mlx-serve.`  
+   https://x.com/Beamsters1/status/2095684706981548171
+
+3. **@TheDavidTai** · 2026-09-04 01:12:59 UTC · **post** (quote of @originalmaderix on M4 ANE)  
+   `I feel like we are getting close to a break through to be able to generally use ANE in the next few months.  If it closes the gap with Spark on prefill I will be quite happy.  I'd love to replace some of the CPU on decode if possible since quantizers are more comfortable with FP8 routers.`  
+   https://x.com/TheDavidTai/status/2095681498687181195
+
+4. **@ddalcu** · 2026-09-04 00:48:17 UTC · **reply**  
+   `yep, i'm not so sure if its worth going Hadamard vs affine.  There is also AWQ, DWQ, iMatrix.  And like you said, you end up with custom kernels, and potentially not being able to leverage ASIC's in future chip generations.  Also... as Intelligence per GB gets better, nobody will be running 4bit models anymore.`  
+   https://x.com/ddalcu/status/2095675282787041445
+
+5. **@TheDavidTai** · 2026-09-03 23:57:03 UTC · **reply**  
+   `@kesslerIO Yeah, memory usage can definitely be improved though I had a budget of 110 which can go up or down if needed since you can adjust cache sizes and max k/v held in memory.`  
+   https://x.com/TheDavidTai/status/2095662388930584621
+
+6. **@Beamsters1** · 2026-09-03 23:55:29 UTC · **post**  
+   `Cheaper MTP rounds is ready.`  
+   https://github.com/ddalcu/mlx-serve/pull/350  
+   https://x.com/Beamsters1/status/2095661995588788387
+
+7. **@ddalcu** · 2026-09-03 23:54:52 UTC · **reply**  
+   `Yes, I added RHT to MLX-serve. I’m just running your rust engine vs my zig engine with added support for your model. What is interesting, and trying next, is to combine some of your speculation (which is a clear win) combined with the raw serial speed in my model / engine implementation. I think well above 100 tok/s is achieve-able on M4Max. Awesome work on this btw.`  
+   https://x.com/ddalcu/status/2095661840306938198
+
+8. **@Beamsters1** · 2026-09-03 23:45:14 UTC · **reply**  
+   `@TheDavidTai stock one, but with a custom mini drafter for the big drafter - a double draft.`  
+   https://x.com/Beamsters1/status/2095659416406397155
+
+9. **@ddalcu** · 2026-09-03 23:40:14 UTC · **reply**  
+   `@norpadon @dimashvets @Darkolorin , welcome to the MLX Club 😄  @Youssofal_  is probably the most entertaining X account I follow. Thank you all for pushing MLX, and hope to see the many missing features that seem to be on your roadmap. As an observer here, I think both parties have good points. Your benchmarks are missing more information and reproduction steps. I added support for your model pack in my MLX-Serve to see how it does compared to your engine, and here are the results (pay attention to total time it took, last line): M4Max 128> npx llmprobe localhost:<port> I added mlx-serve with your model, and with the normal MTP model.`  
+   https://x.com/ddalcu/status/2095658157309641136
+
+10. **@Beamsters1** · 2026-09-03 23:22:18 UTC · **post**  
+    `Well ... MTP tuning round 2 for Qwen3.8-Flash-Next, coding short greedy broke 127 tok/s at depth 5 and prose/novel reached 70+ regularly. This thing is surpassing API speed.`  
+    https://x.com/Beamsters1/status/2095653641973797347
+
+11. **@TheDavidTai** · 2026-09-03 22:53:28 UTC · **post** (quote of a quantization-format release)  
+    `Will try this for Qwen 3.8 Flash Next's prefill`  
+    https://x.com/TheDavidTai/status/2095646386553586050
+
+12. **@TheDavidTai** · 2026-09-03 22:42:23 UTC · **post** (quote of a local-vs-API cost thread)  
+    `Lets I'm paying $1.2k/month across 6 subs and I can replace 5 of them with a 512gb M5 Ultra at say 24k.  I would get that paid back in tokens in 24 months (2 Years) and still have a used M5 Ultra that I can sell for like 70% of the new value and did other work than just run a LLM.`  
+    `No brainer if the model is good enough.`  
+    https://x.com/TheDavidTai/status/2095643598972924317
+
+13. **@antirez** · 2026-09-03 22:41:41 UTC · **reply**  
+    `@TheDavidTai Indeed, I selected 12 benchmarks on a set of over 100, focusing on the ones that were harder to complete. Otherwise that would take a week with my hardware :)`  
+    https://x.com/antirez/status/2095643423298490684
+
+14. **@antirez** · 2026-09-03 22:19:37 UTC · **reply**  
+    `@ivanfioravanti Yep, MXFP4`  
+    https://x.com/antirez/status/2095637866852368566
+
+15. **@ivanfioravanti** · 2026-09-03 22:18:12 UTC · **reply**  
+    `@antirez DeepSeek mxfp4?`  
+    https://x.com/ivanfioravanti/status/2095637511049502902
+
+16. **@ivanfioravanti** · 2026-09-03 22:17:44 UTC · **reply**  
+    `@antirez I bet Qwen 3.8 Flash Next will be lower.`  
+    https://x.com/ivanfioravanti/status/2095637394015813810
+
+17. **@antirez** · 2026-09-03 22:11:08 UTC · **post**  
+    `I ran an extensive benchmark against DeepSeek v4 Flash and GLM 5.3 Flash Q2, Q4 and mixed quants. Those are the results obtained. Mix of (hard-ish) benchmarks on cybersecurity, math, QA, ...`  
+    https://x.com/antirez/status/2095635731536367841
+
+18. **@ivanfioravanti** · 2026-09-03 21:47:51 UTC · **post** (quote of a sub-24GB Mac / mixture-of-models thread)  
+    `I think Raptor 0.5 model and idea behind it is really relevant for the Local AI space! Downloaded and ready to test it!`  
+    https://x.com/ivanfioravanti/status/2095629875738517876
+
+19. **@danielhanchen** · 2026-09-03 21:24:07 UTC · **post** (quote of @UnslothAI)  
+    `Hermes now has a local backend!`  
+    `There's support for Unsloth UD-Q4_K_XL and UD-Q4_K_M quants for DeepSeek-V4-Flash, Qwen3.8-27B, 3.6-35B-A3B and Qwen3.8-Flash-Next in Hermes!`  
+    https://x.com/danielhanchen/status/2095623899979600152
+
+20. **@ddalcu** · 2026-09-03 19:50:05 UTC · **post**  
+    `MLX-Serve v26.9.1 is now released ! Another @pidotdev + @Alibaba_Qwen Flash one shot, this model is truly amazing.  I simply pasted a screenshot of @bijanbowen prompt and this was the output.`  
+    `Huge thanks to @Beamsters1 he spent so much time on optimizing and testing for correctness.`  
+    Same thread: engine notes https://github.com/ddalcu/mlx-serve/releases/tag/v26.9.1 and model https://huggingface.co/ddalcu/Qwen3.8-Flash-Next-MLX-Serve-mixed-4-8bit  
+    https://x.com/ddalcu/status/2095600237955952847
+
+---
+
+**Also in-window, but older than these 20** (so they missed the cap):
+
+- @TheDavidTai, 2026-09-03 09:04:23 UTC, **post**: MTPLX runner for Qwen 3.8 Flash Next on M5 Max 128GB — 100.49 tps vanity decode, 65.5 tps at 256k. https://x.com/TheDavidTai/status/2095437740607144162
+- @Beamsters1, 2026-09-03 11:09:45 UTC, **post**: Qwen3.8 Flash Next 1M context, 92.4GB, 4bit expert / 8bit dense, prefill 1964 tps peak. https://x.com/Beamsters1/status/2095469288908095920
+- @Raullen (not `@raullenchai`), 2026-09-03 15:41:55 UTC, **post**: Rapid-MLX Apple Silicon work featured on ModelScope. https://x.com/Raullen/status/2095537784547332384
+- @Prince_Canuma (GitHub Blaizzy; not `@Blaizzy`), 2026-09-03 15:33:01 UTC, **post**: Apodex 1.1 on MLX-VLM. https://x.com/Prince_Canuma/status/2095535545547894836
