@@ -1,0 +1,133 @@
+2026-09-03 23:27:52,376 INFO [8bb4f23@M5-Max-128GB] 2026-09-04T03:27:52Z (23:27:52 EDT) | harness 8bb4f23
+2026-09-03 23:27:52,398 INFO [8bb4f23@M5-Max-128GB]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-03 23:27:52,398 INFO [8bb4f23@M5-Max-128GB] Upstream sweep since 2026-09-03T03:27:52Z (24h)
+
+2026-09-03 23:27:52,904 INFO [8bb4f23@M5-Max-128GB] == antirez/ds4 -- our primary engine; the only one that runs DeepSeek-V4-Flash and GLM-5.3
+2026-09-03 23:27:52,905 INFO [8bb4f23@M5-Max-128GB]    (quiet)
+2026-09-03 23:27:52,905 INFO [8bb4f23@M5-Max-128GB] 
+2026-09-03 23:27:53,691 INFO [8bb4f23@M5-Max-128GB] == ggml-org/llama.cpp -- our fast pick's engine; `qwen4exp` IS Qwen3.8-Flash-Next
+2026-09-03 23:27:53,691 INFO [8bb4f23@M5-Max-128GB]    releases: b10794, b10793, b10792, b10791, b10790, b10786, b10785, b10784, b10783, b10782
+2026-09-03 23:27:53,691 INFO [8bb4f23@M5-Max-128GB]    SYCL: Refactor GGML_SYCL_ENABLE_MKL_FA to global var (#26863)
+2026-09-03 23:27:53,691 INFO [8bb4f23@M5-Max-128GB]    llama: fix whole source code rebuilt on each new commit (#28278)
+2026-09-03 23:27:53,691 INFO [8bb4f23@M5-Max-128GB]    common/json-schema : fix GBNF grammar generation for empty object schemas (#28279)
+2026-09-03 23:27:53,691 INFO [8bb4f23@M5-Max-128GB]    opencl: quant lm_head / decode GEMV and medium-batch GEMM optimizations (speculative decoding/MTP) (#26477)
+2026-09-03 23:27:53,691 INFO [8bb4f23@M5-Max-128GB]    tune MMVQ to MMQ crossover for SM87 (#28285)
+2026-09-03 23:27:53,691 INFO [8bb4f23@M5-Max-128GB]    snapdragon: ci updates to use new run script (#28293)
+2026-09-03 23:27:53,691 INFO [8bb4f23@M5-Max-128GB]    ops: add Hexagon to ops.md and update main README.md (#28263)
+2026-09-03 23:27:53,691 INFO [8bb4f23@M5-Max-128GB]    server : use pytest-xdist for server tests (#28298)
+2026-09-03 23:27:53,691 INFO [8bb4f23@M5-Max-128GB]    mtmd: propagate const to preproc class (#28310)
+2026-09-03 23:27:53,692 INFO [8bb4f23@M5-Max-128GB]    metal : add sparse FA (#28098)
+2026-09-03 23:27:53,692 INFO [8bb4f23@M5-Max-128GB]    metal : fix glu dispatch with ne00 = 1 (#28306)
+2026-09-03 23:27:53,692 INFO [8bb4f23@M5-Max-128GB]    mtmd : add `const` in various places (#28307)
+2026-09-03 23:27:53,692 INFO [8bb4f23@M5-Max-128GB]    ... and 7 more
+2026-09-03 23:27:53,692 INFO [8bb4f23@M5-Max-128GB] 
+2026-09-03 23:27:54,381 INFO [8bb4f23@M5-Max-128GB] == ollama/ollama -- the 31 GB entry point, and our only MLX runtime
+2026-09-03 23:27:54,381 INFO [8bb4f23@M5-Max-128GB]    mlxrunner: compile structured output as xgrammar structural tags
+2026-09-03 23:27:54,381 INFO [8bb4f23@M5-Max-128GB]    mlxrunner: enable speculative decoding under structured output
+2026-09-03 23:27:54,381 INFO [8bb4f23@M5-Max-128GB]    ci: rebuild MLX macOS test payloads the release can't supply (#18219)
+2026-09-03 23:27:54,381 INFO [8bb4f23@M5-Max-128GB] 
+2026-09-03 23:27:55,318 INFO [8bb4f23@M5-Max-128GB] == anomalyco/opencode -- our only client
+2026-09-03 23:27:55,318 INFO [8bb4f23@M5-Max-128GB]    feat(stats): improve market share chart (#47115)
+2026-09-03 23:27:55,318 INFO [8bb4f23@M5-Max-128GB]    chore: generate
+2026-09-03 23:27:55,318 INFO [8bb4f23@M5-Max-128GB]    fix(tui): use unicode ellipses in interface text (#45126)
+2026-09-03 23:27:55,318 INFO [8bb4f23@M5-Max-128GB]    chore: generate
+2026-09-03 23:27:55,318 INFO [8bb4f23@M5-Max-128GB]    fix(stats): reduce database query load
+2026-09-03 23:27:55,318 INFO [8bb4f23@M5-Max-128GB]    fix(console): proxy migrated model discovery to v1 endpoint (#47065)
+2026-09-03 23:27:55,318 INFO [8bb4f23@M5-Max-128GB]    docs(web): translate Go usage requirements (#47057)
+2026-09-03 23:27:55,318 INFO [8bb4f23@M5-Max-128GB]    fix(app): identify desktop in Console device auth (v1) (#47000)
+2026-09-03 23:27:55,318 INFO [8bb4f23@M5-Max-128GB] 
+2026-09-03 23:27:55,920 INFO [8bb4f23@M5-Max-128GB] == evanwtf/local-llm -- this project
+2026-09-03 23:27:55,921 INFO [8bb4f23@M5-Max-128GB]    NEXT: close #77, re-scope #112, split successors into #119 and #120
+2026-09-03 23:27:55,921 INFO [8bb4f23@M5-Max-128GB]    #77 arm B under restart: 25/45, MTP is a net cost; #112 kv-32768: disk KV ruled out
+2026-09-03 23:27:55,921 INFO [8bb4f23@M5-Max-128GB]    NEXT: pick the top 10 -- diagnose #112 mechanism, then use the clean baseline
+2026-09-03 23:27:55,921 INFO [8bb4f23@M5-Max-128GB]    NEXT: re-rank queue after #112 server-state confirmation; add #116/#117/#118/#115
+2026-09-03 23:27:55,921 INFO [8bb4f23@M5-Max-128GB]    sweep 2026-09-03T20:47Z: record state, and the four issues it filed/updated
+2026-09-03 23:27:55,921 INFO [8bb4f23@M5-Max-128GB]    NEXT: #112 -- server state confirmed as the cause; queue advances to mechanism + arm B re-run
+2026-09-03 23:27:55,921 INFO [8bb4f23@M5-Max-128GB]    results: restart-between-trials eliminates the #112 session decline (14/14/14 vs 13/13/10)
+2026-09-03 23:27:55,921 INFO [8bb4f23@M5-Max-128GB]    scripts: restart_between_trials.sh -- reproducible cycle for the #112 test
+2026-09-03 23:27:55,921 INFO [8bb4f23@M5-Max-128GB]    NEXT: item 4 (#96) advances -- TTFT metric shipped, oMLX build remains
+2026-09-03 23:27:55,921 INFO [8bb4f23@M5-Max-128GB]    report: flag 100% cells as saturated, not excellent (#55 A4)
+2026-09-03 23:27:55,921 INFO [8bb4f23@M5-Max-128GB]    report: flag cells where every trial failed with identical oracle output (#55 A3)
+2026-09-03 23:27:55,921 INFO [8bb4f23@M5-Max-128GB]    run: per-step TTFT on every OpenCode row (#96)
+2026-09-03 23:27:55,921 INFO [8bb4f23@M5-Max-128GB]    ... and 26 more
+2026-09-03 23:27:55,921 INFO [8bb4f23@M5-Max-128GB] 
+2026-09-03 23:27:56,553 INFO [8bb4f23@M5-Max-128GB] == evanwtf/gmail-archive -- the excision tasks' target repository
+2026-09-03 23:27:56,553 INFO [8bb4f23@M5-Max-128GB]    (quiet)
+2026-09-03 23:27:56,553 INFO [8bb4f23@M5-Max-128GB] 
+2026-09-03 23:27:57,212 INFO [8bb4f23@M5-Max-128GB] == evanwtf/ds4 -- our ds4 fork (#27 asks whether it can be retired)
+2026-09-03 23:27:57,212 INFO [8bb4f23@M5-Max-128GB]    (quiet)
+2026-09-03 23:27:57,213 INFO [8bb4f23@M5-Max-128GB] 
+2026-09-03 23:27:57,893 INFO [8bb4f23@M5-Max-128GB] == ml-explore/mlx -- the framework everything MLX sits on
+2026-09-03 23:27:57,893 INFO [8bb4f23@M5-Max-128GB]    Add get_array_buffer_size to query buffer size for arrays (#4436)
+2026-09-03 23:27:57,893 INFO [8bb4f23@M5-Max-128GB] 
+2026-09-03 23:27:58,597 INFO [8bb4f23@M5-Max-128GB] == ml-explore/mlx-lm -- reference MLX server; new architectures land here first
+2026-09-03 23:27:58,598 INFO [8bb4f23@M5-Max-128GB]    Fix evaluate post processing ordering bug (#1820)
+2026-09-03 23:27:58,598 INFO [8bb4f23@M5-Max-128GB]    Add support for Talkie (talkie-1930-13b) (#1492)
+2026-09-03 23:27:58,598 INFO [8bb4f23@M5-Max-128GB]    Validate generation inputs instead of failing later or silently (#1828)
+2026-09-03 23:27:58,598 INFO [8bb4f23@M5-Max-128GB]    docs: document gated_delta_update q-scaling contract (#1823)
+2026-09-03 23:27:58,598 INFO [8bb4f23@M5-Max-128GB]    Add Sampler/LogitsProcessor type aliases and a named greedy sampler (#1827)
+2026-09-03 23:27:58,598 INFO [8bb4f23@M5-Max-128GB]    Scatter the top-p keep mask instead of inverting the sort permutation (#1825)
+2026-09-03 23:27:58,598 INFO [8bb4f23@M5-Max-128GB] 
+2026-09-03 23:27:59,251 INFO [8bb4f23@M5-Max-128GB] == jundot/omlx -- oMLX -- prefill leader, untested here (#60)
+2026-09-03 23:27:59,252 INFO [8bb4f23@M5-Max-128GB]    fix(mac): align the macOS app UI with system conventions (#3376)
+2026-09-03 23:27:59,252 INFO [8bb4f23@M5-Max-128GB] 
+2026-09-03 23:28:00,053 INFO [8bb4f23@M5-Max-128GB] == ddalcu/mlx-serve -- benchmarked on our exact machine; llmprobe's author
+2026-09-03 23:28:00,053 INFO [8bb4f23@M5-Max-128GB]    releases: v26.9.1
+2026-09-03 23:28:00,053 INFO [8bb4f23@M5-Max-128GB]    brew: update to v26.9.1
+2026-09-03 23:28:00,053 INFO [8bb4f23@M5-Max-128GB]    fix: dont show ssh msg for non sandbox terminals
+2026-09-03 23:28:00,053 INFO [8bb4f23@M5-Max-128GB]    fix(ltx): video decode no longer OOMs on MLX 0.32.2 (#321)
+2026-09-03 23:28:00,053 INFO [8bb4f23@M5-Max-128GB]    qwen4: QSA history slices to its snap, one copy per entry, no history = miss
+2026-09-03 23:28:00,053 INFO [8bb4f23@M5-Max-128GB]    fix(qwen4): stop cloning QSA history into every SSM checkpoint
+2026-09-03 23:28:00,053 INFO [8bb4f23@M5-Max-128GB]    qwen4_exp: gather QSA decode KV, flatten long-context tok/s
+2026-09-03 23:28:00,054 INFO [8bb4f23@M5-Max-128GB]    fix: Every quantized repo read 4x too big in the Model Browser (HF
+2026-09-03 23:28:00,054 INFO [8bb4f23@M5-Max-128GB]    app: move sandbox terminals into the chat sidebar, kill the Sandbox
+2026-09-03 23:28:00,054 INFO [8bb4f23@M5-Max-128GB]    qwen4_exp: build the decode graph before the n-gram sync, +10% decode
+2026-09-03 23:28:00,054 INFO [8bb4f23@M5-Max-128GB] 
+2026-09-03 23:28:00,670 INFO [8bb4f23@M5-Max-128GB] == youssofal/MTPLX -- MTP speculative decoding; we hold one unreplicated number
+2026-09-03 23:28:00,670 INFO [8bb4f23@M5-Max-128GB]    (quiet)
+2026-09-03 23:28:00,670 INFO [8bb4f23@M5-Max-128GB] 
+2026-09-03 23:28:01,373 INFO [8bb4f23@M5-Max-128GB] == raullenchai/Rapid-MLX -- the one MLX engine reachable by pip (#57, #60)
+2026-09-03 23:28:01,373 INFO [8bb4f23@M5-Max-128GB]    releases: v0.13.4, rapid-mac-v0.13.4
+2026-09-03 23:28:01,373 INFO [8bb4f23@M5-Max-128GB]    fix(scheduler): bound per-step decode output chain on hybrid lanes (#2834) (#2972)
+2026-09-03 23:28:01,373 INFO [8bb4f23@M5-Max-128GB]    fix(ci): accept scrollbar-free transcript tail (#3016)
+2026-09-03 23:28:01,373 INFO [8bb4f23@M5-Max-128GB]    fix: complete Desktop video Community Benchmark validation (#3014)
+2026-09-03 23:28:01,373 INFO [8bb4f23@M5-Max-128GB]    fix(mac): prevent star prompt label truncation (#2988)
+2026-09-03 23:28:01,373 INFO [8bb4f23@M5-Max-128GB]    feat: quantize compatible layers in hybrid KV caches (#2970)
+2026-09-03 23:28:01,373 INFO [8bb4f23@M5-Max-128GB]    fix(ci): restore managed macOS GUI queue (#2987)
+2026-09-03 23:28:01,373 INFO [8bb4f23@M5-Max-128GB]    fix(serve): calm default startup logs; keep Ready/Connect the stable endpoint (#2356) (#2981)
+2026-09-03 23:28:01,373 INFO [8bb4f23@M5-Max-128GB]    feat(serve): lead serve --help with a concise common-journey quick-start (#2354) (#2979)
+2026-09-03 23:28:01,373 INFO [8bb4f23@M5-Max-128GB]    feat(models): add --search and --modality to narrow the catalog (#2355) (#2974)
+2026-09-03 23:28:01,373 INFO [8bb4f23@M5-Max-128GB]    ci: move rapid-mac jobs to Manzanita runners (#2968)
+2026-09-03 23:28:01,373 INFO [8bb4f23@M5-Max-128GB]    Desktop: default to 7659 (RMLX) and add GUI port control — avoid 8000 collisions (#2878)
+2026-09-03 23:28:01,373 INFO [8bb4f23@M5-Max-128GB] 
+2026-09-03 23:28:01,970 INFO [8bb4f23@M5-Max-128GB] == ARahim3/mlx-dspark -- DSpark/DFlash ported to MLX (#19, #58, #75)
+2026-09-03 23:28:01,970 INFO [8bb4f23@M5-Max-128GB]    (quiet)
+2026-09-03 23:28:01,970 INFO [8bb4f23@M5-Max-128GB] 
+2026-09-03 23:28:02,573 INFO [8bb4f23@M5-Max-128GB] == Blaizzy/mlx-vlm -- expert offloading, prefix caching, Qwen3.8-Flash-Next MTP
+2026-09-03 23:28:02,574 INFO [8bb4f23@M5-Max-128GB]    mla: use the absorbed path for multi-token steps (#2150)
+2026-09-03 23:28:02,574 INFO [8bb4f23@M5-Max-128GB]    Fix multi-turn crash on hybrid models with untrimmable caches (#2152)
+2026-09-03 23:28:02,574 INFO [8bb4f23@M5-Max-128GB]    Enable speculative decoding for Laguna (#2151)
+2026-09-03 23:28:02,574 INFO [8bb4f23@M5-Max-128GB]    Add Nemotron-H speculative decoding support (#2145)
+2026-09-03 23:28:02,574 INFO [8bb4f23@M5-Max-128GB] 
+2026-09-03 23:28:03,512 INFO [8bb4f23@M5-Max-128GB] == unslothai/llama.cpp -- the fork with a working qwen4exp MTP graph (#77)
+2026-09-03 23:28:03,512 INFO [8bb4f23@M5-Max-128GB]    (quiet)
+2026-09-03 23:28:03,512 INFO [8bb4f23@M5-Max-128GB] 
+2026-09-03 23:28:04,179 INFO [8bb4f23@M5-Max-128GB] == Layr-Labs/mlxfast-gemma4-26b-a4b-engine -- MLX Fast leaderboard harness (#80)
+2026-09-03 23:28:04,179 INFO [8bb4f23@M5-Max-128GB]    Accept submission 1779adc7-a7c0-4957-8cff-4ad6a5532188
+2026-09-03 23:28:04,179 INFO [8bb4f23@M5-Max-128GB]    Validate submission 69fdba0f-9750-4c08-b295-260f9fac8030
+2026-09-03 23:28:04,179 INFO [8bb4f23@M5-Max-128GB]    Validate submission a3aeaf39-8e5e-404f-bbde-a62e2c56a729
+2026-09-03 23:28:04,179 INFO [8bb4f23@M5-Max-128GB]    Validate submission 1774113e-53fe-4675-ab84-e4dd5310dc47
+2026-09-03 23:28:04,179 INFO [8bb4f23@M5-Max-128GB]    Accept submission 335e45b2-0939-42b2-b427-6a813da0a937
+2026-09-03 23:28:04,179 INFO [8bb4f23@M5-Max-128GB]    Accept submission 48518d1f-2dd3-455c-a79c-73cd35abe476
+2026-09-03 23:28:04,179 INFO [8bb4f23@M5-Max-128GB]    Validate submission 97b6af64-cddc-49eb-9722-7e8db886da69
+2026-09-03 23:28:04,179 INFO [8bb4f23@M5-Max-128GB]    Validate submission ce59434f-7c87-482d-99b8-c771adc2514b
+2026-09-03 23:28:04,179 INFO [8bb4f23@M5-Max-128GB]    Validate submission b0b3d861-4854-45ac-ba76-0ba32240c349
+2026-09-03 23:28:04,180 INFO [8bb4f23@M5-Max-128GB]    Validate submission 806e884a-6f5d-426c-9c4f-ec8d22ef2143
+2026-09-03 23:28:04,180 INFO [8bb4f23@M5-Max-128GB]    Accept submission ce7a3b7a-b1db-4942-ab66-3fbed8664f1d
+2026-09-03 23:28:04,180 INFO [8bb4f23@M5-Max-128GB]    Validate submission 94db9309-deb0-4c8d-b0df-177fbc2e2bc2
+2026-09-03 23:28:04,180 INFO [8bb4f23@M5-Max-128GB]    ... and 4 more
+2026-09-03 23:28:04,180 INFO [8bb4f23@M5-Max-128GB] 
+2026-09-03 23:28:04,738 INFO [8bb4f23@M5-Max-128GB] == sudoingX/qwen38-mtp -- 61 paired baseline-vs-MTP runs, disciplined method (#19, #39)
+2026-09-03 23:28:04,738 INFO [8bb4f23@M5-Max-128GB]    (quiet)
+2026-09-03 23:28:04,738 INFO [8bb4f23@M5-Max-128GB] 
+2026-09-03 23:28:04,738 INFO [8bb4f23@M5-Max-128GB] log: /Users/evanhoffman/git/local-llm/logs/sweeps/upstream-sweep-M5-Max-128GB-20260904T032752Z.log
