@@ -907,3 +907,69 @@ def test_the_suite_runner_takes_the_machine_lock():
     assert "acquire_lock" in source
     assert "atexit.register" in source
     assert "--no-lock" in source
+
+
+def test_the_resolved_sampler_is_read_from_model_info(monkeypatch):
+    """#84: /api/show carries the GGUF's own KVs, so the numbers actually in
+    force from ollama 0.33.3 on are readable without a GGUF path."""
+    show = {
+        "modelfile": "FROM /blobs/sha256-abc\n",
+        "model_info": {
+            "general.architecture": "llama",
+            "general.sampling.temp": 1,
+            "general.sampling.top_k": 20,
+            "general.sampling.top_p": 0.95,
+        },
+    }
+    got = run.parse_ollama_show(show, ollama_version="0.33.3")
+    assert got["sampling"] == {"temp": 1, "top_k": 20, "top_p": 0.95}
+    assert "model-authored" in got["sampling_source"]
+    assert "unrecorded" not in got["sampling_source"]
+
+
+def test_before_0_33_3_the_declared_sampler_is_named_as_overridden():
+    """Pre-0.33.3 the built-ins win, so recording the declared numbers as if
+    they ran would be a lie about that row (#84)."""
+    show = {
+        "modelfile": "FROM /blobs/sha256-abc\n",
+        "model_info": {"general.sampling.top_p": 0.95},
+    }
+    got = run.parse_ollama_show(show, ollama_version="0.33.2")
+    assert got["sampling"] == {}
+    assert "unrecorded" in got["sampling_source"]
+    assert "overridden" in got["sampling_source"]
+    assert "0.95" in got["sampling_source"]
+
+
+def test_a_modelfile_parameter_still_outranks_the_gguf():
+    """Precedence 2 beats precedence 3 either side of the boundary."""
+    show = {
+        "modelfile": "FROM /x\nPARAMETER top_p 0.9\n",
+        "model_info": {"general.sampling.top_p": 0.95},
+    }
+    got = run.parse_ollama_show(show, ollama_version="0.33.3")
+    assert got["sampling"] == {"top_p": "0.9"}
+    assert got["sampling_source"] == "modelfile"
+
+
+def test_a_model_that_declares_nothing_says_so():
+    show = {"modelfile": "FROM /x\n", "model_info": {"general.architecture": "llama"}}
+    got = run.parse_ollama_show(show, ollama_version="0.33.3")
+    assert got["sampling"] == {}
+    assert "declares no sampler" in got["sampling_source"]
+
+
+def test_model_declared_sampling_strips_the_prefix_and_ignores_the_rest():
+    assert run.model_declared_sampling(
+        {"model_info": {"general.sampling.top_k": 20, "general.architecture": "x"}}
+    ) == {"top_k": 20}
+    assert run.model_declared_sampling({}) == {}
+    assert run.model_declared_sampling({"model_info": None}) == {}
+
+
+def test_absent_model_info_is_not_read_as_declaring_nothing():
+    """#84: "we could not see" and "it declares nothing" are different facts,
+    and the pre-existing regime test was right to protect the distinction."""
+    got = run.parse_ollama_show({"modelfile": "FROM x\n"}, ollama_version="0.33.3")
+    assert "model_info absent" in got["sampling_source"]
+    assert "declares no sampler" not in got["sampling_source"]

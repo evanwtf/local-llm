@@ -289,6 +289,21 @@ def ollama_honors_model_defaults(version):
     return numbers >= OLLAMA_MODEL_DEFAULTS_FROM
 
 
+def model_declared_sampling(show):
+    """The sampler the GGUF itself declares, from /api/show `model_info` (#84).
+
+    Ollama surfaces the model's own KVs here, so `general.sampling.*` is
+    readable without opening the file. Keys are returned with the
+    `general.sampling.` prefix stripped, so they line up with the modelfile
+    PARAMETER names that occupy the same slot at a higher precedence.
+    """
+    info = show.get("model_info") if isinstance(show, dict) else None
+    if not isinstance(info, dict):
+        return {}
+    prefix = "general.sampling."
+    return {k[len(prefix) :]: v for k, v in info.items() if k.startswith(prefix)}
+
+
 def parse_ollama_show(show, ollama_version=None):
     """Read the sampler out of an Ollama `/api/show` response.
 
@@ -323,17 +338,50 @@ def parse_ollama_show(show, ollama_version=None):
     # resolved values -- it stays "unrecorded" either way -- but it stops one
     # string describing two different samplers.
     honors = ollama_honors_model_defaults(ollama_version)
+    # #84's remaining half. /api/show returns `model_info`, which carries the
+    # GGUF's own KVs -- including general.sampling.* when the model declares
+    # them. So the resolved sampler is readable from the response we already
+    # fetch: no GGUF path, no separate header read. NEXT.md had this down as
+    # "wire gguf_meta.py into probe_ollama()", which is not needed.
+    declared = model_declared_sampling(show)
     if honors is None:
         regime = "engine defaults (unrecorded; ollama version unknown)"
     elif honors:
-        regime = (
-            "engine defaults (unrecorded; model-authored GGUF/generation_config "
-            "defaults honored, ollama >= 0.33.3)"
-        )
+        if declared:
+            # These are the numbers actually in force from 0.33.3 on.
+            return {
+                "sampling": declared,
+                "sampling_source": (
+                    "model-authored GGUF defaults, resolved from /api/show "
+                    "model_info (ollama >= 0.33.3)"
+                ),
+            }
+        # Absent model_info and empty model_info are different facts. Absent
+        # means we could not see what the model declares -- an older ollama, a
+        # truncated response -- so the regime is all we can name. Empty means
+        # we looked and it declares nothing, so the built-ins apply and saying
+        # so is more useful than naming the regime.
+        elif isinstance(show.get("model_info"), dict):
+            regime = (
+                "engine defaults (unrecorded; model declares no sampler, so "
+                "ollama built-ins apply even at >= 0.33.3)"
+            )
+        else:
+            regime = (
+                "engine defaults (unrecorded; model-authored GGUF/"
+                "generation_config defaults honored, ollama >= 0.33.3; "
+                "model_info absent so the values could not be read)"
+            )
     else:
+        # Pre-0.33.3 the built-ins win, so what the model declares is NOT what
+        # ran. Recording it anyway would be a lie about this row; naming it as
+        # overridden is the useful half, because it says what the same row
+        # would get after an upgrade.
         regime = (
             "engine defaults (unrecorded; ollama built-in defaults, ollama <= 0.33.2)"
         )
+        if declared:
+            regime += f" -- model declares {declared}, overridden at this version"
     return {"sampling": sampling, "sampling_source": regime}
 
 
