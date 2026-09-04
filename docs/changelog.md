@@ -22,6 +22,41 @@ picks in `RECOMMENDATIONS.md`, and the current queue in `NEXT.md`.
 
 ---
 
+**2026-09-04. A prefill figure now carries its prompt (#140).**
+
+`scripts/decode_ab.sh` has taken `PROMPT` as an environment variable with a
+default since it was written in 91ca9ff, and nothing recorded which prompt a
+run used. That was invisible until @adamlawi posted on ds4#952 that the
+prompt decides the Q4-vs-Q8 prefill answer: on one box with identical
+binaries, +2.5% with a 135 kB prompt and parity with a 405 kB one. Our own
+four-run recheck read parity on a 1298 KiB prompt, which fits his result — and
+we had published that figure ninety minutes earlier without naming the file.
+
+Three places changed, in the order a number travels:
+
+* `scripts/prompt_meta.py` (new) stamps `prompt_file` and `prompt_bytes` onto
+  every row of every ds4-bench CSV, so a CSV carries its own provenance when
+  it is copied out of its directory. Re-stamping with a *different* prompt is
+  refused rather than overwritten — that would mean one run directory holds
+  two regimes.
+* `decode_ab_report.py` names the prompt in the quotable line and **refuses to
+  pool prefill across prompts**: runs that do not share one are two results,
+  not one with more samples.
+* `scripts/backfill_prompt_meta.py` (new) wrote a sidecar for the eight run
+  directories measured before any of this. They are marked `inferred` and
+  print as inferred wherever they are quoted, because a stamp claims the run
+  recorded it and these did not. The inference is checked, not assumed: the
+  PROMPT default has one entry in the log, each run's `start-state.txt`
+  harness line carries no `PROMPT=` override, and the file is byte-identical
+  in every ds4 tree here. A run whose harness line *does* override PROMPT is
+  skipped and named.
+
+`1298 kB` as quoted in this project was bytes/1024, so it is written `KiB`
+now. The unit was wrong; the figure was not.
+
+Item 3 of #140 — whether to amend the ds4#952 comment to name the prompt — is
+an outward-facing edit and stays with the operator.
+
 **2026-09-04. Backfilling one field found a confound in the published
 recommendations ([#137](https://github.com/evanwtf/local-llm/issues/137)).**
 

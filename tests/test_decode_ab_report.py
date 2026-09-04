@@ -346,3 +346,59 @@ def test_a_single_run_quote_says_it_is_not_a_measurement(tmp_path):
 def test_quotable_names_the_direction():
     """A bare ratio has been misread the wrong way round once already."""
     assert report.quotable([]) == "no runs"
+
+
+# ---------------------------------------------------------------------------
+# #140: the prompt is an input to a prefill figure, so it belongs on the quote.
+
+
+def _prompt_dir(tmp_path, name: str, prompt: str, size: int) -> pathlib.Path:
+    """A complete one-frontier run whose CSVs carry a prompt stamp."""
+    import prompt_meta
+
+    d = tmp_path / name
+    d.mkdir()
+    _write_rep(d, "q4", 1, {2048: 30.0})
+    _write_rep(d, "q8", 1, {2048: 27.0})
+    src = tmp_path / prompt
+    if not src.exists():
+        src.write_bytes(b"x" * size)
+    for csv_path in d.glob("*-rep*.csv"):
+        prompt_meta.stamp(csv_path, src)
+    return d
+
+
+def test_the_quote_names_the_prompt(tmp_path):
+    d = _prompt_dir(tmp_path, "run1", "promessi_sposi.txt", 1329139)
+    runs, _ = report.report_across_runs([d], "prefill_tps")
+    line = report.quotable(runs, report.prompt_for(runs))
+    assert "promessi_sposi.txt" in line
+    assert "1298 KiB" in line
+
+
+def test_the_quote_says_so_when_no_run_recorded_the_prompt(tmp_path):
+    d = tmp_path / "run1"
+    d.mkdir()
+    _write_rep(d, "q4", 1, {2048: 30.0})
+    _write_rep(d, "q8", 1, {2048: 27.0})
+    runs, _ = report.report_across_runs([d], "prefill_tps")
+    line = report.quotable(runs, report.prompt_for(runs))
+    assert "NOT RECORDED" in line
+
+
+def test_runs_on_different_prompts_are_not_pooled_into_one_quote(tmp_path):
+    """@adamlawi's whole point: two prompts, 2.4 pp apart, same binaries."""
+    short = _prompt_dir(tmp_path, "run1", "short.txt", 135000)
+    long_ = _prompt_dir(tmp_path, "run2", "long.txt", 405000)
+    runs, _ = report.report_across_runs([short, long_], "prefill_tps")
+    assert report.prompt_for(runs) is None
+    line = report.quotable(runs, report.prompt_for(runs))
+    assert "NOT RECORDED" in line or "different prompts" in line
+
+
+def test_prompt_for_reports_the_one_prompt_several_runs_share(tmp_path):
+    a = _prompt_dir(tmp_path, "run1", "p.txt", 1000)
+    b = _prompt_dir(tmp_path, "run2", "p.txt", 1000)
+    runs, _ = report.report_across_runs([a, b], "prefill_tps")
+    ref = report.prompt_for(runs)
+    assert ref is not None and ref.name == "p.txt"

@@ -1,0 +1,167 @@
+2026-09-04 17:18:41,197 INFO [eea3a1b@M5-Max-128GB] 2026-09-04T21:18:41Z (17:18:41 EDT) | harness eea3a1b
+2026-09-04 17:18:41,214 INFO [eea3a1b@M5-Max-128GB]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-04 17:18:41,214 INFO [eea3a1b@M5-Max-128GB] Upstream sweep since 2026-09-03T21:18:41Z (24h)
+
+2026-09-04 17:18:41,727 INFO [eea3a1b@M5-Max-128GB] == antirez/ds4 -- our primary engine; the only one that runs DeepSeek-V4-Flash and GLM-5.3
+2026-09-04 17:18:41,727 INFO [eea3a1b@M5-Max-128GB]    (quiet)
+2026-09-04 17:18:41,727 INFO [eea3a1b@M5-Max-128GB] 
+2026-09-04 17:18:42,553 INFO [eea3a1b@M5-Max-128GB] == ggml-org/llama.cpp -- our fast pick's engine; `qwen4exp` IS Qwen3.8-Flash-Next
+2026-09-04 17:18:42,553 INFO [eea3a1b@M5-Max-128GB]    releases: v0.4.0, b10816, b10814, b10813, b10809, b10798, b10797, b10796, b10795, b10794
+2026-09-04 17:18:42,553 INFO [eea3a1b@M5-Max-128GB]    metal : add remaining fa-vec tunings for M3 (#28396)
+2026-09-04 17:18:42,553 INFO [eea3a1b@M5-Max-128GB]    ui : fix MCP image attachments not displayed in tool block (#25789) (#28089)
+2026-09-04 17:18:42,553 INFO [eea3a1b@M5-Max-128GB]    opencl: extend the elementwise and data‐movement op coverage (#27633)
+2026-09-04 17:18:42,553 INFO [eea3a1b@M5-Max-128GB]    opencl: add Adreno xmem SDPA path (#26331)
+2026-09-04 17:18:42,553 INFO [eea3a1b@M5-Max-128GB]    ci : move more jobs to ccache-buckets (#28375)
+2026-09-04 17:18:42,553 INFO [eea3a1b@M5-Max-128GB]    ui: export conversations from database instead of cached store (#27432)
+2026-09-04 17:18:42,553 INFO [eea3a1b@M5-Max-128GB]    model : add Tencent Hy 4 (hy_v4) preview architecture support (#28127)
+2026-09-04 17:18:42,553 INFO [eea3a1b@M5-Max-128GB]    llama.cpp : bump version to 0.4.0 (#28386)
+2026-09-04 17:18:42,553 INFO [eea3a1b@M5-Max-128GB]    sync : ggml (#28379)
+2026-09-04 17:18:42,553 INFO [eea3a1b@M5-Max-128GB]    model, mtmd: fix gemma4 vision handling (#28335)
+2026-09-04 17:18:42,553 INFO [eea3a1b@M5-Max-128GB]    metal : add remaining fa-vec tunings for M3 Max (#28373)
+2026-09-04 17:18:42,553 INFO [eea3a1b@M5-Max-128GB]    ggml : replace compile definitions with version.h.in (#28364)
+2026-09-04 17:18:42,553 INFO [eea3a1b@M5-Max-128GB]    ... and 12 more
+2026-09-04 17:18:42,553 INFO [eea3a1b@M5-Max-128GB] 
+2026-09-04 17:18:43,275 INFO [eea3a1b@M5-Max-128GB] == ollama/ollama -- the 31 GB entry point, and our only MLX runtime
+2026-09-04 17:18:43,275 INFO [eea3a1b@M5-Max-128GB]    app: add Ollama to ChatGPT Desktop (#18236)
+2026-09-04 17:18:43,275 INFO [eea3a1b@M5-Max-128GB]    openai: add Codex compaction support (#18224)
+2026-09-04 17:18:43,275 INFO [eea3a1b@M5-Max-128GB]    openai: add client tool search support (#18223)
+2026-09-04 17:18:43,275 INFO [eea3a1b@M5-Max-128GB]    mlxrunner: compile structured output as xgrammar structural tags
+2026-09-04 17:18:43,275 INFO [eea3a1b@M5-Max-128GB]    mlxrunner: enable speculative decoding under structured output
+2026-09-04 17:18:43,275 INFO [eea3a1b@M5-Max-128GB] 
+2026-09-04 17:18:44,195 INFO [eea3a1b@M5-Max-128GB] == anomalyco/opencode -- our only client
+2026-09-04 17:18:44,195 INFO [eea3a1b@M5-Max-128GB]    releases: v1.18.28
+2026-09-04 17:18:44,195 INFO [eea3a1b@M5-Max-128GB]    feat(console): add quota reset support action (#47313)
+2026-09-04 17:18:44,195 INFO [eea3a1b@M5-Max-128GB]    docs(zh): fix bold rendering by adding spaces around asterisks (#46231)
+2026-09-04 17:18:44,195 INFO [eea3a1b@M5-Max-128GB]    sync release versions for v1.18.28
+2026-09-04 17:18:44,195 INFO [eea3a1b@M5-Max-128GB]    docs(go): renew DeepSeek ZDR through September 2026 (#47288)
+2026-09-04 17:18:44,195 INFO [eea3a1b@M5-Max-128GB]    chore: generate
+2026-09-04 17:18:44,195 INFO [eea3a1b@M5-Max-128GB]    fix(stats): hide stealth model providers
+2026-09-04 17:18:44,195 INFO [eea3a1b@M5-Max-128GB]    feat(console): route migrated BYOK through provider connections (#47266)
+2026-09-04 17:18:44,195 INFO [eea3a1b@M5-Max-128GB]    fix(console): backport usage reset boundary fix to dev (#47267)
+2026-09-04 17:18:44,195 INFO [eea3a1b@M5-Max-128GB]    fix(stats): keep omen-alpha under unknown provider (#47248)
+2026-09-04 17:18:44,195 INFO [eea3a1b@M5-Max-128GB]    test(core): disable npm audits in the test preload (#47222)
+2026-09-04 17:18:44,195 INFO [eea3a1b@M5-Max-128GB]    chore: generate
+2026-09-04 17:18:44,195 INFO [eea3a1b@M5-Max-128GB]    docs(go): add Omen Alpha (#47220)
+2026-09-04 17:18:44,195 INFO [eea3a1b@M5-Max-128GB]    ... and 1 more
+2026-09-04 17:18:44,195 INFO [eea3a1b@M5-Max-128GB] 
+2026-09-04 17:18:44,844 INFO [eea3a1b@M5-Max-128GB] == evanwtf/local-llm -- this project
+2026-09-04 17:18:44,844 INFO [eea3a1b@M5-Max-128GB]    fix: the pin-decision test matched a phrase the comment wraps (CI red, twice)
+2026-09-04 17:18:44,844 INFO [eea3a1b@M5-Max-128GB]    decode_ab_report: argparse, so --help works and a typo is rejected
+2026-09-04 17:18:44,844 INFO [eea3a1b@M5-Max-128GB]    client-pins: record the pending claude decision where it will be read
+2026-09-04 17:18:44,844 INFO [eea3a1b@M5-Max-128GB]    runbook: how Claude Code updates itself, and that a downgrade is free (#131)
+2026-09-04 17:18:44,844 INFO [eea3a1b@M5-Max-128GB]    fix: isolate the CI-check test from machine state, and re-splice after the backfill
+2026-09-04 17:18:44,844 INFO [eea3a1b@M5-Max-128GB]    scripts: an index, generated from the scripts themselves
+2026-09-04 17:18:44,844 INFO [eea3a1b@M5-Max-128GB]    changelog: the client-version confound, and that a field found it
+2026-09-04 17:18:44,844 INFO [eea3a1b@M5-Max-128GB]    scripts: report which client version took which rows (#137, #131)
+2026-09-04 17:18:44,844 INFO [eea3a1b@M5-Max-128GB]    NEXT: #137 at rank 2 -- the client-version confound
+2026-09-04 17:18:44,844 INFO [eea3a1b@M5-Max-128GB]    results: backfill client_version where it is derivable (#131 item 3)
+2026-09-04 17:18:44,844 INFO [eea3a1b@M5-Max-128GB]    changelog: the late afternoon, worked in queue order until the clock
+2026-09-04 17:18:44,844 INFO [eea3a1b@M5-Max-128GB]    scripts: pass rate by trial index, from rows we already hold (#120)
+2026-09-04 17:18:44,844 INFO [eea3a1b@M5-Max-128GB]    ... and 73 more
+2026-09-04 17:18:44,844 INFO [eea3a1b@M5-Max-128GB] 
+2026-09-04 17:18:45,537 INFO [eea3a1b@M5-Max-128GB] == evanwtf/gmail-archive -- the excision tasks' target repository
+2026-09-04 17:18:45,537 INFO [eea3a1b@M5-Max-128GB]    (quiet)
+2026-09-04 17:18:45,537 INFO [eea3a1b@M5-Max-128GB] 
+2026-09-04 17:18:46,193 INFO [eea3a1b@M5-Max-128GB] == evanwtf/ds4 -- our ds4 fork (#27 asks whether it can be retired)
+2026-09-04 17:18:46,194 INFO [eea3a1b@M5-Max-128GB]    (quiet)
+2026-09-04 17:18:46,194 INFO [eea3a1b@M5-Max-128GB] 
+2026-09-04 17:18:46,833 INFO [eea3a1b@M5-Max-128GB] == ml-explore/mlx -- the framework everything MLX sits on
+2026-09-04 17:18:46,833 INFO [eea3a1b@M5-Max-128GB]    (quiet)
+2026-09-04 17:18:46,833 INFO [eea3a1b@M5-Max-128GB] 
+2026-09-04 17:18:47,529 INFO [eea3a1b@M5-Max-128GB] == ml-explore/mlx-lm -- reference MLX server; new architectures land here first
+2026-09-04 17:18:47,529 INFO [eea3a1b@M5-Max-128GB]    Fix/mlx_lm.evaluate ignoring max_gen_toks and --batch-size during generation (#1812)
+2026-09-04 17:18:47,529 INFO [eea3a1b@M5-Max-128GB]    gpt_oss: stop_gradient on top-k indices so LoRA backward works (fixes #1814) (#1843)
+2026-09-04 17:18:47,529 INFO [eea3a1b@M5-Max-128GB]    Make sure server only uses one stream for generation (#1840)
+2026-09-04 17:18:47,529 INFO [eea3a1b@M5-Max-128GB]    Normalize per-sequence samplers and logits processors (#1826)
+2026-09-04 17:18:47,529 INFO [eea3a1b@M5-Max-128GB]    Read BatchKVCache left padding without a reduction kernel (#1824)
+2026-09-04 17:18:47,529 INFO [eea3a1b@M5-Max-128GB]    Clear model and prompt cache in generation thread (#1839)
+2026-09-04 17:18:47,529 INFO [eea3a1b@M5-Max-128GB] 
+2026-09-04 17:18:48,151 INFO [eea3a1b@M5-Max-128GB] == jundot/omlx -- oMLX -- prefill leader, untested here (#60)
+2026-09-04 17:18:48,151 INFO [eea3a1b@M5-Max-128GB]    (quiet)
+2026-09-04 17:18:48,152 INFO [eea3a1b@M5-Max-128GB] 
+2026-09-04 17:18:48,802 INFO [eea3a1b@M5-Max-128GB] == ddalcu/mlx-serve -- benchmarked on our exact machine; llmprobe's author
+2026-09-04 17:18:48,802 INFO [eea3a1b@M5-Max-128GB]    fix(prefix-cache): a commit from a restored prefix inherits the donor's checkpoints; a hybrid miss is never silent (related: #353) (#354)
+2026-09-04 17:18:48,802 INFO [eea3a1b@M5-Max-128GB]    perf(qwen4): verify widths gather the QSA-selected rows — long-context MTP with 8-bit KV (#352)
+2026-09-04 17:18:48,802 INFO [eea3a1b@M5-Max-128GB]    perf(qwen4): cheaper MTP rounds — deferred PLE gather, EV seed, coarse-head draft rerank (#350)
+2026-09-04 17:18:48,802 INFO [eea3a1b@M5-Max-128GB] 
+2026-09-04 17:18:49,515 INFO [eea3a1b@M5-Max-128GB] == youssofal/MTPLX -- MTP speculative decoding; we hold one unreplicated number
+2026-09-04 17:18:49,515 INFO [eea3a1b@M5-Max-128GB]    releases: v2.11.1
+2026-09-04 17:18:49,515 INFO [eea3a1b@M5-Max-128GB]    server: the pre-prefill memory guard estimates reuse the way the restore does, so a block-restorable turn is pinned instead of evicted as superseded
+2026-09-04 17:18:49,515 INFO [eea3a1b@M5-Max-128GB]    notes: 2.11 release notes in the 2.10.0 layout
+2026-09-04 17:18:49,515 INFO [eea3a1b@M5-Max-128GB]    Merge branch 'feat/l10n-new-keys'
+2026-09-04 17:18:49,515 INFO [eea3a1b@M5-Max-128GB]    l10n: the ten strings behind paste-to-attach, the model-folder picker and the language prompt, in all twelve languages; CHANGELOG
+2026-09-04 17:18:49,515 INFO [eea3a1b@M5-Max-128GB]    docs: record localization QA safety guardrails
+2026-09-04 17:18:49,515 INFO [eea3a1b@M5-Max-128GB]    fix(app): correct Simplified Chinese localization
+2026-09-04 17:18:49,515 INFO [eea3a1b@M5-Max-128GB]    Merge branch 'feat/model-folder-picker'
+2026-09-04 17:18:49,515 INFO [eea3a1b@M5-Max-128GB]    app: native folder picker for local models; a chosen folder becomes a lasting picker row
+2026-09-04 17:18:49,515 INFO [eea3a1b@M5-Max-128GB]    Merge branch 'feat/language-prompt'
+2026-09-04 17:18:49,515 INFO [eea3a1b@M5-Max-128GB]    Merge branch 'feat/paste-attachments'
+2026-09-04 17:18:49,515 INFO [eea3a1b@M5-Max-128GB]    chat: ⌘V pastes screenshots and Finder copies as attachments; images are refused visibly when the model cannot see
+2026-09-04 17:18:49,515 INFO [eea3a1b@M5-Max-128GB]    app: ask installs that onboarded before the Language step for their language, once
+2026-09-04 17:18:49,515 INFO [eea3a1b@M5-Max-128GB]    ... and 51 more
+2026-09-04 17:18:49,515 INFO [eea3a1b@M5-Max-128GB] 
+2026-09-04 17:18:50,194 INFO [eea3a1b@M5-Max-128GB] == raullenchai/Rapid-MLX -- the one MLX engine reachable by pip (#57, #60)
+2026-09-04 17:18:50,194 INFO [eea3a1b@M5-Max-128GB]    fix(residency): track post-commit engine cleanup across cancellation (#3034)
+2026-09-04 17:18:50,194 INFO [eea3a1b@M5-Max-128GB]    fix(mtp): keep ordinary tool requests on verified decode (#3032)
+2026-09-04 17:18:50,194 INFO [eea3a1b@M5-Max-128GB]    fix(server): budget forced-alignment models through alignment-role admission (#2405) (#3028)
+2026-09-04 17:18:50,194 INFO [eea3a1b@M5-Max-128GB]    fix(mac): accept the current live video capabilities contract (#2969) (#3024)
+2026-09-04 17:18:50,194 INFO [eea3a1b@M5-Max-128GB]    fix(engine): cooperatively cancel buffered guided decoding (#3022)
+2026-09-04 17:18:50,194 INFO [eea3a1b@M5-Max-128GB]    fix(server): synthesise schema-valid args for forced named calls (#2502) (#3027)
+2026-09-04 17:18:50,194 INFO [eea3a1b@M5-Max-128GB]    fix(pr_validate): warn (not block) roster-only workflow edits (#2522) (#3025)
+2026-09-04 17:18:50,194 INFO [eea3a1b@M5-Max-128GB]    feat(benchmark): show contributor identity after sharing (#3023)
+2026-09-04 17:18:50,194 INFO [eea3a1b@M5-Max-128GB]    fix(cache): accept safe indexed sidecar paths (#3020)
+2026-09-04 17:18:50,194 INFO [eea3a1b@M5-Max-128GB]    fix(scheduler): bound per-step decode output chain on hybrid lanes (#2834) (#2972)
+2026-09-04 17:18:50,194 INFO [eea3a1b@M5-Max-128GB]    fix(ci): accept scrollbar-free transcript tail (#3016)
+2026-09-04 17:18:50,194 INFO [eea3a1b@M5-Max-128GB]    fix: complete Desktop video Community Benchmark validation (#3014)
+2026-09-04 17:18:50,195 INFO [eea3a1b@M5-Max-128GB] 
+2026-09-04 17:18:50,825 INFO [eea3a1b@M5-Max-128GB] == ARahim3/mlx-dspark -- DSpark/DFlash ported to MLX (#19, #58, #75)
+2026-09-04 17:18:50,825 INFO [eea3a1b@M5-Max-128GB]    (quiet)
+2026-09-04 17:18:50,825 INFO [eea3a1b@M5-Max-128GB] 
+2026-09-04 17:18:51,454 INFO [eea3a1b@M5-Max-128GB] == Blaizzy/mlx-vlm -- expert offloading, prefix caching, Qwen3.8-Flash-Next MTP
+2026-09-04 17:18:51,454 INFO [eea3a1b@M5-Max-128GB]    Optimize Qwen4 QSA cache reuse and batched parity (#2126)
+2026-09-04 17:18:51,454 INFO [eea3a1b@M5-Max-128GB]    Add Ornith 1.5 (Qwen3.5 VL) support and verify qwen3_5_moe MTP (#2125)
+2026-09-04 17:18:51,454 INFO [eea3a1b@M5-Max-128GB]    Porting model K2-Horizon (#2153)
+2026-09-04 17:18:51,454 INFO [eea3a1b@M5-Max-128GB]    Fix Gemma4DSparkAttention AttributeError on first forward (#2158)
+2026-09-04 17:18:51,454 INFO [eea3a1b@M5-Max-128GB] 
+2026-09-04 17:18:52,404 INFO [eea3a1b@M5-Max-128GB] == unslothai/llama.cpp -- the fork with a working qwen4exp MTP graph (#77)
+2026-09-04 17:18:52,404 INFO [eea3a1b@M5-Max-128GB]    releases: b10796-mix-659e406
+2026-09-04 17:18:52,404 INFO [eea3a1b@M5-Max-128GB]    Merge pull request #178 from unslothai/feature-matrix/prove-each-feature-runs
+2026-09-04 17:18:52,404 INFO [eea3a1b@M5-Max-128GB]    Merge master, which now carries the updated pin set
+2026-09-04 17:18:52,404 INFO [eea3a1b@M5-Max-128GB]    Merge pull request #174 from unslothai/pr-set/unbreak-nightly-b10775
+2026-09-04 17:18:52,404 INFO [eea3a1b@M5-Max-128GB]    Merge pull request #175 from unslothai/pin-contract/verify-the-merged-tree
+2026-09-04 17:18:52,404 INFO [eea3a1b@M5-Max-128GB]    Merge pull request #179 from unslothai/preflight/report-the-conflict-instead-of-dying
+2026-09-04 17:18:52,404 INFO [eea3a1b@M5-Max-128GB]    unsloth: repin #176 onto b10796
+2026-09-04 17:18:52,404 INFO [eea3a1b@M5-Max-128GB]    Merge the widened compile gate from the base branch
+2026-09-04 17:18:52,404 INFO [eea3a1b@M5-Max-128GB]    unsloth: build mtmd in the compile gate too, not just llama
+2026-09-04 17:18:52,404 INFO [eea3a1b@M5-Max-128GB]    unsloth: point the feature checks at the PRs that own each feature now
+2026-09-04 17:18:52,404 INFO [eea3a1b@M5-Max-128GB]    unsloth: pin the IQ1 grids from #61 now that it sits on the base tag
+2026-09-04 17:18:52,404 INFO [eea3a1b@M5-Max-128GB]    unsloth: repin #171 onto b10796
+2026-09-04 17:18:52,404 INFO [eea3a1b@M5-Max-128GB]    unsloth: pin the upstream PRs directly now that they carry the fixes
+2026-09-04 17:18:52,404 INFO [eea3a1b@M5-Max-128GB]    ... and 14 more
+2026-09-04 17:18:52,404 INFO [eea3a1b@M5-Max-128GB] 
+2026-09-04 17:18:53,012 INFO [eea3a1b@M5-Max-128GB] == Layr-Labs/mlxfast-gemma4-26b-a4b-engine -- MLX Fast leaderboard harness (#80)
+2026-09-04 17:18:53,012 INFO [eea3a1b@M5-Max-128GB]    Accept submission eaa0632a-9702-4224-af84-7e17e4cf919a
+2026-09-04 17:18:53,012 INFO [eea3a1b@M5-Max-128GB]    Accept submission 32422446-c3d2-4674-a520-407e4f00e1e8
+2026-09-04 17:18:53,012 INFO [eea3a1b@M5-Max-128GB]    Validate submission 5f4baa60-27a5-4fc0-9fae-d36dbcd1be89
+2026-09-04 17:18:53,012 INFO [eea3a1b@M5-Max-128GB]    Validate submission cb349321-38c0-4143-abbf-6491584d9dd7
+2026-09-04 17:18:53,012 INFO [eea3a1b@M5-Max-128GB]    Validate submission 036d845a-bc97-4e8e-92b2-1151b5ca6ca1
+2026-09-04 17:18:53,012 INFO [eea3a1b@M5-Max-128GB]    Validate submission 7e3fa0f9-9508-49c8-a0a9-ad2507052a96
+2026-09-04 17:18:53,012 INFO [eea3a1b@M5-Max-128GB]    Validate submission d7e00bcb-cb7c-4155-8b8d-9e4f057c1480
+2026-09-04 17:18:53,012 INFO [eea3a1b@M5-Max-128GB]    Accept submission 1779adc7-a7c0-4957-8cff-4ad6a5532188
+2026-09-04 17:18:53,012 INFO [eea3a1b@M5-Max-128GB]    Validate submission 69fdba0f-9750-4c08-b295-260f9fac8030
+2026-09-04 17:18:53,012 INFO [eea3a1b@M5-Max-128GB] 
+2026-09-04 17:18:53,565 INFO [eea3a1b@M5-Max-128GB] == sudoingX/qwen38-mtp -- 61 paired baseline-vs-MTP runs, disciplined method (#19, #39)
+2026-09-04 17:18:53,565 INFO [eea3a1b@M5-Max-128GB]    (quiet)
+2026-09-04 17:18:53,565 INFO [eea3a1b@M5-Max-128GB] 
+2026-09-04 17:18:54,332 INFO [eea3a1b@M5-Max-128GB] == trymirai/uzu -- Apple-only Rust engine, reachable by pip; claims 2x MTPLX (#134)
+2026-09-04 17:18:54,333 INFO [eea3a1b@M5-Max-128GB]    releases: 0.5.23
+2026-09-04 17:18:54,333 INFO [eea3a1b@M5-Max-128GB]    Revert "mxfp4" (#804)
+2026-09-04 17:18:54,333 INFO [eea3a1b@M5-Max-128GB]    mxfp4
+2026-09-04 17:18:54,333 INFO [eea3a1b@M5-Max-128GB]    Fix tool calls result block parsing (#802)
+2026-09-04 17:18:54,333 INFO [eea3a1b@M5-Max-128GB]    Fix all readmes (#801)
+2026-09-04 17:18:54,333 INFO [eea3a1b@M5-Max-128GB]    Correct Broad model support link (#797)
+2026-09-04 17:18:54,333 INFO [eea3a1b@M5-Max-128GB]    Revert "hf downloading support" (#799)
+2026-09-04 17:18:54,333 INFO [eea3a1b@M5-Max-128GB]    Reuse IOReport Handle (#798)
+2026-09-04 17:18:54,333 INFO [eea3a1b@M5-Max-128GB]    Release 0.5.23
+2026-09-04 17:18:54,333 INFO [eea3a1b@M5-Max-128GB] 
+2026-09-04 17:18:54,333 INFO [eea3a1b@M5-Max-128GB] log: /Users/evanhoffman/git/local-llm/logs/sweeps/upstream-sweep-M5-Max-128GB-20260904T211841Z.log

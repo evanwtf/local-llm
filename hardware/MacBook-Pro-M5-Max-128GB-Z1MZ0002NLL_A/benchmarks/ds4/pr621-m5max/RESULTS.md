@@ -15,6 +15,16 @@ Weights from Hugging Face `antirez/deepseek-v4-gguf` `refs/pr/22`:
 
 Both coherent at `--temp 0`.
 
+**Prompt: `speed-bench/promessi_sposi.txt`, 1,329,139 bytes (1298 KiB),
+SHA-256 `f53e0d80…`** — byte-identical in every ds4 tree on this machine.
+Recorded here because a prefill figure is not well-posed without it (#140):
+@adamlawi measured the same Q4-vs-Q8 prefill question on one box at +2.5% with
+a 135 kB prompt and at parity with a 405 kB one, ~2.4 pp apart on identical
+binaries. Our parity reading is on a prompt three times longer than his
+longer one, which is consistent with his result — and was published without
+naming it. Runs since 2026-09-04 stamp the prompt onto every CSV row; these
+CSVs predate that and carry an inferred `run-meta.json` instead.
+
 ## Isolated ctx 2048 (ctx alloc 2177) — the 50 t/s test
 
 `q4-ctx2048.csv`, `q8-ctx2048.csv`. `--ctx-start 2048 --ctx-max 2048 --gen-tokens 128`.
@@ -30,7 +40,7 @@ Q4 breaks 50 t/s. Q4/Q8 decode = 1.153.
 
 `sweep/q{4,8}-rep{1,2,3}.csv`. `--ctx-start 2048 --ctx-max 65536 --step-incr 2048 --gen-tokens 128`, 3 interleaved reps.
 
-Paired median ratio of `gen_steady_tps` **q4/q8 = 1.157 (+15.7%)**. Q4 > Q8 on **32/32** frontiers (range 1.122–1.208). Prefill pairs at exactly 1.000; do not fold it into decode.
+Paired median ratio of `gen_steady_tps` **q4/q8 = 1.157 (+15.7%)**. Q4 > Q8 on **32/32** frontiers (range 1.122–1.208). Prefill pairs at exactly 1.000 **on this prompt**; do not fold it into decode, and do not compare it against a prefill figure measured on a different prompt (#140).
 
 *Corrected 2026-09-04: this section first read 1.146 (+14.6%), produced by `scripts/decode_ab_report.py` dividing two independent medians — a ratio of medians, not a paired statistic. The paired figures come from these same committed CSVs. The defect is noise, not bias: on #118's dataset it read +20.0% where the paired figure is +16.5%. See docs/changelog.md, 2026-09-04.*
 

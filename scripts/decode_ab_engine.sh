@@ -42,6 +42,8 @@ fi
 trap 'uv run python "$PREFLIGHT" --release-lock --owner-pid $$ >/dev/null 2>&1' EXIT
 
 mkdir -p "$OUT"
+uv run python "$(dirname "$0")/prompt_meta.py" --prompt "$PROMPT" --sidecar "$OUT" --show
+
 for rep in $(seq 1 "$REPS"); do
   if [ $((rep % 2)) -eq 0 ]; then
     order=("$LABEL_B:$TREE_B" "$LABEL_A:$TREE_A")
@@ -56,6 +58,10 @@ for rep in $(seq 1 "$REPS"); do
       --prompt-file "$PROMPT" \
       --ctx-start "$CTX_START" --ctx-max "$CTX_MAX" --step-incr "$STEP" \
       --gen-tokens "$GEN" --csv "$csv" )
+    # #140: the prompt is an input to the prefill result, so it goes on the
+    # rows. Stamped per CSV rather than at the end, so a run that dies
+    # halfway still says what it measured.
+    uv run python "$(dirname "$0")/prompt_meta.py" --prompt "$PROMPT" --stamp "$csv"
   done
 done
 echo "done: $OUT"

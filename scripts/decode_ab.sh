@@ -37,6 +37,13 @@ fi
 trap 'uv run python "$PREFLIGHT" --release-lock --owner-pid $$ >/dev/null 2>&1' EXIT
 
 mkdir -p "$OUT"
+# #140: name the prompt, or the prefill half of this A/B is not well-posed.
+# @adamlawi measured the same Q4-vs-Q8 question on one box at +2.5% with a
+# 135 kB prompt and at parity with a 405 kB one. The prompt is an input to
+# the result, so it goes on the rows and in a sidecar, not in a default
+# nobody wrote down.
+uv run python "$(dirname "$0")/prompt_meta.py" --prompt "$PROMPT" --sidecar "$OUT" --show
+
 for rep in $(seq 1 "$REPS"); do
   # #130: alternate which arm runs first. Throughput declines across a
   # measurement window, so a fixed order penalises whichever arm always runs
@@ -66,6 +73,9 @@ for rep in $(seq 1 "$REPS"); do
       --prompt-file "$PROMPT" \
       --ctx-start "$CTX_START" --ctx-max "$CTX_MAX" --step-incr "$STEP" \
       --gen-tokens "$GEN" --csv "$csv" )
+    # Stamp immediately, not at the end: a run that dies halfway still leaves
+    # CSVs, and an unstamped one cannot be told from a differently-prompted one.
+    uv run python "$(dirname "$0")/prompt_meta.py" --prompt "$PROMPT" --stamp "$csv"
   done
 done
 echo "done: $OUT"

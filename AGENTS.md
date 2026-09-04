@@ -735,6 +735,26 @@ falsify the record.
 The same applies to prose: when new data refutes an earlier claim, correct the
 claim and say it was refuted. Do not quietly rewrite it.
 
+## A figure needs its input named, not only its instrument (2026-09-04)
+
+Our upstream correction on ds4#952 quoted "prefill median 0.999" with the
+commit, the weights, their SHA-256, the frontier sweep and the repetition
+count — everything about the *instrument* — and did not name the prompt.
+Ninety minutes later @adamlawi showed the prompt is what decides that answer:
+same box, same binaries, +2.5% with a 135 kB prompt and parity with a 405 kB
+one, ~2.4 pp apart.
+
+The figure was not wrong. It was under-specified, and no amount of care about
+the engine would have caught it, because the missing variable was on the other
+side.
+
+So: **before quoting a number, ask what it is a number OF, and check that the
+answer is on the row.** `scripts/prompt_meta.py` stamps `prompt_file` and
+`prompt_bytes` onto every ds4-bench CSV, `decode_ab_report.py` puts the prompt
+in the quotable line, and it refuses to pool prefill across two prompts.
+Defaults are the trap here: `PROMPT` had a default nobody had to type, so
+nobody wrote it down for four months.
+
 ## Name the confounds
 
 Every backend added here changes more than one variable at a time. Write the

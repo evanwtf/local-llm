@@ -13,6 +13,7 @@ documentation.
 |---|---|
 | `archive_pre_dir_rows.py` | Move every pre---dir OpenCode row out of results.jsonl into the archive. |
 | `backfill_client_version.py` | Fill `client_version` on rows that predate it, and only where it is known. |
+| `backfill_prompt_meta.py` | Write an inferred prompt sidecar for runs measured before #140. |
 | `client_pins.py` | Read the pinned agent client versions, and say what drifted (#131). |
 | `client_version_split.py` | Which client version took which rows, and what that confounds (#137, #131). |
 | `decode_ab_report.py` | Summarise a paired decode A/B produced by scripts/decode_ab.sh (#48). |
@@ -24,6 +25,7 @@ documentation.
 | `make_scripts_readme.py` | Generate scripts/README.md from each script's own first docstring line. |
 | `post_ab_run.py` | Post one completed decode-A/B run to a GitHub issue, once. |
 | `prefix_stability.py` | Find which cached prefix block changes between two requests (#50, #64). |
+| `prompt_meta.py` | Which prompt a decode/prefill A/B was measured on (#140). |
 | `prune_models.py` | Delete local model weights that are superseded and re-downloadable (#111). |
 | `report.py` | Summarise and compare measured cells, with the resolution rule applied. |
 | `session_decay.py` | Does a session get worse the longer the server runs? (#120) |

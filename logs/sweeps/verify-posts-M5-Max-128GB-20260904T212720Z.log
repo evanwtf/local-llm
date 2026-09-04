@@ -1,0 +1,37 @@
+2026-09-04 17:27:20,720 INFO [eea3a1b@M5-Max-128GB] 2026-09-04T21:27:20Z (17:27:20 EDT) | harness eea3a1b
+2026-09-04 17:27:20,736 INFO [eea3a1b@M5-Max-128GB]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-04 17:27:20,898 INFO [eea3a1b@M5-Max-128GB] 2095833132217893052  VERIFIED post  @ivanfioravanti  Fri Sep 04 11:15:32 +0000 2026  via fxtwitter
+2026-09-04 17:27:20,898 INFO [eea3a1b@M5-Max-128GB]     QWen 3.8 Next Flash in DwarfStar update: - @kernelpool kernel is faster (you rock!), but PLE are all in memory, I will merge the work with mine - Q4_0 routed experts is faster, but less accurate. I wi
+2026-09-04 17:27:21,048 INFO [eea3a1b@M5-Max-128GB] 2095874485467348995  VERIFIED reply  @ivanfioravanti  Fri Sep 04 13:59:51 +0000 2026  via fxtwitter
+2026-09-04 17:27:21,048 INFO [eea3a1b@M5-Max-128GB]     Here current status using Q4_K imatrix for routed experts on M5 Max and M3 Ultra. @kernelpool did magic here! On my side I took inspiration by the great work of @ddalcu and @Spangler3000 🙌  I merged o
+2026-09-04 17:27:21,266 INFO [eea3a1b@M5-Max-128GB] 2095835561441583387  VERIFIED post  @Youssofal_  Fri Sep 04 11:25:11 +0000 2026  via fxtwitter
+2026-09-04 17:27:21,266 INFO [eea3a1b@M5-Max-128GB]     Introducing MTPLX V2.11!  The biggest release I have ever done.  HUGE SPEEDUPS EVERYWHERE ON THE FASTEST ENGINE!:   - Qwen Flash next compiled verify lane: the draft-verify step now runs as one compil
+2026-09-04 17:27:21,411 INFO [eea3a1b@M5-Max-128GB] 2095837791792009397  VERIFIED reply  @Youssofal_  Fri Sep 04 11:34:03 +0000 2026  via fxtwitter
+2026-09-04 17:27:21,411 INFO [eea3a1b@M5-Max-128GB]     FYI: regarding conflicting numbers in tweet and graphic the graphic is max perceived and the tweet is average.
+2026-09-04 17:27:21,527 INFO [eea3a1b@M5-Max-128GB] 2095985754212290987  VERIFIED reply  @Youssofal_  Fri Sep 04 21:21:59 +0000 2026  via fxtwitter
+2026-09-04 17:27:21,527 INFO [eea3a1b@M5-Max-128GB]     @RZY333 It should apply to everyone, could you try different MTP depths between 1, 2 and 3?
+2026-09-04 17:27:21,808 INFO [eea3a1b@M5-Max-128GB] 2095876413220122846  VERIFIED post  @TheDavidTai  Fri Sep 04 14:07:31 +0000 2026  via fxtwitter
+2026-09-04 17:27:21,809 INFO [eea3a1b@M5-Max-128GB]     So this explains a lot and why their contribution will become a good alternative if its published and there's a generalized implementation.    Current spec decoders draft linearly so you get one at a 
+2026-09-04 17:27:21,809 INFO [eea3a1b@M5-Max-128GB]     quotes @norpadon: @onthexitter69 @TheDavidTai Our main trick that makes it work so well is that we don’t produce “sequences” of tokens. Instead, we build trees combining multiple
+2026-09-04 17:27:21,959 INFO [eea3a1b@M5-Max-128GB] 2095860749516345419  VERIFIED reply  @TheDavidTai  Fri Sep 04 13:05:16 +0000 2026  via fxtwitter
+2026-09-04 17:27:21,959 INFO [eea3a1b@M5-Max-128GB]     @norpadon @onthexitter69 Oh you must have a very efficient way of doing this because tree drafting is very expensive with mtp and pretty much never worth it.
+2026-09-04 17:27:22,090 INFO [eea3a1b@M5-Max-128GB] 2095864149880471685  VERIFIED reply  @TheDavidTai  Fri Sep 04 13:18:47 +0000 2026  via fxtwitter
+2026-09-04 17:27:22,090 INFO [eea3a1b@M5-Max-128GB]     @norpadon @onthexitter69 The tree validation needs a lot of excess compute so I think it will make more sense on something like a spark with better compute and worse bandwdith.  Or am I mistaken?
+2026-09-04 17:27:22,240 INFO [eea3a1b@M5-Max-128GB] 2095658157309641136  VERIFIED reply  @ddalcu  Thu Sep 03 23:40:14 +0000 2026  via fxtwitter
+2026-09-04 17:27:22,241 INFO [eea3a1b@M5-Max-128GB]     @norpadon @dimashvets @Darkolorin , welcome to the MLX Club 😄  @Youssofal_  is probably the most entertaining X account I follow. Thank you all for pushing MLX, and hope to see the many missing featur
+2026-09-04 17:27:22,382 INFO [eea3a1b@M5-Max-128GB] 2095661840306938198  VERIFIED reply  @ddalcu  Thu Sep 03 23:54:52 +0000 2026  via fxtwitter
+2026-09-04 17:27:22,382 INFO [eea3a1b@M5-Max-128GB]     Yes, I added RHT to MLX-serve. I’m just running your rust engine vs my zig engine with added support for your model. What is interesting, and trying next, is to combine some of your speculation (which
+2026-09-04 17:27:22,382 INFO [eea3a1b@M5-Max-128GB] 
+2026-09-04 17:27:22,382 INFO [eea3a1b@M5-Max-128GB] Verified 10: 10 confirmed, 0 not.
+2026-09-04 17:27:22,383 INFO [eea3a1b@M5-Max-128GB] Paste onto the issue:
+2026-09-04 17:27:22,383 INFO [eea3a1b@M5-Max-128GB]   **Verified** 2026-09-04: post exists, authored by @ivanfioravanti, posted Fri Sep 04 11:15:32 +0000 2026.
+2026-09-04 17:27:22,383 INFO [eea3a1b@M5-Max-128GB]   **Verified** 2026-09-04: post exists, authored by @ivanfioravanti, posted Fri Sep 04 13:59:51 +0000 2026.
+2026-09-04 17:27:22,383 INFO [eea3a1b@M5-Max-128GB]   **Verified** 2026-09-04: post exists, authored by @Youssofal_, posted Fri Sep 04 11:25:11 +0000 2026.
+2026-09-04 17:27:22,383 INFO [eea3a1b@M5-Max-128GB]   **Verified** 2026-09-04: post exists, authored by @Youssofal_, posted Fri Sep 04 11:34:03 +0000 2026.
+2026-09-04 17:27:22,383 INFO [eea3a1b@M5-Max-128GB]   **Verified** 2026-09-04: post exists, authored by @Youssofal_, posted Fri Sep 04 21:21:59 +0000 2026.
+2026-09-04 17:27:22,383 INFO [eea3a1b@M5-Max-128GB]   **Verified** 2026-09-04: post exists, authored by @TheDavidTai, posted Fri Sep 04 14:07:31 +0000 2026.
+2026-09-04 17:27:22,383 INFO [eea3a1b@M5-Max-128GB]   **Verified** 2026-09-04: post exists, authored by @TheDavidTai, posted Fri Sep 04 13:05:16 +0000 2026.
+2026-09-04 17:27:22,383 INFO [eea3a1b@M5-Max-128GB]   **Verified** 2026-09-04: post exists, authored by @TheDavidTai, posted Fri Sep 04 13:18:47 +0000 2026.
+2026-09-04 17:27:22,383 INFO [eea3a1b@M5-Max-128GB]   **Verified** 2026-09-04: post exists, authored by @ddalcu, posted Thu Sep 03 23:40:14 +0000 2026.
+2026-09-04 17:27:22,383 INFO [eea3a1b@M5-Max-128GB]   **Verified** 2026-09-04: post exists, authored by @ddalcu, posted Thu Sep 03 23:54:52 +0000 2026.
+2026-09-04 17:27:22,383 INFO [eea3a1b@M5-Max-128GB] log: /Users/evanhoffman/git/local-llm/logs/sweeps/verify-posts-M5-Max-128GB-20260904T212720Z.log

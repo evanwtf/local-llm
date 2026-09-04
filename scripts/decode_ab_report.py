@@ -35,6 +35,8 @@ import statistics as st
 import sys
 from collections import defaultdict
 
+import prompt_meta
+
 logger = logging.getLogger(__name__)
 
 
@@ -400,7 +402,20 @@ def log_runs_needed(got: list[tuple[pathlib.Path, Summary]]) -> None:
         )
 
 
-def quotable(got: list[tuple[pathlib.Path, Summary]]) -> str:
+def prompt_for(got: list[tuple[pathlib.Path, Summary]]) -> prompt_meta.PromptRef | None:
+    """The one prompt every summarised run shares, or None.
+
+    None means either that the runs used different prompts or that one of
+    them did not record its prompt at all. Both are reasons not to quote a
+    single prefill figure for them, so they get one answer (#140).
+    """
+    return prompt_meta.agree([prompt_meta.for_run(d) for d, _ in got])
+
+
+def quotable(
+    got: list[tuple[pathlib.Path, Summary]],
+    prompt: prompt_meta.PromptRef | None = None,
+) -> str:
     """One line fit to paste into an issue, carrying its own run count.
 
     #136 item 3: a figure with no run count cannot be read. Enforcing that by
@@ -411,6 +426,12 @@ def quotable(got: list[tuple[pathlib.Path, Summary]]) -> str:
     Names the direction, the number of runs, the spread, and the per-run
     figures, because the spread is what says whether those runs were enough
     for this particular comparison.
+
+    #140 puts the prompt on the same line for the same reason. Our own
+    upstream correction quoted "prefill median 0.999" with the commit, the
+    weights, the SHA-256 and the repetition count, and not the prompt -- the
+    one variable @adamlawi then showed decides the answer. The quotable form
+    is the cheapest place to make that automatic.
     """
     if not got:
         return "no runs"
@@ -419,14 +440,15 @@ def quotable(got: list[tuple[pathlib.Path, Summary]]) -> str:
     med = st.median(medians)
     lo, hi = min(medians), max(medians)
     each = ", ".join(f"{m:.3f}" for m in medians)
+    on = f"; prompt {prompt_meta.describe(prompt)}"
     if len(medians) == 1:
         return (
             f"{b}/{a} {med:.3f} ({(med - 1) * 100:+.1f}%) from a SINGLE run -- "
-            f"one run is not a measurement (#136)"
+            f"one run is not a measurement (#136){on}"
         )
     return (
         f"{b}/{a} median {med:.3f} ({(med - 1) * 100:+.1f}%) over {len(medians)} "
-        f"runs [{each}], spread {(hi - lo) * 100:.1f} pp"
+        f"runs [{each}], spread {(hi - lo) * 100:.1f} pp{on}"
     )
 
 
@@ -466,7 +488,26 @@ def main(argv: list[str]) -> int:
             log_runs_needed(runs)
             if legacy:
                 log_legacy_comparison(runs, column)
-        logger.info("quote: %s", quotable(runs))
+        # #140: name the prompt before the number, and refuse to pool
+        # prefill across prompts. Two prompts on one box moved the same
+        # Q4-vs-Q8 prefill answer by 2.4 pp, so runs that do not share one
+        # are two results, not one with more samples.
+        prompt = prompt_for(runs)
+        if prompt is None and len(runs) > 1:
+            each = [prompt_meta.for_run(d) for d, _ in runs]
+            logger.warning(
+                "these runs do not share one prompt: %s",
+                ", ".join(
+                    f"{d.name}={prompt_meta.describe(r)}"
+                    for (d, _), r in zip(runs, each, strict=True)
+                ),
+            )
+            if column == "prefill_tps":
+                logger.warning(
+                    "prefill is prompt-dependent (#140): report these "
+                    "separately rather than as one figure"
+                )
+        logger.info("quote: %s", quotable(runs, prompt))
         logger.info("")
         # Per-run detail below. With one directory this is the whole report.
         outdir, got = runs[0]
