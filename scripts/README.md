@@ -14,8 +14,8 @@ documentation.
 | `archive_pre_dir_rows.py` | Move every pre---dir OpenCode row out of results.jsonl into the archive. |
 | `backfill_client_version.py` | Fill `client_version` on rows that predate it, and only where it is known. |
 | `backfill_prompt_meta.py` | Write an inferred prompt sidecar for runs measured before #140. |
-| `client_pins.py` | Read the pinned agent client versions, and say what drifted (#131). |
 | `client_version_split.py` | Which client version took which rows, and what that confounds (#137, #131). |
+| `client_versions.py` | Read the recorded agent client versions, and say which have moved (#131). |
 | `decode_ab_report.py` | Summarise a paired decode A/B produced by scripts/decode_ab.sh (#48). |
 | `disk_baseline.py` | Measure the internal NVMe: read bandwidth and random-read latency. |
 | `gguf_meta.py` | Print a GGUF file's metadata without loading the model. |

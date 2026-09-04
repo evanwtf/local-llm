@@ -455,3 +455,58 @@ def test_an_unrecorded_running_order_is_none_not_first():
 def test_run_position_is_not_required_so_existing_rows_still_validate():
     assert "run_position" not in REQUIRED
     assert "run_arms" not in REQUIRED
+
+
+# ---------------------------------------------------------------------------
+# #131: nothing pins the client any more, so recording the version is the only
+# thing making a comparison recoverable. It cannot rest on discipline.
+
+
+def test_a_new_row_with_no_client_version_is_excluded_at_write(tmp_path):
+    """With no pin, an unrecorded client version is an unusable row."""
+    path = tmp_path / "results.jsonl"
+    row = good_row()
+    row["client_version"] = None
+    written = write_row(row, path)
+    assert written["excluded"] is True
+    assert "client_version" in str(written.get("exclusion_reason", ""))
+
+
+def test_the_row_is_still_written_so_an_expensive_trial_is_not_lost(tmp_path):
+    path = tmp_path / "results.jsonl"
+    row = good_row()
+    row["client_version"] = None
+    write_row(row, path)
+    assert len(path.read_text().strip().splitlines()) == 1
+
+
+def test_a_row_that_records_its_client_version_is_untouched(tmp_path):
+    path = tmp_path / "results.jsonl"
+    row = good_row()
+    row["client_version"] = "1.18.28"
+    written = write_row(row, path)
+    assert written["excluded"] is False
+    assert "exclusion_reason" not in written or not written["exclusion_reason"]
+
+
+def test_an_already_excluded_row_keeps_its_own_reason(tmp_path):
+    """The client-version guard must not overwrite why a row was excluded."""
+    path = tmp_path / "results.jsonl"
+    row = good_row()
+    row["client_version"] = None
+    row["excluded"] = True
+    row["exclusion_reason"] = "harness fault"
+    written = write_row(row, path)
+    assert written["exclusion_reason"] == "harness fault"
+
+
+def test_a_legacy_row_without_the_field_at_all_is_not_condemned(tmp_path):
+    """979 rows predate the field. Reading them must stay possible."""
+    path = tmp_path / "results.jsonl"
+    row = good_row()
+    del row["client_version"]
+    written = write_row(row, path)
+    assert written["excluded"] is True, (
+        "a row written now must record the version; only rows already on disk "
+        "are grandfathered, and those are never re-written"
+    )

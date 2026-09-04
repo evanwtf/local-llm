@@ -755,6 +755,40 @@ in the quotable line, and it refuses to pool prefill across two prompts.
 Defaults are the trap here: `PROMPT` had a default nobody had to type, so
 nobody wrote it down for four months.
 
+## Record the client version; do not pin it (2026-09-04)
+
+This laptop is a daily driver first and a benchmark rig second. Pinning the
+agent clients means holding a developer's own tools back to serve a
+measurement, and the operator's decision is the other way: **run the current
+version of everything, and recover comparability afterwards.**
+
+So `preflight.py` does three things and refuses at none of them:
+
+- logs each client's installed version, and a **SERIES BOUNDARY** line naming
+  any that moved since `client-versions.toml` was written;
+- logs whether each client's self-update is on, with the switch that would
+  turn it off — read out of the shipped binaries, so it is reproducible on a
+  fresh install: `DISABLE_AUTOUPDATER` / `"autoUpdates": false` for Claude
+  Code, `OPENCODE_DISABLE_AUTOUPDATE` / `"autoupdate": false` for OpenCode,
+  `auto_update_enabled = false` for Codex. All three are deliberately **on**;
+- **warns when a client is behind its release**, with the upgrade command. It
+  never runs it: a harness that upgrades the tool under test moves the version
+  mid-batch, which is the failure being avoided.
+
+There was a refusal here between 2026-09-04 morning and evening. It was
+correct for a dedicated rig and wrong for this one — it blocked a daily-driver
+update, and it would have been overridden every time, which is a guard that
+teaches people to type the override without reading it. **Do not restore it
+without the operator asking.**
+
+What makes the trade safe is the row, not the file. `results.write_row()`
+**excludes any row that does not record `client_version`** — excluded rather
+than refused, because losing an expensive trial to a missing field is worse
+than storing one that can never enter an aggregate. The published tables then
+caveat themselves through `client_caveat()`, which names which client measured
+which rows and retires the note when one version covers everything again.
+Prevention became recovery, on purpose.
+
 ## Name the confounds
 
 Every backend added here changes more than one variable at a time. Write the

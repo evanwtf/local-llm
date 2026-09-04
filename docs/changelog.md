@@ -22,6 +22,46 @@ picks in `RECOMMENDATIONS.md`, and the current queue in `NEXT.md`.
 
 ---
 
+**2026-09-04, later. Clients are recorded, not pinned (#131).**
+
+The morning's work on #131 built a pin and made `preflight.py` refuse when an
+installed client differed from it — the one place preflight refused rather
+than warned. By evening the operator had reversed it, and the reason is worth
+keeping: **this laptop is a daily driver first.** Pinning the agent clients
+holds a developer's own tools back to serve a measurement, and a guard that
+would be overridden every time is worse than none, because it teaches people
+to type the override without reading it.
+
+The rule is now *run the current version of everything*, so preflight asks the
+opposite question. It warns when a client is **behind** its release and prints
+the upgrade command; it never upgrades anything, because a harness that
+updates the tool under test moves the version mid-batch. On its first run it
+found two: codex 0.152.0 against 0.153.3, and opencode 1.18.27 against
+1.18.28.
+
+`client-pins.toml` became `client-versions.toml` and `scripts/client_pins.py`
+became `scripts/client_versions.py`. A file named "pins" that pins nothing is
+the kind of name that misleads a reader a month later.
+
+**The enforcement moved to the row, where it belongs.** With nothing pinned,
+`client_version` is the only thing that makes a comparison recoverable across
+an update, so it cannot rest on discipline: `results.write_row()` now excludes
+any row that does not carry one. Excluded, not refused — losing an expensive
+trial to a missing field is worse than storing one that can never enter an
+aggregate, which is the trade that function already makes for a schema
+violation. The 979 rows that predate the field are grandfathered and are never
+re-written.
+
+Also recorded, in code rather than prose: how each client updates itself, read
+out of the shipped binaries with `strings`. All three self-updaters are
+deliberately left **on**. Knowing the switch is not for flipping it — it is so
+preflight can say, in a log, that the version under a batch can move.
+
+The claude pin moved 2.1.260 -> 2.1.261 before being removed entirely. Worth
+noting what that revealed: the 326 claude rows on this machine span 2.1.233 to
+2.1.252, and **no row was ever measured at 2.1.260**. The pin had been
+protecting comparability with nothing.
+
 **2026-09-04. A prefill figure now carries its prompt (#140).**
 
 `scripts/decode_ab.sh` has taken `PROMPT` as an environment variable with a

@@ -1,0 +1,42 @@
+# Agent client versions: RECORDED, not pinned (#131).
+#
+# This machine is a daily driver first and a benchmark rig second. Pinning
+# the agent clients would mean holding a developer's own tools back to serve
+# a measurement, which is the wrong trade: the operator wants the current
+# version of everything, and accepts that comparability across a client
+# update has to be recovered afterwards rather than prevented.
+#
+# So nothing here refuses. `preflight.py` reports the installed version of
+# each client and says plainly when one has moved since this file was
+# written. That line is the series boundary; the run continues.
+#
+# **What makes the trade safe is the row, not this file.** Every result
+# carries `client_version`, so a comparison can be split after the fact:
+#
+#     uv run python scripts/client_version_split.py <results.jsonl> --client opencode
+#
+# and the published tables caveat themselves -- `client_caveat()` in
+# benchmarks/agent/gen_tables.py names which client measured which rows and
+# retires the note when one version covers everything again (#137).
+#
+# This replaced a hard refusal on 2026-09-04. The refusal was correct for a
+# dedicated rig and wrong for this one: it blocked a daily-driver update and
+# it would have been overridden every time, which is a guard that trains
+# people to ignore it. Do not restore it without the operator asking.
+#
+# Why the versions are still written down: a boundary you cannot date is not
+# recoverable. #104 measured OpenCode 1.18.26 -> 1.18.27, alone, roughly
+# doubling median turns on repository tasks -- 12.0 to 27.5, with model
+# digest, ollama version, harness, tasks, context window and machine all
+# held. The symptom was the `edit` tool failing to match `oldString`, which
+# reads as the model writing bad patches. Nothing in the data said so.
+#
+# When a version here goes stale, update it and note the date. That is a
+# record of when the series changed, not a promise about what is installed.
+
+[reference]
+# Last recorded on 2026-09-04.
+opencode = "1.18.27"
+claude = "2.1.261"   # self-updated from 2.1.260 at 16:13 EDT
+codex = "0.152.0"
+aider = ""           # not driven from this machine

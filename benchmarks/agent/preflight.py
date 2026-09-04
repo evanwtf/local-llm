@@ -882,56 +882,100 @@ def _now_iso() -> str:
     return time.strftime("%Y-%m-%dT%H:%M:%S")
 
 
-def check_client_pins() -> bool:
-    """Log any client that has drifted from its pin. True when some did (#131).
+def check_client_versions(offline: bool = False) -> bool:
+    """Record every client's version and name any that moved (#131).
 
-    Warning is not enough here. #104 measured a client self-update roughly
-    doubling median turns with everything else held, and the symptom looked
-    like the model writing bad patches. A run started under a drifted client
-    produces rows that are not comparable with the ones before it, and nothing
-    in the data says so.
+    **This never refuses.** It used to: an installed client that differed
+    from its pin returned True and `main` exited 1. On 2026-09-04 the
+    operator removed the pinning and kept the recording, because this laptop
+    is a daily driver first -- pinning the agent clients holds a developer's
+    own tools back to serve a measurement, and a guard that gets overridden
+    every time teaches people to type the override without reading it.
+
+    What replaces it is not weaker, it is later: `client_version` is on every
+    row and `results.py` refuses to write one without it, so a comparison can
+    be split after the fact and the published tables caveat themselves.
+    Prevention became recovery, deliberately.
+
+    Returns False always, so the caller has nothing to decide. The bool is
+    kept rather than dropped because test_preflight patches this name.
     """
     sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent / "scripts"))
     try:
-        import client_pins
+        import client_versions
     except ImportError:
         return False
-    pins = client_pins.load_pins()
-    if not pins:
+    recorded = client_versions.load_recorded()
+    if not recorded:
         return False
-    disabled, how = client_pins.opencode_autoupdate_disabled()
-    if disabled:
-        logger.info("preflight: opencode self-update is off (%s)", how)
-    else:
-        # A warning, not a refusal: the pin check below is what actually
-        # protects a batch. This says the pin can move under us.
-        logger.warning(
-            "preflight: opencode can update itself (%s) -- the pin below can "
-            "drift between two batches of one comparison (#131)",
-            how,
-        )
-    drifted = client_pins.drift(staleness.installed_versions(), pins)
-    # An absent client and a drifted one are different facts. A client that is
-    # not installed cannot corrupt a run, and this repo spans two machines and
-    # a CI runner that drive different clients -- refusing on absence made
-    # preflight refuse everywhere but this laptop, which CI caught and the
-    # local suite could not.
-    missing = [d for d in drifted if d[2] == "not found"]
-    mismatched = [d for d in drifted if d[2] != "not found"]
-    for name, want, _ in missing:
+    for name, how in sorted(client_versions.autoupdate_status().items()):
+        logger.info("preflight: %s self-update -- %s", name, how)
+    installed = staleness.installed_versions()
+    moved = client_versions.moved_since(installed, recorded)
+    absent = [m for m in moved if m[2] == "not found"]
+    changed = [m for m in moved if m[2] != "not found"]
+    for name, want, _ in absent:
         logger.info(
-            "preflight: %s is pinned at %s but is not installed here -- "
-            "not a refusal, it cannot take a row (#131)",
+            "preflight: %s recorded at %s but not installed here -- "
+            "it cannot take a row (#131)",
             name,
             want,
         )
-    for name, want, got in mismatched:
-        logger.error(
-            "preflight: %s is pinned at %s but %s is installed (#131)", name, want, got
+    for name, want, got in changed:
+        # Not a warning and not an error: this line is the whole product of
+        # not pinning, and it has to be findable in a log.
+        logger.info(
+            "preflight: SERIES BOUNDARY -- %s moved %s -> %s since "
+            "client-versions.toml was written. Rows from here are a new "
+            "series; client_version is on each one, so the split is "
+            "recoverable (#131). Update client-versions.toml when convenient.",
+            name,
+            want,
+            got,
         )
-    if not drifted:
-        logger.info("preflight: all %d pinned clients match", len(pins))
-    return bool(mismatched)
+    if not moved:
+        logger.info(
+            "preflight: %d client versions match what is recorded", len(recorded)
+        )
+    _log_clients_behind(installed, offline=offline)
+    return False
+
+
+def _log_clients_behind(
+    installed: dict[str, str | None], offline: bool = False
+) -> None:
+    """Warn when a client is older than its released version (#131).
+
+    The operator's rule for this machine is to run the current version of
+    everything -- it is a daily driver, and comparability is recovered from
+    `client_version` on the row rather than bought by holding tools back. So
+    the check that used to ask "has it drifted from the pin?" now asks the
+    opposite question: **is it behind?**
+
+    It warns and prints the upgrade command. It does not upgrade: that would
+    move the version mid-batch, which is the failure #131 is about, and it is
+    the operator's machine.
+    """
+    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent / "scripts"))
+    try:
+        import client_versions
+    except ImportError:
+        return
+    latest = staleness.latest_versions(offline=offline)
+    behind = client_versions.behind_latest(installed, latest)
+    if not behind:
+        logger.info("preflight: every client that could be checked is current")
+        return
+    for name, got, want in behind:
+        logger.warning(
+            "preflight: %s is %s, latest is %s -- this machine runs the current "
+            "version of everything (#131). Upgrade with `%s`, and note that "
+            "doing it mid-batch starts a new series.",
+            name,
+            got,
+            want,
+            client_versions.UPGRADE_COMMAND.get(name, f"upgrade {name}"),
+        )
 
 
 def log_ci_status(offline: bool = False) -> None:
@@ -1027,8 +1071,8 @@ def main() -> int:
     p.add_argument(
         "--allow-client-drift",
         action="store_true",
-        help="run even though an installed client differs from its pin (#131). "
-        "Rows produced this way are a new series and must not be pooled.",
+        help="accepted and ignored: clients are recorded, not pinned, so "
+        "nothing refuses on a client version any more (#131)",
     )
     p.add_argument(
         "--acquire-lock",
@@ -1065,16 +1109,9 @@ def main() -> int:
         logger.info("preflight: %s", why)
     if not args.no_versions:
         log_versions(offline=args.offline)
-        # #131: a pinned client that has drifted is the one version difference
-        # that silently rewrites results, so it refuses rather than warns.
-        if check_client_pins() and not args.allow_client_drift:
-            logger.error(
-                "preflight: refusing to run with a drifted client. Fix the "
-                "install, or move the pin in client-pins.toml deliberately and "
-                "treat rows either side as separate series (#131). "
-                "--allow-client-drift overrides."
-            )
-            return 1
+        # #131: clients are recorded, not pinned. This never refuses -- it
+        # names the series boundary so a later reader can split on it.
+        check_client_versions(offline=args.offline)
         # #129. Gated with the versions block deliberately: --no-versions
         # means "report running servers only", and that is not a mode that
         # should reach the network.

@@ -179,6 +179,31 @@ def write_row(row: dict[str, Any], path: pathlib.Path) -> dict[str, Any]:
     A failing row is written anyway. Losing an expensive trial to a schema bug
     is worse than storing one that is loudly marked as broken.
     """
+    # #131: the clients are no longer pinned -- this machine is a daily
+    # driver and runs the current version of everything -- so `client_version`
+    # on the row is the ONLY thing that makes a comparison recoverable across
+    # an update. That cannot rest on discipline, so it is enforced here rather
+    # than described in a comment.
+    #
+    # Excluded, not refused. Losing an expensive trial to a missing field is
+    # worse than storing one that can never enter an aggregate, which is the
+    # same trade this function already makes for a schema violation. `validate`
+    # runs on read as well, so the field stays out of REQUIRED: the 979 rows
+    # that predate it are grandfathered and are never re-written.
+    if not row.get("client_version"):
+        logger.error(
+            "%s-%s-%s: no client_version -- excluding the row. Nothing pins "
+            "the client (#131), so a row that does not say which version ran "
+            "cannot be compared with anything.",
+            row.get("task"),
+            row.get("backend"),
+            row.get("trial"),
+        )
+        row["excluded"] = True
+        if not row.get("exclusion_reason"):
+            row["exclusion_reason"] = (
+                "no client_version recorded; clients are not pinned (#131)"
+            )
     errors = validate(row)
     row["schema_valid"] = not errors
     row["schema_errors"] = errors

@@ -248,7 +248,7 @@ after the fact.
 
 ## The agent clients are pinned
 
-`client-pins.toml` holds the expected version of each client, and
+`client-versions.toml` holds the expected version of each client, and
 `preflight.py` **refuses** when an installed client differs from its pin
 ([#131](https://github.com/evanwtf/local-llm/issues/131)). Every other version
 difference in preflight is a warning; this one is not, because #104 measured
