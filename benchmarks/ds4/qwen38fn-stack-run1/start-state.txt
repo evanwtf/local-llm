@@ -1,0 +1,6 @@
+# run 1 of 4, launched 2026-09-04T18:52:23 EDT
+# harness: scripts/decode_ab_stack.sh q40old /Users/evanhoffman/git/ds4-metal /Users/evanhoffman/models/qwen3.8-flash-next-ds4-q4/Qwen3.8-Flash-Next-Q40RoutedExperts-BF16Emb-BF16Control-Q8GDN-Q8QSA-Q8Shared-Q8Out.gguf /Users/evanhoffman/models/qwen3.8-flash-next-ds4-q4/Qwen3.8-Flash-Next-PLE-Q4_1.gguf q4kimat /Users/evanhoffman/git/ds4-ivan-qwen38fn /Users/evanhoffman/models/qwen3.8-flash-next-ds4-q4k-imatrix/Qwen3.8-Flash-Next-Q4KImatrixExperts-MXFP4Down-BF16Emb-BF16Control-Q8GDN-Q8QSA-Q8Shared-Q8Out.gguf /Users/evanhoffman/models/qwen3.8-flash-next-ds4-q4k-imatrix/Qwen3.8-Flash-Next-PLE-Q4_1.gguf
+# fans (read only, never set):
+{"fans":[{"actual_rpm":1348,"index":0,"max_rpm":5349,"min_rpm":1350,"mode":"auto","target_rpm":1350},{"actual_rpm":1460,"index":1,"max_rpm":5777,"min_rpm":1350,"mode":"auto","target_rpm":1458}]}
+# thermals at launch:
+2026-09-04 18:52:23,256 INFO [56160aa-dirty@M5-Max-128GB] {"die_max_c": 47.96, "die_mean_c": 46.91, "sensors": 42, "fan0_rpm": 1350, "fan0_mode": "auto", "fan1_rpm": 1458, "fan1_mode": "auto", "fan_rpm_max": 1458, "utc": "2026-09-04T22:52:23Z", "local": "18:52:23 EDT"}

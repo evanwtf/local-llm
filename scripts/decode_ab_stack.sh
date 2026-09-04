@@ -19,17 +19,12 @@
 # them. That is not a flaw in the method -- it is the actual state of the
 # artifacts, and the alternative is a one-variable claim that is false.
 #
-# **NOT YET RUN END TO END, and it cannot serve #138 itself.** `ds4-bench` has
-# no `--ple` flag, and both Qwen3.8-Flash-Next ds4 builds keep the 51B-value
-# PLE n-gram table in an external sidecar, so ds4-bench refuses both with
-# "required tensor is missing: per_layer_token_embd.weight". Measuring that
-# model needs `ds4-server` (which does take `--ple`) and therefore the agent
-# suite, which is hours per run rather than 26 minutes.
-#
-# It is committed because #138 established that the engine and the weights are
-# welded together for this model, and neither existing harness can express a
-# comparison of that shape. Use it for any two stacks whose models ds4-bench
-# can load; do not use it for Qwen3.8-Flash-Next until ds4-bench takes --ple.
+# Both Qwen3.8-Flash-Next ds4 builds keep the 51B-value PLE n-gram table in an
+# external sidecar, so every arm needs `--ple`. `ds4-bench` accepts it; the
+# flag is real but undocumented, absent from `--help` and present in the
+# parser at ds4_bench.c:275. Passing no sidecar fails with "required tensor is
+# missing: per_layer_token_embd.weight", which reads exactly like the flag not
+# existing. It does exist.
 #
 # Usage:
 #   scripts/decode_ab_stack.sh <label-a> <tree-a> <gguf-a> <ple-a> \

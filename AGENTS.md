@@ -800,19 +800,30 @@ Three checks, each a few minutes, killed it:
 - `ds4-metal ba01f5d` loads our old Q4_0 build and refuses the new one
   (`required metadata key is missing: deepseek4.block_count`).
 - `ivan/qwen3.8-flash-next bd9cfbc` does the exact opposite, same error.
-- `ds4-bench` refuses **both**, because the 51B-value PLE table lives in an
-  external sidecar and ds4-bench has no `--ple` flag
-  (`required tensor is missing: per_layer_token_embd.weight`).
+- `ds4-bench` appeared to refuse **both** with `required tensor is missing:
+  per_layer_token_embd.weight`. **That one was my own error** and is the more
+  useful half of this entry: `ds4-bench` does take `--ple`, undocumented and
+  absent from `--help` (`ds4_bench.c:275`). I had grepped the help output
+  instead of the parser, and my failing invocation simply passed no sidecar.
+  With the flag, both arms measure.
 
-So the quant and the engine are welded together — any old-versus-new number
-moves both — and the instrument we would have measured with cannot load either
-side. **A control run is what proved this rather than assumed it:** the same
+So the quant and the engine are welded together: any old-versus-new number
+moves both, and the comparison is a **stack** comparison that must be reported
+as one. **A control run is what proved that rather than assumed it** — the same
 flags on our engine with our own weights work fine, which is the only thing
 separating "these are incompatible" from "I typed the command wrong".
 
-The lesson is cheap and general. **Before scheduling machine time, load both
-arms.** A model load is minutes; the run it would have justified is hours, and
-a comparison discovered to be impossible afterwards has cost the whole window.
+Two lessons, and the second is the one I actually needed.
+
+**Before scheduling machine time, load both arms.** A model load is minutes;
+the run it would have justified is hours, and a comparison discovered to be
+impossible afterwards has cost the whole window.
+
+**A flag missing from `--help` is not a missing flag.** Read the argument
+parser before reporting a capability as absent. I published "ds4-bench cannot
+measure this model" on two issues off a `--help` grep, and it was wrong in the
+direction that cancels work — the expensive direction, because nobody re-checks
+a capability that has been ruled out.
 
 ## Name the confounds
 
