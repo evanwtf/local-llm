@@ -13,6 +13,7 @@ import io
 import json
 import pathlib
 import tomllib
+import types
 import urllib.error
 
 import pytest
@@ -883,3 +884,17 @@ def test_a_single_backend_is_unaffected_by_alternation():
     backends = {"only": {}}
     for trial in (1, 2, 3):
         assert [n for n, _ in run.trial_order(backends, trial)] == ["only"]
+
+
+def test_the_stack_capture_records_which_ollama_was_installed(monkeypatch):
+    """#84: 0.33.3 changed sampler precedence, so the build has to be on the
+    row. The regime string names the rule; this names what applied it."""
+    monkeypatch.setattr(
+        run,
+        "run",
+        lambda *a, **k: types.SimpleNamespace(
+            stdout="0.33.3\n", stderr="", returncode=0
+        ),
+    )
+    env = run.capture_versions({"base_commit": "abc"}, {})
+    assert env["ollama"] == "0.33.3"

@@ -620,6 +620,12 @@ def capture_versions(cfg, backends):
         "target_commit": cfg["base_commit"],
         # aider is a client like the others; it was the only one not recorded.
         "aider": out(["aider", "--version"]),
+        # #84: ollama 0.33.3 changed which sampler a model gets. 343 of 1394
+        # rows carry this and the rest do not, so "which ollama" is already
+        # unanswerable for most of the corpus. The regime string on the row
+        # names the precedence rule; this names the build that applied it,
+        # which is what a release note is looked up by.
+        "ollama": out(["ollama", "--version"]),
     }
 
     # The harness itself: which run.py produced this row. A row that cannot name
