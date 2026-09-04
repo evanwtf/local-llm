@@ -789,6 +789,31 @@ caveat themselves through `client_caveat()`, which names which client measured
 which rows and retires the note when one version covers everything again.
 Prevention became recovery, on purpose.
 
+## Check that both arms can run before planning the comparison (2026-09-04)
+
+#138 looked like a straightforward requant A/B: our cell runs a Q4_0 build of
+Qwen3.8-Flash-Next for ds4, the author replaced it with a Q4_K imatrix build,
+so measure one against the other. Four runs, ~106 minutes, one command.
+
+Three checks, each a few minutes, killed it:
+
+- `ds4-metal ba01f5d` loads our old Q4_0 build and refuses the new one
+  (`required metadata key is missing: deepseek4.block_count`).
+- `ivan/qwen3.8-flash-next bd9cfbc` does the exact opposite, same error.
+- `ds4-bench` refuses **both**, because the 51B-value PLE table lives in an
+  external sidecar and ds4-bench has no `--ple` flag
+  (`required tensor is missing: per_layer_token_embd.weight`).
+
+So the quant and the engine are welded together — any old-versus-new number
+moves both — and the instrument we would have measured with cannot load either
+side. **A control run is what proved this rather than assumed it:** the same
+flags on our engine with our own weights work fine, which is the only thing
+separating "these are incompatible" from "I typed the command wrong".
+
+The lesson is cheap and general. **Before scheduling machine time, load both
+arms.** A model load is minutes; the run it would have justified is hours, and
+a comparison discovered to be impossible afterwards has cost the whole window.
+
 ## Name the confounds
 
 Every backend added here changes more than one variable at a time. Write the

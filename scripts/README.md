@@ -38,6 +38,7 @@ documentation.
 | `decode_ab.sh` | Paired decode-rate A/B for two GGUFs of the same model (#48). |
 | `decode_ab_engine.sh` | Paired decode-rate A/B for two ENGINE BUILDS of the same GGUF (#118). |
 | `decode_ab_repeat.sh` | Run the same decode A/B N times, into numbered directories (#136). |
+| `decode_ab_stack.sh` | Paired decode A/B for two whole STACKS -- engine tree + weights together. |
 | `disk_kv_mechanism_test.sh` | 112 disk-KV mechanism test (2026-09-03). |
 | `install-metal-ceiling.sh` | Persist the Metal wired limit across reboots. |
 | `restart_between_trials.sh` | Restart-between-trials experiment for #112. |
