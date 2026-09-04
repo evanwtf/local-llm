@@ -21,9 +21,10 @@ in the tracker.
 Qwen3.8-Flash-Next ds4 fast-pack is the best-measured new cell — 42/45 for arm
 A (14/14/14) when `ds4-server` is restarted between trials, up from 36/45
 (13/13/10) with a single continuous server. The decline was server state, not
-model context ([#112](https://github.com/evanwtf/local-llm/issues/112)). The arm B (MTP 7) measurement of 19/30 vs 25/45 was
-taken under the same contamination and needs re-running under restart-between
-before it says anything about MTP itself.
+model context ([#112](https://github.com/evanwtf/local-llm/issues/112)). Arm B (MTP 7) is now measured under the same
+restart protocol: **25/45 (9/6/10), identical to its no-restart total** — the
+restart removed the session decline but not the loss, so **MTP is a net cost on
+this workload, not a help** ([#77](https://github.com/evanwtf/local-llm/issues/77)).
 
 **The cross-cutting risk, which has no Mac issue of its own.** OpenCode
 auto-updated **1.18.26 → 1.18.27** unasked, and on the Linux tier that roughly
@@ -69,8 +70,8 @@ change that also isolates a real candidate for item 1's mechanism.
 
 | # | issue | why here |
 |---|---|---|
-| 1 | **[#112](https://github.com/evanwtf/local-llm/issues/112)** the disk-KV mechanism test | **Server state was confirmed as the #112 cause** (14/14/14 vs 13/13/10 with `scripts/restart_between_trials.sh`). What piece of server state is not identified. **Cheapest first test**: rerun arm A **without** restart-between and with `--kv-disk-space-mb 32768` instead of the default 8192 (Qwen's KV entries are larger than DeepSeek's, per the traps section). If the trial-3 decline reappears, the effect is elsewhere; if it does not, disk KV is confirmed and the fix is a single flag. ~90 minutes of unattended machine time, no new code. Unblocks the honest measurement of every other ds4 backend. |
-| 2 | **[#77](https://github.com/evanwtf/local-llm/issues/77)** arm B re-run under restart-between-trials | **Arm B's 25/45 measured MTP-plus-server-state**, not MTP. The 6/15 trial-3 collapse there was worse than arm A's 10/15 in the same cycle, so arm B carries at least as much contamination. Under restart the arm A baseline is 42/45; a clean arm B against that decides whether MTP helps our workload, or the pack author's own +85%-on-counting-only pattern generalises to coding-agent turns. Same argv as before plus MTP on, `--mtp-timing`, dedicated `~/.ds4/server-kv-mtp`. ~90 minutes. |
+| 1 | ~~[#112](https://github.com/evanwtf/local-llm/issues/112) the disk-KV mechanism test~~ **answered** | The kv-32768 test ran **38/45 (12/15/15/11)** on a single continuous server — the trial-3 decline reappeared, so **disk KV is not the mechanism**. Restart-between-trials remains the fix (arm A 42/45). Next candidates for the mechanism: #116 max-fans (thermals) and the QSA-history-cache / buffer-pool class. |
+| 2 | ~~[#77](https://github.com/evanwtf/local-llm/issues/77) arm B re-run under restart-between-trials~~ **answered** | Arm B under restart is **25/45 (9/6/10)**, identical to its no-restart total (10/9/6). The restart removed the session decline but not the loss, so **MTP is a net cost on this workload** (arm A restart baseline 42/45). Remaining question: the `--mtp-exact-sampling` arm (#39 item 3) to separate speculation from the sampler change. |
 | 3 | **[#116](https://github.com/evanwtf/local-llm/issues/116)** fan RPM in `thermals.py`, then a max-fans comparison | Two-part item, both cheap. **Part A** is one more `powermetrics` sampler line in `scripts/thermals.py` so every future row records what it was cooled at, even if we do nothing else about it. **Part B** is a same-day comparison of one restart-between cycle passive-cooled vs one at 100% fans via Macs Fan Control. Isolates thermals as a candidate for item 1's mechanism, and controls the "±10 tok/s drift with run order" trap Ivan's own commit `fcfd558` named on the same hardware class. |
 | 4 | **[#118](https://github.com/evanwtf/local-llm/issues/118)** ds4 PR #964, +30% GLM decode Metal, bit-exact | **First outside claim in weeks to clear our ±27.9% bar with room.** M3 Ultra measurement, but the mechanism (DSA attention arithmetic) should transfer. Bit-exact eliminates the quality-trade argument. Waits on merge — track via `upstream_sweep.py`; when merged, rebuild `~/git/ds4` and re-measure `glm53ds4` under restart-between-trials against the current 368s median. If it holds on Q2 too, revisit [#40](https://github.com/evanwtf/local-llm/issues/40)'s q2 vs q4 comparison. |
 | 5 | **[#84](https://github.com/evanwtf/local-llm/issues/84)** read the resolved GGUF sampler values, not just the regime | **Item 3's real fix.** The regime tag shipped 2026-09-03 (`a7b9a0f`), and Ollama 0.33.3 is now installed as `latest` per the 20:47Z sweep — the guard fires but says only "which side of the boundary this row was taken on", not "this is the actual sampler that ran". `scripts/gguf_meta.py` already reads the KVs; wire it into `probe_ollama()` so the row records `general.sampling.top_p` and friends when the Modelfile does not. Small code work, closes the outstanding half of #84. |
@@ -163,7 +164,25 @@ informative.
 
 ## Machine state
 
-### As left at 2026-09-03 05:45 EDT, for the next session
+### As left at 2026-09-03 21:42 EDT, for the next session
+
+**Both top-of-queue items are answered.** #112's kv-32768 test ran 38/45
+(12/15/15/11) — disk KV is not the mechanism. #77's arm B re-run under
+restart-between-trials finished 21:42 at **25/45 (9/6/10)**, identical to its
+no-restart total, so MTP is a net cost on this workload. Full writeup on #77.
+
+**Nothing is benchmarking.** The arm B cycle restored both reference repos
+(`gmail-archive` @ `56e55cc`, `monitor` @ `cbb85ca`) and exited 0. The
+`ds4-server` (MTP on, `--kv-disk-dir ~/.ds4/server-kv-mtp`) and the shim on
+:8101 are still up, holding memory, from the last trial. Stop both before any
+batch that is not `qwen38fnds4*`; run `preflight.py` first.
+
+**Next in the queue:** #116 (fan RPM in `thermals.py`, then a max-fans
+comparison) — the cheapest remaining candidate for the #112 mechanism. Then the
+`--mtp-exact-sampling` arm (#39 item 3) to finish attributing arm B's pass-rate
+gap.
+
+### As left at 2026-09-03 05:45 EDT, for the previous session
 
 **Nothing is benchmarking.** #112 restart-between-trials cycle finished 12:16 (42/45, 14/14/14). Arm B (MTP 7) needs re-running under restart. Earlier: arm B finished 06:15; `run.py` restored both reference
 repos (`gmail-archive` @ `56e55cc`, `monitor` @ `cbb85ca`) and the tables are

@@ -30,6 +30,7 @@ BENCH_LOGS="${BENCH_LOGS:-$HOME/bench-logs}"
 
 DS4_MODEL="$HOME/models/qwen3.8-flash-next-ds4-q4/Qwen3.8-Flash-Next-Q4KExperts-BF16Emb-BF16Control-Q8GDN-Q8QSA-Q8Shared-Q8Out.gguf"
 DS4_PLE="$HOME/models/qwen3.8-flash-next-ds4-q4/Qwen3.8-Flash-Next-PLE-Q4_1.gguf"
+DS4_MTP="$HOME/models/qwen3.8-flash-next-ds4-q4/qwen3.8-flash-next-q4-mtp.gguf"
 DS4_KV="$HOME/.ds4/server-kv-mtp"
 
 # Refuse the whole run if the shim is not up. The upstream is otherwise
@@ -61,7 +62,7 @@ restart_ds4() {
             -m "$DS4_MODEL" --ple "$DS4_PLE" \
             --ctx 100000 --warm-weights \
             --kv-disk-dir "$DS4_KV" --kv-disk-space-mb 8192 \
-            --mtp-draft 7 --mtp-timing \
+            --mtp-model "$DS4_MTP" --mtp-draft 7 --mtp-timing \
             --host 127.0.0.1 --port 8000 \
             > "$LOGDIR/ds4server-$tag.log" 2>&1 &)
 
