@@ -8,7 +8,7 @@
 > or compare against those numbers.** Cause, cutover and replacements:
 > [docs/archive/results-opencode-pre-dir.md](docs/archive/results-opencode-pre-dir.md). Other clients are unaffected.
 
-Updated **2026-09-04 08:12 EDT**. **This file is the queue for _this machine_ —
+Updated **2026-09-04 09:35 EDT**. **This file is the queue for _this machine_ —
 the MacBook Pro, M5 Max, 128 GB.** Every item below is labelled `macOS` in the
 tracker. The Linux/RTX 3080 Ti tier has its own nine open issues ([#20](https://github.com/evanwtf/local-llm/issues/20), [#79](https://github.com/evanwtf/local-llm/issues/79),
 [#98](https://github.com/evanwtf/local-llm/issues/98)–[#104](https://github.com/evanwtf/local-llm/issues/104)) and they are deliberately **not** here; see `hardware/` and the
@@ -65,13 +65,11 @@ buys less than fixing a client that re-prefills 67 k tokens before every reply.
 |---|---|---|
 | 1 | **[#64](https://github.com/evanwtf/local-llm/issues/64)** the KV prefix stalls at ~20,400 tokens, and [#50](https://github.com/evanwtf/local-llm/issues/50) says why | **The largest defect we have found, and it is in the agent, not the model.** `common` freezes at 20,398 while `prompt` grows 25 k → 67 k: every turn re-prefills everything past that point. At ~360 t/s prefill that is **~186 s before a single output token**, and it grows with the conversation. #50 identifies a mechanism and it is cheap to test — Claude Code injects a live token counter as a system message *with* `cache_control`, and the number changes every turn, so the cached prefix can never match. #64's own filing says it plainly: **every Claude Code cell we hold may be a measurement of a broken KV cache rather than of a model.** Fixing it makes the agent faster in real use *and* repairs the data. Upstream-worthy for both Claude Code and ds4 once there is a minimal case. |
 | 2 | **[#112](https://github.com/evanwtf/local-llm/issues/112)** the tool-call degeneration loop | **The agent's own failure mode, and the first step is free.** Nine failures on our best new cell, none of them wrong code — the model stops calling tools, narrates about the format, and emits stacked bare `<tool_call>` opens. Restart-between-trials recovered six of nine; the loop itself is untouched. Remedy 1 needs **no new code and no machine time**: the shim already sees every request and response, so count tool errors already in the conversation against the probability the next call is malformed. Remedy 2 shipped 2026-09-03 and is **still unmeasured**, which is how a fix quietly becomes a belief. |
-| 3 | **[#130](https://github.com/evanwtf/local-llm/issues/130)** alternate arm order between rounds | **Nearly free, and it protects every A/B we will ever run.** @adamlawi measured positional bias up to **0.53 pp** on GB10 — larger than three of the four effects being compared, and at one context point it decides the *sign*. Not thermal on their side: clocks pinned, temperatures logged. They cite our own within-session ratio (1.19 → 1.13) as the second data point. Our arms ran A-then-B, never interleaved. The fix is to alternate and average pair ratios, and to record run order on the row. Do it before [#39](https://github.com/evanwtf/local-llm/issues/39) item 3, whose expected effect is small enough for order to matter. |
-| 4 | **[#131](https://github.com/evanwtf/local-llm/issues/131)** nothing pins the agent client | **A silent client update rewrites results and looks like a model regression.** OpenCode moved 1.18.26 → 1.18.27 by itself on both machines; on the Linux tier that alone roughly **doubled median turns** on repository tasks, 12.0 → 27.5, everything else held ([#104](https://github.com/evanwtf/local-llm/issues/104)). The symptom was the `edit` tool failing to match `oldString` — which reads as the model writing bad patches. No row records a client version, so it cannot be applied backwards. We learned this once with Codex 0.148 → 0.150 and caught it only because someone noticed. Pin it, record it on the row, and make `preflight.py` refuse rather than warn. |
-| 5 | **[#4](https://github.com/evanwtf/local-llm/issues/4)** harder tasks: the current set cannot measure code quality | **The meta-blocker, and the reason the published pass-rate tables have stopped being useful.** [#55](https://github.com/evanwtf/local-llm/issues/55) A/4 flagged three cells at 100% for `gemma426` over five trials. Two combinations clear 90% and cannot be told apart; three more sit at 15/15 and would need ~35 consecutive passes to prove anything. **We cannot currently show that a better agent is better.** Not cheap — the gmail-archive suite has a floor and a Swift class needs `swift_excise.py` care — but every item above and below is measured against it. |
-| 6 | **[#120](https://github.com/evanwtf/local-llm/issues/120)** which `ds4-server` state degrades a session | **Six pass-rate points hide in an operational variable.** 36/45 on a continuous server, 42/45 with a restart between trials, 38/45 with the disk-KV budget raised 4x — so disk KV is not it. For an agent you actually use, a server that gets worse the longer it runs is a product defect, not a benchmark artifact. **Start with [#116](https://github.com/evanwtf/local-llm/issues/116)** (fan RPM in `thermals.py`, then a max-fans cycle): cheapest candidate, and `evanwtf/fancontrol` now exists to drive it. Read [#130](https://github.com/evanwtf/local-llm/issues/130) first — a within-session decline is not by itself evidence of throttling. |
-| 7 | **[#96](https://github.com/evanwtf/local-llm/issues/96)** oMLX bit-exact tail continuation, TTFT 3-4 s → 0.3 s | **Item 1's problem attacked from the other end.** @Spangler3000's claim is per-turn time-to-first-token, lossless by construction, and it is far above our resolution bar. Median conversation here is **9 turns**, so 3 s of dead air per turn is ~30 s a task spent waiting rather than working — the difference between an agent that feels usable and one that does not. Rust build plus a 3-trial restart-between cycle. The metric already shipped in `ee0228e`, so this pays for itself even if the claim fails. |
-| 8 | **[#84](https://github.com/evanwtf/local-llm/issues/84)** record the resolved sampler, not just the regime | **Cross-engine pass rates stay provisional until this lands.** `top_p 0.95` is 20/21 and `top_p 0.90` is 7/15 on the same task, model, engine and client ([#36](https://github.com/evanwtf/local-llm/issues/36)) — a default nobody chose can halve the pass rate, and Ollama and ds4 rows still record no sampling at all. The regime tag shipped (`a7b9a0f`) but says only which side of a boundary a row was taken on. `scripts/gguf_meta.py` already reads the KVs; wire it into `probe_ollama()`. Small code, and it closes the half of #84 that matters. |
-| 9 | **[#129](https://github.com/evanwtf/local-llm/issues/129)** nothing tells us CI has gone red | **Cheap insurance on everything above.** Both red streaks were found by a person looking — 40 of 40 runs, then 20 runs over 17 hours that took **7 minutes to fix**. A green local suite is not evidence: `d9a223e` broke only on hosts that are not this laptop. Put a `gh run list` check in `preflight.py`, which already runs before every measurement session. |
+| 3 | **[#131](https://github.com/evanwtf/local-llm/issues/131)** nothing *pins* the agent client | **The recording half landed `225b90c`; the part that actually protects a batch did not.** Rows now carry `client_version` directly, so #104's finding — OpenCode 1.18.26 → 1.18.27 roughly **doubling median turns**, 12.0 → 27.5, everything else held — can at last be applied to a single row. What remains is the whole point of the issue: OpenCode still updates itself unasked on both machines, nothing pins it, and `preflight.py` still warns rather than refuses on client drift. A version you record and do not pin is a post-mortem, not a control. |
+| 4 | **[#4](https://github.com/evanwtf/local-llm/issues/4)** harder tasks: the current set cannot measure code quality | **The meta-blocker, and the reason the published pass-rate tables have stopped being useful.** [#55](https://github.com/evanwtf/local-llm/issues/55) A/4 flagged three cells at 100% for `gemma426` over five trials. Two combinations clear 90% and cannot be told apart; three more sit at 15/15 and would need ~35 consecutive passes to prove anything. **We cannot currently show that a better agent is better.** Not cheap — the gmail-archive suite has a floor and a Swift class needs `swift_excise.py` care — but every item above and below is measured against it. |
+| 5 | **[#120](https://github.com/evanwtf/local-llm/issues/120)** which `ds4-server` state degrades a session | **Six pass-rate points hide in an operational variable.** 36/45 on a continuous server, 42/45 with a restart between trials, 38/45 with the disk-KV budget raised 4x — so disk KV is not it. For an agent you actually use, a server that gets worse the longer it runs is a product defect, not a benchmark artifact. **Start with [#116](https://github.com/evanwtf/local-llm/issues/116)** (fan RPM in `thermals.py`, then a max-fans cycle): cheapest candidate, and `evanwtf/fancontrol` now exists to drive it. Read [#130](https://github.com/evanwtf/local-llm/issues/130) first — a within-session decline is not by itself evidence of throttling. |
+| 6 | **[#96](https://github.com/evanwtf/local-llm/issues/96)** oMLX bit-exact tail continuation, TTFT 3-4 s → 0.3 s | **Item 1's problem attacked from the other end.** @Spangler3000's claim is per-turn time-to-first-token, lossless by construction, and it is far above our resolution bar. Median conversation here is **9 turns**, so 3 s of dead air per turn is ~30 s a task spent waiting rather than working — the difference between an agent that feels usable and one that does not. Rust build plus a 3-trial restart-between cycle. The metric already shipped in `ee0228e`, so this pays for itself even if the claim fails. |
+| 7 | **[#84](https://github.com/evanwtf/local-llm/issues/84)** record the *resolved* sampler, not just the regime | **Still the half that matters, and it is smaller than the rest of this list.** `top_p 0.95` is 20/21 and `top_p 0.90` is 7/15 on the same task, model, engine and client ([#36](https://github.com/evanwtf/local-llm/issues/36)). The regime tag (`a7b9a0f`) and the ollama build (`797545a`) are now both on the row, and `preflight` names the 0.33.3 boundary before you cross it (`e8262d2`) — but no row yet records the *numbers* actually in force. `scripts/gguf_meta.py` reads the KVs; the obstacle is that `probe_ollama()` has no GGUF path to hand and `/api/show` does not reliably give one. Solve that and the rest is small. |
 
 **Dropped out of the top ten, and why.** [#117](https://github.com/evanwtf/local-llm/issues/117) (MTPLX runner),
 [#115](https://github.com/evanwtf/local-llm/issues/115) (mlx-serve 1M context) and [#39](https://github.com/evanwtf/local-llm/issues/39) item 3 are all
@@ -95,25 +93,32 @@ Open issues that are not in the table, and why they stay off it:
 
 ## Machine state
 
-### As of 2026-09-04 08:12 EDT
+### As of 2026-09-04 09:35 EDT
 
-**Nothing is benchmarking.** The [#118](https://github.com/evanwtf/local-llm/issues/118) decode A/B ran
-07:55–08:02 EDT and is complete — PR head `8969dbb` vs `main` at `b0a147a`,
-**+16.5% paired decode (corrected from +20.0%; the first report divided two
-independent medians), prefill −1.6%, bit-exact**. The issue is closed.
+**Nothing is benchmarking, and no server is up.** The [#118](https://github.com/evanwtf/local-llm/issues/118)
+decode A/B ran 07:55-08:02 EDT and is complete -- PR head `8969dbb` vs `main`
+at `b0a147a`, **+16.5% paired decode (corrected from +20.0%; the first report
+divided two independent medians), prefill -1.6%, bit-exact**. The issue is
+closed and carries a draft comment for the operator to post upstream. Nothing
+has been posted to `antirez/ds4`.
 
-**Server state: deliberately left down.** The `ds4-server` from the #77 arm was
-stopped ~07:46 EDT with one SIGINT (clean exit, ~74 GiB freed) and **not
-restarted** — no queued item needs it. One leftover: the tool shim survived the
-SIGINT and still listens on :8101 -> :8000, where nothing answers. It holds
-~0.1 GiB and is inert; stop it before the next server-backed batch.
+The `ds4-server` that held 71.6 GiB idle for ten hours is stopped, and so is
+the shim that was on `:8101`.
 
-Run `uv run python benchmarks/agent/preflight.py` before any batch; it names
-what is up. One known false alarm while it does: selecting only a shim backend
-flags the upstream ds4-server as stale ([#132](https://github.com/evanwtf/local-llm/issues/132)).
+**A second session was running on this machine this morning** (Claude Code
+against `glm-5.3:cloud` through ollama) and did most of the #118 work. It hit
+an HTTP 429 session usage limit at 12:43Z and was terminated; its unfinished
+work was picked up here. Nothing of it is left running.
 
-Both reference repos are restored and clean (`gmail-archive` @ `56e55cc`,
-`monitor` @ `cbb85ca`). The tree is `main`, clean.
+**`.run-lock.json` is the new thing to know about** ([#133](https://github.com/evanwtf/local-llm/issues/133)).
+`run.py`, `decode_ab.sh` and `decode_ab_engine.sh` now claim the machine before
+they load anything and refuse if another live process holds it. If a run dies
+by `SIGKILL` the file survives; preflight will report it as stale, name what it
+was doing, and **not** take it. Remove it deliberately. `--no-lock` opts out.
 
-The exact argv, the two KV directories, and the Metal ceiling procedure are in
-[`docs/m5max-runbook.md`](docs/m5max-runbook.md).
+**ollama is 0.33.3 on this machine**, installed 2026-09-03 18:19. That crosses
+the sampler-precedence boundary in [#84](https://github.com/evanwtf/local-llm/issues/84).
+Ninety rows have been written since and all ninety are `qwen38fnds4shim` or
+`qwen38fnds4mtp7shim`, which do not go through ollama -- so the boundary has
+not been crossed in the data. **The next ollama-backed row will be the first
+under the new precedence**, and should not be pooled with earlier ollama rows.
