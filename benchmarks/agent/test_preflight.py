@@ -787,3 +787,14 @@ def test_a_run_is_complete_only_when_every_csv_is_full():
     assert 'complete_runs "$OUT"' in text
     # and it must delegate, so shell and poster cannot drift on the meaning
     assert "from post_ab_run import is_complete" in text
+
+
+def test_the_status_script_delegates_and_never_prints_a_silent_blank():
+    """Three copies of "complete" drifted apart in one afternoon (a03ca8d),
+    and a blank field reads the same as "nothing to report"."""
+    text = (REPO_ROOT / "scripts" / "ab_status.sh").read_text()
+    assert "from post_ab_run import is_complete" in text
+    assert "REPORT FAILED" in text
+    assert "no complete run yet" in text
+    # stderr must not be discarded on the report call, or a failure is a blank
+    assert "decode_ab_report.py $COMPLETE 2>&1" in text
