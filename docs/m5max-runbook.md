@@ -219,3 +219,29 @@ ruin batches. One known false alarm while it does: selecting only a shim
 backend flags the upstream ds4-server as stale
 ([#132](https://github.com/evanwtf/local-llm/issues/132)) — the shim on
 `:8101` proxies to `:8000`, and `:8000` is named by no selected backend.
+
+## The run lock
+
+`run.py`, `scripts/decode_ab.sh`, `scripts/decode_ab_engine.sh` and both
+restart-between-trials scripts claim `.run-lock.json` before loading anything
+and refuse if another live process holds it ([#133](https://github.com/evanwtf/local-llm/issues/133)).
+
+A run killed by `SIGKILL` leaves the file behind. `preflight` reports it as
+stale, names what it was doing and when, and **does not take it** — remove it
+deliberately, so a crashed run gets noticed rather than paved over.
+`--no-lock` opts out. The lock knows nothing about downloads: 171 GB of disk
+traffic under a benchmark is still yours to avoid.
+
+## ollama 0.33.3 and the sampler boundary
+
+ollama on this machine is **0.33.3**, installed 2026-09-03 18:19. From that
+version, model-authored GGUF sampler defaults outrank ollama's built-ins
+([#84](https://github.com/evanwtf/local-llm/issues/84), ollama#16471).
+
+Every ollama-backed row this project holds predates the change. As of
+2026-09-04 the boundary has not been crossed *in the data* — the 90 rows
+written since the upgrade are all `qwen38fnds4shim` or `qwen38fnds4mtp7shim`,
+which do not go through ollama. **The next ollama-backed row is the first
+under the new precedence and must not be pooled with earlier ollama rows.**
+Rows now carry the resolved sampler, so the two regimes are distinguishable
+after the fact.
