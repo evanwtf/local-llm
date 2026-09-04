@@ -35,16 +35,20 @@ when one is *behind* its release rather than refusing when it has moved. See
 
 ### Finishable in a session with machine time
 
-1. **[#138](https://github.com/evanwtf/local-llm/issues/138)** ivanfioravanti: Q4_K imatrix Qwen3.8-Flash-Next for ds4, measured on M5 Max
-   Not a new model beside ours -- a **replacement of the build we run**. Ours is
-   `Q40RoutedExperts`, which its author has withdrawn as less accurate.
-   *Done when:* four-run decode A/B against our current Q4, or a stated reason it will not load.
+1. **[#138](https://github.com/evanwtf/local-llm/issues/138)** Q4_K imatrix vs the Q4_0 build we publish -- **speed measured, quality not**
+   The stack A/B is done: +9.5% decode, -24.5% prefill, four runs. It is a
+   trade, and the deciding variable was never speed. The author's claim was
+   about accuracy.
+   *Done when:* the two builds are compared on quality, not rate -- coherence at temp 0 plus one agent cell, or a stated reason we accept the trade blind.
 2. **[#112](https://github.com/evanwtf/local-llm/issues/112)** The tool-call degeneration loop
-   *Done when:* remedy 2 is measured on the affected cell -- it shipped 2026-09-03 and has never been.
-3. **[#116](https://github.com/evanwtf/local-llm/issues/116)** Test whether maxing the fans changes measured pass rates or timings
-   The design is pre-registered on the issue, thresholds and all five outcome
-   sentences included. Only the run is left, and the fans are the operator's call.
-   *Done when:* four runs auto against four runs max-fans, with the thermal log beside each.
+   Item 2 cannot be measured at the outcome level: ~230 trials/arm to detect a
+   drop to zero. Redirected to a strip-toggle A/B on the conditional.
+   *Done when:* 2 runs per arm strip-on vs strip-off under one protocol, read with `tool_error_conditional.py`, at >=30 failures per arm.
+3. **[#116](https://github.com/evanwtf/local-llm/issues/116)** Does maxing the fans change measured pass rates or timings?
+   Design pre-registered on the issue, thresholds and all five outcome
+   sentences. #138's session confirmed auto sits at ~3450/3730 rpm against a
+   5349/5777 max, so the arms would be two real cooling regimes.
+   *Done when:* four runs auto against four max-fans, with the thermal log beside each. The fans are the operator's call.
 
 ### Measurements, not builds
 
@@ -52,6 +56,10 @@ when one is *behind* its release rather than refusing when it has moved. See
    Items 1-3 are done. No (backend, task) cell on this machine holds two client
    versions, so this needs one deliberate comparison, not more incidental data.
    *Done when:* one backend is measured under two client versions, or the question is dropped on the record.
+5. **[#141](https://github.com/evanwtf/local-llm/issues/141)** PLE support exists only on ivanfioravanti forks
+   The model we recommend runs on no upstream `ds4` build, so a clean-machine
+   reproduction of our headline result is currently impossible.
+   *Done when:* the recommendation says which fork it requires, or upstream carries PLE.
 
 ### Standing problems, not finishable in one sitting
 

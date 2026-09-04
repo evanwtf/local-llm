@@ -22,6 +22,75 @@ picks in `RECOMMENDATIONS.md`, and the current queue in `NEXT.md`.
 
 ---
 
+**2026-09-04, evening. The build we publish is the one its author withdrew (#138).**
+
+`ivanfioravanti/Qwen3.8-Flash-Next-DS4-Q4` replaced its Q4_0 routed-expert
+build with a Q4_K imatrix one. Our `qwen38fnds4shim` cell -- 142 rows, the
+current recommendation -- runs the withdrawn file, and the repo no longer
+offers it.
+
+Measuring the two turned out to be harder than it looked, in a way worth
+recording. **Neither binary loads the other's weights**: `ds4-metal ba01f5d`
+refuses the new build and `ivan/qwen3.8-flash-next bd9cfbc` refuses the old
+one, both with `deepseek4.block_count missing`, against a control where each
+engine loads its own weights on identical flags. So the quant and the engine
+are welded together and the comparison is a **stack** comparison by
+construction. `scripts/decode_ab_stack.sh` is the shape that expresses it --
+each arm carries its own engine tree, GGUF and PLE sidecar -- and it prints
+the two-variable warning beside the arms so the number cannot be quoted
+without it.
+
+Four runs:
+
+    decode   q4kimat/q40old  1.095  (+9.5%)  spread 3.5 pp, 8/8 frontiers
+    prefill  q4kimat/q40old  0.755 (-24.5%)  spread 7.5 pp, 0/8 frontiers
+    prompt   promessi_sposi.txt (1298 KiB)
+
+**k=3 is where both collapse**, a third independent confirmation of #136's
+threshold on new data. One run would have put prefill anywhere from -18.4% to
+-26.0%.
+
+It is a trade, not an upgrade, and **the deciding variable is unmeasured**:
+the author's claim was about accuracy, and nothing here measures accuracy.
+
+Two findings fell out. The old stack's prefill decays **-22.3% within a run**
+against the new one's -9.3%, so its advantage is largest cold. And the fans
+held `auto` at ~3450/3730 rpm against a 5349/5777 maximum with the die at
+66-69 C -- so #116's manipulation check would pass, which was the failure mode
+most likely to void that experiment.
+
+Along the way, two corrections and a guard:
+
+* I reported `ds4-bench` as having no `--ple` flag, on two issues, off a
+  `--help` grep. It has one, undocumented, at `ds4_bench.c:275`. Reporting a
+  capability as absent is the expensive direction to be wrong in -- nobody
+  re-checks something ruled out. `AGENTS.md` has it.
+* PLE support is **absent from `antirez/ds4` entirely**; only ivanfioravanti's
+  branches carry it. The model we recommend runs on no upstream ds4 build
+  (#141).
+* `save_transcript()` no longer overwrites. #112's pre-remedy transcripts were
+  destroyed because later sweeps wrote the same filenames into
+  `~/bench-logs/`, and the before-side of that issue's only question is
+  unrecoverable. A colliding write now goes to `<name>.stdout.2.jsonl`.
+
+**2026-09-04, evening. #112 item 2 cannot be measured where it was posed.**
+
+The multi-turn death rate is 3/90 under the restart protocol; detecting a drop
+to zero needs ~230 trials per arm, about 20 hours, and halving it ~1,400. The
+8.9 pp gap either side of the remedy commit is not evidence about the remedy:
+`f2fcc1f` bundles three changes and the protocol changed the same day, worth
++6 passes on its own.
+
+`scripts/cohort_split.py` reproduces that split and -- because
+`client_version`, `context_tokens` and `model` are all constant across it --
+**prints what it cannot see**. No row records the measurement protocol, so a
+reader who stops at "no SPLIT" concludes the opposite of the truth.
+
+The redirect is cheap: a strip-toggle A/B read through
+`tool_error_conditional.py`, 2 runs per arm, 4-8 hours, with the standing
+caveat that the conditional is a proxy whose link to deaths has never been
+measured.
+
 **2026-09-04, later. Clients are recorded, not pinned (#131).**
 
 The morning's work on #131 built a pin and made `preflight.py` refuse when an
