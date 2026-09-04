@@ -40,6 +40,7 @@ import pathlib
 import platform
 import subprocess
 import sys
+import time
 from urllib.parse import urlparse
 
 import opencode_config
@@ -809,6 +810,78 @@ def lock_state(
     )
 
 
+def acquire_lock(
+    what: str,
+    path: pathlib.Path = LOCK_PATH,
+    hostname: str | None = None,
+    pid: int | None = None,
+) -> tuple[bool, str]:
+    """Claim the machine for `what`. Returns (acquired, message).
+
+    Refuses -- hard -- when another live process on this machine holds it, or
+    when the lock is corrupt or foreign. That is the one place this module is
+    not advisory, and the asymmetry is deliberate: process detection is
+    inferential and a resident server may be intentional, so it warns. A lock
+    is an explicit declaration by a session that said what it was doing, so
+    there is no ambiguity to be generous about.
+
+    A stale lock is reported and NOT taken. Recovering from it is a decision
+    with a name on it, not a side effect of the next run starting.
+    """
+    hostname = hostname or platform.node()
+    pid = pid or os.getpid()
+    state, why = lock_state(read_lock(path), hostname, pid)
+    if state in ("held", "corrupt", "foreign"):
+        return False, f"cannot take the run lock: {why}"
+    if state == "stale":
+        return False, (
+            f"a stale run lock is in the way: {why}\n"
+            f"Nothing is running. Remove {path} to proceed -- deliberately not "
+            "automatic, so a crashed run is noticed rather than paved over."
+        )
+    claim = {
+        "hostname": hostname,
+        "pid": pid,
+        "what": what,
+        "started": _now_iso(),
+        "cwd": str(pathlib.Path.cwd()),
+    }
+    try:
+        # O_EXCL so two processes racing here cannot both win.
+        fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
+    except FileExistsError:
+        return False, "cannot take the run lock: another process took it just now"
+    except OSError as exc:
+        return False, f"cannot take the run lock: {exc}"
+    with os.fdopen(fd, "w") as fh:
+        json.dump(claim, fh, indent=2, sort_keys=True)
+    return True, f"run lock taken for {what!r} (pid {pid})"
+
+
+def release_lock(
+    path: pathlib.Path = LOCK_PATH,
+    hostname: str | None = None,
+    pid: int | None = None,
+) -> tuple[bool, str]:
+    """Drop our own lock. Never removes somebody else's."""
+    hostname = hostname or platform.node()
+    pid = pid or os.getpid()
+    state, why = lock_state(read_lock(path), hostname, pid)
+    if state == "free":
+        return True, "no run lock to release"
+    if state != "ours":
+        return False, f"refusing to release a lock that is not ours: {why}"
+    try:
+        path.unlink()
+    except OSError as exc:
+        return False, f"could not release the run lock: {exc}"
+    return True, "run lock released"
+
+
+def _now_iso() -> str:
+    return time.strftime("%Y-%m-%dT%H:%M:%S")
+
+
 def log_ci_status(offline: bool = False) -> None:
     """Say whether this repository's CI on main is red (#129).
 
@@ -897,10 +970,41 @@ def main() -> int:
     p.add_argument(
         "--no-versions", action="store_true", help="report running servers only"
     )
+    # #133. Acquisition and the memory check are one call on purpose: two
+    # guards you can invoke separately are two guards somebody invokes zero of.
+    p.add_argument(
+        "--acquire-lock",
+        metavar="WHAT",
+        help="claim this machine for WHAT and exit non-zero if it is taken",
+    )
+    p.add_argument(
+        "--release-lock", action="store_true", help="drop this process's run lock"
+    )
+    # preflight exits immediately, so recording ITS pid would make the lock
+    # stale the moment it is written. The owner is whatever outlives this
+    # call -- a shell script passes $$.
+    p.add_argument(
+        "--owner-pid",
+        type=int,
+        default=None,
+        metavar="PID",
+        help="process whose lifetime the lock tracks (default: this one)",
+    )
     args = p.parse_args()
+
+    if args.release_lock:
+        ok, why = release_lock(pid=args.owner_pid)
+        logger.info("preflight: %s", why) if ok else logger.error("preflight: %s", why)
+        return 0 if ok else 1
 
     report = inspect()
     log_report(report)
+    if args.acquire_lock:
+        ok, why = acquire_lock(args.acquire_lock, pid=args.owner_pid)
+        if not ok:
+            logger.error("preflight: %s", why)
+            return 1
+        logger.info("preflight: %s", why)
     if not args.no_versions:
         log_versions(offline=args.offline)
         # #129. Gated with the versions block deliberately: --no-versions

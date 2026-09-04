@@ -690,3 +690,61 @@ def test_the_lock_is_gitignored_because_it_is_machine_local():
     """#133: syncing a lock would let one machine wedge the other."""
     ignored = (REPO_ROOT / ".gitignore").read_text()
     assert ".run-lock.json" in ignored
+
+
+def test_acquiring_a_free_lock_writes_what_and_who(tmp_path):
+    path = tmp_path / ".run-lock.json"
+    ok, _ = preflight.acquire_lock("#118 arm A", path, hostname="mac", pid=4242)
+    assert ok
+    got = json.loads(path.read_text())
+    assert got["what"] == "#118 arm A"
+    assert got["pid"] == 4242 and got["hostname"] == "mac"
+
+
+def test_a_live_foreign_lock_refuses_hard(tmp_path):
+    """The one place this module refuses instead of warning. Process detection
+    is inferential and stays advisory; a lock is an explicit declaration."""
+    path = tmp_path / ".run-lock.json"
+    path.write_text(json.dumps({"hostname": "mac", "pid": os.getpid(), "what": "x"}))
+    ok, why = preflight.acquire_lock("mine", path, hostname="mac", pid=os.getpid() + 1)
+    assert not ok and "cannot take the run lock" in why
+
+
+def test_a_stale_lock_is_not_taken_automatically(tmp_path):
+    """Recovering from a crashed run is a decision with a name on it, not a
+    side effect of the next run starting."""
+    path = tmp_path / ".run-lock.json"
+    path.write_text(json.dumps({"hostname": "mac", "pid": 999_999, "what": "dead"}))
+    ok, why = preflight.acquire_lock("mine", path, hostname="mac", pid=os.getpid())
+    assert not ok
+    assert "stale" in why and "dead" in why
+    assert path.exists(), "a stale lock must survive so it can be seen"
+
+
+def test_release_drops_our_own_lock(tmp_path):
+    path = tmp_path / ".run-lock.json"
+    preflight.acquire_lock("mine", path, hostname="mac", pid=4242)
+    ok, _ = preflight.release_lock(path, hostname="mac", pid=4242)
+    assert ok and not path.exists()
+
+
+def test_release_refuses_somebody_elses_lock(tmp_path):
+    path = tmp_path / ".run-lock.json"
+    path.write_text(json.dumps({"hostname": "mac", "pid": os.getpid(), "what": "x"}))
+    ok, why = preflight.release_lock(path, hostname="mac", pid=os.getpid() + 1)
+    assert not ok and "not ours" in why
+    assert path.exists()
+
+
+def test_releasing_when_there_is_no_lock_is_fine(tmp_path):
+    ok, _ = preflight.release_lock(tmp_path / "none.json", hostname="mac", pid=1)
+    assert ok
+
+
+def test_both_ab_harnesses_take_the_lock():
+    """#133: a guard the entry points do not call is the #129 mistake again."""
+    for name in ("decode_ab.sh", "decode_ab_engine.sh"):
+        text = (REPO_ROOT / "scripts" / name).read_text()
+        assert "--acquire-lock" in text, name
+        assert "--release-lock" in text, name
+        assert "trap " in text, f"{name} must release on exit"

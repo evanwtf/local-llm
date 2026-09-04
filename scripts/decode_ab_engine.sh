@@ -29,6 +29,18 @@ STEP=${STEP:-2048}
 GEN=${GEN:-128}
 REPS=${REPS:-3}
 
+# #133: claim the machine before loading anything. preflight sees the process
+# table but cannot see intent, and this script spends minutes between arms
+# with nothing running -- a scan in that window truthfully says "all clear"
+# while the machine is committed for hours. `$$` is this script, whose
+# lifetime the lock should track; preflight's own pid exits immediately.
+PREFLIGHT="$(dirname "$0")/../benchmarks/agent/preflight.py"
+if ! uv run python "$PREFLIGHT" --acquire-lock "decode_ab_engine.sh $LABEL_A vs $LABEL_B" --owner-pid $$; then
+  echo "refusing to start: the machine is claimed by another run" >&2
+  exit 1
+fi
+trap 'uv run python "$PREFLIGHT" --release-lock --owner-pid $$ >/dev/null 2>&1' EXIT
+
 mkdir -p "$OUT"
 for rep in $(seq 1 "$REPS"); do
   if [ $((rep % 2)) -eq 0 ]; then
