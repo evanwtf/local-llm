@@ -783,6 +783,7 @@ def test_a_run_is_complete_only_when_every_csv_is_full():
     one -- and any statistic taken then includes a partial arm."""
     text = (REPO_ROOT / "scripts" / "decode_ab_repeat.sh").read_text()
     assert "complete_runs()" in text
-    assert "not when six files exist" in text
     # the skip guard must use it, not a bare ls
     assert 'complete_runs "$OUT"' in text
+    # and it must delegate, so shell and poster cannot drift on the meaning
+    assert "from post_ab_run import is_complete" in text

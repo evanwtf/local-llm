@@ -36,17 +36,14 @@ command -v uv >/dev/null || { echo "uv not found" >&2; exit 1; }
 # ds4-bench is still filling its last one, and any statistic taken then
 # silently includes a partial arm.
 complete_runs() {
-  local d=$1 want=0 n
-  ls "$d"/*.csv >/dev/null 2>&1 || { echo 0; return; }
-  for f in "$d"/*.csv; do
-    n=$(( $(wc -l < "$f") - 1 ))
-    [ "$n" -gt "$want" ] && want=$n
-  done
-  for f in "$d"/*.csv; do
-    n=$(( $(wc -l < "$f") - 1 ))
-    [ "$n" -eq "$want" ] || { echo 0; return; }
-  done
-  echo 1
+  # Delegates to the Python check so the shell and the poster cannot drift
+  # apart on what "complete" means -- they already have, three times.
+  uv run python - "$1" <<'PYEOF' 2>/dev/null || echo 0
+import pathlib, sys
+sys.path.insert(0, "scripts")
+from post_ab_run import is_complete
+print(1 if is_complete(pathlib.Path(sys.argv[1])) else 0)
+PYEOF
 }
 
 for i in $(seq 1 "$N"); do

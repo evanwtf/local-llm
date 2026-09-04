@@ -48,16 +48,37 @@ def already_posted(issue: int, name: str, repo: str | None = None) -> bool:
 
 
 def is_complete(run: pathlib.Path) -> bool:
-    """Every CSV holds the widest frontier count present.
+    """Both arms present, every rep present in both, every CSV the same length.
 
-    Counting files reports a run finished while ds4-bench is still filling
-    its last one, and a report taken then includes a partial arm.
+    Three ways this has been got wrong, each caught in production rather than
+    review:
+
+    1. Counting files -- a file being written already has a name and a
+       header, so a run reads as finished while ds4-bench fills its last one.
+    2. Uniform row counts alone -- one CSV is trivially uniform, so a
+       directory holding only `q4-rep1.csv` passed and the report then failed
+       because an A/B needs two arms.
+    3. Ignoring reps -- `q4-rep1` and `q8-rep1` alone are a complete pair by
+       arms and by length, but they are one repetition of a three-rep run.
+
+    So: at least two arms, the same set of reps under each, and one row count
+    across the whole directory.
     """
     csvs = sorted(run.glob("*.csv"))
     if not csvs:
         return False
-    counts = [sum(1 for _ in p.open()) - 1 for p in csvs]
-    return len(set(counts)) == 1 and counts[0] > 0
+    by_arm: dict[str, set[str]] = {}
+    counts: set[int] = set()
+    for path in csvs:
+        arm, _, rep = path.stem.rpartition("-rep")
+        if not arm or not rep.isdigit():
+            return False
+        by_arm.setdefault(arm, set()).add(rep)
+        counts.add(sum(1 for _ in path.open()) - 1)
+    if len(by_arm) < 2 or len(counts) != 1 or next(iter(counts)) <= 0:
+        return False
+    reps = list(by_arm.values())
+    return all(r == reps[0] for r in reps)
 
 
 def report(run: pathlib.Path) -> str:

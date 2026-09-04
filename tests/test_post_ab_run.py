@@ -79,3 +79,25 @@ def test_an_unreadable_issue_refuses_rather_than_risking_a_duplicate(monkeypatch
     )
     with pytest.raises(RuntimeError):
         poster.already_posted(91, "run1")
+
+
+def test_a_single_arm_is_not_complete(tmp_path):
+    """One CSV is trivially uniform. run3 passed the old check holding only
+    q4-rep1.csv, and the report then failed because an A/B needs two arms."""
+    d = _run(tmp_path, "r", {"q4-rep1.csv": 32})
+    assert not poster.is_complete(d)
+
+
+def test_matching_arms_but_missing_reps_is_not_complete(tmp_path):
+    """q4-rep1 and q8-rep1 are a complete pair by arms and by length, and one
+    repetition of a three-rep run."""
+    full = {f"{a}-rep{r}.csv": 32 for a in ("q4", "q8") for r in (1, 2, 3)}
+    partial = {k: v for k, v in full.items() if not k.endswith("rep3.csv")}
+    partial["q4-rep3.csv"] = 32  # present for one arm only
+    assert not poster.is_complete(_run(tmp_path, "partial", partial))
+    assert poster.is_complete(_run(tmp_path, "full", full))
+
+
+def test_a_stray_file_name_is_not_complete(tmp_path):
+    d = _run(tmp_path, "r", {"q4-rep1.csv": 32, "notes.csv": 32})
+    assert not poster.is_complete(d)
