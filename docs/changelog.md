@@ -94,6 +94,17 @@ it excludes a capped failure from `failed`, and it warns when its own median
 is narrower than the per-case spread, because the first claim written off this
 data was exactly that over-read.
 
+**2026-09-04, evening. Remedy 2 got a switch, a day after it shipped (#112).**
+
+`SHIM_NO_STRIP=1`. The strip-toggle A/B was blocked on something small: the
+experiment needs an arm with the remedy off, and turning it off meant editing
+the shim mid-batch. So it never got designed, and the remedy sat unmeasured
+for a day -- not for want of trying.
+
+`AGENTS.md` carries the general form: when a fix ships as a behaviour change in
+code the harness calls, give it a switch at the same time. The switch costs one
+`if`; retrofitting one costs the credibility of every result taken in between.
+
 **2026-09-04, evening. #112 item 2 cannot be measured where it was posed.**
 
 The multi-turn death rate is 3/90 under the restart protocol; detecting a drop

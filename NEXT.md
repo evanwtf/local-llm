@@ -43,7 +43,9 @@ when one is *behind* its release rather than refusing when it has moved. See
    *Done when:* one agent cell on the new stack, giving pass rate and wall time against the published cell -- or a stated reason we accept the trade blind.
 2. **[#112](https://github.com/evanwtf/local-llm/issues/112)** The tool-call degeneration loop
    Item 2 cannot be measured at the outcome level: ~230 trials/arm to detect a
-   drop to zero. Redirected to a strip-toggle A/B on the conditional.
+   drop to zero. Redirected to a strip-toggle A/B on the conditional, and
+   **unblocked** -- `SHIM_NO_STRIP=1` is the off arm. Nothing to build; ~4-8 h
+   of machine time.
    *Done when:* 2 runs per arm strip-on vs strip-off under one protocol, read with `tool_error_conditional.py`, at >=30 failures per arm.
 3. **[#116](https://github.com/evanwtf/local-llm/issues/116)** Does maxing the fans change measured pass rates or timings?
    Design pre-registered on the issue, thresholds and all five outcome
