@@ -8,6 +8,9 @@ on this machine on 2026-08-28, with a GLM llama-server holding 77.6 GiB.
 
 from __future__ import annotations
 
+import json
+import sys
+
 import preflight
 
 # `ps -eo pid,rss,command`. RSS is KiB on macOS. The header is present and must
@@ -417,3 +420,161 @@ def test_shim_upstream_ports_need_a_port_in_the_url():
         " --upstream http://localhost\n"
     )
     assert preflight.shim_upstream_ports(ps, {8101}) == set()
+
+
+# --- a red main is learned at preflight, not seventeen hours later (#129) --
+#
+# Both red streaks this repo has had were found by a person going looking:
+# one ran 20 runs over 17 hours before anyone noticed, and the fix then took
+# seven minutes. Preflight runs before every session, so the check belongs
+# here. Advisory like the rest of preflight: it warns and never refuses.
+
+
+def test_a_streak_counts_consecutive_reds_from_the_newest():
+    assert preflight.ci_streak(["failure", "failure", "failure"]) == 3
+    assert preflight.ci_streak(["failure", "failure", "success", "failure"]) == 2
+    # newest first: a green run in front means there is no streak at all
+    assert preflight.ci_streak(["success", "failure", "failure"]) == 0
+
+
+def test_a_run_without_a_verdict_is_not_evidence_either_way():
+    """In-progress and cancelled runs neither extend nor break the streak.
+
+    A cancelled run is a deliberate stop, not a red; an in-progress run has
+    no verdict yet. The reds behind them are still real.
+    """
+    assert preflight.ci_streak([None, "in_progress", "failure", "failure"]) == 2
+    assert preflight.ci_streak(["cancelled", "failure"]) == 1
+    assert preflight.ci_streak(["in_progress"]) == 0
+    assert preflight.ci_streak([]) == 0
+
+
+def test_a_timed_out_run_is_red():
+    assert preflight.ci_streak(["timed_out", "failure"]) == 2
+
+
+def test_an_unknown_conclusion_ends_the_streak_rather_than_extending_it():
+    """A conclusion we do not know must not be counted as skip.
+
+    If GitHub grows a new red conclusion, reading it as 'no verdict' would
+    silence the warning; reading it as 'not red' understates the streak. The
+    conservative choice is to stop counting.
+    """
+    assert preflight.ci_streak(["failure", "some_new_state"]) == 1
+
+
+def test_the_gh_call_names_the_repo_branch_and_a_short_limit(monkeypatch):
+    seen = {}
+
+    def fake(argv):
+        seen["argv"] = argv
+        return '[{"conclusion": "success"}]'
+
+    monkeypatch.setattr(preflight, "_capture", fake)
+    preflight.log_ci_status()
+    argv = seen["argv"]
+    assert "evanwtf/local-llm" in argv
+    assert argv[argv.index("--branch") + 1] == "main"
+    assert argv[argv.index("--limit") + 1] == "5"
+
+
+def test_two_reds_in_a_row_warn_at_preflight(caplog, monkeypatch):
+    reds = json.dumps([{"conclusion": "failure"}, {"conclusion": "timed_out"}])
+    monkeypatch.setattr(preflight, "_capture", lambda argv: reds)
+    with caplog.at_level("INFO"):
+        preflight.log_ci_status()
+    warnings = [r for r in caplog.records if r.levelname == "WARNING"]
+    assert len(warnings) == 1
+    text = " ".join(r.message for r in caplog.records)
+    assert "2" in text and "RED" in text
+
+
+def test_one_red_is_info_not_a_warning(caplog, monkeypatch):
+    """One red can be a flake. A flake that shouts is noise by the time the
+    real streak lands, and a warning nobody reads is worth less than no
+    warning at all."""
+    one_red = json.dumps([{"conclusion": "failure"}, {"conclusion": "success"}])
+    monkeypatch.setattr(preflight, "_capture", lambda argv: one_red)
+    with caplog.at_level("INFO"):
+        preflight.log_ci_status()
+    assert not [r for r in caplog.records if r.levelname == "WARNING"]
+    assert any("1" in r.message for r in caplog.records)
+
+
+def test_green_ci_says_so_and_claims_nothing_more(caplog, monkeypatch):
+    """'No red' is the claim; 'green' would vouch for runs we did not see."""
+    green = json.dumps([{"conclusion": "success"}] * 5)
+    monkeypatch.setattr(preflight, "_capture", lambda argv: green)
+    with caplog.at_level("INFO"):
+        preflight.log_ci_status()
+    text = " ".join(r.message for r in caplog.records)
+    assert "no red" in text
+
+
+def test_gh_that_answers_garbage_is_info_not_an_error(caplog, monkeypatch):
+    monkeypatch.setattr(preflight, "_capture", lambda argv: "not json")
+    with caplog.at_level("INFO"):
+        preflight.log_ci_status()  # must not raise
+    assert not [r for r in caplog.records if r.levelname == "ERROR"]
+    assert any("could not" in r.message for r in caplog.records)
+
+
+def test_a_missing_gh_is_info_not_a_crash(caplog, monkeypatch):
+    def raise_fnfe(argv):
+        raise FileNotFoundError("gh")
+
+    monkeypatch.setattr(preflight, "_capture", raise_fnfe)
+    with caplog.at_level("INFO"):
+        preflight.log_ci_status()  # must not raise
+    assert not [r for r in caplog.records if r.levelname == "ERROR"]
+
+
+def test_offline_skips_the_gh_call_entirely(caplog, monkeypatch):
+    def explode(argv):
+        raise AssertionError("no network under --offline")
+
+    monkeypatch.setattr(preflight, "_capture", explode)
+    with caplog.at_level("INFO"):
+        preflight.log_ci_status(offline=True)
+    assert any("offline" in r.message.lower() for r in caplog.records)
+
+
+def test_main_actually_calls_the_ci_check(monkeypatch):
+    """The check was written, tested, and never called (#129).
+
+    Ten passing tests proved `log_ci_status` behaved correctly and none of
+    them proved it ran. That is the same failure #129 is about -- a check
+    nobody invokes -- so the wiring gets its own test rather than trusting
+    that a call site added once stays there.
+    """
+    called: list[bool] = []
+    monkeypatch.setattr(preflight, "log_ci_status", lambda *a, **k: called.append(True))
+    monkeypatch.setattr(preflight, "log_versions", lambda *a, **k: None)
+    monkeypatch.setattr(
+        preflight,
+        "inspect",
+        lambda *a, **k: preflight.Report(
+            stale=[], unmatched=[], total_gib=128.0, headroom_gib=100.0
+        ),
+    )
+    monkeypatch.setattr(preflight, "log_report", lambda *a, **k: None)
+    monkeypatch.setattr(sys, "argv", ["preflight", "--offline"])
+    preflight.main()
+    assert called, "main() ran without calling log_ci_status"
+
+
+def test_no_versions_does_not_reach_the_network(monkeypatch):
+    """--no-versions means servers only; it must not make a gh call."""
+    called: list[bool] = []
+    monkeypatch.setattr(preflight, "log_ci_status", lambda *a, **k: called.append(True))
+    monkeypatch.setattr(
+        preflight,
+        "inspect",
+        lambda *a, **k: preflight.Report(
+            stale=[], unmatched=[], total_gib=128.0, headroom_gib=100.0
+        ),
+    )
+    monkeypatch.setattr(preflight, "log_report", lambda *a, **k: None)
+    monkeypatch.setattr(sys, "argv", ["preflight", "--no-versions"])
+    preflight.main()
+    assert not called

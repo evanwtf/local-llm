@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import argparse
 import dataclasses
+import json
 import logging
 import os
 import pathlib
@@ -56,6 +57,17 @@ INFERENCE = ("llama-server", "ollama", "ds4-server", "mtplx")
 # knows where the real server lives: its --upstream names the port that a
 # shim-backed run depends on (#132).
 SHIM_SCRIPT = "ds4_qwen_tool_shim.py"
+
+# This repository's CI, checked at preflight so a red main is learned at the
+# start of a session instead of seventeen hours later (#129). CI is the only
+# observer of breakage that needs a host other than this machine -- the local
+# suite stays green through it.
+CI_REPO = "evanwtf/local-llm"
+CI_BRANCH = "main"
+# Conclusions that count as red. Everything without a verdict --
+# in progress, cancelled -- is not evidence either way.
+CI_RED = frozenset({"failure", "timed_out", "startup_failure"})
+CI_NO_VERDICT = frozenset({None, "", "in_progress", "cancelled"})
 
 # The stock Metal working set on this machine, measured with a Metal probe
 # before #30's sysctl was applied. Used when no override is in force.
@@ -647,6 +659,88 @@ def log_versions(offline: bool = False) -> None:
             )
 
 
+def ci_streak(conclusions: list[str | None]) -> int:
+    """Consecutive red conclusions, newest first -- the order `gh run list` gives.
+
+    A run without a verdict (in progress, cancelled) neither extends nor
+    breaks the streak: the reds behind it are still real, and a deliberate
+    stop is not a red. Any other conclusion -- success, and anything this
+    code has never heard of -- ends the streak. An unknown conclusion must
+    not be read as 'no verdict', or a conclusion GitHub later invents could
+    silence the warning.
+    """
+    streak = 0
+    for conclusion in conclusions:
+        if conclusion in CI_RED:
+            streak += 1
+        elif conclusion in CI_NO_VERDICT:
+            continue
+        else:
+            break
+    return streak
+
+
+def log_ci_status(offline: bool = False) -> None:
+    """Say whether this repository's CI on main is red (#129).
+
+    Both red streaks this repo has had were found by a person going looking:
+    the second ran 20 runs over 17 hours before anyone noticed, and the fix
+    then took seven minutes. Preflight runs before every session, so this
+    puts the check on the path that is always taken. Advisory like everything
+    else here: it warns and never refuses, and a gh that is absent, failing,
+    or answering garbage is an info line, not an error.
+    """
+    if offline:
+        logger.info("preflight: CI status not checked (--offline)")
+        return
+    try:
+        text = _capture(
+            [
+                "gh",
+                "run",
+                "list",
+                "--repo",
+                CI_REPO,
+                "--branch",
+                CI_BRANCH,
+                "--limit",
+                "5",
+                "--json",
+                "conclusion",
+            ]
+        )
+        runs = json.loads(text)
+        conclusions = [run.get("conclusion") for run in runs]
+    except (ValueError, OSError, subprocess.TimeoutExpired) as exc:
+        # Nothing here may break preflight, but a silent check is worse than
+        # an honest one: say it could not tell.
+        logger.info("preflight: could not read CI status (%s)", exc)
+        return
+    streak = ci_streak(conclusions)
+    where = f"CI on {CI_REPO} {CI_BRANCH}"
+    if streak >= 2:
+        logger.warning(
+            "preflight: %s is RED for the last %d runs -- "
+            "gh run list --repo %s to see them. The local suite stays green "
+            "through breakage only this host can see, so decide before "
+            "building on this tree",
+            where,
+            streak,
+            CI_REPO,
+        )
+    elif streak == 1:
+        logger.info(
+            "preflight: %s: 1 of the last %d runs is red -- could be a flake; "
+            "look if it repeats",
+            where,
+            len(conclusions),
+        )
+    else:
+        logger.info(
+            "preflight: %s: no red in the last %d runs", where, len(conclusions)
+        )
+
+
 def main() -> int:
     # #54: a run killed mid-batch leaves the real repositories moved aside at
     # <name>-real with the export standing in their place. Restore before
@@ -680,6 +774,10 @@ def main() -> int:
     log_report(report)
     if not args.no_versions:
         log_versions(offline=args.offline)
+        # #129. Gated with the versions block deliberately: --no-versions
+        # means "report running servers only", and that is not a mode that
+        # should reach the network.
+        log_ci_status(offline=args.offline)
     # #69: an opencode_model that OpenCode cannot resolve makes the client
     # exit in 0.6s, and the row reads as a model failure. Cheap to check here.
     try:
