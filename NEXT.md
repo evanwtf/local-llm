@@ -10,19 +10,18 @@
 
 > ### In flight right now
 >
-> **[#135](https://github.com/evanwtf/local-llm/issues/135) — re-downloading the q4/q8 weights**, ~171 GB, started 11:54:40, ETA ~13:00.
-> **Do not start a measurement until it lands.** The run lock guards against
-> processes, not disk traffic.
+> **Nothing.** The machine is idle, the run lock is free, and no download or
+> benchmark is running. The last work finished 2026-09-04 ~14:40 EDT.
 >
-> Then: **four q4/q8 runs** to re-measure what we posted to ds4#952, recorded on
-> [#91](https://github.com/evanwtf/local-llm/issues/91). Four rather than one because of
-> [#136](https://github.com/evanwtf/local-llm/issues/136).
+> Two upstream comments were posted today and both are settled:
+> ds4#964 (the M5 Max reproduction of PR #964, four runs, median +17.6%) and
+> ds4#952 (correcting our own statistic label; the numbers reproduced at
+> 1.155 over four runs). The 171 GB of q4/q8 weights re-acquired for the
+> second were deleted afterwards ([#135](https://github.com/evanwtf/local-llm/issues/135), closed).
 >
-> *This block is what is happening. The table below is what is **worth** happening —
-> a chore that unblocks a correction is not the same as the highest-value work, and
-> conflating them would make the ranking mean nothing once the chore is done.*
+> *Pick up from the table below.*
 
-Updated **2026-09-04 12:05 EDT**. **This file is the queue for _this machine_ —
+Updated **2026-09-04 14:55 EDT**. **This file is the queue for _this machine_ —
 the MacBook Pro, M5 Max, 128 GB.** Every item below is labelled `macOS` in the
 tracker. The Linux/RTX 3080 Ti tier has its own nine open issues ([#20](https://github.com/evanwtf/local-llm/issues/20), [#79](https://github.com/evanwtf/local-llm/issues/79),
 [#98](https://github.com/evanwtf/local-llm/issues/98)–[#104](https://github.com/evanwtf/local-llm/issues/104)) and they are deliberately **not** here; see `hardware/` and the
@@ -64,7 +63,7 @@ state that is not in git. The table is the queue. It has no calendar.
 
 ## Order
 
-Ranked by **value per hour against the goal above**. Eight items; everything else
+Ranked by **value per hour against the goal above**. Seven items; everything else
 is in the tracker.
 
 **What changed in this ranking.** Engine-speed items moved down and agent-defect
@@ -84,7 +83,6 @@ buys less than fixing a client that re-prefills 67 k tokens before every reply.
 | 5 | **[#4](https://github.com/evanwtf/local-llm/issues/4)** harder tasks: the current set cannot measure code quality | **The meta-blocker, and the reason the published pass-rate tables have stopped being useful.** [#55](https://github.com/evanwtf/local-llm/issues/55) A/4 flagged three cells at 100% for `gemma426` over five trials. Two combinations clear 90% and cannot be told apart; three more sit at 15/15 and would need ~35 consecutive passes to prove anything. **We cannot currently show that a better agent is better.** Not cheap — the gmail-archive suite has a floor and a Swift class needs `swift_excise.py` care — but every item above and below is measured against it. |
 | 6 | **[#120](https://github.com/evanwtf/local-llm/issues/120)** which `ds4-server` state degrades a session | **Six pass-rate points hide in an operational variable.** 36/45 on a continuous server, 42/45 with a restart between trials, 38/45 with the disk-KV budget raised 4x — so disk KV is not it. For an agent you actually use, a server that gets worse the longer it runs is a product defect, not a benchmark artifact. **Start with [#116](https://github.com/evanwtf/local-llm/issues/116)** (fan RPM in `thermals.py`, then a max-fans cycle): cheapest candidate, and `evanwtf/fancontrol` now exists to drive it. Read [#130](https://github.com/evanwtf/local-llm/issues/130) first — a within-session decline is not by itself evidence of throttling. |
 | 7 | **[#96](https://github.com/evanwtf/local-llm/issues/96)** oMLX bit-exact tail continuation, TTFT 3-4 s → 0.3 s | **Item 1's problem attacked from the other end.** @Spangler3000's claim is per-turn time-to-first-token, lossless by construction, and it is far above our resolution bar. Median conversation here is **9 turns**, so 3 s of dead air per turn is ~30 s a task spent waiting rather than working — the difference between an agent that feels usable and one that does not. Rust build plus a 3-trial restart-between cycle. The metric already shipped in `ee0228e`, so this pays for itself even if the claim fails. |
-| 8 | **[#84](https://github.com/evanwtf/local-llm/issues/84)** record the *resolved* sampler, not just the regime | **Still the half that matters, and it is smaller than the rest of this list.** `top_p 0.95` is 20/21 and `top_p 0.90` is 7/15 on the same task, model, engine and client ([#36](https://github.com/evanwtf/local-llm/issues/36)). The regime tag (`a7b9a0f`) and the ollama build (`797545a`) are now both on the row, and `preflight` names the 0.33.3 boundary before you cross it (`e8262d2`) — but no row yet records the *numbers* actually in force. `scripts/gguf_meta.py` reads the KVs; the obstacle is that `probe_ollama()` has no GGUF path to hand and `/api/show` does not reliably give one. Solve that and the rest is small. |
 
 **Dropped out of the top ten, and why.** [#117](https://github.com/evanwtf/local-llm/issues/117) (MTPLX runner),
 [#115](https://github.com/evanwtf/local-llm/issues/115) (mlx-serve 1M context) and [#39](https://github.com/evanwtf/local-llm/issues/39) item 3 are all
