@@ -741,10 +741,27 @@ def test_releasing_when_there_is_no_lock_is_fine(tmp_path):
     assert ok
 
 
-def test_both_ab_harnesses_take_the_lock():
+def test_every_measuring_entry_point_takes_the_lock():
     """#133: a guard the entry points do not call is the #129 mistake again."""
-    for name in ("decode_ab.sh", "decode_ab_engine.sh"):
+    for name in (
+        "decode_ab.sh",
+        "decode_ab_engine.sh",
+        "restart_between_trials.sh",
+        "restart_between_trials_armB.sh",
+    ):
         text = (REPO_ROOT / "scripts" / name).read_text()
         assert "--acquire-lock" in text, name
         assert "--release-lock" in text, name
         assert "trap " in text, f"{name} must release on exit"
+
+
+def test_the_restart_scripts_hold_the_lock_across_the_whole_cycle():
+    """#133: the window this lock exists for is the gap BETWEEN the runs,
+    where ds4-server is deliberately down. Letting each inner run.py take and
+    drop its own lock would leave exactly that gap unclaimed."""
+    for name in ("restart_between_trials.sh", "restart_between_trials_armB.sh"):
+        text = (REPO_ROOT / "scripts" / name).read_text()
+        assert "--no-lock" in text, f"{name}: inner run.py must not re-take it"
+        assert text.index("--acquire-lock") < text.index("run_trial 1"), (
+            f"{name}: the lock must be held before the first cycle"
+        )

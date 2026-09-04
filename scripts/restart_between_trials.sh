@@ -87,11 +87,23 @@ run_trial() {
     echo "[$(date +%H:%M:%S)] starting run $n..."
     (cd "$(dirname "$0")/.." && \
         uv run python benchmarks/agent/run.py \
-            --backend qwen38fnds4shim --trials 1 --client opencode \
+            --backend qwen38fnds4shim --trials 1 --client opencode --no-lock \
             > "$LOGDIR/armA-restart-run$n.log" 2>&1)
     echo "[$(date +%H:%M:%S)] run $n done"
     collect_transcripts "$n"
 }
+
+# #133: hold the lock across the whole cycle, not per run.py call. The
+# window this lock exists for is precisely the gap BETWEEN these runs, where
+# ds4-server is deliberately down and a process scan truthfully reports "all
+# clear" while the machine is committed for hours. run.py inside is told
+# --no-lock because this script already holds it.
+PREFLIGHT="$(dirname "$0")/../benchmarks/agent/preflight.py"
+if ! uv run python "$PREFLIGHT" --acquire-lock "restart_between_trials.sh (#112 arm A, 3 cycles)" --owner-pid $$; then
+  echo "refusing to start: the machine is claimed by another run" >&2
+  exit 1
+fi
+trap 'uv run python "$PREFLIGHT" --release-lock --owner-pid $$ >/dev/null 2>&1' EXIT
 
 echo "logs in: $LOGDIR"
 restart_ds4 trial1; run_trial 1
