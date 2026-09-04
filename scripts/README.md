@@ -19,6 +19,7 @@ documentation.
 | `cohort_split.py` | Split one backend's rows at a moment in time and compare the halves. |
 | `decode_ab_report.py` | Summarise a paired decode A/B produced by scripts/decode_ab.sh (#48). |
 | `disk_baseline.py` | Measure the internal NVMe: read bandwidth and random-read latency. |
+| `eval_trace.py` | Read a `ds4-eval` trace: pass rate, and tokens spent reaching each answer. |
 | `gguf_meta.py` | Print a GGUF file's metadata without loading the model. |
 | `hardware_id.py` | Derive a machine's results-directory name from the machine itself. |
 | `hf_sweep.py` | Watch Hugging Face for new quants of the models we actually run. |
