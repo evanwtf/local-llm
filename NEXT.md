@@ -23,21 +23,26 @@ session slow, wrong, or unmeasurable.
 
 ## Order
 
-1. **[#64](https://github.com/evanwtf/local-llm/issues/64)** — KV prefix stalls at ~20,400 tokens, so every turn re-prefills the whole conversation. ~186 s before the first output token, growing with the conversation. [#50](https://github.com/evanwtf/local-llm/issues/50) names a mechanism and it is cheap to test.
-2. **[#112](https://github.com/evanwtf/local-llm/issues/112)** — the tool-call degeneration loop. Nine failures with no wrong code. Remedy 1 needs no new code and no machine time; remedy 2 shipped and is still unmeasured.
-3. **[#136](https://github.com/evanwtf/local-llm/issues/136)** — a single A/B run is not a measurement. Four identical runs spanned 4.7 pp. Report between-run spread, establish how many runs are enough, audit the A/Bs computed before `98bc79b`.
-4. **[#131](https://github.com/evanwtf/local-llm/issues/131)** — nothing pins the agent client. OpenCode still self-updates on both machines; `preflight` warns where it should refuse. A version recorded and not pinned is a post-mortem.
-5. **[#4](https://github.com/evanwtf/local-llm/issues/4)** — the task set cannot measure code quality. Two backends clear 90% and cannot be told apart. Until this moves, no result can show that a better agent is better.
-6. **[#120](https://github.com/evanwtf/local-llm/issues/120)** — find which `ds4-server` state degrades a session. Six pass-rate points hide in it. Start with [#116](https://github.com/evanwtf/local-llm/issues/116), fan RPM in `thermals.py`, then a controlled max-fans cycle.
-7. **[#96](https://github.com/evanwtf/local-llm/issues/96)** — oMLX bit-exact tail continuation, TTFT 3–4 s → 0.3 s. At 9 turns median that is ~30 s a task spent waiting. Rust build plus one restart-between cycle.
+1. **[#64](https://github.com/evanwtf/local-llm/issues/64)** KV cache prefix stalls at ~20,400 tokens — every turn re-prefills the whole conversation
+   Inflates wall time on every Claude Code trial we hold, and kills trials that would otherwise pass.
+2. **[#112](https://github.com/evanwtf/local-llm/issues/112)** The tool-call degeneration loop
+   Nine failures with no wrong code. First remedy needs no new code and no machine time.
+3. **[#136](https://github.com/evanwtf/local-llm/issues/136)** A single A/B run is not a measurement
+   Four identical runs spanned 4.7 pp. Sets the cost of every future upstream claim.
+4. **[#131](https://github.com/evanwtf/local-llm/issues/131)** Nothing pins the agent client, and it updates itself between batches
+   A silent client update rewrites results and reads as a model regression.
+5. **[#4](https://github.com/evanwtf/local-llm/issues/4)** Harder tasks: the current set cannot measure code quality
+   The pass-rate table has saturated, so no result can show a better agent is better.
+6. **[#120](https://github.com/evanwtf/local-llm/issues/120)** What ds4 server state degrades a session?
+   Six pass-rate points hide in an operational variable. Start with #116, fan RPM.
+7. **[#96](https://github.com/evanwtf/local-llm/issues/96)** oMLX bit-exact tail continuation, TTFT 3–4 s → 0.3 s
+   Median conversation is 9 turns, so ~30 s a task spent waiting rather than working.
 
 After these: the engine-speed queue and the rest of the backlog, in the tracker.
 
 ## Not queued
 
-Open issues deliberately not in the list, and why:
-
-- **[#40](https://github.com/evanwtf/local-llm/issues/40) mixed-precision GLM-5.3.** Right question, behind a working agent path — but it now has a concrete recipe and numbers from ds4#964 (KDA + head BF16 → Q8 inside the Q4_K file, "Q2 speed with a Q4 file"; quality measured on the PR: perplexity improves slightly). [#118](https://github.com/evanwtf/local-llm/issues/118) has now measured the full-precision PR itself on this machine over **four runs — median +17.6% paired decode, spread 16.5-21.2, bit-exact** — so the recipe builds on local data too.
-- **GLM thinking/tool-replay (ds4#894, #897, #899, #904, #906).** Defects we would inherit while #569 and #816 stand.
-- **Vision, vector steering, ROCm.** Out of scope, and not shipped.
-- **More trials on saturated cells.** New axes, not more samples.
+- **[#40](https://github.com/evanwtf/local-llm/issues/40)** Mixed-precision GLM-5.3 — right question, behind a working agent path. Has a recipe from ds4#964 and local numbers from [#118](https://github.com/evanwtf/local-llm/issues/118).
+- **GLM thinking/tool-replay** (ds4#894, #897, #899, #904, #906) — defects we would inherit while ds4#569 and #816 stand.
+- **Vision, vector steering, ROCm** — out of scope, and not shipped.
+- **More trials on saturated cells** — new axes, not more samples.
