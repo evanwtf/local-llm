@@ -148,6 +148,15 @@ every turn. Raise it for any non-DeepSeek model — though per
 | `~/git/llama.cpp-glm52pr` | `8a8d0bcc4` (PR #27752) | serves `glm53`. Clean, unpatched. |
 | `~/git/llama.cpp-glm53` | `9370c82db` (PR #27773) | the failed attempt, **166 lines of uncommitted patches**. Two are independently upstream-worthy ([#25](https://github.com/evanwtf/local-llm/issues/25)). Do not build GLM here. |
 
+Two `ds4` worktrees exist for the [#118](https://github.com/evanwtf/local-llm/issues/118) A/B:
+`~/git/ds4-main` @ `b0a147a` (clean rebuild) and `~/git/ds4-pr964` @ `8969dbb`
+(branch `pr-964` of the `~/git/ds4` hub), each built in place so each arm reads
+its own `metal/*.metal`. **The ds4 Makefile tracks no header dependencies**
+(`grep -MMD` finds nothing): after any checkout that changes `ds4.h` and friends,
+`make clean` before building — an incremental build over an older checkout links
+mixed-vintage objects silently, with no warning (#118's near-miss: 3 objects
+compiled against the old header, caught before anything was measured).
+
 **`b10729` is preserved** at `~/llamacpp-builds/b10729/bin`. It produced every
 published llama.cpp number, and a `git pull` plus in-place rebuild would have
 destroyed it.

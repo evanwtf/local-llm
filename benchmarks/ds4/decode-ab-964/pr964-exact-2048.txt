@@ -1,0 +1,20 @@
+ds4: Metal device Apple M5 Max, 128.00 GiB RAM
+ds4: Metal 4 tensor API enabled for Tensor kernels
+ds4: drift-patch flags hc_stable=on norm_unify=on kv_raw_f32=off rope_exp2_log2=off math_safe=off tensor_matmul=on
+ds4: Metal model views created in 2.866 ms, residency requested in 1023.114 ms, warmup 3.783 ms (mapped 92026.06 MiB from offset 9.07 MiB)
+ds4: Metal mapped mmaped model as 2 overlapping shared buffers
+ds4: metal backend initialized for graph diagnostics
+ds4: memory: KV 0.02 GiB (raw 0.00 + compressed 0.02) + buffers 2.92 GiB + resident model 89.87 GiB = 92.81 GiB planned
+ds4: memory detail: ctx=2177 prefill_cap=2048 raw_kv_rows=0 compressed_kv_rows=2177 backend=metal
+ds4-bench: context buffers 3013.50 MiB (ctx=2177, backend=metal, prefill_chunk=2048, raw_kv_rows=0, compressed_kv_rows=2177)
+ds4: GLM graph using compact DSA KV only; expanded full-attention KV cache is skipped
+ds4: GLM graph allocating compact DSA cache: rows=2177 logical_ctx=2177 kv_layers=45 indexer_layers=11 f16 0.02 GiB
+ds4: GLM compact indexed prefill chunk=2048 score_rows=2048 score_scratch=4.26 MiB
+ds4-bench: gen[ctx=2048] decoded text: "arci a
+questa regola, che è la più essenziale, e la più necessaria, e la più
+determinata, e la più definitiva, e la più assoluta, e la più
+indispensabile, e la più imperante, e la più imperativa, e la più
+imperante, e la più imperativa, e la più imperante, e la più
+imperativa, e la più imperante, e la più imperativa, e la più
+imperante, e la più imperativa, e la più imperante, e la più
+im"

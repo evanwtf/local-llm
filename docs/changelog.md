@@ -22,6 +22,51 @@ picks in `RECOMMENDATIONS.md`, and the current queue in `NEXT.md`.
 
 ---
 
+**2026-09-04. ds4 PR #964 reproduces on this M5 Max: +20.0% decode, bit-exact
+([#118](https://github.com/evanwtf/local-llm/issues/118), closed).**
+
+The one item where we advance someone else's project with data only we have:
+every Apple measurement on antirez/ds4#964 was M3 Ultra, and @trueimage had
+tagged Evan directly. Measured PR head `8969dbb` against `main` at `b0a147a`
+(merge-base check: the PR is 42 ahead, 0 behind — we measured it against its
+own base, so no stale-baseline discount applies). Two worktrees, each built in
+place so each arm reads its own `metal/*.metal`; 3 repetitions with arm order
+alternating per rep — the [#130](https://github.com/evanwtf/local-llm/issues/130) rule, applied here before the harness itself got it;
+8 frontiers, 2048–16384; 128 greedy tokens each.
+
+- **Decode: +20.0% paired median** (per-frontier 1.177–1.226, faster at 8 of 8,
+  flat across context — the same shape as the PR's own curve). Rep 1 ran ~9%
+  high on *both* arms (mmap pages still faulting in); the paired design
+  absorbed it, and reps 2–3 alone give +18.1%/+17.3%.
+- **Prefill: −0.3% paired median** (0.990–1.013) — the PR's "prefill flat"
+  claim holds here within 1.3%.
+- **Output: byte-identical** between arms at both attention regimes (2048 full
+  attention, 16384 compact DSA). Caveat stated on the issue: the greedy tail
+  decodes to empty-text tokens on this corpus, so the printed bytes are proven
+  identical and token-ID identity is strongly suggested, not strict.
+
+Direction, shape, prefill neutrality and exactness all reproduce; the magnitude
+is ~55–60% of the M3 Ultra numbers. The cleanest available explanation: an
+occupancy win pays less on **40 GPU cores than on 80**, which fits — a
+memory-traffic cut would pay *more* on the narrower part, which does not fit.
+Not isolated, only recorded.
+
+Two durable method facts fell out of it, both now in the
+[runbook](m5max-runbook.md): the ds4 Makefile tracks no header dependencies, so
+`make clean` after any checkout (the first launch linked 3 mixed-vintage
+objects and was stopped before anything was measured), and the model loads by
+mmap — there is no "load 2 is faster" signal to read.
+
+Harness: `scripts/decode_ab_engine.sh` @ `c1c72b0` with
+`scripts/decode_ab_report.py` for the paired statistics. Data:
+`benchmarks/ds4/decode-ab-964/` (6 A/B CSVs, 4 exactness captures). Method,
+results and a draft comment for Evan to post on the PR thread (written here,
+not posted there) are on
+[#118](https://github.com/evanwtf/local-llm/issues/118#issuecomment-5540223842).
+The queue item is done and removed; `NEXT.md` is back to nine items.
+
+---
+
 **2026-09-04. `NEXT.md` is the queue and nothing more.**
 
 The file had regrown into a diary: 605 lines holding four machine-state
