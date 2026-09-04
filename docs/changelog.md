@@ -94,6 +94,29 @@ it excludes a capped failure from `failed`, and it warns when its own median
 is narrower than the per-case spread, because the first claim written off this
 data was exactly that over-read.
 
+**2026-09-04, evening. The stack table promotes a backend for failing fast (#142).**
+
+`RECOMMENDATIONS.md` sorts by median wall time, which put
+`qwen38fnds4mtp7shim` second of twelve at 87s -- above every stack in the table
+that passes 100% of its trials. It passes **50/90**.
+
+It is the `qwen38fnds4shim` row with MTP on and nothing else changed: same
+weights, engine, shim, client, fifteen tasks. MTP-on loses on **13 of 15** and
+takes two to **0/6** that the same weights pass 7/9 without it.
+
+The rank is partly caused by the failures. A trial that dies early contributes
+a short wall time, so the failure rate pulls the median down and pushes the row
+up -- `AGENTS.md` already recorded that a failing arm looks fast, and this is
+that trap reaching the published table.
+
+The mechanism behind the 30 pp was already known and written down: ds4's MTP
+defaults do not preserve the sampling distribution, so the model is sampled
+differently and the loss cannot be attributed to speculation. **What was
+missing was the magnitude.** "MTP changes the sampling distribution" reads like
+a caveat; "MTP costs 30 points of pass rate on our own published cell" reads
+like a decision. A warning now sits beside the `ornith15` one. The sort itself
+is unchanged and open.
+
 **2026-09-04, evening. Remedy 2 got a switch, a day after it shipped (#112).**
 
 `SHIM_NO_STRIP=1`. The strip-toggle A/B was blocked on something small: the
