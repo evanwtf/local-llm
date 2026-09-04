@@ -30,9 +30,28 @@ HARNESS=${1:?harness script}; shift
 
 command -v uv >/dev/null || { echo "uv not found" >&2; exit 1; }
 
+# A run is complete when every CSV has the same frontier count as the widest
+# one -- not when six files exist. A file being written right now already has
+# a name and a header, so counting files reports a run as finished while
+# ds4-bench is still filling its last one, and any statistic taken then
+# silently includes a partial arm.
+complete_runs() {
+  local d=$1 want=0 n
+  ls "$d"/*.csv >/dev/null 2>&1 || { echo 0; return; }
+  for f in "$d"/*.csv; do
+    n=$(( $(wc -l < "$f") - 1 ))
+    [ "$n" -gt "$want" ] && want=$n
+  done
+  for f in "$d"/*.csv; do
+    n=$(( $(wc -l < "$f") - 1 ))
+    [ "$n" -eq "$want" ] || { echo 0; return; }
+  done
+  echo 1
+}
+
 for i in $(seq 1 "$N"); do
   OUT="$(cd "$(dirname "$PREFIX")" && pwd)/$(basename "$PREFIX")-run$i"
-  if [ -d "$OUT" ] && ls "$OUT"/*.csv >/dev/null 2>&1; then
+  if [ -d "$OUT" ] && [ "$(complete_runs "$OUT")" = "1" ]; then
     # Never silently overwrite a completed run: the whole point of this
     # script is accumulating runs, and a clobbered one is unrecoverable.
     echo "[$(date '+%H:%M:%S')] run $i: $OUT already holds CSVs, skipping" >&2

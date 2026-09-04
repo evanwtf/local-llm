@@ -775,3 +775,14 @@ def test_the_repeat_harness_captures_state_and_refuses_to_clobber():
     assert "thermals.py" in text
     assert "fancontrol status" in text
     assert "fancontrol max" not in text and "fancontrol set" not in text
+
+
+def test_a_run_is_complete_only_when_every_csv_is_full():
+    """A file being written already has a name and a header, so counting
+    files reports a run finished while ds4-bench is still filling its last
+    one -- and any statistic taken then includes a partial arm."""
+    text = (REPO_ROOT / "scripts" / "decode_ab_repeat.sh").read_text()
+    assert "complete_runs()" in text
+    assert "not when six files exist" in text
+    # the skip guard must use it, not a bare ls
+    assert 'complete_runs "$OUT"' in text
