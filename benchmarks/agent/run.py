@@ -1372,6 +1372,52 @@ def build_checkout(repo, commit, dest):
     subprocess.run(["tar", "-x", "-C", str(dest)], input=archive.stdout, check=True)
 
 
+def prepare_env(dest, timeout=600):
+    """Create the checkout's virtualenv before the agent sees it (#4).
+
+    METHODOLOGY section 9: a fresh export has no `.venv`, so part of every
+    wall-time number is the agent working out how to run pytest -- installing
+    dependencies, guessing at `python -m`, or discovering `uv` for itself.
+    That is real agent behaviour, but it is not the thing being compared, and
+    it lands in the same number as solving the task.
+
+    Returns what happened, for the row. Never raises: a checkout whose env
+    cannot be built is still a runnable trial, and the agent may well sort it
+    out -- which is exactly the confound, so the row must say which state it
+    started in rather than the harness pretending it is uniform.
+
+    **This starts a new series.** Wall times taken with a prepared env are not
+    comparable with the 398 rows taken without one, and `env_prepared` on the
+    row is what tells them apart.
+    """
+    if not (dest / "pyproject.toml").exists():
+        return {"env_prepared": False, "env_reason": "no pyproject.toml"}
+    try:
+        got = subprocess.run(
+            ["uv", "sync", "--frozen"],
+            cwd=dest,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            stdin=subprocess.DEVNULL,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        return {"env_prepared": False, "env_reason": str(exc)[:120]}
+    if got.returncode != 0:
+        # --frozen refuses when the lockfile is stale. Say so rather than
+        # silently falling back to a resolve, which would install different
+        # versions than the lockfile pins and quietly change the environment
+        # under the comparison.
+        return {
+            "env_prepared": False,
+            "env_reason": (got.stderr or got.stdout).strip().splitlines()[-1][:160]
+            if (got.stderr or got.stdout).strip()
+            else f"uv sync exited {got.returncode}",
+        }
+    return {"env_prepared": True, "env_reason": "uv sync --frozen"}
+
+
 # Where the clients themselves live. A client naming its own binary in stdout
 # is not an escape -- see paths_outside().
 CLIENT_INSTALL_RE = re.compile(
@@ -1669,6 +1715,7 @@ def one_trial(
     sandbox=True,
     run_position=None,
     run_arms=None,
+    prepare_env_first=True,
 ):
     target = task_target(cfg, task)
     repo = pathlib.Path(target["repo"]).expanduser()
@@ -1729,6 +1776,11 @@ def one_trial(
             target["base_commit"],
             worktree,
         )
+        # #4: build the env before the agent sees it, so wall time measures
+        # the task and not the discovery of how to run pytest. Recorded on the
+        # row because it starts a new series.
+        if prepare_env_first:
+            result.update(prepare_env(worktree))
     try:
         if not is_script:
             # 1. Hollow out the target, then make it the repository's only commit.
@@ -2005,6 +2057,13 @@ def main():
         "known to be broken (#55).",
     )
     p.add_argument(
+        "--no-prepare-env",
+        action="store_true",
+        help="do not run `uv sync` in the checkout before the agent sees it "
+        "(#4). Leaves the empty-virtualenv confound in the wall time, which is "
+        "how every row before this was taken.",
+    )
+    p.add_argument(
         "--no-lock",
         action="store_true",
         help="do not claim the machine for this batch (#133). Only when you "
@@ -2252,6 +2311,7 @@ def main():
                         gates=not args.no_gates,
                         run_position=position,
                         run_arms=len(ordered),
+                        prepare_env_first=not args.no_prepare_env,
                     )
                     # Inside the client loop. Outside it, only the last
                     # client's row survives and half the run vanishes.

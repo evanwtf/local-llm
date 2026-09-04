@@ -973,3 +973,58 @@ def test_absent_model_info_is_not_read_as_declaring_nothing():
     got = run.parse_ollama_show({"modelfile": "FROM x\n"}, ollama_version="0.33.3")
     assert "model_info absent" in got["sampling_source"]
     assert "declares no sampler" not in got["sampling_source"]
+
+
+def test_prepare_env_reports_a_missing_pyproject_rather_than_pretending(tmp_path):
+    """A checkout with no project is a runnable trial; the row must say so."""
+    got = run.prepare_env(tmp_path)
+    assert got["env_prepared"] is False
+    assert "pyproject" in got["env_reason"]
+
+
+def test_prepare_env_records_success(tmp_path, monkeypatch):
+    (tmp_path / "pyproject.toml").write_text("[project]\nname='x'\nversion='0'\n")
+    monkeypatch.setattr(
+        run.subprocess,
+        "run",
+        lambda *a, **k: types.SimpleNamespace(returncode=0, stdout="", stderr=""),
+    )
+    got = run.prepare_env(tmp_path)
+    assert got == {"env_prepared": True, "env_reason": "uv sync --frozen"}
+
+
+def test_a_stale_lockfile_is_reported_not_silently_resolved(tmp_path, monkeypatch):
+    """--frozen refuses on a stale lock. Falling back to a resolve would
+    install versions the lockfile does not pin and change the environment
+    under the comparison."""
+    (tmp_path / "pyproject.toml").write_text("[project]\nname='x'\nversion='0'\n")
+    monkeypatch.setattr(
+        run.subprocess,
+        "run",
+        lambda *a, **k: types.SimpleNamespace(
+            returncode=2, stdout="", stderr="error: lockfile is out of date\n"
+        ),
+    )
+    got = run.prepare_env(tmp_path)
+    assert got["env_prepared"] is False
+    assert "out of date" in got["env_reason"]
+
+
+def test_prepare_env_never_raises(tmp_path, monkeypatch):
+    """A trial that already cost twenty minutes must not die on setup."""
+    (tmp_path / "pyproject.toml").write_text("[project]\nname='x'\nversion='0'\n")
+
+    def boom(*a, **k):
+        raise OSError("uv is not installed")
+
+    monkeypatch.setattr(run.subprocess, "run", boom)
+    got = run.prepare_env(tmp_path)
+    assert got["env_prepared"] is False
+    assert "uv is not installed" in got["env_reason"]
+
+
+def test_the_flag_exists_and_defaults_to_preparing():
+    """Preparing is the new default; the old behaviour needs asking for."""
+    source = pathlib.Path(run.__file__).read_text()
+    assert "--no-prepare-env" in source
+    assert "prepare_env_first=True" in source
