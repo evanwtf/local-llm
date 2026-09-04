@@ -1,3 +1,9 @@
-ctx_tokens,prefill_tokens,prefill_tps,gen_tokens,gen_tps,gen_first_ms,gen_steady_tokens,gen_steady_tps,kvcache_bytes
-2048,2048,726.93,128,43.00,26.337,127,43.12,183560284
-4096,2048,675.01,128,43.19,25.255,127,43.29,248088668
+ctx_tokens,prefill_tokens,prefill_tps,gen_tokens,gen_tps,gen_first_ms,gen_steady_tokens,gen_steady_tps,kvcache_bytes,prompt_file,prompt_bytes
+2048,2048,726.93,128,43.00,26.337,127,43.12,183560284,promessi_sposi.txt,1329139
+4096,2048,675.01,128,43.19,25.255,127,43.29,248088668,promessi_sposi.txt,1329139
+6144,2048,687.20,128,43.03,25.855,127,43.13,312617052,promessi_sposi.txt,1329139
+8192,2048,694.34,128,43.11,25.629,127,43.22,377145436,promessi_sposi.txt,1329139
+10240,2048,699.73,128,43.13,25.513,127,43.23,441673820,promessi_sposi.txt,1329139
+12288,2048,702.98,128,43.26,25.575,127,43.36,506202204,promessi_sposi.txt,1329139
+14336,2048,706.86,128,43.22,25.121,127,43.32,570730588,promessi_sposi.txt,1329139
+16384,2048,710.45,128,42.85,25.924,127,42.96,0,promessi_sposi.txt,1329139

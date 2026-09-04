@@ -4,3 +4,6 @@
 {"fans":[{"actual_rpm":3459,"index":0,"max_rpm":5349,"min_rpm":1350,"mode":"auto","target_rpm":3455},{"actual_rpm":3734,"index":1,"max_rpm":5777,"min_rpm":1350,"mode":"auto","target_rpm":3731}]}
 # thermals at launch:
 2026-09-04 18:57:34,379 INFO [2bee7e6-dirty@M5-Max-128GB] {"die_max_c": 66.11, "die_mean_c": 64.76, "sensors": 42, "fan0_rpm": 3450, "fan0_mode": "auto", "fan1_rpm": 3730, "fan1_mode": "auto", "fan_rpm_max": 3730, "utc": "2026-09-04T22:57:34Z", "local": "18:57:34 EDT"}
+# finished: 2026-09-04T19:03:01 EDT
+# thermals at finish:
+2026-09-04 19:03:01,376 INFO [3fe2454-dirty@M5-Max-128GB] {"die_max_c": 68.83, "die_mean_c": 67.16, "sensors": 42, "fan0_rpm": 3455, "fan0_mode": "auto", "fan1_rpm": 3733, "fan1_mode": "auto", "fan_rpm_max": 3733, "utc": "2026-09-04T23:03:01Z", "local": "19:03:01 EDT"}
