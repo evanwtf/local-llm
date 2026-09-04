@@ -554,6 +554,12 @@ def test_main_actually_calls_the_ci_check(monkeypatch):
     called: list[bool] = []
     monkeypatch.setattr(preflight, "log_ci_status", lambda *a, **k: called.append(True))
     monkeypatch.setattr(preflight, "log_versions", lambda *a, **k: None)
+    # Pin drift makes main() return 1 before the CI check, by design (#131).
+    # Leaving this unpatched made the test depend on whether this machine's
+    # clients happen to match their pins -- and it failed the moment Claude
+    # Code self-updated 2.1.260 -> 2.1.261 mid-session, which is the very
+    # thing the pin exists to catch. Test one behaviour at a time.
+    monkeypatch.setattr(preflight, "check_client_pins", lambda: False)
     monkeypatch.setattr(
         preflight,
         "inspect",
@@ -571,6 +577,7 @@ def test_no_versions_does_not_reach_the_network(monkeypatch):
     """--no-versions means servers only; it must not make a gh call."""
     called: list[bool] = []
     monkeypatch.setattr(preflight, "log_ci_status", lambda *a, **k: called.append(True))
+    monkeypatch.setattr(preflight, "check_client_pins", lambda: False)
     monkeypatch.setattr(
         preflight,
         "inspect",
