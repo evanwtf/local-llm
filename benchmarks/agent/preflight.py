@@ -602,6 +602,8 @@ def log_versions(offline: bool = False) -> None:
         )
         if state == "behind":
             logger.warning("preflight: %s  <- BEHIND", line)
+            if name == "ollama":
+                warn_if_ollama_upgrade_changes_the_sampler(have[name], latest.get(name))
         elif state == "unknown":
             logger.info("preflight: %s (could not compare)", line)
         else:
@@ -678,6 +680,57 @@ def ci_streak(conclusions: list[str | None]) -> int:
         else:
             break
     return streak
+
+
+# ollama#16471 shipped in 0.33.3 and changed sampler precedence: model-authored
+# GGUF and generation_config defaults now outrank Ollama's built-ins (#84).
+# run.py holds the same constant for stamping rows; this one exists so
+# preflight can say what crossing the line costs.
+OLLAMA_SAMPLER_CHANGE = (0, 33, 3)
+
+
+def _version_tuple(text: str | None) -> tuple[int, ...] | None:
+    """Leading dotted integers of a version string, or None."""
+    if not text:
+        return None
+    cleaned = text.strip().lstrip("v").split("-")[0]
+    parts: list[int] = []
+    for chunk in cleaned.split("."):
+        if not chunk.isdigit():
+            break
+        parts.append(int(chunk))
+    return tuple(parts) or None
+
+
+def warn_if_ollama_upgrade_changes_the_sampler(
+    installed: str | None, latest: str | None
+) -> None:
+    """Say what an Ollama upgrade past 0.33.3 would do to the sampler (#84).
+
+    Preflight already reports version drift, and for every other tool BEHIND
+    means "you should probably upgrade". For Ollama across this one boundary
+    it does not: #36 measured a sampler default nobody chose halving a pass
+    rate -- top_p 0.95 gave 20/21 and 0.90 gave 7/15 on the same task, model,
+    engine and client. ollama#16471 changes which of those a row gets. So an
+    unqualified BEHIND on this line nudges toward the single action that
+    silently invalidates comparability with every row already held.
+
+    Naming the boundary does not decide it. Upgrading is fine; upgrading
+    mid-series and pooling the rows is not.
+    """
+    before = _version_tuple(installed)
+    after = _version_tuple(latest)
+    if before is None or after is None:
+        return
+    if before >= OLLAMA_SAMPLER_CHANGE or after < OLLAMA_SAMPLER_CHANGE:
+        return
+    logger.warning(
+        "preflight: that ollama upgrade crosses %s, where ollama#16471 makes "
+        "model-authored GGUF sampler defaults outrank ollama's built-ins "
+        "(#84). Every row this repo holds was taken under the old precedence. "
+        "Upgrading is fine; upgrading mid-series and pooling the rows is not",
+        ".".join(str(n) for n in OLLAMA_SAMPLER_CHANGE),
+    )
 
 
 def log_ci_status(offline: bool = False) -> None:

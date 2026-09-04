@@ -578,3 +578,47 @@ def test_no_versions_does_not_reach_the_network(monkeypatch):
     monkeypatch.setattr(sys, "argv", ["preflight", "--no-versions"])
     preflight.main()
     assert not called
+
+
+def test_crossing_the_ollama_sampler_boundary_is_named(caplog):
+    """#84: BEHIND on this one line nudges toward the action that silently
+    changes the sampler for every future row."""
+    with caplog.at_level("WARNING"):
+        preflight.warn_if_ollama_upgrade_changes_the_sampler("0.33.2", "v0.33.3")
+    text = " ".join(r.message for r in caplog.records)
+    assert "0.33.3" in text and "#84" in text
+
+
+def test_an_upgrade_that_stays_below_the_boundary_says_nothing():
+    """Not every ollama upgrade changes the sampler; only this line does."""
+    import logging
+
+    records: list[logging.LogRecord] = []
+    handler = logging.Handler()
+    handler.emit = records.append  # type: ignore[method-assign]
+    preflight.logger.addHandler(handler)
+    try:
+        preflight.warn_if_ollama_upgrade_changes_the_sampler("0.33.0", "0.33.2")
+    finally:
+        preflight.logger.removeHandler(handler)
+    assert not records
+
+
+def test_already_past_the_boundary_says_nothing(caplog):
+    """Once both sides are past it there is no crossing left to warn about."""
+    with caplog.at_level("WARNING"):
+        preflight.warn_if_ollama_upgrade_changes_the_sampler("0.33.3", "0.34.0")
+    assert not caplog.records
+
+
+def test_an_unreadable_version_warns_about_nothing(caplog):
+    with caplog.at_level("WARNING"):
+        preflight.warn_if_ollama_upgrade_changes_the_sampler("nightly", "0.33.3")
+        preflight.warn_if_ollama_upgrade_changes_the_sampler("0.33.2", None)
+    assert not caplog.records
+
+
+def test_version_tuple_reads_a_leading_v_and_an_rc_suffix():
+    assert preflight._version_tuple("v0.33.3") == (0, 33, 3)
+    assert preflight._version_tuple("0.33.3-rc0") == (0, 33, 3)
+    assert preflight._version_tuple("") is None
