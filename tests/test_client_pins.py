@@ -143,5 +143,12 @@ def test_an_installed_but_wrong_version_is_still_a_refusal(monkeypatch):
 def test_a_pending_pin_decision_is_recorded_where_it_is_edited():
     """A refusal invites a thoughtless bump. The reason not to must sit in
     the file somebody opens to make it stop (#131)."""
-    text = (REPO / "client-pins.toml").read_text()
-    assert "Do not just bump it" in text
+    # The phrase wraps across a comment line, so compare on normalised text
+    # rather than the literal -- the first version of this assertion matched
+    # the string as written in the commit message, not as written in the file.
+    text = " ".join(
+        line.lstrip("# ").strip()
+        for line in (REPO / "client-pins.toml").read_text().splitlines()
+    )
+    assert "Do not just bump it to make the refusal stop" in text
+    assert "PENDING DECISION" in text
