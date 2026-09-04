@@ -206,3 +206,28 @@ def test_drift_needs_two_reps():
 
 def test_per_rep_ratio_is_empty_unless_there_are_two_arms():
     assert report.per_rep_ratio({"only": {2048: {1: 1.0}}}) == {}
+
+
+def test_both_directions_are_named_in_the_per_rep_line(tmp_path, caplog):
+    """The file already warns that a bare ratio has been misread the wrong
+    way round once. Printing one direction reintroduced that."""
+    d = _write_run(tmp_path, "dir", {1: 1.25, 2: 1.25})
+    with caplog.at_level("INFO"):
+        report.log_within_run_structure(report.load(d))
+    text = " ".join(r.getMessage() for r in caplog.records)
+    assert "b/a" in text and "a/b" in text
+    assert "1.250" in text and "0.800" in text
+
+
+def test_the_arm_that_drifts_most_is_named(tmp_path, caplog):
+    """ds4#952's claim was about WHICH arm moves more, and two signed
+    percentages are easy to eyeball backwards."""
+    d = tmp_path / "d"
+    d.mkdir()
+    head = "ctx_tokens,prefill_tps,gen_steady_tps\n"
+    for rep, av in ((1, 10.0), (2, 5.0)):
+        (d / f"a-rep{rep}.csv").write_text(head + f"2048,100.0,{av}\n")
+        (d / f"b-rep{rep}.csv").write_text(head + "2048,100.0,10.0\n")
+    with caplog.at_level("INFO"):
+        report.log_within_run_structure(report.load(d))
+    assert "arm that drifts most: a" in " ".join(r.getMessage() for r in caplog.records)

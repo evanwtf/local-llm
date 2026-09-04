@@ -247,12 +247,29 @@ def log_within_run_structure(data: dict[str, dict[int, dict[int, float]]]) -> No
     """Per-rep ratio and per-arm drift: the two questions #952 got wrong."""
     ratios = per_rep_ratio(data)
     if ratios:
+        a, b = sorted(data)
+        # Name the direction. The headline above prints both ways round for
+        # exactly this reason -- a bare "0.872" has been misread once already
+        # -- and printing one direction here reintroduced the ambiguity.
         logger.info(
-            "paired ratio by rep: %s",
+            "paired ratio by rep, %s/%s: %s",
+            b,
+            a,
             "  ".join(f"rep{r}={v:.3f}" for r, v in sorted(ratios.items())),
+        )
+        logger.info(
+            "paired ratio by rep, %s/%s: %s",
+            a,
+            b,
+            "  ".join(f"rep{r}={1 / v:.3f}" for r, v in sorted(ratios.items())),
         )
     drift = per_arm_drift(data)
     if drift:
+        # Per arm, so no direction to confuse -- but say which arm moved more,
+        # because that is the claim ds4#952 made and it is easy to eyeball
+        # backwards from two signed percentages.
+        worst = max(drift, key=lambda k: abs(drift[k] - 1))
+        logger.info("arm that drifts most: %s", worst)
         logger.info(
             "drift first->last rep, per arm: %s",
             "  ".join(f"{a}={(v - 1) * 100:+.1f}%" for a, v in sorted(drift.items())),
