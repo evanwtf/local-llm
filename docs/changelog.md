@@ -22,6 +22,70 @@ picks in `RECOMMENDATIONS.md`, and the current queue in `NEXT.md`.
 
 ---
 
+**2026-09-04, afternoon. Six queue items advanced, each as committed code
+rather than an answer in a terminal.**
+
+The morning's work was guards. This was the queue, worked in order, with one
+constraint from the operator: no ad-hoc analysis, everything durable and
+tested. Seven new scripts and modules, all with tests.
+
+- **[#64](https://github.com/evanwtf/local-llm/issues/64) has a number now**
+  (`d2ad272`). `kv_prefix_audit.py` parses ds4-server's cache-miss lines and
+  sums `prompt - common` as re-prefilled tokens: **443,974 tokens, ~21
+  minutes of prefill at 360 t/s**, across the four logs we hold, every miss
+  `reason=token-mismatch`. The issue previously rested on three lines from one
+  trial. The detector was wrong first and the data said so -- it required
+  `prompt` to rise while `common` stayed pinned, and a real log shows `common`
+  pinned while `prompt` drifts *down*, re-prefilling ~830 tokens a turn. The
+  direction of `prompt` is incidental.
+
+- **[#50](https://github.com/evanwtf/local-llm/issues/50) is testable without
+  a prompt dump** (`2e41c50`, `c66fcfb`). `prefix_stability.py` names the first
+  block inside the cache horizon whose content changed, and flags the shape
+  #50 describes -- a block both marked cacheable and carrying a number that
+  moves every turn. `SHIM_PREFIX_LOG` makes payloads collectable as **digests
+  only**; a test asserts a payload containing "SECRET CLAUDE.md CONTENTS"
+  produces a line containing neither string. The shim's existing `SHIM_DUMP`
+  writes whole payloads, which `.gitignore` says must never be committed.
+
+- **[#112](https://github.com/evanwtf/local-llm/issues/112)'s cheapest remedy
+  is measured** (`fb9690a`). Over 398 tool calls in 43 sessions the failure
+  rate runs 2.9% with a clean context, 4.9% after one error, 6.2% after two.
+  **Fourteen failures total**, so the tool prints "a direction to test, not a
+  measured effect" on every run, unconditionally -- a row reading `1 / 1 |
+  100%` is as easy to over-read as a comparison line.
+
+- **[#136](https://github.com/evanwtf/local-llm/issues/136) item 4 answered,
+  against my own guess** (`233f33d`). `--legacy` computes the pre-`98bc79b`
+  ratio-of-medians beside the paired statistic. On both four-run datasets the
+  legacy statistic reported a *wider* spread (6.1 vs 4.7 pp; 1.8 vs 1.5 pp).
+  It did not make runs look falsely consistent -- it added noise on top of
+  real noise. The issue had suggested the opposite.
+
+- **[#131](https://github.com/evanwtf/local-llm/issues/131) refuses now**
+  (`82205f0`, `0b164d9`). `client-pins.toml` plus a preflight check that
+  **refuses** rather than warns, verified in both directions. OpenCode's
+  updater is documented in the runbook -- `OPENCODE_DISABLE_AUTOUPDATE`, or
+  `"autoupdate": false`, with `opencode upgrade` as the deliberate path.
+  Neither switch is set on this machine, and preflight says so. Live proof
+  the risk is not hypothetical: 1.18.27 installed against 1.18.28 latest,
+  today.
+
+- **[#116](https://github.com/evanwtf/local-llm/issues/116)/[#120](https://github.com/evanwtf/local-llm/issues/120):
+  fan RPM rides with every temperature** (`7079428`). #118's run 4 recorded
+  48.4 -> 67.6 C and could say nothing about cooling, because no fan speed sat
+  beside it. Read only: a test parses the AST and asserts every `fancontrol`
+  invocation's verb is `status`.
+
+**Three tools found bugs in themselves during the work**, which is the
+argument for building them rather than answering in a terminal: the prefix
+detector's rising-prompt assumption, the between-run comparator measuring
+frontier spread instead of repeatability, and a completeness check that read
+six files as a finished run three separate times before it was made one
+definition in one place (`a03ca8d`).
+
+---
+
 **2026-09-04. Four guards, and the reason each was missing
 ([#129](https://github.com/evanwtf/local-llm/issues/129) and
 [#130](https://github.com/evanwtf/local-llm/issues/130) closed;
