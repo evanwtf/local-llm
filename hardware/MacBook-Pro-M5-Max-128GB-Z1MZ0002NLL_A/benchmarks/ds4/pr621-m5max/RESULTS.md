@@ -30,8 +30,10 @@ Q4 breaks 50 t/s. Q4/Q8 decode = 1.153.
 
 `sweep/q{4,8}-rep{1,2,3}.csv`. `--ctx-start 2048 --ctx-max 65536 --step-incr 2048 --gen-tokens 128`, 3 interleaved reps.
 
-Paired median ratio of `gen_steady_tps` **q4/q8 = 1.146 (+14.6%)**. Q4 > Q8 on **32/32** frontiers (range 1.118–1.220). Prefill is close; do not fold it into decode.
+Paired median ratio of `gen_steady_tps` **q4/q8 = 1.157 (+15.7%)**. Q4 > Q8 on **32/32** frontiers (range 1.122–1.208). Prefill pairs at exactly 1.000; do not fold it into decode.
+
+*Corrected 2026-09-04: this section first read 1.146 (+14.6%), produced by `scripts/decode_ab_report.py` dividing two independent medians — a ratio of medians, not a paired statistic. The paired figures come from these same committed CSVs. The defect is noise, not bias: on #118's dataset it read +20.0% where the paired figure is +16.5%. See docs/changelog.md, 2026-09-04.*
 
 The ctx-2048 *frontier* under this allocation is 45.95 (q4) / 40.37 (q8) — not the isolated 51.03 / 44.27. Different KV plan. Do not pool.
 
-`scripts/decode_ab_report.py` sorts labels alphabetically, so its printed `b/a = 0.872` is **q8/q4**, i.e. q8 is 12.8% slower. The ratio to quote is q4/q8 = 1.146.
+`scripts/decode_ab_report.py` sorts labels alphabetically, so its printed `b/a = 0.864` is **q8/q4**, i.e. q8 is 13.6% slower. The ratio to quote is q4/q8 = 1.157.

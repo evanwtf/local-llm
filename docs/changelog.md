@@ -61,12 +61,18 @@ on **40 GPU cores than on 80**, which fits — a memory-traffic cut would pay
 ratio of medians, not the paired statistic its own docstring promised. With
 ~9% rep-to-rep drift, the two medians can come from different repetitions, and
 the drift re-enters as noise: the ratio divided rep 3's baseline by rep 2's
-branch at ctx 2048. The peer session caught it before the draft reached
-antirez. The script is fixed and tested
-(`tests/test_decode_ab_report.py`), every affected number on #118 was
-recomputed, and the prior A/Bs summarized by the same script were recomputed
-too — #91's #621 runs read 1.147/1.155 unpaired vs **1.157/1.141** paired,
-and its run-2 prefill goes from 1.003 to 0.979.
+branch at ctx 2048. The error direction is data luck, not bias — the same
+defect read +14.6% where the paired figure is +15.7% on #52's first August
+pass. The peer session caught it before the draft reached antirez. The script
+is fixed and tested (`tests/test_decode_ab_report.py`), and every affected
+number on #118 was recomputed. The prior A/Bs summarized by the same script
+were recomputed where their CSVs are committed — #52's two August passes
+(`2bf44c1`, `95880b4`), which read 1.146/1.155 unpaired vs **1.157/1.141**
+paired, with the pass-2 prefill going from 0.998 to 0.979. #91's September
+runs kept their raw CSVs in /tmp, which is gone, so their figures stay
+unrecomputable. The first propagation of this correction mapped #52's
+directories onto #91's runs — the commit dates settle the ownership — and the
+misattributed issue comments were rewritten in place, marked as corrections.
 
 Two durable method facts fell out of it, both now in the
 [runbook](m5max-runbook.md): the ds4 Makefile tracks no header dependencies, so
@@ -208,8 +214,10 @@ workload, and the session decline is not disk KV.**
   **[#85](https://github.com/evanwtf/local-llm/issues/85) closed** — the
   hardware restructure; `RECOMMENDATIONS.md` stayed at root.
   **[#91](https://github.com/evanwtf/local-llm/issues/91) closed** — ds4 PR
-  #621 re-tested at `6a20b13`: decode 1.155x, 32/32 frontier points; #952
-  supersedes it at the same commit. Earlier that day: #89, #87, #90.
+  #621 re-tested at `6a20b13`: decode 1.155x, 32/32 frontier points (a
+  ratio-of-medians; its raw CSVs lived in /tmp and are gone, so no paired
+  figure exists — see the 2026-09-04 correction); #952 supersedes it at the
+  same commit. Earlier that day: #89, #87, #90.
 
 ---
 
@@ -593,7 +601,8 @@ discrimination this project has produced.**
 
 - **[#52](https://github.com/evanwtf/local-llm/issues/52) closed.** ds4 PR#621 AProjQ4 on this M5 Max, measured **twice**:
   **53.35 t/s** at isolated ctx-2048 (clears 50 by 6.7%) and **q4/q8 = 1.155**
-  across **32/32** frontiers. Reported to
+  across **32/32** frontiers (superseded 2026-09-04: paired figure from the
+  same CSVs is 1.141 — see that date's entry). Reported to
   [ds4#621](https://github.com/antirez/ds4/pull/621#issuecomment-5470605362).
 - **One sub-claim was withdrawn upstream rather than left standing.** Pass 1
   read prefill as "slightly ahead on Q8" from a 2.7% gap; three reps give
@@ -614,7 +623,7 @@ discrimination this project has produced.**
 **2026-08-30 12:01. [#52](https://github.com/evanwtf/local-llm/issues/52) closed: AProjQ4 on ds4#621 breaks 50 t/s here.**
 
 - Isolated `--ctx-max 2048` (ctx alloc 2177): Q4 **51.03** `gen_steady_tps`, Q8 44.27 (**+15.3%**). Both coherent at `--temp 0`.
-- Sweep 2048→65536, 3 reps, 64k allocation: Q4 > Q8 on **32/32** frontiers, paired median **+14.6%**. Under that alloc the ctx-2048 frontier is 45.95 / 40.37 — do not pool with the isolated run.
+- Sweep 2048→65536, 3 reps, 64k allocation: Q4 > Q8 on **32/32** frontiers, paired median **+14.6%** (superseded 2026-09-04: +15.7% under the true paired statistic, same CSVs — see that date's entry). Under that alloc the ctx-2048 frontier is 45.95 / 40.37 — do not pool with the isolated run.
 - Engine `2669a8e` in `~/git/ds4-pr621`. CSVs in `benchmarks/ds4/pr621-m5max/`. Not posted upstream.
 - `decode_ab.sh` must run with cwd = the engine tree or Metal shaders are missing.
 
