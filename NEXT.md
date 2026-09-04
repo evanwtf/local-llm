@@ -27,15 +27,13 @@ session slow, wrong, or unmeasurable.
    Inflates wall time on every Claude Code trial we hold, and kills trials that would otherwise pass.
 2. **[#112](https://github.com/evanwtf/local-llm/issues/112)** The tool-call degeneration loop
    Nine failures with no wrong code. First remedy needs no new code and no machine time.
-3. **[#136](https://github.com/evanwtf/local-llm/issues/136)** A single A/B run is not a measurement
-   Four identical runs spanned 4.7 pp. Sets the cost of every future upstream claim.
-4. **[#131](https://github.com/evanwtf/local-llm/issues/131)** Nothing pins the agent client, and it updates itself between batches
+3. **[#131](https://github.com/evanwtf/local-llm/issues/131)** Nothing pins the agent client, and it updates itself between batches
    A silent client update rewrites results and reads as a model regression.
-5. **[#4](https://github.com/evanwtf/local-llm/issues/4)** Harder tasks: the current set cannot measure code quality
+4. **[#4](https://github.com/evanwtf/local-llm/issues/4)** Harder tasks: the current set cannot measure code quality
    The pass-rate table has saturated, so no result can show a better agent is better.
-6. **[#120](https://github.com/evanwtf/local-llm/issues/120)** What ds4 server state degrades a session?
+5. **[#120](https://github.com/evanwtf/local-llm/issues/120)** What ds4 server state degrades a session?
    Six pass-rate points hide in an operational variable. Start with #116, fan RPM.
-7. **[#96](https://github.com/evanwtf/local-llm/issues/96)** oMLX bit-exact tail continuation, TTFT 3–4 s → 0.3 s
+6. **[#96](https://github.com/evanwtf/local-llm/issues/96)** oMLX bit-exact tail continuation, TTFT 3–4 s → 0.3 s
    Median conversation is 9 turns, so ~30 s a task spent waiting rather than working.
 
 After these: the engine-speed queue and the rest of the backlog, in the tracker.
