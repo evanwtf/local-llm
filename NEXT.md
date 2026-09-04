@@ -8,6 +8,20 @@
 > or compare against those numbers.** Cause, cutover and replacements:
 > [docs/archive/results-opencode-pre-dir.md](docs/archive/results-opencode-pre-dir.md). Other clients are unaffected.
 
+> ### In flight right now
+>
+> **[#135](https://github.com/evanwtf/local-llm/issues/135) — re-downloading the q4/q8 weights**, ~171 GB, started 11:54:40, ETA ~13:00.
+> **Do not start a measurement until it lands.** The run lock guards against
+> processes, not disk traffic.
+>
+> Then: **four q4/q8 runs** to re-measure what we posted to ds4#952, recorded on
+> [#91](https://github.com/evanwtf/local-llm/issues/91). Four rather than one because of
+> [#136](https://github.com/evanwtf/local-llm/issues/136).
+>
+> *This block is what is happening. The table below is what is **worth** happening —
+> a chore that unblocks a correction is not the same as the highest-value work, and
+> conflating them would make the ranking mean nothing once the chore is done.*
+
 Updated **2026-09-04 12:05 EDT**. **This file is the queue for _this machine_ —
 the MacBook Pro, M5 Max, 128 GB.** Every item below is labelled `macOS` in the
 tracker. The Linux/RTX 3080 Ti tier has its own nine open issues ([#20](https://github.com/evanwtf/local-llm/issues/20), [#79](https://github.com/evanwtf/local-llm/issues/79),
