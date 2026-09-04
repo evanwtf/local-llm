@@ -138,3 +138,10 @@ def test_an_installed_but_wrong_version_is_still_a_refusal(monkeypatch):
     wrong = {name: "0.0.1" for name in pins}
     monkeypatch.setattr(preflight.staleness, "installed_versions", lambda: wrong)
     assert preflight.check_client_pins() is True
+
+
+def test_a_pending_pin_decision_is_recorded_where_it_is_edited():
+    """A refusal invites a thoughtless bump. The reason not to must sit in
+    the file somebody opens to make it stop (#131)."""
+    text = (REPO / "client-pins.toml").read_text()
+    assert "Do not just bump it" in text

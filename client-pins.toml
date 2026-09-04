@@ -19,6 +19,13 @@
 # An entry set to "" means "not pinned, warn only" -- use it for a client this
 # machine does not drive.
 
+# PENDING DECISION, 2026-09-04: claude self-updated 2.1.260 -> 2.1.261 at
+# 16:13 and preflight now refuses. The pinned version is still on disk, so
+# going back is `ln -sfn ~/.local/share/claude/versions/2.1.260
+# ~/.local/bin/claude` -- see docs/m5max-runbook.md. Going back preserves 326
+# rows of comparability; moving the pin forward starts a new series. Do not
+# just bump it to make the refusal stop.
+
 [clients]
 opencode = "1.18.27"
 claude = "2.1.260"
