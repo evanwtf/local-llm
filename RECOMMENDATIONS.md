@@ -108,6 +108,27 @@ occasionally, quietly wrong is a bad trade when you are not watching. The
 numbers are published because they are real; the recommendation withholds it on
 purpose.
 
+**And the second-fastest row is worse.** `qwen38fnds4mtp7shim` sits second in
+the table below at an 87s median — above every stack there that passes 100% of
+its trials. It passes **50/90, 55.6%**. It is the `qwen38fnds4shim` row with
+MTP speculative decoding turned on, and nothing else changes: same weights,
+same engine, same shim, same client, same fifteen tasks. MTP-on loses on **13
+of those 15** and takes two of them to **0/6** that the same weights pass 7/9
+without it.
+
+Its position in the table is partly caused by that. A trial that fails early
+contributes a short wall time, so a 44% failure rate pulls the median down and
+promotes the row up a list sorted by median — the two effects compound, and the
+column a reader scans for "which is quickest" is the one they distort. Read the
+`passed` column first, always.
+
+None of this says speculative decoding loses work. ds4's MTP defaults do not
+preserve the sampling distribution, so the model is being sampled differently
+and a pass-rate difference cannot be attributed to speculation
+([#142](https://github.com/evanwtf/local-llm/issues/142),
+[#39](https://github.com/evanwtf/local-llm/issues/39)). It does say **do not
+install this one**.
+
 ---
 
 ## What is being measured
