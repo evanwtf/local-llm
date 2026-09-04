@@ -647,9 +647,15 @@ context_tokens = 131072
 # 512 to 320 (#89). `expert_used_count` is 10 in both, and every other hparam
 # matches -- verified with scripts/gguf_meta.py, not assumed from the name.
 #
-# 69.0 GB against 90.0 GB. This is the cleanest one-variable comparison this
-# project has had: same weights, same quant, same engine, same client, measured
-# against qwen38fnq3's 30/30 at a 90s median.
+# 69.0 GB against 90.0 GB. This was written as "the cleanest one-variable
+# comparison this project has had: same weights, same quant, same engine, same
+# client", measured against qwen38fnq3's 30/30 at a 90s median. **The last
+# clause is false and this is now a two-variable comparison**: reap ran under
+# OpenCode 1.18.26 and qwen38fnq3 under 1.18.25 (#137). Same weights, same
+# quant, same engine still holds; the client does not. Every reap figure in
+# RECOMMENDATIONS.md sits on that split, and no cell on this machine measures
+# the client alone, so it cannot be corrected for -- only stated. Re-running
+# qwen38fnq3 under the current client would restore the one-variable claim.
 #
 # Pruned-expert builds are young and this was pruned by an individual, not the
 # model's publisher. A GOOD result needs replication before it displaces the

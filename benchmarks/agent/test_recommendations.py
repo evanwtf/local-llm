@@ -158,3 +158,72 @@ def test_generated_tables_count_only_real_trials():
     # are all timeouts, so their presence is correct and a dry run's is not.
     stray = [r for r in rows if r.get("passed") is None and r.get("error") != "timeout"]
     assert not stray, f"non-timeout rows with no verdict: {len(stray)}"
+
+
+# ---------------------------------------------------------------------------
+# #137: every OpenCode comparison across the ds4 backends spans a client
+# boundary, and the published tables do not say so.
+
+
+def _row(backend: str, version: str, wall: float = 100.0) -> dict:
+    return {
+        "backend": backend,
+        "client": "opencode",
+        "client_version": version,
+        "task": "mbox-scan",
+        "wall_seconds": wall,
+        "output_tokens": 1000,
+        "passed": True,
+    }
+
+
+def test_the_caveat_names_the_versions_and_which_backends_carry_them():
+    import gen_tables
+
+    got = "\n".join(
+        gen_tables.client_caveat([_row("a", "1.18.25"), _row("b", "1.18.27")])
+    )
+    assert "1.18.25" in got and "1.18.27" in got
+    assert "a" in got and "b" in got
+    assert "#137" in got
+
+
+def test_there_is_no_caveat_when_one_client_version_measured_everything():
+    """The caveat must disappear on its own when the confound does."""
+    import gen_tables
+
+    assert gen_tables.client_caveat([_row("a", "1.18.25"), _row("b", "1.18.25")]) == []
+
+
+def test_a_backend_whose_own_rows_span_versions_is_named_as_spanning():
+    """A backend measured under both is a different problem from a split one."""
+    import gen_tables
+
+    got = "\n".join(
+        gen_tables.client_caveat(
+            [_row("a", "1.18.25"), _row("a", "1.18.27"), _row("b", "1.18.25")]
+        )
+    )
+    assert "a" in got and "1.18.25, 1.18.27" in got
+
+
+def test_rows_with_no_recorded_client_version_are_named_not_ignored():
+    import gen_tables
+
+    row = _row("c", "1.18.25")
+    del row["client_version"]
+    got = "\n".join(gen_tables.client_caveat([_row("a", "1.18.25"), row]))
+    assert "unrecorded" in got
+
+
+def test_the_published_tables_carry_the_caveat_while_the_split_stands():
+    """The real data, not a fixture: this is what a reader actually sees."""
+    import gen_tables
+
+    text = gen_tables.render()
+    versions = {
+        r.get("client_version") for r in gen_tables.valid_opencode(gen_tables.load())
+    }
+    if len(versions) < 2:
+        pytest.skip("one client version measured everything; nothing to caveat")
+    assert text.count("#137") >= 2, "both generated tables need the caveat"

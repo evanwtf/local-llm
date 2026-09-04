@@ -151,6 +151,80 @@ def throughput_table(rows: list[dict[str, Any]], labels: dict[str, str]) -> list
     return out
 
 
+def client_caveat(
+    rows: list[dict[str, Any]], labels: dict[str, str] | None = None
+) -> list[str]:
+    """Say so when the rows of a table were not all taken under one client.
+
+    #137: the three newest ds4 backends were measured under OpenCode 1.18.27
+    and everything older under 1.18.25, with one backend on 1.18.26. Both
+    generated tables are sorted by median, so adjacent rows read as
+    comparisons -- and a reader comparing two of them across that split is
+    also comparing the client. **No (backend, task) cell here has both
+    versions**, so the client's own effect is unmeasured on this machine:
+    there is nothing to correct for and nothing to quote, only a boundary to
+    name.
+
+    Generated rather than typed, for two reasons. The tables are spliced, so
+    a hand-written note under one would survive until the next regeneration
+    and then read as current while the row order changed underneath it. And
+    this returns `[]` the moment one client version covers everything -- the
+    caveat retires itself instead of outliving the confound, which is how
+    stale warnings get there in the first place.
+    """
+    labels = LABELS if labels is None else labels
+    by_version: dict[str, set[str]] = collections.defaultdict(set)
+    for r in rows:
+        version = str(r.get("client_version") or "unrecorded")
+        by_version[version].add(str(r.get("backend")))
+    if len(by_version) < 2:
+        return []
+    spanning = sorted(
+        backend
+        for backend in {b for names in by_version.values() for b in names}
+        if sum(1 for names in by_version.values() if backend in names) > 1
+    )
+    # Name the minority versions and let the majority be "the rest". Listing
+    # all eleven 1.18.25 backends is accurate and unreadable, and a caveat
+    # nobody finishes reading does not caveat anything.
+    majority = max(by_version, key=lambda v: len(by_version[v]))
+    # Only collapse when the majority is genuinely a majority. On an even
+    # split, "the rest" would name one side and hide the other, which reads
+    # as though the unnamed side were the norm.
+    if len(by_version[majority]) < 3:
+        majority = None
+    parts = [
+        f"{', '.join(labels.get(b, b) for b in sorted(names))} under {v}"
+        for v, names in sorted(by_version.items())
+        if v != majority
+    ]
+    rest = f"; the rest under {majority}" if majority else ""
+    note = (
+        "**Rows here were not all taken under one client.** "
+        + "; ".join(parts)
+        + rest
+        + ". A comparison across that split also "
+        "compares the client "
+        "([#137](https://github.com/evanwtf/local-llm/issues/137)). "
+        "No (backend, task) cell here holds both versions, so the client's "
+        "own effect is unmeasured on this machine \u2014 there is nothing to "
+        "correct for, only a boundary to name."
+    )
+    if spanning:
+        versions = {
+            b: ", ".join(sorted(v for v, names in by_version.items() if b in names))
+            for b in spanning
+        }
+        note += (
+            " Measured under more than one: "
+            + "; ".join(
+                f"{labels.get(b, b)} ({v})" for b, v in sorted(versions.items())
+            )
+            + "."
+        )
+    return ["", note]
+
+
 LABELS = {
     "qwen38fnq3": "Qwen3.8-Flash-Next Q3 - llama.cpp",
     "ds4": "DeepSeek-V4-Flash - ds4",
@@ -174,6 +248,7 @@ def render(rows: list[dict[str, Any]] | None = None) -> str:
     ]
     out += ["#### Every stack measured under OpenCode", ""]
     out += stack_table(rows, LABELS)
+    out += client_caveat(valid_opencode(rows))
     out += [
         "",
         (
@@ -192,6 +267,13 @@ def render(rows: list[dict[str, Any]] | None = None) -> str:
         "",
     ]
     out += throughput_table(rows, LABELS)
+    out += client_caveat(
+        [
+            r
+            for r in valid_opencode(rows)
+            if r.get("wall_seconds") and r.get("output_tokens")
+        ]
+    )
     return "\n".join(out) + "\n"
 
 

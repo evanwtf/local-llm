@@ -95,7 +95,9 @@ hides how bad the bad runs get.
 
 **Why the fastest measured backend is not on this list.** `ornith15` tops the
 table below — 21/21 under OpenCode, 44s median, faster than anything else we
-have run. It is still not the one to install, for two reasons that the median
+have run. (That ranking was written on 2026-09-01, when every OpenCode row was
+1.18.25; three backends have since been measured under a later client, so read
+it against the caveat under that table — [#137](https://github.com/evanwtf/local-llm/issues/137).) It is still not the one to install, for two reasons that the median
 hides. It is **the only backend in this project's whole record that has
 produced wrong code**: it failed twice on an excision task under an earlier
 client, and it emitted Swift that did not compile from a run that otherwise
@@ -174,6 +176,8 @@ other is telling you something.
 | GLM-5.3-Flash - ds4 | 22/24 | 368s | 1227s | 18.0x |
 | gemma4 | 12/12 | 383s | 1316s | 4.8x |
 
+**Rows here were not all taken under one client.** qwen38fnq3reap under 1.18.26; qwen38fnds4mtp7shim, qwen38fnds4shim under 1.18.27; the rest under 1.18.25. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name.
+
 Excision tasks only; `script-*` excluded because they are a different class. **Spread is worst / best on the same task**, and it is the column most people forget to ask for.
 
 #### Same weights, two engines
@@ -206,6 +210,8 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | qwen38fnds4mtp7shim | 78s |
 | gemma4 | 84s |
 | Qwen3.8-Flash-Next Q3 - LM Studio | 115s |
+
+**Rows here were not all taken under one client.** qwen38fnq3reap under 1.18.26; qwen38fnds4mtp7shim, qwen38fnds4shim under 1.18.27; the rest under 1.18.25. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name.
 
 <!-- END GENERATED -->
 
