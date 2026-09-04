@@ -798,3 +798,15 @@ def test_the_status_script_delegates_and_never_prints_a_silent_blank():
     assert "no complete run yet" in text
     # stderr must not be discarded on the report call, or a failure is a blank
     assert "decode_ab_report.py $COMPLETE 2>&1" in text
+
+
+def test_the_restart_cycles_audit_their_own_kv_prefix():
+    """#64: a stalled prefix costs re-prefill every turn, and the audit is
+    only possible while the server logs still exist. Running it inside the
+    cycle beats hoping someone runs it later on a log since cleaned up."""
+    for name in ("restart_between_trials.sh", "restart_between_trials_armB.sh"):
+        text = (REPO_ROOT / "scripts" / name).read_text()
+        assert "kv_prefix_audit.py" in text, name
+        assert "kv-prefix-audit.txt" in text, name
+        # must not abort a completed cycle on an audit failure
+        assert "|| true" in text, name

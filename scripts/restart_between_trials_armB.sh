@@ -111,4 +111,15 @@ restart_ds4 trial2; run_trial 2
 restart_ds4 trial3; run_trial 3
 
 echo "[$(date +%H:%M:%S)] cycle complete"
+
+# #64: the server logs a line every time the live KV prefix misses, and a
+# stalled prefix costs re-prefill on every turn -- 443,974 tokens across the
+# four logs we happened to keep. Audit them here, while the logs are in hand,
+# rather than hoping someone runs it later on a log that has been cleaned up.
+if ls "$LOGDIR"/ds4server-*.log >/dev/null 2>&1; then
+  echo
+  uv run python "$(dirname "$0")/kv_prefix_audit.py" "$LOGDIR"/ds4server-*.log \
+    | tee "$LOGDIR/kv-prefix-audit.txt" || true
+fi
+
 echo "Compare per-trial pass rates against the arm A restart baseline 14/14/14 (42/45)."
