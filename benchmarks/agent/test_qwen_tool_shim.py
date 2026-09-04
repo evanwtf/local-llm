@@ -186,3 +186,49 @@ def test_bare_opens_with_no_real_call_are_left_alone():
     payload = _assistant("<tool_call>\n<tool_call>\n<tool_call>\n")
     assert shim.translate_response(payload) is False
     assert "<tool_call>" in payload["choices"][0]["message"]["content"]
+
+
+# ---------------------------------------------------------------------------
+# #112: remedy 2 must be switchable, or it can never be measured.
+
+_LOOP = (
+    "<tool_call>\n<tool_call>\nI will read it.\n"
+    "<tool_call><function=read><parameter=filePath>/tmp/a.py</parameter>"
+    "</function></tool_call>"
+)
+
+
+def test_the_strip_is_on_by_default(monkeypatch):
+    """The shipped behaviour does not change because a toggle exists."""
+    monkeypatch.delenv("SHIM_NO_STRIP", raising=False)
+    payload = _assistant(_LOOP)
+    assert shim.translate_response(payload) is True
+    assert "<tool_call>" not in payload["choices"][0]["message"]["content"]
+
+
+def test_no_strip_leaves_the_scaffolding_in_the_content(monkeypatch):
+    """The strip-off arm of the A/B. Without it remedy 2 has no control, and
+    #112's item 2 cannot be measured at all."""
+    monkeypatch.setenv("SHIM_NO_STRIP", "1")
+    payload = _assistant(_LOOP)
+    assert shim.translate_response(payload) is True
+    assert "<tool_call>" in payload["choices"][0]["message"]["content"]
+
+
+def test_the_call_itself_is_removed_even_with_the_strip_off(monkeypatch):
+    """Only remedy 2 is toggled. Leaving raw call XML in content is a
+    different defect and is not part of the experiment."""
+    monkeypatch.setenv("SHIM_NO_STRIP", "1")
+    payload = _assistant(_LOOP)
+    assert shim.translate_response(payload) is True
+    message = payload["choices"][0]["message"]
+    assert "<function=" not in message["content"]
+    assert message["tool_calls"]
+
+
+def test_an_empty_no_strip_is_not_a_toggle(monkeypatch):
+    """An unset-looking value must not silently disable a shipped remedy."""
+    monkeypatch.setenv("SHIM_NO_STRIP", "")
+    payload = _assistant(_LOOP)
+    assert shim.translate_response(payload) is True
+    assert "<tool_call>" not in payload["choices"][0]["message"]["content"]

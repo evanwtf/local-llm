@@ -854,6 +854,24 @@ What survives is the variable, not the number: **a decode-rate gain is not a
 session-time gain if the model talks more to get there**, so tokens-to-answer
 belongs beside any tok/s claim -- measured, not asserted.
 
+## A remedy that cannot be switched off cannot be measured (2026-09-04)
+
+#112's remedy 2 shipped on 2026-09-03 and was still unmeasured a day later,
+and the reason was not that nobody tried. Measuring it needs an arm with the
+remedy **off**, turning it off meant editing the shim, and editing the shim is
+not something an unattended run can do. So the experiment never got designed.
+
+`SHIM_NO_STRIP=1` is that arm. The rule generalises: **when a fix ships as a
+behaviour change in code the harness calls, give it a switch at the same
+time.** The switch costs one `if`; retrofitting one costs the credibility of
+every result taken in between, because nobody can say what the fix was worth.
+
+Two details that make a toggle safe rather than a new hazard: it is opt-in and
+truthy-checked, so a stray `SHIM_NO_STRIP=` in a shell profile cannot silently
+disable a shipped remedy for every run afterwards; and it toggles **only** the
+remedy -- the call XML is still removed, because leaving that in content is a
+different defect and does not belong in the experiment.
+
 ## Name the confounds
 
 Every backend added here changes more than one variable at a time. Write the

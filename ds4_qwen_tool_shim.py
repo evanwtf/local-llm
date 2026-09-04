@@ -337,9 +337,23 @@ def translate_response(payload: dict) -> bool:
             content = call_pattern.sub("", content)
         # The bare <tool_call> opens the degeneration loop leaves behind are
         # scaffolding, not prose, and echoing them back invites more of them.
-        message["content"] = (
-            content.replace("<tool_call>", "").replace("</tool_call>", "").strip()
-        )
+        #
+        # #112: this is remedy 2, and until now it could not be measured --
+        # testing it needs an arm with the strip off, and turning it off meant
+        # editing the shim, which is not a thing an unattended run can do.
+        # `SHIM_NO_STRIP=1` is that arm and nothing else: the call itself is
+        # still removed above, because leaving raw call XML in content is a
+        # different defect and is not part of the experiment.
+        #
+        # Deliberately opt-in and truthy-checked. An empty value is not a
+        # toggle -- a stray `SHIM_NO_STRIP=` in a shell profile must not
+        # silently disable a shipped remedy for every run afterwards.
+        if os.environ.get("SHIM_NO_STRIP"):
+            message["content"] = content.strip()
+        else:
+            message["content"] = (
+                content.replace("<tool_call>", "").replace("</tool_call>", "").strip()
+            )
         message["tool_calls"] = calls
         choice["finish_reason"] = "tool_calls"
         changed = True
