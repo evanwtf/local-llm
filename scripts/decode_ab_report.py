@@ -162,14 +162,34 @@ def log_between_run_spread(got: list[tuple[pathlib.Path, Summary]]) -> None:
         return
     medians = [s.median for _, s in got]
     lo, hi = min(medians), max(medians)
+    a, b = got[0][1].a, got[0][1].b
     logger.info("-- between runs --")
     for d, s in got:
-        logger.info("%-42s %.3f  (%+.1f%%)", d.name, s.median, (s.median - 1) * 100)
+        logger.info(
+            "%-34s %s/%s %.3f (%+.1f%%)   %s/%s %.3f (%+.1f%%)",
+            d.name,
+            b,
+            a,
+            s.median,
+            (s.median - 1) * 100,
+            a,
+            b,
+            1 / s.median,
+            (1 / s.median - 1) * 100,
+        )
+    med = st.median(medians)
     logger.info(
-        "%d runs: median %.3f (%+.1f%%), range %.3f - %.3f, spread %.1f pp",
+        "%d runs: median %s/%s %.3f (%+.1f%%), %s/%s %.3f (%+.1f%%), "
+        "range %.3f - %.3f, spread %.1f pp",
         len(medians),
-        st.median(medians),
-        (st.median(medians) - 1) * 100,
+        b,
+        a,
+        med,
+        (med - 1) * 100,
+        a,
+        b,
+        1 / med,
+        (1 / med - 1) * 100,
         lo,
         hi,
         (hi - lo) * 100,

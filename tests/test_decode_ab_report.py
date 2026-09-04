@@ -231,3 +231,15 @@ def test_the_arm_that_drifts_most_is_named(tmp_path, caplog):
     with caplog.at_level("INFO"):
         report.log_within_run_structure(report.load(d))
     assert "arm that drifts most: a" in " ".join(r.getMessage() for r in caplog.records)
+
+
+def test_the_between_run_block_names_both_directions(tmp_path, caplog):
+    """Same reason as the per-rep line: a bare ratio has been misread once."""
+    runs = []
+    for name, r in (("r1", 1.25), ("r2", 1.25)):
+        d = _write_run(tmp_path, name, {1: r, 2: r})
+        runs.append((d, report.summarize(report.load(d))))
+    with caplog.at_level("INFO"):
+        report.log_between_run_spread(runs)
+    text = " ".join(r.getMessage() for r in caplog.records)
+    assert "b/a 1.250" in text and "a/b 0.800" in text
