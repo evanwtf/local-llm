@@ -450,6 +450,31 @@ The tables above are generated from `benchmarks/agent/results.jsonl` by
 `gen_tables.py` and spliced in by `splice_tables.py` — they are never typed by
 hand, and a test fails if this file drifts from the data.
 
+### The ds4 shim rows were measured on a build its author has withdrawn
+
+`qwen38fnds4shim`'s 135 trials ran against
+`Qwen3.8-Flash-Next-Q40RoutedExperts-…gguf` — **Q4_0 routed experts**. On
+2026-09-04 that file was replaced on Hugging Face by a Q4_K imatrix build, its
+author describing the Q4_0 one as *"faster, less accurate"*. The file we
+measured is no longer offered.
+
+Measured against it, four runs
+([#138](https://github.com/evanwtf/local-llm/issues/138)): the replacement is
+**+9.5% decode and −24.5% prefill**, and both builds answer 6/6 on a
+six-question `ds4-eval` gate. That gate ranks nothing — it says neither is
+broken — so **the accuracy claim that motivated the change is still
+unmeasured here.**
+
+Two cautions on those figures. Neither engine loads the other's weights, so
+the quant and the engine move together and neither can be credited alone. And
+prefill is prompt-dependent ([#140](https://github.com/evanwtf/local-llm/issues/140));
+that −24.5% is one prompt at 1298 KiB and must not be pooled with a figure
+taken on another.
+
+Nothing here changes the recommendation — the llama.cpp stack is still the one
+to install — but a reader reproducing our ds4 numbers should know they are
+pinned to a file the upstream author has moved on from.
+
 ### One row here cannot be reproduced from upstream sources
 
 The `qwen38fnds4shim` and `qwen38fnds4mtp7shim` rows need **PLE sidecar
