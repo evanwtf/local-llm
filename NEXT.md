@@ -35,11 +35,12 @@ when one is *behind* its release rather than refusing when it has moved. See
 
 ### Finishable in a session with machine time
 
-1. **[#138](https://github.com/evanwtf/local-llm/issues/138)** Q4_K imatrix vs the Q4_0 build we publish -- **speed measured, quality not**
-   The stack A/B is done: +9.5% decode, -24.5% prefill, four runs. It is a
-   trade, and the deciding variable was never speed. The author's claim was
-   about accuracy.
-   *Done when:* the two builds are compared on quality, not rate -- coherence at temp 0 plus one agent cell, or a stated reason we accept the trade blind.
+1. **[#138](https://github.com/evanwtf/local-llm/issues/138)** Q4_K imatrix vs the Q4_0 build we publish -- **speed and the gate done, the ranking not**
+   Stack A/B: +9.5% decode, -24.5% prefill, four runs. Both builds pass a
+   six-question `ds4-eval` gate 6/6, which says neither is broken and ranks
+   nothing. Tokens-to-answer is the variable that decides whether the decode
+   gain reaches a session, and five cases established no direction.
+   *Done when:* one agent cell on the new stack, giving pass rate and wall time against the published cell -- or a stated reason we accept the trade blind.
 2. **[#112](https://github.com/evanwtf/local-llm/issues/112)** The tool-call degeneration loop
    Item 2 cannot be measured at the outcome level: ~230 trials/arm to detect a
    drop to zero. Redirected to a strip-toggle A/B on the conditional.

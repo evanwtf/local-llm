@@ -81,13 +81,18 @@ generated exactly 2500 tokens -- the `--tokens` cap -- so it was truncated, not
 wrong; at 8000 it answers correctly.
 
 Six questions is a gate, not a ranking, and it does not settle the "less
-accurate" claim that prompted #138. What it did surface is more useful: the new
-build spends about **5% more tokens** reaching the same answers. Against a
-+9.5% decode gain, most of that advantage is spent before it reaches the user,
-so the speed figure must not be read as a faster session.
+accurate" claim that prompted #138. It also does not settle **tokens to
+answer**, though it took a second pass to admit that: the totals differ by 5%,
+but the per-case ratio spans 0.724 to 1.352 -- ten times the effect. Five cases
+establish no direction. What stands is that tokens-to-answer is the variable
+that decides whether a +9.5% decode gain reaches the user at all, and it is
+unmeasured.
 
 `AGENTS.md` carries the trap: a generated-token count equal to the cap is a
-truncation, not an answer.
+truncation, not an answer. `scripts/eval_trace.py` enforces both halves --
+it excludes a capped failure from `failed`, and it warns when its own median
+is narrower than the per-case spread, because the first claim written off this
+data was exactly that over-read.
 
 **2026-09-04, evening. #112 item 2 cannot be measured where it was posed.**
 

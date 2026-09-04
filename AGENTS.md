@@ -843,10 +843,16 @@ harness, not of the model, and it silently converts "slower to reason" into
 "wrong" -- which is the most damaging substitution available, because the two
 argue for opposite decisions.
 
-The same run carries the corollary: the new build spent ~5% more tokens
-reaching the same answers. **A decode-rate gain is not a session-time gain if
-the model talks more to get there**, and tokens-to-answer belongs beside any
-tok/s claim.
+The same run carries a second lesson, learned the same way. The new build's
+totals showed ~5% more tokens for the same answers, and I published that as a
+finding. The per-case ratios span **0.724 to 1.352** -- the spread is ten times
+the effect, and five cases establish nothing. **A median is not a result until
+it is larger than the spread around it**; `scripts/eval_trace.py` now prints
+the spread beside its own median and says so when it isn't.
+
+What survives is the variable, not the number: **a decode-rate gain is not a
+session-time gain if the model talks more to get there**, so tokens-to-answer
+belongs beside any tok/s claim -- measured, not asserted.
 
 ## Name the confounds
 
