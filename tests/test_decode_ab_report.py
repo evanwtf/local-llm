@@ -174,3 +174,35 @@ def test_a_bad_directory_does_not_lose_the_others(tmp_path, caplog):
         runs, status = report.report_across_runs([good, bad], "gen_steady_tps")
     assert len(runs) == 1
     assert status == 1
+
+
+def test_per_rep_ratio_pairs_within_each_rep(tmp_path):
+    """#952 claimed the ratio narrows within a session. Answering that by
+    hand is how a ratio-of-medians slips back in."""
+    d = _write_run(tmp_path, "r", {1: 1.10, 2: 1.20, 3: 1.15})
+    got = report.per_rep_ratio(report.load(d))
+    assert [round(got[r], 3) for r in (1, 2, 3)] == [1.10, 1.20, 1.15]
+
+
+def test_per_arm_drift_is_per_frontier_not_a_ratio_of_medians(tmp_path):
+    """The shape of this question invites the exact defect 98bc79b fixed."""
+    d = tmp_path / "drift"
+    d.mkdir()
+    head = "ctx_tokens,prefill_tps,gen_steady_tps\n"
+    # arm a halves between rep1 and rep3 at both frontiers; arm b is flat.
+    for rep, val in ((1, 10.0), (2, 8.0), (3, 5.0)):
+        (d / f"a-rep{rep}.csv").write_text(
+            head + f"2048,100.0,{val}\n4096,100.0,{val}\n"
+        )
+        (d / f"b-rep{rep}.csv").write_text(head + "2048,100.0,10.0\n4096,100.0,10.0\n")
+    drift = report.per_arm_drift(report.load(d))
+    assert abs(drift["a"] - 0.5) < 1e-9
+    assert abs(drift["b"] - 1.0) < 1e-9
+
+
+def test_drift_needs_two_reps():
+    assert report.per_arm_drift({"a": {2048: {1: 10.0}}}) == {}
+
+
+def test_per_rep_ratio_is_empty_unless_there_are_two_arms():
+    assert report.per_rep_ratio({"only": {2048: {1: 1.0}}}) == {}
