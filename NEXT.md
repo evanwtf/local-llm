@@ -27,34 +27,42 @@ Ranked by **what can actually be finished**, not by what is most interesting.
 Each item says what *done* looks like. Moving ten things five percent leaves
 nothing finished and no way to tell.
 
-### Finishable in one sitting
-
-1. **[#140](https://github.com/evanwtf/local-llm/issues/140)** A prefill figure is not well-posed without naming the prompt
-   *Done when:* the prompt path and size are in the CSV and the report's quotable line, and RESULTS.md states it.
-2. **[#131](https://github.com/evanwtf/local-llm/issues/131)** Nothing pins the agent client, and it updates itself between batches
-   *Done when:* claude is back on 2.1.260 or the pin moves, and both autoupdaters are off and recorded.
-3. **[#137](https://github.com/evanwtf/local-llm/issues/137)** Every OpenCode comparison across the ds4 backends spans a client-version boundary
-   *Done when:* the two affected RECOMMENDATIONS tables carry a caveat, or are shown not to need one.
+Three items closed on 2026-09-04 evening — #140, #137, and #131's build half.
+The client-pinning decision was reversed the same day: this laptop is a daily
+driver, so clients are **recorded, not pinned**, and `preflight.py` now warns
+when one is *behind* its release rather than refusing when it has moved. See
+`docs/changelog.md`.
 
 ### Finishable in a session with machine time
 
-4. **[#138](https://github.com/evanwtf/local-llm/issues/138)** ivanfioravanti: Q4_K imatrix Qwen3.8-Flash-Next for ds4, measured on M5 Max
+1. **[#138](https://github.com/evanwtf/local-llm/issues/138)** ivanfioravanti: Q4_K imatrix Qwen3.8-Flash-Next for ds4, measured on M5 Max
+   Not a new model beside ours -- a **replacement of the build we run**. Ours is
+   `Q40RoutedExperts`, which its author has withdrawn as less accurate.
    *Done when:* four-run decode A/B against our current Q4, or a stated reason it will not load.
-5. **[#116](https://github.com/evanwtf/local-llm/issues/116)** Test whether maxing the fans changes measured pass rates or timings
+2. **[#112](https://github.com/evanwtf/local-llm/issues/112)** The tool-call degeneration loop
+   *Done when:* remedy 2 is measured on the affected cell -- it shipped 2026-09-03 and has never been.
+3. **[#116](https://github.com/evanwtf/local-llm/issues/116)** Test whether maxing the fans changes measured pass rates or timings
+   The design is pre-registered on the issue, thresholds and all five outcome
+   sentences included. Only the run is left, and the fans are the operator's call.
    *Done when:* four runs auto against four runs max-fans, with the thermal log beside each.
-6. **[#112](https://github.com/evanwtf/local-llm/issues/112)** The tool-call degeneration loop
-   *Done when:* remedy 2 is measured on the affected cell — it shipped 2026-09-03 and has never been.
+
+### Measurements, not builds
+
+4. **[#131](https://github.com/evanwtf/local-llm/issues/131)** item 4: does a client-version boundary move anything here?
+   Items 1-3 are done. No (backend, task) cell on this machine holds two client
+   versions, so this needs one deliberate comparison, not more incidental data.
+   *Done when:* one backend is measured under two client versions, or the question is dropped on the record.
 
 ### Standing problems, not finishable in one sitting
 
-7. **[#64](https://github.com/evanwtf/local-llm/issues/64)** KV cache prefix stalls at ~20,400 tokens
+5. **[#64](https://github.com/evanwtf/local-llm/issues/64)** KV cache prefix stalls at ~20,400 tokens
    The cost is measured. The fix is in a client we do not own, so this ends in an upstream report, not a patch.
-8. **[#4](https://github.com/evanwtf/local-llm/issues/4)** Harder tasks: the current set cannot measure code quality
+6. **[#4](https://github.com/evanwtf/local-llm/issues/4)** Harder tasks: the current set cannot measure code quality
    Months, not hours. Every other result is measured against it, which is why it stays visible.
-9. **[#120](https://github.com/evanwtf/local-llm/issues/120)** What ds4 server state degrades a session?
+7. **[#120](https://github.com/evanwtf/local-llm/issues/120)** What ds4 server state degrades a session?
    Trial 3 drops on both ds4-shim backends. Isolating the variable needs several controlled arms; #116 is the first.
-10. **[#96](https://github.com/evanwtf/local-llm/issues/96)** oMLX bit-exact tail continuation, TTFT 3–4 s → 0.3 s
-    Blocked on finding the change at all — the cited PR is a different feature. Ask, or diff releases.
+8. **[#96](https://github.com/evanwtf/local-llm/issues/96)** oMLX bit-exact tail continuation, TTFT 3-4 s -> 0.3 s
+   Blocked on finding the change at all -- the cited PR is a different feature. Ask, or diff releases.
 
 After these: the engine-speed queue and the rest of the backlog, in the tracker.
 
