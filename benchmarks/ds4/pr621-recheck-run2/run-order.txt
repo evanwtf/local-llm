@@ -1,0 +1,6 @@
+rep=1 position=1 of 2 label=q4
+rep=1 position=2 of 2 label=q8
+rep=2 position=1 of 2 label=q8
+rep=2 position=2 of 2 label=q4
+rep=3 position=1 of 2 label=q4
+rep=3 position=2 of 2 label=q8
