@@ -28,6 +28,7 @@ import json
 import logging
 import pathlib
 import statistics
+import subprocess
 import sys
 import time
 from ctypes import c_char_p, c_double, c_int, c_uint32, c_uint64, c_void_p
@@ -154,9 +155,53 @@ def summarise(sensors: list[tuple[str, float]]) -> dict[str, float | int]:
     }
 
 
+def fan_rpm() -> dict[str, float | int]:
+    """Fan speeds, read through `fancontrol status` (#116). Empty on failure.
+
+    Temperature alone cannot tell a throttled run from a well-cooled one: a
+    die sitting at 68 C with the fans at 3400 rpm and one at 68 C with them at
+    5300 rpm are different machines. #118's run 4 recorded 48.4 C at the start
+    and 67.6 C at the end and could say nothing about whether cooling was the
+    reason, because no fan speed was captured alongside.
+
+    Read only. `fancontrol max` and `set` are never called from here -- fan
+    state is an operator decision, and a benchmark that quietly changes the
+    machine's cooling is measuring something it did not declare.
+    """
+    try:
+        got = subprocess.run(
+            ["fancontrol", "status", "--json"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+        if got.returncode != 0:
+            return {}
+        fans = json.loads(got.stdout).get("fans") or []
+    except (OSError, subprocess.SubprocessError, ValueError, AttributeError):
+        return {}
+    out: dict[str, float | int] = {}
+    actual = []
+    for fan in fans:
+        if not isinstance(fan, dict):
+            continue
+        rpm = fan.get("actual_rpm")
+        if isinstance(rpm, int | float):
+            out[f"fan{fan.get('index', len(actual))}_rpm"] = rpm
+            actual.append(rpm)
+        mode = fan.get("mode")
+        if isinstance(mode, str):
+            out[f"fan{fan.get('index', len(actual) - 1)}_mode"] = mode  # type: ignore[assignment]
+    if actual:
+        out["fan_rpm_max"] = max(actual)
+    return out
+
+
 def reading() -> dict[str, float | int | str]:
     """One timestamped reading. The clock is the system clock, always."""
-    got = summarise(read_sensors())
+    got: dict[str, float | int | str] = dict(summarise(read_sensors()))
+    got.update(fan_rpm())
     got["utc"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     got["local"] = time.strftime("%H:%M:%S %Z")
     return got
