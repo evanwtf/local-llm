@@ -281,3 +281,40 @@ def test_legacy_and_paired_disagree_when_arms_drift_apart(tmp_path):
 
 def test_legacy_needs_two_arms():
     assert report.legacy_median({"only": {2048: {1: 1.0}}}) is None
+
+
+def test_runs_needed_collapses_as_k_rises():
+    """#136 item 2: what k runs would have bought."""
+    got = report.runs_needed([1.10, 1.20, 1.15, 1.16])
+    assert [row[0] for row in got] == [1, 2, 3, 4]
+    # k=1 spans the full range of single runs
+    assert abs(got[0][1] - 1.10) < 1e-9 and abs(got[0][2] - 1.20) < 1e-9
+    # k=n is one estimate, so no spread at all
+    assert got[-1][3] == 0.0
+    # and the spread must not grow as runs are added
+    spreads = [row[3] for row in got]
+    assert spreads == sorted(spreads, reverse=True)
+
+
+def test_one_outlier_is_absorbed_by_three_runs():
+    """The #118 shape: three tight, one 3.5 pp out. A median over any three
+    lands in the tight cluster, which is why three was enough there."""
+    got = {row[0]: row[3] for row in report.runs_needed([1.16, 1.21, 1.17, 1.17])}
+    assert got[1] > got[3]
+    assert got[3] < 1.0  # under a point of spread by k=3
+
+
+def test_runs_needed_handles_a_single_run():
+    got = report.runs_needed([1.2])
+    assert got == [(1, 1.2, 1.2, 0.0)]
+
+
+def test_the_block_is_silent_below_three_runs(tmp_path, caplog):
+    """Two runs cannot say what three would have bought."""
+    runs = []
+    for name, r in (("r1", 1.10), ("r2", 1.20)):
+        d = _write_run(tmp_path, name, {1: r, 2: r})
+        runs.append((d, report.summarize(report.load(d))))
+    with caplog.at_level("INFO"):
+        report.log_runs_needed(runs)
+    assert not caplog.records

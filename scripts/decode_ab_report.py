@@ -354,6 +354,51 @@ def log_legacy_comparison(got: list[tuple[pathlib.Path, Summary]], column: str) 
     )
 
 
+def runs_needed(medians: list[float]) -> list[tuple[int, float, float, float]]:
+    """How far the answer can move if you had only taken k of the runs.
+
+    For each k, every k-subset of the runs is a measurement someone could
+    have taken and reported. Returns (k, lowest median, highest median,
+    spread in pp) over all of them.
+
+    #136 item 2 asks how many runs are enough. This does not answer that in
+    general -- repeatability is a property of the comparison, not of the
+    harness, and #118 spreads 4.7 pp across four runs where q4/q8 spreads
+    1.5 pp. What it does answer is what the runs in hand would have bought:
+    if k=3 still spans two points, a three-run result was a coin toss.
+
+    Exhaustive rather than sampled: with four runs there are fifteen subsets
+    and no reason to approximate.
+    """
+    import itertools
+
+    out: list[tuple[int, float, float, float]] = []
+    for k in range(1, len(medians) + 1):
+        estimates = [st.median(c) for c in itertools.combinations(medians, k)]
+        lo, hi = min(estimates), max(estimates)
+        out.append((k, lo, hi, (hi - lo) * 100))
+    return out
+
+
+def log_runs_needed(got: list[tuple[pathlib.Path, Summary]]) -> None:
+    """What k runs would have bought, for every k up to what we have."""
+    if len(got) < 3:
+        return
+    medians = [s.median for _, s in got]
+    a, b = got[0][1].a, got[0][1].b
+    logger.info("-- what k runs would have bought (#136) --")
+    for k, lo, hi, spread in runs_needed(medians):
+        logger.info(
+            "k=%d  %s/%s could have read %.3f to %.3f  (spread %.1f pp)",
+            k,
+            b,
+            a,
+            lo,
+            hi,
+            spread,
+        )
+
+
 def main(argv: list[str]) -> int:
     logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
     legacy = "--legacy" in argv
@@ -372,6 +417,7 @@ def main(argv: list[str]) -> int:
         logger.info("== %s ==", column)
         if len(runs) > 1:
             log_between_run_spread(runs)
+            log_runs_needed(runs)
             if legacy:
                 log_legacy_comparison(runs, column)
             logger.info("")
