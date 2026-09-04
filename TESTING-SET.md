@@ -5,7 +5,7 @@ engine, model — plus the task set that runs across them. Anything not listed
 here is not part of the matrix; anything listed as retired stays documented
 because rows in `results.jsonl` still reference it.
 
-Updated 2026-09-01.
+Updated 2026-09-04.
 
 ---
 
@@ -114,7 +114,7 @@ destroyed it.
 
 ## Models
 
-**Six have valid current data.** These are the rows any published figure may
+**Nine have valid current data.** These are the rows any published figure may
 be drawn from — OpenCode, after the `--dir` cutover, not excluded.
 
 | backend | model | engine | size | valid rows |
@@ -126,25 +126,13 @@ be drawn from — OpenCode, after the `--dir` cutover, not excluded.
 | `ornith15` | `ornith-1.5:35b` | Ollama | 22 GB | 21 |
 | `gemma4` | `gemma4:31b-mxfp8` | Ollama | 32 GB | 12 |
 | `ds4anthropic` | DeepSeek-V4-Flash 0731 | ds4 (Anthropic wire) | 90.9 GiB | 18 |
+| `qwen38fnds4shim` | Qwen3.8-Flash-Next DS4-Q4 fast-pack, MTP off | ds4 (via tool shim) | 113 GB | 135 |
+| `qwen38fnds4mtp7shim` | the same fast-pack, MTP `--mtp-draft 7` | ds4 (via tool shim) | 113 GB | 90 |
 
 `ds4` and `ds4anthropic` are the clean wire-format isolation: identical weights
-and server, only the protocol differs.
-
-**Configured but unmeasured under the current client.** These are wired in
-`tasks.toml` and carry no valid OpenCode rows. They are candidates, not
-results:
-
-`qwen38fnq3reap` · `gemma426` · `qwen36a3b` · `qwen` · `qwen36` · `qwen38flashnext` · `qwen38fnq2` ·
-`qwen38fnq4m64` · `ornith15llamacpp` · `glm53` · `glm52ds4` · `glm53ds4shim` ·
-`mtplx` · `opus5` · `qwen38fnds4` · `qwen38fnds4mtp7` · `qwen38fnds4shim` ·
-`qwen38fnds4mtp7shim`
-
-**`qwen38fnds4` and `qwen38fnds4mtp7` are the engine isolation for
-Qwen3.8-Flash-Next** (#94), the pair that answers a question the set could not
-previously ask. Every row we have for this model is llama.cpp, so "ds4 is
-faster" and "this model is faster" have never been separable. Both backends are
-the same weights on the same binary; only MTP speculation differs, so the pair
-also isolates speculative decoding without changing the model.
+and server, only the protocol differs. The two `qwen38fnds4*shim` rows are the
+same model — they are separate backends purely so MTP-on rows cannot pool with
+MTP-off ones.
 
 **`qwen38fnds4shim` is the same server behind a proxy that does three things**, and it
 carries the only deliberate confounds in the set. `ds4_qwen_tool_shim.py` (a) appends a
@@ -161,17 +149,24 @@ identical request, interleaved, 12 samples each (2026-09-03):
 
 That is the whole of the earlier 45 trials / 0 passes with `num_turns=1` on every row.
 Through the shim the same request measures **12/12**, and the full suite went **0/45 to
-36/45**. A row from this backend therefore **did not stream from the engine** — wall time
-should be unaffected, since a tool call cannot be acted on before it is complete, but it
-is not comparable to a streaming backend. `qwen38fnds4` vs `qwen38fnds4shim` is the pair
-that measures the total cost, and any comparison to llama.cpp must state all of it —
+36/45** — then to **42/45 (14/14/14) with a server restart between trials**
+(2026-09-03; #77). Its 135 valid rows therefore pool three protocols: a
+continuous server, restart-between-trials, and restart-between-trials with the
+disk-KV budget raised 4x (the kv-32768 test, 38/45 — #120's evidence that disk
+KV is not the session-decline mechanism). A row from this backend therefore
+**did not stream from the engine** — wall time should be unaffected, since a
+tool call cannot be acted on before it is complete, but it is not comparable to
+a streaming backend. Any comparison to llama.cpp must state all of it —
 including that the quant differs (Q4_0-routed here, Q3 there).
 
 **`qwen38fnds4mtp7shim` is arm B**: the identical shim path with the embedded MTP head on
 at `--mtp-draft 7`, this pack's own measured optimum. It exists as a separate backend name
 purely so its rows cannot be pooled with arm A's — same port, same shim, different engine
 configuration. Run it with `--mtp-timing`, because the scheduler bypasses MTP on families
-it loses on and a bypass and a null look identical in a row.
+it loses on and a bypass and a null look identical in a row. Its 90 valid rows are both
+arm B runs, continuous and restart-between-trials — **25/45 each (9/6/10 under restart),
+identical totals**, so **MTP is a net cost on this workload** (#77, closed; the sampler
+caveat in AGENTS.md applies to the pass-rate gap).
 
 The pack is `ivanfioravanti/Qwen3.8-Flash-Next-DS4-Q4`, a **DS4 fast-pack, not
 a llama.cpp GGUF** — standard GGUF tools will not load it. Runtime is the
@@ -180,6 +175,23 @@ tensors are resident; the 32 GB PLE n-gram table is **not** (the server reports
 `PLE=SSD-pread/Q4_1-to-BF16-double-buffer`, RSS settles at 74.3 GiB). Note the
 quant differs from `qwen38fnq3` (Q4_0-routed here, `UD-Q3_K_XL` there), so the
 pair isolates the engine but not the quant.
+
+**Configured but unmeasured under the current client.** These are wired in
+`tasks.toml` and carry no valid OpenCode rows. They are candidates, not
+results:
+
+`qwen38fnq3reap` · `gemma426` · `qwen36a3b` · `qwen` · `qwen36` · `qwen38flashnext` · `qwen38fnq2` ·
+`qwen38fnq4m64` · `ornith15llamacpp` · `glm53` · `glm52ds4` · `glm53ds4shim` ·
+`mtplx` · `opus5` · `qwen38fnds4` · `qwen38fnds4mtp7`
+
+**`qwen38fnds4` and `qwen38fnds4mtp7` are the engine isolation for
+Qwen3.8-Flash-Next** (#94), the pair that answers a question the set could not
+previously ask. Every row we have for this model is llama.cpp, so "ds4 is
+faster" and "this model is faster" have never been separable. Both backends are
+the same weights on the same binary; only MTP speculation differs, so the pair
+also isolates speculative decoding without changing the model. Their shim twins
+above are measured; the direct pair is not, because ds4's own XML tool dialect
+does not survive OpenCode (#94) — through the shim it does.
 
 Every one of these now has a backend block **and** an `opencode_model`, which a
 test enforces. Three did not until 2026-09-01: `qwen3.6:35b-a3b-coding-mxfp8`
@@ -198,8 +210,9 @@ non-DeepSeek backend to complete a cell (#16). It is the slowest stack measured
 — a 383s excision median against llama.cpp's 90s — so it is a fallback rather
 than a recommendation.
 
-**The monoculture is real but no longer unanswered.** Of the seven measured,
-four are Qwen derivatives. DeepSeek-V4-Flash, GLM-5.3 and now Gemma 4 are the
+**The monoculture is real but no longer unanswered.** Of the nine measured
+rows, six are Qwen derivatives — two of them the same fast-pack with MTP off and
+on. DeepSeek-V4-Flash, GLM-5.3 and now Gemma 4 are the
 three other lineages.
 
 ---

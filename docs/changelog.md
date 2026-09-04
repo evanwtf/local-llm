@@ -2,23 +2,152 @@
 
 What shipped, and why. Newest first.
 
-This is the permanent home for entries that used to accumulate in
-[`NEXT.md`](../NEXT.md)
-under "Done since the last update". That section is a **staging area**, not an
-archive: `AGENTS.md` says `NEXT.md` "sets order and nothing else" and carries
-only the ordered table, the machine state that is not in git, and the traps. An
-entry leaves the staging area once its lesson has a permanent home — a test, a
-convention in `AGENTS.md`, a line in `RESULTS.md`, or an entry here.
+This is the permanent home for what shipped. An entry belongs here the day the
+work lands — a test, a convention in `AGENTS.md`, a line in `RESULTS.md`, or an
+entry here is where a finding becomes durable; anything still only in
+[`NEXT.md`](../NEXT.md) has not landed anywhere.
 
-It stopped being drained. By 2026-09-02 the section had reached **577 lines and
-41.6 KB — 54% of `NEXT.md`** — so the file that is supposed to say what to do
-next was mostly a record of what had already been done. Moved here whole rather
-than summarised, because the reasoning in these entries is the part worth
-keeping; several of them are the only written account of why a guard exists.
+`NEXT.md` was reduced to the queue and nothing more on 2026-09-04 (see that
+day's entry). Before that it carried a "Done since the last update" staging
+area that stopped being drained — by 2026-09-02 it had reached **577 lines and
+41.6 KB, 54% of the file** — so the file that was supposed to say what to do
+next was mostly a record of what had already been done. That history was moved
+here whole rather than summarised, because the reasoning in these entries is
+the part worth keeping; several of them are the only written account of why a
+guard exists.
 
 **Read this for history, not for current state.** Numbers here were true when
 written. Current results live in `hardware/<machine>/RESULTS-agent.md`, current
 picks in `RECOMMENDATIONS.md`, and the current queue in `NEXT.md`.
+
+---
+
+**2026-09-04. `NEXT.md` is the queue and nothing more.**
+
+The file had regrown into a diary: 605 lines holding four machine-state
+snapshots, a ~150-line traps section, an answer table, and closed-work lists —
+against the ~150 lines of actual queue. It went back to being what
+`AGENTS.md` says it is: the ranked table, the goal it is ranked against, one
+machine-state snapshot, and pointers. Nothing was deleted; everything moved to
+its permanent home:
+
+- **Done work** → this changelog, as the two entries below (the 2026-09-02
+  closures and the late-2026-09-03 arms). The staging-area section is gone;
+  a finding lands here the day it happens.
+- **Durable machine operations** → the new
+  [`docs/m5max-runbook.md`](m5max-runbook.md): the Metal ceiling (why it is
+  required, the LaunchDaemon and its install trap, the `b0c31af` guard that
+  cannot fire on 128 GiB hosts), the exact ds4 server argv the published rows
+  were taken with, the two KV directories, the engine trees and preserved
+  builds, the weights inventory, the client configs, and the download notes.
+- **Traps** → `AGENTS.md`, as sections in its house style, minus the ones it
+  already held. New there: never `pkill` `run.py` (restore via
+  `run.restore_targets()`), MTP is not a speed-only flag, the wire-call rule
+  extended with the `stream: true` recurrence, fast-and-unusable, ~10% session
+  drift → bracket with A-B-A, coherence-check at temperature 0, the `pgrep`
+  poll that never exits, nothing feeds `results.verdict()` except the oracle,
+  force-pushed preview branches (ancestry, not count), and `excise()` writing
+  the file.
+- **The answer table** (best combination, pass rates and CIs) → dropped from
+  `NEXT.md`; it was already persisted in `RESULTS-agent.md`, which is where a
+  published figure belongs.
+- **`TESTING-SET.md`** gained `qwen38fnds4shim` (135 valid rows) and
+  `qwen38fnds4mtp7shim` (90) in its measured table, moving them out of
+  "configured but unmeasured", where they no longer belonged.
+
+Also filed: [#132](https://github.com/evanwtf/local-llm/issues/132) — preflight
+flags the ds4-server behind the shim as stale when only a shim backend is
+selected. The warning is correct about the ports and wrong about the
+conclusion: stopping the named process would kill the run's only backend. It
+had been sitting in a machine-state snapshot as "not yet filed".
+
+And caught by the suite during the prune, so worth a line: the
+`RECOMMENDATIONS.md` tables had gone stale after the 2026-09-03 evening runs —
+the arm B re-run and kv-32768 rows (90 rows) landed in `results.jsonl` but the
+splice was never re-run. Re-spliced: `qwen38fnds4shim` 116/135 and
+`qwen38fnds4mtp7shim` 50/90. The splice being part of "finishing a batch" is
+AGENTS.md's rule; this is the second red-streak-shaped miss found by a person —
+or in this case a test — looking.
+
+---
+
+**2026-09-03, late. #77 closed in both directions: MTP is a net cost on this
+workload, and the session decline is not disk KV.**
+
+- **Arm A re-run under restart-between-trials: 42/45 (14/14/14)**, against
+  36/45 (13/13/10) on a single continuous server. The third-trial collapse was
+  server state, not model context. Full write-up and the paired statistics on
+  [#77](https://github.com/evanwtf/local-llm/issues/77).
+- **Arm B (MTP 7) under the same protocol: 25/45 (9/6/10)** — identical to its
+  no-restart total, so the restart removed the session decline but not the
+  loss. **MTP is a net cost on this workload, not a help.** With the sampler
+  caveat in `AGENTS.md`, the pass-rate gap is not attributable to speculation
+  alone; the wall-time comparison is the clean one, and it also shows no gain.
+  The issue closed, and with it the cautionary case for the queue's ranking
+  rule: a fully executed, well-instrumented speed comparison whose honest
+  answer was "no difference measured".
+- **The kv-32768 test: 38/45 (12/15, 15/15, 11/15)** — the disk-KV budget
+  raised 4x, restart-between-trials held. Disk KV is not the mechanism behind
+  the session decline. Which state degrades a session is now
+  [#120](https://github.com/evanwtf/local-llm/issues/120).
+- **Restart-between-trials is now the protocol** while the mechanism is
+  unknown, and the cycle is scripted: `scripts/restart_between_trials.sh` and
+  `restart_between_trials_armB.sh`, committed so the protocol does not live in
+  anyone's head.
+- **#112 was re-scoped** to the tool-call degeneration loop it is named after;
+  its session-decline half moved to #120. Successors filed:
+  [#119](https://github.com/evanwtf/local-llm/issues/119) (unsloth fork
+  decision) and #120.
+- **The queue was re-ranked against the goal, not against engine speed**
+  (`7545d66`): decode rate does not predict agent wall time (measured three
+  times), the pass-rate table has saturated (#4), and two of the loudest
+  results measured our own setup rather than the model (#112, #120). A +35%
+  decode claim now ranks below a defect that makes a real session slow, wrong,
+  or unmeasurable.
+- **[#131](https://github.com/evanwtf/local-llm/issues/131) filed** after
+  [#104](https://github.com/evanwtf/local-llm/issues/104): OpenCode updated
+  itself 1.18.26 → 1.18.27 on both machines unasked, and on the Linux tier that
+  alone roughly doubled median turns on repository tasks. Nothing pins the
+  client; no row records its version.
+
+---
+
+**2026-09-02. The fast-pack lands, CI goes green, and four issues close.**
+
+- **The Qwen3.8-Flash-Next DS4 Q4 fast-pack arrived**: 113 GB (base 79 + PLE
+  32 + MTP 1.6 + vision 0.5) at `~/models/qwen3.8-flash-next-ds4-q4` — a DS4
+  fast-pack, not a llama.cpp GGUF. It carries a deliberate symlink
+  `...Q4KExperts...gguf` → `...Q40RoutedExperts...gguf` because the manifest
+  names the former; **keep the symlink**. Our copy of the manifest predates
+  HF's `2026-09-02T23:07Z` update; the weights are identical
+  (`tensor_manifest_sha256` unchanged) — re-fetch only the manifest before
+  quoting its recipe.
+- **`~/git/ds4-metal` cloned** (ivanfioravanti's fork), branch
+  `qwen3.8-flash-next` @ `2021dda`; `make -j8` builds clean with no patches.
+  Fast-forwarding to upstream `ba01f5d` later proved a **no-op for the binary**
+  — both commits touch only docs, a test fixture and a repack script.
+- **`~/.config/opencode/opencode.json`**: the `ds4` provider gained
+  `qwen3.8-flash-next-q4`, and a new `ds4qwenshim` provider points at the
+  tool-format shim on :8101 (backup alongside the file).
+- **[#108](https://github.com/evanwtf/local-llm/issues/108) closed — CI green
+  again after 21 red runs.** Two failure classes, both found by a person
+  looking: 40 consecutive failures on a shallow clone (the workflow ran fine
+  and the *history* it needed was absent), then a `w/` in a CPU string put a
+  slash in a directory name. That is the case for
+  [#129](https://github.com/evanwtf/local-llm/issues/129).
+- **[#106](https://github.com/evanwtf/local-llm/issues/106) closed — the
+  oracle deadlocked on its own output.** Past a 64 KiB pipe buffer the
+  listener blocked forever, the watchdog killed it, and the kill was recorded
+  as a **model** failure. Present since the function was written, reachable
+  only once a backend did zero work. Fixed in `44c3519`; 1,181 rows audited, no
+  evidence of past corruption.
+- **[#98](https://github.com/evanwtf/local-llm/issues/98) closed** — thermals
+  platform guard; preflight no longer invents a Metal ceiling on Linux.
+  **[#85](https://github.com/evanwtf/local-llm/issues/85) closed** — the
+  hardware restructure; `RECOMMENDATIONS.md` stayed at root.
+  **[#91](https://github.com/evanwtf/local-llm/issues/91) closed** — ds4 PR
+  #621 re-tested at `6a20b13`: decode 1.155x, 32/32 frontier points; #952
+  supersedes it at the same commit. Earlier that day: #89, #87, #90.
 
 ---
 

@@ -2591,3 +2591,34 @@ committed today is the recipe. Making it the default -- e.g. `run.py` restarts
 the server between trials for ds4 backends -- is a real change and worth
 considering. Do not do that quietly; it would invalidate every existing ds4
 row's comparability to a future one.
+
+## 2026-09-03, later — arm B re-run and the kv-32768 test close the two threads above (issues #77 / #120)
+
+Both follow-ups the previous section left dangling ran the same evening, both
+under restart-between-trials. Harness `47a1d9f`, MTP arm B re-run first, then
+the disk-KV budget test on the MTP-off server.
+
+**Arm B (MTP 7) under restart-between-trials: 25/45 (9/15, 6/15, 10/15).**
+Identical to its contaminated no-restart total of 25/45 — the restart removed
+the session decline and did not touch the loss. MTP is a **net cost on this
+workload**, and #77 closed on that result: against arm A's 42/45 under the same
+protocol, the pass-rate gap (with the sampler caveat recorded in AGENTS.md) and
+the wall-time gap both point the same way. The full paired statistics and the
+closing write-up are on
+[#77](https://github.com/evanwtf/local-llm/issues/77).
+
+**kv-32768 (disk-KV budget raised 4x, arm A server): 38/45 (12/15, 15/15,
+11/15).** Below the 42/45 baseline and within noise of it — raising
+`--kv-disk-space-mb` from 8192 to 32768 does not reproduce the improvement.
+**Disk KV is not the mechanism** behind the trial-3 decline. Which server state
+degrades a session is now
+[#120](https://github.com/evanwtf/local-llm/issues/120); until it is
+identified, restart-between-trials is the protocol.
+
+Both results pool into the published cells (`qwen38fnds4shim` 116/135,
+`qwen38fnds4mtp7shim` 50/90 in `RECOMMENDATIONS.md`; the earlier tables had not
+been re-spliced when these rows landed). The kv-32768 rows are valid rows, so
+the arm A cell now mixes three protocols — continuous server,
+restart-between-trials, and restart-between-trials at a 4x disk-KV budget.
+`TESTING-SET.md` names the three; the per-run numbers above are the honest
+per-protocol figures.
