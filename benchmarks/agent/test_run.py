@@ -1028,3 +1028,49 @@ def test_the_flag_exists_and_defaults_to_preparing():
     source = pathlib.Path(run.__file__).read_text()
     assert "--no-prepare-env" in source
     assert "prepare_env_first=True" in source
+
+
+# ---------------------------------------------------------------------------
+# #112: a transcript that is overwritten is evidence that cannot be recovered.
+
+
+def _save(tmp_path, name, stdout):
+    result: dict = {}
+    run.save_transcript(tmp_path, name, stdout, "", result)
+    return result
+
+
+def test_a_second_sweep_does_not_destroy_the_first_transcript(tmp_path):
+    """#112's pre-remedy transcripts were lost exactly this way: later sweeps
+    wrote the same filenames into the same directory, and the before-side of
+    the only question the issue asks became unrecoverable."""
+    first = _save(tmp_path, "mbox-scan-1", '{"a": 1}')
+    second = _save(tmp_path, "mbox-scan-1", '{"b": 2}')
+    assert pathlib.Path(first["client_log"]).read_text() == '{"a": 1}'
+    assert pathlib.Path(second["client_log"]).read_text() == '{"b": 2}'
+    assert first["client_log"] != second["client_log"]
+
+
+def test_the_rewritten_transcript_says_it_was_displaced(tmp_path):
+    _save(tmp_path, "mbox-scan-1", "one")
+    second = _save(tmp_path, "mbox-scan-1", "two")
+    assert second.get("client_log_collision") is True
+
+
+def test_writing_identical_content_twice_does_not_multiply_files(tmp_path):
+    """A re-run that produced the same bytes is not new evidence."""
+    _save(tmp_path, "mbox-scan-1", "same")
+    _save(tmp_path, "mbox-scan-1", "same")
+    assert len(list(tmp_path.glob("mbox-scan-1*.jsonl"))) == 1
+
+
+def test_a_third_collision_gets_its_own_name(tmp_path):
+    _save(tmp_path, "t", "a")
+    _save(tmp_path, "t", "b")
+    third = _save(tmp_path, "t", "c")
+    assert pathlib.Path(third["client_log"]).read_text() == "c"
+    assert len(list(tmp_path.glob("t*.jsonl"))) == 3
+
+
+def test_the_first_write_is_not_marked_as_a_collision(tmp_path):
+    assert _save(tmp_path, "t", "a").get("client_log_collision") is not True

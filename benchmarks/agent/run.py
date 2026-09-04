@@ -1628,11 +1628,47 @@ def save_transcript(
     client_log.mkdir(parents=True, exist_ok=True)
     suffix = ".partial" if partial else ""
     out = client_log / f"{name}.stdout{suffix}.jsonl"
-    out.write_text(stdout or "")
+    body = stdout or ""
+    # #112: never overwrite a transcript. The trial name repeats across
+    # sweeps, so a second sweep into the same --client-log directory used to
+    # destroy the first one's evidence in silence. That is how #112's
+    # pre-remedy transcripts were lost: the before-side of the only question
+    # that issue asks is gone and cannot be reconstructed, because the six
+    # later sweeps wrote these exact filenames.
+    #
+    # Identical bytes are not new evidence, so a re-write of the same content
+    # is a no-op rather than a pile of numbered duplicates.
+    collision = False
+    if out.exists() and out.read_text() != body:
+        collision = True
+        index = 2
+        while True:
+            candidate = client_log / f"{name}.stdout{suffix}.{index}.jsonl"
+            if not candidate.exists():
+                out = candidate
+                break
+            if candidate.read_text() == body:
+                out = candidate
+                break
+            index += 1
+        logger.warning(
+            "%s already holds a different transcript for %s; writing %s "
+            "instead. Two sweeps are sharing one --client-log directory, and "
+            "the earlier evidence is being kept (#112).",
+            client_log,
+            name,
+            out.name,
+        )
+    out.write_text(body)
     if stderr:
-        (client_log / f"{name}.stderr{suffix}.log").write_text(stderr)
+        stderr_path = client_log / f"{name}.stderr{suffix}.log"
+        if collision:
+            stderr_path = client_log / f"{out.stem}.log"
+        stderr_path.write_text(stderr)
     result["client_log"] = str(out)
     result["client_log_partial"] = partial
+    if collision:
+        result["client_log_collision"] = True
     # #54: record when the agent worked outside the trial checkout. A row that
     # measured the wrong tree is not a model verdict and must not be counted
     # as one.
