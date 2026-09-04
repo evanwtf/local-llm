@@ -26,6 +26,7 @@ way through for exactly this reason.
 
 from __future__ import annotations
 
+import argparse
 import csv
 import dataclasses
 import logging
@@ -431,10 +432,25 @@ def quotable(got: list[tuple[pathlib.Path, Summary]]) -> str:
 
 def main(argv: list[str]) -> int:
     logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
-    legacy = "--legacy" in argv
-    dirs = [pathlib.Path(a) for a in argv[1:] if a != "--legacy"] or [
-        pathlib.Path.cwd()
-    ]
+    # argparse rather than scanning argv by hand: this is the most-used script
+    # here and it was the only one with no --help, which a smoke test of every
+    # script found. Hand-rolled flag parsing also silently accepts a
+    # misspelled --legacy as a directory name.
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument(
+        "dirs",
+        nargs="*",
+        type=pathlib.Path,
+        help="run directories; defaults to the current directory",
+    )
+    parser.add_argument(
+        "--legacy",
+        action="store_true",
+        help="also print the pre-98bc79b ratio-of-medians, for #136 only",
+    )
+    args = parser.parse_args(argv[1:])
+    legacy = args.legacy
+    dirs = args.dirs or [pathlib.Path.cwd()]
     status = 0
     # Both halves of the A/B claim: decode steady rate, and the prefill
     # interval rate. A PR can move one and not the other (#964 claims decode
