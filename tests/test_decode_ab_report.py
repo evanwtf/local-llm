@@ -243,3 +243,41 @@ def test_the_between_run_block_names_both_directions(tmp_path, caplog):
         report.log_between_run_spread(runs)
     text = " ".join(r.getMessage() for r in caplog.records)
     assert "b/a 1.250" in text and "a/b 0.800" in text
+
+
+def test_legacy_median_divides_two_independent_medians(tmp_path):
+    """The pre-98bc79b statistic, kept only so #136 can measure against it."""
+    d = tmp_path / "legacy"
+    d.mkdir()
+    head = "ctx_tokens,prefill_tps,gen_steady_tps\n"
+    # arm a: 10, 20, 30 -> median 20.  arm b: 40, 10, 10 -> median 10.
+    for rep, (av, bv) in enumerate([(10.0, 40.0), (20.0, 10.0), (30.0, 10.0)], start=1):
+        (d / f"a-rep{rep}.csv").write_text(head + f"2048,100.0,{av}\n")
+        (d / f"b-rep{rep}.csv").write_text(head + f"2048,100.0,{bv}\n")
+    data = report.load(d)
+    assert abs(report.legacy_median(data) - 0.5) < 1e-9
+    # The paired statistic pairs within each rep: 4.0, 0.5, 0.333 -> median 0.5
+    # here by coincidence of this fixture; what matters is that they are
+    # computed differently, which the next test pins.
+    assert report.legacy_median(data) is not None
+
+
+def test_legacy_and_paired_disagree_when_arms_drift_apart(tmp_path):
+    """The whole point of the fix: the two medians can come from different
+    repetitions, so drift re-enters the answer."""
+    d = tmp_path / "drift"
+    d.mkdir()
+    head = "ctx_tokens,prefill_tps,gen_steady_tps\n"
+    # a: 10,10,40 -> median 10.   b: 10,40,40 -> median 40.
+    # ratio of medians = 4.0; paired ratios are 1.0, 4.0, 1.0 -> median 1.0.
+    for rep, (av, bv) in enumerate([(10.0, 10.0), (10.0, 40.0), (40.0, 40.0)], start=1):
+        (d / f"a-rep{rep}.csv").write_text(head + f"2048,100.0,{av}\n")
+        (d / f"b-rep{rep}.csv").write_text(head + f"2048,100.0,{bv}\n")
+    data = report.load(d)
+    paired = report.summarize(data).median
+    assert abs(paired - 1.0) < 1e-9
+    assert abs(report.legacy_median(data) - 4.0) < 1e-9
+
+
+def test_legacy_needs_two_arms():
+    assert report.legacy_median({"only": {2048: {1: 1.0}}}) is None

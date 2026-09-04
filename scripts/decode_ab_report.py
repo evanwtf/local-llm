@@ -78,6 +78,32 @@ class Summary:
     wins: int
 
 
+def legacy_median(data: dict[str, dict[int, dict[int, float]]]) -> float | None:
+    """The statistic this script used before 98bc79b, for comparison only.
+
+    It took each arm's median across repetitions **independently** and divided
+    them, so the numerator and denominator could come from different runs of
+    the same frontier. That is a ratio of medians, not a paired statistic.
+
+    Kept because #136 asks a question only this can answer: did the old
+    statistic *hide* between-run structure by blurring repetitions together?
+    Answering it needs both numbers on the same data. Do not use it for
+    anything else -- it is wrong, and it is here to be measured against.
+    """
+    if len(data) != 2:
+        return None
+    a, b = sorted(data)
+    ratios = []
+    for ctx in sorted(set(data[a]) & set(data[b])):
+        left, right = data[a][ctx].values(), data[b][ctx].values()
+        if not left or not right:
+            continue
+        ma, mb = st.median(left), st.median(right)
+        if ma:
+            ratios.append(mb / ma)
+    return st.median(ratios) if ratios else None
+
+
 def summarize(data: dict[str, dict[int, dict[int, float]]]) -> Summary:
     """The paired statistics for exactly two labels, `a` sorted before `b`."""
     if len(data) != 2:
@@ -296,9 +322,44 @@ def log_within_run_structure(data: dict[str, dict[int, dict[int, float]]]) -> No
         )
 
 
+def log_legacy_comparison(got: list[tuple[pathlib.Path, Summary]], column: str) -> None:
+    """Old statistic against new, per run (#136 item 4).
+
+    The question is whether dividing two independently-taken medians blurred
+    between-run structure into within-run noise. If the legacy spread across
+    runs is *narrower* than the paired spread, it did -- the defect would have
+    made these runs look more consistent than they are, which is worse than
+    being merely wrong.
+    """
+    rows = []
+    for d, summary in got:
+        old = legacy_median(load(d, column))
+        if old is None:
+            continue
+        rows.append((d.name, old, summary.median))
+    if len(rows) < 2:
+        return
+    old_spread = max(r[1] for r in rows) - min(r[1] for r in rows)
+    new_spread = max(r[2] for r in rows) - min(r[2] for r in rows)
+    logger.info("-- legacy statistic (ratio of medians), for #136 only --")
+    for name, old, new in rows:
+        logger.info("%-34s legacy %.3f   paired %.3f", name, old, new)
+    logger.info(
+        "spread across runs: legacy %.1f pp, paired %.1f pp -- %s",
+        old_spread * 100,
+        new_spread * 100,
+        "legacy looked TIGHTER, so it hid between-run structure"
+        if old_spread < new_spread
+        else "legacy did not hide spread here",
+    )
+
+
 def main(argv: list[str]) -> int:
     logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
-    dirs = [pathlib.Path(a) for a in argv[1:]] or [pathlib.Path.cwd()]
+    legacy = "--legacy" in argv
+    dirs = [pathlib.Path(a) for a in argv[1:] if a != "--legacy"] or [
+        pathlib.Path.cwd()
+    ]
     status = 0
     # Both halves of the A/B claim: decode steady rate, and the prefill
     # interval rate. A PR can move one and not the other (#964 claims decode
@@ -311,6 +372,8 @@ def main(argv: list[str]) -> int:
         logger.info("== %s ==", column)
         if len(runs) > 1:
             log_between_run_spread(runs)
+            if legacy:
+                log_legacy_comparison(runs, column)
             logger.info("")
         # Per-run detail below. With one directory this is the whole report.
         outdir, got = runs[0]
