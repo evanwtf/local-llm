@@ -22,6 +22,76 @@ picks in `RECOMMENDATIONS.md`, and the current queue in `NEXT.md`.
 
 ---
 
+**2026-09-04. Four guards, and the reason each was missing
+([#129](https://github.com/evanwtf/local-llm/issues/129) and
+[#130](https://github.com/evanwtf/local-llm/issues/130) closed;
+[#131](https://github.com/evanwtf/local-llm/issues/131),
+[#84](https://github.com/evanwtf/local-llm/issues/84) and
+[#133](https://github.com/evanwtf/local-llm/issues/133) advanced).**
+
+A morning of the unglamorous half — nothing here makes a number better, and
+three of the four exist because a measurement was already wrong and nobody
+could tell.
+
+- **CI redness reaches preflight** (`aa406f2`). Both red streaks this repo has
+  had were found by a person going looking; the second ran 20 runs over 17
+  hours and took seven minutes to fix. The check and its ten tests had already
+  been written and were never called — `log_ci_status` was dead code, which is
+  the failure #129 is *about*, one level up. The call site now has its own
+  test, because ten tests proving a function behaves prove nothing about
+  whether it runs.
+
+- **Arm order alternates, and the row says where it sat** (`38956f2`). The
+  suite ran `backends.items()` in the same order every trial, so one backend
+  was always last. @adamlawi measured that positional bias on antirez/ds4#952
+  as larger than three of the four effects being compared. `run_position` and
+  `run_arms` are deliberately absent rather than defaulted to 1 on old rows:
+  defaulting would claim every existing row ran first, which is the bias being
+  looked for.
+
+- **The client version is on the row** (`225b90c`). It was always in `env`,
+  keyed by client name alongside every other client installed, so reading it
+  back needed a join. #104's finding — OpenCode 1.18.26 → 1.18.27 roughly
+  doubling median turns — has to be applicable to one row or it cannot be
+  applied backwards at all. Stored exactly as the tool printed it; normalising
+  would invent a format and lose the string a release note is looked up by.
+
+- **The ollama sampler boundary is named before you cross it** (`e8262d2`,
+  `797545a`). For every other tool `BEHIND` means "upgrade". Across ollama
+  0.33.3 it does not, and preflight was saying `BEHIND` unqualified — nudging
+  toward the one action that silently changes which sampler a row gets.
+  `env.ollama` now records the build alongside the regime tag; 343 of 1394
+  rows carried an ollama version and 1051 did not.
+
+- **A machine-scoped run lock** (`108419c`, `c797ce8`, `5cc26aa`). preflight
+  sees processes and cannot see intent; restart-between-trials spends minutes
+  with the server deliberately down, and a scan in that window truthfully says
+  "all clear" while the machine is committed for hours. `run.py`,
+  `decode_ab.sh` and `decode_ab_engine.sh` now claim it. A stale lock is
+  reported with everything it recorded and **not** taken; a corrupt one reads
+  as held. This is the one place preflight refuses instead of warning, and the
+  asymmetry is the point: process detection is inferential, a lock is a
+  declaration.
+
+**Two things found by running the code rather than reading it.** The lock's
+first version recorded preflight's own pid — and preflight exits immediately,
+so the lock was stale the instant it was written and the next acquire
+cheerfully reported a dead owner; hence `--owner-pid`, with shell callers
+passing `$$`. And ollama had *already* moved to 0.33.3 on this machine, on
+2026-09-03 18:19. The ninety rows written since are all `qwen38fnds4shim` or
+`qwen38fnds4mtp7shim`, which do not go through ollama, so the boundary is not
+yet crossed in the data — the next ollama-backed row is the first under the
+new precedence and must not be pooled with earlier ones.
+
+**Still open, and named rather than implied.** #131 records the client and
+still does not pin it; OpenCode self-updates on both machines and preflight
+warns rather than refuses. #84 has the regime and the build but no row yet
+carries the sampler *numbers* — `probe_ollama()` has no GGUF path and
+`/api/show` does not reliably give one. #133's lock does not recompute the
+memory guard at acquisition, so it says "busy" but not "and there is room".
+
+---
+
 **2026-09-04. ds4 PR #964 reproduces on this M5 Max: +16.5% paired decode,
 bit-exact ([#118](https://github.com/evanwtf/local-llm/issues/118), closed).**
 
