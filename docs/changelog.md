@@ -73,6 +73,22 @@ Along the way, two corrections and a guard:
   `~/bench-logs/`, and the before-side of that issue's only question is
   unrecoverable. A colliding write now goes to `<name>.stdout.2.jsonl`.
 
+**2026-09-04, evening. Both Qwen builds pass the quality gate 6/6 (#138).**
+
+`ds4-eval` on six questions, both stacks. The new build first read 5/6 against
+6/6, which would have fitted the speed result neatly. Its one failure had
+generated exactly 2500 tokens -- the `--tokens` cap -- so it was truncated, not
+wrong; at 8000 it answers correctly.
+
+Six questions is a gate, not a ranking, and it does not settle the "less
+accurate" claim that prompted #138. What it did surface is more useful: the new
+build spends about **5% more tokens** reaching the same answers. Against a
++9.5% decode gain, most of that advantage is spent before it reaches the user,
+so the speed figure must not be read as a faster session.
+
+`AGENTS.md` carries the trap: a generated-token count equal to the cap is a
+truncation, not an answer.
+
 **2026-09-04, evening. #112 item 2 cannot be measured where it was posed.**
 
 The multi-turn death rate is 3/90 under the restart protocol; detecting a drop

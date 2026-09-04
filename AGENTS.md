@@ -825,6 +825,29 @@ measure this model" on two issues off a `--help` grep, and it was wrong in the
 direction that cancels work — the expensive direction, because nobody re-checks
 a capability that has been ruled out.
 
+## A generated-token count equal to the cap is a truncation, not an answer (2026-09-04)
+
+Comparing two builds of the same model on `ds4-eval`, the new one read 5/6
+against the old one's 6/6. That fitted the story -- it was the build whose
+author called the previous one "less accurate" -- and it was wrong. The failing
+answer had generated **exactly 2500 tokens, the `--tokens` value I had
+passed**. It was cut off mid-reasoning. At 8000 tokens it answers correctly and
+both builds are 6/6.
+
+The comparison was ready to publish. The only thing that caught it was the
+number 2500 appearing in both the command and the result.
+
+So: **whenever a graded run reports a failure, check the generated-token count
+against the cap before recording it.** A budget you chose is a property of the
+harness, not of the model, and it silently converts "slower to reason" into
+"wrong" -- which is the most damaging substitution available, because the two
+argue for opposite decisions.
+
+The same run carries the corollary: the new build spent ~5% more tokens
+reaching the same answers. **A decode-rate gain is not a session-time gain if
+the model talks more to get there**, and tokens-to-answer belongs beside any
+tok/s claim.
+
 ## Name the confounds
 
 Every backend added here changes more than one variable at a time. Write the
