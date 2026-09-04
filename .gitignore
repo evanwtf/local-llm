@@ -11,3 +11,7 @@ __pycache__/
 # Agent benchmark raw data IS tracked -- results.jsonl and the run logs.
 # Each row is hours of wall time that cannot be cheaply regenerated, and rows
 # carry their own environment capture, so old runs stay interpretable.
+
+# #133: the run lock is a claim on ONE machine, not a fact about the repo.
+# Syncing it would let a lock taken on the M5 Max wedge the Linux tier.
+.run-lock.json

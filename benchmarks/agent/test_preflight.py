@@ -9,9 +9,13 @@ on this machine on 2026-08-28, with a GLM llama-server holding 77.6 GiB.
 from __future__ import annotations
 
 import json
+import os
+import pathlib
 import sys
 
 import preflight
+
+REPO_ROOT = pathlib.Path(preflight.__file__).resolve().parent.parent.parent
 
 # `ps -eo pid,rss,command`. RSS is KiB on macOS. The header is present and must
 # be skipped; the command column contains spaces and must not be split on them.
@@ -622,3 +626,67 @@ def test_version_tuple_reads_a_leading_v_and_an_rc_suffix():
     assert preflight._version_tuple("v0.33.3") == (0, 33, 3)
     assert preflight._version_tuple("0.33.3-rc0") == (0, 33, 3)
     assert preflight._version_tuple("") is None
+
+
+# --- #133: the run lock -------------------------------------------------
+
+
+def test_no_lock_file_is_free():
+    assert preflight.lock_state(None, "mac", 1)[0] == "free"
+
+
+def test_a_live_lock_from_another_process_is_held():
+    lock = {"hostname": "mac", "pid": os.getpid(), "what": "#118 arm A"}
+    state, why = preflight.lock_state(lock, "mac", os.getpid() + 1)
+    assert state == "held"
+    assert "#118 arm A" in why
+
+
+def test_our_own_lock_is_not_an_obstacle():
+    lock = {"hostname": "mac", "pid": 4242}
+    assert preflight.lock_state(lock, "mac", 4242)[0] == "ours"
+
+
+def test_a_dead_pid_is_stale_and_its_contents_are_reported():
+    """A stale lock is never stolen silently: what it recorded is what turns
+    "something crashed" into "the 03:00 arm A died"."""
+    dead = 999_999
+    assert not preflight._pid_alive(dead)
+    lock = {"hostname": "mac", "pid": dead, "what": "#118 arm A", "started": "03:00"}
+    state, why = preflight.lock_state(lock, "mac", os.getpid())
+    assert state == "stale"
+    assert "#118 arm A" in why and "03:00" in why
+
+
+def test_a_lock_from_another_machine_is_refused_not_adopted():
+    """A lock is a claim on one machine. Syncing one must not wedge the other
+    tier, and must not be taken over either."""
+    lock = {"hostname": "linux-box", "pid": os.getpid()}
+    state, why = preflight.lock_state(lock, "mac", os.getpid())
+    assert state == "foreign"
+    assert "linux-box" in why
+
+
+def test_a_corrupt_lock_reads_as_held_not_as_free():
+    """An unparseable lock is evidence something went wrong while claiming the
+    machine -- which is exactly when a second run must not start."""
+    assert preflight.lock_state({"corrupt": True}, "mac", 1)[0] == "corrupt"
+    assert preflight.lock_state({"hostname": "mac", "pid": "nope"}, "mac", 1)[0] == (
+        "corrupt"
+    )
+
+
+def test_unreadable_lock_json_is_corrupt_rather_than_absent(tmp_path):
+    path = tmp_path / ".run-lock.json"
+    path.write_text("{not json")
+    assert preflight.read_lock(path) == {"corrupt": True}
+
+
+def test_a_missing_lock_file_reads_as_none(tmp_path):
+    assert preflight.read_lock(tmp_path / "nothing.json") is None
+
+
+def test_the_lock_is_gitignored_because_it_is_machine_local():
+    """#133: syncing a lock would let one machine wedge the other."""
+    ignored = (REPO_ROOT / ".gitignore").read_text()
+    assert ".run-lock.json" in ignored

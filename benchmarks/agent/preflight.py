@@ -733,6 +733,82 @@ def warn_if_ollama_upgrade_changes_the_sampler(
     )
 
 
+# #133. A claim that this machine is busy measuring. `preflight` sees the
+# process table; it cannot see intent, and the restart-between-trials protocol
+# spends minutes with the server deliberately down. In that window a process
+# scan truthfully reports "all clear" while the machine is committed to a
+# multi-hour A/B, and a second run started there ruins both.
+LOCK_PATH = pathlib.Path(__file__).resolve().parent.parent.parent / ".run-lock.json"
+
+
+def _pid_alive(pid: int) -> bool:
+    """Whether a process with this pid exists. Signal 0 checks, never kills."""
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        # Exists and belongs to somebody else. Alive is the safe reading.
+        return True
+    return True
+
+
+def read_lock(path: pathlib.Path = LOCK_PATH) -> dict[str, object] | None:
+    """The lock currently held, or None. A corrupt lock reads as held.
+
+    An unparseable file is not evidence that nobody is running -- it is
+    evidence that something went wrong while claiming the machine, which is
+    exactly when a second run must not start.
+    """
+    try:
+        text = path.read_text()
+    except FileNotFoundError:
+        return None
+    except OSError:
+        return {"corrupt": True}
+    try:
+        got = json.loads(text)
+    except ValueError:
+        return {"corrupt": True}
+    return got if isinstance(got, dict) else {"corrupt": True}
+
+
+def lock_state(
+    lock: dict[str, object] | None, hostname: str, pid: int
+) -> tuple[str, str]:
+    """Classify a lock: (state, one-line explanation).
+
+    States: `free`, `ours`, `held`, `stale`, `foreign`, `corrupt`.
+
+    `stale` is never stolen here. A dead lock is reported with everything it
+    recorded, because that is what turns "something crashed" into "the 03:00
+    arm A died", and taking it silently would throw that away.
+    """
+    if lock is None:
+        return "free", "no lock held"
+    if lock.get("corrupt"):
+        return "corrupt", "the lock file is unreadable; assuming the machine is busy"
+    host = lock.get("hostname")
+    if host != hostname:
+        return "foreign", (
+            f"lock belongs to {host!r}, not this machine ({hostname!r}) -- "
+            "a lock is a claim on one machine and must not travel"
+        )
+    holder = lock.get("pid")
+    if not isinstance(holder, int):
+        return "corrupt", "the lock records no usable pid"
+    if holder == pid:
+        return "ours", "this process already holds the lock"
+    if _pid_alive(holder):
+        what = lock.get("what") or "unspecified work"
+        return "held", (
+            f"pid {holder} is running {what} since {lock.get('started', 'unknown')}"
+        )
+    return "stale", (
+        f"pid {holder} is gone. It recorded: {json.dumps(lock, sort_keys=True)}"
+    )
+
+
 def log_ci_status(offline: bool = False) -> None:
     """Say whether this repository's CI on main is red (#129).
 
