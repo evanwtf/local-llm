@@ -245,3 +245,34 @@ which do not go through ollama. **The next ollama-backed row is the first
 under the new precedence and must not be pooled with earlier ollama rows.**
 Rows now carry the resolved sampler, so the two regimes are distinguishable
 after the fact.
+
+## The agent clients are pinned
+
+`client-pins.toml` holds the expected version of each client, and
+`preflight.py` **refuses** when an installed client differs from its pin
+([#131](https://github.com/evanwtf/local-llm/issues/131)). Every other version
+difference in preflight is a warning; this one is not, because #104 measured
+OpenCode 1.18.26 → 1.18.27 roughly doubling median turns with everything else
+held, and the symptom read as the model writing bad patches.
+
+`--allow-client-drift` overrides it. Rows produced that way are a new series
+and must not be pooled with earlier ones.
+
+### How OpenCode updates itself, and how to stop it
+
+Found by inspecting the shipped binary on 2026-09-04. Recorded here because
+"we turned it off" is not reproducible on a fresh install.
+
+- **Environment:** `OPENCODE_DISABLE_AUTOUPDATE`
+- **Config:** `"autoupdate": false` in `~/.config/opencode/opencode.json`
+- **Deliberate upgrade:** `opencode upgrade [target]` — this is the path a pin
+  move should take
+- It checks `api.opencode.ai`
+
+Either switch is enough, and `preflight` reports which one it found. **As of
+2026-09-04 neither is set on this machine**, so the pin can still move under a
+batch; preflight warns about that separately from the pin check itself.
+
+Preflight only reports this. It does not edit the client config — a benchmark
+harness silently changing the tool under test is the class of thing #131
+exists to prevent.

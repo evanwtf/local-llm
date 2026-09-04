@@ -66,3 +66,46 @@ def drift(
         if parse(got) != parse(want):
             out.append((name, want, got.strip()))
     return out
+
+
+#: How OpenCode updates itself, found by inspecting the shipped binary on
+#: 2026-09-04. Recorded here rather than only in a comment on #131, because
+#: "we turned it off" is not reproducible on a fresh install.
+OPENCODE_AUTOUPDATE_ENV = "OPENCODE_DISABLE_AUTOUPDATE"
+OPENCODE_CONFIG = pathlib.Path.home() / ".config" / "opencode" / "opencode.json"
+
+
+def opencode_autoupdate_disabled(
+    env: dict[str, str] | None = None, config: pathlib.Path | None = None
+) -> tuple[bool, str]:
+    """Is OpenCode's self-update turned off? Returns (disabled, how we know).
+
+    Two independent switches, either of which is enough:
+
+    * the environment variable `OPENCODE_DISABLE_AUTOUPDATE`
+    * `"autoupdate": false` in `~/.config/opencode/opencode.json`
+
+    Both names come from strings in the shipped binary. A deliberate upgrade
+    is `opencode upgrade [target]`, which is the path a pin move should take.
+
+    This only reports. Changing an operator's client config is not preflight's
+    business, and a benchmark harness silently editing the tool under test is
+    exactly the class of thing #131 exists to prevent.
+    """
+    import os
+
+    env = os.environ if env is None else env
+    if env.get(OPENCODE_AUTOUPDATE_ENV):
+        return True, f"{OPENCODE_AUTOUPDATE_ENV} is set"
+    path = OPENCODE_CONFIG if config is None else config
+    try:
+        import json
+
+        raw = json.loads(path.read_text())
+    except (OSError, ValueError):
+        return False, f"no {OPENCODE_AUTOUPDATE_ENV}, and {path.name} unreadable"
+    if isinstance(raw, dict) and raw.get("autoupdate") is False:
+        return True, f'"autoupdate": false in {path.name}'
+    return False, (
+        f'neither {OPENCODE_AUTOUPDATE_ENV} nor "autoupdate": false in {path.name}'
+    )

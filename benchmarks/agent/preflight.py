@@ -899,6 +899,17 @@ def check_client_pins() -> bool:
     pins = client_pins.load_pins()
     if not pins:
         return False
+    disabled, how = client_pins.opencode_autoupdate_disabled()
+    if disabled:
+        logger.info("preflight: opencode self-update is off (%s)", how)
+    else:
+        # A warning, not a refusal: the pin check below is what actually
+        # protects a batch. This says the pin can move under us.
+        logger.warning(
+            "preflight: opencode can update itself (%s) -- the pin below can "
+            "drift between two batches of one comparison (#131)",
+            how,
+        )
     drifted = client_pins.drift(staleness.installed_versions(), pins)
     for name, want, got in drifted:
         logger.error(

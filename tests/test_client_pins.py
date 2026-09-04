@@ -78,3 +78,41 @@ def test_the_pin_file_says_not_to_pool_across_a_move():
     text = (REPO / "client-pins.toml").read_text()
     assert "separate series" in text
     assert "Do not pool" in text
+
+
+def test_the_env_var_disables_autoupdate(tmp_path):
+    got, how = client_pins.opencode_autoupdate_disabled(
+        env={"OPENCODE_DISABLE_AUTOUPDATE": "1"}, config=tmp_path / "absent.json"
+    )
+    assert got and "OPENCODE_DISABLE_AUTOUPDATE" in how
+
+
+def test_the_config_key_disables_autoupdate(tmp_path):
+    cfg = tmp_path / "opencode.json"
+    cfg.write_text('{"autoupdate": false}')
+    got, how = client_pins.opencode_autoupdate_disabled(env={}, config=cfg)
+    assert got and "autoupdate" in how
+
+
+def test_autoupdate_true_is_not_disabled(tmp_path):
+    cfg = tmp_path / "opencode.json"
+    cfg.write_text('{"autoupdate": true}')
+    got, _ = client_pins.opencode_autoupdate_disabled(env={}, config=cfg)
+    assert not got
+
+
+def test_an_unreadable_config_is_not_read_as_disabled(tmp_path):
+    """Absence of evidence is not the switch being off."""
+    got, how = client_pins.opencode_autoupdate_disabled(
+        env={}, config=tmp_path / "nope.json"
+    )
+    assert not got and "unreadable" in how
+
+
+def test_preflight_reports_autoupdate_but_does_not_change_the_config():
+    """A harness silently editing the tool under test is the class of thing
+    #131 exists to prevent."""
+    text = (REPO / "benchmarks" / "agent" / "preflight.py").read_text()
+    assert "opencode_autoupdate_disabled" in text
+    for forbidden in ("opencode.json", "write_text", "opencode upgrade"):
+        assert forbidden not in text.split("def check_client_pins")[1].split("def ")[0]
