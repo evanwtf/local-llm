@@ -25,6 +25,50 @@ Two hard rules, both from mistakes:
 - **Date and version every claim.** Sources describing a tool from six months
   ago may describe several major versions back (#55).
 
+## One definition of "done", in one place (2026-09-04, three times)
+
+A check for "is this measurement run complete" was written three separate
+times in one afternoon and got it wrong differently each time:
+
+- **counting files.** A file being written already has a name and a header,
+  so a run read as finished while `ds4-bench` was still filling its last one.
+- **uniform row counts.** One CSV is trivially uniform, so a directory
+  holding only `q4-rep1.csv` passed -- and the report then crashed, because
+  an A/B needs two arms.
+- **ignoring repetitions.** `q4-rep1` and `q8-rep1` are a complete pair by
+  arms and by length, and one third of a three-rep run.
+
+Each was fixed where it was found, which is why there were three. The
+correct fix was `a03ca8d`: one function, `post_ab_run.is_complete`, with the
+shell runner and the status monitor delegating to it. Two copies of a rule
+drift, and the drift is invisible until something crashes unattended.
+
+**Applies to any predicate that decides whether data may be used.** If it is
+worth checking, it is worth having one owner.
+
+## Name both directions of a ratio, every time (2026-09-04, twice)
+
+`decode_ab_report.py` already carried a comment saying a bare `0.872` had
+been misread the wrong way round once. Two new outputs were then added that
+printed one direction only -- the per-rep line and the between-runs block --
+and both were hit within the hour of being written. Reading four completed
+runs meant inverting numbers by hand, which is the manual step that puts a
+wrong figure in a comment.
+
+Print `b/a` and `a/b` side by side, always. A ratio whose direction the
+reader has to infer is a ratio that will be inferred backwards.
+
+## Assert what a script does, not what it mentions (2026-09-04)
+
+A test guarding "thermals must never change fan state" asserted the string
+`fancontrol max` was absent from the module. The module's own docstring names
+that command while explaining it is never called, so the test failed on its
+own documentation.
+
+Guarding tests should parse. The working version walks the AST for argv lists
+beginning `fancontrol` and asserts every verb is `status`. The same shape
+applies to any "this code must not do X" check: match the call, not the word.
+
 ## Check the exit status, not the tail (2026-09-01, twice)
 
 **`uv run pytest -q | tail -2 && git commit` commits on a red suite.** The pipe
