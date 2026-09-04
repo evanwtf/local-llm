@@ -20,7 +20,7 @@ done it last Tuesday.
 
 Two hard rules, both from mistakes:
 
-- **Verify before repeating.** `~/.claude/skills/grok/verify-posts.py` on
+- **Verify before repeating.** `uv run python scripts/verify_posts.py` on
   anything before it reaches an issue. grok has fabricated a post outright.
 - **Date and version every claim.** Sources describing a tool from six months
   ago may describe several major versions back (#55).
@@ -243,8 +243,9 @@ comment. An issue carries its own reasoning and can be argued with; `NEXT.md`
 only says what to do next, and it says it by number.
 
 **`NEXT.md` sets order and nothing else.** Each issue must stand on its own, so
-this file never restates one. It carries the ordered table, the machine state
-that is not in git, and the traps.
+this file never restates one. It carries the ordered table and one snapshot of
+the current machine state. The durable machine operations live in
+[`docs/m5max-runbook.md`](docs/m5max-runbook.md); the traps live in this file.
 
 **Close the loop the same day you finish.** When a task lands:
 
@@ -258,11 +259,13 @@ that is not in git, and the traps.
    is the release condition -- not age. A finding still only recorded in
    `NEXT.md` has not landed anywhere yet.
 
-**Two parts of `NEXT.md` are exempt from pruning.** "Traps worth not
-rediscovering" and "Machine state" are the reason the file is worth reading, and
-they grow rather than shrink. A trap leaves only when it becomes impossible --
-fixed in code, or pinned by a test that would go red first. Prefer that to
-prose: an entry that can be made mechanical should be.
+**Two things exempt from pruning moved out of `NEXT.md` (2026-09-04).** "Traps
+worth not rediscovering" now lives in this file, and the durable machine
+operations in [`docs/m5max-runbook.md`](docs/m5max-runbook.md) — the queue file
+carries only the ranked table and one machine-state snapshot, rewritten each
+session. A trap leaves this file only when it becomes impossible — fixed in
+code, or pinned by a test that would go red first. Prefer that to prose: an
+entry that can be made mechanical should be.
 
 **Branch per piece of work, then merge it yourself.** A branch keeps one line
 of work separable while it is in progress, which is worth having. It is not a
@@ -359,6 +362,22 @@ branch that fixed it had existed the whole time.
 **He is also fast.** A model can go from unsupported to shipped in a day, and
 preview branches are where it lands first. Re-check before concluding a model
 does not work here.
+
+**And he force-pushes the preview branches.** Our `ds4-glm53` worktree sat on
+`a60a2a0 "Add GLM 5.3 Flash inference"`; the rewritten branch tip carried a
+commit with the **same message and a different SHA** (`147109a`), and
+`git merge-base --is-ancestor` said our old HEAD was **not an ancestor** of the
+tip. So "14 commits behind" understated it — the history was rewritten, not
+extended. **Check ancestry, not the count**, before assuming a rebuild is an
+increment. A preview branch is not a stable base and may never be one.
+
+**Read the commits, not the branch activity.** Of everything force-pushed
+since our checkout, exactly two commits mattered to us — `b0c31af "Improve
+GLM 5.3 attention memory and batching"` and `9f95d9f "Fix GLM 5.3 vision in
+compact prefill"`, both touching the compact prefill path that
+[ds4#890](https://github.com/antirez/ds4/issues/890) names. The rest was
+vision and ROCm, out of scope here. Branch activity is a poor proxy for
+progress.
 
 **preflight reports GitHub notifications for `antirez/ds4`, `ggml-org/llama.cpp`
 and this repo**, mentions first. It excludes `ci_activity` and keeps *read*
@@ -575,7 +594,8 @@ Until it is:
 - **Record it.** A row does not currently say how long the server had been up
   when it was produced, which is why this took two arms and six trials to see.
 
-The restart itself is the argv in `NEXT.md`'s machine-state section, and
+The restart itself is the argv in
+[`docs/m5max-runbook.md`](docs/m5max-runbook.md), and
 `wait_ready.py` is what tells you it is back -- not `/health`, which answers
 before the model is loaded.
 
@@ -695,6 +715,23 @@ Copying a working config from another tool's `connect` output is how it
 happened. A template answers "will this run", not "does this match the thing I
 am comparing against".
 
+**It happened again on 2026-09-03, with the varying parameter set by the client
+rather than by us.** The ds4 Qwen shim measured **12/12 on synthetic prompts and
+0/6 under OpenCode** on the same instruction text, and three sessions went into
+varying the instruction. The two harnesses differed in `stream`: synthetic sent
+`false`, OpenCode sent `true`, and **ds4's streaming path silently drops the
+assistant text it has decided to return**. Interleaved, 12 samples each, one
+identical request:
+
+    stream:true    tool_calls 1/12   nothing at all 11/12
+    stream:false   tool_calls 7/12   XML as text     5/12
+
+That is the whole of a published **0/45**. The server log said `text_len=231`
+while the client received zero bytes; nobody read the two together. **Diff the
+actual request bodies between two arms before believing a difference between
+them** — a control that differs in an unregistered variable is not a control,
+and the tell is usually already in a log.
+
 ## Wait for a completion, never for /health
 
 `/health` lies. On 2026-08-31 a llama.cpp server answered it with
@@ -796,6 +833,10 @@ recall signal for a whole repository without any error.
 `.rs` file to the Python parser would excise nothing, leave the control check
 *passing*, and record a broken task as a valid one.
 
+`swift_excise.excise(path, symbol)` **writes the file.** It returns the removed
+text, so calling it to *inspect* a span modifies the real working tree. Use
+`body_source()` to look; only `run.py`'s worktrees should ever see `excise()`.
+
 ## Write results through `results.py`, never by hand
 
 `benchmarks/agent/results.py` owns the schema for `results.jsonl`. Use it:
@@ -865,3 +906,69 @@ pinned by tests using the literal numbers that were got wrong.
 
 Never read `row["passed"]` directly: a timeout carries `None` and is a failure,
 not an absence.
+
+## Never `pkill` `run.py` — restore through the harness (2026-09-03)
+
+The harness *moves* the real reference checkouts aside to `<name>-real` and
+puts a benchmark export in their place, restoring them from `atexit`. A
+`pkill` skips the restore, so `~/git/gmail-archive` is left as the benchmark
+tree at `benchmark: _date removed`, and the next run refuses to start with
+`base_commit 56e55cc not found`. That refusal is the guard working — the
+dangerous version is not noticing.
+
+The fix is the harness's own function, never `mv` by hand:
+
+```sh
+cd benchmarks/agent && uv run python -c "import run; print(run.restore_targets())"
+```
+
+It reads `~/.local-llm-bench-stash.json`, is idempotent, and clears the marker.
+Send `SIGINT` — or `kill` without `-9` — if a run must be stopped early.
+
+Related, from a waiting shell: **do not poll
+`pgrep -f 'benchmarks/agent/run.py'`**. The waiter's own command line matches
+the pattern, so the loop never exits.
+
+## MTP is not a speed-only flag (2026-09-03)
+
+ds4's defaults do **not** preserve the sampling distribution: without
+`--mtp-exact-sampling` it accepts drafts matching what the target would
+greedily produce, biasing output toward greedy at any temperature above 0, and
+`--mtp-margin` (default 3) tunes that acceptance. So an MTP-on/off difference
+in **pass rate** is not attributable to speculation — the model is sampled
+differently. Wall time is the cleaner comparison, and only if the token counts
+match. Isolating speculation itself needs a third arm with
+`--mtp-exact-sampling`; see "Pin the sampler, and vary one thing at a time" and
+#39.
+
+## A backend can be fast, correctly quantised, thermally fine — and unusable
+
+The setup that scored 0/45 (before the shim's streaming fix) was doing
+**40.2 t/s decode, 1107 t/s prefill**, 74.3 GiB resident with a 32 GB PLE
+table streaming from SSD, 77.7 C die max. Every engine-level number was good
+and the cell was worth nothing. Engine rates are a reason to test, never a
+result.
+
+## Sustained load drifts ~10% — bracket with A-B-A
+
+Two identical `llama-bench` runs of the same binary, five minutes apart,
+differed by **-0.25% at pp512 and -9.8% at tg128 @ d16384**. Shallow tests
+barely move; deep-cache tests move a lot, which is what sustained GPU load
+looks like on this machine. **Any A/B smaller than about 10% at depth is
+unmeasurable here without bracketing or interleaving.** Run A-B-A and check
+the two A legs agree before reading anything into B — a plain A-then-B would
+have reported a 6% regression that does not exist.
+
+## Coherence-check at temperature 0 before every benchmark
+
+A model can load, serve, and report plausible token counts while emitting
+noise — that is #25, and it cost hours. Check with
+`scripts/coherence_check.sh` before any measurement batch, at temperature 0
+where the output is deterministic enough to read.
+
+## Nothing may feed `results.verdict()` except the oracle
+
+Gates, hashes and the verbatim check ride alongside a verdict and never into
+it. There is a test asserting a filthy solution and a clean one get the same
+verdict. The moment a quality signal decides a pass, the harness is judging,
+and its whole claim is that it does not.
