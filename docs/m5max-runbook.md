@@ -276,3 +276,31 @@ batch; preflight warns about that separately from the pin check itself.
 Preflight only reports this. It does not edit the client config — a benchmark
 harness silently changing the tool under test is the class of thing #131
 exists to prevent.
+
+### How Claude Code updates itself, and how to stop it
+
+Found by inspection on 2026-09-04, after it self-updated **2.1.260 → 2.1.261
+mid-session** and `preflight` refused on the pin ([#131](https://github.com/evanwtf/local-llm/issues/131)).
+
+- **Environment:** `DISABLE_AUTOUPDATER`. The binary also knows
+  `CLAUDE_CODE_PACKAGE_MANAGER_AUTO_UPDATE`.
+- **No settings key.** `~/.claude/settings.json` has no `autoUpdate`
+  equivalent, so the environment variable is the switch.
+- **Versions live side by side** in `~/.local/share/claude/versions/`, and
+  `~/.local/bin/claude` is a symlink into them. On 2026-09-04 that directory
+  held 2.1.258 through 2.1.261.
+
+**So a downgrade is a symlink repoint, not a reinstall:**
+
+```sh
+ln -sfn ~/.local/share/claude/versions/2.1.260 ~/.local/bin/claude
+```
+
+That matters for a pin decision. Returning to the pinned version costs
+nothing and keeps every existing Claude Code row comparable; moving the pin
+forward starts a new series. The symlink's mtime is also the record of *when*
+it moved — 16:13 on the day it happened, which no log announced.
+
+`preflight` refuses on a client that has drifted from its pin, so no batch
+will start until this is resolved either way. `--allow-client-drift` runs
+anyway and accepts the series break.
