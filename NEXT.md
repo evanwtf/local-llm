@@ -60,9 +60,10 @@ when one is *behind* its release rather than refusing when it has moved. See
    versions, so this needs one deliberate comparison, not more incidental data.
    *Done when:* one backend is measured under two client versions, or the question is dropped on the record.
 5. **[#141](https://github.com/evanwtf/local-llm/issues/141)** PLE support exists only on ivanfioravanti forks
-   The model we recommend runs on no upstream `ds4` build, so a clean-machine
-   reproduction of our headline result is currently impossible.
-   *Done when:* the recommendation says which fork it requires, or upstream carries PLE.
+   `RECOMMENDATIONS.md` now names the fork and says to prefer llama.cpp when
+   either stack would do. Open as a standing note on durability, not a task --
+   the remaining half is whether upstream ever carries PLE, which is not ours.
+   *Done when:* upstream carries PLE, or we stop depending on it.
 
 ### Standing problems, not finishable in one sitting
 
