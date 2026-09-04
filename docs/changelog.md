@@ -22,6 +22,68 @@ picks in `RECOMMENDATIONS.md`, and the current queue in `NEXT.md`.
 
 ---
 
+**2026-09-04, late afternoon. The queue worked in order until the clock, and
+what the tools said back.**
+
+Continued from the entry below, under one instruction: no ad-hoc analysis,
+everything committed and tested. Eleven more commits.
+
+- **[#136](https://github.com/evanwtf/local-llm/issues/136) closed.** "How
+  many runs are enough" is answerable from the two four-run datasets: take
+  every k-subset and see how far the answer could have moved. **Three is
+  where both collapse** -- #118 goes from 4.7 pp of spread at k=1 to
+  **0.1 pp** at k=3, because a median over any three of "three tight, one
+  outlier" lands in the cluster. That is the empirical form of the operator's
+  rule of three, reached from the data rather than assumed. Item 3 is served
+  by making the quotable line carry its own run count, since linting prose
+  for it would be brittle.
+
+- **[#4](https://github.com/evanwtf/local-llm/issues/4): two directions and
+  the constraint.** `shape.py` records structural proxies over the lines a
+  patch adds, so a quadratic and a linear solution that both pass differ at
+  `max_loop_depth` 2 against 1. `prepare_env` runs `uv sync --frozen` before
+  the agent sees the checkout, removing the confound where wall time includes
+  working out how to run pytest. And `test_task_definitions.py` checks every
+  task statically -- symbol present at the pinned commit, body removable,
+  prompt naming its file -- so a typo no longer costs a twenty-minute trial.
+  **Directions 1 and 4 turned out to be already done**, 3 of 15 tasks using
+  `targets` and 1 with `keep_docstring = false`, which is worth recording so
+  nobody re-derives it.
+
+- **[#120](https://github.com/evanwtf/local-llm/issues/120) has evidence from
+  rows we already hold.** Pass rate by trial index is flat pooled across all
+  backends (90.6 / 94.7 / 90.6) and drops on both ds4-shim backends
+  (89.3 / 93.3 / **70.0** and 58.3 / 60.0 / **40.0**). The effect is not a
+  property of the harness or the task set, which would show everywhere. It
+  does not identify the variable -- `trial` counts repetitions, not uptime.
+
+- **[#112](https://github.com/evanwtf/local-llm/issues/112) remedy 2 is at
+  least specified.** It shipped unmeasured and untested; five tests now pin
+  what it does, including that a pure-degeneration turn is left verbatim so
+  the evidence stays in the transcript rather than being erased by the thing
+  meant to observe it.
+
+- **[#96](https://github.com/evanwtf/local-llm/issues/96) is less ready than
+  it looked.** The PR it cites, `jundot/omlx#3118`, is "rebuild distributed
+  inference as Cluster v2 Beta" -- not tail continuation. A repository search
+  does not surface the described change under any obvious name. The first
+  step is identifying it, not building it.
+
+- **[#64](https://github.com/evanwtf/local-llm/issues/64) audits itself now.**
+  Both restart-between-trials cycles run `kv_prefix_audit.py` over their own
+  server logs when the cycle ends. The four logs that produced the 443,974
+  figure were the ones that happened to survive; measuring while the logs are
+  in hand beats hoping someone runs it later.
+
+**AGENTS.md gained three traps**, each hit more than once in a day: one
+definition of "done" in one place, name both directions of a ratio, and
+assert what a script *does* rather than what it *mentions*. The common shape
+is a check that cannot tell its subject from something that merely resembles
+it -- which also describes the CI failure earlier today, where an absent
+client read as a drifted one.
+
+---
+
 **2026-09-04, afternoon. Six queue items advanced, each as committed code
 rather than an answer in a terminal.**
 
