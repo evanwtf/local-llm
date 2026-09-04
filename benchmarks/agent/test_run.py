@@ -898,3 +898,12 @@ def test_the_stack_capture_records_which_ollama_was_installed(monkeypatch):
     )
     env = run.capture_versions({"base_commit": "abc"}, {})
     assert env["ollama"] == "0.33.3"
+
+
+def test_the_suite_runner_takes_the_machine_lock():
+    """#133: a batch runs for hours and spends part of it with no server up,
+    where a process scan truthfully reports "all clear"."""
+    source = pathlib.Path(run.__file__).read_text()
+    assert "acquire_lock" in source
+    assert "atexit.register" in source
+    assert "--no-lock" in source

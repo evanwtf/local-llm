@@ -1957,6 +1957,13 @@ def main():
         "known to be broken (#55).",
     )
     p.add_argument(
+        "--no-lock",
+        action="store_true",
+        help="do not claim the machine for this batch (#133). Only when you "
+        "know nothing else will measure -- the lock exists because a process "
+        "scan cannot see a batch that is between trials with its server down.",
+    )
+    p.add_argument(
         "--results",
         type=pathlib.Path,
         default=RESULTS,
@@ -2094,6 +2101,25 @@ def main():
     # Refuse rather than measure a truncation (#79).
     for gap in preflight.check_served_context(backends):
         raise SystemExit(f"served context is smaller than declared -- {gap}")
+
+    # #133: claim the machine before the first trial. A batch runs for hours
+    # and the restart-between-trials protocol leaves windows with no server
+    # up, where a process scan truthfully reports "all clear". Released in the
+    # finally below; pid liveness is what covers a SIGKILL, not this.
+    if not args.no_lock:
+        taken, why = preflight.acquire_lock(
+            f"run.py {len(tasks)} tasks x {args.trials} trials on "
+            f"{','.join(sorted(backends))}"
+        )
+        if not taken:
+            raise SystemExit(why)
+        logger.info("%s", why)
+        # atexit rather than try/finally: the plausibility gate (#55) raises
+        # SystemExit from inside the trial loop, and atexit covers that, a
+        # clean finish and an unhandled exception alike without wrapping the
+        # whole loop. It does NOT cover SIGKILL -- nothing does, which is why
+        # pid liveness and not this is what makes a stale lock recoverable.
+        atexit.register(lambda: logger.info("%s", preflight.release_lock()[1]))
 
     versions = capture_versions(cfg, backends)
     versions["client"] = ",".join(clients)
