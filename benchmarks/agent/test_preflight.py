@@ -765,3 +765,13 @@ def test_the_restart_scripts_hold_the_lock_across_the_whole_cycle():
         assert text.index("--acquire-lock") < text.index("run_trial 1"), (
             f"{name}: the lock must be held before the first cycle"
         )
+
+
+def test_the_repeat_harness_captures_state_and_refuses_to_clobber():
+    """#136: runs accumulate, so a completed run must never be overwritten,
+    and each start state must be captured rather than hoped for."""
+    text = (REPO_ROOT / "scripts" / "decode_ab_repeat.sh").read_text()
+    assert "already holds CSVs, skipping" in text
+    assert "thermals.py" in text
+    assert "fancontrol status" in text
+    assert "fancontrol max" not in text and "fancontrol set" not in text
