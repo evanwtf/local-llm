@@ -1,5 +1,13 @@
 """Summarise a paired decode A/B produced by scripts/decode_ab.sh (#48).
 
+Give it several directories and it also reports the spread BETWEEN runs
+(#136). That axis is invisible from inside one run: on 2026-09-04 four
+identical runs of the same A/B returned +16.5%, +21.2%, +17.6% and +17.7%,
+and each looked tight from inside -- per-frontier ranges of 1.154-1.205 and
+1.207-1.238, exactly the spread a reader would quote as precision. A single
+run is not a measurement, and until this took more than one directory
+nothing made that visible.
+
 Reports the per-frontier paired ratio, not just two medians: the frontiers
 differ from each other by more than the effect we are chasing, so pooling them
 would hide it. The paired median ratio is the statistic that answers "did
@@ -104,23 +112,104 @@ def summarize(data: dict[str, dict[int, dict[int, float]]]) -> Summary:
     )
 
 
+def report_across_runs(
+    dirs: list[pathlib.Path], column: str
+) -> tuple[list[tuple[pathlib.Path, Summary]], int]:
+    """Summarise each run, then the spread between them (#136).
+
+    Returns the per-run summaries and a status. A directory that cannot be
+    summarised is named and skipped rather than aborting the others: with
+    four runs in hand, losing three to one bad directory is the wrong
+    trade.
+    """
+    got: list[tuple[pathlib.Path, Summary]] = []
+    status = 0
+    for d in dirs:
+        try:
+            got.append((d, summarize(load(d, column))))
+        except (ValueError, OSError) as exc:
+            logger.error("%s: %s", d, exc)
+            status = 1
+    return got, status
+
+
+def repeat_spread(got: list[tuple[pathlib.Path, Summary]]) -> float | None:
+    """Median spread across repetitions at a single frontier.
+
+    This is the repeatability of the measurement -- what a re-run of the same
+    thing should reproduce. Deliberately NOT the spread across frontiers,
+    which reflects a real dependence on context length and would make any run
+    look noisier than it is.
+    """
+    spreads: list[float] = []
+    for d, _ in got:
+        data = load(d, "gen_steady_tps")
+        if len(data) != 2:
+            continue
+        a, b = sorted(data)
+        for ctx in sorted(set(data[a]) & set(data[b])):
+            shared = sorted(set(data[a][ctx]) & set(data[b][ctx]))
+            if len(shared) < 2:
+                continue
+            ratios = [data[b][ctx][r] / data[a][ctx][r] for r in shared]
+            spreads.append(max(ratios) - min(ratios))
+    return st.median(spreads) if spreads else None
+
+
+def log_between_run_spread(got: list[tuple[pathlib.Path, Summary]]) -> None:
+    """The headline per run, and the spread across them."""
+    if len(got) < 2:
+        return
+    medians = [s.median for _, s in got]
+    lo, hi = min(medians), max(medians)
+    logger.info("-- between runs --")
+    for d, s in got:
+        logger.info("%-42s %.3f  (%+.1f%%)", d.name, s.median, (s.median - 1) * 100)
+    logger.info(
+        "%d runs: median %.3f (%+.1f%%), range %.3f - %.3f, spread %.1f pp",
+        len(medians),
+        st.median(medians),
+        (st.median(medians) - 1) * 100,
+        lo,
+        hi,
+        (hi - lo) * 100,
+    )
+    # The comparison that matters is between-run spread against REPEAT noise,
+    # not against the spread across frontiers. The ratio genuinely differs by
+    # context length -- that is signal -- so comparing it to between-run
+    # variation flatters the runs. Repeatability is the spread across reps at
+    # one frontier, which is what a second run of the same thing should match.
+    repeat = repeat_spread(got)
+    if repeat is not None:
+        logger.info(
+            "typical within-run repeat spread at one frontier: %.1f pp -- %s",
+            repeat * 100,
+            "BETWEEN-run spread is larger, so one run's internal agreement is "
+            "not precision (#136)"
+            if (hi - lo) > repeat
+            else "repeat noise dominates; runs agree as well as reps do",
+        )
+
+
 def main(argv: list[str]) -> int:
     logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
-    outdir = pathlib.Path(argv[1]) if len(argv) > 1 else pathlib.Path.cwd()
+    dirs = [pathlib.Path(a) for a in argv[1:]] or [pathlib.Path.cwd()]
     status = 0
     # Both halves of the A/B claim: decode steady rate, and the prefill
     # interval rate. A PR can move one and not the other (#964 claims decode
     # only), so both get the paired treatment.
     for column in ("gen_steady_tps", "prefill_tps"):
-        data = load(outdir, column)
-        try:
-            got = summarize(data)
-        except ValueError as exc:
-            logger.error("%s", exc)
-            status = 1
+        runs, run_status = report_across_runs(dirs, column)
+        status = status or run_status
+        if not runs:
             break
-
         logger.info("== %s ==", column)
+        if len(runs) > 1:
+            log_between_run_spread(runs)
+            logger.info("")
+        # Per-run detail below. With one directory this is the whole report.
+        outdir, got = runs[0]
+        data = load(outdir, column)
         # The arm medians are printed for context only; the ratio column is
         # the paired one and does not equal median(b) / median(a).
         logger.info("%-10s %10s %10s %14s", "ctx", got.a, got.b, "paired b/a")

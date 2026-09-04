@@ -115,3 +115,62 @@ def test_pooled_stats_cover_every_paired_point(tmp_path):
     assert got.pooled_median == pytest.approx(1.15)
     assert got.pooled_mean == pytest.approx(1.15)
     assert got.wins == 2  # both frontiers faster on b
+
+
+def _write_run(tmp_path, name, ratios_by_rep):
+    """A minimal A/B directory: two arms, one frontier, N reps."""
+    d = tmp_path / name
+    d.mkdir()
+    head = "ctx_tokens,prefill_tps,gen_steady_tps\n"
+    for rep, ratio in ratios_by_rep.items():
+        (d / f"a-rep{rep}.csv").write_text(head + "2048,100.0,10.0\n")
+        (d / f"b-rep{rep}.csv").write_text(head + f"2048,100.0,{10.0 * ratio}\n")
+    return d
+
+
+def test_repeat_spread_measures_reps_not_frontiers(tmp_path):
+    """#136: the comparator must not use the spread across context lengths,
+    which is a real dependence on ctx and would flatter every run."""
+    d = _write_run(tmp_path, "r1", {1: 1.10, 2: 1.20, 3: 1.15})
+    got = [(d, report.summarize(report.load(d)))]
+    spread = report.repeat_spread(got)
+    assert spread is not None
+    assert abs(spread - 0.10) < 1e-9
+
+
+def test_repeat_spread_is_none_without_enough_reps(tmp_path):
+    d = _write_run(tmp_path, "single", {1: 1.10})
+    got = [(d, report.summarize(report.load(d)))]
+    assert report.repeat_spread(got) is None
+
+
+def test_between_run_spread_is_reported_for_several_dirs(tmp_path, caplog):
+    """#136: the whole point is that this axis is invisible from one run."""
+    runs = []
+    for name, r in (("r1", 1.10), ("r2", 1.20)):
+        d = _write_run(tmp_path, name, {1: r, 2: r, 3: r})
+        runs.append((d, report.summarize(report.load(d))))
+    with caplog.at_level("INFO"):
+        report.log_between_run_spread(runs)
+    text = " ".join(r.getMessage() for r in caplog.records)
+    assert "2 runs" in text
+    assert "10.0 pp" in text
+
+
+def test_one_directory_reports_no_between_run_line(caplog, tmp_path):
+    d = _write_run(tmp_path, "only", {1: 1.1, 2: 1.1})
+    got = [(d, report.summarize(report.load(d)))]
+    with caplog.at_level("INFO"):
+        report.log_between_run_spread(got)
+    assert not caplog.records
+
+
+def test_a_bad_directory_does_not_lose_the_others(tmp_path, caplog):
+    """With four runs in hand, losing three to one bad directory is wrong."""
+    good = _write_run(tmp_path, "good", {1: 1.1, 2: 1.1})
+    bad = tmp_path / "empty"
+    bad.mkdir()
+    with caplog.at_level("ERROR"):
+        runs, status = report.report_across_runs([good, bad], "gen_steady_tps")
+    assert len(runs) == 1
+    assert status == 1
