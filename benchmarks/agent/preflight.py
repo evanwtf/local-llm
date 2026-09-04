@@ -52,6 +52,11 @@ logger = logging.getLogger(__name__)
 # land. Deliberately not the shim: it holds no weights and its memory is noise.
 INFERENCE = ("llama-server", "ollama", "ds4-server", "mtplx")
 
+# The tool shim's script name. The shim is not an inference process, but it
+# knows where the real server lives: its --upstream names the port that a
+# shim-backed run depends on (#132).
+SHIM_SCRIPT = "ds4_qwen_tool_shim.py"
+
 # The stock Metal working set on this machine, measured with a Metal probe
 # before #30's sysctl was applied. Used when no override is in force.
 STOCK_CEILING_GIB = 107.52
@@ -280,6 +285,56 @@ def backend_ports(backends: dict[str, dict]) -> set[int]:
     return ports
 
 
+def _argv_value(command: str, flag: str) -> str | None:
+    """The value of `flag` in a command line: after it, or joined by `=`.
+
+    Neither `--port 8101` nor `--upstream=http://…` is privileged, so both
+    spellings parse. None when the flag is absent -- which is also the guard
+    against the self-match trap: a line that merely mentions the shim script
+    without both flags parses to nothing and shields nothing.
+    """
+    tokens = command.split()
+    for i, token in enumerate(tokens):
+        if token == flag:
+            return tokens[i + 1] if i + 1 < len(tokens) else None
+        if token.startswith(flag + "="):
+            return token[len(flag) + 1 :]
+    return None
+
+
+def shim_upstream_ports(ps_text: str, selected_ports: set[int]) -> set[int]:
+    """Ports held by the upstream of a selected backend's shim.
+
+    A backend behind the tool shim names only the shim in `base_url`, so
+    `backend_ports()` expects :8101 -- while the model lives in the ds4-server
+    upstream on :8000, holding real memory. Warning about that server is right
+    about the ports and wrong about the conclusion: stopping it would kill the
+    run's only backend (#132). The running argv is the one place both ports are
+    named truthfully, so the association is read from it and cannot drift from
+    `tasks.toml`.
+
+    Only a shim whose own --port is selected is honoured: a shim left over
+    from a different run must not shield its upstream.
+    """
+    ports: set[int] = set()
+    for line in ps_text.splitlines():
+        if SHIM_SCRIPT not in line:
+            continue
+        shim_port = _argv_value(line, "--port")
+        upstream = _argv_value(line, "--upstream")
+        if shim_port is None or upstream is None:
+            continue
+        try:
+            if int(shim_port) not in selected_ports:
+                continue
+            parsed = urlparse(upstream)
+        except ValueError:
+            continue
+        if parsed.port:
+            ports.add(parsed.port)
+    return ports
+
+
 @dataclasses.dataclass(frozen=True)
 class Report:
     stale: list[Proc]
@@ -318,6 +373,11 @@ def check(
     perfectly healthy machine, which is how a warning becomes noise.
     """
     listeners = parse_lsof(lsof_text)
+    if expected_ports is not None:
+        # A backend behind the tool shim names only the shim's port in its
+        # spec; the shim's argv names the real server behind it. Both are
+        # expected, or the run's only backend gets called stale (#132).
+        expected_ports = expected_ports | shim_upstream_ports(ps_text, expected_ports)
     by_pid = {pid: port for port, pid in listeners.items()}
     stale, unmatched, total = [], [], 0.0
     for proc in parse_ps(ps_text):

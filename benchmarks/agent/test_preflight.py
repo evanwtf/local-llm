@@ -342,3 +342,78 @@ def test_memory_is_read_from_proc_on_linux(monkeypatch, tmp_path):
 def test_first_match_returns_none_when_absent():
     assert preflight._first_match("a: 1\nb: 2\n", "c") is None
     assert preflight._first_match("model name\t: Ryzen", "model name") == "Ryzen"
+
+
+# --- the shim's upstream is not stale (#132) -------------------------------
+#
+# A backend behind the tool shim names only the shim in base_url, so the
+# expected ports are {8101} -- while the model lives in the ds4-server on
+# :8000 upstream, holding 74.3 GiB. Preflight warned about the one process
+# the run could not do without. The warning was right about the ports and
+# wrong about the conclusion.
+
+SHIM_PS = """\
+  PID    RSS COMMAND
+21095   9184 /opt/homebrew/.../Python.app/Contents/MacOS/Python ds4_qwen_tool_shim.py --port 8101 --upstream http://127.0.0.1:8000
+ 8110 77957862 ./ds4-server --model ~/models/qwen.gguf --port 8000 --mtp-draft 7
+"""
+
+SHIM_LSOF = """\
+COMMAND     PID   USER   FD   TYPE             DEVICE SIZE/OFF NODE NAME
+Python    21095      e   6u  IPv4 0x5678      0t0    TCP 127.0.0.1:8101 (LISTEN)
+ds4-serv   8110      e   9u  IPv4 0x9abc      0t0    TCP 127.0.0.1:8000 (LISTEN)
+"""
+
+
+def test_the_upstream_of_a_selected_shim_is_not_stale():
+    """The case the issue observed live: shim selected, server falsely stale."""
+    got = preflight.check(SHIM_PS, SHIM_LSOF, expected_ports={8101})
+    assert got.stale == []
+    # The 74.3 GiB still counts: exempt from 'stale' is not 'invisible'.
+    assert round(got.total_gib, 1) == 74.3
+
+
+def test_a_shim_whose_own_port_is_not_selected_shields_nothing():
+    """A leftover shim from a different run must not exempt its upstream."""
+    got = preflight.check(SHIM_PS, SHIM_LSOF, expected_ports={9000})
+    assert [p.pid for p in got.stale] == [8110]
+
+
+def test_without_a_shim_running_the_server_is_stale_again():
+    no_shim = "\n".join(
+        line for line in SHIM_PS.splitlines() if "ds4_qwen_tool_shim.py" not in line
+    )
+    got = preflight.check(no_shim, SHIM_LSOF, expected_ports={8101})
+    assert [p.pid for p in got.stale] == [8110]
+
+
+def test_a_process_that_merely_mentions_the_shim_shields_nothing():
+    """The self-match trap, again. Mentions without both flags parse to nothing."""
+    ps = (
+        "  PID    RSS COMMAND\n"
+        "87535   9184 /bin/zsh -c tail -f ds4_qwen_tool_shim.log\n"
+        "87536   9184 /bin/zsh -c grep ds4_qwen_tool_shim.py /var/log/x\n"
+    )
+    assert preflight.shim_upstream_ports(ps, {8101}) == set()
+
+
+def test_shim_upstream_ports_read_both_flag_forms():
+    """`--upstream=URL` and `--upstream URL` both name the port."""
+    ps = (
+        "  PID    RSS COMMAND\n"
+        "1 9184 python ds4_qwen_tool_shim.py --port 8101"
+        " --upstream http://127.0.0.1:8000\n"
+        "2 9184 python ds4_qwen_tool_shim.py --port 8102"
+        " --upstream=http://127.0.0.1:8001\n"
+    )
+    assert preflight.shim_upstream_ports(ps, {8101, 8102}) == {8000, 8001}
+
+
+def test_shim_upstream_ports_need_a_port_in_the_url():
+    """An upstream URL with no port cannot name one; it shields nothing."""
+    ps = (
+        "  PID    RSS COMMAND\n"
+        "1 9184 python ds4_qwen_tool_shim.py --port 8101"
+        " --upstream http://localhost\n"
+    )
+    assert preflight.shim_upstream_ports(ps, {8101}) == set()
