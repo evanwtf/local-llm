@@ -1,6 +1,6 @@
 ---
 name: source-sweep
-description: Use when the user asks to sweep sources, check for updates, "what's new upstream", "check our influencer list", "do a SOURCES sweep", or wants a scan of X/Twitter, watched GitHub repos, branches, PRs, issues, releases and the GitHub inbox for anything relevant to this project. Also use before starting a measurement session, to avoid measuring something upstream already changed.
+description: Use when the user asks to sweep sources, check for updates, "what's new upstream", "check our influencer list", "do a SOURCES sweep", or wants a scan of X/Twitter, watched GitHub repos, branches, PRs, issues, releases and GitHub notifications - including @mentions and replies that have already been read - for anything relevant to this project. Also use before starting a measurement session, to avoid measuring something upstream already changed.
 ---
 
 # Sweeping the sources
@@ -24,20 +24,78 @@ The output is not a digest. It is **issues in our own repo**, or nothing.
 
 ---
 
-## 1. GitHub inbox
+## 1. GitHub notifications
+
+Two separate jobs, and one command cannot do both. **Mentions** are what the
+inbox is for. **Our own CI** is what the inbox is worst at, so ask git for it
+directly.
+
+### 1a. Mentions and replies — last 24 hours, read included, CI excluded
 
 ```sh
-gh api notifications --jq '.[] | "\(.repository.full_name) [\(.reason)] \(.subject.type) \(.subject.url // "" | sub(".*/";"")) :: \(.subject.title[:80])"'
+SINCE=$(date -u -v-24H +%Y-%m-%dT%H:%M:%SZ)
+gh api "notifications?all=true&since=$SINCE&per_page=100" --paginate \
+  --jq '.[] | select(.reason != "ci_activity")
+      | "\(.updated_at) unread=\(.unread) \(.repository.full_name) [\(.reason)] \(.subject.type) \(.subject.url // "" | sub(".*/";"")) :: \(.subject.title[:80])"'
 ```
 
-**Read `ci_activity` entries too.** A wall of them is not noise: on 2026-09-02 a
-sweep found `test workflow run failed for main branch` repeated 13 times, and
-CI had failed **40 of its last 40 runs** on a shallow-clone bug. Nobody had
-looked. Check our own CI before reading anyone else's news:
+Three parts carry the whole command, and each one was learned by getting it
+wrong:
+
+- **`all=true`, or you see nothing.** `gh api notifications` returns **unread
+  only**. Opening a notification on a phone marks it read and removes it from
+  the sweep. On 2026-09-04 a sweep reported "no mentions, no review requests, no
+  comments" from a 128-entry inbox; with `all=true` there were **eight
+  mentions**, three of them from that day, and two became issues within the
+  hour. A read mention is not a handled mention.
+- **`since=`, or you re-read the same year.** The window is the sweep's window,
+  normally 24 hours. Without it the list reaches back months and the recent item
+  is buried.
+- **Drop `ci_activity`, or you read nothing else.** It is typically **90% of the
+  inbox** — 128 of 140 entries on 2026-09-04, across seven repos. It buries
+  every mention, and 1b covers what it was supposed to tell you.
+
+**A notification title is not the news.** It names the thread, not what was
+said. Open the thread and find the comment that tagged you:
+
+```sh
+gh api "repos/<owner>/<repo>/issues/<n>/comments?per_page=100" \
+  --jq '.[] | select(.body | test("evandhoffman";"i")) | "@\(.user.login) \(.created_at)\n\(.body)"'
+```
+
+That is where the substance lives. ds4#964 arrived titled *"Over 30% faster GLM
+5.3 Flash decode on Metal"* — already tracked as #118 and apparently nothing
+new. The comment underneath carried the Q2 table, a requantization recipe worth
++35% that nobody had measured for quality, and a bare `@evandhoffman` asking for
+an M5 Max run.
+
+**Then apply the relevance filter — the same one as 7b.** *Would this change a
+number on an M5 Max, 128 GB, Metal?* A `mention` is not automatically relevant:
+
+- **Relevant** — someone asking us to measure something, a result on Apple
+  silicon, a method finding that changes how we measure, a bug in an engine we
+  run.
+- **Not** — CUDA-only numbers, thanks-for-your-help lists, product plugs posted
+  on our own issues. File nothing; note them in the sweep record so the next
+  sweep does not re-read them.
+
+### 1b. Our own CI, asked directly
 
 ```sh
 gh run list --repo evanwtf/local-llm --limit 10 --json conclusion,headSha,displayTitle
 ```
+
+**Do not learn this from the inbox.** A wall of `ci_activity` is real news the
+first time — on 2026-09-02 a sweep found CI had failed **40 of its last 40 runs**
+on a shallow-clone bug, and nobody had looked — but it is unreadable as a
+running signal, and stale entries look exactly like fresh ones. Ask for the
+conclusions instead. See #129: both red streaks this repo has had were found by
+a person looking, and a 20-run streak took 17 hours to notice and 7 minutes to
+fix.
+
+The local suite passing is **not** evidence CI is green. `d9a223e` broke only on
+hosts that are not this laptop, because the results file is where the tests
+expect it here and nowhere else.
 
 ## 2. Watched repositories
 
@@ -263,7 +321,8 @@ Use this shape. Keep it short; a sweep record nobody reads is worse than none:
 
 | surface | state |
 |---|---|
-| 1 CI / inbox | green at <sha>, or: red N runs since <sha> |
+| 1a mentions | who tagged us, on what, and whether it earned an issue |
+| 1b CI | green at <sha>, or: red N runs since <sha> |
 | 2 watched repos | the commits that mattered, not the counts |
 | 3 branches | branch -> sha, and whether it moved since last sweep |
 | 4 upstream issues/PRs | numbers and one line each |
