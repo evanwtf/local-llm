@@ -1,0 +1,26 @@
+# Pinned agent client versions (#131).
+#
+# Every backend comparison in this repo assumes the client is a constant. It
+# is not: OpenCode moved 1.18.26 -> 1.18.27 by itself on both machines, and on
+# the Linux tier that change alone roughly doubled median turns on repository
+# tasks -- 12.0 to 27.5, with model digest, ollama version, harness, tasks,
+# context window and machine all held (#104). The symptom was the `edit` tool
+# failing to match `oldString`, which reads as the model writing bad patches.
+#
+# A version recorded and not pinned is a post-mortem. `preflight.py` REFUSES
+# when an installed client differs from its pin here, rather than warning: for
+# every other tool a version difference is a nudge, and for the client it
+# silently rewrites results.
+#
+# To move a pin deliberately: change it here, and treat rows either side as
+# separate series. Do not pool them. We already learned this with Codex
+# 0.148 -> 0.150 and caught it only because someone noticed.
+#
+# An entry set to "" means "not pinned, warn only" -- use it for a client this
+# machine does not drive.
+
+[clients]
+opencode = "1.18.27"
+claude = "2.1.260"
+codex = "0.152.0"
+aider = ""

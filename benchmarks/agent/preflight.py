@@ -882,6 +882,33 @@ def _now_iso() -> str:
     return time.strftime("%Y-%m-%dT%H:%M:%S")
 
 
+def check_client_pins() -> bool:
+    """Log any client that has drifted from its pin. True when some did (#131).
+
+    Warning is not enough here. #104 measured a client self-update roughly
+    doubling median turns with everything else held, and the symptom looked
+    like the model writing bad patches. A run started under a drifted client
+    produces rows that are not comparable with the ones before it, and nothing
+    in the data says so.
+    """
+    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent / "scripts"))
+    try:
+        import client_pins
+    except ImportError:
+        return False
+    pins = client_pins.load_pins()
+    if not pins:
+        return False
+    drifted = client_pins.drift(staleness.installed_versions(), pins)
+    for name, want, got in drifted:
+        logger.error(
+            "preflight: %s is pinned at %s but %s is installed (#131)", name, want, got
+        )
+    if not drifted:
+        logger.info("preflight: all %d pinned clients match", len(pins))
+    return bool(drifted)
+
+
 def log_ci_status(offline: bool = False) -> None:
     """Say whether this repository's CI on main is red (#129).
 
@@ -973,6 +1000,12 @@ def main() -> int:
     # #133. Acquisition and the memory check are one call on purpose: two
     # guards you can invoke separately are two guards somebody invokes zero of.
     p.add_argument(
+        "--allow-client-drift",
+        action="store_true",
+        help="run even though an installed client differs from its pin (#131). "
+        "Rows produced this way are a new series and must not be pooled.",
+    )
+    p.add_argument(
         "--acquire-lock",
         metavar="WHAT",
         help="claim this machine for WHAT and exit non-zero if it is taken",
@@ -1007,6 +1040,16 @@ def main() -> int:
         logger.info("preflight: %s", why)
     if not args.no_versions:
         log_versions(offline=args.offline)
+        # #131: a pinned client that has drifted is the one version difference
+        # that silently rewrites results, so it refuses rather than warns.
+        if check_client_pins() and not args.allow_client_drift:
+            logger.error(
+                "preflight: refusing to run with a drifted client. Fix the "
+                "install, or move the pin in client-pins.toml deliberately and "
+                "treat rows either side as separate series (#131). "
+                "--allow-client-drift overrides."
+            )
+            return 1
         # #129. Gated with the versions block deliberately: --no-versions
         # means "report running servers only", and that is not a mode that
         # should reach the network.
