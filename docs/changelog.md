@@ -22,8 +22,8 @@ picks in `RECOMMENDATIONS.md`, and the current queue in `NEXT.md`.
 
 ---
 
-**2026-09-04. ds4 PR #964 reproduces on this M5 Max: +20.0% decode, bit-exact
-([#118](https://github.com/evanwtf/local-llm/issues/118), closed).**
+**2026-09-04. ds4 PR #964 reproduces on this M5 Max: +16.5% paired decode,
+bit-exact ([#118](https://github.com/evanwtf/local-llm/issues/118), closed).**
 
 The one item where we advance someone else's project with data only we have:
 every Apple measurement on antirez/ds4#964 was M3 Ultra, and @trueimage had
@@ -34,22 +34,39 @@ place so each arm reads its own `metal/*.metal`; 3 repetitions with arm order
 alternating per rep — the [#130](https://github.com/evanwtf/local-llm/issues/130) rule, applied here before the harness itself got it;
 8 frontiers, 2048–16384; 128 greedy tokens each.
 
-- **Decode: +20.0% paired median** (per-frontier 1.177–1.226, faster at 8 of 8,
-  flat across context — the same shape as the PR's own curve). Rep 1 ran ~9%
-  high on *both* arms (mmap pages still faulting in); the paired design
-  absorbed it, and reps 2–3 alone give +18.1%/+17.3%.
-- **Prefill: −0.3% paired median** (0.990–1.013) — the PR's "prefill flat"
-  claim holds here within 1.3%.
+- **Decode: +16.5% paired median across frontiers** (per-frontier 1.154–1.205,
+  faster at 8 of 8, flat across context — the same shape as the PR's own
+  curve). Pooled over all 24 (frontier, rep) pairs: median +16.9%, mean
+  +17.6%; reps 2–3 alone: median +17.3%, mean +18.1%. Rep 1 ran ~9% high on
+  *both* arms (mmap pages still faulting in); pairing within a repetition is
+  what absorbs that.
+- **Prefill: −1.6% paired median across frontiers** (range 0.965–0.995, faster
+  at 0 of 8; pooled mean −4.0% under the rep-1 cold drag). The PR's "prefill
+  flat within 0.1%" reproduces approximately, not exactly: a consistent ~1.5%
+  prefill cost on this hardware.
 - **Output: byte-identical** between arms at both attention regimes (2048 full
   attention, 16384 compact DSA). Caveat stated on the issue: the greedy tail
   decodes to empty-text tokens on this corpus, so the printed bytes are proven
-  identical and token-ID identity is strongly suggested, not strict.
+  identical and token-ID identity is strongly suggested, not strict. Compare
+  the `decoded text:` lines only — the capture files also carry
+  nondeterministic Metal timing banners, so a whole-file diff differs.
 
-Direction, shape, prefill neutrality and exactness all reproduce; the magnitude
-is ~55–60% of the M3 Ultra numbers. The cleanest available explanation: an
-occupancy win pays less on **40 GPU cores than on 80**, which fits — a
-memory-traffic cut would pay *more* on the narrower part, which does not fit.
-Not isolated, only recorded.
+Direction, shape and exactness reproduce; the magnitude is ~45–50% of the M3
+Ultra numbers. The cleanest available explanation: an occupancy win pays less
+on **40 GPU cores than on 80**, which fits — a memory-traffic cut would pay
+*more* on the narrower part, which does not fit. Not isolated, only recorded.
+
+**Correction, same day.** The first report said +20.0%. That number came from
+`scripts/decode_ab_report.py` dividing each arm's median independently — a
+ratio of medians, not the paired statistic its own docstring promised. With
+~9% rep-to-rep drift, the two medians can come from different repetitions, and
+the drift re-enters as noise: the ratio divided rep 3's baseline by rep 2's
+branch at ctx 2048. The peer session caught it before the draft reached
+antirez. The script is fixed and tested
+(`tests/test_decode_ab_report.py`), every affected number on #118 was
+recomputed, and the prior A/Bs summarized by the same script were recomputed
+too — #91's #621 runs read 1.147/1.155 unpaired vs **1.157/1.141** paired,
+and its run-2 prefill goes from 1.003 to 0.979.
 
 Two durable method facts fell out of it, both now in the
 [runbook](m5max-runbook.md): the ds4 Makefile tracks no header dependencies, so

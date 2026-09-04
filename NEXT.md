@@ -88,7 +88,7 @@ back up when the suite can tell two good backends apart.
 
 Open issues that are not in the table, and why they stay off it:
 
-- **[#40](https://github.com/evanwtf/local-llm/issues/40) mixed-precision GLM-5.3.** Right question, behind a working agent path — but it now has a concrete recipe and numbers from ds4#964 (KDA + head BF16 → Q8 inside the Q4_K file, "Q2 speed with a Q4 file"; quality measured on the PR: perplexity improves slightly). [#118](https://github.com/evanwtf/local-llm/issues/118) has now measured the full-precision PR itself on this machine (+20.0% decode, bit-exact), so the recipe builds on local data too.
+- **[#40](https://github.com/evanwtf/local-llm/issues/40) mixed-precision GLM-5.3.** Right question, behind a working agent path — but it now has a concrete recipe and numbers from ds4#964 (KDA + head BF16 → Q8 inside the Q4_K file, "Q2 speed with a Q4 file"; quality measured on the PR: perplexity improves slightly). [#118](https://github.com/evanwtf/local-llm/issues/118) has now measured the full-precision PR itself on this machine (+16.5% paired decode, bit-exact), so the recipe builds on local data too.
 - **GLM thinking/tool-replay (ds4#894, #897, #899, #904, #906).** Defects we would inherit while #569 and #816 stand.
 - **Vision, vector steering, ROCm.** Out of scope, and not shipped.
 - **More trials on saturated cells.** New axes, not more samples.
@@ -99,7 +99,8 @@ Open issues that are not in the table, and why they stay off it:
 
 **Nothing is benchmarking.** The [#118](https://github.com/evanwtf/local-llm/issues/118) decode A/B ran
 07:55–08:02 EDT and is complete — PR head `8969dbb` vs `main` at `b0a147a`,
-**+20.0% paired median decode, prefill flat, bit-exact**. The issue is closed.
+**+16.5% paired decode (corrected from +20.0%; the first report divided two
+independent medians), prefill −1.6%, bit-exact**. The issue is closed.
 
 **Server state: deliberately left down.** The `ds4-server` from the #77 arm was
 stopped ~07:46 EDT with one SIGINT (clean exit, ~74 GiB freed) and **not
