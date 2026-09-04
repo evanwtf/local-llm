@@ -25,15 +25,17 @@ session slow, wrong, or unmeasurable.
 
 1. **[#64](https://github.com/evanwtf/local-llm/issues/64)** KV cache prefix stalls at ~20,400 tokens — every turn re-prefills the whole conversation
    Inflates wall time on every Claude Code trial we hold, and kills trials that would otherwise pass.
-2. **[#112](https://github.com/evanwtf/local-llm/issues/112)** The tool-call degeneration loop
+2. **[#137](https://github.com/evanwtf/local-llm/issues/137)** Every OpenCode comparison across the ds4 backends spans a client-version boundary
+   The three newest ds4 cells ran on 1.18.27, everything older on 1.18.25. Confounded, not invalid.
+3. **[#112](https://github.com/evanwtf/local-llm/issues/112)** The tool-call degeneration loop
    Nine failures with no wrong code. First remedy needs no new code and no machine time.
-3. **[#131](https://github.com/evanwtf/local-llm/issues/131)** Nothing pins the agent client, and it updates itself between batches
+4. **[#131](https://github.com/evanwtf/local-llm/issues/131)** Nothing pins the agent client, and it updates itself between batches
    A silent client update rewrites results and reads as a model regression.
-4. **[#4](https://github.com/evanwtf/local-llm/issues/4)** Harder tasks: the current set cannot measure code quality
+5. **[#4](https://github.com/evanwtf/local-llm/issues/4)** Harder tasks: the current set cannot measure code quality
    The pass-rate table has saturated, so no result can show a better agent is better.
-5. **[#120](https://github.com/evanwtf/local-llm/issues/120)** What ds4 server state degrades a session?
+6. **[#120](https://github.com/evanwtf/local-llm/issues/120)** What ds4 server state degrades a session?
    Six pass-rate points hide in an operational variable. Start with #116, fan RPM.
-6. **[#96](https://github.com/evanwtf/local-llm/issues/96)** oMLX bit-exact tail continuation, TTFT 3–4 s → 0.3 s
+7. **[#96](https://github.com/evanwtf/local-llm/issues/96)** oMLX bit-exact tail continuation, TTFT 3–4 s → 0.3 s
    Median conversation is 9 turns, so ~30 s a task spent waiting rather than working.
 
 After these: the engine-speed queue and the rest of the backlog, in the tracker.
