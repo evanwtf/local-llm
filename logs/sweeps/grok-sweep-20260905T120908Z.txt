@@ -1,0 +1,56 @@
+# grok sweep
+# requested window: last 3 hours
+# written:  2026-09-05T12:09:08Z  (local: 2026-09-05 08:09:08 EDT)
+# query:    Search X for posts and replies from @antirez, @ivanfioravanti, @adamlawi, @ddalcu, @awnihannun, @Prince_Canuma, @TheDavidTai, @kyuz0, @trueimage, @iammac2 in the last 3 hours. For each post give the UTC timestamp, the post URL, and the full text. Focus on Metal, MLX, Apple silicon inference, ds4, llama.cpp, quantization, MTP, benchmarking method. Exclude anything older than the window.
+
+I'll search X for posts and replies from those accounts in the last 3 hours, then filter to Metal, MLX, Apple silicon, ds4, llama.cpp, quantization, MTP, and benchmarking.The first pass only caught Ivan and David Tai. I’ll query each remaining account, then pull full threads so replies stay inside the 3-hour window.Window is 09:09–12:09 UTC. I’ll fetch the matching threads next so replies have full text, not just the last line.Window: **09:09–12:09 UTC, 5 Sep 2026** (now 12:09 UTC). Anything before 09:09 is out.
+
+On-topic posts in this window: **one**. The rest from these accounts are travel/China chatter.
+
+---
+
+## On topic (MTP / local LLM / Apple silicon)
+
+### @TheDavidTai — 11:25:17 UTC
+https://x.com/TheDavidTai/status/2096197974992830909
+
+> We'll make it the best vertically integrated runner for practical localllm.
+
+Quote of @Youssofal_ (06:53:58 UTC, **outside the window**), MTPLX 4-month / 2K-star post. That older post thanks @ivanfioravanti for benchmarks and @TheDavidTai for PRs, and talks MTP on Mac (Qwen 3.5 27B: 18 TPS LM Studio → 80 TPS with MTP).
+
+---
+
+## Other posts in the window (not Metal/MLX/ds4/llama.cpp/quant/MTP/bench)
+
+All from **@ivanfioravanti**. Replies.
+
+| UTC | URL | Text | In reply to |
+|---|---|---|---|
+| 11:12:34 | https://x.com/ivanfioravanti/status/2096194774831407548 | Yes!!! Love it! | @GoneChaos1: “welcome! do u like here?” |
+| 11:12:11 | https://x.com/ivanfioravanti/status/2096194677427056908 | Coming soon! 🙌 | @RenLeanna: “Shanghai awaits” |
+| 11:11:24 | https://x.com/ivanfioravanti/status/2096194480252833842 | 6 days here, 3 weeks in China! | @xuanwo: “Have fun in Beijing! How long will you stay there?” |
+| 11:09:31 | https://x.com/ivanfioravanti/status/2096194008527831273 | 😂 | @PierG: “I see your local LLM can generate nice fake pics of you in China” |
+| 10:50:35 | https://x.com/ivanfioravanti/status/2096189242066305534 | Not available for me here in China yet. | @antirez Astra post (08:50 UTC, outside window) |
+
+---
+
+## No posts in the window
+
+@antirez, @adamlawi, @ddalcu, @awnihannun, @Prince_Canuma, @kyuz0, @trueimage, @iammac2
+
+---
+
+## Excluded (on topic, but older than 3h)
+
+**@ivanfioravanti — 06:55:29 UTC**  
+https://x.com/ivanfioravanti/status/2096130078728167801
+
+> On the flight I tried MTPLX and ds4 with Qwen 3.8 Flash Next on M5 Max in Low Power. Not bad!
+>
+> In ds4 I've not cooked support for MTP in ds4 chat.
+> - MTPLX 25 t/s
+> - DS4 18 t/s
+
+Replies on that thread (quantization / bench method) are also before 09:09. None of the listed accounts replied to it inside the window.
+
+**@antirez — 08:50:42 UTC** — Astra / RLVR, not Apple inference. https://x.com/antirez/status/2096159073867633106
