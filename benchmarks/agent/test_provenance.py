@@ -280,3 +280,18 @@ def test_harness_dirty_ignores_the_results_file(tmp_path, monkeypatch) -> None:
 
     (repo / "code.py").write_text("x = 2\n")
     assert run.provenance.code_is_dirty(repo) is True
+
+
+def test_an_untracked_run_directory_is_not_code_dirt(tmp_path) -> None:
+    """A run writes its own output inside the tree.
+
+    benchmarks/ds4/<prefix>-runN is untracked, so by repetition two the tree is
+    dirty because of the run asking the question. --require-harness-head
+    refuses on dirty code, so an untracked-sensitive check there would refuse
+    every multi-run A/B -- the comparisons the pin exists to protect.
+    """
+    repo = _repo(tmp_path)
+    (repo / "benchmarks-ds4-run1").mkdir()
+    (repo / "benchmarks-ds4-run1" / "a.csv").write_text("x\n")
+    assert provenance.code_is_dirty(repo, untracked=False) is False
+    assert provenance.code_is_dirty(repo) is True, "the default still sees it"

@@ -34,7 +34,9 @@ def test_a_smaller_served_context_is_reported(monkeypatch):
     import urllib.request
 
     monkeypatch.setattr(
-        urllib.request, "urlopen", _fake({"models": [{"name": "m", "context_length": 4096}]})
+        urllib.request,
+        "urlopen",
+        _fake({"models": [{"name": "m", "context_length": 4096}]}),
     )
     gaps = preflight.check_served_context({"b": {**BACKEND, "model": "m"}})
     assert len(gaps) == 1
@@ -90,7 +92,9 @@ def test_a_backend_that_declares_nothing_is_skipped(monkeypatch):
     import urllib.request
 
     monkeypatch.setattr(
-        urllib.request, "urlopen", _fake({"models": [{"name": "m", "context_length": 8}]})
+        urllib.request,
+        "urlopen",
+        _fake({"models": [{"name": "m", "context_length": 8}]}),
     )
     assert preflight.check_served_context({"b": {"model": "m", "base_url": "u"}}) == []
 

@@ -49,9 +49,18 @@ def _git(*args: str, cwd: pathlib.Path = HERE) -> str | None:
 DATA_SUFFIXES = (".jsonl", ".log")
 
 
-def code_is_dirty(cwd: pathlib.Path) -> bool:
-    """Uncommitted CODE, ignoring the data files a run appends to."""
-    status = _git("status", "--porcelain", cwd=cwd)
+def code_is_dirty(cwd: pathlib.Path, *, untracked: bool = True) -> bool:
+    """Uncommitted CODE, ignoring the data files a run appends to.
+
+    `untracked=False` also ignores files git has never seen. A run writes its
+    own output directory inside the tree -- benchmarks/ds4/<prefix>-runN -- so
+    by its second repetition the tree is "dirty" because of the run asking the
+    question. A pin that refuses on that refuses every multi-run A/B.
+    """
+    args = ["status", "--porcelain"]
+    if not untracked:
+        args.append("--untracked-files=no")
+    status = _git(*args, cwd=cwd)
     if not status:
         return False
     for line in status.splitlines():

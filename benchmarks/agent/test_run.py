@@ -1507,7 +1507,9 @@ def test_a_moved_harness_head_is_refused(tmp_path, monkeypatch, capsys):
     arms of the same sweep were not running the same code.
     """
     monkeypatch.setattr(run, "git", lambda args, cwd: "abc1234")
-    monkeypatch.setattr(run.provenance, "code_is_dirty", lambda cwd: False)
+    monkeypatch.setattr(
+        run.provenance, "code_is_dirty", lambda cwd, untracked=True: False
+    )
     monkeypatch.setattr(
         sys, "argv", ["run.py", "--dry-run", "--require-harness-head", "def5678"]
     )
@@ -1519,7 +1521,9 @@ def test_a_moved_harness_head_is_refused(tmp_path, monkeypatch, capsys):
 def test_a_dirty_harness_is_refused_when_pinned(tmp_path, monkeypatch):
     """Rows from an uncommitted tree name a state that exists nowhere."""
     monkeypatch.setattr(run, "git", lambda args, cwd: "abc1234")
-    monkeypatch.setattr(run.provenance, "code_is_dirty", lambda cwd: True)
+    monkeypatch.setattr(
+        run.provenance, "code_is_dirty", lambda cwd, untracked=True: True
+    )
     monkeypatch.setattr(
         sys, "argv", ["run.py", "--dry-run", "--require-harness-head", "abc1234"]
     )

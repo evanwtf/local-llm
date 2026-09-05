@@ -2536,7 +2536,11 @@ def main():
                 f"comparison it belongs to started on {want}; finish or "
                 f"abandon that run before moving the harness."
             )
-        if provenance.code_is_dirty(HERE):
+        # Tracked changes only: a run writes its output directory inside the
+        # tree, so an untracked-sensitive check would refuse every repetition
+        # after the first -- the pin would break exactly the multi-run
+        # comparisons it exists to protect.
+        if provenance.code_is_dirty(HERE, untracked=False):
             raise SystemExit(
                 f"harness is at {got} with uncommitted code. A comparative "
                 f"run pinned to a commit cannot be reproduced from one, and "
