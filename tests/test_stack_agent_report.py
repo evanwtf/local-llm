@@ -1,0 +1,248 @@
+"""Synthetic read-outs for the #138 stack A/B report (scripts/stack_agent_report.py).
+
+Every fixture is built here -- none of them read tonight's ledger, which
+does not exist at test time and must never become a fixture.
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+import pathlib
+import sys
+
+import pytest
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "scripts"))
+sys.path.insert(
+    0, str(pathlib.Path(__file__).resolve().parents[1] / "benchmarks" / "agent")
+)
+
+import stack_agent_report as sar
+
+TASKS = [f"task-{i:02d}" for i in range(15)]
+#: Sweep order as stack_agent_ab.sh writes it: new, old, new, old.
+ORDER = [
+    ("new-sweep1", "20:58:00"),
+    ("old-sweep1", "21:40:00"),
+    ("new-sweep2", "22:22:00"),
+    ("old-sweep2", "23:00:00"),
+]
+RUN_DATE = "2026-09-04"
+
+
+def row(backend: str, task: str, started: str, **extra) -> dict:
+    row = {
+        "backend": backend,
+        "task": task,
+        "started": started,
+        "passed": True,
+        "solution_empty": False,
+        "num_turns": 8,
+        "wall_seconds": 120,
+        "client_version": "1.18.27",
+        "env": {"harness_head": "abc1234", "harness_dirty": False},
+    }
+    row.update(extra)
+    return row
+
+
+def full_rows() -> list[dict]:
+    """60 rows: 15 tasks x 4 sweeps, every trial a clean pass."""
+    rows = []
+    for tag, start in ORDER:
+        h, m, s = (int(x) for x in start.split(":"))
+        backend = ("qwen38fnds4kimat" if arm_of(tag) == "new"
+                   else "qwen38fnds4shim")
+        for i, task in enumerate(TASKS):
+            tod = f"{h:02d}:{m:02d}:{(s + i) % 60:02d}"
+            rows.append(row(backend, task, f"2026-09-04T{tod}-04:00"))
+    return rows
+
+
+def arm_of(tag: str) -> str:
+    return tag.rsplit("-sweep", 1)[0]
+
+
+def write_run_dir(tmp_path: pathlib.Path) -> pathlib.Path:
+    run_dir = tmp_path / "138-stack-ab"
+    run_dir.mkdir()
+    (run_dir / "run-record.txt").write_text(
+        "# stack agent A/B, started 2026-09-04 20:57:03 EDT\n"
+        "NEW backend=qwen38fnds4kimat engine=~/git/ds4-ivan-qwen38fn @ bd9cfbc\n"
+        "OLD backend=qwen38fnds4shim engine=~/git/ds4-metal @ ba01f5d\n"
+    )
+    (run_dir / "sweep-order.txt").write_text(
+        "".join(f"{tag} {tod}\n" for tag, tod in ORDER)
+    )
+    for tag, _ in ORDER:
+        (run_dir / f"server-{tag}.log").write_text("ready\n")
+    return run_dir
+
+
+def write_ledger(tmp_path: pathlib.Path, rows: list[dict]) -> pathlib.Path:
+    ledger = tmp_path / "results.jsonl"
+    ledger.write_text("".join(json.dumps(r) + "\n" for r in rows))
+    return ledger
+
+
+def run_report(tmp_path: pathlib.Path, rows: list[dict], caplog):
+    ledger = write_ledger(tmp_path, rows)
+    run_dir = write_run_dir(tmp_path)
+    caplog.set_level(logging.INFO, logger="stack_agent_report")
+    code = sar.main(["--ledger", str(ledger), "--run-dir", str(run_dir)])
+    return code, caplog.text
+
+
+def test_the_raw_line_prints_before_any_filter(tmp_path, caplog):
+    """Raw counts first: 60 rows, 30 per backend, exclusions visible."""
+    code, out = run_report(tmp_path, full_rows(), caplog)
+    assert code == 0
+    assert "raw rows: 60 (new 30, old 30); excluded 0; dry 0" in out
+
+
+def test_an_excluded_row_is_a_visible_hole(tmp_path, caplog):
+    """An excluded row is a hole in n, not a pass or fail: it shows in the
+    raw line and shorts its sweep cell, which is VOID, not a smaller n."""
+    rows = full_rows()
+    rows[0]["excluded"] = True
+    rows[0]["exclusion_reason"] = "smoke"
+    code, out = run_report(tmp_path, rows, caplog)
+    assert code == 2
+    assert "excluded 1" in out
+    assert "has 14 rows" in out
+
+
+def test_a_timeout_row_is_a_fail_not_an_absence(tmp_path, caplog):
+    """A timeout writes error and no `passed` key. Reading verdicts from the
+    key's presence drops the row; verdict() counts it as a failure."""
+    rows = full_rows()
+    del rows[0]["passed"]
+    rows[0]["error"] = "timeout"
+    code, out = run_report(tmp_path, rows, caplog)
+    assert code == 0
+    assert "'passes': 29" in out  # new arm
+
+
+def test_a_guard_flip_is_a_harness_reject_not_a_model_failure(tmp_path, caplog):
+    rows = full_rows()
+    rows[0]["touched_tests"] = ["tests/test_oracle.py"]
+    code, out = run_report(tmp_path, rows, caplog)
+    assert code == 0
+    assert "'guard_flips': 1" in out
+    assert "'passes': 29" in out
+
+
+def test_sweep_windows_come_from_the_order_file_not_from_gaps(tmp_path):
+    """Two rows 40 minutes apart stay in the same sweep; the next sweep owns
+    the window after its start line, however close a row lands to it."""
+    rows = full_rows()
+    run_dir = write_run_dir(tmp_path)
+    sweeps = sar.sweep_windows(run_dir)
+    leftover = sar.assign(rows, sweeps)
+    assert leftover == []
+    counts = {s.tag: len(s.rows) for s in sweeps}
+    assert counts == {"new-sweep1": 15, "old-sweep1": 15,
+                      "new-sweep2": 15, "old-sweep2": 15}
+
+
+def test_a_short_cell_refuses_to_compute(tmp_path, caplog):
+    rows = full_rows()
+    rows.pop()
+    code, out = run_report(tmp_path, rows, caplog)
+    assert code == 2
+    assert "has 14 rows" in out
+
+
+def test_death_pairing_end_to_end(tmp_path, caplog):
+    rows = full_rows()
+    for r in rows:
+        if r["backend"] == "qwen38fnds4kimat" and r["task"] == "task-00":
+            r.update(solution_empty=True, num_turns=1, wall_seconds=6.4,
+                     passed=False)
+    code, out = run_report(tmp_path, rows, caplog)
+    assert code == 0
+    assert "'deaths': 2" in out
+    assert "wall: n_pairs 14" in out
+    assert "ratio 1.00" in out
+
+
+def test_below_ten_pairs_says_could_not_tell(tmp_path, caplog):
+    rows = full_rows()
+    for r in rows:
+        if (r["backend"] == "qwen38fnds4kimat"
+                and r["task"] in set(TASKS[:6])):
+            r.update(solution_empty=True, num_turns=1, wall_seconds=6.4,
+                     passed=False)
+    code, out = run_report(tmp_path, rows, caplog)
+    assert code == 0
+    assert "COULD NOT TELL" in out
+    assert "verdict rests on pass and death bars" in out
+
+
+def test_a_five_pass_gap_fails_the_screen():
+    """Drive the statistics directly: a 5-pass gap is fail-side at any wall."""
+    rows = full_rows()
+    # Each task appears in both sweeps of an arm; flip five distinct tasks in
+    # the first new sweep only, so the gap is exactly 5.
+    for r in rows:
+        if (r["backend"] == "qwen38fnds4kimat" and r["task"] in set(TASKS[:5])
+                and r["started"] < "2026-09-04T21:00"):
+            r["passed"] = False
+    new_rows = [r for r in rows if r["backend"] == "qwen38fnds4kimat"]
+    old_rows = [r for r in rows if r["backend"] == "qwen38fnds4shim"]
+    new, old = sar.tally(new_rows), sar.tally(old_rows)
+    assert old["passes"] - new["passes"] == 5
+    wall = sar.wall_report([("t", 100.0, 100.0)] * 15)
+    lines = sar.screen_verdict(new, old, wall)
+    assert any("FAIL-SIDE: pass gap <= 4" in ln for ln in lines)
+    assert any("SCREEN FAIL" in ln for ln in lines)
+
+
+def test_a_two_fold_wall_slower_fails_the_screen():
+    rows = full_rows()
+    new = sar.tally([r for r in rows if r["backend"] == "qwen38fnds4kimat"])
+    old = sar.tally([r for r in rows if r["backend"] == "qwen38fnds4shim"])
+    paired = [("t", 200.0, 100.0)] * 15
+    wall = sar.wall_report(paired)
+    assert wall["ratio"] == pytest.approx(2.0)
+    lines = sar.screen_verdict(new, old, wall)
+    assert any("FAIL-SIDE: wall ratio <= 1.25" in ln for ln in lines)
+
+
+def test_the_old_arm_control_floor_is_a_void(tmp_path, caplog):
+    rows = full_rows()
+    # Three tasks fail in both old sweeps: 24/30, one pass below the floor.
+    for r in rows:
+        if r["backend"] == "qwen38fnds4shim" and r["task"] in set(TASKS[:3]):
+            r["passed"] = False
+    code, out = run_report(tmp_path, rows, caplog)
+    assert code == 2
+    assert "old-arm control 24/30 below floor 25" in out
+
+
+def test_a_client_version_split_is_void(tmp_path, caplog):
+    rows = full_rows()
+    rows[0]["client_version"] = "1.18.26"
+    code, out = run_report(tmp_path, rows, caplog)
+    assert code == 2
+    assert "client_version" in out
+
+
+def test_a_dirty_harness_row_is_void(tmp_path, caplog):
+    rows = full_rows()
+    rows[0]["env"]["harness_dirty"] = True
+    code, out = run_report(tmp_path, rows, caplog)
+    assert code == 2
+    assert "harness_dirty" in out
+
+
+def test_wall_pairing_uses_geometric_mean_of_eligible_trials():
+    """A task with walls 100 and 400 in one arm pairs at 200, not 250."""
+    rows = [
+        {"task": "t", "solution_empty": False, "wall_seconds": 100},
+        {"task": "t", "solution_empty": False, "wall_seconds": 400},
+        {"task": "t", "solution_empty": True, "wall_seconds": 6},  # excluded
+    ]
+    got = sar.task_wall(rows)
+    assert got == pytest.approx(200.0)
