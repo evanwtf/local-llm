@@ -51,7 +51,7 @@ def pytest_report_header() -> list[str]:
 
 
 @pytest.fixture(autouse=True)
-def _keep_the_stash_inside_the_test(tmp_path, monkeypatch):
+def _keep_the_stash_inside_the_test(request, tmp_path, monkeypatch):
     """No test may reach the real stash, marker or notice.
 
     `stash_targets` moves a directory to `run.STASH_ROOT` and `restore_targets`
@@ -65,6 +65,12 @@ def _keep_the_stash_inside_the_test(tmp_path, monkeypatch):
     aimed at the operator's repositories. Redirect all three by default; a test
     that wants its own paths overrides them as before.
     """
+    # A test that asks about THIS machine's real repositories needs the real
+    # paths: redirecting them sends guarded_repo() to an empty tmp_path, it
+    # falls back to the configured path, and mid-batch that is the export --
+    # which is exactly the confusion this whole audit is about.
+    if request.node.get_closest_marker("real_stash_paths"):
+        return
     monkeypatch.setattr(run, "STASH_ROOT", tmp_path / "stash", raising=False)
     monkeypatch.setattr(run, "STASH_MARKER", tmp_path / "stash.json", raising=False)
     monkeypatch.setattr(run, "STASH_NOTICE", tmp_path / "NOTICE.md", raising=False)

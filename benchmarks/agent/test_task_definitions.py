@@ -21,6 +21,10 @@ import tomllib
 import pytest
 
 HERE = pathlib.Path(__file__).resolve().parent
+
+# These cases read the real repositories on this machine, so they need the real
+# stash paths rather than conftest's per-test redirect.
+pytestmark = pytest.mark.real_stash_paths
 sys.path.insert(0, str(HERE))
 
 import run as runner
