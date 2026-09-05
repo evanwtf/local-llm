@@ -444,3 +444,29 @@ def test_a_sweep_order_mixing_both_shapes_is_refused(tmp_path, caplog):
     with caplog.at_level("ERROR", logger="stack_agent_report"):
         assert sar.sweep_windows(run_dir) is None
     assert "mixes one-time and two-time lines" in caplog.text
+
+
+def test_a_uniform_run_on_a_newer_client_is_not_void(tmp_path, caplog):
+    """The check asserts uniformity, not a particular version.
+
+    It used to also require the literal "1.18.27". OpenCode shipped 1.18.28 and
+    1.18.29 on 2026-09-05, so every later run -- both arms on the same new
+    client, nothing wrong with it -- would have voided on a condition that has
+    nothing to do with the comparison. A check guaranteed to fire is not a
+    check, which the #138 screen established three separate ways.
+    """
+    rows = full_rows()
+    for r in rows:
+        r["client_version"] = "1.18.29"
+    code, out = run_report(tmp_path, rows, caplog)
+    assert "client_version" not in out, out
+    assert code == 0, out
+
+
+def test_arms_on_different_clients_are_still_void(tmp_path, caplog):
+    """The half of the old check that was doing real work."""
+    rows = full_rows()
+    rows[0]["client_version"] = "1.18.29"
+    code, out = run_report(tmp_path, rows, caplog)
+    assert "client_version varies across rows" in out, out
+    assert code == 2, out

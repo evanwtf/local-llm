@@ -366,8 +366,21 @@ def void_checks(
     if any(e.get("harness_dirty") for e in envs):
         failures.append("harness_dirty row present")
     versions = {r.get("client_version") for r in raw}
-    if len(versions) > 1 or versions - {"1.18.27"}:
-        failures.append(f"client_version not uniformly 1.18.27: {sorted(versions)}")
+    # Uniformity only. This used to also require the literal "1.18.27", which
+    # packed two assertions into one line and made the second one a time bomb:
+    # OpenCode shipped 1.18.28 and 1.18.29 on 2026-09-05, so any later run --
+    # both arms on the same new client, nothing wrong with it -- would have
+    # voided on a condition unrelated to the comparison. That is the
+    # harness_dirty shape again, deferred to the next release instead of
+    # firing today.
+    #
+    # It also reintroduced the client pin at the analysis end, where it is less
+    # visible than a preflight refusal, against the standing decision to RECORD
+    # the client version and not pin it (this laptop is a daily driver). The
+    # version that ran is on every row and in client-versions.toml, so nothing
+    # is lost from the record by dropping the literal.
+    if len(versions) > 1:
+        failures.append(f"client_version varies across rows: {sorted(versions)}")
     old_rows = [r for s in sweeps if s.arm == "old" for r in s.rows]
     old_passes = sum(1 for r in old_rows if passes(r))
     if old_rows and old_passes < OLD_ARM_CONTROL:
