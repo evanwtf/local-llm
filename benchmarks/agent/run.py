@@ -1317,11 +1317,25 @@ def stash_targets(pairs):
         real = repo.with_name(repo.name + "-real")
         if real.exists():
             raise SystemExit(f"{real} already exists; refusing to overwrite it.")
-        repo.rename(real)
+        # Record the move BEFORE making it. The marker used to be written once,
+        # after every rename, which left a window where the repositories were
+        # moved and nothing on disk said so: a kill in that window produced
+        # stashed repos with no marker, so restore_targets() found nothing to
+        # restore and the only trace was the next run refusing to overwrite
+        # <name>-real. An error, not a recovery.
         moved.append({"export": str(repo), "real": str(real)})
+        _write_marker(moved)
+        repo.rename(real)
         logger.info("stashed %s -> %s", repo.name, real.name)
-    STASH_MARKER.write_text(json.dumps({"moved": moved, "pid": os.getpid()}, indent=1))
     return [(pathlib.Path(m["export"]), pathlib.Path(m["real"])) for m in moved]
+
+
+def _write_marker(moved: list[dict]) -> None:
+    """Write the stash marker atomically, so a kill never truncates the map."""
+    payload = json.dumps({"moved": moved, "pid": os.getpid()}, indent=1)
+    tmp = STASH_MARKER.with_suffix(".tmp")
+    tmp.write_text(payload)
+    os.replace(tmp, STASH_MARKER)
 
 
 def _stash_owner_alive(pid: object) -> bool:
@@ -1365,6 +1379,7 @@ def restore_targets():
     if not STASH_MARKER.exists():
         return []
     state = json.loads(STASH_MARKER.read_text())
+    unrestored: list[dict] = []
     owner = state.get("pid")
     if _stash_owner_alive(owner):
         logger.warning(
@@ -1380,13 +1395,25 @@ def restore_targets():
         export, real = pathlib.Path(m["export"]), pathlib.Path(m["real"])
         if not real.exists():
             logger.error("%s is missing; cannot restore %s", real, export)
+            unrestored.append(m)
             continue
         if export.exists():
             shutil.rmtree(export, ignore_errors=True)
         real.rename(export)
         restored.append(export.name)
         logger.info("restored %s", export.name)
-    STASH_MARKER.unlink(missing_ok=True)
+    if unrestored:
+        # The marker is the only map back. Deleting it after a partial restore
+        # makes the entries that failed unrecoverable -- and a failed entry is
+        # exactly when the map matters. Keep the remainder instead.
+        _write_marker(unrestored)
+        logger.error(
+            "%d repository(ies) could not be restored; the marker keeps them "
+            "so a later run can try again",
+            len(unrestored),
+        )
+    else:
+        STASH_MARKER.unlink(missing_ok=True)
     return restored
 
 

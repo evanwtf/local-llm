@@ -18,7 +18,14 @@ here -- an earlier attempt to recompute a stored field corrupted 30 rows.
 Idempotent: a row already excluded is left alone, including its reason.
 
     uv run python scripts/exclude_rows.py <ledger> --backend qwen38fnds4kimat \\
-        --since 2026-09-04T20:57 --reason "aborted sweep (#138)" --apply
+        --since 2026-09-04T20:57 --until 2026-09-04T21:27 \\
+        --reason "aborted sweep (#138)" --apply
+
+`--until` is REQUIRED for `--apply`, and the reason is this example. Written
+without it, the same command re-run after the relaunch finished would have
+excluded the good rows too: `--since` alone is a forward-open window, and
+idempotency only protects rows that are already excluded. A void run is a
+closed interval; say where it ends.
 """
 
 from __future__ import annotations
@@ -26,13 +33,37 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import pathlib
+import subprocess
 import sys
 
 logger = logging.getLogger(__name__)
 
 
-def selects(row: dict, backend: str | None, since: str | None, until: str | None) -> bool:
+def _harness_running() -> bool:
+    """Is a benchmark appending to the ledger right now?
+
+    The run lock is not the check: the A/B protocol runs `run.py --no-lock`,
+    which is exactly why the lock read as free during the 2026-09-04 incident.
+    Ask the process table instead.
+    """
+    try:
+        out = subprocess.run(
+            ["pgrep", "-f", "benchmarks/agent/run.py"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return bool(out.stdout.strip())
+
+
+def selects(
+    row: dict, backend: str | None, since: str | None, until: str | None
+) -> bool:
     """Whether this row is in the window being excluded.
 
     String comparison on ISO timestamps is deliberate: the ledger writes local
@@ -80,7 +111,14 @@ def mark(
         newly += 1
         out.append(json.dumps(row))
     if apply and newly:
-        ledger.write_text("\n".join(out) + "\n")
+        # Atomic. read -> transform -> write_text truncates the ledger first,
+        # so a crash mid-write loses it entirely. os.replace swaps a complete
+        # file in one step. It does NOT make the read-modify-write safe against
+        # a concurrent append -- that is what the harness check in main() is
+        # for -- it makes the failure mode "old file" instead of "half a file".
+        tmp = ledger.with_suffix(ledger.suffix + ".tmp")
+        tmp.write_text("\n".join(out) + "\n")
+        os.replace(tmp, ledger)
     return newly, already
 
 
@@ -97,6 +135,26 @@ def main(argv: list[str] | None = None) -> int:
 
     if not (args.backend or args.since):
         logger.error("refusing to select every row: give --backend and/or --since")
+        return 2
+    # A void run is a closed interval. Without an end, `--since` keeps matching
+    # rows that do not exist yet, so re-running the same command after the next
+    # batch would exclude ITS rows too -- and a backend alone would exclude
+    # everything that backend ever produced.
+    if args.apply and not args.until:
+        logger.error(
+            "refusing to --apply an open-ended window: pass --until. "
+            "A run that has ended has an end timestamp; without one this "
+            "command also excludes rows that do not exist yet."
+        )
+        return 2
+    # Only writing is gated. Reporting while a batch runs is safe and useful --
+    # it is how you decide what to exclude once the batch ends.
+    if args.apply and _harness_running():
+        logger.error(
+            "refusing to rewrite the ledger while a benchmark is running: "
+            "run.py appends to it, and a row written between the read and the "
+            "write would be destroyed. Wait for the batch to finish."
+        )
         return 2
     newly, already = mark(
         args.ledger,

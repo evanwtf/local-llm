@@ -1129,3 +1129,49 @@ def test_a_marker_with_no_pid_is_restored(tmp_path, monkeypatch):
     export, real, marker = _marker(tmp_path, monkeypatch, pid=os.getpid())
     marker.write_text(json.dumps({"moved": json.loads(marker.read_text())["moved"]}))
     assert run.restore_targets() == [export.name]
+
+
+def test_a_kill_between_the_rename_and_the_marker_is_recoverable(tmp_path, monkeypatch):
+    """The marker used to be written after every rename, leaving a window where
+    the repositories were moved and nothing on disk said so."""
+    marker = tmp_path / "stash.json"
+    monkeypatch.setattr(run, "STASH_MARKER", marker)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "keep.txt").write_text("real")
+    seen: list[bool] = []
+    original = pathlib.Path.rename
+
+    def watched(self, target):
+        # At the moment of the rename, the map must already exist on disk.
+        seen.append(marker.exists())
+        return original(self, target)
+
+    monkeypatch.setattr(pathlib.Path, "rename", watched)
+    run.stash_targets([(str(repo), "abc1234")])
+    assert seen == [True], "the marker must be written before the rename"
+
+
+def test_a_partial_restore_keeps_the_marker_for_the_rest(tmp_path, monkeypatch):
+    """A missing -real is exactly when the map matters; deleting it there makes
+    the un-restored entries unrecoverable."""
+    marker = tmp_path / "stash.json"
+    good_export, good_real = tmp_path / "a", tmp_path / "a-real"
+    good_real.mkdir()
+    gone_export, gone_real = tmp_path / "b", tmp_path / "b-real"
+    marker.write_text(
+        json.dumps(
+            {
+                "moved": [
+                    {"export": str(good_export), "real": str(good_real)},
+                    {"export": str(gone_export), "real": str(gone_real)},
+                ],
+                "pid": 2_000_000,
+            }
+        )
+    )
+    monkeypatch.setattr(run, "STASH_MARKER", marker)
+    assert run.restore_targets() == [good_export.name]
+    assert marker.exists(), "the unrestored entry must stay on the map"
+    left = json.loads(marker.read_text())["moved"]
+    assert [m["export"] for m in left] == [str(gone_export)]
