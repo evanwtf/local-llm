@@ -35,19 +35,25 @@ when one is *behind* its release rather than refusing when it has moved. See
 
 ### Finishable in a session with machine time
 
-1. **[#138](https://github.com/evanwtf/local-llm/issues/138)** Q4_K imatrix vs the Q4_0 build we publish -- **speed and the gate done, the ranking not**
+1. **[#143](https://github.com/evanwtf/local-llm/issues/143)** ds4#964 re-test on the new head -- @trueimage asked us directly
+   He says prefill improved; [#118](https://github.com/evanwtf/local-llm/issues/118)
+   measured it **2.0% slower** on the old head, four runs, 2.9 pp spread. One
+   variable moves and the control already exists. ~40 minutes, the cheapest
+   external ask we have had.
+   *Done when:* four runs against head `4b00b59a`, both directions reported with the run count and the prompt named, and a reply upstream.
+2. **[#138](https://github.com/evanwtf/local-llm/issues/138)** Q4_K imatrix vs the Q4_0 build we publish -- **speed and the gate done, the ranking not**
    Stack A/B: +9.5% decode, -24.5% prefill, four runs. Both builds pass a
    six-question `ds4-eval` gate 6/6, which says neither is broken and ranks
    nothing. Tokens-to-answer is the variable that decides whether the decode
    gain reaches a session, and five cases established no direction.
    *Done when:* one agent cell on the new stack, giving pass rate and wall time against the published cell -- or a stated reason we accept the trade blind.
-2. **[#112](https://github.com/evanwtf/local-llm/issues/112)** The tool-call degeneration loop
+3. **[#112](https://github.com/evanwtf/local-llm/issues/112)** The tool-call degeneration loop
    Item 2 cannot be measured at the outcome level: ~230 trials/arm to detect a
    drop to zero. Redirected to a strip-toggle A/B on the conditional, and
    **unblocked** -- `SHIM_NO_STRIP=1` is the off arm. Nothing to build; ~4-8 h
    of machine time.
    *Done when:* 2 runs per arm strip-on vs strip-off under one protocol, read with `tool_error_conditional.py`, at >=30 failures per arm.
-3. **[#116](https://github.com/evanwtf/local-llm/issues/116)** Does maxing the fans change measured pass rates or timings?
+4. **[#116](https://github.com/evanwtf/local-llm/issues/116)** Does maxing the fans change measured pass rates or timings?
    Design pre-registered on the issue, thresholds and all five outcome
    sentences. #138's session confirmed auto sits at ~3450/3730 rpm against a
    5349/5777 max, so the arms would be two real cooling regimes.
@@ -55,17 +61,17 @@ when one is *behind* its release rather than refusing when it has moved. See
 
 ### Measurements, not builds
 
-4. **[#131](https://github.com/evanwtf/local-llm/issues/131)** item 4: does a client-version boundary move anything here?
+5. **[#131](https://github.com/evanwtf/local-llm/issues/131)** item 4: does a client-version boundary move anything here?
    Items 1-3 are done. No (backend, task) cell on this machine holds two client
    versions, so this needs one deliberate comparison, not more incidental data.
    *Done when:* one backend is measured under two client versions, or the question is dropped on the record.
-5. **[#141](https://github.com/evanwtf/local-llm/issues/141)** PLE support exists only on ivanfioravanti forks
+6. **[#141](https://github.com/evanwtf/local-llm/issues/141)** PLE support exists only on ivanfioravanti forks
    `RECOMMENDATIONS.md` now names the fork and says to prefer llama.cpp when
    either stack would do. Open as a standing note on durability, not a task --
    the remaining half is whether upstream ever carries PLE, which is not ours.
    *Done when:* upstream carries PLE, or we stop depending on it.
 
-6. **[#142](https://github.com/evanwtf/local-llm/issues/142)** The stack table rewards failing fast
+7. **[#142](https://github.com/evanwtf/local-llm/issues/142)** The stack table rewards failing fast
    The warning shipped; the ranking did not change. A table sorted by median
    wall time promotes a 55.6% backend above every stack that passes
    everything, because a failed trial is a short one.
@@ -73,13 +79,13 @@ when one is *behind* its release rather than refusing when it has moved. See
 
 ### Standing problems, not finishable in one sitting
 
-5. **[#64](https://github.com/evanwtf/local-llm/issues/64)** KV cache prefix stalls at ~20,400 tokens
+8. **[#64](https://github.com/evanwtf/local-llm/issues/64)** KV cache prefix stalls at ~20,400 tokens
    The cost is measured. The fix is in a client we do not own, so this ends in an upstream report, not a patch.
-6. **[#4](https://github.com/evanwtf/local-llm/issues/4)** Harder tasks: the current set cannot measure code quality
+9. **[#4](https://github.com/evanwtf/local-llm/issues/4)** Harder tasks: the current set cannot measure code quality
    Months, not hours. Every other result is measured against it, which is why it stays visible.
-7. **[#120](https://github.com/evanwtf/local-llm/issues/120)** What ds4 server state degrades a session?
+10. **[#120](https://github.com/evanwtf/local-llm/issues/120)** What ds4 server state degrades a session?
    Trial 3 drops on both ds4-shim backends. Isolating the variable needs several controlled arms; #116 is the first.
-8. **[#96](https://github.com/evanwtf/local-llm/issues/96)** oMLX bit-exact tail continuation, TTFT 3-4 s -> 0.3 s
+11. **[#96](https://github.com/evanwtf/local-llm/issues/96)** oMLX bit-exact tail continuation, TTFT 3-4 s -> 0.3 s
    Blocked on finding the change at all -- the cited PR is a different feature. Ask, or diff releases.
 
 After these: the engine-speed queue and the rest of the backlog, in the tracker.
