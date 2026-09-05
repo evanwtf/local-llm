@@ -1202,6 +1202,9 @@ def _tiny_repo(tmp_path):
         ],
         repo,
     )
+    # ensure_pristine refuses a commit reachable from no origin/* ref, and a
+    # legacy setup_targets call runs it on this fixture.
+    run.git(["update-ref", "refs/remotes/origin/main", "HEAD"], repo)
     return repo, run.git(["rev-parse", "HEAD"], repo)
 
 
@@ -1362,3 +1365,133 @@ def test_the_status_check_takes_no_index_lock(tmp_path, monkeypatch):
     status = [a for a in seen if "status" in a]
     assert status, "the guard must ask for status"
     assert all("--no-optional-locks" in a for a in status), seen
+
+
+# --- --targets sandbox (#145) -----------------------------------------------
+
+
+def _sandbox_clone(tmp_path, repo, commit):
+    """What sync_sandbox_targets.py produces: a detached, clean clone."""
+    clone = run.SANDBOX_ROOT / repo.name
+    clone.parent.mkdir(parents=True, exist_ok=True)
+    run.git(["clone", "--quiet", "--no-hardlinks", str(repo), str(clone)], tmp_path)
+    run.git(["checkout", "--quiet", "--detach", commit], clone)
+    return clone
+
+
+def _sandbox_trial(tmp_path, repo, commit):
+    """One dry-run trial against the sandbox layout."""
+    return run.one_trial(
+        {"repo": str(repo), "base_commit": commit},
+        {
+            "name": "seam",
+            "file": "mod.py",
+            "symbol": "target_fn",
+            "tests": [],
+            "test_command": "false",
+        },
+        "seam",
+        {"model": "stub", "context_tokens": 1},
+        trial=1,
+        workdir=tmp_path / "work",
+        timeout=10,
+        dry_run=True,
+        client="claude",
+        prepare_env_first=False,
+        target_layout="sandbox",
+    )
+
+
+def test_sandbox_mode_builds_from_the_clone_and_never_stashes(tmp_path):
+    """--targets sandbox: the trial builds from sandbox/<name>, the operator's
+    checkout is never renamed, and no stash marker ever exists. The marker
+    assertion is the point -- the mode exists so the harness stops renaming
+    things under the operator."""
+    repo, commit = _tiny_repo(tmp_path)
+    _sandbox_clone(tmp_path, repo, commit)
+    row = _sandbox_trial(tmp_path, repo, commit)
+    assert row["target_layout"] == "sandbox"
+    assert row["removed_symbols"] == ["target_fn"]
+    assert (repo / "mod.py").exists(), "the configured checkout was left alone"
+    assert not run.STASH_MARKER.exists()
+    assert not run.STASH_ROOT.exists()
+
+
+def test_sandbox_mode_refuses_a_missing_clone(tmp_path):
+    repo, commit = _tiny_repo(tmp_path)
+    with pytest.raises(SystemExit, match="sync_sandbox_targets"):
+        _sandbox_trial(tmp_path, repo, commit)
+
+
+def test_sandbox_mode_refuses_an_off_commit_clone(tmp_path):
+    """A clone at any other commit is not the pinned state. Refuse and name
+    the fix rather than exporting whatever is checked out."""
+    repo, commit = _tiny_repo(tmp_path)
+    clone = _sandbox_clone(tmp_path, repo, commit)
+    (clone / "mod.py").write_text("def target_fn():\n    return 2\n")
+    run.git(["add", "-A"], clone)
+    run.git(
+        [
+            "-c",
+            "user.email=bench@local",
+            "-c",
+            "user.name=bench",
+            "commit",
+            "-q",
+            "-m",
+            "drift",
+        ],
+        clone,
+    )
+    with pytest.raises(SystemExit, match="sync_sandbox_targets"):
+        _sandbox_trial(tmp_path, repo, commit)
+
+
+def test_setup_targets_sandbox_touches_nothing_and_refuses_a_bad_clone(tmp_path):
+    """main() routes target setup through setup_targets(pairs, layout). In
+    sandbox mode it validates the clones and stops -- no marker, no notice,
+    no restore, because there is nothing to restore."""
+    repo, commit = _tiny_repo(tmp_path)
+    with pytest.raises(SystemExit, match="sync_sandbox_targets"):
+        run.setup_targets([(str(repo), commit)], "sandbox")
+    assert not run.STASH_MARKER.exists()
+    _sandbox_clone(tmp_path, repo, commit)
+    run.setup_targets([(str(repo), commit)], "sandbox")
+    assert (repo / "mod.py").exists(), "the configured checkout was left alone"
+    assert not run.STASH_MARKER.exists()
+
+
+def test_setup_targets_legacy_still_parks_the_real_checkout(tmp_path):
+    """The default is unchanged: pristine check, park, register the restore."""
+    repo, commit = _tiny_repo(tmp_path)
+    run.setup_targets([(str(repo), commit)], "legacy")
+    assert run.stash_path(repo).exists()
+    assert not repo.exists()
+    assert run.STASH_MARKER.exists()
+
+
+def test_guarded_path_questions_resolve_in_sandbox_mode(tmp_path):
+    """Nothing is parked in sandbox mode, so the tripwire's guarded_repo()
+    resolves to the configured path -- the operator's real checkout. An agent
+    that escaped the profile would have to dirty exactly that copy for the
+    tripwire to see it, which is what it watches for."""
+    repo, commit = _tiny_repo(tmp_path)
+    _sandbox_clone(tmp_path, repo, commit)
+    assert run.parked_checkout(repo) is None
+    assert run.guarded_repo(repo) == repo
+
+
+def test_the_sandbox_profile_denies_the_guessed_path(tmp_path):
+    """#145's tradeoff: nothing stands at the guessed path, so the guess must
+    fail CLOSED at the profile. In legacy mode the same path IS the worktree
+    and must stay readable. The sandbox clone is denied in both -- it is an
+    un-excised copy of the answer either way."""
+    repo, commit = _tiny_repo(tmp_path)
+    worktree = tmp_path / "work" / "seam"
+    worktree.mkdir(parents=True)
+    _profile, denied = run.sandbox_profile(worktree, repo)
+    assert str(repo) in denied
+    assert str(run.SANDBOX_ROOT) in denied
+    _profile, denied = run.sandbox_profile(repo, repo)
+    assert str(repo) not in denied
+    assert str(run.SANDBOX_ROOT) in denied

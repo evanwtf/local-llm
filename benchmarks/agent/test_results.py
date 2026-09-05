@@ -94,6 +94,43 @@ def test_new_row_starts_unexcluded_with_an_explicit_null_reason():
     assert row["exclusion_reason"] is None
 
 
+def test_new_row_labels_its_target_layout_legacy():
+    """#145: every row says which checkout it was built from. "legacy" is
+    what the harness has always done, so it is the default."""
+    assert (
+        new_row(
+            task="t",
+            backend="b",
+            client="codex",
+            trial=1,
+            model="m",
+            context_tokens=1,
+            effort=None,
+            env={},
+        )["target_layout"]
+        == "legacy"
+    )
+
+
+def test_a_sandbox_row_says_so():
+    """Legacy and sandbox rows must never pool by accident: the field travels
+    with the row from birth."""
+    assert (
+        new_row(
+            task="t",
+            backend="b",
+            client="codex",
+            trial=1,
+            model="m",
+            context_tokens=1,
+            effort=None,
+            env={},
+            target_layout="sandbox",
+        )["target_layout"]
+        == "sandbox"
+    )
+
+
 @pytest.mark.parametrize(
     "missing",
     [
