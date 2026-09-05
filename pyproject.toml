@@ -14,6 +14,11 @@ dev = ["pytest>=8.0"]
 
 [tool.pytest.ini_options]
 testpaths = ["."]
+# The sandbox holds full checkouts of the target repositories, and those are
+# real projects with real suites. Collected, they add ~500 tests that pass or
+# fail for reasons that have nothing to do with this harness -- and one of them
+# is deliberately excised mid-run, so it fails by design.
+norecursedirs = ["sandbox", ".git", "*.egg", "build", "dist", ".venv"]
 markers = [
     "integration: needs ~/git/gmail-archive at the pinned commit and uv",
     "slow: allocates real memory or takes seconds; not part of the default run",

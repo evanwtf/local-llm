@@ -33,6 +33,7 @@ documentation.
 | `report.py` | Summarise and compare measured cells, with the resolution rule applied. |
 | `session_decay.py` | Does a session get worse the longer the server runs? (#120) |
 | `stack_agent_report.py` | Read out for the #138 stack A/B: two whole stacks, four sweeps, one screen. |
+| `sync_sandbox_targets.py` | Clone the harness's own copies of the task repositories into `sandbox/`. |
 | `thermals.py` | Read this Mac's die temperatures, with a timestamp, without sudo. |
 | `tool_error_conditional.py` | Does a tool error make the NEXT tool call more likely to fail? (#112) |
 | `upstream_sweep.py` | Sweep the repositories this project depends on, in one command. |

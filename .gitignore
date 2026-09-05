@@ -15,3 +15,14 @@ __pycache__/
 # #133: the run lock is a claim on ONE machine, not a fact about the repo.
 # Syncing it would let a lock taken on the M5 Max wedge the Linux tier.
 .run-lock.json
+
+# The harness's own checkouts of the target repositories (#145).
+#
+# The agent's export is built from these, never from the operator's working
+# copies in ~/git. Before this, a run renamed ~/git/monitor aside and stood an
+# export in its place -- so the only usable checkout was one the operator had
+# no reason to know was load-bearing. On 2026-09-04 he committed in it for
+# twenty minutes and five trials recorded an escape that never happened.
+#
+# Cloned by scripts/sync_sandbox_targets.py; safe to delete and re-create.
+sandbox/
