@@ -52,7 +52,7 @@ def pytest_report_header() -> list[str]:
 
 @pytest.fixture(autouse=True)
 def _keep_the_stash_inside_the_test(request, tmp_path, monkeypatch):
-    """No test may reach the real stash, marker or notice.
+    """No test may reach the real stash, marker, notice or sandbox clones.
 
     `stash_targets` moves a directory to `run.STASH_ROOT` and `restore_targets`
     rmtrees whatever stands in its place. A test that patches only the marker
@@ -74,3 +74,7 @@ def _keep_the_stash_inside_the_test(request, tmp_path, monkeypatch):
     monkeypatch.setattr(run, "STASH_ROOT", tmp_path / "stash", raising=False)
     monkeypatch.setattr(run, "STASH_MARKER", tmp_path / "stash.json", raising=False)
     monkeypatch.setattr(run, "STASH_NOTICE", tmp_path / "NOTICE.md", raising=False)
+    # #145: sandbox/<name> holds full clones of the target repos. A test that
+    # reads the real one validates against whatever the last sync left there;
+    # a test that syncs into it writes into the operator's working tree.
+    monkeypatch.setattr(run, "SANDBOX_ROOT", tmp_path / "sandbox", raising=False)

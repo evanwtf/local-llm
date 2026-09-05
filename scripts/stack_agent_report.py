@@ -91,10 +91,10 @@ MIN_PAIRS = 10  # below this the wall endpoint is COULD NOT TELL
 def started(row: dict[str, Any]) -> dt.datetime | None:
     """Row start as naive local wall clock.
 
-    Every row carries the same -04:00 offset, and sweep-order.txt times are
-    naive wall clock from `date +%H:%M:%S`. Comparing them as naive local is
-    the only way both sides share a frame; keeping the offset would mix aware
-    and naive datetimes and raise.
+    Rows carry naive local stamps (results._now() writes none), and
+    sweep-order.txt times are naive wall clock from `date +%H:%M:%S`. Naive
+    local is the only frame both sides share; a --cut written with an offset
+    is stripped of it, so it reads as local wall clock too.
     """
     raw = row.get("started")
     if not isinstance(raw, str):

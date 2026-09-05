@@ -101,6 +101,7 @@ def new_row(
     env: dict[str, Any],
     run_position: int | None = None,
     run_arms: int | None = None,
+    target_layout: str = "legacy",
 ) -> dict[str, Any]:
     """Start a row. Both exclusion keys are set explicitly from birth."""
     return {
@@ -132,6 +133,15 @@ def new_row(
         # the order was not recorded, which is what every row before this is.
         "run_position": run_position,
         "run_arms": run_arms,
+        # #145. Which checkout a row was built from: "legacy" parks the
+        # operator's checkout and stands the export at the path the model
+        # guesses; "sandbox" builds from the harness's own clone and denies
+        # the guessed path instead. The two layouts give the agent different
+        # answers to its guess, so their pass rates are not one cohort --
+        # pooled rows would measure the harness, not the model. Default
+        # "legacy" is what every row so far is. Not in REQUIRED: rows before
+        # 2026-09-05 predate it.
+        "target_layout": target_layout,
         "excluded": False,
         "exclusion_reason": None,
     }

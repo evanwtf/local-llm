@@ -1552,6 +1552,99 @@ def restore_targets():
     return restored
 
 
+# #145: the harness's own checkouts of the target repositories, cloned by
+# scripts/sync_sandbox_targets.py into this repo's gitignored sandbox/. A batch
+# with --targets sandbox builds every export from here and renames nothing in
+# ~/git.
+SANDBOX_ROOT = HERE.parent.parent / "sandbox"
+
+
+def sandbox_checkout(repo):
+    """The harness's own clone of this repo, or None when it is not synced.
+
+    Keyed by basename like stash_path(), mirroring a configured ~/git/<name>
+    at sandbox/<name>. A full clone carries history, so it is an un-excised
+    copy of the answer -- sandbox_profile denies it.
+    """
+    clone = SANDBOX_ROOT / pathlib.Path(repo).name
+    return clone if (clone / ".git").exists() else None
+
+
+def _sandbox_commit_ok(clone, commit):
+    """The clone's HEAD, after proving it is the pinned commit.
+
+    Raises SystemExit naming the sync script when it is not. Mid-run drift can
+    only come from a re-sync under a live batch; the message says to start
+    over rather than pool rows across the two states.
+    """
+    try:
+        pinned = git(["rev-parse", f"{commit}^{{commit}}"], clone)
+    except RuntimeError:
+        raise SystemExit(
+            f"{clone} does not carry the pinned commit {commit} -- run: "
+            "uv run python scripts/sync_sandbox_targets.py"
+        ) from None
+    head = git(["rev-parse", "HEAD"], clone)
+    if head != pinned:
+        raise SystemExit(
+            f"{clone} is at {head}, but its tasks pin {pinned}. Mid-run, that "
+            "means something re-synced under a live batch -- run: uv run "
+            "python scripts/sync_sandbox_targets.py, then start the batch "
+            "again. Rows from the two states cannot be pooled."
+        )
+    return head
+
+
+def ensure_sandbox_targets(pairs):
+    """Refuse to start unless every sandbox clone exists at its pinned commit.
+
+    The clone is the only source a sandbox-mode batch builds from, so a
+    missing one, or one sitting at any other commit, produces rows pinned to
+    nothing. Refuse with the command that fixes it. Never sync from here: a
+    batch that silently re-clones a target mid-flight is a batch whose rows
+    cannot be trusted, and the same rule holds at the start -- the operator
+    runs the sync script and sees its output.
+    """
+    for repo_str, commit in pairs:
+        repo = pathlib.Path(repo_str).expanduser()
+        clone = sandbox_checkout(repo)
+        if clone is None:
+            raise SystemExit(
+                f"sandbox checkout {SANDBOX_ROOT / repo.name} is missing for "
+                f"{repo} -- run: uv run python scripts/sync_sandbox_targets.py"
+            )
+        head = _sandbox_commit_ok(clone, commit)
+        logger.info("sandbox target ok: %s at %s", clone, head[:12])
+
+
+def setup_targets(pairs, layout):
+    """Put the source checkouts where the trials will build from them.
+
+    legacy (#54): prove each real checkout is clean and at its pinned commit,
+    park it under STASH_ROOT, and stand the export at the configured path --
+    the guess the model makes is SATISFIED with the excised tree.
+
+    sandbox (#145): prove each sandbox/<name> clone is at its pinned commit,
+    and never touch the operator's checkouts. No marker, no notice, no
+    restore -- there is nothing to restore, which is the point. Nothing stands
+    at the guessed path, so the profile denies it instead and the guess fails
+    closed. That is a behaviour change the pass rate can see; measure it
+    before making sandbox the default.
+    """
+    if layout == "sandbox":
+        ensure_sandbox_targets(pairs)
+        return
+    for repo, commit in pairs:
+        ensure_pristine(repo, commit)
+
+    # #54: stand the export where the model expects the repo to be, so a
+    # guessed path reaches the excised tree instead of an intact one. The real
+    # checkouts move under STASH_ROOT until the batch ends.
+    restore_targets()  # in case a previous run died mid-batch
+    stash_targets(pairs)
+    atexit.register(restore_targets)
+
+
 def build_checkout(repo, commit, dest):
     """Materialise `commit` as a standalone directory with no link to `repo`.
 
@@ -1788,6 +1881,12 @@ def sandbox_profile(worktree, repo):
         # agent can read the file where it lives.
         STASH_MARKER,
         STASH_NOTICE,
+        # #145: the harness's own clones of the target repos, detached at the
+        # pinned commit with full history -- another un-excised copy of the
+        # answer, parked inside the one tree that must stay readable
+        # (~/git/local-llm, see above). Denying the subdirectory is safe: the
+        # cwd OpenCode lstats is benchmarks/agent, not sandbox/.
+        SANDBOX_ROOT,
     ]
     for path in candidates:
         path = str(path)
@@ -1969,23 +2068,46 @@ def one_trial(
     run_position=None,
     run_arms=None,
     prepare_env_first=True,
+    target_layout="legacy",
 ):
     target = task_target(cfg, task)
     repo = pathlib.Path(target["repo"]).expanduser()
     suffix = "" if client == "claude" else f"-{client}"
     name = f"{task['name']}-{backend_name}{suffix}-{trial}"
-    # #54: while the real checkout is parked -- STASH_ROOT, or the legacy
-    # <name>-real sibling -- the export stands in its place, so the path a
-    # model guesses holds the excised tree. Trials are serial, so one export at
-    # a time is fine.
-    stashed_source = parked_checkout(repo)
     is_script = task.get("kind") == "script"
-    # A script task starts from an empty directory: no repo, so no export, no
-    # stash, no excision and nothing to leak. It never stands in the guessed
-    # path, because there is no answer anywhere on disk to find.
-    worktree = (
-        workdir / name if is_script else (repo if stashed_source else workdir / name)
-    )
+    # Where the trial builds from, and where the agent works.
+    #
+    # legacy (#54): the real checkout is parked -- STASH_ROOT, or the legacy
+    # <name>-real sibling -- and the export stands at the path the model
+    # guesses, so the guess is SATISFIED with the excised tree. The worktree
+    # is that path; the source differs from it only while parked.
+    #
+    # sandbox (#145): nothing is renamed and nothing stands at the guessed
+    # path. The export builds from the harness's own sandbox/<name> clone into
+    # the workdir, and the profile DENIES the configured path -- the guess
+    # fails closed. The stash machinery is not used at all.
+    if target_layout == "sandbox":
+        source = sandbox_checkout(repo)
+        if source is None and not is_script:
+            raise SystemExit(
+                f"sandbox checkout {SANDBOX_ROOT / repo.name} is missing for "
+                f"{repo} -- run: uv run python scripts/sync_sandbox_targets.py"
+            )
+        if source is not None:
+            # Per-trial, not only at setup: a re-sync under a live batch moves
+            # the clone, and building from both states would pool rows that
+            # were never measuring the same thing.
+            _sandbox_commit_ok(source, target["base_commit"])
+        worktree = workdir / name
+    else:
+        stashed_source = parked_checkout(repo)
+        source = stashed_source or repo
+        # A script task starts from an empty directory: no repo, so no export,
+        # no stash, no excision and nothing to leak. It never stands in the
+        # guessed path, because there is no answer anywhere on disk to find.
+        worktree = (
+            workdir / name if is_script else (repo if stashed_source else workdir / name)
+        )
     # results.new_row is the only place a row is shaped. It stamps the schema
     # version and sets both exclusion keys explicitly -- see results.py for why
     # "absent" must never be allowed to mean "not excluded".
@@ -2000,6 +2122,7 @@ def one_trial(
         env=versions or {},
         run_position=run_position,
         run_arms=run_arms,
+        target_layout=target_layout,
     )
 
     # A previous run killed mid-flight leaves its directory behind. Clear it so
@@ -2020,11 +2143,11 @@ def one_trial(
         result["removed_lines"] = 0
         result["removed_symbols"] = []
     else:
-        # The export is materialised FROM the parked real checkout, INTO the
-        # path the model guesses. `source` differs from `repo` only while
-        # stashed.
+        # The export is materialised FROM the source checkout, INTO the
+        # worktree: the parked real checkout at the guessed path (legacy), or
+        # the sandbox clone into the workdir (#145).
         build_checkout(
-            stashed_source or repo,
+            source,
             target["base_commit"],
             worktree,
         )
@@ -2378,6 +2501,18 @@ def main():
         "that is answering in a degraded mode -- the failure preflight cannot see. "
         "Skip it only when you are deliberately measuring a broken backend.",
     )
+    p.add_argument(
+        "--targets",
+        choices=("legacy", "sandbox"),
+        default="legacy",
+        help="where the trial checkouts come from. legacy (#54): the "
+        "operator's checkout is parked aside and the export stands at the "
+        "path the model guesses. sandbox (#145): the export builds from this "
+        "repo's sandbox/<name> clones (sync with scripts/"
+        "sync_sandbox_targets.py first), nothing in ~/git is renamed, and the "
+        "guessed path is denied at the sandbox profile. Sandbox changes what "
+        "the agent sees when it guesses -- measure before making it default.",
+    )
     args = p.parse_args()
 
     provenance.configure()
@@ -2416,43 +2551,60 @@ def main():
     # Every repo any selected task uses -- not just the file-level default.
     # A second target repo that is dirty, or missing its pinned commit, must
     # stop the run for the same reason the first one does.
-    targets = {}
-    for t in tasks:
-        got = task_target(cfg, t)
-        targets[(got["repo"], got["base_commit"])] = got
-    for (repo_str, commit), got in targets.items():
-        repo = pathlib.Path(repo_str).expanduser()
-        dirty_t = run(["git", "status", "--porcelain"], cwd=repo).stdout.strip()
-        if dirty_t:
+    #
+    # All of that reads the OPERATOR's checkouts, so it is legacy-only. Under
+    # #145 their state is not the run's business; the sandbox clones are
+    # validated instead, before the smoke gate spends a minute on a batch that
+    # cannot start.
+    pairs = sorted(
+        {
+            (task_target(cfg, t)["repo"], task_target(cfg, t)["base_commit"])
+            for t in tasks
+        }
+    )
+    if args.targets == "sandbox":
+        logger.info("target layout: sandbox (#145) -- ~/git is never renamed")
+        ensure_sandbox_targets(pairs)
+    else:
+        targets = {}
+        for t in tasks:
+            got = task_target(cfg, t)
+            targets[(got["repo"], got["base_commit"])] = got
+        for (repo_str, commit), got in targets.items():
+            repo = pathlib.Path(repo_str).expanduser()
+            dirty_t = run(["git", "status", "--porcelain"], cwd=repo).stdout.strip()
+            if dirty_t:
+                raise SystemExit(
+                    f"reference repo {repo} is dirty -- refusing to run.\n{dirty_t}\n"
+                    "Commit, stash or discard these changes first. A benchmark that "
+                    "starts from an unknown state measures nothing."
+                )
+            if (
+                run(
+                    ["git", "cat-file", "-e", f"{commit}^{{commit}}"], cwd=repo
+                ).returncode
+                != 0
+            ):
+                raise SystemExit(f"base_commit {commit} not found in {repo}")
+            logger.info("target ok: %s @ %s via %r", repo, commit, got["test_command"])
+
+        repo = pathlib.Path(cfg["repo"]).expanduser()
+        dirty = run(["git", "status", "--porcelain"], cwd=repo).stdout.strip()
+        if dirty:
             raise SystemExit(
-                f"reference repo {repo} is dirty -- refusing to run.\n{dirty_t}\n"
+                f"reference repo {repo} is dirty -- refusing to run.\n"
+                f"{dirty}\n"
                 "Commit, stash or discard these changes first. A benchmark that "
                 "starts from an unknown state measures nothing."
             )
         if (
-            run(["git", "cat-file", "-e", f"{commit}^{{commit}}"], cwd=repo).returncode
+            run(
+                ["git", "cat-file", "-e", f"{cfg['base_commit']}^{{commit}}"], cwd=repo
+            ).returncode
             != 0
         ):
-            raise SystemExit(f"base_commit {commit} not found in {repo}")
-        logger.info("target ok: %s @ %s via %r", repo, commit, got["test_command"])
-
-    repo = pathlib.Path(cfg["repo"]).expanduser()
-    dirty = run(["git", "status", "--porcelain"], cwd=repo).stdout.strip()
-    if dirty:
-        raise SystemExit(
-            f"reference repo {repo} is dirty -- refusing to run.\n"
-            f"{dirty}\n"
-            "Commit, stash or discard these changes first. A benchmark that "
-            "starts from an unknown state measures nothing."
-        )
-    if (
-        run(
-            ["git", "cat-file", "-e", f"{cfg['base_commit']}^{{commit}}"], cwd=repo
-        ).returncode
-        != 0
-    ):
-        raise SystemExit(f"base_commit {cfg['base_commit']} not found in {repo}")
-    logger.info("reference repo clean, base_commit %s present", cfg["base_commit"])
+            raise SystemExit(f"base_commit {cfg['base_commit']} not found in {repo}")
+        logger.info("reference repo clean, base_commit %s present", cfg["base_commit"])
 
     workdir = pathlib.Path(os.environ.get("TMPDIR", "/tmp")) / "agent-bench"
     workdir.mkdir(parents=True, exist_ok=True)
@@ -2518,22 +2670,9 @@ def main():
     # #54: every target at a known commit that exists upstream, with no strays,
     # before a single trial runs. A benchmark that starts from an unknown state
     # measures nothing -- and an agent has already damaged a checkout it was
-    # never pointed at.
-    pairs = sorted(
-        {
-            (task_target(cfg, t)["repo"], task_target(cfg, t)["base_commit"])
-            for t in tasks
-        }
-    )
-    for repo, commit in pairs:
-        ensure_pristine(repo, commit)
-
-    # #54: stand the export where the model expects the repo to be, so a
-    # guessed path reaches the excised tree instead of an intact one. The real
-    # checkouts move under STASH_ROOT until the batch ends.
-    restore_targets()  # in case a previous run died mid-batch
-    stash_targets(pairs)
-    atexit.register(restore_targets)
+    # never pointed at. #145: or prove the sandbox clones instead, and leave
+    # the operator's checkouts alone.
+    setup_targets(pairs, args.targets)
 
     logger.info(
         "%d task(s) x %d backend(s) x %d client(s) x %d trial(s)",
@@ -2596,6 +2735,7 @@ def main():
                         run_position=position,
                         run_arms=len(ordered),
                         prepare_env_first=not args.no_prepare_env,
+                        target_layout=args.targets,
                     )
                     # Inside the client loop. Outside it, only the last
                     # client's row survives and half the run vanishes.
