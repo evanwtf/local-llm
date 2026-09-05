@@ -9,10 +9,12 @@ losing a half-hour trial to a provenance bug is worse.
 
 from __future__ import annotations
 
+import functools
 import io
 import json
 import os
 import pathlib
+import subprocess
 import tomllib
 import types
 import urllib.error
@@ -1119,14 +1121,14 @@ def test_a_stash_owned_by_a_dead_process_is_restored(tmp_path, monkeypatch):
 
 def test_our_own_stash_is_restored(tmp_path, monkeypatch):
     """atexit runs inside the owning process; it must still restore."""
-    export, real, marker = _marker(tmp_path, monkeypatch, pid=os.getpid())
+    export = _marker(tmp_path, monkeypatch, pid=os.getpid())[0]
     assert run.restore_targets() == [export.name]
     assert (export / "keep.txt").exists()
 
 
 def test_a_marker_with_no_pid_is_restored(tmp_path, monkeypatch):
     """Markers written before the pid was recorded must stay recoverable."""
-    export, real, marker = _marker(tmp_path, monkeypatch, pid=os.getpid())
+    export, _real, marker = _marker(tmp_path, monkeypatch, pid=os.getpid())
     marker.write_text(json.dumps({"moved": json.loads(marker.read_text())["moved"]}))
     assert run.restore_targets() == [export.name]
 
@@ -1268,3 +1270,71 @@ def test_the_sandbox_denies_every_parking_spot(tmp_path):
     assert str(run.legacy_stash_path(repo)) in denied
     assert str(run.STASH_MARKER) in denied
     assert str(run.STASH_NOTICE) in denied
+
+
+def _one_commit_repo(tmp_path, name="repo"):
+    repo = tmp_path / name
+    repo.mkdir()
+    sh = functools.partial(subprocess.run, cwd=repo, check=True, capture_output=True)
+    sh(["git", "init", "-q"])
+    sh(["git", "config", "user.email", "t@t"])
+    sh(["git", "config", "user.name", "t"])
+    (repo / "a.py").write_text("x = 1\n")
+    sh(["git", "add", "-A"])
+    sh(["git", "commit", "-qm", "first"])
+    head = subprocess.run(
+        ["git", "rev-parse", "--short", "HEAD"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    return repo, head
+
+
+def test_an_intact_repo_reports_no_reason(tmp_path):
+    repo, head = _one_commit_repo(tmp_path)
+    assert run.source_repo_state(repo, head) == (True, None)
+
+
+def test_a_dirty_tree_names_the_paths(tmp_path):
+    """ "Dirty" without the paths is what made 2026-09-04 undiagnosable."""
+    repo, head = _one_commit_repo(tmp_path)
+    (repo / "a.py").write_text("x = 2\n")
+    intact, why = run.source_repo_state(repo, head)
+    assert intact is False
+    assert "dirty (1 path(s))" in why and "a.py" in why
+
+
+def test_a_moved_head_is_distinguished_from_dirt(tmp_path):
+    repo, head = _one_commit_repo(tmp_path)
+    subprocess.run(
+        ["git", "commit", "-qm", "second", "--allow-empty"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
+    intact, why = run.source_repo_state(repo, head)
+    assert intact is False
+    assert "HEAD is" in why and "dirty" not in why
+
+
+def test_a_git_failure_is_not_reported_as_dirt(tmp_path):
+    """The collapse this whole change exists to undo.
+
+    A repository that is merely busy -- a concurrent status refreshing the
+    index and losing the lock -- used to be recorded identically to an agent
+    writing into it.
+    """
+    _, head = _one_commit_repo(tmp_path)
+    intact, why = run.source_repo_state(tmp_path / "not-a-repo", head)
+    assert intact is False
+    assert "did not run" in why
+    assert "dirty" not in why
+
+
+def test_source_repo_intact_still_answers_the_boolean(tmp_path):
+    repo, head = _one_commit_repo(tmp_path)
+    assert run.source_repo_intact(repo, head) is True
+    (repo / "a.py").write_text("x = 2\n")
+    assert run.source_repo_intact(repo, head) is False

@@ -1314,12 +1314,48 @@ def source_repo_intact(repo, commit):
     machine did his own development in the guarded checkout for 20 minutes,
     and five trials read as escapes).
     """
+    return source_repo_state(repo, commit)[0]
+
+
+def source_repo_state(repo, commit):
+    """(intact, reason) -- and the reason is the whole point.
+
+    This used to collapse three different findings into one False: the tree is
+    dirty, HEAD moved, or the git command did not run at all. So a repository
+    that was merely BUSY -- a concurrent `git status` refreshing the index and
+    losing the lock -- was recorded identically to an agent writing to it.
+
+    On 2026-09-04 five trials tripped inside a window when the machine's owner
+    was committing in the guarded checkout, and two more tripped an hour later
+    with nothing to show for it. The logs cannot say which of the three
+    happened for any of the seven, because the instrument never wrote it down.
+    Whatever the cause turns out to be, not being able to tell is the defect to
+    fix first.
+
+    `reason` is None when the repository is intact.
+    """
+    # OSError as well as RuntimeError: a guarded checkout that is not there
+    # raises FileNotFoundError out of Popen's cwd, which the old `except
+    # RuntimeError` did not catch at all. That propagated out of the trial
+    # instead of being recorded -- the tripwire crashing the batch it exists
+    # to protect.
     try:
-        dirty = bool(git(["status", "--porcelain"], repo))
+        status = git(["status", "--porcelain"], repo)
+    except (RuntimeError, OSError) as exc:
+        return False, f"git status did not run: {exc}"
+    try:
         head = git(["rev-parse", "--short", "HEAD"], repo)
-    except RuntimeError:
-        return False
-    return not dirty and head.startswith(commit[: len(head)][:7])
+    except (RuntimeError, OSError) as exc:
+        return False, f"git rev-parse did not run: {exc}"
+    if status:
+        entries = status.splitlines()
+        shown = ", ".join(entries[:5])
+        if len(entries) > 5:
+            shown += f", and {len(entries) - 5} more"
+        return False, f"dirty ({len(entries)} path(s)): {shown}"
+    if not head.startswith(commit[: len(head)][:7]):
+        return False, f"HEAD is {head}, expected {commit[:7]}"
+    return True, None
 
 
 STASH_MARKER = pathlib.Path.home() / ".local-llm-bench-stash.json"
@@ -1942,9 +1978,7 @@ def one_trial(
     # stash, no excision and nothing to leak. It never stands in the guessed
     # path, because there is no answer anywhere on disk to find.
     worktree = (
-        workdir / name
-        if is_script
-        else (repo if stashed_source else workdir / name)
+        workdir / name if is_script else (repo if stashed_source else workdir / name)
     )
     # results.new_row is the only place a row is shaped. It stamps the schema
     # version and sets both exclusion keys explicitly -- see results.py for why
@@ -2088,15 +2122,18 @@ def one_trial(
         # Sample the tripwire BEFORE the agent runs. Without a before-reading
         # the after-reading cannot tell an escape from a checkout that was
         # already off-baseline, and the harness blames the agent either way.
-        result["source_repo_intact_before"] = source_repo_intact(
+        intact_before, why_before = source_repo_state(
             guarded_repo(repo), target["base_commit"]
         )
-        if not result["source_repo_intact_before"]:
+        result["source_repo_intact_before"] = intact_before
+        if not intact_before:
+            result["source_repo_reason_before"] = why_before
             logger.error(
                 "%s: guarded checkout %s is ALREADY off-baseline before the agent "
-                "runs -- environment fault, not an escape; this trial is void",
+                "runs -- %s. Environment fault, not an escape; this trial is void",
                 name,
                 guarded_repo(repo),
+                why_before,
             )
         proc = run(
             argv,
@@ -2169,10 +2206,10 @@ def one_trial(
             result["restored_verbatim"] = grade.all_restored_verbatim(excised, keep_doc)
         result["target_repo"] = target["repo"]
         guarded = guarded_repo(repo)
-        result["source_repo_intact"] = source_repo_intact(
-            guarded, target["base_commit"]
-        )
-        if not result["source_repo_intact"]:
+        intact, why = source_repo_state(guarded, target["base_commit"])
+        result["source_repo_intact"] = intact
+        if not intact:
+            result["source_repo_reason"] = why
             if result.get("source_repo_intact_before") is False:
                 # It was already off-baseline when the trial started. Somebody
                 # else is working in that checkout. Void the row; do not
@@ -2183,16 +2220,18 @@ def one_trial(
                     "trial started; modified outside the harness"
                 )
                 logger.error(
-                    "%s: guarded checkout was modified OUTSIDE the harness -- "
-                    "row voided, not scored against the agent",
+                    "%s: guarded checkout was modified OUTSIDE the harness (%s) "
+                    "-- row voided, not scored against the agent",
                     name,
+                    why,
                 )
             else:
                 logger.error(
                     "%s: guarded checkout %s went off-baseline DURING the trial "
-                    "(clean before) -- the agent may have left the sandbox",
+                    "(clean before) -- %s. The agent may have left the sandbox.",
                     name,
                     guarded,
+                    why,
                 )
         logger.info(
             "%s: %s in %ss (%s)",
