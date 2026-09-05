@@ -22,6 +22,140 @@ picks in `RECOMMENDATIONS.md`, and the current queue in `NEXT.md`.
 
 ---
 
+**2026-09-05, overnight. Three checks that could not fail, and a screen that
+finally could.**
+
+The #138 stack screen ran twice. The first four sweeps are **void**, and none
+of the four reasons is about the two stacks:
+
+- `harness_dirty` was set on essentially **every row ever recorded**. `run.py`
+  asked raw `git status --porcelain`, which counts `results.jsonl` -- a file
+  every run appends to. `stack_agent_report` voids a read-out when any row
+  carries the flag, so the screen was going to void itself whatever the arms
+  did. `provenance.head()` had documented the correct rule for months; only
+  its consumer disagreed.
+- **The arm order never alternated.** `stack_agent_ab.sh` ran new-then-old
+  every sweep, so the old arm was always second on a hotter machine -- the
+  #130 bias this script's own header warns about. `decode_ab.sh` has
+  alternated per rep since #130; this never did.
+- **Four different `harness_head` values across four sweeps.** I was
+  committing to the repo the batch was executing from, while it executed.
+  new-sweep1 ran at `563e94b` against old-sweep1 at `19958b1`: the two arms of
+  one sweep were not running the same code.
+- **Seven trials tripped the sandbox tripwire**, five inside a window when the
+  machine's owner was doing his own development in the guarded checkout. Four
+  of those five had passed their tests.
+
+That last one is the one worth keeping. #54 replaces `~/git/monitor` with an
+excised export for the duration of a run, so the only checkout that looks
+usable is the one named `-real`, sitting in the operator's working directory
+under a name that reads like an ordinary repository. He had no way to know it
+was load-bearing. **The export has to keep the guessable path; the real
+checkout does not** -- it now parks under `~/.local-llm-bench/stash/`, and a
+run leaves `~/git/BENCHMARK-RUN-IN-PROGRESS.md` naming which directories are
+exports. The notice sits beside them, never inside one: a file inside would
+tell the agent it is being benchmarked.
+
+The tripwire itself had collapsed three findings into one `False` -- dirty,
+HEAD moved, or the git command never ran. A repository that was merely *busy*
+was recorded identically to an agent writing into it. It returns
+`(intact, reason)` now, and a row that was already off-baseline before the
+trial is **voided rather than scored against the agent**.
+
+**The re-run passes.** Same engine trees, same weights, same client; only the
+harness changed:
+
+    void checks: all pass
+    new arm  30/30 passes, 0 deaths
+    old arm  27/30 passes, 3 deaths      (control floor 25/30)
+    wall     ratio 0.56 (95% CI 0.42-0.75)  median 0.66  win/loss/tie 12/1/1
+
+**SCREEN PASS -- book the paired 3+3.** It stays a screen: n=30/arm resolves
+~18-27 pp of pass rate, the wall ratio landed far outside that band, and
+promoting a screen to a superiority claim because the number came back large
+is what pre-registration exists to prevent. Engine and quant move together in
+both arms, so this says the *stack* is better, not which half.
+
+The clearest measure of what the tripwire cost, same arm both nights:
+
+    old-sweep1   void run: 13 passed, 5 trips -> scored 9
+                 re-run:   13 passed, 0 trips -> 13
+    control      void run: 23/30, failed
+                 re-run:   27/30, passes
+
+Getting a number out of the re-run required fixing a fourth broken check.
+`sweep-order.txt` is appended when a sweep **ends**; `sweep_windows()` read
+that time as the sweep's **start**, so every window held the next sweep's
+rows. 45 of 60 rows fit no window and the control read 14/30 against a true
+27/30. The producer writes `tag start finish` now, and directories with one
+time are read as finish times so existing runs still bucket correctly.
+
+Four checks, three of which were guaranteed to fire or guaranteed to mislead
+before any data reached them. **A screen that cannot pass is not a screen.**
+
+**#143, the ds4#964 re-test.** Four runs per arm, both trees built in their
+own worktree:
+
+    decode   pr964/main  1.187 (+18.7%)  spread 1.5 pp, 8/8 frontiers
+    prefill  pr964/main  0.990  (-1.0%)  spread 0.9 pp, 2/8 frontiers
+
+Decode is unchanged from #118's +17.6% on the previous head. The claimed
+16.6-26.0% prefill gain does not appear. Two things we could not say: the PR
+claims bit-exactness and this harness had no output comparison at all, and
+`ds4-bench` prefills the **step increment** rather than the full context, so
+`prefill_tokens` is 2048 at every one of our frontiers. Our prefill number is
+about small increments and may not be the operation the PR title describes.
+Both stated on the issue rather than left as silence.
+
+`scripts/bitexact_ab.py` closes the first gap. ds4 already had the answer --
+`--dump-logprobs` writes per-step argmax and top-k with no sampler and no seed
+in the loop -- so the work was wiring, not invention. Its honest limit is
+printed on every report: both writers use `%.9g`, so *identical* means
+identical at nine significant digits, not to the last ulp.
+
+**And the finding that puts all of the above in question.** The morning sweep
+surfaced `ivanfioravanti/ds4` `fix/m5-tensor-drift` (`a11bf74`, 2026-09-02),
+measured on an M5 Max with GLM-5.3-Flash-Q2. Reproduced here:
+
+    worst_rms=1.38592  worst_max_abs=7.26952     (his: 1.39, 7.27)
+    short_reasoning_plain  rms=0                 bit-identical
+    long_code_audit    greedy token mismatch step=0  ref=785 cand=1782
+
+ds4's automatic Metal 4 TensorOps route drifts from the reference kernels by
+whole logit units. Short prompts are exact; **long prompts flip the first
+sampled token**, and one failing case is a code audit -- the shape of the
+agent suite. All four of our ds4 arms run the route, there is no opt-out env
+var in those builds, and preflight has been logging `Metal tensor API is on`
+at the head of every run without anyone reading it as a warning. Filed as
+#149. The #138 comparison survives because both arms ran the same route, but
+no ds4 Metal quality number here should be called exact until the route is
+recorded per row and gated in preflight.
+
+Smaller things that landed, each because it had already cost something:
+
+- **`ruff format` was rewriting the task prompts.** ruff 0.16 formats the
+  Python block inside the generated `PROMPTS.md`, turning
+  `reverse_string('hello')` into double quotes, which `gen_prompts.py` never
+  emits. The prompt *is* the task. This repo had no ruff config at all; it has
+  one now, excluding that file and configuring nothing else.
+- **A test was writing into the operator's home.** It patched the stash marker
+  but not the rename destination. Worse than the litter: `restore_targets()`
+  rmtrees whatever stands in an export's place, so running the suite during a
+  live batch aimed that at his repositories. An autouse fixture redirects the
+  root, marker and notice for every test in the package.
+- `--require-harness-head` pins the harness for a comparative run and refuses
+  a moved or dirty tree. Its first version refused on *any* uncommitted code,
+  which would have blocked every multi-run A/B, because a run writes its own
+  output directory inside the tree.
+- The tripwire stopped writing to the repository it audits
+  (`--no-optional-locks`). Committed as hygiene, not as a fix: a held
+  `index.lock` does **not** make `git status --porcelain` fail, measured
+  before committing, so the theory that lock contention explained the seven
+  trips is wrong and the test written for it was deleted rather than kept as a
+  test that asserts nothing.
+
+---
+
 **2026-09-04, evening. The build we publish is the one its author withdrew (#138).**
 
 `ivanfioravanti/Qwen3.8-Flash-Next-DS4-Q4` replaced its Q4_0 routed-expert

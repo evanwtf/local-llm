@@ -1,0 +1,146 @@
+# grok sweep
+# requested window: last 24 hours
+# written:  2026-09-05T11:13:46Z  (local: 2026-09-05 07:13:46 EDT)
+# query:    Search X for posts and replies from @antirez, @ivanfioravanti, @awnihannun, @Prince_Canuma, @ddalcu, @TheDavidTai, @adamlawi, @trueimage, @runsonai, @Beamsters1 in the last 24 hours about local LLM inference on Apple Silicon: MLX, Metal kernels, llama.cpp, ds4/DeepSeek4, Qwen3.8-Flash-Next, GLM-5.3-Flash, quantization recipes, MTP/speculative decoding, prefill or prefix caching, agent coding benchmarks. For EVERY item give the post URL and a UTC timestamp. Do not invent posts.
+
+I'll search those accounts on X for the last 24 hours and only report posts I can verify, with a URL and UTC timestamp for each. First I'll check the project's source-watch rules so the sweep matches how this repo does it.I'll pull posts from those accounts in the last 24 hours, then verify each URL and timestamp before reporting.The first pass hit the 10-post cap on several accounts. I'll paginate those feeds, then filter to Apple Silicon inference and verify each post.I'll verify the on-topic posts against the source, then fill in parent-thread context for a few remaining replies.I'll pull the full text of a few truncated posts so the URLs and numbers are complete.Window: **2026-09-04 11:14 UTC → 2026-09-05 11:14 UTC**. Every item below was checked with `scripts/verify_posts.py` (47 confirmed, 0 missing). Nothing here is invented.
+
+What matters on this machine: Ivan published a **Q4_K imatrix Qwen3.8-Flash-Next** build for DwarfStar, with M5 Max numbers. On a flight in Low Power he measured **MTPLX 25 t/s vs ds4 18 t/s**, and said ds4 chat still has no MTP. Beamsters posted **46–50 tok/s at 256–374k context** on mlx-serve on an M5 Max 128 GB. runsonai posted an oMLX recipe on a Mac Studio that moved prefill **850 → 1007 tok/s** and code decode **31 → 62**, then **70 tok/s**.
+
+---
+
+## @antirez
+
+One on-topic reply. Other posts in the window were about Astra / ARC-AGI, not local inference.
+
+| UTC | kind | URL | text |
+|---|---|---|---|
+| 2026-09-04T12:52:02Z | reply | https://x.com/antirez/status/2095857417028301178 | “Harness used? Thanks” — reply to @kyfriedfella running **local GLM-5.3 4-bit with vision via DwarfStar on a 256 GB M3 Ultra** (Halo 3 one-shot, ~1.5 h, ~84% memory). Follow-up from jake: Hermes CLI. |
+
+---
+
+## @ivanfioravanti
+
+Travel / Astra / Hugging Face posts omitted. On-topic items:
+
+| UTC | kind | URL | text |
+|---|---|---|---|
+| 2026-09-04T11:15:32Z | post | https://x.com/ivanfioravanti/status/2095833132217893052 | **Qwen 3.8 Next Flash in DwarfStar.** @kernelpool kernel is faster but PLE are all in memory; Q4_0 routed experts is faster but less accurate; will re-upload a Q4_K imatrix. Prefers ds4f vision exp as the local model; plus is that Qwen 3.8 will run on 64 GB. KernelPool branch: https://github.com/kernelpool/ds4/tree/qwen4-exp |
+| 2026-09-04T11:16:07Z | reply | https://x.com/ivanfioravanti/status/2095833280075403527 | “This model architecture is amazing! **QSA is really working, at least on speed.**” |
+| 2026-09-04T11:28:27Z | reply | https://x.com/ivanfioravanti/status/2095836385651433522 | 64 GB will become the entry-level machine after the RAM shortage. |
+| 2026-09-04T11:34:53Z | reply | https://x.com/ivanfioravanti/status/2095838003327389756 | “Nice one!” (same DwarfStar thread, to @ddalcu) |
+| 2026-09-04T11:56:28Z | post | https://x.com/ivanfioravanti/status/2095843433394962455 | Quotes **MTPLX v2.11**. Will use it to merge two Qwen 3.8 Flash kernels on DwarfStar and try to beat speed and quality. |
+| 2026-09-04T12:52:21Z | reply | https://x.com/ivanfioravanti/status/2095857500364951778 | “DwarfStar is on GGUF style. MLX is catching up… complex quantization schemes were not available, but community is pushing on this!” |
+| 2026-09-04T12:54:49Z | reply | https://x.com/ivanfioravanti/status/2095858119758721155 | Hopes plane noise will cover Mac fans (MTPLX / kernel-merge thread). |
+| 2026-09-04T12:58:06Z | reply | https://x.com/ivanfioravanti/status/2095858944333758521 | “Top!” (same thread) |
+| 2026-09-04T12:58:53Z | reply | https://x.com/ivanfioravanti/status/2095859141369569723 | “Incredible result!” — reply to TheDavidTai’s **2.5x mlxfast** post. |
+| 2026-09-04T13:59:51Z | reply | https://x.com/ivanfioravanti/status/2095874485467348995 | **Q4_K imatrix routed experts on M5 Max and M3 Ultra.** Merged work: https://github.com/ivanfioravanti/ds4-metal/tree/qwen3.8-flash-next — weights: https://huggingface.co/ivanfioravanti/Qwen3.8-Flash-Next-DS4-Q4 Credits @kernelpool, @ddalcu, @Spangler3000. |
+| 2026-09-04T14:04:32Z | reply | https://x.com/ivanfioravanti/status/2095875664196853919 | “Let's keep pushing Local AI frontier ahead, step by step!” |
+| 2026-09-04T14:20:04Z | reply | https://x.com/ivanfioravanti/status/2095879574898810882 | On whether the Q4_K build will fit in 64 GB with good quality: “I bet yes!!! I had no time to test! But I’m confident.” |
+| 2026-09-04T17:28:44Z | reply | https://x.com/ivanfioravanti/status/2095927051152670784 | “Model type in the config json is **qwen4_exp**” |
+| 2026-09-05T06:55:29Z | post | https://x.com/ivanfioravanti/status/2096130078728167801 | Flight test, **Qwen 3.8 Flash Next on M5 Max in Low Power.** ds4 chat has no MTP. **MTPLX 25 t/s, DS4 18 t/s.** |
+
+---
+
+## @awnihannun
+
+No on-topic posts. The only post in the window was “Congrats!” to Pedro Cuenca on Hugging Face / NVIDIA (https://x.com/awnihannun/status/2095942166023635143, 2026-09-04T18:28:47Z). That is not Apple Silicon inference.
+
+---
+
+## @Prince_Canuma
+
+| UTC | kind | URL | text |
+|---|---|---|---|
+| 2026-09-04T15:39:44Z | reply | https://x.com/Prince_Canuma/status/2095899620400312411 | Asked “mlx-vlm any time soon?” — “**Already on main.**” |
+
+Other posts in the window were Hugging Face / NVIDIA quotes, not inference.
+
+---
+
+## @ddalcu
+
+| UTC | kind | URL | text |
+|---|---|---|---|
+| 2026-09-04T11:26:37Z | reply | https://x.com/ddalcu/status/2095835924974219397 | Few people have 96 GB+. Target 24/32/48/64 GB. Intelligence per GB ranking: **LFM 2.5 > Qwen 9B/Gemma 12b > Gemma 26 > Qwen 27 > Qwen next > DS4F > GLM** |
+| 2026-09-04T11:34:19Z | reply | https://x.com/ddalcu/status/2095837860637098367 | Steam VRAM chart in the same thread (image). |
+| 2026-09-04T14:05:44Z | reply | https://x.com/ddalcu/status/2095875965507305745 | iOS Jetsam / MLX Chat: game-mode entitlements `.increased-memory-limit` and `.extended-virtual-addressing` get about **60% of device RAM**. |
+| 2026-09-04T14:18:25Z | reply | https://x.com/ddalcu/status/2095879159239123449 | On Ivan’s Q4_K build: will it fit in **64 GB** with good quality? “GGUF Kernels and iMatrix tells me yes. If it can match the 4-8 mixed quality would be amazing.” |
+
+---
+
+## @TheDavidTai
+
+Hosted Astra / Fable chatter omitted.
+
+| UTC | kind | URL | text |
+|---|---|---|---|
+| 2026-09-04T11:59:23Z | post | https://x.com/TheDavidTai/status/2095844169994604868 | Quotes MTPLX v2.11. “Casually processing a 200k pull request in a day! Enjoy the flash next speed up. I might do some **bare speed or ANE** runs later.” |
+| 2026-09-04T12:09:44Z | reply | https://x.com/TheDavidTai/status/2095846772811948372 | TTFT drop is understated; still a bit long at 256 context. |
+| 2026-09-04T12:12:25Z | post | https://x.com/TheDavidTai/status/2095847448107438300 | “Just hit the **2.5x speed up** on https://www.yukon.org/mlxfast … I think we can go even further.” |
+| 2026-09-04T13:05:16Z | reply | https://x.com/TheDavidTai/status/2095860749516345419 | To @norpadon (uzu / trymirai): tree drafting is **very expensive with MTP and pretty much never worth it**. |
+| 2026-09-04T13:14:35Z | reply | https://x.com/TheDavidTai/status/2095863093301817535 | Asks if the tree-draft method will stay proprietary. |
+| 2026-09-04T13:18:47Z | reply | https://x.com/TheDavidTai/status/2095864149880471685 | Tree validation needs excess compute; may fit a Spark (more compute, worse bandwidth) better than a Mac. |
+| 2026-09-04T14:07:31Z | post | https://x.com/TheDavidTai/status/2095876413220122846 | Spec-decode comparison: linear MTP vs batched DFlash vs DSpark vs **tree drafts**. Tree drafts need a lot of compute. |
+| 2026-09-04T16:22:32Z | post | https://x.com/TheDavidTai/status/2095910392862330947 | Wants a frontier subscription as a **2–3x multiplier on infinite local tokens**, quoting Youssof merging kernels on a plane. |
+| 2026-09-04T17:00:24Z | reply | https://x.com/TheDavidTai/status/2095919921427628238 | Will try uzu’s empty-prompt M5 Max trick; “verifier was a big bottleneck in **Qwen 3.8 125b**.” |
+| 2026-09-04T17:21:28Z | post | https://x.com/TheDavidTai/status/2095925223019471323 | Yukon wants to rent **10× M5 Max 128 GB** Macs for mlxfast (bare metal, MLX GPU, sudo, fan control). |
+| 2026-09-05T00:19:59Z | reply | https://x.com/TheDavidTai/status/2096030545394442567 | On Beamsters’ 256–374k mlx-serve numbers: “That's pretty consistent performance.!” |
+| 2026-09-05T00:33:26Z | reply | https://x.com/TheDavidTai/status/2096033932278190263 | “is this the **mlx-serve q4** quant?” |
+
+---
+
+## @adamlawi
+
+**No X posts in this window.** His Q4-vs-Q8 / prompt-length work is on GitHub (`antirez/ds4#952`), not X.
+
+---
+
+## @trueimage
+
+**No matching Apple-Silicon X account in this window.** `from:trueimage` only hits an unrelated 2010 account (chris jefferson). His Metal GLM work is on GitHub (`antirez/ds4#964`).
+
+---
+
+## @runsonai
+
+NVIDIA Spark / DeepSeek-V4 vision recipe omitted (not Apple Silicon). On-topic:
+
+| UTC | kind | URL | text |
+|---|---|---|---|
+| 2026-09-04T18:59:43Z | reply | https://x.com/runsonai/status/2095949949871526258 | “Same, going to do some **kernel work**.” |
+| 2026-09-04T22:53:46Z | post | https://x.com/runsonai/status/2096008851409486055 | Used Astra to tweak **Qwen 3.8-flash on a Mac Studio**: prefill **850 → 1007 tok/s**, code **31 → 62**, prose **31 → 48**. Recipe: https://github.com/humanrouter/qwen38-flash-6bit-m3-ultra-recipe |
+| 2026-09-05T00:47:36Z | reply | https://x.com/runsonai/status/2096037498136727585 | How: “tell it to be faster and it'll just do it.” |
+| 2026-09-05T00:50:17Z | reply | https://x.com/runsonai/status/2096038170571817279 | Prefill at 128k context: “Didn't test it.” |
+| 2026-09-05T01:11:53Z | reply | https://x.com/runsonai/status/2096043609208258899 | Another update: **15% faster decode, 70 tok/s for code.** |
+| 2026-09-05T01:42:14Z | reply | https://x.com/runsonai/status/2096051246184431786 | “Yes” (thread on the recipe). |
+| 2026-09-05T01:43:14Z | reply | https://x.com/runsonai/status/2096051496236302774 | Steering: “focus on **prefill**” or “look into the **kernels**.” |
+| 2026-09-05T05:04:05Z | reply | https://x.com/runsonai/status/2096102041701503259 | Gain was “a combo of multiple **omlx** settings… especially for **drafting**.” |
+
+---
+
+## @Beamsters1
+
+Astra / Rust-compiler / HBM posts omitted.
+
+| UTC | kind | URL | text |
+|---|---|---|---|
+| 2026-09-04T11:26:52Z | post | https://x.com/Beamsters1/status/2095835988140732581 | Local AI needs long-context speed. Easy to show 2k–32k; hard after 64k–1M. Pushing **50+ tok/s at 64k**. |
+| 2026-09-04T23:14:07Z | post | https://x.com/Beamsters1/status/2096013970314612912 | **Qwen3.8-Flash-Next (4-bit experts, 8-bit dense) at 46–50 tok/s at 256–374k context** on mlx-serve. Prefill improved; more to come. |
+| 2026-09-04T23:17:50Z | reply | https://x.com/Beamsters1/status/2096014906919448948 | Hardware: **M5 Max 128 GB**, base = mlx-serve main. |
+| 2026-09-05T00:29:18Z | reply | https://x.com/Beamsters1/status/2096032893701415351 | Prefill can stay **>1000 tok/s until at least 374k**. MTP at long context can get better. Kernels still assume Qwen3.5 / DeepSeek4 / GLM; **qwen4exp is different**. |
+| 2026-09-05T00:48:37Z | reply | https://x.com/Beamsters1/status/2096037753532354902 | Not a full Q4: only expert/ngram at 4-bit, rest 8-bit. https://huggingface.co/ddalcu/Qwen3.8-Flash-Next-MLX-Serve-mixed-4-8bit — KLD stays closer to original. |
+| 2026-09-05T04:57:50Z | reply | https://x.com/Beamsters1/status/2096100468481306636 | Launch command: in his dev machine, **not yet in main**; maybe a day or two. |
+| 2026-09-05T09:47:24Z | reply | https://x.com/Beamsters1/status/2096173342986490147 | Hardware for the long-context work: **M5 Max 128 GB, Qwen3.8 Flash Next.** |
+
+---
+
+## Quiet / not on X
+
+| handle | in this window |
+|---|---|
+| **@awnihannun** | Posted, but not about local Apple Silicon inference. |
+| **@adamlawi** | No X posts. Work is on GitHub. |
+| **@trueimage** | No Apple-Silicon X account. Work is on GitHub. |
+
+Verification log: `logs/sweeps/verify-posts-M5-Max-128GB-20260905T111637Z.log`.
