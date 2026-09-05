@@ -228,6 +228,17 @@ def test_route_evidence_requires_the_arm_line(tmp_path):
     assert report.route_evidence(run_dir, "r-sweep1", "r") is None
 
 
+def test_per_task_walls_appear_in_the_report(tmp_path, capsys):
+    """The wall grid shows each row's wall_seconds, one line per task."""
+    walls = {1: (90.0, 100.0), 2: (90.0, 100.0), 3: (90.0, 100.0)}
+    ledger = _write_ledger(tmp_path, _fixture_from_walls(walls))
+    run_dir = _write_run_dir(tmp_path, FULL_WINDOWS)
+    report.main(["--ledger", str(ledger), "--run-dir", str(run_dir)])
+    out = capsys.readouterr().out
+    assert "per-task wall_seconds" in out
+    assert "task0: t=6/6/6 r=7/7/7" in out
+
+
 def test_report_never_recommends_a_regime(tmp_path, capsys):
     """The deliverable is the numbers; the choice stays with the issue."""
     walls = {1: (90.0, 100.0), 2: (90.0, 100.0), 3: (90.0, 100.0)}
