@@ -14,6 +14,7 @@ documentation.
 | `archive_pre_dir_rows.py` | Move every pre---dir OpenCode row out of results.jsonl into the archive. |
 | `backfill_client_version.py` | Fill `client_version` on rows that predate it, and only where it is known. |
 | `backfill_prompt_meta.py` | Write an inferred prompt sidecar for runs measured before #140. |
+| `bitexact_ab.py` | Bit-exact A/B for two ds4 engine trees: the output-equality check #143 lacked. |
 | `client_version_split.py` | Which client version took which rows, and what that confounds (#137, #131). |
 | `client_versions.py` | Read the recorded agent client versions, and say which have moved (#131). |
 | `cohort_split.py` | Split one backend's rows at a moment in time and compare the halves. |
