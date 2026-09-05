@@ -2079,6 +2079,15 @@ class DraftProbe:
         "mtplx": ("mtplx-decode-trace", mtplx_trace),
     }
 
+    # Which env var turns each engine's counters on. The operator knows
+    # whether it was set; the log cannot say, because "counters off" and
+    # "engine never entered the speculative path" both emit nothing. That
+    # ambiguity produced a misleading warning on the first real #148 run.
+    SWITCHES: ClassVar[dict] = {
+        "ds4": "DS4_MTP_TIMING",
+        "mtplx": "MTPLX_DECODE_TRACE_JSONL",
+    }
+
     def __init__(self, path, engine="ds4"):
         if path and engine not in self.SOURCES:
             raise ValueError(
@@ -2088,6 +2097,11 @@ class DraftProbe:
         self.source, self.reader = self.SOURCES.get(engine, (None, None))
         self.path = pathlib.Path(path).expanduser() if path else None
         self.offset = self.reader.read_since(self.path).offset if self.path else 0
+        switch = self.SWITCHES.get(engine)
+        # Read from the server's environment as this process sees it. It is a
+        # claim about the operator's intent, not proof about the server, and
+        # the field name says so.
+        self.counters_requested = bool(switch and os.environ.get(switch))
 
     def sample(self):
         """Counters produced since the last sample. None when not enabled."""
@@ -2098,7 +2112,7 @@ class DraftProbe:
         return reading.counters
 
 
-def draft_fields(counters, source=None):
+def draft_fields(counters, source=None, counters_requested=None):
     """Row fields for one trial's draft accounting.
 
     `used` is the assertion; the raw counts are kept so a later reader can
@@ -2109,6 +2123,7 @@ def draft_fields(counters, source=None):
         return None
     fields = {
         "source": source,
+        "counters_requested": counters_requested,
         "accepted": counters.accepted,
         "accept_rate": counters.accept_rate,
         "used": counters.used,
@@ -2476,7 +2491,9 @@ def one_trial(
     # #148: what the draft head actually did during THIS trial. None when no
     # server log was given, which is not the same as zero -- see mtp_timing.
     if (counters := draft_probe.sample() if draft_probe else None) is not None:
-        result["draft"] = draft_fields(counters, draft_probe.source)
+        result["draft"] = draft_fields(
+            counters, draft_probe.source, draft_probe.counters_requested
+        )
         # `saw_work` is "the engine did speculative work", spelled differently
         # per reader: ds4 counts cycles, mtplx counts trace records.
         saw_work = getattr(counters, "cycles", None) or getattr(counters, "records", 0)
@@ -2496,10 +2513,13 @@ def one_trial(
                 )
         elif not saw_work:
             logger.warning(
-                "%s: no MTP timing lines this trial -- was DS4_MTP_TIMING set "
-                "on the server? absence of counters is not evidence of absence "
-                "of drafting",
+                "%s: no draft counters this trial (%s). Cause is NOT resolved "
+                "by this: an engine that never enters the speculative path "
+                "emits nothing, exactly as switched-off counters do. "
+                "counters_requested=%s",
                 name,
+                draft_probe.source,
+                draft_probe.counters_requested,
             )
 
     return result

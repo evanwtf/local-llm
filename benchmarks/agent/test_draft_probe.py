@@ -120,3 +120,45 @@ def test_an_unknown_engine_is_refused_rather_than_defaulted(tmp_path):
 def test_no_path_means_no_engine_validation(tmp_path):
     """Without a log there is nothing to misparse, so the default is inert."""
     assert run.DraftProbe(None).sample() is None
+
+
+def test_the_row_says_whether_the_counters_were_asked_for(tmp_path, monkeypatch):
+    """cycles=0 cannot distinguish 'counters off' from 'path never entered'.
+
+    Both emit nothing. The first real #148 run wrote a correct cycles=0 row
+    under a warning blaming switched-off counters, when the counters were on
+    and the engine simply never entered the speculative path. Only the
+    operator knows which, so the operator's intent goes on the row.
+    """
+    log = tmp_path / "s.log"
+    log.write_text("")
+
+    monkeypatch.delenv("DS4_MTP_TIMING", raising=False)
+    off = run.DraftProbe(log, "ds4")
+    assert off.counters_requested is False
+    assert (
+        run.draft_fields(off.sample(), off.source, off.counters_requested)[
+            "counters_requested"
+        ]
+        is False
+    )
+
+    monkeypatch.setenv("DS4_MTP_TIMING", "1")
+    on = run.DraftProbe(log, "ds4")
+    assert on.counters_requested is True
+
+
+def test_each_engine_has_its_own_switch(tmp_path, monkeypatch):
+    log = tmp_path / "s.log"
+    log.write_text("")
+    monkeypatch.delenv("DS4_MTP_TIMING", raising=False)
+    monkeypatch.setenv("MTPLX_DECODE_TRACE_JSONL", "/tmp/t.jsonl")
+    assert run.DraftProbe(log, "mtplx").counters_requested is True
+    assert run.DraftProbe(log, "ds4").counters_requested is False
+
+
+def test_an_empty_switch_value_is_not_a_request(tmp_path, monkeypatch):
+    log = tmp_path / "s.log"
+    log.write_text("")
+    monkeypatch.setenv("DS4_MTP_TIMING", "")
+    assert run.DraftProbe(log, "ds4").counters_requested is False
