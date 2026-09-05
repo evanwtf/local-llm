@@ -1,0 +1,145 @@
+2026-09-05 15:24:50,161 INFO [90c89d3@M5-Max-128GB] 2026-09-05T19:24:50Z (15:24:50 EDT) | harness 90c89d3
+2026-09-05 15:24:50,176 INFO [90c89d3@M5-Max-128GB]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-05 15:24:50,176 INFO [90c89d3@M5-Max-128GB] Upstream sweep since 2026-09-04T19:24:50Z (24h)
+
+2026-09-05 15:24:50,701 INFO [90c89d3@M5-Max-128GB] == antirez/ds4 -- our primary engine; the only one that runs DeepSeek-V4-Flash and GLM-5.3
+2026-09-05 15:24:50,702 INFO [90c89d3@M5-Max-128GB]    Record long GLM quality controls and Spark decode gains
+2026-09-05 15:24:50,702 INFO [90c89d3@M5-Max-128GB]    Remove unused CUDA and ROCm Q8 matvec kernels
+2026-09-05 15:24:50,702 INFO [90c89d3@M5-Max-128GB]    Reuse aligned Q8 scratch during CUDA decoding
+2026-09-05 15:24:50,702 INFO [90c89d3@M5-Max-128GB]    Add long GLM FP8 references with reasoning-aware scoring
+2026-09-05 15:24:50,702 INFO [90c89d3@M5-Max-128GB]    Fix official-score logprob parsing for null API responses
+2026-09-05 15:24:50,702 INFO [90c89d3@M5-Max-128GB]    Record backend QA results and preserve failure diagnostics
+2026-09-05 15:24:50,702 INFO [90c89d3@M5-Max-128GB]    Remove unused ROCm kernels and helpers
+2026-09-05 15:24:50,702 INFO [90c89d3@M5-Max-128GB]    Fix GLM attention masking and reductions across GPU backends
+2026-09-05 15:24:50,702 INFO [90c89d3@M5-Max-128GB]    Budget ROCm allocations against usable pinned memory
+2026-09-05 15:24:50,702 INFO [90c89d3@M5-Max-128GB]    Fix Linux builds after Metal TP changes
+2026-09-05 15:24:50,702 INFO [90c89d3@M5-Max-128GB]    Put common getting-started instructions in the README
+2026-09-05 15:24:50,702 INFO [90c89d3@M5-Max-128GB]    Split README into platform setup and focused reference guides
+2026-09-05 15:24:50,702 INFO [90c89d3@M5-Max-128GB]    ... and 8 more
+2026-09-05 15:24:50,703 INFO [90c89d3@M5-Max-128GB] 
+2026-09-05 15:24:51,508 INFO [90c89d3@M5-Max-128GB] == ggml-org/llama.cpp -- our fast pick's engine; `qwen4exp` IS Qwen3.8-Flash-Next
+2026-09-05 15:24:51,509 INFO [90c89d3@M5-Max-128GB]    releases: b10819, b10818, b10817, v0.4.0, b10816, b10814
+2026-09-05 15:24:51,509 INFO [90c89d3@M5-Max-128GB]    metal : fix memory leak in early return (#28399)
+2026-09-05 15:24:51,509 INFO [90c89d3@M5-Max-128GB]    sycl : fix test-backend-ops CI break && restore Kronecker product FWHT support (#28016) (#28254)
+2026-09-05 15:24:51,509 INFO [90c89d3@M5-Max-128GB]    sycl: attribute device allocations by site (GGML_SYCL_MEMTRACE) (#27631)
+2026-09-05 15:24:51,509 INFO [90c89d3@M5-Max-128GB] 
+2026-09-05 15:24:52,318 INFO [90c89d3@M5-Max-128GB] == ollama/ollama -- the 31 GB entry point, and our only MLX runtime
+2026-09-05 15:24:52,318 INFO [90c89d3@M5-Max-128GB]    app: harden Codex desktop proxy handling (#18244)
+2026-09-05 15:24:52,318 INFO [90c89d3@M5-Max-128GB]    openai: preserve images through response compaction (#18245)
+2026-09-05 15:24:52,318 INFO [90c89d3@M5-Max-128GB]    app: route Codex auto review through selected model (#18246)
+2026-09-05 15:24:52,318 INFO [90c89d3@M5-Max-128GB]    ci: bound and cache the macOS MLX payload build (#18240)
+2026-09-05 15:24:52,318 INFO [90c89d3@M5-Max-128GB]    app: add Ollama to ChatGPT Desktop (#18236)
+2026-09-05 15:24:52,319 INFO [90c89d3@M5-Max-128GB]    openai: add Codex compaction support (#18224)
+2026-09-05 15:24:52,319 INFO [90c89d3@M5-Max-128GB]    openai: add client tool search support (#18223)
+2026-09-05 15:24:52,319 INFO [90c89d3@M5-Max-128GB] 
+2026-09-05 15:24:53,091 INFO [90c89d3@M5-Max-128GB] == anomalyco/opencode -- our only client
+2026-09-05 15:24:53,091 INFO [90c89d3@M5-Max-128GB]    releases: v1.18.29
+2026-09-05 15:24:53,091 INFO [90c89d3@M5-Max-128GB]    fix(console): connect enterprise form to Chatwoot (#47488)
+2026-09-05 15:24:53,091 INFO [90c89d3@M5-Max-128GB]    fix(console): openai usage normalization and tier threshold config (#47342)
+2026-09-05 15:24:53,091 INFO [90c89d3@M5-Max-128GB]    Merge branch 'dev' of github.com:anomalyco/opencode into dev
+2026-09-05 15:24:53,091 INFO [90c89d3@M5-Max-128GB]    update zen docs
+2026-09-05 15:24:53,091 INFO [90c89d3@M5-Max-128GB]    chore: generate
+2026-09-05 15:24:53,091 INFO [90c89d3@M5-Max-128GB]    update zen models
+2026-09-05 15:24:53,091 INFO [90c89d3@M5-Max-128GB]    zen: add muse spark
+2026-09-05 15:24:53,091 INFO [90c89d3@M5-Max-128GB]    sync release versions for v1.18.29
+2026-09-05 15:24:53,091 INFO [90c89d3@M5-Max-128GB]    fix(opencode): compare Codex GPT versions by major and minor (#47385)
+2026-09-05 15:24:53,091 INFO [90c89d3@M5-Max-128GB]    fix(opencode): allow integer GPT versions in Codex model filter (#47384)
+2026-09-05 15:24:53,091 INFO [90c89d3@M5-Max-128GB] 
+2026-09-05 15:24:53,830 INFO [90c89d3@M5-Max-128GB] == evanwtf/local-llm -- this project
+2026-09-05 15:24:53,831 INFO [90c89d3@M5-Max-128GB]    ds4-fast.sh / ds4-vanilla.sh: pick a Metal route, and prove which one ran
+2026-09-05 15:24:53,831 INFO [90c89d3@M5-Max-128GB]    RECOMMENDATIONS: regenerate after the #148 diagnostic trial
+2026-09-05 15:24:53,831 INFO [90c89d3@M5-Max-128GB]    run: record whether the draft counters were asked for (#148)
+2026-09-05 15:24:53,831 INFO [90c89d3@M5-Max-128GB]    shim: record the sampler the client actually asked for (#148)
+2026-09-05 15:24:53,831 INFO [90c89d3@M5-Max-128GB]    scripts/README: index sensor_windows.py
+2026-09-05 15:24:53,831 INFO [90c89d3@M5-Max-128GB]    sensor_windows: join a monitord series to sweep windows (#116)
+2026-09-05 15:24:53,831 INFO [90c89d3@M5-Max-128GB]    mtp_timing: parse the line ds4 actually prints, and catch a disabled head (#148)
+2026-09-05 15:24:53,831 INFO [90c89d3@M5-Max-128GB]    run: one draft probe for both MTP backends, and refuse a dead head (#148)
+2026-09-05 15:24:53,831 INFO [90c89d3@M5-Max-128GB]    mtplx_trace: read the other MTP backend's acceptance (#148)
+2026-09-05 15:24:53,831 INFO [90c89d3@M5-Max-128GB]    run: record what the MTP draft head did, per trial (#148)
+2026-09-05 15:24:53,831 INFO [90c89d3@M5-Max-128GB]    mtp_timing: count accepted draft tokens, not the free first one (#148)
+2026-09-05 15:24:53,831 INFO [90c89d3@M5-Max-128GB]    sweep: the 12:11Z delta before the #149 regime run
+2026-09-05 15:24:53,831 INFO [90c89d3@M5-Max-128GB]    ... and 88 more
+2026-09-05 15:24:53,832 INFO [90c89d3@M5-Max-128GB] 
+2026-09-05 15:24:54,518 INFO [90c89d3@M5-Max-128GB] == evanwtf/gmail-archive -- the excision tasks' target repository
+2026-09-05 15:24:54,518 INFO [90c89d3@M5-Max-128GB]    (quiet)
+2026-09-05 15:24:54,518 INFO [90c89d3@M5-Max-128GB] 
+2026-09-05 15:24:55,167 INFO [90c89d3@M5-Max-128GB] == evanwtf/ds4 -- our ds4 fork (#27 asks whether it can be retired)
+2026-09-05 15:24:55,168 INFO [90c89d3@M5-Max-128GB]    (quiet)
+2026-09-05 15:24:55,168 INFO [90c89d3@M5-Max-128GB] 
+2026-09-05 15:24:55,851 INFO [90c89d3@M5-Max-128GB] == ml-explore/mlx -- the framework everything MLX sits on
+2026-09-05 15:24:55,852 INFO [90c89d3@M5-Max-128GB]    Add M5 ultra tunings for non-quantized matmuls (#4447)
+2026-09-05 15:24:55,852 INFO [90c89d3@M5-Max-128GB] 
+2026-09-05 15:24:56,515 INFO [90c89d3@M5-Max-128GB] == ml-explore/mlx-lm -- reference MLX server; new architectures land here first
+2026-09-05 15:24:56,515 INFO [90c89d3@M5-Max-128GB]    Tie the health endpoint status to generation thread liveness (#1791)
+2026-09-05 15:24:56,515 INFO [90c89d3@M5-Max-128GB]    Fix undefined variable error in fully truncated branch (#1833)
+2026-09-05 15:24:56,515 INFO [90c89d3@M5-Max-128GB]    Make BatchGenerator.stats a window over monotonic counters (#1829)
+2026-09-05 15:24:56,515 INFO [90c89d3@M5-Max-128GB]    Don't delete model provider, reset it instead (#1846)
+2026-09-05 15:24:56,515 INFO [90c89d3@M5-Max-128GB] 
+2026-09-05 15:24:57,152 INFO [90c89d3@M5-Max-128GB] == jundot/omlx -- oMLX -- prefill leader, untested here (#60)
+2026-09-05 15:24:57,152 INFO [90c89d3@M5-Max-128GB]    (quiet)
+2026-09-05 15:24:57,153 INFO [90c89d3@M5-Max-128GB] 
+2026-09-05 15:24:57,790 INFO [90c89d3@M5-Max-128GB] == ddalcu/mlx-serve -- benchmarked on our exact machine; llmprobe's author
+2026-09-05 15:24:57,790 INFO [90c89d3@M5-Max-128GB]    (quiet)
+2026-09-05 15:24:57,791 INFO [90c89d3@M5-Max-128GB] 
+2026-09-05 15:24:58,557 INFO [90c89d3@M5-Max-128GB] == youssofal/MTPLX -- MTP speculative decoding; we hold one unreplicated number
+2026-09-05 15:24:58,558 INFO [90c89d3@M5-Max-128GB]    Merge pull request #458 from youssofal/codex/portable-tuning-recovery-20260905
+2026-09-05 15:24:58,558 INFO [90c89d3@M5-Max-128GB]    Keep NAX imports ahead of diagnostic counter initialization
+2026-09-05 15:24:58,558 INFO [90c89d3@M5-Max-128GB]    Recognize the shipped vocabulary ID lookup in repository hygiene
+2026-09-05 15:24:58,558 INFO [90c89d3@M5-Max-128GB]    Preserve Stuart Rowlands’ original Flash-Next tuning history
+2026-09-05 15:24:58,558 INFO [90c89d3@M5-Max-128GB]    Record the actual context measured by each tuning case
+2026-09-05 15:24:58,558 INFO [90c89d3@M5-Max-128GB]    Report real draft-cycle means and make tuning budgets explicit
+2026-09-05 15:24:58,558 INFO [90c89d3@M5-Max-128GB]    Validate native artifacts through the real app installer without opening its UI
+2026-09-05 15:24:58,558 INFO [90c89d3@M5-Max-128GB]    Keep prefill pipeline resolution out of decode and ineligible chunks
+2026-09-05 15:24:58,558 INFO [90c89d3@M5-Max-128GB]    Clarify what the MLX memory budgets and allocator reclamation mean
+2026-09-05 15:24:58,558 INFO [90c89d3@M5-Max-128GB]    Distinguish new tool content from reduced prefix reuse in diagnostics
+2026-09-05 15:24:58,558 INFO [90c89d3@M5-Max-128GB]    Release a model’s shared verifier programs when its runtime unloads
+2026-09-05 15:24:58,558 INFO [90c89d3@M5-Max-128GB]    Package sparse prefill for the bundled Python with a compatible fallback
+2026-09-05 15:24:58,558 INFO [90c89d3@M5-Max-128GB]    ... and 29 more
+2026-09-05 15:24:58,558 INFO [90c89d3@M5-Max-128GB] 
+2026-09-05 15:24:59,299 INFO [90c89d3@M5-Max-128GB] == raullenchai/Rapid-MLX -- the one MLX engine reachable by pip (#57, #60)
+2026-09-05 15:24:59,300 INFO [90c89d3@M5-Max-128GB]    feat(image): support Stable Diffusion 3.5 Large (#3084)
+2026-09-05 15:24:59,300 INFO [90c89d3@M5-Max-128GB]    feat(image): add Bonsai Image 4B 2-bit support (#3080)
+2026-09-05 15:24:59,300 INFO [90c89d3@M5-Max-128GB]    perf(qwen4): add opt-in block-sparse QSA prefill (#3055)
+2026-09-05 15:24:59,300 INFO [90c89d3@M5-Max-128GB]    feat(image): add native SDXL Base support (#3077)
+2026-09-05 15:24:59,300 INFO [90c89d3@M5-Max-128GB]    feat(service): headless macOS service lifecycle CLI (#2859) (#3049)
+2026-09-05 15:24:59,300 INFO [90c89d3@M5-Max-128GB]    fix(dmg): deterministic .DS_Store layout template, no Finder AppleEvents (#2240) (#3066)
+2026-09-05 15:24:59,300 INFO [90c89d3@M5-Max-128GB]    feat(eval): semantic/normalized tool-result grounding grader (#2347) (#3071)
+2026-09-05 15:24:59,300 INFO [90c89d3@M5-Max-128GB]    gate(dictation): promote rc2 state-upgrade journey to the PR audio shard (#2365) (#3063)
+2026-09-05 15:24:59,300 INFO [90c89d3@M5-Max-128GB]    feat(image): add HiDream O1 Dev to Server and Desktop (#3069)
+2026-09-05 15:24:59,300 INFO [90c89d3@M5-Max-128GB]    feat(start): one-command agent startup (#150) (#3057)
+2026-09-05 15:24:59,300 INFO [90c89d3@M5-Max-128GB]    fix(release): report disk-constrained fleet families as capacity-skips (#2206) (#3060)
+2026-09-05 15:24:59,300 INFO [90c89d3@M5-Max-128GB]    feat(aliases): Granite 4.2 30B / 8B / 3B dense checkpoints (#3047) (#3061)
+2026-09-05 15:24:59,300 INFO [90c89d3@M5-Max-128GB]    ... and 6 more
+2026-09-05 15:24:59,300 INFO [90c89d3@M5-Max-128GB] 
+2026-09-05 15:24:59,957 INFO [90c89d3@M5-Max-128GB] == ARahim3/mlx-dspark -- DSpark/DFlash ported to MLX (#19, #58, #75)
+2026-09-05 15:24:59,958 INFO [90c89d3@M5-Max-128GB]    (quiet)
+2026-09-05 15:24:59,958 INFO [90c89d3@M5-Max-128GB] 
+2026-09-05 15:25:00,550 INFO [90c89d3@M5-Max-128GB] == Blaizzy/mlx-vlm -- expert offloading, prefix caching, Qwen3.8-Flash-Next MTP
+2026-09-05 15:25:00,550 INFO [90c89d3@M5-Max-128GB]    Fix GLM and Kimi output control tokens (#2170)
+2026-09-05 15:25:00,550 INFO [90c89d3@M5-Max-128GB]    Optimize Qwen4 QSA cache reuse and batched parity (#2126)
+2026-09-05 15:25:00,550 INFO [90c89d3@M5-Max-128GB]    Add Ornith 1.5 (Qwen3.5 VL) support and verify qwen3_5_moe MTP (#2125)
+2026-09-05 15:25:00,550 INFO [90c89d3@M5-Max-128GB] 
+2026-09-05 15:25:01,448 INFO [90c89d3@M5-Max-128GB] == unslothai/llama.cpp -- the fork with a working qwen4exp MTP graph (#77)
+2026-09-05 15:25:01,449 INFO [90c89d3@M5-Max-128GB]    releases: b10798-mix-659e406
+2026-09-05 15:25:01,449 INFO [90c89d3@M5-Max-128GB] 
+2026-09-05 15:25:02,107 INFO [90c89d3@M5-Max-128GB] == Layr-Labs/mlxfast-gemma4-26b-a4b-engine -- MLX Fast leaderboard harness (#80)
+2026-09-05 15:25:02,107 INFO [90c89d3@M5-Max-128GB]    Accept submission 872bf7b0-de30-446d-b4e7-a9afa72d4432
+2026-09-05 15:25:02,107 INFO [90c89d3@M5-Max-128GB]    Validate submission 33e98ee9-4a9e-45a7-8f95-c87002b2308f
+2026-09-05 15:25:02,107 INFO [90c89d3@M5-Max-128GB]    Accept submission df31be70-3ec3-4452-bd0e-ef122c795005
+2026-09-05 15:25:02,107 INFO [90c89d3@M5-Max-128GB]    Accept submission bd17e0ed-efbf-4008-97bb-525bbd11d3b0
+2026-09-05 15:25:02,108 INFO [90c89d3@M5-Max-128GB]    Accept submission f86793d2-9ba2-44b9-847d-c3faf4379bb2
+2026-09-05 15:25:02,108 INFO [90c89d3@M5-Max-128GB]    Accept submission cd1ae6d4-ced4-47c6-8f00-94469cee8d1d
+2026-09-05 15:25:02,108 INFO [90c89d3@M5-Max-128GB]    Accept submission d19841b3-34d9-48bd-b636-360f995a8c40
+2026-09-05 15:25:02,108 INFO [90c89d3@M5-Max-128GB]    Validate submission de2740d2-febe-4015-84e5-d67f94bd3b2c
+2026-09-05 15:25:02,108 INFO [90c89d3@M5-Max-128GB] 
+2026-09-05 15:25:02,660 INFO [90c89d3@M5-Max-128GB] == sudoingX/qwen38-mtp -- 61 paired baseline-vs-MTP runs, disciplined method (#19, #39)
+2026-09-05 15:25:02,660 INFO [90c89d3@M5-Max-128GB]    (quiet)
+2026-09-05 15:25:02,660 INFO [90c89d3@M5-Max-128GB] 
+2026-09-05 15:25:03,335 INFO [90c89d3@M5-Max-128GB] == trymirai/uzu -- Apple-only Rust engine, reachable by pip; claims 2x MTPLX (#134)
+2026-09-05 15:25:03,335 INFO [90c89d3@M5-Max-128GB]    releases: 0.5.25
+2026-09-05 15:25:03,335 INFO [90c89d3@M5-Max-128GB]    Fix qwen parser (#806)
+2026-09-05 15:25:03,335 INFO [90c89d3@M5-Max-128GB]    Small flake cleanup (#807)
+2026-09-05 15:25:03,335 INFO [90c89d3@M5-Max-128GB]    update endpoint client
+2026-09-05 15:25:03,335 INFO [90c89d3@M5-Max-128GB]    Release 0.5.25
+2026-09-05 15:25:03,335 INFO [90c89d3@M5-Max-128GB] 
+2026-09-05 15:25:03,335 INFO [90c89d3@M5-Max-128GB] log: /Users/evanhoffman/git/local-llm/logs/sweeps/upstream-sweep-M5-Max-128GB-20260905T192450Z.log

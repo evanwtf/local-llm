@@ -207,9 +207,43 @@ one. The file is also what step 7d verifies against.
 timestamp cannot be re-read later: "the last 24 hours" is meaningless without
 knowing when it was said.
 
+**Ask for one bullet per post and nothing else.** Given only a list of fields,
+grok answers in prose, and prose has to be re-parsed by hand every sweep. Ask
+for a fixed line shape instead:
+
+```
+- <UTC timestamp> | @handle | <post URL> | <the claim in one sentence>
+```
+
+Four rules make that line worth having, and the last one is the important one:
+
+- **One line per post, no preamble and no closing summary.** On 2026-09-05 a
+  gather returned exactly one line -- *"I'll search X for posts and replies
+  from those accounts..."* -- and nothing else. It had announced the search and
+  never reported it.
+- **Fixed field order**, so `cut -d'|'` works and the file is greppable.
+- **Omit any item lacking both a URL and a timestamp.** An item with neither
+  cannot be verified in 7d and is not evidence of anything.
+- **End with `NO RESULTS` when nothing matches.** An empty answer and a quiet
+  day are indistinguishable otherwise, and they are opposite facts: one means
+  nothing happened, the other means the sweep failed and nobody noticed.
+
+**Check the gather before trusting it.** A file with no `x.com` URLs and no
+`NO RESULTS` line is a **failed gather**, not a quiet window. Count the ids
+before writing the sweep record:
+
+```sh
+grep -c 'https://x\.com/[A-Za-z0-9_]*/status/' "$OUT"   # 0 with no NO RESULTS => rerun
+```
+
 ```bash
 WINDOW="last 24 hours"
-QUERY="Search X for posts and replies from @antirez, @ivanfioravanti, ... in the $WINDOW. ..."
+QUERY="Search X for posts and replies from @antirez, @ivanfioravanti, ... in \
+the $WINDOW about local LLM inference on Apple Silicon. \
+Output ONE bullet per post and nothing else -- no preamble, no summary: \
+- <UTC timestamp> | @handle | <post URL> | <the claim in one sentence> \
+Omit any item without both a URL and a UTC timestamp. \
+If nothing matches, output exactly: NO RESULTS"
 OUT="/tmp/grok-sweep-$(date -u +%Y%m%dT%H%M%SZ).txt"
 {
   echo "# grok sweep"
@@ -224,6 +258,13 @@ echo "wrote $OUT"
 
 Then read the file — `grep -oE 'https://x\.com/[A-Za-z0-9_]+/status/[0-9]+' "$OUT" | sort -u`
 gives every post id it found, and the whole file can be piped to the verifier.
+
+**Give it at least five minutes, and do not kill it early.** grok searches,
+pulls thread context, then re-searches the remaining accounts; the first thing
+it emits is a sentence saying what it is about to do, and the bullets arrive
+minutes later. On 2026-09-05 a gather was killed at ~3 minutes holding only
+that preamble and read as a failed search -- it was a search still running. A
+file with only the preamble means **not finished**, not empty.
 
 Set the Bash timeout to `400000`. Never use `--json-schema` — it makes grok
 skip the search and invent posts, verified twice. Ask for a UTC timestamp and a
