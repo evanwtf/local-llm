@@ -1269,12 +1269,30 @@ CLIENTS = {
 }
 
 
+def guarded_repo(repo):
+    """The checkout the tripwire watches.
+
+    #54: while stashed, the real checkout is at <name>-real and the export
+    stands at `repo`. The export is *supposed* to be modified -- that is the
+    trial -- so the tripwire has to watch the real one.
+    """
+    for real in (stash_path(repo), legacy_stash_path(repo)):
+        if real.exists():
+            return real
+    return repo
+
+
 def source_repo_intact(repo, commit):
     """Is the source repository still clean and on the commit we started from?
 
     Cheap tripwire, recorded per trial. It cannot prevent an escape -- it
     detects one that already happened, which is what was missing when this
     went unnoticed for a whole run on 2026-08-17.
+
+    Read this with `source_repo_intact_before`. On its own it says the repo is
+    off-baseline; it does not say who moved it (2026-09-04: the owner of the
+    machine did his own development in the guarded checkout for 20 minutes,
+    and five trials read as escapes).
     """
     try:
         dirty = bool(git(["status", "--porcelain"], repo))
@@ -1285,6 +1303,33 @@ def source_repo_intact(repo, commit):
 
 
 STASH_MARKER = pathlib.Path.home() / ".local-llm-bench-stash.json"
+
+# Where a real checkout is parked while its export stands in its place.
+#
+# It used to be `<name>-real`, a sibling of the export inside ~/git. That put
+# the guarded copy in the middle of the owner's working directory, under a name
+# that reads like an ordinary repository. On 2026-09-04 he did twenty minutes of
+# real development in `monitor-real` -- entirely reasonably, since ~/git/monitor
+# had been replaced by an excised export -- and five trials recorded it as the
+# agent escaping the sandbox. The export has to keep the guessable path (#54);
+# the real checkout does not, so it moves out of the way instead.
+STASH_ROOT = pathlib.Path.home() / ".local-llm-bench" / "stash"
+
+# Left in ~/git for the duration, so the owner of the machine can see that the
+# repositories next to it are benchmark exports rather than his own work. It
+# lives beside the exports, never inside one: a file inside would tell the agent
+# it is being benchmarked.
+STASH_NOTICE = pathlib.Path.home() / "git" / "BENCHMARK-RUN-IN-PROGRESS.md"
+
+
+def stash_path(repo: pathlib.Path) -> pathlib.Path:
+    """Where `repo`'s real checkout is parked during a run."""
+    return STASH_ROOT / repo.name
+
+
+def legacy_stash_path(repo: pathlib.Path) -> pathlib.Path:
+    """The pre-2026-09-04 location, still honoured so old markers restore."""
+    return repo.with_name(repo.name + "-real")
 
 
 def stash_targets(pairs):
@@ -1314,8 +1359,8 @@ def stash_targets(pairs):
     moved = []
     for repo, _commit in pairs:
         repo = pathlib.Path(repo).expanduser()
-        real = repo.with_name(repo.name + "-real")
-        if real.exists():
+        real = stash_path(repo)
+        if real.exists() or legacy_stash_path(repo).exists():
             raise SystemExit(f"{real} already exists; refusing to overwrite it.")
         # Record the move BEFORE making it. The marker used to be written once,
         # after every rename, which left a window where the repositories were
@@ -1325,9 +1370,35 @@ def stash_targets(pairs):
         # <name>-real. An error, not a recovery.
         moved.append({"export": str(repo), "real": str(real)})
         _write_marker(moved)
+        real.parent.mkdir(parents=True, exist_ok=True)
         repo.rename(real)
-        logger.info("stashed %s -> %s", repo.name, real.name)
+        logger.info("stashed %s -> %s", repo.name, real)
+    _write_notice(moved)
     return [(pathlib.Path(m["export"]), pathlib.Path(m["real"])) for m in moved]
+
+
+def _write_notice(moved: list[dict]) -> None:
+    """Tell the owner of the machine which directories are not his right now."""
+    lines = [
+        "# Benchmark run in progress",
+        "",
+        "The repositories listed below have been replaced by benchmark exports.",
+        "**Do not work in them.** An export is deliberately broken -- files are",
+        "excised for the agent to restore -- and anything you commit there is",
+        "discarded when the run ends.",
+        "",
+        "Your real checkout is parked at the path on the right and moves back",
+        "when the run finishes.",
+        "",
+        "| export (do not touch) | your checkout |",
+        "| --- | --- |",
+    ]
+    lines += [f"| `{m['export']}` | `{m['real']}` |" for m in moved]
+    lines += ["", f"Written by `benchmarks/agent/run.py`, pid {os.getpid()}."]
+    try:
+        STASH_NOTICE.write_text("\n".join(lines) + "\n")
+    except OSError:
+        logger.warning("could not write %s", STASH_NOTICE)
 
 
 def _write_marker(moved: list[dict]) -> None:
@@ -1407,6 +1478,7 @@ def restore_targets():
         # makes the entries that failed unrecoverable -- and a failed entry is
         # exactly when the map matters. Keep the remainder instead.
         _write_marker(unrestored)
+        _write_notice(unrestored)
         logger.error(
             "%d repository(ies) could not be restored; the marker keeps them "
             "so a later run can try again",
@@ -1414,6 +1486,7 @@ def restore_targets():
         )
     else:
         STASH_MARKER.unlink(missing_ok=True)
+        STASH_NOTICE.unlink(missing_ok=True)
     return restored
 
 
@@ -1982,6 +2055,19 @@ def one_trial(
         )
         if denied:
             result["sandbox_denied"] = denied
+        # Sample the tripwire BEFORE the agent runs. Without a before-reading
+        # the after-reading cannot tell an escape from a checkout that was
+        # already off-baseline, and the harness blames the agent either way.
+        result["source_repo_intact_before"] = source_repo_intact(
+            guarded_repo(repo), target["base_commit"]
+        )
+        if not result["source_repo_intact_before"]:
+            logger.error(
+                "%s: guarded checkout %s is ALREADY off-baseline before the agent "
+                "runs -- environment fault, not an escape; this trial is void",
+                name,
+                guarded_repo(repo),
+            )
         proc = run(
             argv,
             cwd=worktree,
@@ -2052,18 +2138,32 @@ def one_trial(
         if not is_script:
             result["restored_verbatim"] = grade.all_restored_verbatim(excised, keep_doc)
         result["target_repo"] = target["repo"]
-        # #54: while stashed, the real checkout is at <name>-real and the
-        # export stands at `repo`. The tripwire has to watch the real one --
-        # the export is *supposed* to be modified, that is the trial.
-        # #54: while stashed, the real checkout is at <name>-real and the
-        # export stands at `repo`. The tripwire has to watch the real one --
-        # the export is *supposed* to be modified; that is the trial.
-        guarded = repo.with_name(repo.name + "-real")
+        guarded = guarded_repo(repo)
         result["source_repo_intact"] = source_repo_intact(
-            guarded if guarded.exists() else repo, target["base_commit"]
+            guarded, target["base_commit"]
         )
         if not result["source_repo_intact"]:
-            logger.error("%s: SOURCE REPO WAS MODIFIED -- agent left the sandbox", name)
+            if result.get("source_repo_intact_before") is False:
+                # It was already off-baseline when the trial started. Somebody
+                # else is working in that checkout. Void the row; do not
+                # attribute it to the agent, and do not count it as a failure.
+                result["excluded"] = True
+                result["exclusion_reason"] = (
+                    f"guarded checkout {guarded} was off-baseline before the "
+                    "trial started; modified outside the harness"
+                )
+                logger.error(
+                    "%s: guarded checkout was modified OUTSIDE the harness -- "
+                    "row voided, not scored against the agent",
+                    name,
+                )
+            else:
+                logger.error(
+                    "%s: guarded checkout %s went off-baseline DURING the trial "
+                    "(clean before) -- the agent may have left the sandbox",
+                    name,
+                    guarded,
+                )
         logger.info(
             "%s: %s in %ss (%s)",
             name,

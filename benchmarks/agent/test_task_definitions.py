@@ -30,7 +30,16 @@ TASKS = CFG["task"]
 
 
 def _repo(task) -> pathlib.Path:
-    return pathlib.Path(runner.task_target(CFG, task)["repo"]).expanduser()
+    """The real checkout -- which is not the configured path during a run.
+
+    While a batch runs, the configured path holds the *export*: the same tree
+    with the target symbol excised and no history it was ever there. Reading it
+    here made all eight gmail-archive cases fail for the duration of any live
+    run, reported as "not at commit". The guarded copy is the one that answers
+    the question this test is asking.
+    """
+    repo = pathlib.Path(runner.task_target(CFG, task)["repo"]).expanduser()
+    return runner.guarded_repo(repo)
 
 
 def _blob(task, rel: str) -> str | None:
