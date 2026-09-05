@@ -16,7 +16,7 @@ __pycache__/
 # Syncing it would let a lock taken on the M5 Max wedge the Linux tier.
 .run-lock.json
 
-# The harness's own checkouts of the target repositories (#145).
+# The harness's own checkouts of the target repositories (#146).
 #
 # The agent's export is built from these, never from the operator's working
 # copies in ~/git. Before this, a run renamed ~/git/monitor aside and stood an

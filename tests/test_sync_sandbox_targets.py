@@ -1,4 +1,4 @@
-"""#145: the harness clones its own copies; it never writes to ~/git."""
+"""#146: the harness clones its own copies; it never writes to ~/git."""
 
 from __future__ import annotations
 

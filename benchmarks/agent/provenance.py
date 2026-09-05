@@ -46,7 +46,15 @@ def _git(*args: str, cwd: pathlib.Path = HERE) -> str | None:
 # Files a run legitimately appends to. A benchmark writes results.jsonl, so
 # treating that as "dirty" would flag every run after the first and the flag
 # would stop meaning anything. `-dirty` must mean the CODE is uncommitted.
-DATA_SUFFIXES = (".jsonl", ".log")
+DATA_SUFFIXES = (".jsonl", ".log", ".csv")
+
+# Directories a run writes its own output into. An engine A/B creates
+# benchmarks/ds4/<prefix>-runN as it goes, and git reports an untracked
+# DIRECTORY -- "benchmarks/ds4/pr964-rerun-run1/" -- which no suffix rule can
+# match. Every row of every A/B therefore carried `-dirty`, naming the run's
+# own output as uncommitted code. That is the same defect as harness_dirty on
+# results.jsonl: a flag set on every row it appears on says nothing.
+DATA_PREFIXES = ("benchmarks/ds4/",)
 
 
 def code_is_dirty(cwd: pathlib.Path, *, untracked: bool = True) -> bool:
@@ -67,6 +75,8 @@ def code_is_dirty(cwd: pathlib.Path, *, untracked: bool = True) -> bool:
         path = line[3:].strip().strip('"')
         # A rename is "old -> new"; judge the destination.
         path = path.split(" -> ")[-1]
+        if path.startswith(DATA_PREFIXES):
+            continue
         if not path.endswith(DATA_SUFFIXES):
             return True
     return False

@@ -1,0 +1,7 @@
+{
+  "prompt_file": "promessi_sposi.txt",
+  "prompt_bytes": 1329139,
+  "prompt_sha256": "f53e0d80cb2d4492d24ebd63c7000c397b16ae70f9bf09b3763e5d8323ec209f",
+  "inferred": false,
+  "why": "recorded by the harness at run time from /Users/evanhoffman/git/ds4-main/speed-bench/promessi_sposi.txt"
+}

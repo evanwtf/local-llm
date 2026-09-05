@@ -295,3 +295,48 @@ def test_an_untracked_run_directory_is_not_code_dirt(tmp_path) -> None:
     (repo / "benchmarks-ds4-run1" / "a.csv").write_text("x\n")
     assert provenance.code_is_dirty(repo, untracked=False) is False
     assert provenance.code_is_dirty(repo) is True, "the default still sees it"
+
+
+def git_reports(repo) -> str:
+    return subprocess.run(
+        ["git", "status", "--porcelain"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+
+
+def test_a_runs_own_output_directory_is_not_code_dirt(tmp_path) -> None:
+    """Every engine A/B row carried `-dirty` because of its own output.
+
+    git reports an untracked DIRECTORY, "benchmarks/ds4/<prefix>-runN/", which
+    no suffix rule matches. The rows that carry this flag are the ones quoted
+    in issues, so a flag that is always set is worse than no flag.
+    """
+    repo = _repo(tmp_path)
+    # benchmarks/ds4/ must already be tracked, or git collapses the report to
+    # the topmost untracked directory ("?? benchmarks/") and the test would be
+    # measuring the fixture rather than the rule.
+    tracked = repo / "benchmarks" / "ds4" / "earlier-run"
+    tracked.mkdir(parents=True)
+    (tracked / "main-rep1.csv").write_text("ctx,tps\n2048,500\n")
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-qm", "earlier run"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
+    out = repo / "benchmarks" / "ds4" / "pr964-rerun-run1"
+    out.mkdir(parents=True)
+    (out / "main-rep1.csv").write_text("ctx,tps\n2048,500\n")
+    assert git_reports(repo).startswith("?? benchmarks/ds4/"), git_reports(repo)
+    assert provenance.code_is_dirty(repo) is False
+
+
+def test_a_csv_outside_the_output_tree_still_counts(tmp_path) -> None:
+    """The prefix rule is scoped; it does not excuse data anywhere at all."""
+    repo = _repo(tmp_path)
+    (repo / "new_module.py").write_text("x = 3\n")
+    assert provenance.code_is_dirty(repo) is True

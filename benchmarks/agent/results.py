@@ -133,7 +133,7 @@ def new_row(
         # the order was not recorded, which is what every row before this is.
         "run_position": run_position,
         "run_arms": run_arms,
-        # #145. Which checkout a row was built from: "legacy" parks the
+        # #146. Which checkout a row was built from: "legacy" parks the
         # operator's checkout and stands the export at the path the model
         # guesses; "sandbox" builds from the harness's own clone and denies
         # the guessed path instead. The two layouts give the agent different
