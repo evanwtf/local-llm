@@ -1167,6 +1167,27 @@ model = "qwen3.8-flash-next-q4"
 opencode_model = "ds4qwenshim/qwen3.8-flash-next-q4"
 context_tokens = 100000
 
+# The Q4_K imatrix rebuild of the same model (#138). Ivan replaced the Q4_0
+# routed-expert file our 135 qwen38fnds4shim rows were taken on, calling it
+# "faster, less accurate", and the file we measured is no longer on the Hub.
+#
+# **This is a different STACK, not a different quant.** Neither binary loads
+# the other's weights -- ds4-metal ba01f5d refuses this file and ivan's branch
+# refuses ours, both with `deepseek4.block_count missing` -- so the engine and
+# the quant move together and no comparison against qwen38fnds4shim can
+# attribute a difference to either alone. Say so wherever these rows are used.
+#
+# Decode A/B, four runs, 2026-09-04: this stack is +9.5% decode and -24.5%
+# prefill against qwen38fnds4shim's. Both answer 6/6 on a six-question
+# ds4-eval gate, which says neither is broken and ranks nothing.
+[backend.qwen38fnds4kimat]
+description = "Qwen3.8-Flash-Next Q4_K imatrix on ivanfioravanti/ds4 qwen3.8-flash-next bd9cfbc via the tool-format shim, MTP off"
+base_url = "http://127.0.0.1:8101"
+auth_token = "dsv4-local"
+model = "qwen3.8-flash-next-q4"
+opencode_model = "ds4qwenshim/qwen3.8-flash-next-q4"
+context_tokens = 100000
+
 [backend.qwen38fnds4shim]
 description = "Qwen3.8-Flash-Next Q4 fast-pack on ds4-metal ba01f5d via the tool-format shim (non-streaming upstream), MTP off"
 base_url = "http://127.0.0.1:8101"

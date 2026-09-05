@@ -45,4 +45,5 @@ documentation.
 | `install-metal-ceiling.sh` | Persist the Metal wired limit across reboots. |
 | `restart_between_trials.sh` | Restart-between-trials experiment for #112. |
 | `restart_between_trials_armB.sh` | 77 arm B re-run under restart-between-trials (2026-09-03). |
+| `stack_agent_ab.sh` | Interleaved agent-suite A/B for two whole STACKS -- engine + weights (#138). |
 
