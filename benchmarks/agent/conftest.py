@@ -14,7 +14,9 @@ from __future__ import annotations
 import pathlib
 
 import provenance
+import pytest
 import results
+import run
 
 HERE = pathlib.Path(__file__).resolve().parent
 
@@ -46,3 +48,23 @@ def pytest_report_header() -> list[str]:
         f"harness: {provenance.head()}",
         f"results.jsonl: {provenance.fingerprint(results.default_path())}",
     ]
+
+
+@pytest.fixture(autouse=True)
+def _keep_the_stash_inside_the_test(tmp_path, monkeypatch):
+    """No test may reach the real stash, marker or notice.
+
+    `stash_targets` moves a directory to `run.STASH_ROOT` and `restore_targets`
+    rmtrees whatever stands in its place. A test that patches only the marker
+    still writes into the operator's home: on 2026-09-04 one of them parked a
+    fixture repo at ~/.local-llm-bench/stash/repo, and a second test then failed
+    because that leftover was in the way.
+
+    Worse than the mess is the timing. A live batch keeps real checkouts in
+    exactly these paths for hours, so a suite run during a batch is a suite run
+    aimed at the operator's repositories. Redirect all three by default; a test
+    that wants its own paths overrides them as before.
+    """
+    monkeypatch.setattr(run, "STASH_ROOT", tmp_path / "stash", raising=False)
+    monkeypatch.setattr(run, "STASH_MARKER", tmp_path / "stash.json", raising=False)
+    monkeypatch.setattr(run, "STASH_NOTICE", tmp_path / "NOTICE.md", raising=False)
