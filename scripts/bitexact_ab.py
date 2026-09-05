@@ -31,7 +31,7 @@ Honest limits, restated on every report:
     to the last ulp prints identically. This instrument can confirm the claim
     to print resolution and refute it at print resolution; it cannot prove
     ulp-level bit-exactness.
-  * ds4-cli reports no sampling parameters in any output. The instrument
+  * the CLI reports no sampling parameters in any output. The instrument
     records the full argv and the environment pins it ran with, and marks the
     comparison conditional on that record. (As of the dump path above, the
     comparison does not depend on sampling at all; the record exists for the
@@ -80,7 +80,13 @@ DEFAULT_TIMEOUT = 1800
 #: over ctx ("one token of generation room is required"), so ctx must clear
 #: the prompt by more than the generation budget.
 MARGIN = 64
-TOP_K = 20  # ds4-cli's own default for --dump-logprobs; pinned, not inherited.
+TOP_K = 20  # the CLI's own default for --dump-logprobs; pinned, not inherited.
+
+# The binary built from ds4_cli.c is named `ds4` (Makefile:90 -- `ds4:
+# ds4_cli.o ...`), not `ds4-cli`. There is no ds4-cli target and `make
+# ds4-cli` fails outright. Naming it from the source file looked right and
+# refused every real tree.
+CLI_NAME = "ds4"
 
 
 class InstrumentRefused(Exception):
@@ -224,7 +230,7 @@ def cli_argv(
     backend_flag: str,
 ) -> list[str]:
     return [
-        str(tree / "ds4-cli"),
+        str(tree / CLI_NAME),
         "-m",
         gguf,
         backend_flag,
@@ -251,7 +257,7 @@ def tokenize_argv(tree: pathlib.Path, gguf: str, prompt: pathlib.Path) -> list[s
     # metadata and vocab (ds4_dump_text_tokenization), so this is cheap and
     # loads no weights.
     return [
-        str(tree / "ds4-cli"),
+        str(tree / CLI_NAME),
         "-m",
         gguf,
         "--raw",
@@ -369,7 +375,7 @@ def refuse_seed(seed: int) -> None:
 
 def require_binaries(trees: dict[str, pathlib.Path]) -> None:
     for label, tree in trees.items():
-        cli = tree / "ds4-cli"
+        cli = tree / CLI_NAME
         if not cli.is_file() or not os.access(cli, os.X_OK):
             raise InstrumentRefused(
                 f"{cli} is missing or not executable -- build {label} first"
@@ -542,7 +548,7 @@ def run(args: argparse.Namespace) -> int:
                 "raw_prompt": True,
             },
             "engine_reports_sampling": False,
-            "note": "ds4-cli prints timings only; the --dump-logprobs JSON "
+            "note": "the CLI prints timings only; the --dump-logprobs JSON "
             "records prompt_tokens, ctx and top_k but none of the "
             "sampling parameters it used. The comparison is "
             "conditional on the recorded argv and env. The dump "

@@ -99,7 +99,7 @@ def bench(tmp_path, monkeypatch):
     for name in ("tree-a", "tree-b"):
         tree = tmp_path / name
         tree.mkdir()
-        cli = tree / "ds4-cli"
+        cli = tree / ab.CLI_NAME
         cli.write_text(FAKE_CLI)
         cli.chmod(0o755)
         trees[name] = tree
@@ -611,7 +611,7 @@ def test_a_prompt_file_longer_than_ctx_is_refused(bench, monkeypatch, caplog):
 
 
 def test_a_missing_cli_binary_is_refused(bench, tmp_path):
-    bench["trees"]["tree-b"].joinpath("ds4-cli").unlink()
+    bench["trees"]["tree-b"].joinpath(ab.CLI_NAME).unlink()
     rc = ab.main(
         [
             "new",
@@ -743,3 +743,21 @@ def test_compare_is_none_when_two_dumps_agree():
     a = {"prompt_tokens": 8, "ctx": 24, "steps": steps}
     b = {"prompt_tokens": 8, "ctx": 24, "steps": [dict(s) for s in steps]}
     assert ab.first_divergence(a, b) is None
+
+
+def test_the_cli_name_is_a_real_make_target(tmp_path):
+    """The binary is `ds4`; ds4_cli.c is the source that builds it.
+
+    The instrument first looked for `ds4-cli`, a name taken from the source
+    file. There is no such target -- `make ds4-cli` fails outright -- so the
+    tool refused every real tree with "missing or not executable" while these
+    tests, which built their fake under the same wrong name, passed. Assert
+    against ds4's Makefile so the fake and the real tree cannot disagree again.
+    """
+    makefile = pathlib.Path.home() / "git" / "ds4-main" / "Makefile"
+    if not makefile.exists():
+        pytest.skip("no ds4 checkout at ~/git/ds4-main")
+    text = makefile.read_text()
+    assert f"\n{ab.CLI_NAME}: ds4_cli.o" in text, (
+        f"{ab.CLI_NAME} is not the Makefile target built from ds4_cli.o"
+    )
