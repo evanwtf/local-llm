@@ -32,6 +32,7 @@ documentation.
 | `prompt_meta.py` | Which prompt a decode/prefill A/B was measured on (#140). |
 | `prune_models.py` | Delete local model weights that are superseded and re-downloadable (#111). |
 | `report.py` | Summarise and compare measured cells, with the resolution rule applied. |
+| `sensor_windows.py` | Join a monitord sensor series to benchmark sweep windows. |
 | `session_decay.py` | Does a session get worse the longer the server runs? (#120) |
 | `stack_agent_report.py` | Read out for the #138 stack A/B: two whole stacks, four sweeps, one screen. |
 | `sync_sandbox_targets.py` | Clone the harness's own copies of the task repositories into `sandbox/`. |
