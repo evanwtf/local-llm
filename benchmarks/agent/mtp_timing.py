@@ -47,9 +47,23 @@ import provenance
 
 logger = logging.getLogger(__name__)
 
-# "ds4: mtp timing <kind> drafted=N committed=M ..." -- kind is micro,
-# decode2 or margin-skip; the trailing timing fields differ per kind and are
-# deliberately not parsed here. Only the two counters are load-bearing.
+# ds4 prints MTP counters from two different code paths, and they do not
+# agree on what they report. Both are real output from the same binary.
+#
+# The Qwen path -- the one qwen38fnds4mtp7shim actually runs:
+#   ds4: Qwen MTP timing drafted=7 accepted=3 target_tokens=4 cycle=.. verifier=block
+# `accepted` is already draft-only. The free first token is the +1 in
+# target_tokens: the source builds it as `1u + plan.accepted` (ds4.c:79xxx).
+QWEN_CYCLE = re.compile(
+    r"^ds4: Qwen MTP timing drafted=(?P<drafted>\d+) accepted=(?P<accepted>\d+)"
+    r" target_tokens=(?P<target>\d+)"
+)
+
+# The decode2/micro path, which reports `committed` INCLUDING that free token:
+#   ds4: mtp timing micro drafted=7 committed=5 draft=.. verify=.. total=..
+# A cycle that declines the draft still prints committed=1, so this shape
+# needs the subtraction and the Qwen shape must not have it. Getting this
+# backwards is a silent one-token-per-cycle error in either direction.
 CYCLE = re.compile(
     r"^ds4: mtp timing (?P<kind>[\w-]+) drafted=(?P<drafted>\d+) committed=(?P<committed>\d+)\b"
 )
@@ -61,19 +75,27 @@ SPEC_MISS = re.compile(r"^ds4: mtp spec miss first draft=(?P<token>-?\d+)\b")
 
 @dataclasses.dataclass(frozen=True)
 class Cycle:
+    """One speculative cycle, with the free first token already resolved away.
+
+    Both counts are draft-only. The two log shapes disagree about whether
+    their raw numbers include the free token, so that is settled at parse
+    time rather than carried around to be got wrong later.
+    """
+
     kind: str
-    drafted: int
-    committed: int
+    accepted: int
+    proposed: int
 
     @property
-    def accepted(self) -> int:
-        """Draft tokens accepted, excluding the first token verified for free."""
-        return max(self.committed - 1, 0)
+    def bypassed(self) -> bool:
+        """A cycle where nothing was drafted at all.
 
-    @property
-    def proposed(self) -> int:
-        """Draft tokens actually proposed, excluding that same free token."""
-        return max(self.drafted - 1, 0)
+        ds4's MTP scheduler can decide drafting is a net loss and switch to
+        plain decode, after which it still prints a cycle per token with
+        `drafted=0 ... verifier=scheduler-bypass`. Those are not drafting;
+        counting them as cycles makes an arm look active while it is not.
+        """
+        return self.proposed == 0
 
 
 @dataclasses.dataclass(frozen=True)
@@ -98,10 +120,33 @@ class Counters:
     def used(self) -> bool:
         """Did the draft head do any work at all?
 
-        This is the #148 assertion. False means the arm ran without the
-        treatment, whatever the flag said.
+        Necessary but NOT sufficient for "this is an MTP arm" -- see
+        `drafting_share`. A head can accept hundreds of tokens in the first
+        seconds and then be switched off for the entire measured run.
         """
         return self.accepted > 0
+
+    @property
+    def bypassed(self) -> int:
+        """Cycles where the scheduler drafted nothing."""
+        return sum(1 for c in self.cycles if c.bypassed)
+
+    @property
+    def drafting(self) -> int:
+        """Cycles that actually proposed draft tokens."""
+        return len(self.cycles) - self.bypassed
+
+    @property
+    def drafting_share(self) -> float | None:
+        """Fraction of cycles that drafted. None when there were no cycles.
+
+        This is the number that says whether an arm was an MTP arm. #148 was
+        written around `accepted == 0`, and that test is too weak: ds4's
+        scheduler measures MTP against plain decode and disables it when it
+        loses, so an arm can accept hundreds of draft tokens during warmup
+        and serve every measured request without drafting at all.
+        """
+        return self.drafting / len(self.cycles) if self.cycles else None
 
     def by_kind(self) -> dict[str, int]:
         counts: dict[str, int] = {}
@@ -115,14 +160,31 @@ def read(text: str) -> Counters:
     a server log is mostly other things."""
     cycles: list[Cycle] = []
     misses = 0
-    for line in text.splitlines():
-        line = line.strip()
-        if match := CYCLE.match(line):
+    for raw in text.splitlines():
+        line = raw.strip()
+        if match := QWEN_CYCLE.match(line):
+            accepted = int(match["accepted"])
+            if int(match["target"]) != accepted + 1:
+                # target_tokens is accepted plus the free first token. If that
+                # stops holding, the line's meaning has changed and every
+                # number derived from it is suspect -- say so rather than
+                # keep counting.
+                logger.warning(
+                    "unexpected Qwen MTP line: target_tokens=%s but accepted=%d "
+                    "(expected %d) -- the log format may have changed",
+                    match["target"],
+                    accepted,
+                    accepted + 1,
+                )
+            cycles.append(
+                Cycle(kind="qwen", accepted=accepted, proposed=int(match["drafted"]))
+            )
+        elif match := CYCLE.match(line):
             cycles.append(
                 Cycle(
                     kind=match["kind"],
-                    drafted=int(match["drafted"]),
-                    committed=int(match["committed"]),
+                    accepted=max(int(match["committed"]) - 1, 0),
+                    proposed=max(int(match["drafted"]) - 1, 0),
                 )
             )
         elif SPEC_MISS.match(line):
@@ -192,10 +254,21 @@ def main(argv: list[str] | None = None) -> int:
     logger.info("cycles=%d %s", len(counters.cycles), counters.by_kind())
     logger.info("spec misses (first draft rejected)=%d", counters.spec_misses)
     logger.info(
+        "cycles drafting=%d bypassed=%d (scheduler switched to plain decode)",
+        counters.drafting,
+        counters.bypassed,
+    )
+    logger.info(
         "draft tokens proposed=%d accepted=%d",
         counters.proposed,
         counters.accepted,
     )
+    if (share := counters.drafting_share) is not None and share < 0.5:
+        logger.warning(
+            "only %.1f%% of cycles drafted -- the scheduler spent most of this "
+            "log in plain decode, so these rows are largely NOT an MTP measurement",
+            100.0 * share,
+        )
     if (rate := counters.accept_rate) is not None:
         logger.info("accept rate=%.2f%%", 100.0 * rate)
     else:
