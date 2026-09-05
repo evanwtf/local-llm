@@ -20,6 +20,7 @@ documentation.
 | `cohort_split.py` | Split one backend's rows at a moment in time and compare the halves. |
 | `decode_ab_report.py` | Summarise a paired decode A/B produced by scripts/decode_ab.sh (#48). |
 | `disk_baseline.py` | Measure the internal NVMe: read bandwidth and random-read latency. |
+| `ds4_serve.py` | Start ds4-server on one of two Metal kernel routes, and prove which one ran. |
 | `eval_trace.py` | Read a `ds4-eval` trace: pass rate, and tokens spent reaching each answer. |
 | `exclude_rows.py` | Mark rows from an aborted or void run as excluded, so they cannot publish. |
 | `gguf_meta.py` | Print a GGUF file's metadata without loading the model. |
@@ -47,6 +48,8 @@ documentation.
 | `decode_ab_repeat.sh` | Run the same decode A/B N times, into numbered directories (#136). |
 | `decode_ab_stack.sh` | Paired decode A/B for two whole STACKS -- engine tree + weights together. |
 | `disk_kv_mechanism_test.sh` | 112 disk-KV mechanism test (2026-09-03). |
+| `ds4-fast.sh` | Metal 4 TensorOps: ~21% faster, not bit-exact. See scripts/ds4_serve.py. |
+| `ds4-vanilla.sh` | Reference kernels: bit-exact, slower. See scripts/ds4_serve.py. |
 | `install-metal-ceiling.sh` | Persist the Metal wired limit across reboots. |
 | `restart_between_trials.sh` | Restart-between-trials experiment for #112. |
 | `restart_between_trials_armB.sh` | 77 arm B re-run under restart-between-trials (2026-09-03). |
