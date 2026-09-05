@@ -1175,3 +1175,96 @@ def test_a_partial_restore_keeps_the_marker_for_the_rest(tmp_path, monkeypatch):
     assert marker.exists(), "the unrestored entry must stay on the map"
     left = json.loads(marker.read_text())["moved"]
     assert [m["export"] for m in left] == [str(gone_export)]
+
+
+# --- where one_trial looks for the parked checkout (#54, 846ec66) -----------
+
+
+def _tiny_repo(tmp_path):
+    """A real one-commit repo: build_checkout archives from it with git."""
+    repo = tmp_path / "monitor"
+    repo.mkdir()
+    (repo / "mod.py").write_text("def target_fn():\n    return 1\n")
+    run.git(["init", "-q", "-b", "main"], repo)
+    run.git(["add", "-A"], repo)
+    run.git(
+        [
+            "-c",
+            "user.email=bench@local",
+            "-c",
+            "user.name=bench",
+            "commit",
+            "-q",
+            "-m",
+            "init",
+        ],
+        repo,
+    )
+    return repo, run.git(["rev-parse", "HEAD"], repo)
+
+
+def test_parked_checkout_finds_the_stash_root_copy(tmp_path):
+    """846ec66 moved the parking lot to STASH_ROOT. Anything that still looks
+    only for the legacy <name>-real sibling reports nothing parked."""
+    repo = tmp_path / "monitor"
+    parked = run.stash_path(repo)
+    parked.mkdir(parents=True)
+    assert run.parked_checkout(repo) == parked
+
+
+def test_parked_checkout_finds_the_legacy_sibling(tmp_path):
+    legacy = run.legacy_stash_path(tmp_path / "monitor")
+    legacy.mkdir()
+    assert run.parked_checkout(tmp_path / "monitor") == legacy
+
+
+def test_parked_checkout_is_none_when_nothing_is_parked(tmp_path):
+    """The third state guarded_repo() cannot express: with nothing parked the
+    trial builds from the configured path into a fresh workdir."""
+    assert run.parked_checkout(tmp_path / "monitor") is None
+
+
+def test_one_trial_builds_the_trial_from_the_parked_checkout(tmp_path):
+    """The bug this audit exists for: one_trial looked only for the legacy
+    <name>-real sibling. Under the stash root it saw nothing parked and built
+    the trial from the configured path -- which a live batch has emptied by
+    parking the real checkout -- so build_checkout died on every repo trial.
+    846ec66 had never executed a trial when this was found: the running batch
+    predates it."""
+    repo, commit = _tiny_repo(tmp_path)
+    run.stash_targets([(str(repo), commit)])
+    assert run.stash_path(repo).exists() and not repo.exists()
+    row = run.one_trial(
+        {"repo": str(repo), "base_commit": commit},
+        {
+            "name": "seam",
+            "file": "mod.py",
+            "symbol": "target_fn",
+            "tests": [],
+            "test_command": "false",
+        },
+        "seam",
+        {"model": "stub", "context_tokens": 1},
+        trial=1,
+        workdir=tmp_path / "work",
+        timeout=10,
+        dry_run=True,
+        client="claude",
+        prepare_env_first=False,
+    )
+    assert row["removed_symbols"] == ["target_fn"]
+    assert row["control_fails_as_expected"] is True
+
+
+def test_the_sandbox_denies_every_parking_spot(tmp_path):
+    """The real checkout keeps full history wherever it is parked, so the deny
+    list has to name every parking spot -- not only the legacy -real siblings
+    -- plus the two files that say where the parking is."""
+    worktree = tmp_path / "work" / "seam"
+    worktree.mkdir(parents=True)
+    repo = tmp_path / "monitor"
+    _profile, denied = run.sandbox_profile(worktree, repo)
+    assert str(run.STASH_ROOT) in denied
+    assert str(run.legacy_stash_path(repo)) in denied
+    assert str(run.STASH_MARKER) in denied
+    assert str(run.STASH_NOTICE) in denied

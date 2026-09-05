@@ -1272,14 +1272,30 @@ CLIENTS = {
 def guarded_repo(repo):
     """The checkout the tripwire watches.
 
-    #54: while stashed, the real checkout is at <name>-real and the export
-    stands at `repo`. The export is *supposed* to be modified -- that is the
-    trial -- so the tripwire has to watch the real one.
+    #54: while stashed, the real checkout is parked at `stash_path(repo)` --
+    `legacy_stash_path(repo)` for markers written before 2026-09-04 -- and the
+    export stands at `repo`. The export is *supposed* to be modified -- that is
+    the trial -- so the tripwire has to watch the real one.
     """
     for real in (stash_path(repo), legacy_stash_path(repo)):
         if real.exists():
             return real
     return repo
+
+
+def parked_checkout(repo):
+    """Where the real checkout is parked right now, or None if it is not parked.
+
+    Not the question guarded_repo() answers. With nothing parked that helper
+    returns `repo` itself, which serves a caller that wants "the un-excised
+    tree". one_trial needs the third state: nothing parked means build the
+    trial from `repo` into a fresh workdir, never from `repo` itself as the
+    source -- mid-batch that path is empty until the trial fills it (#54).
+    """
+    for real in (stash_path(repo), legacy_stash_path(repo)):
+        if real.exists():
+            return real
+    return None
 
 
 def source_repo_intact(repo, commit):
@@ -1345,9 +1361,9 @@ def stash_targets(pairs):
     guesses now holds the export: the right files, already excised, with no
     `.git` history the original body was ever in.
 
-    The real checkout moves to `<name>-real` for the duration. A marker records
-    the move so a run killed mid-batch is recoverable -- `restore_targets()`
-    runs from preflight as well as from here.
+    The real checkout moves to `stash_path(repo)` for the duration. A marker
+    records the move so a run killed mid-batch is recoverable --
+    `restore_targets()` runs from preflight as well as from here.
 
     Returns [(export_path, source_path)] for the caller to materialise into.
     """
@@ -1713,10 +1729,19 @@ def sandbox_profile(worktree, repo):
         # able to run.
         repo_path,
         # The stashed real checkout keeps full history, so `git show
-        # <commit>:path` there would hand over the original body. Deny it too.
-        repo_path.with_name(repo_path.name + "-real"),
+        # <commit>:path` there would hand over the original body. Deny every
+        # place it is parked: STASH_ROOT holds the current layout's copy for
+        # every task repo at once, the -real siblings the pre-2026-09-04 one.
+        STASH_ROOT,
+        legacy_stash_path(repo_path),
         home / "git/gmail-archive-real",
         home / "git/monitor-real",
+        # The notice says a benchmark is running; the marker lists where the
+        # real checkouts sit. `(allow default)` leaves both readable, and the
+        # notice's own rule -- never inside an export -- does not help when the
+        # agent can read the file where it lives.
+        STASH_MARKER,
+        STASH_NOTICE,
     ]
     for path in candidates:
         path = str(path)
@@ -1903,10 +1928,11 @@ def one_trial(
     repo = pathlib.Path(target["repo"]).expanduser()
     suffix = "" if client == "claude" else f"-{client}"
     name = f"{task['name']}-{backend_name}{suffix}-{trial}"
-    # #54: while the real checkout is stashed at <name>-real, the export stands
-    # in its place, so the path a model guesses holds the excised tree. Trials
-    # are serial, so one export at a time is fine.
-    stashed_source = repo.with_name(repo.name + "-real")
+    # #54: while the real checkout is parked -- STASH_ROOT, or the legacy
+    # <name>-real sibling -- the export stands in its place, so the path a
+    # model guesses holds the excised tree. Trials are serial, so one export at
+    # a time is fine.
+    stashed_source = parked_checkout(repo)
     is_script = task.get("kind") == "script"
     # A script task starts from an empty directory: no repo, so no export, no
     # stash, no excision and nothing to leak. It never stands in the guessed
@@ -1914,7 +1940,7 @@ def one_trial(
     worktree = (
         workdir / name
         if is_script
-        else (repo if stashed_source.exists() else workdir / name)
+        else (repo if stashed_source else workdir / name)
     )
     # results.new_row is the only place a row is shaped. It stamps the schema
     # version and sets both exclusion keys explicitly -- see results.py for why
@@ -1950,11 +1976,11 @@ def one_trial(
         result["removed_lines"] = 0
         result["removed_symbols"] = []
     else:
-        # The export is materialised FROM the stashed real checkout, INTO the
+        # The export is materialised FROM the parked real checkout, INTO the
         # path the model guesses. `source` differs from `repo` only while
         # stashed.
         build_checkout(
-            stashed_source if stashed_source.exists() else repo,
+            stashed_source or repo,
             target["base_commit"],
             worktree,
         )
@@ -2455,7 +2481,7 @@ def main():
 
     # #54: stand the export where the model expects the repo to be, so a
     # guessed path reaches the excised tree instead of an intact one. The real
-    # checkouts move to <name>-real until the batch ends.
+    # checkouts move under STASH_ROOT until the batch ends.
     restore_targets()  # in case a previous run died mid-batch
     stash_targets(pairs)
     atexit.register(restore_targets)
