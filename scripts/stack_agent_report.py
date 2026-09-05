@@ -128,7 +128,10 @@ def run_date(run_dir: pathlib.Path) -> dt.date | None:
         first = record.read_text(errors="replace").splitlines()[:1]
     except OSError:
         return None
-    match = re.search(r"(\d{4}-\d{2}-\d{2}) \d{2}:\d{2}:\d{2}", first[0]) if first else None
+    # The producer writes an ISO T (date '+%Y-%m-%dT%H:%M:%S %Z'); the space
+    # form is accepted too because the first fixture used it. The producer
+    # is the contract; the reader adapts to it.
+    match = re.search(r"(\d{4}-\d{2}-\d{2})[T ]\d{2}:\d{2}:\d{2}", first[0]) if first else None
     return dt.date.fromisoformat(match.group(1)) if match else None
 
 

@@ -6,9 +6,11 @@ does not exist at test time and must never become a fixture.
 
 from __future__ import annotations
 
+import datetime as dt
 import json
 import logging
 import pathlib
+import re
 import sys
 
 import pytest
@@ -19,6 +21,26 @@ sys.path.insert(
 )
 
 import stack_agent_report as sar
+
+SCRIPT = pathlib.Path(__file__).resolve().parents[1] / "scripts" / "stack_agent_ab.sh"
+
+
+def producer_fmt(pattern: str) -> str:
+    """The date format stack_agent_ab.sh itself writes, pulled out of the
+    script. Fixtures are built from this so the reader can never drift from
+    the producer again -- the first fixture hand-wrote a space where the
+    script writes a T, and the report then exited 2 on the real run dir."""
+    found = re.search(pattern, SCRIPT.read_text())
+    assert found, f"stack_agent_ab.sh no longer matches {pattern!r}"
+    return found.group(1)
+
+
+def producer_started_line(when: dt.datetime) -> str:
+    return f"# stack agent A/B, started {when.strftime(producer_fmt(r"started \$\(date '([^']+)'\)"))}".rstrip()
+
+
+def producer_sweep_line(tag: str, when: dt.datetime) -> str:
+    return f"{tag} {when.strftime(producer_fmt(r"\$tag \$\(date '([^']+)'\)\" >> "))}"
 
 TASKS = [f"task-{i:02d}" for i in range(15)]
 #: Sweep order as stack_agent_ab.sh writes it: new, old, new, old.
@@ -68,12 +90,15 @@ def write_run_dir(tmp_path: pathlib.Path) -> pathlib.Path:
     run_dir = tmp_path / "138-stack-ab"
     run_dir.mkdir()
     (run_dir / "run-record.txt").write_text(
-        "# stack agent A/B, started 2026-09-04 20:57:03 EDT\n"
+        producer_started_line(dt.datetime(2026, 9, 4, 20, 57, 17)) + "\n"
         "NEW backend=qwen38fnds4kimat engine=~/git/ds4-ivan-qwen38fn @ bd9cfbc\n"
         "OLD backend=qwen38fnds4shim engine=~/git/ds4-metal @ ba01f5d\n"
     )
     (run_dir / "sweep-order.txt").write_text(
-        "".join(f"{tag} {tod}\n" for tag, tod in ORDER)
+        "".join(
+            producer_sweep_line(tag, dt.datetime.strptime(tod, "%H:%M:%S")) + "\n"
+            for tag, tod in ORDER
+        )
     )
     for tag, _ in ORDER:
         (run_dir / f"server-{tag}.log").write_text("ready\n")
@@ -144,6 +169,27 @@ def test_sweep_windows_come_from_the_order_file_not_from_gaps(tmp_path):
     counts = {s.tag: len(s.rows) for s in sweeps}
     assert counts == {"new-sweep1": 15, "old-sweep1": 15,
                       "new-sweep2": 15, "old-sweep2": 15}
+
+
+def test_the_fixtures_are_built_in_the_producers_formats():
+    """The first fixture hand-wrote a space where the producer writes a T,
+    and the reader then exited 2 on the live run dir. From here the fixtures
+    are built from stack_agent_ab.sh's own date formats, so a change to the
+    producer's line shapes fails this suite and the reader is updated in the
+    same commit."""
+    when = dt.datetime(2026, 9, 4, 20, 57, 17)
+    assert "T" in producer_started_line(when)
+    assert "T" not in producer_sweep_line("new-sweep1", when)
+
+
+def test_the_live_run_record_line_parses(tmp_path):
+    """The exact first line the live run wrote at 20:57:17."""
+    run_dir = tmp_path / "138-stack-ab"
+    run_dir.mkdir()
+    (run_dir / "run-record.txt").write_text(
+        "# stack agent A/B, started 2026-09-04T20:57:17 EDT\n"
+    )
+    assert sar.run_date(run_dir) == dt.date(2026, 9, 4)
 
 
 def test_a_short_cell_refuses_to_compute(tmp_path, caplog):
