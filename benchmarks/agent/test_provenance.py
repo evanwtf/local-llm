@@ -160,25 +160,25 @@ def test_appending_to_a_data_file_is_not_dirty(tmp_path) -> None:
     being read."""
     repo = _repo(tmp_path)
     (repo / "results.jsonl").write_text('{"a":1}\n{"a":2}\n')
-    assert not provenance._code_is_dirty(repo)
+    assert not provenance.code_is_dirty(repo)
 
 
 def test_changing_code_is_dirty(tmp_path) -> None:
     repo = _repo(tmp_path)
     (repo / "code.py").write_text("x = 2\n")
-    assert provenance._code_is_dirty(repo)
+    assert provenance.code_is_dirty(repo)
 
 
 def test_a_new_untracked_source_file_is_dirty(tmp_path) -> None:
     repo = _repo(tmp_path)
     (repo / "new.py").write_text("y = 1\n")
-    assert provenance._code_is_dirty(repo)
+    assert provenance.code_is_dirty(repo)
 
 
 def test_a_new_log_file_is_not_dirty(tmp_path) -> None:
     repo = _repo(tmp_path)
     (repo / "run.log").write_text("noise\n")
-    assert not provenance._code_is_dirty(repo)
+    assert not provenance.code_is_dirty(repo)
 
 
 def test_code_and_data_together_are_dirty(tmp_path) -> None:
@@ -186,11 +186,11 @@ def test_code_and_data_together_are_dirty(tmp_path) -> None:
     repo = _repo(tmp_path)
     (repo / "results.jsonl").write_text('{"a":9}\n')
     (repo / "code.py").write_text("x = 3\n")
-    assert provenance._code_is_dirty(repo)
+    assert provenance.code_is_dirty(repo)
 
 
 def test_a_clean_tree_is_clean(tmp_path) -> None:
-    assert not provenance._code_is_dirty(_repo(tmp_path))
+    assert not provenance.code_is_dirty(_repo(tmp_path))
 
 
 # --- a log line must name its machine (#85) ---------------------------------
@@ -260,3 +260,23 @@ def test_committed_logs_all_name_their_machine():
         # timestamp is last.
         assert stem.split("-")[-1].endswith("Z"), f"no UTC stamp: {log}"
         assert len(stem.split("-")) >= 3, f"filename does not name a machine: {log}"
+
+
+def test_harness_dirty_ignores_the_results_file(tmp_path, monkeypatch) -> None:
+    """The consumer of this rule, which had its own stricter one.
+
+    run.py asked raw `git status --porcelain`, so results.jsonl -- appended to
+    by every run -- set harness_dirty on essentially every row ever recorded.
+    stack_agent_report voids a read-out when any row carries the flag, so a
+    pre-registered screen was guaranteed to void itself on a condition that is
+    always true.
+    """
+    import run
+
+    repo = _repo(tmp_path)
+    (repo / "results.jsonl").write_text('{}\n{"row": 2}\n')
+    monkeypatch.setattr(run, "HERE", repo)
+    assert run.provenance.code_is_dirty(repo) is False
+
+    (repo / "code.py").write_text("x = 2\n")
+    assert run.provenance.code_is_dirty(repo) is True

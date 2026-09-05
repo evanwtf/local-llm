@@ -680,9 +680,13 @@ def capture_versions(cfg, backends):
     # its own code cannot be re-derived once the code moves on.
     try:
         env["harness_head"] = git(["rev-parse", "--short", "HEAD"], HERE)
-        env["harness_dirty"] = bool(
-            git(["status", "--porcelain", "--untracked-files=no"], HERE)
-        )
+        # Ask provenance, which excludes the data files a run appends to.
+        # Raw porcelain counts results.jsonl, and every run writes to it -- so
+        # this was True on essentially every row ever recorded. That is not a
+        # cosmetic inaccuracy: stack_agent_report treats "harness_dirty row
+        # present" as a VOID condition, so a pre-registered read-out was
+        # guaranteed to void itself for a reason that is always true.
+        env["harness_dirty"] = provenance.code_is_dirty(HERE)
     except RuntimeError:
         pass
 

@@ -49,7 +49,8 @@ def _git(*args: str, cwd: pathlib.Path = HERE) -> str | None:
 DATA_SUFFIXES = (".jsonl", ".log")
 
 
-def _code_is_dirty(cwd: pathlib.Path) -> bool:
+def code_is_dirty(cwd: pathlib.Path) -> bool:
+    """Uncommitted CODE, ignoring the data files a run appends to."""
     status = _git("status", "--porcelain", cwd=cwd)
     if not status:
         return False
@@ -76,7 +77,7 @@ def head(cwd: pathlib.Path = HERE) -> str:
     sha = _git("rev-parse", "--short=7", "HEAD", cwd=cwd)
     if sha is None:
         return UNKNOWN
-    return f"{sha}-dirty" if _code_is_dirty(cwd) else sha
+    return f"{sha}-dirty" if code_is_dirty(cwd) else sha
 
 
 @functools.cache
