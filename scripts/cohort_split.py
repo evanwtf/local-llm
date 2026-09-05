@@ -70,7 +70,12 @@ def split(
 def describe(name: str, rows: list[dict[str, Any]]) -> list[str]:
     if not rows:
         return [f"{name}: no rows"]
-    passed = sum(1 for r in rows if r.get("passed"))
+    # `results.verdict()`, never `row["passed"]`. A trial passes only if the
+    # oracle passed AND every guard held -- a row that edited the tests has
+    # `passed: true` and is not a pass. Reading the raw key is how a 13/16
+    # backend reached a published table as 13/13, and this script did it until
+    # a review caught it.
+    passed = sum(1 for r in rows if results_mod.verdict(r))
     out = [f"{name}: {passed}/{len(rows)} passed ({passed / len(rows):.1%})"]
     for field in CONFOUNDS:
         seen = collections.Counter(str(r.get(field)) for r in rows)
