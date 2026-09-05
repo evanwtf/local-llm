@@ -69,16 +69,24 @@ def row(backend: str, task: str, started: str, **extra) -> dict:
     return row
 
 
-def full_rows() -> list[dict]:
-    """60 rows: 15 tasks x 4 sweeps, every trial a clean pass."""
+STARTS = [
+    dt.datetime(2026, 9, 4, 20, 58, 0),
+    dt.datetime(2026, 9, 4, 21, 40, 0),
+    dt.datetime(2026, 9, 4, 22, 22, 0),
+    dt.datetime(2026, 9, 4, 23, 0, 0),
+]
+
+
+def full_rows(offset: dt.timedelta = dt.timedelta(0)) -> list[dict]:
+    """60 rows: 15 tasks x 4 sweeps, every trial a clean pass. `offset`
+    shifts every sweep (and its rows) as a relaunch would."""
     rows = []
-    for tag, start in ORDER:
-        h, m, s = (int(x) for x in start.split(":"))
+    for (tag, _), base in zip(ORDER, STARTS):
         backend = ("qwen38fnds4kimat" if arm_of(tag) == "new"
                    else "qwen38fnds4shim")
         for i, task in enumerate(TASKS):
-            tod = f"{h:02d}:{m:02d}:{(s + i) % 60:02d}"
-            rows.append(row(backend, task, f"2026-09-04T{tod}-04:00"))
+            when = base + offset + dt.timedelta(seconds=i)
+            rows.append(row(backend, task, f"2026-09-04T{when:%H:%M:%S}-04:00"))
     return rows
 
 
@@ -86,18 +94,24 @@ def arm_of(tag: str) -> str:
     return tag.rsplit("-sweep", 1)[0]
 
 
-def write_run_dir(tmp_path: pathlib.Path) -> pathlib.Path:
+def write_run_dir(
+    tmp_path: pathlib.Path,
+    started_at: dt.datetime | None = None,
+    offset: dt.timedelta = dt.timedelta(0),
+) -> pathlib.Path:
     run_dir = tmp_path / "138-stack-ab"
     run_dir.mkdir()
+    if started_at is None:
+        started_at = dt.datetime(2026, 9, 4, 20, 57, 17)
     (run_dir / "run-record.txt").write_text(
-        producer_started_line(dt.datetime(2026, 9, 4, 20, 57, 17)) + "\n"
+        producer_started_line(started_at) + "\n"
         "NEW backend=qwen38fnds4kimat engine=~/git/ds4-ivan-qwen38fn @ bd9cfbc\n"
         "OLD backend=qwen38fnds4shim engine=~/git/ds4-metal @ ba01f5d\n"
     )
     (run_dir / "sweep-order.txt").write_text(
         "".join(
-            producer_sweep_line(tag, dt.datetime.strptime(tod, "%H:%M:%S")) + "\n"
-            for tag, tod in ORDER
+            producer_sweep_line(tag, base + offset) + "\n"
+            for (tag, _), base in zip(ORDER, STARTS)
         )
     )
     for tag, _ in ORDER:
@@ -111,9 +125,15 @@ def write_ledger(tmp_path: pathlib.Path, rows: list[dict]) -> pathlib.Path:
     return ledger
 
 
-def run_report(tmp_path: pathlib.Path, rows: list[dict], caplog):
+def run_report(
+    tmp_path: pathlib.Path,
+    rows: list[dict],
+    caplog,
+    started_at: dt.datetime | None = None,
+    offset: dt.timedelta = dt.timedelta(0),
+):
     ledger = write_ledger(tmp_path, rows)
-    run_dir = write_run_dir(tmp_path)
+    run_dir = write_run_dir(tmp_path, started_at, offset)
     caplog.set_level(logging.INFO, logger="stack_agent_report")
     code = sar.main(["--ledger", str(ledger), "--run-dir", str(run_dir)])
     return code, caplog.text
@@ -190,6 +210,63 @@ def test_the_live_run_record_line_parses(tmp_path):
         "# stack agent A/B, started 2026-09-04T20:57:17 EDT\n"
     )
     assert sar.run_date(run_dir) == dt.date(2026, 9, 4)
+
+
+def test_the_cut_defaults_to_the_run_records_started_line(tmp_path, caplog):
+    """No --cut: the cut is the record's started line, printed so the reader
+    sees which scope the counts carry."""
+    code, out = run_report(tmp_path, full_rows(), caplog)
+    assert code == 0
+    assert "cut: 2026-09-04 20:57:17 (run-record.txt)" in out
+
+
+def test_rows_from_the_dead_first_run_are_out_of_scope(tmp_path, caplog):
+    """The 20:57 launch died 18 minutes in; its 8 rows are excluded in the
+    ledger and started 20:57-21:16. The relaunch's record line is the cut,
+    so they fall out of scope: the raw line still counts one run, 60 rows,
+    and the dead run's exclusions do not appear."""
+    relaunch = dt.timedelta(minutes=31)  # the relaunch re-ran every sweep
+    rows = full_rows(relaunch)
+    for when in ("2026-09-04T20:58:00-04:00", "2026-09-04T21:10:00-04:00"):
+        dead = row("qwen38fnds4kimat", "task-00", when)
+        dead["excluded"] = True
+        dead["exclusion_reason"] = "first launch died 18 minutes in"
+        rows.append(dead)
+    code, out = run_report(
+        tmp_path, rows, caplog,
+        started_at=dt.datetime(2026, 9, 4, 21, 27, 43),
+        offset=relaunch,
+    )
+    assert code == 0
+    assert "cut: 2026-09-04 21:27:43 (run-record.txt)" in out
+    assert "raw rows: 60 (new 30, old 30); excluded 0; dry 0" in out
+
+
+def test_no_run_record_and_no_cut_refuses(tmp_path, caplog):
+    """Without a record line and without --cut the script refuses to guess
+    which rows are tonight's."""
+    run_dir = write_run_dir(tmp_path)
+    (run_dir / "run-record.txt").unlink()
+    rows = full_rows()
+    ledger = write_ledger(tmp_path, rows)
+    caplog.set_level(logging.INFO, logger="stack_agent_report")
+    code = sar.main(["--ledger", str(ledger), "--run-dir", str(run_dir)])
+    assert code == 2
+    assert "no parseable started line" in caplog.text
+
+
+def test_an_explicit_cut_override_is_honoured(tmp_path, caplog):
+    rows = full_rows()
+    ledger = write_ledger(tmp_path, rows)
+    run_dir = write_run_dir(tmp_path)
+    caplog.set_level(logging.INFO, logger="stack_agent_report")
+    code = sar.main([
+        "--ledger", str(ledger), "--run-dir", str(run_dir),
+        "--cut", "2026-09-04T22:50:00-04:00",
+    ])
+    assert code == 2
+    assert "cut: 2026-09-04T22:50:00-04:00 (--cut)" in caplog.text
+    assert "raw rows: 15" in caplog.text  # only the last sweep is in scope
 
 
 def test_a_short_cell_refuses_to_compute(tmp_path, caplog):

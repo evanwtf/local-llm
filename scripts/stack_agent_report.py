@@ -30,6 +30,14 @@ JUDGEMENT CALLS:
 - Sweep windows come from sweep-order.txt, whose lines carry a time of day
   but no date. The date is taken from run-record.txt's started line. A sweep
   that crosses midnight would be mis-windowed; no planned run does this.
+- Scoping to tonight. Rows are cut at the started line of run-record.txt --
+  the run's own record of when THIS launch began. run-record.txt is truncated
+  per run, so a relaunch re-scopes automatically: the 20:57 launch died 18
+  minutes in and its 8 rows were excluded as a run, the 21:27 relaunch
+  overwrote the line, and no new flag was needed. --cut overrides; with
+  neither the script refuses (exit 2) rather than guessing. Rows starting
+  exactly at the cut instant are dropped; no trial can start in the seconds
+  between the record line and the first server restart.
 - Death split by num_turns: a row without num_turns counts as turn-1.
 - The screen verdict assembles the three pre-registered indicators:
   completes >= 28/30 (not solution_empty), pass-count gap <= 4,
@@ -68,9 +76,6 @@ logger = logging.getLogger(__name__)
 NEW_BACKEND = "qwen38fnds4kimat"
 OLD_BACKEND = "qwen38fnds4shim"
 BACKENDS = {NEW_BACKEND: "new", OLD_BACKEND: "old"}
-#: Rows after this instant are tonight's. One-off by design; the run date is
-#: stamped in run-record.txt.
-DEFAULT_CUT = "2026-09-04T20:57:00-04:00"
 EXPECTED_PER_SWEEP = 15
 #: Control floor for the old arm (cohort 2 scored 28/30 twice).
 OLD_ARM_CONTROL = 25
@@ -121,8 +126,14 @@ def load_raw(
     return out
 
 
-def run_date(run_dir: pathlib.Path) -> dt.date | None:
-    """The date the run started, from run-record.txt's first line."""
+def run_started(run_dir: pathlib.Path) -> dt.datetime | None:
+    """The instant the run started, from run-record.txt's first line.
+
+    run-record.txt is truncated per run (`} > "$OUT/run-record.txt"` in
+    stack_agent_ab.sh), so the first line is the CURRENT run's start -- the
+    right cut for scoping rows to this run. A relaunch overwrites the line,
+    so a stale --cut default can never survive it.
+    """
     record = run_dir / "run-record.txt"
     try:
         first = record.read_text(errors="replace").splitlines()[:1]
@@ -132,7 +143,13 @@ def run_date(run_dir: pathlib.Path) -> dt.date | None:
     # form is accepted too because the first fixture used it. The producer
     # is the contract; the reader adapts to it.
     match = re.search(r"(\d{4}-\d{2}-\d{2})[T ]\d{2}:\d{2}:\d{2}", first[0]) if first else None
-    return dt.date.fromisoformat(match.group(1)) if match else None
+    return dt.datetime.fromisoformat(match.group(0)) if match else None
+
+
+def run_date(run_dir: pathlib.Path) -> dt.date | None:
+    """The date the run started, from run-record.txt's first line."""
+    started = run_started(run_dir)
+    return started.date() if started else None
 
 
 class Sweep:
@@ -372,10 +389,30 @@ def main(argv: list[str] | None = None) -> int:
     )
     p.add_argument("--run-dir", type=pathlib.Path,
                    default=pathlib.Path.home() / "bench-logs" / "138-stack-ab")
-    p.add_argument("--cut", default=DEFAULT_CUT)
+    p.add_argument(
+        "--cut",
+        default=None,
+        help="rows before this instant are not tonight's; default: the"
+             " started line of run-record.txt in --run-dir",
+    )
     args = p.parse_args(argv)
 
-    raw = load_raw(args.ledger, BACKENDS, dt.datetime.fromisoformat(args.cut))
+    if args.cut is not None:
+        cut = dt.datetime.fromisoformat(args.cut)
+        logger.info("cut: %s (--cut)", args.cut)
+    else:
+        started_at = run_started(args.run_dir)
+        if started_at is None:
+            logger.info(
+                "VOID: %s has no parseable started line and no --cut given;"
+                " refusing to guess which rows are tonight's",
+                args.run_dir / "run-record.txt",
+            )
+            return 2
+        cut = started_at
+        logger.info("cut: %s (run-record.txt)", started_at.isoformat(sep=" "))
+
+    raw = load_raw(args.ledger, BACKENDS, cut)
     per_backend = {b: sum(1 for r in raw if r["backend"] == b) for b in BACKENDS}
     excluded = sum(1 for r in raw if r.get("excluded"))
     dry = sum(1 for r in raw if r.get("dry_run"))
