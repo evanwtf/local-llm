@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import io
 import json
+import os
 import pathlib
 import tomllib
 import types
@@ -1074,3 +1075,57 @@ def test_a_third_collision_gets_its_own_name(tmp_path):
 
 def test_the_first_write_is_not_marked_as_a_collision(tmp_path):
     assert _save(tmp_path, "t", "a").get("client_log_collision") is not True
+
+
+# ---------------------------------------------------------------------------
+# A live run owns its stashed repositories. Restoring them under it destroys
+# the real checkout -- measured 2026-09-04, and it took the operator's repo
+# with it.
+
+
+def _marker(tmp_path, monkeypatch, pid: int):
+    export, real = tmp_path / "repo", tmp_path / "repo-real"
+    real.mkdir()
+    (real / "keep.txt").write_text("the real checkout")
+    export.mkdir()
+    (export / "export.txt").write_text("the excised export")
+    marker = tmp_path / "stash.json"
+    marker.write_text(
+        json.dumps({"moved": [{"export": str(export), "real": str(real)}], "pid": pid})
+    )
+    monkeypatch.setattr(run, "STASH_MARKER", marker)
+    return export, real, marker
+
+
+def test_a_stash_owned_by_a_live_other_process_is_not_restored(tmp_path, monkeypatch):
+    """preflight calls this. Running it during a live batch used to rmtree the
+    export and unstash the real repo underneath the running harness, which
+    then destroyed the real checkout on its next trial."""
+    export, real, marker = _marker(tmp_path, monkeypatch, pid=1)  # pid 1 is alive
+    assert run.restore_targets() == []
+    assert real.exists(), "the real checkout must stay stashed"
+    assert (export / "export.txt").exists(), "the export must not be removed"
+    assert marker.exists(), "the marker belongs to the live owner"
+
+
+def test_a_stash_owned_by_a_dead_process_is_restored(tmp_path, monkeypatch):
+    """The case this function exists for: a run killed mid-batch."""
+    export, real, marker = _marker(tmp_path, monkeypatch, pid=2_000_000)
+    assert run.restore_targets() == [export.name]
+    assert (export / "keep.txt").exists()
+    assert not real.exists()
+    assert not marker.exists()
+
+
+def test_our_own_stash_is_restored(tmp_path, monkeypatch):
+    """atexit runs inside the owning process; it must still restore."""
+    export, real, marker = _marker(tmp_path, monkeypatch, pid=os.getpid())
+    assert run.restore_targets() == [export.name]
+    assert (export / "keep.txt").exists()
+
+
+def test_a_marker_with_no_pid_is_restored(tmp_path, monkeypatch):
+    """Markers written before the pid was recorded must stay recoverable."""
+    export, real, marker = _marker(tmp_path, monkeypatch, pid=os.getpid())
+    marker.write_text(json.dumps({"moved": json.loads(marker.read_text())["moved"]}))
+    assert run.restore_targets() == [export.name]

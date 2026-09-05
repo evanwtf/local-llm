@@ -128,6 +128,18 @@ be drawn from — OpenCode, after the `--dir` cutover, not excluded.
 | `ds4anthropic` | DeepSeek-V4-Flash 0731 | ds4 (Anthropic wire) | 90.9 GiB | 18 |
 | `qwen38fnds4shim` | Qwen3.8-Flash-Next DS4-Q4 fast-pack, MTP off | ds4 (via tool shim) | 113 GB | 135 |
 | `qwen38fnds4mtp7shim` | the same fast-pack, MTP `--mtp-draft 7` | ds4 (via tool shim) | 113 GB | 90 |
+| `qwen38fnds4kimat` | Q4_K **imatrix** rebuild of the same model, MTP off | ds4, ivanfioravanti fork (via tool shim) | 105 GB | 0 |
+
+**`qwen38fnds4kimat` is a whole different STACK, not a different quant.** Ivan
+replaced the Q4_0 routed-expert file that every `qwen38fnds4shim` row was taken
+on, calling it "faster, less accurate", and the replacement needs his own
+engine branch: `ds4-metal ba01f5d` refuses the new weights and
+`ivanfioravanti/ds4 qwen3.8-flash-next bd9cfbc` refuses the old ones, both with
+`deepseek4.block_count missing`. **Engine and quant move together and no
+comparison against `qwen38fnds4shim` can attribute a difference to either
+alone** (#138). Decode A/B, four runs: +9.5% decode, −24.5% prefill. Both
+answer 6/6 on a six-question `ds4-eval` gate, which says neither is broken and
+ranks nothing.
 
 `ds4` and `ds4anthropic` are the clean wire-format isolation: identical weights
 and server, only the protocol differs. The two `qwen38fnds4*shim` rows are the

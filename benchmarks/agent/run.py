@@ -1324,11 +1324,57 @@ def stash_targets(pairs):
     return [(pathlib.Path(m["export"]), pathlib.Path(m["real"])) for m in moved]
 
 
+def _stash_owner_alive(pid: object) -> bool:
+    """Is the process that stashed these repositories still running?
+
+    Signal 0 checks for existence and never kills. A pid we cannot read is
+    treated as dead, because the marker predates the pid being recorded and
+    those stashes must stay recoverable.
+    """
+    if not isinstance(pid, int) or pid == os.getpid():
+        return False
+    try:
+        os.kill(pid, 0)
+    except (ProcessLookupError, ValueError):
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
 def restore_targets():
-    """Put the real repositories back. Safe to call when nothing is stashed."""
+    """Put the real repositories back. Safe to call when nothing is stashed.
+
+    **Refuses when a different, living process owns the stash.** This function
+    is destructive -- it `rmtree`s the export standing in the repository's
+    place -- and `preflight.py` calls it on every invocation. Running preflight
+    during a live batch therefore used to unstash the targets underneath the
+    running harness, which then destroyed the real checkout on its next trial
+    and left nothing on disk at all.
+
+    That is not hypothetical: it happened on 2026-09-04 at 21:07, mid-run,
+    from a preflight invocation whose only purpose was to read the run lock. It
+    cost the operator's `~/git/gmail-archive` checkout, recoverable only
+    because the harness had logged it pristine at a known commit seconds
+    earlier.
+
+    The marker records the stashing pid, so ownership is knowable. Restore
+    when the owner is dead -- the crash recovery this exists for -- or when the
+    owner is us, which is the `atexit` path. Never otherwise.
+    """
     if not STASH_MARKER.exists():
         return []
     state = json.loads(STASH_MARKER.read_text())
+    owner = state.get("pid")
+    if _stash_owner_alive(owner):
+        logger.warning(
+            "%s is owned by live pid %s -- refusing to restore under a running "
+            "batch. Stop that run first; restoring here would destroy the real "
+            "checkout it is using.",
+            STASH_MARKER,
+            owner,
+        )
+        return []
     restored = []
     for m in state.get("moved", []):
         export, real = pathlib.Path(m["export"]), pathlib.Path(m["real"])
