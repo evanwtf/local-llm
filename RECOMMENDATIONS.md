@@ -176,14 +176,14 @@ other is telling you something.
 
 <!-- BEGIN GENERATED -->
 
-*Generated from `results.jsonl` — 1522 rows, sha256 cc1b57fafb79.*
+*Generated from `results.jsonl` — 1523 rows, sha256 417dc5a5d35b.*
 
 #### Every stack measured under OpenCode
 
 | stack | passed | median | worst | spread |
 |---|---|---|---|---|
 | ornith15 | 21/21 | 44s | 93s | 5.9x |
-| qwen38fnds4mtp7shim | 50/90 | 87s | 638s | 98.2x |
+| qwen38fnds4mtp7shim | 50/91 | 84s | 638s | 98.2x |
 | Qwen3.8-Flash-Next Q3 - llama.cpp | 30/30 | 90s | 208s | 4.8x |
 | qwen38fnds4kimat | 30/30 | 96s | 472s | 10.6x |
 | DeepSeek-V4-Flash - ds4 (Anthropic wire) | 18/18 | 110s | 221s | 4.3x |
@@ -230,7 +230,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | Qwen3.6-27B-coding - Ollama | 69s |
 | DeepSeek-V4-Flash - ds4 | 71s |
 | qwen38fnds4shim | 77s |
-| qwen38fnds4mtp7shim | 78s |
+| qwen38fnds4mtp7shim | 79s |
 | gemma4 | 84s |
 | Qwen3.8-Flash-Next Q3 - LM Studio | 115s |
 
