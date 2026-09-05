@@ -103,6 +103,7 @@ sweep() {
   echo "[$(date +%H:%M:%S)] === $tag ($backend) ==="
   ( cd "$REPO" && uv run python benchmarks/agent/run.py \
       --backend "$backend" --trials 1 --client opencode --no-lock \
+      --require-harness-head "$HARNESS_HEAD" \
       > "$OUT/$tag.log" 2>&1 ) || echo "[$(date +%H:%M:%S)] $tag returned non-zero"
   mkdir -p "$OUT/$tag"
   # Transcripts move out of the top level immediately. Leaving them is how
@@ -122,6 +123,21 @@ sweep() {
 # With an even SWEEPS each arm leads half the time and the thermal term cancels
 # in the pairing. With an odd SWEEPS it does not, so say so rather than let a
 # reader assume it balances.
+# Pin the harness for the whole comparison. On 2026-09-04 the four sweeps of
+# this script's own A/B recorded FOUR different harness_head values, because
+# the harness was being committed to from the checkout the batch ran from --
+# new-sweep1 at 563e94b against old-sweep1 at 19958b1. The two arms were not
+# running the same code, which voids the comparison whatever the stacks did.
+HARNESS_HEAD=$(git -C "$REPO" rev-parse --short HEAD)
+if ! git -C "$REPO" diff --quiet -- ':!*.jsonl' ':!*.log' || \
+   ! git -C "$REPO" diff --cached --quiet -- ':!*.jsonl' ':!*.log'; then
+  echo "refusing to start: harness has uncommitted code at $HARNESS_HEAD." \
+       "A comparative run pinned to a commit cannot be reproduced from one." >&2
+  exit 1
+fi
+echo "harness pinned at $HARNESS_HEAD for all $((SWEEPS * 2)) sweeps" \
+  | tee -a "$OUT/run-record.txt"
+
 if [ $((SWEEPS % 2)) -ne 0 ]; then
   echo "[$(date +%H:%M:%S)] WARNING: SWEEPS=$SWEEPS is odd -- one arm leads once" \
        "more than the other and the position term does not cancel. Prefer an" \

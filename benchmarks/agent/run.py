@@ -2106,7 +2106,9 @@ def one_trial(
         # no stash, no excision and nothing to leak. It never stands in the
         # guessed path, because there is no answer anywhere on disk to find.
         worktree = (
-            workdir / name if is_script else (repo if stashed_source else workdir / name)
+            workdir / name
+            if is_script
+            else (repo if stashed_source else workdir / name)
         )
     # results.new_row is the only place a row is shaped. It stamps the schema
     # version and sets both exclusion keys explicitly -- see results.py for why
@@ -2513,7 +2515,33 @@ def main():
         "guessed path is denied at the sandbox profile. Sandbox changes what "
         "the agent sees when it guesses -- measure before making it default.",
     )
+    p.add_argument(
+        "--require-harness-head",
+        metavar="SHA",
+        help="refuse to start unless the harness is at this commit and its "
+        "code is clean. A comparative run must not span harness versions: on "
+        "2026-09-04 four sweeps of one A/B recorded four different "
+        "harness_head values, because the harness was being committed to from "
+        "the same checkout the batch ran from. The two arms of sweep 1 were "
+        "not running the same code, which voids the comparison on its own.",
+    )
     args = p.parse_args()
+
+    if args.require_harness_head:
+        want = args.require_harness_head
+        got = git(["rev-parse", "--short", "HEAD"], HERE)
+        if not got.startswith(want[: len(got)]) and not want.startswith(got):
+            raise SystemExit(
+                f"harness is at {got}, but this run requires {want}. The "
+                f"comparison it belongs to started on {want}; finish or "
+                f"abandon that run before moving the harness."
+            )
+        if provenance.code_is_dirty(HERE):
+            raise SystemExit(
+                f"harness is at {got} with uncommitted code. A comparative "
+                f"run pinned to a commit cannot be reproduced from one, and "
+                f"the rows would name a tree that exists nowhere."
+            )
 
     provenance.configure()
     cfg = tomllib.loads(pathlib.Path(args.tasks_file).read_text())

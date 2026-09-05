@@ -18,7 +18,10 @@ testpaths = ["."]
 # real projects with real suites. Collected, they add ~500 tests that pass or
 # fail for reasons that have nothing to do with this harness -- and one of them
 # is deliberately excised mid-run, so it fails by design.
-norecursedirs = ["sandbox", ".git", "*.egg", "build", "dist", ".venv"]
+# Extends pytest's defaults rather than replacing them: dropping `.*`
+# un-ignored .hypothesis, which the plugin then warned about.
+norecursedirs = ["sandbox", "*.egg", ".*", "_darcs", "build", "CVS",
+                 "dist", "node_modules", "venv", "{arch}"]
 markers = [
     "integration: needs ~/git/gmail-archive at the pinned commit and uv",
     "slow: allocates real memory or takes seconds; not part of the default run",

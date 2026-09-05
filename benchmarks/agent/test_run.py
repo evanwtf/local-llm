@@ -15,6 +15,7 @@ import json
 import os
 import pathlib
 import subprocess
+import sys
 import tomllib
 import types
 import urllib.error
@@ -1486,7 +1487,7 @@ def test_the_sandbox_profile_denies_the_guessed_path(tmp_path):
     fail CLOSED at the profile. In legacy mode the same path IS the worktree
     and must stay readable. The sandbox clone is denied in both -- it is an
     un-excised copy of the answer either way."""
-    repo, commit = _tiny_repo(tmp_path)
+    repo, _commit = _tiny_repo(tmp_path)
     worktree = tmp_path / "work" / "seam"
     worktree.mkdir(parents=True)
     _profile, denied = run.sandbox_profile(worktree, repo)
@@ -1495,3 +1496,33 @@ def test_the_sandbox_profile_denies_the_guessed_path(tmp_path):
     _profile, denied = run.sandbox_profile(repo, repo)
     assert str(repo) not in denied
     assert str(run.SANDBOX_ROOT) in denied
+
+
+def test_a_moved_harness_head_is_refused(tmp_path, monkeypatch, capsys):
+    """A comparative run must not span harness versions.
+
+    On 2026-09-04 four sweeps of one A/B recorded four different harness_head
+    values, because the harness was committed to from the checkout the batch
+    ran from. new-sweep1 ran at 563e94b and old-sweep1 at 19958b1 -- the two
+    arms of the same sweep were not running the same code.
+    """
+    monkeypatch.setattr(run, "git", lambda args, cwd: "abc1234")
+    monkeypatch.setattr(run.provenance, "code_is_dirty", lambda cwd: False)
+    monkeypatch.setattr(
+        sys, "argv", ["run.py", "--dry-run", "--require-harness-head", "def5678"]
+    )
+    with pytest.raises(SystemExit) as got:
+        run.main()
+    assert "requires def5678" in str(got.value)
+
+
+def test_a_dirty_harness_is_refused_when_pinned(tmp_path, monkeypatch):
+    """Rows from an uncommitted tree name a state that exists nowhere."""
+    monkeypatch.setattr(run, "git", lambda args, cwd: "abc1234")
+    monkeypatch.setattr(run.provenance, "code_is_dirty", lambda cwd: True)
+    monkeypatch.setattr(
+        sys, "argv", ["run.py", "--dry-run", "--require-harness-head", "abc1234"]
+    )
+    with pytest.raises(SystemExit) as got:
+        run.main()
+    assert "uncommitted code" in str(got.value)
