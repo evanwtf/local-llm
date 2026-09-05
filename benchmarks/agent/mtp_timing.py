@@ -32,7 +32,7 @@ Both subtract the free token. That subtraction is the whole point of the file;
 was never applied" into "the treatment worked", which is the one error that
 cannot be caught downstream.
 
-    uv run python scripts/mtp_timing.py server.log
+    uv run python benchmarks/agent/mtp_timing.py server.log
 """
 
 from __future__ import annotations
@@ -42,7 +42,8 @@ import dataclasses
 import logging
 import pathlib
 import re
-import sys
+
+import provenance
 
 logger = logging.getLogger(__name__)
 
@@ -129,6 +130,42 @@ def read(text: str) -> Counters:
     return Counters(cycles=tuple(cycles), spec_misses=misses)
 
 
+@dataclasses.dataclass(frozen=True)
+class Reading:
+    """Counters seen in a slice of a log, and where that slice ended."""
+
+    counters: Counters
+    offset: int
+
+
+def read_since(path: pathlib.Path, offset: int = 0) -> Reading:
+    """Parse only the bytes appended since `offset`.
+
+    A trial needs the counters *it* produced, not the server's running total,
+    and the server log spans a whole sweep. Sampling the offset before and
+    after a trial is the same before/after shape the guarded-copy tripwire
+    uses, and for the same reason: it attributes to the trial only what
+    happened inside it.
+
+    A log that shrank (rotated, or a new server on the same path) resets to 0
+    rather than seeking past the end -- a negative slice would silently read
+    as "no cycles", which is the one answer that must never be manufactured.
+    """
+    try:
+        size = path.stat().st_size
+    except OSError:
+        return Reading(counters=Counters(cycles=(), spec_misses=0), offset=offset)
+    if size < offset:
+        logger.warning(
+            "%s shrank (%d < %d) -- rereading from the start", path, size, offset
+        )
+        offset = 0
+    with path.open("r", errors="replace") as handle:
+        handle.seek(offset)
+        text = handle.read()
+        return Reading(counters=read(text), offset=handle.tell())
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("log", type=pathlib.Path, help="ds4 server log (stderr)")
@@ -175,9 +212,9 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
-    logging.basicConfig(
-        level=logging.INFO,
-        stream=sys.stdout,
-        format="%(asctime)s %(name)s %(levelname)s %(message)s",
-    )
+    # provenance.configure(), not basicConfig: every line names the harness
+    # commit that wrote it, and test_provenance pins that no entry point
+    # bypasses it. A counter read out of a log is only as useful as the
+    # record of which code read it.
+    provenance.configure(show_name=True)
     raise SystemExit(main())

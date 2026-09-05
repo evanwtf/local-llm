@@ -5,7 +5,7 @@ from __future__ import annotations
 import pathlib
 import sys
 
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "scripts"))
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
 import mtp_timing
 
@@ -99,3 +99,36 @@ def test_require_used_passes_a_working_head(tmp_path):
     good = tmp_path / "good.log"
     good.write_text(MICRO.format(d=7, c=5) + "\n")
     assert mtp_timing.main([str(good), "--require-used"]) == 0
+
+
+def test_read_since_attributes_only_the_new_slice(tmp_path):
+    """A trial's counters are the ones it produced, not the sweep's total."""
+    log = tmp_path / "server.log"
+    log.write_text(DECODE2.format(d=2, c=2) + "\n")
+    first = mtp_timing.read_since(log)
+    assert first.counters.accepted == 1
+
+    with log.open("a") as handle:
+        handle.write(SKIP + "\n")
+    second = mtp_timing.read_since(log, first.offset)
+    assert len(second.counters.cycles) == 1, "must not re-count the earlier cycle"
+    assert second.counters.accepted == 0
+
+
+def test_read_since_rereads_a_log_that_shrank(tmp_path, caplog):
+    """A new server on the same path must not read as 'no cycles'."""
+    log = tmp_path / "server.log"
+    log.write_text((DECODE2.format(d=2, c=2) + "\n") * 5)
+    far = mtp_timing.read_since(log).offset
+
+    log.write_text(DECODE2.format(d=2, c=2) + "\n")  # restarted, much shorter
+    with caplog.at_level("WARNING", logger="mtp_timing"):
+        got = mtp_timing.read_since(log, far)
+    assert got.counters.accepted == 1, "a shrunk log must be reread, not skipped"
+    assert "shrank" in caplog.text
+
+
+def test_read_since_on_a_missing_log_reports_nothing_and_holds_its_offset(tmp_path):
+    got = mtp_timing.read_since(tmp_path / "absent.log", 17)
+    assert got.counters.cycles == ()
+    assert got.offset == 17
