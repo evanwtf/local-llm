@@ -7,6 +7,7 @@ attribution is believed.
 
 from __future__ import annotations
 
+import functools
 import logging
 import pathlib
 import subprocess
@@ -40,19 +41,55 @@ def test_a_directory_outside_a_repo_is_named_not_guessed(tmp_path) -> None:
     assert provenance.head(tmp_path) == provenance.UNKNOWN
 
 
-def test_the_dirty_flag_tracks_uncommitted_changes() -> None:
-    """A run against a modified tree is not reproducible from any commit, and
-    the line has to say so."""
-    dirty = bool(
-        subprocess.run(
-            ["git", "status", "--porcelain"],
-            capture_output=True,
-            text=True,
-            cwd=provenance.HERE,
-            check=True,
-        ).stdout.strip()
-    )
-    assert provenance.head().endswith("-dirty") == dirty
+def _repo(tmp_path: pathlib.Path) -> pathlib.Path:
+    """A one-commit repository, so dirtiness is the only variable."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    run = functools.partial(subprocess.run, cwd=repo, check=True, capture_output=True)
+    run(["git", "init", "-q"])
+    run(["git", "config", "user.email", "t@t"])
+    run(["git", "config", "user.name", "t"])
+    (repo / "code.py").write_text("x = 1\n")
+    (repo / "results.jsonl").write_text("{}\n")
+    run(["git", "add", "-A"])
+    run(["git", "commit", "-qm", "first"])
+    provenance.head.cache_clear()
+    return repo
+
+
+def test_a_clean_tree_is_not_flagged(tmp_path) -> None:
+    assert not provenance.head(_repo(tmp_path)).endswith("-dirty")
+
+
+def test_uncommitted_code_is_flagged(tmp_path) -> None:
+    """A run against modified code is not reproducible from any commit."""
+    repo = _repo(tmp_path)
+    (repo / "code.py").write_text("x = 2\n")
+    provenance.head.cache_clear()
+    assert provenance.head(repo).endswith("-dirty")
+
+
+def test_an_appended_data_file_is_not_flagged(tmp_path) -> None:
+    """The contract head() states, and the one the live tree kept breaking.
+
+    The first trial of any batch appends to results.jsonl, so a flag that
+    counted data files would be set for the whole of every run. This test used
+    to read the real repository and compare against raw `git status
+    --porcelain`, which counts them -- so it failed for as long as any batch
+    was running, on the code behaving exactly as documented.
+    """
+    repo = _repo(tmp_path)
+    (repo / "results.jsonl").write_text('{}\n{"row": 2}\n')
+    provenance.head.cache_clear()
+    assert not provenance.head(repo).endswith("-dirty")
+
+
+def test_code_dirt_outweighs_data_dirt(tmp_path) -> None:
+    repo = _repo(tmp_path)
+    (repo / "results.jsonl").write_text('{}\n{"row": 2}\n')
+    (repo / "code.py").write_text("x = 2\n")
+    provenance.head.cache_clear()
+    assert provenance.head(repo).endswith("-dirty")
 
 
 def test_every_log_record_carries_the_stamp(caplog) -> None:
