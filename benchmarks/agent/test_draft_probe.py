@@ -57,3 +57,66 @@ def test_fields_carry_the_raw_counts_so_used_can_be_recomputed(tmp_path):
     assert fields["accepted"] == 4
     assert fields["used"] is True
     assert fields["accept_rate"] == 4 / 6
+
+
+def rec(accepted=3, drafted=6):
+    import json
+
+    return json.dumps(
+        {
+            "run_id": "r1",
+            "accepted_drafts_delta": accepted,
+            "drafted_tokens_delta": drafted,
+            "verify_calls_delta": 2,
+            "generated_tokens_delta": accepted + 1,
+        }
+    )
+
+
+def test_the_probe_picks_the_reader_that_matches_the_engine(tmp_path):
+    """The same acceptance under two conventions. One reader for both would
+    be wrong for one of them."""
+    ds4_log = tmp_path / "server.log"
+    ds4_log.write_text("")
+    ds4 = run.DraftProbe(ds4_log, "ds4")
+    with ds4_log.open("a") as handle:
+        handle.write(MICRO.format(d=7, c=5) + "\n")
+    assert run.draft_fields(ds4.sample(), ds4.source)["accepted"] == 4
+
+    mtplx_log = tmp_path / "trace.jsonl"
+    mtplx_log.write_text("")
+    mtplx = run.DraftProbe(mtplx_log, "mtplx")
+    with mtplx_log.open("a") as handle:
+        handle.write(rec(accepted=4, drafted=6) + "\n")
+    assert run.draft_fields(mtplx.sample(), mtplx.source)["accepted"] == 4
+
+
+def test_the_row_names_the_mechanism_that_produced_the_number(tmp_path):
+    """A ds4 count must never be silently compared against an mtplx one."""
+    log = tmp_path / "l"
+    log.write_text("")
+    assert run.DraftProbe(log, "ds4").source == "ds4-mtp-timing"
+    assert run.DraftProbe(log, "mtplx").source == "mtplx-decode-trace"
+
+    fields = run.draft_fields(
+        run.DraftProbe(log, "mtplx").sample(), "mtplx-decode-trace"
+    )
+    assert fields["source"] == "mtplx-decode-trace"
+
+
+def test_an_unknown_engine_is_refused_rather_than_defaulted(tmp_path):
+    """Defaulting here would apply ds4's free-token subtraction to another
+    engine's numbers and quietly shift every figure."""
+    log = tmp_path / "l"
+    log.write_text("")
+    try:
+        run.DraftProbe(log, "vllm")
+    except ValueError as exc:
+        assert "vllm" in str(exc)
+    else:
+        raise AssertionError("an unknown engine must not silently use ds4's reader")
+
+
+def test_no_path_means_no_engine_validation(tmp_path):
+    """Without a log there is nothing to misparse, so the default is inert."""
+    assert run.DraftProbe(None).sample() is None

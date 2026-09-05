@@ -40,11 +40,13 @@ import time
 import tomllib
 import urllib.error
 import urllib.request
+from typing import ClassVar
 
 import excise
 import grade
 import memcap
 import mtp_timing
+import mtplx_trace
 import plausibility
 import preflight
 import provenance
@@ -2052,47 +2054,76 @@ def trial_order(backends, trial):
 
 
 class DraftProbe:
-    """Per-trial MTP draft acceptance, read out of the server's own log.
+    """Per-trial MTP draft acceptance, read from whichever engine is serving.
 
-    #148. The flag being passed is not evidence the draft head ran. ds4 counts
-    drafted and committed tokens per speculative cycle under DS4_MTP_TIMING,
-    and this attributes each trial only the cycles that happened inside it, by
-    sampling the log offset before and after -- the same before/after shape the
-    guarded-copy tripwire uses.
+    #148. The flag being passed is not evidence the draft head ran. Two
+    backends can answer, by different mechanisms and different conventions:
 
-    Constructed at the end of the current log, so a server's startup chatter
-    and any earlier sweep on the same file are never credited to trial 1.
+      ds4    DS4_MTP_TIMING=1 -> per-cycle stderr lines. `committed` includes
+             the first token, verified for free, so mtp_timing subtracts it.
+      mtplx  MTPLX_DECODE_TRACE_JSONL=<path> -> JSONL. Its exported counter
+             already excludes that token, so mtplx_trace subtracts nothing.
+
+    One reader for both would be wrong for one of them, so the probe holds a
+    reader rather than parsing anything itself, and the row records WHICH
+    mechanism produced the number -- a reader must not have to infer it from
+    the backend name.
+
+    Constructed at the end of the current file, so a server's startup chatter,
+    an earlier sweep on the same path, and the smoke gate's own generation are
+    never credited to trial 1.
     """
 
-    def __init__(self, path):
+    SOURCES: ClassVar[dict] = {
+        "ds4": ("ds4-mtp-timing", mtp_timing),
+        "mtplx": ("mtplx-decode-trace", mtplx_trace),
+    }
+
+    def __init__(self, path, engine="ds4"):
+        if path and engine not in self.SOURCES:
+            raise ValueError(
+                f"unknown draft-log engine {engine!r}; expected one of "
+                f"{sorted(self.SOURCES)}"
+            )
+        self.source, self.reader = self.SOURCES.get(engine, (None, None))
         self.path = pathlib.Path(path).expanduser() if path else None
-        self.offset = mtp_timing.read_since(self.path).offset if self.path else 0
+        self.offset = self.reader.read_since(self.path).offset if self.path else 0
 
     def sample(self):
         """Counters produced since the last sample. None when not enabled."""
         if not self.path:
             return None
-        reading = mtp_timing.read_since(self.path, self.offset)
+        reading = self.reader.read_since(self.path, self.offset)
         self.offset = reading.offset
         return reading.counters
 
 
-def draft_fields(counters):
+def draft_fields(counters, source=None):
     """Row fields for one trial's draft accounting.
 
     `used` is the assertion; the raw counts are kept so a later reader can
-    recompute it without trusting this code.
+    recompute it without trusting this code, and `source` names the mechanism
+    so a ds4 count is never silently compared against an mtplx one.
     """
     if counters is None:
         return None
-    return {
-        "cycles": len(counters.cycles),
-        "proposed": counters.proposed,
+    fields = {
+        "source": source,
         "accepted": counters.accepted,
-        "spec_misses": counters.spec_misses,
         "accept_rate": counters.accept_rate,
         "used": counters.used,
     }
+    # The two readers expose different denominators by nature: ds4 counts
+    # speculative cycles, mtplx counts trace records and requests. Record
+    # whichever the reader actually has rather than inventing a shared shape.
+    for name in ("cycles", "proposed", "spec_misses", "records", "requests", "drafted"):
+        if (value := getattr(counters, name, None)) is None:
+            continue
+        # ds4 exposes `cycles` as the cycles themselves; the row wants how
+        # many. Storing the objects would make the field unserialisable and,
+        # worse, silently untrue as a count.
+        fields[name] = len(value) if isinstance(value, (list, tuple)) else value
+    return fields
 
 
 def one_trial(
@@ -2115,6 +2146,7 @@ def one_trial(
     prepare_env_first=True,
     target_layout="legacy",
     draft_probe=None,
+    require_draft=False,
 ):
     target = task_target(cfg, task)
     repo = pathlib.Path(target["repo"]).expanduser()
@@ -2444,16 +2476,25 @@ def one_trial(
     # #148: what the draft head actually did during THIS trial. None when no
     # server log was given, which is not the same as zero -- see mtp_timing.
     if (counters := draft_probe.sample() if draft_probe else None) is not None:
-        result["draft"] = draft_fields(counters)
-        if counters.cycles and not counters.used:
+        result["draft"] = draft_fields(counters, draft_probe.source)
+        # `saw_work` is "the engine did speculative work", spelled differently
+        # per reader: ds4 counts cycles, mtplx counts trace records.
+        saw_work = getattr(counters, "cycles", None) or getattr(counters, "records", 0)
+        if saw_work and not counters.used:
             logger.error(
-                "%s: MTP cycles ran and accepted NOTHING (%d cycles, %d proposed) "
-                "-- the flag was passed but the treatment was not applied",
+                "%s: MTP drafted and accepted NOTHING (%s) -- the flag was "
+                "passed but the treatment was not applied",
                 name,
-                len(counters.cycles),
-                counters.proposed,
+                draft_probe.source,
             )
-        elif not counters.cycles:
+            if require_draft:
+                raise SystemExit(
+                    f"{name}: refusing to continue -- the MTP arm accepted no "
+                    f"draft tokens, so its rows measure something other than "
+                    f"what they claim (#148). Re-run without --require-draft "
+                    f"only if you are deliberately measuring a broken arm."
+                )
+        elif not saw_work:
             logger.warning(
                 "%s: no MTP timing lines this trial -- was DS4_MTP_TIMING set "
                 "on the server? absence of counters is not evidence of absence "
@@ -2570,7 +2611,28 @@ def main():
         "under DS4_MTP_TIMING=1; the env var is preferred over --mtp-timing "
         "because it leaves the server command line, and so the arm's launch "
         "config, byte-identical to the rows already taken. Without this flag "
-        "the field is absent, which is NOT the same as zero accepted.",
+        "the field is absent, which is NOT the same as zero accepted. For "
+        "mtplx pass the MTPLX_DECODE_TRACE_JSONL path here and set "
+        "--draft-log-engine mtplx.",
+    )
+    p.add_argument(
+        "--draft-log-engine",
+        choices=["ds4", "mtplx"],
+        default="ds4",
+        help="which engine wrote --server-log. The two count differently -- "
+        "ds4's `committed` includes a first token verified for free and mtplx's "
+        "exported counter already excludes it -- so the wrong choice silently "
+        "shifts every acceptance figure by one token per cycle.",
+    )
+    p.add_argument(
+        "--require-draft",
+        action="store_true",
+        help="refuse the run if a trial produced draft cycles and accepted "
+        "nothing (#148). Cycles-but-zero-accepted means the MTP flag was "
+        "passed and the treatment was not applied, which makes every row in "
+        "the arm a measurement of something other than what it claims. A trial "
+        "with NO counters at all does not trip this -- that is the counters "
+        "being off, a different fault with a different fix.",
     )
     p.add_argument(
         "--skip-smoke",
@@ -2750,9 +2812,13 @@ def main():
     # a real load that does draft -- is not credited to trial 1. No flag means
     # the field is absent from the row, which a reader must not treat as zero
     # accepted: see mtp_timing, where those two states are kept apart.
-    draft_probe = DraftProbe(args.server_log)
+    draft_probe = DraftProbe(args.server_log, args.draft_log_engine)
     if args.server_log:
-        logger.info("recording MTP draft acceptance per row from %s", args.server_log)
+        logger.info(
+            "recording MTP draft acceptance per row from %s (%s)",
+            args.server_log,
+            draft_probe.source,
+        )
 
     # The smoke gate is what makes the model resident, so the served context is
     # only observable from here. `context_tokens` is written into every row, and
@@ -2854,6 +2920,7 @@ def main():
                         prepare_env_first=not args.no_prepare_env,
                         target_layout=args.targets,
                         draft_probe=draft_probe,
+                        require_draft=args.require_draft,
                     )
                     # Inside the client loop. Outside it, only the last
                     # client's row survives and half the run vanishes.
