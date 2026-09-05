@@ -1338,3 +1338,27 @@ def test_source_repo_intact_still_answers_the_boolean(tmp_path):
     assert run.source_repo_intact(repo, head) is True
     (repo / "a.py").write_text("x = 2\n")
     assert run.source_repo_intact(repo, head) is False
+
+
+def test_the_status_check_takes_no_index_lock(tmp_path, monkeypatch):
+    """A busy repository must not read as a modified one.
+
+    `git status` refreshes the index and writes it back under .git/index.lock.
+    The guarded checkout is touched by other things -- the operator, a test
+    suite reading it, a concurrent sweep -- and a lost race raised RuntimeError,
+    which the tripwire reported as an escape. Seven rows on 2026-09-04 could
+    not be attributed for exactly this reason.
+    """
+    repo, head = _one_commit_repo(tmp_path)
+    seen: list[list[str]] = []
+    original = run.git
+
+    def watched(args, cwd):
+        seen.append(list(args))
+        return original(args, cwd)
+
+    monkeypatch.setattr(run, "git", watched)
+    run.source_repo_state(repo, head)
+    status = [a for a in seen if "status" in a]
+    assert status, "the guard must ask for status"
+    assert all("--no-optional-locks" in a for a in status), seen

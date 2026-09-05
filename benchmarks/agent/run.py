@@ -1339,8 +1339,14 @@ def source_repo_state(repo, commit):
     # RuntimeError` did not catch at all. That propagated out of the trial
     # instead of being recorded -- the tripwire crashing the batch it exists
     # to protect.
+    # --no-optional-locks so the tripwire does not WRITE to the repository it
+    # is auditing: a plain `git status` refreshes the index and writes it back.
+    # Hygiene, not a fix -- measured 2026-09-05, a held .git/index.lock does
+    # not make `git status --porcelain` fail, so lock contention is NOT the
+    # explanation for the seven unattributed trips that night. The cause is
+    # still unknown; source_repo_state's reason string is what will name it.
     try:
-        status = git(["status", "--porcelain"], repo)
+        status = git(["--no-optional-locks", "status", "--porcelain"], repo)
     except (RuntimeError, OSError) as exc:
         return False, f"git status did not run: {exc}"
     try:
