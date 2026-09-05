@@ -142,7 +142,11 @@ def run_started(run_dir: pathlib.Path) -> dt.datetime | None:
     # The producer writes an ISO T (date '+%Y-%m-%dT%H:%M:%S %Z'); the space
     # form is accepted too because the first fixture used it. The producer
     # is the contract; the reader adapts to it.
-    match = re.search(r"(\d{4}-\d{2}-\d{2})[T ]\d{2}:\d{2}:\d{2}", first[0]) if first else None
+    match = (
+        re.search(r"(\d{4}-\d{2}-\d{2})[T ]\d{2}:\d{2}:\d{2}", first[0])
+        if first
+        else None
+    )
     return dt.datetime.fromisoformat(match.group(0)) if match else None
 
 
@@ -172,30 +176,60 @@ def sweep_windows(run_dir: pathlib.Path) -> list[Sweep] | None:
         return None
     order = run_dir / "sweep-order.txt"
     try:
-        lines = [
-            ln
-            for ln in record_lines(order)
-            if ln and not ln.startswith("#")
-        ]
+        lines = [ln for ln in record_lines(order) if ln and not ln.startswith("#")]
     except OSError:
         logger.error("no sweep-order.txt in %s", run_dir)
         return None
     if not lines:
         logger.error("sweep-order.txt is empty: %s", order)
         return None
-    sweeps: list[Sweep] = []
-    for line in lines:
-        parts = line.split()
-        if len(parts) != 2:
-            logger.error("unparsable sweep-order line: %r", line)
-            return None
-        tag, tod = parts
+
+    def at(tod: str) -> dt.datetime | None:
         try:
             hh, mm, ss = (int(x) for x in tod.split(":"))
+            return dt.datetime.combine(date, dt.time(hh, mm, ss))
         except ValueError:
-            logger.error("unparsable time in sweep-order line: %r", line)
             return None
-        sweeps.append(Sweep(tag, dt.datetime.combine(date, dt.time(hh, mm, ss))))
+
+    sweeps: list[Sweep] = []
+    # Two shapes. "tag start finish" is what stack_agent_ab.sh writes now.
+    # "tag finish" is every run directory written before 2026-09-05, when the
+    # file carried one time -- appended AFTER the sweep -- which this function
+    # read as the sweep's START. Each window then held the next sweep's rows.
+    # On the re-run that put 45 of 60 rows in no window at all and reported the
+    # old-arm control as 14/30 when it was 27/30.
+    legacy: list[tuple[str, dt.datetime]] = []
+    for line in lines:
+        parts = line.split()
+        if len(parts) == 3:
+            tag, start_s, _finish = parts
+            start = at(start_s)
+            if start is None:
+                logger.error("unparsable time in sweep-order line: %r", line)
+                return None
+            sweeps.append(Sweep(tag, start))
+        elif len(parts) == 2:
+            tag, finish_s = parts
+            finish = at(finish_s)
+            if finish is None:
+                logger.error("unparsable time in sweep-order line: %r", line)
+                return None
+            legacy.append((tag, finish))
+        else:
+            logger.error("unparsable sweep-order line: %r", line)
+            return None
+    if legacy and sweeps:
+        logger.error("sweep-order.txt mixes one-time and two-time lines: %s", order)
+        return None
+    if legacy:
+        # Each sweep ENDS at its recorded time, so it starts when the previous
+        # one ended -- and the first starts when the run did.
+        legacy.sort(key=lambda pair: pair[1])
+        began = run_started(run_dir) or legacy[0][1]
+        previous = began
+        for tag, finish in legacy:
+            sweeps.append(Sweep(tag, previous))
+            previous = finish
     sweeps.sort(key=lambda s: s.start)
     return sweeps
 
@@ -253,7 +287,8 @@ def task_wall(rows: list[dict[str, Any]]) -> float | None:
     walls = [
         r.get("wall_seconds")
         for r in rows
-        if not r.get("solution_empty") and isinstance(r.get("wall_seconds"), (int, float))
+        if not r.get("solution_empty")
+        and isinstance(r.get("wall_seconds"), (int, float))
         and r["wall_seconds"] > 0
     ]
     if not walls:
@@ -357,15 +392,21 @@ def screen_verdict(
     if wall["verdict"] == "OK":
         wall_ok = wall["ratio"] <= WALL_RATIO_PASS_SIDE
         indicators[f"wall ratio <= {WALL_RATIO_PASS_SIDE}"] = wall_ok
-    lines = [f"completes {completes}/{new['n']}, gap {gap}, "
-             f"deaths {new['deaths']} ({new['deaths_turn1']} turn-1)"]
+    lines = [
+        (
+            f"completes {completes}/{new['n']}, gap {gap}, "
+            f"deaths {new['deaths']} ({new['deaths_turn1']} turn-1)"
+        )
+    ]
     lines += [
         f"  {'PASS-SIDE' if ok else 'FAIL-SIDE'}: {name}"
         for name, ok in indicators.items()
     ]
     if wall["verdict"] != "OK":
-        lines.append(f"  wall endpoint: {wall['verdict']} (n_pairs {wall['n_pairs']} < {MIN_PAIRS});"
-                     " verdict rests on pass and death bars")
+        lines.append(
+            f"  wall endpoint: {wall['verdict']} (n_pairs {wall['n_pairs']} < {MIN_PAIRS});"
+            " verdict rests on pass and death bars"
+        )
     if all(indicators.values()):
         lines.append(
             "SCREEN PASS: the new stack integrates and regresses nothing"
@@ -384,16 +425,23 @@ def main(argv: list[str] | None = None) -> int:
     repo = pathlib.Path(__file__).resolve().parent.parent
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument(
-        "--ledger", type=pathlib.Path,
-        default=repo / "hardware" / "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A" / "results.jsonl",
+        "--ledger",
+        type=pathlib.Path,
+        default=repo
+        / "hardware"
+        / "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A"
+        / "results.jsonl",
     )
-    p.add_argument("--run-dir", type=pathlib.Path,
-                   default=pathlib.Path.home() / "bench-logs" / "138-stack-ab")
+    p.add_argument(
+        "--run-dir",
+        type=pathlib.Path,
+        default=pathlib.Path.home() / "bench-logs" / "138-stack-ab",
+    )
     p.add_argument(
         "--cut",
         default=None,
         help="rows before this instant are not tonight's; default: the"
-             " started line of run-record.txt in --run-dir",
+        " started line of run-record.txt in --run-dir",
     )
     args = p.parse_args(argv)
 
@@ -416,12 +464,19 @@ def main(argv: list[str] | None = None) -> int:
     per_backend = {b: sum(1 for r in raw if r["backend"] == b) for b in BACKENDS}
     excluded = sum(1 for r in raw if r.get("excluded"))
     dry = sum(1 for r in raw if r.get("dry_run"))
-    logger.info("raw rows: %d (new %d, old %d); excluded %d; dry %d",
-                len(raw), per_backend[NEW_BACKEND], per_backend[OLD_BACKEND],
-                excluded, dry)
+    logger.info(
+        "raw rows: %d (new %d, old %d); excluded %d; dry %d",
+        len(raw),
+        per_backend[NEW_BACKEND],
+        per_backend[OLD_BACKEND],
+        excluded,
+        dry,
+    )
     if excluded or dry:
-        logger.info("dropped rows are visible above, not inferred; they are"
-                    " holes in n, not passes or fails")
+        logger.info(
+            "dropped rows are visible above, not inferred; they are"
+            " holes in n, not passes or fails"
+        )
 
     sweeps = sweep_windows(args.run_dir)
     if sweeps is None:
@@ -434,8 +489,13 @@ def main(argv: list[str] | None = None) -> int:
     leftover = assign(usable, sweeps)
     failures = void_checks(raw, sweeps, leftover)
     for s in sweeps:
-        logger.info("sweep %-12s %s  rows %2d  %s", s.tag, s.start.strftime("%H:%M:%S"),
-                    len(s.rows), tally(s.rows))
+        logger.info(
+            "sweep %-12s %s  rows %2d  %s",
+            s.tag,
+            s.start.strftime("%H:%M:%S"),
+            len(s.rows),
+            tally(s.rows),
+        )
     if failures:
         for f in failures:
             logger.info("VOID: %s", f)
@@ -455,13 +515,20 @@ def main(argv: list[str] | None = None) -> int:
         logger.info(
             "wall: n_pairs %d  ratio %.2f (95%% CI %.2f-%.2f)  median %.2f  "
             "win/loss/tie %d/%d/%d",
-            wall["n_pairs"], wall["ratio"], wall["ci_lo"], wall["ci_hi"],
-            wall["median_ratio"], wall["wins"], wall["losses"], wall["ties"],
+            wall["n_pairs"],
+            wall["ratio"],
+            wall["ci_lo"],
+            wall["ci_hi"],
+            wall["median_ratio"],
+            wall["wins"],
+            wall["losses"],
+            wall["ties"],
         )
         logger.info("  per-task log ratios (new/old geometric means):")
         for task, wn, wo in paired:
-            logger.info("    %-28s %7.1f %7.1f  d %+0.3f", task, wn, wo,
-                        math.log(wn / wo))
+            logger.info(
+                "    %-28s %7.1f %7.1f  d %+0.3f", task, wn, wo, math.log(wn / wo)
+            )
     for line in screen_verdict(new, old, wall):
         logger.info("%s", line)
     return 0

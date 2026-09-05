@@ -176,7 +176,7 @@ other is telling you something.
 
 <!-- BEGIN GENERATED -->
 
-*Generated from `results.jsonl` — 1462 rows, sha256 f2eb9f1a75c6.*
+*Generated from `results.jsonl` — 1522 rows, sha256 cc1b57fafb79.*
 
 #### Every stack measured under OpenCode
 
@@ -185,11 +185,12 @@ other is telling you something.
 | ornith15 | 21/21 | 44s | 93s | 5.9x |
 | qwen38fnds4mtp7shim | 50/90 | 87s | 638s | 98.2x |
 | Qwen3.8-Flash-Next Q3 - llama.cpp | 30/30 | 90s | 208s | 4.8x |
+| qwen38fnds4kimat | 30/30 | 96s | 472s | 10.6x |
 | DeepSeek-V4-Flash - ds4 (Anthropic wire) | 18/18 | 110s | 221s | 4.3x |
 | qwen38fnq3reap | 21/21 | 110s | 261s | 6.8x |
 | DeepSeek-V4-Flash - ds4 | 30/30 | 115s | 230s | 4.3x |
 | Qwen3.8-Flash-Next Q3 - LM Studio | 21/21 | 122s | 261s | 4.2x |
-| qwen38fnds4shim | 116/135 | 128s | 792s | 123.7x |
+| qwen38fnds4shim | 143/165 | 131s | 792s | 123.7x |
 | gemma426 | 11/11 | 150s | 160s | 1.7x |
 | Qwen3.6-27B-coding - Ollama | 24/24 | 167s | 700s | 12.6x |
 | qwen36 | 11/12 | 173s | 565s | 5.7x |
@@ -197,7 +198,7 @@ other is telling you something.
 | GLM-5.3-Flash - ds4 | 22/24 | 368s | 1227s | 18.0x |
 | gemma4 | 12/12 | 383s | 1316s | 4.8x |
 
-**Rows here were not all taken under one client.** qwen38fnq3reap under 1.18.26; qwen38fnds4mtp7shim, qwen38fnds4shim under 1.18.27; the rest under 1.18.25. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name.
+**Rows here were not all taken under one client.** qwen38fnq3reap under 1.18.26; qwen38fnds4kimat, qwen38fnds4mtp7shim, qwen38fnds4shim under 1.18.27; the rest under 1.18.25. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name.
 
 Excision tasks only; `script-*` excluded because they are a different class. **Spread is worst / best on the same task**, and it is the column most people forget to ask for.
 
@@ -220,6 +221,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | ornith15 | 21s |
 | gemma426 | 21s |
 | qwen | 31s |
+| qwen38fnds4kimat | 38s |
 | qwen38fnq3reap | 38s |
 | Qwen3.8-Flash-Next Q3 - llama.cpp | 43s |
 | qwen36 | 50s |
@@ -227,12 +229,12 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | GLM-5.3-Flash - ds4 | 55s |
 | Qwen3.6-27B-coding - Ollama | 69s |
 | DeepSeek-V4-Flash - ds4 | 71s |
-| qwen38fnds4shim | 73s |
+| qwen38fnds4shim | 77s |
 | qwen38fnds4mtp7shim | 78s |
 | gemma4 | 84s |
 | Qwen3.8-Flash-Next Q3 - LM Studio | 115s |
 
-**Rows here were not all taken under one client.** qwen38fnq3reap under 1.18.26; qwen38fnds4mtp7shim, qwen38fnds4shim under 1.18.27; the rest under 1.18.25. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name.
+**Rows here were not all taken under one client.** qwen38fnq3reap under 1.18.26; qwen38fnds4kimat, qwen38fnds4mtp7shim, qwen38fnds4shim under 1.18.27; the rest under 1.18.25. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name.
 
 <!-- END GENERATED -->
 

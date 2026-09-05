@@ -100,6 +100,14 @@ restart_server() {
 sweep() {
   local arm=$1 n=$2 backend=$3
   local tag="${arm}-sweep${n}"
+  # Capture the START. sweep-order.txt used to carry one time, written here at
+  # the END, while stack_agent_report read it as the sweep's START and gave
+  # each sweep [start, next start). Every window therefore held the NEXT
+  # sweep's rows: on the 2026-09-05 re-run, 45 of 60 rows fit no window and the
+  # old-arm control read 14/30 against a true 27/30. Write both, so the file
+  # says which is which.
+  local started
+  started=$(date '+%H:%M:%S')
   echo "[$(date +%H:%M:%S)] === $tag ($backend) ==="
   ( cd "$REPO" && uv run python benchmarks/agent/run.py \
       --backend "$backend" --trials 1 --client opencode --no-lock \
@@ -112,7 +120,7 @@ sweep() {
   # directory is what makes the rows attributable at all.
   mv "$BENCH_LOGS"/*"$backend"-opencode-1* "$OUT/$tag/" 2>/dev/null || true
   echo "[$(date +%H:%M:%S)] $tag done, $(ls "$OUT/$tag" 2>/dev/null | wc -l | tr -d ' ') transcripts"
-  echo "$tag $(date '+%H:%M:%S')" >> "$OUT/sweep-order.txt"
+  echo "$tag $started $(date '+%H:%M:%S')" >> "$OUT/sweep-order.txt"
 }
 
 # Alternate which arm goes first. Running new-then-old every sweep puts the old

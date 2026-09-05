@@ -39,8 +39,24 @@ def producer_started_line(when: dt.datetime) -> str:
     return f"# stack agent A/B, started {when.strftime(producer_fmt(r"started \$\(date '([^']+)'\)"))}".rstrip()
 
 
-def producer_sweep_line(tag: str, when: dt.datetime) -> str:
-    return f"{tag} {when.strftime(producer_fmt(r"\$tag \$\(date '([^']+)'\)\" >> "))}"
+def producer_sweep_line(
+    tag: str, start: dt.datetime, finish: dt.datetime | None = None
+) -> str:
+    """`tag start finish`, the shape stack_agent_ab.sh writes since 2026-09-05.
+
+    It wrote one time before that, appended AFTER the sweep, which the reader
+    took for the sweep's START -- so every window held the next sweep's rows.
+    Use producer_legacy_sweep_line to build a pre-change directory.
+    """
+    fmt = producer_fmt(r"\$tag \$started \$\(date '([^']+)'\)\" >> ")
+    end = finish if finish is not None else start + dt.timedelta(minutes=40)
+    return f"{tag} {start.strftime(fmt)} {end.strftime(fmt)}"
+
+
+def producer_legacy_sweep_line(tag: str, finish: dt.datetime) -> str:
+    """The pre-2026-09-05 shape: one time, written when the sweep ENDED."""
+    return f"{tag} {finish.strftime('%H:%M:%S')}"
+
 
 TASKS = [f"task-{i:02d}" for i in range(15)]
 #: Sweep order as stack_agent_ab.sh writes it: new, old, new, old.
@@ -82,8 +98,7 @@ def full_rows(offset: dt.timedelta = dt.timedelta(0)) -> list[dict]:
     shifts every sweep (and its rows) as a relaunch would."""
     rows = []
     for (tag, _), base in zip(ORDER, STARTS):
-        backend = ("qwen38fnds4kimat" if arm_of(tag) == "new"
-                   else "qwen38fnds4shim")
+        backend = "qwen38fnds4kimat" if arm_of(tag) == "new" else "qwen38fnds4shim"
         for i, task in enumerate(TASKS):
             when = base + offset + dt.timedelta(seconds=i)
             rows.append(row(backend, task, f"2026-09-04T{when:%H:%M:%S}-04:00"))
@@ -187,8 +202,12 @@ def test_sweep_windows_come_from_the_order_file_not_from_gaps(tmp_path):
     leftover = sar.assign(rows, sweeps)
     assert leftover == []
     counts = {s.tag: len(s.rows) for s in sweeps}
-    assert counts == {"new-sweep1": 15, "old-sweep1": 15,
-                      "new-sweep2": 15, "old-sweep2": 15}
+    assert counts == {
+        "new-sweep1": 15,
+        "old-sweep1": 15,
+        "new-sweep2": 15,
+        "old-sweep2": 15,
+    }
 
 
 def test_the_fixtures_are_built_in_the_producers_formats():
@@ -233,7 +252,9 @@ def test_rows_from_the_dead_first_run_are_out_of_scope(tmp_path, caplog):
         dead["exclusion_reason"] = "first launch died 18 minutes in"
         rows.append(dead)
     code, out = run_report(
-        tmp_path, rows, caplog,
+        tmp_path,
+        rows,
+        caplog,
         started_at=dt.datetime(2026, 9, 4, 21, 27, 43),
         offset=relaunch,
     )
@@ -260,10 +281,16 @@ def test_an_explicit_cut_override_is_honoured(tmp_path, caplog):
     ledger = write_ledger(tmp_path, rows)
     run_dir = write_run_dir(tmp_path)
     caplog.set_level(logging.INFO, logger="stack_agent_report")
-    code = sar.main([
-        "--ledger", str(ledger), "--run-dir", str(run_dir),
-        "--cut", "2026-09-04T22:50:00-04:00",
-    ])
+    code = sar.main(
+        [
+            "--ledger",
+            str(ledger),
+            "--run-dir",
+            str(run_dir),
+            "--cut",
+            "2026-09-04T22:50:00-04:00",
+        ]
+    )
     assert code == 2
     assert "cut: 2026-09-04T22:50:00-04:00 (--cut)" in caplog.text
     assert "raw rows: 15" in caplog.text  # only the last sweep is in scope
@@ -281,8 +308,7 @@ def test_death_pairing_end_to_end(tmp_path, caplog):
     rows = full_rows()
     for r in rows:
         if r["backend"] == "qwen38fnds4kimat" and r["task"] == "task-00":
-            r.update(solution_empty=True, num_turns=1, wall_seconds=6.4,
-                     passed=False)
+            r.update(solution_empty=True, num_turns=1, wall_seconds=6.4, passed=False)
     code, out = run_report(tmp_path, rows, caplog)
     assert code == 0
     assert "'deaths': 2" in out
@@ -293,10 +319,8 @@ def test_death_pairing_end_to_end(tmp_path, caplog):
 def test_below_ten_pairs_says_could_not_tell(tmp_path, caplog):
     rows = full_rows()
     for r in rows:
-        if (r["backend"] == "qwen38fnds4kimat"
-                and r["task"] in set(TASKS[:6])):
-            r.update(solution_empty=True, num_turns=1, wall_seconds=6.4,
-                     passed=False)
+        if r["backend"] == "qwen38fnds4kimat" and r["task"] in set(TASKS[:6]):
+            r.update(solution_empty=True, num_turns=1, wall_seconds=6.4, passed=False)
     code, out = run_report(tmp_path, rows, caplog)
     assert code == 0
     assert "COULD NOT TELL" in out
@@ -309,8 +333,11 @@ def test_a_five_pass_gap_fails_the_screen():
     # Each task appears in both sweeps of an arm; flip five distinct tasks in
     # the first new sweep only, so the gap is exactly 5.
     for r in rows:
-        if (r["backend"] == "qwen38fnds4kimat" and r["task"] in set(TASKS[:5])
-                and r["started"] < "2026-09-04T21:00"):
+        if (
+            r["backend"] == "qwen38fnds4kimat"
+            and r["task"] in set(TASKS[:5])
+            and r["started"] < "2026-09-04T21:00"
+        ):
             r["passed"] = False
     new_rows = [r for r in rows if r["backend"] == "qwen38fnds4kimat"]
     old_rows = [r for r in rows if r["backend"] == "qwen38fnds4shim"]
@@ -369,3 +396,51 @@ def test_wall_pairing_uses_geometric_mean_of_eligible_trials():
     ]
     got = sar.task_wall(rows)
     assert got == pytest.approx(200.0)
+
+
+def test_a_legacy_one_time_sweep_order_is_read_as_finish_times(tmp_path, caplog):
+    """Pre-2026-09-05 run directories carry one time per sweep, written when
+    the sweep ENDED. Reading it as the START gave every sweep the NEXT sweep's
+    rows: on the re-run that left 45 of 60 rows in no window at all and
+    reported the old-arm control as 14/30 when it was 27/30.
+
+    Those directories still have to read correctly -- they are the only copy of
+    those runs.
+    """
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    began = dt.datetime(2026, 9, 5, 3, 13, 35)
+    (run_dir / "run-record.txt").write_text(producer_started_line(began) + "\n")
+    finishes = [
+        ("new-sweep1", dt.datetime(2026, 9, 5, 3, 42, 22)),
+        ("old-sweep1", dt.datetime(2026, 9, 5, 4, 31, 27)),
+        ("old-sweep2", dt.datetime(2026, 9, 5, 5, 24, 40)),
+        ("new-sweep2", dt.datetime(2026, 9, 5, 5, 57, 59)),
+    ]
+    (run_dir / "sweep-order.txt").write_text(
+        "".join(producer_legacy_sweep_line(t, f) + "\n" for t, f in finishes)
+    )
+    sweeps = sar.sweep_windows(run_dir)
+    assert sweeps is not None
+    # The first sweep starts when the RUN did, and each later one starts when
+    # its predecessor finished.
+    assert [s.tag for s in sweeps] == [t for t, _ in finishes]
+    assert [s.start for s in sweeps] == [began] + [f for _, f in finishes[:-1]]
+
+
+def test_a_sweep_order_mixing_both_shapes_is_refused(tmp_path, caplog):
+    """One file cannot be half start-times and half finish-times; guessing
+    per line would silently shift only some windows."""
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    began = dt.datetime(2026, 9, 5, 3, 13, 35)
+    (run_dir / "run-record.txt").write_text(producer_started_line(began) + "\n")
+    (run_dir / "sweep-order.txt").write_text(
+        producer_sweep_line("new-sweep1", began)
+        + "\n"
+        + producer_legacy_sweep_line("old-sweep1", began + dt.timedelta(hours=1))
+        + "\n"
+    )
+    with caplog.at_level("ERROR", logger="stack_agent_report"):
+        assert sar.sweep_windows(run_dir) is None
+    assert "mixes one-time and two-time lines" in caplog.text
