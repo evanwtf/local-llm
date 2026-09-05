@@ -200,12 +200,54 @@ def log_prefix_blocks(body: bytes) -> None:
         logger.debug("prefix block log skipped: %s", exc)
 
 
+SAMPLER_KEYS = ("temperature", "top_p", "top_k", "min_p", "seed", "repeat_penalty")
+
+# Every distinct sampler combination seen, so a repeated setting logs once
+# rather than on all 136 requests of a trial.
+_seen_sampling: set[tuple] = set()
+
+
+def sampling_of(payload: dict) -> dict:
+    """The sampler settings the client asked for, if any.
+
+    Numbers only. Unlike SHIM_DUMP this cannot leak a prompt, which is why it
+    can be on by default.
+    """
+    if not isinstance(payload, dict):
+        return {}
+    return {k: payload[k] for k in SAMPLER_KEYS if k in payload}
+
+
+def note_sampling(payload: dict) -> dict:
+    """Log each distinct sampler combination once.
+
+    ds4-server serves no `/props`, so `probe_server()` records an empty
+    sampling dict for every shim-backed row -- 93 of them on
+    qwen38fnds4mtp7shim. That gap is not cosmetic: ds4 only runs Qwen MTP
+    when temperature <= 0 (ds4.c:80112), so an unrecorded temperature makes
+    it unanswerable whether an MTP arm could have drafted at all (#148).
+    The client is the only place left that knows.
+    """
+    sampling = sampling_of(payload)
+    key = tuple(sorted(sampling.items(), key=lambda kv: kv[0]))
+    if key not in _seen_sampling:
+        _seen_sampling.add(key)
+        logger.info(
+            "client sampling: %s", sampling or "none specified (server defaults)"
+        )
+    return sampling
+
+
 def rewrite(body: bytes) -> bytes:
     """Apply the rewrite. Returns the original body on any doubt."""
     try:
         payload = json.loads(body)
     except ValueError:
         return body
+    # Before the early return below: an uninstructed request still carries a
+    # sampler, and recording only instructed ones would miss most of a trial.
+    if isinstance(payload, dict):
+        note_sampling(payload)
     if not isinstance(payload, dict) or not needs_instruction(payload):
         return body
     if not add_instruction(payload):
