@@ -38,6 +38,7 @@ import logging
 import os
 import pathlib
 import platform
+import re
 import subprocess
 import sys
 import time
@@ -504,6 +505,180 @@ def metal_tensor_api(llamacpp_root: pathlib.Path | None = None) -> bool | None:
             except (OSError, subprocess.SubprocessError):
                 return None
     return None
+
+
+# --- Metal 4 TensorOps route gate (#149) ------------------------------------
+#
+# The probe above reports what llama.cpp sees. #149 is the ds4 twin of the same
+# hardware fact: on an M5, ds4's automatic Metal 4 TensorOps enable
+# (ds4_metal.m:2605, derived from the device generation) can drift from the
+# reference simdgroup kernels by whole logit units -- worst_rms=1.38592,
+# worst_max_abs=7.26952 on the reproduction -- while every server answers 200
+# OK. fix/m5-tensor-drift (a11bf74) withholds the automatic enable for exactly
+# this reason. Nothing else in the harness would notice: the smoke gate proves
+# the model answers, not that its matmul accumulates where the PR claims.
+#
+# ds4_test already ships the check: --metal-tensor-equivalence runs five
+# prompt-logit/greedy cases against a non-Metal4 reference engine
+# (DS4_METAL_DISABLE_METAL4=1 internally) and prints a Tensor summary plus a
+# per-test verdict. This gate runs it. The binary name is the Makefile target
+# (`ds4_test:` at Makefile:633 -- the target name IS the binary name); naming
+# it from the source file tests/ds4_test.c would repeat the ds4-cli mistake.
+
+TENSOR_GATE_BINARY = "ds4_test"
+TENSOR_GATE_FLAG = "--metal-tensor-equivalence"
+#: The verdict prefix ds4_test's test_run_entry prints (tests/ds4_test.c:6867):
+#: `metal-tensor-equivalence: OK` on stderr, or `...: ERR`.
+TENSOR_GATE_VERDICT = "metal-tensor-equivalence"
+TENSOR_SUMMARY_RE = re.compile(
+    r"ds4-test: Tensor summary route=(\S+)"
+    r".*?worst_rms=([-+\d.eE]+) worst_max_abs=([-+\d.eE]+)"
+)
+VERDICT_RE = re.compile(rf"^{TENSOR_GATE_VERDICT}: (OK|ERR)$", re.MULTILINE)
+
+
+def parse_tensor_summary(text: str) -> dict[str, str] | None:
+    """Pull route and the worst margins out of ds4_test's Tensor summary line.
+
+    None when the line is absent -- which is itself a gate result: a ds4_test
+    that exits 0 without printing the summary did not run the equivalence.
+    """
+    m = TENSOR_SUMMARY_RE.search(text)
+    if not m:
+        return None
+    return {"route": m.group(1), "worst_rms": m.group(2), "worst_max_abs": m.group(3)}
+
+
+def metal_tensor_gate(
+    ds4_root: pathlib.Path, model: str | None, timeout: float = 1800
+) -> tuple[str, str]:
+    """Run `ds4_test --metal-tensor-equivalence` and judge the TensorOps route.
+
+    Three outcomes, and the difference between the last two is the whole point:
+
+      "passed"   the equivalence holds: exit 0 AND the per-test verdict line
+                 says OK AND the Tensor summary parsed. The detail carries the
+                 route and the worst margins, so the log holds the evidence.
+      "failed"   the gate ran and the equivalence does not hold. Blocks the
+                 run: a route that drifts from the reference kernels is
+                 measuring something the row cannot name.
+      "refused"  could not check. Blocks the run too -- "could not check" must
+                 never read as "passed". Causes: no ds4 tree, no binary and a
+                 failing `make ds4_test`, a model that does not exist, a
+                 binary that predates the flag (exit 2), output that does not
+                 look like a gate result, a timeout.
+
+    `model` is passed to the child as DS4_TEST_MODEL. The binary's own default
+    is ds4flash.gguf, which does not exist on this machine, and its failure
+    message is "cannot open model" -- which reads like a test result. So the
+    gate checks the model itself and refuses first, naming what is missing.
+    """
+    if not ds4_root.exists() or not (ds4_root / ".git").exists():
+        return (
+            "refused",
+            (
+                f"no ds4 tree at {ds4_root} -- the gate needs the tree the "
+                "server was launched from"
+            ),
+        )
+    binary = ds4_root / TENSOR_GATE_BINARY
+    if not binary.exists():
+        made = subprocess.run(
+            ["make", TENSOR_GATE_BINARY],
+            cwd=ds4_root,
+            capture_output=True,
+            text=True,
+            check=False,
+            stdin=subprocess.DEVNULL,
+            timeout=600,
+        )
+        if not binary.exists():
+            tail = (made.stderr or made.stdout or "").strip().splitlines()[-3:]
+            return (
+                "refused",
+                (
+                    f"no {TENSOR_GATE_BINARY} in {ds4_root} and `make "
+                    f"{TENSOR_GATE_BINARY}` failed: "
+                    f"{' / '.join(tail) or 'no output'}"
+                ),
+            )
+    if not model or not pathlib.Path(model).exists():
+        return (
+            "refused",
+            (
+                f"the gate needs DS4_TEST_MODEL pointing at a gguf that "
+                f"exists (got {model!r}). Without it ds4_test fails with "
+                "'cannot open model', which reads like a test result rather "
+                "than a gate refusal -- so the gate refuses first"
+            ),
+        )
+
+    env = {**os.environ, "DS4_TEST_MODEL": str(model)}
+    try:
+        got = subprocess.run(
+            [str(binary), TENSOR_GATE_FLAG],
+            capture_output=True,
+            text=True,
+            check=False,
+            stdin=subprocess.DEVNULL,
+            timeout=timeout,
+            env=env,
+        )
+    except subprocess.TimeoutExpired:
+        return (
+            "refused",
+            (
+                f"{TENSOR_GATE_BINARY} {TENSOR_GATE_FLAG} timed out after "
+                f"{timeout:g}s -- the model load alone can take minutes; "
+                "raise the timeout before trusting a skip"
+            ),
+        )
+    merged = got.stdout + got.stderr
+    rc = got.returncode
+
+    if rc == 2:
+        return (
+            "refused",
+            (
+                f"{TENSOR_GATE_BINARY} in {ds4_root} does not know "
+                f"{TENSOR_GATE_FLAG} (unknown test switch) -- the binary "
+                f"predates the flag; rebuild it with `make {TENSOR_GATE_BINARY}`"
+            ),
+        )
+    verdict = VERDICT_RE.search(merged)
+    if verdict is None:
+        return (
+            "refused",
+            (
+                f"{TENSOR_GATE_BINARY} exited {rc} but printed no "
+                f"'{TENSOR_GATE_VERDICT}: OK/ERR' verdict line -- the output "
+                "does not look like a gate result, and an exit code alone "
+                "must not read as a pass"
+            ),
+        )
+    summary = parse_tensor_summary(merged)
+    detail = summary and (
+        f"route={summary['route']} worst_rms={summary['worst_rms']} "
+        f"worst_max_abs={summary['worst_max_abs']}"
+    )
+    if rc != 0 or verdict.group(1) == "ERR":
+        return (
+            "failed",
+            (
+                f"{detail or 'no Tensor summary in the output'} "
+                f"(exit {rc}, {verdict.group(1)})"
+            ),
+        )
+    if summary is None:
+        return (
+            "refused",
+            (
+                f"{TENSOR_GATE_BINARY} exited 0 with an OK verdict but "
+                "printed no Tensor summary -- that is not what a run of the "
+                "equivalence looks like"
+            ),
+        )
+    return "passed", detail
 
 
 def inspect(backends: dict[str, dict] | None = None) -> Report:
@@ -1039,6 +1214,21 @@ def log_ci_status(offline: bool = False) -> None:
         )
 
 
+def run_metal_tensor_gate(model: str | None) -> int:
+    """Run the tensor gate from standalone preflight. 0 means pass.
+
+    Non-zero on "failed" AND on "refused": "could not check" is not a pass,
+    and a quiet downgrade would void the gate.
+    """
+    ds4_root = pathlib.Path(os.environ.get("DS4_ROOT", "~/git/ds4")).expanduser()
+    outcome, why = metal_tensor_gate(ds4_root, model)
+    if outcome == "passed":
+        logger.info("preflight: metal tensor gate passed -- %s", why)
+        return 0
+    logger.error("preflight: metal tensor gate %s -- %s", outcome, why)
+    return 1
+
+
 def main() -> int:
     # #54: a run killed mid-batch leaves the real repositories moved aside at
     # <name>-real with the export standing in their place. Restore before
@@ -1092,6 +1282,24 @@ def main() -> int:
         metavar="PID",
         help="process whose lifetime the lock tracks (default: this one)",
     )
+    # #149. Standalone preflight is a report tool, and the gate costs minutes
+    # and loads the model in its own engine -- so it is opt-in here. run.py
+    # gates by default; see metal_tensor_gate_step there.
+    p.add_argument(
+        "--metal-tensor-gate",
+        action="store_true",
+        help="run `ds4_test --metal-tensor-equivalence` and fail on a route "
+        "that drifts from the reference kernels. Costs minutes and loads "
+        "DS4_TEST_MODEL in its own engine; skipped by default here, "
+        "default-on in run.py",
+    )
+    p.add_argument(
+        "--metal-tensor-gate-model",
+        metavar="GGUF",
+        default=None,
+        help="model for the tensor gate (passed as DS4_TEST_MODEL). "
+        "Default: $DS4_TEST_MODEL",
+    )
     args = p.parse_args()
 
     if args.release_lock:
@@ -1107,6 +1315,10 @@ def main() -> int:
             logger.error("preflight: %s", why)
             return 1
         logger.info("preflight: %s", why)
+    if args.metal_tensor_gate and run_metal_tensor_gate(
+        args.metal_tensor_gate_model or os.environ.get("DS4_TEST_MODEL")
+    ):
+        return 1
     if not args.no_versions:
         log_versions(offline=args.offline)
         # #131: clients are recorded, not pinned. This never refuses -- it

@@ -40,6 +40,20 @@ Honest limits, restated on every report:
     bit-exactness. --seed 0 is refused: ds4 treats seed 0 as unset and seeds
     from time/pid/clock instead (run_sampled_generation). The dump path never
     samples, but the seed is pinned and recorded anyway.
+  * The Metal 4 TensorOps route is pinned ON for both arms:
+    DS4_METAL_ENABLE_TENSOR=1 opts any Metal 4 GPU into the route
+    (ds4_metal.m:2626), and DS4_METAL_DISABLE_METAL4=0 clears an inherited
+    operator disable, which would outrank the opt-in (ds4_metal.m:2586).
+    Without a pin, two trees can sit on different routes for reasons that are
+    not the change under test: the automatic enable is derived from the device
+    generation (ds4_metal.m:2605), and fix/m5-tensor-drift (a11bf74) withholds
+    it -- so a "diverged at step N" finding would name the PR when the route
+    is the cause. Pinning does NOT make the self-check catch a route problem:
+    both self-check arms run the same tree on the same pinned route, so they
+    agree even when that route is not what the PR's reference kernels
+    describe. Route-vs-reference drift is the equivalence gate's question
+    (benchmarks/agent/preflight.py metal_tensor_gate, i.e. ds4_test
+    --metal-tensor-equivalence), not this instrument's.
 
 Sequence: the SAME tree runs twice first. If tree A disagrees with itself
 under identical arguments, temperature 0 is not deterministic on this Metal
@@ -519,6 +533,16 @@ def run(args: argparse.Namespace) -> int:
     # anyway and record it: if a future ds4 adds an MTP path there, the pin
     # already held when this comparison was made.
     env["DS4_MTP_SPEC_DISABLE"] = "1"
+    # #149: pin the TensorOps route ON for both arms. Without a pin the two
+    # trees can sit on different routes for reasons that are not the change
+    # under test (the automatic enable is derived from the device generation,
+    # ds4_metal.m:2605, and fix/m5-tensor-drift withholds it). The disable
+    # override is not decoration: a disable in the inherited environment
+    # outranks the opt-in (ds4_metal.m:2586), so the opt-in alone would not
+    # pin anything. See "Honest limits" at the top of this file for what the
+    # self-check does and does not cover.
+    env["DS4_METAL_ENABLE_TENSOR"] = "1"
+    env["DS4_METAL_DISABLE_METAL4"] = "0"
 
     report = {
         "instrument": "scripts/bitexact_ab.py",
@@ -556,7 +580,11 @@ def run(args: argparse.Namespace) -> int:
             "consult the sampler, so temperature and seed cannot "
             "change what it compares.",
         },
-        "env_pins": {"DS4_MTP_SPEC_DISABLE": env["DS4_MTP_SPEC_DISABLE"]},
+        "env_pins": {
+            "DS4_MTP_SPEC_DISABLE": env["DS4_MTP_SPEC_DISABLE"],
+            "DS4_METAL_ENABLE_TENSOR": env["DS4_METAL_ENABLE_TENSOR"],
+            "DS4_METAL_DISABLE_METAL4": env["DS4_METAL_DISABLE_METAL4"],
+        },
         "frontier_results": [],
     }
 
@@ -758,6 +786,9 @@ def report_lines(report: dict) -> list[str]:
         ),
         (
             f"pin: DS4_MTP_SPEC_DISABLE={report['env_pins']['DS4_MTP_SPEC_DISABLE']}  "
+            "tensor route: DS4_METAL_ENABLE_TENSOR="
+            f"{report['env_pins']['DS4_METAL_ENABLE_TENSOR']}, "
+            f"DS4_METAL_DISABLE_METAL4={report['env_pins']['DS4_METAL_DISABLE_METAL4']}  "
             "sampling: engine reports none; conditional on the recorded argv"
         ),
     ]

@@ -11,7 +11,9 @@ from __future__ import annotations
 import json
 import os
 import pathlib
+import subprocess
 import sys
+import types
 
 import preflight
 
@@ -817,3 +819,228 @@ def test_the_restart_cycles_audit_their_own_kv_prefix():
         assert "kv-prefix-audit.txt" in text, name
         # must not abort a completed cycle on an audit failure
         assert "|| true" in text, name
+
+
+# --- Metal 4 TensorOps route gate (#149) -------------------------------------
+#
+# The gate runs the real ds4_test contract, exercised here against a fake
+# binary that reproduces the three real shapes: OK (exit 0), ERR (exit 1),
+# unknown switch (exit 2). A gate that only ever passes is the
+# check-that-cannot-fire pattern that voided the #138 screen, so the failure
+# and refusal paths are asserted as hard as the pass path.
+
+FAKE_DS4_TEST = """\
+#!/usr/bin/env python3
+import json
+import os
+import pathlib
+import sys
+import time
+
+calls = os.environ.get("FAKE_CALLS")
+if calls:
+    p = pathlib.Path(calls)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    with p.open("a") as fh:
+        fh.write(
+            json.dumps(
+                {"argv": sys.argv[1:], "model": os.environ.get("DS4_TEST_MODEL")}
+            )
+            + "\\n"
+        )
+mode = os.environ.get("FAKE_DS4_TEST_MODE", "pass")
+if mode == "sleep":
+    time.sleep(30)
+if mode == "pass":
+    sys.stderr.write(
+        "ds4-test: Tensor summary route=auto cases=5 capture_fail=0 "
+        "logits_fail=0 greedy_fail=0 top1_mismatch=0 min_top5_overlap=5/5 "
+        "min_overlap=20/20 worst_rank_delta=0 worst_rms=0 worst_max_abs=0 "
+        "worst_top20_max_abs=0\\n"
+    )
+    sys.stderr.write("metal-tensor-equivalence: OK\\n")
+    sys.exit(0)
+if mode == "fail":
+    # the reproduction numbers from #149
+    sys.stderr.write(
+        "ds4-test: Tensor summary route=auto cases=5 capture_fail=0 "
+        "logits_fail=2 greedy_fail=8 top1_mismatch=2 min_top5_overlap=2/5 "
+        "min_overlap=10/20 worst_rank_delta=13 worst_rms=1.38592 "
+        "worst_max_abs=7.26952 worst_top20_max_abs=6.62295\\n"
+    )
+    sys.stderr.write("metal-tensor-equivalence: ERR\\n")
+    sys.exit(1)
+if mode == "old":
+    # a binary built before the flag existed
+    sys.stderr.write(
+        "ds4-test: unknown test switch: --metal-tensor-equivalence\\n"
+    )
+    sys.exit(2)
+sys.exit(0)  # "silent": exit 0 with no verdict line
+"""
+
+
+def gate_tree(tmp_path, mode="pass"):
+    """A ds4 tree with a fake ds4_test and a stub model file."""
+    root = tmp_path / "ds4"
+    (root / ".git").mkdir(parents=True)
+    binary = root / "ds4_test"
+    binary.write_text(FAKE_DS4_TEST)
+    binary.chmod(0o755)
+    model = tmp_path / "model.gguf"
+    model.write_bytes(b"ggml")
+    calls = tmp_path / "calls.jsonl"
+    return root, model, calls
+
+
+def test_the_gate_passes_and_names_the_route_and_margins(tmp_path, monkeypatch):
+    root, model, _ = gate_tree(tmp_path)
+    monkeypatch.setenv("FAKE_DS4_TEST_MODE", "pass")
+    outcome, why = preflight.metal_tensor_gate(root, str(model))
+    assert outcome == "passed"
+    assert "route=auto" in why
+    assert "worst_rms=0" in why
+
+
+def test_the_gate_fails_when_the_equivalence_fails(tmp_path, monkeypatch):
+    """A gate that only passes cannot fire -- this is the path that must."""
+    root, model, _ = gate_tree(tmp_path)
+    monkeypatch.setenv("FAKE_DS4_TEST_MODE", "fail")
+    outcome, why = preflight.metal_tensor_gate(root, str(model))
+    assert outcome == "failed"
+    assert "worst_rms=1.38592" in why
+    assert "ERR" in why
+
+
+def test_a_missing_model_refuses_before_running_the_binary(tmp_path):
+    """ds4_test's own failure is 'cannot open model', which reads like a test
+    result. The gate must refuse first, naming what is missing, and never
+    launch the binary."""
+    root, _, calls = gate_tree(tmp_path)
+    outcome, why = preflight.metal_tensor_gate(root, str(tmp_path / "nope.gguf"))
+    assert outcome == "refused"
+    assert "DS4_TEST_MODEL" in why
+    assert not calls.exists()
+
+
+def test_a_stale_binary_that_predates_the_flag_refuses(tmp_path, monkeypatch):
+    root, model, _ = gate_tree(tmp_path)
+    monkeypatch.setenv("FAKE_DS4_TEST_MODE", "old")
+    outcome, why = preflight.metal_tensor_gate(root, str(model))
+    assert outcome == "refused"
+    assert "does not know" in why
+    assert "make ds4_test" in why
+
+
+def test_an_exit_zero_without_a_verdict_line_refuses(tmp_path, monkeypatch):
+    """Exit 0 alone must not read as a pass: that is the check-that-cannot-fire
+    shape, and a fake or truncated run would otherwise green the gate."""
+    root, model, _ = gate_tree(tmp_path)
+    monkeypatch.setenv("FAKE_DS4_TEST_MODE", "silent")
+    outcome, why = preflight.metal_tensor_gate(root, str(model))
+    assert outcome == "refused"
+    assert "verdict line" in why
+
+
+def test_a_missing_binary_is_built_from_the_makefile_target(tmp_path, monkeypatch):
+    """The binary is named from the Makefile target (`ds4_test:`, Makefile:633),
+    not inferred from the source file -- the ds4-cli mistake refused every
+    real tree while its tests passed."""
+    root, model, _ = gate_tree(tmp_path)
+    (root / "ds4_test").unlink()
+    real_run = subprocess.run
+
+    def fake_run(argv, **kwargs):
+        if argv[0] == "make":
+            binary = root / "ds4_test"
+            binary.write_text(FAKE_DS4_TEST)
+            binary.chmod(0o755)
+            return types.SimpleNamespace(returncode=0, stdout="", stderr="")
+        return real_run(argv, **kwargs)
+
+    monkeypatch.setattr(preflight.subprocess, "run", fake_run)
+    outcome, _ = preflight.metal_tensor_gate(root, str(model))
+    assert outcome == "passed"
+
+
+def test_a_failing_make_refuses_and_quotes_the_error(tmp_path, monkeypatch):
+    root, model, _ = gate_tree(tmp_path)
+    (root / "ds4_test").unlink()
+    real_run = subprocess.run
+
+    def fake_run(argv, **kwargs):
+        if argv[0] == "make":
+            return types.SimpleNamespace(
+                returncode=2,
+                stdout="",
+                stderr="make: *** No rule to make target 'ds4_test'.  Stop.\n",
+            )
+        return real_run(argv, **kwargs)
+
+    monkeypatch.setattr(preflight.subprocess, "run", fake_run)
+    outcome, why = preflight.metal_tensor_gate(root, str(model))
+    assert outcome == "refused"
+    assert "make ds4_test" in why
+    assert "No rule to make target" in why
+
+
+def test_a_hung_binary_times_out_into_a_refusal(tmp_path, monkeypatch):
+    root, model, _ = gate_tree(tmp_path)
+    monkeypatch.setenv("FAKE_DS4_TEST_MODE", "sleep")
+    outcome, why = preflight.metal_tensor_gate(root, str(model), timeout=0.2)
+    assert outcome == "refused"
+    assert "timed out" in why
+
+
+def test_a_missing_ds4_tree_refuses(tmp_path):
+    outcome, why = preflight.metal_tensor_gate(tmp_path / "nowhere", "m.gguf")
+    assert outcome == "refused"
+    assert "no ds4 tree" in why
+
+
+def test_the_tensor_summary_parses_the_reproduction_numbers():
+    line = (
+        "ds4-test: Tensor summary route=auto cases=5 capture_fail=0 "
+        "logits_fail=2 greedy_fail=8 top1_mismatch=2 min_top5_overlap=2/5 "
+        "min_overlap=10/20 worst_rank_delta=13 worst_rms=1.38592 "
+        "worst_max_abs=7.26952 worst_top20_max_abs=6.62295"
+    )
+    got = preflight.parse_tensor_summary(line)
+    assert got == {
+        "route": "auto",
+        "worst_rms": "1.38592",
+        "worst_max_abs": "7.26952",
+    }
+    assert preflight.parse_tensor_summary("ds4 tests: ok") is None
+
+
+def test_the_standalone_gate_is_opt_in_not_default():
+    """Standalone preflight is a report tool; a 90 GiB model load on every
+    casual invocation would be hostile. The gate only runs behind its flag
+    here -- run.py gates by default instead."""
+    source = pathlib.Path(preflight.__file__).read_text()
+    assert "if args.metal_tensor_gate" in source
+    assert 'p.add_argument(\n        "--metal-tensor-gate"' in source
+
+
+def test_the_standalone_gate_passes_zero_and_fails_nonzero(monkeypatch):
+    monkeypatch.setattr(
+        preflight, "metal_tensor_gate", lambda root, model: ("passed", "route=auto")
+    )
+    assert preflight.run_metal_tensor_gate("m.gguf") == 0
+
+
+def test_a_refused_gate_exits_nonzero_in_standalone_preflight(monkeypatch):
+    """'could not check' must not read as 'passed' -- the exit code is the
+    only part of preflight a script sees."""
+    monkeypatch.setattr(
+        preflight, "metal_tensor_gate", lambda root, model: ("refused", "no model")
+    )
+    assert preflight.run_metal_tensor_gate("m.gguf") == 1
+
+
+def test_a_failed_gate_exits_nonzero_in_standalone_preflight(monkeypatch):
+    monkeypatch.setattr(
+        preflight, "metal_tensor_gate", lambda root, model: ("failed", "ERR")
+    )
+    assert preflight.run_metal_tensor_gate("m.gguf") == 1

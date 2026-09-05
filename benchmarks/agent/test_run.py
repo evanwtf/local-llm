@@ -1530,3 +1530,132 @@ def test_a_dirty_harness_is_refused_when_pinned(tmp_path, monkeypatch):
     with pytest.raises(SystemExit) as got:
         run.main()
     assert "uncommitted code" in str(got.value)
+
+
+# --- the Metal 4 TensorOps route on the row, and its gate (#149) -------------
+
+
+def test_the_tensor_route_reaches_the_row(monkeypatch):
+    """#149: on the same hardware, one build runs the Metal 4 TensorOps route
+    and another withholds it, with nothing else in the row changing. The row
+    has to say which machine capability the run sat on, or a 'diverged at
+    step N' is unattributable between route and code."""
+    monkeypatch.setattr(run.preflight, "metal_tensor_api", lambda: True)
+    env = run.capture_versions({"base_commit": "abc"}, {})
+    assert env["metal_tensor_api"] is True
+
+
+def test_a_probe_that_ran_and_said_off_is_recorded_as_off(monkeypatch):
+    """False means probed and off -- a real machine fact about prefill units."""
+    monkeypatch.setattr(run.preflight, "metal_tensor_api", lambda: False)
+    env = run.capture_versions({"base_commit": "abc"}, {})
+    assert env["metal_tensor_api"] is False
+
+
+def test_an_unreadable_tensor_probe_stays_absent(monkeypatch):
+    """None means the probe could not read (no llama.cpp build here). Absence
+    is the truthful record; a False would send someone chasing a regression
+    that is a parse gap."""
+    monkeypatch.setattr(run.preflight, "metal_tensor_api", lambda: None)
+    env = run.capture_versions({"base_commit": "abc"}, {})
+    assert "metal_tensor_api" not in env
+
+
+def test_the_tensor_gate_blocks_on_a_failed_equivalence(monkeypatch):
+    """#149's shape: worst_rms in whole logit units while every request
+    returns 200 OK. A batch must not file rows through that."""
+    monkeypatch.setattr(
+        run.preflight,
+        "metal_tensor_gate",
+        lambda root, model: ("failed", "route=auto worst_rms=1.38592"),
+    )
+    monkeypatch.setattr(run, "serving_gguf", lambda: {"gguf_path": "/m.gguf"})
+    monkeypatch.setattr(
+        run, "serving_ds4_root", lambda: pathlib.Path("/tmp/ds4-under-test")
+    )
+    backends = {"ds4": {"base_url": "http://127.0.0.1:8000"}}
+    with pytest.raises(SystemExit, match="failed"):
+        run.metal_tensor_gate_step(backends, skip=False)
+
+
+def test_a_refused_gate_blocks_too(monkeypatch):
+    """'could not check' must not read as 'passed'. A silent downgrade is the
+    void-check pattern: the gate exists and nobody ran it."""
+    monkeypatch.setattr(
+        run.preflight, "metal_tensor_gate", lambda root, model: ("refused", "no model")
+    )
+    monkeypatch.setattr(run, "serving_gguf", lambda: {"gguf_path": "/m.gguf"})
+    monkeypatch.setattr(
+        run, "serving_ds4_root", lambda: pathlib.Path("/tmp/ds4-under-test")
+    )
+    backends = {"ds4": {"base_url": "http://127.0.0.1:8000"}}
+    with pytest.raises(SystemExit, match="refused"):
+        run.metal_tensor_gate_step(backends, skip=False)
+
+
+def test_the_gate_skips_only_by_flag_and_says_so(monkeypatch, caplog):
+    import logging
+
+    called = []
+    monkeypatch.setattr(
+        run.preflight,
+        "metal_tensor_gate",
+        lambda *a, **k: called.append(a) or ("passed", ""),
+    )
+    backends = {"ds4": {"base_url": "http://127.0.0.1:8000"}}
+    with caplog.at_level(logging.INFO):
+        run.metal_tensor_gate_step(backends, skip=True)
+    assert not called
+    assert "--skip-tensor-gate" in caplog.text
+
+
+def test_the_gate_does_not_run_without_a_ds4_backend(monkeypatch):
+    """The gate loads the model in its own engine; pointing it at an
+    ollama-only batch would burn minutes and gigabytes for nothing."""
+    called = []
+    monkeypatch.setattr(
+        run.preflight,
+        "metal_tensor_gate",
+        lambda *a, **k: called.append(1) or ("passed", ""),
+    )
+    backends = {"glm": {"base_url": "http://127.0.0.1:11434/v1"}}
+    run.metal_tensor_gate_step(backends, skip=False)
+    assert not called
+
+
+def test_no_model_refuses_naming_the_flag(monkeypatch):
+    monkeypatch.setattr(run, "serving_gguf", lambda: None)
+    backends = {"ds4": {"base_url": "http://127.0.0.1:8000"}}
+    with pytest.raises(SystemExit, match="--tensor-gate-model") as got:
+        run.metal_tensor_gate_step(backends, skip=False)
+    # the refusal must also name the skip, so 'could not check' has a path
+    assert "--skip-tensor-gate" in str(got.value)
+
+
+def test_the_model_comes_from_the_running_server_by_default(monkeypatch):
+    """The weights under test are the weights the gate should load, and the
+    tree is the one the server was launched from -- not DS4_ROOT's guess
+    (#64 taught that with ds4-main vs ds4)."""
+    monkeypatch.setattr(run, "serving_gguf", lambda: {"gguf_path": "/models/m.gguf"})
+    monkeypatch.setattr(
+        run, "serving_ds4_root", lambda: pathlib.Path("/tmp/ds4-under-test")
+    )
+    got = {}
+    monkeypatch.setattr(
+        run.preflight,
+        "metal_tensor_gate",
+        lambda root, model: got.update(root=str(root), model=model) or ("passed", ""),
+    )
+    run.metal_tensor_gate_step(
+        {"ds4": {"base_url": "http://127.0.0.1:8000"}}, skip=False
+    )
+    assert got["model"] == "/models/m.gguf"
+    assert got["root"] == "/tmp/ds4-under-test"
+
+
+def test_the_batch_defaults_to_gating():
+    """The default for a quality-measuring run must be to gate; skipping is
+    opt-in and loud. A source test, because the wiring is in main()."""
+    source = pathlib.Path(run.__file__).read_text()
+    assert '"--skip-tensor-gate"' in source
+    assert "metal_tensor_gate_step(backends, args.skip_tensor_gate" in source

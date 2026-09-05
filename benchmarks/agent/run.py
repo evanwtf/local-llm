@@ -545,6 +545,11 @@ def probe_server(backend):
     return got
 
 
+def is_ds4_backend(backend: dict) -> bool:
+    """A ds4 backend is the one whose base_url names the ds4-server port."""
+    return (backend.get("base_url") or "").endswith(":8000")
+
+
 def serving_ds4_root():
     """The tree the *running* ds4-server was launched from, or None.
 
@@ -641,6 +646,54 @@ def metal_ceiling_mb():
         return None
 
 
+def metal_tensor_gate_step(
+    backends: dict, skip: bool, model_override: str | None = None
+) -> None:
+    """Gate the batch on ds4_test --metal-tensor-equivalence (#149).
+
+    The smoke gate proves the model answers; this proves its matmul route
+    matches the reference kernels the PR under test claims to preserve. On an
+    M5 the TensorOps route can drift by whole logit units while every request
+    returns 200 OK, so a batch without this gate can measure a degraded
+    engine and file it as a model result.
+
+    Default is to gate. Skipping is allowed but loud, and only by the explicit
+    flag -- a gate that quietly downgrades is a gate nobody runs.
+
+    "refused" (could not check: no binary, no model, stale binary) exits
+    non-zero too. "Could not check" must never read as "passed".
+    """
+    if not any(is_ds4_backend(b) for b in backends.values()):
+        logger.info("no ds4 backend in this batch; metal tensor gate not applicable")
+        return
+    if skip:
+        logger.warning(
+            "metal tensor gate skipped (--skip-tensor-gate): the TensorOps "
+            "route is not checked for this batch, so a route that drifts "
+            "would not be caught (#149)"
+        )
+        return
+    ds4_root = (
+        serving_ds4_root()
+        or pathlib.Path(os.environ.get("DS4_ROOT", "~/git/ds4")).expanduser()
+    )
+    model = model_override
+    if model is None:
+        weights = serving_gguf()
+        model = weights.get("gguf_path") if weights else None
+    if not model:
+        raise SystemExit(
+            "metal tensor gate has no model: pass --tensor-gate-model GGUF, or "
+            "start the ds4-server so its weights can be read off the process "
+            "(#149). To skip the gate knowingly, pass --skip-tensor-gate."
+        )
+    outcome, why = preflight.metal_tensor_gate(ds4_root, model)
+    if outcome == "passed":
+        logger.info("metal tensor gate passed: %s", why)
+        return
+    raise SystemExit(f"metal tensor gate {outcome}: {why}")
+
+
 def capture_versions(cfg, backends):
     """Record the software stack, once, into every row of this run.
 
@@ -703,6 +756,21 @@ def capture_versions(cfg, backends):
     # identical in results.jsonl while meaning different things (#81).
     env.update(preflight.machine_facts())
 
+    # #149. Whether the machine's Metal exposes the Metal 4 tensor API -- the
+    # capability ds4's automatic TensorOps enable keys off (ds4_metal.m:2605
+    # derives the default from the device generation). On the rows this matters
+    # for, a whole route of kernels can be live or withheld with nothing else
+    # in the row changing: fix/m5-tensor-drift (a11bf74) withholds it on
+    # hardware where every earlier build enabled it. The value comes from
+    # preflight's llama.cpp probe, the same one preflight logs as "Metal
+    # tensor API is on"; it is the machine's capability, not any one ds4
+    # build's decision. Absent when the probe could not read -- "not
+    # established", never a guess. Not in REQUIRED: validate() runs on read,
+    # so demanding it would retroactively condemn every earlier row.
+    tensor = preflight.metal_tensor_api()
+    if tensor is not None:
+        env["metal_tensor_api"] = tensor
+
     # .get(): a hosted backend has no base_url at all.
     if any((b.get("base_url") or "").endswith(":11434") for b in backends.values()):
         env["ollama"] = out(["ollama", "--version"])
@@ -717,7 +785,7 @@ def capture_versions(cfg, backends):
             if b["model"] in digests:
                 env[f"digest_{name}"] = digests[b["model"]]
 
-    if any((b.get("base_url") or "").endswith(":8000") for b in backends.values()):
+    if any(is_ds4_backend(b) for b in backends.values()):
         ds4_root = (
             serving_ds4_root()
             or pathlib.Path(os.environ.get("DS4_ROOT", "~/git/ds4")).expanduser()
@@ -2496,6 +2564,21 @@ def main():
         "it assumes a shared machine, so mixing breaks them silently.",
     )
     p.add_argument(
+        "--skip-tensor-gate",
+        action="store_true",
+        help="skip the Metal 4 TensorOps equivalence gate (#149). The gate "
+        "runs ds4_test --metal-tensor-equivalence, which costs minutes and "
+        "loads the model in its own engine. Skip it only when you are "
+        "deliberately measuring a run whose route is unchecked.",
+    )
+    p.add_argument(
+        "--tensor-gate-model",
+        metavar="GGUF",
+        default=None,
+        help="model for the tensor gate. Default: the weights the running "
+        "ds4-server has open",
+    )
+    p.add_argument(
         "--skip-smoke",
         action="store_true",
         help="skip the pre-batch coding gate (#63). The gate makes each backend "
@@ -2655,6 +2738,13 @@ def main():
     # batch, and the result is a timing measurement of a machine that was busy
     # doing something else. Advisory: it warns and never refuses.
     preflight.log_report(preflight.inspect(backends))
+
+    # #149: preflight proves the machine is ready and the smoke gate proves
+    # the model answers; this proves the matmul route matches the reference
+    # kernels. Runs before the smoke gate and before the targets are stashed,
+    # so a refusal never leaves a checkout moved aside. "refused" blocks like
+    # "failed" -- "could not check" must not read as "passed".
+    metal_tensor_gate_step(backends, args.skip_tensor_gate, args.tensor_gate_model)
 
     # #63: preflight proves the machine is ready; this proves the *model* is.
     # A backend can be up, current, and pristine while answering in a degraded

@@ -30,7 +30,9 @@ def flag(name):
 
 with pathlib.Path(os.environ["FAKE_CALLS"]).open("a") as calls:
     calls.write(json.dumps({"argv": ARGS,
-                            "pin": os.environ.get("DS4_MTP_SPEC_DISABLE")}) + "\\n")
+                            "pin": os.environ.get("DS4_MTP_SPEC_DISABLE"),
+                            "tensor": os.environ.get("DS4_METAL_ENABLE_TENSOR"),
+                            "tensor_disable": os.environ.get("DS4_METAL_DISABLE_METAL4")}) + "\\n")
 
 if "--dump-tokens" in ARGS:
     words = pathlib.Path(flag("--prompt-file")).read_text().split()
@@ -461,6 +463,55 @@ def test_sampling_is_pinned_and_recorded_with_the_conditionality_note(
     assert "--raw" in argv_a
     # The pin reached the arm, not just the report.
     assert all(c["pin"] == "1" for c in dump_calls(bench))
+
+
+def test_the_tensor_route_is_pinned_on_and_stated(bench, monkeypatch):
+    """#149: two trees can sit on different Metal 4 routes for reasons that
+    are not the change under test -- the automatic enable is derived from the
+    device generation, and fix/m5-tensor-drift withholds it. The route must
+    be pinned on both arms and stated in the report, or a 'diverged at step
+    N' names the PR when the route is the cause."""
+    monkeypatch.setenv("FAKE_PLAN", "ok,ok,ok")
+    # An operator who disabled Metal 4 entirely must not silently defeat the
+    # opt-in: the disable outranks it (ds4_metal.m:2586), so the instrument
+    # clears it in the environment it hands the arms.
+    monkeypatch.setenv("DS4_METAL_DISABLE_METAL4", "1")
+    rc = ab.main(
+        [
+            "new",
+            str(bench["trees"]["tree-a"]),
+            "old",
+            str(bench["trees"]["tree-b"]),
+            str(bench["gguf"]),
+            "--corpus",
+            str(bench["corpus"]),
+            "--out",
+            str(bench["out"]),
+            "--no-lock",
+            "--gen",
+            "4",
+            "--frontier",
+            "8",
+        ]
+    )
+    assert rc == 0
+    report = read_report(bench)
+    assert report["env_pins"]["DS4_METAL_ENABLE_TENSOR"] == "1"
+    assert report["env_pins"]["DS4_METAL_DISABLE_METAL4"] == "0"
+    # Both arms ran on the pinned route, and the inherited disable did not
+    # survive into the environment the arms saw.
+    assert all(c["tensor"] == "1" for c in dump_calls(bench))
+    assert all(c["tensor_disable"] == "0" for c in dump_calls(bench))
+
+
+def test_the_self_check_cannot_catch_route_drift_is_said_in_the_code():
+    """The same tree on the same pinned route is self-consistent by
+    construction: tree A against itself will agree even when that route is
+    not the route the PR's reference kernels describe. That limit has to be
+    stated where the instrument lives, not only in a commit message."""
+    doc = pathlib.Path(ab.__file__).read_text()
+    assert "self-check" in doc and "route" in doc
+    assert "ds4_test" in doc and "metal-tensor-equivalence" in doc
 
 
 # --- frontier mechanics -----------------------------------------------------
