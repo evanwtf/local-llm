@@ -1367,7 +1367,7 @@ def test_the_status_check_takes_no_index_lock(tmp_path, monkeypatch):
     assert all("--no-optional-locks" in a for a in status), seen
 
 
-# --- --targets sandbox (#145) -----------------------------------------------
+# --- --targets sandbox (#146) -----------------------------------------------
 
 
 def _sandbox_clone(tmp_path, repo, commit):
@@ -1482,7 +1482,7 @@ def test_guarded_path_questions_resolve_in_sandbox_mode(tmp_path):
 
 
 def test_the_sandbox_profile_denies_the_guessed_path(tmp_path):
-    """#145's tradeoff: nothing stands at the guessed path, so the guess must
+    """#146's tradeoff: nothing stands at the guessed path, so the guess must
     fail CLOSED at the profile. In legacy mode the same path IS the worktree
     and must stay readable. The sandbox clone is denied in both -- it is an
     un-excised copy of the answer either way."""

@@ -74,7 +74,7 @@ def _keep_the_stash_inside_the_test(request, tmp_path, monkeypatch):
     monkeypatch.setattr(run, "STASH_ROOT", tmp_path / "stash", raising=False)
     monkeypatch.setattr(run, "STASH_MARKER", tmp_path / "stash.json", raising=False)
     monkeypatch.setattr(run, "STASH_NOTICE", tmp_path / "NOTICE.md", raising=False)
-    # #145: sandbox/<name> holds full clones of the target repos. A test that
+    # #146: sandbox/<name> holds full clones of the target repos. A test that
     # reads the real one validates against whatever the last sync left there;
     # a test that syncs into it writes into the operator's working tree.
     monkeypatch.setattr(run, "SANDBOX_ROOT", tmp_path / "sandbox", raising=False)

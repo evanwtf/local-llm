@@ -1552,7 +1552,7 @@ def restore_targets():
     return restored
 
 
-# #145: the harness's own checkouts of the target repositories, cloned by
+# #146: the harness's own checkouts of the target repositories, cloned by
 # scripts/sync_sandbox_targets.py into this repo's gitignored sandbox/. A batch
 # with --targets sandbox builds every export from here and renames nothing in
 # ~/git.
@@ -1624,7 +1624,7 @@ def setup_targets(pairs, layout):
     park it under STASH_ROOT, and stand the export at the configured path --
     the guess the model makes is SATISFIED with the excised tree.
 
-    sandbox (#145): prove each sandbox/<name> clone is at its pinned commit,
+    sandbox (#146): prove each sandbox/<name> clone is at its pinned commit,
     and never touch the operator's checkouts. No marker, no notice, no
     restore -- there is nothing to restore, which is the point. Nothing stands
     at the guessed path, so the profile denies it instead and the guess fails
@@ -1881,7 +1881,7 @@ def sandbox_profile(worktree, repo):
         # agent can read the file where it lives.
         STASH_MARKER,
         STASH_NOTICE,
-        # #145: the harness's own clones of the target repos, detached at the
+        # #146: the harness's own clones of the target repos, detached at the
         # pinned commit with full history -- another un-excised copy of the
         # answer, parked inside the one tree that must stay readable
         # (~/git/local-llm, see above). Denying the subdirectory is safe: the
@@ -2082,7 +2082,7 @@ def one_trial(
     # guesses, so the guess is SATISFIED with the excised tree. The worktree
     # is that path; the source differs from it only while parked.
     #
-    # sandbox (#145): nothing is renamed and nothing stands at the guessed
+    # sandbox (#146): nothing is renamed and nothing stands at the guessed
     # path. The export builds from the harness's own sandbox/<name> clone into
     # the workdir, and the profile DENIES the configured path -- the guess
     # fails closed. The stash machinery is not used at all.
@@ -2145,7 +2145,7 @@ def one_trial(
     else:
         # The export is materialised FROM the source checkout, INTO the
         # worktree: the parked real checkout at the guessed path (legacy), or
-        # the sandbox clone into the workdir (#145).
+        # the sandbox clone into the workdir (#146).
         build_checkout(
             source,
             target["base_commit"],
@@ -2507,7 +2507,7 @@ def main():
         default="legacy",
         help="where the trial checkouts come from. legacy (#54): the "
         "operator's checkout is parked aside and the export stands at the "
-        "path the model guesses. sandbox (#145): the export builds from this "
+        "path the model guesses. sandbox (#146): the export builds from this "
         "repo's sandbox/<name> clones (sync with scripts/"
         "sync_sandbox_targets.py first), nothing in ~/git is renamed, and the "
         "guessed path is denied at the sandbox profile. Sandbox changes what "
@@ -2553,7 +2553,7 @@ def main():
     # stop the run for the same reason the first one does.
     #
     # All of that reads the OPERATOR's checkouts, so it is legacy-only. Under
-    # #145 their state is not the run's business; the sandbox clones are
+    # #146 their state is not the run's business; the sandbox clones are
     # validated instead, before the smoke gate spends a minute on a batch that
     # cannot start.
     pairs = sorted(
@@ -2563,7 +2563,7 @@ def main():
         }
     )
     if args.targets == "sandbox":
-        logger.info("target layout: sandbox (#145) -- ~/git is never renamed")
+        logger.info("target layout: sandbox (#146) -- ~/git is never renamed")
         ensure_sandbox_targets(pairs)
     else:
         targets = {}
@@ -2670,7 +2670,7 @@ def main():
     # #54: every target at a known commit that exists upstream, with no strays,
     # before a single trial runs. A benchmark that starts from an unknown state
     # measures nothing -- and an agent has already damaged a checkout it was
-    # never pointed at. #145: or prove the sandbox clones instead, and leave
+    # never pointed at. #146: or prove the sandbox clones instead, and leave
     # the operator's checkouts alone.
     setup_targets(pairs, args.targets)
 
