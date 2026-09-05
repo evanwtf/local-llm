@@ -51,3 +51,4 @@ extend-exclude = ["benchmarks/agent/PROMPTS.md"]
 # syntax error from a missing target-version was masking every other rule in
 # the file.
 "tests/test_stack_agent_report.py" = ["DTZ001"]
+"tests/test_route_ab_report.py" = ["DTZ001"]
