@@ -114,10 +114,35 @@ sweep() {
   echo "$tag $(date '+%H:%M:%S')" >> "$OUT/sweep-order.txt"
 }
 
+# Alternate which arm goes first. Running new-then-old every sweep puts the old
+# arm second on a hotter machine every single time, which is exactly the #130
+# bias this script's own header warns about -- and is what it did until
+# 2026-09-04. decode_ab.sh has alternated per rep since #130; this did not.
+#
+# With an even SWEEPS each arm leads half the time and the thermal term cancels
+# in the pairing. With an odd SWEEPS it does not, so say so rather than let a
+# reader assume it balances.
+if [ $((SWEEPS % 2)) -ne 0 ]; then
+  echo "[$(date +%H:%M:%S)] WARNING: SWEEPS=$SWEEPS is odd -- one arm leads once" \
+       "more than the other and the position term does not cancel. Prefer an" \
+       "even SWEEPS." | tee -a "$OUT/run-record.txt"
+fi
+
 for n in $(seq 1 "$SWEEPS"); do
-  restart_server "$NEW_TREE" "$NEW_GGUF" "$NEW_PLE" "$NEW_KV" "new-sweep$n"
-  sweep new "$n" "$NEW_BACKEND"
-  restart_server "$OLD_TREE" "$OLD_GGUF" "$OLD_PLE" "$OLD_KV" "old-sweep$n"
-  sweep old "$n" "$OLD_BACKEND"
+  if [ $((n % 2)) -eq 1 ]; then
+    first_tag=new; first_backend=$NEW_BACKEND
+    first_tree=$NEW_TREE; first_gguf=$NEW_GGUF; first_ple=$NEW_PLE; first_kv=$NEW_KV
+    second_tag=old; second_backend=$OLD_BACKEND
+    second_tree=$OLD_TREE; second_gguf=$OLD_GGUF; second_ple=$OLD_PLE; second_kv=$OLD_KV
+  else
+    first_tag=old; first_backend=$OLD_BACKEND
+    first_tree=$OLD_TREE; first_gguf=$OLD_GGUF; first_ple=$OLD_PLE; first_kv=$OLD_KV
+    second_tag=new; second_backend=$NEW_BACKEND
+    second_tree=$NEW_TREE; second_gguf=$NEW_GGUF; second_ple=$NEW_PLE; second_kv=$NEW_KV
+  fi
+  restart_server "$first_tree" "$first_gguf" "$first_ple" "$first_kv" "$first_tag-sweep$n"
+  sweep "$first_tag" "$n" "$first_backend"
+  restart_server "$second_tree" "$second_gguf" "$second_ple" "$second_kv" "$second_tag-sweep$n"
+  sweep "$second_tag" "$n" "$second_backend"
 done
 echo "[$(date +%H:%M:%S)] all $((SWEEPS * 2)) sweeps complete under $OUT"
