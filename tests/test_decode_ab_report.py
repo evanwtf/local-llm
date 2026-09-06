@@ -176,6 +176,42 @@ def test_a_bad_directory_does_not_lose_the_others(tmp_path, caplog):
     assert status == 1
 
 
+def test_arms_with_different_rep_counts_warn(tmp_path, caplog):
+    """A run read mid-write has one arm with fewer reps than the other, and
+    load() pairs only the reps both arms share -- so the missing rep drops
+    out silently and changes the median. The warning is the loud version."""
+    d = tmp_path / "midwrite"
+    d.mkdir()
+    _write_rep(d, "a", 1, {2048: 10.0})
+    _write_rep(d, "a", 2, {2048: 10.0})
+    _write_rep(d, "a", 3, {2048: 10.0})
+    _write_rep(d, "b", 1, {2048: 12.0})
+    _write_rep(d, "b", 2, {2048: 12.0})
+    with caplog.at_level("WARNING"):
+        runs, status = report.report_across_runs([d], "gen_steady_tps")
+    text = " ".join(r.getMessage() for r in caplog.records)
+    assert "different repetition counts" in text
+    assert "a has [1, 2, 3]" in text
+    assert "b has [1, 2]" in text
+    # The run still summarizes; the warning does not refuse it.
+    assert len(runs) == 1
+    assert status == 0
+
+
+def test_balanced_arms_do_not_warn(tmp_path, caplog):
+    """A complete run has the same reps on both arms; the guard must stay
+    silent so a normal run does not read as suspect."""
+    d = tmp_path / "balanced"
+    d.mkdir()
+    _write_rep(d, "a", 1, {2048: 10.0})
+    _write_rep(d, "a", 2, {2048: 10.0})
+    _write_rep(d, "b", 1, {2048: 12.0})
+    _write_rep(d, "b", 2, {2048: 12.0})
+    with caplog.at_level("WARNING"):
+        report.report_across_runs([d], "gen_steady_tps")
+    assert not caplog.records
+
+
 def test_per_rep_ratio_pairs_within_each_rep(tmp_path):
     """#952 claimed the ratio narrows within a session. Answering that by
     hand is how a ratio-of-medians slips back in."""
