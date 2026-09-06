@@ -63,6 +63,20 @@ nothing finished and no way to tell.
 that rewarded failing fast). Their slots are filled from below the line, and
 two of the promotions are things that overnight run walked into.
 
+### First, because someone upstream is waiting on it
+
+0. **[#162](https://github.com/evanwtf/local-llm/issues/162)** Re-test ds4#952 on Metal, at head `77a054e1`
+   @GiorgioOppo has asked the three third-party testers to run again, and **we
+   are the only Metal report in that thread**. 77 commits have landed since the
+   `6a20b13` we published 1.155 / 0.999 against, 31 of them touching Metal.
+   The part worth doing is not the re-run: @adamlawi has localised a **−12% Q4
+   prefill regression on CUDA** to `f309990`, a commit whose subject says it
+   also touches *Metal SSD decode kernels*, and nobody has a mechanism for it.
+   Measuring `f309990^` against `f309990` on Metal says whether the fault is in
+   shared code or confined to the CUDA path. **Done** is that answer, stated
+   with the `prefill_tps` definition beside it, drafted on #162 for the
+   operator to post. Peer has the builds and the flag semantics.
+
 ### First, because everything else is measured through it
 
 1. **[#158](https://github.com/evanwtf/local-llm/issues/158)** Qwen3.8-Flash-Next is upstreamed as `antirez/ds4#991`
