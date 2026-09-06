@@ -193,7 +193,15 @@ Rendered as `session/model/effort=X` on every line by a `logging.Filter`
 attached to the **handler** — a logger-level filter never sees records
 propagating up from child loggers.
 
-**The identity is never self-reported.** An agent asked what model or effort it
+**The operator is the one source that can set it.** An agent asked what effort
+it runs at will guess; the operator changing the setting is a fact from outside
+the agent, and it may be recorded. On 2026-09-06 the effort moved from medium to
+high partway through the #162 batch, so runs 1-4 carry `unidentified` and later
+ones carry `high`. Record the change rather than backfilling: rows either side of
+it were produced by different instruments, the same reason rows are not pooled
+across a client version boundary (#137) or a Metal route (#149).
+
+**Otherwise the identity is never self-reported.** An agent asked what model or effort it
 runs at will answer confidently and may be wrong. When the variables are unset,
 the tooling logs `unidentified` loudly and `evidence.py` refuses to author a
 finding. This rule was written after a peer set its own effort to `"low"`,
