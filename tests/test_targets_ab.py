@@ -25,8 +25,8 @@ SCRIPT = REPO / "scripts" / "targets_ab.sh"
 
 
 def epoch_of(hhmm: str) -> int:
-    """Epoch of today at HH:MM, for injecting NOW. The script resolves the
-    cutoff against the same system clock, so the two agree."""
+    """Epoch of today at HH:MM, for injecting LOCAL_LLM_FAKE_NOW. The script
+    resolves the cutoff against the same system clock, so the two agree."""
     h, m = map(int, hhmm.split(":"))
     return int(
         datetime.datetime.now()
@@ -49,7 +49,7 @@ def run_script(
         }
     )
     if now is not None:
-        env["NOW"] = str(now)
+        env["LOCAL_LLM_FAKE_NOW"] = str(now)
     return subprocess.run(
         ["bash", str(SCRIPT), *args],
         capture_output=True,

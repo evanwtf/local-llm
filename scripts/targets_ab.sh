@@ -73,28 +73,33 @@ BATCH="${BATCH:-$(date +%m%d-%H%M)}"
 SHIM_PORT=8101
 
 # Resolve HH:MM to an epoch on this platform. GNU date uses -d, BSD uses -j.
+# Resolve HH:MM to an epoch with seconds pinned to 0. Both date dialects fill
+# unspecified fields from the current time, so a bare "23:59" would carry the
+# current second and the resolved cutoff would drift up to 59s past the
+# injected clock -- the at-cutoff test would then pass only when the current
+# second happened to be 0. Pin ":00" so the epoch is deterministic.
 date_epoch() {
-    if date -d "$1" +%s >/dev/null 2>&1; then
-        date -d "$1" +%s
+    if date -d "$1:00" +%s >/dev/null 2>&1; then
+        date -d "$1:00" +%s
     else
-        date -j -f "%H:%M" "$1" +%s 2>/dev/null
+        date -j -f "%H:%M:%S" "$1:00" +%s 2>/dev/null
     fi
 }
 
 # Resolve UNTIL (HH:MM) to an absolute epoch once at launch. A bare HH:MM
 # already past today means tomorrow. Refuses (non-zero) an unparseable value.
-# NOW overrides the clock for tests.
+# LOCAL_LLM_FAKE_NOW overrides the clock for tests.
 resolve_until() {
     local hhmm="$1" now today
-    now="${NOW:-$(date +%s)}"
+    now="${LOCAL_LLM_FAKE_NOW:-$(date +%s)}"
     today="$(date_epoch "$hhmm")" || return 1
     # Strictly past, not at-or-past: at exactly HH:MM the cutoff is today,
     # and the loop's >= fires the VOID at that moment.
     if [ "$now" -gt "$today" ]; then
-        if date -d "tomorrow $hhmm" +%s >/dev/null 2>&1; then
-            date -d "tomorrow $hhmm" +%s
+        if date -d "tomorrow $hhmm:00" +%s >/dev/null 2>&1; then
+            date -d "tomorrow $hhmm:00" +%s
         else
-            date -j -v+1d -f "%H:%M" "$hhmm" +%s 2>/dev/null
+            date -j -v+1d -f "%H:%M:%S" "$hhmm:00" +%s 2>/dev/null
         fi
     else
         echo "$today"
@@ -110,6 +115,14 @@ if [ -n "$UNTIL" ]; then
         echo "REFUSING: UNTIL '$UNTIL' is not HH:MM (e.g. 09:15)" >&2
         exit 1
     }
+fi
+
+# An injected clock must say so in the batch's own output: a batch that voided
+# or did not void because of a fake clock records an outcome whose cause is
+# otherwise invisible. LOCAL_LLM_FAKE_NOW is namespaced so a generic NOW in
+# somebody's shell cannot silently shift the cutoff to a wrong instant.
+if [ -n "${LOCAL_LLM_FAKE_NOW:-}" ]; then
+    echo "clock overridden: LOCAL_LLM_FAKE_NOW=$LOCAL_LLM_FAKE_NOW"
 fi
 
 DS4_MODEL="$HOME/models/qwen3.8-flash-next-ds4-q4/Qwen3.8-Flash-Next-Q4KExperts-BF16Emb-BF16Control-Q8GDN-Q8QSA-Q8Shared-Q8Out.gguf"
@@ -204,7 +217,7 @@ for n in $(seq 1 "$RUNS"); do
     # A cutoff that would skip a run VOIDS the batch instead of truncating
     # it: a partial batch is no result. UNTIL was resolved to an epoch at
     # launch; compare integers, never strings (#175).
-    if [ -n "$UNTIL" ] && [ "${NOW:-$(date +%s)}" -ge "$UNTIL_EPOCH" ]; then
+    if [ -n "$UNTIL" ] && [ "${LOCAL_LLM_FAKE_NOW:-$(date +%s)}" -ge "$UNTIL_EPOCH" ]; then
         echo "[$(date +%H:%M:%S)] VOID: past $UNTIL before run $n of $RUNS -- a partial batch is no result" >&2
         printf '{"run":%d,"arm":"VOID","reason":"past-until","until":"%s"}\n' \
             "$n" "$UNTIL" >> "$MANIFEST"
