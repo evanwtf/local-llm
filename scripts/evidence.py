@@ -338,19 +338,26 @@ def _lint_claim(claim: object, ids: set[str], path: pathlib.Path) -> None:
         raise Refused(
             f"{path}: claim {claim['id']!r} expect has unknown keys {sorted(unknown)}"
         )
-    # A source-enumeration claim's statement must not enumerate more items
-    # than the command it cites returns lines. The trigger is a source
-    # citation -- a filename with a source extension followed by a line
-    # number -- not bare digits: "ctx 65536" and "the year 2026" are numbers
-    # but not citations, and a rule that fires on them makes authors lie in a
-    # declaration field to get past it. When the statement cites a source
-    # line, the claim must declare `enumerates` -- the line numbers its
-    # command produced -- and lint compares that count against observed's
-    # line count. The enumeration is a field, not prose to parse: a statement
-    # interleaves commas, slashes and parentheticals, and any regex that
-    # survives contact with that is a new source of bugs. The comparison only
-    # runs when observed is populated: an empty observed has no line count to
-    # compare against.
+    # A source-enumeration claim must not enumerate more items than the
+    # command it cites returns lines. The rule catches *undeclared*
+    # conflation: it compares the declared `enumerates` count against
+    # observed's line count, so a claim that names more items than its
+    # command produced is refused. It does not catch a misdeclaration -- an
+    # author who writes `enumerates: []` while listing twenty line numbers
+    # in prose passes, because the rule cannot see what prose claims. That
+    # is the honest limit: the rule moves the failure from silent to
+    # declared, it does not prove the declaration true. The trigger is a
+    # source citation -- a filename with a source extension followed by a
+    # line number -- not bare digits: "ctx 65536" and "the year 2026" are
+    # numbers but not citations, and a rule that fires on them makes
+    # authors lie in a declaration field to get past it. When the statement
+    # cites a source line, the claim must declare `enumerates` -- the line
+    # numbers its command produced -- and lint compares that count against
+    # observed's line count. The enumeration is a field, not prose to
+    # parse: a statement interleaves commas, slashes and parentheticals,
+    # and any regex that survives contact with that is a new source of
+    # bugs. The comparison only runs when observed is populated: an empty
+    # observed has no line count to compare against.
     #
     # `context_lines` keeps its job: the citations that are references rather
     # than results. It is validated but not compared -- the comparison is
