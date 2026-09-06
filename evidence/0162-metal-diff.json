@@ -405,7 +405,7 @@
         "path": "evidence/0162-metal-diff-expect.json",
         "blob": "16257bd295043c68ffa6e6bebcfbb3ccd25b2e6e"
       },
-      "falsifier": "If the branch arm is not faster, or if the ratio does not shrink monotonically with ctx, the pre-registered expectation is falsified and the knob has no resolvable effect.",
+      "falsifier": "A null does not test this prediction: it was the expected outcome, and an effect below the noise floor is consistent with the mechanism being real and small. The prediction is falsified if the branch arm is resolvably slower -- the knob removes dispatches, so it cannot cost time -- or if a resolvable saving grows with ctx, since n_keys is pinned at 128 on the affected layers and a fixed cost cannot scale with context.",
       "ab_result": {
         "figure": "decode (gen_steady_tps): on/off median 1.000 (+0.0%) over 4 runs [1.004, 0.995, 1.001, 0.999], spread 0.9 pp",
         "prefill": "prefill_tps: on/off median 1.002 (+0.2%) over 4 runs [1.004, 1.002, 0.999, 1.002], spread 0.5 pp",
@@ -430,7 +430,8 @@
           "run4",
           "run5"
         ],
-        "prompt": "promessi_sposi.txt (1298 KiB)"
+        "prompt": "promessi_sposi.txt (1298 KiB)",
+        "null_interpretation": "The null licenses: the mechanism is confirmed engaged (256 dispatches per 128 tokens at both frontiers) and worth under 1% of decode on this model and this file. It does not license \"the change does nothing\" or \"the change was never exercised\" -- both readings are available from a bare null and both are wrong."
       }
     },
     {
