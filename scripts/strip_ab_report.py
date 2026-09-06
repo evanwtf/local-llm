@@ -183,17 +183,30 @@ def verdict(on_f: int, off_f: int, p: float) -> str:
     )
 
 
+def arms_in(*sources: dict[str, object]) -> list[str]:
+    """The arms present, with the #112 pair kept in its published order.
+
+    Any other experiment's arms are sorted, so this reads out `targets_ab.sh`
+    (#146) as well without pretending its arms are called on and off.
+    """
+    names = {k for source in sources for k in source}
+    if names == {"on", "off"}:
+        return ["on", "off"]
+    return sorted(names)
+
+
 def render(
     per_arm: dict[str, tuple[int, int, int, int]],
     outcome: dict[str, dict[str, int]],
 ) -> str:
-    lines = ["#112 strip-toggle A/B", ""]
+    order = arms_in(per_arm, outcome)
+    lines = [f"A/B read-out: {' vs '.join(order)}", ""]
     lines.append("conditional failure rate (the pre-registered primary)")
     lines.append(
         f"{'arm':>5}  {'clean context':>16}  {'after >=1 error':>17}  {'failures':>8}"
     )
     counts: dict[str, tuple[int, int]] = {}
-    for arm in ("on", "off"):
+    for arm in order:
         if arm not in per_arm:
             continue
         cf, cn, af, an = per_arm[arm]
@@ -205,7 +218,7 @@ def render(
     lines.append("")
     lines.append("trial outcomes (NOT the pre-registered primary -- see the docstring)")
     lines.append(f"{'arm':>5}  {'passed':>12}  {'solution_empty':>15}")
-    for arm in ("on", "off"):
+    for arm in order:
         if arm not in outcome:
             continue
         o = outcome[arm]
@@ -214,18 +227,25 @@ def render(
             f"{o['empty']:>15}"
         )
     lines.append("")
-    if "on" in counts and "off" in counts:
-        (on_f, on_n), (off_f, off_n) = counts["on"], counts["off"]
-        p = fisher_exact(off_f, off_n - off_f, on_f, on_n - on_f)
-        lines.append(f"after >=1 error, off vs on: Fisher exact two-sided p = {p:.4f}")
-        lines.append("")
+    if len(counts) == 2:
+        first, second = order
+        (a_f, a_n), (b_f, b_n) = counts[first], counts[second]
+        p = fisher_exact(b_f, b_n - b_f, a_f, a_n - a_f)
         lines.append(
-            verdict(
-                per_arm["on"][0] + per_arm["on"][2],
-                per_arm["off"][0] + per_arm["off"][2],
-                p,
-            )
+            f"after >=1 error, {second} vs {first}: Fisher exact two-sided p = {p:.4f}"
         )
+        # The verdict sentences are #112's pre-registration. Another
+        # experiment's arms have their own, written on their own issue, and
+        # printing #112's over them would be worse than printing none.
+        if order == ["on", "off"]:
+            lines.append("")
+            lines.append(
+                verdict(
+                    per_arm["on"][0] + per_arm["on"][2],
+                    per_arm["off"][0] + per_arm["off"][2],
+                    p,
+                )
+            )
     lines.append("")
     lines.append(
         "The conditional is a mechanism proxy. The link from its slope to "

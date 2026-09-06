@@ -58,4 +58,5 @@ documentation.
 | `restart_between_trials_armB.sh` | 77 arm B re-run under restart-between-trials (2026-09-03). |
 | `stack_agent_ab.sh` | Interleaved agent-suite A/B for two whole STACKS -- engine + weights (#138). |
 | `strip_toggle_ab.sh` | 112 remedy 2: does echoing the shim's own scaffolding back to the model |
+| `targets_ab.sh` | 146: does the sandbox target layout change the pass rate? |
 

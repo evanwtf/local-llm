@@ -126,3 +126,22 @@ def test_a_row_belonging_to_no_run_is_counted_rather_than_dropped():
     out, unmapped = report.outcomes(rows, MANIFEST)
     assert out == {}
     assert unmapped == 1
+
+
+def test_another_experiments_arms_are_not_renamed_on_and_off():
+    """#146 runs the same shape with arms called legacy and sandbox."""
+    assert report.arms_in({"sandbox": 1, "legacy": 2}) == ["legacy", "sandbox"]
+    assert report.arms_in({"off": 1}, {"on": 2}) == ["on", "off"]
+
+
+def test_the_112_verdict_is_not_printed_over_another_experiment():
+    """Those sentences are #112's pre-registration, not a general rule."""
+    per_arm = {"legacy": (2, 100, 1, 20), "sandbox": (3, 100, 4, 20)}
+    outcome = {
+        "legacy": {"trials": 15, "passed": 14, "empty": 1},
+        "sandbox": {"trials": 15, "passed": 13, "empty": 2},
+    }
+    text = report.render(per_arm, outcome)
+    assert "Fisher exact" in text
+    assert "COULD NOT TELL" not in text
+    assert "DOES NOTHING" not in text

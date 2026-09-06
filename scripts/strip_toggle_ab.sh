@@ -70,6 +70,7 @@ MANIFEST="${MANIFEST:-${RESULTS%.jsonl}-manifest.jsonl}"
 DS4_MODEL="$HOME/models/qwen3.8-flash-next-ds4-q4/Qwen3.8-Flash-Next-Q4KExperts-BF16Emb-BF16Control-Q8GDN-Q8QSA-Q8Shared-Q8Out.gguf"
 DS4_PLE="$HOME/models/qwen3.8-flash-next-ds4-q4/Qwen3.8-Flash-Next-PLE-Q4_1.gguf"
 DS4_KV="$HOME/.ds4/server-kv"
+BATCH="${BATCH:-$(date +%m%d-%H%M)}"
 SHIM_PORT=8101
 
 HEAD_SHA="$(git -C "$REPO" rev-parse HEAD)"
@@ -129,7 +130,7 @@ restart_ds4() {
 
 run_one() {
     local n="$1" arm="$2" dir started
-    dir="$BENCH_LOGS/112-strip-$arm-run$n"
+    dir="$BENCH_LOGS/112-strip-$arm-$BATCH-run$n"
     mkdir -p "$dir"
     started="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
     echo "[$(date +%H:%M:%S)] run $n, arm=$arm, starting"
