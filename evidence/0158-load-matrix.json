@@ -1,0 +1,118 @@
+{
+  "schema": "local-llm/evidence-2",
+  "task": "load-matrix",
+  "issue": 158,
+  "agent": "peer-deepseek-v4-flash",
+  "agent_model": "deepseek-v4-flash",
+  "agent_effort": "low",
+  "repo": "/Users/evanhoffman/git/local-llm/.claude/worktrees/peer+160",
+  "authored_at": "2026-09-06T11:58:55-04:00",
+  "statement": "The ds4#991 PR build (236cb2a) loads only the imatrix file (qwen4exp, no hyphen), not the hyphenated files. The main-model routing at ds4.c:6789 checks `arch == \"qwen4exp\"` (no hyphen), but the macro DS4_QWEN4_ARCHITECTURE = \"qwen4-exp\" (with hyphen) is defined in ds4_qwen4.h:8 and used only for the PLE sidecar check (ds4_qwen4.c:1739). Our Q40RoutedExperts file declares general.architecture = qwen4-exp (with hyphen), so it is not routed to the qwen4 config and fails with 'required metadata key is missing: deepseek4.block_count'. The imatrix file declares qwen4exp (no hyphen), so it loads at 100.1 GiB resident. The mtp and vision files (qwen4-exp-mtp, qwen4-exp-vision) also fail. This inverts the issue's prediction: the PR was expected to load the hyphenated files and not the imatrix; it loads the imatrix and not the hyphenated files.",
+  "provenance": {
+    "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+    "trees": {
+      "/Users/evanhoffman/git/ds4-pr991": "236cb2a"
+    },
+    "binaries": {}
+  },
+  "claims": [
+    {
+      "id": "routing-uses-qwen4exp-nohyphen",
+      "statement": "The PR build's main-model routing (ds4.c:6789) checks the architecture string against the literal 'qwen4exp' (no hyphen).",
+      "argv": [
+        "grep",
+        "-n",
+        "ds4_streq(arch, \"qwen4exp\")",
+        "ds4.c"
+      ],
+      "cwd": "/Users/evanhoffman/git/ds4-pr991",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0,
+        "stdout_contains": "qwen4exp"
+      },
+      "observed": {
+        "exit": 0,
+        "stdout": "6789:        if (ds4_streq(arch, \"qwen4exp\")) {"
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "If the routing checks a different string (e.g. the hyphenated 'qwen4-exp'), then the routing is not the cause of the hyphenated files failing to load."
+    },
+    {
+      "id": "macro-declares-qwen4-exp-hyphen",
+      "statement": "The macro DS4_QWEN4_ARCHITECTURE in ds4_qwen4.h:8 declares the hyphenated string 'qwen4-exp', which is inconsistent with the routing's no-hyphen 'qwen4exp'.",
+      "argv": [
+        "grep",
+        "-n",
+        "DS4_QWEN4_ARCHITECTURE",
+        "ds4_qwen4.h"
+      ],
+      "cwd": "/Users/evanhoffman/git/ds4-pr991",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0,
+        "stdout_contains": "qwen4-exp"
+      },
+      "observed": {
+        "exit": 0,
+        "stdout": "8:#define DS4_QWEN4_ARCHITECTURE \"qwen4-exp\""
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "If the macro declares the no-hyphen 'qwen4exp', then the macro and the routing agree and the hyphenated files' failure has a different cause."
+    },
+    {
+      "id": "q40routed-load-fails",
+      "statement": "The Q40RoutedExperts file (general.architecture = qwen4-exp, with hyphen) does not load on the PR build: the server exits rc=1 with 'required metadata key is missing: deepseek4.block_count'.",
+      "argv": [
+        "grep",
+        "-n",
+        "deepseek4.block_count",
+        "/Users/evanhoffman/bench-logs/load-matrix-Qwen3.8-Flash-Next-Q40RoutedExperts-BF16Emb-BF16Control-Q8GDN-Q8QSA-Q8Shared-Q8Out.log"
+      ],
+      "cwd": "/Users/evanhoffman/git/local-llm/.claude/worktrees/peer+160",
+      "cwd_repo_rel": ".",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0,
+        "stdout_contains": "deepseek4.block_count"
+      },
+      "observed": {
+        "exit": 0,
+        "stdout": "3:ds4: required metadata key is missing: deepseek4.block_count"
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "If the Q40RoutedExperts file loads (the log shows no such error), then the hyphenated files do load and the finding collapses."
+    },
+    {
+      "id": "imatrix-loads-100.1",
+      "statement": "The imatrix file (general.architecture = qwen4exp, no hyphen) loads on the PR build at 100.1 GiB resident, under the 112 GiB Metal ceiling.",
+      "argv": [
+        "grep",
+        "-n",
+        "Q4KImatrixExperts",
+        "/Users/evanhoffman/bench-logs/load-matrix-158.jsonl"
+      ],
+      "cwd": "/Users/evanhoffman/git/local-llm/.claude/worktrees/peer+160",
+      "cwd_repo_rel": ".",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0,
+        "stdout_contains": "100.1"
+      },
+      "observed": {
+        "exit": 0,
+        "stdout": "2:{\"model\": \"/Users/evanhoffman/models/qwen3.8-flash-next-ds4-q4k-imatrix/Qwen3.8-Flash-Next-Q4KImatrixExperts-MXFP4Down-BF16Emb-BF16Control-Q8GDN-Q8QSA-Q8Shared-Q8Out.gguf\", \"size_gib\": 68.3, \"resident_gib\": 100.1, \"ready\": true, \"error\": null}"
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "If the imatrix file does not load (no 100.1 GiB resident row), then the PR build does not carry the lineage that produced our best result."
+    }
+  ]
+}
