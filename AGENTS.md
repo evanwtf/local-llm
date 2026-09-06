@@ -280,7 +280,17 @@ this project turning into a pile of findings nobody can act on.
 | `benchmarks/*/RESULTS.md` | the numbers, and how they were obtained | append-only |
 | [`RECOMMENDATIONS.md`](RECOMMENDATIONS.md) | the top 1-3 picks, and how to run them | replaced as evidence changes |
 | [`docs/changelog.md`](docs/changelog.md) | what shipped, and why | append-only |
+| [`docs/peer_agents.md`](docs/peer_agents.md) | how two agents share this repo and this machine | permanent |
 | `AGENTS.md`, `CONVENTIONS.md`, `METHODOLOGY.md` | lessons that outlive the task | permanent |
+
+**More than one agent works here.** Read
+[`docs/peer_agents.md`](docs/peer_agents.md) before delegating anything or
+before taking work from another agent. Three rules from it apply even if you
+read nothing else: claim the machine before loading a model and treat a build
+as machine work; sign GitHub comments with a trailing agent line (`--opus`,
+`--deepseek`) while never putting a session URL or ID anywhere; and take agent
+identity from `LOCAL_LLM_AGENT` / `LOCAL_LLM_MODEL` / `LOCAL_LLM_EFFORT` rather
+than from what a model believes about itself.
 
 **New work becomes an issue first.** Not a note in `NEXT.md`, not a TODO in a
 comment. An issue carries its own reasoning and can be argued with; `NEXT.md`
