@@ -71,17 +71,24 @@ than this project measures. Two engines shipped double-digit improvements in a
 
 ---
 
-## Not on X — check GitHub directly
+## Read the repo, not the feed
 
 This file is organised around X because that is where most of this field
-announces itself. Some of the most useful people do not post there at all, and
-a follower count is not the property we need.
+announces itself. For the sources below that is the wrong surface: the work is
+in a repository or an issue tracker, and the feed is chatter or silence.
+
+**The heading used to say "Not on X", and both rows disproved it** — Flor1an-B
+posts as [@_LEFBE](https://x.com/_LEFBE), rarely, and Mirai is in Tier 2 as
+[@trymirai](https://x.com/trymirai). The property that puts a source here is
+not the absence of an account. It is that checking the feed first would miss
+the work, so check GitHub first and read the feed second, if at all.
+
+A follower count is not the property we need either.
 
 | who | links | what they are |
 |---|---|---|
 | **Flor1an-B** | [GitHub](https://github.com/Flor1an-B) · [ds4 issues](https://github.com/antirez/ds4/issues?q=author%3AFlor1an-B) · [X @_LEFBE](https://x.com/_LEFBE) · [Ka1zen](https://github.com/Flor1an-B/Ka1zen) | Bertaux Florian, Paris. **He does have an X account — @_LEFBE** — which this entry previously said he did not; the two are the same person, and the corroboration is his own X profile linking `Flor1an-B/Ka1zen`, not an assertion. 3 GitHub followers, 51 on X, account opened 2026-02-19 — and **15 authored issues and PRs on `antirez/ds4`, all engine internals**, several landing exactly where we are stuck. [#789](https://github.com/antirez/ds4/pull/789) ports visible-KV checkpoint fixes for tool turns, which is the token-mismatch failure of ds4#816 that blocks #64. [#691](https://github.com/antirez/ds4/issues/691) is KV cache reuse breaking for tool clients that do not replay reasoning — the same bug from the client side. [#695](https://github.com/antirez/ds4/issues/695) argues the DSpark scheduler's break-even model ignores replay cost. [#750](https://github.com/antirez/ds4/issues/750) is native MTP corrupting output at `--mtp-draft>=2` (#39). **Benchmarks on an M5 Max 128 GB with DeepSeek-V4-Flash 0731 — our exact machine and primary model** — which almost nobody else does; #75 came from their temp>0 DSpark table on that setup. **The X feed is worth a pass now that we have it**, though it is mostly replies to @antirez and @ivanfioravanti. Two items already line up with our own work: on 2026-07-20 he saw **no improvement from DSpark** and asked antirez for numbers, which is where #58 and #75 landed months later; and on 2026-07-26 he reported **the same prompt and model giving different answers under Claude Code, OpenCode and ds4**, and said he wanted benchmarks of real fix-and-create work rather than leaderboard tok/s — which is this repo's thesis, arrived at independently. `Ka1zen` (13★) is his offline MLX chat app for Apple Silicon. **Still read the ds4 issue list first**: the feed is chatter, the issues are the work. |
-
-| **Mirai (trymirai)** | [GitHub](https://github.com/trymirai/uzu) · [trymirai.com](https://trymirai.com) · [docs](https://docs.trymirai.com) · [PyPI](https://pypi.org/project/uzu/) | **uzu — an Apple-only inference engine written in Rust**, MIT, 1726★, iOS and macOS only, release 0.5.23 on 2026-09-03 with commits landing daily. **Reachable by `uv add uzu`**, with Python, TypeScript and Swift bindings, so it is testable here without a build. The claim that brought it to us — 105 tok/s on a 27B model on an M5 Max, **2x MTPLX and 3.5x llama.cpp** — is unsourced and secondhand (#134), but the MTPLX number we hold is itself old and unreplicated, so the comparison is worth owning. **How we found it is the lesson:** an aggregator account on X, not a handle in this file, and no sweep surface we run would have surfaced it — an actively released Apple-only engine was invisible to all seven. Open question before any measurement: whether "M5 Neural Accelerators" means the ANE (#123) or the matmul units in the GPU cores. |
+| **Mirai (trymirai)** | [X @trymirai](https://x.com/trymirai) · [GitHub](https://github.com/trymirai/uzu) · [trymirai.com](https://trymirai.com) · [docs](https://docs.trymirai.com) · [PyPI](https://pypi.org/project/uzu/) | **uzu — an Apple-only inference engine written in Rust**, MIT, 1726★, iOS and macOS only, release 0.5.23 on 2026-09-03 with commits landing daily. **Reachable by `uv add uzu`**, with Python, TypeScript and Swift bindings, so it is testable here without a build. The claim that brought it to us — 105 tok/s on a 27B model on an M5 Max, **2x MTPLX and 3.5x llama.cpp** — is unsourced and secondhand (#134), but the MTPLX number we hold is itself old and unreplicated, so the comparison is worth owning. **How we found it is the lesson:** an aggregator account on X, not a handle in this file, and no sweep surface we run would have surfaced it — an actively released Apple-only engine was invisible to all seven. Open question before any measurement: whether "M5 Neural Accelerators" means the ANE (#123) or the matmul units in the GPU cores. **The company account is a Tier 2 row above**; this row is the engine. |
 
 ## Repositories to watch
 
