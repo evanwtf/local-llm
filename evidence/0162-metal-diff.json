@@ -320,7 +320,7 @@
     },
     {
       "id": "n-keys-bounded-not-ctx",
-      "statement": "n_keys = n_raw + n_comp (ds4_metal.m:36709, in ds4_gpu_encode_flash_attention_gathered_heads). n_raw = metal_graph_raw_span_for_batch(g, pos, 1) = min(raw_window, pos+1, raw_cap), and raw_window = min(DS4_N_SWA, ctx) = 128 at all #162 frontiers (ds4.c:18415; the GGUF's deepseek4.attention.sliding_window is 128). So n_keys does not track ctx; it is 128 + pos/ratio, where ratio is the layer's compression ratio from deepseek4.attention.compress_ratios (layers 0,1,43 uncompressed; 21 layers ratio 4; 20 layers ratio 128). The packed32 path is live at every frontier: n_keys <= 1024 holds for the uncompressed (128) and ratio-128 (<=256) layers at all frontiers, and for the ratio-4 layers up to pos ~3583.",
+      "statement": "n_keys = n_raw + n_comp (ds4_metal.m:36709, in ds4_gpu_encode_flash_attention_gathered_heads). n_raw = metal_graph_raw_span_for_batch(g, pos, 1) = min(raw_window, pos+1, raw_cap), and raw_window = min(DS4_N_SWA, ctx) = 128 at all #162 frontiers (ds4.c:18415; the GGUF's deepseek4.attention.sliding_window is 128). So n_keys does not track ctx; it is 128 + pos/ratio, where ratio is the layer's compression ratio. ds4 does not take the ratios from the file: validate_compress_ratio_metadata (ds4.c:6007) reads only the first DS4_N_LAYER = 43 values and checks each against the hardcoded pattern ds4_expected_layer_compress_ratio (ds4.c:1180-1182: il < 2 -> 0, even il -> 4, odd il -> 128), so layers 0,1 are uncompressed (2 layers), 21 layers have ratio 4, 20 have ratio 128, and the 44th GGUF value is never read. The packed32 path is live at every frontier: n_keys <= 1024 holds for the uncompressed (128) and ratio-128 (<=256) layers at all frontiers, and for the ratio-4 layers up to pos ~3583.",
       "argv": [
         "git",
         "grep",
@@ -344,6 +344,67 @@
       },
       "expect_authored": "post-hoc",
       "falsifier": "If n_keys were not n_raw + n_comp, or if n_raw tracked ctx rather than the 128-token sliding window, the 'path is live at every frontier' conclusion collapses and the branch-versus-main run would be flat for a mechanical reason."
+    },
+    {
+      "id": "loader-ignores-ratio-tail",
+      "statement": "validate_compress_ratio_metadata (ds4.c:6007) checks only arr.len < DS4_N_LAYER (shorter is fatal, longer is fine), then reads il from 0 to DS4_N_LAYER-1 and checks each against the hardcoded pattern ds4_expected_layer_compress_ratio (ds4.c:1180-1182: il < 2 -> 0, even il -> 4, odd il -> 128). So the 44th value in the GGUF's deepseek4.attention.compress_ratios is never read, and the array length (44) can exceed the block count (43) without anything being wrong. The uncompressed layers are 0 and 1 only (2 layers), not 3.",
+      "argv": [
+        "git",
+        "grep",
+        "-n",
+        "-e",
+        "arr.len < DS4_N_LAYER",
+        "-e",
+        "il < 2",
+        "77a054e1",
+        "--",
+        "ds4.c"
+      ],
+      "cwd": "/Users/evanhoffman/git/ds4-main-b",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0,
+        "stdout_contains": "arr.len < DS4_N_LAYER"
+      },
+      "observed": {
+        "exit": 0,
+        "stdout": "77a054e1:ds4.c:1181:        if (il < 2) return 0;\n77a054e1:ds4.c:1184:        if (il < 2) return 128u;\n77a054e1:ds4.c:6015:    if (arr.len < DS4_N_LAYER) {\n77a054e1:ds4.c:6053:    if (arr.len < DS4_N_LAYER) {"
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "If the loader read all 44 values, or if the uncompressed set were 3 layers, the array length and block count would disagree for a real reason and the 2-of-43 effect estimate would be wrong."
+    },
+    {
+      "id": "knob-ab-pre-registered",
+      "statement": "Pre-registered before the gathered-heads knob A/B. Direction: the branch arm (gathered-heads, DISABLE var unset) is expected to be faster than the off arm (raw-only five-dispatch, DISABLE var set), because the branch routes n_comp==0 layers to the gathered-heads path with fewer dispatches. Magnitude: 2 of 43 layers (0, 1) are affected, attention dispatch overhead only, no arithmetic change, so the effect is low single digits and may be below the noise floor (a four-run median carries ~1.5 pp of uncertainty; the within-run repeat spread at one frontier is 3.8 pp). A null result is the expected outcome, not a surprise. Shape: n_keys is fixed at 128 on layers 0 and 1 regardless of ctx, so the saving is a constant absolute time per token against a decode time that grows with ctx; the ratio (branch/off) should therefore shrink monotonically as ctx rises, falsifiable across the eight frontiers.",
+      "argv": [
+        "git",
+        "grep",
+        "-n",
+        "DS4_METAL_DISABLE_DECODE_RAW_GATHERED_ATTN",
+        "77a054e1",
+        "--",
+        "ds4_metal.m"
+      ],
+      "cwd": "/Users/evanhoffman/git/ds4-main-b",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0,
+        "stdout_contains": "DS4_METAL_DISABLE_DECODE_RAW_GATHERED_ATTN"
+      },
+      "observed": {
+        "exit": 0,
+        "stdout": "77a054e1:ds4_metal.m:38408:             getenv(\"DS4_METAL_DISABLE_DECODE_RAW_GATHERED_ATTN\") != NULL)) {"
+      },
+      "expect_authored": "pre-registered",
+      "expect_ref": {
+        "path": "evidence/0162-metal-diff-expect.json",
+        "blob": "16257bd295043c68ffa6e6bebcfbb3ccd25b2e6e"
+      },
+      "falsifier": "If the branch arm is not faster, or if the ratio does not shrink monotonically with ctx, the pre-registered expectation is falsified and the knob has no resolvable effect."
     }
   ]
 }
