@@ -23,6 +23,7 @@ documentation.
 | `disk_baseline.py` | Measure the internal NVMe: read bandwidth and random-read latency. |
 | `ds4_serve.py` | Start ds4-server on one of two Metal kernel routes, and prove which one ran. |
 | `eval_trace.py` | Read a `ds4-eval` trace: pass rate, and tokens spent reaching each answer. |
+| `evidence.py` | Re-run a finding's claims and say whether they still hold. #160 |
 | `exclude_rows.py` | Mark rows from an aborted or void run as excluded, so they cannot publish. |
 | `gguf_meta.py` | Print a GGUF file's metadata without loading the model. |
 | `hardware_id.py` | Derive a machine's results-directory name from the machine itself. |
