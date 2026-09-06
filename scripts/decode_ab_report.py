@@ -299,6 +299,49 @@ def log_between_run_spread(got: list[tuple[pathlib.Path, Summary]]) -> None:
         )
 
 
+def per_frontier_across_runs(
+    got: list[tuple[pathlib.Path, Summary]],
+) -> dict[int, list[float]]:
+    """ctx -> each run's paired ratio at that frontier.
+
+    The per-frontier table printed below the headline comes from ONE run, and
+    with several runs in hand that is the wrong table to quote. On the #952
+    batch run 1 read -1.8% at 8 of 8 frontiers while the four runs together
+    read -0.1%; the single-run table was about to be published as the four-run
+    answer. This is the table that actually belongs to the batch.
+
+    A frontier that is missing from a run is simply absent from its list
+    rather than silently filled, so the count printed per row says how many
+    runs stand behind it.
+    """
+    out: dict[int, list[float]] = defaultdict(list)
+    for _, summary in got:
+        for ctx, ratio in summary.per_frontier.items():
+            out[ctx].append(ratio)
+    return dict(out)
+
+
+def log_per_frontier_across_runs(got: list[tuple[pathlib.Path, Summary]]) -> None:
+    """Per-frontier median over the runs, with the count and range per row."""
+    if len(got) < 2:
+        return
+    a, b = got[0][1].a, got[0][1].b
+    # The direction goes in the block header rather than the column head: it
+    # is long enough to push every column out of alignment, and this table is
+    # written to be pasted into an issue.
+    logger.info("-- per frontier, paired %s/%s, median over %d runs --", b, a, len(got))
+    logger.info("%-8s %10s %6s %17s", "ctx", "median", "runs", "range across runs")
+    for ctx, ratios in sorted(per_frontier_across_runs(got).items()):
+        logger.info(
+            "%-8d %10.3f %6d %8.3f - %.3f",
+            ctx,
+            st.median(ratios),
+            len(ratios),
+            min(ratios),
+            max(ratios),
+        )
+
+
 def per_rep_ratio(data: dict[str, dict[int, dict[int, float]]]) -> dict[int, float]:
     """Paired b/a per repetition: median over the frontiers in that rep.
 
@@ -574,8 +617,16 @@ def main(argv: list[str]) -> int:
                 )
         logger.info("quote: %s", quotable(runs, prompt))
         logger.info("")
+        log_per_frontier_across_runs(runs)
         # Per-run detail below. With one directory this is the whole report.
         outdir, got = runs[0]
+        if len(runs) > 1:
+            # Name the run. Without this the table below reads as the batch's
+            # per-frontier result, and it is one run of several -- on the #952
+            # batch run 1 said -1.8% at every frontier where four runs say
+            # -0.1%, and this table was about to be published as the four-run
+            # answer.
+            logger.info("-- %s only, NOT the %d-run figure --", outdir.name, len(runs))
         data = load(outdir, column)
         # The arm medians are printed for context only; the ratio column is
         # the paired one and does not equal median(b) / median(a).

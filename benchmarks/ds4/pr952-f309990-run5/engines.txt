@@ -1,0 +1,5 @@
+# engine A/B, 2026-09-06T13:44:54 EDT
+A label=f309990-prev tree=/Users/evanhoffman/git/ds4-f309990-prev @ 8c22d66
+B label=f309990 tree=/Users/evanhoffman/git/ds4-f309990 @ f309990
+gguf=/Users/evanhoffman/git/ds4/gguf/DeepSeek-V4-Flash-Layers37-42Q4KExperts-OtherExpertLayersIQ2XXSGateUp-Q2KDown-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix-fixed-0731.gguf
+prompt=/Users/evanhoffman/git/ds4-f309990-prev/speed-bench/promessi_sposi.txt

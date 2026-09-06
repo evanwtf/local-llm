@@ -495,3 +495,62 @@ def test_a_run_with_no_marker_is_untouched(tmp_path):
     """The guard must not fire on the normal case."""
     good = _write_run(tmp_path, "run1", {1: 1.10, 2: 1.10})
     assert report.void_marker(good) is None
+
+
+# -- the per-frontier table belongs to the batch, not to run 1 ---------------
+
+
+def test_per_frontier_across_runs_collects_every_run(tmp_path):
+    dirs = [
+        _write_run(tmp_path, "run1", {1: 1.20}),
+        _write_run(tmp_path, "run2", {1: 1.00}),
+        _write_run(tmp_path, "run3", {1: 1.10}),
+    ]
+    got = [(d, report.summarize(report.load(d))) for d in dirs]
+    across = report.per_frontier_across_runs(got)
+    assert sorted(across[2048]) == pytest.approx([1.00, 1.10, 1.20])
+
+
+def test_the_multi_run_table_does_not_report_run_ones_number(tmp_path, caplog):
+    """The defect this exists for: run 1 said -1.8%, four runs said -0.1%.
+
+    Run 1 here is the outlier at 1.200 and the median over the three runs is
+    1.100. Both appear, and the single-run table must be labelled as such.
+    """
+    dirs = [
+        _write_run(tmp_path, "run1", {1: 1.20}),
+        _write_run(tmp_path, "run2", {1: 1.00}),
+        _write_run(tmp_path, "run3", {1: 1.10}),
+    ]
+    got = [(d, report.summarize(report.load(d))) for d in dirs]
+    with caplog.at_level("INFO"):
+        report.log_per_frontier_across_runs(got)
+    assert "median over 3 runs" in caplog.text
+    assert "paired b/a" in caplog.text
+    assert "1.100" in caplog.text
+    # The range across runs is on the row, so a reader cannot take the median
+    # for a tight number.
+    assert "1.000 - 1.200" in caplog.text
+
+
+def test_the_per_frontier_block_is_silent_for_one_run(tmp_path, caplog):
+    """With one directory the detail table below already is the whole report."""
+    d = _write_run(tmp_path, "run1", {1: 1.10, 2: 1.10})
+    got = [(d, report.summarize(report.load(d)))]
+    with caplog.at_level("INFO"):
+        report.log_per_frontier_across_runs(got)
+    assert caplog.text == ""
+
+
+def test_a_frontier_missing_from_a_run_is_not_filled_in(tmp_path):
+    """The run count on the row must say how many runs stand behind it."""
+    d1 = _write_run(tmp_path, "run1", {1: 1.20})
+    d2 = tmp_path / "run2"
+    d2.mkdir()
+    head = "ctx_tokens,prefill_tps,gen_steady_tps\n"
+    (d2 / "a-rep1.csv").write_text(head + "2048,100.0,10.0\n4096,100.0,10.0\n")
+    (d2 / "b-rep1.csv").write_text(head + "2048,100.0,11.0\n4096,100.0,11.0\n")
+    got = [(d, report.summarize(report.load(d))) for d in (d1, d2)]
+    across = report.per_frontier_across_runs(got)
+    assert len(across[2048]) == 2
+    assert len(across[4096]) == 1
