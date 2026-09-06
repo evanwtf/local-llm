@@ -2,9 +2,11 @@
 
 The negative cases are the whole job: an empty value is a wrong arm waiting to
 happen (the three helpers disagree on the empty string), an unknown knob is a
-typo that would otherwise run a different experiment, and a fail-closed error
-on the on arm means the knob did not take effect. The driver's measurement
-itself is verified by the evidence artifact, not by a unit test.
+typo that would otherwise run a different experiment, a fail-closed error on
+the on arm means the knob did not take effect, and a default-on knob whose off
+arm is `REQUIRE=0` leaves the cache running and both arms identical. The
+driver's measurement itself is verified by the evidence artifact, not by a
+unit test.
 """
 
 from __future__ import annotations
@@ -41,7 +43,7 @@ def test_on_value_zero_refused():
 
 
 def test_off_value_not_zero_refused():
-    """The off arm must be '0'; any other value is a different arm."""
+    """A default-off knob's off arm must be '0'; any other value is a different arm."""
     with pytest.raises(SystemExit, match="off value"):
         mk.validate("session-union", "1", "2")
 
@@ -52,7 +54,30 @@ def test_valid_arm_accepts():
 
 def test_every_known_knob_accepts_a_valid_arm():
     for knob in mk.KNOBS:
-        mk.validate(knob, "1", "0")
+        off = "1" if mk.KNOBS[knob]["default_on"] else "0"
+        mk.validate(knob, "1", off)
+
+
+def test_default_on_knob_off_value_zero_refused():
+    """exact-rows is on by default, so REQUIRE=0 leaves the cache running and
+    both arms identical. The off arm must be a nonzero DISABLE value."""
+    with pytest.raises(SystemExit, match="on by default"):
+        mk.validate("exact-rows", "1", "0")
+
+
+def test_default_on_knob_valid_off_arm_accepts():
+    mk.validate("exact-rows", "1", "1")
+
+
+def test_default_on_knob_off_var_differs_from_on_var():
+    """A default-on knob's off arm must use the DISABLE var, not the REQUIRE
+    var. If they were the same, the off arm would set REQUIRE=0, which does
+    not turn the cache off."""
+    for meta in mk.KNOBS.values():
+        if meta["default_on"]:
+            assert meta["off_var"] != meta["on_var"]
+        else:
+            assert meta["off_var"] == meta["on_var"]
 
 
 def test_fail_closed_error_detected(tmp_path):
@@ -84,9 +109,15 @@ def test_require_knobs_have_error_strings():
     assert mk.fail_closed_error("stream-overlap") == ""
 
 
-def test_env_var_is_the_require_spelling():
+def test_on_var_is_the_require_spelling():
     """The on arm sets the REQUIRE spelling, not a bare enable."""
-    assert mk.env_var("session-union") == "DS4_METAL_REQUIRE_Q4_SSD_SESSION_UNION"
-    assert mk.env_var("iq2") == "DS4_METAL_REQUIRE_IQ2_XXS_SSD_PREFILL_MM"
-    assert mk.env_var("exact-rows") == "DS4_METAL_REQUIRE_EXACT_ROWS_PERSISTENT_CACHE"
-    assert mk.env_var("stream-overlap") == "DS4_METAL_ENABLE_Q4_STREAM_OVERLAP"
+    assert mk.on_var("session-union") == "DS4_METAL_REQUIRE_Q4_SSD_SESSION_UNION"
+    assert mk.on_var("iq2") == "DS4_METAL_REQUIRE_IQ2_XXS_SSD_PREFILL_MM"
+    assert mk.on_var("exact-rows") == "DS4_METAL_REQUIRE_EXACT_ROWS_PERSISTENT_CACHE"
+    assert mk.on_var("stream-overlap") == "DS4_METAL_ENABLE_Q4_STREAM_OVERLAP"
+
+
+def test_off_var_is_the_disable_spelling_for_default_on():
+    """exact-rows' off arm is the DISABLE var, not the REQUIRE var."""
+    assert mk.off_var("exact-rows") == "DS4_METAL_DISABLE_EXACT_ROWS_PERSISTENT_CACHE"
+    assert mk.off_var("session-union") == "DS4_METAL_REQUIRE_Q4_SSD_SESSION_UNION"

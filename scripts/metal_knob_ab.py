@@ -1,18 +1,27 @@
 """Knob table and refusal logic for scripts/metal_knob_ab.sh (#162 Task 4).
 
-The driver varies one Metal knob env var between two arms of the same tree and
-GGUF. This module is the single source of truth for the knob table and the
-refusal paths, so the negative cases are testable without running a
-measurement.
+The driver varies one Metal knob between two arms of the same tree and GGUF.
+This module is the single source of truth for the knob table and the refusal
+paths, so the negative cases are testable without running a measurement.
 
-The off arm sets the knob to `=0`. All four knobs are value-parsed (per-helper
-evidence in evidence/0162-metal-knobs.json), so `0` genuinely disables;
-unsetting would select each knob's default, which is not the same arm. The
-three helpers disagree on the empty string, so an empty value is refused.
+Each knob has two env vars: the var that turns it on and the var that turns it
+off. For the three opt-in knobs (default off) they are the same variable, set
+to a nonzero value to enable and `0` to disable. For exact-rows they are not:
+the persistent cache is on by default, so `REQUIRE=0` means "not required" and
+leaves the cache running. Its off arm is the DISABLE var, which the source
+names "the A/B rollback arm and always wins" (ds4_metal.m:14827). A knob whose
+off arm does not change the default is a wrong arm waiting to happen, so
+`validate()` refuses it.
 
-The on arm uses the REQUIRE spelling and fails the run if the fail-closed
-error string appears. There is no positive admission print, so absence of the
-error is the only admission signal and it must be checked, not assumed.
+The three helpers disagree on the empty string (metal_graph_tp_env_flag returns
+the default, ds4_gpu_exact_rows_persistent_env_enabled returns false,
+ds4_gpu_env_bool returns on), so an empty value is refused. The refusal runs
+before the driver takes the lock or exports anything, so no helper ever sees an
+empty value.
+
+The on arm uses the REQUIRE spelling and fails the run if the fail-closed error
+string appears. There is no positive admission print, so absence of the error is
+the only admission signal and it must be checked, not assumed.
 """
 
 from __future__ import annotations
@@ -20,28 +29,37 @@ from __future__ import annotations
 import argparse
 import pathlib
 
-# knob -> env var + fail-closed error string (empty = no REQUIRE spelling).
-# The env var is the REQUIRE spelling for the three knobs that have one; for
-# stream-overlap it is the ENABLE spelling (no REQUIRE exists).
-KNOBS: dict[str, dict[str, str]] = {
+# knob -> on var, off var, whether it is on by default, and the fail-closed
+# error string (empty = no REQUIRE spelling). For the opt-in knobs the off var
+# is the on var set to `0`; for exact-rows it is the DISABLE var, because the
+# cache is on by default and REQUIRE=0 leaves it running.
+KNOBS: dict[str, dict[str, str | bool]] = {
     "session-union": {
-        "env": "DS4_METAL_REQUIRE_Q4_SSD_SESSION_UNION",
+        "on_var": "DS4_METAL_REQUIRE_Q4_SSD_SESSION_UNION",
+        "off_var": "DS4_METAL_REQUIRE_Q4_SSD_SESSION_UNION",
+        "default_on": False,
         "fail_error": "required Metal Q4 SSD session union is ineligible",
     },
     "iq2": {
-        "env": "DS4_METAL_REQUIRE_IQ2_XXS_SSD_PREFILL_MM",
+        "on_var": "DS4_METAL_REQUIRE_IQ2_XXS_SSD_PREFILL_MM",
+        "off_var": "DS4_METAL_REQUIRE_IQ2_XXS_SSD_PREFILL_MM",
+        "default_on": False,
         "fail_error": (
             "required Metal IQ2_XXS SSD grouped address-MM path was not selected"
         ),
     },
     "exact-rows": {
-        "env": "DS4_METAL_REQUIRE_EXACT_ROWS_PERSISTENT_CACHE",
+        "on_var": "DS4_METAL_REQUIRE_EXACT_ROWS_PERSISTENT_CACHE",
+        "off_var": "DS4_METAL_DISABLE_EXACT_ROWS_PERSISTENT_CACHE",
+        "default_on": True,
         "fail_error": (
             "Metal exact-row persistent cache is required but disabled or ineligible"
         ),
     },
     "stream-overlap": {
-        "env": "DS4_METAL_ENABLE_Q4_STREAM_OVERLAP",
+        "on_var": "DS4_METAL_ENABLE_Q4_STREAM_OVERLAP",
+        "off_var": "DS4_METAL_ENABLE_Q4_STREAM_OVERLAP",
+        "default_on": False,
         "fail_error": "",
     },
 }
@@ -50,32 +68,51 @@ KNOBS: dict[str, dict[str, str]] = {
 def validate(knob: str, on_value: str, off_value: str) -> None:
     """Refuse a wrong arm before the driver takes the lock or measures.
 
-    The three helpers disagree on the empty string (metal_graph_tp_env_flag
-    returns the default, ds4_gpu_exact_rows_persistent_env_enabled returns
-    false, ds4_gpu_env_bool returns on), so an empty value is a wrong arm
-    waiting to happen and is refused. The off arm must be `0` (all four knobs
-    are value-parsed, so `0` genuinely disables); the on arm must be nonzero.
+    The on arm must be nonzero. The off arm must actually turn the knob off: for
+    a default-off knob that is `0` on the on var; for a default-on knob it is a
+    nonzero value on the DISABLE var, and the off var must differ from the on
+    var. A default-on knob whose off arm is `REQUIRE=0` leaves the cache running
+    and both arms identical, so it is refused.
     """
     if knob not in KNOBS:
         raise SystemExit(
             f"REFUSING: unknown knob '{knob}' (known: {', '.join(sorted(KNOBS))})"
         )
+    meta = KNOBS[knob]
     if not on_value or on_value == "0":
         raise SystemExit(
             f"REFUSING: on value must be a nonzero value, got '{on_value}'"
         )
-    if not off_value or off_value != "0":
+    if not off_value:
+        raise SystemExit(f"REFUSING: off value must not be empty, got '{off_value}'")
+    if meta["default_on"]:
+        if off_value == "0":
+            raise SystemExit(
+                f"REFUSING: knob '{knob}' is on by default; off value must be "
+                f"nonzero (DISABLE=1), got '{off_value}'"
+            )
+        if meta["off_var"] == meta["on_var"]:
+            raise SystemExit(
+                f"REFUSING: knob '{knob}' is on by default; its off var must "
+                f"differ from its on var, got off_var == on_var == {meta['on_var']}"
+            )
+    elif off_value != "0":
         raise SystemExit(f"REFUSING: off value must be '0', got '{off_value}'")
 
 
-def env_var(knob: str) -> str:
-    """The env var the driver sets for a knob."""
-    return KNOBS[knob]["env"]
+def on_var(knob: str) -> str:
+    """The env var the driver sets for the on arm."""
+    return str(KNOBS[knob]["on_var"])
+
+
+def off_var(knob: str) -> str:
+    """The env var the driver sets for the off arm."""
+    return str(KNOBS[knob]["off_var"])
 
 
 def fail_closed_error(knob: str) -> str:
     """The fail-closed error string for a knob, or '' when it has no REQUIRE."""
-    return KNOBS[knob]["fail_error"]
+    return str(KNOBS[knob]["fail_error"])
 
 
 def check_fail_closed(knob: str, log: pathlib.Path) -> bool:
@@ -99,8 +136,11 @@ def main(argv: list[str] | None = None) -> int:
     v.add_argument("on_value")
     v.add_argument("off_value")
 
-    e = sub.add_parser("env", help="print the env var for a knob")
-    e.add_argument("knob")
+    o = sub.add_parser("on-var", help="print the on-arm env var for a knob")
+    o.add_argument("knob")
+
+    f = sub.add_parser("off-var", help="print the off-arm env var for a knob")
+    f.add_argument("knob")
 
     c = sub.add_parser("check-fail-closed", help="exit 0 if the error is present")
     c.add_argument("knob")
@@ -109,8 +149,10 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.cmd == "validate":
         validate(args.knob, args.on_value, args.off_value)
-    elif args.cmd == "env":
-        print(env_var(args.knob))
+    elif args.cmd == "on-var":
+        print(on_var(args.knob))
+    elif args.cmd == "off-var":
+        print(off_var(args.knob))
     else:
         return 0 if check_fail_closed(args.knob, args.log) else 1
     return 0
