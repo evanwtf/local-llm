@@ -505,3 +505,26 @@ The `--ple` flag is also undocumented — it is absent from `ds4-bench --help`
 and present in the parser. Passing no sidecar produces the same missing-tensor
 error as an upstream build, which reads exactly like the model being
 unsupported. It is not.
+
+### The shim's scaffolding strip is load-bearing, not tidying
+
+Both `qwen38fnds4*` rows run behind `ds4_qwen_tool_shim.py`, which removes the
+bare `<tool_call>` tags from the content it hands back after it has recovered a
+tool call. That looked like hygiene when it shipped. It is worth **23 points of
+pass rate**, measured 2026-09-06 as an A/B over 8 runs of 15 tasks with the arm
+alternating A B B A and the server restarted before each run:
+
+| shim | passed | trials with no solution |
+|---|---|---|
+| strip on (shipped) | **53/60, 88%** | 7 |
+| strip off (`SHIM_NO_STRIP=1`) | **39/60, 65%** | 21 |
+
+Every strip-on run scored higher than every strip-off run — 15, 12, 14, 12
+against 9, 11, 10, 9 — so the gap does not rest on pooling
+([#112](https://github.com/evanwtf/local-llm/issues/112)).
+
+**A reproduction that proxies this shim without the strip will not get these
+numbers**, and the failure will look like the model rather than the plumbing:
+the trial ends with no tool call and no code, not with wrong code. What the
+experiment does not establish is *why* — whether the echoed tags poison the
+model's context or break the client's own handling of the message.

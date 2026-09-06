@@ -51,8 +51,7 @@
 #     UNTIL_HHMM stop STARTING runs at this local time, default 09:15
 #
 # Analysis, when it is done:
-#   uv run python scripts/tool_error_conditional.py ~/bench-logs/112-strip-on-*/*.jsonl
-#   uv run python scripts/tool_error_conditional.py ~/bench-logs/112-strip-off-*/*.jsonl
+#   uv run python scripts/strip_ab_report.py
 
 set -eu
 
@@ -64,7 +63,9 @@ UNTIL="${2:-09:15}"
 LOGDIR="${LOGDIR:-$(mktemp -d)}"
 BENCH_LOGS="${BENCH_LOGS:-$HOME/bench-logs}"
 RESULTS="${RESULTS:-$REPO/benchmarks/agent/results-112-strip-ab.jsonl}"
-MANIFEST="$LOGDIR/manifest.jsonl"
+# The manifest is the only record of which arm produced which rows, so it
+# lives beside them rather than in a temp directory that gets cleaned up.
+MANIFEST="${MANIFEST:-${RESULTS%.jsonl}-manifest.jsonl}"
 
 DS4_MODEL="$HOME/models/qwen3.8-flash-next-ds4-q4/Qwen3.8-Flash-Next-Q4KExperts-BF16Emb-BF16Control-Q8GDN-Q8QSA-Q8Shared-Q8Out.gguf"
 DS4_PLE="$HOME/models/qwen3.8-flash-next-ds4-q4/Qwen3.8-Flash-Next-PLE-Q4_1.gguf"
@@ -120,6 +121,10 @@ restart_ds4() {
     (cd "$REPO" && uv run python benchmarks/agent/wait_ready.py \
         --base-url http://127.0.0.1:8000 \
         --model qwen3.8-flash-next-q4 | tail -2)
+    # #149: stamp which Metal kernel route this server took, or every row in
+    # the run says `metal_route: unrecorded`. The first eight runs of this
+    # experiment did exactly that, because this call was missing.
+    ds4_record_route "$LOGDIR/ds4server-$tag.log" 8000
 }
 
 run_one() {

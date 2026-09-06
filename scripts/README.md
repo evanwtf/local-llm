@@ -38,6 +38,7 @@ documentation.
 | `sensor_windows.py` | Join a monitord sensor series to benchmark sweep windows. |
 | `session_decay.py` | Does a session get worse the longer the server runs? (#120) |
 | `stack_agent_report.py` | Read out for the #138 stack A/B: two whole stacks, four sweeps, one screen. |
+| `strip_ab_report.py` | Read out the #112 strip-toggle A/B. |
 | `sync_sandbox_targets.py` | Clone the harness's own copies of the task repositories into `sandbox/`. |
 | `thermals.py` | Read this Mac's die temperatures, with a timestamp, without sudo. |
 | `tool_error_conditional.py` | Does a tool error make the NEXT tool call more likely to fail? (#112) |

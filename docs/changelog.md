@@ -62,6 +62,32 @@ Worked from the `NEXT.md` queue.
   (98.2x to 10.5x on the MTP row, 123.7x to 20.5x on the plain shim): the tiny
   minima were fast deaths, not fast runs. A stack with no passing trial keeps
   its row, reports no timing rather than an invented one, and sorts last.
+- **#112 — the shim's scaffolding strip is worth 23 points of pass rate.**
+  Eight runs of 15 tasks overnight, arms alternating A B B A, server restarted
+  before each: strip on **53/60 (88%)**, strip off **39/60 (65%)**, with
+  `solution_empty` deaths 7 against 21 (Fisher exact p = 0.004). Every strip-on
+  run beat every strip-off run — 15, 12, 14, 12 against 9, 11, 10, 9 — so the
+  gap does not rest on pooling. The remedy shipped 2026-09-03 as hygiene and
+  turns out to be load-bearing.
+
+  **The pre-registered primary says "could not tell", and it stands.** The
+  conditional failure rate after ≥1 prior tool error reached 13 failures in the
+  smaller arm against a bar of 30, so no claim is made on it. The reason it
+  came up short is worth more than the number: **a trial death produces no tool
+  call at all**, so it never enters a table that counts calls by status — the
+  proxy was structurally blind to the outcome it was proxying for. The off arm
+  shows it in the denominator instead, 286 clean-context calls against the
+  on arm's 382, because its sessions ended earlier.
+
+  So the outcome figures above are a **secondary** result this experiment was
+  not designed to deliver, reported as the thing that motivates a confirmatory
+  run rather than as the answer. The earlier power calculation that put the
+  outcome out of reach assumed a small effect and used the strip-*on* death
+  rate for both arms; the off arm sits at 35%, about ten times that.
+
+  Mechanism is still open: whether the echoed tags poison the model's context
+  or break the client's handling of the message is not separated by this
+  design.
 
 ---
 
