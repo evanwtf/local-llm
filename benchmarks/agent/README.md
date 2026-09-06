@@ -55,7 +55,7 @@ earlier session holds its weights whether or not anyone is using it, and these
 models are sized to nearly fill unified memory. If the new one still fits
 alongside the old one, nothing fails — the batch just spends hours measuring a
 contended machine, and the numbers look plausible. See the
-[preflight section in the top-level README](../../README.md#preflight-always-check-what-is-already-running).
+[preflight section in the top-level README](../../README.md#preflight-check-what-is-already-running).
 `run.py` runs the same check itself and warns, but by then the server is
 already started.
 
