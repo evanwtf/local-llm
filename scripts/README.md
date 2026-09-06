@@ -29,6 +29,7 @@ documentation.
 | `hardware_id.py` | Derive a machine's results-directory name from the machine itself. |
 | `hf_sweep.py` | Watch Hugging Face for new quants of the models we actually run. |
 | `kv_prefix_audit.py` | Measure how much prefill a stalled KV prefix costs (#64, #50). |
+| `machine_claim.py` | Claim the machine with intent, and make contention impossible to miss. #160 |
 | `make_scripts_readme.py` | Generate scripts/README.md from each script's own first docstring line. |
 | `mtp_engagement.py` | Does the engine engage MTP on the traffic we actually send it? (#148, #151) |
 | `post_ab_run.py` | Post one completed decode-A/B run to a GitHub issue, once. |

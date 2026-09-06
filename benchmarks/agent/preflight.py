@@ -642,7 +642,9 @@ def ds4_equivalence_state(
         os.environ.get("DS4_TREE", pathlib.Path.home() / "git" / "ds4-metal")
     )
     model = model or pathlib.Path(
-        os.environ.get("DS4_TEST_MODEL", pathlib.Path.home() / "git" / "ds4" / "ds4flash.gguf")
+        os.environ.get(
+            "DS4_TEST_MODEL", pathlib.Path.home() / "git" / "ds4" / "ds4flash.gguf"
+        )
     )
     fp = metal_equivalence.fingerprint(pathlib.Path(tree) / "ds4_test", model)
     state = metal_equivalence.cached_verdict(metal_equivalence.DEFAULT_CACHE, fp)
@@ -658,7 +660,11 @@ def ds4_server_running(ps_text: str | None = None) -> bool:
     table has no structured engine field to ask -- the description string says
     "ds4-metal ba01f5d" in prose, which is not a thing to branch on.
     """
-    text = ps_text if ps_text is not None else _capture(["ps", "-eo", "pid,rss,etime,command"])
+    text = (
+        ps_text
+        if ps_text is not None
+        else _capture(["ps", "-eo", "pid,rss,etime,command"])
+    )
     return any("ds4-server" in proc.short for proc in parse_ps(text))
 
 
@@ -954,6 +960,11 @@ def acquire_lock(
     path: pathlib.Path = LOCK_PATH,
     hostname: str | None = None,
     pid: int | None = None,
+    agent: str | None = None,
+    agent_model: str | None = None,
+    agent_effort: str | None = None,
+    expected_finish: str | None = None,
+    quiet: bool = False,
 ) -> tuple[bool, str]:
     """Claim the machine for `what`. Returns (acquired, message).
 
@@ -966,6 +977,12 @@ def acquire_lock(
 
     A stale lock is reported and NOT taken. Recovering from it is a decision
     with a name on it, not a side effect of the next run starting.
+
+    The intent fields are #160's extension, written by machine_claim.py: who
+    holds the machine (agent identity, never self-reported), when the work
+    expects to finish, and a `quiet` flag meaning no CPU-heavy work by anyone
+    because the holder is being timed. They are optional so the existing
+    callers -- run.py, preflight's own --acquire-lock -- are unchanged.
     """
     hostname = hostname or platform.node()
     pid = pid or os.getpid()
@@ -985,6 +1002,16 @@ def acquire_lock(
         "started": _now_iso(),
         "cwd": str(pathlib.Path.cwd()),
     }
+    if agent is not None:
+        claim["agent"] = agent
+    if agent_model is not None:
+        claim["agent_model"] = agent_model
+    if agent_effort is not None:
+        claim["agent_effort"] = agent_effort
+    if expected_finish is not None:
+        claim["expected_finish"] = expected_finish
+    if quiet:
+        claim["quiet"] = True
     try:
         # O_EXCL so two processes racing here cannot both win.
         fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
