@@ -7,7 +7,7 @@
   "agent_effort": "unidentified",
   "repo": "/Users/evanhoffman/git/local-llm/.claude/worktrees/peer+162-metal-diff",
   "authored_at": "2026-09-06T15:30:00-04:00",
-  "statement": "What the 218 commits between 9ab7053 and 77a054e1 change on the Metal path, and which of those the #162 run executes. The run's GGUF (DeepSeek-V4-Flash-Layers37-42Q4KExperts-OtherExpertLayersIQ2XXSGateUp-Q2KDown-AProjQ8-SExpQ8-OutQ8) carries F32, F16, Q8_0, IQ2_XXS, Q2_K, Q4_K and I32 tensors and NO mxfp4 (gguf_meta.py --tensors: 492 F32, 359 F16, 345 Q8_0, 74 IQ2_XXS, 37 Q2_K, 18 Q4_K, 3 I32). The gate enumeration below is sound but incomplete: it lists the gates that EXCLUDE the M5 Max, and there is also a helper that INCLUDES it, ds4_gpu_ported_m5_decode_feature_enabled (ds4_metal.m:3619), whose flash_attn_packed32_reduce call site condition changed in the diff (ds4_metal.m:36769) -- a decode-path change on M5 the enumeration missed. The diff on the IQ2_XXS and Q4_K matvec kernels is large and was NOT characterized: kernel_mul_mv_q4_K_f32_impl grew 94 to 429 lines, kernel_mul_mv_iq2_xxs_pair_f32_impl 6 to 141, kernel_mul_mv_q4_K_dense_f32 6 to 244, kernel_mul_mv_addr_iq2_xxs_pair_swiglu_f32 6 to 160. Two specific changes are numerically identical (the dequantize_iq2_xxs precomputed half table, and the Q4_K silu -> ds4_silu swap), but that does not imply the whole executed path is numerically identical, and numerical identity is independent of performance anyway. The packed32 decode path the diff widens is live at every #162 frontier: n_keys = n_raw + n_comp, n_raw is the 128-token sliding window (not ctx), and n_keys <= 1024 holds for the uncompressed and ratio-128 layers at all frontiers (see n-keys-bounded-not-ctx). So a flat result would not be because the widened path never ran. Whether a flat #162 result means 'no effect' or 'the code never ran' cannot be settled from source at this diff size. It can be settled empirically and cheaply: decode_ab_engine.sh now writes a per-arm startup log beside each CSV, and diffing the two arms' logs turns 'the trees ran different code' into an observation.",
+  "statement": "What the 218 commits between 9ab7053 and 77a054e1 change on the Metal path, and which of those the #162 run executes. The run's GGUF (DeepSeek-V4-Flash-Layers37-42Q4KExperts-OtherExpertLayersIQ2XXSGateUp-Q2KDown-AProjQ8-SExpQ8-OutQ8) carries F32, F16, Q8_0, IQ2_XXS, Q2_K, Q4_K and I32 tensors and NO mxfp4 (gguf_meta.py --tensors: 492 F32, 359 F16, 345 Q8_0, 74 IQ2_XXS, 37 Q2_K, 18 Q4_K, 3 I32). The gate enumeration below is sound but incomplete: it lists the gates that EXCLUDE the M5 Max, and there is also a helper that INCLUDES it, ds4_gpu_ported_m5_decode_feature_enabled (ds4_metal.m:3619), whose flash_attn_packed32_reduce call site condition changed in the diff (ds4_metal.m:36769) -- a decode-path change on M5 the enumeration missed. The diff on the IQ2_XXS and Q4_K matvec kernels is large and was NOT characterized: kernel_mul_mv_q4_K_f32_impl grew 94 to 429 lines, kernel_mul_mv_iq2_xxs_pair_f32_impl 6 to 141, kernel_mul_mv_q4_K_dense_f32 6 to 244, kernel_mul_mv_addr_iq2_xxs_pair_swiglu_f32 6 to 160. Two specific changes are numerically identical (the dequantize_iq2_xxs precomputed half table, and the Q4_K silu -> ds4_silu swap), but that does not imply the whole executed path is numerically identical, and numerical identity is independent of performance anyway. The packed32 decode path the diff widens is live at every #162 frontier: n_keys = n_raw + n_comp, n_raw is the 128-token sliding window (not ctx), and n_keys <= 1024 holds for the uncompressed and ratio-128 layers at all frontiers (see n-keys-bounded-not-ctx). So a flat result would not be because the widened path never ran. Whether a flat #162 result means 'no effect' or 'the code never ran' cannot be settled from source at this diff size. It can be settled empirically and cheaply: decode_ab_engine.sh now writes a per-arm startup log beside each CSV, and diffing the two arms' logs turns 'the trees ran different code' into an observation.\n\nThree of the four knobs #162's Task 4 listed cannot fire on a resident single-session q4/q8 decode run at all: session-union requires e->ssd_streaming (ds4.c:72092), stream-overlap requires count >= 2 concurrent sessions (ds4.c:71927), and exact-rows is gated on g_ssd_streaming_mode (ds4_metal.m:20360). The fourth, gathered-heads, was not on the issue's list. Testers running resident single-session decode will measure nothing from three of these four knobs, whatever their backend; a clean 0.0% for them is a gate, not a result. The issue's premise that 'these flags are presence-based, =0 may read as enabled' is also wrong for three of the four listed: session-union and stream-overlap parse values through metal_graph_tp_env_flag (ds4.c:17832, strcmp(env, \"0\") != 0) and exact-rows through ds4_gpu_exact_rows_persistent_env_enabled (ds4_metal.m:14822). The =0 trap is real, but it applies to gathered-heads and DECODE_RAW_PACKED32, which were not on the list.",
   "provenance": {
     "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
     "trees": {
@@ -463,6 +463,87 @@
       },
       "expect_authored": "post-hoc",
       "falsifier": "If setting GATHERED_ATTN did not route n_comp==0 layers raw-only, or if the packed32 relaxation applied to n_comp!=0 layers, one knob would not fully revert the observable difference and the A/B would need a second variable."
+    },
+    {
+      "id": "skip-session-union",
+      "statement": "The q4 SSD session-union knob (DS4_METAL_REQUIRE_Q4_SSD_SESSION_UNION) cannot fire on the #162 run. ds4_session_q4_ssd_session_union_eligible requires e->ssd_streaming as a hard conjunct (ds4.c:72092, e->ssd_streaming && !e->tp.active && !e->multi_tier). The #162 run is resident -- the per-arm log's first line is the literal command and it carries no --ssd-streaming -- so e->ssd_streaming is false and the eligible check returns false. The knob is skipped, not measured: a resident run would report a guaranteed null.",
+      "argv": [
+        "git",
+        "grep",
+        "-n",
+        "e->ssd_streaming && !e->tp.active",
+        "77a054e1",
+        "--",
+        "ds4.c"
+      ],
+      "cwd": "/Users/evanhoffman/git/ds4-pr952",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0,
+        "stdout_contains": "72092"
+      },
+      "observed": {
+        "exit": 0,
+        "stdout": "77a054e1:ds4.c:72092:           e->ssd_streaming && !e->tp.active && !e->multi_tier &&"
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "If the session-union eligible check did not require e->ssd_streaming, or if the #162 run passed --ssd-streaming, the knob could fire on a resident run and the skip would be wrong."
+    },
+    {
+      "id": "skip-stream-overlap",
+      "statement": "The q4 stream-overlap knob (DS4_METAL_ENABLE_Q4_STREAM_OVERLAP) cannot fire on the #162 run. ds4_q4_stream_overlap_policy requires count >= 2 && count <= DS4_METAL_SESSION_STREAMS (ds4.c:71927), where count is the number of concurrent sessions sharing the engine (ds4_sessions_q4_stream_overlap_supported iterates items[i].session for i < count, ds4.c:73523). The #162 run is single-session, so count == 1 and the gate fails. There is no trace variable on this path -- only DS4_METAL_TRACE_ALLOCS and DS4_METAL_TRACE_M5_FLASH_ATTN_PACKED32_REDUCE exist in the tree, neither on it -- and stream-overlap has zero references in ds4_metal.m. The knob is skipped, not measured.",
+      "argv": [
+        "git",
+        "grep",
+        "-n",
+        "count >= 2 && count <= DS4_METAL_SESSION_STREAMS",
+        "77a054e1",
+        "--",
+        "ds4.c"
+      ],
+      "cwd": "/Users/evanhoffman/git/ds4-pr952",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0,
+        "stdout_contains": "71927"
+      },
+      "observed": {
+        "exit": 0,
+        "stdout": "77a054e1:ds4.c:71927:           count >= 2 && count <= DS4_METAL_SESSION_STREAMS &&"
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "If the stream-overlap policy did not require count >= 2, or if the #162 run used multiple concurrent sessions, the knob could fire on a single-session run and the skip would be wrong."
+    },
+    {
+      "id": "skip-exact-rows",
+      "statement": "The exact-rows persistent-cache knob (DS4_METAL_REQUIRE/DISABLE_EXACT_ROWS_PERSISTENT_CACHE) cannot fire on the #162 run. ds4_gpu_exact_rows_persistent_policy has two call sites: ds4_metal.m:14850 is the DS4_TEST_HOOKS wrapper ds4_gpu_test_exact_rows_persistent_policy, not reachable from a benchmark run; ds4_metal.m:20442 is the runtime path, inside ds4_gpu_stream_expert_cache_prepare_selected_batch, which begins with if (!g_ssd_streaming_mode || ...) return 0 (ds4_metal.m:20360). g_ssd_streaming_mode is set only by ds4_gpu_set_ssd_streaming(bool) (ds4_metal.m:5534). The #162 run is resident, so g_ssd_streaming_mode is false and the runtime path returns before the exact-rows policy is reached. The knob is skipped, not measured.",
+      "argv": [
+        "git",
+        "grep",
+        "-n",
+        "ds4_gpu_exact_rows_persistent_policy",
+        "77a054e1",
+        "--",
+        "ds4_metal.m"
+      ],
+      "cwd": "/Users/evanhoffman/git/ds4-pr952",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0,
+        "stdout_contains": "20442"
+      },
+      "observed": {
+        "exit": 0,
+        "stdout": "77a054e1:ds4_metal.m:14830:static int ds4_gpu_exact_rows_persistent_policy(\n77a054e1:ds4_metal.m:14850:    return ds4_gpu_exact_rows_persistent_policy(configured_count,\n77a054e1:ds4_metal.m:20442:        ds4_gpu_exact_rows_persistent_policy(private_size_class_count,"
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "If the runtime call site of ds4_gpu_exact_rows_persistent_policy were not inside a function gated on g_ssd_streaming_mode, or if the #162 run passed --ssd-streaming, the exact-rows knob could fire on a resident run and the skip would be wrong."
     }
   ]
 }
