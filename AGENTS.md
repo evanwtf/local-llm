@@ -11,6 +11,28 @@
 Instructions for coding agents. [`CONVENTIONS.md`](CONVENTIONS.md) holds the
 standing rules about data and safety; this file covers how to work.
 
+## Absolute URLs in issue and PR comments (2026-09-06)
+
+A relative link works in a repo markdown file and **404s in an issue or PR
+comment**. The two are rendered with different base paths, so
+`[x](../tree/main/benchmarks/...)` resolves against the comment's own URL and
+lands nowhere.
+
+Write the full URL in any comment:
+
+```
+https://github.com/evanwtf/local-llm/tree/main/benchmarks/ds4/pr952-f309990-run1
+```
+
+Relative links stay correct inside `AGENTS.md`, `NEXT.md` and the rest of the
+tree, where the base path is the file's own directory.
+
+This cost an upstream maintainer a 404 on the raw data he had just asked for --
+the worst place to spend a broken link, because the whole point of publishing the
+CSVs is that he does not have to take our medians on trust. **Check a link by
+fetching it** (`curl -s -o /dev/null -w '%{http_code}' <url>`) before posting a
+comment whose value is the link.
+
 ## Model weights stay out of Time Machine (2026-09-06)
 
 Every directory holding GGUF weights must be excluded from Time Machine
