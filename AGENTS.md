@@ -33,8 +33,8 @@ not told you it succeeded. It told you it is still running.
 
 A relative link works in a repo markdown file and **404s in an issue or PR
 comment**. The two are rendered with different base paths, so
-`[x](../tree/main/benchmarks/...)` resolves against the comment's own URL and
-lands nowhere.
+a link written in the relative form -- square brackets, then `../tree/main/...`
+in parentheses -- resolves against the comment's own URL and lands nowhere.
 
 Write the full URL in any comment:
 
