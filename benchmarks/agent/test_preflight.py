@@ -13,18 +13,22 @@ import os
 import pathlib
 import sys
 
+import pytest
+
 import preflight
 
 REPO_ROOT = pathlib.Path(preflight.__file__).resolve().parent.parent.parent
 
-# `ps -eo pid,rss,command`. RSS is KiB on macOS. The header is present and must
-# be skipped; the command column contains spaces and must not be split on them.
+# `ps -eo pid,rss,etime,command`. RSS is KiB on macOS. The header is present and
+# must be skipped; the command column contains spaces and must not be split on
+# them. ELAPSED was added for #145: a server that has been resident for hours
+# with no run in progress is a leftover, and RSS alone cannot say that.
 PS = """\
-  PID    RSS COMMAND
-43967 81330176 ./build/bin/llama-server --model /Users/e/models/GLM-5.3-Flash-GGUF/x.gguf -c 65536
-44957   9184 /opt/homebrew/.../Python.app/Contents/MacOS/Python shim.py --port 11501
-  501   4096 /sbin/launchd
-83210 2097152 ollama serve
+  PID    RSS  ELAPSED COMMAND
+43967 81330176 04:12:57 ./build/bin/llama-server --model /Users/e/models/GLM-5.3-Flash-GGUF/x.gguf -c 65536
+44957   9184    09:31 /opt/homebrew/.../Python.app/Contents/MacOS/Python shim.py --port 11501
+  501   4096 12-01:56:24 /sbin/launchd
+83210 2097152 01:54:30 ollama serve
 """
 
 # `lsof -nP -iTCP -sTCP:LISTEN`. The name column is truncated to 9 characters.
@@ -55,7 +59,7 @@ def test_the_command_line_survives_its_spaces():
 
 
 def test_a_header_only_listing_yields_nothing_rather_than_crashing():
-    assert preflight.parse_ps("  PID    RSS COMMAND\n") == []
+    assert preflight.parse_ps("  PID    RSS  ELAPSED COMMAND\n") == []
     assert preflight.parse_ps("") == []
 
 
@@ -114,7 +118,7 @@ def test_an_idle_daemon_on_an_unselected_port_is_not_worth_a_warning():
 
 def test_the_same_daemon_is_flagged_once_it_has_a_model_loaded():
     """The threshold is about resident weights, not about which process it is."""
-    loaded = PS.replace("83210 2097152 ollama serve", "83210 62914560 ollama serve")
+    loaded = PS.replace("83210 2097152 01:54:30 ollama", "83210 62914560 01:54:30 ollama")
     got = preflight.check(loaded, LSOF, expected_ports={8000})
     assert 83210 in [p.pid for p in got.stale]
 
@@ -136,13 +140,13 @@ def test_headroom_is_what_is_left_under_the_metal_ceiling():
 
 def test_a_shell_that_merely_mentions_a_server_is_not_a_server():
     """The self-match trap. `pgrep -f` has bitten this project once already."""
-    ps = "  PID    RSS COMMAND\n87535   9184 /bin/zsh -c grep llama-server /var/log/x\n"
+    ps = "  PID    RSS  ELAPSED COMMAND\n87535   9184    00:02 /bin/zsh -c grep llama-server /var/log/x\n"
     assert preflight.parse_ps(ps) == []
 
 
 def test_an_inference_process_with_no_listener_is_still_counted():
     """A server still loading has not bound its port yet. It holds memory now."""
-    ps = "  PID    RSS COMMAND\n99 52428800 ./build/bin/llama-server --model x.gguf\n"
+    ps = "  PID    RSS  ELAPSED COMMAND\n99 52428800    00:44 ./build/bin/llama-server --model x.gguf\n"
     got = preflight.check(
         ps, "COMMAND PID USER FD TYPE DEVICE SIZE NODE NAME\n", expected_ports={8000}
     )
@@ -152,7 +156,7 @@ def test_an_inference_process_with_no_listener_is_still_counted():
 
 
 def test_a_clean_machine_produces_no_warnings():
-    empty_ps = "  PID    RSS COMMAND\n  501   4096 /sbin/launchd\n"
+    empty_ps = "  PID    RSS  ELAPSED COMMAND\n  501   4096 01:02:03 /sbin/launchd\n"
     got = preflight.check(empty_ps, LSOF, expected_ports={8000})
     assert got.total_gib == 0.0
     assert got.warnings() == []
@@ -162,6 +166,68 @@ def test_the_warning_names_the_pid_and_the_memory_so_it_can_be_acted_on():
     got = preflight.check(PS, LSOF, expected_ports={8000})
     text = " ".join(got.warnings())
     assert "43967" in text and "77.6" in text
+
+
+# ---------------------------------------------------------------- #145: age
+#
+# `stack_agent_ab.sh` leaked its last server on every clean finish -- four runs
+# in a row, most recently 97.9 GiB. Preflight called the machine healthy each
+# time, because a leftover from a finished run looks exactly like a server the
+# current run needs. Resident time is what separates them, so it is parsed and
+# reported rather than left in a column nobody reads.
+
+
+def test_elapsed_time_is_parsed_from_every_shape_ps_uses():
+    """`[[dd-]hh:]mm:ss`. All three appear on a machine that has been up a while."""
+    assert preflight.parse_etime("00:44") == 44
+    assert preflight.parse_etime("09:31") == 571
+    assert preflight.parse_etime("04:12:57") == 15177
+    assert preflight.parse_etime("12-01:56:24") == 1043784
+
+
+def test_an_unreadable_elapsed_field_is_none_rather_than_a_guess():
+    assert preflight.parse_etime("") is None
+    assert preflight.parse_etime("ELAPSED") is None
+    assert preflight.parse_etime("::") is None
+
+
+def test_age_reaches_the_proc():
+    got = {p.pid: p for p in preflight.parse_ps(PS)}
+    assert got[43967].age_s == 15177
+    assert got[83210].age_s == 6870
+
+
+def test_the_age_is_rendered_for_a_human_not_in_seconds():
+    assert preflight.human_age(44) == "44s"
+    assert preflight.human_age(571) == "9m"
+    assert preflight.human_age(15177) == "4h12m"
+    assert preflight.human_age(1043784) == "12d1h"
+    assert preflight.human_age(None) == "unknown"
+
+
+def test_the_warning_says_how_long_the_server_has_been_resident():
+    """The sentence that would have caught #145 four runs earlier."""
+    got = preflight.check(PS, LSOF, expected_ports={8000})
+    text = " ".join(got.warnings())
+    assert "4h12m" in text, "a leftover is identified by its age, not its size"
+
+
+def test_the_warning_says_what_claims_the_port_when_nothing_does():
+    got = preflight.check(PS, LSOF, expected_ports={8000})
+    assert "no selected backend" in " ".join(got.warnings())
+
+
+def test_the_old_three_column_header_is_refused_rather_than_misread():
+    """A format drift must fail loudly.
+
+    Splitting a three-column line four ways puts the binary in the elapsed
+    field and truncates the command, which would report a server under the
+    wrong name and an age of `unknown` -- a check that passes vacuously, which
+    is the failure this whole module exists to avoid.
+    """
+    old = "  PID    RSS COMMAND\n43967 81330176 ./build/bin/llama-server --model x.gguf\n"
+    with pytest.raises(ValueError, match="ELAPSED"):
+        preflight.parse_ps(old)
 
 
 def test_standalone_use_judges_nothing_stale():
@@ -360,9 +426,9 @@ def test_first_match_returns_none_when_absent():
 # wrong about the conclusion.
 
 SHIM_PS = """\
-  PID    RSS COMMAND
-21095   9184 /opt/homebrew/.../Python.app/Contents/MacOS/Python ds4_qwen_tool_shim.py --port 8101 --upstream http://127.0.0.1:8000
- 8110 77957862 ./ds4-server --model ~/models/qwen.gguf --port 8000 --mtp-draft 7
+  PID    RSS  ELAPSED COMMAND
+21095   9184    18:02 /opt/homebrew/.../Python.app/Contents/MacOS/Python ds4_qwen_tool_shim.py --port 8101 --upstream http://127.0.0.1:8000
+ 8110 77957862    17:44 ./ds4-server --model ~/models/qwen.gguf --port 8000 --mtp-draft 7
 """
 
 SHIM_LSOF = """\

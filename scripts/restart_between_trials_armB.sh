@@ -25,6 +25,9 @@
 
 set -eu
 
+# shellcheck source=lib/ds4_server.sh
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/ds4_server.sh"
+
 LOGDIR="${LOGDIR:-$(mktemp -d)}"
 BENCH_LOGS="${BENCH_LOGS:-$HOME/bench-logs}"
 
@@ -44,17 +47,7 @@ fi
 
 restart_ds4() {
     local tag="$1"
-    echo "[$(date +%H:%M:%S)] stopping ds4-server..."
-    pkill -f 'ds4-server --metal' 2>/dev/null || true
-    sleep 3
-    if pgrep -f 'ds4-server --metal' >/dev/null; then
-        pkill -9 -f 'ds4-server --metal'
-        sleep 2
-    fi
-    if pgrep -f 'ds4-server --metal' >/dev/null; then
-        echo "REFUSING: ds4-server would not stop" >&2
-        exit 1
-    fi
+    ds4_stop_server || exit 1
 
     echo "[$(date +%H:%M:%S)] starting ds4-server fresh for $tag (MTP on)..."
     (cd "$HOME/git/ds4-metal" && \
@@ -104,6 +97,13 @@ if ! uv run python "$PREFLIGHT" --acquire-lock "restart_between_trials_armB.sh (
   exit 1
 fi
 trap 'uv run python "$PREFLIGHT" --release-lock --owner-pid $$ >/dev/null 2>&1' EXIT
+
+# #145: the server must be stopped on every exit path. Armed after the
+# refusals above, so a run that declines to start does not tear down a server
+# it never owned. ds4_arm_stop_trap chains onto the EXIT trap already set
+# rather than replacing it -- a bare `trap ... EXIT` here would drop the lock
+# release and trade a leaked server for a leaked lock.
+ds4_arm_stop_trap
 
 echo "logs in: $LOGDIR"
 restart_ds4 trial1; run_trial 1

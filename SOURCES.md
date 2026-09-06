@@ -197,52 +197,52 @@ otherwise looks exactly like a quiet one, and "nothing happened upstream" is
 the wrong conclusion to draw from an auth failure.
 
 * **[`antirez/ds4`](https://github.com/antirez/ds4)**  
-Our primary engine; the only one that runs DeepSeek-V4-Flash and GLM-5.3
+our primary engine; the only one that runs DeepSeek-V4-Flash and GLM-5.3
 
 * **[`ggml-org/llama.cpp`](https://github.com/ggml-org/llama.cpp)**  
-Our fast pick's engine; `qwen4exp` IS Qwen3.8-Flash-Next
+our fast pick's engine; `qwen4exp` IS Qwen3.8-Flash-Next
 
 * **[`ollama/ollama`](https://github.com/ollama/ollama)**  
-The 31 GB entry point, and our only MLX runtime
+the 31 GB entry point, and our only MLX runtime
 
 * **[`anomalyco/opencode`](https://github.com/anomalyco/opencode)**  
-Our only client
+our only client
 
 * **[`evanwtf/local-llm`](https://github.com/evanwtf/local-llm)**  
 This project
 
 * **[`evanwtf/gmail-archive`](https://github.com/evanwtf/gmail-archive)**  
-The excision tasks' target repository
+the excision tasks' target repository
 
 * **[`evanwtf/ds4`](https://github.com/evanwtf/ds4)**  
-Our ds4 fork (#27 asks whether it can be retired)
+our ds4 fork (#27 asks whether it can be retired)
 
 * **[`ml-explore/mlx`](https://github.com/ml-explore/mlx)**  
-The framework everything MLX sits on
+the framework everything MLX sits on
 
 * **[`ml-explore/mlx-lm`](https://github.com/ml-explore/mlx-lm)**  
-Reference MLX server; new architectures land here first
+reference MLX server; new architectures land here first
 
 * **[`jundot/omlx`](https://github.com/jundot/omlx)**  
-OMLX -- prefill leader, untested here (#60)
+oMLX -- prefill leader, untested here (#60)
 
 * **[`ddalcu/mlx-serve`](https://github.com/ddalcu/mlx-serve)**  
-Benchmarked on our exact machine; llmprobe's author
+benchmarked on our exact machine; llmprobe's author
 
 * **[`youssofal/MTPLX`](https://github.com/youssofal/MTPLX)**  
 MTP speculative decoding; we hold one unreplicated number
 
 * **[`raullenchai/Rapid-MLX`](https://github.com/raullenchai/Rapid-MLX)**  
-The one MLX engine reachable by pip (#57, #60)
+the one MLX engine reachable by pip (#57, #60)
 
 * **[`ARahim3/mlx-dspark`](https://github.com/ARahim3/mlx-dspark)**  
 DSpark/DFlash ported to MLX (#19, #58, #75)
 
 * **[`Blaizzy/mlx-vlm`](https://github.com/Blaizzy/mlx-vlm)**  
-Expert offloading, prefix caching, Qwen3.8-Flash-Next MTP
+expert offloading, prefix caching, Qwen3.8-Flash-Next MTP
 
 * **[`unslothai/llama.cpp`](https://github.com/unslothai/llama.cpp)**  
-The fork with a working qwen4exp MTP graph (#77)
+the fork with a working qwen4exp MTP graph (#77)
 
 * **[`Layr-Labs/mlxfast-gemma4-26b-a4b-engine`](https://github.com/Layr-Labs/mlxfast-gemma4-26b-a4b-engine)**  
 MLX Fast leaderboard harness (#80)

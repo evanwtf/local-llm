@@ -94,10 +94,52 @@ class Proc:
     rss_gib: float
     command: str
     port: int | None = None
+    age_s: int | None = None
 
     @property
     def short(self) -> str:
         return self.command.split()[0].rsplit("/", 1)[-1]
+
+    @property
+    def age(self) -> str:
+        return human_age(self.age_s)
+
+
+def parse_etime(text: str) -> int | None:
+    """`ps` ELAPSED into seconds. Shapes: `mm:ss`, `hh:mm:ss`, `dd-hh:mm:ss`.
+
+    Returns None rather than guessing, so an unreadable field reads as
+    "unknown" instead of "zero seconds" -- a brand-new server and an
+    unparseable one must not look alike.
+    """
+    text = text.strip()
+    days = 0
+    if "-" in text:
+        head, _, text = text.partition("-")
+        if not head.isdigit():
+            return None
+        days = int(head)
+    parts = text.split(":")
+    if not 2 <= len(parts) <= 3 or not all(p.isdigit() for p in parts):
+        return None
+    values = [int(p) for p in parts]
+    if len(values) == 2:
+        values = [0, *values]
+    hours, minutes, seconds = values
+    return days * 86400 + hours * 3600 + minutes * 60 + seconds
+
+
+def human_age(seconds: int | None) -> str:
+    """Two units at most. `4h13m` is readable; `15177s` is not."""
+    if seconds is None:
+        return "unknown"
+    if seconds < 60:
+        return f"{seconds}s"
+    if seconds < 3600:
+        return f"{seconds // 60}m"
+    if seconds < 86400:
+        return f"{seconds // 3600}h{seconds % 3600 // 60}m"
+    return f"{seconds // 86400}d{seconds % 86400 // 3600}h"
 
 
 def _first_match(text: str, prefix: str) -> str | None:
@@ -230,17 +272,28 @@ def ceiling_gib(text: str) -> float:
 
 
 def parse_ps(text: str) -> list[Proc]:
-    """Read `ps -eo pid,rss,command`, keeping only model servers.
+    """Read `ps -eo pid,rss,etime,command`, keeping only model servers.
 
-    The command column contains spaces, so the split is bounded at 2. RSS is
-    KiB on macOS.
+    The command column contains spaces, so the split is bounded at 3. RSS is
+    KiB on macOS; ELAPSED is wall time since the process started (#145).
+
+    A three-column listing is **refused, not parsed**. Splitting it four ways
+    would put the binary in the elapsed field and truncate the command, and the
+    check would go on passing while reporting the wrong thing -- the vacuous
+    pass this module exists to prevent.
     """
+    lines = text.splitlines()
+    if lines and "ELAPSED" not in lines[0].upper():
+        raise ValueError(
+            f"ps header has no ELAPSED column, so this is not "
+            f"`ps -eo pid,rss,etime,command`: {lines[0]!r}"
+        )
     procs = []
-    for line in text.splitlines()[1:]:  # skip the header
-        parts = line.split(None, 2)
-        if len(parts) < 3:
+    for line in lines[1:]:  # skip the header
+        parts = line.split(None, 3)
+        if len(parts) < 4:
             continue
-        pid, rss, command = parts
+        pid, rss, etime, command = parts
         # Match the executable, not the whole command line. A shell running a
         # script that merely mentions llama-server has the marker in its
         # arguments, and matching those made this tool report the shell that
@@ -250,7 +303,14 @@ def parse_ps(text: str) -> list[Proc]:
         if not any(marker in binary for marker in INFERENCE):
             continue
         try:
-            procs.append(Proc(int(pid), int(rss) / KIB_PER_GIB, command.strip()))
+            procs.append(
+                Proc(
+                    int(pid),
+                    int(rss) / KIB_PER_GIB,
+                    command.strip(),
+                    age_s=parse_etime(etime),
+                )
+            )
         except ValueError:
             continue
     return procs
@@ -360,13 +420,13 @@ class Report:
         for p in self.stale:
             out.append(
                 f"{p.short} (pid {p.pid}) is listening on :{p.port} and holding "
-                f"{p.rss_gib:.1f} GiB, but no selected backend uses that port. "
-                f"Stop it, or this batch measures a contended machine."
+                f"{p.rss_gib:.1f} GiB after {p.age}, but no selected backend uses "
+                f"that port. Stop it, or this batch measures a contended machine."
             )
         for p in self.unmatched:
             out.append(
-                f"{p.short} (pid {p.pid}) is holding {p.rss_gib:.1f} GiB and is "
-                f"not listening yet -- still loading, or wedged."
+                f"{p.short} (pid {p.pid}) is holding {p.rss_gib:.1f} GiB after "
+                f"{p.age} and is not listening yet -- still loading, or wedged."
             )
         return out
 
@@ -512,7 +572,7 @@ def inspect(backends: dict[str, dict] | None = None) -> Report:
     `backends=None` reports without judging: see `check`.
     """
     return check(
-        _capture(["ps", "-eo", "pid,rss,command"]),
+        _capture(["ps", "-eo", "pid,rss,etime,command"]),
         _capture(["lsof", "-nP", "-iTCP", "-sTCP:LISTEN"]),
         None if backends is None else backend_ports(backends),
         ceiling_gib=metal_ceiling()[0] or DEFAULT_CEILING_GIB,

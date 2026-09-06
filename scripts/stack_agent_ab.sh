@@ -37,6 +37,8 @@ OUT=${OUT:-$HOME/bench-logs/138-stack-ab}
 BENCH_LOGS=${BENCH_LOGS:-$HOME/bench-logs}
 HERE="$(cd "$(dirname "$0")" && pwd)"
 REPO="$(cd "$HERE/.." && pwd)"
+# shellcheck source=lib/ds4_server.sh
+source "$HERE/lib/ds4_server.sh"
 
 NEW_TREE=$HOME/git/ds4-ivan-qwen38fn
 NEW_GGUF=$HOME/models/qwen3.8-flash-next-ds4-q4k-imatrix/Qwen3.8-Flash-Next-Q4KImatrixExperts-MXFP4Down-BF16Emb-BF16Control-Q8GDN-Q8QSA-Q8Shared-Q8Out.gguf
@@ -83,11 +85,7 @@ done
 
 restart_server() {
   local tree=$1 gguf=$2 ple=$3 kv=$4 tag=$5
-  echo "[$(date +%H:%M:%S)] stopping ds4-server for $tag..."
-  pkill -f 'ds4-server --metal' 2>/dev/null || true
-  sleep 3
-  pgrep -f 'ds4-server --metal' >/dev/null && { pkill -9 -f 'ds4-server --metal'; sleep 2; }
-  pgrep -f 'ds4-server --metal' >/dev/null && { echo "REFUSING: server would not stop" >&2; exit 1; }
+  ds4_stop_server "for $tag" || exit 1
   echo "[$(date +%H:%M:%S)] starting $tag..."
   ( cd "$tree" && ./ds4-server --metal -m "$gguf" --ple "$ple" \
       --ctx 100000 --warm-weights \
@@ -146,6 +144,12 @@ fi
 echo "harness pinned at $HARNESS_HEAD for all $((SWEEPS * 2)) sweeps" \
   | tee -a "$OUT/run-record.txt"
 
+# #145: stop the server on EVERY exit path, not just the last line of the
+# script. Armed here rather than at the top, so a run that refuses to start --
+# no shim, dirty harness, missing gguf -- does not tear down a server it never
+# owned and somebody else may be using.
+ds4_arm_stop_trap
+
 if [ $((SWEEPS % 2)) -ne 0 ]; then
   echo "[$(date +%H:%M:%S)] WARNING: SWEEPS=$SWEEPS is odd -- one arm leads once" \
        "more than the other and the position term does not cancel. Prefer an" \
@@ -170,3 +174,6 @@ for n in $(seq 1 "$SWEEPS"); do
   sweep "$second_tag" "$n" "$second_backend"
 done
 echo "[$(date +%H:%M:%S)] all $((SWEEPS * 2)) sweeps complete under $OUT"
+# The teardown itself is the EXIT trap's job -- see ds4_arm_stop_trap above.
+# Until 2026-09-06 this line was the end of the script and the last arm's
+# server stayed resident, holding 97.9 GiB, on four consecutive clean runs.

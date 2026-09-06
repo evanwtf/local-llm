@@ -25,6 +25,9 @@
 
 set -eu
 
+# shellcheck source=lib/ds4_server.sh
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/ds4_server.sh"
+
 LOGDIR="${LOGDIR:-$(mktemp -d)}"
 BENCH_LOGS="${BENCH_LOGS:-$HOME/bench-logs}"
 
@@ -43,17 +46,7 @@ if ! pgrep -f qwen_tool_shim >/dev/null; then
 fi
 
 restart_ds4() {
-    echo "[$(date +%H:%M:%S)] stopping ds4-server..."
-    pkill -f 'ds4-server --metal' 2>/dev/null || true
-    sleep 3
-    if pgrep -f 'ds4-server --metal' >/dev/null; then
-        pkill -9 -f 'ds4-server --metal'
-        sleep 2
-    fi
-    if pgrep -f 'ds4-server --metal' >/dev/null; then
-        echo "REFUSING: ds4-server would not stop" >&2
-        exit 1
-    fi
+    ds4_stop_server || exit 1
 
     echo "[$(date +%H:%M:%S)] starting ds4-server fresh, kv-disk-space-mb=$KV_MB..."
     (cd "$HOME/git/ds4-metal" && \
@@ -71,6 +64,8 @@ restart_ds4() {
 }
 
 echo "logs in: $LOGDIR"
+# #145: this script starts a server and never stopped the last one either.
+ds4_arm_stop_trap
 restart_ds4
 
 echo "[$(date +%H:%M:%S)] starting arm A, 3 trials, single continuous server..."
