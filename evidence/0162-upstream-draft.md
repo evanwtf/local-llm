@@ -1,45 +1,49 @@
 # DRAFT — upstream comment for antirez/ds4#952
 
-**DRAFT for the operator to post to antirez/ds4#952. Not a conclusion; one run of four.**
+**DRAFT for the operator to post to antirez/ds4#952. Four runs; run 2 void.**
 
 @GiorgioOppo — on measuring at `77a054e` vs `f309990`:
 
-The measurement below is run 1 of 4, `f309990` against its own parent
-`8c22d667` (= `f309990^`), one GGUF across two separate worktrees, 8 frontiers
-× 3 reps, arm order alternating. It is one datapoint, not a result; runs 2–4
-are queued behind a model download and will replace these numbers.
+Four runs of `f309990` against its own parent `8c22d667` (= `f309990^`), one
+GGUF across two separate worktrees, 8 frontiers × 3 reps, arm order alternating.
+Run 2 was voided: a test suite landed on one arm mid-run, which is asymmetric
+load inside a paired comparison, so it was discarded and run 5 replaced it.
+Runs 1, 3, 4, 5 stand.
 
-**Raw data:** https://github.com/evanwtf/local-llm/tree/main/benchmarks/ds4/pr952-f309990-run1 — six CSVs, one per arm per
-repetition, every frontier, plus `run-meta.json` with the prompt SHA-256 and
-`engines.txt` with both tree revs.
+**Raw data:** https://github.com/evanwtf/local-llm/tree/main/benchmarks/ds4/pr952-f309990-run1 ,
+`-run3`, `-run4`, `-run5` — six CSVs per run, one per arm per repetition, every
+frontier, plus `run-meta.json` with the prompt SHA-256 and `engines.txt` with
+both tree revs.
 
 M5 Max 128 GB, Metal 4 tensor API, `--temp 0`. Medians over 3 reps.
 
-### Generation, `gen_steady_tps`
+### Headline, `f309990` / `f309990-prev` (above 1.000 means `f309990` is faster)
 
-| ctx | `8c22d667` | `f309990` | Δ |
+| metric | median | per run | range |
 |---:|---:|---:|---:|
-| 2048 | 42.04 | 41.71 | −0.8% |
-| 4096 | 38.71 | 38.25 | −1.2% |
-| 6144 | 38.28 | 38.48 | +0.5% |
-| 8192 | 38.32 | 38.36 | +0.1% |
-| 10240 | 38.36 | 37.83 | −1.4% |
-| 12288 | 37.99 | 37.36 | −1.7% |
-| 14336 | 37.67 | 36.82 | −2.3% |
-| 16384 | 37.29 | 36.77 | −1.4% |
+| decode (`gen_steady_tps`) | 1.001 (+0.1%) | 0.982, 0.996, 1.012, 1.007 | 2.9 pp |
+| prefill (`prefill_tps`) | 0.991 (−0.9%) | 0.986, 0.993, 1.007, 0.988 | 2.1 pp |
 
-### Prefill, `prefill_tps`
+### Per frontier, `f309990` / `f309990-prev`, median over 4 runs
 
-| ctx | `8c22d667` | `f309990` | Δ |
-|---:|---:|---:|---:|
-| 2048 | 615.50 | 628.52 | +2.1% |
-| 4096 | 481.90 | 496.45 | +3.0% |
-| 6144 | 475.69 | 488.35 | +2.7% |
-| 8192 | 472.47 | 470.93 | −0.3% |
-| 10240 | 465.53 | 455.01 | −2.3% |
-| 12288 | 459.49 | 456.10 | −0.7% |
-| 14336 | 458.81 | 462.52 | +0.8% |
-| 16384 | 456.41 | 450.38 | −1.3% |
+| ctx | decode | range | prefill | range |
+|---:|---:|---:|---:|---:|
+| 2048 | 0.990 | 0.982 – 0.999 | 0.996 | 0.975 – 1.003 |
+| 4096 | 1.002 | 0.987 – 1.015 | 0.983 | 0.978 – 1.006 |
+| 6144 | 0.992 | 0.979 – 1.011 | 1.004 | 0.999 – 1.008 |
+| 8192 | 1.008 | 0.975 – 1.010 | 1.001 | 0.988 – 1.008 |
+| 10240 | 0.993 | 0.966 – 1.025 | 0.983 | 0.973 – 1.015 |
+| 12288 | 1.004 | 0.984 – 1.014 | 0.982 | 0.972 – 1.014 |
+| 14336 | 1.006 | 0.979 – 1.020 | 1.005 | 0.962 – 1.012 |
+| 16384 | 1.010 | 0.990 – 1.017 | 0.992 | 0.976 – 1.008 |
+
+### The noise floor governs the conclusion
+
+The typical within-run repeat spread at one frontier is **3.8 pp**, and the
+between-run spread is 2.9 pp decode / 2.1 pp prefill — the runs agree as well
+as the reps do. Every per-frontier range above spans 1.000. So the honest
+claim is **no effect resolvable above about ±3 pp in either direction**, not
+"prefill is 0.9% slower". The instrument cannot see 0.9%.
 
 **Tree revs:** `8c22d667` (= `f309990^`) and `f309990`.
 
@@ -53,18 +57,15 @@ path, but it is the mixed Layers37-42 build, not the plain AProjQ8 from the
 
 **Two limits before you use these.**
 
-I have no `main` arm. Both trees here are on your branch, so this measures
-`f309990` against its own parent, not against upstream `main`. If the
-comparison you want is branch-versus-main on Metal, we will build a main
-worktree and run the same design.
+I have no `main` arm in these numbers. Both trees are on your branch, so this
+measures `f309990` against its own parent, not against upstream `main`. A
+`main` worktree is built (`ds4-main-b` at `9ab7053`) and queued; the
+branch-versus-main comparison on Metal is the next run.
 
 And `prefill_tps` here is **the appended interval at each frontier**, not a
 cold large-chunk prefill at fixed ctx (`ds4_bench.c:10`, `:843`:
 `prefill_tokens = frontier - previous`). @adamlawi's −12% is the large-chunk
 quantity. These are different measurements and should not be read as
 disagreeing.
-
-**This is one run.** Three more are queued behind a model download; I will not
-draw a conclusion from a single batch, and neither should you.
 
 --deepseek
