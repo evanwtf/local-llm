@@ -14,7 +14,7 @@ claim about which model writes better code had nothing behind it and could not
 have. The patch is small; keep it.
 
 **The repository's own gates.** ruff and mypy, configured by gmail-archive, not
-by this benchmark. That matters: a rubric invented here would be a judgement,
+by this benchmark. That matters: a rubric invented here would be a judgment,
 and the harness's whole claim is that it does not judge. Counts are taken twice,
 once on the excised tree and once after the agent, and reported as a delta --
 gmail-archive carries 18 pre-existing mypy errors, so an absolute count would

@@ -196,7 +196,7 @@ model failure. **64 trials across three engines were published as evidence that
 an open client was weak, when they measured our own invocation.** The corrected
 cell went from **1/15 to 3/3**.
 
-Two rules follow, and they generalise past OpenCode:
+Two rules follow, and they generalize past OpenCode:
 
 - **A client that scores far below its public reputation is a bug report until
   the cause is known.** 1/15 for a widely-used tool is not a finding. Read a
@@ -657,7 +657,7 @@ Measured on the #77 MTP arms, trial 1, same tasks and client (2026-09-03):
 | total wall, **all 15 rows** | 3074 s | 1726 s | "B takes 56% of the time" |
 | total wall, **the 8 tasks that passed in both** | 1106 s | 1036 s | **B/A = 0.94** |
 
-The first row is an artefact of arm B failing five tasks fast against arm A's
+The first row is an artifact of arm B failing five tasks fast against arm A's
 two. The second is the comparison worth having, and it is nowhere near the ~26%
 that #23 requires before a suite difference is real.
 
@@ -734,6 +734,55 @@ falsify the record.
 
 The same applies to prose: when new data refutes an earlier claim, correct the
 claim and say it was refuted. Do not quietly rewrite it.
+
+## American English spellings only (2026-09-05)
+
+Write `behavior`, `favor`, `optimize`, `summarize`, `normalize`, `recognize`,
+`judgment`, `defense`, `artifact`, `license`, `labeled`, `modeling`. Not the
+British forms. This holds in Markdown, in code comments and docstrings, in
+commit messages, and in issue and PR text.
+
+**Why it needed writing down.** Nobody chose British spellings; they arrived by
+drift. On 2026-09-05 the operator asked why the writing said "favour", and a
+count found the repo already at 52 British forms against 19 American --
+`behaviour` alone 25 times -- because an agent wrote most of these documents
+and then read them back as house style. A convention nothing states is a
+convention that ratchets in whatever direction the last writer happened to
+lean.
+
+**Two traps, both hit on the first attempt at fixing this.** A blanket
+prefix substitution is wrong:
+
+- `analys` -> `analyz` turns **analysis** into "analyzis". American keeps the
+  `-sis` noun and takes the `-yze` verb: *analysis*, but *analyze*.
+- `characteris` -> `characteriz` turns **characteristic** into
+  "characteriztic". Same shape: *characteristic*, but *characterize*.
+- `optimis` -> `optimiz` turns **optimistic** into "optimiztic".
+
+Check every word a substitution introduces, one at a time. Do not trust the
+rule.
+
+**Do not rewrite text that is not ours.** Three categories are off limits, and
+the first was already violated once:
+
+- **Quotations.** A quoted post, a quoted model output, a quoted upstream
+  comment. On 2026-09-05 a spelling pass rewrote a model's own words inside
+  `LADDER2_FINDINGS.md` -- the quote said "expected behaviour of a flawed
+  metric" and the transcript it quotes still does. Changing a quotation to suit
+  our style makes it a misquote, which is the same defect as
+  [Keep the historical record honest](#keep-the-historical-record-honest) one
+  layer down.
+- **Preserved evidence.** `logs/sweeps/` holds gather archives that
+  verification ran against. They are records of what a source said, not our
+  prose.
+- **Archived snapshots.** `docs/archive/` is what a document said on a date.
+
+Model transcripts under `benchmarks/**/ladder2/` are in the first category:
+they are what the model wrote.
+
+**Code identifiers are out of scope.** A local variable named `centre` is a
+code change with no documentation benefit; leave it, or rename it deliberately
+in its own commit.
 
 ## A figure needs its input named, not only its instrument (2026-09-04)
 
@@ -861,7 +910,7 @@ and the reason was not that nobody tried. Measuring it needs an arm with the
 remedy **off**, turning it off meant editing the shim, and editing the shim is
 not something an unattended run can do. So the experiment never got designed.
 
-`SHIM_NO_STRIP=1` is that arm. The rule generalises: **when a fix ships as a
+`SHIM_NO_STRIP=1` is that arm. The rule generalizes: **when a fix ships as a
 behavior change in code the harness calls, give it a switch at the same
 time.** The switch costs one `if`; retrofitting one costs the credibility of
 every result taken in between, because nobody can say what the fix was worth.

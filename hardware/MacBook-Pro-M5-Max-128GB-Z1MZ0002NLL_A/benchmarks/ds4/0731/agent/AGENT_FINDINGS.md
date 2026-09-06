@@ -16,7 +16,7 @@ editing, multi-step build-and-verify, and a five-file refactor — with **zero
 retries and zero nudges**.
 
 The predicted failure mode did not materialise. The open question is no longer
-*"can it do the mechanics"* but *"can it exercise judgement under ambiguity"*,
+*"can it do the mechanics"* but *"can it exercise judgment under ambiguity"*,
 which is untested.
 
 **Do not yet route real work to it unconditionally.** See
@@ -196,7 +196,7 @@ Real work has none of those properties.
 
 Untested, and gating [#15](https://github.com/evanwtf/ds4/issues/15):
 
-- **Ambiguous requirements** — where the right change is a judgement call.
+- **Ambiguous requirements** — where the right change is a judgment call.
 - **Debugging** — diagnosing from a stack trace or wrong output, fix location
   unknown.
 - **Large context** — these touched small files; real sessions accumulate 50k+
@@ -213,7 +213,7 @@ Untested, and gating [#15](https://github.com/evanwtf/ds4/issues/15):
 
 > **DONE — see [`LADDER2_FINDINGS.md`](LADDER2_FINDINGS.md).** The harder ladder
 > found the wall, and it is not where this document predicted. Debugging (PASS)
-> and ambiguous judgement (PASS) were strong; the failures are **asserting
+> and ambiguous judgment (PASS) were strong; the failures are **asserting
 > runtime behavior from reading code without executing it**, and **capitulating
 > when a correct claim is challenged**. Routing guidance in that document.
 

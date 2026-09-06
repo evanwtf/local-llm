@@ -478,7 +478,7 @@ def parse_metal_tensor(text: str) -> bool | None:
 def metal_tensor_api(llamacpp_root: pathlib.Path | None = None) -> bool | None:
     """Ask the local llama.cpp build whether the tensor API is live.
 
-    `--list-devices` is the cheapest binary that initialises the Metal device;
+    `--list-devices` is the cheapest binary that initializes the Metal device;
     `--version` does not, so it reports nothing useful here.
     """
     root = (

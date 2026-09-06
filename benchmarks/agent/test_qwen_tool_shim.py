@@ -199,7 +199,7 @@ _LOOP = (
 
 
 def test_the_strip_is_on_by_default(monkeypatch):
-    """The shipped behaviour does not change because a toggle exists."""
+    """The shipped behavior does not change because a toggle exists."""
     monkeypatch.delenv("SHIM_NO_STRIP", raising=False)
     payload = _assistant(_LOOP)
     assert shim.translate_response(payload) is True

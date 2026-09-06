@@ -170,7 +170,7 @@ def report(path: pathlib.Path) -> None:
         times = [r["wall_seconds"] for r in cell if r.get("wall_seconds")]
         if len(times) >= 6:
             med = statistics.median(times)
-            pooled.extend(t / med for t in times)  # normalise, then pool
+            pooled.extend(t / med for t in times)  # normalize, then pool
     logger.info(
         "  pooled from %d observations across cells with >=6 trials", len(pooled)
     )

@@ -156,7 +156,7 @@ class Counters:
 
 
 def read(text: str) -> Counters:
-    """Parse ds4 stderr. Unrecognised lines are ignored, not an error --
+    """Parse ds4 stderr. Unrecognized lines are ignored, not an error --
     a server log is mostly other things."""
     cycles: list[Cycle] = []
     misses = 0

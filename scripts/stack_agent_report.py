@@ -2,10 +2,10 @@
 
 Implements the pre-registered recipe from the 23:20 analysis (see the header
 of scripts/stack_agent_ab.sh for the run and its pre-registration). The
-judgement calls the spec left open are listed under JUDGEMENT CALLS below --
+judgment calls the spec left open are listed under JUDGMENT CALLS below --
 they are decisions this script makes so the 23:20 reader does not have to.
 
-JUDGEMENT CALLS:
+JUDGMENT CALLS:
 
 - VOID enforcement. Every void check runs before any statistic. A failing
   check prints its name and exits 2; the pre-registered sentences are printed
@@ -455,7 +455,7 @@ def screen_verdict(
     completes = new["n"] - new["deaths"]
     # One-directional. This bar catches the NEW stack being worse; new passing
     # MORE than old is the success case, not a "gap". abs() made a lead in
-    # new's favour print "closes as a regression": on 2026-09-05 the #138 run
+    # new's favor print "closes as a regression": on 2026-09-05 the #138 run
     # had new 60/60 and old 52/60 and this line reported gap 8 -> FAIL-SIDE,
     # the exact inverse of the data. The bug can only fire when the new stack
     # wins, which is why no failing screen ever exposed it (#153).

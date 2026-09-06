@@ -558,7 +558,7 @@ def test_main_actually_calls_the_ci_check(monkeypatch):
     # and this test is about the CI check being called. It no longer refuses --
     # nothing pins a client any more (#131) -- but it did when this comment was
     # first written, and the test failed the moment Claude Code self-updated
-    # 2.1.260 -> 2.1.261 mid-session. Test one behaviour at a time.
+    # 2.1.260 -> 2.1.261 mid-session. Test one behavior at a time.
     monkeypatch.setattr(preflight, "check_client_versions", lambda **k: False)
     monkeypatch.setattr(
         preflight,

@@ -1631,7 +1631,7 @@ def setup_targets(pairs, layout):
     and never touch the operator's checkouts. No marker, no notice, no
     restore -- there is nothing to restore, which is the point. Nothing stands
     at the guessed path, so the profile denies it instead and the guess fails
-    closed. That is a behaviour change the pass rate can see; measure it
+    closed. That is a behavior change the pass rate can see; measure it
     before making sandbox the default.
     """
     if layout == "sandbox":
@@ -1682,7 +1682,7 @@ def prepare_env(dest, timeout=600):
     METHODOLOGY section 9: a fresh export has no `.venv`, so part of every
     wall-time number is the agent working out how to run pytest -- installing
     dependencies, guessing at `python -m`, or discovering `uv` for itself.
-    That is real agent behaviour, but it is not the thing being compared, and
+    That is real agent behavior, but it is not the thing being compared, and
     it lands in the same number as solving the task.
 
     Returns what happened, for the row. Never raises: a checkout whose env
@@ -1920,7 +1920,7 @@ def sandbox_profile(worktree, repo):
 
 def sandboxed(argv, worktree, repo, tmpdir):
     """Wrap an agent invocation in the sandbox. Returns argv unchanged if the
-    platform has no sandbox-exec, so this degrades to today's behaviour rather
+    platform has no sandbox-exec, so this degrades to today's behavior rather
     than silently not running."""
     if not pathlib.Path("/usr/bin/sandbox-exec").exists():
         logger.warning("no sandbox-exec on this platform; agent runs unconfined")

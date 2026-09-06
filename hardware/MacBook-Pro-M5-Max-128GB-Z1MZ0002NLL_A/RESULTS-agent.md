@@ -950,7 +950,7 @@ and is now closed -- there is no parent repo to write into -- so misapplied
 edits would have to fail some other way. Reading a captured event stream from a
 failing trial is the next step and has not been done.
 
-**Whether this generalises past ds4.** One backend, one model. OpenCode drives
+**Whether this generalizes past ds4.** One backend, one model. OpenCode drives
 75+ providers and is presumably tuned against hosted frontier models, not a
 local DeepSeek V4 Flash quant.
 
@@ -1059,7 +1059,7 @@ lost anyway.
 **Sandboxing differs.** Claude Code ran `--permission-mode bypassPermissions`,
 Codex `--sandbox workspace-write`. Codex was the more constrained of the two.
 
-## Does Codex's advantage generalise? No. (2026-08-17)
+## Does Codex's advantage generalize? No. (2026-08-17)
 
 Codex beat Claude Code on ds4. This run asks whether that is a property of the
 client or of the pairing, by repeating it on the second-place backend --

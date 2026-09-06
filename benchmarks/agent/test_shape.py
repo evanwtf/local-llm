@@ -32,7 +32,7 @@ def dupes(items):
 
 
 def test_two_passing_solutions_are_distinguishable():
-    """#4's whole ask: same behaviour, different shape, different numbers."""
+    """#4's whole ask: same behavior, different shape, different numbers."""
     slow, fast = shp.shape(QUADRATIC), shp.shape(LINEAR)
     assert slow["max_loop_depth"] == 2
     assert fast["max_loop_depth"] == 1

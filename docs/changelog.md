@@ -1182,7 +1182,7 @@ discrimination this project has produced.**
   no file at all** -- `agent_error` and `stop_reason` both `None`, controls
   live, tests untouched, 80-250 s and thousands of tokens per trial. **This is
   not bad code, it is no code**, on weights that score **15/15 under Codex**.
-  That lifts the standing "do not generalise OpenCode's ds4 result" caveat.
+  That lifts the standing "do not generalize OpenCode's ds4 result" caveat.
 - **LM Studio installed (0.4.23) but not yet launched** -- its CLI registers
   only on first GUI launch, and this is a shared machine. Operator is doing it.
   Full resume checklist is on [#53](https://github.com/evanwtf/local-llm/issues/53).

@@ -3,7 +3,7 @@
 Written for #33: the question of whether AtomicChat's `-M64` build differs
 structurally from Unsloth's, or is only re-sharded, is answerable from 700 MiB
 of header rather than 88 GiB of weights. It is also the cheapest way to check
-that an engine will recognise a model's architecture before committing to a
+that an engine will recognize a model's architecture before committing to a
 download or a load.
 
     uv run python scripts/gguf_meta.py <file.gguf> [--filter ple]
@@ -39,7 +39,7 @@ SCALAR = {
 def read(
     path: pathlib.Path, with_tensors: bool = False
 ) -> dict[str, object] | tuple[dict[str, object], list[tuple[str, list[int], int]]]:
-    """Parse the header. Arrays are summarised, not expanded.
+    """Parse the header. Arrays are summarized, not expanded.
 
     `with_tensors` also returns the tensor table as (name, dims, type). Tensor
     names are what `--override-tensor` matches on, so placing a specific

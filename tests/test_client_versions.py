@@ -161,7 +161,7 @@ def test_the_decision_not_to_pin_is_recorded_where_it_would_be_undone():
     """Restoring the pin is the obvious move for a later reader who sees an
     unpinned client move a number. The reason not to must sit in the file
     they would open to do it (#131)."""
-    # The phrases wrap across comment lines, so compare on normalised text
+    # The phrases wrap across comment lines, so compare on normalized text
     # rather than the literal -- the first version of this assertion matched
     # the string as written in the commit message, not as written in the file.
     text = " ".join(
