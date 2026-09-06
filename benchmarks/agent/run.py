@@ -2148,6 +2148,69 @@ class DraftProbe:
         return reading.counters
 
 
+def speculative_backends(backends):
+    """The selected backends that declare a speculative-decoding treatment.
+
+    **Declared, not inferred from the name.** `qwen38fnds4mtp7shim` says MTP in
+    its name and `qwen38fnds4shim` differs from it by four characters; an arm
+    carrying a treatment has to be identifiable without parsing English, or the
+    assertion below is one rename away from silently not applying.
+    """
+    return sorted(name for name, b in backends.items() if b.get("speculative"))
+
+
+def speculative_preconditions(backends, server_log):
+    """Why this run cannot assert its MTP arm, or None if it can.
+
+    #148 recorded draft acceptance per trial and #151 is the reason that is not
+    enough on its own: **an arm that drafted nothing and an arm whose counters
+    were switched off look identical.** The engine emits no lines in either
+    case, so a silent MTP arm proves nothing and the warning it produced said
+    as much.
+
+    The way out is to require the counters up front. With the switch verified
+    on and a log to read, silence afterwards has exactly one meaning -- the
+    engine never entered the speculative path -- and the refusal in one_trial
+    becomes a statement about the treatment rather than about the logging.
+    """
+    declared = speculative_backends(backends)
+    if not declared:
+        return None
+    for name in declared:
+        engine = backends[name].get("draft_engine", "ds4")
+        switch = DraftProbe.SWITCHES.get(engine)
+        if switch is None:
+            return (
+                f"{name} declares speculative={backends[name]['speculative']!r} "
+                f"with draft_engine={engine!r}, which has no counter mechanism. "
+                f"Known: {sorted(DraftProbe.SWITCHES)}"
+            )
+        if not os.environ.get(switch):
+            return (
+                f"{name} is a speculative arm and {switch} is not set, so its "
+                f"draft acceptance cannot be measured. An arm that drafted "
+                f"nothing and an arm with its counters off are indistinguishable "
+                f"(#148, #151) -- set {switch} on the SERVER, or drop the arm."
+            )
+        if not server_log:
+            return (
+                f"{name} is a speculative arm with {switch} set, but no "
+                f"--server-log to read the counters from. The engine is "
+                f"emitting them and nothing is listening."
+            )
+    return None
+
+
+def require_draft_default(backends):
+    """Assert draft acceptance by default whenever an arm declares it.
+
+    #148 shipped this refusal behind an opt-in flag, and an assertion nobody
+    remembers to turn on is documentation rather than a gate. It is what the
+    arm is for; the escape hatch is --no-require-draft.
+    """
+    return bool(speculative_backends(backends))
+
+
 def draft_fields(counters, source=None, counters_requested=None):
     """Row fields for one trial's draft accounting.
 
@@ -2691,6 +2754,15 @@ def main():
         "being off, a different fault with a different fix.",
     )
     p.add_argument(
+        "--no-require-draft",
+        action="store_true",
+        help="do not refuse when a declared speculative arm drafts and accepts "
+        "nothing (#148, #151). The refusal is ON by default for any backend "
+        "declaring `speculative` in tasks.toml, because an assertion nobody "
+        "remembers to switch on is documentation rather than a gate. Use this "
+        "only when deliberately measuring an arm known to be broken.",
+    )
+    p.add_argument(
         "--skip-smoke",
         action="store_true",
         help="skip the pre-batch coding gate (#63). The gate makes each backend "
@@ -2903,6 +2975,17 @@ def main():
     else:
         logger.warning("smoke gate skipped (--skip-smoke): rows are not trustworthy")
 
+    # #148/#151: an MTP arm that cannot be asserted must not run at all.
+    #
+    # Per-trial counters were already recorded. What made them non-binding is
+    # that a silent arm has two explanations -- the engine never drafted, or
+    # the counters were off -- and the harness could not tell them apart. It is
+    # cheaper to remove the ambiguity here than to interpret it afterwards:
+    # with the switch verified on and a log to read, silence later means the
+    # treatment was not applied, full stop.
+    if (why := speculative_preconditions(backends, args.server_log)) is not None:
+        raise SystemExit(f"REFUSING: {why}")
+
     # #148. Constructed AFTER the smoke gate, so the gate's own generation --
     # a real load that does draft -- is not credited to trial 1. No flag means
     # the field is absent from the row, which a reader must not treat as zero
@@ -3015,7 +3098,11 @@ def main():
                         prepare_env_first=not args.no_prepare_env,
                         target_layout=args.targets,
                         draft_probe=draft_probe,
-                        require_draft=args.require_draft,
+                        require_draft=(
+                            args.require_draft
+                            if args.require_draft or args.no_require_draft
+                            else require_draft_default(backends)
+                        ),
                     )
                     # Inside the client loop. Outside it, only the last
                     # client's row survives and half the run vanishes.

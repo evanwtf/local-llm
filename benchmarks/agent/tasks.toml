@@ -393,6 +393,13 @@ auth_token = "mtplx-local"
 model = "mtplx-qwen38-27b-optimized-speed"
 opencode_model = "mtplx/mtplx-qwen38-27b-optimized-speed"
 context_tokens = 262144
+# #148/#151: declared as a speculative arm, structurally rather than by its
+# name. A run selecting this backend refuses to start unless the engine's draft
+# counters are switched on and a --server-log is given to read them from, and
+# refuses to continue if a trial drafts and accepts nothing. We ran this arm
+# for weeks having asserted only that the flag was passed.
+speculative = "mtp"
+draft_engine = "mtplx"
 
 # Different family entirely -- Google, not Qwen or DeepSeek. Matched against
 # qwen3.6:27b-coding-mxfp8 on quantization (mxfp8), size (32 GB vs 31 GB) and
@@ -1087,6 +1094,13 @@ auth_token = "dsv4-local"
 model = "qwen3.8-flash-next-q4"
 opencode_model = "ds4/qwen3.8-flash-next-q4"
 context_tokens = 100000
+# #148/#151: declared as a speculative arm, structurally rather than by its
+# name. A run selecting this backend refuses to start unless the engine's draft
+# counters are switched on and a --server-log is given to read them from, and
+# refuses to continue if a trial drafts and accepts nothing. We ran this arm
+# for weeks having asserted only that the flag was passed.
+speculative = "mtp"
+draft_engine = "ds4"
 
 # Same weights, same ds4-server -- plus a shim that does THREE things. Each is
 # a confound, and the third is the largest. See ds4_qwen_tool_shim.py.
@@ -1166,6 +1180,13 @@ auth_token = "dsv4-local"
 model = "qwen3.8-flash-next-q4"
 opencode_model = "ds4qwenshim/qwen3.8-flash-next-q4"
 context_tokens = 100000
+# #148/#151: declared as a speculative arm, structurally rather than by its
+# name. A run selecting this backend refuses to start unless the engine's draft
+# counters are switched on and a --server-log is given to read them from, and
+# refuses to continue if a trial drafts and accepts nothing. We ran this arm
+# for weeks having asserted only that the flag was passed.
+speculative = "mtp"
+draft_engine = "ds4"
 
 # The Q4_K imatrix rebuild of the same model (#138). Ivan replaced the Q4_0
 # routed-expert file our 135 qwen38fnds4shim rows were taken on, calling it
