@@ -23,13 +23,17 @@ documentation.
 | `disk_baseline.py` | Measure the internal NVMe: read bandwidth and random-read latency. |
 | `ds4_serve.py` | Start ds4-server on one of two Metal kernel routes, and prove which one ran. |
 | `eval_trace.py` | Read a `ds4-eval` trace: pass rate, and tokens spent reaching each answer. |
+| `evidence.py` | Re-run a finding's claims and say whether they still hold. #160 |
 | `exclude_rows.py` | Mark rows from an aborted or void run as excluded, so they cannot publish. |
 | `gguf_meta.py` | Print a GGUF file's metadata without loading the model. |
 | `hardware_id.py` | Derive a machine's results-directory name from the machine itself. |
 | `hf_sweep.py` | Watch Hugging Face for new quants of the models we actually run. |
 | `kv_prefix_audit.py` | Measure how much prefill a stalled KV prefix costs (#64, #50). |
+| `machine_claim.py` | Claim the machine with intent, and make contention impossible to miss. #160 |
 | `make_scripts_readme.py` | Generate scripts/README.md from each script's own first docstring line. |
 | `mtp_engagement.py` | Does the engine engage MTP on the traffic we actually send it? (#148, #151) |
+| `peer_brief.py` | Generate the state half of a handoff as Markdown. #160 |
+| `peer_status.py` | One deterministic status line for the peer work. #160 |
 | `post_ab_run.py` | Post one completed decode-A/B run to a GitHub issue, once. |
 | `prefix_stability.py` | Find which cached prefix block changes between two requests (#50, #64). |
 | `prompt_meta.py` | Which prompt a decode/prefill A/B was measured on (#140). |

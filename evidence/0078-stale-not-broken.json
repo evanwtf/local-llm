@@ -1,0 +1,113 @@
+{
+  "schema": "local-llm/evidence-2",
+  "task": "160-dogfood",
+  "issue": 78,
+  "agent": "glm-5.3",
+  "agent_model": "glm-5.3",
+  "agent_effort": "unidentified",
+  "repo": "/Users/evanhoffman/git/local-llm",
+  "head": "167c8668a53087825a6f21b0356b3559038a7083",
+  "authored_at": "2026-09-06T10:50:36-04:00",
+  "statement": "The qwen38fnq3lms and mtplx rows were stale, not broken: every published row for both backends predates 35a8f59, the 2026-09-01 parser rewrite that made run.py record advertised models instead of guessing. The #78 review note that called MTPLX 'broken' read a pre-rewrite row as evidence about the current parser; it is evidence about the old one.",
+  "provenance": {
+    "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+    "trees": {
+      "/Users/evanhoffman/git/local-llm": "167c8668a53087825a6f21b0356b3559038a7083"
+    },
+    "binaries": {}
+  },
+  "claims": [
+    {
+      "id": "commit-35a8f59-landed-1742",
+      "statement": "35a8f59 landed at 2026-09-01T17:42:29 local time.",
+      "argv": [
+        "git",
+        "log",
+        "-1",
+        "--format=%cd",
+        "--date=format:%Y-%m-%dT%H:%M:%S",
+        "35a8f59"
+      ],
+      "cwd": "/Users/evanhoffman/git/local-llm",
+      "cwd_repo_rel": ".",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0,
+        "stdout_equals": "2026-09-01T17:42:29"
+      },
+      "observed": {
+        "exit": 0,
+        "stdout": "2026-09-01T17:42:29"
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "A later date means the rewrite landed after the rows, and the 'stale, not broken' reading collapses: the rows would then be post-rewrite runs still failing the probe, which is the 'broken' claim restated as evidence."
+    },
+    {
+      "id": "last-qwen38fnq3lms-row",
+      "statement": "The last qwen38fnq3lms row started at 2026-09-01T08:15:17, nine hours before the rewrite landed.",
+      "argv": [
+        "jq",
+        "-sr",
+        "map(select(.backend==\"qwen38fnq3lms\") | .started) | max",
+        "hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/results.jsonl"
+      ],
+      "cwd": "/Users/evanhoffman/git/local-llm",
+      "cwd_repo_rel": ".",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0,
+        "stdout_equals": "2026-09-01T08:15:17"
+      },
+      "observed": {
+        "exit": 0,
+        "stdout": "2026-09-01T08:15:17"
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "A row at or after 17:42:29 would be a post-rewrite run that still mis-recorded its models -- the row would then say the current parser is broken, not that the old one was."
+    },
+    {
+      "id": "last-mtplx-row",
+      "statement": "The last mtplx row started at 2026-08-29T20:48:54, three days before the rewrite landed.",
+      "argv": [
+        "jq",
+        "-sr",
+        "map(select(.backend==\"mtplx\") | .started) | max",
+        "hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/results.jsonl"
+      ],
+      "cwd": "/Users/evanhoffman/git/local-llm",
+      "cwd_repo_rel": ".",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0,
+        "stdout_equals": "2026-08-29T20:48:54"
+      },
+      "observed": {
+        "exit": 0,
+        "stdout": "2026-08-29T20:48:54"
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "A row at or after 17:42:29 on 2026-09-01 would be a post-rewrite mtplx run, and its shape would be direct evidence about the current parser."
+    },
+    {
+      "id": "rows-predate-rewrite",
+      "statement": "Both backends' last rows predate the rewrite, so every published qwen38fnq3lms and mtplx row came from the old parser and none can say whether the current parser probes those backends.",
+      "compose": {
+        "lt": [
+          ["last-qwen38fnq3lms-row", "commit-35a8f59-landed-1742"],
+          ["last-mtplx-row", "commit-35a8f59-landed-1742"]
+        ]
+      },
+      "readonly": true,
+      "cost": "cheap",
+      "observed": {
+        "2026-09-01T08:15:17 < 2026-09-01T17:42:29": true,
+        "2026-08-29T20:48:54 < 2026-09-01T17:42:29": true
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "Either comparison flipping puts a row after the rewrite; the finding then proves the opposite of what it claims."
+    }
+  ]
+}
