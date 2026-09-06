@@ -93,6 +93,10 @@ restart_server() {
       --host 127.0.0.1 --port 8000 > "$OUT/server-$tag.log" 2>&1 & )
   ( cd "$REPO" && uv run python benchmarks/agent/wait_ready.py \
       --base-url http://127.0.0.1:8000 --model qwen3.8-flash-next-q4 | tail -1 )
+  # #149: both #138 arms auto-enabled the Metal 4 tensor route on M5, and that
+  # was established by hand after the fact. The server has just written which
+  # route it took to its own log; record it so the rows can say so themselves.
+  ds4_record_route "$OUT/server-$tag.log" 8000
 }
 
 sweep() {

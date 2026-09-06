@@ -68,3 +68,37 @@ ds4_arm_stop_trap() {
   fi
   trap ds4_stop_on_exit INT TERM
 }
+
+# Record which Metal route the server just started took (#149).
+#
+# The shell runners start `./ds4-server` directly rather than through
+# scripts/ds4_serve.py, so they have a log path and a pid but no mode. The
+# route is read out of the log the server itself wrote -- the same marker
+# ds4_serve.py asserts on -- and written where run.py can stamp it onto a row.
+#
+# Never fatal. This is provenance, and a run that dies because it could not
+# write a provenance file is worse than a run whose rows say "unrecorded".
+# Nothing is written at all when the log does not name exactly one route.
+#
+# Usage: ds4_record_route <log> <port> [pid]
+ds4_record_route() {
+  local log=$1 port=${2:-8000} pid=${3:-}
+  local repo
+  repo=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+  if [ -z "$pid" ]; then
+    pid=$(pgrep -f "$DS4_SERVER_PATTERN" | head -1)
+  fi
+  [ -n "$pid" ] || return 0
+  ( cd "$repo/.." && uv run python -c '
+import sys
+sys.path.insert(0, "benchmarks/agent")
+import pathlib
+import ds4_route
+
+log, port, pid = sys.argv[1], int(sys.argv[2]), int(sys.argv[3])
+if ds4_route.record_from_log(pathlib.Path(log), port=port, pid=pid):
+    print(f"route recorded for :{port} from {log}")
+else:
+    print(f"route NOT recorded: {log} names no single route yet", file=sys.stderr)
+' "$log" "$port" "$pid" ) || true
+}

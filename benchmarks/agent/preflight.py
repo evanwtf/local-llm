@@ -43,6 +43,7 @@ import sys
 import time
 from urllib.parse import urlparse
 
+import metal_equivalence
 import opencode_config
 import provenance
 import staleness
@@ -618,6 +619,77 @@ def log_report(report: Report) -> None:
         logger.debug("preflight: could not read the Metal tensor API state")
     else:
         logger.info("preflight: llama.cpp Metal tensor API is on")
+
+    report_ds4_equivalence()
+
+
+def ds4_equivalence_state(
+    tree: pathlib.Path | None = None, model: pathlib.Path | None = None
+) -> tuple[str, dict]:
+    """Has ds4's fast Metal route been checked against the reference kernels?
+
+    Returns (state, summary). State is "pass", "fail", "stale" or "absent".
+
+    #149: the route flips tokens on long prompts, on M5 it enables itself, and
+    all four ds4 arms ran it -- while `ds4_test --metal-tensor-equivalence`,
+    which answers exactly this, had never been run by anything. `metal_tensor_api`
+    above logs whether llama.cpp's tensor API is on; **that is a different
+    engine and a different question**, and having one line about tensors in the
+    log is part of why nobody noticed the other was missing.
+    """
+    tree = tree or pathlib.Path(
+        os.environ.get("DS4_TREE", pathlib.Path.home() / "git" / "ds4-metal")
+    )
+    model = model or pathlib.Path(
+        os.environ.get("DS4_TEST_MODEL", pathlib.Path.home() / "git" / "ds4" / "ds4flash.gguf")
+    )
+    fp = metal_equivalence.fingerprint(pathlib.Path(tree) / "ds4_test", model)
+    state = metal_equivalence.cached_verdict(metal_equivalence.DEFAULT_CACHE, fp)
+    cache = metal_equivalence.read_cache(metal_equivalence.DEFAULT_CACHE) or {}
+    return state, cache.get("summary") or {}
+
+
+def ds4_server_running(ps_text: str | None = None) -> bool:
+    """Is a ds4-server up on this machine right now?
+
+    What decides whether the equivalence gate applies. A run that never touches
+    ds4 must not be blocked by a verdict about ds4's kernels, and the backend
+    table has no structured engine field to ask -- the description string says
+    "ds4-metal ba01f5d" in prose, which is not a thing to branch on.
+    """
+    text = ps_text if ps_text is not None else _capture(["ps", "-eo", "pid,rss,etime,command"])
+    return any("ds4-server" in proc.short for proc in parse_ps(text))
+
+
+def report_ds4_equivalence() -> None:
+    """Say where the equivalence check stands, at a level matching the risk."""
+    state, summary = ds4_equivalence_state()
+    if state == "pass":
+        # Report the drift even on a pass. Greedy agreement is not
+        # bit-exactness, and a reader who sees only "pass" will quote a ds4
+        # Metal number as exact.
+        logger.info(
+            "preflight: ds4 Metal tensor route checked -- greedy agreement on "
+            "%s cases, worst logit drift rms %s / max_abs %s (#149)",
+            summary.get("cases", "?"),
+            summary.get("worst_rms", "?"),
+            summary.get("worst_max_abs", "?"),
+        )
+    elif state == "fail":
+        logger.warning(
+            "preflight: ds4 Metal tensor route FAILED equivalence -- greedy_fail=%s "
+            "top1_mismatch=%s. Rows taken on this route record different tokens "
+            "than the reference kernels would (#149)",
+            summary.get("greedy_fail", "?"),
+            summary.get("top1_mismatch", "?"),
+        )
+    else:
+        logger.warning(
+            "preflight: ds4 Metal tensor route is UNVERIFIED (%s) -- run "
+            "`uv run python scripts/check_metal_equivalence.py` before a run "
+            "whose numbers anyone will quote (#149)",
+            state,
+        )
 
 
 # Source builds this project measures through. Checked offline against

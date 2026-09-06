@@ -484,6 +484,17 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="skip the preflight run lock (tests only)",
     )
+    p.add_argument(
+        "--metal-route",
+        choices=("vanilla", "fast"),
+        default="vanilla",
+        help=(
+            "which ds4 Metal kernel route both arms run (#149). Default "
+            "vanilla: the reference kernels are the only route on which "
+            "'bit-exact' means what it says. On M5 the fast route enables "
+            "itself unless this is pinned."
+        ),
+    )
     return p.parse_args(argv)
 
 
@@ -519,6 +530,24 @@ def run(args: argparse.Namespace) -> int:
     # anyway and record it: if a future ds4 adds an MTP path there, the pin
     # already held when this comparison was made.
     env["DS4_MTP_SPEC_DISABLE"] = "1"
+
+    # #149, item 3: pin the Metal route before this instrument's first use.
+    #
+    # An unpinned comparison here would be worse than no comparison. On M5 the
+    # fast Metal 4 tensor route **enables itself**, so two trees can silently
+    # differ in kernel route rather than in the change being tested -- and this
+    # script exists to answer whether a change is bit-exact. Measured on
+    # 2026-09-06, the fast route is not bit-exact against the reference
+    # kernels: worst_max_abs 5.33 and a top-5 overlap of 3/5 on the long
+    # code-audit fixture, with no greedy token moving. That is enough drift to
+    # decide a bit-exactness question the wrong way.
+    #
+    # The reference route is the default here, because "bit-exact" is the
+    # claim this instrument tests and the reference kernels are the only route
+    # where the answer means what it says. `--metal-route fast` is available
+    # and is recorded on the report, so a deliberate fast-route comparison is
+    # possible and never accidental.
+    env["DS4_METAL_ENABLE_TENSOR"] = "1" if args.metal_route == "fast" else "0"
 
     report = {
         "instrument": "scripts/bitexact_ab.py",
@@ -556,7 +585,11 @@ def run(args: argparse.Namespace) -> int:
             "consult the sampler, so temperature and seed cannot "
             "change what it compares.",
         },
-        "env_pins": {"DS4_MTP_SPEC_DISABLE": env["DS4_MTP_SPEC_DISABLE"]},
+        "env_pins": {
+            "DS4_MTP_SPEC_DISABLE": env["DS4_MTP_SPEC_DISABLE"],
+            "DS4_METAL_ENABLE_TENSOR": env["DS4_METAL_ENABLE_TENSOR"],
+        },
+        "metal_route": args.metal_route,
         "frontier_results": [],
     }
 
@@ -758,6 +791,7 @@ def report_lines(report: dict) -> list[str]:
         ),
         (
             f"pin: DS4_MTP_SPEC_DISABLE={report['env_pins']['DS4_MTP_SPEC_DISABLE']}  "
+            f"metal_route={report.get('metal_route', '?')}  "
             "sampling: engine reports none; conditional on the recorded argv"
         ),
     ]

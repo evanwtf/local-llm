@@ -40,8 +40,10 @@ import time
 import tomllib
 import urllib.error
 import urllib.request
+from urllib.parse import urlparse
 from typing import ClassVar
 
+import ds4_route
 import excise
 import grade
 import memcap
@@ -792,6 +794,40 @@ def capture_versions(cfg, backends):
         for name, b in backends.items()
     }
     servers = {k: v for k, v in servers.items() if v}
+
+    # #149: which Metal kernel route served this row.
+    #
+    # The fast route flips the first sampled token on long prompts, one failing
+    # case is a code audit, and on M5 it **enables itself** -- so the absence of
+    # an env var says nothing and two rows on different routes are not
+    # comparable. Both #138 arms were verified same-route by hand, which is the
+    # check that does not survive contact with the next run.
+    #
+    # `unrecorded` is a real answer and is written down as one: a server the
+    # harness did not start, or a stale record, must not be resolved into a
+    # route the row never ran.
+    for name, backend in backends.items():
+        port = urlparse(backend.get("base_url") or "").port
+        if port is None:
+            continue
+        route = ds4_route.route_for(port)
+        if name in servers:
+            servers[name]["metal_route"] = route
+        if route != ds4_route.UNRECORDED:
+            env.setdefault("metal_route", route)
+    routes = {
+        s["metal_route"] for s in servers.values() if s.get("metal_route")
+    } - {ds4_route.UNRECORDED}
+    if len(routes) > 1:
+        # Two routes inside one run is not a row-level annotation, it is a
+        # voided comparison -- exactly the shape of #137's two client versions
+        # in one cell.
+        env["metal_route"] = "MIXED"
+        logger.warning(
+            "two Metal routes in one run (%s) -- rows from these backends are "
+            "not comparable (#149)",
+            ", ".join(sorted(routes)),
+        )
 
     # #78: every gap in this record arrived the same way -- a backend was added,
     # no probe covered it, and the rows came out unstamped in silence. LM Studio
@@ -2663,6 +2699,15 @@ def main():
         "Skip it only when you are deliberately measuring a broken backend.",
     )
     p.add_argument(
+        "--allow-unverified-route",
+        action="store_true",
+        help="start a ds4 run whose Metal kernel route has not been checked "
+        "against the reference kernels (#149). The check is "
+        "`scripts/check_metal_equivalence.py`; it takes minutes and its answer "
+        "is cached per build, so this flag is for the case where you know the "
+        "route is unverified and want the rows anyway -- they will say so.",
+    )
+    p.add_argument(
         "--targets",
         choices=("legacy", "sandbox"),
         default="legacy",
@@ -2814,6 +2859,36 @@ def main():
     # batch, and the result is a timing measurement of a machine that was busy
     # doing something else. Advisory: it warns and never refuses.
     preflight.log_report(preflight.inspect(backends))
+
+    # #149: a gate, not a log line.
+    #
+    # ds4's fast Metal 4 tensor route enables itself on M5, flips tokens on
+    # long prompts, and served all four ds4 arms -- while the test that answers
+    # whether it agrees with the reference kernels,
+    # `ds4_test --metal-tensor-equivalence`, had never been run by anything.
+    # Preflight logging "Metal tensor API is on" for weeks is what a log line
+    # buys: nobody read it as a warning.
+    #
+    # Only applies when a ds4-server is actually up. A run on llama.cpp or
+    # Ollama has no stake in ds4's kernels and must not be blocked by them.
+    if preflight.ds4_server_running():
+        route_state, route_summary = preflight.ds4_equivalence_state()
+        if route_state == "fail":
+            raise SystemExit(
+                "REFUSING: ds4's Metal tensor route fails its own equivalence "
+                f"test ({route_summary}). Rows would record different tokens "
+                "than the reference kernels produce. Re-check with "
+                "`uv run python scripts/check_metal_equivalence.py --force`, "
+                "or serve the reference route with scripts/ds4-vanilla.sh (#149)"
+            )
+        if route_state != "pass" and not args.allow_unverified_route:
+            raise SystemExit(
+                f"REFUSING: ds4's Metal tensor route is unverified ({route_state}). "
+                "Run `uv run python scripts/check_metal_equivalence.py` -- it "
+                "takes minutes and caches its answer per build -- or pass "
+                "--allow-unverified-route to measure anyway and accept that no "
+                "row will be able to say the route was checked (#149)"
+            )
 
     # #63: preflight proves the machine is ready; this proves the *model* is.
     # A backend can be up, current, and pristine while answering in a degraded

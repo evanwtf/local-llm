@@ -761,3 +761,98 @@ def test_the_cli_name_is_a_real_make_target(tmp_path):
     assert f"\n{ab.CLI_NAME}: ds4_cli.o" in text, (
         f"{ab.CLI_NAME} is not the Makefile target built from ds4_cli.o"
     )
+
+
+# ---------------------------------------------------- #149: the route is pinned
+#
+# On M5 the fast Metal 4 tensor route enables itself. An unpinned bit-exactness
+# instrument could therefore compare two trees that differ in kernel route
+# rather than in the change under test -- and answer the question it exists to
+# ask with the wrong evidence. Measured 2026-09-06: the fast route is not
+# bit-exact against the reference kernels (worst_max_abs 5.33, top-5 overlap
+# 3/5 on the long code-audit fixture).
+
+
+def test_the_reference_route_is_the_default():
+    args = ab.parse_args(["a", "/a", "b", "/b", "m.gguf"])
+    assert args.metal_route == "vanilla"
+
+
+def test_the_fast_route_can_be_asked_for_deliberately():
+    args = ab.parse_args(
+        ["a", "/a", "b", "/b", "m.gguf", "--metal-route", "fast"]
+    )
+    assert args.metal_route == "fast"
+
+
+def test_the_route_pin_reaches_the_environment(monkeypatch, tmp_path):
+    """Both arms inherit the same pin, and the report records which one."""
+    seen = {}
+
+    class Stop(Exception):
+        """Capture the environment and stop.
+
+        The pin is set before any frontier runs, so there is no need to fake a
+        whole frontier result to see it -- and a fake one would have to track
+        the real report shape to stay valid.
+        """
+
+    def fake_run_frontier(args, trees, corpus, backend_flag, env, frontier, out_dir):
+        seen["env"] = dict(env)
+        raise Stop
+
+    monkeypatch.setattr(ab, "run_frontier", fake_run_frontier)
+    monkeypatch.setattr(ab, "require_binaries", lambda trees: None)
+    monkeypatch.setattr(ab, "take_lock", lambda label: None)
+    monkeypatch.setattr(ab, "release_lock", lambda: None)
+    monkeypatch.setattr(ab, "tree_commit", lambda tree: "abc1234")
+    corpus = tmp_path / "corpus.txt"
+    corpus.write_text("hello\n")
+    gguf = tmp_path / "m.gguf"
+    gguf.write_text("not really weights")
+    args = ab.parse_args(
+        [
+            "a", str(tmp_path), "b", str(tmp_path), str(gguf),
+            "--corpus", str(corpus), "--out", str(tmp_path / "out"),
+            "--frontier", "16", "--no-lock",
+        ]
+    )
+    with pytest.raises(Stop):
+        ab.run(args)
+    assert seen["env"]["DS4_METAL_ENABLE_TENSOR"] == "0"
+
+
+def test_asking_for_fast_sets_the_variable(monkeypatch, tmp_path):
+    seen = {}
+
+    class Stop(Exception):
+        """Capture the environment and stop.
+
+        The pin is set before any frontier runs, so there is no need to fake a
+        whole frontier result to see it -- and a fake one would have to track
+        the real report shape to stay valid.
+        """
+
+    def fake_run_frontier(args, trees, corpus, backend_flag, env, frontier, out_dir):
+        seen["env"] = dict(env)
+        raise Stop
+
+    monkeypatch.setattr(ab, "run_frontier", fake_run_frontier)
+    monkeypatch.setattr(ab, "require_binaries", lambda trees: None)
+    monkeypatch.setattr(ab, "take_lock", lambda label: None)
+    monkeypatch.setattr(ab, "release_lock", lambda: None)
+    monkeypatch.setattr(ab, "tree_commit", lambda tree: "abc1234")
+    corpus = tmp_path / "corpus.txt"
+    corpus.write_text("hello\n")
+    gguf = tmp_path / "m.gguf"
+    gguf.write_text("not really weights")
+    args = ab.parse_args(
+        [
+            "a", str(tmp_path), "b", str(tmp_path), str(gguf),
+            "--corpus", str(corpus), "--out", str(tmp_path / "out"),
+            "--frontier", "16", "--no-lock", "--metal-route", "fast",
+        ]
+    )
+    with pytest.raises(Stop):
+        ab.run(args)
+    assert seen["env"]["DS4_METAL_ENABLE_TENSOR"] == "1"

@@ -207,7 +207,7 @@ def main(argv: list[str] | None = None) -> int:
     logger.info("log=%s", log)
 
     with log.open("wb") as sink:
-        subprocess.Popen(
+        server = subprocess.Popen(
             build_command(args.mode, args, extra),
             cwd=args.tree,
             env=env,
@@ -240,6 +240,25 @@ def main(argv: list[str] | None = None) -> int:
         if ANY_MARKER in line:
             logger.info("route confirmed: %s", line.strip())
             break
+
+    # #149: the confirmation used to end here, and every row taken against this
+    # server then carried no way to say which route produced it. Write it down.
+    #
+    # Imported inside main() on purpose: ds4_route imports MARKERS from this
+    # module, so a module-level import back would be circular. By the time
+    # main() runs, this module is fully loaded and the import is free.
+    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent / "benchmarks" / "agent"))
+    import ds4_route
+
+    ds4_route.write_record(
+        ds4_route.DEFAULT_RECORD,
+        mode=args.mode,
+        port=args.port,
+        pid=server.pid,
+        log=log,
+    )
+    logger.info("route recorded for :%d in %s", args.port, ds4_route.DEFAULT_RECORD)
+
     logger.info("weights are still loading (~90 GiB; a cold start takes a minute)")
     logger.info(
         "ready check: uv run python benchmarks/agent/wait_ready.py "
