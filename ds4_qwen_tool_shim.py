@@ -622,6 +622,20 @@ def main() -> int:
         format="%(asctime)s %(name)s %(levelname)s %(message)s",
     )
     server = http.server.ThreadingHTTPServer(("127.0.0.1", args.port), Proxy)
+    # #78: write the arm down where the harness can read it back. The 112
+    # A/B's arms were separable only through a hand-kept manifest of run
+    # times, because nothing on a row said which arm produced it; this
+    # record is what puts the arm on the row. Written after the bind, so a
+    # shim that fails to start leaves no record claiming an arm -- and a
+    # shim that cannot write the record does not start, because the rows it
+    # would serve would read as "no shim fronts this port", which is a worse
+    # lie than a crash.
+    sys.path.insert(
+        0, str(pathlib.Path(__file__).resolve().parent / "benchmarks" / "agent")
+    )
+    import shim_strip
+
+    shim_strip.write_record(strip=strip_scaffolding(), port=args.port, pid=os.getpid())
     logger.info("qwen tool shim on :%d -> %s", args.port, upstream)
     # Announce the arm. A run driver greps for this line before it starts, so
     # an experiment cannot be taken under a shim in the wrong mode.

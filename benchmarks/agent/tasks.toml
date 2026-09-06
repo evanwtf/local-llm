@@ -626,6 +626,9 @@ description = "Qwen3.8-Flash-Next UD-Q3_K_XL via LM Studio 0.4.23, behind ollama
 retired = "superseded by llamacpp; see the note above (2026-09-01)"
 base_url = "http://127.0.0.1:11502"
 props_url = "http://127.0.0.1:1234/v1/models"
+# ollama_claude_shim does not answer GET, so the /v1/models probe names LM
+# Studio itself; its listing carries this model's id exactly (#78).
+models_url = "http://127.0.0.1:1234"
 auth_token = "lm-studio"
 model = "qwen3.8-flash-next-ud"
 context_tokens = 131072
@@ -881,6 +884,10 @@ context_tokens = 100000
 description = "GLM-5.3-Flash Q2 on ds4 branch, via ds4_claude_shim (thinking + KV fix)"
 base_url = "http://127.0.0.1:8100"
 props_url = "http://127.0.0.1:8000/v1/models"
+# ds4_claude_shim answers POST only, so the /v1/models probe names the ds4
+# server behind it. ds4 advertises these weights under glm-5.2 aliases, so
+# the row records the disagreement instead of resolving one (#78).
+models_url = "http://127.0.0.1:8000"
 auth_token = "dsv4-local"
 model = "glm-5.3-flash"
 context_tokens = 100000

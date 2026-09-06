@@ -9,8 +9,11 @@ tokens on an instruction that cannot apply. Both are asserted here.
 from __future__ import annotations
 
 import json
+import os
 import pathlib
 import sys
+
+import pytest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 
@@ -256,3 +259,52 @@ def test_the_request_path_reads_the_announced_toggle(monkeypatch) -> None:
     payload = _assistant(_LOOP)
     assert shim.translate_response(payload) is True
     assert "<tool_call>" not in payload["choices"][0]["message"]["content"]
+
+
+# ---------------------------------------------------------------------------
+# #78: main() writes the arm record the harness reads back. Without it the
+# row cannot say which arm produced it, which is the gap that made the 112
+# A/B's arms separable only by a hand-kept manifest.
+
+
+def test_main_writes_the_arm_record(tmp_path, monkeypatch):
+    """The record is the whole point: startup writes it, and the pid it names
+    is the live one -- that is what lets a stale record read as `unrecorded`
+    later. A shim that served without writing it would leave its rows reading
+    'no shim fronts this port', a false absence."""
+    import shim_strip
+
+    monkeypatch.setattr(sys, "argv", ["ds4_qwen_tool_shim.py"])
+    monkeypatch.setattr(shim_strip, "DEFAULT_RECORD_DIR", tmp_path)
+    monkeypatch.setenv("SHIM_NO_STRIP", "1")
+
+    class _Server:
+        def __init__(self, addr, handler):
+            pass
+
+        def serve_forever(self):
+            raise KeyboardInterrupt
+
+    monkeypatch.setattr(shim.http.server, "ThreadingHTTPServer", _Server)
+    assert shim.main() == 0
+    record = json.loads((tmp_path / "8101.json").read_text())
+    assert record["strip"] is False, "SHIM_NO_STRIP=1 is the strip-off arm"
+    assert record["port"] == shim.DEFAULT_PORT
+    assert record["pid"] == os.getpid()
+
+
+def test_main_writes_the_record_after_the_bind(tmp_path, monkeypatch):
+    """A shim that fails to bind must leave no record claiming an arm."""
+    import shim_strip
+
+    monkeypatch.setattr(sys, "argv", ["ds4_qwen_tool_shim.py"])
+    monkeypatch.setattr(shim_strip, "DEFAULT_RECORD_DIR", tmp_path)
+
+    class _Refuses:
+        def __init__(self, addr, handler):
+            raise OSError("address in use")
+
+    monkeypatch.setattr(shim.http.server, "ThreadingHTTPServer", _Refuses)
+    with pytest.raises(OSError):
+        shim.main()
+    assert not (tmp_path / "8101.json").exists()

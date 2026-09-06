@@ -344,12 +344,13 @@ def parse_lsof(text: str) -> dict[int, int]:
 def backend_ports(backends: dict[str, dict]) -> set[int]:
     """Every port the selected backends legitimately occupy.
 
-    Includes `props_url`: a backend behind the Claude Code shim names the real
-    server there, and both ends of that pair are ours.
+    Includes `props_url` and `models_url`: a backend behind the Claude Code
+    shim names the real server there, and both ends of that pair are ours
+    (#78 -- `models_url` is `props_url`'s /v1/models twin).
     """
     ports = set()
     for backend in backends.values():
-        for key in ("base_url", "props_url"):
+        for key in ("base_url", "props_url", "models_url"):
             url = backend.get(key)
             if not url:
                 continue

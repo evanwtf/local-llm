@@ -632,13 +632,117 @@ def test_openai_models_falls_back_to_a_lone_entry():
 
 
 def test_openai_models_refuses_to_guess_between_several():
-    """Ambiguity must return nothing, not the first row.
+    """Ambiguity must never resolve -- and it is no longer silence either.
 
     Attributing one model's context length to another is worse than an empty
-    record: an empty record is visibly absent, a wrong one is not.
+    record: an empty record is visibly absent, a wrong one is not. So no entry
+    is picked and no entry's fields are copied. But the advertisement itself
+    is recorded (#78): a server that answered has identified itself even when
+    its naming disagrees with the backend's, and the disagreement on the row
+    is what lets a reader judge it.
     """
     models = {"data": [{"id": "a", "context_length": 1}, {"id": "b"}]}
-    assert run.parse_openai_models(models, {"model": "c"}) == {}
+    got = run.parse_openai_models(models, {"model": "c"})
+    assert got["advertised_models"] == ["a", "b"]
+    assert got["requested_model"] == "c"
+    assert "context_length" not in got, "no entry's fields may be attributed"
+    assert "served_model_id" not in got
+
+
+def test_openai_models_selects_the_unique_prefix():
+    """The kimat regression, from ds4-ivan-qwen38fn's send_models: the server
+    advertises base aliases (qwen3.8-flash-next, -chat, -reasoner) while the
+    backend names a quant suffix the listing never carries (-q4). The base
+    alias is the one entry that prefixes it, so it is the entry; before this
+    rule, 10/10 kimat rows came out unstamped against 10/10 shimmed rows on
+    the same port."""
+    models = {
+        "data": [
+            {"id": "qwen3.8-flash-next", "context_length": 131072},
+            {"id": "qwen3.8-flash-next-chat", "context_length": 131072},
+            {"id": "qwen3.8-flash-next-reasoner", "context_length": 131072},
+        ]
+    }
+    got = run.parse_openai_models(models, {"model": "qwen3.8-flash-next-q4"})
+    assert got["served_model_id"] == "qwen3.8-flash-next"
+    assert got["context_length"] == 131072
+
+
+def test_two_prefix_matches_stay_a_refusal_to_resolve():
+    """The prefix rule must not decay into 'the first that prefixes'."""
+    models = {
+        "data": [
+            {"id": "qwen3.8-flash-next", "context_length": 131072},
+            {"id": "qwen3.8-flash-next-q4", "context_length": 4096},
+        ]
+    }
+    got = run.parse_openai_models(models, {"model": "qwen3.8-flash-next-q4-chat"})
+    assert "served_model_id" not in got
+    assert "context_length" not in got, "neither entry's field may be attributed"
+    assert got["requested_model"] == "qwen3.8-flash-next-q4-chat"
+
+
+def test_an_alias_disagreement_is_recorded_not_resolved():
+    """ds4's glm-dsa builds advertise glm-5.2 for glm-5.3 weights
+    (ds4-glm53 send_models emits glm-5.2, -chat, -reasoner). Resolving one of
+    those aliases would attribute its context length to a model that may not
+    be the one serving. The disagreement itself is the identity -- record
+    it."""
+    models = {
+        "data": [
+            {"id": "glm-5.2", "context_length": 131072},
+            {"id": "glm-5.2-chat", "context_length": 131072},
+            {"id": "glm-5.2-reasoner", "context_length": 131072},
+        ]
+    }
+    got = run.parse_openai_models(models, {"model": "glm-5.3-flash"})
+    assert got["advertised_models"] == ["glm-5.2", "glm-5.2-chat", "glm-5.2-reasoner"]
+    assert got["requested_model"] == "glm-5.3-flash"
+    assert "context_length" not in got
+
+
+def test_mtplxs_single_entry_is_the_identity():
+    """mtplx's /v1/models returns one chat entry naming the loaded model, so
+    the exact id selects it. 22 rows from before the parser rewrite carried
+    no server identity at all."""
+    models = {
+        "data": [
+            {
+                "id": "mtplx-qwen38-27b-optimized-speed",
+                "context_length": 131072,
+                "max_context_length": 131072,
+                "max_model_len": 131072,
+                "owned_by": "mtplx",
+            }
+        ]
+    }
+    got = run.parse_openai_models(models, {"model": "mtplx-qwen38-27b-optimized-speed"})
+    assert got["served_model_id"] == "mtplx-qwen38-27b-optimized-speed"
+    assert got["context_length"] == 131072
+    assert got["max_context_length"] == 131072
+
+
+def test_lm_studios_embedding_sibling_does_not_defeat_the_exact_match():
+    """`lms ls` shows the LLM beside an embedding model, and /v1/models lists
+    both. The exact id must win even when it is not the only entry, or the
+    embedding sibling turns a healthy listing into ambiguity."""
+    models = {
+        "data": [
+            {
+                "id": "qwen3.8-flash-next-ud",
+                "quantization": "Q3_K_XL",
+                "arch": "qwen4exp",
+                "max_context_length": 131072,
+            },
+            {"id": "text-embedding-nomic-embed-text-v1.5", "object": "embedding"},
+        ]
+    }
+    got = run.parse_openai_models(models, {"model": "qwen3.8-flash-next-ud"})
+    assert got["served_model_id"] == "qwen3.8-flash-next-ud"
+    assert got["quantization"] == "Q3_K_XL"
+    assert got["arch"] == "qwen4exp"
+    assert got["max_context_length"] == 131072
+    assert "text-embedding" not in got
 
 
 def test_openai_models_keeps_lmstudio_build_fields():
@@ -654,15 +758,176 @@ def test_openai_models_keeps_lmstudio_build_fields():
         ]
     }
     got = run.parse_openai_models(models, {"model": "qwen3.8-flash-next-ud"})
-    assert got["arch"] == "qwen4exp"
     assert got["publisher"] == "unsloth"
-    assert got["max_context_length"] == 131072
 
 
 def test_openai_models_handles_nothing():
     assert run.parse_openai_models({}, {"model": "x"}) == {}
     assert run.parse_openai_models(None, {"model": "x"}) == {}
     assert run.parse_openai_models({"data": []}, {"model": "x"}) == {}
+
+
+def test_models_url_names_the_real_server_behind_a_get_blind_shim(serves):
+    """ds4_claude_shim answers POST only, so a GET to base_url dies against
+    the shim while the upstream was perfectly askable (#78) -- the same gap
+    props_url exists for."""
+    serves.payload = {"data": [{"id": "glm-5.3-flash", "context_length": 100000}]}
+    got = run.probe_openai_models(
+        {
+            "base_url": "http://127.0.0.1:8100",
+            "models_url": "http://127.0.0.1:8000",
+            "model": "glm-5.3-flash",
+        }
+    )
+    # probe_openai_models passes a Request, not a bare string, to urlopen.
+    assert serves.url.full_url == "http://127.0.0.1:8000/v1/models"
+    assert got["served_model_id"] == "glm-5.3-flash"
+
+
+# --- an unstamped backend refuses the run (#78) ------------------------------
+#
+# Every gap in the server-identity record arrived the same way: a backend was
+# added, no probe covered it, and the rows came out unstamped in silence. The
+# refusal is the fix; the escape exists so it cannot be switched off under
+# time pressure, and it must leave a trace on the row.
+
+
+def _no_identity(monkeypatch):
+    """A backend no probe can name. The route and strip lookups are stubbed
+    too, so the test reads no records this machine happens to have."""
+    monkeypatch.setattr(run, "probe_server", lambda b: {})
+    monkeypatch.setattr(run, "probe_ollama", lambda b: {})
+    monkeypatch.setattr(run, "probe_openai_models", lambda b: {})
+    monkeypatch.setattr(run.ds4_route, "route_for", lambda port, **kw: "unrecorded")
+    monkeypatch.setattr(run.shim_strip, "strip_for", lambda port, **kw: None)
+
+
+def test_a_backend_no_probe_answers_refuses_the_run(monkeypatch):
+    """The point of #78: a row that cannot name the engine that served it
+    must not be published. MTPLX ran 22 such trials; this is what stops the
+    next one."""
+    _no_identity(monkeypatch)
+    backends = {"mtplx": {"base_url": "http://127.0.0.1:8010", "model": "x"}}
+    with pytest.raises(SystemExit) as raised:
+        run.capture_versions({"base_commit": "abc"}, backends)
+    assert "mtplx" in str(raised.value)
+    assert "#78" in str(raised.value)
+
+
+def test_allow_unstamped_records_the_gap_on_the_row(monkeypatch):
+    """The escape exists because a refusal that fires on a working
+    configuration gets switched off (#148's rule). It must leave a trace:
+    after this change `servers_unidentified` can only exist on a row whose
+    run passed --allow-unstamped. An escape that leaves no trace is the gap
+    wearing a flag."""
+    _no_identity(monkeypatch)
+    backends = {"mtplx": {"base_url": "http://127.0.0.1:8010", "model": "x"}}
+    got = run.capture_versions({"base_commit": "abc"}, backends, allow_unstamped=True)
+    assert got["servers_unidentified"] == ["mtplx"]
+    assert "servers" not in got
+
+
+def test_a_hosted_backend_is_not_unstamped(monkeypatch):
+    """No base_url means the hosted API -- pinned by name, not probed. It
+    must not read as a local server we failed to identify."""
+    _no_identity(monkeypatch)
+    got = run.capture_versions(
+        {"base_commit": "abc"}, {"opus5": {"model": "claude-opus-5"}}
+    )
+    assert "servers_unidentified" not in got
+    assert got["hosted_unpinned"] == ["opus5"]
+
+
+# --- the tensor gate (#78) ---------------------------------------------------
+#
+# llama.cpp#27461 shipped a build where the Metal tensor API failed on every
+# M5 and prefill quietly ran on the wrong units. Preflight logged that line
+# for weeks; #149 wrote the lesson about log lines nobody reads as warnings.
+
+
+def test_the_tensor_gate_refuses_only_a_confirmed_off(monkeypatch):
+    monkeypatch.setattr(run.preflight, "metal_tensor_api", lambda *a, **k: False)
+    backends = {"llamacpp": {"base_url": "http://127.0.0.1:8020", "model": "x"}}
+    why = run.tensor_gate(backends)
+    assert why is not None
+    assert "tensor API" in why
+
+
+def test_an_unknown_tensor_state_never_refuses(monkeypatch):
+    """None means no llama.cpp binary, no Metal, or a probe that failed. A
+    gate that fires on a working configuration gets switched off under time
+    pressure (#148's rule)."""
+    monkeypatch.setattr(run.preflight, "metal_tensor_api", lambda *a, **k: None)
+    backends = {"llamacpp": {"base_url": "http://127.0.0.1:8020", "model": "x"}}
+    assert run.tensor_gate(backends) is None
+
+
+def test_the_tensor_gate_leaves_non_llamacpp_runs_alone(monkeypatch):
+    """A ds4 or Ollama run has no stake in llama.cpp's kernels."""
+    monkeypatch.setattr(run.preflight, "metal_tensor_api", lambda *a, **k: False)
+    assert run.tensor_gate({"ds4": {"base_url": "http://127.0.0.1:8000"}}) is None
+
+
+def test_the_shims_port_counts_as_llamacpp(monkeypatch):
+    """The gate must see through :11500 to the llama.cpp server it fronts,
+    the way the llamacpp_head block in capture_versions does."""
+    monkeypatch.setattr(run.preflight, "metal_tensor_api", lambda *a, **k: False)
+    backends = {"llamacppshim": {"base_url": "http://127.0.0.1:11500", "model": "x"}}
+    assert run.tensor_gate(backends) is not None
+
+
+# --- engine versions the row was missing (#78) -------------------------------
+
+
+def test_an_mtplx_backend_records_the_engine_version(monkeypatch):
+    """`mtplx --version` for the engine behind :8010, the way `ollama
+    --version` covers :11434."""
+    _no_identity(monkeypatch)
+    monkeypatch.setattr(
+        run,
+        "run",
+        lambda *a, **k: types.SimpleNamespace(
+            stdout="mtplx 2.7.2 (2.7.2)\n", stderr="", returncode=0
+        ),
+    )
+    got = run.capture_versions(
+        {"base_commit": "abc"},
+        {"mtplx": {"base_url": "http://127.0.0.1:8010", "model": "mtplx-x"}},
+        allow_unstamped=True,
+    )
+    assert got["mtplx"] == "mtplx 2.7.2 (2.7.2)"
+
+
+def test_lm_studios_selected_runtimes_reach_the_row(monkeypatch):
+    """The app version has no CLI source, so the selected runtimes are the
+    identity the backend comparison turns on: LM Studio is a wrapper whose
+    runtime is llama.cpp, so the runtime is the build the rows must name.
+    The checkmark marks a selected runtime, and only selected lines count."""
+    _no_identity(monkeypatch)
+    table = (
+        "LLM ENGINE                             SELECTED    MODEL FORMAT\n"
+        "llama.cpp-mac-arm64-advsimd@2.33.0       ✓           GGUF    \n"
+        "llama.cpp-mac-arm64-advsimd@2.32.0                   GGUF    \n"
+        "mlx-llm-mac-arm64-advsimd@1.11.0         ✓           MLX     \n"
+    )
+    monkeypatch.setattr(
+        run,
+        "run",
+        lambda *a, **k: types.SimpleNamespace(stdout=table, stderr="", returncode=0),
+    )
+    got = run.capture_versions(
+        {"base_commit": "abc"},
+        {
+            "lms": {
+                "base_url": "http://127.0.0.1:1234",
+                "model": "qwen3.8-flash-next-ud",
+            }
+        },
+        allow_unstamped=True,
+    )
+    assert got["lmstudio_runtimes"] == (
+        "llama.cpp-mac-arm64-advsimd@2.33.0, mlx-llm-mac-arm64-advsimd@1.11.0"
+    )
 
 
 # --- retired backends -----------------------------------------------------

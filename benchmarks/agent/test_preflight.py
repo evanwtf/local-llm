@@ -95,6 +95,18 @@ def test_a_props_url_port_counts_as_expected_too():
     assert preflight.backend_ports(backends) == {11501, 8030}
 
 
+def test_a_models_url_port_counts_as_expected_too():
+    """#78: `models_url` is props_url's /v1/models twin -- the upstream it
+    names is ours, so a server on it must not read as stale."""
+    backends = {
+        "glm53ds4shim": {
+            "base_url": "http://127.0.0.1:8100",
+            "models_url": "http://127.0.0.1:8000",
+        }
+    }
+    assert preflight.backend_ports(backends) == {8100, 8000}
+
+
 # --- the check itself -----------------------------------------------------
 
 
