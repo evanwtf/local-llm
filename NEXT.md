@@ -69,18 +69,23 @@ The operator does not need the machine today, which is what makes the #146
 repeat possible at all. One thing runs at a time. Order is upstream first,
 because two people are waiting on it, and #146 last because it is ours.
 
-1. **Verify the AProjQ4/AProjQ8 downloads** against SHA-256 `413cf0a6…c767`. — opus
-2. **[#162](https://github.com/evanwtf/local-llm/issues/162) Task 3, runs 2-4** —
-   the `f309990` engine A/B. ~7 min per run. — opus
-3. **Build the upstream `main` worktree.** ~10 min. — deepseek, on the lock
-   being free, not on a clock
+1. ~~**Verify the AProjQ4/AProjQ8 downloads.**~~ Done: q4 SHA-256
+   `413cf0a6…c767` matches, q8 is 86,720,111,488 bytes.
+2. ~~**[#162](https://github.com/evanwtf/local-llm/issues/162) Task 3, runs
+   2-4.**~~ Done. Run 2 is VOID -- another session's test suite landed on arm A
+   and not arm B -- so **run 5 replaces it**. Runs 1, 3, 4 and 5 are the batch.
+3. **Build the upstream `main` worktree.** Done: `ds4-main-b` at `9ab7053`.
+   — deepseek
 4. **#162 Task 2** — `q4/q8` at head against the published 1.155. 4 runs,
    ~30 min each. — opus
 5. **Branch against `main`** — the arm @GiorgioOppo asked for. ~15 min. — opus
-6. **[#146](https://github.com/evanwtf/local-llm/issues/146) clean 4-run
+6. **#162 Task 4** — the Metal knob A/Bs, now that `metal_knob_ab.sh` is
+   merged. `stream-overlap` needs `METAL_KNOB_ACK_NO_SIGNAL=1` and its rows
+   carry `admission_signal: none`; the other three fail closed. — opus
+7. **[#146](https://github.com/evanwtf/local-llm/issues/146) clean 4-run
    repeat.** 2-3 h. — opus
 
-**Step 6 is a quiet-machine window.** No builds, no API calls, no large-file
+**Step 7 is a quiet-machine window.** No builds, no API calls, no large-file
 reads, no CPU-heavy work from any session. The lock stops another benchmark; it
 does not stop a build, and a build in one arm and not the other is the confound
 that made the first attempt uninterpretable. `targets_ab.sh` now voids the batch
