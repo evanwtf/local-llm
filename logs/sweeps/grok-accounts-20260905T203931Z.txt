@@ -1,0 +1,36 @@
+# grok account discovery
+# purpose:  candidate X accounts to add to SOURCES.md
+# written:  2026-09-05T20:39:31Z  (local: 2026-09-05 16:39:31 EDT)
+# query:    I follow these X accounts for local LLM inference on Apple silicon: @antirez @ivanfioravanti @awnihannun @angeloskath @Prince_Canuma @N8Programs @zcbenz @rapidmlx @yukonresearch @TheDavidTai @ddalcu @TeksEdge @0xkydo @0xSero @_ARahim_ @_LEFBE @bleysg @DiganiJagrit @digitalix @jundotkim @Kevrsub @MitjaMartini @onthexitter69 @Raullen @redp314 @ShankPeople @Spangler3000 @sudoingX @trebolloc @Youssofal_.
+
+Recommend 15 to 20 OTHER X accounts I do not already follow, whose posts would be relevant to the same interests. My specific interests, in priority order: MLX and Apple Metal GPU kernels; llama.cpp and ggml on Apple silicon; quantization methods (imatrix, GGUF, MXFP4, ternary, VQ); speculative decoding and multi-token prediction; prefill speed and prefix/KV caching; running large MoE models on a 128 GB Apple silicon machine; and coding-agent clients such as opencode driving a local server.
+
+Rules for your answer:
+- Return ONE bullet per account, in exactly this format, and nothing else per line:
+  - @handle | <followers, approximate> | <one sentence: what they actually post about> | <URL of ONE recent representative post, with its UTC timestamp>
+- Only real, currently active accounts. If you cannot find a real recent post for an account, DO NOT include that account at all.
+- Do not include any account from the list I gave you.
+- Prefer people who post their own measurements, benchmarks, kernels or quants over people who only repost news.
+- Apple silicon relevance matters more than follower count. An account with 2k followers posting real M-series numbers is more useful to me than a 200k-follower AI news account.
+- If you can find fewer than 15 that genuinely fit, return only the ones that fit and then write the single line: FEWER THAN REQUESTED.
+- If you find none, write exactly: NO RESULTS
+
+I'll start from this repo's source list, then search X for active accounts that post original Apple-silicon measurements, kernels, and quants.The repo already tracks your list. Next I will search for people who post original M-series numbers, kernels, and quants, then verify each recent post.I have a shortlist of kernel and quant posters. Next I will confirm each account is active and pull one recent representative post.I have a candidate list. Next I will verify each representative post exists, then lock the final 15–20.- @mweinbach | ~305k | Posts original M5 Metal kernel work and tok/s numbers, including a packed-INT4 Metal 4.1 path and MLX Fast runs. | https://x.com/mweinbach/status/2092116223651705080 (2026-08-25 05:05:52 UTC)
+- @trymirai | ~1.1k | Ships the uzu Apple-only engine and posts M5 speculative-decoding numbers against MTPLX and llama.cpp. | https://x.com/trymirai/status/2095533045453337036 (2026-09-03 15:23:05 UTC)
+- @0xZKnw | ~60 | Builds MLXL3 EXL3 inference on Apple Silicon with custom Metal kernels and posts M5 decode numbers. | https://x.com/0xZKnw/status/2095119149995266265 (2026-09-02 11:58:25 UTC)
+- @Eschalabs | ~1.9k | Ships 2-bit Escha quants with custom MLX Metal kernels, prefix caching, and M5 Pro batch numbers. | https://x.com/Eschalabs/status/2086982202169135220 (2026-08-11 01:05:05 UTC)
+- @trycua | ~13k | Posts llama.cpp Metal benchmarks inside Apple Silicon VMs and a process-scoped Metal capability layer. | https://x.com/trycua/status/2087224365284733400 (2026-08-11 17:07:22 UTC)
+- @no_stp_on_snek | ~7.5k | Implements TurboQuant KV-cache compression with llama.cpp Metal kernels and posts M5 Max compression and PPL numbers. | https://x.com/no_stp_on_snek/status/2036792058854121601 (2026-03-25 13:07:23 UTC)
+- @ggerganov | ~71k | Authors llama.cpp/ggml and posts backend releases, MTP serve flags, and Mac client work. | https://x.com/ggerganov/status/2094707254087868640 (2026-09-01 08:41:41 UTC)
+- @UnslothAI | ~97k | Publishes Dynamic GGUF quants and local-run recipes, including 3-bit GLM-5.3-Flash for 128 GB machines with MTP. | https://x.com/UnslothAI/status/2095852388888522890 (2026-09-04 12:32:03 UTC)
+- @Brooooook_lyn | ~7.4k | Uploads MXFP4/MXFP8 mixed-precision MLX checkpoints following the Unsloth dynamic-quant recipe. | https://x.com/Brooooook_lyn/status/2088453041301393720 (2026-08-15 02:29:41 UTC)
+- @atomic_chat_hq | ~15k | Ships Atomic Dynamic GGUF and MLX quants and posts M-series agent-loop measurements. | https://x.com/atomic_chat_hq/status/2092759022390632660 (2026-08-26 23:40:07 UTC)
+- @OrcaRouter | ~17k | Publishes native MLX and GGUF quants of large MoE models (GLM-5.3, DeepSeek-V4-Flash) for Mac. | https://x.com/OrcaRouter/status/2094328197710311462 (2026-08-31 07:35:27 UTC)
+- @korale77 | ~190 | Posts llama.cpp MTP measurements on an M5 Max 128 GB, the same machine class as this project. | https://x.com/korale77/status/2056616649038717352 (2026-05-19 06:03:13 UTC)
+- @YJesus | ~13k | Posts side-by-side llama.cpp, mlx-serve, MTP, and ds4 tok/s on an M3 Ultra 256 GB. | https://x.com/YJesus/status/2093845339723681953 (2026-08-29 23:36:45 UTC)
+- @sanchitmonga22 | ~1.7k | Posts MetalRT and ANE vs GPU power and throughput numbers for on-device Apple inference. | https://x.com/sanchitmonga22/status/2095633203071799595 (2026-09-03 22:01:05 UTC)
+- @13scoobie | ~170 | Posts hands-on M5 Max oMLX and mlx-serve runs, including DeepSeek-V4-Flash 0731 tok/s. | https://x.com/13scoobie/status/2085472423466389917 (2026-08-06 21:05:46 UTC)
+- @glaforge | ~16k | Posted a side-by-side MLX vs llama.cpp MTP local benchmark on an M4 Pro. | https://x.com/glaforge/status/2081754500931748192 (2026-07-27 14:52:04 UTC)
+- @lmstudio | ~65k | Ships an MLX + llama.cpp desktop runtime and posts multi-Mac Studio cluster runs. | https://x.com/lmstudio/status/2067301278976180531 (2026-06-17 17:40:08 UTC)
+- @Badtheorylabs | ~2.8k | Releases low-bit GGUF agent models and an MLX on-device Mac agent (Macaw) with tool-use numbers. | https://x.com/Badtheorylabs/status/2085116113881366782 (2026-08-05 21:29:55 UTC)
+- @thdxr | ~168k | Builds OpenCode and posts client releases, TUI features, and harness changes. | https://x.com/thdxr/status/2096046224759542086 (2026-09-05 01:22:17 UTC)
