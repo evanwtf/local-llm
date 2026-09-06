@@ -281,7 +281,11 @@ def main(argv: list[str] | None = None) -> int:
     rows = [json.loads(line) for line in args.results.read_text().splitlines() if line]
 
     per_arm: dict[str, tuple[int, int, int, int]] = {}
-    for arm in ("on", "off"):
+    # The arms come from the manifest. Hardcoding ("on", "off") here silently
+    # produced an EMPTY conditional table for #146, whose arms are called
+    # legacy and sandbox -- the read-out printed a heading with no rows under
+    # it, which reads as "no failures" rather than as "wrong arm names".
+    for arm in arms_in({e["arm"]: None for e in manifest}):
         dirs = [pathlib.Path(e["dir"]) for e in manifest if e["arm"] == arm]
         paths = [q for d in dirs for q in sorted(d.glob("*.jsonl"))]
         if not paths:
