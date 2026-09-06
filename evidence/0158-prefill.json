@@ -1,0 +1,119 @@
+{
+  "schema": "local-llm/evidence-2",
+  "task": "prefill",
+  "issue": 158,
+  "agent": "peer-deepseek-v4-flash",
+  "agent_model": "deepseek-v4-flash",
+  "agent_effort": "low",
+  "repo": "/Users/evanhoffman/git/local-llm/.claude/worktrees/peer+160",
+  "authored_at": "2026-09-06T12:10:00-04:00",
+  "statement": "The ds4#991 PR build (236cb2a) reaches the full 262144-token context on Metal; it does not fail before the ceiling. The prefill curve is flat to the ceiling: 755.87 tps at ctx=2048, a dip to 637.54 at 4096, recovery to 661-692 through 8k-32k, then a rise to 713-746 at 64k-262k. There is no degradation at the top. The prefill_tps column is the APPENDED interval at each frontier (ds4_bench.c:10 'measuring only the newest prefill interval at each frontier'; ds4_bench.c:843 'prefill_tokens = frontier - previous'), not a cold prefill of the whole context. The route is Metal (Metal device Apple M5 Max, Metal 4 tensor API). This is single-arm data on the PR build only; the ba01f5d engine cannot load this file at all (#155), so there is no comparison arm.",
+  "provenance": {
+    "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+    "trees": {
+      "/Users/evanhoffman/git/ds4-pr991": "236cb2a"
+    },
+    "binaries": {}
+  },
+  "claims": [
+    {
+      "id": "sweep-reaches-262144",
+      "statement": "The sweep produced a row at ctx=262144, the full native context; it did not fail before the ceiling.",
+      "argv": [
+        "grep",
+        "-n",
+        "262144,",
+        "/Users/evanhoffman/bench-logs/prefill-158.csv"
+      ],
+      "cwd": "/Users/evanhoffman/git/local-llm/.claude/worktrees/peer+160",
+      "cwd_repo_rel": ".",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0,
+        "stdout_contains": "262144"
+      },
+      "observed": {
+        "exit": 0,
+        "stdout": "9:262144,131072,743.75,0,0.00,0.000,0,0.00,0"
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "If the CSV has no row at ctx=262144, the sweep failed before the ceiling and the 'reaches the full context' claim collapses."
+    },
+    {
+      "id": "prefill-flat-to-ceiling",
+      "statement": "The prefill_tps values across the eight frontiers are flat to the ceiling: 755.87 at 2048, 637.54 at 4096, 661.85 at 8192, 678.53 at 16384, 692.06 at 32768, 713.22 at 65536, 745.87 at 131072, 743.75 at 262144. No degradation at the top.",
+      "argv": [
+        "grep",
+        "-nE",
+        "^[0-9]+,",
+        "/Users/evanhoffman/bench-logs/prefill-158.csv"
+      ],
+      "cwd": "/Users/evanhoffman/git/local-llm/.claude/worktrees/peer+160",
+      "cwd_repo_rel": ".",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0,
+        "stdout_contains": "743.75"
+      },
+      "observed": {
+        "exit": 0,
+        "stdout": "2:2048,2048,755.87,0,0.00,0.000,0,0.00,0\n3:4096,2048,637.54,0,0.00,0.000,0,0.00,0\n4:8192,4096,661.85,0,0.00,0.000,0,0.00,0\n5:16384,8192,678.53,0,0.00,0.000,0,0.00,0\n6:32768,16384,692.06,0,0.00,0.000,0,0.00,0\n7:65536,32768,713.22,0,0.00,0.000,0,0.00,0\n8:131072,65536,745.87,0,0.00,0.000,0,0.00,0\n9:262144,131072,743.75,0,0.00,0.000,0,0.00,0"
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "If the tps values collapse at the top of the range (a sharp drop at 131072 or 262144), the curve is not flat to the ceiling and the 'no degradation' claim collapses."
+    },
+    {
+      "id": "appended-interval-source",
+      "statement": "ds4-bench measures prefill_tps as the APPENDED interval at each frontier, not a cold prefill of the whole context: ds4_bench.c:843 sets 'prefill_tokens = frontier - previous', and the header comment at ds4_bench.c:10 says it measures 'only the newest prefill interval at each frontier'.",
+      "argv": [
+        "grep",
+        "-n",
+        "frontier - previous",
+        "ds4_bench.c"
+      ],
+      "cwd": "/Users/evanhoffman/git/ds4-pr991",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0,
+        "stdout_contains": "frontier - previous"
+      },
+      "observed": {
+        "exit": 0,
+        "stdout": "518:            frontier - previous,\n843:        const int prefill_tokens = frontier - previous;"
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "If prefill_tokens is the full context length rather than the appended interval, then prefill_tps is a cold-prefill measure and the appended-interval distinction collapses."
+    },
+    {
+      "id": "metal-route",
+      "statement": "The sweep ran on the Metal route: the build reported 'Metal device Apple M5 Max, 128.00 GiB RAM' and 'Metal 4 tensor API enabled for Tensor kernels'.",
+      "argv": [
+        "grep",
+        "-n",
+        "Metal device Apple M5 Max",
+        "/private/tmp/claude-501/-Users-evanhoffman-git/6413700e-f955-43a5-b605-7e12b278b086/tasks/b6fba60c8.output"
+      ],
+      "cwd": "/Users/evanhoffman/git/local-llm/.claude/worktrees/peer+160",
+      "cwd_repo_rel": ".",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0,
+        "stdout_contains": "Metal device Apple M5 Max"
+      },
+      "observed": {
+        "exit": 0,
+        "stdout": "2:ds4: Metal device Apple M5 Max, 128.00 GiB RAM"
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "If the sweep ran on a non-Metal route (no 'Metal device Apple M5 Max' line), the Metal-route attribution collapses."
+    }
+  ]
+}
