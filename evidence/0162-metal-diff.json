@@ -405,7 +405,33 @@
         "path": "evidence/0162-metal-diff-expect.json",
         "blob": "16257bd295043c68ffa6e6bebcfbb3ccd25b2e6e"
       },
-      "falsifier": "If the branch arm is not faster, or if the ratio does not shrink monotonically with ctx, the pre-registered expectation is falsified and the knob has no resolvable effect."
+      "falsifier": "If the branch arm is not faster, or if the ratio does not shrink monotonically with ctx, the pre-registered expectation is falsified and the knob has no resolvable effect.",
+      "ab_result": {
+        "figure": "decode (gen_steady_tps): on/off median 1.000 (+0.0%) over 4 runs [1.004, 0.995, 1.001, 0.999], spread 0.9 pp",
+        "prefill": "prefill_tps: on/off median 1.002 (+0.2%) over 4 runs [1.004, 1.002, 0.999, 1.002], spread 0.5 pp",
+        "timing_effect": "null",
+        "mechanism_engaged": {
+          "evidence": "count-based admission: the on arm (gathered-heads) engaged 2 extra layers per decode step",
+          "ctx_2048": {
+            "on": 5504,
+            "off": 5248,
+            "diff": 256
+          },
+          "ctx_16384": {
+            "on": 2816,
+            "off": 2560,
+            "diff": 256
+          },
+          "note": "diff exactly 256 at both frontiers = 128 tokens x 2 layers; the knob engages the two n_comp==0 layers (0, 1) at every frontier"
+        },
+        "runs": [
+          "run1",
+          "run3",
+          "run4",
+          "run5"
+        ],
+        "prompt": "promessi_sposi.txt (1298 KiB)"
+      }
     },
     {
       "id": "one-knob-suffices",
