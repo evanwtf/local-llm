@@ -31,6 +31,12 @@
 # Usage:
 #   scripts/targets_ab.sh [RUNS] [UNTIL_HHMM]
 #
+# UNTIL_HHMM is optional. When omitted the batch runs all RUNS to completion.
+# When given, a run that would start past it VOIDS the whole batch (exit 1,
+# VOID row in the manifest) rather than truncating it: a partial batch is no
+# result, and a cutoff that silently turns 4 runs into 2 is a check that fails
+# quietly.
+#
 # Read out with:
 #   uv run python scripts/strip_ab_report.py \
 #       --results benchmarks/agent/results-146-targets-ab.jsonl \
@@ -42,27 +48,34 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/ds4_server.sh"
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 RUNS="${1:-4}"
-UNTIL="${2:-09:15}"
+UNTIL="${2:-}"
 LOGDIR="${LOGDIR:-$(mktemp -d)}"
 BENCH_LOGS="${BENCH_LOGS:-$HOME/bench-logs}"
 RESULTS="${RESULTS:-$REPO/benchmarks/agent/results-146-targets-ab.jsonl}"
 MANIFEST="${MANIFEST:-${RESULTS%.jsonl}-manifest.jsonl}"
 BATCH="${BATCH:-$(date +%m%d-%H%M)}"
 SHIM_PORT=8101
+# TARGETS_AB_DRY_RUN=1 exercises the batch loop (the cutoff and the arm order)
+# without the machine: no dirty check, no sync, no lock, no shim, no ds4-server,
+# no run.py. Each run writes a dry row to the manifest so a test can count the
+# loop. The measurement itself is not exercised; the loop is.
+DRY_RUN="${TARGETS_AB_DRY_RUN:-0}"
 
 DS4_MODEL="$HOME/models/qwen3.8-flash-next-ds4-q4/Qwen3.8-Flash-Next-Q4KExperts-BF16Emb-BF16Control-Q8GDN-Q8QSA-Q8Shared-Q8Out.gguf"
 DS4_PLE="$HOME/models/qwen3.8-flash-next-ds4-q4/Qwen3.8-Flash-Next-PLE-Q4_1.gguf"
 DS4_KV="$HOME/.ds4/server-kv"
 
 HEAD_SHA="$(git -C "$REPO" rev-parse HEAD)"
-if [ -n "$(git -C "$REPO" status --porcelain | grep -v 'results.*\.jsonl' || true)" ]; then
+if [ "$DRY_RUN" -eq 0 ] && [ -n "$(git -C "$REPO" status --porcelain | grep -v 'results.*\.jsonl' || true)" ]; then
     echo "REFUSING: harness checkout is dirty; commit first" >&2
     exit 1
 fi
 
 # The sandbox arm measures nothing if its clones are stale, and a stale clone
 # fails as a wrong pass rate rather than as an error.
-(cd "$REPO" && uv run python scripts/sync_sandbox_targets.py)
+if [ "$DRY_RUN" -eq 0 ]; then
+    (cd "$REPO" && uv run python scripts/sync_sandbox_targets.py)
+fi
 
 start_shim() {
     pkill -f qwen_tool_shim >/dev/null 2>&1 || true
@@ -119,29 +132,41 @@ run_one() {
 }
 
 PREFLIGHT="$REPO/benchmarks/agent/preflight.py"
-if ! uv run python "$PREFLIGHT" --acquire-lock "targets_ab.sh (#146, $RUNS runs)" --owner-pid $$; then
-    echo "refusing to start: the machine is claimed by another run" >&2
-    exit 1
+if [ "$DRY_RUN" -eq 0 ]; then
+    if ! uv run python "$PREFLIGHT" --acquire-lock "targets_ab.sh (#146, $RUNS runs)" --owner-pid $$; then
+        echo "refusing to start: the machine is claimed by another run" >&2
+        exit 1
+    fi
+    trap 'uv run python "$PREFLIGHT" --release-lock --owner-pid $$ >/dev/null 2>&1' EXIT
+    ds4_arm_stop_trap
 fi
-trap 'uv run python "$PREFLIGHT" --release-lock --owner-pid $$ >/dev/null 2>&1' EXIT
-ds4_arm_stop_trap
 
 echo "logs in:     $LOGDIR"
 echo "rows in:     $RESULTS"
 echo "harness at:  $HEAD_SHA"
 
-start_shim
+if [ "$DRY_RUN" -eq 0 ]; then
+    start_shim
+fi
 ORDER=(legacy sandbox sandbox legacy)
 for n in $(seq 1 "$RUNS"); do
     # HH:MM compares correctly as a string within one day, which is the only
-    # window this script is meant to run in.
-    if [ "$(date +%H:%M)" \> "$UNTIL" ]; then
-        echo "[$(date +%H:%M:%S)] past $UNTIL -- not starting run $n"
-        break
+    # window this script is meant to run in. A cutoff that would skip a run
+    # VOIDS the batch instead of truncating it: a partial batch is no result.
+    if [ -n "$UNTIL" ] && [ "$(date +%H:%M)" \> "$UNTIL" ]; then
+        echo "[$(date +%H:%M:%S)] VOID: past $UNTIL before run $n of $RUNS -- a partial batch is no result" >&2
+        printf '{"run":%d,"arm":"VOID","reason":"past-until","until":"%s"}\n' \
+            "$n" "$UNTIL" >> "$MANIFEST"
+        exit 1
     fi
     arm="${ORDER[$(( (n - 1) % 4 ))]}"
-    restart_ds4 "run$n-$arm"
-    run_one "$n" "$arm"
+    if [ "$DRY_RUN" -eq 0 ]; then
+        restart_ds4 "run$n-$arm"
+        run_one "$n" "$arm"
+    else
+        echo "[dry] run $n, targets=$arm"
+        printf '{"run":%d,"arm":"%s","dry":true}\n' "$n" "$arm" >> "$MANIFEST"
+    fi
 done
 
 pkill -f qwen_tool_shim >/dev/null 2>&1 || true
