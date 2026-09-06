@@ -11,6 +11,38 @@
 Instructions for coding agents. [`CONVENTIONS.md`](CONVENTIONS.md) holds the
 standing rules about data and safety; this file covers how to work.
 
+## Model weights stay out of Time Machine (2026-09-06)
+
+Every directory holding GGUF weights must be excluded from Time Machine
+**before** the first file lands in it:
+
+```sh
+tmutil addexclusion ~/models
+tmutil addexclusion ~/git/ds4/gguf
+tmutil isexcluded ~/models      # verify; do not assume
+```
+
+Both of those are excluded today. Check any new weights directory with
+`isexcluded` rather than trusting that it inherited anything.
+
+The reason is size, not secrecy: a single pair of DeepSeek-V4-Flash arms is
+171 GB, it changes wholesale rather than incrementally, and it is re-downloadable
+from Hugging Face by name and SHA-256. Backing it up buys nothing and evicts
+things that are not re-downloadable.
+
+**The exclusion is why a missing weights file will not be in the backup.** On
+2026-09-06 the AProjQ4 and AProjQ8 files behind #91's published 1.155 were gone
+from this machine, and the Extreme SSD snapshot taken the same morning did not
+have them either. That is the policy working, not a backup failure -- but it
+means the recorded identity is the only route back. Keep the file name, byte
+size and SHA-256 in the results file, as
+`hardware/.../pr621-m5max/RESULTS.md:12-13` does. A weights file with no
+recorded identity and no backup is gone for good.
+
+Related: weights are archived, not deleted, when a runtime stops being able to
+load them -- see the retention rule. Excluding them from Time Machine is not
+permission to prune them.
+
 ## Check the field before concluding something is not possible
 
 [`SOURCES.md`](SOURCES.md) lists who to watch on X and how to sweep them safely.
