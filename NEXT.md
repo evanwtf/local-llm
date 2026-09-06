@@ -23,8 +23,9 @@ gone** — not the fastest engine. Decode rate has failed three times to predict
 agent wall time, so a speed claim ranks below a defect that makes a real
 session slow, wrong, or unmeasurable.
 
-**One axis only: local model performance for coding agents, on this Mac.** 62
-issues are open, down from 82: **twenty leads were closed on 2026-09-06**, each
+**One axis only: local model performance for coding agents, on this Mac.** 58
+issues are open, down from 82: **twenty leads were closed on 2026-09-06**, and
+four more items finished overnight, each
 with the reason on the issue, because a tracker nobody can read is not a
 backlog. Seven of the survivors carry only the `Nvidia` label and three more
 are shared; the Linux/RTX tier is a fallback plan, not this queue, and nothing
@@ -36,9 +37,9 @@ Every open issue carries exactly one, applied 2026-09-06. **The labels are
 this file, made queryable** — they are not a second opinion about what matters,
 and they drift the moment this file is re-ranked without them.
 
-- **`P0`** (4) — blocks or invalidates measurement. Do before anything that needs the machine. Items 1-3 below.
-- **`P1`** (7) — the rest of the top 10. Items 4-10.
-- **`P2`** (42) — a real task with a stated reason it is not now: the "below the line" items, harness defects nobody is blocked on, ops and housekeeping, and the Linux/RTX tier.
+- **`P0`** (2) — blocks or invalidates measurement. Do before anything that needs the machine. Items 1-2 below.
+- **`P1`** (8) — the rest of the top 10. Items 3-10.
+- **`P2`** (39) — a real task with a stated reason it is not now: the "below the line" items, harness defects nobody is blocked on, ops and housekeeping, and the Linux/RTX tier.
 - **`P3`** (9) — a lead. Somebody else's unverified claim about a quant, an engine, or an MTP number. **A lead earns a run by beating a P1 on expected information, not by being new.** Twenty more were closed on 2026-09-06; what is left is the set with a mechanism attached to one of our own models or engines.
 
 The invariant: **`P0` + `P1` is exactly the top 10**, so
@@ -57,78 +58,59 @@ Ranked by **what can actually be finished**, not by what is most interesting.
 Each item says what *done* looks like. Moving ten things five percent leaves
 nothing finished and no way to tell.
 
+**Four items closed overnight on 2026-09-06** — #145 (the server leak), #149
+(the Metal route), #155 (unanswerable, recorded as such) and #142 (the ranking
+that rewarded failing fast). Their slots are filled from below the line, and
+two of the promotions are things that overnight run walked into.
+
 ### First, because everything else is measured through it
 
-1. **[#149](https://github.com/evanwtf/local-llm/issues/149)** Record which Metal route produced every row
-   The hard part is settled: the fast Metal 4 tensor route is the standing
-   default, `scripts/ds4-fast.sh` and `scripts/ds4-vanilla.sh` share port 8000
-   so the OS keeps them exclusive, and `confirm_route()` kills a server whose
-   route cannot be asserted from its log. **What remains is the part that makes
-   old numbers comparable to new ones**: rows still carry no route field, so a
-   fast-route number and a reference-kernel number sit in `results.jsonl`
-   indistinguishable. The #138 arms were confirmed same-route **by hand**,
-   which is exactly the check that will not be repeated next time.
-   *Done when:* the route is recorded on every row, `ds4_test --metal-tensor-equivalence` runs in preflight as a gate rather than a log line, and the route is pinned in `bitexact_ab.py` before its first use.
+1. **[#148](https://github.com/evanwtf/local-llm/issues/148)** Prove the MTP draft head drafts, per row
+   The precondition now reads the **server's** argv rather than this process's
+   environment, and an MTP arm that drafts nothing is refused. What is still
+   missing is the evidence: **no lock-held measurement run has yet written the
+   per-row `draft` field.** Until one has, the gate is code that has never
+   fired in anger.
+   *Done when:* a real batch writes `draft` on every row of an MTP backend, and one deliberately broken arm is shown to be refused.
 
-2. **[#145](https://github.com/evanwtf/local-llm/issues/145)** A finished run leaves its last model server holding 98 GB
-   Deterministic, not a race: `stack_agent_ab.sh` restarts the server between
-   sweeps and never stops the last one, so **every** clean finish leaks it —
-   four in a row now, most recently 97.9 GiB after the #138 run. It blocks the
-   next run, and preflight calls the machine healthy because a leftover is
-   indistinguishable from a server in use. **First in machine-time order:**
-   it is a `trap`, and every item below it needs the memory.
-   *Done when:* a trap stops the server on exit, interrupt and error paths, and preflight can say how long a server has been resident and what claims it.
-
-3. **[#151](https://github.com/evanwtf/local-llm/issues/151) / [#148](https://github.com/evanwtf/local-llm/issues/148)** Assert the MTP draft head is actually used
-   Two independent reports in one day, neither looking for the other: an oMLX
-   recipe whose apparent 2x was mostly repairing an MTP config enabled with no
-   usable draft head, and ivanfioravanti saying *"In ds4 I've not cooked
-   support for MTP in ds4 chat"* while measuring MTPLX 25 t/s against ds4
-   18 t/s on an M5 Max. We run `qwen38fnds4mtp7shim` with an MTP gguf on disk
-   and have **never asserted the draft head is used** — only that the flag was
-   passed. That stack is also the 50/91 row #142 is about, so a no-op MTP arm
-   would explain two open problems at once. Assert the treatment, do not assume
-   it (#116's fan check, #149's route, same shape).
-   *Done when:* draft acceptance is recorded per row for every MTP backend, and a run where an MTP arm reports zero accepted draft tokens is refused.
+2. **[#151](https://github.com/evanwtf/local-llm/issues/151)** ds4 chat may have no MTP at all
+   Measured 2026-09-06: on agent-shaped traffic ds4's MTP arm **is engaged and
+   is rejected** — ~0.01 accepted per cycle with tools in the prompt against
+   ~3.3 without, 6/6 tool-bearing requests at `cycles=297 accepted=3`.
+   Unexplained and still open: a full harness trial through OpenCode produced
+   **zero** counter lines, not merely low acceptance, and it could not be
+   reproduced outside the client.
+   *Done when:* the zero-counter case is explained or shown to be an artefact of how the log is read.
 
 ### The live performance question
 
-4. **[#155](https://github.com/evanwtf/local-llm/issues/155)** Which half of the #138 gain is the engine and which is the quant?
-   #138 is the largest agent-level effect this project has measured — **44% off
-   wall time, 60/60 against 52/60** — and it cannot be attributed, because the
-   engine build and the quantization arrived together and were tested together.
-   The answer decides where weeks of work go: chase MXFP4/imatrix builds of
-   other models, or track one fork's commits. **Start with the cheap half** —
-   whether a cross combination loads at all, given PLE lives only on the fork
-   (#141). If neither loads, that is an answer and this closes.
-   *Done when:* one cross arm is measured under #138's design, or both are shown unloadable and the question is recorded as unanswerable on this hardware.
+3. **[#112](https://github.com/evanwtf/local-llm/issues/112)** The tool-call degeneration loop
+   **The shim's scaffolding strip is worth 23 points of pass rate** — 53/60
+   against 39/60, deaths 7 against 21, Fisher p = 0.004, every strip-on run
+   beating every strip-off run over 8 runs on 2026-09-06. That was a
+   *secondary* reading: the pre-registered conditional came in at 13 failures
+   against a bar of 30 and reads "could not tell", because a trial death
+   produces no tool call and so cannot appear in a table that counts calls.
+   *Done when:* the 23 points are confirmed by a run designed for the outcome (now cheap to power), and items 3 and 4 — ds4's imitable error text, a repetition penalty — are tried or dropped on the record.
 
-5. **[#142](https://github.com/evanwtf/local-llm/issues/142)** The published ranking rewards failing fast
-   `RECOMMENDATIONS.md` still sorts stacks by median wall time, which puts
-   `qwen38fnds4mtp7shim` (**50/91**, 84s) second, above `qwen38fnds4kimat`
-   (**90/90**, 97s) — because a failed trial is a short one. This is the file a
-   stranger reads to decide what to install, and #138 just made it worse by
-   producing a stack that passes everything and sorts below one that passes
-   55%. Cheapest item here with a user-visible consequence.
-   *Done when:* the table sorts on something that does not reward failure, or we decide on the record that the prose warning is enough.
+4. **[#39](https://github.com/evanwtf/local-llm/issues/39)** The `--mtp-exact-sampling` arm
+   Promoted because #142 closed and handed it the question it could not
+   answer. MTP-on loses 30 points of pass rate on our own published cell, and
+   **nothing can attribute that loss** while ds4's MTP defaults do not preserve
+   the sampling distribution: the model is simply being sampled differently.
+   One arm separates "sampled differently" from "speculation loses work".
+   *Done when:* a third arm runs with exact sampling on, under #112's protocol, and the pass-rate loss is attributed or ruled out.
 
-6. **[#112](https://github.com/evanwtf/local-llm/issues/112)** The tool-call degeneration loop
-   Turn-1 deaths with no tool call, none of them wrong code. Unblocked and
-   nothing to build — `SHIM_NO_STRIP=1` is the off arm. **Now more than a
-   hygiene item:** #138's old arm produced eight deaths, five of them turn-1
-   `solution_empty` at 6-7 seconds, and #138 ruled out heat as the cause. This
-   is the mechanism most likely to be behind them.
-   *Done when:* 2 runs per arm strip-on vs strip-off under one protocol, read with `tool_error_conditional.py`, at >=30 failures per arm. The current data has 19.
-
-7. **[#143](https://github.com/evanwtf/local-llm/issues/143)** Settle the ds4#964 prefill disagreement
+5. **[#143](https://github.com/evanwtf/local-llm/issues/143)** Settle the ds4#964 prefill disagreement
    Decode is re-measured and holds at **+18.7%** over four runs. Prefill does
    not: we measure **-1.0%** against a claimed 16.6-26.0%, and the reason may
    be that `ds4-bench` prefills the step increment, so `prefill_tokens` is 2048
    at every frontier and cold prefill may never have been measured here.
-   Prefill is our bottleneck, so this is not a bookkeeping question.
-   *Done when:* cold prefill is measured deliberately, with the Metal route recorded on the rows (#149 item 1), and the upstream reply is sent or the claim is accepted.
+   Prefill is our bottleneck, so this is not a bookkeeping question. The route
+   field #149 added is now available to pin the rows.
+   *Done when:* cold prefill is measured deliberately, with the Metal route recorded on the rows, and the upstream reply is sent or the claim is accepted.
 
-8. **[#146](https://github.com/evanwtf/local-llm/issues/146)** Cut over to the sandbox target layout
+6. **[#146](https://github.com/evanwtf/local-llm/issues/146)** Cut over to the sandbox target layout
    Built and merged behind `--targets sandbox`, **not enabled**. The guarded
    checkout is out of `~/git`, but the export still stands where the agent
    guesses (#54); under sandbox that guess must fail closed instead of being
@@ -136,12 +118,29 @@ nothing finished and no way to tell.
    runs pool, not after: it is a cohort boundary.
    *Done when:* a paired run against the legacy layout says the pass rate is within 1 task across 2 sweeps of 15, or the cutover is abandoned on the record.
 
+7. **[#78](https://github.com/evanwtf/local-llm/issues/78)** A row does not record what produced it
+   Promoted on new evidence from the overnight run. Two arms of a published
+   A/B differed only in an **environment variable no row records**, so the
+   arms are separable solely by a hand-kept manifest of run times; and all 120
+   rows carry `metal_route: unrecorded` because one driver forgot one call.
+   Both were caught by hand. The next one will not be.
+   *Done when:* a backend's server identity and its arm-defining switches are on the row, and a row that cannot say what produced it is refused rather than published.
+
+8. **[#120](https://github.com/evanwtf/local-llm/issues/120)** What ds4 server state degrades a session
+   Unblocked: it was behind #149, which closed, and #149 supplied a candidate
+   mechanism. Restart clears it and the disk KV is not it; that is where the
+   evidence stops.
+   *Done when:* one state variable is shown to move a session's pass rate, or the effect is shown to be the machine rather than the server.
+
 ### Standing problems, kept visible because everything is measured against them
 
-9. **[#64](https://github.com/evanwtf/local-llm/issues/64)** KV cache prefix stalls at ~20,400 tokens
-   Every turn re-prefills the whole conversation on Claude Code trials. The
-   cost is measured; the fix is in a client we do not own, so this ends in an
-   upstream report, not a patch.
+9. **[#64](https://github.com/evanwtf/local-llm/issues/64)** KV cache prefix misses cost ~22% of a batch
+   Now measured across eight fresh server logs in one night: **1.14M tokens
+   re-prefilled, ~53 minutes of a 4h04m batch**, 85-127 misses per run, and
+   **every miss is `token-mismatch`** — one mechanism, not several. No stall
+   occurred in eight OpenCode runs, so the original ~20,400-token Claude Code
+   symptom is neither confirmed nor cleared by this sample. The fix is in a
+   client we do not own, so this ends in an upstream report.
    *Done when:* the report is filed with our numbers, or the client is dropped for agent work on the record.
 
 10. **[#4](https://github.com/evanwtf/local-llm/issues/4)** The current task set cannot measure code quality
@@ -157,7 +156,6 @@ Not "later" in the vague sense — each of these has a specific reason it is not
 in the ten.
 
 - **[#116](https://github.com/evanwtf/local-llm/issues/116)** fans as a controllable variable — **demoted on new evidence.** #138 logged five hours and 120 trials with a 73-79 GB model resident: fans held 3450-3455 rpm across all eight windows, GPU median drifted **-1.2 °C**, and there was no thermal ramp. The baseline is flat, so there is little headroom for `fancontrol max` to recover. Still worth confirming with the paired design one day; no longer worth a session now.
-- **[#120](https://github.com/evanwtf/local-llm/issues/120)** what ds4 server state degrades a session — needs several controlled arms, and #149 is now a candidate mechanism. Blocked behind item 1 more than behind machine time.
 - **[#131](https://github.com/evanwtf/local-llm/issues/131)** the client-version boundary — the boundary exists whether or not we measure it, and `results.jsonl` now holds two versions for two backends. A real question, but it moves no stack ranking.
 - **[#96](https://github.com/evanwtf/local-llm/issues/96)** oMLX bit-exact tail continuation — blocked on finding the change at all; the cited PR is a different feature. Ask upstream or diff releases.
 - **[#154](https://github.com/evanwtf/local-llm/issues/154)** ruff and mypy have never run in CI — real, and it came from a real analysis bug, but it is repo hygiene rather than model performance. Land the narrow ruff rule set when something else is already blocked.
