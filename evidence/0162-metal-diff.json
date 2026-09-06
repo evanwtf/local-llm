@@ -7,7 +7,7 @@
   "agent_effort": "unidentified",
   "repo": "/Users/evanhoffman/git/local-llm/.claude/worktrees/peer+162-metal-diff",
   "authored_at": "2026-09-06T15:30:00-04:00",
-  "statement": "What the 218 commits between 9ab7053 and 77a054e1 change on the Metal path, and which of those the #162 run executes. The run's GGUF (DeepSeek-V4-Flash-Layers37-42Q4KExperts-OtherExpertLayersIQ2XXSGateUp-Q2KDown-AProjQ8-SExpQ8-OutQ8) carries F32, F16, Q8_0, IQ2_XXS, Q2_K, Q4_K and I32 tensors and NO mxfp4 (gguf_meta.py --tensors: 492 F32, 359 F16, 345 Q8_0, 74 IQ2_XXS, 37 Q2_K, 18 Q4_K, 3 I32). The gate enumeration below is sound but incomplete: it lists the gates that EXCLUDE the M5 Max, and there is also a helper that INCLUDES it, ds4_gpu_ported_m5_decode_feature_enabled (ds4_metal.m:3619), whose flash_attn_packed32_reduce call site condition changed in the diff (ds4_metal.m:36769) -- a decode-path change on M5 the enumeration missed. The diff on the IQ2_XXS and Q4_K matvec kernels is large and was NOT characterized: kernel_mul_mv_q4_K_f32_impl grew 94 to 429 lines, kernel_mul_mv_iq2_xxs_pair_f32_impl 6 to 141, kernel_mul_mv_q4_K_dense_f32 6 to 244, kernel_mul_mv_addr_iq2_xxs_pair_swiglu_f32 6 to 160. Two specific changes are numerically identical (the dequantize_iq2_xxs precomputed half table, and the Q4_K silu -> ds4_silu swap), but that does not imply the whole executed path is numerically identical, and numerical identity is independent of performance anyway. Whether a flat #162 result means 'no effect' or 'the code never ran' cannot be settled from source at this diff size. It can be settled empirically and cheaply: decode_ab_engine.sh now writes a per-arm startup log beside each CSV, and diffing the two arms' logs turns 'the trees ran different code' into an observation.",
+  "statement": "What the 218 commits between 9ab7053 and 77a054e1 change on the Metal path, and which of those the #162 run executes. The run's GGUF (DeepSeek-V4-Flash-Layers37-42Q4KExperts-OtherExpertLayersIQ2XXSGateUp-Q2KDown-AProjQ8-SExpQ8-OutQ8) carries F32, F16, Q8_0, IQ2_XXS, Q2_K, Q4_K and I32 tensors and NO mxfp4 (gguf_meta.py --tensors: 492 F32, 359 F16, 345 Q8_0, 74 IQ2_XXS, 37 Q2_K, 18 Q4_K, 3 I32). The gate enumeration below is sound but incomplete: it lists the gates that EXCLUDE the M5 Max, and there is also a helper that INCLUDES it, ds4_gpu_ported_m5_decode_feature_enabled (ds4_metal.m:3619), whose flash_attn_packed32_reduce call site condition changed in the diff (ds4_metal.m:36769) -- a decode-path change on M5 the enumeration missed. The diff on the IQ2_XXS and Q4_K matvec kernels is large and was NOT characterized: kernel_mul_mv_q4_K_f32_impl grew 94 to 429 lines, kernel_mul_mv_iq2_xxs_pair_f32_impl 6 to 141, kernel_mul_mv_q4_K_dense_f32 6 to 244, kernel_mul_mv_addr_iq2_xxs_pair_swiglu_f32 6 to 160. Two specific changes are numerically identical (the dequantize_iq2_xxs precomputed half table, and the Q4_K silu -> ds4_silu swap), but that does not imply the whole executed path is numerically identical, and numerical identity is independent of performance anyway. The packed32 decode path the diff widens is live at every #162 frontier: n_keys = n_raw + n_comp, n_raw is the 128-token sliding window (not ctx), and n_keys <= 1024 holds for the uncompressed and ratio-128 layers at all frontiers (see n-keys-bounded-not-ctx). So a flat result would not be because the widened path never ran. Whether a flat #162 result means 'no effect' or 'the code never ran' cannot be settled from source at this diff size. It can be settled empirically and cheaply: decode_ab_engine.sh now writes a per-arm startup log beside each CSV, and diffing the two arms' logs turns 'the trees ran different code' into an observation.",
   "provenance": {
     "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
     "trees": {
@@ -319,16 +319,16 @@
       "falsifier": "If the flash_attn_packed32_reduce condition did not change in the diff, the 'decode-path change on M5' claim collapses."
     },
     {
-      "id": "empirical-plan",
-      "statement": "Whether a flat #162 result means 'no effect' or 'the code never ran' cannot be settled from source at this diff size. It can be settled empirically: decode_ab_engine.sh now writes a per-arm startup log (<label>-rep<N>.log) beside each CSV, and ds4 prints its Metal route, drift-patch flag set and pipeline fallbacks at startup. Diffing the two arms' logs turns 'the trees ran different code' into an observation. This is the falsifier for the on-path claims: if the branch's startup log names a pipeline the main log does not, the two arms ran different code.",
+      "id": "n-keys-bounded-not-ctx",
+      "statement": "n_keys = n_raw + n_comp (ds4_metal.m:36709, in ds4_gpu_encode_flash_attention_gathered_heads). n_raw = metal_graph_raw_span_for_batch(g, pos, 1) = min(raw_window, pos+1, raw_cap), and raw_window = min(DS4_N_SWA, ctx) = 128 at all #162 frontiers (ds4.c:18415; the GGUF's deepseek4.attention.sliding_window is 128). So n_keys does not track ctx; it is 128 + pos/ratio, where ratio is the layer's compression ratio from deepseek4.attention.compress_ratios (layers 0,1,43 uncompressed; 21 layers ratio 4; 20 layers ratio 128). The packed32 path is live at every frontier: n_keys <= 1024 holds for the uncompressed (128) and ratio-128 (<=256) layers at all frontiers, and for the ratio-4 layers up to pos ~3583.",
       "argv": [
         "git",
-        "show",
-        "77a054e1:ds4_metal.m",
-        "|",
         "grep",
-        "-c",
-        "ds4_gpu_ported_m5_decode_feature_enabled"
+        "-n",
+        "n_keys = n_raw + n_comp",
+        "77a054e1",
+        "--",
+        "ds4_metal.m"
       ],
       "cwd": "/Users/evanhoffman/git/ds4-main-b",
       "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
@@ -336,14 +336,14 @@
       "cost": "cheap",
       "expect": {
         "exit": 0,
-        "stdout_contains": "3"
+        "stdout_contains": "n_keys = n_raw + n_comp"
       },
       "observed": {
         "exit": 0,
-        "stdout": "3"
+        "stdout": "77a054e1:ds4_metal.m:35359:    const uint32_t n_keys = n_raw + n_comp;\n77a054e1:ds4_metal.m:35393:    const uint32_t n_keys = n_raw + n_comp;\n77a054e1:ds4_metal.m:36709:    const uint32_t n_keys = n_raw + n_comp;\n77a054e1:ds4_metal.m:37325:    const uint32_t n_keys = n_raw + n_comp;"
       },
       "expect_authored": "post-hoc",
-      "falsifier": "If the two arms' startup logs name the same pipelines and flag sets, the 'different code' observation fails and the on-path claims stand unverified."
+      "falsifier": "If n_keys were not n_raw + n_comp, or if n_raw tracked ctx rather than the 128-token sliding window, the 'path is live at every frontier' conclusion collapses and the branch-versus-main run would be flat for a mechanical reason."
     }
   ]
 }
