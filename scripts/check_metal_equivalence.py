@@ -57,12 +57,13 @@ def main(argv: list[str] | None = None) -> int:
     if not args.force:
         cached = me.cached_verdict(me.DEFAULT_CACHE, fp)
         if cached in ("pass", "fail"):
-            cache = me.read_cache(me.DEFAULT_CACHE) or {}
+            entry = me.cached_entry(me.DEFAULT_CACHE, fp) or {}
             logger.info(
-                "cached verdict %s from %s: %s",
+                "cached verdict %s for %s from %s: %s",
                 cached.upper(),
-                cache.get("checked_at", "?"),
-                cache.get("summary", {}),
+                entry.get("label") or args.model.name,
+                entry.get("checked_at", "?"),
+                entry.get("summary", {}),
             )
             return 0 if cached == "pass" else 1
         logger.info("no verdict for this build (%s) -- running the test", cached)
@@ -75,7 +76,13 @@ def main(argv: list[str] | None = None) -> int:
             logger.error("  %s", line)
         return 2
 
-    me.write_verdict(me.DEFAULT_CACHE, fingerprint=fp, verdict=verdict, summary=summary)
+    me.write_verdict(
+        me.DEFAULT_CACHE,
+        fingerprint=fp,
+        verdict=verdict,
+        summary=summary,
+        label=args.model.name,
+    )
     logger.info("verdict %s, recorded in %s", verdict.upper(), me.DEFAULT_CACHE)
     logger.info("summary: %s", summary)
     if verdict == "pass":

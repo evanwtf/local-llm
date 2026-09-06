@@ -90,7 +90,7 @@ def test_drift_short_of_a_flip_still_passes_but_is_recorded(tmp_path):
     """
     path = tmp_path / "eq.json"
     me.write_verdict(path, fingerprint="abc", verdict="pass", summary=me.parse_summary(REAL_LOG))
-    got = json.loads(path.read_text())
+    got = json.loads(path.read_text())["entries"]["abc"]
     assert got["summary"]["worst_max_abs"] == 5.3259
     assert got["verdict"] == "pass"
 
@@ -135,3 +135,51 @@ def test_the_fingerprint_changes_when_the_model_changes(tmp_path):
 
 def test_a_missing_binary_fingerprints_to_none_rather_than_raising(tmp_path):
     assert me.fingerprint(tmp_path / "nope", tmp_path / "also-nope") is None
+
+
+# ------------------------------------------- the route's behavior is per-model
+#
+# Measured 2026-09-06 on ds4-metal ba01f5d, one binary, one route, two models:
+#
+#   DeepSeek-V4-Flash 0731  greedy_fail=0  top1_mismatch=0  -> pass
+#   GLM-5.3-Flash-Q2        greedy_fail=8  top1_mismatch=2  -> fail
+#
+# So a cache with one slot per machine would answer the wrong question, and
+# switching models would silently discard the other model's verdict.
+
+GLM_SUMMARY = (
+    "ds4-test: Tensor summary route=auto cases=5 capture_fail=0 logits_fail=2 "
+    "greedy_fail=8 top1_mismatch=2 min_top5_overlap=2/5 min_overlap=10/20 "
+    "worst_rank_delta=13 worst_rms=1.38592 worst_max_abs=7.26952 "
+    "worst_top20_max_abs=6.62295"
+)
+
+
+def test_two_models_keep_two_verdicts(tmp_path):
+    path = tmp_path / "eq.json"
+    me.write_verdict(path, fingerprint="ds4", verdict="pass", summary={}, label="0731")
+    me.write_verdict(path, fingerprint="glm", verdict="fail", summary={}, label="GLM-5.3")
+    assert me.cached_verdict(path, "ds4") == "pass"
+    assert me.cached_verdict(path, "glm") == "fail"
+
+
+def test_a_third_model_is_stale_not_absent(tmp_path):
+    """The file has answers, just not for what is about to run."""
+    path = tmp_path / "eq.json"
+    me.write_verdict(path, fingerprint="ds4", verdict="pass", summary={})
+    assert me.cached_verdict(path, "qwen") == "stale"
+
+
+def test_the_glm_run_is_read_as_a_failure():
+    """The real GLM-5.3 summary, verbatim. Eight greedy flips is not a pass."""
+    assert me.verdict(1, GLM_SUMMARY) == "fail"
+    parsed = me.parse_summary(GLM_SUMMARY)
+    assert parsed["greedy_fail"] == 8
+    assert parsed["worst_rms"] == 1.38592
+    assert parsed["worst_max_abs"] == 7.26952
+
+
+def test_the_label_survives_so_a_reader_knows_which_model(tmp_path):
+    path = tmp_path / "eq.json"
+    me.write_verdict(path, fingerprint="glm", verdict="fail", summary={}, label="GLM-5.3-Flash-Q2")
+    assert me.cached_entry(path, "glm")["label"] == "GLM-5.3-Flash-Q2"

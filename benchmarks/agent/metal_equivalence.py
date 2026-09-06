@@ -113,18 +113,34 @@ def fingerprint(binary: pathlib.Path, model: pathlib.Path) -> str | None:
 
 
 def write_verdict(
-    path: pathlib.Path, *, fingerprint: str, verdict: str, summary: dict
+    path: pathlib.Path,
+    *,
+    fingerprint: str,
+    verdict: str,
+    summary: dict,
+    label: str = "",
 ) -> None:
+    """Record one verdict, keeping the others.
+
+    **One entry per (binary, model), not one entry per machine.** The route's
+    behavior is model-specific and measurably so: on ds4-metal ba01f5d the same
+    binary and the same route pass on DeepSeek-V4-Flash 0731 and fail on
+    GLM-5.3-Flash-Q2, flipping the greedy token on both long fixtures. A single
+    slot would make switching models discard the other model's answer and pay
+    minutes to re-measure it, every time.
+    """
     path = pathlib.Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    payload = {
-        "fingerprint": fingerprint,
+    cache = read_cache(path) or {}
+    entries = dict(cache.get("entries") or {})
+    entries[fingerprint] = {
         "verdict": verdict,
         "summary": summary,
+        "label": label,
         "checked_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
     }
     tmp = path.with_suffix(".json.tmp")
-    tmp.write_text(json.dumps(payload, indent=2) + "\n")
+    tmp.write_text(json.dumps({"entries": entries}, indent=2) + "\n")
     tmp.replace(path)
 
 
@@ -136,14 +152,30 @@ def read_cache(path: pathlib.Path) -> dict | None:
     return got if isinstance(got, dict) else None
 
 
-def cached_verdict(path: pathlib.Path, fingerprint: str | None) -> str:
-    """"pass"/"fail" for this exact build, else "stale" or "absent"."""
+def cached_entry(path: pathlib.Path, fingerprint: str | None) -> dict | None:
+    """The stored entry for this exact (binary, model), or None."""
     got = read_cache(path)
-    if not got:
+    if not got or fingerprint is None:
+        return None
+    entry = (got.get("entries") or {}).get(fingerprint)
+    return entry if isinstance(entry, dict) else None
+
+
+def cached_verdict(path: pathlib.Path, fingerprint: str | None) -> str:
+    """"pass"/"fail" for this exact build and model, else "stale" or "absent".
+
+    "stale" means the file holds verdicts, but none for what is about to run --
+    a rebuilt binary or a different model. It is deliberately not "absent":
+    the distinction tells a reader whether nothing has ever been checked or
+    whether this particular combination has not.
+    """
+    got = read_cache(path)
+    if not got or not got.get("entries"):
         return "absent"
-    if fingerprint is None or got.get("fingerprint") != fingerprint:
+    entry = cached_entry(path, fingerprint)
+    if entry is None:
         return "stale"
-    return str(got.get("verdict", "absent"))
+    return str(entry.get("verdict", "absent"))
 
 
 def run_test(
