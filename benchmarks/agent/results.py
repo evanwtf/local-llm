@@ -297,7 +297,7 @@ def normalize(row: dict[str, Any]) -> dict[str, Any]:
 
 
 def load(path: pathlib.Path) -> list[dict[str, Any]]:
-    """Read every row, normalised to v2 shape in memory.
+    """Read every row, normalized to v2 shape in memory.
 
     This is the only supported way to read results.jsonl. Reading it by hand is
     how the four exclusion keys went unnoticed.
@@ -325,7 +325,7 @@ def load(path: pathlib.Path) -> list[dict[str, Any]]:
 
 
 def usable(path: pathlib.Path) -> list[dict[str, Any]]:
-    """Every row that belongs in an aggregate: normalised, minus exclusions."""
+    """Every row that belongs in an aggregate: normalized, minus exclusions."""
     return [r for r in load(path) if not r["excluded"]]
 
 

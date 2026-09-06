@@ -37,7 +37,7 @@ def sample(tmp_path: pathlib.Path) -> pathlib.Path:
         ("split.count", 4, struct.pack("<I", 33)),
         ("split.tensors.count", 10, struct.pack("<Q", 1224)),
         ("qwen4exp.ple.heads_per_ngram", 4, struct.pack("<I", 8)),
-        # A short array is kept whole; a long one is summarised.
+        # A short array is kept whole; a long one is summarized.
         (
             "qwen4exp.ple.head_offsets",
             9,

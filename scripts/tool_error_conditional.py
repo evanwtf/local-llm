@@ -3,7 +3,7 @@
 #112's cheapest remedy: "count tool errors already in the conversation
 against the probability the next call is malformed." The claim it tests is
 that the failure is a *loop* -- once an error enters the context the model's
-tool behaviour degrades from there -- rather than a fixed per-call error rate.
+tool behavior degrades from there -- rather than a fixed per-call error rate.
 
 The distinction matters for what to do about it. A fixed rate is a formatting
 problem to fix in the translator. A rising conditional is a context problem,

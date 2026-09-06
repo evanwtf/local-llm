@@ -1,4 +1,4 @@
-"""Summarise a paired decode A/B produced by scripts/decode_ab.sh (#48).
+"""Summarize a paired decode A/B produced by scripts/decode_ab.sh (#48).
 
 Give it several directories and it also reports the spread BETWEEN runs
 (#136). That axis is invisible from inside one run: on 2026-09-04 four
@@ -144,10 +144,10 @@ def summarize(data: dict[str, dict[int, dict[int, float]]]) -> Summary:
 def report_across_runs(
     dirs: list[pathlib.Path], column: str
 ) -> tuple[list[tuple[pathlib.Path, Summary]], int]:
-    """Summarise each run, then the spread between them (#136).
+    """Summarize each run, then the spread between them (#136).
 
     Returns the per-run summaries and a status. A directory that cannot be
-    summarised is named and skipped rather than aborting the others: with
+    summarized is named and skipped rather than aborting the others: with
     four runs in hand, losing three to one bad directory is the wrong
     trade.
     """
@@ -403,7 +403,7 @@ def log_runs_needed(got: list[tuple[pathlib.Path, Summary]]) -> None:
 
 
 def prompt_for(got: list[tuple[pathlib.Path, Summary]]) -> prompt_meta.PromptRef | None:
-    """The one prompt every summarised run shares, or None.
+    """The one prompt every summarized run shares, or None.
 
     None means either that the runs used different prompts or that one of
     them did not record its prompt at all. Both are reasons not to quote a

@@ -12,7 +12,7 @@ from two capability ladders ([`AGENT_FINDINGS.md`](AGENT_FINDINGS.md),
 ## The one-line rule
 
 > **Route locally when the work is mechanical or verifiable. Keep it on a
-> frontier model when the deliverable is a judgement you cannot cheaply check.**
+> frontier model when the deliverable is a judgment you cannot cheaply check.**
 
 DS4's limits are not where intuition puts them. It is *strong* at editing,
 refactoring and debugging; it is *weak* at knowing whether its own claims are
@@ -45,7 +45,7 @@ claims, and all of these make a wrong claim immediately visible.
 | task | why |
 |---|---|
 | Any claim about **runtime behavior** derived from reading code | The documented failure mode. In the audit it was 4-of-4 on greppable structure and wrong on consequence — presented with identical confidence. |
-| **Ranked** lists or prioritised audits | Ranking was worse than the individual findings. Its top-ranked item was its only clearly false one. |
+| **Ranked** lists or prioritized audits | Ranking was worse than the individual findings. Its top-ranked item was its only clearly false one. |
 | Anything where you may **push back** | It capitulates. Told one claim was wrong, it retracted four — three of which were true. |
 
 **Mitigations, both cheap:**
@@ -59,10 +59,10 @@ claims, and all of these make a wrong claim immediately visible.
 
 | task | why |
 |---|---|
-| Deliverables that **are** an unverifiable judgement | Its confidence is uncalibrated; you cannot tell a good answer from a bad one without doing the work yourself. |
+| Deliverables that **are** an unverifiable judgment | Its confidence is uncalibrated; you cannot tell a good answer from a bad one without doing the work yourself. |
 | Code review where findings must be **defended** | It abandons correct positions under pressure. A reviewer that folds is worse than none. |
 | Long autonomous runs | Longest measured is 450 s. Multi-hour unattended behavior is unknown. |
-| Anything irreversible or outward-facing | Force-pushes, deploys, published writing, deletions. Not a capability judgement — the cost of being wrong is asymmetric. |
+| Anything irreversible or outward-facing | Force-pushes, deploys, published writing, deletions. Not a capability judgment — the cost of being wrong is asymmetric. |
 | Work needing memory across sessions | Each `claude-ds4 -p` is a fresh session (see below). |
 
 ---

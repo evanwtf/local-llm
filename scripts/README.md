@@ -18,7 +18,7 @@ documentation.
 | `client_version_split.py` | Which client version took which rows, and what that confounds (#137, #131). |
 | `client_versions.py` | Read the recorded agent client versions, and say which have moved (#131). |
 | `cohort_split.py` | Split one backend's rows at a moment in time and compare the halves. |
-| `decode_ab_report.py` | Summarise a paired decode A/B produced by scripts/decode_ab.sh (#48). |
+| `decode_ab_report.py` | Summarize a paired decode A/B produced by scripts/decode_ab.sh (#48). |
 | `disk_baseline.py` | Measure the internal NVMe: read bandwidth and random-read latency. |
 | `ds4_serve.py` | Start ds4-server on one of two Metal kernel routes, and prove which one ran. |
 | `eval_trace.py` | Read a `ds4-eval` trace: pass rate, and tokens spent reaching each answer. |
@@ -32,7 +32,7 @@ documentation.
 | `prefix_stability.py` | Find which cached prefix block changes between two requests (#50, #64). |
 | `prompt_meta.py` | Which prompt a decode/prefill A/B was measured on (#140). |
 | `prune_models.py` | Delete local model weights that are superseded and re-downloadable (#111). |
-| `report.py` | Summarise and compare measured cells, with the resolution rule applied. |
+| `report.py` | Summarize and compare measured cells, with the resolution rule applied. |
 | `sensor_windows.py` | Join a monitord sensor series to benchmark sweep windows. |
 | `session_decay.py` | Does a session get worse the longer the server runs? (#120) |
 | `stack_agent_report.py` | Read out for the #138 stack A/B: two whole stacks, four sweeps, one screen. |

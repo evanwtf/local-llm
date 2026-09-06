@@ -3,12 +3,12 @@
 
 Claude Code talks the Anthropic protocol, which ds4-server speaks natively, so
 no shim is needed for *correctness*. This one exists for *cost*. Tracing a real
-agent trial (`ds4-server --trace`) showed two client behaviours that together
+agent trial (`ds4-server --trace`) showed two client behaviors that together
 account for most of the wall time:
 
-1. **`thinking: {"type": "adaptive"}`.** `ds4-server --help thinking` recognises
+1. **`thinking: {"type": "adaptive"}`.** `ds4-server --help thinking` recognizes
    `{"type":"disabled"}`, `think=false` and `model=deepseek-chat`. It does not
-   recognise `adaptive`, so those requests fall through to the documented
+   recognize `adaptive`, so those requests fall through to the documented
    default -- high-effort thinking -- and every tool-bearing request in the
    trace ran `think_mode: high`. On one trivial prompt that is 295 output
    tokens against 12 with thinking off.
@@ -84,7 +84,7 @@ def normalise_thinking(payload: dict) -> bool:
     wrong. Median saving was 30% of tokens and three seconds, for half the
     correct answers.
 
-    ds4's own default for an unrecognised mode is high-effort thinking, so
+    ds4's own default for an unrecognized mode is high-effort thinking, so
     `enabled` is also what the request would have got with no shim at all.
     """
     thinking = payload.get("thinking")

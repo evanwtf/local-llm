@@ -107,7 +107,7 @@ def test_every_task_target_is_excisable(task):
 @pytest.mark.parametrize("task", TASKS, ids=[t["name"] for t in TASKS])
 def test_a_task_prompt_names_the_file_it_edits(task):
     """#54: an agent that guesses a path works in the operator's real tree.
-    The prompt naming the file is the cheapest defence against a guess."""
+    The prompt naming the file is the cheapest defense against a guess."""
     if task.get("kind") == "script":
         pytest.skip("script task: the prompt names no repository file")
     prompt = task.get("prompt") or ""

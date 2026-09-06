@@ -1,4 +1,4 @@
-"""Summarise and compare measured cells, with the resolution rule applied.
+"""Summarize and compare measured cells, with the resolution rule applied.
 
 Written because the same analysis was hand-rolled three times in one evening --
 per-task medians, pass rates, spreads, and a two-backend comparison -- and each
@@ -189,7 +189,7 @@ def main() -> int:
     provenance.banner(logger, engines=True)
     # summarize.load() is the tested reader: it drops dry runs, drops rows
     # whose control did not fail (an excision the tests could not see), and
-    # normalises `passed` through verdict() so a timeout lands as False rather
+    # normalizes `passed` through verdict() so a timeout lands as False rather
     # than vanishing from the denominator. Reading results.jsonl any other way
     # is how fourteen legacy-keyed rows got counted (#29).
     rows, discarded, retired, cheats = summarize.load(RESULTS)

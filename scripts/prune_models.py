@@ -13,7 +13,7 @@ deleted without you naming it:
 
     KEEP    never listed for deletion, never touched
     DELETE  measured here and beaten, re-downloadable; removed by --delete
-    REVIEW  a judgement call, or blocked on open work; needs --also <name>
+    REVIEW  a judgment call, or blocked on open work; needs --also <name>
 
 **It is a dry run unless you pass --delete.** Every entry prints the exact
 command to get the weights back, because "I can re-download it" is the whole
@@ -234,7 +234,7 @@ PLAN: tuple[Entry, ...] = (
         "block is the record, not the weights.",
         "ollama pull ornith:35b",
     ),
-    # --- REVIEW: judgement calls and open work. --also to include one. ------
+    # --- REVIEW: judgment calls and open work. --also to include one. ------
     Entry(
         "deepseek-hf-base",
         "models/DeepSeek-V4-Flash-hf",

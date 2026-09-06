@@ -609,7 +609,7 @@ of latency. It does not: mean draw falls roughly linearly (56 → 27 W) while
 runtime rises faster, so the integral moves the wrong way. Fixed overheads that
 run regardless of clock — memory, SoC, controllers — evidently dominate.
 
-**Practical rule: race to idle.** To minimise heat delivered or energy consumed,
+**Practical rule: race to idle.** To minimize heat delivered or energy consumed,
 run at 100 and finish sooner. Over a fixed window, 59 s of work then idle beats
 132 s of grinding at lower wattage. Use `--power` only to buy quiet in the
 moment; it does not make the machine cooler overall, and it is not more

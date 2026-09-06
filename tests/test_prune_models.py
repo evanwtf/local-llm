@@ -99,7 +99,7 @@ def test_traversal_out_of_a_root_is_refused() -> None:
 
 
 def test_remove_refuses_a_path_outside_the_roots(tmp_path, caplog) -> None:
-    """The last line of defence, tested rather than assumed."""
+    """The last line of defense, tested rather than assumed."""
     victim = tmp_path / "important.txt"
     victim.write_text("do not delete me")
     entry = pm.Entry(

@@ -1028,7 +1028,7 @@ def test_prepare_env_never_raises(tmp_path, monkeypatch):
 
 
 def test_the_flag_exists_and_defaults_to_preparing():
-    """Preparing is the new default; the old behaviour needs asking for."""
+    """Preparing is the new default; the old behavior needs asking for."""
     source = pathlib.Path(run.__file__).read_text()
     assert "--no-prepare-env" in source
     assert "prepare_env_first=True" in source

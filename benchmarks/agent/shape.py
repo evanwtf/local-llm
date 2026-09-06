@@ -22,7 +22,7 @@ These are **proxies, deliberately named as such**, not a quality score:
 
 Nothing here is a verdict and nothing feeds `results.verdict()`. The point is
 that two solutions which both pass get different numbers, so a human can ask
-why. A rubric invented in this repo would be a judgement, and the harness's
+why. A rubric invented in this repo would be a judgment, and the harness's
 claim is that it does not judge.
 
 Parsing is by `ast`, so it sees the code as Python does rather than by regex,

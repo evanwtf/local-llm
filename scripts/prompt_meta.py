@@ -18,7 +18,7 @@ say what it was a measurement OF. Two places record it now:
   before the stamp existed. A sidecar may be marked `inferred`, and anything
   read from one prints as inferred for as long as it is quoted.
 
-`agree()` is the guard against pooling: several runs may be summarised
+`agree()` is the guard against pooling: several runs may be summarized
 together only when they used the same prompt.
 """
 
