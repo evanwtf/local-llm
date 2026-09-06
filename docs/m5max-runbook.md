@@ -13,7 +13,7 @@ Updated 2026-09-04. Machine data: `hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL
 
 ---
 
-## The Metal ceiling — required, not an optimisation
+## The Metal ceiling — required, not an optimization
 
 macOS caps GPU-wired memory below what a 90 GiB model needs, and the failure
 looks like the model refusing to load for no clear reason.

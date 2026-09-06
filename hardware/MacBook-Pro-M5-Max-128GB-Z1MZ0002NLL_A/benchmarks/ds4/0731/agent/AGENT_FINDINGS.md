@@ -45,7 +45,7 @@ which is untested.
 > It is genuinely useful for cache diagnostics (§ below) — but treat the output
 > as secret. `.gitignore` blocks `*_trace.log` and
 > `benchmarks/ds4/0731/agent/server*.log`; do not override that. Omit `--trace` entirely
-> unless you are actively debugging cache behaviour.
+> unless you are actively debugging cache behavior.
 >
 > No credentials appear in it — the trace records prompts, not environment
 > variables — but the file is still private operational detail.
@@ -57,7 +57,7 @@ which is untested.
 
 ### One non-obvious fix
 
-Claude Code assumes a **200k** window for models it does not recognise, while
+Claude Code assumes a **200k** window for models it does not recognize, while
 the server is configured for **100k**. Without correction, auto-compact fires
 *after* the server has already truncated — producing confusing mid-session
 failures. The wrapper sets:
@@ -90,7 +90,7 @@ Four rungs, cheapest first, run on a scratch branch.
 
 | step | task | wall | result |
 |---|---|---|---|
-| 1 | summarise `ds4_kvstore.c` (read-only) | 109 s | **PASS** |
+| 1 | summarize `ds4_kvstore.c` (read-only) | 109 s | **PASS** |
 | 2 | rename a variable via `Edit` (byte-exact) | **32 s** | **PASS** |
 | 3 | add `--version` to ds4-bench, build, verify | 345 s | **PASS** |
 | 4 | same across 5 binaries via a shared macro | 437 s | **PASS** |
@@ -214,7 +214,7 @@ Untested, and gating [#15](https://github.com/evanwtf/ds4/issues/15):
 > **DONE — see [`LADDER2_FINDINGS.md`](LADDER2_FINDINGS.md).** The harder ladder
 > found the wall, and it is not where this document predicted. Debugging (PASS)
 > and ambiguous judgement (PASS) were strong; the failures are **asserting
-> runtime behaviour from reading code without executing it**, and **capitulating
+> runtime behavior from reading code without executing it**, and **capitulating
 > when a correct claim is challenged**. Routing guidance in that document.
 
 ---

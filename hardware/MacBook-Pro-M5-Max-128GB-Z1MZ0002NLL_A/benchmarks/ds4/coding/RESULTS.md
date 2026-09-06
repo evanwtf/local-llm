@@ -111,7 +111,7 @@ based on 80/92 vs 76/92 on general reasoning. Coding points the same way —
 161 vs 158 — but not significantly. The direction is consistent; the strength of
 the claim should not be.
 
-**One new caveat.** Mixed's runaway generation is a real, measured behaviour
+**One new caveat.** Mixed's runaway generation is a real, measured behavior
 (8/164 = 4.9% of prompts) and was not previously documented. Any harness driving
 it needs a token cap and should treat cap-hit as a retry signal, not a result.
 

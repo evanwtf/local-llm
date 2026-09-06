@@ -12,7 +12,7 @@ day's entry). Before that it carried a "Done since the last update" staging
 area that stopped being drained — by 2026-09-02 it had reached **577 lines and
 41.6 KB, 54% of the file** — so the file that was supposed to say what to do
 next was mostly a record of what had already been done. That history was moved
-here whole rather than summarised, because the reasoning in these entries is
+here whole rather than summarized, because the reasoning in these entries is
 the part worth keeping; several of them are the only written account of why a
 guard exists.
 
@@ -258,7 +258,7 @@ experiment needs an arm with the remedy off, and turning it off meant editing
 the shim mid-batch. So it never got designed, and the remedy sat unmeasured
 for a day -- not for want of trying.
 
-`AGENTS.md` carries the general form: when a fix ships as a behaviour change in
+`AGENTS.md` carries the general form: when a fix ships as a behavior change in
 code the harness calls, give it a switch at the same time. The switch costs one
 `if`; retrofitting one costs the credibility of every result taken in between.
 
@@ -550,7 +550,7 @@ could tell.
   keyed by client name alongside every other client installed, so reading it
   back needed a join. #104's finding — OpenCode 1.18.26 → 1.18.27 roughly
   doubling median turns — has to be applicable to one row or it cannot be
-  applied backwards at all. Stored exactly as the tool printed it; normalising
+  applied backwards at all. Stored exactly as the tool printed it; normalizing
   would invent a format and lose the string a release note is looked up by.
 
 - **The ollama sampler boundary is named before you cross it** (`e8262d2`,

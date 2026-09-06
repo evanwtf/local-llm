@@ -289,7 +289,7 @@ The filter is: *would this change a number on an M5 Max, 128 GB, Metal?*
 
 - **Promising** — Metal or MLX kernels, prefill or prefix caching, quantization
   recipes, MTP or speculative decoding, engines we can install, models that fit
-  in 128 GB, agent-client behaviour.
+  in 128 GB, agent-client behavior.
 - **Not for us** — CUDA-only work, DGX/Spark numbers, models needing 192 GB+,
   vision and audio, anything requiring hardware we do not have.
 - **A lead, not noise** — a result on an M3 or M4. Most developers have no M5,

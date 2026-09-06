@@ -359,7 +359,7 @@ The coding tune **halves the damage** but does not remove it. Every Qwen
 variant eventually throws a long run here.
 
 Durability semantics are a plausible trap: `fsync` ordering and atomic-rename
-behaviour is exactly the sort of thing a model can keep re-verifying when the
+behavior is exactly the sort of thing a model can keep re-verifying when the
 tests do not pin it down.
 
 The clearest look at what goes wrong is Qwen3.8 trial 1:
@@ -396,7 +396,7 @@ apart from `mbox-scan`, yet its overall range is 40.3 s to 1,226.0 s.
 mid-field — slow, but not erratic. Qwen3.8 is the least predictable of the
 non-Ornith backends at 10.1×.
 
-The behaviour is bimodal rather than noisy: most runs are direct, then one
+The behavior is bimodal rather than noisy: most runs are direct, then one
 wanders badly. Qwen3.6's `parser-mbox-quoting` went 248.4 s, 254.2 s — near
 identical — and then 537.2 s. **A model that looks stable over two trials is
 not necessarily stable.** This caught me twice during the run.
@@ -567,7 +567,7 @@ median on that task.
 ### Reading
 
 Ornith holds the fastest run, the only failures, and the longest run, all within
-15 trials. That is one coherent behaviour rather than three quirks: a model tuned
+15 trials. That is one coherent behavior rather than three quirks: a model tuned
 hard for terseness commits early. Usually that is right and very fast. When it is
 wrong, it either ships a wrong answer quickly or cannot deliberate its way back.
 
@@ -615,7 +615,7 @@ slowest overall — because it generates at 13.2 t/s.
 
 `overhead` is wall time minus generation time: tool calls, prefill, and the
 agent's own round trips. It is where thrashing shows up. Qwen3.8's 163 s is the
-worst in the set and matches its behaviour on `storage-blob-put`.
+worst in the set and matches its behavior on `storage-blob-put`.
 
 ### This also revises the Ornith story
 
@@ -624,7 +624,7 @@ Ornith generates at **92.5 t/s**, the fastest measured here — and it emits
 **engine and architecture**, not the terseness its system prompt advertises.
 
 It is a 34.7B MoE served through Ollama's llama.cpp path rather than MLX, so
-both sparsity and runtime favour it. The GGUF caveat attached to this backend is
+both sparsity and runtime favor it. The GGUF caveat attached to this backend is
 not a formality; it accounts for most of the gap.
 
 ---
@@ -752,7 +752,7 @@ a cold process. Until then, treat MTPLX's placement as provisional.
 **The runtime is pre-tuned by the model author.** `mtplx_runtime.json` ships
 depth and draft settings, and the turbo profile sets ~40 environment knobs.
 Every Ollama backend here ran at stock defaults with nobody tuning anything.
-The asymmetry favours MTPLX and cannot be removed without deliberately
+The asymmetry favors MTPLX and cannot be removed without deliberately
 handicapping it.
 
 **Reasoning is on by default** (`enable_thinking: true`). Thinking blocks are
@@ -959,7 +959,7 @@ local DeepSeek V4 Flash quant.
 **Claude Code loads the operator's global `~/.claude/CLAUDE.md`** (~2 KB of
 style and tooling rules) into every trial. OpenCode never sees it. The target
 repo has neither `CLAUDE.md` nor `AGENTS.md`, so this is the only
-instruction-level difference -- but it is a real one and it favours Claude Code.
+instruction-level difference -- but it is a real one and it favors Claude Code.
 
 **The protocol match is inferred, not observed.** `@ai-sdk/anthropic` can only
 call `/v1/messages`; that is an SDK contract, not a measurement. Two attempts to
@@ -1011,7 +1011,7 @@ metadata; this can degrade performance and cause issues.
 
 Codex has no entry for this model, so it is guessing at the context window and
 capabilities. Claude Code had `deepseek-v4-flash` explicitly configured with a
-100,000-token window. The handicap is real, it ran in Codex's disfavour, and
+100,000-token window. The handicap is real, it ran in Codex's disfavor, and
 Codex won anyway.
 
 ### This reframes the OpenCode result
@@ -1053,7 +1053,7 @@ per trial. Do not compare that number to another client's turn count either.
 **One backend, one model.** Everything here is ds4 / DeepSeek V4 Flash.
 
 **Claude Code still loads the operator's global `~/.claude/CLAUDE.md`**
-(~2 KB) that Codex never sees -- an asymmetry favouring Claude Code, which
+(~2 KB) that Codex never sees -- an asymmetry favoring Claude Code, which
 lost anyway.
 
 **Sandboxing differs.** Claude Code ran `--permission-mode bypassPermissions`,
@@ -1219,7 +1219,7 @@ The 15/15 backends are not "as good as ds4 pending more data". They are
 
 ### Wall time — the number that changes how this project reports speed
 
-Bootstrapped from the pooled, per-cell-normalised distribution of 198 wall times
+Bootstrapped from the pooled, per-cell-normalized distribution of 198 wall times
 from every cell with at least 6 trials:
 
 | trials | one task's median | 5-task suite total |
@@ -1312,7 +1312,7 @@ in different words and different helper names, with the same logic.
 clients:
 
 ```python
-def _strip(match: re.Match) -> bytes:        # original: re.Match[bytes]
+def _strip(match: re.Match) -> bytes:  # original: re.Match[bytes]
     return quotes[1:] + match.group(2)
 ```
 
@@ -1385,7 +1385,7 @@ split.count                 3   vs     33
 ```
 
 It is purely a re-sharding, so whether it saves anything is a question about
-llama.cpp's mmap behaviour, not about the model.
+llama.cpp's mmap behavior, not about the model.
 
 **And mmap already does it.** `vmmap` on the running server:
 
@@ -1723,7 +1723,7 @@ on this task.** Temperature and top_k were each isolated and are innocent —
 intuition for code generation. With `top_k 20` already limiting candidates,
 dropping `top_p` to 0.90 appears to cut tokens needed for a correct
 continuation: the failures are overwhelmingly the near miss `1 failed, 16
-passed` — working code with one behaviour wrong — not a collapse.
+passed` — working code with one behavior wrong — not a collapse.
 
 ### Every pass rate in this file was measured at an unchosen top_p
 
@@ -1963,7 +1963,7 @@ Both were invisible to three days of Python-only runs:
 **`swift test` writes compile errors to stderr and leaves stdout empty.**
 `tests_pass` read only stdout, so the run's one real failure was recorded as
 `"no output"` — true, useless, and indistinguishable from a harness fault.
-`summarise_run` now falls back to stderr. pytest never had this: a Python syntax
+`summarize_run` now falls back to stderr. pytest never had this: a Python syntax
 error is a collection error on stdout.
 
 **Shim-fronted backends did not declare their real server port.** `preflight`
@@ -2079,7 +2079,7 @@ It is not only a load check. The Metal fused paths branch on the type as well �
 `layer->attn_compressor_kv->type == DS4_TENSOR_F16` gates the fast kernels, and
 one error message says outright: *"Metal graph indexer compressor expects paired
 F16 projections"*. Quantizing these would not merely be rejected; on a build
-that accepted them it would fall off the optimised path.
+that accepted them it would fall off the optimized path.
 
 **So the eligible saving is `indexer.attn_q_b` alone: 0.154 GiB, or 1.7% of
 per-token traffic.** That is below anything this instrument can resolve and is
@@ -2194,7 +2194,7 @@ this host:
 because the *working set* is 107.52–112.00 GiB, never ≥ 120. So the budget comes
 entirely from the sysctl-override path — and without
 `iogpu.wired_limit_mb = 114688` the budget would be **75.5 GiB against a 89.87
-GiB model.** The raised ceiling is not an optimisation here; it is the reason
+GiB model.** The raised ceiling is not an optimization here; it is the reason
 this runs at all.
 
 ### What is still not answered

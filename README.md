@@ -43,7 +43,7 @@ the same fact on either machine, go to `logs/sweeps/`.
 |---|---|
 | `benchmarks/agent/run.py` | **The harness.** Runs trials: model x task x client. `--results` sends rows to a per-machine file |
 | `benchmarks/agent/preflight.py` | What is holding memory, the Metal ceiling, engine drift, undeclared client models. **Run it before a batch** |
-| `scripts/report.py` | Summarise or compare cells, with #23's rule applied — two medians must differ by ~56% before three trials can tell them apart |
+| `scripts/report.py` | Summarize or compare cells, with #23's rule applied — two medians must differ by ~56% before three trials can tell them apart |
 | `benchmarks/agent/summarize.py` | The full per-task table across every backend, and the tested reader (`load()`) the others build on |
 | `benchmarks/agent/variance.py` | Where the wall-time spread comes from. It is token count, not the KV cache |
 | `benchmarks/agent/sizing.py` | How many trials a claim needs |
@@ -66,7 +66,7 @@ the same fact on either machine, go to `logs/sweeps/`.
 | `scripts/hardware_id.py` | Derives this machine's results-directory name. **Never type one by hand** |
 | `scripts/thermals.py` | Die temperatures with a timestamp, no sudo. `--watch 300` samples during a run — a benchmark that drifts needs a temperature beside it |
 | `scripts/gguf_meta.py` | Read a GGUF's metadata without loading it |
-| `scripts/install-metal-ceiling.sh` | Persist the Metal wired limit across reboots. Required for a 90 GB model, not an optimisation |
+| `scripts/install-metal-ceiling.sh` | Persist the Metal wired limit across reboots. Required for a 90 GB model, not an optimization |
 | `benchmarks/agent/gen_tables.py`, `splice_tables.py` | Regenerate RECOMMENDATIONS' tables from `results.jsonl` |
 | `benchmarks/agent/gen_prompts.py` | Regenerate `PROMPTS.md` from the file the harness reads |
 
@@ -476,7 +476,7 @@ claude
 ## Set the context window
 
 `CLAUDE_CODE_MAX_CONTEXT_TOKENS` must match the model's real context window.
-Claude Code assumes 200k for a model it does not recognise, so if the model's
+Claude Code assumes 200k for a model it does not recognize, so if the model's
 window is smaller, auto-compact fires *after* the server has already truncated.
 `claude-ollama` sets it from `CTX`, which defaults to 262144 for Qwen3.8.
 

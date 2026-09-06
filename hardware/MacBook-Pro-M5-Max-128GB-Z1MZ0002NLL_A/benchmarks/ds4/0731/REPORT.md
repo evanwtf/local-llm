@@ -503,7 +503,7 @@ haystack) was not measured; a model can stay fast while degrading at recall.
 
 | # | question | status |
 |---|---|---|
-| 5 | long-context behaviour beyond 64k | **not measured** — matters for agents; the mixed build uses 90.9 of 128 GiB, so KV headroom is tighter than the q2 builds |
+| 5 | long-context behavior beyond 64k | **not measured** — matters for agents; the mixed build uses 90.9 of 128 GiB, so KV headroom is tighter than the q2 builds |
 | 4 | GLM 5.2 as an alternative family | not started (197 GiB, streamed) |
 | 7 | refresh stale `speed-bench/local-runs/m5_max_128gb_resident.csv` | superseded data exists here; kept out of the repo as a local run (old 6-column schema, pre-Metal-MoE binary); an upstream contribution should state whether it is a first-run or steady-state number |
 | 8 | disk: ~320 GiB reclaimable in `gguf/`, 636 GiB in Ollama | pruning deferred until #4/#5 finish |

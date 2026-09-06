@@ -44,7 +44,7 @@ claims, and all of these make a wrong claim immediately visible.
 
 | task | why |
 |---|---|
-| Any claim about **runtime behaviour** derived from reading code | The documented failure mode. In the audit it was 4-of-4 on greppable structure and wrong on consequence — presented with identical confidence. |
+| Any claim about **runtime behavior** derived from reading code | The documented failure mode. In the audit it was 4-of-4 on greppable structure and wrong on consequence — presented with identical confidence. |
 | **Ranked** lists or prioritised audits | Ranking was worse than the individual findings. Its top-ranked item was its only clearly false one. |
 | Anything where you may **push back** | It capitulates. Told one claim was wrong, it retracted four — three of which were true. |
 
@@ -61,7 +61,7 @@ claims, and all of these make a wrong claim immediately visible.
 |---|---|
 | Deliverables that **are** an unverifiable judgement | Its confidence is uncalibrated; you cannot tell a good answer from a bad one without doing the work yourself. |
 | Code review where findings must be **defended** | It abandons correct positions under pressure. A reviewer that folds is worse than none. |
-| Long autonomous runs | Longest measured is 450 s. Multi-hour unattended behaviour is unknown. |
+| Long autonomous runs | Longest measured is 450 s. Multi-hour unattended behavior is unknown. |
 | Anything irreversible or outward-facing | Force-pushes, deploys, published writing, deletions. Not a capability judgement — the cost of being wrong is asymmetric. |
 | Work needing memory across sessions | Each `claude-ds4 -p` is a fresh session (see below). |
 
@@ -78,7 +78,7 @@ cd ~/git/ds4 && ./ds4-server \
   --kv-disk-dir ~/.ds4/server-kv --kv-disk-space-mb 8192
 ```
 
-Do **not** add `--trace` unless debugging cache behaviour — it logs full prompts
+Do **not** add `--trace` unless debugging cache behavior — it logs full prompts
 including your `CLAUDE.md`. See the warning in `AGENT_FINDINGS.md`.
 
 **Switch model:**
@@ -105,7 +105,7 @@ the failed output as context rather than nudging DS4 twice.
 - *Narrates instead of acting* — describes what it would do rather than calling
   a tool. Seen with weak system prompts; Claude Code's is directive enough that
   it did not surface, but thinner harnesses may hit it.
-- *Confident behavioural claim with no execution* — "this accepts negative
+- *Confident behavioral claim with no execution* — "this accepts negative
   values", "this is silently ignored". Ask it to run the thing.
 
 ---

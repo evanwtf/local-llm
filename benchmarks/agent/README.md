@@ -87,7 +87,7 @@ and you can compare across days.
 
 `results.jsonl` and the run logs are **tracked in git, on purpose**. Each row
 costs minutes of wall time and a full matrix costs hours, so the data cannot be
-cheaply regenerated — and analyses nobody has thought of yet can only be run
+cheaply regenerated — and analyzes nobody has thought of yet can only be run
 against data that still exists.
 
 Every row carries its own environment capture, so old rows stay interpretable

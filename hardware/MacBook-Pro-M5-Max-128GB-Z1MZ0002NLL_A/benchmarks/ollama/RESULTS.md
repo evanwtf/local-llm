@@ -47,7 +47,7 @@ as indicative and generation as directly comparable.
 
 Resident memory is the unambiguous result: **18 GB against 90.9 GiB**.
 
-## Agentic behaviour
+## Agentic behavior
 
 One real task through Claude Code: read `ds4_kvstore.c` (~1,300 lines of C) and
 explain the prefix cache — data structure, hit detection, eviction and disk

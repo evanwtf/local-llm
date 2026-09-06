@@ -254,10 +254,10 @@ Honest accounting of what could make these numbers wrong.
 | Agent recovers code from git history | trial repo's only commit is the excised state | none from history; the original body is not present in the checkout |
 | Task measures nothing (skipped tests) | control run required to fail | none — this is checked every trial |
 | Trials contaminate each other | isolated copy per trial, destroyed after | see "the sandbox was not a sandbox" below |
-| Memory pressure favours one model | phased runs, preload, one model resident | thermal drift across a long run |
+| Memory pressure favors one model | phased runs, preload, one model resident | thermal drift across a long run |
 | Training-data contamination | repo is small and recent, but **public** | cannot be ruled out; the libraries it uses are certainly in training data |
 | Single-trial noise | 3 trials, medians | small effects remain undetectable |
-| Prompt favours one model | identical prompt text for all backends | prompt style may suit one model's training |
+| Prompt favors one model | identical prompt text for all backends | prompt style may suit one model's training |
 
 **The contamination point deserves emphasis, and it got weaker.** An earlier
 revision of this document claimed `gmail-archive` is private and therefore
@@ -432,7 +432,7 @@ name tasks defined that way, and a task name has to keep meaning what it meant.
 node, so the first statement's line number points past it and the comment stays
 in the hollowed-out file. A comment that describes the algorithm hands over the
 answer. None of the current targets has one; `test_excise.py` pins the
-behaviour.
+behavior.
 
 ### Measurements taken alongside the verdict
 

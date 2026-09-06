@@ -9,7 +9,7 @@
 > [docs/archive/results-opencode-pre-dir.md](docs/archive/results-opencode-pre-dir.md). Other clients are unaffected.
 
 Updated **2026-09-05**. The queue for **this machine** — MacBook Pro, M5 Max,
-128 GB. Everything here is labelled `macOS`; the Linux/RTX 3080 Ti tier has
+128 GB. Everything here is labeled `macOS`; the Linux/RTX 3080 Ti tier has
 its own issues under `Nvidia`.
 
 Each issue is self-contained. This file sets the order and nothing else.
@@ -101,7 +101,7 @@ guaranteed to mislead. See `docs/changelog.md`.
    Built and merged behind `--targets sandbox`, **not enabled**. The guarded
    checkout no longer lives in `~/git`, but the export still stands at the path
    the agent guesses (#54). Under sandbox nothing does, so the guess must fail
-   closed at the sandbox profile instead of being satisfied -- a behaviour
+   closed at the sandbox profile instead of being satisfied -- a behavior
    change that lands on the pass rate.
    *Done when:* a paired run against the legacy layout says the pass rate is within 1 task across 2 sweeps of 15, or the cutover is abandoned on the record. It is a cohort boundary and cannot be assumed.
 

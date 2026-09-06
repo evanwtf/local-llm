@@ -21,7 +21,7 @@ Updated 2026-09-04.
 `results.jsonl` shares a hardware baseline, which is what makes the
 comparisons mean anything. The Metal ceiling is a **cap, not a reservation** —
 with no model loaded, wired memory sits around 5 GiB — but it is *required*,
-not an optimisation: stock gives ds4 a 75.5 GiB budget against an 89.87 GiB
+not an optimization: stock gives ds4 a 75.5 GiB budget against an 89.87 GiB
 GLM-5.3, which is a refusal.
 
 **A second tier exists and has run trials.** `desktop`, reachable over ssh:

@@ -258,7 +258,7 @@ and ninety minutes on 2026-08-31.
 
 ## Open questions
 
-1. **#64's cause.** One experiment left: normalise `content` shape in the shim,
+1. **#64's cause.** One experiment left: normalize `content` shape in the shim,
    re-run one traced trial, check whether `live_prompt_common` advances. If GLM's
    Claude Code times collapse, the whole cell is worth re-running.
 2. **A full Claude Code cell**, 15 trials, once #64 is understood.

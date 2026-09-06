@@ -458,7 +458,7 @@ they are regenerated:
 uv run python benchmarks/agent/splice_tables.py
 ```
 
-The failing test is correct behaviour, not noise. A document quoting a pass
+The failing test is correct behavior, not noise. A document quoting a pass
 rate the data no longer supports is exactly what this project has published
 three times.
 
@@ -862,7 +862,7 @@ remedy **off**, turning it off meant editing the shim, and editing the shim is
 not something an unattended run can do. So the experiment never got designed.
 
 `SHIM_NO_STRIP=1` is that arm. The rule generalises: **when a fix ships as a
-behaviour change in code the harness calls, give it a switch at the same
+behavior change in code the harness calls, give it a switch at the same
 time.** The switch costs one `if`; retrofitting one costs the credibility of
 every result taken in between, because nobody can say what the fix was worth.
 
@@ -1032,8 +1032,8 @@ results.write_row(row, RESULTS)      # validates, stamps, appends
 And to read — **this is the part that matters**:
 
 ```python
-rows = results.usable(RESULTS)   # normalised, exclusions already dropped
-rows = results.load(RESULTS)     # normalised, exclusions still marked
+rows = results.usable(RESULTS)  # normalized, exclusions already dropped
+rows = results.load(RESULTS)  # normalized, exclusions still marked
 ```
 
 **Never filter exclusions with a hand-written `r.get("excluded")`.** Four
@@ -1048,7 +1048,7 @@ trial genuinely failed and belongs in the pass rate.
 
 Rows written from 2026-08-28 are schema v2 and carry `schema_version`. Older
 rows are v1 and are **not rewritten**: the file is append-only evidence.
-`load()` normalises them in memory instead.
+`load()` normalizes them in memory instead.
 
 A row that fails validation is still written, stamped `schema_valid: false` with
 the violations, and logged at ERROR. A trial costs up to half an hour; losing one
