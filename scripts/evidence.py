@@ -76,6 +76,7 @@ import logging
 import os
 import pathlib
 import platform
+import re
 import subprocess
 import sys
 
@@ -328,6 +329,45 @@ def _lint_claim(claim: object, ids: set[str], path: pathlib.Path) -> None:
         raise Refused(
             f"{path}: claim {claim['id']!r} expect has unknown keys {sorted(unknown)}"
         )
+    # A source enumeration's statement must not enumerate more items than the
+    # command it cites returns lines. The statement's distinct line numbers are
+    # the enumerated items; observed's line count is what the argv produced. A
+    # statement that names more lines than the command returned is conflating
+    # predicates -- the #172 defect. This is a cross-check between two fields
+    # of the same claim, not a general "is this claim true" check, and it only
+    # runs when observed is populated: an empty observed has no line count to
+    # compare against.
+    #
+    # Prose cannot distinguish "these line numbers are my result" from "see
+    # also", so a claim may declare which citations are references rather than
+    # results in context_lines; lint subtracts those before comparing. Writing
+    # the declaration forces the author to answer "is this number a result or
+    # a reference?" -- the question that would have caught the #172 defect at
+    # authoring time rather than at review.
+    context_lines = claim.get("context_lines")
+    if context_lines is not None:
+        if not isinstance(context_lines, list) or not all(
+            isinstance(n, int) and not isinstance(n, bool) for n in context_lines
+        ):
+            raise Refused(
+                f"{path}: claim {claim['id']!r} context_lines must be a list "
+                "of ints -- the line numbers the statement cites as references "
+                "rather than results"
+            )
+    observed = claim.get("observed")
+    stdout = observed.get("stdout") if isinstance(observed, dict) else observed
+    if isinstance(stdout, str) and stdout.strip():
+        cited = set(re.findall(r"\b\d{4,5}\b", claim["statement"]))
+        context = {str(n) for n in (context_lines or [])}
+        enumerated = len(cited - context)
+        produced = len([ln for ln in stdout.splitlines() if ln.strip()])
+        if enumerated > produced:
+            raise Refused(
+                f"{path}: claim {claim['id']!r} enumerates {enumerated} line "
+                f"numbers but its argv returns {produced} lines -- a statement "
+                "that names more items than the command produced is conflating "
+                "predicates"
+            )
 
 
 def _lint_refs(claims: list[dict], path: pathlib.Path) -> None:

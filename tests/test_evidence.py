@@ -229,3 +229,83 @@ def test_verify_machine_bound_runs_on_own_host(monkeypatch):
     claim = _command_claim(cwd_repo_rel=None, machine="this-host")
     body = _finding(claims=[claim])
     assert evidence.verify(body, pathlib.Path("/x/finding.json"), False) == 0
+
+
+def test_lint_rejects_claim_enumerating_more_than_observed_lines(tmp_path):
+    """A claim that enumerates more line numbers than its command returns
+    lines is conflating predicates -- the #172 defect.
+
+    The rule is a cross-check between two fields of the same claim: the
+    statement's enumerated item count must not exceed the line count its own
+    argv returns in observed. It only runs when observed is populated.
+    """
+    observed_lines = "\n".join(
+        f"9ab70534:ds4_metal.m:{n}:x" for n in range(1, 17)
+    )
+    enumerated = ", ".join(str(10000 + i) for i in range(20))
+    body = _finding(
+        claims=[
+            _command_claim(
+                statement=f"20 gates: {enumerated}",
+                observed={"exit": 0, "stdout": observed_lines},
+            )
+        ]
+    )
+    with pytest.raises(evidence.Refused, match="enumerates"):
+        evidence.load_finding(_write(tmp_path, body))
+
+
+def test_lint_accepts_claim_declaring_context_lines(tmp_path):
+    """A claim may declare which cited line numbers are references, not results.
+
+    The same statement that fails without a declaration passes once it names
+    the context lines: the declaration is the author answering "is this number
+    a result or a reference?" for each citation.
+    """
+    observed_lines = "\n".join(
+        f"9ab70534:ds4_metal.m:{n}:x" for n in range(1, 17)
+    )
+    body = _finding(
+        claims=[
+            _command_claim(
+                statement=(
+                    "16 gates: 10000, 10001, 10002, 10003, 10004, 10005, "
+                    "10006, 10007, 10008, 10009, 10010, 10011, 10012, 10013, "
+                    "10014, 10015, 10016, 10017, 10018, 10019"
+                ),
+                context_lines=[10016, 10017, 10018, 10019],
+                observed={"exit": 0, "stdout": observed_lines},
+            )
+        ]
+    )
+    # 20 cited, 4 declared context, 16 enumerated == 16 produced: passes.
+    assert evidence.load_finding(_write(tmp_path, body))["schema"] == evidence.SCHEMA
+
+
+def test_lint_rejects_context_lines_that_are_not_ints(tmp_path):
+    """context_lines must be a list of ints -- a string is a silent no-op."""
+    body = _finding(
+        claims=[
+            _command_claim(
+                statement="16 gates: 10000",
+                context_lines=["10000"],
+                observed={"exit": 0, "stdout": "x"},
+            )
+        ]
+    )
+    with pytest.raises(evidence.Refused, match="context_lines"):
+        evidence.load_finding(_write(tmp_path, body))
+
+
+def test_0169_taxonomy_lints_clean():
+    """The corrected #169 taxonomy passes the enumerated-vs-observed check.
+
+    The bug that motivated the rule was this artifact's first form: it
+    enumerated 20 optimizations against a command that returned 16 lines. The
+    corrected form, one claim per family with the grep output in observed,
+    must pass.
+    """
+    finding = evidence.load_finding(
+        REPO / "evidence" / "0169-device-gate-table.json"
+    )
+    assert finding["schema"] == evidence.SCHEMA

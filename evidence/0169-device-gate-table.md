@@ -45,7 +45,7 @@ Total excluded: **26** (16 pre-M5 + 10 M3-family). Of those, **10 sit in prefill
 | 15 | ds4_metal.m:43069 | MXFP4 MoE MM-ID down half LUT | prefill MoE down half LUT | **prefill** MoE | padded direct launch |
 | 16 | ds4_metal.m:43174 | MXFP4 MoE MM-ID pair half scale | prefill MoE pair half scale | **prefill** MoE | padded direct launch |
 
-`ds4_metal.m:33640` is **not** in this family. `pre_m5_device` there feeds `use_simd_finalize`, whose condition is `(pre_m5_device || name_contains("M5"))` — true on M5 Max. It is M5-admitting, not pre-M5-only.
+`ds4_metal.m:33640` is **not** in this family. `pre_m5_device` there feeds `use_simd_finalize`, whose condition is `(pre_m5_device || name_contains("M5"))` — true on M5 Max. It is M5-admitting, not pre-M5-only. The `&&` at `ds4_metal.m:33645` is a hardware-capability check (`maxTotalThreadsPerThreadgroup >= 256u`), not a device-class predicate, so it is not part of this taxonomy.
 
 ## The M3-only family (8) — M5 Max is excluded
 
