@@ -183,3 +183,32 @@ def test_the_label_survives_so_a_reader_knows_which_model(tmp_path):
     path = tmp_path / "eq.json"
     me.write_verdict(path, fingerprint="glm", verdict="fail", summary={}, label="GLM-5.3-Flash-Q2")
     assert me.cached_entry(path, "glm")["label"] == "GLM-5.3-Flash-Q2"
+
+
+# ------------------------------------- a model the instrument cannot load
+#
+# ds4_test takes DS4_TEST_MODEL and nothing else. Qwen3.8-Flash-Next -- our
+# fast pick, and the model in every recent A/B -- needs a PLE sidecar, so the
+# fixtures stop before they start. Recording that as "fail" would refuse every
+# run of the model we run most; recording it as "unknown" would demand a re-run
+# that cannot succeed. Both end with the gate bypassed by a flag that never
+# comes off again.
+
+PLE_REFUSAL = """\
+metal-tensor-equivalence:
+ds4: Qwen tensor directory bound: 1211 tensors
+ds4: Qwen3.8-Flash-Next requires --ple FILE (the matching Q4_1 PLE sidecar)
+tests/ds4_test.c:123: assertion failed: ds4_engine_open(&engine, &opt) == 0
+metal-tensor-equivalence: ERR
+"""
+
+
+def test_a_model_the_fixtures_cannot_load_is_unsupported_not_failed():
+    assert me.verdict(1, PLE_REFUSAL) == "unsupported"
+
+
+def test_unsupported_is_not_confused_with_a_real_failure():
+    """A genuine equivalence failure and an unloadable model both exit 1."""
+    failed = REAL_LOG.replace("greedy_fail=0", "greedy_fail=8")
+    assert me.verdict(1, failed) == "fail"
+    assert me.verdict(1, PLE_REFUSAL) == "unsupported"

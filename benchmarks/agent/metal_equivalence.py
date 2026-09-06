@@ -77,14 +77,27 @@ def parse_summary(text: str) -> dict:
     return got
 
 
-def verdict(returncode: int, text: str) -> str:
-    """"pass", "fail" or "unknown" -- never inferred from the exit code alone.
+# The instrument's own limit. `ds4_test` takes DS4_TEST_MODEL and nothing else,
+# so a model that needs a sidecar cannot be loaded by it at all -- our fast
+# pick, Qwen3.8-Flash-Next, needs a PLE file and says so and stops.
+#
+# That has to be a distinct verdict. Calling it "fail" would refuse every run
+# of the model we run most; calling it "unknown" would demand a re-run that
+# cannot succeed. Either way the gate becomes a flag people always pass, which
+# is how an assertion stops being one.
+UNSUPPORTED_MARKERS = ("requires --ple", "requires a PLE")
 
-    A build could tolerate a flipped greedy token and still exit 0. The counts
-    in the summary are the claim; the exit code is a necessary condition, not a
-    sufficient one.
+
+def verdict(returncode: int, text: str) -> str:
+    """"pass", "fail", "unsupported" or "unknown".
+
+    Never inferred from the exit code alone: a build could tolerate a flipped
+    greedy token and still exit 0. The counts in the summary are the claim; the
+    exit code is a necessary condition, not a sufficient one.
     """
     summary = parse_summary(text)
+    if any(marker in text for marker in UNSUPPORTED_MARKERS):
+        return "unsupported"
     if returncode != 0:
         return "fail"
     if not summary:

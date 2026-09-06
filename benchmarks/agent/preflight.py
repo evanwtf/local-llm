@@ -645,8 +645,8 @@ def ds4_equivalence_state(
     )
     fp = metal_equivalence.fingerprint(pathlib.Path(tree) / "ds4_test", model)
     state = metal_equivalence.cached_verdict(metal_equivalence.DEFAULT_CACHE, fp)
-    cache = metal_equivalence.read_cache(metal_equivalence.DEFAULT_CACHE) or {}
-    return state, cache.get("summary") or {}
+    entry = metal_equivalence.cached_entry(metal_equivalence.DEFAULT_CACHE, fp) or {}
+    return state, entry.get("summary") or {}
 
 
 def ds4_server_running(ps_text: str | None = None) -> bool:
@@ -674,6 +674,12 @@ def report_ds4_equivalence() -> None:
             summary.get("cases", "?"),
             summary.get("worst_rms", "?"),
             summary.get("worst_max_abs", "?"),
+        )
+    elif state == "unsupported":
+        logger.warning(
+            "preflight: ds4's Metal route cannot be checked for this model -- "
+            "ds4_test has no --ple option and Qwen3.8-Flash-Next needs one. "
+            "The route is recorded on each row; its output is not asserted (#149)"
         )
     elif state == "fail":
         logger.warning(
