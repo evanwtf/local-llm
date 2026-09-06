@@ -37,7 +37,9 @@ SCALAR = {
 
 
 def read(
-    path: pathlib.Path, with_tensors: bool = False
+    path: pathlib.Path,
+    with_tensors: bool = False,
+    expand: str | None = None,
 ) -> dict[str, object] | tuple[dict[str, object], list[tuple[str, list[int], int]]]:
     """Parse the header. Arrays are summarized, not expanded.
 
@@ -45,6 +47,10 @@ def read(
     names are what `--override-tensor` matches on, so placing a specific
     structure -- the n-gram PLE table, say -- on a chosen backend needs them
     (#33).
+
+    `expand` is a substring. An array whose key contains it is kept whole
+    instead of summarized, so `--filter compress_ratios` prints the values
+    rather than `[44 values]` (#162).
     """
     with path.open("rb") as fh:
         if fh.read(4) != b"GGUF":
@@ -73,7 +79,10 @@ def read(
                     size = struct.calcsize(SCALAR[elem])
                     raw = fh.read(size * length)
                     vals = struct.unpack(f"<{length}{SCALAR[elem][1]}", raw)
-                    out[key] = list(vals) if length <= 20 else f"[{length} values]"
+                    if expand and expand.lower() in key.lower():
+                        out[key] = list(vals)
+                    else:
+                        out[key] = list(vals) if length <= 20 else f"[{length} values]"
                 else:
                     raise ValueError(f"unsupported array element type {elem}")
             elif kind in SCALAR:
@@ -116,11 +125,15 @@ def main(argv: list[str] | None = None) -> int:
             logger.info("%-56s dims=%-22s type=%d", name, dims, ttype)
         return 0
 
-    meta = read(pathlib.Path(args.path))
+    meta = read(pathlib.Path(args.path), expand=args.filter)
     for key in sorted(meta):
         if args.filter and args.filter.lower() not in key.lower():
             continue
-        logger.info("%-46s %s", key, str(meta[key])[:100])
+        val = meta[key]
+        if isinstance(val, list):
+            logger.info("%-46s %s", key, val)
+        else:
+            logger.info("%-46s %s", key, str(val)[:100])
     return 0
 
 

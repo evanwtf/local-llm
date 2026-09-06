@@ -80,6 +80,33 @@ def test_a_long_string_array_is_summarised_not_expanded(sample):
     assert "6 strings" in got
 
 
+def _long_ratios(tmp_path: pathlib.Path) -> pathlib.Path:
+    """A 44-value uint32 array, the shape of deepseek4.attention.compress_ratios."""
+    vals = list(range(44))
+    payload = struct.pack("<IQ", 4, len(vals)) + struct.pack(f"<{len(vals)}I", *vals)
+    p = tmp_path / "m.gguf"
+    p.write_bytes(_build([("deepseek4.attention.compress_ratios", 9, payload)]))
+    return p
+
+
+def test_a_long_numeric_array_is_summarised_by_default(tmp_path):
+    """#162: a 44-value array must not be printed or held unless asked for."""
+    got = gguf_meta.read(_long_ratios(tmp_path))
+    assert got["deepseek4.attention.compress_ratios"] == "[44 values]"
+
+
+def test_a_matching_filter_expands_the_array(tmp_path):
+    """#162: `--filter compress_ratios` must print the values, not `[44 values]`."""
+    got = gguf_meta.read(_long_ratios(tmp_path), expand="compress_ratios")
+    assert got["deepseek4.attention.compress_ratios"] == list(range(44))
+
+
+def test_expand_only_matches_the_named_key(tmp_path):
+    """A filter that matches nothing leaves the array summarized."""
+    got = gguf_meta.read(_long_ratios(tmp_path), expand="sliding_window")
+    assert got["deepseek4.attention.compress_ratios"] == "[44 values]"
+
+
 def test_every_key_is_read_so_later_keys_are_not_shifted(sample):
     """The real failure mode: one mis-sized value desynchronises the whole rest.
 
