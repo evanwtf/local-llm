@@ -1,0 +1,69 @@
+{
+  "schema": "local-llm/evidence-2",
+  "task": "iq2-path",
+  "issue": 162,
+  "agent": "peer-deepseek-v4-flash",
+  "agent_model": "deepseek-v4-flash",
+  "agent_effort": "low",
+  "repo": "/Users/evanhoffman/git/local-llm/.claude/worktrees/peer+160",
+  "authored_at": "2026-09-06T12:26:30-04:00",
+  "statement": "The IQ2_XXS_SSD_PREFILL_MM knob is NOT on the q4/q8 path. Its candidate gate at ds4_metal.m:50599-50600 requires `gate_type == DS4_METAL_TENSOR_IQ2_XXS && down_type == DS4_METAL_TENSOR_Q2_K`, and the surrounding candidate also requires `g_ssd_streaming_mode` and `n_expert == 6`. The q4/q8 decode path uses different gate/down tensor types, so the IQ2 knob cannot fire there. The knob is value-parsed via ds4_gpu_env_bool (ds4_metal.m:50582), and its REQUIRE spelling fails closed at ds4_metal.m:50658-50663 with 'ds4: required Metal IQ2_XXS SSD grouped address-MM path was not selected tokens=%u gate=%u down=%u'.",
+  "provenance": {
+    "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+    "trees": {
+      "/Users/evanhoffman/git/ds4-pr952": "77a054e1872638fbce5e3c877ab3319a7faffc20"
+    },
+    "binaries": {}
+  },
+  "claims": [
+    {
+      "id": "iq2-gated-on-iq2xxs-q2k",
+      "statement": "The IQ2 grouped-MM candidate is gated on `gate_type == DS4_METAL_TENSOR_IQ2_XXS && down_type == DS4_METAL_TENSOR_Q2_K` at ds4_metal.m:50599-50600, so it cannot fire on the q4/q8 path. The IQ2_XXS/Q2_K pairing recurs across the MoE prefill path (lines 47842, 47859, 48148, 48214, 50599, 50732, 50818, 50842, 50867), all on the IQ2 SSD prefill path, none on q4/q8 decode.",
+      "argv": [
+        "grep",
+        "-n",
+        "-A1",
+        "gate_type == DS4_METAL_TENSOR_IQ2_XXS &&",
+        "ds4_metal.m"
+      ],
+      "cwd": "/Users/evanhoffman/git/ds4-pr952",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0,
+        "stdout_contains": "50599"
+      },
+      "observed": {
+        "exit": 0,
+        "stdout": "47776:            gate_type == DS4_METAL_TENSOR_IQ2_XXS && n_tokens == 1 &&\n47777-            n_expert == 6 && n_total_expert == 256 &&\n--\n47842:            gate_type == DS4_METAL_TENSOR_IQ2_XXS &&\n47843-            down_type == DS4_METAL_TENSOR_Q2_K &&\n--\n47859:                gate_type == DS4_METAL_TENSOR_IQ2_XXS &&\n47860-                down_type == DS4_METAL_TENSOR_Q2_K &&\n--\n48148:            gate_type == DS4_METAL_TENSOR_IQ2_XXS &&\n48149-            down_type == DS4_METAL_TENSOR_Q2_K &&\n--\n48173:            gate_type == DS4_METAL_TENSOR_IQ2_XXS &&\n48174-            down_type == DS4_METAL_TENSOR_IQ2_XXS &&\n--\n48214:                gate_type == DS4_METAL_TENSOR_IQ2_XXS &&\n48215-                down_type == DS4_METAL_TENSOR_Q2_K &&\n--\n49260:              ((gate_type == DS4_METAL_TENSOR_IQ2_XXS && g_moe_mul_mv_id_iq2_xxs_pair_pipeline) ||\n49261-               (gate_type == DS4_METAL_TENSOR_Q4_K && g_moe_mul_mv_id_q4_k_pair_pipeline))) ? \"pair\" : \"single\"));\n--\n49946:                   gate_type == DS4_METAL_TENSOR_IQ2_XXS &&\n49947-                   g_moe_mul_mv_id_iq2_xxs_pair_pipeline) {\n--\n50599:            gate_type == DS4_METAL_TENSOR_IQ2_XXS &&\n50600-            down_type == DS4_METAL_TENSOR_Q2_K &&\n--\n50732:            ((gate_type == DS4_METAL_TENSOR_IQ2_XXS && down_type == DS4_METAL_TENSOR_Q2_K) ||\n50733-             (g_tp_split_world == 2 && gate_type == DS4_METAL_TENSOR_MXFP4 &&\n--\n50757:            ((gate_type == DS4_METAL_TENSOR_IQ2_XXS && g_moe_mul_mv_id_iq2_xxs_pair_pipeline) ||\n50758-             (gate_type == DS4_METAL_TENSOR_Q4_K && g_moe_mul_mv_id_q4_k_pair_pipeline) ||\n--\n50818:            gate_type == DS4_METAL_TENSOR_IQ2_XXS &&\n50819-            down_type == DS4_METAL_TENSOR_Q2_K &&\n--\n50837:            !(gate_type == DS4_METAL_TENSOR_IQ2_XXS &&\n50838-              (ds4_gpu_routed_mm_mpp_mask() & 3) == 3) &&\n--\n50842:            ((gate_type == DS4_METAL_TENSOR_IQ2_XXS &&\n50843-              down_type == DS4_METAL_TENSOR_Q2_K) ||\n--\n50867:            gate_type == DS4_METAL_TENSOR_IQ2_XXS &&\n50868-            down_type == DS4_METAL_TENSOR_Q2_K &&\n--\n51112:                    gate_type == DS4_METAL_TENSOR_IQ2_XXS &&\n51113-                    use_iq2_xxs_mm_id_pair_tail_simdgroup_cull &&"
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "If the IQ2 candidate is not gated on the IQ2_XXS/Q2_K tensor types (or the q4/q8 path can present those types), then the IQ2 knob can fire on the q4/q8 path and the 'not on q4/q8' claim collapses."
+    },
+    {
+      "id": "iq2-value-parsed",
+      "statement": "The IQ2 knob reads its env var through ds4_gpu_env_bool (ds4_metal.m:50582), the value-parsed helper: '0' disables, any other non-empty value enables, unrecognized values are presence-enabled with a warning.",
+      "argv": [
+        "grep",
+        "-n",
+        "ds4_gpu_env_bool(\"DS4_METAL_REQUIRE_IQ2_XXS_SSD_PREFILL_MM\")",
+        "ds4_metal.m"
+      ],
+      "cwd": "/Users/evanhoffman/git/ds4-pr952",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0,
+        "stdout_contains": "ds4_gpu_env_bool(\"DS4_METAL_REQUIRE_IQ2_XXS_SSD_PREFILL_MM\")"
+      },
+      "observed": {
+        "exit": 0,
+        "stdout": "50582:            ds4_gpu_env_bool(\"DS4_METAL_REQUIRE_IQ2_XXS_SSD_PREFILL_MM\");"
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "If the IQ2 knob reads its env var with a bare getenv() presence check rather than ds4_gpu_env_bool, then it is presence-based and the 'value-parsed' claim collapses."
+    }
+  ]
+}

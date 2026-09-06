@@ -1,0 +1,118 @@
+{
+  "schema": "local-llm/evidence-2",
+  "task": "metal-knobs",
+  "issue": 162,
+  "agent": "peer-deepseek-v4-flash",
+  "agent_model": "deepseek-v4-flash",
+  "agent_effort": "low",
+  "repo": "/Users/evanhoffman/git/local-llm/.claude/worktrees/peer+160",
+  "authored_at": "2026-09-06T12:26:00-04:00",
+  "statement": "All four Metal knobs in the #162 table are value-parsed, not presence-based: each reads its env var through a helper that treats the literal \"0\" as off and any other non-empty value as on. The three REQUIRE spellings (session-union, IQ2 grouped-MM, exact-rows-persistent) fail closed with an error print when ineligible, but there is NO positive admission print -- no Metal analogue of CUDA's `target_admitted=1`. The only admission signal is the absence of the fail-closed error. Q4_STREAM_OVERLAP has no REQUIRE spelling at all; it is a soft opt-in via ENABLE/DISABLE only. This matters because a presence-based knob would let an 'off' arm silently run on (the adamlawi 0.0% trap); these are all value-parsed, so '0' genuinely disables.",
+  "provenance": {
+    "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+    "trees": {
+      "/Users/evanhoffman/git/ds4-pr952": "77a054e1872638fbce5e3c877ab3319a7faffc20"
+    },
+    "binaries": {}
+  },
+  "claims": [
+    {
+      "id": "all-four-value-parsed",
+      "statement": "All four knobs read their env var through a value-parsed helper: metal_graph_tp_env_flag (ds4.c:17835) returns dflt when unset/empty and `strcmp(env, \"0\") != 0` otherwise; ds4_gpu_env_bool (ds4_metal.m:3373) returns -1 when unset, 1 for 1/true/yes/on, 0 for 0/false/no/off, and treats an unrecognized value as presence-enabled with a warning; ds4_gpu_exact_rows_persistent_env_enabled (ds4_metal.m:14822) returns `value && value[0] && strcmp(value, \"0\") != 0`. In every case the literal \"0\" disables. The `strcmp(env, \"0\") != 0` pattern recurs across the codebase, confirming value-parsing is the norm.",
+      "argv": [
+        "grep",
+        "-n",
+        "strcmp(env, \"0\") != 0",
+        "ds4.c"
+      ],
+      "cwd": "/Users/evanhoffman/git/ds4-pr952",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0,
+        "stdout_contains": "strcmp(env, \"0\") != 0"
+      },
+      "observed": {
+        "exit": 0,
+        "stdout": "17835:    return strcmp(env, \"0\") != 0;\n18262:    if (env && env[0]) return strcmp(env, \"0\") != 0;\n21205:        *cache = env && env[0] && strcmp(env, \"0\") != 0;\n36096:        cached = (env && env[0] && strcmp(env, \"0\") != 0) ? 1 : 0;\n36105:        cache = (env && env[0] && strcmp(env, \"0\") != 0) ? 1 : 0;\n36114:        cache = (env && env[0] && strcmp(env, \"0\") != 0) ? 1 : 0;\n45154:           strcmp(env, \"0\") != 0 &&\n64398:    return !env || !env[0] || strcmp(env, \"0\") != 0;\n67465:    return env && env[0] && strcmp(env, \"0\") != 0;"
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "If any knob reads its env var with a bare getenv() presence check (no value comparison), that knob is presence-based and the 'value-parsed' claim collapses for it."
+    },
+    {
+      "id": "no-admission-print",
+      "statement": "There is no positive admission print for any of the four knobs: grep for 'admitted'/'target_admitted' finds no fprintf/printf that reports a REQUIRE path being selected. The REQUIRE spellings print only on failure (fail-closed).",
+      "argv": [
+        "grep",
+        "-rn",
+        "target_admitted",
+        "ds4.c",
+        "ds4_metal.m"
+      ],
+      "cwd": "/Users/evanhoffman/git/ds4-pr952",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 1,
+        "stdout_contains": ""
+      },
+      "observed": {
+        "exit": 1,
+        "stdout": ""
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "If a positive admission print exists (a fprintf that fires when a REQUIRE path is selected), then the 'no admission print' claim collapses and the peer must use that string instead of the absence-of-error signal."
+    },
+    {
+      "id": "require-error-strings",
+      "statement": "The three REQUIRE spellings fail closed with these exact error strings: session-union at ds4.c:73983-73988 'required Metal Q4 SSD session union is ineligible (need 2..5 valid sessions, AProjQ4 + routed IQ2_XXS/Q2_K, static decode map, and >= rows*6 cached experts)'; IQ2 grouped-MM at ds4_metal.m:50664-50669 'ds4: required Metal IQ2_XXS SSD grouped address-MM path was not selected tokens=%u gate=%u down=%u'; exact-rows-persistent at ds4_metal.m:20449-20453 'ds4: Metal exact-row persistent cache is required but disabled or ineligible (cache_budget=%u size_class_budget=%u unique=%u)'.",
+      "argv": [
+        "grep",
+        "-n",
+        "required Metal Q4 SSD session union is ineligible",
+        "ds4.c"
+      ],
+      "cwd": "/Users/evanhoffman/git/ds4-pr952",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0,
+        "stdout_contains": "required Metal Q4 SSD session union is ineligible"
+      },
+      "observed": {
+        "exit": 0,
+        "stdout": "73983:                     \"required Metal Q4 SSD session union is ineligible \""
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "If the REQUIRE spellings do not print these fail-closed errors (or print different text), the error-string claim collapses and the peer cannot rely on them as the admission signal."
+    },
+    {
+      "id": "stream-overlap-no-require",
+      "statement": "Q4_STREAM_OVERLAP has no REQUIRE spelling: ds4_q4_stream_overlap_policy (ds4.c:71917) reads only DS4_METAL_ENABLE_Q4_STREAM_OVERLAP and DS4_METAL_DISABLE_Q4_STREAM_OVERLAP via metal_graph_tp_env_flag, both defaulting false. It is a soft opt-in with no fail-closed arm.",
+      "argv": [
+        "grep",
+        "-n",
+        "DS4_METAL_REQUIRE_Q4_STREAM_OVERLAP",
+        "ds4.c",
+        "ds4_metal.m"
+      ],
+      "cwd": "/Users/evanhoffman/git/ds4-pr952",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 1,
+        "stdout_contains": ""
+      },
+      "observed": {
+        "exit": 1,
+        "stdout": ""
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "If a DS4_METAL_REQUIRE_Q4_STREAM_OVERLAP spelling exists, then stream-overlap does have a REQUIRE arm and the 'no REQUIRE' claim collapses."
+    }
+  ]
+}
