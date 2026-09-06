@@ -95,6 +95,8 @@ from lib import agent_identity
 logger = logging.getLogger(__name__)
 agent_identity.install(logger)
 
+REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
+
 SCHEMA = "local-llm/evidence-2"
 
 #: The canonical machine name a machine-bound claim names. `hardware_id`'s
@@ -556,7 +558,24 @@ def _show_expect_ref(claim: dict, repo: pathlib.Path) -> str:
 
 def verify(finding: dict, path: pathlib.Path, include_expensive: bool) -> int:
     """Re-run every admissible claim. Returns a process exit code."""
-    repo = pathlib.Path(finding.get("repo") or str(pathlib.Path.cwd()))
+    # The verifier's OWN checkout, never the finding's `repo` field. That field
+    # records where the claim was authored and is provenance; treating it as an
+    # instruction made every portable claim resolve against a path that exists
+    # only on the authoring machine, which is the precise inversion of what
+    # cwd_repo_rel is for. CI caught it: "cwd_repo_rel '.' is not a directory in
+    # /Users/evanhoffman/git/local-llm", on a Linux runner.
+    #
+    # __file__ is right here and wrong for the run lock. The lock names a
+    # machine-wide resource, so it must not move with the checkout; a
+    # repo-relative path must move with it.
+    repo = REPO_ROOT
+    authored_in = finding.get("repo")
+    if authored_in and pathlib.Path(authored_in) != repo:
+        logger.info(
+            "finding authored in %s, verifying against this checkout %s",
+            authored_in,
+            repo,
+        )
     busy, why = machine_gate(repo)
     if busy:
         logger.error("REFUSING to verify: %s", why)

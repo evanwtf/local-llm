@@ -158,7 +158,10 @@ def _command_claim(**overrides) -> dict:
         "id": "c",
         "statement": "s",
         "argv": ["git", "rev-parse", "--is-inside-work-tree"],
-        "cwd": "/Users/evanhoffman/git/local-llm",
+        # A real directory on any host: a machine-bound claim skips the
+        # cwd_repo_rel path and runs this literally, so a hardcoded path
+        # from one machine fails everywhere else.
+        "cwd": str(pathlib.Path(__file__).resolve().parents[1]),
         "cwd_repo_rel": ".",
         "readonly": True,
         "cost": "cheap",
