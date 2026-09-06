@@ -256,9 +256,7 @@ def main(argv: list[str] | None = None) -> int:
     f = sub.add_parser("off-var", help="print the off-arm env var for a knob")
     f.add_argument("knob")
 
-    p = sub.add_parser(
-        "presence", help="print 1 if the on arm unsets the var, else 0"
-    )
+    p = sub.add_parser("presence", help="print 1 if the on arm unsets the var, else 0")
     p.add_argument("knob")
 
     a = sub.add_parser(

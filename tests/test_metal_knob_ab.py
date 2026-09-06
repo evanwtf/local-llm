@@ -59,7 +59,9 @@ def test_every_known_knob_accepts_a_valid_arm():
         # A presence knob's on arm unsets the var, so it carries the sentinel.
         on = "unset" if mk.presence(knob) else "1"
         # A knob with no admission signal needs the explicit acknowledgment.
-        mk.validate(knob, on, off, acknowledge_no_signal=not mk.has_admission_signal(knob))
+        mk.validate(
+            knob, on, off, acknowledge_no_signal=not mk.has_admission_signal(knob)
+        )
 
 
 def test_no_signal_knob_refused_without_ack():
