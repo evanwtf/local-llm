@@ -51,15 +51,22 @@ RUNS="${1:-4}"
 UNTIL="${2:-}"
 LOGDIR="${LOGDIR:-$(mktemp -d)}"
 BENCH_LOGS="${BENCH_LOGS:-$HOME/bench-logs}"
-RESULTS="${RESULTS:-$REPO/benchmarks/agent/results-146-targets-ab.jsonl}"
-MANIFEST="${MANIFEST:-${RESULTS%.jsonl}-manifest.jsonl}"
-BATCH="${BATCH:-$(date +%m%d-%H%M)}"
-SHIM_PORT=8101
 # TARGETS_AB_DRY_RUN=1 exercises the batch loop (the cutoff and the arm order)
 # without the machine: no dirty check, no sync, no lock, no shim, no ds4-server,
 # no run.py. Each run writes a dry row to the manifest so a test can count the
 # loop. The measurement itself is not exercised; the loop is.
 DRY_RUN="${TARGETS_AB_DRY_RUN:-0}"
+# Dry-run writes rows to the manifest, so it must never touch the real results
+# paths. Refuse unless both are overridden away from their defaults; the
+# obvious invocation must be impossible, not merely undocumented.
+if [ "$DRY_RUN" -eq 1 ] && { [ -z "${RESULTS:-}" ] || [ -z "${MANIFEST:-}" ]; }; then
+    echo "REFUSING: dry-run must override RESULTS and MANIFEST away from the real paths" >&2
+    exit 1
+fi
+RESULTS="${RESULTS:-$REPO/benchmarks/agent/results-146-targets-ab.jsonl}"
+MANIFEST="${MANIFEST:-${RESULTS%.jsonl}-manifest.jsonl}"
+BATCH="${BATCH:-$(date +%m%d-%H%M)}"
+SHIM_PORT=8101
 
 DS4_MODEL="$HOME/models/qwen3.8-flash-next-ds4-q4/Qwen3.8-Flash-Next-Q4KExperts-BF16Emb-BF16Control-Q8GDN-Q8QSA-Q8Shared-Q8Out.gguf"
 DS4_PLE="$HOME/models/qwen3.8-flash-next-ds4-q4/Qwen3.8-Flash-Next-PLE-Q4_1.gguf"

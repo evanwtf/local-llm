@@ -79,3 +79,21 @@ def test_dry_run_never_touches_the_machine(tmp_path):
     assert proc.returncode == 0
     assert "acquire-lock" not in proc.stderr
     assert "shim" not in proc.stderr
+
+
+def test_dry_run_refuses_real_results_paths():
+    """Dry-run writes rows to the manifest, so it must refuse to start unless
+    RESULTS and MANIFEST are overridden away from the real paths. The obvious
+    invocation must be impossible, not merely undocumented."""
+    env = os.environ.copy()
+    env["TARGETS_AB_DRY_RUN"] = "1"
+    proc = subprocess.run(
+        ["bash", str(SCRIPT), "1"],
+        capture_output=True,
+        text=True,
+        env=env,
+        cwd=REPO,
+        check=False,
+    )
+    assert proc.returncode != 0
+    assert "must override RESULTS and MANIFEST" in proc.stderr
