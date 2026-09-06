@@ -2158,8 +2158,20 @@ class DraftProbe:
         """Counters produced since the last sample. None when not enabled."""
         if not self.path:
             return None
+        before = self.offset
         reading = self.reader.read_since(self.path, self.offset)
         self.offset = reading.offset
+        # #148: how much log this trial's counters were read from. A trial that
+        # generated hundreds of tokens and consumed zero bytes is a broken
+        # probe, not a quiet engine, and the two were indistinguishable in the
+        # warning below until this line existed.
+        logger.debug(
+            "draft probe: read %d bytes (%d -> %d) from %s",
+            self.offset - before,
+            before,
+            self.offset,
+            self.path,
+        )
         return reading.counters
 
 
@@ -3040,9 +3052,11 @@ def main():
     draft_probe = DraftProbe(args.server_log, args.draft_log_engine)
     if args.server_log:
         logger.info(
-            "recording MTP draft acceptance per row from %s (%s)",
+            "recording MTP draft acceptance per row from %s (%s), starting at "
+            "byte %d",
             args.server_log,
             draft_probe.source,
+            draft_probe.offset,
         )
 
     # The smoke gate is what makes the model resident, so the served context is

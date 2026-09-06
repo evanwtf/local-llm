@@ -29,6 +29,7 @@ documentation.
 | `hf_sweep.py` | Watch Hugging Face for new quants of the models we actually run. |
 | `kv_prefix_audit.py` | Measure how much prefill a stalled KV prefix costs (#64, #50). |
 | `make_scripts_readme.py` | Generate scripts/README.md from each script's own first docstring line. |
+| `mtp_engagement.py` | Does the engine engage MTP on the traffic we actually send it? (#148, #151) |
 | `post_ab_run.py` | Post one completed decode-A/B run to a GitHub issue, once. |
 | `prefix_stability.py` | Find which cached prefix block changes between two requests (#50, #64). |
 | `prompt_meta.py` | Which prompt a decode/prefill A/B was measured on (#140). |
