@@ -79,16 +79,22 @@ ADMISSION_SIGNAL="$(uv run python "$PY" admission-signal "$KNOB")"
 run_engagement() {
   local label="$1" value="$2"
   local log="$OUT/engagement-${label}.log"
+  local count_file="$OUT/engagement-${label}.count"
   local env_prefix trace_var
   env_prefix="$(uv run python "$PY" arm-cmd "$KNOB" "$label" "$value")"
   trace_var="$(uv run python "$PY" trace-var "$KNOB")"
-  echo "[$(date +%H:%M:%S)] engagement $label -> $log"
+  # The progress line goes to stderr: this function's stdout must stay empty so
+  # the count file is the only value it produces. A friendly echo here would
+  # pollute the captured count.
+  echo "[$(date +%H:%M:%S)] engagement $label -> $log" >&2
   echo "# engagement: $label knob=$KNOB env $env_prefix $trace_var=1 ./ds4-bench -m $GGUF --metal --prompt-file $PROMPT --ctx-start $CTX_START --ctx-max $CTX_START --step-incr $STEP --gen-tokens $GEN" > "$log"
   ( cd "$TREE" && env $env_prefix $trace_var=1 ./ds4-bench -m "$GGUF" --metal \
       --prompt-file "$PROMPT" \
       --ctx-start "$CTX_START" --ctx-max "$CTX_START" --step-incr "$STEP" \
       --gen-tokens "$GEN" --csv "$OUT/engagement-${label}.csv" ) >> "$log" 2>&1
-  uv run python "$PY" count-trace-lines "$log"
+  # The count goes to a file, not stdout: the caller reads it back, so a
+  # progress echo cannot pollute the value.
+  uv run python "$PY" count-trace-lines "$log" > "$count_file"
 }
 
 # Check the cheap thing first: a missing build used to fail mid-run, after the
@@ -122,8 +128,10 @@ uv run python "$(dirname "$0")/prompt_meta.py" --prompt "$PROMPT" --sidecar "$OU
 ON_COUNT=0
 OFF_COUNT=0
 if [ "$ADMISSION_SIGNAL" = "count" ]; then
-  ON_COUNT="$(run_engagement on "$ON_VALUE")"
-  OFF_COUNT="$(run_engagement off "$OFF_VALUE")"
+  run_engagement on "$ON_VALUE"
+  run_engagement off "$OFF_VALUE"
+  ON_COUNT="$(cat "$OUT/engagement-on.count")"
+  OFF_COUNT="$(cat "$OUT/engagement-off.count")"
   if ! uv run python "$PY" count-admission-ok "$ON_COUNT" "$OFF_COUNT"; then
     echo "REFUSING: knob $KNOB did not engage (on=$ON_COUNT off=$OFF_COUNT trace lines); the on arm must exceed the off arm and both must be non-zero" >&2
     exit 1

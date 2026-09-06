@@ -248,3 +248,37 @@ def test_count_admission_equal_refused():
 def test_count_admission_zero_refused():
     assert mk.count_admission_ok(43, 0) is False
     assert mk.count_admission_ok(0, 0) is False
+
+
+def test_run_engagement_writes_count_file(tmp_path):
+    """The engagement count must land in a file, not on the function's stdout,
+    so a progress echo cannot pollute the captured value."""
+    import subprocess
+
+    tree = tmp_path / "tree"
+    tree.mkdir()
+    stub = tree / "ds4-bench"
+    stub.write_text(
+        "#!/usr/bin/env bash\n"
+        "for i in $(seq 1 5); do\n"
+        "  echo 'ds4: packed FA use=1 max_threads=256 tew=0 tgmem=0 need=0' >&2\n"
+        "done\n"
+    )
+    stub.chmod(0o755)
+
+    out = tmp_path / "out"
+    out.mkdir()
+
+    script = (
+        pathlib.Path(__file__).resolve().parents[1] / "scripts" / "metal_knob_ab.sh"
+    )
+    py = script.parent / "metal_knob_ab.py"
+    # Source only the run_engagement function, then run it against the stub.
+    bash = (
+        f"eval \"$(sed -n '/^run_engagement()/,/^}}/p' {script})\"\n"
+        f"OUT={out} PY={py} KNOB=gathered-heads TREE={tree} GGUF=stub.gguf "
+        f"PROMPT=stub.txt CTX_START=2048 STEP=2048 GEN=128 run_engagement on unset\n"
+    )
+    subprocess.run(["bash", "-c", bash], check=True, capture_output=True)
+    count = (out / "engagement-on.count").read_text().strip()
+    assert count == "5"
