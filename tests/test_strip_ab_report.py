@@ -304,3 +304,52 @@ def test_a_batch_that_matches_nothing_is_refused(tmp_path, caplog):
     assert rc != 0
     assert "9999-9999" in caplog.text
     assert "A/B read-out" not in caplog.text
+
+
+def test_an_unparseable_entry_counts_as_its_own_batch(tmp_path, caplog):
+    """A manifest with one known batch plus an entry with no batch id must
+    refuse without --batch: 'one known batch plus something unidentifiable'
+    is exactly a case where pooling is possible and nobody is warned."""
+    manifest = tmp_path / "manifest.jsonl"
+    manifest.write_text(
+        '{"run":1,"arm":"legacy","started":"2026-09-06T21:16:36Z",'
+        '"ended":"2026-09-06T22:02:36Z",'
+        '"dir":"/tmp/146-targets-legacy-0906-1716-run1"}\n'
+        '{"run":2,"arm":"sandbox","started":"2026-09-06T22:02:51Z",'
+        '"ended":"2026-09-06T22:58:39Z","dir":"/tmp/old-no-batch"}\n'
+    )
+    results = tmp_path / "results.jsonl"
+    results.write_text("")
+    with caplog.at_level(logging.INFO):
+        rc = report.main(["--results", str(results), "--manifest", str(manifest)])
+    assert rc != 0
+    assert "0906-1716" in caplog.text
+    assert "A/B read-out" not in caplog.text
+
+
+def test_a_batch_argument_excludes_entries_with_no_batch_id(tmp_path, caplog):
+    """With --batch, a manifest entry carrying no batch id is excluded, and
+    the exclusion is logged rather than silent."""
+    manifest = tmp_path / "manifest.jsonl"
+    manifest.write_text(
+        '{"run":1,"arm":"legacy","started":"2026-09-06T21:16:36Z",'
+        '"ended":"2026-09-06T22:02:36Z",'
+        '"dir":"/tmp/146-targets-legacy-0906-1716-run1"}\n'
+        '{"run":2,"arm":"sandbox","started":"2026-09-06T22:02:51Z",'
+        '"ended":"2026-09-06T22:58:39Z","dir":"/tmp/old-no-batch"}\n'
+    )
+    results = tmp_path / "results.jsonl"
+    results.write_text("")
+    with caplog.at_level(logging.INFO):
+        rc = report.main(
+            [
+                "--results",
+                str(results),
+                "--manifest",
+                str(manifest),
+                "--batch",
+                "0906-1716",
+            ]
+        )
+    assert rc == 0
+    assert "no batch id" in caplog.text

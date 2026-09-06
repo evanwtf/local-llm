@@ -153,6 +153,12 @@ def batch_of(entry: dict) -> str | None:
     return m.group(1) if m else None
 
 
+def _batch_label(b: str | None) -> str:
+    """A readable name for a batch id in a message. None is a manifest entry
+    written before #175, which carries no batch id."""
+    return "<no batch id>" if b is None else b
+
+
 def outcomes(
     rows: list[dict], manifest: list[dict], batch: str | None = None
 ) -> tuple[dict[str, dict[str, int]], int]:
@@ -350,26 +356,38 @@ def main(argv: list[str] | None = None) -> int:
     # does not say which one it wants pools them -- this morning's rows into
     # tonight's totals, with no error. Refuse rather than pool, naming the
     # batches found. Same shape as the VOID guard above.
-    batches = {b for b in (batch_of(e) for e in manifest) if b is not None}
+    #
+    # An entry with no batch id (a manifest written before #175) counts as
+    # its own batch for the spanning test: "one known batch plus something
+    # unidentifiable" is exactly a case where pooling is possible and nobody
+    # is warned.
+    batches = {batch_of(e) for e in manifest}
     if args.batch is None and len(batches) > 1:
         logger.error(
             "manifest spans %d batches (%s); pass --batch to read one. "
             "A read-out that pools them is no result.",
             len(batches),
-            ", ".join(sorted(batches)),
+            ", ".join(sorted(_batch_label(b) for b in batches)),
         )
         return 1
     if args.batch is not None and args.batch not in batches:
         logger.error(
             "--batch %s matches no run in the manifest (found: %s)",
             args.batch,
-            ", ".join(sorted(batches)) or "none",
+            ", ".join(sorted(_batch_label(b) for b in batches)),
         )
         return 1
     want = args.batch
     if want is None and len(batches) == 1:
         want = next(iter(batches))
     if want is not None:
+        dropped = [e for e in manifest if batch_of(e) is None]
+        if dropped:
+            logger.warning(
+                "excluded %d manifest entr%s with no batch id",
+                len(dropped),
+                "y" if len(dropped) == 1 else "ies",
+            )
         manifest = [e for e in manifest if batch_of(e) == want]
 
     per_arm: dict[str, tuple[int, int, int, int]] = {}
