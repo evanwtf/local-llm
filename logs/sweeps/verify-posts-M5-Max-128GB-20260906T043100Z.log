@@ -1,0 +1,164 @@
+2026-09-06 00:31:00,853 INFO [ef24ebd@M5-Max-128GB] 2026-09-06T04:31:00Z (00:31:00 EDT) | harness ef24ebd
+2026-09-06 00:31:00,867 INFO [ef24ebd@M5-Max-128GB]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-06 00:31:00,996 INFO [ef24ebd@M5-Max-128GB] 2094745678031527944  VERIFIED post  @korale77  Tue Sep 01 11:14:22 +0000 2026  via fxtwitter
+2026-09-06 00:31:00,996 INFO [ef24ebd@M5-Max-128GB]     GLM 5.3 Flash Q2 running locally with access to the Blender + Unity CLIs. Using @antirez's ds4 with vision support on M5 Max 128GB. "ctx=120128 ... avg=17.32 t/s" on Auto power.
+2026-09-06 00:31:01,170 INFO [ef24ebd@M5-Max-128GB] 2095534073670500419  VERIFIED post  @korale77  Thu Sep 03 15:27:10 +0000 2026  via fxtwitter
+2026-09-06 00:31:01,170 INFO [ef24ebd@M5-Max-128GB]     Didn’t notice anything. Been using DeepSeek v4 Flash Vision Exp locally.
+2026-09-06 00:31:01,170 INFO [ef24ebd@M5-Max-128GB]     quotes @MiaAI_lab: claude down grok down codex down
+2026-09-06 00:31:01,292 INFO [ef24ebd@M5-Max-128GB] 2095662285859823942  VERIFIED reply  @korale77  Thu Sep 03 23:56:39 +0000 2026  via fxtwitter
+2026-09-06 00:31:01,292 INFO [ef24ebd@M5-Max-128GB]     @sirshibaninja Getting around 18-20 t/s at 200k context. Not too bad.
+2026-09-06 00:31:01,434 INFO [ef24ebd@M5-Max-128GB] 2090042469853626661  VERIFIED reply  @korale77  Wed Aug 19 11:45:30 +0000 2026  via fxtwitter
+2026-09-06 00:31:01,434 INFO [ef24ebd@M5-Max-128GB]     @ivanfioravanti @_ARahim_ Nice project. Thanks for sharing! Am getting between 68 - 89 t/s on M5 Max with Qwen 3.8 27B 4bit + DFlash 2 for the same prompt, depending the level of thinking I pick
+2026-09-06 00:31:01,605 INFO [ef24ebd@M5-Max-128GB] 2094790313940570211  VERIFIED post  @korale77  Tue Sep 01 14:11:44 +0000 2026  via fxtwitter
+2026-09-06 00:31:01,605 INFO [ef24ebd@M5-Max-128GB]     DeepSeek v4 Flash with vision running. Let's see what it can cook.
+2026-09-06 00:31:01,605 INFO [ef24ebd@M5-Max-128GB]     quotes @antirez: It's on "main" branch. If you test it, report your vibes please :)
+2026-09-06 00:31:01,730 INFO [ef24ebd@M5-Max-128GB] 2095101199729180931  VERIFIED reply  @korale77  Wed Sep 02 10:47:05 +0000 2026  via fxtwitter
+2026-09-06 00:31:01,731 INFO [ef24ebd@M5-Max-128GB]     @antirez Same here. Vision was the main thing holding it back compared to other local options that came out recently. Now that we have it (and thanks to your work on that) it's really an amazing model
+2026-09-06 00:31:01,860 INFO [ef24ebd@M5-Max-128GB] 2092256091505860973  VERIFIED reply  @Brooooook_lyn  Tue Aug 25 14:21:39 +0000 2026  via fxtwitter
+2026-09-06 00:31:01,860 INFO [ef24ebd@M5-Max-128GB]     @ivanfioravanti M5Max is already faster than DGX Spark in prefill 🤔
+2026-09-06 00:31:02,009 INFO [ef24ebd@M5-Max-128GB] 2088453041301393720  VERIFIED post  @Brooooook_lyn  Sat Aug 15 02:29:41 +0000 2026  via fxtwitter
+2026-09-06 00:31:02,009 INFO [ef24ebd@M5-Max-128GB]     Uploaded Qwen 3.8 27B mxfp4 + mxfp8 dynamic quants weights for mlx, balance the inference speed and intelligence https://huggingface.co/Brooooooklyn/Qwen3.8-27B-MXFP4-mlx
+2026-09-06 00:31:02,009 INFO [ef24ebd@M5-Max-128GB]     quotes @Alibaba_Qwen: We promised open weights for Qwen3.8. Now, time to meet them! 🎉  ⚡ Qwen3.8-27B: - A native multimodal dense model. With just 27B parameters, it outperforms Qwen
+2026-09-06 00:31:02,136 INFO [ef24ebd@M5-Max-128GB] 2089236511493624110  VERIFIED reply  @Brooooook_lyn  Mon Aug 17 06:22:55 +0000 2026  via fxtwitter
+2026-09-06 00:31:02,137 INFO [ef24ebd@M5-Max-128GB]     @wey_gu @leon7hao MTP 和 concurrent inference 不可兼得，等一手 35B-A3B
+2026-09-06 00:31:02,402 INFO [ef24ebd@M5-Max-128GB] 2088464366178017779  VERIFIED reply  @Brooooook_lyn  Sat Aug 15 03:14:41 +0000 2026  via fxtwitter
+2026-09-06 00:31:02,402 INFO [ef24ebd@M5-Max-128GB]     Usable speed on M5Max with near Opus 4.6 intelligence
+2026-09-06 00:31:02,577 INFO [ef24ebd@M5-Max-128GB] 2089317660471505399  VERIFIED post  @Brooooook_lyn  Mon Aug 17 11:45:22 +0000 2026  via fxtwitter
+2026-09-06 00:31:02,578 INFO [ef24ebd@M5-Max-128GB]     Finished my first pr in one-shot with Qwen 3.8 27B mxfp4 on macOS. It looks like I can delegate more simple tasks to my local LLM in the future. PR linked below 👇
+2026-09-06 00:31:02,698 INFO [ef24ebd@M5-Max-128GB] 2088509473392591052  VERIFIED post  @Brooooook_lyn  Sat Aug 15 06:13:55 +0000 2026  via fxtwitter
+2026-09-06 00:31:02,698 INFO [ef24ebd@M5-Max-128GB]     mlx 本地推理生态挺热闹的，但是搞不懂都在卷 4bit 均匀量化的弱智 checkpoint 的推理速度有啥意义，快一倍不还是弱智吗
+2026-09-06 00:31:02,698 INFO [ef24ebd@M5-Max-128GB] [
+  {
+    "id": "2094745678031527944",
+    "status": "ok",
+    "author": "korale77",
+    "created_at": "Tue Sep 01 11:14:22 +0000 2026",
+    "text": "GLM 5.3 Flash Q2 running locally with access to the Blender + Unity CLIs. Using @antirez's ds4 with vision support on M5 Max 128GB. \"ctx=120128 ... avg=17.32 t/s\" on Auto power.",
+    "is_reply": false,
+    "quoted_author": null,
+    "quoted_text": null,
+    "source": "fxtwitter"
+  },
+  {
+    "id": "2095534073670500419",
+    "status": "ok",
+    "author": "korale77",
+    "created_at": "Thu Sep 03 15:27:10 +0000 2026",
+    "text": "Didn\u2019t notice anything. Been using DeepSeek v4 Flash Vision Exp locally.",
+    "is_reply": false,
+    "quoted_author": "MiaAI_lab",
+    "quoted_text": "claude down\ngrok down\ncodex down",
+    "source": "fxtwitter"
+  },
+  {
+    "id": "2095662285859823942",
+    "status": "ok",
+    "author": "korale77",
+    "created_at": "Thu Sep 03 23:56:39 +0000 2026",
+    "text": "@sirshibaninja Getting around 18-20 t/s at 200k context. Not too bad.",
+    "is_reply": true,
+    "quoted_author": null,
+    "quoted_text": null,
+    "source": "fxtwitter"
+  },
+  {
+    "id": "2090042469853626661",
+    "status": "ok",
+    "author": "korale77",
+    "created_at": "Wed Aug 19 11:45:30 +0000 2026",
+    "text": "@ivanfioravanti @_ARahim_ Nice project. Thanks for sharing! Am getting between 68 - 89 t/s on M5 Max with Qwen 3.8 27B 4bit + DFlash 2 for the same prompt, depending the level of thinking I pick",
+    "is_reply": true,
+    "quoted_author": null,
+    "quoted_text": null,
+    "source": "fxtwitter"
+  },
+  {
+    "id": "2094790313940570211",
+    "status": "ok",
+    "author": "korale77",
+    "created_at": "Tue Sep 01 14:11:44 +0000 2026",
+    "text": "DeepSeek v4 Flash with vision running. Let's see what it can cook.",
+    "is_reply": false,
+    "quoted_author": "antirez",
+    "quoted_text": "It's on \"main\" branch. If you test it, report your vibes please :)",
+    "source": "fxtwitter"
+  },
+  {
+    "id": "2095101199729180931",
+    "status": "ok",
+    "author": "korale77",
+    "created_at": "Wed Sep 02 10:47:05 +0000 2026",
+    "text": "@antirez Same here. Vision was the main thing holding it back compared to other local options that came out recently. Now that we have it (and thanks to your work on that) it's really an amazing model.",
+    "is_reply": true,
+    "quoted_author": null,
+    "quoted_text": null,
+    "source": "fxtwitter"
+  },
+  {
+    "id": "2092256091505860973",
+    "status": "ok",
+    "author": "Brooooook_lyn",
+    "created_at": "Tue Aug 25 14:21:39 +0000 2026",
+    "text": "@ivanfioravanti M5Max is already faster than DGX Spark in prefill \ud83e\udd14",
+    "is_reply": true,
+    "quoted_author": null,
+    "quoted_text": null,
+    "source": "fxtwitter"
+  },
+  {
+    "id": "2088453041301393720",
+    "status": "ok",
+    "author": "Brooooook_lyn",
+    "created_at": "Sat Aug 15 02:29:41 +0000 2026",
+    "text": "Uploaded Qwen 3.8 27B mxfp4 + mxfp8 dynamic quants weights for mlx, balance the inference speed and intelligence https://huggingface.co/Brooooooklyn/Qwen3.8-27B-MXFP4-mlx",
+    "is_reply": false,
+    "quoted_author": "Alibaba_Qwen",
+    "quoted_text": "We promised open weights for Qwen3.8. Now, time to meet them! \ud83c\udf89\n\n\u26a1 Qwen3.8-27B:\n- A native multimodal dense model. With just 27B parameters, it outperforms Qwen3.7-Plus overall and shines in real-world coding & office workflows.\n- 262K native context, easily extendable to 1M tokens via YaRN.\n- Built for builders. Highly efficient, high-quality, and licensed under Apache 2.0.\n\n\ud83d\ude80 The open weights for Qwen3.8-2.4T-A95B (Max-level) have also been released recently.\n\nWhether you're shipping lightweight applications with Qwen3.8-27B locally or building agents with Qwen3.8-2.4T-A95B, they're yours now!\n\nDownload, deploy, and build something we haven't imagined yet. \ud83d\udc40\ud83d\udc47\n- Hugging Face\uff1a\nhttps://huggingface.co/collections/Qwen/qwen38\n- ModelScope\uff1a\nhttps://www.modelscope.cn/collections/Qwen/Qwen38",
+    "source": "fxtwitter"
+  },
+  {
+    "id": "2089236511493624110",
+    "status": "ok",
+    "author": "Brooooook_lyn",
+    "created_at": "Mon Aug 17 06:22:55 +0000 2026",
+    "text": "@wey_gu @leon7hao MTP \u548c concurrent inference \u4e0d\u53ef\u517c\u5f97\uff0c\u7b49\u4e00\u624b 35B-A3B",
+    "is_reply": true,
+    "quoted_author": null,
+    "quoted_text": null,
+    "source": "fxtwitter"
+  },
+  {
+    "id": "2088464366178017779",
+    "status": "ok",
+    "author": "Brooooook_lyn",
+    "created_at": "Sat Aug 15 03:14:41 +0000 2026",
+    "text": "Usable speed on M5Max with near Opus 4.6 intelligence",
+    "is_reply": true,
+    "quoted_author": null,
+    "quoted_text": null,
+    "source": "fxtwitter"
+  },
+  {
+    "id": "2089317660471505399",
+    "status": "ok",
+    "author": "Brooooook_lyn",
+    "created_at": "Mon Aug 17 11:45:22 +0000 2026",
+    "text": "Finished my first pr in one-shot with Qwen 3.8 27B mxfp4 on macOS. It looks like I can delegate more simple tasks to my local LLM in the future.\nPR linked below \ud83d\udc47",
+    "is_reply": false,
+    "quoted_author": null,
+    "quoted_text": null,
+    "source": "fxtwitter"
+  },
+  {
+    "id": "2088509473392591052",
+    "status": "ok",
+    "author": "Brooooook_lyn",
+    "created_at": "Sat Aug 15 06:13:55 +0000 2026",
+    "text": "mlx \u672c\u5730\u63a8\u7406\u751f\u6001\u633a\u70ed\u95f9\u7684\uff0c\u4f46\u662f\u641e\u4e0d\u61c2\u90fd\u5728\u5377 4bit \u5747\u5300\u91cf\u5316\u7684\u5f31\u667a checkpoint \u7684\u63a8\u7406\u901f\u5ea6\u6709\u5565\u610f\u4e49\uff0c\u5feb\u4e00\u500d\u4e0d\u8fd8\u662f\u5f31\u667a\u5417",
+    "is_reply": false,
+    "quoted_author": null,
+    "quoted_text": null,
+    "source": "fxtwitter"
+  }
+]
+2026-09-06 00:31:02,698 INFO [ef24ebd@M5-Max-128GB] log: /Users/evanhoffman/git/local-llm/logs/sweeps/verify-posts-M5-Max-128GB-20260906T043100Z.log
