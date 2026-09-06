@@ -11,6 +11,24 @@
 Instructions for coding agents. [`CONVENTIONS.md`](CONVENTIONS.md) holds the
 standing rules about data and safety; this file covers how to work.
 
+## A download is not verified until the files are on disk (2026-09-06)
+
+`hf download` takes filenames positionally. Passing two of them after
+`--include` makes the first the ignored include pattern and the second the only
+file fetched:
+
+```
+UserWarning: Ignoring `--include` since filenames have being explicitly set.
+```
+
+One 171 GB request, one 86 GB file, no error. Fetch one file per invocation, and
+**check the result against the recorded byte size and SHA-256 before treating a
+download as done** -- a file of the right name and the wrong size is the failure
+this catches, and a missing second file is the one that bit us.
+
+The general rule: a long-running job that printed a warning and kept going has
+not told you it succeeded. It told you it is still running.
+
 ## Absolute URLs in issue and PR comments (2026-09-06)
 
 A relative link works in a repo markdown file and **404s in an issue or PR
