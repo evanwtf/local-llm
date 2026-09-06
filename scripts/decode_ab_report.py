@@ -141,8 +141,37 @@ def summarize(data: dict[str, dict[int, dict[int, float]]]) -> Summary:
     )
 
 
+VOID_SUFFIX = "-VOID.md"
+
+
+def void_marker(outdir: pathlib.Path) -> pathlib.Path | None:
+    """The marker saying this run must not be pooled, or None.
+
+    Two spellings are accepted, because a run is voided *after* it was
+    written and whoever writes the marker should not have to remember which
+    one this script reads: a sibling `<dir>-VOID.md`, or `VOID.md` inside
+    the directory.
+    """
+    d = outdir.resolve()
+    for candidate in (d.parent / f"{d.name}{VOID_SUFFIX}", d / "VOID.md"):
+        if candidate.exists():
+            return candidate
+    return None
+
+
+def void_reason(marker: pathlib.Path) -> str:
+    """The marker's first non-empty line, so the refusal says why."""
+    try:
+        for line in marker.read_text().splitlines():
+            if line.strip():
+                return line.strip().lstrip("#").strip()
+    except OSError:
+        pass
+    return "no reason recorded"
+
+
 def report_across_runs(
-    dirs: list[pathlib.Path], column: str
+    dirs: list[pathlib.Path], column: str, include_void: bool = False
 ) -> tuple[list[tuple[pathlib.Path, Summary]], int]:
     """Summarize each run, then the spread between them (#136).
 
@@ -150,15 +179,45 @@ def report_across_runs(
     summarized is named and skipped rather than aborting the others: with
     four runs in hand, losing three to one bad directory is the wrong
     trade.
+
+    A **voided** run is refused before it is loaded. On 2026-09-06 run 2 of
+    the #952 batch caught another session's test suite on one arm and not
+    the other, and was written off in prose -- a file the pooling tool
+    cannot read. The next person to type `decode_ab_report.py run*/` would
+    have pooled it, and the confound flattered the hypothesis, so nothing
+    in the output would have looked wrong. The rule is an artifact now.
     """
     got: list[tuple[pathlib.Path, Summary]] = []
     status = 0
+    refused = 0
     for d in dirs:
+        marker = void_marker(d)
+        if marker is not None and not include_void:
+            refused += 1
+            # ERROR, not a warning: this is a refusal, and it has to survive
+            # being read at the bottom of a long report.
+            logger.error(
+                "REFUSED %s: marked VOID by %s -- %s",
+                d.name or str(d),
+                marker.name,
+                void_reason(marker),
+            )
+            continue
+        if marker is not None:
+            logger.warning(
+                "%s is VOID and is pooled anyway because --include-void was "
+                "given -- do not quote this",
+                d.name or str(d),
+            )
         try:
             got.append((d, summarize(load(d, column))))
         except (ValueError, OSError) as exc:
             logger.error("%s: %s", d, exc)
             status = 1
+    if not got and refused:
+        # Every directory asked for was void. Exiting 0 here would let a
+        # caller read "no output" as "nothing wrong".
+        status = 1
     return got, status
 
 
@@ -470,6 +529,12 @@ def main(argv: list[str]) -> int:
         action="store_true",
         help="also print the pre-98bc79b ratio-of-medians, for #136 only",
     )
+    parser.add_argument(
+        "--include-void",
+        action="store_true",
+        help="pool runs marked VOID as well; for inspecting one, never for "
+        "a number you intend to quote",
+    )
     args = parser.parse_args(argv[1:])
     legacy = args.legacy
     dirs = args.dirs or [pathlib.Path.cwd()]
@@ -478,7 +543,7 @@ def main(argv: list[str]) -> int:
     # interval rate. A PR can move one and not the other (#964 claims decode
     # only), so both get the paired treatment.
     for column in ("gen_steady_tps", "prefill_tps"):
-        runs, run_status = report_across_runs(dirs, column)
+        runs, run_status = report_across_runs(dirs, column, args.include_void)
         status = status or run_status
         if not runs:
             break

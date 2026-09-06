@@ -151,6 +151,14 @@ the change under test look better, which agreed with where the data already
 leaned. **A confound that flatters the hypothesis is more dangerous than one
 that fights it**, because nothing about the output looks wrong.
 
+**Void a run in a file the tooling reads, not only in prose.** Write
+`<run-dir>-VOID.md` beside the directory, or `VOID.md` inside it, with the
+reason on the first line. `decode_ab_report.py` then refuses that directory,
+prints the reason, and leaves it out of the median and the run count;
+`--include-void` pools it and says the number must not be quoted. Run 2 above
+was first voided in prose only, which the next `decode_ab_report.py run*/`
+would have pooled straight back in.
+
 And the failure that did land: on the #146 paired run, the operator worked on
 the machine during the sandbox arm and not the legacy arm — API calls and gguf
 header reads. Sandbox measured 2.1x slower. The effect is probably real and the

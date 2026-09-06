@@ -402,3 +402,96 @@ def test_prompt_for_reports_the_one_prompt_several_runs_share(tmp_path):
     runs, _ = report.report_across_runs([a, b], "prefill_tps")
     ref = report.prompt_for(runs)
     assert ref is not None and ref.name == "p.txt"
+
+
+# -- voided runs (#162) ------------------------------------------------------
+#
+# Run 2 of the #952 batch caught another session's pytest suite on arm A and
+# not arm B, and was written off in a markdown file the pooling tool could not
+# read. The confound flattered the hypothesis, so a report that had pooled it
+# would have looked entirely healthy. These assert the rule as an artifact.
+
+
+def _void(d: pathlib.Path, reason: str = "# Run is VOID - asymmetric load") -> None:
+    """Mark a run directory void the way the batch does: a sibling file."""
+    (d.parent / f"{d.name}{report.VOID_SUFFIX}").write_text(reason + "\n\nbody\n")
+
+
+def test_a_voided_run_is_refused_not_pooled(tmp_path, caplog):
+    good = _write_run(tmp_path, "run1", {1: 1.10, 2: 1.10})
+    bad = _write_run(tmp_path, "run2", {1: 2.00, 2: 2.00})
+    _void(bad)
+    with caplog.at_level("ERROR"):
+        runs, status = report.report_across_runs([good, bad], "gen_steady_tps")
+    assert [d.name for d, _ in runs] == ["run1"]
+    # Other runs are still usable, so the exit status stays clean.
+    assert status == 0
+    assert "REFUSED run2" in caplog.text
+
+
+def test_the_refusal_carries_the_reason_from_the_marker(tmp_path, caplog):
+    """A refusal with no reason is one someone will override blind."""
+    bad = _write_run(tmp_path, "run2", {1: 1.0})
+    _void(bad, "# pytest from another session landed on arm A")
+    good = _write_run(tmp_path, "run1", {1: 1.1, 2: 1.1})
+    with caplog.at_level("ERROR"):
+        report.report_across_runs([good, bad], "gen_steady_tps")
+    assert "pytest from another session landed on arm A" in caplog.text
+    # The leading '#' of the markdown heading is not part of the reason.
+    assert "-- pytest" in caplog.text
+
+
+def test_a_marker_inside_the_directory_also_voids_the_run(tmp_path, caplog):
+    """Whoever voids a run should not have to guess which spelling is read."""
+    bad = _write_run(tmp_path, "run2", {1: 1.0})
+    (bad / "VOID.md").write_text("# thermals, not the change under test\n")
+    with caplog.at_level("ERROR"):
+        runs, status = report.report_across_runs([bad], "gen_steady_tps")
+    assert runs == []
+    assert status == 1
+    assert "thermals" in caplog.text
+
+
+def test_every_run_void_is_a_failure_not_a_silent_pass(tmp_path):
+    """No output must not be readable as nothing wrong."""
+    bad = _write_run(tmp_path, "run2", {1: 1.0})
+    _void(bad)
+    runs, status = report.report_across_runs([bad], "gen_steady_tps")
+    assert runs == []
+    assert status == 1
+
+
+def test_a_voided_run_cannot_move_the_quoted_number(tmp_path):
+    """The property that matters: the headline is the same either way.
+
+    The void arm here reads 2.000 against the others' 1.100. If it leaked
+    into the pool the median and the run count both move, and the quotable
+    line -- the thing that gets pasted into an issue -- would carry it.
+    """
+    dirs = [_write_run(tmp_path, f"run{i}", {1: 1.10, 2: 1.10}) for i in (1, 3, 4)]
+    bad = _write_run(tmp_path, "run2", {1: 2.00, 2: 2.00})
+    _void(bad)
+    clean, _ = report.report_across_runs(dirs, "gen_steady_tps")
+    with_void, _ = report.report_across_runs([*dirs, bad], "gen_steady_tps")
+    assert report.quotable(with_void) == report.quotable(clean)
+    assert "over 3 runs" in report.quotable(with_void)
+
+
+def test_include_void_pools_it_and_says_so(tmp_path, caplog):
+    """An override exists for inspecting one, and it is never quiet."""
+    good = _write_run(tmp_path, "run1", {1: 1.10, 2: 1.10})
+    bad = _write_run(tmp_path, "run2", {1: 2.00, 2: 2.00})
+    _void(bad)
+    with caplog.at_level("WARNING"):
+        runs, status = report.report_across_runs(
+            [good, bad], "gen_steady_tps", include_void=True
+        )
+    assert [d.name for d, _ in runs] == ["run1", "run2"]
+    assert status == 0
+    assert "do not quote this" in caplog.text
+
+
+def test_a_run_with_no_marker_is_untouched(tmp_path):
+    """The guard must not fire on the normal case."""
+    good = _write_run(tmp_path, "run1", {1: 1.10, 2: 1.10})
+    assert report.void_marker(good) is None
