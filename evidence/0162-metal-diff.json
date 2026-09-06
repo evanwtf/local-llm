@@ -6,8 +6,8 @@
   "agent_model": "deepseek-v4-flash",
   "agent_effort": "unidentified",
   "repo": "/Users/evanhoffman/git/local-llm/.claude/worktrees/peer+162-metal-diff",
-  "authored_at": "2026-09-06T15:10:00-04:00",
-  "statement": "What the 218 commits between 9ab7053 and 77a054e1 change on the Metal path, and which of those changes the #162 run actually executes. The run's GGUF (DeepSeek-V4-Flash-Layers37-42Q4KExperts-OtherExpertLayersIQ2XXSGateUp-Q2KDown-AProjQ8-SExpQ8-OutQ8) carries F32, F16, Q8_0, IQ2_XXS, Q2_K, Q4_K and I32 tensors and NO mxfp4 (gguf_meta.py --tensors: 492 F32, 359 F16, 345 Q8_0, 74 IQ2_XXS, 37 Q2_K, 18 Q4_K, 3 I32). Two changes land on the path the run executes, and both are numerically-identical refactors: dequantize_iq2_xxs now reads a precomputed half-precision table (exactly grid*0.25, 0/2048 mismatches) instead of a uint8 grid scaled by 0.25 at runtime, and the Q4_K pair_swiglu kernels call ds4_silu (a numerically-stable sigmoid) instead of the inline g/(1+exp(-g)). Every other new Metal kernel is gated away from this run: the HC attention-output fusion kernels (kernel_dsv4_attn_out_q8_mm_hc_expand4_batch, kernel_dsv4_attn_out_q4_K_f16_rhs_mm_hc_expand4_batch) require a pre-M5 device (ds4_gpu_device_is_pre_m5_apple_silicon, ds4_metal.m:3599) or a test flag; the ssd_prefill_exactn path requires g_ssd_streaming_mode AND pre-M5 (ds4_metal.m:32752); the mid_only kernels require an M1 device AND g_ssd_streaming_mode (ds4_metal.m:47839); the dspark path requires DS4_METAL_DSPARK_DEVICE_PROPOSER=1 (ds4_metal.m:22501); the q4_K_dense_single_vec kernel requires an M1 device AND the opt-in DS4_METAL_ENABLE_Q4_QB_SINGLE_VEC (ds4_metal.m:23647); and the _shared_x Q4_K variants require g_ssd_streaming_mode (ds4_metal.m:48283). The run does not pass --ssd-streaming (scripts/decode_ab.sh:72), so g_ssd_streaming_mode is false. The mxfp4 tail_cull kernels are irrelevant: the GGUF has no mxfp4 tensors. A flat #162 result is therefore consistent with 'the executed path is numerically identical', not with 'the code never ran'.",
+  "authored_at": "2026-09-06T15:30:00-04:00",
+  "statement": "What the 218 commits between 9ab7053 and 77a054e1 change on the Metal path, and which of those the #162 run executes. The run's GGUF (DeepSeek-V4-Flash-Layers37-42Q4KExperts-OtherExpertLayersIQ2XXSGateUp-Q2KDown-AProjQ8-SExpQ8-OutQ8) carries F32, F16, Q8_0, IQ2_XXS, Q2_K, Q4_K and I32 tensors and NO mxfp4 (gguf_meta.py --tensors: 492 F32, 359 F16, 345 Q8_0, 74 IQ2_XXS, 37 Q2_K, 18 Q4_K, 3 I32). The gate enumeration below is sound but incomplete: it lists the gates that EXCLUDE the M5 Max, and there is also a helper that INCLUDES it, ds4_gpu_ported_m5_decode_feature_enabled (ds4_metal.m:3619), whose flash_attn_packed32_reduce call site condition changed in the diff (ds4_metal.m:36769) -- a decode-path change on M5 the enumeration missed. The diff on the IQ2_XXS and Q4_K matvec kernels is large and was NOT characterized: kernel_mul_mv_q4_K_f32_impl grew 94 to 429 lines, kernel_mul_mv_iq2_xxs_pair_f32_impl 6 to 141, kernel_mul_mv_q4_K_dense_f32 6 to 244, kernel_mul_mv_addr_iq2_xxs_pair_swiglu_f32 6 to 160. Two specific changes are numerically identical (the dequantize_iq2_xxs precomputed half table, and the Q4_K silu -> ds4_silu swap), but that does not imply the whole executed path is numerically identical, and numerical identity is independent of performance anyway. Whether a flat #162 result means 'no effect' or 'the code never ran' cannot be settled from source at this diff size. It can be settled empirically and cheaply: decode_ab_engine.sh now writes a per-arm startup log beside each CSV, and diffing the two arms' logs turns 'the trees ran different code' into an observation.",
   "provenance": {
     "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
     "trees": {
@@ -19,7 +19,7 @@
   "claims": [
     {
       "id": "dequantize-iq2xxs-refactor",
-      "statement": "dequantize_iq2_xxs changed from a uint8 grid table scaled by 0.25 to a precomputed half-precision table (ds4_metal_iq2xxs_half_values[256][8]). The new table is exactly grid*0.25 (0/2048 mismatches, checked by unpacking both tables), so the dequantized values are identical. This is on the production path: the GGUF has IQ2_XXS gate/up tensors.",
+      "statement": "dequantize_iq2_xxs changed from a uint8 grid table scaled by 0.25 to a precomputed half-precision table (ds4_metal_iq2xxs_half_values[256][8]). The new table is exactly grid*0.25 (0/2048 mismatches, checked by unpacking both tables; the peer independently decoded grid[1] low byte 0x2b=43 -> 10.75 = 0x4960 and grid[2] low byte 0x19=25 -> 6.25 = 0x4640). The dequantized values are identical. This is on the production path: the GGUF has IQ2_XXS gate/up tensors.",
       "argv": [
         "git",
         "show",
@@ -100,7 +100,7 @@
     },
     {
       "id": "q4k-silu-stable",
-      "statement": "The Q4_K pair_swiglu kernels (kernel_mul_mv_addr_q4_K_pair_swiglu_f32, kernel_mul_mv_slots6_q4_K_pair_swiglu_f32) changed their silu from the inline g/(1.0f+exp(-g)) to ds4_silu(g). ds4_silu is a numerically-stable sigmoid (ds4_sigmoid_stable uses exp(-fabs(x)) to avoid overflow), identical for normal-range inputs. This is on the production path: the GGUF has Q4_K experts (layers 37-42), and these pipelines are the default Q4_K fallback in ds4_gpu_routed_moe_one_tensor (ds4_metal.m:48276).",
+      "statement": "The Q4_K pair_swiglu kernels (kernel_mul_mv_addr_q4_K_pair_swiglu_f32, kernel_mul_mv_slots6_q4_K_pair_swiglu_f32) changed their silu from the inline g/(1.0f+exp(-g)) to ds4_silu(g). ds4_silu is a numerically-stable sigmoid (ds4_sigmoid_stable uses exp(-fabs(x)) to avoid overflow), identical for normal-range inputs. This is ONE change on the Q4_K path; it is not the only one (see q4k-matvec-hunks).",
       "argv": [
         "git",
         "show",
@@ -151,6 +151,35 @@
       },
       "expect_authored": "post-hoc",
       "falsifier": "If the old code did not use the inline silu, the 'silu changed' claim loses its evidence."
+    },
+    {
+      "id": "q4k-matvec-hunks",
+      "statement": "The diff on the IQ2_XXS and Q4_K matvec kernels is large and was NOT characterized. kernel_mul_mv_q4_K_f32_impl grew 94 to 429 lines, kernel_mul_mv_iq2_xxs_pair_f32_impl 6 to 141, kernel_mul_mv_q4_K_dense_f32 6 to 244, kernel_mul_mv_addr_iq2_xxs_pair_swiglu_f32 6 to 160. These are new variants, not a silu swap. The next reader should treat the executed IQ2_XXS and Q4_K matvec path as unexamined beyond the two numerically-identical changes named above.",
+      "argv": [
+        "git",
+        "diff",
+        "9ab7053..77a054e1",
+        "--",
+        "metal/moe.metal",
+        "|",
+        "grep",
+        "-n",
+        "kernel_mul_mv_q4_K_f32_impl("
+      ],
+      "cwd": "/Users/evanhoffman/git/ds4-main-b",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0,
+        "stdout_contains": "-2900,94 +2935,429"
+      },
+      "observed": {
+        "exit": 0,
+        "stdout": "671:@@ -2900,94 +2935,429 @@ void kernel_mul_mv_q4_K_f32_impl("
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "If the q4_K_f32_impl hunk is not 94 to 429 lines, the hunk-size characterization is wrong."
     },
     {
       "id": "hc-fusion-pre-m5",
@@ -259,6 +288,62 @@
       },
       "expect_authored": "post-hoc",
       "falsifier": "If the dspark path is not gated behind the env var, it can fire without the env var and the 'not hit' claim collapses."
+    },
+    {
+      "id": "ported-m5-flash-attn",
+      "statement": "The gate enumeration is incomplete: there is a helper that INCLUDES the M5 Max, ds4_gpu_ported_m5_decode_feature_enabled (ds4_metal.m:3619), which returns pre_m5 || ds4_gpu_device_is_m5_apple_silicon(). Its flash_attn_packed32_reduce call site condition changed in the diff (ds4_metal.m:36769): the old 'n_comp != 0u' became '(n_comp != 0u || getenv(\"DS4_METAL_DISABLE_DECODE_RAW_PACKED32\") == NULL)'. This is a decode-path change on M5 that the exclude-only enumeration missed. Whether the run's shape (n_head==64, head_dim==512, rope fuse) hits it is not characterized here.",
+      "argv": [
+        "git",
+        "diff",
+        "9ab7053..77a054e1",
+        "--",
+        "ds4_metal.m",
+        "|",
+        "grep",
+        "-n",
+        "DS4_METAL_DISABLE_DECODE_RAW_PACKED32"
+      ],
+      "cwd": "/Users/evanhoffman/git/ds4-main-b",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0,
+        "stdout_contains": "DS4_METAL_DISABLE_DECODE_RAW_PACKED32"
+      },
+      "observed": {
+        "exit": 0,
+        "stdout": "11034:+         getenv(\"DS4_METAL_DISABLE_DECODE_RAW_PACKED32\") == NULL) &&"
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "If the flash_attn_packed32_reduce condition did not change in the diff, the 'decode-path change on M5' claim collapses."
+    },
+    {
+      "id": "empirical-plan",
+      "statement": "Whether a flat #162 result means 'no effect' or 'the code never ran' cannot be settled from source at this diff size. It can be settled empirically: decode_ab_engine.sh now writes a per-arm startup log (<label>-rep<N>.log) beside each CSV, and ds4 prints its Metal route, drift-patch flag set and pipeline fallbacks at startup. Diffing the two arms' logs turns 'the trees ran different code' into an observation. This is the falsifier for the on-path claims: if the branch's startup log names a pipeline the main log does not, the two arms ran different code.",
+      "argv": [
+        "git",
+        "show",
+        "77a054e1:ds4_metal.m",
+        "|",
+        "grep",
+        "-c",
+        "ds4_gpu_ported_m5_decode_feature_enabled"
+      ],
+      "cwd": "/Users/evanhoffman/git/ds4-main-b",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0,
+        "stdout_contains": "3"
+      },
+      "observed": {
+        "exit": 0,
+        "stdout": "3"
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "If the two arms' startup logs name the same pipelines and flag sets, the 'different code' observation fails and the on-path claims stand unverified."
     }
   ]
 }
