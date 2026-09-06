@@ -18,6 +18,9 @@
 # The on arm uses the REQUIRE spelling and fails the run if the fail-closed
 # error string appears. There is no positive admission print, so absence of
 # the error is the only admission signal and it must be checked, not assumed.
+# stream-overlap has no REQUIRE spelling, so it has no admission signal; the
+# driver refuses it unless METAL_KNOB_ACK_NO_SIGNAL=1, and its rows are marked
+# admission_signal: none so they cannot later be read as verified.
 #
 # Usage: scripts/metal_knob_ab.sh <knob> <on-value> <off-value> <tree> <gguf> [outdir]
 set -euo pipefail
@@ -25,6 +28,10 @@ set -euo pipefail
 KNOB=${1:?knob}; ON_VALUE=${2:?on value}; OFF_VALUE=${3:?off value}
 TREE=${4:?ds4 tree}; GGUF=${5:?gguf}
 OUT=${6:-$HOME/git/local-llm/benchmarks/ds4/metal-knob-ab}
+# Explicit acknowledgment to measure a knob with no admission signal. Without
+# it validate() refuses, so a knob that cannot be verified is never measured
+# by accident.
+ACK_NO_SIGNAL="${METAL_KNOB_ACK_NO_SIGNAL:-0}"
 
 # Same frontiers and gen budget as decode_ab.sh and ds4's own speed-bench, so
 # the numbers stay comparable to speed-bench/m5_max.csv.
@@ -38,11 +45,17 @@ PROMPT=${PROMPT:-$TREE/speed-bench/promessi_sposi.txt}
 PY="$(dirname "$0")/metal_knob_ab.py"
 
 # Refuse a wrong arm before the lock or any measurement. The negative cases
-# are the whole job: an empty value is a wrong arm waiting to happen, and an
-# unknown knob is a typo that would otherwise run a different experiment.
-uv run python "$PY" validate "$KNOB" "$ON_VALUE" "$OFF_VALUE"
+# are the whole job: an empty value is a wrong arm waiting to happen, an
+# unknown knob is a typo that would otherwise run a different experiment, and
+# a knob with no admission signal is refused unless explicitly acknowledged.
+if [ "$ACK_NO_SIGNAL" -eq 1 ]; then
+  uv run python "$PY" validate "$KNOB" "$ON_VALUE" "$OFF_VALUE" --ack-no-signal
+else
+  uv run python "$PY" validate "$KNOB" "$ON_VALUE" "$OFF_VALUE"
+fi
 ON_VAR="$(uv run python "$PY" on-var "$KNOB")"
 OFF_VAR="$(uv run python "$PY" off-var "$KNOB")"
+ADMISSION_SIGNAL="$(uv run python "$PY" admission-signal "$KNOB")"
 
 # Check the cheap thing first: a missing build used to fail mid-run, after the
 # lock was held and the model loaded.
@@ -66,8 +79,10 @@ trap 'uv run python "$PREFLIGHT" --release-lock --owner-pid $$ >/dev/null 2>&1' 
 mkdir -p "$OUT"
 uv run python "$(dirname "$0")/prompt_meta.py" --prompt "$PROMPT" --sidecar "$OUT" --show
 
-# The knob name, both arm vars, and both arm values go on the run, so a later
-# reader can tell which knob and which values produced the rows.
+# The knob name, both arm vars, both arm values, and the admission signal go on
+# the run, so a later reader can tell which knob and which values produced the
+# rows, and whether the rows are verified. A knob with admission_signal "none"
+# must not be read as verified.
 cat > "$OUT/run-meta.json" <<EOF
 {
   "knob": "$KNOB",
@@ -75,6 +90,7 @@ cat > "$OUT/run-meta.json" <<EOF
   "off_var": "$OFF_VAR",
   "on_value": "$ON_VALUE",
   "off_value": "$OFF_VALUE",
+  "admission_signal": "$ADMISSION_SIGNAL",
   "tree": "$TREE",
   "gguf": "$GGUF",
   "reps": "$REPS",

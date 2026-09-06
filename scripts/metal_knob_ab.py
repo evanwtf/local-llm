@@ -21,13 +21,22 @@ empty value.
 
 The on arm uses the REQUIRE spelling and fails the run if the fail-closed error
 string appears. There is no positive admission print, so absence of the error is
-the only admission signal and it must be checked, not assumed.
+the only admission signal and it must be checked, not assumed. stream-overlap
+has no REQUIRE spelling, so it has no admission signal at all: its policy gate
+(ds4.c:71766) has seven terms, and any of count, resident, ssd_streaming or
+quality can veto the path with no output. A knob with no admission signal is
+refused unless the caller passes an explicit acknowledgment, and its rows are
+marked `admission_signal: "none"` so they cannot later be read as verified.
 """
 
 from __future__ import annotations
 
 import argparse
+import logging
 import pathlib
+import sys
+
+logger = logging.getLogger(__name__)
 
 # knob -> on var, off var, whether it is on by default, and the fail-closed
 # error string (empty = no REQUIRE spelling). For the opt-in knobs the off var
@@ -65,7 +74,31 @@ KNOBS: dict[str, dict[str, str | bool]] = {
 }
 
 
-def validate(knob: str, on_value: str, off_value: str) -> None:
+def has_admission_signal(knob: str) -> bool:
+    """Whether a run of this knob carries an admission check.
+
+    A knob with no REQUIRE spelling has no fail-closed error, so absence of the
+    error is not a signal. stream-overlap is the only such knob.
+    """
+    return bool(fail_closed_error(knob))
+
+
+def admission_signal(knob: str) -> str:
+    """The admission signal a run of this knob carries.
+
+    'fail-closed' when the on arm is checked for the REQUIRE error; 'none' when
+    there is no check. The value goes on the run so a later reader cannot read
+    an unverified knob as verified.
+    """
+    return "fail-closed" if has_admission_signal(knob) else "none"
+
+
+def validate(
+    knob: str,
+    on_value: str,
+    off_value: str,
+    acknowledge_no_signal: bool = False,
+) -> None:
     """Refuse a wrong arm before the driver takes the lock or measures.
 
     The on arm must be nonzero. The off arm must actually turn the knob off: for
@@ -73,6 +106,10 @@ def validate(knob: str, on_value: str, off_value: str) -> None:
     nonzero value on the DISABLE var, and the off var must differ from the on
     var. A default-on knob whose off arm is `REQUIRE=0` leaves the cache running
     and both arms identical, so it is refused.
+
+    A knob with no admission signal is refused unless the caller acknowledges
+    it. Without the acknowledgment the driver would produce a clean, tight,
+    meaningless result indistinguishable from "the knob does nothing".
     """
     if knob not in KNOBS:
         raise SystemExit(
@@ -98,6 +135,12 @@ def validate(knob: str, on_value: str, off_value: str) -> None:
             )
     elif off_value != "0":
         raise SystemExit(f"REFUSING: off value must be '0', got '{off_value}'")
+    if not has_admission_signal(knob) and not acknowledge_no_signal:
+        raise SystemExit(
+            f"REFUSING: knob '{knob}' has no admission signal; pass "
+            f"--ack-no-signal to measure it anyway (rows are marked "
+            f"admission_signal: none)"
+        )
 
 
 def on_var(knob: str) -> str:
@@ -128,6 +171,7 @@ def check_fail_closed(knob: str, log: pathlib.Path) -> bool:
 
 
 def main(argv: list[str] | None = None) -> int:
+    logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="cmd", required=True)
 
@@ -135,6 +179,11 @@ def main(argv: list[str] | None = None) -> int:
     v.add_argument("knob")
     v.add_argument("on_value")
     v.add_argument("off_value")
+    v.add_argument(
+        "--ack-no-signal",
+        action="store_true",
+        help="measure a knob with no admission signal; rows are marked 'none'",
+    )
 
     o = sub.add_parser("on-var", help="print the on-arm env var for a knob")
     o.add_argument("knob")
@@ -142,17 +191,22 @@ def main(argv: list[str] | None = None) -> int:
     f = sub.add_parser("off-var", help="print the off-arm env var for a knob")
     f.add_argument("knob")
 
+    s = sub.add_parser("admission-signal", help="print the admission signal for a knob")
+    s.add_argument("knob")
+
     c = sub.add_parser("check-fail-closed", help="exit 0 if the error is present")
     c.add_argument("knob")
     c.add_argument("log", type=pathlib.Path)
 
     args = parser.parse_args(argv)
     if args.cmd == "validate":
-        validate(args.knob, args.on_value, args.off_value)
+        validate(args.knob, args.on_value, args.off_value, args.ack_no_signal)
     elif args.cmd == "on-var":
-        print(on_var(args.knob))
+        logger.info(on_var(args.knob))
     elif args.cmd == "off-var":
-        print(off_var(args.knob))
+        logger.info(off_var(args.knob))
+    elif args.cmd == "admission-signal":
+        logger.info(admission_signal(args.knob))
     else:
         return 0 if check_fail_closed(args.knob, args.log) else 1
     return 0

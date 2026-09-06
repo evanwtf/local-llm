@@ -3,8 +3,9 @@
 The negative cases are the whole job: an empty value is a wrong arm waiting to
 happen (the three helpers disagree on the empty string), an unknown knob is a
 typo that would otherwise run a different experiment, a fail-closed error on
-the on arm means the knob did not take effect, and a default-on knob whose off
-arm is `REQUIRE=0` leaves the cache running and both arms identical. The
+the on arm means the knob did not take effect, a default-on knob whose off arm
+is `REQUIRE=0` leaves the cache running and both arms identical, and a knob
+with no admission signal is refused unless explicitly acknowledged. The
 driver's measurement itself is verified by the evidence artifact, not by a
 unit test.
 """
@@ -55,7 +56,30 @@ def test_valid_arm_accepts():
 def test_every_known_knob_accepts_a_valid_arm():
     for knob in mk.KNOBS:
         off = "1" if mk.KNOBS[knob]["default_on"] else "0"
-        mk.validate(knob, "1", off)
+        # A knob with no admission signal needs the explicit acknowledgment.
+        mk.validate(knob, "1", off, acknowledge_no_signal=not mk.has_admission_signal(knob))
+
+
+def test_no_signal_knob_refused_without_ack():
+    """stream-overlap has no REQUIRE spelling, so it has no admission signal.
+    Without an explicit acknowledgment it must be refused, or the driver would
+    produce a clean, tight, meaningless result indistinguishable from 'the knob
+    does nothing'."""
+    with pytest.raises(SystemExit, match="no admission signal"):
+        mk.validate("stream-overlap", "1", "0")
+
+
+def test_no_signal_knob_accepts_with_ack():
+    mk.validate("stream-overlap", "1", "0", acknowledge_no_signal=True)
+
+
+def test_admission_signal_values():
+    """The three REQUIRE knobs carry a fail-closed check; stream-overlap does
+    not. The value goes on the run so an unverified knob cannot be read as
+    verified."""
+    for knob in ("session-union", "iq2", "exact-rows"):
+        assert mk.admission_signal(knob) == "fail-closed"
+    assert mk.admission_signal("stream-overlap") == "none"
 
 
 def test_default_on_knob_off_value_zero_refused():
