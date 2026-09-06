@@ -63,27 +63,32 @@ nothing finished and no way to tell.
 that rewarded failing fast). Their slots are filled from below the line, and
 two of the promotions are things that overnight run walked into.
 
-### The machine schedule for 2026-09-06 afternoon
+### The machine queue
 
-The operator has said they do not need the machine today, which is what makes
-the #146 repeat possible at all. One thing runs at a time; the order is upstream
-first, because two people are waiting on it, and #146 last because it is ours.
+The operator does not need the machine today, which is what makes the #146
+repeat possible at all. One thing runs at a time. Order is upstream first,
+because two people are waiting on it, and #146 last because it is ours.
 
-| when | what | who |
-|---|---|---|
-| ~13:07 | AProjQ4/AProjQ8 land; verify SHA-256 `413cf0a6…c767` | opus |
-| 13:07-13:30 | [#162](https://github.com/evanwtf/local-llm/issues/162) Task 3 runs 2-4, `f309990` engine A/B | opus |
-| 13:30-13:40 | build the upstream `main` worktree | deepseek |
-| 13:40-15:45 | #162 Task 2, `q4/q8` at head vs the published 1.155 | opus |
-| 15:45-16:00 | branch vs `main`, the arm @GiorgioOppo asked for | opus |
-| 16:00-19:00 | [#146](https://github.com/evanwtf/local-llm/issues/146) clean 4-run repeat | opus |
+1. **Verify the AProjQ4/AProjQ8 downloads** against SHA-256 `413cf0a6…c767`. — opus
+2. **[#162](https://github.com/evanwtf/local-llm/issues/162) Task 3, runs 2-4** —
+   the `f309990` engine A/B. ~7 min per run. — opus
+3. **Build the upstream `main` worktree.** ~10 min. — deepseek, on the lock
+   being free, not on a clock
+4. **#162 Task 2** — `q4/q8` at head against the published 1.155. 4 runs,
+   ~30 min each. — opus
+5. **Branch against `main`** — the arm @GiorgioOppo asked for. ~15 min. — opus
+6. **[#146](https://github.com/evanwtf/local-llm/issues/146) clean 4-run
+   repeat.** 2-3 h. — opus
 
-**The #146 window is quiet-machine.** No builds, no API calls, no large-file
+**Step 6 is a quiet-machine window.** No builds, no API calls, no large-file
 reads, no CPU-heavy work from any session. The lock stops another benchmark; it
 does not stop a build, and a build in one arm and not the other is the confound
 that made the first attempt uninterpretable. `targets_ab.sh` now voids the batch
 on a cutoff rather than truncating it, so a short window produces no result
 instead of half a result.
+
+Durations are estimates. Nothing here is anchored to a clock -- each step starts
+when the one before it releases the lock.
 
 ### First, because someone upstream is waiting on it
 
