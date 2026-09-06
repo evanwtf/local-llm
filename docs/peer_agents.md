@@ -135,6 +135,22 @@ Two failures are why this is mechanical rather than social:
   `~/.local-llm-bench/run-lock.json`, expanded from home. **A check that cannot
   fail is worse than no check: it is read as positive confirmation.**
 
+**"No builds" is the wrong way to say it.** On 2026-09-06 the agent holding the
+machine told a peer to stop building during a measurement. The peer complied,
+and ran a pytest suite instead — a fair reading of the words, and a two-minute
+CPU load that landed on arm A of a paired comparison and was gone by arm B. The
+run was voided.
+
+Say **no CPU-heavy work of any kind**, and enumerate: no test suite, no linter,
+no build, no `git gc`, no large API payloads. Reading source, writing code,
+editing files and drafting comments are always fine. The person holding the
+machine owns the precision of that sentence, not the peer who reads it.
+
+Note which way that one pushed: load on arm A slowed the *parent* commit, making
+the change under test look better, which agreed with where the data already
+leaned. **A confound that flatters the hypothesis is more dangerous than one
+that fights it**, because nothing about the output looks wrong.
+
 And the failure that did land: on the #146 paired run, the operator worked on
 the machine during the sandbox arm and not the legacy arm — API calls and gguf
 header reads. Sandbox measured 2.1x slower. The effect is probably real and the
