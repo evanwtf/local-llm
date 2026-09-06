@@ -31,6 +31,12 @@
 # Usage:
 #   scripts/targets_ab.sh [RUNS] [UNTIL_HHMM]
 #
+# UNTIL_HHMM is optional. When omitted the batch runs all RUNS to completion.
+# When given, a run that would start past it VOIDS the whole batch (exit 1,
+# VOID row in the manifest) rather than truncating it: a partial batch is no
+# result, and a cutoff that silently turns 4 runs into 2 is a check that fails
+# quietly.
+#
 # Read out with:
 #   uv run python scripts/strip_ab_report.py \
 #       --results benchmarks/agent/results-146-targets-ab.jsonl \
@@ -42,7 +48,7 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/ds4_server.sh"
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 RUNS="${1:-4}"
-UNTIL="${2:-09:15}"
+UNTIL="${2:-}"
 LOGDIR="${LOGDIR:-$(mktemp -d)}"
 BENCH_LOGS="${BENCH_LOGS:-$HOME/bench-logs}"
 RESULTS="${RESULTS:-$REPO/benchmarks/agent/results-146-targets-ab.jsonl}"
@@ -134,10 +140,13 @@ start_shim
 ORDER=(legacy sandbox sandbox legacy)
 for n in $(seq 1 "$RUNS"); do
     # HH:MM compares correctly as a string within one day, which is the only
-    # window this script is meant to run in.
-    if [ "$(date +%H:%M)" \> "$UNTIL" ]; then
-        echo "[$(date +%H:%M:%S)] past $UNTIL -- not starting run $n"
-        break
+    # window this script is meant to run in. A cutoff that would skip a run
+    # VOIDS the batch instead of truncating it: a partial batch is no result.
+    if [ -n "$UNTIL" ] && [ "$(date +%H:%M)" \> "$UNTIL" ]; then
+        echo "[$(date +%H:%M:%S)] VOID: past $UNTIL before run $n of $RUNS -- a partial batch is no result" >&2
+        printf '{"run":%d,"arm":"VOID","reason":"past-until","until":"%s"}\n' \
+            "$n" "$UNTIL" >> "$MANIFEST"
+        exit 1
     fi
     arm="${ORDER[$(( (n - 1) % 4 ))]}"
     restart_ds4 "run$n-$arm"
