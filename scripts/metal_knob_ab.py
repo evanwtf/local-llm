@@ -13,6 +13,16 @@ names "the A/B rollback arm and always wins" (ds4_metal.m:14827). A knob whose
 off arm does not change the default is a wrong arm waiting to happen, so
 `validate()` refuses it.
 
+gathered-heads is the first presence-based knob. The branch routes n_comp==0
+layers to the gathered-heads path unless `DS4_METAL_DISABLE_DECODE_RAW_GATHERED_ATTN`
+is set (ds4_metal.m:38408, `getenv(...) != NULL`), so the feature is on by
+default and there is no REQUIRE spelling to force it. The on arm must *unset*
+the DISABLE var (`env -u`), not assign it: `=0` still counts as set and would
+take the raw-only path in both arms. So for a presence knob `on_var == off_var`
+(the same DISABLE var), and `validate()` refuses an assignment on arm instead
+of the `off_var != on_var` rule that guards the assignment-based exact-rows
+shape.
+
 The three helpers disagree on the empty string (metal_graph_tp_env_flag returns
 the default, ds4_gpu_exact_rows_persistent_env_enabled returns false,
 ds4_gpu_env_bool returns on), so an empty value is refused. The refusal runs
@@ -38,10 +48,12 @@ import sys
 
 logger = logging.getLogger(__name__)
 
-# knob -> on var, off var, whether it is on by default, and the fail-closed
-# error string (empty = no REQUIRE spelling). For the opt-in knobs the off var
-# is the on var set to `0`; for exact-rows it is the DISABLE var, because the
-# cache is on by default and REQUIRE=0 leaves it running.
+# knob -> on var, off var, whether it is on by default, the fail-closed error
+# string (empty = no REQUIRE spelling), and whether the on arm unsets rather
+# than assigns. For the opt-in knobs the off var is the on var set to `0`; for
+# exact-rows it is the DISABLE var, because the cache is on by default and
+# REQUIRE=0 leaves it running. For gathered-heads it is the DISABLE var too,
+# and the on arm unsets it (presence-based, no REQUIRE spelling).
 KNOBS: dict[str, dict[str, str | bool]] = {
     "session-union": {
         "on_var": "DS4_METAL_REQUIRE_Q4_SSD_SESSION_UNION",
@@ -70,6 +82,13 @@ KNOBS: dict[str, dict[str, str | bool]] = {
         "off_var": "DS4_METAL_ENABLE_Q4_STREAM_OVERLAP",
         "default_on": False,
         "fail_error": "",
+    },
+    "gathered-heads": {
+        "on_var": "DS4_METAL_DISABLE_DECODE_RAW_GATHERED_ATTN",
+        "off_var": "DS4_METAL_DISABLE_DECODE_RAW_GATHERED_ATTN",
+        "default_on": True,
+        "fail_error": "",
+        "presence": True,
     },
 }
 
@@ -101,11 +120,14 @@ def validate(
 ) -> None:
     """Refuse a wrong arm before the driver takes the lock or measures.
 
-    The on arm must be nonzero. The off arm must actually turn the knob off: for
-    a default-off knob that is `0` on the on var; for a default-on knob it is a
-    nonzero value on the DISABLE var, and the off var must differ from the on
-    var. A default-on knob whose off arm is `REQUIRE=0` leaves the cache running
-    and both arms identical, so it is refused.
+    The on arm must be nonzero, except for a presence knob whose on arm unsets
+    the var (`env -u`) and so must carry no value at all. The off arm must
+    actually turn the knob off: for a default-off knob that is `0` on the on
+    var; for a default-on knob it is a nonzero value on the DISABLE var, and
+    the off var must differ from the on var unless the knob is presence-based
+    (where the on arm unsets the same DISABLE var the off arm sets). A
+    default-on knob whose off arm is `REQUIRE=0` leaves the cache running and
+    both arms identical, so it is refused.
 
     A knob with no admission signal is refused unless the caller acknowledges
     it. Without the acknowledgment the driver would produce a clean, tight,
@@ -116,7 +138,19 @@ def validate(
             f"REFUSING: unknown knob '{knob}' (known: {', '.join(sorted(KNOBS))})"
         )
     meta = KNOBS[knob]
-    if not on_value or on_value == "0":
+    presence = bool(meta.get("presence", False))
+    if presence:
+        # The on arm is `env -u`, so an assignment on arm is a wrong arm by
+        # construction: `=0` still counts as set and would take the raw-only
+        # path in both arms. The sentinel "unset" marks the env -u arm; the
+        # driver's `${2:?on value}` needs a non-empty positional, so the on arm
+        # cannot be expressed as an empty string.
+        if on_value and on_value != "unset":
+            raise SystemExit(
+                f"REFUSING: knob '{knob}' is presence-based; the on arm must "
+                f"unset the var (env -u), not assign it, got on value '{on_value}'"
+            )
+    elif not on_value or on_value == "0":
         raise SystemExit(
             f"REFUSING: on value must be a nonzero value, got '{on_value}'"
         )
@@ -128,7 +162,7 @@ def validate(
                 f"REFUSING: knob '{knob}' is on by default; off value must be "
                 f"nonzero (DISABLE=1), got '{off_value}'"
             )
-        if meta["off_var"] == meta["on_var"]:
+        if not presence and meta["off_var"] == meta["on_var"]:
             raise SystemExit(
                 f"REFUSING: knob '{knob}' is on by default; its off var must "
                 f"differ from its on var, got off_var == on_var == {meta['on_var']}"
@@ -151,6 +185,11 @@ def on_var(knob: str) -> str:
 def off_var(knob: str) -> str:
     """The env var the driver sets for the off arm."""
     return str(KNOBS[knob]["off_var"])
+
+
+def presence(knob: str) -> bool:
+    """Whether the on arm unsets the var (`env -u`) rather than assigning it."""
+    return bool(KNOBS[knob].get("presence", False))
 
 
 def fail_closed_error(knob: str) -> str:
@@ -191,6 +230,11 @@ def main(argv: list[str] | None = None) -> int:
     f = sub.add_parser("off-var", help="print the off-arm env var for a knob")
     f.add_argument("knob")
 
+    p = sub.add_parser(
+        "presence", help="print 1 if the on arm unsets the var, else 0"
+    )
+    p.add_argument("knob")
+
     s = sub.add_parser("admission-signal", help="print the admission signal for a knob")
     s.add_argument("knob")
 
@@ -205,6 +249,8 @@ def main(argv: list[str] | None = None) -> int:
         logger.info(on_var(args.knob))
     elif args.cmd == "off-var":
         logger.info(off_var(args.knob))
+    elif args.cmd == "presence":
+        logger.info("1" if presence(args.knob) else "0")
     elif args.cmd == "admission-signal":
         logger.info(admission_signal(args.knob))
     else:

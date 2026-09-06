@@ -22,6 +22,11 @@
 # driver refuses it unless METAL_KNOB_ACK_NO_SIGNAL=1, and its rows are marked
 # admission_signal: none so they cannot later be read as verified.
 #
+# A presence knob (gathered-heads) is on by default and has no REQUIRE spelling:
+# the on arm unsets the DISABLE var (`env -u`), so its on-value is the sentinel
+# "unset" (the `${2:?on value}` guard needs a non-empty positional). The off arm
+# sets the DISABLE var to a nonzero value.
+#
 # Usage: scripts/metal_knob_ab.sh <knob> <on-value> <off-value> <tree> <gguf> [outdir]
 set -euo pipefail
 
@@ -56,6 +61,9 @@ fi
 ON_VAR="$(uv run python "$PY" on-var "$KNOB")"
 OFF_VAR="$(uv run python "$PY" off-var "$KNOB")"
 ADMISSION_SIGNAL="$(uv run python "$PY" admission-signal "$KNOB")"
+# A presence knob's on arm unsets the var (`env -u`) rather than assigning it:
+# `=0` still counts as set and would take the wrong path in both arms.
+PRESENCE="$(uv run python "$PY" presence "$KNOB")"
 
 # Check the cheap thing first: a missing build used to fail mid-run, after the
 # lock was held and the model loaded.
@@ -104,11 +112,19 @@ run_arm() {
   local log="$OUT/${label}-rep${rep}.log"
   echo "[$(date +%H:%M:%S)] $label rep $rep (position $position) -> $csv"
   # ds4-bench resolves metal/*.metal relative to its own tree, so run from
-  # there. The env var is set for the bench process only.
-  ( cd "$TREE" && env "$var=$value" ./ds4-bench -m "$GGUF" --metal \
-      --prompt-file "$PROMPT" \
-      --ctx-start "$CTX_START" --ctx-max "$CTX_MAX" --step-incr "$STEP" \
-      --gen-tokens "$GEN" --csv "$csv" ) > "$log" 2>&1
+  # there. The env var is set for the bench process only. A presence knob's on
+  # arm unsets the var rather than assigning it.
+  if [ "$label" = "on" ] && [ "$PRESENCE" = "1" ]; then
+    ( cd "$TREE" && env -u "$var" ./ds4-bench -m "$GGUF" --metal \
+        --prompt-file "$PROMPT" \
+        --ctx-start "$CTX_START" --ctx-max "$CTX_MAX" --step-incr "$STEP" \
+        --gen-tokens "$GEN" --csv "$csv" ) > "$log" 2>&1
+  else
+    ( cd "$TREE" && env "$var=$value" ./ds4-bench -m "$GGUF" --metal \
+        --prompt-file "$PROMPT" \
+        --ctx-start "$CTX_START" --ctx-max "$CTX_MAX" --step-incr "$STEP" \
+        --gen-tokens "$GEN" --csv "$csv" ) > "$log" 2>&1
+  fi
   # On arm: the REQUIRE spelling must not fail closed. Absence of the error is
   # the only admission signal, and it must be checked, not assumed.
   if [ "$label" = "on" ] && uv run python "$PY" check-fail-closed "$KNOB" "$log"; then
