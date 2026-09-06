@@ -32,6 +32,8 @@ documentation.
 | `machine_claim.py` | Claim the machine with intent, and make contention impossible to miss. #160 |
 | `make_scripts_readme.py` | Generate scripts/README.md from each script's own first docstring line. |
 | `mtp_engagement.py` | Does the engine engage MTP on the traffic we actually send it? (#148, #151) |
+| `peer_brief.py` | Generate the state half of a handoff as Markdown. #160 |
+| `peer_status.py` | One deterministic status line for the peer work. #160 |
 | `post_ab_run.py` | Post one completed decode-A/B run to a GitHub issue, once. |
 | `prefix_stability.py` | Find which cached prefix block changes between two requests (#50, #64). |
 | `prompt_meta.py` | Which prompt a decode/prefill A/B was measured on (#140). |
