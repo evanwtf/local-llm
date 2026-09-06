@@ -174,7 +174,17 @@ fine and is worth having.
   commit-to-main convention; with concurrent agents the race is worth the
   ceremony.
 - **The author never merges their own PR.** The reviewer merges, after running
-  the suite on the PR head.
+  the suite on the PR head — and on the PR head **merged with current `main`**,
+  not on the branch alone. #164 passed on its own branch and failed on the
+  merge, because `main` had moved under it. The branch passing proves nothing
+  about what lands.
+- **After a squash merge, reset the branch to `main`. Do not rebase it.** A
+  squash merge puts one commit on `main` holding work the branch still carries
+  as many, and git cannot see they are the same. Rebasing then fights conflicts
+  against the agent's own already-merged commits. On 2026-09-06 `peer/160`
+  ended up 91 files and 1635 lines behind `main` this way, and the conflict the
+  peer hit was the symptom. `git reset --hard origin/main` and force-push with
+  `--force-with-lease`; cherry-pick anything committed after the merge.
 - **Do not touch another agent's files.** During a session, the agent driving
   the machine owns `NEXT.md`, `RECOMMENDATIONS.md`, `docs/changelog.md`,
   `SOURCES.md` and every `results*.jsonl`. These conflict badly and are the
