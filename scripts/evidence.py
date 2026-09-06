@@ -97,6 +97,31 @@ agent_identity.install(logger)
 
 SCHEMA = "local-llm/evidence-2"
 
+#: The canonical machine name a machine-bound claim names. `hardware_id`'s
+#: `directory_name` is the name this repo uses for a machine; computing it runs
+#: system_profiler/lscpu, so it is done lazily, once, and only when a
+#: machine-bound claim is present. If the machine cannot be identified, fall
+#: back to the hostname -- which will not match a canonical marker, so a
+#: machine-bound claim skips rather than fails, which is the safe direction.
+_machine_cache: str | None = None
+
+
+def _current_machine() -> str:
+    global _machine_cache
+    if _machine_cache is None:
+        try:
+            import hardware_id
+
+            facts, plat = hardware_id.facts_for_this_machine()
+            _machine_cache = hardware_id.directory_name(facts, plat)
+        except SystemExit:
+            # hardware_id refuses to guess when it cannot identify the machine.
+            # Fall back to the hostname, which will not match a canonical
+            # marker, so a machine-bound claim skips rather than fails.
+            _machine_cache = platform.node()
+    return _machine_cache
+
+
 #: The only programs a finding may ask the verifier to run. Default-deny: a
 #: tool not listed is refused, not discussed. Every one of these is a reader.
 READERS = {
@@ -266,9 +291,35 @@ def _lint_claim(claim: object, ids: set[str], path: pathlib.Path) -> None:
             f"{path}: claim {claim['id']!r} argv must be a non-empty list of "
             "non-empty strings -- a JSON list, never a shell string"
         )
-    if not pathlib.Path(claim["cwd"]).is_dir():
+    # A command claim must be verifiable somewhere. `cwd` is the immutable
+    # absolute path (provenance, never rewritten); `cwd_repo_rel` is the
+    # portable form resolved against the verifier's own checkout; `machine`
+    # names the host a machine-bound claim is bound to. A claim with an
+    # absolute cwd and neither a portable form nor a machine marker is the
+    # broken middle: it cannot be verified on any host but its own, and does
+    # not say which one that is.
+    cwd_rel = claim.get("cwd_repo_rel")
+    machine = claim.get("machine")
+    if cwd_rel is None and machine is None:
         raise Refused(
-            f"{path}: claim {claim['id']!r} cwd {claim['cwd']!r} is not a directory"
+            f"{path}: claim {claim['id']!r} has neither cwd_repo_rel nor a "
+            "machine marker -- an absolute cwd with no portable form and no "
+            "machine it is bound to cannot be verified anywhere"
+        )
+    if cwd_rel is not None:
+        if not isinstance(cwd_rel, str) or not cwd_rel:
+            raise Refused(
+                f"{path}: claim {claim['id']!r} cwd_repo_rel must be a non-empty string"
+            )
+        parts = pathlib.PurePosixPath(cwd_rel).parts
+        if pathlib.PurePosixPath(cwd_rel).is_absolute() or ".." in parts:
+            raise Refused(
+                f"{path}: claim {claim['id']!r} cwd_repo_rel must be a "
+                f"repo-relative path, not {cwd_rel!r}"
+            )
+    if machine is not None and (not isinstance(machine, str) or not machine):
+        raise Refused(
+            f"{path}: claim {claim['id']!r} machine must be a non-empty string"
         )
     unknown = set(claim["expect"]) - EXPECT_KEYS
     if unknown:
@@ -342,14 +393,33 @@ def machine_gate(repo: pathlib.Path) -> tuple[bool, str]:
     return False, why
 
 
-def run_claim(claim: dict) -> dict:
+def _claim_cwd(claim: dict, repo: pathlib.Path) -> str:
+    """The working directory a claim runs in.
+
+    `cwd_repo_rel` is resolved against the verifier's own checkout when present
+    (the portable form); otherwise the immutable absolute `cwd` is used, which
+    is only reached on the host the claim is bound to.
+    """
+    rel = claim.get("cwd_repo_rel")
+    if rel is not None:
+        resolved = repo / rel
+        if not resolved.is_dir():
+            raise Refused(
+                f"claim {claim['id']!r} cwd_repo_rel {rel!r} is not a "
+                f"directory in {repo}"
+            )
+        return str(resolved)
+    return claim["cwd"]
+
+
+def run_claim(claim: dict, repo: pathlib.Path) -> dict:
     """Re-run one command claim. Returns {exit, stdout, stderr}. Refuses unsafe argv."""
     gate_argv(claim)
     timeout = CHEAP_TIMEOUT if claim["cost"] == "cheap" else EXPENSIVE_TIMEOUT
     try:
         got = subprocess.run(
             claim["argv"],
-            cwd=claim["cwd"],
+            cwd=_claim_cwd(claim, repo),
             capture_output=True,
             text=True,
             check=False,
@@ -417,14 +487,16 @@ def _as_value(text: str) -> datetime.datetime | str:
         return text
 
 
-def run_compose(claim: dict, by_id: dict[str, dict]) -> tuple[list[str], str]:
+def run_compose(
+    claim: dict, by_id: dict[str, dict], repo: pathlib.Path
+) -> tuple[list[str], str]:
     """Evaluate one compose claim against freshly re-run operands."""
     values: dict[str, str] = {}
     detail = []
     for pair in claim["compose"]["lt"]:
         for ref in pair:
             if ref not in values:
-                values[ref] = run_claim(by_id[ref])["stdout"].strip()
+                values[ref] = run_claim(by_id[ref], repo)["stdout"].strip()
     failures = []
     for left, right in claim["compose"]["lt"]:
         lhs, rhs = values[left], values[right]
@@ -484,8 +556,8 @@ def _show_expect_ref(claim: dict, repo: pathlib.Path) -> str:
 
 def verify(finding: dict, path: pathlib.Path, include_expensive: bool) -> int:
     """Re-run every admissible claim. Returns a process exit code."""
-    repo = finding.get("repo") or str(pathlib.Path.cwd())
-    busy, why = machine_gate(pathlib.Path(repo))
+    repo = pathlib.Path(finding.get("repo") or str(pathlib.Path.cwd()))
+    busy, why = machine_gate(repo)
     if busy:
         logger.error("REFUSING to verify: %s", why)
         return 2
@@ -501,20 +573,37 @@ def verify(finding: dict, path: pathlib.Path, include_expensive: bool) -> int:
 
     by_id = {claim["id"]: claim for claim in finding["claims"]}
     status = 0
+    verified = 0
+    machine_skipped = 0
+    expensive_skipped = 0
+    failed = 0
     for claim in finding["claims"]:
         marker = "POST-HOC" if claim.get("expect_authored") == "post-hoc" else ""
+        if _machine_bound_off_host(claim) or _compose_operands_off_host(claim, by_id):
+            machine_skipped += 1
+            logger.info(
+                "SKIP    %s (machine-bound to %s; this host is %s) %s",
+                claim["id"],
+                claim.get("machine") or _compose_machine(claim, by_id),
+                _current_machine(),
+                marker,
+            )
+            continue
         if claim["cost"] == "expensive" and not include_expensive:
+            expensive_skipped += 1
             logger.info(
                 "SKIP    %s (expensive; --include-expensive to re-run) %s",
                 claim["id"],
                 marker,
             )
             continue
+        verified += 1
         try:
             if "compose" in claim:
-                failures, detail = run_compose(claim, by_id)
+                failures, detail = run_compose(claim, by_id, repo)
                 if failures:
                     status = 1
+                    failed += 1
                     logger.error(
                         "FAIL    %s: %s | %s",
                         claim["id"],
@@ -526,14 +615,15 @@ def verify(finding: dict, path: pathlib.Path, include_expensive: bool) -> int:
                         "PASS    %s (compose lt: %s) %s", claim["id"], detail, marker
                     )
                 continue
-            fresh = run_claim(claim)
+            fresh = run_claim(claim, repo)
             failures = check_expect(fresh, claim["expect"])
             drift = check_drift(fresh, claim["observed"])
             note = marker
             if claim.get("expect_authored") == "pre-registered":
-                note = _show_expect_ref(claim, pathlib.Path(repo))
+                note = _show_expect_ref(claim, repo)
             if failures:
                 status = 1
+                failed += 1
                 logger.error(
                     "FAIL    %s: %s | %s",
                     claim["id"],
@@ -542,6 +632,7 @@ def verify(finding: dict, path: pathlib.Path, include_expensive: bool) -> int:
                 )
             elif drift:
                 status = 1
+                failed += 1
                 logger.error(
                     "DRIFT   %s: %s -- it does not reproduce, the finding goes back %s",
                     claim["id"],
@@ -552,10 +643,67 @@ def verify(finding: dict, path: pathlib.Path, include_expensive: bool) -> int:
                 logger.info("PASS    %s %s", claim["id"], note)
         except Refused as exc:
             status = 1
+            failed += 1
             logger.error("REFUSED %s: %s", claim["id"], exc)
     verdict = "clean" if status == 0 else "FAILED"
-    logger.info("%s: %d claim(s) checked", verdict, len(finding["claims"]))
+    skip_note = _skip_note(machine_skipped, expensive_skipped)
+    logger.info(
+        "%s: %d verified, %d skipped%s, %d failed",
+        verdict,
+        verified,
+        machine_skipped + expensive_skipped,
+        skip_note,
+        failed,
+    )
     return status
+
+
+def _machine_bound_off_host(claim: dict) -> bool:
+    """Whether a claim is bound to a machine other than this one."""
+    machine = claim.get("machine")
+    if machine is None:
+        return False
+    return machine != _current_machine()
+
+
+def _compose_operands_off_host(claim: dict, by_id: dict[str, dict]) -> bool:
+    """Whether a compose claim's operands are machine-bound off-host.
+
+    A compose claim has no `machine` of its own -- it compares other claims'
+    outputs -- but it cannot run if an operand is bound to another machine.
+    """
+    if "compose" not in claim:
+        return False
+    for pair in claim["compose"]["lt"]:
+        for ref in pair:
+            if _machine_bound_off_host(by_id[ref]):
+                return True
+    return False
+
+
+def _compose_machine(claim: dict, by_id: dict[str, dict]) -> str:
+    """The machine a compose claim's operands are bound to, for the skip line."""
+    for pair in claim["compose"]["lt"]:
+        for ref in pair:
+            machine = by_id[ref].get("machine")
+            if machine is not None:
+                return machine
+    return "unknown"
+
+
+def _skip_note(machine_skipped: int, expensive_skipped: int) -> str:
+    """The parenthetical on the summary line, naming why claims were skipped.
+
+    A skipped claim is honest; a silent one is how a suite comes to prove
+    nothing. The summary names the reason so a red CI run is not mistaken for a
+    green one that happened to skip.
+    """
+    reasons = []
+    if machine_skipped:
+        reasons.append("machine-bound")
+    if expensive_skipped:
+        reasons.append("expensive")
+    return f" ({', '.join(reasons)})" if reasons else ""
 
 
 def _now_iso() -> str:

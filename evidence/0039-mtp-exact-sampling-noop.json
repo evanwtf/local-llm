@@ -39,7 +39,8 @@
         "stdout": "1"
       },
       "expect_authored": "post-hoc",
-      "falsifier": "A count of 0 would mean the architecture string is absent, and the model is not a Qwen4 MTP sidecar at all."
+      "falsifier": "A count of 0 would mean the architecture string is absent, and the model is not a Qwen4 MTP sidecar at all.",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A"
     },
     {
       "id": "no-dspark-tensors",
@@ -63,7 +64,8 @@
         "stdout": "0"
       },
       "expect_authored": "post-hoc",
-      "falsifier": "A count above 0 would mean a DSpark tensor is present, and the DSPARK classification is at least possible."
+      "falsifier": "A count above 0 would mean a DSpark tensor is present, and the DSPARK classification is at least possible.",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A"
     },
     {
       "id": "no-mtplegacy-tensors",
@@ -87,7 +89,8 @@
         "stdout": "0"
       },
       "expect_authored": "post-hoc",
-      "falsifier": "A count above 0 would mean the MTP_LEGACY exact name is present, and the MTP_LEGACY classification is at least possible."
+      "falsifier": "A count above 0 would mean the MTP_LEGACY exact name is present, and the MTP_LEGACY classification is at least possible.",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A"
     },
     {
       "id": "dspark-branch-gated",
@@ -110,7 +113,8 @@
         "stdout": "80178:        e && e->support_kind == DS4_SUPPORT_DSPARK && e->dspark &&\n80189:        e && e->support_kind == DS4_SUPPORT_DSPARK && e->dspark &&"
       },
       "expect_authored": "post-hoc",
-      "falsifier": "A source line where the stochastic branch does not require support_kind == DS4_SUPPORT_DSPARK would mean the flag can fire on a NONE-classified model."
+      "falsifier": "A source line where the stochastic branch does not require support_kind == DS4_SUPPORT_DSPARK would mean the flag can fire on a NONE-classified model.",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A"
     },
     {
       "id": "qwen4-sidecar-loaded-in-log",
@@ -133,7 +137,8 @@
         "stdout": "ds4: Qwen matching v3 q4_k MTP sidecar loaded: /Users/evanhoffman/models/qwen3.8-flash-next-ds4-q4/qwen3.8-flash-next-q4-mtp.gguf (state=ready draft=7)"
       },
       "expect_authored": "post-hoc",
-      "falsifier": "A log line naming the DSPARK or MTP_LEGACY load path instead of the Qwen4 sidecar would mean our runs do not use the Qwen4 MTP path."
+      "falsifier": "A log line naming the DSPARK or MTP_LEGACY load path instead of the Qwen4 sidecar would mean our runs do not use the Qwen4 MTP path.",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A"
     },
     {
       "id": "six-dspark-sites-enumerated",
@@ -156,7 +161,8 @@
         "stdout": "38360:    bool dspark_exact_sampling;\n67465:    e->dspark_exact_sampling = opt->dspark_exact_sampling;\n73386:            !e->dspark_exact_sampling &&\n79339:        if (s->engine->dspark_exact_sampling && s->engine->tp.active) {\n80143:            (e->dspark_exact_sampling && e->tp.active)) {\n80164:                e->dspark_exact_sampling,\n80179:        !e->quality && !e->dspark_strict && !e->dspark_exact_sampling;\n80190:        !e->quality && !e->dspark_strict && e->dspark_exact_sampling;"
       },
       "expect_authored": "post-hoc",
-      "falsifier": "A grep that does not reach 80190 would mean the field is read at a different set of sites, and the enumeration is wrong."
+      "falsifier": "A grep that does not reach 80190 would mean the field is read at a different set of sites, and the enumeration is wrong.",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A"
     },
     {
       "id": "mtp-margin-flag-real",
@@ -179,7 +185,8 @@
         "stdout": "1965:        } else if (!strcmp(arg, \"--mtp-margin\")) {"
       },
       "expect_authored": "post-hoc",
-      "falsifier": "A grep that does not find --mtp-margin in ds4_cli.c would mean the flag is not parsed there."
+      "falsifier": "A grep that does not find --mtp-margin in ds4_cli.c would mean the flag is not parsed there.",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A"
     },
     {
       "id": "mtp-margin-default-3",
@@ -202,7 +209,8 @@
         "stdout": "67509:    e->mtp_margin = opt->mtp_margin >= 0.0f ? opt->mtp_margin : 3.0f;"
       },
       "expect_authored": "post-hoc",
-      "falsifier": "A default other than 3.0 would change what the acceptance gate does by default."
+      "falsifier": "A default other than 3.0 would change what the acceptance gate does by default.",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A"
     },
     {
       "id": "mtp-margin-acceptance-gate",
@@ -225,7 +233,8 @@
         "stdout": "79587:    if (!strict_mtp && draft_n == 2 && mtp_margin_threshold > 0.0f) {"
       },
       "expect_authored": "post-hoc",
-      "falsifier": "A gate that does not require draft_n == 2 and a positive threshold would change which drafts the margin controls."
+      "falsifier": "A gate that does not require draft_n == 2 and a positive threshold would change which drafts the margin controls.",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A"
     },
     {
       "id": "strict-mtp-definition",
@@ -248,7 +257,8 @@
         "stdout": "79508:    const bool strict_mtp = e->quality || getenv(\"DS4_MTP_STRICT\") != NULL;"
       },
       "expect_authored": "post-hoc",
-      "falsifier": "A strict_mtp definition that does not include DS4_MTP_STRICT would mean the env var does not control it."
+      "falsifier": "A strict_mtp definition that does not include DS4_MTP_STRICT would mean the env var does not control it.",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A"
     }
   ]
 }

@@ -29,6 +29,7 @@
         "35a8f59"
       ],
       "cwd": "/Users/evanhoffman/git/local-llm",
+      "cwd_repo_rel": ".",
       "readonly": true,
       "cost": "cheap",
       "expect": {
@@ -49,9 +50,10 @@
         "jq",
         "-sr",
         "map(select(.backend==\"qwen38fnq3lms\") | .started) | max",
-        "/Users/evanhoffman/git/local-llm/hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/results.jsonl"
+        "hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/results.jsonl"
       ],
       "cwd": "/Users/evanhoffman/git/local-llm",
+      "cwd_repo_rel": ".",
       "readonly": true,
       "cost": "cheap",
       "expect": {
@@ -72,9 +74,10 @@
         "jq",
         "-sr",
         "map(select(.backend==\"mtplx\") | .started) | max",
-        "/Users/evanhoffman/git/local-llm/hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/results.jsonl"
+        "hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/results.jsonl"
       ],
       "cwd": "/Users/evanhoffman/git/local-llm",
+      "cwd_repo_rel": ".",
       "readonly": true,
       "cost": "cheap",
       "expect": {

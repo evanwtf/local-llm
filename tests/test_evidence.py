@@ -151,3 +151,78 @@ def test_verify_dogfood_passes(monkeypatch):
     """The dogfood claims reproduce: the finding is not stale."""
     monkeypatch.setattr(preflight, "read_lock", lambda *a, **k: None)
     assert evidence.verify(evidence.load_finding(DOGFOOD), DOGFOOD, False) == 0
+
+
+def _command_claim(**overrides) -> dict:
+    base = {
+        "id": "c",
+        "statement": "s",
+        "argv": ["git", "rev-parse", "--is-inside-work-tree"],
+        "cwd": "/Users/evanhoffman/git/local-llm",
+        "cwd_repo_rel": ".",
+        "readonly": True,
+        "cost": "cheap",
+        "expect": {"exit": 0, "stdout_equals": "true"},
+        "observed": {"exit": 0, "stdout": "true"},
+        "expect_authored": "post-hoc",
+        "falsifier": "f",
+    }
+    base.update(overrides)
+    return base
+
+
+def test_load_rejects_claim_with_neither_cwd_rel_nor_machine(tmp_path):
+    """An absolute cwd with no portable form and no machine marker is refused.
+
+    This is the CI-red defect: a claim whose cwd is machine-absolute, with
+    neither a repo-relative form nor a machine it is bound to, cannot be
+    verified on any host but its own and does not say which one that is.
+    """
+    body = _finding(claims=[_command_claim(cwd_repo_rel=None, machine=None)])
+    with pytest.raises(
+        evidence.Refused, match="neither cwd_repo_rel nor a machine marker"
+    ):
+        evidence.load_finding(_write(tmp_path, body))
+
+
+def test_load_rejects_cwd_rel_escaping_repo(tmp_path):
+    """cwd_repo_rel must stay inside the repo -- no absolute, no .."""
+    for bad in ("/etc", "../outside"):
+        body = _finding(claims=[_command_claim(cwd_repo_rel=bad)])
+        with pytest.raises(evidence.Refused, match="repo-relative"):
+            evidence.load_finding(_write(tmp_path, body))
+
+
+def test_verify_portable_claim_runs_on_any_host(monkeypatch):
+    """A claim with cwd_repo_rel verifies against the verifier's own checkout."""
+    monkeypatch.setattr(preflight, "read_lock", lambda *a, **k: None)
+    body = _finding(claims=[_command_claim()])
+    assert evidence.verify(body, pathlib.Path("/x/finding.json"), False) == 0
+
+
+def test_verify_machine_bound_skips_off_host(monkeypatch, caplog):
+    """A machine-bound claim skips on a host that is not its own, and says so."""
+    monkeypatch.setattr(preflight, "read_lock", lambda *a, **k: None)
+    monkeypatch.setattr(evidence, "_current_machine", lambda: "this-host")
+    claim = _command_claim(
+        cwd_repo_rel=None,
+        machine="other-host",
+        argv=["cat", "/definitely/not/here"],
+    )
+    body = _finding(claims=[claim])
+    with caplog.at_level("INFO", logger="evidence"):
+        assert evidence.verify(body, pathlib.Path("/x/finding.json"), False) == 0
+    assert any("machine-bound to other-host" in r.getMessage() for r in caplog.records)
+    assert any(
+        "0 verified, 1 skipped (machine-bound), 0 failed" in r.getMessage()
+        for r in caplog.records
+    )
+
+
+def test_verify_machine_bound_runs_on_own_host(monkeypatch):
+    """A machine-bound claim runs on its own host."""
+    monkeypatch.setattr(preflight, "read_lock", lambda *a, **k: None)
+    monkeypatch.setattr(evidence, "_current_machine", lambda: "this-host")
+    claim = _command_claim(cwd_repo_rel=None, machine="this-host")
+    body = _finding(claims=[claim])
+    assert evidence.verify(body, pathlib.Path("/x/finding.json"), False) == 0
