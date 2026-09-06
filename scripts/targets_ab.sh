@@ -72,6 +72,46 @@ fi
 BATCH="${BATCH:-$(date +%m%d-%H%M)}"
 SHIM_PORT=8101
 
+# Resolve HH:MM to an epoch on this platform. GNU date uses -d, BSD uses -j.
+date_epoch() {
+    if date -d "$1" +%s >/dev/null 2>&1; then
+        date -d "$1" +%s
+    else
+        date -j -f "%H:%M" "$1" +%s 2>/dev/null
+    fi
+}
+
+# Resolve UNTIL (HH:MM) to an absolute epoch once at launch. A bare HH:MM
+# already past today means tomorrow. Refuses (non-zero) an unparseable value.
+# NOW overrides the clock for tests.
+resolve_until() {
+    local hhmm="$1" now today
+    now="${NOW:-$(date +%s)}"
+    today="$(date_epoch "$hhmm")" || return 1
+    # Strictly past, not at-or-past: at exactly HH:MM the cutoff is today,
+    # and the loop's >= fires the VOID at that moment.
+    if [ "$now" -gt "$today" ]; then
+        if date -d "tomorrow $hhmm" +%s >/dev/null 2>&1; then
+            date -d "tomorrow $hhmm" +%s
+        else
+            date -j -v+1d -f "%H:%M" "$hhmm" +%s 2>/dev/null
+        fi
+    else
+        echo "$today"
+    fi
+}
+
+# Resolve UNTIL to an absolute epoch once at launch, and refuse an unparseable
+# value. A bare HH:MM already past today means tomorrow. Compare integers,
+# never strings: a string compare of "23:35" against "2359" is true because
+# ':' (58) beats '5' (53), so the cutoff fires whenever the hour is 23 (#175).
+if [ -n "$UNTIL" ]; then
+    UNTIL_EPOCH="$(resolve_until "$UNTIL")" || {
+        echo "REFUSING: UNTIL '$UNTIL' is not HH:MM (e.g. 09:15)" >&2
+        exit 1
+    }
+fi
+
 DS4_MODEL="$HOME/models/qwen3.8-flash-next-ds4-q4/Qwen3.8-Flash-Next-Q4KExperts-BF16Emb-BF16Control-Q8GDN-Q8QSA-Q8Shared-Q8Out.gguf"
 DS4_PLE="$HOME/models/qwen3.8-flash-next-ds4-q4/Qwen3.8-Flash-Next-PLE-Q4_1.gguf"
 DS4_KV="$HOME/.ds4/server-kv"
@@ -161,10 +201,10 @@ if [ "$DRY_RUN" -eq 0 ]; then
 fi
 ORDER=(legacy sandbox sandbox legacy)
 for n in $(seq 1 "$RUNS"); do
-    # HH:MM compares correctly as a string within one day, which is the only
-    # window this script is meant to run in. A cutoff that would skip a run
-    # VOIDS the batch instead of truncating it: a partial batch is no result.
-    if [ -n "$UNTIL" ] && [ "$(date +%H:%M)" \> "$UNTIL" ]; then
+    # A cutoff that would skip a run VOIDS the batch instead of truncating
+    # it: a partial batch is no result. UNTIL was resolved to an epoch at
+    # launch; compare integers, never strings (#175).
+    if [ -n "$UNTIL" ] && [ "${NOW:-$(date +%s)}" -ge "$UNTIL_EPOCH" ]; then
         echo "[$(date +%H:%M:%S)] VOID: past $UNTIL before run $n of $RUNS -- a partial batch is no result" >&2
         printf '{"run":%d,"arm":"VOID","reason":"past-until","until":"%s"}\n' \
             "$n" "$UNTIL" >> "$MANIFEST"
