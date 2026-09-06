@@ -623,6 +623,15 @@ def main(argv: list[str] | None = None) -> int:
         stream=sys.stdout,
         format="%(asctime)s %(agent)s %(name)s %(levelname)s %(message)s",
     )
+    # The format string names `%(agent)s`, so every record that reaches the
+    # handler must carry it. The module logger has the filter; a logger this
+    # process imports (preflight, say) does not, and its records would fail the
+    # format. A logger-level filter does not help: filters on an ancestor
+    # logger are not applied to records that propagate to it from a child. Only
+    # a handler-level filter sees every record, so attach the filter to the
+    # handler itself.
+    for handler in logging.getLogger().handlers:
+        handler.addFilter(agent_identity.AgentFilter())
     if args.cmd == "new":
         return new_finding(args.issue, args.task, args.out)
     try:

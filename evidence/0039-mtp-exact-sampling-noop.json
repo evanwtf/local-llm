@@ -7,7 +7,7 @@
   "agent_effort": "unidentified",
   "repo": "/Users/evanhoffman/git/local-llm",
   "authored_at": "2026-09-06T11:19:00-04:00",
-  "statement": "--mtp-exact-sampling is a no-op for our stack. The flag sets dspark_exact_sampling, which only gates the DSPARK branch (opportunistic/stochastic) in ds4_session_eval_speculative; that branch requires support_kind == DS4_SUPPORT_DSPARK. Our support model qwen3.8-flash-next-q4-mtp.gguf is a Qwen4 MTP sidecar (general.architecture=qwen4-exp-mtp, ds4.pack.artifact=mtp) with 32 tensors all under language_model.mtp.* -- it has no DSpark tensors (main_proj/markov_head/confidence_head) and no MTP_LEGACY exact names (mtp.0.e_proj.weight etc.), so support_model_detect classifies it as DS4_SUPPORT_NONE, not MTP_LEGACY and not DSPARK. Our runs use the separate Qwen4 MTP path (confirmed by the #148 log line 'Qwen matching v3 q4_k MTP sidecar loaded ... state=ready draft=7'), which never consults dspark_exact_sampling. So the third arm #142 handed to #39 cannot be run as posed: the flag changes nothing on the Qwen4 path we run.",
+  "statement": "--mtp-exact-sampling is a no-op for our stack, and the Qwen4 MTP path has its own acceptance control that the flag does not touch. The flag sets dspark_exact_sampling, which is read at exactly six sites in ds4-metal ds4.c (73386, 79339, 80143, 80164, 80179, 80190; the declaration at 38360 and the assignment from opt at 67465 are not reads). All six are gated behind GLM-under-TP or DS4_SUPPORT_DSPARK, so none reach the Qwen4 MTP path our runs use. Our support model qwen3.8-flash-next-q4-mtp.gguf is a Qwen4 MTP sidecar (general.architecture=qwen4-exp-mtp, ds4.pack.artifact=mtp) with 32 tensors all under language_model.mtp.* -- no DSpark tensors (main_proj/markov_head/confidence_head) and no MTP_LEGACY exact names (mtp.0.e_proj.weight etc.) -- so support_model_detect classifies it as DS4_SUPPORT_NONE. Our runs use the separate Qwen4 MTP path (confirmed by the #148 log line 'Qwen matching v3 q4_k MTP sidecar loaded ... state=ready draft=7'). That path has a margin-based acceptance threshold: e->mtp_margin defaults to 3.0 (ds4.c:67509), overridable by --mtp-margin (ds4_cli.c:1965, ds4_server.c:14235, ds4_agent.c:754) or the env var DS4_MTP_MIN_MARGIN (ds4.c:79510). At ds4.c:79587, when not strict and exactly two drafts are produced, the second draft is committed only if its top-2 logit margin is at least the threshold; below it, only the first (already-verified) token is committed. margin=0 disables the gate entirely (the > 0.0f check fails), so every draft is accepted; margin=3.0 drops low-confidence second drafts. strict_mtp (ds4.c:79508) is e->quality (set by --quality) or the env var DS4_MTP_STRICT; when strict, the margin gate is skipped and the full verifier always runs. So the third arm #142 handed to #39 is answerable through a margin sweep (--mtp-margin 0 vs 3.0 vs 1000), not an exact-sampling toggle. All citations are from ds4-metal @ ba01f5d, the tree our runs use.",
   "provenance": {
     "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
     "trees": {
@@ -134,6 +134,121 @@
       },
       "expect_authored": "post-hoc",
       "falsifier": "A log line naming the DSPARK or MTP_LEGACY load path instead of the Qwen4 sidecar would mean our runs do not use the Qwen4 MTP path."
+    },
+    {
+      "id": "six-dspark-sites-enumerated",
+      "statement": "The dspark_exact_sampling field is read at exactly six sites in ds4-metal ds4.c (73386, 79339, 80143, 80164, 80179, 80190); the declaration at 38360 and the assignment from opt at 67465 are not reads. All six are gated behind GLM-under-TP or DS4_SUPPORT_DSPARK, so none reach the Qwen4 MTP path.",
+      "argv": [
+        "grep",
+        "-n",
+        "dspark_exact_sampling",
+        "/Users/evanhoffman/git/ds4-metal/ds4.c"
+      ],
+      "cwd": "/Users/evanhoffman/git/local-llm",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0,
+        "stdout_contains": "80190"
+      },
+      "observed": {
+        "exit": 0,
+        "stdout": "38360:    bool dspark_exact_sampling;\n67465:    e->dspark_exact_sampling = opt->dspark_exact_sampling;\n73386:            !e->dspark_exact_sampling &&\n79339:        if (s->engine->dspark_exact_sampling && s->engine->tp.active) {\n80143:            (e->dspark_exact_sampling && e->tp.active)) {\n80164:                e->dspark_exact_sampling,\n80179:        !e->quality && !e->dspark_strict && !e->dspark_exact_sampling;\n80190:        !e->quality && !e->dspark_strict && e->dspark_exact_sampling;"
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "A grep that does not reach 80190 would mean the field is read at a different set of sites, and the enumeration is wrong."
+    },
+    {
+      "id": "mtp-margin-flag-real",
+      "statement": "--mtp-margin is a real parsed flag in ds4_cli.c (default 3.0, range [0,1000]), alongside --mtp-draft, --mtp-model, --mtp-timing and the no-op --mtp-exact-sampling.",
+      "argv": [
+        "grep",
+        "-n",
+        "\"--mtp-margin\"",
+        "/Users/evanhoffman/git/ds4-metal/ds4_cli.c"
+      ],
+      "cwd": "/Users/evanhoffman/git/local-llm",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0,
+        "stdout_contains": "1965"
+      },
+      "observed": {
+        "exit": 0,
+        "stdout": "1965:        } else if (!strcmp(arg, \"--mtp-margin\")) {"
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "A grep that does not find --mtp-margin in ds4_cli.c would mean the flag is not parsed there."
+    },
+    {
+      "id": "mtp-margin-default-3",
+      "statement": "e->mtp_margin defaults to 3.0 when the flag is not given (ds4.c:67509).",
+      "argv": [
+        "grep",
+        "-n",
+        "opt->mtp_margin >= 0.0f",
+        "/Users/evanhoffman/git/ds4-metal/ds4.c"
+      ],
+      "cwd": "/Users/evanhoffman/git/local-llm",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0,
+        "stdout_contains": "3.0f"
+      },
+      "observed": {
+        "exit": 0,
+        "stdout": "67509:    e->mtp_margin = opt->mtp_margin >= 0.0f ? opt->mtp_margin : 3.0f;"
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "A default other than 3.0 would change what the acceptance gate does by default."
+    },
+    {
+      "id": "mtp-margin-acceptance-gate",
+      "statement": "The margin gate (ds4.c:79587) fires only when not strict, exactly two drafts are produced, and the threshold is positive; below the threshold the second draft is dropped and only the first token is committed.",
+      "argv": [
+        "grep",
+        "-n",
+        "draft_n == 2 && mtp_margin_threshold",
+        "/Users/evanhoffman/git/ds4-metal/ds4.c"
+      ],
+      "cwd": "/Users/evanhoffman/git/local-llm",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0,
+        "stdout_contains": "79587"
+      },
+      "observed": {
+        "exit": 0,
+        "stdout": "79587:    if (!strict_mtp && draft_n == 2 && mtp_margin_threshold > 0.0f) {"
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "A gate that does not require draft_n == 2 and a positive threshold would change which drafts the margin controls."
+    },
+    {
+      "id": "strict-mtp-definition",
+      "statement": "strict_mtp (ds4.c:79508) is e->quality (set by --quality) or the env var DS4_MTP_STRICT; when strict, the margin gate is skipped and the full verifier always runs.",
+      "argv": [
+        "grep",
+        "-n",
+        "strict_mtp = e->quality",
+        "/Users/evanhoffman/git/ds4-metal/ds4.c"
+      ],
+      "cwd": "/Users/evanhoffman/git/local-llm",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0,
+        "stdout_contains": "DS4_MTP_STRICT"
+      },
+      "observed": {
+        "exit": 0,
+        "stdout": "79508:    const bool strict_mtp = e->quality || getenv(\"DS4_MTP_STRICT\") != NULL;"
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "A strict_mtp definition that does not include DS4_MTP_STRICT would mean the env var does not control it."
     }
   ]
 }
