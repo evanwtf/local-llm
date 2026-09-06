@@ -170,6 +170,35 @@ def void_reason(marker: pathlib.Path) -> str:
     return "no reason recorded"
 
 
+def _warn_rep_mismatch(
+    data: dict[str, dict[int, dict[int, float]]], d: pathlib.Path
+) -> None:
+    """Warn when the two arms of a run carry different repetition counts.
+
+    A directory read mid-write has one arm with fewer reps than the other:
+    the driver writes the arms' CSVs interleaved, so a run caught between
+    arms has an incomplete final rep on one side. `load()` pairs only the
+    reps both arms share, so the missing rep silently drops out of the
+    pairing and changes the median -- no error, no warning, just a
+    different number. This is the loud version of that silence.
+    """
+    if len(data) != 2:
+        return
+    a, b = sorted(data)
+    reps_a = {rep for ctx in data[a].values() for rep in ctx}
+    reps_b = {rep for ctx in data[b].values() for rep in ctx}
+    if reps_a != reps_b:
+        logger.warning(
+            "%s: arms carry different repetition counts -- %s has %s, %s has %s; "
+            "a run read mid-write drops the incomplete rep from the pairing",
+            d.name or str(d),
+            a,
+            sorted(reps_a),
+            b,
+            sorted(reps_b),
+        )
+
+
 def report_across_runs(
     dirs: list[pathlib.Path], column: str, include_void: bool = False
 ) -> tuple[list[tuple[pathlib.Path, Summary]], int]:
@@ -210,7 +239,9 @@ def report_across_runs(
                 d.name or str(d),
             )
         try:
-            got.append((d, summarize(load(d, column))))
+            data = load(d, column)
+            _warn_rep_mismatch(data, d)
+            got.append((d, summarize(data)))
         except (ValueError, OSError) as exc:
             logger.error("%s: %s", d, exc)
             status = 1

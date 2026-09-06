@@ -22,6 +22,13 @@
 # driver refuses it unless METAL_KNOB_ACK_NO_SIGNAL=1, and its rows are marked
 # admission_signal: none so they cannot later be read as verified.
 #
+# gathered-heads has no REQUIRE spelling, so it cannot fail closed. Instead it
+# carries a count-based admission signal: the driver runs one short
+# single-frontier engagement pass per arm with the trace var set, counts the
+# `packed FA use=` trace lines, and refuses the timed run unless the on arm
+# engaged more layers than the off arm and both are non-zero. The counts go on
+# the run so every run carries its own engagement evidence.
+#
 # A presence knob (gathered-heads) is on by default and has no REQUIRE spelling:
 # the on arm unsets the DISABLE var (`env -u`), so its on-value is the sentinel
 # "unset" (the `${2:?on value}` guard needs a non-empty positional). The off arm
@@ -66,6 +73,30 @@ ADMISSION_SIGNAL="$(uv run python "$PY" admission-signal "$KNOB")"
 # per-arm env prefix is decided by `arm-cmd` in Python, so the on arm's argv is
 # a pure function of the knob table and the tests can see it.
 
+# A count knob's engagement pass: one short single-frontier run per arm with the
+# trace var set, so the driver can count how many layers the packed-FA path
+# engaged. The trace prints per dispatch, so it stays off the timed arms.
+run_engagement() {
+  local label="$1" value="$2"
+  local log="$OUT/engagement-${label}.log"
+  local count_file="$OUT/engagement-${label}.count"
+  local env_prefix trace_var
+  env_prefix="$(uv run python "$PY" arm-cmd "$KNOB" "$label" "$value")"
+  trace_var="$(uv run python "$PY" trace-var "$KNOB")"
+  # The progress line goes to stderr: this function's stdout must stay empty so
+  # the count file is the only value it produces. A friendly echo here would
+  # pollute the captured count.
+  echo "[$(date +%H:%M:%S)] engagement $label -> $log" >&2
+  echo "# engagement: $label knob=$KNOB env $env_prefix $trace_var=1 ./ds4-bench -m $GGUF --metal --prompt-file $PROMPT --ctx-start $CTX_START --ctx-max $CTX_START --step-incr $STEP --gen-tokens $GEN" > "$log"
+  ( cd "$TREE" && env $env_prefix $trace_var=1 ./ds4-bench -m "$GGUF" --metal \
+      --prompt-file "$PROMPT" \
+      --ctx-start "$CTX_START" --ctx-max "$CTX_START" --step-incr "$STEP" \
+      --gen-tokens "$GEN" --csv "$OUT/engagement-${label}.csv" ) >> "$log" 2>&1
+  # The count goes to a file, not stdout: the caller reads it back, so a
+  # progress echo cannot pollute the value.
+  uv run python "$PY" count-trace-lines "$log" > "$count_file"
+}
+
 # Check the cheap thing first: a missing build used to fail mid-run, after the
 # lock was held and the model loaded.
 if [ ! -x "$TREE/ds4-bench" ]; then
@@ -88,10 +119,29 @@ trap 'uv run python "$PREFLIGHT" --release-lock --owner-pid $$ >/dev/null 2>&1' 
 mkdir -p "$OUT"
 uv run python "$(dirname "$0")/prompt_meta.py" --prompt "$PROMPT" --sidecar "$OUT" --show
 
-# The knob name, both arm vars, both arm values, and the admission signal go on
-# the run, so a later reader can tell which knob and which values produced the
-# rows, and whether the rows are verified. A knob with admission_signal "none"
-# must not be read as verified.
+# Count-based admission: run one short single-frontier engagement pass per arm
+# with the trace on, record both counts, and refuse the timed run if the counts
+# are equal. Equal counts mean the knob did nothing, which is the
+# tight-meaningless result the driver refuses. The trace prints per dispatch, so
+# it stays off the timed arms -- tracing inside a timed arm would add I/O to one
+# arm and not the other.
+ON_COUNT=0
+OFF_COUNT=0
+if [ "$ADMISSION_SIGNAL" = "count" ]; then
+  run_engagement on "$ON_VALUE"
+  run_engagement off "$OFF_VALUE"
+  ON_COUNT="$(cat "$OUT/engagement-on.count")"
+  OFF_COUNT="$(cat "$OUT/engagement-off.count")"
+  if ! uv run python "$PY" count-admission-ok "$ON_COUNT" "$OFF_COUNT"; then
+    echo "REFUSING: knob $KNOB did not engage (on=$ON_COUNT off=$OFF_COUNT trace lines); the on arm must exceed the off arm and both must be non-zero" >&2
+    exit 1
+  fi
+fi
+
+# The knob name, both arm vars, both arm values, the admission signal, and the
+# engagement counts go on the run, so a later reader can tell which knob and
+# which values produced the rows, and whether the rows are verified. A knob
+# with admission_signal "none" must not be read as verified.
 cat > "$OUT/run-meta.json" <<EOF
 {
   "knob": "$KNOB",
@@ -104,8 +154,18 @@ cat > "$OUT/run-meta.json" <<EOF
   "gguf": "$GGUF",
   "reps": "$REPS",
   "started": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-}
 EOF
+if [ "$ADMISSION_SIGNAL" = "count" ]; then
+  cat >> "$OUT/run-meta.json" <<EOF
+  ,
+  "engagement": {
+    "trace_var": "$(uv run python "$PY" trace-var "$KNOB")",
+    "on_count": "$ON_COUNT",
+    "off_count": "$OFF_COUNT"
+  }
+EOF
+fi
+echo "}" >> "$OUT/run-meta.json"
 
 run_arm() {
   local label="$1" value="$2" rep="$3" position="$4"
