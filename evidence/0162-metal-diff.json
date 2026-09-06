@@ -22,12 +22,12 @@
       "statement": "dequantize_iq2_xxs changed from a uint8 grid table scaled by 0.25 to a precomputed half-precision table (ds4_metal_iq2xxs_half_values[256][8]). The new table is exactly grid*0.25 (0/2048 mismatches, checked by unpacking both tables; the peer independently decoded grid[1] low byte 0x2b=43 -> 10.75 = 0x4960 and grid[2] low byte 0x19=25 -> 6.25 = 0x4640). The dequantized values are identical. This is on the production path: the GGUF has IQ2_XXS gate/up tensors.",
       "argv": [
         "git",
-        "show",
-        "77a054e1:metal/moe.metal",
-        "|",
         "grep",
         "-c",
-        "ds4_metal_iq2xxs_half_values"
+        "ds4_metal_iq2xxs_half_values",
+        "77a054e1",
+        "--",
+        "metal/moe.metal"
       ],
       "cwd": "/Users/evanhoffman/git/ds4-main-b",
       "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
@@ -35,11 +35,11 @@
       "cost": "cheap",
       "expect": {
         "exit": 0,
-        "stdout_contains": "3"
+        "stdout_contains": "metal/moe.metal:3"
       },
       "observed": {
         "exit": 0,
-        "stdout": "3"
+        "stdout": "77a054e1:metal/moe.metal:3"
       },
       "expect_authored": "post-hoc",
       "falsifier": "If the new half table is not exactly grid*0.25, the dequantization is numerically different and the 'identical refactor' claim collapses."
@@ -49,12 +49,13 @@
       "statement": "The runtime 0.25f factor was removed from dl in dequantize_iq2_xxs: the old code had 'd * (0.5f + (aux32_s >> 28)) * 0.25f' (1 occurrence at 9ab7053), the new code has no such factor (0 occurrences at 77a054e1). The 0.25 was folded into the precomputed half table.",
       "argv": [
         "git",
-        "show",
-        "9ab7053:metal/moe.metal",
-        "|",
         "grep",
+        "-F",
         "-c",
-        "0.5f + (aux32_s >> 28)) * 0.25f"
+        "0.5f + (aux32_s >> 28)) * 0.25f",
+        "9ab7053",
+        "--",
+        "metal/moe.metal"
       ],
       "cwd": "/Users/evanhoffman/git/ds4-main-b",
       "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
@@ -62,11 +63,11 @@
       "cost": "cheap",
       "expect": {
         "exit": 0,
-        "stdout_contains": "1"
+        "stdout_contains": "metal/moe.metal:1"
       },
       "observed": {
         "exit": 0,
-        "stdout": "1"
+        "stdout": "9ab7053:metal/moe.metal:1"
       },
       "expect_authored": "post-hoc",
       "falsifier": "If the old code did not carry the 0.25f factor, the refactor claim loses its evidence."
@@ -76,24 +77,24 @@
       "statement": "The 0.25f factor is absent from the new dequantize_iq2_xxs: grep for '0.5f + (aux32_s >> 28)) * 0.25f' returns 0 at 77a054e1.",
       "argv": [
         "git",
-        "show",
-        "77a054e1:metal/moe.metal",
-        "|",
         "grep",
+        "-F",
         "-c",
-        "0.5f + (aux32_s >> 28)) * 0.25f"
+        "0.5f + (aux32_s >> 28)) * 0.25f",
+        "77a054e1",
+        "--",
+        "metal/moe.metal"
       ],
       "cwd": "/Users/evanhoffman/git/ds4-main-b",
       "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
       "readonly": true,
       "cost": "cheap",
       "expect": {
-        "exit": 1,
-        "stdout_contains": "0"
+        "exit_nonzero": true
       },
       "observed": {
         "exit": 1,
-        "stdout": "0"
+        "stdout": ""
       },
       "expect_authored": "post-hoc",
       "falsifier": "If the new code still carries the 0.25f factor, the factor was not removed and the refactor claim collapses."
@@ -103,12 +104,13 @@
       "statement": "The Q4_K pair_swiglu kernels (kernel_mul_mv_addr_q4_K_pair_swiglu_f32, kernel_mul_mv_slots6_q4_K_pair_swiglu_f32) changed their silu from the inline g/(1.0f+exp(-g)) to ds4_silu(g). ds4_silu is a numerically-stable sigmoid (ds4_sigmoid_stable uses exp(-fabs(x)) to avoid overflow), identical for normal-range inputs. This is ONE change on the Q4_K path; it is not the only one (see q4k-matvec-hunks).",
       "argv": [
         "git",
-        "show",
-        "77a054e1:metal/moe.metal",
-        "|",
         "grep",
+        "-F",
         "-c",
-        "ds4_silu(g)"
+        "ds4_silu(g)",
+        "77a054e1",
+        "--",
+        "metal/moe.metal"
       ],
       "cwd": "/Users/evanhoffman/git/ds4-main-b",
       "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
@@ -116,11 +118,11 @@
       "cost": "cheap",
       "expect": {
         "exit": 0,
-        "stdout_contains": "19"
+        "stdout_contains": "metal/moe.metal:19"
       },
       "observed": {
         "exit": 0,
-        "stdout": "19"
+        "stdout": "77a054e1:metal/moe.metal:19"
       },
       "expect_authored": "post-hoc",
       "falsifier": "If the Q4_K pair_swiglu kernels do not call ds4_silu, the silu change is not on the Q4_K path."
@@ -130,12 +132,13 @@
       "statement": "The old code used the inline silu g/(1.0f+exp(-g)) in 18 places at 9ab7053; the new code uses ds4_silu(g) in 19 places at 77a054e1. The inline form is gone from the Q4_K pair_swiglu kernels.",
       "argv": [
         "git",
-        "show",
-        "9ab7053:metal/moe.metal",
-        "|",
         "grep",
+        "-F",
         "-c",
-        "g / (1.0f + exp(-g))"
+        "g / (1.0f + exp(-g))",
+        "9ab7053",
+        "--",
+        "metal/moe.metal"
       ],
       "cwd": "/Users/evanhoffman/git/ds4-main-b",
       "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
@@ -143,11 +146,11 @@
       "cost": "cheap",
       "expect": {
         "exit": 0,
-        "stdout_contains": "18"
+        "stdout_contains": "metal/moe.metal:18"
       },
       "observed": {
         "exit": 0,
-        "stdout": "18"
+        "stdout": "9ab7053:metal/moe.metal:18"
       },
       "expect_authored": "post-hoc",
       "falsifier": "If the old code did not use the inline silu, the 'silu changed' claim loses its evidence."
@@ -157,14 +160,13 @@
       "statement": "The diff on the IQ2_XXS and Q4_K matvec kernels is large and was NOT characterized. kernel_mul_mv_q4_K_f32_impl grew 94 to 429 lines, kernel_mul_mv_iq2_xxs_pair_f32_impl 6 to 141, kernel_mul_mv_q4_K_dense_f32 6 to 244, kernel_mul_mv_addr_iq2_xxs_pair_swiglu_f32 6 to 160. These are new variants, not a silu swap. The next reader should treat the executed IQ2_XXS and Q4_K matvec path as unexamined beyond the two numerically-identical changes named above.",
       "argv": [
         "git",
-        "diff",
-        "9ab7053..77a054e1",
-        "--",
-        "metal/moe.metal",
-        "|",
         "grep",
-        "-n",
-        "kernel_mul_mv_q4_K_f32_impl("
+        "-F",
+        "-c",
+        "kernel_mul_mv_q4_K_f32_impl(",
+        "77a054e1",
+        "--",
+        "metal/moe.metal"
       ],
       "cwd": "/Users/evanhoffman/git/ds4-main-b",
       "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
@@ -172,26 +174,27 @@
       "cost": "cheap",
       "expect": {
         "exit": 0,
-        "stdout_contains": "-2900,94 +2935,429"
+        "stdout_contains": "metal/moe.metal:1"
       },
       "observed": {
         "exit": 0,
-        "stdout": "671:@@ -2900,94 +2935,429 @@ void kernel_mul_mv_q4_K_f32_impl("
+        "stdout": "77a054e1:metal/moe.metal:1"
       },
       "expect_authored": "post-hoc",
-      "falsifier": "If the q4_K_f32_impl hunk is not 94 to 429 lines, the hunk-size characterization is wrong."
+      "falsifier": "If the new code does not contain kernel_mul_mv_q4_K_f32_impl, the matvec kernel is not on the executed path and the 'large uncharacterized diff' caveat has no anchor."
     },
     {
       "id": "hc-fusion-pre-m5",
       "statement": "The new HC attention-output fusion kernels (kernel_dsv4_attn_out_q8_mm_hc_expand4_batch, kernel_dsv4_attn_out_q4_K_f16_rhs_mm_hc_expand4_batch) are gated behind 'ds4_gpu_device_is_pre_m5_apple_silicon() || force' in both ds4_gpu_attention_output_q8_batch_impl and ds4_gpu_attention_output_q4_K_batch_impl. pre-M5 means device name 'Apple M1'..'Apple M4' (ds4_metal.m:3599). The run is on M5 Max, so pre-M5 is false and force (DS4_GPU_TEST_BATCH_ATTN_OUT_Q8_HC_FUSION) is not set. The path is not hit.",
       "argv": [
         "git",
-        "show",
-        "77a054e1:ds4_metal.m",
-        "|",
         "grep",
+        "-F",
         "-c",
-        "ds4_gpu_device_is_pre_m5_apple_silicon() || force"
+        "ds4_gpu_device_is_pre_m5_apple_silicon() || force",
+        "77a054e1",
+        "--",
+        "ds4_metal.m"
       ],
       "cwd": "/Users/evanhoffman/git/ds4-main-b",
       "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
@@ -199,11 +202,11 @@
       "cost": "cheap",
       "expect": {
         "exit": 0,
-        "stdout_contains": "3"
+        "stdout_contains": "ds4_metal.m:3"
       },
       "observed": {
         "exit": 0,
-        "stdout": "3"
+        "stdout": "77a054e1:ds4_metal.m:3"
       },
       "expect_authored": "post-hoc",
       "falsifier": "If the HC fusion path is not gated behind pre-M5 (or the run can set force), the path can fire on M5 Max and the 'not hit' claim collapses."
@@ -213,12 +216,12 @@
       "statement": "The ssd_prefill_exactn path (kernel_dsv4_attn_out_q4_K_ssd_prefill_exactn_f32) is gated behind platform_ok = g_ssd_streaming_mode && !g_quality_mode && ds4_gpu_device_is_pre_m5_apple_silicon (ds4_metal.m:32752). The run does not pass --ssd-streaming (scripts/decode_ab.sh:72), so g_ssd_streaming_mode is false. The path is not hit.",
       "argv": [
         "git",
-        "show",
-        "77a054e1:ds4_metal.m",
-        "|",
         "grep",
         "-n",
-        "g_ssd_streaming_mode &&"
+        "g_ssd_streaming_mode &&",
+        "77a054e1",
+        "--",
+        "ds4_metal.m"
       ],
       "cwd": "/Users/evanhoffman/git/ds4-main-b",
       "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
@@ -230,7 +233,7 @@
       },
       "observed": {
         "exit": 0,
-        "stdout": "3000:        !g_ssd_streaming_mode &&\n3011:    const int warm_model_views = !g_ssd_streaming_mode &&\n5542:    if (g_ssd_streaming_mode &&\n32752:        g_ssd_streaming_mode &&"
+        "stdout": "77a054e1:ds4_metal.m:3000:        !g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:3011:    const int warm_model_views = !g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:5542:    if (g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:5563:    if (g_ssd_streaming_mode && !was_ssd_streaming) {\n77a054e1:ds4_metal.m:10876:        !g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:12346:           !g_ssd_streaming_mode && g_tp_check_words != NULL &&\n77a054e1:ds4_metal.m:12419:        !g_ssd_streaming_mode && g_tp_check_words != NULL &&\n77a054e1:ds4_metal.m:12478:            g_tp_poll_gates && !g_ssd_streaming_mode && g_tp_check_words != NULL &&\n77a054e1:ds4_metal.m:12518:        !event_arrival && g_tp_poll_gates && !g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:14707:           g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:15033:    return g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:15887:    return g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:16261:    return g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:16464:    return g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:16471:    return g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:16484:    return g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:16493:    return g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:16500:    return g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:16582:    return g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:24678:        if (g_ssd_streaming_mode && !g_quality_mode && g_tp_split_world <= 1 &&\n77a054e1:ds4_metal.m:27891:    const bool ssd_transient_invalidated = g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:27903:        g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:28248:        !g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:28692:    if (g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:28866:        g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:30249:        !g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:32667:        !g_ssd_streaming_mode && !ds4_gpu_tp_world_is_two() &&\n77a054e1:ds4_metal.m:32752:        g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:33216:            !g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:33661:        !g_ssd_streaming_mode && !ds4_gpu_tp_world_is_two() &&\n77a054e1:ds4_metal.m:35097:        !g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:45394:        g_ssd_streaming_mode && g_tp_split_world == 2;\n77a054e1:ds4_metal.m:45483:            g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:46706:        g_ssd_streaming_mode && g_tp_split_world == 2;\n77a054e1:ds4_metal.m:46785:            g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:47841:            !force_resident && g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:48147:            g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:48159:            g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:48172:            g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:48280:        if (g_ssd_streaming_mode && !g_quality_mode && g_tp_split_world <= 1 &&\n77a054e1:ds4_metal.m:50437:        ((g_ssd_streaming_mode && !force_resident) ||\n77a054e1:ds4_metal.m:50598:            !force_resident && g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:50728:            !g_ssd_streaming_mode && n_tokens >= 512u && n_tokens <= 4096u &&\n77a054e1:ds4_metal.m:50771:            !g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:50905:            !g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:50929:            !g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:50942:            !g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:50954:            !g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:50980:            !g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:51085:                    !g_ssd_streaming_mode &&"
       },
       "expect_authored": "post-hoc",
       "falsifier": "If the ssd_prefill_exactn path is not gated behind g_ssd_streaming_mode, the path can fire without --ssd-streaming and the 'not hit' claim collapses."
@@ -240,12 +243,12 @@
       "statement": "The mid_only kernels (kernel_mul_mv_iq2_xxs_pair_swiglu_mid_only_4096x2048_impl) are gated behind ds4_gpu_m1_iq2_mid_only_enabled() AND g_ssd_streaming_mode (ds4_metal.m:47839). ds4_gpu_m1_iq2_mid_only_enabled (ds4_metal.m:16458) requires an M1 device. The run is on M5 Max and does not pass --ssd-streaming. The path is not hit.",
       "argv": [
         "git",
-        "show",
-        "77a054e1:ds4_metal.m",
-        "|",
         "grep",
         "-n",
-        "ds4_gpu_m1_iq2_mid_only_enabled"
+        "ds4_gpu_m1_iq2_mid_only_enabled",
+        "77a054e1",
+        "--",
+        "ds4_metal.m"
       ],
       "cwd": "/Users/evanhoffman/git/ds4-main-b",
       "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
@@ -257,7 +260,7 @@
       },
       "observed": {
         "exit": 0,
-        "stdout": "16458:static int ds4_gpu_m1_iq2_mid_only_enabled(void) {\n47839:            ds4_gpu_m1_iq2_mid_only_enabled() &&"
+        "stdout": "77a054e1:ds4_metal.m:16458:static int ds4_gpu_m1_iq2_mid_only_enabled(void) {\n77a054e1:ds4_metal.m:47839:            ds4_gpu_m1_iq2_mid_only_enabled() &&"
       },
       "expect_authored": "post-hoc",
       "falsifier": "If the mid_only path is not gated behind the M1 device check, it can fire on M5 Max and the 'not hit' claim collapses."
@@ -267,12 +270,12 @@
       "statement": "The dspark path (kernel_dsv4_dspark_device_*) is gated behind ds4_gpu_env_bool('DS4_METAL_DSPARK_DEVICE_PROPOSER') == 1 (ds4_metal.m:22501). The run does not set this env var. The path is not hit.",
       "argv": [
         "git",
-        "show",
-        "77a054e1:ds4_metal.m",
-        "|",
         "grep",
         "-n",
-        "DS4_METAL_DSPARK_DEVICE_PROPOSER"
+        "DS4_METAL_DSPARK_DEVICE_PROPOSER",
+        "77a054e1",
+        "--",
+        "ds4_metal.m"
       ],
       "cwd": "/Users/evanhoffman/git/ds4-main-b",
       "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
@@ -284,7 +287,7 @@
       },
       "observed": {
         "exit": 0,
-        "stdout": "22501:    return ds4_gpu_env_bool(\"DS4_METAL_DSPARK_DEVICE_PROPOSER\") == 1 &&"
+        "stdout": "77a054e1:ds4_metal.m:22501:    return ds4_gpu_env_bool(\"DS4_METAL_DSPARK_DEVICE_PROPOSER\") == 1 &&"
       },
       "expect_authored": "post-hoc",
       "falsifier": "If the dspark path is not gated behind the env var, it can fire without the env var and the 'not hit' claim collapses."
@@ -294,29 +297,27 @@
       "statement": "The gate enumeration is incomplete: there is a helper that INCLUDES the M5 Max, ds4_gpu_ported_m5_decode_feature_enabled (ds4_metal.m:3619), which returns pre_m5 || ds4_gpu_device_is_m5_apple_silicon(). Its flash_attn_packed32_reduce call site condition changed in the diff (ds4_metal.m:36769): the old 'n_comp != 0u' became '(n_comp != 0u || getenv(\"DS4_METAL_DISABLE_DECODE_RAW_PACKED32\") == NULL)'. This is a decode-path change on M5 that the exclude-only enumeration missed. Whether the run's shape (n_head==64, head_dim==512, rope fuse) hits it is not characterized here.",
       "argv": [
         "git",
-        "diff",
-        "9ab7053..77a054e1",
-        "--",
-        "ds4_metal.m",
-        "|",
         "grep",
-        "-n",
-        "DS4_METAL_DISABLE_DECODE_RAW_PACKED32"
+        "-F",
+        "-c",
+        "DS4_METAL_DISABLE_DECODE_RAW_PACKED32",
+        "9ab7053",
+        "--",
+        "ds4_metal.m"
       ],
       "cwd": "/Users/evanhoffman/git/ds4-main-b",
       "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
       "readonly": true,
       "cost": "cheap",
       "expect": {
-        "exit": 0,
-        "stdout_contains": "DS4_METAL_DISABLE_DECODE_RAW_PACKED32"
+        "exit_nonzero": true
       },
       "observed": {
-        "exit": 0,
-        "stdout": "11034:+         getenv(\"DS4_METAL_DISABLE_DECODE_RAW_PACKED32\") == NULL) &&"
+        "exit": 1,
+        "stdout": ""
       },
       "expect_authored": "post-hoc",
-      "falsifier": "If the flash_attn_packed32_reduce condition did not change in the diff, the 'decode-path change on M5' claim collapses."
+      "falsifier": "If the old code already carried DS4_METAL_DISABLE_DECODE_RAW_PACKED32, the var was not added in the diff and the 'decode-path change on M5' claim collapses. (The new code carrying it is verified by one-knob-suffices.)"
     },
     {
       "id": "n-keys-bounded-not-ctx",
