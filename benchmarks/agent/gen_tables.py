@@ -91,6 +91,22 @@ def _excision(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [r for r in rows if not str(r.get("task", "")).startswith("script-")]
 
 
+def _timed(rows: list[dict[str, Any]]) -> list[float]:
+    """Wall times of the excision trials that **passed**.
+
+    The timing columns count only these. A trial that dies early is quick, so
+    counting failures rewards a stack for failing fast: it pulls the median
+    down and promotes the row up a table sorted by median, which is the column
+    a reader scans for "which is quickest" (#142). Every stack that passes
+    everything is unaffected -- its two medians are the same number.
+    """
+    return [
+        x["wall_seconds"]
+        for x in _excision(rows)
+        if x.get("passed") and x.get("wall_seconds")
+    ]
+
+
 def stack_table(rows: list[dict[str, Any]], labels: dict[str, str]) -> list[str]:
     """Pass rate and wall time per backend, OpenCode only."""
     by = collections.defaultdict(list)
@@ -100,23 +116,22 @@ def stack_table(rows: list[dict[str, Any]], labels: dict[str, str]) -> list[str]
         "| stack | passed | median | worst | spread |",
         "|---|---|---|---|---|",
     ]
-    rank = sorted(
-        by.items(),
-        key=lambda kv: statistics.median(
-            [x["wall_seconds"] for x in _excision(kv[1]) if x.get("wall_seconds")]
-            or [1e9]
-        ),
-    )
+    # A stack with no passing trial has no timing at all. It keeps its row --
+    # the pass column is the whole point of it -- and sorts last.
+    rank = sorted(by.items(), key=lambda kv: statistics.median(_timed(kv[1]) or [1e9]))
     for name, rs in rank:
-        ex = [x for x in _excision(rs) if x.get("wall_seconds")]
-        if not ex:
+        if not [x for x in _excision(rs) if x.get("wall_seconds")]:
             continue
-        w = [x["wall_seconds"] for x in ex]
         p = sum(1 for x in rs if x.get("passed"))
-        out.append(
-            f"| {labels.get(name, name)} | {p}/{len(rs)} | "
-            f"{statistics.median(w):.0f}s | {max(w):.0f}s | {max(w) / min(w):.1f}x |"
-        )
+        w = _timed(rs)
+        if w:
+            timing = (
+                f"{statistics.median(w):.0f}s | {max(w):.0f}s | "
+                f"{max(w) / min(w):.1f}x |"
+            )
+        else:
+            timing = "\u2014 | \u2014 | \u2014 |"
+        out.append(f"| {labels.get(name, name)} | {p}/{len(rs)} | {timing}")
     return out
 
 
@@ -247,6 +262,18 @@ def render(rows: list[dict[str, Any]] | None = None) -> str:
         "",
     ]
     out += ["#### Every stack measured under OpenCode", ""]
+    # The warning goes above the table, not below it. The bug it describes is
+    # a misreading of the table's own sort order (#142), so it has to arrive
+    # before the rows do.
+    out += [
+        (
+            "**The three timing columns count only trials that passed.** A "
+            "trial that dies early is quick, so counting failures would "
+            "reward a stack for failing fast and lift it up a table sorted "
+            "by median. Read the `passed` column first."
+        ),
+        "",
+    ]
     out += stack_table(rows, LABELS)
     out += client_caveat(valid_opencode(rows))
     out += [

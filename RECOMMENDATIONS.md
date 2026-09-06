@@ -108,18 +108,21 @@ occasionally, quietly wrong is a bad trade when you are not watching. The
 numbers are published because they are real; the recommendation withholds it on
 purpose.
 
-**And the second-fastest row is worse.** `qwen38fnds4mtp7shim` sits second in
-the table below at an 87s median — above every stack there that passes 100% of
-its trials. It passes **50/90, 55.6%**. It is the `qwen38fnds4shim` row with
-MTP speculative decoding turned on, and nothing else changes: same weights,
-same engine, same shim, same client, same fifteen tasks. MTP-on loses on **13
-of those 15** and takes two of them to **0/6** that the same weights pass 7/9
-without it.
+**And the row that used to sit second is worse than the table once said.**
+`qwen38fnds4mtp7shim` passes **50/91, 55%**. It is the `qwen38fnds4shim` row
+with MTP speculative decoding turned on, and nothing else changes: same
+weights, same engine, same shim, same client, same fifteen tasks. MTP-on loses
+on **13 of those 15** and takes two of them to **0/6** that the same weights
+pass 7/9 without it.
 
-Its position in the table is partly caused by that. A trial that fails early
-contributes a short wall time, so a 44% failure rate pulls the median down and
-promotes the row up a list sorted by median — the two effects compound, and the
-column a reader scans for "which is quickest" is the one they distort. Read the
+Until 2026-09-06 it ranked **second of fifteen at an 84s median**, above every
+stack that passed all of its trials, because the timing columns counted failed
+trials. A trial that dies early is quick, so a 45% failure rate pulled the
+median down and lifted the row up a list sorted by median — two effects
+compounding on the one column a reader scans for "which is quickest"
+([#142](https://github.com/evanwtf/local-llm/issues/142)). The timings now
+count only trials that passed, which puts this row **twelfth at 177s** and left
+every stack that passes everything on the number it already had. Read the
 `passed` column first, always.
 
 None of this says speculative decoding loses work. ds4's MTP defaults do not
@@ -180,22 +183,24 @@ other is telling you something.
 
 #### Every stack measured under OpenCode
 
+**The three timing columns count only trials that passed.** A trial that dies early is quick, so counting failures would reward a stack for failing fast and lift it up a table sorted by median. Read the `passed` column first.
+
 | stack | passed | median | worst | spread |
 |---|---|---|---|---|
 | ornith15 | 21/21 | 44s | 93s | 5.9x |
-| qwen38fnds4mtp7shim | 50/91 | 84s | 638s | 98.2x |
 | Qwen3.8-Flash-Next Q3 - llama.cpp | 30/30 | 90s | 208s | 4.8x |
 | qwen38fnds4kimat | 90/90 | 97s | 472s | 11.6x |
 | DeepSeek-V4-Flash - ds4 (Anthropic wire) | 18/18 | 110s | 221s | 4.3x |
 | qwen38fnq3reap | 21/21 | 110s | 261s | 6.8x |
 | DeepSeek-V4-Flash - ds4 | 30/30 | 115s | 230s | 4.3x |
 | Qwen3.8-Flash-Next Q3 - LM Studio | 21/21 | 122s | 261s | 4.2x |
-| qwen38fnds4shim | 195/225 | 136s | 792s | 123.7x |
 | gemma426 | 11/11 | 150s | 160s | 1.7x |
+| qwen38fnds4shim | 195/225 | 156s | 792s | 20.5x |
+| qwen36 | 11/12 | 159s | 352s | 3.6x |
 | Qwen3.6-27B-coding - Ollama | 24/24 | 167s | 700s | 12.6x |
-| qwen36 | 11/12 | 173s | 565s | 5.7x |
+| qwen38fnds4mtp7shim | 50/91 | 177s | 638s | 10.5x |
 | qwen | 12/12 | 247s | 406s | 4.0x |
-| GLM-5.3-Flash - ds4 | 22/24 | 368s | 1227s | 18.0x |
+| GLM-5.3-Flash - ds4 | 22/24 | 369s | 1227s | 18.0x |
 | gemma4 | 12/12 | 383s | 1316s | 4.8x |
 
 **Rows here were not all taken under one client.** qwen38fnq3reap under 1.18.26; qwen38fnds4kimat, qwen38fnds4mtp7shim, qwen38fnds4shim under 1.18.27; qwen38fnds4kimat, qwen38fnds4shim under 1.18.29; the rest under 1.18.25. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: qwen38fnds4kimat (1.18.27, 1.18.29); qwen38fnds4shim (1.18.27, 1.18.29).

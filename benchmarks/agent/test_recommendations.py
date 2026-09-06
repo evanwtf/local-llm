@@ -227,3 +227,114 @@ def test_the_published_tables_carry_the_caveat_while_the_split_stands():
     if len(versions) < 2:
         pytest.skip("one client version measured everything; nothing to caveat")
     assert text.count("#137") >= 2, "both generated tables need the caveat"
+
+
+# ---------------------------------------------------------------------------
+# #142: the stack table is sorted by median wall time, and a trial that dies
+# early is quick. That rewarded a stack for failing fast: qwen38fnds4mtp7shim
+# ranked second of fifteen at an 84s median while passing 50/91, above every
+# stack in the table that passed all of its trials. Counting only the trials
+# that passed moves it to twelfth at 177s and leaves every 100%-passing row on
+# exactly the number it had.
+
+
+def _trial(
+    backend: str, wall: float, passed: bool | None, task: str = "mbox-scan"
+) -> dict:
+    # valid_opencode() keeps only rows recorded after the --dir fix, so a
+    # synthetic row needs a harness head from that range or the table is empty.
+    return {
+        "env": {"harness_head": min(gen_tables._after_fix())},
+        "backend": backend,
+        "client": "opencode",
+        "client_version": "1.18.29",
+        "task": task,
+        "wall_seconds": wall,
+        "output_tokens": 1000,
+        "passed": passed,
+    }
+
+
+def _cells(line: str) -> list[str]:
+    return [c.strip() for c in line.strip().strip("|").split("|")]
+
+
+def test_a_stack_that_fails_fast_does_not_outrank_one_that_passes():
+    """The exact shape of the bug, in miniature.
+
+    `quick` dies at 10s on two thirds of its trials. Counting every trial its
+    median is 10s and it leads the table; counting only what passed it is 200s
+    and it trails the stack that passes everything at 100s.
+    """
+    rows = [
+        _trial("quick", 10.0, False),
+        _trial("quick", 10.0, False),
+        _trial("quick", 200.0, True),
+        _trial("steady", 100.0, True),
+        _trial("steady", 100.0, True),
+        _trial("steady", 100.0, True),
+    ]
+    body = gen_tables.stack_table(rows, {})[2:]
+    order = [_cells(line)[0] for line in body]
+    assert order == ["steady", "quick"]
+    assert _cells(body[0])[1:3] == ["3/3", "100s"]
+    assert _cells(body[1])[1:3] == ["1/3", "200s"]
+
+
+def test_a_stack_that_passes_everything_keeps_the_number_it_had():
+    """The rule must not restate the figures of any clean row.
+
+    Twelve of the fifteen published rows pass 100%, so for them the two
+    medians are the same set of trials. If this ever fails, the change has
+    moved numbers a reader may already have acted on.
+    """
+    rows = [_trial("clean", w, True) for w in (40.0, 90.0, 300.0)]
+    assert _cells(gen_tables.stack_table(rows, {})[2])[1:] == [
+        "3/3",
+        "90s",
+        "300s",
+        "7.5x",
+    ]
+
+
+def test_a_stack_with_no_passing_trial_keeps_its_row_and_sorts_last():
+    """0/n is the most important thing a table of stacks can say.
+
+    Dropping the row would hide it, and giving it a median would be inventing
+    one, so it keeps the row and reports no timing.
+    """
+    rows = [
+        _trial("hopeless", 10.0, False),
+        _trial("hopeless", 12.0, False),
+        _trial("fine", 500.0, True),
+    ]
+    body = gen_tables.stack_table(rows, {})[2:]
+    assert [_cells(line)[0] for line in body] == ["fine", "hopeless"]
+    assert _cells(body[1]) == ["hopeless", "0/2", "—", "—", "—"]
+
+
+def test_a_timed_out_trial_is_not_a_timing():
+    """results.trials() keeps timeouts as failures with `passed: None`.
+
+    They are the longest walls in the file, so treating them as passes would
+    push a stack's median and worst up for exactly the runs that produced no
+    work.
+    """
+    rows = [
+        _trial("t", 900.0, None),
+        _trial("t", 100.0, True),
+        _trial("t", 120.0, True),
+    ]
+    assert _cells(gen_tables.stack_table(rows, {})[2])[1:] == [
+        "2/3",
+        "110s",
+        "120s",
+        "1.2x",
+    ]
+
+
+def test_the_table_says_which_trials_the_timings_count():
+    """A rule a reader cannot see is a second version of the same bug."""
+    doc = gen_tables.render([_trial("a", 50.0, True), _trial("a", 10.0, False)])
+    warning = doc.index("count only trials that passed")
+    assert warning < doc.index("| stack | passed |")

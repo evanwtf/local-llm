@@ -22,6 +22,49 @@ picks in `RECOMMENDATIONS.md`, and the current queue in `NEXT.md`.
 
 ---
 
+**2026-09-06, overnight. Five guards, one ranking bug, and one question that
+cannot be asked on this hardware.**
+
+Worked from the `NEXT.md` queue.
+
+- **#145 — one owner for the server.** `scripts/lib/ds4_server.sh` stops the
+  model server on every exit path, chaining onto an existing `EXIT` trap rather
+  than replacing it, and `preflight` now reports how long a leftover server has
+  been holding memory ("holding 97.9 GiB after 4h12m") instead of only that it
+  is there.
+- **#149 — the Metal route is recorded on every row and gated before a run.**
+  The fast route's damage turns out to be **model-specific**: DeepSeek-V4-Flash
+  passes bit-exact (greedy_fail 0), GLM-5.3-Flash-Q2 fails (greedy_fail 8,
+  max_abs 7.27). A model `ds4_test` cannot load is `unsupported` and warns
+  rather than refusing -- the first version of this gate would have blocked
+  every run of the model we use most.
+- **#148/#151 — an MTP arm must prove it drafted.** The precondition reads the
+  **server's** argv, not this process's environment, because the one script
+  that runs the MTP arm passes `--mtp-timing` on the server command line. An
+  assertion that fires on the correct configuration is worse than none, because
+  it gets switched off. Measured on agent-shaped traffic, ds4's MTP arm is
+  engaged and **rejected**: ~0.01 accepted per cycle with tools in the prompt
+  against ~3.3 without. Both issues stay open until a lock-held run writes the
+  per-row `draft` field.
+- **#155 — closed as unanswerable.** Neither cross-combination of #138's engine
+  and quant loads. The cause is one hyphen: the old build declares
+  `general.architecture = qwen4-exp` and the new one `qwen4exp`, so each engine
+  looks up a namespaced key the other file does not carry and reports a
+  misleading `deepseek4.block_count is missing`. #138's 44% therefore stands as
+  a statement about a **stack**, and cannot be split.
+- **#142 — the stack table rewarded failing fast.** It is sorted by median wall
+  time, and a trial that dies early is quick. `qwen38fnds4mtp7shim` ranked
+  **second of fifteen at 84s** while passing 50/91, above every stack in the
+  table that passed all of its trials. The timing columns now count **only
+  trials that passed**, which puts that row twelfth at 177s and changes no
+  number on any of the twelve rows that pass everything -- for them it is the
+  same set of trials either way. The inflated `spread` figures went with it
+  (98.2x to 10.5x on the MTP row, 123.7x to 20.5x on the plain shim): the tiny
+  minima were fast deaths, not fast runs. A stack with no passing trial keeps
+  its row, reports no timing rather than an invented one, and sorts last.
+
+---
+
 **2026-09-05, overnight. Three checks that could not fail, and a screen that
 finally could.**
 
