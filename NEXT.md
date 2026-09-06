@@ -30,6 +30,27 @@ it appears below. Neither does anything that is a lead rather than a task —
 roughly thirty open issues are unmeasured claims from the sweep, and they wait
 in the tracker until one of them is worth a run.
 
+## Priority labels
+
+Every open issue carries exactly one, applied 2026-09-06. **The labels are
+this file, made queryable** — they are not a second opinion about what matters,
+and they drift the moment this file is re-ranked without them.
+
+- **`P0`** (4) — blocks or invalidates measurement. Do before anything that needs the machine. Items 1-3 below.
+- **`P1`** (7) — the rest of the top 10. Items 4-10.
+- **`P2`** (42) — a real task with a stated reason it is not now: the "below the line" items, harness defects nobody is blocked on, ops and housekeeping, and the Linux/RTX tier.
+- **`P3`** (29) — a lead. Somebody else's unverified claim about a quant, an engine, or an MTP number. **A lead earns a run by beating a P1 on expected information, not by being new.**
+
+The invariant: **`P0` + `P1` is exactly the top 10**, so
+`gh issue list --label P0 --label P1` and the list below can be checked against
+each other. If they disagree, this file is the one that was edited.
+
+```sh
+gh issue list --state open --label P0          # what is in the way
+gh issue list --state open --label P1          # what is next
+gh issue list --state open --label P3          # the lead backlog
+```
+
 ## The top 10
 
 Ranked by **what can actually be finished**, not by what is most interesting.
