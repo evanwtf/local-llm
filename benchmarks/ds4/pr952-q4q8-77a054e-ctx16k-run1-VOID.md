@@ -21,3 +21,24 @@ Run 1 here is complete; run 2 is a partial batch, stopped mid-arm. Neither is
 void for a *measurement* reason — no confound, no asymmetric load — so the
 numbers are real. They answer a different and narrower question than the one
 asked, and nothing published should pool them with the 32-frontier runs.
+
+## What these would have said, and why that is the danger
+
+Run 1 here reads **q4/q8 1.152**. The published figures it was launched against
+are **1.155** (`2669a8e`) and **1.147** (`6a20b13`). It would have read as a
+clean confirmation: *the finding is stable at head.*
+
+The four-run 32-frontier answer is **1.130**.
+
+The reason is in the per-frontier table: q8/q4 rises monotonically from 0.858 at
+ctx 2048 to 0.897 at 65536, so q4's advantage decays with context — +16.6% at
+the bottom of the sweep, +11.5% at the top. An 8-frontier sweep stopping at
+16384 samples only the steep low-ctx region and reports the largest ratio in the
+range.
+
+**The wrong sweep did not produce an obviously wrong number. It produced the
+expected one.** Nothing in the output would have prompted anyone to check the
+design, and the number would have gone upstream. This is the same shape as the
+voided run 2 of the `f309990` batch: a confound that agrees with the hypothesis
+is more dangerous than one that argues with it, because only the second gets
+investigated.

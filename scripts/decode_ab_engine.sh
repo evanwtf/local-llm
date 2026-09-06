@@ -77,11 +77,25 @@ for rep in $(seq 1 "$REPS"); do
   for pair in "${order[@]}"; do
     label=${pair%%:*}; tree=${pair#*:}
     csv="$OUT/${label}-rep${rep}.csv"
+    # Per-arm log, not the batch log. ds4 prints its Metal route, its
+    # drift-patch flag set and its pipeline fallbacks to stderr at startup,
+    # and that output is the only evidence that the two trees ran DIFFERENT
+    # code. Interleaved in one batch log it cannot be diffed; per arm it can.
+    # This matters when an engine A/B comes out flat: "the change is a wash"
+    # and "the new kernels were never selected" produce the same CSV, and
+    # only the startup diagnostics separate them.
+    log="$OUT/${label}-rep${rep}.log"
     echo "[$(date +%H:%M:%S)] $label rep $rep -> $csv"
-    ( cd "$tree" && ./ds4-bench -m "$GGUF" --metal \
+    if ! ( cd "$tree" && ./ds4-bench -m "$GGUF" --metal \
       --prompt-file "$PROMPT" \
       --ctx-start "$CTX_START" --ctx-max "$CTX_MAX" --step-incr "$STEP" \
-      --gen-tokens "$GEN" --csv "$csv" )
+      --gen-tokens "$GEN" --csv "$csv" ) > "$log" 2>&1; then
+      # The failure text is in the log now, not on the batch's stdout, so
+      # say where it went and show the tail rather than dying silently.
+      echo "FAILED: $label rep $rep -- see $log" >&2
+      tail -20 "$log" >&2
+      exit 1
+    fi
     # #140: the prompt is an input to the prefill result, so it goes on the
     # rows. Stamped per CSV rather than at the end, so a run that dies
     # halfway still says what it measured.
