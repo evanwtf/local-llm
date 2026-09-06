@@ -9,6 +9,7 @@ run them.
 from __future__ import annotations
 
 import datetime
+import logging
 import math
 import pathlib
 import sys
@@ -153,3 +154,30 @@ def test_the_conditional_is_read_for_whatever_arms_the_manifest_names():
     assert report.arms_in({e["arm"]: None for e in MANIFEST}) == ["on", "off"]
     targets = [{"arm": "sandbox"}, {"arm": "legacy"}]
     assert report.arms_in({e["arm"]: None for e in targets}) == ["legacy", "sandbox"]
+
+
+def test_void_is_never_an_arm_name():
+    """VOID is the marker for a batch cut short, not an arm. A read-out that
+    treated it as an arm would pool a partial batch."""
+    assert report.arms_in({"VOID": 1, "legacy": 2}) == ["legacy"]
+    assert report.arms_in({"VOID": 1}) == []
+
+
+def test_a_voided_batch_refuses_the_read_out(tmp_path, caplog):
+    """A VOID row must refuse the whole read-out, name the reason and run
+    number, and render no per-arm table. A bare KeyError would read as a
+    corrupt manifest instead of the reason the writer recorded."""
+    manifest = tmp_path / "manifest.jsonl"
+    manifest.write_text(
+        '{"run":1,"arm":"legacy","started":"2026-09-06T07:00:00Z",'
+        '"ended":"2026-09-06T07:30:00Z","dir":"/tmp/a"}\n'
+        '{"run":3,"arm":"VOID","reason":"past-until","until":"0000"}\n'
+    )
+    results = tmp_path / "results.jsonl"
+    results.write_text("")
+    with caplog.at_level(logging.INFO):
+        rc = report.main(["--results", str(results), "--manifest", str(manifest)])
+    assert rc != 0
+    assert "past-until" in caplog.text
+    assert "run 3" in caplog.text
+    assert "A/B read-out" not in caplog.text
