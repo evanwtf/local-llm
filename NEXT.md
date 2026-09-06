@@ -63,6 +63,28 @@ nothing finished and no way to tell.
 that rewarded failing fast). Their slots are filled from below the line, and
 two of the promotions are things that overnight run walked into.
 
+### The machine schedule for 2026-09-06 afternoon
+
+The operator has said they do not need the machine today, which is what makes
+the #146 repeat possible at all. One thing runs at a time; the order is upstream
+first, because two people are waiting on it, and #146 last because it is ours.
+
+| when | what | who |
+|---|---|---|
+| ~13:07 | AProjQ4/AProjQ8 land; verify SHA-256 `413cf0a6…c767` | opus |
+| 13:07-13:30 | [#162](https://github.com/evanwtf/local-llm/issues/162) Task 3 runs 2-4, `f309990` engine A/B | opus |
+| 13:30-13:40 | build the upstream `main` worktree | deepseek |
+| 13:40-15:45 | #162 Task 2, `q4/q8` at head vs the published 1.155 | opus |
+| 15:45-16:00 | branch vs `main`, the arm @GiorgioOppo asked for | opus |
+| 16:00-19:00 | [#146](https://github.com/evanwtf/local-llm/issues/146) clean 4-run repeat | opus |
+
+**The #146 window is quiet-machine.** No builds, no API calls, no large-file
+reads, no CPU-heavy work from any session. The lock stops another benchmark; it
+does not stop a build, and a build in one arm and not the other is the confound
+that made the first attempt uninterpretable. `targets_ab.sh` now voids the batch
+on a cutoff rather than truncating it, so a short window produces no result
+instead of half a result.
+
 ### First, because someone upstream is waiting on it
 
 0. **[#162](https://github.com/evanwtf/local-llm/issues/162)** Re-test ds4#952 on Metal, at head `77a054e1`
