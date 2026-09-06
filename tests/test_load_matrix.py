@@ -42,3 +42,19 @@ def test_port_free_false_when_held():
         s.listen(1)
         port = s.getsockname()[1]
         assert load_matrix._port_free(port) is False
+
+
+def test_tree_rev_returns_rev_for_git_checkout():
+    """A git checkout reports its HEAD rev."""
+    rev = load_matrix._tree_rev(
+        pathlib.Path(__file__).resolve().parents[1]
+    )
+    assert len(rev) == 40
+
+
+def test_tree_rev_unknown_for_non_git():
+    """A non-git directory reports 'unknown'."""
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as d:
+        assert load_matrix._tree_rev(pathlib.Path(d)) == "unknown"

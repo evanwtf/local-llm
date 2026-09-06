@@ -4,7 +4,7 @@
   "issue": 158,
   "agent": "peer-deepseek-v4-flash",
   "agent_model": "deepseek-v4-flash",
-  "agent_effort": "low",
+  "agent_effort": "unidentified",
   "repo": "/Users/evanhoffman/git/local-llm/.claude/worktrees/peer+160",
   "authored_at": "2026-09-06T11:58:55-04:00",
   "statement": "The ds4#991 PR build (236cb2a) loads only the imatrix file (qwen4exp, no hyphen), not the hyphenated files. The main-model routing at ds4.c:6789 checks `arch == \"qwen4exp\"` (no hyphen), but the macro DS4_QWEN4_ARCHITECTURE = \"qwen4-exp\" (with hyphen) is defined in ds4_qwen4.h:8 and used only at ds4_qwen4.c:1244 (the pack-manifest architecture check); the PLE sidecar uses the separate macro DS4_QWEN4_PLE_ARCHITECTURE = \"qwen4-exp-ple\" at ds4_qwen4.c:1739. Our Q40RoutedExperts file declares general.architecture = qwen4-exp (with hyphen), so it is not routed to the qwen4 config and fails with 'required metadata key is missing: deepseek4.block_count'. The imatrix file declares qwen4exp (no hyphen), so it loads at 100.1 GiB resident. The mtp and vision files (qwen4-exp-mtp, qwen4-exp-vision) also fail. This inverts the issue's prediction: the PR was expected to load the hyphenated files and not the imatrix; it loads the imatrix and not the hyphenated files.",
@@ -13,7 +13,13 @@
     "trees": {
       "/Users/evanhoffman/git/ds4-pr991": "236cb2a"
     },
-    "binaries": {}
+    "binaries": {
+      "/Users/evanhoffman/git/ds4-pr991/ds4-server": {
+        "size_bytes": 2839880,
+        "mtime": "2026-09-06T11:44:15-04:00",
+        "tree_rev": "236cb2a549d05ea1941a19bd4f154e0abc858661"
+      }
+    }
   },
   "claims": [
     {
@@ -71,7 +77,7 @@
         "grep",
         "-n",
         "deepseek4.block_count",
-        "/Users/evanhoffman/bench-logs/load-matrix-Qwen3.8-Flash-Next-Q40RoutedExperts-BF16Emb-BF16Control-Q8GDN-Q8QSA-Q8Shared-Q8Out.log"
+        "evidence/0158-load-matrix-logs/q40routed-load-fail.log"
       ],
       "cwd": "/Users/evanhoffman/git/local-llm/.claude/worktrees/peer+160",
       "cwd_repo_rel": ".",
@@ -96,7 +102,7 @@
         "grep",
         "-n",
         "Q4KImatrixExperts",
-        "/Users/evanhoffman/bench-logs/load-matrix-158.jsonl"
+        "evidence/0158-load-matrix-logs/load-matrix-158.jsonl"
       ],
       "cwd": "/Users/evanhoffman/git/local-llm/.claude/worktrees/peer+160",
       "cwd_repo_rel": ".",

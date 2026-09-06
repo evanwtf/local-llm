@@ -35,9 +35,16 @@ import subprocess
 import sys
 import time
 
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "benchmarks" / "agent"))
+sys.path.insert(
+    0, str(pathlib.Path(__file__).resolve().parents[1] / "benchmarks" / "agent")
+)
 import memcap
+import preflight
 import wait_ready
+
+# The agent identity comes from the environment, never from introspection.
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from lib import agent_identity
 
 logger = logging.getLogger(__name__)
 
@@ -86,6 +93,21 @@ def _server_command(tree: pathlib.Path, model: pathlib.Path, port: int) -> list[
         "--port",
         str(port),
     ]
+
+
+def _tree_rev(tree: pathlib.Path) -> str:
+    """The git rev of `tree`, or 'unknown' when it is not a git checkout."""
+    try:
+        rev = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=tree,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+    except (subprocess.CalledProcessError, OSError):
+        return "unknown"
+    return rev or "unknown"
 
 
 def _port_free(port: int) -> bool:
@@ -205,10 +227,40 @@ def main(argv: list[str] | None = None) -> int:
         logger.error("missing PLE sidecar: %s", PLE)
         return 1
 
+    # A load leaves ~100 GiB resident; refuse to run without the machine lock
+    # rather than relying on the operator to remember (#160, peer review).
+    if not agent_identity.is_identified():
+        logger.error(
+            "REFUSING to claim the machine: agent identity is %s -- set %s, %s, %s",
+            agent_identity.log_label(),
+            agent_identity.AGENT_VAR,
+            agent_identity.MODEL_VAR,
+            agent_identity.EFFORT_VAR,
+        )
+        return 2
+    agent, model, effort = agent_identity.identity()
+    ok, why = preflight.acquire_lock(
+        f"load-matrix {tree.name}",
+        path=preflight.LOCK_PATH,
+        agent=agent,
+        agent_model=model,
+        agent_effort=effort,
+    )
+    if not ok:
+        logger.error("cannot claim the machine: %s", why)
+        return 1
+    logger.info("machine claimed: %s", why)
+
+    # The tree rev and a timestamp give each row a build identity, so an
+    # accumulating jsonl can still answer which build loaded which file
+    # (#160, peer review).
+    tree_rev = _tree_rev(tree)
     rows = []
     for i, model in enumerate(models):
         logger.info("load %d/%d: %s", i + 1, len(models), model.name)
         row = load_one(tree, model, args.port)
+        row["tree_rev"] = tree_rev
+        row["timestamp"] = time.strftime("%Y-%m-%dT%H:%M:%S%z")
         rows.append(row)
         if row["ready"]:
             logger.info(
@@ -222,6 +274,12 @@ def main(argv: list[str] | None = None) -> int:
         for row in rows:
             sink.write(json.dumps(row) + "\n")
     logger.info("wrote %d row(s) to %s", len(rows), out)
+
+    ok, why = preflight.release_lock(path=preflight.LOCK_PATH)
+    if not ok:
+        logger.error("cannot release the machine: %s", why)
+        return 1
+    logger.info("machine released: %s", why)
     return 0
 
 
