@@ -51,6 +51,34 @@ def test_the_declaration_is_structural_not_a_name_match():
     assert run.speculative_backends(backends) == []
 
 
+PS_NO_SERVER = "  PID    RSS  ELAPSED COMMAND\n"
+PS_MTP_SERVER = (
+    "  PID    RSS  ELAPSED COMMAND\n"
+    "8110 77957862 17:44 ./ds4-server --metal -m q.gguf --mtp-draft 7 --mtp-timing\n"
+)
+PS_PLAIN_SERVER = (
+    "  PID    RSS  ELAPSED COMMAND\n"
+    "8110 77957862 17:44 ./ds4-server --metal -m q.gguf --port 8000\n"
+)
+
+
+def test_the_server_s_own_flag_counts_as_the_switch(monkeypatch):
+    """`restart_between_trials_armB.sh` passes --mtp-timing on the server.
+
+    Checking only this process's environment would have refused the one script
+    in the repo that actually runs the arm -- an assertion that fires on the
+    correct configuration is worse than none, because it gets switched off.
+    """
+    monkeypatch.delenv("DS4_MTP_TIMING", raising=False)
+    assert run.counters_on("ds4", PS_MTP_SERVER) is True
+    assert run.counters_on("ds4", PS_PLAIN_SERVER) is False
+
+
+def test_the_environment_form_also_counts(monkeypatch):
+    monkeypatch.setenv("DS4_MTP_TIMING", "1")
+    assert run.counters_on("ds4", PS_PLAIN_SERVER) is True
+
+
 def test_no_counter_switch_refuses_before_the_run(monkeypatch):
     """The precondition that removes the ambiguity.
 
@@ -60,7 +88,9 @@ def test_no_counter_switch_refuses_before_the_run(monkeypatch):
     """
     monkeypatch.delenv("DS4_MTP_TIMING", raising=False)
     why = run.speculative_preconditions(
-        {"mtp7": spec(speculative="mtp", draft_engine="ds4")}, server_log=None
+        {"mtp7": spec(speculative="mtp", draft_engine="ds4")},
+        server_log=None,
+        ps_text=PS_PLAIN_SERVER,
     )
     assert why and "DS4_MTP_TIMING" in why
 
@@ -69,7 +99,9 @@ def test_a_switch_with_no_log_still_refuses(monkeypatch):
     """The counters go somewhere. Without --server-log nothing reads them."""
     monkeypatch.setenv("DS4_MTP_TIMING", "1")
     why = run.speculative_preconditions(
-        {"mtp7": spec(speculative="mtp", draft_engine="ds4")}, server_log=None
+        {"mtp7": spec(speculative="mtp", draft_engine="ds4")},
+        server_log=None,
+        ps_text=PS_PLAIN_SERVER,
     )
     assert why and "--server-log" in why
 
@@ -80,7 +112,9 @@ def test_both_present_passes(monkeypatch, tmp_path):
     log.write_text("")
     assert (
         run.speculative_preconditions(
-            {"mtp7": spec(speculative="mtp", draft_engine="ds4")}, server_log=str(log)
+            {"mtp7": spec(speculative="mtp", draft_engine="ds4")},
+            server_log=str(log),
+            ps_text=PS_PLAIN_SERVER,
         )
         is None
     )
@@ -88,7 +122,12 @@ def test_both_present_passes(monkeypatch, tmp_path):
 
 def test_a_run_with_no_speculative_arm_needs_nothing(monkeypatch):
     monkeypatch.delenv("DS4_MTP_TIMING", raising=False)
-    assert run.speculative_preconditions({"plain": spec()}, server_log=None) is None
+    assert (
+        run.speculative_preconditions(
+            {"plain": spec()}, server_log=None, ps_text=PS_NO_SERVER
+        )
+        is None
+    )
 
 
 def test_mtplx_is_checked_against_its_own_switch(monkeypatch):
@@ -96,7 +135,9 @@ def test_mtplx_is_checked_against_its_own_switch(monkeypatch):
     monkeypatch.setenv("DS4_MTP_TIMING", "1")
     monkeypatch.delenv("MTPLX_DECODE_TRACE_JSONL", raising=False)
     why = run.speculative_preconditions(
-        {"mtplx": spec(speculative="mtp", draft_engine="mtplx")}, server_log="/tmp/x"
+        {"mtplx": spec(speculative="mtp", draft_engine="mtplx")},
+        server_log="/tmp/x",
+        ps_text=PS_MTP_SERVER,
     )
     assert why and "MTPLX_DECODE_TRACE_JSONL" in why
 

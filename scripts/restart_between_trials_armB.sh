@@ -58,6 +58,14 @@ restart_ds4() {
             --mtp-model "$DS4_MTP" --mtp-draft 7 --mtp-timing \
             --host 127.0.0.1 --port 8000 \
             > "$LOGDIR/ds4server-$tag.log" 2>&1 &)
+    # #148/#151: the server writes its MTP timing lines here, and run.py is
+    # told to read them. Until 2026-09-06 this script started a server with
+    # --mtp-timing and then never passed --server-log, so every counter the
+    # engine emitted was written to a file nothing read: the arm ran for three
+    # cycles asserting only that the flag had been passed.
+    # The server log's name is `ds4server-<tag>.log` and the tag is `trial<n>`,
+    # so run_trial below reads `ds4server-trial<n>.log` directly rather than
+    # this function having to publish the path somewhere.
 
     (cd "$(dirname "$0")/.." && \
         uv run python benchmarks/agent/wait_ready.py \
@@ -81,6 +89,7 @@ run_trial() {
     (cd "$(dirname "$0")/.." && \
         uv run python benchmarks/agent/run.py \
             --backend qwen38fnds4mtp7shim --trials 1 --client opencode --no-lock \
+            --server-log "$LOGDIR/ds4server-trial$n.log" --draft-log-engine ds4 \
             > "$LOGDIR/armB-restart-run$n.log" 2>&1)
     echo "[$(date +%H:%M:%S)] run $n done"
     collect_transcripts "$n"

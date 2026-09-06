@@ -2089,6 +2089,17 @@ def trial_order(backends, trial):
     return ordered
 
 
+# How each engine is told to emit draft counters. Two different mechanisms,
+# and for ds4 two spellings of the same one: `--mtp-timing` on the server's
+# own command line is what scripts/restart_between_trials_armB.sh uses, while
+# DS4_MTP_TIMING is the environment form. Checking only the environment would
+# have refused the one script in this repo that actually runs the arm.
+COUNTER_SWITCHES = {
+    "ds4": {"env": "DS4_MTP_TIMING", "argv": "--mtp-timing"},
+    "mtplx": {"env": "MTPLX_DECODE_TRACE_JSONL", "argv": "--decode-trace-jsonl"},
+}
+
+
 class DraftProbe:
     """Per-trial MTP draft acceptance, read from whichever engine is serving.
 
@@ -2119,9 +2130,13 @@ class DraftProbe:
     # whether it was set; the log cannot say, because "counters off" and
     # "engine never entered the speculative path" both emit nothing. That
     # ambiguity produced a misleading warning on the first real #148 run.
+    #
+    # `counters_requested` below stays a claim about intent, read from this
+    # process's environment. The binding check is `counters_on()`, which also
+    # reads the server's own argv -- see COUNTER_SWITCHES. Kept as one dict so
+    # the two cannot name different variables.
     SWITCHES: ClassVar[dict] = {
-        "ds4": "DS4_MTP_TIMING",
-        "mtplx": "MTPLX_DECODE_TRACE_JSONL",
+        engine: switch["env"] for engine, switch in COUNTER_SWITCHES.items()
     }
 
     def __init__(self, path, engine="ds4"):
@@ -2159,7 +2174,27 @@ def speculative_backends(backends):
     return sorted(name for name, b in backends.items() if b.get("speculative"))
 
 
-def speculative_preconditions(backends, server_log):
+def counters_on(engine, ps_text=None):
+    """Are the engine's draft counters actually switched on?
+
+    Read from the **server's own command line** where possible, not only from
+    this process's environment. `DraftProbe.counters_requested` is documented
+    as a claim about the operator's intent rather than proof about the server,
+    and for an assertion that decides whether a run may start, the server is
+    the thing worth observing.
+    """
+    switch = COUNTER_SWITCHES.get(engine)
+    if switch is None:
+        return False
+    if os.environ.get(switch["env"]):
+        return True
+    text = ps_text if ps_text is not None else preflight._capture(
+        ["ps", "-eo", "pid,rss,etime,command"]
+    )
+    return any(switch["argv"] in proc.command for proc in preflight.parse_ps(text))
+
+
+def speculative_preconditions(backends, server_log, ps_text=None):
     """Why this run cannot assert its MTP arm, or None if it can.
 
     #148 recorded draft acceptance per trial and #151 is the reason that is not
@@ -2178,19 +2213,20 @@ def speculative_preconditions(backends, server_log):
         return None
     for name in declared:
         engine = backends[name].get("draft_engine", "ds4")
-        switch = DraftProbe.SWITCHES.get(engine)
+        switch = COUNTER_SWITCHES.get(engine)
         if switch is None:
             return (
                 f"{name} declares speculative={backends[name]['speculative']!r} "
                 f"with draft_engine={engine!r}, which has no counter mechanism. "
-                f"Known: {sorted(DraftProbe.SWITCHES)}"
+                f"Known: {sorted(COUNTER_SWITCHES)}"
             )
-        if not os.environ.get(switch):
+        if not counters_on(engine, ps_text):
             return (
-                f"{name} is a speculative arm and {switch} is not set, so its "
-                f"draft acceptance cannot be measured. An arm that drafted "
+                f"{name} is a speculative arm and its draft counters are off "
+                f"({switch['env']} unset and no {switch['argv']} on the running "
+                f"server), so acceptance cannot be measured. An arm that drafted "
                 f"nothing and an arm with its counters off are indistinguishable "
-                f"(#148, #151) -- set {switch} on the SERVER, or drop the arm."
+                f"(#148, #151) -- switch them on, or drop the arm."
             )
         if not server_log:
             return (
