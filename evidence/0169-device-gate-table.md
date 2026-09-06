@@ -1,4 +1,4 @@
-# #169 — device-class gate table
+# #169 — device-class gate taxonomy
 
 **Source-read only; no measurement. Line numbers are `ds4_metal.m` / `ds4.c` at upstream `main` `9ab70534`. The machine is an `Apple M5 Max`.**
 
@@ -10,15 +10,21 @@ Every device-class gate in the engine, what it guards, and whether an M5 Max tak
 - `ds4_gpu_ported_m5_decode_feature_enabled(pre_m5_env, m5_env)` — returns `pre_m5 || is_m5`. **True on M5 Max.**
 - `ds4_gpu_device_is_m1_apple_silicon()` — 0 call sites (definition only).
 
-## The one number
+## The headline
 
-**26 distinct Metal optimizations in upstream `main` are gated to pre-M5 Apple silicon, and the M5 Max takes none of them.** Of those, **10 sit in prefill**. The `giorgio/aprojq4-dense-attention` tip adds 6 more, all pre-M5 only, all in prefill (see below).
+**The M5 Max is excluded from two distinct device-gated families, not one.** The pre-M5 family (`!pre_m5`) and the M3 family (`name_contains("M3")`, including `"M3 Ultra"`) are different predicates with different membership: an M4 takes every pre-M5 gate and none of the M3 ones. Collapsing them loses the distinction the table exists to draw.
 
-## The table
+| family | predicate | distinct gates | M5 Max takes them |
+|---|---|---|---|
+| pre-M5-only | `!ds4_gpu_device_is_pre_m5_apple_silicon()` | **16** | no |
+| M3-only | `ds4_gpu_device_name_contains("M3")` | **8** | no |
+| M3-Ultra-only | `ds4_gpu_device_name_contains("M3 Ultra")` | **2** | no |
+| M5-admitting | `pre_m5 \|\| is_m5` | **7** | yes |
+| M5-only | `ds4_gpu_device_is_m5_apple_silicon()` alone | **15** | yes |
 
-`pre-M5 only` = the path is skipped on M5 Max. `M5-admitting` = the path runs on M5 Max. `M5-only` = the path runs only on M5 Max.
+Total excluded: **26** (16 pre-M5 + 10 M3-family). Of those, **10 sit in prefill** (6 pre-M5 + 4 M3).
 
-### Pre-M5 only — M5 Max is excluded (26)
+## The pre-M5-only family (16) — M5 Max is excluded
 
 | # | file:line | function / gate | what it guards | phase | fallback |
 |---|---|---|---|---|---|
@@ -38,6 +44,13 @@ Every device-class gate in the engine, what it guards, and whether an M5 Max tak
 | 14 | ds4_metal.m:43051 | MXFP4 MoE MM-ID down tail simdgroup cull | prefill MoE down tail cull | **prefill** MoE | padded direct launch |
 | 15 | ds4_metal.m:43069 | MXFP4 MoE MM-ID down half LUT | prefill MoE down half LUT | **prefill** MoE | padded direct launch |
 | 16 | ds4_metal.m:43174 | MXFP4 MoE MM-ID pair half scale | prefill MoE pair half scale | **prefill** MoE | padded direct launch |
+
+`ds4_metal.m:33640` is **not** in this family. `pre_m5_device` there feeds `use_simd_finalize`, whose condition is `(pre_m5_device || name_contains("M5"))` — true on M5 Max. It is M5-admitting, not pre-M5-only.
+
+## The M3-only family (8) — M5 Max is excluded
+
+| # | file:line | function / gate | what it guards | phase | fallback |
+|---|---|---|---|---|---|
 | 17 | ds4_metal.m:2406 | zero-prefix prefill mask cache | zero-prefix prefill mask cache | **prefill** | no cache |
 | 18 | ds4_metal.m:21962 | HC RMS scale project | HC RMS scale project | decode | reference HC RMS scale |
 | 19 | ds4_metal.m:23366 | compressor APE add fuse | compressor APE add fuse | **prefill** | separate APE add |
@@ -46,20 +59,27 @@ Every device-class gate in the engine, what it guards, and whether an M5 Max tak
 | 22 | ds4_metal.m:29177 | shared KV pad | shared KV pad | **prefill** | per-row KV pad |
 | 23 | ds4_metal.m:33918 | router weights batch fusion | router weights batch fusion | **prefill** | per-token router weights |
 | 24 | ds4_metal.m:44974 | output HC weights4 | output HC weights4 | decode | standard output HC weights |
+
+## The M3-Ultra-only family (2) — M5 Max is excluded
+
+| # | file:line | function / gate | what it guards | phase | fallback |
+|---|---|---|---|---|---|
 | 25 | ds4_metal.m:45907 | GLM-5.3 BF16 NSG decode | GLM-5.3 BF16 NSG decode | decode | standard GLM-5.3 decode |
 | 26 | ds4_metal.m:46001 | GLM-5.3 BF16 QKV | GLM-5.3 BF16 QKV | decode | standard GLM-5.3 QKV |
 
-### The prefill list (10)
+## The prefill list (10)
 
-Rows 11–17, 19, 22, 23 above: the six MXFP4 MoE MM-ID prefill kernels, the zero-prefix prefill mask cache, the compressor APE add fuse, the shared KV pad, and the router weights batch fusion.
+**pre-M5-only (6):** the MXFP4 MoE MM-ID prefill kernels — ds4_metal.m 43002, 43019, 43039, 43051, 43069, 43174.
 
-### M5-admitting — M5 Max takes these (the contrast)
+**M3-only (4):** the zero-prefix prefill mask cache (2406), the compressor APE add fuse (23366), the shared KV pad (29177), the router weights batch fusion (33918).
 
-The `ported_m5_decode_feature_enabled` helper (`pre_m5 || is_m5`) admits M5 at: ds4.c 22834 (parallel full FFN route), 22985/24617 (HC producer pre-norm fuse), 23171 (QKV pair quad fuse), 23229 (QKV pair compressor fuse), 23691 (comp finalize fuse); ds4_metal.m 24304 (compressor exact pool ratio4), 29129 (flash attn packed32 reduce). The `pre_m5 || is_m5` pattern also admits M5 at ds4.c 22769 (attn inverse RoPE fuse), 22980/24612 (HC norm mix fuse), 23356 (QKV norm KV store fuse), 23587 (compressor quad store), 24786 (router shared fuse); ds4_metal.m 23831 (compressor exact reduction fusion), 24138 (compressor ratio4 decode pack). The `name_contains("M3") || name_contains("M5")` pattern admits M5 at ds4_metal.m 3806 (decode attn rope fuse), 23106 (KV rope FP8 fuse), 27293 (gathered KV stage F16), 29146 (persistent zero mask, via the M5 branch), 21110 (compressor pair proj), 6135 (encode rope tail affine). Three partial admissions admit M5 only under a shape condition: ds4_metal.m 42921 (`use_tiny_pair_mv`, M5 admits n_tokens==6 for IQ2/Q4_K/MXFP4, prefill MoE), 33647 (router SIMD finalize, `pre_m5_device || name_contains("M5")`, prefill), 6118 (encode rope tail inplace, M5 admits only n_tok==1, prefill).
+## The M5-admitting family (7) — M5 Max takes these
 
-### M5-only — M5 Max takes these, pre-M5 does not
+The `pre_m5 || is_m5` pattern admits M5 at ds4.c 22769 (attn inverse RoPE fuse), 22980/24612 (HC norm mix fuse), 23356 (QKV norm KV store fuse), 23587 (compressor quad store), 24786 (router shared fuse); ds4_metal.m 23831 (compressor exact reduction fusion), 24138 (compressor ratio4 decode pack). The `ported_m5_decode_feature_enabled` helper (`pre_m5 || is_m5`) admits M5 at ds4.c 22834, 22985, 23171, 23229, 23691, 24617 and ds4_metal.m 24304, 29129. The `name_contains("M3") || name_contains("M5")` pattern admits M5 at ds4_metal.m 3806, 23106, 27293, 29146, 21110, 6135, plus partial admissions at 6118, 33647, 33656, 33661, 33668, 42921.
 
-ds4.c 22743 (HC expand producer fuse), 24792/24859 (router project select fuse), 25750 (TP parallel FFN), 31678 (TP batched MoE), 50613 (GLM attn head-split), 54327 (DSPark seed batch); ds4_metal.m 29140 (M5 persistent zero mask), 40213 (TP MXFP4 static), 40261 (IQ2 pair pack2), 42935 (TP MXFP4 static batch), 44465 (HC norm mix cluster2), 45773 (Q8 HC vec), 1613 (M5 private scratch), 2875/2881 (Metal4 feature detection).
+## The M5-only family (15) — M5 Max takes these, pre-M5 does not
+
+ds4.c 22743 (HC expand producer fuse), 24792/24859 (router project select fuse), 25750 (TP parallel FFN), 31678 (TP batched MoE), 50613 (GLM attn head-split), 54327 (DSPark seed batch); ds4_metal.m 29140 (M5 persistent zero mask), 40213 (TP MXFP4 static), 40261 (IQ2 pair pack2), 42935 (TP MXFP4 static batch), 44465 (HC norm mix cluster2), 45773 (Q8 HC vec), 1613 (M5 private scratch), 2875 (Metal4 neural accelerator hint).
 
 ## What the `giorgio/aprojq4-dense-attention` tip adds on top
 
@@ -74,7 +94,7 @@ The tip (`77a054e1`, `20d5dff6` visible) adds 6 more pre-M5-only gates, all in p
 | 28270 | `ds4_gpu_attn_q_b_f16_head_rms_rope_tail_tensor_impl` | fused head RMS + RoPE tail | prefill attention |
 | 28649 | `ds4_gpu_attn_q_b_transient_f16_head_rms_rope_tail_tensor` | same, transient variant | prefill attention |
 
-With the tip, the count is **32 distinct** pre-M5-only optimizations, **16 in prefill**.
+With the tip, the pre-M5-only family is **22 distinct** (16 + 6), **12 in prefill** (6 + 6).
 
 ## What this does not say
 

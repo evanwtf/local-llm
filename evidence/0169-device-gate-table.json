@@ -1,13 +1,13 @@
 {
   "schema": "local-llm/evidence-2",
-  "task": "device-gate-table",
+  "task": "device-gate-taxonomy",
   "issue": 169,
   "agent": "peer-deepseek-v4-flash",
   "agent_model": "deepseek-v4-flash",
   "agent_effort": "unidentified",
   "repo": "/Users/evanhoffman/git/local-llm/.claude/worktrees/peer+169",
-  "authored_at": "2026-09-06T21:47:20Z",
-  "statement": "Every device-class gate in the ds4 engine, what it guards, and whether an M5 Max takes it. Source-read only; no measurement. Line numbers are ds4_metal.m / ds4.c at upstream main 9ab70534. The machine is an Apple M5 Max, so ds4_gpu_device_is_pre_m5_apple_silicon() (ds4_metal.m:2766, matches 'Apple M1'..'Apple M4' by device-name prefix) is false and ds4_gpu_device_is_m5_apple_silicon() (ds4_metal.m:2774) is true. The one number: 26 distinct Metal optimizations in upstream main are gated to pre-M5 Apple silicon and the M5 Max takes none of them; 10 of those sit in prefill. The giorgio/aprojq4-dense-attention tip (77a054e1, 20d5dff6 visible) adds 6 more pre-M5-only gates, all in prefill, the Q4_K dense attention-projection family that PR #952 is named for (the subject of this issue). A gate tells you a path did not dispatch on this machine; it does not tell you the path would have been faster here.",
+  "authored_at": "2026-09-06T22:00:00Z",
+  "statement": "Every device-class gate in the ds4 engine, grouped into families by predicate, and whether an M5 Max takes each family. Source-read only; no measurement. Line numbers are ds4_metal.m / ds4.c at upstream main 9ab70534. The machine is an Apple M5 Max, so ds4_gpu_device_is_pre_m5_apple_silicon() (ds4_metal.m:2766, matches 'Apple M1'..'Apple M4' by device-name prefix) is false and ds4_gpu_device_is_m5_apple_silicon() (ds4_metal.m:2774) is true. The headline: the M5 Max is excluded from TWO distinct device-gated families, not one. The pre-M5 family (!pre_m5) and the M3 family (name_contains(\"M3\"), including \"M3 Ultra\") are different predicates with different membership: an M4 takes every pre-M5 gate and none of the M3 ones. Total excluded: 26 distinct optimizations (16 pre-M5 + 10 M3-family), of which 10 sit in prefill (6 pre-M5 + 4 M3). A gate tells you a path did not dispatch on this machine; it does not tell you the path would have been faster here.",
   "provenance": {
     "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
     "trees": {
@@ -18,8 +18,8 @@
   },
   "claims": [
     {
-      "id": "pre-m5-only-count",
-      "statement": "26 distinct Metal optimizations in upstream main 9ab70534 are gated to pre-M5 Apple silicon and the M5 Max takes none. The pre-M5-only gates: ds4.c 23514 (KV rope FP8 store fuse), 27927 (Q2 decode split2_32), 28009 (early-split3), 28021 (early-split5), 28063 (decode pipeline fast lookup), 28126 (second split schedule); ds4_metal.m 7581/9434 (head RMS/RoPE tail pipeline, one optimization, two call sites), 27518 (persistent zero attention mask decode), 39947 (MXFP4 MoE decode NSG1), 40150 (MXFP4 MoE decode TG multiple), 43002 (MXFP4 MoE MM-ID pair swiglu compact tile), 43019 (MXFP4 MoE MM-ID map scatter), 43039 (MXFP4 MoE MM-ID pair tail simdgroup cull), 43051 (MXFP4 MoE MM-ID down tail simdgroup cull), 43069 (MXFP4 MoE MM-ID down half LUT), 43174 (MXFP4 MoE MM-ID pair half scale), 2406 (zero-prefix prefill mask cache), 21962 (HC RMS scale project), 23366 (compressor APE add fuse), 24125 (compressor ratio4 pack fusion), 24171 (compressor ratio4 direct pool), 29177 (shared KV pad), 33918 (router weights batch fusion), 44974 (output HC weights4), 45907 (GLM-5.3 BF16 NSG decode), 46001 (GLM-5.3 BF16 QKV).",
+      "id": "pre-m5-only-family",
+      "statement": "16 distinct Metal optimizations in upstream main 9ab70534 are gated to pre-M5 Apple silicon and the M5 Max takes none. The predicate is !ds4_gpu_device_is_pre_m5_apple_silicon() in an early-return (the && sites in the grep below). The 16: ds4.c 23514 (KV rope FP8 store fuse), 27927 (Q2 decode split2_32), 28009 (early-split3), 28021 (early-split5), 28063 (decode pipeline fast lookup), 28126 (second split schedule); ds4_metal.m 7581/9434 (head RMS/RoPE tail pipeline, one optimization, two call sites), 27518 (persistent zero attention mask decode), 39947 (MXFP4 MoE decode NSG1), 40150 (MXFP4 MoE decode TG multiple), 43002 (MXFP4 MoE MM-ID pair swiglu compact tile), 43019 (MXFP4 MoE MM-ID map scatter), 43039 (MXFP4 MoE MM-ID pair tail simdgroup cull), 43051 (MXFP4 MoE MM-ID down tail simdgroup cull), 43069 (MXFP4 MoE MM-ID down half LUT), 43174 (MXFP4 MoE MM-ID pair half scale). The other pre_m5 call sites in the grep are M5-admitting (the || sites), not pre-M5-only. ds4_metal.m:33640 is M5-admitting: pre_m5_device there feeds use_simd_finalize, whose condition is (pre_m5_device || name_contains(\"M5\")), true on M5 Max.",
       "argv": [
         "git",
         "grep",
@@ -37,18 +37,18 @@
       "expect": {
         "exit": 0
       },
-      "observed": null,
+      "observed": "9ab70534:ds4.c:22692:    const bool pre_m5 = ds4_gpu_device_is_pre_m5_apple_silicon();\n9ab70534:ds4.c:22768:        (ds4_gpu_device_is_pre_m5_apple_silicon() ||\n9ab70534:ds4.c:22979:            (ds4_gpu_device_is_pre_m5_apple_silicon() ||\n9ab70534:ds4.c:23355:                (ds4_gpu_device_is_pre_m5_apple_silicon() ||\n9ab70534:ds4.c:23514:        ds4_gpu_device_is_pre_m5_apple_silicon() &&\n9ab70534:ds4.c:23586:            (ds4_gpu_device_is_pre_m5_apple_silicon() ||\n9ab70534:ds4.c:24611:            (ds4_gpu_device_is_pre_m5_apple_silicon() ||\n9ab70534:ds4.c:24783:            (!ds4_gpu_device_is_pre_m5_apple_silicon() ||\n9ab70534:ds4.c:24785:            (ds4_gpu_device_is_pre_m5_apple_silicon() ||\n9ab70534:ds4.c:27927:        !ds4_gpu_device_is_pre_m5_apple_silicon() ||\n9ab70534:ds4.c:28009:        ds4_gpu_device_is_pre_m5_apple_silicon() &&\n9ab70534:ds4.c:28021:        ds4_gpu_device_is_pre_m5_apple_silicon() &&\n9ab70534:ds4.c:28063:    return mxfp4_routed && ds4_gpu_device_is_pre_m5_apple_silicon() &&\n9ab70534:ds4.c:28126:        ds4_gpu_device_is_pre_m5_apple_silicon();\n9ab70534:ds4_metal.m:2766:int ds4_gpu_device_is_pre_m5_apple_silicon(void) {\n9ab70534:ds4_metal.m:2784:    const bool pre_m5 = ds4_gpu_device_is_pre_m5_apple_silicon();\n9ab70534:ds4_metal.m:7581:            ds4_gpu_device_is_pre_m5_apple_silicon() &&\n9ab70534:ds4_metal.m:9434:        ds4_gpu_device_is_pre_m5_apple_silicon() &&\n9ab70534:ds4_metal.m:23830:        (ds4_gpu_device_is_pre_m5_apple_silicon() ||\n9ab70534:ds4_metal.m:24137:        (ds4_gpu_device_is_pre_m5_apple_silicon() ||\n9ab70534:ds4_metal.m:27518:        ds4_gpu_device_is_pre_m5_apple_silicon() &&\n9ab70534:ds4_metal.m:33640:            ds4_gpu_device_is_pre_m5_apple_silicon();\n9ab70534:ds4_metal.m:39947:    return ds4_gpu_device_is_pre_m5_apple_silicon() &&\n9ab70534:ds4_metal.m:40150:            ds4_gpu_device_is_pre_m5_apple_silicon() &&\n9ab70534:ds4_metal.m:43002:            ds4_gpu_device_is_pre_m5_apple_silicon() &&\n9ab70534:ds4_metal.m:43019:            ds4_gpu_device_is_pre_m5_apple_silicon() &&\n9ab70534:ds4_metal.m:43039:            ds4_gpu_device_is_pre_m5_apple_silicon() &&\n9ab70534:ds4_metal.m:43051:            ds4_gpu_device_is_pre_m5_apple_silicon() &&\n9ab70534:ds4_metal.m:43069:            ds4_gpu_device_is_pre_m5_apple_silicon() &&\n9ab70534:ds4_metal.m:43174:                    ds4_gpu_device_is_pre_m5_apple_silicon() &&",
       "expect_authored": "post-hoc",
-      "falsifier": "If any of the 26 listed gates is actually M5-admitting (the enclosing condition admits M5 Max by some route the read missed), the count is wrong. The read is a source enumeration, so the falsifier is a re-read of the enclosing condition for each listed line, not a runtime check."
+      "falsifier": "If any of the 16 listed gates is actually M5-admitting (the enclosing condition admits M5 Max by some route the read missed), the count is wrong. The read is a source enumeration, so the falsifier is a re-read of the enclosing condition for each listed line, not a runtime check. The && sites in the grep are the pre-M5-only family; the || sites are M5-admitting."
     },
     {
-      "id": "prefill-list",
-      "statement": "10 of the 26 pre-M5-only optimizations sit in prefill: the six MXFP4 MoE MM-ID prefill kernels (ds4_metal.m 43002, 43019, 43039, 43051, 43069, 43174), the zero-prefix prefill mask cache (2406), the compressor APE add fuse (23366), the shared KV pad (29177), and the router weights batch fusion (33918). The remaining 16 sit in decode.",
+      "id": "m3-only-family",
+      "statement": "8 distinct Metal optimizations in upstream main 9ab70534 are gated to the M3 family (name_contains(\"M3\") with no M5 branch) and the M5 Max takes none. The 8: ds4_metal.m 2406 (zero-prefix prefill mask cache), 21962 (HC RMS scale project), 23366 (compressor APE add fuse), 24125 (compressor ratio4 pack fusion), 24171 (compressor ratio4 direct pool), 29177 (shared KV pad), 33918 (router weights batch fusion), 44974 (output HC weights4). The other name_contains(\"M3\") sites in the grep are M5-admitting (they carry || name_contains(\"M5\")), not M3-only.",
       "argv": [
         "git",
         "grep",
         "-n",
-        "ds4_gpu_device_is_pre_m5_apple_silicon",
+        "ds4_gpu_device_name_contains(\"M3\")",
         "9ab70534",
         "--",
         "ds4_metal.m"
@@ -60,32 +60,80 @@
       "expect": {
         "exit": 0
       },
-      "observed": null,
+      "observed": "9ab70534:ds4_metal.m:2406:            ds4_gpu_device_name_contains(\"M3\") &&\n9ab70534:ds4_metal.m:3806:            ds4_gpu_device_name_contains(\"M3\") ||\n9ab70534:ds4_metal.m:6118:            ds4_gpu_device_name_contains(\"M3\") ||\n9ab70534:ds4_metal.m:6135:            ds4_gpu_device_name_contains(\"M3\") ||\n9ab70534:ds4_metal.m:21110:            ds4_gpu_device_name_contains(\"M3\") ||\n9ab70534:ds4_metal.m:21962:            ds4_gpu_device_name_contains(\"M3\") &&\n9ab70534:ds4_metal.m:23106:            ds4_gpu_device_name_contains(\"M3\") ||\n9ab70534:ds4_metal.m:23366:            ds4_gpu_device_name_contains(\"M3\") &&\n9ab70534:ds4_metal.m:24125:            ds4_gpu_device_name_contains(\"M3\") &&\n9ab70534:ds4_metal.m:24171:            ds4_gpu_device_name_contains(\"M3\") &&\n9ab70534:ds4_metal.m:27293:            ds4_gpu_device_name_contains(\"M3\") ||\n9ab70534:ds4_metal.m:29146:            ds4_gpu_device_name_contains(\"M3\") ||\n9ab70534:ds4_metal.m:29177:            ds4_gpu_device_name_contains(\"M3\") &&\n9ab70534:ds4_metal.m:33918:            ds4_gpu_device_name_contains(\"M3\") &&\n9ab70534:ds4_metal.m:44974:            ds4_gpu_device_name_contains(\"M3\") &&",
       "expect_authored": "post-hoc",
-      "falsifier": "If any of the 10 listed prefill gates is actually in decode (or vice versa), the prefill list is wrong. The phase is read from the enclosing function name (encode = prefill, decode = decode)."
+      "falsifier": "If any of the 8 listed gates is actually M5-admitting (the enclosing condition admits M5 Max by some route the read missed), the count is wrong. The && sites are the M3-only family; the || sites carry name_contains(\"M5\") and are M5-admitting."
     },
     {
-      "id": "tip-adds-six",
-      "statement": "The giorgio/aprojq4-dense-attention tip (77a054e1, 20d5dff6 visible) adds 6 more pre-M5-only gates, all in prefill, none present in upstream main 9ab70534: ds4_gpu_stream_expert_prefill_nocache_auto (ds4_metal.m:14410), ds4_gpu_try_q4_K_prefill_pair_f16_rhs (24094), ds4_gpu_prepare_q4_attn_q_b_transient_f16 (27760), ds4_gpu_prepare_q4_attn_q_b_f16_sidecars (27946), ds4_gpu_attn_q_b_f16_head_rms_rope_tail_tensor_impl (28270), ds4_gpu_attn_q_b_transient_f16_head_rms_rope_tail_tensor (28649). With the tip the count is 32 distinct pre-M5-only optimizations, 16 in prefill.",
+      "id": "m3-ultra-only-family",
+      "statement": "2 distinct Metal optimizations in upstream main 9ab70534 are gated to the M3 Ultra family (name_contains(\"M3 Ultra\")) and the M5 Max takes none: ds4_metal.m 45907 (GLM-5.3 BF16 NSG decode), 46001 (GLM-5.3 BF16 QKV). Both sit in decode.",
       "argv": [
         "git",
         "grep",
         "-n",
-        "ds4_gpu_device_is_pre_m5_apple_silicon",
-        "77a054e1",
+        "ds4_gpu_device_name_contains(\"M3 Ultra\")",
+        "9ab70534",
         "--",
         "ds4_metal.m"
       ],
-      "cwd": "/Users/evanhoffman/git/ds4-pr952",
+      "cwd": "/Users/evanhoffman/git/ds4-main",
       "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
       "readonly": true,
       "cost": "cheap",
       "expect": {
         "exit": 0
       },
-      "observed": null,
+      "observed": "9ab70534:ds4_metal.m:45907:            ds4_gpu_device_name_contains(\"M3 Ultra\") &&\n9ab70534:ds4_metal.m:46001:            ds4_gpu_device_name_contains(\"M3 Ultra\") &&",
       "expect_authored": "post-hoc",
-      "falsifier": "If any of the 6 tip gates is present in upstream main 9ab70534, or is M5-admitting, the 'adds on top' claim is wrong. Verified by git grep -l on 9ab70534: none of the six function names appears there."
+      "falsifier": "If either listed gate is M5-admitting, the count is wrong. Both are && sites with no M5 branch."
+    },
+    {
+      "id": "m5-admitting-family",
+      "statement": "7 distinct Metal optimizations in upstream main 9ab70534 use the pre_m5 || is_m5 pattern and the M5 Max takes them: ds4.c 22769 (attn inverse RoPE fuse), 22980/24612 (HC norm mix fuse, one optimization, two call sites), 23356 (QKV norm KV store fuse), 23587 (compressor quad store), 24786 (router shared fuse); ds4_metal.m 23831 (compressor exact reduction fusion), 24138 (compressor ratio4 decode pack). The ported_m5_decode_feature_enabled helper (pre_m5 || is_m5) admits M5 at ds4.c 22834, 22985, 23171, 23229, 23691, 24617 and ds4_metal.m 24304, 29129. The name_contains(\"M3\") || name_contains(\"M5\") pattern admits M5 at ds4_metal.m 3806, 23106, 27293, 29146, 21110, 6135, plus partial admissions at 6118, 33647, 33656, 33661, 33668, 42921.",
+      "argv": [
+        "git",
+        "grep",
+        "-n",
+        "ds4_gpu_device_is_m5_apple_silicon",
+        "9ab70534",
+        "--",
+        "ds4.c",
+        "ds4_metal.m"
+      ],
+      "cwd": "/Users/evanhoffman/git/ds4-main",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0
+      },
+      "observed": "9ab70534:ds4.c:22698:    return pre_m5 || ds4_gpu_device_is_m5_apple_silicon();\n9ab70534:ds4.c:22743:           ds4_gpu_device_is_m5_apple_silicon() &&\n9ab70534:ds4.c:22769:         ds4_gpu_device_is_m5_apple_silicon()) &&\n9ab70534:ds4.c:22980:             ds4_gpu_device_is_m5_apple_silicon()) &&\n9ab70534:ds4.c:23356:                 ds4_gpu_device_is_m5_apple_silicon()) &&\n9ab70534:ds4.c:23587:             ds4_gpu_device_is_m5_apple_silicon()) &&\n9ab70534:ds4.c:24612:             ds4_gpu_device_is_m5_apple_silicon()) &&\n9ab70534:ds4.c:24786:             ds4_gpu_device_is_m5_apple_silicon())) {\n9ab70534:ds4.c:24792:                ds4_gpu_device_is_m5_apple_silicon();\n9ab70534:ds4.c:24859:            ds4_gpu_device_is_m5_apple_silicon()) {\n9ab70534:ds4.c:25750:        ds4_gpu_device_is_m5_apple_silicon() &&\n9ab70534:ds4.c:31678:        ds4_gpu_device_is_m5_apple_silicon() &&\n9ab70534:ds4.c:50613:                ds4_gpu_device_is_m5_apple_silicon() &&\n9ab70534:ds4.c:54327:           ds4_gpu_device_is_m5_apple_silicon() &&\n9ab70534:ds4_metal.m:2774:int ds4_gpu_device_is_m5_apple_silicon(void) {\n9ab70534:ds4_metal.m:2790:    return pre_m5 || ds4_gpu_device_is_m5_apple_silicon();\n9ab70534:ds4_metal.m:23831:         ds4_gpu_device_is_m5_apple_silicon()) &&\n9ab70534:ds4_metal.m:24138:         ds4_gpu_device_is_m5_apple_silicon()) && default_shape;\n9ab70534:ds4_metal.m:29140:        ds4_gpu_device_is_m5_apple_silicon() &&\n9ab70534:ds4_metal.m:40213:            ds4_gpu_device_is_m5_apple_silicon() &&\n9ab70534:ds4_metal.m:40261:            ds4_gpu_device_is_m5_apple_silicon();\n9ab70534:ds4_metal.m:42921:             (n_tokens == 6u && ds4_gpu_device_is_m5_apple_silicon() &&\n9ab70534:ds4_metal.m:42935:            ds4_gpu_device_is_m5_apple_silicon() && g_tp_split_world == 2 &&\n9ab70534:ds4_metal.m:44465:            ds4_gpu_device_is_m5_apple_silicon() &&\n9ab70534:ds4_metal.m:45773:            ds4_gpu_device_is_m5_apple_silicon();",
+      "expect_authored": "post-hoc",
+      "falsifier": "If any of the 7 listed optimizations is actually M5-only (is_m5 alone, no pre_m5 branch) or pre-M5-only, the classification is wrong. The pre_m5 || is_m5 sites are the M5-admitting family; the is_m5-alone sites are M5-only."
+    },
+    {
+      "id": "m5-only-family",
+      "statement": "15 distinct Metal optimizations in upstream main 9ab70534 use is_m5 alone (no pre_m5 branch) and the M5 Max takes them while pre-M5 does not: ds4.c 22743 (HC expand producer fuse), 24792/24859 (router project select fuse), 25750 (TP parallel FFN), 31678 (TP batched MoE), 50613 (GLM attn head-split), 54327 (DSPark seed batch); ds4_metal.m 29140 (M5 persistent zero mask), 40213 (TP MXFP4 static), 40261 (IQ2 pair pack2), 42935 (TP MXFP4 static batch), 44465 (HC norm mix cluster2), 45773 (Q8 HC vec), 1613 (M5 private scratch), 2875 (Metal4 neural accelerator hint).",
+      "argv": [
+        "git",
+        "grep",
+        "-n",
+        "ds4_gpu_device_is_m5_apple_silicon",
+        "9ab70534",
+        "--",
+        "ds4.c",
+        "ds4_metal.m"
+      ],
+      "cwd": "/Users/evanhoffman/git/ds4-main",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0
+      },
+      "observed": "9ab70534:ds4.c:22698:    return pre_m5 || ds4_gpu_device_is_m5_apple_silicon();\n9ab70534:ds4.c:22743:           ds4_gpu_device_is_m5_apple_silicon() &&\n9ab70534:ds4.c:22769:         ds4_gpu_device_is_m5_apple_silicon()) &&\n9ab70534:ds4.c:22980:             ds4_gpu_device_is_m5_apple_silicon()) &&\n9ab70534:ds4.c:23356:                 ds4_gpu_device_is_m5_apple_silicon()) &&\n9ab70534:ds4.c:23587:             ds4_gpu_device_is_m5_apple_silicon()) &&\n9ab70534:ds4.c:24612:             ds4_gpu_device_is_m5_apple_silicon()) &&\n9ab70534:ds4.c:24786:             ds4_gpu_device_is_m5_apple_silicon())) {\n9ab70534:ds4.c:24792:                ds4_gpu_device_is_m5_apple_silicon();\n9ab70534:ds4.c:24859:            ds4_gpu_device_is_m5_apple_silicon()) {\n9ab70534:ds4.c:25750:        ds4_gpu_device_is_m5_apple_silicon() &&\n9ab70534:ds4.c:31678:        ds4_gpu_device_is_m5_apple_silicon() &&\n9ab70534:ds4.c:50613:                ds4_gpu_device_is_m5_apple_silicon() &&\n9ab70534:ds4.c:54327:           ds4_gpu_device_is_m5_apple_silicon() &&\n9ab70534:ds4_metal.m:2774:int ds4_gpu_device_is_m5_apple_silicon(void) {\n9ab70534:ds4_metal.m:2790:    return pre_m5 || ds4_gpu_device_is_m5_apple_silicon();\n9ab70534:ds4_metal.m:23831:         ds4_gpu_device_is_m5_apple_silicon()) &&\n9ab70534:ds4_metal.m:24138:         ds4_gpu_device_is_m5_apple_silicon()) && default_shape;\n9ab70534:ds4_metal.m:29140:        ds4_gpu_device_is_m5_apple_silicon() &&\n9ab70534:ds4_metal.m:40213:            ds4_gpu_device_is_m5_apple_silicon() &&\n9ab70534:ds4_metal.m:40261:            ds4_gpu_device_is_m5_apple_silicon();\n9ab70534:ds4_metal.m:42921:             (n_tokens == 6u && ds4_gpu_device_is_m5_apple_silicon() &&\n9ab70534:ds4_metal.m:42935:            ds4_gpu_device_is_m5_apple_silicon() && g_tp_split_world == 2 &&\n9ab70534:ds4_metal.m:44465:            ds4_gpu_device_is_m5_apple_silicon() &&\n9ab70534:ds4_metal.m:45773:            ds4_gpu_device_is_m5_apple_silicon();",
+      "expect_authored": "post-hoc",
+      "falsifier": "If any of the 15 listed optimizations is actually M5-admitting (has a pre_m5 branch) or pre-M5-only, the classification is wrong. The is_m5-alone sites are the M5-only family; the pre_m5 || is_m5 sites are M5-admitting."
     }
   ]
 }
