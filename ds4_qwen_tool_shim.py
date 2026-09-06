@@ -390,12 +390,12 @@ def translate_response(payload: dict) -> bool:
         # Deliberately opt-in and truthy-checked. An empty value is not a
         # toggle -- a stray `SHIM_NO_STRIP=` in a shell profile must not
         # silently disable a shipped remedy for every run afterwards.
-        if os.environ.get("SHIM_NO_STRIP"):
-            message["content"] = content.strip()
-        else:
+        if strip_scaffolding():
             message["content"] = (
                 content.replace("<tool_call>", "").replace("</tool_call>", "").strip()
             )
+        else:
+            message["content"] = content.strip()
         message["tool_calls"] = calls
         choice["finish_reason"] = "tool_calls"
         changed = True
@@ -598,6 +598,17 @@ class Proxy(http.server.BaseHTTPRequestHandler):
         self.wfile.write(data)
 
 
+def strip_scaffolding() -> bool:
+    """Whether to remove bare `<tool_call>` tags from returned content (#112).
+
+    One reader for the toggle, so the arm the shim announces at startup cannot
+    disagree with what the request path does. A strip-toggle A/B is void if the
+    arm is not the one the log names, and that is a failure nobody would catch
+    until the numbers were already published.
+    """
+    return not os.environ.get("SHIM_NO_STRIP")
+
+
 def main() -> int:
     global upstream
     parser = argparse.ArgumentParser(description=__doc__)
@@ -612,6 +623,12 @@ def main() -> int:
     )
     server = http.server.ThreadingHTTPServer(("127.0.0.1", args.port), Proxy)
     logger.info("qwen tool shim on :%d -> %s", args.port, upstream)
+    # Announce the arm. A run driver greps for this line before it starts, so
+    # an experiment cannot be taken under a shim in the wrong mode.
+    logger.info(
+        "scaffolding strip: %s (#112 remedy 2)",
+        "ON (shipped default)" if strip_scaffolding() else "OFF (experiment arm)",
+    )
     try:
         server.serve_forever()
     except KeyboardInterrupt:

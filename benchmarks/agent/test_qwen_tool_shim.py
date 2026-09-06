@@ -232,3 +232,27 @@ def test_an_empty_no_strip_is_not_a_toggle(monkeypatch):
     payload = _assistant(_LOOP)
     assert shim.translate_response(payload) is True
     assert "<tool_call>" not in payload["choices"][0]["message"]["content"]
+
+
+# ---------------------------------------------------------------------------
+# #112: the arm the shim announces at startup must be the arm it runs. The
+# request path and the startup line read one function, so they cannot
+# disagree -- an A/B taken under a shim in the wrong mode is void, and nothing
+# downstream records which mode produced a row.
+
+
+def test_the_request_path_reads_the_announced_toggle(monkeypatch) -> None:
+    """`strip_toggle_ab.sh` greps the startup line to decide the arm is safe
+    to run. That check is worth nothing unless the line and the behavior come
+    from the same reader, so this pins that they do."""
+    monkeypatch.delenv("SHIM_NO_STRIP", raising=False)
+    monkeypatch.setattr(shim, "strip_scaffolding", lambda: False)
+    payload = _assistant(_LOOP)
+    assert shim.translate_response(payload) is True
+    assert "<tool_call>" in payload["choices"][0]["message"]["content"]
+
+    monkeypatch.setenv("SHIM_NO_STRIP", "1")
+    monkeypatch.setattr(shim, "strip_scaffolding", lambda: True)
+    payload = _assistant(_LOOP)
+    assert shim.translate_response(payload) is True
+    assert "<tool_call>" not in payload["choices"][0]["message"]["content"]
