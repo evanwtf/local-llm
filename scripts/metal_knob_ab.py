@@ -45,6 +45,15 @@ has no REQUIRE spelling, so it has no admission signal at all: its policy gate
 quality can veto the path with no output. A knob with no admission signal is
 refused unless the caller passes an explicit acknowledgment, and its rows are
 marked `admission_signal: "none"` so they cannot later be read as verified.
+
+gathered-heads has no REQUIRE spelling, so it cannot fail closed. Instead it
+carries a count-based admission signal: the driver runs one short
+single-frontier engagement pass per arm with
+`DS4_METAL_TRACE_M5_FLASH_ATTN_PACKED32_REDUCE` set, counts the `packed FA use=`
+trace lines, and refuses the timed run unless the on arm engaged more layers
+than the off arm and both are non-zero. Equal counts mean the knob did nothing,
+which is the tight-meaningless result the driver refuses. The counts go on the
+run so every run carries its own engagement evidence.
 """
 
 from __future__ import annotations
@@ -97,6 +106,7 @@ KNOBS: dict[str, dict[str, str | bool]] = {
         "default_on": True,
         "fail_error": "",
         "presence": True,
+        "trace_var": "DS4_METAL_TRACE_M5_FLASH_ATTN_PACKED32_REDUCE",
     },
 }
 
@@ -104,20 +114,26 @@ KNOBS: dict[str, dict[str, str | bool]] = {
 def has_admission_signal(knob: str) -> bool:
     """Whether a run of this knob carries an admission check.
 
-    A knob with no REQUIRE spelling has no fail-closed error, so absence of the
-    error is not a signal. stream-overlap is the only such knob.
+    A knob with no REQUIRE spelling has no fail-closed error, but it may still
+    carry a count-based check (gathered-heads) or no check at all
+    (stream-overlap).
     """
-    return bool(fail_closed_error(knob))
+    return admission_signal(knob) != "none"
 
 
 def admission_signal(knob: str) -> str:
     """The admission signal a run of this knob carries.
 
-    'fail-closed' when the on arm is checked for the REQUIRE error; 'none' when
+    'fail-closed' when the on arm is checked for the REQUIRE error; 'count'
+    when the on arm must engage more trace lines than the off arm; 'none' when
     there is no check. The value goes on the run so a later reader cannot read
     an unverified knob as verified.
     """
-    return "fail-closed" if has_admission_signal(knob) else "none"
+    if fail_closed_error(knob):
+        return "fail-closed"
+    if trace_var(knob):
+        return "count"
+    return "none"
 
 
 def validate(
@@ -235,6 +251,36 @@ def check_fail_closed(knob: str, log: pathlib.Path) -> bool:
     return error in log.read_text(errors="replace")
 
 
+def trace_var(knob: str) -> str:
+    """The env var that traces the packed-FA path, or '' when the knob has none."""
+    return str(KNOBS[knob].get("trace_var", ""))
+
+
+def count_trace_lines(log: pathlib.Path) -> int:
+    """Count the packed-FA trace lines in a run log.
+
+    The trace prints one line per dispatch: 'ds4: packed FA use=...'. A count
+    knob's on arm must engage more layers than its off arm, so the counts are
+    the admission evidence.
+    """
+    return sum(
+        1
+        for line in log.read_text(errors="replace").splitlines()
+        if "packed FA use=" in line
+    )
+
+
+def count_admission_ok(on_count: int, off_count: int) -> bool:
+    """Whether a count knob's on arm demonstrably engaged more than its off arm.
+
+    Both counts must be non-zero (the path was selected, not merely requested)
+    and the on arm must exceed the off arm (the knob changed the layer count).
+    Equal counts mean the knob did nothing, which is the tight-meaningless
+    result the driver refuses.
+    """
+    return on_count > off_count > 0
+
+
 def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
     parser = argparse.ArgumentParser(description=__doc__)
@@ -273,6 +319,21 @@ def main(argv: list[str] | None = None) -> int:
     c.add_argument("knob")
     c.add_argument("log", type=pathlib.Path)
 
+    t = sub.add_parser("trace-var", help="print the trace var for a knob, or ''")
+    t.add_argument("knob")
+
+    n = sub.add_parser(
+        "count-trace-lines", help="print the packed-FA trace line count in a log"
+    )
+    n.add_argument("log", type=pathlib.Path)
+
+    k = sub.add_parser(
+        "count-admission-ok",
+        help="exit 0 if on count > off count and both are non-zero",
+    )
+    k.add_argument("on_count", type=int)
+    k.add_argument("off_count", type=int)
+
     args = parser.parse_args(argv)
     if args.cmd == "validate":
         validate(args.knob, args.on_value, args.off_value, args.ack_no_signal)
@@ -286,6 +347,12 @@ def main(argv: list[str] | None = None) -> int:
         logger.info(arm_cmd(args.knob, args.label, args.value))
     elif args.cmd == "admission-signal":
         logger.info(admission_signal(args.knob))
+    elif args.cmd == "trace-var":
+        logger.info(trace_var(args.knob))
+    elif args.cmd == "count-trace-lines":
+        logger.info(count_trace_lines(args.log))
+    elif args.cmd == "count-admission-ok":
+        return 0 if count_admission_ok(args.on_count, args.off_count) else 1
     else:
         return 0 if check_fail_closed(args.knob, args.log) else 1
     return 0

@@ -78,11 +78,12 @@ def test_no_signal_knob_accepts_with_ack():
 
 
 def test_admission_signal_values():
-    """The three REQUIRE knobs carry a fail-closed check; stream-overlap does
-    not. The value goes on the run so an unverified knob cannot be read as
-    verified."""
+    """The three REQUIRE knobs carry a fail-closed check; gathered-heads carries
+    a count check; stream-overlap has none. The value goes on the run so an
+    unverified knob cannot be read as verified."""
     for knob in ("session-union", "iq2", "exact-rows"):
         assert mk.admission_signal(knob) == "fail-closed"
+    assert mk.admission_signal("gathered-heads") == "count"
     assert mk.admission_signal("stream-overlap") == "none"
 
 
@@ -108,23 +109,25 @@ def test_presence_knob_assignment_on_arm_refused():
 
 def test_presence_knob_unset_sentinel_accepts():
     """The on arm carries the sentinel 'unset' (the driver's `${2:?on value}`
-    needs a non-empty positional); the off arm sets the DISABLE var nonzero."""
-    mk.validate("gathered-heads", "unset", "1", acknowledge_no_signal=True)
+    needs a non-empty positional); the off arm sets the DISABLE var nonzero.
+    gathered-heads carries a count admission signal, so no ack is needed."""
+    mk.validate("gathered-heads", "unset", "1")
 
 
 def test_presence_knob_off_value_zero_refused():
     """gathered-heads is on by default, so the off arm must be a nonzero
     DISABLE value, not `0`."""
     with pytest.raises(SystemExit, match="on by default"):
-        mk.validate("gathered-heads", "unset", "0", acknowledge_no_signal=True)
+        mk.validate("gathered-heads", "unset", "0")
 
 
-def test_presence_knob_has_no_admission_signal():
-    """gathered-heads has no REQUIRE spelling, so it has no fail-closed error
-    and no admission signal. It must be refused without the acknowledgment."""
-    assert mk.admission_signal("gathered-heads") == "none"
-    with pytest.raises(SystemExit, match="no admission signal"):
-        mk.validate("gathered-heads", "unset", "1")
+def test_presence_knob_has_count_admission_signal():
+    """gathered-heads has no REQUIRE spelling, so it cannot fail closed. It
+    carries a count-based admission signal instead: the on arm must engage more
+    trace lines than the off arm. It must not need the acknowledgment."""
+    assert mk.admission_signal("gathered-heads") == "count"
+    assert mk.has_admission_signal("gathered-heads") is True
+    mk.validate("gathered-heads", "unset", "1")
 
 
 def test_arm_cmd_presence_on_unsets():
@@ -208,3 +211,40 @@ def test_off_var_is_the_disable_spelling_for_default_on():
     """exact-rows' off arm is the DISABLE var, not the REQUIRE var."""
     assert mk.off_var("exact-rows") == "DS4_METAL_DISABLE_EXACT_ROWS_PERSISTENT_CACHE"
     assert mk.off_var("session-union") == "DS4_METAL_REQUIRE_Q4_SSD_SESSION_UNION"
+
+
+def test_trace_var():
+    assert (
+        mk.trace_var("gathered-heads")
+        == "DS4_METAL_TRACE_M5_FLASH_ATTN_PACKED32_REDUCE"
+    )
+    assert mk.trace_var("stream-overlap") == ""
+
+
+def test_count_trace_lines(tmp_path):
+    log = tmp_path / "on.log"
+    log.write_text(
+        "ds4: packed FA use=1 max_threads=256 tew=0 tgmem=0 need=0\n"
+        "ds4: packed FA use=1 max_threads=256 tew=0 tgmem=0 need=0\n"
+        "ds4: ready\n"
+    )
+    assert mk.count_trace_lines(log) == 2
+
+
+def test_count_trace_lines_empty(tmp_path):
+    log = tmp_path / "on.log"
+    log.write_text("ds4: ready\n")
+    assert mk.count_trace_lines(log) == 0
+
+
+def test_count_admission_ok():
+    assert mk.count_admission_ok(43, 41) is True
+
+
+def test_count_admission_equal_refused():
+    assert mk.count_admission_ok(41, 41) is False
+
+
+def test_count_admission_zero_refused():
+    assert mk.count_admission_ok(43, 0) is False
+    assert mk.count_admission_ok(0, 0) is False
