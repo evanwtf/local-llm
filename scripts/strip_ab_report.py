@@ -187,12 +187,33 @@ def arms_in(*sources: dict[str, object]) -> list[str]:
     """The arms present, with the #112 pair kept in its published order.
 
     Any other experiment's arms are sorted, so this reads out `targets_ab.sh`
-    (#146) as well without pretending its arms are called on and off.
+    (#146) as well without pretending its arms are called on and off. VOID is
+    never an arm: it is the marker for a batch cut short, and a read-out that
+    treated it as an arm would pool a partial batch.
     """
     names = {k for source in sources for k in source}
+    names.discard("VOID")
     if names == {"on", "off"}:
         return ["on", "off"]
     return sorted(names)
+
+
+def void_reason(manifest: list[dict]) -> str | None:
+    """The reason a batch was voided, or None when no VOID row exists.
+
+    A VOID row means the batch was cut short on purpose -- a cutoff that would
+    skip a run. The read-out must refuse rather than pool a partial batch, and
+    the refusal must name the reason and the run number from the row, not a
+    bare traceback.
+    """
+    for entry in manifest:
+        if entry.get("arm") == "VOID":
+            run = entry.get("run", "?")
+            reason = entry.get("reason", "unknown")
+            until = entry.get("until", "")
+            suffix = f" (until {until})" if until else ""
+            return f"batch voided at run {run}: {reason}{suffix}"
+    return None
 
 
 def render(
@@ -279,6 +300,14 @@ def main(argv: list[str] | None = None) -> int:
         json.loads(line) for line in args.manifest.read_text().splitlines() if line
     ]
     rows = [json.loads(line) for line in args.results.read_text().splitlines() if line]
+
+    # A VOID row means the batch was cut short on purpose. Refuse the whole
+    # read-out and name the reason and run number; a partial batch is no result,
+    # and a bare KeyError would read as a corrupt manifest instead of the reason
+    # the writer took the trouble to record.
+    if (void := void_reason(manifest)) is not None:
+        logger.error("%s -- a partial batch is no result; refusing the read-out", void)
+        return 1
 
     per_arm: dict[str, tuple[int, int, int, int]] = {}
     # The arms come from the manifest. Hardcoding ("on", "off") here silently

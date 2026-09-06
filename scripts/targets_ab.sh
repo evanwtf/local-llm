@@ -56,15 +56,19 @@ BENCH_LOGS="${BENCH_LOGS:-$HOME/bench-logs}"
 # no run.py. Each run writes a dry row to the manifest so a test can count the
 # loop. The measurement itself is not exercised; the loop is.
 DRY_RUN="${TARGETS_AB_DRY_RUN:-0}"
+DEFAULT_RESULTS="$REPO/benchmarks/agent/results-146-targets-ab.jsonl"
+DEFAULT_MANIFEST="${DEFAULT_RESULTS%.jsonl}-manifest.jsonl"
+RESULTS="${RESULTS:-$DEFAULT_RESULTS}"
+MANIFEST="${MANIFEST:-${RESULTS%.jsonl}-manifest.jsonl}"
 # Dry-run writes rows to the manifest, so it must never touch the real results
 # paths. Refuse unless both are overridden away from their defaults; the
-# obvious invocation must be impossible, not merely undocumented.
-if [ "$DRY_RUN" -eq 1 ] && { [ -z "${RESULTS:-}" ] || [ -z "${MANIFEST:-}" ]; }; then
+# obvious invocation must be impossible, not merely undocumented. Compare
+# against the defaults, not merely for non-empty: the comment is what the
+# next reader trusts, so the code must match it.
+if [ "$DRY_RUN" -eq 1 ] && { [ "$RESULTS" = "$DEFAULT_RESULTS" ] || [ "$MANIFEST" = "$DEFAULT_MANIFEST" ]; }; then
     echo "REFUSING: dry-run must override RESULTS and MANIFEST away from the real paths" >&2
     exit 1
 fi
-RESULTS="${RESULTS:-$REPO/benchmarks/agent/results-146-targets-ab.jsonl}"
-MANIFEST="${MANIFEST:-${RESULTS%.jsonl}-manifest.jsonl}"
 BATCH="${BATCH:-$(date +%m%d-%H%M)}"
 SHIM_PORT=8101
 
