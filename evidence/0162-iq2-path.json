@@ -4,7 +4,7 @@
   "issue": 162,
   "agent": "peer-deepseek-v4-flash",
   "agent_model": "deepseek-v4-flash",
-  "agent_effort": "low",
+  "agent_effort": "unidentified",
   "repo": "/Users/evanhoffman/git/local-llm/.claude/worktrees/peer+160",
   "authored_at": "2026-09-06T12:26:30-04:00",
   "statement": "The IQ2_XXS_SSD_PREFILL_MM knob is NOT on the q4/q8 path. Its candidate gate at ds4_metal.m:50599-50600 requires `gate_type == DS4_METAL_TENSOR_IQ2_XXS && down_type == DS4_METAL_TENSOR_Q2_K`, and the surrounding candidate also requires `g_ssd_streaming_mode` and `n_expert == 6`. The q4/q8 decode path uses different gate/down tensor types, so the IQ2 knob cannot fire there. The knob is value-parsed via ds4_gpu_env_bool (ds4_metal.m:50582), and its REQUIRE spelling fails closed at ds4_metal.m:50658-50663 with 'ds4: required Metal IQ2_XXS SSD grouped address-MM path was not selected tokens=%u gate=%u down=%u'.",
