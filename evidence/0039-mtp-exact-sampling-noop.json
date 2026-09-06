@@ -210,7 +210,10 @@
       },
       "expect_authored": "post-hoc",
       "falsifier": "A default other than 3.0 would change what the acceptance gate does by default.",
-      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A"
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "enumerates": [
+        67509
+      ]
     },
     {
       "id": "mtp-margin-acceptance-gate",
@@ -234,7 +237,10 @@
       },
       "expect_authored": "post-hoc",
       "falsifier": "A gate that does not require draft_n == 2 and a positive threshold would change which drafts the margin controls.",
-      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A"
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "enumerates": [
+        79587
+      ]
     },
     {
       "id": "strict-mtp-definition",
@@ -258,7 +264,10 @@
       },
       "expect_authored": "post-hoc",
       "falsifier": "A strict_mtp definition that does not include DS4_MTP_STRICT would mean the env var does not control it.",
-      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A"
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "enumerates": [
+        79508
+      ]
     }
   ]
 }

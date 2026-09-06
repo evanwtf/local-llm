@@ -76,6 +76,7 @@ import logging
 import os
 import pathlib
 import platform
+import re
 import subprocess
 import sys
 
@@ -181,6 +182,15 @@ EXPECT_AUTHORED = {"pre-registered", "post-hoc"}
 
 CHEAP_TIMEOUT = 60
 EXPENSIVE_TIMEOUT = 900
+
+# A source citation: a filename with a source extension, then a colon or a
+# space and a line number. This is the trigger for the enumeration rule -- a
+# claim is subject to it only when its statement cites a source line. Bare
+# digits ("ctx 65536", "the year 2026") are numbers but not citations, and a
+# rule that fires on them makes authors lie in a declaration field to get past
+# it. The alternation is longest-first so `foo.metal:1` matches the `metal`
+# extension, not `m`.
+_SOURCE_CITATION = re.compile(r"\b[\w-]+\.(?:metal|sh|py|c|m|h)\s*[: ]\s*\d{1,6}\b")
 
 
 class Refused(Exception):
@@ -328,6 +338,54 @@ def _lint_claim(claim: object, ids: set[str], path: pathlib.Path) -> None:
         raise Refused(
             f"{path}: claim {claim['id']!r} expect has unknown keys {sorted(unknown)}"
         )
+    # A source-enumeration claim's statement must not enumerate more items
+    # than the command it cites returns lines. The trigger is a source
+    # citation -- a filename with a source extension followed by a line
+    # number -- not bare digits: "ctx 65536" and "the year 2026" are numbers
+    # but not citations, and a rule that fires on them makes authors lie in a
+    # declaration field to get past it. When the statement cites a source
+    # line, the claim must declare `enumerates` -- the line numbers its
+    # command produced -- and lint compares that count against observed's
+    # line count. The enumeration is a field, not prose to parse: a statement
+    # interleaves commas, slashes and parentheticals, and any regex that
+    # survives contact with that is a new source of bugs. The comparison only
+    # runs when observed is populated: an empty observed has no line count to
+    # compare against.
+    #
+    # `context_lines` keeps its job: the citations that are references rather
+    # than results. It is validated but not compared -- the comparison is
+    # against `enumerates`, which is exact.
+    context_lines = claim.get("context_lines")
+    if context_lines is not None:
+        if not isinstance(context_lines, list) or not all(
+            isinstance(n, int) and not isinstance(n, bool) for n in context_lines
+        ):
+            raise Refused(
+                f"{path}: claim {claim['id']!r} context_lines must be a list "
+                "of ints -- the line numbers the statement cites as references "
+                "rather than results"
+            )
+    if _SOURCE_CITATION.search(claim["statement"]):
+        enumerates = claim.get("enumerates")
+        if not isinstance(enumerates, list) or not all(
+            isinstance(n, int) and not isinstance(n, bool) for n in enumerates
+        ):
+            raise Refused(
+                f"{path}: claim {claim['id']!r} cites a source file line but "
+                "does not declare enumerates -- the list of line numbers its "
+                "command produced, as a list of ints"
+            )
+        observed = claim.get("observed")
+        stdout = observed.get("stdout") if isinstance(observed, dict) else observed
+        if isinstance(stdout, str) and stdout.strip():
+            produced = len([ln for ln in stdout.splitlines() if ln.strip()])
+            if len(enumerates) > produced:
+                raise Refused(
+                    f"{path}: claim {claim['id']!r} enumerates "
+                    f"{len(enumerates)} line numbers but its argv returns "
+                    f"{produced} lines -- a statement that names more items "
+                    "than the command produced is conflating predicates"
+                )
 
 
 def _lint_refs(claims: list[dict], path: pathlib.Path) -> None:

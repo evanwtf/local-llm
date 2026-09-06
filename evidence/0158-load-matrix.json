@@ -44,7 +44,10 @@
         "stdout": "6789:        if (ds4_streq(arch, \"qwen4exp\")) {"
       },
       "expect_authored": "post-hoc",
-      "falsifier": "If the routing checks a different string (e.g. the hyphenated 'qwen4-exp'), then the routing is not the cause of the hyphenated files failing to load."
+      "falsifier": "If the routing checks a different string (e.g. the hyphenated 'qwen4-exp'), then the routing is not the cause of the hyphenated files failing to load.",
+      "enumerates": [
+        6789
+      ]
     },
     {
       "id": "macro-declares-qwen4-exp-hyphen",
@@ -68,7 +71,10 @@
         "stdout": "8:#define DS4_QWEN4_ARCHITECTURE \"qwen4-exp\""
       },
       "expect_authored": "post-hoc",
-      "falsifier": "If the macro declares the no-hyphen 'qwen4exp', then the macro and the routing agree and the hyphenated files' failure has a different cause."
+      "falsifier": "If the macro declares the no-hyphen 'qwen4exp', then the macro and the routing agree and the hyphenated files' failure has a different cause.",
+      "enumerates": [
+        8
+      ]
     },
     {
       "id": "q40routed-load-fails",

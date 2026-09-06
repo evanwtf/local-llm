@@ -94,7 +94,14 @@
         "stdout": "518:            frontier - previous,\n843:        const int prefill_tokens = frontier - previous;"
       },
       "expect_authored": "post-hoc",
-      "falsifier": "If prefill_tokens is the full context length rather than the appended interval, then prefill_tps is a cold-prefill measure and the appended-interval distinction collapses."
+      "falsifier": "If prefill_tokens is the full context length rather than the appended interval, then prefill_tps is a cold-prefill measure and the appended-interval distinction collapses.",
+      "enumerates": [
+        518,
+        843
+      ],
+      "context_lines": [
+        10
+      ]
     },
     {
       "id": "metal-route",

@@ -38,7 +38,13 @@
         "stdout": "66808:    if (!strict_mtp && draft_n == 2 && mtp_margin_threshold > 0.0f) {"
       },
       "expect_authored": "post-hoc",
-      "falsifier": "If the margin-skip is not gated on `draft_n == 2` (or `draft_n` can equal 2 at depth 7), then the margin can affect acceptance at depth 7 and the 'no acceptance effect' claim collapses."
+      "falsifier": "If the margin-skip is not gated on `draft_n == 2` (or `draft_n` can equal 2 at depth 7), then the margin can affect acceptance at depth 7 and the 'no acceptance effect' claim collapses.",
+      "enumerates": [
+        66808
+      ],
+      "context_lines": [
+        66722
+      ]
     },
     {
       "id": "margin-reads-outside-gate",
@@ -87,7 +93,12 @@
         "stdout": "66743:    const bool mtp_need_logits = mtp_conf_log ||\n66744-        getenv(\"DS4_MTP_FULL_LOGITS\") != NULL ||\n66745-        (!strict_mtp && mtp_margin_threshold > 0.0f);"
       },
       "expect_authored": "post-hoc",
-      "falsifier": "If the `mtp_need_logits` test does not compare `mtp_margin_threshold > 0.0f` (e.g. it tests presence or a different threshold), then margin 0 and margin > 0 are equivalent at depth 7 and the zero-boundary claim collapses."
+      "falsifier": "If the `mtp_need_logits` test does not compare `mtp_margin_threshold > 0.0f` (e.g. it tests presence or a different threshold), then margin 0 and margin > 0 are equivalent at depth 7 and the zero-boundary claim collapses.",
+      "enumerates": [
+        66743,
+        66744,
+        66745
+      ]
     }
   ]
 }

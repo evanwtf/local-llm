@@ -39,7 +39,11 @@
         "stdout": "72006-    return metal_graph_tp_env_flag(\n72007:            \"DS4_METAL_REQUIRE_Q4_SSD_SESSION_UNION\", false);"
       },
       "expect_authored": "post-hoc",
-      "falsifier": "If DS4_METAL_REQUIRE_Q4_SSD_SESSION_UNION is read with a bare getenv() presence check (no value comparison), then this knob is presence-based and the value-parsed claim collapses for it."
+      "falsifier": "If DS4_METAL_REQUIRE_Q4_SSD_SESSION_UNION is read with a bare getenv() presence check (no value comparison), then this knob is presence-based and the value-parsed claim collapses for it.",
+      "enumerates": [
+        72006,
+        72007
+      ]
     },
     {
       "id": "stream-overlap-value-parsed",
@@ -64,7 +68,13 @@
         "stdout": "71922-    const bool enabled = metal_graph_tp_env_flag(\n71923:            \"DS4_METAL_ENABLE_Q4_STREAM_OVERLAP\", false);\n71924-    const bool disabled = metal_graph_tp_env_flag(\n71925:            \"DS4_METAL_DISABLE_Q4_STREAM_OVERLAP\", false);"
       },
       "expect_authored": "post-hoc",
-      "falsifier": "If either stream-overlap env var is read with a bare getenv() presence check (no value comparison), then this knob is presence-based and the value-parsed claim collapses for it."
+      "falsifier": "If either stream-overlap env var is read with a bare getenv() presence check (no value comparison), then this knob is presence-based and the value-parsed claim collapses for it.",
+      "enumerates": [
+        71922,
+        71923,
+        71924,
+        71925
+      ]
     },
     {
       "id": "iq2-value-parsed",
@@ -88,7 +98,10 @@
         "stdout": "50582:            ds4_gpu_env_bool(\"DS4_METAL_REQUIRE_IQ2_XXS_SSD_PREFILL_MM\");"
       },
       "expect_authored": "post-hoc",
-      "falsifier": "If DS4_METAL_REQUIRE_IQ2_XXS_SSD_PREFILL_MM is read with a bare getenv() presence check (no value comparison), then this knob is presence-based and the value-parsed claim collapses for it."
+      "falsifier": "If DS4_METAL_REQUIRE_IQ2_XXS_SSD_PREFILL_MM is read with a bare getenv() presence check (no value comparison), then this knob is presence-based and the value-parsed claim collapses for it.",
+      "enumerates": [
+        50582
+      ]
     },
     {
       "id": "exact-rows-value-parsed",
@@ -113,7 +126,11 @@
         "stdout": "14836-    const int required = ds4_gpu_exact_rows_persistent_env_enabled(\n14837:            \"DS4_METAL_REQUIRE_EXACT_ROWS_PERSISTENT_CACHE\");"
       },
       "expect_authored": "post-hoc",
-      "falsifier": "If DS4_METAL_REQUIRE_EXACT_ROWS_PERSISTENT_CACHE is read with a bare getenv() presence check (no value comparison), then this knob is presence-based and the value-parsed claim collapses for it."
+      "falsifier": "If DS4_METAL_REQUIRE_EXACT_ROWS_PERSISTENT_CACHE is read with a bare getenv() presence check (no value comparison), then this knob is presence-based and the value-parsed claim collapses for it.",
+      "enumerates": [
+        14836,
+        14837
+      ]
     },
     {
       "id": "no-admission-print",
@@ -161,7 +178,23 @@
         "stdout": "73983:                     \"required Metal Q4 SSD session union is ineligible \""
       },
       "expect_authored": "post-hoc",
-      "falsifier": "If the REQUIRE spellings do not print these fail-closed errors (or print different text), the error-string claim collapses and the peer cannot rely on them as the admission signal."
+      "falsifier": "If the REQUIRE spellings do not print these fail-closed errors (or print different text), the error-string claim collapses and the peer cannot rely on them as the admission signal.",
+      "enumerates": [
+        73983
+      ],
+      "context_lines": [
+        73984,
+        73985,
+        73986,
+        73987,
+        73988,
+        50664,
+        50665,
+        50666,
+        50667,
+        50668,
+        50669
+      ]
     },
     {
       "id": "stream-overlap-no-require",
@@ -186,7 +219,11 @@
         "stdout": ""
       },
       "expect_authored": "post-hoc",
-      "falsifier": "If a DS4_METAL_REQUIRE_Q4_STREAM_OVERLAP spelling exists, then stream-overlap does have a REQUIRE arm and the 'no REQUIRE' claim collapses."
+      "falsifier": "If a DS4_METAL_REQUIRE_Q4_STREAM_OVERLAP spelling exists, then stream-overlap does have a REQUIRE arm and the 'no REQUIRE' claim collapses.",
+      "enumerates": [],
+      "context_lines": [
+        71917
+      ]
     }
   ]
 }

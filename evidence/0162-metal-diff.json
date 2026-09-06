@@ -7,7 +7,7 @@
   "agent_effort": "unidentified",
   "repo": "/Users/evanhoffman/git/local-llm/.claude/worktrees/peer+162-metal-diff",
   "authored_at": "2026-09-06T15:30:00-04:00",
-  "statement": "What the 218 commits between 9ab7053 and 77a054e1 change on the Metal path, and which of those the #162 run executes. The run's GGUF (DeepSeek-V4-Flash-Layers37-42Q4KExperts-OtherExpertLayersIQ2XXSGateUp-Q2KDown-AProjQ8-SExpQ8-OutQ8) carries F32, F16, Q8_0, IQ2_XXS, Q2_K, Q4_K and I32 tensors and NO mxfp4 (gguf_meta.py --tensors: 492 F32, 359 F16, 345 Q8_0, 74 IQ2_XXS, 37 Q2_K, 18 Q4_K, 3 I32). The gate enumeration below is sound but incomplete: it lists the gates that EXCLUDE the M5 Max, and there is also a helper that INCLUDES it, ds4_gpu_ported_m5_decode_feature_enabled (ds4_metal.m:3619), whose flash_attn_packed32_reduce call site condition changed in the diff (ds4_metal.m:36769) -- a decode-path change on M5 the enumeration missed. The diff on the IQ2_XXS and Q4_K matvec kernels is large and was NOT characterized: kernel_mul_mv_q4_K_f32_impl grew 94 to 429 lines, kernel_mul_mv_iq2_xxs_pair_f32_impl 6 to 141, kernel_mul_mv_q4_K_dense_f32 6 to 244, kernel_mul_mv_addr_iq2_xxs_pair_swiglu_f32 6 to 160. Two specific changes are numerically identical (the dequantize_iq2_xxs precomputed half table, and the Q4_K silu -> ds4_silu swap), but that does not imply the whole executed path is numerically identical, and numerical identity is independent of performance anyway. The packed32 decode path the diff widens is live at every #162 frontier: n_keys = n_raw + n_comp, n_raw is the 128-token sliding window (not ctx), and n_keys <= 1024 holds for the uncompressed and ratio-128 layers at all frontiers (see n-keys-bounded-not-ctx). So a flat result would not be because the widened path never ran. Whether a flat #162 result means 'no effect' or 'the code never ran' cannot be settled from source at this diff size. It can be settled empirically and cheaply: decode_ab_engine.sh now writes a per-arm startup log beside each CSV, and diffing the two arms' logs turns 'the trees ran different code' into an observation.\n\nThree of the four knobs #162's Task 4 listed cannot fire on a resident single-session q4/q8 decode run at all: session-union requires e->ssd_streaming (ds4.c:72092), stream-overlap requires count >= 2 concurrent sessions (ds4.c:71927), and exact-rows is gated on g_ssd_streaming_mode (ds4_metal.m:20360). The fourth, gathered-heads, was not on the issue's list. Testers running resident single-session decode will measure nothing from three of these four knobs, whatever their backend; a clean 0.0% for them is a gate, not a result. The issue's premise that 'these flags are presence-based, =0 may read as enabled' is also wrong for three of the four listed: session-union and stream-overlap parse values through metal_graph_tp_env_flag (ds4.c:17832, strcmp(env, \"0\") != 0) and exact-rows through ds4_gpu_exact_rows_persistent_env_enabled (ds4_metal.m:14822). The =0 trap is real, but it applies to gathered-heads and DECODE_RAW_PACKED32, which were not on the list.",
+  "statement": "What the 218 commits between 9ab7053 and 77a054e1 change on the Metal path, and which of those the #162 run executes. The run's GGUF (DeepSeek-V4-Flash-Layers37-42Q4KExperts-OtherExpertLayersIQ2XXSGateUp-Q2KDown-AProjQ8-SExpQ8-OutQ8) carries F32, F16, Q8_0, IQ2_XXS, Q2_K, Q4_K and I32 tensors and NO mxfp4 (gguf_meta.py --tensors: 492 F32, 359 F16, 345 Q8_0, 74 IQ2_XXS, 37 Q2_K, 18 Q4_K, 3 I32). The gate enumeration below is sound but incomplete: it lists the gates that EXCLUDE the M5 Max, and there is also a helper that INCLUDES it, ds4_gpu_ported_m5_decode_feature_enabled (ds4_metal.m:3619), whose flash_attn_packed32_reduce call site condition changed in the diff (ds4_metal.m:36769) -- a decode-path change on M5 the enumeration missed. The diff on the IQ2_XXS and Q4_K matvec kernels is large and was NOT characterized: kernel_mul_mv_q4_K_f32_impl grew 94 to 429 lines, kernel_mul_mv_iq2_xxs_pair_f32_impl 6 to 141, kernel_mul_mv_q4_K_dense_f32 6 to 244, kernel_mul_mv_addr_iq2_xxs_pair_swiglu_f32 6 to 160. Two specific changes are numerically identical (the dequantize_iq2_xxs precomputed half table, and the Q4_K silu -> ds4_silu swap), but that does not imply the whole executed path is numerically identical, and numerical identity is independent of performance anyway. The packed32 decode path the diff widens is live at every #162 frontier: n_keys = n_raw + n_comp, n_raw is the 128-token sliding window (not ctx), and n_keys <= 1024 holds for the uncompressed and ratio-128 layers at all frontiers (see n-keys-bounded-not-ctx). So a flat result would not be because the widened path never ran. Whether a flat #162 result means 'no effect' or 'the code never ran' cannot be settled from source at this diff size. It can be settled empirically and cheaply: decode_ab_engine.sh now writes a per-arm startup log beside each CSV, and diffing the two arms' logs turns 'the trees ran different code' into an observation.",
   "provenance": {
     "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
     "trees": {
@@ -209,7 +209,11 @@
         "stdout": "77a054e1:ds4_metal.m:3"
       },
       "expect_authored": "post-hoc",
-      "falsifier": "If the HC fusion path is not gated behind pre-M5 (or the run can set force), the path can fire on M5 Max and the 'not hit' claim collapses."
+      "falsifier": "If the HC fusion path is not gated behind pre-M5 (or the run can set force), the path can fire on M5 Max and the 'not hit' claim collapses.",
+      "enumerates": [],
+      "context_lines": [
+        3599
+      ]
     },
     {
       "id": "ssd-prefill-gated",
@@ -236,7 +240,59 @@
         "stdout": "77a054e1:ds4_metal.m:3000:        !g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:3011:    const int warm_model_views = !g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:5542:    if (g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:5563:    if (g_ssd_streaming_mode && !was_ssd_streaming) {\n77a054e1:ds4_metal.m:10876:        !g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:12346:           !g_ssd_streaming_mode && g_tp_check_words != NULL &&\n77a054e1:ds4_metal.m:12419:        !g_ssd_streaming_mode && g_tp_check_words != NULL &&\n77a054e1:ds4_metal.m:12478:            g_tp_poll_gates && !g_ssd_streaming_mode && g_tp_check_words != NULL &&\n77a054e1:ds4_metal.m:12518:        !event_arrival && g_tp_poll_gates && !g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:14707:           g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:15033:    return g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:15887:    return g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:16261:    return g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:16464:    return g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:16471:    return g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:16484:    return g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:16493:    return g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:16500:    return g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:16582:    return g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:24678:        if (g_ssd_streaming_mode && !g_quality_mode && g_tp_split_world <= 1 &&\n77a054e1:ds4_metal.m:27891:    const bool ssd_transient_invalidated = g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:27903:        g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:28248:        !g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:28692:    if (g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:28866:        g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:30249:        !g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:32667:        !g_ssd_streaming_mode && !ds4_gpu_tp_world_is_two() &&\n77a054e1:ds4_metal.m:32752:        g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:33216:            !g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:33661:        !g_ssd_streaming_mode && !ds4_gpu_tp_world_is_two() &&\n77a054e1:ds4_metal.m:35097:        !g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:45394:        g_ssd_streaming_mode && g_tp_split_world == 2;\n77a054e1:ds4_metal.m:45483:            g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:46706:        g_ssd_streaming_mode && g_tp_split_world == 2;\n77a054e1:ds4_metal.m:46785:            g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:47841:            !force_resident && g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:48147:            g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:48159:            g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:48172:            g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:48280:        if (g_ssd_streaming_mode && !g_quality_mode && g_tp_split_world <= 1 &&\n77a054e1:ds4_metal.m:50437:        ((g_ssd_streaming_mode && !force_resident) ||\n77a054e1:ds4_metal.m:50598:            !force_resident && g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:50728:            !g_ssd_streaming_mode && n_tokens >= 512u && n_tokens <= 4096u &&\n77a054e1:ds4_metal.m:50771:            !g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:50905:            !g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:50929:            !g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:50942:            !g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:50954:            !g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:50980:            !g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:51085:                    !g_ssd_streaming_mode &&"
       },
       "expect_authored": "post-hoc",
-      "falsifier": "If the ssd_prefill_exactn path is not gated behind g_ssd_streaming_mode, the path can fire without --ssd-streaming and the 'not hit' claim collapses."
+      "falsifier": "If the ssd_prefill_exactn path is not gated behind g_ssd_streaming_mode, the path can fire without --ssd-streaming and the 'not hit' claim collapses.",
+      "enumerates": [
+        3000,
+        3011,
+        5542,
+        5563,
+        10876,
+        12346,
+        12419,
+        12478,
+        12518,
+        14707,
+        15033,
+        15887,
+        16261,
+        16464,
+        16471,
+        16484,
+        16493,
+        16500,
+        16582,
+        24678,
+        27891,
+        27903,
+        28248,
+        28692,
+        28866,
+        30249,
+        32667,
+        32752,
+        33216,
+        33661,
+        35097,
+        45394,
+        45483,
+        46706,
+        46785,
+        47841,
+        48147,
+        48159,
+        48172,
+        48280,
+        50437,
+        50598,
+        50728,
+        50771,
+        50905,
+        50929,
+        50942,
+        50954,
+        50980,
+        51085
+      ]
     },
     {
       "id": "mid-only-m1",
@@ -263,7 +319,11 @@
         "stdout": "77a054e1:ds4_metal.m:16458:static int ds4_gpu_m1_iq2_mid_only_enabled(void) {\n77a054e1:ds4_metal.m:47839:            ds4_gpu_m1_iq2_mid_only_enabled() &&"
       },
       "expect_authored": "post-hoc",
-      "falsifier": "If the mid_only path is not gated behind the M1 device check, it can fire on M5 Max and the 'not hit' claim collapses."
+      "falsifier": "If the mid_only path is not gated behind the M1 device check, it can fire on M5 Max and the 'not hit' claim collapses.",
+      "enumerates": [
+        16458,
+        47839
+      ]
     },
     {
       "id": "dspark-env-gated",
@@ -290,7 +350,10 @@
         "stdout": "77a054e1:ds4_metal.m:22501:    return ds4_gpu_env_bool(\"DS4_METAL_DSPARK_DEVICE_PROPOSER\") == 1 &&"
       },
       "expect_authored": "post-hoc",
-      "falsifier": "If the dspark path is not gated behind the env var, it can fire without the env var and the 'not hit' claim collapses."
+      "falsifier": "If the dspark path is not gated behind the env var, it can fire without the env var and the 'not hit' claim collapses.",
+      "enumerates": [
+        22501
+      ]
     },
     {
       "id": "ported-m5-flash-attn",
@@ -317,7 +380,12 @@
         "stdout": ""
       },
       "expect_authored": "post-hoc",
-      "falsifier": "If the old code already carried DS4_METAL_DISABLE_DECODE_RAW_PACKED32, the var was not added in the diff and the 'decode-path change on M5' claim collapses. (The new code carrying it is verified by one-knob-suffices.)"
+      "falsifier": "If the old code already carried DS4_METAL_DISABLE_DECODE_RAW_PACKED32, the var was not added in the diff and the 'decode-path change on M5' claim collapses. (The new code carrying it is verified by one-knob-suffices.)",
+      "enumerates": [],
+      "context_lines": [
+        3619,
+        36769
+      ]
     },
     {
       "id": "n-keys-bounded-not-ctx",
@@ -344,7 +412,19 @@
         "stdout": "77a054e1:ds4_metal.m:35359:    const uint32_t n_keys = n_raw + n_comp;\n77a054e1:ds4_metal.m:35393:    const uint32_t n_keys = n_raw + n_comp;\n77a054e1:ds4_metal.m:36709:    const uint32_t n_keys = n_raw + n_comp;\n77a054e1:ds4_metal.m:37325:    const uint32_t n_keys = n_raw + n_comp;"
       },
       "expect_authored": "post-hoc",
-      "falsifier": "If n_keys were not n_raw + n_comp, or if n_raw tracked ctx rather than the 128-token sliding window, the 'path is live at every frontier' conclusion collapses and the branch-versus-main run would be flat for a mechanical reason."
+      "falsifier": "If n_keys were not n_raw + n_comp, or if n_raw tracked ctx rather than the 128-token sliding window, the 'path is live at every frontier' conclusion collapses and the branch-versus-main run would be flat for a mechanical reason.",
+      "enumerates": [
+        35359,
+        35393,
+        36709,
+        37325
+      ],
+      "context_lines": [
+        1180,
+        1182,
+        18415,
+        6007
+      ]
     },
     {
       "id": "loader-ignores-ratio-tail",
@@ -374,7 +454,18 @@
         "stdout": "77a054e1:ds4.c:1181:        if (il < 2) return 0;\n77a054e1:ds4.c:1184:        if (il < 2) return 128u;\n77a054e1:ds4.c:6015:    if (arr.len < DS4_N_LAYER) {\n77a054e1:ds4.c:6053:    if (arr.len < DS4_N_LAYER) {"
       },
       "expect_authored": "post-hoc",
-      "falsifier": "If the loader read all 44 values, or if the uncompressed set were 3 layers, the array length and block count would disagree for a real reason and the 2-of-43 effect estimate would be wrong."
+      "falsifier": "If the loader read all 44 values, or if the uncompressed set were 3 layers, the array length and block count would disagree for a real reason and the 2-of-43 effect estimate would be wrong.",
+      "enumerates": [
+        1181,
+        1184,
+        6015,
+        6053
+      ],
+      "context_lines": [
+        6007,
+        1180,
+        1182
+      ]
     },
     {
       "id": "knob-ab-pre-registered",
@@ -462,88 +553,11 @@
         "stdout": "77a054e1:ds4_metal.m:36774:         getenv(\"DS4_METAL_DISABLE_DECODE_RAW_PACKED32\") == NULL) &&\n77a054e1:ds4_metal.m:38408:             getenv(\"DS4_METAL_DISABLE_DECODE_RAW_GATHERED_ATTN\") != NULL)) {"
       },
       "expect_authored": "post-hoc",
-      "falsifier": "If setting GATHERED_ATTN did not route n_comp==0 layers raw-only, or if the packed32 relaxation applied to n_comp!=0 layers, one knob would not fully revert the observable difference and the A/B would need a second variable."
-    },
-    {
-      "id": "skip-session-union",
-      "statement": "The q4 SSD session-union knob (DS4_METAL_REQUIRE_Q4_SSD_SESSION_UNION) cannot fire on the #162 run. ds4_session_q4_ssd_session_union_eligible requires e->ssd_streaming as a hard conjunct (ds4.c:72092, e->ssd_streaming && !e->tp.active && !e->multi_tier). The #162 run is resident -- the per-arm log's first line is the literal command and it carries no --ssd-streaming -- so e->ssd_streaming is false and the eligible check returns false. The knob is skipped, not measured: a resident run would report a guaranteed null.",
-      "argv": [
-        "git",
-        "grep",
-        "-n",
-        "e->ssd_streaming && !e->tp.active",
-        "77a054e1",
-        "--",
-        "ds4.c"
-      ],
-      "cwd": "/Users/evanhoffman/git/ds4-pr952",
-      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
-      "readonly": true,
-      "cost": "cheap",
-      "expect": {
-        "exit": 0,
-        "stdout_contains": "72092"
-      },
-      "observed": {
-        "exit": 0,
-        "stdout": "77a054e1:ds4.c:72092:           e->ssd_streaming && !e->tp.active && !e->multi_tier &&"
-      },
-      "expect_authored": "post-hoc",
-      "falsifier": "If the session-union eligible check did not require e->ssd_streaming, or if the #162 run passed --ssd-streaming, the knob could fire on a resident run and the skip would be wrong."
-    },
-    {
-      "id": "skip-stream-overlap",
-      "statement": "The q4 stream-overlap knob (DS4_METAL_ENABLE_Q4_STREAM_OVERLAP) cannot fire on the #162 run. ds4_q4_stream_overlap_policy requires count >= 2 && count <= DS4_METAL_SESSION_STREAMS (ds4.c:71927), where count is the number of concurrent sessions sharing the engine (ds4_sessions_q4_stream_overlap_supported iterates items[i].session for i < count, ds4.c:73523). The #162 run is single-session, so count == 1 and the gate fails. There is no trace variable on this path -- only DS4_METAL_TRACE_ALLOCS and DS4_METAL_TRACE_M5_FLASH_ATTN_PACKED32_REDUCE exist in the tree, neither on it -- and stream-overlap has zero references in ds4_metal.m. The knob is skipped, not measured.",
-      "argv": [
-        "git",
-        "grep",
-        "-n",
-        "count >= 2 && count <= DS4_METAL_SESSION_STREAMS",
-        "77a054e1",
-        "--",
-        "ds4.c"
-      ],
-      "cwd": "/Users/evanhoffman/git/ds4-pr952",
-      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
-      "readonly": true,
-      "cost": "cheap",
-      "expect": {
-        "exit": 0,
-        "stdout_contains": "71927"
-      },
-      "observed": {
-        "exit": 0,
-        "stdout": "77a054e1:ds4.c:71927:           count >= 2 && count <= DS4_METAL_SESSION_STREAMS &&"
-      },
-      "expect_authored": "post-hoc",
-      "falsifier": "If the stream-overlap policy did not require count >= 2, or if the #162 run used multiple concurrent sessions, the knob could fire on a single-session run and the skip would be wrong."
-    },
-    {
-      "id": "skip-exact-rows",
-      "statement": "The exact-rows persistent-cache knob (DS4_METAL_REQUIRE/DISABLE_EXACT_ROWS_PERSISTENT_CACHE) cannot fire on the #162 run. ds4_gpu_exact_rows_persistent_policy has two call sites: ds4_metal.m:14850 is the DS4_TEST_HOOKS wrapper ds4_gpu_test_exact_rows_persistent_policy, not reachable from a benchmark run; ds4_metal.m:20442 is the runtime path, inside ds4_gpu_stream_expert_cache_prepare_selected_batch, which begins with if (!g_ssd_streaming_mode || ...) return 0 (ds4_metal.m:20360). g_ssd_streaming_mode is set only by ds4_gpu_set_ssd_streaming(bool) (ds4_metal.m:5534). The #162 run is resident, so g_ssd_streaming_mode is false and the runtime path returns before the exact-rows policy is reached. The knob is skipped, not measured.",
-      "argv": [
-        "git",
-        "grep",
-        "-n",
-        "ds4_gpu_exact_rows_persistent_policy",
-        "77a054e1",
-        "--",
-        "ds4_metal.m"
-      ],
-      "cwd": "/Users/evanhoffman/git/ds4-pr952",
-      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
-      "readonly": true,
-      "cost": "cheap",
-      "expect": {
-        "exit": 0,
-        "stdout_contains": "20442"
-      },
-      "observed": {
-        "exit": 0,
-        "stdout": "77a054e1:ds4_metal.m:14830:static int ds4_gpu_exact_rows_persistent_policy(\n77a054e1:ds4_metal.m:14850:    return ds4_gpu_exact_rows_persistent_policy(configured_count,\n77a054e1:ds4_metal.m:20442:        ds4_gpu_exact_rows_persistent_policy(private_size_class_count,"
-      },
-      "expect_authored": "post-hoc",
-      "falsifier": "If the runtime call site of ds4_gpu_exact_rows_persistent_policy were not inside a function gated on g_ssd_streaming_mode, or if the #162 run passed --ssd-streaming, the exact-rows knob could fire on a resident run and the skip would be wrong."
+      "falsifier": "If setting GATHERED_ATTN did not route n_comp==0 layers raw-only, or if the packed32 relaxation applied to n_comp!=0 layers, one knob would not fully revert the observable difference and the A/B would need a second variable.",
+      "enumerates": [
+        36774,
+        38408
+      ]
     }
   ]
 }
