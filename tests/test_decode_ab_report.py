@@ -554,3 +554,129 @@ def test_a_frontier_missing_from_a_run_is_not_filled_in(tmp_path):
     across = report.per_frontier_across_runs(got)
     assert len(across[2048]) == 2
     assert len(across[4096]) == 1
+
+
+# -- absolute saving separates a fixed cost from a scaled effect (#162) ------
+#
+# A ratio that shrinks with context is produced BOTH by removing a fixed
+# per-token cost and by an effect that scales with the work. The gathered-heads
+# knob removes dispatch overhead on two layers whose n_keys is pinned at 128,
+# so its saving must be flat in absolute terms. Only the absolute column can
+# tell that from a generic context-decay.
+
+
+def _write_timed(tmp_path, name, per_ctx):
+    """A run where each frontier's two arms have given t/s: {ctx: (a, b)}."""
+    d = tmp_path / name
+    d.mkdir()
+    head = "ctx_tokens,prefill_tps,gen_steady_tps\n"
+    rows_a = "".join(f"{c},100.0,{ab[0]}\n" for c, ab in sorted(per_ctx.items()))
+    rows_b = "".join(f"{c},100.0,{ab[1]}\n" for c, ab in sorted(per_ctx.items()))
+    (d / "a-rep1.csv").write_text(head + rows_a)
+    (d / "b-rep1.csv").write_text(head + rows_b)
+    return d
+
+
+def test_absolute_saving_is_milliseconds_per_token(tmp_path):
+    """50 t/s against 100 t/s is 20 ms against 10 ms: a 10 ms saving."""
+    d = _write_timed(tmp_path, "r1", {2048: (50.0, 100.0)})
+    got = report.absolute_saving_ms([d], "gen_steady_tps")
+    assert got[2048] == pytest.approx([10.0])
+
+
+def test_a_fixed_cost_removed_reads_flat_while_the_ratio_shrinks(tmp_path):
+    """The #162 case. A constant 1 ms saving against a token that slows from
+    10 ms to 40 ms: the ratio falls from 1.111 to 1.026, but the absolute
+    saving never moves. The ratio alone would look like a fading effect."""
+    per_ctx = {}
+    for i, base_ms in enumerate([10.0, 20.0, 30.0, 40.0]):
+        ctx = 2048 * (i + 1)
+        per_ctx[ctx] = (1000.0 / base_ms, 1000.0 / (base_ms - 1.0))
+    d = _write_timed(tmp_path, "r1", per_ctx)
+    saving = report.absolute_saving_ms([d], "gen_steady_tps")
+    for ctx in per_ctx:
+        assert saving[ctx] == pytest.approx([1.0], abs=1e-9)
+    assert report.saving_trend(saving) == pytest.approx(1.0, abs=1e-9)
+
+
+def test_an_effect_that_scales_with_context_does_not_read_flat(tmp_path):
+    """A 10% speedup at every frontier saves more ms as the token slows."""
+    per_ctx = {}
+    for i, base_ms in enumerate([10.0, 20.0, 30.0, 40.0]):
+        ctx = 2048 * (i + 1)
+        per_ctx[ctx] = (1000.0 / base_ms, 1000.0 / (base_ms * 0.9))
+    d = _write_timed(tmp_path, "r1", per_ctx)
+    trend = report.saving_trend(report.absolute_saving_ms([d], "gen_steady_tps"))
+    assert trend == pytest.approx(4.0, abs=1e-6)
+
+
+def test_the_trend_verdict_names_which_case_it_is(tmp_path, caplog):
+    per_ctx = {}
+    for i, base_ms in enumerate([10.0, 20.0, 30.0, 40.0]):
+        ctx = 2048 * (i + 1)
+        per_ctx[ctx] = (1000.0 / base_ms, 1000.0 / (base_ms * 0.9))
+    d = _write_timed(tmp_path, "r1", per_ctx)
+    with caplog.at_level("INFO"):
+        report.log_absolute_saving([d], "gen_steady_tps", "a", "b")
+    assert "GROWS with context" in caplog.text
+
+
+def test_saving_needs_three_frontiers_to_report_a_trend():
+    assert report.saving_trend({2048: [1.0], 4096: [1.0]}) is None
+
+
+def test_a_zero_rate_is_skipped_not_divided_by(tmp_path):
+    d = _write_timed(tmp_path, "r1", {2048: (0.0, 100.0), 4096: (50.0, 100.0)})
+    got = report.absolute_saving_ms([d], "gen_steady_tps")
+    assert 2048 not in got
+    assert got[4096] == pytest.approx([10.0])
+
+
+def test_a_saving_that_straddles_zero_gets_no_trend_verdict(tmp_path):
+    """The bug this exists for: dividing one noise figure by another.
+
+    The gathered-heads knob's per-frontier savings were 0.27, 0.01, 0.04,
+    -0.18, -0.10, 0.10, 0.02, 0.01 ms/token. The first version of
+    saving_trend divided the top third by the bottom third and printed
+    "GROWS with context: not a fixed per-token cost" -- which reads as
+    evidence against the mechanism, from a quantity indistinguishable from
+    zero.
+    """
+    saving = {
+        2048: [0.27],
+        4096: [0.01],
+        6144: [0.04],
+        8192: [-0.18],
+        10240: [-0.10],
+        12288: [0.10],
+        14336: [0.02],
+        16384: [0.01],
+    }
+    assert not report.saving_is_resolvable(saving)
+    assert report.saving_trend(saving) is None
+
+
+def test_a_saving_with_one_sign_is_resolvable(tmp_path):
+    saving = {2048: [1.0], 4096: [1.0], 6144: [1.0], 8192: [1.0]}
+    assert report.saving_is_resolvable(saving)
+    assert report.saving_trend(saving) == pytest.approx(1.0)
+
+
+def test_a_consistently_negative_saving_is_also_resolvable():
+    """A change that is consistently SLOWER has a shape worth reporting."""
+    saving = {2048: [-1.0], 4096: [-2.0], 6144: [-3.0], 8192: [-4.0]}
+    assert report.saving_is_resolvable(saving)
+
+
+def test_the_unresolvable_case_says_why_rather_than_printing_nothing(tmp_path, caplog):
+    per_ctx = {
+        2048: (100.0, 100.5),
+        4096: (50.0, 49.8),
+        6144: (33.0, 33.1),
+        8192: (25.0, 24.9),
+    }
+    d = _write_timed(tmp_path, "r1", per_ctx)
+    with caplog.at_level("INFO"):
+        report.log_absolute_saving([d], "gen_steady_tps", "a", "b")
+    assert "not distinguishable from zero" in caplog.text
+    assert "GROWS with context" not in caplog.text

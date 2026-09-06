@@ -321,6 +321,117 @@ def per_frontier_across_runs(
     return dict(out)
 
 
+def absolute_saving_ms(dirs: list[pathlib.Path], column: str) -> dict[int, list[float]]:
+    """ctx -> per-(run, rep) milliseconds per token saved by arm b over arm a.
+
+    The ratio answers "how much faster", which is the right question when a
+    change scales with the work. It is the WRONG question when a change is a
+    fixed cost: on #162's gathered-heads knob the branch removes dispatch
+    overhead on exactly two layers, and `n_keys` is pinned at 128 on those
+    layers regardless of context, so the saving is a constant number of
+    milliseconds per token while the token itself gets slower with context.
+    A constant absolute saving divided by a growing per-token time produces a
+    ratio that shrinks with ctx -- and a ratio that shrinks with ctx is also
+    what a generic context-dependent effect produces. The two are only
+    distinguishable in absolute terms.
+
+    So this reports `1/a - 1/b` in ms per token, paired within a repetition.
+    Flat across frontiers means a fixed cost was removed. Growing with ctx
+    means the effect scales with the work and the fixed-cost story is wrong.
+    """
+    out: dict[int, list[float]] = defaultdict(list)
+    for d in dirs:
+        data = load(d, column)
+        if len(data) != 2:
+            continue
+        a, b = sorted(data)
+        for ctx in sorted(set(data[a]) & set(data[b])):
+            for rep in sorted(set(data[a][ctx]) & set(data[b][ctx])):
+                ta, tb = data[a][ctx][rep], data[b][ctx][rep]
+                if ta > 0 and tb > 0:
+                    out[ctx].append((1.0 / ta - 1.0 / tb) * 1000.0)
+    return dict(out)
+
+
+def saving_is_resolvable(saving: dict[int, list[float]]) -> bool:
+    """Whether the saving is distinguishable from zero at all.
+
+    A shape question about a quantity that is indistinguishable from zero has
+    no answer, and dividing one noise figure by another produces a confident
+    verdict from nothing. On #162's gathered-heads knob the per-frontier
+    median savings were 0.27, 0.01, 0.04, -0.18, -0.10, 0.10, 0.02 and 0.01
+    ms/token -- straddling zero -- and the first version of this printed
+    "GROWS with context: not a fixed per-token cost", which reads as evidence
+    against the mechanism. It was a ratio of two noise figures.
+
+    The test is deliberately blunt: if the per-frontier medians do not all
+    share a sign, there is no saving whose shape can be discussed.
+    """
+    medians = [st.median(v) for v in saving.values() if v]
+    if len(medians) < 3:
+        return False
+    return all(m > 0 for m in medians) or all(m < 0 for m in medians)
+
+
+def saving_trend(saving: dict[int, list[float]]) -> float | None:
+    """Median saving at the top third of frontiers over that at the bottom.
+
+    Deliberately a ratio of two medians of GROUPS, not a fit: with eight
+    frontiers a regression slope reads as more precision than eight noisy
+    points carry. Near 1.0 means the absolute saving is flat -- a fixed cost.
+    Much above 1.0 means it grows with context, which falsifies the
+    fixed-cost mechanism whatever the ratio column does.
+
+    None when the saving is not resolvably nonzero: see
+    `saving_is_resolvable`. A trend computed from noise is worse than no
+    trend, because it looks like a finding.
+    """
+    ctxs = sorted(saving)
+    if len(ctxs) < 3 or not saving_is_resolvable(saving):
+        return None
+    third = max(1, len(ctxs) // 3)
+    low = [v for c in ctxs[:third] for v in saving[c]]
+    high = [v for c in ctxs[-third:] for v in saving[c]]
+    if not low or not high or st.median(low) == 0:
+        return None
+    return st.median(high) / st.median(low)
+
+
+def log_absolute_saving(dirs: list[pathlib.Path], column: str, a: str, b: str) -> None:
+    """Absolute ms/token saved per frontier, and whether it is flat."""
+    saving = absolute_saving_ms(dirs, column)
+    if not saving:
+        return
+    logger.info("-- absolute saving, %s over %s, ms per token --", b, a)
+    logger.info("%-8s %12s %6s %17s", "ctx", "ms/token", "n", "range")
+    for ctx, vals in sorted(saving.items()):
+        logger.info(
+            "%-8d %12.4f %6d %8.4f - %.4f",
+            ctx,
+            st.median(vals),
+            len(vals),
+            min(vals),
+            max(vals),
+        )
+    trend = saving_trend(saving)
+    if trend is None and not saving_is_resolvable(saving):
+        # Say why there is no verdict. Printing nothing here would leave the
+        # table looking like it simply had no shape to report.
+        logger.info(
+            "no trend: the per-frontier savings do not share a sign, so the "
+            "saving is not distinguishable from zero and its shape has no "
+            "answer"
+        )
+    if trend is not None:
+        logger.info(
+            "top-third saving / bottom-third saving: %.2f -- %s",
+            trend,
+            "FLAT: consistent with a fixed cost removed per token"
+            if 0.5 <= trend <= 2.0
+            else "GROWS with context: not a fixed per-token cost",
+        )
+
+
 def log_per_frontier_across_runs(got: list[tuple[pathlib.Path, Summary]]) -> None:
     """Per-frontier median over the runs, with the count and range per row."""
     if len(got) < 2:
@@ -618,6 +729,13 @@ def main(argv: list[str]) -> int:
         logger.info("quote: %s", quotable(runs, prompt))
         logger.info("")
         log_per_frontier_across_runs(runs)
+        # Absolute ms/token beside the ratio: a fixed cost removed and a
+        # context-scaled effect produce the same shrinking ratio, and only
+        # the absolute column separates them (#162).
+        if runs:
+            log_absolute_saving(
+                [d for d, _ in runs], column, runs[0][1].a, runs[0][1].b
+            )
         # Per-run detail below. With one directory this is the whole report.
         outdir, got = runs[0]
         if len(runs) > 1:
