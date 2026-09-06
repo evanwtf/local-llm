@@ -349,6 +349,37 @@ def test_a_five_pass_gap_fails_the_screen():
     assert any("SCREEN FAIL" in ln for ln in lines)
 
 
+def test_the_new_arm_passing_more_is_not_a_gap():
+    """#153: the pass bar is one-directional and abs() made it symmetric.
+
+    Observed on the #138 paired run, 2026-09-05: new 60/60, old 52/60, paired
+    wall 0.56 with a CI excluding 1.0 -- and the reporter printed
+    "closes as a regression at screen resolution". The bug can only fire when
+    the new stack WINS, so no failing screen could ever expose it.
+    """
+    rows = full_rows()
+    for r in rows:
+        if r["backend"] == "qwen38fnds4shim" and r["task"] in set(TASKS[:4]):
+            r["passed"] = False
+    new = sar.tally([r for r in rows if r["backend"] == "qwen38fnds4kimat"])
+    old = sar.tally([r for r in rows if r["backend"] == "qwen38fnds4shim"])
+    assert new["passes"] - old["passes"] >= 5, "fixture must put new well ahead"
+    wall = sar.wall_report([("t", 60.0, 100.0)] * 15)
+    lines = sar.screen_verdict(new, old, wall)
+    assert any("PASS-SIDE: pass gap <= 4" in ln for ln in lines), lines
+    assert not any("SCREEN FAIL" in ln for ln in lines), lines
+    assert any("shortfall 0" in ln for ln in lines), lines
+
+
+def test_the_summary_line_shows_both_pass_counts():
+    """A lead floored to zero must still be visible as two numbers."""
+    rows = full_rows()
+    new = sar.tally([r for r in rows if r["backend"] == "qwen38fnds4kimat"])
+    old = sar.tally([r for r in rows if r["backend"] == "qwen38fnds4shim"])
+    lines = sar.screen_verdict(new, old, sar.wall_report([("t", 90.0, 100.0)] * 15))
+    assert any("passes new" in ln and "old" in ln for ln in lines), lines
+
+
 def test_a_two_fold_wall_slower_fails_the_screen():
     rows = full_rows()
     new = sar.tally([r for r in rows if r["backend"] == "qwen38fnds4kimat"])
@@ -470,3 +501,35 @@ def test_arms_on_different_clients_are_still_void(tmp_path, caplog):
     code, out = run_report(tmp_path, rows, caplog)
     assert "client_version varies across rows" in out, out
     assert code == 2, out
+
+
+def _pair(*ratios: float) -> list[tuple[str, float, float]]:
+    return [(f"t{i}", r, 1.0) for i, r in enumerate(ratios)]
+
+
+def test_every_pair_agreeing_is_reported_as_agreement():
+    got = sar.direction_agrees({1: _pair(0.5, 0.6, 0.7), 2: _pair(0.55, 0.65)})
+    assert got["agree"] is True
+    assert got["direction"] == "new-faster"
+
+
+def test_one_contradicting_pair_breaks_agreement():
+    """The reason the check exists. A pooled 0.58 is equally consistent with
+    four pairs at 0.58 and with three at 0.4 plus one at 1.6; only the second
+    is a reason to hesitate, and pooling cannot tell them apart."""
+    got = sar.direction_agrees({1: _pair(0.4, 0.4), 2: _pair(1.6, 1.7)})
+    assert got["agree"] is False
+    assert got["direction"] == "mixed"
+
+
+def test_a_pair_with_median_exactly_one_is_not_agreement():
+    """A null pair has no direction; counting it as agreement would let it pass
+    a check built to refuse ambiguity."""
+    got = sar.direction_agrees({1: _pair(0.5, 0.5), 2: _pair(1.0, 1.0)})
+    assert got["agree"] is False
+
+
+def test_old_faster_is_named_not_swallowed():
+    got = sar.direction_agrees({1: _pair(1.5, 1.6), 2: _pair(1.4, 1.7)})
+    assert got["agree"] is True
+    assert got["direction"] == "old-faster"

@@ -313,6 +313,64 @@ def pairs_by_task(sweeps: list[Sweep]) -> list[tuple[str, float, float]]:
     return out
 
 
+def pairs_by_sweep(sweeps: list[Sweep]) -> dict[int, list[tuple[str, float, float]]]:
+    """(task, wall_new, wall_old) grouped by sweep NUMBER, not pooled.
+
+    new-sweep2 pairs with old-sweep2. A sweep whose tag carries no digit is
+    skipped rather than guessed into a pair, because guessing is how a paired
+    design stops being paired.
+    """
+    by_n: dict[int, dict[str, dict[str, list[dict[str, Any]]]]] = {}
+    for sweep in sweeps:
+        digits = "".join(c for c in str(sweep.tag) if c.isdigit())
+        if not digits:
+            continue
+        slot = by_n.setdefault(int(digits), {"new": {}, "old": {}})
+        for row in sweep.rows:
+            slot[sweep.arm].setdefault(row.get("task") or "?", []).append(row)
+    out: dict[int, list[tuple[str, float, float]]] = {}
+    for n, slot in sorted(by_n.items()):
+        rows = []
+        for task in sorted(slot["new"]):
+            if task not in slot["old"]:
+                continue
+            wn, wo = task_wall(slot["new"][task]), task_wall(slot["old"][task])
+            if wn is not None and wo is not None:
+                rows.append((task, wn, wo))
+        if rows:
+            out[n] = rows
+    return out
+
+
+def direction_agrees(
+    by_sweep: dict[int, list[tuple[str, float, float]]],
+) -> dict[str, Any]:
+    """Per-pair median ratio, and whether every pair points the same way.
+
+    The pooled ratio cannot answer this: 0.58 pooled is equally consistent with
+    four pairs at 0.58 and with three at 0.4 plus one at 1.6, and only the
+    second is a reason to hesitate. This is #136's three-datapoint rule applied
+    to sweeps. A pair whose median is exactly 1.0 has NO direction -- counting
+    it as agreement would let a null pair pass a check built to refuse
+    ambiguity.
+    """
+    medians = {
+        n: math.exp(statistics.median(math.log(wn / wo) for _, wn, wo in rows))
+        for n, rows in by_sweep.items()
+    }
+    signs = {n: (m < 1.0) for n, m in medians.items() if m != 1.0}
+    agree = len(signs) == len(medians) and len(set(signs.values())) == 1
+    direction = "mixed"
+    if agree and signs:
+        direction = "new-faster" if next(iter(signs.values())) else "old-faster"
+    return {
+        "medians": medians,
+        "n_pairs": len(medians),
+        "agree": agree,
+        "direction": direction,
+    }
+
+
 def wall_report(paired: list[tuple[str, float, float]]) -> dict[str, Any]:
     d = [math.log(n / o) for _, n, o in paired]
     n = len(d)
@@ -395,7 +453,13 @@ def screen_verdict(
 ) -> list[str]:
     """The pre-registered sentences, assembled from the three indicators."""
     completes = new["n"] - new["deaths"]
-    gap = abs(old["passes"] - new["passes"])
+    # One-directional. This bar catches the NEW stack being worse; new passing
+    # MORE than old is the success case, not a "gap". abs() made a lead in
+    # new's favour print "closes as a regression": on 2026-09-05 the #138 run
+    # had new 60/60 and old 52/60 and this line reported gap 8 -> FAIL-SIDE,
+    # the exact inverse of the data. The bug can only fire when the new stack
+    # wins, which is why no failing screen ever exposed it (#153).
+    gap = max(0, old["passes"] - new["passes"])
     indicators = {
         "completes": completes >= COMPLETES_FLOOR,
         "pass gap <= 4": gap <= PASS_GAP_PASS_SIDE,
@@ -407,7 +471,9 @@ def screen_verdict(
         indicators[f"wall ratio <= {WALL_RATIO_PASS_SIDE}"] = wall_ok
     lines = [
         (
-            f"completes {completes}/{new['n']}, gap {gap}, "
+            f"completes {completes}/{new['n']}, "
+            f"passes new {new['passes']} / old {old['passes']} "
+            f"(shortfall {gap}), "
             f"deaths {new['deaths']} ({new['deaths_turn1']} turn-1)"
         )
     ]
@@ -542,6 +608,30 @@ def main(argv: list[str] | None = None) -> int:
             logger.info(
                 "    %-28s %7.1f %7.1f  d %+0.3f", task, wn, wo, math.log(wn / wo)
             )
+    by_sweep = pairs_by_sweep(sweeps)
+    agree = direction_agrees(by_sweep)
+    if agree["n_pairs"] >= 2:
+        logger.info(
+            "per-pair medians (the pooled ratio cannot show this):",
+        )
+        for n, med in sorted(agree["medians"].items()):
+            logger.info(
+                "    pair%-2d lead=%-3s tasks %2d  median %.3f",
+                n,
+                "new" if n % 2 else "old",
+                len(by_sweep[n]),
+                med,
+            )
+        logger.info(
+            "  direction: %s across %d pairs -- %s",
+            agree["direction"],
+            agree["n_pairs"],
+            (
+                "every pair agrees"
+                if agree["agree"]
+                else "PAIRS DISAGREE: the pooled ratio is not a result"
+            ),
+        )
     for line in screen_verdict(new, old, wall):
         logger.info("%s", line)
     return 0
