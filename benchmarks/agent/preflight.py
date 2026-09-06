@@ -884,7 +884,70 @@ def warn_if_ollama_upgrade_changes_the_sampler(
 # spends minutes with the server deliberately down. In that window a process
 # scan truthfully reports "all clear" while the machine is committed to a
 # multi-hour A/B, and a second run started there ruins both.
-LOCK_PATH = pathlib.Path(__file__).resolve().parent.parent.parent / ".run-lock.json"
+#
+# The lock is a claim on a MACHINE, so it lives at a machine-absolute path,
+# never derived from `__file__`. A benchmark launched from a worktree used to
+# resolve `__file__` into that worktree and take `.claude/worktrees/<name>/
+# .run-lock.json` -- a different file from the main checkout's, so two agents
+# each held a lock the other could not see and both reported the machine free
+# (#160). `~/.local-llm-bench/` already holds harness state (the target-repo
+# stash), so the lock joins it there, expanded from the home directory.
+LOCK_PATH = pathlib.Path.home() / ".local-llm-bench" / "run-lock.json"
+
+
+#: The checkouts a legacy `.run-lock.json` could sit in: the main repo and
+#: every worktree under `.claude/worktrees/`. A legacy lock there means a
+#: pre-fix process is still running or someone is on old code -- both worth a
+#: line on the console rather than silence.
+def _main_repo() -> pathlib.Path:
+    """The checkout that owns this module, worktree or not.
+
+    From a worktree, `__file__` resolves into `.claude/worktrees/<name>/`, and
+    the legacy lock that matters sits in the main repo three levels up. Walk
+    up from `__file__` to the first directory that contains `.claude/
+    worktrees` -- that is the main repo. Fall back to the old three-levels-up
+    guess when the marker is absent (a plain checkout).
+    """
+    here = pathlib.Path(__file__).resolve().parent
+    for parent in (here, *here.parents):
+        if (parent / ".claude" / "worktrees").is_dir():
+            return parent
+    return here.parent.parent.parent
+
+
+def _legacy_lock_paths() -> list[pathlib.Path]:
+    repo = _main_repo()
+    paths = [repo / ".run-lock.json"]
+    worktrees = repo / ".claude" / "worktrees"
+    if worktrees.is_dir():
+        paths.extend(worktrees.glob("*/run-lock.json"))
+    return paths
+
+
+_legacy_warned = False
+
+
+def warn_legacy_lock() -> None:
+    """Warn once if a legacy `.run-lock.json` sits in any checkout.
+
+    After the lock moved to `~/.local-llm-bench/run-lock.json`, a legacy lock
+    in a checkout means either a pre-fix process is still running (and holds a
+    lock the new path cannot see) or someone is on old code. Both are worth
+    saying out loud, once, rather than letting the new path read "free".
+    """
+    global _legacy_warned
+    if _legacy_warned:
+        return
+    found = [p for p in _legacy_lock_paths() if p.exists()]
+    if found:
+        _legacy_warned = True
+        logger.warning(
+            "preflight: legacy run lock(s) found in a checkout: %s. The lock "
+            "now lives at %s; a legacy lock means a pre-fix process is still "
+            "running or old code is in use -- check before starting a run",
+            ", ".join(str(p) for p in found),
+            LOCK_PATH,
+        )
 
 
 def _pid_alive(pid: int) -> bool:
@@ -906,6 +969,7 @@ def read_lock(path: pathlib.Path = LOCK_PATH) -> dict[str, object] | None:
     evidence that something went wrong while claiming the machine, which is
     exactly when a second run must not start.
     """
+    warn_legacy_lock()
     try:
         text = path.read_text()
     except FileNotFoundError:
