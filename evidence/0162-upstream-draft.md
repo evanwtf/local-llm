@@ -9,7 +9,7 @@ The measurement below is run 1 of 4, `f309990` against its own parent
 × 3 reps, arm order alternating. It is one datapoint, not a result; runs 2–4
 are queued behind a model download and will replace these numbers.
 
-**Raw data:** `benchmarks/ds4/pr952-f309990-run1/` — six CSVs, one per arm per
+**Raw data:** https://github.com/evanwtf/local-llm/tree/main/benchmarks/ds4/pr952-f309990-run1 — six CSVs, one per arm per
 repetition, every frontier, plus `run-meta.json` with the prompt SHA-256 and
 `engines.txt` with both tree revs.
 
