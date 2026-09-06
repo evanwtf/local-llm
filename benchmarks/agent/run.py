@@ -53,6 +53,7 @@ import plausibility
 import preflight
 import provenance
 import results
+import shim_strip
 import smoke
 import swift_excise
 
@@ -447,10 +448,22 @@ def parse_openai_models(models, backend=None):
     entry, and LM Studio was dropped from `servers` entirely. **A substring
     match against a model name is not a probe.**
 
-    Selection is now, in order: the id the backend declares, then the only
-    entry if there is exactly one. Anything else is ambiguous and returns {}
-    rather than guessing -- picking the wrong row here would attribute one
-    model's context length to another.
+    Selection is, in order: the id the backend declares, then the only entry
+    if there is exactly one, then a single entry whose id is a PREFIX of the
+    declared model -- ds4 forks advertise the loaded model under base aliases
+    ("qwen3.8-flash-next") while the backend names a quant suffix the listing
+    never carries ("qwen3.8-flash-next-q4"), and the base alias is the one
+    entry that prefixes it. Two prefix matches are the ambiguity that stays a
+    refusal to guess.
+
+    No match at all is not silence: the advertisement is recorded as
+    `advertised_models` next to the `requested_model`, because a server that
+    answers has identified itself even when its naming disagrees with the
+    backend's -- ds4's glm-dsa builds advertise "glm-5.2" for glm-5.3 weights.
+    Resolving one of those entries would attribute its context length to a
+    model that may not be the one serving; recording the disagreement leaves
+    the judgement to the reader. A row with an `advertised_models` entry is
+    stamped, not unstamped: the server talked, and said what it is.
 
     Records `accepts_sampling` (the parameters the API takes) and an explicit
     note that the effective values are unreported. That distinction is the
@@ -464,8 +477,22 @@ def parse_openai_models(models, backend=None):
     entry = next((d for d in data if str(d.get("id", "")) == wanted), None)
     if entry is None and len(data) == 1:
         entry = data[0]
+    if entry is None and wanted:
+        prefixed = [
+            d
+            for d in data
+            if str(d.get("id", "")) and str(wanted).startswith(str(d["id"]))
+        ]
+        if len(prefixed) == 1:
+            entry = prefixed[0]
     if entry is None:
-        return {}
+        ids = [str(d.get("id")) for d in data if d.get("id")]
+        if not wanted or not ids:
+            return {}
+        return {
+            "advertised_models": ids,
+            "requested_model": str(wanted),
+        }
 
     got = {"sampling": {}, "sampling_source": DS4_SAMPLER_NOTE}
     if entry.get("id"):
@@ -488,8 +515,15 @@ def parse_ds4_models(models):
 
 
 def probe_openai_models(backend):
-    """Ask an OpenAI-compatible server what it is serving. {} on any failure."""
-    url = backend.get("base_url")
+    """Ask an OpenAI-compatible server what it is serving. {} on any failure.
+
+    A backend behind the Claude Code shims names the real server in
+    `models_url`: those shims answer POST only, so a GET to `base_url` dies
+    against the shim and the row would come out unstamped while the upstream
+    was perfectly askable (#78). Same idea as `props_url`, for the same
+    GET-blind shims.
+    """
+    url = backend.get("models_url") or backend.get("base_url")
     if not url:
         return {}
     request = urllib.request.Request(
@@ -646,13 +680,17 @@ def metal_ceiling_mb():
         return None
 
 
-def capture_versions(cfg, backends):
+def capture_versions(cfg, backends, allow_unstamped=False):
     """Record the software stack, once, into every row of this run.
 
     Without this, results.jsonl is undated evidence: six months on there is no
     way to attribute a row to a Claude Code version, an Ollama build, or a
     model that has since been re-pushed under the same tag. Prose in a report
     drifts away from the data; this travels with it.
+
+    Refuses (SystemExit) when a backend with a base_url answers no identity
+    probe, unless `allow_unstamped` -- see the refusal block below for why the
+    escape exists and how it is recorded.
     """
 
     def out(cmd):
@@ -786,6 +824,32 @@ def capture_versions(cfg, backends):
     # that says which one it is rather than implying the app version.
     if any((b.get("base_url") or "").endswith(":1234") for b in backends.values()):
         env["lmstudio_cli"] = out(["lms", "--version"])
+        # #78: the app version has no CLI source, but `lms runtime ls` names
+        # the runtimes the app selected -- the engine that actually served,
+        # llama.cpp and its version among them. That is the identity the app's
+        # own version number cannot give, and the one the backend comparison
+        # turns on: LM Studio is a wrapper whose runtime is llama.cpp, so the
+        # runtime is the build the rows must name. An absence that is written
+        # down stops being a gap.
+        try:
+            listing = run(["lms", "runtime", "ls"], cwd=None, timeout=30).stdout
+            selected = [
+                line.split("✓")[0].strip()
+                for line in listing.splitlines()
+                if "✓" in line
+            ]
+        # Provenance must never take a run down (see `out` above).
+        except Exception:
+            selected = []
+        if selected:
+            env["lmstudio_runtimes"] = ", ".join(selected)
+
+    # #78: `mtplx --version` identifies the engine behind the :8010 backend
+    # the way `ollama --version` identifies :11434. The trace files carry no
+    # engine version of their own, so without this the rows name a tool that
+    # has no build to look up.
+    if any(str(b.get("model") or "").startswith("mtplx") for b in backends.values()):
+        env["mtplx"] = out(["mtplx", "--version"])
 
     # One probe per backend, keyed by name, because a run can span several and
     # each row records which one it used.
@@ -815,6 +879,17 @@ def capture_versions(cfg, backends):
             servers[name]["metal_route"] = route
         if route != ds4_route.UNRECORDED:
             env.setdefault("metal_route", route)
+        # #78: which scaffolding-strip arm served this row -- the switch the
+        # 112 A/B alternated without recording, leaving the arms separable
+        # only by a hand-kept manifest. Same pattern as the route above: the
+        # shim writes its arm when it starts, the harness reads it back and
+        # refuses to guess. No record for the port means no strip-shim fronts
+        # this backend, and the row says nothing at all: a missing key must
+        # not read as "unrecorded", which is reserved for a shim whose arm
+        # could not be verified.
+        strip = shim_strip.strip_for(port)
+        if strip is not None and name in servers:
+            servers[name]["strip"] = strip
     routes = {
         s["metal_route"] for s in servers.values() if s.get("metal_route")
     } - {ds4_route.UNRECORDED}
@@ -831,23 +906,36 @@ def capture_versions(cfg, backends):
 
     # #78: every gap in this record arrived the same way -- a backend was added,
     # no probe covered it, and the rows came out unstamped in silence. LM Studio
-    # went six backends' worth of comparison with no server identity at all, and
-    # GLM-5.3 lost its `servers` entry to a substring match. Say so on the row.
+    # went six backends' worth of comparison with no server identity at all,
+    # GLM-5.3 lost its `servers` entry to a substring match, and MTPLX ran 22
+    # trials that cannot name their engine. So the run now refuses by default:
+    # a row that cannot name the engine that served it must not be published.
     #
-    # A warning, not a refusal: this is provenance, and the surrounding probes
-    # are all documented as never taking a trial down. But an explicit absence
-    # is a warning where silence is not -- the same reason `sampling_source`
-    # records "engine defaults (unrecorded)" rather than omitting the key.
+    # The escape exists because a refusal that fires on a working
+    # configuration gets switched off under time pressure -- #148's rule, and
+    # #149's first gate did exactly that to the model we use most. When the
+    # escape is used the gap is recorded on the row under
+    # `servers_unidentified`: an escape that leaves no trace is the gap
+    # wearing a flag. After this change that key can only exist on a row whose
+    # run passed --allow-unstamped; on older rows it meant only a warning.
     unstamped = sorted(
         name
         for name, b in backends.items()
         if b.get("base_url") and name not in servers
     )
     if unstamped:
+        if not allow_unstamped:
+            raise SystemExit(
+                f"no server identity for {', '.join(unstamped)} -- refusing to "
+                "run (#78). A row that cannot name the engine that served it "
+                "must not be published. Start the server, fix the probe it "
+                "does not answer, or pass --allow-unstamped to record the gap "
+                "on the row instead."
+            )
         env["servers_unidentified"] = unstamped
         logger.warning(
             "no server identity for %s -- rows will not name the engine that "
-            "served them (#78)",
+            "served them (#78, --allow-unstamped)",
             ", ".join(unstamped),
         )
 
@@ -2249,6 +2337,45 @@ def speculative_preconditions(backends, server_log, ps_text=None):
     return None
 
 
+def tensor_gate(backends):
+    """Why this run's llama.cpp would prefill on the wrong units, or None.
+
+    #78: ggml-org/llama.cpp#27461 shipped a build where the Metal tensor API
+    failed on **every** M5 -- compiled against a Metal language version that
+    did not expose its headers, `has_tensor` cleared during device init, and
+    prefill quietly running matmuls on general-purpose ALUs instead of the
+    M5's Neural Accelerators. No error, no failed test; one warning line at
+    startup. We build with GGML_METAL_EMBED_LIBRARY=ON and so were unaffected
+    -- a build flag, not a law, and #27461 also added a guard that clears
+    `has_tensor` when the library comes from a pre-compiled metallib.
+
+    Preflight has logged that line for weeks, and #149 already wrote the
+    lesson: a log line nobody reads as a warning is not a gate.
+
+    `False` -- the binary ran and said the tensor API is off -- refuses.
+    `None` -- no llama.cpp binary, no Metal, or a probe that failed -- must
+    not: a run on Ollama or ds4 has no stake in llama.cpp's kernels, and a
+    gate that fires on a working configuration gets switched off under time
+    pressure (#148's rule).
+    """
+    if not any(
+        (b.get("base_url") or "").endswith((":8020", ":11500"))
+        for b in backends.values()
+    ):
+        return None
+    if preflight.metal_tensor_api() is False:
+        return (
+            "llama.cpp's Metal tensor API is off, so prefill will run on "
+            "general-purpose ALUs instead of the M5's Neural Accelerators "
+            "(#78). The failure is silent -- one warning at device init, no "
+            "error, no failed test (llama.cpp#27461) -- and a build-flag "
+            "change is all it takes. Rebuild with GGML_METAL_EMBED_LIBRARY=ON "
+            "and confirm `llama-bench --list-devices` reports "
+            "`has tensor = true`."
+        )
+    return None
+
+
 def require_draft_default(backends):
     """Assert draft acceptance by default whenever an arm declares it.
 
@@ -2828,6 +2955,15 @@ def main():
         "route is unverified and want the rows anyway -- they will say so.",
     )
     p.add_argument(
+        "--allow-unstamped",
+        action="store_true",
+        help="start a run although a backend answers no identity probe (#78). "
+        "The run refuses by default because a row that cannot name the engine "
+        "that served it must not be published; this flag is for the case where "
+        "you know the gap is there and want the rows anyway -- they will carry "
+        "`servers_unidentified` and say so.",
+    )
+    p.add_argument(
         "--targets",
         choices=("legacy", "sandbox"),
         default="legacy",
@@ -3021,6 +3157,13 @@ def main():
                 "row will be able to say the route was checked (#149)"
             )
 
+    # #78: the llama.cpp twin of the ds4 gate above. Same failure shape, same
+    # fix: the tensor API's being off is silent, so nothing but a refusal says
+    # it. Runs before the smoke gate because it needs no model resident --
+    # llama-bench --list-devices is the whole probe.
+    if (why := tensor_gate(backends)) is not None:
+        raise SystemExit(f"REFUSING: {why}")
+
     # #63: preflight proves the machine is ready; this proves the *model* is.
     # A backend can be up, current, and pristine while answering in a degraded
     # mode -- on 2026-08-31 a shim rewrote thinking to `disabled` and a GLM cell
@@ -3086,7 +3229,7 @@ def main():
         # pid liveness and not this is what makes a stale lock recoverable.
         atexit.register(lambda: logger.info("%s", preflight.release_lock()[1]))
 
-    versions = capture_versions(cfg, backends)
+    versions = capture_versions(cfg, backends, allow_unstamped=args.allow_unstamped)
     versions["client"] = ",".join(clients)
 
     # #54: every target at a known commit that exists upstream, with no strays,

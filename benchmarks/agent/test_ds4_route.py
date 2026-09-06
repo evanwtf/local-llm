@@ -162,6 +162,9 @@ def _env(monkeypatch, backends, routes):
     monkeypatch.setattr(run, "probe_server", lambda b: {"served_model_id": "x"})
     monkeypatch.setattr(run, "probe_ollama", lambda b: {})
     monkeypatch.setattr(run, "probe_openai_models", lambda b: {})
+    # No strip-shim in these fixtures; stubbed so a record this machine
+    # happens to hold cannot stamp a row here.
+    monkeypatch.setattr(run.shim_strip, "strip_for", lambda port, **kw: None)
     return run.capture_versions({"base_commit": "abc"}, backends)
 
 
