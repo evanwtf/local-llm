@@ -1,0 +1,9 @@
+# run 2 of 4, launched 2026-09-06T11:12:29 EDT
+# harness: scripts/decode_ab_engine.sh main /Users/evanhoffman/git/ds4-main pr964 /Users/evanhoffman/git/ds4-pr964-new /Users/evanhoffman/git/ds4/gguf/GLM-5.3-Flash-Q2.gguf
+# fans (read only, never set):
+{"fans":[{"actual_rpm":3458,"index":0,"max_rpm":5349,"min_rpm":1350,"mode":"auto","target_rpm":3455},{"actual_rpm":3731,"index":1,"max_rpm":5777,"min_rpm":1350,"mode":"auto","target_rpm":3731}]}
+# thermals at launch:
+2026-09-06 11:12:29,615 INFO [167c866-dirty@M5-Max-128GB] {"die_max_c": 67.55, "die_mean_c": 66.28, "sensors": 42, "fan0_rpm": 3458, "fan0_mode": "auto", "fan1_rpm": 3731, "fan1_mode": "auto", "fan_rpm_max": 3731, "utc": "2026-09-06T15:12:29Z", "local": "11:12:29 EDT"}
+# finished: 2026-09-06T11:21:36 EDT
+# thermals at finish:
+2026-09-06 11:21:36,965 INFO [167c866@M5-Max-128GB] {"die_max_c": 66.99, "die_mean_c": 65.53, "sensors": 42, "fan0_rpm": 3455, "fan0_mode": "auto", "fan1_rpm": 3728, "fan1_mode": "auto", "fan_rpm_max": 3728, "utc": "2026-09-06T15:21:36Z", "local": "11:21:36 EDT"}
