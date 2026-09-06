@@ -102,6 +102,7 @@ def new_row(
     run_position: int | None = None,
     run_arms: int | None = None,
     target_layout: str = "legacy",
+    batch: str | None = None,
 ) -> dict[str, Any]:
     """Start a row. Both exclusion keys are set explicitly from birth."""
     return {
@@ -142,6 +143,12 @@ def new_row(
         # "legacy" is what every row so far is. Not in REQUIRED: rows before
         # 2026-09-05 predate it.
         "target_layout": target_layout,
+        # #175. Which batch a row belongs to, so a read-out can select one
+        # batch exactly instead of approximating "the rows from this run" by
+        # time. Not in REQUIRED: rows before 2026-09-06 predate it, and
+        # `validate` runs on read, so demanding it would retroactively condemn
+        # them. Absent means "not established", never "same as now".
+        "batch": batch,
         "excluded": False,
         "exclusion_reason": None,
     }

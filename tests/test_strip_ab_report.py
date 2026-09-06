@@ -9,6 +9,7 @@ run them.
 from __future__ import annotations
 
 import datetime
+import json
 import logging
 import math
 import pathlib
@@ -180,4 +181,126 @@ def test_a_voided_batch_refuses_the_read_out(tmp_path, caplog):
     assert rc != 0
     assert "past-until" in caplog.text
     assert "run 3" in caplog.text
+    assert "A/B read-out" not in caplog.text
+
+
+# --- #175: the batch id -----------------------------------------------------
+#
+# The manifest can hold more than one batch, and a read-out that does not say
+# which one it wants pools them -- this morning's rows into tonight's totals,
+# with no error. The guard must live in the tool, not in whoever runs it
+# remembering to pass a flag. The fixture is tonight's real manifest, which
+# spans two batches (0906-0743 this morning, 0906-1716 tonight).
+
+TWO_BATCH_MANIFEST = [
+    {
+        "run": 1,
+        "arm": "legacy",
+        "started": "2026-09-06T11:43:33Z",
+        "ended": "2026-09-06T12:15:52Z",
+        "dir": "/tmp/146-targets-legacy-0906-0743-run1",
+    },
+    {
+        "run": 2,
+        "arm": "sandbox",
+        "started": "2026-09-06T12:16:00Z",
+        "ended": "2026-09-06T13:21:10Z",
+        "dir": "/tmp/146-targets-sandbox-0906-0743-run2",
+    },
+    {
+        "run": 1,
+        "arm": "legacy",
+        "started": "2026-09-06T21:16:36Z",
+        "ended": "2026-09-06T22:02:36Z",
+        "dir": "/tmp/146-targets-legacy-0906-1716-run1",
+    },
+    {
+        "run": 2,
+        "arm": "sandbox",
+        "started": "2026-09-06T22:02:51Z",
+        "ended": "2026-09-06T22:58:39Z",
+        "dir": "/tmp/146-targets-sandbox-0906-1716-run2",
+    },
+]
+
+
+def test_batch_of_reads_the_batch_out_of_the_dir():
+    assert report.batch_of(TWO_BATCH_MANIFEST[0]) == "0906-0743"
+    assert report.batch_of(TWO_BATCH_MANIFEST[2]) == "0906-1716"
+    assert report.batch_of({"dir": "/tmp/a"}) is None
+
+
+def test_a_two_batch_manifest_refuses_without_a_batch(tmp_path, caplog):
+    """A manifest spanning two batches must refuse, naming both, rather than
+    pool them. This morning's contaminated rows would otherwise pool into
+    tonight's totals with no error."""
+    manifest = tmp_path / "manifest.jsonl"
+    manifest.write_text("\n".join(json.dumps(e) for e in TWO_BATCH_MANIFEST) + "\n")
+    results = tmp_path / "results.jsonl"
+    results.write_text("")
+    with caplog.at_level(logging.INFO):
+        rc = report.main(["--results", str(results), "--manifest", str(manifest)])
+    assert rc != 0
+    assert "0906-0743" in caplog.text
+    assert "0906-1716" in caplog.text
+    assert "A/B read-out" not in caplog.text
+
+
+def test_a_batch_argument_reads_out_only_that_batch():
+    """With --batch, only that batch's rows are counted; the other batch's
+    rows are not pooled."""
+    rows = [
+        {"started": "2026-09-06T21:30:00Z", "passed": True, "batch": "0906-1716"},
+        {"started": "2026-09-06T22:30:00Z", "passed": True, "batch": "0906-1716"},
+        {"started": "2026-09-06T12:00:00Z", "passed": True, "batch": "0906-0743"},
+    ]
+    filtered = [e for e in TWO_BATCH_MANIFEST if report.batch_of(e) == "0906-1716"]
+    out, unmapped = report.outcomes(rows, filtered, batch="0906-1716")
+    assert out["legacy"]["trials"] == 1
+    assert out["sandbox"]["trials"] == 1
+    assert unmapped == 0
+
+
+def test_a_row_without_a_batch_field_maps_by_window():
+    """Old rows carry no batch field. They must still map by time window
+    against the batch's manifest, so old data keeps working."""
+    rows = [{"started": "2026-09-06T21:30:00Z", "passed": True}]
+    filtered = [e for e in TWO_BATCH_MANIFEST if report.batch_of(e) == "0906-1716"]
+    out, unmapped = report.outcomes(rows, filtered, batch="0906-1716")
+    assert out["legacy"]["trials"] == 1
+    assert unmapped == 0
+
+
+def test_a_row_from_another_batch_without_a_batch_field_is_not_pooled():
+    """A row from this morning with no batch field must not pool into
+    tonight's totals: against the filtered manifest it falls outside every
+    window and is counted unmapped, not attributed to an arm."""
+    rows = [{"started": "2026-09-06T12:00:00Z", "passed": True}]
+    filtered = [e for e in TWO_BATCH_MANIFEST if report.batch_of(e) == "0906-1716"]
+    out, unmapped = report.outcomes(rows, filtered, batch="0906-1716")
+    assert out == {}
+    assert unmapped == 1
+
+
+def test_a_batch_that_matches_nothing_is_refused(tmp_path, caplog):
+    """A --batch that matches no run must refuse, not read out empty. An
+    empty read-out reads as 'no failures', which is the wrong kind of
+    silence."""
+    manifest = tmp_path / "manifest.jsonl"
+    manifest.write_text("\n".join(json.dumps(e) for e in TWO_BATCH_MANIFEST) + "\n")
+    results = tmp_path / "results.jsonl"
+    results.write_text("")
+    with caplog.at_level(logging.INFO):
+        rc = report.main(
+            [
+                "--results",
+                str(results),
+                "--manifest",
+                str(manifest),
+                "--batch",
+                "9999-9999",
+            ]
+        )
+    assert rc != 0
+    assert "9999-9999" in caplog.text
     assert "A/B read-out" not in caplog.text

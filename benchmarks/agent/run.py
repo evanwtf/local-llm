@@ -2436,6 +2436,7 @@ def one_trial(
     target_layout="legacy",
     draft_probe=None,
     require_draft=False,
+    batch=None,
 ):
     target = task_target(cfg, task)
     repo = pathlib.Path(target["repo"]).expanduser()
@@ -2492,6 +2493,7 @@ def one_trial(
         run_position=run_position,
         run_arms=run_arms,
         target_layout=target_layout,
+        batch=batch,
     )
 
     # A previous run killed mid-flight leaves its directory behind. Clear it so
@@ -2985,6 +2987,13 @@ def main():
         "the same checkout the batch ran from. The two arms of sweep 1 were "
         "not running the same code, which voids the comparison on its own.",
     )
+    p.add_argument(
+        "--batch",
+        default=None,
+        help="the batch id (e.g. 0906-1716) to stamp on every row, so a "
+        "read-out can select one batch exactly instead of approximating "
+        "'the rows from this run' by time (#175).",
+    )
     args = p.parse_args()
 
     if args.require_harness_head:
@@ -3307,6 +3316,7 @@ def main():
                             if args.require_draft or args.no_require_draft
                             else require_draft_default(backends)
                         ),
+                        batch=args.batch,
                     )
                     # Inside the client loop. Outside it, only the last
                     # client's row survives and half the run vanishes.

@@ -137,12 +137,12 @@ run_one() {
     (cd "$REPO" && uv run python benchmarks/agent/run.py \
         --backend qwen38fnds4shim --trials 1 --client opencode --no-lock \
         --allow-implausible --results "$RESULTS" \
-        --require-harness-head "$HEAD_SHA" \
+        --require-harness-head "$HEAD_SHA" --batch "$BATCH" \
         > "$LOGDIR/run$n-$arm.log" 2>&1) || \
         echo "[$(date +%H:%M:%S)] run $n exited non-zero; keeping what it wrote"
     mv "$BENCH_LOGS"/*qwen38fnds4shim-opencode-1* "$dir/" 2>/dev/null || true
-    printf '{"run":%d,"arm":"%s","started":"%s","ended":"%s","dir":"%s"}\n' \
-        "$n" "$arm" "$started" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$dir" >> "$MANIFEST"
+    printf '{"run":%d,"arm":"%s","started":"%s","ended":"%s","dir":"%s","batch":"%s"}\n' \
+        "$n" "$arm" "$started" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$dir" "$BATCH" >> "$MANIFEST"
     echo "[$(date +%H:%M:%S)] run $n done, $(ls "$dir" | wc -l | tr -d ' ') transcripts"
 }
 
