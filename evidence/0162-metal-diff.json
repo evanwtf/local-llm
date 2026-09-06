@@ -405,6 +405,36 @@
         "blob": "16257bd295043c68ffa6e6bebcfbb3ccd25b2e6e"
       },
       "falsifier": "If the branch arm is not faster, or if the ratio does not shrink monotonically with ctx, the pre-registered expectation is falsified and the knob has no resolvable effect."
+    },
+    {
+      "id": "one-knob-suffices",
+      "statement": "One knob fully reverts the observable difference for this model even though two variables touch the n_comp==0 layers. Setting DS4_METAL_DISABLE_DECODE_RAW_GATHERED_ATTN routes n_comp==0 layers to the raw-only path (ds4_metal.m:38408), so the packed32 relaxation gated by DS4_METAL_DISABLE_DECODE_RAW_PACKED32 (ds4_metal.m:36774) never applies to them. For n_comp!=0 layers, n_comp != 0u is already true on main, so the relaxation changes nothing there either. The gathered-heads knob A/B therefore needs only the one DISABLE var.",
+      "argv": [
+        "git",
+        "grep",
+        "-n",
+        "-e",
+        "DS4_METAL_DISABLE_DECODE_RAW_GATHERED_ATTN",
+        "-e",
+        "DS4_METAL_DISABLE_DECODE_RAW_PACKED32",
+        "77a054e1",
+        "--",
+        "ds4_metal.m"
+      ],
+      "cwd": "/Users/evanhoffman/git/ds4-main-b",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0,
+        "stdout_contains": "DS4_METAL_DISABLE_DECODE_RAW_PACKED32"
+      },
+      "observed": {
+        "exit": 0,
+        "stdout": "77a054e1:ds4_metal.m:36774:         getenv(\"DS4_METAL_DISABLE_DECODE_RAW_PACKED32\") == NULL) &&\n77a054e1:ds4_metal.m:38408:             getenv(\"DS4_METAL_DISABLE_DECODE_RAW_GATHERED_ATTN\") != NULL)) {"
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "If setting GATHERED_ATTN did not route n_comp==0 layers raw-only, or if the packed32 relaxation applied to n_comp!=0 layers, one knob would not fully revert the observable difference and the A/B would need a second variable."
     }
   ]
 }

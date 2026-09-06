@@ -125,6 +125,34 @@ def test_presence_knob_has_no_admission_signal():
         mk.validate("gathered-heads", "unset", "1")
 
 
+def test_arm_cmd_presence_on_unsets():
+    """The on arm of a presence knob must unset the var, not assign it. This is
+    the branch the shell drives: `env -u VAR`, never `VAR=value`."""
+    cmd = mk.arm_cmd("gathered-heads", "on", "unset")
+    assert cmd == "-u DS4_METAL_DISABLE_DECODE_RAW_GATHERED_ATTN"
+    assert "=" not in cmd
+
+
+def test_arm_cmd_presence_off_assigns():
+    assert mk.arm_cmd("gathered-heads", "off", "1") == (
+        "DS4_METAL_DISABLE_DECODE_RAW_GATHERED_ATTN=1"
+    )
+
+
+def test_arm_cmd_non_presence_assigns():
+    assert mk.arm_cmd("session-union", "on", "1") == (
+        "DS4_METAL_REQUIRE_Q4_SSD_SESSION_UNION=1"
+    )
+    assert mk.arm_cmd("session-union", "off", "0") == (
+        "DS4_METAL_REQUIRE_Q4_SSD_SESSION_UNION=0"
+    )
+
+
+def test_arm_cmd_unknown_label_refused():
+    with pytest.raises(SystemExit, match="arm label"):
+        mk.arm_cmd("session-union", "middle", "1")
+
+
 def test_default_on_knob_off_var_differs_from_on_var():
     """A default-on knob's off arm must use the DISABLE var, not the REQUIRE
     var. If they were the same, the off arm would set REQUIRE=0, which does

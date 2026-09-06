@@ -23,6 +23,14 @@ take the raw-only path in both arms. So for a presence knob `on_var == off_var`
 of the `off_var != on_var` rule that guards the assignment-based exact-rows
 shape.
 
+One knob suffices even though two variables touch the n_comp==0 layers. The
+second, `DS4_METAL_DISABLE_DECODE_RAW_PACKED32` (ds4_metal.m:36774), relaxes
+`packed_shape` for n_comp==0 layers, but setting GATHERED_ATTN routes those
+layers raw-only, so `packed_shape` never applies to them and the relaxation is
+moot. For n_comp!=0 layers, `n_comp != 0u` is already true on main, so the
+relaxation changes nothing there either. One variable fully reverts the
+observable difference for this model.
+
 The three helpers disagree on the empty string (metal_graph_tp_env_flag returns
 the default, ds4_gpu_exact_rows_persistent_env_enabled returns false,
 ds4_gpu_env_bool returns on), so an empty value is refused. The refusal runs
@@ -192,6 +200,24 @@ def presence(knob: str) -> bool:
     return bool(KNOBS[knob].get("presence", False))
 
 
+def arm_cmd(knob: str, label: str, value: str) -> str:
+    """The env prefix for an arm: `-u VAR` (presence on) or `VAR=value`.
+
+    The shell runs `env $prefix ./ds4-bench ...`, so the on arm's argv is a
+    pure function of the knob table. A presence knob's on arm must unset the
+    var, not assign it; any other arm assigns. The value is the on/off value
+    the driver was given, so the prefix carries the exact arm construction.
+    """
+    if label not in ("on", "off"):
+        raise SystemExit(
+            f"REFUSING: unknown arm label '{label}' (expected 'on' or 'off')"
+        )
+    var = on_var(knob) if label == "on" else off_var(knob)
+    if label == "on" and presence(knob):
+        return f"-u {var}"
+    return f"{var}={value}"
+
+
 def fail_closed_error(knob: str) -> str:
     """The fail-closed error string for a knob, or '' when it has no REQUIRE."""
     return str(KNOBS[knob]["fail_error"])
@@ -235,6 +261,13 @@ def main(argv: list[str] | None = None) -> int:
     )
     p.add_argument("knob")
 
+    a = sub.add_parser(
+        "arm-cmd", help="print the env prefix for an arm: -u VAR or VAR=value"
+    )
+    a.add_argument("knob")
+    a.add_argument("label")
+    a.add_argument("value")
+
     s = sub.add_parser("admission-signal", help="print the admission signal for a knob")
     s.add_argument("knob")
 
@@ -251,6 +284,8 @@ def main(argv: list[str] | None = None) -> int:
         logger.info(off_var(args.knob))
     elif args.cmd == "presence":
         logger.info("1" if presence(args.knob) else "0")
+    elif args.cmd == "arm-cmd":
+        logger.info(arm_cmd(args.knob, args.label, args.value))
     elif args.cmd == "admission-signal":
         logger.info(admission_signal(args.knob))
     else:
