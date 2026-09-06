@@ -21,6 +21,7 @@ than this project measures. Two engines shipped double-digit improvements in a
 | **@Spangler3000** | [X](https://x.com/Spangler3000) · [GitHub](https://github.com/jonathan308) | oMLX Metal kernels (QSA, DFlash2) | Densest Metal-kernel signal in the field. His PRs are why oMLX leads on prefill — **and prefill is our bottleneck** (#14, #50, ds4#816). |
 | **@jundotkim** | [X](https://x.com/jundotkim) · [GitHub](https://github.com/jundot) · [omlx.ai](https://omlx.ai) | oMLX author | oMLX 0.6.4: PP 32k **834 → 1114 tok/s**, TG **40 → 46**. Untested here (#60). |
 | **@ggerganov** | [X](https://x.com/ggerganov) · [GitHub](https://github.com/ggerganov) | llama.cpp / ggml author | **We run llama.cpp and its author was not on this list.** Ships backend releases and MTP serve flags — #77 is blocked on mainline having a `qwen4exp` MTP flag with no graph behind it, which is exactly his surface. Verified post 2026-09-01. |
+| **@korale77** | [X](https://x.com/korale77) · [GitHub](https://github.com/korale77) · [eclaire-labs](https://github.com/eclaire-labs) · [eclaire.co](https://eclaire.co) | ds4 on an M5 Max 128 GB | **Our engine, our machine, our models.** The only account posting ds4 numbers on an M5 Max 128 GB other than Flor1an-B below, and unlike him he posts them on X rather than in ds4 issues. Verified 2026-09-01: GLM-5.3-Flash Q2 on **ds4 with vision, M5 Max 128 GB**, `ctx=120128 ... avg=17.32 t/s` on Auto power. Verified 2026-09-03: DeepSeek-V4-Flash Vision **18–20 t/s at 200k context**. Verified 2026-08-19: Qwen3.8-27B 4-bit + DFlash2 at **68–89 t/s**, depending on thinking level. His GitHub holds a **`ds4` fork pushed 2026-09-06** and [`mlx-vlm-kv-bench`](https://github.com/korale77/mlx-vlm-kv-bench), independent benchmarks of TurboQuant and TriAttention KV-cache work in MLX-VLM. **Single runs, and "Auto power" is an uncontrolled thermal state** — #58 puts ~4% of throughput on thermal state alone, so these are leads to re-measure, not baselines. ~6 GitHub followers, ~190 on X: exactly the account the volume rule below exists to protect. |
 
 ## Tier 2 — check weekly
 
@@ -42,12 +43,16 @@ than this project measures. Two engines shipped double-digit improvements in a
 | **@TheDavidTai** | [X](https://x.com/TheDavidTai) · [GitHub](https://github.com/davidtai) · [davidt.ai](https://davidt.ai) | Runner and drafting optimization — MTPLX PR #391 (Qwen 3.8 Flash Next **50 → 85 t/s**), Qwen 3.8 27B at **113 t/s** via adaptive DFlash2 + mlx.fast. **Mostly replies; originals arrive in bursts** — a sweep of his last 12 posts found 10 replies, 2 quotes, 0 originals, so judge him on a week, not a day. Ties @Youssofal_'s MTPLX to @jundotkim's oMLX. |
 | **@0xkydo** | [X](https://x.com/0xkydo) · [MLX Fast leaderboard](https://www.yukon.org/mlxfast) · [engine](https://github.com/Layr-Labs/mlxfast-gemma4-26b-a4b-engine) | Kydo, Eigen Labs. Runs **MLX Fast**, a public leaderboard for making **Gemma 4 26B A4B** run faster on Apple Silicon — the thing @TheDavidTai's entry above already referenced before we documented it. `mlx.fast` redirects to `yukon.org/mlxfast`; the second is canonical. Top entry is **+130.8% over baseline — 573.7 tok/s decode, 6,940.6 tok/s prefill**, and Google's own @googlegemma amplified it on 2026-09-01. Official runs pair baseline and candidate on the same Mac under a thermal gate, eight prompts in one batch — a better method than most claims we see. **Two things to hold in mind.** It scores `prefill^0.25 · decode^0.75`, so decode carries three quarters of the rank, and decode rate is the one metric this project has measured three times as non-predictive of agent wall time — **`gemma4` is the backend that forced that finding**: it emits fewer tokens than qwen3.8 and still finishes last at 355.4s. And the leaderboard's model is **26B A4B, which we do not hold** — our gemma4 numbers are a 31B mxfp8 build, so nothing we have measured is a baseline for it. Engine is Swift, four stars, first pushed 2026-09-01. **The lead is real and unmeasured here**: #16 has been waiting on a non-Qwen backend since 2026-08-27, and this is a live, Google-endorsed push to make exactly that backend fast. #16, #60. |
 | **@yukonresearch** | [X](https://x.com/yukonresearch) · [yukon.org](https://yukon.org/) · [MLX Fast](https://www.yukon.org/mlxfast) | **Yukon**, an Eigen Labs project and the platform @0xkydo's leaderboard runs on -- "open frontier research", 1.2k followers, opened 2025-11. It runs several tracks at once (`mlxfast`, `matrices.fast`, `lighter.fast`, `better.codes`) with a weekly $10K pool. **Read it for two things.** First, the Apple Silicon track history: they cite Laguna XS 2.1 and then **Qwen 3.8 27B, which they say gained on day one from MTP and reached 3x in two weeks** -- that is our model class, and MTP is exactly what #77 is blocked on and #83 is asking about, so their claim is checkable here rather than admirable at a distance. Second, the **method**: one shared harness, only verified movement scores, and every submission enters a **public lineage tree that keeps the failures searchable** so later entrants start at the frontier instead of rediscovering dead ends. That is the practice this project reaches for whenever it archives a wrong result, done deliberately and at scale, and it is worth copying. **Their numbers are decode and prefill on a shared harness**, so the standing caveat applies -- we have measured three times that a headline rate does not predict agent wall time. A new frontier-model track was teased for early September. #60, #77, #80. |
-| **@thdxr** | [X](https://x.com/thdxr) | Builds **OpenCode** — the client every agent row in this repo is recorded against. #137 was a client-version confound: two opencode versions mixed into one cell before anyone noticed, and the fix was recording `client_version` per row. A release feed for the client is the cheapest way to see the next one coming. Judge on releases, not TUI features. Verified post 2026-09-05. |
-| **@trymirai** | [X](https://x.com/trymirai) | **uzu**, an Apple-only inference engine (#134). Posts M5-series **speculative decoding** numbers against MTPLX and llama.cpp — the comparison #19 and #39 ask for, on our chip generation. Verified 2026-09-03 post announces spec-dec for Qwen3.6 27B with Qwen3.8 27B "coming soon". Their claim, unmeasured here. |
+| **@thdxr** | [X](https://x.com/thdxr) · [GitHub](https://github.com/thdxr) | Builds **OpenCode** — the client every agent row in this repo is recorded against. #137 was a client-version confound: two opencode versions mixed into one cell before anyone noticed, and the fix was recording `client_version` per row. A release feed for the client is the cheapest way to see the next one coming. Judge on releases, not TUI features. Verified post 2026-09-05. |
+| **@trymirai** | [X](https://x.com/trymirai) · [GitHub](https://github.com/trymirai) · [uzu](https://github.com/trymirai/uzu) | **uzu**, an Apple-only inference engine (#134). Posts M5-series **speculative decoding** numbers against MTPLX and llama.cpp — the comparison #19 and #39 ask for, on our chip generation. Verified 2026-09-03 post announces spec-dec for Qwen3.6 27B with Qwen3.8 27B "coming soon". Their claim, unmeasured here. |
 | **@UnslothAI** | [X](https://x.com/UnslothAI) · [GitHub](https://github.com/unslothai) | Dynamic GGUF quants and local-run recipes (#119). Verified 2026-09-04 post claims GLM-5.3-Flash "3.3x faster locally", 1.6-3.4x via optimized decoding **plus multi-token prediction**, and a **3-bit build for 128 GB machines**. Both halves are ours: #20 is the memory tier, #77 is MTP. **Their claim, and a decode-rate claim** — measured three times here as non-predictive of agent wall time. |
-| **@YJesus** | [X](https://x.com/YJesus) | Cross-engine benchmarker on M3 Ultra 256 GB. **Runs ds4.** Verified 2026-08-29 post puts llama.cpp, mlx-serve, MTP and ds4 side by side on one machine, as a reply to @ddalcu and @ivanfioravanti — already inside our existing sources' conversation. M3 Ultra, not M5 Max: the ranking transfers, the numbers do not. |
-| **@Eschalabs** | [X](https://x.com/Eschalabs) | 2-bit quants with custom MLX Metal kernels, **prefix caching**, M5 Pro batch numbers. Prefill is our bottleneck (#14, #50) and prefix caching is the lever. Verified post 2026-08-11 — the oldest of this batch, so confirm volume before relying on it. |
-| **@mweinbach** | [X](https://x.com/mweinbach) | Max Weinbach. M5 Metal kernel work. Verified 2026-08-25 post covers a **packed-INT4 Metal 4.1 path** and MLX Fast runs. Metal 4 tensor kernels are live for us: #138's arms both auto-enable the tensor route on M5, and `DS4_METAL_ENABLE_TENSOR` accumulate drift is a known hazard (#149). **High volume (~305k followers, posts constantly)** — see the volume rule below; do not let him run inside the same undifferentiated gather as the small accounts. |
+| **@YJesus** | [X](https://x.com/YJesus) · [GitHub](https://github.com/YJesus) | Cross-engine benchmarker on M3 Ultra 256 GB. **Runs ds4.** Verified 2026-08-29 post puts llama.cpp, mlx-serve, MTP and ds4 side by side on one machine, as a reply to @ddalcu and @ivanfioravanti — already inside our existing sources' conversation. M3 Ultra, not M5 Max: the ranking transfers, the numbers do not. |
+| **@Eschalabs** | [X](https://x.com/Eschalabs) · [GitHub](https://github.com/Eschalabs) · [escha-mlx](https://github.com/Eschalabs/escha-mlx) | 2-bit quants with custom MLX Metal kernels, **prefix caching**, M5 Pro batch numbers. Prefill is our bottleneck (#14, #50) and prefix caching is the lever. Verified post 2026-08-11 — the oldest of this batch, so confirm volume before relying on it. |
+| **@mweinbach** | [X](https://x.com/mweinbach) · [GitHub](https://github.com/mweinbach) | Max Weinbach. M5 Metal kernel work. Verified 2026-08-25 post covers a **packed-INT4 Metal 4.1 path** and MLX Fast runs. Metal 4 tensor kernels are live for us: #138's arms both auto-enable the tensor route on M5, and `DS4_METAL_ENABLE_TENSOR` accumulate drift is a known hazard (#149). **High volume (~305k followers, posts constantly)** — see the volume rule below; do not let him run inside the same undifferentiated gather as the small accounts. |
+| **@13scoobie** | [X](https://x.com/13scoobie) · [GitHub](https://github.com/13scoobie) | David White. **Runs our exact model on an M5 Max, on an engine we have never tested.** Verified 2026-08-06: DeepSeek-V4-Flash **0731 on an M5 Max via oMLX** — prompt processing **272 tok/s**, generation **14 tok/s**. oMLX has been the untested prefill leader since #60, and this is the only outside oMLX number on 0731 we hold. The verified post says "M5 max" without a memory size; the 128 GB attribution is grok's, not his. Also ran Qwen3.8-Flash-Next oQ4 **MTP on mlx-serve**, ~19.9 tok/s, OOM after ~3 hours — an MTP failure mode worth knowing before #77. Verified 2026-08-30 post amplifies @ddalcu's `llmprobe`. **Quiet since 2026-08-30**; ~25–35 items in the 30 days to 2026-09-06, effectively no NVIDIA content. GitHub is a fork collection rather than original work, and it forks `ddalcu/llmprobe` — which is what ties the two accounts to one person. |
+| **@0xZKnw** | [X](https://x.com/0xZKnw) · [GitHub](https://github.com/0xZKnw) · [mlxl3](https://github.com/0xZKnw/mlxl3) · [HF](https://huggingface.co/0xzknw) · [0xzknw.tech](https://0xzknw.tech) | **MLXL3 — EXL3 inference on Apple Silicon in MLX with custom Metal kernels**, shipping fast (v0.4.6 by 2026-09-05, verified). Verified 2026-09-02: LFM2.5-8B-A1B at **3.1 bpw, ~95 tok/s decode in ~4 GB on a 10-core M5**. **The mechanism is the lead, not the number** — an 8B on a base M5 says nothing about a 27B MoE here, but trellis/EXL3 quantization on Metal is the same ground @0xSero writes up for NVIDIA, running natively for once. Also forks `Eschalabs/escha-mlx`. ~60 followers, ~12 on GitHub: another account the volume rule protects. |
+| **@Brooooook_lyn** | [X](https://x.com/Brooooook_lyn) · [GitHub](https://github.com/Brooooooklyn) · [HF](https://huggingface.co/Brooooooklyn) · [mlx-node](https://github.com/mlx-node/mlx-node) · [lyn.one](https://lyn.one) | LongYinan, author of napi.rs. **Publishes MXFP4/MXFP8 dynamic MLX checkpoints** — verified 2026-08-15, [Qwen3.8-27B-MXFP4-mlx](https://huggingface.co/Brooooooklyn/Qwen3.8-27B-MXFP4-mlx) — and **our NEW arm is an MXFP4Down build**, so this is our own quantization axis with someone else's weights on it. Verified 2026-08-25: **"M5Max is already faster than DGX Spark in prefill"**, which is our bottleneck (#14, #50) and our machine. Verified 2026-08-17: **"MTP and concurrent inference cannot both be had"** — a constraint claim, unmeasured here, that bears on #19 and #77. Posts in Chinese and English; a real fraction of the feed is JS/Rust tooling and personal, so read for the MLX posts. |
+| **@no_stp_on_snek** | [X](https://x.com/no_stp_on_snek) · [GitHub](https://github.com/TheTom) · [llama-cpp-turboquant](https://github.com/TheTom/llama-cpp-turboquant) · [turboquant_plus](https://github.com/TheTom/turboquant_plus) | Tom Turney. **TurboQuant KV-cache compression, shipped as a llama.cpp fork with Metal and CUDA kernels** (2.3k★, pushed daily) — llama.cpp is our fast pick's engine and KV cache is the prefill lever (#14, #50). Also building `atlas`, a Rust inference engine. **Owns an M5 Max, an RTX 5090 and a DGX Spark, and the window leans NVIDIA — roughly 60/40 against us** (verified 2026-09-03 technical original is DeepSeek-V4-Flash on the Spark). He has said he will want Metal testers. **High volume, ~200–400 items in 30 days and mostly short replies** — the volume rule below applies to him as it does to @mweinbach; read the repo before the feed. |
 
 ## Tier 3 — occasional
 
@@ -61,6 +66,7 @@ than this project measures. Two engines shipped double-digit improvements in a
 | **@DiganiJagrit** | [X](https://x.com/DiganiJagrit) · [GitHub](https://github.com/jagrit06) | MLX team, Apple. |
 | **@trebolloc** | [X](https://x.com/trebolloc) · [GitHub](https://github.com/andresy) · [ronan.collobert.com](https://ronan.collobert.com) | Ronan Collobert — OG Torch, MLX team, Apple. |
 | **@bleysg** | [X](https://x.com/bleysg) · [GitHub](https://github.com/bleys) | Mac vs DGX Spark arguments — heat, occasionally light. GitHub is a **probable** match — name and `Auto-GPT` corroborate, not confirmed. |
+| **@atomic_chat_hq** | [X](https://x.com/atomic_chat_hq) · [GitHub](https://github.com/AtomicBot-ai) · [HF](https://huggingface.co/AtomicChat) · [atomic.chat](https://atomic.chat) | **Atomic Chat — a company, not a person.** A local-first agent over llama.cpp and MLX ([`atomic-agent`](https://github.com/AtomicBot-ai/atomic-agent) 2.5k★, [`Atomic-Chat`](https://github.com/AtomicBot-ai/Atomic-Chat) 1.4k★), an `atomic-quantizer`, a **`llama-cpp-turboquant` nightly fork**, and "Atomic Dynamic" GGUF + MLX quants on Hugging Face. Verified 2026-08-26, their claim: **1-bit Qwen3.8-Flash-Next (79 GB) on an M5 Max 64 GB at 30 tok/s, inside an 8-minute agent loop** — our model, our endpoint, and a memory tier below ours (#20). **Read the quants and the repos, not the feed**: about half the window is rented 4x RTX PRO 6000 demos and product promotion, and the Mac numbers are single vendor demos. |
 | — | [mlx-community](https://huggingface.co/mlx-community) | Where weights appear first. |
 
 ---
@@ -253,8 +259,13 @@ Two mitigations, either acceptable:
 - **Split the query.** Gather high-volume accounts in their own call, so a
   quiet week from the small accounts is legible instead of invisible.
 
-**@mweinbach is the first account this applies to.** Later high-volume
-additions belong in the same bucket, named in this file so the reason survives.
+**Both examples above are now in the file**, which is what makes the rule
+concrete: @0xZKnw and @korale77 are entries the sweep must not lose, and the
+same 2026-09-06 batch added @no_stp_on_snek at 200-400 items in 30 days.
+
+**@mweinbach and @no_stp_on_snek are the accounts this applies to.** Later
+high-volume additions belong in the same bucket, named in this file so the
+reason survives.
 
 ## Where the 2026-09-05 additions came from
 
@@ -263,9 +274,50 @@ Seven accounts -- @ggerganov, @thdxr, @trymirai, @UnslothAI, @YJesus,
 reading feeds. Every representative post was verified for existence and
 authorship (19/19, `scripts/verify_posts.py`), but **the descriptions of what
 each account habitually posts are grok's characterization, not a read of their
-timeline.** Issue #152 holds the full list, including eight candidates pending
-a 30-day activity check and four judged off-axis. Treat these seven as leads
+timeline.** Issue #152 holds the full list. Treat these seven as leads
 promoted on one verified post each, and demote any that does not earn its place.
+
+## Where the 2026-09-06 additions came from
+
+The twelve accounts #152 left undecided were resolved on 2026-09-06. Each was
+checked three ways: **30 days of X activity** to 2026-09-06, **a GitHub or
+Hugging Face identity** confirmed against the profile rather than guessed from a
+matching name, and **the Apple-silicon share of the output** against NVIDIA,
+cloud or phone-NPU work. Sixteen representative posts verified, 16/16
+(`scripts/verify_posts.py`, `logs/sweeps/verify-posts-M5-Max-128GB-20260906T043150Z.log`).
+
+**Six added:** @korale77 (Tier 1), @13scoobie, @0xZKnw, @Brooooook_lyn,
+@no_stp_on_snek (Tier 2), @atomic_chat_hq (Tier 3).
+
+**Six not added, with the reason, so nobody re-proposes them:**
+
+| handle | why not |
+|---|---|
+| @Badtheorylabs | Company in Lagos. **No Apple-silicon content on X in the 30-day window** — the runtime figure they quote is 43 tok/s on an RTX PRO 6000. [`Macaw`](https://github.com/Badtheorylabs/Macaw), an MLX 4-bit macOS agent, is real but last pushed 2026-08-08 and never reaches the feed. Nothing to sweep. |
+| @OrcaRouter | Company. A **hosted API router** is the product; local MLX weights are maybe 10–20% of the feed, and the 4-bit build they push needs 200 GB. Wrong machine, wrong regime. |
+| @trycua | Company. llama.cpp Metal **inside Apple-silicon VMs**, on M1 Ultra. Virtualization is not our regime and the numbers would not transfer. |
+| @lmstudio | Company. It does maintain [`lmstudio-ai/mlx-engine`](https://github.com/lmstudio-ai/mlx-engine) and ships GGUF/MLX quants, but the feed is ~45% Bionic **cloud** agent news and only ~25% local Mac inference. We run neither the app nor the engine. |
+| @sanchitmonga22 | Individual — Sanchit Monga, RunAnywhere. Genuinely technical, but ~35% phone **NPU/ANE**, ~25% cloud coding agents, and only ~15% single-Mac Metal/MLX. At 150–250 items in 30 days he would spend the gather budget on the wrong execution path. #123 stays the place to ask the ANE question. |
+| @glaforge | Individual — Guillaume Laforge, Google. **Zero** MLX, Metal, llama.cpp or Apple-silicon posts in the window; the feed is Gemini Java and Kotlin SDKs. The single M4 Pro benchmark in #152 was from July and is not a source. |
+
+**What the check actually caught.** Two accounts #152 filed as plausible are
+the strongest finds in the batch — @korale77 runs **ds4 on an M5 Max 128 GB**
+and @13scoobie ran **DeepSeek-V4-Flash 0731 on oMLX** on the same machine — and
+one grok called Apple-silicon, @Badtheorylabs, has no Apple content on X at all.
+**Follower count predicted nothing**: the two closest accounts have ~190 and
+~170 followers, and the three largest in the batch were all rejected.
+
+**Identity is corroborated, not assumed.** @13scoobie's GitHub is a security
+engineer's fork list with no LLM work of its own; it is linked because it forks
+`ddalcu/llmprobe`, which is the tool his own verified 2026-08-30 post promotes.
+`github.com/mweinbach` is a **name match only** — the repos are agent and Swift
+tooling, not the Metal kernel work his X account posts.
+
+**No repo was added to the watch table.** [`TheTom/llama-cpp-turboquant`](https://github.com/TheTom/llama-cpp-turboquant),
+[`0xZKnw/mlxl3`](https://github.com/0xZKnw/mlxl3) and
+[`Eschalabs/escha-mlx`](https://github.com/Eschalabs/escha-mlx) each earn a look,
+but that table is rendered from `WATCHED` in `scripts/upstream_sweep.py` and
+adding a row is a change to the sweep's cost, not a note. Decide it on its own.
 
 **A gather is not evidence of a quiet field until the balance is checked.** On
 2026-09-05 the X gather returned one post from seven accounts in 24 hours and
