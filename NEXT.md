@@ -23,12 +23,12 @@ gone** — not the fastest engine. Decode rate has failed three times to predict
 agent wall time, so a speed claim ranks below a defect that makes a real
 session slow, wrong, or unmeasurable.
 
-**One axis only: local model performance for coding agents, on this Mac.** 82
-issues are open. Ten of them carry only the `Nvidia` label and three more are
-shared; the Linux/RTX tier is a fallback plan, not this queue, and nothing from
-it appears below. Neither does anything that is a lead rather than a task —
-roughly thirty open issues are unmeasured claims from the sweep, and they wait
-in the tracker until one of them is worth a run.
+**One axis only: local model performance for coding agents, on this Mac.** 62
+issues are open, down from 82: **twenty leads were closed on 2026-09-06**, each
+with the reason on the issue, because a tracker nobody can read is not a
+backlog. Seven of the survivors carry only the `Nvidia` label and three more
+are shared; the Linux/RTX tier is a fallback plan, not this queue, and nothing
+from it appears below.
 
 ## Priority labels
 
@@ -39,7 +39,7 @@ and they drift the moment this file is re-ranked without them.
 - **`P0`** (4) — blocks or invalidates measurement. Do before anything that needs the machine. Items 1-3 below.
 - **`P1`** (7) — the rest of the top 10. Items 4-10.
 - **`P2`** (42) — a real task with a stated reason it is not now: the "below the line" items, harness defects nobody is blocked on, ops and housekeeping, and the Linux/RTX tier.
-- **`P3`** (29) — a lead. Somebody else's unverified claim about a quant, an engine, or an MTP number. **A lead earns a run by beating a P1 on expected information, not by being new.**
+- **`P3`** (9) — a lead. Somebody else's unverified claim about a quant, an engine, or an MTP number. **A lead earns a run by beating a P1 on expected information, not by being new.** Twenty more were closed on 2026-09-06; what is left is the set with a mechanism attached to one of our own models or engines.
 
 The invariant: **`P0` + `P1` is exactly the top 10**, so
 `gh issue list --label P0 --label P1` and the list below can be checked against
@@ -166,9 +166,10 @@ in the ten.
 ## Not queued
 
 - **[#40](https://github.com/evanwtf/local-llm/issues/40)** Mixed-precision GLM-5.3 — right question, behind a working agent path. Has a recipe from ds4#964 and local numbers from [#118](https://github.com/evanwtf/local-llm/issues/118).
-- **The sweep backlog** — roughly thirty open issues are somebody else's unverified claim: new quants, new engines, new MTP numbers. They are leads, and `SOURCES.md` says how they are gathered. One earns a run when it beats item 4 on expected information, not because it is new.
+- **The sweep backlog** — nine open issues are somebody else's unverified claim, down from twenty-nine. They are leads, and `SOURCES.md` says how they are gathered. One earns a run when it beats item 4 on expected information, not because it is new.
+- **Twenty leads closed on 2026-09-06**, each with its reason on the issue. Four umbrellas absorbed most of them: #60 (the engine survey) took #18, #57, #72, #105, #115; #19 (does native MTP retire the mtplx stack?) took #86, #117, #121, #122, #139; #20 took the 12 GB tier's #113 and #124; #126 took #150. The rest closed on their own analysis: #51 and #95 had already concluded "do not spend a measurement slot", #88 was corroboration without a number, #114 was **finished** and its write-up is in `hardware/Ryzen9-7900X-32GB-RTX3080Ti-12GB/RESULTS.md`. **Closed is not rejected** — reopening one costs nothing, and the sweep will resurface anything that starts mattering.
 - **GLM thinking/tool-replay** (ds4#894, #897, #899, #904, #906) — defects we would inherit while ds4#569 and #816 stand.
-- **Anything on the Linux/RTX tier** — 13 open issues carry the `Nvidia` label. Different machine, different queue.
+- **Anything on the Linux/RTX tier** — 10 open issues carry the `Nvidia` label. Different machine, different queue.
 - **Vision, vector steering, ROCm** — out of scope, and not shipped.
 - **More trials on saturated cells** — new axes, not more samples.
 
