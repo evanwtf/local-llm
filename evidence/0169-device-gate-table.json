@@ -1,0 +1,91 @@
+{
+  "schema": "local-llm/evidence-2",
+  "task": "device-gate-table",
+  "issue": 169,
+  "agent": "peer-deepseek-v4-flash",
+  "agent_model": "deepseek-v4-flash",
+  "agent_effort": "unidentified",
+  "repo": "/Users/evanhoffman/git/local-llm/.claude/worktrees/peer+169",
+  "authored_at": "2026-09-06T21:47:20Z",
+  "statement": "Every device-class gate in the ds4 engine, what it guards, and whether an M5 Max takes it. Source-read only; no measurement. Line numbers are ds4_metal.m / ds4.c at upstream main 9ab70534. The machine is an Apple M5 Max, so ds4_gpu_device_is_pre_m5_apple_silicon() (ds4_metal.m:2766, matches 'Apple M1'..'Apple M4' by device-name prefix) is false and ds4_gpu_device_is_m5_apple_silicon() (ds4_metal.m:2774) is true. The one number: 26 distinct Metal optimizations in upstream main are gated to pre-M5 Apple silicon and the M5 Max takes none of them; 10 of those sit in prefill. The giorgio/aprojq4-dense-attention tip (77a054e1, 20d5dff6 visible) adds 6 more pre-M5-only gates, all in prefill, the Q4_K dense attention-projection family that PR #952 is named for (the subject of this issue). A gate tells you a path did not dispatch on this machine; it does not tell you the path would have been faster here.",
+  "provenance": {
+    "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+    "trees": {
+      "/Users/evanhoffman/git/ds4-main": "9ab70534",
+      "/Users/evanhoffman/git/ds4-pr952": "77a054e1 (20d5dff6 visible)"
+    },
+    "binaries": {}
+  },
+  "claims": [
+    {
+      "id": "pre-m5-only-count",
+      "statement": "26 distinct Metal optimizations in upstream main 9ab70534 are gated to pre-M5 Apple silicon and the M5 Max takes none. The pre-M5-only gates: ds4.c 23514 (KV rope FP8 store fuse), 27927 (Q2 decode split2_32), 28009 (early-split3), 28021 (early-split5), 28063 (decode pipeline fast lookup), 28126 (second split schedule); ds4_metal.m 7581/9434 (head RMS/RoPE tail pipeline, one optimization, two call sites), 27518 (persistent zero attention mask decode), 39947 (MXFP4 MoE decode NSG1), 40150 (MXFP4 MoE decode TG multiple), 43002 (MXFP4 MoE MM-ID pair swiglu compact tile), 43019 (MXFP4 MoE MM-ID map scatter), 43039 (MXFP4 MoE MM-ID pair tail simdgroup cull), 43051 (MXFP4 MoE MM-ID down tail simdgroup cull), 43069 (MXFP4 MoE MM-ID down half LUT), 43174 (MXFP4 MoE MM-ID pair half scale), 2406 (zero-prefix prefill mask cache), 21962 (HC RMS scale project), 23366 (compressor APE add fuse), 24125 (compressor ratio4 pack fusion), 24171 (compressor ratio4 direct pool), 29177 (shared KV pad), 33918 (router weights batch fusion), 44974 (output HC weights4), 45907 (GLM-5.3 BF16 NSG decode), 46001 (GLM-5.3 BF16 QKV).",
+      "argv": [
+        "git",
+        "grep",
+        "-n",
+        "ds4_gpu_device_is_pre_m5_apple_silicon",
+        "9ab70534",
+        "--",
+        "ds4.c",
+        "ds4_metal.m"
+      ],
+      "cwd": "/Users/evanhoffman/git/ds4-main",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0
+      },
+      "observed": null,
+      "expect_authored": "post-hoc",
+      "falsifier": "If any of the 26 listed gates is actually M5-admitting (the enclosing condition admits M5 Max by some route the read missed), the count is wrong. The read is a source enumeration, so the falsifier is a re-read of the enclosing condition for each listed line, not a runtime check."
+    },
+    {
+      "id": "prefill-list",
+      "statement": "10 of the 26 pre-M5-only optimizations sit in prefill: the six MXFP4 MoE MM-ID prefill kernels (ds4_metal.m 43002, 43019, 43039, 43051, 43069, 43174), the zero-prefix prefill mask cache (2406), the compressor APE add fuse (23366), the shared KV pad (29177), and the router weights batch fusion (33918). The remaining 16 sit in decode.",
+      "argv": [
+        "git",
+        "grep",
+        "-n",
+        "ds4_gpu_device_is_pre_m5_apple_silicon",
+        "9ab70534",
+        "--",
+        "ds4_metal.m"
+      ],
+      "cwd": "/Users/evanhoffman/git/ds4-main",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0
+      },
+      "observed": null,
+      "expect_authored": "post-hoc",
+      "falsifier": "If any of the 10 listed prefill gates is actually in decode (or vice versa), the prefill list is wrong. The phase is read from the enclosing function name (encode = prefill, decode = decode)."
+    },
+    {
+      "id": "tip-adds-six",
+      "statement": "The giorgio/aprojq4-dense-attention tip (77a054e1, 20d5dff6 visible) adds 6 more pre-M5-only gates, all in prefill, none present in upstream main 9ab70534: ds4_gpu_stream_expert_prefill_nocache_auto (ds4_metal.m:14410), ds4_gpu_try_q4_K_prefill_pair_f16_rhs (24094), ds4_gpu_prepare_q4_attn_q_b_transient_f16 (27760), ds4_gpu_prepare_q4_attn_q_b_f16_sidecars (27946), ds4_gpu_attn_q_b_f16_head_rms_rope_tail_tensor_impl (28270), ds4_gpu_attn_q_b_transient_f16_head_rms_rope_tail_tensor (28649). With the tip the count is 32 distinct pre-M5-only optimizations, 16 in prefill.",
+      "argv": [
+        "git",
+        "grep",
+        "-n",
+        "ds4_gpu_device_is_pre_m5_apple_silicon",
+        "77a054e1",
+        "--",
+        "ds4_metal.m"
+      ],
+      "cwd": "/Users/evanhoffman/git/ds4-pr952",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0
+      },
+      "observed": null,
+      "expect_authored": "post-hoc",
+      "falsifier": "If any of the 6 tip gates is present in upstream main 9ab70534, or is M5-admitting, the 'adds on top' claim is wrong. Verified by git grep -l on 9ab70534: none of the six function names appears there."
+    }
+  ]
+}
