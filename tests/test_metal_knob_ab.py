@@ -56,8 +56,10 @@ def test_valid_arm_accepts():
 def test_every_known_knob_accepts_a_valid_arm():
     for knob in mk.KNOBS:
         off = "1" if mk.KNOBS[knob]["default_on"] else "0"
+        # A presence knob's on arm unsets the var, so it carries the sentinel.
+        on = "unset" if mk.presence(knob) else "1"
         # A knob with no admission signal needs the explicit acknowledgment.
-        mk.validate(knob, "1", off, acknowledge_no_signal=not mk.has_admission_signal(knob))
+        mk.validate(knob, on, off, acknowledge_no_signal=not mk.has_admission_signal(knob))
 
 
 def test_no_signal_knob_refused_without_ack():
@@ -93,12 +95,71 @@ def test_default_on_knob_valid_off_arm_accepts():
     mk.validate("exact-rows", "1", "1")
 
 
+def test_presence_knob_assignment_on_arm_refused():
+    """gathered-heads is presence-based: the on arm must unset the DISABLE var
+    (`env -u`), not assign it. `=0` still counts as set and would take the
+    raw-only path in both arms, so an assignment on arm is a wrong arm by
+    construction."""
+    with pytest.raises(SystemExit, match="presence-based"):
+        mk.validate("gathered-heads", "1", "1")
+
+
+def test_presence_knob_unset_sentinel_accepts():
+    """The on arm carries the sentinel 'unset' (the driver's `${2:?on value}`
+    needs a non-empty positional); the off arm sets the DISABLE var nonzero."""
+    mk.validate("gathered-heads", "unset", "1", acknowledge_no_signal=True)
+
+
+def test_presence_knob_off_value_zero_refused():
+    """gathered-heads is on by default, so the off arm must be a nonzero
+    DISABLE value, not `0`."""
+    with pytest.raises(SystemExit, match="on by default"):
+        mk.validate("gathered-heads", "unset", "0", acknowledge_no_signal=True)
+
+
+def test_presence_knob_has_no_admission_signal():
+    """gathered-heads has no REQUIRE spelling, so it has no fail-closed error
+    and no admission signal. It must be refused without the acknowledgment."""
+    assert mk.admission_signal("gathered-heads") == "none"
+    with pytest.raises(SystemExit, match="no admission signal"):
+        mk.validate("gathered-heads", "unset", "1")
+
+
+def test_arm_cmd_presence_on_unsets():
+    """The on arm of a presence knob must unset the var, not assign it. This is
+    the branch the shell drives: `env -u VAR`, never `VAR=value`."""
+    cmd = mk.arm_cmd("gathered-heads", "on", "unset")
+    assert cmd == "-u DS4_METAL_DISABLE_DECODE_RAW_GATHERED_ATTN"
+    assert "=" not in cmd
+
+
+def test_arm_cmd_presence_off_assigns():
+    assert mk.arm_cmd("gathered-heads", "off", "1") == (
+        "DS4_METAL_DISABLE_DECODE_RAW_GATHERED_ATTN=1"
+    )
+
+
+def test_arm_cmd_non_presence_assigns():
+    assert mk.arm_cmd("session-union", "on", "1") == (
+        "DS4_METAL_REQUIRE_Q4_SSD_SESSION_UNION=1"
+    )
+    assert mk.arm_cmd("session-union", "off", "0") == (
+        "DS4_METAL_REQUIRE_Q4_SSD_SESSION_UNION=0"
+    )
+
+
+def test_arm_cmd_unknown_label_refused():
+    with pytest.raises(SystemExit, match="arm label"):
+        mk.arm_cmd("session-union", "middle", "1")
+
+
 def test_default_on_knob_off_var_differs_from_on_var():
     """A default-on knob's off arm must use the DISABLE var, not the REQUIRE
     var. If they were the same, the off arm would set REQUIRE=0, which does
-    not turn the cache off."""
+    not turn the cache off. A presence knob is the exception: its on arm unsets
+    the same DISABLE var the off arm sets, so on_var == off_var is correct."""
     for meta in mk.KNOBS.values():
-        if meta["default_on"]:
+        if meta["default_on"] and not meta.get("presence", False):
             assert meta["off_var"] != meta["on_var"]
         else:
             assert meta["off_var"] == meta["on_var"]

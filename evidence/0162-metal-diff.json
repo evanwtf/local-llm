@@ -1,0 +1,441 @@
+{
+  "schema": "local-llm/evidence-2",
+  "task": "metal-diff-9ab7053-77a054e1",
+  "issue": 162,
+  "agent": "peer-deepseek-v4-flash",
+  "agent_model": "deepseek-v4-flash",
+  "agent_effort": "unidentified",
+  "repo": "/Users/evanhoffman/git/local-llm/.claude/worktrees/peer+162-metal-diff",
+  "authored_at": "2026-09-06T15:30:00-04:00",
+  "statement": "What the 218 commits between 9ab7053 and 77a054e1 change on the Metal path, and which of those the #162 run executes. The run's GGUF (DeepSeek-V4-Flash-Layers37-42Q4KExperts-OtherExpertLayersIQ2XXSGateUp-Q2KDown-AProjQ8-SExpQ8-OutQ8) carries F32, F16, Q8_0, IQ2_XXS, Q2_K, Q4_K and I32 tensors and NO mxfp4 (gguf_meta.py --tensors: 492 F32, 359 F16, 345 Q8_0, 74 IQ2_XXS, 37 Q2_K, 18 Q4_K, 3 I32). The gate enumeration below is sound but incomplete: it lists the gates that EXCLUDE the M5 Max, and there is also a helper that INCLUDES it, ds4_gpu_ported_m5_decode_feature_enabled (ds4_metal.m:3619), whose flash_attn_packed32_reduce call site condition changed in the diff (ds4_metal.m:36769) -- a decode-path change on M5 the enumeration missed. The diff on the IQ2_XXS and Q4_K matvec kernels is large and was NOT characterized: kernel_mul_mv_q4_K_f32_impl grew 94 to 429 lines, kernel_mul_mv_iq2_xxs_pair_f32_impl 6 to 141, kernel_mul_mv_q4_K_dense_f32 6 to 244, kernel_mul_mv_addr_iq2_xxs_pair_swiglu_f32 6 to 160. Two specific changes are numerically identical (the dequantize_iq2_xxs precomputed half table, and the Q4_K silu -> ds4_silu swap), but that does not imply the whole executed path is numerically identical, and numerical identity is independent of performance anyway. The packed32 decode path the diff widens is live at every #162 frontier: n_keys = n_raw + n_comp, n_raw is the 128-token sliding window (not ctx), and n_keys <= 1024 holds for the uncompressed and ratio-128 layers at all frontiers (see n-keys-bounded-not-ctx). So a flat result would not be because the widened path never ran. Whether a flat #162 result means 'no effect' or 'the code never ran' cannot be settled from source at this diff size. It can be settled empirically and cheaply: decode_ab_engine.sh now writes a per-arm startup log beside each CSV, and diffing the two arms' logs turns 'the trees ran different code' into an observation.",
+  "provenance": {
+    "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+    "trees": {
+      "/Users/evanhoffman/git/ds4-main-b": "9ab7053",
+      "/Users/evanhoffman/git/ds4-pr952": "77a054e1"
+    },
+    "binaries": {}
+  },
+  "claims": [
+    {
+      "id": "dequantize-iq2xxs-refactor",
+      "statement": "dequantize_iq2_xxs changed from a uint8 grid table scaled by 0.25 to a precomputed half-precision table (ds4_metal_iq2xxs_half_values[256][8]). The new table is exactly grid*0.25 (0/2048 mismatches, checked by unpacking both tables; the peer independently decoded grid[1] low byte 0x2b=43 -> 10.75 = 0x4960 and grid[2] low byte 0x19=25 -> 6.25 = 0x4640). The dequantized values are identical. This is on the production path: the GGUF has IQ2_XXS gate/up tensors.",
+      "argv": [
+        "git",
+        "grep",
+        "-c",
+        "ds4_metal_iq2xxs_half_values",
+        "77a054e1",
+        "--",
+        "metal/moe.metal"
+      ],
+      "cwd": "/Users/evanhoffman/git/ds4-main-b",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0,
+        "stdout_contains": "metal/moe.metal:3"
+      },
+      "observed": {
+        "exit": 0,
+        "stdout": "77a054e1:metal/moe.metal:3"
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "If the new half table is not exactly grid*0.25, the dequantization is numerically different and the 'identical refactor' claim collapses."
+    },
+    {
+      "id": "dequantize-025-removed",
+      "statement": "The runtime 0.25f factor was removed from dl in dequantize_iq2_xxs: the old code had 'd * (0.5f + (aux32_s >> 28)) * 0.25f' (1 occurrence at 9ab7053), the new code has no such factor (0 occurrences at 77a054e1). The 0.25 was folded into the precomputed half table.",
+      "argv": [
+        "git",
+        "grep",
+        "-F",
+        "-c",
+        "0.5f + (aux32_s >> 28)) * 0.25f",
+        "9ab7053",
+        "--",
+        "metal/moe.metal"
+      ],
+      "cwd": "/Users/evanhoffman/git/ds4-main-b",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0,
+        "stdout_contains": "metal/moe.metal:1"
+      },
+      "observed": {
+        "exit": 0,
+        "stdout": "9ab7053:metal/moe.metal:1"
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "If the old code did not carry the 0.25f factor, the refactor claim loses its evidence."
+    },
+    {
+      "id": "dequantize-025-gone-new",
+      "statement": "The 0.25f factor is absent from the new dequantize_iq2_xxs: grep for '0.5f + (aux32_s >> 28)) * 0.25f' returns 0 at 77a054e1.",
+      "argv": [
+        "git",
+        "grep",
+        "-F",
+        "-c",
+        "0.5f + (aux32_s >> 28)) * 0.25f",
+        "77a054e1",
+        "--",
+        "metal/moe.metal"
+      ],
+      "cwd": "/Users/evanhoffman/git/ds4-main-b",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit_nonzero": true
+      },
+      "observed": {
+        "exit": 1,
+        "stdout": ""
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "If the new code still carries the 0.25f factor, the factor was not removed and the refactor claim collapses."
+    },
+    {
+      "id": "q4k-silu-stable",
+      "statement": "The Q4_K pair_swiglu kernels (kernel_mul_mv_addr_q4_K_pair_swiglu_f32, kernel_mul_mv_slots6_q4_K_pair_swiglu_f32) changed their silu from the inline g/(1.0f+exp(-g)) to ds4_silu(g). ds4_silu is a numerically-stable sigmoid (ds4_sigmoid_stable uses exp(-fabs(x)) to avoid overflow), identical for normal-range inputs. This is ONE change on the Q4_K path; it is not the only one (see q4k-matvec-hunks).",
+      "argv": [
+        "git",
+        "grep",
+        "-F",
+        "-c",
+        "ds4_silu(g)",
+        "77a054e1",
+        "--",
+        "metal/moe.metal"
+      ],
+      "cwd": "/Users/evanhoffman/git/ds4-main-b",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0,
+        "stdout_contains": "metal/moe.metal:19"
+      },
+      "observed": {
+        "exit": 0,
+        "stdout": "77a054e1:metal/moe.metal:19"
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "If the Q4_K pair_swiglu kernels do not call ds4_silu, the silu change is not on the Q4_K path."
+    },
+    {
+      "id": "q4k-silu-old-inline",
+      "statement": "The old code used the inline silu g/(1.0f+exp(-g)) in 18 places at 9ab7053; the new code uses ds4_silu(g) in 19 places at 77a054e1. The inline form is gone from the Q4_K pair_swiglu kernels.",
+      "argv": [
+        "git",
+        "grep",
+        "-F",
+        "-c",
+        "g / (1.0f + exp(-g))",
+        "9ab7053",
+        "--",
+        "metal/moe.metal"
+      ],
+      "cwd": "/Users/evanhoffman/git/ds4-main-b",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0,
+        "stdout_contains": "metal/moe.metal:18"
+      },
+      "observed": {
+        "exit": 0,
+        "stdout": "9ab7053:metal/moe.metal:18"
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "If the old code did not use the inline silu, the 'silu changed' claim loses its evidence."
+    },
+    {
+      "id": "q4k-matvec-hunks",
+      "statement": "The diff on the IQ2_XXS and Q4_K matvec kernels is large and was NOT characterized. kernel_mul_mv_q4_K_f32_impl grew 94 to 429 lines, kernel_mul_mv_iq2_xxs_pair_f32_impl 6 to 141, kernel_mul_mv_q4_K_dense_f32 6 to 244, kernel_mul_mv_addr_iq2_xxs_pair_swiglu_f32 6 to 160. These are new variants, not a silu swap. The next reader should treat the executed IQ2_XXS and Q4_K matvec path as unexamined beyond the two numerically-identical changes named above.",
+      "argv": [
+        "git",
+        "grep",
+        "-F",
+        "-c",
+        "kernel_mul_mv_q4_K_f32_impl(",
+        "77a054e1",
+        "--",
+        "metal/moe.metal"
+      ],
+      "cwd": "/Users/evanhoffman/git/ds4-main-b",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0,
+        "stdout_contains": "metal/moe.metal:1"
+      },
+      "observed": {
+        "exit": 0,
+        "stdout": "77a054e1:metal/moe.metal:1"
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "If the new code does not contain kernel_mul_mv_q4_K_f32_impl, the matvec kernel is not on the executed path and the 'large uncharacterized diff' caveat has no anchor."
+    },
+    {
+      "id": "hc-fusion-pre-m5",
+      "statement": "The new HC attention-output fusion kernels (kernel_dsv4_attn_out_q8_mm_hc_expand4_batch, kernel_dsv4_attn_out_q4_K_f16_rhs_mm_hc_expand4_batch) are gated behind 'ds4_gpu_device_is_pre_m5_apple_silicon() || force' in both ds4_gpu_attention_output_q8_batch_impl and ds4_gpu_attention_output_q4_K_batch_impl. pre-M5 means device name 'Apple M1'..'Apple M4' (ds4_metal.m:3599). The run is on M5 Max, so pre-M5 is false and force (DS4_GPU_TEST_BATCH_ATTN_OUT_Q8_HC_FUSION) is not set. The path is not hit.",
+      "argv": [
+        "git",
+        "grep",
+        "-F",
+        "-c",
+        "ds4_gpu_device_is_pre_m5_apple_silicon() || force",
+        "77a054e1",
+        "--",
+        "ds4_metal.m"
+      ],
+      "cwd": "/Users/evanhoffman/git/ds4-main-b",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0,
+        "stdout_contains": "ds4_metal.m:3"
+      },
+      "observed": {
+        "exit": 0,
+        "stdout": "77a054e1:ds4_metal.m:3"
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "If the HC fusion path is not gated behind pre-M5 (or the run can set force), the path can fire on M5 Max and the 'not hit' claim collapses."
+    },
+    {
+      "id": "ssd-prefill-gated",
+      "statement": "The ssd_prefill_exactn path (kernel_dsv4_attn_out_q4_K_ssd_prefill_exactn_f32) is gated behind platform_ok = g_ssd_streaming_mode && !g_quality_mode && ds4_gpu_device_is_pre_m5_apple_silicon (ds4_metal.m:32752). The run does not pass --ssd-streaming (scripts/decode_ab.sh:72), so g_ssd_streaming_mode is false. The path is not hit.",
+      "argv": [
+        "git",
+        "grep",
+        "-n",
+        "g_ssd_streaming_mode &&",
+        "77a054e1",
+        "--",
+        "ds4_metal.m"
+      ],
+      "cwd": "/Users/evanhoffman/git/ds4-main-b",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0,
+        "stdout_contains": "32752"
+      },
+      "observed": {
+        "exit": 0,
+        "stdout": "77a054e1:ds4_metal.m:3000:        !g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:3011:    const int warm_model_views = !g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:5542:    if (g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:5563:    if (g_ssd_streaming_mode && !was_ssd_streaming) {\n77a054e1:ds4_metal.m:10876:        !g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:12346:           !g_ssd_streaming_mode && g_tp_check_words != NULL &&\n77a054e1:ds4_metal.m:12419:        !g_ssd_streaming_mode && g_tp_check_words != NULL &&\n77a054e1:ds4_metal.m:12478:            g_tp_poll_gates && !g_ssd_streaming_mode && g_tp_check_words != NULL &&\n77a054e1:ds4_metal.m:12518:        !event_arrival && g_tp_poll_gates && !g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:14707:           g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:15033:    return g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:15887:    return g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:16261:    return g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:16464:    return g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:16471:    return g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:16484:    return g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:16493:    return g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:16500:    return g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:16582:    return g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:24678:        if (g_ssd_streaming_mode && !g_quality_mode && g_tp_split_world <= 1 &&\n77a054e1:ds4_metal.m:27891:    const bool ssd_transient_invalidated = g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:27903:        g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:28248:        !g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:28692:    if (g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:28866:        g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:30249:        !g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:32667:        !g_ssd_streaming_mode && !ds4_gpu_tp_world_is_two() &&\n77a054e1:ds4_metal.m:32752:        g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:33216:            !g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:33661:        !g_ssd_streaming_mode && !ds4_gpu_tp_world_is_two() &&\n77a054e1:ds4_metal.m:35097:        !g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:45394:        g_ssd_streaming_mode && g_tp_split_world == 2;\n77a054e1:ds4_metal.m:45483:            g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:46706:        g_ssd_streaming_mode && g_tp_split_world == 2;\n77a054e1:ds4_metal.m:46785:            g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:47841:            !force_resident && g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:48147:            g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:48159:            g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:48172:            g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:48280:        if (g_ssd_streaming_mode && !g_quality_mode && g_tp_split_world <= 1 &&\n77a054e1:ds4_metal.m:50437:        ((g_ssd_streaming_mode && !force_resident) ||\n77a054e1:ds4_metal.m:50598:            !force_resident && g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:50728:            !g_ssd_streaming_mode && n_tokens >= 512u && n_tokens <= 4096u &&\n77a054e1:ds4_metal.m:50771:            !g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:50905:            !g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:50929:            !g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:50942:            !g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:50954:            !g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:50980:            !g_ssd_streaming_mode &&\n77a054e1:ds4_metal.m:51085:                    !g_ssd_streaming_mode &&"
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "If the ssd_prefill_exactn path is not gated behind g_ssd_streaming_mode, the path can fire without --ssd-streaming and the 'not hit' claim collapses."
+    },
+    {
+      "id": "mid-only-m1",
+      "statement": "The mid_only kernels (kernel_mul_mv_iq2_xxs_pair_swiglu_mid_only_4096x2048_impl) are gated behind ds4_gpu_m1_iq2_mid_only_enabled() AND g_ssd_streaming_mode (ds4_metal.m:47839). ds4_gpu_m1_iq2_mid_only_enabled (ds4_metal.m:16458) requires an M1 device. The run is on M5 Max and does not pass --ssd-streaming. The path is not hit.",
+      "argv": [
+        "git",
+        "grep",
+        "-n",
+        "ds4_gpu_m1_iq2_mid_only_enabled",
+        "77a054e1",
+        "--",
+        "ds4_metal.m"
+      ],
+      "cwd": "/Users/evanhoffman/git/ds4-main-b",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0,
+        "stdout_contains": "47839"
+      },
+      "observed": {
+        "exit": 0,
+        "stdout": "77a054e1:ds4_metal.m:16458:static int ds4_gpu_m1_iq2_mid_only_enabled(void) {\n77a054e1:ds4_metal.m:47839:            ds4_gpu_m1_iq2_mid_only_enabled() &&"
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "If the mid_only path is not gated behind the M1 device check, it can fire on M5 Max and the 'not hit' claim collapses."
+    },
+    {
+      "id": "dspark-env-gated",
+      "statement": "The dspark path (kernel_dsv4_dspark_device_*) is gated behind ds4_gpu_env_bool('DS4_METAL_DSPARK_DEVICE_PROPOSER') == 1 (ds4_metal.m:22501). The run does not set this env var. The path is not hit.",
+      "argv": [
+        "git",
+        "grep",
+        "-n",
+        "DS4_METAL_DSPARK_DEVICE_PROPOSER",
+        "77a054e1",
+        "--",
+        "ds4_metal.m"
+      ],
+      "cwd": "/Users/evanhoffman/git/ds4-main-b",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0,
+        "stdout_contains": "22501"
+      },
+      "observed": {
+        "exit": 0,
+        "stdout": "77a054e1:ds4_metal.m:22501:    return ds4_gpu_env_bool(\"DS4_METAL_DSPARK_DEVICE_PROPOSER\") == 1 &&"
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "If the dspark path is not gated behind the env var, it can fire without the env var and the 'not hit' claim collapses."
+    },
+    {
+      "id": "ported-m5-flash-attn",
+      "statement": "The gate enumeration is incomplete: there is a helper that INCLUDES the M5 Max, ds4_gpu_ported_m5_decode_feature_enabled (ds4_metal.m:3619), which returns pre_m5 || ds4_gpu_device_is_m5_apple_silicon(). Its flash_attn_packed32_reduce call site condition changed in the diff (ds4_metal.m:36769): the old 'n_comp != 0u' became '(n_comp != 0u || getenv(\"DS4_METAL_DISABLE_DECODE_RAW_PACKED32\") == NULL)'. This is a decode-path change on M5 that the exclude-only enumeration missed. Whether the run's shape (n_head==64, head_dim==512, rope fuse) hits it is not characterized here.",
+      "argv": [
+        "git",
+        "grep",
+        "-F",
+        "-c",
+        "DS4_METAL_DISABLE_DECODE_RAW_PACKED32",
+        "9ab7053",
+        "--",
+        "ds4_metal.m"
+      ],
+      "cwd": "/Users/evanhoffman/git/ds4-main-b",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit_nonzero": true
+      },
+      "observed": {
+        "exit": 1,
+        "stdout": ""
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "If the old code already carried DS4_METAL_DISABLE_DECODE_RAW_PACKED32, the var was not added in the diff and the 'decode-path change on M5' claim collapses. (The new code carrying it is verified by one-knob-suffices.)"
+    },
+    {
+      "id": "n-keys-bounded-not-ctx",
+      "statement": "n_keys = n_raw + n_comp (ds4_metal.m:36709, in ds4_gpu_encode_flash_attention_gathered_heads). n_raw = metal_graph_raw_span_for_batch(g, pos, 1) = min(raw_window, pos+1, raw_cap), and raw_window = min(DS4_N_SWA, ctx) = 128 at all #162 frontiers (ds4.c:18415; the GGUF's deepseek4.attention.sliding_window is 128). So n_keys does not track ctx; it is 128 + pos/ratio, where ratio is the layer's compression ratio. ds4 does not take the ratios from the file: validate_compress_ratio_metadata (ds4.c:6007) reads only the first DS4_N_LAYER = 43 values and checks each against the hardcoded pattern ds4_expected_layer_compress_ratio (ds4.c:1180-1182: il < 2 -> 0, even il -> 4, odd il -> 128), so layers 0,1 are uncompressed (2 layers), 21 layers have ratio 4, 20 have ratio 128, and the 44th GGUF value is never read. The packed32 path is live at every frontier: n_keys <= 1024 holds for the uncompressed (128) and ratio-128 (<=256) layers at all frontiers, and for the ratio-4 layers up to pos ~3583.",
+      "argv": [
+        "git",
+        "grep",
+        "-n",
+        "n_keys = n_raw + n_comp",
+        "77a054e1",
+        "--",
+        "ds4_metal.m"
+      ],
+      "cwd": "/Users/evanhoffman/git/ds4-main-b",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0,
+        "stdout_contains": "n_keys = n_raw + n_comp"
+      },
+      "observed": {
+        "exit": 0,
+        "stdout": "77a054e1:ds4_metal.m:35359:    const uint32_t n_keys = n_raw + n_comp;\n77a054e1:ds4_metal.m:35393:    const uint32_t n_keys = n_raw + n_comp;\n77a054e1:ds4_metal.m:36709:    const uint32_t n_keys = n_raw + n_comp;\n77a054e1:ds4_metal.m:37325:    const uint32_t n_keys = n_raw + n_comp;"
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "If n_keys were not n_raw + n_comp, or if n_raw tracked ctx rather than the 128-token sliding window, the 'path is live at every frontier' conclusion collapses and the branch-versus-main run would be flat for a mechanical reason."
+    },
+    {
+      "id": "loader-ignores-ratio-tail",
+      "statement": "validate_compress_ratio_metadata (ds4.c:6007) checks only arr.len < DS4_N_LAYER (shorter is fatal, longer is fine), then reads il from 0 to DS4_N_LAYER-1 and checks each against the hardcoded pattern ds4_expected_layer_compress_ratio (ds4.c:1180-1182: il < 2 -> 0, even il -> 4, odd il -> 128). So the 44th value in the GGUF's deepseek4.attention.compress_ratios is never read, and the array length (44) can exceed the block count (43) without anything being wrong. The uncompressed layers are 0 and 1 only (2 layers), not 3.",
+      "argv": [
+        "git",
+        "grep",
+        "-n",
+        "-e",
+        "arr.len < DS4_N_LAYER",
+        "-e",
+        "il < 2",
+        "77a054e1",
+        "--",
+        "ds4.c"
+      ],
+      "cwd": "/Users/evanhoffman/git/ds4-main-b",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0,
+        "stdout_contains": "arr.len < DS4_N_LAYER"
+      },
+      "observed": {
+        "exit": 0,
+        "stdout": "77a054e1:ds4.c:1181:        if (il < 2) return 0;\n77a054e1:ds4.c:1184:        if (il < 2) return 128u;\n77a054e1:ds4.c:6015:    if (arr.len < DS4_N_LAYER) {\n77a054e1:ds4.c:6053:    if (arr.len < DS4_N_LAYER) {"
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "If the loader read all 44 values, or if the uncompressed set were 3 layers, the array length and block count would disagree for a real reason and the 2-of-43 effect estimate would be wrong."
+    },
+    {
+      "id": "knob-ab-pre-registered",
+      "statement": "Pre-registered before the gathered-heads knob A/B. Direction: the branch arm (gathered-heads, DISABLE var unset) is expected to be faster than the off arm (raw-only five-dispatch, DISABLE var set), because the branch routes n_comp==0 layers to the gathered-heads path with fewer dispatches. Magnitude: 2 of 43 layers (0, 1) are affected, attention dispatch overhead only, no arithmetic change, so the effect is low single digits and may be below the noise floor (a four-run median carries ~1.5 pp of uncertainty; the within-run repeat spread at one frontier is 3.8 pp). A null result is the expected outcome, not a surprise. Shape: n_keys is fixed at 128 on layers 0 and 1 regardless of ctx, so the saving is a constant absolute time per token against a decode time that grows with ctx; the ratio (branch/off) should therefore shrink monotonically as ctx rises, falsifiable across the eight frontiers.",
+      "argv": [
+        "git",
+        "grep",
+        "-n",
+        "DS4_METAL_DISABLE_DECODE_RAW_GATHERED_ATTN",
+        "77a054e1",
+        "--",
+        "ds4_metal.m"
+      ],
+      "cwd": "/Users/evanhoffman/git/ds4-main-b",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0,
+        "stdout_contains": "DS4_METAL_DISABLE_DECODE_RAW_GATHERED_ATTN"
+      },
+      "observed": {
+        "exit": 0,
+        "stdout": "77a054e1:ds4_metal.m:38408:             getenv(\"DS4_METAL_DISABLE_DECODE_RAW_GATHERED_ATTN\") != NULL)) {"
+      },
+      "expect_authored": "pre-registered",
+      "expect_ref": {
+        "path": "evidence/0162-metal-diff-expect.json",
+        "blob": "16257bd295043c68ffa6e6bebcfbb3ccd25b2e6e"
+      },
+      "falsifier": "If the branch arm is not faster, or if the ratio does not shrink monotonically with ctx, the pre-registered expectation is falsified and the knob has no resolvable effect."
+    },
+    {
+      "id": "one-knob-suffices",
+      "statement": "One knob fully reverts the observable difference for this model even though two variables touch the n_comp==0 layers. Setting DS4_METAL_DISABLE_DECODE_RAW_GATHERED_ATTN routes n_comp==0 layers to the raw-only path (ds4_metal.m:38408), so the packed32 relaxation gated by DS4_METAL_DISABLE_DECODE_RAW_PACKED32 (ds4_metal.m:36774) never applies to them. For n_comp!=0 layers, n_comp != 0u is already true on main, so the relaxation changes nothing there either. The gathered-heads knob A/B therefore needs only the one DISABLE var.",
+      "argv": [
+        "git",
+        "grep",
+        "-n",
+        "-e",
+        "DS4_METAL_DISABLE_DECODE_RAW_GATHERED_ATTN",
+        "-e",
+        "DS4_METAL_DISABLE_DECODE_RAW_PACKED32",
+        "77a054e1",
+        "--",
+        "ds4_metal.m"
+      ],
+      "cwd": "/Users/evanhoffman/git/ds4-main-b",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0,
+        "stdout_contains": "DS4_METAL_DISABLE_DECODE_RAW_PACKED32"
+      },
+      "observed": {
+        "exit": 0,
+        "stdout": "77a054e1:ds4_metal.m:36774:         getenv(\"DS4_METAL_DISABLE_DECODE_RAW_PACKED32\") == NULL) &&\n77a054e1:ds4_metal.m:38408:             getenv(\"DS4_METAL_DISABLE_DECODE_RAW_GATHERED_ATTN\") != NULL)) {"
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "If setting GATHERED_ATTN did not route n_comp==0 layers raw-only, or if the packed32 relaxation applied to n_comp!=0 layers, one knob would not fully revert the observable difference and the A/B would need a second variable."
+    }
+  ]
+}

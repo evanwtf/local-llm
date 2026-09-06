@@ -22,6 +22,11 @@
 # driver refuses it unless METAL_KNOB_ACK_NO_SIGNAL=1, and its rows are marked
 # admission_signal: none so they cannot later be read as verified.
 #
+# A presence knob (gathered-heads) is on by default and has no REQUIRE spelling:
+# the on arm unsets the DISABLE var (`env -u`), so its on-value is the sentinel
+# "unset" (the `${2:?on value}` guard needs a non-empty positional). The off arm
+# sets the DISABLE var to a nonzero value.
+#
 # Usage: scripts/metal_knob_ab.sh <knob> <on-value> <off-value> <tree> <gguf> [outdir]
 set -euo pipefail
 
@@ -56,6 +61,10 @@ fi
 ON_VAR="$(uv run python "$PY" on-var "$KNOB")"
 OFF_VAR="$(uv run python "$PY" off-var "$KNOB")"
 ADMISSION_SIGNAL="$(uv run python "$PY" admission-signal "$KNOB")"
+# A presence knob's on arm unsets the var (`env -u`) rather than assigning it:
+# `=0` still counts as set and would take the wrong path in both arms. The
+# per-arm env prefix is decided by `arm-cmd` in Python, so the on arm's argv is
+# a pure function of the knob table and the tests can see it.
 
 # Check the cheap thing first: a missing build used to fail mid-run, after the
 # lock was held and the model loaded.
@@ -99,16 +108,27 @@ cat > "$OUT/run-meta.json" <<EOF
 EOF
 
 run_arm() {
-  local label="$1" var="$2" value="$3" rep="$4" position="$5"
+  local label="$1" value="$2" rep="$3" position="$4"
   local csv="$OUT/${label}-rep${rep}.csv"
   local log="$OUT/${label}-rep${rep}.log"
+  # The arm construction is a pure function of the knob table: `-u VAR` for a
+  # presence knob's on arm, `VAR=value` otherwise. The shell runs it verbatim,
+  # so the on arm's argv is decided in Python where the tests can see it.
+  local env_prefix
+  env_prefix="$(uv run python "$PY" arm-cmd "$KNOB" "$label" "$value")"
   echo "[$(date +%H:%M:%S)] $label rep $rep (position $position) -> $csv"
+  # The arm construction goes on the log so every measurement carries its own
+  # evidence: which var, which value, and whether the on arm unsets it. The
+  # admission probe can read the log rather than trusting the table.
+  echo "# arm: $label knob=$KNOB env $env_prefix ./ds4-bench -m $GGUF --metal --prompt-file $PROMPT --ctx-start $CTX_START --ctx-max $CTX_MAX --step-incr $STEP --gen-tokens $GEN --csv $csv" > "$log"
   # ds4-bench resolves metal/*.metal relative to its own tree, so run from
-  # there. The env var is set for the bench process only.
-  ( cd "$TREE" && env "$var=$value" ./ds4-bench -m "$GGUF" --metal \
+  # there. The env prefix is set for the bench process only. The unquoted
+  # expansion is deliberate: `-u VAR` splits into two words, `VAR=value` into
+  # one, and both values come from the validated knob table.
+  ( cd "$TREE" && env $env_prefix ./ds4-bench -m "$GGUF" --metal \
       --prompt-file "$PROMPT" \
       --ctx-start "$CTX_START" --ctx-max "$CTX_MAX" --step-incr "$STEP" \
-      --gen-tokens "$GEN" --csv "$csv" ) > "$log" 2>&1
+      --gen-tokens "$GEN" --csv "$csv" ) >> "$log" 2>&1
   # On arm: the REQUIRE spelling must not fail closed. Absence of the error is
   # the only admission signal, and it must be checked, not assumed.
   if [ "$label" = "on" ] && uv run python "$PY" check-fail-closed "$KNOB" "$log"; then
@@ -130,12 +150,12 @@ for rep in $(seq 1 "$REPS"); do
   for label in "${order[@]}"; do
     position=$((position + 1))
     if [ "$label" = "on" ]; then
-      var="$ON_VAR"; value="$ON_VALUE"
+      value="$ON_VALUE"
     else
-      var="$OFF_VAR"; value="$OFF_VALUE"
+      value="$OFF_VALUE"
     fi
     echo "rep=$rep position=$position of 2 label=$label" >> "$OUT/run-order.txt"
-    run_arm "$label" "$var" "$value" "$rep" "$position"
+    run_arm "$label" "$value" "$rep" "$position"
   done
 done
 echo "done: $OUT"
