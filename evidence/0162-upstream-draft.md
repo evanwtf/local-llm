@@ -10,12 +10,16 @@ Run 2 was voided: a test suite landed on one arm mid-run, which is asymmetric
 load inside a paired comparison, so it was discarded and run 5 replaced it.
 Runs 1, 3, 4, 5 stand.
 
-**Raw data:** https://github.com/evanwtf/local-llm/tree/main/benchmarks/ds4/pr952-f309990-run1 ,
-`-run3`, `-run4`, `-run5` — six CSVs per run, one per arm per repetition, every
-frontier, plus `run-meta.json` with the prompt SHA-256 and `engines.txt` with
-both tree revs.
+**Raw data:** https://github.com/evanwtf/local-llm/tree/main/benchmarks/ds4 —
+the four run directories are `pr952-f309990-run1`, `pr952-f309990-run3`,
+`pr952-f309990-run4` and `pr952-f309990-run5`. Six CSVs per run, one per arm
+per repetition, every frontier, plus `run-meta.json` with the prompt SHA-256
+and `engines.txt` with both tree revs. `pr952-f309990-run2` is present and
+void; `pr952-f309990-run2-VOID.md` says why.
 
-M5 Max 128 GB, Metal 4 tensor API, `--temp 0`. Medians over 3 reps.
+M5 Max 128 GB, Metal 4 tensor API, `--temp 0`. Every ratio is paired **within
+one repetition** — arm B's rep-2 rate over arm A's rep-2 rate — and then
+medianed, so repetition-to-repetition drift does not re-enter as noise.
 
 ### Headline, `f309990` / `f309990-prev` (above 1.000 means `f309990` is faster)
 
@@ -44,6 +48,13 @@ between-run spread is 2.9 pp decode / 2.1 pp prefill — the runs agree as well
 as the reps do. Every per-frontier range above spans 1.000. So the honest
 claim is **no effect resolvable above about ±3 pp in either direction**, not
 "prefill is 0.9% slower". The instrument cannot see 0.9%.
+
+The two tables are built differently and will not agree to the last digit, so
+do not read a discrepancy into it. The headline is the median across the four
+runs of each run's own median across frontiers. The per-frontier table is, for
+each frontier, the median across the four runs. Both are reported because they
+answer different questions: whether the change moved the rate at all, and
+whether it moved it everywhere.
 
 **Tree revs:** `8c22d667` (= `f309990^`) and `f309990`.
 
