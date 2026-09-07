@@ -202,3 +202,126 @@ def test_the_non_mtp_twin_is_not_declared():
     cfg = tomllib.loads((pathlib.Path(run.__file__).parent / "tasks.toml").read_text())
     assert not cfg["backend"]["qwen38fnds4shim"].get("speculative")
     assert not cfg["backend"]["qwen38fnds4kimat"].get("speculative")
+
+
+# --- #210: the row must carry the split, not only the average ---------------
+#
+# ds4's scheduler measures MTP against plain decode and switches it off when it
+# loses, so one trial can hold two populations of cycles. `accept_rate` is
+# their average and looks healthy either way. The reader has computed the split
+# since #148; the row discarded it, which is how 124 zero-draft cycles out of
+# 244 left no trace anywhere in 119 MTP rows.
+
+
+class FakeCounters:
+    """Only what `draft_fields` reads. Shaped like `mtp_timing.Counters`."""
+
+    def __init__(self, cycles, drafting, accepted=10, proposed=20):
+        self.cycles = tuple(range(cycles))
+        self.drafting = drafting
+        self.bypassed = cycles - drafting
+        self.accepted = accepted
+        self.proposed = proposed
+        self.accept_rate = accepted / proposed if proposed else None
+        self.used = accepted > 0
+        self.drafting_share = drafting / cycles if cycles else None
+        self.spec_misses = 0
+
+
+def test_the_row_records_how_many_cycles_bypassed_the_draft_head():
+    fields = run.draft_fields(FakeCounters(cycles=244, drafting=120))
+    assert fields["bypassed"] == 124
+    assert fields["drafting"] == 120
+
+
+def test_the_row_records_the_drafting_share():
+    fields = run.draft_fields(FakeCounters(cycles=244, drafting=120))
+    assert fields["drafting_share"] == pytest.approx(120 / 244)
+
+
+def test_two_arms_with_the_same_accept_rate_are_told_apart():
+    # This is the whole point. Identical `accept_rate`, opposite treatments:
+    # one drafted throughout, the other drafted in a fifth of its cycles.
+    whole = run.draft_fields(FakeCounters(cycles=100, drafting=100))
+    partial = run.draft_fields(FakeCounters(cycles=100, drafting=20))
+    assert whole["accept_rate"] == partial["accept_rate"]
+    assert whole["drafting_share"] != partial["drafting_share"]
+
+
+def test_a_reader_without_cycles_is_not_given_a_zero():
+    # mtplx counts trace records and has no notion of a bypassed cycle.
+    # Inventing 0 here would read as "it never drafted", which is a claim
+    # this reader cannot make.
+    class TraceCounters:
+        accepted = 5
+        proposed = 6
+        accept_rate = 5 / 6
+        used = True
+        records = 12
+        requests = 3
+
+    fields = run.draft_fields(TraceCounters())
+    assert "bypassed" not in fields
+    assert "drafting_share" not in fields
+    assert fields["records"] == 12
+
+
+def test_a_trial_with_no_cycles_records_no_share():
+    # `drafting_share` is None with nothing to divide by, and None is dropped
+    # rather than stored -- absent and zero are different facts.
+    fields = run.draft_fields(
+        FakeCounters(cycles=0, drafting=0, accepted=0, proposed=0)
+    )
+    assert "drafting_share" not in fields
+
+
+# --- #210: the verdict the gate acts on -------------------------------------
+
+
+def test_no_counters_is_ambiguous_and_says_so():
+    assert run.draft_verdict(None) == "no-counters"
+    assert run.draft_verdict(FakeCounters(cycles=0, drafting=0)) == "no-counters"
+
+
+def test_accepting_nothing_is_not_used():
+    counters = FakeCounters(cycles=10, drafting=10, accepted=0, proposed=20)
+    assert run.draft_verdict(counters) == "not-used"
+
+
+def test_accepting_tokens_while_drafting_in_no_cycle_is_bypassed():
+    # The failure `used` cannot see: a healthy `accepted` earned during warmup,
+    # and a measured run that decoded plainly under an MTP label.
+    counters = FakeCounters(cycles=244, drafting=0, accepted=800, proposed=1000)
+    assert counters.used
+    assert run.draft_verdict(counters) == "bypassed"
+
+
+def test_drafting_in_some_cycles_is_partial_not_ok():
+    assert run.draft_verdict(FakeCounters(cycles=244, drafting=120)) == "partial"
+
+
+def test_drafting_in_every_cycle_is_ok():
+    assert run.draft_verdict(FakeCounters(cycles=244, drafting=244)) == "ok"
+
+
+def test_a_reader_with_no_cycle_notion_is_ok_not_bypassed():
+    # mtplx has records, not cycles. Calling that "bypassed" would refuse every
+    # MTPLX run on the strength of a field its reader does not have.
+    class TraceCounters:
+        records = 12
+        accepted = 5
+        used = True
+
+    assert run.draft_verdict(TraceCounters()) == "ok"
+
+
+def test_every_verdict_is_one_the_gate_knows():
+    cases = [
+        None,
+        FakeCounters(cycles=0, drafting=0),
+        FakeCounters(cycles=10, drafting=10, accepted=0, proposed=20),
+        FakeCounters(cycles=10, drafting=0, accepted=8),
+        FakeCounters(cycles=10, drafting=5),
+        FakeCounters(cycles=10, drafting=10),
+    ]
+    assert {run.draft_verdict(c) for c in cases} <= set(run.DRAFT_VERDICTS)

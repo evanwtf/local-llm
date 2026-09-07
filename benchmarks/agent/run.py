@@ -2423,7 +2423,25 @@ def draft_fields(counters, source=None, counters_requested=None):
     # The two readers expose different denominators by nature: ds4 counts
     # speculative cycles, mtplx counts trace records and requests. Record
     # whichever the reader actually has rather than inventing a shared shape.
-    for name in ("cycles", "proposed", "spec_misses", "records", "requests", "drafted"):
+    #
+    # #210: `bypassed` and `drafting_share` are the reason this list grew.
+    # ds4's scheduler measures MTP against plain decode and switches it off
+    # when it loses, so a trial can hold two populations -- cycles that
+    # drafted and cycles that did not -- and `accept_rate` averages them into
+    # one plausible-looking number. The reader has computed the split since
+    # #148; until now the row discarded it, which is how 124 zero-draft cycles
+    # out of 244 left no trace anywhere in the corpus.
+    for name in (
+        "cycles",
+        "proposed",
+        "spec_misses",
+        "records",
+        "requests",
+        "drafted",
+        "bypassed",
+        "drafting",
+        "drafting_share",
+    ):
         if (value := getattr(counters, name, None)) is None:
             continue
         # ds4 exposes `cycles` as the cycles themselves; the row wants how
@@ -2431,6 +2449,51 @@ def draft_fields(counters, source=None, counters_requested=None):
         # worse, silently untrue as a count.
         fields[name] = len(value) if isinstance(value, (list, tuple)) else value
     return fields
+
+
+#: What one trial's counters say about whether the treatment was applied.
+#: Separated from `one_trial` so the judgement can be tested without running a
+#: coding agent -- the gate it feeds refuses a whole run, and an untested
+#: refusal is the kind that fires on the wrong thing at 3am.
+DRAFT_VERDICTS = ("no-counters", "not-used", "bypassed", "partial", "ok")
+
+
+def draft_verdict(counters):
+    """Judge one trial's draft counters. Returns one of `DRAFT_VERDICTS`.
+
+    The order matters, because the cases overlap and the strongest claim wins:
+
+    `no-counters` -- the engine emitted nothing. Ambiguous by nature: an engine
+    that never enters the speculative path is indistinguishable from counters
+    that were switched off, which is why this warns rather than refuses.
+
+    `not-used` -- it did speculative work and accepted nothing (#148).
+
+    `bypassed` -- it accepted tokens but drafted in **zero** cycles (#210).
+    ds4's scheduler measures MTP against plain decode and switches it off when
+    it loses, so a head can do all its accepting during warmup and serve every
+    measured request plainly. `used` alone cannot see this: the arm looks
+    healthy and decoded without a draft head.
+
+    `partial` -- it drafted in some cycles and not others. Not a failure, and
+    not a clean treatment either: `accept_rate` is then the average of two
+    populations and must not be read as one strength.
+    """
+    if counters is None:
+        return "no-counters"
+    saw_work = getattr(counters, "cycles", None) or getattr(counters, "records", 0)
+    if not saw_work:
+        return "no-counters"
+    if not counters.used:
+        return "not-used"
+    # None means the reader has no notion of cycles (mtplx counts trace
+    # records), not that the share was zero. Absent and zero differ.
+    share = getattr(counters, "drafting_share", None)
+    if share is None:
+        return "ok"
+    if share == 0:
+        return "bypassed"
+    return "partial" if share < 1 else "ok"
 
 
 def one_trial(
@@ -2788,10 +2851,25 @@ def one_trial(
         result["draft"] = draft_fields(
             counters, draft_probe.source, draft_probe.counters_requested
         )
-        # `saw_work` is "the engine did speculative work", spelled differently
-        # per reader: ds4 counts cycles, mtplx counts trace records.
-        saw_work = getattr(counters, "cycles", None) or getattr(counters, "records", 0)
-        if saw_work and not counters.used:
+        verdict = draft_verdict(counters)
+        if verdict == "bypassed":
+            logger.error(
+                "%s: MTP accepted %d tokens but drafted in 0 of %d cycles "
+                "(%s) -- the head worked before the run, not during it",
+                name,
+                counters.accepted,
+                len(counters.cycles),
+                draft_probe.source,
+            )
+            if require_draft:
+                raise SystemExit(
+                    f"{name}: refusing to continue -- every speculative cycle "
+                    f"bypassed the draft head, so this arm decoded plainly "
+                    f"under an MTP label (#210). Re-run without "
+                    f"--require-draft only if you are deliberately measuring "
+                    f"a bypassed arm."
+                )
+        elif verdict == "not-used":
             logger.error(
                 "%s: MTP drafted and accepted NOTHING (%s) -- the flag was "
                 "passed but the treatment was not applied",
@@ -2805,7 +2883,18 @@ def one_trial(
                     f"what they claim (#148). Re-run without --require-draft "
                     f"only if you are deliberately measuring a broken arm."
                 )
-        elif not saw_work:
+        elif verdict == "partial":
+            logger.warning(
+                "%s: MTP drafted in %d of %d cycles (%.0f%%); accept_rate "
+                "%.3f is the average of two populations, not one treatment "
+                "(#210)",
+                name,
+                counters.drafting,
+                len(counters.cycles),
+                counters.drafting_share * 100,
+                counters.accept_rate,
+            )
+        elif verdict == "no-counters":
             logger.warning(
                 "%s: no draft counters this trial (%s). Cause is NOT resolved "
                 "by this: an engine that never enters the speculative path "
