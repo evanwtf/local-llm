@@ -22,6 +22,121 @@ picks in `RECOMMENDATIONS.md`, and the current queue in `NEXT.md`.
 
 ---
 
+**2026-09-07, overnight. A null upstream nobody else measured, a position bias
+big enough to fake it, and two claims of my own withdrawn.**
+
+Worked from the `NEXT.md` queue, with `peer-deepseek` on review and one
+implementation task.
+
+- **#171 — the CUDA Q4 prefill regression has no Metal analogue.** Three 4-rep
+  runs of `8c22d667` against `20d5dff6`: prefill head/base **+0.5%, −0.9%,
+  +0.0%**. @adamlawi's CUDA figure is **−12.23%** [−12.43, −12.03]. The runs
+  disagreeing in direction is what makes this a result rather than a
+  coincidence — two agreeing runs would have been weaker evidence than three
+  straddling zero.
+
+  The issue's own blocking question was "is each frontier a single chunk, or
+  re-chunked?", and it said to settle it by reading the source. Neither of the
+  two possibilities it listed was right. `metal_graph_prefill_chunked`
+  (`ds4.c:36867 at ds4-main 9ab70534`) clamps every prefill **after the first**
+  to `raw_cap`, and `raw_cap` is ceilinged at 8192. At `--prefill-chunk 8192`
+  the two paths coincide exactly, so the cheap one-sweep design measures
+  @adamlawi's quantity and the four-run design the issue contemplated was
+  unnecessary. Confirmed afterwards by the engine's own output:
+  `prefill_cap=8192 raw_kv_rows=8192`, and `prefill_tokens=8192` at all four
+  frontiers.
+
+- **A warning was restored after being wrongly deleted — by me.** v1 of
+  `decode_ab_engine.sh` warned that a chunk above 8192 is clamped after the
+  first frontier. That was **substantively right**, but it cited
+  `ds4_default_raw_cap`, the raw-KV attention cap, which has nothing to do with
+  prefill chunking. I caught the bad citation and removed the whole warning,
+  concluding no ceiling existed. That discarded a correct claim along with its
+  wrong evidence. v3 restores it with the citation that holds, and a test pins
+  that 8192 itself does **not** warn, so the guard cannot grow into noise on
+  the run it protects. **A correct claim thrown out because its evidence was
+  wrong is still a regression.**
+
+- **#130 — the position bias, measured instead of argued.** `scripts/arm_order_effect.py`
+  reads run order from `run-order.txt` where the harness wrote one and from
+  file mtimes otherwise. Across the twelve reps of #171: whichever arm ran
+  **first** was faster in **9 of 12**, median **+0.9%** — and **+5.9% on the
+  first rep of a cold session**, decaying over about an hour. @adamlawi
+  measured 0.38–0.53 pp on GB10 and established it was not thermal there; ours
+  is comparable in steady state and an order of magnitude worse cold, which is
+  what a laptop would predict.
+
+  I read rep 1 of run 1 mid-batch. It showed −5% at every frontier, in the
+  direction of the regression we were testing for, and it looked like a soft
+  confirmation. It was position. Filed **#201**: `REPS` defaults to 3 in both
+  harnesses, and an odd rep count cannot cancel a *decaying* bias — reps 1 and
+  3 run A-first and only rep 2 runs B-first.
+
+- **#190 — two of my own claims withdrawn, one by the peer and one by the
+  engine's log.** What stands: the kv-disk budget is inert (8 GiB and 32 GiB
+  byte-identical at every prompt size), context size is inert (32k ≡ 128k), the
+  control reads 0 everywhere, and reuse lands on multiples of the
+  continued-checkpoint step (10240).
+
+  What I withdrew: that the gate above `cold_max_tokens` "refuses" reuse — it
+  refuses the **cold checkpoint**; the continued path is untouched, which is
+  exactly why the one prompt above the cliff still read 65.8%. And that
+  `ds4_kvstore_store_len` explains the readings — it does not. The sizes were
+  never independent: all of them ran against one server and one kv dir, and a
+  larger prompt shares its whole definition block with every smaller one, so
+  the 29845 reading reused an entry written 24 seconds earlier during the
+  11045 measurement.
+
+  **The engine had said so the whole time.** `ds4-server` narrates every store
+  and hit with a reason, the harness had been capturing it to
+  `/tmp/ds4-kvreuse-8099.log`, and I published the read-out without opening the
+  file. Exactly one store in the entire run has `reason=cold`. The lesson is
+  the sentence: *the instrument reported a number, the engine reported why, and
+  I read only the number.*
+
+- **#200 — the harness now records the mechanism, not just the number.**
+  `--isolate` (default) gives each prompt size its own server and kv dir;
+  `--sequential` keeps the old shape deliberately, because a coding agent grows
+  one conversation with a long shared prefix and that arm is closer to the real
+  workload. Every row carries `reason` (cold/continued/evict), the file the hit
+  landed on, and a `cross_size` flag. Implementation: --deepseek.
+
+- **#192 — every row now names its engine build**, and two defects were caught
+  in review, both a default answering for a caller it did not know: `opus5` is
+  a **hosted** model and would have been stamped with the local ds4 sha on the
+  REFERENCE rows; and four backends whose descriptions say `ds4-metal` —
+  including the one behind all 120 published A/B rows — would have been stamped
+  with a different tree. The registry default is gone.
+
+- **#182 — 208 bare citations down to an argued 9**, and the lint caught four
+  of mine the same night, in three ways worth knowing: a citation **wrapped
+  across two lines** is bare; `A and B at <sha>` pins only **B**; and a pair of
+  bare line numbers had sat in a `decode_ab_engine.sh` comment for days
+  describing real behaviour and **pointing at nothing** — at `ds4-main
+  9ab70534` those two reads are 12994 and 37561. (Written without the stale
+  numbers on purpose: quoting them here would need a new allowlist entry, and
+  that list only shrinks.)
+
+- **Timestamp producers, not just the data.** The 2026-09-06 ISO 8601 fix
+  backfilled the files and left every writer alone, so the #146 clean run wrote
+  the same bug again — naive local `started` in the results file, UTC `Z` in
+  the manifest beside it. Four producers fixed, one shared `results.now()`, and
+  tests that check the **writers** rather than the files. The read-out that
+  join feeds is verified unchanged.
+
+- **#197 filed: CI runs no lint.** 42 ruff findings and 21 unformatted Python
+  files have been landing green, including `SIM115` (leaked file handles) and
+  `PLW1510` (a `subprocess.run` whose failure is silently ignored) — in a repo
+  that shells out to engines constantly.
+
+- **#191 does not survive its own premise.** mlx-lm can only *write* GGUF, and
+  mlx-serve reads `.gguf` through an **embedded llama.cpp**, so "mlx-serve vs
+  ds4 on identical weights" would have measured ds4 against llama.cpp under a
+  label saying otherwise. Retitled; the cheap question first is whether an
+  MLX-native build (103.8 GB) fits usefully in 128 GB at all.
+
+---
+
 **2026-09-06, overnight. Five guards, one ranking bug, and one question that
 cannot be asked on this hardware.**
 

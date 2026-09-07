@@ -8,7 +8,7 @@
 > or compare against those numbers.** Cause, cutover and replacements:
 > [docs/archive/results-opencode-pre-dir.md](docs/archive/results-opencode-pre-dir.md). Other clients are unaffected.
 
-Updated **2026-09-06**. The queue for **this machine** — MacBook Pro, M5 Max,
+Updated **2026-09-07**. The queue for **this machine** — MacBook Pro, M5 Max,
 128 GB. Everything here is labeled `macOS`; nine issues filed on 2026-09-05
 and 2026-09-06 carried no label at all until this sweep, so the label can be
 trusted as a filter again. The one exception is [#154](https://github.com/evanwtf/local-llm/issues/154),
@@ -23,7 +23,7 @@ gone** — not the fastest engine. Decode rate has failed three times to predict
 agent wall time, so a speed claim ranks below a defect that makes a real
 session slow, wrong, or unmeasurable.
 
-**One axis only: local model performance for coding agents, on this Mac.** 58
+**One axis only: local model performance for coding agents, on this Mac.** 70
 issues are open, down from 82: **twenty leads were closed on 2026-09-06**, and
 four more items finished overnight, each
 with the reason on the issue, because a tracker nobody can read is not a
@@ -33,16 +33,18 @@ from it appears below.
 
 ## Priority labels
 
-Every open issue carries exactly one, applied 2026-09-06. **The labels are
+Every open issue carries exactly one, re-applied 2026-09-07 -- seven open
+issues carried none until that sweep, so the label can be trusted as a filter
+again. **The labels are
 this file, made queryable** — they are not a second opinion about what matters,
 and they drift the moment this file is re-ranked without them.
 
 - **`P0`** (3) — blocks or invalidates measurement. Do before anything that needs the machine. Items 1-3 below.
-- **`P1`** (7) — the rest of the top 10. Items 4-10.
-- **`P2`** (39) — a real task with a stated reason it is not now: the "below the line" items, harness defects nobody is blocked on, ops and housekeeping, and the Linux/RTX tier.
-- **`P3`** (9) — a lead. Somebody else's unverified claim about a quant, an engine, or an MTP number. **A lead earns a run by beating a P1 on expected information, not by being new.** Twenty more were closed on 2026-09-06; what is left is the set with a mechanism attached to one of our own models or engines.
+- **`P1`** (7) — the rest of the top 10: item 0, which is running, and items 4-9.
+- **`P2`** (49) — a real task with a stated reason it is not now: the "below the line" items, harness defects nobody is blocked on, ops and housekeeping, and the Linux/RTX tier.
+- **`P3`** (11) — a lead. Somebody else's unverified claim about a quant, an engine, or an MTP number. **A lead earns a run by beating a P1 on expected information, not by being new.** Twenty more were closed on 2026-09-06; what is left is the set with a mechanism attached to one of our own models or engines.
 
-The invariant: **`P0` + `P1` is exactly the top 10**, so
+The invariant: **`P0` + `P1` is exactly the top 10** -- items 0-9 below, counting item 0 -- so
 `gh issue list --label P0 --label P1` and the list below can be checked against
 each other. If they disagree, this file is the one that was edited.
 
@@ -65,34 +67,58 @@ two of the promotions are things that overnight run walked into.
 
 ### The machine queue
 
-The operator does not need the machine today, which is what makes the #146
-repeat possible at all. One thing runs at a time. Order is upstream first,
-because two people are waiting on it, and #146 last because it is ours.
+Updated **2026-09-07 03:40 EDT**, overnight. One thing runs at a time; the run
+lock is what enforces it, and the suite now refuses to start beside a held lock
+rather than voiding a measurement quietly.
 
-1. ~~**Verify the AProjQ4/AProjQ8 downloads.**~~ Done: q4 SHA-256
-   `413cf0a6…c767` matches, q8 is 86,720,111,488 bytes.
-2. ~~**[#162](https://github.com/evanwtf/local-llm/issues/162) Task 3, runs
-   2-4.**~~ Done. Run 2 is VOID -- another session's test suite landed on arm A
-   and not arm B -- so **run 5 replaces it**. Runs 1, 3, 4 and 5 are the batch.
-3. **Build the upstream `main` worktree.** Done: `ds4-main-b` at `9ab7053`.
-   — deepseek
-4. **#162 Task 2** — `q4/q8` at head against the published 1.155. 4 runs,
-   ~30 min each. — opus
-5. **Branch against `main`** — the arm @GiorgioOppo asked for. ~15 min. — opus
-6. **#162 Task 4** — the Metal knob A/Bs, now that `metal_knob_ab.sh` is
-   merged. `stream-overlap` needs `METAL_KNOB_ACK_NO_SIGNAL=1` and its rows
-   carry `admission_signal: none`; the other three fail closed. — opus
-7. **[#146](https://github.com/evanwtf/local-llm/issues/146) clean 4-run
-   repeat.** 2-3 h. — opus
+1. ~~**#171 cold large-chunk prefill, `8c22d667` vs head.**~~ **Done: a null.**
+   Three 4-rep runs, prefill head/base = +0.5%, −0.9%, +0.0%. @adamlawi's CUDA
+   figure is −12.23% [−12.43, −12.03]; **the f309990 Q4 prefill regression has
+   no Metal analogue.** The blocking question the issue posed — whether each
+   frontier is a single chunk or re-chunked — is settled in the source and
+   confirmed by the engine's own output (`prefill_cap=8192 raw_kv_rows=8192`,
+   `prefill_tokens=8192` at all four frontiers). — opus
+2. ~~**#190 ds4 cold-prefill / prefix reuse.**~~ **Done, with two corrections
+   on the issue.** The disk budget is inert (8 GiB ≡ 32 GiB, byte-identical)
+   and so is ctx (32k ≡ 128k). Reuse lands on multiples of the continued
+   checkpoint step, 10240. Both retractions are worth reading before trusting
+   any number here: the second was found by reading the server log the harness
+   had been capturing all along. — opus
+3. **#162 Task 2 — `q4/q8` at head, large chunk.** **RUNNING**, started 03:34.
+   This is the ROCm-comparable one: @iammac2 answered @GiorgioOppo at head
+   `77a054e` with "Q4 vs Q8, large chunk (8192-token prefill)" — prefill
+   −3.0…−7.7%, decode +10.7…+11.3% — and **we are the missing Metal report.**
+   Same sweep, `PREFILL_CHUNK=8192`, `REPS=4`, at `20d5dff6`. — opus
+4. **#190 follow-up: isolated vs sequential reuse.** The harness landed in
+   #200. Two arms, deliberately: isolated is the cold-start ceiling, sequential
+   is what a coding agent actually gets from a prompt that grows by appending.
+   Needs the machine, ~20 min. — opus
+5. **#162 Task 4** — the Metal knob A/Bs. `stream-overlap` needs
+   `METAL_KNOB_ACK_NO_SIGNAL=1` and its rows carry `admission_signal: none`;
+   the other three fail closed. — opus
+6. **#201 REPS=4 as the default** before the next sub-1% comparison. No machine
+   time; it is a two-line change plus a refusal on an odd rep count.
 
-**Step 7 is a quiet-machine window.** No builds, no API calls, no large-file
-reads, no CPU-heavy work from any session. The lock stops another benchmark; it
-does not stop a build, and a build in one arm and not the other is the confound
-that made the first attempt uninterpretable. `targets_ab.sh` now voids the batch
-on a cutoff rather than truncating it, so a short window produces no result
-instead of half a result.
+**#146 is at the bottom of the queue, by the operator's decision.** Its clean
+4-run repeat read out as **NO CALL** — per-sweep 14/15, 15/15, 11/15, 15/15,
+paired difference −1/+4, and the sweeps disagree in direction, which is the
+issue's own third branch. The arm totals (legacy 29/30, sandbox 26/30) would
+have produced a "do not cut over" the pre-registration does not support. Do not
+re-run it to break the tie; that is the tie.
 
-Durations are estimates. Nothing here is anchored to a clock -- each step starts
+**A quiet machine is not optional for any of these.** No builds, no large-file
+reads, no CPU-heavy work from any session while a batch holds the lock. A build
+landing in one arm and not the other is the confound that made #146's first
+attempt uninterpretable, and a test suite landing in one arm and not the other
+is what voided run 2 of #162 Task 3.
+
+**Position bias is now measured, not assumed** (#130, #201): 9 of 12 reps
+favour whichever arm ran first, median +0.9%, but **+5.9% on the first rep of a
+cold session**, decaying over about an hour. Every comparison below ~1% is
+inside that. `REPS` still defaults to 3 in both harnesses, and an odd rep count
+does not cancel a decaying bias — pass `REPS=4` explicitly until #201 lands.
+
+Durations are estimates. Nothing here is anchored to a clock — each step starts
 when the one before it releases the lock.
 
 ### First, because someone upstream is waiting on it
@@ -175,21 +201,23 @@ when the one before it releases the lock.
    field #149 added is now available to pin the rows.
    *Done when:* cold prefill is measured deliberately, with the Metal route recorded on the rows, and the upstream reply is sent or the claim is accepted.
 
-7. **[#146](https://github.com/evanwtf/local-llm/issues/146)** Cut over to the sandbox target layout
-   Built and merged behind `--targets sandbox`, **not enabled**. The guarded
-   checkout is out of `~/git`, but the export still stands where the agent
-   guesses (#54); under sandbox that guess must fail closed instead of being
-   satisfied — a behavior change that lands on the pass rate. Do it before more
-   runs pool, not after: it is a cohort boundary.
-   *Done when:* a paired run against the legacy layout says the pass rate is within 1 task across 2 sweeps of 15, or the cutover is abandoned on the record.
+7. **[#201](https://github.com/evanwtf/local-llm/issues/201)** `REPS=3` does not cancel a decaying position bias
+   Promoted on measurement, not argument. Across the twelve reps of #171,
+   whichever arm ran **first** was faster in 9 of them, median +0.9% — and
+   **+5.9% on the first rep of a cold session**, decaying over about an hour.
+   Alternation only cancels on an even rep count, and both harnesses still
+   default to 3, so reps 1 and 3 run A-first and only rep 2 runs B-first. Every
+   comparison below ~1% is inside that, which is most of what the ds4 threads
+   are now arguing about.
+   *Done when:* `REPS` defaults to 4, an odd rep count is refused or loudly warned, and `decode_ab_engine.sh` writes `run-order.txt` the way `decode_ab.sh` already does.
 
-8. **[#78](https://github.com/evanwtf/local-llm/issues/78)** A row does not record what produced it
-   Promoted on new evidence from the overnight run. Two arms of a published
-   A/B differed only in an **environment variable no row records**, so the
-   arms are separable solely by a hand-kept manifest of run times; and all 120
-   rows carry `metal_route: unrecorded` because one driver forgot one call.
-   Both were caught by hand. The next one will not be.
-   *Done when:* a backend's server identity and its arm-defining switches are on the row, and a row that cannot say what produced it is refused rather than published.
+8. **[#189](https://github.com/evanwtf/local-llm/issues/189)** The run lock is checked at session start only
+   The guard works — it refused three suite runs tonight while a batch held the
+   lock, which is exactly what it is for. The hole is a suite **already
+   running** when a batch starts: `pytest_sessionstart` is the only check, so
+   an in-flight suite runs to completion beside the measurement. That is how
+   run 2 of #162 Task 3 was voided, landing on arm A and not arm B.
+   *Done when:* a batch can tell whether a suite is in flight, and either waits for it or refuses to start — rather than the suite alone being polite.
 
 ### Standing problems, kept visible because everything is measured against them
 
@@ -202,14 +230,17 @@ when the one before it releases the lock.
    client we do not own, so this ends in an upstream report.
    *Done when:* the report is filed with our numbers, or the client is dropped for agent work on the record.
 
-10. **[#4](https://github.com/evanwtf/local-llm/issues/4)** The current task set cannot measure code quality
-    Months, not hours — and the ceiling on every claim this project makes. #138
-    could say a stack is 44% faster and 8 passes better; it could not say the
-    code was any good. Kept at the bottom of the ten so it is never the reason
-    nothing else ships, and never quietly dropped either.
-    *Done when:* a task class exists where a wrong-but-passing solution is detectable.
-
 ## Below the line, with the reason
+
+**[#4](https://github.com/evanwtf/local-llm/issues/4) The current task set cannot
+measure code quality** — moved out of the ten on 2026-09-07, displaced by #162,
+which two people upstream are waiting on. It is still the ceiling on every claim
+this project makes: #138 could say a stack is 44% faster and 8 passes better; it
+could not say the code was any good. It moves down because it is months of work
+and nothing else is blocked on it, **not** because it stopped mattering. If it
+is still here in a month, that is the finding.
+*Done when:* a task class exists where a wrong-but-passing solution is detectable.
+
 
 Not "later" in the vague sense — each of these has a specific reason it is not
 in the ten.
@@ -231,6 +262,16 @@ in the ten.
 - **More trials on saturated cells** — new axes, not more samples.
 
 ## Recently done, listed so the next reader does not re-open them
+
+**Overnight 2026-09-06/07** — full reasoning in [`docs/changelog.md`](docs/changelog.md).
+
+- **[#171](https://github.com/evanwtf/local-llm/issues/171) closed: a null.** The f309990 Q4 prefill regression has **no Metal analogue** — three 4-rep runs at +0.5%, −0.9%, +0.0% against @adamlawi's CUDA −12.23%. Do not re-run it looking for the effect; the three runs straddling zero *are* the result.
+- **[#182](https://github.com/evanwtf/local-llm/issues/182) closed**: 208 bare citations to an argued 9, with a lint that has already caught four regressions.
+- **[#192](https://github.com/evanwtf/local-llm/issues/192) closed**: every row names its engine build. Two defects caught in review, both a default answering for a caller it did not know — a **hosted** model would have been stamped with a local ds4 sha, and four backends whose descriptions say `ds4-metal` would have been stamped with a different tree.
+- **[#130](https://github.com/evanwtf/local-llm/issues/130) measured, not just argued**: whichever arm runs first is faster in 9 of 12 reps, median +0.9%, **+5.9% on the first rep of a cold session**. Filed as [#201](https://github.com/evanwtf/local-llm/issues/201).
+- **[#190](https://github.com/evanwtf/local-llm/issues/190): two of my own claims withdrawn.** The budget and ctx nulls stand; the mechanism I published did not. Read the corrections before quoting any number from that issue.
+- **[#191](https://github.com/evanwtf/local-llm/issues/191) retitled**: "identical weights" is unachievable — mlx-lm only *writes* GGUF, and mlx-serve reads `.gguf` through an embedded llama.cpp, so the comparison as framed would have measured ds4 against llama.cpp under an MLX label.
+- **[#197](https://github.com/evanwtf/local-llm/issues/197) filed**: CI runs no lint at all. 42 ruff findings and 21 unformatted Python files have been landing green.
 
 - **[#138](https://github.com/evanwtf/local-llm/issues/138) — the measurement is done and the verdict held.** The issue is still open, but the queue treats the run as finished. Paired superiority run, 4 sweeps per arm, 120 trials, pre-registered before any row existed. New stack **60/60 passes against 52/60**, wall ratio **0.56 (95% CI 0.45-0.71)**, all four sweep-pair medians agreeing in direction, every void condition passing on one harness head and one client version. The effect is far outside the ~12-18% the design resolves. Two findings came out of it that are now items above: the old arm's eight deaths are **not thermal** (item 6), and the result cannot be attributed to engine or quant (item 4).
 - **[#147](https://github.com/evanwtf/local-llm/issues/147)** the hardcoded `client_version 1.18.27` — closed; the check asserts uniformity instead of a literal.
