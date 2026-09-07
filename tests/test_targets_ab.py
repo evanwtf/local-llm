@@ -170,7 +170,10 @@ def test_a_dry_run_does_not_kill_a_running_shim(tmp_path):
     try:
         time.sleep(0.5)
         assert decoy.poll() is None, "decoy died before the run; the test is broken"
-        proc = run_script(tmp_path, "4", "2359")
+        # "23:59", not "2359". #179 made an unparseable UNTIL a refusal at
+        # launch, so the bare form now exits 1 before the dry run starts and
+        # this test would pass without ever exercising the pkill.
+        proc = run_script(tmp_path, "4", "23:59")
         assert proc.returncode == 0, proc.stderr
         time.sleep(0.5)
         assert decoy.poll() is None, (
