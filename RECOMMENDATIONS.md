@@ -99,6 +99,64 @@ still be compared.*
 > which 32 GB is the PLE sidecar. An earlier note here said "~105 GB against
 > 84 GB", comparing decimal GB to GiB and overstating the gap by half.
 
+## Just run one: `scripts/local-agent.sh`
+
+Each row above needs weights, an engine, sometimes a shim, and a client
+configured to talk to it. That is four things to get right before you have
+typed a prompt. The wrapper does all four:
+
+```sh
+scripts/local-agent.sh <stack> [opencode|claude]
+```
+
+| stack | what it starts | download |
+|---|---|---|
+| `local-agent.sh starter` | Qwen3.6-27B-coding on Ollama — row 1 | 31 GB |
+| `local-agent.sh fast` | Qwen3.8-Flash-Next Q4_K imatrix on ds4 — row 2 | 105 GB |
+| `local-agent.sh lineage` | DeepSeek-V4-Flash on ds4 — row 3 | 91 GB |
+| `local-agent.sh mainline` | Qwen3.8-Flash-Next `UD-Q3_K_XL` on llama.cpp — the fallback | 84 GB |
+
+It fetches the weights if they are missing, clones and builds the engine if it
+is missing, starts the server and whatever shim that stack needs, waits until
+the endpoint actually answers, and then hands you the agent. Default client is
+`opencode`; pass `claude` for Claude Code.
+
+```sh
+scripts/local-agent.sh starter                 # slot 1, OpenCode
+scripts/local-agent.sh fast claude             # slot 2, Claude Code
+scripts/local-agent.sh mainline --check        # report and stop, change nothing
+scripts/local-agent.sh fast opencode -- --continue   # args after -- go to the agent
+```
+
+**It asks before downloading.** No stack here is small, and `fast` is 105 GB.
+Every fetch prints the size and waits for a yes. Set `LOCAL_AGENT_YES=1` to
+skip the prompts when you already know what you are getting.
+
+**It will not start a second engine.** If something is already listening on
+the port, it says so and reuses it. Two of these models do not fit in memory
+at once, and a wrapper that quietly started a second one would produce a
+machine that swaps rather than an error you can read.
+
+Four details it handles that are easy to get wrong by hand:
+
+- **The PLE sidecar.** `fast` needs a second 30 GB file alongside the weights.
+  Miss it and ds4 fails in a way that does not mention the sidecar.
+- **The tool-format shim.** Both ds4 Qwen stacks run behind
+  `ds4_qwen_tool_shim.py`. That is not plumbing you can skip — its scaffolding
+  strip is worth **23 points of pass rate** ([#112](https://github.com/evanwtf/local-llm/issues/112)).
+- **The Anthropic wire.** Claude Code does not speak to Ollama or llama.cpp
+  directly. For `starter` and `mainline` the wrapper starts
+  `ollama_claude_shim.py` in front; for the ds4 stacks it points Claude Code at
+  the right port itself.
+- **The OpenCode provider block.** OpenCode resolves a model only if its
+  provider is declared in `~/.config/opencode/opencode.json`, which lives
+  outside this repo. An undeclared model makes `opencode run` exit in 0.6s and
+  look exactly like a model failure — that is [#69](https://github.com/evanwtf/local-llm/issues/69),
+  and it cost six trials before anyone checked. The wrapper declares it.
+
+Logs land in `~/.local-llm-agent/`. If a server does not come up, that is where
+it said why.
+
 All three drive **OpenCode**, and that is deliberate. The whole point of a local
 setup is that it keeps working when a vendor does not — so the agent has to be
 open too. A proprietary client on an open model fails with its vendor.

@@ -68,6 +68,7 @@ documentation.
 | `ds4-fast.sh` | Metal 4 TensorOps: ~21% faster, not bit-exact. See scripts/ds4_serve.py. |
 | `ds4-vanilla.sh` | Reference kernels: bit-exact, slower. See scripts/ds4_serve.py. |
 | `install-metal-ceiling.sh` | Persist the Metal wired limit across reboots. |
+| `local-agent.sh` | Start a recommended local stack and drop into a coding agent. |
 | `metal_knob_ab.sh` | Paired decode-rate A/B for a Metal knob env var within one tree (#162 Task 4). |
 | `restart_between_trials.sh` | Restart-between-trials experiment for #112. |
 | `restart_between_trials_armB.sh` | 77 arm B re-run under restart-between-trials (2026-09-03). |
