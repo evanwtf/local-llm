@@ -551,7 +551,7 @@ def run(args: argparse.Namespace) -> int:
 
     report = {
         "instrument": "scripts/bitexact_ab.py",
-        "when": time.strftime("%Y-%m-%dT%H:%M:%S"),
+        "when": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
         "a": {
             "label": args.label_a,
             "tree": str(args.tree_a),

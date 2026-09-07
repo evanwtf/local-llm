@@ -1109,7 +1109,8 @@ def release_lock(
 
 
 def _now_iso() -> str:
-    return time.strftime("%Y-%m-%dT%H:%M:%S")
+    """Local time with an explicit offset -- see results.now() for why %z."""
+    return time.strftime("%Y-%m-%dT%H:%M:%S%z")
 
 
 def check_client_versions(offline: bool = False) -> bool:

@@ -71,8 +71,17 @@ REQUIRED_WITH_VERDICT: dict[str, type | tuple[type, ...]] = {
 }
 
 
-def _now() -> str:
-    return time.strftime("%Y-%m-%dT%H:%M:%S")
+def now() -> str:
+    """The one timestamp writer. Local time with an explicit numeric offset.
+
+    %z is not decoration. Without it this returned a naive local time while
+    targets_ab.sh wrote UTC into the manifest beside it, so a readout joining
+    the two was four hours wrong and said nothing. tests/test_iso8601_
+    timestamps.py caught the *data* on 2026-09-06; the data was backfilled and
+    this producer was not, so the next batch wrote the same bug again. Hence
+    one public definition, called by everything that stamps a row.
+    """
+    return time.strftime("%Y-%m-%dT%H:%M:%S%z")
 
 
 def client_version(client: str, env: dict[str, Any]) -> str | None:
@@ -111,7 +120,7 @@ def new_row(
         "backend": backend,
         "client": client,
         "trial": trial,
-        "started": _now(),
+        "started": now(),
         "model": model,
         "context_tokens": context_tokens,
         "effort": effort,

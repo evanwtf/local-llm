@@ -181,7 +181,7 @@ run_one() {
     local n="$1" arm="$2" dir started
     dir="$BENCH_LOGS/146-targets-$arm-$BATCH-run$n"
     mkdir -p "$dir"
-    started="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    started="$(date +%Y-%m-%dT%H:%M:%S%z)"
     echo "[$(date +%H:%M:%S)] run $n, targets=$arm, starting"
     (cd "$REPO" && uv run python benchmarks/agent/run.py \
         --backend qwen38fnds4shim --trials 1 --client opencode --no-lock \
@@ -191,7 +191,7 @@ run_one() {
         echo "[$(date +%H:%M:%S)] run $n exited non-zero; keeping what it wrote"
     mv "$BENCH_LOGS"/*qwen38fnds4shim-opencode-1* "$dir/" 2>/dev/null || true
     printf '{"run":%d,"arm":"%s","started":"%s","ended":"%s","dir":"%s","batch":"%s"}\n' \
-        "$n" "$arm" "$started" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$dir" "$BATCH" >> "$MANIFEST"
+        "$n" "$arm" "$started" "$(date +%Y-%m-%dT%H:%M:%S%z)" "$dir" "$BATCH" >> "$MANIFEST"
     echo "[$(date +%H:%M:%S)] run $n done, $(ls "$dir" | wc -l | tr -d ' ') transcripts"
 }
 
