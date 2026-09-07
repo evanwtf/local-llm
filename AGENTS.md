@@ -1753,11 +1753,25 @@ Related: the same asymmetry runs the other way. A peer that pushes back with a
 mechanism is usually worth believing -- see the route-field correction on the
 same day, where the peer was right and I was wrong twice.
 
-## A branch named after a machine holds data, not a feature (2026-09-07)
+## A branch named after a machine is permanent infrastructure (2026-09-07)
 
-**`Ryzen9-7900X-32GB-RTX3080Ti-12GB` must not be deleted.** It is the second
-hardware tier's data branch, and it is the only place 96 of its measurements
-exist.
+**`Ryzen9-7900X-32GB-RTX3080Ti-12GB` must never be deleted, rebased, or
+force-pushed.** It is not a feature branch, not a staging area, and not a
+merge waiting to happen. It is the only place a second machine can write.
+
+The Ryzen box runs on its own, and **there is no coordination channel between
+it and this laptop.** It cannot be told that main moved, cannot be asked to
+rebase, and will not notice anything done to its branch here. Its branch is
+the whole interface. Delete it and that machine has nowhere to push -- which
+is worse than losing rows, because it breaks every future run rather than
+losing a past one.
+
+`346 behind` is its **normal steady state, not drift to correct.** It is
+behind because main advances on this machine many times a day, and ahead
+because the other machine writes rows nobody has merged. Both numbers will
+grow forever. Neither is a problem and neither is a task.
+
+What is on it that is nowhere else, as of 2026-09-07:
 
 ```
 hardware/Ryzen9-7900X-32GB-RTX3080Ti-12GB/results.jsonl
@@ -1765,18 +1779,11 @@ hardware/Ryzen9-7900X-32GB-RTX3080Ti-12GB/results.jsonl
   on the branch   112 rows
 ```
 
-Those 112 rows cover seven backends -- `dtgemma412b`, `dtornith159b`,
-`dtqwen359b`, `dtmistralnemo`, `dtqwen359bq8`, `dtgemma4e4b`, `dtbonsai27b` --
-measured 2026-09-02 to 2026-09-03 on hardware this laptop is not. They cannot
-be re-derived here at any price: the machine is a different one. It also
-carries that tier's `RESULTS.md` and its `hardware-id-*` logs.
-
-The branch reads exactly like an abandoned feature branch and that is the
-trap. On 2026-09-07 it showed **5 commits ahead, 346 behind**, last touched
-five days earlier, with no open PR. Every one of those signals says "stale"
-for a feature branch and none of them mean anything for a data branch: it is
-behind because main moves on this machine, and it is ahead because the other
-machine wrote rows nobody has merged.
+96 rows across seven backends -- `dtgemma412b`, `dtornith159b`, `dtqwen359b`,
+`dtmistralnemo`, `dtqwen359bq8`, `dtgemma4e4b`, `dtbonsai27b` -- measured
+2026-09-02 to 2026-09-03, plus that tier's `RESULTS.md` and its
+`hardware-id-*` logs. None of it can be re-derived here at any price. The
+machine is a different machine.
 
 **Before deleting any branch, ask what kind it is.** The test that settles a
 feature branch is whether merging it changes anything:
@@ -1787,20 +1794,19 @@ git -C /tmp/mt merge --no-commit --no-ff origin/<branch>
 git -C /tmp/mt diff --cached --shortstat origin/main   # empty => superseded
 ```
 
-That test is correct for code and **wrong for data**. A machine branch fails
-it the same way a live one does, because a data branch is never "merged" in
-the sense a feature branch is -- it accumulates. Six branches were deleted on
-2026-09-07 on the strength of that test, correctly; this one was kept, and the
-only thing separating them was reading the diff rather than the graph.
+That test is right for code and **wrong for a machine branch**, which fails it
+exactly the way a dead branch does. Eighteen branches were deleted on
+2026-09-07 on the strength of it and every deletion was correct; this one was
+kept, and the only thing that separated it from them was asking what the
+branch was for instead of what its graph looked like.
 
-The rule: **a branch whose name is a machine name is a data branch. Check its
-`hardware/<that machine>/results.jsonl` row count against main before touching
-it, and never delete it because it looks stale.**
+The rule: **a branch whose name is a machine name belongs to that machine.
+Leave it alone.** Do not delete it, do not rebase it, do not force-push it,
+and do not "tidy" it because it has fallen behind.
 
-Whether those 96 rows should be merged into main is a separate and still-open
-question -- see the pre-`--dir` archive rule above, and
-[[Never resolve a data file by taking the union of two row sets]]. Merging
-them is not a `git merge`; it is an append that has to be argued for.
+Copying its rows into main is a separate question and still open. If it is
+ever done it is an append argued for under the union rule below -- never a
+`git merge`, and never anything that touches the branch itself.
 
 ## Never resolve a data file by taking the union of two row sets (2026-09-07)
 
