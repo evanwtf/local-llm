@@ -39,6 +39,8 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 REPO="$(cd "$HERE/.." && pwd)"
 # shellcheck source=lib/ds4_server.sh
 source "$HERE/lib/ds4_server.sh"
+# shellcheck source=lib/transcript_move.sh
+source "$HERE/lib/transcript_move.sh"
 
 # Both arms are overridable, so this harness can answer a question other than
 # #138's without a near-copy of it drifting away from the original (the repo
@@ -147,6 +149,12 @@ sweep() {
   # says which is which.
   local started
   started=$(date '+%H:%M:%S')
+  # Full-stamp twin of `started`: the transcript move needs a date+time to
+  # filter by mtime, not the time-of-day that `started` passes to sweep-order.
+  # This sweep's transcripts appear after this instant; anything older in the
+  # shared log dir is a leftover from a killed run and must not be swept in.
+  local since
+  since=$(date '+%Y-%m-%d %H:%M:%S')
   echo "[$(date +%H:%M:%S)] === $tag ($backend) ==="
   # #210: without --server-log the row carries no `draft` field at all, and an
   # MTP arm that never speculated is then indistinguishable from one that did.
@@ -158,12 +166,14 @@ sweep() {
       --require-harness-head "$HARNESS_HEAD" \
       --server-log "$OUT/server-$tag.log" --draft-log-engine ds4 $run_flags \
       > "$OUT/$tag.log" 2>&1 ) || echo "[$(date +%H:%M:%S)] $tag returned non-zero"
-  mkdir -p "$OUT/$tag"
-  # Transcripts move out of the top level immediately. Leaving them is how
-  # #112's pre-remedy evidence was destroyed -- later sweeps write the same
-  # filenames. save_transcript() no longer overwrites, but a per-sweep
-  # directory is what makes the rows attributable at all.
-  mv "$BENCH_LOGS"/*"$backend"-opencode-1* "$OUT/$tag/" 2>/dev/null || true
+  # Transcripts move out of the top level immediately, but only ones written
+  # after this sweep started. Leaving stale ones is how #112's pre-remedy
+  # evidence was destroyed -- later sweeps write the same filenames, and a run
+  # killed before ITS move ran leaves transcripts the next same-arm sweep would
+  # wrongly claim. save_transcript() no longer overwrites, and the per-sweep
+  # directory is what makes the rows attributable at all; the mtime filter is
+  # what keeps a leftover out of a sweep it was not part of.
+  move_transcripts_since "$BENCH_LOGS" "$OUT" "$tag" "$since" "$backend"
   echo "[$(date +%H:%M:%S)] $tag done, $(ls "$OUT/$tag" 2>/dev/null | wc -l | tr -d ' ') transcripts"
   echo "$tag $started $(date '+%H:%M:%S')" >> "$OUT/sweep-order.txt"
 }
