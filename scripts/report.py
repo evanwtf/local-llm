@@ -217,7 +217,8 @@ def main() -> int:
         logger.warning("")
         logger.warning(
             "%d cell(s) look UNTOUCHED -- every trial failed with the same "
-            "oracle output (#55):", len(untouched),
+            "oracle output (#55):",
+            len(untouched),
         )
         for backend, task, out in untouched:
             logger.warning("  %s %s: %s", backend, task, out[:80])

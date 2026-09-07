@@ -31,7 +31,9 @@ import sys
 import time
 import urllib.request
 
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent / "benchmarks" / "agent"))
+sys.path.insert(
+    0, str(pathlib.Path(__file__).resolve().parent.parent / "benchmarks" / "agent")
+)
 
 import mtp_timing  # noqa: E402
 import provenance  # noqa: E402
@@ -64,7 +66,9 @@ TOOLS = [
 ]
 
 
-def one_request(base_url, model, token, prompt, tools, max_tokens, timeout, stream=False):
+def one_request(
+    base_url, model, token, prompt, tools, max_tokens, timeout, stream=False
+):
     """Send one completion. Returns (generated_tokens, seconds).
 
     `stream` matters more than it looks: OpenCode streams, the tool-format shim
@@ -84,7 +88,10 @@ def one_request(base_url, model, token, prompt, tools, max_tokens, timeout, stre
     request = urllib.request.Request(
         base_url.rstrip("/") + "/v1/chat/completions",
         data=json.dumps(payload).encode(),
-        headers={"Content-Type": "application/json", "Authorization": f"Bearer {token}"},
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {token}",
+        },
     )
     started = time.monotonic()
     with urllib.request.urlopen(request, timeout=timeout) as fh:
@@ -111,7 +118,7 @@ def one_request(base_url, model, token, prompt, tools, max_tokens, timeout, stre
                 delta = choice.get("delta") or {}
                 if delta.get("content") or delta.get("tool_calls"):
                     generated += 1
-            if (usage := chunk.get("usage")):
+            if usage := chunk.get("usage"):
                 generated = usage.get("completion_tokens", generated)
         elapsed = time.monotonic() - started
         return generated, elapsed
@@ -157,11 +164,23 @@ def run(args) -> int:
             # moment to land before reading the delta.
             time.sleep(args.settle)
             counters, offset = measure(mtp_timing, log, offset)
-            row = {"rep": rep, "arm": arm, "generated": gen, "seconds": round(elapsed, 2), **counters}
+            row = {
+                "rep": rep,
+                "arm": arm,
+                "generated": gen,
+                "seconds": round(elapsed, 2),
+                **counters,
+            }
             rows.append(row)
             logger.info(
                 "rep %d %-5s generated=%-5s cycles=%-4d accepted=%-5s used=%s (%.1fs)",
-                rep, arm, gen, counters["cycles"], counters["accepted"], counters["used"], elapsed,
+                rep,
+                arm,
+                gen,
+                counters["cycles"],
+                counters["accepted"],
+                counters["used"],
+                elapsed,
             )
     logger.info("---")
     for arm in args.arms:
@@ -171,12 +190,18 @@ def run(args) -> int:
         accepted = sum(r["accepted"] or 0 for r in arm_rows)
         logger.info(
             "%-5s: %d requests, %d tokens generated, %d speculative cycles, %d accepted",
-            arm, len(arm_rows), gen, cycles, accepted,
+            arm,
+            len(arm_rows),
+            gen,
+            cycles,
+            accepted,
         )
     if args.json:
         pathlib.Path(args.json).write_text(json.dumps(rows, indent=2) + "\n")
         logger.info("rows written to %s", args.json)
-    engaged = {arm: any(r["cycles"] for r in rows if r["arm"] == arm) for arm in args.arms}
+    engaged = {
+        arm: any(r["cycles"] for r in rows if r["arm"] == arm) for arm in args.arms
+    }
     logger.info(
         "MTP engaged: %s", ", ".join(f"{arm}={yes}" for arm, yes in engaged.items())
     )
@@ -201,7 +226,9 @@ def parse_args(argv=None):
     p.add_argument("--max-tokens", type=int, default=400)
     p.add_argument("--prompt", default=DEFAULT_PROMPT)
     p.add_argument("--timeout", type=int, default=600)
-    p.add_argument("--settle", type=float, default=1.0, help="seconds to let the log flush")
+    p.add_argument(
+        "--settle", type=float, default=1.0, help="seconds to let the log flush"
+    )
     p.add_argument("--json", help="write the per-request rows here")
     return p.parse_args(argv)
 

@@ -145,7 +145,6 @@ def test_dry_run_refuses_real_results_paths():
     assert "must override RESULTS and MANIFEST" in proc.stderr
 
 
-
 def test_a_dry_run_does_not_kill_a_running_shim(tmp_path):
     """A dry run must not touch anything outside its own temp files.
 

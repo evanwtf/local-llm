@@ -95,6 +95,7 @@ date +%Y-%m-%dT%H:%M:%S%z
 
 ```python
 from datetime import datetime
+
 datetime.now().astimezone().strftime("%Y-%m-%dT%H:%M:%S%z")
 ```
 
@@ -110,6 +111,7 @@ and parse.
 
 ```python
 from datetime import datetime
+
 START = datetime.fromisoformat("2026-09-06T17:16:00-0400")
 cur = [r for r in rows if datetime.fromisoformat(r["started"]) >= START]
 ```

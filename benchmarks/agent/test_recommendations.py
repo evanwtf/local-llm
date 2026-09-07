@@ -388,7 +388,7 @@ def test_the_strip_caveat_enumerates_every_shim_backed_row() -> None:
 
 
 def test_the_strip_caveat_counts_the_rows_it_lists() -> None:
-    """"All three" has to stay true when a fourth shim backend appears."""
+    """ "All three" has to stay true when a fourth shim backend appears."""
     n = len(_shim_backed_backends())
     word = NUMBER_WORD[n]
     assert f"**All {word.lower()}** `qwen38fnds4*` rows" in DOC.read_text(), (

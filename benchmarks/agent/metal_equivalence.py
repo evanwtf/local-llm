@@ -55,8 +55,14 @@ DEFAULT_CACHE = pathlib.Path(
 
 # Fields worth keeping. `worst_*` describe the drift; the `*_fail` counts and
 # `top1_mismatch` decide the verdict.
-_INT = ("cases", "capture_fail", "logits_fail", "greedy_fail", "top1_mismatch",
-        "worst_rank_delta")
+_INT = (
+    "cases",
+    "capture_fail",
+    "logits_fail",
+    "greedy_fail",
+    "top1_mismatch",
+    "worst_rank_delta",
+)
 _FLOAT = ("worst_rms", "worst_max_abs", "worst_top20_max_abs")
 
 
@@ -89,7 +95,7 @@ UNSUPPORTED_MARKERS = ("requires --ple", "requires a PLE")
 
 
 def verdict(returncode: int, text: str) -> str:
-    """"pass", "fail", "unsupported" or "unknown".
+    """ "pass", "fail", "unsupported" or "unknown".
 
     Never inferred from the exit code alone: a build could tolerate a flipped
     greedy token and still exit 0. The counts in the summary are the claim; the
@@ -121,7 +127,9 @@ def fingerprint(binary: pathlib.Path, model: pathlib.Path) -> str | None:
             stat = pathlib.Path(path).resolve().stat()
         except OSError:
             return None
-        parts.append(f"{pathlib.Path(path).resolve()}:{stat.st_size}:{int(stat.st_mtime)}")
+        parts.append(
+            f"{pathlib.Path(path).resolve()}:{stat.st_size}:{int(stat.st_mtime)}"
+        )
     return hashlib.sha256("|".join(parts).encode()).hexdigest()[:16]
 
 
@@ -175,7 +183,7 @@ def cached_entry(path: pathlib.Path, fingerprint: str | None) -> dict | None:
 
 
 def cached_verdict(path: pathlib.Path, fingerprint: str | None) -> str:
-    """"pass"/"fail" for this exact build and model, else "stale" or "absent".
+    """ "pass"/"fail" for this exact build and model, else "stale" or "absent".
 
     "stale" means the file holds verdicts, but none for what is about to run --
     a rebuilt binary or a different model. It is deliberately not "absent":
