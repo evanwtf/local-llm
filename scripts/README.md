@@ -47,6 +47,7 @@ documentation.
 | `prune_models.py` | Delete local model weights that are superseded and re-downloadable (#111). |
 | `qwen38_metal_suites.py` | Run ds4#990's model-free Qwen3.8-Flash-Next Metal suites and report (#170). |
 | `report.py` | Summarize and compare measured cells, with the resolution rule applied. |
+| `route_ab_report.py` | Attribute #149 route-A/B rows to sweep windows and evaluate the screens. |
 | `sensor_windows.py` | Join a monitord sensor series to benchmark sweep windows. |
 | `session_decay.py` | Does a session get worse the longer the server runs? (#120) |
 | `stack_agent_report.py` | Read out for the #138 stack A/B: two whole stacks, four sweeps, one screen. |
@@ -69,6 +70,7 @@ documentation.
 | `metal_knob_ab.sh` | Paired decode-rate A/B for a Metal knob env var within one tree (#162 Task 4). |
 | `restart_between_trials.sh` | Restart-between-trials experiment for #112. |
 | `restart_between_trials_armB.sh` | 77 arm B re-run under restart-between-trials (2026-09-03). |
+| `route_agent_ab.sh` | Interleaved agent-suite A/B for the Metal 4 TensorOps route (#149). |
 | `stack_agent_ab.sh` | Interleaved agent-suite A/B for two whole STACKS -- engine + weights (#138). |
 | `strip_toggle_ab.sh` | 112 remedy 2: does echoing the shim's own scaffolding back to the model |
 | `targets_ab.sh` | 146: does the sandbox target layout change the pass rate? |
