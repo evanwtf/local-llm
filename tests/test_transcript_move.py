@@ -5,6 +5,11 @@ The plain glob had a hole: a run killed before ITS move ran leaves transcripts
 behind, and the next run of the same arm swept them into its own directory --
 `old-sweep1` once held 22 transcripts for a 15-task sweep. The helper keeps
 only files written after the sweep's recorded start.
+
+The start instant is passed as a `touch -t` token (CCYYMMDDhhmm.ss), which the
+helper stamps onto a marker and compares with `find -newer`. That is POSIX on
+both the BSD find the Metal run uses and the GNU find CI runs, so this test is
+faithful on either platform.
 """
 
 from __future__ import annotations
@@ -17,11 +22,12 @@ import subprocess
 REPO = pathlib.Path(__file__).resolve().parent.parent
 HELPER = REPO / "scripts" / "lib" / "transcript_move.sh"
 
-SINCE = "2026-09-06 12:00:00"
+#: The sweep start as `touch -t` CCYYMMDDhhmm.ss: 2026-09-06 12:00:00.
+START_TOK = "202609061200.00"
 
 
 def run_mover(
-    src: pathlib.Path, out: pathlib.Path, tag: str, since: str, backend: str
+    src: pathlib.Path, out: pathlib.Path, tag: str, tok: str, backend: str
 ) -> None:
     script = src / "run_move.sh"
     script.write_text(
@@ -30,7 +36,7 @@ def run_mover(
     )
     script.chmod(0o755)
     subprocess.run(
-        ["bash", str(script), str(src), str(out), tag, since, backend],
+        ["bash", str(script), str(src), str(out), tag, tok, backend],
         check=True,
         capture_output=True,
     )
@@ -57,7 +63,7 @@ def test_only_files_newer_than_the_start_move(tmp_path):
     fresh.write_text("fresh")
     stamp(fresh, 2026, 9, 6, 12, 15, 5)  # after the sweep started
 
-    run_mover(src, out, "old-sweep2", SINCE, "old-backend")
+    run_mover(src, out, "old-sweep2", START_TOK, "old-backend")
 
     moved = out / "old-sweep2"
     assert (moved / "old-backend-opencode-1-bbb.md").exists(), "fresh file must move"
@@ -77,7 +83,7 @@ def test_a_different_backend_is_untouched(tmp_path):
     other.write_text("other arm")
     stamp(other, 2026, 9, 6, 12, 15, 5)
 
-    run_mover(src, out, "old-sweep2", SINCE, "old-backend")
+    run_mover(src, out, "old-sweep2", START_TOK, "old-backend")
 
     assert other.exists(), "the other arm's transcript must stay in the shared dir"
     assert sorted(p.name for p in (out / "old-sweep2").iterdir()) == []
@@ -88,7 +94,7 @@ def test_no_files_moves_nothing_and_makes_the_dir(tmp_path):
     src = tmp_path / "bench-logs"
     out = tmp_path / "out"
     src.mkdir()
-    run_mover(src, out, "old-sweep3", SINCE, "old-backend")
+    run_mover(src, out, "old-sweep3", START_TOK, "old-backend")
     moved = out / "old-sweep3"
     assert moved.is_dir(), "the row count reads this dir even when it is empty"
     assert sorted(p.name for p in moved.iterdir()) == []
@@ -102,5 +108,5 @@ def test_a_non_matching_file_is_left(tmp_path):
     server_log = src / "server-old-sweep2.log"
     server_log.write_text("server log")
     stamp(server_log, 2026, 9, 6, 12, 15, 5)
-    run_mover(src, out, "old-sweep2", SINCE, "old-backend")
+    run_mover(src, out, "old-sweep2", START_TOK, "old-backend")
     assert server_log.exists()
