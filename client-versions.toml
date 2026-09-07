@@ -35,8 +35,10 @@
 # record of when the series changed, not a promise about what is installed.
 
 [reference]
-# Last recorded on 2026-09-04.
-opencode = "1.18.27"
-claude = "2.1.261"   # self-updated from 2.1.260 at 16:13 EDT
-codex = "0.152.0"
-aider = ""           # not driven from this machine
+# Last recorded on 2026-09-07. Both moves below were self-updates, caught by
+# preflight as SERIES BOUNDARY lines during the #171 prefill A/B; the values
+# are read out of ~/bench-logs/171-run2.log rather than recalled.
+opencode = "1.18.29"  # was 1.18.27, recorded 2026-09-04
+claude = "2.1.263"    # was 2.1.261, recorded 2026-09-04
+codex = "0.152.0"     # unchanged; 0.153.4 is available but not installed
+aider = ""            # not driven from this machine
