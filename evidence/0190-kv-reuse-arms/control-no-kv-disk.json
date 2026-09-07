@@ -1,0 +1,37 @@
+{
+  "engine": "ds4",
+  "engine_version": "ffd85d42",
+  "engine_dirty": false,
+  "engine_tree": "/Users/evanhoffman/git/ds4-ivan-qwen38fn",
+  "ctx": 32768,
+  "kv_disk": false,
+  "kv_disk_space_mb": 8192,
+  "gguf": "/Users/evanhoffman/models/qwen3.8-flash-next-ds4-q4k-imatrix/Qwen3.8-Flash-Next-Q4KImatrixExperts-MXFP4Down-BF16Emb-BF16Control-Q8GDN-Q8QSA-Q8Shared-Q8Out.gguf",
+  "ple": "/Users/evanhoffman/models/qwen3.8-flash-next-ds4-q4k-imatrix/Qwen3.8-Flash-Next-PLE-Q4_1.gguf",
+  "rows": [
+    {
+      "prompt_tokens": 2645,
+      "cached_tokens": 0,
+      "cache_write_tokens": 2645,
+      "n_defs": 200,
+      "reused_pct": 0.0,
+      "reprefilled": 2645
+    },
+    {
+      "prompt_tokens": 11045,
+      "cached_tokens": 0,
+      "cache_write_tokens": 11045,
+      "n_defs": 800,
+      "reused_pct": 0.0,
+      "reprefilled": 11045
+    },
+    {
+      "prompt_tokens": 29845,
+      "cached_tokens": 0,
+      "cache_write_tokens": 29845,
+      "n_defs": 2000,
+      "reused_pct": 0.0,
+      "reprefilled": 29845
+    }
+  ]
+}

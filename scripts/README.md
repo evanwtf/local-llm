@@ -30,6 +30,7 @@ documentation.
 | `hardware_id.py` | Derive a machine's results-directory name from the machine itself. |
 | `hf_sweep.py` | Watch Hugging Face for new quants of the models we actually run. |
 | `kv_prefix_audit.py` | Measure how much prefill a stalled KV prefix costs (#64, #50). |
+| `kv_prefix_reuse.py` | Measure how much of a prompt ds4 reuses from its prefix cache (#190). |
 | `load_matrix.py` | Load each of a set of gguf files with the PLE sidecar, serially, and |
 | `machine_claim.py` | Claim the machine with intent, and make contention impossible to miss. #160 |
 | `make_scripts_readme.py` | Generate scripts/README.md from each script's own first docstring line. |
