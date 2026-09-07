@@ -325,3 +325,51 @@ def test_every_verdict_is_one_the_gate_knows():
         FakeCounters(cycles=10, drafting=10),
     ]
     assert {run.draft_verdict(c) for c in cases} <= set(run.DRAFT_VERDICTS)
+
+
+# --- #210: silence is only ambiguous when the counters are not proven on ----
+#
+# On 2026-09-07 six agent trials produced no speculative cycle at all, on a
+# server whose argv carried --mtp-timing and which had written 340 cycles
+# minutes earlier. The verdict was `no-counters` -- the ambiguous one -- while
+# `counters_on` had already answered the question from the server's own
+# command line before the run started.
+
+
+def test_silence_with_counters_proven_on_is_decisive():
+    assert run.draft_verdict(None, counters_on=True) == "silent"
+    assert (
+        run.draft_verdict(FakeCounters(cycles=0, drafting=0), counters_on=True)
+        == "silent"
+    )
+
+
+def test_silence_without_that_proof_stays_ambiguous():
+    assert run.draft_verdict(None, counters_on=False) == "no-counters"
+    assert run.draft_verdict(FakeCounters(cycles=0, drafting=0)) == "no-counters"
+
+
+def test_counters_on_does_not_change_a_verdict_that_saw_work():
+    # It only disambiguates silence. An arm that drafted is judged on what it
+    # did, whatever the switch says.
+    counters = FakeCounters(cycles=244, drafting=120)
+    assert run.draft_verdict(counters, counters_on=True) == "partial"
+    assert run.draft_verdict(counters, counters_on=False) == "partial"
+
+
+def test_the_row_keeps_both_answers_apart():
+    # `counters_requested` is the env-var claim about intent; `counters_on` is
+    # read from the server's argv. A server started with the flag records
+    # false and true, and both belong on the row.
+    fields = run.draft_fields(
+        FakeCounters(cycles=0, drafting=0),
+        source="ds4-mtp-timing",
+        counters_requested=False,
+        counters_on=True,
+    )
+    assert fields["counters_requested"] is False
+    assert fields["counters_on"] is True
+
+
+def test_silent_is_a_verdict_the_gate_knows():
+    assert "silent" in run.DRAFT_VERDICTS

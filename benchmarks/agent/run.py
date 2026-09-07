@@ -2427,7 +2427,7 @@ def route_query_port(backend):
     return urlparse(declared or backend.get("base_url") or "").port
 
 
-def draft_fields(counters, source=None, counters_requested=None):
+def draft_fields(counters, source=None, counters_requested=None, counters_on=None):
     """Row fields for one trial's draft accounting.
 
     `used` is the assertion; the raw counts are kept so a later reader can
@@ -2438,7 +2438,14 @@ def draft_fields(counters, source=None, counters_requested=None):
         return None
     fields = {
         "source": source,
+        # #210: two different questions that looked like one. This is the
+        # operator's intent, read from an environment variable; `counters_on`
+        # below is read from the server's own command line. A server started
+        # with the `--mtp-timing` flag rather than the env var records
+        # `counters_requested: false` while its counters are demonstrably on,
+        # which is the ambiguity #148 set out to remove.
         "counters_requested": counters_requested,
+        "counters_on": counters_on,
         "accepted": counters.accepted,
         "accept_rate": counters.accept_rate,
         "used": counters.used,
@@ -2448,12 +2455,12 @@ def draft_fields(counters, source=None, counters_requested=None):
     # whichever the reader actually has rather than inventing a shared shape.
     #
     # #210: `bypassed` and `drafting_share` are the reason this list grew.
-    # ds4's scheduler measures MTP against plain decode and switches it off
-    # when it loses, so a trial can hold two populations -- cycles that
-    # drafted and cycles that did not -- and `accept_rate` averages them into
-    # one plausible-looking number. The reader has computed the split since
-    # #148; until now the row discarded it, which is how 124 zero-draft cycles
-    # out of 244 left no trace anywhere in the corpus.
+    # A bypassed cycle proposes nothing and accepts nothing, so it cancels out
+    # of `accept_rate` entirely -- that rate has always described only the
+    # cycles that drafted, and is silent about how few there were. Two arms
+    # can report the same rate and differ threefold in how much of the decode
+    # was speculative at all. The reader has computed the split since #148;
+    # until now the row discarded it.
     for name in (
         "cycles",
         "proposed",
@@ -2478,17 +2485,33 @@ def draft_fields(counters, source=None, counters_requested=None):
 #: Separated from `one_trial` so the judgement can be tested without running a
 #: coding agent -- the gate it feeds refuses a whole run, and an untested
 #: refusal is the kind that fires on the wrong thing at 3am.
-DRAFT_VERDICTS = ("no-counters", "not-used", "bypassed", "partial", "ok")
+DRAFT_VERDICTS = (
+    "no-counters",
+    "silent",
+    "not-used",
+    "bypassed",
+    "partial",
+    "ok",
+)
 
 
-def draft_verdict(counters):
+def draft_verdict(counters, counters_on=None):
     """Judge one trial's draft counters. Returns one of `DRAFT_VERDICTS`.
 
     The order matters, because the cases overlap and the strongest claim wins:
 
-    `no-counters` -- the engine emitted nothing. Ambiguous by nature: an engine
-    that never enters the speculative path is indistinguishable from counters
-    that were switched off, which is why this warns rather than refuses.
+    `no-counters` -- the engine emitted nothing **and** we cannot show its
+    counters were on. Ambiguous by nature: an engine that never enters the
+    speculative path is indistinguishable from counters that were switched
+    off, which is why this warns rather than refuses.
+
+    `silent` -- the engine emitted nothing while its counters were **proven
+    on** (#210). That is not ambiguous, and it is the case that slipped
+    through on 2026-09-07: six agent trials on an MTP arm produced no
+    speculative cycle at all, on a server whose argv carried `--mtp-timing`
+    and which had written 340 cycles minutes earlier. `counters_on` answers
+    this from the server's own command line and is already computed before a
+    run starts, so the harness knew and the verdict did not ask.
 
     `not-used` -- it did speculative work and accepted nothing (#148).
 
@@ -2503,10 +2526,12 @@ def draft_verdict(counters):
     populations and must not be read as one strength.
     """
     if counters is None:
-        return "no-counters"
+        return "silent" if counters_on else "no-counters"
     saw_work = getattr(counters, "cycles", None) or getattr(counters, "records", 0)
     if not saw_work:
-        return "no-counters"
+        # Proven on and still nothing: the engine did not speculate. Only
+        # without that proof is silence ambiguous.
+        return "silent" if counters_on else "no-counters"
     if not counters.used:
         return "not-used"
     # None means the reader has no notion of cycles (mtplx counts trace
@@ -2871,10 +2896,15 @@ def one_trial(
     # #148: what the draft head actually did during THIS trial. None when no
     # server log was given, which is not the same as zero -- see mtp_timing.
     if (counters := draft_probe.sample() if draft_probe else None) is not None:
+        # Read from the server's argv, not from this process's environment.
+        proven_on = counters_on(backend.get("draft_engine", "ds4"))
         result["draft"] = draft_fields(
-            counters, draft_probe.source, draft_probe.counters_requested
+            counters,
+            draft_probe.source,
+            draft_probe.counters_requested,
+            proven_on,
         )
-        verdict = draft_verdict(counters)
+        verdict = draft_verdict(counters, proven_on)
         if verdict == "bypassed":
             logger.error(
                 "%s: MTP accepted %d tokens but drafted in 0 of %d cycles "
@@ -2909,14 +2939,30 @@ def one_trial(
         elif verdict == "partial":
             logger.warning(
                 "%s: MTP drafted in %d of %d cycles (%.0f%%); accept_rate "
-                "%.3f is the average of two populations, not one treatment "
-                "(#210)",
+                "%.3f describes only the cycles that drafted and is silent "
+                "about how few there were (#210)",
                 name,
                 counters.drafting,
                 len(counters.cycles),
                 counters.drafting_share * 100,
                 counters.accept_rate,
             )
+        elif verdict == "silent":
+            logger.error(
+                "%s: MTP emitted NOT ONE speculative cycle while its counters "
+                "were proven on from the server's argv (%s) -- this arm did "
+                "not speculate at all",
+                name,
+                draft_probe.source,
+            )
+            if require_draft:
+                raise SystemExit(
+                    f"{name}: refusing to continue -- the engine's draft "
+                    f"counters are on and it emitted no speculative cycle, so "
+                    f"this arm carries an MTP label and no MTP (#210). On ds4 "
+                    f"this is what tool-bearing requests do (#151). Re-run "
+                    f"without --require-draft to measure it deliberately."
+                )
         elif verdict == "no-counters":
             logger.warning(
                 "%s: no draft counters this trial (%s). Cause is NOT resolved "
