@@ -243,6 +243,21 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 
 <!-- END GENERATED -->
 
+**Three conditions apply to the `qwen38fnds4*` rows, and a reproduction that
+misses them will not get these numbers.** They are set out at the end of this
+file rather than here because they are long, but they are not footnotes — each
+one changes what you would have to build to see the same result:
+
+* [The shim's scaffolding strip is load-bearing](#the-shims-scaffolding-strip-is-load-bearing-not-tidying)
+  — worth **23 points of pass rate** where it has been measured. Proxy the shim
+  without it and trials end with no tool call and no code, which reads as the
+  model failing rather than the plumbing.
+* [Three rows cannot be reproduced from upstream sources](#three-rows-here-cannot-be-reproduced-from-upstream-sources)
+  — they need a PLE sidecar that exists only on ivanfioravanti's forks.
+  `antirez/ds4` main will not load these weights at all.
+* [The build behind `qwen38fnds4shim` has been withdrawn](#the-ds4-shim-rows-were-measured-on-a-build-its-author-has-withdrawn)
+  — the Q4_0 file it measured is no longer offered on Hugging Face.
+
 **Reading the spread column.** It is the worst run divided by the best run *on
 the same task*. Anything near 4x is ordinary — these models sample at
 temperature and sometimes write four times as much code to solve the same
@@ -482,10 +497,10 @@ Nothing here changes the recommendation — the llama.cpp stack is still the one
 to install — but a reader reproducing our ds4 numbers should know they are
 pinned to a file the upstream author has moved on from.
 
-### One row here cannot be reproduced from upstream sources
+### Three rows here cannot be reproduced from upstream sources
 
-The `qwen38fnds4shim` and `qwen38fnds4mtp7shim` rows need **PLE sidecar
-support**, and that exists only on ivanfioravanti's forks:
+The `qwen38fnds4shim`, `qwen38fnds4kimat` and `qwen38fnds4mtp7shim` rows all
+need **PLE sidecar support**, and that exists only on ivanfioravanti's forks:
 [`ivanfioravanti/ds4-metal`](https://github.com/ivanfioravanti/ds4-metal) and
 [`ivanfioravanti/ds4`](https://github.com/ivanfioravanti/ds4) branch
 `qwen3.8-flash-next`. `antirez/ds4` main has no `ple_path` anywhere, so a
@@ -508,7 +523,8 @@ unsupported. It is not.
 
 ### The shim's scaffolding strip is load-bearing, not tidying
 
-Both `qwen38fnds4*` rows run behind `ds4_qwen_tool_shim.py`, which removes the
+**All three** `qwen38fnds4*` rows — `qwen38fnds4shim`, `qwen38fnds4kimat` and
+`qwen38fnds4mtp7shim` — run behind `ds4_qwen_tool_shim.py`, which removes the
 bare `<tool_call>` tags from the content it hands back after it has recovered a
 tool call. That looked like hygiene when it shipped. It is worth **23 points of
 pass rate**, measured 2026-09-06 as an A/B over 8 runs of 15 tasks with the arm
@@ -522,6 +538,13 @@ alternating A B B A and the server restarted before each run:
 Every strip-on run scored higher than every strip-off run — 15, 12, 14, 12
 against 9, 11, 10, 9 — so the gap does not rest on pooling
 ([#112](https://github.com/evanwtf/local-llm/issues/112)).
+
+**The 23 points were measured on `qwen38fnds4shim` only** — all 120 A/B rows
+carry that backend. The other two run behind the same shim and so carry the
+same dependency, but neither has been measured with the strip off, and the size
+of the effect there is unknown. `qwen38fnds4kimat` is the point that matters:
+it is the strongest of the three (90/90, 97s) and therefore the one a reader is
+most likely to reproduce.
 
 **A reproduction that proxies this shim without the strip will not get these
 numbers**, and the failure will look like the model rather than the plumbing:

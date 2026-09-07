@@ -338,3 +338,51 @@ def test_the_table_says_which_trials_the_timings_count():
     doc = gen_tables.render([_trial("a", 50.0, True), _trial("a", 10.0, False)])
     warning = doc.index("count only trials that passed")
     assert warning < doc.index("| stack | passed |")
+
+
+def _shim_backed_backends() -> set[str]:
+    """Backend names whose tasks.toml description says they use the shim.
+
+    Read from the config, not from a list in this file. A hand-kept list is
+    what failed: the caveat said "Both qwen38fnds4* rows" while three backends
+    ran behind the shim, and the one it omitted -- qwen38fnds4kimat, 90/90 at
+    97s -- was the strongest of them and so the likeliest to be reproduced.
+    """
+    text = (pathlib.Path(__file__).resolve().parent / "tasks.toml").read_text()
+    found, name = set(), None
+    for line in text.splitlines():
+        if line.startswith("[backend."):
+            name = line[len("[backend.") :].rstrip("]").strip()
+        elif name and "via the tool-format shim" in line:
+            found.add(name)
+    return found
+
+
+def test_every_shim_backed_row_is_named_in_the_strip_caveat() -> None:
+    """The strip is worth 23 points where measured; a row it applies to and
+    the caveat does not name is a reproduction that will silently miss it."""
+    doc = DOC.read_text()
+    start = doc.index("### The shim's scaffolding strip is load-bearing")
+    section = doc[start:]
+    missing = sorted(b for b in _shim_backed_backends() if b not in section)
+    assert not missing, (
+        f"shim-backed backends absent from the strip caveat: {missing}. "
+        "Add them, or the reader reproducing that row never learns the strip "
+        "is load-bearing."
+    )
+
+
+def test_every_shim_backed_row_is_named_in_the_upstream_caveat() -> None:
+    """Same rows, same argument: they all launch with --ple against a fork."""
+    doc = DOC.read_text()
+    start = doc.index("### Three rows here cannot be reproduced")
+    section = doc[start : doc.index("###", start + 3)]
+    missing = sorted(b for b in _shim_backed_backends() if b not in section)
+    assert not missing, (
+        f"shim-backed backends absent from the upstream caveat: {missing}"
+    )
+
+
+def test_the_shim_backend_list_is_not_empty() -> None:
+    """A parser that silently finds nothing would make both tests vacuous."""
+    assert len(_shim_backed_backends()) >= 3
