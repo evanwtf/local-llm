@@ -109,11 +109,30 @@ numbers are published because they are real; the recommendation withholds it on
 purpose.
 
 **And the row that used to sit second is worse than the table once said.**
-`qwen38fnds4mtp7shim` passes **50/91, 55%**. It is the `qwen38fnds4shim` row
-with MTP speculative decoding turned on, and nothing else changes: same
-weights, same engine, same shim, same client, same fifteen tasks. MTP-on loses
-on **13 of those 15** and takes two of them to **0/6** that the same weights
-pass 7/9 without it.
+`qwen38fnds4mtp7shim` is the `qwen38fnds4shim` stack with ds4's MTP flags
+added and nothing else changed: same weights, same engine, same shim, same
+fifteen tasks. It passes fewer of them. A controlled A/B on 2026-09-07 --
+four sweeps, arms alternated per pair, the server restarted between them, the
+harness head pinned -- put it at **21/30 against 28/30**
+([#39](https://github.com/evanwtf/local-llm/issues/39)).
+
+**Do not read that as the cost of speculative decoding, because no
+speculation happened.** The arm's own server loaded the MTP head, reported it
+`state=ready draft=7`, drafted on its start-up prompts at 47-61% acceptance,
+and then emitted **not one MTP timing line** across the thirty agent trials.
+Not zero acceptance, and not the `verifier=scheduler-bypass` a turned-away
+cycle prints: no line at all. ds4 does not reach its speculative path on a
+request carrying a tool schema, and every request a coding agent sends carries
+one ([#151](https://github.com/evanwtf/local-llm/issues/151)). Whatever
+separates these two rows, it is not drafting.
+
+**And the pass gap does not resolve at this size.** Thirty rows against thirty
+are fifteen tasks run twice per arm, not sixty independent trials -- a task
+the arm cannot do at all contributes two failures, and a pooled count reads
+the second as fresh evidence. Paired by task the split is 6 down, 1 up, 8
+tied; a two-sided sign test gives **p=0.125**. The direction has been the same
+at every look, which is a reason to run it again and not a reason to publish a
+number.
 
 Until 2026-09-06 it ranked **second of fifteen at an 84s median**, above every
 stack that passed all of its trials, because the timing columns counted failed
@@ -125,12 +144,16 @@ count only trials that passed, which puts this row **twelfth at 177s** and left
 every stack that passes everything on the number it already had. Read the
 `passed` column first, always.
 
-None of this says speculative decoding loses work. ds4's MTP defaults do not
-preserve the sampling distribution, so the model is being sampled differently
-and a pass-rate difference cannot be attributed to speculation
+None of this says speculative decoding loses work. On this machine it has
+never been measured doing any: through a coding agent it does not run at all.
+What the MTP flags do change is still open -- they allocate a different graph
+and, as we have configured them, a different disk KV directory, and either
+could carry the pass difference
 ([#142](https://github.com/evanwtf/local-llm/issues/142),
-[#39](https://github.com/evanwtf/local-llm/issues/39)). It does say **do not
-install this one**.
+[#39](https://github.com/evanwtf/local-llm/issues/39),
+[#190](https://github.com/evanwtf/local-llm/issues/190)). What it does say is
+**do not install this one**: it adds a head that never fires and a pass rate
+that has been worse every time it has been looked at.
 
 ---
 
