@@ -1266,7 +1266,7 @@ draft_engine = "ds4"
 # prefill against qwen38fnds4shim's. Both answer 6/6 on a six-question
 # ds4-eval gate, which says neither is broken and ranks nothing.
 [backend.qwen38fnds4kimat]
-description = "Qwen3.8-Flash-Next Q4_K imatrix on ivanfioravanti/ds4 qwen3.8-flash-next bd9cfbc via the tool-format shim, MTP off"
+description = "Qwen3.8-Flash-Next Q4_K imatrix on ivanfioravanti/ds4 qwen3.8-flash-next via the tool-format shim, MTP off; the branch is force-pushed, so the built commit is recorded per run in env, not pinned here"
 base_url = "http://127.0.0.1:8101"
 # #211: the ds4-server behind the shim. `base_url` above is the shim, and
 # `ds4_serve.py` records the Metal route against the server's port -- so

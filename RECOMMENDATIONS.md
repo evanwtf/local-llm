@@ -70,25 +70,34 @@ the reason is the first column. The quick-start above installs the first row.
 | pick this if | model | server | download | pass rate | median task |
 |---|---|---|---|---|---|
 | **you are starting out** | Qwen3.6-27B-coding `mxfp8` | Ollama | 31 GB | **24/24** | 167s |
-| **you want it fast** | Qwen3.8-Flash-Next `UD-Q3_K_XL` | llama.cpp | 84 GB | **60/60** | **106s** |
+| **you want it fast** | Qwen3.8-Flash-Next `Q4_K imatrix` | ds4, ivanfioravanti's fork | 98 GiB | **135/135** | **98s** |
 | **you want a second lineage** | DeepSeek-V4-Flash | ds4 (DwarfStar) | 91 GB | **30/30** | 115s |
 
 *Figures re-derived from the ledger 2026-09-07 and matching the generated
-table below. They were last written on 2026-09-01 and had drifted: the pass
-counts were 18/18, 21/21 and 21/21, which matched no current filter after the
-ledger grew and the pre-`--dir` rows were archived out. The "fast" median moved
-90s to 106s because [#212](https://github.com/evanwtf/local-llm/issues/212)
-added thirty rows under a later client.*
+table below. The "fast" row changed engine that day; the note beneath it says
+why, and the llama.cpp figures it used to carry are kept there so the two can
+still be compared.*
 
-> **Slot 2 has a live challenger.** `qwen38fnds4kimat` — the same model, Q4_K
-> imatrix, on ds4 — is **120/120 at 98s** in the table below, and a paired
-> four-sweep A/B on 2026-09-07 put it **19% faster** than this row at identical
-> pass rates (ratio 0.81, 95% CI 0.71–0.93, both pairs agreeing). That is a
-> screen, not a superiority claim, and the row is not changed until the paired
-> 3+3 is in. It also costs ~105 GB against 84 GB and runs only on
-> ivanfioravanti's fork, not mainline ds4 — see
-> [#141](https://github.com/evanwtf/local-llm/issues/141) and
-> [#212](https://github.com/evanwtf/local-llm/issues/212).
+> **Slot 2 changed on 2026-09-07, and llama.cpp is still the mainline
+> fallback.** A paired three-pair A/B put Qwen3.8-Flash-Next on ds4 **16%
+> faster** than the same model on llama.cpp at identical pass rates: wall
+> ratio **0.84 (95% CI 0.76-0.92)**, 90/90 passing on both arms, 13 of 15
+> tasks favouring ds4, and all three pairs agreeing in direction. The rule
+> that decided it was written down before the third pair ran
+> ([#212](https://github.com/evanwtf/local-llm/issues/212)).
+>
+> **The cost is a fork.** This stack loads only on
+> `ds4-ivan-qwen38fn`, not mainline ds4, and `antirez/ds4#991` is still open.
+> That is the durability risk [#141](https://github.com/evanwtf/local-llm/issues/141)
+> raises, and this file has already had one stack withdrawn by its author --
+> see "The ds4 shim rows were measured on a build its author has withdrawn"
+> below. **If you want a mainline engine, run Qwen3.8-Flash-Next
+> `UD-Q3_K_XL` on llama.cpp instead: 84 GiB, 75/75, 106s median.** It is 16%
+> slower and it will still be there.
+>
+> It also costs **98 GiB against 84 GiB** (105 GB against 90 GB, decimal), of
+> which 32 GB is the PLE sidecar. An earlier note here said "~105 GB against
+> 84 GB", comparing decimal GB to GiB and overstating the gap by half.
 
 All three drive **OpenCode**, and that is deliberate. The whole point of a local
 setup is that it keeps working when a vendor does not — so the agent has to be
@@ -235,7 +244,7 @@ other is telling you something.
 
 <!-- BEGIN GENERATED -->
 
-*Generated from `results.jsonl` — 1779 rows, sha256 ddb0120ec62a.*
+*Generated from `results.jsonl` — 1809 rows, sha256 cc595e8ca30b.*
 
 #### Every stack measured under OpenCode
 
@@ -244,8 +253,8 @@ other is telling you something.
 | stack | passed | median | worst | spread |
 |---|---|---|---|---|
 | ornith15 | 21/21 | 44s | 93s | 5.9x |
-| qwen38fnds4kimat | 120/120 | 98s | 472s | 11.6x |
-| Qwen3.8-Flash-Next Q3 - llama.cpp | 60/60 | 106s | 356s | 8.3x |
+| qwen38fnds4kimat | 135/135 | 98s | 472s | 12.2x |
+| Qwen3.8-Flash-Next Q3 - llama.cpp | 75/75 | 106s | 356s | 8.3x |
 | DeepSeek-V4-Flash - ds4 (Anthropic wire) | 18/18 | 110s | 221s | 4.3x |
 | qwen38fnq3reap | 21/21 | 110s | 261s | 6.8x |
 | DeepSeek-V4-Flash - ds4 | 30/30 | 115s | 230s | 4.3x |
@@ -267,13 +276,13 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 
 | task | what it asks for | llama.cpp | LM Studio |
 |---|---|---|---|
-| [`mbox-scan`](benchmarks/agent/PROMPTS.md#mbox-scan) | implement `scan`, which walks an mbox file | 105s | 140s |
+| [`mbox-scan`](benchmarks/agent/PROMPTS.md#mbox-scan) | implement `scan`, which walks an mbox file | 106s | 140s |
 | [`mbox-strip-envelope`](benchmarks/agent/PROMPTS.md#mbox-strip-envelope) | implement `strip_envelope` in an mbox parser | 53s | 94s |
-| [`parser-date`](benchmarks/agent/PROMPTS.md#parser-date) | implement `_date`, an email date parser | 208s | 238s |
-| [`parser-mbox-quoting`](benchmarks/agent/PROMPTS.md#parser-mbox-quoting) | implement `unquote_mbox`, round-tripping with `requote_mbox` | 79s | 93s |
-| [`script-reverse`](benchmarks/agent/PROMPTS.md#script-reverse) | write `reverse.py` from nothing: read argv, print reversed | 44s | 57s |
-| [`script-transform`](benchmarks/agent/PROMPTS.md#script-transform) | write `transform.py`: `--input` plus three composable flags | 44s | 70s |
-| [`storage-blob-put`](benchmarks/agent/PROMPTS.md#storage-blob-put) | implement `BlobStore.put` | 99s | 124s |
+| [`parser-date`](benchmarks/agent/PROMPTS.md#parser-date) | implement `_date`, an email date parser | 188s | 238s |
+| [`parser-mbox-quoting`](benchmarks/agent/PROMPTS.md#parser-mbox-quoting) | implement `unquote_mbox`, round-tripping with `requote_mbox` | 86s | 93s |
+| [`script-reverse`](benchmarks/agent/PROMPTS.md#script-reverse) | write `reverse.py` from nothing: read argv, print reversed | 41s | 57s |
+| [`script-transform`](benchmarks/agent/PROMPTS.md#script-transform) | write `transform.py`: `--input` plus three composable flags | 49s | 70s |
+| [`storage-blob-put`](benchmarks/agent/PROMPTS.md#storage-blob-put) | implement `BlobStore.put` | 95s | 124s |
 
 #### How fast each stack actually serves tokens
 
@@ -354,7 +363,62 @@ holds about 5 GB. It does not survive a reboot on its own; this repo has
 **A reading of `0` means "system default", not "no limit".** After a reboot, `0`
 means your setting did not apply.
 
-### Qwen3.8-Flash-Next on llama.cpp — the fast one
+### Qwen3.8-Flash-Next on ds4 — the fast one
+
+**This is a fork, and that is the whole caveat.** The build lives on
+ivanfioravanti's `qwen3.8-flash-next` branch, not mainline ds4;
+`antirez/ds4#991` is still open. The fork's own `download_model.sh` carries the
+comment *"will move to the antirez org — flip this one line then"*, so the
+authors expect it to land. Until it does, this stack is one force-push from
+needing attention. If that is not a risk you want, run the llama.cpp stack
+below instead and give up 16%.
+
+```sh
+git clone https://github.com/ivanfioravanti/ds4.git ~/git/ds4-ivan-qwen38fn
+cd ~/git/ds4-ivan-qwen38fn
+git checkout qwen3.8-flash-next
+make
+```
+
+The 45 rows behind the table were measured at `ffd85d42`. The branch moves
+daily and is force-pushed, so record the commit you built — a bare file:line
+against this tree is unverifiable a week later.
+
+Weights come from `ivanfioravanti/Qwen3.8-Flash-Next-DS4-Q4` on Hugging Face.
+Two files are needed and they total ~105 GB (98 GiB): the experts, and a
+**PLE sidecar** which is a further 32 GB and is easy to miss.
+
+```sh
+export KIM=~/models/qwen3.8-flash-next-ds4-q4k-imatrix
+# Qwen3.8-Flash-Next-Q4KImatrixExperts-MXFP4Down-BF16Emb-BF16Control-Q8GDN-Q8QSA-Q8Shared-Q8Out.gguf
+# Qwen3.8-Flash-Next-PLE-Q4_1.gguf
+```
+
+Serve it, then put the tool-format shim in front. **Both halves are required** —
+OpenCode talks to the shim, not to ds4:
+
+```sh
+cd ~/git/ds4-ivan-qwen38fn
+./ds4-server --metal \
+  -m "$KIM/Qwen3.8-Flash-Next-Q4KImatrixExperts-MXFP4Down-BF16Emb-BF16Control-Q8GDN-Q8QSA-Q8Shared-Q8Out.gguf" \
+  --ple "$KIM/Qwen3.8-Flash-Next-PLE-Q4_1.gguf" \
+  --ctx 100000 --warm-weights \
+  --kv-disk-dir ~/.ds4/server-kv --kv-disk-space-mb 8192 \
+  --host 127.0.0.1 --port 8000
+
+uv run python ds4_qwen_tool_shim.py --upstream http://127.0.0.1:8000 --port 8101
+```
+
+OpenCode then points at `ds4qwenshim/qwen3.8-flash-next-q4`. The server plans
+**79.7 GiB resident** at `ctx=100000` (68.3 GiB model + 8.4 GiB buffers +
+2.9 GiB KV), which fits the 112 GiB ceiling with room to spare.
+
+**Leave MTP off.** The MTP sidecar exists in the same repo, and
+[#39](https://github.com/evanwtf/local-llm/issues/39) measured what it does to
+this model under an agent: it does not slow decode, it breaks error recovery.
+Every one of ~20 malformed tool calls per sweep failed to recover with MTP on.
+
+### Qwen3.8-Flash-Next on llama.cpp — the mainline fallback
 
 ```sh
 brew install cmake
