@@ -149,12 +149,16 @@ sweep() {
   # says which is which.
   local started
   started=$(date '+%H:%M:%S')
-  # Touch-token twin of `started`: the transcript move filters by mtime, and
-  # needs date+time, not the time-of-day that `started` passes to sweep-order.
-  # This sweep's transcripts appear after this instant; anything older in the
-  # shared log dir is a leftover from a killed run and must not be swept in.
-  local since_tok
-  since_tok=$(date '+%Y%m%d%H%M.%S')
+  # Stamp a marker to this sweep's instant. The transcript move filters by
+  # mtime, so it needs date+time, not the time-of-day that `started` passes to
+  # sweep-order -- and it needs a stamped file (`find -newer`), not a date
+  # string, whose BSD and GNU `touch -t` parsers disagree. This sweep's
+  # transcripts appear after this instant; anything older in the shared log dir
+  # is a leftover from a killed run and must not be swept in.
+  local move_marker
+  move_marker="$OUT/.transcript-start"
+  : > "$move_marker"
+  touch -t "$(date '+%Y%m%d%H%M.%S')" "$move_marker"
   echo "[$(date +%H:%M:%S)] === $tag ($backend) ==="
   # #210: without --server-log the row carries no `draft` field at all, and an
   # MTP arm that never speculated is then indistinguishable from one that did.
@@ -173,7 +177,7 @@ sweep() {
   # wrongly claim. save_transcript() no longer overwrites, and the per-sweep
   # directory is what makes the rows attributable at all; the mtime filter is
   # what keeps a leftover out of a sweep it was not part of.
-  move_transcripts_since "$BENCH_LOGS" "$OUT" "$tag" "$since_tok" "$backend"
+  move_transcripts_since "$BENCH_LOGS" "$OUT" "$tag" "$move_marker" "$backend"
   echo "[$(date +%H:%M:%S)] $tag done, $(ls "$OUT/$tag" 2>/dev/null | wc -l | tr -d ' ') transcripts"
   echo "$tag $started $(date '+%H:%M:%S')" >> "$OUT/sweep-order.txt"
 }

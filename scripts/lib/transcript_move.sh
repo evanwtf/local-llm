@@ -12,19 +12,16 @@
 # for a 15-task sweep -- 7 leftovers from a run killed at 08:17.
 #
 # Filter by mtime: move only files newer than this sweep's start. The caller
-# passes that instant as `touch -t` (CCYYMMDDhhmm.ss), and this helper stamps a
-# throwaway marker with it, then finds with `-newer` -- POSIX on both the BSD
-# find the Metal run uses and the GNU find CI runs, unlike `-newermt`, whose
-# date string BSD and GNU parse differently.
+# stamps a marker file to that instant (BSD/Metal `touch -t CCYYMMDDhhmm.ss`
+# sets it correctly there) and passes its PATH; this helper compares with
+# `find -newer`, which is POSIX on both the BSD find the Metal run uses and
+# the GNU find CI runs. Passing a path, not a date string, keeps the two
+# platforms on one code path -- their `touch -t` parsers disagree on the token
+# form, and a test must be faithful on either platform.
 
 move_transcripts_since() {
-  local src=$1 out=$2 tag=$3 mtime_tok=$4 backend=$5
-  local marker
+  local src=$1 out=$2 tag=$3 marker=$4 backend=$5
   mkdir -p "$out/$tag"
-  marker="$(mktemp "${TMPDIR:-/tmp}/transcript-move.XXXXXX")"
-  : > "$marker"
-  touch -t "$mtime_tok" "$marker"
   find "$src" -maxdepth 1 -type f -name "*${backend}-opencode-1*" \
     -newer "$marker" -exec mv {} "$out/$tag/" \; 2>/dev/null || true
-  rm -f "$marker"
 }
