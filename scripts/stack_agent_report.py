@@ -538,7 +538,10 @@ def wall_report(paired: list[tuple[str, float, float]]) -> dict[str, Any]:
 
 
 def void_checks(
-    raw: list[dict[str, Any]], sweeps: list[Sweep], leftover: list[dict[str, Any]]
+    raw: list[dict[str, Any]],
+    sweeps: list[Sweep],
+    leftover: list[dict[str, Any]],
+    allow_harness_split: str = "",
 ) -> list[str]:
     """Return the list of failing void checks; empty means not void."""
     failures = []
@@ -560,8 +563,18 @@ def void_checks(
         failures.append("task sets differ between arms")
     envs = [r["env"] for r in raw if isinstance(r.get("env"), dict)]
     heads = {e.get("harness_head") for e in envs if e.get("harness_head")}
-    if len(heads) > 1:
-        failures.append(f"harness_head varies across rows: {sorted(heads)}")
+    if len(heads) > 1 and not allow_harness_split:
+        failures.append(
+            f"harness_head varies across rows: {sorted(heads)}"
+            " -- pass --allow-harness-split REASON if the diff between them"
+            " provably touches nothing the benchmark executes"
+        )
+    elif len(heads) > 1:
+        logger.info(
+            "OVERRIDE: pooling rows across harness heads %s -- %s",
+            sorted(heads),
+            allow_harness_split,
+        )
     if any(e.get("harness_dirty") for e in envs):
         failures.append("harness_dirty row present")
     versions = {r.get("client_version") for r in raw}
@@ -667,6 +680,16 @@ def main(argv: list[str] | None = None) -> int:
         help="rows before this instant are not tonight's; default: the"
         " started line of run-record.txt in --run-dir",
     )
+    p.add_argument(
+        "--allow-harness-split",
+        default="",
+        metavar="REASON",
+        help="pool rows taken at different harness_head values. Requires a "
+        "reason, which is printed beside the override. Use ONLY when the diff "
+        "between the heads provably touches nothing the benchmark executes -- "
+        "check `git diff --name-only A B` against benchmarks/agent/ first. The "
+        "default refusal is right: two harness heads are normally two harnesses.",
+    )
     args = p.parse_args(argv)
 
     if args.cut is not None:
@@ -711,7 +734,7 @@ def main(argv: list[str] | None = None) -> int:
     # shows up as a short sweep cell, which void_checks refuses on.
     usable = [r for r in raw if not r.get("excluded") and not r.get("dry_run")]
     leftover = assign(usable, sweeps)
-    failures = void_checks(raw, sweeps, leftover)
+    failures = void_checks(raw, sweeps, leftover, args.allow_harness_split)
     for s in sweeps:
         logger.info(
             "sweep %-12s %s  rows %2d  %s",

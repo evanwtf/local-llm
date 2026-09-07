@@ -701,3 +701,64 @@ def test_the_direction_is_recorded_not_just_the_count():
     pairs = [("regressed", 0, 2, 2, 2), ("improved", 2, 2, 0, 2)]
     got = sar.pass_report(pairs)
     assert got["down"] == ["regressed"] and got["up"] == ["improved"]
+
+
+# --- Pooling across harness heads is refused, and overridable with a reason --
+#
+# The #212 slot-2 A/B came back VOID because commits landed mid-run and split
+# `harness_head` across sweeps. The refusal is right by default -- two harness
+# heads are normally two harnesses -- but that run's diff was docs and one
+# script the benchmark never calls, so the rows were pooled under a stated
+# justification rather than by deleting the check.
+
+
+def rows_at_heads(*heads: str) -> list[dict]:
+    return [{"env": {"harness_head": h}} for h in heads]
+
+
+def test_one_harness_head_is_never_a_split():
+    """Assert on the check under test, not on an empty list -- a bare fixture
+    also trips the row-count check, which is a different fact."""
+    got = sar.void_checks(rows_at_heads("abc1234", "abc1234"), [], [])
+    assert not any("harness_head varies" in f for f in got), got
+
+
+def test_two_harness_heads_are_void_by_default():
+    got = sar.void_checks(rows_at_heads("abc1234", "def5678"), [], [])
+    assert any("harness_head varies" in f for f in got), got
+
+
+def test_the_refusal_names_both_heads_and_the_way_out():
+    got = " ".join(sar.void_checks(rows_at_heads("abc1234", "def5678"), [], []))
+    assert "abc1234" in got and "def5678" in got
+    assert "--allow-harness-split" in got
+
+
+def test_a_reason_lifts_the_refusal():
+    got = sar.void_checks(
+        rows_at_heads("abc1234", "def5678"), [], [], "docs only; nothing in benchmarks/"
+    )
+    assert not any("harness_head varies" in f for f in got), got
+
+
+def test_the_override_is_announced_not_silent(caplog):
+    """An override nobody can see in the output is indistinguishable from a
+    check that was quietly deleted."""
+    with caplog.at_level(logging.INFO):
+        sar.void_checks(rows_at_heads("abc1234", "def5678"), [], [], "a stated reason")
+    msgs = " ".join(r.getMessage() for r in caplog.records)
+    assert "OVERRIDE" in msgs and "a stated reason" in msgs
+
+
+def test_an_empty_reason_does_not_override():
+    """`--allow-harness-split ''` is the default, and must not lift anything."""
+    got = sar.void_checks(rows_at_heads("abc1234", "def5678"), [], [], "")
+    assert any("harness_head varies" in f for f in got), got
+
+
+def test_the_override_does_not_lift_other_voids():
+    """It is a waiver for one fact, not a blanket. A short sweep is still void."""
+    short = sar.Sweep("new-sweep1", dt.datetime(2026, 9, 7, 12, 23))
+    short.rows = [{"task": "t"}]
+    got = sar.void_checks(rows_at_heads("abc1234", "def5678"), [short], [], "docs only")
+    assert any("expected" in f for f in got), got

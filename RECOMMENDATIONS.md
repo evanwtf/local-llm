@@ -212,7 +212,7 @@ other is telling you something.
 
 <!-- BEGIN GENERATED -->
 
-*Generated from `results.jsonl` — 1719 rows, sha256 443e9ff041fe.*
+*Generated from `results.jsonl` — 1779 rows, sha256 ddb0120ec62a.*
 
 #### Every stack measured under OpenCode
 
@@ -221,8 +221,8 @@ other is telling you something.
 | stack | passed | median | worst | spread |
 |---|---|---|---|---|
 | ornith15 | 21/21 | 44s | 93s | 5.9x |
-| Qwen3.8-Flash-Next Q3 - llama.cpp | 30/30 | 90s | 208s | 4.8x |
-| qwen38fnds4kimat | 90/90 | 97s | 472s | 11.6x |
+| qwen38fnds4kimat | 120/120 | 98s | 472s | 11.6x |
+| Qwen3.8-Flash-Next Q3 - llama.cpp | 60/60 | 106s | 356s | 8.3x |
 | DeepSeek-V4-Flash - ds4 (Anthropic wire) | 18/18 | 110s | 221s | 4.3x |
 | qwen38fnq3reap | 21/21 | 110s | 261s | 6.8x |
 | DeepSeek-V4-Flash - ds4 | 30/30 | 115s | 230s | 4.3x |
@@ -236,7 +236,7 @@ other is telling you something.
 | GLM-5.3-Flash - ds4 | 22/24 | 369s | 1227s | 18.0x |
 | gemma4 | 12/12 | 383s | 1316s | 4.8x |
 
-**Rows here were not all taken under one client.** qwen38fnq3reap under 1.18.26; qwen38fnds4kimat, qwen38fnds4mtp7shim, qwen38fnds4shim under 1.18.27; qwen38fnds4kimat, qwen38fnds4mtp7shim, qwen38fnds4shim under 1.18.29; the rest under 1.18.25. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: qwen38fnds4kimat (1.18.27, 1.18.29); qwen38fnds4mtp7shim (1.18.27, 1.18.29); qwen38fnds4shim (1.18.27, 1.18.29).
+**Rows here were not all taken under one client.** qwen38fnq3reap under 1.18.26; qwen38fnds4kimat, qwen38fnds4mtp7shim, qwen38fnds4shim under 1.18.27; qwen38fnds4kimat, qwen38fnds4mtp7shim, qwen38fnds4shim, Qwen3.8-Flash-Next Q3 - llama.cpp under 1.18.29; the rest under 1.18.25. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: qwen38fnds4kimat (1.18.27, 1.18.29); qwen38fnds4mtp7shim (1.18.27, 1.18.29); qwen38fnds4shim (1.18.27, 1.18.29); Qwen3.8-Flash-Next Q3 - llama.cpp (1.18.25, 1.18.29).
 
 Excision tasks only; `script-*` excluded because they are a different class. **Spread is worst / best on the same task**, and it is the column most people forget to ask for.
 
@@ -244,13 +244,13 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 
 | task | what it asks for | llama.cpp | LM Studio |
 |---|---|---|---|
-| [`mbox-scan`](benchmarks/agent/PROMPTS.md#mbox-scan) | implement `scan`, which walks an mbox file | 108s | 140s |
-| [`mbox-strip-envelope`](benchmarks/agent/PROMPTS.md#mbox-strip-envelope) | implement `strip_envelope` in an mbox parser | 50s | 94s |
-| [`parser-date`](benchmarks/agent/PROMPTS.md#parser-date) | implement `_date`, an email date parser | 164s | 238s |
-| [`parser-mbox-quoting`](benchmarks/agent/PROMPTS.md#parser-mbox-quoting) | implement `unquote_mbox`, round-tripping with `requote_mbox` | 70s | 93s |
-| [`script-reverse`](benchmarks/agent/PROMPTS.md#script-reverse) | write `reverse.py` from nothing: read argv, print reversed | 41s | 57s |
-| [`script-transform`](benchmarks/agent/PROMPTS.md#script-transform) | write `transform.py`: `--input` plus three composable flags | 39s | 70s |
-| [`storage-blob-put`](benchmarks/agent/PROMPTS.md#storage-blob-put) | implement `BlobStore.put` | 89s | 124s |
+| [`mbox-scan`](benchmarks/agent/PROMPTS.md#mbox-scan) | implement `scan`, which walks an mbox file | 105s | 140s |
+| [`mbox-strip-envelope`](benchmarks/agent/PROMPTS.md#mbox-strip-envelope) | implement `strip_envelope` in an mbox parser | 53s | 94s |
+| [`parser-date`](benchmarks/agent/PROMPTS.md#parser-date) | implement `_date`, an email date parser | 208s | 238s |
+| [`parser-mbox-quoting`](benchmarks/agent/PROMPTS.md#parser-mbox-quoting) | implement `unquote_mbox`, round-tripping with `requote_mbox` | 79s | 93s |
+| [`script-reverse`](benchmarks/agent/PROMPTS.md#script-reverse) | write `reverse.py` from nothing: read argv, print reversed | 44s | 57s |
+| [`script-transform`](benchmarks/agent/PROMPTS.md#script-transform) | write `transform.py`: `--input` plus three composable flags | 44s | 70s |
+| [`storage-blob-put`](benchmarks/agent/PROMPTS.md#storage-blob-put) | implement `BlobStore.put` | 99s | 124s |
 
 #### How fast each stack actually serves tokens
 
@@ -261,7 +261,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | qwen | 31s |
 | qwen38fnds4kimat | 34s |
 | qwen38fnq3reap | 38s |
-| Qwen3.8-Flash-Next Q3 - llama.cpp | 43s |
+| Qwen3.8-Flash-Next Q3 - llama.cpp | 42s |
 | qwen36 | 50s |
 | DeepSeek-V4-Flash - ds4 (Anthropic wire) | 54s |
 | GLM-5.3-Flash - ds4 | 55s |
@@ -272,7 +272,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | qwen38fnds4mtp7shim | 84s |
 | Qwen3.8-Flash-Next Q3 - LM Studio | 115s |
 
-**Rows here were not all taken under one client.** qwen38fnq3reap under 1.18.26; qwen38fnds4kimat, qwen38fnds4mtp7shim, qwen38fnds4shim under 1.18.27; qwen38fnds4kimat, qwen38fnds4mtp7shim, qwen38fnds4shim under 1.18.29; the rest under 1.18.25. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: qwen38fnds4kimat (1.18.27, 1.18.29); qwen38fnds4mtp7shim (1.18.27, 1.18.29); qwen38fnds4shim (1.18.27, 1.18.29).
+**Rows here were not all taken under one client.** qwen38fnq3reap under 1.18.26; qwen38fnds4kimat, qwen38fnds4mtp7shim, qwen38fnds4shim under 1.18.27; qwen38fnds4kimat, qwen38fnds4mtp7shim, qwen38fnds4shim, Qwen3.8-Flash-Next Q3 - llama.cpp under 1.18.29; the rest under 1.18.25. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: qwen38fnds4kimat (1.18.27, 1.18.29); qwen38fnds4mtp7shim (1.18.27, 1.18.29); qwen38fnds4shim (1.18.27, 1.18.29); Qwen3.8-Flash-Next Q3 - llama.cpp (1.18.25, 1.18.29).
 
 <!-- END GENERATED -->
 
