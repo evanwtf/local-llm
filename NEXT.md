@@ -138,6 +138,44 @@ does not cancel a decaying bias — pass `REPS=4` explicitly until #201 lands.
 Durations are estimates. Nothing here is anchored to a clock — each step starts
 when the one before it releases the lock.
 
+### Top of the queue: Qwen on ds4 (#212)
+
+**Operator decision, 2026-09-07: this outranks GLM.** [#212](https://github.com/evanwtf/local-llm/issues/212)
+is the parent, and the Qwen work that was scattered across five issues at three
+priorities now hangs off it: **#170, #151, #210, #39, #158, #188, #191, #211**.
+#138 closed as finished rather than being dragged in, and #190 and #199 closed
+answered the same morning.
+
+Why it is first: Qwen3.8-Flash-Next on ds4 is the primary of this project —
+`qwen38fnds4shim` is the largest backend in the corpus at 262 rows — and every
+recent upstream event lands on it. `ds4#991` proposes our fork upstream,
+`ds4#990` adds a native Metal port, and @ivanfioravanti published **MTPLX 25 t/s
+against ds4 18 t/s on an M5 Max**, our exact machine class and our exact model.
+Meanwhile the machine has produced **no Qwen row since 2026-09-05**.
+
+Done so far today:
+
+- **#170 — done. Six of six model-free suites pass on an M5 Max** at
+  `9803df46`: `gdn`, `qsa`, `hc`, `ple-hash`, `ple-store`, `indexer`. Six, not
+  the four the issue named — the PR gained two while it sat. Reported with one
+  real build finding: `tests/test_qwen38_qsa.c:148` uses `-INFINITY` as a
+  softmax sentinel, and the `-fno-finite-math-only` that would make it defined
+  sits in the Makefile's **non-Darwin** branch. Latent, not active.
+  `scripts/qwen38_metal_suites.py` re-runs it; the PR moves daily.
+- **#210 — the row now records the split.** `drafting_share`, `bypassed` and
+  `drafting` land beside `accept_rate`, and an arm that drafted in **zero**
+  cycles is refused like one that accepted nothing. Read it next to item 3
+  below: the split is not random, it tracks **tool-bearing requests**.
+- **#151 — the recorded blocker was wrong.**
+  `Youssofal/Qwen3.8-Flash-Next-MTPLX-Optimized-Speed` exists, declares
+  `mtp_depth_max: 3` and a real 1.68 GB `mtp.safetensors`, and is fetching.
+  MTPLX updated **2.7.2 → 2.11.2**.
+
+Next, in order: a lock-held MTP batch that writes `drafting_share` on every row
+(which is what #148 and #39 are both waiting for), then MTPLX against ds4 on
+this machine at **full power** — @ivanfioravanti's numbers were taken in Low
+Power, which is not our regime.
+
 ### First, because someone upstream is waiting on it
 
 0. **[#162](https://github.com/evanwtf/local-llm/issues/162)** Re-test ds4#952 on Metal, at head `77a054e1`
