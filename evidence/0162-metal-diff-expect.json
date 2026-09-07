@@ -1,1 +1,4 @@
-{"exit": 0, "stdout_contains": "DS4_METAL_DISABLE_DECODE_RAW_GATHERED_ATTN"}
+{
+  "exit": 0,
+  "stdout_contains": "DS4_METAL_DISABLE_DECODE_RAW_GATHERED_ATTN"
+}

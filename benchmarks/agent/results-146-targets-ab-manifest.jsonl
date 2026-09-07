@@ -1,2 +1,6 @@
-{"run":1,"arm":"legacy","started":"2026-09-06T11:43:33Z","ended":"2026-09-06T12:15:52Z","dir":"/Users/evanhoffman/bench-logs/146-targets-legacy-0906-0743-run1"}
-{"run":2,"arm":"sandbox","started":"2026-09-06T12:16:00Z","ended":"2026-09-06T13:21:10Z","dir":"/Users/evanhoffman/bench-logs/146-targets-sandbox-0906-0743-run2"}
+{"run": 1, "arm": "legacy", "started": "2026-09-06T07:43:33-0400", "ended": "2026-09-06T08:15:52-0400", "dir": "/Users/evanhoffman/bench-logs/146-targets-legacy-0906-0743-run1"}
+{"run": 2, "arm": "sandbox", "started": "2026-09-06T08:16:00-0400", "ended": "2026-09-06T09:21:10-0400", "dir": "/Users/evanhoffman/bench-logs/146-targets-sandbox-0906-0743-run2"}
+{"run": 1, "arm": "legacy", "started": "2026-09-06T17:16:36-0400", "ended": "2026-09-06T18:02:36-0400", "dir": "/Users/evanhoffman/bench-logs/146-targets-legacy-0906-1716-run1"}
+{"run": 2, "arm": "sandbox", "started": "2026-09-06T18:02:51-0400", "ended": "2026-09-06T18:58:39-0400", "dir": "/Users/evanhoffman/bench-logs/146-targets-sandbox-0906-1716-run2"}
+{"run": 3, "arm": "sandbox", "started": "2026-09-06T18:58:53-0400", "ended": "2026-09-06T19:46:27-0400", "dir": "/Users/evanhoffman/bench-logs/146-targets-sandbox-0906-1716-run3"}
+{"run": 4, "arm": "legacy", "started": "2026-09-06T19:46:41-0400", "ended": "2026-09-06T19:46:42-0400", "dir": "/Users/evanhoffman/bench-logs/146-targets-legacy-0906-1716-run4"}

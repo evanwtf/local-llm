@@ -11,6 +11,150 @@
 Instructions for coding agents. [`CONVENTIONS.md`](CONVENTIONS.md) holds the
 standing rules about data and safety; this file covers how to work.
 
+## Cite engine source as `file:line at <sha>` (2026-09-06)
+
+A bare `ds4.c:40442` is not a citation. It is unverifiable a week later and
+often unverifiable the same night.
+
+There are **twelve ds4 worktrees on this machine** at eight different shas
+(`git -C ~/git/ds4 worktree list`). `ds4.c` is over 70,000 lines and moves
+daily. The same function sits at a different line in every tree, so a line
+number without a sha does not identify anything.
+
+This cost real work on 2026-09-06. A claim that `raw_cap` hard-clamps a prefill
+chunk to 8192 shipped into a script comment, a test docstring and a PR body,
+and the script warned users that their large-chunk sweeps were being silently
+clamped. Review caught that the line number was wrong; the reviewer's
+replacement was also wrong, because the two readers were in different trees and
+neither said which. Reading the function by name -- not the line -- showed the
+ceiling does not exist at all: `ds4_prefill_cap_for_prompt` uses a non-zero
+requested chunk as given, and `ds4_default_raw_cap` is the raw-KV attention cap,
+an unrelated quantity. Two wrong line numbers had agreed closely enough to look
+like a disagreement about digits rather than a defect in the claim.
+
+So:
+
+- **Write `ds4.c:12159 at ds4 399acbbe`**, naming the tree and the sha.
+- **Find the code by name, not by line.** `grep -n 'ds4_prefill_cap_for_prompt'`
+  in the tree you mean. A line number is the result of a lookup, never the way
+  to do one.
+- **Verify a correction before accepting it.** A reviewer's line number is a
+  claim like any other, and one wrong number replacing another reads as
+  progress.
+
+Retrofitting the ~346 existing citations and enforcing this with a test is
+tracked separately; `evidence/0169-device-gate-table.md` is the priority, since
+the M5 gate taxonomy rests on 27 of them.
+
+## An issue is a public work log, not a drafting area (2026-09-06)
+
+An issue in this repo is the public record of a task. It holds **what we did
+and what we measured**, in the order it happened. That is all it holds.
+
+**Do not post upstream drafts here.** No "DRAFT for the operator to post to
+<upstream>", no "READY TO POST", no v2/v3/v4 of the same text superseding each
+other in the thread. If something is going upstream, the operator writes and
+posts it; our issue is where the results it draws on already live, stated for
+our own readers.
+
+**Link the upstream issue once, in the opening post.** Every later comment
+repeating the link adds nothing -- the reader arrived through the first one.
+
+Why this is a rule and not a preference: the drafts crowd out the log. #162
+reached twelve comments of which five were versions of one unsent upstream
+reply, and a reader looking for the q4/q8 numbers had to work out which draft
+was current before they could find a measurement. Superseded drafts also age
+badly in a way results do not -- a number stays true, a draft addressed to a
+person in a conversation that has moved on does not.
+
+Write each comment so it still reads as a result a month later: what was run,
+on what tree, how many runs, what the numbers were, and what was thrown away.
+Second-person framing ("the re-test you asked for") belongs in the reply that
+is actually sent to that person, not in the log.
+
+## Every time and date is ISO 8601, America/New_York, with an explicit offset (2026-09-06)
+
+**One representation, everywhere: `YYYY-MM-DDTHH:MM:SS±hhmm`.** In rows, in
+manifests, in logs, in issue comments, in commit messages, in evidence
+artifacts. Local time on the machine that does the work, a literal `T`, seconds
+precision, and the UTC offset always written out.
+
+```
+2026-09-06T17:16:48-0400
+```
+
+The offset is not optional. A naive `2026-09-06T17:16:48` is the format that
+caused every problem below; it is indistinguishable from a UTC timestamp and
+silently four or five hours wrong.
+
+This is what both tools emit natively on this machine, with no post-processing:
+
+```sh
+date +%Y-%m-%dT%H:%M:%S%z
+```
+
+```python
+from datetime import datetime
+datetime.now().astimezone().strftime("%Y-%m-%dT%H:%M:%S%z")
+```
+
+### Always parse before comparing. This is a rule, not a preference.
+
+A UTC timestamp sorts correctly as plain text. **A local one does not.** On
+2026-11-01, `01:30:00-04:00` and `01:30:00-05:00` are an hour apart in real
+time but sort in the wrong order as strings, and the wall-clock hour 01:00 to
+02:00 occurs twice. Choosing local time buys readability — `17:16` reads as
+five in the afternoon, which matters when correlating a run against what the
+operator was doing — and it costs the string-sorting shortcut. Take the trade
+and parse.
+
+```python
+from datetime import datetime
+START = datetime.fromisoformat("2026-09-06T17:16:00-0400")
+cur = [r for r in rows if datetime.fromisoformat(r["started"]) >= START]
+```
+
+```sh
+now=$(date +%s)                       # compare as epoch, after resolving
+```
+
+Never compare `HH:MM`. Never compare a truncated timestamp. Never compare a
+timestamp carrying one offset against one carrying another, or against one
+carrying none.
+
+### Why, with the three that bit us
+
+**Two formats in the two files one readout joins.** `results-*.jsonl` carried
+167 rows of naive local `started`/`finished`; the manifest beside it carried
+UTC `started`/`ended` with a `Z`. Anything comparing a row against its manifest
+entry was comparing EDT to UTC — four hours wrong, no error, no warning.
+
+**A cutoff that fails open across midnight.** `targets_ab.sh` and
+`strip_toggle_ab.sh` compared `$(date +%H:%M)` against an `HH:MM` string. At
+00:30 against a 09:15 cutoff that comparison is false, so the guard never fires
+and the batch runs on. `strip_toggle_ab.sh` **defaulted** to `09:15` — a
+morning cutoff means an overnight batch, so the default configuration was the
+broken case. That branch exists to enforce "a partial batch is no result", so
+the guard failing open produces exactly the outcome it was written to prevent.
+See #175.
+
+**A readout filter that worked by luck.** `started >= "2026-09-06T17:16"`
+compares a truncated string against full timestamps. It selected the right rows
+only because every value in that file happened to be 19 characters with no
+offset and no sub-second part. One row in another shape and rows join or leave
+the batch silently.
+
+All three are the same mistake: **a string comparison of timestamps is correct
+only under assumptions nobody restates when they add the next caller.**
+
+### Enforced, not asserted
+
+`tests/test_iso8601_timestamps.py` fails on a data file whose timestamp fields
+are not canonical, and on a shell script that compares `date +%H:%M` output as
+a string. `scripts/backfill_iso8601.py` converts the existing naive and
+`Z`-suffixed values; it runs once, and the test is what keeps them converted. A
+convention that lives only in this document is a convention that drifts.
+
 ## A download is not verified until the files are on disk (2026-09-06)
 
 `hf download` takes filenames positionally. Passing two of them after

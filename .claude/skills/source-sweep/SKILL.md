@@ -337,7 +337,7 @@ claim that failed verification is itself a finding about the source.
 **Every sweep writes one file**, whether or not it produced issues:
 
 ```sh
-docs/sources/$(date -u +%Y-%m-%d-%H-%M-%S).md      # UTC, always
+docs/sources/$(date +%Y-%m-%d-%H-%M-%S).md         # America/New_York
 ```
 
 Seconds are in the name deliberately: two sweeps can land in the same minute

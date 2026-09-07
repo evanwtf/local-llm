@@ -1,0 +1,11 @@
+# grok sweep
+# requested window: last 24 hours
+# written:  2026-09-06T21:35:18Z  (local: 2026-09-06 17:35:18 EDT)
+# query:    Search X for posts and replies from @antirez, @ivanfioravanti, @awnihannun, @ggerganov, @alexziskind1, @Blaizzy, @ARahim3, @azisk in the last 24 hours about local LLM inference on Apple Silicon, Metal kernels, MLX, prefill or decode speed, or the M5 chip. Output ONE bullet per post and nothing else -- no preamble, no summary: - <UTC timestamp> | @handle | <post URL> | <the claim in one sentence>. Omit any item without both a URL and a UTC timestamp. If nothing matches, output exactly: NO RESULTS
+
+I'll search X for posts and replies from those accounts in the last 24 hours, then keep only items that have both a URL and a UTC timestamp.I'll search each remaining account separately so Ivan's volume doesn't hide other posts.I'll verify the matching posts against the source before listing them.- 2026-09-06T09:30:05Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2096531373460791490 | Qwen 3.8 Flash Next support in DwarfStar is ready, with prefill flat up to 262K, more MTP decode work underway, and a Q2 model planned for 64GB machines.
+- 2026-09-06T09:50:16Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2096536450141417954 | GPT 6 Astra helped push that DwarfStar performance further, after starting at Ultra reasoning and ending at Medium.
+- 2026-09-06T10:14:31Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2096542555357749341 | mlx-serve by @ddalcu is the engine that rocks for Qwen 3.8 Flash Next on Mac.
+- 2026-09-06T10:15:03Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2096542686798926227 | MTP and non-MTP weights were combined into one GGUF, and MTP is enabled by passing -mtp.
+- 2026-09-06T10:24:57Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2096545181755441410 | It is time to test ds4-eval --suite hard.
+- 2026-09-06T10:35:01Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2096547711516336499 | The download_model.sh MTP versus non-MTP link mismatch is fixed.

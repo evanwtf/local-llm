@@ -6,7 +6,7 @@
   "agent_model": "deepseek-v4-flash",
   "agent_effort": "unidentified",
   "repo": "/Users/evanhoffman/git/local-llm/.claude/worktrees/peer+160",
-  "authored_at": "2026-09-06T12:26:00-04:00",
+  "authored_at": "2026-09-06T12:26:00-0400",
   "statement": "All four Metal knobs in the #162 table are value-parsed, not presence-based: each reads its env var through a helper that treats the literal \"0\" as off and any other non-empty value as on. The four knobs use three helpers, enumerated per knob: session-union and stream-overlap read through metal_graph_tp_env_flag (ds4.c:72007, 71923/71925), IQ2 grouped-MM reads through ds4_gpu_env_bool (ds4_metal.m:50582), and exact-rows-persistent reads through ds4_gpu_exact_rows_persistent_env_enabled (ds4_metal.m:14837). The three REQUIRE spellings (session-union, IQ2 grouped-MM, exact-rows-persistent) fail closed with an error print when ineligible, but there is NO positive admission print -- no Metal analogue of CUDA's `target_admitted=1`. The admission concept in the Metal sources is internal state (a `bool admitted` field, `state->admitted = true`, the `g_q4_qb_transient_f16_admission` struct), not a print. The only admission signal is the absence of the fail-closed error. Q4_STREAM_OVERLAP has no REQUIRE spelling at all; it is a soft opt-in via ENABLE/DISABLE only. This matters because a presence-based knob would let an 'off' arm silently run on (the adamlawi 0.0% trap); these are all value-parsed, so '0' genuinely disables.",
   "provenance": {
     "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",

@@ -1,0 +1,24 @@
+2026-09-06 17:37:41,319 INFO [83f0c54@M5-Max-128GB] 2026-09-06T21:37:41Z (17:37:41 EDT) | harness 83f0c54
+2026-09-06 17:37:41,335 INFO [83f0c54@M5-Max-128GB]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-06 17:37:41,592 INFO [83f0c54@M5-Max-128GB] 2096531373460791490  VERIFIED post  @ivanfioravanti  Sun Sep 06 09:30:05 +0000 2026  via fxtwitter
+2026-09-06 17:37:41,592 INFO [83f0c54@M5-Max-128GB]     Qwen 3.8 Flash Next support in DwarfStar is ready! @kernelpool + @ddalcu + @Spangler3000 + me combined. Prefill with this architecture is incredible! Flat up to 262K!  PR here: https://github.com/anti
+2026-09-06 17:37:41,717 INFO [83f0c54@M5-Max-128GB] 2096536450141417954  VERIFIED reply  @ivanfioravanti  Sun Sep 06 09:50:16 +0000 2026  via fxtwitter
+2026-09-06 17:37:41,717 INFO [83f0c54@M5-Max-128GB]     @kernelpool @ddalcu @Spangler3000 I forgot to mention GPT 6 Astra! It helped to push performance even more.  I started with Ultra reasoning and ended up with Medium as suggested everywhere. Pretty str
+2026-09-06 17:37:41,850 INFO [83f0c54@M5-Max-128GB] 2096542686798926227  VERIFIED reply  @ivanfioravanti  Sun Sep 06 10:15:03 +0000 2026  via fxtwitter
+2026-09-06 17:37:41,850 INFO [83f0c54@M5-Max-128GB]     @ddark_il @kernelpool @ddalcu @Spangler3000 On it! I combined them at the end and you enable it passing -mtp
+2026-09-06 17:37:41,977 INFO [83f0c54@M5-Max-128GB] 2096547711516336499  VERIFIED reply  @ivanfioravanti  Sun Sep 06 10:35:01 +0000 2026  via fxtwitter
+2026-09-06 17:37:41,977 INFO [83f0c54@M5-Max-128GB]     @ddark_il @kernelpool @ddalcu @Spangler3000 Fixed! Thanks @ddark_il 🙌
+2026-09-06 17:37:42,191 INFO [83f0c54@M5-Max-128GB] 2096545181755441410  VERIFIED post  @ivanfioravanti  Sun Sep 06 10:24:57 +0000 2026  via fxtwitter
+2026-09-06 17:37:42,191 INFO [83f0c54@M5-Max-128GB]     Time to test ds4-eval --suite hard!
+2026-09-06 17:37:42,307 INFO [83f0c54@M5-Max-128GB] 2096542555357749341  VERIFIED reply  @ivanfioravanti  Sun Sep 06 10:14:31 +0000 2026  via fxtwitter
+2026-09-06 17:37:42,307 INFO [83f0c54@M5-Max-128GB]     @ljupc0 @kernelpool @ddalcu @Spangler3000 mlx-serve by @ddalcu rocks!
+2026-09-06 17:37:42,307 INFO [83f0c54@M5-Max-128GB] 
+2026-09-06 17:37:42,307 INFO [83f0c54@M5-Max-128GB] Verified 6: 6 confirmed, 0 not.
+2026-09-06 17:37:42,307 INFO [83f0c54@M5-Max-128GB] Paste onto the issue:
+2026-09-06 17:37:42,307 INFO [83f0c54@M5-Max-128GB]   **Verified** 2026-09-06: post exists, authored by @ivanfioravanti, posted Sun Sep 06 09:30:05 +0000 2026.
+2026-09-06 17:37:42,307 INFO [83f0c54@M5-Max-128GB]   **Verified** 2026-09-06: post exists, authored by @ivanfioravanti, posted Sun Sep 06 09:50:16 +0000 2026.
+2026-09-06 17:37:42,307 INFO [83f0c54@M5-Max-128GB]   **Verified** 2026-09-06: post exists, authored by @ivanfioravanti, posted Sun Sep 06 10:15:03 +0000 2026.
+2026-09-06 17:37:42,307 INFO [83f0c54@M5-Max-128GB]   **Verified** 2026-09-06: post exists, authored by @ivanfioravanti, posted Sun Sep 06 10:35:01 +0000 2026.
+2026-09-06 17:37:42,307 INFO [83f0c54@M5-Max-128GB]   **Verified** 2026-09-06: post exists, authored by @ivanfioravanti, posted Sun Sep 06 10:24:57 +0000 2026.
+2026-09-06 17:37:42,307 INFO [83f0c54@M5-Max-128GB]   **Verified** 2026-09-06: post exists, authored by @ivanfioravanti, posted Sun Sep 06 10:14:31 +0000 2026.
+2026-09-06 17:37:42,307 INFO [83f0c54@M5-Max-128GB] log: /Users/evanhoffman/git/local-llm/logs/sweeps/verify-posts-M5-Max-128GB-20260906T213741Z.log

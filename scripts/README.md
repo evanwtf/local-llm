@@ -13,6 +13,7 @@ documentation.
 |---|---|
 | `archive_pre_dir_rows.py` | Move every pre---dir OpenCode row out of results.jsonl into the archive. |
 | `backfill_client_version.py` | Fill `client_version` on rows that predate it, and only where it is known. |
+| `backfill_iso8601.py` | Convert existing timestamps to ISO 8601 with an explicit offset. |
 | `backfill_prompt_meta.py` | Write an inferred prompt sidecar for runs measured before #140. |
 | `bitexact_ab.py` | Bit-exact A/B for two ds4 engine trees: the output-equality check #143 lacked. |
 | `check_metal_equivalence.py` | Run ds4's Metal tensor-route equivalence test and cache the verdict (#149). |

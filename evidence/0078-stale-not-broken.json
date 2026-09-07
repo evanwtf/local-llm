@@ -7,7 +7,7 @@
   "agent_effort": "unidentified",
   "repo": "/Users/evanhoffman/git/local-llm",
   "head": "167c8668a53087825a6f21b0356b3559038a7083",
-  "authored_at": "2026-09-06T10:50:36-04:00",
+  "authored_at": "2026-09-06T10:50:36-0400",
   "statement": "The qwen38fnq3lms and mtplx rows were stale, not broken: every published row for both backends predates 35a8f59, the 2026-09-01 parser rewrite that made run.py record advertised models instead of guessing. The #78 review note that called MTPLX 'broken' read a pre-rewrite row as evidence about the current parser; it is evidence about the old one.",
   "provenance": {
     "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
@@ -96,8 +96,14 @@
       "statement": "Both backends' last rows predate the rewrite, so every published qwen38fnq3lms and mtplx row came from the old parser and none can say whether the current parser probes those backends.",
       "compose": {
         "lt": [
-          ["last-qwen38fnq3lms-row", "commit-35a8f59-landed-1742"],
-          ["last-mtplx-row", "commit-35a8f59-landed-1742"]
+          [
+            "last-qwen38fnq3lms-row",
+            "commit-35a8f59-landed-1742"
+          ],
+          [
+            "last-mtplx-row",
+            "commit-35a8f59-landed-1742"
+          ]
         ]
       },
       "readonly": true,
