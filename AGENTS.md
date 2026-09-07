@@ -11,6 +11,41 @@
 Instructions for coding agents. [`CONVENTIONS.md`](CONVENTIONS.md) holds the
 standing rules about data and safety; this file covers how to work.
 
+## Cite engine source as `file:line at <sha>` (2026-09-06)
+
+A bare `ds4.c:40442` is not a citation. It is unverifiable a week later and
+often unverifiable the same night.
+
+There are **twelve ds4 worktrees on this machine** at eight different shas
+(`git -C ~/git/ds4 worktree list`). `ds4.c` is over 70,000 lines and moves
+daily. The same function sits at a different line in every tree, so a line
+number without a sha does not identify anything.
+
+This cost real work on 2026-09-06. A claim that `raw_cap` hard-clamps a prefill
+chunk to 8192 shipped into a script comment, a test docstring and a PR body,
+and the script warned users that their large-chunk sweeps were being silently
+clamped. Review caught that the line number was wrong; the reviewer's
+replacement was also wrong, because the two readers were in different trees and
+neither said which. Reading the function by name -- not the line -- showed the
+ceiling does not exist at all: `ds4_prefill_cap_for_prompt` uses a non-zero
+requested chunk as given, and `ds4_default_raw_cap` is the raw-KV attention cap,
+an unrelated quantity. Two wrong line numbers had agreed closely enough to look
+like a disagreement about digits rather than a defect in the claim.
+
+So:
+
+- **Write `ds4.c:12159 at ds4 399acbbe`**, naming the tree and the sha.
+- **Find the code by name, not by line.** `grep -n 'ds4_prefill_cap_for_prompt'`
+  in the tree you mean. A line number is the result of a lookup, never the way
+  to do one.
+- **Verify a correction before accepting it.** A reviewer's line number is a
+  claim like any other, and one wrong number replacing another reads as
+  progress.
+
+Retrofitting the ~346 existing citations and enforcing this with a test is
+tracked separately; `evidence/0169-device-gate-table.md` is the priority, since
+the M5 gate taxonomy rests on 27 of them.
+
 ## An issue is a public work log, not a drafting area (2026-09-06)
 
 An issue in this repo is the public record of a task. It holds **what we did
