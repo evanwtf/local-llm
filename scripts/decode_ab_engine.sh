@@ -38,15 +38,28 @@ REPS=${REPS:-3}
 # Setting PREFILL_CHUNK equal to STEP makes each of those a single chunk, which
 # is the shape adamlawi's CUDA -12.23% was measured in.
 #
-# ds4_prefill_cap_for_prompt (ds4.c:12159 at ds4 399acbbe) is the whole of the
-# cap logic: a non-zero requested chunk is used as given, clamped only to
-# prompt_len. There is no other ceiling -- an earlier version of this comment
-# claimed raw_cap clamped the chunk to 8192, which was wrong. ds4_default_raw_cap
-# (ds4.c:12144 at ds4 399acbbe) is the raw-KV cap for attention, DS4_N_SWA clamped to ctx, and
-# the built-in shapes set n_swa to 128 or 0. It has nothing to do with prefill
-# chunking, and 8192 appears in the prefill path only as the PRO variant's
-# DEFAULT when no chunk was requested. So any value is honoured uniformly
-# across the sweep and there is no ceiling to warn about.
+# ds4_prefill_cap_for_prompt (ds4.c:12986 at ds4-main 9ab70534) uses a non-zero
+# requested chunk as given, clamped only to prompt_len. It has no 8192 ceiling
+# -- an earlier version of this comment claimed it did, which was wrong.
+#
+# But the sweep is not governed by that function alone, and the correction went
+# one step too far: it concluded no ceiling existed anywhere. One does, on a
+# different path (ds4.c:36867 at ds4-main 9ab70534):
+#
+#     uint32_t chunk_cap = g->prefill_cap;
+#     if (start != 0 && chunk_cap > g->raw_cap) chunk_cap = g->raw_cap;
+#
+# The FIRST prefill (start == 0) uses prefill_cap unclamped. Every LATER
+# frontier -- which is every frontier after CTX_START in a sweep -- is clamped
+# to raw_cap, and metal_graph_raw_cap_for_context (ds4.c:37541 at ds4-main
+# 9ab70534) ceilings raw_cap at 8192 unconditionally.
+#
+# At PREFILL_CHUNK=8192 the two coincide exactly, because 8192 is that ceiling:
+# first frontier 8192, every later frontier 8192. That is why adamlawi's own
+# value needs no special handling. Above 8192 they diverge -- the first
+# frontier honours the flag and the rest are silently cut to 8192 -- so one run
+# reports two different quantities with nothing in the output saying so. Hence
+# the warning below.
 #
 # Line numbers are pinned to a sha because ds4.c is 70k lines and moves daily;
 # a bare ds4.c:NNNNN is unverifiable a week later, which is how the wrong
@@ -78,6 +91,14 @@ if [ -n "$PREFILL_CHUNK" ]; then
   if [ "$PREFILL_CHUNK" -eq 0 ]; then
     echo "REFUSING: PREFILL_CHUNK=0 means 'unspecified' to ds4, not 'unlimited'" >&2
     exit 1
+  fi
+  # Above 8192 only the first frontier honours the flag; raw_cap cuts the rest.
+  # A warning, not a refusal: measuring that divergence deliberately is valid,
+  # measuring it by accident is what this prevents.
+  if [ "$PREFILL_CHUNK" -gt 8192 ]; then
+    echo "WARNING: PREFILL_CHUNK=$PREFILL_CHUNK exceeds the raw_cap ceiling (8192)." >&2
+    echo "  Frontier 1 will use $PREFILL_CHUNK; every later frontier will use 8192." >&2
+    echo "  ds4.c:36867 and ds4.c:37541 at ds4-main 9ab70534. One run, two quantities." >&2
   fi
   prefill_flag=(--prefill-chunk "$PREFILL_CHUNK")
 fi
@@ -127,8 +148,8 @@ uv run python "$(dirname "$0")/prompt_meta.py" --prompt "$PROMPT" --sidecar "$OU
   echo "sweep ctx_start=$CTX_START ctx_max=$CTX_MAX step=$STEP gen=$GEN reps=$REPS"
   echo "prefill_chunk=${PREFILL_CHUNK:-<flag absent>}"
   # These set the same caps as the flags, but only when the flags are absent
-  # (ds4.c:12167 at ds4 399acbbe, ds4.c:35881 at ds4 399acbbe). An inherited value would
-  # silently change the prefill shape of a run that never mentions it.
+  # (ds4.c:13554, :40447). An inherited value would silently change the prefill
+  # shape of a run that never mentions it.
   echo "DS4_METAL_PREFILL_CHUNK=${DS4_METAL_PREFILL_CHUNK:-<unset>}"
   echo "DS4_METAL_GRAPH_RAW_CAP=${DS4_METAL_GRAPH_RAW_CAP:-<unset>}"
 } >> "$OUT/engines.txt"

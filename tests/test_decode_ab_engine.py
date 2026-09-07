@@ -50,6 +50,10 @@ def run(chunk: str | None) -> subprocess.CompletedProcess[str]:
         text=True,
         env=env,
         timeout=60,
+        # These runs are expected to fail -- the script refuses a bad chunk
+        # and exits non-zero, which is the thing under test. check=False is
+        # the assertion, not an oversight (ruff PLW1510, see #197).
+        check=False,
     )
 
 
@@ -57,7 +61,9 @@ def test_the_script_parses():
     subprocess.run(["bash", "-n", str(SCRIPT)], check=True)
 
 
-@pytest.mark.parametrize("chunk", ["0", "00", "abc", "8192abc", "-1", "8.5", " ", "1 2"])
+@pytest.mark.parametrize(
+    "chunk", ["0", "00", "abc", "8192abc", "-1", "8.5", " ", "1 2"]
+)
 def test_a_bad_chunk_is_refused_before_anything_is_loaded(chunk):
     p = run(chunk)
     assert p.returncode == 1, f"PREFILL_CHUNK={chunk!r} was not refused"
@@ -72,26 +78,71 @@ def test_a_good_chunk_reaches_the_next_check(chunk):
     assert "ds4-bench is missing" in p.stderr, p.stderr
 
 
-def test_no_ceiling_is_claimed_for_large_chunks():
-    """There is no 8192 prefill ceiling, and this file used to say there was.
+def test_a_large_chunk_warns_because_only_the_first_frontier_honours_it():
+    """This assertion has been inverted once, and the history is the point.
 
-    The claim was that raw_cap clamped a chunk to 8192 after the first
-    frontier, so a sweep above it mixed two measurements. It is wrong.
-    ds4_default_raw_cap (ds4.c:12144 at ds4 399acbbe) is the raw-KV attention cap
-    -- DS4_N_SWA
-    clamped to ctx, and the built-in shapes set n_swa to 128 or 0 -- and has
-    nothing to do with prefill chunking. In the prefill path 8192 is only the
-    PRO variant's default when no chunk was requested. A large value is
-    honoured uniformly, so warning about it would be telling the reader
-    something untrue about their own data.
+    v1 of the script warned that a chunk above 8192 is clamped after the first
+    frontier. That warning was substantively RIGHT, but it cited
+    ds4_default_raw_cap -- the raw-KV attention cap, DS4_N_SWA clamped to ctx
+    -- which has nothing to do with prefill chunking. The wrong citation was
+    caught, and the whole warning was removed with it, and this test was
+    written to pin its absence.
+
+    Removing it was the error. The clamp is real; it lives in
+    metal_graph_prefill_chunked (ds4.c:36867 at ds4-main 9ab70534), which sets
+    chunk_cap = prefill_cap and then, for start != 0 only, cuts it to raw_cap
+    -- and metal_graph_raw_cap_for_context (ds4.c:37541 at ds4-main 9ab70534)
+    ceilings raw_cap at 8192. So a 65536 sweep really does report a 65536-token
+    first frontier and 8192 for every other, in one run.
+
+    A correct claim discarded because its evidence was wrong is still a
+    regression. The warning is back, with the citation that holds.
     """
     p = run("65536")
-    assert "ceiling" not in p.stderr, p.stderr
-    assert "clamped" not in p.stderr, p.stderr
+    assert "WARNING" in p.stderr, p.stderr
+    assert "8192" in p.stderr, p.stderr
+    # Still not a refusal -- measuring the divergence on purpose is valid.
     assert "REFUSING: PREFILL_CHUNK" not in p.stderr, p.stderr
+
+
+def test_the_adamlawi_value_of_8192_does_not_warn():
+    """At 8192 the two paths coincide, so a warning would be noise (#171)."""
+    p = run("8192")
+    assert "WARNING" not in p.stderr, p.stderr
 
 
 def test_no_chunk_is_the_default_and_changes_nothing():
     p = run(None)
     assert "REFUSING: PREFILL_CHUNK" not in p.stderr, p.stderr
     assert "ds4-bench is missing" in p.stderr, p.stderr
+
+
+def test_a_chunk_above_the_raw_cap_ceiling_warns():
+    """Above 8192 one run measures two quantities, and must say so.
+
+    metal_graph_prefill_chunked clamps every prefill after the first to
+    raw_cap (ds4.c:36867 at ds4-main 9ab70534), and raw_cap is ceilinged at
+    8192 (ds4.c:37541 at ds4-main 9ab70534). So PREFILL_CHUNK=16384 gives a
+    16384-token first frontier and 8192 for all the rest, silently. At 8192 --
+    adamlawi's own value in #171 -- the two paths coincide exactly, which is
+    why the ordinary sweep is the right shape there and needs no warning.
+    """
+    script = SCRIPT.read_text()
+    assert "-gt 8192" in script, "no ceiling guard"
+    assert "raw_cap" in script
+    # A warning, not a refusal: the divergence is measurable on purpose.
+    ceiling = script.split("-gt 8192")[1].split("fi")[0]
+    assert "WARNING" in ceiling
+    assert "REFUSING" not in ceiling
+
+
+def test_the_prefill_comment_does_not_claim_there_is_no_ceiling():
+    """The comment was corrected twice; pin the endpoint.
+
+    v1 claimed raw_cap clamps prefill_cap to 8192 (wrong -- conflated two
+    caps). v2 corrected that to "no ceiling to warn about" (also wrong -- went
+    one step too far; the incremental path really is ceilinged). This pins v3.
+    """
+    script = SCRIPT.read_text()
+    assert "no ceiling to warn about" not in script
+    assert "start != 0" in script, "the incremental clamp must be documented"
