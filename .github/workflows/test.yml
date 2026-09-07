@@ -34,3 +34,11 @@ jobs:
 
       - name: Check the launcher parses
         run: sh -n claude-ollama
+
+      # Last, not first: Actions stops the job at the first failing step, so a
+      # single reformatted line must not abort the run before pytest and hide
+      # whatever the tests would have said. One run should report every
+      # problem it can; the format check is the one we can most afford to
+      # learn about second.
+      - name: Check formatting
+        run: uv run ruff format --check .
