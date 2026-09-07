@@ -1615,3 +1615,42 @@ when a task id is no longer in context, and expect that exit code.
 running: no monitor, no `tail`, and a released run lock. The count of running
 tasks is a claim about the machine, and a wrong one is how an idle GPU and a
 busy-looking session end up side by side.
+
+### An `until` loop is not safe either: its condition can stop being reachable
+
+The same sweep found **seven** more waiters, the oldest 3h10m old. These were
+not `tail -f`; they were the recommended shape:
+
+```sh
+until grep -q "runs 2 and 3 finished" ~/bench-logs/162-gh23-driver.log; do
+    sleep 30
+done
+```
+
+That exits when the string appears. The string never appeared, because the run
+producing it **was killed** two hours earlier -- deliberately, on finding it
+was re-running a settled null (#208). The waiter had no way to learn that. It
+polled a dead producer every 30 seconds for three hours.
+
+**A wait needs a deadline and a failure condition, not only a success one.**
+Poll for the thing that means *finished* and for the thing that means *gone*,
+and give up after a bound:
+
+```sh
+deadline=$(( $(date +%s) + 3600 ))
+until grep -q 'done:' "$LOG"; do
+    kill -0 "$RUN_PID" 2>/dev/null || { echo "producer $RUN_PID is gone"; exit 1; }
+    [ "$(date +%s)" -lt "$deadline" ] || { echo "timed out"; exit 1; }
+    sleep 30
+done
+```
+
+**Two of the seven would have started work on firing** -- one chained a
+post-run analysis, another waited on the run lock and then launched a full
+analysis. A stale chained job that fires hours later, against a machine that
+has moved on, is worse than one that hangs: it takes the lock and runs a
+measurement nobody asked for.
+
+**Whenever a run is killed, kill what was waiting on it in the same breath.**
+Stopping the producer and leaving its waiters is how a session accumulates
+work it cannot account for.
