@@ -83,7 +83,6 @@ def test_zero_reuse_is_reported_as_zero_not_hidden(monkeypatch):
 
 
 def test_a_zero_length_prompt_does_not_divide_by_zero(monkeypatch):
-    monkeypatch.setattr(lambda: None, "__doc__", None, raising=False) if False else None
     monkeypatch.setattr(
         kpr,
         "post_chat",
@@ -121,3 +120,34 @@ def test_readiness_does_not_depend_on_a_health_endpoint():
         "use benchmarks/agent/wait_ready.ready() -- it probes with a real "
         "one-token completion, which is the only readiness signal ds4 gives"
     )
+
+
+DS4_TREES = ("ds4-ivan-qwen38fn", "ds4-main")
+
+
+def _ds4_server_source():
+    for name in DS4_TREES:
+        p = pathlib.Path.home() / "git" / name / "ds4_server.c"
+        if p.exists():
+            return p
+    return None
+
+
+@pytest.mark.skipif(_ds4_server_source() is None, reason="no ds4 tree checked out")
+def test_the_kv_cache_flags_this_script_passes_still_exist_in_the_engine():
+    """A renamed engine flag would silently do nothing, not error.
+
+    ds4-server parses its own argv; an unknown flag is not necessarily
+    rejected, so a sweep could run to completion against the engine default
+    and report it as the swept value. #190 measured the defaults these two
+    flags override (cold_max_tokens 30000, continued_interval_tokens 10000),
+    so a silent no-op here invalidates the follow-up rather than failing it.
+    """
+    src = _ds4_server_source().read_text()
+    for flag in (
+        "--kv-cache-cold-max-tokens",
+        "--kv-cache-continued-interval-tokens",
+        "--kv-disk-space-mb",
+        "--kv-disk-dir",
+    ):
+        assert f'"{flag}"' in src, f"{flag} is no longer parsed by ds4-server"

@@ -29,7 +29,6 @@ import pathlib
 import shutil
 import subprocess
 import sys
-import urllib.error
 import urllib.request
 
 sys.path.insert(
@@ -126,6 +125,13 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--port", type=int, default=8099)
     p.add_argument("--ctx", type=int, default=32768)
     p.add_argument("--kv-disk-space-mb", type=int, default=8192)
+    # The two knobs #190 showed actually move the number. The disk budget is
+    # measurably inert (8 GiB and 32 GiB were byte-identical at every prompt
+    # size); these are not. Default None means "leave the engine default
+    # alone", so an unset flag is absent from the command line rather than
+    # passed as the value we believe the default to be.
+    p.add_argument("--kv-cache-cold-max-tokens", type=int, default=None)
+    p.add_argument("--kv-cache-continued-interval-tokens", type=int, default=None)
     p.add_argument(
         "--no-kv-disk",
         action="store_true",
@@ -186,6 +192,16 @@ def main(argv: list[str] | None = None) -> int:
     ]
     if args.ple:
         cmd += ["--ple", args.ple]
+    # Passed only when set: these gate the cold checkpoint and the continued
+    # checkpoint step respectively, and their engine defaults (30000 and
+    # 10000) are what #190 measured against.
+    if args.kv_cache_cold_max_tokens is not None:
+        cmd += ["--kv-cache-cold-max-tokens", str(args.kv_cache_cold_max_tokens)]
+    if args.kv_cache_continued_interval_tokens is not None:
+        cmd += [
+            "--kv-cache-continued-interval-tokens",
+            str(args.kv_cache_continued_interval_tokens),
+        ]
     if not args.no_kv_disk:
         shutil.rmtree(kv_dir, ignore_errors=True)
         kv_dir.mkdir(parents=True, exist_ok=True)
