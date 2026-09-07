@@ -47,7 +47,9 @@ way this script derives it from the file it reads: path.stem.
 A `.stdout.partial.jsonl` file is an INCOMPLETE trial (run.py writes
 `.partial` when the trial did not finish). Its counts are not comparable to a
 complete trial's, so the row carries `partial: true`; a caller must not
-average it in by accident.
+average it in by accident. The `.partial` marker is a dot-separated
+component, so a partial trial that also collided is `foo.stdout.partial.2.jsonl`
+and is still marked partial.
 """
 
 from __future__ import annotations
@@ -164,9 +166,11 @@ def row_from_calls(
 ) -> dict[str, int | str | bool]:
     """Build the per-trial row from the parsed tool calls.
 
-    A partial transcript (stem ends `.partial`) is an incomplete trial; its
-    counts are not comparable to a complete one, so the row admits it with
-    `partial: true` rather than letting a caller average it in by accident.
+    A partial transcript is an incomplete trial; its counts are not comparable
+    to a complete one, so the row admits it with `partial: true` rather than
+    letting a caller average it in by accident. The `.partial` marker is a
+    dot-separated component of the filename, so it survives the collision
+    index: `foo.stdout.partial.2.jsonl` is partial too.
     """
     row: dict[str, int | str | bool] = {
         "transcript": path.stem,
@@ -174,7 +178,7 @@ def row_from_calls(
         "errored": sum(1 for c in calls if c.status == STATUS_ERROR),
         "distinct_tools": len({c.tool for c in calls}),
     }
-    if path.stem.endswith(".partial"):
+    if "partial" in path.name.split("."):
         row["partial"] = True
     return row
 

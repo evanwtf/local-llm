@@ -254,6 +254,21 @@ def test_complete_transcript_is_not_marked(tmp_path) -> None:
     assert "partial" not in row
 
 
+def test_numbered_partial_transcript_is_marked(tmp_path) -> None:
+    """A partial trial that also collided is still marked partial.
+
+    run.py appends the collision index AFTER the `.partial` suffix, so a
+    partial trial whose name collided is `foo.stdout.partial.2.jsonl`. Its
+    stem does not end in `.partial`, so the marker must be detected as a
+    component, not a tail.
+    """
+    path = tmp_path / "foo.stdout.partial.2.jsonl"
+    path.write_text(make_transcript([tool_use("bash", "completed", "a")]))
+    row = count_transcript(path)
+    assert row["transcript"] == "foo.stdout.partial.2"
+    assert row["partial"] is True
+
+
 def test_directory_yields_row_per_non_partial_shape(tmp_path) -> None:
     """A directory with all four shapes yields a row for each, partial marked.
 
