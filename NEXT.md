@@ -84,18 +84,31 @@ rather than voiding a measurement quietly.
    checkpoint step, 10240. Both retractions are worth reading before trusting
    any number here: the second was found by reading the server log the harness
    had been capturing all along. — opus
-3. **#162 Task 2 — `q4/q8` at head, large chunk.** **RUNNING**, started 03:34.
-   This is the ROCm-comparable one: @iammac2 answered @GiorgioOppo at head
-   `77a054e` with "Q4 vs Q8, large chunk (8192-token prefill)" — prefill
-   −3.0…−7.7%, decode +10.7…+11.3% — and **we are the missing Metal report.**
-   Same sweep, `PREFILL_CHUNK=8192`, `REPS=4`, at `20d5dff6`. — opus
+3. ~~**#162 Task 2 — `q4/q8` at head.**~~ **Done: decode unchanged, prefill
+   slipped.** Three runs at `20d5dff6`, 48 pairs. Decode `q4/q8` 1.145 / 1.152
+   / 1.147 against the 1.155 of record — inside the old spread. Prefill 0.988 /
+   0.979 / 0.983 against a 0.999 parity of record, with q8 ahead at **12 of 12
+   frontiers**. The cross-backend question is closed: @iammac2 showed by diff
+   that ROCm is byte-identical across `f309990`, and #171 showed Metal is flat
+   across it, so **the −12% is CUDA-only** despite the commit editing
+   `ds4_metal.m`. Metal's Q4 prefill deficit (−1.7%) is the mildest of the three
+   backends, against −7.46% on CUDA and −3.0…−7.7% on ROCm. **Ours is the
+   appended interval at each frontier, theirs is a cold large-chunk prefill —
+   not the same quantity.** — opus
 4. **#190 follow-up: isolated vs sequential reuse.** The harness landed in
    #200. Two arms, deliberately: isolated is the cold-start ceiling, sequential
    is what a coding agent actually gets from a prompt that grows by appending.
    Needs the machine, ~20 min. — opus
-5. **#162 Task 4** — the Metal knob A/Bs. `stream-overlap` needs
+5. **#162 Task 4** — the Metal knob A/Bs. **RUNNING**, started 04:12, five
+   knobs back to back at `REPS=4`. `stream-overlap` needs
    `METAL_KNOB_ACK_NO_SIGNAL=1` and its rows carry `admission_signal: none`;
-   the other three fail closed. — opus
+   `gathered-heads` is presence-based and carries a count-based admission check
+   instead; the other three fail closed. The first launch died five seconds in
+   on a relative outdir — [#203](https://github.com/evanwtf/local-llm/issues/203),
+   filed against my own launch: the driver `cd`s into the engine tree and passes
+   `$OUT` through verbatim, so the path is created under the repo and resolved
+   under the tree. It failed *after* preflight took the lock and 80 GiB of model
+   was mapped. — opus
 6. **#201 REPS=4 as the default** before the next sub-1% comparison. No machine
    time; it is a two-line change plus a refusal on an odd rep count.
 
