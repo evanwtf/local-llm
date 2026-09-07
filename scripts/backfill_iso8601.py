@@ -31,7 +31,9 @@ logger = logging.getLogger(__name__)
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 ZONE = ZoneInfo("America/New_York")
 
-TIME_FIELDS = frozenset({"started", "finished", "ended", "authored_at"})
+TIME_FIELDS = frozenset(
+    {"started", "finished", "ended", "authored_at", "engine_built"}
+)
 DATA_GLOBS = ("benchmarks/agent/*.jsonl", "evidence/*.json")
 
 NAIVE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$")

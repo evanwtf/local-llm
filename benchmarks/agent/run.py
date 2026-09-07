@@ -44,6 +44,7 @@ from urllib.parse import urlparse
 from typing import ClassVar
 
 import ds4_route
+import engine_identity
 import excise
 import grade
 import memcap
@@ -749,16 +750,21 @@ def capture_versions(cfg, backends, allow_unstamped=False):
     # .get(): a hosted backend has no base_url at all.
     if any((b.get("base_url") or "").endswith(":11434") for b in backends.values()):
         env["ollama"] = out(["ollama", "--version"])
-        # A tag can be re-pushed upstream; the digest cannot. Pin the digest.
-        digests = {}
-        listing = run(["ollama", "list"], cwd=None, timeout=30).stdout
-        for line in listing.splitlines()[1:]:
-            parts = line.split()
-            if len(parts) >= 2:
-                digests[parts[0]] = parts[1]
-        for name, b in backends.items():
-            if b["model"] in digests:
-                env[f"digest_{name}"] = digests[b["model"]]
+        # A machine without ollama: `out` already returned None, and `ollama
+        # list` would raise FileNotFoundError. Degrade instead -- the digests
+        # are a nicety, not a requirement, and a missing binary must not crash
+        # the whole run.
+        if env["ollama"] is not None:
+            # A tag can be re-pushed upstream; the digest cannot. Pin it.
+            digests = {}
+            listing = run(["ollama", "list"], cwd=None, timeout=30).stdout
+            for line in listing.splitlines()[1:]:
+                parts = line.split()
+                if len(parts) >= 2:
+                    digests[parts[0]] = parts[1]
+            for name, b in backends.items():
+                if b["model"] in digests:
+                    env[f"digest_{name}"] = digests[b["model"]]
 
     if any((b.get("base_url") or "").endswith(":8000") for b in backends.values()):
         ds4_root = (
@@ -890,6 +896,16 @@ def capture_versions(cfg, backends, allow_unstamped=False):
         strip = shim_strip.strip_for(port)
         if strip is not None and name in servers:
             servers[name]["strip"] = strip
+        # #192: which engine build served this row. The backend config names
+        # the engine; this resolves its build identity -- sha or --version,
+        # tree, dirty, binary mtime. A backend that does not declare an engine
+        # gets nothing: an absent key must not read as "unrecorded", which is
+        # reserved for a server the harness did not start.
+        engine = backend.get("engine")
+        if engine and name in servers:
+            servers[name].update(
+                engine_identity.identity(engine, backend.get("engine_tree"))
+            )
     routes = {
         s["metal_route"] for s in servers.values() if s.get("metal_route")
     } - {ds4_route.UNRECORDED}

@@ -205,3 +205,78 @@ def test_two_routes_in_one_run_void_the_comparison(monkeypatch):
 def test_a_hosted_backend_with_no_port_is_not_asked_for_a_route(monkeypatch):
     got = _env(monkeypatch, {"hosted": {"model": "opus"}}, {})
     assert "metal_route" not in got
+
+
+# ------------------------------------------------------- the engine build (#192)
+#
+# A row must name the engine build that produced it. The backend config
+# declares the engine; capture_versions resolves its identity and stamps it
+# onto the server entry. `engine_version` must be non-empty for a known
+# backend, and the literal "unrecorded" must never be accepted as one -- an
+# engine this module cannot resolve is omitted, not guessed.
+
+
+def _env_with_engine(monkeypatch, backends, identity):
+    import run
+
+    monkeypatch.setattr(
+        run.engine_identity, "identity", lambda engine, tree=None: identity
+    )
+    return _env(monkeypatch, backends, {})
+
+
+def test_a_known_backend_carries_a_nonempty_engine_version(monkeypatch):
+    got = _env_with_engine(
+        monkeypatch,
+        {"ds4": {"base_url": "http://127.0.0.1:8000", "model": "x", "engine": "ds4"}},
+        {"engine_name": "ds4", "engine_version": "399acbbe"},
+    )
+    assert got["servers"]["ds4"]["engine_version"] == "399acbbe"
+
+
+def test_unrecorded_is_not_accepted_as_an_engine_version(monkeypatch):
+    """An engine that cannot be resolved is omitted, never guessed."""
+    got = _env_with_engine(
+        monkeypatch,
+        {"ds4": {"base_url": "http://127.0.0.1:8000", "model": "x", "engine": "ds4"}},
+        {},
+    )
+    assert "engine_version" not in got["servers"]["ds4"]
+    assert got["servers"]["ds4"].get("engine_version") != "unrecorded"
+
+
+def test_a_backend_without_an_engine_declaration_gets_no_engine_fields(monkeypatch):
+    # Not :11434: run.py keys off that port to shell out to `ollama`, which a
+    # CI runner without ollama installed would then fail to find. The port is
+    # incidental to this test, so keep it off the one that has a side effect.
+    got = _env(
+        monkeypatch,
+        {"qwen": {"base_url": "http://127.0.0.1:8000", "model": "x"}},
+        {},
+    )
+    assert "engine_version" not in got["servers"]["qwen"]
+
+
+def test_a_missing_ollama_degrades_instead_of_raising(monkeypatch):
+    """A machine without ollama must not crash capture_versions (#195).
+
+    `out(["ollama", "--version"])` already returns None for a missing binary;
+    the unguarded `ollama list` after it was the crash. This test proves the
+    digest block is skipped when ollama is absent.
+    """
+    import run
+
+    real_run = run.run
+
+    def no_ollama(cmd, cwd, env=None, timeout=None):
+        if cmd and cmd[0] == "ollama":
+            raise FileNotFoundError("ollama")
+        return real_run(cmd, cwd, env=env, timeout=timeout)
+
+    monkeypatch.setattr(run, "run", no_ollama)
+    got = _env(
+        monkeypatch,
+        {"qwen": {"base_url": "http://127.0.0.1:11434", "model": "x"}},
+        {},
+    )
+    assert got.get("ollama") is None, "a missing ollama must not be recorded"

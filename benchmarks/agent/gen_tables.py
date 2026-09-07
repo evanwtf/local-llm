@@ -240,6 +240,45 @@ def client_caveat(
     return ["", note]
 
 
+def engine_caveat(
+    rows: list[dict[str, Any]], labels: dict[str, str] | None = None
+) -> list[str]:
+    """Say so when the rows of a table were not all taken under one engine build.
+
+    #192: a row names the client but, until now, not the engine build -- so an
+    engine A/B could not say which engine produced a number. This names the
+    boundary the way `client_caveat` names the client (#137): when the rows of
+    a table span more than one engine build, the reader must be told, because
+    adjacent rows sorted by median then read as comparisons across a build
+    split. Returns `[]` the moment one build covers everything, so the caveat
+    retires itself instead of outliving the confound.
+    """
+    labels = LABELS if labels is None else labels
+    by_build: dict[str, set[str]] = collections.defaultdict(set)
+    for r in rows:
+        for s in (r.get("servers") or {}).values():
+            ver = s.get("engine_version")
+            if not ver:
+                continue
+            build = f"{s.get('engine_name', '?')} {ver}"
+            by_build[build].add(str(r.get("backend")))
+    if len(by_build) < 2:
+        return []
+    parts = [
+        f"{', '.join(labels.get(b, b) for b in sorted(names))} on {build}"
+        for build, names in sorted(by_build.items())
+    ]
+    return [
+        "",
+        (
+            "**Rows here were not all taken under one engine build.** "
+            + "; ".join(parts)
+            + ". A comparison across that split also compares the engine "
+            "([#192](https://github.com/evanwtf/local-llm/issues/192))."
+        ),
+    ]
+
+
 LABELS = {
     "qwen38fnq3": "Qwen3.8-Flash-Next Q3 - llama.cpp",
     "ds4": "DeepSeek-V4-Flash - ds4",
@@ -276,6 +315,7 @@ def render(rows: list[dict[str, Any]] | None = None) -> str:
     ]
     out += stack_table(rows, LABELS)
     out += client_caveat(valid_opencode(rows))
+    out += engine_caveat(valid_opencode(rows))
     out += [
         "",
         (

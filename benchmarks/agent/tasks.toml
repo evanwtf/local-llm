@@ -303,6 +303,10 @@ description = "DeepSeek V4 Flash mixed q2/q4 0731 via ds4-server"
 base_url = "http://127.0.0.1:8000"
 auth_token = "dsv4-local"
 model = "deepseek-v4-flash"
+# #192: which engine build served this backend. ds4 has four trees on this
+# machine; the fork that runs our weights is the one the row must name.
+engine = "ds4"
+engine_tree = "~/git/ds4-ivan-qwen38fn"
 opencode_model = "ds4/deepseek-v4-flash"
 context_tokens = 100000
 # Aider drives ds4 through the OpenAI-compatible endpoint. litellm needs the
@@ -313,6 +317,7 @@ aider_model = "openai/deepseek-v4-flash"
 description = "Qwen3.8-27B via Ollama MLX"
 base_url = "http://127.0.0.1:11434"
 auth_token = "ollama"
+engine = "ollama"
 model = "qwen3.8:27b-mlx"
 opencode_model = "ollama/qwen3.8:27b-mlx"
 context_tokens = 262144
@@ -323,6 +328,7 @@ context_tokens = 262144
 description = "Qwen3.6-27B via Ollama MLX"
 base_url = "http://127.0.0.1:11434"
 auth_token = "ollama"
+engine = "ollama"
 model = "qwen3.6:27b-mlx"
 opencode_model = "ollama/qwen3.6:27b-mlx"
 context_tokens = 262144
@@ -334,6 +340,7 @@ context_tokens = 262144
 description = "Qwen3.6-27B coding-tuned, mxfp8"
 base_url = "http://127.0.0.1:11434"
 auth_token = "ollama"
+engine = "ollama"
 model = "qwen3.6:27b-coding-mxfp8"
 codex_profile = "qwen36coding"
 # #65. 31 GB against ds4's 91 -- the only candidate that leaves the machine
@@ -351,6 +358,7 @@ context_tokens = 262144
 description = "Qwen3.6-35B-A3B coding-tuned, mxfp8 (3B active)"
 base_url = "http://127.0.0.1:11434"
 auth_token = "ollama"
+engine = "ollama"
 model = "qwen3.6:35b-a3b-coding-mxfp8"
 opencode_model = "ollama/qwen3.6:35b-a3b-coding-mxfp8"
 context_tokens = 262144
@@ -368,6 +376,7 @@ description = "Ornith 35B, agentic coding tune, Q4_K_M GGUF"
 retired = "superseded by ornith15 (ornith-1.5:35b), which has 21 valid rows; also a GGUF served through Ollama, which is llama.cpp with a wrapper (2026-09-01)"
 base_url = "http://127.0.0.1:11434"
 auth_token = "ollama"
+engine = "ollama"
 model = "ornith:35b"
 context_tokens = 262144
 
@@ -400,6 +409,7 @@ context_tokens = 262144
 # for weeks having asserted only that the flag was passed.
 speculative = "mtp"
 draft_engine = "mtplx"
+engine = "mtplx"
 
 # Different family entirely -- Google, not Qwen or DeepSeek. Matched against
 # qwen3.6:27b-coding-mxfp8 on quantization (mxfp8), size (32 GB vs 31 GB) and
@@ -419,6 +429,7 @@ draft_engine = "mtplx"
 description = "Gemma 4 26B A4B, MLX bf16 -- the MLX Fast leaderboard model"
 base_url = "http://127.0.0.1:11434"
 auth_token = "ollama"
+engine = "ollama"
 model = "gemma4:26b-mlx-bf16"
 opencode_model = "ollama/gemma4:26b-mlx-bf16"
 context_tokens = 262144
@@ -427,6 +438,7 @@ context_tokens = 262144
 description = "Gemma 4 31B, mxfp8"
 base_url = "http://127.0.0.1:11434"
 auth_token = "ollama"
+engine = "ollama"
 model = "gemma4:31b-mxfp8"
 context_tokens = 262144
 # 2026-09-01: Google lineage -- the only non-Qwen/DeepSeek/Zhipu backend on
@@ -461,6 +473,7 @@ opencode_model = "ollama/gemma4:31b-mxfp8"
 description = "Qwen3.8-Flash-Next 125B-A6B via Ollama MLX (nvfp4)"
 base_url = "http://127.0.0.1:11434"
 auth_token = "ollama"
+engine = "ollama"
 model = "qwen3.8-flash-next:125b-mlx"
 opencode_model = "ollama/qwen3.8-flash-next:125b-mlx"
 codex_profile = "qwen38flashnext"
@@ -503,6 +516,7 @@ description = "Qwen3.8-Flash-Next 125B-A6B, Unsloth UD-Q2_K_XL, llama.cpp PR #27
 base_url = "http://127.0.0.1:11500"
 auth_token = "llamacpp-local"
 model = "qwen3.8-flash-next-q2"
+engine = "llama.cpp"
 codex_profile = "qwen38fnq2"
 # 131072, not the 65536 tried first: at 65536 Claude Code reported autocompact
 # thrashing -- three compactions in three turns -- and spent 842s on a task
@@ -565,6 +579,7 @@ description = "GLM-5.3-Flash, Unsloth UD-Q2_K_XL, llama.cpp PR #27752"
 base_url = "http://127.0.0.1:11501"
 auth_token = "llamacpp-local"
 model = "glm-5.3-flash-q2"
+engine = "llama.cpp"
 codex_profile = "glm53"
 props_url = "http://127.0.0.1:8030"
 context_tokens = 65536
@@ -631,6 +646,7 @@ props_url = "http://127.0.0.1:1234/v1/models"
 models_url = "http://127.0.0.1:1234"
 auth_token = "lm-studio"
 model = "qwen3.8-flash-next-ud"
+engine = "llama.cpp"
 context_tokens = 131072
 
 # RETIRED 2026-09-01. LM Studio is a wrapper whose runtime is llama.cpp, so on
@@ -650,6 +666,7 @@ retired = "superseded by llamacpp; see the note above (2026-09-01)"
 base_url = "http://127.0.0.1:1234"
 auth_token = "lm-studio"
 model = "qwen3.8-flash-next-ud"
+engine = "llama.cpp"
 opencode_model = "lmstudio/qwen3.8-flash-next-ud"
 context_tokens = 131072
 
@@ -680,6 +697,7 @@ description = "Qwen3.8-Flash-Next UD-Q3_K_XL, REAP-320 (320 of 512 experts)"
 base_url = "http://127.0.0.1:8020"
 auth_token = "llamacpp-local"
 model = "qwen3.8-flash-next-q3-reap320"
+engine = "llama.cpp"
 opencode_model = "llamacpp/qwen3.8-flash-next-q3-reap320"
 context_tokens = 131072
 
@@ -688,6 +706,7 @@ description = "Qwen3.8-Flash-Next 125B-A6B, Unsloth UD-Q3_K_XL, llama.cpp PR #27
 base_url = "http://127.0.0.1:11500"
 auth_token = "llamacpp-local"
 model = "qwen3.8-flash-next-q3"
+engine = "llama.cpp"
 codex_profile = "qwen38fnq3"
 # #66: aider was never wired here. It speaks the OpenAI API, so it reaches the
 # shim on :11500 like the others -- the shim exists because Codex 0.150.1 sends
@@ -727,6 +746,7 @@ opencode_model = "llamacpp/qwen3.8-flash-next-q3"
 description = "Ornith-1.5-35B-A3B, Q4_K_M, via Ollama"
 base_url = "http://127.0.0.1:11434"
 auth_token = "ollama"
+engine = "ollama"
 model = "ornith-1.5:35b"
 codex_profile = "ornith15"
 context_tokens = 262144
@@ -772,6 +792,7 @@ description = "Qwen3.8-Flash-Next, AtomicChat AD-4.27bpw-Q4_K_M-M64, PLE table s
 base_url = "http://127.0.0.1:11500"
 auth_token = "llamacpp-local"
 model = "qwen3.8-flash-next-q4m64"
+engine = "llama.cpp"
 codex_profile = "qwen38fnq4m64"
 props_url = "http://127.0.0.1:8020"
 context_tokens = 131072
@@ -806,6 +827,7 @@ description = "Ornith-1.5-35B-A3B Q4_K_M, the identical Ollama GGUF served by ll
 base_url = "http://127.0.0.1:11500"
 auth_token = "llamacpp-local"
 model = "ornith-1.5-35b-llamacpp"
+engine = "llama.cpp"
 codex_profile = "ornith15llamacpp"
 props_url = "http://127.0.0.1:8020"
 context_tokens = 262144
@@ -842,6 +864,9 @@ auth_token = "dsv4-local"
 model = "glm-5.2"
 opencode_model = "ds4/glm-5.2"
 codex_profile = "glm52ds4"
+engine = "ds4"
+# No engine_tree: the description names no tree, and ds4 has four. An
+# undeclared backend resolves to nothing rather than guess one.
 context_tokens = 100000
 
 # GLM-5.3-Flash on ds4 -- **the supported stack** (#38).
@@ -891,6 +916,9 @@ models_url = "http://127.0.0.1:8000"
 auth_token = "dsv4-local"
 model = "glm-5.3-flash"
 context_tokens = 100000
+engine = "ds4"
+# No engine_tree: "on ds4 branch" names no tree, and ds4 has four. An
+# undeclared backend resolves to nothing rather than guess one.
 
 [backend.glm53ds4]
 description = "GLM-5.3-Flash Q2, antirez GGUF on ds4 upstream/main ec7642c"
@@ -899,6 +927,8 @@ auth_token = "dsv4-local"
 model = "glm-5.3-flash"
 opencode_model = "ds4/glm-5.3-flash"
 codex_profile = "glm53ds4"
+engine = "ds4"
+engine_tree = "~/git/ds4-main"
 # Aider speaks the OpenAI API, so it never sends an Anthropic thinking block
 # and never needs the shim. ds4's default for an unrecognised mode is
 # high-effort thinking, which #63 measured at 8/8 on trivial functions against
@@ -925,6 +955,9 @@ description = "REFERENCE: hosted Claude Opus 5, medium reasoning effort"
 model = "claude-opus-5"
 effort = "medium"
 context_tokens = 200000
+# Hosted, not a local engine: no `engine` key, so a row for this backend
+# carries no engine build. Stamping the local ds4 sha here would be invented
+# provenance on the baseline every local number is read against.
 
 # Same weights, same server, same client as `ds4` under --client opencode --
 # but over the Anthropic wire protocol (/v1/messages) instead of the
@@ -946,6 +979,8 @@ auth_token = "dsv4-local"
 model = "deepseek-v4-flash"
 opencode_model = "ds4anthropic/deepseek-v4-flash"
 codex_profile = "ds4"
+engine = "ds4"
+engine_tree = "~/git/ds4-ivan-qwen38fn"
 context_tokens = 100000
 
 [[task]]
@@ -1006,6 +1041,7 @@ description = "Mistral-Nemo 12B instruct Q4_K_M via Ollama (desktop 3080 Ti)"
 tier = "desktop-3080ti"
 base_url = "http://127.0.0.1:11434"
 auth_token = "ollama"
+engine = "ollama"
 model = "mistral-nemo:12b-instruct-2407-q4_K_M"
 opencode_model = "ollama/mistral-nemo:12b-instruct-2407-q4_K_M"
 context_tokens = 131072
@@ -1015,6 +1051,7 @@ description = "Gemma 4 12B IT Q4_K_M via Ollama (desktop 3080 Ti)"
 tier = "desktop-3080ti"
 base_url = "http://127.0.0.1:11434"
 auth_token = "ollama"
+engine = "ollama"
 model = "gemma4:12b-it-q4_K_M"
 opencode_model = "ollama/gemma4:12b-it-q4_K_M"
 context_tokens = 131072
@@ -1028,6 +1065,7 @@ description = "Ornith-1.5 35B-A3B via Ollama, expert offload (desktop 3080 Ti)"
 tier = "desktop-3080ti"
 base_url = "http://127.0.0.1:11434"
 auth_token = "ollama"
+engine = "ollama"
 model = "ornith-1.5:35b"
 opencode_model = "ollama/ornith-1.5:35b"
 context_tokens = 131072
@@ -1046,6 +1084,7 @@ description = "Ornith-1.5 9B dense via Ollama (desktop 3080 Ti)"
 tier = "desktop-3080ti"
 base_url = "http://127.0.0.1:11434"
 auth_token = "ollama"
+engine = "ollama"
 model = "ornith-1.5-9b-32k"
 opencode_model = "ollama/ornith-1.5-9b-32k"
 # 32768, not the 131072 copied from the Mac's backends: Ollama serves its 4096
@@ -1082,6 +1121,8 @@ auth_token = "dsv4-local"
 model = "qwen3.8-flash-next-q4"
 opencode_model = "ds4/qwen3.8-flash-next-q4"
 context_tokens = 100000
+engine = "ds4"
+engine_tree = "~/git/ds4-metal"
 
 # Same pack, same binary, MTP speculation on at the depth the runtime's own
 # QWEN38_FLASH_NEXT.md measures as this pack's optimum (5-7; 8 goes EV-negative).
@@ -1101,6 +1142,8 @@ auth_token = "dsv4-local"
 model = "qwen3.8-flash-next-q4"
 opencode_model = "ds4/qwen3.8-flash-next-q4"
 context_tokens = 100000
+engine = "ds4"
+engine_tree = "~/git/ds4-metal"
 # #148/#151: declared as a speculative arm, structurally rather than by its
 # name. A run selecting this backend refuses to start unless the engine's draft
 # counters are switched on and a --server-log is given to read them from, and
@@ -1187,6 +1230,8 @@ auth_token = "dsv4-local"
 model = "qwen3.8-flash-next-q4"
 opencode_model = "ds4qwenshim/qwen3.8-flash-next-q4"
 context_tokens = 100000
+engine = "ds4"
+engine_tree = "~/git/ds4-metal"
 # #148/#151: declared as a speculative arm, structurally rather than by its
 # name. A run selecting this backend refuses to start unless the engine's draft
 # counters are switched on and a --server-log is given to read them from, and
@@ -1215,6 +1260,8 @@ auth_token = "dsv4-local"
 model = "qwen3.8-flash-next-q4"
 opencode_model = "ds4qwenshim/qwen3.8-flash-next-q4"
 context_tokens = 100000
+engine = "ds4"
+engine_tree = "~/git/ds4-ivan-qwen38fn"
 
 [backend.qwen38fnds4shim]
 description = "Qwen3.8-Flash-Next Q4 fast-pack on ds4-metal ba01f5d via the tool-format shim (non-streaming upstream), MTP off"
@@ -1223,3 +1270,5 @@ auth_token = "dsv4-local"
 model = "qwen3.8-flash-next-q4"
 opencode_model = "ds4qwenshim/qwen3.8-flash-next-q4"
 context_tokens = 100000
+engine = "ds4"
+engine_tree = "~/git/ds4-metal"
