@@ -1,0 +1,18 @@
+{
+  "knob": "gathered-heads",
+  "on_var": "DS4_METAL_DISABLE_DECODE_RAW_GATHERED_ATTN",
+  "off_var": "DS4_METAL_DISABLE_DECODE_RAW_GATHERED_ATTN",
+  "on_value": "unset",
+  "off_value": "1",
+  "admission_signal": "count",
+  "tree": "/Users/evanhoffman/git/ds4-171-head",
+  "gguf": "/Users/evanhoffman/models/deepseek-v4-flash-aproj/DeepSeek-V4-Flash-IQ2XXS-w2Q2K-AProjQ4-SExpQ8-OutQ8-chat-v2-imatrix-0731.gguf",
+  "reps": "4",
+  "started": "2026-09-07T08:34:54Z"
+  ,
+  "engagement": {
+    "trace_var": "DS4_METAL_TRACE_M5_FLASH_ATTN_PACKED32_REDUCE",
+    "on_count": "5504",
+    "off_count": "5248"
+  }
+}

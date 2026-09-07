@@ -1,0 +1,12 @@
+{
+  "knob": "stream-overlap",
+  "on_var": "DS4_METAL_ENABLE_Q4_STREAM_OVERLAP",
+  "off_var": "DS4_METAL_ENABLE_Q4_STREAM_OVERLAP",
+  "on_value": "1",
+  "off_value": "0",
+  "admission_signal": "none",
+  "tree": "/Users/evanhoffman/git/ds4-171-head",
+  "gguf": "/Users/evanhoffman/models/deepseek-v4-flash-aproj/DeepSeek-V4-Flash-IQ2XXS-w2Q2K-AProjQ4-SExpQ8-OutQ8-chat-v2-imatrix-0731.gguf",
+  "reps": "4",
+  "started": "2026-09-07T08:42:28Z"
+}
