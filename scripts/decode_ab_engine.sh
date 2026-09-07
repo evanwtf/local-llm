@@ -29,6 +29,48 @@ STEP=${STEP:-2048}
 GEN=${GEN:-128}
 REPS=${REPS:-3}
 
+# Cold large-chunk prefill (#171). Empty by default, so the flag is absent and
+# nothing about an ordinary sweep changes.
+#
+# ds4-bench's prefill_tps times only the newest interval at each frontier
+# (ds4_bench.c:10). Frontier 1 is a cold prefill of CTX_START tokens; every
+# later frontier takes the resume path and times the appended STEP tokens.
+# Setting PREFILL_CHUNK equal to STEP makes each of those a single chunk, which
+# is the shape adamlawi's CUDA -12.23% was measured in.
+#
+# raw_cap is hard-clamped to 8192 (ds4.c:40442) and a resumed prefill's chunk
+# is clamped to it, so a PREFILL_CHUNK above 8192 is honoured on the first,
+# cold frontier and silently clamped on every one after it -- two different
+# measurements in one column. 8192 is the largest chunk that behaves uniformly.
+PREFILL_CHUNK=${PREFILL_CHUNK:-}
+
+# bash 3.2 ships on macOS and aborts on "${arr[@]}" when arr is empty under
+# set -u, which would kill the run at the first arm. This form is safe on both.
+prefill_flag=()
+if [ -n "$PREFILL_CHUNK" ]; then
+  # Refuse a bad value here, not after the lock is held and 73 GiB is resident.
+  # Same reason the missing-binary check above runs before the lock: a typo
+  # should cost a second, not a model load.
+  # 0 is refused rather than passed through: ds4_prefill_cap_for_prompt treats
+  # requested_chunk == 0 as "not specified" (ds4.c:13554) and falls back to the
+  # 4096 default, so PREFILL_CHUNK=0 meaning "unlimited" would silently give
+  # chunked prefill instead. Refusing is the only reading that cannot mislead.
+  case "$PREFILL_CHUNK" in
+    ''|*[!0-9]*|0|0*[!0-9]*)
+      echo "REFUSING: PREFILL_CHUNK='$PREFILL_CHUNK' is not a positive integer" >&2
+      exit 1 ;;
+  esac
+  if [ "$PREFILL_CHUNK" -eq 0 ]; then
+    echo "REFUSING: PREFILL_CHUNK=0 means 'unspecified' to ds4, not 'unlimited'" >&2
+    exit 1
+  fi
+  prefill_flag=(--prefill-chunk "$PREFILL_CHUNK")
+  if [ "$PREFILL_CHUNK" -gt 8192 ]; then
+    echo "NOTE: PREFILL_CHUNK=$PREFILL_CHUNK exceeds raw_cap's 8192 ceiling;" >&2
+    echo "      frontiers after the first will be clamped to 8192." >&2
+  fi
+fi
+
 # #133: claim the machine before loading anything. preflight sees the process
 # table but cannot see intent, and this script spends minutes between arms
 # with nothing running -- a scan in that window truthfully says "all clear"
@@ -66,6 +108,18 @@ uv run python "$(dirname "$0")/prompt_meta.py" --prompt "$PROMPT" --sidecar "$OU
   echo "B label=$LABEL_B tree=$TREE_B @ $(git -C "$TREE_B" rev-parse --short HEAD 2>/dev/null || echo unknown)"
   echo "gguf=$GGUF"
   echo "prompt=$PROMPT"
+  # The sweep is an input to every ratio in the CSVs and was recorded nowhere.
+  # On 2026-09-06 a comparison against a published 32-frontier baseline ran on
+  # this script's 8-frontier default and read 1.152 against the published
+  # 1.155 -- a confirmatory artifact of sampling only the steep region, and
+  # nothing beside the rows said the sweep differed.
+  echo "sweep ctx_start=$CTX_START ctx_max=$CTX_MAX step=$STEP gen=$GEN reps=$REPS"
+  echo "prefill_chunk=${PREFILL_CHUNK:-<flag absent>}"
+  # These set the same caps as the flags, but only when the flags are absent
+  # (ds4.c:13554, :40447). An inherited value would silently change the prefill
+  # shape of a run that never mentions it.
+  echo "DS4_METAL_PREFILL_CHUNK=${DS4_METAL_PREFILL_CHUNK:-<unset>}"
+  echo "DS4_METAL_GRAPH_RAW_CAP=${DS4_METAL_GRAPH_RAW_CAP:-<unset>}"
 } >> "$OUT/engines.txt"
 
 for rep in $(seq 1 "$REPS"); do
@@ -89,7 +143,8 @@ for rep in $(seq 1 "$REPS"); do
     if ! ( cd "$tree" && ./ds4-bench -m "$GGUF" --metal \
       --prompt-file "$PROMPT" \
       --ctx-start "$CTX_START" --ctx-max "$CTX_MAX" --step-incr "$STEP" \
-      --gen-tokens "$GEN" --csv "$csv" ) > "$log" 2>&1; then
+      --gen-tokens "$GEN" ${prefill_flag[@]+"${prefill_flag[@]}"} \
+      --csv "$csv" ) > "$log" 2>&1; then
       # The failure text is in the log now, not on the batch's stdout, so
       # say where it went and show the tail rather than dying silently.
       echo "FAILED: $label rep $rep -- see $log" >&2
