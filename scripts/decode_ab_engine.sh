@@ -38,10 +38,19 @@ REPS=${REPS:-3}
 # Setting PREFILL_CHUNK equal to STEP makes each of those a single chunk, which
 # is the shape adamlawi's CUDA -12.23% was measured in.
 #
-# raw_cap is hard-clamped to 8192 (ds4.c:40442) and a resumed prefill's chunk
-# is clamped to it, so a PREFILL_CHUNK above 8192 is honoured on the first,
-# cold frontier and silently clamped on every one after it -- two different
-# measurements in one column. 8192 is the largest chunk that behaves uniformly.
+# ds4_prefill_cap_for_prompt (ds4.c:12159 at ds4 399acbbe) is the whole of the
+# cap logic: a non-zero requested chunk is used as given, clamped only to
+# prompt_len. There is no other ceiling -- an earlier version of this comment
+# claimed raw_cap clamped the chunk to 8192, which was wrong. ds4_default_raw_cap
+# (ds4.c:12144) is the raw-KV cap for attention, DS4_N_SWA clamped to ctx, and
+# the built-in shapes set n_swa to 128 or 0. It has nothing to do with prefill
+# chunking, and 8192 appears in the prefill path only as the PRO variant's
+# DEFAULT when no chunk was requested. So any value is honoured uniformly
+# across the sweep and there is no ceiling to warn about.
+#
+# Line numbers are pinned to a sha because ds4.c is 70k lines and moves daily;
+# a bare ds4.c:NNNNN is unverifiable a week later, which is how the wrong
+# citation above survived review.
 PREFILL_CHUNK=${PREFILL_CHUNK:-}
 
 # bash 3.2 ships on macOS and aborts on "${arr[@]}" when arr is empty under
@@ -51,10 +60,16 @@ if [ -n "$PREFILL_CHUNK" ]; then
   # Refuse a bad value here, not after the lock is held and 73 GiB is resident.
   # Same reason the missing-binary check above runs before the lock: a typo
   # should cost a second, not a model load.
-  # 0 is refused rather than passed through: ds4_prefill_cap_for_prompt treats
-  # requested_chunk == 0 as "not specified" (ds4.c:13554) and falls back to the
-  # 4096 default, so PREFILL_CHUNK=0 meaning "unlimited" would silently give
-  # chunked prefill instead. Refusing is the only reading that cannot mislead.
+  # 0 is refused rather than passed through: ds4_prefill_cap_for_prompt takes
+  # the `requested_chunk != 0` branch or nothing (ds4.c:12159 at ds4 399acbbe),
+  # so 0 falls through to the unspecified path and lands on the 4096 non-PRO
+  # default. PREFILL_CHUNK=0 meaning "unlimited" would silently give chunked
+  # prefill instead. Refusing is the only reading that cannot mislead.
+  #
+  # Note the asymmetry: on the DS4_METAL_PREFILL_CHUNK env path in that same
+  # function, a value <= 0 DOES mean unlimited (cap stays prompt_len). The flag
+  # and the env var disagree about 0, which is the reason to refuse it here
+  # rather than pass it on and hope the reader knows which path was taken.
   case "$PREFILL_CHUNK" in
     ''|*[!0-9]*|0|0*[!0-9]*)
       echo "REFUSING: PREFILL_CHUNK='$PREFILL_CHUNK' is not a positive integer" >&2
@@ -65,10 +80,6 @@ if [ -n "$PREFILL_CHUNK" ]; then
     exit 1
   fi
   prefill_flag=(--prefill-chunk "$PREFILL_CHUNK")
-  if [ "$PREFILL_CHUNK" -gt 8192 ]; then
-    echo "NOTE: PREFILL_CHUNK=$PREFILL_CHUNK exceeds raw_cap's 8192 ceiling;" >&2
-    echo "      frontiers after the first will be clamped to 8192." >&2
-  fi
 fi
 
 # #133: claim the machine before loading anything. preflight sees the process

@@ -11,6 +11,32 @@
 Instructions for coding agents. [`CONVENTIONS.md`](CONVENTIONS.md) holds the
 standing rules about data and safety; this file covers how to work.
 
+## An issue is a public work log, not a drafting area (2026-09-06)
+
+An issue in this repo is the public record of a task. It holds **what we did
+and what we measured**, in the order it happened. That is all it holds.
+
+**Do not post upstream drafts here.** No "DRAFT for the operator to post to
+<upstream>", no "READY TO POST", no v2/v3/v4 of the same text superseding each
+other in the thread. If something is going upstream, the operator writes and
+posts it; our issue is where the results it draws on already live, stated for
+our own readers.
+
+**Link the upstream issue once, in the opening post.** Every later comment
+repeating the link adds nothing -- the reader arrived through the first one.
+
+Why this is a rule and not a preference: the drafts crowd out the log. #162
+reached twelve comments of which five were versions of one unsent upstream
+reply, and a reader looking for the q4/q8 numbers had to work out which draft
+was current before they could find a measurement. Superseded drafts also age
+badly in a way results do not -- a number stays true, a draft addressed to a
+person in a conversation that has moved on does not.
+
+Write each comment so it still reads as a result a month later: what was run,
+on what tree, how many runs, what the numbers were, and what was thrown away.
+Second-person framing ("the re-test you asked for") belongs in the reply that
+is actually sent to that person, not in the log.
+
 ## Every time and date is ISO 8601, America/New_York, with an explicit offset (2026-09-06)
 
 **One representation, everywhere: `YYYY-MM-DDTHH:MM:SS±hhmm`.** In rows, in
