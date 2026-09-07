@@ -1488,29 +1488,48 @@ green there while the run lock is held here. Holding a peer back from pushing
 costs idle time and buys nothing. What the rule forbids is `uv run pytest` and
 `uv run ruff` **on this machine** while a batch holds the lock.
 
-## When someone upstream asked, answering our own tracker is not answering
+## Write findings for the operator, in our own issues. Do not draft upstream replies
 
-On 2026-09-06 @GiorgioOppo asked three testers by name on `antirez/ds4#952`:
-*"@adamlawi @iammac2 @evandhoffman can you try again ?"* @iammac2 answered in
-seventy minutes. We ran exactly what was asked -- three paired runs at head,
-the Metal side of the `f309990` question, and all four of the new knobs --
-wrote every word of it onto our own issue, closed that issue, and **left the
-person who asked with nothing for eighteen hours.**
+**Operator instruction, 2026-09-07, and it supersedes what this section said
+before:**
 
-This is the same failure as the committed-but-unpublished result above, one
-level further out, and it is easier to make: our tracker feels like publishing
-because it is where the work goes.
+> Don't draft a report. Just make sure the evidence is in the repo and address
+> the findings to me, not an outside/upstream contributor. And just comment
+> directly in the local issue.
 
-The rule that prevents it:
+So the rule is short:
 
-- **An upstream ask is not closed until the answer is upstream.** Our issue is
-  the work log; their thread is the reply. Closing ours does not discharge it.
-- **Never post to a repository outside `evanwtf` or `evandhoffman`.** So the
-  deliverable is a draft handed to the operator in the same turn the result
-  lands, not a note to do it later.
-- Check who else replied and when. A thread where the other testers have
-  answered and we have not is a fact about us, and it is visible to everyone
-  reading it.
+- **The audience of every issue comment is the operator.** Not the author of
+  the upstream PR, not the person who asked on their tracker. Write it to the
+  person who has to decide what this machine does next.
+- **The evidence belongs in this repo** -- a committed `evidence/*.json`, the
+  script that produced it, and its tests. A finding that lives only in a
+  comment is not evidence, and one that lives only in a scratchpad is not even
+  that.
+- **Do not draft upstream replies.** Not as a deliverable, not "in case it is
+  wanted". Whether anything goes upstream, and in whose words, is the
+  operator's call and not a gap for an agent to fill.
+- **Never post to a repository outside `evanwtf` or `evandhoffman`.** Unchanged,
+  and now with nothing to draft it is simply the whole of the outward policy:
+  read upstream, file here.
+
+### What the earlier version got wrong
+
+It said *"an upstream ask is not closed until the answer is upstream"*, and
+made a drafted reply the deliverable whenever an upstream thread asked us
+something. Written after ds4#952 sat unanswered for eighteen hours, which felt
+like a lapse.
+
+It is not our obligation. This project measures a machine for its operator;
+being a responsive participant in someone else's thread is a thing the
+operator may choose, not a duty the harness discharges on their behalf. The
+earlier rule also produced work nobody asked for -- a full reply drafted on
+2026-09-07 that was never wanted, and would have published numbers from a
+commit the branch had already moved past.
+
+Keep the one part that still holds: **note when an upstream thread bears on
+our numbers**, on our own issue, in a sentence. That is context for the
+operator, not a reply queued on their behalf.
 
 ## Never publish a ratio without the absolutes beside it
 
