@@ -6,11 +6,11 @@ requires-python = ">=3.11"
 dependencies = []
 
 [dependency-groups]
-dev = ["pytest>=8.0"]
+dev = ["pytest>=8.0", "ruff>=0.16"]
 
 # Note: no `exclude-newer-span` here. uv 0.12.1 rejects the field, and this
-# project has no runtime dependencies -- pytest is the only thing resolved.
-# Add it if that changes and uv is new enough.
+# project has no runtime dependencies -- pytest and ruff are the only things
+# resolved. Add the field when uv moves past 0.12.1.
 
 [tool.pytest.ini_options]
 testpaths = ["."]
