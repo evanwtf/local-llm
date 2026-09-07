@@ -1576,3 +1576,42 @@ rather than waits, and says so on stdout. A driver that swallows the status
 turns a designed refusal into a silent no-op. `CSV-exists is a START
 condition` is the same lesson from the other direction -- neither the presence
 of an output file nor a zero status is evidence a run finished.
+
+## A `tail -f` monitor never ends, so it outlives the thing it watched
+
+On 2026-09-07 the operator asked why the session showed "10 running tasks"
+while the GPU was idle. Four `tail -f` monitors were alive. Two had been
+running for **5h42m and 9h43m** -- armed to watch the #190 KV matrix and the
+#146 batch, both of which had finished the previous night. They were tailing
+files nothing would ever append to again, and one had been reparented to pid 1.
+
+The Monitor tool's own guidance says this plainly: an unbounded command
+(`tail -f`, `inotifywait -m`, `while true`) stays armed until its timeout even
+after the event has fired. It is the wrong shape for "tell me when this
+finishes".
+
+**Choose by how many notifications you need.**
+
+- **One** -- use `Bash` with `run_in_background` and a command that *exits*
+  when the condition holds:
+
+  ```sh
+  until grep -q 'done:' "$LOG"; do sleep 5; done
+  ```
+
+- **One per occurrence** -- a Monitor is right, but give the command a way to
+  end: poll and `break` on a terminal state, rather than tailing forever.
+
+`tail -f "$LOG" | grep -m1 PATTERN` does **not** fix it. If the log goes quiet
+after the match, `tail` never gets SIGPIPE and the pipeline hangs anyway.
+
+**Stop them with `TaskStop`, not `pkill`.** `TaskStop` takes the task id and
+ends the harness task cleanly. `pkill -f tail` matches the watcher's own
+command line -- the self-matching trap recorded above -- and killing the `tail`
+alone leaves the task to report a confusing `exit 144`. Kill by explicit pid
+when a task id is no longer in context, and expect that exit code.
+
+**Sweep at the end of a batch.** A finished measurement should leave nothing
+running: no monitor, no `tail`, and a released run lock. The count of running
+tasks is a claim about the machine, and a wrong one is how an idle GPU and a
+busy-looking session end up side by side.
