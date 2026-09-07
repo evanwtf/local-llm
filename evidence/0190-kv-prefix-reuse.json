@@ -8,38 +8,6 @@
     "tree": "/Users/evanhoffman/git/ds4-ivan-qwen38fn",
     "dirty": false
   },
-  "source_constants_at_ffd85d42": {
-    "min_tokens": {
-      "value": 512,
-      "cite": "ds4_kvstore.c:33"
-    },
-    "cold_max_tokens": {
-      "value": 30000,
-      "cite": "ds4_kvstore.c:34"
-    },
-    "boundary_trim_tokens": {
-      "value": 32,
-      "cite": "ds4_kvstore.c:40"
-    },
-    "boundary_align_tokens": {
-      "value": 2048,
-      "cite": "ds4_kvstore.c:41"
-    },
-    "continued_interval_tokens": {
-      "value": 10000,
-      "cite": "ds4_kvstore.c:42"
-    },
-    "store_len": {
-      "cite": "ds4_kvstore.c:706"
-    },
-    "continued_step": {
-      "cite": "ds4_kvstore.c:736",
-      "computed": 10240
-    },
-    "cold_store_gate": {
-      "cite": "ds4_server.c:12888"
-    }
-  },
   "arms": {
     "control-no-kv-disk": {
       "ctx": 32768,
@@ -173,5 +141,38 @@
         }
       ]
     }
-  }
+  },
+  "source_constants": {
+    "min_tokens": {
+      "value": 512,
+      "cite": "ds4_kvstore.c:33 at ds4-ivan-qwen38fn ffd85d42"
+    },
+    "cold_max_tokens": {
+      "value": 30000,
+      "cite": "ds4_kvstore.c:34 at ds4-ivan-qwen38fn ffd85d42"
+    },
+    "boundary_trim_tokens": {
+      "value": 32,
+      "cite": "ds4_kvstore.c:40 at ds4-ivan-qwen38fn ffd85d42"
+    },
+    "boundary_align_tokens": {
+      "value": 2048,
+      "cite": "ds4_kvstore.c:41 at ds4-ivan-qwen38fn ffd85d42"
+    },
+    "continued_interval_tokens": {
+      "value": 10000,
+      "cite": "ds4_kvstore.c:42 at ds4-ivan-qwen38fn ffd85d42"
+    },
+    "store_len": {
+      "cite": "ds4_kvstore.c:706 at ds4-ivan-qwen38fn ffd85d42"
+    },
+    "continued_step": {
+      "cite": "ds4_kvstore.c:736 at ds4-ivan-qwen38fn ffd85d42",
+      "computed": 10240
+    },
+    "cold_store_gate": {
+      "cite": "ds4_server.c:12888 at ds4-ivan-qwen38fn ffd85d42"
+    }
+  },
+  "source_constants_note": "Each citation is pinned to the tree and sha it was read at. A bare file:line names nothing -- the line moves with the next commit (#182) -- and a bare sha is not enough either: ds4 has four trees on this machine, which is the defect #195 fixed in the engine-identity table."
 }
