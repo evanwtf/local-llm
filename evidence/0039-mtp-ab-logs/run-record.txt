@@ -1,0 +1,10 @@
+# stack agent A/B, started 2026-09-07T08:42:55 EDT
+# SCREEN, not a superiority test: n=30/arm resolves ~18-27 pp pass, ~17-26% paired wall.
+NEW backend=qwen38fnds4mtp7shim engine=/Users/evanhoffman/git/ds4-metal @ ba01f5d
+NEW gguf=Qwen3.8-Flash-Next-Q4KExperts-BF16Emb-BF16Control-Q8GDN-Q8QSA-Q8Shared-Q8Out.gguf (79010984960 bytes, Qwen3.8-Flash-Next-Q40RoutedExperts-BF16Emb-BF16Control-Q8GDN-Q8QSA-Q8Shared-Q8Out.gguf)  kv=/Users/evanhoffman/.ds4/server-kv-mtp
+NEW flags=--mtp-model /Users/evanhoffman/models/qwen3.8-flash-next-ds4-q4/qwen3.8-flash-next-q4-mtp.gguf --mtp-draft 7 --mtp-timing  run.py=--no-require-draft
+OLD backend=qwen38fnds4shim engine=/Users/evanhoffman/git/ds4-metal @ ba01f5d
+OLD gguf=Qwen3.8-Flash-Next-Q4KExperts-BF16Emb-BF16Control-Q8GDN-Q8QSA-Q8Shared-Q8Out.gguf (79010984960 bytes, Qwen3.8-Flash-Next-Q40RoutedExperts-BF16Emb-BF16Control-Q8GDN-Q8QSA-Q8Shared-Q8Out.gguf)  kv=/Users/evanhoffman/.ds4/server-kv
+OLD flags=<none>  run.py=<none>
+# Same tree and same gguf in both arms: the flags above are the only variable.
+harness pinned at 5bfb80c for all 4 sweeps

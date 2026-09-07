@@ -447,6 +447,71 @@ def direction_agrees(
     }
 
 
+def pass_pairs(sweeps: list[Sweep]) -> list[tuple[str, int, int, int, int]]:
+    """(task, passes_new, trials_new, passes_old, trials_old) per shared task.
+
+    The same pairing the wall endpoint uses, applied to the pass column.
+    """
+    new: dict[str, list[dict[str, Any]]] = {}
+    old: dict[str, list[dict[str, Any]]] = {}
+    for sweep in sweeps:
+        bucket = new if sweep.arm == "new" else old
+        for row in sweep.rows:
+            bucket.setdefault(row.get("task") or "?", []).append(row)
+    out = []
+    for task in sorted(new):
+        if task not in old:
+            continue
+        n_rows, o_rows = new[task], old[task]
+        out.append(
+            (
+                task,
+                sum(1 for r in n_rows if r.get("passed")),
+                len(n_rows),
+                sum(1 for r in o_rows if r.get("passed")),
+                len(o_rows),
+            )
+        )
+    return out
+
+
+def sign_test(down: int, up: int) -> float:
+    """Two-sided sign test: how surprising is `down` against `up` on a coin?"""
+    n = down + up
+    if n == 0:
+        return 1.0
+    lo = min(down, up)
+    tail = sum(math.comb(n, i) for i in range(lo + 1))
+    return min(1.0, 2.0 * tail / (2.0**n))
+
+
+def pass_report(pairs: list[tuple[str, int, int, int, int]]) -> dict[str, Any]:
+    """Is the pass gap larger than the pairing itself can explain?
+
+    The screen's pass bar compares 30 rows against 30, and a Fisher test on
+    those pooled counts would treat them as 60 independent trials. They are
+    not: they are fifteen tasks run twice on each arm. A task the new arm
+    cannot do at all contributes TWO failures, and pooling reads the second
+    one as fresh evidence when it is the same fact counted again -- which is
+    how a 7-row shortfall across 2 tasks and a 7-row shortfall across 7 tasks
+    come out looking identical.
+
+    So count tasks. A task is `down` when the new arm passes it fewer times,
+    `up` when it passes more, and a tie is no evidence either way. The sign
+    test asks whether that split is worse than a coin.
+    """
+    down = [t for t, pn, _tn, po, _to in pairs if pn < po]
+    up = [t for t, pn, _tn, po, _to in pairs if pn > po]
+    ties = [t for t, pn, _tn, po, _to in pairs if pn == po]
+    return {
+        "n_tasks": len(pairs),
+        "down": down,
+        "up": up,
+        "ties": len(ties),
+        "p": sign_test(len(down), len(up)),
+    }
+
+
 def wall_report(paired: list[tuple[str, float, float]]) -> dict[str, Any]:
     d = [math.log(n / o) for _, n, o in paired]
     n = len(d)
@@ -665,6 +730,20 @@ def main(argv: list[str] | None = None) -> int:
     old = tally([r for s in sweeps if s.arm == "old" for r in s.rows])
     logger.info("new arm: %s", new)
     logger.info("old arm: %s", old)
+
+    passes = pass_report(pass_pairs(sweeps))
+    logger.info(
+        "paired pass, by TASK not by row: %d down, %d up, %d tied of %d"
+        "  sign test p=%.3f",
+        len(passes["down"]),
+        len(passes["up"]),
+        passes["ties"],
+        passes["n_tasks"],
+        passes["p"],
+    )
+    for task, pn, tn, po, to in pass_pairs(sweeps):
+        if pn != po:
+            logger.info("    %-28s new %d/%d  old %d/%d", task, pn, tn, po, to)
 
     paired = pairs_by_task(sweeps)
     wall = wall_report(paired)

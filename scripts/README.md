@@ -37,6 +37,7 @@ documentation.
 | `make_scripts_readme.py` | Generate scripts/README.md from each script's own first docstring line. |
 | `metal_knob_ab.py` | Knob table and refusal logic for scripts/metal_knob_ab.sh (#162 Task 4). |
 | `mtp_engagement.py` | Does the engine engage MTP on the traffic we actually send it? (#148, #151) |
+| `mtp_log_split.py` | Did MTP draft during the batch, or only before it? (#39, #151, #210) |
 | `peer_brief.py` | Generate the state half of a handoff as Markdown. #160 |
 | `peer_status.py` | One deterministic status line for the peer work. #160 |
 | `post_ab_run.py` | Post one completed decode-A/B run to a GitHub issue, once. |

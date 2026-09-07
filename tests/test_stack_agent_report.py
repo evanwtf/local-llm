@@ -632,3 +632,72 @@ def test_the_default_verdict_still_reads_as_138(reloaded):
     lines = mod.screen_verdict(new, old, mod.wall_report([("t", 100.0, 100.0)] * 15))
     fail = [ln for ln in lines if ln.startswith("SCREEN FAIL")]
     assert fail and "the Q4_0 stack" in fail[0] and "#138" in fail[0]
+
+
+# --- The pass column is paired too ----------------------------------------
+#
+# The screen's pass bar compares 30 rows against 30. They are fifteen tasks
+# run twice on each arm, so a task the new arm cannot do at all contributes
+# two failures and a pooled test counts the second as fresh evidence.
+
+
+def test_a_coin_is_not_surprising():
+    assert sar.sign_test(0, 0) == 1.0
+    assert sar.sign_test(3, 3) == 1.0
+    assert sar.sign_test(4, 3) == 1.0
+
+
+def test_a_clean_sweep_of_seven_is():
+    """Seven tasks down, none up: p = 2/2^7."""
+    assert sar.sign_test(7, 0) == pytest.approx(2 / 128)
+
+
+def test_the_test_is_two_sided():
+    assert sar.sign_test(7, 0) == sar.sign_test(0, 7)
+
+
+def test_two_tasks_carrying_a_seven_row_shortfall_are_not_seven_facts():
+    """The whole reason to count tasks. Both fixtures lose the same number of
+    ROWS; one loses them on two tasks and the other on seven, and a pooled
+    count cannot tell them apart."""
+    concentrated = [("a", 0, 4, 4, 4), ("b", 1, 4, 4, 4)] + [
+        (f"t{i}", 2, 2, 2, 2) for i in range(7)
+    ]
+    spread = [(f"t{i}", 1, 2, 2, 2) for i in range(7)] + [
+        (f"u{i}", 2, 2, 2, 2) for i in range(2)
+    ]
+
+    def rows_lost(pairs):
+        return sum(po - pn for _t, pn, _tn, po, _to in pairs)
+
+    assert rows_lost(concentrated) == rows_lost(spread) == 7
+    assert sar.pass_report(concentrated)["p"] > sar.pass_report(spread)["p"]
+
+
+def test_ties_are_not_evidence():
+    pairs = [(f"t{i}", 2, 2, 2, 2) for i in range(13)] + [("x", 0, 2, 2, 2)]
+    got = sar.pass_report(pairs)
+    assert got["ties"] == 13 and got["down"] == ["x"] and got["up"] == []
+    assert got["p"] == 1.0, "one task against nothing is a coin flipped once"
+
+
+def test_pass_pairs_needs_the_task_on_both_arms():
+    """A task only one arm ran is not a pair. It must be dropped, not scored
+    as a loss -- that is how a crashed sweep becomes a regression."""
+    new = sar.Sweep("new-sweep1", dt.datetime(2026, 9, 7, 8, 43))
+    new.rows = [
+        {"task": "shared", "passed": True},
+        {"task": "new-only", "passed": False},
+    ]
+    old = sar.Sweep("old-sweep1", dt.datetime(2026, 9, 7, 9, 28))
+    old.rows = [{"task": "shared", "passed": True}]
+    sweeps = [new, old]
+    got = sar.pass_pairs(sweeps)
+    assert [t for t, *_ in got] == ["shared"]
+
+
+def test_the_direction_is_recorded_not_just_the_count():
+    """`down` and `up` name the tasks, so a reader can go look at them."""
+    pairs = [("regressed", 0, 2, 2, 2), ("improved", 2, 2, 0, 2)]
+    got = sar.pass_report(pairs)
+    assert got["down"] == ["regressed"] and got["up"] == ["improved"]

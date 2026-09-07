@@ -1,0 +1,313 @@
+{
+  "schema": "local-llm/evidence-2",
+  "task": "0039",
+  "issue": "39",
+  "also": [
+    "151",
+    "210",
+    "212",
+    "213"
+  ],
+  "agent": "opus",
+  "agent_model": "claude-opus-5",
+  "agent_effort": "high",
+  "repo": "local-llm",
+  "authored_at": "2026-09-07T11:56:00-0400",
+  "harness_head": "9e3fe6a",
+  "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+  "statement": "A paired four-sweep A/B of ds4 with the Qwen MTP sidecar loaded against the same stack with MTP off, arms alternated per pair and the server restarted between sweeps. The MTP arm's own server drafted at 47-61% acceptance on its start-up prompts and then emitted not one MTP timing line across 30 agent trials. The pass column moved against the MTP arm (21/30 against 28/30) but does not resolve at this size: paired by task it is 6 down, 1 up, 8 tied, two-sided sign test p=0.125. The wall column is a null whose two pairs disagree in direction, so its pooled ratio is not a result (#130).",
+  "provenance": {
+    "engine": "ds4-metal, ~/git/ds4-metal",
+    "harness_head_pinned": "5bfb80c, re-checked by run.py --require-harness-head on every sweep",
+    "design": "four sweeps; order new, old, old, new; server restarted between sweeps",
+    "sweep_order": [
+      "new-sweep1 08:43:06",
+      "old-sweep1 09:28:31",
+      "old-sweep2 10:16:54",
+      "new-sweep2 11:00:55"
+    ],
+    "new_flags": "--mtp-model ~/models/qwen3.8-flash-next-ds4-q4/qwen3.8-flash-next-q4-mtp.gguf --mtp-draft 7 --mtp-timing",
+    "old_flags": "<none>",
+    "kv_dirs": {
+      "new": "~/.ds4/server-kv-mtp",
+      "old": "~/.ds4/server-kv"
+    },
+    "readout": "NEW_BACKEND=qwen38fnds4mtp7shim OLD_BACKEND=qwen38fnds4shim uv run python scripts/stack_agent_report.py --run-dir ~/bench-logs/39-mtp-ab",
+    "pass_column": {
+      "new": {
+        "n": 30,
+        "passes": 21,
+        "deaths": 9,
+        "deaths_turn1": 0
+      },
+      "old": {
+        "n": 30,
+        "passes": 28,
+        "deaths": 2,
+        "deaths_turn1": 0
+      },
+      "per_sweep_passes": {
+        "new-sweep1": 11,
+        "new-sweep2": 10,
+        "old-sweep1": 14,
+        "old-sweep2": 14
+      },
+      "paired_by_task": {
+        "down": 6,
+        "up": 1,
+        "tied": 8,
+        "n_tasks": 15,
+        "sign_test_p": 0.125
+      },
+      "tasks_down": [
+        "mbox-scan",
+        "parser-date",
+        "parser-mbox-quoting",
+        "storage-blob-put",
+        "swift-downsample-buckets",
+        "swift-sevensegment-glyphs"
+      ],
+      "tasks_up": [
+        "mbox-quoting-both-halves"
+      ]
+    },
+    "wall_column": {
+      "n_pairs": 13,
+      "ratio": 0.98,
+      "ci": [
+        0.82,
+        1.18
+      ],
+      "median_ratio": 1.02,
+      "pair1": {
+        "lead": "new",
+        "median": 1.036
+      },
+      "pair2": {
+        "lead": "old",
+        "median": 0.848
+      },
+      "verdict": "pairs disagree; the pooled ratio is not a result"
+    },
+    "known_gap": "No row in the ledger carries server_argv -- not the 429 historical rows and not the 60 written by this run. #215 landed the guard that warns; the recording it guards does not exist yet, so this read-out emitted 30 warnings.",
+    "instrument": "scripts/mtp_log_split.py splits one server log at run.py's recorded offset and counts each region; tests/test_mtp_log_split.py re-derives this finding from the committed logs on every test run, so a change in the logs breaks the suite rather than leaving this file quietly stale."
+  },
+  "claims": [
+    {
+      "id": "new-sweep1-loaded-the-mtp-sidecar",
+      "statement": "The MTP arm's first server allocated the Qwen graph WITH the MTP head and a block verifier. The graph line is the authority on what the engine actually built.",
+      "argv": [
+        "grep",
+        "-c",
+        "MTP=Q4_K/Q8_0/BF16 verifier=block/max16",
+        "evidence/0039-mtp-ab-logs/server-new-sweep1.log"
+      ],
+      "cwd": "/Users/evanhoffman/git/local-llm",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0,
+        "stdout_contains": "1"
+      },
+      "observed": {
+        "exit": 0,
+        "stdout": "1"
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "If this log reports MTP=off verifier=off, the MTP arm never had MTP and every comparison below is between one stack and itself."
+    },
+    {
+      "id": "new-sweep2-loaded-the-mtp-sidecar",
+      "statement": "The MTP arm's second server did the same. Both sweeps of the arm, not one.",
+      "argv": [
+        "grep",
+        "-c",
+        "MTP=Q4_K/Q8_0/BF16 verifier=block/max16",
+        "evidence/0039-mtp-ab-logs/server-new-sweep2.log"
+      ],
+      "cwd": "/Users/evanhoffman/git/local-llm",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0,
+        "stdout_contains": "1"
+      },
+      "observed": {
+        "exit": 0,
+        "stdout": "1"
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "If only one of the two MTP sweeps loaded the head, the arm is not one treatment and the pooled 30 rows are two populations."
+    },
+    {
+      "id": "the-head-reported-itself-ready",
+      "statement": "The sidecar did not merely load; it reported state=ready with draft depth 7, which is the engine saying it is prepared to speculate.",
+      "argv": [
+        "grep",
+        "-c",
+        "MTP sidecar loaded",
+        "evidence/0039-mtp-ab-logs/server-new-sweep1.log"
+      ],
+      "cwd": "/Users/evanhoffman/git/local-llm",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0,
+        "stdout_contains": "1"
+      },
+      "observed": {
+        "exit": 0,
+        "stdout": "1"
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "A sidecar that loads without reaching state=ready would explain the null without any reference to the traffic."
+    },
+    {
+      "id": "old-sweep1-ran-with-mtp-off",
+      "statement": "The control server built the same graph with MTP off, which is what makes it a control.",
+      "argv": [
+        "grep",
+        "-c",
+        "MTP=off verifier=off",
+        "evidence/0039-mtp-ab-logs/server-old-sweep1.log"
+      ],
+      "cwd": "/Users/evanhoffman/git/local-llm",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0,
+        "stdout_contains": "1"
+      },
+      "observed": {
+        "exit": 0,
+        "stdout": "1"
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "If the control also loaded MTP, the A/B compared nothing."
+    },
+    {
+      "id": "old-sweep2-ran-with-mtp-off",
+      "statement": "The control's second server likewise.",
+      "argv": [
+        "grep",
+        "-c",
+        "MTP=off verifier=off",
+        "evidence/0039-mtp-ab-logs/server-old-sweep2.log"
+      ],
+      "cwd": "/Users/evanhoffman/git/local-llm",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0,
+        "stdout_contains": "1"
+      },
+      "observed": {
+        "exit": 0,
+        "stdout": "1"
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "As above, for the second control sweep."
+    },
+    {
+      "id": "new-sweep1-drafted-before-the-batch",
+      "statement": "The MTP arm's new-sweep1 server emitted 179 `Qwen MTP timing` lines in total; 57 of those cycles drafted, proposing 362 tokens of which the verifier accepted 220 (60.8%). Every one of them falls before the batch began, on the server's own start-up prompts, which carry no tool schema. This is the positive control: the head was loaded, ready, and working in this very process.",
+      "argv": [
+        "grep",
+        "-c",
+        "Qwen MTP timing",
+        "evidence/0039-mtp-ab-logs/server-new-sweep1.log"
+      ],
+      "cwd": "/Users/evanhoffman/git/local-llm",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0,
+        "stdout_equals": "179"
+      },
+      "observed": {
+        "exit": 0,
+        "stdout": "179"
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "Zero timing lines anywhere in this log would mean the head never ran at all, and the batch-region null below would be unremarkable rather than a finding."
+    },
+    {
+      "id": "new-sweep1-emitted-no-mtp-line-during-the-batch",
+      "statement": "The batch region of new-sweep1 -- everything after the byte run.py printed as its recording offset, 323,462 bytes covering fifteen agent tasks run twice -- contains ZERO `Qwen MTP timing` lines. Not zero acceptance; not `verifier=scheduler-bypass`, which is what a cycle that reached the scheduler and was turned away prints. No line at all. On a request carrying a tool schema, ds4 does not reach its speculative path. tests/test_mtp_log_split.py re-cuts this slice from the full log at the recorded offset and compares bytes, so the file cannot drift from its source.",
+      "argv": [
+        "grep",
+        "-c",
+        "Qwen MTP timing",
+        "evidence/0039-mtp-ab-logs/server-new-sweep1.batch-region.log"
+      ],
+      "cwd": "/Users/evanhoffman/git/local-llm",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 1,
+        "stdout_equals": "0"
+      },
+      "observed": {
+        "exit": 1,
+        "stdout": "0"
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "A single timing line here refutes the strong form: the engine would then be reaching the speculative path under agent traffic and declining to draft, which is a different mechanism needing a different fix."
+    },
+    {
+      "id": "new-sweep2-drafted-before-the-batch",
+      "statement": "The MTP arm's new-sweep2 server emitted 279 `Qwen MTP timing` lines in total; 41 of those cycles drafted, proposing 255 tokens of which the verifier accepted 119 (46.7%). Every one of them falls before the batch began, on the server's own start-up prompts, which carry no tool schema. This is the positive control: the head was loaded, ready, and working in this very process.",
+      "argv": [
+        "grep",
+        "-c",
+        "Qwen MTP timing",
+        "evidence/0039-mtp-ab-logs/server-new-sweep2.log"
+      ],
+      "cwd": "/Users/evanhoffman/git/local-llm",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0,
+        "stdout_equals": "279"
+      },
+      "observed": {
+        "exit": 0,
+        "stdout": "279"
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "Zero timing lines anywhere in this log would mean the head never ran at all, and the batch-region null below would be unremarkable rather than a finding."
+    },
+    {
+      "id": "new-sweep2-emitted-no-mtp-line-during-the-batch",
+      "statement": "The batch region of new-sweep2 -- everything after the byte run.py printed as its recording offset, 278,690 bytes covering fifteen agent tasks run twice -- contains ZERO `Qwen MTP timing` lines. Not zero acceptance; not `verifier=scheduler-bypass`, which is what a cycle that reached the scheduler and was turned away prints. No line at all. On a request carrying a tool schema, ds4 does not reach its speculative path. tests/test_mtp_log_split.py re-cuts this slice from the full log at the recorded offset and compares bytes, so the file cannot drift from its source.",
+      "argv": [
+        "grep",
+        "-c",
+        "Qwen MTP timing",
+        "evidence/0039-mtp-ab-logs/server-new-sweep2.batch-region.log"
+      ],
+      "cwd": "/Users/evanhoffman/git/local-llm",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 1,
+        "stdout_equals": "0"
+      },
+      "observed": {
+        "exit": 1,
+        "stdout": "0"
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "A single timing line here refutes the strong form: the engine would then be reaching the speculative path under agent traffic and declining to draft, which is a different mechanism needing a different fix."
+    }
+  ]
+}
