@@ -117,10 +117,17 @@ when the one before it releases the lock.
    the history while we watched: `ds4-metal @ ba01f5d` is **not an ancestor**
    of the PR head, so for the second time our ds4 numbers come from a build
    that no longer exists upstream. The first checks cost minutes, not hours:
-   the PR declares the hyphenated `qwen4-exp`, which is the lineage of the
-   weights we hold — and **not** the `qwen4exp` lineage behind #138's 44%, so
-   upstreaming may retire the fork dependency for one of our two ds4 stacks and
-   not the other.
+   done 2026-09-06, and it inverts the premise this item was written on. The
+   GGUF loader accepts exactly one Qwen architecture string and it is the
+   **unhyphenated** `qwen4exp` (`ds4.c:6789 at ds4-pr991 236cb2a`, exact
+   `memcmp`); the hyphenated `qwen4-exp` is a JSON pack-manifest field checked
+   elsewhere (`ds4_qwen4.c:1244 at ds4-pr991 236cb2a`), not
+   `general.architecture`. Our Q4_K
+   imatrix file declares `qwen4exp` and **matches**; the Q4_0 file declares
+   `qwen4-exp` and **does not**. So the fork dependency may be retirable for
+   `qwen38fnds4kimat` — our strongest ds4 row at 90/90, 97s — and permanent
+   for `qwen38fnds4shim`, whose build was already withdrawn upstream. The
+   opposite of what was assumed, and the better of the two outcomes.
    *Done when:* the PR build loads (or refuses) each of our weight files with the architecture strings compared first, prefill is measured here separating appended-token rate at depth from cold prefill, and `RECOMMENDATIONS.md`'s fork caveat is updated to match reality.
 
 2. **[#148](https://github.com/evanwtf/local-llm/issues/148)** Prove the MTP draft head drafts, per row
