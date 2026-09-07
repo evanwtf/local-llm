@@ -13,6 +13,17 @@ set -euo pipefail
 LABEL_A=${1:?label A}; GGUF_A=${2:?gguf A}
 LABEL_B=${3:?label B}; GGUF_B=${4:?gguf B}
 OUT=${5:-$HOME/git/local-llm/benchmarks/ds4/decode-ab}
+# #203: absolutize OUT before the lock. The arm runs inside `( cd "$DS4" && ... )`,
+# so a relative OUT is created under the repo by mkdir but resolved under the
+# ds4 tree by --csv -- the CSV files land nowhere. The default OUT is absolute,
+# which is why the bug only shows on a hand-passed relative path.
+absolutize_out() {
+  case "$OUT" in
+    /*) ;;
+    *) OUT="$PWD/$OUT" ;;
+  esac
+}
+absolutize_out
 DS4=${DS4:-$HOME/git/ds4}
 PROMPT=${PROMPT:-$DS4/speed-bench/promessi_sposi.txt}
 
