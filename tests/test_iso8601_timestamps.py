@@ -75,8 +75,7 @@ def test_every_timestamp_carries_an_offset(path: pathlib.Path):
             break
     assert not bad, (
         "timestamps must be ISO 8601 with an explicit offset "
-        "(2026-09-06T17:16:48-0400) -- see AGENTS.md:\n  "
-        + "\n  ".join(bad[:20])
+        "(2026-09-06T17:16:48-0400) -- see AGENTS.md:\n  " + "\n  ".join(bad[:20])
     )
 
 
@@ -123,3 +122,62 @@ def test_no_script_compares_wall_clock_time_as_a_string():
         "compare times as epoch seconds, not as HH:MM strings -- see #175:\n  "
         + "\n  ".join(offenders)
     )
+
+
+# --- the producers, not just the data -------------------------------------
+#
+# Everything above checks files already committed. That caught the bug on
+# 2026-09-06 and the fix backfilled the data without touching the code that
+# wrote it, so the #146 clean run reproduced it exactly: naive `started` in the
+# results file, UTC `Z` in the manifest beside it. Data tests find it after a
+# batch; these find it before one.
+
+
+def _agent_dir() -> str:
+    return str(ROOT / "benchmarks" / "agent")
+
+
+def test_results_now_carries_an_offset():
+    """results.now() is the single stamp writer; every row's `started` is it."""
+    import sys
+
+    sys.path.insert(0, _agent_dir())
+    import results
+
+    assert CANONICAL.match(results.now()), results.now()
+
+
+def test_preflight_now_iso_carries_an_offset():
+    import sys
+
+    sys.path.insert(0, _agent_dir())
+    import preflight
+
+    assert CANONICAL.match(preflight._now_iso()), preflight._now_iso()
+
+
+def test_no_python_producer_stamps_a_time_field_without_an_offset():
+    """A bare %S format string reaching a time field is the whole bug."""
+    naive = re.compile(r'strftime\(\s*"%Y-%m-%dT%H:%M:%S"\s*\)')
+    offenders = [
+        f"{path.relative_to(ROOT)}:{n}"
+        for path in sorted(ROOT.glob("benchmarks/agent/*.py"))
+        + sorted(ROOT.glob("scripts/*.py"))
+        if not path.name.startswith("test_")
+        for n, line in enumerate(path.read_text().splitlines(), 1)
+        if naive.search(line)
+    ]
+    assert not offenders, (
+        "these stamp a naive local time; use results.now() or add %z: "
+        + ", ".join(offenders)
+    )
+
+
+def test_targets_ab_manifest_stamps_an_offset_not_utc_z():
+    """The manifest and the results file must share one clock and one format."""
+    script = (ROOT / "scripts" / "targets_ab.sh").read_text()
+    assert "date -u +%Y-%m-%dT%H:%M:%SZ" not in script, (
+        "the manifest writes UTC Z while results.now() writes local+offset; "
+        "a readout joining them is silently four hours wrong"
+    )
+    assert "date +%Y-%m-%dT%H:%M:%S%z" in script

@@ -3324,7 +3324,7 @@ def main():
                     # and appends. A row that violates the schema is still
                     # written -- a trial costs up to half an hour and losing one
                     # to a schema bug is worse than storing a flagged row.
-                    r["finished"] = time.strftime("%Y-%m-%dT%H:%M:%S")
+                    r["finished"] = results.now()
                     results.write_row(r, args.results)
 
                     # #55: let the batch disbelieve itself. A widely-used
