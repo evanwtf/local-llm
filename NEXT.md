@@ -121,7 +121,8 @@ when the one before it releases the lock.
    GGUF loader accepts exactly one Qwen architecture string and it is the
    **unhyphenated** `qwen4exp` (`ds4.c:6789 at ds4-pr991 236cb2a`, exact
    `memcmp`); the hyphenated `qwen4-exp` is a JSON pack-manifest field checked
-   elsewhere (`ds4_qwen4.c:1244`), not `general.architecture`. Our Q4_K
+   elsewhere (`ds4_qwen4.c:1244 at ds4-pr991 236cb2a`), not
+   `general.architecture`. Our Q4_K
    imatrix file declares `qwen4exp` and **matches**; the Q4_0 file declares
    `qwen4-exp` and **does not**. So the fork dependency may be retirable for
    `qwen38fnds4kimat` — our strongest ds4 row at 90/90, 97s — and permanent
