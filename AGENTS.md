@@ -773,6 +773,29 @@ reason. This is already the rule for release notes; it applies to every commit
 and tag message, and single quotes around a command name are the cheap
 alternative when a heredoc is overkill.
 
+**The rule fires where it is most tempting to break: one variable.** On
+2026-09-07 a `gh issue comment -F -` heredoc was left unquoted only so `$SHA`
+would expand. It expanded `$(UNAME_S)` too, out of a quoted Makefile line, and
+published `ifeq (,Darwin)` -- a sentence whose whole point was which branch of
+that conditional a flag sits in. The published claim was still readable and
+still wrong, which is the worst outcome available.
+
+Wanting one substitution is never a reason to unquote the delimiter. Keep the
+delimiter quoted and put the value in afterwards:
+
+```sh
+python3 - <<'PY'
+import pathlib, subprocess
+body = pathlib.Path("comment.md").read_text().replace("@SHA@", subprocess.run(
+    ["git", "rev-parse", "--short", "HEAD"], capture_output=True, text=True).stdout.strip())
+subprocess.run(["gh", "issue", "comment", "170", "-F", "-"], input=body, text=True, check=True)
+PY
+```
+
+`$(...)`, `` `...` `` and `$VAR` are one hazard, not three. An unquoted heredoc
+enables all of them, so a body containing a Makefile line, a shell snippet, a
+price or a regex is at risk -- not only one holding backticks.
+
 ## Always measure the latest infrastructure
 
 llama.cpp, Ollama, Codex and OpenCode ship several times a day. **Update before
