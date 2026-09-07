@@ -1,0 +1,1085 @@
+ds4: warming mapped tensor pages: 73.57 GiB
+ds4: warmed tensor pages in 4.904s (checksum=626506950)
+ds4: trusted local Qwen artifacts; payload checksum scan skipped
+ds4: Qwen tensor directory bound: 1211 tensors (1211 graph inputs), 48 layers, Q4_K/Q4_K routed + BF16 embedding/control + Q8_0 GDN/QSA + Q8_0 shared/output
+ds4: Qwen fast pack accepted: id=cbadff6365a353a938aef98e469b831b version=3 profile=q4_k base_files=1 tensor_manifest=93e91b17c9ccf1bd...
+ds4: Qwen v3 q4_k MTP sidecar bound: 32 graph inputs, one QSA layer
+ds4: Qwen matching v3 q4_k MTP sidecar loaded: /Users/evanhoffman/models/qwen3.8-flash-next-ds4-q4/qwen3.8-flash-next-q4-mtp.gguf (state=ready draft=7)
+ds4: derived Q8_0 hyper-connection profile: 194 matrices, 0.63 GiB (from 1.18 GiB BF16) in 0.025s
+ds4: Metal device Apple M5 Max, 128.00 GiB RAM
+ds4: Metal 4 tensor API enabled for Tensor kernels
+ds4: drift-patch flags hc_stable=on norm_unify=on kv_raw_f32=off rope_exp2_log2=off math_safe=off tensor_matmul=on
+ds4: Metal model views created in 2.047 ms, residency requested in 583.773 ms, warmup 3.632 ms (mapped 77535.00 MiB from offset 0.00 MiB)
+ds4: Metal mapped 3 Qwen GGUF artifacts as 3 shared views
+ds4: Qwen prefill admission: cap=8192 required=3.68 GiB available=24.58 GiB recommended_working_set=112.00 GiB reason=complete fast path and 8K scratch admitted
+0907 07:19:37 ds4-server: context buffers 384.19 MiB (ctx=100000, backend=metal, prefill_chunk=8192, raw_kv_rows=8192, compressed_kv_rows=3)
+ds4: Qwen MTP state capture: depth=7 slots=6 BF16-GDN/FP32-PLE=359.86 MiB fallback=restore-replay-on-failure
+ds4: Qwen graph allocated: ctx=100000 work_cap=8192 QSA=BF16 microtile=512 PLE=SSD-pread/Q4_1-to-BF16-double-buffer GDN-control=BF16 GDN-state=BF16 GDN-qkvz=Q8-concat GDN-out=Q8-HC-fused MoE-down=Q4_0-expert-split MTP=Q4_K/Q8_0/BF16 verifier=block/max16
+0907 07:19:37 ds4-server: KV disk cache /Users/evanhoffman/.ds4/server-kv-mtp (budget=8192 MiB, cross-quant=accept, min=512, cold_max=30000, continued=10000, trim=32, align=2048, hit_half_life=21600s)
+0907 07:19:37 ds4-server: listening on http://127.0.0.1:8000
+0907 07:21:14 ds4-server: chat ctx=0..56:56 prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=uncached suffix shorter than 8192
+0907 07:21:15 ds4-server: chat ctx=0..56:56 prefill chunk 56/56 (100.0%) chunk=0.00 t/s avg=76.01 t/s 0.737s
+0907 07:21:15 ds4-server: chat ctx=0..56:56 prompt done 0.737s
+ds4: Qwen MTP timing drafted=7 accepted=3 target_tokens=4 cycle=108.199 ms verifier=block
+ds4: Qwen MTP stages snapshot=1.929 ms draft=14.450 ms verify=61.488 ms capture=BF16-GDN/FP32-PLE restore-select=0.116 ms history=3.428 ms commit=3.550 ms path=direct-partial counts(full=0 partial=1 replay=0)
+ds4: Qwen MTP accepted-length histogram 1=0 2=0 3=1 4=0 5=0 6=0 7=0
+ds4: Qwen MTP timing drafted=7 accepted=7 target_tokens=8 cycle=106.289 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.393 ms draft=13.820 ms verify=55.866 ms capture=BF16-GDN/FP32-PLE restore-select=0.077 ms history=4.610 ms commit=4.703 ms path=direct-full counts(full=1 partial=1 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=2 target_tokens=3 cycle=107.869 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.411 ms draft=13.890 ms verify=66.086 ms capture=BF16-GDN/FP32-PLE restore-select=0.127 ms history=3.115 ms commit=3.248 ms path=direct-partial counts(full=1 partial=2 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=1 target_tokens=2 cycle=107.754 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.393 ms draft=13.866 ms verify=58.941 ms capture=BF16-GDN/FP32-PLE restore-select=0.161 ms history=2.927 ms commit=3.091 ms path=direct-partial counts(full=1 partial=3 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=1 target_tokens=2 cycle=112.158 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.443 ms draft=13.832 ms verify=62.801 ms capture=BF16-GDN/FP32-PLE restore-select=0.145 ms history=2.843 ms commit=2.994 ms path=direct-partial counts(full=1 partial=4 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=7 target_tokens=8 cycle=109.436 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.393 ms draft=13.864 ms verify=66.178 ms capture=BF16-GDN/FP32-PLE restore-select=0.044 ms history=4.500 ms commit=4.554 ms path=direct-full counts(full=2 partial=4 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=7 target_tokens=8 cycle=111.467 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.389 ms draft=13.807 ms verify=59.954 ms capture=BF16-GDN/FP32-PLE restore-select=0.017 ms history=4.625 ms commit=4.646 ms path=direct-full counts(full=3 partial=4 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=7 target_tokens=8 cycle=107.961 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.384 ms draft=14.034 ms verify=64.523 ms capture=BF16-GDN/FP32-PLE restore-select=0.045 ms history=4.616 ms commit=4.681 ms path=direct-full counts(full=4 partial=4 replay=0)
+ds4: Qwen MTP timing drafted=5 accepted=5 target_tokens=6 cycle=98.708 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.428 ms draft=13.878 ms verify=48.470 ms capture=BF16-GDN/FP32-PLE restore-select=0.057 ms history=3.901 ms commit=3.961 ms path=direct-full counts(full=5 partial=4 replay=0)
+ds4: Qwen MTP accepted-length histogram 1=2 2=1 3=1 4=0 5=1 6=0 7=4
+0907 07:21:16 ds4-server: chat ctx=56..104:48 gen=48 decoding chunk=49.46 t/s avg=49.46 t/s 0.970s
+0907 07:21:16 ds4-server: thinking live checkpoint remembered ctx=0..56:56 live=105 visible=348
+0907 07:21:16 ds4-server: chat ctx=0..56:56 gen=48 finish=stop 1.707s
+0907 07:21:16 ds4-server: live kv cache miss live=105 prompt=89 common=7 reason=token-mismatch
+0907 07:21:16 ds4-server: chat ctx=0..89:89 prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=uncached suffix shorter than 8192
+0907 07:21:16 ds4-server: chat ctx=0..89:89 prefill chunk 89/89 (100.0%) chunk=0.00 t/s avg=241.59 t/s 0.368s
+0907 07:21:16 ds4-server: chat ctx=0..89:89 prompt done 0.368s
+ds4: Qwen MTP timing drafted=7 accepted=3 target_tokens=4 cycle=104.572 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.393 ms draft=13.875 ms verify=62.405 ms capture=BF16-GDN/FP32-PLE restore-select=0.079 ms history=3.490 ms commit=3.573 ms path=direct-partial counts(full=5 partial=5 replay=0)
+ds4: Qwen MTP timing drafted=1 accepted=0 target_tokens=1 cycle=24.387 ms verifier=free-first
+ds4: Qwen MTP timing drafted=1 accepted=0 target_tokens=1 cycle=31.976 ms verifier=free-first
+ds4: Qwen MTP timing drafted=7 accepted=3 target_tokens=4 cycle=105.932 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.399 ms draft=13.856 ms verify=62.749 ms capture=BF16-GDN/FP32-PLE restore-select=0.122 ms history=3.455 ms commit=3.584 ms path=direct-partial counts(full=5 partial=6 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=2 target_tokens=3 cycle=114.209 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.408 ms draft=13.899 ms verify=65.227 ms capture=BF16-GDN/FP32-PLE restore-select=0.075 ms history=3.035 ms commit=3.113 ms path=direct-partial counts(full=5 partial=7 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=1 target_tokens=2 cycle=112.828 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.403 ms draft=14.058 ms verify=62.845 ms capture=BF16-GDN/FP32-PLE restore-select=0.083 ms history=2.843 ms commit=2.931 ms path=direct-partial counts(full=5 partial=8 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=2 target_tokens=3 cycle=106.628 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.409 ms draft=14.209 ms verify=63.087 ms capture=BF16-GDN/FP32-PLE restore-select=0.115 ms history=3.143 ms commit=3.266 ms path=direct-partial counts(full=5 partial=9 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=1 target_tokens=2 cycle=104.073 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.438 ms draft=13.922 ms verify=60.999 ms capture=BF16-GDN/FP32-PLE restore-select=0.123 ms history=2.925 ms commit=3.056 ms path=direct-partial counts(full=5 partial=10 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=1 target_tokens=2 cycle=111.486 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.462 ms draft=13.915 ms verify=62.012 ms capture=BF16-GDN/FP32-PLE restore-select=0.099 ms history=2.907 ms commit=3.013 ms path=direct-partial counts(full=5 partial=11 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=2 target_tokens=3 cycle=113.606 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.413 ms draft=13.874 ms verify=64.595 ms capture=BF16-GDN/FP32-PLE restore-select=0.083 ms history=3.216 ms commit=3.306 ms path=direct-partial counts(full=5 partial=12 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=3 target_tokens=4 cycle=103.304 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.420 ms draft=13.930 ms verify=59.998 ms capture=BF16-GDN/FP32-PLE restore-select=0.121 ms history=3.469 ms commit=3.595 ms path=direct-partial counts(full=5 partial=13 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=3 target_tokens=4 cycle=111.031 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.398 ms draft=13.874 ms verify=63.806 ms capture=BF16-GDN/FP32-PLE restore-select=0.075 ms history=3.461 ms commit=3.540 ms path=direct-partial counts(full=5 partial=14 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=1 target_tokens=2 cycle=106.673 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.400 ms draft=13.870 ms verify=64.104 ms capture=BF16-GDN/FP32-PLE restore-select=0.083 ms history=2.796 ms commit=2.885 ms path=direct-partial counts(full=5 partial=15 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=2 target_tokens=3 cycle=112.970 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.404 ms draft=13.885 ms verify=63.999 ms capture=BF16-GDN/FP32-PLE restore-select=0.122 ms history=3.097 ms commit=3.225 ms path=direct-partial counts(full=5 partial=16 replay=0)
+ds4: Qwen MTP timing drafted=1 accepted=0 target_tokens=1 cycle=32.134 ms verifier=free-first
+ds4: Qwen MTP timing drafted=7 accepted=7 target_tokens=8 cycle=109.001 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.401 ms draft=13.844 ms verify=64.682 ms capture=BF16-GDN/FP32-PLE restore-select=0.017 ms history=4.572 ms commit=4.594 ms path=direct-full counts(full=6 partial=16 replay=0)
+ds4: Qwen MTP scheduler switching to target decode cycles=16 target_tokens=47 actual=1505.148ms baseline=1177.994ms
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.614 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=29.832 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.902 ms verifier=scheduler-bypass
+0907 07:21:18 ds4-server: chat ctx=89..139:50 gen=50 THINKING decoding chunk=31.64 t/s avg=31.64 t/s 1.580s
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.808 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.070 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.530 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.613 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.781 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=29.208 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.066 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.584 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.820 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.098 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.680 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.663 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.712 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.857 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.619 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.682 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.714 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.634 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=29.298 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.291 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.715 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.590 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.646 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.619 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.799 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=26.677 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.130 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.573 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.785 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.884 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.662 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.787 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.203 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.741 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.123 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.723 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.708 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.148 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.097 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.855 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.203 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.684 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.674 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=30.128 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=23.096 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.155 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.712 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.115 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.769 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.724 ms verifier=scheduler-bypass
+0907 07:21:19 ds4-server: chat ctx=139..189:50 gen=100 decoding chunk=44.09 t/s avg=36.84 t/s 2.714s
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.788 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=27.947 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.954 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.212 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.854 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.746 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=23.957 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=24.552 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.238 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.299 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.961 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=29.210 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.196 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.847 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.723 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=29.567 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.847 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.851 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.899 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.672 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.749 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.706 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.835 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.752 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.802 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.150 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.730 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.874 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.154 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.761 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.173 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.813 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.818 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=29.246 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.960 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.790 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.784 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.901 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.714 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.144 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.684 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.814 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.207 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.105 ms verifier=scheduler-bypass
+0907 07:21:20 ds4-server: chat ctx=189..233:44 gen=144 decoding chunk=43.12 t/s avg=38.56 t/s 3.735s
+0907 07:21:20 ds4-server: thinking live checkpoint remembered ctx=0..89:89 live=233 visible=490
+0907 07:21:20 ds4-server: chat ctx=0..89:89 gen=144 finish=stop 4.103s
+0907 07:21:20 ds4-server: live kv cache miss live=233 prompt=88 common=7 reason=token-mismatch
+0907 07:21:20 ds4-server: chat ctx=0..88:88 prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=uncached suffix shorter than 8192
+0907 07:21:20 ds4-server: chat ctx=0..88:88 prefill chunk 88/88 (100.0%) chunk=0.00 t/s avg=244.73 t/s 0.360s
+0907 07:21:20 ds4-server: chat ctx=0..88:88 prompt done 0.360s
+ds4: Qwen MTP timing drafted=7 accepted=7 target_tokens=8 cycle=104.508 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.844 ms draft=13.861 ms verify=60.926 ms capture=BF16-GDN/FP32-PLE restore-select=0.046 ms history=4.533 ms commit=4.594 ms path=direct-full counts(full=7 partial=16 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=7 target_tokens=8 cycle=97.955 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.391 ms draft=13.815 ms verify=54.782 ms capture=BF16-GDN/FP32-PLE restore-select=0.016 ms history=4.610 ms commit=4.635 ms path=direct-full counts(full=8 partial=16 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=1 target_tokens=2 cycle=115.097 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.389 ms draft=13.813 ms verify=65.296 ms capture=BF16-GDN/FP32-PLE restore-select=0.071 ms history=2.720 ms commit=2.794 ms path=direct-partial counts(full=8 partial=17 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=2 target_tokens=3 cycle=112.862 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.394 ms draft=13.866 ms verify=62.687 ms capture=BF16-GDN/FP32-PLE restore-select=0.079 ms history=3.145 ms commit=3.228 ms path=direct-partial counts(full=8 partial=18 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=7 target_tokens=8 cycle=111.565 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.405 ms draft=13.844 ms verify=63.331 ms capture=BF16-GDN/FP32-PLE restore-select=0.054 ms history=4.549 ms commit=4.618 ms path=direct-full counts(full=9 partial=18 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=3 target_tokens=4 cycle=112.151 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.390 ms draft=13.851 ms verify=61.884 ms capture=BF16-GDN/FP32-PLE restore-select=0.071 ms history=3.406 ms commit=3.480 ms path=direct-partial counts(full=9 partial=19 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=2 target_tokens=3 cycle=110.881 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.384 ms draft=13.825 ms verify=61.662 ms capture=BF16-GDN/FP32-PLE restore-select=0.118 ms history=3.149 ms commit=3.271 ms path=direct-partial counts(full=9 partial=20 replay=0)
+ds4: Qwen MTP timing drafted=1 accepted=0 target_tokens=1 cycle=32.841 ms verifier=free-first
+ds4: Qwen MTP timing drafted=7 accepted=7 target_tokens=8 cycle=104.283 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.395 ms draft=13.857 ms verify=59.971 ms capture=BF16-GDN/FP32-PLE restore-select=0.053 ms history=4.563 ms commit=4.633 ms path=direct-full counts(full=10 partial=20 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=1 target_tokens=2 cycle=114.614 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.391 ms draft=13.899 ms verify=65.211 ms capture=BF16-GDN/FP32-PLE restore-select=0.109 ms history=2.816 ms commit=2.931 ms path=direct-partial counts(full=10 partial=21 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=4 target_tokens=5 cycle=101.958 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.407 ms draft=13.953 ms verify=58.655 ms capture=BF16-GDN/FP32-PLE restore-select=0.104 ms history=3.769 ms commit=3.877 ms path=direct-partial counts(full=10 partial=22 replay=0)
+ds4: Qwen MTP accepted-length histogram 1=8 2=7 3=6 4=1 5=1 6=0 7=9
+0907 07:21:22 ds4-server: chat ctx=88..138:50 gen=50 THINKING decoding chunk=44.67 t/s avg=44.67 t/s 1.119s
+ds4: Qwen MTP timing drafted=7 accepted=6 target_tokens=7 cycle=114.491 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.383 ms draft=13.900 ms verify=63.612 ms capture=BF16-GDN/FP32-PLE restore-select=0.128 ms history=4.407 ms commit=4.537 ms path=direct-partial counts(full=10 partial=23 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=1 target_tokens=2 cycle=114.579 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.400 ms draft=13.880 ms verify=64.851 ms capture=BF16-GDN/FP32-PLE restore-select=0.065 ms history=2.731 ms commit=2.799 ms path=direct-partial counts(full=10 partial=24 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=1 target_tokens=2 cycle=114.715 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.386 ms draft=13.859 ms verify=64.708 ms capture=BF16-GDN/FP32-PLE restore-select=0.119 ms history=2.801 ms commit=2.923 ms path=direct-partial counts(full=10 partial=25 replay=0)
+ds4: Qwen MTP timing drafted=1 accepted=0 target_tokens=1 cycle=29.804 ms verifier=free-first
+ds4: Qwen MTP timing drafted=1 accepted=0 target_tokens=1 cycle=24.874 ms verifier=free-first
+ds4: Qwen MTP timing drafted=7 accepted=3 target_tokens=4 cycle=104.980 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.386 ms draft=13.884 ms verify=61.741 ms capture=BF16-GDN/FP32-PLE restore-select=0.106 ms history=3.449 ms commit=3.560 ms path=direct-partial counts(full=10 partial=26 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=1 target_tokens=2 cycle=111.829 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.386 ms draft=13.848 ms verify=63.106 ms capture=BF16-GDN/FP32-PLE restore-select=0.080 ms history=2.916 ms commit=3.003 ms path=direct-partial counts(full=10 partial=27 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=7 target_tokens=8 cycle=112.394 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.399 ms draft=13.877 ms verify=69.004 ms capture=BF16-GDN/FP32-PLE restore-select=0.014 ms history=4.644 ms commit=4.672 ms path=direct-full counts(full=11 partial=27 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=3 target_tokens=4 cycle=112.029 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.394 ms draft=13.815 ms verify=62.577 ms capture=BF16-GDN/FP32-PLE restore-select=0.118 ms history=3.339 ms commit=3.462 ms path=direct-partial counts(full=11 partial=28 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=1 target_tokens=2 cycle=109.735 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.434 ms draft=13.833 ms verify=60.450 ms capture=BF16-GDN/FP32-PLE restore-select=0.080 ms history=2.795 ms commit=2.879 ms path=direct-partial counts(full=11 partial=29 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=1 target_tokens=2 cycle=104.614 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.425 ms draft=13.825 ms verify=56.208 ms capture=BF16-GDN/FP32-PLE restore-select=0.079 ms history=2.864 ms commit=2.947 ms path=direct-partial counts(full=11 partial=30 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=1 target_tokens=2 cycle=104.644 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.391 ms draft=13.904 ms verify=55.906 ms capture=BF16-GDN/FP32-PLE restore-select=0.099 ms history=2.893 ms commit=2.997 ms path=direct-partial counts(full=11 partial=31 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=7 target_tokens=8 cycle=108.014 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.393 ms draft=13.897 ms verify=58.183 ms capture=BF16-GDN/FP32-PLE restore-select=0.015 ms history=4.521 ms commit=4.541 ms path=direct-full counts(full=12 partial=31 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=7 target_tokens=8 cycle=106.651 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.384 ms draft=13.844 ms verify=63.523 ms capture=BF16-GDN/FP32-PLE restore-select=0.017 ms history=4.556 ms commit=4.577 ms path=direct-full counts(full=13 partial=31 replay=0)
+0907 07:21:23 ds4-server: chat ctx=138..188:50 gen=100 decoding chunk=36.39 t/s avg=40.11 t/s 2.493s
+ds4: Qwen MTP timing drafted=7 accepted=7 target_tokens=8 cycle=98.187 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.380 ms draft=14.016 ms verify=54.885 ms capture=BF16-GDN/FP32-PLE restore-select=0.017 ms history=4.602 ms commit=4.624 ms path=direct-full counts(full=14 partial=31 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=3 target_tokens=4 cycle=107.315 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.426 ms draft=13.995 ms verify=64.806 ms capture=BF16-GDN/FP32-PLE restore-select=0.102 ms history=3.456 ms commit=3.562 ms path=direct-partial counts(full=14 partial=32 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=7 target_tokens=8 cycle=110.053 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.396 ms draft=13.883 ms verify=59.239 ms capture=BF16-GDN/FP32-PLE restore-select=0.014 ms history=4.523 ms commit=4.550 ms path=direct-full counts(full=15 partial=32 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=7 target_tokens=8 cycle=98.931 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.425 ms draft=13.882 ms verify=55.585 ms capture=BF16-GDN/FP32-PLE restore-select=0.044 ms history=4.570 ms commit=4.629 ms path=direct-full counts(full=16 partial=32 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=7 target_tokens=8 cycle=115.029 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.404 ms draft=13.963 ms verify=63.748 ms capture=BF16-GDN/FP32-PLE restore-select=0.043 ms history=4.598 ms commit=4.662 ms path=direct-full counts(full=17 partial=32 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=7 target_tokens=8 cycle=111.991 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.394 ms draft=13.914 ms verify=61.733 ms capture=BF16-GDN/FP32-PLE restore-select=0.044 ms history=4.606 ms commit=4.663 ms path=direct-full counts(full=18 partial=32 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=7 target_tokens=8 cycle=117.066 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.387 ms draft=13.865 ms verify=65.418 ms capture=BF16-GDN/FP32-PLE restore-select=0.018 ms history=4.567 ms commit=4.591 ms path=direct-full counts(full=19 partial=32 replay=0)
+0907 07:21:24 ds4-server: chat ctx=188..238:50 gen=150 decoding chunk=65.88 t/s avg=46.12 t/s 3.252s
+ds4: Qwen MTP timing drafted=7 accepted=7 target_tokens=8 cycle=116.580 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.391 ms draft=13.880 ms verify=64.743 ms capture=BF16-GDN/FP32-PLE restore-select=0.041 ms history=4.528 ms commit=4.572 ms path=direct-full counts(full=20 partial=32 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=7 target_tokens=8 cycle=113.683 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.384 ms draft=13.904 ms verify=62.046 ms capture=BF16-GDN/FP32-PLE restore-select=0.017 ms history=4.602 ms commit=4.627 ms path=direct-full counts(full=21 partial=32 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=7 target_tokens=8 cycle=115.150 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.408 ms draft=13.877 ms verify=59.441 ms capture=BF16-GDN/FP32-PLE restore-select=0.045 ms history=4.504 ms commit=4.562 ms path=direct-full counts(full=22 partial=32 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=5 target_tokens=6 cycle=106.756 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.403 ms draft=13.907 ms verify=56.629 ms capture=BF16-GDN/FP32-PLE restore-select=0.121 ms history=4.095 ms commit=4.219 ms path=direct-partial counts(full=22 partial=33 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=7 target_tokens=8 cycle=108.791 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.415 ms draft=13.963 ms verify=65.296 ms capture=BF16-GDN/FP32-PLE restore-select=0.026 ms history=4.654 ms commit=4.700 ms path=direct-full counts(full=23 partial=33 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=7 target_tokens=8 cycle=110.592 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.399 ms draft=13.951 ms verify=67.076 ms capture=BF16-GDN/FP32-PLE restore-select=0.044 ms history=4.632 ms commit=4.706 ms path=direct-full counts(full=24 partial=33 replay=0)
+0907 07:21:24 ds4-server: chat ctx=238..288:50 gen=200 decoding chunk=74.42 t/s avg=50.97 t/s 3.924s
+ds4: Qwen MTP timing drafted=2 accepted=2 target_tokens=3 cycle=75.672 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.397 ms draft=13.963 ms verify=26.753 ms capture=BF16-GDN/FP32-PLE restore-select=0.043 ms history=2.937 ms commit=2.989 ms path=direct-full counts(full=25 partial=33 replay=0)
+ds4: Qwen MTP accepted-length histogram 1=14 2=8 3=9 4=1 5=2 6=1 7=23
+0907 07:21:24 ds4-server: chat ctx=288..293:5 gen=205 decoding chunk=66.01 t/s avg=51.25 t/s 4.000s
+0907 07:21:24 ds4-server: thinking live checkpoint remembered ctx=0..88:88 live=294 visible=672
+0907 07:21:24 ds4-server: chat ctx=0..88:88 gen=205 finish=stop 4.360s
+0907 07:24:05 ds4-server: live kv cache miss live=294 prompt=56 common=7 reason=token-mismatch
+0907 07:24:05 ds4-server: chat ctx=0..56:56 prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=uncached suffix shorter than 8192
+0907 07:24:06 ds4-server: chat ctx=0..56:56 prefill chunk 56/56 (100.0%) chunk=0.00 t/s avg=80.38 t/s 0.697s
+0907 07:24:06 ds4-server: chat ctx=0..56:56 prompt done 0.697s
+ds4: Qwen MTP timing drafted=7 accepted=3 target_tokens=4 cycle=97.252 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.866 ms draft=13.845 ms verify=54.745 ms capture=BF16-GDN/FP32-PLE restore-select=0.083 ms history=3.367 ms commit=3.455 ms path=direct-partial counts(full=25 partial=34 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=7 target_tokens=8 cycle=97.954 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.392 ms draft=13.932 ms verify=54.638 ms capture=BF16-GDN/FP32-PLE restore-select=0.016 ms history=4.507 ms commit=4.542 ms path=direct-full counts(full=26 partial=34 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=2 target_tokens=3 cycle=96.151 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.379 ms draft=13.791 ms verify=54.769 ms capture=BF16-GDN/FP32-PLE restore-select=0.077 ms history=2.997 ms commit=3.079 ms path=direct-partial counts(full=26 partial=35 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=1 target_tokens=2 cycle=95.922 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.436 ms draft=13.882 ms verify=54.662 ms capture=BF16-GDN/FP32-PLE restore-select=0.077 ms history=2.708 ms commit=2.789 ms path=direct-partial counts(full=26 partial=36 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=1 target_tokens=2 cycle=96.385 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.421 ms draft=13.821 ms verify=55.121 ms capture=BF16-GDN/FP32-PLE restore-select=0.086 ms history=2.755 ms commit=2.847 ms path=direct-partial counts(full=26 partial=37 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=7 target_tokens=8 cycle=97.799 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.377 ms draft=13.853 ms verify=54.645 ms capture=BF16-GDN/FP32-PLE restore-select=0.017 ms history=4.600 ms commit=4.631 ms path=direct-full counts(full=27 partial=37 replay=0)
+ds4: Qwen MTP accepted-length histogram 1=16 2=9 3=10 4=1 5=2 6=1 7=25
+ds4: Qwen MTP timing drafted=7 accepted=7 target_tokens=8 cycle=97.895 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.380 ms draft=13.950 ms verify=54.751 ms capture=BF16-GDN/FP32-PLE restore-select=0.016 ms history=4.571 ms commit=4.606 ms path=direct-full counts(full=28 partial=37 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=7 target_tokens=8 cycle=98.256 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.435 ms draft=13.865 ms verify=55.074 ms capture=BF16-GDN/FP32-PLE restore-select=0.046 ms history=4.504 ms commit=4.569 ms path=direct-full counts(full=29 partial=37 replay=0)
+ds4: Qwen MTP timing drafted=5 accepted=5 target_tokens=6 cycle=84.113 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.376 ms draft=13.841 ms verify=41.730 ms capture=BF16-GDN/FP32-PLE restore-select=0.018 ms history=3.842 ms commit=3.877 ms path=direct-full counts(full=30 partial=37 replay=0)
+ds4: Qwen MTP accepted-length histogram 1=16 2=9 3=10 4=1 5=3 6=1 7=27
+0907 07:24:07 ds4-server: chat ctx=56..104:48 gen=48 decoding chunk=55.66 t/s avg=55.66 t/s 0.862s
+0907 07:24:07 ds4-server: thinking live checkpoint remembered ctx=0..56:56 live=105 visible=348
+0907 07:24:07 ds4-server: chat ctx=0..56:56 gen=48 finish=stop 1.559s
+0907 07:24:07 ds4-server: live kv cache miss live=105 prompt=89 common=7 reason=token-mismatch
+0907 07:24:07 ds4-server: chat ctx=0..89:89 prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=uncached suffix shorter than 8192
+0907 07:24:07 ds4-server: chat ctx=0..89:89 prefill chunk 89/89 (100.0%) chunk=0.00 t/s avg=246.40 t/s 0.361s
+0907 07:24:07 ds4-server: chat ctx=0..89:89 prompt done 0.361s
+ds4: Qwen MTP timing drafted=7 accepted=3 target_tokens=4 cycle=96.522 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.345 ms draft=13.905 ms verify=54.548 ms capture=BF16-GDN/FP32-PLE restore-select=0.083 ms history=3.361 ms commit=3.450 ms path=direct-partial counts(full=30 partial=38 replay=0)
+ds4: Qwen MTP timing drafted=1 accepted=0 target_tokens=1 cycle=24.103 ms verifier=free-first
+ds4: Qwen MTP timing drafted=1 accepted=0 target_tokens=1 cycle=24.120 ms verifier=free-first
+ds4: Qwen MTP timing drafted=7 accepted=3 target_tokens=4 cycle=96.995 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.377 ms draft=13.859 ms verify=55.066 ms capture=BF16-GDN/FP32-PLE restore-select=0.078 ms history=3.360 ms commit=3.441 ms path=direct-partial counts(full=30 partial=39 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=2 target_tokens=3 cycle=96.469 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.377 ms draft=13.865 ms verify=54.938 ms capture=BF16-GDN/FP32-PLE restore-select=0.080 ms history=3.021 ms commit=3.106 ms path=direct-partial counts(full=30 partial=40 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=1 target_tokens=2 cycle=95.728 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.378 ms draft=13.777 ms verify=54.592 ms capture=BF16-GDN/FP32-PLE restore-select=0.080 ms history=2.720 ms commit=2.805 ms path=direct-partial counts(full=30 partial=41 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=2 target_tokens=3 cycle=96.612 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.378 ms draft=13.846 ms verify=54.978 ms capture=BF16-GDN/FP32-PLE restore-select=0.076 ms history=3.000 ms commit=3.080 ms path=direct-partial counts(full=30 partial=42 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=1 target_tokens=2 cycle=96.598 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.391 ms draft=13.948 ms verify=55.081 ms capture=BF16-GDN/FP32-PLE restore-select=0.081 ms history=2.768 ms commit=2.853 ms path=direct-partial counts(full=30 partial=43 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=1 target_tokens=2 cycle=96.468 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.456 ms draft=13.807 ms verify=55.134 ms capture=BF16-GDN/FP32-PLE restore-select=0.077 ms history=2.740 ms commit=2.820 ms path=direct-partial counts(full=30 partial=44 replay=0)
+ds4: Qwen MTP scheduler switching to target decode cycles=9 target_tokens=22 actual=723.814ms baseline=476.192ms
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.668 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.657 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.369 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.733 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.963 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.074 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.566 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.633 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.677 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.619 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.579 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.543 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.609 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.613 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.553 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.521 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.605 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.527 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.600 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.587 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.556 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.528 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.726 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.500 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.683 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.135 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.441 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.552 ms verifier=scheduler-bypass
+0907 07:24:08 ds4-server: chat ctx=89..139:50 gen=50 THINKING decoding chunk=37.53 t/s avg=37.53 t/s 1.332s
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.705 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.594 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.601 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.641 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.690 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.696 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.550 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.541 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.608 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.806 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.653 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.574 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.584 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.522 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.622 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.790 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.649 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.625 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.670 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.567 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.715 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.551 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.646 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.641 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.611 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.620 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.627 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.634 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.769 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.747 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.596 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.630 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.636 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.633 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.551 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.567 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.632 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.680 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.573 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.569 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.631 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.784 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.603 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.651 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.632 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.608 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.708 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.613 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.696 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.693 ms verifier=scheduler-bypass
+0907 07:24:09 ds4-server: chat ctx=139..189:50 gen=100 decoding chunk=46.11 t/s avg=41.38 t/s 2.417s
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.596 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.692 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.794 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.575 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.573 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.873 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.171 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.879 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.856 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.799 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.746 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.629 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.608 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.632 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.806 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.749 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.600 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.712 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.729 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.615 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.633 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.626 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.907 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.897 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.736 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.583 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.702 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.718 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.735 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=23.304 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.794 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.641 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.649 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.708 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.666 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.666 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.633 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.731 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.676 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.579 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.614 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.624 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.701 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=21.739 ms verifier=scheduler-bypass
+0907 07:24:10 ds4-server: chat ctx=189..233:44 gen=144 decoding chunk=45.83 t/s avg=42.64 t/s 3.377s
+0907 07:24:10 ds4-server: thinking live checkpoint remembered ctx=0..89:89 live=233 visible=490
+0907 07:24:10 ds4-server: chat ctx=0..89:89 gen=144 finish=stop 3.738s
+0907 07:24:10 ds4-server: live kv cache miss live=233 prompt=88 common=7 reason=token-mismatch
+0907 07:24:10 ds4-server: chat ctx=0..88:88 prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=uncached suffix shorter than 8192
+0907 07:24:11 ds4-server: chat ctx=0..88:88 prefill chunk 88/88 (100.0%) chunk=0.00 t/s avg=244.66 t/s 0.360s
+0907 07:24:11 ds4-server: chat ctx=0..88:88 prompt done 0.360s
+ds4: Qwen MTP timing drafted=7 accepted=7 target_tokens=8 cycle=98.414 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.871 ms draft=13.873 ms verify=54.793 ms capture=BF16-GDN/FP32-PLE restore-select=0.018 ms history=4.448 ms commit=4.482 ms path=direct-full counts(full=31 partial=44 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=7 target_tokens=8 cycle=97.602 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.382 ms draft=13.801 ms verify=54.716 ms capture=BF16-GDN/FP32-PLE restore-select=0.016 ms history=4.483 ms commit=4.507 ms path=direct-full counts(full=32 partial=44 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=1 target_tokens=2 cycle=96.529 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.369 ms draft=13.889 ms verify=54.897 ms capture=BF16-GDN/FP32-PLE restore-select=0.078 ms history=2.827 ms commit=2.911 ms path=direct-partial counts(full=32 partial=45 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=2 target_tokens=3 cycle=96.300 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.390 ms draft=13.868 ms verify=54.568 ms capture=BF16-GDN/FP32-PLE restore-select=0.117 ms history=3.075 ms commit=3.197 ms path=direct-partial counts(full=32 partial=46 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=7 target_tokens=8 cycle=98.018 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.385 ms draft=13.807 ms verify=55.013 ms capture=BF16-GDN/FP32-PLE restore-select=0.015 ms history=4.545 ms commit=4.568 ms path=direct-full counts(full=33 partial=46 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=3 target_tokens=4 cycle=96.611 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.392 ms draft=13.869 ms verify=54.575 ms capture=BF16-GDN/FP32-PLE restore-select=0.075 ms history=3.356 ms commit=3.434 ms path=direct-partial counts(full=33 partial=47 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=2 target_tokens=3 cycle=96.789 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.372 ms draft=13.876 ms verify=55.142 ms capture=BF16-GDN/FP32-PLE restore-select=0.080 ms history=3.206 ms commit=3.291 ms path=direct-partial counts(full=33 partial=48 replay=0)
+ds4: Qwen MTP timing drafted=1 accepted=0 target_tokens=1 cycle=24.557 ms verifier=free-first
+ds4: Qwen MTP timing drafted=7 accepted=7 target_tokens=8 cycle=98.743 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.403 ms draft=14.361 ms verify=54.893 ms capture=BF16-GDN/FP32-PLE restore-select=0.014 ms history=4.620 ms commit=4.661 ms path=direct-full counts(full=34 partial=48 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=1 target_tokens=2 cycle=96.688 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.402 ms draft=14.176 ms verify=54.837 ms capture=BF16-GDN/FP32-PLE restore-select=0.089 ms history=2.764 ms commit=2.861 ms path=direct-partial counts(full=34 partial=49 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=4 target_tokens=5 cycle=97.345 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.392 ms draft=13.939 ms verify=55.064 ms capture=BF16-GDN/FP32-PLE restore-select=0.093 ms history=3.728 ms commit=3.826 ms path=direct-partial counts(full=34 partial=50 replay=0)
+0907 07:24:12 ds4-server: chat ctx=88..138:50 gen=50 THINKING decoding chunk=50.09 t/s avg=50.09 t/s 0.998s
+ds4: Qwen MTP timing drafted=7 accepted=6 target_tokens=7 cycle=98.202 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.390 ms draft=13.889 ms verify=54.982 ms capture=BF16-GDN/FP32-PLE restore-select=0.090 ms history=4.502 ms commit=4.598 ms path=direct-partial counts(full=34 partial=51 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=1 target_tokens=2 cycle=96.815 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.382 ms draft=13.997 ms verify=54.861 ms capture=BF16-GDN/FP32-PLE restore-select=0.085 ms history=2.752 ms commit=2.845 ms path=direct-partial counts(full=34 partial=52 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=1 target_tokens=2 cycle=96.083 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.389 ms draft=13.851 ms verify=54.784 ms capture=BF16-GDN/FP32-PLE restore-select=0.076 ms history=2.766 ms commit=2.847 ms path=direct-partial counts(full=34 partial=53 replay=0)
+ds4: Qwen MTP timing drafted=1 accepted=0 target_tokens=1 cycle=24.107 ms verifier=free-first
+ds4: Qwen MTP timing drafted=1 accepted=0 target_tokens=1 cycle=24.341 ms verifier=free-first
+ds4: Qwen MTP timing drafted=7 accepted=3 target_tokens=4 cycle=96.980 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.377 ms draft=13.907 ms verify=54.841 ms capture=BF16-GDN/FP32-PLE restore-select=0.108 ms history=3.394 ms commit=3.507 ms path=direct-partial counts(full=34 partial=54 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=1 target_tokens=2 cycle=96.081 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.386 ms draft=13.861 ms verify=54.854 ms capture=BF16-GDN/FP32-PLE restore-select=0.080 ms history=2.722 ms commit=2.806 ms path=direct-partial counts(full=34 partial=55 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=7 target_tokens=8 cycle=97.800 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.382 ms draft=13.858 ms verify=54.763 ms capture=BF16-GDN/FP32-PLE restore-select=0.017 ms history=4.544 ms commit=4.573 ms path=direct-full counts(full=35 partial=55 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=3 target_tokens=4 cycle=97.218 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.408 ms draft=14.000 ms verify=54.966 ms capture=BF16-GDN/FP32-PLE restore-select=0.097 ms history=3.348 ms commit=3.450 ms path=direct-partial counts(full=35 partial=56 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=1 target_tokens=2 cycle=96.400 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.383 ms draft=13.851 ms verify=54.889 ms capture=BF16-GDN/FP32-PLE restore-select=0.080 ms history=2.792 ms commit=2.877 ms path=direct-partial counts(full=35 partial=57 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=1 target_tokens=2 cycle=96.357 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.407 ms draft=13.865 ms verify=54.900 ms capture=BF16-GDN/FP32-PLE restore-select=0.079 ms history=2.795 ms commit=2.878 ms path=direct-partial counts(full=35 partial=58 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=1 target_tokens=2 cycle=96.328 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.451 ms draft=13.871 ms verify=54.838 ms capture=BF16-GDN/FP32-PLE restore-select=0.078 ms history=2.783 ms commit=2.866 ms path=direct-partial counts(full=35 partial=59 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=7 target_tokens=8 cycle=99.436 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.416 ms draft=14.224 ms verify=55.605 ms capture=BF16-GDN/FP32-PLE restore-select=0.014 ms history=4.626 ms commit=4.661 ms path=direct-full counts(full=36 partial=59 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=7 target_tokens=8 cycle=97.987 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.397 ms draft=13.933 ms verify=54.836 ms capture=BF16-GDN/FP32-PLE restore-select=0.015 ms history=4.477 ms commit=4.512 ms path=direct-full counts(full=37 partial=59 replay=0)
+ds4: Qwen MTP accepted-length histogram 1=27 2=13 3=15 4=2 5=3 6=2 7=34
+0907 07:24:13 ds4-server: chat ctx=138..188:50 gen=100 decoding chunk=41.15 t/s avg=45.18 t/s 2.213s
+ds4: Qwen MTP timing drafted=7 accepted=7 target_tokens=8 cycle=98.017 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.377 ms draft=13.893 ms verify=54.896 ms capture=BF16-GDN/FP32-PLE restore-select=0.015 ms history=4.581 ms commit=4.610 ms path=direct-full counts(full=38 partial=59 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=3 target_tokens=4 cycle=97.024 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.384 ms draft=13.935 ms verify=54.896 ms capture=BF16-GDN/FP32-PLE restore-select=0.074 ms history=3.387 ms commit=3.465 ms path=direct-partial counts(full=38 partial=60 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=7 target_tokens=8 cycle=97.739 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.380 ms draft=13.911 ms verify=54.735 ms capture=BF16-GDN/FP32-PLE restore-select=0.014 ms history=4.474 ms commit=4.503 ms path=direct-full counts(full=39 partial=60 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=7 target_tokens=8 cycle=98.476 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.428 ms draft=13.900 ms verify=55.147 ms capture=BF16-GDN/FP32-PLE restore-select=0.015 ms history=4.621 ms commit=4.659 ms path=direct-full counts(full=40 partial=60 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=7 target_tokens=8 cycle=97.973 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.414 ms draft=13.954 ms verify=54.798 ms capture=BF16-GDN/FP32-PLE restore-select=0.016 ms history=4.542 ms commit=4.575 ms path=direct-full counts(full=41 partial=60 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=7 target_tokens=8 cycle=98.430 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.412 ms draft=13.925 ms verify=55.171 ms capture=BF16-GDN/FP32-PLE restore-select=0.014 ms history=4.509 ms commit=4.539 ms path=direct-full counts(full=42 partial=60 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=7 target_tokens=8 cycle=98.016 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.389 ms draft=13.901 ms verify=54.942 ms capture=BF16-GDN/FP32-PLE restore-select=0.017 ms history=4.553 ms commit=4.584 ms path=direct-full counts(full=43 partial=60 replay=0)
+0907 07:24:14 ds4-server: chat ctx=188..238:50 gen=150 decoding chunk=72.87 t/s avg=51.73 t/s 2.899s
+ds4: Qwen MTP timing drafted=7 accepted=7 target_tokens=8 cycle=98.023 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.395 ms draft=13.900 ms verify=54.946 ms capture=BF16-GDN/FP32-PLE restore-select=0.017 ms history=4.524 ms commit=4.559 ms path=direct-full counts(full=44 partial=60 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=7 target_tokens=8 cycle=98.548 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.416 ms draft=13.893 ms verify=55.420 ms capture=BF16-GDN/FP32-PLE restore-select=0.018 ms history=4.525 ms commit=4.562 ms path=direct-full counts(full=45 partial=60 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=7 target_tokens=8 cycle=98.118 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.378 ms draft=13.858 ms verify=55.097 ms capture=BF16-GDN/FP32-PLE restore-select=0.015 ms history=4.476 ms commit=4.501 ms path=direct-full counts(full=46 partial=60 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=5 target_tokens=6 cycle=98.353 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.388 ms draft=13.963 ms verify=55.446 ms capture=BF16-GDN/FP32-PLE restore-select=0.076 ms history=4.041 ms commit=4.120 ms path=direct-partial counts(full=46 partial=61 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=7 target_tokens=8 cycle=98.491 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.385 ms draft=13.903 ms verify=55.176 ms capture=BF16-GDN/FP32-PLE restore-select=0.017 ms history=4.485 ms commit=4.510 ms path=direct-full counts(full=47 partial=61 replay=0)
+ds4: Qwen MTP timing drafted=7 accepted=7 target_tokens=8 cycle=98.252 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.377 ms draft=13.876 ms verify=55.108 ms capture=BF16-GDN/FP32-PLE restore-select=0.015 ms history=4.543 ms commit=4.571 ms path=direct-full counts(full=48 partial=61 replay=0)
+0907 07:24:14 ds4-server: chat ctx=238..288:50 gen=200 decoding chunk=84.73 t/s avg=57.31 t/s 3.490s
+ds4: Qwen MTP timing drafted=2 accepted=2 target_tokens=3 cycle=68.194 ms verifier=block
+ds4: Qwen MTP stages snapshot=0.418 ms draft=14.027 ms verify=26.470 ms capture=BF16-GDN/FP32-PLE restore-select=0.022 ms history=2.896 ms commit=2.925 ms path=direct-full counts(full=49 partial=61 replay=0)
+ds4: Qwen MTP accepted-length histogram 1=27 2=14 3=16 4=2 5=4 6=2 7=45
+0907 07:24:14 ds4-server: chat ctx=288..293:5 gen=205 decoding chunk=73.23 t/s avg=57.62 t/s 3.558s
+0907 07:24:14 ds4-server: thinking live checkpoint remembered ctx=0..88:88 live=294 visible=672
+0907 07:24:14 ds4-server: chat ctx=0..88:88 gen=205 finish=stop 3.918s
+0907 07:24:23 ds4-server: live kv cache miss live=294 prompt=11662 common=1 reason=token-mismatch
+0907 07:24:23 ds4-server: chat ctx=0..11662:11662 TOOLS prompt start
+ds4: Qwen prefill selected chunk=8192 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=cold Qwen native path
+0907 07:24:30 ds4-server: chat ctx=0..11662:11662 TOOLS prefill chunk 8192/11662 (70.2%) chunk=0.00 t/s avg=1182.96 t/s 6.925s
+0907 07:24:32 ds4-server: chat ctx=0..11662:11662 TOOLS prefill chunk 10240/11662 (87.8%) chunk=998.20 t/s avg=1140.73 t/s 8.977s
+0907 07:24:32 ds4-server: kv cache stored tokens=10240 trimmed=1422 reason=cold key=token-text size=415.70 MiB save=87.5 ms
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0907 07:24:34 ds4-server: chat ctx=0..11662:11662 TOOLS prefill chunk 11662/11662 (100.0%) chunk=871.81 t/s avg=1099.38 t/s 10.608s
+0907 07:24:34 ds4-server: chat ctx=0..11662:11662 TOOLS prompt done 10.608s
+0907 07:24:35 ds4-server: chat ctx=11662..11712:50 gen=50 TOOLS DSML_START decoding chunk=38.83 t/s avg=38.83 t/s 1.288s
+0907 07:24:35 ds4-server: chat ctx=11712..11715:3 gen=53 TOOLS DSML_START DSML_END decoding chunk=39.07 t/s avg=38.85 t/s 1.364s
+0907 07:24:35 ds4-server: chat ctx=0..11662:11662 TOOLS invalid tool call; continuing with model-visible tool error
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+ds4: Qwen MTP history frontier short cache=11661 expected=11714 rows=60 pos=11715 trunk=1
+ds4: Qwen graph failed stage=MTP-history rows=60 pos=11715
+0907 07:24:35 ds4-server: chat ctx=0..11662:11662 TOOLS invalid tool call returned as assistant text finish=error [text_len=206 saw_start=1 saw_end=1 text_snippet: I'm checking the file and reviewing the tests.
+</think>
+
+<tool_call>
+<function=read>
+<parameter=filePath>
+/Users/evanhoffman/git/gmail-archive/src/gmail_archive/mbox.py
+</parameter>
+</function>
+</tool_call>]
+0907 07:24:35 ds4-server: chat ctx=0..11662:11662 TOOLS invalid tool call dsml_snippet: <tool_call>
+<function=read>
+<parameter=filePath>
+/Users/evanhoffman/git/gmail-archive/src/gmail_archive/mbox.py
+</parameter>
+</function>
+</tool_call>
+0907 07:24:35 ds4-server: chat ctx=0..11662:11662 gen=53 TOOLS DSML_START DSML_END finish=error error="invalid tool call recovery failed: metal Qwen prefill failed at position 11715" 12.235s
+0907 07:24:35 ds4-server: live kv cache miss live=11715 prompt=13105 common=0 reason=token-mismatch
+0907 07:24:35 ds4-server: kv cache skipped tokens=11715 reason=evict because KV payload staging failed: session has no valid checkpoint to stage
+0907 07:24:35 ds4-server: kv cache hit text tokens=10240 text=42724 quant=4 key=token-text load=45.2 ms file=/Users/evanhoffman/.ds4/server-kv-mtp/d4241c29162d7a7eee8286ea44700a55d4ef0f3a.kv
+0907 07:24:35 ds4-server: chat ctx=10240..13105:2865 TOOLS prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0907 07:24:37 ds4-server: chat ctx=10240..13105:2865 TOOLS prefill chunk 2048/2865 (71.5%) chunk=0.00 t/s avg=1075.86 t/s 1.904s
+0907 07:24:38 ds4-server: chat ctx=10240..13105:2865 TOOLS prefill chunk 2865/2865 (100.0%) chunk=833.39 t/s avg=993.44 t/s 2.884s
+0907 07:24:38 ds4-server: chat ctx=10240..13105:2865 TOOLS prompt done 2.884s
+0907 07:24:40 ds4-server: chat ctx=13105..13153:48 gen=48 TOOLS DSML_START DSML_END decoding chunk=39.40 t/s avg=39.40 t/s 1.218s
+0907 07:24:40 ds4-server: tool calls ctx=10240..13105:2865 n=1 raw_tool_text=1 ids=[call_8de3ee0fb785d8e8b4541a9fb4f91845] names=[grep]
+0907 07:24:40 ds4-server: chat ctx=10240..13105:2865 gen=48 TOOLS DSML_START DSML_END finish=tool_calls 4.102s
+0907 07:24:40 ds4-server: live kv cache miss live=13153 prompt=13355 common=13122 reason=token-mismatch
+0907 07:24:40 ds4-server: kv cache stored tokens=13153 trimmed=0 reason=evict key=token-text size=501.14 MiB save=105.7 ms
+0907 07:24:40 ds4-server: kv cache hit text tokens=10240 text=42724 quant=4 key=token-text load=31.9 ms file=/Users/evanhoffman/.ds4/server-kv-mtp/d4241c29162d7a7eee8286ea44700a55d4ef0f3a.kv
+0907 07:24:40 ds4-server: chat ctx=10240..13355:3115 TOOLS prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0907 07:24:42 ds4-server: chat ctx=10240..13355:3115 TOOLS prefill chunk 2048/3115 (65.7%) chunk=0.00 t/s avg=1041.16 t/s 1.967s
+0907 07:24:43 ds4-server: chat ctx=10240..13355:3115 TOOLS prefill chunk 3115/3115 (100.0%) chunk=863.53 t/s avg=972.63 t/s 3.203s
+0907 07:24:43 ds4-server: chat ctx=10240..13355:3115 TOOLS prompt done 3.203s
+0907 07:24:44 ds4-server: chat ctx=13355..13405:50 gen=50 TOOLS DSML_START decoding chunk=39.45 t/s avg=39.45 t/s 1.268s
+0907 07:24:45 ds4-server: chat ctx=13405..13413:8 gen=58 TOOLS DSML_START DSML_END decoding chunk=38.90 t/s avg=39.37 t/s 1.473s
+0907 07:24:45 ds4-server: tool calls ctx=10240..13355:3115 n=1 raw_tool_text=1 ids=[call_5b86a0954aa476bc721f5f353ece6b4b] names=[read]
+0907 07:24:45 ds4-server: chat ctx=10240..13355:3115 gen=58 TOOLS DSML_START DSML_END finish=tool_calls 4.676s
+0907 07:24:45 ds4-server: live kv cache miss live=13413 prompt=14173 common=13372 reason=token-mismatch
+0907 07:24:45 ds4-server: kv cache evicted reason=disk-cache-full tokens=10240 hits=261 size=415.70 MiB file=/Users/evanhoffman/.ds4/server-kv-mtp/5a91615014079b0965fe6bdca12549ad6b993a8f.kv
+0907 07:24:45 ds4-server: kv cache evicted reason=disk-cache-full tokens=13153 hits=0 size=501.14 MiB file=/Users/evanhoffman/.ds4/server-kv-mtp/6e6a6a815a9e96e44072603b8b69eda0abeaa5ba.kv
+0907 07:24:45 ds4-server: kv cache stored tokens=13413 trimmed=0 reason=evict key=token-text size=508.75 MiB save=102.0 ms
+0907 07:24:45 ds4-server: kv cache hit text tokens=10240 text=42724 quant=4 key=token-text load=31.9 ms file=/Users/evanhoffman/.ds4/server-kv-mtp/d4241c29162d7a7eee8286ea44700a55d4ef0f3a.kv
+0907 07:24:45 ds4-server: chat ctx=10240..14173:3933 TOOLS prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0907 07:24:47 ds4-server: chat ctx=10240..14173:3933 TOOLS prefill chunk 2048/3933 (52.1%) chunk=0.00 t/s avg=1014.48 t/s 2.019s
+0907 07:24:49 ds4-server: chat ctx=10240..14173:3933 TOOLS prefill chunk 3933/3933 (100.0%) chunk=952.07 t/s avg=983.58 t/s 3.999s
+0907 07:24:49 ds4-server: chat ctx=10240..14173:3933 TOOLS prompt done 3.999s
+0907 07:24:50 ds4-server: chat ctx=14173..14223:50 gen=50 TOOLS THINKING decoding chunk=38.42 t/s avg=38.42 t/s 1.301s
+0907 07:24:52 ds4-server: chat ctx=14223..14273:50 gen=100 TOOLS THINKING decoding chunk=38.49 t/s avg=38.46 t/s 2.600s
+0907 07:24:53 ds4-server: chat ctx=14273..14323:50 gen=150 TOOLS THINKING decoding chunk=38.65 t/s avg=38.52 t/s 3.894s
+0907 07:24:54 ds4-server: chat ctx=14323..14373:50 gen=200 TOOLS THINKING decoding chunk=38.74 t/s avg=38.57 t/s 5.185s
+0907 07:24:55 ds4-server: chat ctx=14373..14423:50 gen=250 TOOLS THINKING decoding chunk=38.77 t/s avg=38.61 t/s 6.474s
+0907 07:24:57 ds4-server: chat ctx=14423..14473:50 gen=300 TOOLS THINKING decoding chunk=38.94 t/s avg=38.67 t/s 7.758s
+0907 07:24:58 ds4-server: chat ctx=14473..14523:50 gen=350 TOOLS THINKING decoding chunk=38.77 t/s avg=38.68 t/s 9.048s
+0907 07:24:59 ds4-server: chat ctx=14523..14573:50 gen=400 TOOLS THINKING decoding chunk=38.82 t/s avg=38.70 t/s 10.336s
+0907 07:25:01 ds4-server: chat ctx=14573..14623:50 gen=450 TOOLS THINKING decoding chunk=38.62 t/s avg=38.69 t/s 11.631s
+0907 07:25:02 ds4-server: chat ctx=14623..14673:50 gen=500 TOOLS THINKING decoding chunk=38.96 t/s avg=38.72 t/s 12.914s
+0907 07:25:03 ds4-server: chat ctx=14673..14723:50 gen=550 TOOLS DSML_START decoding chunk=39.21 t/s avg=38.76 t/s 14.190s
+0907 07:25:04 ds4-server: chat ctx=14723..14753:30 gen=580 TOOLS DSML_START DSML_END decoding chunk=39.17 t/s avg=38.78 t/s 14.955s
+0907 07:25:04 ds4-server: tool calls ctx=10240..14173:3933 n=1 raw_tool_text=1 ids=[call_9ec487d00d2b393a71c4616d78f3a725] names=[read]
+0907 07:25:04 ds4-server: chat ctx=10240..14173:3933 gen=580 TOOLS DSML_START DSML_END finish=tool_calls 18.954s
+0907 07:25:04 ds4-server: live kv cache miss live=14753 prompt=15157 common=14710 reason=token-mismatch
+0907 07:25:04 ds4-server: kv cache evicted reason=disk-cache-full tokens=13413 hits=0 size=508.75 MiB file=/Users/evanhoffman/.ds4/server-kv-mtp/62b6c7ea7ffe45d3896b37bac6fc686217a968c1.kv
+0907 07:25:04 ds4-server: kv cache stored tokens=14753 trimmed=0 reason=evict key=token-text size=546.92 MiB save=59.9 ms
+0907 07:25:04 ds4-server: kv cache hit text tokens=10240 text=42724 quant=4 key=token-text load=32.4 ms file=/Users/evanhoffman/.ds4/server-kv-mtp/d4241c29162d7a7eee8286ea44700a55d4ef0f3a.kv
+0907 07:25:04 ds4-server: chat ctx=10240..15157:4917 TOOLS prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0907 07:25:06 ds4-server: chat ctx=10240..15157:4917 TOOLS prefill chunk 2048/4917 (41.7%) chunk=0.00 t/s avg=1077.75 t/s 1.900s
+0907 07:25:08 ds4-server: chat ctx=10240..15157:4917 TOOLS prefill chunk 4096/4917 (83.3%) chunk=1056.21 t/s avg=1066.87 t/s 3.839s
+0907 07:25:09 ds4-server: chat ctx=10240..15157:4917 TOOLS prefill chunk 4917/4917 (100.0%) chunk=847.20 t/s avg=1022.60 t/s 4.808s
+0907 07:25:09 ds4-server: chat ctx=10240..15157:4917 TOOLS prompt done 4.808s
+0907 07:25:10 ds4-server: chat ctx=15157..15207:50 gen=50 TOOLS THINKING decoding chunk=38.43 t/s avg=38.43 t/s 1.301s
+0907 07:25:12 ds4-server: chat ctx=15207..15257:50 gen=100 TOOLS DSML_START decoding chunk=39.06 t/s avg=38.74 t/s 2.581s
+0907 07:25:13 ds4-server: chat ctx=15257..15307:50 gen=150 TOOLS DSML_START decoding chunk=39.37 t/s avg=38.95 t/s 3.851s
+0907 07:25:14 ds4-server: chat ctx=15307..15357:50 gen=200 TOOLS DSML_START decoding chunk=39.66 t/s avg=39.12 t/s 5.112s
+0907 07:25:15 ds4-server: chat ctx=15357..15406:49 gen=249 TOOLS DSML_START DSML_END decoding chunk=38.96 t/s avg=39.09 t/s 6.370s
+0907 07:25:15 ds4-server: tool calls ctx=10240..15157:4917 n=1 raw_tool_text=1 ids=[call_686a8e40b7c629e514ecc7acb1d763fa] names=[edit]
+0907 07:25:15 ds4-server: chat ctx=10240..15157:4917 gen=249 TOOLS DSML_START DSML_END finish=tool_calls 11.178s
+0907 07:25:16 ds4-server: live kv cache miss live=15406 prompt=15427 common=15238 reason=token-mismatch
+0907 07:25:16 ds4-server: kv cache evicted reason=disk-cache-full tokens=14753 hits=0 size=546.92 MiB file=/Users/evanhoffman/.ds4/server-kv-mtp/da2002a1f24a1c72940df87a79fc4d5f6c0e64bc.kv
+0907 07:25:16 ds4-server: kv cache stored tokens=15406 trimmed=0 reason=evict key=token-text size=566.84 MiB save=59.6 ms
+0907 07:25:16 ds4-server: kv cache hit text tokens=10240 text=42724 quant=4 key=token-text load=32.8 ms file=/Users/evanhoffman/.ds4/server-kv-mtp/d4241c29162d7a7eee8286ea44700a55d4ef0f3a.kv
+0907 07:25:16 ds4-server: chat ctx=10240..15427:5187 TOOLS prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0907 07:25:18 ds4-server: chat ctx=10240..15427:5187 TOOLS prefill chunk 2048/5187 (39.5%) chunk=0.00 t/s avg=1088.77 t/s 1.881s
+0907 07:25:20 ds4-server: chat ctx=10240..15427:5187 TOOLS prefill chunk 4096/5187 (79.0%) chunk=1070.17 t/s avg=1079.39 t/s 3.795s
+0907 07:25:21 ds4-server: chat ctx=10240..15427:5187 TOOLS prefill chunk 5187/5187 (100.0%) chunk=924.22 t/s avg=1042.57 t/s 4.975s
+0907 07:25:21 ds4-server: chat ctx=10240..15427:5187 TOOLS prompt done 4.975s
+0907 07:25:22 ds4-server: chat ctx=15427..15477:50 gen=50 TOOLS DSML_START decoding chunk=39.06 t/s avg=39.06 t/s 1.280s
+0907 07:25:22 ds4-server: chat ctx=15477..15483:6 gen=56 TOOLS DSML_START DSML_END decoding chunk=39.88 t/s avg=39.14 t/s 1.431s
+0907 07:25:22 ds4-server: tool calls ctx=10240..15427:5187 n=1 raw_tool_text=1 ids=[call_eb1627242579284deba9b7e2b7ce48ed] names=[bash]
+0907 07:25:22 ds4-server: chat ctx=10240..15427:5187 gen=56 TOOLS DSML_START DSML_END finish=tool_calls 6.406s
+0907 07:25:23 ds4-server: live kv cache miss live=15483 prompt=15519 common=15436 reason=token-mismatch
+0907 07:25:23 ds4-server: kv cache evicted reason=disk-cache-full tokens=15406 hits=0 size=566.84 MiB file=/Users/evanhoffman/.ds4/server-kv-mtp/d777c14660b88b956fa13bee33e9914b328d9330.kv
+0907 07:25:23 ds4-server: kv cache stored tokens=15483 trimmed=0 reason=evict key=token-text size=569.54 MiB save=59.8 ms
+0907 07:25:23 ds4-server: kv cache hit text tokens=10240 text=42724 quant=4 key=token-text load=32.1 ms file=/Users/evanhoffman/.ds4/server-kv-mtp/d4241c29162d7a7eee8286ea44700a55d4ef0f3a.kv
+0907 07:25:23 ds4-server: chat ctx=10240..15519:5279 TOOLS prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0907 07:25:25 ds4-server: chat ctx=10240..15519:5279 TOOLS prefill chunk 2048/5279 (38.8%) chunk=0.00 t/s avg=1078.24 t/s 1.899s
+0907 07:25:27 ds4-server: chat ctx=10240..15519:5279 TOOLS prefill chunk 4096/5279 (77.6%) chunk=1007.48 t/s avg=1041.66 t/s 3.932s
+0907 07:25:28 ds4-server: chat ctx=10240..15519:5279 TOOLS prefill chunk 5279/5279 (100.0%) chunk=943.24 t/s avg=1017.86 t/s 5.186s
+0907 07:25:28 ds4-server: chat ctx=10240..15519:5279 TOOLS prompt done 5.186s
+0907 07:25:29 ds4-server: chat ctx=15519..15569:50 gen=50 TOOLS DSML_START decoding chunk=38.88 t/s avg=38.88 t/s 1.286s
+0907 07:25:31 ds4-server: chat ctx=15569..15619:50 gen=100 TOOLS DSML_START decoding chunk=38.31 t/s avg=38.59 t/s 2.591s
+0907 07:25:31 ds4-server: chat ctx=15619..15628:9 gen=109 TOOLS DSML_START DSML_END decoding chunk=39.80 t/s avg=38.69 t/s 2.817s
+0907 07:25:31 ds4-server: tool calls ctx=10240..15519:5279 n=1 raw_tool_text=1 ids=[call_6e9181d18133768466ff9ad33b177041] names=[bash]
+0907 07:25:31 ds4-server: chat ctx=10240..15519:5279 gen=109 TOOLS DSML_START DSML_END finish=tool_calls 8.004s
+0907 07:25:38 ds4-server: chat ctx=15628..15706:78 TOOLS prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+ds4: Qwen MTP history frontier short cache=15518 expected=15627 rows=78 pos=15628 trunk=1
+ds4: Qwen graph failed stage=MTP-history rows=78 pos=15628
+0907 07:25:41 ds4-server: chat ctx=15628..15706:78 TOOLS prompt start
+ds4: Qwen prefill selected chunk=8192 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=cold Qwen native path
+0907 07:25:48 ds4-server: chat ctx=15628..15706:78 TOOLS prefill chunk 0/78 (0.0%) chunk=0.00 t/s avg=0.00 t/s 6.457s
+0907 07:25:54 ds4-server: chat ctx=15628..15706:78 TOOLS prefill chunk 78/78 (100.0%) chunk=1109.40 t/s avg=5.90 t/s 13.230s
+0907 07:25:54 ds4-server: chat ctx=15628..15706:78 TOOLS prompt done 13.230s
+0907 07:25:56 ds4-server: chat ctx=15706..15756:50 gen=50 TOOLS DSML_START decoding chunk=38.58 t/s avg=38.58 t/s 1.296s
+0907 07:25:56 ds4-server: chat ctx=15756..15780:24 gen=74 TOOLS DSML_START DSML_END decoding chunk=39.30 t/s avg=38.81 t/s 1.907s
+0907 07:25:56 ds4-server: tool calls ctx=15628..15706:78 n=1 raw_tool_text=1 ids=[call_961b8e647a125955ffbfa5f5c8a941ce] names=[bash]
+0907 07:25:56 ds4-server: chat ctx=15628..15706:78 gen=74 TOOLS DSML_START DSML_END finish=tool_calls 15.137s
+0907 07:25:57 ds4-server: chat ctx=15780..16246:466 TOOLS prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+ds4: Qwen MTP history frontier short cache=15705 expected=15779 rows=466 pos=15780 trunk=1
+ds4: Qwen graph failed stage=MTP-history rows=466 pos=15780
+0907 07:26:01 ds4-server: chat ctx=15780..16246:466 TOOLS prompt start
+ds4: Qwen prefill selected chunk=8192 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=cold Qwen native path
+0907 07:26:08 ds4-server: chat ctx=15780..16246:466 TOOLS prefill chunk 0/466 (0.0%) chunk=0.00 t/s avg=0.00 t/s 7.319s
+0907 07:26:17 ds4-server: chat ctx=15780..16246:466 TOOLS prefill chunk 466/466 (100.0%) chunk=927.97 t/s avg=29.13 t/s 15.999s
+0907 07:26:17 ds4-server: chat ctx=15780..16246:466 TOOLS prompt done 15.999s
+0907 07:26:18 ds4-server: chat ctx=16246..16296:50 gen=50 TOOLS decoding chunk=38.42 t/s avg=38.42 t/s 1.302s
+0907 07:26:19 ds4-server: chat ctx=16296..16346:50 gen=100 TOOLS decoding chunk=39.14 t/s avg=38.77 t/s 2.579s
+0907 07:26:20 ds4-server: chat ctx=16346..16385:39 gen=139 TOOLS decoding chunk=38.62 t/s avg=38.73 t/s 3.589s
+0907 07:26:20 ds4-server: chat ctx=15780..16246:466 gen=139 TOOLS finish=stop 19.588s
+0907 07:26:30 ds4-server: live kv cache miss live=16385 prompt=11662 common=11520 reason=token-mismatch
+0907 07:26:30 ds4-server: kv cache evicted reason=disk-cache-full tokens=15483 hits=0 size=569.54 MiB file=/Users/evanhoffman/.ds4/server-kv-mtp/113ed0d77dc6206469331e43f745afe48bb31d04.kv
+0907 07:26:30 ds4-server: kv cache stored tokens=16385 trimmed=0 reason=evict key=token-text size=595.84 MiB save=110.6 ms
+0907 07:26:30 ds4-server: kv cache hit text tokens=10240 text=42724 quant=4 key=token-text load=30.6 ms file=/Users/evanhoffman/.ds4/server-kv-mtp/d4241c29162d7a7eee8286ea44700a55d4ef0f3a.kv
+0907 07:26:30 ds4-server: chat ctx=10240..11662:1422 TOOLS prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0907 07:26:32 ds4-server: chat ctx=10240..11662:1422 TOOLS prefill chunk 1422/1422 (100.0%) chunk=0.00 t/s avg=718.60 t/s 1.979s
+0907 07:26:32 ds4-server: chat ctx=10240..11662:1422 TOOLS prompt done 1.979s
+0907 07:26:34 ds4-server: chat ctx=11662..11712:50 gen=50 TOOLS DSML_START decoding chunk=39.17 t/s avg=39.17 t/s 1.276s
+0907 07:26:34 ds4-server: chat ctx=11712..11716:4 gen=54 TOOLS DSML_START DSML_END decoding chunk=40.36 t/s avg=39.26 t/s 1.376s
+0907 07:26:34 ds4-server: chat ctx=10240..11662:1422 TOOLS invalid tool call; continuing with model-visible tool error
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+ds4: Qwen MTP history frontier short cache=11661 expected=11715 rows=60 pos=11716 trunk=1
+ds4: Qwen graph failed stage=MTP-history rows=60 pos=11716
+0907 07:26:34 ds4-server: chat ctx=10240..11662:1422 TOOLS invalid tool call returned as assistant text finish=error [text_len=224 saw_start=1 saw_end=1 text_snippet: Let's check the repository structure and the storage.py file.
+</think>
+
+<tool_call>
+<function=read>
+<parameter=filePath>
+/Users/evanhoffman/git/gmail-archive/src/gmail_archive/storage.py
+</parameter>
+</function>
+</tool_call>]
+0907 07:26:34 ds4-server: chat ctx=10240..11662:1422 TOOLS invalid tool call dsml_snippet: <tool_call>
+<function=read>
+<parameter=filePath>
+/Users/evanhoffman/git/gmail-archive/src/gmail_archive/storage.py
+</parameter>
+</function>
+</tool_call>
+0907 07:26:34 ds4-server: chat ctx=10240..11662:1422 gen=54 TOOLS DSML_START DSML_END finish=error error="invalid tool call recovery failed: metal Qwen prefill failed at position 11716" 3.617s
+0907 07:26:34 ds4-server: live kv cache miss live=11716 prompt=13453 common=0 reason=token-mismatch
+0907 07:26:34 ds4-server: kv cache skipped tokens=11716 reason=evict because KV payload staging failed: session has no valid checkpoint to stage
+0907 07:26:34 ds4-server: kv cache hit text tokens=10240 text=42724 quant=4 key=token-text load=32.6 ms file=/Users/evanhoffman/.ds4/server-kv-mtp/d4241c29162d7a7eee8286ea44700a55d4ef0f3a.kv
+0907 07:26:34 ds4-server: chat ctx=10240..13453:3213 TOOLS prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0907 07:26:36 ds4-server: chat ctx=10240..13453:3213 TOOLS prefill chunk 2048/3213 (63.7%) chunk=0.00 t/s avg=1009.87 t/s 2.028s
+0907 07:26:38 ds4-server: chat ctx=10240..13453:3213 TOOLS prefill chunk 3213/3213 (100.0%) chunk=874.47 t/s avg=956.19 t/s 3.360s
+0907 07:26:38 ds4-server: chat ctx=10240..13453:3213 TOOLS prompt done 3.360s
+0907 07:26:39 ds4-server: chat ctx=13453..13503:50 gen=50 TOOLS DSML_START decoding chunk=38.27 t/s avg=38.27 t/s 1.306s
+0907 07:26:40 ds4-server: chat ctx=13503..13550:47 gen=97 TOOLS DSML_START DSML_END decoding chunk=39.15 t/s avg=38.69 t/s 2.507s
+0907 07:26:40 ds4-server: chat ctx=10240..13453:3213 TOOLS invalid tool call; continuing with model-visible tool error
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+ds4: Qwen MTP history frontier short cache=13452 expected=13549 rows=60 pos=13550 trunk=1
+ds4: Qwen graph failed stage=MTP-history rows=60 pos=13550
+0907 07:26:40 ds4-server: chat ctx=10240..13453:3213 TOOLS invalid tool call returned as assistant text finish=error [text_len=372 saw_start=1 saw_end=1 text_snippet: To understand the expected behavior, let me try reading the test suite.
+</think>
+
+<tool_call>
+<|im_start|>function>
+<parameter name="glob">
+<parameter name="pattern">tests/**/*.py
+</parameter>
+</invoke>
+<invoke name="grep">
+<parameter name="pattern">\.put\(
+</parameter>
+<parameter name="path">/Users]
+0907 07:26:40 ds4-server: chat ctx=10240..13453:3213 TOOLS invalid tool call dsml_snippet: <tool_call>
+<|im_start|>function>
+<parameter name="glob">
+<parameter name="pattern">tests/**/*.py
+</parameter>
+</invoke>
+<invoke name="grep">
+<parameter name="pattern">\.put\(
+</parameter>
+<parameter name="path">/Users/evanhoffman/git/gmail-archive/tests
+</parameter>
+</invoke>
+</tool_call>
+0907 07:26:40 ds4-server: chat ctx=10240..13453:3213 gen=97 TOOLS DSML_START DSML_END finish=error error="invalid tool call recovery failed: metal Qwen prefill failed at position 13550" 6.130s
+0907 07:26:40 ds4-server: live kv cache miss live=13550 prompt=13833 common=0 reason=token-mismatch
+0907 07:26:40 ds4-server: kv cache skipped tokens=13550 reason=evict because KV payload staging failed: session has no valid checkpoint to stage
+0907 07:26:41 ds4-server: kv cache hit text tokens=10240 text=42724 quant=4 key=token-text load=33.0 ms file=/Users/evanhoffman/.ds4/server-kv-mtp/d4241c29162d7a7eee8286ea44700a55d4ef0f3a.kv
+0907 07:26:41 ds4-server: chat ctx=10240..13833:3593 TOOLS prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0907 07:26:43 ds4-server: chat ctx=10240..13833:3593 TOOLS prefill chunk 2048/3593 (57.0%) chunk=0.00 t/s avg=1026.43 t/s 1.995s
+0907 07:26:44 ds4-server: chat ctx=10240..13833:3593 TOOLS prefill chunk 3593/3593 (100.0%) chunk=890.85 t/s avg=963.38 t/s 3.730s
+0907 07:26:44 ds4-server: chat ctx=10240..13833:3593 TOOLS prompt done 3.730s
+0907 07:26:45 ds4-server: chat ctx=13833..13867:34 gen=34 TOOLS DSML_START DSML_END decoding chunk=37.77 t/s avg=37.77 t/s 0.900s
+0907 07:26:45 ds4-server: tool calls ctx=10240..13833:3593 n=1 raw_tool_text=1 ids=[call_4ffcc9efd36d49e8cf6fd3d717c500e1] names=[bash]
+0907 07:26:45 ds4-server: chat ctx=10240..13833:3593 gen=34 TOOLS DSML_START DSML_END finish=tool_calls 4.630s
+0907 07:26:45 ds4-server: live kv cache miss live=13867 prompt=13949 common=13850 reason=token-mismatch
+0907 07:26:45 ds4-server: kv cache evicted reason=disk-cache-full tokens=16385 hits=0 size=595.84 MiB file=/Users/evanhoffman/.ds4/server-kv-mtp/a72561cde43bb196adf3a35d3f389a328b42d723.kv
+0907 07:26:45 ds4-server: kv cache stored tokens=13867 trimmed=0 reason=evict key=token-text size=522.13 MiB save=60.8 ms
+0907 07:26:45 ds4-server: kv cache hit text tokens=10240 text=42724 quant=4 key=token-text load=32.0 ms file=/Users/evanhoffman/.ds4/server-kv-mtp/d4241c29162d7a7eee8286ea44700a55d4ef0f3a.kv
+0907 07:26:45 ds4-server: chat ctx=10240..13949:3709 TOOLS prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0907 07:26:47 ds4-server: chat ctx=10240..13949:3709 TOOLS prefill chunk 2048/3709 (55.2%) chunk=0.00 t/s avg=1036.63 t/s 1.976s
+0907 07:26:49 ds4-server: chat ctx=10240..13949:3709 TOOLS prefill chunk 3709/3709 (100.0%) chunk=858.79 t/s avg=948.65 t/s 3.910s
+0907 07:26:49 ds4-server: chat ctx=10240..13949:3709 TOOLS prompt done 3.910s
+0907 07:26:50 ds4-server: chat ctx=13949..13963:14 gen=14 TOOLS THINKING decoding chunk=36.12 t/s avg=36.12 t/s 0.388s
+0907 07:26:50 ds4-server: chat ctx=10240..13949:3709 gen=14 TOOLS THINKING finish=stop 4.297s
+0907 07:27:04 ds4-server: live kv cache miss live=13963 prompt=11662 common=10650 reason=token-mismatch
+0907 07:27:04 ds4-server: kv cache evicted reason=disk-cache-full tokens=13867 hits=0 size=522.13 MiB file=/Users/evanhoffman/.ds4/server-kv-mtp/8551b09f817bb10edc81be4d2795ef842b2bb923.kv
+0907 07:27:04 ds4-server: kv cache stored tokens=13963 trimmed=0 reason=evict key=token-text size=525.00 MiB save=55.3 ms
+0907 07:27:04 ds4-server: kv cache hit text tokens=10240 text=42724 quant=4 key=token-text load=31.6 ms file=/Users/evanhoffman/.ds4/server-kv-mtp/d4241c29162d7a7eee8286ea44700a55d4ef0f3a.kv
+0907 07:27:04 ds4-server: chat ctx=10240..11662:1422 TOOLS prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0907 07:27:06 ds4-server: chat ctx=10240..11662:1422 TOOLS prefill chunk 1422/1422 (100.0%) chunk=0.00 t/s avg=730.01 t/s 1.948s
+0907 07:27:06 ds4-server: chat ctx=10240..11662:1422 TOOLS prompt done 1.948s
+0907 07:27:07 ds4-server: chat ctx=11662..11712:50 gen=50 TOOLS DSML_START decoding chunk=39.02 t/s avg=39.02 t/s 1.281s
+0907 07:27:07 ds4-server: chat ctx=11712..11719:7 gen=57 TOOLS DSML_START DSML_END decoding chunk=40.47 t/s avg=39.20 t/s 1.454s
+0907 07:27:07 ds4-server: chat ctx=10240..11662:1422 TOOLS invalid tool call; continuing with model-visible tool error
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+ds4: Qwen MTP history frontier short cache=11661 expected=11718 rows=60 pos=11719 trunk=1
+ds4: Qwen graph failed stage=MTP-history rows=60 pos=11719
+0907 07:27:07 ds4-server: chat ctx=10240..11662:1422 TOOLS invalid tool call returned as assistant text finish=error [text_len=236 saw_start=1 saw_end=1 text_snippet: I need to examine the parser and tests to understand what's being checked.
+</think>
+
+<tool_call>
+<function=read>
+<parameter=filePath>
+/Users/evanhoffman/git/gmail-archive/src/gmail_archive/parser.py
+</parameter>
+</function>
+</tool_call>]
+0907 07:27:07 ds4-server: chat ctx=10240..11662:1422 TOOLS invalid tool call dsml_snippet: <tool_call>
+<function=read>
+<parameter=filePath>
+/Users/evanhoffman/git/gmail-archive/src/gmail_archive/parser.py
+</parameter>
+</function>
+</tool_call>
+0907 07:27:07 ds4-server: chat ctx=10240..11662:1422 gen=57 TOOLS DSML_START DSML_END finish=error error="invalid tool call recovery failed: metal Qwen prefill failed at position 11719" 3.665s
+0907 07:27:08 ds4-server: live kv cache miss live=11719 prompt=16750 common=0 reason=token-mismatch
+0907 07:27:08 ds4-server: kv cache skipped tokens=11719 reason=evict because KV payload staging failed: session has no valid checkpoint to stage
+0907 07:27:08 ds4-server: kv cache hit text tokens=10240 text=42724 quant=4 key=token-text load=33.9 ms file=/Users/evanhoffman/.ds4/server-kv-mtp/d4241c29162d7a7eee8286ea44700a55d4ef0f3a.kv
+0907 07:27:08 ds4-server: chat ctx=10240..16750:6510 TOOLS prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0907 07:27:10 ds4-server: chat ctx=10240..16750:6510 TOOLS prefill chunk 2048/6510 (31.5%) chunk=0.00 t/s avg=988.79 t/s 2.071s
+0907 07:27:12 ds4-server: chat ctx=10240..16750:6510 TOOLS prefill chunk 4096/6510 (62.9%) chunk=994.39 t/s avg=991.58 t/s 4.131s
+0907 07:27:14 ds4-server: chat ctx=10240..16750:6510 TOOLS prefill chunk 6144/6510 (94.4%) chunk=956.69 t/s avg=979.67 t/s 6.271s
+0907 07:27:15 ds4-server: chat ctx=10240..16750:6510 TOOLS prefill chunk 6510/6510 (100.0%) chunk=237.98 t/s avg=833.61 t/s 7.809s
+0907 07:27:15 ds4-server: chat ctx=10240..16750:6510 TOOLS prompt done 7.809s
+0907 07:27:17 ds4-server: chat ctx=16750..16797:47 gen=47 TOOLS DSML_START DSML_END decoding chunk=38.87 t/s avg=38.87 t/s 1.209s
+0907 07:27:17 ds4-server: tool calls ctx=10240..16750:6510 n=1 raw_tool_text=1 ids=[call_6d7af51b333904195cf8de31d9135bbf] names=[grep]
+0907 07:27:17 ds4-server: chat ctx=10240..16750:6510 gen=47 TOOLS DSML_START DSML_END finish=tool_calls 9.019s
+0907 07:27:17 ds4-server: live kv cache miss live=16797 prompt=18672 common=16763 reason=token-mismatch
+0907 07:27:17 ds4-server: kv cache evicted reason=disk-cache-full tokens=13963 hits=0 size=525.00 MiB file=/Users/evanhoffman/.ds4/server-kv-mtp/2bbb7cb63501aacfa56927481396e0507fefa2e4.kv
+0907 07:27:17 ds4-server: kv cache stored tokens=16797 trimmed=0 reason=evict key=token-text size=608.14 MiB save=58.7 ms
+0907 07:27:17 ds4-server: kv cache hit text tokens=10240 text=42724 quant=4 key=token-text load=33.9 ms file=/Users/evanhoffman/.ds4/server-kv-mtp/d4241c29162d7a7eee8286ea44700a55d4ef0f3a.kv
+0907 07:27:17 ds4-server: chat ctx=10240..18672:8432 TOOLS prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0907 07:27:19 ds4-server: chat ctx=10240..18672:8432 TOOLS prefill chunk 2048/8432 (24.3%) chunk=0.00 t/s avg=1071.38 t/s 1.912s
+0907 07:27:21 ds4-server: chat ctx=10240..18672:8432 TOOLS prefill chunk 4096/8432 (48.6%) chunk=1003.34 t/s avg=1036.24 t/s 3.953s
+0907 07:27:23 ds4-server: chat ctx=10240..18672:8432 TOOLS prefill chunk 6144/8432 (72.9%) chunk=935.33 t/s avg=1000.27 t/s 6.142s
+0907 07:27:25 ds4-server: chat ctx=10240..18672:8432 TOOLS prefill chunk 8192/8432 (97.2%) chunk=999.42 t/s avg=1000.06 t/s 8.192s
+0907 07:27:26 ds4-server: chat ctx=10240..18672:8432 TOOLS prefill chunk 8432/8432 (100.0%) chunk=232.76 t/s avg=914.27 t/s 9.223s
+0907 07:27:26 ds4-server: chat ctx=10240..18672:8432 TOOLS prompt done 9.223s
+0907 07:27:27 ds4-server: chat ctx=18672..18722:50 gen=50 TOOLS THINKING decoding chunk=38.60 t/s avg=38.60 t/s 1.295s
+0907 07:27:29 ds4-server: chat ctx=18722..18772:50 gen=100 TOOLS DSML_START decoding chunk=38.64 t/s avg=38.62 t/s 2.589s
+0907 07:27:29 ds4-server: chat ctx=10240..18672:8432 TOOLS unterminated tool call; continuing with model-visible tool error
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+ds4: Qwen MTP history frontier short cache=18671 expected=18796 rows=61 pos=18797 trunk=1
+ds4: Qwen graph failed stage=MTP-history rows=61 pos=18797
+0907 07:27:30 ds4-server: chat ctx=18772..18797:25 gen=125 TOOLS DSML_START decoding chunk=27.88 t/s avg=35.86 t/s 3.486s
+0907 07:27:30 ds4-server: chat ctx=10240..18672:8432 gen=125 TOOLS DSML_START finish=error error="invalid tool call recovery failed: metal Qwen prefill failed at position 18797" 12.708s
+0907 07:27:30 ds4-server: live kv cache miss live=18797 prompt=18801 common=0 reason=token-mismatch
+0907 07:27:30 ds4-server: kv cache skipped tokens=18797 reason=evict because KV payload staging failed: session has no valid checkpoint to stage
+0907 07:27:30 ds4-server: kv cache hit text tokens=10240 text=42724 quant=4 key=token-text load=35.2 ms file=/Users/evanhoffman/.ds4/server-kv-mtp/d4241c29162d7a7eee8286ea44700a55d4ef0f3a.kv
+0907 07:27:30 ds4-server: chat ctx=10240..18801:8561 TOOLS prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0907 07:27:32 ds4-server: chat ctx=10240..18801:8561 TOOLS prefill chunk 2048/8561 (23.9%) chunk=0.00 t/s avg=1082.02 t/s 1.893s
+0907 07:27:34 ds4-server: chat ctx=10240..18801:8561 TOOLS prefill chunk 4096/8561 (47.8%) chunk=1002.95 t/s avg=1040.99 t/s 3.935s
+0907 07:27:36 ds4-server: chat ctx=10240..18801:8561 TOOLS prefill chunk 6144/8561 (71.8%) chunk=986.22 t/s avg=1022.07 t/s 6.011s
+0907 07:27:38 ds4-server: chat ctx=10240..18801:8561 TOOLS prefill chunk 8192/8561 (95.7%) chunk=989.81 t/s avg=1013.81 t/s 8.080s
+0907 07:27:40 ds4-server: chat ctx=10240..18801:8561 TOOLS prefill chunk 8561/8561 (100.0%) chunk=233.17 t/s avg=885.96 t/s 9.663s
+0907 07:27:40 ds4-server: chat ctx=10240..18801:8561 TOOLS prompt done 9.663s
+0907 07:27:40 ds4-server: chat ctx=18801..18805:4 gen=4 TOOLS decoding chunk=36.57 t/s avg=36.57 t/s 0.109s
+0907 07:27:40 ds4-server: chat ctx=10240..18801:8561 gen=4 TOOLS finish=stop 9.772s
+0907 07:27:49 ds4-server: live kv cache miss live=18805 prompt=11665 common=10650 reason=token-mismatch
+0907 07:27:50 ds4-server: kv cache evicted reason=disk-cache-full tokens=16797 hits=0 size=608.14 MiB file=/Users/evanhoffman/.ds4/server-kv-mtp/170acf2080fa7affe5afeaa868a57a7cacd27e9c.kv
+0907 07:27:50 ds4-server: kv cache stored tokens=18805 trimmed=0 reason=evict key=token-text size=667.21 MiB save=74.7 ms
+0907 07:27:50 ds4-server: kv cache hit text tokens=10240 text=42724 quant=4 key=token-text load=29.9 ms file=/Users/evanhoffman/.ds4/server-kv-mtp/d4241c29162d7a7eee8286ea44700a55d4ef0f3a.kv
+0907 07:27:50 ds4-server: chat ctx=10240..11665:1425 TOOLS prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0907 07:27:52 ds4-server: chat ctx=10240..11665:1425 TOOLS prefill chunk 1425/1425 (100.0%) chunk=0.00 t/s avg=742.49 t/s 1.919s
+0907 07:27:52 ds4-server: chat ctx=10240..11665:1425 TOOLS prompt done 1.919s
+0907 07:27:53 ds4-server: chat ctx=11665..11715:50 gen=50 TOOLS DSML_START decoding chunk=39.21 t/s avg=39.21 t/s 1.275s
+0907 07:27:53 ds4-server: chat ctx=11715..11720:5 gen=55 TOOLS DSML_START DSML_END decoding chunk=40.26 t/s avg=39.30 t/s 1.400s
+0907 07:27:53 ds4-server: chat ctx=10240..11665:1425 TOOLS invalid tool call; continuing with model-visible tool error
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+ds4: Qwen MTP history frontier short cache=11664 expected=11719 rows=60 pos=11720 trunk=1
+ds4: Qwen graph failed stage=MTP-history rows=60 pos=11720
+0907 07:27:53 ds4-server: chat ctx=10240..11665:1425 TOOLS invalid tool call returned as assistant text finish=error [text_len=227 saw_start=1 saw_end=1 text_snippet: I'm checking the repository structure to locate the relevant files.
+</think>
+
+<tool_call>
+<function=read>
+<parameter=filePath>
+/Users/evanhoffman/git/gmail-archive/src/gmail_archive/mbox.py
+</parameter>
+</function>
+</tool_call>]
+0907 07:27:53 ds4-server: chat ctx=10240..11665:1425 TOOLS invalid tool call dsml_snippet: <tool_call>
+<function=read>
+<parameter=filePath>
+/Users/evanhoffman/git/gmail-archive/src/gmail_archive/mbox.py
+</parameter>
+</function>
+</tool_call>
+0907 07:27:53 ds4-server: chat ctx=10240..11665:1425 gen=55 TOOLS DSML_START DSML_END finish=error error="invalid tool call recovery failed: metal Qwen prefill failed at position 11720" 3.582s
+0907 07:27:53 ds4-server: live kv cache miss live=11720 prompt=13110 common=0 reason=token-mismatch
+0907 07:27:53 ds4-server: kv cache skipped tokens=11720 reason=evict because KV payload staging failed: session has no valid checkpoint to stage
+0907 07:27:53 ds4-server: kv cache hit text tokens=10240 text=42724 quant=4 key=token-text load=32.5 ms file=/Users/evanhoffman/.ds4/server-kv-mtp/d4241c29162d7a7eee8286ea44700a55d4ef0f3a.kv
+0907 07:27:53 ds4-server: chat ctx=10240..13110:2870 TOOLS prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0907 07:27:55 ds4-server: chat ctx=10240..13110:2870 TOOLS prefill chunk 2048/2870 (71.4%) chunk=0.00 t/s avg=1031.58 t/s 1.985s
+0907 07:27:56 ds4-server: chat ctx=10240..13110:2870 TOOLS prefill chunk 2870/2870 (100.0%) chunk=778.87 t/s avg=943.87 t/s 3.041s
+0907 07:27:56 ds4-server: chat ctx=10240..13110:2870 TOOLS prompt done 3.041s
+0907 07:27:58 ds4-server: chat ctx=13110..13160:50 gen=50 TOOLS DSML_START decoding chunk=39.19 t/s avg=39.19 t/s 1.276s
+0907 07:27:58 ds4-server: chat ctx=13160..13176:16 gen=66 TOOLS DSML_START DSML_END decoding chunk=40.26 t/s avg=39.45 t/s 1.673s
+0907 07:27:58 ds4-server: chat ctx=10240..13110:2870 TOOLS invalid tool call; continuing with model-visible tool error
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+ds4: Qwen MTP history frontier short cache=13109 expected=13175 rows=60 pos=13176 trunk=1
+ds4: Qwen graph failed stage=MTP-history rows=60 pos=13176
+0907 07:27:58 ds4-server: chat ctx=10240..13110:2870 TOOLS invalid tool call returned as assistant text finish=error [text_len=281 saw_start=1 saw_end=1 text_snippet: I should check the test file to understand what's being tested for the strip_envelope functionality.
+</think>
+
+<tool_call>
+{"name":"grep","arguments":{"pattern":"strip_envelope","path":"/Users/evanhoffman/git/gmail-archive","include":"*.py"}}>
+</parameter>
+</function>
+</tool_call>]
+0907 07:27:58 ds4-server: chat ctx=10240..13110:2870 TOOLS invalid tool call dsml_snippet: <tool_call>
+{"name":"grep","arguments":{"pattern":"strip_envelope","path":"/Users/evanhoffman/git/gmail-archive","include":"*.py"}}>
+</parameter>
+</function>
+</tool_call>
+0907 07:27:58 ds4-server: chat ctx=10240..13110:2870 gen=66 TOOLS DSML_START DSML_END finish=error error="invalid tool call recovery failed: metal Qwen prefill failed at position 13176" 4.977s
+0907 07:27:59 ds4-server: live kv cache miss live=13176 prompt=13180 common=0 reason=token-mismatch
+0907 07:27:59 ds4-server: kv cache skipped tokens=13176 reason=evict because KV payload staging failed: session has no valid checkpoint to stage
+0907 07:27:59 ds4-server: kv cache hit text tokens=10240 text=42724 quant=4 key=token-text load=33.2 ms file=/Users/evanhoffman/.ds4/server-kv-mtp/d4241c29162d7a7eee8286ea44700a55d4ef0f3a.kv
+0907 07:27:59 ds4-server: chat ctx=10240..13180:2940 TOOLS prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0907 07:28:01 ds4-server: chat ctx=10240..13180:2940 TOOLS prefill chunk 2048/2940 (69.7%) chunk=0.00 t/s avg=1038.23 t/s 1.973s
+0907 07:28:02 ds4-server: chat ctx=10240..13180:2940 TOOLS prefill chunk 2940/2940 (100.0%) chunk=815.96 t/s avg=958.97 t/s 3.066s
+0907 07:28:02 ds4-server: chat ctx=10240..13180:2940 TOOLS prompt done 3.066s
+0907 07:28:02 ds4-server: chat ctx=13180..13191:11 gen=11 TOOLS decoding chunk=37.84 t/s avg=37.84 t/s 0.291s
+0907 07:28:02 ds4-server: chat ctx=10240..13180:2940 gen=11 TOOLS finish=stop 3.357s
+0907 07:28:12 ds4-server: live kv cache miss live=13191 prompt=11661 common=11372 reason=token-mismatch
+0907 07:28:12 ds4-server: kv cache evicted reason=disk-cache-full tokens=18805 hits=0 size=667.21 MiB file=/Users/evanhoffman/.ds4/server-kv-mtp/38cf6a6a8d8351c50e03334bdcde456afa86586a.kv
+0907 07:28:12 ds4-server: kv cache stored tokens=13191 trimmed=0 reason=evict key=token-text size=502.33 MiB save=51.7 ms
+0907 07:28:12 ds4-server: kv cache hit text tokens=10240 text=42724 quant=4 key=token-text load=29.8 ms file=/Users/evanhoffman/.ds4/server-kv-mtp/d4241c29162d7a7eee8286ea44700a55d4ef0f3a.kv
+0907 07:28:12 ds4-server: chat ctx=10240..11661:1421 TOOLS prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0907 07:28:14 ds4-server: chat ctx=10240..11661:1421 TOOLS prefill chunk 1421/1421 (100.0%) chunk=0.00 t/s avg=737.92 t/s 1.926s
+0907 07:28:14 ds4-server: chat ctx=10240..11661:1421 TOOLS prompt done 1.926s
+0907 07:28:15 ds4-server: chat ctx=11661..11711:50 gen=50 TOOLS DSML_START decoding chunk=39.44 t/s avg=39.44 t/s 1.268s
+0907 07:28:15 ds4-server: chat ctx=11711..11713:2 gen=52 TOOLS DSML_START DSML_END decoding chunk=40.17 t/s avg=39.47 t/s 1.318s
+0907 07:28:15 ds4-server: chat ctx=10240..11661:1421 TOOLS invalid tool call; continuing with model-visible tool error
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+ds4: Qwen MTP history frontier short cache=11660 expected=11712 rows=60 pos=11713 trunk=1
+ds4: Qwen graph failed stage=MTP-history rows=60 pos=11713
+0907 07:28:15 ds4-server: chat ctx=10240..11661:1421 TOOLS invalid tool call returned as assistant text finish=error [text_len=218 saw_start=1 saw_end=1 text_snippet: Let's check the repository structure and related files.
+</think>
+
+<tool_call>
+<function=read>
+<parameter=filePath>
+/Users/evanhoffman/git/gmail-archive/src/gmail_archive/storage.py
+</parameter>
+</function>
+</tool_call>]
+0907 07:28:15 ds4-server: chat ctx=10240..11661:1421 TOOLS invalid tool call dsml_snippet: <tool_call>
+<function=read>
+<parameter=filePath>
+/Users/evanhoffman/git/gmail-archive/src/gmail_archive/storage.py
+</parameter>
+</function>
+</tool_call>
+0907 07:28:15 ds4-server: chat ctx=10240..11661:1421 gen=52 TOOLS DSML_START DSML_END finish=error error="invalid tool call recovery failed: metal Qwen prefill failed at position 11713" 3.506s
+0907 07:28:16 ds4-server: live kv cache miss live=11713 prompt=13450 common=0 reason=token-mismatch
+0907 07:28:16 ds4-server: kv cache skipped tokens=11713 reason=evict because KV payload staging failed: session has no valid checkpoint to stage
+0907 07:28:16 ds4-server: kv cache hit text tokens=10240 text=42724 quant=4 key=token-text load=32.6 ms file=/Users/evanhoffman/.ds4/server-kv-mtp/d4241c29162d7a7eee8286ea44700a55d4ef0f3a.kv
+0907 07:28:16 ds4-server: chat ctx=10240..13450:3210 TOOLS prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0907 07:28:18 ds4-server: chat ctx=10240..13450:3210 TOOLS prefill chunk 2048/3210 (63.8%) chunk=0.00 t/s avg=1058.38 t/s 1.935s
+0907 07:28:19 ds4-server: chat ctx=10240..13450:3210 TOOLS prefill chunk 3210/3210 (100.0%) chunk=880.53 t/s avg=986.27 t/s 3.255s
+0907 07:28:19 ds4-server: chat ctx=10240..13450:3210 TOOLS prompt done 3.255s
+0907 07:28:20 ds4-server: chat ctx=13450..13495:45 gen=45 TOOLS DSML_START DSML_END decoding chunk=38.32 t/s avg=38.32 t/s 1.174s
+0907 07:28:20 ds4-server: chat ctx=10240..13450:3210 TOOLS invalid tool call; continuing with model-visible tool error
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+ds4: Qwen MTP history frontier short cache=13449 expected=13494 rows=60 pos=13495 trunk=1
+ds4: Qwen graph failed stage=MTP-history rows=60 pos=13495
+0907 07:28:20 ds4-server: chat ctx=10240..13450:3210 TOOLS invalid tool call returned as assistant text finish=error [text_len=176 saw_start=1 saw_end=1 text_snippet: Please let me check the test suite of the storage.
+</think>
+
+<tool_call>
+{"name":"bash","arguments":{"command":"ls tests/ && rg -l "put|BlobStore" tests/ | head"}}
+</tool_call>]
+0907 07:28:20 ds4-server: chat ctx=10240..13450:3210 TOOLS invalid tool call dsml_snippet: <tool_call>
+{"name":"bash","arguments":{"command":"ls tests/ && rg -l "put|BlobStore" tests/ | head"}}
+</tool_call>
+0907 07:28:20 ds4-server: chat ctx=10240..13450:3210 gen=45 TOOLS DSML_START DSML_END finish=error error="invalid tool call recovery failed: metal Qwen prefill failed at position 13495" 4.692s
+0907 07:28:20 ds4-server: live kv cache miss live=13495 prompt=13499 common=0 reason=token-mismatch
+0907 07:28:20 ds4-server: kv cache skipped tokens=13495 reason=evict because KV payload staging failed: session has no valid checkpoint to stage
+0907 07:28:20 ds4-server: kv cache hit text tokens=10240 text=42724 quant=4 key=token-text load=33.2 ms file=/Users/evanhoffman/.ds4/server-kv-mtp/d4241c29162d7a7eee8286ea44700a55d4ef0f3a.kv
+0907 07:28:20 ds4-server: chat ctx=10240..13499:3259 TOOLS prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0907 07:28:22 ds4-server: chat ctx=10240..13499:3259 TOOLS prefill chunk 2048/3259 (62.8%) chunk=0.00 t/s avg=1066.05 t/s 1.921s
+0907 07:28:24 ds4-server: chat ctx=10240..13499:3259 TOOLS prefill chunk 3259/3259 (100.0%) chunk=867.56 t/s avg=982.52 t/s 3.317s
+0907 07:28:24 ds4-server: chat ctx=10240..13499:3259 TOOLS prompt done 3.317s
+0907 07:28:24 ds4-server: chat ctx=13499..13503:4 gen=4 TOOLS decoding chunk=37.08 t/s avg=37.08 t/s 0.108s
+0907 07:28:24 ds4-server: chat ctx=10240..13499:3259 gen=4 TOOLS finish=stop 3.425s
+0907 07:28:38 ds4-server: live kv cache miss live=13503 prompt=11660 common=11619 reason=token-mismatch
+0907 07:28:38 ds4-server: kv cache evicted reason=disk-cache-full tokens=13191 hits=0 size=502.33 MiB file=/Users/evanhoffman/.ds4/server-kv-mtp/c42ae9e00baef1eecd05471032d80a7bb336950f.kv
+0907 07:28:38 ds4-server: kv cache stored tokens=13503 trimmed=0 reason=evict key=token-text size=511.51 MiB save=54.3 ms
+0907 07:28:38 ds4-server: kv cache hit text tokens=10240 text=42724 quant=4 key=token-text load=28.7 ms file=/Users/evanhoffman/.ds4/server-kv-mtp/d4241c29162d7a7eee8286ea44700a55d4ef0f3a.kv
+0907 07:28:38 ds4-server: chat ctx=10240..11660:1420 TOOLS prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0907 07:28:40 ds4-server: chat ctx=10240..11660:1420 TOOLS prefill chunk 1420/1420 (100.0%) chunk=0.00 t/s avg=744.43 t/s 1.907s
+0907 07:28:40 ds4-server: chat ctx=10240..11660:1420 TOOLS prompt done 1.908s
+0907 07:28:41 ds4-server: chat ctx=11660..11710:50 gen=50 TOOLS DSML_START DSML_END decoding chunk=39.62 t/s avg=39.62 t/s 1.262s
+0907 07:28:41 ds4-server: chat ctx=10240..11660:1420 TOOLS invalid tool call; continuing with model-visible tool error
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+ds4: Qwen MTP history frontier short cache=11659 expected=11709 rows=60 pos=11710 trunk=1
+ds4: Qwen graph failed stage=MTP-history rows=60 pos=11710
+0907 07:28:41 ds4-server: chat ctx=10240..11660:1420 TOOLS invalid tool call returned as assistant text finish=error [text_len=195 saw_start=1 saw_end=1 text_snippet: Let me check the files and tests.
+</think>
+
+<tool_call>
+<function=read>
+<parameter=filePath>
+/Users/evanhoffman/git/gmail-archive/src/gmail_archive/parser.py
+</parameter>
+</function>
+</tool_call>]
+0907 07:28:41 ds4-server: chat ctx=10240..11660:1420 TOOLS invalid tool call dsml_snippet: <tool_call>
+<function=read>
+<parameter=filePath>
+/Users/evanhoffman/git/gmail-archive/src/gmail_archive/parser.py
+</parameter>
+</function>
+</tool_call>
+0907 07:28:41 ds4-server: chat ctx=10240..11660:1420 gen=50 TOOLS DSML_START DSML_END finish=error error="invalid tool call recovery failed: metal Qwen prefill failed at position 11710" 3.432s
+0907 07:28:42 ds4-server: live kv cache miss live=11710 prompt=16741 common=0 reason=token-mismatch
+0907 07:28:42 ds4-server: kv cache skipped tokens=11710 reason=evict because KV payload staging failed: session has no valid checkpoint to stage
+0907 07:28:42 ds4-server: kv cache hit text tokens=10240 text=42724 quant=4 key=token-text load=33.5 ms file=/Users/evanhoffman/.ds4/server-kv-mtp/d4241c29162d7a7eee8286ea44700a55d4ef0f3a.kv
+0907 07:28:42 ds4-server: chat ctx=10240..16741:6501 TOOLS prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0907 07:28:43 ds4-server: chat ctx=10240..16741:6501 TOOLS prefill chunk 2048/6501 (31.5%) chunk=0.00 t/s avg=1071.90 t/s 1.911s
+0907 07:28:45 ds4-server: chat ctx=10240..16741:6501 TOOLS prefill chunk 4096/6501 (63.0%) chunk=1028.30 t/s avg=1049.65 t/s 3.902s
+0907 07:28:47 ds4-server: chat ctx=10240..16741:6501 TOOLS prefill chunk 6144/6501 (94.5%) chunk=1020.39 t/s avg=1039.71 t/s 5.909s
+0907 07:28:49 ds4-server: chat ctx=10240..16741:6501 TOOLS prefill chunk 6501/6501 (100.0%) chunk=234.98 t/s avg=875.13 t/s 7.429s
+0907 07:28:49 ds4-server: chat ctx=10240..16741:6501 TOOLS prompt done 7.429s
+0907 07:28:50 ds4-server: chat ctx=16741..16791:50 gen=50 TOOLS DSML_START decoding chunk=39.08 t/s avg=39.08 t/s 1.280s
+0907 07:28:50 ds4-server: chat ctx=16791..16794:3 gen=53 TOOLS DSML_START DSML_END decoding chunk=40.24 t/s avg=39.14 t/s 1.354s
+0907 07:28:50 ds4-server: tool calls ctx=10240..16741:6501 n=1 raw_tool_text=1 ids=[call_bd80246aceec2963e82518b777fff73e] names=[grep]
+0907 07:28:50 ds4-server: chat ctx=10240..16741:6501 gen=53 TOOLS DSML_START DSML_END finish=tool_calls 8.783s
+0907 07:28:51 ds4-server: live kv cache miss live=16794 prompt=17788 common=16755 reason=token-mismatch
+0907 07:28:51 ds4-server: kv cache evicted reason=disk-cache-full tokens=13503 hits=0 size=511.51 MiB file=/Users/evanhoffman/.ds4/server-kv-mtp/346c8d9d2e303db0422c0c2cca562d4e4d17c296.kv
+0907 07:28:51 ds4-server: kv cache stored tokens=16794 trimmed=0 reason=evict key=token-text size=608.04 MiB save=64.5 ms
+0907 07:28:51 ds4-server: kv cache hit text tokens=10240 text=42724 quant=4 key=token-text load=36.2 ms file=/Users/evanhoffman/.ds4/server-kv-mtp/d4241c29162d7a7eee8286ea44700a55d4ef0f3a.kv
+0907 07:28:51 ds4-server: chat ctx=10240..17788:7548 TOOLS prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0907 07:28:53 ds4-server: chat ctx=10240..17788:7548 TOOLS prefill chunk 2048/7548 (27.1%) chunk=0.00 t/s avg=1115.53 t/s 1.836s
+0907 07:28:54 ds4-server: chat ctx=10240..17788:7548 TOOLS prefill chunk 4096/7548 (54.3%) chunk=1041.76 t/s avg=1077.38 t/s 3.802s
+0907 07:28:57 ds4-server: chat ctx=10240..17788:7548 TOOLS prefill chunk 6144/7548 (81.4%) chunk=1006.84 t/s avg=1052.79 t/s 5.836s
+0907 07:28:58 ds4-server: chat ctx=10240..17788:7548 TOOLS prefill chunk 7548/7548 (100.0%) chunk=894.12 t/s avg=1019.15 t/s 7.406s
+0907 07:28:58 ds4-server: chat ctx=10240..17788:7548 TOOLS prompt done 7.406s
+0907 07:28:59 ds4-server: chat ctx=17788..17838:50 gen=50 TOOLS THINKING decoding chunk=38.60 t/s avg=38.60 t/s 1.295s
+0907 07:29:01 ds4-server: chat ctx=17838..17888:50 gen=100 TOOLS DSML_START DSML_END decoding chunk=38.99 t/s avg=38.79 t/s 2.578s
+0907 07:29:01 ds4-server: chat ctx=10240..17788:7548 TOOLS invalid tool call; continuing with model-visible tool error
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+ds4: Qwen MTP history frontier short cache=17787 expected=17887 rows=60 pos=17888 trunk=1
+ds4: Qwen graph failed stage=MTP-history rows=60 pos=17888
+0907 07:29:01 ds4-server: chat ctx=10240..17788:7548 TOOLS invalid tool call returned as assistant text finish=error [text_len=441 saw_start=1 saw_end=1 text_snippet: Check around the TestDates section in test_parser.py, and check fixtures for date-related pathologies. Also, check whether there's a docstring or git history for _date. Let me check git log / git show for the original implementation.
+</think>
+
+<tool_call>
+{"name":"bash","arguments":{"command":"git l]
+0907 07:29:01 ds4-server: chat ctx=10240..17788:7548 TOOLS invalid tool call dsml_snippet: <tool_call>
+{"name":"bash","arguments":{"command":"git log --oneline -5 -- src/gmail_archive/parser.py && git log -S "removed for benchmark" --oneline -- src/gmail_archive/parser.py"}}
+</tool_call>
+0907 07:29:01 ds4-server: chat ctx=10240..17788:7548 gen=100 TOOLS DSML_START DSML_END finish=error error="invalid tool call recovery failed: metal Qwen prefill failed at position 17888" 10.248s
+0907 07:29:01 ds4-server: live kv cache miss live=17888 prompt=17892 common=0 reason=token-mismatch
+0907 07:29:01 ds4-server: kv cache skipped tokens=17888 reason=evict because KV payload staging failed: session has no valid checkpoint to stage
+0907 07:29:01 ds4-server: kv cache hit text tokens=10240 text=42724 quant=4 key=token-text load=34.8 ms file=/Users/evanhoffman/.ds4/server-kv-mtp/d4241c29162d7a7eee8286ea44700a55d4ef0f3a.kv
+0907 07:29:01 ds4-server: chat ctx=10240..17892:7652 TOOLS prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=resuming prefix cache
+0907 07:29:03 ds4-server: chat ctx=10240..17892:7652 TOOLS prefill chunk 2048/7652 (26.8%) chunk=0.00 t/s avg=1121.46 t/s 1.826s
+0907 07:29:05 ds4-server: chat ctx=10240..17892:7652 TOOLS prefill chunk 4096/7652 (53.5%) chunk=1052.34 t/s avg=1085.80 t/s 3.772s
+0907 07:29:07 ds4-server: chat ctx=10240..17892:7652 TOOLS prefill chunk 6144/7652 (80.3%) chunk=1023.95 t/s avg=1064.37 t/s 5.772s
+0907 07:29:09 ds4-server: chat ctx=10240..17892:7652 TOOLS prefill chunk 7652/7652 (100.0%) chunk=901.59 t/s avg=1027.80 t/s 7.445s
+0907 07:29:09 ds4-server: chat ctx=10240..17892:7652 TOOLS prompt done 7.445s
+0907 07:29:09 ds4-server: chat ctx=17892..17896:4 gen=4 TOOLS decoding chunk=36.07 t/s avg=36.07 t/s 0.111s
+0907 07:29:09 ds4-server: chat ctx=10240..17892:7652 gen=4 TOOLS finish=stop 7.556s
+0907 08:17:18 ds4-server: shutdown requested, draining requests
+0907 08:17:18 ds4-server: persisting resident KV cache before shutdown slot=0 tokens=17896
+0907 08:17:18 ds4-server: kv cache evicted reason=disk-cache-full tokens=16794 hits=0 size=608.04 MiB file=/Users/evanhoffman/.ds4/server-kv-mtp/52454a8225c57a82e4672d7599ae46d366048644.kv
+0907 08:17:18 ds4-server: kv cache stored tokens=17896 trimmed=0 reason=shutdown key=token-text size=640.51 MiB save=128.3 ms
