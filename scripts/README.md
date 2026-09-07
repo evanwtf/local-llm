@@ -55,6 +55,7 @@ documentation.
 | `sync_sandbox_targets.py` | Clone the harness's own copies of the task repositories into `sandbox/`. |
 | `thermals.py` | Read this Mac's die temperatures, with a timestamp, without sudo. |
 | `tool_error_conditional.py` | Does a tool error make the NEXT tool call more likely to fail? (#112) |
+| `tool_retry_count.py` | Count tool-call outcomes from an OpenCode client transcript. |
 | `upstream_sweep.py` | Sweep the repositories this project depends on, in one command. |
 | `verify_posts.py` | Verify X posts against the source, for the claims that earned an issue. |
 | `ab_status.sh` | One status line for a set of decode-A/B run directories. |

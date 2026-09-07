@@ -104,10 +104,22 @@ def test_bare_json_scalar_raises(tmp_path) -> None:
         count_transcript(path)
 
 
-def test_not_json_at_all_raises(tmp_path) -> None:
-    """A file that is not JSON is refused as corruption."""
+def test_not_json_at_all_is_not_opencode_rather_than_corrupt(tmp_path) -> None:
+    """A file that is not JSON at all is a different client, not a broken one.
+
+    This reverses an earlier decision here, deliberately. Refusing such a file
+    as corruption is defensible in the abstract, but 55 aider transcripts in
+    ~/bench-logs carry a `.stdout.jsonl` name over plain text, and treating
+    them as corrupt made the CLI exit 1 on the whole corpus -- which is
+    indistinguishable, to a caller, from the data being bad.
+
+    The line number is the discriminator and it is a sharp one: a file whose
+    FIRST line is not JSON was never a JSONL stream, while a truncated
+    OpenCode transcript parses line 1 and breaks later. See
+    test_a_truncated_transcript_is_still_corruption.
+    """
     path = write_transcript(tmp_path, "this is not json\nneither is this\n")
-    with pytest.raises(TranscriptError, match="not valid JSON"):
+    with pytest.raises(NotOpenCodeError, match="not a JSONL transcript"):
         count_transcript(path)
 
 
@@ -155,11 +167,12 @@ def test_only_bookkeeping_returns_zero(tmp_path) -> None:
 
 def test_stem_is_preserved_verbatim(tmp_path) -> None:
     """The join key is the full stem, including the unexplained .N infix."""
-    path = write_transcript(
-        tmp_path,
-        make_transcript([tool_use("bash", "completed", "a")]),
-        name="mbox-strip-envelope-qwen38fnds4kimat-opencode-1.stdout.2",
-    )
+    # Built directly, not via write_transcript: that helper appends
+    # ".stdout.jsonl" to the name it is given, so passing a name that already
+    # ends ".stdout.2" produced "....stdout.2.stdout.jsonl" and the test was
+    # asserting against a filename the corpus never contains.
+    path = tmp_path / "mbox-strip-envelope-qwen38fnds4kimat-opencode-1.stdout.2.jsonl"
+    path.write_text(make_transcript([tool_use("bash", "completed", "a")]))
     row = count_transcript(path)
     assert (
         row["transcript"] == "mbox-strip-envelope-qwen38fnds4kimat-opencode-1.stdout.2"
@@ -296,3 +309,44 @@ def test_directory_yields_row_per_non_partial_shape(tmp_path) -> None:
             assert r["partial"] is True
         else:
             assert "partial" not in r
+
+
+def test_a_first_line_that_is_not_json_is_not_opencode(tmp_path) -> None:
+    """aider writes plain text into a `.stdout.jsonl` name; the extension lies.
+
+    55 such files sit in ~/bench-logs. Reporting them as corruption made the
+    CLI exit 1 on the very corpus it was built to read.
+    """
+    path = tmp_path / "trial.stdout.jsonl"
+    path.write_text("Aider v0.1\nsome plain text\n")
+    with pytest.raises(NotOpenCodeError):
+        read_tool_calls(path)
+
+
+def test_a_truncated_transcript_is_still_corruption(tmp_path) -> None:
+    """Line 1 parses, so this is a JSONL stream -- and a broken one."""
+    path = tmp_path / "trial.stdout.jsonl"
+    path.write_text(json.dumps({"type": "step_start"}) + "\n{not json\n")
+    with pytest.raises(TranscriptError):
+        read_tool_calls(path)
+
+
+def test_an_empty_partial_is_an_incomplete_trial_not_corruption(tmp_path) -> None:
+    """A trial that died before writing anything is a real outcome.
+
+    Three such files sit in ~/bench-logs. `issued: 0` with `partial: true`
+    says what happened; refusing them said the data was broken.
+    """
+    path = tmp_path / "trial.stdout.partial.jsonl"
+    path.write_text("")
+    row = count_transcript(path)
+    assert row["issued"] == 0
+    assert row["partial"] is True
+
+
+def test_an_empty_non_partial_transcript_is_still_corruption(tmp_path) -> None:
+    """A COMPLETE trial that wrote nothing did not happen."""
+    path = tmp_path / "trial.stdout.jsonl"
+    path.write_text("")
+    with pytest.raises(TranscriptError, match="empty"):
+        count_transcript(path)

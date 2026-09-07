@@ -106,6 +106,16 @@ class NotOpenCodeError(TranscriptError):
     """
 
 
+def _is_partial(path: pathlib.Path) -> bool:
+    """True when the filename marks an incomplete trial.
+
+    The marker is a dot-separated COMPONENT, not the stem's tail: run.py
+    appends its collision index after the suffix, so a collided partial is
+    `foo.stdout.partial.2.jsonl`.
+    """
+    return "partial" in path.name.split(".")
+
+
 def read_tool_calls(path: pathlib.Path) -> list[ToolCall]:
     """Read a transcript into its tool calls, refusing bad shapes.
 
@@ -128,6 +138,17 @@ def read_tool_calls(path: pathlib.Path) -> list[ToolCall]:
         try:
             event = json.loads(line)
         except json.JSONDecodeError as exc:
+            # A FIRST line that is not JSON means this is not a JSONL stream at
+            # all -- aider writes plain text into a `.stdout.jsonl` name, so the
+            # extension lies and 55 such files sit in the corpus. That is a
+            # client-detection fact, not corruption, and reporting it as
+            # corruption makes the tool exit non-zero on a directory it was
+            # built to read. A TRUNCATED OpenCode transcript still parses line 1
+            # and fails later, so it is still caught below.
+            if lineno == 1:
+                raise NotOpenCodeError(
+                    f"line 1 is not JSON, so this is not a JSONL transcript: {exc}"
+                ) from exc
             raise TranscriptError(f"line {lineno} is not valid JSON: {exc}") from exc
         if not isinstance(event, dict):
             raise TranscriptError(f"line {lineno} is not a JSON object")
@@ -141,6 +162,13 @@ def read_tool_calls(path: pathlib.Path) -> list[ToolCall]:
         if etype == EVENT_TOOL_USE:
             calls.append(_parse_tool_call(event, lineno))
     if not saw_line:
+        # An empty `.partial` is the limiting case of an incomplete trial: the
+        # trial died before writing anything. That is a real, expected outcome
+        # and the row says so (`partial: true`, `issued: 0`). An empty file
+        # that is NOT marked partial is still corruption -- a complete trial
+        # that wrote nothing did not happen.
+        if _is_partial(path):
+            return []
         raise TranscriptError("transcript is empty")
     return calls
 
@@ -178,7 +206,7 @@ def row_from_calls(
         "errored": sum(1 for c in calls if c.status == STATUS_ERROR),
         "distinct_tools": len({c.tool for c in calls}),
     }
-    if "partial" in path.name.split("."):
+    if _is_partial(path):
         row["partial"] = True
     return row
 
