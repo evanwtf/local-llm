@@ -1464,3 +1464,28 @@ self-hosted Linux runner (`runs-on: [self-hosted, Linux, X64]`), so a PR can go
 green there while the run lock is held here. Holding a peer back from pushing
 costs idle time and buys nothing. What the rule forbids is `uv run pytest` and
 `uv run ruff` **on this machine** while a batch holds the lock.
+
+## When someone upstream asked, answering our own tracker is not answering
+
+On 2026-09-06 @GiorgioOppo asked three testers by name on `antirez/ds4#952`:
+*"@adamlawi @iammac2 @evandhoffman can you try again ?"* @iammac2 answered in
+seventy minutes. We ran exactly what was asked -- three paired runs at head,
+the Metal side of the `f309990` question, and all four of the new knobs --
+wrote every word of it onto our own issue, closed that issue, and **left the
+person who asked with nothing for eighteen hours.**
+
+This is the same failure as the committed-but-unpublished result above, one
+level further out, and it is easier to make: our tracker feels like publishing
+because it is where the work goes.
+
+The rule that prevents it:
+
+- **An upstream ask is not closed until the answer is upstream.** Our issue is
+  the work log; their thread is the reply. Closing ours does not discharge it.
+- **Never post to a repository outside `evanwtf` or `evandhoffman`.** So the
+  deliverable is a draft handed to the operator in the same turn the result
+  lands, not a note to do it later.
+- Check who else replied and when. A thread where the other testers have
+  answered and we have not is a fact about us, and it is visible to everyone
+  reading it.
+
