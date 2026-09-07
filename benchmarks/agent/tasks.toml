@@ -865,6 +865,8 @@ model = "glm-5.2"
 opencode_model = "ds4/glm-5.2"
 codex_profile = "glm52ds4"
 engine = "ds4"
+# No engine_tree: the description names no tree, and ds4 has four. An
+# undeclared backend resolves to nothing rather than guess one.
 context_tokens = 100000
 
 # GLM-5.3-Flash on ds4 -- **the supported stack** (#38).
@@ -915,6 +917,8 @@ auth_token = "dsv4-local"
 model = "glm-5.3-flash"
 context_tokens = 100000
 engine = "ds4"
+# No engine_tree: "on ds4 branch" names no tree, and ds4 has four. An
+# undeclared backend resolves to nothing rather than guess one.
 
 [backend.glm53ds4]
 description = "GLM-5.3-Flash Q2, antirez GGUF on ds4 upstream/main ec7642c"
@@ -924,6 +928,7 @@ model = "glm-5.3-flash"
 opencode_model = "ds4/glm-5.3-flash"
 codex_profile = "glm53ds4"
 engine = "ds4"
+engine_tree = "~/git/ds4-main"
 # Aider speaks the OpenAI API, so it never sends an Anthropic thinking block
 # and never needs the shim. ds4's default for an unrecognised mode is
 # high-effort thinking, which #63 measured at 8/8 on trivial functions against
@@ -950,7 +955,9 @@ description = "REFERENCE: hosted Claude Opus 5, medium reasoning effort"
 model = "claude-opus-5"
 effort = "medium"
 context_tokens = 200000
-engine = "ds4"
+# Hosted, not a local engine: no `engine` key, so a row for this backend
+# carries no engine build. Stamping the local ds4 sha here would be invented
+# provenance on the baseline every local number is read against.
 
 # Same weights, same server, same client as `ds4` under --client opencode --
 # but over the Anthropic wire protocol (/v1/messages) instead of the
@@ -973,6 +980,7 @@ model = "deepseek-v4-flash"
 opencode_model = "ds4anthropic/deepseek-v4-flash"
 codex_profile = "ds4"
 engine = "ds4"
+engine_tree = "~/git/ds4-ivan-qwen38fn"
 context_tokens = 100000
 
 [[task]]
@@ -1114,6 +1122,7 @@ model = "qwen3.8-flash-next-q4"
 opencode_model = "ds4/qwen3.8-flash-next-q4"
 context_tokens = 100000
 engine = "ds4"
+engine_tree = "~/git/ds4-metal"
 
 # Same pack, same binary, MTP speculation on at the depth the runtime's own
 # QWEN38_FLASH_NEXT.md measures as this pack's optimum (5-7; 8 goes EV-negative).
@@ -1134,6 +1143,7 @@ model = "qwen3.8-flash-next-q4"
 opencode_model = "ds4/qwen3.8-flash-next-q4"
 context_tokens = 100000
 engine = "ds4"
+engine_tree = "~/git/ds4-metal"
 # #148/#151: declared as a speculative arm, structurally rather than by its
 # name. A run selecting this backend refuses to start unless the engine's draft
 # counters are switched on and a --server-log is given to read them from, and
@@ -1221,6 +1231,7 @@ model = "qwen3.8-flash-next-q4"
 opencode_model = "ds4qwenshim/qwen3.8-flash-next-q4"
 context_tokens = 100000
 engine = "ds4"
+engine_tree = "~/git/ds4-metal"
 # #148/#151: declared as a speculative arm, structurally rather than by its
 # name. A run selecting this backend refuses to start unless the engine's draft
 # counters are switched on and a --server-log is given to read them from, and
@@ -1250,6 +1261,7 @@ model = "qwen3.8-flash-next-q4"
 opencode_model = "ds4qwenshim/qwen3.8-flash-next-q4"
 context_tokens = 100000
 engine = "ds4"
+engine_tree = "~/git/ds4-ivan-qwen38fn"
 
 [backend.qwen38fnds4shim]
 description = "Qwen3.8-Flash-Next Q4 fast-pack on ds4-metal ba01f5d via the tool-format shim (non-streaming upstream), MTP off"
@@ -1259,3 +1271,4 @@ model = "qwen3.8-flash-next-q4"
 opencode_model = "ds4qwenshim/qwen3.8-flash-next-q4"
 context_tokens = 100000
 engine = "ds4"
+engine_tree = "~/git/ds4-metal"

@@ -31,29 +31,43 @@ for one it did.
 from __future__ import annotations
 
 import functools
+import os
 import pathlib
 import shutil
 import subprocess
+import time
 
 HERE = pathlib.Path(__file__).resolve().parent
 
-# The engines this repo runs, and how to find their build. `tree` is the
-# default git tree; a backend config may override it with `engine_tree` when
-# several trees of one engine exist (ds4 has four). `binary_rel` is the
-# binary's path inside the tree; `binary` is a brew binary resolved on PATH.
+# The engines this repo runs, and how to find their build. `binary_rel` is
+# the binary's path inside the tree; `binary` is a brew binary resolved on
+# PATH. There is deliberately no `tree` default here: ds4 has four trees on
+# this machine and llama.cpp's is set at run time by LLAMACPP_ROOT, so no one
+# answer is right for every caller. A backend names its tree with `engine_tree`
+# (ds4) or the harness sets LLAMACPP_ROOT (llama.cpp); an engine with neither
+# resolves to nothing, which is the "never guess" rule, not a gap.
 ENGINES: dict[str, dict[str, str]] = {
-    "ds4": {
-        "tree": str(pathlib.Path.home() / "git/ds4-ivan-qwen38fn"),
-        "binary_rel": "ds4-server",
-    },
-    "llama.cpp": {
-        "tree": str(pathlib.Path.home() / "git/llama.cpp"),
-        "binary_rel": "build/bin/llama-server",
-    },
+    "ds4": {"binary_rel": "ds4-server"},
+    "llama.cpp": {"binary_rel": "build/bin/llama-server"},
     "ollama": {"binary": "ollama"},
     "mtplx": {"binary": "mtplx"},
     "mlx-serve": {"binary": "mlx-serve"},
 }
+
+
+def _default_tree(engine: str) -> pathlib.Path | None:
+    """The tree an engine runs on when the caller names none.
+
+    ds4 has no default -- a backend must name its tree, because four exist and
+    a wrong one is worse than none. llama.cpp's tree is set at run time by
+    `LLAMACPP_ROOT`, the same env var the harness reads; the fallback is the
+    documented default, not a guess.
+    """
+    if engine == "llama.cpp":
+        return pathlib.Path(
+            os.environ.get("LLAMACPP_ROOT", "~/git/llama.cpp")
+        ).expanduser()
+    return None
 
 
 def _git(*args: str, cwd: pathlib.Path) -> str | None:
@@ -120,8 +134,8 @@ def identity(engine: str, tree: str | None = None) -> dict[str, object]:
     tree_path = None
     if tree:
         tree_path = pathlib.Path(tree).expanduser()
-    elif spec.get("tree"):
-        tree_path = pathlib.Path(spec["tree"]).expanduser()
+    else:
+        tree_path = _default_tree(engine)
     got: dict[str, object] = {"engine_name": engine}
 
     # A git tree: the sha is the version, the tree is the path, and dirty
@@ -132,7 +146,14 @@ def identity(engine: str, tree: str | None = None) -> dict[str, object]:
         if sha:
             got["engine_version"] = sha
         got["engine_tree"] = str(tree_path)
-        if _git("status", "--porcelain", cwd=tree_path):
+        # `engine_dirty` is tri-state, not a bool: None means git could not
+        # answer (a failed status must not read as "clean"), "" means clean,
+        # and any output means uncommitted code. A clean tree omits the key
+        # rather than writing false -- an absent key must not read as "dirty".
+        status = _git("status", "--porcelain", cwd=tree_path)
+        if status is None:
+            got["engine_dirty"] = "unknown"
+        elif status:
             got["engine_dirty"] = True
     else:
         # A brew binary: no tree, so the version is the --version output and
@@ -151,9 +172,13 @@ def identity(engine: str, tree: str | None = None) -> dict[str, object]:
     # The mtime of the binary is the one fact that survives a rebuild from
     # uncommitted changes -- a new binary has a new mtime even when the sha
     # is unchanged. This is the fact that makes `engine_dirty` meaningful.
+    # It is written in ISO 8601 with an explicit offset, the same shape the
+    # harness uses for every timestamp, so a row is comparable across runs.
     binary = _binary_path(spec, tree_path)
     if binary is not None:
         m = _mtime(binary)
         if m is not None:
-            got["engine_built"] = m
+            got["engine_built"] = time.strftime(
+                "%Y-%m-%dT%H:%M:%S%z", time.localtime(m)
+            )
     return got

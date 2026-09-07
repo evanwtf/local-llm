@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import pathlib
 import subprocess
+import time
 
 import engine_identity
 
@@ -64,11 +65,78 @@ def test_a_brew_binary_reports_version_output(tmp_path, monkeypatch):
     assert got["engine_tree"] == str(fake.parent)
 
 
-def test_engine_built_is_the_binary_mtime(tmp_path):
-    """A rebuilt binary has a new mtime even when the sha is unchanged."""
+def test_engine_built_is_the_binary_mtime_in_iso(tmp_path):
+    """A rebuilt binary has a new mtime even when the sha is unchanged.
+
+    The mtime is written in ISO 8601 with an explicit offset, the same shape
+    the harness uses for every timestamp, so a row is comparable across runs.
+    """
     tree = _git_tree(tmp_path)
     binary = tree / "ds4-server"
     binary.write_text("#!/bin/sh\necho hi\n")
     binary.chmod(0o755)
     got = engine_identity.identity("ds4", tree=str(tree))
-    assert got["engine_built"] == int(binary.stat().st_mtime)
+    m = int(binary.stat().st_mtime)
+    expected = time.strftime("%Y-%m-%dT%H:%M:%S%z", time.localtime(m))
+    assert got["engine_built"] == expected
+
+
+def test_a_failed_git_status_is_unknown_not_clean(tmp_path, monkeypatch):
+    """A git that cannot answer must not read as a clean tree.
+
+    `_git` returns None on failure and "" when clean; both are falsy, so a
+    naive `if status:` would omit `engine_dirty` either way and a failed
+    status would read as verified-clean. The tri-state keeps them apart.
+    """
+    tree = _git_tree(tmp_path)
+    real = engine_identity._git
+
+    def flaky(*args, **kw):
+        if args and args[0] == "status":
+            return None
+        return real(*args, **kw)
+
+    monkeypatch.setattr(engine_identity, "_git", flaky)
+    got = engine_identity.identity("ds4", tree=str(tree))
+    assert got["engine_dirty"] == "unknown"
+
+
+def test_a_hosted_backend_has_no_engine() -> None:
+    """opus5 is hosted Claude; stamping a local ds4 sha on it would be
+    invented provenance on the baseline every local number is read against."""
+    import tomllib
+
+    with (pathlib.Path(__file__).parent / "tasks.toml").open("rb") as fh:
+        backends = tomllib.load(fh)["backend"]
+    assert "engine" not in backends["opus5"]
+
+
+def _ds4_tree_from_description(desc: str) -> str | None:
+    """The tree a ds4 description names, or None if it names none."""
+    if "ds4-metal" in desc:
+        return "~/git/ds4-metal"
+    if "ivanfioravanti/ds4" in desc:
+        return "~/git/ds4-ivan-qwen38fn"
+    if "upstream/main" in desc:
+        return "~/git/ds4-main"
+    return None
+
+
+def test_every_ds4_backend_whose_description_names_a_tree_declares_it() -> None:
+    """A description that names a tree must declare it, or the row would
+    resolve to nothing -- or, before #195, to the wrong fork. ds4 has four
+    trees, so a wrong default is worse than none."""
+    import tomllib
+
+    with (pathlib.Path(__file__).parent / "tasks.toml").open("rb") as fh:
+        backends = tomllib.load(fh)["backend"]
+    for name, cfg in backends.items():
+        if cfg.get("engine") != "ds4":
+            continue
+        expected = _ds4_tree_from_description(cfg.get("description", ""))
+        if expected is None:
+            continue
+        assert cfg.get("engine_tree") == expected, (
+            f"{name} names {expected!r} in its description but declares "
+            f"{cfg.get('engine_tree')!r}"
+        )
