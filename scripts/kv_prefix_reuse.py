@@ -30,7 +30,8 @@ independent. `--sequential` keeps the one-server shape, and the row carries a
 from timestamps.
 
 **The reason is read out of the log, not guessed from the number.** ds4-server
-narrates every store and hit on stderr (ds4_kvstore.c:1140, 1323):
+narrates every store and hit on stderr (ds4_kvstore.c:1140 at ds4-main 9ab70534,
+ds4_kvstore.c:1323 at ds4-main 9ab70534):
 
     kv cache stored tokens=2048  trimmed=597 reason=cold      key=token-text size=... MiB save=... ms
     kv cache hit text tokens=10240 text=... quant=... key=... load=... ms file=/path
@@ -66,7 +67,7 @@ logger = logging.getLogger(__name__)
 READY_TIMEOUT_S = 300
 REQUEST_TIMEOUT_S = 600
 
-# The server narrates every store and hit on stderr (ds4_kvstore.c:1140, 1323).
+# The server narrates every store and hit on stderr (ds4_kvstore.c:1140 at ds4-main 9ab70534, ds4_kvstore.c:1323 at ds4-main 9ab70534).
 # The store line has no file path -- the file is content-addressed -- so a hit
 # is matched to the store that produced it by order: the reading request reuses
 # the most recent store before it.

@@ -233,10 +233,11 @@ def test_build_row_flags_cross_size_reuse():
         "reprefilled": 19605,
         "reading_hits": [kpr.HitEvent(file="/tmp/kv/file1", tokens=10240)],
     }
-    # The most recent store is from a different size (800), so cross_size is
-    # True -- the sequential-mode shape that #190 mislabelled as per-size.
-    all_stores = [(200, "cold", 2048), (800, "continued", 10240)]
-    row = kpr.build_row(800, got, all_stores)
+    # The 29845 reading reused a 10240 entry written during the 11045
+    # measurement -- the exact #190 confound. The most recent store is from a
+    # different size, so cross_size is True.
+    all_stores = [(200, "cold", 2048), (11045, "continued", 10240)]
+    row = kpr.build_row(29845, got, all_stores)
     assert row["reason"] == "continued"
     assert row["cross_size"] is True
 
@@ -264,7 +265,8 @@ def test_build_row_with_no_hit_has_no_mechanism():
 def test_isolate_is_the_default_mode():
     """The default must be isolate, not sequential -- the first #190 run
     measured every size against one server and published the confound."""
-    assert kpr.build_parser().parse_args([]).mode == "isolate"
+    args = kpr.build_parser().parse_args(["--tree", "t", "--gguf", "g"])
+    assert args.mode == "isolate"
 
 
 def test_isolate_mode_has_no_cross_size_reuse():
