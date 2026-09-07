@@ -445,3 +445,36 @@ def test_the_primary_label_is_not_claimed_for_other_experiments():
     assert "pre-registered primary" not in report.render(per_arm, {})
     on_off = {"on": (1, 10, 1, 10), "off": (1, 10, 1, 10)}
     assert "pre-registered primary" in report.render(on_off, {})
+
+
+def test_render_refuses_to_pair_sweeps_when_the_counts_differ():
+    """The shape the real data actually hits, and it printed nothing.
+
+    Batch 0906-1716 has legacy 1 sweep and sandbox 2 -- one legacy run was
+    voided. `len(av) == len(bv)` was false, so the whole pairing block was
+    skipped: no difference line, no no-call line, no warning. A reader saw the
+    per-sweep table, saw no comparison under it, and had nothing to fall back
+    on but the arm totals -- the pooled statistic #146 pre-registered against.
+    Silence there is the same bug the per-sweep read-out exists to fix.
+    """
+    sweeps = [(1, "legacy", 14, 15), (2, "sandbox", 13, 15), (3, "sandbox", 12, 15)]
+    out = report.render({}, {}, sweeps)
+    assert "NOT COMPUTED" in out
+    assert "legacy has 1 sweep(s), sandbox has 2" in out
+    assert "Do NOT read the arm totals" in out
+
+
+def test_render_refuses_to_pair_when_only_one_arm_ran():
+    """One arm and no counterpart is not a comparison either."""
+    sweeps = [(1, "legacy", 14, 15), (2, "legacy", 15, 15)]
+    out = report.render({}, {}, sweeps)
+    assert "NOT COMPUTED" in out
+    assert "nothing to pair against" in out
+
+
+def test_equal_sweep_counts_still_compute_a_difference():
+    """The refusal must not swallow the case it was added beside."""
+    sweeps = [(1, "legacy", 14, 15), (2, "sandbox", 15, 15)]
+    out = report.render({}, {}, sweeps)
+    assert "NOT COMPUTED" not in out
+    assert "paired by position: -1" in out

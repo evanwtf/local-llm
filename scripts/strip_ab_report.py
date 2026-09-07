@@ -362,6 +362,32 @@ def render(
                         "  the sweeps DISAGREE IN DIRECTION -- under #146's rule "
                         "that is the 'no call' branch, not a result."
                     )
+            else:
+                # Unequal sweep counts. Saying nothing here is the same bug
+                # this per-sweep read-out exists to fix, one level up: the
+                # reader sees the table, sees no comparison, and falls back to
+                # the arm totals -- which is the pooled statistic #146
+                # pre-registered *against*. Batch 0906-1716 is exactly this
+                # shape (legacy 1 sweep, sandbox 2, one legacy run voided) and
+                # printed no comparison and no warning at all.
+                lines.append("")
+                lines.append(
+                    f"per-sweep difference: NOT COMPUTED -- {a} has "
+                    f"{len(av)} sweep(s), {b} has {len(bv)}."
+                )
+                lines.append(
+                    "  #146 pre-registered on paired sweeps, so an unequal "
+                    "count is a 'no call' too. Do NOT read the arm totals "
+                    "instead: pooling is the comparison the pairing exists "
+                    "to avoid."
+                )
+        elif len(by_arm) == 1:
+            only = next(iter(by_arm))
+            lines.append("")
+            lines.append(
+                f"per-sweep difference: NOT COMPUTED -- only {only} has "
+                f"sweeps in this batch; there is nothing to pair against."
+            )
         lines.append("")
     if len(counts) == 2:
         first, second = order
