@@ -249,8 +249,11 @@ def _report_effects(effects: ArmEffects) -> None:
         from_clause,
     )
     total = sum(len(reps) for _, _, reps in effects.groups)
+    a_label, b_label = effects.groups[0][0], effects.groups[1][0]
     logger.info(
-        "arm effect r = %.3f (%+.1f%%)  from the same %d reps",
+        "arm effect r = %s/%s = %.3f (%+.1f%%)  from the same %d reps",
+        a_label,
+        b_label,
         effects.arm,
         100 * (effects.arm - 1),
         total,

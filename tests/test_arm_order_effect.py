@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import pathlib
 import sys
@@ -250,28 +251,30 @@ def build_run(tmp_path, engines: str) -> None:
     (tmp_path / "engines.txt").write_text(engines)
 
 
-def test_main_refuses_bare_position_when_arms_differ(tmp_path, capsys):
+def test_main_refuses_bare_position_when_arms_differ(tmp_path, caplog):
     """A bare position number would conflate position with arm; the run must
-    report both effects instead."""
+    report both effects instead, with the arms named on the r line."""
     build_run(
         tmp_path,
         "A label=head tree=/x @ abc\nB label=base tree=/y @ def\n",
     )
-    assert aoe.main([str(tmp_path)]) == 0
-    out = capsys.readouterr().out
+    with caplog.at_level(logging.INFO):
+        assert aoe.main([str(tmp_path)]) == 0
+    out = caplog.text
     assert "median position effect" not in out, "bare position refused when arms differ"
     assert "position effect p" in out
-    assert "arm effect r" in out
+    assert "arm effect r = head/base" in out, "the r line must name its numerator"
 
 
-def test_main_prints_bare_position_when_arms_same(tmp_path, capsys):
+def test_main_prints_bare_position_when_arms_same(tmp_path, caplog):
     """Same arm twice: r is 1 by construction, so the bare position number is
     the whole story and the p/r line is redundant."""
     build_run(
         tmp_path,
         "A label=head tree=/x @ abc\nB label=head tree=/x @ abc\n",
     )
-    assert aoe.main([str(tmp_path)]) == 0
-    out = capsys.readouterr().out
+    with caplog.at_level(logging.INFO):
+        assert aoe.main([str(tmp_path)]) == 0
+    out = caplog.text
     assert "median position effect" in out
     assert "position effect p" not in out
