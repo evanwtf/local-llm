@@ -37,10 +37,17 @@ is never a silent zero:
   JSON, a line that is not a JSON object (a bare scalar), or a `tool_use`
   event missing its outcome.
 
-The join key is the transcript stem, preserved verbatim. Filenames changed
-shape over time (`<task>-<backend>-<client>-<trial>.stdout[.N].jsonl` vs the
-older no-client form), and the `.N` infix is not yet explained, so the stem is
-treated as opaque and never parsed.
+The join key is the transcript stem, preserved verbatim. The `.N` infix is
+#112's collision guard: a second sweep writing the same task+backend gets
+`.2`, a third gets `.3`, and each is a distinct trial from a distinct sweep.
+run.py writes the FULL PATH into result["client_log"] (run.py:2137), so
+anything joining to results.jsonl must derive the key from that path the same
+way this script derives it from the file it reads: path.stem.
+
+A `.stdout.partial.jsonl` file is an INCOMPLETE trial (run.py writes
+`.partial` when the trial did not finish). Its counts are not comparable to a
+complete trial's, so the row carries `partial: true`; a caller must not
+average it in by accident.
 """
 
 from __future__ import annotations
@@ -51,7 +58,7 @@ import logging
 import pathlib
 import sys
 from dataclasses import dataclass
-from typing import NoReturn
+from typing import NoReturn, TextIO
 
 logger = logging.getLogger(__name__)
 
@@ -152,17 +159,27 @@ def _parse_tool_call(event: dict, lineno: int) -> ToolCall:
     return ToolCall(tool=tool, status=status, input=state.get("input"))
 
 
-def row_from_calls(path: pathlib.Path, calls: list[ToolCall]) -> dict[str, int | str]:
-    """Build the per-trial row from the parsed tool calls."""
-    return {
+def row_from_calls(
+    path: pathlib.Path, calls: list[ToolCall]
+) -> dict[str, int | str | bool]:
+    """Build the per-trial row from the parsed tool calls.
+
+    A partial transcript (stem ends `.partial`) is an incomplete trial; its
+    counts are not comparable to a complete one, so the row admits it with
+    `partial: true` rather than letting a caller average it in by accident.
+    """
+    row: dict[str, int | str | bool] = {
         "transcript": path.stem,
         "issued": len(calls),
         "errored": sum(1 for c in calls if c.status == STATUS_ERROR),
         "distinct_tools": len({c.tool for c in calls}),
     }
+    if path.stem.endswith(".partial"):
+        row["partial"] = True
+    return row
 
 
-def count_transcript(path: pathlib.Path) -> dict[str, int | str]:
+def count_transcript(path: pathlib.Path) -> dict[str, int | str | bool]:
     """Count tool-call outcomes in one transcript.
 
     Returns a row keyed by the transcript stem, joinable to results.jsonl on
@@ -193,14 +210,17 @@ def infer_retries(calls: list[ToolCall]) -> int:
 def _expand_inputs(paths: list[str]) -> list[pathlib.Path]:
     """Expand file and directory arguments into transcript paths.
 
-    A directory contributes its `*.stdout.jsonl` files, sorted. A file is used
-    as given.
+    A directory contributes its `*.stdout*.jsonl` files, sorted. The glob
+    must match every shape the corpus uses: `<name>.stdout.jsonl`,
+    `<name>.stdout.2.jsonl` (and `.3`, ...), and `<name>.stdout.partial.jsonl`.
+    A glob of only `*.stdout.jsonl` would silently drop the collision-guard
+    and partial shapes. A file is used as given.
     """
     out: list[pathlib.Path] = []
     for raw in paths:
         path = pathlib.Path(raw)
         if path.is_dir():
-            out.extend(sorted(path.glob("*.stdout.jsonl")))
+            out.extend(sorted(path.glob("*.stdout*.jsonl")))
         else:
             out.append(path)
     return out
@@ -211,7 +231,12 @@ def main(argv: list[str] | None = None) -> NoReturn:
     p.add_argument(
         "transcripts",
         nargs="+",
-        help="transcript file(s), or directories of *.stdout.jsonl files",
+        help="transcript file(s), or directories of *.stdout*.jsonl files",
+    )
+    p.add_argument(
+        "--out",
+        metavar="PATH",
+        help="write the JSONL rows to PATH (default: stdout)",
     )
     p.add_argument(
         "--infer-retries",
@@ -220,7 +245,22 @@ def main(argv: list[str] | None = None) -> NoReturn:
         "measurement)",
     )
     args = p.parse_args(argv)
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
+
+    # Diagnostics go to stderr so stdout stays clean JSONL (pipeable to jq).
+    logging.basicConfig(level=logging.INFO, stream=sys.stderr, format="%(message)s")
+
+    # Rows go to stdout, or to --out when given. A separate logger keeps them
+    # off the diagnostic stream.
+    row_stream: TextIO = sys.stdout
+    if args.out:
+        row_stream = open(args.out, "w")
+    row_logger = logging.getLogger(__name__ + ".rows")
+    row_logger.propagate = False
+    row_logger.setLevel(logging.INFO)
+    row_handler = logging.StreamHandler(row_stream)
+    row_handler.setFormatter(logging.Formatter("%(message)s"))
+    row_logger.addHandler(row_handler)
+
     failures = 0
     for path in _expand_inputs(args.transcripts):
         try:
@@ -235,7 +275,9 @@ def main(argv: list[str] | None = None) -> NoReturn:
         row = row_from_calls(path, calls)
         if args.infer_retries:
             row["retried"] = infer_retries(calls)
-        logger.info(json.dumps(row, sort_keys=True))
+        row_logger.info(json.dumps(row, sort_keys=True))
+    if args.out:
+        row_stream.close()
     if failures:
         raise SystemExit(1)
     raise SystemExit(0)

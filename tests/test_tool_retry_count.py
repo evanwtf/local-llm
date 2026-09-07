@@ -27,8 +27,10 @@ from tool_retry_count import (
     NotOpenCodeError,
     ToolCall,
     TranscriptError,
+    _expand_inputs,
     count_transcript,
     infer_retries,
+    main,
     read_tool_calls,
 )
 
@@ -213,3 +215,69 @@ def test_read_tool_calls_returns_parsed_calls(tmp_path) -> None:
     assert calls[0].tool == "bash"
     assert calls[0].status == "error"
     assert calls[0].input == {"cmd": "ls"}
+
+
+def test_expand_inputs_globs_all_four_shapes(tmp_path) -> None:
+    """A directory contributes every transcript shape, not just the first.
+
+    A glob of only `*.stdout.jsonl` would silently drop the collision-guard
+    (`.2`, `.3`) and partial shapes. This is the regression the peer caught:
+    the old glob saw 30 of 69 files in the live slot-2 directory.
+    """
+    body = make_transcript([tool_use("bash", "completed", "a")])
+    for name in ("foo.stdout", "foo.stdout.2", "foo.stdout.3", "foo.stdout.partial"):
+        (tmp_path / f"{name}.jsonl").write_text(body)
+    paths = _expand_inputs([str(tmp_path)])
+    assert [p.name for p in paths] == [
+        "foo.stdout.2.jsonl",
+        "foo.stdout.3.jsonl",
+        "foo.stdout.jsonl",
+        "foo.stdout.partial.jsonl",
+    ]
+
+
+def test_partial_transcript_is_marked(tmp_path) -> None:
+    """A partial transcript admits it, so a caller cannot average it in."""
+    path = tmp_path / "foo.stdout.partial.jsonl"
+    path.write_text(make_transcript([tool_use("bash", "completed", "a")]))
+    row = count_transcript(path)
+    assert row["transcript"] == "foo.stdout.partial"
+    assert row["partial"] is True
+
+
+def test_complete_transcript_is_not_marked(tmp_path) -> None:
+    """A complete transcript carries no partial field."""
+    path = write_transcript(
+        tmp_path, make_transcript([tool_use("bash", "completed", "a")])
+    )
+    row = count_transcript(path)
+    assert "partial" not in row
+
+
+def test_directory_yields_row_per_non_partial_shape(tmp_path) -> None:
+    """A directory with all four shapes yields a row for each, partial marked.
+
+    The fixture uses the exact filenames the corpus produces, so a glob that
+    only matches the first shape cannot pass this test.
+    """
+    d = tmp_path / "shapes"
+    d.mkdir()
+    body = make_transcript([tool_use("bash", "completed", "a")])
+    for name in ("foo.stdout", "foo.stdout.2", "foo.stdout.3", "foo.stdout.partial"):
+        (d / f"{name}.jsonl").write_text(body)
+    out = tmp_path / "rows.jsonl"
+    with pytest.raises(SystemExit) as exc:
+        main([str(d), "--out", str(out)])
+    assert exc.value.code == 0
+    rows = [json.loads(line) for line in out.read_text().splitlines()]
+    assert [r["transcript"] for r in rows] == [
+        "foo.stdout.2",
+        "foo.stdout.3",
+        "foo.stdout",
+        "foo.stdout.partial",
+    ]
+    for r in rows:
+        if r["transcript"] == "foo.stdout.partial":
+            assert r["partial"] is True
+        else:
+            assert "partial" not in r
