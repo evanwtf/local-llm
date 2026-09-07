@@ -1753,6 +1753,55 @@ Related: the same asymmetry runs the other way. A peer that pushes back with a
 mechanism is usually worth believing -- see the route-field correction on the
 same day, where the peer was right and I was wrong twice.
 
+## A branch named after a machine holds data, not a feature (2026-09-07)
+
+**`Ryzen9-7900X-32GB-RTX3080Ti-12GB` must not be deleted.** It is the second
+hardware tier's data branch, and it is the only place 96 of its measurements
+exist.
+
+```
+hardware/Ryzen9-7900X-32GB-RTX3080Ti-12GB/results.jsonl
+  on origin/main   16 rows
+  on the branch   112 rows
+```
+
+Those 112 rows cover seven backends -- `dtgemma412b`, `dtornith159b`,
+`dtqwen359b`, `dtmistralnemo`, `dtqwen359bq8`, `dtgemma4e4b`, `dtbonsai27b` --
+measured 2026-09-02 to 2026-09-03 on hardware this laptop is not. They cannot
+be re-derived here at any price: the machine is a different one. It also
+carries that tier's `RESULTS.md` and its `hardware-id-*` logs.
+
+The branch reads exactly like an abandoned feature branch and that is the
+trap. On 2026-09-07 it showed **5 commits ahead, 346 behind**, last touched
+five days earlier, with no open PR. Every one of those signals says "stale"
+for a feature branch and none of them mean anything for a data branch: it is
+behind because main moves on this machine, and it is ahead because the other
+machine wrote rows nobody has merged.
+
+**Before deleting any branch, ask what kind it is.** The test that settles a
+feature branch is whether merging it changes anything:
+
+```sh
+git worktree add --detach /tmp/mt origin/main
+git -C /tmp/mt merge --no-commit --no-ff origin/<branch>
+git -C /tmp/mt diff --cached --shortstat origin/main   # empty => superseded
+```
+
+That test is correct for code and **wrong for data**. A machine branch fails
+it the same way a live one does, because a data branch is never "merged" in
+the sense a feature branch is -- it accumulates. Six branches were deleted on
+2026-09-07 on the strength of that test, correctly; this one was kept, and the
+only thing separating them was reading the diff rather than the graph.
+
+The rule: **a branch whose name is a machine name is a data branch. Check its
+`hardware/<that machine>/results.jsonl` row count against main before touching
+it, and never delete it because it looks stale.**
+
+Whether those 96 rows should be merged into main is a separate and still-open
+question -- see the pre-`--dir` archive rule above, and
+[[Never resolve a data file by taking the union of two row sets]]. Merging
+them is not a `git merge`; it is an append that has to be argued for.
+
 ## Never resolve a data file by taking the union of two row sets (2026-09-07)
 
 `results.jsonl` is append-only in the ordinary case, so "keep both sides and
