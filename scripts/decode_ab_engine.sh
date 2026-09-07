@@ -148,9 +148,13 @@ uv run python "$(dirname "$0")/prompt_meta.py" --prompt "$PROMPT" --sidecar "$OU
   # nothing beside the rows said the sweep differed.
   echo "sweep ctx_start=$CTX_START ctx_max=$CTX_MAX step=$STEP gen=$GEN reps=$REPS"
   echo "prefill_chunk=${PREFILL_CHUNK:-<flag absent>}"
-  # These set the same caps as the flags, but only when the flags are absent
-  # (ds4.c:13554, :40447). An inherited value would silently change the prefill
-  # shape of a run that never mentions it.
+  # These set the same caps as the flags, but only when the flags are absent:
+  # ds4.c:12994 at ds4-main 9ab70534 reads DS4_METAL_PREFILL_CHUNK, and
+  # ds4.c:37561 at ds4-main 9ab70534 reads DS4_METAL_GRAPH_RAW_CAP. An
+  # inherited value would silently change the prefill shape of a run that
+  # never mentions it. (The previous line numbers here, 13554 and 40447, were
+  # from a different tree at a different sha and pointed at nothing -- which
+  # is the whole argument of #182.)
   echo "DS4_METAL_PREFILL_CHUNK=${DS4_METAL_PREFILL_CHUNK:-<unset>}"
   echo "DS4_METAL_GRAPH_RAW_CAP=${DS4_METAL_GRAPH_RAW_CAP:-<unset>}"
 } >> "$OUT/engines.txt"
