@@ -1,0 +1,9 @@
+2026-09-06 21:28:51,403 INFO [2681643@M5-Max-128GB] 2026-09-07T01:28:51Z (21:28:51 EDT) | harness 2681643
+2026-09-06 21:28:51,419 INFO [2681643@M5-Max-128GB]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-06 21:28:51,562 INFO [2681643@M5-Max-128GB] 2096739675041841196  VERIFIED post  @ivanfioravanti  Sun Sep 06 23:17:48 +0000 2026  via fxtwitter
+2026-09-06 21:28:51,562 INFO [2681643@M5-Max-128GB]     Ready! Is there a brave Apple Silicon user with a 64GB machine willing to test DwarfStar with Qwen 3.8 Flash Next?  In the video it runs at 65 t/s on M3 Ultra. 🚀  I uploaded Q2 weights here: https://h
+2026-09-06 21:28:51,562 INFO [2681643@M5-Max-128GB] 
+2026-09-06 21:28:51,562 INFO [2681643@M5-Max-128GB] Verified 1: 1 confirmed, 0 not.
+2026-09-06 21:28:51,562 INFO [2681643@M5-Max-128GB] Paste onto the issue:
+2026-09-06 21:28:51,562 INFO [2681643@M5-Max-128GB]   **Verified** 2026-09-07: post exists, authored by @ivanfioravanti, posted Sun Sep 06 23:17:48 +0000 2026.
+2026-09-06 21:28:51,562 INFO [2681643@M5-Max-128GB] log: /Users/evanhoffman/git/local-llm/logs/sweeps/verify-posts-M5-Max-128GB-20260907T012851Z.log

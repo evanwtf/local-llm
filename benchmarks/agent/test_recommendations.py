@@ -358,28 +358,63 @@ def _shim_backed_backends() -> set[str]:
     return found
 
 
-def test_every_shim_backed_row_is_named_in_the_strip_caveat() -> None:
+NUMBER_WORD = {1: "One", 2: "Two", 3: "Three", 4: "Four", 5: "Five", 6: "Six"}
+
+
+def _between(text: str, opening: str, closing: str) -> str:
+    """The span between two markers, or a clear failure.
+
+    Anchored on the sentence that does the enumerating, not on the section.
+    Checking the whole section is what the first version of this test did, and
+    it was weaker than its own commit message claimed: a backend dropped from
+    the list but still mentioned in a later paragraph kept the test green. The
+    peer found that by mutating it, which is the only way anyone would.
+    """
+    i = text.index(opening) + len(opening)
+    return text[i : text.index(closing, i)]
+
+
+def test_the_strip_caveat_enumerates_every_shim_backed_row() -> None:
     """The strip is worth 23 points where measured; a row it applies to and
-    the caveat does not name is a reproduction that will silently miss it."""
+    the caveat does not list is a reproduction that will silently miss it."""
     doc = DOC.read_text()
-    start = doc.index("### The shim's scaffolding strip is load-bearing")
-    section = doc[start:]
-    missing = sorted(b for b in _shim_backed_backends() if b not in section)
+    listed = _between(doc, "`qwen38fnds4*` rows \u2014 ", " \u2014 run behind")
+    missing = sorted(b for b in _shim_backed_backends() if b not in listed)
     assert not missing, (
-        f"shim-backed backends absent from the strip caveat: {missing}. "
-        "Add them, or the reader reproducing that row never learns the strip "
-        "is load-bearing."
+        f"shim-backed backends absent from the strip caveat's list: {missing}. "
+        "Add them to the enumeration, or a reader reproducing that row never "
+        "learns the strip is load-bearing."
     )
 
 
-def test_every_shim_backed_row_is_named_in_the_upstream_caveat() -> None:
+def test_the_strip_caveat_counts_the_rows_it_lists() -> None:
+    """"All three" has to stay true when a fourth shim backend appears."""
+    n = len(_shim_backed_backends())
+    word = NUMBER_WORD[n]
+    assert f"**All {word.lower()}** `qwen38fnds4*` rows" in DOC.read_text(), (
+        f"{n} backends run behind the shim; the strip caveat does not say "
+        f'"All {word.lower()}"'
+    )
+
+
+def test_the_upstream_caveat_enumerates_every_shim_backed_row() -> None:
     """Same rows, same argument: they all launch with --ple against a fork."""
     doc = DOC.read_text()
-    start = doc.index("### Three rows here cannot be reproduced")
-    section = doc[start : doc.index("###", start + 3)]
-    missing = sorted(b for b in _shim_backed_backends() if b not in section)
+    listed = _between(doc, "\nThe `qwen38fnds4", " rows all\nneed **PLE")
+    missing = sorted(
+        b for b in _shim_backed_backends() if b not in "The `qwen38fnds4" + listed
+    )
     assert not missing, (
-        f"shim-backed backends absent from the upstream caveat: {missing}"
+        f"shim-backed backends absent from the upstream caveat's list: {missing}"
+    )
+
+
+def test_the_upstream_caveat_heading_counts_the_rows() -> None:
+    """The heading said "One row" while the body named two and three applied."""
+    n = len(_shim_backed_backends())
+    heading = f"### {NUMBER_WORD[n]} rows here cannot be reproduced"
+    assert heading in DOC.read_text(), (
+        f"{n} rows need the fork; the heading does not say {NUMBER_WORD[n]!r}"
     )
 
 
