@@ -7,7 +7,7 @@
   "agent_effort": "unidentified",
   "repo": "/Users/evanhoffman/git/local-llm/.claude/worktrees/peer+160",
   "authored_at": "2026-09-06T12:26:00-0400",
-  "statement": "All four Metal knobs in the #162 table are value-parsed, not presence-based: each reads its env var through a helper that treats the literal \"0\" as off and any other non-empty value as on. The four knobs use three helpers, enumerated per knob: session-union and stream-overlap read through metal_graph_tp_env_flag (ds4.c:72007, 71923/71925), IQ2 grouped-MM reads through ds4_gpu_env_bool (ds4_metal.m:50582), and exact-rows-persistent reads through ds4_gpu_exact_rows_persistent_env_enabled (ds4_metal.m:14837). The three REQUIRE spellings (session-union, IQ2 grouped-MM, exact-rows-persistent) fail closed with an error print when ineligible, but there is NO positive admission print -- no Metal analogue of CUDA's `target_admitted=1`. The admission concept in the Metal sources is internal state (a `bool admitted` field, `state->admitted = true`, the `g_q4_qb_transient_f16_admission` struct), not a print. The only admission signal is the absence of the fail-closed error. Q4_STREAM_OVERLAP has no REQUIRE spelling at all; it is a soft opt-in via ENABLE/DISABLE only. This matters because a presence-based knob would let an 'off' arm silently run on (the adamlawi 0.0% trap); these are all value-parsed, so '0' genuinely disables.",
+  "statement": "All four Metal knobs in the #162 table are value-parsed, not presence-based: each reads its env var through a helper that treats the literal \"0\" as off and any other non-empty value as on. The four knobs use three helpers, enumerated per knob: session-union and stream-overlap read through metal_graph_tp_env_flag (ds4.c:72006-72007 at ds4-pr952 77a054e1; ds4.c:71922-71925 at ds4-pr952 77a054e1), IQ2 grouped-MM reads through ds4_gpu_env_bool (ds4_metal.m:50582 at ds4-pr952 77a054e1), and exact-rows-persistent reads through ds4_gpu_exact_rows_persistent_env_enabled (ds4_metal.m:14836-14837 at ds4-pr952 77a054e1). The three REQUIRE spellings (session-union, IQ2 grouped-MM, exact-rows-persistent) fail closed with an error print when ineligible, but there is NO positive admission print -- no Metal analogue of CUDA's `target_admitted=1`. The admission concept in the Metal sources is internal state (a `bool admitted` field, `state->admitted = true`, the `g_q4_qb_transient_f16_admission` struct), not a print. The only admission signal is the absence of the fail-closed error. Q4_STREAM_OVERLAP has no REQUIRE spelling at all; it is a soft opt-in via ENABLE/DISABLE only. This matters because a presence-based knob would let an 'off' arm silently run on (the adamlawi 0.0% trap); these are all value-parsed, so '0' genuinely disables.",
   "provenance": {
     "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
     "trees": {
@@ -18,7 +18,7 @@
   "claims": [
     {
       "id": "session-union-value-parsed",
-      "statement": "DS4_METAL_REQUIRE_Q4_SSD_SESSION_UNION is read via metal_graph_tp_env_flag (ds4.c:72006-72007), which returns dflt when unset/empty and `strcmp(env, \"0\") != 0` otherwise -- the literal \"0\" disables, any other non-empty value enables.",
+      "statement": "DS4_METAL_REQUIRE_Q4_SSD_SESSION_UNION is read via metal_graph_tp_env_flag (ds4.c:72006-72007 at ds4-pr952 77a054e1), which returns dflt when unset/empty and `strcmp(env, \"0\") != 0` otherwise -- the literal \"0\" disables, any other non-empty value enables.",
       "argv": [
         "grep",
         "-n",
@@ -47,7 +47,7 @@
     },
     {
       "id": "stream-overlap-value-parsed",
-      "statement": "DS4_METAL_ENABLE_Q4_STREAM_OVERLAP and DS4_METAL_DISABLE_Q4_STREAM_OVERLAP are read via metal_graph_tp_env_flag (ds4.c:71922-71925), which returns dflt when unset/empty and `strcmp(env, \"0\") != 0` otherwise -- the literal \"0\" disables, any other non-empty value enables.",
+      "statement": "DS4_METAL_ENABLE_Q4_STREAM_OVERLAP and DS4_METAL_DISABLE_Q4_STREAM_OVERLAP are read via metal_graph_tp_env_flag (ds4.c:71922-71925 at ds4-pr952 77a054e1), which returns dflt when unset/empty and `strcmp(env, \"0\") != 0` otherwise -- the literal \"0\" disables, any other non-empty value enables.",
       "argv": [
         "grep",
         "-n",
@@ -78,7 +78,7 @@
     },
     {
       "id": "iq2-value-parsed",
-      "statement": "DS4_METAL_REQUIRE_IQ2_XXS_SSD_PREFILL_MM is read via ds4_gpu_env_bool (ds4_metal.m:50582), which returns -1 when unset, 1 for 1/true/yes/on, 0 for 0/false/no/off, and treats an unrecognized value as presence-enabled with a warning -- the literal \"0\" disables.",
+      "statement": "DS4_METAL_REQUIRE_IQ2_XXS_SSD_PREFILL_MM is read via ds4_gpu_env_bool (ds4_metal.m:50582 at ds4-pr952 77a054e1), which returns -1 when unset, 1 for 1/true/yes/on, 0 for 0/false/no/off, and treats an unrecognized value as presence-enabled with a warning -- the literal \"0\" disables.",
       "argv": [
         "grep",
         "-n",
@@ -105,7 +105,7 @@
     },
     {
       "id": "exact-rows-value-parsed",
-      "statement": "DS4_METAL_REQUIRE_EXACT_ROWS_PERSISTENT_CACHE is read via ds4_gpu_exact_rows_persistent_env_enabled (ds4_metal.m:14836-14837), which returns `value && value[0] && strcmp(value, \"0\") != 0` -- the literal \"0\" disables, any other non-empty value enables.",
+      "statement": "DS4_METAL_REQUIRE_EXACT_ROWS_PERSISTENT_CACHE is read via ds4_gpu_exact_rows_persistent_env_enabled (ds4_metal.m:14836-14837 at ds4-pr952 77a054e1), which returns `value && value[0] && strcmp(value, \"0\") != 0` -- the literal \"0\" disables, any other non-empty value enables.",
       "argv": [
         "grep",
         "-n",
@@ -158,7 +158,7 @@
     },
     {
       "id": "require-error-strings",
-      "statement": "The three REQUIRE spellings fail closed with these exact error strings: session-union at ds4.c:73983-73988 'required Metal Q4 SSD session union is ineligible (need 2..5 valid sessions, AProjQ4 + routed IQ2_XXS/Q2_K, static decode map, and >= rows*6 cached experts)'; IQ2 grouped-MM at ds4_metal.m:50664-50669 'ds4: required Metal IQ2_XXS SSD grouped address-MM path was not selected tokens=%u gate=%u down=%u'; exact-rows-persistent at ds4_metal.m:20449-20453 'ds4: Metal exact-row persistent cache is required but disabled or ineligible (cache_budget=%u size_class_budget=%u unique=%u)'.",
+      "statement": "The three REQUIRE spellings fail closed with these exact error strings: session-union at ds4.c:73983-73986 at ds4-pr952 77a054e1 'required Metal Q4 SSD session union is ineligible (need 2..5 valid sessions, AProjQ4 + routed IQ2_XXS/Q2_K, static decode map, and >= rows*6 cached experts)'; IQ2 grouped-MM at ds4_metal.m:50664-50665 at ds4-pr952 77a054e1 'ds4: required Metal IQ2_XXS SSD grouped address-MM path was not selected tokens=%u gate=%u down=%u'; exact-rows-persistent at ds4_metal.m:20449-20451 at ds4-pr952 77a054e1 'ds4: Metal exact-row persistent cache is required but disabled or ineligible (cache_budget=%u size_class_budget=%u unique=%u)'.",
       "argv": [
         "grep",
         "-n",
@@ -198,7 +198,7 @@
     },
     {
       "id": "stream-overlap-no-require",
-      "statement": "Q4_STREAM_OVERLAP has no REQUIRE spelling: ds4_q4_stream_overlap_policy (ds4.c:71917) reads only DS4_METAL_ENABLE_Q4_STREAM_OVERLAP and DS4_METAL_DISABLE_Q4_STREAM_OVERLAP via metal_graph_tp_env_flag, both defaulting false. It is a soft opt-in with no fail-closed arm.",
+      "statement": "Q4_STREAM_OVERLAP has no REQUIRE spelling: ds4_q4_stream_overlap_policy (ds4.c:71917 at ds4-pr952 77a054e1) reads only DS4_METAL_ENABLE_Q4_STREAM_OVERLAP and DS4_METAL_DISABLE_Q4_STREAM_OVERLAP via metal_graph_tp_env_flag, both defaulting false. It is a soft opt-in with no fail-closed arm.",
       "argv": [
         "grep",
         "-n",

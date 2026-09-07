@@ -7,7 +7,7 @@
   "agent_effort": "unidentified",
   "repo": "/Users/evanhoffman/git/local-llm/.claude/worktrees/peer+160",
   "authored_at": "2026-09-06T12:26:30-0400",
-  "statement": "The IQ2_XXS_SSD_PREFILL_MM knob is NOT on the q4/q8 path. Its candidate gate at ds4_metal.m:50599-50600 requires `gate_type == DS4_METAL_TENSOR_IQ2_XXS && down_type == DS4_METAL_TENSOR_Q2_K`, and the surrounding candidate also requires `g_ssd_streaming_mode` and `n_expert == 6`. The q4/q8 decode path uses different gate/down tensor types, so the IQ2 knob cannot fire there. The knob is value-parsed via ds4_gpu_env_bool (ds4_metal.m:50582), and its REQUIRE spelling fails closed at ds4_metal.m:50658-50663 with 'ds4: required Metal IQ2_XXS SSD grouped address-MM path was not selected tokens=%u gate=%u down=%u'.",
+  "statement": "The IQ2_XXS_SSD_PREFILL_MM knob is NOT on the q4/q8 path. Its candidate gate at ds4_metal.m:50599-50600 at ds4-pr952 77a054e1 requires `gate_type == DS4_METAL_TENSOR_IQ2_XXS && down_type == DS4_METAL_TENSOR_Q2_K`, and the surrounding candidate also requires `g_ssd_streaming_mode` and `n_expert == 6`. The q4/q8 decode path uses different gate/down tensor types, so the IQ2 knob cannot fire there. The knob is value-parsed via ds4_gpu_env_bool (ds4_metal.m:50582 at ds4-pr952 77a054e1), and its REQUIRE spelling fails closed at ds4_metal.m:50658-50663 at ds4-pr952 77a054e1 with 'ds4: required Metal IQ2_XXS SSD grouped address-MM path was not selected tokens=%u gate=%u down=%u'.",
   "provenance": {
     "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
     "trees": {
@@ -18,7 +18,7 @@
   "claims": [
     {
       "id": "iq2-gated-on-iq2xxs-q2k",
-      "statement": "The IQ2 grouped-MM candidate is gated on `gate_type == DS4_METAL_TENSOR_IQ2_XXS && down_type == DS4_METAL_TENSOR_Q2_K` at ds4_metal.m:50599-50600, so it cannot fire on the q4/q8 path. The IQ2_XXS/Q2_K pairing recurs across the MoE prefill path (lines 47842, 47859, 48148, 48214, 50599, 50732, 50818, 50842, 50867), all on the IQ2 SSD prefill path, none on q4/q8 decode.",
+      "statement": "The IQ2 grouped-MM candidate is gated on `gate_type == DS4_METAL_TENSOR_IQ2_XXS && down_type == DS4_METAL_TENSOR_Q2_K` at ds4_metal.m:50599-50600 at ds4-pr952 77a054e1, so it cannot fire on the q4/q8 path. The IQ2_XXS/Q2_K pairing recurs across the MoE prefill path (lines 47842, 47859, 48148, 48214, 50599, 50732, 50818, 50842, 50867), all on the IQ2 SSD prefill path, none on q4/q8 decode.",
       "argv": [
         "grep",
         "-n",
@@ -77,7 +77,7 @@
     },
     {
       "id": "iq2-value-parsed",
-      "statement": "The IQ2 knob reads its env var through ds4_gpu_env_bool (ds4_metal.m:50582), the value-parsed helper: '0' disables, any other non-empty value enables, unrecognized values are presence-enabled with a warning.",
+      "statement": "The IQ2 knob reads its env var through ds4_gpu_env_bool (ds4_metal.m:50582 at ds4-pr952 77a054e1), the value-parsed helper: '0' disables, any other non-empty value enables, unrecognized values are presence-enabled with a warning.",
       "argv": [
         "grep",
         "-n",

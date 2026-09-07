@@ -7,7 +7,7 @@
   "agent_effort": "unidentified",
   "repo": "/Users/evanhoffman/git/local-llm",
   "authored_at": "2026-09-06T11:19:00-0400",
-  "statement": "--mtp-exact-sampling is a no-op for our stack, and the Qwen4 MTP path has its own acceptance control that the flag does not touch. The flag sets dspark_exact_sampling, which is read at exactly six sites in ds4-metal ds4.c (73386, 79339, 80143, 80164, 80179, 80190; the declaration at 38360 and the assignment from opt at 67465 are not reads). All six are gated behind GLM-under-TP or DS4_SUPPORT_DSPARK, so none reach the Qwen4 MTP path our runs use. Our support model qwen3.8-flash-next-q4-mtp.gguf is a Qwen4 MTP sidecar (general.architecture=qwen4-exp-mtp, ds4.pack.artifact=mtp) with 32 tensors all under language_model.mtp.* -- no DSpark tensors (main_proj/markov_head/confidence_head) and no MTP_LEGACY exact names (mtp.0.e_proj.weight etc.) -- so support_model_detect classifies it as DS4_SUPPORT_NONE. Our runs use the separate Qwen4 MTP path (confirmed by the #148 log line 'Qwen matching v3 q4_k MTP sidecar loaded ... state=ready draft=7'). That path has a margin-based acceptance threshold: e->mtp_margin defaults to 3.0 (ds4.c:67509), overridable by --mtp-margin (ds4_cli.c:1965, ds4_server.c:14235, ds4_agent.c:754) or the env var DS4_MTP_MIN_MARGIN (ds4.c:79510). At ds4.c:79587, when not strict and exactly two drafts are produced, the second draft is committed only if its top-2 logit margin is at least the threshold; below it, only the first (already-verified) token is committed. margin=0 disables the gate entirely (the > 0.0f check fails), so every draft is accepted; margin=3.0 drops low-confidence second drafts. strict_mtp (ds4.c:79508) is e->quality (set by --quality) or the env var DS4_MTP_STRICT; when strict, the margin gate is skipped and the full verifier always runs. So the third arm #142 handed to #39 is answerable through a margin sweep (--mtp-margin 0 vs 3.0 vs 1000), not an exact-sampling toggle. All citations are from ds4-metal @ ba01f5d, the tree our runs use.",
+  "statement": "--mtp-exact-sampling is a no-op for our stack, and the Qwen4 MTP path has its own acceptance control that the flag does not touch. The flag sets dspark_exact_sampling, which is read at exactly six sites in ds4-metal ds4.c (73386, 79339, 80143, 80164, 80179, 80190; the declaration at 38360 and the assignment from opt at 67465 are not reads). All six are gated behind GLM-under-TP or DS4_SUPPORT_DSPARK, so none reach the Qwen4 MTP path our runs use. Our support model qwen3.8-flash-next-q4-mtp.gguf is a Qwen4 MTP sidecar (general.architecture=qwen4-exp-mtp, ds4.pack.artifact=mtp) with 32 tensors all under language_model.mtp.* -- no DSpark tensors (main_proj/markov_head/confidence_head) and no MTP_LEGACY exact names (mtp.0.e_proj.weight etc.) -- so support_model_detect classifies it as DS4_SUPPORT_NONE. Our runs use the separate Qwen4 MTP path (confirmed by the #148 log line 'Qwen matching v3 q4_k MTP sidecar loaded ... state=ready draft=7'). That path has a margin-based acceptance threshold: e->mtp_margin defaults to 3.0 (ds4.c:67509 at ds4-metal ba01f5d), overridable by --mtp-margin (ds4_cli.c:1965 at ds4-metal ba01f5d, ds4_server.c:14235 at ds4-metal ba01f5d, ds4_agent.c:754 at ds4-metal ba01f5d) or the env var DS4_MTP_MIN_MARGIN (ds4.c:79510 at ds4-metal ba01f5d). At ds4.c:79587 at ds4-metal ba01f5d, when not strict and exactly two drafts are produced, the second draft is committed only if its top-2 logit margin is at least the threshold; below it, only the first (already-verified) token is committed. margin=0 disables the gate entirely (the > 0.0f check fails), so every draft is accepted; margin=3.0 drops low-confidence second drafts. strict_mtp (ds4.c:79508 at ds4-metal ba01f5d) is e->quality (set by --quality) or the env var DS4_MTP_STRICT; when strict, the margin gate is skipped and the full verifier always runs. So the third arm #142 handed to #39 is answerable through a margin sweep (--mtp-margin 0 vs 3.0 vs 1000), not an exact-sampling toggle. All citations are from ds4-metal @ ba01f5d, the tree our runs use.",
   "provenance": {
     "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
     "trees": {
@@ -190,7 +190,7 @@
     },
     {
       "id": "mtp-margin-default-3",
-      "statement": "e->mtp_margin defaults to 3.0 when the flag is not given (ds4.c:67509).",
+      "statement": "e->mtp_margin defaults to 3.0 when the flag is not given (ds4.c:67509 at ds4-metal ba01f5d).",
       "argv": [
         "grep",
         "-n",
@@ -217,7 +217,7 @@
     },
     {
       "id": "mtp-margin-acceptance-gate",
-      "statement": "The margin gate (ds4.c:79587) fires only when not strict, exactly two drafts are produced, and the threshold is positive; below the threshold the second draft is dropped and only the first token is committed.",
+      "statement": "The margin gate (ds4.c:79587 at ds4-metal ba01f5d) fires only when not strict, exactly two drafts are produced, and the threshold is positive; below the threshold the second draft is dropped and only the first token is committed.",
       "argv": [
         "grep",
         "-n",
@@ -244,7 +244,7 @@
     },
     {
       "id": "strict-mtp-definition",
-      "statement": "strict_mtp (ds4.c:79508) is e->quality (set by --quality) or the env var DS4_MTP_STRICT; when strict, the margin gate is skipped and the full verifier always runs.",
+      "statement": "strict_mtp (ds4.c:79508 at ds4-metal ba01f5d) is e->quality (set by --quality) or the env var DS4_MTP_STRICT; when strict, the margin gate is skipped and the full verifier always runs.",
       "argv": [
         "grep",
         "-n",

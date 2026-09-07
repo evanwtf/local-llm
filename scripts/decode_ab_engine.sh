@@ -42,7 +42,7 @@ REPS=${REPS:-3}
 # cap logic: a non-zero requested chunk is used as given, clamped only to
 # prompt_len. There is no other ceiling -- an earlier version of this comment
 # claimed raw_cap clamped the chunk to 8192, which was wrong. ds4_default_raw_cap
-# (ds4.c:12144) is the raw-KV cap for attention, DS4_N_SWA clamped to ctx, and
+# (ds4.c:12144 at ds4 399acbbe) is the raw-KV cap for attention, DS4_N_SWA clamped to ctx, and
 # the built-in shapes set n_swa to 128 or 0. It has nothing to do with prefill
 # chunking, and 8192 appears in the prefill path only as the PRO variant's
 # DEFAULT when no chunk was requested. So any value is honoured uniformly
@@ -127,8 +127,8 @@ uv run python "$(dirname "$0")/prompt_meta.py" --prompt "$PROMPT" --sidecar "$OU
   echo "sweep ctx_start=$CTX_START ctx_max=$CTX_MAX step=$STEP gen=$GEN reps=$REPS"
   echo "prefill_chunk=${PREFILL_CHUNK:-<flag absent>}"
   # These set the same caps as the flags, but only when the flags are absent
-  # (ds4.c:13554, :40447). An inherited value would silently change the prefill
-  # shape of a run that never mentions it.
+  # (ds4.c:12167 at ds4 399acbbe, ds4.c:35881 at ds4 399acbbe). An inherited value would
+  # silently change the prefill shape of a run that never mentions it.
   echo "DS4_METAL_PREFILL_CHUNK=${DS4_METAL_PREFILL_CHUNK:-<unset>}"
   echo "DS4_METAL_GRAPH_RAW_CAP=${DS4_METAL_GRAPH_RAW_CAP:-<unset>}"
 } >> "$OUT/engines.txt"

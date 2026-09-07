@@ -10,7 +10,8 @@
 # set to a nonzero value to enable and =0 to disable. For exact-rows they are
 # not: the persistent cache is on by default, so REQUIRE=0 means "not required"
 # and leaves the cache running. Its off arm is the DISABLE var, which the
-# source names "the A/B rollback arm and always wins" (ds4_metal.m:14827). The
+# source names "the A/B rollback arm and always wins"
+# (ds4_metal.m:14828 at ds4-pr952 77a054e1). The
 # knob table and the refusal paths live in metal_knob_ab.py, so a knob whose
 # off arm does not change the default is refused before the lock or any
 # measurement.

@@ -9,13 +9,13 @@ off. For the three opt-in knobs (default off) they are the same variable, set
 to a nonzero value to enable and `0` to disable. For exact-rows they are not:
 the persistent cache is on by default, so `REQUIRE=0` means "not required" and
 leaves the cache running. Its off arm is the DISABLE var, which the source
-names "the A/B rollback arm and always wins" (ds4_metal.m:14827). A knob whose
+names "the A/B rollback arm and always wins" (ds4_metal.m:14828 at ds4-pr952 77a054e1). A knob whose
 off arm does not change the default is a wrong arm waiting to happen, so
 `validate()` refuses it.
 
 gathered-heads is the first presence-based knob. The branch routes n_comp==0
 layers to the gathered-heads path unless `DS4_METAL_DISABLE_DECODE_RAW_GATHERED_ATTN`
-is set (ds4_metal.m:38408, `getenv(...) != NULL`), so the feature is on by
+is set (ds4_metal.m:38408 at ds4-pr952 77a054e1, `getenv(...) != NULL`), so the feature is on by
 default and there is no REQUIRE spelling to force it. The on arm must *unset*
 the DISABLE var (`env -u`), not assign it: `=0` still counts as set and would
 take the raw-only path in both arms. So for a presence knob `on_var == off_var`
@@ -24,7 +24,7 @@ of the `off_var != on_var` rule that guards the assignment-based exact-rows
 shape.
 
 One knob suffices even though two variables touch the n_comp==0 layers. The
-second, `DS4_METAL_DISABLE_DECODE_RAW_PACKED32` (ds4_metal.m:36774), relaxes
+second, `DS4_METAL_DISABLE_DECODE_RAW_PACKED32` (ds4_metal.m:36774 at ds4-pr952 77a054e1), relaxes
 `packed_shape` for n_comp==0 layers, but setting GATHERED_ATTN routes those
 layers raw-only, so `packed_shape` never applies to them and the relaxation is
 moot. For n_comp!=0 layers, `n_comp != 0u` is already true on main, so the
@@ -41,7 +41,7 @@ The on arm uses the REQUIRE spelling and fails the run if the fail-closed error
 string appears. There is no positive admission print, so absence of the error is
 the only admission signal and it must be checked, not assumed. stream-overlap
 has no REQUIRE spelling, so it has no admission signal at all: its policy gate
-(ds4.c:71766) has seven terms, and any of count, resident, ssd_streaming or
+(ds4.c:71917 at ds4-pr952 77a054e1) has seven terms, and any of count, resident, ssd_streaming or
 quality can veto the path with no output. A knob with no admission signal is
 refused unless the caller passes an explicit acknowledgment, and its rows are
 marked `admission_signal: "none"` so they cannot later be read as verified.

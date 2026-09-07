@@ -224,7 +224,7 @@ def note_sampling(payload: dict) -> dict:
     ds4-server serves no `/props`, so `probe_server()` records an empty
     sampling dict for every shim-backed row -- 93 of them on
     qwen38fnds4mtp7shim. That gap is not cosmetic: ds4 only runs Qwen MTP
-    when temperature <= 0 (ds4.c:80112), so an unrecorded temperature makes
+    when temperature <= 0 (ds4.c:80120 at ds4-metal ba01f5d), so an unrecorded temperature makes
     it unanswerable whether an MTP arm could have drafted at all (#148).
     The client is the only place left that knows.
     """
