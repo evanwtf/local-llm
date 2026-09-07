@@ -95,3 +95,29 @@ def test_a_zero_length_prompt_does_not_divide_by_zero(monkeypatch):
 @pytest.mark.parametrize("n", [1, 10, 1000])
 def test_build_prompt_is_deterministic_for_every_size(n):
     assert kpr.build_prompt(n) == kpr.build_prompt(n)
+
+
+def test_readiness_does_not_depend_on_a_health_endpoint():
+    """The bug that cost the first #190 batch, pinned.
+
+    ds4-server has no /health -- it 404s. urllib.request.urlopen *raises*
+    HTTPError on a 404, and HTTPError subclasses URLError, so a handler that
+    treats URLError as "not ready yet" loops the full timeout beside a server
+    that is already serving. The batch sat at 0% GPU for the whole window.
+
+    The hand smoke-test before that run used curl, which exits 0 on a 404, so
+    it reported READY. That is why this is a test and not a docstring.
+    """
+    src = (
+        pathlib.Path(__file__).resolve().parents[1] / "scripts" / "kv_prefix_reuse.py"
+    ).read_text()
+    body = src.split("def wait_ready", 1)[1].split("\ndef ", 1)[0]
+    code = "\n".join(
+        line for line in body.splitlines() if not line.lstrip().startswith("#")
+    )
+    code = code.split('"""')[0] + code.split('"""')[-1]
+    assert "/health" not in code, "readiness must not gate on /health; it 404s"
+    assert "_wait_ready.ready(" in code, (
+        "use benchmarks/agent/wait_ready.ready() -- it probes with a real "
+        "one-token completion, which is the only readiness signal ds4 gives"
+    )

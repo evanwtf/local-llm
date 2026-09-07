@@ -29,9 +29,14 @@ import pathlib
 import shutil
 import subprocess
 import sys
-import time
 import urllib.error
 import urllib.request
+
+sys.path.insert(
+    0, str(pathlib.Path(__file__).resolve().parents[1] / "benchmarks" / "agent")
+)
+
+import wait_ready as _wait_ready
 
 logger = logging.getLogger(__name__)
 
@@ -92,15 +97,24 @@ def measure(port: int, model: str, n_defs: int) -> dict[str, object]:
     return got
 
 
-def wait_ready(port: int, deadline_s: int = READY_TIMEOUT_S) -> bool:
-    end = time.time() + deadline_s
-    while time.time() < end:
-        try:
-            with urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=2):
-                return True
-        except (urllib.error.URLError, OSError):
-            time.sleep(3)
-    return False
+def wait_ready(port: int, model: str, deadline_s: int = READY_TIMEOUT_S) -> bool:
+    """Ready means it answered a one-token request, not that /health replied.
+
+    ds4-server has no /health -- it returns 404. The first version of this
+    function polled that endpoint with urllib.request.urlopen, which *raises*
+    HTTPError on a 404; HTTPError subclasses URLError, so the handler below
+    read every reply as "not ready" and looped the full 300s beside a server
+    that was up. The hand smoke-test that preceded the script used curl, which
+    exits 0 on a 404, so it printed READY and hid the bug.
+
+    benchmarks/agent/wait_ready.py had already learned this and says so: its
+    health() is "advisory only -- it reports ok before it is true", and its
+    serves() is "the real readiness test". Call its ready() rather than keep a
+    second, worse copy of the same probe.
+    """
+    return _wait_ready.ready(
+        f"http://127.0.0.1:{port}", model, "local", timeout=deadline_s
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -194,7 +208,7 @@ def main(argv: list[str] | None = None) -> int:
     log = log_path.open("w")
     proc = subprocess.Popen(cmd, cwd=tree, stdout=log, stderr=subprocess.STDOUT)
     try:
-        if not wait_ready(args.port):
+        if not wait_ready(args.port, args.model):
             logger.error("server not ready in %ds", READY_TIMEOUT_S)
             return 1
         rows = []
