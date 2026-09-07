@@ -1,0 +1,370 @@
+2026-09-07 12:32:42,800 INFO [70866b7@M5-Max-128GB] 2026-09-07T16:32:42Z (12:32:42 EDT) | harness 70866b7
+2026-09-07 12:32:42,818 INFO [70866b7@M5-Max-128GB]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-07 12:32:42,987 INFO [70866b7@M5-Max-128GB] 2096724533604397452  VERIFIED post  @antirez  Sun Sep 06 22:17:38 +0000 2026  via fxtwitter
+2026-09-07 12:32:42,987 INFO [70866b7@M5-Max-128GB]     DwarfStar in the latest two weeks was improved in almost every aspect for Metal, DGX Spark and Strix Halo. It is simpler to say: update, you will hopefully see speed and correctness improvements in ma
+2026-09-07 12:32:43,104 INFO [70866b7@M5-Max-128GB] 2096879708478517272  VERIFIED reply  @antirez  Mon Sep 07 08:34:15 +0000 2026  via fxtwitter
+2026-09-07 12:32:43,104 INFO [70866b7@M5-Max-128GB]     @mOv1Wor5H949884 Could you tell me in which architecture / model you see it regressing? Thanks!
+2026-09-07 12:32:43,218 INFO [70866b7@M5-Max-128GB] 2096916228723859626  VERIFIED reply  @antirez  Mon Sep 07 10:59:22 +0000 2026  via fxtwitter
+2026-09-07 12:32:43,218 INFO [70866b7@M5-Max-128GB]     @MarcoGavesi Yes, TP for two DGX Spark will be one of the next big investments I'll do in DwarfStar development, I'll have stable access to two DGX Spark starting in the next days and will focus on th
+2026-09-07 12:32:43,332 INFO [70866b7@M5-Max-128GB] 2096728241159471449  VERIFIED reply  @ivanfioravanti  Sun Sep 06 22:32:22 +0000 2026  via fxtwitter
+2026-09-07 12:32:43,332 INFO [70866b7@M5-Max-128GB]     @antirez YES!!! Gonna update and test it asap! In case I'll close my PR for Metal pre-m5!   I'm finalizing Qwen3.8 Flash Next in these hours!
+2026-09-07 12:32:43,473 INFO [70866b7@M5-Max-128GB] 2096738315709894884  VERIFIED post  @ivanfioravanti  Sun Sep 06 23:12:24 +0000 2026  via fxtwitter
+2026-09-07 12:32:43,473 INFO [70866b7@M5-Max-128GB]     Are you ready for Qwen 3.8 Flash Next running on a 64GB machine with DwarfStar?   Model is here, final tests in progress. I'll need a brave Apple Silicon user soon to try on a real 64GB machine.  http
+2026-09-07 12:32:43,617 INFO [70866b7@M5-Max-128GB] 2096739675041841196  VERIFIED post  @ivanfioravanti  Sun Sep 06 23:17:48 +0000 2026  via fxtwitter
+2026-09-07 12:32:43,617 INFO [70866b7@M5-Max-128GB]     Ready! Is there a brave Apple Silicon user with a 64GB machine willing to test DwarfStar with Qwen 3.8 Flash Next?  In the video it runs at 65 t/s on M3 Ultra. 🚀  I uploaded Q2 weights here: https://h
+2026-09-07 12:32:43,738 INFO [70866b7@M5-Max-128GB] 2096741917606170932  VERIFIED reply  @ivanfioravanti  Sun Sep 06 23:26:43 +0000 2026  via fxtwitter
+2026-09-07 12:32:43,738 INFO [70866b7@M5-Max-128GB]     I tested on M5 Max with 128GB already, but we need a 64GB machine to see if it works there and how much RAM will be really used.  BTW you can: - get the branch from github - download model (weights, P
+2026-09-07 12:32:43,883 INFO [70866b7@M5-Max-128GB] 2096745646757990778  VERIFIED reply  @ivanfioravanti  Sun Sep 06 23:41:32 +0000 2026  via fxtwitter
+2026-09-07 12:32:43,883 INFO [70866b7@M5-Max-128GB]     @fcoury Yes, at least 50GB needed to load the model.
+2026-09-07 12:32:44,021 INFO [70866b7@M5-Max-128GB] 2096747497481986317  VERIFIED reply  @ivanfioravanti  Sun Sep 06 23:48:53 +0000 2026  via fxtwitter
+2026-09-07 12:32:44,021 INFO [70866b7@M5-Max-128GB]     @ponzifunded Q4_K
+2026-09-07 12:32:44,139 INFO [70866b7@M5-Max-128GB] 2096763127308202323  VERIFIED post  @ivanfioravanti  Mon Sep 07 00:51:00 +0000 2026  via fxtwitter
+2026-09-07 12:32:44,139 INFO [70866b7@M5-Max-128GB]     GGUF quantization quality is another level. You have total freedom to tailor it down to the smallest detail.
+2026-09-07 12:32:44,287 INFO [70866b7@M5-Max-128GB] 2096784181712085329  VERIFIED post  @ivanfioravanti  Mon Sep 07 02:14:39 +0000 2026  via fxtwitter
+2026-09-07 12:32:44,288 INFO [70866b7@M5-Max-128GB]     DwarfStar PR ready to merge to add an additional small boost on Metal! Rebased on main and tested.  - prefill +4% - decode +6%  PR: https://github.com/antirez/ds4/pull/954
+2026-09-07 12:32:44,288 INFO [70866b7@M5-Max-128GB]     quotes @antirez: DwarfStar in the latest two weeks was improved in almost every aspect for Metal, DGX Spark and Strix Halo. It is simpler to say: update, you will hopefully see 
+2026-09-07 12:32:44,415 INFO [70866b7@M5-Max-128GB] 2096784274146132009  VERIFIED reply  @ivanfioravanti  Mon Sep 07 02:15:01 +0000 2026  via fxtwitter
+2026-09-07 12:32:44,415 INFO [70866b7@M5-Max-128GB]     @Michaelzsguo Lucky you 🤣 You can use the Q4_K.
+2026-09-07 12:32:44,542 INFO [70866b7@M5-Max-128GB] 2096815643698094505  VERIFIED reply  @ivanfioravanti  Mon Sep 07 04:19:41 +0000 2026  via fxtwitter
+2026-09-07 12:32:44,542 INFO [70866b7@M5-Max-128GB]     @colbyboles Q4-K for now, but I’ll create a Q8 too.
+2026-09-07 12:32:44,722 INFO [70866b7@M5-Max-128GB] 2096816124067565859  VERIFIED reply  @ivanfioravanti  Mon Sep 07 04:21:35 +0000 2026  via fxtwitter
+2026-09-07 12:32:44,722 INFO [70866b7@M5-Max-128GB]     @urbanarson Great! I’ll try to squeeze this a little more. Have you tried this? https://gist.github.com/ivanfioravanti/44b4284be930b3c340cc1696d60c6143
+2026-09-07 12:32:44,848 INFO [70866b7@M5-Max-128GB] 2096816391479558618  VERIFIED reply  @ivanfioravanti  Mon Sep 07 04:22:39 +0000 2026  via fxtwitter
+2026-09-07 12:32:44,848 INFO [70866b7@M5-Max-128GB]     @thedarthsider Faster than llama.cpp and more accurate but a little slower than MLX.
+2026-09-07 12:32:44,982 INFO [70866b7@M5-Max-128GB] 2096816513969987974  VERIFIED reply  @ivanfioravanti  Mon Sep 07 04:23:08 +0000 2026  via fxtwitter
+2026-09-07 12:32:44,982 INFO [70866b7@M5-Max-128GB]     If you try this, keep this in mind.  https://gist.github.com/ivanfioravanti/44b4284be930b3c340cc1696d60c6143
+2026-09-07 12:32:45,100 INFO [70866b7@M5-Max-128GB] 2096886651675177053  VERIFIED reply  @ivanfioravanti  Mon Sep 07 09:01:50 +0000 2026  via fxtwitter
+2026-09-07 12:32:45,100 INFO [70866b7@M5-Max-128GB]     @pswai You rock! I will try to improve prefill and why not see if we can squeeze weights a little more.
+2026-09-07 12:32:45,218 INFO [70866b7@M5-Max-128GB] 2096886877769093205  VERIFIED reply  @ivanfioravanti  Mon Sep 07 09:02:44 +0000 2026  via fxtwitter
+2026-09-07 12:32:45,219 INFO [70866b7@M5-Max-128GB]     @unbug Quick tests seem good. But real life feedback will take few days.
+2026-09-07 12:32:45,351 INFO [70866b7@M5-Max-128GB] 2096899020241404287  VERIFIED reply  @ivanfioravanti  Mon Sep 07 09:50:59 +0000 2026  via fxtwitter
+2026-09-07 12:32:45,351 INFO [70866b7@M5-Max-128GB]     @zzddfge DwarfStar (ds4) but my fork for now: https://github.com/ivanfioravanti/ds4-metal/tree/qwen3.8-flash-next
+2026-09-07 12:32:45,467 INFO [70866b7@M5-Max-128GB] 2096899957399953470  VERIFIED reply  @ivanfioravanti  Mon Sep 07 09:54:43 +0000 2026  via fxtwitter
+2026-09-07 12:32:45,468 INFO [70866b7@M5-Max-128GB]     @lmReaI Similar idea, ds4 puts the PLE table in a separate GGUF and reads the needed rows from SSD on demand. PLElast places it at the end of the same GGUF. This changes storage/memory handling; PLE s
+2026-09-07 12:32:45,623 INFO [70866b7@M5-Max-128GB] 2096901575646351825  VERIFIED reply  @ivanfioravanti  Mon Sep 07 10:01:08 +0000 2026  via fxtwitter
+2026-09-07 12:32:45,624 INFO [70866b7@M5-Max-128GB]     @luismolinaab Top! Keep us posted! I'm trying to improve prefill performance in the meantime.
+2026-09-07 12:32:45,762 INFO [70866b7@M5-Max-128GB] 2096902733383262566  VERIFIED reply  @ivanfioravanti  Mon Sep 07 10:05:44 +0000 2026  via fxtwitter
+2026-09-07 12:32:45,762 INFO [70866b7@M5-Max-128GB]     I think we need to make this smaller to leave more room for larger contexts.
+2026-09-07 12:32:45,951 INFO [70866b7@M5-Max-128GB] 2096906244330283054  VERIFIED post  @ivanfioravanti  Mon Sep 07 10:19:41 +0000 2026  via fxtwitter
+2026-09-07 12:32:45,951 INFO [70866b7@M5-Max-128GB]     DwarfStar Qwen 3.8 Flash Next Q2/64GB quick update: trying to compress down experts using Q2_K instead of mxfp4. This should free 5GB and allow larger contexts on 64GB machines. Test in progress! 🤞  G
+2026-09-07 12:32:46,152 INFO [70866b7@M5-Max-128GB] 2096906534102138925  VERIFIED reply  @ivanfioravanti  Mon Sep 07 10:20:51 +0000 2026  via fxtwitter
+2026-09-07 12:32:46,153 INFO [70866b7@M5-Max-128GB]     Trying to quantize down experts using Q2_K, this should free 5GB! Let's hope quality will remain good enough.
+2026-09-07 12:32:46,298 INFO [70866b7@M5-Max-128GB] 2096911035634729309  VERIFIED reply  @ivanfioravanti  Mon Sep 07 10:38:44 +0000 2026  via fxtwitter
+2026-09-07 12:32:46,299 INFO [70866b7@M5-Max-128GB]     @djnmrjnvc glm53-full-q2 in download_model.sh will give you support for it.
+2026-09-07 12:32:46,444 INFO [70866b7@M5-Max-128GB] 2096913898297491703  VERIFIED reply  @ivanfioravanti  Mon Sep 07 10:50:06 +0000 2026  via fxtwitter
+2026-09-07 12:32:46,444 INFO [70866b7@M5-Max-128GB]     Updating the model on HF right now to make it 5GB smaller. This should give us more context length on 64GB machine with small impact on performance 🤞
+2026-09-07 12:32:46,572 INFO [70866b7@M5-Max-128GB] 2096935681666986061  VERIFIED reply  @ivanfioravanti  Mon Sep 07 12:16:40 +0000 2026  via fxtwitter
+2026-09-07 12:32:46,572 INFO [70866b7@M5-Max-128GB]     @MubashirAlee Top!!! I’m improving speed. Thanks for testing so early! You rock Mubashir!
+2026-09-07 12:32:46,715 INFO [70866b7@M5-Max-128GB] 2096954712402862364  VERIFIED reply  @ivanfioravanti  Mon Sep 07 13:32:17 +0000 2026  via fxtwitter
+2026-09-07 12:32:46,715 INFO [70866b7@M5-Max-128GB]     It seems working well! Now pushing on performance!
+2026-09-07 12:32:46,715 INFO [70866b7@M5-Max-128GB] [
+  {
+    "id": "2096724533604397452",
+    "status": "ok",
+    "author": "antirez",
+    "created_at": "Sun Sep 06 22:17:38 +0000 2026",
+    "text": "DwarfStar in the latest two weeks was improved in almost every aspect for Metal, DGX Spark and Strix Halo. It is simpler to say: update, you will hopefully see speed and correctness improvements in many areas. Also DSpark with DeepSeek v4 Flash now works much better overall.",
+    "is_reply": false,
+    "quoted_author": null,
+    "quoted_text": null,
+    "source": "fxtwitter"
+  },
+  {
+    "id": "2096879708478517272",
+    "status": "ok",
+    "author": "antirez",
+    "created_at": "Mon Sep 07 08:34:15 +0000 2026",
+    "text": "@mOv1Wor5H949884 Could you tell me in which architecture / model you see it regressing? Thanks!",
+    "is_reply": true,
+    "quoted_author": null,
+    "quoted_text": null,
+    "source": "fxtwitter"
+  },
+  {
+    "id": "2096916228723859626",
+    "status": "ok",
+    "author": "antirez",
+    "created_at": "Mon Sep 07 10:59:22 +0000 2026",
+    "text": "@MarcoGavesi Yes, TP for two DGX Spark will be one of the next big investments I'll do in DwarfStar development, I'll have stable access to two DGX Spark starting in the next days and will focus on that.",
+    "is_reply": true,
+    "quoted_author": null,
+    "quoted_text": null,
+    "source": "fxtwitter"
+  },
+  {
+    "id": "2096728241159471449",
+    "status": "ok",
+    "author": "ivanfioravanti",
+    "created_at": "Sun Sep 06 22:32:22 +0000 2026",
+    "text": "@antirez YES!!! Gonna update and test it asap! In case I'll close my PR for Metal pre-m5! \n\nI'm finalizing Qwen3.8 Flash Next in these hours!",
+    "is_reply": true,
+    "quoted_author": null,
+    "quoted_text": null,
+    "source": "fxtwitter"
+  },
+  {
+    "id": "2096738315709894884",
+    "status": "ok",
+    "author": "ivanfioravanti",
+    "created_at": "Sun Sep 06 23:12:24 +0000 2026",
+    "text": "Are you ready for Qwen 3.8 Flash Next running on a 64GB machine with DwarfStar? \n\nModel is here, final tests in progress. I'll need a brave Apple Silicon user soon to try on a real 64GB machine.\n\nhttps://huggingface.co/ivanfioravanti/Qwen3.8-Flash-Next-DS4-IQ2",
+    "is_reply": false,
+    "quoted_author": null,
+    "quoted_text": null,
+    "source": "fxtwitter"
+  },
+  {
+    "id": "2096739675041841196",
+    "status": "ok",
+    "author": "ivanfioravanti",
+    "created_at": "Sun Sep 06 23:17:48 +0000 2026",
+    "text": "Ready! Is there a brave Apple Silicon user with a 64GB machine willing to test DwarfStar with Qwen 3.8 Flash Next?\n\nIn the video it runs at 65 t/s on M3 Ultra. \ud83d\ude80\n\nI uploaded Q2 weights here: https://huggingface.co/ivanfioravanti/Qwen3.8-Flash-Next-DS4-IQ2\n\nPR branch is here: https://github.com/ivanfioravanti/ds4-metal/tree/qwen3.8-flash-next",
+    "is_reply": false,
+    "quoted_author": null,
+    "quoted_text": null,
+    "source": "fxtwitter"
+  },
+  {
+    "id": "2096741917606170932",
+    "status": "ok",
+    "author": "ivanfioravanti",
+    "created_at": "Sun Sep 06 23:26:43 +0000 2026",
+    "text": "I tested on M5 Max with 128GB already, but we need a 64GB machine to see if it works there and how much RAM will be really used.\n\nBTW you can:\n- get the branch from github\n- download model (weights, PLE and Vision) from HF\n\nrun something like:\n./ds4-agent -m /Users/felipe/models/qwen38-iq2-imatrix/Qwen3.8-Flash-Next-IQ2XXSImatrix-MXFP4Down-MTP.gguf --ple /Users/felipe/models/qwen38-q4k-imatrix/Qwen3.8-Flash-Next-PLE-Q4_1.gguf --metal --ctx 32768 --mtp",
+    "is_reply": true,
+    "quoted_author": null,
+    "quoted_text": null,
+    "source": "fxtwitter"
+  },
+  {
+    "id": "2096745646757990778",
+    "status": "ok",
+    "author": "ivanfioravanti",
+    "created_at": "Sun Sep 06 23:41:32 +0000 2026",
+    "text": "@fcoury Yes, at least 50GB needed to load the model.",
+    "is_reply": true,
+    "quoted_author": null,
+    "quoted_text": null,
+    "source": "fxtwitter"
+  },
+  {
+    "id": "2096747497481986317",
+    "status": "ok",
+    "author": "ivanfioravanti",
+    "created_at": "Sun Sep 06 23:48:53 +0000 2026",
+    "text": "@ponzifunded Q4_K",
+    "is_reply": true,
+    "quoted_author": null,
+    "quoted_text": null,
+    "source": "fxtwitter"
+  },
+  {
+    "id": "2096763127308202323",
+    "status": "ok",
+    "author": "ivanfioravanti",
+    "created_at": "Mon Sep 07 00:51:00 +0000 2026",
+    "text": "GGUF quantization quality is another level. You have total freedom to tailor it down to the smallest detail.",
+    "is_reply": false,
+    "quoted_author": null,
+    "quoted_text": null,
+    "source": "fxtwitter"
+  },
+  {
+    "id": "2096784181712085329",
+    "status": "ok",
+    "author": "ivanfioravanti",
+    "created_at": "Mon Sep 07 02:14:39 +0000 2026",
+    "text": "DwarfStar PR ready to merge to add an additional small boost on Metal! Rebased on main and tested.\n\n- prefill +4%\n- decode +6%\n\nPR: https://github.com/antirez/ds4/pull/954",
+    "is_reply": false,
+    "quoted_author": "antirez",
+    "quoted_text": "DwarfStar in the latest two weeks was improved in almost every aspect for Metal, DGX Spark and Strix Halo. It is simpler to say: update, you will hopefully see speed and correctness improvements in many areas. Also DSpark with DeepSeek v4 Flash now works much better overall.",
+    "source": "fxtwitter"
+  },
+  {
+    "id": "2096784274146132009",
+    "status": "ok",
+    "author": "ivanfioravanti",
+    "created_at": "Mon Sep 07 02:15:01 +0000 2026",
+    "text": "@Michaelzsguo Lucky you \ud83e\udd23 You can use the Q4_K.",
+    "is_reply": true,
+    "quoted_author": null,
+    "quoted_text": null,
+    "source": "fxtwitter"
+  },
+  {
+    "id": "2096815643698094505",
+    "status": "ok",
+    "author": "ivanfioravanti",
+    "created_at": "Mon Sep 07 04:19:41 +0000 2026",
+    "text": "@colbyboles Q4-K for now, but I\u2019ll create a Q8 too.",
+    "is_reply": true,
+    "quoted_author": null,
+    "quoted_text": null,
+    "source": "fxtwitter"
+  },
+  {
+    "id": "2096816124067565859",
+    "status": "ok",
+    "author": "ivanfioravanti",
+    "created_at": "Mon Sep 07 04:21:35 +0000 2026",
+    "text": "@urbanarson Great! I\u2019ll try to squeeze this a little more. Have you tried this? https://gist.github.com/ivanfioravanti/44b4284be930b3c340cc1696d60c6143",
+    "is_reply": true,
+    "quoted_author": null,
+    "quoted_text": null,
+    "source": "fxtwitter"
+  },
+  {
+    "id": "2096816391479558618",
+    "status": "ok",
+    "author": "ivanfioravanti",
+    "created_at": "Mon Sep 07 04:22:39 +0000 2026",
+    "text": "@thedarthsider Faster than llama.cpp and more accurate but a little slower than MLX.",
+    "is_reply": true,
+    "quoted_author": null,
+    "quoted_text": null,
+    "source": "fxtwitter"
+  },
+  {
+    "id": "2096816513969987974",
+    "status": "ok",
+    "author": "ivanfioravanti",
+    "created_at": "Mon Sep 07 04:23:08 +0000 2026",
+    "text": "If you try this, keep this in mind.\n\nhttps://gist.github.com/ivanfioravanti/44b4284be930b3c340cc1696d60c6143",
+    "is_reply": true,
+    "quoted_author": null,
+    "quoted_text": null,
+    "source": "fxtwitter"
+  },
+  {
+    "id": "2096886651675177053",
+    "status": "ok",
+    "author": "ivanfioravanti",
+    "created_at": "Mon Sep 07 09:01:50 +0000 2026",
+    "text": "@pswai You rock! I will try to improve prefill and why not see if we can squeeze weights a little more.",
+    "is_reply": true,
+    "quoted_author": null,
+    "quoted_text": null,
+    "source": "fxtwitter"
+  },
+  {
+    "id": "2096886877769093205",
+    "status": "ok",
+    "author": "ivanfioravanti",
+    "created_at": "Mon Sep 07 09:02:44 +0000 2026",
+    "text": "@unbug Quick tests seem good. But real life feedback will take few days.",
+    "is_reply": true,
+    "quoted_author": null,
+    "quoted_text": null,
+    "source": "fxtwitter"
+  },
+  {
+    "id": "2096899020241404287",
+    "status": "ok",
+    "author": "ivanfioravanti",
+    "created_at": "Mon Sep 07 09:50:59 +0000 2026",
+    "text": "@zzddfge DwarfStar (ds4) but my fork for now: https://github.com/ivanfioravanti/ds4-metal/tree/qwen3.8-flash-next",
+    "is_reply": true,
+    "quoted_author": null,
+    "quoted_text": null,
+    "source": "fxtwitter"
+  },
+  {
+    "id": "2096899957399953470",
+    "status": "ok",
+    "author": "ivanfioravanti",
+    "created_at": "Mon Sep 07 09:54:43 +0000 2026",
+    "text": "@lmReaI Similar idea, ds4 puts the PLE table in a separate GGUF and reads the needed rows from SSD on demand. PLElast places it at the end of the same GGUF. This changes storage/memory handling; PLE still runs at its original layer, not after the final layer.",
+    "is_reply": true,
+    "quoted_author": null,
+    "quoted_text": null,
+    "source": "fxtwitter"
+  },
+  {
+    "id": "2096901575646351825",
+    "status": "ok",
+    "author": "ivanfioravanti",
+    "created_at": "Mon Sep 07 10:01:08 +0000 2026",
+    "text": "@luismolinaab Top! Keep us posted! I'm trying to improve prefill performance in the meantime.",
+    "is_reply": true,
+    "quoted_author": null,
+    "quoted_text": null,
+    "source": "fxtwitter"
+  },
+  {
+    "id": "2096902733383262566",
+    "status": "ok",
+    "author": "ivanfioravanti",
+    "created_at": "Mon Sep 07 10:05:44 +0000 2026",
+    "text": "I think we need to make this smaller to leave more room for larger contexts.",
+    "is_reply": true,
+    "quoted_author": null,
+    "quoted_text": null,
+    "source": "fxtwitter"
+  },
+  {
+    "id": "2096906244330283054",
+    "status": "ok",
+    "author": "ivanfioravanti",
+    "created_at": "Mon Sep 07 10:19:41 +0000 2026",
+    "text": "DwarfStar Qwen 3.8 Flash Next Q2/64GB quick update: trying to compress down experts using Q2_K instead of mxfp4. This should free 5GB and allow larger contexts on 64GB machines. Test in progress! \ud83e\udd1e\n\nGPT 6 Astra + GLM 5.3 mega combo!",
+    "is_reply": false,
+    "quoted_author": null,
+    "quoted_text": null,
+    "source": "fxtwitter"
+  },
+  {
+    "id": "2096906534102138925",
+    "status": "ok",
+    "author": "ivanfioravanti",
+    "created_at": "Mon Sep 07 10:20:51 +0000 2026",
+    "text": "Trying to quantize down experts using Q2_K, this should free 5GB! Let's hope quality will remain good enough.",
+    "is_reply": true,
+    "quoted_author": null,
+    "quoted_text": null,
+    "source": "fxtwitter"
+  },
+  {
+    "id": "2096911035634729309",
+    "status": "ok",
+    "author": "ivanfioravanti",
+    "created_at": "Mon Sep 07 10:38:44 +0000 2026",
+    "text": "@djnmrjnvc glm53-full-q2 in download_model.sh will give you support for it.",
+    "is_reply": true,
+    "quoted_author": null,
+    "quoted_text": null,
+    "source": "fxtwitter"
+  },
+  {
+    "id": "2096913898297491703",
+    "status": "ok",
+    "author": "ivanfioravanti",
+    "created_at": "Mon Sep 07 10:50:06 +0000 2026",
+    "text": "Updating the model on HF right now to make it 5GB smaller. This should give us more context length on 64GB machine with small impact on performance \ud83e\udd1e",
+    "is_reply": true,
+    "quoted_author": null,
+    "quoted_text": null,
+    "source": "fxtwitter"
+  },
+  {
+    "id": "2096935681666986061",
+    "status": "ok",
+    "author": "ivanfioravanti",
+    "created_at": "Mon Sep 07 12:16:40 +0000 2026",
+    "text": "@MubashirAlee Top!!! I\u2019m improving speed. Thanks for testing so early! You rock Mubashir!",
+    "is_reply": true,
+    "quoted_author": null,
+    "quoted_text": null,
+    "source": "fxtwitter"
+  },
+  {
+    "id": "2096954712402862364",
+    "status": "ok",
+    "author": "ivanfioravanti",
+    "created_at": "Mon Sep 07 13:32:17 +0000 2026",
+    "text": "It seems working well! Now pushing on performance!",
+    "is_reply": true,
+    "quoted_author": null,
+    "quoted_text": null,
+    "source": "fxtwitter"
+  }
+]
+2026-09-07 12:32:46,715 INFO [70866b7@M5-Max-128GB] log: /Users/evanhoffman/git/local-llm/logs/sweeps/verify-posts-M5-Max-128GB-20260907T163242Z.log

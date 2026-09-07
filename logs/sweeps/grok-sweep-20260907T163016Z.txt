@@ -1,0 +1,37 @@
+# grok sweep
+# requested window: last 24 hours
+# written:  2026-09-07T16:30:16Z  (local: 2026-09-07 12:30:16 EDT)
+# query:    Search X for posts and replies from @antirez, @ivanfioravanti, @awnihannun, @simonw, @danielhanchen, @ggerganov, @reach_vb in the last 24 hours about local LLM inference on Apple Silicon, Qwen3.8-Flash-Next, DwarfStar/ds4, MLX, or speculative decoding / MTP. Output ONE bullet per post and nothing else -- no preamble, no summary: - <UTC timestamp> | @handle | <post URL> | <the claim in one sentence>. Omit any item without both a URL and a UTC timestamp. If nothing matches, output exactly: NO RESULTS
+
+I'll search X for the last 24 hours of posts from those accounts on Apple Silicon inference, Qwen3.8-Flash-Next, ds4, MLX, and MTP.The first sweep found several matching posts. Next I’ll pull remaining accounts and replies, then verify each post before listing it.- 2026-09-06T22:17:38Z | @antirez | https://x.com/antirez/status/2096724533604397452 | DwarfStar improved over two weeks for Metal, DGX Spark, and Strix Halo, with better speed, correctness, and DSpark DeepSeek v4 Flash.
+- 2026-09-06T22:32:22Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2096728241159471449 | He will update DwarfStar immediately, may close his Metal pre-M5 PR, and is finalizing Qwen3.8 Flash Next.
+- 2026-09-06T23:10:08Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2096737744886079661 | Qwen 3.8 Flash Next in DwarfStar is nearly ready, with remaining work on Q2, tool-calling fixes, and vision.
+- 2026-09-06T23:10:27Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2096737826024964307 | A DwarfStar Qwen 3.8 fix is ready and final tests are in progress.
+- 2026-09-06T23:12:24Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2096738315709894884 | Qwen 3.8 Flash Next is being prepared to run on a 64GB machine with DwarfStar, with IQ2 weights on Hugging Face.
+- 2026-09-06T23:17:48Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2096739675041841196 | DwarfStar with Qwen 3.8 Flash Next Q2 runs at 65 t/s on an M3 Ultra and he wants a 64GB Apple Silicon tester.
+- 2026-09-06T23:26:43Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2096741917606170932 | He already tested it on an M5 Max 128GB and posted a ds4-agent Metal command with `--mtp` at ctx 32768.
+- 2026-09-06T23:27:42Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2096742166177403222 | Evals look OK, but he still needs real-usage feedback for the 64GB Qwen 3.8 Flash Next build.
+- 2026-09-06T23:40:30Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2096745387877138645 | He forced the Q2 build below 64GB (leaving 8GB for the OS) but still wants a test on a real 64GB machine.
+- 2026-09-06T23:41:32Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2096745646757990778 | Loading the Qwen 3.8 Flash Next Q2 model needs at least 50GB.
+- 2026-09-06T23:48:53Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2096747497481986317 | The PLE/quant for that build is Q4_K.
+- 2026-09-07T00:51:00Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2096763127308202323 | GGUF quantization quality lets you tailor weights in fine detail.
+- 2026-09-07T02:14:39Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2096784181712085329 | DwarfStar PR #954 is rebased on main and adds about +4% prefill and +6% decode on Metal.
+- 2026-09-07T02:15:01Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2096784274146132009 | 128GB machines can use the Q4_K build.
+- 2026-09-07T04:19:41Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2096815643698094505 | The PLE is Q4-K for now and he will also create a Q8.
+- 2026-09-07T04:21:35Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2096816124067565859 | He will try to squeeze the 64GB build further and pointed testers at a gist of run settings.
+- 2026-09-07T04:22:39Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2096816391479558618 | DwarfStar is faster and more accurate than llama.cpp but a little slower than MLX on this model.
+- 2026-09-07T04:23:08Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2096816513969987974 | Testers of the 64GB Qwen 3.8 Flash Next build should follow his gist of run settings.
+- 2026-09-07T08:34:15Z | @antirez | https://x.com/antirez/status/2096879708478517272 | He asked which architecture and model is regressing after the latest DwarfStar updates.
+- 2026-09-07T09:01:50Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2096886651675177053 | He will try to improve prefill and squeeze the Qwen 3.8 weights further.
+- 2026-09-07T09:02:44Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2096886877769093205 | Quick tests of the 64GB Qwen 3.8 Flash Next build look good, but real-life feedback will take a few days.
+- 2026-09-07T09:50:59Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2096899020241404287 | Qwen 3.8 Flash Next currently runs on his ds4-metal fork, not mainline DwarfStar.
+- 2026-09-07T09:54:43Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2096899957399953470 | ds4 stores the PLE table in a separate GGUF and streams needed rows from SSD, unlike PLElast which appends it to the same file.
+- 2026-09-07T10:01:08Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2096901575646351825 | He is working on improving DwarfStar prefill performance.
+- 2026-09-07T10:05:44Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2096902733383262566 | The 64GB Qwen 3.8 Q2 build needs to be smaller to leave room for larger contexts.
+- 2026-09-07T10:19:41Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2096906244330283054 | He is compressing experts with Q2_K instead of mxfp4 to free about 5GB for larger contexts on 64GB machines.
+- 2026-09-07T10:20:51Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2096906534102138925 | Quantizing experts to Q2_K should free 5GB if quality holds.
+- 2026-09-07T10:38:44Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2096911035634729309 | GLM 5.3 full Q2 support in DwarfStar is available via `glm53-full-q2` in `download_model.sh`.
+- 2026-09-07T10:50:06Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2096913898297491703 | He is updating the Hugging Face Q2 model to be 5GB smaller for more context on 64GB machines with small performance impact.
+- 2026-09-07T10:59:22Z | @antirez | https://x.com/antirez/status/2096916228723859626 | Tensor parallelism for two DGX Spark boxes is a next DwarfStar investment once he has stable access to two units.
+- 2026-09-07T12:16:40Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2096935681666986061 | He is still improving speed of the 64GB Qwen 3.8 Flash Next DwarfStar build.
+- 2026-09-07T13:32:17Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2096954712402862364 | The Q2_K expert compression seems to work well and he is now pushing performance.

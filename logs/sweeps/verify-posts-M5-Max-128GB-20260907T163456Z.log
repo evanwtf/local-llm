@@ -1,0 +1,19 @@
+2026-09-07 12:34:56,489 INFO [70866b7-dirty@M5-Max-128GB] 2026-09-07T16:34:56Z (12:34:56 EDT) | harness 70866b7-dirty
+2026-09-07 12:34:56,508 INFO [70866b7-dirty@M5-Max-128GB]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-07 12:34:56,655 INFO [70866b7-dirty@M5-Max-128GB] 2096816391479558618  VERIFIED reply  @ivanfioravanti  Mon Sep 07 04:22:39 +0000 2026  via fxtwitter
+2026-09-07 12:34:56,655 INFO [70866b7-dirty@M5-Max-128GB]     @thedarthsider Faster than llama.cpp and more accurate but a little slower than MLX.
+2026-09-07 12:34:56,770 INFO [70866b7-dirty@M5-Max-128GB] 2096737744886079661  VERIFIED reply  @ivanfioravanti  Sun Sep 06 23:10:08 +0000 2026  via fxtwitter
+2026-09-07 12:34:56,770 INFO [70866b7-dirty@M5-Max-128GB]     @TheDavidTai @kernelpool @ddalcu @Spangler3000 Nearly ready! Final touches: Q2, tools calling fixes, vision and we are ready to go!
+2026-09-07 12:34:56,890 INFO [70866b7-dirty@M5-Max-128GB] 2096741917606170932  VERIFIED reply  @ivanfioravanti  Sun Sep 06 23:26:43 +0000 2026  via fxtwitter
+2026-09-07 12:34:56,890 INFO [70866b7-dirty@M5-Max-128GB]     I tested on M5 Max with 128GB already, but we need a 64GB machine to see if it works there and how much RAM will be really used.  BTW you can: - get the branch from github - download model (weights, P
+2026-09-07 12:34:57,038 INFO [70866b7-dirty@M5-Max-128GB] 2096784181712085329  VERIFIED post  @ivanfioravanti  Mon Sep 07 02:14:39 +0000 2026  via fxtwitter
+2026-09-07 12:34:57,038 INFO [70866b7-dirty@M5-Max-128GB]     DwarfStar PR ready to merge to add an additional small boost on Metal! Rebased on main and tested.  - prefill +4% - decode +6%  PR: https://github.com/antirez/ds4/pull/954
+2026-09-07 12:34:57,038 INFO [70866b7-dirty@M5-Max-128GB]     quotes @antirez: DwarfStar in the latest two weeks was improved in almost every aspect for Metal, DGX Spark and Strix Halo. It is simpler to say: update, you will hopefully see 
+2026-09-07 12:34:57,038 INFO [70866b7-dirty@M5-Max-128GB] 
+2026-09-07 12:34:57,038 INFO [70866b7-dirty@M5-Max-128GB] Verified 4: 4 confirmed, 0 not.
+2026-09-07 12:34:57,038 INFO [70866b7-dirty@M5-Max-128GB] Paste onto the issue:
+2026-09-07 12:34:57,038 INFO [70866b7-dirty@M5-Max-128GB]   **Verified** 2026-09-07: post exists, authored by @ivanfioravanti, posted Mon Sep 07 04:22:39 +0000 2026.
+2026-09-07 12:34:57,039 INFO [70866b7-dirty@M5-Max-128GB]   **Verified** 2026-09-07: post exists, authored by @ivanfioravanti, posted Sun Sep 06 23:10:08 +0000 2026.
+2026-09-07 12:34:57,039 INFO [70866b7-dirty@M5-Max-128GB]   **Verified** 2026-09-07: post exists, authored by @ivanfioravanti, posted Sun Sep 06 23:26:43 +0000 2026.
+2026-09-07 12:34:57,039 INFO [70866b7-dirty@M5-Max-128GB]   **Verified** 2026-09-07: post exists, authored by @ivanfioravanti, posted Mon Sep 07 02:14:39 +0000 2026.
+2026-09-07 12:34:57,039 INFO [70866b7-dirty@M5-Max-128GB] log: /Users/evanhoffman/git/local-llm/logs/sweeps/verify-posts-M5-Max-128GB-20260907T163456Z.log
