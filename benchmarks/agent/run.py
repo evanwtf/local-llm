@@ -877,7 +877,17 @@ def capture_versions(cfg, backends, allow_unstamped=False):
     # harness did not start, or a stale record, must not be resolved into a
     # route the row never ran.
     for name, backend in backends.items():
-        port = urlparse(backend.get("base_url") or "").port
+        # #211: for a shim-fronted backend `base_url` is the SHIM's port, and
+        # `ds4_serve.py` records the route against the ds4-server's. Asking
+        # `route_for` about the shim's port returns `unrecorded` by
+        # construction -- which is how the two largest ds4 backends in the
+        # corpus, 356 rows between them, never named the route they ran.
+        #
+        # The fix is the port, not the check. `engine_url` names the server
+        # behind the shim; it is the same value the shim is started with
+        # (`--upstream`), so the config and the process agree by construction.
+        # A shim that declares none still reads `unrecorded`, honestly.
+        port = route_query_port(backend)
         if port is None:
             continue
         route = ds4_route.route_for(port)
@@ -2402,6 +2412,19 @@ def require_draft_default(backends):
     arm is for; the escape hatch is --no-require-draft.
     """
     return bool(speculative_backends(backends))
+
+
+def route_query_port(backend):
+    """Which port to ask `ds4_route` about for this backend (#211).
+
+    `base_url` is what the client talks to; behind a shim that is the shim.
+    `engine_url` names the engine itself when one is fronted. Neither is
+    guessed from the other: a backend that declares no `engine_url` is asked
+    about its `base_url`, and if that is a shim the answer is `unrecorded` --
+    which is the true answer, not a gap to be filled in.
+    """
+    declared = backend.get("engine_url")
+    return urlparse(declared or backend.get("base_url") or "").port
 
 
 def draft_fields(counters, source=None, counters_requested=None):

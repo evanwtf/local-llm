@@ -908,6 +908,12 @@ context_tokens = 100000
 [backend.glm53ds4shim]
 description = "GLM-5.3-Flash Q2 on ds4 branch, via ds4_claude_shim (thinking + KV fix)"
 base_url = "http://127.0.0.1:8100"
+# #211: the ds4-server behind the shim. `base_url` above is the shim, and
+# `ds4_serve.py` records the Metal route against the server's port -- so
+# without this the row reads `metal_route: unrecorded` by construction.
+# This is the value the shim is started with (`--upstream`, default
+# http://127.0.0.1:8000), so the config and the process agree.
+engine_url = "http://127.0.0.1:8000"
 props_url = "http://127.0.0.1:8000/v1/models"
 # ds4_claude_shim answers POST only, so the /v1/models probe names the ds4
 # server behind it. ds4 advertises these weights under glm-5.2 aliases, so
@@ -1226,6 +1232,12 @@ draft_engine = "ds4"
 [backend.qwen38fnds4mtp7shim]
 description = "Qwen3.8-Flash-Next Q4 fast-pack on ds4-metal ba01f5d via the tool-format shim, embedded MTP --mtp-draft 7"
 base_url = "http://127.0.0.1:8101"
+# #211: the ds4-server behind the shim. `base_url` above is the shim, and
+# `ds4_serve.py` records the Metal route against the server's port -- so
+# without this the row reads `metal_route: unrecorded` by construction.
+# This is the value the shim is started with (`--upstream`, default
+# http://127.0.0.1:8000), so the config and the process agree.
+engine_url = "http://127.0.0.1:8000"
 auth_token = "dsv4-local"
 model = "qwen3.8-flash-next-q4"
 opencode_model = "ds4qwenshim/qwen3.8-flash-next-q4"
@@ -1256,6 +1268,12 @@ draft_engine = "ds4"
 [backend.qwen38fnds4kimat]
 description = "Qwen3.8-Flash-Next Q4_K imatrix on ivanfioravanti/ds4 qwen3.8-flash-next bd9cfbc via the tool-format shim, MTP off"
 base_url = "http://127.0.0.1:8101"
+# #211: the ds4-server behind the shim. `base_url` above is the shim, and
+# `ds4_serve.py` records the Metal route against the server's port -- so
+# without this the row reads `metal_route: unrecorded` by construction.
+# This is the value the shim is started with (`--upstream`, default
+# http://127.0.0.1:8000), so the config and the process agree.
+engine_url = "http://127.0.0.1:8000"
 auth_token = "dsv4-local"
 model = "qwen3.8-flash-next-q4"
 opencode_model = "ds4qwenshim/qwen3.8-flash-next-q4"
@@ -1266,6 +1284,12 @@ engine_tree = "~/git/ds4-ivan-qwen38fn"
 [backend.qwen38fnds4shim]
 description = "Qwen3.8-Flash-Next Q4 fast-pack on ds4-metal ba01f5d via the tool-format shim (non-streaming upstream), MTP off"
 base_url = "http://127.0.0.1:8101"
+# #211: the ds4-server behind the shim. `base_url` above is the shim, and
+# `ds4_serve.py` records the Metal route against the server's port -- so
+# without this the row reads `metal_route: unrecorded` by construction.
+# This is the value the shim is started with (`--upstream`, default
+# http://127.0.0.1:8000), so the config and the process agree.
+engine_url = "http://127.0.0.1:8000"
 auth_token = "dsv4-local"
 model = "qwen3.8-flash-next-q4"
 opencode_model = "ds4qwenshim/qwen3.8-flash-next-q4"
