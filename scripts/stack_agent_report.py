@@ -296,6 +296,24 @@ def task_wall(rows: list[dict[str, Any]]) -> float | None:
     return math.exp(statistics.fmean(math.log(w) for w in walls))
 
 
+def log_if_unknown(backend: str, task: str, rows: list[dict[str, Any]]) -> None:
+    """State it once when every row in a pooled bucket lacks a server_argv.
+
+    All-unknown pools are allowed (#213): refusing every unverifiable group
+    would void every analysis of the 1,643 rows that never captured argv. But
+    they must not pass silent -- a bucket that cannot prove it ran one config
+    may span configurations, and no row can say which.
+    """
+    if rows and results_mod.unknown_argv(rows):
+        logger.warning(
+            "%s %s: %d row(s), none records server_argv;"
+            " cannot verify they ran one configuration",
+            backend,
+            task,
+            len(rows),
+        )
+
+
 def pairs_by_task(sweeps: list[Sweep]) -> list[tuple[str, float, float]]:
     """(task, wall_new, wall_old) for every task with walls on both arms."""
     new: dict[str, dict[str, Any]] = {}
@@ -304,6 +322,15 @@ def pairs_by_task(sweeps: list[Sweep]) -> list[tuple[str, float, float]]:
         bucket = new if sweep.arm == "new" else old
         for row in sweep.rows:
             bucket.setdefault(row.get("task") or "?", []).append(row)
+    # #213: a bucket that mixes graph-changing server_argv is two different
+    # models. Keep the largest self-consistent group; the dropped rows are
+    # holes in n, not passes or fails.
+    for task, bucket in list(new.items()):
+        new[task] = results_mod.compatible_subset(bucket)
+        log_if_unknown(NEW_BACKEND, task, new[task])
+    for task, bucket in list(old.items()):
+        old[task] = results_mod.compatible_subset(bucket)
+        log_if_unknown(OLD_BACKEND, task, old[task])
     out = []
     for task in sorted(new):
         if task in old:
@@ -328,6 +355,12 @@ def pairs_by_sweep(sweeps: list[Sweep]) -> dict[int, list[tuple[str, float, floa
         slot = by_n.setdefault(int(digits), {"new": {}, "old": {}})
         for row in sweep.rows:
             slot[sweep.arm].setdefault(row.get("task") or "?", []).append(row)
+    # #213: keep only the largest server_argv-compatible group per (arm, task).
+    for slot in by_n.values():
+        for arm, backend in (("new", NEW_BACKEND), ("old", OLD_BACKEND)):
+            for task in list(slot[arm]):
+                slot[arm][task] = results_mod.compatible_subset(slot[arm][task])
+                log_if_unknown(backend, task, slot[arm][task])
     out: dict[int, list[tuple[str, float, float]]] = {}
     for n, slot in sorted(by_n.items()):
         rows = []

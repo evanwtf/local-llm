@@ -7,6 +7,7 @@ failure; a virgin excision produces the same one every time.
 
 from __future__ import annotations
 
+import logging
 import pathlib
 import sys
 
@@ -171,3 +172,29 @@ def test_saturation_lists_multiple_cells() -> None:
     got = report.saturated_cells(cells)
     assert len(got) == 2
     assert {t for _, t, _ in got} == {"t1", "t2"}
+
+
+def known_row(backend, task, trial):
+    r = row(backend, task, trial, True, "1 passed")
+    r["env"] = {"server_argv": "./ds4-server -m /a.gguf -c 100000"}
+    return r
+
+
+def test_all_unknown_cell_is_logged_not_silent(caplog) -> None:
+    """#213: an all-unknown pool may span configs, and no row can say which."""
+    rows = [
+        row("qwen38fnds4mtp7shim", "mbox-scan", i, True, "1 passed")
+        for i in range(1, 4)
+    ]
+    with caplog.at_level(logging.WARNING, logger="report"):
+        report.cells(rows, {"qwen38fnds4mtp7shim"})
+    assert "none records server_argv" in caplog.text
+    assert "mbox-scan" in caplog.text
+
+
+def test_consistent_known_cell_does_not_warn(caplog) -> None:
+    """A pool that can prove it ran one configuration needs no caveat."""
+    rows = [known_row("b", "t", i) for i in range(1, 4)]
+    with caplog.at_level(logging.WARNING, logger="report"):
+        report.cells(rows, {"b"})
+    assert "none records server_argv" not in caplog.text

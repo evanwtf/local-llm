@@ -377,6 +377,119 @@ def trials(path: pathlib.Path) -> list[dict[str, Any]]:
     return [r for r in usable(path) if not r.get("dry_run")]
 
 
+# --- server_argv pooling guard (#213) --------------------------------------
+
+#: Flags that take a value and change the compute graph. Two rows pooled
+#: together must agree on these, or the comparison is between two different
+#: models. Spellings are the ds4-server ones (ds4_cli.c at ds4-main 9ab70534);
+#: `--mtp` is the MTP model path, `-c`/`--ctx` the context window. The weights
+#: path (`-m`/`--model`) is deliberately absent: it is a path, and the model
+#: identity is already captured separately as `gguf_path`.
+GRAPH_VALUE_FLAGS: frozenset[str] = frozenset(
+    {
+        "--mtp",
+        "--prefill-chunk",
+        "--kv-disk-dir",
+        "--kv-disk-space-mb",
+        "--ssd-streaming-cache-experts",
+        "--ssd-streaming-preload-experts",
+        "-c",
+        "--ctx",
+        "--power",
+    }
+)
+
+#: Boolean flag families that change the graph when present. Matched by prefix
+#: so a future `--kv-disk-*` or `--ssd-streaming*` flag is caught without an
+#: edit here.
+GRAPH_BOOLEAN_PREFIXES: tuple[str, ...] = ("--kv-disk-", "--ssd-streaming")
+
+
+def graph_flags(argv: str) -> dict[str, str]:
+    """The graph-changing flags in a server_argv string, flag -> value.
+
+    A flag that takes a value maps to that value; a boolean flag maps to "1"
+    (present). Absent flags are absent from the dict, so two argv strings
+    compare equal iff they agree on every graph-changing flag. Paths, ports and
+    other harmless differences never enter the dict.
+    """
+    tokens = argv.split()
+    out: dict[str, str] = {}
+    i = 0
+    while i < len(tokens):
+        tok = tokens[i]
+        if tok in GRAPH_VALUE_FLAGS:
+            if i + 1 < len(tokens):
+                out[tok] = tokens[i + 1]
+                i += 2
+                continue
+        elif tok.startswith(GRAPH_BOOLEAN_PREFIXES):
+            out[tok] = "1"
+        i += 1
+    return out
+
+
+def server_argv_compatible(a: dict[str, Any], b: dict[str, Any]) -> bool:
+    """True if two rows may be pooled together.
+
+    A row with no server_argv is unknown. Unknown must not compare equal to
+    known -- a row that says nothing about its graph could have run anything.
+    Two known rows agree only when every graph-changing flag matches.
+    """
+    av = (a.get("env") or {}).get("server_argv")
+    bv = (b.get("env") or {}).get("server_argv")
+    if not av and not bv:
+        return True
+    if not av or not bv:
+        return False
+    return graph_flags(av) == graph_flags(bv)
+
+
+def pool_compatible(rows: list[dict[str, Any]]) -> bool:
+    """True if every row in a pool may be pooled with every other.
+
+    All-unknown pools are compatible (nothing to compare). A pool that mixes a
+    known argv with an unknown one, or two known argv strings with different
+    graph flags, is not -- pooling it would compare two different models and
+    call the difference a result.
+    """
+    sigs: set[frozenset[tuple[str, str]] | None] = set()
+    for r in rows:
+        argv = (r.get("env") or {}).get("server_argv")
+        sigs.add(None if not argv else frozenset(graph_flags(argv).items()))
+    return len(sigs) <= 1
+
+
+def compatible_subset(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The largest subset of `rows` that may be pooled together.
+
+    A pool that mixes graph-changing server_argv is not a pool -- it is two
+    different models. Keep the largest self-consistent group so one outlier
+    row does not void the whole cell; the dropped rows are holes in n, not
+    passes or fails.
+    """
+    if not rows:
+        return []
+    sigs: dict[frozenset[tuple[str, str]] | None, list[dict[str, Any]]] = {}
+    for r in rows:
+        argv = (r.get("env") or {}).get("server_argv")
+        sig = None if not argv else frozenset(graph_flags(argv).items())
+        sigs.setdefault(sig, []).append(r)
+    return max(sigs.values(), key=len)
+
+
+def unknown_argv(rows: list[dict[str, Any]]) -> bool:
+    """True if no row in the pool records a `server_argv`.
+
+    An all-unknown pool is compatible by design -- refusing it would void
+    every analysis of the rows we already hold -- but it must be stated, not
+    silent. The pool this guard exists for, `qwen38fnds4mtp7shim`'s 94 rows,
+    is exactly this case: they may span two configurations and no row can say
+    which. Callers log this condition once per pool.
+    """
+    return all(not (r.get("env") or {}).get("server_argv") for r in rows)
+
+
 # --- one file, one machine (#20) ------------------------------------------
 
 HARDWARE_KEYS = ("arch", "cpu")
