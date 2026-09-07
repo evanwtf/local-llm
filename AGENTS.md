@@ -1752,3 +1752,37 @@ meant, that is a fault in the instruction.
 Related: the same asymmetry runs the other way. A peer that pushes back with a
 mechanism is usually worth believing -- see the route-field correction on the
 same day, where the peer was right and I was wrong twice.
+
+## Never resolve a data file by taking the union of two row sets (2026-09-07)
+
+`results.jsonl` is append-only in the ordinary case, so "keep both sides and
+dedupe" looks like the safe merge. It is not, and on 2026-09-07 it restored 90
+rows that had been deliberately archived months before.
+
+**A removal and an absence are the same shape in a union.** Rows leave that
+file on purpose: `scripts/archive_pre_dir_rows.py` moves OpenCode trials that
+predate `--dir` into `docs/archive/`, because the client was never told which
+directory to work in and those rows measure the harness rather than the model.
+A branch that forked before that archiving still carries them. Union the two
+sides and every archived row comes back, indistinguishable from a row the
+other side simply had not seen yet.
+
+**So resolve it as `theirs` plus the rows that are genuinely new**, and then
+re-run every archiver the repo owns before committing:
+
+```sh
+uv run python scripts/archive_pre_dir_rows.py     # idempotent; says what it moved
+uv run python benchmarks/agent/splice_tables.py   # tables go stale the moment rows move
+uv run pytest -q                                  # the invariant tests are the check
+```
+
+**And do not trust CI to catch it.** The tests that assert invariants of the
+ledger are guarded on `HAS_LOCAL_RESULTS`, which is
+`results.default_path().exists()` — a path derived from the RUNNER's own
+hardware by `scripts/hardware_id.py`. On any machine that is not the one that
+took the measurements, the directory does not exist and every one of those
+tests skips. CI was green on the branch that carried the 90 rows. See #218.
+
+The instruction that caused this was mine, given to a peer, and the peer
+followed it exactly and verified the union carefully. A merge rule for a data
+file has to name what may be *missing on purpose*, or it is not a rule.
