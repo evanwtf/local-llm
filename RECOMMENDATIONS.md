@@ -69,9 +69,26 @@ the reason is the first column. The quick-start above installs the first row.
 
 | pick this if | model | server | download | pass rate | median task |
 |---|---|---|---|---|---|
-| **you are starting out** | Qwen3.6-27B-coding `mxfp8` | Ollama | 31 GB | **18/18** | 167s |
-| **you want it fast** | Qwen3.8-Flash-Next `UD-Q3_K_XL` | llama.cpp | 84 GB | **21/21** | **90s** |
-| **you want a second lineage** | DeepSeek-V4-Flash | ds4 (DwarfStar) | 91 GB | **21/21** | 115s |
+| **you are starting out** | Qwen3.6-27B-coding `mxfp8` | Ollama | 31 GB | **24/24** | 167s |
+| **you want it fast** | Qwen3.8-Flash-Next `UD-Q3_K_XL` | llama.cpp | 84 GB | **60/60** | **106s** |
+| **you want a second lineage** | DeepSeek-V4-Flash | ds4 (DwarfStar) | 91 GB | **30/30** | 115s |
+
+*Figures re-derived from the ledger 2026-09-07 and matching the generated
+table below. They were last written on 2026-09-01 and had drifted: the pass
+counts were 18/18, 21/21 and 21/21, which matched no current filter after the
+ledger grew and the pre-`--dir` rows were archived out. The "fast" median moved
+90s to 106s because [#212](https://github.com/evanwtf/local-llm/issues/212)
+added thirty rows under a later client.*
+
+> **Slot 2 has a live challenger.** `qwen38fnds4kimat` — the same model, Q4_K
+> imatrix, on ds4 — is **120/120 at 98s** in the table below, and a paired
+> four-sweep A/B on 2026-09-07 put it **19% faster** than this row at identical
+> pass rates (ratio 0.81, 95% CI 0.71–0.93, both pairs agreeing). That is a
+> screen, not a superiority claim, and the row is not changed until the paired
+> 3+3 is in. It also costs ~105 GB against 84 GB and runs only on
+> ivanfioravanti's fork, not mainline ds4 — see
+> [#141](https://github.com/evanwtf/local-llm/issues/141) and
+> [#212](https://github.com/evanwtf/local-llm/issues/212).
 
 All three drive **OpenCode**, and that is deliberate. The whole point of a local
 setup is that it keeps working when a vendor does not — so the agent has to be
@@ -102,8 +119,14 @@ hides. It is **the only backend in this project's whole record that has
 produced wrong code**: it failed twice on an excision task under an earlier
 client, and it emitted Swift that did not compile from a run that otherwise
 looked completely normal — clean exit, no error, 30 tool calls
-([#45](https://github.com/evanwtf/local-llm/issues/45)). And its **worst run is
-30x its median**, against 4–6x for everything above. Fastest-on-average and
+([#45](https://github.com/evanwtf/local-llm/issues/45)). Its tail is also the
+longest here, though smaller than this file used to claim: **93s worst against
+a 44s median under OpenCode (2.1x)**, and 999.6s against 96s pooled across
+every client (10.4x). The figure published until 2026-09-07 was "30x its
+median", which no cut of the data supports — it came from dividing the worst
+Codex run by the OpenCode median, the cross-client mix this file warns about
+two tables down ([#137](https://github.com/evanwtf/local-llm/issues/137)).
+Fastest-on-average and
 occasionally, quietly wrong is a bad trade when you are not watching. The
 numbers are published because they are real; the recommendation withholds it on
 purpose.
