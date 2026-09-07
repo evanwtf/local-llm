@@ -26,6 +26,7 @@ until an overnight sweep produces no rows.
 from __future__ import annotations
 
 import pathlib
+import re
 import subprocess
 
 import pytest
@@ -130,8 +131,22 @@ def test_a_chunk_above_the_raw_cap_ceiling_warns():
     script = SCRIPT.read_text()
     assert "-gt 8192" in script, "no ceiling guard"
     assert "raw_cap" in script
+    # Anchor to the block's own closing `fi` on its own line. Splitting on a
+    # bare "fi" was the first version and it is a trap: "fi" is a substring of
+    # "first", and "first frontier" is the most natural phrase to add to this
+    # very warning -- the test would then read a truncated block and go on
+    # passing. `fi\b` excludes "first" (the following "r" is a word char), and
+    # the non-greedy match stops at the first bare `fi` line, which is the
+    # closing one. Indentation-robust, so reformatting the script cannot break
+    # it either. Suggested in review; better than the version it replaced.
+    body = re.search(
+        r'if \[ "\$PREFILL_CHUNK" -gt 8192 \]; then\n(.*?)\n[ \t]*fi\b',
+        script,
+        re.DOTALL,
+    )
+    assert body, "the ceiling guard is not a recognisable if-block"
+    ceiling = body.group(1)
     # A warning, not a refusal: the divergence is measurable on purpose.
-    ceiling = script.split("-gt 8192")[1].split("fi")[0]
     assert "WARNING" in ceiling
     assert "REFUSING" not in ceiling
 
