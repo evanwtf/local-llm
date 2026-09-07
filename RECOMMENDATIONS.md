@@ -398,6 +398,45 @@ paid. See `benchmarks/agent/RESULTS.md`.
 
 ---
 
+## If you run ds4 with its disk KV cache, two ceilings decide whether it does anything
+
+Measured 2026-09-07 on `qwen38fnds4kimat`, three runs per arm, every run
+identical to the digit ([#190](https://github.com/evanwtf/local-llm/issues/190),
+[#199](https://github.com/evanwtf/local-llm/issues/199)). Both are one flag
+wide, and at ds4's defaults a coding agent gets much less from the cache than
+the flags suggest.
+
+**A cold checkpoint stops existing above 30,000 tokens.** `cold_max_tokens`
+defaults to 30000. At 53,845 and 77,845 tokens a fresh session reuses **0.0%**
+— no store is written at all, so there is nothing to hit later. Raise the cap
+and the same prompts read **98.9%** and **97.3%**.
+
+**A continued checkpoint lands only on an exact multiple of 10,240 tokens.**
+`ds4_kvstore_continued_store_target` returns 0 unless `live_tokens % step == 0`
+(`ds4_kvstore.c:751 at ds4-ivan-qwen38fn ffd85d42`), and the step is
+`ceil(10000/2048) × 2048 = 10240`. Prefill advances in 8,192-token chunks, so
+from any resume point the next landing is **five chunks — 40,960 tokens —
+away**. At 29,845 tokens the default gives **34.3%** reuse; a 2,048 step gives
+**89.2%**, storing at exactly 26,624 = 10,240 + 2 × 8,192, which the arithmetic
+named before the run produced it.
+
+**Both bite a coding agent at once.** A new session over 30k gets nothing from
+disk, and a continuing one must grow by ~41k tokens **in a single turn** to
+leave a new checkpoint. Neither shows up as an error; the session is simply
+slower than the cache flags imply.
+
+Two other things that look like knobs here and are not. The disk budget is
+inert over the range we tested — 8 GiB and 32 GiB produced byte-identical
+results — and so is the context size, 32k against 128k. Do not spend time on
+either.
+
+One trap if you go looking in the logs. An **evicted** store is written and
+never hit: at 29,845 tokens the server writes a 29,877-token entry with
+`reason=evict` and then serves the very request that produced it from a
+10,240-token entry left by an earlier, much shorter run. So a `kv cache stored`
+line is not evidence of reuse, and the store a request reads is not necessarily
+the most recent one.
+
 ## How much should you trust this?
 
 **The pass rates are strong; the speed rankings are weaker than they look.**
