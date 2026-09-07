@@ -353,3 +353,95 @@ def test_a_batch_argument_excludes_entries_with_no_batch_id(tmp_path, caplog):
         )
     assert rc == 0
     assert "no batch id" in caplog.text
+
+
+# --- per-sweep read-out (#146) -------------------------------------------
+#
+# #146 pre-registered its decision per sweep, not per arm: "within 1 task per
+# sweep of 15, across 2 sweeps per arm", with a "no call" branch when the arms
+# differ by more than that BUT IN OPPOSITE DIRECTIONS across sweeps.
+#
+# The batch on 2026-09-07 is why this matters. Arm totals read legacy 29/30
+# against sandbox 26/30 -- a clean 3-task deficit, which on the arm view alone
+# reads as "do not cut over". Per sweep it was 14/15, 15/15, 11/15, 15/15: the
+# arms disagree in direction (-1, +4) and the rule's own answer is "no call".
+# An arm total cannot express that, and reading one would have produced a
+# pre-registered verdict the pre-registration did not support.
+
+SWEEP_MANIFEST = [
+    {
+        "run": 1,
+        "arm": "legacy",
+        "started": "2026-09-06T22:07:15",
+        "ended": "2026-09-06T22:45:27",
+    },
+    {
+        "run": 2,
+        "arm": "sandbox",
+        "started": "2026-09-06T22:45:41",
+        "ended": "2026-09-06T23:43:47",
+    },
+]
+
+
+def _row(started: str, passed: bool) -> dict:
+    return {"started": started, "passed": passed, "batch": "b1"}
+
+
+def test_per_sweep_splits_by_run_not_only_by_arm():
+    rows = [
+        _row("2026-09-06T22:10:00", True),
+        _row("2026-09-06T22:20:00", False),
+        _row("2026-09-06T22:50:00", True),
+    ]
+    got = report.per_sweep(rows, SWEEP_MANIFEST, batch="b1")
+    assert got == [(1, "legacy", 1, 2), (2, "sandbox", 1, 1)]
+
+
+def test_per_sweep_is_ordered_by_run():
+    """The rule pairs sweeps by position, so order is load-bearing."""
+    rows = [_row("2026-09-06T22:50:00", True), _row("2026-09-06T22:10:00", True)]
+    assert [r[0] for r in report.per_sweep(rows, SWEEP_MANIFEST, batch="b1")] == [1, 2]
+
+
+def test_per_sweep_skips_another_batch():
+    rows = [_row("2026-09-06T22:10:00", True) | {"batch": "other"}]
+    assert report.per_sweep(rows, SWEEP_MANIFEST, batch="b1") == []
+
+
+def test_per_sweep_ignores_a_row_outside_every_window():
+    rows = [_row("2026-09-06T21:00:00", True)]
+    assert report.per_sweep(rows, SWEEP_MANIFEST, batch="b1") == []
+
+
+def test_render_names_the_no_call_branch_when_sweeps_disagree():
+    """Disagreeing sweeps must be called out, or an arm total gets read instead."""
+    sweeps = [
+        (1, "legacy", 14, 15),
+        (2, "sandbox", 15, 15),
+        (3, "sandbox", 11, 15),
+        (4, "legacy", 15, 15),
+    ]
+    out = report.render({}, {}, sweeps)
+    assert "DISAGREE IN DIRECTION" in out
+    assert "no call" in out
+
+
+def test_render_is_quiet_when_the_sweeps_agree():
+    """A guard that always fires is not a guard."""
+    sweeps = [
+        (1, "legacy", 15, 15),
+        (2, "sandbox", 12, 15),
+        (3, "sandbox", 11, 15),
+        (4, "legacy", 14, 15),
+    ]
+    out = report.render({}, {}, sweeps)
+    assert "DISAGREE IN DIRECTION" not in out
+
+
+def test_the_primary_label_is_not_claimed_for_other_experiments():
+    """ "the pre-registered primary" is #112's claim, for its on/off arms."""
+    per_arm = {"legacy": (1, 10, 1, 10), "sandbox": (1, 10, 1, 10)}
+    assert "pre-registered primary" not in report.render(per_arm, {})
+    on_off = {"on": (1, 10, 1, 10), "off": (1, 10, 1, 10)}
+    assert "pre-registered primary" in report.render(on_off, {})

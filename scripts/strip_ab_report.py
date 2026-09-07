@@ -140,6 +140,49 @@ def arm_of(started: str, manifest: list[dict]) -> str | None:
     return None
 
 
+def run_of(started: str, manifest: list[dict]) -> tuple[int, str] | None:
+    """Which (run number, arm) was running when a trial started.
+
+    Same window logic as `arm_of`, and for the same reason. Kept separate
+    rather than folded into it because most read-outs want the arm total and
+    only a per-sweep pre-registration wants the run.
+    """
+    when = epoch(started)
+    if when is None:
+        return None
+    for entry in manifest:
+        lo, hi = epoch(entry["started"]), epoch(entry["ended"])
+        if lo is not None and hi is not None and lo <= when <= hi:
+            return int(entry["run"]), str(entry["arm"])
+    return None
+
+
+def per_sweep(
+    rows: list[dict], manifest: list[dict], batch: str | None = None
+) -> list[tuple[int, str, int, int]]:
+    """(run, arm, passed, trials) per sweep, in run order.
+
+    #146's pre-registration is stated per sweep, not per arm: "the two arms
+    are within 1 task per sweep of 15, across 2 sweeps per arm", with a
+    "no call" branch when the arms differ by more than that **but in opposite
+    directions across sweeps**. An arm total cannot express that -- two sweeps
+    that disagree average into a difference that looks real. So the direction
+    of each sweep has to be visible, or the rule cannot be applied at all.
+    """
+    acc: dict[tuple[int, str], list[int]] = {}
+    for row in rows:
+        row_batch = row.get("batch")
+        if batch is not None and row_batch is not None and row_batch != batch:
+            continue
+        got = run_of(str(row.get("started", "")), manifest)
+        if got is None:
+            continue
+        cell = acc.setdefault(got, [0, 0])
+        cell[0] += 1 if row.get("passed") else 0
+        cell[1] += 1
+    return [(r, a, p, n) for (r, a), (p, n) in sorted(acc.items())]
+
+
 def batch_of(entry: dict) -> str | None:
     """The batch id a manifest entry belongs to, or None.
 
@@ -255,10 +298,12 @@ def void_reason(manifest: list[dict]) -> str | None:
 def render(
     per_arm: dict[str, tuple[int, int, int, int]],
     outcome: dict[str, dict[str, int]],
+    sweeps: list[tuple[int, str, int, int]] | None = None,
 ) -> str:
     order = arms_in(per_arm, outcome)
     lines = [f"A/B read-out: {' vs '.join(order)}", ""]
-    lines.append("conditional failure rate (the pre-registered primary)")
+    primary = " (the pre-registered primary)" if order == ["on", "off"] else ""
+    lines.append(f"conditional failure rate{primary}")
     lines.append(
         f"{'arm':>5}  {'clean context':>16}  {'after >=1 error':>17}  {'failures':>8}"
     )
@@ -273,7 +318,14 @@ def render(
             f"{af}/{an} = {100 * af / an if an else 0:5.1f}%  {cf + af:>8}"
         )
     lines.append("")
-    lines.append("trial outcomes (NOT the pre-registered primary -- see the docstring)")
+    lines.append(
+        "trial outcomes"
+        + (
+            " (NOT the pre-registered primary -- see the docstring)"
+            if order == ["on", "off"]
+            else ""
+        )
+    )
     lines.append(f"{'arm':>5}  {'passed':>12}  {'solution_empty':>15}")
     for arm in order:
         if arm not in outcome:
@@ -284,6 +336,33 @@ def render(
             f"{o['empty']:>15}"
         )
     lines.append("")
+    if sweeps:
+        lines.append("per sweep, in run order (the unit #146 pre-registered on)")
+        lines.append(f"{'run':>3}  {'arm':>8}  {'passed':>12}")
+        for run, arm, passed, trials in sweeps:
+            lines.append(
+                f"{run:>3}  {arm:>8}  {passed}/{trials} = "
+                f"{100 * passed / trials if trials else 0:5.1f}%"
+            )
+        by_arm: dict[str, list[int]] = {}
+        for _, arm, passed, _ in sweeps:
+            by_arm.setdefault(arm, []).append(passed)
+        if len(by_arm) == 2:
+            (a, av), (b, bv) = sorted(by_arm.items())
+            if len(av) == len(bv):
+                diffs = [x - y for x, y in zip(av, bv, strict=True)]
+                signs = {d > 0 for d in diffs if d != 0}
+                lines.append("")
+                lines.append(
+                    f"per-sweep difference ({a} - {b}), paired by position: "
+                    + ", ".join(f"{d:+d}" for d in diffs)
+                )
+                if len(signs) > 1:
+                    lines.append(
+                        "  the sweeps DISAGREE IN DIRECTION -- under #146's rule "
+                        "that is the 'no call' branch, not a result."
+                    )
+        lines.append("")
     if len(counts) == 2:
         first, second = order
         (a_f, a_n), (b_f, b_n) = counts[first], counts[second]
@@ -410,7 +489,8 @@ def main(argv: list[str] | None = None) -> int:
             unmapped,
             args.results,
         )
-    logger.info("\n%s", render(per_arm, outcome))
+    sweeps = per_sweep(rows, manifest, batch=want)
+    logger.info("\n%s", render(per_arm, outcome, sweeps))
     return 0
 
 
