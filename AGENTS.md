@@ -1710,3 +1710,45 @@ Two things prevent it:
 Sweeping the shells is the smaller half. The peer reported the count before
 and after (94 -> 0) *and* the cause, which is why the fix is a rule here rather
 than a cleanup nobody learns from.
+
+## Check a peer every 20 minutes, and check what it is DOING
+
+**Operator rule, 2026-09-07.** When you are managing a peer agent, check its
+status every twenty minutes and confirm it is working. Idle is acceptable only
+when idle is what you asked for.
+
+Both failures that produced this rule were invisible from here:
+
+- The peer was **blocked for hours on a permission prompt** its own session had
+  raised. Nothing surfaces that to a peer. I learned it from the operator.
+- The peer **pushed at 09:54, CI failed at 09:55, and it sat for 47 minutes.**
+  Nothing tells an agent its CI went red. It had finished its turn and stopped,
+  believing the work delivered.
+
+Neither was the peer's fault and neither showed up in its messages, because in
+both cases it had nothing to report.
+
+**A check is "what is it doing right now", not "did it reply".**
+
+```sh
+top -l 2 -pid <peer-pid> -stats pid,cpu,command | tail -3   # live CPU
+ps -eo ppid | awk '$1==<peer-pid>' | wc -l                  # child processes
+gh run list --repo <repo> --branch <its-branch> --limit 1 \
+  --json conclusion,createdAt                               # did its push pass?
+```
+
+`ps`'s `%CPU` column is a **lifetime average** and reads `0.0` for a session
+that has been alive for a day, so it cannot tell a busy peer from an idle one.
+Sample with `top -l 2` instead.
+
+**Also check that your own constraints are not over-blocking it.** Told not to
+run tests on a machine holding a measurement, the peer inferred it should not
+work at all and idled for two hours. The constraint was mechanical -- no local
+test runs, no commits to the pinned worktree -- and left every code change it
+had open perfectly workable in its own worktree against CI on another host. Say
+what is blocked and what is not, and when a peer holds back further than you
+meant, that is a fault in the instruction.
+
+Related: the same asymmetry runs the other way. A peer that pushes back with a
+mechanism is usually worth believing -- see the route-field correction on the
+same day, where the peer was right and I was wrong twice.
