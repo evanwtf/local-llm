@@ -40,21 +40,45 @@ REPO="$(cd "$HERE/.." && pwd)"
 # shellcheck source=lib/ds4_server.sh
 source "$HERE/lib/ds4_server.sh"
 
-NEW_TREE=$HOME/git/ds4-ivan-qwen38fn
-NEW_GGUF=$HOME/models/qwen3.8-flash-next-ds4-q4k-imatrix/Qwen3.8-Flash-Next-Q4KImatrixExperts-MXFP4Down-BF16Emb-BF16Control-Q8GDN-Q8QSA-Q8Shared-Q8Out.gguf
-NEW_PLE=$HOME/models/qwen3.8-flash-next-ds4-q4k-imatrix/Qwen3.8-Flash-Next-PLE-Q4_1.gguf
+# Both arms are overridable, so this harness can answer a question other than
+# #138's without a near-copy of it drifting away from the original (the repo
+# has already paid for two lists that were supposed to be the same set). The
+# defaults ARE #138: change nothing and this runs exactly what it always ran.
+#
+# NEW_FLAGS/OLD_FLAGS append to the server argv. That is what lets the two arms
+# differ by an engine flag rather than by weights -- #210/#151 need MTP on
+# against MTP off, same tree, same gguf, same PLE.
+NEW_TREE=${NEW_TREE:-$HOME/git/ds4-ivan-qwen38fn}
+NEW_GGUF=${NEW_GGUF:-$HOME/models/qwen3.8-flash-next-ds4-q4k-imatrix/Qwen3.8-Flash-Next-Q4KImatrixExperts-MXFP4Down-BF16Emb-BF16Control-Q8GDN-Q8QSA-Q8Shared-Q8Out.gguf}
+NEW_PLE=${NEW_PLE:-$HOME/models/qwen3.8-flash-next-ds4-q4k-imatrix/Qwen3.8-Flash-Next-PLE-Q4_1.gguf}
 # A dedicated KV directory. ds4-server's disk cache runs cross-quant=accept, so
 # a prefix cached by the other arm would be reused here with activations
 # computed from different weights. Separate directories, or the two arms
-# quietly contaminate each other.
-NEW_KV=$HOME/.ds4/server-kv-kimat
-NEW_BACKEND=qwen38fnds4kimat
+# quietly contaminate each other. This holds for a flag-only A/B too: ds4
+# rejects the other configuration's checkpoints when an engine flag changes the
+# KV format, so a shared directory makes one arm re-prefill where the other hit
+# cache, and the only symptom is that it looks slower.
+NEW_KV=${NEW_KV:-$HOME/.ds4/server-kv-kimat}
+NEW_BACKEND=${NEW_BACKEND:-qwen38fnds4kimat}
+NEW_FLAGS=${NEW_FLAGS:-}
 
-OLD_TREE=$HOME/git/ds4-metal
-OLD_GGUF=$HOME/models/qwen3.8-flash-next-ds4-q4/Qwen3.8-Flash-Next-Q40RoutedExperts-BF16Emb-BF16Control-Q8GDN-Q8QSA-Q8Shared-Q8Out.gguf
-OLD_PLE=$HOME/models/qwen3.8-flash-next-ds4-q4/Qwen3.8-Flash-Next-PLE-Q4_1.gguf
-OLD_KV=$HOME/.ds4/server-kv
-OLD_BACKEND=qwen38fnds4shim
+OLD_TREE=${OLD_TREE:-$HOME/git/ds4-metal}
+OLD_GGUF=${OLD_GGUF:-$HOME/models/qwen3.8-flash-next-ds4-q4/Qwen3.8-Flash-Next-Q40RoutedExperts-BF16Emb-BF16Control-Q8GDN-Q8QSA-Q8Shared-Q8Out.gguf}
+OLD_PLE=${OLD_PLE:-$HOME/models/qwen3.8-flash-next-ds4-q4/Qwen3.8-Flash-Next-PLE-Q4_1.gguf}
+OLD_KV=${OLD_KV:-$HOME/.ds4/server-kv}
+OLD_BACKEND=${OLD_BACKEND:-qwen38fnds4shim}
+OLD_FLAGS=${OLD_FLAGS:-}
+
+if [ "$NEW_KV" = "$OLD_KV" ]; then
+  echo "REFUSING: both arms share KV dir $NEW_KV -- one arm would read the" \
+       "other's checkpoints, or be refused them, and look slower for it" >&2
+  exit 1
+fi
+if [ "$NEW_BACKEND" = "$OLD_BACKEND" ]; then
+  echo "REFUSING: both arms name backend $NEW_BACKEND -- the rows would be" \
+       "indistinguishable in results.jsonl" >&2
+  exit 1
+fi
 
 mkdir -p "$OUT"
 
@@ -78,17 +102,20 @@ done
   echo "# SCREEN, not a superiority test: n=$((SWEEPS * 15))/arm resolves ~18-27 pp pass, ~17-26% paired wall."
   echo "NEW backend=$NEW_BACKEND engine=$NEW_TREE @ $(git -C "$NEW_TREE" rev-parse --short HEAD 2>/dev/null || echo ?)"
   echo "NEW gguf=$(basename "$NEW_GGUF") ($(stat -f %z "$NEW_GGUF") bytes)  kv=$NEW_KV"
+  echo "NEW flags=${NEW_FLAGS:-<none>}"
   echo "OLD backend=$OLD_BACKEND engine=$OLD_TREE @ $(git -C "$OLD_TREE" rev-parse --short HEAD 2>/dev/null || echo ?)"
   echo "OLD gguf=$(basename "$OLD_GGUF") ($(stat -f %z "$OLD_GGUF") bytes)  kv=$OLD_KV"
+  echo "OLD flags=${OLD_FLAGS:-<none>}"
   echo "# engine and quant move together in both arms; neither can be attributed alone (#138)."
 } > "$OUT/run-record.txt"
 
 restart_server() {
-  local tree=$1 gguf=$2 ple=$3 kv=$4 tag=$5
+  local tree=$1 gguf=$2 ple=$3 kv=$4 tag=$5 flags=${6:-}
   ds4_stop_server "for $tag" || exit 1
-  echo "[$(date +%H:%M:%S)] starting $tag..."
+  echo "[$(date +%H:%M:%S)] starting $tag${flags:+ with $flags}..."
+  # shellcheck disable=SC2086  # flags is a deliberate word-split argv fragment
   ( cd "$tree" && ./ds4-server --metal -m "$gguf" --ple "$ple" \
-      --ctx 100000 --warm-weights \
+      --ctx 100000 --warm-weights $flags \
       --kv-disk-dir "$kv" --kv-disk-space-mb 8192 \
       --host 127.0.0.1 --port 8000 > "$OUT/server-$tag.log" 2>&1 & )
   ( cd "$REPO" && uv run python benchmarks/agent/wait_ready.py \
@@ -111,9 +138,14 @@ sweep() {
   local started
   started=$(date '+%H:%M:%S')
   echo "[$(date +%H:%M:%S)] === $tag ($backend) ==="
+  # #210: without --server-log the row carries no `draft` field at all, and an
+  # MTP arm that never speculated is then indistinguishable from one that did.
+  # The log is this sweep's own server, started moments ago, so the probe's
+  # byte window covers exactly this sweep.
   ( cd "$REPO" && uv run python benchmarks/agent/run.py \
       --backend "$backend" --trials 1 --client opencode --no-lock \
       --require-harness-head "$HARNESS_HEAD" \
+      --server-log "$OUT/server-$tag.log" --draft-log-engine ds4 \
       > "$OUT/$tag.log" 2>&1 ) || echo "[$(date +%H:%M:%S)] $tag returned non-zero"
   mkdir -p "$OUT/$tag"
   # Transcripts move out of the top level immediately. Leaving them is how
@@ -163,18 +195,18 @@ fi
 for n in $(seq 1 "$SWEEPS"); do
   if [ $((n % 2)) -eq 1 ]; then
     first_tag=new; first_backend=$NEW_BACKEND
-    first_tree=$NEW_TREE; first_gguf=$NEW_GGUF; first_ple=$NEW_PLE; first_kv=$NEW_KV
+    first_tree=$NEW_TREE; first_gguf=$NEW_GGUF; first_ple=$NEW_PLE; first_kv=$NEW_KV; first_flags=$NEW_FLAGS
     second_tag=old; second_backend=$OLD_BACKEND
-    second_tree=$OLD_TREE; second_gguf=$OLD_GGUF; second_ple=$OLD_PLE; second_kv=$OLD_KV
+    second_tree=$OLD_TREE; second_gguf=$OLD_GGUF; second_ple=$OLD_PLE; second_kv=$OLD_KV; second_flags=$OLD_FLAGS
   else
     first_tag=old; first_backend=$OLD_BACKEND
-    first_tree=$OLD_TREE; first_gguf=$OLD_GGUF; first_ple=$OLD_PLE; first_kv=$OLD_KV
+    first_tree=$OLD_TREE; first_gguf=$OLD_GGUF; first_ple=$OLD_PLE; first_kv=$OLD_KV; first_flags=$OLD_FLAGS
     second_tag=new; second_backend=$NEW_BACKEND
-    second_tree=$NEW_TREE; second_gguf=$NEW_GGUF; second_ple=$NEW_PLE; second_kv=$NEW_KV
+    second_tree=$NEW_TREE; second_gguf=$NEW_GGUF; second_ple=$NEW_PLE; second_kv=$NEW_KV; second_flags=$NEW_FLAGS
   fi
-  restart_server "$first_tree" "$first_gguf" "$first_ple" "$first_kv" "$first_tag-sweep$n"
+  restart_server "$first_tree" "$first_gguf" "$first_ple" "$first_kv" "$first_tag-sweep$n" "$first_flags"
   sweep "$first_tag" "$n" "$first_backend"
-  restart_server "$second_tree" "$second_gguf" "$second_ple" "$second_kv" "$second_tag-sweep$n"
+  restart_server "$second_tree" "$second_gguf" "$second_ple" "$second_kv" "$second_tag-sweep$n" "$second_flags"
   sweep "$second_tag" "$n" "$second_backend"
 done
 echo "[$(date +%H:%M:%S)] all $((SWEEPS * 2)) sweeps complete under $OUT"
