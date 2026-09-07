@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import pathlib
 import sys
@@ -132,3 +133,148 @@ def test_a_malformed_order_line_is_ignored(tmp_path):
     assert aoe.recorded_order.__doc__
     (tmp_path / "run-order.txt").write_text("rep=1 position=\nnot an order line\n")
     assert aoe.recorded_order(tmp_path) == {}
+
+
+def test_arm_effects_separates_position_from_arm():
+    """r = 1.1, p = 1.0: head is genuinely 10% faster, position costs nothing.
+
+    A rep with head first measures r·p = 1.1; a rep with base first measures
+    p/r = 1/1.1. The geometric mean of the head-first group is r·p, of the
+    base-first group p/r, so p = sqrt(1.1 * 1/1.1) = 1.0 and
+    r = sqrt(1.1 / (1/1.1)) = 1.1.
+    """
+    rows = [
+        (1, "head", 1.1),
+        (2, "base", 10 / 11),
+        (3, "head", 1.1),
+        (4, "base", 10 / 11),
+    ]
+    eff = aoe.arm_effects(rows, "head", "base")
+    assert eff is not None
+    assert eff.position == pytest.approx(1.0, abs=1e-9)
+    assert eff.arm == pytest.approx(1.1, abs=1e-9)
+
+
+def test_arm_effects_with_position_and_arm():
+    """r = 1.1, p = 1.05: both effects present, both recovered."""
+    rows = [
+        (1, "head", 1.155),
+        (2, "base", 1.05 / 1.1),
+        (3, "head", 1.155),
+        (4, "base", 1.05 / 1.1),
+    ]
+    eff = aoe.arm_effects(rows, "head", "base")
+    assert eff is not None
+    assert eff.position == pytest.approx(1.05, abs=1e-9)
+    assert eff.arm == pytest.approx(1.1, abs=1e-9)
+
+
+def test_arm_effects_returns_none_with_one_group():
+    """No alternation means the two effects are not separable."""
+    rows = [(1, "head", 1.1), (2, "head", 1.2), (3, "head", 1.15)]
+    assert aoe.arm_effects(rows, "head", "base") is None
+
+
+def test_arm_effects_returns_none_with_no_rows():
+    assert aoe.arm_effects([], "head", "base") is None
+
+
+def test_arm_effects_reports_which_reps():
+    rows = [
+        (1, "head", 1.1),
+        (2, "base", 10 / 11),
+        (3, "head", 1.1),
+        (4, "base", 10 / 11),
+    ]
+    eff = aoe.arm_effects(rows, "head", "base")
+    assert eff is not None
+    groups = {arm: reps for arm, _gm, reps in eff.groups}
+    assert groups["head"] == (1, 3)
+    assert groups["base"] == (2, 4)
+
+
+def test_arm_labels_reads_a_and_b(tmp_path):
+    (tmp_path / "engines.txt").write_text(
+        "A label=head tree=/x @ abc\nB label=base tree=/y @ def\n"
+    )
+    assert aoe.arm_labels(tmp_path) == ("head", "base")
+
+
+def test_arm_labels_none_when_absent(tmp_path):
+    assert aoe.arm_labels(tmp_path) is None
+
+
+def test_arms_differ_true_when_labels_differ(tmp_path):
+    (tmp_path / "engines.txt").write_text(
+        "A label=head tree=/x @ abc\nB label=base tree=/y @ def\n"
+    )
+    assert aoe.arms_differ(tmp_path) is True
+
+
+def test_arms_differ_false_when_labels_same(tmp_path):
+    (tmp_path / "engines.txt").write_text(
+        "A label=head tree=/x @ abc\nB label=head tree=/x @ abc\n"
+    )
+    assert aoe.arms_differ(tmp_path) is False
+
+
+def test_arms_differ_none_when_engines_absent(tmp_path):
+    assert aoe.arms_differ(tmp_path) is None
+
+
+def test_arms_differ_none_when_unparseable(tmp_path):
+    (tmp_path / "engines.txt").write_text("engine tree=/x @ abc\n")
+    assert aoe.arms_differ(tmp_path) is None
+
+
+def build_run(tmp_path, engines: str) -> None:
+    """A 4-rep alternating run: head is genuinely 10% faster, position costs
+    nothing (r = 1.1, p = 1.0)."""
+    write_csv(tmp_path / "head-rep1.csv", {8192: 110.0}, mtime=1000)
+    write_csv(tmp_path / "base-rep1.csv", {8192: 100.0}, mtime=2000)
+    write_csv(tmp_path / "base-rep2.csv", {8192: 100.0}, mtime=1000)
+    write_csv(tmp_path / "head-rep2.csv", {8192: 110.0}, mtime=2000)
+    write_csv(tmp_path / "head-rep3.csv", {8192: 110.0}, mtime=1000)
+    write_csv(tmp_path / "base-rep3.csv", {8192: 100.0}, mtime=2000)
+    write_csv(tmp_path / "base-rep4.csv", {8192: 100.0}, mtime=1000)
+    write_csv(tmp_path / "head-rep4.csv", {8192: 110.0}, mtime=2000)
+    (tmp_path / "run-order.txt").write_text(
+        "rep=1 position=1 of 2 label=head\n"
+        "rep=1 position=2 of 2 label=base\n"
+        "rep=2 position=1 of 2 label=base\n"
+        "rep=2 position=2 of 2 label=head\n"
+        "rep=3 position=1 of 2 label=head\n"
+        "rep=3 position=2 of 2 label=base\n"
+        "rep=4 position=1 of 2 label=base\n"
+        "rep=4 position=2 of 2 label=head\n"
+    )
+    (tmp_path / "engines.txt").write_text(engines)
+
+
+def test_main_refuses_bare_position_when_arms_differ(tmp_path, caplog):
+    """A bare position number would conflate position with arm; the run must
+    report both effects instead, with the arms named on the r line."""
+    build_run(
+        tmp_path,
+        "A label=head tree=/x @ abc\nB label=base tree=/y @ def\n",
+    )
+    with caplog.at_level(logging.INFO):
+        assert aoe.main([str(tmp_path)]) == 0
+    out = caplog.text
+    assert "median position effect" not in out, "bare position refused when arms differ"
+    assert "position effect p" in out
+    assert "arm effect r = head/base" in out, "the r line must name its numerator"
+
+
+def test_main_prints_bare_position_when_arms_same(tmp_path, caplog):
+    """Same arm twice: r is 1 by construction, so the bare position number is
+    the whole story and the p/r line is redundant."""
+    build_run(
+        tmp_path,
+        "A label=head tree=/x @ abc\nB label=head tree=/x @ abc\n",
+    )
+    with caplog.at_level(logging.INFO):
+        assert aoe.main([str(tmp_path)]) == 0
+    out = caplog.text
+    assert "median position effect" in out
+    assert "position effect p" not in out
