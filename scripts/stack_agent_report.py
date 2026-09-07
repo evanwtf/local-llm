@@ -69,13 +69,56 @@ sys.path.insert(
     0, str(pathlib.Path(__file__).resolve().parent.parent / "benchmarks" / "agent")
 )
 
+import os
+
 import results as results_mod
 
 logger = logging.getLogger(__name__)
 
-NEW_BACKEND = "qwen38fnds4kimat"
-OLD_BACKEND = "qwen38fnds4shim"
+# Overridable for the same reason `stack_agent_ab.sh`'s arms are -- and they
+# must be overridden the SAME way, because on 2026-09-07 they were not. The
+# runner had learned to take its backends from the environment; this reporter
+# still read them from constants. The first flag-only A/B (#39, MTP on against
+# off) therefore came back `VOID: sweep new-sweep1 has 0 rows` with 30 real
+# rows sitting on disk, none of them matching a name compiled in here.
+#
+# The VOID is why it was caught rather than published: the report refused a
+# half-empty comparison instead of reporting the half it could see. Keep that
+# behaviour; it is worth more than the constants it exposed.
+#
+# Defaults are #138 exactly, so an unset environment reproduces the old run.
+NEW_BACKEND = os.environ.get("NEW_BACKEND", "qwen38fnds4kimat")
+OLD_BACKEND = os.environ.get("OLD_BACKEND", "qwen38fnds4shim")
+#: What the closing sentence calls the arm to keep, and the question it answers.
+#: The three bars are general; this sentence is not. #138 compared two whole
+#: stacks, so "hold the Q4_0 stack" named the right thing. #39 compared one
+#: stack against itself with the MTP flags added, where "the Q4_0 stack" is
+#: BOTH arms and the sentence says nothing. A verdict that names the wrong
+#: comparison is worse than no verdict: it reads as a finding about a stack
+#: that was never on trial.
+REFERENCE_ARM = os.environ.get("REFERENCE_ARM", "the Q4_0 stack")
+QUESTION = os.environ.get("QUESTION", "#138's agent question")
 BACKENDS = {NEW_BACKEND: "new", OLD_BACKEND: "old"}
+
+
+def check_arms() -> str | None:
+    """Why the two arm names must differ, checked rather than assumed.
+
+    `BACKENDS` is a dict keyed by backend name. Give it the same name twice
+    and it holds ONE entry: every row in the ledger scores as `old`, the new
+    arm reports zero rows, and the read-out is a comparison of a thing with
+    itself wearing two labels. `stack_agent_ab.sh` already refuses a shared
+    backend name at run time; this is the same refusal at read time, for a
+    ledger some other runner wrote.
+    """
+    if NEW_BACKEND == OLD_BACKEND:
+        return (
+            f"VOID: both arms are named {NEW_BACKEND!r}; set NEW_BACKEND and"
+            " OLD_BACKEND to the two backends the run actually used"
+        )
+    return None
+
+
 EXPECTED_PER_SWEEP = 15
 #: Control floor for the old arm (cohort 2 scored 28/30 twice).
 OLD_ARM_CONTROL = 25
@@ -526,14 +569,18 @@ def screen_verdict(
         )
     else:
         lines.append(
-            "SCREEN FAIL: hold the Q4_0 stack as the published reference;"
-            " #138's agent question closes as a regression at screen resolution."
+            f"SCREEN FAIL: hold {REFERENCE_ARM} as the published reference;"
+            f" {QUESTION} closes as a regression at screen resolution."
         )
     return lines
 
 
 def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
+    collapsed = check_arms()
+    if collapsed:
+        logger.info("%s", collapsed)
+        return 2
     repo = pathlib.Path(__file__).resolve().parent.parent
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument(

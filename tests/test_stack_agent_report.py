@@ -533,3 +533,102 @@ def test_old_faster_is_named_not_swallowed():
     got = sar.direction_agrees({1: _pair(1.5, 1.6), 2: _pair(1.4, 1.7)})
     assert got["agree"] is True
     assert got["direction"] == "old-faster"
+
+
+# --- The arms and the verdict sentence belong to the run, not to #138 ------
+#
+# On 2026-09-07 the #39 A/B (MTP flags on against off, one stack) ran with
+# NEW_BACKEND=qwen38fnds4mtp7shim. `stack_agent_ab.sh` honoured it; this
+# reporter did not, and the read-out came back VOID with 30 good rows on
+# disk. These tests hold both halves: the environment must reach the module,
+# and an unset environment must still reproduce #138 exactly.
+
+
+@pytest.fixture
+def reloaded(monkeypatch):
+    """Re-import the reporter under a given environment, then put it back.
+
+    The arm names are module constants read at import, so `monkeypatch.setenv`
+    alone changes nothing -- the module must be reloaded to see them. The
+    teardown reloads once more with the variables cleared, because every other
+    test in this file reads `sar` at its #138 defaults.
+    """
+    names = ("NEW_BACKEND", "OLD_BACKEND", "REFERENCE_ARM", "QUESTION")
+    import importlib
+
+    def load(**env: str):
+        for name in names:
+            monkeypatch.delenv(name, raising=False)
+        for name, value in env.items():
+            monkeypatch.setenv(name, value)
+        return importlib.reload(sar)
+
+    yield load
+    for name in names:
+        monkeypatch.delenv(name, raising=False)
+    importlib.reload(sar)
+
+
+def test_an_unset_environment_is_138(reloaded):
+    mod = reloaded()
+    assert mod.NEW_BACKEND == "qwen38fnds4kimat"
+    assert mod.OLD_BACKEND == "qwen38fnds4shim"
+    assert mod.BACKENDS == {"qwen38fnds4kimat": "new", "qwen38fnds4shim": "old"}
+    assert mod.check_arms() is None
+
+
+def test_the_environment_names_the_arms(reloaded):
+    mod = reloaded(NEW_BACKEND="qwen38fnds4mtp7shim", OLD_BACKEND="qwen38fnds4shim")
+    assert mod.BACKENDS == {"qwen38fnds4mtp7shim": "new", "qwen38fnds4shim": "old"}
+    assert mod.check_arms() is None
+
+
+def test_a_one_sided_override_still_has_two_arms(reloaded):
+    mod = reloaded(NEW_BACKEND="qwen38fnds4mtp7shim")
+    assert set(mod.BACKENDS.values()) == {"new", "old"}
+    assert mod.check_arms() is None
+
+
+def test_the_same_name_on_both_arms_is_void(reloaded):
+    """One name cannot be both arms: BACKENDS would hold a single entry and
+    every row would score as `old`, leaving the new arm empty."""
+    mod = reloaded(NEW_BACKEND="qwen38fnds4shim", OLD_BACKEND="qwen38fnds4shim")
+    assert len(mod.BACKENDS) == 1, "the collapse this guard exists to catch"
+    void = mod.check_arms()
+    assert void and void.startswith("VOID:"), void
+    assert "qwen38fnds4shim" in void
+
+
+def test_the_void_stops_the_read_out(reloaded, tmp_path, caplog):
+    mod = reloaded(NEW_BACKEND="qwen38fnds4shim", OLD_BACKEND="qwen38fnds4shim")
+    with caplog.at_level(logging.INFO):
+        rc = mod.main(["--ledger", str(tmp_path / "nothing.jsonl")])
+    assert rc == 2
+    assert any("VOID: both arms are named" in r.message for r in caplog.records)
+
+
+def test_the_verdict_names_the_run_not_138(reloaded):
+    """The three bars are general. The closing sentence is not, and #39's arms
+    are the same stack twice -- "hold the Q4_0 stack" would name both of them,
+    which reads as a finding about a stack that was never on trial."""
+    mod = reloaded(
+        REFERENCE_ARM="the same stack without the MTP flags",
+        QUESTION="#39's MTP question",
+    )
+    new = {"n": 30, "passes": 21, "deaths": 9, "deaths_turn1": 0}
+    old = {"n": 30, "passes": 28, "deaths": 2, "deaths_turn1": 0}
+    lines = mod.screen_verdict(new, old, mod.wall_report([("t", 100.0, 100.0)] * 15))
+    fail = [ln for ln in lines if ln.startswith("SCREEN FAIL")]
+    assert fail, lines
+    assert "the same stack without the MTP flags" in fail[0]
+    assert "#39's MTP question" in fail[0]
+    assert "#138" not in fail[0] and "Q4_0" not in fail[0]
+
+
+def test_the_default_verdict_still_reads_as_138(reloaded):
+    mod = reloaded()
+    new = {"n": 30, "passes": 21, "deaths": 9, "deaths_turn1": 0}
+    old = {"n": 30, "passes": 28, "deaths": 2, "deaths_turn1": 0}
+    lines = mod.screen_verdict(new, old, mod.wall_report([("t", 100.0, 100.0)] * 15))
+    fail = [ln for ln in lines if ln.startswith("SCREEN FAIL")]
+    assert fail and "the Q4_0 stack" in fail[0] and "#138" in fail[0]
