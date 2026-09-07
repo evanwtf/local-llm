@@ -1489,3 +1489,33 @@ The rule that prevents it:
   answered and we have not is a fact about us, and it is visible to everyone
   reading it.
 
+## Never publish a ratio without the absolutes beside it
+
+**Every A/B write-up carries the per-frontier absolute rates for both arms, not
+only the paired ratio.** A ratio is a claim. The absolutes are what let a reader
+on another machine check it, and what lets the ratio be recomputed if our
+harness turns out to be wrong.
+
+On 2026-09-07 three comments went onto #162 carrying ratios and frontier counts
+alone -- on a thread where the maintainer had already asked for absolute t/s
+once and been given it for the previous head. The numbers were sitting in
+`decode_ab_report.py`'s own output the whole time and were dropped in
+transcription.
+
+Two artifacts hold this up, and neither is prose:
+
+- `scripts/post_ab_run.py` posts `decode_ab_report.py`'s output **verbatim**,
+  which already includes the per-frontier absolute table. Its docstring says
+  why it exists: hand-composing the comment "is how a figure gets written from
+  memory." **Use it for run posts.** Hand-writing a summary comment is fine;
+  hand-transcribing the numbers into one is what went wrong.
+- `test_the_per_frontier_block_carries_absolute_rates_not_only_the_ratio`
+  guards the report itself, so the absolute columns cannot be quietly reduced
+  to a ratio column later.
+
+Say the run-to-run variation too. Run 3 of the #162 batch was 3-7% slower than
+runs 1 and 2 on **both** arms at every frontier. That is the machine, and it is
+the reason the design is paired and the ratio is the reported quantity -- and
+the reason a single absolute number from this laptop must not be set beside a
+single absolute number from someone else's box as though they were comparable.
+

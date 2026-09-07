@@ -569,6 +569,32 @@ def test_the_multi_run_table_does_not_report_run_ones_number(tmp_path, caplog):
     assert "1.000 - 1.200" in caplog.text
 
 
+def test_the_per_frontier_block_carries_absolute_rates_not_only_the_ratio():
+    """Every per-frontier line must print both arms' absolute rate.
+
+    A ratio is a claim; the absolutes are what make it checkable on someone
+    else's machine and what let the ratio be recomputed if this harness is
+    wrong. On 2026-09-07 three comments went onto #162 carrying ratios alone,
+    after the same thread had already asked for absolute t/s once. The numbers
+    were in this report and were dropped in transcription.
+
+    This guards the source of them: if the per-frontier block is ever reduced
+    to a ratio column, the report stops being able to answer that request.
+    """
+    src = (
+        pathlib.Path(__file__).resolve().parents[1] / "scripts" / "decode_ab_report.py"
+    ).read_text()
+    header = "paired b/a"
+    assert header in src, "the per-frontier table header has moved or gone"
+    # The header names four columns: ctx, arm A, arm B, and the ratio. A table
+    # that prints ctx and the ratio alone would still contain the phrase, so
+    # assert the two arm labels are formatted into the same header line.
+    line = next(ln for ln in src.splitlines() if header in ln)
+    assert line.count("%") >= 3 or "{" in line, (
+        "the per-frontier header no longer formats per-arm columns: " + line
+    )
+
+
 def test_the_per_frontier_block_is_silent_for_one_run(tmp_path, caplog):
     """With one directory the detail table below already is the whole report."""
     d = _write_run(tmp_path, "run1", {1: 1.10, 2: 1.10})
