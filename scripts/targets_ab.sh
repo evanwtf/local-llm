@@ -72,6 +72,59 @@ fi
 BATCH="${BATCH:-$(date +%m%d-%H%M)}"
 SHIM_PORT=8101
 
+# Resolve HH:MM to an epoch on this platform. GNU date uses -d, BSD uses -j.
+# Resolve HH:MM to an epoch with seconds pinned to 0. Both date dialects fill
+# unspecified fields from the current time, so a bare "23:59" would carry the
+# current second and the resolved cutoff would drift up to 59s past the
+# injected clock -- the at-cutoff test would then pass only when the current
+# second happened to be 0. Pin ":00" so the epoch is deterministic.
+date_epoch() {
+    if date -d "$1:00" +%s >/dev/null 2>&1; then
+        date -d "$1:00" +%s
+    else
+        date -j -f "%H:%M:%S" "$1:00" +%s 2>/dev/null
+    fi
+}
+
+# Resolve UNTIL (HH:MM) to an absolute epoch once at launch. A bare HH:MM
+# already past today means tomorrow. Refuses (non-zero) an unparseable value.
+# LOCAL_LLM_FAKE_NOW overrides the clock for tests.
+resolve_until() {
+    local hhmm="$1" now today
+    now="${LOCAL_LLM_FAKE_NOW:-$(date +%s)}"
+    today="$(date_epoch "$hhmm")" || return 1
+    # Strictly past, not at-or-past: at exactly HH:MM the cutoff is today,
+    # and the loop's >= fires the VOID at that moment.
+    if [ "$now" -gt "$today" ]; then
+        if date -d "tomorrow $hhmm:00" +%s >/dev/null 2>&1; then
+            date -d "tomorrow $hhmm:00" +%s
+        else
+            date -j -v+1d -f "%H:%M:%S" "$hhmm:00" +%s 2>/dev/null
+        fi
+    else
+        echo "$today"
+    fi
+}
+
+# Resolve UNTIL to an absolute epoch once at launch, and refuse an unparseable
+# value. A bare HH:MM already past today means tomorrow. Compare integers,
+# never strings: a string compare of "23:35" against "2359" is true because
+# ':' (58) beats '5' (53), so the cutoff fires whenever the hour is 23 (#175).
+if [ -n "$UNTIL" ]; then
+    UNTIL_EPOCH="$(resolve_until "$UNTIL")" || {
+        echo "REFUSING: UNTIL '$UNTIL' is not HH:MM (e.g. 09:15)" >&2
+        exit 1
+    }
+fi
+
+# An injected clock must say so in the batch's own output: a batch that voided
+# or did not void because of a fake clock records an outcome whose cause is
+# otherwise invisible. LOCAL_LLM_FAKE_NOW is namespaced so a generic NOW in
+# somebody's shell cannot silently shift the cutoff to a wrong instant.
+if [ -n "${LOCAL_LLM_FAKE_NOW:-}" ]; then
+    echo "clock overridden: LOCAL_LLM_FAKE_NOW=$LOCAL_LLM_FAKE_NOW"
+fi
+
 DS4_MODEL="$HOME/models/qwen3.8-flash-next-ds4-q4/Qwen3.8-Flash-Next-Q4KExperts-BF16Emb-BF16Control-Q8GDN-Q8QSA-Q8Shared-Q8Out.gguf"
 DS4_PLE="$HOME/models/qwen3.8-flash-next-ds4-q4/Qwen3.8-Flash-Next-PLE-Q4_1.gguf"
 DS4_KV="$HOME/.ds4/server-kv"
@@ -133,12 +186,12 @@ run_one() {
     (cd "$REPO" && uv run python benchmarks/agent/run.py \
         --backend qwen38fnds4shim --trials 1 --client opencode --no-lock \
         --targets "$arm" --allow-implausible --results "$RESULTS" \
-        --require-harness-head "$HEAD_SHA" \
+        --require-harness-head "$HEAD_SHA" --batch "$BATCH" \
         > "$LOGDIR/run$n-$arm.log" 2>&1) || \
         echo "[$(date +%H:%M:%S)] run $n exited non-zero; keeping what it wrote"
     mv "$BENCH_LOGS"/*qwen38fnds4shim-opencode-1* "$dir/" 2>/dev/null || true
-    printf '{"run":%d,"arm":"%s","started":"%s","ended":"%s","dir":"%s"}\n' \
-        "$n" "$arm" "$started" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$dir" >> "$MANIFEST"
+    printf '{"run":%d,"arm":"%s","started":"%s","ended":"%s","dir":"%s","batch":"%s"}\n' \
+        "$n" "$arm" "$started" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$dir" "$BATCH" >> "$MANIFEST"
     echo "[$(date +%H:%M:%S)] run $n done, $(ls "$dir" | wc -l | tr -d ' ') transcripts"
 }
 
@@ -161,10 +214,10 @@ if [ "$DRY_RUN" -eq 0 ]; then
 fi
 ORDER=(legacy sandbox sandbox legacy)
 for n in $(seq 1 "$RUNS"); do
-    # HH:MM compares correctly as a string within one day, which is the only
-    # window this script is meant to run in. A cutoff that would skip a run
-    # VOIDS the batch instead of truncating it: a partial batch is no result.
-    if [ -n "$UNTIL" ] && [ "$(date +%H:%M)" \> "$UNTIL" ]; then
+    # A cutoff that would skip a run VOIDS the batch instead of truncating
+    # it: a partial batch is no result. UNTIL was resolved to an epoch at
+    # launch; compare integers, never strings (#175).
+    if [ -n "$UNTIL" ] && [ "${LOCAL_LLM_FAKE_NOW:-$(date +%s)}" -ge "$UNTIL_EPOCH" ]; then
         echo "[$(date +%H:%M:%S)] VOID: past $UNTIL before run $n of $RUNS -- a partial batch is no result" >&2
         printf '{"run":%d,"arm":"VOID","reason":"past-until","until":"%s"}\n' \
             "$n" "$UNTIL" >> "$MANIFEST"
@@ -176,7 +229,7 @@ for n in $(seq 1 "$RUNS"); do
         run_one "$n" "$arm"
     else
         echo "[dry] run $n, targets=$arm"
-        printf '{"run":%d,"arm":"%s","dry":true}\n' "$n" "$arm" >> "$MANIFEST"
+        printf '{"run":%d,"arm":"%s","dry":true,"batch":"%s"}\n' "$n" "$arm" "$BATCH" >> "$MANIFEST"
     fi
 done
 

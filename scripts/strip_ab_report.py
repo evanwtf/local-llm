@@ -20,6 +20,12 @@ the thing that motivates a properly designed follow-up, not as a result this
 experiment was built to deliver.
 
     uv run python scripts/strip_ab_report.py
+
+The manifest can hold more than one batch (the driver names each run's log
+directory with a `%m%d-%H%M` batch id). A read-out that does not say which
+batch it wants pools them -- this morning's rows into tonight's totals, with
+no error. Pass `--batch` to read one; the tool refuses a multi-batch manifest
+that is not told which batch to read (#175).
 """
 
 from __future__ import annotations
@@ -30,6 +36,7 @@ import json
 import logging
 import math
 import pathlib
+import re
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
@@ -133,10 +140,36 @@ def arm_of(started: str, manifest: list[dict]) -> str | None:
     return None
 
 
+def batch_of(entry: dict) -> str | None:
+    """The batch id a manifest entry belongs to, or None.
+
+    The driver names each run's log directory with the batch:
+    `146-targets-legacy-0906-0743-run1`. The batch is the `%m%d-%H%M`
+    segment. None when the dir does not carry one -- a manifest written
+    before the batch was threaded (#175).
+    """
+    d = str(entry.get("dir", ""))
+    m = re.search(r"-(\d{4}-\d{4})-run\d+$", d)
+    return m.group(1) if m else None
+
+
+def _batch_label(b: str | None) -> str:
+    """A readable name for a batch id in a message. None is a manifest entry
+    written before #175, which carries no batch id."""
+    return "<no batch id>" if b is None else b
+
+
 def outcomes(
-    rows: list[dict], manifest: list[dict]
+    rows: list[dict], manifest: list[dict], batch: str | None = None
 ) -> tuple[dict[str, dict[str, int]], int]:
     """Per-arm trial counts, and how many rows matched no run window.
+
+    `batch` selects one batch. A row that carries a `batch` field from a
+    different batch is skipped -- it is not this read-out's business, and
+    counting it as unmapped would read as "the file picked up something
+    else" when it is just another batch. A row with no `batch` field (old
+    data) maps by time window against the manifest, which is already
+    filtered to the batch, so it cannot pool into another batch's totals.
 
     The unmapped count is returned rather than dropped: a row in this file
     that belongs to no run of this batch means the file has picked up
@@ -145,6 +178,9 @@ def outcomes(
     out: dict[str, dict[str, int]] = {}
     unmapped = 0
     for row in rows:
+        row_batch = row.get("batch")
+        if batch is not None and row_batch is not None and row_batch != batch:
+            continue
         arm = arm_of(str(row.get("started", "")), manifest)
         if arm is None:
             unmapped += 1
@@ -294,6 +330,13 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument(
         "--bench-logs", type=pathlib.Path, default=pathlib.Path.home() / "bench-logs"
     )
+    p.add_argument(
+        "--batch",
+        default=None,
+        help="read out only this batch (e.g. 0906-1716). Required when the "
+        "manifest spans more than one batch; a read-out that pools them is "
+        "no result (#175).",
+    )
     args = p.parse_args(argv)
 
     manifest = [
@@ -309,6 +352,44 @@ def main(argv: list[str] | None = None) -> int:
         logger.error("%s -- a partial batch is no result; refusing the read-out", void)
         return 1
 
+    # #175. The manifest can hold more than one batch, and a read-out that
+    # does not say which one it wants pools them -- this morning's rows into
+    # tonight's totals, with no error. Refuse rather than pool, naming the
+    # batches found. Same shape as the VOID guard above.
+    #
+    # An entry with no batch id (a manifest written before #175) counts as
+    # its own batch for the spanning test: "one known batch plus something
+    # unidentifiable" is exactly a case where pooling is possible and nobody
+    # is warned.
+    batches = {batch_of(e) for e in manifest}
+    if args.batch is None and len(batches) > 1:
+        logger.error(
+            "manifest spans %d batches (%s); pass --batch to read one. "
+            "A read-out that pools them is no result.",
+            len(batches),
+            ", ".join(sorted(_batch_label(b) for b in batches)),
+        )
+        return 1
+    if args.batch is not None and args.batch not in batches:
+        logger.error(
+            "--batch %s matches no run in the manifest (found: %s)",
+            args.batch,
+            ", ".join(sorted(_batch_label(b) for b in batches)),
+        )
+        return 1
+    want = args.batch
+    if want is None and len(batches) == 1:
+        want = next(iter(batches))
+    if want is not None:
+        dropped = [e for e in manifest if batch_of(e) is None]
+        if dropped:
+            logger.warning(
+                "excluded %d manifest entr%s with no batch id",
+                len(dropped),
+                "y" if len(dropped) == 1 else "ies",
+            )
+        manifest = [e for e in manifest if batch_of(e) == want]
+
     per_arm: dict[str, tuple[int, int, int, int]] = {}
     # The arms come from the manifest. Hardcoding ("on", "off") here silently
     # produced an EMPTY conditional table for #146, whose arms are called
@@ -322,7 +403,7 @@ def main(argv: list[str] | None = None) -> int:
         logger.info("arm %s: %d transcripts from %d runs", arm, len(paths), len(dirs))
         per_arm[arm] = split(arm_calls(paths))
 
-    outcome, unmapped = outcomes(rows, manifest)
+    outcome, unmapped = outcomes(rows, manifest, batch=want)
     if unmapped:
         logger.warning(
             "%d row(s) in %s match no run window in the manifest",
