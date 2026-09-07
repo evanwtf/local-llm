@@ -51,8 +51,8 @@ REPS=${REPS:-3}
 #
 # The FIRST prefill (start == 0) uses prefill_cap unclamped. Every LATER
 # frontier -- which is every frontier after CTX_START in a sweep -- is clamped
-# to raw_cap, and metal_graph_raw_cap_for_context (ds4.c:37541 at ds4-main
-# 9ab70534) ceilings raw_cap at 8192 unconditionally.
+# to raw_cap, and metal_graph_raw_cap_for_context
+# (ds4.c:37541 at ds4-main 9ab70534) ceilings raw_cap at 8192 unconditionally.
 #
 # At PREFILL_CHUNK=8192 the two coincide exactly, because 8192 is that ceiling:
 # first frontier 8192, every later frontier 8192. That is why adamlawi's own
@@ -98,7 +98,8 @@ if [ -n "$PREFILL_CHUNK" ]; then
   if [ "$PREFILL_CHUNK" -gt 8192 ]; then
     echo "WARNING: PREFILL_CHUNK=$PREFILL_CHUNK exceeds the raw_cap ceiling (8192)." >&2
     echo "  Frontier 1 will use $PREFILL_CHUNK; every later frontier will use 8192." >&2
-    echo "  ds4.c:36867 and ds4.c:37541 at ds4-main 9ab70534. One run, two quantities." >&2
+    echo "  ds4.c:36867 at ds4-main 9ab70534, ds4.c:37541 at ds4-main 9ab70534." >&2
+    echo "  One run, two quantities." >&2
   fi
   prefill_flag=(--prefill-chunk "$PREFILL_CHUNK")
 fi
