@@ -6,7 +6,7 @@
   "agent_model": "deepseek-v4-flash",
   "agent_effort": "unidentified",
   "repo": "/Users/evanhoffman/git/local-llm/.claude/worktrees/peer+169",
-  "authored_at": "2026-09-06T22:00:00Z",
+  "authored_at": "2026-09-06T18:00:00-0400",
   "statement": "Every device-class gate in the ds4 engine, grouped into families by predicate, and whether an M5 Max takes each family. Source-read only; no measurement. Line numbers are ds4_metal.m / ds4.c at upstream main 9ab70534. The machine is an Apple M5 Max, so ds4_gpu_device_is_pre_m5_apple_silicon() (ds4_metal.m:2766, matches 'Apple M1'..'Apple M4' by device-name prefix) is false and ds4_gpu_device_is_m5_apple_silicon() (ds4_metal.m:2774) is true. The headline: the M5 Max is excluded from TWO distinct device-gated families, not one. The pre-M5 family (!pre_m5) and the M3 family (name_contains(\"M3\"), including \"M3 Ultra\") are different predicates with different membership: an M4 takes every pre-M5 gate and none of the M3 ones. Total excluded: 26 distinct optimizations (16 pre-M5 + 10 M3-family), of which 10 sit in prefill (6 pre-M5 + 4 M3). A gate tells you a path did not dispatch on this machine; it does not tell you the path would have been faster here.",
   "provenance": {
     "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",

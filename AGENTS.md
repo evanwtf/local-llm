@@ -11,6 +11,89 @@
 Instructions for coding agents. [`CONVENTIONS.md`](CONVENTIONS.md) holds the
 standing rules about data and safety; this file covers how to work.
 
+## Every time and date is ISO 8601, America/New_York, with an explicit offset (2026-09-06)
+
+**One representation, everywhere: `YYYY-MM-DDTHH:MM:SS±hhmm`.** In rows, in
+manifests, in logs, in issue comments, in commit messages, in evidence
+artifacts. Local time on the machine that does the work, a literal `T`, seconds
+precision, and the UTC offset always written out.
+
+```
+2026-09-06T17:16:48-0400
+```
+
+The offset is not optional. A naive `2026-09-06T17:16:48` is the format that
+caused every problem below; it is indistinguishable from a UTC timestamp and
+silently four or five hours wrong.
+
+This is what both tools emit natively on this machine, with no post-processing:
+
+```sh
+date +%Y-%m-%dT%H:%M:%S%z
+```
+
+```python
+from datetime import datetime
+datetime.now().astimezone().strftime("%Y-%m-%dT%H:%M:%S%z")
+```
+
+### Always parse before comparing. This is a rule, not a preference.
+
+A UTC timestamp sorts correctly as plain text. **A local one does not.** On
+2026-11-01, `01:30:00-04:00` and `01:30:00-05:00` are an hour apart in real
+time but sort in the wrong order as strings, and the wall-clock hour 01:00 to
+02:00 occurs twice. Choosing local time buys readability — `17:16` reads as
+five in the afternoon, which matters when correlating a run against what the
+operator was doing — and it costs the string-sorting shortcut. Take the trade
+and parse.
+
+```python
+from datetime import datetime
+START = datetime.fromisoformat("2026-09-06T17:16:00-0400")
+cur = [r for r in rows if datetime.fromisoformat(r["started"]) >= START]
+```
+
+```sh
+now=$(date +%s)                       # compare as epoch, after resolving
+```
+
+Never compare `HH:MM`. Never compare a truncated timestamp. Never compare a
+timestamp carrying one offset against one carrying another, or against one
+carrying none.
+
+### Why, with the three that bit us
+
+**Two formats in the two files one readout joins.** `results-*.jsonl` carried
+167 rows of naive local `started`/`finished`; the manifest beside it carried
+UTC `started`/`ended` with a `Z`. Anything comparing a row against its manifest
+entry was comparing EDT to UTC — four hours wrong, no error, no warning.
+
+**A cutoff that fails open across midnight.** `targets_ab.sh` and
+`strip_toggle_ab.sh` compared `$(date +%H:%M)` against an `HH:MM` string. At
+00:30 against a 09:15 cutoff that comparison is false, so the guard never fires
+and the batch runs on. `strip_toggle_ab.sh` **defaulted** to `09:15` — a
+morning cutoff means an overnight batch, so the default configuration was the
+broken case. That branch exists to enforce "a partial batch is no result", so
+the guard failing open produces exactly the outcome it was written to prevent.
+See #175.
+
+**A readout filter that worked by luck.** `started >= "2026-09-06T17:16"`
+compares a truncated string against full timestamps. It selected the right rows
+only because every value in that file happened to be 19 characters with no
+offset and no sub-second part. One row in another shape and rows join or leave
+the batch silently.
+
+All three are the same mistake: **a string comparison of timestamps is correct
+only under assumptions nobody restates when they add the next caller.**
+
+### Enforced, not asserted
+
+`tests/test_iso8601_timestamps.py` fails on a data file whose timestamp fields
+are not canonical, and on a shell script that compares `date +%H:%M` output as
+a string. `scripts/backfill_iso8601.py` converts the existing naive and
+`Z`-suffixed values; it runs once, and the test is what keeps them converted. A
+convention that lives only in this document is a convention that drifts.
+
 ## A download is not verified until the files are on disk (2026-09-06)
 
 `hf download` takes filenames positionally. Passing two of them after

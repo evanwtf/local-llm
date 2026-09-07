@@ -6,7 +6,7 @@
   "agent_model": "deepseek-v4-flash",
   "agent_effort": "unidentified",
   "repo": "/Users/evanhoffman/git/local-llm/.claude/worktrees/peer+160",
-  "authored_at": "2026-09-06T13:00:05-04:00",
+  "authored_at": "2026-09-06T13:00:05-0400",
   "statement": "The upstream ds4 main worktree builds clean at 9ab7053, the current upstream main (fetched from antirez/ds4). `make` produces ds4-bench, ds4-server, ds4-eval, and ds4-agent. This is the main arm for the Q8-vs-main comparison GiorgioOppo asked about: the Q8 build is f309990, and main is 9ab7053. The build is a plain `make` (cc -O3 -ffast-math -g -mcpu=native, Metal framework on Darwin), no special flags. A smoke test ran ds4-bench --help and it exited 0, so the binary runs. The build itself is recorded in provenance.binaries; the claims below are the read-only checks that still hold.",
   "provenance": {
     "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
