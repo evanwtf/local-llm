@@ -116,15 +116,24 @@ four sweeps, arms alternated per pair, the server restarted between them, the
 harness head pinned -- put it at **21/30 against 28/30**
 ([#39](https://github.com/evanwtf/local-llm/issues/39)).
 
-**Do not read that as the cost of speculative decoding, because no
-speculation happened.** The arm's own server loaded the MTP head, reported it
+**Do not read that as the cost of speculative decoding, because no draft was
+ever completed.** The arm's own server loaded the MTP head, reported it
 `state=ready draft=7`, drafted on its start-up prompts at 47-61% acceptance,
 and then emitted **not one MTP timing line** across the thirty agent trials.
 Not zero acceptance, and not the `verifier=scheduler-bypass` a turned-away
-cycle prints: no line at all. ds4 does not reach its speculative path on a
-request carrying a tool schema, and every request a coding agent sends carries
-one ([#151](https://github.com/evanwtf/local-llm/issues/151)). Whatever
-separates these two rows, it is not drafting.
+cycle prints: no line at all.
+
+It is not that the engine declines to try. The batch carries 42 and 26
+`Qwen MTP history frontier short` aborts, printed at `ds4.c:56206 at ds4-metal ba01f5d` immediately before a `return false` — inside the
+speculative path and ahead of every site that prints a timing line. The
+speculation is entered and abandoned when the MTP KV history has fallen behind
+the committed frontier. The server-side gate at `ds4_server.c:12764 at ds4-metal ba01f5d` tests
+batched mode, the draft depth and an environment variable; it does **not** test
+for a tool schema. The separation #151 saw between tool-bearing and tool-free
+requests tracks prompt **size** — 11k-19k tokens here against 11-89 at
+start-up — which a tool schema inflates but does not uniquely cause
+([#151](https://github.com/evanwtf/local-llm/issues/151)). Whatever separates
+these two rows, no completed draft is part of it.
 
 **And the pass gap does not resolve at this size.** Thirty rows against thirty
 are fifteen tasks run twice per arm, not sixty independent trials -- a task
@@ -145,7 +154,8 @@ every stack that passes everything on the number it already had. Read the
 `passed` column first, always.
 
 None of this says speculative decoding loses work. On this machine it has
-never been measured doing any: through a coding agent it does not run at all.
+never been measured doing any: through a coding agent no draft has ever
+completed.
 What the MTP flags do change is still open -- they allocate a different graph
 and, as we have configured them, a different disk KV directory, and either
 could carry the pass difference

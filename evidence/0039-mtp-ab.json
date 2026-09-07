@@ -15,7 +15,7 @@
   "authored_at": "2026-09-07T11:56:00-0400",
   "harness_head": "9e3fe6a",
   "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
-  "statement": "A paired four-sweep A/B of ds4 with the Qwen MTP sidecar loaded against the same stack with MTP off, arms alternated per pair and the server restarted between sweeps. The MTP arm's own server drafted at 47-61% acceptance on its start-up prompts and then emitted not one MTP timing line across 30 agent trials. The pass column moved against the MTP arm (21/30 against 28/30) but does not resolve at this size: paired by task it is 6 down, 1 up, 8 tied, two-sided sign test p=0.125. The wall column is a null whose two pairs disagree in direction, so its pooled ratio is not a result (#130).",
+  "statement": "A paired four-sweep A/B of ds4 with the Qwen MTP sidecar loaded against the same stack with MTP off, arms alternated per pair and the server restarted between sweeps. The MTP arm's own server drafted at 47-61% acceptance on its start-up prompts and then emitted not one MTP timing line across 30 agent trials. It did not, however, skip the speculative path: the batch regions carry 42 and 26 'Qwen MTP history frontier short' aborts, which fire inside that path and return before the timing line. The pass column moved against the MTP arm (21/30 against 28/30) but does not resolve at this size: paired by task it is 6 down, 1 up, 8 tied, two-sided sign test p=0.125. The wall column is a null whose two pairs disagree in direction, so its pooled ratio is not a result (#130).",
   "provenance": {
     "engine": "ds4-metal, ~/git/ds4-metal",
     "harness_head_pinned": "5bfb80c, re-checked by run.py --require-harness-head on every sweep",
@@ -90,7 +90,11 @@
       "verdict": "pairs disagree; the pooled ratio is not a result"
     },
     "known_gap": "No row in the ledger carries server_argv -- not the 429 historical rows and not the 60 written by this run. #215 landed the guard that warns; the recording it guards does not exist yet, so this read-out emitted 30 warnings.",
-    "instrument": "scripts/mtp_log_split.py splits one server log at run.py's recorded offset and counts each region; tests/test_mtp_log_split.py re-derives this finding from the committed logs on every test run, so a change in the logs breaks the suite rather than leaving this file quietly stale."
+    "instrument": "scripts/mtp_log_split.py splits one server log at run.py's recorded offset and counts each region; tests/test_mtp_log_split.py re-derives this finding from the committed logs on every test run, so a change in the logs breaks the suite rather than leaving this file quietly stale.",
+    "open_question": "42 and 26 aborts across 30 agent trials is one or two per trial, not one per decode step. What stops the remaining steps from attempting at all -- batched_mode at ds4_server.c:12764 at ds4-metal ba01f5d is the obvious candidate -- is NOT established here.",
+    "superseded_reading": "This file first said ds4 does not reach its speculative path on a request carrying a tool schema. That was wrong: the path is reached and aborts at the history frontier. #151's 42-against-241 separation is consistent with prompt SIZE, which the tool schema inflates but does not uniquely cause.",
+    "ds4_tree": "ds4-metal @ ba01f5d, /Users/evanhoffman/git/ds4-metal",
+    "timing_sites": "ds4.c carries nine `Qwen MTP timing` fprintf sites at ba01f5d (78942, 78964, 78987, 79015, 79027, 79051, 79079, 79133, 79252). Zero lines in a region means none of the nine was reached, not that one of them printed a zero."
   },
   "claims": [
     {
@@ -239,7 +243,7 @@
     },
     {
       "id": "new-sweep1-emitted-no-mtp-line-during-the-batch",
-      "statement": "The batch region of new-sweep1 -- everything after the byte run.py printed as its recording offset, 323,462 bytes covering fifteen agent tasks run twice -- contains ZERO `Qwen MTP timing` lines. Not zero acceptance; not `verifier=scheduler-bypass`, which is what a cycle that reached the scheduler and was turned away prints. No line at all. On a request carrying a tool schema, ds4 does not reach its speculative path. tests/test_mtp_log_split.py re-cuts this slice from the full log at the recorded offset and compares bytes, so the file cannot drift from its source.",
+      "statement": "The batch region of new-sweep1 -- everything after the byte run.py printed as its recording offset, 323,462 bytes covering fifteen agent tasks run twice -- contains ZERO `Qwen MTP timing` lines. Not zero acceptance, and not `verifier=scheduler-bypass`. This says the engine did not COMPLETE a speculative cycle; it does not say the engine never tried, and an earlier reading of this file that claimed a tool-schema gate was wrong -- see the frontier-short claim below. tests/test_mtp_log_split.py re-cuts this slice from the full log at the recorded offset and compares bytes.",
       "argv": [
         "grep",
         "-c",
@@ -259,7 +263,7 @@
         "stdout": "0"
       },
       "expect_authored": "post-hoc",
-      "falsifier": "A single timing line here refutes the strong form: the engine would then be reaching the speculative path under agent traffic and declining to draft, which is a different mechanism needing a different fix."
+      "falsifier": "A single timing line here would mean a cycle completed under agent traffic, and the drafting-share question would be a gradient rather than a floor."
     },
     {
       "id": "new-sweep2-drafted-before-the-batch",
@@ -287,7 +291,7 @@
     },
     {
       "id": "new-sweep2-emitted-no-mtp-line-during-the-batch",
-      "statement": "The batch region of new-sweep2 -- everything after the byte run.py printed as its recording offset, 278,690 bytes covering fifteen agent tasks run twice -- contains ZERO `Qwen MTP timing` lines. Not zero acceptance; not `verifier=scheduler-bypass`, which is what a cycle that reached the scheduler and was turned away prints. No line at all. On a request carrying a tool schema, ds4 does not reach its speculative path. tests/test_mtp_log_split.py re-cuts this slice from the full log at the recorded offset and compares bytes, so the file cannot drift from its source.",
+      "statement": "The batch region of new-sweep2 -- everything after the byte run.py printed as its recording offset, 278,690 bytes covering fifteen agent tasks run twice -- contains ZERO `Qwen MTP timing` lines. Not zero acceptance, and not `verifier=scheduler-bypass`. This says the engine did not COMPLETE a speculative cycle; it does not say the engine never tried, and an earlier reading of this file that claimed a tool-schema gate was wrong -- see the frontier-short claim below. tests/test_mtp_log_split.py re-cuts this slice from the full log at the recorded offset and compares bytes.",
       "argv": [
         "grep",
         "-c",
@@ -307,7 +311,125 @@
         "stdout": "0"
       },
       "expect_authored": "post-hoc",
-      "falsifier": "A single timing line here refutes the strong form: the engine would then be reaching the speculative path under agent traffic and declining to draft, which is a different mechanism needing a different fix."
+      "falsifier": "A single timing line here would mean a cycle completed under agent traffic, and the drafting-share question would be a gradient rather than a floor."
+    },
+    {
+      "id": "new-sweep1-aborted-inside-the-speculative-path",
+      "statement": "The batch region of new-sweep1 carries 42 `Qwen MTP history frontier short` lines, and the whole log carries the same 42 -- so every one of them falls during the batch and none during the start-up prompts. That message is printed immediately before a `return false`, inside the speculative path and before any of the nine sites that print a timing line -- see the two source claims below. The engine therefore DID enter speculation under agent traffic and aborted early, when the MTP KV history had fallen behind the committed frontier (`cache=11664 expected=11721` on the first). Credit to the deepseek peer for finding this; it corrects an earlier reading of this run.",
+      "argv": [
+        "grep",
+        "-c",
+        "Qwen MTP history frontier short",
+        "evidence/0039-mtp-ab-logs/server-new-sweep1.batch-region.log"
+      ],
+      "cwd": "/Users/evanhoffman/git/local-llm",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0,
+        "stdout_equals": "42"
+      },
+      "observed": {
+        "exit": 0,
+        "stdout": "42"
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "Zero frontier-short lines in the batch region would put the abort somewhere else entirely and reopen the question of where the path is left.",
+      "context": {
+        "same_count_in_whole_log": {
+          "exit": 0,
+          "stdout": "42"
+        }
+      }
+    },
+    {
+      "id": "new-sweep2-aborted-inside-the-speculative-path",
+      "statement": "The batch region of new-sweep2 carries 26 `Qwen MTP history frontier short` lines, and the whole log carries the same 26 -- so every one of them falls during the batch and none during the start-up prompts. That message is printed immediately before a `return false`, inside the speculative path and before any of the nine sites that print a timing line -- see the two source claims below. The engine therefore DID enter speculation under agent traffic and aborted early, when the MTP KV history had fallen behind the committed frontier (`cache=11664 expected=11721` on the first). Credit to the deepseek peer for finding this; it corrects an earlier reading of this run.",
+      "argv": [
+        "grep",
+        "-c",
+        "Qwen MTP history frontier short",
+        "evidence/0039-mtp-ab-logs/server-new-sweep2.batch-region.log"
+      ],
+      "cwd": "/Users/evanhoffman/git/local-llm",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0,
+        "stdout_equals": "26"
+      },
+      "observed": {
+        "exit": 0,
+        "stdout": "26"
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "Zero frontier-short lines in the batch region would put the abort somewhere else entirely and reopen the question of where the path is left.",
+      "context": {
+        "same_count_in_whole_log": {
+          "exit": 0,
+          "stdout": "26"
+        }
+      }
+    },
+    {
+      "id": "the-server-gate-does-not-test-for-a-tool-schema",
+      "statement": "The only guard between a request and the speculative path, at ds4_server.c:12764 at ds4-metal ba01f5d, is `if (!s->batched_mode && ds4_engine_mtp_draft_tokens(s->engine) > 1 && getenv(\"DS4_MTP_SPEC_DISABLE\") == NULL)`. It tests batched mode, the configured draft depth and an environment variable. It does not test whether the request carries a tool schema. Any account of #151's 42-against-241 separation that puts a schema check in the engine is wrong; prompt size, which a schema inflates, is the live candidate.",
+      "argv": [
+        "grep",
+        "-n",
+        "DS4_MTP_SPEC_DISABLE",
+        "ds4_server.c"
+      ],
+      "cwd": "/Users/evanhoffman/git/ds4-metal",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0,
+        "stdout_contains": "12764"
+      },
+      "observed": {
+        "exit": 0,
+        "stdout": "12764:            getenv(\"DS4_MTP_SPEC_DISABLE\") == NULL)"
+      },
+      "expect_authored": "post-hoc",
+      "enumerates": [
+        12764
+      ],
+      "falsifier": "A has_tools or tools_count test anywhere in this condition would restore the schema-gate reading and make the prompt-size account unnecessary."
+    },
+    {
+      "id": "the-frontier-abort-returns-before-every-timing-site",
+      "statement": "ds4.c:56206 at ds4-metal ba01f5d prints `Qwen MTP history frontier short` and the next statement is `return false`. It fires when the MTP KV history has fallen behind the committed frontier (`g->mtp_cache_len < committed_before`). Because it returns from inside the speculative path, none of the nine sites that print a `Qwen MTP timing` line is reached -- including the `drafted=0 accepted=0` bypass sites. That is why a batch can show zero timing lines of ANY kind and still have entered speculation, which is the distinction an earlier reading of this run got wrong.",
+      "argv": [
+        "grep",
+        "-n",
+        "Qwen MTP history frontier short",
+        "ds4.c"
+      ],
+      "cwd": "/Users/evanhoffman/git/ds4-metal",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0,
+        "stdout_contains": "56206"
+      },
+      "observed": {
+        "exit": 0,
+        "stdout": "56206:                \"ds4: Qwen MTP history frontier short cache=%u expected=%u \""
+      },
+      "expect_authored": "post-hoc",
+      "enumerates": [
+        56206
+      ],
+      "context_lines": [
+        56204,
+        56211
+      ],
+      "falsifier": "If this fprintf were outside the speculative path, or followed by a fallthrough rather than a return, the aborts and the missing timing lines would be unrelated."
     }
   ]
 }
