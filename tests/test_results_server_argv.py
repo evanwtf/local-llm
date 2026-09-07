@@ -12,7 +12,9 @@ from __future__ import annotations
 import pathlib
 import sys
 
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "benchmarks" / "agent"))
+sys.path.insert(
+    0, str(pathlib.Path(__file__).resolve().parents[1] / "benchmarks" / "agent")
+)
 
 import results
 
@@ -23,6 +25,7 @@ def row(argv: str | None) -> dict:
 
 
 # --- graph_flags ------------------------------------------------------------
+
 
 def test_graph_flags_ignores_paths_and_ports():
     a = "./ds4-server -m /a/model.gguf -c 100000 --port 8000"
@@ -91,14 +94,21 @@ def test_graph_flags_ignores_the_model_path():
 
 # --- server_argv_compatible -------------------------------------------------
 
+
 def test_both_unknown_are_compatible():
     assert results.server_argv_compatible(row(None), row(None)) is True
 
 
 def test_known_vs_unknown_is_incompatible():
     """A row that says nothing about its graph could have run anything."""
-    assert results.server_argv_compatible(row(None), row("./ds4-server -m /a.gguf")) is False
-    assert results.server_argv_compatible(row("./ds4-server -m /a.gguf"), row(None)) is False
+    assert (
+        results.server_argv_compatible(row(None), row("./ds4-server -m /a.gguf"))
+        is False
+    )
+    assert (
+        results.server_argv_compatible(row("./ds4-server -m /a.gguf"), row(None))
+        is False
+    )
 
 
 def test_known_with_same_graph_is_compatible():
@@ -114,6 +124,7 @@ def test_known_with_different_graph_is_incompatible():
 
 
 # --- pool_compatible / compatible_subset ------------------------------------
+
 
 def test_all_unknown_pool_is_compatible():
     assert results.pool_compatible([row(None), row(None), row(None)]) is True
