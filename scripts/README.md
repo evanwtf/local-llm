@@ -44,6 +44,7 @@ documentation.
 | `prefix_stall.py` | Measure the live-KV prefix stall across a corpus of ds4-server logs (#64). |
 | `prompt_meta.py` | Which prompt a decode/prefill A/B was measured on (#140). |
 | `prune_models.py` | Delete local model weights that are superseded and re-downloadable (#111). |
+| `qwen38_metal_suites.py` | Run ds4#990's model-free Qwen3.8-Flash-Next Metal suites and report (#170). |
 | `report.py` | Summarize and compare measured cells, with the resolution rule applied. |
 | `sensor_windows.py` | Join a monitord sensor series to benchmark sweep windows. |
 | `session_decay.py` | Does a session get worse the longer the server runs? (#120) |

@@ -1,0 +1,43 @@
+{
+  "tree": "/Users/evanhoffman/git/ds4-pr990",
+  "head": "9803df46ac7c8da8161239c029be240adc9c67f8",
+  "suites": [
+    {
+      "target": "test-qwen38-gdn",
+      "returncode": 0,
+      "pass_line": "Qwen3.8 GDN GPU tests: PASS",
+      "passed": true
+    },
+    {
+      "target": "test-qwen38-qsa",
+      "returncode": 0,
+      "pass_line": "Qwen3.8 QSA GPU tests: PASS",
+      "passed": true
+    },
+    {
+      "target": "test-qwen38-hc",
+      "returncode": 0,
+      "pass_line": "Qwen3.8 HC/PLE GPU tests: PASS",
+      "passed": true
+    },
+    {
+      "target": "test-qwen38-ple-hash",
+      "returncode": 0,
+      "pass_line": "Qwen3.8 PLE hash tests: PASS",
+      "passed": true
+    },
+    {
+      "target": "test-qwen38-ple-store",
+      "returncode": 0,
+      "pass_line": "test_qwen38_ple_store: ok",
+      "passed": true
+    },
+    {
+      "target": "test-qwen38-indexer",
+      "returncode": 0,
+      "pass_line": "Qwen3.8 indexer GPU tests: PASS",
+      "passed": true
+    }
+  ],
+  "build_warnings": []
+}
