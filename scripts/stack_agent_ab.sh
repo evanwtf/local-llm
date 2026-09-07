@@ -61,6 +61,11 @@ NEW_PLE=${NEW_PLE:-$HOME/models/qwen3.8-flash-next-ds4-q4k-imatrix/Qwen3.8-Flash
 NEW_KV=${NEW_KV:-$HOME/.ds4/server-kv-kimat}
 NEW_BACKEND=${NEW_BACKEND:-qwen38fnds4kimat}
 NEW_FLAGS=${NEW_FLAGS:-}
+# Flags for run.py, per arm. The one that matters is --no-require-draft: #210's
+# gate refuses a speculative arm that emitted no cycle, which is correct and is
+# exactly what this harness must be able to measure on purpose. Passing it is a
+# declaration that the arm's silence IS the subject, not an accident.
+NEW_RUN_FLAGS=${NEW_RUN_FLAGS:-}
 
 OLD_TREE=${OLD_TREE:-$HOME/git/ds4-metal}
 OLD_GGUF=${OLD_GGUF:-$HOME/models/qwen3.8-flash-next-ds4-q4/Qwen3.8-Flash-Next-Q40RoutedExperts-BF16Emb-BF16Control-Q8GDN-Q8QSA-Q8Shared-Q8Out.gguf}
@@ -68,6 +73,7 @@ OLD_PLE=${OLD_PLE:-$HOME/models/qwen3.8-flash-next-ds4-q4/Qwen3.8-Flash-Next-PLE
 OLD_KV=${OLD_KV:-$HOME/.ds4/server-kv}
 OLD_BACKEND=${OLD_BACKEND:-qwen38fnds4shim}
 OLD_FLAGS=${OLD_FLAGS:-}
+OLD_RUN_FLAGS=${OLD_RUN_FLAGS:-}
 
 if [ "$NEW_KV" = "$OLD_KV" ]; then
   echo "REFUSING: both arms share KV dir $NEW_KV -- one arm would read the" \
@@ -101,12 +107,16 @@ done
   echo "# stack agent A/B, started $(date '+%Y-%m-%dT%H:%M:%S %Z')"
   echo "# SCREEN, not a superiority test: n=$((SWEEPS * 15))/arm resolves ~18-27 pp pass, ~17-26% paired wall."
   echo "NEW backend=$NEW_BACKEND engine=$NEW_TREE @ $(git -C "$NEW_TREE" rev-parse --short HEAD 2>/dev/null || echo ?)"
-  echo "NEW gguf=$(basename "$NEW_GGUF") ($(stat -f %z "$NEW_GGUF") bytes)  kv=$NEW_KV"
-  echo "NEW flags=${NEW_FLAGS:-<none>}"
+  echo "NEW gguf=$(basename "$NEW_GGUF") ($(stat -Lf %z "$NEW_GGUF") bytes, $(readlink "$NEW_GGUF" || basename "$NEW_GGUF"))  kv=$NEW_KV"
+  echo "NEW flags=${NEW_FLAGS:-<none>}  run.py=${NEW_RUN_FLAGS:-<none>}"
   echo "OLD backend=$OLD_BACKEND engine=$OLD_TREE @ $(git -C "$OLD_TREE" rev-parse --short HEAD 2>/dev/null || echo ?)"
-  echo "OLD gguf=$(basename "$OLD_GGUF") ($(stat -f %z "$OLD_GGUF") bytes)  kv=$OLD_KV"
-  echo "OLD flags=${OLD_FLAGS:-<none>}"
-  echo "# engine and quant move together in both arms; neither can be attributed alone (#138)."
+  echo "OLD gguf=$(basename "$OLD_GGUF") ($(stat -Lf %z "$OLD_GGUF") bytes, $(readlink "$OLD_GGUF" || basename "$OLD_GGUF"))  kv=$OLD_KV"
+  echo "OLD flags=${OLD_FLAGS:-<none>}  run.py=${OLD_RUN_FLAGS:-<none>}"
+  if [ "$NEW_GGUF" = "$OLD_GGUF" ] && [ "$NEW_TREE" = "$OLD_TREE" ]; then
+    echo "# Same tree and same gguf in both arms: the flags above are the only variable."
+  else
+    echo "# engine and quant move together in both arms; neither can be attributed alone (#138)."
+  fi
 } > "$OUT/run-record.txt"
 
 restart_server() {
@@ -127,7 +137,7 @@ restart_server() {
 }
 
 sweep() {
-  local arm=$1 n=$2 backend=$3
+  local arm=$1 n=$2 backend=$3 run_flags=${4:-}
   local tag="${arm}-sweep${n}"
   # Capture the START. sweep-order.txt used to carry one time, written here at
   # the END, while stack_agent_report read it as the sweep's START and gave
@@ -142,10 +152,11 @@ sweep() {
   # MTP arm that never speculated is then indistinguishable from one that did.
   # The log is this sweep's own server, started moments ago, so the probe's
   # byte window covers exactly this sweep.
+  # shellcheck disable=SC2086  # run_flags is a deliberate argv fragment
   ( cd "$REPO" && uv run python benchmarks/agent/run.py \
       --backend "$backend" --trials 1 --client opencode --no-lock \
       --require-harness-head "$HARNESS_HEAD" \
-      --server-log "$OUT/server-$tag.log" --draft-log-engine ds4 \
+      --server-log "$OUT/server-$tag.log" --draft-log-engine ds4 $run_flags \
       > "$OUT/$tag.log" 2>&1 ) || echo "[$(date +%H:%M:%S)] $tag returned non-zero"
   mkdir -p "$OUT/$tag"
   # Transcripts move out of the top level immediately. Leaving them is how
@@ -194,20 +205,20 @@ fi
 
 for n in $(seq 1 "$SWEEPS"); do
   if [ $((n % 2)) -eq 1 ]; then
-    first_tag=new; first_backend=$NEW_BACKEND
+    first_tag=new; first_backend=$NEW_BACKEND; first_run_flags=$NEW_RUN_FLAGS
     first_tree=$NEW_TREE; first_gguf=$NEW_GGUF; first_ple=$NEW_PLE; first_kv=$NEW_KV; first_flags=$NEW_FLAGS
-    second_tag=old; second_backend=$OLD_BACKEND
+    second_tag=old; second_backend=$OLD_BACKEND; second_run_flags=$OLD_RUN_FLAGS
     second_tree=$OLD_TREE; second_gguf=$OLD_GGUF; second_ple=$OLD_PLE; second_kv=$OLD_KV; second_flags=$OLD_FLAGS
   else
-    first_tag=old; first_backend=$OLD_BACKEND
+    first_tag=old; first_backend=$OLD_BACKEND; first_run_flags=$OLD_RUN_FLAGS
     first_tree=$OLD_TREE; first_gguf=$OLD_GGUF; first_ple=$OLD_PLE; first_kv=$OLD_KV; first_flags=$OLD_FLAGS
-    second_tag=new; second_backend=$NEW_BACKEND
+    second_tag=new; second_backend=$NEW_BACKEND; second_run_flags=$NEW_RUN_FLAGS
     second_tree=$NEW_TREE; second_gguf=$NEW_GGUF; second_ple=$NEW_PLE; second_kv=$NEW_KV; second_flags=$NEW_FLAGS
   fi
   restart_server "$first_tree" "$first_gguf" "$first_ple" "$first_kv" "$first_tag-sweep$n" "$first_flags"
-  sweep "$first_tag" "$n" "$first_backend"
+  sweep "$first_tag" "$n" "$first_backend" "$first_run_flags"
   restart_server "$second_tree" "$second_gguf" "$second_ple" "$second_kv" "$second_tag-sweep$n" "$second_flags"
-  sweep "$second_tag" "$n" "$second_backend"
+  sweep "$second_tag" "$n" "$second_backend" "$second_run_flags"
 done
 echo "[$(date +%H:%M:%S)] all $((SWEEPS * 2)) sweeps complete under $OUT"
 # The teardown itself is the EXIT trap's job -- see ds4_arm_stop_trap above.
