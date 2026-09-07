@@ -3038,6 +3038,14 @@ def main():
         "server than the other.",
     )
     p.add_argument(
+        "--allow-contended",
+        action="store_true",
+        help="do not refuse when another model server is resident, or when "
+        "the selected backends span more than one engine. A model test runs "
+        "at empty; use this only for a deliberate diagnostic whose timings "
+        "will not be published.",
+    )
+    p.add_argument(
         "--allow-implausible",
         action="store_true",
         help="do not halt when a cell collapses against this backend's record "
@@ -3298,8 +3306,26 @@ def main():
     # What else is on this machine, and what is it holding? A server left up
     # from an earlier session contends for memory and bandwidth for the whole
     # batch, and the result is a timing measurement of a machine that was busy
-    # doing something else. Advisory: it warns and never refuses.
-    preflight.log_report(preflight.inspect(backends))
+    # doing something else.
+    _report = preflight.inspect(backends)
+    preflight.log_report(_report)
+
+    # A model test runs at empty -- a gate since 2026-09-07, not a log line.
+    #
+    # This used to warn and never refuse, and the warning was not enough twice
+    # over. It named a foreign server holding memory, which an operator can
+    # act on; it said nothing at all about a run whose OWN plan needed two
+    # models resident at once, because both of their ports were expected and
+    # so neither server looked stale. `refuse_unless_empty` checks both.
+    _not_empty = preflight.refuse_unless_empty(_report, backends)
+    if _not_empty and not args.allow_contended:
+        # SystemExit, not `return 1`: main() is called bare at the bottom of
+        # this file, so a returned code is discarded and the process exits 0.
+        # A refusal that reports success is worse than no refusal -- drive
+        # scripts test `rc -eq 0` and would log a refused sweep as done.
+        raise SystemExit(_not_empty)
+    if _not_empty:
+        logger.warning("%s (proceeding: --allow-contended)", _not_empty)
 
     # #149: a gate, not a log line.
     #

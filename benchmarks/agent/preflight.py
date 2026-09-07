@@ -472,6 +472,80 @@ def check(
     return Report(stale, unmatched, total, ceiling_gib - total)
 
 
+def engines_a_run_would_need(backends: dict[str, dict]) -> dict[str, list[str]]:
+    """Which distinct server each selected backend talks to, by name.
+
+    Keyed by `host:port` of the thing that actually holds the weights --
+    `engine_url` when the backend sits behind a shim, `base_url` otherwise
+    (#211). Two backends on one key share a server and can be interleaved;
+    two backends on two keys cannot, because both servers would have to be
+    resident at once.
+    """
+    out: dict[str, list[str]] = {}
+    for name, backend in backends.items():
+        url = backend.get("engine_url") or backend.get("base_url") or ""
+        parsed = urlparse(url)
+        key = f"{parsed.hostname}:{parsed.port}" if parsed.port else url or "?"
+        out.setdefault(key, []).append(name)
+    return out
+
+
+def refuse_unless_empty(report: Report, backends: dict[str, dict] | None) -> str | None:
+    """Refuse a measurement run unless the machine is empty but for its own model.
+
+    **A model test runs at empty.** Every number this benchmark publishes is a
+    wall-clock time on a machine with 128 GiB and a 112 GiB Metal ceiling, and
+    a second loaded model does not degrade that gracefully -- it evicts, swaps,
+    and moves the number being measured without appearing in any column of the
+    row. There is no "mostly empty": either the model under test has the
+    machine or the measurement is of something else.
+
+    Two ways a run can violate that, and the second is the one that caught us
+    on 2026-09-07:
+
+    1. **Something else is already resident.** `report.stale` and
+       `report.unmatched` already find these -- a server on a port no selected
+       backend uses, or one holding memory and not listening yet.
+
+    2. **The run's own plan needs two servers at once.** A `run.py` invocation
+       naming two backends on two different engines has to hold both models
+       resident for its whole length, because it alternates between them per
+       task. This is invisible to check (1): both ports are *expected*, so
+       neither server is stale. On 2026-09-07 a qwen38fnds4kimat-against-Ollama
+       run was started this way with 14.6 GiB of headroom and a 29 GiB second
+       model, and preflight reported the headroom without objecting to the
+       plan that was about to exceed it.
+
+    Two engines is not a harder version of one engine. It is a different
+    experiment -- run them as sequential sweeps with a server swap between,
+    which is what `scripts/stack_agent_ab.sh` does.
+    """
+    foreign = report.stale + report.unmatched
+    if foreign:
+        lines = "; ".join(
+            f"{p.short} (pid {p.pid}) holding {p.rss_gib:.1f} GiB" for p in foreign
+        )
+        return (
+            f"REFUSING: the machine is not empty -- {lines}. A model test runs "
+            "with only its own model resident; a second one evicts and swaps "
+            "without appearing in any column of the row. Stop it and re-run."
+        )
+    if backends and len(backends) > 1:
+        engines = engines_a_run_would_need(backends)
+        if len(engines) > 1:
+            plan = "; ".join(
+                f"{key} <- {', '.join(sorted(names))}"
+                for key, names in sorted(engines.items())
+            )
+            return (
+                f"REFUSING: these backends span {len(engines)} engines and one "
+                f"run would hold every one of them resident at once -- {plan}. "
+                "Run them as sequential sweeps with a server swap between "
+                "(scripts/stack_agent_ab.sh), not as one interleaved batch."
+            )
+    return None
+
+
 def _capture(argv: list[str]) -> str:
     got = subprocess.run(
         argv,
