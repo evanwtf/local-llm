@@ -233,10 +233,24 @@ def build_row(
     """Build the JSON row for size n.
 
     all_stores is the chronological store history up to the reading hit, as
-    (size, reason, tokens). The reading request reuses the most recent store,
-    so its reason is that store's reason, and cross_size is whether that store
-    was written during a different size's measurement. In isolate mode the
-    history is only this size's own stores, so cross_size is always False.
+    (size, reason, tokens).
+
+    **The reading request does not necessarily reuse the most recent store.**
+    That was this function's original assumption and it is wrong in exactly the
+    case the experiment exists to catch: at 29,845 tokens the server stores
+    29,877 with reason=evict and then serves the request from a 10,240-token
+    entry written during an earlier, much shorter measurement. Labelling that
+    row `evict` said the hit was on the evict entry, which it was not.
+
+    So the store is matched to the hit **by length**: the entry the server hit
+    has `tokens` equal to `cached_tokens`, and its reason is that store's
+    reason. `matched_store` records whether a store was found -- a hit on an
+    entry written before this run began has no store line to match, and that is
+    a fact about the row rather than a reason to guess.
+
+    cross_size is whether the matched store was written during a different
+    size's measurement. In isolate mode the history is only this size's own
+    stores, so cross_size is always False.
     """
     row = {
         "n_defs": n,
@@ -250,13 +264,18 @@ def build_row(
     if reading_hits:
         hit = max(reading_hits, key=lambda h: h.tokens)
         row["file"] = hit.file
-        if all_stores:
-            last_size, last_reason, _ = all_stores[-1]
-            row["reason"] = last_reason
-            row["cross_size"] = last_size != n
+        # Latest first: a length can be stored more than once, and the store
+        # that produced the entry now on disk is the most recent one.
+        matched = next((s for s in reversed(all_stores) if s[2] == hit.tokens), None)
+        if matched is not None:
+            size, reason, _ = matched
+            row["reason"] = reason
+            row["cross_size"] = size != n
+            row["matched_store"] = True
         else:
             row["reason"] = None
             row["cross_size"] = False
+            row["matched_store"] = False
     else:
         row["file"] = None
         row["reason"] = None

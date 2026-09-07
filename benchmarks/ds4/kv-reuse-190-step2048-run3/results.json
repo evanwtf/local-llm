@@ -1,0 +1,74 @@
+{
+  "engine": "ds4",
+  "engine_version": "ffd85d42",
+  "engine_dirty": false,
+  "engine_tree": "/Users/evanhoffman/git/ds4-ivan-qwen38fn",
+  "ctx": 131072,
+  "kv_disk": true,
+  "kv_disk_space_mb": 8192,
+  "gguf": "/Users/evanhoffman/models/qwen3.8-flash-next-ds4-q4k-imatrix/Qwen3.8-Flash-Next-Q4KImatrixExperts-MXFP4Down-BF16Emb-BF16Control-Q8GDN-Q8QSA-Q8Shared-Q8Out.gguf",
+  "ple": "/Users/evanhoffman/models/qwen3.8-flash-next-ds4-q4k-imatrix/Qwen3.8-Flash-Next-PLE-Q4_1.gguf",
+  "mode": "sequential",
+  "rows": [
+    {
+      "n_defs": 200,
+      "prompt_tokens": 2645,
+      "cached_tokens": 2048,
+      "cache_write_tokens": 597,
+      "reused_pct": 77.4,
+      "reprefilled": 597,
+      "file": "/tmp/kv-prefix-reuse-8099/eb73720a2e53a99efec1f3ddb0f0855f1fe18bae.kv",
+      "reason": "cold",
+      "cross_size": false,
+      "matched_store": true
+    },
+    {
+      "n_defs": 800,
+      "prompt_tokens": 11045,
+      "cached_tokens": 10240,
+      "cache_write_tokens": 805,
+      "reused_pct": 92.7,
+      "reprefilled": 805,
+      "file": "/tmp/kv-prefix-reuse-8099/3efe3045a3787c068ee35f84814b1d5a3d83b944.kv",
+      "reason": "continued",
+      "cross_size": false,
+      "matched_store": true
+    },
+    {
+      "n_defs": 2000,
+      "prompt_tokens": 29845,
+      "cached_tokens": 26624,
+      "cache_write_tokens": 3221,
+      "reused_pct": 89.2,
+      "reprefilled": 3221,
+      "file": "/tmp/kv-prefix-reuse-8099/3de2b4ea3c4030188ad96333f0c2aec386bea17f.kv",
+      "reason": "continued",
+      "cross_size": false,
+      "matched_store": true
+    },
+    {
+      "n_defs": 3500,
+      "prompt_tokens": 53845,
+      "cached_tokens": 51200,
+      "cache_write_tokens": 2645,
+      "reused_pct": 95.1,
+      "reprefilled": 2645,
+      "file": "/tmp/kv-prefix-reuse-8099/f87f6536cb4e1df7b541ae9ea347ab3a55d42b80.kv",
+      "reason": "continued",
+      "cross_size": false,
+      "matched_store": true
+    },
+    {
+      "n_defs": 5000,
+      "prompt_tokens": 77845,
+      "cached_tokens": 51200,
+      "cache_write_tokens": 26645,
+      "reused_pct": 65.8,
+      "reprefilled": 26645,
+      "file": "/tmp/kv-prefix-reuse-8099/f87f6536cb4e1df7b541ae9ea347ab3a55d42b80.kv",
+      "reason": "continued",
+      "cross_size": true,
+      "matched_store": true
+    }
+  ]
+}

@@ -1,0 +1,143 @@
+ds4: PLE sidecar table: /Users/evanhoffman/models/qwen3.8-flash-next-ds4-q4k-imatrix/Qwen3.8-Flash-Next-PLE-Q4_1.gguf (ple.weight [160, 320001536], CPU-only)
+ds4: Metal device Apple M5 Max, 128.00 GiB RAM
+ds4: Metal 4 tensor API enabled for Tensor kernels
+ds4: drift-patch flags hc_stable=on norm_unify=on kv_raw_f32=off rope_exp2_log2=off math_safe=off tensor_matmul=on
+ds4: Metal model views created in 2.101 ms, residency requested in 731.470 ms, warmup 3.494 ms (mapped 69962.19 MiB from offset 10.51 MiB)
+ds4: Metal mapped mmaped model as 1 overlapping shared buffers
+ds4: metal backend initialized for graph diagnostics
+ds4: memory: KV 3.85 GiB (raw 3.00 + compressed 0.84) + buffers 8.91 GiB + resident model 68.32 GiB = 81.08 GiB planned
+ds4: memory detail: ctx=131072 prefill_cap=8192 raw_kv_rows=131072 compressed_kv_rows=32769 backend=metal
+0907 05:52:28 ds4-server: context buffers 13066.07 MiB (ctx=131072, backend=metal, prefill_chunk=8192, raw_kv_rows=131072, compressed_kv_rows=32769)
+0907 05:52:28 ds4-server: KV disk cache /tmp/kv-prefix-reuse-8099 (budget=8192 MiB, cross-quant=accept, min=512, cold_max=30000, continued=2048, trim=32, align=2048, hit_half_life=21600s)
+0907 05:52:28 ds4-server: listening on http://127.0.0.1:8099
+0907 05:52:28 ds4-server: chat ctx=0..53:53 prompt start
+0907 05:52:29 ds4-server: chat ctx=0..53:53 prefill chunk 53/53 (100.0%) chunk=0.00 t/s avg=107.46 t/s 0.493s
+0907 05:52:29 ds4-server: chat ctx=0..53:53 prompt done 0.493s
+0907 05:52:29 ds4-server: chat ctx=53..54:1 gen=1 THINKING decoding chunk=43.01 t/s avg=43.01 t/s 0.023s
+ds4-server: thinking not closed, ignoring incomplete Qwen tool calls in reasoning
+0907 05:52:29 ds4-server: chat ctx=0..53:53 gen=1 THINKING finish=length 0.517s
+0907 05:52:29 ds4-server: live kv cache miss live=54 prompt=2645 common=45 vision=match reason=token-mismatch
+0907 05:52:29 ds4-server: chat ctx=0..2645:2645 prompt start
+0907 05:52:31 ds4-server: chat ctx=0..2645:2645 prefill chunk 2048/2645 (77.4%) chunk=0.00 t/s avg=886.09 t/s 2.311s
+0907 05:52:31 ds4-server: kv cache stored tokens=2048 trimmed=597 reason=cold key=token-text size=175.06 MiB save=24.1 ms
+0907 05:52:32 ds4-server: chat ctx=0..2645:2645 prefill chunk 2645/2645 (100.0%) chunk=569.86 t/s avg=787.46 t/s 3.359s
+0907 05:52:32 ds4-server: chat ctx=0..2645:2645 prompt done 3.359s
+0907 05:52:33 ds4-server: chat ctx=2645..2677:32 gen=32 THINKING decoding chunk=47.78 t/s avg=47.78 t/s 0.670s
+ds4-server: thinking not closed, ignoring incomplete Qwen tool calls in reasoning
+0907 05:52:33 ds4-server: chat ctx=0..2645:2645 gen=32 THINKING finish=length 4.029s
+0907 05:52:33 ds4-server: live kv cache miss live=2677 prompt=2645 common=2645 vision=match reason=token-mismatch
+0907 05:52:33 ds4-server: kv cache stored tokens=2677 trimmed=0 reason=evict key=token-text size=193.96 MiB save=27.1 ms
+0907 05:52:33 ds4-server: kv cache hit text tokens=2048 text=4179 quant=4 key=token-text load=13.8 ms file=/tmp/kv-prefix-reuse-8099/eb73720a2e53a99efec1f3ddb0f0855f1fe18bae.kv
+0907 05:52:33 ds4-server: chat ctx=2048..2645:597 prompt start
+0907 05:52:34 ds4-server: chat ctx=2048..2645:597 prefill chunk 597/597 (100.0%) chunk=0.00 t/s avg=637.65 t/s 0.936s
+0907 05:52:34 ds4-server: chat ctx=2048..2645:597 prompt done 0.936s
+0907 05:52:35 ds4-server: chat ctx=2645..2677:32 gen=32 THINKING decoding chunk=46.84 t/s avg=46.84 t/s 0.683s
+ds4-server: thinking not closed, ignoring incomplete Qwen tool calls in reasoning
+0907 05:52:35 ds4-server: chat ctx=2048..2645:597 gen=32 THINKING finish=length 1.620s
+0907 05:52:35 ds4-server: live kv cache miss live=2677 prompt=11045 common=2630 vision=match reason=token-mismatch
+0907 05:52:35 ds4-server: kv cache hit text tokens=2048 text=4179 quant=4 key=token-text load=14.2 ms file=/tmp/kv-prefix-reuse-8099/eb73720a2e53a99efec1f3ddb0f0855f1fe18bae.kv
+0907 05:52:35 ds4-server: chat ctx=2048..11045:8997 prompt start
+0907 05:52:44 ds4-server: chat ctx=2048..11045:8997 prefill chunk 8192/8997 (91.1%) chunk=0.00 t/s avg=928.74 t/s 8.821s
+0907 05:52:44 ds4-server: kv cache stored tokens=10240 trimmed=0 reason=continued key=token-text size=421.23 MiB save=51.2 ms
+0907 05:52:45 ds4-server: chat ctx=2048..11045:8997 prefill chunk 8997/8997 (100.0%) chunk=570.39 t/s avg=879.31 t/s 10.232s
+0907 05:52:45 ds4-server: chat ctx=2048..11045:8997 prompt done 10.232s
+0907 05:52:46 ds4-server: chat ctx=11045..11077:32 gen=32 THINKING decoding chunk=46.83 t/s avg=46.83 t/s 0.683s
+ds4-server: thinking not closed, ignoring incomplete Qwen tool calls in reasoning
+0907 05:52:46 ds4-server: chat ctx=2048..11045:8997 gen=32 THINKING finish=length 10.915s
+0907 05:52:46 ds4-server: live kv cache miss live=11077 prompt=11045 common=11045 vision=match reason=token-mismatch
+0907 05:52:46 ds4-server: kv cache stored tokens=11077 trimmed=0 reason=evict key=token-text size=446.38 MiB save=56.2 ms
+0907 05:52:46 ds4-server: kv cache hit text tokens=10240 text=19393 quant=4 key=token-text load=35.6 ms file=/tmp/kv-prefix-reuse-8099/3efe3045a3787c068ee35f84814b1d5a3d83b944.kv
+0907 05:52:46 ds4-server: chat ctx=10240..11045:805 prompt start
+0907 05:52:47 ds4-server: chat ctx=10240..11045:805 prefill chunk 805/805 (100.0%) chunk=0.00 t/s avg=671.62 t/s 1.199s
+0907 05:52:47 ds4-server: chat ctx=10240..11045:805 prompt done 1.199s
+0907 05:52:48 ds4-server: chat ctx=11045..11077:32 gen=32 THINKING decoding chunk=46.93 t/s avg=46.93 t/s 0.682s
+ds4-server: thinking not closed, ignoring incomplete Qwen tool calls in reasoning
+0907 05:52:48 ds4-server: chat ctx=10240..11045:805 gen=32 THINKING finish=length 1.881s
+0907 05:52:48 ds4-server: live kv cache miss live=11077 prompt=29845 common=11030 vision=match reason=token-mismatch
+0907 05:52:48 ds4-server: kv cache hit text tokens=10240 text=19393 quant=4 key=token-text load=32.5 ms file=/tmp/kv-prefix-reuse-8099/3efe3045a3787c068ee35f84814b1d5a3d83b944.kv
+0907 05:52:48 ds4-server: chat ctx=10240..29845:19605 prompt start
+0907 05:52:57 ds4-server: chat ctx=10240..29845:19605 prefill chunk 8192/19605 (41.8%) chunk=0.00 t/s avg=929.41 t/s 8.814s
+0907 05:52:57 ds4-server: kv cache stored tokens=18432 trimmed=0 reason=continued key=token-text size=667.40 MiB save=86.9 ms
+0907 05:53:06 ds4-server: chat ctx=10240..29845:19605 prefill chunk 16384/19605 (83.6%) chunk=917.62 t/s avg=923.48 t/s 17.742s
+0907 05:53:06 ds4-server: kv cache stored tokens=26624 trimmed=0 reason=continued key=token-text size=913.57 MiB save=115.5 ms
+0907 05:53:10 ds4-server: chat ctx=10240..29845:19605 prefill chunk 19605/19605 (100.0%) chunk=799.74 t/s avg=900.58 t/s 21.769s
+0907 05:53:10 ds4-server: chat ctx=10240..29845:19605 prompt done 21.769s
+0907 05:53:10 ds4-server: chat ctx=29845..29877:32 gen=32 THINKING decoding chunk=47.30 t/s avg=47.30 t/s 0.676s
+ds4-server: thinking not closed, ignoring incomplete Qwen tool calls in reasoning
+0907 05:53:10 ds4-server: chat ctx=10240..29845:19605 gen=32 THINKING finish=length 22.446s
+0907 05:53:10 ds4-server: live kv cache miss live=29877 prompt=29845 common=29845 vision=match reason=token-mismatch
+0907 05:53:10 ds4-server: kv cache stored tokens=29877 trimmed=0 reason=evict key=token-text size=1011.32 MiB save=126.3 ms
+0907 05:53:11 ds4-server: kv cache hit text tokens=26624 text=48455 quant=4 key=token-text load=99.8 ms file=/tmp/kv-prefix-reuse-8099/3de2b4ea3c4030188ad96333f0c2aec386bea17f.kv
+0907 05:53:11 ds4-server: chat ctx=26624..29845:3221 prompt start
+0907 05:53:14 ds4-server: chat ctx=26624..29845:3221 prefill chunk 3221/3221 (100.0%) chunk=0.00 t/s avg=874.13 t/s 3.685s
+0907 05:53:14 ds4-server: chat ctx=26624..29845:3221 prompt done 3.685s
+0907 05:53:15 ds4-server: chat ctx=29845..29877:32 gen=32 THINKING decoding chunk=45.95 t/s avg=45.95 t/s 0.696s
+ds4-server: thinking not closed, ignoring incomplete Qwen tool calls in reasoning
+0907 05:53:15 ds4-server: chat ctx=26624..29845:3221 gen=32 THINKING finish=length 4.381s
+0907 05:53:15 ds4-server: live kv cache miss live=29877 prompt=53845 common=29830 vision=match reason=token-mismatch
+0907 05:53:15 ds4-server: kv cache hit text tokens=26624 text=48455 quant=4 key=token-text load=63.9 ms file=/tmp/kv-prefix-reuse-8099/3de2b4ea3c4030188ad96333f0c2aec386bea17f.kv
+0907 05:53:15 ds4-server: chat ctx=26624..53845:27221 prompt start
+0907 05:53:24 ds4-server: chat ctx=26624..53845:27221 prefill chunk 8192/27221 (30.1%) chunk=0.00 t/s avg=928.40 t/s 8.824s
+0907 05:53:24 ds4-server: kv cache stored tokens=34816 trimmed=0 reason=continued key=token-text size=1159.74 MiB save=142.6 ms
+0907 05:53:33 ds4-server: chat ctx=26624..53845:27221 prefill chunk 16384/27221 (60.2%) chunk=899.71 t/s avg=913.83 t/s 17.929s
+0907 05:53:33 ds4-server: kv cache stored tokens=43008 trimmed=0 reason=continued key=token-text size=1405.91 MiB save=173.2 ms
+0907 05:53:42 ds4-server: chat ctx=26624..53845:27221 prefill chunk 24576/27221 (90.3%) chunk=888.97 t/s avg=905.39 t/s 27.144s
+0907 05:53:43 ds4-server: kv cache stored tokens=51200 trimmed=0 reason=continued key=token-text size=1652.08 MiB save=207.2 ms
+0907 05:53:46 ds4-server: chat ctx=26624..53845:27221 prefill chunk 27221/27221 (100.0%) chunk=741.91 t/s avg=886.41 t/s 30.709s
+0907 05:53:46 ds4-server: chat ctx=26624..53845:27221 prompt done 30.709s
+0907 05:53:46 ds4-server: chat ctx=53845..53877:32 gen=32 THINKING decoding chunk=43.96 t/s avg=43.96 t/s 0.728s
+ds4-server: thinking not closed, ignoring incomplete Qwen tool calls in reasoning
+0907 05:53:46 ds4-server: chat ctx=26624..53845:27221 gen=32 THINKING finish=length 31.437s
+0907 05:53:46 ds4-server: live kv cache miss live=53877 prompt=53845 common=53845 vision=match reason=token-mismatch
+0907 05:53:47 ds4-server: kv cache evicted reason=disk-cache-full tokens=18432 hits=0 size=667.40 MiB file=/tmp/kv-prefix-reuse-8099/99632123423d619eab98a9b398e4ee89e44a18e3.kv
+0907 05:53:47 ds4-server: kv cache evicted reason=disk-cache-full tokens=34816 hits=0 size=1159.74 MiB file=/tmp/kv-prefix-reuse-8099/421654390bfe288cf82196c2aceb934ab1f0fa30.kv
+0907 05:53:47 ds4-server: kv cache stored tokens=53877 trimmed=0 reason=evict key=token-text size=1732.52 MiB save=205.0 ms
+0907 05:53:47 ds4-server: kv cache hit text tokens=51200 text=91463 quant=4 key=token-text load=200.1 ms file=/tmp/kv-prefix-reuse-8099/f87f6536cb4e1df7b541ae9ea347ab3a55d42b80.kv
+0907 05:53:47 ds4-server: chat ctx=51200..53845:2645 prompt start
+0907 05:53:50 ds4-server: chat ctx=51200..53845:2645 prefill chunk 2645/2645 (100.0%) chunk=0.00 t/s avg=855.67 t/s 3.091s
+0907 05:53:50 ds4-server: chat ctx=51200..53845:2645 prompt done 3.091s
+0907 05:53:51 ds4-server: chat ctx=53845..53877:32 gen=32 THINKING decoding chunk=45.64 t/s avg=45.64 t/s 0.701s
+ds4-server: thinking not closed, ignoring incomplete Qwen tool calls in reasoning
+0907 05:53:51 ds4-server: chat ctx=51200..53845:2645 gen=32 THINKING finish=length 3.792s
+0907 05:53:51 ds4-server: live kv cache miss live=53877 prompt=77845 common=53830 vision=match reason=token-mismatch
+0907 05:53:51 ds4-server: kv cache hit text tokens=51200 text=91463 quant=4 key=token-text load=107.9 ms file=/tmp/kv-prefix-reuse-8099/f87f6536cb4e1df7b541ae9ea347ab3a55d42b80.kv
+0907 05:53:51 ds4-server: chat ctx=51200..77845:26645 prompt start
+0907 05:54:00 ds4-server: chat ctx=51200..77845:26645 prefill chunk 8192/26645 (30.7%) chunk=0.00 t/s avg=908.16 t/s 9.020s
+0907 05:54:00 ds4-server: kv cache evicted reason=disk-cache-full tokens=43008 hits=0 size=1405.91 MiB file=/tmp/kv-prefix-reuse-8099/33dc29f380bdec9499984fa7b2b75b24a2cc0b8e.kv
+0907 05:54:00 ds4-server: kv cache evicted reason=disk-cache-full tokens=10240 hits=2 size=421.23 MiB file=/tmp/kv-prefix-reuse-8099/3efe3045a3787c068ee35f84814b1d5a3d83b944.kv
+0907 05:54:01 ds4-server: kv cache stored tokens=59392 trimmed=0 reason=continued key=token-text size=1898.25 MiB save=373.7 ms
+0907 05:54:10 ds4-server: chat ctx=51200..77845:26645 prefill chunk 16384/26645 (61.5%) chunk=859.09 t/s avg=882.94 t/s 18.556s
+0907 05:54:10 ds4-server: kv cache evicted reason=disk-cache-full tokens=59392 hits=0 size=1898.25 MiB file=/tmp/kv-prefix-reuse-8099/187b6ce3bc277e56ef94cca78e75b12be7010aeb.kv
+0907 05:54:10 ds4-server: kv cache evicted reason=disk-cache-full tokens=2677 hits=0 size=193.96 MiB file=/tmp/kv-prefix-reuse-8099/6d77b903dea112934a72dace2ffeec133b0da9a4.kv
+0907 05:54:10 ds4-server: kv cache stored tokens=67584 trimmed=0 reason=continued key=token-text size=2144.42 MiB save=331.0 ms
+0907 05:54:19 ds4-server: chat ctx=51200..77845:26645 prefill chunk 24576/26645 (92.2%) chunk=858.56 t/s avg=874.66 t/s 28.098s
+0907 05:54:19 ds4-server: kv cache evicted reason=disk-cache-full tokens=67584 hits=0 size=2144.42 MiB file=/tmp/kv-prefix-reuse-8099/d6881ea403680713151d59def00b9f369d8ba7cb.kv
+0907 05:54:19 ds4-server: kv cache evicted reason=disk-cache-full tokens=26624 hits=2 size=913.57 MiB file=/tmp/kv-prefix-reuse-8099/3de2b4ea3c4030188ad96333f0c2aec386bea17f.kv
+0907 05:54:20 ds4-server: kv cache stored tokens=75776 trimmed=0 reason=continued key=token-text size=2390.59 MiB save=306.2 ms
+0907 05:54:22 ds4-server: chat ctx=51200..77845:26645 prefill chunk 26645/26645 (100.0%) chunk=657.03 t/s avg=852.73 t/s 31.247s
+0907 05:54:22 ds4-server: chat ctx=51200..77845:26645 prompt done 31.247s
+0907 05:54:23 ds4-server: chat ctx=77845..77877:32 gen=32 THINKING decoding chunk=45.75 t/s avg=45.75 t/s 0.699s
+ds4-server: thinking not closed, ignoring incomplete Qwen tool calls in reasoning
+0907 05:54:23 ds4-server: chat ctx=51200..77845:26645 gen=32 THINKING finish=length 31.946s
+0907 05:54:23 ds4-server: live kv cache miss live=77877 prompt=77845 common=77845 vision=match reason=token-mismatch
+0907 05:54:23 ds4-server: kv cache evicted reason=disk-cache-full tokens=75776 hits=0 size=2390.59 MiB file=/tmp/kv-prefix-reuse-8099/be171951b28e9f7ea3ddb652a2676ffada31022e.kv
+0907 05:54:24 ds4-server: kv cache stored tokens=77877 trimmed=0 reason=evict key=token-text size=2453.73 MiB save=329.3 ms
+0907 05:54:24 ds4-server: kv cache hit text tokens=51200 text=91463 quant=4 key=token-text load=106.4 ms file=/tmp/kv-prefix-reuse-8099/f87f6536cb4e1df7b541ae9ea347ab3a55d42b80.kv
+0907 05:54:24 ds4-server: chat ctx=51200..77845:26645 prompt start
+0907 05:54:33 ds4-server: chat ctx=51200..77845:26645 prefill chunk 8192/26645 (30.7%) chunk=0.00 t/s avg=921.79 t/s 8.887s
+0907 05:54:33 ds4-server: kv cache evicted reason=disk-cache-full tokens=51200 hits=3 size=1652.08 MiB file=/tmp/kv-prefix-reuse-8099/f87f6536cb4e1df7b541ae9ea347ab3a55d42b80.kv
+0907 05:54:33 ds4-server: kv cache stored tokens=59392 trimmed=0 reason=continued key=token-text size=1898.25 MiB save=217.3 ms
+0907 05:54:42 ds4-server: chat ctx=51200..77845:26645 prefill chunk 16384/26645 (61.5%) chunk=859.75 t/s avg=889.69 t/s 18.415s
+0907 05:54:42 ds4-server: kv cache evicted reason=disk-cache-full tokens=59392 hits=0 size=1898.25 MiB file=/tmp/kv-prefix-reuse-8099/187b6ce3bc277e56ef94cca78e75b12be7010aeb.kv
+0907 05:54:43 ds4-server: kv cache stored tokens=67584 trimmed=0 reason=continued key=token-text size=2144.42 MiB save=240.3 ms
+0907 05:54:52 ds4-server: chat ctx=51200..77845:26645 prefill chunk 24576/26645 (92.2%) chunk=853.07 t/s avg=877.14 t/s 28.018s
+0907 05:54:52 ds4-server: kv cache evicted reason=disk-cache-full tokens=67584 hits=0 size=2144.42 MiB file=/tmp/kv-prefix-reuse-8099/d6881ea403680713151d59def00b9f369d8ba7cb.kv
+0907 05:54:52 ds4-server: kv cache evicted reason=disk-cache-full tokens=11077 hits=0 size=446.38 MiB file=/tmp/kv-prefix-reuse-8099/d7cbb37db5b40331f43193f5c879db632f2f0f2a.kv
+0907 05:54:52 ds4-server: kv cache stored tokens=75776 trimmed=0 reason=continued key=token-text size=2390.59 MiB save=270.6 ms
+0907 05:54:55 ds4-server: chat ctx=51200..77845:26645 prefill chunk 26645/26645 (100.0%) chunk=671.40 t/s avg=856.75 t/s 31.100s
+0907 05:54:55 ds4-server: chat ctx=51200..77845:26645 prompt done 31.100s
+0907 05:54:55 ds4-server: chat ctx=77845..77877:32 gen=32 THINKING decoding chunk=45.00 t/s avg=45.00 t/s 0.711s
+ds4-server: thinking not closed, ignoring incomplete Qwen tool calls in reasoning
+0907 05:54:55 ds4-server: chat ctx=51200..77845:26645 gen=32 THINKING finish=length 31.811s
+0907 05:54:55 ds4-server: shutdown requested, draining requests
+0907 05:54:55 ds4-server: persisting resident KV cache before shutdown slot=0 tokens=77877

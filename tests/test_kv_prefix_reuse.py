@@ -242,6 +242,69 @@ def test_build_row_flags_cross_size_reuse():
     assert row["cross_size"] is True
 
 
+def test_build_row_matches_the_store_by_length_not_by_recency():
+    """The reading request does not always reuse the most recent store.
+
+    At 29,845 tokens the server stores 29,877 with reason=evict and then
+    serves the request from a 10,240-token entry written nineteen thousand
+    tokens of context earlier. Labelling the row `evict` said the hit was on
+    the evict entry, which it was not -- and that label was published on #190
+    before the log was read carefully.
+    """
+    got = {
+        "prompt_tokens": 29845,
+        "cached_tokens": 10240,
+        "cache_write_tokens": 19605,
+        "reused_pct": 34.3,
+        "reprefilled": 19605,
+        "reading_hits": [kpr.HitEvent(file="/tmp/kv/older", tokens=10240)],
+    }
+    all_stores = [
+        (200, "cold", 2048),
+        (800, "continued", 10240),
+        (2000, "evict", 29877),  # most recent, and NOT what was hit
+    ]
+    row = kpr.build_row(2000, got, all_stores)
+    assert row["reason"] == "continued"
+    assert row["cross_size"] is True
+    assert row["matched_store"] is True
+
+
+def test_build_row_says_so_when_no_store_matches_the_hit():
+    """A hit on an entry written before this run began has no store line to
+    match. That is a fact about the row, not a licence to guess -- reporting
+    the nearest store would invent a mechanism."""
+    got = {
+        "prompt_tokens": 29845,
+        "cached_tokens": 20480,
+        "cache_write_tokens": 9365,
+        "reused_pct": 68.6,
+        "reprefilled": 9365,
+        "reading_hits": [kpr.HitEvent(file="/tmp/kv/stranger", tokens=20480)],
+    }
+    row = kpr.build_row(2000, got, [(200, "cold", 2048)])
+    assert row["reason"] is None
+    assert row["matched_store"] is False
+    assert row["file"] == "/tmp/kv/stranger"
+
+
+def test_build_row_prefers_the_most_recent_store_of_a_repeated_length():
+    """A length can be stored more than once; the entry on disk came from the
+    latest of them."""
+    got = {
+        "prompt_tokens": 11045,
+        "cached_tokens": 10240,
+        "cache_write_tokens": 805,
+        "reused_pct": 92.7,
+        "reprefilled": 805,
+        "reading_hits": [kpr.HitEvent(file="/tmp/kv/f", tokens=10240)],
+    }
+    all_stores = [(800, "cold", 10240), (2000, "continued", 10240)]
+    row = kpr.build_row(2000, got, all_stores)
+    assert row["reason"] == "continued"
+    assert row["cross_size"] is False
+
+
 def test_build_row_with_no_hit_has_no_mechanism():
     """A 0% reading has no hit, so no reason and no file -- the honest answer
     for a cache that did not reuse anything."""
