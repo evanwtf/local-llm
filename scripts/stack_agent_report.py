@@ -304,6 +304,13 @@ def pairs_by_task(sweeps: list[Sweep]) -> list[tuple[str, float, float]]:
         bucket = new if sweep.arm == "new" else old
         for row in sweep.rows:
             bucket.setdefault(row.get("task") or "?", []).append(row)
+    # #213: a bucket that mixes graph-changing server_argv is two different
+    # models. Keep the largest self-consistent group; the dropped rows are
+    # holes in n, not passes or fails.
+    for task in list(new):
+        new[task] = results_mod.compatible_subset(new[task])
+    for task in list(old):
+        old[task] = results_mod.compatible_subset(old[task])
     out = []
     for task in sorted(new):
         if task in old:
@@ -328,6 +335,11 @@ def pairs_by_sweep(sweeps: list[Sweep]) -> dict[int, list[tuple[str, float, floa
         slot = by_n.setdefault(int(digits), {"new": {}, "old": {}})
         for row in sweep.rows:
             slot[sweep.arm].setdefault(row.get("task") or "?", []).append(row)
+    # #213: keep only the largest server_argv-compatible group per (arm, task).
+    for slot in by_n.values():
+        for arm in ("new", "old"):
+            for task in list(slot[arm]):
+                slot[arm][task] = results_mod.compatible_subset(slot[arm][task])
     out: dict[int, list[tuple[str, float, float]]] = {}
     for n, slot in sorted(by_n.items()):
         rows = []

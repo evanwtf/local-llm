@@ -43,7 +43,13 @@ SCRIPT_PREFIX = "script-"
 
 
 def cells(rows, backends, client="opencode"):
-    """{(backend, task): [row, ...]} for the backends asked for."""
+    """{(backend, task): [row, ...]} for the backends asked for.
+
+    Each cell is reduced to its largest server_argv-compatible subset (#213):
+    a cell that mixes graph-changing server_argv is two different models, and
+    pooling them would call the difference a result. The dropped rows are
+    holes in n, not passes or fails.
+    """
     got = collections.defaultdict(list)
     for r in rows:
         if r.get("client") != client:
@@ -51,6 +57,16 @@ def cells(rows, backends, client="opencode"):
         if backends and r.get("backend") not in backends:
             continue
         got[(r["backend"], r["task"])].append(r)
+    for key, cell in list(got.items()):
+        kept = results.compatible_subset(cell)
+        if len(kept) != len(cell):
+            logger.warning(
+                "%s %s: dropped %d row(s) with a different server_argv graph",
+                key[0],
+                key[1],
+                len(cell) - len(kept),
+            )
+        got[key] = kept
     return got
 
 
