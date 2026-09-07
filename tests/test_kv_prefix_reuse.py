@@ -12,11 +12,20 @@ The prompt builder is pinned too. A cache hit depends on the prefix being
 byte-identical between the two requests, so a builder that varied by
 machine or by call would silently measure a cold prefill twice and report
 0% reuse as a finding.
+
+The #190 confound is pinned as well. The first run measured every size against
+one server and one kv dir, so each reading inherited the previous size's cache
+and the 29845 reading reused a 10240 entry written during the 11045
+measurement. The fix is `--isolate` (default): a fresh server and a fresh kv
+dir per size, so no cross-size reuse is possible. The reason is read out of the
+log, not guessed from the number -- `cached_tokens` alone cannot tell a cold
+checkpoint from a continued one.
 """
 
 from __future__ import annotations
 
 import pathlib
+import shutil
 import sys
 
 import pytest
@@ -120,6 +129,224 @@ def test_readiness_does_not_depend_on_a_health_endpoint():
         "use benchmarks/agent/wait_ready.ready() -- it probes with a real "
         "one-token completion, which is the only readiness signal ds4 gives"
     )
+
+
+# ------------------------------------------------------- the log, and the reason
+
+
+def test_parse_log_extracts_store_and_hit_events():
+    """The reason is read out of the log, not guessed from the number."""
+    text = (
+        "kv cache stored tokens=2048 trimmed=597 reason=cold key=token-text "
+        "size=175.06 MiB save=1.2 ms\n"
+        "kv cache stored tokens=10240 trimmed=0 reason=continued key=token-text "
+        "size=421.23 MiB save=2.3 ms\n"
+        "kv cache hit text tokens=10240 text=100 quant=8 key=token-text "
+        "load=1.5 ms file=/tmp/kv/file1\n"
+    )
+    stores, hits = kpr.parse_log(text)
+    assert [(s.reason, s.tokens) for s in stores] == [
+        ("cold", 2048),
+        ("continued", 10240),
+    ]
+    assert [(h.file, h.tokens) for h in hits] == [("/tmp/kv/file1", 10240)]
+
+
+def test_parse_log_ignores_unrelated_lines():
+    """Startup and request lines are not store or hit events."""
+    text = (
+        "ds4-server starting\n"
+        "loading weights\n"
+        "kv cache stored tokens=2048 trimmed=0 reason=cold key=token-text "
+        "size=1.0 MiB save=1.0 ms\n"
+        "some other line\n"
+    )
+    stores, hits = kpr.parse_log(text)
+    assert len(stores) == 1 and stores[0].reason == "cold"
+    assert hits == []
+
+
+def test_measure_with_a_log_reader_attributes_events_to_requests(monkeypatch):
+    """The log is read between the warm and reading requests, so the store is
+    attributed to the warm request and the hit to the reading request."""
+
+    class FakeReader:
+        def __init__(self):
+            self.reads = 0
+
+        def mark(self):
+            pass
+
+        def read_since_mark(self):
+            self.reads += 1
+            if self.reads == 1:
+                return (
+                    "kv cache stored tokens=1000 trimmed=0 reason=cold "
+                    "key=token-text size=1.0 MiB save=1.0 ms\n"
+                )
+            return (
+                "kv cache hit text tokens=800 text=1 quant=8 key=token-text "
+                "load=1.0 ms file=/tmp/kv/f\n"
+            )
+
+    monkeypatch.setattr(
+        kpr,
+        "post_chat",
+        lambda *a: {
+            "prompt_tokens": 1000,
+            "cached_tokens": 800,
+            "cache_write_tokens": 200,
+        },
+    )
+    got = kpr.measure(1, "m", 10, FakeReader())
+    assert got["warm_stores"][0].reason == "cold"
+    assert got["reading_hits"][0].file == "/tmp/kv/f"
+    assert got["cached_tokens"] == 800
+
+
+def test_build_row_carries_the_reason_and_file():
+    """A row must name the mechanism that produced its reuse, not just the
+    number -- that is how the first #190 read-out published a wrong one."""
+    got = {
+        "prompt_tokens": 11045,
+        "cached_tokens": 10240,
+        "cache_write_tokens": 805,
+        "reused_pct": 92.7,
+        "reprefilled": 805,
+        "reading_hits": [kpr.HitEvent(file="/tmp/kv/file1", tokens=10240)],
+    }
+    all_stores = [(200, "cold", 2048), (200, "continued", 10240)]
+    row = kpr.build_row(200, got, all_stores)
+    assert row["reason"] == "continued"
+    assert row["file"] == "/tmp/kv/file1"
+    assert row["cross_size"] is False
+
+
+def test_build_row_flags_cross_size_reuse():
+    """A hit whose file was written during a different size's measurement must
+    be flagged in the row itself, not inferred later from timestamps."""
+    got = {
+        "prompt_tokens": 29845,
+        "cached_tokens": 10240,
+        "cache_write_tokens": 19605,
+        "reused_pct": 34.3,
+        "reprefilled": 19605,
+        "reading_hits": [kpr.HitEvent(file="/tmp/kv/file1", tokens=10240)],
+    }
+    # The 29845 reading reused a 10240 entry written during the 11045
+    # measurement -- the exact #190 confound. The most recent store is from a
+    # different size, so cross_size is True.
+    all_stores = [(200, "cold", 2048), (11045, "continued", 10240)]
+    row = kpr.build_row(29845, got, all_stores)
+    assert row["reason"] == "continued"
+    assert row["cross_size"] is True
+
+
+def test_build_row_with_no_hit_has_no_mechanism():
+    """A 0% reading has no hit, so no reason and no file -- the honest answer
+    for a cache that did not reuse anything."""
+    got = {
+        "prompt_tokens": 5000,
+        "cached_tokens": 0,
+        "cache_write_tokens": 5000,
+        "reused_pct": 0.0,
+        "reprefilled": 5000,
+        "reading_hits": [],
+    }
+    row = kpr.build_row(200, got, [(200, "cold", 2048)])
+    assert row["reason"] is None
+    assert row["file"] is None
+    assert row["cross_size"] is False
+
+
+# ------------------------------------------------------- the isolation
+
+
+def test_isolate_is_the_default_mode():
+    """The default must be isolate, not sequential -- the first #190 run
+    measured every size against one server and published the confound."""
+    args = kpr.build_parser().parse_args(["--tree", "t", "--gguf", "g"])
+    assert args.mode == "isolate"
+
+
+def test_isolate_mode_has_no_cross_size_reuse():
+    """In isolate mode each size has its own server and kv dir, so every hit's
+    file was written during that same size's measurement. The row builder must
+    never flag cross-size reuse when the store history is that size's own.
+
+    This is the property #190 assumed and did not have. The same reading that
+    is cross_size=True in sequential mode must be cross_size=False here.
+    """
+    got = {
+        "prompt_tokens": 29845,
+        "cached_tokens": 10240,
+        "cache_write_tokens": 19605,
+        "reused_pct": 34.3,
+        "reprefilled": 19605,
+        "reading_hits": [kpr.HitEvent(file="/tmp/kv/file1", tokens=10240)],
+    }
+    # Isolate mode: the store history is only this size's own stores.
+    all_stores = [(800, "cold", 2048), (800, "continued", 10240)]
+    row = kpr.build_row(800, got, all_stores)
+    assert row["cross_size"] is False
+
+
+def test_isolate_mode_uses_a_fresh_kv_dir_per_size():
+    """A larger prompt must not share a kv dir with a smaller one, or it would
+    reuse the smaller one's cache -- the #190 confound."""
+    assert kpr.fresh_kv_dir(8099, 200) != kpr.fresh_kv_dir(8099, 800)
+    assert kpr.fresh_kv_dir(8099, 200) == pathlib.Path("/tmp/kv-prefix-reuse-8099-200")
+
+
+def test_wipe_kv_dir_empties_the_dir(tmp_path):
+    """A fresh server must start against an empty kv dir, or the previous size's
+    cache leaks into this one's measurement."""
+    kv_dir = tmp_path / "kv"
+    kv_dir.mkdir()
+    (kv_dir / "stale").write_text("x")
+    kpr.wipe_kv_dir(kv_dir)
+    assert not (kv_dir / "stale").exists()
+    assert kv_dir.is_dir()
+
+
+def test_start_server_wipes_the_kv_dir(monkeypatch, tmp_path):
+    """start_server must wipe the kv dir before the server starts. Removing
+    that wipe is the mutation this test guards against."""
+    wiped = []
+    real_rmtree = shutil.rmtree
+    monkeypatch.setattr(
+        shutil,
+        "rmtree",
+        lambda p, **kw: wiped.append(str(p)) or real_rmtree(p, **kw),
+    )
+    monkeypatch.setattr(
+        kpr.subprocess,
+        "Popen",
+        lambda *a, **kw: _FakeProc(),
+    )
+    tree = tmp_path / "tree"
+    tree.mkdir()
+    (tree / "ds4-server").write_text("#!/bin/sh\nexit 0\n")
+    (tree / "ds4-server").chmod(0o755)
+    args = kpr.build_parser().parse_args(
+        ["--tree", str(tree), "--gguf", "x", "--port", "8099"]
+    )
+    kv_dir = tmp_path / "kv"
+    log_path = tmp_path / "server.log"
+    proc, log, _reader = kpr.start_server(args, kv_dir, log_path)
+    assert str(kv_dir) in wiped, "the kv dir must be wiped before the server starts"
+    kpr.stop_server(proc, log)
+
+
+class _FakeProc:
+    def terminate(self):
+        pass
+
+    def wait(self, timeout=None):
+        return 0
+
+    def kill(self):
+        pass
 
 
 DS4_TREES = ("ds4-ivan-qwen38fn", "ds4-main")
