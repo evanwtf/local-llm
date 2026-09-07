@@ -17,6 +17,8 @@ import json
 import os
 import pathlib
 import subprocess
+import sys
+import time
 
 import pytest
 
@@ -141,3 +143,40 @@ def test_dry_run_refuses_real_results_paths():
     )
     assert proc.returncode != 0
     assert "must override RESULTS and MANIFEST" in proc.stderr
+
+
+
+def test_a_dry_run_does_not_kill_a_running_shim(tmp_path):
+    """A dry run must not touch anything outside its own temp files.
+
+    On 2026-09-06 the teardown `pkill -f qwen_tool_shim` sat outside the
+    DRY_RUN guard. The cutoff fix was being verified with five dry runs, and
+    each one reached that line and killed the shim belonging to a live batch.
+    Run 4's smoke gate got "Connection refused"; the batch ended after three
+    runs -- legacy once, sandbox twice -- and could not satisfy its own
+    pre-registration.
+
+    The machine lock did not catch it: a dry run skips the lock, so it was
+    invisible to the running batch and destructive to it at the same time.
+
+    The decoy is a sleeping script whose PATH contains the string, because
+    `pkill -f` matches the kernel's command line -- rewriting `sys.argv[0]`
+    inside Python would not be seen. If the guard regresses, the decoy dies
+    and this test fails.
+    """
+    decoy_script = tmp_path / "qwen_tool_shim_decoy.py"
+    decoy_script.write_text("import time\ntime.sleep(60)\n")
+    decoy = subprocess.Popen([sys.executable, str(decoy_script)])
+    try:
+        time.sleep(0.5)
+        assert decoy.poll() is None, "decoy died before the run; the test is broken"
+        proc = run_script(tmp_path, "4", "2359")
+        assert proc.returncode == 0, proc.stderr
+        time.sleep(0.5)
+        assert decoy.poll() is None, (
+            "the dry run killed a process matching qwen_tool_shim -- the "
+            "teardown pkill has escaped its DRY_RUN guard again"
+        )
+    finally:
+        decoy.kill()
+        decoy.wait(timeout=5)

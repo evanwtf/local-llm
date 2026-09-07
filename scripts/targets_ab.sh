@@ -233,6 +233,24 @@ for n in $(seq 1 "$RUNS"); do
     fi
 done
 
-pkill -f qwen_tool_shim >/dev/null 2>&1 || true
+# A dry run must not touch anything outside its own temp files. This pkill was
+# unguarded, and on 2026-09-06 it destroyed a live batch: the cutoff fix was
+# being verified with five dry runs, and each one reached this line and killed
+# the shim belonging to the real run in progress. Run 4's smoke gate got
+# "Connection refused", the batch ended after three runs -- legacy once,
+# sandbox twice -- and could not satisfy its own pre-registration.
+#
+# Note WHY the machine lock did not catch it: a dry run skips the lock (it is
+# inside the same `DRY_RUN -eq 0` guard as preflight), so it was both invisible
+# to the running batch and destructive to it. A mode that cannot be seen by the
+# lock must not do anything the lock exists to serialise.
+#
+# `pkill -f` also matches by name across the whole machine, so it can never be
+# scoped to "the shim I started". Guarding it here is the fix for the mode that
+# bypasses the lock; two concurrent REAL batches are still prevented by the
+# lock itself, which is where that guarantee belongs.
+if [ "$DRY_RUN" -eq 0 ]; then
+    pkill -f qwen_tool_shim >/dev/null 2>&1 || true
+fi
 echo "[$(date +%H:%M:%S)] batch complete; manifest: $MANIFEST"
 cat "$MANIFEST" 2>/dev/null || true
