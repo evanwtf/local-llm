@@ -1,0 +1,9 @@
+# weights A/B, 2026-09-07T03:44:58-0400
+engine tree=/Users/evanhoffman/git/ds4-171-head @ 20d5dff6
+binary_mtime=2026-09-07T02:46:37-0400
+A label=aprojq4 gguf=/Users/evanhoffman/models/deepseek-v4-flash-aproj/DeepSeek-V4-Flash-IQ2XXS-w2Q2K-AProjQ4-SExpQ8-OutQ8-chat-v2-imatrix-0731.gguf
+B label=aprojq8 gguf=/Users/evanhoffman/models/deepseek-v4-flash-aproj/DeepSeek-V4-Flash-IQ2XXS-w2Q2K-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix-0731.gguf
+sweep ctx_start=8192 ctx_max=32768 step=8192 gen=128 reps=4
+prefill_chunk=8192
+DS4_METAL_PREFILL_CHUNK=<unset>
+DS4_METAL_GRAPH_RAW_CAP=<unset>
