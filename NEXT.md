@@ -99,16 +99,23 @@ rather than voiding a measurement quietly.
    #200. Two arms, deliberately: isolated is the cold-start ceiling, sequential
    is what a coding agent actually gets from a prompt that grows by appending.
    Needs the machine, ~20 min. — opus
-5. **#162 Task 4** — the Metal knob A/Bs. **RUNNING**, started 04:12, five
-   knobs back to back at `REPS=4`. `stream-overlap` needs
-   `METAL_KNOB_ACK_NO_SIGNAL=1` and its rows carry `admission_signal: none`;
-   `gathered-heads` is presence-based and carries a count-based admission check
-   instead; the other three fail closed. The first launch died five seconds in
-   on a relative outdir — [#203](https://github.com/evanwtf/local-llm/issues/203),
-   filed against my own launch: the driver `cd`s into the engine tree and passes
-   `$OUT` through verbatim, so the path is created under the repo and resolved
-   under the tree. It failed *after* preflight took the lock and 80 GiB of model
-   was mapped. — opus
+5. ~~**#162 Task 4** — the Metal knob A/Bs.~~ **Done: five knobs, five nulls.**
+   `session-union` +0.1%/−0.5%, `iq2` +0.4%/+0.1%, `exact-rows` +0.6%/−0.2%,
+   `stream-overlap` −0.2%/−0.1% (decode/prefill, one run each at `REPS=4`).
+   **Every figure is smaller than the #130 position bias**, so none of them has
+   earned three runs — that is the result, a screen rather than a measurement.
+   `gathered-heads` was already settled as a null in `724b70f`; a fifth run
+   agrees. Two traps came out of it, both filed:
+   [#203](https://github.com/evanwtf/local-llm/issues/203) (relative outdir dies
+   after the lock) and
+   [#208](https://github.com/evanwtf/local-llm/issues/208) (a rerun into an
+   existing directory overwrites the reps it produces and **keeps the ones it
+   does not** — it wrote into a committed VOID directory before I caught it).
+   The reason I re-ran a settled knob: the answer was committed on 2026-09-06
+   and never posted to #162, so the issue and this file both still read as open
+   work. **A result that is committed but unpublished is invisible to exactly
+   the reader most likely to redo it.** — opus
+
 6. **#201 REPS=4 as the default** before the next sub-1% comparison. No machine
    time; it is a two-line change plus a refusal on an odd rep count.
 
