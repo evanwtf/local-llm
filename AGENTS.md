@@ -1542,3 +1542,37 @@ the reason the design is paired and the ratio is the reported quantity -- and
 the reason a single absolute number from this laptop must not be set beside a
 single absolute number from someone else's box as though they were comparable.
 
+## A pipe hides the exit code, and a refused run then looks like a finished one
+
+A wrapper script that ends
+
+```sh
+uv run python benchmarks/agent/run.py ... 2>&1 | tail -80
+echo "exit=$? $(date '+%F %T %Z')"
+```
+
+reports **`tail`'s** status, not the harness's. On 2026-09-07 a batch refused
+to start -- a stale run lock from an earlier job -- and the driver printed
+`exit=0`. The refusal text was in the output, three lines above a line saying
+the run had succeeded.
+
+That is worse than no status. The whole reason to print one is to be able to
+trust it without re-reading the log, and this one is confidently wrong in the
+direction that matters: a run that never happened reads as a run that did.
+
+In zsh use `${pipestatus[1]}`; in bash `${PIPESTATUS[0]}`. Better, do not pipe
+at all -- redirect to a file and `tail` it afterwards, so the status is the
+command's own:
+
+```sh
+uv run python benchmarks/agent/run.py ... > "$LOG" 2>&1
+status=$?
+tail -80 "$LOG"
+echo "exit=$status $(date '+%F %T %Z')"
+```
+
+**Related, and the reason this was caught at all:** the run lock refuses
+rather than waits, and says so on stdout. A driver that swallows the status
+turns a designed refusal into a silent no-op. `CSV-exists is a START
+condition` is the same lesson from the other direction -- neither the presence
+of an output file nor a zero status is evidence a run finished.
