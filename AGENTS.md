@@ -1673,3 +1673,40 @@ measurement nobody asked for.
 **Whenever a run is killed, kill what was waiting on it in the same breath.**
 Stopping the producer and leaving its waiters is how a session accumulates
 work it cannot account for.
+
+### The third failure: a success marker the task never prints
+
+Found by the deepseek peer on 2026-09-07, in its own session, after 94 shells
+had accumulated over 21 hours. Every one of them ran the same wait against the
+**same already-completed** task file:
+
+```sh
+until grep -qE "frontier|prefill_tps|tps|FAIL|error|Error" .../b6fba60c8.output
+do sleep 5; done
+```
+
+The task had exited **0**. Its output was a `ds4-bench` run printing "memory
+detail", "context buffers", "context 262145 exceeds..." -- and not one of the
+six patterns appears anywhere in it. So the wait hung *because the task
+succeeded quietly*.
+
+This is the worst of the three, because the other two announce themselves. An
+unbounded `tail -f` looks wrong on sight. A dead producer can be detected. A
+grep for a marker the task never emits fails **identically on success and on
+failure**, and the only symptom is a shell that never returns.
+
+Two things prevent it:
+
+- **Match the task's own terminal line, not a marker you hope it prints.** The
+  harness writes `[exited with code N]` at the end of every background task's
+  output file; that is the trailer to grep for. A domain marker (`frontier`,
+  `done:`) is a *bonus* signal, never the termination condition.
+- **The `kill -0` producer check above would have ended all 94 on the first
+  poll.** That rule was written the same morning and argued theoretically;
+  this is what it looks like when it is missing. Poll for the producer being
+  gone even when you are confident the success string is right -- especially
+  then, because you will not notice you were wrong about it.
+
+Sweeping the shells is the smaller half. The peer reported the count before
+and after (94 -> 0) *and* the cause, which is why the fix is a rule here rather
+than a cleanup nobody learns from.
