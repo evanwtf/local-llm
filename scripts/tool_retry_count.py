@@ -1,4 +1,4 @@
-"""Count tool-call retries from an OpenCode client transcript.
+"""Count tool-call outcomes from an OpenCode client transcript.
 
 The ds4 server log names a malformed tool call in its own wording
 ("TOOLS invalid tool call; continuing"). llama.cpp does not emit those lines,
@@ -6,38 +6,41 @@ so that instrument cannot compare the two engines. This counter reads the
 CLIENT side instead: the OpenCode transcript each trial writes, which both
 engines produce.
 
-SCHEMA ASSUMPTION (v1). The real transcripts live on the operator's machine
-and are not in this repo, so the parser is written against a documented
-assumption and made strict: a shape it does not recognise raises, it never
-returns a silent zero. The peer runs this against real transcripts and sends
-back the deltas; change the constants and the dataclass below when the real
-shape differs.
+SCHEMA ASSUMPTION (v2, from the real transcripts). An OpenCode transcript is a
+JSONL event stream. Across the live corpus exactly four event types occur:
+`step_start`, `step_finish`, `tool_use`, `text`. A `tool_use` event is
+SELF-CONTAINED: one event per tool call, carrying the outcome in
+`part.state.status` ('completed' or 'error') and the tool name in
+`part.tool`. There is no open/close pairing and no retry marker.
 
-An OpenCode transcript is a JSONL event stream. Each line is a JSON object
-with a `type` field. Tool calls follow a lifecycle:
+The parser counts three honest columns per trial:
 
-- `tool_use` opens a call. The model asked to run a tool. Carries `part.id`
-  and `part.tool`. Counts as one tool call issued.
-- `tool.execution.completed` closes a call that ran. Carries `id`.
-- `tool.execution.error` closes a call that failed. Carries `id` and
-  `retryable` (bool). `retryable: true` means the client will retry; count it
-  as retried. `retryable: false` means the client gave up; count it as a
-  terminal failure.
+- `issued` -- the number of `tool_use` events.
+- `errored` -- the number of `tool_use` events with
+  `part.state.status == 'error'`. Raw and unheuristic.
+- `distinct_tools` -- the number of distinct `part.tool` values.
 
-Bookkeeping events carry no tool-call signal and are ignored: `step_start`,
-`text`, `step_finish`, `tool.execution.started`, `session.initialized`,
-`user.message.created`, `assistant.message.created`,
-`assistant.message.updated`, `part.updated`, `message.updated`.
+Whether the agent RETRIED after an error is not marked in the record. It is
+inferable only from what follows -- a later `tool_use` with the same tool and
+the same input -- or not at all. That inference is a heuristic, not a
+measurement. It lives in `infer_retries`, behind its own name and its own
+tests, and is opt-in via `--infer-retries`. The raw `errored` count never
+depends on it.
 
-The parser refuses (raises) on: an empty transcript, a line that is not valid
-JSON, an event type it does not know, a close event with no open call, and a
-transcript that ends with a call still open (truncated). A zero that means
-"no retries" and a zero that means "I could not read this" are never the same
-value.
+The parser refuses (raises) on shapes it does not recognise, and the refusal
+is never a silent zero:
 
-Each trial writes one row of JSON to stdout, joinable to results.jsonl on the
-transcript stem (the `client_log` basename without the `.stdout.jsonl`
-suffix).
+- `NotOpenCodeError` -- the file is a valid transcript but not an OpenCode
+  one (another client, e.g. Codex, uses a different vocabulary). Expected,
+  not corruption; the caller selects or skips by client.
+- `TranscriptError` -- corruption: an empty file, a line that is not valid
+  JSON, a line that is not a JSON object (a bare scalar), or a `tool_use`
+  event missing its outcome.
+
+The join key is the transcript stem, preserved verbatim. Filenames changed
+shape over time (`<task>-<backend>-<client>-<trial>.stdout[.N].jsonl` vs the
+older no-client form), and the `.N` infix is not yet explained, so the stem is
+treated as opaque and never parsed.
 """
 
 from __future__ import annotations
@@ -52,67 +55,61 @@ from typing import NoReturn
 
 logger = logging.getLogger(__name__)
 
-#: Event types that open or close a tool call. The parser counts these.
-EVENT_TOOL_USE = "tool_use"
-EVENT_TOOL_EXECUTION_COMPLETED = "tool.execution.completed"
-EVENT_TOOL_EXECUTION_ERROR = "tool.execution.error"
-TOOL_EVENT_TYPES = frozenset(
-    {EVENT_TOOL_USE, EVENT_TOOL_EXECUTION_COMPLETED, EVENT_TOOL_EXECUTION_ERROR}
-)
+#: The four event types an OpenCode transcript uses. Any other type means the
+#: file is not an OpenCode transcript (another client, e.g. Codex).
+OPENCODE_EVENT_TYPES = frozenset({"step_start", "step_finish", "tool_use", "text"})
 
-#: Event types that carry no tool-call signal. The parser ignores them.
-BOOKKEEPING_EVENT_TYPES = frozenset(
-    {
-        "step_start",
-        "text",
-        "step_finish",
-        "tool.execution.started",
-        "session.initialized",
-        "user.message.created",
-        "assistant.message.created",
-        "assistant.message.updated",
-        "part.updated",
-        "message.updated",
-    }
-)
+#: Event types that carry no tool-call signal. Ignored for counting.
+BOOKKEEPING_EVENT_TYPES = frozenset({"step_start", "step_finish", "text"})
+
+EVENT_TOOL_USE = "tool_use"
+STATUS_ERROR = "error"
 
 
 @dataclass(frozen=True)
-class ToolCallEvent:
-    """The documented shape of a tool-call event (schema assumption v1).
+class ToolCall:
+    """One tool call, read from a self-contained `tool_use` event.
 
-    The peer runs this against real transcripts and sends back deltas. Change
-    these fields when the real shape differs.
+    Schema assumption v2: the event carries the outcome in `part.state.status`
+    and the tool name in `part.tool`. `input` is the tool-specific argument
+    object, used only by the retry heuristic.
     """
 
-    type: str
-    id: str
     tool: str
-    retryable: bool | None = None
+    status: str
+    input: object
 
 
 class TranscriptError(Exception):
-    """A transcript has a shape the parser does not recognise.
+    """A transcript has a shape the parser does not recognise (corruption).
 
     Raising, not returning a zero, is the point: a zero that means "no
-    retries" and a zero that means "I could not read this" must not be the
+    errors" and a zero that means "I could not read this" must not be the
     same value.
     """
 
 
-def _read_events(path: pathlib.Path) -> list[dict]:
-    """Read a transcript into its tool-call events, refusing bad shapes.
+class NotOpenCodeError(TranscriptError):
+    """The file is a valid transcript but not an OpenCode one (e.g. Codex).
 
-    Raises TranscriptError on an empty file, a line that is not valid JSON, an
-    event type the parser does not know, or a line that is not a JSON object.
-    Returns the tool-call events; a transcript with only bookkeeping events
-    returns an empty list, which is a valid trial that made no tool calls.
+    Expected, not corruption. The caller selects or skips by client without
+    the refusal looking like a defect.
+    """
+
+
+def read_tool_calls(path: pathlib.Path) -> list[ToolCall]:
+    """Read a transcript into its tool calls, refusing bad shapes.
+
+    Raises NotOpenCodeError when the file is not an OpenCode transcript.
+    Raises TranscriptError on corruption: an empty file, a line that is not
+    valid JSON, a line that is not a JSON object, or a `tool_use` event
+    missing its outcome.
     """
     try:
         text = path.read_text()
     except OSError as exc:
         raise TranscriptError(f"cannot read: {exc}") from exc
-    events: list[dict] = []
+    calls: list[ToolCall] = []
     saw_line = False
     for lineno, line in enumerate(text.splitlines(), 1):
         line = line.strip()
@@ -128,65 +125,69 @@ def _read_events(path: pathlib.Path) -> list[dict]:
         etype = event.get("type")
         if not isinstance(etype, str) or not etype:
             raise TranscriptError(f"line {lineno} has no type string")
-        if etype in TOOL_EVENT_TYPES:
-            events.append(event)
-        elif etype in BOOKKEEPING_EVENT_TYPES:
-            continue
-        else:
-            raise TranscriptError(f"line {lineno} has unknown event type {etype!r}")
+        if etype not in OPENCODE_EVENT_TYPES:
+            raise NotOpenCodeError(
+                f"line {lineno} has event type {etype!r}, not an OpenCode type"
+            )
+        if etype == EVENT_TOOL_USE:
+            calls.append(_parse_tool_call(event, lineno))
     if not saw_line:
         raise TranscriptError("transcript is empty")
-    return events
+    return calls
+
+
+def _parse_tool_call(event: dict, lineno: int) -> ToolCall:
+    part = event.get("part")
+    if not isinstance(part, dict):
+        raise TranscriptError(f"line {lineno} tool_use has no part object")
+    tool = part.get("tool")
+    if not isinstance(tool, str) or not tool:
+        raise TranscriptError(f"line {lineno} tool_use has no part.tool string")
+    state = part.get("state")
+    if not isinstance(state, dict):
+        raise TranscriptError(f"line {lineno} tool_use has no part.state object")
+    status = state.get("status")
+    if not isinstance(status, str) or not status:
+        raise TranscriptError(f"line {lineno} tool_use has no part.state.status string")
+    return ToolCall(tool=tool, status=status, input=state.get("input"))
+
+
+def row_from_calls(path: pathlib.Path, calls: list[ToolCall]) -> dict[str, int | str]:
+    """Build the per-trial row from the parsed tool calls."""
+    return {
+        "transcript": path.stem,
+        "issued": len(calls),
+        "errored": sum(1 for c in calls if c.status == STATUS_ERROR),
+        "distinct_tools": len({c.tool for c in calls}),
+    }
 
 
 def count_transcript(path: pathlib.Path) -> dict[str, int | str]:
-    """Count tool-call retries in one transcript.
+    """Count tool-call outcomes in one transcript.
 
     Returns a row keyed by the transcript stem, joinable to results.jsonl on
-    the `client_log` basename. Raises TranscriptError on a shape the parser
-    does not recognise.
+    the `client_log` basename. Raises on a shape the parser does not
+    recognise.
     """
-    events = _read_events(path)
-    issued = 0
+    return row_from_calls(path, read_tool_calls(path))
+
+
+def infer_retries(calls: list[ToolCall]) -> int:
+    """Estimate how many errored tool calls were retried.
+
+    HEURISTIC, not a measurement. The transcript does not mark a retry. This
+    counts an errored call as retried when a LATER call has the same tool and
+    the same input. Keep the raw `errored` count separate; this is a guess.
+    """
     retried = 0
-    terminal = 0
-    open_calls = 0
-    for event in events:
-        etype = event["type"]
-        if etype == EVENT_TOOL_USE:
-            issued += 1
-            open_calls += 1
-        elif etype == EVENT_TOOL_EXECUTION_COMPLETED:
-            if open_calls == 0:
-                raise TranscriptError(
-                    f"{EVENT_TOOL_EXECUTION_COMPLETED} with no open tool call"
-                )
-            open_calls -= 1
-        elif etype == EVENT_TOOL_EXECUTION_ERROR:
-            if open_calls == 0:
-                raise TranscriptError(
-                    f"{EVENT_TOOL_EXECUTION_ERROR} with no open tool call"
-                )
-            open_calls -= 1
-            retryable = event.get("retryable")
-            if not isinstance(retryable, bool):
-                raise TranscriptError(
-                    f"{EVENT_TOOL_EXECUTION_ERROR} has no retryable bool"
-                )
-            if retryable:
+    for i, call in enumerate(calls):
+        if call.status != STATUS_ERROR:
+            continue
+        for later in calls[i + 1 :]:
+            if later.tool == call.tool and later.input == call.input:
                 retried += 1
-            else:
-                terminal += 1
-    if open_calls > 0:
-        raise TranscriptError(
-            f"transcript ends with {open_calls} tool call(s) still open (truncated)"
-        )
-    return {
-        "transcript": path.stem,
-        "tool_calls_issued": issued,
-        "tool_calls_retried": retried,
-        "tool_calls_failed_terminal": terminal,
-    }
+                break
+    return retried
 
 
 def _expand_inputs(paths: list[str]) -> list[pathlib.Path]:
@@ -212,16 +213,28 @@ def main(argv: list[str] | None = None) -> NoReturn:
         nargs="+",
         help="transcript file(s), or directories of *.stdout.jsonl files",
     )
+    p.add_argument(
+        "--infer-retries",
+        action="store_true",
+        help="add a retried column from the retry heuristic (a guess, not a "
+        "measurement)",
+    )
     args = p.parse_args(argv)
     logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
     failures = 0
     for path in _expand_inputs(args.transcripts):
         try:
-            row = count_transcript(path)
+            calls = read_tool_calls(path)
+        except NotOpenCodeError as exc:
+            logger.info("%s: not an OpenCode transcript (%s)", path, exc)
+            continue
         except TranscriptError as exc:
             logger.error("%s: %s", path, exc)
             failures += 1
             continue
+        row = row_from_calls(path, calls)
+        if args.infer_retries:
+            row["retried"] = infer_retries(calls)
         logger.info(json.dumps(row, sort_keys=True))
     if failures:
         raise SystemExit(1)
