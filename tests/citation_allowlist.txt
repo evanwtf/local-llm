@@ -3,7 +3,6 @@
 # daily). Retrofit each to `file:line at <tree> <sha>` and REMOVE it
 # here. This list only shrinks. See tests/test_citation_allowlist.py.
 AGENTS.md:ds4.c:40442
-AGENTS.md:ds4_bench.c:275
 benchmarks/agent/GLM-5.3-FLASH.md:ds4_server.c:960
 benchmarks/agent/mtp_timing.py:ds4.c:79
 benchmarks/agent/mtp_timing.py:ds4.c:79516
@@ -29,8 +28,6 @@ evidence/0158-load-matrix.json:ds4.c:6789
 evidence/0158-load-matrix.json:ds4_qwen4.c:1244
 evidence/0158-load-matrix.json:ds4_qwen4.c:1739
 evidence/0158-load-matrix.json:ds4_qwen4.h:8
-evidence/0158-prefill.json:ds4_bench.c:10
-evidence/0158-prefill.json:ds4_bench.c:843
 evidence/0162-iq2-path.json:ds4_metal.m:50582
 evidence/0162-iq2-path.json:ds4_metal.m:50599
 evidence/0162-iq2-path.json:ds4_metal.m:50658
@@ -114,7 +111,6 @@ evidence/0162-metal-knobs.json:ds4_metal.m:14837
 evidence/0162-metal-knobs.json:ds4_metal.m:20449
 evidence/0162-metal-knobs.json:ds4_metal.m:50582
 evidence/0162-metal-knobs.json:ds4_metal.m:50664
-evidence/0162-upstream-draft.md:ds4_bench.c:10
 evidence/0169-device-gate-table.json:ds4.c:22692
 evidence/0169-device-gate-table.json:ds4.c:22698
 evidence/0169-device-gate-table.json:ds4.c:22743
@@ -192,8 +188,6 @@ hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/benchmarks/ollama/RESULTS.md:ds4
 hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/benchmarks/ollama/RESULTS.md:ds4_kvstore.h:13
 scripts/decode_ab_engine.sh:ds4.c:12144
 scripts/decode_ab_engine.sh:ds4.c:13554
-scripts/decode_ab_engine.sh:ds4_bench.c:10
-scripts/decode_ab_stack.sh:ds4_bench.c:275
 scripts/metal_knob_ab.py:ds4.c:71766
 scripts/metal_knob_ab.py:ds4_metal.m:14827
 scripts/metal_knob_ab.py:ds4_metal.m:36774

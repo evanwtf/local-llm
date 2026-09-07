@@ -33,7 +33,7 @@ REPS=${REPS:-3}
 # nothing about an ordinary sweep changes.
 #
 # ds4-bench's prefill_tps times only the newest interval at each frontier
-# (ds4_bench.c:10). Frontier 1 is a cold prefill of CTX_START tokens; every
+# (ds4_bench.c:10 at ds4-main 9ab70534). Frontier 1 is a cold prefill of CTX_START tokens; every
 # later frontier takes the resume path and times the appended STEP tokens.
 # Setting PREFILL_CHUNK equal to STEP makes each of those a single chunk, which
 # is the shape adamlawi's CUDA -12.23% was measured in.

@@ -74,7 +74,7 @@ measures `f309990` against its own parent, not against upstream `main`. A
 branch-versus-main comparison on Metal is the next run.
 
 And `prefill_tps` here is **the appended interval at each frontier**, not a
-cold large-chunk prefill at fixed ctx (`ds4_bench.c:10`, `:843`:
+cold large-chunk prefill at fixed ctx (`ds4_bench.c:10 at ds4-main 9ab70534`, `:839 at ds4-main 9ab70534`:
 `prefill_tokens = frontier - previous`). @adamlawi's −12% is the large-chunk
 quantity. These are different measurements and should not be read as
 disagreeing.
