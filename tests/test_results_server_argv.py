@@ -158,3 +158,15 @@ def test_compatible_subset_all_known_same_graph_keeps_all():
         row("./ds4-server -m /a.gguf -c 100000 --port 9000"),
     ]
     assert results.compatible_subset(rows) == rows
+
+
+# --- unknown_argv -----------------------------------------------------------
+
+
+def test_unknown_argv_true_when_none_record():
+    assert results.unknown_argv([row(None), row(None)]) is True
+
+
+def test_unknown_argv_false_when_any_record():
+    assert results.unknown_argv([row(None), row("./ds4-server -m /a.gguf")]) is False
+    assert results.unknown_argv([row("./ds4-server -m /a.gguf")]) is False

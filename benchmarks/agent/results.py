@@ -478,6 +478,18 @@ def compatible_subset(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return max(sigs.values(), key=len)
 
 
+def unknown_argv(rows: list[dict[str, Any]]) -> bool:
+    """True if no row in the pool records a `server_argv`.
+
+    An all-unknown pool is compatible by design -- refusing it would void
+    every analysis of the rows we already hold -- but it must be stated, not
+    silent. The pool this guard exists for, `qwen38fnds4mtp7shim`'s 94 rows,
+    is exactly this case: they may span two configurations and no row can say
+    which. Callers log this condition once per pool.
+    """
+    return all(not (r.get("env") or {}).get("server_argv") for r in rows)
+
+
 # --- one file, one machine (#20) ------------------------------------------
 
 HARDWARE_KEYS = ("arch", "cpu")

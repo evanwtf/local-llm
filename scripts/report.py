@@ -66,6 +66,16 @@ def cells(rows, backends, client="opencode"):
                 key[1],
                 len(cell) - len(kept),
             )
+        elif results.unknown_argv(kept):
+            # All-unknown pools are allowed, but not silent: this cell may
+            # span configurations and no row can say which (#213).
+            logger.warning(
+                "%s %s: %d row(s), none records server_argv;"
+                " cannot verify they ran one configuration",
+                key[0],
+                key[1],
+                len(kept),
+            )
         got[key] = kept
     return got
 
