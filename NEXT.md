@@ -95,26 +95,23 @@ rather than voiding a measurement quietly.
    backends, against −7.46% on CUDA and −3.0…−7.7% on ROCm. **Ours is the
    appended interval at each frontier, theirs is a cold large-chunk prefill —
    not the same quantity.** — opus
-4. **#190 follow-up: isolated vs sequential reuse.** The harness landed in
-   #200. Two arms, deliberately: isolated is the cold-start ceiling, sequential
-   is what a coding agent actually gets from a prompt that grows by appending.
-   Needs the machine, ~20 min. — opus
-5. ~~**#162 Task 4** — the Metal knob A/Bs.~~ **Done: five knobs, five nulls.**
-   `session-union` +0.1%/−0.5%, `iq2` +0.4%/+0.1%, `exact-rows` +0.6%/−0.2%,
-   `stream-overlap` −0.2%/−0.1% (decode/prefill, one run each at `REPS=4`).
-   **Every figure is smaller than the #130 position bias**, so none of them has
-   earned three runs — that is the result, a screen rather than a measurement.
-   `gathered-heads` was already settled as a null in `724b70f`; a fifth run
-   agrees. Two traps came out of it, both filed:
-   [#203](https://github.com/evanwtf/local-llm/issues/203) (relative outdir dies
-   after the lock) and
-   [#208](https://github.com/evanwtf/local-llm/issues/208) (a rerun into an
-   existing directory overwrites the reps it produces and **keeps the ones it
-   does not** — it wrote into a committed VOID directory before I caught it).
-   The reason I re-ran a settled knob: the answer was committed on 2026-09-06
-   and never posted to #162, so the issue and this file both still read as open
-   work. **A result that is committed but unpublished is invisible to exactly
-   the reader most likely to redo it.** — opus
+4. ~~**#190 follow-up: isolated vs sequential reuse.**~~ **Done, and it is the
+   night's result.** Two ds4 KV ceilings, each one flag wide, each confirmed
+   against a prediction over three runs:
+   - **A cold checkpoint stops existing past 30,000 tokens**
+     (`cold_max_tokens`). At 53,845 and 77,845 tokens a fresh session gets
+     **0.0% reuse — no store is written at all.** Raise the cap and the same
+     prompts read **98.9%** and **97.3%**.
+   - **A continued checkpoint lands only on an exact multiple of 10,240**, and
+     prefill advances in 8,192-token chunks, so from any resume point the next
+     landing is **five chunks — 40,960 tokens — away**. At 29,845 tokens the
+     default gives **34.3%**; step 2,048 gives **89.2%**, storing at 26,624 =
+     10,240 + 2 × 8,192, the number the arithmetic named before the run
+     produced it.
+
+   For a coding agent both bite at once: a new session over 30k gets nothing,
+   and a continuing one must grow by ~41k tokens **in a single turn** to leave
+   a new checkpoint. — opus
 
 6. **#201 REPS=4 as the default** before the next sub-1% comparison. No machine
    time; it is a two-line change plus a refusal on an odd rep count.
