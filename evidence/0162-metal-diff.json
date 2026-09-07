@@ -7,7 +7,7 @@
   "agent_effort": "unidentified",
   "repo": "/Users/evanhoffman/git/local-llm/.claude/worktrees/peer+162-metal-diff",
   "authored_at": "2026-09-06T15:30:00-0400",
-  "statement": "What the 218 commits between 9ab7053 and 77a054e1 change on the Metal path, and which of those the #162 run executes. The run's GGUF (DeepSeek-V4-Flash-Layers37-42Q4KExperts-OtherExpertLayersIQ2XXSGateUp-Q2KDown-AProjQ8-SExpQ8-OutQ8) carries F32, F16, Q8_0, IQ2_XXS, Q2_K, Q4_K and I32 tensors and NO mxfp4 (gguf_meta.py --tensors: 492 F32, 359 F16, 345 Q8_0, 74 IQ2_XXS, 37 Q2_K, 18 Q4_K, 3 I32). The gate enumeration below is sound but incomplete: it lists the gates that EXCLUDE the M5 Max, and there is also a helper that INCLUDES it, ds4_gpu_ported_m5_decode_feature_enabled (ds4_metal.m:3619), whose flash_attn_packed32_reduce call site condition changed in the diff (ds4_metal.m:36769) -- a decode-path change on M5 the enumeration missed. The diff on the IQ2_XXS and Q4_K matvec kernels is large and was NOT characterized: kernel_mul_mv_q4_K_f32_impl grew 94 to 429 lines, kernel_mul_mv_iq2_xxs_pair_f32_impl 6 to 141, kernel_mul_mv_q4_K_dense_f32 6 to 244, kernel_mul_mv_addr_iq2_xxs_pair_swiglu_f32 6 to 160. Two specific changes are numerically identical (the dequantize_iq2_xxs precomputed half table, and the Q4_K silu -> ds4_silu swap), but that does not imply the whole executed path is numerically identical, and numerical identity is independent of performance anyway. The packed32 decode path the diff widens is live at every #162 frontier: n_keys = n_raw + n_comp, n_raw is the 128-token sliding window (not ctx), and n_keys <= 1024 holds for the uncompressed and ratio-128 layers at all frontiers (see n-keys-bounded-not-ctx). So a flat result would not be because the widened path never ran. Whether a flat #162 result means 'no effect' or 'the code never ran' cannot be settled from source at this diff size. It can be settled empirically and cheaply: decode_ab_engine.sh now writes a per-arm startup log beside each CSV, and diffing the two arms' logs turns 'the trees ran different code' into an observation.",
+  "statement": "What the 218 commits between 9ab7053 and 77a054e1 change on the Metal path, and which of those the #162 run executes. The run's GGUF (DeepSeek-V4-Flash-Layers37-42Q4KExperts-OtherExpertLayersIQ2XXSGateUp-Q2KDown-AProjQ8-SExpQ8-OutQ8) carries F32, F16, Q8_0, IQ2_XXS, Q2_K, Q4_K and I32 tensors and NO mxfp4 (gguf_meta.py --tensors: 492 F32, 359 F16, 345 Q8_0, 74 IQ2_XXS, 37 Q2_K, 18 Q4_K, 3 I32). The gate enumeration below is sound but incomplete: it lists the gates that EXCLUDE the M5 Max, and there is also a helper that INCLUDES it, ds4_gpu_ported_m5_decode_feature_enabled (ds4_metal.m:3619 at ds4-pr952 77a054e1), whose flash_attn_packed32_reduce call site condition changed in the diff (ds4_metal.m:36769 at ds4-pr952 77a054e1) -- a decode-path change on M5 the enumeration missed. The diff on the IQ2_XXS and Q4_K matvec kernels is large and was NOT characterized: kernel_mul_mv_q4_K_f32_impl grew 94 to 429 lines, kernel_mul_mv_iq2_xxs_pair_f32_impl 6 to 141, kernel_mul_mv_q4_K_dense_f32 6 to 244, kernel_mul_mv_addr_iq2_xxs_pair_swiglu_f32 6 to 160. Two specific changes are numerically identical (the dequantize_iq2_xxs precomputed half table, and the Q4_K silu -> ds4_silu swap), but that does not imply the whole executed path is numerically identical, and numerical identity is independent of performance anyway. The packed32 decode path the diff widens is live at every #162 frontier: n_keys = n_raw + n_comp, n_raw is the 128-token sliding window (not ctx), and n_keys <= 1024 holds for the uncompressed and ratio-128 layers at all frontiers (see n-keys-bounded-not-ctx). So a flat result would not be because the widened path never ran. Whether a flat #162 result means 'no effect' or 'the code never ran' cannot be settled from source at this diff size. It can be settled empirically and cheaply: decode_ab_engine.sh now writes a per-arm startup log beside each CSV, and diffing the two arms' logs turns 'the trees ran different code' into an observation.",
   "provenance": {
     "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
     "trees": {
@@ -185,7 +185,7 @@
     },
     {
       "id": "hc-fusion-pre-m5",
-      "statement": "The new HC attention-output fusion kernels (kernel_dsv4_attn_out_q8_mm_hc_expand4_batch, kernel_dsv4_attn_out_q4_K_f16_rhs_mm_hc_expand4_batch) are gated behind 'ds4_gpu_device_is_pre_m5_apple_silicon() || force' in both ds4_gpu_attention_output_q8_batch_impl and ds4_gpu_attention_output_q4_K_batch_impl. pre-M5 means device name 'Apple M1'..'Apple M4' (ds4_metal.m:3599). The run is on M5 Max, so pre-M5 is false and force (DS4_GPU_TEST_BATCH_ATTN_OUT_Q8_HC_FUSION) is not set. The path is not hit.",
+      "statement": "The new HC attention-output fusion kernels (kernel_dsv4_attn_out_q8_mm_hc_expand4_batch, kernel_dsv4_attn_out_q4_K_f16_rhs_mm_hc_expand4_batch) are gated behind 'ds4_gpu_device_is_pre_m5_apple_silicon() || force' in both ds4_gpu_attention_output_q8_batch_impl and ds4_gpu_attention_output_q4_K_batch_impl. pre-M5 means device name 'Apple M1'..'Apple M4' (ds4_metal.m:3602 at ds4-pr952 77a054e1). The run is on M5 Max, so pre-M5 is false and force (DS4_GPU_TEST_BATCH_ATTN_OUT_Q8_HC_FUSION) is not set. The path is not hit.",
       "argv": [
         "git",
         "grep",
@@ -202,7 +202,7 @@
       "cost": "cheap",
       "expect": {
         "exit": 0,
-        "stdout_contains": "ds4_metal.m:3"
+        "stdout_contains": "77a054e1:ds4_metal.m:3"
       },
       "observed": {
         "exit": 0,
@@ -217,7 +217,7 @@
     },
     {
       "id": "ssd-prefill-gated",
-      "statement": "The ssd_prefill_exactn path (kernel_dsv4_attn_out_q4_K_ssd_prefill_exactn_f32) is gated behind platform_ok = g_ssd_streaming_mode && !g_quality_mode && ds4_gpu_device_is_pre_m5_apple_silicon (ds4_metal.m:32752). The run does not pass --ssd-streaming (scripts/decode_ab.sh:72), so g_ssd_streaming_mode is false. The path is not hit.",
+      "statement": "The ssd_prefill_exactn path (kernel_dsv4_attn_out_q4_K_ssd_prefill_exactn_f32) is gated behind platform_ok = g_ssd_streaming_mode && !g_quality_mode && ds4_gpu_device_is_pre_m5_apple_silicon (ds4_metal.m:32752-32754 at ds4-pr952 77a054e1). The run does not pass --ssd-streaming (scripts/decode_ab.sh:72), so g_ssd_streaming_mode is false. The path is not hit.",
       "argv": [
         "git",
         "grep",
@@ -296,7 +296,7 @@
     },
     {
       "id": "mid-only-m1",
-      "statement": "The mid_only kernels (kernel_mul_mv_iq2_xxs_pair_swiglu_mid_only_4096x2048_impl) are gated behind ds4_gpu_m1_iq2_mid_only_enabled() AND g_ssd_streaming_mode (ds4_metal.m:47839). ds4_gpu_m1_iq2_mid_only_enabled (ds4_metal.m:16458) requires an M1 device. The run is on M5 Max and does not pass --ssd-streaming. The path is not hit.",
+      "statement": "The mid_only kernels (kernel_mul_mv_iq2_xxs_pair_swiglu_mid_only_4096x2048_impl) are gated behind ds4_gpu_m1_iq2_mid_only_enabled() AND g_ssd_streaming_mode (ds4_metal.m:47839-47841 at ds4-pr952 77a054e1). ds4_gpu_m1_iq2_mid_only_enabled (ds4_metal.m:16458 at ds4-pr952 77a054e1) requires an M1 device. The run is on M5 Max and does not pass --ssd-streaming. The path is not hit.",
       "argv": [
         "git",
         "grep",
@@ -327,7 +327,7 @@
     },
     {
       "id": "dspark-env-gated",
-      "statement": "The dspark path (kernel_dsv4_dspark_device_*) is gated behind ds4_gpu_env_bool('DS4_METAL_DSPARK_DEVICE_PROPOSER') == 1 (ds4_metal.m:22501). The run does not set this env var. The path is not hit.",
+      "statement": "The dspark path (kernel_dsv4_dspark_device_*) is gated behind ds4_gpu_env_bool('DS4_METAL_DSPARK_DEVICE_PROPOSER') == 1 (ds4_metal.m:22501 at ds4-pr952 77a054e1). The run does not set this env var. The path is not hit.",
       "argv": [
         "git",
         "grep",
@@ -357,7 +357,7 @@
     },
     {
       "id": "ported-m5-flash-attn",
-      "statement": "The gate enumeration is incomplete: there is a helper that INCLUDES the M5 Max, ds4_gpu_ported_m5_decode_feature_enabled (ds4_metal.m:3619), which returns pre_m5 || ds4_gpu_device_is_m5_apple_silicon(). Its flash_attn_packed32_reduce call site condition changed in the diff (ds4_metal.m:36769): the old 'n_comp != 0u' became '(n_comp != 0u || getenv(\"DS4_METAL_DISABLE_DECODE_RAW_PACKED32\") == NULL)'. This is a decode-path change on M5 that the exclude-only enumeration missed. Whether the run's shape (n_head==64, head_dim==512, rope fuse) hits it is not characterized here.",
+      "statement": "The gate enumeration is incomplete: there is a helper that INCLUDES the M5 Max, ds4_gpu_ported_m5_decode_feature_enabled (ds4_metal.m:3619 at ds4-pr952 77a054e1), which returns pre_m5 || ds4_gpu_device_is_m5_apple_silicon(). Its flash_attn_packed32_reduce call site condition changed in the diff (ds4_metal.m:36769 at ds4-pr952 77a054e1): the old 'n_comp != 0u' became '(n_comp != 0u || getenv(\"DS4_METAL_DISABLE_DECODE_RAW_PACKED32\") == NULL)'. This is a decode-path change on M5 that the exclude-only enumeration missed. Whether the run's shape (n_head==64, head_dim==512, rope fuse) hits it is not characterized here.",
       "argv": [
         "git",
         "grep",
@@ -389,7 +389,7 @@
     },
     {
       "id": "n-keys-bounded-not-ctx",
-      "statement": "n_keys = n_raw + n_comp (ds4_metal.m:36709, in ds4_gpu_encode_flash_attention_gathered_heads). n_raw = metal_graph_raw_span_for_batch(g, pos, 1) = min(raw_window, pos+1, raw_cap), and raw_window = min(DS4_N_SWA, ctx) = 128 at all #162 frontiers (ds4.c:18415; the GGUF's deepseek4.attention.sliding_window is 128). So n_keys does not track ctx; it is 128 + pos/ratio, where ratio is the layer's compression ratio. ds4 does not take the ratios from the file: validate_compress_ratio_metadata (ds4.c:6007) reads only the first DS4_N_LAYER = 43 values and checks each against the hardcoded pattern ds4_expected_layer_compress_ratio (ds4.c:1180-1182: il < 2 -> 0, even il -> 4, odd il -> 128), so layers 0,1 are uncompressed (2 layers), 21 layers have ratio 4, 20 have ratio 128, and the 44th GGUF value is never read. The packed32 path is live at every frontier: n_keys <= 1024 holds for the uncompressed (128) and ratio-128 (<=256) layers at all frontiers, and for the ratio-4 layers up to pos ~3583.",
+      "statement": "n_keys = n_raw + n_comp (ds4_metal.m:36709 at ds4-pr952 77a054e1, in ds4_gpu_encode_flash_attention_gathered_heads). n_raw = metal_graph_raw_span_for_batch(g, pos, 1) = min(raw_window, pos+1, raw_cap), and raw_window = min(DS4_N_SWA, ctx) = 128 at all #162 frontiers (ds4.c:18415 at ds4-pr952 77a054e1; the GGUF's deepseek4.attention.sliding_window is 128). So n_keys does not track ctx; it is 128 + pos/ratio, where ratio is the layer's compression ratio. ds4 does not take the ratios from the file: validate_compress_ratio_metadata (ds4.c:6007 at ds4-pr952 77a054e1) reads only the first DS4_N_LAYER = 43 values and checks each against the hardcoded pattern ds4_expected_layer_compress_ratio (ds4.c:1180-1182 at ds4-pr952 77a054e1: il < 2 -> 0, even il -> 4, odd il -> 128), so layers 0,1 are uncompressed (2 layers), 21 layers have ratio 4, 20 have ratio 128, and the 44th GGUF value is never read. The packed32 path is live at every frontier: n_keys <= 1024 holds for the uncompressed (128) and ratio-128 (<=256) layers at all frontiers, and for the ratio-4 layers up to pos ~3583.",
       "argv": [
         "git",
         "grep",
@@ -428,7 +428,7 @@
     },
     {
       "id": "loader-ignores-ratio-tail",
-      "statement": "validate_compress_ratio_metadata (ds4.c:6007) checks only arr.len < DS4_N_LAYER (shorter is fatal, longer is fine), then reads il from 0 to DS4_N_LAYER-1 and checks each against the hardcoded pattern ds4_expected_layer_compress_ratio (ds4.c:1180-1182: il < 2 -> 0, even il -> 4, odd il -> 128). So the 44th value in the GGUF's deepseek4.attention.compress_ratios is never read, and the array length (44) can exceed the block count (43) without anything being wrong. The uncompressed layers are 0 and 1 only (2 layers), not 3.",
+      "statement": "validate_compress_ratio_metadata (ds4.c:6007 at ds4-pr952 77a054e1) checks only arr.len < DS4_N_LAYER (shorter is fatal, longer is fine), then reads il from 0 to DS4_N_LAYER-1 and checks each against the hardcoded pattern ds4_expected_layer_compress_ratio (ds4.c:1180-1182 at ds4-pr952 77a054e1: il < 2 -> 0, even il -> 4, odd il -> 128). So the 44th value in the GGUF's deepseek4.attention.compress_ratios is never read, and the array length (44) can exceed the block count (43) without anything being wrong. The uncompressed layers are 0 and 1 only (2 layers), not 3.",
       "argv": [
         "git",
         "grep",
@@ -527,7 +527,7 @@
     },
     {
       "id": "one-knob-suffices",
-      "statement": "One knob fully reverts the observable difference for this model even though two variables touch the n_comp==0 layers. Setting DS4_METAL_DISABLE_DECODE_RAW_GATHERED_ATTN routes n_comp==0 layers to the raw-only path (ds4_metal.m:38408), so the packed32 relaxation gated by DS4_METAL_DISABLE_DECODE_RAW_PACKED32 (ds4_metal.m:36774) never applies to them. For n_comp!=0 layers, n_comp != 0u is already true on main, so the relaxation changes nothing there either. The gathered-heads knob A/B therefore needs only the one DISABLE var.",
+      "statement": "One knob fully reverts the observable difference for this model even though two variables touch the n_comp==0 layers. Setting DS4_METAL_DISABLE_DECODE_RAW_GATHERED_ATTN routes n_comp==0 layers to the raw-only path (ds4_metal.m:38408 at ds4-pr952 77a054e1), so the packed32 relaxation gated by DS4_METAL_DISABLE_DECODE_RAW_PACKED32 (ds4_metal.m:36774 at ds4-pr952 77a054e1) never applies to them. For n_comp!=0 layers, n_comp != 0u is already true on main, so the relaxation changes nothing there either. The gathered-heads knob A/B therefore needs only the one DISABLE var.",
       "argv": [
         "git",
         "grep",

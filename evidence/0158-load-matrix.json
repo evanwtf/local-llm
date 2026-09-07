@@ -7,7 +7,7 @@
   "agent_effort": "unidentified",
   "repo": "/Users/evanhoffman/git/local-llm/.claude/worktrees/peer+160",
   "authored_at": "2026-09-06T11:58:55-0400",
-  "statement": "The ds4#991 PR build (236cb2a) loads only the imatrix file (qwen4exp, no hyphen), not the hyphenated files. The main-model routing at ds4.c:6789 checks `arch == \"qwen4exp\"` (no hyphen), but the macro DS4_QWEN4_ARCHITECTURE = \"qwen4-exp\" (with hyphen) is defined in ds4_qwen4.h:8 and used only at ds4_qwen4.c:1244 (the pack-manifest architecture check); the PLE sidecar uses the separate macro DS4_QWEN4_PLE_ARCHITECTURE = \"qwen4-exp-ple\" at ds4_qwen4.c:1739. Our Q40RoutedExperts file declares general.architecture = qwen4-exp (with hyphen), so it is not routed to the qwen4 config and fails with 'required metadata key is missing: deepseek4.block_count'. The imatrix file declares qwen4exp (no hyphen), so it loads at 100.1 GiB resident. The mtp and vision files (qwen4-exp-mtp, qwen4-exp-vision) also fail. This inverts the issue's prediction: the PR was expected to load the hyphenated files and not the imatrix; it loads the imatrix and not the hyphenated files.",
+  "statement": "The ds4#991 PR build (236cb2a) loads only the imatrix file (qwen4exp, no hyphen), not the hyphenated files. The main-model routing at ds4.c:6789 at ds4-pr991 236cb2a checks `arch == \"qwen4exp\"` (no hyphen), but the macro DS4_QWEN4_ARCHITECTURE = \"qwen4-exp\" (with hyphen) is defined in ds4_qwen4.h:8 at ds4-pr991 236cb2a and used only at ds4_qwen4.c:1244 at ds4-pr991 236cb2a (the pack-manifest architecture check); the PLE sidecar uses the separate macro DS4_QWEN4_PLE_ARCHITECTURE = \"qwen4-exp-ple\" at ds4_qwen4.c:1739 at ds4-pr991 236cb2a. Our Q40RoutedExperts file declares general.architecture = qwen4-exp (with hyphen), so it is not routed to the qwen4 config and fails with 'required metadata key is missing: deepseek4.block_count'. The imatrix file declares qwen4exp (no hyphen), so it loads at 100.1 GiB resident. The mtp and vision files (qwen4-exp-mtp, qwen4-exp-vision) also fail. This inverts the issue's prediction: the PR was expected to load the hyphenated files and not the imatrix; it loads the imatrix and not the hyphenated files.",
   "provenance": {
     "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
     "trees": {
@@ -24,7 +24,7 @@
   "claims": [
     {
       "id": "routing-uses-qwen4exp-nohyphen",
-      "statement": "The PR build's main-model routing (ds4.c:6789) checks the architecture string against the literal 'qwen4exp' (no hyphen).",
+      "statement": "The PR build's main-model routing (ds4.c:6789 at ds4-pr991 236cb2a) checks the architecture string against the literal 'qwen4exp' (no hyphen).",
       "argv": [
         "grep",
         "-n",
@@ -51,7 +51,7 @@
     },
     {
       "id": "macro-declares-qwen4-exp-hyphen",
-      "statement": "The macro DS4_QWEN4_ARCHITECTURE in ds4_qwen4.h:8 declares the hyphenated string 'qwen4-exp', which is inconsistent with the routing's no-hyphen 'qwen4exp'.",
+      "statement": "The macro DS4_QWEN4_ARCHITECTURE in ds4_qwen4.h:8 at ds4-pr991 236cb2a declares the hyphenated string 'qwen4-exp', which is inconsistent with the routing's no-hyphen 'qwen4exp'.",
       "argv": [
         "grep",
         "-n",

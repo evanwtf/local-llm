@@ -10,7 +10,7 @@ MTPLX above ds4 on an M5 Max. A flag that is accepted and does nothing is the
 most expensive kind of no-op: it looks like a treatment arm.
 
 ds4 already counts this. `--mtp-timing`, or the env var `DS4_MTP_TIMING`,
-prints one line per speculative cycle to stderr (ds4.c:79516). The env var is
+prints one line per speculative cycle to stderr (ds4.c:79516 at ds4-metal ba01f5d). The env var is
 what the harness should use -- it turns the counters on without changing the
 server command line, so the arm's launch config stays identical to the rows
 already taken.
@@ -53,7 +53,8 @@ logger = logging.getLogger(__name__)
 # The Qwen path -- the one qwen38fnds4mtp7shim actually runs:
 #   ds4: Qwen MTP timing drafted=7 accepted=3 target_tokens=4 cycle=.. verifier=block
 # `accepted` is already draft-only. The free first token is the +1 in
-# target_tokens: the source builds it as `1u + plan.accepted` (ds4.c:79xxx).
+# target_tokens: the source builds it as `1u + plan.accepted`
+# (ds4.c:79255 at ds4-metal ba01f5d).
 QWEN_CYCLE = re.compile(
     r"^ds4: Qwen MTP timing drafted=(?P<drafted>\d+) accepted=(?P<accepted>\d+)"
     r" target_tokens=(?P<target>\d+)"

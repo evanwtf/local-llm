@@ -34,18 +34,40 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 ALLOWLIST_FILE = Path(__file__).resolve().parent / "citation_allowlist.txt"
 
-# A bare citation: `ds4<name>.<c|m|h>:NNNNN` not followed by
-# ` at <tree> <sha>`. The `(?!\\d)` anchors the digits so `ds4.c:23514 at
-# ds4-main 9ab70534` cannot backtrack to a bare `ds4.c:2351`.
+# A bare citation: `ds4<name>.<c|m|h>:NNNNN` not bound to a tree and sha.
+# `(?!\\d)` anchors the digits so `ds4.c:23514 at ds4-main 9ab70534` cannot
+# backtrack to a bare `ds4.c:2351`. The negative lookahead accepts both the
+# single-line pin (`ds4.c:23514 at ds4-main 9ab70534`) and a range pin
+# (`ds4.c:1180-1182 at ds4-main 9ab70534`), because prose citations in the
+# evidence `.json` files legitimately name a line range held at one sha.
 BARE = re.compile(
-    r"\bds4[A-Za-z0-9_]*\.(?:c|m|h):(\d+)(?!\d)(?! at ds4[A-Za-z0-9_-]* [0-9a-f]+)"
+    r"\bds4[A-Za-z0-9_]*\.(?:c|m|h):(\d+)(?!\d)"
+    r"(?!(?:-\d+)? at ds4[A-Za-z0-9_-]* [0-9a-f]+)"
 )
+
+# A second, legitimate binding the git grep form uses: the `observed.stdout`
+# of an evidence claim is raw command output, so its citations come back as
+# `rev:file:line`, e.g. `77a054e1:ds4.c:6007:`. The sha immediately precedes
+# the file token in the same token, exactly the "sha in the same citation
+# token" binding the issue #182 scope endorses. A citation so bound cannot be
+# edited in place (that would fabricate the recorded output), so the scan
+# treats a leading bound sha as the pin. `bare_citations()` applies this
+# exclusion because BARE stays the pure raw-pattern the unit tests assert on.
+BOUND_LEADING_SHA = re.compile(r"(?<![0-9a-f])[0-9a-f]{7,40}:$")
+
+
+def is_bound_with_leading_sha(text, start):
+    """True if `start` begins a citation immediately preceded by a sha+`:`.
+    The window is 41 chars: a 40-hex sha plus its `:`.
+    """
+    pre = text[max(0, start - 41) : start]
+    return bool(BOUND_LEADING_SHA.search(pre))
 
 
 def tracked_files():
     """All files git tracks, minus the lint's own machinery.
 
-    Three exclusions, each a file that is not a document with citations:
+    Four exclusions, each a file that is not a document with citations:
 
     - `hardware/**/0731/**` — frozen historical transcripts.
     - `tests/citation_allowlist.txt` — the allowlist itself. Its lines are
@@ -53,6 +75,10 @@ def tracked_files():
       pattern; scanning it would make the allowlist require itself.
     - `tests/test_citation_allowlist.py` — this test. Its example citations
       are fixtures that demonstrate the regex, not citations in a document.
+    - `tests/test_evidence.py` — evidence-fixture test data. Its gate
+      statements cite `ds4_metal.m:10000` through `ds4_metal.m:10015`, fake
+      line numbers that assert on the evidence pipeline, not real source. A
+      pin would fabricate a location: the line need not exist in any tree.
     """
     out = subprocess.run(
         ["git", "-C", str(REPO), "ls-files"],
@@ -67,6 +93,8 @@ def tracked_files():
             continue
         if line == "tests/test_citation_allowlist.py":
             continue
+        if line == "tests/test_evidence.py":
+            continue
         yield REPO / line
 
 
@@ -78,6 +106,8 @@ def bare_citations():
         text = path.read_text(encoding="utf-8", errors="replace")
         rel = path.relative_to(REPO)
         for m in BARE.finditer(text):
+            if is_bound_with_leading_sha(text, m.start()):
+                continue
             yield f"{rel}:{m.group()}"
 
 
@@ -147,6 +177,55 @@ def test_sha_must_be_bound_to_citation():
     """A sha elsewhere in the paragraph does not pin a citation."""
     text = "the tree is at 9ab70534. the gate at ds4.c:23514 is pre-M5-only"
     assert [m.group() for m in BARE.finditer(text)] == ["ds4.c:23514"]
+
+
+def test_pinned_range_citation_is_not_caught():
+    """A range pin `ds4.c:1180-1182 at <tree> <sha>` is not flagged."""
+    text = "the pattern at ds4.c:1180-1182 at ds4-pr952 77a054e1"
+    assert list(BARE.finditer(text)) == []
+
+
+def test_bare_range_citation_is_caught():
+    """A range without a pin is still flagged (as its start line)."""
+    text = "the pattern at ds4.c:1180-1182"
+    assert [m.group() for m in BARE.finditer(text)] == ["ds4.c:1180"]
+
+
+def test_leading_sha_binding_recognized():
+    """A git grep `rev:file:line` citation is bound, not bare."""
+    text = "git grep 77a054e1:ds4.c:6007:static void validate_compress_ratio_metadata"
+    m = next(m for m in BARE.finditer(text))
+    assert m.group() == "ds4.c:6007"
+    assert is_bound_with_leading_sha(text, m.start())
+
+
+def test_leading_sha_elsewhere_does_not_bind():
+    """A sha in the same line but not immediately before does not bind."""
+    text = "at 9ab70534, the gate at ds4.c:6007 is pre-M5-only"
+    m = next(m for m in BARE.finditer(text))
+    assert is_bound_with_leading_sha(text, m.start()) is False
+
+
+def test_pinned_with_leading_sha_is_not_in_scan():
+    """A leading-sha-bound citation is excluded from the repo scan, so a
+    document that only carries raw git grep output has no bare citations."""
+    from pathlib import Path
+    import tempfile
+
+    body = (
+        "observed: 77a054e1:ds4.c:6007:static void validate_compress_ratio_metadata(m)"
+    )
+    with tempfile.TemporaryDirectory() as td:
+        p = Path(td) / "x.json"
+        p.write_text(body)
+        # bare_citations() reads tracked files only, so emulate its filter:
+        rel = Path("x.json")
+        found = []
+        for m in BARE.finditer(body):
+            if is_bound_with_leading_sha(body, m.start()):
+                continue
+            found.append(f"{rel}:{m.group()}")
+        assert found == []
 
 
 def test_allowlisted_citation_passes():

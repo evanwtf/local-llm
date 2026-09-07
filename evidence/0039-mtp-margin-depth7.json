@@ -7,7 +7,7 @@
   "agent_effort": "unidentified",
   "repo": "/Users/evanhoffman/git/local-llm/.claude/worktrees/peer+160",
   "authored_at": "2026-09-06T12:55:00-0400",
-  "statement": "A margin sweep is a no-op for the depth-7 MTP arm, with one boundary exception. The margin-skip fast path is gated on `draft_n == 2` at ds4.c:66808, and `draft_n` is the number of MTP drafts generated per step, capped at `draft_cap = e->mtp_draft_tokens` (ds4.c:66722). Our depth-7 arm uses `--mtp-draft 7`, so `draft_cap = 7` and `draft_n` ends at 7; the margin-skip cannot fire, so the margin value never affects acceptance. The six reads of `mtp_margin_threshold` (66734 assignment, 66739 env override, 66745 need-logits, 66808 gate, 66814 comparison, 66843 timing print) split by the gate: 66814 and 66843 are inside the 66808 block, so outside that gate the only read is the `> 0.0f` test at 66745. That test is the boundary exception: at depth 7, margin 0 and margin > 0 are not equivalent -- a zero margin turns off logit computation during drafting, a nonzero one turns it on. Every nonzero value behaves identically; zero is a different arm. This is a throughput effect (work done), not an acceptance effect. A sweep of 0,1,2,3,5 on the depth-7 arm would produce a flat line with a single step at zero.",
+  "statement": "A margin sweep is a no-op for the depth-7 MTP arm, with one boundary exception. The margin-skip fast path is gated on `draft_n == 2` at ds4.c:66808 at ds4 399acbb, and `draft_n` is the number of MTP drafts generated per step, capped at `draft_cap = e->mtp_draft_tokens` (ds4.c:66722 at ds4 399acbb). Our depth-7 arm uses `--mtp-draft 7`, so `draft_cap = 7` and `draft_n` ends at 7; the margin-skip cannot fire, so the margin value never affects acceptance. The six reads of `mtp_margin_threshold` (66734 assignment, 66739 env override, 66745 need-logits, 66808 gate, 66814 comparison, 66843 timing print) split by the gate: 66814 and 66843 are inside the 66808 block, so outside that gate the only read is the `> 0.0f` test at 66745. That test is the boundary exception: at depth 7, margin 0 and margin > 0 are not equivalent -- a zero margin turns off logit computation during drafting, a nonzero one turns it on. Every nonzero value behaves identically; zero is a different arm. This is a throughput effect (work done), not an acceptance effect. A sweep of 0,1,2,3,5 on the depth-7 arm would produce a flat line with a single step at zero.",
   "provenance": {
     "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
     "trees": {
@@ -18,7 +18,7 @@
   "claims": [
     {
       "id": "margin-skip-gated-on-draft-n-2",
-      "statement": "The margin-skip fast path is gated on `draft_n == 2` at ds4.c:66808: `if (!strict_mtp && draft_n == 2 && mtp_margin_threshold > 0.0f)`. `draft_n` is the number of MTP drafts generated per step, capped at `draft_cap = e->mtp_draft_tokens` (ds4.c:66722). Our depth-7 arm uses `--mtp-draft 7`, so `draft_cap = 7` and `draft_n` ends at 7. The margin-skip cannot fire at depth 7, so the margin value never affects acceptance.",
+      "statement": "The margin-skip fast path is gated on `draft_n == 2` at ds4.c:66808 at ds4 399acbb: `if (!strict_mtp && draft_n == 2 && mtp_margin_threshold > 0.0f)`. `draft_n` is the number of MTP drafts generated per step, capped at `draft_cap = e->mtp_draft_tokens` (ds4.c:66722 at ds4 399acbb). Our depth-7 arm uses `--mtp-draft 7`, so `draft_cap = 7` and `draft_n` ends at 7. The margin-skip cannot fire at depth 7, so the margin value never affects acceptance.",
       "argv": [
         "grep",
         "-n",
@@ -72,7 +72,7 @@
     },
     {
       "id": "zero-boundary-turns-off-logits",
-      "statement": "At depth 7, margin 0 and margin > 0 are not equivalent. The `mtp_need_logits` test at ds4.c:66743-66745 is `mtp_conf_log || getenv(\"DS4_MTP_FULL_LOGITS\") != NULL || (!strict_mtp && mtp_margin_threshold > 0.0f)`, so a zero margin turns off logit computation during drafting and a nonzero one turns it on. Every nonzero value behaves identically; zero is a different arm. This is a throughput effect (work done), not an acceptance effect.",
+      "statement": "At depth 7, margin 0 and margin > 0 are not equivalent. The `mtp_need_logits` test at ds4.c:66743-66745 at ds4 399acbb is `mtp_conf_log || getenv(\"DS4_MTP_FULL_LOGITS\") != NULL || (!strict_mtp && mtp_margin_threshold > 0.0f)`, so a zero margin turns off logit computation during drafting and a nonzero one turns it on. Every nonzero value behaves identically; zero is a different arm. This is a throughput effect (work done), not an acceptance effect.",
       "argv": [
         "grep",
         "-n",

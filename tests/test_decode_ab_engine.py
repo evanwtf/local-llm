@@ -77,7 +77,8 @@ def test_no_ceiling_is_claimed_for_large_chunks():
 
     The claim was that raw_cap clamped a chunk to 8192 after the first
     frontier, so a sweep above it mixed two measurements. It is wrong.
-    ds4_default_raw_cap (ds4.c:12144) is the raw-KV attention cap -- DS4_N_SWA
+    ds4_default_raw_cap (ds4.c:12144 at ds4 399acbbe) is the raw-KV attention cap
+    -- DS4_N_SWA
     clamped to ctx, and the built-in shapes set n_swa to 128 or 0 -- and has
     nothing to do with prefill chunking. In the prefill path 8192 is only the
     PRO variant's default when no chunk was requested. A large value is
