@@ -1430,3 +1430,37 @@ Gates, hashes and the verbatim check ride alongside a verdict and never into
 it. There is a test asserting a filthy solution and a clean one get the same
 verdict. The moment a quality signal decides a pass, the harness is judging,
 and its whole claim is that it does not.
+
+## Three traps that cost work on 2026-09-07
+
+**Never pass an issue or PR body through a double-quoted shell argument.**
+`gh issue close -c "... `SHA` ..."` runs the sha as a command and posts the
+comment with the sha silently deleted. Nothing errors; the comment looks fine
+until you read it back. Always use `-F -` with a heredoc whose delimiter is
+quoted, and pick a delimiter the body cannot contain.
+
+`CLAUDE.md` already records this for `git tag -m`. It is the same trap and it
+found a second door.
+
+**Check the repo before running a queued measurement.** `NEXT.md` listed #162
+Task 4 as pending. Four of its five knobs were; `gathered-heads` had been
+settled over four runs in `724b70f` a day earlier and never posted to the
+issue. The re-run then wrote into a **tracked, committed, VOID** directory --
+`mkdir -p` does not clear one, so a rerun overwrites the reps it produces and
+keeps the ones it does not (#208).
+
+Two habits fall out of that, and the first is cheap:
+
+- `git ls-files benchmarks/ds4/ | grep <thing>` before launching anything the
+  queue calls pending. A tracked run directory is the answer.
+- **The issue comment goes in the same turn as the commit.** A result that is
+  committed but unpublished is invisible to exactly the reader most likely to
+  redo it -- and a result that is published but whose issue stays open costs
+  the same re-run from the other direction (#143 was answered on 2026-09-06 and
+  still sat at P1 the next morning).
+
+**The no-tests-during-a-benchmark rule is about this Mac.** CI runs on the
+self-hosted Linux runner (`runs-on: [self-hosted, Linux, X64]`), so a PR can go
+green there while the run lock is held here. Holding a peer back from pushing
+costs idle time and buys nothing. What the rule forbids is `uv run pytest` and
+`uv run ruff` **on this machine** while a batch holds the lock.
