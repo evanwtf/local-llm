@@ -104,8 +104,32 @@ cd ~/git/ds4-metal && ./ds4-server --metal \
   numbers are not comparable.
 - **`ds4 --inspect` prints every specialization as `fallback` because inspect
   never initialises Metal.** That is not a real fallback.
-- The MTP arm (issue #77/#39) adds `--mtp-draft 7 --mtp-timing` and —
-  critically — **`--kv-disk-dir ~/.ds4/server-kv-mtp`**, a separate directory.
+- The MTP arm (issue #77/#39) adds **`--mtp-model`**, `--mtp-draft 7
+  --mtp-timing` and — critically — **`--kv-disk-dir ~/.ds4/server-kv-mtp`**, a
+  separate directory.
+
+  ```sh
+  --mtp-model ~/models/qwen3.8-flash-next-ds4-q4/qwen3.8-flash-next-q4-mtp.gguf
+  ```
+
+  **`--mtp-model` is not optional and this file omitted it until 2026-09-07.**
+  The Qwen MTP head lives entirely in that sidecar — the main gguf carries
+  **zero** MTP tensors — and there is no auto-discovery of a `-mtp.gguf`
+  sibling: `ds4.c:67798 at ds4-metal ba01f5d` gates the whole load on
+  `opt->mtp_path && opt->mtp_path[0]`, and `mtp_ready` is set nowhere else.
+
+  `--mtp-draft 7 --mtp-timing` are accepted without complaint regardless, so
+  the argv looks like an MTP arm either way. The server is the one that says
+  which it is, on its `Qwen graph allocated` line — the same build and model,
+  one flag apart:
+
+  | argv | graph line |
+  |---|---|
+  | without `--mtp-model` | `MTP=off verifier=off` |
+  | with `--mtp-model` | `MTP=Q4_K/Q8_0/BF16 verifier=block/max16` |
+
+  With the sidecar it also prints `MTP sidecar loaded: ... (state=ready
+  draft=7)`. **Read that line before trusting an MTP row.**
   An engine flag that changes the KV format makes ds4 reject the other
   configuration's checkpoints (`Qwen checkpoint MTP state is incompatible`),
   so mixing directories makes one arm re-prefill where the other got cache
