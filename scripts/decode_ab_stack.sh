@@ -22,7 +22,7 @@
 # Both Qwen3.8-Flash-Next ds4 builds keep the 51B-value PLE n-gram table in an
 # external sidecar, so every arm needs `--ple`. `ds4-bench` accepts it; the
 # flag is real but undocumented, absent from `--help` and present in the
-# parser at ds4_bench.c:275. Passing no sidecar fails with "required tensor is
+# parser at ds4_bench.c:275 at ds4-main 9ab70534. Passing no sidecar fails with "required tensor is
 # missing: per_layer_token_embd.weight", which reads exactly like the flag not
 # existing. It does exist.
 #

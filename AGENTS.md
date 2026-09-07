@@ -1078,7 +1078,7 @@ Three checks, each a few minutes, killed it:
 - `ds4-bench` appeared to refuse **both** with `required tensor is missing:
   per_layer_token_embd.weight`. **That one was my own error** and is the more
   useful half of this entry: `ds4-bench` does take `--ple`, undocumented and
-  absent from `--help` (`ds4_bench.c:275`). I had grepped the help output
+  absent from `--help` (`ds4_bench.c:275 at ds4-main 9ab70534`). I had grepped the help output
   instead of the parser, and my failing invocation simply passed no sidecar.
   With the flag, both arms measure.
 
