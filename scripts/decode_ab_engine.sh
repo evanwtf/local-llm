@@ -16,6 +16,17 @@ LABEL_A=${1:?label A}; TREE_A=${2:?ds4 tree A}
 LABEL_B=${3:?label B}; TREE_B=${4:?ds4 tree B}
 GGUF=${5:?gguf}
 OUT=${6:-$HOME/git/local-llm/benchmarks/ds4/decode-ab-964}
+# #203: absolutize OUT before the lock. The arm runs inside `( cd "$tree" && ... )`,
+# so a relative OUT is created under the repo by mkdir but resolved under the
+# ds4 tree by --csv -- the CSV files land nowhere. The default OUT is absolute,
+# which is why the bug only shows on a hand-passed relative path.
+absolutize_out() {
+  case "$OUT" in
+    /*) ;;
+    *) OUT="$PWD/$OUT" ;;
+  esac
+}
+absolutize_out
 
 # The corpus comes from tree A for both arms, so it is byte-identical across
 # the A/B even if the branch touches speed-bench/.

@@ -282,3 +282,45 @@ def test_run_engagement_writes_count_file(tmp_path):
     subprocess.run(["bash", "-c", bash], check=True, capture_output=True)
     count = (out / "engagement-on.count").read_text().strip()
     assert count == "5"
+
+
+def test_relative_out_is_absolutized(tmp_path):
+    """#203: a relative OUT must become absolute before the lock, or the arm's
+    `( cd "$TREE" && ... )` resolves the --csv path under the ds4 tree and the
+    CSV files land nowhere."""
+    import subprocess
+
+    script = (
+        pathlib.Path(__file__).resolve().parents[1] / "scripts" / "metal_knob_ab.sh"
+    )
+    bash = (
+        f"eval \"$(sed -n '/^absolutize_out()/,/^}}/p' {script})\"\n"
+        f"cd {tmp_path}\n"
+        f"OUT=rel/out\n"
+        f"absolutize_out\n"
+        f"printf '%s' \"$OUT\"\n"
+    )
+    got = subprocess.run(
+        ["bash", "-c", bash], check=True, capture_output=True, text=True
+    ).stdout
+    assert got == f"{tmp_path}/rel/out"
+
+
+def test_absolute_out_is_unchanged(tmp_path):
+    """An already-absolute OUT must pass through untouched."""
+    import subprocess
+
+    script = (
+        pathlib.Path(__file__).resolve().parents[1] / "scripts" / "metal_knob_ab.sh"
+    )
+    bash = (
+        f"eval \"$(sed -n '/^absolutize_out()/,/^}}/p' {script})\"\n"
+        f"cd {tmp_path}\n"
+        f"OUT=/abs/path\n"
+        f"absolutize_out\n"
+        f"printf '%s' \"$OUT\"\n"
+    )
+    got = subprocess.run(
+        ["bash", "-c", bash], check=True, capture_output=True, text=True
+    ).stdout
+    assert got == "/abs/path"

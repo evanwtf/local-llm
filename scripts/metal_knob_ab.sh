@@ -41,6 +41,17 @@ set -euo pipefail
 KNOB=${1:?knob}; ON_VALUE=${2:?on value}; OFF_VALUE=${3:?off value}
 TREE=${4:?ds4 tree}; GGUF=${5:?gguf}
 OUT=${6:-$HOME/git/local-llm/benchmarks/ds4/metal-knob-ab}
+# #203: absolutize OUT before the lock. The arm runs inside `( cd "$TREE" && ... )`,
+# so a relative OUT is created under the repo by mkdir but resolved under the
+# ds4 tree by --csv -- the CSV files land nowhere. The default OUT is absolute,
+# which is why the bug only shows on a hand-passed relative path.
+absolutize_out() {
+  case "$OUT" in
+    /*) ;;
+    *) OUT="$PWD/$OUT" ;;
+  esac
+}
+absolutize_out
 # Explicit acknowledgment to measure a knob with no admission signal. Without
 # it validate() refuses, so a knob that cannot be verified is never measured
 # by accident.
