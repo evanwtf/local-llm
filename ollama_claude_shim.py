@@ -20,6 +20,7 @@ PRIVACY: --dump-failures keeps the body of any request Ollama still rejects.
 Those dumps hold the full prompt -- your CLAUDE.md and every file the agent
 read. Never commit them; .gitignore blocks fail-*.json.
 """
+
 import argparse
 import http.server
 import json
@@ -125,8 +126,11 @@ def fold_developer(body: bytes) -> bytes:
     items = payload.get("input")
     if not isinstance(items, list):
         return body
-    strays = [i for i in items
-              if isinstance(i, dict) and i.get("role") in ("developer", "system")]
+    strays = [
+        i
+        for i in items
+        if isinstance(i, dict) and i.get("role") in ("developer", "system")
+    ]
     if not strays:
         return body
 
@@ -135,9 +139,11 @@ def fold_developer(body: bytes) -> bytes:
     parts = [p for p in [payload.get("instructions") or ""] if p]
     parts += [t for t in (_text_of(i.get("content")) for i in strays) if t]
     payload["instructions"] = "\n\n".join(parts)
-    payload["input"] = [i for i in items
-                        if not (isinstance(i, dict)
-                                and i.get("role") in ("developer", "system"))]
+    payload["input"] = [
+        i
+        for i in items
+        if not (isinstance(i, dict) and i.get("role") in ("developer", "system"))
+    ]
     logger.info("folded %d developer/system item(s) into instructions", len(strays))
     return json.dumps(payload).encode()
 
@@ -148,8 +154,8 @@ class Proxy(http.server.BaseHTTPRequestHandler):
     def do_POST(self):
         global fails
         body = self.rfile.read(int(self.headers.get("Content-Length", 0)))
-        body = hoist_system(body)     # /v1/messages, /v1/chat/completions
-        body = fold_developer(body)   # /v1/responses
+        body = hoist_system(body)  # /v1/messages, /v1/chat/completions
+        body = fold_developer(body)  # /v1/responses
         headers = {
             k: v
             for k, v in self.headers.items()
@@ -241,7 +247,9 @@ def main():
     if args.dump_failures:
         dump_dir = pathlib.Path(args.dump_failures)
         dump_dir.mkdir(parents=True, exist_ok=True)
-        logger.warning("dumping failed requests to %s -- these hold full prompts", dump_dir)
+        logger.warning(
+            "dumping failed requests to %s -- these hold full prompts", dump_dir
+        )
 
     logger.info("listening on 127.0.0.1:%d -> %s", args.port, upstream)
     http.server.ThreadingHTTPServer(("127.0.0.1", args.port), Proxy).serve_forever()

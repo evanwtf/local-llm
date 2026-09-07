@@ -130,7 +130,9 @@ def test_an_idle_daemon_on_an_unselected_port_is_not_worth_a_warning():
 
 def test_the_same_daemon_is_flagged_once_it_has_a_model_loaded():
     """The threshold is about resident weights, not about which process it is."""
-    loaded = PS.replace("83210 2097152 01:54:30 ollama", "83210 62914560 01:54:30 ollama")
+    loaded = PS.replace(
+        "83210 2097152 01:54:30 ollama", "83210 62914560 01:54:30 ollama"
+    )
     got = preflight.check(loaded, LSOF, expected_ports={8000})
     assert 83210 in [p.pid for p in got.stale]
 
@@ -237,7 +239,9 @@ def test_the_old_three_column_header_is_refused_rather_than_misread():
     wrong name and an age of `unknown` -- a check that passes vacuously, which
     is the failure this whole module exists to avoid.
     """
-    old = "  PID    RSS COMMAND\n43967 81330176 ./build/bin/llama-server --model x.gguf\n"
+    old = (
+        "  PID    RSS COMMAND\n43967 81330176 ./build/bin/llama-server --model x.gguf\n"
+    )
     with pytest.raises(ValueError, match="ELAPSED"):
         preflight.parse_ps(old)
 

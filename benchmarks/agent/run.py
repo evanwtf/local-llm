@@ -906,9 +906,9 @@ def capture_versions(cfg, backends, allow_unstamped=False):
             servers[name].update(
                 engine_identity.identity(engine, backend.get("engine_tree"))
             )
-    routes = {
-        s["metal_route"] for s in servers.values() if s.get("metal_route")
-    } - {ds4_route.UNRECORDED}
+    routes = {s["metal_route"] for s in servers.values() if s.get("metal_route")} - {
+        ds4_route.UNRECORDED
+    }
     if len(routes) > 1:
         # Two routes inside one run is not a row-level annotation, it is a
         # voided comparison -- exactly the shape of #137's two client versions
@@ -2304,8 +2304,10 @@ def counters_on(engine, ps_text=None):
         return False
     if os.environ.get(switch["env"]):
         return True
-    text = ps_text if ps_text is not None else preflight._capture(
-        ["ps", "-eo", "pid,rss,etime,command"]
+    text = (
+        ps_text
+        if ps_text is not None
+        else preflight._capture(["ps", "-eo", "pid,rss,etime,command"])
     )
     return any(switch["argv"] in proc.command for proc in preflight.parse_ps(text))
 
@@ -3220,8 +3222,7 @@ def main():
     draft_probe = DraftProbe(args.server_log, args.draft_log_engine)
     if args.server_log:
         logger.info(
-            "recording MTP draft acceptance per row from %s (%s), starting at "
-            "byte %d",
+            "recording MTP draft acceptance per row from %s (%s), starting at byte %d",
             args.server_log,
             draft_probe.source,
             draft_probe.offset,

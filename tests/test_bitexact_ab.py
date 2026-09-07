@@ -779,9 +779,7 @@ def test_the_reference_route_is_the_default():
 
 
 def test_the_fast_route_can_be_asked_for_deliberately():
-    args = ab.parse_args(
-        ["a", "/a", "b", "/b", "m.gguf", "--metal-route", "fast"]
-    )
+    args = ab.parse_args(["a", "/a", "b", "/b", "m.gguf", "--metal-route", "fast"])
     assert args.metal_route == "fast"
 
 
@@ -812,9 +810,18 @@ def test_the_route_pin_reaches_the_environment(monkeypatch, tmp_path):
     gguf.write_text("not really weights")
     args = ab.parse_args(
         [
-            "a", str(tmp_path), "b", str(tmp_path), str(gguf),
-            "--corpus", str(corpus), "--out", str(tmp_path / "out"),
-            "--frontier", "16", "--no-lock",
+            "a",
+            str(tmp_path),
+            "b",
+            str(tmp_path),
+            str(gguf),
+            "--corpus",
+            str(corpus),
+            "--out",
+            str(tmp_path / "out"),
+            "--frontier",
+            "16",
+            "--no-lock",
         ]
     )
     with pytest.raises(Stop):
@@ -848,9 +855,20 @@ def test_asking_for_fast_sets_the_variable(monkeypatch, tmp_path):
     gguf.write_text("not really weights")
     args = ab.parse_args(
         [
-            "a", str(tmp_path), "b", str(tmp_path), str(gguf),
-            "--corpus", str(corpus), "--out", str(tmp_path / "out"),
-            "--frontier", "16", "--no-lock", "--metal-route", "fast",
+            "a",
+            str(tmp_path),
+            "b",
+            str(tmp_path),
+            str(gguf),
+            "--corpus",
+            str(corpus),
+            "--out",
+            str(tmp_path / "out"),
+            "--frontier",
+            "16",
+            "--no-lock",
+            "--metal-route",
+            "fast",
         ]
     )
     with pytest.raises(Stop):

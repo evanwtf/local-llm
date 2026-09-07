@@ -135,7 +135,9 @@ def test_the_markers_come_from_ds4_serve_so_there_is_one_owner():
     """Two copies of the marker strings would drift, and the drift is silent."""
     import sys
 
-    sys.path.insert(0, str(pathlib.Path(ds4_route.__file__).parent.parent.parent / "scripts"))
+    sys.path.insert(
+        0, str(pathlib.Path(ds4_route.__file__).parent.parent.parent / "scripts")
+    )
     import ds4_serve
 
     assert ds4_route.MARKERS is ds4_serve.MARKERS
@@ -157,8 +159,12 @@ def test_the_record_is_json_a_person_can_read(tmp_path):
 def _env(monkeypatch, backends, routes):
     import run
 
-    monkeypatch.setattr(ds4_route, "route_for", lambda port, **kw: routes.get(port, "unrecorded"))
-    monkeypatch.setattr(run.ds4_route, "route_for", lambda port, **kw: routes.get(port, "unrecorded"))
+    monkeypatch.setattr(
+        ds4_route, "route_for", lambda port, **kw: routes.get(port, "unrecorded")
+    )
+    monkeypatch.setattr(
+        run.ds4_route, "route_for", lambda port, **kw: routes.get(port, "unrecorded")
+    )
     monkeypatch.setattr(run, "probe_server", lambda b: {"served_model_id": "x"})
     monkeypatch.setattr(run, "probe_ollama", lambda b: {})
     monkeypatch.setattr(run, "probe_openai_models", lambda b: {})

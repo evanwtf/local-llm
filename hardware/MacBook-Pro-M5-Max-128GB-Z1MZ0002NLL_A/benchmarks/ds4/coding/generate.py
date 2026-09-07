@@ -40,7 +40,7 @@ def extract_code(text, prompt, entry_point):
         return blocks[-1]
     # No fence at all. If the reply continues the signature, glue it on.
     if f"def {entry_point}" in text:
-        return text[text.index("def " + entry_point):]
+        return text[text.index("def " + entry_point) :]
     return prompt + text
 
 

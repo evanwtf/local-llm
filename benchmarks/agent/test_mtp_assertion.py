@@ -165,9 +165,7 @@ def test_the_three_mtp_arms_declare_themselves():
     import pathlib
     import tomllib
 
-    cfg = tomllib.loads(
-        (pathlib.Path(run.__file__).parent / "tasks.toml").read_text()
-    )
+    cfg = tomllib.loads((pathlib.Path(run.__file__).parent / "tasks.toml").read_text())
     declared = {
         name: b.get("draft_engine")
         for name, b in cfg["backend"].items()
@@ -184,9 +182,7 @@ def test_every_declared_arm_names_an_engine_the_probe_can_read():
     import pathlib
     import tomllib
 
-    cfg = tomllib.loads(
-        (pathlib.Path(run.__file__).parent / "tasks.toml").read_text()
-    )
+    cfg = tomllib.loads((pathlib.Path(run.__file__).parent / "tasks.toml").read_text())
     for name, b in cfg["backend"].items():
         if not b.get("speculative"):
             continue
@@ -203,8 +199,6 @@ def test_the_non_mtp_twin_is_not_declared():
     import pathlib
     import tomllib
 
-    cfg = tomllib.loads(
-        (pathlib.Path(run.__file__).parent / "tasks.toml").read_text()
-    )
+    cfg = tomllib.loads((pathlib.Path(run.__file__).parent / "tasks.toml").read_text())
     assert not cfg["backend"]["qwen38fnds4shim"].get("speculative")
     assert not cfg["backend"]["qwen38fnds4kimat"].get("speculative")

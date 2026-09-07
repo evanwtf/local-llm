@@ -22,7 +22,9 @@ import logging
 import pathlib
 import sys
 
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent / "benchmarks" / "agent"))
+sys.path.insert(
+    0, str(pathlib.Path(__file__).resolve().parent.parent / "benchmarks" / "agent")
+)
 
 import metal_equivalence as me  # noqa: E402
 import provenance  # noqa: E402
@@ -44,7 +46,9 @@ def main(argv: list[str] | None = None) -> int:
         default=pathlib.Path.home() / "git" / "ds4" / "ds4flash.gguf",
         help="model the fixtures run against",
     )
-    parser.add_argument("--force", action="store_true", help="ignore any cached verdict")
+    parser.add_argument(
+        "--force", action="store_true", help="ignore any cached verdict"
+    )
     args = parser.parse_args(argv)
     provenance.configure()
 

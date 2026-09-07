@@ -30,9 +30,7 @@ CANONICAL = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{4}$")
 #: Fields that hold a moment in time. Named rather than sniffed: a value that
 #: merely looks like a date is not necessarily one, and a rule that guesses
 #: produces the false positives that make people disable it.
-TIME_FIELDS = frozenset(
-    {"started", "finished", "ended", "authored_at", "engine_built"}
-)
+TIME_FIELDS = frozenset({"started", "finished", "ended", "authored_at", "engine_built"})
 
 DATA_GLOBS = ("benchmarks/agent/*.jsonl", "evidence/*.json")
 

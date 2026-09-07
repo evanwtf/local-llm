@@ -239,9 +239,7 @@ def test_lint_rejects_claim_enumerating_more_than_observed_lines(tmp_path):
     declared `enumerates` count must not exceed the line count its own argv
     returns in observed. It only runs when observed is populated.
     """
-    observed_lines = "\n".join(
-        f"9ab70534:ds4_metal.m:{n}:x" for n in range(1, 17)
-    )
+    observed_lines = "\n".join(f"9ab70534:ds4_metal.m:{n}:x" for n in range(1, 17))
     body = _finding(
         claims=[
             _command_claim(
@@ -284,9 +282,7 @@ def test_lint_ignores_bare_numbers_that_are_not_citations(tmp_path):
     body = _finding(
         claims=[
             _command_claim(
-                statement=(
-                    "six context sizes: 2048, 4096, 8192, 16384, 32768, 65536"
-                ),
+                statement=("six context sizes: 2048, 4096, 8192, 16384, 32768, 65536"),
                 observed={"exit": 0, "stdout": "x"},
             )
         ]
@@ -299,9 +295,7 @@ def test_lint_accepts_claim_declaring_enumerates_and_context_lines(tmp_path):
     """A claim declares what its command produced and which citations are
     references. The comparison is against `enumerates`, which is exact.
     """
-    observed_lines = "\n".join(
-        f"9ab70534:ds4_metal.m:{n}:x" for n in range(1, 17)
-    )
+    observed_lines = "\n".join(f"9ab70534:ds4_metal.m:{n}:x" for n in range(1, 17))
     body = _finding(
         claims=[
             _command_claim(
@@ -347,7 +341,5 @@ def test_0169_taxonomy_lints_clean():
     corrected form, one claim per family with the grep output in observed,
     must pass.
     """
-    finding = evidence.load_finding(
-        REPO / "evidence" / "0169-device-gate-table.json"
-    )
+    finding = evidence.load_finding(REPO / "evidence" / "0169-device-gate-table.json")
     assert finding["schema"] == evidence.SCHEMA

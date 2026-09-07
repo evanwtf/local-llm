@@ -59,7 +59,8 @@ def fake_ps(tmp_path: pathlib.Path) -> pathlib.Path:
 def run_script(fake_ps: pathlib.Path, body: str, send_int: bool = False):
     script = fake_ps / "run.sh"
     script.write_text(
-        f"#!/usr/bin/env bash\nset -euo pipefail\nsource {HELPER}\n" + textwrap.dedent(body)
+        f"#!/usr/bin/env bash\nset -euo pipefail\nsource {HELPER}\n"
+        + textwrap.dedent(body)
     )
     script.chmod(0o755)
     env = {"PATH": f"{fake_ps / 'bin'}:/usr/bin:/bin", "HOME": str(fake_ps)}
@@ -90,39 +91,52 @@ def run_script(fake_ps: pathlib.Path, body: str, send_int: bool = False):
 
 def test_a_clean_finish_stops_the_server(fake_ps):
     """The exact #145 case: all sweeps complete, and the last server stays up."""
-    code, out, state = run_script(fake_ps, """
+    code, out, state = run_script(
+        fake_ps,
+        """
         ds4_arm_stop_trap
         echo "all 8 sweeps complete"
-    """)
+    """,
+    )
     assert code == 0
     assert state == "stopped", "a finished run must not leave 98 GiB resident"
 
 
 def test_an_interrupted_run_stops_the_server(fake_ps):
     """Ctrl-C is the likeliest way a five-hour batch ends."""
-    code, out, state = run_script(fake_ps, """
+    code, out, state = run_script(
+        fake_ps,
+        """
         ds4_arm_stop_trap
         sleep 10
-    """, send_int=True)
+    """,
+        send_int=True,
+    )
     assert state == "stopped"
     assert code != 0
 
 
 def test_a_failing_run_stops_the_server_and_keeps_its_status(fake_ps):
     """Teardown is a side effect. It must not turn a failed run into a pass."""
-    code, out, state = run_script(fake_ps, """
+    code, out, state = run_script(
+        fake_ps,
+        """
         ds4_arm_stop_trap
         exit 3
-    """)
+    """,
+    )
     assert state == "stopped"
     assert code == 3, "the run's own exit status is the one that matters"
 
 
 def test_a_successful_run_keeps_its_zero(fake_ps):
-    code, _, _ = run_script(fake_ps, """
+    code, _, _ = run_script(
+        fake_ps,
+        """
         ds4_arm_stop_trap
         true
-    """)
+    """,
+    )
     assert code == 0
 
 
@@ -132,11 +146,14 @@ def test_arming_the_trap_does_not_discard_an_existing_one(fake_ps):
     A bare `trap ... EXIT` would replace it, and the lock would outlive the run
     that took it -- trading a leaked server for a leaked lock.
     """
-    code, out, state = run_script(fake_ps, f"""
+    code, out, state = run_script(
+        fake_ps,
+        f"""
         trap 'echo released > {fake_ps}/lock' EXIT
         ds4_arm_stop_trap
         echo done
-    """)
+    """,
+    )
     assert code == 0
     assert state == "stopped"
     assert (fake_ps / "lock").read_text().strip() == "released"
@@ -145,24 +162,33 @@ def test_arming_the_trap_does_not_discard_an_existing_one(fake_ps):
 def test_stopping_a_machine_with_no_server_is_silent_and_succeeds(fake_ps):
     """Nothing running is the normal case before a run. It is not an error."""
     (fake_ps / "state").write_text("stopped\n")
-    code, out, _ = run_script(fake_ps, """
+    code, out, _ = run_script(
+        fake_ps,
+        """
         ds4_stop_server "no server here"
         echo "exit=$?"
-    """)
+    """,
+    )
     assert code == 0
     assert "exit=0" in out
     assert "stopping ds4-server" not in out
-    assert not (fake_ps / "calls").exists() or "pkill" not in (fake_ps / "calls").read_text()
+    assert (
+        not (fake_ps / "calls").exists()
+        or "pkill" not in (fake_ps / "calls").read_text()
+    )
 
 
 def test_a_server_that_will_not_die_is_reported_rather_than_ignored(fake_ps):
     """A SIGKILL that does not take it is the one case worth a loud refusal."""
     (fake_ps / "bin" / "pkill").write_text("#!/bin/sh\nexit 0\n")  # kills nothing
     (fake_ps / "bin" / "pkill").chmod(0o755)
-    code, out, _ = run_script(fake_ps, """
+    code, out, _ = run_script(
+        fake_ps,
+        """
         set +e
         ds4_stop_server "wedged"
         echo "exit=$?"
-    """)
+    """,
+    )
     assert "REFUSING: ds4-server would not stop" in out
     assert "exit=1" in out

@@ -247,7 +247,9 @@ def main(argv: list[str] | None = None) -> int:
     # Imported inside main() on purpose: ds4_route imports MARKERS from this
     # module, so a module-level import back would be circular. By the time
     # main() runs, this module is fully loaded and the import is free.
-    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent / "benchmarks" / "agent"))
+    sys.path.insert(
+        0, str(pathlib.Path(__file__).resolve().parent.parent / "benchmarks" / "agent")
+    )
     import ds4_route
 
     ds4_route.write_record(

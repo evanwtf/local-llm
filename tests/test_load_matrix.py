@@ -46,9 +46,7 @@ def test_port_free_false_when_held():
 
 def test_tree_rev_returns_rev_for_git_checkout():
     """A git checkout reports its HEAD rev."""
-    rev = load_matrix._tree_rev(
-        pathlib.Path(__file__).resolve().parents[1]
-    )
+    rev = load_matrix._tree_rev(pathlib.Path(__file__).resolve().parents[1])
     assert len(rev) == 40
 
 

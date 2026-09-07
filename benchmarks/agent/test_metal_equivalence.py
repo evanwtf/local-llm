@@ -89,7 +89,9 @@ def test_drift_short_of_a_flip_still_passes_but_is_recorded(tmp_path):
     is for -- but a reader of the cache should see the numbers, not just 'pass'.
     """
     path = tmp_path / "eq.json"
-    me.write_verdict(path, fingerprint="abc", verdict="pass", summary=me.parse_summary(REAL_LOG))
+    me.write_verdict(
+        path, fingerprint="abc", verdict="pass", summary=me.parse_summary(REAL_LOG)
+    )
     got = json.loads(path.read_text())["entries"]["abc"]
     assert got["summary"]["worst_max_abs"] == 5.3259
     assert got["verdict"] == "pass"
@@ -158,7 +160,9 @@ GLM_SUMMARY = (
 def test_two_models_keep_two_verdicts(tmp_path):
     path = tmp_path / "eq.json"
     me.write_verdict(path, fingerprint="ds4", verdict="pass", summary={}, label="0731")
-    me.write_verdict(path, fingerprint="glm", verdict="fail", summary={}, label="GLM-5.3")
+    me.write_verdict(
+        path, fingerprint="glm", verdict="fail", summary={}, label="GLM-5.3"
+    )
     assert me.cached_verdict(path, "ds4") == "pass"
     assert me.cached_verdict(path, "glm") == "fail"
 
@@ -181,7 +185,9 @@ def test_the_glm_run_is_read_as_a_failure():
 
 def test_the_label_survives_so_a_reader_knows_which_model(tmp_path):
     path = tmp_path / "eq.json"
-    me.write_verdict(path, fingerprint="glm", verdict="fail", summary={}, label="GLM-5.3-Flash-Q2")
+    me.write_verdict(
+        path, fingerprint="glm", verdict="fail", summary={}, label="GLM-5.3-Flash-Q2"
+    )
     assert me.cached_entry(path, "glm")["label"] == "GLM-5.3-Flash-Q2"
 
 
