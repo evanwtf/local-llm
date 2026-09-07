@@ -49,7 +49,10 @@ def test_it_runs_from_a_directory_that_is_not_the_repo(tmp_path):
     """The regression exactly: invoked from elsewhere, it must still work.
 
     It is idempotent, so on a clean tree this is a no-op that must exit 0
-    rather than raise FileNotFoundError.
+    rather than raise FileNotFoundError -- and on a machine with no ledger at
+    all (every CI runner) it must say so and exit 0, which is the second half
+    of the same bug: this test was written asserting only the first half and
+    turned CI red on 2026-09-07.
     """
     r = subprocess.run(
         [sys.executable, str(ROOT / "scripts" / "archive_pre_dir_rows.py")],
@@ -59,7 +62,11 @@ def test_it_runs_from_a_directory_that_is_not_the_repo(tmp_path):
         check=False,
     )
     assert r.returncode == 0, r.stderr
-    assert "nothing to archive" in r.stdout or "archived" in r.stdout
+    assert (
+        "nothing to archive" in r.stdout
+        or "archived" in r.stdout
+        or "no ledger at" in r.stdout
+    ), r.stdout
 
 
 def test_the_invariant_holds_right_now():

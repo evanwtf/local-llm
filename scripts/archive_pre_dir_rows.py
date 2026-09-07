@@ -70,6 +70,16 @@ def is_pre_dir(line: str, after: set[str]) -> bool:
 
 def main() -> None:
     logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
+
+    # No ledger for THIS machine is the normal case everywhere except the one
+    # that took the measurements. `results.default_path()` is derived from the
+    # host's own hardware (#20), so on a CI runner it names a directory that
+    # has never existed. That is nothing to archive, not an error -- and the
+    # crash it used to raise turned a green build red on 2026-09-07.
+    if not RESULTS.exists():
+        logger.info("no ledger at %s; nothing to archive on this machine", RESULTS)
+        return
+
     after = fixed_commits(ROOT)
 
     lines = RESULTS.read_text().splitlines(keepends=True)
