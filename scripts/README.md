@@ -38,6 +38,7 @@ documentation.
 | `make_scripts_readme.py` | Generate scripts/README.md from each script's own first docstring line. |
 | `metal_knob_ab.py` | Knob table and refusal logic for scripts/metal_knob_ab.sh (#162 Task 4). |
 | `mtp_engagement.py` | Does the engine engage MTP on the traffic we actually send it? (#148, #151) |
+| `mtp_failure_modes.py` | Classify what the #39 MTP-arm trial deaths failed on (#39). |
 | `mtp_log_split.py` | Did MTP draft during the batch, or only before it? (#39, #151, #210) |
 | `mtp_recovery_attribution.py` | Attribute the #39 recovery-failed events to trials, one row per trial (#39). |
 | `peer_brief.py` | Generate the state half of a handoff as Markdown. #160 |
