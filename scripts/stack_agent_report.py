@@ -200,9 +200,12 @@ def run_date(run_dir: pathlib.Path) -> dt.date | None:
 
 
 class Sweep:
-    def __init__(self, tag: str, start: dt.datetime) -> None:
+    def __init__(
+        self, tag: str, start: dt.datetime, finish: dt.datetime | None = None
+    ) -> None:
         self.tag = tag
         self.start = start
+        self.finish = finish
         self.arm = tag.rsplit("-sweep", 1)[0]
         self.backend = {arm: backend for backend, arm in BACKENDS.items()}[self.arm]
         self.rows: list[dict[str, Any]] = []
@@ -211,7 +214,9 @@ class Sweep:
 def sweep_windows(run_dir: pathlib.Path) -> list[Sweep] | None:
     """Sweeps in start order, windows from sweep-order.txt + the run date.
 
-    A sweep owns [start, next sweep's start). The last window is open-ended.
+    A sweep owns [start, its own recorded finish]. The last window closes
+    like every other: a row written after the final sweep's finish fits no
+    window, so a follow-up run or smoke test cannot leak into the tally.
     """
     date = run_date(run_dir)
     if date is None:
@@ -245,12 +250,13 @@ def sweep_windows(run_dir: pathlib.Path) -> list[Sweep] | None:
     for line in lines:
         parts = line.split()
         if len(parts) == 3:
-            tag, start_s, _finish = parts
+            tag, start_s, finish_s = parts
             start = at(start_s)
-            if start is None:
+            finish = at(finish_s)
+            if start is None or finish is None:
                 logger.error("unparsable time in sweep-order line: %r", line)
                 return None
-            sweeps.append(Sweep(tag, start))
+            sweeps.append(Sweep(tag, start, finish))
         elif len(parts) == 2:
             tag, finish_s = parts
             finish = at(finish_s)
@@ -271,7 +277,7 @@ def sweep_windows(run_dir: pathlib.Path) -> list[Sweep] | None:
         began = run_started(run_dir) or legacy[0][1]
         previous = began
         for tag, finish in legacy:
-            sweeps.append(Sweep(tag, previous))
+            sweeps.append(Sweep(tag, previous, finish))
             previous = finish
     sweeps.sort(key=lambda s: s.start)
     return sweeps
@@ -282,16 +288,25 @@ def record_lines(path: pathlib.Path) -> list[str]:
 
 
 def assign(rows: list[dict[str, Any]], sweeps: list[Sweep]) -> list[dict[str, Any]]:
-    """Put each row into its sweep window; return rows that fit nowhere."""
-    bounds = [s.start for s in sweeps] + [dt.datetime.max.replace(tzinfo=None)]
+    """Put each row into its sweep window; return rows that fit nowhere.
+
+    A sweep owns [start, its own finish]. A row between one sweep's finish
+    and the next one's start -- during a server restart -- fits no window and
+    is returned, not absorbed by the earlier sweep.
+    """
     leftover = []
     for row in rows:
         when = started(row)
         if when is None:
             leftover.append(row)
             continue
-        for i, sweep in enumerate(sweeps):
-            if sweep.start <= when < bounds[i + 1]:
+        for sweep in sweeps:
+            upper = (
+                sweep.finish
+                if sweep.finish is not None
+                else dt.datetime.max.replace(tzinfo=None)
+            )
+            if sweep.start <= when < upper:
                 if sweep.backend == row.get("backend"):
                     sweep.rows.append(row)
                 else:

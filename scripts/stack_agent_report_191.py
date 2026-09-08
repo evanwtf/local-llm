@@ -207,6 +207,22 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     logger.info("head: %s (run-record.txt)", head)
 
+    # The head selector enforces head-split by selection, so the override
+    # flag cannot work. A flag that silently does nothing is a trap for
+    # whoever passes it expecting an effect; refuse it loudly.
+    if args.allow_harness_split:
+        logger.info(
+            "VOID: --allow-harness-split is a no-op in the #191 path;"
+            " head-split is enforced by selection on env.harness_head and"
+            " harness_dirty."
+        )
+        return 2
+    logger.info(
+        "head-split is enforced by selection (env.harness_head == %s,"
+        " harness_dirty == false); --allow-harness-split cannot override it",
+        head,
+    )
+
     # The head selector is primary; the timestamp cut is a cross-check that
     # must agree. Load all backend rows, select by head, then verify the cut
     # picks the same set. A disagreement means the run's identity is

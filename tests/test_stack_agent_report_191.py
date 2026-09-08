@@ -61,13 +61,13 @@ ORDER = [
     ("new-sweep1", "20:58:00"),
     ("old-sweep1", "21:40:00"),
     ("new-sweep2", "22:22:00"),
-    ("old-sweep2", "23:00:00"),
+    ("old-sweep2", "23:04:00"),
 ]
 STARTS = [
     dt.datetime(2026, 9, 7, 20, 58, 0),
     dt.datetime(2026, 9, 7, 21, 40, 0),
     dt.datetime(2026, 9, 7, 22, 22, 0),
-    dt.datetime(2026, 9, 7, 23, 0, 0),
+    dt.datetime(2026, 9, 7, 23, 4, 0),
 ]
 
 
@@ -140,11 +140,15 @@ def run_report(
     caplog,
     started_at: dt.datetime | None = None,
     offset: dt.timedelta = dt.timedelta(0),
+    allow_harness_split: str = "",
 ):
     ledger = write_ledger(tmp_path, rows)
     run_dir = write_run_dir(tmp_path, started_at, offset)
     caplog.set_level(logging.INFO, logger="stack_agent_report_191")
-    code = sib.main(["--ledger", str(ledger), "--run-dir", str(run_dir)])
+    argv = ["--ledger", str(ledger), "--run-dir", str(run_dir)]
+    if allow_harness_split:
+        argv += ["--allow-harness-split", allow_harness_split]
+    code = sib.main(argv)
     return code, caplog.text
 
 
@@ -308,6 +312,45 @@ def test_a_leftover_before_the_cut_is_excluded(tmp_path, caplog):
     code, out = run_report(tmp_path, rows, caplog)
     assert code == 0
     assert "raw rows: 60" in out
+
+
+def test_a_row_after_the_last_sweep_finish_is_excluded(tmp_path, caplog):
+    """A row after the final sweep's finish is not absorbed into it.
+
+    It passes the head selector and the timestamp cut, but it is after the
+    last sweep's recorded finish. The last window closes like every other;
+    the row fits no window and the report refuses rather than count it.
+    """
+    rows = full_rows()
+    rows.append(row(NEW_BACKEND, "task-00", "2026-09-07T23:45:00-04:00"))
+    code, out = run_report(tmp_path, rows, caplog)
+    assert code == 2
+    assert "fit no sweep window" in out
+
+
+def test_a_row_between_windows_is_excluded(tmp_path, caplog):
+    """A row during a server restart fits no window.
+
+    It is after one sweep's finish and before the next one's start. The
+    earlier sweep must not absorb it.
+    """
+    rows = full_rows()
+    # new-sweep1 finishes 21:38, old-sweep1 starts 21:40 -- a restart gap.
+    rows.append(row(NEW_BACKEND, "task-00", "2026-09-07T21:39:00-04:00"))
+    code, out = run_report(tmp_path, rows, caplog)
+    assert code == 2
+    assert "fit no sweep window" in out
+
+
+def test_allow_harness_split_is_a_noop_and_refuses(tmp_path, caplog):
+    """The head selector enforces head-split by selection, so the override
+    flag cannot work. A flag that silently does nothing is a trap; it refuses
+    loudly rather than pretend it had an effect."""
+    code, out = run_report(
+        tmp_path, full_rows(), caplog, allow_harness_split="docs only"
+    )
+    assert code == 2
+    assert "--allow-harness-split is a no-op" in out
 
 
 def test_a_short_sweep_cell_is_void(tmp_path, caplog):
