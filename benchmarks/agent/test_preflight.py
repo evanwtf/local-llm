@@ -13,9 +13,8 @@ import os
 import pathlib
 import sys
 
-import pytest
-
 import preflight
+import pytest
 
 REPO_ROOT = pathlib.Path(preflight.__file__).resolve().parent.parent.parent
 
@@ -899,3 +898,63 @@ def test_the_restart_cycles_audit_their_own_kv_prefix():
         assert "kv-prefix-audit.txt" in text, name
         # must not abort a completed cycle on an audit failure
         assert "|| true" in text, name
+
+
+# --- the sherpa tier and its PR check (#225) ---------------------------------
+
+
+def test_mlx_serve_is_a_sherpa_with_a_local_tree():
+    """Same tier as ds4 since 2026-09-08.
+
+    It is the faster stack on this laptop and may become the default, and its
+    fixes arrive as open PRs from forks rather than as releases. A tier that
+    names the repo but has no local tree gets no branch check, so both halves
+    have to be present.
+    """
+    assert preflight.SHERPAS["mlx-serve"] == "ddalcu/mlx-serve"
+    assert preflight.SHERPAS["ds4"] == "antirez/ds4"
+    for name in preflight.SHERPAS:
+        assert name in preflight.BUILDS, f"{name} is a sherpa with no local tree"
+
+
+@pytest.mark.parametrize(
+    "title",
+    [
+        "cuda: add opt-in ordered KV gathering for indexed decode",
+        "feat(vision): append-only Qwen media history",
+        "feat: classifier-free guidance for FLUX.2 klein base checkpoints",
+        "Add Korean localization to MLX Core",
+        "ROCm: fix build",
+    ],
+)
+def test_work_for_other_hardware_is_not_a_preflight_warning(title):
+    """Twelve warnings before every batch is the same as none.
+
+    The two sherpas alone produced twelve WARNING lines, of which the loudest
+    were a CUDA KV gather and a Korean localization. A check that cries wolf
+    stops being read, and this one runs before every measurement.
+    """
+    assert not preflight.bears_on_this_machine(title)
+
+
+@pytest.mark.parametrize(
+    "title",
+    [
+        "fix(qwen4): NUL-truncated prompts, EOS-first spec rounds, cache unwind",
+        "perf(qwen4): parallelise the PLE n-gram gather at prefill width",
+        "server: restore the prompt frontier after cancelled generation",
+        "kvstore: age the eviction value of unused checkpoints",
+    ],
+)
+def test_work_that_could_move_a_number_here_stays_loud(title):
+    assert preflight.bears_on_this_machine(title)
+
+
+def test_an_unrecognised_title_stays_loud():
+    """A denylist, deliberately.
+
+    An allowlist silently drops the fix nobody thought to name -- which is the
+    failure this whole check exists to prevent. Anything unrecognised is loud.
+    """
+    assert preflight.bears_on_this_machine("zqx: rework the frobnicator")
+    assert preflight.bears_on_this_machine("")

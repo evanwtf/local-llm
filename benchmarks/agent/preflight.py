@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import argparse
 import dataclasses
+import datetime as dt
 import json
 import logging
 import os
@@ -794,22 +795,133 @@ BUILDS = {
     "llama.cpp-glm52pr": pathlib.Path.home() / "git/llama.cpp-glm52pr",
     "llama.cpp-glm53": pathlib.Path.home() / "git/llama.cpp-glm53",
     "ds4": pathlib.Path.home() / "git/ds4",
+    "mlx-serve": pathlib.Path.home() / "git/mlx-serve",
 }
 
 # A fetch older than this makes "0 commits behind" meaningless.
 STALE_FETCH_DAYS = 2.0
 
-# The reference implementation for this hardware. antirez ships models here
-# first, often on a preview branch -- GLM-5.3-Flash landed on one while this
-# project was benchmarking the model on an unsupported stack (#38). A new branch
-# on this remote is a signal worth surfacing before a run, not after.
-SHERPA = "ds4"
+# The reference implementations for this hardware, and the two whose upstream
+# activity is loud rather than counted.
+#
+# ds4: antirez ships models here first, often on a preview branch --
+# GLM-5.3-Flash landed on one while this project was benchmarking the model on
+# an unsupported stack (#38).
+#
+# mlx-serve: same tier since 2026-09-08. It is the faster stack on this laptop
+# (#191: 13 of 15 tasks) and may become the default, and its fixes arrive as
+# open PRs from forks rather than as releases -- `ddalcu/mlx-serve#383` fixed
+# an EOS-first speculative bug that leaves the whole prompt prefix uncommitted
+# to the cache, on our exact model, while #191 spent three and a half hours
+# measuring the five-day-old release that carried it.
+#
+# local build name -> the upstream repo its work lands in.
+SHERPAS: dict[str, str] = {
+    "ds4": "antirez/ds4",
+    "mlx-serve": "ddalcu/mlx-serve",
+}
+
+#: Open PRs to name per sherpa before collapsing to a count.
+SHERPA_PR_CAP = 6
 
 # Repos whose GitHub notifications bear on this project. Everything else is
 # noise here -- 41 of 41 notifications on this account were CI failures from
 # unrelated repos, and the one that mattered (a mention on a ds4 PR citing our
 # measurement) was buried under them and already marked read by email.
 WATCHED_REPOS = {"antirez/ds4", "ggml-org/llama.cpp", "evanwtf/local-llm"}
+
+
+# Work that cannot change a number on this machine. The same relevance rule
+# the source-sweep skill applies by hand -- CUDA-only kernels, vision and
+# audio, hardware we do not have -- applied here so a preflight warning means
+# something. Without it the two sherpas alone produced twelve WARNING lines
+# before every batch, of which the loudest were a CUDA KV gather and a Korean
+# localization. Warning on a correct state is how a check becomes noise nobody
+# reads, and a preflight nobody reads is worse than no preflight.
+#
+# A denylist, not an allowlist, and deliberately: an allowlist silently drops
+# the fix nobody thought to name. Anything unrecognised stays loud.
+NOT_FOR_THIS_MACHINE = (
+    "cuda",
+    "rocm",
+    "hip:",
+    "vulkan",
+    "sycl",
+    "webgpu",
+    "musa",
+    "cann",
+    "opencl",
+    "vision",
+    "vlm",
+    "flux",
+    "diffusion",
+    "image gen",
+    "whisper",
+    "audio",
+    "tts",
+    "localization",
+    "i18n",
+    "translation",
+)
+
+
+def bears_on_this_machine(title: str) -> bool:
+    """False for work that cannot move a number on an M5 Max on Metal."""
+    low = title.lower()
+    return not any(marker in low for marker in NOT_FOR_THIS_MACHINE)
+
+
+def _log_open_pulls(hours: float = 48.0) -> None:
+    """Open PRs updated recently on the repos SOURCES.md names.
+
+    `upstream_sweep.WATCHED` is the single source of truth SOURCES.md renders,
+    so this cannot drift from the document. Advisory, like the rest of
+    preflight, and network -- skipped under --offline.
+    """
+    try:
+        sys.path.insert(
+            0, str(pathlib.Path(__file__).resolve().parent.parent.parent / "scripts")
+        )
+        import upstream_sweep
+    except Exception:  # noqa: BLE001 -- preflight is advisory, never fatal
+        logger.debug("preflight: upstream_sweep unavailable; skipping PR check")
+        return
+    since = (dt.datetime.now(dt.UTC) - dt.timedelta(hours=hours)).strftime(
+        "%Y-%m-%dT%H:%M:%SZ"
+    )
+    loud = set(SHERPAS.values())
+    for repo in upstream_sweep.WATCHED:
+        try:
+            pulls = upstream_sweep.open_pulls(repo, since)
+        except Exception as exc:  # noqa: BLE001 -- advisory, never fatal
+            logger.debug("preflight: open PRs for %s failed: %s", repo, exc)
+            continue
+        if not pulls:
+            continue
+        if repo in loud:
+            pulls = [x for x in pulls if bears_on_this_machine(x)]
+            if not pulls:
+                continue
+            for line in pulls[:SHERPA_PR_CAP]:
+                logger.warning(
+                    "preflight: %s PR %s  <- a fix here may not be in your build",
+                    repo,
+                    line,
+                )
+            if len(pulls) > SHERPA_PR_CAP:
+                logger.warning(
+                    "preflight: %s has %d more open PRs updated in %.0fh",
+                    repo,
+                    len(pulls) - SHERPA_PR_CAP,
+                    hours,
+                )
+        else:
+            logger.info(
+                "preflight: %s has %d open PR(s) updated in %.0fh",
+                repo,
+                len(pulls),
+                hours,
+            )
 
 
 def log_versions(offline: bool = False) -> None:
@@ -846,16 +958,27 @@ def log_versions(offline: bool = False) -> None:
         else:
             logger.info("preflight: %s", line)
 
-    sherpa = BUILDS.get(SHERPA)
-    if sherpa is not None:
-        for branch in staleness.new_remote_branches(sherpa):
+    for name in SHERPAS:
+        tree = BUILDS.get(name)
+        if tree is None:
+            continue
+        for branch in staleness.new_remote_branches(tree):
             logger.warning(
                 "preflight: %s has a recent branch %r you are not on "
-                "-- antirez ships models on preview branches; check "
-                "before concluding one does not run here",
-                SHERPA,
+                "-- this tier ships work on branches; check "
+                "before concluding something does not run here",
+                name,
                 branch,
             )
+
+    # Open PRs, for every repo SOURCES.md names. Commits and releases cannot
+    # see these: a fix can sit in an open PR from a fork for days without
+    # touching main or cutting a release, which is how #191 measured a build
+    # with a known prefix-cache bug in it. The sherpas are loud; the rest are
+    # a count, because llama.cpp alone can touch dozens in a day and a
+    # preflight nobody reads is worse than no preflight.
+    if not offline:
+        _log_open_pulls()
 
     for name, path in BUILDS.items():
         got = staleness.git_drift(path)
