@@ -251,6 +251,16 @@ sweep() {
   move_marker="$OUT/.transcript-start"
   : > "$move_marker"
   touch -t "$(date '+%Y%m%d%H%M.%S')" "$move_marker"
+  # --draft-log-engine names the log dialect the draft probe parses, and
+  # run.py accepts ds4|mtplx only. An engine that does no speculative decoding
+  # has no draft log to read, so the flag is OMITTED rather than passed with a
+  # name run.py will reject -- which is an argparse error that ends the sweep
+  # in one second, not a harmless unknown option. It was hard-coded `ds4`
+  # before this script had a second engine.
+  local draft_flag=""
+  case "$engine" in
+  ds4 | mtplx) draft_flag="--draft-log-engine $engine" ;;
+  esac
   echo "[$(date +%H:%M:%S)] === $tag ($backend) ==="
   # #210: without --server-log the row carries no `draft` field at all, and an
   # MTP arm that never speculated is then indistinguishable from one that did.
@@ -260,7 +270,7 @@ sweep() {
   ( cd "$REPO" && uv run python benchmarks/agent/run.py \
       --backend "$backend" --trials 1 --client opencode --no-lock \
       --require-harness-head "$HARNESS_HEAD" \
-      --server-log "$OUT/server-$tag.log" --draft-log-engine "$engine" $run_flags \
+      --server-log "$OUT/server-$tag.log" $draft_flag $run_flags \
       > "$OUT/$tag.log" 2>&1 ) || echo "[$(date +%H:%M:%S)] $tag returned non-zero"
   # Transcripts move out of the top level immediately, but only ones written
   # after this sweep started. Leaving stale ones is how #112's pre-remedy

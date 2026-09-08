@@ -302,7 +302,7 @@ other is telling you something.
 
 <!-- BEGIN GENERATED -->
 
-*Generated from `results.jsonl` — 1810 rows, sha256 deb7fffd51d8.*
+*Generated from `results.jsonl` — 1813 rows, sha256 ae3ed9f18930.*
 
 #### Every stack measured under OpenCode
 
@@ -312,7 +312,7 @@ other is telling you something.
 |---|---|---|---|---|
 | qwen38fnmlxserve | 1/1 | 39s | 39s | 1.0x |
 | ornith15 | 21/21 | 44s | 93s | 5.9x |
-| qwen38fnds4kimat | 135/135 | 98s | 472s | 12.2x |
+| qwen38fnds4kimat | 136/136 | 97s | 472s | 12.2x |
 | Qwen3.8-Flash-Next Q3 - llama.cpp | 75/75 | 106s | 356s | 8.3x |
 | DeepSeek-V4-Flash - ds4 (Anthropic wire) | 18/18 | 110s | 221s | 4.3x |
 | qwen38fnq3reap | 21/21 | 110s | 261s | 6.8x |

@@ -110,10 +110,25 @@ def test_the_mlx_arm_serves_rather_than_chats() -> None:
     assert "--host 127.0.0.1" in mlx, "the documented default host is 0.0.0.0"
 
 
-def test_the_draft_log_engine_is_per_arm() -> None:
-    # It was hard-coded to ds4. A non-ds4 arm would then claim ds4 provenance.
+def test_the_draft_log_engine_is_omitted_for_engines_run_py_rejects() -> None:
+    """run.py takes --draft-log-engine ds4|mtplx and nothing else.
+
+    This test previously asserted `--draft-log-engine "$engine"` was always
+    passed, which enforced the WRONG behaviour: it made the flag per-arm, and
+    an mlx-serve arm then passed a value argparse rejects. The first sweep died
+    in one second with `invalid choice: 'mlx-serve'`. A test can encode an
+    assumption instead of a requirement, and this one did.
+    """
     body = AB.read_text()
-    assert '--draft-log-engine "$engine"' in body
+    assert '--draft-log-engine "$engine"' not in body, (
+        "the engine name is passed straight through; run.py rejects mlx-serve"
+    )
+    assert "$draft_flag" in body, "the flag is no longer built conditionally"
+    # And the guard: only the two engines run.py accepts may set it.
+    case = body[body.index("local draft_flag=") :]
+    case = case[: case.index("esac")]
+    assert "ds4 | mtplx)" in case or "ds4|mtplx)" in case, case[:200]
+    assert "mlx-serve" not in case, "mlx-serve must not set --draft-log-engine"
 
 
 # --- the two bugs the review caught, held by tests ------------------------
