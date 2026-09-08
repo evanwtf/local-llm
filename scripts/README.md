@@ -18,6 +18,7 @@ documentation.
 | `backfill_prompt_meta.py` | Write an inferred prompt sidecar for runs measured before #140. |
 | `bitexact_ab.py` | Bit-exact A/B for two ds4 engine trees: the output-equality check #143 lacked. |
 | `check_metal_equivalence.py` | Run ds4's Metal tensor-route equivalence test and cache the verdict (#149). |
+| `check_release_version.py` | Refuse a release whose tag disagrees with the declared version. |
 | `client_version_split.py` | Which client version took which rows, and what that confounds (#137, #131). |
 | `client_versions.py` | Read the recorded agent client versions, and say which have moved (#131). |
 | `cohort_split.py` | Split one backend's rows at a moment in time and compare the halves. |
@@ -46,6 +47,7 @@ documentation.
 | `prompt_meta.py` | Which prompt a decode/prefill A/B was measured on (#140). |
 | `prune_models.py` | Delete local model weights that are superseded and re-downloadable (#111). |
 | `qwen38_metal_suites.py` | Run ds4#990's model-free Qwen3.8-Flash-Next Metal suites and report (#170). |
+| `release_notes.py` | Print the changelog section for a release, or refuse. |
 | `report.py` | Summarize and compare measured cells, with the resolution rule applied. |
 | `route_ab_report.py` | Attribute #149 route-A/B rows to sweep windows and evaluate the screens. |
 | `sensor_windows.py` | Join a monitord sensor series to benchmark sweep windows. |

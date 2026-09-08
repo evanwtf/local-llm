@@ -22,6 +22,46 @@ picks in `RECOMMENDATIONS.md`, and the current queue in `NEXT.md`.
 
 ---
 
+## v1.0.0 — 2026-09-07
+
+The first tagged release. It marks the point where the three recommended
+stacks are locked, reproducible, and installable with one command.
+
+**The recommendations are the product.** `RECOMMENDATIONS.md` names three
+stacks, and this tag is the state they were measured in. Evan locked them for
+a week on 2026-09-07.
+
+**Slot 2 changed.** "You want it fast" is now Qwen3.8-Flash-Next `Q4_K
+imatrix` on ds4 (ivanfioravanti's fork), in place of the llama.cpp mainline
+build. Three paired sweeps, 90 rows, arm order alternated per pair: the paired
+wall ratio is 0.84 (95% CI 0.76–0.92) and the pass rate does not move — 0
+tasks down, 0 up, 15 tied, sign test p=1.000. So: 16% faster, and it costs a
+fork and 98 GiB against 84 GiB. The mainline build stays documented as the
+fallback, because a fork is a durability risk and the Q4_0 pack that preceded
+this one was withdrawn from Hugging Face.
+
+**One command runs a stack.** `scripts/local-agent.sh <stack> [opencode|claude]`
+pulls the weights, starts the engine, waits for it to answer, and starts the
+agent. It asks before a download, because two of the three stacks are over 80
+GiB. It reuses an engine that is already listening rather than starting a
+second one on a machine that has room for neither.
+
+**A benchmark refuses a busy machine.** `benchmarks/agent/preflight.py` gates
+a run on an empty GPU, and `--allow-contended` is the only way past it. Every
+measurement before this one was taken on trust that nothing else was resident.
+
+**Releases are gated.** `scripts/check_release_version.py` refuses a tag that
+disagrees with any declared version. `scripts/release_notes.py` refuses a
+version with no section in this file. Both run on the tag push, before
+anything is published. Notes are generated from here and never written into a
+tag message — backticks in `git tag -m` are expanded by the shell, which
+deletes text silently.
+
+**Entries from here on carry a `## vX.Y.Z` heading.** The 1600 lines below
+predate versioning and were left exactly as they were.
+
+---
+
 **2026-09-07, overnight. A null upstream nobody else measured, a position bias
 big enough to fake it, and two claims of my own withdrawn.**
 

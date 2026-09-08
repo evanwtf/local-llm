@@ -1841,3 +1841,55 @@ tests skips. CI was green on the branch that carried the 90 rows. See #218.
 The instruction that caused this was mine, given to a peer, and the peer
 followed it exactly and verified the union carefully. A merge rule for a data
 file has to name what may be *missing on purpose*, or it is not a rule.
+
+---
+
+## Cutting a release (2026-09-07)
+
+`v1.0.0` is the first tagged release. The procedure is four steps, and two of
+them are enforced by a gate that runs on the tag push:
+
+```sh
+# 1. bump the version
+$EDITOR pyproject.toml                       # version = "X.Y.Z"
+
+# 2. write the section BEFORE tagging
+$EDITOR docs/changelog.md                    # ## vX.Y.Z — YYYY-MM-DD
+
+# 3. land it
+uv run pytest -q && git commit && git push
+
+# 4. tag, and nothing else
+git tag -a vX.Y.Z -m "vX.Y.Z" && git push --tags
+```
+
+**Never write release notes into the tag message.** `git tag -m` runs its
+argument through the shell, so backticks are expanded and the text they
+surround is deleted with no error. This repo's prose is full of backticks —
+every model name, every path, every flag. `.github/workflows/release.yml`
+generates the notes from `docs/changelog.md` instead, and a test asserts the
+workflow keeps using `--notes-file`.
+
+**Two gates refuse a bad release rather than warning about one:**
+
+- `scripts/check_release_version.py vX.Y.Z` refuses a tag that disagrees with
+  any declared version. It *finds* the declarations — `pyproject.toml` today,
+  plus any `__version__` — rather than reading a hard-coded list, so a second
+  declaration added later cannot silently escape the check.
+- `scripts/release_notes.py vX.Y.Z` refuses a version with no section in the
+  changelog. An empty release note is worse than a missing release: it reads
+  as trivial work rather than undocumented work.
+
+`tests/test_release.py` weights the **negative** cases, because these scripts
+run unattended and refusing correctly is the whole job. A gate that passes
+everything looks exactly like a gate that works.
+
+**Two drift guards run on every commit, not just on a tag.** One asserts the
+version declared in `pyproject.toml` already has a changelog section, so a
+bump without notes fails at the commit that made it rather than at the tag
+push a day later. The other asserts the workflow still calls both scripts — a
+workflow that stops calling a gate has deleted it, and nothing else notices.
+
+Entries in `docs/changelog.md` carry a `## vX.Y.Z` heading from v1.0.0 onward.
+The ~1600 lines below that section predate versioning; they are delimited by
+bold date lines and were left alone.
