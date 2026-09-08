@@ -57,6 +57,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import itertools
 import json
 import logging
 import math
@@ -295,7 +296,7 @@ def sweep_windows(run_dir: pathlib.Path) -> list[Sweep] | None:
         # after the next start means the file is corrupt or two runs are
         # interleaved into one directory, and under [start, own finish] it
         # silently misassigns rows to the wrong arm. Refuse rather than guess.
-        for a, b in zip(sweeps, sweeps[1:]):
+        for a, b in itertools.pairwise(sweeps):
             if a.finish is not None and a.finish >= b.start:
                 logger.error(
                     "sweep %s finishes %s at or after %s starts %s; "

@@ -227,7 +227,9 @@ def main(argv: list[str] | None = None) -> int:
     # must agree. Load all backend rows, select by head, then verify the cut
     # picks the same set. A disagreement means the run's identity is
     # ambiguous -- VOID, not a preference.
-    all_rows = rep.load_raw(args.ledger, rep.BACKENDS, dt.datetime.min)
+    all_rows = rep.load_raw(
+        args.ledger, rep.BACKENDS, dt.datetime.min.replace(tzinfo=dt.UTC)
+    )
     raw = head_rows(all_rows, head)
     cut_rows = rep.load_raw(args.ledger, rep.BACKENDS, cut)
     if _key_multiset(raw) != _key_multiset(cut_rows):

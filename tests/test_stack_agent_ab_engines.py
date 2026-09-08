@@ -110,7 +110,9 @@ def test_it_parses(script: pathlib.Path) -> None:
     shell = (
         "bash" if not first.startswith("#!") else first.removeprefix("#!").split()[-1]
     )
-    done = subprocess.run([shell, "-n", str(script)], capture_output=True, text=True)
+    done = subprocess.run(
+        [shell, "-n", str(script)], capture_output=True, text=True, check=False
+    )
     assert done.returncode == 0, done.stderr
 
 
