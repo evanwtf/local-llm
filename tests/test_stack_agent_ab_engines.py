@@ -38,8 +38,22 @@ def _mlx_branch() -> str:
 
 @pytest.mark.parametrize("script", [AB, LIB])
 def test_it_parses(script: pathlib.Path) -> None:
-    # A syntax error here is discovered eight sweeps into a six-hour run.
-    done = subprocess.run(["sh", "-n", str(script)], capture_output=True, text=True)
+    """A syntax error here is discovered eight sweeps into a six-hour run.
+
+    Check it with the interpreter the file actually runs under. The first
+    version used `sh -n` on a `#!/usr/bin/env bash` script: on macOS `sh` is
+    permissive enough to accept a bash array, on the Linux runner `sh` is dash
+    and rejected `ds4_files=()` at line 136. CI went red for four commits and
+    the script was never at fault -- the checker was.
+
+    lib/*.sh carry no shebang because they are sourced, never executed; they
+    are sourced BY a bash script, so bash is their interpreter too.
+    """
+    first = script.read_text().split("\n", 1)[0]
+    shell = (
+        "bash" if not first.startswith("#!") else first.removeprefix("#!").split()[-1]
+    )
+    done = subprocess.run([shell, "-n", str(script)], capture_output=True, text=True)
     assert done.returncode == 0, done.stderr
 
 
