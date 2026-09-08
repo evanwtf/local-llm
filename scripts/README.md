@@ -78,6 +78,7 @@ documentation.
 | `install-metal-ceiling.sh` | Persist the Metal wired limit across reboots. |
 | `local-agent.sh` | Start a recommended local stack and drop into a coding agent. |
 | `metal_knob_ab.sh` | Paired decode-rate A/B for a Metal knob env var within one tree (#162 Task 4). |
+| `mtp_treatment_gate.sh` | Prove the MTP refusal fires, then take rows that carry the treatment (#210). |
 | `restart_between_trials.sh` | Restart-between-trials experiment for #112. |
 | `restart_between_trials_armB.sh` | 77 arm B re-run under restart-between-trials (2026-09-03). |
 | `route_agent_ab.sh` | Interleaved agent-suite A/B for the Metal 4 TensorOps route (#149). |
