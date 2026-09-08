@@ -122,6 +122,15 @@ assert_graph() {
     fi
 }
 
+# #210 step 1: "counters_requested is never false on a row that claims MTP".
+# The field reads this process's environment and `counters_on` reads the
+# server's argv, so a server started with --mtp-timing alone writes
+# `counters_requested: false, counters_on: true` -- and #210's own body reads
+# a false there as "accepted: 0 means not measured". On this run it means
+# measured and zero, which is the opposite. Export it so the two agree and
+# the row needs no footnote.
+export DS4_MTP_TIMING=1
+
 PREFLIGHT="$REPO/benchmarks/agent/preflight.py"
 if ! (cd "$REPO" && uv run python "$PREFLIGHT" --acquire-lock "mtp_treatment_gate.sh $STAGE (#210)" --owner-pid $$); then
   echo "refusing to start: the machine is claimed by another run" >&2

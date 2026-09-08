@@ -9,6 +9,7 @@ nothing here to drift from.
 
 ## The queue — 5 P0, 4 P1
 
+Open on this platform: 5 P0, 4 P1, 48 P2, 12 P3.
 One runs at a time; the lock enforces it.
 
 1. **P0 [#151](https://github.com/evanwtf/local-llm/issues/151)** ivanfioravanti on an M5 Max: MTPLX 25 t/s vs ds4 18 t/s on Qwen3.8-Flash-Next -- and ds4 chat has no MTP at all

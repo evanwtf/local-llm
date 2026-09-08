@@ -39,7 +39,10 @@ logger = logging.getLogger(__name__)
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
 TARGET = REPO_ROOT / "NEXT.md"
 PLATFORM = "macOS"
+# The two that make the queue, and the two that do not. Both counts belong
+# in the file: "5 P0" means nothing without "and 55 P2 behind them".
 PRIORITIES = ("P0", "P1")
+ALL_PRIORITIES = ("P0", "P1", "P2", "P3")
 
 # Above these, the labels have stopped ranking. The operator whittles; this
 # only says so, loudly, in the file and on stderr.
@@ -83,10 +86,25 @@ def fetch(limit: int = 300) -> list[dict]:
     return json.loads(out.stdout)
 
 
-def priority(issue: dict) -> str | None:
+def priority(issue: dict, among: tuple[str, ...] = PRIORITIES) -> str | None:
     """The one priority label, or None. Two is a defect, not a tie to break."""
-    found = sorted({lab["name"] for lab in issue["labels"]} & set(PRIORITIES))
+    found = sorted({lab["name"] for lab in issue["labels"]} & set(among))
     return found[0] if len(found) == 1 else None
+
+
+def counts(issues: list[dict]) -> dict[str, int]:
+    """How many open issues sit at each priority, including the unqueued.
+
+    `unlabelled` is here because it is the failure this repo keeps having:
+    nine issues filed across two days in September 2026 carried no priority
+    at all, so they were invisible to every query the queue runs on.
+    """
+    out = {p: 0 for p in ALL_PRIORITIES}
+    out["unlabelled"] = 0
+    for issue in issues:
+        p = priority(issue, ALL_PRIORITIES)
+        out[p if p else "unlabelled"] += 1
+    return out
 
 
 def by_priority(issues: list[dict]) -> dict[str, list[dict]]:
@@ -191,9 +209,19 @@ def render(issues: list[dict]) -> tuple[str, list[str]]:
     for w in warnings:
         lines += [f"> ⚠️ **{w}**", ""]
 
+    tally = counts(issues)
+    unlabelled = (
+        f", **{tally['unlabelled']} with no priority label**"
+        if tally["unlabelled"]
+        else ""
+    )
     lines += [
         f"## The queue — {len(buckets['P0'])} P0, {len(buckets['P1'])} P1",
         "",
+        (
+            f"Open on this platform: {tally['P0']} P0, {tally['P1']} P1, "
+            f"{tally['P2']} P2, {tally['P3']} P3{unlabelled}."
+        ),
         "One runs at a time; the lock enforces it.",
         "",
     ]

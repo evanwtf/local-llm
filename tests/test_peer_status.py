@@ -18,6 +18,7 @@ sys.path.insert(
 )
 
 import peer_status
+from lib import peer_state
 
 
 def test_summary_counts_signals():
@@ -121,3 +122,35 @@ def test_diff_orders_issues_numerically():
         "issue #39: 0 -> 1 comments",
         "issue #112: 0 -> 1 comments",
     ]
+
+
+# --- the NEXT.md parse, against the real file (#231) -------------------------
+
+
+def test_next_top10_parses_the_committed_file():
+    """This broke silently on 2026-09-08 and nothing failed.
+
+    NEXT.md became generated, its heading changed from `## The top 10` to
+    `## The queue -- 5 P0, 4 P1`, and its items gained a priority prefix.
+    `next_top10()` matched neither, returned [], and `peer_status` reported
+    "#39: 19 -> 0 comments" for the entire queue -- a peer comment on any of
+    them would have been invisible. Every existing test stubbed the function,
+    so the suite stayed green.
+
+    Parsing the real file is the only version of this test that would have
+    caught it.
+    """
+    items = peer_state.next_top10()
+    assert items, "next_top10() found nothing in the committed NEXT.md"
+    assert [i["rank"] for i in items] == list(range(1, len(items) + 1))
+    assert all(i["issue"] > 0 for i in items)
+    assert all(i["title"] for i in items)
+    assert all(i["priority"] in ("P0", "P1") for i in items)
+
+
+# The staleness comparison -- parsed file against the live P0/P1 labels --
+# deliberately does NOT live here. It needs the GitHub API, and open_p0p1()
+# returns [] on failure by design, so as a test it would pass green whenever
+# the network was down: a skipping test wearing a passing test's clothes.
+# scripts/make_next.py --check makes the same comparison, in CI, where a
+# network failure is visible as a failure.
