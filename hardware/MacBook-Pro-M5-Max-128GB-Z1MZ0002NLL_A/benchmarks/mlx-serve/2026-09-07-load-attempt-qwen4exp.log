@@ -1,0 +1,97 @@
+start 21:22:31
+[mem] MLX buffer-pool cap 8192 MB (was 124518 MB)
+[gguf] engine: llama (arch=qwen4exp, ds4-lora=false)
+[llama] backend: Metal, model: /Users/evanhoffman/models/qwen3.8-flash-next-ds4-q4k-imatrix/Qwen3.8-Flash-Next-Q4KImatrixExperts-MXFP4Down-BF16Emb-BF16Control-Q8GDN-Q8QSA-Q8Shared-Q8Out.gguf
+ggml_metal_device_init: testing tensor API for f16 support
+ggml_metal_library_compile_pipeline: compiling pipeline: base = 'dummy_kernel', name = 'dummy_kernel'
+ggml_metal_library_compile_pipeline: loaded dummy_kernel                                  0x1046ce550 | th_max = 1024 | th_width =   32
+ggml_metal_device_init: testing tensor API for bfloat support
+ggml_metal_library_compile_pipeline: compiling pipeline: base = 'dummy_kernel', name = 'dummy_kernel'
+ggml_metal_library_compile_pipeline: loaded dummy_kernel                                  0x1046ce550 | th_max = 1024 | th_width =   32
+ggml_metal_library_init: using embedded metal library
+ggml_metal_library_init: loaded in 6.717 sec
+ggml_metal_rsets_init: creating a residency set collection (keep_alive = 180 s)
+ggml_metal_device_init: GPU name:   MTL0 (Apple M5 Max)
+ggml_metal_device_init: GPU family: MTLGPUFamilyApple10  (1010)
+ggml_metal_device_init: GPU family: MTLGPUFamilyCommon3 (3003)
+ggml_metal_device_init: GPU family: MTLGPUFamilyMetal4  (5002)
+ggml_metal_device_init: simdgroup reduction   = true
+ggml_metal_device_init: simdgroup matrix mul. = true
+ggml_metal_device_init: has unified memory    = true
+ggml_metal_device_init: has bfloat            = true
+ggml_metal_device_init: has tensor            = true
+ggml_metal_device_init: use residency sets    = true
+ggml_metal_device_init: use shared buffers    = true
+ggml_metal_device_init: recommendedMaxWorkingSetSize  = 120259.08 MB
+llama_model_loader: loaded meta data with 55 key-value pairs and 1223 tensors from /Users/evanhoffman/models/qwen3.8-flash-next-ds4-q4k-imatrix/Qwen3.8-Flash-Next-Q4KImatrixExperts-MXFP4Down-BF16Emb-BF16Control-Q8GDN-Q8QSA-Q8Shared-Q8Out.gguf (version GGUF V3 (latest))
+llama_model_loader: Dumping metadata keys/values. Note: KV overrides do not apply in this output.
+llama_model_loader: - kv   0:                       general.architecture str              = qwen4exp
+llama_model_loader: - kv   1:                               general.type str              = model
+llama_model_loader: - kv   2:                               general.name str              = Qwen3.8-Flash-Next Q40Routed (convert...
+llama_model_loader: - kv   3:                          general.alignment u32              = 32
+llama_model_loader: - kv   4:                       qwen4exp.block_count u32              = 48
+llama_model_loader: - kv   5:                    qwen4exp.context_length u32              = 262144
+llama_model_loader: - kv   6:                  qwen4exp.embedding_length u32              = 2560
+llama_model_loader: - kv   7:                        qwen4exp.vocab_size u32              = 248320
+llama_model_loader: - kv   8:              qwen4exp.attention.head_count u32              = 24
+llama_model_loader: - kv   9:           qwen4exp.attention.head_count_kv u32              = 2
+llama_model_loader: - kv  10:              qwen4exp.attention.key_length u32              = 256
+llama_model_loader: - kv  11:            qwen4exp.attention.value_length u32              = 256
+llama_model_loader: - kv  12:  qwen4exp.attention.layer_norm_rms_epsilon f32              = 0.000001
+llama_model_loader: - kv  13:      qwen4exp.attention.indexer.head_count u32              = 4
+llama_model_loader: - kv  14:      qwen4exp.attention.indexer.key_length u32              = 128
+llama_model_loader: - kv  15:           qwen4exp.attention.indexer.top_k u32              = 2048
+llama_model_loader: - kv  16:                      qwen4exp.expert_count u32              = 512
+llama_model_loader: - kv  17:                 qwen4exp.expert_used_count u32              = 10
+llama_model_loader: - kv  18:        qwen4exp.expert_feed_forward_length u32              = 640
+llama_model_loader: - kv  19: qwen4exp.expert_shared_feed_forward_length u32              = 640
+llama_model_loader: - kv  20:                   qwen4exp.ssm.conv_kernel u32              = 4
+llama_model_loader: - kv  21:                    qwen4exp.ssm.state_size u32              = 128
+llama_model_loader: - kv  22:                   qwen4exp.ssm.group_count u32              = 16
+llama_model_loader: - kv  23:                qwen4exp.ssm.time_step_rank u32              = 48
+llama_model_loader: - kv  24:                    qwen4exp.ssm.inner_size u32              = 6144
+llama_model_loader: - kv  25:           qwen4exp.full_attention_interval u32              = 4
+llama_model_loader: - kv  26:            qwen4exp.hyper_connection.count u32              = 4
+llama_model_loader: - kv  27:         qwen4exp.hyper_connection.low_rank u32              = 320
+llama_model_loader: - kv  28:              qwen4exp.rope.dimension_count u32              = 64
+llama_model_loader: - kv  29:                    qwen4exp.rope.freq_base f32              = 10000000.000000
+llama_model_loader: - kv  30:         qwen4exp.attention.compress_ratios arr[u64,48]      = [0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, ...
+llama_model_loader: - kv  31:                        qwen4exp.ple.layers arr[u64,1]       = [1]
+llama_model_loader: - kv  32:                    qwen4exp.ple.ngram_size u32              = 3
+llama_model_loader: - kv  33:               qwen4exp.ple.heads_per_ngram u32              = 8
+llama_model_loader: - kv  34:                   qwen4exp.ple.conv_kernel u32              = 4
+llama_model_loader: - kv  35:                  qwen4exp.ple.eos_token_id u32              = 248044
+llama_model_loader: - kv  36:  qwen4exp.embedding_length_per_layer_input u32              = 160
+llama_model_loader: - kv  37:                          qwen4exp.ple.seed u32              = 1234
+llama_model_loader: - kv  38:                    qwen4exp.ple.vocab_base u32              = 20000000
+llama_model_loader: - kv  39:                 qwen4exp.ple.vocab_divisor u32              = 128
+llama_model_loader: - kv  40:                     qwen4exp.ple.row_count u32              = 320001536
+llama_model_loader: - kv  41:                 qwen4exp.ple.row_dimension u32              = 160
+llama_model_loader: - kv  42:             qwen4exp.ple.layer_multipliers arr[u64,3]       = [23703573157769, 20109073645365, 8052...
+llama_model_loader: - kv  43:                  qwen4exp.ple.head_offsets arr[u64,16]      = [0, 20000003, 40000026, 60000059, 800...
+llama_model_loader: - kv  44:              qwen4exp.ple.head_vocab_sizes arr[u64,16]      = [20000003, 20000023, 20000033, 200000...
+llama_model_loader: - kv  45:                       tokenizer.ggml.model str              = gpt2
+llama_model_loader: - kv  46:                         tokenizer.ggml.pre str              = qwen35
+llama_model_loader: - kv  47:                      tokenizer.ggml.tokens arr[str,248320]  = ["!", "\"", "#", "$", "%", "&", "'", ...
+llama_model_loader: - kv  48:                  tokenizer.ggml.token_type arr[i32,248320]  = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, ...
+llama_model_loader: - kv  49:                      tokenizer.ggml.merges arr[str,247587]  = ["Ġ Ġ", "ĠĠ ĠĠ", "i n", "Ġ t",...
+llama_model_loader: - kv  50:                tokenizer.ggml.eos_token_id u32              = 248046
+llama_model_loader: - kv  51:            tokenizer.ggml.padding_token_id u32              = 248044
+llama_model_loader: - kv  52:                tokenizer.ggml.bos_token_id u32              = 248044
+llama_model_loader: - kv  53:               tokenizer.ggml.add_bos_token bool             = false
+llama_model_loader: - kv  54:                    tokenizer.chat_template str              = {%- set image_count = namespace(value...
+llama_model_loader: - type  f32:  461 tensors
+llama_model_loader: - type  f16:  290 tensors
+llama_model_loader: - type q8_0:  327 tensors
+llama_model_loader: - type q4_K:   96 tensors
+llama_model_loader: - type bf16:    1 tensors
+llama_model_loader: - type mxfp4:   48 tensors
+print_info: file format = GGUF V3 (latest)
+print_info: file type   = (guessed) all F32
+print_info: file size   = 68.32 GiB (4.67 BPW) 
+llama_model_load: error loading model: unknown model architecture: 'qwen4exp'
+llama_model_load_from_file_impl: failed to load model
+[llama] open failed: llama_model_load_from_file failed (model=/Users/evanhoffman/models/qwen3.8-flash-next-ds4-q4k-imatrix/Qwen3.8-Flash-Next-Q4KImatrixExperts-MXFP4Down-BF16Emb-BF16Control-Q8GDN-Q8QSA-Q8Shared-Q8Out.gguf)
+[llama] engine open failed: EngineOpenFailed
+error: EngineOpenFailed
+exit=1 21:22:38

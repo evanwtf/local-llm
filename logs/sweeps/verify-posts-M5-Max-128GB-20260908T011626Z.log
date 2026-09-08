@@ -1,0 +1,9 @@
+2026-09-07 21:16:26,315 INFO [f4b65e1@M5-Max-128GB] 2026-09-08T01:16:26Z (21:16:26 EDT) | harness f4b65e1
+2026-09-07 21:16:26,337 INFO [f4b65e1@M5-Max-128GB]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-07 21:16:26,478 INFO [f4b65e1@M5-Max-128GB] 2097091937023205669  VERIFIED post  @Beamsters1  Mon Sep 07 22:37:34 +0000 2026  via fxtwitter
+2026-09-07 21:16:26,478 INFO [f4b65e1@M5-Max-128GB]     Qwen3.8-Flash-Next's "Local" flappy bird clone. Clean graphic, perfectly playable and served from your machine.   Total time: 221.4s on M5 Max and MLX-Serve at main branch. 27 requests, 18,358 generat
+2026-09-07 21:16:26,478 INFO [f4b65e1@M5-Max-128GB] 
+2026-09-07 21:16:26,478 INFO [f4b65e1@M5-Max-128GB] Verified 1: 1 confirmed, 0 not.
+2026-09-07 21:16:26,478 INFO [f4b65e1@M5-Max-128GB] Paste onto the issue:
+2026-09-07 21:16:26,478 INFO [f4b65e1@M5-Max-128GB]   **Verified** 2026-09-08: post exists, authored by @Beamsters1, posted Mon Sep 07 22:37:34 +0000 2026.
+2026-09-07 21:16:26,478 INFO [f4b65e1@M5-Max-128GB] log: /Users/evanhoffman/git/local-llm/logs/sweeps/verify-posts-M5-Max-128GB-20260908T011626Z.log
