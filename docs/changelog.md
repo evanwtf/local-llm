@@ -24,6 +24,39 @@ picks in `RECOMMENDATIONS.md`, and the current queue in `NEXT.md`.
 
 ---
 
+## v1.0.1 — 2026-09-07
+
+Three defects in the release machinery v1.0.0 shipped, all found by using it.
+
+**Release notes no longer swallow the changelog.** `scripts/release_notes.py`
+ended a section at the next `##` heading. There was no next `##` heading — the
+~1590 lines below v1.0.0 predate versioning — so the notes for a six-paragraph
+release came out at 102,607 bytes. A section now ends at a `---` as well, and a
+test asserts against the real file that the notes stay under 8 KB. Note what
+the gate did while this was wrong: it passed. Non-empty output and exit 0 are
+indistinguishable from success, which is the failure mode a gate is supposed to
+be immune to.
+
+**The release workflow could not start.** `${{ runner.temp }}` in a
+workflow-level `env:` refers to a context that does not exist there; only a
+step has it. This is not a readable error — GitHub creates the run, fails it
+with *"This run likely failed because of a workflow file issue"*, and writes no
+logs, so `gh run view --log-failed` answers `log not found`. `UV_CACHE_DIR` now
+comes from a step that appends to `$GITHUB_ENV`, the way `test.yml` has always
+set it, and a test walks every workflow's YAML to keep `runner.` under a step.
+
+**The changelog was two files in one.** Everything before v1.0.0 moved to
+[`history.md`](history.md), byte-identical. `changelog.md` holds releases and
+nothing else. Four tests hold the split: a pre-1.0 entry here fails, a version
+heading there fails, an entry dated after the split there fails, and a section
+that does not end before the next one fails. Each was checked against a
+synthetic violation, so none of them is green by vacuity.
+
+v1.0.0's release notes were published by hand, because the workflow that should
+have written them could not start. This is the first release it cuts itself.
+
+---
+
 ## v1.0.0 — 2026-09-07
 
 The first tagged release. It marks the point where the three recommended
