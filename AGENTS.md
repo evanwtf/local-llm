@@ -1411,6 +1411,45 @@ Related, from a waiting shell: **do not poll
 `pgrep -f 'benchmarks/agent/run.py'`**. The waiter's own command line matches
 the pattern, so the loop never exits.
 
+## ds4's Qwen MTP runs only at temperature 0, and clients send no temperature (2026-09-08)
+
+`ds4_session_eval_speculative()` splits on temperature in its first statement:
+at `temperature <= 0.0f` it enters the Qwen MTP path
+(`ds4.c:80120 at ds4-metal ba01f5d`); above zero a Qwen session is neither GLM
+nor DSpark, so it does one plain eval and returns
+(`ds4.c:80216 at ds4-metal ba01f5d`). A request with no `temperature` field
+gets `DS4_DEFAULT_TEMPERATURE`, which is `1.0f`
+(`ds4.h:56 at ds4-metal ba01f5d`, `ds4_server.c:12734 at ds4-metal ba01f5d`).
+
+**OpenCode sends no temperature.** So every MTP arm this project has run
+through an agent client passed the flags, loaded the sidecar, reported
+`state=ready draft=7` — and never speculated. 119 rows.
+
+The silence is total rather than partial, and that is the tell. The timing
+print is not conditional on success: even a turned-away cycle prints
+`verifier=scheduler-bypass` (`ds4.c:78942 at ds4-metal ba01f5d`), and `timing`
+is true from `--mtp-timing` alone (`ds4.c:78920 at ds4-metal ba01f5d`).
+**Zero timing lines means the call was never reached, not that it ran and
+failed.** A single line, even a bypass line, means the opposite.
+
+Two things follow for any run:
+
+- **An MTP arm must pin `temperature: 0` on the client**, or it is not an MTP
+  arm. `run.py --require-draft` refuses one that is not (#210), and that gate
+  fired on a trial that otherwise **passed** — 16 tests green, wall time
+  ordinary, nothing in the row saying the treatment was absent.
+- **Pinning temperature is itself a change of regime**, so a greedy-MTP arm
+  needs a greedy-plain arm beside it. Otherwise a win is unattributable
+  between speculation and greedy decoding.
+
+Two published readings were withdrawn when this was found, both from correct
+logs and an inference that did not follow: that the
+`Qwen MTP history frontier short` aborts showed speculation entered and
+abandoned (the line also prints from the ordinary forward pass,
+`ds4.c:56588 at ds4-metal ba01f5d`), and that the tool-free/tool-bearing
+separation tracked prompt size (an 11,000-token prompt speculates normally at
+temperature 0).
+
 ## MTP is not a speed-only flag (2026-09-03)
 
 ds4's defaults do **not** preserve the sampling distribution: without

@@ -216,17 +216,33 @@ and then emitted **not one MTP timing line** across the thirty agent trials.
 Not zero acceptance, and not the `verifier=scheduler-bypass` a turned-away
 cycle prints: no line at all.
 
-It is not that the engine declines to try. The batch carries 42 and 26
-`Qwen MTP history frontier short` aborts, printed at `ds4.c:56206 at ds4-metal ba01f5d` immediately before a `return false` — inside the
-speculative path and ahead of every site that prints a timing line. The
-speculation is entered and abandoned when the MTP KV history has fallen behind
-the committed frontier. The server-side gate at `ds4_server.c:12764 at ds4-metal ba01f5d` tests
-batched mode, the draft depth and an environment variable; it does **not** test
-for a tool schema. The separation #151 saw between tool-bearing and tool-free
-requests tracks prompt **size** — 11k-19k tokens here against 11-89 at
-start-up — which a tool schema inflates but does not uniquely cause
-([#151](https://github.com/evanwtf/local-llm/issues/151)). Whatever separates
-these two rows, no completed draft is part of it.
+**The reason is temperature, and it was found on 2026-09-08.** ds4 reaches
+the Qwen MTP path only when `temperature <= 0.0f`
+(`ds4.c:80120 at ds4-metal ba01f5d`). Above zero a Qwen session is neither GLM
+nor DSpark, so the speculative call does one plain eval and returns
+(`ds4.c:80216 at ds4-metal ba01f5d`). A request that omits the field gets
+`DS4_DEFAULT_TEMPERATURE`, which is `1.0f`
+(`ds4.h:56 at ds4-metal ba01f5d`, `ds4_server.c:12734 at ds4-metal ba01f5d`),
+and **OpenCode sends no temperature**. So the flag is passed, the sidecar
+loads, and the speculative code never runs.
+
+Three replay rounds against the captured OpenCode payload, eight arms each,
+agreed to the cycle: only the arm with `temperature: 0` forced ever
+speculated — 52 cycles each time — against zero for the payload verbatim,
+without tools, without the system prompt, with one tool, with `max_tokens`
+cut, and with `stream_options` removed
+([#151](https://github.com/evanwtf/local-llm/issues/151)).
+
+**Two earlier readings on this page were wrong and are withdrawn.** The
+`Qwen MTP history frontier short` aborts were described here as speculation
+entered and abandoned; the line is printed from `qwen4_graph_forward`
+(`ds4.c:56314 at ds4-metal ba01f5d`, `ds4.c:56588 at ds4-metal ba01f5d`) — the
+ordinary forward pass on an MTP-enabled graph — as well as from the
+speculative implementation (`ds4.c:79189 at ds4-metal ba01f5d`), so it is not
+evidence of either. And the tool-free/tool-bearing separation was attributed
+here to prompt **size**: an 11,000-token prompt speculates normally at
+temperature 0, so size is not the cause either. Both readings came from
+correct logs and an inference that did not follow.
 
 **And the pass gap does not resolve at this size.** Thirty rows against thirty
 are fifteen tasks run twice per arm, not sixty independent trials -- a task
@@ -513,10 +529,20 @@ OpenCode then points at `ds4qwenshim/qwen3.8-flash-next-q4`. The server plans
 **79.7 GiB resident** at `ctx=100000` (68.3 GiB model + 8.4 GiB buffers +
 2.9 GiB KV), which fits the 112 GiB ceiling with room to spare.
 
-**Leave MTP off.** The MTP sidecar exists in the same repo, and
-[#39](https://github.com/evanwtf/local-llm/issues/39) measured what it does to
-this model under an agent: it does not slow decode, it breaks error recovery.
-Every one of ~20 malformed tool calls per sweep failed to recover with MTP on.
+**Leave MTP off**, and know that with these flags alone it was never on.
+The sidecar loads and reports `state=ready draft=7`, but ds4 reaches the Qwen
+MTP path only at `temperature <= 0.0f` (`ds4.c:80120 at ds4-metal ba01f5d`)
+and OpenCode sends no temperature, so the default `1.0f`
+(`ds4.h:56 at ds4-metal ba01f5d`) applies and no draft is ever attempted
+([#151](https://github.com/evanwtf/local-llm/issues/151)). Adding the flags
+buys a heavier server — a second graph, 359.86 MiB of state capture and its
+own `--kv-disk-dir` — and no speculation.
+
+[#39](https://github.com/evanwtf/local-llm/issues/39) measured the arm losing
+pass rate and error recovery. **Do not read that as the cost of speculative
+decoding**; whatever it costs, no draft completed. Turning MTP into a real
+treatment means pinning `temperature: 0` on the client, which is its own
+change to the regime and has not been measured here.
 
 ### Qwen3.8-Flash-Next on llama.cpp — the mainline fallback
 
