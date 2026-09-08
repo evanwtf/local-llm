@@ -212,9 +212,16 @@ restart_server() {
     # shellcheck disable=SC2086
     ( mlx-serve --model "$mlx_model" --serve \
         --host 127.0.0.1 --port "$mlx_port" \
-        --ctx-size 100000 $flags > "$OUT/server-$tag.log" 2>&1 & )
+        --ctx-size 100000 --kv-quant off $flags > "$OUT/server-$tag.log" 2>&1 & )
+    # --model is REQUIRED by wait_ready.py and the served id is the pack's
+    # directory name. Omitting it does not fail loudly: argparse exits 2, the
+    # `| tail -1` swallows the status, and the harness proceeds WITHOUT
+    # waiting -- so the first trials of every sweep would hit a server still
+    # paging in 100 GiB and record 503s as failed rows. That is the failure
+    # wait_ready.py's own docstring was written for.
     ( cd "$REPO" && uv run python benchmarks/agent/wait_ready.py \
-        --base-url "http://127.0.0.1:$mlx_port" | tail -1 )
+        --base-url "http://127.0.0.1:$mlx_port" \
+        --model "$(basename "$mlx_model")" | tail -1 )
     ;;
   *)
     echo "REFUSING: unknown engine '$engine' for $tag (ds4|mlx-serve)" >&2
@@ -294,7 +301,13 @@ echo "harness pinned at $HARNESS_HEAD for all $((SWEEPS * 2)) sweeps" \
 # script. Armed here rather than at the top, so a run that refuses to start --
 # no shim, dirty harness, missing gguf -- does not tear down a server it never
 # owned and somebody else may be using.
-ds4_arm_stop_trap
+# ONE trap, not two. Chaining them looks right and is not: ds4_stop_on_exit
+# does `trap - EXIT INT TERM` and then `exit "$status"`, so it terminates the
+# shell before any handler chained after it can run. Arming both left
+# mlx-serve -- ~85 GiB resident -- unstopped on every normal exit, which is
+# precisely the #145 leak this change existed to prevent, for a bigger engine.
+#
+# mlx_serve_stop_on_exit stops BOTH engines, so it is the only one armed.
 mlx_serve_arm_stop_trap
 
 if [ $((SWEEPS % 2)) -ne 0 ]; then
@@ -327,6 +340,7 @@ for n in $(seq 1 "$SWEEPS"); do
   sweep "$second_tag" "$n" "$second_backend" "$second_run_flags" "$second_engine"
 done
 echo "[$(date +%H:%M:%S)] all $((SWEEPS * 2)) sweeps complete under $OUT"
-# The teardown itself is the EXIT trap's job -- see ds4_arm_stop_trap above.
+# The teardown itself is the EXIT trap's job -- see mlx_serve_arm_stop_trap
+# above, which stops both engines.
 # Until 2026-09-06 this line was the end of the script and the last arm's
 # server stayed resident, holding 97.9 GiB, on four consecutive clean runs.

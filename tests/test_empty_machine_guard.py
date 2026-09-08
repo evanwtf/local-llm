@@ -259,13 +259,27 @@ def test_every_engine_the_repo_can_run_is_in_the_inference_tuple() -> None:
         )
 
 
+# The format `parse_ps` actually reads: `ps -eo pid,rss,etime,command`, header
+# included. A listing without the ELAPSED header is refused, not parsed.
+_PS_MLX_SERVE = (
+    "  PID    RSS  ELAPSED COMMAND\n"
+    "12345 89128960 01:23:45 mlx-serve --model "
+    "/Users/x/.mlx-serve/models/ddalcu/Qwen3.8-Flash-Next-MLX-Serve-mixed-4-8bit "
+    "--serve --host 127.0.0.1 --port 11234\n"
+)
+
+
 def test_a_stale_mlx_serve_is_seen_by_the_parser() -> None:
-    """The concrete case: a leftover mlx-serve must not read as an empty machine."""
-    line = (
-        "  501 12345  99.0 102400000 mlx-serve --model "
-        "/Users/x/.mlx-serve/models/ddalcu/Qwen3.8-Flash-Next-MLX-Serve-mixed-4-8bit "
-        "--serve --port 11234"
-    )
-    assert any(name in line for name in preflight.INFERENCE), (
-        "a running mlx-serve does not match any INFERENCE substring"
+    """A leftover mlx-serve must not read as an empty machine.
+
+    The first version of this test asserted `any(name in line for name in
+    INFERENCE)` against a raw string. That cannot fail for the thing it claims:
+    it never called `parse_ps`, so it would have passed with the parser
+    completely broken, and its synthetic line was not even in the format
+    `parse_ps` reads. Call the parser.
+    """
+    got = preflight.parse_ps(_PS_MLX_SERVE)
+    assert got, "parse_ps returned nothing for a running mlx-serve"
+    assert any("mlx-serve" in str(p) for p in got), (
+        f"parse_ps did not identify mlx-serve in {got!r}"
     )
