@@ -236,7 +236,7 @@ def test_every_log_line_carries_commit_and_machine(caplog):
 
 def test_the_log_format_includes_both():
     source = pathlib.Path(provenance.__file__).read_text()
-    assert "[%(harness)s@%(machine)s pld=%(pld)s]" in source
+    assert "[%(harness)s@%(machine)s %(engine)s pld=%(pld)s]" in source
 
 
 def test_the_filename_names_the_machine_too():

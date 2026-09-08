@@ -129,6 +129,7 @@ def machine_slug() -> str:
 #: probe per ten seconds instead of one per log line.
 _PLD_TTL_SECONDS = 10.0
 _pld_cache: tuple[float, str] | None = None
+_engine_cache: tuple[float, str] | None = None
 
 
 def pld_now() -> str:
@@ -157,6 +158,28 @@ def pld_now() -> str:
     return state
 
 
+def engine_now() -> str:
+    """The resident engine build, as "<name>/<sha-or-version>".
+
+    Same TTL as the draft path and for the same reason: an A/B restarts the
+    server between sweeps, and a permanently cached reading would name the
+    first arm's build on every line of the run.
+    """
+    global _engine_cache
+    now = time.monotonic()
+    if _engine_cache is not None and now - _engine_cache[0] < _PLD_TTL_SECONDS:
+        return _engine_cache[1]
+    try:
+        sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+        import engine_identity
+
+        got = engine_identity.running_engine()
+    except Exception:  # noqa: BLE001 -- a stamp must never take a run down
+        got = "unknown"
+    _engine_cache = (now, got)
+    return got
+
+
 class _Stamp(logging.Filter):
     """Attach the harness commit, the machine and the draft path to a record."""
 
@@ -168,6 +191,7 @@ class _Stamp(logging.Filter):
         record.harness = self.value
         record.machine = machine_slug()
         record.pld = pld_now()
+        record.engine = engine_now()
         return True
 
 
@@ -186,7 +210,7 @@ def configure(
     logging.basicConfig(
         level=level,
         stream=stream or sys.stdout,
-        format=f"%(asctime)s {name}%(levelname)s [%(harness)s@%(machine)s pld=%(pld)s] %(message)s",
+        format=f"%(asctime)s {name}%(levelname)s [%(harness)s@%(machine)s %(engine)s pld=%(pld)s] %(message)s",
         force=True,
     )
     for handler in logging.getLogger().handlers:

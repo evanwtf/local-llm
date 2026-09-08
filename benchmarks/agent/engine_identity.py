@@ -51,7 +51,11 @@ ENGINES: dict[str, dict[str, str]] = {
     "llama.cpp": {"binary_rel": "build/bin/llama-server"},
     "ollama": {"binary": "ollama"},
     "mtplx": {"binary": "mtplx"},
-    "mlx-serve": {"binary": "mlx-serve"},
+    # mlx-serve is both kinds (#225): a brew install (no tree, `binary`) and a
+    # git checkout built by zig (`binary_rel` is the zig build output). A
+    # tree-based arm must record its own binary's mtime, not the brew one's --
+    # the mtime is the one fact that survives a rebuild from uncommitted code.
+    "mlx-serve": {"binary": "mlx-serve", "binary_rel": "zig-out/bin/mlx-serve"},
 }
 
 
@@ -115,6 +119,64 @@ def pld_state() -> str:
     if argv is None:
         return "n/a"
     return "off" if "--no-pld" in argv else "on"
+
+
+#: The inference servers whose build identity belongs on a log line, in the
+#: order they are looked for. One is resident at a time on this machine.
+RESIDENT = ("mlx-serve", "ds4-server")
+
+
+def _sha_of_tree(path: pathlib.Path) -> str | None:
+    """Short sha of the worktree containing `path`, or None if it is not one."""
+    sha = _git("rev-parse", "--short", "HEAD", cwd=path)
+    if not sha:
+        return None
+    status = _git("status", "--porcelain", cwd=path)
+    return f"{sha}-dirty" if status else sha
+
+
+def running_engine() -> str:
+    """Which engine BUILD is serving right now, as "<name>/<version>".
+
+    Read from the running process's argv[0], not from PATH and not from a
+    config: #225 runs two mlx-serve builds against each other, and a bare
+    `shutil.which` would resolve both arms to the brew binary while the record
+    claimed otherwise. The path the kernel was given is the only thing that
+    cannot be wrong.
+
+    A binary inside a git worktree reports its sha, because that is what
+    identifies a build from source -- `mlx-serve --version` on the PR383 build
+    prints no version string at all. A binary outside one reports the version
+    directory brew installed it under. "none" means nothing is serving, which
+    is a fact worth logging rather than a blank.
+    """
+    for name in RESIDENT:
+        argv = _argv_of(name)
+        if not argv:
+            continue
+        binary = pathlib.Path(argv[0])
+        if not binary.is_absolute():
+            found = shutil.which(binary.name)
+            if not found:
+                return f"{name}/unknown"
+            binary = pathlib.Path(found)
+        resolved = binary.resolve()
+        parts = resolved.parts
+        # Brew FIRST, and this order is the whole correctness of the function.
+        # /opt/homebrew is itself a git checkout, so `git rev-parse` inside the
+        # Cellar answers with HOMEBREW's HEAD: probing git first labelled the
+        # 26.9.1 arm `mlx-serve/08e85c4e42`, a real sha of the wrong repo, while
+        # the source arm reported its own. Two arms both labelled with a sha and
+        # no way to tell which is which is worse than no label at all.
+        if "Cellar" in parts:
+            i = parts.index("Cellar")
+            if len(parts) > i + 2:
+                return f"{name}/{parts[i + 2]}"
+        sha = _sha_of_tree(resolved.parent)
+        if sha:
+            return f"{name}/{sha}"
+        return f"{name}/unknown"
+    return "none"
 
 
 def _default_tree(engine: str) -> pathlib.Path | None:
