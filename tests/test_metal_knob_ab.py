@@ -335,29 +335,38 @@ def test_absolute_out_is_unchanged(tmp_path):
 # merely fewer.
 
 
-def test_the_new_q4_mpp_knobs_carry_a_print_admission_signal():
-    for knob, var, line in (
-        (
-            "q4-mpp-cooperative",
-            "DS4_METAL_ENABLE_Q4_MPP_COOPERATIVE_SOURCE",
-            "Q4 MPP cooperative source enabled",
-        ),
-        (
-            "q4-mpp-payload-reuse",
-            "DS4_METAL_ENABLE_Q4_MPP_PAYLOAD_REUSE",
-            "Metal Q4 MPP payload reuse admitted",
-        ),
-    ):
-        assert mk.admission_signal(knob) == "print", knob
-        assert mk.has_admission_signal(knob), knob
-        assert mk.on_var(knob) == var
-        # Opt-in, default off, so the off arm is the same var set to 0.
-        assert mk.off_var(knob) == var
-        assert mk.admission_pattern(knob) == line
-        # No trace var: the engine prints unprompted. The driver builds the
-        # trace assignment conditionally because `env VAR=1` with an empty VAR
-        # is `=1`, which kills the arm.
-        assert mk.trace_var(knob) == ""
+def test_payload_reuse_carries_a_print_admission_signal():
+    knob = "q4-mpp-payload-reuse"
+    assert mk.admission_signal(knob) == "print"
+    assert mk.has_admission_signal(knob)
+    assert mk.on_var(knob) == "DS4_METAL_ENABLE_Q4_MPP_PAYLOAD_REUSE"
+    # Opt-in, default off, so the off arm is the same var set to 0.
+    assert mk.off_var(knob) == "DS4_METAL_ENABLE_Q4_MPP_PAYLOAD_REUSE"
+    assert mk.admission_pattern(knob) == "Metal Q4 MPP payload reuse admitted"
+    # No trace var: the engine prints unprompted. The driver builds the trace
+    # assignment conditionally because `env VAR=1` with an empty VAR is `=1`,
+    # which kills the arm.
+    assert mk.trace_var(knob) == ""
+
+
+def test_cooperative_source_has_no_signal_because_its_line_is_a_compile_notice():
+    """Both knobs print a line and only one of them means anything.
+
+    cooperative-source prints from the Metal library compile block, on device
+    and env alone -- it says the shader was built with the macro, not that any
+    Q4_K dense matmul took the path. Listing it as an admission print would let
+    a run that never dispatched the kernel once read as verified, which is the
+    exact result this table exists to refuse.
+    """
+    knob = "q4-mpp-cooperative"
+    assert mk.admission_signal(knob) == "none"
+    assert not mk.has_admission_signal(knob)
+    assert mk.admission_print(knob) == ""
+    assert mk.admission_pattern(knob) == ""
+    # So it cannot be measured by accident.
+    with pytest.raises(SystemExit):
+        mk.validate(knob, "1", "0")
+    mk.validate(knob, "1", "0", acknowledge_no_signal=True)
 
 
 def test_print_admission_requires_the_off_arm_to_be_silent():
@@ -399,5 +408,4 @@ def test_counting_an_empty_pattern_is_refused(tmp_path):
 def test_a_print_knob_is_not_refused_for_lacking_a_signal():
     """validate() refuses a knob with no admission signal unless acknowledged.
     A print knob has one, so it must pass without METAL_KNOB_ACK_NO_SIGNAL."""
-    mk.validate("q4-mpp-cooperative", "1", "0")
     mk.validate("q4-mpp-payload-reuse", "1", "0")

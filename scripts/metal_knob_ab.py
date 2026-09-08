@@ -110,18 +110,38 @@ KNOBS: dict[str, dict[str, str | bool]] = {
         "presence": True,
         "trace_var": "DS4_METAL_TRACE_M5_FLASH_ATTN_PACKED32_REDUCE",
     },
-    # ds4#952's two diagnostic opt-ins (c1909040, bbf5a796). Both are gated to
-    # Apple M5 and both announce themselves on stderr exactly once when the
-    # path is admitted, which is a stronger admission signal than either kind
-    # above: the line appears only when the kernel is actually dispatched, so
-    # the off arm must produce none at all rather than merely fewer.
+    # ds4#952's two diagnostic opt-ins (c1909040, bbf5a796), both gated to
+    # Apple M5. They print similar-looking lines and the lines mean different
+    # things, which is the whole reason only one of them carries a signal.
+    #
+    # cooperative-source prints from the Metal library COMPILE block
+    # (ds4_metal.m:7900 at ds4-pr952 ff749b84), beside the tensor-API line and
+    # inside the same `macros[...] = @"1"` stanza. It fires on device and env
+    # alone -- it says the shader was compiled with the macro, not that any
+    # Q4_K dense matmul ever took the path. Treating it as admission would let
+    # a run that never dispatched the kernel once read as verified, which is
+    # the tight-meaningless result this table exists to refuse. So: no signal,
+    # and METAL_KNOB_ACK_NO_SIGNAL is required to measure it.
+    #
+    # There is no dispatch-level signal to use instead. When cooperative is on,
+    # the kernel is swapped by a compile macro rather than selected at the call
+    # site, so nothing prints and nothing counts.
     "q4-mpp-cooperative": {
         "on_var": "DS4_METAL_ENABLE_Q4_MPP_COOPERATIVE_SOURCE",
         "off_var": "DS4_METAL_ENABLE_Q4_MPP_COOPERATIVE_SOURCE",
         "default_on": False,
         "fail_error": "",
-        "admission_print": "Q4 MPP cooperative source enabled",
     },
+    # payload-reuse is the opposite case and does carry a real signal. Its
+    # line comes from ds4_gpu_q4_mpp_payload_reuse_admitted(), called from the
+    # two dispatch sites (ds4_metal.m:23719 and 33273 at ds4-pr952 ff749b84)
+    # under `weight_type == DS4_METAL_TENSOR_Q4_K && !cooperative && enabled`.
+    # It fires only when the path is actually taken, so an off arm that prints
+    # it means the knob did not turn the path off.
+    #
+    # Note that guard's middle term: the two knobs are MUTUALLY EXCLUSIVE.
+    # With cooperative on, payload reuse never engages, so they cannot be
+    # measured together and a combined arm would measure only cooperative.
     "q4-mpp-payload-reuse": {
         "on_var": "DS4_METAL_ENABLE_Q4_MPP_PAYLOAD_REUSE",
         "off_var": "DS4_METAL_ENABLE_Q4_MPP_PAYLOAD_REUSE",
@@ -283,9 +303,13 @@ def trace_var(knob: str) -> str:
 def admission_print(knob: str) -> str:
     """The stderr line the engine prints when this knob is admitted, or ''.
 
-    Not a trace: the engine prints it once, unprompted, when the path is
-    actually dispatched. So it needs no trace var, and its absence in the off
-    arm is meaningful rather than merely smaller.
+    Not a trace: the engine prints it once, unprompted, from the dispatch
+    site. So it needs no trace var, and its absence in the off arm is
+    meaningful rather than merely smaller.
+
+    A line printed from the Metal library compile block does NOT qualify and
+    must not be listed here -- it reports that a macro was set, which is true
+    whether or not a single matmul takes the path. See q4-mpp-cooperative.
     """
     return str(KNOBS[knob].get("admission_print", ""))
 
