@@ -9,12 +9,6 @@ on:
 permissions:
   contents: write
 
-env:
-  # Scope the uv cache to this run. setup-uv's default path accumulates files
-  # across runs that the runner user cannot always read; one sibling job
-  # writing as root is enough to break the next release.
-  UV_CACHE_DIR: ${{ runner.temp }}/uv-${{ github.run_id }}-${{ github.run_attempt }}
-
 jobs:
   release:
     runs-on: [self-hosted, Linux, X64]
@@ -22,6 +16,17 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      # Scope the uv cache to this run: setup-uv's default path accumulates
+      # files across runs that the runner user cannot always read, and one
+      # sibling job writing as root breaks the next release.
+      #
+      # This is a step, not a workflow-level `env:`, because the `runner`
+      # context does not exist there. A workflow-level `${{ runner.temp }}`
+      # is not an error you can see in the file -- the run is created, fails
+      # instantly with "workflow file issue", and has no logs to read.
+      - name: scope the uv cache to this run
+        run: echo "UV_CACHE_DIR=${RUNNER_TEMP}/uv-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_ENV"
 
       - uses: astral-sh/setup-uv@v5
 
@@ -45,8 +50,8 @@ jobs:
       - name: checks
         run: |
           status=0
-          uv run ruff format --check . || status=$?
           uv run pytest -q || status=$?
+          uv run ruff format --check . || status=$?
           exit "$status"
 
       - name: publish

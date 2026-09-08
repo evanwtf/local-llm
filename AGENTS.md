@@ -1890,6 +1890,14 @@ bump without notes fails at the commit that made it rather than at the tag
 push a day later. The other asserts the workflow still calls both scripts — a
 workflow that stops calling a gate has deleted it, and nothing else notices.
 
+**`${{ runner.temp }}` in a workflow-level `env:` is not a visible error.**
+The `runner` context does not exist there — only inside a step. GitHub creates
+the run, fails it instantly with *"This run likely failed because of a workflow
+file issue"*, and writes no logs, so `gh run view --log-failed` answers `log not
+found`. That is what the first `v1.0.0` tag push hit. Set `UV_CACHE_DIR` from a
+step that appends to `$GITHUB_ENV`, the way `test.yml` sets it at step level,
+and `test_no_workflow_uses_the_runner_context_outside_a_step` keeps it that way.
+
 Entries in `docs/changelog.md` carry a `## vX.Y.Z` heading from v1.0.0 onward.
 The ~1600 lines below that section predate versioning; they are delimited by
 bold date lines and were left alone.

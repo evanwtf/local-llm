@@ -6,7 +6,11 @@ requires-python = ">=3.11"
 dependencies = []
 
 [dependency-groups]
-dev = ["pytest>=8.0", "ruff>=0.16"]
+dev = [
+    "pytest>=8.0",
+    "pyyaml>=6.0.3",
+    "ruff>=0.16",
+]
 
 # Note: no `exclude-newer-span` here. uv 0.12.1 rejects the field, and this
 # project has no runtime dependencies -- pytest and ruff are the only things

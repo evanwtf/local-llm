@@ -228,3 +228,24 @@ def test_the_notes_survive_being_piped_into_head() -> None:
     notes.wait()
     assert "BrokenPipeError" not in stderr, stderr
     assert "Traceback" not in stderr, stderr
+
+
+def test_no_workflow_uses_the_runner_context_outside_a_step() -> None:
+    """The `runner` context does not exist in a workflow- or job-level `env:`.
+
+    A workflow that references it there is created, fails immediately with
+    "This run likely failed because of a workflow file issue", and produces no
+    logs to read -- so the mistake costs a tag rather than a red step. This
+    walks the YAML and asserts `runner.` appears only under a step.
+    """
+    import yaml
+
+    for workflow in sorted((ROOT / ".github" / "workflows").glob("*.y*ml")):
+        spec = yaml.safe_load(workflow.read_text())
+        assert "runner." not in str(spec.get("env", {})), (
+            f"{workflow.name}: workflow-level env uses the runner context"
+        )
+        for name, job in (spec.get("jobs") or {}).items():
+            assert "runner." not in str(job.get("env", {})), (
+                f"{workflow.name}:{name}: job-level env uses the runner context"
+            )
