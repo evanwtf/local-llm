@@ -8,7 +8,6 @@ that knew about one of them silently counted the other fifteen.
 from __future__ import annotations
 
 import json
-import pathlib
 
 import pytest
 from results import (
@@ -16,6 +15,7 @@ from results import (
     REQUIRED,
     REQUIRED_WITH_VERDICT,
     SCHEMA_VERSION,
+    default_path,
     is_excluded,
     load,
     new_row,
@@ -26,7 +26,7 @@ from results import (
     write_row,
 )
 
-REAL_RESULTS = pathlib.Path(__file__).parent / "results.jsonl"
+REAL_RESULTS = default_path()
 
 
 def good_row(**over):
