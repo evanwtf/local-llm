@@ -42,7 +42,7 @@ Q4 breaks 50 t/s. Q4/Q8 decode = 1.153.
 
 Paired median ratio of `gen_steady_tps` **q4/q8 = 1.157 (+15.7%)**. Q4 > Q8 on **32/32** frontiers (range 1.122–1.208). Prefill pairs at exactly 1.000 **on this prompt**; do not fold it into decode, and do not compare it against a prefill figure measured on a different prompt (#140).
 
-*Corrected 2026-09-04: this section first read 1.146 (+14.6%), produced by `scripts/decode_ab_report.py` dividing two independent medians — a ratio of medians, not a paired statistic. The paired figures come from these same committed CSVs. The defect is noise, not bias: on #118's dataset it read +20.0% where the paired figure is +16.5%. See docs/changelog.md, 2026-09-04.*
+*Corrected 2026-09-04: this section first read 1.146 (+14.6%), produced by `scripts/decode_ab_report.py` dividing two independent medians — a ratio of medians, not a paired statistic. The paired figures come from these same committed CSVs. The defect is noise, not bias: on #118's dataset it read +20.0% where the paired figure is +16.5%. See docs/history.md, 2026-09-04.*
 
 The ctx-2048 *frontier* under this allocation is 45.95 (q4) / 40.37 (q8) — not the isolated 51.03 / 44.27. Different KV plan. Do not pool.
 

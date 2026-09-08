@@ -318,7 +318,7 @@ in the ten.
 
 ## Recently done, listed so the next reader does not re-open them
 
-**Overnight 2026-09-06/07** — full reasoning in [`docs/changelog.md`](docs/changelog.md).
+**Overnight 2026-09-06/07** — full reasoning in [`docs/history.md`](docs/history.md).
 
 - **[#171](https://github.com/evanwtf/local-llm/issues/171) closed: a null.** The f309990 Q4 prefill regression has **no Metal analogue** — three 4-rep runs at +0.5%, −0.9%, +0.0% against @adamlawi's CUDA −12.23%. Do not re-run it looking for the effect; the three runs straddling zero *are* the result.
 - **[#182](https://github.com/evanwtf/local-llm/issues/182) closed**: 208 bare citations to an argued 9, with a lint that has already caught four regressions.

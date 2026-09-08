@@ -180,11 +180,12 @@ time, which prompt re-prefill dominates (#14).
 | `benchmarks/agent/` | the harness, its tasks and its own tests |
 | `scripts/` | measurement, field-watching and machine tools |
 | `hardware/<machine>/` | results, logs and `RESULTS.md` for one machine |
-| `docs/` | [changelog](docs/changelog.md), [runbook](docs/m5max-runbook.md), archive |
+| `docs/` | [changelog](docs/changelog.md), [history](docs/history.md), [runbook](docs/m5max-runbook.md), archive |
 | `logs/sweeps/` | gather archives; the same fact on either machine |
 
 Work is tracked as GitHub issues. [NEXT.md](NEXT.md) holds the order to work in,
-[docs/changelog.md](docs/changelog.md) what shipped and why,
+[docs/changelog.md](docs/changelog.md) what shipped and why (before v1.0.0:
+[docs/history.md](docs/history.md)),
 [SOURCES.md](SOURCES.md) who to watch in the field, and
 [CONVENTIONS.md](CONVENTIONS.md) the standing rules -- read it before deleting
 weights or committing logs.

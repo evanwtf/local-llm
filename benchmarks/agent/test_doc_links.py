@@ -34,6 +34,7 @@ DOCS = [
     "SOURCES.md",
     "TESTING-SET.md",
     "docs/changelog.md",
+    "docs/history.md",
     "docs/upstream.md",
     "hardware/README.md",
     "benchmarks/agent/README.md",
@@ -73,3 +74,15 @@ def test_the_changelog_is_reachable_from_next() -> None:
     thing making that a move rather than a loss.
     """
     assert "docs/changelog.md" in (ROOT / "NEXT.md").read_text()
+
+
+def test_the_history_is_reachable_from_the_changelog() -> None:
+    """The same reasoning, one split later.
+
+    `docs/changelog.md` was 1652 lines on 2026-09-07; everything before v1.0.0
+    moved to `docs/history.md`. The pointer is what makes that a move rather
+    than a loss, and it has to run both ways -- a reader who lands in the
+    1600-line file needs to be told where new entries go.
+    """
+    assert "history.md" in (ROOT / "docs" / "changelog.md").read_text()
+    assert "changelog.md" in (ROOT / "docs" / "history.md").read_text()

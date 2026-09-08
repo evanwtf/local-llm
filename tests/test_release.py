@@ -9,6 +9,7 @@ looks green.
 from __future__ import annotations
 
 import pathlib
+import re
 import subprocess
 import sys
 import tomllib
@@ -284,3 +285,63 @@ def test_the_real_notes_do_not_swallow_the_legacy_history() -> None:
     assert len(body) < 8000, (
         f"{len(body)} bytes of release notes: the section is running past its end"
     )
+
+
+# --- the changelog / history split ----------------------------------------
+#
+# `docs/changelog.md` was 1652 lines on 2026-09-07, one `#` heading and ~1590
+# lines of dated entries. Everything before v1.0.0 moved to `docs/history.md`.
+# The split is only worth making if it holds: a new entry appended to the
+# bottom of a 1600-line file is an entry nobody reads, and a release whose
+# notes reach into that file publishes a book.
+
+HISTORY = ROOT / "docs" / "history.md"
+CHANGELOG_MD = ROOT / "docs" / "changelog.md"
+#: A pre-versioning entry: a bold date at the start of a line.
+LEGACY_ENTRY = re.compile(r"^\*\*(\d{4}-\d{2}-\d{2})", re.M)
+VERSION_HEADING = re.compile(r"^##\s+v(\d+\.\d+\.\d+)", re.M)
+
+
+def test_the_changelog_holds_no_pre_versioning_entries() -> None:
+    strays = LEGACY_ENTRY.findall(CHANGELOG_MD.read_text())
+    assert not strays, (
+        f"docs/changelog.md has entries in the pre-1.0 format ({strays}). "
+        "A new entry goes under a `## vX.Y.Z` heading; the old ones live in "
+        "docs/history.md."
+    )
+
+
+def test_the_history_holds_no_version_sections() -> None:
+    strays = VERSION_HEADING.findall(HISTORY.read_text())
+    assert not strays, (
+        f"docs/history.md has version sections ({strays}). Released work is "
+        "described in docs/changelog.md, which is what release_notes.py reads."
+    )
+
+
+def test_nothing_new_is_appended_to_the_history() -> None:
+    # The file is frozen at the split. An entry dated after it is someone
+    # adding to the bottom of 1600 lines out of habit -- which is the exact
+    # thing the split was made to stop, and it would never be noticed.
+    frozen = "2026-09-07"
+    later = sorted(d for d in LEGACY_ENTRY.findall(HISTORY.read_text()) if d > frozen)
+    assert not later, (
+        f"docs/history.md gained entries dated after the {frozen} split "
+        f"({later}). New entries belong in docs/changelog.md."
+    )
+
+
+def test_every_version_section_ends_before_the_next_one() -> None:
+    # One unterminated section takes every section below it into its notes.
+    text = CHANGELOG_MD.read_text()
+    versions = VERSION_HEADING.findall(text)
+    assert versions, "docs/changelog.md has no version sections at all"
+    for version in versions:
+        body = rn.section(version, text)
+        assert body, f"v{version} has a heading but no body"
+        assert len(body) < 8000, f"v{version} runs to {len(body)} bytes; it never ends"
+        others = [v for v in versions if v != version]
+        for other in others:
+            assert f"## v{other}" not in body, (
+                f"v{version}'s section swallowed v{other}"
+            )

@@ -497,7 +497,8 @@ this project turning into a pile of findings nobody can act on.
 | [`NEXT.md`](NEXT.md) | the agenda: what order to work in | rewritten constantly |
 | `benchmarks/*/RESULTS.md` | the numbers, and how they were obtained | append-only |
 | [`RECOMMENDATIONS.md`](RECOMMENDATIONS.md) | the top 1-3 picks, and how to run them | replaced as evidence changes |
-| [`docs/changelog.md`](docs/changelog.md) | what shipped, and why | append-only |
+| [`docs/changelog.md`](docs/changelog.md) | what shipped, and why, one `## vX.Y.Z` section per release | append-only |
+| [`docs/history.md`](docs/history.md) | the same record before v1.0.0 | frozen 2026-09-07 |
 | [`docs/peer_agents.md`](docs/peer_agents.md) | how two agents share this repo and this machine | permanent |
 | `AGENTS.md`, `CONVENTIONS.md`, `METHODOLOGY.md` | lessons that outlive the task | permanent |
 
@@ -1898,6 +1899,19 @@ found`. That is what the first `v1.0.0` tag push hit. Set `UV_CACHE_DIR` from a
 step that appends to `$GITHUB_ENV`, the way `test.yml` sets it at step level,
 and `test_no_workflow_uses_the_runner_context_outside_a_step` keeps it that way.
 
-Entries in `docs/changelog.md` carry a `## vX.Y.Z` heading from v1.0.0 onward.
-The ~1600 lines below that section predate versioning; they are delimited by
-bold date lines and were left alone.
+**`docs/changelog.md` holds releases; `docs/history.md` holds everything
+before them.** The changelog was 1652 lines on 2026-09-07 — one `#` heading and
+~1590 dated entries with no versions to attach them to. Splitting it was not
+tidying: a section that runs to end-of-file becomes the release notes, and the
+first attempt at v1.0.0 produced 102,607 bytes of them.
+
+So each file now has one job, and four tests hold the line:
+
+- an entry in the pre-1.0 format (`**YYYY-MM-DD`) in `changelog.md` fails,
+- a `## vX.Y.Z` heading in `history.md` fails,
+- an entry dated after 2026-09-07 in `history.md` fails — the file is frozen,
+  and appending to the bottom of 1600 lines is what habit does,
+- a version section that does not end before the next one fails, because one
+  missing `---` takes every section below it into the notes.
+
+Write a new entry under the version it ships in, and end it with a `---`.

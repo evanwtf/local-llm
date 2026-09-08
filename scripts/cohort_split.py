@@ -124,7 +124,7 @@ def main(argv: list[str] | None = None) -> int:
     logger.warning(
         "NOT CHECKED, because no row records it: the measurement protocol "
         "(continuous server vs restart-between-trials), the shim revision, "
-        "and anything else changed by hand that day. Read the changelog for "
+        "and anything else changed by hand that day. Read docs/history.md for "
         "the split date before believing this table."
     )
     return 0
