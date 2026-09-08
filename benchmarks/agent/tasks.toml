@@ -1296,3 +1296,36 @@ opencode_model = "ds4qwenshim/qwen3.8-flash-next-q4"
 context_tokens = 100000
 engine = "ds4"
 engine_tree = "~/git/ds4-metal"
+
+# #191: mlx-serve on its own MLX pack. The stack-as-shipped counterpart to
+# `qwen38fnds4kimat` -- the SAME model, Qwen3.8-Flash-Next, but MLX weights at
+# mixed 4/8-bit instead of our Q4_K imatrix GGUF, served by a different engine.
+#
+# Engine and quant move together and neither can be credited alone (#138). That
+# is not a choice: mlx-serve cannot read our GGUF at all. It routes .gguf by
+# `general.architecture`, ours is `qwen4exp`, and the bundled llama.cpp b10472
+# has no such graph -- it parses all fourteen of our qwen4exp.ple.* keys and
+# then refuses the architecture. Both GGUFs we hold are qwen4exp.
+#
+# No `engine_url` and no shim. The ds4 arm sits behind ds4_qwen_tool_shim.py,
+# whose strip is worth 23 points (#112); this arm needs none -- 28 probe
+# completions returned a proper tool_calls array and none carried scaffolding.
+# So `route_query_port` resolves to 11234, `ds4_route.route_for` returns
+# `unrecorded`, and `shim_strip.strip_for` returns None. All three are honest:
+# the Metal route is a ds4 concept and this row must not inherit its
+# provenance (#149).
+#
+# `engine = "mlx-serve"` makes engine_identity stamp the brew binary's
+# --version and mtime rather than a git HEAD, which it has no such thing as.
+[backend.qwen38fnmlxserve]
+description = "Qwen3.8-Flash-Next MLX mixed-4-8bit on mlx-serve (brew 26.9.1), no shim; PLE ships as ngram_table.bin in the pack"
+base_url = "http://127.0.0.1:11234"
+model = "Qwen3.8-Flash-Next-MLX-Serve-mixed-4-8bit"
+# mlx-serve needs no key, but `agent_env` reads this unconditionally when it
+# builds the Anthropic-wire environment -- 32 of 34 backends declare one and
+# leaving it out is a KeyError at the first trial, not a graceful default.
+# Matches the `apiKey` in this provider's opencode.json block.
+auth_token = "local"
+opencode_model = "mlxserve/Qwen3.8-Flash-Next-MLX-Serve-mixed-4-8bit"
+engine = "mlx-serve"
+context_tokens = 100000
