@@ -71,6 +71,8 @@ logger = logging.getLogger(__name__)
 # exact-rows it is the DISABLE var, because the cache is on by default and
 # REQUIRE=0 leaves it running. For gathered-heads it is the DISABLE var too,
 # and the on arm unsets it (presence-based, no REQUIRE spelling).
+TRACE_PATTERN = "packed FA use="
+
 KNOBS: dict[str, dict[str, str | bool]] = {
     "session-union": {
         "on_var": "DS4_METAL_REQUIRE_Q4_SSD_SESSION_UNION",
@@ -108,6 +110,25 @@ KNOBS: dict[str, dict[str, str | bool]] = {
         "presence": True,
         "trace_var": "DS4_METAL_TRACE_M5_FLASH_ATTN_PACKED32_REDUCE",
     },
+    # ds4#952's two diagnostic opt-ins (c1909040, bbf5a796). Both are gated to
+    # Apple M5 and both announce themselves on stderr exactly once when the
+    # path is admitted, which is a stronger admission signal than either kind
+    # above: the line appears only when the kernel is actually dispatched, so
+    # the off arm must produce none at all rather than merely fewer.
+    "q4-mpp-cooperative": {
+        "on_var": "DS4_METAL_ENABLE_Q4_MPP_COOPERATIVE_SOURCE",
+        "off_var": "DS4_METAL_ENABLE_Q4_MPP_COOPERATIVE_SOURCE",
+        "default_on": False,
+        "fail_error": "",
+        "admission_print": "Q4 MPP cooperative source enabled",
+    },
+    "q4-mpp-payload-reuse": {
+        "on_var": "DS4_METAL_ENABLE_Q4_MPP_PAYLOAD_REUSE",
+        "off_var": "DS4_METAL_ENABLE_Q4_MPP_PAYLOAD_REUSE",
+        "default_on": False,
+        "fail_error": "",
+        "admission_print": "Metal Q4 MPP payload reuse admitted",
+    },
 }
 
 
@@ -124,13 +145,16 @@ def has_admission_signal(knob: str) -> bool:
 def admission_signal(knob: str) -> str:
     """The admission signal a run of this knob carries.
 
-    'fail-closed' when the on arm is checked for the REQUIRE error; 'count'
-    when the on arm must engage more trace lines than the off arm; 'none' when
-    there is no check. The value goes on the run so a later reader cannot read
-    an unverified knob as verified.
+    'fail-closed' when the on arm is checked for the REQUIRE error; 'print'
+    when the on arm must emit an admission line the off arm never emits;
+    'count' when the on arm must engage more trace lines than the off arm;
+    'none' when there is no check. The value goes on the run so a later reader
+    cannot read an unverified knob as verified.
     """
     if fail_closed_error(knob):
         return "fail-closed"
+    if admission_print(knob):
+        return "print"
     if trace_var(knob):
         return "count"
     return "none"
@@ -256,18 +280,50 @@ def trace_var(knob: str) -> str:
     return str(KNOBS[knob].get("trace_var", ""))
 
 
-def count_trace_lines(log: pathlib.Path) -> int:
-    """Count the packed-FA trace lines in a run log.
+def admission_print(knob: str) -> str:
+    """The stderr line the engine prints when this knob is admitted, or ''.
 
-    The trace prints one line per dispatch: 'ds4: packed FA use=...'. A count
-    knob's on arm must engage more layers than its off arm, so the counts are
-    the admission evidence.
+    Not a trace: the engine prints it once, unprompted, when the path is
+    actually dispatched. So it needs no trace var, and its absence in the off
+    arm is meaningful rather than merely smaller.
     """
+    return str(KNOBS[knob].get("admission_print", ""))
+
+
+def admission_pattern(knob: str) -> str:
+    """The string to count in a run log to decide whether the knob engaged."""
+    printed = admission_print(knob)
+    if printed:
+        return printed
+    if trace_var(knob):
+        return TRACE_PATTERN
+    return ""
+
+
+def count_trace_lines(log: pathlib.Path, pattern: str = TRACE_PATTERN) -> int:
+    """Count the lines matching `pattern` in a run log.
+
+    The default is the packed-FA trace, which prints one line per dispatch:
+    'ds4: packed FA use=...'. A count knob's on arm must engage more layers
+    than its off arm, so the counts are the admission evidence. A print knob
+    passes its own admission string instead, which the engine emits once.
+    """
+    if not pattern:
+        raise ValueError("refusing to count an empty pattern: every line matches")
     return sum(
-        1
-        for line in log.read_text(errors="replace").splitlines()
-        if "packed FA use=" in line
+        1 for line in log.read_text(errors="replace").splitlines() if pattern in line
     )
+
+
+def print_admission_ok(on_count: int, off_count: int) -> bool:
+    """Whether a print knob engaged in the on arm and only in the on arm.
+
+    Stricter than the count check, and it can afford to be: the engine emits
+    this line only when it dispatches the path, so an off arm that emits one
+    means the knob did not turn the path off and the comparison is between two
+    identical arms wearing different labels.
+    """
+    return on_count > 0 and off_count == 0
 
 
 def count_admission_ok(on_count: int, off_count: int) -> bool:
@@ -322,10 +378,28 @@ def main(argv: list[str] | None = None) -> int:
     t = sub.add_parser("trace-var", help="print the trace var for a knob, or ''")
     t.add_argument("knob")
 
+    ap = sub.add_parser(
+        "admission-pattern",
+        help="print the log string that proves this knob engaged, or ''",
+    )
+    ap.add_argument("knob")
+
     n = sub.add_parser(
-        "count-trace-lines", help="print the packed-FA trace line count in a log"
+        "count-trace-lines", help="print the admission line count in a log"
     )
     n.add_argument("log", type=pathlib.Path)
+    n.add_argument(
+        "--pattern",
+        default=TRACE_PATTERN,
+        help="the string to count (default: the packed-FA trace)",
+    )
+
+    pk = sub.add_parser(
+        "print-admission-ok",
+        help="exit 0 if the on arm printed the admission line and the off arm did not",
+    )
+    pk.add_argument("on_count", type=int)
+    pk.add_argument("off_count", type=int)
 
     k = sub.add_parser(
         "count-admission-ok",
@@ -349,8 +423,12 @@ def main(argv: list[str] | None = None) -> int:
         logger.info(admission_signal(args.knob))
     elif args.cmd == "trace-var":
         logger.info(trace_var(args.knob))
+    elif args.cmd == "admission-pattern":
+        logger.info(admission_pattern(args.knob))
     elif args.cmd == "count-trace-lines":
-        logger.info(count_trace_lines(args.log))
+        logger.info(count_trace_lines(args.log, args.pattern))
+    elif args.cmd == "print-admission-ok":
+        return 0 if print_admission_ok(args.on_count, args.off_count) else 1
     elif args.cmd == "count-admission-ok":
         return 0 if count_admission_ok(args.on_count, args.off_count) else 1
     else:

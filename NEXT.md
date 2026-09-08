@@ -148,7 +148,10 @@ when the one before it releases the lock.
 
 **Operator decision, 2026-09-07: this outranks GLM.** [#212](https://github.com/evanwtf/local-llm/issues/212)
 is the parent, and the Qwen work that was scattered across five issues at three
-priorities now hangs off it: **#170, #151, #210, #39, #158, #188, #191, #211**.
+priorities now hangs off it: **#170, #151, #210, #39, #158, #188, #211** —
+#191 closed and was struck from this list on 2026-09-08, having sat here as
+live work after it finished. Same shape as the #148 line the first sweep
+caught: the number resolves, the link works, and the item is done.
 #138 closed as finished rather than being dragged in, and #190 and #199 closed
 answered the same morning.
 
@@ -272,12 +275,33 @@ Power, which is not our regime.
    M5-specific. Separately `c73d32a` fixes Qwen tool-call parsing, which is
    what `qwen_tool_shim` exists to compensate for (#112), so this may retire
    the shim and with it the confound sitting in #224's tail census.
-   *Done when:* the new head builds and loads our weight files, bit-exactness is checked against `ba01f5d` rather than assumed, and a one-variable wall-time A/B is read out.
+
+   **Measured 2026-09-08. The head is faster and the upgrade splits our two
+   ds4 backends in half.** Three 4-rep runs: decode **+6.2%** (1.054 / 1.067 /
+   1.062), prefill **+7.7%** (1.070 / 1.077 / 1.090), **0 of 8 frontiers**
+   favouring the control in any run on either metric, flat with depth.
+   Bit-exact at 2047 and 16380 prompt tokens — identical selected tokens and
+   top-20 logits over 128 steps, the three dump files byte-identical.
+
+   Two corrections to the paragraph above, both found by trying to run it.
+   The control is **not** `ba01f5d`: `ba01f5d` and `18ca8ec` share **no weight
+   file**, so the A/B this item proposed cannot be run at all. The imatrix
+   GGUF declares `qwen4exp` and the Q4_0 declares `qwen4-exp`, and each build
+   refuses the other's with the same `deepseek4.block_count` error — a
+   boundary `decode_ab_stack.sh`'s header has recorded since 2026-09-04 under
+   #138 and which has now moved to the new head too. The control is
+   `ffd85d42`, the build our imatrix rows actually came from, which also makes
+   the comparison one-variable. And the treatment is the whole 149-commit gap,
+   **not PR #5**: upstream measured that merge alone at +3.8% prefill, so the
+   split between it and the rest is unattributed and needs a `315cdfa` arm.
+
+   *Done when:* the operator decides whether `qwen38fnds4shim` is re-quantized or retired. Everything else here is done — the number is in, and the remaining cost is that the largest backend in the corpus (262 rows) cannot follow this head without a re-quant or a re-declared architecture string. That is a migration, not a version bump, and it is not a measurement decision.
 
 7. **[#212](https://github.com/evanwtf/local-llm/issues/212)** Test Qwen on ds4 locally: the program
    The parent this queue hangs off, and it was never a numbered item — it sat
    in a section above while the invariant counted ten elsewhere. #170, #151,
-   #210, #39, #158, #188, #191 and #211 all hang off it. Why it is first:
+   #210, #39, #158, #188 and #211 all hang off it; #191 is closed and was
+   struck on 2026-09-08. Why it is first:
    Qwen3.8-Flash-Next on ds4 is the primary of this project — `qwen38fnds4shim`
    is the largest backend in the corpus — and every recent upstream event lands
    on it.

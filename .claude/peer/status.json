@@ -1,49 +1,29 @@
 {
-  "branches": {
-    "peer/146": "4af925d",
-    "peer/149-route-ab": "87aa8d0",
-    "peer/154-ruff-format": "42227d7",
-    "peer/160": "c2a6df2",
-    "peer/162-metal-diff": "184d2e5",
-    "peer/173-docstring": "fb560dd",
-    "peer/175": "42c7f6d",
-    "peer/182": "58921f6",
-    "peer/192": "9b78894",
-    "peer/203-out-absolutize": "9529795",
-    "peer/213-server-argv": "d83130c",
-    "peer/78": "ecce13e",
-    "peer/arm-order-effect": "5286c86",
-    "peer/kv-prefix-isolate": "36dae0b",
-    "peer/stack-agent-report": "6ba6d83",
-    "peer/transcript-mover-fix": "00e1b7f"
-  },
+  "branches": {},
   "comments": {
-    "39": 10,
-    "64": 6,
     "112": 12,
-    "143": 6,
-    "148": 8,
     "151": 7,
     "158": 4,
-    "162": 13,
-    "189": 0,
-    "201": 0
+    "162": 14,
+    "170": 3,
+    "210": 7,
+    "212": 5,
+    "228": 4,
+    "39": 15
   },
   "lock": "free",
-  "prs": {
-    "207": "#149: the route A/B \u2014 window attribution and the screens"
-  },
+  "prs": {},
   "servers": [
     {
-      "age": "1d11h",
+      "age": "2d14h",
       "gib": 0.0,
       "pid": 921,
       "short": "ollama"
     },
     {
-      "age": "1d0h",
+      "age": "17h1m",
       "gib": 0.0,
-      "pid": 41517,
+      "pid": 27460,
       "short": "ollama"
     }
   ],
@@ -56,6 +36,7 @@
     "ds4-main": "9ab70534",
     "ds4-main-b": "9ab70534",
     "ds4-metal": "ba01f5d",
+    "ds4-metal-pr5": "18ca8ec",
     "ds4-metal-ref": "86d765d",
     "ds4-pr621": "6a20b131",
     "ds4-pr915": "88bd78a3",

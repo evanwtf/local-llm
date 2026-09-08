@@ -324,3 +324,80 @@ def test_absolute_out_is_unchanged(tmp_path):
         ["bash", "-c", bash], check=True, capture_output=True, text=True
     ).stdout
     assert got == "/abs/path"
+
+
+# --- print-based admission (ds4#952's diagnostic opt-ins) --------------------
+#
+# c1909040 and bbf5a796 add two Metal knobs gated to Apple M5 that announce
+# themselves on stderr exactly once when the path is admitted. That is a
+# stronger signal than either kind the driver had: the line appears only when
+# the kernel is dispatched, so the off arm must produce none at all rather than
+# merely fewer.
+
+
+def test_the_new_q4_mpp_knobs_carry_a_print_admission_signal():
+    for knob, var, line in (
+        (
+            "q4-mpp-cooperative",
+            "DS4_METAL_ENABLE_Q4_MPP_COOPERATIVE_SOURCE",
+            "Q4 MPP cooperative source enabled",
+        ),
+        (
+            "q4-mpp-payload-reuse",
+            "DS4_METAL_ENABLE_Q4_MPP_PAYLOAD_REUSE",
+            "Metal Q4 MPP payload reuse admitted",
+        ),
+    ):
+        assert mk.admission_signal(knob) == "print", knob
+        assert mk.has_admission_signal(knob), knob
+        assert mk.on_var(knob) == var
+        # Opt-in, default off, so the off arm is the same var set to 0.
+        assert mk.off_var(knob) == var
+        assert mk.admission_pattern(knob) == line
+        # No trace var: the engine prints unprompted. The driver builds the
+        # trace assignment conditionally because `env VAR=1` with an empty VAR
+        # is `=1`, which kills the arm.
+        assert mk.trace_var(knob) == ""
+
+
+def test_print_admission_requires_the_off_arm_to_be_silent():
+    assert mk.print_admission_ok(48, 0) is True
+    assert mk.print_admission_ok(1, 0) is True
+    # The off arm printed: the knob did not turn the path off, so both arms
+    # ran the same kernel and the comparison is between two identical arms.
+    assert mk.print_admission_ok(48, 1) is False
+    # The on arm never engaged: nothing was measured.
+    assert mk.print_admission_ok(0, 0) is False
+    # This is strictly stronger than the count rule, which would accept both.
+    assert mk.count_admission_ok(48, 1) is True
+    assert mk.print_admission_ok(48, 1) is False
+
+
+def test_counting_takes_a_pattern_and_defaults_to_the_trace(tmp_path):
+    log = tmp_path / "arm.log"
+    log.write_text(
+        "ds4: packed FA use=1\n"
+        "ds4: Q4 MPP cooperative source enabled (diagnostic)\n"
+        "ds4: packed FA use=2\n"
+        "unrelated\n"
+    )
+    assert mk.count_trace_lines(log) == 2
+    assert mk.count_trace_lines(log, "Q4 MPP cooperative source enabled") == 1
+    assert mk.count_trace_lines(log, "Metal Q4 MPP payload reuse admitted") == 0
+
+
+def test_counting_an_empty_pattern_is_refused(tmp_path):
+    """Every line contains the empty string, so an empty pattern would report
+    the log's line count as an engagement count -- a knob that never engaged
+    would read as engaging on every line of output."""
+    log = tmp_path / "arm.log"
+    log.write_text("one\ntwo\n")
+    with pytest.raises(ValueError):
+        mk.count_trace_lines(log, "")
+
+
+def test_a_print_knob_is_not_refused_for_lacking_a_signal():
+    """validate() refuses a knob with no admission signal unless acknowledged.
+    A print knob has one, so it must pass without METAL_KNOB_ACK_NO_SIGNAL."""
+    mk.validate("q4-mpp-cooperative", "1", "0")
+    mk.validate("q4-mpp-payload-reuse", "1", "0")

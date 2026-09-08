@@ -118,21 +118,28 @@ run_engagement() {
   local label="$1" value="$2"
   local log="$OUT/engagement-${label}.log"
   local count_file="$OUT/engagement-${label}.count"
-  local env_prefix trace_var
+  local env_prefix trace_var pattern trace_assign
   env_prefix="$(uv run python "$PY" arm-cmd "$KNOB" "$label" "$value")"
   trace_var="$(uv run python "$PY" trace-var "$KNOB")"
+  pattern="$(uv run python "$PY" admission-pattern "$KNOB")"
+  # A print knob has no trace var: the engine emits its admission line
+  # unprompted when it dispatches the path. Assigning an empty var name would
+  # hand `env` a bare `=1` and kill the arm, so the assignment is built here
+  # rather than interpolated blindly.
+  trace_assign=""
+  if [ -n "$trace_var" ]; then trace_assign="$trace_var=1"; fi
   # The progress line goes to stderr: this function's stdout must stay empty so
   # the count file is the only value it produces. A friendly echo here would
   # pollute the captured count.
   echo "[$(date +%H:%M:%S)] engagement $label -> $log" >&2
-  echo "# engagement: $label knob=$KNOB env $env_prefix $trace_var=1 ./ds4-bench -m $GGUF --metal --prompt-file $PROMPT --ctx-start $CTX_START --ctx-max $CTX_START --step-incr $STEP --gen-tokens $GEN" > "$log"
-  ( cd "$TREE" && env $env_prefix $trace_var=1 ./ds4-bench -m "$GGUF" --metal \
+  echo "# engagement: $label knob=$KNOB env $env_prefix $trace_assign ./ds4-bench -m $GGUF --metal --prompt-file $PROMPT --ctx-start $CTX_START --ctx-max $CTX_START --step-incr $STEP --gen-tokens $GEN" > "$log"
+  ( cd "$TREE" && env $env_prefix $trace_assign ./ds4-bench -m "$GGUF" --metal \
       --prompt-file "$PROMPT" \
       --ctx-start "$CTX_START" --ctx-max "$CTX_START" --step-incr "$STEP" \
       --gen-tokens "$GEN" --csv "$OUT/engagement-${label}.csv" ) >> "$log" 2>&1
   # The count goes to a file, not stdout: the caller reads it back, so a
   # progress echo cannot pollute the value.
-  uv run python "$PY" count-trace-lines "$log" > "$count_file"
+  uv run python "$PY" count-trace-lines "$log" --pattern "$pattern" > "$count_file"
 }
 
 # Check the cheap thing first: a missing build used to fail mid-run, after the
@@ -165,6 +172,21 @@ uv run python "$(dirname "$0")/prompt_meta.py" --prompt "$PROMPT" --sidecar "$OU
 # arm and not the other.
 ON_COUNT=0
 OFF_COUNT=0
+# Print-based admission: the engine announces the path once when it admits
+# it, so the on arm must produce at least one line and the off arm none at
+# all. Stricter than the count check and it can afford to be -- an off arm
+# that prints the line means the knob did not turn the path off, and the two
+# arms are identical wearing different labels.
+if [ "$ADMISSION_SIGNAL" = "print" ]; then
+  run_engagement on "$ON_VALUE"
+  run_engagement off "$OFF_VALUE"
+  ON_COUNT="$(cat "$OUT/engagement-on.count")"
+  OFF_COUNT="$(cat "$OUT/engagement-off.count")"
+  if ! uv run python "$PY" print-admission-ok "$ON_COUNT" "$OFF_COUNT"; then
+    echo "REFUSING: knob $KNOB did not engage as expected (on=$ON_COUNT off=$OFF_COUNT admission lines); the on arm must print at least one and the off arm none" >&2
+    exit 1
+  fi
+fi
 if [ "$ADMISSION_SIGNAL" = "count" ]; then
   run_engagement on "$ON_VALUE"
   run_engagement off "$OFF_VALUE"
@@ -193,11 +215,12 @@ cat > "$OUT/run-meta.json" <<EOF
   "reps": "$REPS",
   "started": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 EOF
-if [ "$ADMISSION_SIGNAL" = "count" ]; then
+if [ "$ADMISSION_SIGNAL" = "count" ] || [ "$ADMISSION_SIGNAL" = "print" ]; then
   cat >> "$OUT/run-meta.json" <<EOF
   ,
   "engagement": {
     "trace_var": "$(uv run python "$PY" trace-var "$KNOB")",
+    "pattern": "$(uv run python "$PY" admission-pattern "$KNOB")",
     "on_count": "$ON_COUNT",
     "off_count": "$OFF_COUNT"
   }
