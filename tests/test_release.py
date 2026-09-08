@@ -249,3 +249,38 @@ def test_no_workflow_uses_the_runner_context_outside_a_step() -> None:
             assert "runner." not in str(job.get("env", {})), (
                 f"{workflow.name}:{name}: job-level env uses the runner context"
             )
+
+
+# --- the section must not run off the end of the file ---------------------
+
+LEGACY = """# Changelog
+
+## v1.0.0 — 2026-09-07
+
+The release.
+
+---
+
+**2026-09-07, overnight.** A legacy entry, with no `##` heading of its own.
+
+**2026-09-06.** Another one. There are about 1600 lines of these.
+"""
+
+
+def test_a_section_stops_at_a_horizontal_rule() -> None:
+    # The entries below v1.0.0 predate versioning and carry no `##` heading,
+    # so a section that only stopped at the next heading ran to end-of-file
+    # and produced 102 KB of notes for a six-paragraph release. It looked like
+    # success: the gate passed and the notes were not empty.
+    body = rn.section("v1.0.0", LEGACY)
+    assert body == "The release."
+    assert "legacy entry" not in body
+
+
+def test_the_real_notes_do_not_swallow_the_legacy_history() -> None:
+    body = rn.section(_declared(), (ROOT / "docs" / "changelog.md").read_text())
+    assert body is not None
+    assert "overnight" not in body, "the notes reach into the pre-versioning entries"
+    assert len(body) < 8000, (
+        f"{len(body)} bytes of release notes: the section is running past its end"
+    )

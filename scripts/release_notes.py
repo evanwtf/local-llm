@@ -35,10 +35,18 @@ def section(version: str, text: str) -> str | None:
     The heading may carry a date or any trailing prose -- `## v1.0.0 — 2026-09-07`
     is the intended shape -- so it is matched by prefix, anchored so that
     `v1.0.10` cannot satisfy a request for `v1.0.1`.
+
+    A section ends at the next `##` heading **or at a horizontal rule**. The
+    rule matters: the ~1600 lines of history below v1.0.0 predate versioning
+    and carry no `##` heading at all, so a section that only stopped at the
+    next heading swallowed the entire file. That produced 102 KB of "release
+    notes" for a release with six paragraphs, and it looked like success --
+    the gate passed, the notes were non-empty, and nothing said how much of
+    the changelog had come along. End a section with `---`.
     """
     want = version.removeprefix("v")
     pattern = re.compile(
-        rf"^##\s+v{re.escape(want)}(?![\w.])[^\n]*\n(?P<body>.*?)(?=^##\s|\Z)",
+        rf"^##\s+v{re.escape(want)}(?![\w.])[^\n]*\n(?P<body>.*?)(?=^##\s|^---\s*$|\Z)",
         re.M | re.S,
     )
     found = pattern.search(text)
