@@ -153,7 +153,9 @@ bypass)
         exit 1
     fi
     grep -E 'refusing to continue|MTP (drafted|emitted|accepted)' "$LOGDIR/run-bypass.log" || true
-    echo "rows written by the refused arm: $(wc -l < "$LOGDIR/bypass-scratch.jsonl" 2>/dev/null || echo 0)"
+    # `wc -l < missing` fails in the redirect, before wc runs, so the `||`
+    # never sees it and bash prints its own error. cat's failure is catchable.
+    echo "rows written by the refused arm: $(cat "$LOGDIR/bypass-scratch.jsonl" 2>/dev/null | wc -l | tr -d ' ')"
     ;;
 treated)
     start_server yes "$KV_TREATED"
