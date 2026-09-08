@@ -118,6 +118,33 @@ engine_ident() {
   esac
 }
 
+# The effective server command line for an arm, as it will actually run.
+# run-record.txt must state this, not just the FLAGS variable: the mlx branch
+# hard-codes --ctx-size 100000 --kv-quant off and the ds4 branch hard-codes
+# --ctx 100000 --warm-weights --kv-disk-space-mb 8192 --host --port, and a
+# record that shows only NEW_FLAGS/OLD_FLAGS understates what ran. One
+# function builds the argv for both the record and restart_server, so the two
+# cannot drift. `read -ra` splits $flags on IFS exactly as the old word-split
+# did, and does not glob or expand metacharacters -- so a flag value that
+# contains a quote or a glob cannot re-parse the command line. ${f[@]+...} is
+# the bash-3.2-safe empty-array idiom: on 3.2, "${f[@]}" on an empty array is
+# unbound under set -u and aborts the run. SERVER_ARGV is reset before the
+# case so a mistyped engine cannot leave a stale array from the previous call.
+server_argv() {           # sets SERVER_ARGV
+  local engine=$1 gguf=$2 ple=$3 kv=$4 flags=${5:-} mlx_model=${6:-} mlx_port=${7:-11234}
+  local -a f=()
+  [ -n "$flags" ] && read -ra f <<< "$flags"
+  SERVER_ARGV=()
+  case "$engine" in
+  ds4)  SERVER_ARGV=(./ds4-server --metal -m "$gguf" --ple "$ple" --ctx 100000 \
+          --warm-weights ${f[@]+"${f[@]}"} --kv-disk-dir "$kv" --kv-disk-space-mb 8192 \
+          --host 127.0.0.1 --port 8000) ;;
+  mlx-serve) SERVER_ARGV=(mlx-serve --model "$mlx_model" --serve --host 127.0.0.1 \
+          --port "$mlx_port" --ctx-size 100000 --kv-quant off ${f[@]+"${f[@]}"}) ;;
+  *) echo "server_argv: unknown engine $engine" >&2; return 1 ;;
+  esac
+}
+
 mkdir -p "$OUT"
 
 if [ "$NEW_ENGINE" = "ds4" ] || [ "$OLD_ENGINE" = "ds4" ]; then
@@ -161,6 +188,8 @@ done
     echo "NEW gguf=$(basename "$NEW_GGUF") ($(stat -Lf %z "$NEW_GGUF") bytes, $(readlink "$NEW_GGUF" || basename "$NEW_GGUF"))  kv=$NEW_KV"
   fi
   echo "NEW flags=${NEW_FLAGS:-<none>}  run.py=${NEW_RUN_FLAGS:-<none>}"
+  server_argv "$NEW_ENGINE" "$NEW_GGUF" "$NEW_PLE" "$NEW_KV" "$NEW_FLAGS" "$NEW_MLX_MODEL" "$NEW_MLX_PORT"
+  echo "NEW server: ${SERVER_ARGV[*]}"
   echo "OLD backend=$OLD_BACKEND engine=$OLD_ENGINE $(engine_ident "$OLD_ENGINE" "$OLD_TREE")"
   if [ "$OLD_ENGINE" = "mlx-serve" ]; then
     echo "OLD pack=$OLD_MLX_MODEL ($(du -sk "$OLD_MLX_MODEL" 2>/dev/null | cut -f1) KiB)  port=$OLD_MLX_PORT"
@@ -168,6 +197,8 @@ done
     echo "OLD gguf=$(basename "$OLD_GGUF") ($(stat -Lf %z "$OLD_GGUF") bytes, $(readlink "$OLD_GGUF" || basename "$OLD_GGUF"))  kv=$OLD_KV"
   fi
   echo "OLD flags=${OLD_FLAGS:-<none>}  run.py=${OLD_RUN_FLAGS:-<none>}"
+  server_argv "$OLD_ENGINE" "$OLD_GGUF" "$OLD_PLE" "$OLD_KV" "$OLD_FLAGS" "$OLD_MLX_MODEL" "$OLD_MLX_PORT"
+  echo "OLD server: ${SERVER_ARGV[*]}"
   if [ "$NEW_ENGINE" != "$OLD_ENGINE" ]; then
     echo "# DIFFERENT ENGINES and different weight formats. Engine and quant move"
     echo "# together; neither can be attributed alone (#138, #191). This is a"
@@ -191,11 +222,8 @@ restart_server() {
   echo "[$(date +%H:%M:%S)] starting $tag on $engine${flags:+ with $flags}..."
   case "$engine" in
   ds4)
-    # shellcheck disable=SC2086  # flags is a deliberate word-split argv fragment
-    ( cd "$tree" && ./ds4-server --metal -m "$gguf" --ple "$ple" \
-        --ctx 100000 --warm-weights $flags \
-        --kv-disk-dir "$kv" --kv-disk-space-mb 8192 \
-        --host 127.0.0.1 --port 8000 > "$OUT/server-$tag.log" 2>&1 & )
+    server_argv ds4 "$gguf" "$ple" "$kv" "$flags"
+    ( cd "$tree" && "${SERVER_ARGV[@]}" > "$OUT/server-$tag.log" 2>&1 & )
     ( cd "$REPO" && uv run python benchmarks/agent/wait_ready.py \
         --base-url http://127.0.0.1:8000 --model qwen3.8-flash-next-q4 | tail -1 )
     # #149: both #138 arms auto-enabled the Metal 4 tensor route on M5, and
@@ -209,10 +237,8 @@ restart_server() {
     # 0.0.0.0 and a benchmark server does not belong on the local network.
     # No route recording: the Metal route is a ds4 concept, and a row for this
     # arm must read `unrecorded` rather than inherit ds4's provenance (#149).
-    # shellcheck disable=SC2086
-    ( mlx-serve --model "$mlx_model" --serve \
-        --host 127.0.0.1 --port "$mlx_port" \
-        --ctx-size 100000 --kv-quant off $flags > "$OUT/server-$tag.log" 2>&1 & )
+    server_argv mlx-serve "$gguf" "$ple" "$kv" "$flags" "$mlx_model" "$mlx_port"
+    ( "${SERVER_ARGV[@]}" > "$OUT/server-$tag.log" 2>&1 & )
     # --model is REQUIRED by wait_ready.py and the served id is the pack's
     # directory name. Omitting it does not fail loudly: argparse exits 2, the
     # `| tail -1` swallows the status, and the harness proceeds WITHOUT

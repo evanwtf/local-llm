@@ -12,7 +12,9 @@ from __future__ import annotations
 
 import pathlib
 import re
+import shlex
 import subprocess
+import tempfile
 
 import pytest
 
@@ -34,6 +36,57 @@ def _mlx_branch() -> str:
     start = fn.index("  mlx-serve)")
     end = fn.index("  *)", start)
     return fn[start:end]
+
+
+def _server_argv(engine: str) -> str:
+    """The server_argv case arm for one engine, and only that.
+
+    server_argv is the single source the run-record and restart_server both
+    read, so the flags that used to live in the mlx branch now live here. The
+    guards that assert on the mlx branch's flags must assert on this instead,
+    or they pass for the wrong reason -- the same defect _mlx_branch() was
+    written to avoid. Slicing one case arm keeps the ds4 arm out of the mlx
+    assertions: --host 127.0.0.1 appears in both arms, so a whole-function
+    slice would let the mlx guard pass on the ds4 arm's flag. Each arm ends in
+    `;;` (server_argv has no `*)` arm to slice to), so the slice runs to the
+    arm's own terminator.
+    """
+    body = AB.read_text()
+    fn = body[body.index("server_argv() {") :]
+    fn = fn[: fn.index("\n}")]
+    start = fn.index(f"  {engine})")
+    end = fn.index(";;", start) + 2
+    return fn[start:end]
+
+
+def _run_server_argv(calls: list[list[str]], cwd: pathlib.Path | None = None) -> subprocess.CompletedProcess:
+    """Run the real server_argv from the script under set -euo pipefail.
+
+    A string-match guard would be satisfied by a pattern written from the
+    broken code. This executes the actual function text, so the empty-array
+    set -u abort and the glob fire the way they would in the run. Each call is
+    wrapped in an `if` so a refusal does not abort the probe before it can
+    print the resulting SERVER_ARGV.
+    """
+    body = AB.read_text()
+    start = body.index("server_argv() {")
+    end = body.index("\n}", start) + 2
+    fn = body[start:end]
+    lines = ["set -euo pipefail", fn]
+    for call in calls:
+        args = " ".join(shlex.quote(a) for a in call)
+        lines.append(
+            f'if server_argv {args}; then printf "rc=0\\n"; '
+            f'else printf "rc=%d\\n" "$?"; fi'
+        )
+        # ${SERVER_ARGV[*]+...} is the 3.2-safe empty-array idiom: on bash 3.2,
+        # "${SERVER_ARGV[*]}" on an empty array is unbound under set -u, and the
+        # refusal path leaves SERVER_ARGV empty.
+        lines.append('printf "argv=%s\\n" ${SERVER_ARGV[*]+"${SERVER_ARGV[*]}"}')
+    return subprocess.run(
+        ["bash", "-c", "\n".join(lines)],
+        capture_output=True, text=True, cwd=cwd,
+    )
 
 
 @pytest.mark.parametrize("script", [AB, LIB])
@@ -105,7 +158,7 @@ def test_the_mlx_arm_records_no_metal_route() -> None:
 
 def test_the_mlx_arm_serves_rather_than_chats() -> None:
     """`mlx-serve run <model>` is the interactive REPL and never returns."""
-    mlx = _mlx_branch()
+    mlx = _server_argv("mlx-serve")
     assert "--serve" in mlx
     assert "--host 127.0.0.1" in mlx, "the documented default host is 0.0.0.0"
 
@@ -193,5 +246,91 @@ def test_the_mlx_teardown_stops_both_engines() -> None:
 def test_the_mlx_arm_passes_the_preregistered_kv_quant() -> None:
     # The pre-registration fixes --kv-quant off so KV quantisation is not a
     # third variable moving with engine and quant. Relying on the default
-    # would leave that unstated in the run record.
-    assert "--kv-quant off" in _mlx_branch()
+    # would leave that unstated in the run record. The flag lives in
+    # server_argv, the single source the record and restart_server both read,
+    # so the record states it.
+    assert "--kv-quant off" in _server_argv("mlx-serve")
+
+
+def test_the_run_record_states_the_effective_server_command_line() -> None:
+    """run-record must state what actually runs, not just the FLAGS variable.
+
+    The mlx branch hard-codes --ctx-size 100000 --kv-quant off and the ds4
+    branch hard-codes --ctx 100000 --warm-weights --kv-disk-space-mb 8192
+    --host --port. A record that shows only NEW_FLAGS/OLD_FLAGS understates
+    the effective command line: on 2026-09-08 the mlx arm ran with
+    --kv-quant off and the record said "NEW flags=<none>". The record must
+    state the effective argv, built by the same function that runs the server,
+    so the two cannot drift.
+    """
+    body = AB.read_text()
+    start = body.index('echo "# stack agent A/B, started')
+    end = body.index('> "$OUT/run-record.txt"')
+    record = body[start:end]
+    assert "NEW server:" in record and "OLD server:" in record, (
+        "run-record does not state the effective server command line for both "
+        "arms; it shows only the FLAGS variable, which omits the hard-coded flags"
+    )
+
+
+# --- server_argv is executed, not grepped -----------------------------------
+#
+# A guard that greps for `${f[@]+` would have been just as satisfied by the
+# broken version if the pattern had been written from the broken code. These
+# extract the real function text and run it under set -euo pipefail, so the
+# empty-array set -u abort and the glob fire the way they would in the run.
+
+
+def test_server_argv_survives_empty_flags() -> None:
+    """NEW_FLAGS is empty in the live #191 config, so server_argv's first call
+    has an empty flags array. On bash 3.2 (the /bin/bash this script runs
+    under), "${f[@]}" on an empty array is unbound under set -u and aborts the
+    whole run before sweep 1. The 3.2-safe idiom is ${f[@]+"${f[@]}"}."""
+    done = _run_server_argv(
+        [
+            ["ds4", "/m/q.gguf", "/m/ple.json", "/kv", ""],
+            ["mlx-serve", "/m/pack", "", "", "", "/m/pack", "11234"],
+        ]
+    )
+    assert done.returncode == 0, done.stderr
+    assert done.stdout.count("rc=0") == 2, done.stdout
+
+
+def test_server_argv_refuses_an_unknown_engine() -> None:
+    """A mistyped engine must not print a stale array from the previous call.
+
+    In the record block the two calls are back to back, so a stale SERVER_ARGV
+    would print the NEW arm's command line under OLD server: -- a record
+    confidently stating the wrong thing. server_argv must reset the array and
+    refuse, so the refusal aborts the caller under set -e.
+    """
+    done = _run_server_argv(
+        [
+            ["mlx-serve", "/m/pack", "", "", "", "/m/pack", "11234"],
+            ["ds4x", "/m/q.gguf", "/m/ple.json", "/kv", ""],
+        ]
+    )
+    assert done.returncode == 0, done.stderr
+    lines = done.stdout.splitlines()
+    argv_lines = [l for l in lines if l.startswith("argv=")]
+    assert "rc=1" in done.stdout, done.stdout
+    assert argv_lines[-1] == "argv=", done.stdout  # empty, not a stale array
+
+
+def test_server_argv_does_not_glob() -> None:
+    """A flag value containing a glob must stay literal.
+
+    The old word-split passed --foo *.gbnf literally; eval would glob it. The
+    array must not expand it either, or a flag value that happens to match a
+    file in the cwd would silently change the command line.
+    """
+    with tempfile.TemporaryDirectory() as d:
+        p = pathlib.Path(d)
+        (p / "a.gbnf").write_text("")
+        (p / "b.gbnf").write_text("")
+        done = _run_server_argv(
+            [["mlx-serve", "/m/pack", "", "", "--foo *.gbnf", "/m/pack", "11234"]],
+            cwd=p,
+        )
+    assert done.returncode == 0, done.stderr
+    assert "--foo *.gbnf" in done.stdout, done.stdout
