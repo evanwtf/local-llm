@@ -39,6 +39,7 @@ documentation.
 | `metal_knob_ab.py` | Knob table and refusal logic for scripts/metal_knob_ab.sh (#162 Task 4). |
 | `mtp_engagement.py` | Does the engine engage MTP on the traffic we actually send it? (#148, #151) |
 | `mtp_log_split.py` | Did MTP draft during the batch, or only before it? (#39, #151, #210) |
+| `mtp_recovery_attribution.py` | Attribute the #39 recovery-failed events to trials, one row per trial (#39). |
 | `peer_brief.py` | Generate the state half of a handoff as Markdown. #160 |
 | `peer_status.py` | One deterministic status line for the peer work. #160 |
 | `post_ab_run.py` | Post one completed decode-A/B run to a GitHub issue, once. |
@@ -49,6 +50,7 @@ documentation.
 | `qwen38_metal_suites.py` | Run ds4#990's model-free Qwen3.8-Flash-Next Metal suites and report (#170). |
 | `refuse_commit_during_benchmark.py` | Refuse a commit while a stack_agent A/B is live (#227). |
 | `release_notes.py` | Print the changelog section for a release, or refuse. |
+| `relevance_score.py` | Score how relevant an outside claim is to THIS project, procedurally (#230). |
 | `report.py` | Summarize and compare measured cells, with the resolution rule applied. |
 | `route_ab_report.py` | Attribute #149 route-A/B rows to sweep windows and evaluate the screens. |
 | `sensor_windows.py` | Join a monitord sensor series to benchmark sweep windows. |
