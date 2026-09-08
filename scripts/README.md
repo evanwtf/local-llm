@@ -35,6 +35,7 @@ documentation.
 | `kv_prefix_reuse.py` | Measure how much of a prompt ds4 reuses from its prefix cache (#190). |
 | `load_matrix.py` | Load each of a set of gguf files with the PLE sidecar, serially, and |
 | `machine_claim.py` | Claim the machine with intent, and make contention impossible to miss. #160 |
+| `make_next.py` | Generate NEXT.md from the open issues, so the queue cannot drift or bloat. |
 | `make_scripts_readme.py` | Generate scripts/README.md from each script's own first docstring line. |
 | `metal_knob_ab.py` | Knob table and refusal logic for scripts/metal_knob_ab.sh (#162 Task 4). |
 | `mtp_engagement.py` | Does the engine engage MTP on the traffic we actually send it? (#148, #151) |

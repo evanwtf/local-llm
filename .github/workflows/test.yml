@@ -41,6 +41,22 @@ jobs:
       - name: Check the launcher parses
         run: sh -n claude-ollama
 
+      # NEXT.md is generated from the open issues (#231). CI is the half of
+      # the guard the pre-commit hook cannot be: the hook only fires when
+      # NEXT.md is staged, so an issue closed or relabelled on the web leaves
+      # the file stale with nothing local to notice. This runs on every push
+      # and says so.
+      #
+      # It needs the API, so it must not fail the job on a GitHub hiccup --
+      # `continue-on-error` makes it a report, not a gate. A queue that is a
+      # day stale is a nuisance; a red main nobody can fix by editing code is
+      # worse, and #129 records what a red streak costs in attention.
+      - name: Is NEXT.md current?
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: uv run python scripts/make_next.py --check
+
       # Last, not first: Actions stops the job at the first failing step, so a
       # single reformatted line must not abort the run before pytest and hide
       # whatever the tests would have said. One run should report every

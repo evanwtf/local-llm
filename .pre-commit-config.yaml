@@ -47,3 +47,18 @@ repos:
         language: system
         types: [python]
         require_serial: true
+      # NEXT.md is generated (#231). The hook is what makes hand-editing
+      # impossible rather than discouraged -- the file grew to 377 lines
+      # holding a ten-item ranking precisely because every edit was allowed
+      # and each one looked reasonable on its own.
+      #
+      # It needs `gh` and the network, so it runs only when NEXT.md itself is
+      # staged: a commit that does not touch the file cannot be blocked by a
+      # GitHub outage, and a commit that does touch it is exactly the one to
+      # stop. `files:` rather than `always_run`.
+      - id: next-md-is-generated
+        name: NEXT.md matches scripts/make_next.py
+        entry: uv run python scripts/make_next.py --check
+        language: system
+        pass_filenames: false
+        files: ^NEXT\.md$

@@ -256,6 +256,29 @@ deliberately, so a crashed run gets noticed rather than paved over.
 `--no-lock` opts out. The lock knows nothing about downloads: 171 GB of disk
 traffic under a benchmark is still yours to avoid.
 
+## What a comparison must do to be readable
+
+These lived in NEXT.md, which is a ranking. They belong with the machine.
+
+**A quiet machine is not optional.** No builds, no large-file reads, no
+CPU-heavy work from any session while a batch holds the lock. A build landing
+in one arm and not the other is the confound that made #146's first attempt
+uninterpretable, and a test suite landing in one arm and not the other is what
+voided run 2 of #162 Task 3.
+
+**Position bias is measured, not assumed** (#130, #201). Whichever arm runs
+first is faster in 9 of 12 reps, median +0.9%, and **+5.9% on the first rep of
+a cold session**, decaying over about an hour. Any comparison below ~1% is
+inside that.
+
+**`REPS` defaults to 4 and an odd count is refused** across all four A/B
+scripts (#201). Alternation cancels the bias only on an even count, so an odd
+sweep produced a complete CSV and a plausible number with nothing to say half
+the design was missing. `ALLOW_ODD_REPS=1` overrides, deliberately.
+
+**Durations are estimates.** Nothing is anchored to a clock -- each step
+starts when the one before it releases the lock.
+
 ## ollama 0.33.3 and the sampler boundary
 
 ollama on this machine is **0.33.3**, installed 2026-09-03 18:19. From that
