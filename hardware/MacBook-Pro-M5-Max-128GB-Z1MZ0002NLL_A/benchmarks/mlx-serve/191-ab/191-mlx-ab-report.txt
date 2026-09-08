@@ -1,0 +1,75 @@
+# stack_agent_report_191.py output, captured verbatim
+# HEAD: eb5a2bb8575547ffaf9cfc8db33905801d9629cf
+# command: uv run python scripts/stack_agent_report_191.py --ledger hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/results.jsonl --run-dir ~/bench-logs/191-mlx-ab
+# run: Tue Sep  8 04:32:01 EDT 2026
+# --- stdout+stderr below ---
+cut: 2026-09-08 00:28:29 (run-record.txt)
+head: 7932a5f (run-record.txt)
+head-split is enforced by selection (env.harness_head == 7932a5f, harness_dirty == false); --allow-harness-split cannot override it
+raw rows: 120 (new 60, old 60); excluded 0; dry 0
+sweep new-sweep1   00:28:49  rows 15  {'n': 15, 'passes': 15, 'deaths': 0, 'deaths_turn1': 0, 'deaths_multi': 0, 'guard_flips': 0}
+sweep old-sweep1   00:49:32  rows 15  {'n': 15, 'passes': 15, 'deaths': 0, 'deaths_turn1': 0, 'deaths_multi': 0, 'guard_flips': 0}
+sweep old-sweep2   01:13:14  rows 15  {'n': 15, 'passes': 15, 'deaths': 0, 'deaths_turn1': 0, 'deaths_multi': 0, 'guard_flips': 0}
+sweep new-sweep2   01:38:30  rows 15  {'n': 15, 'passes': 15, 'deaths': 0, 'deaths_turn1': 0, 'deaths_multi': 0, 'guard_flips': 0}
+sweep new-sweep3   01:53:23  rows 15  {'n': 15, 'passes': 15, 'deaths': 0, 'deaths_turn1': 0, 'deaths_multi': 0, 'guard_flips': 0}
+sweep old-sweep3   02:41:27  rows 15  {'n': 15, 'passes': 15, 'deaths': 0, 'deaths_turn1': 0, 'deaths_multi': 0, 'guard_flips': 0}
+sweep old-sweep4   03:07:53  rows 15  {'n': 15, 'passes': 15, 'deaths': 0, 'deaths_turn1': 0, 'deaths_multi': 0, 'guard_flips': 0}
+sweep new-sweep4   03:32:46  rows 15  {'n': 15, 'passes': 14, 'deaths': 0, 'deaths_turn1': 0, 'deaths_multi': 0, 'guard_flips': 0}
+void checks: all pass
+new arm: {'n': 60, 'passes': 59, 'deaths': 0, 'deaths_turn1': 0, 'deaths_multi': 0, 'guard_flips': 0}
+old arm: {'n': 60, 'passes': 60, 'deaths': 0, 'deaths_turn1': 0, 'deaths_multi': 0, 'guard_flips': 0}
+paired pass, by TASK not by row: 1 down, 0 up, 14 tied of 15  sign test p=1.000
+    script-transform             new 3/4  old 4/4
+qwen38fnmlxserve mbox-strip-envelope: 4 row(s), none records server_argv; cannot verify they ran one configuration
+qwen38fnmlxserve parser-mbox-quoting: 4 row(s), none records server_argv; cannot verify they ran one configuration
+qwen38fnmlxserve storage-blob-put: 4 row(s), none records server_argv; cannot verify they ran one configuration
+qwen38fnmlxserve parser-date: 4 row(s), none records server_argv; cannot verify they ran one configuration
+qwen38fnmlxserve mbox-scan: 4 row(s), none records server_argv; cannot verify they ran one configuration
+qwen38fnmlxserve swift-downsample-buckets: 4 row(s), none records server_argv; cannot verify they ran one configuration
+qwen38fnmlxserve swift-csv-text: 4 row(s), none records server_argv; cannot verify they ran one configuration
+qwen38fnmlxserve swift-chartaxis-spacing: 4 row(s), none records server_argv; cannot verify they ran one configuration
+qwen38fnmlxserve parser-mbox-quoting-nodoc: 4 row(s), none records server_argv; cannot verify they ran one configuration
+qwen38fnmlxserve mbox-quoting-both-halves: 4 row(s), none records server_argv; cannot verify they ran one configuration
+qwen38fnmlxserve storage-put-and-sweep: 4 row(s), none records server_argv; cannot verify they ran one configuration
+qwen38fnmlxserve swift-scaleladder-snap: 4 row(s), none records server_argv; cannot verify they ran one configuration
+qwen38fnmlxserve swift-sevensegment-glyphs: 4 row(s), none records server_argv; cannot verify they ran one configuration
+qwen38fnmlxserve script-reverse: 4 row(s), none records server_argv; cannot verify they ran one configuration
+qwen38fnmlxserve script-transform: 4 row(s), none records server_argv; cannot verify they ran one configuration
+qwen38fnds4kimat mbox-strip-envelope: 4 row(s), none records server_argv; cannot verify they ran one configuration
+qwen38fnds4kimat parser-mbox-quoting: 4 row(s), none records server_argv; cannot verify they ran one configuration
+qwen38fnds4kimat storage-blob-put: 4 row(s), none records server_argv; cannot verify they ran one configuration
+qwen38fnds4kimat parser-date: 4 row(s), none records server_argv; cannot verify they ran one configuration
+qwen38fnds4kimat mbox-scan: 4 row(s), none records server_argv; cannot verify they ran one configuration
+qwen38fnds4kimat swift-downsample-buckets: 4 row(s), none records server_argv; cannot verify they ran one configuration
+qwen38fnds4kimat swift-csv-text: 4 row(s), none records server_argv; cannot verify they ran one configuration
+qwen38fnds4kimat swift-chartaxis-spacing: 4 row(s), none records server_argv; cannot verify they ran one configuration
+qwen38fnds4kimat parser-mbox-quoting-nodoc: 4 row(s), none records server_argv; cannot verify they ran one configuration
+qwen38fnds4kimat mbox-quoting-both-halves: 4 row(s), none records server_argv; cannot verify they ran one configuration
+qwen38fnds4kimat storage-put-and-sweep: 4 row(s), none records server_argv; cannot verify they ran one configuration
+qwen38fnds4kimat swift-scaleladder-snap: 4 row(s), none records server_argv; cannot verify they ran one configuration
+qwen38fnds4kimat swift-sevensegment-glyphs: 4 row(s), none records server_argv; cannot verify they ran one configuration
+qwen38fnds4kimat script-reverse: 4 row(s), none records server_argv; cannot verify they ran one configuration
+qwen38fnds4kimat script-transform: 4 row(s), none records server_argv; cannot verify they ran one configuration
+wall: n_pairs 15  ratio 0.68 (95% CI 0.54-0.87)  median 0.58  win/loss/tie 12/1/2
+  per-task log ratios (new/old, passed trials only):
+    mbox-quoting-both-halves        92.1   108.9  d -0.168
+    mbox-scan                       51.6    99.5  d -0.655
+    mbox-strip-envelope             29.2    45.6  d -0.448
+    parser-date                     59.5   118.6  d -0.689
+    parser-mbox-quoting            157.9    53.3  d +1.086
+    parser-mbox-quoting-nodoc       55.1    85.1  d -0.434
+    script-reverse                  16.9    30.7  d -0.599
+    script-transform                29.6    43.0  d -0.375
+    storage-blob-put                42.3    75.0  d -0.572
+    storage-put-and-sweep           51.3   108.5  d -0.749
+    swift-chartaxis-spacing         60.0   155.2  d -0.950
+    swift-csv-text                  59.5   105.3  d -0.572
+    swift-downsample-buckets        92.4    90.9  d +0.016
+    swift-scaleladder-snap          53.8    92.3  d -0.540
+    swift-sevensegment-glyphs       53.6    55.7  d -0.038
+completes 60/60, passes new 59 / old 60 (shortfall 1), deaths 0 (0 turn-1)
+  PASS-SIDE: completes
+  PASS-SIDE: pass gap <= 4
+  PASS-SIDE: deaths <= 3
+  PASS-SIDE: wall ratio <= 1.25
+SCREEN PASS: the new stack integrates and regresses nothing catastrophically; book the paired 3+3 for a superiority claim.

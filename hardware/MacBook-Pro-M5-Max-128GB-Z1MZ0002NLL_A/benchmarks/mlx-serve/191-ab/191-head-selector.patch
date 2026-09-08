@@ -1,0 +1,190 @@
+diff --git a/scripts/stack_agent_report_191.py b/scripts/stack_agent_report_191.py
+index 69c9044..90e94f0 100644
+--- a/scripts/stack_agent_report_191.py
++++ b/scripts/stack_agent_report_191.py
+@@ -26,8 +26,10 @@ import logging
+ import math
+ import os
+ import pathlib
++import re
+ import statistics
+ import sys
++from collections import Counter
+ from typing import Any
+ 
+ import stack_agent_report as rep
+@@ -50,6 +52,48 @@ def configure() -> None:
+     rep.BACKENDS = {rep.NEW_BACKEND: "new", rep.OLD_BACKEND: "old"}
+ 
+ 
++def pinned_head(run_dir: pathlib.Path) -> str | None:
++    """The harness commit the run pinned, from run-record.txt.
++
++    stack_agent_ab.sh writes `harness pinned at <head> for all N sweeps`.
++    The pin is the run's identity: every row of a valid run carries this
++    head and dirty=false. A leftover from an aborted attempt carries a
++    different head and dirty=true.
++    """
++    record = run_dir / "run-record.txt"
++    try:
++        text = record.read_text(errors="replace")
++    except OSError:
++        return None
++    match = re.search(r"harness pinned at (\w+)", text)
++    return match.group(1) if match else None
++
++
++def head_rows(rows: list[dict[str, Any]], head: str) -> list[dict[str, Any]]:
++    """Rows whose env names the pinned head on a clean tree.
++
++    The head selector is exact: it keeps only rows the pinned harness wrote
++    on a clean tree. A timestamp cut cannot say that -- a row can land during
++    startup, or a clock can slip. The head is the run's identity.
++    """
++    return [
++        r
++        for r in rows
++        if r.get("env", {}).get("harness_head") == head
++        and r.get("env", {}).get("harness_dirty") is False
++    ]
++
++
++def _row_key(row: dict[str, Any]) -> tuple[Any, ...]:
++    """A row's identity, for comparing the two selectors."""
++    return (row.get("started"), row.get("backend"), row.get("task"))
++
++
++def _key_multiset(rows: list[dict[str, Any]]) -> Counter:
++    """The multiset of row identities, for the head/cut cross-check."""
++    return Counter(_row_key(r) for r in rows)
++
++
+ def passed_wall(rows: list[dict[str, Any]]) -> float | None:
+     """Geometric-mean wall over PASSED trials only (#191 pre-registration).
+ 
+@@ -153,7 +197,32 @@ def main(argv: list[str] | None = None) -> int:
+         cut = started_at
+         logger.info("cut: %s (run-record.txt)", started_at.isoformat(sep=" "))
+ 
+-    raw = rep.load_raw(args.ledger, rep.BACKENDS, cut)
++    head = pinned_head(args.run_dir)
++    if head is None:
++        logger.info(
++            "VOID: %s has no 'harness pinned at' line; refusing to guess"
++            " which rows are tonight's",
++            args.run_dir / "run-record.txt",
++        )
++        return 2
++    logger.info("head: %s (run-record.txt)", head)
++
++    # The head selector is primary; the timestamp cut is a cross-check that
++    # must agree. Load all backend rows, select by head, then verify the cut
++    # picks the same set. A disagreement means the run's identity is
++    # ambiguous -- VOID, not a preference.
++    all_rows = rep.load_raw(args.ledger, rep.BACKENDS, dt.datetime.min)
++    raw = head_rows(all_rows, head)
++    cut_rows = rep.load_raw(args.ledger, rep.BACKENDS, cut)
++    if _key_multiset(raw) != _key_multiset(cut_rows):
++        logger.info(
++            "VOID: head selector and timestamp cut disagree; the run's"
++            " identity is ambiguous. head keeps %d rows, cut keeps %d rows.",
++            len(raw),
++            len(cut_rows),
++        )
++        return 2
++
+     per_backend = {b: sum(1 for r in raw if r["backend"] == b) for b in rep.BACKENDS}
+     excluded = sum(1 for r in raw if r.get("excluded"))
+     dry = sum(1 for r in raw if r.get("dry_run"))
+diff --git a/tests/test_stack_agent_report_191.py b/tests/test_stack_agent_report_191.py
+index c546d2d..65d036b 100644
+--- a/tests/test_stack_agent_report_191.py
++++ b/tests/test_stack_agent_report_191.py
+@@ -30,6 +30,9 @@ SCRIPT = pathlib.Path(__file__).resolve().parents[1] / "scripts" / "stack_agent_
+ NEW_BACKEND = "qwen38fnmlxserve"
+ OLD_BACKEND = "qwen38fnds4kimat"
+ 
++#: The harness head every clean row carries, and the run-record pins.
++PINNED_HEAD = "abc1234"
++
+ 
+ def producer_fmt(pattern: str) -> str:
+     """The date format stack_agent_ab.sh itself writes, pulled out of the
+@@ -78,7 +81,7 @@ def row(backend: str, task: str, started: str, **extra) -> dict:
+         "num_turns": 8,
+         "wall_seconds": 120,
+         "client_version": "1.18.27",
+-        "env": {"harness_head": "abc1234", "harness_dirty": False},
++        "env": {"harness_head": PINNED_HEAD, "harness_dirty": False},
+     }
+     row.update(extra)
+     return row
+@@ -112,6 +115,7 @@ def write_run_dir(
+         producer_started_line(started_at) + "\n"
+         "NEW backend=qwen38fnmlxserve engine=mlx-serve @ mlx-serve 26.9.1\n"
+         "OLD backend=qwen38fnds4kimat engine=~/git/ds4-ivan-qwen38fn @ bd9cfbc\n"
++        f"harness pinned at {PINNED_HEAD} for all 8 sweeps\n"
+     )
+     (run_dir / "sweep-order.txt").write_text(
+         "".join(
+@@ -251,11 +255,59 @@ def test_the_old_arm_control_floor_is_a_void(tmp_path, caplog):
+ 
+ 
+ def test_a_harness_head_split_is_void(tmp_path, caplog):
++    """A row at a different head inside the window is a VOID, not a preference.
++
++    The head selector drops it; the timestamp cut keeps it. The two selectors
++    disagree, so the run's identity is ambiguous and the report refuses.
++    """
+     rows = full_rows()
+     rows[0]["env"]["harness_head"] = "def5678"
+     code, out = run_report(tmp_path, rows, caplog)
+     assert code == 2
+-    assert "harness_head varies" in out
++    assert "head selector and timestamp cut disagree" in out
++
++
++def test_a_leftover_at_a_different_head_is_not_counted(tmp_path, caplog):
++    """A row from an aborted attempt at a different head must not count.
++
++    The head selector is primary. A row whose env names a different head is
++    not tonight's, whatever its timestamp. Here the leftover sits inside the
++    timestamp window, so the cut would keep it but the head selector would
++    not -- the two selectors disagree, and the report refuses rather than
++    count a row that is not the run's.
++    """
++    rows = full_rows()
++    rows.append(
++        row(
++            NEW_BACKEND,
++            "mbox-strip-envelope",
++            "2026-09-07T21:00:00-04:00",
++            env={"harness_head": "636d3a0", "harness_dirty": True},
++        )
++    )
++    code, out = run_report(tmp_path, rows, caplog)
++    assert code == 2
++    assert "head selector and timestamp cut disagree" in out
++
++
++def test_a_leftover_before_the_cut_is_excluded(tmp_path, caplog):
++    """A leftover from an aborted attempt before the cut is not counted.
++
++    Both selectors agree to drop it: it is before the cut and at a different
++    head. The report proceeds with the clean rows.
++    """
++    rows = full_rows()
++    rows.append(
++        row(
++            NEW_BACKEND,
++            "mbox-strip-envelope",
++            "2026-09-07T20:00:00-04:00",
++            env={"harness_head": "636d3a0", "harness_dirty": True},
++        )
++    )
++    code, out = run_report(tmp_path, rows, caplog)
++    assert code == 0
++    assert "raw rows: 60" in out
+ 
+ 
+ def test_a_short_sweep_cell_is_void(tmp_path, caplog):
