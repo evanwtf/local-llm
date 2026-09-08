@@ -89,9 +89,7 @@ def test_a_tree_based_mlx_serve_records_the_sha_not_the_brew_version(
     assert got["engine_tree"] == str(tree)
 
 
-def test_a_tree_based_mlx_serve_records_the_tree_binarys_mtime(
-    tmp_path, monkeypatch
-):
+def test_a_tree_based_mlx_serve_records_the_tree_binarys_mtime(tmp_path, monkeypatch):
     """engine_built must be the tree's own zig build, not the brew binary's.
 
     The mtime is the one fact that survives a rebuild from uncommitted code; a
@@ -118,9 +116,7 @@ def test_a_tree_based_mlx_serve_records_the_tree_binarys_mtime(
     assert got["engine_built"] == expected
 
 
-def test_two_mlx_serve_builds_produce_different_engine_versions(
-    tmp_path, monkeypatch
-):
+def test_two_mlx_serve_builds_produce_different_engine_versions(tmp_path, monkeypatch):
     """#225: the two arms must be distinguishable after the fact.
 
     A brew arm (no tree) reports the --version string; a git arm (tree) reports
