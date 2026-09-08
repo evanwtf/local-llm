@@ -228,11 +228,27 @@ def cli_argv(
     seed: int,
     dump_path: pathlib.Path,
     backend_flag: str,
+    ple: str | None = None,
 ) -> list[str]:
+    # --ple is real, undocumented, and absent from --help. This instrument
+    # drives the CLI, and the CLI has it: ds4_cli.c:2025 at ds4-metal 18ca8ec
+    # (ds4_bench.c:274 at ds4-metal 18ca8ec, for the sibling scripts).
+    # Both Qwen3.8-Flash-Next ds4
+    # builds keep the 51B-value PLE n-gram table in an external sidecar, so
+    # without it every arm dies with
+    #
+    #     ds4: required tensor is missing: per_layer_token_embd.weight
+    #
+    # which reads exactly like the flag not existing. It does exist. Reporting
+    # a capability as absent is the expensive direction to be wrong in --
+    # nobody re-checks something ruled out -- and this instrument had already
+    # made the model it was most needed for unrunnable.
+    ple_args = ["--ple", ple] if ple else []
     return [
         str(tree / CLI_NAME),
         "-m",
         gguf,
+        *ple_args,
         backend_flag,
         "--raw",
         "--prompt-file",
@@ -428,6 +444,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("tree_b", type=pathlib.Path)
     p.add_argument("gguf")
     p.add_argument(
+        "--ple",
+        default=None,
+        help="external PLE sidecar GGUF, passed to both arms. Required by "
+        "both Qwen3.8-Flash-Next ds4 builds, which keep the PLE n-gram table "
+        "outside the model file; without it the arm fails with 'required "
+        "tensor is missing: per_layer_token_embd.weight'.",
+    )
+    p.add_argument(
         "--frontier",
         type=int,
         action="append",
@@ -511,6 +535,8 @@ def run(args: argparse.Namespace) -> int:
     require_binaries(trees)
     if not pathlib.Path(args.gguf).exists():
         raise InstrumentRefused(f"{args.gguf} does not exist")
+    if args.ple is not None and not pathlib.Path(args.ple).exists():
+        raise InstrumentRefused(f"{args.ple} does not exist")
     if args.prompt_file and not args.prompt_file.exists():
         raise InstrumentRefused(f"{args.prompt_file} does not exist")
     corpus = args.corpus
@@ -563,6 +589,7 @@ def run(args: argparse.Namespace) -> int:
             "commit": tree_commit(args.tree_b),
         },
         "gguf": args.gguf,
+        "ple": args.ple,
         "corpus": str(corpus) if corpus else None,
         "prompt_file_override": str(args.prompt_file) if args.prompt_file else None,
         "frontiers": frontiers,
@@ -686,6 +713,7 @@ def run_frontier(
             args.seed,
             out_dir / f"{run_name}-{frontier}.json",
             backend_flag,
+            args.ple,
         )
 
     result["argv"] = {"A": arm_argv("a1"), "B": arm_argv("b")}

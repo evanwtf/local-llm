@@ -874,3 +874,109 @@ def test_asking_for_fast_sets_the_variable(monkeypatch, tmp_path):
     with pytest.raises(Stop):
         ab.run(args)
     assert seen["env"]["DS4_METAL_ENABLE_TENSOR"] == "1"
+
+
+# --- the PLE sidecar --------------------------------------------------------
+#
+# Both Qwen3.8-Flash-Next ds4 builds keep the 51B-value PLE n-gram table
+# outside the model file, so an arm run without --ple dies with "required
+# tensor is missing: per_layer_token_embd.weight". The instrument had no way
+# to pass one, which made it unable to answer for the model this project cares
+# most about -- and the failure reads exactly like the flag not existing.
+
+
+def test_the_ple_sidecar_reaches_both_arms_and_the_report(bench, monkeypatch):
+    monkeypatch.setenv("FAKE_PLAN", "ok,ok,ok")
+    ple = bench["out"].parent / "ple.gguf"
+    ple.parent.mkdir(parents=True, exist_ok=True)
+    ple.write_bytes(b"GGUF")
+    ab.main(
+        [
+            "new",
+            str(bench["trees"]["tree-a"]),
+            "old",
+            str(bench["trees"]["tree-b"]),
+            str(bench["gguf"]),
+            "--ple",
+            str(ple),
+            "--corpus",
+            str(bench["corpus"]),
+            "--out",
+            str(bench["out"]),
+            "--no-lock",
+            "--gen",
+            "4",
+            "--frontier",
+            "8",
+        ]
+    )
+    report = read_report(bench)
+    assert report["ple"] == str(ple)
+    # Both arms, not just the one the report happens to print first: a
+    # sidecar on one side only would be a two-variable comparison wearing a
+    # one-variable label.
+    for slot in ("A", "B"):
+        argv = report["frontier_results"][0]["argv"][slot]
+        assert "--ple" in argv, argv
+        assert argv[argv.index("--ple") + 1] == str(ple)
+    # And it reached the process, not only the record.
+    for call in dump_calls(bench):
+        if "--dump-logprobs" in call["argv"]:
+            assert "--ple" in call["argv"], call["argv"]
+
+
+def test_no_ple_leaves_the_argv_exactly_as_it_was(bench, monkeypatch):
+    """The flag is opt-in. A model with the table inside its GGUF must not
+    start receiving an empty --ple."""
+    monkeypatch.setenv("FAKE_PLAN", "ok,ok,ok")
+    ab.main(
+        [
+            "new",
+            str(bench["trees"]["tree-a"]),
+            "old",
+            str(bench["trees"]["tree-b"]),
+            str(bench["gguf"]),
+            "--corpus",
+            str(bench["corpus"]),
+            "--out",
+            str(bench["out"]),
+            "--no-lock",
+            "--gen",
+            "4",
+            "--frontier",
+            "8",
+        ]
+    )
+    report = read_report(bench)
+    assert report["ple"] is None
+    for slot in ("A", "B"):
+        assert "--ple" not in report["frontier_results"][0]["argv"][slot]
+
+
+def test_a_missing_ple_sidecar_is_refused_before_anything_loads(bench, caplog):
+    """Beside the missing-gguf check, and for the same reason: a typo should
+    cost a second, not the lock and a 68 GiB model load."""
+    with caplog.at_level(logging.ERROR):
+        rc = ab.main(
+            [
+                "new",
+                str(bench["trees"]["tree-a"]),
+                "old",
+                str(bench["trees"]["tree-b"]),
+                str(bench["gguf"]),
+                "--ple",
+                str(bench["out"].parent / "nope.gguf"),
+                "--corpus",
+                str(bench["corpus"]),
+                "--out",
+                str(bench["out"]),
+                "--no-lock",
+            ]
+        )
+    assert rc == 2
+    assert "nope.gguf does not exist" in caplog.text
+    # Nothing ran: the refusal is before the first arm, not after it. The fake
+    # CLI appends to the calls file on every invocation and creates it on the
+    # first, so its absence is the assertion -- an empty list would also pass
+    # if the file existed and something had gone wrong writing to it.
+    assert not bench["calls"].exists()
