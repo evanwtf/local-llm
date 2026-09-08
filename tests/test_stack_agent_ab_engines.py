@@ -59,7 +59,9 @@ def _server_argv(engine: str) -> str:
     return fn[start:end]
 
 
-def _run_server_argv(calls: list[list[str]], cwd: pathlib.Path | None = None) -> subprocess.CompletedProcess:
+def _run_server_argv(
+    calls: list[list[str]], cwd: pathlib.Path | None = None
+) -> subprocess.CompletedProcess:
     """Run the real server_argv from the script under set -euo pipefail.
 
     A string-match guard would be satisfied by a pattern written from the
@@ -85,7 +87,9 @@ def _run_server_argv(calls: list[list[str]], cwd: pathlib.Path | None = None) ->
         lines.append('printf "argv=%s\\n" ${SERVER_ARGV[*]+"${SERVER_ARGV[*]}"}')
     return subprocess.run(
         ["bash", "-c", "\n".join(lines)],
-        capture_output=True, text=True, cwd=cwd,
+        capture_output=True,
+        text=True,
+        cwd=cwd,
     )
 
 
