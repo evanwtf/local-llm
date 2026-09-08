@@ -80,6 +80,26 @@ def ablate(payload: dict, name: str) -> dict | None:
             return None
         out["messages"] = kept
         return out
+    # The three fields a hand-built probe sets differently without meaning
+    # to. `mtp_engagement.py` pins temperature to 0 and max_tokens to 200 and
+    # sends no stream_options; the captured payload does the opposite of all
+    # three. Every message-shaped ablation above stayed at zero cycles, so
+    # what is left is here.
+    if name == "temperature-zero":
+        if out.get("temperature") == 0:
+            return None
+        out["temperature"] = 0
+        return out
+    if name == "max-tokens-200":
+        if out.get("max_tokens") == 200:
+            return None
+        out["max_tokens"] = 200
+        return out
+    if name == "no-stream-options":
+        if "stream_options" not in out:
+            return None
+        out.pop("stream_options", None)
+        return out
     if name == "last-message-only":
         user = [m for m in messages if m.get("role") == "user"]
         if not user or len(messages) <= 1:
@@ -96,6 +116,9 @@ ABLATIONS = (
     "no-system",
     "no-tool-results",
     "last-message-only",
+    "temperature-zero",
+    "max-tokens-200",
+    "no-stream-options",
 )
 
 

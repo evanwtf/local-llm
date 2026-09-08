@@ -108,3 +108,30 @@ def test_describe_names_what_a_reader_needs_to_compare_two_captures():
     assert "5 message(s)" in got
     assert "2 tool(s)" in got
     assert "'tool': 1" in got
+
+
+# --- the fields a hand-built probe sets differently without meaning to -------
+
+
+def test_the_request_level_ablations_change_one_field_each():
+    """Every message-shaped ablation stayed at zero cycles on 2026-09-08.
+    `mtp_engagement.py` pins temperature to 0 and max_tokens to 200 and sends
+    no stream_options; the captured payload does the opposite of all three,
+    and that is the whole of the remaining difference."""
+    base = dict(payload(), max_tokens=32000, stream_options={"include_usage": True})
+    temp = rp.ablate(base, "temperature-zero")
+    assert temp["temperature"] == 0
+    assert temp["max_tokens"] == 32000, "one field at a time"
+    cap = rp.ablate(base, "max-tokens-200")
+    assert cap["max_tokens"] == 200
+    assert "temperature" not in cap
+    opts = rp.ablate(base, "no-stream-options")
+    assert "stream_options" not in opts
+    assert opts["max_tokens"] == 32000
+
+
+def test_a_request_level_ablation_already_satisfied_is_skipped():
+    already = dict(payload(), temperature=0, max_tokens=200)
+    assert rp.ablate(already, "temperature-zero") is None
+    assert rp.ablate(already, "max-tokens-200") is None
+    assert rp.ablate(already, "no-stream-options") is None
