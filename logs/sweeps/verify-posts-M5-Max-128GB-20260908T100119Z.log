@@ -1,0 +1,9 @@
+2026-09-08 06:01:19,468 INFO [46cf0f6@M5-Max-128GB pld=n/a] 2026-09-08T10:01:19Z (06:01:19 EDT) | harness 46cf0f6
+2026-09-08 06:01:19,502 INFO [46cf0f6@M5-Max-128GB pld=n/a]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-08 06:01:19,762 INFO [46cf0f6@M5-Max-128GB pld=n/a] 2097218370936688917  VERIFIED post  @Beamsters1  Tue Sep 08 06:59:58 +0000 2026  via fxtwitter
+2026-09-08 06:01:19,762 INFO [46cf0f6@M5-Max-128GB pld=n/a]     If you are going to daily drive MLX-serve's Qwen3.8 Flash Next, make sure to include PR383 from main. (and perhaps many more since we are starting the big bug hunts)
+2026-09-08 06:01:19,762 INFO [46cf0f6@M5-Max-128GB pld=n/a] 
+2026-09-08 06:01:19,762 INFO [46cf0f6@M5-Max-128GB pld=n/a] Verified 1: 1 confirmed, 0 not.
+2026-09-08 06:01:19,762 INFO [46cf0f6@M5-Max-128GB pld=n/a] Paste onto the issue:
+2026-09-08 06:01:19,762 INFO [46cf0f6@M5-Max-128GB pld=n/a]   **Verified** 2026-09-08: post exists, authored by @Beamsters1, posted Tue Sep 08 06:59:58 +0000 2026.
+2026-09-08 06:01:19,762 INFO [46cf0f6@M5-Max-128GB pld=n/a] log: /Users/evanhoffman/git/local-llm/logs/sweeps/verify-posts-M5-Max-128GB-20260908T100119Z.log
