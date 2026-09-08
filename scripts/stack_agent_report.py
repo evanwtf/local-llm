@@ -280,6 +280,24 @@ def sweep_windows(run_dir: pathlib.Path) -> list[Sweep] | None:
             sweeps.append(Sweep(tag, previous, finish))
             previous = finish
     sweeps.sort(key=lambda s: s.start)
+    if not legacy:
+        # The producer appends a sweep's finish when it completes, then
+        # restarts the server, then starts the next sweep. finish_i <
+        # start_{i+1} is therefore an invariant of a real run; a finish at or
+        # after the next start means the file is corrupt or two runs are
+        # interleaved into one directory, and under [start, own finish] it
+        # silently misassigns rows to the wrong arm. Refuse rather than guess.
+        for a, b in zip(sweeps, sweeps[1:]):
+            if a.finish is not None and a.finish >= b.start:
+                logger.error(
+                    "sweep %s finishes %s at or after %s starts %s; "
+                    "sweep-order.txt is corrupt or two runs are interleaved",
+                    a.tag,
+                    a.finish.strftime("%H:%M:%S"),
+                    b.tag,
+                    b.start.strftime("%H:%M:%S"),
+                )
+                return None
     return sweeps
 
 

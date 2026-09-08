@@ -109,6 +109,27 @@ def arm_of(tag: str) -> str:
     return tag.rsplit("-sweep", 1)[0]
 
 
+def sweep_order_lines(offset: dt.timedelta = dt.timedelta(0)) -> list[str]:
+    """Each sweep's finish comes from the next sweep's start, minus a minute.
+
+    The producer appends a sweep's finish when it completes, then restarts the
+    server, then starts the next sweep -- so finish_i < start_{i+1} is an
+    invariant of a real run. Deriving the finish from the next start keeps the
+    fixture inside that invariant when STARTS is edited; a magic constant would
+    drift back into an impossible overlap. The last sweep has no next start, so
+    it gets a fixed duration.
+    """
+    lines = []
+    for i, ((tag, _), base) in enumerate(zip(ORDER, STARTS)):
+        start = base + offset
+        if i + 1 < len(STARTS):
+            finish = STARTS[i + 1] + offset - dt.timedelta(minutes=1)
+        else:
+            finish = start + dt.timedelta(minutes=40)
+        lines.append(producer_sweep_line(tag, start, finish))
+    return lines
+
+
 def write_run_dir(
     tmp_path: pathlib.Path,
     started_at: dt.datetime | None = None,
@@ -124,10 +145,7 @@ def write_run_dir(
         "OLD backend=qwen38fnds4shim engine=~/git/ds4-metal @ ba01f5d\n"
     )
     (run_dir / "sweep-order.txt").write_text(
-        "".join(
-            producer_sweep_line(tag, base + offset) + "\n"
-            for (tag, _), base in zip(ORDER, STARTS)
-        )
+        "".join(line + "\n" for line in sweep_order_lines(offset))
     )
     for tag, _ in ORDER:
         (run_dir / f"server-{tag}.log").write_text("ready\n")
@@ -208,6 +226,34 @@ def test_sweep_windows_come_from_the_order_file_not_from_gaps(tmp_path):
         "new-sweep2": 15,
         "old-sweep2": 15,
     }
+
+
+def test_an_overlapping_sweep_window_is_void(tmp_path, caplog):
+    """A sweep finishing at or after the next one's start is impossible for
+    the producer and corrupts the tally under [start, own finish]: a row in the
+    overlap matches the earlier sweep first and, on a backend mismatch, is
+    dropped. sweep_windows must refuse, not guess. This is the permanent record
+    of the fixture that used to encode exactly this impossible state."""
+    run_dir = tmp_path / "138-stack-ab"
+    run_dir.mkdir()
+    (run_dir / "run-record.txt").write_text(
+        producer_started_line(dt.datetime(2026, 9, 4, 20, 57, 17)) + "\n"
+        "NEW backend=qwen38fnds4kimat engine=x @ bd9cfbc\n"
+        "OLD backend=qwen38fnds4shim engine=y @ ba01f5d\n"
+    )
+    # new-sweep2 finishes 23:02, old-sweep2 starts 23:00 -- the old overlap.
+    (run_dir / "sweep-order.txt").write_text(
+        "new-sweep1 20:58:00 21:38:00\n"
+        "old-sweep1 21:40:00 22:20:00\n"
+        "new-sweep2 22:22:00 23:02:00\n"
+        "old-sweep2 23:00:00 23:40:00\n"
+    )
+    caplog.set_level(logging.INFO, logger="stack_agent_report")
+    assert sar.sweep_windows(run_dir) is None
+    assert (
+        "new-sweep2 finishes 23:02:00 at or after old-sweep2 starts 23:00:00"
+        in caplog.text
+    )
 
 
 def test_the_fixtures_are_built_in_the_producers_formats():
