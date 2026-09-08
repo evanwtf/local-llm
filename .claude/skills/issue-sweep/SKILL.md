@@ -76,15 +76,19 @@ Priority labels are `P0` `P1` `P2` `P3`. Platform labels are `macOS` and
 ```python
 # uv run python - <<'PY'   (or inline; keep it out of the repo if a run is live)
 import json, pathlib
+
 d = json.loads(pathlib.Path("/tmp/issues.json").read_text())
 PRIO = {"P0", "P1", "P2", "P3"}
 PLAT = {"macOS", "Nvidia"}
 for i in d:
     L = {l["name"] for l in i["labels"]}
     p, pl = L & PRIO, L & PLAT
-    if not p:        print(f"#{i['number']} NO priority   {i['title'][:60]}")
-    elif len(p) > 1: print(f"#{i['number']} MULTI {sorted(p)} {i['title'][:60]}")
-    if len(pl) > 1:  print(f"#{i['number']} MULTI platform {sorted(pl)}")
+    if not p:
+        print(f"#{i['number']} NO priority   {i['title'][:60]}")
+    elif len(p) > 1:
+        print(f"#{i['number']} MULTI {sorted(p)} {i['title'][:60]}")
+    if len(pl) > 1:
+        print(f"#{i['number']} MULTI platform {sorted(pl)}")
 PY
 ```
 
