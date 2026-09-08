@@ -105,3 +105,40 @@ def test_a_stream_arm_is_recognised_by_name():
 def test_a_missing_server_log_refuses_rather_than_measuring_nothing(tmp_path, caplog):
     args = me.parse_args(["--server-log", str(tmp_path / "absent.log")])
     assert me.run(args) == 2
+
+
+# --- the context-length axis (#151) ------------------------------------------
+
+
+def test_padding_is_off_by_default_so_old_invocations_are_unchanged():
+    assert me.parse_args(["--server-log", "x.log"]).pad_tokens == 0
+    assert me.pad_prompt("ask", 0) == "ask"
+    assert me.pad_prompt("ask", -1) == "ask"
+
+
+def test_the_question_survives_the_padding():
+    """The pad is context, not the request. If the question were buried or
+    truncated the arm would measure a different task, and a shorter answer
+    reads as fewer speculative cycles for a reason that is not the treatment.
+    """
+    padded = me.pad_prompt("MERGE TWO LISTS", 2000)
+    assert padded.endswith("MERGE TWO LISTS")
+    assert padded.count("MERGE TWO LISTS") == 1
+
+
+def test_the_pad_scales_with_the_request_and_lands_in_the_right_size_class():
+    """The knob only has to put a request in the right size class -- short,
+    or agent-realistic. #151's confounded run sat at 11,760 prompt tokens.
+    """
+    small = me.pad_prompt("ask", 1_000)
+    large = me.pad_prompt("ask", 11_000)
+    assert len(large) > 8 * len(small)
+    # ~14 tokens per padding line, so the line count tracks the request.
+    assert 60 <= small.count("\n") <= 90
+    assert 700 <= large.count("\n") <= 900
+
+
+def test_the_same_setting_sends_the_same_bytes():
+    """Two runs at one setting must be comparable to each other. A random or
+    timestamped filler would make every difference partly the prompt's."""
+    assert me.pad_prompt("ask", 3_000) == me.pad_prompt("ask", 3_000)

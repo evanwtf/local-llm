@@ -106,10 +106,13 @@ def test_every_stage_reads_the_counters_from_a_server_log():
     """#148: this script's predecessor passed `--mtp-timing` and no
     `--server-log` for three cycles, so every counter the engine emitted was
     written to a file nothing read."""
-    for name in ("bypass", "treated", "silent"):
+    for name in ("bypass", "treated", "probe", "silent"):
         branch = stage(name)
         assert "--server-log" in branch, name
-        assert "--draft-log-engine ds4" in branch, name
+        if name != "probe":
+            # The probe drives the engine directly; it runs no trials, so
+            # there is no row for a draft engine to be stamped onto.
+            assert "--draft-log-engine ds4" in branch, name
 
 
 def test_only_the_silent_stage_switches_the_gate_off():
@@ -129,6 +132,7 @@ def test_the_graph_line_is_asserted_before_a_trial_is_spent():
     assert "MTP sidecar loaded" in text
     assert "assert_graph off" in stage("bypass")
     assert "assert_graph on" in stage("treated")
+    assert "assert_graph on" in stage("probe")
     assert "assert_graph on" in stage("silent")
 
 
@@ -141,3 +145,22 @@ def test_the_lock_is_held_by_the_script_and_run_py_is_told_so():
     assert "--release-lock" in text
     for name in ("bypass", "treated", "silent"):
         assert "--no-lock" in stage(name), name
+
+
+def test_the_probe_stage_crosses_both_sizes_with_both_shapes():
+    """The treated arm's refusal confounded tools with context length: 280
+    cycles across 26 short toolless requests, zero across 16 tool-bearing
+    requests at 11,760 tokens. One pad, or one shape, and the confound
+    survives into the answer."""
+    branch = stage("probe")
+    assert "for pad in 0 11000" in branch
+    assert "--arms plain tools" in branch
+    assert "--pad-tokens" in branch
+
+
+def test_the_probe_stage_runs_no_trials_and_writes_no_rows():
+    """It is a diagnostic. A row from it would enter the corpus carrying a
+    prompt no task defines."""
+    branch = stage("probe")
+    assert "run.py" not in branch
+    assert "--results" not in branch

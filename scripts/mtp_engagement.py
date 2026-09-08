@@ -19,6 +19,15 @@ whichever arm runs second a warmer or busier machine.
 The output is per-request: generated tokens, speculative cycles, accepted draft
 tokens. A request that generated hundreds of tokens with zero cycles is an arm
 whose treatment was never applied, whatever its row says.
+
+**`--pad-tokens` is the second axis, and it was missing.** The shape arms hold
+the prompt constant, which is right for isolating `tools` and wrong for
+answering #151: on 2026-09-08 a treated MTP arm produced 280 speculative
+cycles across 26 short toolless requests and **zero** across 16 tool-bearing
+requests whose prompts were 11,760 tokens -- same server, same loaded sidecar,
+minutes apart. Tools and context length moved together, so that run cannot say
+which one switched MTP off. Pad the prompt and run the shapes again at
+agent-realistic length, and it can.
 """
 
 from __future__ import annotations
@@ -35,8 +44,8 @@ sys.path.insert(
     0, str(pathlib.Path(__file__).resolve().parent.parent / "benchmarks" / "agent")
 )
 
-import mtp_timing  # noqa: E402
-import provenance  # noqa: E402
+import mtp_timing
+import provenance
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +56,32 @@ DEFAULT_PROMPT = (
     "list, with a docstring and three tests. Then explain the time complexity "
     "in two sentences."
 )
+
+# Filler for `--pad-tokens`. Numbered lines of prose are what an agent's
+# context actually holds -- file contents it read -- and they tokenize at
+# roughly one token per word, which is close enough for a knob whose only job
+# is to put the request in the right size class.
+PAD_LINE = "{n:05d}  def helper_{n}(value): return value  # padding line, no meaning\n"
+
+
+def pad_prompt(prompt: str, pad_tokens: int) -> str:
+    """Prepend roughly `pad_tokens` tokens of filler.
+
+    Deterministic on purpose: two runs at the same setting send the same
+    bytes, so a difference between them is the server's, not the prompt's.
+    """
+    if pad_tokens <= 0:
+        return prompt
+    # ~14 tokens per line by the tokenizer's own count on this model family.
+    lines = max(1, round(pad_tokens / 14))
+    filler = "".join(PAD_LINE.format(n=i) for i in range(lines))
+    return (
+        "Here is a file I read. Ignore it; answer the question after it.\n\n"
+        + filler
+        + "\n"
+        + prompt
+    )
+
 
 # A minimal, realistic tool schema. The agent clients send one on every turn;
 # what matters here is that the request carries `tools` at all.
@@ -143,6 +178,11 @@ def run(args) -> int:
         logger.error("no server log at %s", log)
         return 2
     offset = log.stat().st_size
+    prompt = pad_prompt(args.prompt, args.pad_tokens)
+    if args.pad_tokens > 0:
+        logger.info(
+            "prompt padded to ~%d tokens (%d characters)", args.pad_tokens, len(prompt)
+        )
     rows = []
     for rep in range(1, args.repeats + 1):
         # Alternate, so position cannot masquerade as an effect.
@@ -154,7 +194,7 @@ def run(args) -> int:
                 args.base_url,
                 args.model,
                 args.auth_token,
-                args.prompt,
+                prompt,
                 tools=("tools" in arm),
                 max_tokens=args.max_tokens,
                 timeout=args.timeout,
@@ -225,6 +265,14 @@ def parse_args(argv=None):
     )
     p.add_argument("--max-tokens", type=int, default=400)
     p.add_argument("--prompt", default=DEFAULT_PROMPT)
+    p.add_argument(
+        "--pad-tokens",
+        type=int,
+        default=0,
+        help="prepend roughly this many tokens of filler, so the shape arms "
+        "can be compared at an agent-realistic context length (#151). The "
+        "shape is held constant across the pad, and the pad across the shapes.",
+    )
     p.add_argument("--timeout", type=int, default=600)
     p.add_argument(
         "--settle", type=float, default=1.0, help="seconds to let the log flush"
