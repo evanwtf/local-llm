@@ -134,7 +134,8 @@ KNOBS: dict[str, dict[str, str | bool]] = {
     },
     # payload-reuse is the opposite case and does carry a real signal. Its
     # line comes from ds4_gpu_q4_mpp_payload_reuse_admitted(), called from the
-    # two dispatch sites (ds4_metal.m:23719 and 33273 at ds4-pr952 ff749b84)
+    # two dispatch sites (ds4_metal.m:23719 at ds4-pr952 ff749b84 and
+    # ds4_metal.m:33273 at ds4-pr952 ff749b84)
     # under `weight_type == DS4_METAL_TENSOR_Q4_K && !cooperative && enabled`.
     # It fires only when the path is actually taken, so an off arm that prints
     # it means the knob did not turn the path off.
