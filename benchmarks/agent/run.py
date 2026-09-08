@@ -40,8 +40,8 @@ import time
 import tomllib
 import urllib.error
 import urllib.request
-from urllib.parse import urlparse
 from typing import ClassVar
+from urllib.parse import urlparse
 
 import ds4_route
 import engine_identity
@@ -50,6 +50,7 @@ import grade
 import memcap
 import mtp_timing
 import mtplx_trace
+import opencode_config
 import plausibility
 import preflight
 import provenance
@@ -86,7 +87,7 @@ def run(cmd, cwd, env=None, timeout=None):
     # that never reaches EOF -- it hung a trial for 11 minutes before this was
     # found. Any agent client may do the same; none of them should be waiting
     # on input here.
-    return subprocess.run(
+    return subprocess.run(  # noqa: PLW1510
         cmd,
         cwd=cwd,
         env=env,
@@ -698,7 +699,8 @@ def capture_versions(cfg, backends, allow_unstamped=False):
         try:
             r = run(cmd, cwd=None, timeout=30)
             return r.stdout.strip().splitlines()[0] if r.stdout.strip() else None
-        except Exception:
+        # Deliberately blind: identifying the engine must never take a run down.
+        except Exception:  # noqa: BLE001
             return None
 
     env = {
@@ -845,7 +847,7 @@ def capture_versions(cfg, backends, allow_unstamped=False):
                 if "✓" in line
             ]
         # Provenance must never take a run down (see `out` above).
-        except Exception:
+        except Exception:  # noqa: BLE001
             selected = []
         if selected:
             env["lmstudio_runtimes"] = ", ".join(selected)
@@ -1088,16 +1090,16 @@ def claude_prompt_tokens(usage):
 def claude_parse(stdout):
     payload = json.loads(stdout)
     usage = payload.get("usage", {})
-    return dict(
-        num_turns=payload.get("num_turns"),
-        stop_reason=payload.get("stop_reason"),
-        api_ms=payload.get("duration_api_ms"),
-        input_tokens=claude_prompt_tokens(usage),
-        uncached_input_tokens=usage.get("input_tokens"),
-        cache_read_input_tokens=usage.get("cache_read_input_tokens"),
-        output_tokens=usage.get("output_tokens"),
-        agent_error=payload.get("is_error"),
-    )
+    return {
+        "num_turns": payload.get("num_turns"),
+        "stop_reason": payload.get("stop_reason"),
+        "api_ms": payload.get("duration_api_ms"),
+        "input_tokens": claude_prompt_tokens(usage),
+        "uncached_input_tokens": usage.get("input_tokens"),
+        "cache_read_input_tokens": usage.get("cache_read_input_tokens"),
+        "output_tokens": usage.get("output_tokens"),
+        "agent_error": payload.get("is_error"),
+    }
 
 
 def opencode_argv(task, backend, worktree=None):
@@ -1297,12 +1299,12 @@ def opencode_parse(stdout):
     if not turns:
         raise json.JSONDecodeError("no step_finish events", stdout[:200], 0)
 
-    row = dict(
-        num_turns=turns,
-        input_tokens=peak_input,
-        output_tokens=out_tokens,
-        reasoning_tokens=reasoning,
-    )
+    row = {
+        "num_turns": turns,
+        "input_tokens": peak_input,
+        "output_tokens": out_tokens,
+        "reasoning_tokens": reasoning,
+    }
     # A trial with no timestamps (a very old transcript, or a client that
     # emits none) records no TTFT rather than a bogus zero. Absence is a
     # different signal than "0 ms".
@@ -1407,15 +1409,15 @@ def codex_parse(stdout):
                 peak_input = max(peak_input or 0, usage["input_tokens"])
     if not exec_turns:
         raise json.JSONDecodeError("no turn.completed events", stdout[:200], 0)
-    return dict(
-        num_turns=None,
-        codex_exec_turns=exec_turns,
-        tool_items=tool_items,
-        input_tokens=peak_input,
-        output_tokens=out_tokens,
-        reasoning_tokens=reasoning,
-        codex_error_items=errors,
-    )
+    return {
+        "num_turns": None,
+        "codex_exec_turns": exec_turns,
+        "tool_items": tool_items,
+        "input_tokens": peak_input,
+        "output_tokens": out_tokens,
+        "reasoning_tokens": reasoning,
+        "codex_error_items": errors,
+    }
 
 
 CLIENTS = {
@@ -2322,7 +2324,7 @@ def counters_on(engine, ps_text=None):
     return any(switch["argv"] in proc.command for proc in preflight.parse_ps(text))
 
 
-def speculative_preconditions(backends, server_log, ps_text=None):
+def speculative_preconditions(backends, server_log, ps_text=None, clients=()):
     """Why this run cannot assert its MTP arm, or None if it can.
 
     #148 recorded draft acceptance per trial and #151 is the reason that is not
@@ -2362,7 +2364,54 @@ def speculative_preconditions(backends, server_log, ps_text=None):
                 f"--server-log to read the counters from. The engine is "
                 f"emitting them and nothing is listening."
             )
+        if (why := greedy_precondition(name, backends[name], clients)) is not None:
+            return why
     return None
+
+
+def greedy_precondition(name, backend, clients=()):
+    """Why this MTP arm cannot draft at the client's sampler, or None.
+
+    #151, measured 2026-09-08: ds4 reaches its Qwen MTP path only at
+    `temperature <= 0.0f` (`ds4.c:80120 at ds4-metal ba01f5d`); above zero a
+    Qwen session is neither GLM nor DSpark, so the speculative call does one
+    plain eval and returns (`ds4.c:80216 at ds4-metal ba01f5d`). A request
+    omitting the field gets `DS4_DEFAULT_TEMPERATURE`, `1.0f`
+    (`ds4.h:56 at ds4-metal ba01f5d`).
+
+    OpenCode sends no temperature unless its config sets one, so 119 MTP rows
+    were taken on arms that never speculated. The post-trial gate in
+    `one_trial` does catch it, but only after a full trial and only by saying
+    the engine emitted nothing -- which is the same message a dozen other
+    causes would produce. This says it before the run, and names the cause.
+
+    Silent on anything it cannot read. A missing OpenCode config is "cannot
+    tell", and refusing a run on that would be worse than the hole.
+    """
+    if backend.get("draft_engine", "ds4") != "ds4":
+        return None
+    if "opencode" not in clients:
+        return None
+    model = backend.get("opencode_model")
+    if not model:
+        return None
+    options = opencode_config.sampling_for(model)
+    if options is None:
+        return None
+    temperature = options.get("temperature")
+    if temperature is not None and temperature <= 0:
+        return None
+    at = "no temperature" if temperature is None else f"temperature={temperature}"
+    return (
+        f"{name} is a speculative arm, but OpenCode is configured to send "
+        f"{at} for {model}. ds4 enters its Qwen MTP path only at "
+        f"temperature <= 0 (ds4.c:80120 at ds4-metal ba01f5d); above it the "
+        f"speculative call does one plain eval and returns, so this arm would "
+        f'carry an MTP label and no MTP (#151). Set "options": '
+        f'{{"temperature": 0}} for that model in OpenCode\'s config, or drop '
+        f"the arm. Note that pinning it changes the regime, so a greedy arm "
+        f"needs a greedy control beside it."
+    )
 
 
 def tensor_gate(backends):
@@ -3396,7 +3445,9 @@ def main():
     # cheaper to remove the ambiguity here than to interpret it afterwards:
     # with the switch verified on and a log to read, silence later means the
     # treatment was not applied, full stop.
-    if (why := speculative_preconditions(backends, args.server_log)) is not None:
+    if (
+        why := speculative_preconditions(backends, args.server_log, clients=clients)
+    ) is not None:
         raise SystemExit(f"REFUSING: {why}")
 
     # #148. Constructed AFTER the smoke gate, so the gate's own generation --

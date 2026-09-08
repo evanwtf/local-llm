@@ -21,8 +21,10 @@ counters are switched on. Then silence means one thing.
 
 from __future__ import annotations
 
-import pytest
+import json
 
+import opencode_config
+import pytest
 import run
 
 
@@ -373,3 +375,98 @@ def test_the_row_keeps_both_answers_apart():
 
 def test_silent_is_a_verdict_the_gate_knows():
     assert "silent" in run.DRAFT_VERDICTS
+
+
+# --- the sampler the client will actually send (#151) ------------------------
+
+
+CONFIGURED = "ds4qwenshim/qwen3.8-flash-next-q4"
+
+
+def backend(**kw):
+    got = {"speculative": "mtp", "opencode_model": CONFIGURED}
+    got.update(kw)
+    return got
+
+
+def config_with(options, tmp_path):
+    """An OpenCode config declaring one model with `options`."""
+    path = tmp_path / "opencode.json"
+    spec = {"models": {"qwen3.8-flash-next-q4": {}}}
+    if options is not None:
+        spec["models"]["qwen3.8-flash-next-q4"] = {"options": options}
+    path.write_text(json.dumps({"provider": {"ds4qwenshim": spec}}))
+    return path
+
+
+def test_an_mtp_arm_whose_client_sends_no_temperature_is_refused(monkeypatch, tmp_path):
+    """Measured 2026-09-08: 119 MTP rows were taken on arms that never
+    speculated, because ds4 enters the Qwen MTP path only at temperature <= 0
+    and OpenCode sends no temperature. The post-trial gate catches it after a
+    full trial and says only that the engine emitted nothing -- the same
+    message a dozen causes produce. This says it first, and names the cause.
+    """
+    monkeypatch.setattr(opencode_config, "CONFIG", config_with(None, tmp_path))
+    why = run.greedy_precondition("mtp7", backend(), ("opencode",))
+    assert why is not None
+    assert "no temperature" in why
+    assert "#151" in why
+
+
+def test_a_positive_temperature_is_refused_too(monkeypatch, tmp_path):
+    monkeypatch.setattr(
+        opencode_config, "CONFIG", config_with({"temperature": 0.7}, tmp_path)
+    )
+    why = run.greedy_precondition("mtp7", backend(), ("opencode",))
+    assert why is not None
+    assert "temperature=0.7" in why
+
+
+def test_temperature_zero_passes(monkeypatch, tmp_path):
+    monkeypatch.setattr(
+        opencode_config, "CONFIG", config_with({"temperature": 0}, tmp_path)
+    )
+    assert run.greedy_precondition("mtp7", backend(), ("opencode",)) is None
+
+
+def test_the_refusal_says_that_pinning_it_changes_the_regime():
+    """A greedy MTP arm needs a greedy control beside it, or a win is
+    unattributable between speculation and greedy decoding. Saying so in the
+    refusal is the only place the person who hits it will read it."""
+    why = run.greedy_precondition("mtp7", backend(), ("opencode",))
+    assert why is None or "greedy control" in why
+
+
+def test_an_unreadable_config_does_not_refuse_the_run(monkeypatch, tmp_path):
+    """ "Cannot tell" is not "sends nothing". Refusing on a missing file would
+    be worse than the hole it closes."""
+    monkeypatch.setattr(opencode_config, "CONFIG", tmp_path / "absent.json")
+    assert run.greedy_precondition("mtp7", backend(), ("opencode",)) is None
+
+
+def test_a_model_the_config_does_not_declare_does_not_refuse(monkeypatch, tmp_path):
+    monkeypatch.setattr(opencode_config, "CONFIG", config_with(None, tmp_path))
+    assert (
+        run.greedy_precondition(
+            "mtp7", backend(opencode_model="other/thing"), ("opencode",)
+        )
+        is None
+    )
+
+
+def test_the_check_is_about_opencode_and_not_about_every_client(monkeypatch, tmp_path):
+    """Another client may send its own temperature. The gate knows OpenCode's
+    config and nothing else, and must not refuse an arm it cannot see."""
+    monkeypatch.setattr(opencode_config, "CONFIG", config_with(None, tmp_path))
+    assert run.greedy_precondition("mtp7", backend(), ("claude",)) is None
+    assert run.greedy_precondition("mtp7", backend(), ()) is None
+
+
+def test_a_non_ds4_draft_engine_is_out_of_scope(monkeypatch, tmp_path):
+    """The temperature branch is ds4's. mtplx has its own rules and this
+    check would be a guess about them."""
+    monkeypatch.setattr(opencode_config, "CONFIG", config_with(None, tmp_path))
+    assert (
+        run.greedy_precondition("mtplx", backend(draft_engine="mtplx"), ("opencode",))
+        is None
+    )
