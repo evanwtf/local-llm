@@ -58,7 +58,21 @@ Per-task, it is not close: mlx-serve wins 13 of 15, usually by 40-60%.
 | deaths | 0 / 0 |
 | verdict | SCREEN PASS |
 
-### The whole difference is one task
+### The whole difference is one task -- SUPERSEDED by #225
+
+**The data below stands; the reading of it does not.** #225 re-ran the same
+15 tasks with 26.9.1 as the control arm -- the same build that produced the
+1377.4s trial -- and `parser-mbox-quoting` came back at **24 turns / 96.3s
+max**. It did not reproduce. The tail landed on
+`swift-sevensegment-glyphs` (117 turns / 701.9s) on the control and
+`swift-chartaxis-spacing` (44 turns) on the new arm instead, and in #191
+sevensegment was unremarkable at 20 turns.
+
+So this task is not the problem task. The tail is a rare event that moves
+between tasks and fires on either build, and a single draw of it landed here.
+A full-ledger census puts `parser-mbox-quoting` at 7/214 = 3.3% -- mid-pack,
+not special. **Do not drop this task and quote the remainder**, which is what
+the paragraph below invited.
 
 ```
 parser-mbox-quoting   mlx  39.4  40.4  283.2  1377.4 s     (9, 9, 35, 334 turns)
@@ -83,6 +97,32 @@ Drop that single task and mlx-serve finishes **29% faster** overall. It cost
 
 **Practical read:** mlx-serve is typically faster and occasionally much slower.
 Median latency favours mlx-serve; worst case favours ds4.
+
+**Now measured, not asserted (#225 census, `scripts/tail_events.py`).** Over
+2084 rows, 67 events at `num_turns > 20`:
+
+    mlx-serve    23/ 196 = 11.7%   95% CI [ 7.9, 17.0]
+    all others   44/1888 =  2.3%   95% CI [ 1.7,  3.1]
+
+Non-overlapping, ~5x. **But mlx-serve does not own the high rate**: `qwen36`
+runs 14.7% (5/34) and is not mlx at all, and six other backends have
+overlapping intervals. There is a high-tail cluster and a low-tail cluster,
+and mlx-serve sits in the high one. Writing "mlx-serve is tail-prone" repeats
+the #191 error -- a true comparison against one chosen reference, restated as
+a property.
+
+Two confounds, controlled separately, agreeing. **The shim-controlled
+comparison is era-confounded and the era-controlled comparison is
+shim-confounded**, so neither is clean alone:
+
+- *Shim, cross-era.* bare ds4 0/49, shimmed ds4 10/665 = 1.5%. P(observing 0)
+  is 0.477 at the ds4 rate and **0.002** at the mlx rate -- the shim is not
+  the explanation, though 0/49 cannot pin the ds4 rate tightly.
+- *Era, shim uncontrolled.* On 2026-09-07/08 only: mlx 23/196 = 11.7%
+  [7.9, 17.0] against shimmed ds4 2/181 = 1.1% [0.3, 3.9]. Non-overlapping,
+  same days, same machine.
+
+A 60-trial bare-ds4 run in the current era would close both at once.
 
 ### The one failure
 
@@ -116,6 +156,7 @@ bare stdout. Clean tree, ruff passing, right answer, wrong stream.
 | date | issue | what | headline |
 |---|---|---|---|
 | 2026-09-08 | #191 | 4+4 sweeps, 120 rows, stack vs stack | SCREEN PASS; ratio 0.68, total wall tied, mlx tail to 1377s |
+| 2026-09-08 | #225 | 4+4 sweeps, 120 rows, mlx-serve 25de4d5 vs 26.9.1 | **null**: pass 59/60 both, ratio 1.00 (0.83-1.20); #191's tail did not reproduce |
 
 ## Open questions
 
