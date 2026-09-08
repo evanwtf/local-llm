@@ -302,7 +302,7 @@ other is telling you something.
 
 <!-- BEGIN GENERATED -->
 
-*Generated from `results.jsonl` — 1809 rows, sha256 cc595e8ca30b.*
+*Generated from `results.jsonl` — 1810 rows, sha256 deb7fffd51d8.*
 
 #### Every stack measured under OpenCode
 
@@ -310,6 +310,7 @@ other is telling you something.
 
 | stack | passed | median | worst | spread |
 |---|---|---|---|---|
+| qwen38fnmlxserve | 1/1 | 39s | 39s | 1.0x |
 | ornith15 | 21/21 | 44s | 93s | 5.9x |
 | qwen38fnds4kimat | 135/135 | 98s | 472s | 12.2x |
 | Qwen3.8-Flash-Next Q3 - llama.cpp | 75/75 | 106s | 356s | 8.3x |
@@ -326,7 +327,7 @@ other is telling you something.
 | GLM-5.3-Flash - ds4 | 22/24 | 369s | 1227s | 18.0x |
 | gemma4 | 12/12 | 383s | 1316s | 4.8x |
 
-**Rows here were not all taken under one client.** qwen38fnq3reap under 1.18.26; qwen38fnds4kimat, qwen38fnds4mtp7shim, qwen38fnds4shim under 1.18.27; qwen38fnds4kimat, qwen38fnds4mtp7shim, qwen38fnds4shim, Qwen3.8-Flash-Next Q3 - llama.cpp under 1.18.29; the rest under 1.18.25. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: qwen38fnds4kimat (1.18.27, 1.18.29); qwen38fnds4mtp7shim (1.18.27, 1.18.29); qwen38fnds4shim (1.18.27, 1.18.29); Qwen3.8-Flash-Next Q3 - llama.cpp (1.18.25, 1.18.29).
+**Rows here were not all taken under one client.** qwen38fnq3reap under 1.18.26; qwen38fnds4kimat, qwen38fnds4mtp7shim, qwen38fnds4shim under 1.18.27; qwen38fnds4kimat, qwen38fnds4mtp7shim, qwen38fnds4shim, qwen38fnmlxserve, Qwen3.8-Flash-Next Q3 - llama.cpp under 1.18.29; the rest under 1.18.25. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: qwen38fnds4kimat (1.18.27, 1.18.29); qwen38fnds4mtp7shim (1.18.27, 1.18.29); qwen38fnds4shim (1.18.27, 1.18.29); Qwen3.8-Flash-Next Q3 - llama.cpp (1.18.25, 1.18.29).
 
 Excision tasks only; `script-*` excluded because they are a different class. **Spread is worst / best on the same task**, and it is the column most people forget to ask for.
 
@@ -356,13 +357,14 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | DeepSeek-V4-Flash - ds4 (Anthropic wire) | 54s |
 | GLM-5.3-Flash - ds4 | 55s |
 | Qwen3.6-27B-coding - Ollama | 69s |
+| qwen38fnmlxserve | 70s |
 | DeepSeek-V4-Flash - ds4 | 71s |
 | qwen38fnds4shim | 78s |
 | gemma4 | 84s |
 | qwen38fnds4mtp7shim | 84s |
 | Qwen3.8-Flash-Next Q3 - LM Studio | 115s |
 
-**Rows here were not all taken under one client.** qwen38fnq3reap under 1.18.26; qwen38fnds4kimat, qwen38fnds4mtp7shim, qwen38fnds4shim under 1.18.27; qwen38fnds4kimat, qwen38fnds4mtp7shim, qwen38fnds4shim, Qwen3.8-Flash-Next Q3 - llama.cpp under 1.18.29; the rest under 1.18.25. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: qwen38fnds4kimat (1.18.27, 1.18.29); qwen38fnds4mtp7shim (1.18.27, 1.18.29); qwen38fnds4shim (1.18.27, 1.18.29); Qwen3.8-Flash-Next Q3 - llama.cpp (1.18.25, 1.18.29).
+**Rows here were not all taken under one client.** qwen38fnq3reap under 1.18.26; qwen38fnds4kimat, qwen38fnds4mtp7shim, qwen38fnds4shim under 1.18.27; qwen38fnds4kimat, qwen38fnds4mtp7shim, qwen38fnds4shim, qwen38fnmlxserve, Qwen3.8-Flash-Next Q3 - llama.cpp under 1.18.29; the rest under 1.18.25. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: qwen38fnds4kimat (1.18.27, 1.18.29); qwen38fnds4mtp7shim (1.18.27, 1.18.29); qwen38fnds4shim (1.18.27, 1.18.29); Qwen3.8-Flash-Next Q3 - llama.cpp (1.18.25, 1.18.29).
 
 <!-- END GENERATED -->
 
