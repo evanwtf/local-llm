@@ -96,3 +96,12 @@ def test_load_trials_reads_the_death_table(tmp_path: pathlib.Path) -> None:
     assert len(trials) == 2
     assert trials[0].mode == mfm.MALFORMED
     assert trials[1].mode == mfm.MALFORMED
+
+
+def test_the_default_root_is_the_tree_the_harness_actually_writes_to():
+    """The first version resolved to ~/git/bench-logs/39-mtp-ab, which does not
+    exist, so the script only ran with --bench-root and could not reproduce its
+    own published result. save_transcript() writes under ~/bench-logs."""
+    root = mfm.default_bench_root()
+    assert root == pathlib.Path.home() / "bench-logs" / "39-mtp-ab"
+    assert "git" not in root.parts

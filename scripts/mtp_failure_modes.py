@@ -186,9 +186,22 @@ def report(trials: list[Trial]) -> None:
     logger.info("")
 
 
+def default_bench_root() -> pathlib.Path:
+    """Where the harness actually writes transcripts.
+
+    ~/bench-logs, not <repo>/../bench-logs. save_transcript() writes to the
+    home-relative tree (benchmarks/agent/run.py); the first version of this
+    script computed `here.parent.parent / "bench-logs"`, which resolves to
+    ~/git/bench-logs and does not exist. The script therefore found nothing
+    unless --bench-root was passed, and could not reproduce the result it had
+    already published. A durable script whose default cannot re-derive its own
+    number is not durable.
+    """
+    return pathlib.Path.home() / "bench-logs" / "39-mtp-ab"
+
+
 def main(argv: list[str] | None = None) -> int:
-    here = pathlib.Path(__file__).resolve().parent
-    default_root = here.parent.parent / "bench-logs" / "39-mtp-ab"
+    default_root = default_bench_root()
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument(
         "--bench-root",
