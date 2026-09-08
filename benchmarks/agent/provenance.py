@@ -23,6 +23,7 @@ import logging
 import pathlib
 import subprocess
 import sys
+import time
 
 HERE = pathlib.Path(__file__).resolve().parent
 UNKNOWN = "nogit"
@@ -119,8 +120,45 @@ def machine_slug() -> str:
         return "unknown-machine"
 
 
+#: How long a draft-path reading is reused before the process is asked again.
+#: NOT functools.cache: an A/B restarts the server between sweeps with
+#: different flags, and a permanently cached reading would report the first
+#: arm's state for the whole run -- worse than not reporting it at all. A
+#: restart is followed by a model load and a readiness wait measured in tens of
+#: seconds, so a window this size is invisible in practice while costing one
+#: probe per ten seconds instead of one per log line.
+_PLD_TTL_SECONDS = 10.0
+_pld_cache: tuple[float, str] | None = None
+
+
+def pld_now() -> str:
+    """The draft path of the resident mlx-serve, as "on", "off" or "n/a".
+
+    #191 ran for three and a half hours before anyone established that one arm
+    was speculating and the other was not; the fact existed only in server logs
+    and the harness's own warning pointed the other way (#222). Putting it on
+    every line means no future analysis has to reconstruct it.
+
+    "n/a" means no mlx-serve is running. It is not "off" and must never be
+    read as "off".
+    """
+    global _pld_cache
+    now = time.monotonic()
+    if _pld_cache is not None and now - _pld_cache[0] < _PLD_TTL_SECONDS:
+        return _pld_cache[1]
+    try:
+        sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+        import engine_identity
+
+        state = engine_identity.pld_state()
+    except Exception:  # noqa: BLE001 -- a stamp must never take a run down
+        state = "n/a"
+    _pld_cache = (now, state)
+    return state
+
+
 class _Stamp(logging.Filter):
-    """Attach the harness commit and the machine to every record."""
+    """Attach the harness commit, the machine and the draft path to a record."""
 
     def __init__(self, value: str) -> None:
         super().__init__()
@@ -129,6 +167,7 @@ class _Stamp(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
         record.harness = self.value
         record.machine = machine_slug()
+        record.pld = pld_now()
         return True
 
 
@@ -147,7 +186,7 @@ def configure(
     logging.basicConfig(
         level=level,
         stream=stream or sys.stdout,
-        format=f"%(asctime)s {name}%(levelname)s [%(harness)s@%(machine)s] %(message)s",
+        format=f"%(asctime)s {name}%(levelname)s [%(harness)s@%(machine)s pld=%(pld)s] %(message)s",
         force=True,
     )
     for handler in logging.getLogger().handlers:

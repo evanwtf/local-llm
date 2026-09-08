@@ -55,6 +55,68 @@ ENGINES: dict[str, dict[str, str]] = {
 }
 
 
+# --- the draft path (#224) ---------------------------------------------------
+#
+# #191 ran two arms for three and a half hours before anyone established that
+# one of them was speculating and the other was not. mlx-serve enables
+# prompt-lookup decoding by default; the ds4 arm was launched with no MTP
+# sidecar. Neither fact reached a row, so "did this arm speculate?" could only
+# be answered by grepping server logs after the fact -- and the harness's own
+# `ds4-mtp-timing` warning pointed the opposite way (#222).
+#
+# The state is read from the RUNNING process's argv, not from a config file
+# and not from what a caller believes it passed. argv is what the kernel was
+# given, so it cannot drift from what is actually serving.
+#
+# It is deliberately a launch-time fact, not a per-request one. mlx-serve
+# resolves its draft source by priority (MTP > drafter > PLD) and PLD
+# self-gates per request on n-gram score, so `pld: "on"` means "not
+# force-disabled at launch", NOT "drafted on every token". A row saying "on"
+# with no drafting in its server log is consistent; a row saying "off" with
+# drafting is not, and would be a bug worth chasing.
+
+
+def _argv_of(binary: str) -> list[str] | None:
+    """argv of the running process for `binary`, or None if it is not up."""
+    try:
+        out = subprocess.run(
+            ["pgrep", "-f", f"[{binary[0]}]{binary[1:]} "],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    pids = [p for p in out.stdout.split() if p.isdigit()]
+    if not pids:
+        return None
+    try:
+        args = subprocess.run(
+            ["ps", "-ww", "-o", "args=", "-p", pids[0]],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return args.stdout.split() or None
+
+
+def pld_state() -> str:
+    """ "on", "off", or "n/a" -- never a bool, and never a guess.
+
+    "n/a" means no mlx-serve process is running, which is a different fact
+    from "off" and must never collapse into it. That is the same discipline
+    `engine_dirty` uses: an absent answer is not a negative one.
+    """
+    argv = _argv_of("mlx-serve")
+    if argv is None:
+        return "n/a"
+    return "off" if "--no-pld" in argv else "on"
+
+
 def _default_tree(engine: str) -> pathlib.Path | None:
     """The tree an engine runs on when the caller names none.
 
@@ -181,4 +243,11 @@ def identity(engine: str, tree: str | None = None) -> dict[str, object]:
             got["engine_built"] = time.strftime(
                 "%Y-%m-%dT%H:%M:%S%z", time.localtime(m)
             )
+
+    # The draft path, for the engines where it is a launch flag. Omitted for
+    # engines where the key would be meaningless -- an absent key is not a
+    # negative answer, and "ds4 has no pld field" must not read as "ds4 had
+    # PLD off". ds4's own MTP state is the mirror image and is #39's.
+    if engine == "mlx-serve":
+        got["pld"] = pld_state()
     return got

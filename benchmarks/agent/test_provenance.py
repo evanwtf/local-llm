@@ -11,10 +11,12 @@ import functools
 import logging
 import pathlib
 import subprocess
+import time
 
 import provenance
 import pytest
 import results
+
 from conftest import HAS_LOCAL_RESULTS, SKIP_NO_RESULTS
 
 
@@ -234,7 +236,7 @@ def test_every_log_line_carries_commit_and_machine(caplog):
 
 def test_the_log_format_includes_both():
     source = pathlib.Path(provenance.__file__).read_text()
-    assert "[%(harness)s@%(machine)s]" in source
+    assert "[%(harness)s@%(machine)s pld=%(pld)s]" in source
 
 
 def test_the_filename_names_the_machine_too():
@@ -340,3 +342,39 @@ def test_a_csv_outside_the_output_tree_still_counts(tmp_path) -> None:
     repo = _repo(tmp_path)
     (repo / "new_module.py").write_text("x = 3\n")
     assert provenance.code_is_dirty(repo) is True
+
+
+def test_the_draft_path_reading_expires(monkeypatch):
+    """A permanently cached reading would report the first arm for a whole A/B.
+
+    stack_agent_ab.sh restarts the server between sweeps with different flags.
+    functools.cache here would stamp every line of an eight-sweep run with
+    sweep one's state -- worse than not stamping it, because it would look
+    authoritative. The TTL is what makes the field trustworthy across a restart.
+    """
+    calls = []
+
+    def fake() -> str:
+        calls.append(1)
+        return "off" if len(calls) > 1 else "on"
+
+    monkeypatch.setattr(provenance, "_pld_cache", None)
+    monkeypatch.setattr(provenance, "pld_now", provenance.pld_now)
+    import engine_identity
+
+    monkeypatch.setattr(engine_identity, "pld_state", fake)
+
+    assert provenance.pld_now() == "on"
+    assert provenance.pld_now() == "on", "inside the TTL it must not re-probe"
+    assert len(calls) == 1
+
+    stale = time.monotonic() - provenance._PLD_TTL_SECONDS - 1
+    monkeypatch.setattr(provenance, "_pld_cache", (stale, "on"))
+    assert provenance.pld_now() == "off", "past the TTL it must ask again"
+
+
+def test_every_line_carries_the_draft_path(monkeypatch):
+    monkeypatch.setattr(provenance, "_pld_cache", (time.monotonic(), "off"))
+    record = logging.LogRecord("n", logging.INFO, __file__, 1, "m", None, None)
+    provenance._Stamp("abc1234").filter(record)
+    assert record.pld == "off"

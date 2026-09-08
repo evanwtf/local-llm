@@ -140,3 +140,41 @@ def test_every_ds4_backend_whose_description_names_a_tree_declares_it() -> None:
             f"{name} names {expected!r} in its description but declares "
             f"{cfg.get('engine_tree')!r}"
         )
+
+
+def test_pld_reads_the_running_argv_not_a_belief(monkeypatch):
+    """--no-pld in the served process's argv is the only thing that means off."""
+    monkeypatch.setattr(
+        engine_identity, "_argv_of", lambda _b: ["mlx-serve", "--serve", "--no-pld"]
+    )
+    assert engine_identity.pld_state() == "off"
+    monkeypatch.setattr(
+        engine_identity, "_argv_of", lambda _b: ["mlx-serve", "--serve", "--ctx-size"]
+    )
+    assert engine_identity.pld_state() == "on"
+
+
+def test_no_server_is_not_the_same_as_pld_off(monkeypatch):
+    """The distinction this field exists for.
+
+    "n/a" means nothing was running to ask. Collapsing that into "off" would
+    label every ds4-only run as one that disabled PLD, which is the exact
+    class of confusion #191 paid for -- the same discipline `engine_dirty`
+    uses when it refuses to write false for an unknown.
+    """
+    monkeypatch.setattr(engine_identity, "_argv_of", lambda _b: None)
+    assert engine_identity.pld_state() == "n/a"
+    assert engine_identity.pld_state() != "off"
+
+
+def test_only_mlx_serve_carries_a_pld_key(monkeypatch, tmp_path):
+    """An absent key must not read as a negative answer.
+
+    ds4 has no PLD concept; writing "off" onto its rows would assert something
+    about a draft path this field does not measure. ds4's own MTP state is #39.
+    """
+    monkeypatch.setattr(engine_identity, "_argv_of", lambda _b: ["mlx-serve"])
+    assert "pld" in engine_identity.identity("mlx-serve")
+    tree = tmp_path / "ds4"
+    (tree / ".git").mkdir(parents=True)
+    assert "pld" not in engine_identity.identity("ds4", tree=str(tree))
