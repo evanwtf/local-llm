@@ -90,6 +90,7 @@ def _run_server_argv(
         capture_output=True,
         text=True,
         cwd=cwd,
+        check=False,
     )
 
 
@@ -125,7 +126,7 @@ def test_the_default_engine_is_still_ds4(var: str) -> None:
     say so -- after the fact.
     """
     body = AB.read_text()
-    assert re.search(rf"^{var}=\$\{{{var}:-ds4\}}$", body, re.M), (
+    assert re.search(rf"^{var}=\$\{{{var}:-ds4\}}$", body, re.MULTILINE), (
         f"{var} no longer defaults to ds4"
     )
 
@@ -376,3 +377,88 @@ def test_server_argv_uses_the_named_binary() -> None:
     )
     assert done.returncode == 0, done.stderr
     assert "/m/tree/zig-out/bin/mlx-serve --model /m/pack" in done.stdout, done.stdout
+
+
+def _engine_ident(binary: str, cwd: pathlib.Path | None = None) -> str:
+    """Run the real engine_ident from the script against one binary."""
+    body = AB.read_text()
+    start = body.index("engine_ident() {")
+    end = body.index("\n}", start) + 2
+    script = (
+        "set -euo pipefail\n"
+        + body[start:end]
+        + f'\nengine_ident mlx-serve "" "{binary}"\n'
+    )
+    out = subprocess.run(
+        ["bash", "-c", script], capture_output=True, text=True, cwd=cwd, check=False
+    )
+    return out.stdout.strip()
+
+
+def test_a_brew_symlink_is_not_stamped_with_homebrews_sha(tmp_path):
+    """The Homebrew trap, twice now, so it gets a test.
+
+    brew links <prefix>/bin/tool -> ../Cellar/tool/<version>/bin/tool, and
+    <prefix> is itself a git checkout. Resolving only the dirname lands in
+    <prefix>/bin, which contains no /Cellar/, so the guard never fires and
+    `git rev-parse` answers with HOMEBREW's HEAD. It stamped the 26.9.1 arm
+    with `08e85c4e42` -- a real sha, of the wrong repo -- on the Python side
+    (fixed in a219ca5) and again here, because `pwd -P` resolves a directory
+    and not a link. #225 compares two builds; two arms both wearing a sha,
+    with no way to tell which repo it came from, is worse than no label.
+    """
+    prefix = tmp_path / "prefix"
+    (prefix / "bin").mkdir(parents=True)
+    cellar = prefix / "Cellar" / "mlx-serve" / "26.9.1" / "bin"
+    cellar.mkdir(parents=True)
+    real = cellar / "mlx-serve"
+    real.write_text("#!/bin/sh\necho 'mlx-serve 26.9.1'\n")
+    real.chmod(0o755)
+    (prefix / "bin" / "mlx-serve").symlink_to(
+        pathlib.Path("..") / "Cellar" / "mlx-serve" / "26.9.1" / "bin" / "mlx-serve"
+    )
+    # the prefix is a git repo, exactly as /opt/homebrew is
+    for args in (["init", "-q"], ["add", "-A"]):
+        subprocess.run(["git", *args], cwd=prefix, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "brew"],
+        cwd=prefix,
+        check=True,
+        capture_output=True,
+    )
+    got = _engine_ident(str(prefix / "bin" / "mlx-serve"))
+    assert "26.9.1" in got, got
+    assert "(" not in got, f"a brew binary must carry no sha, got: {got}"
+
+
+def test_a_source_build_is_stamped_with_its_sha(tmp_path):
+    """A version string cannot distinguish two builds off the same branch.
+
+    `--version` prints `mlx-serve 26.9.2-dev` for every build off main between
+    releases -- main+PR383 and main without it are the same string. The sha is
+    the only thing that separates them, and the rows already record it.
+    """
+    tree = tmp_path / "mlx-serve"
+    binary = tree / "zig-out" / "bin"
+    binary.mkdir(parents=True)
+    exe = binary / "mlx-serve"
+    exe.write_text("#!/bin/sh\necho 'mlx-serve 26.9.2-dev'\n")
+    exe.chmod(0o755)
+    for args in (["init", "-q"], ["add", "-A"]):
+        subprocess.run(["git", *args], cwd=tree, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "src"],
+        cwd=tree,
+        check=True,
+        capture_output=True,
+    )
+    sha = subprocess.run(
+        ["git", "rev-parse", "--short", "HEAD"],
+        cwd=tree,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    got = _engine_ident(str(exe))
+    assert sha in got, f"expected the sha {sha} in: {got}"
+    assert "26.9.2-dev" in got, "the version string is still useful context"

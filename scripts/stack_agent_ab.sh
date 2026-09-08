@@ -118,7 +118,50 @@ engine_ident() {
   local engine=$1 tree=$2 mlx_bin=${3:-mlx-serve}
   case "$engine" in
   ds4)       echo "$tree @ $(git -C "$tree" rev-parse --short HEAD 2>/dev/null || echo ?)" ;;
-  mlx-serve) echo "$mlx_bin @ $("$mlx_bin" --version 2>&1 | grep -m1 mlx-serve || echo ?)" ;;
+  mlx-serve)
+    # Report the SHA FIRST for a build from source, and the version string
+    # after it. `--version` on a git build prints `mlx-serve 26.9.2-dev`, which
+    # is the same string for every build off main between releases -- it cannot
+    # tell main+PR383 from main without it, which is the only distinction #225
+    # exists to make. The rows record the sha (engine_identity), so the
+    # run-record records it too: one binary must not have two names with no
+    # way to tell which is authoritative.
+    #
+    # Cellar is checked BEFORE git, for the reason a219ca5 records: /opt/homebrew
+    # is itself a git checkout, so `git rev-parse` inside it answers with
+    # HOMEBREW's HEAD and would stamp the brew arm with a real sha of the wrong
+    # repo.
+    # The symlink must be followed, not just its directory. `brew` links
+    # /opt/homebrew/bin/mlx-serve -> ../Cellar/mlx-serve/26.9.1/bin/mlx-serve,
+    # so resolving only the dirname lands in /opt/homebrew/bin, which contains
+    # no /Cellar/ -- the guard below never fires and the brew arm gets stamped
+    # with Homebrew's own sha. That is the same defect a219ca5 fixed on the
+    # Python side, reintroduced here because `pwd -P` resolves the directory
+    # and not the link.
+    local resolved bin_dir sha="" ver target
+    resolved=$(command -v "$mlx_bin" 2>/dev/null || echo "$mlx_bin")
+    while [ -L "$resolved" ]; do
+      target=$(readlink "$resolved")
+      case "$target" in
+      /*) resolved=$target ;;
+      *)  resolved=$(dirname "$resolved")/$target ;;
+      esac
+    done
+    bin_dir=$(cd "$(dirname "$resolved")" 2>/dev/null && pwd -P)
+    case "$bin_dir" in
+    */Cellar/*) ;;
+    *) sha=$(git -C "$bin_dir" rev-parse --short HEAD 2>/dev/null || true)
+       if [ -n "$sha" ] && [ -n "$(git -C "$bin_dir" status --porcelain 2>/dev/null)" ]; then
+         sha="$sha-dirty"
+       fi ;;
+    esac
+    ver=$("$mlx_bin" --version 2>&1 | grep -m1 mlx-serve || echo ?)
+    if [ -n "$sha" ]; then
+      echo "$mlx_bin @ $sha ($ver)"
+    else
+      echo "$mlx_bin @ $ver"
+    fi
+    ;;
   *)         echo "$engine (unknown kind)" ;;
   esac
 }
