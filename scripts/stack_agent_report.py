@@ -28,8 +28,9 @@ JUDGMENT CALLS:
 - n_pairs < 10 prints COULD NOT TELL for the wall endpoint regardless of the
   value of D. Hard-coded, not left to the reader.
 - Sweep windows come from sweep-order.txt, whose lines carry a time of day
-  but no date. The date is taken from run-record.txt's started line. A sweep
-  that crosses midnight would be mis-windowed; no planned run does this.
+  but no date. The date is taken from run-record.txt's started line. A
+  sweep's finish that rolls past midnight is corrected to the next day; a
+  start sequence that crosses midnight is still not handled.
 - Scoping to tonight. Rows are cut at the started line of run-record.txt --
   the run's own record of when THIS launch began. run-record.txt is truncated
   per run, so a relaunch re-scopes automatically: the 20:57 launch died 18
@@ -256,6 +257,13 @@ def sweep_windows(run_dir: pathlib.Path) -> list[Sweep] | None:
             if start is None or finish is None:
                 logger.error("unparsable time in sweep-order line: %r", line)
                 return None
+            if finish < start:
+                # A finish that rolls past midnight parses as earlier than its
+                # start. The finish is load-bearing now, so an inverted window
+                # matches nothing and the sweep's rows vanish. Correct the
+                # rollover; a start sequence that crosses midnight is still
+                # not handled.
+                finish += dt.timedelta(days=1)
             sweeps.append(Sweep(tag, start, finish))
         elif len(parts) == 2:
             tag, finish_s = parts

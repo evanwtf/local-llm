@@ -256,6 +256,35 @@ def test_an_overlapping_sweep_window_is_void(tmp_path, caplog):
     )
 
 
+def test_a_finish_that_rolls_past_midnight_is_corrected(tmp_path):
+    """A sweep whose finish crosses midnight parses as earlier than its start
+    and, under [start, own finish], matches nothing -- the rows vanish. The
+    rollover is corrected to the next day, so the window is forward and the
+    sweep owns its rows."""
+    run_dir = tmp_path / "138-stack-ab"
+    run_dir.mkdir()
+    (run_dir / "run-record.txt").write_text(
+        producer_started_line(dt.datetime(2026, 9, 4, 20, 57, 17)) + "\n"
+        "NEW backend=qwen38fnds4kimat engine=x @ bd9cfbc\n"
+        "OLD backend=qwen38fnds4shim engine=y @ ba01f5d\n"
+    )
+    # old-sweep2 starts 23:31, finishes 00:11 -- past midnight.
+    (run_dir / "sweep-order.txt").write_text(
+        "new-sweep1 20:58:00 21:38:00\n"
+        "old-sweep1 21:40:00 22:20:00\n"
+        "new-sweep2 22:22:00 23:02:00\n"
+        "old-sweep2 23:31:00 00:11:00\n"
+    )
+    sweeps = sar.sweep_windows(run_dir)
+    assert sweeps is not None
+    old2 = next(s for s in sweeps if s.tag == "old-sweep2")
+    assert old2.finish > old2.start  # forward window, not inverted
+    rows = [row("qwen38fnds4shim", "task-00", "2026-09-04T23:31:00-04:00")]
+    leftover = sar.assign(rows, sweeps)
+    assert leftover == []
+    assert len(old2.rows) == 1
+
+
 def test_the_fixtures_are_built_in_the_producers_formats():
     """The first fixture hand-wrote a space where the producer writes a T,
     and the reader then exited 2 on the live run dir. From here the fixtures
