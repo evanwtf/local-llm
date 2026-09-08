@@ -25,6 +25,16 @@ Highest-volume tester on Apple Silicon. #51 came from one of his posts: Q8_0→Q
 mlx-serve, `llmprobe`  
 **Benchmarks on a 1x M5 Max 128 GB laptop — our exact machine.** Ported ds4's evals into a cross-engine harness (`npx llmprobe --eval`).
 
+* **@Beamsters1**: X: [@Beamsters1](https://x.com/Beamsters1) · GitHub: **very likely** [@beamivalice](https://github.com/beamivalice) — see below  
+mlx-serve qwen4 performance contributor  
+**Ships the qwen4 optimizations for our primary model on our co-primary engine.** As `beamivalice`, the 4th-ranked human contributor to mlx-serve (11 commits behind ddalcu's 288), and every recent PR is `perf(qwen4)`: split-K QSA, SSD-first cache admission, MTP/QSA history rollback without copies, allocator-pool reuse between prefills. That is the exact surface [#225](https://github.com/evanwtf/local-llm/issues/225) measures — and concretely, **8 of the 24 commits separating our test build from the shipped v26.9.1 are theirs** (#350, #352, #363, #370, #377, #379, #381, #383), against 10 from ddalcu himself.
+
+  **Told us to build a PR before we knew we needed it.** 2026-09-08 06:59:58Z, verified: *"If you are going to daily drive MLX-serve's Qwen3.8 Flash Next, make sure to include PR383 from main. (and perhaps many more since we are starting the big bug hunts)"* — 7 likes, 789 views. We had benchmarked a five-day-old release in #191 while main was being repaired; that post put main+383 on the machine within hours.
+
+  **The GitHub identity is inferred, not confirmed — read the evidence and judge it yourself.** Neither profile links to the other: the X bio is "Beam" with no website, and the GitHub account has no name, bio, blog, or `twitter_username`. What connects them is circumstantial and same-day: **@beamivalice authored PR383**, the exact PR the post promotes; the commit email is `my.beam@gmail.com`, carrying the same distinctive token as "Beamsters"; and the post says "**we** are starting the big bug hunts", which is a maintainer's first person, not a user's. This is an evidence chain, **not** the matching-name guess the rules below forbid — but it is still inference. Do not cite it as established. If a post ever links the two directly, replace this paragraph with the verification.
+
+  139 followers, 215 posts, Bangkok — low volume, so the cap-per-account rule below is what keeps this account from being crowded out of a gather.
+
 * **@Spangler3000**: X: [@Spangler3000](https://x.com/Spangler3000) · GitHub: [@jonathan308](https://github.com/jonathan308)  
 oMLX Metal kernels (QSA, DFlash2)  
 Densest Metal-kernel signal in the field. His PRs are why oMLX leads on prefill — **and prefill is our bottleneck** (#14, #50, ds4#816).
