@@ -284,17 +284,39 @@ def tokenize_argv(tree: pathlib.Path, gguf: str, prompt: pathlib.Path) -> list[s
 
 
 def run_capture(
-    argv: list[str], env: dict, timeout: int
+    argv: list[str], env: dict, timeout: int, cwd: pathlib.Path | None = None
 ) -> subprocess.CompletedProcess:
     return subprocess.run(
-        argv, env=env, capture_output=True, text=True, timeout=timeout, check=False
+        argv,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+        check=False,
+        cwd=None if cwd is None else str(cwd),
     )
 
 
-def run_arm(argv: list[str], env: dict, timeout: int, dump_path: pathlib.Path) -> dict:
-    """Run one arm and return its parsed dump. Any failure raises ArmFailed."""
+def run_arm(
+    argv: list[str],
+    env: dict,
+    timeout: int,
+    dump_path: pathlib.Path,
+    cwd: pathlib.Path | None = None,
+) -> dict:
+    """Run one arm and return its parsed dump. Any failure raises ArmFailed.
+
+    `cwd` is the arm's own tree. ds4 resolves metal/*.metal relative to the
+    working directory, so an arm started from anywhere else reports
+
+        ds4: metal backend unavailable; aborting startup
+
+    which reads like a broken GPU rather than a missing shader directory. Every
+    sibling script already does this (`cd "$tree" && ./ds4-bench ...`); this one
+    did not, so every Metal arm it ever ran failed before loading a weight.
+    """
     try:
-        proc = run_capture(argv, env, timeout)
+        proc = run_capture(argv, env, timeout, cwd)
     except subprocess.TimeoutExpired:
         raise ArmFailed(f"timed out after {timeout}s") from None
     if proc.returncode != 0:
@@ -329,7 +351,7 @@ def frontier_prompt(
     those ids. A corpus that is not prefix-stable under its own tokenizer is
     refused, never mislabeled.
     """
-    proc = run_capture(tokenize_argv(tree_a, gguf, corpus), env, timeout)
+    proc = run_capture(tokenize_argv(tree_a, gguf, corpus), env, timeout, tree_a)
     if proc.returncode != 0:
         raise InstrumentRefused(f"tokenizing the corpus failed: {proc.stderr.strip()}")
     ids, pieces = parse_token_dump(proc.stdout)
@@ -341,7 +363,7 @@ def frontier_prompt(
     prefix = "".join(pieces[:frontier])
     path = out_dir / f"prompt-{frontier}.txt"
     path.write_text(prefix)
-    proc = run_capture(tokenize_argv(tree_a, gguf, path), env, timeout)
+    proc = run_capture(tokenize_argv(tree_a, gguf, path), env, timeout, tree_a)
     if proc.returncode != 0:
         raise InstrumentRefused(
             f"verifying the frontier prompt failed: {proc.stderr.strip()}"
@@ -530,8 +552,25 @@ def run(args: argparse.Namespace) -> int:
     refuse_seed(args.seed)
     frontiers = frontiers_of(args)
     out_dir = args.out or pathlib.Path.home() / "bench-logs" / "bitexact-ab"
+    # Absolutize before anything is handed to an arm. The arms run with cwd set
+    # to their own tree, so a relative path here would be created under the
+    # caller's directory and resolved under the ds4 tree -- #203, where a
+    # relative --out meant the CSVs landed nowhere and the run looked clean.
+    out_dir = out_dir.resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
-    trees = {"A": args.tree_a, "B": args.tree_b}
+    args.out = out_dir
+    args.gguf = str(pathlib.Path(args.gguf).expanduser().resolve())
+    if args.ple is not None:
+        args.ple = str(pathlib.Path(args.ple).expanduser().resolve())
+    if args.prompt_file is not None:
+        args.prompt_file = args.prompt_file.expanduser().resolve()
+    if args.corpus is not None:
+        args.corpus = args.corpus.expanduser().resolve()
+    trees = {
+        "A": args.tree_a.expanduser().resolve(),
+        "B": args.tree_b.expanduser().resolve(),
+    }
+    args.tree_a, args.tree_b = trees["A"], trees["B"]
     require_binaries(trees)
     if not pathlib.Path(args.gguf).exists():
         raise InstrumentRefused(f"{args.gguf} does not exist")
@@ -676,7 +715,7 @@ def run_frontier(
     if args.prompt_file:
         prompt = args.prompt_file
         proc = run_capture(
-            tokenize_argv(trees["A"], args.gguf, prompt), env, args.timeout
+            tokenize_argv(trees["A"], args.gguf, prompt), env, args.timeout, trees["A"]
         )
         if proc.returncode != 0:
             raise InstrumentRefused(
@@ -723,7 +762,11 @@ def run_frontier(
     try:
         for name in ("a1", "a2"):
             dumps[name] = run_arm(
-                arm_argv(name), env, args.timeout, out_dir / f"{name}-{frontier}.json"
+                arm_argv(name),
+                env,
+                args.timeout,
+                out_dir / f"{name}-{frontier}.json",
+                trees["A"],
             )
     except ArmFailed as e:
         result["outcome"] = "arm_failed"
@@ -750,7 +793,7 @@ def run_frontier(
 
     try:
         dumps["b"] = run_arm(
-            arm_argv("b"), env, args.timeout, out_dir / f"b-{frontier}.json"
+            arm_argv("b"), env, args.timeout, out_dir / f"b-{frontier}.json", trees["B"]
         )
     except ArmFailed as e:
         result["outcome"] = "arm_failed"

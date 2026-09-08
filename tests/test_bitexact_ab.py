@@ -30,6 +30,7 @@ def flag(name):
 
 with pathlib.Path(os.environ["FAKE_CALLS"]).open("a") as calls:
     calls.write(json.dumps({"argv": ARGS,
+                            "cwd": os.getcwd(),
                             "pin": os.environ.get("DS4_MTP_SPEC_DISABLE")}) + "\\n")
 
 if "--dump-tokens" in ARGS:
@@ -980,3 +981,42 @@ def test_a_missing_ple_sidecar_is_refused_before_anything_loads(bench, caplog):
     # first, so its absence is the assertion -- an empty list would also pass
     # if the file existed and something had gone wrong writing to it.
     assert not bench["calls"].exists()
+
+
+def test_each_arm_runs_from_its_own_tree(bench, monkeypatch):
+    """ds4 resolves metal/*.metal against the working directory. An arm started
+    from anywhere else aborts with "metal backend unavailable", which reads
+    like a broken GPU and not a missing shader directory -- so this instrument
+    could never have completed a Metal comparison, and nothing said so. Every
+    sibling script has done `cd "$tree" && ./ds4-bench ...` since #118."""
+    monkeypatch.setenv("FAKE_PLAN", "ok,ok,ok")
+    ab.main(
+        [
+            "new",
+            str(bench["trees"]["tree-a"]),
+            "old",
+            str(bench["trees"]["tree-b"]),
+            str(bench["gguf"]),
+            "--corpus",
+            str(bench["corpus"]),
+            "--out",
+            str(bench["out"]),
+            "--no-lock",
+            "--gen",
+            "4",
+            "--frontier",
+            "8",
+        ]
+    )
+    a = str(bench["trees"]["tree-a"].resolve())
+    b = str(bench["trees"]["tree-b"].resolve())
+    # a1 and a2 are tree A, b is tree B. The dump path in the argv names which.
+    for call in dump_calls(bench):
+        dump = call["argv"][call["argv"].index("--dump-logprobs") + 1]
+        want = b if pathlib.Path(dump).name.startswith("b-") else a
+        assert call["cwd"] == want, (dump, call["cwd"], want)
+    # The tokenizer too: one rule for every invocation, not two that differ by
+    # whether the call happens to touch the GPU.
+    for call in calls(bench):
+        if "--dump-tokens" in call["argv"]:
+            assert call["cwd"] == a, call["cwd"]
