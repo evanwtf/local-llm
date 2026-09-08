@@ -340,3 +340,39 @@ def test_server_argv_does_not_glob() -> None:
         )
     assert done.returncode == 0, done.stderr
     assert "--foo *.gbnf" in done.stdout, done.stdout
+
+
+def test_server_argv_defaults_to_the_path_binary() -> None:
+    """A caller that names no binary must still get the PATH one.
+
+    #225: the per-arm binary path defaults to the bare name, so an existing
+    caller that passes no binary runs exactly what it always ran -- the brew
+    install resolved on PATH.
+    """
+    done = _run_server_argv([["mlx-serve", "/m/pack", "", "", "", "/m/pack", "11234"]])
+    assert done.returncode == 0, done.stderr
+    assert "mlx-serve --model /m/pack" in done.stdout, done.stdout
+
+
+def test_server_argv_uses_the_named_binary() -> None:
+    """A per-arm binary path must override the PATH default.
+
+    #225 arm B is a git checkout; naming its built binary is what keeps the two
+    arms from both resolving to the same brew binary on PATH.
+    """
+    done = _run_server_argv(
+        [
+            [
+                "mlx-serve",
+                "/m/pack",
+                "",
+                "",
+                "",
+                "/m/pack",
+                "11234",
+                "/m/tree/zig-out/bin/mlx-serve",
+            ]
+        ]
+    )
+    assert done.returncode == 0, done.stderr
+    assert "/m/tree/zig-out/bin/mlx-serve --model /m/pack" in done.stdout, done.stdout

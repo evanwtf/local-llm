@@ -130,6 +130,7 @@ be drawn from — OpenCode, after the `--dir` cutover, not excluded.
 | `qwen38fnds4mtp7shim` | the same fast-pack, MTP `--mtp-draft 7` | ds4 (via tool shim) | 113 GB | 90 |
 | `qwen38fnds4kimat` | Q4_K **imatrix** rebuild of the same model, MTP off | ds4, ivanfioravanti fork (via tool shim) | 105 GB | 0 |
 | `qwen38fnmlxserve` | the same model as MLX mixed 4/8-bit weights | mlx-serve 26.9.1 (no shim) | 101 GB | 1 |
+| `qwen38fnmlxserve-git` | the same model as MLX mixed 4/8-bit weights | mlx-serve git main+PR383 at `~/git/mlx-serve` (no shim) | 101 GB | 0 |
 
 **`qwen38fnds4kimat` is a whole different STACK, not a different quant.** Ivan
 replaced the Q4_0 routed-expert file that every `qwen38fnds4shim` row was taken

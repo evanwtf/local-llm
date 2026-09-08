@@ -76,6 +76,10 @@ NEW_RUN_FLAGS=${NEW_RUN_FLAGS:-}
 NEW_ENGINE=${NEW_ENGINE:-ds4}
 NEW_MLX_MODEL=${NEW_MLX_MODEL:-}
 NEW_MLX_PORT=${NEW_MLX_PORT:-11234}
+# #225: the mlx-serve binary this arm runs. Defaults to the bare name, which
+# resolves on PATH -- the brew install. A git-checkout arm names its built
+# binary, so the two arms do not both resolve to the same brew binary.
+NEW_MLX_BIN=${NEW_MLX_BIN:-mlx-serve}
 
 OLD_TREE=${OLD_TREE:-$HOME/git/ds4-metal}
 OLD_GGUF=${OLD_GGUF:-$HOME/models/qwen3.8-flash-next-ds4-q4/Qwen3.8-Flash-Next-Q40RoutedExperts-BF16Emb-BF16Control-Q8GDN-Q8QSA-Q8Shared-Q8Out.gguf}
@@ -87,6 +91,7 @@ OLD_RUN_FLAGS=${OLD_RUN_FLAGS:-}
 OLD_ENGINE=${OLD_ENGINE:-ds4}
 OLD_MLX_MODEL=${OLD_MLX_MODEL:-}
 OLD_MLX_PORT=${OLD_MLX_PORT:-11234}
+OLD_MLX_BIN=${OLD_MLX_BIN:-mlx-serve}
 
 # These two arms are ds4-only concerns. mlx-serve keeps no disk KV
 # directory we manage and sits behind no shim, so a guard written for ds4
@@ -110,10 +115,10 @@ fi
 # kind would read as a failed lookup of the first, which is how a run-record
 # stops being evidence.
 engine_ident() {
-  local engine=$1 tree=$2
+  local engine=$1 tree=$2 mlx_bin=${3:-mlx-serve}
   case "$engine" in
   ds4)       echo "$tree @ $(git -C "$tree" rev-parse --short HEAD 2>/dev/null || echo ?)" ;;
-  mlx-serve) echo "$(command -v mlx-serve) @ $(mlx-serve --version 2>&1 | grep -m1 mlx-serve || echo ?)" ;;
+  mlx-serve) echo "$mlx_bin @ $("$mlx_bin" --version 2>&1 | grep -m1 mlx-serve || echo ?)" ;;
   *)         echo "$engine (unknown kind)" ;;
   esac
 }
@@ -131,7 +136,7 @@ engine_ident() {
 # unbound under set -u and aborts the run. SERVER_ARGV is reset before the
 # case so a mistyped engine cannot leave a stale array from the previous call.
 server_argv() {           # sets SERVER_ARGV
-  local engine=$1 gguf=$2 ple=$3 kv=$4 flags=${5:-} mlx_model=${6:-} mlx_port=${7:-11234}
+  local engine=$1 gguf=$2 ple=$3 kv=$4 flags=${5:-} mlx_model=${6:-} mlx_port=${7:-11234} mlx_bin=${8:-mlx-serve}
   local -a f=()
   [ -n "$flags" ] && read -ra f <<< "$flags"
   SERVER_ARGV=()
@@ -139,7 +144,7 @@ server_argv() {           # sets SERVER_ARGV
   ds4)  SERVER_ARGV=(./ds4-server --metal -m "$gguf" --ple "$ple" --ctx 100000 \
           --warm-weights ${f[@]+"${f[@]}"} --kv-disk-dir "$kv" --kv-disk-space-mb 8192 \
           --host 127.0.0.1 --port 8000) ;;
-  mlx-serve) SERVER_ARGV=(mlx-serve --model "$mlx_model" --serve --host 127.0.0.1 \
+  mlx-serve) SERVER_ARGV=("$mlx_bin" --model "$mlx_model" --serve --host 127.0.0.1 \
           --port "$mlx_port" --ctx-size 100000 --kv-quant off ${f[@]+"${f[@]}"}) ;;
   *) echo "server_argv: unknown engine $engine" >&2; return 1 ;;
   esac
@@ -181,23 +186,23 @@ done
 {
   echo "# stack agent A/B, started $(date '+%Y-%m-%dT%H:%M:%S %Z')"
   echo "# SCREEN, not a superiority test: n=$((SWEEPS * 15))/arm resolves ~18-27 pp pass, ~17-26% paired wall."
-  echo "NEW backend=$NEW_BACKEND engine=$NEW_ENGINE $(engine_ident "$NEW_ENGINE" "$NEW_TREE")"
+  echo "NEW backend=$NEW_BACKEND engine=$NEW_ENGINE $(engine_ident "$NEW_ENGINE" "$NEW_TREE" "$NEW_MLX_BIN")"
   if [ "$NEW_ENGINE" = "mlx-serve" ]; then
     echo "NEW pack=$NEW_MLX_MODEL ($(du -sk "$NEW_MLX_MODEL" 2>/dev/null | cut -f1) KiB)  port=$NEW_MLX_PORT"
   else
     echo "NEW gguf=$(basename "$NEW_GGUF") ($(stat -Lf %z "$NEW_GGUF") bytes, $(readlink "$NEW_GGUF" || basename "$NEW_GGUF"))  kv=$NEW_KV"
   fi
   echo "NEW flags=${NEW_FLAGS:-<none>}  run.py=${NEW_RUN_FLAGS:-<none>}"
-  server_argv "$NEW_ENGINE" "$NEW_GGUF" "$NEW_PLE" "$NEW_KV" "$NEW_FLAGS" "$NEW_MLX_MODEL" "$NEW_MLX_PORT"
+  server_argv "$NEW_ENGINE" "$NEW_GGUF" "$NEW_PLE" "$NEW_KV" "$NEW_FLAGS" "$NEW_MLX_MODEL" "$NEW_MLX_PORT" "$NEW_MLX_BIN"
   echo "NEW server: ${SERVER_ARGV[*]}"
-  echo "OLD backend=$OLD_BACKEND engine=$OLD_ENGINE $(engine_ident "$OLD_ENGINE" "$OLD_TREE")"
+  echo "OLD backend=$OLD_BACKEND engine=$OLD_ENGINE $(engine_ident "$OLD_ENGINE" "$OLD_TREE" "$OLD_MLX_BIN")"
   if [ "$OLD_ENGINE" = "mlx-serve" ]; then
     echo "OLD pack=$OLD_MLX_MODEL ($(du -sk "$OLD_MLX_MODEL" 2>/dev/null | cut -f1) KiB)  port=$OLD_MLX_PORT"
   else
     echo "OLD gguf=$(basename "$OLD_GGUF") ($(stat -Lf %z "$OLD_GGUF") bytes, $(readlink "$OLD_GGUF" || basename "$OLD_GGUF"))  kv=$OLD_KV"
   fi
   echo "OLD flags=${OLD_FLAGS:-<none>}  run.py=${OLD_RUN_FLAGS:-<none>}"
-  server_argv "$OLD_ENGINE" "$OLD_GGUF" "$OLD_PLE" "$OLD_KV" "$OLD_FLAGS" "$OLD_MLX_MODEL" "$OLD_MLX_PORT"
+  server_argv "$OLD_ENGINE" "$OLD_GGUF" "$OLD_PLE" "$OLD_KV" "$OLD_FLAGS" "$OLD_MLX_MODEL" "$OLD_MLX_PORT" "$OLD_MLX_BIN"
   echo "OLD server: ${SERVER_ARGV[*]}"
   if [ "$NEW_ENGINE" != "$OLD_ENGINE" ]; then
     echo "# DIFFERENT ENGINES and different weight formats. Engine and quant move"
@@ -216,7 +221,7 @@ done
 # is not running is a no-op.
 restart_server() {
   local engine=$1 tree=$2 gguf=$3 ple=$4 kv=$5 tag=$6 flags=${7:-} \
-        mlx_model=${8:-} mlx_port=${9:-11234}
+        mlx_model=${8:-} mlx_port=${9:-11234} mlx_bin=${10:-mlx-serve}
   ds4_stop_server "for $tag" || exit 1
   mlx_serve_stop_server "for $tag" || exit 1
   echo "[$(date +%H:%M:%S)] starting $tag on $engine${flags:+ with $flags}..."
@@ -237,7 +242,7 @@ restart_server() {
     # 0.0.0.0 and a benchmark server does not belong on the local network.
     # No route recording: the Metal route is a ds4 concept, and a row for this
     # arm must read `unrecorded` rather than inherit ds4's provenance (#149).
-    server_argv mlx-serve "$gguf" "$ple" "$kv" "$flags" "$mlx_model" "$mlx_port"
+    server_argv mlx-serve "$gguf" "$ple" "$kv" "$flags" "$mlx_model" "$mlx_port" "$mlx_bin"
     ( "${SERVER_ARGV[@]}" > "$OUT/server-$tag.log" 2>&1 & )
     # --model is REQUIRED by wait_ready.py and the served id is the pack's
     # directory name. Omitting it does not fail loudly: argparse exits 2, the
@@ -356,23 +361,23 @@ for n in $(seq 1 "$SWEEPS"); do
   if [ $((n % 2)) -eq 1 ]; then
     first_tag=new; first_backend=$NEW_BACKEND; first_run_flags=$NEW_RUN_FLAGS
     first_tree=$NEW_TREE; first_gguf=$NEW_GGUF; first_ple=$NEW_PLE; first_kv=$NEW_KV; first_flags=$NEW_FLAGS
-    first_engine=$NEW_ENGINE; first_mlx=$NEW_MLX_MODEL; first_mlx_port=$NEW_MLX_PORT
+    first_engine=$NEW_ENGINE; first_mlx=$NEW_MLX_MODEL; first_mlx_port=$NEW_MLX_PORT; first_mlx_bin=$NEW_MLX_BIN
     second_tag=old; second_backend=$OLD_BACKEND; second_run_flags=$OLD_RUN_FLAGS
     second_tree=$OLD_TREE; second_gguf=$OLD_GGUF; second_ple=$OLD_PLE; second_kv=$OLD_KV; second_flags=$OLD_FLAGS
-    second_engine=$OLD_ENGINE; second_mlx=$OLD_MLX_MODEL; second_mlx_port=$OLD_MLX_PORT
+    second_engine=$OLD_ENGINE; second_mlx=$OLD_MLX_MODEL; second_mlx_port=$OLD_MLX_PORT; second_mlx_bin=$OLD_MLX_BIN
   else
     first_tag=old; first_backend=$OLD_BACKEND; first_run_flags=$OLD_RUN_FLAGS
     first_tree=$OLD_TREE; first_gguf=$OLD_GGUF; first_ple=$OLD_PLE; first_kv=$OLD_KV; first_flags=$OLD_FLAGS
-    first_engine=$OLD_ENGINE; first_mlx=$OLD_MLX_MODEL; first_mlx_port=$OLD_MLX_PORT
+    first_engine=$OLD_ENGINE; first_mlx=$OLD_MLX_MODEL; first_mlx_port=$OLD_MLX_PORT; first_mlx_bin=$OLD_MLX_BIN
     second_tag=new; second_backend=$NEW_BACKEND; second_run_flags=$NEW_RUN_FLAGS
     second_tree=$NEW_TREE; second_gguf=$NEW_GGUF; second_ple=$NEW_PLE; second_kv=$NEW_KV; second_flags=$NEW_FLAGS
-    second_engine=$NEW_ENGINE; second_mlx=$NEW_MLX_MODEL; second_mlx_port=$NEW_MLX_PORT
+    second_engine=$NEW_ENGINE; second_mlx=$NEW_MLX_MODEL; second_mlx_port=$NEW_MLX_PORT; second_mlx_bin=$NEW_MLX_BIN
   fi
   restart_server "$first_engine" "$first_tree" "$first_gguf" "$first_ple" "$first_kv" \
-    "$first_tag-sweep$n" "$first_flags" "$first_mlx" "$first_mlx_port"
+    "$first_tag-sweep$n" "$first_flags" "$first_mlx" "$first_mlx_port" "$first_mlx_bin"
   sweep "$first_tag" "$n" "$first_backend" "$first_run_flags" "$first_engine"
   restart_server "$second_engine" "$second_tree" "$second_gguf" "$second_ple" "$second_kv" \
-    "$second_tag-sweep$n" "$second_flags" "$second_mlx" "$second_mlx_port"
+    "$second_tag-sweep$n" "$second_flags" "$second_mlx" "$second_mlx_port" "$second_mlx_bin"
   sweep "$second_tag" "$n" "$second_backend" "$second_run_flags" "$second_engine"
 done
 echo "[$(date +%H:%M:%S)] all $((SWEEPS * 2)) sweeps complete under $OUT"

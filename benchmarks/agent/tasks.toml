@@ -1329,3 +1329,18 @@ auth_token = "local"
 opencode_model = "mlxserve/Qwen3.8-Flash-Next-MLX-Serve-mixed-4-8bit"
 engine = "mlx-serve"
 context_tokens = 100000
+
+# #225: the SAME pack on the git checkout of mlx-serve (main+PR383), built by
+# zig at ~/git/mlx-serve/zig-out/bin/mlx-serve. Same URL and pack as
+# `qwen38fnmlxserve`; the `engine_tree` makes engine_identity stamp the git
+# HEAD sha and the tree binary's mtime rather than the brew --version, so the
+# two arms are distinguishable in the ledger after the fact.
+[backend.qwen38fnmlxserve-git]
+description = "Qwen3.8-Flash-Next MLX mixed-4-8bit on mlx-serve git checkout at ~/git/mlx-serve (main+PR383), no shim; PLE ships as ngram_table.bin in the pack"
+base_url = "http://127.0.0.1:11234"
+model = "Qwen3.8-Flash-Next-MLX-Serve-mixed-4-8bit"
+auth_token = "local"
+opencode_model = "mlxserve/Qwen3.8-Flash-Next-MLX-Serve-mixed-4-8bit"
+engine = "mlx-serve"
+engine_tree = "~/git/mlx-serve"
+context_tokens = 100000
