@@ -1,0 +1,40 @@
+POST /v1/chat/completions (1 msgs, max_tokens=600, temp=0.00, top_p=0.95, top_k=20, stream=false, thinking=false, sys=0b, user=80b, tools=613b, tool_msgs=0) 
+  > "Call read_file on /a, /b, /c, /d, /e, /f, /g and /h. One call each, all of them."
+  prompt=424 tokens, max_gen=600, ctx=100000
+  spec-gate: ngram-score=0.163 (threshold=0.010)
+  [hot-cache] reused 423/424 tokens (matched 424; entry 18/18)
+  [hot-cache] resident=1379.70 / 2048.00 MB (18/32 entries)
+  <- 424+199 tokens (3181ms) [prefill: 58.3 tok/s (423 cached / 424 total), decode: 63.3 tok/s] [tool_calls: 8]
+  pld=enabled (draft_len=5, key_len=3)
+POST /v1/chat/completions (1 msgs, max_tokens=600, temp=0.00, top_p=0.95, top_k=20, stream=false, thinking=false, sys=0b, user=96b, tools=613b, tool_msgs=0) 
+  > "The last tool call failed with 'ENOENT'. Try again, differently, and keep trying..."
+  prompt=410 tokens, max_gen=600, ctx=100000
+  spec-gate: ngram-score=0.170 (threshold=0.010)
+  [hot-cache] reused 373/410 tokens (matched 379; entry 14/18)
+[sdpa-split] engaged: qL=6 kL=379 Hq=24 Hkv=2 (MLX_SERVE_SDPA_SPLIT=0 restores the single dispatch)
+  [hot-cache] resident=1449.10 / 2048.00 MB (19/32 entries)
+  <- 410+46 tokens (975ms) [prefill: 168.5 tok/s (373 cached / 410 total), decode: 62.4 tok/s] [tool_calls: 1]
+  pld=enabled (draft_len=5, key_len=3)
+POST /v1/chat/completions (1 msgs, max_tokens=600, temp=0.00, top_p=0.95, top_k=20, stream=false, thinking=false, sys=0b, user=96b, tools=613b, tool_msgs=0) 
+  > "The last tool call failed with 'ENOENT'. Try again, differently, and keep trying..."
+  prompt=410 tokens, max_gen=600, ctx=100000
+  spec-gate: ngram-score=0.170 (threshold=0.010)
+  [hot-cache] reused 379/410 tokens (matched 410; entry 19/19)
+  [hot-cache] resident=1518.58 / 2048.00 MB (20/32 entries)
+  <- 410+49 tokens (913ms) [prefill: 276.4 tok/s (379 cached / 410 total), decode: 62.5 tok/s] [tool_calls: 1]
+  pld=enabled (draft_len=5, key_len=3)
+POST /v1/chat/completions (1 msgs, max_tokens=600, temp=0.00, top_p=0.95, top_k=20, stream=false, thinking=false, sys=0b, user=96b, tools=613b, tool_msgs=0) 
+  > "The last tool call failed with 'ENOENT'. Try again, differently, and keep trying..."
+  prompt=410 tokens, max_gen=600, ctx=100000
+  spec-gate: ngram-score=0.170 (threshold=0.010)
+  [hot-cache] reused 409/410 tokens (matched 410; entry 20/20)
+  [hot-cache] resident=1518.58 / 2048.00 MB (20/32 entries)
+  <- 410+49 tokens (825ms) [prefill: 55.7 tok/s (409 cached / 410 total), decode: 62.0 tok/s] [tool_calls: 1]
+  pld=enabled (draft_len=5, key_len=3)
+POST /v1/chat/completions (1 msgs, max_tokens=600, temp=0.00, top_p=0.95, top_k=20, stream=false, thinking=false, sys=0b, user=96b, tools=613b, tool_msgs=0) 
+  > "The last tool call failed with 'ENOENT'. Try again, differently, and keep trying..."
+  prompt=410 tokens, max_gen=600, ctx=100000
+  spec-gate: ngram-score=0.170 (threshold=0.010)
+  [hot-cache] reused 409/410 tokens (matched 410; entry 20/20)
+  [hot-cache] resident=1518.58 / 2048.00 MB (20/32 entries)
+  <- 410+49 tokens (836ms) [prefill: 55.2 tok/s (409 cached / 410 total), decode: 61.1 tok/s] [tool_calls: 1]

@@ -1,0 +1,108 @@
+[
+  {
+    "prompt": "Read the file /etc/hosts and tell me what is in it.",
+    "content": null,
+    "tool_calls": [
+      {
+        "id": "call_1788837398314_0",
+        "type": "function",
+        "function": {
+          "name": "read_file",
+          "arguments": "{\"path\":\"/etc/hosts\"}"
+        }
+      }
+    ],
+    "finish_reason": "tool_calls"
+  },
+  {
+    "prompt": "List the files in /tmp by running a shell command.",
+    "content": null,
+    "tool_calls": [
+      {
+        "id": "call_1788837398986_0",
+        "type": "function",
+        "function": {
+          "name": "run_command",
+          "arguments": "{\"cmd\":\"ls -la /tmp\"}"
+        }
+      }
+    ],
+    "finish_reason": "tool_calls"
+  },
+  {
+    "prompt": "Read /etc/passwd, then run `uname -a`. Do both.",
+    "content": null,
+    "tool_calls": [
+      {
+        "id": "call_1788837400036_0",
+        "type": "function",
+        "function": {
+          "name": "read_file",
+          "arguments": "{\"path\":\"/etc/passwd\"}"
+        }
+      },
+      {
+        "id": "call_1788837400036_1",
+        "type": "function",
+        "function": {
+          "name": "run_command",
+          "arguments": "{\"cmd\":\"uname -a\"}"
+        }
+      }
+    ],
+    "finish_reason": "tool_calls"
+  },
+  {
+    "prompt": "I need the contents of ./README.md. Use your tools.",
+    "content": null,
+    "tool_calls": [
+      {
+        "id": "call_1788837400602_0",
+        "type": "function",
+        "function": {
+          "name": "read_file",
+          "arguments": "{\"path\":\"./README.md\"}"
+        }
+      }
+    ],
+    "finish_reason": "tool_calls"
+  },
+  {
+    "prompt": "Check whether /var/log exists by running a command, then read /etc/hosts.",
+    "content": null,
+    "tool_calls": [
+      {
+        "id": "call_1788837401784_0",
+        "type": "function",
+        "function": {
+          "name": "run_command",
+          "arguments": "{\"cmd\":\"ls -ld /var/log\"}"
+        }
+      },
+      {
+        "id": "call_1788837401784_1",
+        "type": "function",
+        "function": {
+          "name": "read_file",
+          "arguments": "{\"path\":\"/etc/hosts\"}"
+        }
+      }
+    ],
+    "finish_reason": "tool_calls"
+  },
+  {
+    "prompt": "Use read_file on /etc/shells and summarise it.",
+    "content": null,
+    "tool_calls": [
+      {
+        "id": "call_1788837402382_0",
+        "type": "function",
+        "function": {
+          "name": "read_file",
+          "arguments": "{\"path\":\"/etc/shells\"}"
+        }
+      }
+    ],
+    "finish_reason": "tool_calls"
+  }
+]

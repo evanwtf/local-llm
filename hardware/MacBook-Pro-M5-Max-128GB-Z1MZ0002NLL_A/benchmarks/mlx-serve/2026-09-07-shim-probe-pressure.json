@@ -1,0 +1,156 @@
+[
+  {
+    "kind": "base",
+    "content": null,
+    "tool_calls": true,
+    "n_calls": 1,
+    "finish": "tool_calls"
+  },
+  {
+    "kind": "base",
+    "content": null,
+    "tool_calls": true,
+    "n_calls": 1,
+    "finish": "tool_calls"
+  },
+  {
+    "kind": "base",
+    "content": null,
+    "tool_calls": true,
+    "n_calls": 2,
+    "finish": "tool_calls"
+  },
+  {
+    "kind": "base",
+    "content": null,
+    "tool_calls": true,
+    "n_calls": 1,
+    "finish": "tool_calls"
+  },
+  {
+    "kind": "base",
+    "content": null,
+    "tool_calls": true,
+    "n_calls": 2,
+    "finish": "tool_calls"
+  },
+  {
+    "kind": "base",
+    "content": null,
+    "tool_calls": true,
+    "n_calls": 1,
+    "finish": "tool_calls"
+  },
+  {
+    "kind": "base",
+    "content": null,
+    "tool_calls": true,
+    "n_calls": 3,
+    "finish": "tool_calls"
+  },
+  {
+    "kind": "base",
+    "content": null,
+    "tool_calls": true,
+    "n_calls": 1,
+    "finish": "tool_calls"
+  },
+  {
+    "kind": "base",
+    "content": null,
+    "tool_calls": true,
+    "n_calls": 1,
+    "finish": "tool_calls"
+  },
+  {
+    "kind": "base",
+    "content": null,
+    "tool_calls": true,
+    "n_calls": 1,
+    "finish": "tool_calls"
+  },
+  {
+    "kind": "pressure",
+    "content": null,
+    "tool_calls": true,
+    "n_calls": 2,
+    "finish": "tool_calls"
+  },
+  {
+    "kind": "pressure",
+    "content": null,
+    "tool_calls": true,
+    "n_calls": 2,
+    "finish": "tool_calls"
+  },
+  {
+    "kind": "pressure",
+    "content": null,
+    "tool_calls": true,
+    "n_calls": 2,
+    "finish": "tool_calls"
+  },
+  {
+    "kind": "pressure",
+    "content": null,
+    "tool_calls": true,
+    "n_calls": 2,
+    "finish": "tool_calls"
+  },
+  {
+    "kind": "pressure",
+    "content": null,
+    "tool_calls": true,
+    "n_calls": 8,
+    "finish": "tool_calls"
+  },
+  {
+    "kind": "pressure",
+    "content": null,
+    "tool_calls": true,
+    "n_calls": 8,
+    "finish": "tool_calls"
+  },
+  {
+    "kind": "pressure",
+    "content": null,
+    "tool_calls": true,
+    "n_calls": 8,
+    "finish": "tool_calls"
+  },
+  {
+    "kind": "pressure",
+    "content": null,
+    "tool_calls": true,
+    "n_calls": 8,
+    "finish": "tool_calls"
+  },
+  {
+    "kind": "pressure",
+    "content": null,
+    "tool_calls": true,
+    "n_calls": 1,
+    "finish": "tool_calls"
+  },
+  {
+    "kind": "pressure",
+    "content": null,
+    "tool_calls": true,
+    "n_calls": 1,
+    "finish": "tool_calls"
+  },
+  {
+    "kind": "pressure",
+    "content": null,
+    "tool_calls": true,
+    "n_calls": 1,
+    "finish": "tool_calls"
+  },
+  {
+    "kind": "pressure",
+    "content": null,
+    "tool_calls": true,
+    "n_calls": 1,
+    "finish": "tool_calls"
+  }
+]

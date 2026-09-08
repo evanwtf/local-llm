@@ -1,0 +1,16 @@
+23:14:20 rss_gib=0.00 wired_gib=5.04
+23:14:25 rss_gib=0.00 wired_gib=75.37
+23:14:30 rss_gib=0.00 wired_gib=79.30
+23:14:36 rss_gib=0.00 wired_gib=79.45
+23:14:41 rss_gib=0.00 wired_gib=76.69
+23:14:46 rss_gib=0.00 wired_gib=80.40
+23:14:51 rss_gib=0.00 wired_gib=78.43
+23:14:56 rss_gib=0.00 wired_gib=77.98
+23:15:01 rss_gib=0.00 wired_gib=82.00
+23:15:06 rss_gib=0.00 wired_gib=81.81
+23:15:11 rss_gib=0.00 wired_gib=77.95
+23:15:16 rss_gib=0.00 wired_gib=78.52
+23:15:21 rss_gib=0.00 wired_gib=82.98
+23:15:26 rss_gib=0.00 wired_gib=85.17
+23:15:31 rss_gib=0.00 wired_gib=82.58
+23:15:37 rss_gib=0.00 wired_gib=82.65
