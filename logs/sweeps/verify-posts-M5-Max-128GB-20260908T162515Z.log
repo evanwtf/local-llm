@@ -1,0 +1,9 @@
+2026-09-08 12:25:15,306 INFO [c503d2d@M5-Max-128GB none pld=n/a] 2026-09-08T16:25:15Z (12:25:15 EDT) | harness c503d2d
+2026-09-08 12:25:15,368 INFO [c503d2d@M5-Max-128GB none pld=n/a]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-08 12:25:15,580 INFO [c503d2d@M5-Max-128GB none pld=n/a] 2097343957940474076  VERIFIED post  @ivanfioravanti  Tue Sep 08 15:19:00 +0000 2026  via fxtwitter
+2026-09-08 12:25:15,581 INFO [c503d2d@M5-Max-128GB none pld=n/a]     DwarfStar Qwen 3.8 Flash Next update focused on 64GB usage and more: - Tools calling fixed in some specific use cases (@anemll you were right during your initial tests) - Prefill/Decode performance im
+2026-09-08 12:25:15,581 INFO [c503d2d@M5-Max-128GB none pld=n/a] 
+2026-09-08 12:25:15,581 INFO [c503d2d@M5-Max-128GB none pld=n/a] Verified 1: 1 confirmed, 0 not.
+2026-09-08 12:25:15,581 INFO [c503d2d@M5-Max-128GB none pld=n/a] Paste onto the issue:
+2026-09-08 12:25:15,581 INFO [c503d2d@M5-Max-128GB none pld=n/a]   **Verified** 2026-09-08: post exists, authored by @ivanfioravanti, posted Tue Sep 08 15:19:00 +0000 2026.
+2026-09-08 12:25:15,581 INFO [c503d2d@M5-Max-128GB none pld=n/a] log: /Users/evanhoffman/git/local-llm/logs/sweeps/verify-posts-M5-Max-128GB-20260908T162515Z.log

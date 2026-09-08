@@ -8,7 +8,7 @@
 > or compare against those numbers.** Cause, cutover and replacements:
 > [docs/archive/results-opencode-pre-dir.md](docs/archive/results-opencode-pre-dir.md). Other clients are unaffected.
 
-Updated **2026-09-07**. The queue for **this machine** — MacBook Pro, M5 Max,
+Updated **2026-09-08**. The queue for **this machine** — MacBook Pro, M5 Max,
 128 GB. Everything here is labeled `macOS`; nine issues filed on 2026-09-05
 and 2026-09-06 carried no label at all until this sweep, so the label can be
 trusted as a filter again. The one exception is [#154](https://github.com/evanwtf/local-llm/issues/154),
@@ -39,9 +39,9 @@ again. **The labels are
 this file, made queryable** — they are not a second opinion about what matters,
 and they drift the moment this file is re-ranked without them.
 
-- **`P0`** (3) — blocks or invalidates measurement. Do before anything that needs the machine. Items 1-3 below.
-- **`P1`** (7) — the rest of the top 10: item 0, which is running, and items 4-9.
-- **`P2`** (49) — a real task with a stated reason it is not now: the "below the line" items, harness defects nobody is blocked on, ops and housekeeping, and the Linux/RTX tier.
+- **`P0`** (5) — blocks or invalidates measurement. Do before anything that needs the machine. #228, #158, #151, #170, #212.
+- **`P1`** (5) — the rest of the top 10: #162, #112, #39, #201, #210.
+- **`P2`** (55) — a real task with a stated reason it is not now: the "below the line" items, harness defects nobody is blocked on, ops and housekeeping, and the Linux/RTX tier.
 - **`P3`** (11) — a lead. Somebody else's unverified claim about a quant, an engine, or an MTP number. **A lead earns a run by beating a P1 on expected information, not by being new.** Twenty more were closed on 2026-09-06; what is left is the set with a mechanism attached to one of our own models or engines.
 
 The invariant: **`P0` + `P1` is exactly the top 10** -- items 0-9 below, counting item 0 -- so
@@ -67,7 +67,7 @@ two of the promotions are things that overnight run walked into.
 
 ### The machine queue
 
-Updated **2026-09-07 03:40 EDT**, overnight. One thing runs at a time; the run
+Updated **2026-09-08 13:00 EDT**, after the first issue-sweep. One thing runs at a time; the run
 lock is what enforces it, and the suite now refuses to start beside a held lock
 rather than voiding a measurement quietly.
 
@@ -211,12 +211,18 @@ Power, which is not our regime.
    opposite of what was assumed, and the better of the two outcomes.
    *Done when:* the PR build loads (or refuses) each of our weight files with the architecture strings compared first, prefill is measured here separating appended-token rate at depth from cold prefill, and `RECOMMENDATIONS.md`'s fork caveat is updated to match reality.
 
-2. **[#148](https://github.com/evanwtf/local-llm/issues/148)** Prove the MTP draft head drafts, per row
-   The precondition now reads the **server's** argv rather than this process's
-   environment, and an MTP arm that drafts nothing is refused. What is still
-   missing is the evidence: **no lock-held measurement run has yet written the
-   per-row `draft` field.** Until one has, the gate is code that has never
-   fired in anger.
+2. **[#210](https://github.com/evanwtf/local-llm/issues/210)** MTP rows average away a bimodal treatment
+   **Renumbered 2026-09-08.** This slot read "#148 Prove the MTP draft head
+   drafts, per row" for weeks. #148 is a closed oMLX 6-bit recipe issue and
+   always was; the work described here is #210, which was open and labelled
+   `P1` the whole time and simply never queued. Every mechanical check passed
+   on the old line — the number resolved, the link worked, the label was
+   right. Only comparing the prose against the issue's real title caught it.
+   The substance is unchanged: the precondition reads the **server's** argv
+   rather than this process's environment, an MTP arm that drafts nothing is
+   refused, and **no lock-held measurement run has yet written the per-row
+   `draft` field**. Until one has, the gate is code that has never fired in
+   anger.
    *Done when:* a real batch writes `draft` on every row of an MTP backend, and one deliberately broken arm is shown to be refused.
 
 3. **[#151](https://github.com/evanwtf/local-llm/issues/151)** ds4 chat may have no MTP at all
@@ -247,14 +253,20 @@ Power, which is not our regime.
    One arm separates "sampled differently" from "speculation loses work".
    *Done when:* a third arm runs with exact sampling on, under #112's protocol, and the pass-rate loss is attributed or ruled out.
 
-6. **[#143](https://github.com/evanwtf/local-llm/issues/143)** Settle the ds4#964 prefill disagreement
-   Decode is re-measured and holds at **+18.7%** over four runs. Prefill does
-   not: we measure **-1.0%** against a claimed 16.6-26.0%, and the reason may
-   be that `ds4-bench` prefills the step increment, so `prefill_tokens` is 2048
-   at every frontier and cold prefill may never have been measured here.
-   Prefill is our bottleneck, so this is not a bookkeeping question. The route
-   field #149 added is now available to pin the rows.
-   *Done when:* cold prefill is measured deliberately, with the Metal route recorded on the rows, and the upstream reply is sent or the claim is accepted.
+6. **[#228](https://github.com/evanwtf/local-llm/issues/228)** Our ds4-metal tree is 149 commits stale
+   **Promoted to the top of the machine queue by the operator, 2026-09-08.**
+   `ivanfioravanti/ds4-metal` is not a third-party lead — it is the tree every
+   ds4 backend builds from, and we sit at `ba01f5d` while `origin/qwen3.8-flash-next`
+   is **149 commits ahead and does not have our commit as an ancestor**. That is
+   #158's finding for the third time. PR #5, merged 2026-09-08, is
+   *"Qwen3.8-Flash-Next: bit-exact M5 Max prefill/decode optimizations"* — our
+   exact machine class, gated on `ds4_gpu_device_is_m5_apple_silicon()`, with
+   full-vocabulary FP32 logits **byte-identical**, so quality cannot move and a
+   measurement here is purely wall-time. Ten of the missing commits are
+   M5-specific. Separately `c73d32a` fixes Qwen tool-call parsing, which is
+   what `qwen_tool_shim` exists to compensate for (#112), so this may retire
+   the shim and with it the confound sitting in #224's tail census.
+   *Done when:* the new head builds and loads our weight files, bit-exactness is checked against `ba01f5d` rather than assumed, and a one-variable wall-time A/B is read out.
 
 7. **[#201](https://github.com/evanwtf/local-llm/issues/201)** `REPS=3` does not cancel a decaying position bias
    Promoted on measurement, not argument. Across the twelve reps of #171,
@@ -266,26 +278,37 @@ Power, which is not our regime.
    are now arguing about.
    *Done when:* `REPS` defaults to 4, an odd rep count is refused or loudly warned, and `decode_ab_engine.sh` writes `run-order.txt` the way `decode_ab.sh` already does.
 
-8. **[#189](https://github.com/evanwtf/local-llm/issues/189)** The run lock is checked at session start only
-   The guard works — it refused three suite runs tonight while a batch held the
-   lock, which is exactly what it is for. The hole is a suite **already
-   running** when a batch starts: `pytest_sessionstart` is the only check, so
-   an in-flight suite runs to completion beside the measurement. That is how
-   run 2 of #162 Task 3 was voided, landing on arm A and not arm B.
-   *Done when:* a batch can tell whether a suite is in flight, and either waits for it or refuses to start — rather than the suite alone being polite.
+8. **[#212](https://github.com/evanwtf/local-llm/issues/212)** Test Qwen on ds4 locally: the program
+   The parent this queue hangs off, and it was never a numbered item — it sat
+   in a section above while the invariant counted ten elsewhere. #170, #151,
+   #210, #39, #158, #188, #191 and #211 all hang off it. Why it is first:
+   Qwen3.8-Flash-Next on ds4 is the primary of this project — `qwen38fnds4shim`
+   is the largest backend in the corpus — and every recent upstream event lands
+   on it.
+   *Done when:* its children are closed or reranked, and it stops being a container for work that has its own issues.
 
 ### Standing problems, kept visible because everything is measured against them
 
-9. **[#64](https://github.com/evanwtf/local-llm/issues/64)** KV cache prefix misses cost ~22% of a batch
-   Now measured across eight fresh server logs in one night: **1.14M tokens
-   re-prefilled, ~53 minutes of a 4h04m batch**, 85-127 misses per run, and
-   **every miss is `token-mismatch`** — one mechanism, not several. No stall
-   occurred in eight OpenCode runs, so the original ~20,400-token Claude Code
-   symptom is neither confirmed nor cleared by this sample. The fix is in a
-   client we do not own, so this ends in an upstream report.
-   *Done when:* the report is filed with our numbers, or the client is dropped for agent work on the record.
+9. **[#170](https://github.com/evanwtf/local-llm/issues/170)** ds4#990 puts Qwen3.8-Flash-Next on Metal natively
+   Six of six model-free suites pass on an M5 Max at `9803df46` — `gdn`, `qsa`,
+   `hc`, `ple-hash`, `ple-store`, `indexer`. Six, not the four the issue named;
+   the PR gained two while it sat. One real build finding stands:
+   `tests/test_qwen38_qsa.c:148` uses `-INFINITY` as a softmax sentinel and the
+   `-fno-finite-math-only` that would make it defined sits in the Makefile's
+   **non-Darwin** branch — latent, not active. `scripts/qwen38_metal_suites.py`
+   re-runs it; the PR moves daily. **Read this next to #228**: both are Metal
+   work on our model, and #228's tree is the one we actually build.
+   *Done when:* the suites are re-run at current head and the result is reported upstream, or the PR is superseded by #228's tree and this closes saying so.
 
 ## Below the line, with the reason
+
+**Demoted from the top 10 on 2026-09-08**, when the sweep found `P0`+`P1`
+standing at 20 against a stated ten. Both are real; neither is blocking a
+measurement.
+
+- **[#189](https://github.com/evanwtf/local-llm/issues/189)** the run lock is start-of-session only — the hole is a suite *already running* when a batch starts. Real, and nobody is blocked on it: #227's guards now cover the failure that actually happened to us, which was a commit rather than a suite.
+- **[#64](https://github.com/evanwtf/local-llm/issues/64)** KV cache prefix misses cost ~22% of a batch — measured, and the fix is in a client we do not own. It ends in an upstream report, not a measurement, which is why it does not hold a machine slot.
+
 
 **[#4](https://github.com/evanwtf/local-llm/issues/4) The current task set cannot
 measure code quality** — moved out of the ten on 2026-09-07, displaced by #162,
