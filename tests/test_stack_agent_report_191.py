@@ -30,6 +30,9 @@ SCRIPT = pathlib.Path(__file__).resolve().parents[1] / "scripts" / "stack_agent_
 NEW_BACKEND = "qwen38fnmlxserve"
 OLD_BACKEND = "qwen38fnds4kimat"
 
+#: The harness head every clean row carries, and the run-record pins.
+PINNED_HEAD = "abc1234"
+
 
 def producer_fmt(pattern: str) -> str:
     """The date format stack_agent_ab.sh itself writes, pulled out of the
@@ -78,7 +81,7 @@ def row(backend: str, task: str, started: str, **extra) -> dict:
         "num_turns": 8,
         "wall_seconds": 120,
         "client_version": "1.18.27",
-        "env": {"harness_head": "abc1234", "harness_dirty": False},
+        "env": {"harness_head": PINNED_HEAD, "harness_dirty": False},
     }
     row.update(extra)
     return row
@@ -112,6 +115,7 @@ def write_run_dir(
         producer_started_line(started_at) + "\n"
         "NEW backend=qwen38fnmlxserve engine=mlx-serve @ mlx-serve 26.9.1\n"
         "OLD backend=qwen38fnds4kimat engine=~/git/ds4-ivan-qwen38fn @ bd9cfbc\n"
+        f"harness pinned at {PINNED_HEAD} for all 8 sweeps\n"
     )
     (run_dir / "sweep-order.txt").write_text(
         "".join(
@@ -251,11 +255,59 @@ def test_the_old_arm_control_floor_is_a_void(tmp_path, caplog):
 
 
 def test_a_harness_head_split_is_void(tmp_path, caplog):
+    """A row at a different head inside the window is a VOID, not a preference.
+
+    The head selector drops it; the timestamp cut keeps it. The two selectors
+    disagree, so the run's identity is ambiguous and the report refuses.
+    """
     rows = full_rows()
     rows[0]["env"]["harness_head"] = "def5678"
     code, out = run_report(tmp_path, rows, caplog)
     assert code == 2
-    assert "harness_head varies" in out
+    assert "head selector and timestamp cut disagree" in out
+
+
+def test_a_leftover_at_a_different_head_is_not_counted(tmp_path, caplog):
+    """A row from an aborted attempt at a different head must not count.
+
+    The head selector is primary. A row whose env names a different head is
+    not tonight's, whatever its timestamp. Here the leftover sits inside the
+    timestamp window, so the cut would keep it but the head selector would
+    not -- the two selectors disagree, and the report refuses rather than
+    count a row that is not the run's.
+    """
+    rows = full_rows()
+    rows.append(
+        row(
+            NEW_BACKEND,
+            "mbox-strip-envelope",
+            "2026-09-07T21:00:00-04:00",
+            env={"harness_head": "636d3a0", "harness_dirty": True},
+        )
+    )
+    code, out = run_report(tmp_path, rows, caplog)
+    assert code == 2
+    assert "head selector and timestamp cut disagree" in out
+
+
+def test_a_leftover_before_the_cut_is_excluded(tmp_path, caplog):
+    """A leftover from an aborted attempt before the cut is not counted.
+
+    Both selectors agree to drop it: it is before the cut and at a different
+    head. The report proceeds with the clean rows.
+    """
+    rows = full_rows()
+    rows.append(
+        row(
+            NEW_BACKEND,
+            "mbox-strip-envelope",
+            "2026-09-07T20:00:00-04:00",
+            env={"harness_head": "636d3a0", "harness_dirty": True},
+        )
+    )
+    code, out = run_report(tmp_path, rows, caplog)
+    assert code == 0
+    assert "raw rows: 60" in out
 
 
 def test_a_short_sweep_cell_is_void(tmp_path, caplog):

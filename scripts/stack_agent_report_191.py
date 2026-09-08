@@ -26,8 +26,10 @@ import logging
 import math
 import os
 import pathlib
+import re
 import statistics
 import sys
+from collections import Counter
 from typing import Any
 
 import stack_agent_report as rep
@@ -48,6 +50,48 @@ def configure() -> None:
     rep.REFERENCE_ARM = os.environ.get("REFERENCE_ARM", "the ds4 stack")
     rep.QUESTION = os.environ.get("QUESTION", "#191's agent question")
     rep.BACKENDS = {rep.NEW_BACKEND: "new", rep.OLD_BACKEND: "old"}
+
+
+def pinned_head(run_dir: pathlib.Path) -> str | None:
+    """The harness commit the run pinned, from run-record.txt.
+
+    stack_agent_ab.sh writes `harness pinned at <head> for all N sweeps`.
+    The pin is the run's identity: every row of a valid run carries this
+    head and dirty=false. A leftover from an aborted attempt carries a
+    different head and dirty=true.
+    """
+    record = run_dir / "run-record.txt"
+    try:
+        text = record.read_text(errors="replace")
+    except OSError:
+        return None
+    match = re.search(r"harness pinned at (\w+)", text)
+    return match.group(1) if match else None
+
+
+def head_rows(rows: list[dict[str, Any]], head: str) -> list[dict[str, Any]]:
+    """Rows whose env names the pinned head on a clean tree.
+
+    The head selector is exact: it keeps only rows the pinned harness wrote
+    on a clean tree. A timestamp cut cannot say that -- a row can land during
+    startup, or a clock can slip. The head is the run's identity.
+    """
+    return [
+        r
+        for r in rows
+        if r.get("env", {}).get("harness_head") == head
+        and r.get("env", {}).get("harness_dirty") is False
+    ]
+
+
+def _row_key(row: dict[str, Any]) -> tuple[Any, ...]:
+    """A row's identity, for comparing the two selectors."""
+    return (row.get("started"), row.get("backend"), row.get("task"))
+
+
+def _key_multiset(rows: list[dict[str, Any]]) -> Counter:
+    """The multiset of row identities, for the head/cut cross-check."""
+    return Counter(_row_key(r) for r in rows)
 
 
 def passed_wall(rows: list[dict[str, Any]]) -> float | None:
@@ -153,7 +197,32 @@ def main(argv: list[str] | None = None) -> int:
         cut = started_at
         logger.info("cut: %s (run-record.txt)", started_at.isoformat(sep=" "))
 
-    raw = rep.load_raw(args.ledger, rep.BACKENDS, cut)
+    head = pinned_head(args.run_dir)
+    if head is None:
+        logger.info(
+            "VOID: %s has no 'harness pinned at' line; refusing to guess"
+            " which rows are tonight's",
+            args.run_dir / "run-record.txt",
+        )
+        return 2
+    logger.info("head: %s (run-record.txt)", head)
+
+    # The head selector is primary; the timestamp cut is a cross-check that
+    # must agree. Load all backend rows, select by head, then verify the cut
+    # picks the same set. A disagreement means the run's identity is
+    # ambiguous -- VOID, not a preference.
+    all_rows = rep.load_raw(args.ledger, rep.BACKENDS, dt.datetime.min)
+    raw = head_rows(all_rows, head)
+    cut_rows = rep.load_raw(args.ledger, rep.BACKENDS, cut)
+    if _key_multiset(raw) != _key_multiset(cut_rows):
+        logger.info(
+            "VOID: head selector and timestamp cut disagree; the run's"
+            " identity is ambiguous. head keeps %d rows, cut keeps %d rows.",
+            len(raw),
+            len(cut_rows),
+        )
+        return 2
+
     per_backend = {b: sum(1 for r in raw if r["backend"] == b) for b in rep.BACKENDS}
     excluded = sum(1 for r in raw if r.get("excluded"))
     dry = sum(1 for r in raw if r.get("dry_run"))
