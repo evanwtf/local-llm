@@ -57,6 +57,7 @@ documentation.
 | `stack_agent_report_191.py` | Read out for the #191 stack A/B: mlx-serve against ds4, one screen. |
 | `strip_ab_report.py` | Read out the #112 strip-toggle A/B. |
 | `sync_sandbox_targets.py` | Clone the harness's own copies of the task repositories into `sandbox/`. |
+| `tail_events.py` | Count num_turns > 20 events across the ledger, by task and by backend (#191). |
 | `thermals.py` | Read this Mac's die temperatures, with a timestamp, without sudo. |
 | `tool_error_conditional.py` | Does a tool error make the NEXT tool call more likely to fail? (#112) |
 | `tool_retry_count.py` | Count tool-call outcomes from an OpenCode client transcript. |
