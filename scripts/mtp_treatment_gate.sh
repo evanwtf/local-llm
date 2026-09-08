@@ -21,7 +21,8 @@
 # Usage:
 #   scripts/mtp_treatment_gate.sh bypass    # stage 1, ~5 min, expects REFUSAL
 #   scripts/mtp_treatment_gate.sh treated   # stage 2, ~50 min per trial-sweep
-#   scripts/mtp_treatment_gate.sh probe     # ~10 min, no trials, no rows
+#   scripts/mtp_treatment_gate.sh probe        # ~10 min, no trials, no rows
+#   scripts/mtp_treatment_gate.sh probe-shim   # the same arms via :8101
 #   scripts/mtp_treatment_gate.sh silent    # stage 3, ONLY if stage 2 refuses
 #
 # Stage 3 is not a retry. It is the escape the refusal message itself names
@@ -56,8 +57,8 @@ KV_BYPASS="$HOME/.ds4/server-kv-210-bypass"
 BYPASS_TASK="${BYPASS_TASK:-mbox-scan}"
 
 case "$STAGE" in
-  bypass|treated|probe|silent) ;;
-  *) echo "usage: $0 {bypass|treated|probe|silent}" >&2; exit 2 ;;
+  bypass|treated|probe|probe-shim|silent) ;;
+  *) echo "usage: $0 {bypass|treated|probe|probe-shim|silent}" >&2; exit 2 ;;
 esac
 
 if ! pgrep -f qwen_tool_shim >/dev/null; then
@@ -182,6 +183,24 @@ probe)
             --pad-tokens "$pad" --max-tokens 200 \
             --json "$LOGDIR/engagement-pad$pad.json") \
             2>&1 | tee "$LOGDIR/probe-pad$pad.log"
+    done
+    ;;
+probe-shim)
+    start_server yes "$KV_TREATED"
+    assert_graph on
+    # Through the shim, and streaming, because that is what OpenCode sends.
+    # `stream` and `tools-stream` are the client's real shapes; the shim
+    # converts them to non-streaming upstream calls, and whether MTP survives
+    # that conversion is the question the direct probe could not ask.
+    for pad in 0 11000; do
+        echo "=== shim pad=$pad ==="
+        (cd "$REPO" && uv run python scripts/mtp_engagement.py \
+            --base-url http://127.0.0.1:8101 --model qwen3.8-flash-next-q4 \
+            --server-log "$SERVER_LOG" \
+            --arms plain tools stream tools-stream --repeats 2 \
+            --pad-tokens "$pad" --max-tokens 200 \
+            --json "$LOGDIR/engagement-shim-pad$pad.json") \
+            2>&1 | tee "$LOGDIR/probe-shim-pad$pad.log"
     done
     ;;
 silent)

@@ -106,10 +106,10 @@ def test_every_stage_reads_the_counters_from_a_server_log():
     """#148: this script's predecessor passed `--mtp-timing` and no
     `--server-log` for three cycles, so every counter the engine emitted was
     written to a file nothing read."""
-    for name in ("bypass", "treated", "probe", "silent"):
+    for name in ("bypass", "treated", "probe", "probe-shim", "silent"):
         branch = stage(name)
         assert "--server-log" in branch, name
-        if name != "probe":
+        if not name.startswith("probe"):
             # The probe drives the engine directly; it runs no trials, so
             # there is no row for a draft engine to be stamped onto.
             assert "--draft-log-engine ds4" in branch, name
@@ -133,6 +133,7 @@ def test_the_graph_line_is_asserted_before_a_trial_is_spent():
     assert "assert_graph off" in stage("bypass")
     assert "assert_graph on" in stage("treated")
     assert "assert_graph on" in stage("probe")
+    assert "assert_graph on" in stage("probe-shim")
     assert "assert_graph on" in stage("silent")
 
 
@@ -164,3 +165,21 @@ def test_the_probe_stage_runs_no_trials_and_writes_no_rows():
     branch = stage("probe")
     assert "run.py" not in branch
     assert "--results" not in branch
+
+
+def test_the_shim_probe_goes_through_the_shim_and_sends_the_client_s_shapes():
+    """The direct probe ruled out tools and length: all four cells engaged,
+    154-159 of 200 tokens accepted. What it did not vary is the path. The
+    harness reaches the engine through :8101, which converts OpenCode's
+    streaming request into a non-streaming upstream call."""
+    branch = stage("probe-shim")
+    assert "127.0.0.1:8101" in branch
+    assert "--arms plain tools stream tools-stream" in branch
+    assert "for pad in 0 11000" in branch
+
+
+def test_the_direct_probe_still_goes_direct():
+    """The two probes are a pair; if both pointed at the shim, the path axis
+    would be unvaried again and nothing would say so."""
+    assert "127.0.0.1:8000" in stage("probe")
+    assert "8101" not in stage("probe")
