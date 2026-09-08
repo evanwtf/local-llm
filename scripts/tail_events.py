@@ -63,11 +63,37 @@ def _group(row: dict, key: str | tuple[str, ...]) -> str:
     return " / ".join(row.get(k) or "(none)" for k in key)
 
 
+def _wilson(k: int, n: int) -> tuple[float, float]:
+    """Wilson 95% confidence interval for a proportion k/n, as fractions.
+
+    The normal approximation is wrong at the edges (0/n, n/n), which is exactly
+    where a tail rate lands; Wilson stays inside [0, 1] and is the interval the
+    peer's census used. z = 1.96 for 95%.
+    """
+    if n == 0:
+        return (0.0, 0.0)
+    z = 1.96
+    p = k / n
+    denom = 1 + z * z / n
+    centre = (p + z * z / (2 * n)) / denom
+    half = z * ((p * (1 - p) + z * z / (4 * n)) / n) ** 0.5 / denom
+    return (max(0.0, centre - half), min(1.0, centre + half))
+
+
 def _report(rows: list[dict], key: str | tuple[str, ...], label: str) -> None:
     logger.info("=== by %s ===", label)
-    logger.info("%-40s %6s %6s %8s", label, "tail", "total", "rate")
+    logger.info("%-40s %6s %6s %8s  %s", label, "tail", "total", "rate", "95% CI")
     for g, t, n, rate in _table(rows, key):
-        logger.info("%-40s %6d %6d %7.1f%%", g, t, n, rate * 100)
+        lo, hi = _wilson(t, n)
+        logger.info(
+            "%-40s %6d %6d %7.1f%%  [%4.1f, %4.1f]",
+            g,
+            t,
+            n,
+            rate * 100,
+            lo * 100,
+            hi * 100,
+        )
     logger.info("")
 
 

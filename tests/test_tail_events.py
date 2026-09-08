@@ -57,6 +57,16 @@ def test_table_accepts_a_tuple_key_for_a_cross_tab():
     assert by_pair == [("a / x", 1, 1, 1.0), ("a / y", 0, 1, 0.0), ("b / x", 0, 1, 0.0)]
 
 
+def test_wilson_interval_stays_inside_zero_and_one():
+    # 0/n and n/n are the edges where the normal approximation breaks; Wilson
+    # must stay in [0, 1]. The 0/49 edge is one-sided and narrow; 23/196 is a
+    # mid-rate interval that must sit strictly inside (0, 1).
+    lo0, hi0 = te._wilson(0, 49)
+    assert lo0 == 0.0 and 0.0 < hi0 < 0.1
+    lo1, hi1 = te._wilson(23, 196)
+    assert 0.0 < lo1 < hi1 < 0.2
+
+
 def test_table_sorts_by_tail_count_then_rate():
     rows = [
         _row("a", "x", 30),  # a: 1 tail / 1
