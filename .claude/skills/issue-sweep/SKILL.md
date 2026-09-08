@@ -80,6 +80,7 @@ import json, pathlib
 d = json.loads(pathlib.Path("/tmp/issues.json").read_text())
 PRIO = {"P0", "P1", "P2", "P3"}
 PLAT = {"macOS", "Nvidia"}
+TYPES = {"bug", "documentation", "enhancement", "question"}
 for i in d:
     L = {l["name"] for l in i["labels"]}
     p, pl = L & PRIO, L & PLAT
@@ -89,8 +90,18 @@ for i in d:
         print(f"#{i['number']} MULTI {sorted(p)} {i['title'][:60]}")
     if len(pl) > 1:
         print(f"#{i['number']} MULTI platform {sorted(pl)}")
+    elif not pl:
+        # Naked only if it also carries no type label -- see the exemption.
+        if not (L & TYPES):
+            print(f"#{i['number']} NO platform and NO type  {i['title'][:40]}")
 PY
 ```
+
+All four checks are in that loop. An earlier version of this skill described
+four in the bullets and implemented three -- the missing one was "no platform
+label", the check that found #221, #222 and #223 the first time this skill was
+run against the repo. A checklist longer than its code is how a sweep reports
+clean on something it never looked at.
 
 - **No priority label.** The issue is invisible to every query the queue runs
   on. This is the common failure: nine issues filed across two days in
