@@ -56,7 +56,11 @@ def _snapshot(repo: pathlib.Path) -> dict:
     return {
         "branches": {b["name"]: b["head"] for b in branches},
         "prs": {str(p.get("number")): p.get("title") for p in prs},
-        "comments": comments,
+        # str keys, because the snapshot round-trips through JSON and JSON
+        # object keys are always strings. comment_counts() returns ints, so
+        # without this every run compares this run's int keys against the
+        # previous run's str keys -- see _diff.
+        "comments": {str(k): v for k, v in comments.items()},
         "trees": trees,
         "lock": state,
         "servers": servers,
@@ -78,6 +82,11 @@ def _save(current: dict) -> None:
         logger.warning("could not write %s", STATE_FILE)
 
 
+def _str_keys(d: dict) -> dict:
+    """The same mapping with str keys. See _diff."""
+    return {str(k): v for k, v in d.items()}
+
+
 def _diff(prev: dict, cur: dict) -> list[str]:
     """Human lines for what changed between two snapshots."""
     out: list[str] = []
@@ -88,16 +97,23 @@ def _diff(prev: dict, cur: dict) -> list[str]:
             out.append(
                 f"branch {name}: {prev_b.get(name) or 'new'} -> {cur_b.get(name) or 'gone'}"
             )
-    prev_p = prev.get("prs", {})
-    cur_p = cur.get("prs", {})
+    # Same treatment, and here the failure was quieter: mismatched key types
+    # made every PR read as both opened and closed on every run, rather than
+    # raising. A crash is the better of the two.
+    prev_p = _str_keys(prev.get("prs", {}))
+    cur_p = _str_keys(cur.get("prs", {}))
     for num in sorted(set(prev_p) | set(cur_p), key=lambda n: int(n)):
         if prev_p.get(num) != cur_p.get(num):
             out.append(
                 f"PR #{num}: {prev_p.get(num) or 'opened'} -> {cur_p.get(num) or 'closed'}"
             )
-    prev_c = prev.get("comments", {})
-    cur_c = cur.get("comments", {})
-    for issue in sorted(set(prev_c) | set(cur_c)):
+    # Both sides keyed the same way before they are compared. A snapshot
+    # written before the str-keying above still has int keys on disk, and
+    # mixing them does not merely mis-compare: sorted() on {3, "3"} raises
+    # TypeError and takes the whole status report down. That is what it did.
+    prev_c = _str_keys(prev.get("comments", {}))
+    cur_c = _str_keys(cur.get("comments", {}))
+    for issue in sorted(set(prev_c) | set(cur_c), key=int):
         if prev_c.get(issue, 0) != cur_c.get(issue, 0):
             out.append(
                 f"issue #{issue}: {prev_c.get(issue, 0)} -> {cur_c.get(issue, 0)} comments"

@@ -96,3 +96,28 @@ def test_diff_empty_when_nothing_changed():
         "servers": [{"short": "ds4-server", "pid": 42}],
     }
     assert peer_status._diff(cur, cur) == []
+
+
+def test_diff_survives_a_snapshot_that_came_back_from_json():
+    """The state file round-trips through JSON, which makes every key a string,
+    while a fresh snapshot's comment counts are keyed by int. Comparing them
+    raised TypeError on sorted() and took the whole status report down -- the
+    tests above never caught it because they key both sides the same way."""
+    prev = {"comments": {"158": 2}, "prs": {"161": "evidence"}}
+    cur = {"comments": {158: 3}, "prs": {161: "evidence"}}
+    changed = peer_status._diff(prev, cur)
+    assert any("issue #158: 2 -> 3 comments" in c for c in changed)
+    # And the PR did not move, so it must not be reported as opened or closed.
+    assert not any("PR #161" in c for c in changed)
+
+
+def test_diff_orders_issues_numerically():
+    prev = {"comments": {}}
+    cur = {"comments": {"9": 1, "112": 1, "39": 1}}
+    changed = peer_status._diff(prev, cur)
+    issues = [c for c in changed if c.startswith("issue #")]
+    assert issues == [
+        "issue #9: 0 -> 1 comments",
+        "issue #39: 0 -> 1 comments",
+        "issue #112: 0 -> 1 comments",
+    ]
