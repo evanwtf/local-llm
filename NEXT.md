@@ -113,8 +113,12 @@ rather than voiding a measurement quietly.
    and a continuing one must grow by ~41k tokens **in a single turn** to leave
    a new checkpoint. — opus
 
-6. **#201 REPS=4 as the default** before the next sub-1% comparison. No machine
-   time; it is a two-line change plus a refusal on an odd rep count.
+6. ~~**#201 REPS=4 as the default**~~ **Done 2026-09-08.** All four A/B
+   scripts default to 4 and refuse an odd count with exit 2
+   (`ALLOW_ODD_REPS=1` overrides); `decode_ab_engine.sh` writes
+   `run-order.txt` as `decode_ab.sh` has since #130. Four scripts, not the two
+   the issue named — `decode_ab_stack.sh` and `metal_knob_ab.sh` alternate
+   arms the same way and carried the identical defect.
 
 **#146 is at the bottom of the queue, by the operator's decision.** Its clean
 4-run repeat read out as **NO CALL** — per-sweep 14/15, 15/15, 11/15, 15/15,
@@ -132,8 +136,10 @@ is what voided run 2 of #162 Task 3.
 **Position bias is now measured, not assumed** (#130, #201): 9 of 12 reps
 favour whichever arm ran first, median +0.9%, but **+5.9% on the first rep of a
 cold session**, decaying over about an hour. Every comparison below ~1% is
-inside that. `REPS` still defaults to 3 in both harnesses, and an odd rep count
-does not cancel a decaying bias — pass `REPS=4` explicitly until #201 lands.
+inside that. **`REPS` now defaults to 4 in all four A/B scripts and an odd
+count is refused** (#201, landed 2026-09-08) — alternation cancels the bias
+only on an even count, so an odd sweep produced a complete CSV and a plausible
+number with nothing to say half the design was missing.
 
 Durations are estimates. Nothing here is anchored to a clock — each step starts
 when the one before it releases the lock.
@@ -268,17 +274,7 @@ Power, which is not our regime.
    the shim and with it the confound sitting in #224's tail census.
    *Done when:* the new head builds and loads our weight files, bit-exactness is checked against `ba01f5d` rather than assumed, and a one-variable wall-time A/B is read out.
 
-7. **[#201](https://github.com/evanwtf/local-llm/issues/201)** `REPS=3` does not cancel a decaying position bias
-   Promoted on measurement, not argument. Across the twelve reps of #171,
-   whichever arm ran **first** was faster in 9 of them, median +0.9% — and
-   **+5.9% on the first rep of a cold session**, decaying over about an hour.
-   Alternation only cancels on an even rep count, and both harnesses still
-   default to 3, so reps 1 and 3 run A-first and only rep 2 runs B-first. Every
-   comparison below ~1% is inside that, which is most of what the ds4 threads
-   are now arguing about.
-   *Done when:* `REPS` defaults to 4, an odd rep count is refused or loudly warned, and `decode_ab_engine.sh` writes `run-order.txt` the way `decode_ab.sh` already does.
-
-8. **[#212](https://github.com/evanwtf/local-llm/issues/212)** Test Qwen on ds4 locally: the program
+7. **[#212](https://github.com/evanwtf/local-llm/issues/212)** Test Qwen on ds4 locally: the program
    The parent this queue hangs off, and it was never a numbered item — it sat
    in a section above while the invariant counted ten elsewhere. #170, #151,
    #210, #39, #158, #188, #191 and #211 all hang off it. Why it is first:
@@ -289,7 +285,7 @@ Power, which is not our regime.
 
 ### Standing problems, kept visible because everything is measured against them
 
-9. **[#170](https://github.com/evanwtf/local-llm/issues/170)** ds4#990 puts Qwen3.8-Flash-Next on Metal natively
+8. **[#170](https://github.com/evanwtf/local-llm/issues/170)** ds4#990 puts Qwen3.8-Flash-Next on Metal natively
    Six of six model-free suites pass on an M5 Max at `9803df46` — `gdn`, `qsa`,
    `hc`, `ple-hash`, `ple-store`, `indexer`. Six, not the four the issue named;
    the PR gained two while it sat. One real build finding stands:

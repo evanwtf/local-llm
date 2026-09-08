@@ -38,7 +38,34 @@ CTX_START=${CTX_START:-2048}
 CTX_MAX=${CTX_MAX:-16384}
 STEP=${STEP:-2048}
 GEN=${GEN:-128}
-REPS=${REPS:-3}
+REPS=${REPS:-4}
+
+# #201: REPS defaults to 4, not 3, and an odd count is refused.
+#
+# Alternation only cancels the positional bias on an EVEN rep count. At
+# REPS=3 reps 1 and 3 run A-first and only rep 2 runs B-first, so the bias
+# does not divide out -- it lands 2:1 on one arm. That bias is measured, not
+# assumed: across the twelve reps of #171 whichever arm ran first was faster
+# in 9 of them, median +0.9%, and +5.9% on the first rep of a cold session,
+# decaying over about an hour.
+#
+# It is a refusal rather than a warning because the failure is silent. An odd
+# sweep produces a complete CSV, a plausible number, and no indication that
+# half the design is missing; a warning scrolls past in a batch nobody is
+# watching. Pass REPS explicitly to override -- an odd value is accepted only
+# when it is the operator's stated intent.
+if [ $((REPS % 2)) -ne 0 ]; then
+  if [ "${ALLOW_ODD_REPS:-0}" = "1" ]; then
+    echo "WARNING: REPS=$REPS is odd; alternation cannot cancel the position" \
+         "bias (#201). Proceeding because ALLOW_ODD_REPS=1." >&2
+  else
+    echo "REFUSING: REPS=$REPS is odd. Alternation cancels the position bias" \
+         "only on an even count, and the bias is up to +5.9% on a cold first" \
+         "rep (#201) -- larger than most effects this script is used to" \
+         "measure. Use an even REPS, or set ALLOW_ODD_REPS=1 to override." >&2
+    exit 2
+  fi
+fi
 
 # Cold large-chunk prefill (#171). Empty by default, so the flag is absent and
 # nothing about an ordinary sweep changes.
@@ -176,8 +203,15 @@ for rep in $(seq 1 "$REPS"); do
   else
     order=("$LABEL_A:$TREE_A" "$LABEL_B:$TREE_B")
   fi
+  position=0
   for pair in "${order[@]}"; do
+    position=$((position + 1))
     label=${pair%%:*}; tree=${pair#*:}
+    # #201/#130: record the order this arm ran in, the way decode_ab.sh has
+    # since #130. Without it a reader cannot test for positional bias -- only
+    # assume it away -- and this script is the one used for engine A/Bs, where
+    # the effects are smallest and the bias matters most.
+    echo "rep=$rep position=$position of 2 label=$label" >> "$OUT/run-order.txt"
     csv="$OUT/${label}-rep${rep}.csv"
     # Per-arm log, not the batch log. ds4 prints its Metal route, its
     # drift-patch flag set and its pipeline fallbacks to stderr at startup,
