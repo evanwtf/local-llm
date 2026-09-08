@@ -53,7 +53,15 @@ logger = logging.getLogger(__name__)
 # Substrings identifying a process that serves a model. Matched against the
 # command line, so `./build/bin/llama-server` and a bare `ollama serve` both
 # land. Deliberately not the shim: it holds no weights and its memory is noise.
-INFERENCE = ("llama-server", "ollama", "ds4-server", "mtplx")
+#
+# An engine missing from this tuple is not merely uncounted, it is INVISIBLE:
+# `parse_ps` never sees it, so it is neither stale nor unmatched, and its
+# residency is absent from the headroom line. A stale one -- the leftover from
+# a killed run, which is the whole reason this gate exists -- would then be
+# undetectable while under-reporting headroom by the size of a model. Add an
+# engine here the moment it can run on this machine, not the moment it earns a
+# row. `mlx-serve` was added for #191 before its first measurement.
+INFERENCE = ("llama-server", "ollama", "ds4-server", "mtplx", "mlx-serve")
 
 # The tool shim's script name. The shim is not an inference process, but it
 # knows where the real server lives: its --upstream names the port that a

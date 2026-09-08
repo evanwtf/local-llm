@@ -240,3 +240,32 @@ def test_run_py_wires_the_guard_to_systemexit():
     src = (ROOT / "benchmarks" / "agent" / "run.py").read_text()
     assert "refuse_unless_empty" in src, "the guard is not called by run.py"
     assert "--allow-contended" in src, "the documented override does not exist"
+
+
+def test_every_engine_the_repo_can_run_is_in_the_inference_tuple() -> None:
+    """An engine absent from INFERENCE is invisible to the gate, not just uncounted.
+
+    `parse_ps` matches command lines against this tuple. A process that matches
+    nothing is neither stale nor unmatched and contributes nothing to the
+    headroom figure, so a leftover server from a killed run -- the exact thing
+    this gate exists to catch -- would pass unseen while headroom over-reports
+    by the size of a model.
+
+    The list is the engines this repo can start. `mlx-serve` joined for #191.
+    """
+    for engine in ("llama-server", "ollama", "ds4-server", "mtplx", "mlx-serve"):
+        assert engine in preflight.INFERENCE, (
+            f"{engine} can run on this machine but the empty-machine gate cannot see it"
+        )
+
+
+def test_a_stale_mlx_serve_is_seen_by_the_parser() -> None:
+    """The concrete case: a leftover mlx-serve must not read as an empty machine."""
+    line = (
+        "  501 12345  99.0 102400000 mlx-serve --model "
+        "/Users/x/.mlx-serve/models/ddalcu/Qwen3.8-Flash-Next-MLX-Serve-mixed-4-8bit "
+        "--serve --port 11234"
+    )
+    assert any(name in line for name in preflight.INFERENCE), (
+        "a running mlx-serve does not match any INFERENCE substring"
+    )
