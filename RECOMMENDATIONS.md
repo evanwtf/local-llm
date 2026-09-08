@@ -302,7 +302,7 @@ other is telling you something.
 
 <!-- BEGIN GENERATED -->
 
-*Generated from `results.jsonl` — 1813 rows, sha256 ae3ed9f18930.*
+*Generated from `results.jsonl` — 1933 rows, sha256 88b2624ba293.*
 
 #### Every stack measured under OpenCode
 
@@ -310,9 +310,9 @@ other is telling you something.
 
 | stack | passed | median | worst | spread |
 |---|---|---|---|---|
-| qwen38fnmlxserve | 1/1 | 39s | 39s | 1.0x |
 | ornith15 | 21/21 | 44s | 93s | 5.9x |
-| qwen38fnds4kimat | 136/136 | 97s | 472s | 12.2x |
+| qwen38fnmlxserve | 60/61 | 50s | 1377s | 64.7x |
+| qwen38fnds4kimat | 196/196 | 95s | 472s | 12.2x |
 | Qwen3.8-Flash-Next Q3 - llama.cpp | 75/75 | 106s | 356s | 8.3x |
 | DeepSeek-V4-Flash - ds4 (Anthropic wire) | 18/18 | 110s | 221s | 4.3x |
 | qwen38fnq3reap | 21/21 | 110s | 261s | 6.8x |
@@ -350,14 +350,14 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | ornith15 | 21s |
 | gemma426 | 21s |
 | qwen | 31s |
-| qwen38fnds4kimat | 34s |
+| qwen38fnds4kimat | 33s |
 | qwen38fnq3reap | 38s |
 | Qwen3.8-Flash-Next Q3 - llama.cpp | 42s |
+| qwen38fnmlxserve | 43s |
 | qwen36 | 50s |
 | DeepSeek-V4-Flash - ds4 (Anthropic wire) | 54s |
 | GLM-5.3-Flash - ds4 | 55s |
 | Qwen3.6-27B-coding - Ollama | 69s |
-| qwen38fnmlxserve | 70s |
 | DeepSeek-V4-Flash - ds4 | 71s |
 | qwen38fnds4shim | 78s |
 | gemma4 | 84s |
