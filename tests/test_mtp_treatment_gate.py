@@ -106,7 +106,7 @@ def test_every_stage_reads_the_counters_from_a_server_log():
     """#148: this script's predecessor passed `--mtp-timing` and no
     `--server-log` for three cycles, so every counter the engine emitted was
     written to a file nothing read."""
-    for name in ("bypass", "treated", "probe", "probe-shim", "silent"):
+    for name in ("bypass", "treated", "probe", "probe-shim", "replay", "silent"):
         branch = stage(name)
         assert "--server-log" in branch, name
         if not name.startswith("probe"):
@@ -134,6 +134,7 @@ def test_the_graph_line_is_asserted_before_a_trial_is_spent():
     assert "assert_graph on" in stage("treated")
     assert "assert_graph on" in stage("probe")
     assert "assert_graph on" in stage("probe-shim")
+    assert "assert_graph on" in stage("replay")
     assert "assert_graph on" in stage("silent")
 
 
@@ -183,3 +184,28 @@ def test_the_direct_probe_still_goes_direct():
     would be unvaried again and nothing would say so."""
     assert "127.0.0.1:8000" in stage("probe")
     assert "8101" not in stage("probe")
+
+
+def test_the_replay_stage_captures_a_real_payload_and_restores_the_shim():
+    """SHIM_DUMP is the only way to see what OpenCode actually sends. The
+    shim must go back to a plain one afterwards: a later stage inheriting a
+    dumping shim would overwrite the capture it is meant to explain."""
+    branch = stage("replay")
+    assert "SHIM_DUMP=" in branch
+    assert "mtp_replay_probe.py" in branch
+    assert branch.count("qwen_tool_shim.py") == 2, "started with dump, restored without"
+    assert "restoring a plain shim" in branch
+
+
+def test_the_replay_capture_does_not_write_into_the_corpus():
+    """Its row exists only to make the client emit a request."""
+    branch = stage("replay")
+    assert "replay-capture.jsonl" in branch
+    assert "--no-require-draft" in branch
+
+
+def test_the_replay_stage_refuses_when_no_payload_was_captured():
+    """SHIM_DUMP writes only the first INSTRUCTED payload. A trial with none
+    leaves an empty file, and replaying nothing would report a clean table."""
+    branch = stage("replay")
+    assert "captured no payload" in branch

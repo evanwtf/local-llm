@@ -23,6 +23,7 @@
 #   scripts/mtp_treatment_gate.sh treated   # stage 2, ~50 min per trial-sweep
 #   scripts/mtp_treatment_gate.sh probe        # ~10 min, no trials, no rows
 #   scripts/mtp_treatment_gate.sh probe-shim   # the same arms via :8101
+#   scripts/mtp_treatment_gate.sh replay       # capture a real payload, bisect it
 #   scripts/mtp_treatment_gate.sh silent    # stage 3, ONLY if stage 2 refuses
 #
 # Stage 3 is not a retry. It is the escape the refusal message itself names
@@ -57,8 +58,8 @@ KV_BYPASS="$HOME/.ds4/server-kv-210-bypass"
 BYPASS_TASK="${BYPASS_TASK:-mbox-scan}"
 
 case "$STAGE" in
-  bypass|treated|probe|probe-shim|silent) ;;
-  *) echo "usage: $0 {bypass|treated|probe|probe-shim|silent}" >&2; exit 2 ;;
+  bypass|treated|probe|probe-shim|replay|silent) ;;
+  *) echo "usage: $0 {bypass|treated|probe|probe-shim|replay|silent}" >&2; exit 2 ;;
 esac
 
 if ! pgrep -f qwen_tool_shim >/dev/null; then
@@ -211,6 +212,52 @@ probe-shim)
             --json "$LOGDIR/engagement-shim-pad$pad.json") \
             2>&1 | tee "$LOGDIR/probe-shim-pad$pad.log"
     done
+    ;;
+replay)
+    # The shim has to be restarted to carry SHIM_DUMP, which every other
+    # stage deliberately does not touch. Restored to a plain shim on the way
+    # out, so a later stage does not inherit a dumping one.
+    DUMP="$LOGDIR/agent-payload.json"
+    echo "[$(date +%H:%M:%S)] restarting the shim with SHIM_DUMP=$DUMP"
+    pkill -f qwen_tool_shim || true
+    sleep 2
+    (cd "$REPO" && SHIM_DUMP="$DUMP" nohup uv run python ds4_qwen_tool_shim.py \
+        --port 8101 --upstream http://127.0.0.1:8000 \
+        > "$LOGDIR/shim.log" 2>&1 &)
+    sleep 3
+    pgrep -f qwen_tool_shim >/dev/null || { echo "REFUSING: the shim did not start" >&2; exit 1; }
+
+    start_server yes "$KV_TREATED"
+    assert_graph on
+
+    # One cheap trial, only to make the client produce a real request. Its
+    # row is a by-product; --no-require-draft because a zero here is the
+    # thing being investigated, not a reason to stop.
+    (cd "$REPO" && uv run python benchmarks/agent/run.py \
+        --backend qwen38fnds4mtp7shim --client opencode --trials 1 \
+        --task "$BYPASS_TASK" --no-lock \
+        --results "$LOGDIR/replay-capture.jsonl" --batch 151-replay-capture \
+        --server-log "$SERVER_LOG" --draft-log-engine ds4 --no-require-draft) \
+        2>&1 | tee "$LOGDIR/run-replay-capture.log"
+
+    if [ ! -s "$DUMP" ]; then
+        echo "REFUSING: the shim captured no payload at $DUMP -- SHIM_DUMP writes" >&2
+        echo "only the first INSTRUCTED payload, and this trial may have had none." >&2
+        exit 1
+    fi
+
+    (cd "$REPO" && uv run python scripts/mtp_replay_probe.py \
+        --payload "$DUMP" --server-log "$SERVER_LOG" \
+        --base-url http://127.0.0.1:8000 \
+        --json "$LOGDIR/replay-ablations.json") \
+        2>&1 | tee "$LOGDIR/replay.log"
+
+    echo "[$(date +%H:%M:%S)] restoring a plain shim"
+    pkill -f qwen_tool_shim || true
+    sleep 2
+    (cd "$REPO" && nohup uv run python ds4_qwen_tool_shim.py \
+        --port 8101 --upstream http://127.0.0.1:8000 \
+        > "$LOGDIR/shim-restored.log" 2>&1 &)
     ;;
 silent)
     start_server yes "$KV_TREATED"

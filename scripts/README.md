@@ -42,6 +42,7 @@ documentation.
 | `mtp_failure_modes.py` | Classify what the #39 MTP-arm trial deaths failed on (#39). |
 | `mtp_log_split.py` | Did MTP draft during the batch, or only before it? (#39, #151, #210) |
 | `mtp_recovery_attribution.py` | Attribute the #39 recovery-failed events to trials, one row per trial (#39). |
+| `mtp_replay_probe.py` | Replay a captured agent request and bisect what switches ds4's MTP off (#151). |
 | `peer_brief.py` | Generate the state half of a handoff as Markdown. #160 |
 | `peer_status.py` | One deterministic status line for the peer work. #160 |
 | `post_ab_run.py` | Post one completed decode-A/B run to a GitHub issue, once. |
