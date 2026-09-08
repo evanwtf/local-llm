@@ -76,6 +76,40 @@ def gh(path: str) -> list | dict | None:
         return None
 
 
+#: How many open PRs to name per repo before collapsing to a count. llama.cpp
+#: alone can touch dozens in a day; a sweep nobody can read is a second inbox.
+PR_LIST_CAP = 8
+
+
+def open_pulls(repo: str, since: str) -> list[str]:
+    """Open PRs updated inside the window, newest first.
+
+    **Commits and releases cannot see this.** A fix can sit in an open PR from
+    a fork for days without touching main or cutting a release, and that is
+    exactly where the interesting ones live: `ddalcu/mlx-serve#383` fixed a
+    speculative-decoding bug that drops the prefix cache -- on our exact model,
+    on our exact machine -- while #191 spent three and a half hours
+    benchmarking the five-day-old release that carried the bug. The repo was
+    already watched. Only its main branch was.
+
+    PRs, not branches, because a fork PR's branch lives in the fork: listing
+    branches on the upstream repo would not have shown #383 either. ds4's own
+    preview branches stay preflight's job (#38).
+    """
+    pulls = gh(f"repos/{repo}/pulls?state=open&sort=updated&direction=desc&per_page=50")
+    if not isinstance(pulls, list):
+        return []
+    out = []
+    for pr in pulls:
+        if not isinstance(pr, dict):
+            continue
+        if (pr.get("updated_at") or "") <= since:
+            # sorted by updated desc, so the first stale one ends the window
+            break
+        out.append(f"#{pr.get('number')} {(pr.get('title') or '')[:78]}")
+    return out
+
+
 def sweep(repo: str, since: str) -> dict:
     commits = gh(f"repos/{repo}/commits?since={since}&per_page=100")
     releases = gh(f"repos/{repo}/releases?per_page=10") or []
@@ -89,7 +123,12 @@ def sweep(repo: str, since: str) -> dict:
         for r in releases
         if isinstance(r, dict) and (r.get("published_at") or "") > since
     ]
-    return {"commits": subjects, "releases": tags, "reachable": commits is not None}
+    return {
+        "commits": subjects,
+        "releases": tags,
+        "pulls": open_pulls(repo, since),
+        "reachable": commits is not None,
+    }
 
 
 def main() -> int:
@@ -112,7 +151,12 @@ def main() -> int:
         if not got["reachable"]:
             unreachable.append(repo)
             continue
-        if args.quiet_empty and not got["commits"] and not got["releases"]:
+        if (
+            args.quiet_empty
+            and not got["commits"]
+            and not got["releases"]
+            and not got["pulls"]
+        ):
             continue
         logger.info("== %s -- %s", repo, why)
         if got["releases"]:
@@ -121,7 +165,11 @@ def main() -> int:
             logger.info("   %s", subject)
         if len(got["commits"]) > 12:
             logger.info("   ... and %d more", len(got["commits"]) - 12)
-        if not got["commits"] and not got["releases"]:
+        for pr in got["pulls"][:PR_LIST_CAP]:
+            logger.info("   PR %s", pr)
+        if len(got["pulls"]) > PR_LIST_CAP:
+            logger.info("   ... and %d more open PRs", len(got["pulls"]) - PR_LIST_CAP)
+        if not got["commits"] and not got["releases"] and not got["pulls"]:
             logger.info("   (quiet)")
         logger.info("")
 

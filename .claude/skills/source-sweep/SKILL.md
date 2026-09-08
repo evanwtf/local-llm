@@ -108,6 +108,15 @@ uv run python scripts/upstream_sweep.py --hours 168 --quiet-empty   # a week
 reports releases and commit subjects and says explicitly when a repo is
 **unreachable** — a renamed or private repo looks exactly like a quiet one.
 
+**It also reports open PRs updated in the window, and that is the half that
+was missing.** A fix can sit in an open PR from a fork for days without
+touching main or cutting a release. `ddalcu/mlx-serve#383` fixed a
+speculative-decoding bug that drops the prefix cache — on our exact model, on
+our exact machine — while #191 spent three and a half hours benchmarking the
+five-day-old release that carried it. The repo was already watched; only its
+main branch was. PRs rather than branches, because a fork PR's branch lives in
+the fork and listing branches upstream would not have shown it either.
+
 **Read commits, not activity counts.** A branch can be busy with vision and
 ROCm work that is out of scope here, and a two-commit day can carry the one
 change that moves our numbers. This is how `qwen4exp IS Qwen3.8-Flash-Next` was
@@ -129,10 +138,20 @@ not an increment, and "14 behind" understated a branch whose base had changed.
 
 ## 4. Issues and PRs on the engines we run
 
+**Surface 2 now lists open PRs for every watched repo, so this surface is for
+reading the ones it named, not for discovering them.** Do not re-enumerate by
+hand and do not rely on the two examples below being the right repos — the
+repo that mattered most was neither.
+
 ```sh
+gh pr view <n> --repo <owner>/<repo> --json title,body,files,additions,deletions
 gh issue list --repo antirez/ds4 --limit 15 --state open --search "sort:updated-desc"
-gh pr list   --repo ggml-org/llama.cpp --limit 15 --search "sort:updated-desc"
 ```
+
+**Read the diff summary, not the title.** `#383 fix(qwen4): NUL-truncated
+prompts, ...` reads like a parser fix. Its body carries an EOS-first
+speculative bug that leaves the whole prompt prefix uncommitted to the cache,
+which is a mechanism for a 23-minute agent turn.
 
 **Never post to a repository outside `evanwtf` or `evandhoffman`.** Read, and
 file in our own repo.
