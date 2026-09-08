@@ -86,8 +86,11 @@ still be compared.*
 > that decided it was written down before the third pair ran
 > ([#212](https://github.com/evanwtf/local-llm/issues/212)).
 >
-> **The cost is a fork.** This stack loads only on
-> `ds4-ivan-qwen38fn`, not mainline ds4, and `antirez/ds4#991` is still open.
+> **The cost is a fork.** This stack loads on ivanfioravanti's trees --
+> `ds4-ivan-qwen38fn`, and as of 2026-09-08 the newer `ds4-metal` head as well
+> ([#228](https://github.com/evanwtf/local-llm/issues/228)) -- but not on
+> mainline ds4, which has no PLE sidecar support at all, and
+> `antirez/ds4#991` is still open.
 > That is the durability risk [#141](https://github.com/evanwtf/local-llm/issues/141)
 > raises, and this file has already had one stack withdrawn by its author --
 > see "The ds4 shim rows were measured on a build its author has withdrawn"
@@ -445,6 +448,41 @@ make
 The 45 rows behind the table were measured at `ffd85d42`. The branch moves
 daily and is force-pushed, so record the commit you built — a bare file:line
 against this tree is unverifiable a week later.
+
+**The force-push risk is no longer hypothetical, and the outcome splits.**
+Measured 2026-09-08 ([#228](https://github.com/evanwtf/local-llm/issues/228)):
+`ivanfioravanti/ds4-metal` moved 149 commits ahead of the `ba01f5d` this
+project had been building, and `ba01f5d` is **not an ancestor** of the new
+head. Which of our two ds4 stacks survives that depends on one string in the
+GGUF, `general.architecture`:
+
+| stack | architecture | `ba01f5d` | `18ca8ec` (new head) |
+|---|---|---|---|
+| `Q4_K imatrix` — the row in the table above | `qwen4exp` | refused | **loads** |
+| `Q4_0` fast-pack — the withdrawn shim build | `qwen4-exp` | loads | **refused** |
+
+Each build refuses the other's file with the same error, `ds4: required
+metadata key is missing: deepseek4.block_count`, because the loader takes
+exactly one architecture string and validation falls through to DeepSeek when
+it does not match.
+
+**For the stack recommended here this is good news, and worth taking.** On the
+new head, three 4-rep runs put it **+6.2% decode and +7.7% prefill** over the
+`ffd85d42` these numbers were measured on, with 0 of 8 frontiers against it in
+any run, and output **bit-exact** — identical selected tokens and top-20
+logits over 128 steps at 2047 and 16380 prompt tokens. Nothing about quality
+moves; it is faster and the same model.
+
+**For the Q4_0 build it is the end of the line.** That file cannot follow the
+head without a re-quant or a re-declared architecture string. It was already
+withdrawn by its author (see below); this makes the withdrawal permanent
+rather than merely inconvenient.
+
+So the durability risk [#141](https://github.com/evanwtf/local-llm/issues/141)
+raises is real and has now fired once — but it fired in the direction of the
+stack this file recommends, not against it. **Record the commit you build, and
+re-check that your weight file's `general.architecture` matches the loader
+before assuming an upgrade is free.**
 
 Weights come from `ivanfioravanti/Qwen3.8-Flash-Next-DS4-Q4` on Hugging Face.
 Two files are needed and they total ~105 GB (98 GiB): the experts, and a
