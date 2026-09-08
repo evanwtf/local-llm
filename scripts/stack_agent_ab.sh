@@ -304,9 +304,76 @@ restart_server() {
   esac
 }
 
+# #227 defect 3: does the harness worktree carry uncommitted CODE right now?
+# Reuse the report's own predicate so this guard and the report's -dirty void
+# can never disagree. code_is_dirty skips the run's data -- hardware/*/results
+# .jsonl, *.log, *.csv, and anything under benchmarks/ds4/ -- and counts every
+# other changed path, tracked or new. It defaults to untracked=True, which is
+# the ONE gap the --require-harness-head pin leaves (that pin reads
+# untracked=False), so a file git has never seen sails past it to a read-out
+# void otherwise.
+#
+# The exit status is a three-way verdict, not a boolean:
+#   0  clean -- no uncommitted code.
+#   1  dirty -- the predicate found uncommitted code.
+#   2+ could not check -- uv run failed before the predicate ran (broken env,
+#      missing interpreter, or a pyproject-vs-lock drift), or the predicate
+#      itself errored.
+# Both 1 and 2 refuse the sweep (fail closed), but with different messages, so
+# the next reader is not sent hunting a stray file that does not exist.
+#
+# The fail-closed choice is deliberate and asymmetric with the pre-commit
+# hook's fail-open: in the hook the guard is a convenience and a false refusal
+# blocks every legitimate commit, while here the run is already committed to
+# the machine and a false clean can sink ~3.5 hours of sweeps. Refusing one
+# sweep on doubt costs ~15 minutes; the asymmetry is the cost asymmetry.
+#
+# `uv run --frozen`, not bare `uv run`: a bare uv run can rewrite uv.lock -- a
+# TRACKED file -- when pyproject.toml and the lock drift, so the guard whose
+# job is to catch a dirty tracked path would itself dirty one and trip the
+# harness-head pin on the next sweep, manufacturing the very failure it exists
+# to detect. --frozen never writes the lock; if it would need updating it fails
+# (exit 2), which lands in the could-not-check branch instead of self-dirtying.
+worktree_code_dirty() {
+  local rc=0
+  ( cd "$REPO/benchmarks/agent" && uv run --frozen python -c \
+      'import sys
+try:
+    from provenance import code_is_dirty
+except Exception:
+    sys.exit(2)  # the predicate itself is unimportable: could not check
+try:
+    sys.exit(1 if code_is_dirty() else 0)
+except Exception:
+    sys.exit(2)' \
+      >/dev/null 2>&1 ) || rc=$?
+  return "$rc"
+}
+
 sweep() {
   local arm=$1 n=$2 backend=$3 run_flags=${4:-} engine=${5:-ds4}
   local tag="${arm}-sweep${n}"
+  # #227 defect 3: refuse this sweep loudly if code changed mid-run, instead of
+  # letting the whole batch complete and voiding it hours later at read-out. A
+  # commit no longer reaches this point (the pre-commit hook refuses it) and a
+  # tracked edit already trips the harness-head pin, but a new, never-committed
+  # file is invisible to both -- this is the guard for that gap, and it is the
+  # one --no-verify cannot bypass because it runs inside the run.
+  # wtrc must start 0: under bash 3.2 `local wtrc` is set-but-EMPTY, so on the
+  # clean path -- where worktree_code_dirty returns 0 and the `||` below never
+  # fires -- the two `[ "$wtrc" ... ]` tests would compare an empty string and
+  # print "integer expression expected" into the run log on EVERY sweep. That is
+  # noise on the success path, the kind that teaches the next reader errors in
+  # this log are normal. Initialize it, do not rely on `set -u` to catch it.
+  local wtrc=0
+  worktree_code_dirty || wtrc=$?
+  if [ "$wtrc" -eq 1 ]; then
+    echo "[$(date +%H:%M:%S)] $tag refusing: harness worktree has uncommitted code"
+    return 1
+  elif [ "$wtrc" -gt 1 ]; then
+    echo "[$(date +%H:%M:%S)] $tag refusing: could not confirm a clean harness worktree ($wtrc)"
+    return 1
+  fi
   # Capture the START. sweep-order.txt used to carry one time, written here at
   # the END, while stack_agent_report read it as the sweep's START and gave
   # each sweep [start, next start). Every window therefore held the NEXT
@@ -341,11 +408,21 @@ sweep() {
   # The log is this sweep's own server, started moments ago, so the probe's
   # byte window covers exactly this sweep.
   # shellcheck disable=SC2086  # run_flags is a deliberate argv fragment
+  # Capture run.py's status instead of throwing it away. A refused sweep exits
+  # non-zero and writes no transcripts; sweep() must hand that to the caller so
+  # the wrapper exits non-zero instead of declaring the batch complete. The
+  # `|| run_rc=$?` keeps `set -e` from aborting the whole batch on the first
+  # refused sweep: the failing subshell is the left operand of `||`, which
+  # `set -e` does not exit on.
+  local run_rc=0
   ( cd "$REPO" && uv run python benchmarks/agent/run.py \
       --backend "$backend" --trials 1 --client opencode --no-lock \
       --require-harness-head "$HARNESS_HEAD" \
       --server-log "$OUT/server-$tag.log" $draft_flag $run_flags \
-      > "$OUT/$tag.log" 2>&1 ) || echo "[$(date +%H:%M:%S)] $tag returned non-zero"
+      > "$OUT/$tag.log" 2>&1 ) || run_rc=$?
+  if [ "$run_rc" -ne 0 ]; then
+    echo "[$(date +%H:%M:%S)] $tag returned non-zero (rc=$run_rc)"
+  fi
   # Transcripts move out of the top level immediately, but only ones written
   # after this sweep started. Leaving stale ones is how #112's pre-remedy
   # evidence was destroyed -- later sweeps write the same filenames, and a run
@@ -354,8 +431,17 @@ sweep() {
   # directory is what makes the rows attributable at all; the mtime filter is
   # what keeps a leftover out of a sweep it was not part of.
   move_transcripts_since "$BENCH_LOGS" "$OUT" "$tag" "$move_marker" "$backend"
-  echo "[$(date +%H:%M:%S)] $tag done, $(ls "$OUT/$tag" 2>/dev/null | wc -l | tr -d ' ') transcripts"
+  # Only a sweep that both survived run.py and left transcripts is a success:
+  # run.py can exit 0 on a session that wrote nothing, and a sweep with no
+  # evidence has to count as failed whatever its exit code says.
+  local transcripts
+  transcripts=$(ls "$OUT/$tag" 2>/dev/null | wc -l | tr -d ' ')
+  echo "[$(date +%H:%M:%S)] $tag done, $transcripts transcripts"
   echo "$tag $started $(date '+%H:%M:%S')" >> "$OUT/sweep-order.txt"
+  if [ "$run_rc" -ne 0 ] || [ "$transcripts" -eq 0 ]; then
+    return 1
+  fi
+  return 0
 }
 
 # Alternate which arm goes first. Running new-then-old every sweep puts the old
@@ -400,6 +486,12 @@ if [ $((SWEEPS % 2)) -ne 0 ]; then
        "even SWEEPS." | tee -a "$OUT/run-record.txt"
 fi
 
+# Collect the per-sweep status instead of discarding it. A refusing sweep
+# returns 1 from sweep(); the `if !` keeps that from tripping `set -e` inside
+# the loop, and failures counts the sweeps that actually failed, so the exit
+# status below is non-zero for any of them. This is why "complete" below has to
+# mean completed, not merely attempted.
+failures=0
 for n in $(seq 1 "$SWEEPS"); do
   if [ $((n % 2)) -eq 1 ]; then
     first_tag=new; first_backend=$NEW_BACKEND; first_run_flags=$NEW_RUN_FLAGS
@@ -418,12 +510,31 @@ for n in $(seq 1 "$SWEEPS"); do
   fi
   restart_server "$first_engine" "$first_tree" "$first_gguf" "$first_ple" "$first_kv" \
     "$first_tag-sweep$n" "$first_flags" "$first_mlx" "$first_mlx_port" "$first_mlx_bin"
-  sweep "$first_tag" "$n" "$first_backend" "$first_run_flags" "$first_engine"
+  if ! sweep "$first_tag" "$n" "$first_backend" "$first_run_flags" "$first_engine"; then
+    failures=$((failures + 1))
+  fi
   restart_server "$second_engine" "$second_tree" "$second_gguf" "$second_ple" "$second_kv" \
     "$second_tag-sweep$n" "$second_flags" "$second_mlx" "$second_mlx_port" "$second_mlx_bin"
-  sweep "$second_tag" "$n" "$second_backend" "$second_run_flags" "$second_engine"
+  if ! sweep "$second_tag" "$n" "$second_backend" "$second_run_flags" "$second_engine"; then
+    failures=$((failures + 1))
+  fi
 done
-echo "[$(date +%H:%M:%S)] all $((SWEEPS * 2)) sweeps complete under $OUT"
+if [ "$failures" -eq 0 ]; then
+  echo "[$(date +%H:%M:%S)] all $((SWEEPS * 2)) sweeps complete under $OUT"
+else
+  # An overnight run that opens this directory reads the wrapper's last words.
+  # A VOID is only discovered at report time; a wrapper that says "complete"
+  # while holding zero-evidence sweeps turns that VOID into a green read. State
+  # the count here AND in the run record, so neither a terminal reader nor the
+  # next session mistakes the batch for a success.
+  { echo "[$(date +%H:%M:%S)] $failures of $((SWEEPS * 2)) sweeps FAILED; run is not green."
+    echo "    Open the per-sweep logs and transcript dirs named in this run."; } \
+    | tee -a "$OUT/run-record.txt"
+fi
+# Exit the failure count. The EXIT trap (mlx_serve_stop_on_exit) preserves $?
+# through teardown, so a background run's harness still reports non-zero after
+# the server is stopped.
+exit "$failures"
 # The teardown itself is the EXIT trap's job -- see mlx_serve_arm_stop_trap
 # above, which stops both engines.
 # Until 2026-09-06 this line was the end of the script and the last arm's

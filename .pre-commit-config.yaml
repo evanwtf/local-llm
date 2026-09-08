@@ -1,0 +1,31 @@
+# A commit inside the repo during a pinned A/B moves HARNESS_HEAD, and every
+# remaining sweep refuses from its own fresh process (#227). A logs-only commit
+# killed 7 of 8 sweeps on 2026-09-08 and the wrapper still reported "complete",
+# so a commit-time guard is what stops a run from dying.
+#
+# This hook is FIRST because it must run before anything can reformat or write
+# a file: a reformat is exactly the kind of worktree write a live run must not
+# have to survive. Only the refusal hook is added here; the rest of the
+# conventional stack (ruff, mypy, the check-* addons) is a separate change.
+#
+# `language: python` is deliberate, not `system`. pre-commit builds a hermetic
+# environment, so `uv run pre-commit run` and a bare `git commit` invoke the
+# same interpreter; under `language: system` the entry would resolve against
+# whatever PATH git hands the hook, and a bare `git commit` could skip it while
+# a `pre-commit run` passes -- the guard absent from the only path that matters.
+#
+# This is a REAL dependency now, not a hypothetical: `pre-commit` is in the dev
+# group, and the fail-closed test asserts .git/hooks/pre-commit actually exists
+# (so a bare `git commit` runs this hook), because a guard that never runs is
+# worse than no guard -- it reads as covered. `uv run pre-commit install` wires
+# it into git; see the Build and run section of README.md.
+repos:
+  - repo: local
+    hooks:
+      - id: refuse-commit-during-benchmark
+        name: refuse commit while a stack_agent A/B is live
+        entry: python scripts/refuse_commit_during_benchmark.py
+        language: python
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]

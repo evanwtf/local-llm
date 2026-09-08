@@ -133,11 +133,20 @@ Requires [uv](https://docs.astral.sh/uv/); `pyproject.toml` sets
 
 ```sh
 uv sync
+uv run pre-commit install          # wires the commit-time guard into .git/hooks
 uv run pytest -q        # 1075 tests
 ```
 
-CI (`.github/workflows/test.yml`) runs `uv sync`, `uv run pytest -q`, and a
-`sh -n` syntax check. **`ruff` and `mypy` are not yet in CI** -- see #154.
+CI (`.github/workflows/test.yml`) runs `uv sync`, `uv run pre-commit install`,
+`uv run pytest -q`, and a `sh -n` syntax check. **`ruff` and `mypy` are not yet
+in CI** -- see #154.
+
+`pre-commit` is a dev dependency. `uv run pre-commit install` writes its git
+hook; the first hook in `.pre-commit-config.yaml` refuses a commit while a
+stack_agent A/B is live, because a commit mid-run moves HARNESS_HEAD and kills
+every remaining sweep (#227). A test asserts the hook is installed, so a clone
+that skips the install step fails the suite instead of silently losing the
+guard.
 
 Engines and weights live outside this checkout; scripts find ds4 via `DS4_ROOT`
 and write results here.

@@ -47,6 +47,7 @@ documentation.
 | `prompt_meta.py` | Which prompt a decode/prefill A/B was measured on (#140). |
 | `prune_models.py` | Delete local model weights that are superseded and re-downloadable (#111). |
 | `qwen38_metal_suites.py` | Run ds4#990's model-free Qwen3.8-Flash-Next Metal suites and report (#170). |
+| `refuse_commit_during_benchmark.py` | Refuse a commit while a stack_agent A/B is live (#227). |
 | `release_notes.py` | Print the changelog section for a release, or refuse. |
 | `report.py` | Summarize and compare measured cells, with the resolution rule applied. |
 | `route_ab_report.py` | Attribute #149 route-A/B rows to sweep windows and evaluate the screens. |

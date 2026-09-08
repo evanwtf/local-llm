@@ -29,6 +29,12 @@ jobs:
       - name: Sync
         run: uv sync
 
+      # Wire the commit-time guard into a fresh checkout, or the pytest suite
+      # fails on test_refuse_commit_hook.py::..._is_installed_into_the_repo --
+      # that test exists so a clone that never installs the hook cannot pass.
+      - name: Install pre-commit hook
+        run: uv run pre-commit install
+
       - name: Test
         run: uv run pytest -q
 
