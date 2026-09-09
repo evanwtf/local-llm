@@ -26,6 +26,7 @@ documentation.
 | `decode_ab.py` | Paired decode-rate A/B for two GGUFs of the same model (#48). #235 stage 4. |
 | `decode_ab_report.py` | Summarize a paired decode A/B produced by scripts/decode_ab.sh (#48). |
 | `disk_baseline.py` | Measure the internal NVMe: read bandwidth and random-read latency. |
+| `disk_kv_mechanism.py` | Is the disk-KV budget what makes arm A decline by trial 3? #112 |
 | `ds4_serve.py` | Start ds4-server on one of two Metal kernel routes, and prove which one ran. |
 | `eval_trace.py` | Read a `ds4-eval` trace: pass rate, and tokens spent reaching each answer. |
 | `evidence.py` | Re-run a finding's claims and say whether they still hold. #160 |
@@ -69,8 +70,10 @@ documentation.
 | `stack_agent_report.py` | Read out for the #138 stack A/B: two whole stacks, four sweeps, one screen. |
 | `stack_agent_report_191.py` | Read out for the #191 stack A/B: mlx-serve against ds4, one screen. |
 | `strip_ab_report.py` | Read out the #112 strip-toggle A/B. |
+| `strip_toggle_ab.py` | Does echoing the shim's own scaffolding back carry the tool-call loop? #112 |
 | `sync_sandbox_targets.py` | Clone the harness's own copies of the task repositories into `sandbox/`. |
 | `tail_events.py` | Count num_turns > 20 events across the ledger, by task and by backend (#191). |
+| `targets_ab.py` | Does the sandbox target layout change the pass rate? #146 |
 | `thermals.py` | Read this Mac's die temperatures, with a timestamp, without sudo. |
 | `tool_error_conditional.py` | Does a tool error make the NEXT tool call more likely to fail? (#112) |
 | `tool_retry_count.py` | Count tool-call outcomes from an OpenCode client transcript. |

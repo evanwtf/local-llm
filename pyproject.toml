@@ -64,3 +64,10 @@ extend-exclude = ["benchmarks/agent/PROMPTS.md"]
 # Same producer, same reason: the anchor this test passes to
 # read_windows stands in for a naive `date +%H:%M:%S` line.
 "tests/test_route_agent_ab.py" = ["DTZ001"]
+# `--until HH:MM` is a wall-clock cutoff on the machine doing the work, so
+# resolve_until has to reason in local time with no zone attached: "23:59
+# tonight" is not a UTC instant until it is resolved against today's date.
+# The instant it returns is compared as a float, never as a string -- #175 is
+# the bug where `[ "23:35" \< "2359" ]` was true because ':' sorts above '5'.
+"scripts/lib/batch.py" = ["DTZ006", "DTZ007"]
+"tests/test_batch.py" = ["DTZ001", "DTZ005", "DTZ006"]
