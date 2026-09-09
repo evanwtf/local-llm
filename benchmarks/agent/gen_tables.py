@@ -28,10 +28,15 @@ import results
 HERE = pathlib.Path(__file__).parent
 FIX = "7356460"
 
-# RECOMMENDATIONS.md sits at the repo root; PROMPTS.md publishes the exact text
-# of every task, generated from tasks.toml. A reader meeting "mbox-scan" for
-# the first time needs one line here and the prompt itself one click away.
-PROMPTS = "benchmarks/agent/PROMPTS.md"
+# These tables are spliced into docs/results.md, one directory below the repo
+# root, so the link needs `../`. It was root-relative while the tables lived in
+# RECOMMENDATIONS.md; #232 moved the file and every task link 404'd until
+# test_the_moved_docs_do_not_lose_their_links caught it.
+#
+# PROMPTS.md publishes the exact text of every task, generated from tasks.toml.
+# A reader meeting "mbox-scan" for the first time needs one line here and the
+# prompt itself one click away.
+PROMPTS = "../benchmarks/agent/PROMPTS.md"
 
 TASK_SUMMARY = {
     "mbox-strip-envelope": "implement `strip_envelope` in an mbox parser",
@@ -91,6 +96,22 @@ def _excision(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [r for r in rows if not str(r.get("task", "")).startswith("script-")]
 
 
+def _timed(rows: list[dict[str, Any]]) -> list[float]:
+    """Wall times of the excision trials that **passed**.
+
+    The timing columns count only these. A trial that dies early is quick, so
+    counting failures rewards a stack for failing fast: it pulls the median
+    down and promotes the row up a table sorted by median, which is the column
+    a reader scans for "which is quickest" (#142). Every stack that passes
+    everything is unaffected -- its two medians are the same number.
+    """
+    return [
+        x["wall_seconds"]
+        for x in _excision(rows)
+        if x.get("passed") and x.get("wall_seconds")
+    ]
+
+
 def stack_table(rows: list[dict[str, Any]], labels: dict[str, str]) -> list[str]:
     """Pass rate and wall time per backend, OpenCode only."""
     by = collections.defaultdict(list)
@@ -100,23 +121,22 @@ def stack_table(rows: list[dict[str, Any]], labels: dict[str, str]) -> list[str]
         "| stack | passed | median | worst | spread |",
         "|---|---|---|---|---|",
     ]
-    rank = sorted(
-        by.items(),
-        key=lambda kv: statistics.median(
-            [x["wall_seconds"] for x in _excision(kv[1]) if x.get("wall_seconds")]
-            or [1e9]
-        ),
-    )
+    # A stack with no passing trial has no timing at all. It keeps its row --
+    # the pass column is the whole point of it -- and sorts last.
+    rank = sorted(by.items(), key=lambda kv: statistics.median(_timed(kv[1]) or [1e9]))
     for name, rs in rank:
-        ex = [x for x in _excision(rs) if x.get("wall_seconds")]
-        if not ex:
+        if not [x for x in _excision(rs) if x.get("wall_seconds")]:
             continue
-        w = [x["wall_seconds"] for x in ex]
         p = sum(1 for x in rs if x.get("passed"))
-        out.append(
-            f"| {labels.get(name, name)} | {p}/{len(rs)} | "
-            f"{statistics.median(w):.0f}s | {max(w):.0f}s | {max(w) / min(w):.1f}x |"
-        )
+        w = _timed(rs)
+        if w:
+            timing = (
+                f"{statistics.median(w):.0f}s | {max(w):.0f}s | "
+                f"{max(w) / min(w):.1f}x |"
+            )
+        else:
+            timing = "\u2014 | \u2014 | \u2014 |"
+        out.append(f"| {labels.get(name, name)} | {p}/{len(rs)} | {timing}")
     return out
 
 
@@ -151,6 +171,119 @@ def throughput_table(rows: list[dict[str, Any]], labels: dict[str, str]) -> list
     return out
 
 
+def client_caveat(
+    rows: list[dict[str, Any]], labels: dict[str, str] | None = None
+) -> list[str]:
+    """Say so when the rows of a table were not all taken under one client.
+
+    #137: the three newest ds4 backends were measured under OpenCode 1.18.27
+    and everything older under 1.18.25, with one backend on 1.18.26. Both
+    generated tables are sorted by median, so adjacent rows read as
+    comparisons -- and a reader comparing two of them across that split is
+    also comparing the client. **No (backend, task) cell here has both
+    versions**, so the client's own effect is unmeasured on this machine:
+    there is nothing to correct for and nothing to quote, only a boundary to
+    name.
+
+    Generated rather than typed, for two reasons. The tables are spliced, so
+    a hand-written note under one would survive until the next regeneration
+    and then read as current while the row order changed underneath it. And
+    this returns `[]` the moment one client version covers everything -- the
+    caveat retires itself instead of outliving the confound, which is how
+    stale warnings get there in the first place.
+    """
+    labels = LABELS if labels is None else labels
+    by_version: dict[str, set[str]] = collections.defaultdict(set)
+    for r in rows:
+        version = str(r.get("client_version") or "unrecorded")
+        by_version[version].add(str(r.get("backend")))
+    if len(by_version) < 2:
+        return []
+    spanning = sorted(
+        backend
+        for backend in {b for names in by_version.values() for b in names}
+        if sum(1 for names in by_version.values() if backend in names) > 1
+    )
+    # Name the minority versions and let the majority be "the rest". Listing
+    # all eleven 1.18.25 backends is accurate and unreadable, and a caveat
+    # nobody finishes reading does not caveat anything.
+    majority = max(by_version, key=lambda v: len(by_version[v]))
+    # Only collapse when the majority is genuinely a majority. On an even
+    # split, "the rest" would name one side and hide the other, which reads
+    # as though the unnamed side were the norm.
+    if len(by_version[majority]) < 3:
+        majority = None
+    parts = [
+        f"{', '.join(labels.get(b, b) for b in sorted(names))} under {v}"
+        for v, names in sorted(by_version.items())
+        if v != majority
+    ]
+    rest = f"; the rest under {majority}" if majority else ""
+    note = (
+        "**Rows here were not all taken under one client.** "
+        + "; ".join(parts)
+        + rest
+        + ". A comparison across that split also "
+        "compares the client "
+        "([#137](https://github.com/evanwtf/local-llm/issues/137)). "
+        "No (backend, task) cell here holds both versions, so the client's "
+        "own effect is unmeasured on this machine \u2014 there is nothing to "
+        "correct for, only a boundary to name."
+    )
+    if spanning:
+        versions = {
+            b: ", ".join(sorted(v for v, names in by_version.items() if b in names))
+            for b in spanning
+        }
+        note += (
+            " Measured under more than one: "
+            + "; ".join(
+                f"{labels.get(b, b)} ({v})" for b, v in sorted(versions.items())
+            )
+            + "."
+        )
+    return ["", note]
+
+
+def engine_caveat(
+    rows: list[dict[str, Any]], labels: dict[str, str] | None = None
+) -> list[str]:
+    """Say so when the rows of a table were not all taken under one engine build.
+
+    #192: a row names the client but, until now, not the engine build -- so an
+    engine A/B could not say which engine produced a number. This names the
+    boundary the way `client_caveat` names the client (#137): when the rows of
+    a table span more than one engine build, the reader must be told, because
+    adjacent rows sorted by median then read as comparisons across a build
+    split. Returns `[]` the moment one build covers everything, so the caveat
+    retires itself instead of outliving the confound.
+    """
+    labels = LABELS if labels is None else labels
+    by_build: dict[str, set[str]] = collections.defaultdict(set)
+    for r in rows:
+        for s in (r.get("servers") or {}).values():
+            ver = s.get("engine_version")
+            if not ver:
+                continue
+            build = f"{s.get('engine_name', '?')} {ver}"
+            by_build[build].add(str(r.get("backend")))
+    if len(by_build) < 2:
+        return []
+    parts = [
+        f"{', '.join(labels.get(b, b) for b in sorted(names))} on {build}"
+        for build, names in sorted(by_build.items())
+    ]
+    return [
+        "",
+        (
+            "**Rows here were not all taken under one engine build.** "
+            + "; ".join(parts)
+            + ". A comparison across that split also compares the engine "
+            "([#192](https://github.com/evanwtf/local-llm/issues/192))."
+        ),
+    ]
+
+
 LABELS = {
     "qwen38fnq3": "Qwen3.8-Flash-Next Q3 - llama.cpp",
     "ds4": "DeepSeek-V4-Flash - ds4",
@@ -168,12 +301,28 @@ def render(rows: list[dict[str, Any]] | None = None) -> str:
     # results.jsonl, and stamping them with a commit that moves on every
     # unrelated edit would churn the document and train people to skim it.
     out += [
-        f"*Generated from `results.jsonl` — "
-        f"{provenance.fingerprint(results.default_path())}.*",
+        (
+            f"*Generated from `results.jsonl` — "
+            f"{provenance.fingerprint(results.default_path())}.*"
+        ),
         "",
     ]
     out += ["#### Every stack measured under OpenCode", ""]
+    # The warning goes above the table, not below it. The bug it describes is
+    # a misreading of the table's own sort order (#142), so it has to arrive
+    # before the rows do.
+    out += [
+        (
+            "**The three timing columns count only trials that passed.** A "
+            "trial that dies early is quick, so counting failures would "
+            "reward a stack for failing fast and lift it up a table sorted "
+            "by median. Read the `passed` column first."
+        ),
+        "",
+    ]
     out += stack_table(rows, LABELS)
+    out += client_caveat(valid_opencode(rows))
+    out += engine_caveat(valid_opencode(rows))
     out += [
         "",
         (
@@ -192,6 +341,13 @@ def render(rows: list[dict[str, Any]] | None = None) -> str:
         "",
     ]
     out += throughput_table(rows, LABELS)
+    out += client_caveat(
+        [
+            r
+            for r in valid_opencode(rows)
+            if r.get("wall_seconds") and r.get("output_tokens")
+        ]
+    )
     return "\n".join(out) + "\n"
 
 

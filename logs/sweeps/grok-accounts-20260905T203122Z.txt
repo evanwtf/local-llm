@@ -1,0 +1,22 @@
+# grok account discovery
+# written:  2026-09-05T20:31:22Z  (local: 2026-09-05 16:31:22 EDT)
+# excluded (already in SOURCES.md): @_ARahim_ @_LEFBE @0xkydo @0xSero @angeloskath @antirez @awnihannun @azisk @bleysg @ddalcu @DiganiJagrit @digitalix @googlegemma @ivanfioravanti @jundotkim @Kevrsub @MitjaMartini @N8Programs @onthexitter69 @Prince_Canuma @rapidmlx @Raullen @redp314 @ShankPeople @Spangler3000 @sudoingX @TeksEdge @TheDavidTai @trebolloc @Youssofal_ @yukonresearch @zcbenz 
+# query:    Recommend 15-20 X/Twitter accounts worth following for local LLM inference on Apple Silicon specifically: MLX, Metal kernels, GGUF/quantization recipes, llama.cpp and ds4 engine work, speculative decoding and MTP, and running coding agents against local models on a Mac.
+
+We ALREADY follow these, so exclude every one of them and do not repeat any: @_ARahim_ @_LEFBE @0xkydo @0xSero @angeloskath @antirez @awnihannun @azisk @bleysg @ddalcu @DiganiJagrit @digitalix @googlegemma @ivanfioravanti @jundotkim @Kevrsub @MitjaMartini @N8Programs @onthexitter69 @Prince_Canuma @rapidmlx @Raullen @redp314 @ShankPeople @Spangler3000 @sudoingX @TeksEdge @TheDavidTai @trebolloc @Youssofal_ @yukonresearch @zcbenz 
+
+Prefer accounts that post their own measurements or ship code, over accounts that only repost news. Apple Silicon relevance matters more than follower count; an account posting M3 or M4 results is useful to us.
+
+Output ONE bullet per account and nothing else. No preamble, no summary. Use exactly this line shape:
+- @handle | <what they actually work on, one sentence> | <a recent post URL showing it, or NONE>
+
+If you cannot find any, output exactly: NO RESULTS
+
+Internal error: {
+  "message": "API error (status 402 Payment Required): Grok Build usage balance exhausted",
+  "http_status": 402
+}
+Error: Internal error: {
+  "message": "API error (status 402 Payment Required): Grok Build usage balance exhausted",
+  "http_status": 402
+}

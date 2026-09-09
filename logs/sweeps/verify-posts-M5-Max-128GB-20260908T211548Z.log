@@ -1,0 +1,9 @@
+2026-09-08 17:15:49,127 INFO [174052b@M5-Max-128GB none pld=n/a] 2026-09-08T21:15:49Z (17:15:49 EDT) | harness 174052b
+2026-09-08 17:15:49,196 INFO [174052b@M5-Max-128GB none pld=n/a]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-08 17:15:49,368 INFO [174052b@M5-Max-128GB none pld=n/a] 2097406574683640076  VERIFIED post  @ashxhart  Tue Sep 08 19:27:49 +0000 2026  via fxtwitter
+2026-09-08 17:15:49,368 INFO [174052b@M5-Max-128GB none pld=n/a]     Been giving my M3 Ultra Studio some love and tinkering with MLX.  Started the afternoon at 42 tok/s. Now: 73 tok/s, and there’s still more on the table.  Running Qwen3.8-Flash-Next @ 4-bit locally.  N
+2026-09-08 17:15:49,368 INFO [174052b@M5-Max-128GB none pld=n/a] 
+2026-09-08 17:15:49,368 INFO [174052b@M5-Max-128GB none pld=n/a] Verified 1: 1 confirmed, 0 not.
+2026-09-08 17:15:49,368 INFO [174052b@M5-Max-128GB none pld=n/a] Paste onto the issue:
+2026-09-08 17:15:49,368 INFO [174052b@M5-Max-128GB none pld=n/a]   **Verified** 2026-09-08: post exists, authored by @ashxhart, posted Tue Sep 08 19:27:49 +0000 2026.
+2026-09-08 17:15:49,368 INFO [174052b@M5-Max-128GB none pld=n/a] log: /Users/evanhoffman/git/local-llm/logs/sweeps/verify-posts-M5-Max-128GB-20260908T211548Z.log

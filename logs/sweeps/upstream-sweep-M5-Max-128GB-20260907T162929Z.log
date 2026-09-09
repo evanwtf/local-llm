@@ -1,0 +1,149 @@
+2026-09-07 12:29:29,742 INFO [70866b7@M5-Max-128GB] 2026-09-07T16:29:29Z (12:29:29 EDT) | harness 70866b7
+2026-09-07 12:29:29,764 INFO [70866b7@M5-Max-128GB]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-07 12:29:29,765 INFO [70866b7@M5-Max-128GB] Upstream sweep since 2026-09-06T16:29:29Z (24h)
+
+2026-09-07 12:29:30,306 INFO [70866b7@M5-Max-128GB] == antirez/ds4 -- our primary engine; the only one that runs DeepSeek-V4-Flash and GLM-5.3
+2026-09-07 12:29:30,306 INFO [70866b7@M5-Max-128GB]    README: intro section updated.
+2026-09-07 12:29:30,306 INFO [70866b7@M5-Max-128GB]    Bound GLM SSD prefill cache priorities so decode can adapt
+2026-09-07 12:29:30,306 INFO [70866b7@M5-Max-128GB]    Preserve the final byte of in-memory session snapshots
+2026-09-07 12:29:30,306 INFO [70866b7@M5-Max-128GB]    Keep ROCm QA builds clean for partial tiles and CPU-only fixtures
+2026-09-07 12:29:30,307 INFO [70866b7@M5-Max-128GB]    Initialize the terminal escape buffer for GCC dataflow checks
+2026-09-07 12:29:30,307 INFO [70866b7@M5-Max-128GB]    Keep DSpark EOS fixture compatible with pre-fix source
+2026-09-07 12:29:30,307 INFO [70866b7@M5-Max-128GB]    Merge PR #996: validate saved quality scores and frontier logits
+2026-09-07 12:29:30,307 INFO [70866b7@M5-Max-128GB]    Adapt DSpark EOS regression fixture to current scheduler helper
+2026-09-07 12:29:30,307 INFO [70866b7@M5-Max-128GB]    Merge PR #992: ROCm gfx1151 prefill and DSpark improvements
+2026-09-07 12:29:30,307 INFO [70866b7@M5-Max-128GB]    Make agent file tools and background shell jobs reliable
+2026-09-07 12:29:30,307 INFO [70866b7@M5-Max-128GB]    Fix agent terminal redraws, Unicode input and Markdown rendering
+2026-09-07 12:29:30,307 INFO [70866b7@M5-Max-128GB]    tests: validate complete score tables and frontier logits
+2026-09-07 12:29:30,307 INFO [70866b7@M5-Max-128GB]    ... and 3 more
+2026-09-07 12:29:30,307 INFO [70866b7@M5-Max-128GB] 
+2026-09-07 12:29:31,085 INFO [70866b7@M5-Max-128GB] == ggml-org/llama.cpp -- our fast pick's engine; `qwen4exp` IS Qwen3.8-Flash-Next
+2026-09-07 12:29:31,085 INFO [70866b7@M5-Max-128GB]    releases: b10840, b10839, b10837, b10835, b10834, b10833, b10831, b10830, b10829, b10828
+2026-09-07 12:29:31,085 INFO [70866b7@M5-Max-128GB]    Revert "CUDA: size routed MoE MMQ N-tiles from typical expert width on RDNA3 (#24546)" (#28551)
+2026-09-07 12:29:31,085 INFO [70866b7@M5-Max-128GB]    nix : update deprecated expressions (#28145)
+2026-09-07 12:29:31,085 INFO [70866b7@M5-Max-128GB]    webgpu: format the GET_ROWS case block (#28542)
+2026-09-07 12:29:31,085 INFO [70866b7@M5-Max-128GB]    server: fix LRU hang on multiple requests same model (#28539)
+2026-09-07 12:29:31,085 INFO [70866b7@M5-Max-128GB]    sycl: add a batched L2_NORM kernel (#28222)
+2026-09-07 12:29:31,085 INFO [70866b7@M5-Max-128GB]    vulkan: add DeepSeek-V4 hyper-connection fused ops (DSV4_HC_COMB/PRE/POST) (#26578)
+2026-09-07 12:29:31,085 INFO [70866b7@M5-Max-128GB]    CUDA: size routed MoE MMQ N-tiles from typical expert width on RDNA3 (#24546)
+2026-09-07 12:29:31,085 INFO [70866b7@M5-Max-128GB]    ggml: add gfx90c HIP support (#26454)
+2026-09-07 12:29:31,085 INFO [70866b7@M5-Max-128GB]    convert : refactor Hy4-preview conversion - move HC tensor mapping to the global map (#28451)
+2026-09-07 12:29:31,085 INFO [70866b7@M5-Max-128GB]    CUDA: branchless Q4_K/Q5_K unpack to speed up mmvq, L2 prefetch on DGX Spark (#26705)
+2026-09-07 12:29:31,085 INFO [70866b7@M5-Max-128GB]    vulkan: support type-aligned GET_ROWS (#28253)
+2026-09-07 12:29:31,085 INFO [70866b7@M5-Max-128GB]    examples : print ggml_version and ggml_commit in test-cmake [no ci] (#28538)
+2026-09-07 12:29:31,085 INFO [70866b7@M5-Max-128GB]    ... and 9 more
+2026-09-07 12:29:31,085 INFO [70866b7@M5-Max-128GB] 
+2026-09-07 12:29:31,782 INFO [70866b7@M5-Max-128GB] == ollama/ollama -- the 31 GB entry point, and our only MLX runtime
+2026-09-07 12:29:31,782 INFO [70866b7@M5-Max-128GB]    (quiet)
+2026-09-07 12:29:31,782 INFO [70866b7@M5-Max-128GB] 
+2026-09-07 12:29:32,627 INFO [70866b7@M5-Max-128GB] == anomalyco/opencode -- our only client
+2026-09-07 12:29:32,627 INFO [70866b7@M5-Max-128GB]    chore: update nix node_modules hashes
+2026-09-07 12:29:32,627 INFO [70866b7@M5-Max-128GB]    chore: bump gitlab-ai-provider to 6.15.0 (#47792)
+2026-09-07 12:29:32,627 INFO [70866b7@M5-Max-128GB]    feat(console): publish oauth client metadata document (#47737)
+2026-09-07 12:29:32,627 INFO [70866b7@M5-Max-128GB]    docs
+2026-09-07 12:29:32,627 INFO [70866b7@M5-Max-128GB]    chore: generate
+2026-09-07 12:29:32,627 INFO [70866b7@M5-Max-128GB]    docs
+2026-09-07 12:29:32,627 INFO [70866b7@M5-Max-128GB]    chore: generate
+2026-09-07 12:29:32,627 INFO [70866b7@M5-Max-128GB]    docs(go): document client session compatibility
+2026-09-07 12:29:32,627 INFO [70866b7@M5-Max-128GB]    chore: update nix node_modules hashes
+2026-09-07 12:29:32,627 INFO [70866b7@M5-Max-128GB]    fix(provider): preserve explicit OpenAI service tiers (#47671)
+2026-09-07 12:29:32,627 INFO [70866b7@M5-Max-128GB]    fix(provider): bump Azure SDK to 3.0.93 (#47664)
+2026-09-07 12:29:32,627 INFO [70866b7@M5-Max-128GB]    chore: update nix node_modules hashes
+2026-09-07 12:29:32,627 INFO [70866b7@M5-Max-128GB]    ... and 1 more
+2026-09-07 12:29:32,627 INFO [70866b7@M5-Max-128GB] 
+2026-09-07 12:29:33,332 INFO [70866b7@M5-Max-128GB] == evanwtf/local-llm -- this project
+2026-09-07 12:29:33,332 INFO [70866b7@M5-Max-128GB]    #67: no ledger for this machine is nothing to archive, not a crash
+2026-09-07 12:29:33,332 INFO [70866b7@M5-Max-128GB]    AGENTS: a union merge of results.jsonl undoes deliberate removals (#67, #218)
+2026-09-07 12:29:33,332 INFO [70866b7@M5-Max-128GB]    #67: the archiver could not find the ledger, and 90 rows came back
+2026-09-07 12:29:33,332 INFO [70866b7@M5-Max-128GB]    #149: the route A/B — window attribution and the screens (#207)
+2026-09-07 12:29:33,332 INFO [70866b7@M5-Max-128GB]    #39: correct the mechanism -- MTP is entered and aborted, not skipped
+2026-09-07 12:29:33,332 INFO [70866b7@M5-Max-128GB]    RECOMMENDATIONS: the MTP row was never speculating (#39, #151)
+2026-09-07 12:29:33,332 INFO [70866b7@M5-Max-128GB]    #39: MTP is loaded, ready, and never reached under agent traffic
+2026-09-07 12:29:33,332 INFO [70866b7@M5-Max-128GB]    stack A/B report: take the arms and the verdict from the run (#39)
+2026-09-07 12:29:33,332 INFO [70866b7@M5-Max-128GB]    #39: 60 rows from the MTP-on vs MTP-off A/B, four sweeps
+2026-09-07 12:29:33,332 INFO [70866b7@M5-Max-128GB]    transcript mover: move only files newer than the sweep's start (#216)
+2026-09-07 12:29:33,332 INFO [70866b7@M5-Max-128GB]    #213: refuse to pool rows with different graph-changing server_argv (#215)
+2026-09-07 12:29:33,332 INFO [70866b7@M5-Max-128GB]    AGENTS.md: check a managed peer every 20 minutes, and check what it is doing
+2026-09-07 12:29:33,332 INFO [70866b7@M5-Max-128GB]    ... and 75 more
+2026-09-07 12:29:33,332 INFO [70866b7@M5-Max-128GB] 
+2026-09-07 12:29:33,950 INFO [70866b7@M5-Max-128GB] == evanwtf/gmail-archive -- the excision tasks' target repository
+2026-09-07 12:29:33,950 INFO [70866b7@M5-Max-128GB]    (quiet)
+2026-09-07 12:29:33,950 INFO [70866b7@M5-Max-128GB] 
+2026-09-07 12:29:34,601 INFO [70866b7@M5-Max-128GB] == evanwtf/ds4 -- our ds4 fork (#27 asks whether it can be retired)
+2026-09-07 12:29:34,601 INFO [70866b7@M5-Max-128GB]    (quiet)
+2026-09-07 12:29:34,602 INFO [70866b7@M5-Max-128GB] 
+2026-09-07 12:29:35,293 INFO [70866b7@M5-Max-128GB] == ml-explore/mlx -- the framework everything MLX sits on
+2026-09-07 12:29:35,293 INFO [70866b7@M5-Max-128GB]    (quiet)
+2026-09-07 12:29:35,293 INFO [70866b7@M5-Max-128GB] 
+2026-09-07 12:29:35,923 INFO [70866b7@M5-Max-128GB] == ml-explore/mlx-lm -- reference MLX server; new architectures land here first
+2026-09-07 12:29:35,924 INFO [70866b7@M5-Max-128GB]    Give each stream its own stop-sequence matcher (#1830)
+2026-09-07 12:29:35,924 INFO [70866b7@M5-Max-128GB] 
+2026-09-07 12:29:36,543 INFO [70866b7@M5-Max-128GB] == jundot/omlx -- oMLX -- prefill leader, untested here (#60)
+2026-09-07 12:29:36,543 INFO [70866b7@M5-Max-128GB]    (quiet)
+2026-09-07 12:29:36,543 INFO [70866b7@M5-Max-128GB] 
+2026-09-07 12:29:37,142 INFO [70866b7@M5-Max-128GB] == ddalcu/mlx-serve -- benchmarked on our exact machine; llmprobe's author
+2026-09-07 12:29:37,143 INFO [70866b7@M5-Max-128GB]    perf(qwen4): long-context follow-ups: MTP/QSA rollback without copies, warm-append admission, error-path handle ownership (#370)
+2026-09-07 12:29:37,143 INFO [70866b7@M5-Max-128GB]    feat: external providers open router style
+2026-09-07 12:29:37,143 INFO [70866b7@M5-Max-128GB]    fix(spec): a loaded DFlash sidecar outranks the MTP head; gate warmup 3
+2026-09-07 12:29:37,143 INFO [70866b7@M5-Max-128GB]    perf(qwen4): long-context bundle: split-K QSA, admission, SSD-first cache (#363)
+2026-09-07 12:29:37,143 INFO [70866b7@M5-Max-128GB] 
+2026-09-07 12:29:37,753 INFO [70866b7@M5-Max-128GB] == youssofal/MTPLX -- MTP speculative decoding; we hold one unreplicated number
+2026-09-07 12:29:37,753 INFO [70866b7@M5-Max-128GB]    (quiet)
+2026-09-07 12:29:37,753 INFO [70866b7@M5-Max-128GB] 
+2026-09-07 12:29:38,424 INFO [70866b7@M5-Max-128GB] == raullenchai/Rapid-MLX -- the one MLX engine reachable by pip (#57, #60)
+2026-09-07 12:29:38,424 INFO [70866b7@M5-Max-128GB]    fix(mac): streamed text is invisible in dark mode while it fades in (#3209)
+2026-09-07 12:29:38,424 INFO [70866b7@M5-Max-128GB]    fix(mac): split ContentView.body so it type-checks again (#3208)
+2026-09-07 12:29:38,424 INFO [70866b7@M5-Max-128GB]    test(microbench): drive the ratio-math tests from a virtual clock, not CPU timing (#3206)
+2026-09-07 12:29:38,424 INFO [70866b7@M5-Max-128GB]    fix(cli): keep model inventory responsive on unhealthy relocated caches (#3199)
+2026-09-07 12:29:38,424 INFO [70866b7@M5-Max-128GB]    docs(community-benchmarks): describe the HTTP and local-first flows, not the PR flow (#3149)
+2026-09-07 12:29:38,424 INFO [70866b7@M5-Max-128GB]    feat(desktop): recover draft composer in Safari and Chrome (#3196)
+2026-09-07 12:29:38,424 INFO [70866b7@M5-Max-128GB]    docs(release): extend P0/P1 audit through CUA delta (#3194)
+2026-09-07 12:29:38,424 INFO [70866b7@M5-Max-128GB]    fix(benchmark): read quantization and revision facts from the cached model config (#3147)
+2026-09-07 12:29:38,424 INFO [70866b7@M5-Max-128GB]    fix(desktop): show tok/s, grouped models, and run progress in Community Benchmark (#3145)
+2026-09-07 12:29:38,424 INFO [70866b7@M5-Max-128GB]    test(desktop): dogfood visual grounding through workflow (#3193)
+2026-09-07 12:29:38,424 INFO [70866b7@M5-Max-128GB]    fix(desktop): ignore signed Dock backdrop for CUA occlusion (#3192)
+2026-09-07 12:29:38,424 INFO [70866b7@M5-Max-128GB]    feat(desktop): add bounded local visual grounding (#3190)
+2026-09-07 12:29:38,424 INFO [70866b7@M5-Max-128GB]    ... and 20 more
+2026-09-07 12:29:38,424 INFO [70866b7@M5-Max-128GB] 
+2026-09-07 12:29:39,005 INFO [70866b7@M5-Max-128GB] == ARahim3/mlx-dspark -- DSpark/DFlash ported to MLX (#19, #58, #75)
+2026-09-07 12:29:39,005 INFO [70866b7@M5-Max-128GB]    (quiet)
+2026-09-07 12:29:39,005 INFO [70866b7@M5-Max-128GB] 
+2026-09-07 12:29:39,558 INFO [70866b7@M5-Max-128GB] == Blaizzy/mlx-vlm -- expert offloading, prefix caching, Qwen3.8-Flash-Next MTP
+2026-09-07 12:29:39,558 INFO [70866b7@M5-Max-128GB]    releases: v0.7.0
+2026-09-07 12:29:39,558 INFO [70866b7@M5-Max-128GB]    Merge pull request #2175 from lucasnewman/version-070
+2026-09-07 12:29:39,558 INFO [70866b7@M5-Max-128GB]    Merge pull request #2176 from Shouta0108/fix-missing-jinja2
+2026-09-07 12:29:39,558 INFO [70866b7@M5-Max-128GB]    Merge pull request #2181 from Lazarus-931/fix/lora-resume-freeze
+2026-09-07 12:29:39,558 INFO [70866b7@M5-Max-128GB]    lora: freeze base model when resuming via --adapter-path
+2026-09-07 12:29:39,558 INFO [70866b7@M5-Max-128GB]    fix: declare jinja2 as a runtime dependency
+2026-09-07 12:29:39,558 INFO [70866b7@M5-Max-128GB]    fix(aya_vision): use patch_embeddings in variable-resolution branch (#2173)
+2026-09-07 12:29:39,558 INFO [70866b7@M5-Max-128GB]    Bump version to 0.7.0.
+2026-09-07 12:29:39,558 INFO [70866b7@M5-Max-128GB]    Fix Unlimited-OCR prompt suffix (#2169)
+2026-09-07 12:29:39,558 INFO [70866b7@M5-Max-128GB]    Add Z1T-0 (Extropic attention-free sparse LM) (#2166)
+2026-09-07 12:29:39,558 INFO [70866b7@M5-Max-128GB] 
+2026-09-07 12:29:40,378 INFO [70866b7@M5-Max-128GB] == unslothai/llama.cpp -- the fork with a working qwen4exp MTP graph (#77)
+2026-09-07 12:29:40,378 INFO [70866b7@M5-Max-128GB]    releases: b10830-mix-d5c17a0
+2026-09-07 12:29:40,378 INFO [70866b7@M5-Max-128GB]    Repin Inkling to the commit that compiles against the new base (#207)
+2026-09-07 12:29:40,378 INFO [70866b7@M5-Max-128GB]    Repin DiffusionGemma to the commit that merges cleanly (#206)
+2026-09-07 12:29:40,378 INFO [70866b7@M5-Max-128GB]    Merge pull request #205 from unslothai/repin-27754
+2026-09-07 12:29:40,378 INFO [70866b7@M5-Max-128GB]    Repin GLM-5-Next to the commit that merges cleanly
+2026-09-07 12:29:40,378 INFO [70866b7@M5-Max-128GB]    Merge pull request #204 from unslothai/windows-authenticode-signing
+2026-09-07 12:29:40,378 INFO [70866b7@M5-Max-128GB]    Do not re-sign a file that already carries a valid signature
+2026-09-07 12:29:40,378 INFO [70866b7@M5-Max-128GB]    Follow release-desktop.yml: gateable environment, fail-closed CLI check
+2026-09-07 12:29:40,378 INFO [70866b7@M5-Max-128GB]    Resolve the signing action from a checkout, not from the workspace root
+2026-09-07 12:29:40,378 INFO [70866b7@M5-Max-128GB]    Sign the Windows prebuilt binaries with Azure Trusted Signing
+2026-09-07 12:29:40,378 INFO [70866b7@M5-Max-128GB] 
+2026-09-07 12:29:40,966 INFO [70866b7@M5-Max-128GB] == Layr-Labs/mlxfast-gemma4-26b-a4b-engine -- MLX Fast leaderboard harness (#80)
+2026-09-07 12:29:40,966 INFO [70866b7@M5-Max-128GB]    Validate submission d4c5ad7e-7ab3-46ac-9e0f-ecb3e7654268
+2026-09-07 12:29:40,966 INFO [70866b7@M5-Max-128GB]    Validate submission 33190699-23b8-4ebf-a57e-12a566ca9908
+2026-09-07 12:29:40,966 INFO [70866b7@M5-Max-128GB]    Validate submission 9a7c3a1e-ec53-4cf2-86a1-6586c9fd026e
+2026-09-07 12:29:40,966 INFO [70866b7@M5-Max-128GB]    Validate submission 12f76d9a-0bc3-4ab2-8f78-222d6fa005a1
+2026-09-07 12:29:40,966 INFO [70866b7@M5-Max-128GB]    Validate submission 78cc9673-6ce8-4b44-a2c1-b6b99813c177
+2026-09-07 12:29:40,966 INFO [70866b7@M5-Max-128GB]    Accept submission 255b3c24-4bc1-4280-b631-f1c1e241849b
+2026-09-07 12:29:40,966 INFO [70866b7@M5-Max-128GB] 
+2026-09-07 12:29:41,489 INFO [70866b7@M5-Max-128GB] == sudoingX/qwen38-mtp -- 61 paired baseline-vs-MTP runs, disciplined method (#19, #39)
+2026-09-07 12:29:41,489 INFO [70866b7@M5-Max-128GB]    (quiet)
+2026-09-07 12:29:41,489 INFO [70866b7@M5-Max-128GB] 
+2026-09-07 12:29:42,091 INFO [70866b7@M5-Max-128GB] == trymirai/uzu -- Apple-only Rust engine, reachable by pip; claims 2x MTPLX (#134)
+2026-09-07 12:29:42,091 INFO [70866b7@M5-Max-128GB]    (quiet)
+2026-09-07 12:29:42,091 INFO [70866b7@M5-Max-128GB] 
+2026-09-07 12:29:42,091 INFO [70866b7@M5-Max-128GB] log: /Users/evanhoffman/git/local-llm/logs/sweeps/upstream-sweep-M5-Max-128GB-20260907T162929Z.log

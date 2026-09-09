@@ -1,0 +1,12 @@
+{
+  "knob": "q4-mpp-cooperative",
+  "on_var": "DS4_METAL_ENABLE_Q4_MPP_COOPERATIVE_SOURCE",
+  "off_var": "DS4_METAL_ENABLE_Q4_MPP_COOPERATIVE_SOURCE",
+  "on_value": "1",
+  "off_value": "0",
+  "admission_signal": "none",
+  "tree": "/Users/evanhoffman/git/ds4-pr952-head",
+  "gguf": "/Users/evanhoffman/models/deepseek-v4-flash-aproj/DeepSeek-V4-Flash-IQ2XXS-w2Q2K-AProjQ4-SExpQ8-OutQ8-chat-v2-imatrix-0731.gguf",
+  "reps": "4",
+  "started": "2026-09-08T19:53:55Z"
+}

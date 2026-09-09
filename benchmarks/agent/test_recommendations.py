@@ -17,9 +17,19 @@ import gen_tables
 import pytest
 import splice_tables
 
+from conftest import HAS_LOCAL_RESULTS, SKIP_NO_RESULTS
+
 DOC = pathlib.Path(__file__).resolve().parents[2] / "RECOMMENDATIONS.md"
+# The generated tables and the reasoning moved to docs/ on 2026-09-08
+# (#232). DOC is what a stranger reads first; TABLES_DOC is what the
+# splice writes. A test that asserts a property of the tables must
+# name TABLES_DOC, or it silently checks a file that no longer has
+# them and passes for the wrong reason.
+TABLES_DOC = pathlib.Path(__file__).resolve().parents[2] / "docs/results.md"
+STACKS_DOC = pathlib.Path(__file__).resolve().parents[2] / "docs/stacks.md"
 
 
+@pytest.mark.skipif(not HAS_LOCAL_RESULTS, reason=SKIP_NO_RESULTS)
 def test_the_generated_tables_are_current() -> None:
     # A batch in flight is appending to results.jsonl, so the document is
     # being compared against a moving target. Skipping keeps an unrelated
@@ -30,14 +40,14 @@ def test_the_generated_tables_are_current() -> None:
 
     if run.STASH_MARKER.exists():
         pytest.skip("a benchmark batch is running; results.jsonl is mid-write")
-    text = DOC.read_text()
+    text = TABLES_DOC.read_text()
     assert text == splice_tables.splice(text, gen_tables.render()), (
-        "RECOMMENDATIONS.md is stale; run splice_tables.py"
+        "docs/results.md is stale; run splice_tables.py"
     )
 
 
 def test_the_markers_survive() -> None:
-    text = DOC.read_text()
+    text = TABLES_DOC.read_text()
     assert splice_tables.BEGIN in text and splice_tables.END in text
 
 
@@ -46,6 +56,7 @@ def test_the_dir_flag_is_taught() -> None:
     assert "--dir" in DOC.read_text()
 
 
+@pytest.mark.skipif(not HAS_LOCAL_RESULTS, reason=SKIP_NO_RESULTS)
 def test_no_pre_fix_opencode_data_is_quoted() -> None:
     """Every figure must come from valid rows. The generator filters to
     post-fix trials; this asserts the doc did not also inherit an old number."""
@@ -71,12 +82,18 @@ def test_every_recommended_stack_has_a_declared_opencode_model() -> None:
 
 
 def test_the_json_snippets_parse() -> None:
-    """A newbie pastes these. A trailing comma would cost them an hour."""
-    text = DOC.read_text()
-    blocks = re.findall(r"```json\n(.*?)```", text, re.DOTALL)
-    assert blocks, "no json snippets found"
-    for b in blocks:
-        json.loads("{" + b.strip().rstrip(",") + "}")
+    """A newbie pastes these. A trailing comma would cost them an hour.
+
+    All three docs, not just DOC: the fenced snippets moved to docs/stacks.md
+    with the per-stack recipes in #232, and a test that kept reading only
+    RECOMMENDATIONS.md would have found nothing to check and passed.
+    """
+    found = 0
+    for doc in (DOC, TABLES_DOC, STACKS_DOC):
+        for b in re.findall(r"```json\n(.*?)```", doc.read_text(), re.DOTALL):
+            json.loads("{" + b.strip().rstrip(",") + "}")
+            found += 1
+    assert found, "no json snippets found in any of the three docs"
 
 
 def test_the_full_config_snippet_parses() -> None:
@@ -99,18 +116,21 @@ def test_every_task_link_resolves_to_a_real_prompt_heading() -> None:
     broken anchor is worse than no link: it looks authoritative and goes
     nowhere. PROMPTS.md is generated, so its headings move when tasks change.
     """
-    doc = DOC.read_text()
+    doc = TABLES_DOC.read_text()
     prompts = (pathlib.Path(__file__).parent / "PROMPTS.md").read_text()
     headings = set(re.findall(r"^### `([^`]+)`", prompts, re.MULTILINE))
-    linked = set(re.findall(r"\(benchmarks/agent/PROMPTS\.md#([a-z0-9-]+)\)", doc))
-    assert linked, "no task links found in RECOMMENDATIONS.md"
+    # `\.\./` since #232: the tables live in docs/, one below the root.
+    linked = set(
+        re.findall(r"\((?:\.\./)?benchmarks/agent/PROMPTS\.md#([a-z0-9-]+)\)", doc)
+    )
+    assert linked, "no task links found in docs/results.md"
     assert linked <= headings, f"dangling links: {sorted(linked - headings)}"
 
 
 def test_every_task_in_the_stack_tables_is_described() -> None:
     """No task name should appear in a results table without the reader having
     been told what it is."""
-    doc = DOC.read_text()
+    doc = TABLES_DOC.read_text()
     for task in gen_tables.TASK_SUMMARY:
         assert f"PROMPTS.md#{task}" in doc, f"{task} is never linked or described"
 
@@ -123,13 +143,12 @@ def test_the_target_repo_link_matches_the_actual_remote():
     404 in the one link that lets a reader check our work is worse than no
     link -- it looks verifiable and is not.
     """
-    doc = (
-        pathlib.Path(__file__).resolve().parent.parent.parent / "RECOMMENDATIONS.md"
-    ).read_text()
+    doc = TABLES_DOC.read_text()
     assert "evanwtf/gmail-archive" in doc
     assert "evandhoffman/gmail-archive" not in doc
 
 
+@pytest.mark.skipif(not HAS_LOCAL_RESULTS, reason=SKIP_NO_RESULTS)
 def test_generated_tables_count_only_real_trials():
     """A --dry-run control check is not a failed trial.
 
@@ -154,3 +173,311 @@ def test_generated_tables_count_only_real_trials():
     # are all timeouts, so their presence is correct and a dry run's is not.
     stray = [r for r in rows if r.get("passed") is None and r.get("error") != "timeout"]
     assert not stray, f"non-timeout rows with no verdict: {len(stray)}"
+
+
+# ---------------------------------------------------------------------------
+# #137: every OpenCode comparison across the ds4 backends spans a client
+# boundary, and the published tables do not say so.
+
+
+def _row(backend: str, version: str, wall: float = 100.0) -> dict:
+    return {
+        "backend": backend,
+        "client": "opencode",
+        "client_version": version,
+        "task": "mbox-scan",
+        "wall_seconds": wall,
+        "output_tokens": 1000,
+        "passed": True,
+    }
+
+
+def test_the_caveat_names_the_versions_and_which_backends_carry_them():
+    import gen_tables
+
+    got = "\n".join(
+        gen_tables.client_caveat([_row("a", "1.18.25"), _row("b", "1.18.27")])
+    )
+    assert "1.18.25" in got and "1.18.27" in got
+    assert "a" in got and "b" in got
+    assert "#137" in got
+
+
+def test_there_is_no_caveat_when_one_client_version_measured_everything():
+    """The caveat must disappear on its own when the confound does."""
+    import gen_tables
+
+    assert gen_tables.client_caveat([_row("a", "1.18.25"), _row("b", "1.18.25")]) == []
+
+
+def test_a_backend_whose_own_rows_span_versions_is_named_as_spanning():
+    """A backend measured under both is a different problem from a split one."""
+    import gen_tables
+
+    got = "\n".join(
+        gen_tables.client_caveat(
+            [_row("a", "1.18.25"), _row("a", "1.18.27"), _row("b", "1.18.25")]
+        )
+    )
+    assert "a" in got and "1.18.25, 1.18.27" in got
+
+
+def test_rows_with_no_recorded_client_version_are_named_not_ignored():
+    import gen_tables
+
+    row = _row("c", "1.18.25")
+    del row["client_version"]
+    got = "\n".join(gen_tables.client_caveat([_row("a", "1.18.25"), row]))
+    assert "unrecorded" in got
+
+
+def test_the_published_tables_carry_the_caveat_while_the_split_stands():
+    """The real data, not a fixture: this is what a reader actually sees."""
+    import gen_tables
+
+    text = gen_tables.render()
+    versions = {
+        r.get("client_version") for r in gen_tables.valid_opencode(gen_tables.load())
+    }
+    if len(versions) < 2:
+        pytest.skip("one client version measured everything; nothing to caveat")
+    assert text.count("#137") >= 2, "both generated tables need the caveat"
+
+
+# ---------------------------------------------------------------------------
+# #142: the stack table is sorted by median wall time, and a trial that dies
+# early is quick. That rewarded a stack for failing fast: qwen38fnds4mtp7shim
+# ranked second of fifteen at an 84s median while passing 50/91, above every
+# stack in the table that passed all of its trials. Counting only the trials
+# that passed moves it to twelfth at 177s and leaves every 100%-passing row on
+# exactly the number it had.
+
+
+def _trial(
+    backend: str, wall: float, passed: bool | None, task: str = "mbox-scan"
+) -> dict:
+    # valid_opencode() keeps only rows recorded after the --dir fix, so a
+    # synthetic row needs a harness head from that range or the table is empty.
+    return {
+        "env": {"harness_head": min(gen_tables._after_fix())},
+        "backend": backend,
+        "client": "opencode",
+        "client_version": "1.18.29",
+        "task": task,
+        "wall_seconds": wall,
+        "output_tokens": 1000,
+        "passed": passed,
+    }
+
+
+def _cells(line: str) -> list[str]:
+    return [c.strip() for c in line.strip().strip("|").split("|")]
+
+
+def test_a_stack_that_fails_fast_does_not_outrank_one_that_passes():
+    """The exact shape of the bug, in miniature.
+
+    `quick` dies at 10s on two thirds of its trials. Counting every trial its
+    median is 10s and it leads the table; counting only what passed it is 200s
+    and it trails the stack that passes everything at 100s.
+    """
+    rows = [
+        _trial("quick", 10.0, False),
+        _trial("quick", 10.0, False),
+        _trial("quick", 200.0, True),
+        _trial("steady", 100.0, True),
+        _trial("steady", 100.0, True),
+        _trial("steady", 100.0, True),
+    ]
+    body = gen_tables.stack_table(rows, {})[2:]
+    order = [_cells(line)[0] for line in body]
+    assert order == ["steady", "quick"]
+    assert _cells(body[0])[1:3] == ["3/3", "100s"]
+    assert _cells(body[1])[1:3] == ["1/3", "200s"]
+
+
+def test_a_stack_that_passes_everything_keeps_the_number_it_had():
+    """The rule must not restate the figures of any clean row.
+
+    Twelve of the fifteen published rows pass 100%, so for them the two
+    medians are the same set of trials. If this ever fails, the change has
+    moved numbers a reader may already have acted on.
+    """
+    rows = [_trial("clean", w, True) for w in (40.0, 90.0, 300.0)]
+    assert _cells(gen_tables.stack_table(rows, {})[2])[1:] == [
+        "3/3",
+        "90s",
+        "300s",
+        "7.5x",
+    ]
+
+
+def test_a_stack_with_no_passing_trial_keeps_its_row_and_sorts_last():
+    """0/n is the most important thing a table of stacks can say.
+
+    Dropping the row would hide it, and giving it a median would be inventing
+    one, so it keeps the row and reports no timing.
+    """
+    rows = [
+        _trial("hopeless", 10.0, False),
+        _trial("hopeless", 12.0, False),
+        _trial("fine", 500.0, True),
+    ]
+    body = gen_tables.stack_table(rows, {})[2:]
+    assert [_cells(line)[0] for line in body] == ["fine", "hopeless"]
+    assert _cells(body[1]) == ["hopeless", "0/2", "—", "—", "—"]
+
+
+def test_a_timed_out_trial_is_not_a_timing():
+    """results.trials() keeps timeouts as failures with `passed: None`.
+
+    They are the longest walls in the file, so treating them as passes would
+    push a stack's median and worst up for exactly the runs that produced no
+    work.
+    """
+    rows = [
+        _trial("t", 900.0, None),
+        _trial("t", 100.0, True),
+        _trial("t", 120.0, True),
+    ]
+    assert _cells(gen_tables.stack_table(rows, {})[2])[1:] == [
+        "2/3",
+        "110s",
+        "120s",
+        "1.2x",
+    ]
+
+
+def test_the_table_says_which_trials_the_timings_count():
+    """A rule a reader cannot see is a second version of the same bug."""
+    doc = gen_tables.render([_trial("a", 50.0, True), _trial("a", 10.0, False)])
+    warning = doc.index("count only trials that passed")
+    assert warning < doc.index("| stack | passed |")
+
+
+def _shim_backed_backends() -> set[str]:
+    """Backend names whose tasks.toml description says they use the shim.
+
+    Read from the config, not from a list in this file. A hand-kept list is
+    what failed: the caveat said "Both qwen38fnds4* rows" while three backends
+    ran behind the shim, and the one it omitted -- qwen38fnds4kimat, 90/90 at
+    97s -- was the strongest of them and so the likeliest to be reproduced.
+    """
+    text = (pathlib.Path(__file__).resolve().parent / "tasks.toml").read_text()
+    found, name = set(), None
+    for line in text.splitlines():
+        if line.startswith("[backend."):
+            name = line[len("[backend.") :].rstrip("]").strip()
+        elif name and "via the tool-format shim" in line:
+            found.add(name)
+    return found
+
+
+NUMBER_WORD = {1: "One", 2: "Two", 3: "Three", 4: "Four", 5: "Five", 6: "Six"}
+
+
+def _between(text: str, opening: str, closing: str) -> str:
+    """The span between two markers, or a clear failure.
+
+    Anchored on the sentence that does the enumerating, not on the section.
+    Checking the whole section is what the first version of this test did, and
+    it was weaker than its own commit message claimed: a backend dropped from
+    the list but still mentioned in a later paragraph kept the test green. The
+    peer found that by mutating it, which is the only way anyone would.
+    """
+    i = text.index(opening) + len(opening)
+    return text[i : text.index(closing, i)]
+
+
+def test_the_strip_caveat_enumerates_every_shim_backed_row() -> None:
+    """The strip is worth 23 points where measured; a row it applies to and
+    the caveat does not list is a reproduction that will silently miss it."""
+    doc = TABLES_DOC.read_text()
+    listed = _between(doc, "`qwen38fnds4*` rows \u2014 ", " \u2014 run behind")
+    missing = sorted(b for b in _shim_backed_backends() if b not in listed)
+    assert not missing, (
+        f"shim-backed backends absent from the strip caveat's list: {missing}. "
+        "Add them to the enumeration, or a reader reproducing that row never "
+        "learns the strip is load-bearing."
+    )
+
+
+def test_the_strip_caveat_counts_the_rows_it_lists() -> None:
+    """ "All three" has to stay true when a fourth shim backend appears."""
+    n = len(_shim_backed_backends())
+    word = NUMBER_WORD[n]
+    assert f"**All {word.lower()}** `qwen38fnds4*` rows" in TABLES_DOC.read_text(), (
+        f"{n} backends run behind the shim; the strip caveat does not say "
+        f'"All {word.lower()}"'
+    )
+
+
+def test_the_upstream_caveat_enumerates_every_shim_backed_row() -> None:
+    """Same rows, same argument: they all launch with --ple against a fork."""
+    doc = TABLES_DOC.read_text()
+    listed = _between(doc, "\nThe `qwen38fnds4", " rows all\nneed **PLE")
+    missing = sorted(
+        b for b in _shim_backed_backends() if b not in "The `qwen38fnds4" + listed
+    )
+    assert not missing, (
+        f"shim-backed backends absent from the upstream caveat's list: {missing}"
+    )
+
+
+def test_the_upstream_caveat_heading_counts_the_rows() -> None:
+    """The heading said "One row" while the body named two and three applied."""
+    n = len(_shim_backed_backends())
+    heading = f"### {NUMBER_WORD[n]} rows here cannot be reproduced"
+    assert heading in TABLES_DOC.read_text(), (
+        f"{n} rows need the fork; the heading does not say {NUMBER_WORD[n]!r}"
+    )
+
+
+def test_the_shim_backend_list_is_not_empty() -> None:
+    """A parser that silently finds nothing would make both tests vacuous."""
+    assert len(_shim_backed_backends()) >= 3
+
+
+def test_the_recommendation_stays_short() -> None:
+    """#232: it reached 838 lines holding an answer to "what do I run".
+
+    Same failure as NEXT.md, and the same cause -- every addition was
+    reasonable on its own. The cap is on prose rather than total lines
+    because section 1 is a pastable install block that a reader needs whole,
+    and shrinking it would be shrinking the wrong thing.
+    """
+    lines = DOC.read_text().splitlines()
+    prose, fenced = 0, False
+    for line in lines:
+        if line.startswith("```"):
+            fenced = not fenced
+            continue
+        if not fenced and line.strip():
+            prose += 1
+    assert prose <= 100, (
+        f"RECOMMENDATIONS.md has {prose} lines of prose, over 100 (#232). "
+        f"New reasoning belongs in docs/stacks.md or docs/results.md."
+    )
+
+
+def test_the_three_sections_are_all_there() -> None:
+    """The issue asked for exactly three: paste it, pick a row, run a script.
+    A missing one means the answer moved somewhere a stranger will not look.
+    """
+    doc = DOC.read_text()
+    assert "## 1. Paste this" in doc
+    assert "## 2. Or pick a row" in doc
+    assert "## 3. Or run one script" in doc
+    assert "docs/stacks.md" in doc and "docs/results.md" in doc
+
+
+def test_the_moved_docs_do_not_lose_their_links() -> None:
+    """The prose moved into docs/, so every repo-root-relative link in it
+    needed a `../`. A link that resolves from the old location and not the
+    new one is exactly the 404 test_the_target_repo_link_matches_the_actual_remote
+    exists to prevent."""
+    for doc in (TABLES_DOC, STACKS_DOC):
+        text = doc.read_text()
+        for target in re.findall(r"\]\((?!https?://|#)([^)]+)\)", text):
+            path = (doc.parent / target.split("#")[0]).resolve()
+            assert path.exists(), f"{doc.name} links to a missing {target}"

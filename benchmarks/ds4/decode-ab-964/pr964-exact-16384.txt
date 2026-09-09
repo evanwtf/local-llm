@@ -1,0 +1,20 @@
+ds4: Metal device Apple M5 Max, 128.00 GiB RAM
+ds4: Metal 4 tensor API enabled for Tensor kernels
+ds4: drift-patch flags hc_stable=on norm_unify=on kv_raw_f32=off rope_exp2_log2=off math_safe=off tensor_matmul=on
+ds4: Metal model views created in 3.386 ms, residency requested in 1075.191 ms, warmup 4.196 ms (mapped 92026.06 MiB from offset 9.07 MiB)
+ds4: Metal mapped mmaped model as 2 overlapping shared buffers
+ds4: metal backend initialized for graph diagnostics
+ds4: memory: KV 0.18 GiB (raw 0.00 + compressed 0.18) + buffers 2.95 GiB + resident model 89.87 GiB = 93.00 GiB planned
+ds4: memory detail: ctx=16513 prefill_cap=2048 raw_kv_rows=0 compressed_kv_rows=16513 backend=metal
+ds4-bench: context buffers 3205.15 MiB (ctx=16513, backend=metal, prefill_chunk=2048, raw_kv_rows=0, compressed_kv_rows=16513)
+ds4: GLM session ctx=16513 (model max=1048576); full-attention prefill/work cap=4096; compact indexed decode is used beyond the cap
+ds4: GLM graph using compact DSA KV only; expanded full-attention KV cache is skipped
+ds4: GLM graph allocating compact DSA cache: rows=16513 logical_ctx=16513 kv_layers=45 indexer_layers=11 f16 0.18 GiB
+ds4: GLM compact indexed prefill chunk=2048 score_rows=2048 score_scratch=32.26 MiB
+ds4-bench: gen[ctx=16384] decoded text: "ita, e
+dissimulando, con un sorriso, la sua iracondia, e, con un tono di
+voce, che non era più quello di prima, e che non era nemmeno quello
+che gli serviva a dissimulare la sua iracondia, e che era, invece,
+un tono di voce, che gli serviva a dissimulare la sua iracondia, e
+che era, invece, un tono di voce, che gli serviva a dissimulare la
+sua iracondia, e che era, invece,"

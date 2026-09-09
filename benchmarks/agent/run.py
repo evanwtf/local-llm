@@ -40,14 +40,22 @@ import time
 import tomllib
 import urllib.error
 import urllib.request
+from typing import ClassVar
+from urllib.parse import urlparse
 
+import ds4_route
+import engine_identity
 import excise
 import grade
 import memcap
+import mtp_timing
+import mtplx_trace
+import opencode_config
 import plausibility
 import preflight
 import provenance
 import results
+import shim_strip
 import smoke
 import swift_excise
 
@@ -79,7 +87,7 @@ def run(cmd, cwd, env=None, timeout=None):
     # that never reaches EOF -- it hung a trial for 11 minutes before this was
     # found. Any agent client may do the same; none of them should be waiting
     # on input here.
-    return subprocess.run(
+    return subprocess.run(  # noqa: PLW1510
         cmd,
         cwd=cwd,
         env=env,
@@ -215,7 +223,7 @@ def peak_child_rss_gib() -> float:
 
 
 def tests_pass(worktree, tests, timeout, command="uv run pytest -q"):
-    """Run the oracle. Returns (passed, summary_line).
+    """Run the oracle. Returns (passed, summary_line, killed_for_memory).
 
     `command` is per-repo: `uv run pytest -q` for Python, `swift test` for a
     SwiftPM package. Test node ids are appended for pytest; a runner that does
@@ -225,6 +233,13 @@ def tests_pass(worktree, tests, timeout, command="uv run pytest -q"):
     the agent's `--timeout` -- 1800s by default -- for a step that takes about
     0.1s when it passes: four orders of magnitude of slack, chosen by nobody.
     Script tasks already used GATE_TIMEOUT; only this path did not (#82).
+
+    The third return is item 4 of #82. A memcap kill means the code may well be
+    correct and is certainly not runnable; without carrying that flag up, the
+    caller sees passed=False and cannot tell it apart from "the model wrote
+    wrong code". The row is then excluded rather than pooled with real
+    failures. Matching the summary string here would be a fragile substitute
+    that any refactor could quietly break.
     """
     r, peak, killed = memcap.run_capped(
         [*command.split(), *tests],
@@ -233,10 +248,12 @@ def tests_pass(worktree, tests, timeout, command="uv run pytest -q"):
         cap_gib=ORACLE_MEM_CAP_GIB,
     )
     if killed:
-        # Distinct from a model failure and from a timeout: the code may well
-        # be correct and is certainly not runnable. Say which (#82).
-        return False, f"oracle killed at {peak:.1f} GiB (cap {ORACLE_MEM_CAP_GIB} GiB)"
-    return r.returncode == 0, summarise_run(r.stdout, r.stderr)
+        return (
+            False,
+            f"oracle memory-killed at {peak:.1f} GiB (cap {ORACLE_MEM_CAP_GIB:.1f} GiB)",
+            True,
+        )
+    return r.returncode == 0, summarise_run(r.stdout, r.stderr), False
 
 
 def summarise_run(stdout, stderr):
@@ -254,7 +271,48 @@ def summarise_run(stdout, stderr):
     return "no output"
 
 
-def parse_ollama_show(show):
+# ollama#16471 shipped in 0.33.3-rc0 and changed sampler precedence so that
+# model-authored defaults (GGUF KVs, MLX generation_config.json) beat Ollama's
+# own built-ins. See #84. The boundary is pinned by a test using these literals.
+OLLAMA_MODEL_DEFAULTS_FROM = (0, 33, 3)
+
+
+def ollama_honors_model_defaults(version):
+    """True from 0.33.3, False before it, None when the version is unreadable.
+
+    None rather than False on purpose: guessing "old" would let a row taken
+    after the upgrade claim the pre-upgrade sampler, which is the silent
+    mislabelling this whole guard exists to prevent.
+    """
+    if not version:
+        return None
+    head = str(version).strip().lstrip("v").split("-")[0]
+    parts = head.split(".")
+    try:
+        numbers = tuple(int(part) for part in parts[:3])
+    except ValueError:
+        return None
+    if len(numbers) < 3:
+        return None
+    return numbers >= OLLAMA_MODEL_DEFAULTS_FROM
+
+
+def model_declared_sampling(show):
+    """The sampler the GGUF itself declares, from /api/show `model_info` (#84).
+
+    Ollama surfaces the model's own KVs here, so `general.sampling.*` is
+    readable without opening the file. Keys are returned with the
+    `general.sampling.` prefix stripped, so they line up with the modelfile
+    PARAMETER names that occupy the same slot at a higher precedence.
+    """
+    info = show.get("model_info") if isinstance(show, dict) else None
+    if not isinstance(info, dict):
+        return {}
+    prefix = "general.sampling."
+    return {k[len(prefix) :]: v for k, v in info.items() if k.startswith(prefix)}
+
+
+def parse_ollama_show(show, ollama_version=None):
     """Read the sampler out of an Ollama `/api/show` response.
 
     Ollama reports a model's *modelfile*, not the sampler actually in force. If
@@ -278,10 +336,61 @@ def parse_ollama_show(show):
         parts = line.split()
         if len(parts) >= 3 and parts[0].upper() == "PARAMETER":
             sampling[parts[1]] = parts[2]
-    return {
-        "sampling": sampling,
-        "sampling_source": "modelfile" if sampling else "engine defaults (unrecorded)",
-    }
+    if sampling:
+        # Precedence 2 still wins after ollama#16471, so these rows keep their
+        # meaning across the upgrade.
+        return {"sampling": sampling, "sampling_source": "modelfile"}
+
+    # No modelfile parameters: the engine decides, and WHICH engine rule applies
+    # changed in 0.33.3. Naming the regime is not the same as reading the
+    # resolved values -- it stays "unrecorded" either way -- but it stops one
+    # string describing two different samplers.
+    honors = ollama_honors_model_defaults(ollama_version)
+    # #84's remaining half. /api/show returns `model_info`, which carries the
+    # GGUF's own KVs -- including general.sampling.* when the model declares
+    # them. So the resolved sampler is readable from the response we already
+    # fetch: no GGUF path, no separate header read. NEXT.md had this down as
+    # "wire gguf_meta.py into probe_ollama()", which is not needed.
+    declared = model_declared_sampling(show)
+    if honors is None:
+        regime = "engine defaults (unrecorded; ollama version unknown)"
+    elif honors:
+        if declared:
+            # These are the numbers actually in force from 0.33.3 on.
+            return {
+                "sampling": declared,
+                "sampling_source": (
+                    "model-authored GGUF defaults, resolved from /api/show "
+                    "model_info (ollama >= 0.33.3)"
+                ),
+            }
+        # Absent model_info and empty model_info are different facts. Absent
+        # means we could not see what the model declares -- an older ollama, a
+        # truncated response -- so the regime is all we can name. Empty means
+        # we looked and it declares nothing, so the built-ins apply and saying
+        # so is more useful than naming the regime.
+        elif isinstance(show.get("model_info"), dict):
+            regime = (
+                "engine defaults (unrecorded; model declares no sampler, so "
+                "ollama built-ins apply even at >= 0.33.3)"
+            )
+        else:
+            regime = (
+                "engine defaults (unrecorded; model-authored GGUF/"
+                "generation_config defaults honored, ollama >= 0.33.3; "
+                "model_info absent so the values could not be read)"
+            )
+    else:
+        # Pre-0.33.3 the built-ins win, so what the model declares is NOT what
+        # ran. Recording it anyway would be a lie about this row; naming it as
+        # overridden is the useful half, because it says what the same row
+        # would get after an upgrade.
+        regime = (
+            "engine defaults (unrecorded; ollama built-in defaults, ollama <= 0.33.2)"
+        )
+        if declared:
+            regime += f" -- model declares {declared}, overridden at this version"
+    return {"sampling": sampling, "sampling_source": regime}
 
 
 def probe_ollama(backend):
@@ -298,7 +407,13 @@ def probe_ollama(backend):
     )
     try:
         with urllib.request.urlopen(request, timeout=10) as fh:
-            return parse_ollama_show(json.load(fh))
+            # The installed version decides which sampler precedence applies,
+            # so the row records the regime rather than a bare "engine
+            # defaults" that means two different things either side of 0.33.3.
+            return parse_ollama_show(
+                json.load(fh),
+                ollama_version=provenance.engine_versions().get("ollama"),
+            )
     except (
         urllib.error.URLError,
         TimeoutError,
@@ -335,10 +450,22 @@ def parse_openai_models(models, backend=None):
     entry, and LM Studio was dropped from `servers` entirely. **A substring
     match against a model name is not a probe.**
 
-    Selection is now, in order: the id the backend declares, then the only
-    entry if there is exactly one. Anything else is ambiguous and returns {}
-    rather than guessing -- picking the wrong row here would attribute one
-    model's context length to another.
+    Selection is, in order: the id the backend declares, then the only entry
+    if there is exactly one, then a single entry whose id is a PREFIX of the
+    declared model -- ds4 forks advertise the loaded model under base aliases
+    ("qwen3.8-flash-next") while the backend names a quant suffix the listing
+    never carries ("qwen3.8-flash-next-q4"), and the base alias is the one
+    entry that prefixes it. Two prefix matches are the ambiguity that stays a
+    refusal to guess.
+
+    No match at all is not silence: the advertisement is recorded as
+    `advertised_models` next to the `requested_model`, because a server that
+    answers has identified itself even when its naming disagrees with the
+    backend's -- ds4's glm-dsa builds advertise "glm-5.2" for glm-5.3 weights.
+    Resolving one of those entries would attribute its context length to a
+    model that may not be the one serving; recording the disagreement leaves
+    the judgement to the reader. A row with an `advertised_models` entry is
+    stamped, not unstamped: the server talked, and said what it is.
 
     Records `accepts_sampling` (the parameters the API takes) and an explicit
     note that the effective values are unreported. That distinction is the
@@ -352,8 +479,22 @@ def parse_openai_models(models, backend=None):
     entry = next((d for d in data if str(d.get("id", "")) == wanted), None)
     if entry is None and len(data) == 1:
         entry = data[0]
+    if entry is None and wanted:
+        prefixed = [
+            d
+            for d in data
+            if str(d.get("id", "")) and str(wanted).startswith(str(d["id"]))
+        ]
+        if len(prefixed) == 1:
+            entry = prefixed[0]
     if entry is None:
-        return {}
+        ids = [str(d.get("id")) for d in data if d.get("id")]
+        if not wanted or not ids:
+            return {}
+        return {
+            "advertised_models": ids,
+            "requested_model": str(wanted),
+        }
 
     got = {"sampling": {}, "sampling_source": DS4_SAMPLER_NOTE}
     if entry.get("id"):
@@ -376,8 +517,15 @@ def parse_ds4_models(models):
 
 
 def probe_openai_models(backend):
-    """Ask an OpenAI-compatible server what it is serving. {} on any failure."""
-    url = backend.get("base_url")
+    """Ask an OpenAI-compatible server what it is serving. {} on any failure.
+
+    A backend behind the Claude Code shims names the real server in
+    `models_url`: those shims answer POST only, so a GET to `base_url` dies
+    against the shim and the row would come out unstamped while the upstream
+    was perfectly askable (#78). Same idea as `props_url`, for the same
+    GET-blind shims.
+    """
+    url = backend.get("models_url") or backend.get("base_url")
     if not url:
         return {}
     request = urllib.request.Request(
@@ -534,20 +682,25 @@ def metal_ceiling_mb():
         return None
 
 
-def capture_versions(cfg, backends):
+def capture_versions(cfg, backends, allow_unstamped=False):
     """Record the software stack, once, into every row of this run.
 
     Without this, results.jsonl is undated evidence: six months on there is no
     way to attribute a row to a Claude Code version, an Ollama build, or a
     model that has since been re-pushed under the same tag. Prose in a report
     drifts away from the data; this travels with it.
+
+    Refuses (SystemExit) when a backend with a base_url answers no identity
+    probe, unless `allow_unstamped` -- see the refusal block below for why the
+    escape exists and how it is recorded.
     """
 
     def out(cmd):
         try:
             r = run(cmd, cwd=None, timeout=30)
             return r.stdout.strip().splitlines()[0] if r.stdout.strip() else None
-        except Exception:
+        # Deliberately blind: identifying the engine must never take a run down.
+        except Exception:  # noqa: BLE001
             return None
 
     env = {
@@ -561,15 +714,25 @@ def capture_versions(cfg, backends):
         "target_commit": cfg["base_commit"],
         # aider is a client like the others; it was the only one not recorded.
         "aider": out(["aider", "--version"]),
+        # #84: ollama 0.33.3 changed which sampler a model gets. 343 of 1394
+        # rows carry this and the rest do not, so "which ollama" is already
+        # unanswerable for most of the corpus. The regime string on the row
+        # names the precedence rule; this names the build that applied it,
+        # which is what a release note is looked up by.
+        "ollama": out(["ollama", "--version"]),
     }
 
     # The harness itself: which run.py produced this row. A row that cannot name
     # its own code cannot be re-derived once the code moves on.
     try:
         env["harness_head"] = git(["rev-parse", "--short", "HEAD"], HERE)
-        env["harness_dirty"] = bool(
-            git(["status", "--porcelain", "--untracked-files=no"], HERE)
-        )
+        # Ask provenance, which excludes the data files a run appends to.
+        # Raw porcelain counts results.jsonl, and every run writes to it -- so
+        # this was True on essentially every row ever recorded. That is not a
+        # cosmetic inaccuracy: stack_agent_report treats "harness_dirty row
+        # present" as a VOID condition, so a pre-registered read-out was
+        # guaranteed to void itself for a reason that is always true.
+        env["harness_dirty"] = provenance.code_is_dirty(HERE)
     except RuntimeError:
         pass
 
@@ -589,16 +752,21 @@ def capture_versions(cfg, backends):
     # .get(): a hosted backend has no base_url at all.
     if any((b.get("base_url") or "").endswith(":11434") for b in backends.values()):
         env["ollama"] = out(["ollama", "--version"])
-        # A tag can be re-pushed upstream; the digest cannot. Pin the digest.
-        digests = {}
-        listing = run(["ollama", "list"], cwd=None, timeout=30).stdout
-        for line in listing.splitlines()[1:]:
-            parts = line.split()
-            if len(parts) >= 2:
-                digests[parts[0]] = parts[1]
-        for name, b in backends.items():
-            if b["model"] in digests:
-                env[f"digest_{name}"] = digests[b["model"]]
+        # A machine without ollama: `out` already returned None, and `ollama
+        # list` would raise FileNotFoundError. Degrade instead -- the digests
+        # are a nicety, not a requirement, and a missing binary must not crash
+        # the whole run.
+        if env["ollama"] is not None:
+            # A tag can be re-pushed upstream; the digest cannot. Pin it.
+            digests = {}
+            listing = run(["ollama", "list"], cwd=None, timeout=30).stdout
+            for line in listing.splitlines()[1:]:
+                parts = line.split()
+                if len(parts) >= 2:
+                    digests[parts[0]] = parts[1]
+            for name, b in backends.items():
+                if b["model"] in digests:
+                    env[f"digest_{name}"] = digests[b["model"]]
 
     if any((b.get("base_url") or "").endswith(":8000") for b in backends.values()):
         ds4_root = (
@@ -664,6 +832,32 @@ def capture_versions(cfg, backends):
     # that says which one it is rather than implying the app version.
     if any((b.get("base_url") or "").endswith(":1234") for b in backends.values()):
         env["lmstudio_cli"] = out(["lms", "--version"])
+        # #78: the app version has no CLI source, but `lms runtime ls` names
+        # the runtimes the app selected -- the engine that actually served,
+        # llama.cpp and its version among them. That is the identity the app's
+        # own version number cannot give, and the one the backend comparison
+        # turns on: LM Studio is a wrapper whose runtime is llama.cpp, so the
+        # runtime is the build the rows must name. An absence that is written
+        # down stops being a gap.
+        try:
+            listing = run(["lms", "runtime", "ls"], cwd=None, timeout=30).stdout
+            selected = [
+                line.split("✓")[0].strip()
+                for line in listing.splitlines()
+                if "✓" in line
+            ]
+        # Provenance must never take a run down (see `out` above).
+        except Exception:  # noqa: BLE001
+            selected = []
+        if selected:
+            env["lmstudio_runtimes"] = ", ".join(selected)
+
+    # #78: `mtplx --version` identifies the engine behind the :8010 backend
+    # the way `ollama --version` identifies :11434. The trace files carry no
+    # engine version of their own, so without this the rows name a tool that
+    # has no build to look up.
+    if any(str(b.get("model") or "").startswith("mtplx") for b in backends.values()):
+        env["mtplx"] = out(["mtplx", "--version"])
 
     # One probe per backend, keyed by name, because a run can span several and
     # each row records which one it used.
@@ -673,25 +867,103 @@ def capture_versions(cfg, backends):
     }
     servers = {k: v for k, v in servers.items() if v}
 
+    # #149: which Metal kernel route served this row.
+    #
+    # The fast route flips the first sampled token on long prompts, one failing
+    # case is a code audit, and on M5 it **enables itself** -- so the absence of
+    # an env var says nothing and two rows on different routes are not
+    # comparable. Both #138 arms were verified same-route by hand, which is the
+    # check that does not survive contact with the next run.
+    #
+    # `unrecorded` is a real answer and is written down as one: a server the
+    # harness did not start, or a stale record, must not be resolved into a
+    # route the row never ran.
+    for name, backend in backends.items():
+        # #211: for a shim-fronted backend `base_url` is the SHIM's port, and
+        # `ds4_serve.py` records the route against the ds4-server's. Asking
+        # `route_for` about the shim's port returns `unrecorded` by
+        # construction -- which is how the two largest ds4 backends in the
+        # corpus, 356 rows between them, never named the route they ran.
+        #
+        # The fix is the port, not the check. `engine_url` names the server
+        # behind the shim; it is the same value the shim is started with
+        # (`--upstream`), so the config and the process agree by construction.
+        # A shim that declares none still reads `unrecorded`, honestly.
+        port = route_query_port(backend)
+        if port is None:
+            continue
+        route = ds4_route.route_for(port)
+        if name in servers:
+            servers[name]["metal_route"] = route
+        if route != ds4_route.UNRECORDED:
+            env.setdefault("metal_route", route)
+        # #78: which scaffolding-strip arm served this row -- the switch the
+        # 112 A/B alternated without recording, leaving the arms separable
+        # only by a hand-kept manifest. Same pattern as the route above: the
+        # shim writes its arm when it starts, the harness reads it back and
+        # refuses to guess. No record for the port means no strip-shim fronts
+        # this backend, and the row says nothing at all: a missing key must
+        # not read as "unrecorded", which is reserved for a shim whose arm
+        # could not be verified.
+        strip = shim_strip.strip_for(port)
+        if strip is not None and name in servers:
+            servers[name]["strip"] = strip
+        # #192: which engine build served this row. The backend config names
+        # the engine; this resolves its build identity -- sha or --version,
+        # tree, dirty, binary mtime. A backend that does not declare an engine
+        # gets nothing: an absent key must not read as "unrecorded", which is
+        # reserved for a server the harness did not start.
+        engine = backend.get("engine")
+        if engine and name in servers:
+            servers[name].update(
+                engine_identity.identity(engine, backend.get("engine_tree"))
+            )
+    routes = {s["metal_route"] for s in servers.values() if s.get("metal_route")} - {
+        ds4_route.UNRECORDED
+    }
+    if len(routes) > 1:
+        # Two routes inside one run is not a row-level annotation, it is a
+        # voided comparison -- exactly the shape of #137's two client versions
+        # in one cell.
+        env["metal_route"] = "MIXED"
+        logger.warning(
+            "two Metal routes in one run (%s) -- rows from these backends are "
+            "not comparable (#149)",
+            ", ".join(sorted(routes)),
+        )
+
     # #78: every gap in this record arrived the same way -- a backend was added,
     # no probe covered it, and the rows came out unstamped in silence. LM Studio
-    # went six backends' worth of comparison with no server identity at all, and
-    # GLM-5.3 lost its `servers` entry to a substring match. Say so on the row.
+    # went six backends' worth of comparison with no server identity at all,
+    # GLM-5.3 lost its `servers` entry to a substring match, and MTPLX ran 22
+    # trials that cannot name their engine. So the run now refuses by default:
+    # a row that cannot name the engine that served it must not be published.
     #
-    # A warning, not a refusal: this is provenance, and the surrounding probes
-    # are all documented as never taking a trial down. But an explicit absence
-    # is a warning where silence is not -- the same reason `sampling_source`
-    # records "engine defaults (unrecorded)" rather than omitting the key.
+    # The escape exists because a refusal that fires on a working
+    # configuration gets switched off under time pressure -- #148's rule, and
+    # #149's first gate did exactly that to the model we use most. When the
+    # escape is used the gap is recorded on the row under
+    # `servers_unidentified`: an escape that leaves no trace is the gap
+    # wearing a flag. After this change that key can only exist on a row whose
+    # run passed --allow-unstamped; on older rows it meant only a warning.
     unstamped = sorted(
         name
         for name, b in backends.items()
         if b.get("base_url") and name not in servers
     )
     if unstamped:
+        if not allow_unstamped:
+            raise SystemExit(
+                f"no server identity for {', '.join(unstamped)} -- refusing to "
+                "run (#78). A row that cannot name the engine that served it "
+                "must not be published. Start the server, fix the probe it "
+                "does not answer, or pass --allow-unstamped to record the gap "
+                "on the row instead."
+            )
         env["servers_unidentified"] = unstamped
         logger.warning(
             "no server identity for %s -- rows will not name the engine that "
-            "served them (#78)",
+            "served them (#78, --allow-unstamped)",
             ", ".join(unstamped),
         )
 
@@ -818,16 +1090,16 @@ def claude_prompt_tokens(usage):
 def claude_parse(stdout):
     payload = json.loads(stdout)
     usage = payload.get("usage", {})
-    return dict(
-        num_turns=payload.get("num_turns"),
-        stop_reason=payload.get("stop_reason"),
-        api_ms=payload.get("duration_api_ms"),
-        input_tokens=claude_prompt_tokens(usage),
-        uncached_input_tokens=usage.get("input_tokens"),
-        cache_read_input_tokens=usage.get("cache_read_input_tokens"),
-        output_tokens=usage.get("output_tokens"),
-        agent_error=payload.get("is_error"),
-    )
+    return {
+        "num_turns": payload.get("num_turns"),
+        "stop_reason": payload.get("stop_reason"),
+        "api_ms": payload.get("duration_api_ms"),
+        "input_tokens": claude_prompt_tokens(usage),
+        "uncached_input_tokens": usage.get("input_tokens"),
+        "cache_read_input_tokens": usage.get("cache_read_input_tokens"),
+        "output_tokens": usage.get("output_tokens"),
+        "agent_error": payload.get("is_error"),
+    }
 
 
 def opencode_argv(task, backend, worktree=None):
@@ -974,11 +1246,26 @@ def opencode_parse(stdout):
     short wrap-up whose input is tiny -- one observed row ended at 148 tokens
     after 12 turns -- so the last value is not a high-water mark. Rows written
     before 2026-08-17 carry the last step's input rather than the peak.
+
+    Also records per-step TTFT (#96). The transcript stamps every event with a
+    millisecond timestamp, and each real step brackets `step_start` -> first
+    `text`/`tool_use` -> `step_finish`. The delta from step_start to the first
+    content event is the closest thing to per-turn TTFT we can compute from
+    this transcript: it is what the agent USER experienced, including OpenCode's
+    own serialization overhead. It is not the wire TTFT from ds4's perspective.
+
+    Tool-response acknowledgment steps -- where OpenCode records a tool result
+    with no model call -- also produce a step_start/step_finish pair with a
+    TTFT of a few milliseconds. Those are filtered by a > 100 ms threshold so
+    the recorded median describes real model turns, not stream bookkeeping.
     """
     turns = 0
     out_tokens = 0
     reasoning = 0
     peak_input = None
+    step_ttfts_ms: list[int] = []
+    current_step_open: int | None = None
+    current_step_saw_content = False
     for line in stdout.splitlines():
         line = line.strip()
         if not line:
@@ -987,22 +1274,72 @@ def opencode_parse(stdout):
             event = json.loads(line)
         except json.JSONDecodeError:
             continue
-        if event.get("type") != "step_finish":
-            continue
-        tokens = event.get("part", {}).get("tokens", {})
-        turns += 1
-        out_tokens += tokens.get("output") or 0
-        reasoning += tokens.get("reasoning") or 0
-        if tokens.get("input"):
-            peak_input = max(peak_input or 0, tokens["input"])
+        etype = event.get("type")
+        ts = event.get("timestamp")
+        if etype == "step_start":
+            current_step_open = ts
+            current_step_saw_content = False
+        elif (
+            etype in ("text", "tool_use")
+            and not current_step_saw_content
+            and current_step_open is not None
+            and isinstance(ts, int)
+        ):
+            step_ttfts_ms.append(ts - current_step_open)
+            current_step_saw_content = True
+        elif etype == "step_finish":
+            tokens = event.get("part", {}).get("tokens", {})
+            turns += 1
+            out_tokens += tokens.get("output") or 0
+            reasoning += tokens.get("reasoning") or 0
+            if tokens.get("input"):
+                peak_input = max(peak_input or 0, tokens["input"])
+            current_step_open = None
+            current_step_saw_content = False
     if not turns:
         raise json.JSONDecodeError("no step_finish events", stdout[:200], 0)
-    return dict(
-        num_turns=turns,
-        input_tokens=peak_input,
-        output_tokens=out_tokens,
-        reasoning_tokens=reasoning,
-    )
+
+    row = {
+        "num_turns": turns,
+        "input_tokens": peak_input,
+        "output_tokens": out_tokens,
+        "reasoning_tokens": reasoning,
+    }
+    # A trial with no timestamps (a very old transcript, or a client that
+    # emits none) records no TTFT rather than a bogus zero. Absence is a
+    # different signal than "0 ms".
+    if step_ttfts_ms:
+        real_model_ttfts = [t for t in step_ttfts_ms if t > 100]
+        row["step_ttft_ms_median"] = _median_int(step_ttfts_ms)
+        row["step_ttft_ms_p90"] = _percentile_int(step_ttfts_ms, 0.90)
+        row["num_steps"] = len(step_ttfts_ms)
+        row["num_model_steps"] = len(real_model_ttfts)
+        if real_model_ttfts:
+            row["model_step_ttft_ms_median"] = _median_int(real_model_ttfts)
+    return row
+
+
+def _median_int(values: list[int]) -> int:
+    ordered = sorted(values)
+    n = len(ordered)
+    if n % 2:
+        return ordered[n // 2]
+    return (ordered[n // 2 - 1] + ordered[n // 2]) // 2
+
+
+def _percentile_int(values: list[int], p: float) -> int:
+    """Nearest-rank percentile in the closed interval [min, max].
+
+    Not linear interpolation: with n=1 the p90 must be the single sample, not
+    itself; with n=10 the p90 is the 9th-ranked value. Interpolation would
+    produce fractional answers for token/millisecond quantities, which are
+    integers by construction.
+    """
+    ordered = sorted(values)
+    if not ordered:
+        return 0
+    k = max(0, min(len(ordered) - 1, round(p * (len(ordered) - 1))))
+    return ordered[k]
 
 
 def codex_argv(task, backend, worktree=None):
@@ -1072,15 +1409,15 @@ def codex_parse(stdout):
                 peak_input = max(peak_input or 0, usage["input_tokens"])
     if not exec_turns:
         raise json.JSONDecodeError("no turn.completed events", stdout[:200], 0)
-    return dict(
-        num_turns=None,
-        codex_exec_turns=exec_turns,
-        tool_items=tool_items,
-        input_tokens=peak_input,
-        output_tokens=out_tokens,
-        reasoning_tokens=reasoning,
-        codex_error_items=errors,
-    )
+    return {
+        "num_turns": None,
+        "codex_exec_turns": exec_turns,
+        "tool_items": tool_items,
+        "input_tokens": peak_input,
+        "output_tokens": out_tokens,
+        "reasoning_tokens": reasoning,
+        "codex_error_items": errors,
+    }
 
 
 CLIENTS = {
@@ -1091,22 +1428,125 @@ CLIENTS = {
 }
 
 
+def guarded_repo(repo):
+    """The checkout the tripwire watches.
+
+    #54: while stashed, the real checkout is parked at `stash_path(repo)` --
+    `legacy_stash_path(repo)` for markers written before 2026-09-04 -- and the
+    export stands at `repo`. The export is *supposed* to be modified -- that is
+    the trial -- so the tripwire has to watch the real one.
+    """
+    for real in (stash_path(repo), legacy_stash_path(repo)):
+        if real.exists():
+            return real
+    return repo
+
+
+def parked_checkout(repo):
+    """Where the real checkout is parked right now, or None if it is not parked.
+
+    Not the question guarded_repo() answers. With nothing parked that helper
+    returns `repo` itself, which serves a caller that wants "the un-excised
+    tree". one_trial needs the third state: nothing parked means build the
+    trial from `repo` into a fresh workdir, never from `repo` itself as the
+    source -- mid-batch that path is empty until the trial fills it (#54).
+    """
+    for real in (stash_path(repo), legacy_stash_path(repo)):
+        if real.exists():
+            return real
+    return None
+
+
 def source_repo_intact(repo, commit):
     """Is the source repository still clean and on the commit we started from?
 
     Cheap tripwire, recorded per trial. It cannot prevent an escape -- it
     detects one that already happened, which is what was missing when this
     went unnoticed for a whole run on 2026-08-17.
+
+    Read this with `source_repo_intact_before`. On its own it says the repo is
+    off-baseline; it does not say who moved it (2026-09-04: the owner of the
+    machine did his own development in the guarded checkout for 20 minutes,
+    and five trials read as escapes).
     """
+    return source_repo_state(repo, commit)[0]
+
+
+def source_repo_state(repo, commit):
+    """(intact, reason) -- and the reason is the whole point.
+
+    This used to collapse three different findings into one False: the tree is
+    dirty, HEAD moved, or the git command did not run at all. So a repository
+    that was merely BUSY -- a concurrent `git status` refreshing the index and
+    losing the lock -- was recorded identically to an agent writing to it.
+
+    On 2026-09-04 five trials tripped inside a window when the machine's owner
+    was committing in the guarded checkout, and two more tripped an hour later
+    with nothing to show for it. The logs cannot say which of the three
+    happened for any of the seven, because the instrument never wrote it down.
+    Whatever the cause turns out to be, not being able to tell is the defect to
+    fix first.
+
+    `reason` is None when the repository is intact.
+    """
+    # OSError as well as RuntimeError: a guarded checkout that is not there
+    # raises FileNotFoundError out of Popen's cwd, which the old `except
+    # RuntimeError` did not catch at all. That propagated out of the trial
+    # instead of being recorded -- the tripwire crashing the batch it exists
+    # to protect.
+    # --no-optional-locks so the tripwire does not WRITE to the repository it
+    # is auditing: a plain `git status` refreshes the index and writes it back.
+    # Hygiene, not a fix -- measured 2026-09-05, a held .git/index.lock does
+    # not make `git status --porcelain` fail, so lock contention is NOT the
+    # explanation for the seven unattributed trips that night. The cause is
+    # still unknown; source_repo_state's reason string is what will name it.
     try:
-        dirty = bool(git(["status", "--porcelain"], repo))
+        status = git(["--no-optional-locks", "status", "--porcelain"], repo)
+    except (RuntimeError, OSError) as exc:
+        return False, f"git status did not run: {exc}"
+    try:
         head = git(["rev-parse", "--short", "HEAD"], repo)
-    except RuntimeError:
-        return False
-    return not dirty and head.startswith(commit[: len(head)][:7])
+    except (RuntimeError, OSError) as exc:
+        return False, f"git rev-parse did not run: {exc}"
+    if status:
+        entries = status.splitlines()
+        shown = ", ".join(entries[:5])
+        if len(entries) > 5:
+            shown += f", and {len(entries) - 5} more"
+        return False, f"dirty ({len(entries)} path(s)): {shown}"
+    if not head.startswith(commit[: len(head)][:7]):
+        return False, f"HEAD is {head}, expected {commit[:7]}"
+    return True, None
 
 
 STASH_MARKER = pathlib.Path.home() / ".local-llm-bench-stash.json"
+
+# Where a real checkout is parked while its export stands in its place.
+#
+# It used to be `<name>-real`, a sibling of the export inside ~/git. That put
+# the guarded copy in the middle of the owner's working directory, under a name
+# that reads like an ordinary repository. On 2026-09-04 he did twenty minutes of
+# real development in `monitor-real` -- entirely reasonably, since ~/git/monitor
+# had been replaced by an excised export -- and five trials recorded it as the
+# agent escaping the sandbox. The export has to keep the guessable path (#54);
+# the real checkout does not, so it moves out of the way instead.
+STASH_ROOT = pathlib.Path.home() / ".local-llm-bench" / "stash"
+
+# Left in ~/git for the duration, so the owner of the machine can see that the
+# repositories next to it are benchmark exports rather than his own work. It
+# lives beside the exports, never inside one: a file inside would tell the agent
+# it is being benchmarked.
+STASH_NOTICE = pathlib.Path.home() / "git" / "BENCHMARK-RUN-IN-PROGRESS.md"
+
+
+def stash_path(repo: pathlib.Path) -> pathlib.Path:
+    """Where `repo`'s real checkout is parked during a run."""
+    return STASH_ROOT / repo.name
+
+
+def legacy_stash_path(repo: pathlib.Path) -> pathlib.Path:
+    """The pre-2026-09-04 location, still honoured so old markers restore."""
+    return repo.with_name(repo.name + "-real")
 
 
 def stash_targets(pairs):
@@ -1122,9 +1562,9 @@ def stash_targets(pairs):
     guesses now holds the export: the right files, already excised, with no
     `.git` history the original body was ever in.
 
-    The real checkout moves to `<name>-real` for the duration. A marker records
-    the move so a run killed mid-batch is recoverable -- `restore_targets()`
-    runs from preflight as well as from here.
+    The real checkout moves to `stash_path(repo)` for the duration. A marker
+    records the move so a run killed mid-batch is recoverable --
+    `restore_targets()` runs from preflight as well as from here.
 
     Returns [(export_path, source_path)] for the caller to materialise into.
     """
@@ -1136,34 +1576,228 @@ def stash_targets(pairs):
     moved = []
     for repo, _commit in pairs:
         repo = pathlib.Path(repo).expanduser()
-        real = repo.with_name(repo.name + "-real")
-        if real.exists():
+        real = stash_path(repo)
+        if real.exists() or legacy_stash_path(repo).exists():
             raise SystemExit(f"{real} already exists; refusing to overwrite it.")
-        repo.rename(real)
+        # Record the move BEFORE making it. The marker used to be written once,
+        # after every rename, which left a window where the repositories were
+        # moved and nothing on disk said so: a kill in that window produced
+        # stashed repos with no marker, so restore_targets() found nothing to
+        # restore and the only trace was the next run refusing to overwrite
+        # <name>-real. An error, not a recovery.
         moved.append({"export": str(repo), "real": str(real)})
-        logger.info("stashed %s -> %s", repo.name, real.name)
-    STASH_MARKER.write_text(json.dumps({"moved": moved, "pid": os.getpid()}, indent=1))
+        _write_marker(moved)
+        real.parent.mkdir(parents=True, exist_ok=True)
+        repo.rename(real)
+        logger.info("stashed %s -> %s", repo.name, real)
+    _write_notice(moved)
     return [(pathlib.Path(m["export"]), pathlib.Path(m["real"])) for m in moved]
 
 
+def _write_notice(moved: list[dict]) -> None:
+    """Tell the owner of the machine which directories are not his right now."""
+    lines = [
+        "# Benchmark run in progress",
+        "",
+        "The repositories listed below have been replaced by benchmark exports.",
+        "**Do not work in them.** An export is deliberately broken -- files are",
+        "excised for the agent to restore -- and anything you commit there is",
+        "discarded when the run ends.",
+        "",
+        "Your real checkout is parked at the path on the right and moves back",
+        "when the run finishes.",
+        "",
+        "| export (do not touch) | your checkout |",
+        "| --- | --- |",
+    ]
+    lines += [f"| `{m['export']}` | `{m['real']}` |" for m in moved]
+    lines += ["", f"Written by `benchmarks/agent/run.py`, pid {os.getpid()}."]
+    try:
+        STASH_NOTICE.write_text("\n".join(lines) + "\n")
+    except OSError:
+        logger.warning("could not write %s", STASH_NOTICE)
+
+
+def _write_marker(moved: list[dict]) -> None:
+    """Write the stash marker atomically, so a kill never truncates the map."""
+    payload = json.dumps({"moved": moved, "pid": os.getpid()}, indent=1)
+    tmp = STASH_MARKER.with_suffix(".tmp")
+    tmp.write_text(payload)
+    os.replace(tmp, STASH_MARKER)
+
+
+def _stash_owner_alive(pid: object) -> bool:
+    """Is the process that stashed these repositories still running?
+
+    Signal 0 checks for existence and never kills. A pid we cannot read is
+    treated as dead, because the marker predates the pid being recorded and
+    those stashes must stay recoverable.
+    """
+    if not isinstance(pid, int) or pid == os.getpid():
+        return False
+    try:
+        os.kill(pid, 0)
+    except (ProcessLookupError, ValueError):
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
 def restore_targets():
-    """Put the real repositories back. Safe to call when nothing is stashed."""
+    """Put the real repositories back. Safe to call when nothing is stashed.
+
+    **Refuses when a different, living process owns the stash.** This function
+    is destructive -- it `rmtree`s the export standing in the repository's
+    place -- and `preflight.py` calls it on every invocation. Running preflight
+    during a live batch therefore used to unstash the targets underneath the
+    running harness, which then destroyed the real checkout on its next trial
+    and left nothing on disk at all.
+
+    That is not hypothetical: it happened on 2026-09-04 at 21:07, mid-run,
+    from a preflight invocation whose only purpose was to read the run lock. It
+    cost the operator's `~/git/gmail-archive` checkout, recoverable only
+    because the harness had logged it pristine at a known commit seconds
+    earlier.
+
+    The marker records the stashing pid, so ownership is knowable. Restore
+    when the owner is dead -- the crash recovery this exists for -- or when the
+    owner is us, which is the `atexit` path. Never otherwise.
+    """
     if not STASH_MARKER.exists():
         return []
     state = json.loads(STASH_MARKER.read_text())
+    unrestored: list[dict] = []
+    owner = state.get("pid")
+    if _stash_owner_alive(owner):
+        logger.warning(
+            "%s is owned by live pid %s -- refusing to restore under a running "
+            "batch. Stop that run first; restoring here would destroy the real "
+            "checkout it is using.",
+            STASH_MARKER,
+            owner,
+        )
+        return []
     restored = []
     for m in state.get("moved", []):
         export, real = pathlib.Path(m["export"]), pathlib.Path(m["real"])
         if not real.exists():
             logger.error("%s is missing; cannot restore %s", real, export)
+            unrestored.append(m)
             continue
         if export.exists():
             shutil.rmtree(export, ignore_errors=True)
         real.rename(export)
         restored.append(export.name)
         logger.info("restored %s", export.name)
-    STASH_MARKER.unlink(missing_ok=True)
+    if unrestored:
+        # The marker is the only map back. Deleting it after a partial restore
+        # makes the entries that failed unrecoverable -- and a failed entry is
+        # exactly when the map matters. Keep the remainder instead.
+        _write_marker(unrestored)
+        _write_notice(unrestored)
+        logger.error(
+            "%d repository(ies) could not be restored; the marker keeps them "
+            "so a later run can try again",
+            len(unrestored),
+        )
+    else:
+        STASH_MARKER.unlink(missing_ok=True)
+        STASH_NOTICE.unlink(missing_ok=True)
     return restored
+
+
+# #146: the harness's own checkouts of the target repositories, cloned by
+# scripts/sync_sandbox_targets.py into this repo's gitignored sandbox/. A batch
+# with --targets sandbox builds every export from here and renames nothing in
+# ~/git.
+SANDBOX_ROOT = HERE.parent.parent / "sandbox"
+
+
+def sandbox_checkout(repo):
+    """The harness's own clone of this repo, or None when it is not synced.
+
+    Keyed by basename like stash_path(), mirroring a configured ~/git/<name>
+    at sandbox/<name>. A full clone carries history, so it is an un-excised
+    copy of the answer -- sandbox_profile denies it.
+    """
+    clone = SANDBOX_ROOT / pathlib.Path(repo).name
+    return clone if (clone / ".git").exists() else None
+
+
+def _sandbox_commit_ok(clone, commit):
+    """The clone's HEAD, after proving it is the pinned commit.
+
+    Raises SystemExit naming the sync script when it is not. Mid-run drift can
+    only come from a re-sync under a live batch; the message says to start
+    over rather than pool rows across the two states.
+    """
+    try:
+        pinned = git(["rev-parse", f"{commit}^{{commit}}"], clone)
+    except RuntimeError:
+        raise SystemExit(
+            f"{clone} does not carry the pinned commit {commit} -- run: "
+            "uv run python scripts/sync_sandbox_targets.py"
+        ) from None
+    head = git(["rev-parse", "HEAD"], clone)
+    if head != pinned:
+        raise SystemExit(
+            f"{clone} is at {head}, but its tasks pin {pinned}. Mid-run, that "
+            "means something re-synced under a live batch -- run: uv run "
+            "python scripts/sync_sandbox_targets.py, then start the batch "
+            "again. Rows from the two states cannot be pooled."
+        )
+    return head
+
+
+def ensure_sandbox_targets(pairs):
+    """Refuse to start unless every sandbox clone exists at its pinned commit.
+
+    The clone is the only source a sandbox-mode batch builds from, so a
+    missing one, or one sitting at any other commit, produces rows pinned to
+    nothing. Refuse with the command that fixes it. Never sync from here: a
+    batch that silently re-clones a target mid-flight is a batch whose rows
+    cannot be trusted, and the same rule holds at the start -- the operator
+    runs the sync script and sees its output.
+    """
+    for repo_str, commit in pairs:
+        repo = pathlib.Path(repo_str).expanduser()
+        clone = sandbox_checkout(repo)
+        if clone is None:
+            raise SystemExit(
+                f"sandbox checkout {SANDBOX_ROOT / repo.name} is missing for "
+                f"{repo} -- run: uv run python scripts/sync_sandbox_targets.py"
+            )
+        head = _sandbox_commit_ok(clone, commit)
+        logger.info("sandbox target ok: %s at %s", clone, head[:12])
+
+
+def setup_targets(pairs, layout):
+    """Put the source checkouts where the trials will build from them.
+
+    legacy (#54): prove each real checkout is clean and at its pinned commit,
+    park it under STASH_ROOT, and stand the export at the configured path --
+    the guess the model makes is SATISFIED with the excised tree.
+
+    sandbox (#146): prove each sandbox/<name> clone is at its pinned commit,
+    and never touch the operator's checkouts. No marker, no notice, no
+    restore -- there is nothing to restore, which is the point. Nothing stands
+    at the guessed path, so the profile denies it instead and the guess fails
+    closed. That is a behavior change the pass rate can see; measure it
+    before making sandbox the default.
+    """
+    if layout == "sandbox":
+        ensure_sandbox_targets(pairs)
+        return
+    for repo, commit in pairs:
+        ensure_pristine(repo, commit)
+
+    # #54: stand the export where the model expects the repo to be, so a
+    # guessed path reaches the excised tree instead of an intact one. The real
+    # checkouts move under STASH_ROOT until the batch ends.
+    restore_targets()  # in case a previous run died mid-batch
+    stash_targets(pairs)
+    atexit.register(restore_targets)
 
 
 def build_checkout(repo, commit, dest):
@@ -1192,6 +1826,52 @@ def build_checkout(repo, commit, dest):
         check=True,
     )
     subprocess.run(["tar", "-x", "-C", str(dest)], input=archive.stdout, check=True)
+
+
+def prepare_env(dest, timeout=600):
+    """Create the checkout's virtualenv before the agent sees it (#4).
+
+    METHODOLOGY section 9: a fresh export has no `.venv`, so part of every
+    wall-time number is the agent working out how to run pytest -- installing
+    dependencies, guessing at `python -m`, or discovering `uv` for itself.
+    That is real agent behavior, but it is not the thing being compared, and
+    it lands in the same number as solving the task.
+
+    Returns what happened, for the row. Never raises: a checkout whose env
+    cannot be built is still a runnable trial, and the agent may well sort it
+    out -- which is exactly the confound, so the row must say which state it
+    started in rather than the harness pretending it is uniform.
+
+    **This starts a new series.** Wall times taken with a prepared env are not
+    comparable with the 398 rows taken without one, and `env_prepared` on the
+    row is what tells them apart.
+    """
+    if not (dest / "pyproject.toml").exists():
+        return {"env_prepared": False, "env_reason": "no pyproject.toml"}
+    try:
+        got = subprocess.run(
+            ["uv", "sync", "--frozen"],
+            cwd=dest,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            stdin=subprocess.DEVNULL,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        return {"env_prepared": False, "env_reason": str(exc)[:120]}
+    if got.returncode != 0:
+        # --frozen refuses when the lockfile is stale. Say so rather than
+        # silently falling back to a resolve, which would install different
+        # versions than the lockfile pins and quietly change the environment
+        # under the comparison.
+        return {
+            "env_prepared": False,
+            "env_reason": (got.stderr or got.stdout).strip().splitlines()[-1][:160]
+            if (got.stderr or got.stdout).strip()
+            else f"uv sync exited {got.returncode}",
+        }
+    return {"env_prepared": True, "env_reason": "uv sync --frozen"}
 
 
 # Where the clients themselves live. A client naming its own binary in stdout
@@ -1343,10 +2023,25 @@ def sandbox_profile(worktree, repo):
         # able to run.
         repo_path,
         # The stashed real checkout keeps full history, so `git show
-        # <commit>:path` there would hand over the original body. Deny it too.
-        repo_path.with_name(repo_path.name + "-real"),
+        # <commit>:path` there would hand over the original body. Deny every
+        # place it is parked: STASH_ROOT holds the current layout's copy for
+        # every task repo at once, the -real siblings the pre-2026-09-04 one.
+        STASH_ROOT,
+        legacy_stash_path(repo_path),
         home / "git/gmail-archive-real",
         home / "git/monitor-real",
+        # The notice says a benchmark is running; the marker lists where the
+        # real checkouts sit. `(allow default)` leaves both readable, and the
+        # notice's own rule -- never inside an export -- does not help when the
+        # agent can read the file where it lives.
+        STASH_MARKER,
+        STASH_NOTICE,
+        # #146: the harness's own clones of the target repos, detached at the
+        # pinned commit with full history -- another un-excised copy of the
+        # answer, parked inside the one tree that must stay readable
+        # (~/git/local-llm, see above). Denying the subdirectory is safe: the
+        # cwd OpenCode lstats is benchmarks/agent, not sandbox/.
+        SANDBOX_ROOT,
     ]
     for path in candidates:
         path = str(path)
@@ -1377,7 +2072,7 @@ def sandbox_profile(worktree, repo):
 
 def sandboxed(argv, worktree, repo, tmpdir):
     """Wrap an agent invocation in the sandbox. Returns argv unchanged if the
-    platform has no sandbox-exec, so this degrades to today's behaviour rather
+    platform has no sandbox-exec, so this degrades to today's behavior rather
     than silently not running."""
     if not pathlib.Path("/usr/bin/sandbox-exec").exists():
         logger.warning("no sandbox-exec on this platform; agent runs unconfined")
@@ -1404,11 +2099,47 @@ def save_transcript(
     client_log.mkdir(parents=True, exist_ok=True)
     suffix = ".partial" if partial else ""
     out = client_log / f"{name}.stdout{suffix}.jsonl"
-    out.write_text(stdout or "")
+    body = stdout or ""
+    # #112: never overwrite a transcript. The trial name repeats across
+    # sweeps, so a second sweep into the same --client-log directory used to
+    # destroy the first one's evidence in silence. That is how #112's
+    # pre-remedy transcripts were lost: the before-side of the only question
+    # that issue asks is gone and cannot be reconstructed, because the six
+    # later sweeps wrote these exact filenames.
+    #
+    # Identical bytes are not new evidence, so a re-write of the same content
+    # is a no-op rather than a pile of numbered duplicates.
+    collision = False
+    if out.exists() and out.read_text() != body:
+        collision = True
+        index = 2
+        while True:
+            candidate = client_log / f"{name}.stdout{suffix}.{index}.jsonl"
+            if not candidate.exists():
+                out = candidate
+                break
+            if candidate.read_text() == body:
+                out = candidate
+                break
+            index += 1
+        logger.warning(
+            "%s already holds a different transcript for %s; writing %s "
+            "instead. Two sweeps are sharing one --client-log directory, and "
+            "the earlier evidence is being kept (#112).",
+            client_log,
+            name,
+            out.name,
+        )
+    out.write_text(body)
     if stderr:
-        (client_log / f"{name}.stderr{suffix}.log").write_text(stderr)
+        stderr_path = client_log / f"{name}.stderr{suffix}.log"
+        if collision:
+            stderr_path = client_log / f"{out.stem}.log"
+        stderr_path.write_text(stderr)
     result["client_log"] = str(out)
     result["client_log_partial"] = partial
+    if collision:
+        result["client_log_collision"] = True
     # #54: record when the agent worked outside the trial checkout. A row that
     # measured the wrong tree is not a model verdict and must not be counted
     # as one.
@@ -1453,6 +2184,432 @@ def targets(task):
     return [{"file": task["file"], "symbol": task["symbol"]}]
 
 
+def trial_order(backends, trial):
+    """The backends for one trial, in the order they should run (#130).
+
+    Throughput declines across a measurement window, so a fixed order
+    penalises whichever backend always runs last. @adamlawi measured that
+    bias on antirez/ds4#952 as larger than three of the four effects being
+    compared -- at one frontier the sign of the result depended only on which
+    arm loaded first.
+
+    Odd trials run in order, even trials reversed, so the drift divides
+    between the arms instead of landing on one. With an odd number of trials
+    the split is uneven -- 2 of 3 in the first position -- which is better
+    than 3 of 3 and is why the count is worth recording on the row rather
+    than assumed to cancel.
+    """
+    ordered = list(backends.items())
+    if trial % 2 == 0:
+        ordered.reverse()
+    return ordered
+
+
+# How each engine is told to emit draft counters. Two different mechanisms,
+# and for ds4 two spellings of the same one: `--mtp-timing` on the server's
+# own command line is what scripts/restart_between_trials_armB.sh uses, while
+# DS4_MTP_TIMING is the environment form. Checking only the environment would
+# have refused the one script in this repo that actually runs the arm.
+COUNTER_SWITCHES = {
+    "ds4": {"env": "DS4_MTP_TIMING", "argv": "--mtp-timing"},
+    "mtplx": {"env": "MTPLX_DECODE_TRACE_JSONL", "argv": "--decode-trace-jsonl"},
+}
+
+
+class DraftProbe:
+    """Per-trial MTP draft acceptance, read from whichever engine is serving.
+
+    #148. The flag being passed is not evidence the draft head ran. Two
+    backends can answer, by different mechanisms and different conventions:
+
+      ds4    DS4_MTP_TIMING=1 -> per-cycle stderr lines. `committed` includes
+             the first token, verified for free, so mtp_timing subtracts it.
+      mtplx  MTPLX_DECODE_TRACE_JSONL=<path> -> JSONL. Its exported counter
+             already excludes that token, so mtplx_trace subtracts nothing.
+
+    One reader for both would be wrong for one of them, so the probe holds a
+    reader rather than parsing anything itself, and the row records WHICH
+    mechanism produced the number -- a reader must not have to infer it from
+    the backend name.
+
+    Constructed at the end of the current file, so a server's startup chatter,
+    an earlier sweep on the same path, and the smoke gate's own generation are
+    never credited to trial 1.
+    """
+
+    SOURCES: ClassVar[dict] = {
+        "ds4": ("ds4-mtp-timing", mtp_timing),
+        "mtplx": ("mtplx-decode-trace", mtplx_trace),
+    }
+
+    # Which env var turns each engine's counters on. The operator knows
+    # whether it was set; the log cannot say, because "counters off" and
+    # "engine never entered the speculative path" both emit nothing. That
+    # ambiguity produced a misleading warning on the first real #148 run.
+    #
+    # `counters_requested` below stays a claim about intent, read from this
+    # process's environment. The binding check is `counters_on()`, which also
+    # reads the server's own argv -- see COUNTER_SWITCHES. Kept as one dict so
+    # the two cannot name different variables.
+    SWITCHES: ClassVar[dict] = {
+        engine: switch["env"] for engine, switch in COUNTER_SWITCHES.items()
+    }
+
+    def __init__(self, path, engine="ds4"):
+        if path and engine not in self.SOURCES:
+            raise ValueError(
+                f"unknown draft-log engine {engine!r}; expected one of "
+                f"{sorted(self.SOURCES)}"
+            )
+        self.source, self.reader = self.SOURCES.get(engine, (None, None))
+        self.path = pathlib.Path(path).expanduser() if path else None
+        self.offset = self.reader.read_since(self.path).offset if self.path else 0
+        switch = self.SWITCHES.get(engine)
+        # Read from the server's environment as this process sees it. It is a
+        # claim about the operator's intent, not proof about the server, and
+        # the field name says so.
+        self.counters_requested = bool(switch and os.environ.get(switch))
+
+    def sample(self):
+        """Counters produced since the last sample. None when not enabled."""
+        if not self.path:
+            return None
+        before = self.offset
+        reading = self.reader.read_since(self.path, self.offset)
+        self.offset = reading.offset
+        # #148: how much log this trial's counters were read from. A trial that
+        # generated hundreds of tokens and consumed zero bytes is a broken
+        # probe, not a quiet engine, and the two were indistinguishable in the
+        # warning below until this line existed.
+        logger.debug(
+            "draft probe: read %d bytes (%d -> %d) from %s",
+            self.offset - before,
+            before,
+            self.offset,
+            self.path,
+        )
+        return reading.counters
+
+
+def speculative_backends(backends):
+    """The selected backends that declare a speculative-decoding treatment.
+
+    **Declared, not inferred from the name.** `qwen38fnds4mtp7shim` says MTP in
+    its name and `qwen38fnds4shim` differs from it by four characters; an arm
+    carrying a treatment has to be identifiable without parsing English, or the
+    assertion below is one rename away from silently not applying.
+    """
+    return sorted(name for name, b in backends.items() if b.get("speculative"))
+
+
+def counters_on(engine, ps_text=None):
+    """Are the engine's draft counters actually switched on?
+
+    Read from the **server's own command line** where possible, not only from
+    this process's environment. `DraftProbe.counters_requested` is documented
+    as a claim about the operator's intent rather than proof about the server,
+    and for an assertion that decides whether a run may start, the server is
+    the thing worth observing.
+    """
+    switch = COUNTER_SWITCHES.get(engine)
+    if switch is None:
+        return False
+    if os.environ.get(switch["env"]):
+        return True
+    text = (
+        ps_text
+        if ps_text is not None
+        else preflight._capture(["ps", "-eo", "pid,rss,etime,command"])
+    )
+    return any(switch["argv"] in proc.command for proc in preflight.parse_ps(text))
+
+
+def speculative_preconditions(backends, server_log, ps_text=None, clients=()):
+    """Why this run cannot assert its MTP arm, or None if it can.
+
+    #148 recorded draft acceptance per trial and #151 is the reason that is not
+    enough on its own: **an arm that drafted nothing and an arm whose counters
+    were switched off look identical.** The engine emits no lines in either
+    case, so a silent MTP arm proves nothing and the warning it produced said
+    as much.
+
+    The way out is to require the counters up front. With the switch verified
+    on and a log to read, silence afterwards has exactly one meaning -- the
+    engine never entered the speculative path -- and the refusal in one_trial
+    becomes a statement about the treatment rather than about the logging.
+    """
+    declared = speculative_backends(backends)
+    if not declared:
+        return None
+    for name in declared:
+        engine = backends[name].get("draft_engine", "ds4")
+        switch = COUNTER_SWITCHES.get(engine)
+        if switch is None:
+            return (
+                f"{name} declares speculative={backends[name]['speculative']!r} "
+                f"with draft_engine={engine!r}, which has no counter mechanism. "
+                f"Known: {sorted(COUNTER_SWITCHES)}"
+            )
+        if not counters_on(engine, ps_text):
+            return (
+                f"{name} is a speculative arm and its draft counters are off "
+                f"({switch['env']} unset and no {switch['argv']} on the running "
+                f"server), so acceptance cannot be measured. An arm that drafted "
+                f"nothing and an arm with its counters off are indistinguishable "
+                f"(#148, #151) -- switch them on, or drop the arm."
+            )
+        if not server_log:
+            return (
+                f"{name} is a speculative arm with {switch} set, but no "
+                f"--server-log to read the counters from. The engine is "
+                f"emitting them and nothing is listening."
+            )
+        if (why := greedy_precondition(name, backends[name], clients)) is not None:
+            return why
+    return None
+
+
+def greedy_precondition(name, backend, clients=()):
+    """Why this MTP arm cannot draft at the client's sampler, or None.
+
+    #151, measured 2026-09-08: ds4 reaches its Qwen MTP path only at
+    `temperature <= 0.0f` (`ds4.c:80120 at ds4-metal ba01f5d`); above zero a
+    Qwen session is neither GLM nor DSpark, so the speculative call does one
+    plain eval and returns (`ds4.c:80216 at ds4-metal ba01f5d`). A request
+    omitting the field gets `DS4_DEFAULT_TEMPERATURE`, `1.0f`
+    (`ds4.h:56 at ds4-metal ba01f5d`).
+
+    OpenCode sends no temperature unless its config sets one, so 119 MTP rows
+    were taken on arms that never speculated. The post-trial gate in
+    `one_trial` does catch it, but only after a full trial and only by saying
+    the engine emitted nothing -- which is the same message a dozen other
+    causes would produce. This says it before the run, and names the cause.
+
+    Silent on anything it cannot read. A missing OpenCode config is "cannot
+    tell", and refusing a run on that would be worse than the hole.
+    """
+    if backend.get("draft_engine", "ds4") != "ds4":
+        return None
+    # A backend can declare that its own shim instance pins the temperature
+    # (`SHIM_TEMPERATURE`), which is the only way to get one past a client
+    # whose config says the model takes none. This is a DECLARATION, not
+    # proof: the proof is the post-trial counter gate, which refuses an arm
+    # that emitted no speculative cycle whatever anyone declared.
+    declared = backend.get("pinned_temperature")
+    if declared is not None:
+        if declared <= 0:
+            return None
+        return (
+            f"{name} is a speculative arm declaring pinned_temperature="
+            f"{declared}, which is above zero. ds4 enters its Qwen MTP path "
+            f"only at temperature <= 0 (ds4.c:80120 at ds4-metal ba01f5d), so "
+            f"this arm would carry an MTP label and no MTP (#151)."
+        )
+    if "opencode" not in clients:
+        return None
+    model = backend.get("opencode_model")
+    if not model:
+        return None
+    options = opencode_config.sampling_for(model)
+    if options is None:
+        return None
+    temperature = options.get("temperature")
+    if temperature is not None and temperature <= 0:
+        return None
+    at = "no temperature" if temperature is None else f"temperature={temperature}"
+    return (
+        f"{name} is a speculative arm, but OpenCode is configured to send "
+        f"{at} for {model}. ds4 enters its Qwen MTP path only at "
+        f"temperature <= 0 (ds4.c:80120 at ds4-metal ba01f5d); above it the "
+        f"speculative call does one plain eval and returns, so this arm would "
+        f"carry an MTP label and no MTP (#151). Editing OpenCode's config "
+        f"would change the sampler for every backend sharing that model; run "
+        f"a second shim with SHIM_TEMPERATURE=0 and use a backend declaring "
+        f"pinned_temperature instead -- qwen38fnds4mtp7greedy is that arm. "
+        f"Note that pinning changes the regime, so a greedy MTP arm needs a "
+        f"greedy control beside it (qwen38fnds4greedy)."
+    )
+
+
+def tensor_gate(backends):
+    """Why this run's llama.cpp would prefill on the wrong units, or None.
+
+    #78: ggml-org/llama.cpp#27461 shipped a build where the Metal tensor API
+    failed on **every** M5 -- compiled against a Metal language version that
+    did not expose its headers, `has_tensor` cleared during device init, and
+    prefill quietly running matmuls on general-purpose ALUs instead of the
+    M5's Neural Accelerators. No error, no failed test; one warning line at
+    startup. We build with GGML_METAL_EMBED_LIBRARY=ON and so were unaffected
+    -- a build flag, not a law, and #27461 also added a guard that clears
+    `has_tensor` when the library comes from a pre-compiled metallib.
+
+    Preflight has logged that line for weeks, and #149 already wrote the
+    lesson: a log line nobody reads as a warning is not a gate.
+
+    `False` -- the binary ran and said the tensor API is off -- refuses.
+    `None` -- no llama.cpp binary, no Metal, or a probe that failed -- must
+    not: a run on Ollama or ds4 has no stake in llama.cpp's kernels, and a
+    gate that fires on a working configuration gets switched off under time
+    pressure (#148's rule).
+    """
+    if not any(
+        (b.get("base_url") or "").endswith((":8020", ":11500"))
+        for b in backends.values()
+    ):
+        return None
+    if preflight.metal_tensor_api() is False:
+        return (
+            "llama.cpp's Metal tensor API is off, so prefill will run on "
+            "general-purpose ALUs instead of the M5's Neural Accelerators "
+            "(#78). The failure is silent -- one warning at device init, no "
+            "error, no failed test (llama.cpp#27461) -- and a build-flag "
+            "change is all it takes. Rebuild with GGML_METAL_EMBED_LIBRARY=ON "
+            "and confirm `llama-bench --list-devices` reports "
+            "`has tensor = true`."
+        )
+    return None
+
+
+def require_draft_default(backends):
+    """Assert draft acceptance by default whenever an arm declares it.
+
+    #148 shipped this refusal behind an opt-in flag, and an assertion nobody
+    remembers to turn on is documentation rather than a gate. It is what the
+    arm is for; the escape hatch is --no-require-draft.
+    """
+    return bool(speculative_backends(backends))
+
+
+def route_query_port(backend):
+    """Which port to ask `ds4_route` about for this backend (#211).
+
+    `base_url` is what the client talks to; behind a shim that is the shim.
+    `engine_url` names the engine itself when one is fronted. Neither is
+    guessed from the other: a backend that declares no `engine_url` is asked
+    about its `base_url`, and if that is a shim the answer is `unrecorded` --
+    which is the true answer, not a gap to be filled in.
+    """
+    declared = backend.get("engine_url")
+    return urlparse(declared or backend.get("base_url") or "").port
+
+
+def draft_fields(counters, source=None, counters_requested=None, counters_on=None):
+    """Row fields for one trial's draft accounting.
+
+    `used` is the assertion; the raw counts are kept so a later reader can
+    recompute it without trusting this code, and `source` names the mechanism
+    so a ds4 count is never silently compared against an mtplx one.
+    """
+    if counters is None:
+        return None
+    fields = {
+        "source": source,
+        # #210: two different questions that looked like one. This is the
+        # operator's intent, read from an environment variable; `counters_on`
+        # below is read from the server's own command line. A server started
+        # with the `--mtp-timing` flag rather than the env var records
+        # `counters_requested: false` while its counters are demonstrably on,
+        # which is the ambiguity #148 set out to remove.
+        "counters_requested": counters_requested,
+        "counters_on": counters_on,
+        "accepted": counters.accepted,
+        "accept_rate": counters.accept_rate,
+        "used": counters.used,
+    }
+    # The two readers expose different denominators by nature: ds4 counts
+    # speculative cycles, mtplx counts trace records and requests. Record
+    # whichever the reader actually has rather than inventing a shared shape.
+    #
+    # #210: `bypassed` and `drafting_share` are the reason this list grew.
+    # A bypassed cycle proposes nothing and accepts nothing, so it cancels out
+    # of `accept_rate` entirely -- that rate has always described only the
+    # cycles that drafted, and is silent about how few there were. Two arms
+    # can report the same rate and differ threefold in how much of the decode
+    # was speculative at all. The reader has computed the split since #148;
+    # until now the row discarded it.
+    for name in (
+        "cycles",
+        "proposed",
+        "spec_misses",
+        "records",
+        "requests",
+        "drafted",
+        "bypassed",
+        "drafting",
+        "drafting_share",
+    ):
+        if (value := getattr(counters, name, None)) is None:
+            continue
+        # ds4 exposes `cycles` as the cycles themselves; the row wants how
+        # many. Storing the objects would make the field unserialisable and,
+        # worse, silently untrue as a count.
+        fields[name] = len(value) if isinstance(value, (list, tuple)) else value
+    return fields
+
+
+#: What one trial's counters say about whether the treatment was applied.
+#: Separated from `one_trial` so the judgement can be tested without running a
+#: coding agent -- the gate it feeds refuses a whole run, and an untested
+#: refusal is the kind that fires on the wrong thing at 3am.
+DRAFT_VERDICTS = (
+    "no-counters",
+    "silent",
+    "not-used",
+    "bypassed",
+    "partial",
+    "ok",
+)
+
+
+def draft_verdict(counters, counters_on=None):
+    """Judge one trial's draft counters. Returns one of `DRAFT_VERDICTS`.
+
+    The order matters, because the cases overlap and the strongest claim wins:
+
+    `no-counters` -- the engine emitted nothing **and** we cannot show its
+    counters were on. Ambiguous by nature: an engine that never enters the
+    speculative path is indistinguishable from counters that were switched
+    off, which is why this warns rather than refuses.
+
+    `silent` -- the engine emitted nothing while its counters were **proven
+    on** (#210). That is not ambiguous, and it is the case that slipped
+    through on 2026-09-07: six agent trials on an MTP arm produced no
+    speculative cycle at all, on a server whose argv carried `--mtp-timing`
+    and which had written 340 cycles minutes earlier. `counters_on` answers
+    this from the server's own command line and is already computed before a
+    run starts, so the harness knew and the verdict did not ask.
+
+    `not-used` -- it did speculative work and accepted nothing (#148).
+
+    `bypassed` -- it accepted tokens but drafted in **zero** cycles (#210).
+    ds4's scheduler measures MTP against plain decode and switches it off when
+    it loses, so a head can do all its accepting during warmup and serve every
+    measured request plainly. `used` alone cannot see this: the arm looks
+    healthy and decoded without a draft head.
+
+    `partial` -- it drafted in some cycles and not others. Not a failure, and
+    not a clean treatment either: `accept_rate` is then the average of two
+    populations and must not be read as one strength.
+    """
+    if counters is None:
+        return "silent" if counters_on else "no-counters"
+    saw_work = getattr(counters, "cycles", None) or getattr(counters, "records", 0)
+    if not saw_work:
+        # Proven on and still nothing: the engine did not speculate. Only
+        # without that proof is silence ambiguous.
+        return "silent" if counters_on else "no-counters"
+    if not counters.used:
+        return "not-used"
+    # None means the reader has no notion of cycles (mtplx counts trace
+    # records), not that the share was zero. Absent and zero differ.
+    share = getattr(counters, "drafting_share", None)
+    if share is None:
+        return "ok"
+    if share == 0:
+        return "bypassed"
+    return "partial" if share < 1 else "ok"
+
+
 def one_trial(
     cfg,
     task,
@@ -1468,24 +2625,54 @@ def one_trial(
     solutions=None,
     gates=True,
     sandbox=True,
+    run_position=None,
+    run_arms=None,
+    prepare_env_first=True,
+    target_layout="legacy",
+    draft_probe=None,
+    require_draft=False,
+    batch=None,
 ):
     target = task_target(cfg, task)
     repo = pathlib.Path(target["repo"]).expanduser()
     suffix = "" if client == "claude" else f"-{client}"
     name = f"{task['name']}-{backend_name}{suffix}-{trial}"
-    # #54: while the real checkout is stashed at <name>-real, the export stands
-    # in its place, so the path a model guesses holds the excised tree. Trials
-    # are serial, so one export at a time is fine.
-    stashed_source = repo.with_name(repo.name + "-real")
     is_script = task.get("kind") == "script"
-    # A script task starts from an empty directory: no repo, so no export, no
-    # stash, no excision and nothing to leak. It never stands in the guessed
-    # path, because there is no answer anywhere on disk to find.
-    worktree = (
-        workdir / name
-        if is_script
-        else (repo if stashed_source.exists() else workdir / name)
-    )
+    # Where the trial builds from, and where the agent works.
+    #
+    # legacy (#54): the real checkout is parked -- STASH_ROOT, or the legacy
+    # <name>-real sibling -- and the export stands at the path the model
+    # guesses, so the guess is SATISFIED with the excised tree. The worktree
+    # is that path; the source differs from it only while parked.
+    #
+    # sandbox (#146): nothing is renamed and nothing stands at the guessed
+    # path. The export builds from the harness's own sandbox/<name> clone into
+    # the workdir, and the profile DENIES the configured path -- the guess
+    # fails closed. The stash machinery is not used at all.
+    if target_layout == "sandbox":
+        source = sandbox_checkout(repo)
+        if source is None and not is_script:
+            raise SystemExit(
+                f"sandbox checkout {SANDBOX_ROOT / repo.name} is missing for "
+                f"{repo} -- run: uv run python scripts/sync_sandbox_targets.py"
+            )
+        if source is not None:
+            # Per-trial, not only at setup: a re-sync under a live batch moves
+            # the clone, and building from both states would pool rows that
+            # were never measuring the same thing.
+            _sandbox_commit_ok(source, target["base_commit"])
+        worktree = workdir / name
+    else:
+        stashed_source = parked_checkout(repo)
+        source = stashed_source or repo
+        # A script task starts from an empty directory: no repo, so no export,
+        # no stash, no excision and nothing to leak. It never stands in the
+        # guessed path, because there is no answer anywhere on disk to find.
+        worktree = (
+            workdir / name
+            if is_script
+            else (repo if stashed_source else workdir / name)
+        )
     # results.new_row is the only place a row is shaped. It stamps the schema
     # version and sets both exclusion keys explicitly -- see results.py for why
     # "absent" must never be allowed to mean "not excluded".
@@ -1498,6 +2685,10 @@ def one_trial(
         context_tokens=backend["context_tokens"],
         effort=backend.get("effort"),
         env=versions or {},
+        run_position=run_position,
+        run_arms=run_arms,
+        target_layout=target_layout,
+        batch=batch,
     )
 
     # A previous run killed mid-flight leaves its directory behind. Clear it so
@@ -1518,14 +2709,19 @@ def one_trial(
         result["removed_lines"] = 0
         result["removed_symbols"] = []
     else:
-        # The export is materialised FROM the stashed real checkout, INTO the
-        # path the model guesses. `source` differs from `repo` only while
-        # stashed.
+        # The export is materialised FROM the source checkout, INTO the
+        # worktree: the parked real checkout at the guessed path (legacy), or
+        # the sandbox clone into the workdir (#146).
         build_checkout(
-            stashed_source if stashed_source.exists() else repo,
+            source,
             target["base_commit"],
             worktree,
         )
+        # #4: build the env before the agent sees it, so wall time measures
+        # the task and not the discovery of how to run pytest. Recorded on the
+        # row because it starts a new series.
+        if prepare_env_first:
+            result.update(prepare_env(worktree))
     try:
         if not is_script:
             # 1. Hollow out the target, then make it the repository's only commit.
@@ -1560,8 +2756,11 @@ def one_trial(
             )
 
             # 2. Control: the tests must fail now, or the task proves nothing.
-            ok, summary = tests_pass(
-                worktree, task["tests"], timeout, target["test_command"]
+            # A memcap kill here would mean the control check itself hit the cap,
+            # which is a different failure mode than a memkill on the trial's
+            # oracle and is left for a separate fix.
+            ok, summary, _control_killed = tests_pass(
+                worktree, task["tests"], ORACLE_TIMEOUT, target["test_command"]
             )
             result["control_fails_as_expected"] = not ok
             # Baseline the quality gates here, on the excised tree. gmail-archive
@@ -1615,6 +2814,22 @@ def one_trial(
         )
         if denied:
             result["sandbox_denied"] = denied
+        # Sample the tripwire BEFORE the agent runs. Without a before-reading
+        # the after-reading cannot tell an escape from a checkout that was
+        # already off-baseline, and the harness blames the agent either way.
+        intact_before, why_before = source_repo_state(
+            guarded_repo(repo), target["base_commit"]
+        )
+        result["source_repo_intact_before"] = intact_before
+        if not intact_before:
+            result["source_repo_reason_before"] = why_before
+            logger.error(
+                "%s: guarded checkout %s is ALREADY off-baseline before the agent "
+                "runs -- %s. Environment fault, not an escape; this trial is void",
+                name,
+                guarded_repo(repo),
+                why_before,
+            )
         proc = run(
             argv,
             cwd=worktree,
@@ -1642,9 +2857,17 @@ def one_trial(
                 worktree, task["entrypoint"], task["checks"], GATE_TIMEOUT
             )
         else:
-            passed, summary = tests_pass(
+            passed, summary, oracle_killed = tests_pass(
                 worktree, task["tests"], ORACLE_TIMEOUT, target["test_command"]
             )
+            if oracle_killed:
+                # #82 item 4. Do not count a memkill as a model failure --
+                # the code may be correct, and it is certainly not runnable
+                # by this oracle. results.usable() drops the row on this flag,
+                # so it never enters a pass rate.
+                result["oracle_killed"] = True
+                result["excluded"] = True
+                result["exclusion_reason"] = summary
         result["passed"] = passed
         result["pytest"] = summary
         # #82: the number that would have caught a 49 GB oracle run before the
@@ -1677,18 +2900,34 @@ def one_trial(
         if not is_script:
             result["restored_verbatim"] = grade.all_restored_verbatim(excised, keep_doc)
         result["target_repo"] = target["repo"]
-        # #54: while stashed, the real checkout is at <name>-real and the
-        # export stands at `repo`. The tripwire has to watch the real one --
-        # the export is *supposed* to be modified, that is the trial.
-        # #54: while stashed, the real checkout is at <name>-real and the
-        # export stands at `repo`. The tripwire has to watch the real one --
-        # the export is *supposed* to be modified; that is the trial.
-        guarded = repo.with_name(repo.name + "-real")
-        result["source_repo_intact"] = source_repo_intact(
-            guarded if guarded.exists() else repo, target["base_commit"]
-        )
-        if not result["source_repo_intact"]:
-            logger.error("%s: SOURCE REPO WAS MODIFIED -- agent left the sandbox", name)
+        guarded = guarded_repo(repo)
+        intact, why = source_repo_state(guarded, target["base_commit"])
+        result["source_repo_intact"] = intact
+        if not intact:
+            result["source_repo_reason"] = why
+            if result.get("source_repo_intact_before") is False:
+                # It was already off-baseline when the trial started. Somebody
+                # else is working in that checkout. Void the row; do not
+                # attribute it to the agent, and do not count it as a failure.
+                result["excluded"] = True
+                result["exclusion_reason"] = (
+                    f"guarded checkout {guarded} was off-baseline before the "
+                    "trial started; modified outside the harness"
+                )
+                logger.error(
+                    "%s: guarded checkout was modified OUTSIDE the harness (%s) "
+                    "-- row voided, not scored against the agent",
+                    name,
+                    why,
+                )
+            else:
+                logger.error(
+                    "%s: guarded checkout %s went off-baseline DURING the trial "
+                    "(clean before) -- %s. The agent may have left the sandbox.",
+                    name,
+                    guarded,
+                    why,
+                )
         logger.info(
             "%s: %s in %ss (%s)",
             name,
@@ -1720,6 +2959,87 @@ def one_trial(
         if solutions and not dry_run and worktree.exists():
             result.update(grade.save_solution(solutions, name, worktree))
         shutil.rmtree(worktree, ignore_errors=True)
+    # #148: what the draft head actually did during THIS trial. None when no
+    # server log was given, which is not the same as zero -- see mtp_timing.
+    if (counters := draft_probe.sample() if draft_probe else None) is not None:
+        # Read from the server's argv, not from this process's environment.
+        proven_on = counters_on(backend.get("draft_engine", "ds4"))
+        result["draft"] = draft_fields(
+            counters,
+            draft_probe.source,
+            draft_probe.counters_requested,
+            proven_on,
+        )
+        verdict = draft_verdict(counters, proven_on)
+        if verdict == "bypassed":
+            logger.error(
+                "%s: MTP accepted %d tokens but drafted in 0 of %d cycles "
+                "(%s) -- the head worked before the run, not during it",
+                name,
+                counters.accepted,
+                len(counters.cycles),
+                draft_probe.source,
+            )
+            if require_draft:
+                raise SystemExit(
+                    f"{name}: refusing to continue -- every speculative cycle "
+                    f"bypassed the draft head, so this arm decoded plainly "
+                    f"under an MTP label (#210). Re-run without "
+                    f"--require-draft only if you are deliberately measuring "
+                    f"a bypassed arm."
+                )
+        elif verdict == "not-used":
+            logger.error(
+                "%s: MTP drafted and accepted NOTHING (%s) -- the flag was "
+                "passed but the treatment was not applied",
+                name,
+                draft_probe.source,
+            )
+            if require_draft:
+                raise SystemExit(
+                    f"{name}: refusing to continue -- the MTP arm accepted no "
+                    f"draft tokens, so its rows measure something other than "
+                    f"what they claim (#148). Re-run without --require-draft "
+                    f"only if you are deliberately measuring a broken arm."
+                )
+        elif verdict == "partial":
+            logger.warning(
+                "%s: MTP drafted in %d of %d cycles (%.0f%%); accept_rate "
+                "%.3f describes only the cycles that drafted and is silent "
+                "about how few there were (#210)",
+                name,
+                counters.drafting,
+                len(counters.cycles),
+                counters.drafting_share * 100,
+                counters.accept_rate,
+            )
+        elif verdict == "silent":
+            logger.error(
+                "%s: MTP emitted NOT ONE speculative cycle while its counters "
+                "were proven on from the server's argv (%s) -- this arm did "
+                "not speculate at all",
+                name,
+                draft_probe.source,
+            )
+            if require_draft:
+                raise SystemExit(
+                    f"{name}: refusing to continue -- the engine's draft "
+                    f"counters are on and it emitted no speculative cycle, so "
+                    f"this arm carries an MTP label and no MTP (#210). On ds4 "
+                    f"this is what tool-bearing requests do (#151). Re-run "
+                    f"without --require-draft to measure it deliberately."
+                )
+        elif verdict == "no-counters":
+            logger.warning(
+                "%s: no draft counters this trial (%s). Cause is NOT resolved "
+                "by this: an engine that never enters the speculative path "
+                "emits nothing, exactly as switched-off counters do. "
+                "counters_requested=%s",
+                name,
+                draft_probe.source,
+                draft_probe.counters_requested,
+            )
+
     return result
 
 
@@ -1784,11 +3104,33 @@ def main():
         "server than the other.",
     )
     p.add_argument(
+        "--allow-contended",
+        action="store_true",
+        help="do not refuse when another model server is resident, or when "
+        "the selected backends span more than one engine. A model test runs "
+        "at empty; use this only for a deliberate diagnostic whose timings "
+        "will not be published.",
+    )
+    p.add_argument(
         "--allow-implausible",
         action="store_true",
         help="do not halt when a cell collapses against this backend's record "
         "under another client. Use only when deliberately measuring a setup "
         "known to be broken (#55).",
+    )
+    p.add_argument(
+        "--no-prepare-env",
+        action="store_true",
+        help="do not run `uv sync` in the checkout before the agent sees it "
+        "(#4). Leaves the empty-virtualenv confound in the wall time, which is "
+        "how every row before this was taken.",
+    )
+    p.add_argument(
+        "--no-lock",
+        action="store_true",
+        help="do not claim the machine for this batch (#133). Only when you "
+        "know nothing else will measure -- the lock exists because a process "
+        "scan cannot see a batch that is between trials with its server down.",
     )
     p.add_argument(
         "--results",
@@ -1807,6 +3149,47 @@ def main():
         "it assumes a shared machine, so mixing breaks them silently.",
     )
     p.add_argument(
+        "--server-log",
+        default=None,
+        help="the inference server's log (its stderr). With it, each row records "
+        "what the MTP draft head actually did during that trial -- #148. ds4 "
+        "prints drafted/committed per speculative cycle when the server runs "
+        "under DS4_MTP_TIMING=1; the env var is preferred over --mtp-timing "
+        "because it leaves the server command line, and so the arm's launch "
+        "config, byte-identical to the rows already taken. Without this flag "
+        "the field is absent, which is NOT the same as zero accepted. For "
+        "mtplx pass the MTPLX_DECODE_TRACE_JSONL path here and set "
+        "--draft-log-engine mtplx.",
+    )
+    p.add_argument(
+        "--draft-log-engine",
+        choices=["ds4", "mtplx"],
+        default="ds4",
+        help="which engine wrote --server-log. The two count differently -- "
+        "ds4's `committed` includes a first token verified for free and mtplx's "
+        "exported counter already excludes it -- so the wrong choice silently "
+        "shifts every acceptance figure by one token per cycle.",
+    )
+    p.add_argument(
+        "--require-draft",
+        action="store_true",
+        help="refuse the run if a trial produced draft cycles and accepted "
+        "nothing (#148). Cycles-but-zero-accepted means the MTP flag was "
+        "passed and the treatment was not applied, which makes every row in "
+        "the arm a measurement of something other than what it claims. A trial "
+        "with NO counters at all does not trip this -- that is the counters "
+        "being off, a different fault with a different fix.",
+    )
+    p.add_argument(
+        "--no-require-draft",
+        action="store_true",
+        help="do not refuse when a declared speculative arm drafts and accepts "
+        "nothing (#148, #151). The refusal is ON by default for any backend "
+        "declaring `speculative` in tasks.toml, because an assertion nobody "
+        "remembers to switch on is documentation rather than a gate. Use this "
+        "only when deliberately measuring an arm known to be broken.",
+    )
+    p.add_argument(
         "--skip-smoke",
         action="store_true",
         help="skip the pre-batch coding gate (#63). The gate makes each backend "
@@ -1814,7 +3197,74 @@ def main():
         "that is answering in a degraded mode -- the failure preflight cannot see. "
         "Skip it only when you are deliberately measuring a broken backend.",
     )
+    p.add_argument(
+        "--allow-unverified-route",
+        action="store_true",
+        help="start a ds4 run whose Metal kernel route has not been checked "
+        "against the reference kernels (#149). The check is "
+        "`scripts/check_metal_equivalence.py`; it takes minutes and its answer "
+        "is cached per build, so this flag is for the case where you know the "
+        "route is unverified and want the rows anyway -- they will say so.",
+    )
+    p.add_argument(
+        "--allow-unstamped",
+        action="store_true",
+        help="start a run although a backend answers no identity probe (#78). "
+        "The run refuses by default because a row that cannot name the engine "
+        "that served it must not be published; this flag is for the case where "
+        "you know the gap is there and want the rows anyway -- they will carry "
+        "`servers_unidentified` and say so.",
+    )
+    p.add_argument(
+        "--targets",
+        choices=("legacy", "sandbox"),
+        default="legacy",
+        help="where the trial checkouts come from. legacy (#54): the "
+        "operator's checkout is parked aside and the export stands at the "
+        "path the model guesses. sandbox (#146): the export builds from this "
+        "repo's sandbox/<name> clones (sync with scripts/"
+        "sync_sandbox_targets.py first), nothing in ~/git is renamed, and the "
+        "guessed path is denied at the sandbox profile. Sandbox changes what "
+        "the agent sees when it guesses -- measure before making it default.",
+    )
+    p.add_argument(
+        "--require-harness-head",
+        metavar="SHA",
+        help="refuse to start unless the harness is at this commit and its "
+        "code is clean. A comparative run must not span harness versions: on "
+        "2026-09-04 four sweeps of one A/B recorded four different "
+        "harness_head values, because the harness was being committed to from "
+        "the same checkout the batch ran from. The two arms of sweep 1 were "
+        "not running the same code, which voids the comparison on its own.",
+    )
+    p.add_argument(
+        "--batch",
+        default=None,
+        help="the batch id (e.g. 0906-1716) to stamp on every row, so a "
+        "read-out can select one batch exactly instead of approximating "
+        "'the rows from this run' by time (#175).",
+    )
     args = p.parse_args()
+
+    if args.require_harness_head:
+        want = args.require_harness_head
+        got = git(["rev-parse", "--short", "HEAD"], HERE)
+        if not got.startswith(want[: len(got)]) and not want.startswith(got):
+            raise SystemExit(
+                f"harness is at {got}, but this run requires {want}. The "
+                f"comparison it belongs to started on {want}; finish or "
+                f"abandon that run before moving the harness."
+            )
+        # Tracked changes only: a run writes its output directory inside the
+        # tree, so an untracked-sensitive check would refuse every repetition
+        # after the first -- the pin would break exactly the multi-run
+        # comparisons it exists to protect.
+        if provenance.code_is_dirty(HERE, untracked=False):
+            raise SystemExit(
+                f"harness is at {got} with uncommitted code. A comparative "
+                f"run pinned to a commit cannot be reproduced from one, and "
+                f"the rows would name a tree that exists nowhere."
+            )
 
     provenance.configure()
     cfg = tomllib.loads(pathlib.Path(args.tasks_file).read_text())
@@ -1852,43 +3302,60 @@ def main():
     # Every repo any selected task uses -- not just the file-level default.
     # A second target repo that is dirty, or missing its pinned commit, must
     # stop the run for the same reason the first one does.
-    targets = {}
-    for t in tasks:
-        got = task_target(cfg, t)
-        targets[(got["repo"], got["base_commit"])] = got
-    for (repo_str, commit), got in targets.items():
-        repo = pathlib.Path(repo_str).expanduser()
-        dirty_t = run(["git", "status", "--porcelain"], cwd=repo).stdout.strip()
-        if dirty_t:
+    #
+    # All of that reads the OPERATOR's checkouts, so it is legacy-only. Under
+    # #146 their state is not the run's business; the sandbox clones are
+    # validated instead, before the smoke gate spends a minute on a batch that
+    # cannot start.
+    pairs = sorted(
+        {
+            (task_target(cfg, t)["repo"], task_target(cfg, t)["base_commit"])
+            for t in tasks
+        }
+    )
+    if args.targets == "sandbox":
+        logger.info("target layout: sandbox (#146) -- ~/git is never renamed")
+        ensure_sandbox_targets(pairs)
+    else:
+        targets = {}
+        for t in tasks:
+            got = task_target(cfg, t)
+            targets[(got["repo"], got["base_commit"])] = got
+        for (repo_str, commit), got in targets.items():
+            repo = pathlib.Path(repo_str).expanduser()
+            dirty_t = run(["git", "status", "--porcelain"], cwd=repo).stdout.strip()
+            if dirty_t:
+                raise SystemExit(
+                    f"reference repo {repo} is dirty -- refusing to run.\n{dirty_t}\n"
+                    "Commit, stash or discard these changes first. A benchmark that "
+                    "starts from an unknown state measures nothing."
+                )
+            if (
+                run(
+                    ["git", "cat-file", "-e", f"{commit}^{{commit}}"], cwd=repo
+                ).returncode
+                != 0
+            ):
+                raise SystemExit(f"base_commit {commit} not found in {repo}")
+            logger.info("target ok: %s @ %s via %r", repo, commit, got["test_command"])
+
+        repo = pathlib.Path(cfg["repo"]).expanduser()
+        dirty = run(["git", "status", "--porcelain"], cwd=repo).stdout.strip()
+        if dirty:
             raise SystemExit(
-                f"reference repo {repo} is dirty -- refusing to run.\n{dirty_t}\n"
+                f"reference repo {repo} is dirty -- refusing to run.\n"
+                f"{dirty}\n"
                 "Commit, stash or discard these changes first. A benchmark that "
                 "starts from an unknown state measures nothing."
             )
         if (
-            run(["git", "cat-file", "-e", f"{commit}^{{commit}}"], cwd=repo).returncode
+            run(
+                ["git", "cat-file", "-e", f"{cfg['base_commit']}^{{commit}}"], cwd=repo
+            ).returncode
             != 0
         ):
-            raise SystemExit(f"base_commit {commit} not found in {repo}")
-        logger.info("target ok: %s @ %s via %r", repo, commit, got["test_command"])
-
-    repo = pathlib.Path(cfg["repo"]).expanduser()
-    dirty = run(["git", "status", "--porcelain"], cwd=repo).stdout.strip()
-    if dirty:
-        raise SystemExit(
-            f"reference repo {repo} is dirty -- refusing to run.\n"
-            f"{dirty}\n"
-            "Commit, stash or discard these changes first. A benchmark that "
-            "starts from an unknown state measures nothing."
-        )
-    if (
-        run(
-            ["git", "cat-file", "-e", f"{cfg['base_commit']}^{{commit}}"], cwd=repo
-        ).returncode
-        != 0
-    ):
-        raise SystemExit(f"base_commit {cfg['base_commit']} not found in {repo}")
-    logger.info("reference repo clean, base_commit %s present", cfg["base_commit"])
+            raise SystemExit(f"base_commit {cfg['base_commit']} not found in {repo}")
+        logger.info("reference repo clean, base_commit %s present", cfg["base_commit"])
 
     workdir = pathlib.Path(os.environ.get("TMPDIR", "/tmp")) / "agent-bench"
     workdir.mkdir(parents=True, exist_ok=True)
@@ -1905,8 +3372,74 @@ def main():
     # What else is on this machine, and what is it holding? A server left up
     # from an earlier session contends for memory and bandwidth for the whole
     # batch, and the result is a timing measurement of a machine that was busy
-    # doing something else. Advisory: it warns and never refuses.
-    preflight.log_report(preflight.inspect(backends))
+    # doing something else.
+    _report = preflight.inspect(backends)
+    preflight.log_report(_report)
+
+    # A model test runs at empty -- a gate since 2026-09-07, not a log line.
+    #
+    # This used to warn and never refuse, and the warning was not enough twice
+    # over. It named a foreign server holding memory, which an operator can
+    # act on; it said nothing at all about a run whose OWN plan needed two
+    # models resident at once, because both of their ports were expected and
+    # so neither server looked stale. `refuse_unless_empty` checks both.
+    _not_empty = preflight.refuse_unless_empty(_report, backends)
+    if _not_empty and not args.allow_contended:
+        # SystemExit, not `return 1`: main() is called bare at the bottom of
+        # this file, so a returned code is discarded and the process exits 0.
+        # A refusal that reports success is worse than no refusal -- drive
+        # scripts test `rc -eq 0` and would log a refused sweep as done.
+        raise SystemExit(_not_empty)
+    if _not_empty:
+        logger.warning("%s (proceeding: --allow-contended)", _not_empty)
+
+    # #149: a gate, not a log line.
+    #
+    # ds4's fast Metal 4 tensor route enables itself on M5, flips tokens on
+    # long prompts, and served all four ds4 arms -- while the test that answers
+    # whether it agrees with the reference kernels,
+    # `ds4_test --metal-tensor-equivalence`, had never been run by anything.
+    # Preflight logging "Metal tensor API is on" for weeks is what a log line
+    # buys: nobody read it as a warning.
+    #
+    # Only applies when a ds4-server is actually up. A run on llama.cpp or
+    # Ollama has no stake in ds4's kernels and must not be blocked by them.
+    if preflight.ds4_server_running():
+        route_state, route_summary = preflight.ds4_equivalence_state()
+        if route_state == "fail":
+            raise SystemExit(
+                "REFUSING: ds4's Metal tensor route fails its own equivalence "
+                f"test ({route_summary}). Rows would record different tokens "
+                "than the reference kernels produce. Re-check with "
+                "`uv run python scripts/check_metal_equivalence.py --force`, "
+                "or serve the reference route with scripts/ds4-vanilla.sh (#149)"
+            )
+        if route_state == "unsupported":
+            # ds4_test cannot load this model at all -- it takes DS4_TEST_MODEL
+            # and no PLE sidecar, and Qwen3.8-Flash-Next needs one. Refusing
+            # here would block the model we run most often behind a check that
+            # cannot pass, and the flag to bypass it would become permanent.
+            logger.warning(
+                "ds4's Metal route cannot be checked for this model: ds4_test "
+                "has no --ple option, so the equivalence fixtures will not "
+                "load it. Rows will record metal_route but nothing asserts the "
+                "route's output for these weights (#149)"
+            )
+        elif route_state != "pass" and not args.allow_unverified_route:
+            raise SystemExit(
+                f"REFUSING: ds4's Metal tensor route is unverified ({route_state}). "
+                "Run `uv run python scripts/check_metal_equivalence.py` -- it "
+                "takes minutes and caches its answer per build -- or pass "
+                "--allow-unverified-route to measure anyway and accept that no "
+                "row will be able to say the route was checked (#149)"
+            )
+
+    # #78: the llama.cpp twin of the ds4 gate above. Same failure shape, same
+    # fix: the tensor API's being off is silent, so nothing but a refusal says
+    # it. Runs before the smoke gate because it needs no model resident --
+    # llama-bench --list-devices is the whole probe.
+    if (why := tensor_gate(backends)) is not None:
+        raise SystemExit(f"REFUSING: {why}")
 
     # #63: preflight proves the machine is ready; this proves the *model* is.
     # A backend can be up, current, and pristine while answering in a degraded
@@ -1921,6 +3454,32 @@ def main():
     else:
         logger.warning("smoke gate skipped (--skip-smoke): rows are not trustworthy")
 
+    # #148/#151: an MTP arm that cannot be asserted must not run at all.
+    #
+    # Per-trial counters were already recorded. What made them non-binding is
+    # that a silent arm has two explanations -- the engine never drafted, or
+    # the counters were off -- and the harness could not tell them apart. It is
+    # cheaper to remove the ambiguity here than to interpret it afterwards:
+    # with the switch verified on and a log to read, silence later means the
+    # treatment was not applied, full stop.
+    if (
+        why := speculative_preconditions(backends, args.server_log, clients=clients)
+    ) is not None:
+        raise SystemExit(f"REFUSING: {why}")
+
+    # #148. Constructed AFTER the smoke gate, so the gate's own generation --
+    # a real load that does draft -- is not credited to trial 1. No flag means
+    # the field is absent from the row, which a reader must not treat as zero
+    # accepted: see mtp_timing, where those two states are kept apart.
+    draft_probe = DraftProbe(args.server_log, args.draft_log_engine)
+    if args.server_log:
+        logger.info(
+            "recording MTP draft acceptance per row from %s (%s), starting at byte %d",
+            args.server_log,
+            draft_probe.source,
+            draft_probe.offset,
+        )
+
     # The smoke gate is what makes the model resident, so the served context is
     # only observable from here. `context_tokens` is written into every row, and
     # until 2026-09-02 nothing checked it against what the server loaded: a 9B
@@ -1929,28 +3488,34 @@ def main():
     for gap in preflight.check_served_context(backends):
         raise SystemExit(f"served context is smaller than declared -- {gap}")
 
-    versions = capture_versions(cfg, backends)
+    # #133: claim the machine before the first trial. A batch runs for hours
+    # and the restart-between-trials protocol leaves windows with no server
+    # up, where a process scan truthfully reports "all clear". Released in the
+    # finally below; pid liveness is what covers a SIGKILL, not this.
+    if not args.no_lock:
+        taken, why = preflight.acquire_lock(
+            f"run.py {len(tasks)} tasks x {args.trials} trials on "
+            f"{','.join(sorted(backends))}"
+        )
+        if not taken:
+            raise SystemExit(why)
+        logger.info("%s", why)
+        # atexit rather than try/finally: the plausibility gate (#55) raises
+        # SystemExit from inside the trial loop, and atexit covers that, a
+        # clean finish and an unhandled exception alike without wrapping the
+        # whole loop. It does NOT cover SIGKILL -- nothing does, which is why
+        # pid liveness and not this is what makes a stale lock recoverable.
+        atexit.register(lambda: logger.info("%s", preflight.release_lock()[1]))
+
+    versions = capture_versions(cfg, backends, allow_unstamped=args.allow_unstamped)
     versions["client"] = ",".join(clients)
 
     # #54: every target at a known commit that exists upstream, with no strays,
     # before a single trial runs. A benchmark that starts from an unknown state
     # measures nothing -- and an agent has already damaged a checkout it was
-    # never pointed at.
-    pairs = sorted(
-        {
-            (task_target(cfg, t)["repo"], task_target(cfg, t)["base_commit"])
-            for t in tasks
-        }
-    )
-    for repo, commit in pairs:
-        ensure_pristine(repo, commit)
-
-    # #54: stand the export where the model expects the repo to be, so a
-    # guessed path reaches the excised tree instead of an intact one. The real
-    # checkouts move to <name>-real until the batch ends.
-    restore_targets()  # in case a previous run died mid-batch
-    stash_targets(pairs)
-    atexit.register(restore_targets)
+    # never pointed at. #146: or prove the sandbox clones instead, and leave
+    # the operator's checkouts alone.
+    setup_targets(pairs, args.targets)
 
     logger.info(
         "%d task(s) x %d backend(s) x %d client(s) x %d trial(s)",
@@ -1982,8 +3547,16 @@ def main():
     history = [r for r in results.trials(args.results) if not results.is_excluded(r)]
     cell: dict[tuple[str, str], list[dict]] = {}
     for trial in range(1, args.trials + 1):
+        # #130: alternate which backend runs first. Throughput declines across
+        # a measurement window, so a fixed order penalises whichever backend
+        # always runs last. @adamlawi measured that bias on antirez/ds4#952 as
+        # larger than three of the four effects being compared. Odd trials run
+        # the backends in order, even trials reversed, so the drift divides
+        # between them instead of landing on one. The client loop stays
+        # innermost for the reason below.
+        ordered = trial_order(backends, trial)
         for task in tasks:
-            for bname, backend in backends.items():
+            for position, (bname, backend) in enumerate(ordered, start=1):
                 # Clients innermost: the same task runs back to back on each,
                 # so server state drifts across the pair rather than between
                 # two runs hours apart.
@@ -2002,6 +3575,17 @@ def main():
                         client_log=client_log,
                         solutions=solutions,
                         gates=not args.no_gates,
+                        run_position=position,
+                        run_arms=len(ordered),
+                        prepare_env_first=not args.no_prepare_env,
+                        target_layout=args.targets,
+                        draft_probe=draft_probe,
+                        require_draft=(
+                            args.require_draft
+                            if args.require_draft or args.no_require_draft
+                            else require_draft_default(backends)
+                        ),
+                        batch=args.batch,
                     )
                     # Inside the client loop. Outside it, only the last
                     # client's row survives and half the run vanishes.
@@ -2009,7 +3593,7 @@ def main():
                     # and appends. A row that violates the schema is still
                     # written -- a trial costs up to half an hour and losing one
                     # to a schema bug is worse than storing a flagged row.
-                    r["finished"] = time.strftime("%Y-%m-%dT%H:%M:%S")
+                    r["finished"] = results.now()
                     results.write_row(r, args.results)
 
                     # #55: let the batch disbelieve itself. A widely-used

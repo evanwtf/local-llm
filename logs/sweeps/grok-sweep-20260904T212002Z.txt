@@ -1,0 +1,143 @@
+# grok sweep
+# requested window: last 24 hours
+# written:  2026-09-04T21:20:02Z  (local: 2026-09-04 17:20:02 EDT)
+# query:    Search X for posts and replies from @antirez, @ivanfioravanti, @ddalcu, @Youssofal_, @jundotkim, @Raullen, @rapidmlx, @sudoingX, @redp314, @TheDavidTai, @Spangler3000, @adamlawi, @trueimage about local LLM inference on Apple Silicon in the last 24 hours. For each item give the exact post URL and the UTC timestamp. Prioritise: Metal or MLX kernels, prefill or prefix caching, quantization recipes, MTP or speculative decoding, engines installable on a Mac, models that fit in 128 GB, and agent-client behaviour. Skip CUDA-only and vision work.
+
+I'll start with this repo's X-sweep rules, then search those accounts for Apple Silicon local-inference posts from the last 24 hours.I'll search those accounts for the last 24 hours, then verify every URL before I report it.The grouped search missed several accounts and hit the 10-post cap. I'll search the rest individually and pull the relevant threads.I'll pull the remaining high-volume accounts, confirm the quiet ones, and fetch the threads that look load-bearing.I'll look up the two unknown handles in this repo, then fetch the load-bearing threads and older posts from the busy accounts.I have the busy accounts. Next I’ll pull the remaining threads, confirm the quiet handles, and verify every URL before I report it.I’ll fetch the remaining load-bearing threads, then verify every URL against the source.Window: **2026-09-03 21:22 UTC → 2026-09-04 21:22 UTC**. Every URL below was checked with `scripts/verify_posts.py` (48/48 confirmed). These are leads, not our measurements. Decode tok/s is not agent wall time.
+
+## What bears on this machine
+
+Three things moved in the last day:
+
+1. **MTPLX V2.11 shipped** — compiled Metal verify kernel for Qwen Flash Next, plus a 27B flash-decoding attention kernel. Ivan is using it on a plane to merge two Qwen 3.8 Flash kernels into DwarfStar.
+2. **Ivan posted a Q4_K imatrix Qwen 3.8 Flash Next build for ds4**, measured on **M5 Max and M3 Ultra**, with PLE still all in RAM. He says it should fit 64 GB; he has not tested that.
+3. **antirez posted Q2 / Q4 / mixed-quant integrity numbers** for DeepSeek v4 Flash and GLM 5.3 Flash on DwarfStar. He says Q2 loses very little, and the DeepSeek arm is **MXFP4**.
+
+---
+
+### @Youssofal_ — MTPLX V2.11 (Metal kernels, MTP, TTFT)
+
+| UTC | kind | URL |
+|---|---|---|
+| 2026-09-04 11:25:11Z | post | https://x.com/Youssofal_/status/2095835561441583387 |
+
+Claims: Qwen Flash Next draft-verify now one compiled GPU kernel with fused K/V gather and routing — **+29% TPS at 16k, +28% at 100k, +37% at 206k** (credit @TheDavidTai). New 27B flash-decoding attention kernel on the tensor unit: **88k decode 20.47 → 30.85 TPS (+51%)**. Also TTFT and post-tool-turn speed. Install: https://mtplx.com.
+
+| UTC | kind | URL | note |
+|---|---|---|---|
+| 2026-09-04 11:33:30Z | reply | https://x.com/Youssofal_/status/2095837654017528225 | “Try it now here: https://mtplx.com” |
+| 2026-09-04 11:34:03Z | reply | https://x.com/Youssofal_/status/2095837791792009397 | Graphic is **max perceived**; tweet numbers are **average** |
+| 2026-09-04 11:53:06Z | reply | https://x.com/Youssofal_/status/2095842588297412617 | No model-dir setting yet. Symlink `~/.mtplx/models` onto an external volume |
+| 2026-09-04 12:28:18Z | post | https://x.com/Youssofal_/status/2095851446545858996 | Quote of Ivan’s plane kernel-merge |
+| 2026-09-04 12:41:17Z | reply | https://x.com/Youssofal_/status/2095854711635366084 | Claims Qwen 3.8 27B matches Opus 4.6 on agentic tasks; “Qwen next flash crushes it” |
+| 2026-09-04 21:21:59Z | reply | https://x.com/Youssofal_/status/2095985754212290987 | M3 Max user saw no speedup. Reply: should apply to everyone; try **MTP depths 1, 2, 3** |
+
+---
+
+### @ivanfioravanti — ds4 Qwen 3.8 Flash Next on M5 Max (quant, kernels, 64 GB)
+
+| UTC | kind | URL |
+|---|---|---|
+| 2026-09-04 11:15:32Z | post | https://x.com/ivanfioravanti/status/2095833132217893052 |
+
+Qwen 3.8 Next Flash in DwarfStar: @kernelpool kernel is faster, **but PLE are all in memory**. Q4_0 routed experts faster, less accurate; he will re-upload Q4_K imatrix. Claims it **will run on a 64 GB machine, quality TBD**. KernelPool branch: https://github.com/kernelpool/ds4/tree/qwen4-exp
+
+| UTC | kind | URL | note |
+|---|---|---|---|
+| 2026-09-04 11:56:28Z | post | https://x.com/ivanfioravanti/status/2095843433394962455 | Will use **MTPLX v2.11 on a plane** to merge two Qwen 3.8 Flash kernels on DwarfStar |
+| 2026-09-04 13:59:51Z | reply | https://x.com/ivanfioravanti/status/2095874485467348995 | **Q4_K imatrix routed experts on M5 Max and M3 Ultra.** Merge: https://github.com/ivanfioravanti/ds4-metal/tree/qwen3.8-flash-next — HF: https://huggingface.co/ivanfioravanti/Qwen3.8-Flash-Next-DS4-Q4 |
+| 2026-09-04 12:52:21Z | reply | https://x.com/ivanfioravanti/status/2095857500364951778 | “DwarfStar is on GGUF style. MLX is catching up” on complex quants |
+| 2026-09-04 17:28:44Z | reply | https://x.com/ivanfioravanti/status/2095927051152670784 | Config `model_type` is **`qwen4_exp`** |
+| 2026-09-03 22:18:12Z | reply | https://x.com/ivanfioravanti/status/2095637511049502902 | Asks if antirez DeepSeek arm is MXFP4 |
+| 2026-09-03 22:17:44Z | reply | https://x.com/ivanfioravanti/status/2095637394015813810 | Bets Qwen 3.8 Flash Next scores lower than those ds4 evals |
+| 2026-09-04 11:16:07Z | reply | https://x.com/ivanfioravanti/status/2095833280075403527 | “QSA is really working, at least on speed” |
+| 2026-09-04 11:28:27Z | reply | https://x.com/ivanfioravanti/status/2095836385651433522 | 64 GB as future entry-level |
+| 2026-09-04 07:32:42Z | reply | https://x.com/ivanfioravanti/status/2095777055740703155 | Cheers ANE wide-accumulator work (@anemll) |
+
+On ddalcu’s 64 GB question he said he had not tested, but is confident it fits: https://x.com/ivanfioravanti/status/2095879574898810882 (2026-09-04 14:20:04Z).
+
+---
+
+### @antirez — Q2/Q4/mixed integrity on DwarfStar
+
+| UTC | kind | URL |
+|---|---|---|
+| 2026-09-03 22:11:08Z | post | https://x.com/antirez/status/2095635731536367841 |
+
+Chart of DeepSeek v4 Flash and GLM 5.3 Flash at Q2, Q4, and mixed quants. Hard-ish cybersecurity / math / QA set.
+
+| UTC | kind | URL | note |
+|---|---|---|---|
+| 2026-09-03 22:19:37Z | reply | https://x.com/antirez/status/2095637866852368566 | DeepSeek arm is **MXFP4** |
+| 2026-09-03 22:41:41Z | reply | https://x.com/antirez/status/2095643423298490684 | 12 benchmarks from 100+, the hard ones, because of hardware time |
+| 2026-09-04 09:18:39Z | reply | https://x.com/antirez/status/2095803721305248247 | Goal is **inference and quantization integrity of DwarfStar**, not the model. “Q2 loses very little” |
+
+Skipped his Astra / Artificial Analysis thread (not local inference).
+
+---
+
+### @ddalcu — mlx-serve vs uzu, RHT, 64 GB targeting
+
+| UTC | kind | URL | note |
+|---|---|---|---|
+| 2026-09-03 23:40:14Z | reply | https://x.com/ddalcu/status/2095658157309641136 | Loaded uzu’s model pack into mlx-serve. `npx llmprobe` on **M4 Max 128 GB**. Charts attached; he says look at **total time, last line** |
+| 2026-09-03 23:54:52Z | reply | https://x.com/ddalcu/status/2095661840306938198 | Added **RHT to mlx-serve**. Next: combine uzu speculation with his serial path. “Well above 100 tok/s is achieve-able on M4Max” |
+| 2026-09-04 00:48:17Z | reply | https://x.com/ddalcu/status/2095675282787041445 | Unsure Hadamard vs affine. Also AWQ / DWQ / iMatrix. Custom kernels may miss future ASICs |
+| 2026-09-04 11:26:37Z | reply | https://x.com/ddalcu/status/2095835924974219397 | Target 24/32/48/64 GB. Rank: LFM 2.5 > Qwen 9B/Gemma 12B > Gemma 26 > Qwen 27 > Qwen next > DS4F > GLM |
+| 2026-09-04 14:18:25Z | reply | https://x.com/ddalcu/status/2095879159239123449 | Asks if Ivan’s Q4_K fits 64 GB at 4-8 mixed quality |
+| 2026-09-04 18:07:03Z | reply | https://x.com/ddalcu/status/2095936696277668267 | No Mac cloud he can rent for Yukon’s 10× M5 Max 128 GB ask |
+
+---
+
+### @TheDavidTai — MLX Fast 2.5×, tree spec vs MTP, prefill
+
+| UTC | kind | URL | note |
+|---|---|---|---|
+| 2026-09-04 12:12:25Z | post | https://x.com/TheDavidTai/status/2095847448107438300 | **2.5× on yukon.org/mlxfast** (chart). Ivan: “Incredible result!” |
+| 2026-09-03 22:53:28Z | post | https://x.com/TheDavidTai/status/2095646386553586050 | Will try a modular quant-format engine for **Qwen 3.8 Flash Next prefill** |
+| 2026-09-04 14:07:31Z | post | https://x.com/TheDavidTai/status/2095876413220122846 | uzu drafts a **tree**, not a linear MTP chain / DFlash batch / DSpark. Expensive; needs spare compute |
+| 2026-09-04 13:05:16Z | reply | https://x.com/TheDavidTai/status/2095860749516345419 | “tree drafting is very expensive with mtp and pretty much never worth it” |
+| 2026-09-04 13:18:47Z | reply | https://x.com/TheDavidTai/status/2095864149880471685 | Tree validation needs excess compute — more Spark than Mac (bandwidth vs compute) |
+| 2026-09-04 16:22:32Z | post | https://x.com/TheDavidTai/status/2095910392862330947 | Wants hosted frontier as a **2–3× multiplier on local tokens**, not a token cap |
+| 2026-09-04 17:00:24Z | reply | https://x.com/TheDavidTai/status/2095919921427628238 | Verifier was a bottleneck on **Qwen 3.8 125B** |
+| 2026-09-04 17:21:28Z | post | https://x.com/TheDavidTai/status/2095925223019471323 | Yukon wants **10× M5 Max 128 GB** bare metal with native MLX, sudo, fan control, temps |
+
+---
+
+### @Spangler3000
+
+| UTC | kind | URL | note |
+|---|---|---|---|
+| 2026-09-04 12:44:03Z | reply | https://x.com/Spangler3000/status/2095855408070238562 | Sub-4-bit (and 1-bit) still holds quality on these large models |
+| 2026-09-04 14:04:01Z | reply | https://x.com/Spangler3000/status/2095875533175210055 | Will test Ivan’s ds4-metal merge when he has time |
+| 2026-09-04 17:39:35Z | reply | https://x.com/Spangler3000/status/2095929781498020185 | Sold his **M5 Max 128 GB**; **M5 Ultra 256** incoming |
+
+No Metal-kernel posts from him in this window.
+
+---
+
+### @rapidmlx / @Raullen
+
+| UTC | kind | URL | note |
+|---|---|---|---|
+| 2026-09-04 17:38:12Z | post | https://x.com/rapidmlx/status/2095929433400172963 | 4B, 18 GB M3 Pro, local live tool calls (video). Fits far under 128 GB |
+
+@Raullen only quote-posted that as “Happy Friday” (https://x.com/Raullen/status/2095929903132844257, 2026-09-04 17:40:04Z).
+
+**Just outside the window** (2026-09-03 04:57:13Z, ~40 h ago): Rapid-MLX **0.13.4** — auto MTP + continuous speculative batching, 14–31% concurrent throughput, Qwen3.8-27B single-request decode **1.43× at 128 tokens, 2.34× at 32k**. https://x.com/rapidmlx/status/2095375539452481537
+
+---
+
+### Quiet or CUDA-only
+
+| handle | in window |
+|---|---|
+| **@jundotkim** | No posts or replies |
+| **@adamlawi** | No X posts. His Q4-vs-Q8 work is on GitHub (`antirez/ds4#952`), not X |
+| **@trueimage** | No matching Apple-Silicon account in this window. The X handle `@trueimage` is an unrelated 2010 account. His Metal GLM work is on GitHub (`antirez/ds4#964`) |
+| **@sudoingX** | Active, but **DGX Spark / CUDA**. Skipped. (He did point at Unsloth’s Qwen3.8-Flash-Next GGUF with MTP heads — portable as a file, not as a Mac result.) |
+| **@redp314** | Active, but **DGX Spark / CUDA** (130 tok/s Qwen3.8-27B, 98.5% prefix-cache hit on an agent session). Skipped as CUDA-only |
+
+---
+
+**Highest-priority follow-ups on this box:** install MTPLX 2.11 and check whether the compiled verify lane and 27B attention kernel move our Qwen 3.8 numbers; try Ivan’s Q4_K imatrix ds4 build (`qwen4_exp`) with a restart between trials; treat antirez’s Q2-loses-little claim as a quant-integrity lead, not a pass-rate result.

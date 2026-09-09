@@ -1,0 +1,7 @@
+{
+  "prompt_file": "promessi_sposi.txt",
+  "prompt_bytes": 1329139,
+  "prompt_sha256": "f53e0d80cb2d4492d24ebd63c7000c397b16ae70f9bf09b3763e5d8323ec209f",
+  "inferred": true,
+  "why": "inferred, not recorded by the run: scripts/decode_ab.sh has had one PROMPT default since 91ca9ff, this run's start-state.txt harness line carries no PROMPT= override, and the file is byte-identical in every ds4 tree on this machine (sha256 f53e0d80cb2d4492...)"
+}

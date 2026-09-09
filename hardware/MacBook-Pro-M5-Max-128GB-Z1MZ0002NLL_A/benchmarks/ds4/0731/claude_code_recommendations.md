@@ -126,11 +126,11 @@ byte-identical to the installed `~/bin/claude-ds4`. Run `claude-ds4` instead of
 Two settings in it are easy to miss:
 
 - `CLAUDE_CODE_MAX_CONTEXT_TOKENS=100000` must match the server's `--ctx`.
-  Claude Code assumes 200k for a model it does not recognise, so without this
+  Claude Code assumes 200k for a model it does not recognize, so without this
   auto-compact fires *after* the server has already truncated. Change both
   numbers together.
 - `ANTHROPIC_DEFAULT_OPUS_MODEL` and `..._HAIKU_MODEL` are set alongside
-  `..._SONNET_MODEL`, so background and summarisation calls do not try to reach
+  `..._SONNET_MODEL`, so background and summarization calls do not try to reach
   a model the server does not serve.
 
 Other agents are documented in README ~line 1258: Codex CLI uses the Responses

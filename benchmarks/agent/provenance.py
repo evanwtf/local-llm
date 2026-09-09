@@ -23,6 +23,7 @@ import logging
 import pathlib
 import subprocess
 import sys
+import time
 
 HERE = pathlib.Path(__file__).resolve().parent
 UNKNOWN = "nogit"
@@ -46,17 +47,37 @@ def _git(*args: str, cwd: pathlib.Path = HERE) -> str | None:
 # Files a run legitimately appends to. A benchmark writes results.jsonl, so
 # treating that as "dirty" would flag every run after the first and the flag
 # would stop meaning anything. `-dirty` must mean the CODE is uncommitted.
-DATA_SUFFIXES = (".jsonl", ".log")
+DATA_SUFFIXES = (".jsonl", ".log", ".csv")
+
+# Directories a run writes its own output into. An engine A/B creates
+# benchmarks/ds4/<prefix>-runN as it goes, and git reports an untracked
+# DIRECTORY -- "benchmarks/ds4/pr964-rerun-run1/" -- which no suffix rule can
+# match. Every row of every A/B therefore carried `-dirty`, naming the run's
+# own output as uncommitted code. That is the same defect as harness_dirty on
+# results.jsonl: a flag set on every row it appears on says nothing.
+DATA_PREFIXES = ("benchmarks/ds4/",)
 
 
-def _code_is_dirty(cwd: pathlib.Path) -> bool:
-    status = _git("status", "--porcelain", cwd=cwd)
+def code_is_dirty(cwd: pathlib.Path, *, untracked: bool = True) -> bool:
+    """Uncommitted CODE, ignoring the data files a run appends to.
+
+    `untracked=False` also ignores files git has never seen. A run writes its
+    own output directory inside the tree -- benchmarks/ds4/<prefix>-runN -- so
+    by its second repetition the tree is "dirty" because of the run asking the
+    question. A pin that refuses on that refuses every multi-run A/B.
+    """
+    args = ["status", "--porcelain"]
+    if not untracked:
+        args.append("--untracked-files=no")
+    status = _git(*args, cwd=cwd)
     if not status:
         return False
     for line in status.splitlines():
         path = line[3:].strip().strip('"')
         # A rename is "old -> new"; judge the destination.
         path = path.split(" -> ")[-1]
+        if path.startswith(DATA_PREFIXES):
+            continue
         if not path.endswith(DATA_SUFFIXES):
             return True
     return False
@@ -76,7 +97,7 @@ def head(cwd: pathlib.Path = HERE) -> str:
     sha = _git("rev-parse", "--short=7", "HEAD", cwd=cwd)
     if sha is None:
         return UNKNOWN
-    return f"{sha}-dirty" if _code_is_dirty(cwd) else sha
+    return f"{sha}-dirty" if code_is_dirty(cwd) else sha
 
 
 @functools.cache
@@ -99,8 +120,68 @@ def machine_slug() -> str:
         return "unknown-machine"
 
 
+#: How long a draft-path reading is reused before the process is asked again.
+#: NOT functools.cache: an A/B restarts the server between sweeps with
+#: different flags, and a permanently cached reading would report the first
+#: arm's state for the whole run -- worse than not reporting it at all. A
+#: restart is followed by a model load and a readiness wait measured in tens of
+#: seconds, so a window this size is invisible in practice while costing one
+#: probe per ten seconds instead of one per log line.
+_PLD_TTL_SECONDS = 10.0
+_pld_cache: tuple[float, str] | None = None
+_engine_cache: tuple[float, str] | None = None
+
+
+def pld_now() -> str:
+    """The draft path of the resident mlx-serve, as "on", "off" or "n/a".
+
+    #191 ran for three and a half hours before anyone established that one arm
+    was speculating and the other was not; the fact existed only in server logs
+    and the harness's own warning pointed the other way (#222). Putting it on
+    every line means no future analysis has to reconstruct it.
+
+    "n/a" means no mlx-serve is running. It is not "off" and must never be
+    read as "off".
+    """
+    global _pld_cache
+    now = time.monotonic()
+    if _pld_cache is not None and now - _pld_cache[0] < _PLD_TTL_SECONDS:
+        return _pld_cache[1]
+    try:
+        sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+        import engine_identity
+
+        state = engine_identity.pld_state()
+    except Exception:  # noqa: BLE001 -- a stamp must never take a run down
+        state = "n/a"
+    _pld_cache = (now, state)
+    return state
+
+
+def engine_now() -> str:
+    """The resident engine build, as "<name>/<sha-or-version>".
+
+    Same TTL as the draft path and for the same reason: an A/B restarts the
+    server between sweeps, and a permanently cached reading would name the
+    first arm's build on every line of the run.
+    """
+    global _engine_cache
+    now = time.monotonic()
+    if _engine_cache is not None and now - _engine_cache[0] < _PLD_TTL_SECONDS:
+        return _engine_cache[1]
+    try:
+        sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+        import engine_identity
+
+        got = engine_identity.running_engine()
+    except Exception:  # noqa: BLE001 -- a stamp must never take a run down
+        got = "unknown"
+    _engine_cache = (now, got)
+    return got
+
+
 class _Stamp(logging.Filter):
-    """Attach the harness commit and the machine to every record."""
+    """Attach the harness commit, the machine and the draft path to a record."""
 
     def __init__(self, value: str) -> None:
         super().__init__()
@@ -109,6 +190,8 @@ class _Stamp(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
         record.harness = self.value
         record.machine = machine_slug()
+        record.pld = pld_now()
+        record.engine = engine_now()
         return True
 
 
@@ -127,7 +210,7 @@ def configure(
     logging.basicConfig(
         level=level,
         stream=stream or sys.stdout,
-        format=f"%(asctime)s {name}%(levelname)s [%(harness)s@%(machine)s] %(message)s",
+        format=f"%(asctime)s {name}%(levelname)s [%(harness)s@%(machine)s %(engine)s pld=%(pld)s] %(message)s",
         force=True,
     )
     for handler in logging.getLogger().handlers:

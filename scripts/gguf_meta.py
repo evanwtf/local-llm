@@ -3,7 +3,7 @@
 Written for #33: the question of whether AtomicChat's `-M64` build differs
 structurally from Unsloth's, or is only re-sharded, is answerable from 700 MiB
 of header rather than 88 GiB of weights. It is also the cheapest way to check
-that an engine will recognise a model's architecture before committing to a
+that an engine will recognize a model's architecture before committing to a
 download or a load.
 
     uv run python scripts/gguf_meta.py <file.gguf> [--filter ple]
@@ -37,14 +37,20 @@ SCALAR = {
 
 
 def read(
-    path: pathlib.Path, with_tensors: bool = False
+    path: pathlib.Path,
+    with_tensors: bool = False,
+    expand: str | None = None,
 ) -> dict[str, object] | tuple[dict[str, object], list[tuple[str, list[int], int]]]:
-    """Parse the header. Arrays are summarised, not expanded.
+    """Parse the header. Arrays are summarized, not expanded.
 
     `with_tensors` also returns the tensor table as (name, dims, type). Tensor
     names are what `--override-tensor` matches on, so placing a specific
     structure -- the n-gram PLE table, say -- on a chosen backend needs them
     (#33).
+
+    `expand` is a substring. An array whose key contains it is kept whole
+    instead of summarized, so `--filter compress_ratios` prints the values
+    rather than `[44 values]` (#162).
     """
     with path.open("rb") as fh:
         if fh.read(4) != b"GGUF":
@@ -73,7 +79,10 @@ def read(
                     size = struct.calcsize(SCALAR[elem])
                     raw = fh.read(size * length)
                     vals = struct.unpack(f"<{length}{SCALAR[elem][1]}", raw)
-                    out[key] = list(vals) if length <= 20 else f"[{length} values]"
+                    if expand and expand.lower() in key.lower():
+                        out[key] = list(vals)
+                    else:
+                        out[key] = list(vals) if length <= 20 else f"[{length} values]"
                 else:
                     raise ValueError(f"unsupported array element type {elem}")
             elif kind in SCALAR:
@@ -116,11 +125,15 @@ def main(argv: list[str] | None = None) -> int:
             logger.info("%-56s dims=%-22s type=%d", name, dims, ttype)
         return 0
 
-    meta = read(pathlib.Path(args.path))
+    meta = read(pathlib.Path(args.path), expand=args.filter)
     for key in sorted(meta):
         if args.filter and args.filter.lower() not in key.lower():
             continue
-        logger.info("%-46s %s", key, str(meta[key])[:100])
+        val = meta[key]
+        if isinstance(val, list):
+            logger.info("%-46s %s", key, val)
+        else:
+            logger.info("%-46s %s", key, str(val)[:100])
     return 0
 
 

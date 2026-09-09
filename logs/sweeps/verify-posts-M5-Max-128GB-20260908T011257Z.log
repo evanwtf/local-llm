@@ -1,0 +1,9 @@
+2026-09-07 21:12:57,703 INFO [f4b65e1@M5-Max-128GB] 2026-09-08T01:12:57Z (21:12:57 EDT) | harness f4b65e1
+2026-09-07 21:12:57,723 INFO [f4b65e1@M5-Max-128GB]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-07 21:12:57,914 INFO [f4b65e1@M5-Max-128GB] 2097116807027208293  VERIFIED post  @Beamsters1  Tue Sep 08 00:16:23 +0000 2026  via fxtwitter
+2026-09-07 21:12:57,914 INFO [f4b65e1@M5-Max-128GB]     Qwen3.8-Flash-Next - 1M context! achieved by memory optimization down to usage per token. It uses only 106.2 + 11GB transient, peak 117GB - fully fit in 128GB M5 Max. Decode speed measured by unpredic
+2026-09-07 21:12:57,914 INFO [f4b65e1@M5-Max-128GB] 
+2026-09-07 21:12:57,914 INFO [f4b65e1@M5-Max-128GB] Verified 1: 1 confirmed, 0 not.
+2026-09-07 21:12:57,914 INFO [f4b65e1@M5-Max-128GB] Paste onto the issue:
+2026-09-07 21:12:57,914 INFO [f4b65e1@M5-Max-128GB]   **Verified** 2026-09-08: post exists, authored by @Beamsters1, posted Tue Sep 08 00:16:23 +0000 2026.
+2026-09-07 21:12:57,914 INFO [f4b65e1@M5-Max-128GB] log: /Users/evanhoffman/git/local-llm/logs/sweeps/verify-posts-M5-Max-128GB-20260908T011257Z.log

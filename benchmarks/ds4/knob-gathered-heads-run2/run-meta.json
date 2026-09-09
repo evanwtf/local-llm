@@ -1,0 +1,12 @@
+{
+  "knob": "gathered-heads",
+  "on_var": "DS4_METAL_DISABLE_DECODE_RAW_GATHERED_ATTN",
+  "off_var": "DS4_METAL_DISABLE_DECODE_RAW_GATHERED_ATTN",
+  "on_value": "unset",
+  "off_value": "1",
+  "admission_signal": "none",
+  "tree": "/Users/evanhoffman/git/ds4-pr952",
+  "gguf": "/Users/evanhoffman/git/ds4/gguf/DeepSeek-V4-Flash-Layers37-42Q4KExperts-OtherExpertLayersIQ2XXSGateUp-Q2KDown-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix-fixed-0731.gguf",
+  "reps": "3",
+  "started": "2026-09-06T20:08:42Z"
+}

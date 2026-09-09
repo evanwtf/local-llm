@@ -1,0 +1,5 @@
+# engine A/B, 2026-09-06T16:44:28 EDT
+A label=main tree=/Users/evanhoffman/git/ds4-main-b @ 9ab7053
+B label=pr952 tree=/Users/evanhoffman/git/ds4-pr952 @ 77a054e
+gguf=/Users/evanhoffman/git/ds4/gguf/DeepSeek-V4-Flash-Layers37-42Q4KExperts-OtherExpertLayersIQ2XXSGateUp-Q2KDown-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix-fixed-0731.gguf
+prompt=/Users/evanhoffman/git/ds4-main-b/speed-bench/promessi_sposi.txt

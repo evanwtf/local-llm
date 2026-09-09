@@ -14,7 +14,7 @@ claim about which model writes better code had nothing behind it and could not
 have. The patch is small; keep it.
 
 **The repository's own gates.** ruff and mypy, configured by gmail-archive, not
-by this benchmark. That matters: a rubric invented here would be a judgement,
+by this benchmark. That matters: a rubric invented here would be a judgment,
 and the harness's whole claim is that it does not judge. Counts are taken twice,
 once on the excised tree and once after the agent, and reported as a delta --
 gmail-archive carries 18 pre-existing mypy errors, so an absolute count would
@@ -126,10 +126,21 @@ def save_solution(
     except (OSError, subprocess.SubprocessError) as exc:
         logger.debug("cannot save solution for %s: %s", name, exc)
         return {}
-    return {
+    got = {
         "solution_patch": str(out),
         "solution_sha256": hashlib.sha256(patch.encode()).hexdigest(),
     }
+    # #4: when every backend passes, pass/fail has stopped separating them.
+    # These are structural proxies over the lines the agent ADDED, recorded
+    # beside the verdict and never feeding it. Failure here must not cost a
+    # trial that already ran, so an unusable patch simply contributes nothing.
+    try:
+        import shape
+
+        got.update({f"shape_{k}": v for k, v in shape.shape_of_patch(patch).items()})
+    except Exception as exc:  # noqa: BLE001 -- a measurement must not halt a run
+        logger.debug("shape measurement skipped for %s: %s", name, exc)
+    return got
 
 
 def _count_ruff(stdout: str) -> int:

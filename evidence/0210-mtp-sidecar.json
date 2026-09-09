@@ -1,0 +1,72 @@
+{
+  "schema": "evidence-2",
+  "task": "0210",
+  "issue": "210",
+  "also": [
+    "151",
+    "39"
+  ],
+  "agent": "opus",
+  "repo": "local-llm",
+  "authored_at": "2026-09-07T08:39:53-0400",
+  "harness_head": "4e0ae5f",
+  "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+  "statement": "Two findings from one pair of server starts. (1) The Qwen MTP head lives entirely in qwen3.8-flash-next-q4-mtp.gguf and there is no auto-discovery of it: without --mtp-model the engine reports MTP=off while accepting --mtp-draft 7 --mtp-timing silently. docs/m5max-runbook.md recorded the MTP arm without --mtp-model until 2026-09-07. (2) With the sidecar loaded and the head ready, ds4 enters the speculative path on requests WITHOUT a tool schema and not once on requests WITH one.",
+  "provenance": {
+    "engine": "ds4-metal ba01f5d",
+    "model": "~/models/qwen3.8-flash-next-ds4-q4/Qwen3.8-Flash-Next-Q4KExperts-BF16Emb-BF16Control-Q8GDN-Q8QSA-Q8Shared-Q8Out.gguf (symlink; 79010984960 bytes resolved)",
+    "mtp_sidecar": "~/models/qwen3.8-flash-next-ds4-q4/qwen3.8-flash-next-q4-mtp.gguf (1625966400 bytes)",
+    "no_autodiscovery": "ds4.c:67798 at ds4-metal ba01f5d gates the sidecar load on opt->mtp_path; mtp_ready is set nowhere else on the Qwen path",
+    "main_gguf_mtp_tensors": 0,
+    "logs": [
+      "evidence/0210-mtp-sidecar-logs/server-runbook-argv-no-mtp-model.log",
+      "evidence/0210-mtp-sidecar-logs/server-with-mtp-model.log"
+    ],
+    "split_offset_bytes": 64149,
+    "split_meaning": "the byte at which run.py's draft probe began recording, from its own log line; before = pre-batch prompts, after = the six agent trials"
+  },
+  "claims": [
+    {
+      "id": "sidecar-required",
+      "statement": "Without --mtp-model the graph line reports MTP=off verifier=off; with it, MTP=Q4_K/Q8_0/BF16 verifier=block/max16.",
+      "observed": {
+        "without_mtp_model": "ctx=100000 work_cap=8192 QSA=BF16 microtile=512 PLE=SSD-pread/Q4_1-to-BF16-double-buffer GDN-control=BF16 GDN-state=BF16 GDN-qkvz=Q8-concat GDN-out=Q8-HC-fused MoE-down=Q4_0-expert-split MTP=off verifier=off",
+        "with_mtp_model": "ctx=100000 work_cap=8192 QSA=BF16 microtile=512 PLE=SSD-pread/Q4_1-to-BF16-double-buffer GDN-control=BF16 GDN-state=BF16 GDN-qkvz=Q8-concat GDN-out=Q8-HC-fused MoE-down=Q4_0-expert-split MTP=Q4_K/Q8_0/BF16 verifier=block/max16",
+        "sidecar_line": "ds4: Qwen matching v3 q4_k MTP sidecar loaded: /Users/evanhoffman/models/qwen3.8-flash-next-ds4-q4/qwen3.8-flash-next-q4-mtp.gguf (state=ready draft=7)"
+      }
+    },
+    {
+      "id": "tools-suppress-speculation",
+      "statement": "Speculative cycles appear only on requests without a tool schema. Perfect separation, not a gradient.",
+      "observed": {
+        "before_split": {
+          "chat_requests": 42,
+          "with_tools": 0,
+          "without_tools": 42,
+          "speculative_cycles": 340,
+          "accepted": 458,
+          "proposed": 767,
+          "accept_rate": 0.5971316818774446,
+          "bypassed": 219,
+          "drafting": 121,
+          "drafting_share": 0.3558823529411765
+        },
+        "after_split": {
+          "chat_requests": 241,
+          "with_tools": 241,
+          "without_tools": 0,
+          "speculative_cycles": 0
+        }
+      }
+    },
+    {
+      "id": "counters-provably-on",
+      "statement": "Silence after the split is not switched-off counters: the server's argv carries --mtp-timing (run.counters_on('ds4') is True) and the same process wrote 340 cycles before it.",
+      "observed": {
+        "counters_on_source": "server argv via ps",
+        "cycles_before": 340,
+        "cycles_after": 0
+      }
+    }
+  ]
+}

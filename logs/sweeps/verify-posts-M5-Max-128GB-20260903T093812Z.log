@@ -1,0 +1,9 @@
+2026-09-03 05:38:13,028 INFO [1dca6fe@M5-Max-128GB] 2026-09-03T09:38:13Z (05:38:13 EDT) | harness 1dca6fe
+2026-09-03 05:38:13,048 INFO [1dca6fe@M5-Max-128GB]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-03 05:38:13,222 INFO [1dca6fe@M5-Max-128GB] 2095414042990887327  VERIFIED post  @ivanfioravanti  Thu Sep 03 07:30:13 +0000 2026  via fxtwitter
+2026-09-03 05:38:13,222 INFO [1dca6fe@M5-Max-128GB]     My contribution to DwarfStar is continuing! I use it in my "Production" AI Lab so I keep pushing it.  - PR 953: GLM 5.3 Flash +3.5% prefill and improved mathematical accuracy on M5 (TensorOps) kernel 
+2026-09-03 05:38:13,222 INFO [1dca6fe@M5-Max-128GB] 
+2026-09-03 05:38:13,222 INFO [1dca6fe@M5-Max-128GB] Verified 1: 1 confirmed, 0 not.
+2026-09-03 05:38:13,222 INFO [1dca6fe@M5-Max-128GB] Paste onto the issue:
+2026-09-03 05:38:13,222 INFO [1dca6fe@M5-Max-128GB]   **Verified** 2026-09-03: post exists, authored by @ivanfioravanti, posted Thu Sep 03 07:30:13 +0000 2026.
+2026-09-03 05:38:13,222 INFO [1dca6fe@M5-Max-128GB] log: /Users/evanhoffman/git/local-llm/logs/sweeps/verify-posts-M5-Max-128GB-20260903T093812Z.log

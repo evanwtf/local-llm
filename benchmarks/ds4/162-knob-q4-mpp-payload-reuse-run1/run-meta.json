@@ -1,0 +1,19 @@
+{
+  "knob": "q4-mpp-payload-reuse",
+  "on_var": "DS4_METAL_ENABLE_Q4_MPP_PAYLOAD_REUSE",
+  "off_var": "DS4_METAL_ENABLE_Q4_MPP_PAYLOAD_REUSE",
+  "on_value": "1",
+  "off_value": "0",
+  "admission_signal": "print",
+  "tree": "/Users/evanhoffman/git/ds4-pr952-head",
+  "gguf": "/Users/evanhoffman/models/deepseek-v4-flash-aproj/DeepSeek-V4-Flash-IQ2XXS-w2Q2K-AProjQ4-SExpQ8-OutQ8-chat-v2-imatrix-0731.gguf",
+  "reps": "4",
+  "started": "2026-09-08T19:08:59Z"
+  ,
+  "engagement": {
+    "trace_var": "",
+    "pattern": "Metal Q4 MPP payload reuse admitted",
+    "on_count": "1",
+    "off_count": "0"
+  }
+}

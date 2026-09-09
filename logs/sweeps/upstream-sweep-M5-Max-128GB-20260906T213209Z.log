@@ -1,0 +1,141 @@
+2026-09-06 17:32:09,316 INFO [83f0c54@M5-Max-128GB] 2026-09-06T21:32:09Z (17:32:09 EDT) | harness 83f0c54
+2026-09-06 17:32:09,335 INFO [83f0c54@M5-Max-128GB]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-06 17:32:09,335 INFO [83f0c54@M5-Max-128GB] Upstream sweep since 2026-09-05T21:32:09Z (24h)
+
+2026-09-06 17:32:09,891 INFO [83f0c54@M5-Max-128GB] == antirez/ds4 -- our primary engine; the only one that runs DeepSeek-V4-Flash and GLM-5.3
+2026-09-06 17:32:09,891 INFO [83f0c54@M5-Max-128GB]    (quiet)
+2026-09-06 17:32:09,891 INFO [83f0c54@M5-Max-128GB] 
+2026-09-06 17:32:10,593 INFO [83f0c54@M5-Max-128GB] == ggml-org/llama.cpp -- our fast pick's engine; `qwen4exp` IS Qwen3.8-Flash-Next
+2026-09-06 17:32:10,593 INFO [83f0c54@M5-Max-128GB]    releases: b10827, b10826, b10825, b10823, b10822, b10821
+2026-09-06 17:32:10,593 INFO [83f0c54@M5-Max-128GB]    convert : add `--fuse-qkv` flag to fuse Q/K/V into QKV during HF-to-GGUF conversion (#22780)
+2026-09-06 17:32:10,593 INFO [83f0c54@M5-Max-128GB]    models : fix GDN normalization from `max` to `rsqrt` (#28068)
+2026-09-06 17:32:10,593 INFO [83f0c54@M5-Max-128GB]    [Model] Support for Spark2_5ForCausalLM  implementation (#27868)
+2026-09-06 17:32:10,593 INFO [83f0c54@M5-Max-128GB]    opencl: properly choose weights pack for q4_K, q5_K mul_mat (#28402)
+2026-09-06 17:32:10,593 INFO [83f0c54@M5-Max-128GB]    cuda: fixes races in mmid and mmf (#28475)
+2026-09-06 17:32:10,593 INFO [83f0c54@M5-Max-128GB]    grammar : fix max repetition threshold (#28469)
+2026-09-06 17:32:10,593 INFO [83f0c54@M5-Max-128GB]    ui: Improve Chat Messages rendering performance (#28460)
+2026-09-06 17:32:10,593 INFO [83f0c54@M5-Max-128GB]    common: add --log-jsonl (#28437)
+2026-09-06 17:32:10,593 INFO [83f0c54@M5-Max-128GB]    ui : embed assets directly with CMake (#28445)
+2026-09-06 17:32:10,593 INFO [83f0c54@M5-Max-128GB]    metal : add remaining fa-vec tunings for M2 Max (#28458)
+2026-09-06 17:32:10,593 INFO [83f0c54@M5-Max-128GB] 
+2026-09-06 17:32:11,347 INFO [83f0c54@M5-Max-128GB] == ollama/ollama -- the 31 GB entry point, and our only MLX runtime
+2026-09-06 17:32:11,347 INFO [83f0c54@M5-Max-128GB]    releases: v0.34.0-rc1
+2026-09-06 17:32:11,347 INFO [83f0c54@M5-Max-128GB] 
+2026-09-06 17:32:12,138 INFO [83f0c54@M5-Max-128GB] == anomalyco/opencode -- our only client
+2026-09-06 17:32:12,138 INFO [83f0c54@M5-Max-128GB]    chore: update nix node_modules hashes
+2026-09-06 17:32:12,138 INFO [83f0c54@M5-Max-128GB]    fix(provider): bump OpenAI SDK to 3.0.88 (#47659)
+2026-09-06 17:32:12,138 INFO [83f0c54@M5-Max-128GB]    chore: generate
+2026-09-06 17:32:12,138 INFO [83f0c54@M5-Max-128GB]    docs(console): add localized refund FAQs for Go and Zen (#47575)
+2026-09-06 17:32:12,138 INFO [83f0c54@M5-Max-128GB]    fix(opencode): add GitLab reasoning variants (#47306)
+2026-09-06 17:32:12,138 INFO [83f0c54@M5-Max-128GB] 
+2026-09-06 17:32:12,768 INFO [83f0c54@M5-Max-128GB] == evanwtf/local-llm -- this project
+2026-09-06 17:32:12,768 INFO [83f0c54@M5-Max-128GB]    peer_agents: count-based admission for the gathered-heads knob (#167)
+2026-09-06 17:32:12,769 INFO [83f0c54@M5-Max-128GB]    #162: branch is +0.9% decode / -0.8% prefill against upstream main, and the
+2026-09-06 17:32:12,769 INFO [83f0c54@M5-Max-128GB]    #162 Task 4: the gathered-heads knob is null, and absolute saving beside the ratio
+2026-09-06 17:32:12,769 INFO [83f0c54@M5-Max-128GB]    peer_agents: evidence artifact for the 9ab7053..77a054e1 Metal diff (#166)
+2026-09-06 17:32:12,769 INFO [83f0c54@M5-Max-128GB]    #162 Task 2: q4/q8 at head is 1.130 over four runs, and per-arm logs
+2026-09-06 17:32:12,769 INFO [83f0c54@M5-Max-128GB]    #162 Task 2: relaunch on the baseline's 32-frontier sweep, mark the 8 I ran
+2026-09-06 17:32:12,769 INFO [83f0c54@M5-Max-128GB]    peer_agents: reset a squash-merged branch to main, do not rebase it
+2026-09-06 17:32:12,769 INFO [83f0c54@M5-Max-128GB]    #162: make the draft's raw-data links clickable and name its two statistics
+2026-09-06 17:32:12,769 INFO [83f0c54@M5-Max-128GB]    #162: rewrite the upstream draft with the four-run numbers
+2026-09-06 17:32:12,769 INFO [83f0c54@M5-Max-128GB]    decode_ab_report: the per-frontier table must belong to the batch, not run 1
+2026-09-06 17:32:12,769 INFO [83f0c54@M5-Max-128GB]    #146: void the batch on cutoff (#164)
+2026-09-06 17:32:12,769 INFO [83f0c54@M5-Max-128GB]    NEXT: run 5 replaces the voided run 2; knob A/Bs enter the queue
+2026-09-06 17:32:12,769 INFO [83f0c54@M5-Max-128GB]    ... and 53 more
+2026-09-06 17:32:12,769 INFO [83f0c54@M5-Max-128GB] 
+2026-09-06 17:32:13,374 INFO [83f0c54@M5-Max-128GB] == evanwtf/gmail-archive -- the excision tasks' target repository
+2026-09-06 17:32:13,375 INFO [83f0c54@M5-Max-128GB]    (quiet)
+2026-09-06 17:32:13,375 INFO [83f0c54@M5-Max-128GB] 
+2026-09-06 17:32:13,939 INFO [83f0c54@M5-Max-128GB] == evanwtf/ds4 -- our ds4 fork (#27 asks whether it can be retired)
+2026-09-06 17:32:13,939 INFO [83f0c54@M5-Max-128GB]    (quiet)
+2026-09-06 17:32:13,939 INFO [83f0c54@M5-Max-128GB] 
+2026-09-06 17:32:14,588 INFO [83f0c54@M5-Max-128GB] == ml-explore/mlx -- the framework everything MLX sits on
+2026-09-06 17:32:14,589 INFO [83f0c54@M5-Max-128GB]    [CUDA] Fix completion worker busy loop (#4452)
+2026-09-06 17:32:14,589 INFO [83f0c54@M5-Max-128GB] 
+2026-09-06 17:32:15,231 INFO [83f0c54@M5-Max-128GB] == ml-explore/mlx-lm -- reference MLX server; new architectures land here first
+2026-09-06 17:32:15,231 INFO [83f0c54@M5-Max-128GB]    (quiet)
+2026-09-06 17:32:15,231 INFO [83f0c54@M5-Max-128GB] 
+2026-09-06 17:32:15,912 INFO [83f0c54@M5-Max-128GB] == jundot/omlx -- oMLX -- prefill leader, untested here (#60)
+2026-09-06 17:32:15,912 INFO [83f0c54@M5-Max-128GB]    build(deps): bump ddgs from 9.15.0 to 9.16.0 (#3474)
+2026-09-06 17:32:15,912 INFO [83f0c54@M5-Max-128GB]    fix: remove QSA decode sync and restore MXFP4 dispatch (#3428, #3409)
+2026-09-06 17:32:15,912 INFO [83f0c54@M5-Max-128GB]    fix: scope SDPA headroom providers to engine workers (#3333)
+2026-09-06 17:32:15,912 INFO [83f0c54@M5-Max-128GB]    fix: preserve reusable prefixes at request completion (#3102, #2384)
+2026-09-06 17:32:15,912 INFO [83f0c54@M5-Max-128GB]    fix: segment oversized M5 sorted gather calls (#3432)
+2026-09-06 17:32:15,912 INFO [83f0c54@M5-Max-128GB]    perf: separate affine MoE dispatch thresholds (#3409)
+2026-09-06 17:32:15,912 INFO [83f0c54@M5-Max-128GB]    merge: resolve MTP rollback through VLM adapters (#3416)
+2026-09-06 17:32:15,912 INFO [83f0c54@M5-Max-128GB]    fix(scheduler): recover boundary-aligned live cache stores (#3288)
+2026-09-06 17:32:15,912 INFO [83f0c54@M5-Max-128GB]    merge: restore Qwen4 QSA eligibility and pooled cache reuse (#3428)
+2026-09-06 17:32:15,912 INFO [83f0c54@M5-Max-128GB]    fix(scheduler): gate cache-freshness deferral on restorable overlap (#3367)
+2026-09-06 17:32:15,912 INFO [83f0c54@M5-Max-128GB]    fix: account for prefill pool releases and preserve chunk sizing (#3465)
+2026-09-06 17:32:15,912 INFO [83f0c54@M5-Max-128GB]    fix(qwen4_exp): correct long-context prefill memory accounting (#3465)
+2026-09-06 17:32:15,912 INFO [83f0c54@M5-Max-128GB]    ... and 22 more
+2026-09-06 17:32:15,912 INFO [83f0c54@M5-Max-128GB] 
+2026-09-06 17:32:16,510 INFO [83f0c54@M5-Max-128GB] == ddalcu/mlx-serve -- benchmarked on our exact machine; llmprobe's author
+2026-09-06 17:32:16,510 INFO [83f0c54@M5-Max-128GB]    perf(qwen4): long-context bundle: split-K QSA, admission, SSD-first cache (#363)
+2026-09-06 17:32:16,510 INFO [83f0c54@M5-Max-128GB] 
+2026-09-06 17:32:17,150 INFO [83f0c54@M5-Max-128GB] == youssofal/MTPLX -- MTP speculative decoding; we hold one unreplicated number
+2026-09-06 17:32:17,150 INFO [83f0c54@M5-Max-128GB]    releases: v2.11.2
+2026-09-06 17:32:17,150 INFO [83f0c54@M5-Max-128GB]    Accept --stream-stall-deadline-s on the public serve command (#448)
+2026-09-06 17:32:17,150 INFO [83f0c54@M5-Max-128GB]    Make the Adaptive depth switch reach the daemon and keep each target's policy
+2026-09-06 17:32:17,150 INFO [83f0c54@M5-Max-128GB]    Release notes: plain hyphens in ranges
+2026-09-06 17:32:17,150 INFO [83f0c54@M5-Max-128GB]    Keep the hero gauge on its decode face through short suffix prefills
+2026-09-06 17:32:17,150 INFO [83f0c54@M5-Max-128GB]    Add an Adaptive depth switch under Draft depth
+2026-09-06 17:32:17,150 INFO [83f0c54@M5-Max-128GB]    Document the Hermes rehearsal fixes in the 2.11.2 notes and changelog
+2026-09-06 17:32:17,150 INFO [83f0c54@M5-Max-128GB]    Use measured prefill chunks for the live dial and average card
+2026-09-06 17:32:17,150 INFO [83f0c54@M5-Max-128GB]    Advertise pack vision consistently to OpenCode, Pi and Hermes
+2026-09-06 17:32:17,150 INFO [83f0c54@M5-Max-128GB]    Preserve current-turn reasoning after interrupted history and retain tool images
+2026-09-06 17:32:17,150 INFO [83f0c54@M5-Max-128GB]    Use image content identity for admission and anonymous cache lineage
+2026-09-06 17:32:17,150 INFO [83f0c54@M5-Max-128GB]    Preserve sparse vision attention and align Hermes cache history with the wire
+2026-09-06 17:32:17,150 INFO [83f0c54@M5-Max-128GB]    Keep both verifier depths observable and preserve native decode timing
+2026-09-06 17:32:17,150 INFO [83f0c54@M5-Max-128GB]    ... and 25 more
+2026-09-06 17:32:17,150 INFO [83f0c54@M5-Max-128GB] 
+2026-09-06 17:32:17,712 INFO [83f0c54@M5-Max-128GB] == raullenchai/Rapid-MLX -- the one MLX engine reachable by pip (#57, #60)
+2026-09-06 17:32:17,712 INFO [83f0c54@M5-Max-128GB]    fix(image): accept pinned Klein BF16 single-file weights (#3168)
+2026-09-06 17:32:17,712 INFO [83f0c54@M5-Max-128GB]    perf(qwen4): add opt-in fp32 fast RMSNorm (#3151)
+2026-09-06 17:32:17,712 INFO [83f0c54@M5-Max-128GB]    fix(benchmark): stop calling full-memory models a fit; floor estimates by parameter count (#3159)
+2026-09-06 17:32:17,712 INFO [83f0c54@M5-Max-128GB]    fix(benchmark): print decode tok/s with the board's (N-1)/window formula (#3148)
+2026-09-06 17:32:17,712 INFO [83f0c54@M5-Max-128GB]    fix(benchmark): record real power, thermal and memory-pressure run conditions (#3146)
+2026-09-06 17:32:17,712 INFO [83f0c54@M5-Max-128GB]    docs(image): record exact candidate dogfood matrix (#3164)
+2026-09-06 17:32:17,712 INFO [83f0c54@M5-Max-128GB]    fix(image): load extensionless SD3.5 blobs as safetensors (#3160)
+2026-09-06 17:32:17,712 INFO [83f0c54@M5-Max-128GB]    fix(cli): fire the [vision] boot guard from the alias profile before download (#3113) (#3127)
+2026-09-06 17:32:17,712 INFO [83f0c54@M5-Max-128GB]    feat(service): harden Always-on Rapid Engine lifecycle (#3129)
+2026-09-06 17:32:17,712 INFO [83f0c54@M5-Max-128GB]    feat(desktop): add local workflow execution kernel (#3095)
+2026-09-06 17:32:17,712 INFO [83f0c54@M5-Max-128GB]    feat(desktop): add gated Computer Use starter flows (#3108)
+2026-09-06 17:32:17,712 INFO [83f0c54@M5-Max-128GB]    fix(catalog): give embedding aliases their own task type; count cached models in quickstart (#3116) (#3128)
+2026-09-06 17:32:17,712 INFO [83f0c54@M5-Max-128GB]    ... and 12 more
+2026-09-06 17:32:17,712 INFO [83f0c54@M5-Max-128GB] 
+2026-09-06 17:32:18,240 INFO [83f0c54@M5-Max-128GB] == ARahim3/mlx-dspark -- DSpark/DFlash ported to MLX (#19, #58, #75)
+2026-09-06 17:32:18,240 INFO [83f0c54@M5-Max-128GB]    (quiet)
+2026-09-06 17:32:18,240 INFO [83f0c54@M5-Max-128GB] 
+2026-09-06 17:32:18,784 INFO [83f0c54@M5-Max-128GB] == Blaizzy/mlx-vlm -- expert offloading, prefix caching, Qwen3.8-Flash-Next MTP
+2026-09-06 17:32:18,784 INFO [83f0c54@M5-Max-128GB]    Merge pull request #2171 from eklipse2k8/feat/MoGe
+2026-09-06 17:32:18,784 INFO [83f0c54@M5-Max-128GB]    Add MoGe-3 monocular geometry estimation model
+2026-09-06 17:32:18,784 INFO [83f0c54@M5-Max-128GB] 
+2026-09-06 17:32:19,631 INFO [83f0c54@M5-Max-128GB] == unslothai/llama.cpp -- the fork with a working qwen4exp MTP graph (#77)
+2026-09-06 17:32:19,631 INFO [83f0c54@M5-Max-128GB]    (quiet)
+2026-09-06 17:32:19,631 INFO [83f0c54@M5-Max-128GB] 
+2026-09-06 17:32:20,260 INFO [83f0c54@M5-Max-128GB] == Layr-Labs/mlxfast-gemma4-26b-a4b-engine -- MLX Fast leaderboard harness (#80)
+2026-09-06 17:32:20,260 INFO [83f0c54@M5-Max-128GB]    Validate submission 78cc9673-6ce8-4b44-a2c1-b6b99813c177
+2026-09-06 17:32:20,260 INFO [83f0c54@M5-Max-128GB]    Accept submission 255b3c24-4bc1-4280-b631-f1c1e241849b
+2026-09-06 17:32:20,260 INFO [83f0c54@M5-Max-128GB]    Validate submission 05751f7a-4b3f-45dc-8bf2-adcb07e5efc6
+2026-09-06 17:32:20,260 INFO [83f0c54@M5-Max-128GB]    Validate submission 4830e7f3-83d8-433f-ae6f-da39a04bd5f8
+2026-09-06 17:32:20,260 INFO [83f0c54@M5-Max-128GB]    Validate submission d1eb64ca-2e8c-4a44-b7c7-93da3dcbac66
+2026-09-06 17:32:20,260 INFO [83f0c54@M5-Max-128GB]    Accept submission e644b942-facc-44cd-bfcf-c59390c4f10d
+2026-09-06 17:32:20,260 INFO [83f0c54@M5-Max-128GB]    Accept submission ace4ecaa-72d2-4011-b62c-d09d812bfc91
+2026-09-06 17:32:20,260 INFO [83f0c54@M5-Max-128GB]    Accept submission 170c9276-d3fe-40bb-b2fc-ae96e8f4f2d0
+2026-09-06 17:32:20,260 INFO [83f0c54@M5-Max-128GB]    Validate submission 53043ca3-8ce5-4e6c-9716-35fc9a66d358
+2026-09-06 17:32:20,260 INFO [83f0c54@M5-Max-128GB]    Accept submission 85a7e18b-a901-4028-a327-f0d62115c266
+2026-09-06 17:32:20,260 INFO [83f0c54@M5-Max-128GB]    Validate submission d5d6c558-741f-4865-8e49-9542165ab128
+2026-09-06 17:32:20,260 INFO [83f0c54@M5-Max-128GB]    Validate submission 64df0c99-d4dc-4833-873b-7e8ba6c99151
+2026-09-06 17:32:20,260 INFO [83f0c54@M5-Max-128GB]    ... and 3 more
+2026-09-06 17:32:20,260 INFO [83f0c54@M5-Max-128GB] 
+2026-09-06 17:32:20,710 INFO [83f0c54@M5-Max-128GB] == sudoingX/qwen38-mtp -- 61 paired baseline-vs-MTP runs, disciplined method (#19, #39)
+2026-09-06 17:32:20,710 INFO [83f0c54@M5-Max-128GB]    (quiet)
+2026-09-06 17:32:20,710 INFO [83f0c54@M5-Max-128GB] 
+2026-09-06 17:32:21,311 INFO [83f0c54@M5-Max-128GB] == trymirai/uzu -- Apple-only Rust engine, reachable by pip; claims 2x MTPLX (#134)
+2026-09-06 17:32:21,311 INFO [83f0c54@M5-Max-128GB]    releases: 0.5.26
+2026-09-06 17:32:21,311 INFO [83f0c54@M5-Max-128GB]    Control metal modules cache path to remove `writableTmpDirAsHomeHook` (#809)
+2026-09-06 17:32:21,311 INFO [83f0c54@M5-Max-128GB]    Cut Metal build time and peak memory (#790)
+2026-09-06 17:32:21,311 INFO [83f0c54@M5-Max-128GB]    Release 0.5.26
+2026-09-06 17:32:21,311 INFO [83f0c54@M5-Max-128GB] 
+2026-09-06 17:32:21,311 INFO [83f0c54@M5-Max-128GB] log: /Users/evanhoffman/git/local-llm/logs/sweeps/upstream-sweep-M5-Max-128GB-20260906T213209Z.log

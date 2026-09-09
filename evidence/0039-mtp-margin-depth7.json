@@ -1,0 +1,104 @@
+{
+  "schema": "local-llm/evidence-2",
+  "task": "mtp-margin-depth7",
+  "issue": 39,
+  "agent": "peer-deepseek-v4-flash",
+  "agent_model": "deepseek-v4-flash",
+  "agent_effort": "unidentified",
+  "repo": "/Users/evanhoffman/git/local-llm/.claude/worktrees/peer+160",
+  "authored_at": "2026-09-06T12:55:00-0400",
+  "statement": "A margin sweep is a no-op for the depth-7 MTP arm, with one boundary exception. The margin-skip fast path is gated on `draft_n == 2` at ds4.c:66808 at ds4 399acbb, and `draft_n` is the number of MTP drafts generated per step, capped at `draft_cap = e->mtp_draft_tokens` (ds4.c:66722 at ds4 399acbb). Our depth-7 arm uses `--mtp-draft 7`, so `draft_cap = 7` and `draft_n` ends at 7; the margin-skip cannot fire, so the margin value never affects acceptance. The six reads of `mtp_margin_threshold` (66734 assignment, 66739 env override, 66745 need-logits, 66808 gate, 66814 comparison, 66843 timing print) split by the gate: 66814 and 66843 are inside the 66808 block, so outside that gate the only read is the `> 0.0f` test at 66745. That test is the boundary exception: at depth 7, margin 0 and margin > 0 are not equivalent -- a zero margin turns off logit computation during drafting, a nonzero one turns it on. Every nonzero value behaves identically; zero is a different arm. This is a throughput effect (work done), not an acceptance effect. A sweep of 0,1,2,3,5 on the depth-7 arm would produce a flat line with a single step at zero.",
+  "provenance": {
+    "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+    "trees": {
+      "/Users/evanhoffman/git/ds4": "399acbb"
+    },
+    "binaries": {}
+  },
+  "claims": [
+    {
+      "id": "margin-skip-gated-on-draft-n-2",
+      "statement": "The margin-skip fast path is gated on `draft_n == 2` at ds4.c:66808 at ds4 399acbb: `if (!strict_mtp && draft_n == 2 && mtp_margin_threshold > 0.0f)`. `draft_n` is the number of MTP drafts generated per step, capped at `draft_cap = e->mtp_draft_tokens` (ds4.c:66722 at ds4 399acbb). Our depth-7 arm uses `--mtp-draft 7`, so `draft_cap = 7` and `draft_n` ends at 7. The margin-skip cannot fire at depth 7, so the margin value never affects acceptance.",
+      "argv": [
+        "grep",
+        "-n",
+        "draft_n == 2 && mtp_margin_threshold",
+        "ds4.c"
+      ],
+      "cwd": "/Users/evanhoffman/git/ds4",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0,
+        "stdout_contains": "66808"
+      },
+      "observed": {
+        "exit": 0,
+        "stdout": "66808:    if (!strict_mtp && draft_n == 2 && mtp_margin_threshold > 0.0f) {"
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "If the margin-skip is not gated on `draft_n == 2` (or `draft_n` can equal 2 at depth 7), then the margin can affect acceptance at depth 7 and the 'no acceptance effect' claim collapses.",
+      "enumerates": [
+        66808
+      ],
+      "context_lines": [
+        66722
+      ]
+    },
+    {
+      "id": "margin-reads-outside-gate",
+      "statement": "The six reads of `mtp_margin_threshold` are 66734 (assignment), 66739 (env override), 66745 (need-logits), 66808 (the `draft_n == 2` gate), 66814 (the comparison), 66843 (the timing print). 66814 and 66843 are inside the 66808 block, so outside that gate the only read is the `> 0.0f` test at 66745. At depth 7 the margin value is read only at 66745.",
+      "argv": [
+        "grep",
+        "-n",
+        "mtp_margin_threshold",
+        "ds4.c"
+      ],
+      "cwd": "/Users/evanhoffman/git/ds4",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0,
+        "stdout_contains": "66745"
+      },
+      "observed": {
+        "exit": 0,
+        "stdout": "66734:    float mtp_margin_threshold = e->mtp_margin;\n66739:        if (end != mtp_margin_env && v >= 0.0f) mtp_margin_threshold = v;\n66745:        (!strict_mtp && mtp_margin_threshold > 0.0f);\n66808:    if (!strict_mtp && draft_n == 2 && mtp_margin_threshold > 0.0f) {\n66814:        if (mtp_last_margin < mtp_margin_threshold) {\n66843:                        mtp_margin_threshold,"
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "If there is a read of `mtp_margin_threshold` outside the 66808 gate other than the 66745 `> 0.0f` test, then the margin value affects behavior at depth 7 beyond the zero boundary and the 'only read is 66745' claim collapses."
+    },
+    {
+      "id": "zero-boundary-turns-off-logits",
+      "statement": "At depth 7, margin 0 and margin > 0 are not equivalent. The `mtp_need_logits` test at ds4.c:66743-66745 at ds4 399acbb is `mtp_conf_log || getenv(\"DS4_MTP_FULL_LOGITS\") != NULL || (!strict_mtp && mtp_margin_threshold > 0.0f)`, so a zero margin turns off logit computation during drafting and a nonzero one turns it on. Every nonzero value behaves identically; zero is a different arm. This is a throughput effect (work done), not an acceptance effect.",
+      "argv": [
+        "grep",
+        "-n",
+        "-A2",
+        "const bool mtp_need_logits",
+        "ds4.c"
+      ],
+      "cwd": "/Users/evanhoffman/git/ds4",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0,
+        "stdout_contains": "mtp_margin_threshold > 0.0f"
+      },
+      "observed": {
+        "exit": 0,
+        "stdout": "66743:    const bool mtp_need_logits = mtp_conf_log ||\n66744-        getenv(\"DS4_MTP_FULL_LOGITS\") != NULL ||\n66745-        (!strict_mtp && mtp_margin_threshold > 0.0f);"
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "If the `mtp_need_logits` test does not compare `mtp_margin_threshold > 0.0f` (e.g. it tests presence or a different threshold), then margin 0 and margin > 0 are equivalent at depth 7 and the zero-boundary claim collapses.",
+      "enumerates": [
+        66743,
+        66744,
+        66745
+      ]
+    }
+  ]
+}

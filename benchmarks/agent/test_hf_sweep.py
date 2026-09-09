@@ -77,3 +77,63 @@ def test_mxfp8_is_ours_and_fp8_is_not():
     assert hf_sweep.classify("someone/gemma-4-31b-mxfp8") == "usable"
     assert hf_sweep.classify("nvidia/Model-FP8") == "unusable"
     assert hf_sweep.classify("nvidia/Model-fp8-dynamic") == "unusable"
+
+
+# --- hardware profiles: the format lists invert between machines -------------
+
+
+def test_the_same_repo_is_judged_differently_per_machine():
+    """This is why one global table would be wrong.
+
+    EXL and AWQ are unloadable on Metal and fine on a CUDA card. MLX and mxfp8
+    are the reverse. A single list hides real candidates on one machine or
+    recommends unloadable ones on the other.
+    """
+    cuda_only = "quocbao747/Ornith-1.5-9B-AWQ-W4A16-g128"
+    mac_only = "mlx-community/gemma-4-26b-mlx-bf16"
+    assert hf_sweep.classify(cuda_only, "m5-max") == "unusable"
+    assert hf_sweep.classify(cuda_only, "rtx3080ti") == "usable"
+    assert hf_sweep.classify(mac_only, "m5-max") == "usable"
+    assert hf_sweep.classify(mac_only, "rtx3080ti") == "unusable"
+
+
+def test_gguf_loads_on_both():
+    for profile in ("m5-max", "rtx3080ti"):
+        assert hf_sweep.classify("unsloth/Qwen3.8-GGUF", profile) == "usable"
+
+
+def test_ampere_has_no_fp8_or_nvfp4():
+    """sm_86 lacks the hardware; those need Ada or Blackwell (#20)."""
+    for repo in ("nvidia/Model-FP8", "nvidia/Model-NVFP4"):
+        assert hf_sweep.classify(repo, "rtx3080ti") == "unusable"
+
+
+def test_mxfp8_survives_the_fp8_match_on_the_mac():
+    """The protect list, per profile. Regression on #78's substring bug."""
+    assert hf_sweep.classify("someone/Qwen3.6-27B-coding-mxfp8", "m5-max") == "usable"
+
+
+def test_fit_uses_the_metal_ceiling_not_the_machine_ram():
+    """128 GB of unified memory is not 128 GB of Metal working set."""
+    assert hf_sweep.fits(90.0, "m5-max") is True
+    assert hf_sweep.fits(120.0, "m5-max") is False  # over the 112 GiB ceiling
+
+
+def test_offload_only_helps_a_discrete_card():
+    """A 22 GB MoE does not fit 12 GiB of VRAM, and can stream from host RAM."""
+    assert hf_sweep.fits(22.0, "rtx3080ti") is False
+    assert hf_sweep.fits(22.0, "rtx3080ti", offload=True) is True
+    # Unified memory has nowhere else to stream from; the budget is unchanged.
+    assert hf_sweep.fits(120.0, "m5-max", offload=True) is False
+
+
+def test_unknown_size_is_unknown_not_excluded():
+    """A model we cannot size is a question, not a silent exclusion."""
+    assert hf_sweep.fits(None, "m5-max") is None
+    assert hf_sweep.fits(None, "rtx3080ti") is None
+
+
+def test_canned_queries_name_families_not_repos():
+    assert "coding" in hf_sweep.CANNED and "small" in hf_sweep.CANNED
+    for terms in hf_sweep.CANNED.values():
+        assert terms and all("/" not in term for term in terms)

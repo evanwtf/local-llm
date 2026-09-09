@@ -7,12 +7,17 @@ attribution is believed.
 
 from __future__ import annotations
 
+import functools
 import logging
 import pathlib
 import subprocess
+import time
 
 import provenance
+import pytest
 import results
+
+from conftest import HAS_LOCAL_RESULTS, SKIP_NO_RESULTS
 
 
 def test_head_is_a_short_sha_or_a_named_absence() -> None:
@@ -38,19 +43,55 @@ def test_a_directory_outside_a_repo_is_named_not_guessed(tmp_path) -> None:
     assert provenance.head(tmp_path) == provenance.UNKNOWN
 
 
-def test_the_dirty_flag_tracks_uncommitted_changes() -> None:
-    """A run against a modified tree is not reproducible from any commit, and
-    the line has to say so."""
-    dirty = bool(
-        subprocess.run(
-            ["git", "status", "--porcelain"],
-            capture_output=True,
-            text=True,
-            cwd=provenance.HERE,
-            check=True,
-        ).stdout.strip()
-    )
-    assert provenance.head().endswith("-dirty") == dirty
+def _repo(tmp_path: pathlib.Path) -> pathlib.Path:
+    """A one-commit repository, so dirtiness is the only variable."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    run = functools.partial(subprocess.run, cwd=repo, check=True, capture_output=True)
+    run(["git", "init", "-q"])
+    run(["git", "config", "user.email", "t@t"])
+    run(["git", "config", "user.name", "t"])
+    (repo / "code.py").write_text("x = 1\n")
+    (repo / "results.jsonl").write_text("{}\n")
+    run(["git", "add", "-A"])
+    run(["git", "commit", "-qm", "first"])
+    provenance.head.cache_clear()
+    return repo
+
+
+def test_a_clean_tree_is_not_flagged(tmp_path) -> None:
+    assert not provenance.head(_repo(tmp_path)).endswith("-dirty")
+
+
+def test_uncommitted_code_is_flagged(tmp_path) -> None:
+    """A run against modified code is not reproducible from any commit."""
+    repo = _repo(tmp_path)
+    (repo / "code.py").write_text("x = 2\n")
+    provenance.head.cache_clear()
+    assert provenance.head(repo).endswith("-dirty")
+
+
+def test_an_appended_data_file_is_not_flagged(tmp_path) -> None:
+    """The contract head() states, and the one the live tree kept breaking.
+
+    The first trial of any batch appends to results.jsonl, so a flag that
+    counted data files would be set for the whole of every run. This test used
+    to read the real repository and compare against raw `git status
+    --porcelain`, which counts them -- so it failed for as long as any batch
+    was running, on the code behaving exactly as documented.
+    """
+    repo = _repo(tmp_path)
+    (repo / "results.jsonl").write_text('{}\n{"row": 2}\n')
+    provenance.head.cache_clear()
+    assert not provenance.head(repo).endswith("-dirty")
+
+
+def test_code_dirt_outweighs_data_dirt(tmp_path) -> None:
+    repo = _repo(tmp_path)
+    (repo / "results.jsonl").write_text('{}\n{"row": 2}\n')
+    (repo / "code.py").write_text("x = 2\n")
+    provenance.head.cache_clear()
+    assert provenance.head(repo).endswith("-dirty")
 
 
 def test_every_log_record_carries_the_stamp(caplog) -> None:
@@ -75,6 +116,7 @@ def test_fingerprint_identifies_content_not_path(tmp_path) -> None:
     assert provenance.fingerprint(a) != provenance.fingerprint(b)
 
 
+@pytest.mark.skipif(not HAS_LOCAL_RESULTS, reason=SKIP_NO_RESULTS)
 def test_fingerprint_counts_rows() -> None:
     p = results.default_path()
     assert provenance.fingerprint(p).split()[0].isdigit()
@@ -120,25 +162,25 @@ def test_appending_to_a_data_file_is_not_dirty(tmp_path) -> None:
     being read."""
     repo = _repo(tmp_path)
     (repo / "results.jsonl").write_text('{"a":1}\n{"a":2}\n')
-    assert not provenance._code_is_dirty(repo)
+    assert not provenance.code_is_dirty(repo)
 
 
 def test_changing_code_is_dirty(tmp_path) -> None:
     repo = _repo(tmp_path)
     (repo / "code.py").write_text("x = 2\n")
-    assert provenance._code_is_dirty(repo)
+    assert provenance.code_is_dirty(repo)
 
 
 def test_a_new_untracked_source_file_is_dirty(tmp_path) -> None:
     repo = _repo(tmp_path)
     (repo / "new.py").write_text("y = 1\n")
-    assert provenance._code_is_dirty(repo)
+    assert provenance.code_is_dirty(repo)
 
 
 def test_a_new_log_file_is_not_dirty(tmp_path) -> None:
     repo = _repo(tmp_path)
     (repo / "run.log").write_text("noise\n")
-    assert not provenance._code_is_dirty(repo)
+    assert not provenance.code_is_dirty(repo)
 
 
 def test_code_and_data_together_are_dirty(tmp_path) -> None:
@@ -146,11 +188,11 @@ def test_code_and_data_together_are_dirty(tmp_path) -> None:
     repo = _repo(tmp_path)
     (repo / "results.jsonl").write_text('{"a":9}\n')
     (repo / "code.py").write_text("x = 3\n")
-    assert provenance._code_is_dirty(repo)
+    assert provenance.code_is_dirty(repo)
 
 
 def test_a_clean_tree_is_clean(tmp_path) -> None:
-    assert not provenance._code_is_dirty(_repo(tmp_path))
+    assert not provenance.code_is_dirty(_repo(tmp_path))
 
 
 # --- a log line must name its machine (#85) ---------------------------------
@@ -194,7 +236,7 @@ def test_every_log_line_carries_commit_and_machine(caplog):
 
 def test_the_log_format_includes_both():
     source = pathlib.Path(provenance.__file__).read_text()
-    assert "[%(harness)s@%(machine)s]" in source
+    assert "[%(harness)s@%(machine)s %(engine)s pld=%(pld)s]" in source
 
 
 def test_the_filename_names_the_machine_too():
@@ -220,3 +262,119 @@ def test_committed_logs_all_name_their_machine():
         # timestamp is last.
         assert stem.split("-")[-1].endswith("Z"), f"no UTC stamp: {log}"
         assert len(stem.split("-")) >= 3, f"filename does not name a machine: {log}"
+
+
+def test_harness_dirty_ignores_the_results_file(tmp_path, monkeypatch) -> None:
+    """The consumer of this rule, which had its own stricter one.
+
+    run.py asked raw `git status --porcelain`, so results.jsonl -- appended to
+    by every run -- set harness_dirty on essentially every row ever recorded.
+    stack_agent_report voids a read-out when any row carries the flag, so a
+    pre-registered screen was guaranteed to void itself on a condition that is
+    always true.
+    """
+    import run
+
+    repo = _repo(tmp_path)
+    (repo / "results.jsonl").write_text('{}\n{"row": 2}\n')
+    monkeypatch.setattr(run, "HERE", repo)
+    assert run.provenance.code_is_dirty(repo) is False
+
+    (repo / "code.py").write_text("x = 2\n")
+    assert run.provenance.code_is_dirty(repo) is True
+
+
+def test_an_untracked_run_directory_is_not_code_dirt(tmp_path) -> None:
+    """A run writes its own output inside the tree.
+
+    benchmarks/ds4/<prefix>-runN is untracked, so by repetition two the tree is
+    dirty because of the run asking the question. --require-harness-head
+    refuses on dirty code, so an untracked-sensitive check there would refuse
+    every multi-run A/B -- the comparisons the pin exists to protect.
+    """
+    repo = _repo(tmp_path)
+    (repo / "benchmarks-ds4-run1").mkdir()
+    (repo / "benchmarks-ds4-run1" / "a.csv").write_text("x\n")
+    assert provenance.code_is_dirty(repo, untracked=False) is False
+    assert provenance.code_is_dirty(repo) is True, "the default still sees it"
+
+
+def git_reports(repo) -> str:
+    return subprocess.run(
+        ["git", "status", "--porcelain"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+
+
+def test_a_runs_own_output_directory_is_not_code_dirt(tmp_path) -> None:
+    """Every engine A/B row carried `-dirty` because of its own output.
+
+    git reports an untracked DIRECTORY, "benchmarks/ds4/<prefix>-runN/", which
+    no suffix rule matches. The rows that carry this flag are the ones quoted
+    in issues, so a flag that is always set is worse than no flag.
+    """
+    repo = _repo(tmp_path)
+    # benchmarks/ds4/ must already be tracked, or git collapses the report to
+    # the topmost untracked directory ("?? benchmarks/") and the test would be
+    # measuring the fixture rather than the rule.
+    tracked = repo / "benchmarks" / "ds4" / "earlier-run"
+    tracked.mkdir(parents=True)
+    (tracked / "main-rep1.csv").write_text("ctx,tps\n2048,500\n")
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-qm", "earlier run"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
+    out = repo / "benchmarks" / "ds4" / "pr964-rerun-run1"
+    out.mkdir(parents=True)
+    (out / "main-rep1.csv").write_text("ctx,tps\n2048,500\n")
+    assert git_reports(repo).startswith("?? benchmarks/ds4/"), git_reports(repo)
+    assert provenance.code_is_dirty(repo) is False
+
+
+def test_a_csv_outside_the_output_tree_still_counts(tmp_path) -> None:
+    """The prefix rule is scoped; it does not excuse data anywhere at all."""
+    repo = _repo(tmp_path)
+    (repo / "new_module.py").write_text("x = 3\n")
+    assert provenance.code_is_dirty(repo) is True
+
+
+def test_the_draft_path_reading_expires(monkeypatch):
+    """A permanently cached reading would report the first arm for a whole A/B.
+
+    stack_agent_ab.sh restarts the server between sweeps with different flags.
+    functools.cache here would stamp every line of an eight-sweep run with
+    sweep one's state -- worse than not stamping it, because it would look
+    authoritative. The TTL is what makes the field trustworthy across a restart.
+    """
+    calls = []
+
+    def fake() -> str:
+        calls.append(1)
+        return "off" if len(calls) > 1 else "on"
+
+    monkeypatch.setattr(provenance, "_pld_cache", None)
+    monkeypatch.setattr(provenance, "pld_now", provenance.pld_now)
+    import engine_identity
+
+    monkeypatch.setattr(engine_identity, "pld_state", fake)
+
+    assert provenance.pld_now() == "on"
+    assert provenance.pld_now() == "on", "inside the TTL it must not re-probe"
+    assert len(calls) == 1
+
+    stale = time.monotonic() - provenance._PLD_TTL_SECONDS - 1
+    monkeypatch.setattr(provenance, "_pld_cache", (stale, "on"))
+    assert provenance.pld_now() == "off", "past the TTL it must ask again"
+
+
+def test_every_line_carries_the_draft_path(monkeypatch):
+    monkeypatch.setattr(provenance, "_pld_cache", (time.monotonic(), "off"))
+    record = logging.LogRecord("n", logging.INFO, __file__, 1, "m", None, None)
+    provenance._Stamp("abc1234").filter(record)
+    assert record.pld == "off"

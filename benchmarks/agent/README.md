@@ -1,12 +1,6 @@
 # Agent benchmark — local models as Claude Code backends
 
-> ## ⚠️ OpenCode results before 2026-08-31 21:47 EDT are INVALID
->
-> Any OpenCode trial recorded before `2026-08-31T21:47:18-04:00` measures a
-> harness bug -- the client was never told which directory to work in, so it
-> solved each task and wrote the answer somewhere else. **Do not quote, pool,
-> or compare against those numbers.** Cause, cutover and replacements:
-> [docs/archive/results-opencode-pre-dir.md](../../docs/archive/results-opencode-pre-dir.md). Other clients are unaffected.
+> ⚠️ **OpenCode results before 2026-08-31 21:47 EDT are INVALID** — the client was never told which directory to work in. **Other clients are unaffected.** The ledger holds none of these rows now; do not quote them from older documents either: [what happened](../../docs/archive/results-opencode-pre-dir.md).
 
 Measures what actually matters for a coding agent: **does it finish the job,
 and how long does it take?**
@@ -55,7 +49,7 @@ earlier session holds its weights whether or not anyone is using it, and these
 models are sized to nearly fill unified memory. If the new one still fits
 alongside the old one, nothing fails — the batch just spends hours measuring a
 contended machine, and the numbers look plausible. See the
-[preflight section in the top-level README](../../README.md#preflight-always-check-what-is-already-running).
+[preflight section in the top-level README](../../README.md#preflight-check-what-is-already-running).
 `run.py` runs the same check itself and warns, but by then the server is
 already started.
 
@@ -87,7 +81,7 @@ and you can compare across days.
 
 `results.jsonl` and the run logs are **tracked in git, on purpose**. Each row
 costs minutes of wall time and a full matrix costs hours, so the data cannot be
-cheaply regenerated — and analyses nobody has thought of yet can only be run
+cheaply regenerated — and analyzes nobody has thought of yet can only be run
 against data that still exists.
 
 Every row carries its own environment capture, so old rows stay interpretable
@@ -171,7 +165,7 @@ so.
 ## Results
 
 238 trials across 8 backends and 3 clients. Full report:
-[**RESULTS.md**](RESULTS.md). Picks for this machine:
+[**RESULTS.md**](../../hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/RESULTS-agent.md). Picks for this machine:
 [**RECOMMENDATIONS.md**](../../RECOMMENDATIONS.md).
 
 Headline: correctness barely separates the *backends* (seven of eight at 100%),

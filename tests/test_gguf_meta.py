@@ -37,7 +37,7 @@ def sample(tmp_path: pathlib.Path) -> pathlib.Path:
         ("split.count", 4, struct.pack("<I", 33)),
         ("split.tensors.count", 10, struct.pack("<Q", 1224)),
         ("qwen4exp.ple.heads_per_ngram", 4, struct.pack("<I", 8)),
-        # A short array is kept whole; a long one is summarised.
+        # A short array is kept whole; a long one is summarized.
         (
             "qwen4exp.ple.head_offsets",
             9,
@@ -78,6 +78,33 @@ def test_a_long_string_array_is_summarised_not_expanded(sample):
     """A 250k-token vocabulary must not be printed or held."""
     got = gguf_meta.read(sample)["tokenizer.ggml.tokens"]
     assert "6 strings" in got
+
+
+def _long_ratios(tmp_path: pathlib.Path) -> pathlib.Path:
+    """A 44-value uint32 array, the shape of deepseek4.attention.compress_ratios."""
+    vals = list(range(44))
+    payload = struct.pack("<IQ", 4, len(vals)) + struct.pack(f"<{len(vals)}I", *vals)
+    p = tmp_path / "m.gguf"
+    p.write_bytes(_build([("deepseek4.attention.compress_ratios", 9, payload)]))
+    return p
+
+
+def test_a_long_numeric_array_is_summarised_by_default(tmp_path):
+    """#162: a 44-value array must not be printed or held unless asked for."""
+    got = gguf_meta.read(_long_ratios(tmp_path))
+    assert got["deepseek4.attention.compress_ratios"] == "[44 values]"
+
+
+def test_a_matching_filter_expands_the_array(tmp_path):
+    """#162: `--filter compress_ratios` must print the values, not `[44 values]`."""
+    got = gguf_meta.read(_long_ratios(tmp_path), expand="compress_ratios")
+    assert got["deepseek4.attention.compress_ratios"] == list(range(44))
+
+
+def test_expand_only_matches_the_named_key(tmp_path):
+    """A filter that matches nothing leaves the array summarized."""
+    got = gguf_meta.read(_long_ratios(tmp_path), expand="sliding_window")
+    assert got["deepseek4.attention.compress_ratios"] == "[44 values]"
 
 
 def test_every_key_is_read_so_later_keys_are_not_shifted(sample):

@@ -1,75 +1,834 @@
-"""Summarise a paired decode A/B produced by scripts/decode_ab.sh (#48).
+"""Summarize a paired decode A/B produced by scripts/decode_ab.sh (#48).
+
+Give it several directories and it also reports the spread BETWEEN runs
+(#136). That axis is invisible from inside one run: on 2026-09-04 four
+identical runs of the same A/B returned +16.5%, +21.2%, +17.6% and +17.7%,
+and each looked tight from inside -- per-frontier ranges of 1.154-1.205 and
+1.207-1.238, exactly the spread a reader would quote as precision. A single
+run is not a measurement, and until this took more than one directory
+nothing made that visible.
 
 Reports the per-frontier paired ratio, not just two medians: the frontiers
 differ from each other by more than the effect we are chasing, so pooling them
 would hide it. The paired median ratio is the statistic that answers "did
 decode get faster", and the per-frontier spread says whether it held
 everywhere or came from one point.
+
+"Paired" means the ratio is taken **within one repetition** -- b's rep-2 rate
+over a's rep-2 rate -- and the median is taken over those ratios. Until
+2026-09-04 this script took each arm's median independently and divided one
+by the other, which is a ratio of medians, not a paired statistic: the two
+medians can come from different repetitions, and with ~9% rep-to-rep drift
+(#118) the drift re-enters the result as noise. On #118's data that read
++20.0% where the paired statistic is +16.5%. The rep index is kept all the
+way through for exactly this reason.
 """
 
 from __future__ import annotations
 
+import argparse
 import csv
+import dataclasses
 import logging
 import pathlib
 import statistics as st
 import sys
 from collections import defaultdict
 
+import prompt_meta
+
 logger = logging.getLogger(__name__)
 
 
-def load(outdir: pathlib.Path) -> dict[str, dict[int, list[float]]]:
-    """label -> ctx_tokens -> [gen_steady_tps, ...] across repetitions."""
-    data: dict[str, dict[int, list[float]]] = defaultdict(lambda: defaultdict(list))
+def load(
+    outdir: pathlib.Path, column: str = "gen_steady_tps"
+) -> dict[str, dict[int, dict[int, float]]]:
+    """label -> ctx_tokens -> rep -> the chosen CSV column's value.
+
+    The rep number is the pairing key, so it lives in the structure rather
+    than being discarded on load -- the original defect discarded it.
+    """
+    data: dict[str, dict[int, dict[int, float]]] = defaultdict(
+        lambda: defaultdict(dict)
+    )
     for path in sorted(outdir.glob("*-rep*.csv")):
-        label = path.name.rsplit("-rep", 1)[0]
+        label, _, rep_name = path.name.rpartition("-rep")
+        try:
+            rep = int(rep_name.removesuffix(".csv"))
+        except ValueError:
+            logger.warning("skipping %s: cannot read a rep number", path.name)
+            continue
         with path.open() as fh:
             for row in csv.DictReader(fh):
-                # gen_steady_tps excludes first-token latency, which is the
-                # part that moves with prefill rather than decode.
-                data[label][int(row["ctx_tokens"])].append(float(row["gen_steady_tps"]))
-    return data
+                data[label][int(row["ctx_tokens"])][rep] = float(row[column])
+    return {label: dict(by_ctx) for label, by_ctx in data.items()}
+
+
+@dataclasses.dataclass(frozen=True)
+class Summary:
+    a: str
+    b: str
+    # Paired median b/a per frontier, from the reps both arms share.
+    per_frontier: dict[int, float]
+    # Frontiers present in both arms but with no repetition in common.
+    skipped: list[int]
+    # Median of the per-frontier medians: the headline.
+    median: float
+    # The same ratios pooled over every (frontier, rep) pair, as a cross-check.
+    pooled_median: float
+    pooled_mean: float
+    n_pairs: int
+    wins: int
+
+
+def legacy_median(data: dict[str, dict[int, dict[int, float]]]) -> float | None:
+    """The statistic this script used before 98bc79b, for comparison only.
+
+    It took each arm's median across repetitions **independently** and divided
+    them, so the numerator and denominator could come from different runs of
+    the same frontier. That is a ratio of medians, not a paired statistic.
+
+    Kept because #136 asks a question only this can answer: did the old
+    statistic *hide* between-run structure by blurring repetitions together?
+    Answering it needs both numbers on the same data. Do not use it for
+    anything else -- it is wrong, and it is here to be measured against.
+    """
+    if len(data) != 2:
+        return None
+    a, b = sorted(data)
+    ratios = []
+    for ctx in sorted(set(data[a]) & set(data[b])):
+        left, right = data[a][ctx].values(), data[b][ctx].values()
+        if not left or not right:
+            continue
+        ma, mb = st.median(left), st.median(right)
+        if ma:
+            ratios.append(mb / ma)
+    return st.median(ratios) if ratios else None
+
+
+def summarize(data: dict[str, dict[int, dict[int, float]]]) -> Summary:
+    """The paired statistics for exactly two labels, `a` sorted before `b`."""
+    if len(data) != 2:
+        raise ValueError(f"need exactly 2 labels, found {sorted(data)}")
+    a, b = sorted(data)
+    per_frontier: dict[int, float] = {}
+    skipped: list[int] = []
+    pooled: list[float] = []
+    for ctx in sorted(set(data[a]) & set(data[b])):
+        shared = sorted(set(data[a][ctx]) & set(data[b][ctx]))
+        if not shared:
+            skipped.append(ctx)
+            continue
+        ratios = [data[b][ctx][rep] / data[a][ctx][rep] for rep in shared]
+        per_frontier[ctx] = st.median(ratios)
+        pooled.extend(ratios)
+    if not per_frontier:
+        raise ValueError(
+            "no frontier has a repetition in common between the arms; "
+            "check the -rep numbering in the CSV filenames"
+        )
+    return Summary(
+        a=a,
+        b=b,
+        per_frontier=per_frontier,
+        skipped=skipped,
+        median=st.median(per_frontier.values()),
+        pooled_median=st.median(pooled),
+        pooled_mean=st.mean(pooled),
+        n_pairs=len(pooled),
+        wins=sum(1 for r in per_frontier.values() if r > 1),
+    )
+
+
+VOID_SUFFIX = "-VOID.md"
+
+
+def void_marker(outdir: pathlib.Path) -> pathlib.Path | None:
+    """The marker saying this run must not be pooled, or None.
+
+    Two spellings are accepted, because a run is voided *after* it was
+    written and whoever writes the marker should not have to remember which
+    one this script reads: a sibling `<dir>-VOID.md`, or `VOID.md` inside
+    the directory.
+    """
+    d = outdir.resolve()
+    for candidate in (d.parent / f"{d.name}{VOID_SUFFIX}", d / "VOID.md"):
+        if candidate.exists():
+            return candidate
+    return None
+
+
+def void_reason(marker: pathlib.Path) -> str:
+    """The marker's first non-empty line, so the refusal says why."""
+    try:
+        for line in marker.read_text().splitlines():
+            if line.strip():
+                return line.strip().lstrip("#").strip()
+    except OSError:
+        pass
+    return "no reason recorded"
+
+
+def _warn_rep_mismatch(
+    data: dict[str, dict[int, dict[int, float]]], d: pathlib.Path
+) -> None:
+    """Warn when the two arms of a run carry different repetition counts.
+
+    A directory read mid-write has one arm with fewer reps than the other:
+    the driver writes the arms' CSVs interleaved, so a run caught between
+    arms has an incomplete final rep on one side. `load()` pairs only the
+    reps both arms share, so the missing rep silently drops out of the
+    pairing and changes the median -- no error, no warning, just a
+    different number. This is the loud version of that silence.
+    """
+    if len(data) != 2:
+        return
+    a, b = sorted(data)
+    reps_a = {rep for ctx in data[a].values() for rep in ctx}
+    reps_b = {rep for ctx in data[b].values() for rep in ctx}
+    if reps_a != reps_b:
+        logger.warning(
+            "%s: arms carry different repetition counts -- %s has %s, %s has %s; "
+            "a run read mid-write drops the incomplete rep from the pairing",
+            d.name or str(d),
+            a,
+            sorted(reps_a),
+            b,
+            sorted(reps_b),
+        )
+
+
+def report_across_runs(
+    dirs: list[pathlib.Path], column: str, include_void: bool = False
+) -> tuple[list[tuple[pathlib.Path, Summary]], int]:
+    """Summarize each run, then the spread between them (#136).
+
+    Returns the per-run summaries and a status. A directory that cannot be
+    summarized is named and skipped rather than aborting the others: with
+    four runs in hand, losing three to one bad directory is the wrong
+    trade.
+
+    A **voided** run is refused before it is loaded. On 2026-09-06 run 2 of
+    the #952 batch caught another session's test suite on one arm and not
+    the other, and was written off in prose -- a file the pooling tool
+    cannot read. The next person to type `decode_ab_report.py run*/` would
+    have pooled it, and the confound flattered the hypothesis, so nothing
+    in the output would have looked wrong. The rule is an artifact now.
+    """
+    got: list[tuple[pathlib.Path, Summary]] = []
+    status = 0
+    refused = 0
+    for d in dirs:
+        marker = void_marker(d)
+        if marker is not None and not include_void:
+            refused += 1
+            # ERROR, not a warning: this is a refusal, and it has to survive
+            # being read at the bottom of a long report.
+            logger.error(
+                "REFUSED %s: marked VOID by %s -- %s",
+                d.name or str(d),
+                marker.name,
+                void_reason(marker),
+            )
+            continue
+        if marker is not None:
+            logger.warning(
+                "%s is VOID and is pooled anyway because --include-void was "
+                "given -- do not quote this",
+                d.name or str(d),
+            )
+        try:
+            data = load(d, column)
+            _warn_rep_mismatch(data, d)
+            got.append((d, summarize(data)))
+        except (ValueError, OSError) as exc:
+            logger.error("%s: %s", d, exc)
+            status = 1
+    if not got and refused:
+        # Every directory asked for was void. Exiting 0 here would let a
+        # caller read "no output" as "nothing wrong".
+        status = 1
+    return got, status
+
+
+def repeat_spread(got: list[tuple[pathlib.Path, Summary]]) -> float | None:
+    """Median spread across repetitions at a single frontier.
+
+    This is the repeatability of the measurement -- what a re-run of the same
+    thing should reproduce. Deliberately NOT the spread across frontiers,
+    which reflects a real dependence on context length and would make any run
+    look noisier than it is.
+    """
+    spreads: list[float] = []
+    for d, _ in got:
+        data = load(d, "gen_steady_tps")
+        if len(data) != 2:
+            continue
+        a, b = sorted(data)
+        for ctx in sorted(set(data[a]) & set(data[b])):
+            shared = sorted(set(data[a][ctx]) & set(data[b][ctx]))
+            if len(shared) < 2:
+                continue
+            ratios = [data[b][ctx][r] / data[a][ctx][r] for r in shared]
+            spreads.append(max(ratios) - min(ratios))
+    return st.median(spreads) if spreads else None
+
+
+def log_between_run_spread(got: list[tuple[pathlib.Path, Summary]]) -> None:
+    """The headline per run, and the spread across them."""
+    if len(got) < 2:
+        return
+    medians = [s.median for _, s in got]
+    lo, hi = min(medians), max(medians)
+    a, b = got[0][1].a, got[0][1].b
+    logger.info("-- between runs --")
+    for d, s in got:
+        logger.info(
+            "%-34s %s/%s %.3f (%+.1f%%)   %s/%s %.3f (%+.1f%%)",
+            d.name,
+            b,
+            a,
+            s.median,
+            (s.median - 1) * 100,
+            a,
+            b,
+            1 / s.median,
+            (1 / s.median - 1) * 100,
+        )
+    med = st.median(medians)
+    logger.info(
+        "%d runs: median %s/%s %.3f (%+.1f%%), %s/%s %.3f (%+.1f%%), "
+        "range %.3f - %.3f, spread %.1f pp",
+        len(medians),
+        b,
+        a,
+        med,
+        (med - 1) * 100,
+        a,
+        b,
+        1 / med,
+        (1 / med - 1) * 100,
+        lo,
+        hi,
+        (hi - lo) * 100,
+    )
+    # The comparison that matters is between-run spread against REPEAT noise,
+    # not against the spread across frontiers. The ratio genuinely differs by
+    # context length -- that is signal -- so comparing it to between-run
+    # variation flatters the runs. Repeatability is the spread across reps at
+    # one frontier, which is what a second run of the same thing should match.
+    repeat = repeat_spread(got)
+    if repeat is not None:
+        logger.info(
+            "typical within-run repeat spread at one frontier: %.1f pp -- %s",
+            repeat * 100,
+            "BETWEEN-run spread is larger, so one run's internal agreement is "
+            "not precision (#136)"
+            if (hi - lo) > repeat
+            else "repeat noise dominates; runs agree as well as reps do",
+        )
+
+
+def per_frontier_across_runs(
+    got: list[tuple[pathlib.Path, Summary]],
+) -> dict[int, list[float]]:
+    """ctx -> each run's paired ratio at that frontier.
+
+    The per-frontier table printed below the headline comes from ONE run, and
+    with several runs in hand that is the wrong table to quote. On the #952
+    batch run 1 read -1.8% at 8 of 8 frontiers while the four runs together
+    read -0.1%; the single-run table was about to be published as the four-run
+    answer. This is the table that actually belongs to the batch.
+
+    A frontier that is missing from a run is simply absent from its list
+    rather than silently filled, so the count printed per row says how many
+    runs stand behind it.
+    """
+    out: dict[int, list[float]] = defaultdict(list)
+    for _, summary in got:
+        for ctx, ratio in summary.per_frontier.items():
+            out[ctx].append(ratio)
+    return dict(out)
+
+
+def absolute_saving_ms(dirs: list[pathlib.Path], column: str) -> dict[int, list[float]]:
+    """ctx -> per-(run, rep) milliseconds per token saved by arm b over arm a.
+
+    The ratio answers "how much faster", which is the right question when a
+    change scales with the work. It is the WRONG question when a change is a
+    fixed cost: on #162's gathered-heads knob the branch removes dispatch
+    overhead on exactly two layers, and `n_keys` is pinned at 128 on those
+    layers regardless of context, so the saving is a constant number of
+    milliseconds per token while the token itself gets slower with context.
+    A constant absolute saving divided by a growing per-token time produces a
+    ratio that shrinks with ctx -- and a ratio that shrinks with ctx is also
+    what a generic context-dependent effect produces. The two are only
+    distinguishable in absolute terms.
+
+    So this reports `1/a - 1/b` in ms per token, paired within a repetition.
+    Flat across frontiers means a fixed cost was removed. Growing with ctx
+    means the effect scales with the work and the fixed-cost story is wrong.
+    """
+    out: dict[int, list[float]] = defaultdict(list)
+    for d in dirs:
+        data = load(d, column)
+        if len(data) != 2:
+            continue
+        a, b = sorted(data)
+        for ctx in sorted(set(data[a]) & set(data[b])):
+            for rep in sorted(set(data[a][ctx]) & set(data[b][ctx])):
+                ta, tb = data[a][ctx][rep], data[b][ctx][rep]
+                if ta > 0 and tb > 0:
+                    out[ctx].append((1.0 / ta - 1.0 / tb) * 1000.0)
+    return dict(out)
+
+
+def saving_is_resolvable(saving: dict[int, list[float]]) -> bool:
+    """Whether the saving is distinguishable from zero at all.
+
+    A shape question about a quantity that is indistinguishable from zero has
+    no answer, and dividing one noise figure by another produces a confident
+    verdict from nothing. On #162's gathered-heads knob the per-frontier
+    median savings were 0.27, 0.01, 0.04, -0.18, -0.10, 0.10, 0.02 and 0.01
+    ms/token -- straddling zero -- and the first version of this printed
+    "GROWS with context: not a fixed per-token cost", which reads as evidence
+    against the mechanism. It was a ratio of two noise figures.
+
+    The test is deliberately blunt: if the per-frontier medians do not all
+    share a sign, there is no saving whose shape can be discussed.
+    """
+    medians = [st.median(v) for v in saving.values() if v]
+    if len(medians) < 3:
+        return False
+    return all(m > 0 for m in medians) or all(m < 0 for m in medians)
+
+
+def saving_trend(saving: dict[int, list[float]]) -> float | None:
+    """Median saving at the top third of frontiers over that at the bottom.
+
+    Deliberately a ratio of two medians of GROUPS, not a fit: with eight
+    frontiers a regression slope reads as more precision than eight noisy
+    points carry. Near 1.0 means the absolute saving is flat -- a fixed cost.
+    Much above 1.0 means it grows with context, which falsifies the
+    fixed-cost mechanism whatever the ratio column does.
+
+    None when the saving is not resolvably nonzero: see
+    `saving_is_resolvable`. A trend computed from noise is worse than no
+    trend, because it looks like a finding.
+    """
+    ctxs = sorted(saving)
+    if len(ctxs) < 3 or not saving_is_resolvable(saving):
+        return None
+    third = max(1, len(ctxs) // 3)
+    low = [v for c in ctxs[:third] for v in saving[c]]
+    high = [v for c in ctxs[-third:] for v in saving[c]]
+    if not low or not high or st.median(low) == 0:
+        return None
+    return st.median(high) / st.median(low)
+
+
+def log_absolute_saving(dirs: list[pathlib.Path], column: str, a: str, b: str) -> None:
+    """Absolute ms/token saved per frontier, and whether it is flat."""
+    saving = absolute_saving_ms(dirs, column)
+    if not saving:
+        return
+    logger.info("-- absolute saving, %s over %s, ms per token --", b, a)
+    logger.info("%-8s %12s %6s %17s", "ctx", "ms/token", "n", "range")
+    for ctx, vals in sorted(saving.items()):
+        logger.info(
+            "%-8d %12.4f %6d %8.4f - %.4f",
+            ctx,
+            st.median(vals),
+            len(vals),
+            min(vals),
+            max(vals),
+        )
+    trend = saving_trend(saving)
+    if trend is None and not saving_is_resolvable(saving):
+        # Say why there is no verdict. Printing nothing here would leave the
+        # table looking like it simply had no shape to report.
+        logger.info(
+            "no trend: the per-frontier savings do not share a sign, so the "
+            "saving is not distinguishable from zero and its shape has no "
+            "answer"
+        )
+    if trend is not None:
+        logger.info(
+            "top-third saving / bottom-third saving: %.2f -- %s",
+            trend,
+            "FLAT: consistent with a fixed cost removed per token"
+            if 0.5 <= trend <= 2.0
+            else "GROWS with context: not a fixed per-token cost",
+        )
+
+
+def log_per_frontier_across_runs(got: list[tuple[pathlib.Path, Summary]]) -> None:
+    """Per-frontier median over the runs, with the count and range per row."""
+    if len(got) < 2:
+        return
+    a, b = got[0][1].a, got[0][1].b
+    # The direction goes in the block header rather than the column head: it
+    # is long enough to push every column out of alignment, and this table is
+    # written to be pasted into an issue.
+    logger.info("-- per frontier, paired %s/%s, median over %d runs --", b, a, len(got))
+    logger.info("%-8s %10s %6s %17s", "ctx", "median", "runs", "range across runs")
+    for ctx, ratios in sorted(per_frontier_across_runs(got).items()):
+        logger.info(
+            "%-8d %10.3f %6d %8.3f - %.3f",
+            ctx,
+            st.median(ratios),
+            len(ratios),
+            min(ratios),
+            max(ratios),
+        )
+
+
+def per_rep_ratio(data: dict[str, dict[int, dict[int, float]]]) -> dict[int, float]:
+    """Paired b/a per repetition: median over the frontiers in that rep.
+
+    Answers "does the ratio narrow within a session", which we told
+    antirez/ds4#952 that it does. Six datasets say otherwise, and re-deriving
+    that by hand each time is how a ratio-of-medians slips back in.
+    """
+    if len(data) != 2:
+        return {}
+    a, b = sorted(data)
+    out: dict[int, float] = {}
+    reps = sorted({r for ctx in data[a].values() for r in ctx})
+    for rep in reps:
+        ratios = [
+            data[b][ctx][rep] / data[a][ctx][rep]
+            for ctx in sorted(set(data[a]) & set(data[b]))
+            if rep in data[a].get(ctx, {})
+            and rep in data[b].get(ctx, {})
+            and data[a][ctx][rep]
+        ]
+        if ratios:
+            out[rep] = st.median(ratios)
+    return out
+
+
+def per_arm_drift(data: dict[str, dict[int, dict[int, float]]]) -> dict[str, float]:
+    """First rep to last, per arm: median of the per-frontier drift ratios.
+
+    Deliberately per frontier and then medianed. Taking each rep's median
+    across frontiers and dividing those is a ratio of medians -- the defect
+    corrected in 98bc79b, which is easy to reintroduce here because the shape
+    of the question invites it.
+
+    This is the claim we made on antirez/ds4#952: "q4 loses more to drift than
+    q8". On both datasets we can still recompute, q8 moves more.
+    """
+    out: dict[str, float] = {}
+    for arm, by_ctx in data.items():
+        reps = sorted({r for ctx in by_ctx.values() for r in ctx})
+        if len(reps) < 2:
+            continue
+        first, last = reps[0], reps[-1]
+        drifts = [
+            by_ctx[ctx][last] / by_ctx[ctx][first]
+            for ctx in sorted(by_ctx)
+            if first in by_ctx[ctx] and last in by_ctx[ctx] and by_ctx[ctx][first]
+        ]
+        if drifts:
+            out[arm] = st.median(drifts)
+    return out
+
+
+def log_within_run_structure(data: dict[str, dict[int, dict[int, float]]]) -> None:
+    """Per-rep ratio and per-arm drift: the two questions #952 got wrong."""
+    ratios = per_rep_ratio(data)
+    if ratios:
+        a, b = sorted(data)
+        # Name the direction. The headline above prints both ways round for
+        # exactly this reason -- a bare "0.872" has been misread once already
+        # -- and printing one direction here reintroduced the ambiguity.
+        logger.info(
+            "paired ratio by rep, %s/%s: %s",
+            b,
+            a,
+            "  ".join(f"rep{r}={v:.3f}" for r, v in sorted(ratios.items())),
+        )
+        logger.info(
+            "paired ratio by rep, %s/%s: %s",
+            a,
+            b,
+            "  ".join(f"rep{r}={1 / v:.3f}" for r, v in sorted(ratios.items())),
+        )
+    drift = per_arm_drift(data)
+    if drift:
+        # Per arm, so no direction to confuse -- but say which arm moved more,
+        # because that is the claim ds4#952 made and it is easy to eyeball
+        # backwards from two signed percentages.
+        worst = max(drift, key=lambda k: abs(drift[k] - 1))
+        logger.info("arm that drifts most: %s", worst)
+        logger.info(
+            "drift first->last rep, per arm: %s",
+            "  ".join(f"{a}={(v - 1) * 100:+.1f}%" for a, v in sorted(drift.items())),
+        )
+
+
+def log_legacy_comparison(got: list[tuple[pathlib.Path, Summary]], column: str) -> None:
+    """Old statistic against new, per run (#136 item 4).
+
+    The question is whether dividing two independently-taken medians blurred
+    between-run structure into within-run noise. If the legacy spread across
+    runs is *narrower* than the paired spread, it did -- the defect would have
+    made these runs look more consistent than they are, which is worse than
+    being merely wrong.
+    """
+    rows = []
+    for d, summary in got:
+        old = legacy_median(load(d, column))
+        if old is None:
+            continue
+        rows.append((d.name, old, summary.median))
+    if len(rows) < 2:
+        return
+    old_spread = max(r[1] for r in rows) - min(r[1] for r in rows)
+    new_spread = max(r[2] for r in rows) - min(r[2] for r in rows)
+    logger.info("-- legacy statistic (ratio of medians), for #136 only --")
+    for name, old, new in rows:
+        logger.info("%-34s legacy %.3f   paired %.3f", name, old, new)
+    logger.info(
+        "spread across runs: legacy %.1f pp, paired %.1f pp -- %s",
+        old_spread * 100,
+        new_spread * 100,
+        "legacy looked TIGHTER, so it hid between-run structure"
+        if old_spread < new_spread
+        else "legacy did not hide spread here",
+    )
+
+
+def runs_needed(medians: list[float]) -> list[tuple[int, float, float, float]]:
+    """How far the answer can move if you had only taken k of the runs.
+
+    For each k, every k-subset of the runs is a measurement someone could
+    have taken and reported. Returns (k, lowest median, highest median,
+    spread in pp) over all of them.
+
+    #136 item 2 asks how many runs are enough. This does not answer that in
+    general -- repeatability is a property of the comparison, not of the
+    harness, and #118 spreads 4.7 pp across four runs where q4/q8 spreads
+    1.5 pp. What it does answer is what the runs in hand would have bought:
+    if k=3 still spans two points, a three-run result was a coin toss.
+
+    Exhaustive rather than sampled: with four runs there are fifteen subsets
+    and no reason to approximate.
+    """
+    import itertools
+
+    out: list[tuple[int, float, float, float]] = []
+    for k in range(1, len(medians) + 1):
+        estimates = [st.median(c) for c in itertools.combinations(medians, k)]
+        lo, hi = min(estimates), max(estimates)
+        out.append((k, lo, hi, (hi - lo) * 100))
+    return out
+
+
+def log_runs_needed(got: list[tuple[pathlib.Path, Summary]]) -> None:
+    """What k runs would have bought, for every k up to what we have."""
+    if len(got) < 3:
+        return
+    medians = [s.median for _, s in got]
+    a, b = got[0][1].a, got[0][1].b
+    logger.info("-- what k runs would have bought (#136) --")
+    for k, lo, hi, spread in runs_needed(medians):
+        logger.info(
+            "k=%d  %s/%s could have read %.3f to %.3f  (spread %.1f pp)",
+            k,
+            b,
+            a,
+            lo,
+            hi,
+            spread,
+        )
+
+
+def prompt_for(got: list[tuple[pathlib.Path, Summary]]) -> prompt_meta.PromptRef | None:
+    """The one prompt every summarized run shares, or None.
+
+    None means either that the runs used different prompts or that one of
+    them did not record its prompt at all. Both are reasons not to quote a
+    single prefill figure for them, so they get one answer (#140).
+    """
+    return prompt_meta.agree([prompt_meta.for_run(d) for d, _ in got])
+
+
+def quotable(
+    got: list[tuple[pathlib.Path, Summary]],
+    prompt: prompt_meta.PromptRef | None = None,
+) -> str:
+    """One line fit to paste into an issue, carrying its own run count.
+
+    #136 item 3: a figure with no run count cannot be read. Enforcing that by
+    linting prose is brittle -- the fix is to make the quotable form cheaper
+    than the bare number, so the count travels by default instead of by
+    discipline.
+
+    Names the direction, the number of runs, the spread, and the per-run
+    figures, because the spread is what says whether those runs were enough
+    for this particular comparison.
+
+    #140 puts the prompt on the same line for the same reason. Our own
+    upstream correction quoted "prefill median 0.999" with the commit, the
+    weights, the SHA-256 and the repetition count, and not the prompt -- the
+    one variable @adamlawi then showed decides the answer. The quotable form
+    is the cheapest place to make that automatic.
+    """
+    if not got:
+        return "no runs"
+    a, b = got[0][1].a, got[0][1].b
+    medians = [s.median for _, s in got]
+    med = st.median(medians)
+    lo, hi = min(medians), max(medians)
+    each = ", ".join(f"{m:.3f}" for m in medians)
+    on = f"; prompt {prompt_meta.describe(prompt)}"
+    if len(medians) == 1:
+        return (
+            f"{b}/{a} {med:.3f} ({(med - 1) * 100:+.1f}%) from a SINGLE run -- "
+            f"one run is not a measurement (#136){on}"
+        )
+    return (
+        f"{b}/{a} median {med:.3f} ({(med - 1) * 100:+.1f}%) over {len(medians)} "
+        f"runs [{each}], spread {(hi - lo) * 100:.1f} pp{on}"
+    )
 
 
 def main(argv: list[str]) -> int:
     logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
-    outdir = pathlib.Path(argv[1]) if len(argv) > 1 else pathlib.Path.cwd()
-    data = load(outdir)
-    if len(data) != 2:
-        logger.error("need exactly 2 labels, found %s", sorted(data))
-        return 1
+    # argparse rather than scanning argv by hand: this is the most-used script
+    # here and it was the only one with no --help, which a smoke test of every
+    # script found. Hand-rolled flag parsing also silently accepts a
+    # misspelled --legacy as a directory name.
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument(
+        "dirs",
+        nargs="*",
+        type=pathlib.Path,
+        help="run directories; defaults to the current directory",
+    )
+    parser.add_argument(
+        "--legacy",
+        action="store_true",
+        help="also print the pre-98bc79b ratio-of-medians, for #136 only",
+    )
+    parser.add_argument(
+        "--include-void",
+        action="store_true",
+        help="pool runs marked VOID as well; for inspecting one, never for "
+        "a number you intend to quote",
+    )
+    args = parser.parse_args(argv[1:])
+    legacy = args.legacy
+    dirs = args.dirs or [pathlib.Path.cwd()]
+    status = 0
+    # Both halves of the A/B claim: decode steady rate, and the prefill
+    # interval rate. A PR can move one and not the other (#964 claims decode
+    # only), so both get the paired treatment.
+    for column in ("gen_steady_tps", "prefill_tps"):
+        runs, run_status = report_across_runs(dirs, column, args.include_void)
+        status = status or run_status
+        if not runs:
+            break
+        logger.info("== %s ==", column)
+        if len(runs) > 1:
+            log_between_run_spread(runs)
+            log_runs_needed(runs)
+            if legacy:
+                log_legacy_comparison(runs, column)
+        # #140: name the prompt before the number, and refuse to pool
+        # prefill across prompts. Two prompts on one box moved the same
+        # Q4-vs-Q8 prefill answer by 2.4 pp, so runs that do not share one
+        # are two results, not one with more samples.
+        prompt = prompt_for(runs)
+        if prompt is None and len(runs) > 1:
+            each = [prompt_meta.for_run(d) for d, _ in runs]
+            logger.warning(
+                "these runs do not share one prompt: %s",
+                ", ".join(
+                    f"{d.name}={prompt_meta.describe(r)}"
+                    for (d, _), r in zip(runs, each, strict=True)
+                ),
+            )
+            if column == "prefill_tps":
+                logger.warning(
+                    "prefill is prompt-dependent (#140): report these "
+                    "separately rather than as one figure"
+                )
+        logger.info("quote: %s", quotable(runs, prompt))
+        logger.info("")
+        log_per_frontier_across_runs(runs)
+        # Absolute ms/token beside the ratio: a fixed cost removed and a
+        # context-scaled effect produce the same shrinking ratio, and only
+        # the absolute column separates them (#162).
+        if runs:
+            log_absolute_saving(
+                [d for d, _ in runs], column, runs[0][1].a, runs[0][1].b
+            )
+        # Per-run detail below. With one directory this is the whole report.
+        outdir, got = runs[0]
+        if len(runs) > 1:
+            # Name the run. Without this the table below reads as the batch's
+            # per-frontier result, and it is one run of several -- on the #952
+            # batch run 1 said -1.8% at every frontier where four runs say
+            # -0.1%, and this table was about to be published as the four-run
+            # answer.
+            logger.info("-- %s only, NOT the %d-run figure --", outdir.name, len(runs))
+        data = load(outdir, column)
+        # The arm medians are printed for context only; the ratio column is
+        # the paired one and does not equal median(b) / median(a).
+        logger.info("%-10s %10s %10s %14s", "ctx", got.a, got.b, "paired b/a")
+        for ctx in sorted(got.per_frontier):
+            ma = st.median(data[got.a][ctx].values())
+            mb = st.median(data[got.b][ctx].values())
+            logger.info(
+                "%-10d %10.2f %10.2f %14.3f", ctx, ma, mb, got.per_frontier[ctx]
+            )
+        if got.skipped:
+            logger.warning("skipped, no repetition in common: %s", got.skipped)
 
-    a, b = sorted(data)
-    frontiers = sorted(set(data[a]) & set(data[b]))
-    logger.info("%-10s %12s %12s %8s", "ctx", a, b, "b/a")
-    ratios = []
-    for ctx in frontiers:
-        ma, mb = st.median(data[a][ctx]), st.median(data[b][ctx])
-        ratios.append(mb / ma)
-        logger.info("%-10d %12.2f %12.2f %8.3f", ctx, ma, mb, mb / ma)
-
-    logger.info("")
-    # Name both directions. Labels sort alphabetically, so which arm lands in
-    # the numerator is an accident of naming -- and a bare "0.872" has already
-    # been misread once as the wrong way round.
-    median = st.median(ratios)
-    logger.info(
-        "paired median %s/%s: %.3f  (%+.1f%%)", b, a, median, (median - 1) * 100
-    )
-    logger.info(
-        "paired median %s/%s: %.3f  (%+.1f%%)", a, b, 1 / median, (1 / median - 1) * 100
-    )
-    logger.info(
-        "range of %s/%s across frontiers: %.3f - %.3f", b, a, min(ratios), max(ratios)
-    )
-    if len(ratios) > 1:
-        wins = sum(1 for r in ratios if r > 1)
-        logger.info("frontiers where %s > %s: %d of %d", b, a, wins, len(ratios))
+        logger.info("")
+        # Name both directions. Labels sort alphabetically, so which arm
+        # lands in the numerator is an accident of naming -- and a bare
+        # "0.872" has already been misread once as the wrong way round.
         logger.info(
-            "frontiers where %s > %s: %d of %d", a, b, len(ratios) - wins, len(ratios)
+            "paired median %s/%s across frontiers: %.3f  (%+.1f%%)",
+            got.b,
+            got.a,
+            got.median,
+            (got.median - 1) * 100,
         )
-    return 0
+        logger.info(
+            "paired median %s/%s across frontiers: %.3f  (%+.1f%%)",
+            got.a,
+            got.b,
+            1 / got.median,
+            (1 / got.median - 1) * 100,
+        )
+        values = list(got.per_frontier.values())
+        logger.info(
+            "range of paired %s/%s across frontiers: %.3f - %.3f",
+            got.b,
+            got.a,
+            min(values),
+            max(values),
+        )
+        logger.info(
+            "frontiers where %s > %s: %d of %d", got.b, got.a, got.wins, len(values)
+        )
+        log_within_run_structure(data)
+        logger.info(
+            "pooled over all %d pairs: median %.3f (%+.1f%%), mean %.3f (%+.1f%%)",
+            got.n_pairs,
+            got.pooled_median,
+            (got.pooled_median - 1) * 100,
+            got.pooled_mean,
+            (got.pooled_mean - 1) * 100,
+        )
+        logger.info("")
+    return status
 
 
 if __name__ == "__main__":

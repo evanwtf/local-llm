@@ -9,10 +9,15 @@ losing a half-hour trial to a provenance bug is worse.
 
 from __future__ import annotations
 
+import functools
 import io
 import json
+import os
 import pathlib
+import subprocess
+import sys
 import tomllib
+import types
 import urllib.error
 
 import pytest
@@ -253,7 +258,13 @@ def test_an_empty_modelfile_records_that_defaults_apply_rather_than_nothing():
     """
     got = run.parse_ollama_show({"modelfile": "FROM x\nTEMPLATE y\n"})
     assert got["sampling"] == {}
-    assert got["sampling_source"] == "engine defaults (unrecorded)"
+    # The string now also names WHICH engine rule applied: ollama#16471 changed
+    # sampler precedence in 0.33.3, so a bare "engine defaults (unrecorded)"
+    # described two different samplers either side of that release (#84).
+    # It must still read as unrecorded -- naming the regime is not reading the
+    # resolved values. test_ollama_sampler_regime.py pins the boundary.
+    assert "unrecorded" in got["sampling_source"]
+    assert got["sampling_source"].startswith("engine defaults")
 
 
 def test_a_malformed_parameter_line_is_skipped_not_guessed():
@@ -621,13 +632,117 @@ def test_openai_models_falls_back_to_a_lone_entry():
 
 
 def test_openai_models_refuses_to_guess_between_several():
-    """Ambiguity must return nothing, not the first row.
+    """Ambiguity must never resolve -- and it is no longer silence either.
 
     Attributing one model's context length to another is worse than an empty
-    record: an empty record is visibly absent, a wrong one is not.
+    record: an empty record is visibly absent, a wrong one is not. So no entry
+    is picked and no entry's fields are copied. But the advertisement itself
+    is recorded (#78): a server that answered has identified itself even when
+    its naming disagrees with the backend's, and the disagreement on the row
+    is what lets a reader judge it.
     """
     models = {"data": [{"id": "a", "context_length": 1}, {"id": "b"}]}
-    assert run.parse_openai_models(models, {"model": "c"}) == {}
+    got = run.parse_openai_models(models, {"model": "c"})
+    assert got["advertised_models"] == ["a", "b"]
+    assert got["requested_model"] == "c"
+    assert "context_length" not in got, "no entry's fields may be attributed"
+    assert "served_model_id" not in got
+
+
+def test_openai_models_selects_the_unique_prefix():
+    """The kimat regression, from ds4-ivan-qwen38fn's send_models: the server
+    advertises base aliases (qwen3.8-flash-next, -chat, -reasoner) while the
+    backend names a quant suffix the listing never carries (-q4). The base
+    alias is the one entry that prefixes it, so it is the entry; before this
+    rule, 10/10 kimat rows came out unstamped against 10/10 shimmed rows on
+    the same port."""
+    models = {
+        "data": [
+            {"id": "qwen3.8-flash-next", "context_length": 131072},
+            {"id": "qwen3.8-flash-next-chat", "context_length": 131072},
+            {"id": "qwen3.8-flash-next-reasoner", "context_length": 131072},
+        ]
+    }
+    got = run.parse_openai_models(models, {"model": "qwen3.8-flash-next-q4"})
+    assert got["served_model_id"] == "qwen3.8-flash-next"
+    assert got["context_length"] == 131072
+
+
+def test_two_prefix_matches_stay_a_refusal_to_resolve():
+    """The prefix rule must not decay into 'the first that prefixes'."""
+    models = {
+        "data": [
+            {"id": "qwen3.8-flash-next", "context_length": 131072},
+            {"id": "qwen3.8-flash-next-q4", "context_length": 4096},
+        ]
+    }
+    got = run.parse_openai_models(models, {"model": "qwen3.8-flash-next-q4-chat"})
+    assert "served_model_id" not in got
+    assert "context_length" not in got, "neither entry's field may be attributed"
+    assert got["requested_model"] == "qwen3.8-flash-next-q4-chat"
+
+
+def test_an_alias_disagreement_is_recorded_not_resolved():
+    """ds4's glm-dsa builds advertise glm-5.2 for glm-5.3 weights
+    (ds4-glm53 send_models emits glm-5.2, -chat, -reasoner). Resolving one of
+    those aliases would attribute its context length to a model that may not
+    be the one serving. The disagreement itself is the identity -- record
+    it."""
+    models = {
+        "data": [
+            {"id": "glm-5.2", "context_length": 131072},
+            {"id": "glm-5.2-chat", "context_length": 131072},
+            {"id": "glm-5.2-reasoner", "context_length": 131072},
+        ]
+    }
+    got = run.parse_openai_models(models, {"model": "glm-5.3-flash"})
+    assert got["advertised_models"] == ["glm-5.2", "glm-5.2-chat", "glm-5.2-reasoner"]
+    assert got["requested_model"] == "glm-5.3-flash"
+    assert "context_length" not in got
+
+
+def test_mtplxs_single_entry_is_the_identity():
+    """mtplx's /v1/models returns one chat entry naming the loaded model, so
+    the exact id selects it. 22 rows from before the parser rewrite carried
+    no server identity at all."""
+    models = {
+        "data": [
+            {
+                "id": "mtplx-qwen38-27b-optimized-speed",
+                "context_length": 131072,
+                "max_context_length": 131072,
+                "max_model_len": 131072,
+                "owned_by": "mtplx",
+            }
+        ]
+    }
+    got = run.parse_openai_models(models, {"model": "mtplx-qwen38-27b-optimized-speed"})
+    assert got["served_model_id"] == "mtplx-qwen38-27b-optimized-speed"
+    assert got["context_length"] == 131072
+    assert got["max_context_length"] == 131072
+
+
+def test_lm_studios_embedding_sibling_does_not_defeat_the_exact_match():
+    """`lms ls` shows the LLM beside an embedding model, and /v1/models lists
+    both. The exact id must win even when it is not the only entry, or the
+    embedding sibling turns a healthy listing into ambiguity."""
+    models = {
+        "data": [
+            {
+                "id": "qwen3.8-flash-next-ud",
+                "quantization": "Q3_K_XL",
+                "arch": "qwen4exp",
+                "max_context_length": 131072,
+            },
+            {"id": "text-embedding-nomic-embed-text-v1.5", "object": "embedding"},
+        ]
+    }
+    got = run.parse_openai_models(models, {"model": "qwen3.8-flash-next-ud"})
+    assert got["served_model_id"] == "qwen3.8-flash-next-ud"
+    assert got["quantization"] == "Q3_K_XL"
+    assert got["arch"] == "qwen4exp"
+    assert got["max_context_length"] == 131072
+    assert "text-embedding" not in got
 
 
 def test_openai_models_keeps_lmstudio_build_fields():
@@ -643,15 +758,176 @@ def test_openai_models_keeps_lmstudio_build_fields():
         ]
     }
     got = run.parse_openai_models(models, {"model": "qwen3.8-flash-next-ud"})
-    assert got["arch"] == "qwen4exp"
     assert got["publisher"] == "unsloth"
-    assert got["max_context_length"] == 131072
 
 
 def test_openai_models_handles_nothing():
     assert run.parse_openai_models({}, {"model": "x"}) == {}
     assert run.parse_openai_models(None, {"model": "x"}) == {}
     assert run.parse_openai_models({"data": []}, {"model": "x"}) == {}
+
+
+def test_models_url_names_the_real_server_behind_a_get_blind_shim(serves):
+    """ds4_claude_shim answers POST only, so a GET to base_url dies against
+    the shim while the upstream was perfectly askable (#78) -- the same gap
+    props_url exists for."""
+    serves.payload = {"data": [{"id": "glm-5.3-flash", "context_length": 100000}]}
+    got = run.probe_openai_models(
+        {
+            "base_url": "http://127.0.0.1:8100",
+            "models_url": "http://127.0.0.1:8000",
+            "model": "glm-5.3-flash",
+        }
+    )
+    # probe_openai_models passes a Request, not a bare string, to urlopen.
+    assert serves.url.full_url == "http://127.0.0.1:8000/v1/models"
+    assert got["served_model_id"] == "glm-5.3-flash"
+
+
+# --- an unstamped backend refuses the run (#78) ------------------------------
+#
+# Every gap in the server-identity record arrived the same way: a backend was
+# added, no probe covered it, and the rows came out unstamped in silence. The
+# refusal is the fix; the escape exists so it cannot be switched off under
+# time pressure, and it must leave a trace on the row.
+
+
+def _no_identity(monkeypatch):
+    """A backend no probe can name. The route and strip lookups are stubbed
+    too, so the test reads no records this machine happens to have."""
+    monkeypatch.setattr(run, "probe_server", lambda b: {})
+    monkeypatch.setattr(run, "probe_ollama", lambda b: {})
+    monkeypatch.setattr(run, "probe_openai_models", lambda b: {})
+    monkeypatch.setattr(run.ds4_route, "route_for", lambda port, **kw: "unrecorded")
+    monkeypatch.setattr(run.shim_strip, "strip_for", lambda port, **kw: None)
+
+
+def test_a_backend_no_probe_answers_refuses_the_run(monkeypatch):
+    """The point of #78: a row that cannot name the engine that served it
+    must not be published. MTPLX ran 22 such trials; this is what stops the
+    next one."""
+    _no_identity(monkeypatch)
+    backends = {"mtplx": {"base_url": "http://127.0.0.1:8010", "model": "x"}}
+    with pytest.raises(SystemExit) as raised:
+        run.capture_versions({"base_commit": "abc"}, backends)
+    assert "mtplx" in str(raised.value)
+    assert "#78" in str(raised.value)
+
+
+def test_allow_unstamped_records_the_gap_on_the_row(monkeypatch):
+    """The escape exists because a refusal that fires on a working
+    configuration gets switched off (#148's rule). It must leave a trace:
+    after this change `servers_unidentified` can only exist on a row whose
+    run passed --allow-unstamped. An escape that leaves no trace is the gap
+    wearing a flag."""
+    _no_identity(monkeypatch)
+    backends = {"mtplx": {"base_url": "http://127.0.0.1:8010", "model": "x"}}
+    got = run.capture_versions({"base_commit": "abc"}, backends, allow_unstamped=True)
+    assert got["servers_unidentified"] == ["mtplx"]
+    assert "servers" not in got
+
+
+def test_a_hosted_backend_is_not_unstamped(monkeypatch):
+    """No base_url means the hosted API -- pinned by name, not probed. It
+    must not read as a local server we failed to identify."""
+    _no_identity(monkeypatch)
+    got = run.capture_versions(
+        {"base_commit": "abc"}, {"opus5": {"model": "claude-opus-5"}}
+    )
+    assert "servers_unidentified" not in got
+    assert got["hosted_unpinned"] == ["opus5"]
+
+
+# --- the tensor gate (#78) ---------------------------------------------------
+#
+# llama.cpp#27461 shipped a build where the Metal tensor API failed on every
+# M5 and prefill quietly ran on the wrong units. Preflight logged that line
+# for weeks; #149 wrote the lesson about log lines nobody reads as warnings.
+
+
+def test_the_tensor_gate_refuses_only_a_confirmed_off(monkeypatch):
+    monkeypatch.setattr(run.preflight, "metal_tensor_api", lambda *a, **k: False)
+    backends = {"llamacpp": {"base_url": "http://127.0.0.1:8020", "model": "x"}}
+    why = run.tensor_gate(backends)
+    assert why is not None
+    assert "tensor API" in why
+
+
+def test_an_unknown_tensor_state_never_refuses(monkeypatch):
+    """None means no llama.cpp binary, no Metal, or a probe that failed. A
+    gate that fires on a working configuration gets switched off under time
+    pressure (#148's rule)."""
+    monkeypatch.setattr(run.preflight, "metal_tensor_api", lambda *a, **k: None)
+    backends = {"llamacpp": {"base_url": "http://127.0.0.1:8020", "model": "x"}}
+    assert run.tensor_gate(backends) is None
+
+
+def test_the_tensor_gate_leaves_non_llamacpp_runs_alone(monkeypatch):
+    """A ds4 or Ollama run has no stake in llama.cpp's kernels."""
+    monkeypatch.setattr(run.preflight, "metal_tensor_api", lambda *a, **k: False)
+    assert run.tensor_gate({"ds4": {"base_url": "http://127.0.0.1:8000"}}) is None
+
+
+def test_the_shims_port_counts_as_llamacpp(monkeypatch):
+    """The gate must see through :11500 to the llama.cpp server it fronts,
+    the way the llamacpp_head block in capture_versions does."""
+    monkeypatch.setattr(run.preflight, "metal_tensor_api", lambda *a, **k: False)
+    backends = {"llamacppshim": {"base_url": "http://127.0.0.1:11500", "model": "x"}}
+    assert run.tensor_gate(backends) is not None
+
+
+# --- engine versions the row was missing (#78) -------------------------------
+
+
+def test_an_mtplx_backend_records_the_engine_version(monkeypatch):
+    """`mtplx --version` for the engine behind :8010, the way `ollama
+    --version` covers :11434."""
+    _no_identity(monkeypatch)
+    monkeypatch.setattr(
+        run,
+        "run",
+        lambda *a, **k: types.SimpleNamespace(
+            stdout="mtplx 2.7.2 (2.7.2)\n", stderr="", returncode=0
+        ),
+    )
+    got = run.capture_versions(
+        {"base_commit": "abc"},
+        {"mtplx": {"base_url": "http://127.0.0.1:8010", "model": "mtplx-x"}},
+        allow_unstamped=True,
+    )
+    assert got["mtplx"] == "mtplx 2.7.2 (2.7.2)"
+
+
+def test_lm_studios_selected_runtimes_reach_the_row(monkeypatch):
+    """The app version has no CLI source, so the selected runtimes are the
+    identity the backend comparison turns on: LM Studio is a wrapper whose
+    runtime is llama.cpp, so the runtime is the build the rows must name.
+    The checkmark marks a selected runtime, and only selected lines count."""
+    _no_identity(monkeypatch)
+    table = (
+        "LLM ENGINE                             SELECTED    MODEL FORMAT\n"
+        "llama.cpp-mac-arm64-advsimd@2.33.0       ✓           GGUF    \n"
+        "llama.cpp-mac-arm64-advsimd@2.32.0                   GGUF    \n"
+        "mlx-llm-mac-arm64-advsimd@1.11.0         ✓           MLX     \n"
+    )
+    monkeypatch.setattr(
+        run,
+        "run",
+        lambda *a, **k: types.SimpleNamespace(stdout=table, stderr="", returncode=0),
+    )
+    got = run.capture_versions(
+        {"base_commit": "abc"},
+        {
+            "lms": {
+                "base_url": "http://127.0.0.1:1234",
+                "model": "qwen3.8-flash-next-ud",
+            }
+        },
+        allow_unstamped=True,
+    )
+    assert got["lmstudio_runtimes"] == (
+        "llama.cpp-mac-arm64-advsimd@2.33.0, mlx-llm-mac-arm64-advsimd@1.11.0"
+    )
 
 
 # --- retired backends -----------------------------------------------------
@@ -845,3 +1121,677 @@ def test_write_row_creates_the_machine_directory(tmp_path):
     results.write_row(dict(row), target)
     assert target.exists()
     assert len(results.load(target)) == 1
+
+
+def test_odd_trials_run_the_backends_in_order():
+    """#130: position bias is real, so the order must not be constant."""
+    backends = {"a": {}, "b": {}, "c": {}}
+    assert [n for n, _ in run.trial_order(backends, 1)] == ["a", "b", "c"]
+    assert [n for n, _ in run.trial_order(backends, 3)] == ["a", "b", "c"]
+
+
+def test_even_trials_reverse_the_backends():
+    backends = {"a": {}, "b": {}, "c": {}}
+    assert [n for n, _ in run.trial_order(backends, 2)] == ["c", "b", "a"]
+
+
+def test_no_backend_holds_the_last_position_in_every_trial():
+    """The bias lands on whichever arm always runs last. None may."""
+    backends = {"a": {}, "b": {}}
+    last = {run.trial_order(backends, t)[-1][0] for t in (1, 2, 3, 4)}
+    assert last == {"a", "b"}
+
+
+def test_ordering_does_not_drop_or_duplicate_a_backend():
+    backends = {"a": {}, "b": {}, "c": {}, "d": {}}
+    for trial in range(1, 6):
+        names = [n for n, _ in run.trial_order(backends, trial)]
+        assert sorted(names) == ["a", "b", "c", "d"]
+
+
+def test_a_single_backend_is_unaffected_by_alternation():
+    backends = {"only": {}}
+    for trial in (1, 2, 3):
+        assert [n for n, _ in run.trial_order(backends, trial)] == ["only"]
+
+
+def test_the_stack_capture_records_which_ollama_was_installed(monkeypatch):
+    """#84: 0.33.3 changed sampler precedence, so the build has to be on the
+    row. The regime string names the rule; this names what applied it."""
+    monkeypatch.setattr(
+        run,
+        "run",
+        lambda *a, **k: types.SimpleNamespace(
+            stdout="0.33.3\n", stderr="", returncode=0
+        ),
+    )
+    env = run.capture_versions({"base_commit": "abc"}, {})
+    assert env["ollama"] == "0.33.3"
+
+
+def test_the_suite_runner_takes_the_machine_lock():
+    """#133: a batch runs for hours and spends part of it with no server up,
+    where a process scan truthfully reports "all clear"."""
+    source = pathlib.Path(run.__file__).read_text()
+    assert "acquire_lock" in source
+    assert "atexit.register" in source
+    assert "--no-lock" in source
+
+
+def test_the_resolved_sampler_is_read_from_model_info(monkeypatch):
+    """#84: /api/show carries the GGUF's own KVs, so the numbers actually in
+    force from ollama 0.33.3 on are readable without a GGUF path."""
+    show = {
+        "modelfile": "FROM /blobs/sha256-abc\n",
+        "model_info": {
+            "general.architecture": "llama",
+            "general.sampling.temp": 1,
+            "general.sampling.top_k": 20,
+            "general.sampling.top_p": 0.95,
+        },
+    }
+    got = run.parse_ollama_show(show, ollama_version="0.33.3")
+    assert got["sampling"] == {"temp": 1, "top_k": 20, "top_p": 0.95}
+    assert "model-authored" in got["sampling_source"]
+    assert "unrecorded" not in got["sampling_source"]
+
+
+def test_before_0_33_3_the_declared_sampler_is_named_as_overridden():
+    """Pre-0.33.3 the built-ins win, so recording the declared numbers as if
+    they ran would be a lie about that row (#84)."""
+    show = {
+        "modelfile": "FROM /blobs/sha256-abc\n",
+        "model_info": {"general.sampling.top_p": 0.95},
+    }
+    got = run.parse_ollama_show(show, ollama_version="0.33.2")
+    assert got["sampling"] == {}
+    assert "unrecorded" in got["sampling_source"]
+    assert "overridden" in got["sampling_source"]
+    assert "0.95" in got["sampling_source"]
+
+
+def test_a_modelfile_parameter_still_outranks_the_gguf():
+    """Precedence 2 beats precedence 3 either side of the boundary."""
+    show = {
+        "modelfile": "FROM /x\nPARAMETER top_p 0.9\n",
+        "model_info": {"general.sampling.top_p": 0.95},
+    }
+    got = run.parse_ollama_show(show, ollama_version="0.33.3")
+    assert got["sampling"] == {"top_p": "0.9"}
+    assert got["sampling_source"] == "modelfile"
+
+
+def test_a_model_that_declares_nothing_says_so():
+    show = {"modelfile": "FROM /x\n", "model_info": {"general.architecture": "llama"}}
+    got = run.parse_ollama_show(show, ollama_version="0.33.3")
+    assert got["sampling"] == {}
+    assert "declares no sampler" in got["sampling_source"]
+
+
+def test_model_declared_sampling_strips_the_prefix_and_ignores_the_rest():
+    assert run.model_declared_sampling(
+        {"model_info": {"general.sampling.top_k": 20, "general.architecture": "x"}}
+    ) == {"top_k": 20}
+    assert run.model_declared_sampling({}) == {}
+    assert run.model_declared_sampling({"model_info": None}) == {}
+
+
+def test_absent_model_info_is_not_read_as_declaring_nothing():
+    """#84: "we could not see" and "it declares nothing" are different facts,
+    and the pre-existing regime test was right to protect the distinction."""
+    got = run.parse_ollama_show({"modelfile": "FROM x\n"}, ollama_version="0.33.3")
+    assert "model_info absent" in got["sampling_source"]
+    assert "declares no sampler" not in got["sampling_source"]
+
+
+def test_prepare_env_reports_a_missing_pyproject_rather_than_pretending(tmp_path):
+    """A checkout with no project is a runnable trial; the row must say so."""
+    got = run.prepare_env(tmp_path)
+    assert got["env_prepared"] is False
+    assert "pyproject" in got["env_reason"]
+
+
+def test_prepare_env_records_success(tmp_path, monkeypatch):
+    (tmp_path / "pyproject.toml").write_text("[project]\nname='x'\nversion='0'\n")
+    monkeypatch.setattr(
+        run.subprocess,
+        "run",
+        lambda *a, **k: types.SimpleNamespace(returncode=0, stdout="", stderr=""),
+    )
+    got = run.prepare_env(tmp_path)
+    assert got == {"env_prepared": True, "env_reason": "uv sync --frozen"}
+
+
+def test_a_stale_lockfile_is_reported_not_silently_resolved(tmp_path, monkeypatch):
+    """--frozen refuses on a stale lock. Falling back to a resolve would
+    install versions the lockfile does not pin and change the environment
+    under the comparison."""
+    (tmp_path / "pyproject.toml").write_text("[project]\nname='x'\nversion='0'\n")
+    monkeypatch.setattr(
+        run.subprocess,
+        "run",
+        lambda *a, **k: types.SimpleNamespace(
+            returncode=2, stdout="", stderr="error: lockfile is out of date\n"
+        ),
+    )
+    got = run.prepare_env(tmp_path)
+    assert got["env_prepared"] is False
+    assert "out of date" in got["env_reason"]
+
+
+def test_prepare_env_never_raises(tmp_path, monkeypatch):
+    """A trial that already cost twenty minutes must not die on setup."""
+    (tmp_path / "pyproject.toml").write_text("[project]\nname='x'\nversion='0'\n")
+
+    def boom(*a, **k):
+        raise OSError("uv is not installed")
+
+    monkeypatch.setattr(run.subprocess, "run", boom)
+    got = run.prepare_env(tmp_path)
+    assert got["env_prepared"] is False
+    assert "uv is not installed" in got["env_reason"]
+
+
+def test_the_flag_exists_and_defaults_to_preparing():
+    """Preparing is the new default; the old behavior needs asking for."""
+    source = pathlib.Path(run.__file__).read_text()
+    assert "--no-prepare-env" in source
+    assert "prepare_env_first=True" in source
+
+
+# ---------------------------------------------------------------------------
+# #112: a transcript that is overwritten is evidence that cannot be recovered.
+
+
+def _save(tmp_path, name, stdout):
+    result: dict = {}
+    run.save_transcript(tmp_path, name, stdout, "", result)
+    return result
+
+
+def test_a_second_sweep_does_not_destroy_the_first_transcript(tmp_path):
+    """#112's pre-remedy transcripts were lost exactly this way: later sweeps
+    wrote the same filenames into the same directory, and the before-side of
+    the only question the issue asks became unrecoverable."""
+    first = _save(tmp_path, "mbox-scan-1", '{"a": 1}')
+    second = _save(tmp_path, "mbox-scan-1", '{"b": 2}')
+    assert pathlib.Path(first["client_log"]).read_text() == '{"a": 1}'
+    assert pathlib.Path(second["client_log"]).read_text() == '{"b": 2}'
+    assert first["client_log"] != second["client_log"]
+
+
+def test_the_rewritten_transcript_says_it_was_displaced(tmp_path):
+    _save(tmp_path, "mbox-scan-1", "one")
+    second = _save(tmp_path, "mbox-scan-1", "two")
+    assert second.get("client_log_collision") is True
+
+
+def test_writing_identical_content_twice_does_not_multiply_files(tmp_path):
+    """A re-run that produced the same bytes is not new evidence."""
+    _save(tmp_path, "mbox-scan-1", "same")
+    _save(tmp_path, "mbox-scan-1", "same")
+    assert len(list(tmp_path.glob("mbox-scan-1*.jsonl"))) == 1
+
+
+def test_a_third_collision_gets_its_own_name(tmp_path):
+    _save(tmp_path, "t", "a")
+    _save(tmp_path, "t", "b")
+    third = _save(tmp_path, "t", "c")
+    assert pathlib.Path(third["client_log"]).read_text() == "c"
+    assert len(list(tmp_path.glob("t*.jsonl"))) == 3
+
+
+def test_the_first_write_is_not_marked_as_a_collision(tmp_path):
+    assert _save(tmp_path, "t", "a").get("client_log_collision") is not True
+
+
+# ---------------------------------------------------------------------------
+# A live run owns its stashed repositories. Restoring them under it destroys
+# the real checkout -- measured 2026-09-04, and it took the operator's repo
+# with it.
+
+
+def _marker(tmp_path, monkeypatch, pid: int):
+    export, real = tmp_path / "repo", tmp_path / "repo-real"
+    real.mkdir()
+    (real / "keep.txt").write_text("the real checkout")
+    export.mkdir()
+    (export / "export.txt").write_text("the excised export")
+    marker = tmp_path / "stash.json"
+    marker.write_text(
+        json.dumps({"moved": [{"export": str(export), "real": str(real)}], "pid": pid})
+    )
+    monkeypatch.setattr(run, "STASH_MARKER", marker)
+    return export, real, marker
+
+
+def test_a_stash_owned_by_a_live_other_process_is_not_restored(tmp_path, monkeypatch):
+    """preflight calls this. Running it during a live batch used to rmtree the
+    export and unstash the real repo underneath the running harness, which
+    then destroyed the real checkout on its next trial."""
+    export, real, marker = _marker(tmp_path, monkeypatch, pid=1)  # pid 1 is alive
+    assert run.restore_targets() == []
+    assert real.exists(), "the real checkout must stay stashed"
+    assert (export / "export.txt").exists(), "the export must not be removed"
+    assert marker.exists(), "the marker belongs to the live owner"
+
+
+def test_a_stash_owned_by_a_dead_process_is_restored(tmp_path, monkeypatch):
+    """The case this function exists for: a run killed mid-batch."""
+    export, real, marker = _marker(tmp_path, monkeypatch, pid=2_000_000)
+    assert run.restore_targets() == [export.name]
+    assert (export / "keep.txt").exists()
+    assert not real.exists()
+    assert not marker.exists()
+
+
+def test_our_own_stash_is_restored(tmp_path, monkeypatch):
+    """atexit runs inside the owning process; it must still restore."""
+    export = _marker(tmp_path, monkeypatch, pid=os.getpid())[0]
+    assert run.restore_targets() == [export.name]
+    assert (export / "keep.txt").exists()
+
+
+def test_a_marker_with_no_pid_is_restored(tmp_path, monkeypatch):
+    """Markers written before the pid was recorded must stay recoverable."""
+    export, _real, marker = _marker(tmp_path, monkeypatch, pid=os.getpid())
+    marker.write_text(json.dumps({"moved": json.loads(marker.read_text())["moved"]}))
+    assert run.restore_targets() == [export.name]
+
+
+def test_a_kill_between_the_rename_and_the_marker_is_recoverable(tmp_path, monkeypatch):
+    """The marker used to be written after every rename, leaving a window where
+    the repositories were moved and nothing on disk said so."""
+    marker = tmp_path / "stash.json"
+    monkeypatch.setattr(run, "STASH_MARKER", marker)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "keep.txt").write_text("real")
+    seen: list[bool] = []
+    original = pathlib.Path.rename
+
+    def watched(self, target):
+        # At the moment of the rename, the map must already exist on disk.
+        seen.append(marker.exists())
+        return original(self, target)
+
+    monkeypatch.setattr(pathlib.Path, "rename", watched)
+    run.stash_targets([(str(repo), "abc1234")])
+    assert seen == [True], "the marker must be written before the rename"
+
+
+def test_a_partial_restore_keeps_the_marker_for_the_rest(tmp_path, monkeypatch):
+    """A missing -real is exactly when the map matters; deleting it there makes
+    the un-restored entries unrecoverable."""
+    marker = tmp_path / "stash.json"
+    good_export, good_real = tmp_path / "a", tmp_path / "a-real"
+    good_real.mkdir()
+    gone_export, gone_real = tmp_path / "b", tmp_path / "b-real"
+    marker.write_text(
+        json.dumps(
+            {
+                "moved": [
+                    {"export": str(good_export), "real": str(good_real)},
+                    {"export": str(gone_export), "real": str(gone_real)},
+                ],
+                "pid": 2_000_000,
+            }
+        )
+    )
+    monkeypatch.setattr(run, "STASH_MARKER", marker)
+    assert run.restore_targets() == [good_export.name]
+    assert marker.exists(), "the unrestored entry must stay on the map"
+    left = json.loads(marker.read_text())["moved"]
+    assert [m["export"] for m in left] == [str(gone_export)]
+
+
+# --- where one_trial looks for the parked checkout (#54, 846ec66) -----------
+
+
+def _tiny_repo(tmp_path):
+    """A real one-commit repo: build_checkout archives from it with git."""
+    repo = tmp_path / "monitor"
+    repo.mkdir()
+    (repo / "mod.py").write_text("def target_fn():\n    return 1\n")
+    run.git(["init", "-q", "-b", "main"], repo)
+    run.git(["add", "-A"], repo)
+    run.git(
+        [
+            "-c",
+            "user.email=bench@local",
+            "-c",
+            "user.name=bench",
+            "commit",
+            "-q",
+            "-m",
+            "init",
+        ],
+        repo,
+    )
+    # ensure_pristine refuses a commit reachable from no origin/* ref, and a
+    # legacy setup_targets call runs it on this fixture.
+    run.git(["update-ref", "refs/remotes/origin/main", "HEAD"], repo)
+    return repo, run.git(["rev-parse", "HEAD"], repo)
+
+
+def test_parked_checkout_finds_the_stash_root_copy(tmp_path):
+    """846ec66 moved the parking lot to STASH_ROOT. Anything that still looks
+    only for the legacy <name>-real sibling reports nothing parked."""
+    repo = tmp_path / "monitor"
+    parked = run.stash_path(repo)
+    parked.mkdir(parents=True)
+    assert run.parked_checkout(repo) == parked
+
+
+def test_parked_checkout_finds_the_legacy_sibling(tmp_path):
+    legacy = run.legacy_stash_path(tmp_path / "monitor")
+    legacy.mkdir()
+    assert run.parked_checkout(tmp_path / "monitor") == legacy
+
+
+def test_parked_checkout_is_none_when_nothing_is_parked(tmp_path):
+    """The third state guarded_repo() cannot express: with nothing parked the
+    trial builds from the configured path into a fresh workdir."""
+    assert run.parked_checkout(tmp_path / "monitor") is None
+
+
+def test_one_trial_builds_the_trial_from_the_parked_checkout(tmp_path):
+    """The bug this audit exists for: one_trial looked only for the legacy
+    <name>-real sibling. Under the stash root it saw nothing parked and built
+    the trial from the configured path -- which a live batch has emptied by
+    parking the real checkout -- so build_checkout died on every repo trial.
+    846ec66 had never executed a trial when this was found: the running batch
+    predates it."""
+    repo, commit = _tiny_repo(tmp_path)
+    run.stash_targets([(str(repo), commit)])
+    assert run.stash_path(repo).exists() and not repo.exists()
+    row = run.one_trial(
+        {"repo": str(repo), "base_commit": commit},
+        {
+            "name": "seam",
+            "file": "mod.py",
+            "symbol": "target_fn",
+            "tests": [],
+            "test_command": "false",
+        },
+        "seam",
+        {"model": "stub", "context_tokens": 1},
+        trial=1,
+        workdir=tmp_path / "work",
+        timeout=10,
+        dry_run=True,
+        client="claude",
+        prepare_env_first=False,
+    )
+    assert row["removed_symbols"] == ["target_fn"]
+    assert row["control_fails_as_expected"] is True
+
+
+def test_the_sandbox_denies_every_parking_spot(tmp_path):
+    """The real checkout keeps full history wherever it is parked, so the deny
+    list has to name every parking spot -- not only the legacy -real siblings
+    -- plus the two files that say where the parking is."""
+    worktree = tmp_path / "work" / "seam"
+    worktree.mkdir(parents=True)
+    repo = tmp_path / "monitor"
+    _profile, denied = run.sandbox_profile(worktree, repo)
+    assert str(run.STASH_ROOT) in denied
+    assert str(run.legacy_stash_path(repo)) in denied
+    assert str(run.STASH_MARKER) in denied
+    assert str(run.STASH_NOTICE) in denied
+
+
+def _one_commit_repo(tmp_path, name="repo"):
+    repo = tmp_path / name
+    repo.mkdir()
+    sh = functools.partial(subprocess.run, cwd=repo, check=True, capture_output=True)
+    sh(["git", "init", "-q"])
+    sh(["git", "config", "user.email", "t@t"])
+    sh(["git", "config", "user.name", "t"])
+    (repo / "a.py").write_text("x = 1\n")
+    sh(["git", "add", "-A"])
+    sh(["git", "commit", "-qm", "first"])
+    head = subprocess.run(
+        ["git", "rev-parse", "--short", "HEAD"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    return repo, head
+
+
+def test_an_intact_repo_reports_no_reason(tmp_path):
+    repo, head = _one_commit_repo(tmp_path)
+    assert run.source_repo_state(repo, head) == (True, None)
+
+
+def test_a_dirty_tree_names_the_paths(tmp_path):
+    """ "Dirty" without the paths is what made 2026-09-04 undiagnosable."""
+    repo, head = _one_commit_repo(tmp_path)
+    (repo / "a.py").write_text("x = 2\n")
+    intact, why = run.source_repo_state(repo, head)
+    assert intact is False
+    assert "dirty (1 path(s))" in why and "a.py" in why
+
+
+def test_a_moved_head_is_distinguished_from_dirt(tmp_path):
+    repo, head = _one_commit_repo(tmp_path)
+    subprocess.run(
+        ["git", "commit", "-qm", "second", "--allow-empty"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
+    intact, why = run.source_repo_state(repo, head)
+    assert intact is False
+    assert "HEAD is" in why and "dirty" not in why
+
+
+def test_a_git_failure_is_not_reported_as_dirt(tmp_path):
+    """The collapse this whole change exists to undo.
+
+    A repository that is merely busy -- a concurrent status refreshing the
+    index and losing the lock -- used to be recorded identically to an agent
+    writing into it.
+    """
+    _, head = _one_commit_repo(tmp_path)
+    intact, why = run.source_repo_state(tmp_path / "not-a-repo", head)
+    assert intact is False
+    assert "did not run" in why
+    assert "dirty" not in why
+
+
+def test_source_repo_intact_still_answers_the_boolean(tmp_path):
+    repo, head = _one_commit_repo(tmp_path)
+    assert run.source_repo_intact(repo, head) is True
+    (repo / "a.py").write_text("x = 2\n")
+    assert run.source_repo_intact(repo, head) is False
+
+
+def test_the_status_check_takes_no_index_lock(tmp_path, monkeypatch):
+    """A busy repository must not read as a modified one.
+
+    `git status` refreshes the index and writes it back under .git/index.lock.
+    The guarded checkout is touched by other things -- the operator, a test
+    suite reading it, a concurrent sweep -- and a lost race raised RuntimeError,
+    which the tripwire reported as an escape. Seven rows on 2026-09-04 could
+    not be attributed for exactly this reason.
+    """
+    repo, head = _one_commit_repo(tmp_path)
+    seen: list[list[str]] = []
+    original = run.git
+
+    def watched(args, cwd):
+        seen.append(list(args))
+        return original(args, cwd)
+
+    monkeypatch.setattr(run, "git", watched)
+    run.source_repo_state(repo, head)
+    status = [a for a in seen if "status" in a]
+    assert status, "the guard must ask for status"
+    assert all("--no-optional-locks" in a for a in status), seen
+
+
+# --- --targets sandbox (#146) -----------------------------------------------
+
+
+def _sandbox_clone(tmp_path, repo, commit):
+    """What sync_sandbox_targets.py produces: a detached, clean clone."""
+    clone = run.SANDBOX_ROOT / repo.name
+    clone.parent.mkdir(parents=True, exist_ok=True)
+    run.git(["clone", "--quiet", "--no-hardlinks", str(repo), str(clone)], tmp_path)
+    run.git(["checkout", "--quiet", "--detach", commit], clone)
+    return clone
+
+
+def _sandbox_trial(tmp_path, repo, commit):
+    """One dry-run trial against the sandbox layout."""
+    return run.one_trial(
+        {"repo": str(repo), "base_commit": commit},
+        {
+            "name": "seam",
+            "file": "mod.py",
+            "symbol": "target_fn",
+            "tests": [],
+            "test_command": "false",
+        },
+        "seam",
+        {"model": "stub", "context_tokens": 1},
+        trial=1,
+        workdir=tmp_path / "work",
+        timeout=10,
+        dry_run=True,
+        client="claude",
+        prepare_env_first=False,
+        target_layout="sandbox",
+    )
+
+
+def test_sandbox_mode_builds_from_the_clone_and_never_stashes(tmp_path):
+    """--targets sandbox: the trial builds from sandbox/<name>, the operator's
+    checkout is never renamed, and no stash marker ever exists. The marker
+    assertion is the point -- the mode exists so the harness stops renaming
+    things under the operator."""
+    repo, commit = _tiny_repo(tmp_path)
+    _sandbox_clone(tmp_path, repo, commit)
+    row = _sandbox_trial(tmp_path, repo, commit)
+    assert row["target_layout"] == "sandbox"
+    assert row["removed_symbols"] == ["target_fn"]
+    assert (repo / "mod.py").exists(), "the configured checkout was left alone"
+    assert not run.STASH_MARKER.exists()
+    assert not run.STASH_ROOT.exists()
+
+
+def test_sandbox_mode_refuses_a_missing_clone(tmp_path):
+    repo, commit = _tiny_repo(tmp_path)
+    with pytest.raises(SystemExit, match="sync_sandbox_targets"):
+        _sandbox_trial(tmp_path, repo, commit)
+
+
+def test_sandbox_mode_refuses_an_off_commit_clone(tmp_path):
+    """A clone at any other commit is not the pinned state. Refuse and name
+    the fix rather than exporting whatever is checked out."""
+    repo, commit = _tiny_repo(tmp_path)
+    clone = _sandbox_clone(tmp_path, repo, commit)
+    (clone / "mod.py").write_text("def target_fn():\n    return 2\n")
+    run.git(["add", "-A"], clone)
+    run.git(
+        [
+            "-c",
+            "user.email=bench@local",
+            "-c",
+            "user.name=bench",
+            "commit",
+            "-q",
+            "-m",
+            "drift",
+        ],
+        clone,
+    )
+    with pytest.raises(SystemExit, match="sync_sandbox_targets"):
+        _sandbox_trial(tmp_path, repo, commit)
+
+
+def test_setup_targets_sandbox_touches_nothing_and_refuses_a_bad_clone(tmp_path):
+    """main() routes target setup through setup_targets(pairs, layout). In
+    sandbox mode it validates the clones and stops -- no marker, no notice,
+    no restore, because there is nothing to restore."""
+    repo, commit = _tiny_repo(tmp_path)
+    with pytest.raises(SystemExit, match="sync_sandbox_targets"):
+        run.setup_targets([(str(repo), commit)], "sandbox")
+    assert not run.STASH_MARKER.exists()
+    _sandbox_clone(tmp_path, repo, commit)
+    run.setup_targets([(str(repo), commit)], "sandbox")
+    assert (repo / "mod.py").exists(), "the configured checkout was left alone"
+    assert not run.STASH_MARKER.exists()
+
+
+def test_setup_targets_legacy_still_parks_the_real_checkout(tmp_path):
+    """The default is unchanged: pristine check, park, register the restore."""
+    repo, commit = _tiny_repo(tmp_path)
+    run.setup_targets([(str(repo), commit)], "legacy")
+    assert run.stash_path(repo).exists()
+    assert not repo.exists()
+    assert run.STASH_MARKER.exists()
+
+
+def test_guarded_path_questions_resolve_in_sandbox_mode(tmp_path):
+    """Nothing is parked in sandbox mode, so the tripwire's guarded_repo()
+    resolves to the configured path -- the operator's real checkout. An agent
+    that escaped the profile would have to dirty exactly that copy for the
+    tripwire to see it, which is what it watches for."""
+    repo, commit = _tiny_repo(tmp_path)
+    _sandbox_clone(tmp_path, repo, commit)
+    assert run.parked_checkout(repo) is None
+    assert run.guarded_repo(repo) == repo
+
+
+def test_the_sandbox_profile_denies_the_guessed_path(tmp_path):
+    """#146's tradeoff: nothing stands at the guessed path, so the guess must
+    fail CLOSED at the profile. In legacy mode the same path IS the worktree
+    and must stay readable. The sandbox clone is denied in both -- it is an
+    un-excised copy of the answer either way."""
+    repo, _commit = _tiny_repo(tmp_path)
+    worktree = tmp_path / "work" / "seam"
+    worktree.mkdir(parents=True)
+    _profile, denied = run.sandbox_profile(worktree, repo)
+    assert str(repo) in denied
+    assert str(run.SANDBOX_ROOT) in denied
+    _profile, denied = run.sandbox_profile(repo, repo)
+    assert str(repo) not in denied
+    assert str(run.SANDBOX_ROOT) in denied
+
+
+def test_a_moved_harness_head_is_refused(tmp_path, monkeypatch, capsys):
+    """A comparative run must not span harness versions.
+
+    On 2026-09-04 four sweeps of one A/B recorded four different harness_head
+    values, because the harness was committed to from the checkout the batch
+    ran from. new-sweep1 ran at 563e94b and old-sweep1 at 19958b1 -- the two
+    arms of the same sweep were not running the same code.
+    """
+    monkeypatch.setattr(run, "git", lambda args, cwd: "abc1234")
+    monkeypatch.setattr(
+        run.provenance, "code_is_dirty", lambda cwd, untracked=True: False
+    )
+    monkeypatch.setattr(
+        sys, "argv", ["run.py", "--dry-run", "--require-harness-head", "def5678"]
+    )
+    with pytest.raises(SystemExit) as got:
+        run.main()
+    assert "requires def5678" in str(got.value)
+
+
+def test_a_dirty_harness_is_refused_when_pinned(tmp_path, monkeypatch):
+    """Rows from an uncommitted tree name a state that exists nowhere."""
+    monkeypatch.setattr(run, "git", lambda args, cwd: "abc1234")
+    monkeypatch.setattr(
+        run.provenance, "code_is_dirty", lambda cwd, untracked=True: True
+    )
+    monkeypatch.setattr(
+        sys, "argv", ["run.py", "--dry-run", "--require-harness-head", "abc1234"]
+    )
+    with pytest.raises(SystemExit) as got:
+        run.main()
+    assert "uncommitted code" in str(got.value)

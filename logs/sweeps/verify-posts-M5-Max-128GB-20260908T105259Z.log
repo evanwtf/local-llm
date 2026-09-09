@@ -1,0 +1,9 @@
+2026-09-08 06:53:00,143 INFO [49f5cfa@M5-Max-128GB mlx-serve/unknown pld=on] 2026-09-08T10:53:00Z (06:53:00 EDT) | harness 49f5cfa
+2026-09-08 06:53:00,229 INFO [49f5cfa@M5-Max-128GB mlx-serve/unknown pld=on]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-08 06:53:00,356 INFO [49f5cfa@M5-Max-128GB mlx-serve/unknown pld=on] 2097247035099640216  VERIFIED post  @plotarmordev  Tue Sep 08 08:53:52 +0000 2026  via fxtwitter
+2026-09-08 06:53:00,356 INFO [49f5cfa@M5-Max-128GB mlx-serve/unknown pld=on]     Deepseek v4.1 flash beta is live on the api right now, expires the 10th.  Swap the model name to: deepseek-v4.1-flash-expires-on-0910  Same base_url, same pricing as v4 flash and it allows 20 concurre
+2026-09-08 06:53:00,356 INFO [49f5cfa@M5-Max-128GB mlx-serve/unknown pld=on] 
+2026-09-08 06:53:00,356 INFO [49f5cfa@M5-Max-128GB mlx-serve/unknown pld=on] Verified 1: 1 confirmed, 0 not.
+2026-09-08 06:53:00,356 INFO [49f5cfa@M5-Max-128GB mlx-serve/unknown pld=on] Paste onto the issue:
+2026-09-08 06:53:00,356 INFO [49f5cfa@M5-Max-128GB mlx-serve/unknown pld=on]   **Verified** 2026-09-08: post exists, authored by @plotarmordev, posted Tue Sep 08 08:53:52 +0000 2026.
+2026-09-08 06:53:00,356 INFO [49f5cfa@M5-Max-128GB mlx-serve/unknown pld=on] log: /Users/evanhoffman/git/local-llm/logs/sweeps/verify-posts-M5-Max-128GB-20260908T105259Z.log

@@ -81,3 +81,35 @@ def log_report(backends: dict[str, dict], config: pathlib.Path = CONFIG) -> None
     if not gaps:
         wanted = sum(1 for s in backends.values() if s.get("opencode_model"))
         logger.info("opencode: all %d opencode_model entries resolve", wanted)
+
+
+def sampling_for(model: str, config: pathlib.Path | None = None) -> dict | None:
+    """The sampler options OpenCode is configured to send for `model`.
+
+    None means "cannot tell" -- an unreadable config or a model that is not
+    declared -- and is not the same as "sends nothing". A caller must not
+    refuse a run on the strength of a missing file.
+
+    #151: ds4 reaches its Qwen MTP path only at `temperature <= 0.0f`
+    (`ds4.c:80120 at ds4-metal ba01f5d`), and a request that omits the field
+    gets `DS4_DEFAULT_TEMPERATURE`, `1.0f` (`ds4.h:56 at ds4-metal ba01f5d`).
+    OpenCode sends no temperature unless its config sets one, so an MTP arm
+    driven by it never speculates. This is where the harness can see that
+    before a trial rather than after.
+
+    `config=None` resolves to `CONFIG` at call time, not at definition time.
+    A `config: pathlib.Path = CONFIG` default binds the module-level value
+    when the function is defined, so a test that points `CONFIG` at a fixture
+    still reads the operator's real config and passes for the wrong reason --
+    which is how the first version of these tests behaved.
+    """
+    config = CONFIG if config is None else config
+    try:
+        data = json.loads(config.read_text())
+    except (OSError, json.JSONDecodeError):
+        return None
+    provider, _, name = model.partition("/")
+    spec = ((data.get("provider") or {}).get(provider) or {}).get("models") or {}
+    if name not in spec:
+        return None
+    return dict((spec[name] or {}).get("options") or {})

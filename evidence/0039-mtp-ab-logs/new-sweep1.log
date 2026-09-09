@@ -1,0 +1,48 @@
+2026-09-07 08:43:06,979 INFO [5bfb80c@M5-Max-128GB] target ok: /Users/evanhoffman/git/gmail-archive @ 56e55cc via 'uv run pytest -q'
+2026-09-07 08:43:07,157 INFO [5bfb80c@M5-Max-128GB] target ok: /Users/evanhoffman/git/monitor @ cbb85ca via 'swift test'
+2026-09-07 08:43:07,176 INFO [5bfb80c@M5-Max-128GB] reference repo clean, base_commit 56e55cc present
+2026-09-07 08:43:07,290 INFO [5bfb80c@M5-Max-128GB] preflight: 74.4 GiB held by model servers, 37.6 GiB headroom under a 112.00 GiB Metal ceiling (RAISED by sysctl, persisted by scripts/install-metal-ceiling.sh)
+2026-09-07 08:43:07,372 INFO [5bfb80c@M5-Max-128GB] preflight: llama.cpp Metal tensor API is on
+2026-09-07 08:43:07,373 INFO [5bfb80c@M5-Max-128GB] preflight: ds4 Metal tensor route checked -- greedy agreement on 5 cases, worst logit drift rms 1.01843 / max_abs 5.3259 (#149)
+2026-09-07 08:43:16,224 INFO [5bfb80c@M5-Max-128GB] smoke: qwen38fnds4mtp7shim reverse      correct=True 1.1s
+2026-09-07 08:43:16,224 INFO [5bfb80c@M5-Max-128GB] smoke: qwen38fnds4mtp7shim fib          correct=True 3.8s
+2026-09-07 08:43:16,224 INFO [5bfb80c@M5-Max-128GB] smoke: qwen38fnds4mtp7shim mergesorted  correct=True 3.9s
+2026-09-07 08:43:16,264 INFO [5bfb80c@M5-Max-128GB] recording MTP draft acceptance per row from /Users/evanhoffman/bench-logs/39-mtp-ab/server-new-sweep1.log (ds4-mtp-timing), starting at byte 33967
+2026-09-07 08:43:17,453 INFO [5bfb80c@M5-Max-128GB] gmail-archive: pristine at 56e55ccec (upstream: origin/HEAD -> origin/main, origin/local-llm-benchmark)
+2026-09-07 08:43:18,005 INFO [5bfb80c@M5-Max-128GB] monitor: pristine at cbb85ca1c (upstream: origin/HEAD -> origin/main, origin/csv-logger)
+2026-09-07 08:43:18,006 INFO [5bfb80c@M5-Max-128GB] stashed gmail-archive -> /Users/evanhoffman/.local-llm-bench/stash/gmail-archive
+2026-09-07 08:43:18,006 INFO [5bfb80c@M5-Max-128GB] stashed monitor -> /Users/evanhoffman/.local-llm-bench/stash/monitor
+2026-09-07 08:43:18,006 INFO [5bfb80c@M5-Max-128GB] 15 task(s) x 1 backend(s) x 1 client(s) x 1 trial(s)
+2026-09-07 08:43:18,006 INFO [5bfb80c@M5-Max-128GB] stack: aider=aider 0.86.2, arch=arm64, claude=2.1.263 (Claude Code), client=opencode, codex=codex-cli 0.153.4, confinement=sandbox-exec, cpu=Apple M5 Max, cpu_count=18, gpu=Apple M5 Max, harness_dirty=False, harness_head=5bfb80c, machine=Apple M5 Max, macos=26.6.2, memory_gib=128.0, metal_ceiling_gib=112.0, metal_ceiling_mb=114688, metal_ceiling_raised=True, metal_route=fast, ollama=ollama version is 0.33.3, opencode=1.18.29, os=Darwin 25.6.0, servers={'qwen38fnds4mtp7shim': {'sampling': {}, 'sampling_source': 'engine defaults (not reported by ds4)', 'served_model_id': 'qwen3.8-flash-next-q4', 'accepts_sampling': ['tools', 'tool_choice', 'max_tokens', 'temperature', 'top_p', 'top_k', 'min_p', 'ignore_eos', 'stop', 'seed', 'stream', 'reasoning_effort'], 'context_length': 100000, 'metal_route': 'fast', 'engine_name': 'ds4', 'engine_version': 'ba01f5d', 'engine_tree': '/Users/evanhoffman/git/ds4-metal', 'engine_built': '2026-09-04T18:51:49-0400'}}, target_commit=56e55cc
+2026-09-07 08:45:10,751 INFO [5bfb80c@M5-Max-128GB] mbox-strip-envelope-qwen38fnds4mtp7shim-opencode-1: PASS in 104.2s (16 passed in 0.13s)
+2026-09-07 08:45:10,914 ERROR [5bfb80c@M5-Max-128GB] mbox-strip-envelope-qwen38fnds4mtp7shim-opencode-1: MTP emitted NOT ONE speculative cycle while its counters were proven on from the server's argv (ds4-mtp-timing) -- this arm did not speculate at all
+2026-09-07 08:45:56,046 INFO [5bfb80c@M5-Max-128GB] parser-mbox-quoting-qwen38fnds4mtp7shim-opencode-1: FAIL in 32.8s (34 failed, 21 passed in 0.90s)
+2026-09-07 08:45:56,213 ERROR [5bfb80c@M5-Max-128GB] parser-mbox-quoting-qwen38fnds4mtp7shim-opencode-1: MTP emitted NOT ONE speculative cycle while its counters were proven on from the server's argv (ds4-mtp-timing) -- this arm did not speculate at all
+2026-09-07 08:46:19,740 INFO [5bfb80c@M5-Max-128GB] storage-blob-put-qwen38fnds4mtp7shim-opencode-1: FAIL in 15.2s (14 failed, 3 passed in 0.09s)
+2026-09-07 08:46:19,909 ERROR [5bfb80c@M5-Max-128GB] storage-blob-put-qwen38fnds4mtp7shim-opencode-1: MTP emitted NOT ONE speculative cycle while its counters were proven on from the server's argv (ds4-mtp-timing) -- this arm did not speculate at all
+2026-09-07 08:56:12,101 INFO [5bfb80c@M5-Max-128GB] parser-date-qwen38fnds4mtp7shim-opencode-1: PASS in 579.8s (55 passed in 0.91s)
+2026-09-07 08:56:12,281 ERROR [5bfb80c@M5-Max-128GB] parser-date-qwen38fnds4mtp7shim-opencode-1: MTP emitted NOT ONE speculative cycle while its counters were proven on from the server's argv (ds4-mtp-timing) -- this arm did not speculate at all
+2026-09-07 08:56:28,793 INFO [5bfb80c@M5-Max-128GB] mbox-scan-qwen38fnds4mtp7shim-opencode-1: FAIL in 8.2s (13 failed, 3 passed in 0.09s)
+2026-09-07 08:56:28,971 ERROR [5bfb80c@M5-Max-128GB] mbox-scan-qwen38fnds4mtp7shim-opencode-1: MTP emitted NOT ONE speculative cycle while its counters were proven on from the server's argv (ds4-mtp-timing) -- this arm did not speculate at all
+2026-09-07 08:57:15,754 INFO [5bfb80c@M5-Max-128GB] swift-downsample-buckets-qwen38fnds4mtp7shim-opencode-1: FAIL in 32.1s (MonitorCore/Downsample.swift:44: Fatal error: removed for benchmark)
+2026-09-07 08:57:15,955 ERROR [5bfb80c@M5-Max-128GB] swift-downsample-buckets-qwen38fnds4mtp7shim-opencode-1: MTP emitted NOT ONE speculative cycle while its counters were proven on from the server's argv (ds4-mtp-timing) -- this arm did not speculate at all
+2026-09-07 09:03:33,778 INFO [5bfb80c@M5-Max-128GB] swift-csv-text-qwen38fnds4mtp7shim-opencode-1: PASS in 365.3s (􁁛  Test run with 215 tests in 26 suites passed after 0.664 seconds.)
+2026-09-07 09:03:34,003 ERROR [5bfb80c@M5-Max-128GB] swift-csv-text-qwen38fnds4mtp7shim-opencode-1: MTP emitted NOT ONE speculative cycle while its counters were proven on from the server's argv (ds4-mtp-timing) -- this arm did not speculate at all
+2026-09-07 09:10:54,647 INFO [5bfb80c@M5-Max-128GB] swift-chartaxis-spacing-qwen38fnds4mtp7shim-opencode-1: PASS in 426.0s (􁁛  Test run with 215 tests in 26 suites passed after 0.569 seconds.)
+2026-09-07 09:10:54,846 ERROR [5bfb80c@M5-Max-128GB] swift-chartaxis-spacing-qwen38fnds4mtp7shim-opencode-1: MTP emitted NOT ONE speculative cycle while its counters were proven on from the server's argv (ds4-mtp-timing) -- this arm did not speculate at all
+2026-09-07 09:13:27,237 INFO [5bfb80c@M5-Max-128GB] parser-mbox-quoting-nodoc-qwen38fnds4mtp7shim-opencode-1: PASS in 139.9s (55 passed in 0.86s)
+2026-09-07 09:13:27,424 ERROR [5bfb80c@M5-Max-128GB] parser-mbox-quoting-nodoc-qwen38fnds4mtp7shim-opencode-1: MTP emitted NOT ONE speculative cycle while its counters were proven on from the server's argv (ds4-mtp-timing) -- this arm did not speculate at all
+2026-09-07 09:16:33,895 INFO [5bfb80c@M5-Max-128GB] mbox-quoting-both-halves-qwen38fnds4mtp7shim-opencode-1: PASS in 174.1s (71 passed in 0.93s)
+2026-09-07 09:16:34,075 ERROR [5bfb80c@M5-Max-128GB] mbox-quoting-both-halves-qwen38fnds4mtp7shim-opencode-1: MTP emitted NOT ONE speculative cycle while its counters were proven on from the server's argv (ds4-mtp-timing) -- this arm did not speculate at all
+2026-09-07 09:20:37,088 INFO [5bfb80c@M5-Max-128GB] storage-put-and-sweep-qwen38fnds4mtp7shim-opencode-1: PASS in 234.6s (17 passed in 0.07s)
+2026-09-07 09:20:37,263 ERROR [5bfb80c@M5-Max-128GB] storage-put-and-sweep-qwen38fnds4mtp7shim-opencode-1: MTP emitted NOT ONE speculative cycle while its counters were proven on from the server's argv (ds4-mtp-timing) -- this arm did not speculate at all
+2026-09-07 09:23:42,048 INFO [5bfb80c@M5-Max-128GB] swift-scaleladder-snap-qwen38fnds4mtp7shim-opencode-1: PASS in 172.2s (􁁛  Test run with 215 tests in 26 suites passed after 0.532 seconds.)
+2026-09-07 09:23:42,247 ERROR [5bfb80c@M5-Max-128GB] swift-scaleladder-snap-qwen38fnds4mtp7shim-opencode-1: MTP emitted NOT ONE speculative cycle while its counters were proven on from the server's argv (ds4-mtp-timing) -- this arm did not speculate at all
+2026-09-07 09:26:37,895 INFO [5bfb80c@M5-Max-128GB] swift-sevensegment-glyphs-qwen38fnds4mtp7shim-opencode-1: PASS in 159.0s (􁁛  Test run with 215 tests in 26 suites passed after 0.527 seconds.)
+2026-09-07 09:26:38,096 ERROR [5bfb80c@M5-Max-128GB] swift-sevensegment-glyphs-qwen38fnds4mtp7shim-opencode-1: MTP emitted NOT ONE speculative cycle while its counters were proven on from the server's argv (ds4-mtp-timing) -- this arm did not speculate at all
+2026-09-07 09:27:22,557 INFO [5bfb80c@M5-Max-128GB] script-reverse-qwen38fnds4mtp7shim-opencode-1: PASS in 44.3s (3/3 checks passed)
+2026-09-07 09:27:22,604 ERROR [5bfb80c@M5-Max-128GB] script-reverse-qwen38fnds4mtp7shim-opencode-1: MTP emitted NOT ONE speculative cycle while its counters were proven on from the server's argv (ds4-mtp-timing) -- this arm did not speculate at all
+2026-09-07 09:28:16,917 INFO [5bfb80c@M5-Max-128GB] script-transform-qwen38fnds4mtp7shim-opencode-1: PASS in 54.0s (6/6 checks passed)
+2026-09-07 09:28:16,963 ERROR [5bfb80c@M5-Max-128GB] script-transform-qwen38fnds4mtp7shim-opencode-1: MTP emitted NOT ONE speculative cycle while its counters were proven on from the server's argv (ds4-mtp-timing) -- this arm did not speculate at all
+2026-09-07 09:28:16,967 INFO [5bfb80c@M5-Max-128GB] restored gmail-archive
+2026-09-07 09:28:16,967 INFO [5bfb80c@M5-Max-128GB] restored monitor

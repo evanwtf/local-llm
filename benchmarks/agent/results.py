@@ -71,8 +71,31 @@ REQUIRED_WITH_VERDICT: dict[str, type | tuple[type, ...]] = {
 }
 
 
-def _now() -> str:
-    return time.strftime("%Y-%m-%dT%H:%M:%S")
+def now() -> str:
+    """The one timestamp writer. Local time with an explicit numeric offset.
+
+    %z is not decoration. Without it this returned a naive local time while
+    targets_ab.sh wrote UTC into the manifest beside it, so a readout joining
+    the two was four hours wrong and said nothing. tests/test_iso8601_
+    timestamps.py caught the *data* on 2026-09-06; the data was backfilled and
+    this producer was not, so the next batch wrote the same bug again. Hence
+    one public definition, called by everything that stamps a row.
+    """
+    return time.strftime("%Y-%m-%dT%H:%M:%S%z")
+
+
+def client_version(client: str, env: dict[str, Any]) -> str | None:
+    """The version of the client this row actually used, or None.
+
+    `env` holds a version for every client on the machine, not just the one
+    that ran. The strings are whatever each tool prints -- "1.18.27" from
+    OpenCode, "codex-cli 0.152.0", "aider 0.86.2", "2.1.260 (Claude Code)" --
+    and they are stored unchanged. Normalising them here would invent a format
+    and lose what the tool actually said, which is the thing a later reader
+    needs in order to compare against a release note.
+    """
+    value = env.get(client)
+    return value if isinstance(value, str) and value.strip() else None
 
 
 def new_row(
@@ -85,6 +108,10 @@ def new_row(
     context_tokens: int,
     effort: str | None,
     env: dict[str, Any],
+    run_position: int | None = None,
+    run_arms: int | None = None,
+    target_layout: str = "legacy",
+    batch: str | None = None,
 ) -> dict[str, Any]:
     """Start a row. Both exclusion keys are set explicitly from birth."""
     return {
@@ -93,11 +120,44 @@ def new_row(
         "backend": backend,
         "client": client,
         "trial": trial,
-        "started": _now(),
+        "started": now(),
         "model": model,
         "context_tokens": context_tokens,
         "effort": effort,
         "env": env,
+        # #131. The client version was always in `env`, but keyed by client
+        # name alongside every other client's version -- so reading it back
+        # meant joining `client` to `env` and knowing to do so. #104 measured
+        # OpenCode 1.18.26 -> 1.18.27 roughly doubling median turns with
+        # everything else held; a finding like that has to be applicable to one
+        # row without a join. Not in REQUIRED: 979 existing rows predate it and
+        # `validate` runs on read, so demanding it would retroactively condemn
+        # them. Absent means "not established", never "same as now".
+        "client_version": client_version(client, env),
+        # #130. Throughput declines across a measurement window, so whichever
+        # arm always runs last is penalised -- @adamlawi measured that bias on
+        # antirez/ds4#952 as larger than three of the four effects being
+        # compared. run.py now alternates the order between trials, but a row
+        # that does not say where it sat cannot be checked for the bias
+        # afterwards, and no existing row can be retro-corrected. None means
+        # the order was not recorded, which is what every row before this is.
+        "run_position": run_position,
+        "run_arms": run_arms,
+        # #146. Which checkout a row was built from: "legacy" parks the
+        # operator's checkout and stands the export at the path the model
+        # guesses; "sandbox" builds from the harness's own clone and denies
+        # the guessed path instead. The two layouts give the agent different
+        # answers to its guess, so their pass rates are not one cohort --
+        # pooled rows would measure the harness, not the model. Default
+        # "legacy" is what every row so far is. Not in REQUIRED: rows before
+        # 2026-09-05 predate it.
+        "target_layout": target_layout,
+        # #175. Which batch a row belongs to, so a read-out can select one
+        # batch exactly instead of approximating "the rows from this run" by
+        # time. Not in REQUIRED: rows before 2026-09-06 predate it, and
+        # `validate` runs on read, so demanding it would retroactively condemn
+        # them. Absent means "not established", never "same as now".
+        "batch": batch,
         "excluded": False,
         "exclusion_reason": None,
     }
@@ -145,6 +205,31 @@ def write_row(row: dict[str, Any], path: pathlib.Path) -> dict[str, Any]:
     A failing row is written anyway. Losing an expensive trial to a schema bug
     is worse than storing one that is loudly marked as broken.
     """
+    # #131: the clients are no longer pinned -- this machine is a daily
+    # driver and runs the current version of everything -- so `client_version`
+    # on the row is the ONLY thing that makes a comparison recoverable across
+    # an update. That cannot rest on discipline, so it is enforced here rather
+    # than described in a comment.
+    #
+    # Excluded, not refused. Losing an expensive trial to a missing field is
+    # worse than storing one that can never enter an aggregate, which is the
+    # same trade this function already makes for a schema violation. `validate`
+    # runs on read as well, so the field stays out of REQUIRED: the 979 rows
+    # that predate it are grandfathered and are never re-written.
+    if not row.get("client_version"):
+        logger.error(
+            "%s-%s-%s: no client_version -- excluding the row. Nothing pins "
+            "the client (#131), so a row that does not say which version ran "
+            "cannot be compared with anything.",
+            row.get("task"),
+            row.get("backend"),
+            row.get("trial"),
+        )
+        row["excluded"] = True
+        if not row.get("exclusion_reason"):
+            row["exclusion_reason"] = (
+                "no client_version recorded; clients are not pinned (#131)"
+            )
     errors = validate(row)
     row["schema_valid"] = not errors
     row["schema_errors"] = errors
@@ -228,7 +313,7 @@ def normalize(row: dict[str, Any]) -> dict[str, Any]:
 
 
 def load(path: pathlib.Path) -> list[dict[str, Any]]:
-    """Read every row, normalised to v2 shape in memory.
+    """Read every row, normalized to v2 shape in memory.
 
     This is the only supported way to read results.jsonl. Reading it by hand is
     how the four exclusion keys went unnoticed.
@@ -256,7 +341,7 @@ def load(path: pathlib.Path) -> list[dict[str, Any]]:
 
 
 def usable(path: pathlib.Path) -> list[dict[str, Any]]:
-    """Every row that belongs in an aggregate: normalised, minus exclusions."""
+    """Every row that belongs in an aggregate: normalized, minus exclusions."""
     return [r for r in load(path) if not r["excluded"]]
 
 
@@ -290,6 +375,119 @@ def trials(path: pathlib.Path) -> list[dict[str, Any]]:
     `verdict()`; do not test `row["passed"]` directly.
     """
     return [r for r in usable(path) if not r.get("dry_run")]
+
+
+# --- server_argv pooling guard (#213) --------------------------------------
+
+#: Flags that take a value and change the compute graph. Two rows pooled
+#: together must agree on these, or the comparison is between two different
+#: models. Spellings are the ds4-server ones (ds4_cli.c at ds4-main 9ab70534);
+#: `--mtp` is the MTP model path, `-c`/`--ctx` the context window. The weights
+#: path (`-m`/`--model`) is deliberately absent: it is a path, and the model
+#: identity is already captured separately as `gguf_path`.
+GRAPH_VALUE_FLAGS: frozenset[str] = frozenset(
+    {
+        "--mtp",
+        "--prefill-chunk",
+        "--kv-disk-dir",
+        "--kv-disk-space-mb",
+        "--ssd-streaming-cache-experts",
+        "--ssd-streaming-preload-experts",
+        "-c",
+        "--ctx",
+        "--power",
+    }
+)
+
+#: Boolean flag families that change the graph when present. Matched by prefix
+#: so a future `--kv-disk-*` or `--ssd-streaming*` flag is caught without an
+#: edit here.
+GRAPH_BOOLEAN_PREFIXES: tuple[str, ...] = ("--kv-disk-", "--ssd-streaming")
+
+
+def graph_flags(argv: str) -> dict[str, str]:
+    """The graph-changing flags in a server_argv string, flag -> value.
+
+    A flag that takes a value maps to that value; a boolean flag maps to "1"
+    (present). Absent flags are absent from the dict, so two argv strings
+    compare equal iff they agree on every graph-changing flag. Paths, ports and
+    other harmless differences never enter the dict.
+    """
+    tokens = argv.split()
+    out: dict[str, str] = {}
+    i = 0
+    while i < len(tokens):
+        tok = tokens[i]
+        if tok in GRAPH_VALUE_FLAGS:
+            if i + 1 < len(tokens):
+                out[tok] = tokens[i + 1]
+                i += 2
+                continue
+        elif tok.startswith(GRAPH_BOOLEAN_PREFIXES):
+            out[tok] = "1"
+        i += 1
+    return out
+
+
+def server_argv_compatible(a: dict[str, Any], b: dict[str, Any]) -> bool:
+    """True if two rows may be pooled together.
+
+    A row with no server_argv is unknown. Unknown must not compare equal to
+    known -- a row that says nothing about its graph could have run anything.
+    Two known rows agree only when every graph-changing flag matches.
+    """
+    av = (a.get("env") or {}).get("server_argv")
+    bv = (b.get("env") or {}).get("server_argv")
+    if not av and not bv:
+        return True
+    if not av or not bv:
+        return False
+    return graph_flags(av) == graph_flags(bv)
+
+
+def pool_compatible(rows: list[dict[str, Any]]) -> bool:
+    """True if every row in a pool may be pooled with every other.
+
+    All-unknown pools are compatible (nothing to compare). A pool that mixes a
+    known argv with an unknown one, or two known argv strings with different
+    graph flags, is not -- pooling it would compare two different models and
+    call the difference a result.
+    """
+    sigs: set[frozenset[tuple[str, str]] | None] = set()
+    for r in rows:
+        argv = (r.get("env") or {}).get("server_argv")
+        sigs.add(None if not argv else frozenset(graph_flags(argv).items()))
+    return len(sigs) <= 1
+
+
+def compatible_subset(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The largest subset of `rows` that may be pooled together.
+
+    A pool that mixes graph-changing server_argv is not a pool -- it is two
+    different models. Keep the largest self-consistent group so one outlier
+    row does not void the whole cell; the dropped rows are holes in n, not
+    passes or fails.
+    """
+    if not rows:
+        return []
+    sigs: dict[frozenset[tuple[str, str]] | None, list[dict[str, Any]]] = {}
+    for r in rows:
+        argv = (r.get("env") or {}).get("server_argv")
+        sig = None if not argv else frozenset(graph_flags(argv).items())
+        sigs.setdefault(sig, []).append(r)
+    return max(sigs.values(), key=len)
+
+
+def unknown_argv(rows: list[dict[str, Any]]) -> bool:
+    """True if no row in the pool records a `server_argv`.
+
+    An all-unknown pool is compatible by design -- refusing it would void
+    every analysis of the rows we already hold -- but it must be stated, not
+    silent. The pool this guard exists for, `qwen38fnds4mtp7shim`'s 94 rows,
+    is exactly this case: they may span two configurations and no row can say
+    which. Callers log this condition once per pool.
+    """
+    return all(not (r.get("env") or {}).get("server_argv") for r in rows)
 
 
 # --- one file, one machine (#20) ------------------------------------------

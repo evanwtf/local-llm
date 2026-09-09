@@ -15,7 +15,7 @@ recovery from failure.
 | rung | task | wall | result |
 |---|---|---|---|
 | A | debug: symptom visible, cause elsewhere | 263 s | **PASS** |
-| B | ambiguous investigation, judgement required | 295 s | **PASS** |
+| B | ambiguous investigation, judgment required | 295 s | **PASS** |
 | C | large-context audit (36,598 lines, 5 files) | 450 s | **MIXED** — 2 of 5 solid |
 | D | recovery from its own error | 359 s | **MIXED** — corrected, then over-corrected |
 
@@ -52,7 +52,7 @@ This is the strongest single result across both ladders.
 ## Rung B — ambiguity (PASS)
 
 Asked it to determine whether the `kvcache_bytes=0` anomaly is a bug or expected
-behaviour — a **genuinely open question** I had gotten wrong twice in
+behavior — a **genuinely open question** I had gotten wrong twice in
 `REPORT.md` (first "artifact at the final frontier", then noting the pattern
 did not hold, then leaving it unexplained).
 
@@ -66,7 +66,7 @@ It found **two independent mechanisms**, which explain both observations exactly
 All claims verified against source. Line numbers were off by 2–10 (`817` cited
 as `807`), the mechanism exactly right.
 
-Its judgement — *"expected behaviour of a flawed metric, not an accidental
+Its judgment — *"expected behaviour of a flawed metric, not an accidental
 bug"* — is defensible and better than my own analysis was. It proposed a minimal
 fix, explained why existing non-zero values would be unchanged, flagged that
 `ds4_session_payload_bytes` returns 0 in distributed mode (verified:
@@ -115,7 +115,7 @@ cc -O3           →  nan reject=0   (accepted; the gap is real)
 cc -O3 -ffast-math → nan reject=1   (rejected; masked by the flag)
 ```
 
-So the missing check is a **genuine latent gap masked by an optimisation flag**.
+So the missing check is a **genuine latent gap masked by an optimization flag**.
 Drop `-ffast-math` and `ds4-server` would accept NaN while `ds4` rejects it.
 The agent's instinct was right; its stated consequence was wrong for this build.
 
@@ -155,7 +155,7 @@ That is the sycophancy failure mode, and for a coding agent it is expensive:
 push back on a correct diagnosis and it may abandon it.
 
 **Architectural note:** each `claude-ds4 -p` invocation is a fresh session, so
-there is no memory across rungs. The honesty about this was good behaviour, but
+there is no memory across rungs. The honesty about this was good behavior, but
 it is a real constraint — multi-session workflows need context passed explicitly.
 
 ---
@@ -172,7 +172,7 @@ it is a real constraint — multi-session workflows need context passed explicit
 
 **Do not route locally without review:**
 
-- **any claim about runtime behaviour derived from reading code.** This is the
+- **any claim about runtime behavior derived from reading code.** This is the
   documented failure mode. Demand it run the thing.
 - **audits producing ranked lists** — ranking was worse than the individual
   findings; its top item was its only clearly false one.
@@ -188,8 +188,8 @@ each claim separately rather than reconsider the set.
 
 First ladder: 1 of 5 correct — I predicted mechanical failure and got none.
 
-This ladder: I predicted the wall would be *ambiguity and judgement*. Wrong
-again — rung B (pure judgement, no ground truth) was one of the strongest
+This ladder: I predicted the wall would be *ambiguity and judgment*. Wrong
+again — rung B (pure judgment, no ground truth) was one of the strongest
 results. The actual wall is **epistemic**: distinguishing what the code says
 from what it does, and holding a correct position under pressure.
 

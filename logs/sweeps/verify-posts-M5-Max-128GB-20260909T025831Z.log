@@ -1,0 +1,9 @@
+2026-09-08 22:58:32,021 INFO [36b86cf-dirty@M5-Max-128GB ds4-server/unknown pld=n/a] 2026-09-09T02:58:32Z (22:58:32 EDT) | harness 36b86cf-dirty
+2026-09-08 22:58:32,095 INFO [36b86cf-dirty@M5-Max-128GB ds4-server/unknown pld=n/a]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-08 22:58:32,272 INFO [36b86cf-dirty@M5-Max-128GB ds4-server/unknown pld=n/a] 2097485153211703369  VERIFIED post  @ddalcu  Wed Sep 09 00:40:04 +0000 2026  via fxtwitter
+2026-09-08 22:58:32,272 INFO [36b86cf-dirty@M5-Max-128GB ds4-server/unknown pld=n/a]     MLX-Serve 26.9.2 is out. Fixes, Polish, Speed.  If you have 96-128GB Ram, 👑 Qwen Flash Next is the king of local models for now. Without KV8 Cache + M5Max, you might see it go above 150 Tok/s.  https:
+2026-09-08 22:58:32,272 INFO [36b86cf-dirty@M5-Max-128GB ds4-server/unknown pld=n/a] 
+2026-09-08 22:58:32,272 INFO [36b86cf-dirty@M5-Max-128GB ds4-server/unknown pld=n/a] Verified 1: 1 confirmed, 0 not.
+2026-09-08 22:58:32,272 INFO [36b86cf-dirty@M5-Max-128GB ds4-server/unknown pld=n/a] Paste onto the issue:
+2026-09-08 22:58:32,272 INFO [36b86cf-dirty@M5-Max-128GB ds4-server/unknown pld=n/a]   **Verified** 2026-09-09: post exists, authored by @ddalcu, posted Wed Sep 09 00:40:04 +0000 2026.
+2026-09-08 22:58:32,272 INFO [36b86cf-dirty@M5-Max-128GB ds4-server/unknown pld=n/a] log: /Users/evanhoffman/git/local-llm/logs/sweeps/verify-posts-M5-Max-128GB-20260909T025831Z.log

@@ -1,12 +1,6 @@
 # Agent benchmark — local backends driving a coding agent
 
-> ## ⚠️ OpenCode results before 2026-08-31 21:47 EDT are INVALID
->
-> Any OpenCode trial recorded before `2026-08-31T21:47:18-04:00` measures a
-> harness bug -- the client was never told which directory to work in, so it
-> solved each task and wrote the answer somewhere else. **Do not quote, pool,
-> or compare against those numbers.** Cause, cutover and replacements:
-> [docs/archive/results-opencode-pre-dir.md](../../docs/archive/results-opencode-pre-dir.md). Other clients are unaffected.
+> ⚠️ **OpenCode results before 2026-08-31 21:47 EDT are INVALID** — the client was never told which directory to work in. **Other clients are unaffected.** The ledger holds none of these rows now; do not quote them from older documents either: [what happened](../../docs/archive/results-opencode-pre-dir.md).
 
 MacBook Pro M5 Max, 128 GiB, macOS 26.5. Methodology in
 [`METHODOLOGY.md`](METHODOLOGY.md). Raw rows in `results.jsonl`.
@@ -359,7 +353,7 @@ The coding tune **halves the damage** but does not remove it. Every Qwen
 variant eventually throws a long run here.
 
 Durability semantics are a plausible trap: `fsync` ordering and atomic-rename
-behaviour is exactly the sort of thing a model can keep re-verifying when the
+behavior is exactly the sort of thing a model can keep re-verifying when the
 tests do not pin it down.
 
 The clearest look at what goes wrong is Qwen3.8 trial 1:
@@ -396,7 +390,7 @@ apart from `mbox-scan`, yet its overall range is 40.3 s to 1,226.0 s.
 mid-field — slow, but not erratic. Qwen3.8 is the least predictable of the
 non-Ornith backends at 10.1×.
 
-The behaviour is bimodal rather than noisy: most runs are direct, then one
+The behavior is bimodal rather than noisy: most runs are direct, then one
 wanders badly. Qwen3.6's `parser-mbox-quoting` went 248.4 s, 254.2 s — near
 identical — and then 537.2 s. **A model that looks stable over two trials is
 not necessarily stable.** This caught me twice during the run.
@@ -567,7 +561,7 @@ median on that task.
 ### Reading
 
 Ornith holds the fastest run, the only failures, and the longest run, all within
-15 trials. That is one coherent behaviour rather than three quirks: a model tuned
+15 trials. That is one coherent behavior rather than three quirks: a model tuned
 hard for terseness commits early. Usually that is right and very fast. When it is
 wrong, it either ships a wrong answer quickly or cannot deliberate its way back.
 
@@ -615,7 +609,7 @@ slowest overall — because it generates at 13.2 t/s.
 
 `overhead` is wall time minus generation time: tool calls, prefill, and the
 agent's own round trips. It is where thrashing shows up. Qwen3.8's 163 s is the
-worst in the set and matches its behaviour on `storage-blob-put`.
+worst in the set and matches its behavior on `storage-blob-put`.
 
 ### This also revises the Ornith story
 
@@ -624,7 +618,7 @@ Ornith generates at **92.5 t/s**, the fastest measured here — and it emits
 **engine and architecture**, not the terseness its system prompt advertises.
 
 It is a 34.7B MoE served through Ollama's llama.cpp path rather than MLX, so
-both sparsity and runtime favour it. The GGUF caveat attached to this backend is
+both sparsity and runtime favor it. The GGUF caveat attached to this backend is
 not a formality; it accounts for most of the gap.
 
 ---
@@ -752,7 +746,7 @@ a cold process. Until then, treat MTPLX's placement as provisional.
 **The runtime is pre-tuned by the model author.** `mtplx_runtime.json` ships
 depth and draft settings, and the turbo profile sets ~40 environment knobs.
 Every Ollama backend here ran at stock defaults with nobody tuning anything.
-The asymmetry favours MTPLX and cannot be removed without deliberately
+The asymmetry favors MTPLX and cannot be removed without deliberately
 handicapping it.
 
 **Reasoning is on by default** (`enable_thinking: true`). Thinking blocks are
@@ -950,7 +944,7 @@ and is now closed -- there is no parent repo to write into -- so misapplied
 edits would have to fail some other way. Reading a captured event stream from a
 failing trial is the next step and has not been done.
 
-**Whether this generalises past ds4.** One backend, one model. OpenCode drives
+**Whether this generalizes past ds4.** One backend, one model. OpenCode drives
 75+ providers and is presumably tuned against hosted frontier models, not a
 local DeepSeek V4 Flash quant.
 
@@ -959,7 +953,7 @@ local DeepSeek V4 Flash quant.
 **Claude Code loads the operator's global `~/.claude/CLAUDE.md`** (~2 KB of
 style and tooling rules) into every trial. OpenCode never sees it. The target
 repo has neither `CLAUDE.md` nor `AGENTS.md`, so this is the only
-instruction-level difference -- but it is a real one and it favours Claude Code.
+instruction-level difference -- but it is a real one and it favors Claude Code.
 
 **The protocol match is inferred, not observed.** `@ai-sdk/anthropic` can only
 call `/v1/messages`; that is an SDK contract, not a measurement. Two attempts to
@@ -1011,7 +1005,7 @@ metadata; this can degrade performance and cause issues.
 
 Codex has no entry for this model, so it is guessing at the context window and
 capabilities. Claude Code had `deepseek-v4-flash` explicitly configured with a
-100,000-token window. The handicap is real, it ran in Codex's disfavour, and
+100,000-token window. The handicap is real, it ran in Codex's disfavor, and
 Codex won anyway.
 
 ### This reframes the OpenCode result
@@ -1053,13 +1047,13 @@ per trial. Do not compare that number to another client's turn count either.
 **One backend, one model.** Everything here is ds4 / DeepSeek V4 Flash.
 
 **Claude Code still loads the operator's global `~/.claude/CLAUDE.md`**
-(~2 KB) that Codex never sees -- an asymmetry favouring Claude Code, which
+(~2 KB) that Codex never sees -- an asymmetry favoring Claude Code, which
 lost anyway.
 
 **Sandboxing differs.** Claude Code ran `--permission-mode bypassPermissions`,
 Codex `--sandbox workspace-write`. Codex was the more constrained of the two.
 
-## Does Codex's advantage generalise? No. (2026-08-17)
+## Does Codex's advantage generalize? No. (2026-08-17)
 
 Codex beat Claude Code on ds4. This run asks whether that is a property of the
 client or of the pairing, by repeating it on the second-place backend --
@@ -1219,7 +1213,7 @@ The 15/15 backends are not "as good as ds4 pending more data". They are
 
 ### Wall time — the number that changes how this project reports speed
 
-Bootstrapped from the pooled, per-cell-normalised distribution of 198 wall times
+Bootstrapped from the pooled, per-cell-normalized distribution of 198 wall times
 from every cell with at least 6 trials:
 
 | trials | one task's median | 5-task suite total |
@@ -1312,7 +1306,7 @@ in different words and different helper names, with the same logic.
 clients:
 
 ```python
-def _strip(match: re.Match) -> bytes:        # original: re.Match[bytes]
+def _strip(match: re.Match) -> bytes:  # original: re.Match[bytes]
     return quotes[1:] + match.group(2)
 ```
 
@@ -1385,7 +1379,7 @@ split.count                 3   vs     33
 ```
 
 It is purely a re-sharding, so whether it saves anything is a question about
-llama.cpp's mmap behaviour, not about the model.
+llama.cpp's mmap behavior, not about the model.
 
 **And mmap already does it.** `vmmap` on the running server:
 
@@ -1723,7 +1717,7 @@ on this task.** Temperature and top_k were each isolated and are innocent —
 intuition for code generation. With `top_k 20` already limiting candidates,
 dropping `top_p` to 0.90 appears to cut tokens needed for a correct
 continuation: the failures are overwhelmingly the near miss `1 failed, 16
-passed` — working code with one behaviour wrong — not a collapse.
+passed` — working code with one behavior wrong — not a collapse.
 
 ### Every pass rate in this file was measured at an unchosen top_p
 
@@ -1963,7 +1957,7 @@ Both were invisible to three days of Python-only runs:
 **`swift test` writes compile errors to stderr and leaves stdout empty.**
 `tests_pass` read only stdout, so the run's one real failure was recorded as
 `"no output"` — true, useless, and indistinguishable from a harness fault.
-`summarise_run` now falls back to stderr. pytest never had this: a Python syntax
+`summarize_run` now falls back to stderr. pytest never had this: a Python syntax
 error is a collection error on stdout.
 
 **Shim-fronted backends did not declare their real server port.** `preflight`
@@ -2079,7 +2073,7 @@ It is not only a load check. The Metal fused paths branch on the type as well �
 `layer->attn_compressor_kv->type == DS4_TENSOR_F16` gates the fast kernels, and
 one error message says outright: *"Metal graph indexer compressor expects paired
 F16 projections"*. Quantizing these would not merely be rejected; on a build
-that accepted them it would fall off the optimised path.
+that accepted them it would fall off the optimized path.
 
 **So the eligible saving is `indexer.attn_q_b` alone: 0.154 GiB, or 1.7% of
 per-token traffic.** That is below anything this instrument can resolve and is
@@ -2194,7 +2188,7 @@ this host:
 because the *working set* is 107.52–112.00 GiB, never ≥ 120. So the budget comes
 entirely from the sysctl-override path — and without
 `iogpu.wired_limit_mb = 114688` the budget would be **75.5 GiB against a 89.87
-GiB model.** The raised ceiling is not an optimisation here; it is the reason
+GiB model.** The raised ceiling is not an optimization here; it is the reason
 this runs at all.
 
 ### What is still not answered
@@ -2302,3 +2296,323 @@ appear to this morning.
 written incorrect code here.** Its failures are missing edits, not wrong ones —
 a plumbing failure, not a reasoning one, which is why #56 asks whether a
 different open agent charges less for the same property.
+
+---
+
+## 2026-09-03 — Qwen3.8-Flash-Next on ds4: the missing engine cell, and why it read as 0/45
+
+**Backend `qwen38fnds4shim`, OpenCode 1.18.27, 15 tasks x 3 trials, harness `47a1d9f`.**
+
+| | |
+|---|---|
+| excision tasks | **30/39**, median **139.9 s**, worst 791.6 s, spread 113.1x |
+| script tasks | **6/6** |
+| **all trials** | **36/45** |
+
+The previous measurement of this backend was **0/45**. Nothing about the model
+or the engine changed between the two. What changed is that the shim now takes
+tool requests off ds4's **streaming** path.
+
+### The defect the 0/45 actually measured
+
+ds4's server log had been saying it plainly all along:
+
+```
+TOOLS invalid tool call returned as assistant text finish=stop [text_len=231 saw_start=1 saw_end=1 ...]
+```
+
+`text_len=231` — ds4 believes it is handing back 231 characters of assistant
+text. Off-stream it does. **On-stream it does not**: the client receives no
+content, no `tool_calls`, and `finish_reason=stop` — a completely empty turn.
+
+One identical request, both arms interleaved so session drift hit them equally,
+12 samples each:
+
+| arm | `tool_calls` | XML as text | nothing at all |
+|---|---|---|---|
+| `stream: true` | 1/12 | 0/12 | **11/12** |
+| `stream: false` | 7/12 | 5/12 | 0/12 |
+
+OpenCode sets `stream: true`. The 45 trials ended on turn one with
+`solution_empty: true` because the turn genuinely arrived empty.
+
+**This is why the earlier prompt-engineering results made no sense.** The shim's
+format instruction measured **12/12 synthetic** and **0/6 → 1/6 under OpenCode**
+on the same text. The synthetic harness sent `stream: false`; OpenCode sent
+`stream: true`. Two arms differing in a variable nobody had registered as one —
+the failure this repo already names in *"Observe the wire call, not the status
+code"*. The instruction was never weak; it was measured through a path that
+discards its effect.
+
+### The fix, and what it costs
+
+The shim asks upstream for a non-streaming completion whenever the request
+carries tools, translates the XML dialect if it still appears, and synthesises
+the SSE stream the client asked for. Three arms, interleaved, same server:
+
+| arm | valid tool call |
+|---|---|
+| direct, streaming | **0/12** |
+| direct, non-streaming | 4/12 |
+| **through the shim** | **12/12** |
+
+**The XML translator fired 28 times across the 45 trials.** It never fired on
+the twelve synthetic samples, where the instruction alone was enough. That gap
+is the measurement: under OpenCode's 26 KB prompt the model reaches for the XML
+dialect far more often, exactly as the earlier comment suspected — it just was
+not what made the runs unrecoverable.
+
+**Confounds, all three.** A `qwen38fnds4shim` row (a) carries one system line
+naming the tool-call format, (b) **did not stream from the engine**, and (c) may
+have had its tool call rewritten in flight. Wall time should be unaffected — a
+tool call cannot be acted on before it is complete — but this row is not
+comparable to a streaming backend, and the quant differs from the llama.cpp
+`qwen38fnq3` cell (Q4_0-routed here, Q3 there), so engine and quant are still
+not separated by that pair alone.
+
+### What the nine failures are, and they are all one thing
+
+Every one of the nine is `solution_empty: true`. None is wrong code. Reading the
+transcripts, the residual mode is a **degeneration loop**, and it is a different
+defect from the one just fixed:
+
+```
+"The tool call format got broken. I need to output valid JSON inside the invoke tag."
+</think>
+<tool_call>
+<tool_call>
+<tool_call>
+<tool_call>            <- x38, no function name, nothing to translate
+```
+
+Once a tool error enters the conversation the model starts **narrating about the
+format instead of calling**, then emits stacked bare `<tool_call>` opens. The
+translator declines these correctly: there is no `<function=` and so no call to
+recover.
+
+One transcript shows a **third dialect** the translator does not yet handle:
+
+```
+<invoke name="read">
+  <parameter name="filePath">/Users/.../storage.py</parameter>
+</invoke>
+```
+
+That is the Claude/Anthropic tool syntax. It is cheap to add and is **not** in
+the code these 45 trials ran through.
+
+The failures also cluster late — 2, 2 and 5 across trials 1, 2 and 3. That is
+consistent with a context-poisoning cascade rather than a per-call coin flip,
+but three trials cannot establish it and it is not claimed here.
+
+### What this does and does not settle
+
+**#60's engine-isolation cell is now reachable**, which it was not this morning.
+It is not yet *clean*: 36/45 is 80%, and at this sample size the honest reading
+is ">62%" — not a number to rank against `qwen38fnq3`'s 30/30. Per #23, the
+suite totals would need to differ by ~26% before a difference is real.
+
+**#77 is unblocked.** MTP arm B can now run, because arm A completes tasks.
+
+**A ds4 bug worth reporting upstream, independent of our shim.** The streaming
+path drops assistant text it has explicitly decided to return, and it does so
+silently — any streaming client sees an empty turn and no error.
+
+### 2026-09-03, same day — arm B: MTP at depth 7 buys throughput and no wall time
+
+**`qwen38fnds4mtp7shim`, the identical shim path with `--mtp-draft 7 --mtp-timing`.
+Two trials complete of three; trial 3 was still running when this was written.**
+
+Paired against arm A on the **16 cells that passed in both arms in the same trial**
+— see *"A failing arm looks fast"* in `AGENTS.md` for why the comparison has to be
+paired:
+
+| | arm A (MTP off) | arm B (MTP 7) | B/A |
+|---|---|---|---|
+| wall, paired cells | 2030 s | 1973 s | **0.97** |
+| median, paired cells | 120.2 s | 112.5 s | — |
+| output tokens | 24,795 | 30,046 | **1.21** |
+| **seconds per 1k output tokens** | 81.9 | **65.7** | **0.80** |
+| pass, trials 1-2 | 26/30 | 19/30 | — |
+
+**Three things are happening at once and only the third is a null.**
+
+1. **MTP genuinely works on this workload.** It is not being bypassed into
+   irrelevance: across the run the server logged 179 MTP cycles, **57 drafting
+   and 122 `scheduler-bypass`**, and the accepted-length histogram has a heavy
+   tail at full depth — `1=13 2=6 3=7 4=1 5=2 6=1 **7=22**`. When it engages it
+   frequently accepts all seven drafted tokens. This is the counter the issue
+   insisted on capturing, and it is what makes the rest of this readable rather
+   than a shrug.
+2. **Throughput improves about 20%** — 65.7 s/1k output tokens against 81.9.
+3. **Wall time does not move: B/A = 0.97.** The model emits **21% more tokens**
+   under arm B, and the two effects very nearly cancel.
+
+**So the honest headline is "no wall-time difference measured".** A 3% gap is far
+inside the resolution of this suite — #23 puts a 5-task suite total at ±12.9% at
+three trials, and this is two — and the repo's own rule is that below ~26% the
+phrasing is "no difference measured", never "faster". The 20% throughput figure
+is a rate rather than a suite total and is more stable, but it is still n=2 and
+is reported as a direction, not a result.
+
+**Why the extra tokens are not a surprise, and why the pass rate cannot be read.**
+ds4's MTP defaults do **not** preserve the sampling distribution: without
+`--mtp-exact-sampling` the engine accepts drafts matching what the target would
+greedily produce, and `--mtp-margin` (default 3) tunes that acceptance. So arm B
+is a *differently sampled model*, not merely a faster one. That is enough to
+explain both the token growth and the 19/30 against 26/30, and it means
+**the pass-rate gap must not be attributed to speculative decoding.** Isolating
+speculation needs a third arm at `--mtp-exact-sampling`; #36's rule is to vary
+one parameter at a time, and this run deliberately varies two because it measures
+MTP *as a user would switch it on*.
+
+**One excluded set worth knowing about.** The first arm B attempt was aborted
+three trials in: ds4 rejected every disk KV checkpoint in `~/.ds4/server-kv`
+(`Qwen checkpoint MTP state is incompatible`) because they were written with MTP
+off, so arm B was re-prefilling where arm A got cache hits. Those three rows are
+excluded with the reason; the run was restarted against a dedicated
+`--kv-disk-dir`. **An engine flag that changes the KV format silently invalidates
+the cache, and the only symptom in the results is that one arm looks slower.**
+
+**What this does to #77.** The question — does speculative decoding help a local
+coding agent — now has a measured answer on this pack, and it is *not on wall
+time at batch 1*. That is consistent with #105's report of speculative decoding
+making batch-1 decode 18% slower in a different engine on the same hardware, and
+with the pack author's own finding that code continuation is bypassed like prose.
+The throughput gain is real; the agent does not get it back, because the sampler
+change spends it on extra tokens.
+
+#### Correction, same day: the third trial moved both numbers
+
+The section above was written from **two** trials and said so. The third trial landed at
+06:15 and **both headline figures moved materially.** Superseding rather than editing,
+per this file's own rule.
+
+| paired on cells passing in both arms | 2 trials (16 cells) | **3 trials (20 cells)** |
+|---|---|---|
+| wall B/A | 0.97 | **1.19** |
+| seconds per 1k output tokens | 65.7 vs 81.9 (**0.80**) | 67.9 vs 75.7 (**0.90**) |
+| output tokens B/A | 1.21 | **1.33** |
+| pass | A 26/30, B 19/30 | **A 36/45, B 25/45** |
+
+Per-trial: A **13/15, 13/15, 10/15**; B **10/15, 9/15, 6/15**.
+
+**What survives.** The shape of the finding does: MTP raises per-token throughput and the
+model emits more tokens, and the second eats the first. What does *not* survive is either
+specific number — the throughput gain halved from 20% to 10%, and wall time went from
+"no difference" to arm B taking **19% longer**.
+
+**Neither figure clears the bar, and 19% does not make MTP slower.** #23 requires roughly
+26% between two suite totals before the difference is real. So the honest statement remains
+**"no wall-time difference measured"**, now with the direction pointing the other way than
+it did at two trials. That is not a reversal to report; it is two readings of the same
+unresolved quantity.
+
+**This is #23's thesis demonstrated on our own work, which is worth more than the result.**
+A two-trial reading was written up in good faith with the caveat that it was two trials,
+and one more trial moved the throughput gain by half and flipped the sign of the wall-time
+comparison. The caveat did its job. The lesson is not "we were wrong" — it is that at n=2
+and n=3 these quantities are simply not pinned, and a number that moves this much between
+trials should never be quoted without its trial count attached.
+
+**The arm B degradation is the real finding here**, and it is #112: 10/15, 9/15, 6/15 is a
+monotonic decline across a 90-minute session, and arm A did the same thing (13, 13, 10).
+Both arms' third trials are the worst, in fresh conversations. Until that is understood,
+**arm B's 25/45 is not a measurement of MTP** — it is a measurement of MTP plus whatever is
+degrading the session, and the two are not separated.
+
+### 2026-09-03, later: restart-between-trials eliminates the trial-3 collapse (#112)
+
+Three trials of `qwen38fnds4shim` under OpenCode, each in its own `run.py`
+invocation with a fresh `ds4-server` restart between each trial. Same argv,
+same shim, same weights, same reference repos as the original arm A. Only
+change: server state cleared between trials.
+
+**Per-trial pass rates, restart-between vs the original arm A three-trial run:**
+
+| trial | original arm A | restart-between | delta |
+|---|---|---|---|
+| 1 | 13/15 | **14/15** | +1 |
+| 2 | 13/15 | **14/15** | +1 |
+| 3 | **10/15** | **14/15** | **+4** |
+| total | 36/45 (80%) | **42/45 (93%)** | +6 |
+
+**The trial-3 collapse vanishes.** Restart-between holds a flat 14/15 across
+all three trials. Every trial's single failure is a *different* task
+(`mbox-strip-envelope` in T1, `storage-put-and-sweep` in T2, `parser-date` in
+T3), so nothing failed consistently. Two of the three fails are the classic
+turn-1 fast-fail (6.4 s, 8.5 s) and the third is a proper wrong-code failure
+(261.8 s, 49/6 pass). Stochastic per-trial noise, not systematic decline.
+
+**Wall times per trial also stopped drifting.**
+
+| trial | original arm A median | restart-between median |
+|---|---|---|
+| 1 | 111.8 s | 142.3 s |
+| 2 | 130.9 s | 116.8 s |
+| 3 | (declining) | 117.1 s |
+
+The restart cycle's trial 3 median (117.1 s) matches trial 2 (116.8 s)
+almost exactly. The original run's trial 3 wall times had been drifting
+upward alongside its declining pass rate; here they do not.
+
+**What is settled and what is not:**
+
+- **Server state is the cause of the trial-3 decline.** Not model context (each
+  trial is a fresh conversation, in both cycles), not machine state per se — a
+  ds4-server restart is enough to clear it. The disk KV budget candidate
+  NEXT.md flagged is the plausible mechanism: 8192 MB is sized for DeepSeek
+  and Qwen3.8-Flash-Next's entries are larger; the cache thrashes as the
+  session progresses.
+- **What ds4-server actually accumulates has not been identified.** The disk
+  KV budget is a hypothesis, not a proof; other candidates (internal buffer
+  pools, prefix-cache metadata) remain. But whichever mechanism it is, a
+  restart clears it, which makes the operational fix trivial.
+- **The improvement passes #23's resolution bar in the per-trial pattern**
+  (10/15 → 14/15 in trial 3 is 40%, well above ~26%). It does not clear it on
+  the pooled 36/45 → 42/45 total, whose 95% Clopper-Pearson intervals overlap
+  (65-90% vs 82-99%). So the finding to state is "the per-trial decline is
+  gone", not "arm A is now 93%".
+
+**Consequence for [#77](https://github.com/evanwtf/local-llm/issues/77) arm B.** That run degraded to 6/15 in its own trial 3,
+and it inherited the same server-state contamination. Its pass-rate result
+(19/30 vs A's 26/30) measured MTP-plus-state, not MTP. A re-run of arm B
+with restart-between-trials is now the honest measurement, and it would go
+head-to-head against the 42/45 baseline recorded here.
+
+**Consequence for the harness generally.** `scripts/restart_between_trials.sh`
+committed today is the recipe. Making it the default -- e.g. `run.py` restarts
+the server between trials for ds4 backends -- is a real change and worth
+considering. Do not do that quietly; it would invalidate every existing ds4
+row's comparability to a future one.
+
+## 2026-09-03, later — arm B re-run and the kv-32768 test close the two threads above (issues #77 / #120)
+
+Both follow-ups the previous section left dangling ran the same evening, both
+under restart-between-trials. Harness `47a1d9f`, MTP arm B re-run first, then
+the disk-KV budget test on the MTP-off server.
+
+**Arm B (MTP 7) under restart-between-trials: 25/45 (9/15, 6/15, 10/15).**
+Identical to its contaminated no-restart total of 25/45 — the restart removed
+the session decline and did not touch the loss. MTP is a **net cost on this
+workload**, and #77 closed on that result: against arm A's 42/45 under the same
+protocol, the pass-rate gap (with the sampler caveat recorded in AGENTS.md) and
+the wall-time gap both point the same way. The full paired statistics and the
+closing write-up are on
+[#77](https://github.com/evanwtf/local-llm/issues/77).
+
+**kv-32768 (disk-KV budget raised 4x, arm A server): 38/45 (12/15, 15/15,
+11/15).** Below the 42/45 baseline and within noise of it — raising
+`--kv-disk-space-mb` from 8192 to 32768 does not reproduce the improvement.
+**Disk KV is not the mechanism** behind the trial-3 decline. Which server state
+degrades a session is now
+[#120](https://github.com/evanwtf/local-llm/issues/120); until it is
+identified, restart-between-trials is the protocol.
+
+Both results pool into the published cells (`qwen38fnds4shim` 116/135,
+`qwen38fnds4mtp7shim` 50/90 in `RECOMMENDATIONS.md`; the earlier tables had not
+been re-spliced when these rows landed). The kv-32768 rows are valid rows, so
+the arm A cell now mixes three protocols — continuous server,
+restart-between-trials, and restart-between-trials at a 4x disk-KV budget.
+`TESTING-SET.md` names the three; the per-run numbers above are the honest
+per-protocol figures.

@@ -1,0 +1,35 @@
+2026-09-02 18:22:41,537 INFO [bc72d81-dirty@M5-Max-128GB] 2026-09-02T22:22:41Z (18:22:41 EDT) | harness bc72d81-dirty
+2026-09-02 18:22:41,554 INFO [bc72d81-dirty@M5-Max-128GB]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-02 18:22:41,554 INFO [bc72d81-dirty@M5-Max-128GB] Hugging Face sweep since 2026-09-01T22:22:41Z (24h)
+
+2026-09-02 18:22:41,554 INFO [bc72d81-dirty@M5-Max-128GB] Searching for: Qwen3.6-9B, Ornith-1.5-9B, gemma-4-12b, Mistral-Nemo-12B, Qwen3.6-4B
+  against RTX 3080 Ti, 12 GiB VRAM, Ampere sm_86, 32 GB host RAM
+  budget 12 GiB VRAM
+
+2026-09-02 18:22:45,255 INFO [bc72d81-dirty@M5-Max-128GB] repo                                                       downloads    size  fit
+2026-09-02 18:22:45,255 INFO [bc72d81-dirty@M5-Max-128GB]   Prototype3550/Qwen3.6-9B-Heretic-Uncensored-Thinking-Sweet    11532   5.5GB  yes
+2026-09-02 18:22:45,255 INFO [bc72d81-dirty@M5-Max-128GB]   Blasserman/Qwen3.6-9B-Heretic-Uncensored-Thinking-Sweet-Ma     7948   5.5GB  yes
+2026-09-02 18:22:45,255 INFO [bc72d81-dirty@M5-Max-128GB]   ghost-actual/Qwen3.6-9B-Heretic-History-Q4_K_M-GGUF            1165   5.5GB  yes
+2026-09-02 18:22:45,255 INFO [bc72d81-dirty@M5-Max-128GB] ? leok7v/gemma-4-12b-it-qat                                      1062       ?  -
+2026-09-02 18:22:45,255 INFO [bc72d81-dirty@M5-Max-128GB]   Prototype3550/Qwen3.6-9B-Heretic-Uncensored-Thinking-Sweet      357   5.2GB  yes
+2026-09-02 18:22:45,255 INFO [bc72d81-dirty@M5-Max-128GB]   PreDoctor/gemma-4-12B-it-qat-w4a16-ct-PreTensor                 190  10.3GB  yes
+2026-09-02 18:22:45,255 INFO [bc72d81-dirty@M5-Max-128GB]   positron-ai/google_gemma-4-12B-it-ingest-best-gptq-permute      144   8.0GB  yes
+2026-09-02 18:22:45,256 INFO [bc72d81-dirty@M5-Max-128GB] ? owenqwenllmwine/Qwen3.6-9B-jank                                  88   5.7GB  yes
+2026-09-02 18:22:45,256 INFO [bc72d81-dirty@M5-Max-128GB]   caslca/Qwen3.6-27B-Opus-Distill-OptiQ-4bit-mtp-drafter           79   0.3GB  yes
+2026-09-02 18:22:45,256 INFO [bc72d81-dirty@M5-Max-128GB]   quocbao747/Ornith-1.5-9B-AWQ-W4A16-g128                          62   8.6GB  yes
+2026-09-02 18:22:45,256 INFO [bc72d81-dirty@M5-Max-128GB]   BlivionIaG/Ornith-1.5-9b-exl3-3bpw                               44   6.8GB  yes
+2026-09-02 18:22:45,256 INFO [bc72d81-dirty@M5-Max-128GB] ? GreenBitAI/Qwen3.6-35B-A3B-4bit-paged                            31   2.3GB  yes
+2026-09-02 18:22:45,256 INFO [bc72d81-dirty@M5-Max-128GB]   TheMelonGod/Mistral-Nemo-Instruct-2407-12B-Thinking-M-Clau       13       ?  -
+2026-09-02 18:22:45,256 INFO [bc72d81-dirty@M5-Max-128GB]   TheMelonGod/dolphin-2.9.3-mistral-nemo-12b-exl3                   9       ?  -
+2026-09-02 18:22:45,256 INFO [bc72d81-dirty@M5-Max-128GB] ? Artie101/Ornith-1.5-9B-8bit-MTPLX                                 0  10.9GB  yes
+2026-09-02 18:22:45,256 INFO [bc72d81-dirty@M5-Max-128GB] ? vonvonhero/Ornith-1.5-9B-Uncensored-OpenVINO-INT8                 0       ?  -
+2026-09-02 18:22:45,256 INFO [bc72d81-dirty@M5-Max-128GB] ? Wiself/gemma-4-12B-Styletune-Voice                                0   2.0GB  yes
+2026-09-02 18:22:45,256 INFO [bc72d81-dirty@M5-Max-128GB] ? visible-cx/Gemma-4-12B-CoreAI                                     0       ?  -
+2026-09-02 18:22:45,256 INFO [bc72d81-dirty@M5-Max-128GB] ? a3ilab-llm-uncertainty/gemma4_12B_zhtw_6144_lr1e-6_ep5_64_        0   1.0GB  yes
+2026-09-02 18:22:45,256 INFO [bc72d81-dirty@M5-Max-128GB] ? a3ilab-llm-uncertainty/gemma4_12B_zhtw_6144_lr1e-6_ep5_64_        0   1.0GB  yes
+2026-09-02 18:22:45,256 INFO [bc72d81-dirty@M5-Max-128GB] ? AJCThree/mistral-nemo-12b-openvino-4bit                           0       ?  -
+2026-09-02 18:22:45,256 INFO [bc72d81-dirty@M5-Max-128GB] ? Xenna/qwen3.6-4b                                                  0       ?  -
+2026-09-02 18:22:45,256 INFO [bc72d81-dirty@M5-Max-128GB] 
+38 hidden: wrong format for this machine, or too large. --all to see them.
+2026-09-02 18:22:45,256 INFO [bc72d81-dirty@M5-Max-128GB] 
+Legend:  (blank) loads here   ? unclassified, check it

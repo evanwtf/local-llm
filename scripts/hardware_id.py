@@ -63,6 +63,22 @@ def installed_memory_gb(usable_bytes: int) -> int:
     return round(usable_gb)
 
 
+def path_safe(name: str) -> str:
+    """Anything not `A-Za-z0-9-_.` becomes an underscore.
+
+    A whitelist, not a blacklist: vendors put arbitrary text in model strings
+    and the next surprise will not be a slash. "Ryzen 7 PRO 8845HS w/ Radeon
+    780M Graphics" is the one that bit -- its "w/" did not fail, it silently
+    made a nested path and every run on that machine died with
+    FileNotFoundError.
+
+    `-` and `_` are kept because they are OUR separators: `-` joins the parts
+    of a name and `_` already stands in for the slash in Apple's model number.
+    Replacing them would rename the two directories that hold our data.
+    """
+    return re.sub(r"[^A-Za-z0-9._-]", "_", name)
+
+
 def normalise_cpu(raw: str) -> str:
     """A CPU's marketing string down to the part that identifies it.
 
@@ -76,6 +92,12 @@ def normalise_cpu(raw: str) -> str:
     s = re.sub(r"\bCPU\b.*$", "", s)
     s = re.sub(r"\bProcessor\b", "", s, flags=re.IGNORECASE)
     s = re.sub(r"^(AMD|Intel|Apple)\s+", "", s, flags=re.IGNORECASE)
+    # "Ryzen 7 PRO 8845HS w/ Radeon 780M Graphics" -- the integrated-GPU
+    # suffix is not part of the CPU's identity, and its "w/" put a FORWARD
+    # SLASH into a directory name, which silently became a nested path and
+    # broke every run on that machine. The Apple branch already swapped "/"
+    # for "_" in the model number; nothing did it for CPU strings.
+    s = re.sub(r"\s+w/\s+.*$", "", s, flags=re.IGNORECASE)
     s = s.strip()
     # "Ryzen 9 7900X" -> "Ryzen9-7900X"; "Core i9-13900K" -> "Corei9-13900K"
     s = re.sub(r"\b(Ryzen|Core)\s+(\w+)", r"\1\2", s)
@@ -168,7 +190,7 @@ def directory_name(facts: dict, platform: str) -> str:
     name = "-".join(p for p in parts if p)
     if not name:
         raise SystemExit("could not identify this machine; refusing to guess")
-    return name
+    return path_safe(name)
 
 
 def short_slug(facts: dict, platform: str) -> str:
@@ -188,7 +210,7 @@ def short_slug(facts: dict, platform: str) -> str:
         return f"{chip}{mem}"
     cpu = normalise_cpu(facts.get("cpu", "")) or "cpu"
     gpu = normalise_gpu(facts.get("gpu", ""))
-    return f"{cpu}-{gpu}" if gpu else cpu
+    return path_safe(f"{cpu}-{gpu}" if gpu else cpu)
 
 
 def facts_for_this_machine() -> tuple[dict, str]:

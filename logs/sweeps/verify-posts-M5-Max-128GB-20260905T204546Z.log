@@ -1,0 +1,33 @@
+2026-09-05 16:45:46,486 INFO [7fabaf9@M5-Max-128GB] 2026-09-05T20:45:46Z (16:45:46 EDT) | harness 7fabaf9
+2026-09-05 16:45:46,502 INFO [7fabaf9@M5-Max-128GB]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-05 16:45:46,663 INFO [7fabaf9@M5-Max-128GB] 2092734145210339548  VERIFIED post  @mweinbach  Wed Aug 26 22:01:15 +0000 2026  via fxtwitter
+2026-09-05 16:45:46,663 INFO [7fabaf9@M5-Max-128GB]     Qwen 3.8 Flash Next seems to be around like 35 tok/s on M5 Max (without optimization)  Could be a killer for running on your laptop
+2026-09-05 16:45:46,822 INFO [7fabaf9@M5-Max-128GB] 2086982202169135220  VERIFIED post  @Eschalabs  Tue Aug 11 01:05:05 +0000 2026  via fxtwitter
+2026-09-05 16:45:46,822 INFO [7fabaf9@M5-Max-128GB]     🍎Escha 2-bit is finally native on Apple Silicon.  Today we’re open-sourcing escha-mlx, our MLX runtime for Escha-compressed models.  MLX was a tough port for us. A huge shoutout to @dusterbloom, who g
+2026-09-05 16:45:46,822 INFO [7fabaf9@M5-Max-128GB]     quotes @Eschalabs: Today we are introducing Escha-W2 quantization.  A 2-bit Qwen3.6-35B-A3B model built for fast, local inference. The complete model is 12.3GB on disk—small, enou
+2026-09-05 16:45:47,112 INFO [7fabaf9@M5-Max-128GB] 2056616649038717352  VERIFIED post  @korale77  Tue May 19 06:03:13 +0000 2026  via fxtwitter
+2026-09-05 16:45:47,113 INFO [7fabaf9@M5-Max-128GB]     Llama.cpp with MTP on MacBook Pro M5 Max 128GB  Qwen3.6-27B-MTP: 16 -> 28 t/s (1.7x) Qwen3.6-35B-A3B-MTP: 85 -> 92 t/s (1.08x)  Using mtp-bench linked in the PR  Looking really good!
+2026-09-05 16:45:47,113 INFO [7fabaf9@M5-Max-128GB]     quotes @ggerganov: llama.cpp adds MTP for the Qwen3.6 family  This is a significant milestone for the local AI ecosystem. The performance jump with these changes is massive and el
+2026-09-05 16:45:47,270 INFO [7fabaf9@M5-Max-128GB] 2095633203071799595  VERIFIED post  @sanchitmonga22  Thu Sep 03 22:01:05 +0000 2026  via fxtwitter
+2026-09-05 16:45:47,270 INFO [7fabaf9@M5-Max-128GB]     We have been making models run on neural chips for a while now, first the Qualcomm NPU, and now end to end on Apple's Neural Engine.  Here is why we care so much about these chips. Real on-device inte
+2026-09-05 16:45:47,270 INFO [7fabaf9@M5-Max-128GB]     quotes @RunAnywhereAI: Running inference end to end on the Apple Neural Engine, on an iPhone 15.  The Neural Engine is the cheapest place on an Apple chip to spend a token.  We ran Qw
+2026-09-05 16:45:47,407 INFO [7fabaf9@M5-Max-128GB] 2081754500931748192  VERIFIED post  @glaforge  Mon Jul 27 14:52:04 +0000 2026  via fxtwitter
+2026-09-05 16:45:47,407 INFO [7fabaf9@M5-Max-128GB]     🎉 To celebrate the @googlegemma family hitting 900 million downloads, I benchmarked the #Gemma 4 26B-A4B running 100% locally on my #AppleSilicon #MacBookPro M4 Pro!  MLX vs. llama.cpp MTP Speculative
+2026-09-05 16:45:47,566 INFO [7fabaf9@M5-Max-128GB] 2077836993166221595  VERIFIED reply  @lmstudio  Thu Jul 16 19:25:18 +0000 2026  via fxtwitter
+2026-09-05 16:45:47,566 INFO [7fabaf9@M5-Max-128GB]     Natively local.  Download the latest local LLMs directly within the app, use them for simple chats or advanced agentic tasks.   Powered by the LM Studio runtime, with MLX and llama.cpp under the hood.
+2026-09-05 16:45:47,706 INFO [7fabaf9@M5-Max-128GB] 2036792058854121601  VERIFIED post  @no_stp_on_snek  Wed Mar 25 13:07:23 +0000 2026  via fxtwitter
+2026-09-05 16:45:47,706 INFO [7fabaf9@M5-Max-128GB]     I implemented Google's TurboQuant paper (ICLR 2026) in llama.cpp with Metal kernels for Apple Silicon.  4.9× KV cache compression. Working end-to-end on M5 Max with Qwen 3.5 35B MoE and Qwopus v2 27B.
+2026-09-05 16:45:47,837 INFO [7fabaf9@M5-Max-128GB] 2092615483409494082  VERIFIED reply  @ItsmeAjayKV  Wed Aug 26 14:09:44 +0000 2026  via fxtwitter
+2026-09-05 16:45:47,837 INFO [7fabaf9@M5-Max-128GB]     @analogalok Check #27742 as well.
+2026-09-05 16:45:47,837 INFO [7fabaf9@M5-Max-128GB] 
+2026-09-05 16:45:47,837 INFO [7fabaf9@M5-Max-128GB] Verified 8: 8 confirmed, 0 not.
+2026-09-05 16:45:47,837 INFO [7fabaf9@M5-Max-128GB] Paste onto the issue:
+2026-09-05 16:45:47,837 INFO [7fabaf9@M5-Max-128GB]   **Verified** 2026-09-05: post exists, authored by @mweinbach, posted Wed Aug 26 22:01:15 +0000 2026.
+2026-09-05 16:45:47,837 INFO [7fabaf9@M5-Max-128GB]   **Verified** 2026-09-05: post exists, authored by @Eschalabs, posted Tue Aug 11 01:05:05 +0000 2026.
+2026-09-05 16:45:47,837 INFO [7fabaf9@M5-Max-128GB]   **Verified** 2026-09-05: post exists, authored by @korale77, posted Tue May 19 06:03:13 +0000 2026.
+2026-09-05 16:45:47,837 INFO [7fabaf9@M5-Max-128GB]   **Verified** 2026-09-05: post exists, authored by @sanchitmonga22, posted Thu Sep 03 22:01:05 +0000 2026.
+2026-09-05 16:45:47,837 INFO [7fabaf9@M5-Max-128GB]   **Verified** 2026-09-05: post exists, authored by @glaforge, posted Mon Jul 27 14:52:04 +0000 2026.
+2026-09-05 16:45:47,837 INFO [7fabaf9@M5-Max-128GB]   **Verified** 2026-09-05: post exists, authored by @lmstudio, posted Thu Jul 16 19:25:18 +0000 2026.
+2026-09-05 16:45:47,837 INFO [7fabaf9@M5-Max-128GB]   **Verified** 2026-09-05: post exists, authored by @no_stp_on_snek, posted Wed Mar 25 13:07:23 +0000 2026.
+2026-09-05 16:45:47,837 INFO [7fabaf9@M5-Max-128GB]   **Verified** 2026-09-05: post exists, authored by @ItsmeAjayKV, posted Wed Aug 26 14:09:44 +0000 2026.
+2026-09-05 16:45:47,837 INFO [7fabaf9@M5-Max-128GB] log: /Users/evanhoffman/git/local-llm/logs/sweeps/verify-posts-M5-Max-128GB-20260905T204546Z.log

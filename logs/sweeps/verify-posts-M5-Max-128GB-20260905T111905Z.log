@@ -1,0 +1,15 @@
+2026-09-05 07:19:05,594 INFO [cb25103-dirty@M5-Max-128GB] 2026-09-05T11:19:05Z (07:19:05 EDT) | harness cb25103-dirty
+2026-09-05 07:19:05,608 INFO [cb25103-dirty@M5-Max-128GB]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-05 07:19:05,730 INFO [cb25103-dirty@M5-Max-128GB] 2096130078728167801  VERIFIED post  @ivanfioravanti  Sat Sep 05 06:55:29 +0000 2026  via fxtwitter
+2026-09-05 07:19:05,730 INFO [cb25103-dirty@M5-Max-128GB]     On the flight I tried MTPLX and ds4 with Qwen 3.8 Flash Next on M5 Max in Low Power. Not bad!  In ds4 I've not cooked support for MTP in ds4 chat. - MTPLX 25 t/s - DS4 18 t/s
+2026-09-05 07:19:05,975 INFO [cb25103-dirty@M5-Max-128GB] 2095874485467348995  VERIFIED reply  @ivanfioravanti  Fri Sep 04 13:59:51 +0000 2026  via fxtwitter
+2026-09-05 07:19:05,975 INFO [cb25103-dirty@M5-Max-128GB]     Here current status using Q4_K imatrix for routed experts on M5 Max and M3 Ultra. @kernelpool did magic here! On my side I took inspiration by the great work of @ddalcu and @Spangler3000 🙌  I merged o
+2026-09-05 07:19:06,091 INFO [cb25103-dirty@M5-Max-128GB] 2095847448107438300  VERIFIED post  @TheDavidTai  Fri Sep 04 12:12:25 +0000 2026  via fxtwitter
+2026-09-05 07:19:06,091 INFO [cb25103-dirty@M5-Max-128GB]     Just hit the 2.5x speed up on https://mlx.fast, congrats!  I think we can go even further.
+2026-09-05 07:19:06,091 INFO [cb25103-dirty@M5-Max-128GB] 
+2026-09-05 07:19:06,091 INFO [cb25103-dirty@M5-Max-128GB] Verified 3: 3 confirmed, 0 not.
+2026-09-05 07:19:06,091 INFO [cb25103-dirty@M5-Max-128GB] Paste onto the issue:
+2026-09-05 07:19:06,091 INFO [cb25103-dirty@M5-Max-128GB]   **Verified** 2026-09-05: post exists, authored by @ivanfioravanti, posted Sat Sep 05 06:55:29 +0000 2026.
+2026-09-05 07:19:06,091 INFO [cb25103-dirty@M5-Max-128GB]   **Verified** 2026-09-05: post exists, authored by @ivanfioravanti, posted Fri Sep 04 13:59:51 +0000 2026.
+2026-09-05 07:19:06,091 INFO [cb25103-dirty@M5-Max-128GB]   **Verified** 2026-09-05: post exists, authored by @TheDavidTai, posted Fri Sep 04 12:12:25 +0000 2026.
+2026-09-05 07:19:06,091 INFO [cb25103-dirty@M5-Max-128GB] log: /Users/evanhoffman/git/local-llm/logs/sweeps/verify-posts-M5-Max-128GB-20260905T111905Z.log

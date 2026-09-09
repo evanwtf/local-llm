@@ -1,0 +1,5 @@
+# engine A/B, 2026-09-05T01:19:59 EDT
+A label=main tree=/Users/evanhoffman/git/ds4-main @ b0a147a
+B label=pr964 tree=/Users/evanhoffman/git/ds4-pr964-new @ 4b00b59
+gguf=/Users/evanhoffman/git/ds4/gguf/GLM-5.3-Flash-Q2.gguf
+prompt=/Users/evanhoffman/git/ds4-main/speed-bench/promessi_sposi.txt

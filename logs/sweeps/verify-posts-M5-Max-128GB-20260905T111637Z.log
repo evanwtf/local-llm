@@ -1,0 +1,152 @@
+2026-09-05 07:16:37,667 INFO [cb25103-dirty@M5-Max-128GB] 2026-09-05T11:16:37Z (07:16:37 EDT) | harness cb25103-dirty
+2026-09-05 07:16:37,682 INFO [cb25103-dirty@M5-Max-128GB]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-05 07:16:37,823 INFO [cb25103-dirty@M5-Max-128GB] 2095857417028301178  VERIFIED reply  @antirez  Fri Sep 04 12:52:02 +0000 2026  via fxtwitter
+2026-09-05 07:16:37,823 INFO [cb25103-dirty@M5-Max-128GB]     @kyfriedfella Harness used? Thanks
+2026-09-05 07:16:37,943 INFO [cb25103-dirty@M5-Max-128GB] 2095833132217893052  VERIFIED post  @ivanfioravanti  Fri Sep 04 11:15:32 +0000 2026  via fxtwitter
+2026-09-05 07:16:37,943 INFO [cb25103-dirty@M5-Max-128GB]     QWen 3.8 Next Flash in DwarfStar update: - @kernelpool kernel is faster (you rock!), but PLE are all in memory, I will merge the work with mine - Q4_0 routed experts is faster, but less accurate. I wi
+2026-09-05 07:16:38,086 INFO [cb25103-dirty@M5-Max-128GB] 2095833280075403527  VERIFIED reply  @ivanfioravanti  Fri Sep 04 11:16:07 +0000 2026  via fxtwitter
+2026-09-05 07:16:38,087 INFO [cb25103-dirty@M5-Max-128GB]     @CicekAyhan This model architecture is amazing! QSA is really working, at least on speed.
+2026-09-05 07:16:38,216 INFO [cb25103-dirty@M5-Max-128GB] 2095836385651433522  VERIFIED reply  @ivanfioravanti  Fri Sep 04 11:28:27 +0000 2026  via fxtwitter
+2026-09-05 07:16:38,216 INFO [cb25103-dirty@M5-Max-128GB]     @ddalcu @kernelpool I bet in years to come 64GB will become the entry-level for each machine, clearly after the RAM shortage will disappear thanks to more producers.
+2026-09-05 07:16:38,339 INFO [cb25103-dirty@M5-Max-128GB] 2095838003327389756  VERIFIED reply  @ivanfioravanti  Fri Sep 04 11:34:53 +0000 2026  via fxtwitter
+2026-09-05 07:16:38,340 INFO [cb25103-dirty@M5-Max-128GB]     @ddalcu @kernelpool Nice one!
+2026-09-05 07:16:38,495 INFO [cb25103-dirty@M5-Max-128GB] 2095843433394962455  VERIFIED post  @ivanfioravanti  Fri Sep 04 11:56:28 +0000 2026  via fxtwitter
+2026-09-05 07:16:38,495 INFO [cb25103-dirty@M5-Max-128GB]     Epic test: I won't be able to complete Qwen 3.8 flash activities before the flight so I'll try something big. I'll use MTPLX v2.11 to complete merge of two Qwen 3.8 Flash kernels on DwarfStar, test th
+2026-09-05 07:16:38,495 INFO [cb25103-dirty@M5-Max-128GB]     quotes @Youssofal_: Introducing MTPLX V2.11!  The biggest release I have ever done.  HUGE SPEEDUPS EVERYWHERE ON THE FASTEST ENGINE!:   - Qwen Flash next compiled verify lane: the 
+2026-09-05 07:16:38,628 INFO [cb25103-dirty@M5-Max-128GB] 2095857500364951778  VERIFIED reply  @ivanfioravanti  Fri Sep 04 12:52:21 +0000 2026  via fxtwitter
+2026-09-05 07:16:38,628 INFO [cb25103-dirty@M5-Max-128GB]     @AndrewDeWitt88 @kernelpool DwarfStar is on GGUF style. MLX is catching up, let's say complex quantization schemes were not available, but community is pushing on this!
+2026-09-05 07:16:38,764 INFO [cb25103-dirty@M5-Max-128GB] 2095858119758721155  VERIFIED reply  @ivanfioravanti  Fri Sep 04 12:54:49 +0000 2026  via fxtwitter
+2026-09-05 07:16:38,764 INFO [cb25103-dirty@M5-Max-128GB]     @jlucas @Youssofal_ Ahahahahaha I hope plane noise will cover my Mac fans.
+2026-09-05 07:16:38,884 INFO [cb25103-dirty@M5-Max-128GB] 2095858944333758521  VERIFIED reply  @ivanfioravanti  Fri Sep 04 12:58:06 +0000 2026  via fxtwitter
+2026-09-05 07:16:38,885 INFO [cb25103-dirty@M5-Max-128GB]     @Youssofal_ @jlucas Top!
+2026-09-05 07:16:38,999 INFO [cb25103-dirty@M5-Max-128GB] 2095859141369569723  VERIFIED reply  @ivanfioravanti  Fri Sep 04 12:58:53 +0000 2026  via fxtwitter
+2026-09-05 07:16:38,999 INFO [cb25103-dirty@M5-Max-128GB]     @TheDavidTai Incredible result!
+2026-09-05 07:16:39,123 INFO [cb25103-dirty@M5-Max-128GB] 2095874485467348995  VERIFIED reply  @ivanfioravanti  Fri Sep 04 13:59:51 +0000 2026  via fxtwitter
+2026-09-05 07:16:39,123 INFO [cb25103-dirty@M5-Max-128GB]     Here current status using Q4_K imatrix for routed experts on M5 Max and M3 Ultra. @kernelpool did magic here! On my side I took inspiration by the great work of @ddalcu and @Spangler3000 🙌  I merged o
+2026-09-05 07:16:39,250 INFO [cb25103-dirty@M5-Max-128GB] 2095875664196853919  VERIFIED reply  @ivanfioravanti  Fri Sep 04 14:04:32 +0000 2026  via fxtwitter
+2026-09-05 07:16:39,250 INFO [cb25103-dirty@M5-Max-128GB]     @Spangler3000 @kernelpool @ddalcu Let's keep pushing Local AI frontier ahead, step by step!
+2026-09-05 07:16:39,375 INFO [cb25103-dirty@M5-Max-128GB] 2095879574898810882  VERIFIED reply  @ivanfioravanti  Fri Sep 04 14:20:04 +0000 2026  via fxtwitter
+2026-09-05 07:16:39,375 INFO [cb25103-dirty@M5-Max-128GB]     @ddalcu @kernelpool @Spangler3000 I bet yes!!! I had no time to test! But I’m confident.
+2026-09-05 07:16:39,547 INFO [cb25103-dirty@M5-Max-128GB] 2095927051152670784  VERIFIED reply  @ivanfioravanti  Fri Sep 04 17:28:44 +0000 2026  via fxtwitter
+2026-09-05 07:16:39,547 INFO [cb25103-dirty@M5-Max-128GB]     @vincic @kernelpool Model type in the config json is qwen4_exp 😎
+2026-09-05 07:16:39,678 INFO [cb25103-dirty@M5-Max-128GB] 2096130078728167801  VERIFIED post  @ivanfioravanti  Sat Sep 05 06:55:29 +0000 2026  via fxtwitter
+2026-09-05 07:16:39,678 INFO [cb25103-dirty@M5-Max-128GB]     On the flight I tried MTPLX and ds4 with Qwen 3.8 Flash Next on M5 Max in Low Power. Not bad!  In ds4 I've not cooked support for MTP in ds4 chat. - MTPLX 25 t/s - DS4 18 t/s
+2026-09-05 07:16:39,850 INFO [cb25103-dirty@M5-Max-128GB] 2095899620400312411  VERIFIED reply  @Prince_Canuma  Fri Sep 04 15:39:44 +0000 2026  via fxtwitter
+2026-09-05 07:16:39,850 INFO [cb25103-dirty@M5-Max-128GB]     @waltonoemi @IFM_AI Already on main
+2026-09-05 07:16:39,988 INFO [cb25103-dirty@M5-Max-128GB] 2095835924974219397  VERIFIED reply  @ddalcu  Fri Sep 04 11:26:37 +0000 2026  via fxtwitter
+2026-09-05 07:16:39,988 INFO [cb25103-dirty@M5-Max-128GB]     Nice, very few people have 96GB+ machines. I always recommend smaller models rather than uberquantized bigger ones.  I think targeting 24/32/48/64 gb machines will make LocalAI more accessible. As of 
+2026-09-05 07:16:40,111 INFO [cb25103-dirty@M5-Max-128GB] 2095837860637098367  VERIFIED reply  @ddalcu  Fri Sep 04 11:34:19 +0000 2026  via fxtwitter
+2026-09-05 07:16:40,112 INFO [cb25103-dirty@M5-Max-128GB]     @ivanfioravanti @kernelpool Agreed, here is a quick chart based on steam stats.
+2026-09-05 07:16:40,284 INFO [cb25103-dirty@M5-Max-128GB] 2095879159239123449  VERIFIED reply  @ddalcu  Fri Sep 04 14:18:25 +0000 2026  via fxtwitter
+2026-09-05 07:16:40,284 INFO [cb25103-dirty@M5-Max-128GB]     @ivanfioravanti @kernelpool @Spangler3000 awesome work, do you think it will fit in 64GB with good quality ? GGUF Kernels and iMatrix tells me yes.  If it can match the 4-8 mixed quality would be amaz
+2026-09-05 07:16:40,404 INFO [cb25103-dirty@M5-Max-128GB] 2095875965507305745  VERIFIED reply  @ddalcu  Fri Sep 04 14:05:44 +0000 2026  via fxtwitter
+2026-09-05 07:16:40,404 INFO [cb25103-dirty@M5-Max-128GB]     @PlimmApp @pidotdev @Alibaba_Qwen @bijanbowen @Beamsters1 its definitely limiting, but if you add the game mode entitlements  .increased-memory-limit .extended-virtual-addressing you can get about 60%
+2026-09-05 07:16:40,577 INFO [cb25103-dirty@M5-Max-128GB] 2095844169994604868  VERIFIED post  @TheDavidTai  Fri Sep 04 11:59:23 +0000 2026  via fxtwitter
+2026-09-05 07:16:40,577 INFO [cb25103-dirty@M5-Max-128GB]     Casually processing a 200k pull request in a day!  Enjoy the flash next speed up.  I might do some bare speed or ane runs later just for fun.
+2026-09-05 07:16:40,577 INFO [cb25103-dirty@M5-Max-128GB]     quotes @Youssofal_: Introducing MTPLX V2.11!  The biggest release I have ever done.  HUGE SPEEDUPS EVERYWHERE ON THE FASTEST ENGINE!:   - Qwen Flash next compiled verify lane: the 
+2026-09-05 07:16:40,732 INFO [cb25103-dirty@M5-Max-128GB] 2095846772811948372  VERIFIED reply  @TheDavidTai  Fri Sep 04 12:09:44 +0000 2026  via fxtwitter
+2026-09-05 07:16:40,732 INFO [cb25103-dirty@M5-Max-128GB]     @Youssofal_ The TTFT change is quite understated but important for perceived responsiveness so getting that down was quite nice.  Stil la little too long for 256 context but what are you going to do?
+2026-09-05 07:16:40,871 INFO [cb25103-dirty@M5-Max-128GB] 2095847448107438300  VERIFIED post  @TheDavidTai  Fri Sep 04 12:12:25 +0000 2026  via fxtwitter
+2026-09-05 07:16:40,871 INFO [cb25103-dirty@M5-Max-128GB]     Just hit the 2.5x speed up on https://mlx.fast, congrats!  I think we can go even further.
+2026-09-05 07:16:41,076 INFO [cb25103-dirty@M5-Max-128GB] 2095876413220122846  VERIFIED post  @TheDavidTai  Fri Sep 04 14:07:31 +0000 2026  via fxtwitter
+2026-09-05 07:16:41,076 INFO [cb25103-dirty@M5-Max-128GB]     So this explains a lot and why their contribution will become a good alternative if its published and there's a generalized implementation.    Current spec decoders draft linearly so you get one at a 
+2026-09-05 07:16:41,076 INFO [cb25103-dirty@M5-Max-128GB]     quotes @norpadon: @onthexitter69 @TheDavidTai Our main trick that makes it work so well is that we don’t produce “sequences” of tokens. Instead, we build trees combining multiple
+2026-09-05 07:16:41,198 INFO [cb25103-dirty@M5-Max-128GB] 2095860749516345419  VERIFIED reply  @TheDavidTai  Fri Sep 04 13:05:16 +0000 2026  via fxtwitter
+2026-09-05 07:16:41,198 INFO [cb25103-dirty@M5-Max-128GB]     @norpadon @onthexitter69 Oh you must have a very efficient way of doing this because tree drafting is very expensive with mtp and pretty much never worth it.
+2026-09-05 07:16:41,320 INFO [cb25103-dirty@M5-Max-128GB] 2095863093301817535  VERIFIED reply  @TheDavidTai  Fri Sep 04 13:14:35 +0000 2026  via fxtwitter
+2026-09-05 07:16:41,321 INFO [cb25103-dirty@M5-Max-128GB]     @norpadon @onthexitter69 Cool, is this going to remain fully proprietary or do you plan on publishing on this?  Its quite fascinating.
+2026-09-05 07:16:41,450 INFO [cb25103-dirty@M5-Max-128GB] 2095864149880471685  VERIFIED reply  @TheDavidTai  Fri Sep 04 13:18:47 +0000 2026  via fxtwitter
+2026-09-05 07:16:41,451 INFO [cb25103-dirty@M5-Max-128GB]     @norpadon @onthexitter69 The tree validation needs a lot of excess compute so I think it will make more sense on something like a spark with better compute and worse bandwdith.  Or am I mistaken?
+2026-09-05 07:16:41,613 INFO [cb25103-dirty@M5-Max-128GB] 2095910392862330947  VERIFIED post  @TheDavidTai  Fri Sep 04 16:22:32 +0000 2026  via fxtwitter
+2026-09-05 07:16:41,613 INFO [cb25103-dirty@M5-Max-128GB]     I want to get to the point where I can think of a frontier subscription as a multiplier for my local models than a fixed amount of tokens.  I want Astra or Fable as a 2-3x on my infinite supply of loc
+2026-09-05 07:16:41,613 INFO [cb25103-dirty@M5-Max-128GB]     quotes @Youssofal_: Using a local model on your laptop in a plane to merge code for more local model kernels.  The future is here.  Welcome to 2026.
+2026-09-05 07:16:41,720 INFO [cb25103-dirty@M5-Max-128GB] 2095919921427628238  VERIFIED reply  @TheDavidTai  Fri Sep 04 17:00:24 +0000 2026  via fxtwitter
+2026-09-05 07:16:41,721 INFO [cb25103-dirty@M5-Max-128GB]     @norpadon @jurlycat I'll try that since verifier was a big bottleneck in Qwen 3.8 125b.
+2026-09-05 07:16:41,861 INFO [cb25103-dirty@M5-Max-128GB] 2095925223019471323  VERIFIED post  @TheDavidTai  Fri Sep 04 17:21:28 +0000 2026  via fxtwitter
+2026-09-05 07:16:41,861 INFO [cb25103-dirty@M5-Max-128GB]     Due to the crazy demand on our existing hardware from https://mlx.fast, we are looking to see if we can quickly expand the amount of runners to improve the experience!
+2026-09-05 07:16:41,861 INFO [cb25103-dirty@M5-Max-128GB]     quotes @0xkydo: Hey folks, looking for a Mac hosting provider, or an intro to one!  We're looking to rent 10 x M5 Max (128GB) Macs for 3 months. Here are our specific requireme
+2026-09-05 07:16:42,040 INFO [cb25103-dirty@M5-Max-128GB] 2096033932278190263  VERIFIED reply  @TheDavidTai  Sat Sep 05 00:33:26 +0000 2026  via fxtwitter
+2026-09-05 07:16:42,041 INFO [cb25103-dirty@M5-Max-128GB]     @Beamsters1 is this the mlx-serve q4 quant?
+2026-09-05 07:16:42,156 INFO [cb25103-dirty@M5-Max-128GB] 2096030545394442567  VERIFIED reply  @TheDavidTai  Sat Sep 05 00:19:59 +0000 2026  via fxtwitter
+2026-09-05 07:16:42,156 INFO [cb25103-dirty@M5-Max-128GB]     @Beamsters1 That's pretty consistent performance.!
+2026-09-05 07:16:42,278 INFO [cb25103-dirty@M5-Max-128GB] 2096008851409486055  VERIFIED post  @runsonai  Fri Sep 04 22:53:46 +0000 2026  via fxtwitter
+2026-09-05 07:16:42,278 INFO [cb25103-dirty@M5-Max-128GB]     Used Astra to tweak Qwen 3.8-flash on my mac studio: Prefill: 850->1007 tok/s Code: 31->62 tok/s Prose: 31->48 tok/s  https://github.com/humanrouter/qwen38-flash-6bit-m3-ultra-recipe
+2026-09-05 07:16:42,406 INFO [cb25103-dirty@M5-Max-128GB] 2096043609208258899  VERIFIED reply  @runsonai  Sat Sep 05 01:11:53 +0000 2026  via fxtwitter
+2026-09-05 07:16:42,406 INFO [cb25103-dirty@M5-Max-128GB]     Made another update for 15% faster decode, hitting 70 tok/s for code.
+2026-09-05 07:16:42,540 INFO [cb25103-dirty@M5-Max-128GB] 2096051246184431786  VERIFIED reply  @runsonai  Sat Sep 05 01:42:14 +0000 2026  via fxtwitter
+2026-09-05 07:16:42,540 INFO [cb25103-dirty@M5-Max-128GB]     @Kevrsub @TheDavidTai Yes
+2026-09-05 07:16:42,651 INFO [cb25103-dirty@M5-Max-128GB] 2096051496236302774  VERIFIED reply  @runsonai  Sat Sep 05 01:43:14 +0000 2026  via fxtwitter
+2026-09-05 07:16:42,651 INFO [cb25103-dirty@M5-Max-128GB]     @garciarsdiego Most welcome. More you do it, the more you learn and pickup the lingo so you can steer it better, i.e. "focus on prefill" or "look into the kernels and see what we can speed up" etc.
+2026-09-05 07:16:42,812 INFO [cb25103-dirty@M5-Max-128GB] 2096102041701503259  VERIFIED reply  @runsonai  Sat Sep 05 05:04:05 +0000 2026  via fxtwitter
+2026-09-05 07:16:42,813 INFO [cb25103-dirty@M5-Max-128GB]     @tangvu_dev Seems a combo of multiple omlx settings that led to it, especially for drafting.
+2026-09-05 07:16:42,943 INFO [cb25103-dirty@M5-Max-128GB] 2096037498136727585  VERIFIED reply  @runsonai  Sat Sep 05 00:47:36 +0000 2026  via fxtwitter
+2026-09-05 07:16:42,943 INFO [cb25103-dirty@M5-Max-128GB]     @garciarsdiego Really simple: tell it to be faster and it'll just do it. Swear it's that simple.
+2026-09-05 07:16:43,121 INFO [cb25103-dirty@M5-Max-128GB] 2096038170571817279  VERIFIED reply  @runsonai  Sat Sep 05 00:50:17 +0000 2026  via fxtwitter
+2026-09-05 07:16:43,121 INFO [cb25103-dirty@M5-Max-128GB]     @kevinfaize Didn't test it
+2026-09-05 07:16:43,251 INFO [cb25103-dirty@M5-Max-128GB] 2095949949871526258  VERIFIED reply  @runsonai  Fri Sep 04 18:59:43 +0000 2026  via fxtwitter
+2026-09-05 07:16:43,252 INFO [cb25103-dirty@M5-Max-128GB]     @IndependentEco Same, going to do some kernel work. Let's see how good it is.
+2026-09-05 07:16:43,372 INFO [cb25103-dirty@M5-Max-128GB] 2095835988140732581  VERIFIED post  @Beamsters1  Fri Sep 04 11:26:52 +0000 2026  via fxtwitter
+2026-09-05 07:16:43,372 INFO [cb25103-dirty@M5-Max-128GB]     Local AI needs better perf at longer context. It's very easy to show off 2k-32k at decent speed but after 64k-512k or 1m, people hardly optimize there since it's not a big headline. But that's actuall
+2026-09-05 07:16:43,519 INFO [cb25103-dirty@M5-Max-128GB] 2096013970314612912  VERIFIED post  @Beamsters1  Fri Sep 04 23:14:07 +0000 2026  via fxtwitter
+2026-09-05 07:16:43,519 INFO [cb25103-dirty@M5-Max-128GB]     As promised, today's optimization checkpoint, Qwen3.8-Flash-Next (4bit experts, 8 bit dense) is now running at 46-50 tok/s at 256-374k context! prefilling improve everywhere, but it can go even furthe
+2026-09-05 07:16:43,635 INFO [cb25103-dirty@M5-Max-128GB] 2096014906919448948  VERIFIED reply  @Beamsters1  Fri Sep 04 23:17:50 +0000 2026  via fxtwitter
+2026-09-05 07:16:43,635 INFO [cb25103-dirty@M5-Max-128GB]     M5 Max 128GB, base = main branch of mlx-serve's head.
+2026-09-05 07:16:43,873 INFO [cb25103-dirty@M5-Max-128GB] 2096032893701415351  VERIFIED reply  @Beamsters1  Sat Sep 05 00:29:18 +0000 2026  via fxtwitter
+2026-09-05 07:16:43,873 INFO [cb25103-dirty@M5-Max-128GB]     @TheDavidTai yup, more to come. I think prefill can stay >1000 tok/s until at least 374k and mtp at long context can get better. We are not close to hardware limit, our engine and kernels still assume
+2026-09-05 07:16:44,009 INFO [cb25103-dirty@M5-Max-128GB] 2096037753532354902  VERIFIED reply  @Beamsters1  Sat Sep 05 00:48:37 +0000 2026  via fxtwitter
+2026-09-05 07:16:44,010 INFO [cb25103-dirty@M5-Max-128GB]     @TheDavidTai not entirely, only expert/ngram part. everything else stays 8 bits. https://huggingface.co/ddalcu/Qwen3.8-Flash-Next-MLX-Serve-mixed-4-8bit - very high quality and kld stays closer to ori
+2026-09-05 07:16:44,135 INFO [cb25103-dirty@M5-Max-128GB] 2096100468481306636  VERIFIED reply  @Beamsters1  Sat Sep 05 04:57:50 +0000 2026  via fxtwitter
+2026-09-05 07:16:44,135 INFO [cb25103-dirty@M5-Max-128GB]     @LudwigWS it's in my dev machine for testing, not yet in main. maybe a day or two after this.
+2026-09-05 07:16:44,310 INFO [cb25103-dirty@M5-Max-128GB] 2096173342986490147  VERIFIED reply  @Beamsters1  Sat Sep 05 09:47:24 +0000 2026  via fxtwitter
+2026-09-05 07:16:44,310 INFO [cb25103-dirty@M5-Max-128GB]     @high52weeks M5 Max 128GB, Qwen3.8 Flash Next.
+2026-09-05 07:16:44,311 INFO [cb25103-dirty@M5-Max-128GB] 
+2026-09-05 07:16:44,311 INFO [cb25103-dirty@M5-Max-128GB] Verified 47: 47 confirmed, 0 not.
+2026-09-05 07:16:44,311 INFO [cb25103-dirty@M5-Max-128GB] Paste onto the issue:
+2026-09-05 07:16:44,311 INFO [cb25103-dirty@M5-Max-128GB]   **Verified** 2026-09-05: post exists, authored by @antirez, posted Fri Sep 04 12:52:02 +0000 2026.
+2026-09-05 07:16:44,311 INFO [cb25103-dirty@M5-Max-128GB]   **Verified** 2026-09-05: post exists, authored by @ivanfioravanti, posted Fri Sep 04 11:15:32 +0000 2026.
+2026-09-05 07:16:44,311 INFO [cb25103-dirty@M5-Max-128GB]   **Verified** 2026-09-05: post exists, authored by @ivanfioravanti, posted Fri Sep 04 11:16:07 +0000 2026.
+2026-09-05 07:16:44,311 INFO [cb25103-dirty@M5-Max-128GB]   **Verified** 2026-09-05: post exists, authored by @ivanfioravanti, posted Fri Sep 04 11:28:27 +0000 2026.
+2026-09-05 07:16:44,311 INFO [cb25103-dirty@M5-Max-128GB]   **Verified** 2026-09-05: post exists, authored by @ivanfioravanti, posted Fri Sep 04 11:34:53 +0000 2026.
+2026-09-05 07:16:44,311 INFO [cb25103-dirty@M5-Max-128GB]   **Verified** 2026-09-05: post exists, authored by @ivanfioravanti, posted Fri Sep 04 11:56:28 +0000 2026.
+2026-09-05 07:16:44,311 INFO [cb25103-dirty@M5-Max-128GB]   **Verified** 2026-09-05: post exists, authored by @ivanfioravanti, posted Fri Sep 04 12:52:21 +0000 2026.
+2026-09-05 07:16:44,311 INFO [cb25103-dirty@M5-Max-128GB]   **Verified** 2026-09-05: post exists, authored by @ivanfioravanti, posted Fri Sep 04 12:54:49 +0000 2026.
+2026-09-05 07:16:44,311 INFO [cb25103-dirty@M5-Max-128GB]   **Verified** 2026-09-05: post exists, authored by @ivanfioravanti, posted Fri Sep 04 12:58:06 +0000 2026.
+2026-09-05 07:16:44,311 INFO [cb25103-dirty@M5-Max-128GB]   **Verified** 2026-09-05: post exists, authored by @ivanfioravanti, posted Fri Sep 04 12:58:53 +0000 2026.
+2026-09-05 07:16:44,311 INFO [cb25103-dirty@M5-Max-128GB]   **Verified** 2026-09-05: post exists, authored by @ivanfioravanti, posted Fri Sep 04 13:59:51 +0000 2026.
+2026-09-05 07:16:44,311 INFO [cb25103-dirty@M5-Max-128GB]   **Verified** 2026-09-05: post exists, authored by @ivanfioravanti, posted Fri Sep 04 14:04:32 +0000 2026.
+2026-09-05 07:16:44,311 INFO [cb25103-dirty@M5-Max-128GB]   **Verified** 2026-09-05: post exists, authored by @ivanfioravanti, posted Fri Sep 04 14:20:04 +0000 2026.
+2026-09-05 07:16:44,311 INFO [cb25103-dirty@M5-Max-128GB]   **Verified** 2026-09-05: post exists, authored by @ivanfioravanti, posted Fri Sep 04 17:28:44 +0000 2026.
+2026-09-05 07:16:44,311 INFO [cb25103-dirty@M5-Max-128GB]   **Verified** 2026-09-05: post exists, authored by @ivanfioravanti, posted Sat Sep 05 06:55:29 +0000 2026.
+2026-09-05 07:16:44,311 INFO [cb25103-dirty@M5-Max-128GB]   **Verified** 2026-09-05: post exists, authored by @Prince_Canuma, posted Fri Sep 04 15:39:44 +0000 2026.
+2026-09-05 07:16:44,311 INFO [cb25103-dirty@M5-Max-128GB]   **Verified** 2026-09-05: post exists, authored by @ddalcu, posted Fri Sep 04 11:26:37 +0000 2026.
+2026-09-05 07:16:44,312 INFO [cb25103-dirty@M5-Max-128GB]   **Verified** 2026-09-05: post exists, authored by @ddalcu, posted Fri Sep 04 11:34:19 +0000 2026.
+2026-09-05 07:16:44,312 INFO [cb25103-dirty@M5-Max-128GB]   **Verified** 2026-09-05: post exists, authored by @ddalcu, posted Fri Sep 04 14:18:25 +0000 2026.
+2026-09-05 07:16:44,312 INFO [cb25103-dirty@M5-Max-128GB]   **Verified** 2026-09-05: post exists, authored by @ddalcu, posted Fri Sep 04 14:05:44 +0000 2026.
+2026-09-05 07:16:44,312 INFO [cb25103-dirty@M5-Max-128GB]   **Verified** 2026-09-05: post exists, authored by @TheDavidTai, posted Fri Sep 04 11:59:23 +0000 2026.
+2026-09-05 07:16:44,312 INFO [cb25103-dirty@M5-Max-128GB]   **Verified** 2026-09-05: post exists, authored by @TheDavidTai, posted Fri Sep 04 12:09:44 +0000 2026.
+2026-09-05 07:16:44,312 INFO [cb25103-dirty@M5-Max-128GB]   **Verified** 2026-09-05: post exists, authored by @TheDavidTai, posted Fri Sep 04 12:12:25 +0000 2026.
+2026-09-05 07:16:44,312 INFO [cb25103-dirty@M5-Max-128GB]   **Verified** 2026-09-05: post exists, authored by @TheDavidTai, posted Fri Sep 04 14:07:31 +0000 2026.
+2026-09-05 07:16:44,312 INFO [cb25103-dirty@M5-Max-128GB]   **Verified** 2026-09-05: post exists, authored by @TheDavidTai, posted Fri Sep 04 13:05:16 +0000 2026.
+2026-09-05 07:16:44,312 INFO [cb25103-dirty@M5-Max-128GB]   **Verified** 2026-09-05: post exists, authored by @TheDavidTai, posted Fri Sep 04 13:14:35 +0000 2026.
+2026-09-05 07:16:44,312 INFO [cb25103-dirty@M5-Max-128GB]   **Verified** 2026-09-05: post exists, authored by @TheDavidTai, posted Fri Sep 04 13:18:47 +0000 2026.
+2026-09-05 07:16:44,312 INFO [cb25103-dirty@M5-Max-128GB]   **Verified** 2026-09-05: post exists, authored by @TheDavidTai, posted Fri Sep 04 16:22:32 +0000 2026.
+2026-09-05 07:16:44,312 INFO [cb25103-dirty@M5-Max-128GB]   **Verified** 2026-09-05: post exists, authored by @TheDavidTai, posted Fri Sep 04 17:00:24 +0000 2026.
+2026-09-05 07:16:44,312 INFO [cb25103-dirty@M5-Max-128GB]   **Verified** 2026-09-05: post exists, authored by @TheDavidTai, posted Fri Sep 04 17:21:28 +0000 2026.
+2026-09-05 07:16:44,312 INFO [cb25103-dirty@M5-Max-128GB]   **Verified** 2026-09-05: post exists, authored by @TheDavidTai, posted Sat Sep 05 00:33:26 +0000 2026.
+2026-09-05 07:16:44,312 INFO [cb25103-dirty@M5-Max-128GB]   **Verified** 2026-09-05: post exists, authored by @TheDavidTai, posted Sat Sep 05 00:19:59 +0000 2026.
+2026-09-05 07:16:44,312 INFO [cb25103-dirty@M5-Max-128GB]   **Verified** 2026-09-05: post exists, authored by @runsonai, posted Fri Sep 04 22:53:46 +0000 2026.
+2026-09-05 07:16:44,312 INFO [cb25103-dirty@M5-Max-128GB]   **Verified** 2026-09-05: post exists, authored by @runsonai, posted Sat Sep 05 01:11:53 +0000 2026.
+2026-09-05 07:16:44,312 INFO [cb25103-dirty@M5-Max-128GB]   **Verified** 2026-09-05: post exists, authored by @runsonai, posted Sat Sep 05 01:42:14 +0000 2026.
+2026-09-05 07:16:44,312 INFO [cb25103-dirty@M5-Max-128GB]   **Verified** 2026-09-05: post exists, authored by @runsonai, posted Sat Sep 05 01:43:14 +0000 2026.
+2026-09-05 07:16:44,312 INFO [cb25103-dirty@M5-Max-128GB]   **Verified** 2026-09-05: post exists, authored by @runsonai, posted Sat Sep 05 05:04:05 +0000 2026.
+2026-09-05 07:16:44,312 INFO [cb25103-dirty@M5-Max-128GB]   **Verified** 2026-09-05: post exists, authored by @runsonai, posted Sat Sep 05 00:47:36 +0000 2026.
+2026-09-05 07:16:44,312 INFO [cb25103-dirty@M5-Max-128GB]   **Verified** 2026-09-05: post exists, authored by @runsonai, posted Sat Sep 05 00:50:17 +0000 2026.
+2026-09-05 07:16:44,312 INFO [cb25103-dirty@M5-Max-128GB]   **Verified** 2026-09-05: post exists, authored by @runsonai, posted Fri Sep 04 18:59:43 +0000 2026.
+2026-09-05 07:16:44,313 INFO [cb25103-dirty@M5-Max-128GB]   **Verified** 2026-09-05: post exists, authored by @Beamsters1, posted Fri Sep 04 11:26:52 +0000 2026.
+2026-09-05 07:16:44,313 INFO [cb25103-dirty@M5-Max-128GB]   **Verified** 2026-09-05: post exists, authored by @Beamsters1, posted Fri Sep 04 23:14:07 +0000 2026.
+2026-09-05 07:16:44,313 INFO [cb25103-dirty@M5-Max-128GB]   **Verified** 2026-09-05: post exists, authored by @Beamsters1, posted Fri Sep 04 23:17:50 +0000 2026.
+2026-09-05 07:16:44,313 INFO [cb25103-dirty@M5-Max-128GB]   **Verified** 2026-09-05: post exists, authored by @Beamsters1, posted Sat Sep 05 00:29:18 +0000 2026.
+2026-09-05 07:16:44,313 INFO [cb25103-dirty@M5-Max-128GB]   **Verified** 2026-09-05: post exists, authored by @Beamsters1, posted Sat Sep 05 00:48:37 +0000 2026.
+2026-09-05 07:16:44,313 INFO [cb25103-dirty@M5-Max-128GB]   **Verified** 2026-09-05: post exists, authored by @Beamsters1, posted Sat Sep 05 04:57:50 +0000 2026.
+2026-09-05 07:16:44,313 INFO [cb25103-dirty@M5-Max-128GB]   **Verified** 2026-09-05: post exists, authored by @Beamsters1, posted Sat Sep 05 09:47:24 +0000 2026.
+2026-09-05 07:16:44,313 INFO [cb25103-dirty@M5-Max-128GB] log: /Users/evanhoffman/git/local-llm/logs/sweeps/verify-posts-M5-Max-128GB-20260905T111637Z.log

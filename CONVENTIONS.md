@@ -14,7 +14,7 @@ here.
 
 - **Fair game:** models superseded on the numbers that remain easy to
   re-download — for example the DS4 quants pruned by
-  [`benchmarks/ds4/0731/cleanup_models.sh`](benchmarks/ds4/0731/cleanup_models.sh).
+  [`benchmarks/ds4/0731/cleanup_models.sh`](hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/benchmarks/ds4/0731/cleanup_models.sh).
 - **Not fair game:** anything hard or impossible to reacquire. Ask first.
 
 The `gemma4:*-mlx-bf16` models (~77 GB) were kept under this rule in August

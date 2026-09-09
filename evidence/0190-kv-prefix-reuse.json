@@ -1,0 +1,178 @@
+{
+  "issue": 190,
+  "question": "Is the ds4 prefix-reuse plateau a disk budget, a context bound, or something else?",
+  "answer": "Neither. Reuse lands on exact multiples of the continued-checkpoint step (10240 = ceil(10000/2048)*2048). The disk budget and the context size change nothing.",
+  "engine": {
+    "name": "ds4",
+    "version": "ffd85d42",
+    "tree": "/Users/evanhoffman/git/ds4-ivan-qwen38fn",
+    "dirty": false
+  },
+  "arms": {
+    "control-no-kv-disk": {
+      "ctx": 32768,
+      "kv_disk": false,
+      "kv_disk_space_mb": 8192,
+      "rows": [
+        {
+          "prompt_tokens": 2645,
+          "cached_tokens": 0,
+          "cache_write_tokens": 2645,
+          "n_defs": 200,
+          "reused_pct": 0.0,
+          "reprefilled": 2645
+        },
+        {
+          "prompt_tokens": 11045,
+          "cached_tokens": 0,
+          "cache_write_tokens": 11045,
+          "n_defs": 800,
+          "reused_pct": 0.0,
+          "reprefilled": 11045
+        },
+        {
+          "prompt_tokens": 29845,
+          "cached_tokens": 0,
+          "cache_write_tokens": 29845,
+          "n_defs": 2000,
+          "reused_pct": 0.0,
+          "reprefilled": 29845
+        }
+      ]
+    },
+    "ctx128k-space8g": {
+      "ctx": 131072,
+      "kv_disk": true,
+      "kv_disk_space_mb": 8192,
+      "rows": [
+        {
+          "prompt_tokens": 2645,
+          "cached_tokens": 2048,
+          "cache_write_tokens": 597,
+          "n_defs": 200,
+          "reused_pct": 77.4,
+          "reprefilled": 597
+        },
+        {
+          "prompt_tokens": 11045,
+          "cached_tokens": 10240,
+          "cache_write_tokens": 805,
+          "n_defs": 800,
+          "reused_pct": 92.7,
+          "reprefilled": 805
+        },
+        {
+          "prompt_tokens": 29845,
+          "cached_tokens": 10240,
+          "cache_write_tokens": 19605,
+          "n_defs": 2000,
+          "reused_pct": 34.3,
+          "reprefilled": 19605
+        },
+        {
+          "prompt_tokens": 77845,
+          "cached_tokens": 51200,
+          "cache_write_tokens": 26645,
+          "n_defs": 5000,
+          "reused_pct": 65.8,
+          "reprefilled": 26645
+        }
+      ]
+    },
+    "ctx32k-space32g": {
+      "ctx": 32768,
+      "kv_disk": true,
+      "kv_disk_space_mb": 32768,
+      "rows": [
+        {
+          "prompt_tokens": 2645,
+          "cached_tokens": 2048,
+          "cache_write_tokens": 597,
+          "n_defs": 200,
+          "reused_pct": 77.4,
+          "reprefilled": 597
+        },
+        {
+          "prompt_tokens": 11045,
+          "cached_tokens": 10240,
+          "cache_write_tokens": 805,
+          "n_defs": 800,
+          "reused_pct": 92.7,
+          "reprefilled": 805
+        },
+        {
+          "prompt_tokens": 29845,
+          "cached_tokens": 10240,
+          "cache_write_tokens": 19605,
+          "n_defs": 2000,
+          "reused_pct": 34.3,
+          "reprefilled": 19605
+        }
+      ]
+    },
+    "ctx32k-space8g": {
+      "ctx": 32768,
+      "kv_disk": true,
+      "kv_disk_space_mb": 8192,
+      "rows": [
+        {
+          "prompt_tokens": 2645,
+          "cached_tokens": 2048,
+          "cache_write_tokens": 597,
+          "n_defs": 200,
+          "reused_pct": 77.4,
+          "reprefilled": 597
+        },
+        {
+          "prompt_tokens": 11045,
+          "cached_tokens": 10240,
+          "cache_write_tokens": 805,
+          "n_defs": 800,
+          "reused_pct": 92.7,
+          "reprefilled": 805
+        },
+        {
+          "prompt_tokens": 29845,
+          "cached_tokens": 10240,
+          "cache_write_tokens": 19605,
+          "n_defs": 2000,
+          "reused_pct": 34.3,
+          "reprefilled": 19605
+        }
+      ]
+    }
+  },
+  "source_constants": {
+    "min_tokens": {
+      "value": 512,
+      "cite": "ds4_kvstore.c:33 at ds4-ivan-qwen38fn ffd85d42"
+    },
+    "cold_max_tokens": {
+      "value": 30000,
+      "cite": "ds4_kvstore.c:34 at ds4-ivan-qwen38fn ffd85d42"
+    },
+    "boundary_trim_tokens": {
+      "value": 32,
+      "cite": "ds4_kvstore.c:40 at ds4-ivan-qwen38fn ffd85d42"
+    },
+    "boundary_align_tokens": {
+      "value": 2048,
+      "cite": "ds4_kvstore.c:41 at ds4-ivan-qwen38fn ffd85d42"
+    },
+    "continued_interval_tokens": {
+      "value": 10000,
+      "cite": "ds4_kvstore.c:42 at ds4-ivan-qwen38fn ffd85d42"
+    },
+    "store_len": {
+      "cite": "ds4_kvstore.c:706 at ds4-ivan-qwen38fn ffd85d42"
+    },
+    "continued_step": {
+      "cite": "ds4_kvstore.c:736 at ds4-ivan-qwen38fn ffd85d42",
+      "computed": 10240
+    },
+    "cold_store_gate": {
+      "cite": "ds4_server.c:12888 at ds4-ivan-qwen38fn ffd85d42"
+    }
+  },
+  "source_constants_note": "Each citation is pinned to the tree and sha it was read at. A bare file:line names nothing -- the line moves with the next commit (#182) -- and a bare sha is not enough either: ds4 has four trees on this machine, which is the defect #195 fixed in the engine-identity table."
+}

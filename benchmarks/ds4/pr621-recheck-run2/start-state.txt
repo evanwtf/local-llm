@@ -1,0 +1,9 @@
+# run 2 of 4, launched 2026-09-04T13:07:26 EDT
+# harness: scripts/decode_ab.sh q4 /Users/evanhoffman/git/ds4/gguf/DeepSeek-V4-Flash-IQ2XXS-w2Q2K-AProjQ4-SExpQ8-OutQ8-chat-v2-imatrix-0731.gguf q8 /Users/evanhoffman/git/ds4/gguf/DeepSeek-V4-Flash-IQ2XXS-w2Q2K-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix-0731.gguf
+# fans (read only, never set):
+{"fans":[{"actual_rpm":3458,"index":0,"max_rpm":5349,"min_rpm":1350,"mode":"auto","target_rpm":3455},{"actual_rpm":3731,"index":1,"max_rpm":5777,"min_rpm":1350,"mode":"auto","target_rpm":3731}]}
+# thermals at launch:
+2026-09-04 13:07:26,304 INFO [239091e-dirty@M5-Max-128GB] {"die_max_c": 66.67, "die_mean_c": 65.31, "sensors": 42, "utc": "2026-09-04T17:07:26Z", "local": "13:07:26 EDT"}
+# finished: 2026-09-04T13:34:35 EDT
+# thermals at finish:
+2026-09-04 13:34:35,484 INFO [cc995e2-dirty@M5-Max-128GB] {"die_max_c": 67.95, "die_mean_c": 66.34, "sensors": 42, "utc": "2026-09-04T17:34:35Z", "local": "13:34:35 EDT"}

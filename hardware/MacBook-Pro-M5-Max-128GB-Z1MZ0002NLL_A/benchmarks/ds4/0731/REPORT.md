@@ -503,7 +503,7 @@ haystack) was not measured; a model can stay fast while degrading at recall.
 
 | # | question | status |
 |---|---|---|
-| 5 | long-context behaviour beyond 64k | **not measured** — matters for agents; the mixed build uses 90.9 of 128 GiB, so KV headroom is tighter than the q2 builds |
+| 5 | long-context behavior beyond 64k | **not measured** — matters for agents; the mixed build uses 90.9 of 128 GiB, so KV headroom is tighter than the q2 builds |
 | 4 | GLM 5.2 as an alternative family | not started (197 GiB, streamed) |
 | 7 | refresh stale `speed-bench/local-runs/m5_max_128gb_resident.csv` | superseded data exists here; kept out of the repo as a local run (old 6-column schema, pre-Metal-MoE binary); an upstream contribution should state whether it is a first-run or steady-state number |
 | 8 | disk: ~320 GiB reclaimable in `gguf/`, 636 GiB in Ollama | pruning deferred until #4/#5 finish |
@@ -609,7 +609,7 @@ of latency. It does not: mean draw falls roughly linearly (56 → 27 W) while
 runtime rises faster, so the integral moves the wrong way. Fixed overheads that
 run regardless of clock — memory, SoC, controllers — evidently dominate.
 
-**Practical rule: race to idle.** To minimise heat delivered or energy consumed,
+**Practical rule: race to idle.** To minimize heat delivered or energy consumed,
 run at 100 and finish sooner. Over a fixed window, 59 s of work then idle beats
 132 s of grinding at lower wattage. Use `--power` only to buy quiet in the
 moment; it does not make the machine cooler overall, and it is not more

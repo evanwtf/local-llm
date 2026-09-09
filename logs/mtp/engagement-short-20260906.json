@@ -1,0 +1,62 @@
+[
+  {
+    "rep": 1,
+    "arm": "tools",
+    "generated": 400,
+    "seconds": 8.75,
+    "cycles": 76,
+    "accepted": 324,
+    "used": true,
+    "bytes": 23436
+  },
+  {
+    "rep": 1,
+    "arm": "plain",
+    "generated": 400,
+    "seconds": 7.55,
+    "cycles": 75,
+    "accepted": 325,
+    "used": true,
+    "bytes": 22975
+  },
+  {
+    "rep": 2,
+    "arm": "plain",
+    "generated": 400,
+    "seconds": 8.35,
+    "cycles": 87,
+    "accepted": 313,
+    "used": true,
+    "bytes": 25462
+  },
+  {
+    "rep": 2,
+    "arm": "tools",
+    "generated": 400,
+    "seconds": 9.38,
+    "cycles": 398,
+    "accepted": 2,
+    "used": true,
+    "bytes": 41546
+  },
+  {
+    "rep": 3,
+    "arm": "tools",
+    "generated": 400,
+    "seconds": 7.69,
+    "cycles": 77,
+    "accepted": 323,
+    "used": true,
+    "bytes": 23445
+  },
+  {
+    "rep": 3,
+    "arm": "plain",
+    "generated": 400,
+    "seconds": 7.32,
+    "cycles": 75,
+    "accepted": 325,
+    "used": true,
+    "bytes": 22858
+  }
+]

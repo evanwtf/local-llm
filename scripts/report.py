@@ -1,4 +1,4 @@
-"""Summarise and compare measured cells, with the resolution rule applied.
+"""Summarize and compare measured cells, with the resolution rule applied.
 
 Written because the same analysis was hand-rolled three times in one evening --
 per-task medians, pass rates, spreads, and a two-backend comparison -- and each
@@ -43,7 +43,13 @@ SCRIPT_PREFIX = "script-"
 
 
 def cells(rows, backends, client="opencode"):
-    """{(backend, task): [row, ...]} for the backends asked for."""
+    """{(backend, task): [row, ...]} for the backends asked for.
+
+    Each cell is reduced to its largest server_argv-compatible subset (#213):
+    a cell that mixes graph-changing server_argv is two different models, and
+    pooling them would call the difference a result. The dropped rows are
+    holes in n, not passes or fails.
+    """
     got = collections.defaultdict(list)
     for r in rows:
         if r.get("client") != client:
@@ -51,6 +57,26 @@ def cells(rows, backends, client="opencode"):
         if backends and r.get("backend") not in backends:
             continue
         got[(r["backend"], r["task"])].append(r)
+    for key, cell in list(got.items()):
+        kept = results.compatible_subset(cell)
+        if len(kept) != len(cell):
+            logger.warning(
+                "%s %s: dropped %d row(s) with a different server_argv graph",
+                key[0],
+                key[1],
+                len(cell) - len(kept),
+            )
+        elif results.unknown_argv(kept):
+            # All-unknown pools are allowed, but not silent: this cell may
+            # span configurations and no row can say which (#213).
+            logger.warning(
+                "%s %s: %d row(s), none records server_argv;"
+                " cannot verify they ran one configuration",
+                key[0],
+                key[1],
+                len(kept),
+            )
+        got[key] = kept
     return got
 
 
@@ -77,6 +103,52 @@ def distinguishable(a: float, b: float) -> bool:
         return False
     lo, hi = sorted((a, b))
     return (hi - lo) / lo >= RESOLUTION
+
+
+def saturated_cells(by_cell, min_trials: int = 3):
+    """Cells where every trial passed. Saturation is not excellence (#55 A4).
+
+    A 100% cell says the task is too easy for this backend to fail, which is a
+    property of the TASK -- not of the backend. Ranking backends on saturated
+    tasks flatters whoever met the low bar first, and #4 exists because the
+    whole task set is close to saturated.
+
+    n=3 is the minimum reported here for the same reason #23 gives: below it,
+    100% is 100% of a very small denominator. A 3/3 cell clears >37% by exact
+    binomial, but not 90%; a 15/15 cell clears >85%. Both are worth flagging,
+    with the caveat proportional to sample size.
+    """
+    saturated = []
+    for (backend, task), rows in by_cell.items():
+        if len(rows) < min_trials:
+            continue
+        n_passed = sum(1 for r in rows if results.verdict(r))
+        if n_passed == len(rows):
+            saturated.append((backend, task, len(rows)))
+    return sorted(saturated)
+
+
+def untouched_cells(by_cell):
+    """Cells where every trial failed with the same oracle output (#55 A3).
+
+    An excision is applied and every trial produces the same failure message ->
+    the agent never touched the file. The oracle is the excised control, and
+    the failure is what a virgin tree gives. This is a distinct diagnosis from
+    "the model wrote wrong code": a wrong fix produces a different failure.
+
+    Identical PASS output is filtered out. `script-reverse` and friends emit a
+    terse fixed string on success ("3/3 checks passed"), which is not the
+    signal this check is looking for.
+    """
+    suspect = []
+    for (backend, task), rows in by_cell.items():
+        if len(rows) < 2:
+            continue
+        outs = {r.get("pytest", "") for r in rows if not r.get("passed")}
+        n_failed = sum(1 for r in rows if not results.verdict(r))
+        if n_failed == len(rows) and len(outs) == 1 and outs != {""}:
+            suspect.append((backend, task, next(iter(outs))))
+    return suspect
 
 
 def render(by_cell, backends) -> list[str]:
@@ -143,7 +215,7 @@ def main() -> int:
     provenance.banner(logger, engines=True)
     # summarize.load() is the tested reader: it drops dry runs, drops rows
     # whose control did not fail (an excision the tests could not see), and
-    # normalises `passed` through verdict() so a timeout lands as False rather
+    # normalizes `passed` through verdict() so a timeout lands as False rather
     # than vanishing from the denominator. Reading results.jsonl any other way
     # is how fourteen legacy-keyed rows got counted (#29).
     rows, discarded, retired, cheats = summarize.load(RESULTS)
@@ -162,6 +234,34 @@ def main() -> int:
         return 1
     for line in render(by_cell, args.backend):
         logger.info(line)
+
+    # #55 A3: a cell where every trial fails with the same oracle output is a
+    # cell where the tree was never touched. Model wrote wrong code produces a
+    # DIFFERENT failure; a virgin excision produces the SAME one every time.
+    untouched = untouched_cells(by_cell)
+    if untouched:
+        logger.warning("")
+        logger.warning(
+            "%d cell(s) look UNTOUCHED -- every trial failed with the same "
+            "oracle output (#55):",
+            len(untouched),
+        )
+        for backend, task, out in untouched:
+            logger.warning("  %s %s: %s", backend, task, out[:80])
+
+    # #55 A4: saturation is not excellence. A 100% cell says the task is too
+    # easy for this backend to fail, which is a property of the task, not the
+    # backend. Flagged as info so rankings do not read the wrong signal off it.
+    saturated = saturated_cells(by_cell)
+    if saturated:
+        logger.info("")
+        logger.info(
+            "%d cell(s) at 100%% -- SATURATED, not necessarily excellent (#55 / #4):",
+            len(saturated),
+        )
+        for backend, task, n in saturated:
+            logger.info("  %s %s: %d/%d", backend, task, n, n)
+
     logger.info("log: %s", log_file)
     return 0
 

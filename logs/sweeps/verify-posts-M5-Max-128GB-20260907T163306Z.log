@@ -1,0 +1,57 @@
+2026-09-07 12:33:06,758 INFO [70866b7@M5-Max-128GB] 2026-09-07T16:33:06Z (12:33:06 EDT) | harness 70866b7
+2026-09-07 12:33:06,776 INFO [70866b7@M5-Max-128GB]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-07 12:33:07,046 INFO [70866b7@M5-Max-128GB] 2096745387877138645  VERIFIED reply  @ivanfioravanti  Sun Sep 06 23:40:30 +0000 2026  via fxtwitter
+2026-09-07 12:33:07,046 INFO [70866b7@M5-Max-128GB]     @moskstraum21745 I did it, forcing even a lower limit that 64GB to leave 8GB to OS. But I'd like someone to test it on a real machine.
+2026-09-07 12:33:07,166 INFO [70866b7@M5-Max-128GB] 2096737744886079661  VERIFIED reply  @ivanfioravanti  Sun Sep 06 23:10:08 +0000 2026  via fxtwitter
+2026-09-07 12:33:07,166 INFO [70866b7@M5-Max-128GB]     @TheDavidTai @kernelpool @ddalcu @Spangler3000 Nearly ready! Final touches: Q2, tools calling fixes, vision and we are ready to go!
+2026-09-07 12:33:07,320 INFO [70866b7@M5-Max-128GB] 2096737826024964307  VERIFIED reply  @ivanfioravanti  Sun Sep 06 23:10:27 +0000 2026  via fxtwitter
+2026-09-07 12:33:07,320 INFO [70866b7@M5-Max-128GB]     @turshu @kernelpool @ddalcu @Spangler3000 On it! Fix ready, final tests in progress! Thanks Taner!
+2026-09-07 12:33:07,501 INFO [70866b7@M5-Max-128GB] 2096742166177403222  VERIFIED reply  @ivanfioravanti  Sun Sep 06 23:27:42 +0000 2026  via fxtwitter
+2026-09-07 12:33:07,502 INFO [70866b7@M5-Max-128GB]     @u1tra_instinct 🤞 let's see if it works in real life, evals seem ok, but real usage is something different.  We are all shaping Local AI landscape together, you too super Keys! 💪
+2026-09-07 12:33:07,502 INFO [70866b7@M5-Max-128GB] [
+  {
+    "id": "2096745387877138645",
+    "status": "ok",
+    "author": "ivanfioravanti",
+    "created_at": "Sun Sep 06 23:40:30 +0000 2026",
+    "text": "@moskstraum21745 I did it, forcing even a lower limit that 64GB to leave 8GB to OS. But I'd like someone to test it on a real machine.",
+    "is_reply": true,
+    "quoted_author": null,
+    "quoted_text": null,
+    "source": "fxtwitter"
+  },
+  {
+    "id": "2096737744886079661",
+    "status": "ok",
+    "author": "ivanfioravanti",
+    "created_at": "Sun Sep 06 23:10:08 +0000 2026",
+    "text": "@TheDavidTai @kernelpool @ddalcu @Spangler3000 Nearly ready! Final touches: Q2, tools calling fixes, vision and we are ready to go!",
+    "is_reply": true,
+    "quoted_author": null,
+    "quoted_text": null,
+    "source": "fxtwitter"
+  },
+  {
+    "id": "2096737826024964307",
+    "status": "ok",
+    "author": "ivanfioravanti",
+    "created_at": "Sun Sep 06 23:10:27 +0000 2026",
+    "text": "@turshu @kernelpool @ddalcu @Spangler3000 On it! Fix ready, final tests in progress! Thanks Taner!",
+    "is_reply": true,
+    "quoted_author": null,
+    "quoted_text": null,
+    "source": "fxtwitter"
+  },
+  {
+    "id": "2096742166177403222",
+    "status": "ok",
+    "author": "ivanfioravanti",
+    "created_at": "Sun Sep 06 23:27:42 +0000 2026",
+    "text": "@u1tra_instinct \ud83e\udd1e let's see if it works in real life, evals seem ok, but real usage is something different.\n\nWe are all shaping Local AI landscape together, you too super Keys! \ud83d\udcaa",
+    "is_reply": true,
+    "quoted_author": null,
+    "quoted_text": null,
+    "source": "fxtwitter"
+  }
+]
+2026-09-07 12:33:07,502 INFO [70866b7@M5-Max-128GB] log: /Users/evanhoffman/git/local-llm/logs/sweeps/verify-posts-M5-Max-128GB-20260907T163306Z.log

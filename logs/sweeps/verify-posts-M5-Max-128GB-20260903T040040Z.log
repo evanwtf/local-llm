@@ -1,0 +1,15 @@
+2026-09-03 00:00:40,930 INFO [d9a223e@M5-Max-128GB] 2026-09-03T04:00:40Z (00:00:40 EDT) | harness d9a223e
+2026-09-03 00:00:40,944 INFO [d9a223e@M5-Max-128GB]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-03 00:00:41,091 INFO [d9a223e@M5-Max-128GB] 2095241592399606119  VERIFIED reply  @perplexity_ai  Wed Sep 02 20:04:57 +0000 2026  via fxtwitter
+2026-09-03 00:00:41,091 INFO [d9a223e@M5-Max-128GB]     We benchmark Qwen3.6-35B-A3B on an M5 Max MacBook Pro.  Across ten prompt lengths and ten decode contexts, Lily was faster than MLX-LM, averaging 1.23× higher prefill throughput and 1.35× higher decod
+2026-09-03 00:00:41,228 INFO [d9a223e@M5-Max-128GB] 2095241544383226274  VERIFIED post  @perplexity_ai  Wed Sep 02 20:04:46 +0000 2026  via fxtwitter
+2026-09-03 00:00:41,228 INFO [d9a223e@M5-Max-128GB]     Today we’re open-sourcing Lily, the local inference engine we built for hybrid compute in Perplexity Computer.  Lily is specialized for Qwen3.6-35B-A3B on Apple silicon, built so on-device compute doe
+2026-09-03 00:00:41,344 INFO [d9a223e@M5-Max-128GB] 2095241578088718574  VERIFIED reply  @perplexity_ai  Wed Sep 02 20:04:54 +0000 2026  via fxtwitter
+2026-09-03 00:00:41,344 INFO [d9a223e@M5-Max-128GB]     Lily treats prefill and decode as fundamentally different workloads.  Prefill processes many prompt tokens at once and can reuse weights across them, while decode generates one token at a time with mu
+2026-09-03 00:00:41,344 INFO [d9a223e@M5-Max-128GB] 
+2026-09-03 00:00:41,345 INFO [d9a223e@M5-Max-128GB] Verified 3: 3 confirmed, 0 not.
+2026-09-03 00:00:41,345 INFO [d9a223e@M5-Max-128GB] Paste onto the issue:
+2026-09-03 00:00:41,345 INFO [d9a223e@M5-Max-128GB]   **Verified** 2026-09-03: post exists, authored by @perplexity_ai, posted Wed Sep 02 20:04:57 +0000 2026.
+2026-09-03 00:00:41,345 INFO [d9a223e@M5-Max-128GB]   **Verified** 2026-09-03: post exists, authored by @perplexity_ai, posted Wed Sep 02 20:04:46 +0000 2026.
+2026-09-03 00:00:41,345 INFO [d9a223e@M5-Max-128GB]   **Verified** 2026-09-03: post exists, authored by @perplexity_ai, posted Wed Sep 02 20:04:54 +0000 2026.
+2026-09-03 00:00:41,345 INFO [d9a223e@M5-Max-128GB] log: /Users/evanhoffman/git/local-llm/logs/sweeps/verify-posts-M5-Max-128GB-20260903T040040Z.log

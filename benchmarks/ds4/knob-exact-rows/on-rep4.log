@@ -1,0 +1,10 @@
+# arm: on knob=exact-rows env DS4_METAL_REQUIRE_EXACT_ROWS_PERSISTENT_CACHE=1 ./ds4-bench -m /Users/evanhoffman/models/deepseek-v4-flash-aproj/DeepSeek-V4-Flash-IQ2XXS-w2Q2K-AProjQ4-SExpQ8-OutQ8-chat-v2-imatrix-0731.gguf --metal --prompt-file /Users/evanhoffman/git/ds4-171-head/speed-bench/promessi_sposi.txt --ctx-start 2048 --ctx-max 16384 --step-incr 2048 --gen-tokens 128 --csv /Users/evanhoffman/git/local-llm/benchmarks/ds4/knob-exact-rows/on-rep4.csv
+ds4: Metal device Apple M5 Max, 128.00 GiB RAM
+ds4: Metal 4 tensor API enabled for Tensor kernels
+ds4: drift-patch flags hc_stable=on norm_unify=on kv_raw_f32=off rope_exp2_log2=off math_safe=off tensor_matmul=on
+ds4: Metal model views created in 2.277 ms, residency requested in 817.810 ms, warmup 3.720 ms (mapped 80504.67 MiB from offset 5.09 MiB)
+ds4: Metal mapped mmaped model as 1 overlapping shared buffers
+ds4: metal backend initialized for graph diagnostics
+ds4: memory: KV 0.48 GiB (raw 0.36 + compressed 0.13) + buffers 0.13 GiB + resident model 78.62 GiB = 79.23 GiB planned
+ds4: memory detail: ctx=16513 prefill_cap=4096 raw_kv_rows=4352 compressed_kv_rows=4130 backend=metal
+ds4-bench: context buffers 626.17 MiB (ctx=16513, backend=metal, prefill_chunk=4096, raw_kv_rows=4352, compressed_kv_rows=4130)

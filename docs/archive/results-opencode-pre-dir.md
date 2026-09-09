@@ -82,3 +82,21 @@ The archived pass rates above already exclude `agent_error` rows via
 - Regenerate the split with `uv run python benchmarks/agent/dirfix.py`.
 - The move is done by `scripts/archive_pre_dir_rows.py`, which is idempotent and
   moves lines byte-identically.
+
+## The banner shrank on 2026-09-08, and this is why
+
+`scripts/archive_pre_dir_rows.py` removed these rows from the ledger, and the
+count is now checkable rather than remembered: **0 of 1,229 OpenCode rows in
+`hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/results.jsonl` predate the
+cutover.** Nothing a reader can pool, average or plot contains them.
+
+So the eight-line block that stood at the top of six files was guarding a
+hazard that had already been removed from the data. It is one line in each
+now, and it still says the two things that remain true: the numbers exist in
+older documents and issue comments, and they must not be quoted from there.
+
+`benchmarks/agent/test_invalid_data_notice.py` is unchanged and still enforces
+the same three properties — the phrase appears, it is inside the first six
+lines, and its link resolves — because those are what make the notice
+findable, and shortening it does not touch any of them.
+

@@ -1,0 +1,126 @@
+#!/bin/bash
+# Restart-between-trials experiment for #112.
+#
+# Both arms of #77 degrade monotonically across their session -- A 13/13/10 and
+# B 10/9/6 -- with a fresh conversation each trial. That rules out model
+# context. The candidates are server-side state and machine state, and this
+# script separates them by restarting the model server between trials.
+#
+# Design:
+# - Three run.py invocations, --trials 1 each, restarting ds4-server between.
+# - Same argv as the original arm A (MTP off, ~/.ds4/server-kv).
+# - Each run's transcripts move to ~/bench-logs/112-run{1,2,3}/ so the next
+#   run does not clobber ~/bench-logs/<task>-<backend>-opencode-1.jsonl.
+# - Rows all carry trial=1 in results.jsonl; distinguish them by started time.
+#
+# Prerequisites, and it refuses if any is missing:
+# - qwen38fnds4shim backend, qwen3.8-flash-next-q4 model on ds4-metal
+# - the tool-format shim on :8101 (this script does NOT stop or start it)
+# - a clean checkout of ~/git/gmail-archive and ~/git/monitor at their pinned
+#   commits (run.py refuses otherwise, which is the guard we rely on)
+#
+# Usage:
+#   scripts/restart_between_trials.sh
+#
+# The script waits for each run to finish (recognises `restored monitor`) before
+# starting the next. About 90-120 minutes end-to-end.
+
+set -eu
+
+# shellcheck source=lib/ds4_server.sh
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/ds4_server.sh"
+
+LOGDIR="${LOGDIR:-$(mktemp -d)}"
+BENCH_LOGS="${BENCH_LOGS:-$HOME/bench-logs}"
+
+DS4_MODEL="$HOME/models/qwen3.8-flash-next-ds4-q4/Qwen3.8-Flash-Next-Q4KExperts-BF16Emb-BF16Control-Q8GDN-Q8QSA-Q8Shared-Q8Out.gguf"
+DS4_PLE="$HOME/models/qwen3.8-flash-next-ds4-q4/Qwen3.8-Flash-Next-PLE-Q4_1.gguf"
+DS4_KV="$HOME/.ds4/server-kv"
+
+# Refuse the whole run if the shim is not up. The upstream is otherwise
+# indistinguishable from a working ds4 server, and OpenCode would talk to the
+# wrong thing.
+if ! pgrep -f qwen_tool_shim >/dev/null; then
+    echo "REFUSING: ds4_qwen_tool_shim.py is not running on :8101" >&2
+    echo "Start it first: uv run python ds4_qwen_tool_shim.py --port 8101 --upstream http://127.0.0.1:8000" >&2
+    exit 1
+fi
+
+restart_ds4() {
+    local tag="$1"
+    ds4_stop_server || exit 1
+
+    echo "[$(date +%H:%M:%S)] starting ds4-server fresh for $tag..."
+    (cd "$HOME/git/ds4-metal" && \
+        ./ds4-server --metal \
+            -m "$DS4_MODEL" --ple "$DS4_PLE" \
+            --ctx 100000 --warm-weights \
+            --kv-disk-dir "$DS4_KV" --kv-disk-space-mb 8192 \
+            --host 127.0.0.1 --port 8000 \
+            > "$LOGDIR/ds4server-$tag.log" 2>&1 &)
+
+    (cd "$(dirname "$0")/.." && \
+        uv run python benchmarks/agent/wait_ready.py \
+            --base-url http://127.0.0.1:8000 \
+            --model qwen3.8-flash-next-q4 | tail -2)
+}
+
+collect_transcripts() {
+    local n="$1"
+    mkdir -p "$BENCH_LOGS/112-run$n"
+    # `mv` with no matching glob is not fatal here -- if the trial produced no
+    # transcripts (a --no-client-log run, say) there is nothing to move and it
+    # is a valid state, not a failure.
+    mv "$BENCH_LOGS"/*qwen38fnds4shim-opencode-1* "$BENCH_LOGS/112-run$n/" 2>/dev/null || true
+    echo "[$(date +%H:%M:%S)] collected $(ls "$BENCH_LOGS/112-run$n" | wc -l | tr -d ' ') transcripts to 112-run$n/"
+}
+
+run_trial() {
+    local n="$1"
+    echo "[$(date +%H:%M:%S)] starting run $n..."
+    (cd "$(dirname "$0")/.." && \
+        uv run python benchmarks/agent/run.py \
+            --backend qwen38fnds4shim --trials 1 --client opencode --no-lock \
+            > "$LOGDIR/armA-restart-run$n.log" 2>&1)
+    echo "[$(date +%H:%M:%S)] run $n done"
+    collect_transcripts "$n"
+}
+
+# #133: hold the lock across the whole cycle, not per run.py call. The
+# window this lock exists for is precisely the gap BETWEEN these runs, where
+# ds4-server is deliberately down and a process scan truthfully reports "all
+# clear" while the machine is committed for hours. run.py inside is told
+# --no-lock because this script already holds it.
+PREFLIGHT="$(dirname "$0")/../benchmarks/agent/preflight.py"
+if ! uv run python "$PREFLIGHT" --acquire-lock "restart_between_trials.sh (#112 arm A, 3 cycles)" --owner-pid $$; then
+  echo "refusing to start: the machine is claimed by another run" >&2
+  exit 1
+fi
+trap 'uv run python "$PREFLIGHT" --release-lock --owner-pid $$ >/dev/null 2>&1' EXIT
+
+# #145: the server must be stopped on every exit path. Armed after the
+# refusals above, so a run that declines to start does not tear down a server
+# it never owned. ds4_arm_stop_trap chains onto the EXIT trap already set
+# rather than replacing it -- a bare `trap ... EXIT` here would drop the lock
+# release and trade a leaked server for a leaked lock.
+ds4_arm_stop_trap
+
+echo "logs in: $LOGDIR"
+restart_ds4 trial1; run_trial 1
+restart_ds4 trial2; run_trial 2
+restart_ds4 trial3; run_trial 3
+
+echo "[$(date +%H:%M:%S)] cycle complete"
+
+# #64: the server logs a line every time the live KV prefix misses, and a
+# stalled prefix costs re-prefill on every turn -- 443,974 tokens across the
+# four logs we happened to keep. Audit them here, while the logs are in hand,
+# rather than hoping someone runs it later on a log that has been cleaned up.
+if ls "$LOGDIR"/ds4server-*.log >/dev/null 2>&1; then
+  echo
+  uv run python "$(dirname "$0")/kv_prefix_audit.py" "$LOGDIR"/ds4server-*.log \
+    | tee "$LOGDIR/kv-prefix-audit.txt" || true
+fi
+
+echo "Compare per-trial pass rates against the arm A 13/13/10 baseline"
+echo "  (original run without restarts between trials)."

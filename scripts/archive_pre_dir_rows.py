@@ -26,8 +26,20 @@ import sys
 logger = logging.getLogger(__name__)
 
 FIX = "7356460"  # opencode_argv gained --dir
-RESULTS = pathlib.Path("benchmarks/agent/results.jsonl")
-ARCHIVE = pathlib.Path("docs/archive/results-opencode-pre-dir.jsonl")
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+#: The ledger moved to hardware/<machine>/results.jsonl (#20) and this script
+#: kept a literal `benchmarks/agent/results.jsonl` relative to the CALLER's
+#: cwd, so it raised FileNotFoundError from anywhere and archived nothing from
+#: the repo root. It was the only thing enforcing the pre---dir invariant, and
+#: on 2026-09-07 a branch merge restored 90 archived rows to the live ledger
+#: with nothing to notice. Ask results.py where the file is, and anchor the
+#: archive to the repo rather than to wherever it was invoked.
+sys.path.insert(0, str(ROOT / "benchmarks" / "agent"))
+
+import results
+
+RESULTS = results.default_path()
+ARCHIVE = ROOT / "docs" / "archive" / "results-opencode-pre-dir.jsonl"
 
 
 def fixed_commits(repo: pathlib.Path) -> set[str]:
@@ -58,8 +70,17 @@ def is_pre_dir(line: str, after: set[str]) -> bool:
 
 def main() -> None:
     logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
-    root = pathlib.Path(__file__).resolve().parent.parent
-    after = fixed_commits(root)
+
+    # No ledger for THIS machine is the normal case everywhere except the one
+    # that took the measurements. `results.default_path()` is derived from the
+    # host's own hardware (#20), so on a CI runner it names a directory that
+    # has never existed. That is nothing to archive, not an error -- and the
+    # crash it used to raise turned a green build red on 2026-09-07.
+    if not RESULTS.exists():
+        logger.info("no ledger at %s; nothing to archive on this machine", RESULTS)
+        return
+
+    after = fixed_commits(ROOT)
 
     lines = RESULTS.read_text().splitlines(keepends=True)
     move = [x for x in lines if is_pre_dir(x, after)]

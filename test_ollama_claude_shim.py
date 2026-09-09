@@ -3,6 +3,7 @@
 The proxy must not change any request that Ollama already accepts, and must
 rewrite exactly the shape Claude Code sends that Ollama rejects.
 """
+
 import json
 
 from ollama_claude_shim import hoist_system

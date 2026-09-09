@@ -1,0 +1,39 @@
+ds4: PLE sidecar table: /Users/evanhoffman/models/qwen3.8-flash-next-ds4-q4k-imatrix/Qwen3.8-Flash-Next-PLE-Q4_1.gguf (ple.weight [160, 320001536], CPU-only)
+ds4: Metal device Apple M5 Max, 128.00 GiB RAM
+ds4: Metal 4 tensor API enabled for Tensor kernels
+ds4: drift-patch flags hc_stable=on norm_unify=on kv_raw_f32=off rope_exp2_log2=off math_safe=off tensor_matmul=on
+ds4: Metal model views created in 1.828 ms, residency requested in 721.346 ms, warmup 3.875 ms (mapped 69962.19 MiB from offset 10.51 MiB)
+ds4: Metal mapped mmaped model as 1 overlapping shared buffers
+ds4: metal backend initialized for graph diagnostics
+ds4: memory: KV 0.96 GiB (raw 0.75 + compressed 0.21) + buffers 7.41 GiB + resident model 68.32 GiB = 76.70 GiB planned
+ds4: memory detail: ctx=32768 prefill_cap=8192 raw_kv_rows=32768 compressed_kv_rows=8193 backend=metal
+0907 05:05:09 ds4-server: context buffers 8576.57 MiB (ctx=32768, backend=metal, prefill_chunk=8192, raw_kv_rows=32768, compressed_kv_rows=8193)
+0907 05:05:09 ds4-server: KV disk cache /tmp/kv-prefix-reuse-8099-800 (budget=8192 MiB, cross-quant=accept, min=512, cold_max=30000, continued=10000, trim=32, align=2048, hit_half_life=21600s)
+0907 05:05:09 ds4-server: listening on http://127.0.0.1:8099
+0907 05:05:11 ds4-server: chat ctx=0..53:53 prompt start
+0907 05:05:11 ds4-server: chat ctx=0..53:53 prefill chunk 53/53 (100.0%) chunk=0.00 t/s avg=153.91 t/s 0.344s
+0907 05:05:11 ds4-server: chat ctx=0..53:53 prompt done 0.344s
+0907 05:05:11 ds4-server: chat ctx=53..54:1 gen=1 THINKING decoding chunk=49.53 t/s avg=49.53 t/s 0.020s
+ds4-server: thinking not closed, ignoring incomplete Qwen tool calls in reasoning
+0907 05:05:11 ds4-server: chat ctx=0..53:53 gen=1 THINKING finish=length 0.365s
+0907 05:05:11 ds4-server: live kv cache miss live=54 prompt=11045 common=45 vision=match reason=token-mismatch
+0907 05:05:11 ds4-server: chat ctx=0..11045:11045 prompt start
+0907 05:05:20 ds4-server: chat ctx=0..11045:11045 prefill chunk 8192/11045 (74.2%) chunk=0.00 t/s avg=977.01 t/s 8.385s
+0907 05:05:22 ds4-server: chat ctx=0..11045:11045 prefill chunk 10240/11045 (92.7%) chunk=885.06 t/s avg=957.13 t/s 10.699s
+0907 05:05:22 ds4-server: kv cache stored tokens=10240 trimmed=805 reason=cold key=token-text size=421.23 MiB save=60.9 ms
+0907 05:05:23 ds4-server: chat ctx=0..11045:11045 prefill chunk 11045/11045 (100.0%) chunk=612.86 t/s avg=919.48 t/s 12.012s
+0907 05:05:23 ds4-server: chat ctx=0..11045:11045 prompt done 12.012s
+0907 05:05:24 ds4-server: chat ctx=11045..11077:32 gen=32 THINKING decoding chunk=46.57 t/s avg=46.57 t/s 0.687s
+ds4-server: thinking not closed, ignoring incomplete Qwen tool calls in reasoning
+0907 05:05:24 ds4-server: chat ctx=0..11045:11045 gen=32 THINKING finish=length 12.700s
+0907 05:05:24 ds4-server: live kv cache miss live=11077 prompt=11045 common=11045 vision=match reason=token-mismatch
+0907 05:05:24 ds4-server: kv cache stored tokens=11077 trimmed=0 reason=evict key=token-text size=446.38 MiB save=63.1 ms
+0907 05:05:24 ds4-server: kv cache hit text tokens=10240 text=19393 quant=4 key=token-text load=40.3 ms file=/tmp/kv-prefix-reuse-8099-800/3efe3045a3787c068ee35f84814b1d5a3d83b944.kv
+0907 05:05:24 ds4-server: chat ctx=10240..11045:805 prompt start
+0907 05:05:25 ds4-server: chat ctx=10240..11045:805 prefill chunk 805/805 (100.0%) chunk=0.00 t/s avg=690.89 t/s 1.165s
+0907 05:05:25 ds4-server: chat ctx=10240..11045:805 prompt done 1.165s
+0907 05:05:26 ds4-server: chat ctx=11045..11077:32 gen=32 THINKING decoding chunk=47.63 t/s avg=47.63 t/s 0.672s
+ds4-server: thinking not closed, ignoring incomplete Qwen tool calls in reasoning
+0907 05:05:26 ds4-server: chat ctx=10240..11045:805 gen=32 THINKING finish=length 1.837s
+0907 05:05:26 ds4-server: shutdown requested, draining requests
+0907 05:05:26 ds4-server: persisting resident KV cache before shutdown slot=0 tokens=11077

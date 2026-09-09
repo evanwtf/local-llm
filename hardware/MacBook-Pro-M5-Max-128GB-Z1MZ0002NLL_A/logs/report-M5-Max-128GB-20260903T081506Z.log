@@ -1,0 +1,23 @@
+2026-09-03 04:15:06,489 INFO [47a1d9f@M5-Max-128GB] 2026-09-03T08:15:06Z (04:15:06 EDT) | harness 47a1d9f
+2026-09-03 04:15:06,510 INFO [47a1d9f@M5-Max-128GB]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-03 04:15:07,005 INFO [47a1d9f@M5-Max-128GB]   stack:   ds4 399acbb | llama.cpp 3466812d1 | ollama 0.33.2 | opencode 1.18.27
+2026-09-03 04:15:07,021 INFO [47a1d9f@M5-Max-128GB] | task | qwen38fnds4shim |
+2026-09-03 04:15:07,021 INFO [47a1d9f@M5-Max-128GB] |---|---|
+2026-09-03 04:15:07,021 INFO [47a1d9f@M5-Max-128GB] | `mbox-quoting-both-halves` | 255.3s (3/3) |
+2026-09-03 04:15:07,021 INFO [47a1d9f@M5-Max-128GB] | `mbox-scan` | 128.1s (2/3) |
+2026-09-03 04:15:07,021 INFO [47a1d9f@M5-Max-128GB] | `mbox-strip-envelope` | 85.8s (3/4) |
+2026-09-03 04:15:07,021 INFO [47a1d9f@M5-Max-128GB] | `parser-date` | 235.5s (2/3) |
+2026-09-03 04:15:07,021 INFO [47a1d9f@M5-Max-128GB] | `parser-mbox-quoting` | 130.9s (3/3) |
+2026-09-03 04:15:07,021 INFO [47a1d9f@M5-Max-128GB] | `parser-mbox-quoting-nodoc` | 116.4s (2/3) |
+2026-09-03 04:15:07,021 INFO [47a1d9f@M5-Max-128GB] | `script-reverse` | 44.0s (3/3) |
+2026-09-03 04:15:07,021 INFO [47a1d9f@M5-Max-128GB] | `script-transform` | 80.8s (3/3) |
+2026-09-03 04:15:07,021 INFO [47a1d9f@M5-Max-128GB] | `storage-blob-put` | 125.3s (3/3) |
+2026-09-03 04:15:07,021 INFO [47a1d9f@M5-Max-128GB] | `storage-put-and-sweep` | 97.4s (2/3) |
+2026-09-03 04:15:07,021 INFO [47a1d9f@M5-Max-128GB] | `swift-chartaxis-spacing` | 332.6s (1/3) |
+2026-09-03 04:15:07,021 INFO [47a1d9f@M5-Max-128GB] | `swift-csv-text` | 264.8s (3/3) |
+2026-09-03 04:15:07,021 INFO [47a1d9f@M5-Max-128GB] | `swift-downsample-buckets` | 25.8s (1/3) |
+2026-09-03 04:15:07,021 INFO [47a1d9f@M5-Max-128GB] | `swift-scaleladder-snap` | 183.4s (3/3) |
+2026-09-03 04:15:07,021 INFO [47a1d9f@M5-Max-128GB] | `swift-sevensegment-glyphs` | 98.9s (3/3) |
+2026-09-03 04:15:07,021 INFO [47a1d9f@M5-Max-128GB] 
+2026-09-03 04:15:07,021 INFO [47a1d9f@M5-Max-128GB] **qwen38fnds4shim** excision: 31/40 passed, median 140.9s, worst 791.6s, spread 113.1x
+2026-09-03 04:15:07,021 INFO [47a1d9f@M5-Max-128GB] log: /Users/evanhoffman/git/local-llm/hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/logs/report-M5-Max-128GB-20260903T081506Z.log

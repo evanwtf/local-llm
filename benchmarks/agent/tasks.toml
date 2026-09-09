@@ -303,6 +303,10 @@ description = "DeepSeek V4 Flash mixed q2/q4 0731 via ds4-server"
 base_url = "http://127.0.0.1:8000"
 auth_token = "dsv4-local"
 model = "deepseek-v4-flash"
+# #192: which engine build served this backend. ds4 has four trees on this
+# machine; the fork that runs our weights is the one the row must name.
+engine = "ds4"
+engine_tree = "~/git/ds4-ivan-qwen38fn"
 opencode_model = "ds4/deepseek-v4-flash"
 context_tokens = 100000
 # Aider drives ds4 through the OpenAI-compatible endpoint. litellm needs the
@@ -313,6 +317,7 @@ aider_model = "openai/deepseek-v4-flash"
 description = "Qwen3.8-27B via Ollama MLX"
 base_url = "http://127.0.0.1:11434"
 auth_token = "ollama"
+engine = "ollama"
 model = "qwen3.8:27b-mlx"
 opencode_model = "ollama/qwen3.8:27b-mlx"
 context_tokens = 262144
@@ -323,6 +328,7 @@ context_tokens = 262144
 description = "Qwen3.6-27B via Ollama MLX"
 base_url = "http://127.0.0.1:11434"
 auth_token = "ollama"
+engine = "ollama"
 model = "qwen3.6:27b-mlx"
 opencode_model = "ollama/qwen3.6:27b-mlx"
 context_tokens = 262144
@@ -334,6 +340,7 @@ context_tokens = 262144
 description = "Qwen3.6-27B coding-tuned, mxfp8"
 base_url = "http://127.0.0.1:11434"
 auth_token = "ollama"
+engine = "ollama"
 model = "qwen3.6:27b-coding-mxfp8"
 codex_profile = "qwen36coding"
 # #65. 31 GB against ds4's 91 -- the only candidate that leaves the machine
@@ -351,6 +358,7 @@ context_tokens = 262144
 description = "Qwen3.6-35B-A3B coding-tuned, mxfp8 (3B active)"
 base_url = "http://127.0.0.1:11434"
 auth_token = "ollama"
+engine = "ollama"
 model = "qwen3.6:35b-a3b-coding-mxfp8"
 opencode_model = "ollama/qwen3.6:35b-a3b-coding-mxfp8"
 context_tokens = 262144
@@ -368,6 +376,7 @@ description = "Ornith 35B, agentic coding tune, Q4_K_M GGUF"
 retired = "superseded by ornith15 (ornith-1.5:35b), which has 21 valid rows; also a GGUF served through Ollama, which is llama.cpp with a wrapper (2026-09-01)"
 base_url = "http://127.0.0.1:11434"
 auth_token = "ollama"
+engine = "ollama"
 model = "ornith:35b"
 context_tokens = 262144
 
@@ -393,6 +402,14 @@ auth_token = "mtplx-local"
 model = "mtplx-qwen38-27b-optimized-speed"
 opencode_model = "mtplx/mtplx-qwen38-27b-optimized-speed"
 context_tokens = 262144
+# #148/#151: declared as a speculative arm, structurally rather than by its
+# name. A run selecting this backend refuses to start unless the engine's draft
+# counters are switched on and a --server-log is given to read them from, and
+# refuses to continue if a trial drafts and accepts nothing. We ran this arm
+# for weeks having asserted only that the flag was passed.
+speculative = "mtp"
+draft_engine = "mtplx"
+engine = "mtplx"
 
 # Different family entirely -- Google, not Qwen or DeepSeek. Matched against
 # qwen3.6:27b-coding-mxfp8 on quantization (mxfp8), size (32 GB vs 31 GB) and
@@ -412,6 +429,7 @@ context_tokens = 262144
 description = "Gemma 4 26B A4B, MLX bf16 -- the MLX Fast leaderboard model"
 base_url = "http://127.0.0.1:11434"
 auth_token = "ollama"
+engine = "ollama"
 model = "gemma4:26b-mlx-bf16"
 opencode_model = "ollama/gemma4:26b-mlx-bf16"
 context_tokens = 262144
@@ -420,6 +438,7 @@ context_tokens = 262144
 description = "Gemma 4 31B, mxfp8"
 base_url = "http://127.0.0.1:11434"
 auth_token = "ollama"
+engine = "ollama"
 model = "gemma4:31b-mxfp8"
 context_tokens = 262144
 # 2026-09-01: Google lineage -- the only non-Qwen/DeepSeek/Zhipu backend on
@@ -454,6 +473,7 @@ opencode_model = "ollama/gemma4:31b-mxfp8"
 description = "Qwen3.8-Flash-Next 125B-A6B via Ollama MLX (nvfp4)"
 base_url = "http://127.0.0.1:11434"
 auth_token = "ollama"
+engine = "ollama"
 model = "qwen3.8-flash-next:125b-mlx"
 opencode_model = "ollama/qwen3.8-flash-next:125b-mlx"
 codex_profile = "qwen38flashnext"
@@ -496,6 +516,7 @@ description = "Qwen3.8-Flash-Next 125B-A6B, Unsloth UD-Q2_K_XL, llama.cpp PR #27
 base_url = "http://127.0.0.1:11500"
 auth_token = "llamacpp-local"
 model = "qwen3.8-flash-next-q2"
+engine = "llama.cpp"
 codex_profile = "qwen38fnq2"
 # 131072, not the 65536 tried first: at 65536 Claude Code reported autocompact
 # thrashing -- three compactions in three turns -- and spent 842s on a task
@@ -558,6 +579,7 @@ description = "GLM-5.3-Flash, Unsloth UD-Q2_K_XL, llama.cpp PR #27752"
 base_url = "http://127.0.0.1:11501"
 auth_token = "llamacpp-local"
 model = "glm-5.3-flash-q2"
+engine = "llama.cpp"
 codex_profile = "glm53"
 props_url = "http://127.0.0.1:8030"
 context_tokens = 65536
@@ -619,8 +641,12 @@ description = "Qwen3.8-Flash-Next UD-Q3_K_XL via LM Studio 0.4.23, behind ollama
 retired = "superseded by llamacpp; see the note above (2026-09-01)"
 base_url = "http://127.0.0.1:11502"
 props_url = "http://127.0.0.1:1234/v1/models"
+# ollama_claude_shim does not answer GET, so the /v1/models probe names LM
+# Studio itself; its listing carries this model's id exactly (#78).
+models_url = "http://127.0.0.1:1234"
 auth_token = "lm-studio"
 model = "qwen3.8-flash-next-ud"
+engine = "llama.cpp"
 context_tokens = 131072
 
 # RETIRED 2026-09-01. LM Studio is a wrapper whose runtime is llama.cpp, so on
@@ -640,6 +666,7 @@ retired = "superseded by llamacpp; see the note above (2026-09-01)"
 base_url = "http://127.0.0.1:1234"
 auth_token = "lm-studio"
 model = "qwen3.8-flash-next-ud"
+engine = "llama.cpp"
 opencode_model = "lmstudio/qwen3.8-flash-next-ud"
 context_tokens = 131072
 
@@ -647,9 +674,15 @@ context_tokens = 131072
 # 512 to 320 (#89). `expert_used_count` is 10 in both, and every other hparam
 # matches -- verified with scripts/gguf_meta.py, not assumed from the name.
 #
-# 69.0 GB against 90.0 GB. This is the cleanest one-variable comparison this
-# project has had: same weights, same quant, same engine, same client, measured
-# against qwen38fnq3's 30/30 at a 90s median.
+# 69.0 GB against 90.0 GB. This was written as "the cleanest one-variable
+# comparison this project has had: same weights, same quant, same engine, same
+# client", measured against qwen38fnq3's 30/30 at a 90s median. **The last
+# clause is false and this is now a two-variable comparison**: reap ran under
+# OpenCode 1.18.26 and qwen38fnq3 under 1.18.25 (#137). Same weights, same
+# quant, same engine still holds; the client does not. Every reap figure in
+# RECOMMENDATIONS.md sits on that split, and no cell on this machine measures
+# the client alone, so it cannot be corrected for -- only stated. Re-running
+# qwen38fnq3 under the current client would restore the one-variable claim.
 #
 # Pruned-expert builds are young and this was pruned by an individual, not the
 # model's publisher. A GOOD result needs replication before it displaces the
@@ -664,6 +697,7 @@ description = "Qwen3.8-Flash-Next UD-Q3_K_XL, REAP-320 (320 of 512 experts)"
 base_url = "http://127.0.0.1:8020"
 auth_token = "llamacpp-local"
 model = "qwen3.8-flash-next-q3-reap320"
+engine = "llama.cpp"
 opencode_model = "llamacpp/qwen3.8-flash-next-q3-reap320"
 context_tokens = 131072
 
@@ -672,6 +706,7 @@ description = "Qwen3.8-Flash-Next 125B-A6B, Unsloth UD-Q3_K_XL, llama.cpp PR #27
 base_url = "http://127.0.0.1:11500"
 auth_token = "llamacpp-local"
 model = "qwen3.8-flash-next-q3"
+engine = "llama.cpp"
 codex_profile = "qwen38fnq3"
 # #66: aider was never wired here. It speaks the OpenAI API, so it reaches the
 # shim on :11500 like the others -- the shim exists because Codex 0.150.1 sends
@@ -711,6 +746,7 @@ opencode_model = "llamacpp/qwen3.8-flash-next-q3"
 description = "Ornith-1.5-35B-A3B, Q4_K_M, via Ollama"
 base_url = "http://127.0.0.1:11434"
 auth_token = "ollama"
+engine = "ollama"
 model = "ornith-1.5:35b"
 codex_profile = "ornith15"
 context_tokens = 262144
@@ -756,6 +792,7 @@ description = "Qwen3.8-Flash-Next, AtomicChat AD-4.27bpw-Q4_K_M-M64, PLE table s
 base_url = "http://127.0.0.1:11500"
 auth_token = "llamacpp-local"
 model = "qwen3.8-flash-next-q4m64"
+engine = "llama.cpp"
 codex_profile = "qwen38fnq4m64"
 props_url = "http://127.0.0.1:8020"
 context_tokens = 131072
@@ -790,6 +827,7 @@ description = "Ornith-1.5-35B-A3B Q4_K_M, the identical Ollama GGUF served by ll
 base_url = "http://127.0.0.1:11500"
 auth_token = "llamacpp-local"
 model = "ornith-1.5-35b-llamacpp"
+engine = "llama.cpp"
 codex_profile = "ornith15llamacpp"
 props_url = "http://127.0.0.1:8020"
 context_tokens = 262144
@@ -826,6 +864,9 @@ auth_token = "dsv4-local"
 model = "glm-5.2"
 opencode_model = "ds4/glm-5.2"
 codex_profile = "glm52ds4"
+engine = "ds4"
+# No engine_tree: the description names no tree, and ds4 has four. An
+# undeclared backend resolves to nothing rather than guess one.
 context_tokens = 100000
 
 # GLM-5.3-Flash on ds4 -- **the supported stack** (#38).
@@ -867,10 +908,23 @@ context_tokens = 100000
 [backend.glm53ds4shim]
 description = "GLM-5.3-Flash Q2 on ds4 branch, via ds4_claude_shim (thinking + KV fix)"
 base_url = "http://127.0.0.1:8100"
+# #211: the ds4-server behind the shim. `base_url` above is the shim, and
+# `ds4_serve.py` records the Metal route against the server's port -- so
+# without this the row reads `metal_route: unrecorded` by construction.
+# This is the value the shim is started with (`--upstream`, default
+# http://127.0.0.1:8000), so the config and the process agree.
+engine_url = "http://127.0.0.1:8000"
 props_url = "http://127.0.0.1:8000/v1/models"
+# ds4_claude_shim answers POST only, so the /v1/models probe names the ds4
+# server behind it. ds4 advertises these weights under glm-5.2 aliases, so
+# the row records the disagreement instead of resolving one (#78).
+models_url = "http://127.0.0.1:8000"
 auth_token = "dsv4-local"
 model = "glm-5.3-flash"
 context_tokens = 100000
+engine = "ds4"
+# No engine_tree: "on ds4 branch" names no tree, and ds4 has four. An
+# undeclared backend resolves to nothing rather than guess one.
 
 [backend.glm53ds4]
 description = "GLM-5.3-Flash Q2, antirez GGUF on ds4 upstream/main ec7642c"
@@ -879,6 +933,8 @@ auth_token = "dsv4-local"
 model = "glm-5.3-flash"
 opencode_model = "ds4/glm-5.3-flash"
 codex_profile = "glm53ds4"
+engine = "ds4"
+engine_tree = "~/git/ds4-main"
 # Aider speaks the OpenAI API, so it never sends an Anthropic thinking block
 # and never needs the shim. ds4's default for an unrecognised mode is
 # high-effort thinking, which #63 measured at 8/8 on trivial functions against
@@ -905,6 +961,9 @@ description = "REFERENCE: hosted Claude Opus 5, medium reasoning effort"
 model = "claude-opus-5"
 effort = "medium"
 context_tokens = 200000
+# Hosted, not a local engine: no `engine` key, so a row for this backend
+# carries no engine build. Stamping the local ds4 sha here would be invented
+# provenance on the baseline every local number is read against.
 
 # Same weights, same server, same client as `ds4` under --client opencode --
 # but over the Anthropic wire protocol (/v1/messages) instead of the
@@ -926,6 +985,8 @@ auth_token = "dsv4-local"
 model = "deepseek-v4-flash"
 opencode_model = "ds4anthropic/deepseek-v4-flash"
 codex_profile = "ds4"
+engine = "ds4"
+engine_tree = "~/git/ds4-ivan-qwen38fn"
 context_tokens = 100000
 
 [[task]]
@@ -986,6 +1047,7 @@ description = "Mistral-Nemo 12B instruct Q4_K_M via Ollama (desktop 3080 Ti)"
 tier = "desktop-3080ti"
 base_url = "http://127.0.0.1:11434"
 auth_token = "ollama"
+engine = "ollama"
 model = "mistral-nemo-12b-16384"
 opencode_model = "ollama/mistral-nemo-12b-16384"
 # 16384, NOT the 32768 the other desktop backends use. Mistral-Nemo has no
@@ -1001,6 +1063,7 @@ description = "Gemma 4 12B IT Q4_K_M via Ollama (desktop 3080 Ti)"
 tier = "desktop-3080ti"
 base_url = "http://127.0.0.1:11434"
 auth_token = "ollama"
+engine = "ollama"
 model = "gemma4-12b-it-32768"
 opencode_model = "ollama/gemma4-12b-it-32768"
 # 32768, matching dtornith159b so the two are comparable. The 0/12 recorded on
@@ -1019,6 +1082,7 @@ description = "Ornith-1.5 35B-A3B via Ollama, expert offload (desktop 3080 Ti)"
 tier = "desktop-3080ti"
 base_url = "http://127.0.0.1:11434"
 auth_token = "ollama"
+engine = "ollama"
 model = "ornith-1.5:35b"
 opencode_model = "ollama/ornith-1.5:35b"
 context_tokens = 131072
@@ -1091,6 +1155,7 @@ description = "Ornith-1.5 9B dense via Ollama (desktop 3080 Ti)"
 tier = "desktop-3080ti"
 base_url = "http://127.0.0.1:11434"
 auth_token = "ollama"
+engine = "ollama"
 model = "ornith-1.5-9b-32k"
 opencode_model = "ollama/ornith-1.5-9b-32k"
 # 32768, not the 131072 copied from the Mac's backends: Ollama serves its 4096
@@ -1100,3 +1165,300 @@ opencode_model = "ollama/ornith-1.5-9b-32k"
 # verified 6.11 GiB resident, size_vram == size. Derived model built with
 #   printf 'FROM ornith-1.5:9b\nPARAMETER num_ctx 32768\n' | ollama create ornith-1.5-9b-32k -f -
 context_tokens = 32768
+
+# --- Qwen3.8-Flash-Next on ds4 (#94) --------------------------------------
+# The cell that separates engine from model. Every prior number for this model
+# is llama.cpp, so "ds4 is faster" and "this model is faster" have never been
+# distinguishable. Same model, different engine, same client.
+#
+# Pack: ivanfioravanti/Qwen3.8-Flash-Next-DS4-Q4, a DS4 fast-pack -- NOT a
+# llama.cpp GGUF and standard GGUF tools will not load it. Runtime is
+# ivanfioravanti/ds4-metal branch `qwen3.8-flash-next` (the model card says
+# `-q4`; that branch was renamed and GitHub does not redirect renamed branches).
+#
+# 73.57 GiB of tensors are resident; the 32 GB PLE n-gram table is NOT --
+# the server reports `PLE=SSD-pread/Q4_1-to-BF16-double-buffer` and RSS settles
+# at 74.3 GiB, leaving 37.6 GiB under the 112 GiB ceiling. That was the risk
+# that could have made this unrunnable, and it is measured, not assumed.
+#
+# Startup log confirms the M5 path is live: "Metal 4 tensor API enabled for
+# Tensor kernels" and "complete fast path and 8K scratch admitted".
+# `ds4 --inspect` prints every specialization as `fallback` -- that is inspect
+# never initialising Metal, not a real fallback. Do not read it as one.
+[backend.qwen38fnds4]
+description = "Qwen3.8-Flash-Next Q4_0-routed fast-pack on ds4-metal qwen3.8-flash-next 2021dda, MTP off"
+base_url = "http://127.0.0.1:8000"
+auth_token = "dsv4-local"
+model = "qwen3.8-flash-next-q4"
+opencode_model = "ds4/qwen3.8-flash-next-q4"
+context_tokens = 100000
+engine = "ds4"
+engine_tree = "~/git/ds4-metal"
+
+# Same pack, same binary, MTP speculation on at the depth the runtime's own
+# QWEN38_FLASH_NEXT.md measures as this pack's optimum (5-7; 8 goes EV-negative).
+#
+# Treat a null result here as unproven, not as absence: the scheduler BYPASSES
+# MTP on families where drafts are not accepted, so a loss shows up as
+# "about the same", not as a regression. The author measured his own
+# code-continuation family being bypassed exactly like novel prose
+# (acceptance 0.33-0.5) while deterministic continuations won +42-57%.
+# Our agent turns are structured (tool JSON, repeated paths, diff hunks) and
+# may land on either side. Run the server with --mtp-timing so the acceptance
+# and bypass counters are recorded; without them a null is not diagnosable.
+[backend.qwen38fnds4mtp7]
+description = "Qwen3.8-Flash-Next Q4 fast-pack on ds4-metal 2021dda, embedded MTP --mtp-draft 7"
+base_url = "http://127.0.0.1:8000"
+auth_token = "dsv4-local"
+model = "qwen3.8-flash-next-q4"
+opencode_model = "ds4/qwen3.8-flash-next-q4"
+context_tokens = 100000
+engine = "ds4"
+engine_tree = "~/git/ds4-metal"
+# #148/#151: declared as a speculative arm, structurally rather than by its
+# name. A run selecting this backend refuses to start unless the engine's draft
+# counters are switched on and a --server-log is given to read them from, and
+# refuses to continue if a trial drafts and accepts nothing. We ran this arm
+# for weeks having asserted only that the flag was passed.
+speculative = "mtp"
+draft_engine = "ds4"
+
+# Same weights, same ds4-server -- plus a shim that does THREE things. Each is
+# a confound, and the third is the largest. See ds4_qwen_tool_shim.py.
+#
+# 1. It appends one system line naming the tool-call format. That line names a
+#    serialisation format and offers no help with the task, which is what makes
+#    it defensible -- closer to a chat template than to a hint.
+#
+# 2. **It takes tool requests off ds4's streaming path**, asking upstream for
+#    stream:false and synthesising the SSE stream back to the client. This is
+#    the one that mattered. ds4 logs `invalid tool call returned as assistant
+#    text finish=stop [text_len=231 ...]` and off-stream that text arrives; ON
+#    stream it is dropped, so the client sees nothing at all. Measured on one
+#    identical request, interleaved (2026-09-03):
+#
+#        stream:true    tool_calls 1/12   nothing at all 11/12
+#        stream:false   tool_calls 7/12   XML as text     5/12
+#
+#    OpenCode sets stream:true. That is the whole of the earlier 0/45.
+#
+# 3. It translates the XML tool dialect into real tool_calls when it appears.
+#
+# **A row from this backend did not stream from the engine.** Wall time is
+# unaffected -- a tool call cannot be acted on before it is complete -- but do
+# not compare it to a streaming backend without saying this.
+#
+# Three arms, interleaved, same server, same request (2026-09-03):
+#     direct streaming 0/12   direct non-streaming 4/12   through the shim 12/12
+#
+# `qwen38fnds4` vs `qwen38fnds4shim` is the pair that measures the total cost,
+# and neither is comparable to llama.cpp without saying all of this out loud.
+# Arm B. Identical to qwen38fnds4shim in every respect EXCEPT that the
+# ds4-server behind the shim runs with the embedded MTP head:
+#
+#     --mtp-model ~/models/.../qwen3.8-flash-next-q4-mtp.gguf --mtp-draft 7 --mtp-timing
+#
+# Depth 7 is this pack's own measured optimum (QWEN38_FLASH_NEXT.md: acceptance
+# 5.737/7, and depth 8 goes EV-negative). It carries all three shim confounds
+# plus MTP, and exists as a SEPARATE backend name purely so its rows cannot be
+# pooled with arm A's -- same port, same shim, different engine configuration.
+#
+# **Read a null carefully.** The scheduler bypasses MTP on families where drafts
+# are not accepted, so a loss reads as "about the same" rather than as a
+# regression. --mtp-timing is not optional here: without the acceptance and
+# bypass counters, "MTP did nothing" and "MTP was never engaged" are the same
+# row. The pack author measured his own code-continuation family being bypassed
+# exactly like novel prose, and #105 reports speculative decoding making batch-1
+# decode 18% slower in another engine on this hardware. A negative result is a
+# real possibility and is worth having.
+#
+# **ARM B VARIES TWO THINGS, NOT ONE, AND THE SECOND IS NOT SPEED.** ds4's MTP
+# defaults do not preserve the sampling distribution:
+#
+#     --mtp-exact-sampling   "Preserve the ordinary temperature distribution
+#                             instead of accepting target-matching greedy
+#                             drafts directly."   <- NOT set here
+#     --mtp-margin F          verifier confidence margin for fast acceptance,
+#                             default 3           <- left at default
+#
+# Without `--mtp-exact-sampling` the engine accepts drafts that match what the
+# target would greedily produce, which biases output toward greedy at any
+# temperature above 0. So an arm A vs arm B difference in **pass rate** is not
+# attributable to speculation alone -- the model is being sampled differently.
+# Wall time is the cleaner comparison, and even that is only clean if the token
+# counts match (see AGENTS.md: "a wall-time difference is a token-count
+# hypothesis").
+#
+# This is deliberate for the first run: it measures MTP **as a user would
+# switch it on**, which is a real question. It is NOT the isolation of
+# speculative decoding, and #36's rule -- vary one parameter at a time -- says
+# a third arm with `--mtp-exact-sampling` is what separates the two. Do not
+# report an arm A/B pass-rate gap as a property of speculation without it.
+[backend.qwen38fnds4mtp7shim]
+description = "Qwen3.8-Flash-Next Q4 fast-pack on ds4-metal ba01f5d via the tool-format shim, embedded MTP --mtp-draft 7"
+base_url = "http://127.0.0.1:8101"
+# #211: the ds4-server behind the shim. `base_url` above is the shim, and
+# `ds4_serve.py` records the Metal route against the server's port -- so
+# without this the row reads `metal_route: unrecorded` by construction.
+# This is the value the shim is started with (`--upstream`, default
+# http://127.0.0.1:8000), so the config and the process agree.
+engine_url = "http://127.0.0.1:8000"
+auth_token = "dsv4-local"
+model = "qwen3.8-flash-next-q4"
+opencode_model = "ds4qwenshim/qwen3.8-flash-next-q4"
+context_tokens = 100000
+engine = "ds4"
+engine_tree = "~/git/ds4-metal"
+# #148/#151: declared as a speculative arm, structurally rather than by its
+# name. A run selecting this backend refuses to start unless the engine's draft
+# counters are switched on and a --server-log is given to read them from, and
+# refuses to continue if a trial drafts and accepts nothing. We ran this arm
+# for weeks having asserted only that the flag was passed.
+speculative = "mtp"
+draft_engine = "ds4"
+
+# The Q4_K imatrix rebuild of the same model (#138). Ivan replaced the Q4_0
+# routed-expert file our 135 qwen38fnds4shim rows were taken on, calling it
+# "faster, less accurate", and the file we measured is no longer on the Hub.
+#
+# **This is a different STACK, not a different quant.** Neither binary loads
+# the other's weights -- ds4-metal ba01f5d refuses this file and ivan's branch
+# refuses ours, both with `deepseek4.block_count missing` -- so the engine and
+# the quant move together and no comparison against qwen38fnds4shim can
+# attribute a difference to either alone. Say so wherever these rows are used.
+#
+# Decode A/B, four runs, 2026-09-04: this stack is +9.5% decode and -24.5%
+# prefill against qwen38fnds4shim's. Both answer 6/6 on a six-question
+# ds4-eval gate, which says neither is broken and ranks nothing.
+[backend.qwen38fnds4kimat]
+description = "Qwen3.8-Flash-Next Q4_K imatrix on ivanfioravanti/ds4 qwen3.8-flash-next via the tool-format shim, MTP off; the branch is force-pushed, so the built commit is recorded per run in env, not pinned here"
+base_url = "http://127.0.0.1:8101"
+# #211: the ds4-server behind the shim. `base_url` above is the shim, and
+# `ds4_serve.py` records the Metal route against the server's port -- so
+# without this the row reads `metal_route: unrecorded` by construction.
+# This is the value the shim is started with (`--upstream`, default
+# http://127.0.0.1:8000), so the config and the process agree.
+engine_url = "http://127.0.0.1:8000"
+auth_token = "dsv4-local"
+model = "qwen3.8-flash-next-q4"
+opencode_model = "ds4qwenshim/qwen3.8-flash-next-q4"
+context_tokens = 100000
+engine = "ds4"
+engine_tree = "~/git/ds4-ivan-qwen38fn"
+
+[backend.qwen38fnds4shim]
+description = "Qwen3.8-Flash-Next Q4 fast-pack on ds4-metal ba01f5d via the tool-format shim (non-streaming upstream), MTP off"
+base_url = "http://127.0.0.1:8101"
+# #211: the ds4-server behind the shim. `base_url` above is the shim, and
+# `ds4_serve.py` records the Metal route against the server's port -- so
+# without this the row reads `metal_route: unrecorded` by construction.
+# This is the value the shim is started with (`--upstream`, default
+# http://127.0.0.1:8000), so the config and the process agree.
+engine_url = "http://127.0.0.1:8000"
+auth_token = "dsv4-local"
+model = "qwen3.8-flash-next-q4"
+opencode_model = "ds4qwenshim/qwen3.8-flash-next-q4"
+context_tokens = 100000
+engine = "ds4"
+engine_tree = "~/git/ds4-metal"
+
+# #191: mlx-serve on its own MLX pack. The stack-as-shipped counterpart to
+# `qwen38fnds4kimat` -- the SAME model, Qwen3.8-Flash-Next, but MLX weights at
+# mixed 4/8-bit instead of our Q4_K imatrix GGUF, served by a different engine.
+#
+# Engine and quant move together and neither can be credited alone (#138). That
+# is not a choice: mlx-serve cannot read our GGUF at all. It routes .gguf by
+# `general.architecture`, ours is `qwen4exp`, and the bundled llama.cpp b10472
+# has no such graph -- it parses all fourteen of our qwen4exp.ple.* keys and
+# then refuses the architecture. Both GGUFs we hold are qwen4exp.
+#
+# No `engine_url` and no shim. The ds4 arm sits behind ds4_qwen_tool_shim.py,
+# whose strip is worth 23 points (#112); this arm needs none -- 28 probe
+# completions returned a proper tool_calls array and none carried scaffolding.
+# So `route_query_port` resolves to 11234, `ds4_route.route_for` returns
+# `unrecorded`, and `shim_strip.strip_for` returns None. All three are honest:
+# the Metal route is a ds4 concept and this row must not inherit its
+# provenance (#149).
+#
+# `engine = "mlx-serve"` makes engine_identity stamp the brew binary's
+# --version and mtime rather than a git HEAD, which it has no such thing as.
+[backend.qwen38fnmlxserve]
+description = "Qwen3.8-Flash-Next MLX mixed-4-8bit on mlx-serve (brew 26.9.1), no shim; PLE ships as ngram_table.bin in the pack"
+base_url = "http://127.0.0.1:11234"
+model = "Qwen3.8-Flash-Next-MLX-Serve-mixed-4-8bit"
+# mlx-serve needs no key, but `agent_env` reads this unconditionally when it
+# builds the Anthropic-wire environment -- 32 of 34 backends declare one and
+# leaving it out is a KeyError at the first trial, not a graceful default.
+# Matches the `apiKey` in this provider's opencode.json block.
+auth_token = "local"
+opencode_model = "mlxserve/Qwen3.8-Flash-Next-MLX-Serve-mixed-4-8bit"
+engine = "mlx-serve"
+context_tokens = 100000
+
+# #225: the SAME pack on the git checkout of mlx-serve (main+PR383), built by
+# zig at ~/git/mlx-serve/zig-out/bin/mlx-serve. Same URL and pack as
+# `qwen38fnmlxserve`; the `engine_tree` makes engine_identity stamp the git
+# HEAD sha and the tree binary's mtime rather than the brew --version, so the
+# two arms are distinguishable in the ledger after the fact.
+[backend.qwen38fnmlxserve-git]
+description = "Qwen3.8-Flash-Next MLX mixed-4-8bit on mlx-serve git checkout at ~/git/mlx-serve (main+PR383), no shim; PLE ships as ngram_table.bin in the pack"
+base_url = "http://127.0.0.1:11234"
+model = "Qwen3.8-Flash-Next-MLX-Serve-mixed-4-8bit"
+auth_token = "local"
+opencode_model = "mlxserve/Qwen3.8-Flash-Next-MLX-Serve-mixed-4-8bit"
+engine = "mlx-serve"
+engine_tree = "~/git/mlx-serve"
+context_tokens = 100000
+
+# --- the first MTP arm that is actually an MTP arm (#151, #39) --------------
+#
+# Measured 2026-09-08: ds4 reaches its Qwen MTP path only at `temperature <=
+# 0.0f` (`ds4.c:80120 at ds4-metal ba01f5d`); above it the speculative call
+# does one plain eval and returns (`ds4.c:80216 at ds4-metal ba01f5d`). A
+# request omitting the field gets `DS4_DEFAULT_TEMPERATURE`, `1.0f`
+# (`ds4.h:56 at ds4-metal ba01f5d`), and OpenCode's config declares
+# `"temperature": false` for this model -- it is told the model takes none, so
+# it sends none. Every MTP row before today was taken on an arm that could not
+# draft.
+#
+# The temperature cannot come from OpenCode's config without changing it for
+# every backend sharing the model, so these two run behind a SECOND shim
+# instance on :8102 started with SHIM_TEMPERATURE=0. :8101 is untouched, and
+# the 262 existing rows keep comparing.
+#
+# THEY COME AS A PAIR. Pinning temperature is itself a change of regime, so a
+# greedy MTP arm alone cannot separate speculation from greedy decoding. The
+# control below is the same stack, same shim, same temperature, MTP off.
+
+[backend.qwen38fnds4mtp7greedy]
+description = "Qwen3.8-Flash-Next Q4 fast-pack on ds4-metal ba01f5d, tool-format shim with temperature pinned to 0, embedded MTP --mtp-draft 7"
+base_url = "http://127.0.0.1:8102"
+engine_url = "http://127.0.0.1:8000"
+auth_token = "dsv4-local"
+model = "qwen3.8-flash-next-q4"
+opencode_model = "ds4qwengreedy/qwen3.8-flash-next-q4"
+context_tokens = 100000
+engine = "ds4"
+engine_tree = "~/git/ds4-metal"
+speculative = "mtp"
+# Explicit, not defaulted: `DraftProbe.SWITCHES` is keyed on this, and a
+# missing one makes the arm unreadable by the counter probe -- caught by
+# test_every_declared_arm_names_an_engine_the_probe_can_read.
+draft_engine = "ds4"
+# A declaration that this arm's shim pins the sampler, checked by
+# `run.greedy_precondition`. It is not proof -- the proof is #210's
+# post-trial gate, which refuses an arm that emitted no speculative cycle
+# whatever anyone declared here.
+pinned_temperature = 0
+
+[backend.qwen38fnds4greedy]
+description = "Qwen3.8-Flash-Next Q4 fast-pack on ds4-metal ba01f5d, tool-format shim with temperature pinned to 0, MTP off -- the control for qwen38fnds4mtp7greedy"
+base_url = "http://127.0.0.1:8102"
+engine_url = "http://127.0.0.1:8000"
+auth_token = "dsv4-local"
+model = "qwen3.8-flash-next-q4"
+opencode_model = "ds4qwengreedy/qwen3.8-flash-next-q4"
+context_tokens = 100000
+engine = "ds4"
+engine_tree = "~/git/ds4-metal"
+pinned_temperature = 0

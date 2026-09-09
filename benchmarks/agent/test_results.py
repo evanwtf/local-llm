@@ -8,12 +8,14 @@ that knew about one of them silently counted the other fifteen.
 from __future__ import annotations
 
 import json
-import pathlib
 
 import pytest
 from results import (
     LEGACY_EXCLUSION_KEYS,
+    REQUIRED,
+    REQUIRED_WITH_VERDICT,
     SCHEMA_VERSION,
+    default_path,
     is_excluded,
     load,
     new_row,
@@ -24,7 +26,7 @@ from results import (
     write_row,
 )
 
-REAL_RESULTS = pathlib.Path(__file__).parent / "results.jsonl"
+REAL_RESULTS = default_path()
 
 
 def good_row(**over):
@@ -90,6 +92,43 @@ def test_new_row_starts_unexcluded_with_an_explicit_null_reason():
     )
     assert row["excluded"] is False
     assert row["exclusion_reason"] is None
+
+
+def test_new_row_labels_its_target_layout_legacy():
+    """#146: every row says which checkout it was built from. "legacy" is
+    what the harness has always done, so it is the default."""
+    assert (
+        new_row(
+            task="t",
+            backend="b",
+            client="codex",
+            trial=1,
+            model="m",
+            context_tokens=1,
+            effort=None,
+            env={},
+        )["target_layout"]
+        == "legacy"
+    )
+
+
+def test_a_sandbox_row_says_so():
+    """Legacy and sandbox rows must never pool by accident: the field travels
+    with the row from birth."""
+    assert (
+        new_row(
+            task="t",
+            backend="b",
+            client="codex",
+            trial=1,
+            model="m",
+            context_tokens=1,
+            effort=None,
+            env={},
+            target_layout="sandbox",
+        )["target_layout"]
+        == "sandbox"
+    )
 
 
 @pytest.mark.parametrize(
@@ -341,3 +380,170 @@ def test_a_timeout_is_still_a_real_outcome() -> None:
     """`error` is deliberately not an exclusion: the trial genuinely failed."""
     row = normalize({"task": "t", "error": "timeout", "passed": False})
     assert row["excluded"] is False
+
+
+def test_the_row_names_the_version_of_the_client_that_ran():
+    """#131: the client version must be readable without a join.
+
+    `env` carries a version for every client installed, so a reader had to
+    know to look up `env[row["client"]]`. #104's finding -- OpenCode
+    1.18.26 -> 1.18.27 roughly doubling median turns -- cannot be applied to a
+    single row that way.
+    """
+    row = new_row(
+        task="t",
+        backend="b",
+        client="opencode",
+        trial=1,
+        model="m",
+        context_tokens=8192,
+        effort=None,
+        env={"opencode": "1.18.27", "codex": "codex-cli 0.152.0"},
+    )
+    assert row["client_version"] == "1.18.27"
+
+
+def test_the_version_is_stored_exactly_as_the_tool_printed_it():
+    """Normalising would invent a format and lose what the tool said."""
+    row = new_row(
+        task="t",
+        backend="b",
+        client="codex",
+        trial=1,
+        model="m",
+        context_tokens=8192,
+        effort=None,
+        env={"opencode": "1.18.27", "codex": "codex-cli 0.152.0"},
+    )
+    assert row["client_version"] == "codex-cli 0.152.0"
+
+
+def test_an_unestablished_client_version_is_none_not_a_guess():
+    """Absent means "not established", never "same as now"."""
+    row = new_row(
+        task="t",
+        backend="b",
+        client="aider",
+        trial=1,
+        model="m",
+        context_tokens=8192,
+        effort=None,
+        env={"opencode": "1.18.27"},
+    )
+    assert row["client_version"] is None
+
+
+def test_a_blank_version_string_is_none_rather_than_empty():
+    row = new_row(
+        task="t",
+        backend="b",
+        client="opencode",
+        trial=1,
+        model="m",
+        context_tokens=8192,
+        effort=None,
+        env={"opencode": "   "},
+    )
+    assert row["client_version"] is None
+
+
+def test_client_version_is_not_required_so_existing_rows_still_validate():
+    """979 rows predate this field and `validate` runs on read (#131)."""
+    assert "client_version" not in REQUIRED
+    assert "client_version" not in REQUIRED_WITH_VERDICT
+
+
+def test_the_row_records_where_it_sat_in_the_running_order():
+    """#130: a row that does not say where it sat cannot be checked for
+    positional bias afterwards, and none of the existing rows can be."""
+    row = new_row(
+        task="t",
+        backend="b",
+        client="opencode",
+        trial=2,
+        model="m",
+        context_tokens=8192,
+        effort=None,
+        env={},
+        run_position=2,
+        run_arms=3,
+    )
+    assert row["run_position"] == 2
+    assert row["run_arms"] == 3
+
+
+def test_an_unrecorded_running_order_is_none_not_first():
+    """Every row written before #130 has no order. Defaulting to 1 would
+    claim they all ran first, which is exactly the bias being looked for."""
+    row = new_row(
+        task="t",
+        backend="b",
+        client="opencode",
+        trial=1,
+        model="m",
+        context_tokens=8192,
+        effort=None,
+        env={},
+    )
+    assert row["run_position"] is None
+    assert row["run_arms"] is None
+
+
+def test_run_position_is_not_required_so_existing_rows_still_validate():
+    assert "run_position" not in REQUIRED
+    assert "run_arms" not in REQUIRED
+
+
+# ---------------------------------------------------------------------------
+# #131: nothing pins the client any more, so recording the version is the only
+# thing making a comparison recoverable. It cannot rest on discipline.
+
+
+def test_a_new_row_with_no_client_version_is_excluded_at_write(tmp_path):
+    """With no pin, an unrecorded client version is an unusable row."""
+    path = tmp_path / "results.jsonl"
+    row = good_row()
+    row["client_version"] = None
+    written = write_row(row, path)
+    assert written["excluded"] is True
+    assert "client_version" in str(written.get("exclusion_reason", ""))
+
+
+def test_the_row_is_still_written_so_an_expensive_trial_is_not_lost(tmp_path):
+    path = tmp_path / "results.jsonl"
+    row = good_row()
+    row["client_version"] = None
+    write_row(row, path)
+    assert len(path.read_text().strip().splitlines()) == 1
+
+
+def test_a_row_that_records_its_client_version_is_untouched(tmp_path):
+    path = tmp_path / "results.jsonl"
+    row = good_row()
+    row["client_version"] = "1.18.28"
+    written = write_row(row, path)
+    assert written["excluded"] is False
+    assert "exclusion_reason" not in written or not written["exclusion_reason"]
+
+
+def test_an_already_excluded_row_keeps_its_own_reason(tmp_path):
+    """The client-version guard must not overwrite why a row was excluded."""
+    path = tmp_path / "results.jsonl"
+    row = good_row()
+    row["client_version"] = None
+    row["excluded"] = True
+    row["exclusion_reason"] = "harness fault"
+    written = write_row(row, path)
+    assert written["exclusion_reason"] == "harness fault"
+
+
+def test_a_legacy_row_without_the_field_at_all_is_not_condemned(tmp_path):
+    """979 rows predate the field. Reading them must stay possible."""
+    path = tmp_path / "results.jsonl"
+    row = good_row()
+    del row["client_version"]
+    written = write_row(row, path)
+    assert written["excluded"] is True, (
+        "a row written now must record the version; only rows already on disk "
+        "are grandfathered, and those are never re-written"
+    )

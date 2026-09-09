@@ -1,0 +1,27 @@
+2026-09-03 23:33:58,966 INFO [8bb4f23@M5-Max-128GB] 2026-09-04T03:33:58Z (23:33:58 EDT) | harness 8bb4f23
+2026-09-03 23:33:58,981 INFO [8bb4f23@M5-Max-128GB]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-03 23:33:59,100 INFO [8bb4f23@M5-Max-128GB] 2095653641973797347  VERIFIED post  @Beamsters1  Thu Sep 03 23:22:18 +0000 2026  via fxtwitter
+2026-09-03 23:33:59,100 INFO [8bb4f23@M5-Max-128GB]     Well ... MTP tuning round 2 for Qwen3.8-Flash-Next, coding short greedy broke 127 tok/s at depth 5 and prose/novel reached 70+ regularly. This thing is surpassing API speed.
+2026-09-03 23:33:59,279 INFO [8bb4f23@M5-Max-128GB] 2095661995588788387  VERIFIED post  @Beamsters1  Thu Sep 03 23:55:29 +0000 2026  via fxtwitter
+2026-09-03 23:33:59,279 INFO [8bb4f23@M5-Max-128GB]     Cheaper MTP rounds is ready.   https://github.com/ddalcu/mlx-serve/pull/350
+2026-09-03 23:33:59,412 INFO [8bb4f23@M5-Max-128GB] 2095661840306938198  VERIFIED reply  @ddalcu  Thu Sep 03 23:54:52 +0000 2026  via fxtwitter
+2026-09-03 23:33:59,412 INFO [8bb4f23@M5-Max-128GB]     Yes, I added RHT to MLX-serve. I’m just running your rust engine vs my zig engine with added support for your model. What is interesting, and trying next, is to combine some of your speculation (which
+2026-09-03 23:33:59,582 INFO [8bb4f23@M5-Max-128GB] 2095681498687181195  VERIFIED post  @TheDavidTai  Fri Sep 04 01:12:59 +0000 2026  via fxtwitter
+2026-09-03 23:33:59,582 INFO [8bb4f23@M5-Max-128GB]     I feel like we are getting close to a break through to be able to generally use ANE in the next few months.  If it closes the gap with Spark on prefill I will be quite happy.  I'd love to replace some
+2026-09-03 23:33:59,582 INFO [8bb4f23@M5-Max-128GB]     quotes @originalmaderix: Alright, what the hell. Enjoy! 😅  https://maderix.github.io/articles/inside-the-m4-ane-part-4b/ https://github.com/maderix/mil-hwx-compiler
+2026-09-03 23:33:59,731 INFO [8bb4f23@M5-Max-128GB] 2095629875738517876  VERIFIED post  @ivanfioravanti  Thu Sep 03 21:47:51 +0000 2026  via fxtwitter
+2026-09-03 23:33:59,731 INFO [8bb4f23@M5-Max-128GB]     I think Raptor 0.5 model and idea behind it is really relevant for the Local AI space! Downloaded and ready to test it!
+2026-09-03 23:33:59,731 INFO [8bb4f23@M5-Max-128GB]     quotes @dealignai: Its time we focus on sub 24gb Mac’s - in this day and age, when someone goes and buys a $3000 Mac, while us local-pilled people understand that nearly all that 
+2026-09-03 23:33:59,907 INFO [8bb4f23@M5-Max-128GB] 2095623899979600152  VERIFIED post  @danielhanchen  Thu Sep 03 21:24:07 +0000 2026  via fxtwitter
+2026-09-03 23:33:59,907 INFO [8bb4f23@M5-Max-128GB]     Hermes now has a local backend!  There's support for Unsloth UD-Q4_K_XL and UD-Q4_K_M quants for DeepSeek-V4-Flash, Qwen3.8-27B, 3.6-35B-A3B and Qwen3.8-Flash-Next in Hermes!
+2026-09-03 23:33:59,907 INFO [8bb4f23@M5-Max-128GB]     quotes @UnslothAI: You can now run Unsloth GGUFs locally in one-click via Hermes! ✨  Qwen3.8-27B, Qwen3.8-Flash, DeepSeek-V4-Flash and more are all supported.
+2026-09-03 23:33:59,907 INFO [8bb4f23@M5-Max-128GB] 
+2026-09-03 23:33:59,907 INFO [8bb4f23@M5-Max-128GB] Verified 6: 6 confirmed, 0 not.
+2026-09-03 23:33:59,907 INFO [8bb4f23@M5-Max-128GB] Paste onto the issue:
+2026-09-03 23:33:59,907 INFO [8bb4f23@M5-Max-128GB]   **Verified** 2026-09-04: post exists, authored by @Beamsters1, posted Thu Sep 03 23:22:18 +0000 2026.
+2026-09-03 23:33:59,907 INFO [8bb4f23@M5-Max-128GB]   **Verified** 2026-09-04: post exists, authored by @Beamsters1, posted Thu Sep 03 23:55:29 +0000 2026.
+2026-09-03 23:33:59,907 INFO [8bb4f23@M5-Max-128GB]   **Verified** 2026-09-04: post exists, authored by @ddalcu, posted Thu Sep 03 23:54:52 +0000 2026.
+2026-09-03 23:33:59,907 INFO [8bb4f23@M5-Max-128GB]   **Verified** 2026-09-04: post exists, authored by @TheDavidTai, posted Fri Sep 04 01:12:59 +0000 2026.
+2026-09-03 23:33:59,907 INFO [8bb4f23@M5-Max-128GB]   **Verified** 2026-09-04: post exists, authored by @ivanfioravanti, posted Thu Sep 03 21:47:51 +0000 2026.
+2026-09-03 23:33:59,907 INFO [8bb4f23@M5-Max-128GB]   **Verified** 2026-09-04: post exists, authored by @danielhanchen, posted Thu Sep 03 21:24:07 +0000 2026.
+2026-09-03 23:33:59,907 INFO [8bb4f23@M5-Max-128GB] log: /Users/evanhoffman/git/local-llm/logs/sweeps/verify-posts-M5-Max-128GB-20260904T033358Z.log

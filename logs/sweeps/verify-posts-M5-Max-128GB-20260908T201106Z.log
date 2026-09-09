@@ -1,0 +1,25 @@
+2026-09-08 16:11:06,251 INFO [a4ff9e3@M5-Max-128GB none pld=n/a] 2026-09-08T20:11:06Z (16:11:06 EDT) | harness a4ff9e3
+2026-09-08 16:11:06,315 INFO [a4ff9e3@M5-Max-128GB none pld=n/a]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-08 16:11:06,527 INFO [a4ff9e3@M5-Max-128GB none pld=n/a] 2097342633571987472  VERIFIED reply  @TheDavidTai  Tue Sep 08 15:13:45 +0000 2026  via fxtwitter
+2026-09-08 16:11:06,528 INFO [a4ff9e3@M5-Max-128GB none pld=n/a]     @Youssofal_ talked me into doing the full 4bit BareSpeed quantization for MTPLX after I got done with the mixed 8/4bit SpeedOptimized and it's extremely fast without my candidate optimizations impleme
+2026-09-08 16:11:06,671 INFO [a4ff9e3@M5-Max-128GB none pld=n/a] 2097305823827382644  VERIFIED post  @TheDavidTai  Tue Sep 08 12:47:29 +0000 2026  via fxtwitter
+2026-09-08 16:11:06,671 INFO [a4ff9e3@M5-Max-128GB none pld=n/a]     I implemented a typical acceptance in MTPLX for Qwen 3.8 Flash Next.    You can hit up to 110 TPS across contexts up to 64k where it generally stays above 90 TPS.  This is about 24% over the full batt
+2026-09-08 16:11:06,846 INFO [a4ff9e3@M5-Max-128GB none pld=n/a] 2097278421394981112  VERIFIED post  @TheDavidTai  Tue Sep 08 10:58:35 +0000 2026  via fxtwitter
+2026-09-08 16:11:06,846 INFO [a4ff9e3@M5-Max-128GB none pld=n/a]     Check out all the large context work @Beamsters1 and @ddalcu are doing if that's your jam.  It is done at KV=fp8 and a full Q4 quantization but it seems to work fine.  Maybe you should demo some auto 
+2026-09-08 16:11:06,846 INFO [a4ff9e3@M5-Max-128GB none pld=n/a]     quotes @Beamsters1: Real Qwen3.8 Flash Next's work at 500k+ context. It reasons well, toolcalls always hit and building MLX-serve x Opencode2's integration plug-in on its own. Desp
+2026-09-08 16:11:07,025 INFO [a4ff9e3@M5-Max-128GB none pld=n/a] 2097150122526138503  VERIFIED post  @TheDavidTai  Tue Sep 08 02:28:47 +0000 2026  via fxtwitter
+2026-09-08 16:11:07,026 INFO [a4ff9e3@M5-Max-128GB none pld=n/a]     Apparently Qwen 3.8 Flash is extremely good at human eval and really only screws up due to its xhigh thinking blowing up the token limit.
+2026-09-08 16:11:07,198 INFO [a4ff9e3@M5-Max-128GB none pld=n/a] 2097012438411411612  VERIFIED post  @TheDavidTai  Mon Sep 07 17:21:40 +0000 2026  via fxtwitter
+2026-09-08 16:11:07,199 INFO [a4ff9e3@M5-Max-128GB none pld=n/a]     So you can get Qwen 3.8 125b to 110 tps on 16k context if you use alternative good enough draft token verifiers instead of exact verifiers without much loss.   30-40% extra tps, probably better than d
+2026-09-08 16:11:07,382 INFO [a4ff9e3@M5-Max-128GB none pld=n/a] 2097382840061063643  VERIFIED reply  @TheDavidTai  Tue Sep 08 17:53:31 +0000 2026  via fxtwitter
+2026-09-08 16:11:07,382 INFO [a4ff9e3@M5-Max-128GB none pld=n/a]     @norpadon I'll take a look if you don't do the analysis before me but it might be a weekend project.  Do you have any other verifier ideas?  Spec decode is where 30-50% of potential gains are hiding a
+2026-09-08 16:11:07,383 INFO [a4ff9e3@M5-Max-128GB none pld=n/a] 
+2026-09-08 16:11:07,383 INFO [a4ff9e3@M5-Max-128GB none pld=n/a] Verified 6: 6 confirmed, 0 not.
+2026-09-08 16:11:07,383 INFO [a4ff9e3@M5-Max-128GB none pld=n/a] Paste onto the issue:
+2026-09-08 16:11:07,383 INFO [a4ff9e3@M5-Max-128GB none pld=n/a]   **Verified** 2026-09-08: post exists, authored by @TheDavidTai, posted Tue Sep 08 15:13:45 +0000 2026.
+2026-09-08 16:11:07,383 INFO [a4ff9e3@M5-Max-128GB none pld=n/a]   **Verified** 2026-09-08: post exists, authored by @TheDavidTai, posted Tue Sep 08 12:47:29 +0000 2026.
+2026-09-08 16:11:07,383 INFO [a4ff9e3@M5-Max-128GB none pld=n/a]   **Verified** 2026-09-08: post exists, authored by @TheDavidTai, posted Tue Sep 08 10:58:35 +0000 2026.
+2026-09-08 16:11:07,383 INFO [a4ff9e3@M5-Max-128GB none pld=n/a]   **Verified** 2026-09-08: post exists, authored by @TheDavidTai, posted Tue Sep 08 02:28:47 +0000 2026.
+2026-09-08 16:11:07,383 INFO [a4ff9e3@M5-Max-128GB none pld=n/a]   **Verified** 2026-09-08: post exists, authored by @TheDavidTai, posted Mon Sep 07 17:21:40 +0000 2026.
+2026-09-08 16:11:07,383 INFO [a4ff9e3@M5-Max-128GB none pld=n/a]   **Verified** 2026-09-08: post exists, authored by @TheDavidTai, posted Tue Sep 08 17:53:31 +0000 2026.
+2026-09-08 16:11:07,383 INFO [a4ff9e3@M5-Max-128GB none pld=n/a] log: /Users/evanhoffman/git/local-llm/logs/sweeps/verify-posts-M5-Max-128GB-20260908T201106Z.log

@@ -1,0 +1,71 @@
+2026-09-03 23:32:31,778 INFO [8bb4f23@M5-Max-128GB] 2026-09-04T03:32:31Z (23:32:31 EDT) | harness 8bb4f23
+2026-09-03 23:32:31,794 INFO [8bb4f23@M5-Max-128GB]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-03 23:32:31,945 INFO [8bb4f23@M5-Max-128GB] 2095684745279811608  VERIFIED reply  @Beamsters1  Fri Sep 04 01:25:53 +0000 2026  via fxtwitter
+2026-09-03 23:32:31,945 INFO [8bb4f23@M5-Max-128GB]     @humanrunway @ddalcu yes 128 gb m5 max
+2026-09-03 23:32:32,077 INFO [8bb4f23@M5-Max-128GB] 2095684706981548171  VERIFIED reply  @Beamsters1  Fri Sep 04 01:25:44 +0000 2026  via fxtwitter
+2026-09-03 23:32:32,077 INFO [8bb4f23@M5-Max-128GB]     @sliiQ yes, you can try it with mlx-serve.
+2026-09-03 23:32:32,255 INFO [8bb4f23@M5-Max-128GB] 2095681498687181195  VERIFIED post  @TheDavidTai  Fri Sep 04 01:12:59 +0000 2026  via fxtwitter
+2026-09-03 23:32:32,255 INFO [8bb4f23@M5-Max-128GB]     I feel like we are getting close to a break through to be able to generally use ANE in the next few months.  If it closes the gap with Spark on prefill I will be quite happy.  I'd love to replace some
+2026-09-03 23:32:32,255 INFO [8bb4f23@M5-Max-128GB]     quotes @originalmaderix: Alright, what the hell. Enjoy! 😅  https://maderix.github.io/articles/inside-the-m4-ane-part-4b/ https://github.com/maderix/mil-hwx-compiler
+2026-09-03 23:32:32,397 INFO [8bb4f23@M5-Max-128GB] 2095675282787041445  VERIFIED reply  @ddalcu  Fri Sep 04 00:48:17 +0000 2026  via fxtwitter
+2026-09-03 23:32:32,397 INFO [8bb4f23@M5-Max-128GB]     yep, i'm not so sure if its worth going Hadamard vs affine.  There is also AWQ, DWQ, iMatrix.  And like you said, you end up with custom kernels, and potentially not being able to leverage ASIC's in f
+2026-09-03 23:32:32,525 INFO [8bb4f23@M5-Max-128GB] 2095662388930584621  VERIFIED reply  @TheDavidTai  Thu Sep 03 23:57:03 +0000 2026  via fxtwitter
+2026-09-03 23:32:32,525 INFO [8bb4f23@M5-Max-128GB]     @kesslerIO Yeah, memory usage can definitely be improved though I had a budget of 110 which can go up or down if needed since you can adjust cache sizes and max k/v held in memory.
+2026-09-03 23:32:32,650 INFO [8bb4f23@M5-Max-128GB] 2095661995588788387  VERIFIED post  @Beamsters1  Thu Sep 03 23:55:29 +0000 2026  via fxtwitter
+2026-09-03 23:32:32,650 INFO [8bb4f23@M5-Max-128GB]     Cheaper MTP rounds is ready.   https://github.com/ddalcu/mlx-serve/pull/350
+2026-09-03 23:32:32,799 INFO [8bb4f23@M5-Max-128GB] 2095661840306938198  VERIFIED reply  @ddalcu  Thu Sep 03 23:54:52 +0000 2026  via fxtwitter
+2026-09-03 23:32:32,799 INFO [8bb4f23@M5-Max-128GB]     Yes, I added RHT to MLX-serve. I’m just running your rust engine vs my zig engine with added support for your model. What is interesting, and trying next, is to combine some of your speculation (which
+2026-09-03 23:32:32,929 INFO [8bb4f23@M5-Max-128GB] 2095659416406397155  VERIFIED reply  @Beamsters1  Thu Sep 03 23:45:14 +0000 2026  via fxtwitter
+2026-09-03 23:32:32,929 INFO [8bb4f23@M5-Max-128GB]     @TheDavidTai stock one, but with a custom mini drafter for the big drafter - a double draft.
+2026-09-03 23:32:33,061 INFO [8bb4f23@M5-Max-128GB] 2095658157309641136  VERIFIED reply  @ddalcu  Thu Sep 03 23:40:14 +0000 2026  via fxtwitter
+2026-09-03 23:32:33,061 INFO [8bb4f23@M5-Max-128GB]     @norpadon @dimashvets @Darkolorin , welcome to the MLX Club 😄  @Youssofal_  is probably the most entertaining X account I follow. Thank you all for pushing MLX, and hope to see the many missing featur
+2026-09-03 23:32:33,176 INFO [8bb4f23@M5-Max-128GB] 2095653641973797347  VERIFIED post  @Beamsters1  Thu Sep 03 23:22:18 +0000 2026  via fxtwitter
+2026-09-03 23:32:33,176 INFO [8bb4f23@M5-Max-128GB]     Well ... MTP tuning round 2 for Qwen3.8-Flash-Next, coding short greedy broke 127 tok/s at depth 5 and prose/novel reached 70+ regularly. This thing is surpassing API speed.
+2026-09-03 23:32:33,357 INFO [8bb4f23@M5-Max-128GB] 2095646386553586050  VERIFIED post  @TheDavidTai  Thu Sep 03 22:53:28 +0000 2026  via fxtwitter
+2026-09-03 23:32:33,357 INFO [8bb4f23@M5-Max-128GB]     Will try this for Qwen 3.8 Flash Next's prefill
+2026-09-03 23:32:33,357 INFO [8bb4f23@M5-Max-128GB]     quotes @MohamedHz72007: v0.2.3 is out. “More Flexibility, Smaller Legos” We killed the monolith. Every quantization format is now a tiny, replaceable Lego brick.
+2026-09-03 23:32:33,548 INFO [8bb4f23@M5-Max-128GB] 2095643598972924317  VERIFIED post  @TheDavidTai  Thu Sep 03 22:42:23 +0000 2026  via fxtwitter
+2026-09-03 23:32:33,548 INFO [8bb4f23@M5-Max-128GB]     Lets I'm paying $1.2k/month across 6 subs and I can replace 5 of them with a 512gb M5 Ultra at say 24k.  I would get that paid back in tokens in 24 months (2 Years) and still have a used M5 Ultra that
+2026-09-03 23:32:33,548 INFO [8bb4f23@M5-Max-128GB]     quotes @mfranz_on: “Local models are just a joke”  Ok. Let’s do some maths together.  Let’s consider a mid GPU, consumer lever, RTX 3090 24GB, ~1k$. The best model in terms of abi
+2026-09-03 23:32:33,672 INFO [8bb4f23@M5-Max-128GB] 2095643423298490684  VERIFIED reply  @antirez  Thu Sep 03 22:41:41 +0000 2026  via fxtwitter
+2026-09-03 23:32:33,673 INFO [8bb4f23@M5-Max-128GB]     @TheDavidTai Indeed, I selected 12 benchmarks on a set of over 100, focusing on the ones that were harder to complete. Otherwise that would take a week with my hardware :)
+2026-09-03 23:32:33,792 INFO [8bb4f23@M5-Max-128GB] 2095637866852368566  VERIFIED reply  @antirez  Thu Sep 03 22:19:37 +0000 2026  via fxtwitter
+2026-09-03 23:32:33,792 INFO [8bb4f23@M5-Max-128GB]     @ivanfioravanti Yep, MXFP4
+2026-09-03 23:32:33,914 INFO [8bb4f23@M5-Max-128GB] 2095637511049502902  VERIFIED reply  @ivanfioravanti  Thu Sep 03 22:18:12 +0000 2026  via fxtwitter
+2026-09-03 23:32:33,914 INFO [8bb4f23@M5-Max-128GB]     @antirez DeepSeek mxfp4?
+2026-09-03 23:32:34,060 INFO [8bb4f23@M5-Max-128GB] 2095637394015813810  VERIFIED reply  @ivanfioravanti  Thu Sep 03 22:17:44 +0000 2026  via fxtwitter
+2026-09-03 23:32:34,060 INFO [8bb4f23@M5-Max-128GB]     @antirez I bet Qwen 3.8 Flash Next will be lower.
+2026-09-03 23:32:34,227 INFO [8bb4f23@M5-Max-128GB] 2095635731536367841  VERIFIED post  @antirez  Thu Sep 03 22:11:08 +0000 2026  via fxtwitter
+2026-09-03 23:32:34,227 INFO [8bb4f23@M5-Max-128GB]     I ran an extensive benchmark against DeepSeek v4 Flash and GLM 5.3 Flash Q2, Q4 and mixed quants. Those are the results obtained. Mix of (hard-ish) benchmarks on cybersecurity, math, QA, ...
+2026-09-03 23:32:34,419 INFO [8bb4f23@M5-Max-128GB] 2095629875738517876  VERIFIED post  @ivanfioravanti  Thu Sep 03 21:47:51 +0000 2026  via fxtwitter
+2026-09-03 23:32:34,420 INFO [8bb4f23@M5-Max-128GB]     I think Raptor 0.5 model and idea behind it is really relevant for the Local AI space! Downloaded and ready to test it!
+2026-09-03 23:32:34,420 INFO [8bb4f23@M5-Max-128GB]     quotes @dealignai: Its time we focus on sub 24gb Mac’s - in this day and age, when someone goes and buys a $3000 Mac, while us local-pilled people understand that nearly all that 
+2026-09-03 23:32:34,571 INFO [8bb4f23@M5-Max-128GB] 2095623899979600152  VERIFIED post  @danielhanchen  Thu Sep 03 21:24:07 +0000 2026  via fxtwitter
+2026-09-03 23:32:34,571 INFO [8bb4f23@M5-Max-128GB]     Hermes now has a local backend!  There's support for Unsloth UD-Q4_K_XL and UD-Q4_K_M quants for DeepSeek-V4-Flash, Qwen3.8-27B, 3.6-35B-A3B and Qwen3.8-Flash-Next in Hermes!
+2026-09-03 23:32:34,571 INFO [8bb4f23@M5-Max-128GB]     quotes @UnslothAI: You can now run Unsloth GGUFs locally in one-click via Hermes! ✨  Qwen3.8-27B, Qwen3.8-Flash, DeepSeek-V4-Flash and more are all supported.
+2026-09-03 23:32:34,715 INFO [8bb4f23@M5-Max-128GB] 2095600237955952847  VERIFIED post  @ddalcu  Thu Sep 03 19:50:05 +0000 2026  via fxtwitter
+2026-09-03 23:32:34,715 INFO [8bb4f23@M5-Max-128GB]     MLX-Serve v26.9.1 is now released ! Another @pidotdev + @Alibaba_Qwen Flash one shot, this model is truly amazing.  I simply pasted a screenshot of @bijanbowen prompt and this was the output.  Huge th
+2026-09-03 23:32:34,715 INFO [8bb4f23@M5-Max-128GB] 
+2026-09-03 23:32:34,715 INFO [8bb4f23@M5-Max-128GB] Verified 20: 20 confirmed, 0 not.
+2026-09-03 23:32:34,715 INFO [8bb4f23@M5-Max-128GB] Paste onto the issue:
+2026-09-03 23:32:34,715 INFO [8bb4f23@M5-Max-128GB]   **Verified** 2026-09-04: post exists, authored by @Beamsters1, posted Fri Sep 04 01:25:53 +0000 2026.
+2026-09-03 23:32:34,715 INFO [8bb4f23@M5-Max-128GB]   **Verified** 2026-09-04: post exists, authored by @Beamsters1, posted Fri Sep 04 01:25:44 +0000 2026.
+2026-09-03 23:32:34,715 INFO [8bb4f23@M5-Max-128GB]   **Verified** 2026-09-04: post exists, authored by @TheDavidTai, posted Fri Sep 04 01:12:59 +0000 2026.
+2026-09-03 23:32:34,715 INFO [8bb4f23@M5-Max-128GB]   **Verified** 2026-09-04: post exists, authored by @ddalcu, posted Fri Sep 04 00:48:17 +0000 2026.
+2026-09-03 23:32:34,715 INFO [8bb4f23@M5-Max-128GB]   **Verified** 2026-09-04: post exists, authored by @TheDavidTai, posted Thu Sep 03 23:57:03 +0000 2026.
+2026-09-03 23:32:34,715 INFO [8bb4f23@M5-Max-128GB]   **Verified** 2026-09-04: post exists, authored by @Beamsters1, posted Thu Sep 03 23:55:29 +0000 2026.
+2026-09-03 23:32:34,715 INFO [8bb4f23@M5-Max-128GB]   **Verified** 2026-09-04: post exists, authored by @ddalcu, posted Thu Sep 03 23:54:52 +0000 2026.
+2026-09-03 23:32:34,715 INFO [8bb4f23@M5-Max-128GB]   **Verified** 2026-09-04: post exists, authored by @Beamsters1, posted Thu Sep 03 23:45:14 +0000 2026.
+2026-09-03 23:32:34,715 INFO [8bb4f23@M5-Max-128GB]   **Verified** 2026-09-04: post exists, authored by @ddalcu, posted Thu Sep 03 23:40:14 +0000 2026.
+2026-09-03 23:32:34,716 INFO [8bb4f23@M5-Max-128GB]   **Verified** 2026-09-04: post exists, authored by @Beamsters1, posted Thu Sep 03 23:22:18 +0000 2026.
+2026-09-03 23:32:34,716 INFO [8bb4f23@M5-Max-128GB]   **Verified** 2026-09-04: post exists, authored by @TheDavidTai, posted Thu Sep 03 22:53:28 +0000 2026.
+2026-09-03 23:32:34,716 INFO [8bb4f23@M5-Max-128GB]   **Verified** 2026-09-04: post exists, authored by @TheDavidTai, posted Thu Sep 03 22:42:23 +0000 2026.
+2026-09-03 23:32:34,716 INFO [8bb4f23@M5-Max-128GB]   **Verified** 2026-09-04: post exists, authored by @antirez, posted Thu Sep 03 22:41:41 +0000 2026.
+2026-09-03 23:32:34,716 INFO [8bb4f23@M5-Max-128GB]   **Verified** 2026-09-04: post exists, authored by @antirez, posted Thu Sep 03 22:19:37 +0000 2026.
+2026-09-03 23:32:34,716 INFO [8bb4f23@M5-Max-128GB]   **Verified** 2026-09-04: post exists, authored by @ivanfioravanti, posted Thu Sep 03 22:18:12 +0000 2026.
+2026-09-03 23:32:34,716 INFO [8bb4f23@M5-Max-128GB]   **Verified** 2026-09-04: post exists, authored by @ivanfioravanti, posted Thu Sep 03 22:17:44 +0000 2026.
+2026-09-03 23:32:34,716 INFO [8bb4f23@M5-Max-128GB]   **Verified** 2026-09-04: post exists, authored by @antirez, posted Thu Sep 03 22:11:08 +0000 2026.
+2026-09-03 23:32:34,716 INFO [8bb4f23@M5-Max-128GB]   **Verified** 2026-09-04: post exists, authored by @ivanfioravanti, posted Thu Sep 03 21:47:51 +0000 2026.
+2026-09-03 23:32:34,716 INFO [8bb4f23@M5-Max-128GB]   **Verified** 2026-09-04: post exists, authored by @danielhanchen, posted Thu Sep 03 21:24:07 +0000 2026.
+2026-09-03 23:32:34,716 INFO [8bb4f23@M5-Max-128GB]   **Verified** 2026-09-04: post exists, authored by @ddalcu, posted Thu Sep 03 19:50:05 +0000 2026.
+2026-09-03 23:32:34,716 INFO [8bb4f23@M5-Max-128GB] log: /Users/evanhoffman/git/local-llm/logs/sweeps/verify-posts-M5-Max-128GB-20260904T033231Z.log

@@ -1,0 +1,4 @@
+2026-09-02 18:44:07,189 INFO [e8642d0@M5-Max-128GB] 2026-09-02T22:44:07Z (18:44:07 EDT) | harness e8642d0
+2026-09-02 18:44:07,211 INFO [e8642d0@M5-Max-128GB]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-02 18:44:07,635 INFO [e8642d0@M5-Max-128GB]   stack:   ds4 399acbb | llama.cpp 3466812d1 | ollama 0.33.2 | opencode 1.18.27
+2026-09-02 18:44:07,648 INFO [e8642d0@M5-Max-128GB] no trials for ['qwen38fnq4m64'] under opencode

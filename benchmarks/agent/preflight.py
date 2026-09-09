@@ -33,14 +33,18 @@ from __future__ import annotations
 
 import argparse
 import dataclasses
+import datetime as dt
+import json
 import logging
 import os
 import pathlib
 import platform
 import subprocess
 import sys
+import time
 from urllib.parse import urlparse
 
+import metal_equivalence
 import opencode_config
 import provenance
 import staleness
@@ -50,7 +54,31 @@ logger = logging.getLogger(__name__)
 # Substrings identifying a process that serves a model. Matched against the
 # command line, so `./build/bin/llama-server` and a bare `ollama serve` both
 # land. Deliberately not the shim: it holds no weights and its memory is noise.
-INFERENCE = ("llama-server", "ollama", "ds4-server", "mtplx")
+#
+# An engine missing from this tuple is not merely uncounted, it is INVISIBLE:
+# `parse_ps` never sees it, so it is neither stale nor unmatched, and its
+# residency is absent from the headroom line. A stale one -- the leftover from
+# a killed run, which is the whole reason this gate exists -- would then be
+# undetectable while under-reporting headroom by the size of a model. Add an
+# engine here the moment it can run on this machine, not the moment it earns a
+# row. `mlx-serve` was added for #191 before its first measurement.
+INFERENCE = ("llama-server", "ollama", "ds4-server", "mtplx", "mlx-serve")
+
+# The tool shim's script name. The shim is not an inference process, but it
+# knows where the real server lives: its --upstream names the port that a
+# shim-backed run depends on (#132).
+SHIM_SCRIPT = "ds4_qwen_tool_shim.py"
+
+# This repository's CI, checked at preflight so a red main is learned at the
+# start of a session instead of seventeen hours later (#129). CI is the only
+# observer of breakage that needs a host other than this machine -- the local
+# suite stays green through it.
+CI_REPO = "evanwtf/local-llm"
+CI_BRANCH = "main"
+# Conclusions that count as red. Everything without a verdict --
+# in progress, cancelled -- is not evidence either way.
+CI_RED = frozenset({"failure", "timed_out", "startup_failure"})
+CI_NO_VERDICT = frozenset({None, "", "in_progress", "cancelled"})
 
 # The stock Metal working set on this machine, measured with a Metal probe
 # before #30's sysctl was applied. Used when no override is in force.
@@ -76,10 +104,52 @@ class Proc:
     rss_gib: float
     command: str
     port: int | None = None
+    age_s: int | None = None
 
     @property
     def short(self) -> str:
         return self.command.split()[0].rsplit("/", 1)[-1]
+
+    @property
+    def age(self) -> str:
+        return human_age(self.age_s)
+
+
+def parse_etime(text: str) -> int | None:
+    """`ps` ELAPSED into seconds. Shapes: `mm:ss`, `hh:mm:ss`, `dd-hh:mm:ss`.
+
+    Returns None rather than guessing, so an unreadable field reads as
+    "unknown" instead of "zero seconds" -- a brand-new server and an
+    unparseable one must not look alike.
+    """
+    text = text.strip()
+    days = 0
+    if "-" in text:
+        head, _, text = text.partition("-")
+        if not head.isdigit():
+            return None
+        days = int(head)
+    parts = text.split(":")
+    if not 2 <= len(parts) <= 3 or not all(p.isdigit() for p in parts):
+        return None
+    values = [int(p) for p in parts]
+    if len(values) == 2:
+        values = [0, *values]
+    hours, minutes, seconds = values
+    return days * 86400 + hours * 3600 + minutes * 60 + seconds
+
+
+def human_age(seconds: int | None) -> str:
+    """Two units at most. `4h13m` is readable; `15177s` is not."""
+    if seconds is None:
+        return "unknown"
+    if seconds < 60:
+        return f"{seconds}s"
+    if seconds < 3600:
+        return f"{seconds // 60}m"
+    if seconds < 86400:
+        return f"{seconds // 3600}h{seconds % 3600 // 60}m"
+    return f"{seconds // 86400}d{seconds % 86400 // 3600}h"
 
 
 def _first_match(text: str, prefix: str) -> str | None:
@@ -212,17 +282,28 @@ def ceiling_gib(text: str) -> float:
 
 
 def parse_ps(text: str) -> list[Proc]:
-    """Read `ps -eo pid,rss,command`, keeping only model servers.
+    """Read `ps -eo pid,rss,etime,command`, keeping only model servers.
 
-    The command column contains spaces, so the split is bounded at 2. RSS is
-    KiB on macOS.
+    The command column contains spaces, so the split is bounded at 3. RSS is
+    KiB on macOS; ELAPSED is wall time since the process started (#145).
+
+    A three-column listing is **refused, not parsed**. Splitting it four ways
+    would put the binary in the elapsed field and truncate the command, and the
+    check would go on passing while reporting the wrong thing -- the vacuous
+    pass this module exists to prevent.
     """
+    lines = text.splitlines()
+    if lines and "ELAPSED" not in lines[0].upper():
+        raise ValueError(
+            f"ps header has no ELAPSED column, so this is not "
+            f"`ps -eo pid,rss,etime,command`: {lines[0]!r}"
+        )
     procs = []
-    for line in text.splitlines()[1:]:  # skip the header
-        parts = line.split(None, 2)
-        if len(parts) < 3:
+    for line in lines[1:]:  # skip the header
+        parts = line.split(None, 3)
+        if len(parts) < 4:
             continue
-        pid, rss, command = parts
+        pid, rss, etime, command = parts
         # Match the executable, not the whole command line. A shell running a
         # script that merely mentions llama-server has the marker in its
         # arguments, and matching those made this tool report the shell that
@@ -232,7 +313,14 @@ def parse_ps(text: str) -> list[Proc]:
         if not any(marker in binary for marker in INFERENCE):
             continue
         try:
-            procs.append(Proc(int(pid), int(rss) / KIB_PER_GIB, command.strip()))
+            procs.append(
+                Proc(
+                    int(pid),
+                    int(rss) / KIB_PER_GIB,
+                    command.strip(),
+                    age_s=parse_etime(etime),
+                )
+            )
         except ValueError:
             continue
     return procs
@@ -265,18 +353,69 @@ def parse_lsof(text: str) -> dict[int, int]:
 def backend_ports(backends: dict[str, dict]) -> set[int]:
     """Every port the selected backends legitimately occupy.
 
-    Includes `props_url`: a backend behind the Claude Code shim names the real
-    server there, and both ends of that pair are ours.
+    Includes `props_url` and `models_url`: a backend behind the Claude Code
+    shim names the real server there, and both ends of that pair are ours
+    (#78 -- `models_url` is `props_url`'s /v1/models twin).
     """
     ports = set()
     for backend in backends.values():
-        for key in ("base_url", "props_url"):
+        for key in ("base_url", "props_url", "models_url"):
             url = backend.get(key)
             if not url:
                 continue
             parsed = urlparse(url)
             if parsed.port:
                 ports.add(parsed.port)
+    return ports
+
+
+def _argv_value(command: str, flag: str) -> str | None:
+    """The value of `flag` in a command line: after it, or joined by `=`.
+
+    Neither `--port 8101` nor `--upstream=http://…` is privileged, so both
+    spellings parse. None when the flag is absent -- which is also the guard
+    against the self-match trap: a line that merely mentions the shim script
+    without both flags parses to nothing and shields nothing.
+    """
+    tokens = command.split()
+    for i, token in enumerate(tokens):
+        if token == flag:
+            return tokens[i + 1] if i + 1 < len(tokens) else None
+        if token.startswith(flag + "="):
+            return token[len(flag) + 1 :]
+    return None
+
+
+def shim_upstream_ports(ps_text: str, selected_ports: set[int]) -> set[int]:
+    """Ports held by the upstream of a selected backend's shim.
+
+    A backend behind the tool shim names only the shim in `base_url`, so
+    `backend_ports()` expects :8101 -- while the model lives in the ds4-server
+    upstream on :8000, holding real memory. Warning about that server is right
+    about the ports and wrong about the conclusion: stopping it would kill the
+    run's only backend (#132). The running argv is the one place both ports are
+    named truthfully, so the association is read from it and cannot drift from
+    `tasks.toml`.
+
+    Only a shim whose own --port is selected is honoured: a shim left over
+    from a different run must not shield its upstream.
+    """
+    ports: set[int] = set()
+    for line in ps_text.splitlines():
+        if SHIM_SCRIPT not in line:
+            continue
+        shim_port = _argv_value(line, "--port")
+        upstream = _argv_value(line, "--upstream")
+        if shim_port is None or upstream is None:
+            continue
+        try:
+            if int(shim_port) not in selected_ports:
+                continue
+            parsed = urlparse(upstream)
+        except ValueError:
+            continue
+        if parsed.port:
+            ports.add(parsed.port)
     return ports
 
 
@@ -292,13 +431,13 @@ class Report:
         for p in self.stale:
             out.append(
                 f"{p.short} (pid {p.pid}) is listening on :{p.port} and holding "
-                f"{p.rss_gib:.1f} GiB, but no selected backend uses that port. "
-                f"Stop it, or this batch measures a contended machine."
+                f"{p.rss_gib:.1f} GiB after {p.age}, but no selected backend uses "
+                f"that port. Stop it, or this batch measures a contended machine."
             )
         for p in self.unmatched:
             out.append(
-                f"{p.short} (pid {p.pid}) is holding {p.rss_gib:.1f} GiB and is "
-                f"not listening yet -- still loading, or wedged."
+                f"{p.short} (pid {p.pid}) is holding {p.rss_gib:.1f} GiB after "
+                f"{p.age} and is not listening yet -- still loading, or wedged."
             )
         return out
 
@@ -318,6 +457,11 @@ def check(
     perfectly healthy machine, which is how a warning becomes noise.
     """
     listeners = parse_lsof(lsof_text)
+    if expected_ports is not None:
+        # A backend behind the tool shim names only the shim's port in its
+        # spec; the shim's argv names the real server behind it. Both are
+        # expected, or the run's only backend gets called stale (#132).
+        expected_ports = expected_ports | shim_upstream_ports(ps_text, expected_ports)
     by_pid = {pid: port for port, pid in listeners.items()}
     stale, unmatched, total = [], [], 0.0
     for proc in parse_ps(ps_text):
@@ -335,6 +479,80 @@ def check(
         ):
             stale.append(dataclasses.replace(proc, port=port))
     return Report(stale, unmatched, total, ceiling_gib - total)
+
+
+def engines_a_run_would_need(backends: dict[str, dict]) -> dict[str, list[str]]:
+    """Which distinct server each selected backend talks to, by name.
+
+    Keyed by `host:port` of the thing that actually holds the weights --
+    `engine_url` when the backend sits behind a shim, `base_url` otherwise
+    (#211). Two backends on one key share a server and can be interleaved;
+    two backends on two keys cannot, because both servers would have to be
+    resident at once.
+    """
+    out: dict[str, list[str]] = {}
+    for name, backend in backends.items():
+        url = backend.get("engine_url") or backend.get("base_url") or ""
+        parsed = urlparse(url)
+        key = f"{parsed.hostname}:{parsed.port}" if parsed.port else url or "?"
+        out.setdefault(key, []).append(name)
+    return out
+
+
+def refuse_unless_empty(report: Report, backends: dict[str, dict] | None) -> str | None:
+    """Refuse a measurement run unless the machine is empty but for its own model.
+
+    **A model test runs at empty.** Every number this benchmark publishes is a
+    wall-clock time on a machine with 128 GiB and a 112 GiB Metal ceiling, and
+    a second loaded model does not degrade that gracefully -- it evicts, swaps,
+    and moves the number being measured without appearing in any column of the
+    row. There is no "mostly empty": either the model under test has the
+    machine or the measurement is of something else.
+
+    Two ways a run can violate that, and the second is the one that caught us
+    on 2026-09-07:
+
+    1. **Something else is already resident.** `report.stale` and
+       `report.unmatched` already find these -- a server on a port no selected
+       backend uses, or one holding memory and not listening yet.
+
+    2. **The run's own plan needs two servers at once.** A `run.py` invocation
+       naming two backends on two different engines has to hold both models
+       resident for its whole length, because it alternates between them per
+       task. This is invisible to check (1): both ports are *expected*, so
+       neither server is stale. On 2026-09-07 a qwen38fnds4kimat-against-Ollama
+       run was started this way with 14.6 GiB of headroom and a 29 GiB second
+       model, and preflight reported the headroom without objecting to the
+       plan that was about to exceed it.
+
+    Two engines is not a harder version of one engine. It is a different
+    experiment -- run them as sequential sweeps with a server swap between,
+    which is what `scripts/stack_agent_ab.sh` does.
+    """
+    foreign = report.stale + report.unmatched
+    if foreign:
+        lines = "; ".join(
+            f"{p.short} (pid {p.pid}) holding {p.rss_gib:.1f} GiB" for p in foreign
+        )
+        return (
+            f"REFUSING: the machine is not empty -- {lines}. A model test runs "
+            "with only its own model resident; a second one evicts and swaps "
+            "without appearing in any column of the row. Stop it and re-run."
+        )
+    if backends and len(backends) > 1:
+        engines = engines_a_run_would_need(backends)
+        if len(engines) > 1:
+            plan = "; ".join(
+                f"{key} <- {', '.join(sorted(names))}"
+                for key, names in sorted(engines.items())
+            )
+            return (
+                f"REFUSING: these backends span {len(engines)} engines and one "
+                f"run would hold every one of them resident at once -- {plan}. "
+                "Run them as sequential sweeps with a server swap between "
+                "(scripts/stack_agent_ab.sh), not as one interleaved batch."
+            )
+    return None
 
 
 def _capture(argv: list[str]) -> str:
@@ -405,7 +623,7 @@ def parse_metal_tensor(text: str) -> bool | None:
 def metal_tensor_api(llamacpp_root: pathlib.Path | None = None) -> bool | None:
     """Ask the local llama.cpp build whether the tensor API is live.
 
-    `--list-devices` is the cheapest binary that initialises the Metal device;
+    `--list-devices` is the cheapest binary that initializes the Metal device;
     `--version` does not, so it reports nothing useful here.
     """
     root = (
@@ -439,7 +657,7 @@ def inspect(backends: dict[str, dict] | None = None) -> Report:
     `backends=None` reports without judging: see `check`.
     """
     return check(
-        _capture(["ps", "-eo", "pid,rss,command"]),
+        _capture(["ps", "-eo", "pid,rss,etime,command"]),
         _capture(["lsof", "-nP", "-iTCP", "-sTCP:LISTEN"]),
         None if backends is None else backend_ports(backends),
         ceiling_gib=metal_ceiling()[0] or DEFAULT_CEILING_GIB,
@@ -486,6 +704,89 @@ def log_report(report: Report) -> None:
     else:
         logger.info("preflight: llama.cpp Metal tensor API is on")
 
+    report_ds4_equivalence()
+
+
+def ds4_equivalence_state(
+    tree: pathlib.Path | None = None, model: pathlib.Path | None = None
+) -> tuple[str, dict]:
+    """Has ds4's fast Metal route been checked against the reference kernels?
+
+    Returns (state, summary). State is "pass", "fail", "stale" or "absent".
+
+    #149: the route flips tokens on long prompts, on M5 it enables itself, and
+    all four ds4 arms ran it -- while `ds4_test --metal-tensor-equivalence`,
+    which answers exactly this, had never been run by anything. `metal_tensor_api`
+    above logs whether llama.cpp's tensor API is on; **that is a different
+    engine and a different question**, and having one line about tensors in the
+    log is part of why nobody noticed the other was missing.
+    """
+    tree = tree or pathlib.Path(
+        os.environ.get("DS4_TREE", pathlib.Path.home() / "git" / "ds4-metal")
+    )
+    model = model or pathlib.Path(
+        os.environ.get(
+            "DS4_TEST_MODEL", pathlib.Path.home() / "git" / "ds4" / "ds4flash.gguf"
+        )
+    )
+    fp = metal_equivalence.fingerprint(pathlib.Path(tree) / "ds4_test", model)
+    state = metal_equivalence.cached_verdict(metal_equivalence.DEFAULT_CACHE, fp)
+    entry = metal_equivalence.cached_entry(metal_equivalence.DEFAULT_CACHE, fp) or {}
+    return state, entry.get("summary") or {}
+
+
+def ds4_server_running(ps_text: str | None = None) -> bool:
+    """Is a ds4-server up on this machine right now?
+
+    What decides whether the equivalence gate applies. A run that never touches
+    ds4 must not be blocked by a verdict about ds4's kernels, and the backend
+    table has no structured engine field to ask -- the description string says
+    "ds4-metal ba01f5d" in prose, which is not a thing to branch on.
+    """
+    text = (
+        ps_text
+        if ps_text is not None
+        else _capture(["ps", "-eo", "pid,rss,etime,command"])
+    )
+    return any("ds4-server" in proc.short for proc in parse_ps(text))
+
+
+def report_ds4_equivalence() -> None:
+    """Say where the equivalence check stands, at a level matching the risk."""
+    state, summary = ds4_equivalence_state()
+    if state == "pass":
+        # Report the drift even on a pass. Greedy agreement is not
+        # bit-exactness, and a reader who sees only "pass" will quote a ds4
+        # Metal number as exact.
+        logger.info(
+            "preflight: ds4 Metal tensor route checked -- greedy agreement on "
+            "%s cases, worst logit drift rms %s / max_abs %s (#149)",
+            summary.get("cases", "?"),
+            summary.get("worst_rms", "?"),
+            summary.get("worst_max_abs", "?"),
+        )
+    elif state == "unsupported":
+        logger.warning(
+            "preflight: ds4's Metal route cannot be checked for this model -- "
+            "ds4_test has no --ple option and Qwen3.8-Flash-Next needs one. "
+            "The route is recorded on each row; its output is not asserted (#149)"
+        )
+    elif state == "fail":
+        logger.warning(
+            "preflight: ds4 Metal tensor route FAILED equivalence -- greedy_fail=%s "
+            "top1_mismatch=%s. Rows taken on this route record different tokens "
+            "than the reference kernels would (#149)",
+            summary.get("greedy_fail", "?"),
+            summary.get("top1_mismatch", "?"),
+        )
+    else:
+        logger.warning(
+            "preflight: ds4 Metal tensor route is UNVERIFIED (%s) -- run "
+            "`uv run python scripts/check_metal_equivalence.py` before a run "
+            "whose numbers anyone will quote (#149)",
+            state,
+        )
+
 
 # Source builds this project measures through. Checked offline against
 # whatever refs the local clone has already fetched.
@@ -494,22 +795,133 @@ BUILDS = {
     "llama.cpp-glm52pr": pathlib.Path.home() / "git/llama.cpp-glm52pr",
     "llama.cpp-glm53": pathlib.Path.home() / "git/llama.cpp-glm53",
     "ds4": pathlib.Path.home() / "git/ds4",
+    "mlx-serve": pathlib.Path.home() / "git/mlx-serve",
 }
 
 # A fetch older than this makes "0 commits behind" meaningless.
 STALE_FETCH_DAYS = 2.0
 
-# The reference implementation for this hardware. antirez ships models here
-# first, often on a preview branch -- GLM-5.3-Flash landed on one while this
-# project was benchmarking the model on an unsupported stack (#38). A new branch
-# on this remote is a signal worth surfacing before a run, not after.
-SHERPA = "ds4"
+# The reference implementations for this hardware, and the two whose upstream
+# activity is loud rather than counted.
+#
+# ds4: antirez ships models here first, often on a preview branch --
+# GLM-5.3-Flash landed on one while this project was benchmarking the model on
+# an unsupported stack (#38).
+#
+# mlx-serve: same tier since 2026-09-08. It is the faster stack on this laptop
+# (#191: 13 of 15 tasks) and may become the default, and its fixes arrive as
+# open PRs from forks rather than as releases -- `ddalcu/mlx-serve#383` fixed
+# an EOS-first speculative bug that leaves the whole prompt prefix uncommitted
+# to the cache, on our exact model, while #191 spent three and a half hours
+# measuring the five-day-old release that carried it.
+#
+# local build name -> the upstream repo its work lands in.
+SHERPAS: dict[str, str] = {
+    "ds4": "antirez/ds4",
+    "mlx-serve": "ddalcu/mlx-serve",
+}
+
+#: Open PRs to name per sherpa before collapsing to a count.
+SHERPA_PR_CAP = 6
 
 # Repos whose GitHub notifications bear on this project. Everything else is
 # noise here -- 41 of 41 notifications on this account were CI failures from
 # unrelated repos, and the one that mattered (a mention on a ds4 PR citing our
 # measurement) was buried under them and already marked read by email.
 WATCHED_REPOS = {"antirez/ds4", "ggml-org/llama.cpp", "evanwtf/local-llm"}
+
+
+# Work that cannot change a number on this machine. The same relevance rule
+# the source-sweep skill applies by hand -- CUDA-only kernels, vision and
+# audio, hardware we do not have -- applied here so a preflight warning means
+# something. Without it the two sherpas alone produced twelve WARNING lines
+# before every batch, of which the loudest were a CUDA KV gather and a Korean
+# localization. Warning on a correct state is how a check becomes noise nobody
+# reads, and a preflight nobody reads is worse than no preflight.
+#
+# A denylist, not an allowlist, and deliberately: an allowlist silently drops
+# the fix nobody thought to name. Anything unrecognised stays loud.
+NOT_FOR_THIS_MACHINE = (
+    "cuda",
+    "rocm",
+    "hip:",
+    "vulkan",
+    "sycl",
+    "webgpu",
+    "musa",
+    "cann",
+    "opencl",
+    "vision",
+    "vlm",
+    "flux",
+    "diffusion",
+    "image gen",
+    "whisper",
+    "audio",
+    "tts",
+    "localization",
+    "i18n",
+    "translation",
+)
+
+
+def bears_on_this_machine(title: str) -> bool:
+    """False for work that cannot move a number on an M5 Max on Metal."""
+    low = title.lower()
+    return not any(marker in low for marker in NOT_FOR_THIS_MACHINE)
+
+
+def _log_open_pulls(hours: float = 48.0) -> None:
+    """Open PRs updated recently on the repos SOURCES.md names.
+
+    `upstream_sweep.WATCHED` is the single source of truth SOURCES.md renders,
+    so this cannot drift from the document. Advisory, like the rest of
+    preflight, and network -- skipped under --offline.
+    """
+    try:
+        sys.path.insert(
+            0, str(pathlib.Path(__file__).resolve().parent.parent.parent / "scripts")
+        )
+        import upstream_sweep
+    except Exception:  # noqa: BLE001 -- preflight is advisory, never fatal
+        logger.debug("preflight: upstream_sweep unavailable; skipping PR check")
+        return
+    since = (dt.datetime.now(dt.UTC) - dt.timedelta(hours=hours)).strftime(
+        "%Y-%m-%dT%H:%M:%SZ"
+    )
+    loud = set(SHERPAS.values())
+    for repo in upstream_sweep.WATCHED:
+        try:
+            pulls = upstream_sweep.open_pulls(repo, since)
+        except Exception as exc:  # noqa: BLE001 -- advisory, never fatal
+            logger.debug("preflight: open PRs for %s failed: %s", repo, exc)
+            continue
+        if not pulls:
+            continue
+        if repo in loud:
+            pulls = [x for x in pulls if bears_on_this_machine(x)]
+            if not pulls:
+                continue
+            for line in pulls[:SHERPA_PR_CAP]:
+                logger.warning(
+                    "preflight: %s PR %s  <- a fix here may not be in your build",
+                    repo,
+                    line,
+                )
+            if len(pulls) > SHERPA_PR_CAP:
+                logger.warning(
+                    "preflight: %s has %d more open PRs updated in %.0fh",
+                    repo,
+                    len(pulls) - SHERPA_PR_CAP,
+                    hours,
+                )
+        else:
+            logger.info(
+                "preflight: %s has %d open PR(s) updated in %.0fh",
+                repo,
+                len(pulls),
+                hours,
+            )
 
 
 def log_versions(offline: bool = False) -> None:
@@ -530,6 +942,8 @@ def log_versions(offline: bool = False) -> None:
         )
         if state == "behind":
             logger.warning("preflight: %s  <- BEHIND", line)
+            if name == "ollama":
+                warn_if_ollama_upgrade_changes_the_sampler(have[name], latest.get(name))
         elif state == "unknown":
             logger.info("preflight: %s (could not compare)", line)
         else:
@@ -544,16 +958,27 @@ def log_versions(offline: bool = False) -> None:
         else:
             logger.info("preflight: %s", line)
 
-    sherpa = BUILDS.get(SHERPA)
-    if sherpa is not None:
-        for branch in staleness.new_remote_branches(sherpa):
+    for name in SHERPAS:
+        tree = BUILDS.get(name)
+        if tree is None:
+            continue
+        for branch in staleness.new_remote_branches(tree):
             logger.warning(
                 "preflight: %s has a recent branch %r you are not on "
-                "-- antirez ships models on preview branches; check "
-                "before concluding one does not run here",
-                SHERPA,
+                "-- this tier ships work on branches; check "
+                "before concluding something does not run here",
+                name,
                 branch,
             )
+
+    # Open PRs, for every repo SOURCES.md names. Commits and releases cannot
+    # see these: a fix can sit in an open PR from a fork for days without
+    # touching main or cutting a release, which is how #191 measured a build
+    # with a known prefix-cache bug in it. The sherpas are loud; the rest are
+    # a count, because llama.cpp alone can touch dozens in a day and a
+    # preflight nobody reads is worse than no preflight.
+    if not offline:
+        _log_open_pulls()
 
     for name, path in BUILDS.items():
         got = staleness.git_drift(path)
@@ -587,6 +1012,469 @@ def log_versions(offline: bool = False) -> None:
             )
 
 
+def ci_streak(conclusions: list[str | None]) -> int:
+    """Consecutive red conclusions, newest first -- the order `gh run list` gives.
+
+    A run without a verdict (in progress, cancelled) neither extends nor
+    breaks the streak: the reds behind it are still real, and a deliberate
+    stop is not a red. Any other conclusion -- success, and anything this
+    code has never heard of -- ends the streak. An unknown conclusion must
+    not be read as 'no verdict', or a conclusion GitHub later invents could
+    silence the warning.
+    """
+    streak = 0
+    for conclusion in conclusions:
+        if conclusion in CI_RED:
+            streak += 1
+        elif conclusion in CI_NO_VERDICT:
+            continue
+        else:
+            break
+    return streak
+
+
+# ollama#16471 shipped in 0.33.3 and changed sampler precedence: model-authored
+# GGUF and generation_config defaults now outrank Ollama's built-ins (#84).
+# run.py holds the same constant for stamping rows; this one exists so
+# preflight can say what crossing the line costs.
+OLLAMA_SAMPLER_CHANGE = (0, 33, 3)
+
+
+def _version_tuple(text: str | None) -> tuple[int, ...] | None:
+    """Leading dotted integers of a version string, or None."""
+    if not text:
+        return None
+    cleaned = text.strip().lstrip("v").split("-")[0]
+    parts: list[int] = []
+    for chunk in cleaned.split("."):
+        if not chunk.isdigit():
+            break
+        parts.append(int(chunk))
+    return tuple(parts) or None
+
+
+def warn_if_ollama_upgrade_changes_the_sampler(
+    installed: str | None, latest: str | None
+) -> None:
+    """Say what an Ollama upgrade past 0.33.3 would do to the sampler (#84).
+
+    Preflight already reports version drift, and for every other tool BEHIND
+    means "you should probably upgrade". For Ollama across this one boundary
+    it does not: #36 measured a sampler default nobody chose halving a pass
+    rate -- top_p 0.95 gave 20/21 and 0.90 gave 7/15 on the same task, model,
+    engine and client. ollama#16471 changes which of those a row gets. So an
+    unqualified BEHIND on this line nudges toward the single action that
+    silently invalidates comparability with every row already held.
+
+    Naming the boundary does not decide it. Upgrading is fine; upgrading
+    mid-series and pooling the rows is not.
+    """
+    before = _version_tuple(installed)
+    after = _version_tuple(latest)
+    if before is None or after is None:
+        return
+    if before >= OLLAMA_SAMPLER_CHANGE or after < OLLAMA_SAMPLER_CHANGE:
+        return
+    logger.warning(
+        "preflight: that ollama upgrade crosses %s, where ollama#16471 makes "
+        "model-authored GGUF sampler defaults outrank ollama's built-ins "
+        "(#84). Every row this repo holds was taken under the old precedence. "
+        "Upgrading is fine; upgrading mid-series and pooling the rows is not",
+        ".".join(str(n) for n in OLLAMA_SAMPLER_CHANGE),
+    )
+
+
+# #133. A claim that this machine is busy measuring. `preflight` sees the
+# process table; it cannot see intent, and the restart-between-trials protocol
+# spends minutes with the server deliberately down. In that window a process
+# scan truthfully reports "all clear" while the machine is committed to a
+# multi-hour A/B, and a second run started there ruins both.
+#
+# The lock is a claim on a MACHINE, so it lives at a machine-absolute path,
+# never derived from `__file__`. A benchmark launched from a worktree used to
+# resolve `__file__` into that worktree and take `.claude/worktrees/<name>/
+# .run-lock.json` -- a different file from the main checkout's, so two agents
+# each held a lock the other could not see and both reported the machine free
+# (#160). `~/.local-llm-bench/` already holds harness state (the target-repo
+# stash), so the lock joins it there, expanded from the home directory.
+LOCK_PATH = pathlib.Path.home() / ".local-llm-bench" / "run-lock.json"
+
+
+#: The checkouts a legacy `.run-lock.json` could sit in: the main repo and
+#: every worktree under `.claude/worktrees/`. A legacy lock there means a
+#: pre-fix process is still running or someone is on old code -- both worth a
+#: line on the console rather than silence.
+def _main_repo() -> pathlib.Path:
+    """The checkout that owns this module, worktree or not.
+
+    From a worktree, `__file__` resolves into `.claude/worktrees/<name>/`, and
+    the legacy lock that matters sits in the main repo three levels up. Walk
+    up from `__file__` to the first directory that contains `.claude/
+    worktrees` -- that is the main repo. Fall back to the old three-levels-up
+    guess when the marker is absent (a plain checkout).
+    """
+    here = pathlib.Path(__file__).resolve().parent
+    for parent in (here, *here.parents):
+        if (parent / ".claude" / "worktrees").is_dir():
+            return parent
+    return here.parent.parent.parent
+
+
+def _legacy_lock_paths() -> list[pathlib.Path]:
+    repo = _main_repo()
+    paths = [repo / ".run-lock.json"]
+    worktrees = repo / ".claude" / "worktrees"
+    if worktrees.is_dir():
+        paths.extend(worktrees.glob("*/run-lock.json"))
+    return paths
+
+
+_legacy_warned = False
+
+
+def warn_legacy_lock() -> None:
+    """Warn once if a legacy `.run-lock.json` sits in any checkout.
+
+    After the lock moved to `~/.local-llm-bench/run-lock.json`, a legacy lock
+    in a checkout means either a pre-fix process is still running (and holds a
+    lock the new path cannot see) or someone is on old code. Both are worth
+    saying out loud, once, rather than letting the new path read "free".
+    """
+    global _legacy_warned
+    if _legacy_warned:
+        return
+    found = [p for p in _legacy_lock_paths() if p.exists()]
+    if found:
+        _legacy_warned = True
+        logger.warning(
+            "preflight: legacy run lock(s) found in a checkout: %s. The lock "
+            "now lives at %s; a legacy lock means a pre-fix process is still "
+            "running or old code is in use -- check before starting a run",
+            ", ".join(str(p) for p in found),
+            LOCK_PATH,
+        )
+
+
+def _pid_alive(pid: int) -> bool:
+    """Whether a process with this pid exists. Signal 0 checks, never kills."""
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        # Exists and belongs to somebody else. Alive is the safe reading.
+        return True
+    return True
+
+
+def read_lock(path: pathlib.Path = LOCK_PATH) -> dict[str, object] | None:
+    """The lock currently held, or None. A corrupt lock reads as held.
+
+    An unparseable file is not evidence that nobody is running -- it is
+    evidence that something went wrong while claiming the machine, which is
+    exactly when a second run must not start.
+    """
+    warn_legacy_lock()
+    try:
+        text = path.read_text()
+    except FileNotFoundError:
+        return None
+    except OSError:
+        return {"corrupt": True}
+    try:
+        got = json.loads(text)
+    except ValueError:
+        return {"corrupt": True}
+    return got if isinstance(got, dict) else {"corrupt": True}
+
+
+def lock_state(
+    lock: dict[str, object] | None, hostname: str, pid: int
+) -> tuple[str, str]:
+    """Classify a lock: (state, one-line explanation).
+
+    States: `free`, `ours`, `held`, `stale`, `foreign`, `corrupt`.
+
+    `stale` is never stolen here. A dead lock is reported with everything it
+    recorded, because that is what turns "something crashed" into "the 03:00
+    arm A died", and taking it silently would throw that away.
+    """
+    if lock is None:
+        return "free", "no lock held"
+    if lock.get("corrupt"):
+        return "corrupt", "the lock file is unreadable; assuming the machine is busy"
+    host = lock.get("hostname")
+    if host != hostname:
+        return "foreign", (
+            f"lock belongs to {host!r}, not this machine ({hostname!r}) -- "
+            "a lock is a claim on one machine and must not travel"
+        )
+    holder = lock.get("pid")
+    if not isinstance(holder, int):
+        return "corrupt", "the lock records no usable pid"
+    if holder == pid:
+        return "ours", "this process already holds the lock"
+    if _pid_alive(holder):
+        what = lock.get("what") or "unspecified work"
+        return "held", (
+            f"pid {holder} is running {what} since {lock.get('started', 'unknown')}"
+        )
+    return "stale", (
+        f"pid {holder} is gone. It recorded: {json.dumps(lock, sort_keys=True)}"
+    )
+
+
+def acquire_lock(
+    what: str,
+    path: pathlib.Path = LOCK_PATH,
+    hostname: str | None = None,
+    pid: int | None = None,
+    agent: str | None = None,
+    agent_model: str | None = None,
+    agent_effort: str | None = None,
+    expected_finish: str | None = None,
+    quiet: bool = False,
+) -> tuple[bool, str]:
+    """Claim the machine for `what`. Returns (acquired, message).
+
+    Refuses -- hard -- when another live process on this machine holds it, or
+    when the lock is corrupt or foreign. That is the one place this module is
+    not advisory, and the asymmetry is deliberate: process detection is
+    inferential and a resident server may be intentional, so it warns. A lock
+    is an explicit declaration by a session that said what it was doing, so
+    there is no ambiguity to be generous about.
+
+    A stale lock is reported and NOT taken. Recovering from it is a decision
+    with a name on it, not a side effect of the next run starting.
+
+    The intent fields are #160's extension, written by machine_claim.py: who
+    holds the machine (agent identity, never self-reported), when the work
+    expects to finish, and a `quiet` flag meaning no CPU-heavy work by anyone
+    because the holder is being timed. They are optional so the existing
+    callers -- run.py, preflight's own --acquire-lock -- are unchanged.
+    """
+    hostname = hostname or platform.node()
+    pid = pid or os.getpid()
+    state, why = lock_state(read_lock(path), hostname, pid)
+    if state in ("held", "corrupt", "foreign"):
+        return False, f"cannot take the run lock: {why}"
+    if state == "stale":
+        return False, (
+            f"a stale run lock is in the way: {why}\n"
+            f"Nothing is running. Remove {path} to proceed -- deliberately not "
+            "automatic, so a crashed run is noticed rather than paved over."
+        )
+    claim = {
+        "hostname": hostname,
+        "pid": pid,
+        "what": what,
+        "started": _now_iso(),
+        "cwd": str(pathlib.Path.cwd()),
+    }
+    if agent is not None:
+        claim["agent"] = agent
+    if agent_model is not None:
+        claim["agent_model"] = agent_model
+    if agent_effort is not None:
+        claim["agent_effort"] = agent_effort
+    if expected_finish is not None:
+        claim["expected_finish"] = expected_finish
+    if quiet:
+        claim["quiet"] = True
+    try:
+        # O_EXCL so two processes racing here cannot both win.
+        fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
+    except FileExistsError:
+        return False, "cannot take the run lock: another process took it just now"
+    except OSError as exc:
+        return False, f"cannot take the run lock: {exc}"
+    with os.fdopen(fd, "w") as fh:
+        json.dump(claim, fh, indent=2, sort_keys=True)
+    return True, f"run lock taken for {what!r} (pid {pid})"
+
+
+def release_lock(
+    path: pathlib.Path = LOCK_PATH,
+    hostname: str | None = None,
+    pid: int | None = None,
+) -> tuple[bool, str]:
+    """Drop our own lock. Never removes somebody else's."""
+    hostname = hostname or platform.node()
+    pid = pid or os.getpid()
+    state, why = lock_state(read_lock(path), hostname, pid)
+    if state == "free":
+        return True, "no run lock to release"
+    if state != "ours":
+        return False, f"refusing to release a lock that is not ours: {why}"
+    try:
+        path.unlink()
+    except OSError as exc:
+        return False, f"could not release the run lock: {exc}"
+    return True, "run lock released"
+
+
+def _now_iso() -> str:
+    """Local time with an explicit offset -- see results.now() for why %z."""
+    return time.strftime("%Y-%m-%dT%H:%M:%S%z")
+
+
+def check_client_versions(offline: bool = False) -> bool:
+    """Record every client's version and name any that moved (#131).
+
+    **This never refuses.** It used to: an installed client that differed
+    from its pin returned True and `main` exited 1. On 2026-09-04 the
+    operator removed the pinning and kept the recording, because this laptop
+    is a daily driver first -- pinning the agent clients holds a developer's
+    own tools back to serve a measurement, and a guard that gets overridden
+    every time teaches people to type the override without reading it.
+
+    What replaces it is not weaker, it is later: `client_version` is on every
+    row and `results.py` refuses to write one without it, so a comparison can
+    be split after the fact and the published tables caveat themselves.
+    Prevention became recovery, deliberately.
+
+    Returns False always, so the caller has nothing to decide. The bool is
+    kept rather than dropped because test_preflight patches this name.
+    """
+    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent / "scripts"))
+    try:
+        import client_versions
+    except ImportError:
+        return False
+    recorded = client_versions.load_recorded()
+    if not recorded:
+        return False
+    for name, how in sorted(client_versions.autoupdate_status().items()):
+        logger.info("preflight: %s self-update -- %s", name, how)
+    installed = staleness.installed_versions()
+    moved = client_versions.moved_since(installed, recorded)
+    absent = [m for m in moved if m[2] == "not found"]
+    changed = [m for m in moved if m[2] != "not found"]
+    for name, want, _ in absent:
+        logger.info(
+            "preflight: %s recorded at %s but not installed here -- "
+            "it cannot take a row (#131)",
+            name,
+            want,
+        )
+    for name, want, got in changed:
+        # Not a warning and not an error: this line is the whole product of
+        # not pinning, and it has to be findable in a log.
+        logger.info(
+            "preflight: SERIES BOUNDARY -- %s moved %s -> %s since "
+            "client-versions.toml was written. Rows from here are a new "
+            "series; client_version is on each one, so the split is "
+            "recoverable (#131). Update client-versions.toml when convenient.",
+            name,
+            want,
+            got,
+        )
+    if not moved:
+        logger.info(
+            "preflight: %d client versions match what is recorded", len(recorded)
+        )
+    _log_clients_behind(installed, offline=offline)
+    return False
+
+
+def _log_clients_behind(
+    installed: dict[str, str | None], offline: bool = False
+) -> None:
+    """Warn when a client is older than its released version (#131).
+
+    The operator's rule for this machine is to run the current version of
+    everything -- it is a daily driver, and comparability is recovered from
+    `client_version` on the row rather than bought by holding tools back. So
+    the check that used to ask "has it drifted from the pin?" now asks the
+    opposite question: **is it behind?**
+
+    It warns and prints the upgrade command. It does not upgrade: that would
+    move the version mid-batch, which is the failure #131 is about, and it is
+    the operator's machine.
+    """
+    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent / "scripts"))
+    try:
+        import client_versions
+    except ImportError:
+        return
+    latest = staleness.latest_versions(offline=offline)
+    behind = client_versions.behind_latest(installed, latest)
+    if not behind:
+        logger.info("preflight: every client that could be checked is current")
+        return
+    for name, got, want in behind:
+        logger.warning(
+            "preflight: %s is %s, latest is %s -- this machine runs the current "
+            "version of everything (#131). Upgrade with `%s`, and note that "
+            "doing it mid-batch starts a new series.",
+            name,
+            got,
+            want,
+            client_versions.UPGRADE_COMMAND.get(name, f"upgrade {name}"),
+        )
+
+
+def log_ci_status(offline: bool = False) -> None:
+    """Say whether this repository's CI on main is red (#129).
+
+    Both red streaks this repo has had were found by a person going looking:
+    the second ran 20 runs over 17 hours before anyone noticed, and the fix
+    then took seven minutes. Preflight runs before every session, so this
+    puts the check on the path that is always taken. Advisory like everything
+    else here: it warns and never refuses, and a gh that is absent, failing,
+    or answering garbage is an info line, not an error.
+    """
+    if offline:
+        logger.info("preflight: CI status not checked (--offline)")
+        return
+    try:
+        text = _capture(
+            [
+                "gh",
+                "run",
+                "list",
+                "--repo",
+                CI_REPO,
+                "--branch",
+                CI_BRANCH,
+                "--limit",
+                "5",
+                "--json",
+                "conclusion",
+            ]
+        )
+        runs = json.loads(text)
+        conclusions = [run.get("conclusion") for run in runs]
+    except (ValueError, OSError, subprocess.TimeoutExpired) as exc:
+        # Nothing here may break preflight, but a silent check is worse than
+        # an honest one: say it could not tell.
+        logger.info("preflight: could not read CI status (%s)", exc)
+        return
+    streak = ci_streak(conclusions)
+    where = f"CI on {CI_REPO} {CI_BRANCH}"
+    if streak >= 2:
+        logger.warning(
+            "preflight: %s is RED for the last %d runs -- "
+            "gh run list --repo %s to see them. The local suite stays green "
+            "through breakage only this host can see, so decide before "
+            "building on this tree",
+            where,
+            streak,
+            CI_REPO,
+        )
+    elif streak == 1:
+        logger.info(
+            "preflight: %s: 1 of the last %d runs is red -- could be a flake; "
+            "look if it repeats",
+            where,
+            len(conclusions),
+        )
+    else:
+        logger.info(
+            "preflight: %s: no red in the last %d runs", where, len(conclusions)
+        )
+
+
 def main() -> int:
     # #54: a run killed mid-batch leaves the real repositories moved aside at
     # <name>-real with the export standing in their place. Restore before
@@ -614,12 +1502,56 @@ def main() -> int:
     p.add_argument(
         "--no-versions", action="store_true", help="report running servers only"
     )
+    # #133. Acquisition and the memory check are one call on purpose: two
+    # guards you can invoke separately are two guards somebody invokes zero of.
+    p.add_argument(
+        "--allow-client-drift",
+        action="store_true",
+        help="accepted and ignored: clients are recorded, not pinned, so "
+        "nothing refuses on a client version any more (#131)",
+    )
+    p.add_argument(
+        "--acquire-lock",
+        metavar="WHAT",
+        help="claim this machine for WHAT and exit non-zero if it is taken",
+    )
+    p.add_argument(
+        "--release-lock", action="store_true", help="drop this process's run lock"
+    )
+    # preflight exits immediately, so recording ITS pid would make the lock
+    # stale the moment it is written. The owner is whatever outlives this
+    # call -- a shell script passes $$.
+    p.add_argument(
+        "--owner-pid",
+        type=int,
+        default=None,
+        metavar="PID",
+        help="process whose lifetime the lock tracks (default: this one)",
+    )
     args = p.parse_args()
+
+    if args.release_lock:
+        ok, why = release_lock(pid=args.owner_pid)
+        logger.info("preflight: %s", why) if ok else logger.error("preflight: %s", why)
+        return 0 if ok else 1
 
     report = inspect()
     log_report(report)
+    if args.acquire_lock:
+        ok, why = acquire_lock(args.acquire_lock, pid=args.owner_pid)
+        if not ok:
+            logger.error("preflight: %s", why)
+            return 1
+        logger.info("preflight: %s", why)
     if not args.no_versions:
         log_versions(offline=args.offline)
+        # #131: clients are recorded, not pinned. This never refuses -- it
+        # names the series boundary so a later reader can split on it.
+        check_client_versions(offline=args.offline)
+        # #129. Gated with the versions block deliberately: --no-versions
+        # means "report running servers only", and that is not a mode that
+        # should reach the network.
+        log_ci_status(offline=args.offline)
     # #69: an opencode_model that OpenCode cannot resolve makes the client
     # exit in 0.6s, and the row reads as a model failure. Cheap to check here.
     try:

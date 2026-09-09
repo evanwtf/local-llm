@@ -1,0 +1,43 @@
+2026-09-06 00:18:24,352 INFO [ef24ebd@M5-Max-128GB] 2026-09-06T04:18:24Z (00:18:24 EDT) | harness ef24ebd
+2026-09-06 00:18:24,378 INFO [ef24ebd@M5-Max-128GB]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-06 00:18:24,568 INFO [ef24ebd@M5-Max-128GB] 2096413993359274481  VERIFIED reply  @no_stp_on_snek  Sun Sep 06 01:43:40 +0000 2026  via fxtwitter
+2026-09-06 00:18:24,568 INFO [ef24ebd@M5-Max-128GB]     @JakeKAllDay @thsottiaux Yeah I’m useing extra to see how fast it burns. Haha
+2026-09-06 00:18:24,692 INFO [ef24ebd@M5-Max-128GB] 2096413841982681539  VERIFIED reply  @no_stp_on_snek  Sun Sep 06 01:43:04 +0000 2026  via fxtwitter
+2026-09-06 00:18:24,692 INFO [ef24ebd@M5-Max-128GB]     @JakeKAllDay Me too brother
+2026-09-06 00:18:24,824 INFO [ef24ebd@M5-Max-128GB] 2096402983638401345  VERIFIED reply  @no_stp_on_snek  Sun Sep 06 00:59:55 +0000 2026  via fxtwitter
+2026-09-06 00:18:24,824 INFO [ef24ebd@M5-Max-128GB]     @JakeKAllDay I can’t get anywhere near the impression requirements. Heh
+2026-09-06 00:18:24,958 INFO [ef24ebd@M5-Max-128GB] 2096159634579206203  VERIFIED reply  @korale77  Sat Sep 05 08:52:56 +0000 2026  via fxtwitter
+2026-09-06 00:18:24,958 INFO [ef24ebd@M5-Max-128GB]     @ivanfioravanti Nice. Keep the photos coming!
+2026-09-06 00:18:25,083 INFO [ef24ebd@M5-Max-128GB] 2095698275601088941  VERIFIED reply  @korale77  Fri Sep 04 02:19:39 +0000 2026  via fxtwitter
+2026-09-06 00:18:25,084 INFO [ef24ebd@M5-Max-128GB]     @theo You only listed "mergeable code" under Fable 5.1 in the list though. Suspense...
+2026-09-06 00:18:25,210 INFO [ef24ebd@M5-Max-128GB] 2095693209255268437  VERIFIED reply  @korale77  Fri Sep 04 01:59:31 +0000 2026  via fxtwitter
+2026-09-06 00:18:25,210 INFO [ef24ebd@M5-Max-128GB]     @theo In a previous post, you mentioned a list of things it's good at but didn't mention coding. Looking forward to hearing more about that.
+2026-09-06 00:18:25,370 INFO [ef24ebd@M5-Max-128GB] 2096323774618411274  VERIFIED post  @0xZKnw  Sat Sep 05 19:45:10 +0000 2026  via fxtwitter
+2026-09-06 00:18:25,370 INFO [ef24ebd@M5-Max-128GB]     if some are interested about exl3 on mlx !
+2026-09-06 00:18:25,370 INFO [ef24ebd@M5-Max-128GB]     quotes @0xZKnw: Introducing MLXL3 Desktop: an open-source macOS app for running EXL3 models locally on Apple Silicon. MLX + custom Metal kernels, streaming chat, Hugging Face d
+2026-09-06 00:18:25,504 INFO [ef24ebd@M5-Max-128GB] 2096323692930240907  VERIFIED post  @0xZKnw  Sat Sep 05 19:44:50 +0000 2026  via fxtwitter
+2026-09-06 00:18:25,504 INFO [ef24ebd@M5-Max-128GB]     Introducing MLXL3 Desktop: an open-source macOS app for running EXL3 models locally on Apple Silicon. MLX + custom Metal kernels, streaming chat, Hugging Face downloads and MCP support. v0.4.6 is out.
+2026-09-06 00:18:25,631 INFO [ef24ebd@M5-Max-128GB] 2096261012773077363  VERIFIED reply  @0xZKnw  Sat Sep 05 15:35:46 +0000 2026  via fxtwitter
+2026-09-06 00:18:25,632 INFO [ef24ebd@M5-Max-128GB]     @OpenAIDevs gpt 6 astra just helped me to run exl3 models at 80% of llama.cpp speed on macbook and abliterate my models like 3 time fauter than sol
+2026-09-06 00:18:25,775 INFO [ef24ebd@M5-Max-128GB] 2095907633320570909  VERIFIED reply  @Brooooook_lyn  Fri Sep 04 16:11:34 +0000 2026  via fxtwitter
+2026-09-06 00:18:25,775 INFO [ef24ebd@M5-Max-128GB]     @MikeBradleyAI fan is not a problem, software is
+2026-09-06 00:18:25,888 INFO [ef24ebd@M5-Max-128GB] 2095877293034057951  VERIFIED reply  @Brooooook_lyn  Fri Sep 04 14:11:00 +0000 2026  via fxtwitter
+2026-09-06 00:18:25,888 INFO [ef24ebd@M5-Max-128GB]     @digitalix No unified memory, no luck
+2026-09-06 00:18:26,019 INFO [ef24ebd@M5-Max-128GB] 2095796698803220678  VERIFIED reply  @Brooooook_lyn  Fri Sep 04 08:50:45 +0000 2026  via fxtwitter
+2026-09-06 00:18:26,019 INFO [ef24ebd@M5-Max-128GB]     @ProbiusOfficial 酸麻了
+2026-09-06 00:18:26,019 INFO [ef24ebd@M5-Max-128GB] 
+2026-09-06 00:18:26,019 INFO [ef24ebd@M5-Max-128GB] Verified 12: 12 confirmed, 0 not.
+2026-09-06 00:18:26,019 INFO [ef24ebd@M5-Max-128GB] Paste onto the issue:
+2026-09-06 00:18:26,019 INFO [ef24ebd@M5-Max-128GB]   **Verified** 2026-09-06: post exists, authored by @no_stp_on_snek, posted Sun Sep 06 01:43:40 +0000 2026.
+2026-09-06 00:18:26,019 INFO [ef24ebd@M5-Max-128GB]   **Verified** 2026-09-06: post exists, authored by @no_stp_on_snek, posted Sun Sep 06 01:43:04 +0000 2026.
+2026-09-06 00:18:26,019 INFO [ef24ebd@M5-Max-128GB]   **Verified** 2026-09-06: post exists, authored by @no_stp_on_snek, posted Sun Sep 06 00:59:55 +0000 2026.
+2026-09-06 00:18:26,019 INFO [ef24ebd@M5-Max-128GB]   **Verified** 2026-09-06: post exists, authored by @korale77, posted Sat Sep 05 08:52:56 +0000 2026.
+2026-09-06 00:18:26,019 INFO [ef24ebd@M5-Max-128GB]   **Verified** 2026-09-06: post exists, authored by @korale77, posted Fri Sep 04 02:19:39 +0000 2026.
+2026-09-06 00:18:26,019 INFO [ef24ebd@M5-Max-128GB]   **Verified** 2026-09-06: post exists, authored by @korale77, posted Fri Sep 04 01:59:31 +0000 2026.
+2026-09-06 00:18:26,019 INFO [ef24ebd@M5-Max-128GB]   **Verified** 2026-09-06: post exists, authored by @0xZKnw, posted Sat Sep 05 19:45:10 +0000 2026.
+2026-09-06 00:18:26,019 INFO [ef24ebd@M5-Max-128GB]   **Verified** 2026-09-06: post exists, authored by @0xZKnw, posted Sat Sep 05 19:44:50 +0000 2026.
+2026-09-06 00:18:26,019 INFO [ef24ebd@M5-Max-128GB]   **Verified** 2026-09-06: post exists, authored by @0xZKnw, posted Sat Sep 05 15:35:46 +0000 2026.
+2026-09-06 00:18:26,019 INFO [ef24ebd@M5-Max-128GB]   **Verified** 2026-09-06: post exists, authored by @Brooooook_lyn, posted Fri Sep 04 16:11:34 +0000 2026.
+2026-09-06 00:18:26,019 INFO [ef24ebd@M5-Max-128GB]   **Verified** 2026-09-06: post exists, authored by @Brooooook_lyn, posted Fri Sep 04 14:11:00 +0000 2026.
+2026-09-06 00:18:26,019 INFO [ef24ebd@M5-Max-128GB]   **Verified** 2026-09-06: post exists, authored by @Brooooook_lyn, posted Fri Sep 04 08:50:45 +0000 2026.
+2026-09-06 00:18:26,019 INFO [ef24ebd@M5-Max-128GB] log: /Users/evanhoffman/git/local-llm/logs/sweeps/verify-posts-M5-Max-128GB-20260906T041824Z.log

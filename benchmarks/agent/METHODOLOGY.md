@@ -1,12 +1,6 @@
 # Methodology
 
-> ## ⚠️ OpenCode results before 2026-08-31 21:47 EDT are INVALID
->
-> Any OpenCode trial recorded before `2026-08-31T21:47:18-04:00` measures a
-> harness bug -- the client was never told which directory to work in, so it
-> solved each task and wrote the answer somewhere else. **Do not quote, pool,
-> or compare against those numbers.** Cause, cutover and replacements:
-> [docs/archive/results-opencode-pre-dir.md](../../docs/archive/results-opencode-pre-dir.md). Other clients are unaffected.
+> ⚠️ **OpenCode results before 2026-08-31 21:47 EDT are INVALID** — the client was never told which directory to work in. **Other clients are unaffected.** The ledger holds none of these rows now; do not quote them from older documents either: [what happened](../../docs/archive/results-opencode-pre-dir.md).
 
 Why this benchmark is built the way it is, what it can and cannot tell you, and
 how to extend it without breaking the parts that make it trustworthy.
@@ -228,7 +222,7 @@ local run reported \$0.14. It is meaningless here.
 These runs have a fat right tail. An agent that goes down a wrong path can take
 five times as long as one that does not, and a single such run drags a mean
 somewhere unrepresentative. This mirrors the finding in
-[`../ds4/coding/RESULTS.md`](../ds4/coding/RESULTS.md): the mixed build's median
+[`../ds4/coding/RESULTS.md`](../../hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/benchmarks/ds4/coding/RESULTS.md): the mixed build's median
 output was a normal 783 tokens, but ~4.9% of prompts ran to the token cap. The
 median described the typical experience; the mean did not.
 
@@ -254,10 +248,10 @@ Honest accounting of what could make these numbers wrong.
 | Agent recovers code from git history | trial repo's only commit is the excised state | none from history; the original body is not present in the checkout |
 | Task measures nothing (skipped tests) | control run required to fail | none — this is checked every trial |
 | Trials contaminate each other | isolated copy per trial, destroyed after | see "the sandbox was not a sandbox" below |
-| Memory pressure favours one model | phased runs, preload, one model resident | thermal drift across a long run |
+| Memory pressure favors one model | phased runs, preload, one model resident | thermal drift across a long run |
 | Training-data contamination | repo is small and recent, but **public** | cannot be ruled out; the libraries it uses are certainly in training data |
 | Single-trial noise | 3 trials, medians | small effects remain undetectable |
-| Prompt favours one model | identical prompt text for all backends | prompt style may suit one model's training |
+| Prompt favors one model | identical prompt text for all backends | prompt style may suit one model's training |
 
 **The contamination point deserves emphasis, and it got weaker.** An earlier
 revision of this document claimed `gmail-archive` is private and therefore
@@ -432,7 +426,7 @@ name tasks defined that way, and a task name has to keep meaning what it meant.
 node, so the first statement's line number points past it and the comment stays
 in the hollowed-out file. A comment that describes the algorithm hands over the
 answer. None of the current targets has one; `test_excise.py` pins the
-behaviour.
+behavior.
 
 ### Measurements taken alongside the verdict
 

@@ -1,0 +1,8 @@
+{"run": 1, "arm": "on", "started": "2026-09-06T03:26:35-0400", "ended": "2026-09-06T04:14:49-0400", "dir": "/Users/evanhoffman/bench-logs/112-strip-on-run1"}
+{"run": 2, "arm": "off", "started": "2026-09-06T04:14:59-0400", "ended": "2026-09-06T04:40:02-0400", "dir": "/Users/evanhoffman/bench-logs/112-strip-off-run2"}
+{"run": 3, "arm": "off", "started": "2026-09-06T04:40:13-0400", "ended": "2026-09-06T05:07:57-0400", "dir": "/Users/evanhoffman/bench-logs/112-strip-off-run3"}
+{"run": 4, "arm": "on", "started": "2026-09-06T05:08:08-0400", "ended": "2026-09-06T05:41:56-0400", "dir": "/Users/evanhoffman/bench-logs/112-strip-on-run4"}
+{"run": 5, "arm": "on", "started": "2026-09-06T05:42:07-0400", "ended": "2026-09-06T06:15:55-0400", "dir": "/Users/evanhoffman/bench-logs/112-strip-on-run5"}
+{"run": 6, "arm": "off", "started": "2026-09-06T06:16:06-0400", "ended": "2026-09-06T06:39:39-0400", "dir": "/Users/evanhoffman/bench-logs/112-strip-off-run6"}
+{"run": 7, "arm": "off", "started": "2026-09-06T06:39:49-0400", "ended": "2026-09-06T07:03:26-0400", "dir": "/Users/evanhoffman/bench-logs/112-strip-off-run7"}
+{"run": 8, "arm": "on", "started": "2026-09-06T07:03:37-0400", "ended": "2026-09-06T07:30:01-0400", "dir": "/Users/evanhoffman/bench-logs/112-strip-on-run8"}

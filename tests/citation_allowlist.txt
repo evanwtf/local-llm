@@ -1,0 +1,17 @@
+# Known-bare engine-source citations, one `path:file:line` per line.
+# A bare `ds4.c:NNNNN` is unverifiable (ds4.c is 70k lines and moves
+# daily). Retrofit each to `file:line at <tree> <sha>` and REMOVE it
+# here. This list only shrinks. See tests/test_citation_allowlist.py.
+# The 9 remainders are argued, not incidental:
+#   AGENTS.md counter-example; test_metal_equivalence captured-out fixture
+#   (non-citations); changelog + RECOMMENDATIONS (protected); the other five
+#   cite lines that verify against no recorded tree/sha (origin-unknown).
+AGENTS.md:ds4.c:40442
+benchmarks/agent/GLM-5.3-FLASH.md:ds4_server.c:960
+benchmarks/agent/run.py:ds4_cli.c:520
+benchmarks/agent/test_metal_equivalence.py:ds4_test.c:123
+docs/archive/RECOMMENDATIONS-2026-08-29.md:ds4.c:5809
+docs/history.md:ds4_bench.c:275
+hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/RESULTS-agent.md:ds4_metal.m:4244
+hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/benchmarks/ollama/RESULTS.md:ds4_kvstore.c:45
+hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/benchmarks/ollama/RESULTS.md:ds4_kvstore.h:13

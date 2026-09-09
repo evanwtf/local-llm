@@ -1,0 +1,91 @@
+{
+  "schema": "local-llm/evidence-2",
+  "task": "main-build",
+  "issue": 162,
+  "agent": "peer-deepseek-v4-flash",
+  "agent_model": "deepseek-v4-flash",
+  "agent_effort": "unidentified",
+  "repo": "/Users/evanhoffman/git/local-llm/.claude/worktrees/peer+160",
+  "authored_at": "2026-09-06T13:00:05-0400",
+  "statement": "The upstream ds4 main worktree builds clean at 9ab7053, the current upstream main (fetched from antirez/ds4). `make` produces ds4-bench, ds4-server, ds4-eval, and ds4-agent. This is the main arm for the Q8-vs-main comparison GiorgioOppo asked about: the Q8 build is f309990, and main is 9ab7053. The build is a plain `make` (cc -O3 -ffast-math -g -mcpu=native, Metal framework on Darwin), no special flags. A smoke test ran ds4-bench --help and it exited 0, so the binary runs. The build itself is recorded in provenance.binaries; the claims below are the read-only checks that still hold.",
+  "provenance": {
+    "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+    "trees": {
+      "/Users/evanhoffman/git/ds4-main-b": "9ab705347c1775e7599ede7eb81a6255ec7dccb5"
+    },
+    "binaries": {
+      "/Users/evanhoffman/git/ds4-main-b/ds4-bench": {
+        "size_bytes": 2263560,
+        "mtime": "2026-09-06T12:59:33-04:00",
+        "tree_rev": "9ab705347c1775e7599ede7eb81a6255ec7dccb5"
+      },
+      "/Users/evanhoffman/git/ds4-main-b/ds4-server": {
+        "size_bytes": 2623768,
+        "mtime": "2026-09-06T12:59:33-04:00",
+        "tree_rev": "9ab705347c1775e7599ede7eb81a6255ec7dccb5"
+      },
+      "/Users/evanhoffman/git/ds4-main-b/ds4-eval": {
+        "size_bytes": 2432968,
+        "mtime": "2026-09-06T12:59:33-04:00",
+        "tree_rev": "9ab705347c1775e7599ede7eb81a6255ec7dccb5"
+      },
+      "/Users/evanhoffman/git/ds4-main-b/ds4-agent": {
+        "size_bytes": 2547544,
+        "mtime": "2026-09-06T12:59:35-04:00",
+        "tree_rev": "9ab705347c1775e7599ede7eb81a6255ec7dccb5"
+      }
+    }
+  },
+  "claims": [
+    {
+      "id": "main-rev-is-current-upstream",
+      "statement": "The ds4-main-b worktree is at 9ab7053, the current upstream main fetched from antirez/ds4. The existing ds4-main worktree is also at 9ab7053, so this build is at the same rev as the peer's main worktree.",
+      "argv": [
+        "git",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "/Users/evanhoffman/git/ds4-main-b",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0,
+        "stdout_contains": "9ab7053"
+      },
+      "observed": {
+        "exit": 0,
+        "stdout": "9ab705347c1775e7599ede7eb81a6255ec7dccb5"
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "If the ds4-main-b worktree is not at 9ab7053, then this build is not the main arm the comparison needs."
+    },
+    {
+      "id": "binary-sizes",
+      "statement": "The four built binaries have the recorded sizes: ds4-bench 2263560, ds4-server 2623768, ds4-eval 2432968, ds4-agent 2547544 bytes. The build produced all four.",
+      "argv": [
+        "stat",
+        "-f",
+        "%z %N",
+        "ds4-bench",
+        "ds4-server",
+        "ds4-eval",
+        "ds4-agent"
+      ],
+      "cwd": "/Users/evanhoffman/git/ds4-main-b",
+      "machine": "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A",
+      "readonly": true,
+      "cost": "cheap",
+      "expect": {
+        "exit": 0,
+        "stdout_contains": "2263560"
+      },
+      "observed": {
+        "exit": 0,
+        "stdout": "2263560 ds4-bench\n2623768 ds4-server\n2432968 ds4-eval\n2547544 ds4-agent"
+      },
+      "expect_authored": "post-hoc",
+      "falsifier": "If the binaries are not present at the recorded sizes, then the build output differs from what is recorded."
+    }
+  ]
+}
