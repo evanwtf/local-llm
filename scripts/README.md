@@ -24,6 +24,7 @@ documentation.
 | `client_versions.py` | Read the recorded agent client versions, and say which have moved (#131). |
 | `cohort_split.py` | Split one backend's rows at a moment in time and compare the halves. |
 | `decode_ab.py` | Paired decode-rate A/B for two GGUFs of the same model (#48). #235 stage 4. |
+| `decode_ab_engine.py` | Paired decode-rate A/B for two ENGINE BUILDS of the same GGUF. #118 |
 | `decode_ab_report.py` | Summarize a paired decode A/B produced by scripts/decode_ab.sh (#48). |
 | `disk_baseline.py` | Measure the internal NVMe: read bandwidth and random-read latency. |
 | `disk_kv_mechanism.py` | Is the disk-KV budget what makes arm A decline by trial 3? #112 |
