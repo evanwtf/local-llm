@@ -37,11 +37,18 @@ parse.
 that is not verified is a stop that reports success while 100 GiB stays
 resident.
 
-**A foreign server is reported, not killed.** `lib/ds4_server.py` already made
-this choice and it is deliberate: `stop()` stops *our unit*. A resident
-mlx-serve that this project did not start is somebody else's process, and
-`pkill`-ing it by name is exactly the behavior #235 exists to remove. Use
-`foreign()` to find one and refuse, rather than killing it blind.
+**A foreign server is refused, not killed.** `stop()` stops *our unit*: a
+resident mlx-serve this project did not start is somebody else's process, and
+`pkill`-ing it by name is exactly the behavior #235 exists to remove.
+
+But stopping our own unit is only half the invariant. If a foreign server is
+resident and we start beside it, that is ~200 GiB on a 128 GiB machine, and
+the symptom is not a crash -- it is a run that swaps, and rows that are slow
+for a reason nobody records. The shell's `pkill -f` prevented that by killing
+whatever matched. **Refusing is the safe half of what it did**, and it lives
+in `start()` rather than in each driver, because "an arm starts from a clean
+slate" is the invariant this module exists to hold and a driver that has to
+remember it is a driver that will forget.
 """
 
 from __future__ import annotations
@@ -67,6 +74,15 @@ PROCESS = "mlx-serve"
 """The name preflight's census uses. It joined `INFERENCE` for #191."""
 
 
+class ForeignServer(RuntimeError):
+    """A resident mlx-serve that this project did not start.
+
+    Its own exception because the operator action is specific and manual: find
+    out whose it is, and stop it deliberately. The one thing that must not
+    happen is starting a second server beside it.
+    """
+
+
 class WouldNotStop(RuntimeError):
     """The server was signalled and is still resident.
 
@@ -81,17 +97,24 @@ def running(state_dir: pathlib.Path | None = None) -> bool:
     return unitctl.state(unitctl.read(UNIT, state_dir)) == unitctl.RUNNING
 
 
-def foreign() -> list[preflight.Proc]:
-    """Resident mlx-serve processes, via preflight's census.
+def foreign(state_dir: pathlib.Path | None = None) -> list[preflight.Proc]:
+    """Resident mlx-serve processes that are NOT our unit, via preflight.
 
-    This is the leftover the unit record cannot see: a server started by an
-    earlier session, or by hand. It is returned rather than killed -- see the
-    module docstring. `preflight` owns the census; this does not re-derive it.
+    The leftover the unit record cannot see: a server started by an earlier
+    session, or by hand. It is returned rather than killed -- see the module
+    docstring. `preflight` owns the census; this does not re-derive it.
+
+    Our own unit is excluded by pid. An earlier version matched every
+    mlx-serve process including ours, which made "foreign" untrue whenever we
+    had a server up -- harmless at the intended call site, wrong everywhere
+    else. Raised by @deepseek reviewing #252.
     """
     procs = preflight.parse_ps(
         preflight._capture(["ps", "-eo", "pid,rss,etime,command"])
     )
-    return [p for p in procs if PROCESS in p.command]
+    ours = unitctl.read(UNIT, state_dir)
+    our_pid = ours.pid if ours is not None else None
+    return [p for p in procs if PROCESS in p.command and p.pid != our_pid]
 
 
 def stop(why: str = "", state_dir: pathlib.Path | None = None) -> str:
@@ -125,6 +148,7 @@ def start(
     *,
     cwd: pathlib.Path,
     env: dict[str, str] | None = None,
+    allow_foreign: bool = False,
     state_dir: pathlib.Path | None = None,
 ) -> unitctl.Unit:
     """Start mlx-serve as the `mlx-serve` unit, after stopping any leftover.
@@ -135,6 +159,14 @@ def start(
     reproduces #145.
     """
     stop("leftover from an earlier run", state_dir=state_dir)
+    resident = foreign(state_dir)
+    if resident and not allow_foreign:
+        detail = ", ".join(f"pid {p.pid} ({p.rss_gib:.1f} GiB)" for p in resident)
+        raise ForeignServer(
+            f"an mlx-serve this run did not start is resident: {detail}. "
+            "Starting beside it would put both on the machine at once. Stop it "
+            "deliberately, or pass allow_foreign=True if that is the intent."
+        )
     return unitctl.start(
         UNIT, list(command), log=log, cwd=cwd, env=env, state_dir=state_dir
     )
@@ -147,6 +179,7 @@ def serving(
     *,
     cwd: pathlib.Path,
     env: dict[str, str] | None = None,
+    allow_foreign: bool = False,
     state_dir: pathlib.Path | None = None,
 ) -> Iterator[unitctl.Unit]:
     """Run mlx-serve for the duration of the block, and always stop it.
@@ -156,7 +189,14 @@ def serving(
     it. That is the whole of what `mlx_serve_arm_stop_trap` was for, minus the
     `trap -p` parsing.
     """
-    unit = start(command, log, cwd=cwd, env=env, state_dir=state_dir)
+    unit = start(
+        command,
+        log,
+        cwd=cwd,
+        env=env,
+        allow_foreign=allow_foreign,
+        state_dir=state_dir,
+    )
     try:
         yield unit
     finally:

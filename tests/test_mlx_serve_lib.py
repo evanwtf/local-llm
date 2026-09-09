@@ -25,11 +25,24 @@ sys.path.insert(0, str(ROOT / "benchmarks" / "agent"))
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
 import mlx_serve
+import preflight
 import unitctl
 from source_text import code_of
 
 SERVER = ["sleep", "60"]
 LIB = ROOT / "scripts" / "lib" / "mlx_serve.py"
+
+
+@pytest.fixture(autouse=True)
+def empty_census(monkeypatch) -> None:
+    """No mlx-serve on the machine, unless a test says otherwise.
+
+    `start()` consults the real process census, so without this the suite
+    would pass or fail depending on whether a server happened to be up on the
+    machine running it -- and this repo's machine runs servers for a living. A
+    test that wants a foreign server substitutes one explicitly.
+    """
+    monkeypatch.setattr(mlx_serve.preflight, "_capture", lambda _argv: "")
 
 
 @pytest.fixture
@@ -173,13 +186,94 @@ def test_the_library_does_not_look_for_processes_by_name() -> None:
 
 
 def test_a_foreign_server_is_reported_and_not_killed() -> None:
-    """`lib/ds4_server.py` already made this choice. A resident mlx-serve this
-    project did not start is somebody else's process, and `pkill`-ing it by
-    name is what #235 exists to remove. `foreign()` returns; it never signals."""
+    """A resident mlx-serve this project did not start is somebody else's
+    process, and `pkill`-ing it by name is what #235 exists to remove.
+    `foreign()` returns; it never signals."""
     code = code_of(LIB)
     body = code[code.index("def foreign") : code.index("def stop")]
     for signal_word in ("kill", "terminate", "signal", "SIGKILL", "SIGTERM"):
         assert signal_word not in body, f"foreign() must not {signal_word}"
+
+
+def test_our_own_server_is_not_foreign(monkeypatch, state, tmp_path) -> None:
+    """ "Foreign" must mean "not ours". An earlier version matched every
+    mlx-serve process including our own unit, which made the word untrue
+    whenever we had a server up. Raised by @deepseek reviewing #252.
+
+    A real unit, so the pid the record holds is a pid that exists; only the
+    census is substituted, because this machine has no mlx-serve running."""
+    unit = mlx_serve.start(SERVER, tmp_path / "s.log", cwd=ROOT, state_dir=state)
+    census = [
+        preflight.Proc(pid=unit.pid, rss_gib=100.0, command="mlx-serve --model ours"),
+        preflight.Proc(pid=unit.pid + 99999, rss_gib=100.0, command="mlx-serve --x"),
+    ]
+    monkeypatch.setattr(preflight, "parse_ps", lambda _text: census)
+    found = mlx_serve.foreign(state)
+
+    assert [p.pid for p in found] == [unit.pid + 99999]
+    mlx_serve.stop(state_dir=state)
+
+
+def test_start_refuses_when_a_foreign_server_is_resident(
+    monkeypatch, state, tmp_path
+) -> None:
+    """Stopping our own unit is only half the invariant. Starting beside a
+    foreign server is ~200 GiB on a 128 GiB machine, and the symptom is not a
+    crash -- it is a run that swaps, and rows that are slow for a reason
+    nobody records."""
+    monkeypatch.setattr(
+        mlx_serve,
+        "foreign",
+        lambda *a: [
+            preflight.Proc(pid=4243, rss_gib=99.9, command="mlx-serve --model y")
+        ],
+    )
+    with pytest.raises(mlx_serve.ForeignServer, match="4243"):
+        mlx_serve.start(SERVER, tmp_path / "s.log", cwd=ROOT, state_dir=state)
+    assert not mlx_serve.running(state), "nothing may start beside a foreign server"
+
+
+def test_the_refusal_names_the_memory_at_stake(monkeypatch, state, tmp_path) -> None:
+    """A refusal an operator cannot act on gets overridden rather than obeyed:
+    it must say which process and how much it holds."""
+    monkeypatch.setattr(
+        mlx_serve,
+        "foreign",
+        lambda *a: [
+            preflight.Proc(pid=4243, rss_gib=99.9, command="mlx-serve --model y")
+        ],
+    )
+    with pytest.raises(mlx_serve.ForeignServer) as caught:
+        mlx_serve.start(SERVER, tmp_path / "s.log", cwd=ROOT, state_dir=state)
+    assert "99.9 GiB" in str(caught.value)
+
+
+def test_the_refusal_can_be_overridden_deliberately(
+    monkeypatch, state, tmp_path
+) -> None:
+    """A refusal with no way through gets deleted rather than satisfied. It
+    must be possible, and it must be an explicit act."""
+    monkeypatch.setattr(
+        mlx_serve,
+        "foreign",
+        lambda *a: [
+            preflight.Proc(pid=4243, rss_gib=99.9, command="mlx-serve --model y")
+        ],
+    )
+    unit = mlx_serve.start(
+        SERVER, tmp_path / "s.log", cwd=ROOT, allow_foreign=True, state_dir=state
+    )
+    assert alive(unit.pid)
+    mlx_serve.stop(state_dir=state)
+
+
+def test_a_clean_machine_does_not_refuse(monkeypatch, state, tmp_path) -> None:
+    """The negative case. Without it the guard could refuse everything and the
+    library would be unreachable until an overnight run produced nothing."""
+    monkeypatch.setattr(mlx_serve, "foreign", lambda *a: [])
+    unit = mlx_serve.start(SERVER, tmp_path / "s.log", cwd=ROOT, state_dir=state)
+    assert alive(unit.pid)
+    mlx_serve.stop(state_dir=state)
 
 
 def test_the_shell_it_replaces_is_still_here() -> None:
