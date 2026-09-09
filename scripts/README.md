@@ -77,6 +77,7 @@ documentation.
 | `disk_kv_mechanism_test.sh` | 112 disk-KV mechanism test (2026-09-03). |
 | `ds4-fast.sh` | Metal 4 TensorOps: ~21% faster, not bit-exact. See scripts/ds4_serve.py. |
 | `ds4-vanilla.sh` | Reference kernels: bit-exact, slower. See scripts/ds4_serve.py. |
+| `greedy_mtp_ab.sh` | The first ds4 MTP arm that can actually draft, against its own control (#151, #39). |
 | `install-metal-ceiling.sh` | Persist the Metal wired limit across reboots. |
 | `local-agent.sh` | Start a recommended local stack and drop into a coding agent. |
 | `metal_knob_ab.sh` | Paired decode-rate A/B for a Metal knob env var within one tree (#162 Task 4). |

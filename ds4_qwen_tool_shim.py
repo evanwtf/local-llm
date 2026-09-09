@@ -238,6 +238,48 @@ def note_sampling(payload: dict) -> dict:
     return sampling
 
 
+def pinned_temperature() -> float | None:
+    """`SHIM_TEMPERATURE`, or None when unset or unreadable.
+
+    #151: ds4 reaches its Qwen MTP path only at `temperature <= 0.0f`
+    (`ds4.c:80120 at ds4-metal ba01f5d`), and a request omitting the field
+    gets `DS4_DEFAULT_TEMPERATURE`, `1.0f` (`ds4.h:56 at ds4-metal ba01f5d`).
+    OpenCode's config declares `"temperature": false` for this model, which
+    tells it the model takes no temperature, so it sends none -- and 119 MTP
+    rows were taken on arms that could not draft.
+
+    The client cannot be made to send one without changing its config for
+    every backend that shares the model. The shim can, per instance: run a
+    second shim on another port with SHIM_TEMPERATURE=0 and point a greedy
+    backend at it, leaving :8101 exactly as it was.
+
+    An unparseable value is ignored with a warning rather than defaulted. A
+    silent 0 from a typo would make an arm greedy that nobody meant to be.
+    """
+    raw = os.environ.get("SHIM_TEMPERATURE")
+    if raw is None or raw == "":
+        return None
+    try:
+        return float(raw)
+    except ValueError:
+        logger.warning("SHIM_TEMPERATURE=%r is not a number; ignoring it", raw)
+        return None
+
+
+def pin_temperature(payload: dict) -> bool:
+    """Set the pinned temperature. True when the payload changed.
+
+    Only when the client sent none. A client that asks for a temperature is
+    stating a regime, and overriding it would make the row describe a request
+    nobody sent -- the confound this exists to remove.
+    """
+    want = pinned_temperature()
+    if want is None or "temperature" in payload:
+        return False
+    payload["temperature"] = want
+    return True
+
+
 def rewrite(body: bytes) -> bytes:
     """Apply the rewrite. Returns the original body on any doubt."""
     try:
@@ -248,8 +290,21 @@ def rewrite(body: bytes) -> bytes:
     # sampler, and recording only instructed ones would miss most of a trial.
     if isinstance(payload, dict):
         note_sampling(payload)
-    if not isinstance(payload, dict) or not needs_instruction(payload):
+    if not isinstance(payload, dict):
         return body
+    # Before the instruction check, and it must survive an uninstructed
+    # request: most of a trial's turns need no instruction, and an arm that
+    # was greedy only on the instructed ones is not an arm.
+    pinned = pin_temperature(payload)
+    if pinned:
+        stats["pinned"] = stats.get("pinned", 0) + 1
+        if stats["pinned"] == 1:
+            logger.info(
+                "pinning temperature=%s on requests that send none",
+                payload["temperature"],
+            )
+    if not needs_instruction(payload):
+        return json.dumps(payload).encode() if pinned else body
     if not add_instruction(payload):
         logger.warning(
             "could NOT add instruction; message roles=%s",
@@ -259,7 +314,7 @@ def rewrite(body: bytes) -> bytes:
                 if isinstance(m, dict)
             ],
         )
-        return body
+        return json.dumps(payload).encode() if pinned else body
     stats["instructed"] += 1
     dump = os.environ.get("SHIM_DUMP")
     if dump and stats["instructed"] == 1:

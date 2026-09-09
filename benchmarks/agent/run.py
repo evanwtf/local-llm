@@ -2390,6 +2390,21 @@ def greedy_precondition(name, backend, clients=()):
     """
     if backend.get("draft_engine", "ds4") != "ds4":
         return None
+    # A backend can declare that its own shim instance pins the temperature
+    # (`SHIM_TEMPERATURE`), which is the only way to get one past a client
+    # whose config says the model takes none. This is a DECLARATION, not
+    # proof: the proof is the post-trial counter gate, which refuses an arm
+    # that emitted no speculative cycle whatever anyone declared.
+    declared = backend.get("pinned_temperature")
+    if declared is not None:
+        if declared <= 0:
+            return None
+        return (
+            f"{name} is a speculative arm declaring pinned_temperature="
+            f"{declared}, which is above zero. ds4 enters its Qwen MTP path "
+            f"only at temperature <= 0 (ds4.c:80120 at ds4-metal ba01f5d), so "
+            f"this arm would carry an MTP label and no MTP (#151)."
+        )
     if "opencode" not in clients:
         return None
     model = backend.get("opencode_model")
@@ -2407,10 +2422,12 @@ def greedy_precondition(name, backend, clients=()):
         f"{at} for {model}. ds4 enters its Qwen MTP path only at "
         f"temperature <= 0 (ds4.c:80120 at ds4-metal ba01f5d); above it the "
         f"speculative call does one plain eval and returns, so this arm would "
-        f'carry an MTP label and no MTP (#151). Set "options": '
-        f'{{"temperature": 0}} for that model in OpenCode\'s config, or drop '
-        f"the arm. Note that pinning it changes the regime, so a greedy arm "
-        f"needs a greedy control beside it."
+        f"carry an MTP label and no MTP (#151). Editing OpenCode's config "
+        f"would change the sampler for every backend sharing that model; run "
+        f"a second shim with SHIM_TEMPERATURE=0 and use a backend declaring "
+        f"pinned_temperature instead -- qwen38fnds4mtp7greedy is that arm. "
+        f"Note that pinning changes the regime, so a greedy MTP arm needs a "
+        f"greedy control beside it (qwen38fnds4greedy)."
     )
 
 

@@ -1344,3 +1344,56 @@ opencode_model = "mlxserve/Qwen3.8-Flash-Next-MLX-Serve-mixed-4-8bit"
 engine = "mlx-serve"
 engine_tree = "~/git/mlx-serve"
 context_tokens = 100000
+
+# --- the first MTP arm that is actually an MTP arm (#151, #39) --------------
+#
+# Measured 2026-09-08: ds4 reaches its Qwen MTP path only at `temperature <=
+# 0.0f` (`ds4.c:80120 at ds4-metal ba01f5d`); above it the speculative call
+# does one plain eval and returns (`ds4.c:80216 at ds4-metal ba01f5d`). A
+# request omitting the field gets `DS4_DEFAULT_TEMPERATURE`, `1.0f`
+# (`ds4.h:56 at ds4-metal ba01f5d`), and OpenCode's config declares
+# `"temperature": false` for this model -- it is told the model takes none, so
+# it sends none. Every MTP row before today was taken on an arm that could not
+# draft.
+#
+# The temperature cannot come from OpenCode's config without changing it for
+# every backend sharing the model, so these two run behind a SECOND shim
+# instance on :8102 started with SHIM_TEMPERATURE=0. :8101 is untouched, and
+# the 262 existing rows keep comparing.
+#
+# THEY COME AS A PAIR. Pinning temperature is itself a change of regime, so a
+# greedy MTP arm alone cannot separate speculation from greedy decoding. The
+# control below is the same stack, same shim, same temperature, MTP off.
+
+[backend.qwen38fnds4mtp7greedy]
+description = "Qwen3.8-Flash-Next Q4 fast-pack on ds4-metal ba01f5d, tool-format shim with temperature pinned to 0, embedded MTP --mtp-draft 7"
+base_url = "http://127.0.0.1:8102"
+engine_url = "http://127.0.0.1:8000"
+auth_token = "dsv4-local"
+model = "qwen3.8-flash-next-q4"
+opencode_model = "ds4qwengreedy/qwen3.8-flash-next-q4"
+context_tokens = 100000
+engine = "ds4"
+engine_tree = "~/git/ds4-metal"
+speculative = "mtp"
+# Explicit, not defaulted: `DraftProbe.SWITCHES` is keyed on this, and a
+# missing one makes the arm unreadable by the counter probe -- caught by
+# test_every_declared_arm_names_an_engine_the_probe_can_read.
+draft_engine = "ds4"
+# A declaration that this arm's shim pins the sampler, checked by
+# `run.greedy_precondition`. It is not proof -- the proof is #210's
+# post-trial gate, which refuses an arm that emitted no speculative cycle
+# whatever anyone declared here.
+pinned_temperature = 0
+
+[backend.qwen38fnds4greedy]
+description = "Qwen3.8-Flash-Next Q4 fast-pack on ds4-metal ba01f5d, tool-format shim with temperature pinned to 0, MTP off -- the control for qwen38fnds4mtp7greedy"
+base_url = "http://127.0.0.1:8102"
+engine_url = "http://127.0.0.1:8000"
+auth_token = "dsv4-local"
+model = "qwen3.8-flash-next-q4"
+opencode_model = "ds4qwengreedy/qwen3.8-flash-next-q4"
+context_tokens = 100000
+engine = "ds4"
+engine_tree = "~/git/ds4-metal"
+pinned_temperature = 0

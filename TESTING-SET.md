@@ -128,6 +128,8 @@ be drawn from — OpenCode, after the `--dir` cutover, not excluded.
 | `ds4anthropic` | DeepSeek-V4-Flash 0731 | ds4 (Anthropic wire) | 90.9 GiB | 18 |
 | `qwen38fnds4shim` | Qwen3.8-Flash-Next DS4-Q4 fast-pack, MTP off | ds4 (via tool shim) | 113 GB | 135 |
 | `qwen38fnds4mtp7shim` | the same fast-pack, MTP `--mtp-draft 7` | ds4 (via tool shim) | 113 GB | 90 |
+| `qwen38fnds4mtp7greedy` | the same fast-pack, MTP `--mtp-draft 7`, **temperature pinned to 0** | ds4 (via a second tool shim on :8102) | 113 GB | 0 |
+| `qwen38fnds4greedy` | the same fast-pack, MTP off, **temperature pinned to 0** | ds4 (via a second tool shim on :8102) | 113 GB | 0 |
 | `qwen38fnds4kimat` | Q4_K **imatrix** rebuild of the same model, MTP off | ds4, ivanfioravanti fork (via tool shim) | 105 GB | 0 |
 | `qwen38fnmlxserve` | the same model as MLX mixed 4/8-bit weights | mlx-serve 26.9.1 (no shim) | 101 GB | 1 |
 | `qwen38fnmlxserve-git` | the same model as MLX mixed 4/8-bit weights | mlx-serve git main+PR383 at `~/git/mlx-serve` (no shim) | 101 GB | 0 |
@@ -181,6 +183,23 @@ it loses on and a bypass and a null look identical in a row. Its 90 valid rows a
 arm B runs, continuous and restart-between-trials — **25/45 each (9/6/10 under restart),
 identical totals**, so **MTP is a net cost on this workload** (#77, closed; the sampler
 caveat in AGENTS.md applies to the pass-rate gap).
+
+**`qwen38fnds4mtp7greedy` and `qwen38fnds4greedy` are the pair that can
+actually test MTP** (#151, measured 2026-09-08). ds4 reaches its Qwen MTP path
+only at `temperature <= 0.0f` (`ds4.c:80120 at ds4-metal ba01f5d`); above it
+the speculative call does one plain eval and returns
+(`ds4.c:80216 at ds4-metal ba01f5d`). A request omitting the field gets
+`DS4_DEFAULT_TEMPERATURE`, `1.0f` (`ds4.h:56 at ds4-metal ba01f5d`), and
+OpenCode's config declares `"temperature": false` for this model — it is told
+the model takes none, so it sends none. **Every `qwen38fnds4mtp7shim` row was
+therefore taken on an arm that never speculated**, including the 90 above and
+the 25/45 result quoted in the paragraph before this one.
+
+They run behind a **second shim on :8102** started with `SHIM_TEMPERATURE=0`,
+so `:8101` and the 262 rows taken through it are untouched. `qwen38fnds4greedy`
+is not optional: pinning the temperature is itself a change of regime, so a
+greedy MTP arm alone cannot separate speculation from greedy decoding.
+`scripts/greedy_mtp_ab.sh` runs them alternated. Neither has a row yet.
 
 The pack is `ivanfioravanti/Qwen3.8-Flash-Next-DS4-Q4`, a **DS4 fast-pack, not
 a llama.cpp GGUF** — standard GGUF tools will not load it. Runtime is the

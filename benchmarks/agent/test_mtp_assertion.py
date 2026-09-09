@@ -163,7 +163,7 @@ def test_requiring_draft_stays_off_when_no_arm_declares_speculation():
 # asserts the treatment.
 
 
-def test_the_three_mtp_arms_declare_themselves():
+def test_the_mtp_arms_declare_themselves():
     import pathlib
     import tomllib
 
@@ -177,6 +177,10 @@ def test_the_three_mtp_arms_declare_themselves():
         "mtplx": "mtplx",
         "qwen38fnds4mtp7": "ds4",
         "qwen38fnds4mtp7shim": "ds4",
+        # #151: the first of these that can actually draft. The three above
+        # are driven by clients that send no temperature, and ds4 reaches its
+        # Qwen MTP path only at temperature <= 0.
+        "qwen38fnds4mtp7greedy": "ds4",
     }
 
 
@@ -470,3 +474,31 @@ def test_a_non_ds4_draft_engine_is_out_of_scope(monkeypatch, tmp_path):
         run.greedy_precondition("mtplx", backend(draft_engine="mtplx"), ("opencode",))
         is None
     )
+
+
+def test_a_backend_can_declare_its_shim_pins_the_temperature(monkeypatch, tmp_path):
+    """OpenCode's config says `"temperature": false` for this model -- it is
+    told the model takes none. Changing that changes it for every backend
+    sharing the model, so the greedy arm gets its own shim instance with
+    SHIM_TEMPERATURE=0 and declares it here."""
+    monkeypatch.setattr(opencode_config, "CONFIG", config_with(None, tmp_path))
+    assert (
+        run.greedy_precondition("greedy", backend(pinned_temperature=0), ("opencode",))
+        is None
+    )
+
+
+def test_a_declared_pin_above_zero_is_refused():
+    """The declaration is checked, not trusted. A pinned_temperature of 0.2
+    is a legitimate arm and is not an MTP arm."""
+    why = run.greedy_precondition(
+        "greedy", backend(pinned_temperature=0.2), ("opencode",)
+    )
+    assert why is not None
+    assert "above zero" in why
+
+
+def test_the_declaration_does_not_replace_the_post_trial_proof():
+    """A declaration is what someone wrote in a config file. #210's gate is
+    what the engine did. Both, or the first one is a claim."""
+    assert run.require_draft_default({"greedy": backend(pinned_temperature=0)})

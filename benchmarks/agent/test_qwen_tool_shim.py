@@ -308,3 +308,62 @@ def test_main_writes_the_record_after_the_bind(tmp_path, monkeypatch):
     with pytest.raises(OSError):
         shim.main()
     assert not (tmp_path / "8101.json").exists()
+
+
+# --- SHIM_TEMPERATURE: making an MTP arm actually an MTP arm (#151) ----------
+
+
+def body_of(**kw):
+    payload = {"model": "m", "messages": [{"role": "user", "content": "hi"}]}
+    payload.update(kw)
+    return json.dumps(payload).encode()
+
+
+def test_no_pin_leaves_the_body_byte_identical(monkeypatch):
+    """Off by default. Every backend on :8101 must send exactly what it sent
+    before this existed, or 262 rows of history stop comparing."""
+    monkeypatch.delenv("SHIM_TEMPERATURE", raising=False)
+    body = body_of()
+    assert shim.rewrite(body) == body
+
+
+def test_a_pin_reaches_a_request_that_needs_no_instruction(monkeypatch):
+    """Most turns in a trial need no instruction. An arm that was greedy only
+    on the instructed ones is not an arm, and the early return in `rewrite`
+    used to hand the original body straight back."""
+    monkeypatch.setenv("SHIM_TEMPERATURE", "0")
+    body = body_of()
+    assert not shim.needs_instruction(json.loads(body)), "precondition"
+    assert json.loads(shim.rewrite(body))["temperature"] == 0
+
+
+def test_a_temperature_the_client_asked_for_is_never_overridden(monkeypatch):
+    """A client stating a regime is data. Overriding it would make the row
+    describe a request nobody sent -- the confound this exists to remove."""
+    monkeypatch.setenv("SHIM_TEMPERATURE", "0")
+    assert json.loads(shim.rewrite(body_of(temperature=0.7)))["temperature"] == 0.7
+
+
+def test_an_unparseable_pin_is_ignored_rather_than_defaulted(monkeypatch, caplog):
+    """A silent 0 from a typo makes an arm greedy that nobody meant to be,
+    and nothing downstream would say so."""
+    monkeypatch.setenv("SHIM_TEMPERATURE", "zero")
+    assert shim.pinned_temperature() is None
+    body = body_of()
+    assert shim.rewrite(body) == body
+
+
+def test_an_empty_pin_is_unset_not_zero(monkeypatch):
+    """`SHIM_TEMPERATURE=` in a shell script is the commonest way to mean
+    "leave it alone", and reading it as 0.0 would silently make the arm
+    greedy."""
+    monkeypatch.setenv("SHIM_TEMPERATURE", "")
+    assert shim.pinned_temperature() is None
+
+
+def test_a_nonzero_pin_is_allowed(monkeypatch):
+    """The knob is a temperature, not a greedy switch. A 0.2 arm is a
+    legitimate thing to ask for, and refusing it here would be this file
+    deciding the experiment."""
+    monkeypatch.setenv("SHIM_TEMPERATURE", "0.2")
+    assert json.loads(shim.rewrite(body_of()))["temperature"] == 0.2
