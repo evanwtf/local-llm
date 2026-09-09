@@ -91,7 +91,8 @@ def prefill_chunk(raw: str | None) -> int | None:
         logger.warning(
             "PREFILL_CHUNK=%d exceeds the raw_cap ceiling (%d). Frontier 1 will "
             "use %d; every later frontier will use %d. "
-            "ds4.c:36867 and ds4.c:37541 at ds4-main 9ab70534. "
+            "ds4.c:36867 at ds4-main 9ab70534 and "
+            "ds4.c:37541 at ds4-main 9ab70534. "
             "One run, two quantities.",
             value,
             RAW_CAP,
