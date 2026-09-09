@@ -188,6 +188,21 @@ def state(unit: Unit | None) -> str:
     `stale` is not `running`: the record names a pid that is gone, or one the
     kernel has reused for a different process. Both mean there is nothing of
     ours to stop, and neither may be reported as up.
+
+    Two edges in the reuse check, which differ and should:
+
+    - **ps fails later.** `start_key()` returns None, the recorded key is not
+      None, so they differ and the unit reads `stale`. That is fail-closed: an
+      identity we cannot confirm is not an identity we will signal.
+    - **ps failed at spawn.** The record's own key is None, the check is
+      skipped, and the unit reads `running`. This is the weaker case and it is
+      deliberate: refusing here would call a freshly-started unit dead. The
+      window it leaves open needs the pid to be recycled onto another process
+      within one unit's lifetime.
+
+    A caller deciding whether to start something must test for `RUNNING`, not
+    for `STOPPED`: a `stale` unit is neither, and `if state(u) == STOPPED:
+    start()` silently declines to restart a unit that died under it.
     """
     if unit is None:
         return STOPPED

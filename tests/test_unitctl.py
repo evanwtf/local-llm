@@ -256,3 +256,43 @@ def test_a_zombie_is_not_reported_as_running(state_dir):
         assert unitctl.state(unitctl.read("probe", state_dir)) == unitctl.STALE
     finally:
         unitctl.stop("probe", timeout=5, state_dir=state_dir)
+
+
+def test_ps_failing_after_a_good_spawn_reads_stale(state_dir, monkeypatch):
+    """Fail closed: an identity we can no longer confirm is not one we will
+    signal. (I described this backwards on the PR; --deepseek caught it.)"""
+    unitctl.start("probe", ["sleep", "60"], state_dir=state_dir)
+    try:
+        assert unitctl.state(unitctl.read("probe", state_dir)) == unitctl.RUNNING
+        monkeypatch.setattr(unitctl, "start_key", lambda pid: None)
+        assert unitctl.state(unitctl.read("probe", state_dir)) == unitctl.STALE
+    finally:
+        monkeypatch.undo()
+        unitctl.stop("probe", timeout=5, state_dir=state_dir)
+
+
+def test_ps_failing_at_spawn_still_reads_running(state_dir, monkeypatch):
+    """The genuinely weaker case, and the right trade: refusing here would
+    call a freshly-started unit dead."""
+    monkeypatch.setattr(unitctl, "start_key", lambda pid: None)
+    unitctl.start("probe", ["sleep", "60"], state_dir=state_dir)
+    monkeypatch.undo()
+    try:
+        assert unitctl.read("probe", state_dir).start_key is None
+        assert unitctl.state(unitctl.read("probe", state_dir)) == unitctl.RUNNING
+    finally:
+        unitctl.stop("probe", timeout=5, state_dir=state_dir)
+
+
+def test_a_stale_unit_is_not_stopped_so_a_caller_must_test_for_running(state_dir):
+    """The usage trap --deepseek named: `if state(u) == STOPPED: start()` will
+    not restart a unit that died under it, because STALE is neither."""
+    unitctl.start("probe", ["true"], state_dir=state_dir)
+    for _ in range(100):
+        if unitctl.state(unitctl.read("probe", state_dir)) != unitctl.RUNNING:
+            break
+        time.sleep(0.02)
+    found = unitctl.state(unitctl.read("probe", state_dir))
+    assert found == unitctl.STALE
+    assert found != unitctl.STOPPED
+    unitctl.stop("probe", timeout=5, state_dir=state_dir)
