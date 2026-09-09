@@ -61,6 +61,7 @@ documentation.
 | `release_notes.py` | Print the changelog section for a release, or refuse. |
 | `relevance_score.py` | Score how relevant an outside claim is to THIS project, procedurally (#230). |
 | `report.py` | Summarize and compare measured cells, with the resolution rule applied. |
+| `restart_between_trials.py` | Restart-between-trials: does server state degrade a session? #112, #77. |
 | `route_ab_report.py` | Attribute #149 route-A/B rows to sweep windows and evaluate the screens. |
 | `sensor_windows.py` | Join a monitord sensor series to benchmark sweep windows. |
 | `session_decay.py` | Does a session get worse the longer the server runs? (#120) |
