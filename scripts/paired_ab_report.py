@@ -52,14 +52,10 @@ import argparse
 import json
 import logging
 import pathlib
-import random
 import statistics
 import sys
 
 logger = logging.getLogger(__name__)
-
-BOOTSTRAP = 10000
-SEED = 20260909
 
 
 def load(path: pathlib.Path, batch: str) -> list[dict]:
@@ -90,7 +86,7 @@ def wall_eligible(row: dict) -> bool:
 
 
 def check_one_harness_head(rows: list[dict]) -> str | None:
-    heads = {r["env"].get("harness_head") for r in rows}
+    heads = {r.get("env", {}).get("harness_head") for r in rows}
     if len(heads) > 1:
         return f"VOID: rows span {len(heads)} harness heads: {sorted(map(str, heads))}"
     return None
@@ -98,7 +94,11 @@ def check_one_harness_head(rows: list[dict]) -> str | None:
 
 def dirty_by_arm(rows: list[dict], arms: tuple[str, str]) -> dict[str, set[bool]]:
     return {
-        arm: {bool(r["env"].get("harness_dirty")) for r in rows if r["backend"] == arm}
+        arm: {
+            bool(r.get("env", {}).get("harness_dirty"))
+            for r in rows
+            if r["backend"] == arm
+        }
         for arm in arms
     }
 
@@ -116,8 +116,9 @@ def check_dirty_symmetry(rows: list[dict], arms: tuple[str, str]) -> str | None:
         return (
             f"harness_dirty differs across the arms: "
             f"{arms[0]}={sorted(seen[arms[0]])} {arms[1]}={sorted(seen[arms[1]])}. "
-            "The heads agree, so the harness code was identical; say so "
-            "explicitly when quoting this run (#238)."
+            "The heads agree, so the COMMITTED code was identical; uncommitted "
+            "changes may still have been present. Say so when quoting this run "
+            "(#238)."
         )
     return None
 
@@ -143,17 +144,30 @@ def pair(rows: list[dict], arms: tuple[str, str]) -> tuple[dict, list[str]]:
     return paired, unpaired
 
 
-def ratio_ci(
-    ratios: list[float], reps: int = BOOTSTRAP, seed: int = SEED
-) -> tuple[float, float]:
-    """Percentile bootstrap interval for the median of per-task ratios."""
-    rng = random.Random(seed)
-    n = len(ratios)
-    medians = sorted(
-        statistics.median([ratios[rng.randrange(n)] for _ in range(n)])
-        for _ in range(reps)
+def ratio_spread(ratios: list[float]) -> tuple[float, float]:
+    """The interquartile range of the per-task ratios: (q1, q3).
+
+    Deliberately NOT a confidence interval. An earlier version bootstrapped
+    these ratios and printed a "95% CI", which overclaims twice:
+
+    - **There is no population to infer to.** The tasks are a fixed benchmark
+      set, chosen and reused, not a random sample of coding work. Resampling
+      them says how much the median moves when tasks are swapped in and out of
+      a set that never varies -- not where a true effect lies.
+    - **It ignores the noise that matters.** The bootstrap resamples per-task
+      ratios, each already a median over trials, so trial-level variation --
+      the thing #130's position bias and #112's 17-26% paired-wall resolution
+      are about -- never enters it.
+
+    The IQR is a description of the 14 numbers in front of you and implies
+    nothing beyond them. Read it with the direction count, which is the part
+    that carries weight at this n.
+    """
+    ordered = sorted(ratios)
+    return (
+        statistics.quantiles(ordered, n=4)[0] if len(ordered) > 1 else ordered[0],
+        statistics.quantiles(ordered, n=4)[2] if len(ordered) > 1 else ordered[0],
     )
-    return medians[int(0.025 * reps)], medians[int(0.975 * reps)]
 
 
 def render(rows: list[dict], arms: tuple[str, str]) -> tuple[list[str], int]:
@@ -182,7 +196,7 @@ def render(rows: list[dict], arms: tuple[str, str]) -> tuple[list[str], int]:
 
     ratios = [t / c for t, c in paired.values()]
     faster = sum(1 for r in ratios if r < 1.0)
-    lo, hi = ratio_ci(ratios)
+    q1, q3 = ratio_spread(ratios)
     out.append("")
     out.append(f"{'task':32} {arms[0][:12]:>12} {arms[1][:12]:>12}  ratio")
     for task, (t, c) in paired.items():
@@ -190,8 +204,13 @@ def render(rows: list[dict], arms: tuple[str, str]) -> tuple[list[str], int]:
     out.append("")
     out.append(
         f"paired tasks {len(paired)}; median wall ratio "
-        f"{statistics.median(ratios):.3f} (95% CI {lo:.3f}-{hi:.3f}); "
+        f"{statistics.median(ratios):.3f} (IQR {q1:.3f}-{q3:.3f}); "
         f"{faster} of {len(paired)} favor {arms[0]}"
+    )
+    out.append(
+        "The IQR describes these tasks and infers nothing beyond them: the "
+        "task set is fixed, not sampled, so there is no population a "
+        "confidence interval could be about."
     )
     out.append(
         "One run is not three. This project's minimum for a claim is three "
@@ -206,21 +225,24 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--batch", required=True)
     p.add_argument("--treatment", required=True)
     p.add_argument("--control", required=True)
-    p.add_argument(
-        "--ledger",
-        type=pathlib.Path,
-        default=repo
-        / "hardware"
-        / "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A"
-        / "results.jsonl",
-    )
+    # Not a hardcoded machine directory: `results.default_path()` is what
+    # every other reader uses, and a literal path names this laptop and no
+    # other host -- the same shape as peer_state's `~/git/local-llm` (#237's
+    # sibling bug, which reddened CI).
+    p.add_argument("--ledger", type=pathlib.Path, default=None)
     args = p.parse_args(argv)
+    ledger = args.ledger
+    if ledger is None:
+        sys.path.insert(0, str(repo / "benchmarks" / "agent"))
+        import results as results_mod
+
+        ledger = results_mod.default_path()
     logging.basicConfig(
         level=logging.INFO,
         stream=sys.stdout,
         format="%(asctime)s %(name)s %(levelname)s %(message)s",
     )
-    rows = load(args.ledger, args.batch)
+    rows = load(ledger, args.batch)
     if not rows:
         logger.error("no rows in batch %r", args.batch)
         return 2

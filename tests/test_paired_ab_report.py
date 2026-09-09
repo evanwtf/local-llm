@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import pathlib
+import statistics
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "scripts"))
@@ -174,11 +175,24 @@ def test_a_slower_treatment_reads_above_one():
     assert any("0 of 4 favor mtp" in line for line in lines)
 
 
-def test_the_bootstrap_is_seeded_so_a_read_out_is_reproducible():
-    """Two people running this on the same ledger must quote the same
-    interval, or the interval is not evidence of anything."""
-    ratios = [0.8, 0.9, 1.0, 1.1, 1.2, 0.95]
-    assert report.ratio_ci(ratios) == report.ratio_ci(ratios)
+def test_the_spread_is_a_description_not_a_confidence_interval():
+    """--deepseek's catch, and it had already reached a published comment.
+
+    An earlier version bootstrapped the per-task ratios and printed a
+    "95% CI". That overclaims twice: the tasks are a fixed benchmark set
+    rather than a sample, so there is no population to infer to; and the
+    bootstrap resamples per-task ratios that are already medians over trials,
+    so trial-level noise -- the thing that actually limits resolution here --
+    never enters it.
+    """
+    ratios = [0.5, 0.9, 1.0, 1.1, 2.5]
+    q1, q3 = report.ratio_spread(ratios)
+    assert q1 <= statistics.median(ratios) <= q3
+    assert not hasattr(report, "ratio_ci"), "the CI framing must not come back"
+    lines, _ = report.render(balanced(4), ARMS)
+    assert not any("CI" in line for line in lines)
+    assert any("IQR" in line for line in lines)
+    assert any("infers nothing beyond them" in line for line in lines)
 
 
 def test_one_run_is_never_presented_as_a_conclusion():
