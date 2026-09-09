@@ -157,6 +157,31 @@ def test_a_two_round_run_starts_four_servers_and_one_shim(
     assert events.count("arm") == 4
 
 
+def test_a_failed_arm_makes_the_whole_run_report_failure(monkeypatch, tmp_path) -> None:
+    """The shell piped each arm through `tee` and lost the exit status to the
+    pipe, so a driver that lost an arm still exited 0. That is how the
+    2026-09-08 run reported nothing wrong while holding no control arm.
+
+    The sweep still finishes -- the surviving arms are worth having -- but it
+    must not read as clean."""
+    events = _wire(monkeypatch, tmp_path)
+    codes = iter([0, 7, 0, 0])
+
+    def flaky(backend, tag, logdir, batch, trials):
+        events.append("arm")
+        return next(codes)
+
+    monkeypatch.setattr(driver, "run_arm", flaky)
+    assert driver.sweep(2, 1, "b", tmp_path, 4242) == 1
+    assert events.count("arm") == 4, "one bad arm must not abort the rest"
+
+
+def test_a_clean_run_reports_success(monkeypatch, tmp_path) -> None:
+    events = _wire(monkeypatch, tmp_path)
+    assert driver.sweep(2, 1, "b", tmp_path, 4242) == 0
+    assert events.count("arm") == 4
+
+
 def test_every_arm_gets_its_own_server_log(monkeypatch, tmp_path) -> None:
     """One log per arm, or `assert_graph` reads the previous arm's line and a
     control arm passes an MTP graph check it never ran."""

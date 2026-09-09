@@ -225,9 +225,17 @@ def run_arm(
 def sweep(
     rounds: int, trials: int, batch: str, logdir: pathlib.Path, owner_pid: int
 ) -> int:
-    """The whole run. Returns a process exit code."""
+    """The whole run. Returns a process exit code: 0 only if every arm ran.
+
+    A failed arm does not stop the sweep -- the remaining arms are still worth
+    having -- but it must not be reported as a clean run either. The shell
+    piped each arm through `tee` and lost the exit status to the pipe, so a
+    driver that lost an arm exited 0 and the loss surfaced hours later at
+    read-out. That is the same shape as the failure that opened #235.
+    """
     logdir.mkdir(parents=True, exist_ok=True)
     logger.info("logs in: %s", logdir)
+    failed: list[str] = []
     with run_lock(owner_pid), greedy_shim(logdir / "shim-8102.log"):
         for round_number in range(1, rounds + 1):
             logger.info("=== round %d of %d ===", round_number, rounds)
@@ -245,13 +253,23 @@ def sweep(
                     port=SERVER_PORT,
                 ):
                     logger.info("round %d arm %s (%s)", round_number, kind, backend)
-                    run_arm(backend, tag, logdir, batch, trials)
+                    if run_arm(backend, tag, logdir, batch, trials) != 0:
+                        failed.append(tag)
     logger.info("complete -- %s", logdir)
     logger.info(
         "Read the MTP arm's rows for drafting_share before reading any wall "
         "time: an arm that emitted no cycle is not an MTP arm, whatever it "
         "declared."
     )
+    if failed:
+        logger.error(
+            "INCOMPLETE: %d of %d arms failed (%s). The rows that exist are "
+            "still rows, but this is not a paired run -- read it as such.",
+            len(failed),
+            rounds * 2,
+            ", ".join(failed),
+        )
+        return 1
     return 0
 
 
