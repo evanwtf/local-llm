@@ -148,6 +148,20 @@ class Claim:
     #: number the record wrote down. The row that started this said 74.2 GiB
     #: about a pid that had not existed for hours.
     resident_gib: float | None = None
+    #: How long this claim has HELD the machine -- which is not the same as how
+    #: long its process has run, and the two sources differ by claim:
+    #:
+    #: - a resident server holds from the moment it started, so the OS answers
+    #:   it: the process being alive IS the occupation.
+    #: - the lock holds from the moment the record was written. Its holder can
+    #:   be an agent session hours old that took the lock a minute ago, so the
+    #:   process start time over-reports, and structurally: `check_pid` calls a
+    #:   lock RUNNING only when the process began at or before the record, so a
+    #:   lifetime is always >= the record's own age.
+    #:
+    #: #265 asks for it so a reader can tell a sweep that just began from one
+    #: that has hung for hours. A lifetime cannot answer that for a lock.
+    held_s: int | None = None
 
     @property
     def occupies(self) -> bool:
@@ -165,8 +179,13 @@ class Claim:
             else ""
         )
         gib = f" {self.resident_gib:.1f} GiB now" if self.resident_gib else ""
+        held = (
+            f" held {preflight.human_age(self.held_s)}"
+            if self.held_s is not None
+            else ""
+        )
         return (
-            f"{self.status:<12} {self.source}: {self.what} ({pid}{gib}){age} "
+            f"{self.status:<12} {self.source}: {self.what} ({pid}{gib}){held}{age} "
             f"-- {self.detail}"
         )
 
@@ -328,7 +347,19 @@ def lock_claim(path: pathlib.Path | None = None) -> Claim:
     status, detail, by = check_pid(holder, recorded_at=recorded_at(path))
     if state == "ours":
         detail = f"{detail} (this process holds it)"
-    return Claim("run-lock", what, holder, status, detail, by, age)
+    # The lock has been held since the record was written -- `age` already is
+    # that, measured from the file's mtime. Not `started_at(holder)`: a session
+    # can be hours old and have taken the lock a minute ago.
+    return Claim(
+        "run-lock",
+        what,
+        holder,
+        status,
+        detail,
+        by,
+        age,
+        held_s=age if status in LIVE else None,
+    )
 
 
 def peer_status_claims(path: pathlib.Path | None = None) -> list[Claim]:
@@ -433,11 +464,17 @@ def unrecorded(claims: Sequence[Claim], procs: Sequence[preflight.Proc]) -> list
     return [
         Claim(
             "ps",
-            f"{p.short} (up {p.age})",
+            # The age used to be baked into the display name here, and only
+            # here -- no other claim names itself after its own age. Now that
+            # `held_s` carries it as a field, keeping both prints the same
+            # fact twice ("ds4-server (up 10m) ... for 10m") and gives two
+            # renderings to drift apart. The field wins; the name is a name.
+            p.short,
             p.pid,
             UNRECORDED,
             "a resident model server that no record mentions",
             resident_gib=round(p.rss_gib, 1),
+            held_s=p.age_s,
         )
         for p in procs
         if p.pid not in known and p.rss_gib >= RESIDENT_GIB
@@ -482,9 +519,15 @@ def describe(on: Claim | None) -> str:
     if on is None:
         return "idle"
     where = f"{on.what} pid {on.pid}"
+    # How long it has held, from the OS. #265 asked for it because "ab=no"
+    # during a live A/B sent a reader hunting for a detector, and a monitor
+    # that says WHAT and not FOR HOW LONG cannot tell a sweep that started a
+    # minute ago from one that has hung for three hours -- which is the whole
+    # question a person asks on seeing the machine busy.
+    for_ = f" for {preflight.human_age(on.held_s)}" if on.held_s is not None else ""
     if on.resident_gib:
-        return f"{where}, {on.resident_gib} GiB"
-    return f"{where} (holding the lock; no model resident this instant)"
+        return f"{where}, {on.resident_gib} GiB{for_}"
+    return f"{where}{for_} (holding the lock; no model resident this instant)"
 
 
 def verdict(claims: Sequence[Claim]) -> tuple[str, str]:
@@ -509,6 +552,10 @@ def survey(
     """The whole answer, as the JSON both agents read."""
     live = list(procs) if procs is not None else servers()
     resident = {p.pid: round(p.rss_gib, 1) for p in live}
+    # A server occupies the machine for as long as it is up, so `ps` has
+    # already answered "how long has it held" -- it is the same number that
+    # renders as "(up 10m)". No second lookup, and nothing to disagree with.
+    held = {p.pid: p.age_s for p in live}
     claims = [lock_claim(lock_path)]
     claims += peer_status_claims(peer_path)
     claims += unit_claims(unit_dir)
@@ -516,7 +563,16 @@ def survey(
     # record's own figure is what it was when somebody wrote it down, which
     # is exactly the thing this script exists not to believe.
     claims = [
-        dataclasses.replace(c, resident_gib=resident.get(c.pid))
+        dataclasses.replace(
+            c,
+            resident_gib=resident.get(c.pid),
+            # And its hold time, from the same census and for the same
+            # reason. Without this the field was set on the lock claim alone,
+            # while `occupant()` prefers a resident server whenever one exists
+            # -- so the duration was missing from exactly the case #265 opens
+            # with, and present only on the fallback path.
+            held_s=held.get(c.pid),
+        )
         if c.pid in resident
         else c
         for c in claims
