@@ -37,13 +37,13 @@ repos:
       # a SKILL.md broke the build -- so this must not be limited to *.py.
       - id: ruff-format
         name: ruff format (mirrors the CI gate)
-        entry: uv run ruff format
+        entry: uv run --frozen ruff format
         language: system
         types_or: [python, markdown]
         require_serial: true
       - id: ruff-check
         name: ruff check
-        entry: uv run ruff check --force-exclude
+        entry: uv run --frozen ruff check --force-exclude
         language: system
         types: [python]
         require_serial: true
@@ -58,7 +58,7 @@ repos:
       # stop. `files:` rather than `always_run`.
       - id: next-md-is-generated
         name: NEXT.md matches scripts/make_next.py
-        entry: uv run python scripts/make_next.py --check
+        entry: uv run --frozen python scripts/make_next.py --check
         language: system
         pass_filenames: false
         files: ^NEXT\.md$

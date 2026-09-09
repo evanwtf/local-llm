@@ -1795,3 +1795,50 @@ def test_a_dirty_harness_is_refused_when_pinned(tmp_path, monkeypatch):
     with pytest.raises(SystemExit) as got:
         run.main()
     assert "uncommitted code" in str(got.value)
+
+
+def test_tasks_whose_target_repo_is_absent_are_named(tmp_path):
+    """A task pointing at a repo this machine does not have must be findable
+    before anything runs.
+
+    The bug this pins (#269): the swift-* tasks target ~/git/monitor, which is
+    on the laptop and not on the Ryzen box. Selecting the default task set
+    there raised
+
+        FileNotFoundError: PosixPath('/home/evan/git/monitor')
+
+    out of preflight's `git status` -- a traceback naming a path, but not the
+    task that wanted it, and only after the batch had been assembled. Name the
+    tasks, so the message says what to do.
+    """
+    here = tmp_path / "present"
+    (here / ".git").mkdir(parents=True)
+    cfg = {"repo": str(here), "base_commit": "aaa", "test_command": "x"}
+    tasks = [
+        {"name": "local-one"},
+        {"name": "swift-one", "repo": str(tmp_path / "absent")},
+        {"name": "swift-two", "repo": str(tmp_path / "absent")},
+    ]
+
+    missing = run.tasks_missing_targets(cfg, tasks)
+
+    assert sorted(missing) == ["swift-one", "swift-two"]
+    assert missing["swift-one"] == tmp_path / "absent"
+
+
+def test_a_task_whose_target_is_present_is_not_reported(tmp_path):
+    here = tmp_path / "present"
+    (here / ".git").mkdir(parents=True)
+    cfg = {"repo": str(here), "base_commit": "aaa", "test_command": "x"}
+
+    assert run.tasks_missing_targets(cfg, [{"name": "local-one"}]) == {}
+
+
+def test_tasks_missing_targets_expands_the_home_directory(tmp_path, monkeypatch):
+    """`~/git/monitor` is how tasks.toml writes it. An unexpanded path is a
+    relative path that exists nowhere, so every task would look absent."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    (tmp_path / "git" / "present" / ".git").mkdir(parents=True)
+    cfg = {"repo": "~/git/present", "base_commit": "aaa", "test_command": "x"}
+
+    assert run.tasks_missing_targets(cfg, [{"name": "t"}]) == {}

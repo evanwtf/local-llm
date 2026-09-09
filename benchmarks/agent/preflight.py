@@ -1282,6 +1282,11 @@ def acquire_lock(
     if quiet:
         claim["quiet"] = True
     try:
+        # The lock owns its directory. It used to exist only as a side effect
+        # of the target-repo stash, so a machine that had never stashed died
+        # here on a bare errno -- after preflight passed and the model was
+        # already resident (#269).
+        path.parent.mkdir(parents=True, exist_ok=True)
         # O_EXCL so two processes racing here cannot both win.
         fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
     except FileExistsError:

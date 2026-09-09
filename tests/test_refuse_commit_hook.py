@@ -311,3 +311,31 @@ def test_the_hook_runs_end_to_end_as_pre_commit_invokes_it(tmp_path) -> None:
     )
     assert done.returncode == 1
     assert "greedy_mtp_ab.sh" in done.stdout
+
+
+def test_every_uv_hook_is_pinned_to_the_lockfile() -> None:
+    """A hook that resolves is a hook that edits the tree it is checking.
+
+    The bug this pins (#269): the ruff hooks ran a bare `uv run`. Under a
+    global `exclude-newer` policy that re-resolves on every invocation and
+    strips the `[options] exclude-newer` block out of `uv.lock` -- so
+    pre-commit saw a modified file and failed the hook as
+
+        ruff format (mirrors the CI gate)....Failed
+        - files were modified by this hook
+
+    naming ruff, which had formatted nothing. Every commit in the repo failed
+    that way until the lockfile was restored by hand. `--frozen` installs what
+    `uv.lock` pins and never resolves, so the hook cannot edit it.
+    """
+    config = yaml.safe_load((ROOT / ".pre-commit-config.yaml").read_text())
+    unpinned = [
+        hook["id"]
+        for repo in config["repos"]
+        for hook in repo.get("hooks", [])
+        if str(hook.get("entry", "")).startswith("uv run")
+        and "--frozen" not in str(hook["entry"])
+    ]
+    assert not unpinned, (
+        f"these hooks run a bare `uv run` and will rewrite uv.lock: {unpinned}"
+    )
