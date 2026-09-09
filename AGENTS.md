@@ -5,6 +5,104 @@
 Instructions for coding agents. [`CONVENTIONS.md`](CONVENTIONS.md) holds the
 standing rules about data and safety; this file covers how to work.
 
+## New code is Python, not shell (2026-09-09)
+
+**Write new scripts in Python. Do not add a new `.sh` under `scripts/`, and do
+not extend an existing one when the change could go in a Python module
+instead.**
+
+Set by the operator on 2026-09-09, alongside a done condition for #235: a
+**90% reduction** in shell, from 3,589 lines to **≤359**, with **every file
+containing `pgrep` or `pkill` ported first**, regardless of size. A rule that
+only removes shell while new shell keeps arriving is a treadmill.
+
+`pgrep` goes first because size and danger are unrelated. An earlier plan
+ordered the work largest-first and reached its line target while leaving three
+process-by-name lookups alive — in two small files, which sort last precisely
+because they are small.
+
+**The scope is `git ls-files 'scripts/*.sh'`**, so anyone can re-measure it:
+23 files, **3,589 lines**, and **35 `pgrep`/`pkill` calls across 11 files**
+as of 2026-09-09. The target is ≤359.
+
+**Priced out, the two numbers come apart, and it is worth knowing where.**
+Eight of those files already have a Python sibling -- 1,439 lines carrying
+**26 of the 35 calls**; deleting them once each replacement has arbitrated a
+run leaves 2,150 lines and 9 calls. The 9 are in five files
+(`stack_agent_ab.sh`, `targets_ab.sh`, `strip_toggle_ab.sh`,
+`restart_between_trials_armB.sh`, `disk_kv_mechanism_test.sh`) totaling 1,247
+lines; porting those leaves **903 lines and zero calls**. So **`pgrep` reaches
+zero at a 75% reduction**, and the last 544 lines down to 359 buy tests and
+readability, not safety. Do that work, but do not confuse it with the part
+that stops a measurement being wrong.
+
+### Why, in the words of the failures
+
+Shell arbitrated every measurement this project has published. When
+one is wrong the result is not a crash — it is a number that looks fine. On
+2026-09-08 alone:
+
+- `greedy_mtp_ab.sh` **never ran its control arm**. `"${mtp_args[@]}"` is an
+  unbound variable under `set -u` on bash 3.2 when the array is empty, and
+  only the control arm's array was empty. The treatment arm ran all 15 tasks;
+  its pair never existed. One hour of machine time, no comparison.
+- Seven orphaned `until ! pgrep -f '<driver>.sh'` waiter shells, up to 6h30m
+  old, each waiting on itself.
+- The commit guard refused every commit for hours while the machine was idle,
+  because those shells matched its patterns.
+- CI went red because `pgrep -a` is GNU-only and GNU `pgrep -l` truncates a
+  process name to 15 characters.
+
+And one that had been true for weeks before anyone looked (#264):
+
+- `route_agent_ab.sh` passes `--skip-tensor-gate`, which `run.py` removed when
+  the ds4 route gate was rewritten. argparse rejects it and exits 2 before any
+  work. Each sweep ran under `|| echo "... returned non-zero"`, so a re-run
+  would restart the 75 GiB server six times over several hours, produce **zero
+  rows**, and exit 0. Nothing checked that a flag a driver emits is a flag
+  `run.py` declares; a test now does, parsed out of `run.py`'s own
+  `add_argument` calls.
+
+None is exotic. They are the ordinary failure modes of shell: word splitting,
+empty arrays under `set -u`, text-matching for identity, and flags that differ
+between BSD and GNU. Python has none of them, and this repo already tests
+Python well.
+
+### What the port established, and what a new script inherits
+
+Use these rather than re-deriving them. Every one exists because a shell script
+got it wrong:
+
+| use | instead of | what it prevents |
+|---|---|---|
+| `scripts/unitctl.py` | `pgrep` / `pkill` | a pattern matches the shell that quoted it; bracketing only ever protected against *self*-match |
+| `scripts/lib/ds4_server.py`, `lib/mlx_serve.py` | hand-rolled start/stop | a leftover server, and a foreign one started beside ours |
+| `scripts/ab_driver.py` | a copied alternation loop | nine drivers had their own, already spelled `REPS` and `ROUNDS` |
+| `scripts/lib/stack_arm.py` | fourteen `NEW_*`/`OLD_*` variables | one wrong copy serves an arm the other arm's weights |
+| a context manager | chained `EXIT` traps | a second bare `trap` silently discards the first |
+| a list | `${arr[@]+"${arr[@]}"}` | an empty array is unbound under `set -u` on bash 3.2 |
+| `logs.configure()` | `echo` / `>&2` | a line with no timestamp, or one in a shape nothing else here parses |
+| `Proc.short` / a recorded pid / a port | matching a command line | **three separate bugs** came from matching a name |
+
+### The bar for touching shell at all
+
+A `.sh` may be edited to **fix a live defect in a script that is still
+running**, and for nothing else. If the change is a feature, a new arm, or a
+new experiment, it goes in Python — and if that means porting the script
+first, port it first.
+
+**A `.sh` is deleted only after its Python replacement has produced a run that
+agrees with it** (#235). Writing the replacement is not the same as retiring
+the original, and a port that has never arbitrated a measurement has not been
+tested where it counts.
+
+### The exception
+
+A genuine one-line shim — a wrapper that sets two variables and execs
+something else — is fine as shell, because there is nothing in it to get
+wrong. `scripts/ds4-fast.sh` and `scripts/ds4-vanilla.sh` are three lines each
+and are the shape this means.
+
 ## Cite engine source as `file:line at <sha>` (2026-09-06)
 
 A bare `ds4.c:40442` is not a citation. It is unverifiable a week later and
