@@ -194,6 +194,34 @@ def by_program(invs: Iterable[Invocation], program: str) -> list[Invocation]:
     return [i for i in invs if i.program == program]
 
 
+def wait_for_program(out: pathlib.Path, program: str, timeout: float = 10.0) -> bool:
+    """Wait until `out` holds a record for `program`, or the timeout passes.
+
+    A driver's readiness poll races the server's startup. The shell greps the
+    graph line right after `wait_ready.py` returns, and the port's `serving`
+    asserts the graph line right after `wait_ready.ready` returns. A fake
+    server that records-then-exits is a separate process, so its record can
+    land after the poll returns.
+
+    The wait must happen inside the block, not after it: `serving`'s `finally`
+    kills the fake the moment the block exits, so a wait after the block would
+    never see the record. This is the fix for that race, expressed once.
+    """
+    import time
+
+    deadline = time.monotonic() + timeout
+    marker = f'"program":"{program}"'
+    while time.monotonic() < deadline:
+        try:
+            with open(out) as handle:
+                if any(marker in line for line in handle):
+                    return True
+        except FileNotFoundError:
+            pass
+        time.sleep(0.05)
+    return False
+
+
 # ------------------------------------------------------------------ the shim
 
 
@@ -348,10 +376,19 @@ def write_uv_fake_running_real(
       port.
     - `record_scripts` (default `run.py`): recorded and exited 0, so the
       measurement child's argv+env is captured rather than run.
-    - `shim`: when True, `ds4_qwen_tool_shim.py` prints its startup line
-      ("scaffolding strip: ON/OFF" by `SHIM_NO_STRIP`) and writes `SHIM_DUMP`
-      if set, so a driver that greps the shim's log reaches the measurement
-      child. The shim is never run for real -- it would start a server.
+    - `shim`: when True, `ds4_qwen_tool_shim.py` prints its startup line and
+      writes `SHIM_DUMP` if set, so a driver that greps the shim's log reaches
+      the measurement child. The shim is never run for real -- it would start a
+      server. The ON line is read from the real-run excerpt under
+      `tests/fixtures/logs/shim-strip-on.log`; the OFF line has no real example
+      in the repo, so the differential assumes the driver's own grep target
+      (see the README there).
+
+    Inline `uv run python -c '<code>'` is executed for real, not faked. The
+    code is the shell's own source text inlined, not an external program; a
+    fake that records it and exits 0 would give the shell nothing while the
+    port runs the same logic in-process. `ds4_record_route` and
+    `worktree_code_dirty` depend on it.
 
     A script is resolved relative to `repo`, matching how the `.sh` invokes it.
     Returns `exe` so a caller can chain the path construction.
@@ -360,6 +397,7 @@ def write_uv_fake_running_real(
     run_literal = repr(sorted(run))
     repo_literal = repr(str(repo))
     shim_literal = repr(bool(shim))
+    shim_on_log = repr(str(repo / "tests" / "fixtures" / "logs" / "shim-strip-on.log"))
     body = textwrap.dedent(
         f"""\
         #!/usr/bin/env python3
@@ -383,11 +421,39 @@ def write_uv_fake_running_real(
         }}
         with open(out, "a") as h:
             h.write(json.dumps(line, separators=(",", ":")) + "\\n")
+        if name == "wait_ready.py":
+            # In production wait_ready polls the port until the server is
+            # ready. The fake server prints its graph line then records
+            # itself; once the ds4-server record appears, the graph line is
+            # already in the log the driver greps. Wait for it so the
+            # driver's grep is not racing the server's startup.
+            import time
+            deadline = time.monotonic() + 10
+            while time.monotonic() < deadline:
+                try:
+                    with open(out) as h:
+                        if any('"program":"ds4-server"' in ln for ln in h):
+                            break
+                except FileNotFoundError:
+                    pass
+                time.sleep(0.05)
+            sys.exit(0)
+        if script == "-c":
+            # Inline code is the shell's own source text, not an external
+            # program. Faking it would replace the thing under test: the shell
+            # gets nothing and the port gets an answer. Exec it for real.
+            os.execv(sys.executable, [sys.executable, "-c", *script_args])
         if name == "ds4_qwen_tool_shim.py" and {shim_literal}:
             if os.environ.get("SHIM_NO_STRIP") == "1":
+                # No real example of the OFF line exists in the repo; the
+                # differential assumes the driver's own grep target. See the
+                # README under tests/fixtures/logs/.
                 print("scaffolding strip: OFF")
             else:
-                print("scaffolding strip: ON")
+                for raw in open({shim_on_log}):
+                    if "scaffolding strip: ON" in raw:
+                        sys.stdout.write(raw)
+                        break
             dump = os.environ.get("SHIM_DUMP")
             if dump:
                 with open(dump, "w") as h:
@@ -454,6 +520,12 @@ def write_fake_ds4_server(
     under `tests/fixtures/logs/`, so the fake prints exactly what ds4 printed.
     The MTP state is inferred from whether `--mtp-model` is present, which picks
     the mtp or plain excerpt. It exits 0. Returns the fake's path.
+
+    The driver greps the log right after `wait_ready.py` returns, and the fake
+    `wait_ready.py` waits for this fake's record before returning -- so the
+    graph line is already in the log when the driver greps, even though a
+    Python fake's startup is slower than a shell's. The wait is the fix; the
+    fake stays Python so a test can run it with the interpreter.
     """
     tree.mkdir(parents=True, exist_ok=True)
     exe = tree / "ds4-server"
@@ -474,12 +546,16 @@ def write_fake_ds4_server(
             "argv": sys.argv[1:],
             "env": {{k: v for k, v in os.environ.items()}},
         }}
-        with open(out, "a") as h:
-            h.write(json.dumps(line, separators=(",", ":")) + "\\n")
         log = {mtp_log} if "--mtp-model" in sys.argv else {plain_log}
         for raw in open(log):
             if "Qwen graph allocated" in raw or "MTP sidecar loaded" in raw:
                 sys.stdout.write(raw)
+        # Flush the graph line to the log BEFORE the record: the record is the
+        # barrier a driver's readiness poll waits on, so when it appears the
+        # log already holds the line the driver greps or asserts.
+        sys.stdout.flush()
+        with open(out, "a") as h:
+            h.write(json.dumps(line, separators=(",", ":")) + "\\n")
         sys.exit(0)
         """
     )

@@ -49,7 +49,7 @@ ds4_stop_server() {
 # The exit status is preserved: the trap runs for its side effect and must not
 # turn a failed run into a successful one, or the reverse.
 ds4_stop_on_exit() {
-  local status=$?
+  local status=${1:-$?}
   trap - EXIT INT TERM
   ds4_stop_server "teardown" || echo "WARNING: server survived teardown" >&2
   exit "$status"
@@ -58,11 +58,15 @@ ds4_stop_on_exit() {
 # Chain rather than replace. `restart_between_trials.sh` already traps EXIT to
 # release the preflight lock, and a second bare `trap ... EXIT` would silently
 # discard it -- the lock would then outlive the run that took it.
+#
+# The chained trap must capture the exit status before the existing trap runs.
+# A bare `existing; ds4_stop_on_exit` hands ds4_stop_on_exit the existing
+# trap's exit status, not the script's, so a failed run would exit 0.
 ds4_arm_stop_trap() {
   local existing
   existing=$(trap -p EXIT | sed -n "s/^trap -- '\(.*\)' EXIT$/\1/p")
   if [ -n "$existing" ]; then
-    trap "${existing}; ds4_stop_on_exit" EXIT
+    trap '_ds4_status=$?; '"${existing}"'; ds4_stop_on_exit "$_ds4_status"' EXIT
   else
     trap ds4_stop_on_exit EXIT
   fi

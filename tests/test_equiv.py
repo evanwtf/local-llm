@@ -151,6 +151,81 @@ def test_uv_fake_default_executes_nothing(tmp_path) -> None:
     assert recs[0].program == "loud.py"
 
 
+def test_inline_c_executes_for_real_not_recorded(tmp_path) -> None:
+    """`uv run python -c '<code>'` runs the code, because it is the shell's own
+    source text inlined, not an external program.
+
+    `ds4_record_route` and `worktree_code_dirty` invoke it. A fake that records
+    `-c` and exits 0 would give the shell nothing while the port runs the same
+    logic in-process -- an asymmetry that manufactures differences. The code
+    must run for real, and the invocation must still be recorded.
+    """
+    import os
+    import subprocess
+
+    out = tmp_path / "rec.jsonl"
+    uv = equiv.write_uv_fake_running_real(tmp_path / "uv", out, ROOT)
+    marker = tmp_path / "c-ran"
+    code = f"open({str(marker)!r}, 'w').write('ran')"
+    env = {
+        "EQUIV_OUT": str(out),
+        "EQUIV_ARM": "shell",
+        "PATH": os.environ.get("PATH", ""),
+    }
+    got = subprocess.run(
+        [sys.executable, str(uv), "run", "python", "-c", code],
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert got.returncode == 0, got.stderr
+    assert marker.exists(), "the inline code did not run for real"
+    recs = equiv.load(out)
+    assert len(recs) == 1
+    assert recs[0].program == "-c"
+
+
+def test_fake_shim_emits_the_real_on_line_and_the_off_assumption(tmp_path) -> None:
+    """The shim's ON line is the engine's; the OFF line is a stated assumption.
+
+    The ON arm's startup line is read from the real-run excerpt
+    `shim-strip-on.log`, so the fake prints exactly what the shim printed. The
+    OFF line has no real example in the repo, so the fake emits the driver's
+    own grep target and the README records the assumption. Both arms must reach
+    the driver's `grep -q "$want"` check.
+    """
+    import os
+    import subprocess
+
+    out = tmp_path / "rec.jsonl"
+    uv = equiv.write_uv_fake_running_real(tmp_path / "uv", out, ROOT, shim=True)
+    base = {
+        "EQUIV_OUT": str(out),
+        "EQUIV_ARM": "shell",
+        "PATH": os.environ.get("PATH", ""),
+    }
+    on = subprocess.run(
+        [sys.executable, str(uv), "run", "python", "ds4_qwen_tool_shim.py"],
+        env=base,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert on.returncode == 0, on.stderr
+    assert "scaffolding strip: ON (shipped default) (#112 remedy 2)" in on.stdout
+    off_env = dict(base, SHIM_NO_STRIP="1")
+    off = subprocess.run(
+        [sys.executable, str(uv), "run", "python", "ds4_qwen_tool_shim.py"],
+        env=off_env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert off.returncode == 0, off.stderr
+    assert "scaffolding strip: OFF" in off.stdout
+
+
 def test_fake_ds4_server_emits_the_real_graph_excerpt(tmp_path) -> None:
     """The fake's graph line is the engine's, not a hand-typed string.
 
