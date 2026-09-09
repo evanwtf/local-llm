@@ -169,9 +169,9 @@ import pytest
 for sub in ("scripts", "scripts/lib", "benchmarks/agent"):
     sys.path.insert(0, str(ROOT / sub))
 
-import ds4_server
 import equiv
 import greedy_mtp_ab as driver
+import wait_ready
 
 BATCH = "greedy-mtp-ab"
 ROUNDS = 2
@@ -243,20 +243,52 @@ def _port_run_invs(
     """Run the port's `sweep` against the same fake; return the run.py recordings.
 
     The port's orchestration is real except where it would touch the machine:
-    the lock, the shim, and the server are all no-ops, and the KV directories
-    are moved into tmp. `run_arm` still spawns `uv run python run.py` through
-    the fake `uv` on PATH, so the measurement child is recorded exactly as the
-    shell's was.
+    the lock and the shim are no-ops, and the home-derived constants move into
+    tmp so the server argv matches the shell's. `serving` is NOT stubbed: it
+    spawns the fake ds4-server, which records its argv+env and writes the graph
+    line to the log. Only the readiness poll is stubbed -- it waits for the
+    fake's record instead of polling a real port. `run_arm` still spawns
+    `uv run python run.py` through the fake `uv` on PATH.
     """
+    home = tmp_path / "home"
     monkeypatch.setattr(driver, "run_lock", _noop)
     monkeypatch.setattr(driver, "greedy_shim", _noop)
-    monkeypatch.setattr(ds4_server, "serving", _noop)
-    monkeypatch.setattr(driver, "KV_MTP", tmp_path / "kv-mtp")
-    monkeypatch.setattr(driver, "KV_PLAIN", tmp_path / "kv-plain")
+    monkeypatch.setattr(
+        wait_ready, "ready", lambda *a, **k: equiv.wait_for_program(out, "ds4-server")
+    )
+    # The shell resolves these against $HOME; the port computed them at import
+    # from the real home. Point them at the tmp home so the server argv agrees.
+    monkeypatch.setattr(driver, "DS4_TREE", home / "git" / "ds4-metal")
+    monkeypatch.setattr(
+        driver,
+        "DS4_MODEL",
+        home
+        / "models"
+        / "qwen3.8-flash-next-ds4-q4"
+        / "Qwen3.8-Flash-Next-Q4KExperts-BF16Emb-BF16Control-Q8GDN-Q8QSA-Q8Shared-Q8Out.gguf",
+    )
+    monkeypatch.setattr(
+        driver,
+        "DS4_PLE",
+        home
+        / "models"
+        / "qwen3.8-flash-next-ds4-q4"
+        / "Qwen3.8-Flash-Next-PLE-Q4_1.gguf",
+    )
+    monkeypatch.setattr(
+        driver,
+        "DS4_MTP",
+        home
+        / "models"
+        / "qwen3.8-flash-next-ds4-q4"
+        / "qwen3.8-flash-next-q4-mtp.gguf",
+    )
+    monkeypatch.setattr(driver, "KV_MTP", home / ".ds4" / "server-kv-mtp")
+    monkeypatch.setattr(driver, "KV_PLAIN", home / ".ds4" / "server-kv")
     # The port's process env must carry the same driver vars the shell's did,
     # so run.py sees the same base environment on both sides.
     monkeypatch.setenv("PATH", f"{shim_dir}:{os.environ.get('PATH', '')}")
-    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    monkeypatch.setenv("HOME", str(home))
     monkeypatch.setenv("EQUIV_OUT", str(out))
     monkeypatch.setenv("EQUIV_ARM", "port")
     monkeypatch.setenv("LOGDIR", str(tmp_path / "logs"))
@@ -303,6 +335,34 @@ def test_the_shell_and_the_port_hand_run_py_the_same_command(
         assert _meaningful_env(s.env) == _meaningful_env(p.env), (
             f"{tag}: shell env {_meaningful_env(s.env)} vs "
             f"port env {_meaningful_env(p.env)}"
+        )
+
+    # The treatment lives on the SERVER command line, not run.py's: the mtp
+    # arm carries --mtp-model/--mtp-draft/--mtp-timing, the plain arm carries
+    # none. A differential that compared only run.py would be green while the
+    # two drivers started different servers. The server argv is identical
+    # across both rounds of an arm (same KV dir, same flags), so the two sides
+    # are compared as sets of canonical argv, not round-by-round.
+    servers = equiv.by_program(equiv.load(out), "ds4-server")
+    srv_shell = {
+        equiv.canonical(i.argv, frozenset()) for i in servers if i.arm == "shell"
+    }
+    srv_port = {
+        equiv.canonical(i.argv, frozenset()) for i in servers if i.arm == "port"
+    }
+    assert len(srv_shell) == 2, f"shell recorded {len(srv_shell)} distinct server argv"
+    assert len(srv_port) == 2, f"port recorded {len(srv_port)} distinct server argv"
+    assert srv_shell == srv_port, f"shell server argv {srv_shell} vs port {srv_port}"
+    mtp_arms = [p for p in srv_shell if any(x[0] == "--mtp-model" for x in p)]
+    plain_arms = [p for p in srv_shell if not any(x[0] == "--mtp-model" for x in p)]
+    assert len(mtp_arms) == 1, f"expected one mtp server argv, got {mtp_arms}"
+    assert len(plain_arms) == 1, f"expected one plain server argv, got {plain_arms}"
+    for flag in ("--mtp-draft", "--mtp-timing"):
+        assert any(x[0] == flag for x in mtp_arms[0]), (
+            f"mtp arm lost {flag}: {mtp_arms[0]}"
+        )
+        assert not any(x[0] == flag for x in plain_arms[0]), (
+            f"plain arm carried {flag}: {plain_arms[0]}"
         )
 
 
