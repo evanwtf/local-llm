@@ -271,11 +271,15 @@ before the reset. Treat it as unavailable until then and do not plan work that
 depends on it.
 
 This is written down because **a peer out of credit is indistinguishable from a
-peer that is thinking.** Both are silent. On 2026-09-09 the peer stopped after
-its 11:42 commit; six messages over the next three and a half hours drew no
-reply, and its `ListAgents` row said `idle` throughout — the same row it shows
-between turns. Work was queued at it for hours on the assumption it would come
-back.
+peer that is thinking.** Both are silent. On the afternoon of 2026-09-09 the
+peer went quiet and stayed quiet for hours; repeated messages drew no reply,
+and its `ListAgents` row said `idle` throughout — the same row it shows between
+turns. Work was queued at it on the assumption it would come back.
+
+Note that **git cannot tell you which commits were the peer's.** Both agents
+commit under the same name and address, so "its last commit was at 11:42" is
+not a fact the history can support. If you need to know when a peer stopped,
+the messages you sent it are the record, not `git log`.
 
 So:
 
