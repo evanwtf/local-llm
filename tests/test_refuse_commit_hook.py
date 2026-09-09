@@ -208,3 +208,26 @@ def test_the_pre_commit_hook_is_installed_into_the_repo() -> None:
     )
     assert os.access(git_hook, os.X_OK), git_hook
     assert "pre-commit" in git_hook.read_text()
+
+
+def test_the_command_line_comes_from_ps_not_from_pgrep_listing() -> None:
+    """CI went red here. macOS and Linux disagree about how to make pgrep print
+    a command line: `-a` is GNU-only and BSD prints bare pids, while GNU's `-l`
+    prints the process name from /proc truncated to 15 characters, so
+    `stack_agent_ab.sh` arrives as `stack_agent_ab.` and matches nothing.
+
+    `ps -o command=` means the same thing on both, so the source of the argv is
+    pinned here rather than rediscovered on the next red run."""
+    source = HOOK.read_text()
+    assert '"-o", "command="' in source
+    assert '"-ww"' in source, "GNU ps truncates to terminal width without it"
+    for gnu_only in ('"-af"', '"-lf"', '"-a"', '"-l"'):
+        assert f"[pgrep, {gnu_only}" not in source, f"pgrep {gnu_only} is not portable"
+
+
+def test_command_lines_survives_a_process_that_exits_between_the_two_calls() -> None:
+    """pgrep and ps are two calls. A pid can die in between, and ps then exits
+    non-zero for the whole list. That is an absence, not an error: the guard
+    fails open by design."""
+    assert refuse._command_lines(["999999"]) == []
+    assert refuse._command_lines([]) == []

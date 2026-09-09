@@ -82,6 +82,31 @@ def _is_invocation(command: str, script: str) -> bool:
     return any(token.split("/")[-1] == script for token in tokens[:2])
 
 
+def _command_lines(pids: list[str]) -> list[str]:
+    """Full argv for each pid, via ps. [] on any error.
+
+    Not from pgrep's own listing: the two platforms disagree about how to ask
+    for it. `-a` is GNU-only and BSD prints bare pids; `-l` on GNU prints the
+    process NAME from /proc, truncated to 15 characters, so
+    `stack_agent_ab.sh` arrives as `stack_agent_ab.` and matches nothing. CI
+    went red on exactly that. `ps -o command=` means the same thing on both.
+    """
+    if not pids:
+        return []
+    proc = subprocess.run(
+        # -ww: unlimited width. GNU ps truncates to the terminal width by
+        # default, and a driver launched by absolute path is long enough to
+        # lose its own arguments.
+        ["ps", "-ww", "-o", "command=", "-p", ",".join(pids)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if proc.returncode != 0:
+        return []
+    return [line.strip() for line in proc.stdout.splitlines() if line.strip()]
+
+
 def _live_run() -> str | None:
     """The driver that is running, or None.
 
@@ -94,21 +119,14 @@ def _live_run() -> str | None:
         return None
     for pattern in _PATTERNS:
         script = pattern.replace("[", "").replace("]", "")
-        # `-lf` prints the command line beside the pid, which is what lets a
-        # mention be told from an invocation -- and what makes a refusal
-        # diagnosable instead of a bare script name. `-lf` and not `-af`:
-        # `-a` is GNU-only, and on this Mac's BSD pgrep it prints bare pids,
-        # so every line would parse as an empty command and match nothing.
-        # `-l` with `-f` prints the full command line on both.
         proc = subprocess.run(
-            [pgrep, "-lf", pattern], capture_output=True, text=True, check=False
+            [pgrep, "-f", pattern], capture_output=True, text=True, check=False
         )
         # rc 0 means at least one match. Anything else -- no match (1) or an
         # error (2+) -- means there is no live run we can prove.
         if proc.returncode != 0:
             continue
-        for line in proc.stdout.splitlines():
-            _, _, command = line.partition(" ")
+        for command in _command_lines(proc.stdout.split()):
             if _is_invocation(command, script):
                 logger.debug("live run matched: %s", command[:200])
                 return script
