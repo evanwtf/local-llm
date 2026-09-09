@@ -1,0 +1,36 @@
+promessi_sposi.txt (1298 KiB)
+2026-09-09T10:09:42-0400 __main__ INFO # stack A/B, 2026-09-09T10:09:42-04:00
+A label=base tree=/Users/evanhoffman/git/ds4-pr952-base @ 6289c516
+A gguf=/Users/evanhoffman/models/deepseek-v4-flash-aproj/DeepSeek-V4-Flash-IQ2XXS-w2Q2K-AProjQ4-SExpQ8-OutQ8-chat-v2-imatrix-0731.gguf (84420584288 bytes)
+A ple=-
+B label=head tree=/Users/evanhoffman/git/ds4-pr952-head @ 13136675
+B_dirty=true   # uncommitted code: the sha does not name this binary
+B gguf=/Users/evanhoffman/models/deepseek-v4-flash-aproj/DeepSeek-V4-Flash-IQ2XXS-w2Q2K-AProjQ4-SExpQ8-OutQ8-chat-v2-imatrix-0731.gguf (84420584288 bytes)
+B ple=-
+# TWO VARIABLES: engine and weights move together. Report as a stack
+# comparison; neither half can be attributed on its own (#138).
+prompt=/Users/evanhoffman/git/ds4/speed-bench/promessi_sposi.txt
+sweep ctx_start=2048 ctx_max=16384 step=2048 gen=128 reps=4
+2026-09-09T10:09:42-0400 decode_ab INFO machine lock held: run lock taken for 'decode_ab_stack.py base vs head' (pid 71970)
+2026-09-09T10:09:42-0400 ab_driver INFO === round 1 of 4 ===
+2026-09-09T10:09:42-0400 ab_driver INFO round 1 arm base (/Users/evanhoffman/git/ds4-pr952-base)
+2026-09-09T10:09:42-0400 __main__ INFO base rep 1 (position 1) -> /Users/evanhoffman/git/local-llm/benchmarks/ds4/267-pr952-base-vs-head-run-run3/base-rep1.csv
+2026-09-09T10:10:37-0400 ab_driver INFO round 1 arm head (/Users/evanhoffman/git/ds4-pr952-head)
+2026-09-09T10:10:37-0400 __main__ INFO head rep 1 (position 2) -> /Users/evanhoffman/git/local-llm/benchmarks/ds4/267-pr952-base-vs-head-run-run3/head-rep1.csv
+2026-09-09T10:11:32-0400 ab_driver INFO === round 2 of 4 ===
+2026-09-09T10:11:32-0400 ab_driver INFO round 2 arm head (/Users/evanhoffman/git/ds4-pr952-head)
+2026-09-09T10:11:32-0400 __main__ INFO head rep 2 (position 1) -> /Users/evanhoffman/git/local-llm/benchmarks/ds4/267-pr952-base-vs-head-run-run3/head-rep2.csv
+2026-09-09T10:12:27-0400 ab_driver INFO round 2 arm base (/Users/evanhoffman/git/ds4-pr952-base)
+2026-09-09T10:12:27-0400 __main__ INFO base rep 2 (position 2) -> /Users/evanhoffman/git/local-llm/benchmarks/ds4/267-pr952-base-vs-head-run-run3/base-rep2.csv
+2026-09-09T10:13:22-0400 ab_driver INFO === round 3 of 4 ===
+2026-09-09T10:13:22-0400 ab_driver INFO round 3 arm base (/Users/evanhoffman/git/ds4-pr952-base)
+2026-09-09T10:13:22-0400 __main__ INFO base rep 3 (position 1) -> /Users/evanhoffman/git/local-llm/benchmarks/ds4/267-pr952-base-vs-head-run-run3/base-rep3.csv
+2026-09-09T10:14:17-0400 ab_driver INFO round 3 arm head (/Users/evanhoffman/git/ds4-pr952-head)
+2026-09-09T10:14:17-0400 __main__ INFO head rep 3 (position 2) -> /Users/evanhoffman/git/local-llm/benchmarks/ds4/267-pr952-base-vs-head-run-run3/head-rep3.csv
+2026-09-09T10:15:12-0400 ab_driver INFO === round 4 of 4 ===
+2026-09-09T10:15:12-0400 ab_driver INFO round 4 arm head (/Users/evanhoffman/git/ds4-pr952-head)
+2026-09-09T10:15:12-0400 __main__ INFO head rep 4 (position 1) -> /Users/evanhoffman/git/local-llm/benchmarks/ds4/267-pr952-base-vs-head-run-run3/head-rep4.csv
+2026-09-09T10:16:07-0400 ab_driver INFO round 4 arm base (/Users/evanhoffman/git/ds4-pr952-base)
+2026-09-09T10:16:07-0400 __main__ INFO base rep 4 (position 2) -> /Users/evanhoffman/git/local-llm/benchmarks/ds4/267-pr952-base-vs-head-run-run3/base-rep4.csv
+2026-09-09T10:17:02-0400 decode_ab INFO machine lock released=True: run lock released
+2026-09-09T10:17:02-0400 __main__ INFO done: /Users/evanhoffman/git/local-llm/benchmarks/ds4/267-pr952-base-vs-head-run-run3
