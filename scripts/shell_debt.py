@@ -69,6 +69,7 @@ REPLACED = {
     "scripts/stack_agent_ab.sh": "scripts/stack_agent_ab.py",
     "scripts/metal_knob_ab.sh": "scripts/metal_knob_ab.py",
     "scripts/decode_ab.sh": "scripts/decode_ab.py",
+    "scripts/decode_ab_engine.sh": "scripts/decode_ab_engine.py",
     # #261 gave one module both arms; armB.sh is `--arm B`.
     "scripts/restart_between_trials.sh": "scripts/restart_between_trials.py",
     "scripts/restart_between_trials_armB.sh": "scripts/restart_between_trials.py",
