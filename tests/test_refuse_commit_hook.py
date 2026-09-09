@@ -26,37 +26,13 @@ HOOK = ROOT / "scripts" / "refuse_commit_during_benchmark.py"
 CONFIG = ROOT / ".pre-commit-config.yaml"
 
 sys.path.insert(0, str(ROOT / "scripts"))
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 sys.path.insert(0, str(ROOT / "benchmarks" / "agent"))
 
 import refuse_commit_during_benchmark as refuse
+from source_text import code_of
 
 HOSTNAME = "test-machine.local"
-
-
-def _code(path: pathlib.Path) -> str:
-    """`path`'s source with docstrings and comments removed.
-
-    A test that greps raw text cannot tell a call from an explanation of why
-    the call is gone.
-    """
-    import ast
-
-    tree = ast.parse(path.read_text())
-    doc_lines: set[int] = set()
-    for node in ast.walk(tree):
-        if (
-            isinstance(node, (ast.Module, ast.FunctionDef, ast.ClassDef))
-            and node.body
-            and ast.get_docstring(node, clean=False) is not None
-        ):
-            first = node.body[0]
-            doc_lines.update(range(first.lineno, (first.end_lineno or 0) + 1))
-    keep = []
-    for i, line in enumerate(path.read_text().splitlines(), 1):
-        if i in doc_lines or line.strip().startswith("#"):
-            continue
-        keep.append(line.split("  # ")[0])
-    return "\n".join(keep)
 
 
 def lock_file(tmp_path: pathlib.Path, payload: object) -> pathlib.Path:
@@ -224,9 +200,9 @@ def test_the_guard_no_longer_looks_for_processes_by_name() -> None:
 
     None of those is possible against a recorded pid.
     """
-    assert "pgrep" not in _code(HOOK)
-    assert "pkill" not in _code(HOOK)
-    assert "_PATTERNS" not in _code(HOOK)
+    assert "pgrep" not in code_of(HOOK)
+    assert "pkill" not in code_of(HOOK)
+    assert "_PATTERNS" not in code_of(HOOK)
     # The prose still discusses pgrep -- explaining why it is gone is the
     # point of the docstring. Asserting on the raw text would forbid the
     # explanation, which is the same word-for-a-metric confusion this
