@@ -325,8 +325,13 @@ def write_uv_fake(
         import json, os, pathlib, sys
         out = os.environ["EQUIV_OUT"]
         args = sys.argv[1:]
-        if len(args) >= 3 and args[0] == "run" and args[1] == "python":
-            script, script_args = args[2], args[3:]
+        # Find "python" rather than assuming args[1]: `uv run --frozen python`
+        # puts a flag in between, and a positional test buckets the whole
+        # command line under program "uv", where it compares equal to every
+        # other mis-parsed call instead of to its own pair.
+        if args[:1] == ["run"] and "python" in args[:-1]:
+            i = args.index("python")
+            script, script_args = args[i + 1], args[i + 2:]
         else:
             script, script_args = "uv", args
         line = {{
@@ -422,12 +427,9 @@ def write_uv_fake_running_real(
         import json, os, pathlib, sys
         out = os.environ["EQUIV_OUT"]
         args = sys.argv[1:]
-        if len(args) >= 2 and args[0] == "run":
-            try:
-                i = args.index("python")
-                script, script_args = args[i + 1], args[i + 2:]
-            except ValueError:
-                script, script_args = "uv", args
+        if args[:1] == ["run"] and "python" in args[:-1]:
+            i = args.index("python")
+            script, script_args = args[i + 1], args[i + 2:]
         else:
             script, script_args = "uv", args
         name = pathlib.Path(script).name
