@@ -103,8 +103,35 @@ logger = logging.getLogger(__name__)
 
 FANCONTROL = "/usr/local/bin/fancontrol"
 
-#: Phase order. Interleaved so ambient drift cannot align with condition.
-PHASES = ("auto", "max", "auto", "max", "auto", "max")
+#: The protocol, as data. Written down here because a run has to be
+#: reproducible from its own record: this list goes into the manifest verbatim,
+#: `test_fan_ab_protocol.py` asserts the driver performs these steps in this
+#: order, and anyone repeating the experiment reads it here rather than
+#: reconstructing it from a loop.
+PROTOCOL = (
+    "1. max fans until the die plateaus (idle GPU)",
+    "2. set fans to the arm's mode",
+    "3. begin test",
+    "4. end test",
+    "5. max fans until the die plateaus",
+    "6. begin test",
+    "7. end test",
+    "8. max fans until the die plateaus",
+    "9. fans auto",
+)
+
+#: One A/B segment is these two arms, in this order. Steps 1-4 are the first,
+#: steps 5-7 the second.
+ARMS = ("auto", "max")
+
+#: Segments run back to back. Three, because a claim in this repo needs three
+#: datapoints and one segment is one paired comparison.
+SEGMENTS = 3
+
+#: Derived, and kept because the CSV labels and the report depend on the flat
+#: sequence: 01-auto, 02-max, 03-auto, ... Interleaved within each segment so
+#: ambient drift cannot align with condition.
+PHASES = tuple(arm for _ in range(SEGMENTS) for arm in ARMS)
 
 #: Cooldown gate. The die has stopped falling when the least-squares slope
 #: over the trailing SETTLE_WINDOW_S seconds is flatter than SETTLE_MAX_SLOPE.
@@ -536,6 +563,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         ).stdout.strip(),
         "gguf": gguf.name,
         "prompt": prompt.name,
+        "protocol": list(PROTOCOL),
+        "segments": SEGMENTS,
+        "arms": list(ARMS),
         "phases_planned": list(PHASES),
         "reps_per_phase": args.reps,
         "cooldown": {
@@ -555,6 +585,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         with decode_ab.run_lock("fan_ab.py auto vs max (#276)", os.getpid()):
             for i, condition in enumerate(PHASES, start=1):
+                segment, step = (i - 1) // len(ARMS) + 1, (i - 1) % len(ARMS) + 1
+                logger.info(
+                    "=== segment %d/%d, arm %d/%d: %s ===",
+                    segment,
+                    SEGMENTS,
+                    step,
+                    len(ARMS),
+                    condition,
+                )
                 # Cool with the fans on AUTO before every phase, including the
                 # max ones: each phase must start from the same thermal policy,
                 # not inherit the previous phase's.
@@ -578,6 +617,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     )
                     time.sleep(args.settle_in)
                 cooled["cooled_on"] = "max" if args.cool_on_max else "auto"
+                cooled["segment"] = segment
                 cooled["settle_in_s"] = args.settle_in
                 cooled["die_after_settle_in_c"] = die_c()
                 rc, record = one_phase(i, condition, tree, gguf, prompt, args.reps, out)
@@ -590,7 +630,19 @@ def main(argv: Sequence[str] | None = None) -> int:
                     logger.error("stopping after phase %d", i)
                     break
     finally:
-        restore_fans()
+        # Step 8: the protocol ends on a plateau, not on the last rep. Nothing
+        # is measured here -- it exists so the machine is handed back in the
+        # same state every run begins from, which is what makes the next run
+        # comparable to this one.
+        if rc == 0:
+            _fan("max")
+            manifest["final_cooldown"] = cool_to_plateau(
+                "step 8: final cooldown",
+                min_s=args.settle_min,
+                timeout_s=args.settle_timeout,
+                max_slope=args.settle_slope,
+            )
+        restore_fans()  # step 9
         manifest["ended_iso"] = now()
         (out / "fan-ab-manifest.json").write_text(json.dumps(manifest, indent=2))
         logger.info("manifest: %s", out / "fan-ab-manifest.json")
