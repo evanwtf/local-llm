@@ -110,7 +110,14 @@ SETTLE_SAMPLE_S = 5
 SETTLE_WINDOW_S = 180
 SETTLE_MAX_SLOPE = 0.3  # C/minute; the p90 of a settled die's own noise
 SETTLE_MIN_S = 90
-SETTLE_TIMEOUT_S = 420
+#: 420 s was not enough and the run said so. Measured 2026-09-09: after three
+#: reps the die sat at 74.11 C, and 420 s later it had reached 34.13 C but was
+#: STILL falling at 0.809 C/min. Fitting a decay to that (floor ~31.5 C, time
+#: constant ~3.2 min) puts the 0.30 C/min bound at ~610 s. 900 gives margin
+#: without being unbounded -- and a timeout is recorded, not silent, so a
+#: ceiling that turns out short is visible in the manifest rather than
+#: inferred later from phases that started unequal.
+SETTLE_TIMEOUT_S = 900
 
 #: Used only when the sensor is unreadable and the plateau test cannot run.
 FALLBACK_COOLDOWN_S = 180
