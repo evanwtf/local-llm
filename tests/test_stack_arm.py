@@ -333,3 +333,47 @@ def test_this_module_does_not_reimplement_the_cellar_check() -> None:
     code = code_of(ROOT / "scripts" / "lib" / "stack_arm.py")
     assert "Cellar" not in code, "delegate to engine_identity; do not re-derive"
     assert "readlink" not in code
+
+
+def test_a_missing_mlx_binary_is_refused(tmp_path) -> None:
+    """`command -v mlx-serve` in the shell (stack_agent_ab.sh:226).
+
+    It matters more here than it did there. #225 needs a DIFFERENT binary per
+    arm, so `mlx_bin` is per-arm, and a typo in one arm's MLX_BIN is a typo
+    nothing else looks at. Without this the run reaches the first sweep with
+    the machine lock held and an 85 GiB pack resident before anything says the
+    binary does not exist.
+    """
+    pack = tmp_path / "pack"
+    pack.mkdir()
+    (pack / "config.json").write_text("{}")
+    with pytest.raises(stack_arm.MissingAsset, match="does not resolve on PATH"):
+        stack_arm.check_assets(
+            mlx_arm(mlx_model=pack, mlx_bin="mlx-serve-that-does-not-exist")
+        )
+
+
+def test_the_binary_check_is_per_arm(tmp_path) -> None:
+    """One arm's good binary must not vouch for the other's.
+
+    #225's whole point is two binaries; a check that passed as long as SOME
+    mlx-serve existed would be satisfied by the arm that is fine.
+    """
+    pack = tmp_path / "pack"
+    pack.mkdir()
+    (pack / "config.json").write_text("{}")
+    # The real one on this machine resolves; the invented one must not.
+    stack_arm.check_assets(mlx_arm("new", mlx_model=pack, mlx_bin="mlx-serve"))
+    with pytest.raises(stack_arm.MissingAsset):
+        stack_arm.check_assets(mlx_arm("old", mlx_model=pack, mlx_bin="mlx-serve-old"))
+
+
+def test_an_absolute_path_to_a_binary_is_accepted_when_it_exists(tmp_path) -> None:
+    """#225 passes a PATH to the second binary, not just a name."""
+    pack = tmp_path / "pack"
+    pack.mkdir()
+    (pack / "config.json").write_text("{}")
+    binary = tmp_path / "mlx-serve-git"
+    binary.write_text("#!/bin/sh\nexit 0\n")
+    binary.chmod(0o755)
+    stack_arm.check_assets(mlx_arm(mlx_model=pack, mlx_bin=str(binary)))

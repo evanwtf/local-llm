@@ -112,7 +112,14 @@ ARMS = {
         # configuration's checkpoints when a flag changes the KV format.
         kv=pathlib.Path.home() / ".ds4" / "server-kv-mtp",
         want_mtp=True,
-        run_dir="77-armB-restart-run",
+        # The shell's name, not a tidier one. ~/bench-logs already holds
+        # 77-armB-run{1,2,3} from the shell's runs, and arm A's "112-run"
+        # matches its shell exactly -- so "77-armB-restart-run" was a slip,
+        # and it would have split one experiment's transcripts across two
+        # directory families with nothing recording that they are the same
+        # experiment. Nothing parses the name; the cost is provenance, which
+        # is the cost that shows up months later.
+        run_dir="77-armB-run",
         baseline="10/9/6 on one continuous server; arm A under restart is 42/45 (14/14/14)",
     ),
 }

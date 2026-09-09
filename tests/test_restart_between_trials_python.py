@@ -248,3 +248,34 @@ def _wire(monkeypatch, tmp_path, *, rc: int = 0, server_logs: list | None = None
     monkeypatch.setattr(rbt.subprocess, "run", lambda *a, **k: Done())
     monkeypatch.setattr(rbt, "kv_prefix_audit", lambda *a, **k: None)
     return events
+
+
+def test_each_arms_run_dir_is_the_one_its_shell_wrote() -> None:
+    """One experiment, one directory family.
+
+    #261 gave one module both arms. Arm A's run_dir matched its shell exactly;
+    arm B's had been tidied to `77-armB-restart-run`, and ~/bench-logs already
+    holds `77-armB-run{1,2,3}` from the shell. Nothing PARSES these names, so
+    it changes no number -- it splits one experiment's transcripts across two
+    families with nothing recording that they are the same experiment, which
+    is a cost that only shows up months later when somebody goes looking.
+
+    Read out of the shells rather than typed here, because a name typed in a
+    test is a name that agrees with whoever typed it.
+    """
+    import pathlib
+    import re
+
+    root = pathlib.Path(__file__).resolve().parent.parent
+    for arm, script in (
+        ("A", "restart_between_trials.sh"),
+        ("B", "restart_between_trials_armB.sh"),
+    ):
+        text = (root / "scripts" / script).read_text()
+        # `mkdir -p "$BENCH_LOGS/112-run$n"` -> 112-run
+        found = re.findall(r"\$BENCH_LOGS/([\w.-]+?)\$n", text)
+        assert found, f"{script} does not name a run dir"
+        assert set(found) == {rbt.ARMS[arm].run_dir}, (
+            f"arm {arm}: the shell writes {sorted(set(found))}, "
+            f"the port writes {rbt.ARMS[arm].run_dir!r}"
+        )
