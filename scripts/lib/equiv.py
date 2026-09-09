@@ -79,6 +79,30 @@ TENSOR_ARMS = ("t", "new")
 REF_ARMS = ("r", "old")
 ARMS = TENSOR_ARMS + REF_ARMS
 
+#: The env keys a committed fixture may carry. Everything else is a leak of the
+#: operator's environment -- a token, an API key, a password -- that gitleaks
+#: would not catch because it does not look like one. A fixture that records
+#: the operator's whole env is a fixture that could record a secret, so the
+#: guard refuses it. Extend this as a driver's own experiment variable lands in
+#: a fixture; do not add a key to silence the guard.
+#:
+#: `LC_CTYPE` and `__CF_USER_TEXT_ENCODING` are macOS-injected: dyld re-adds
+#: them to every subprocess env at exec, whatever `env=` a caller passes, so a
+#: fixture generated on macOS always carries them. They are platform, not the
+#: operator's env, and they are not secrets.
+CONTROLLED_ENV_KEYS = frozenset(
+    {
+        "PATH",
+        "HOME",
+        "EQUIV_OUT",
+        "EQUIV_PROGRAM",
+        "EQUIV_ARM",
+        TENSOR_ENV,
+        "LC_CTYPE",
+        "__CF_USER_TEXT_ENCODING",
+    }
+)
+
 
 class Invocation:
     """What one fake measurement binary recorded: program, arm, argv, env.
@@ -298,40 +322,56 @@ def write_uv_fake_running_real(
     out: pathlib.Path,
     repo: pathlib.Path,
     *,
-    fake_scripts: Sequence[str] = ("preflight.py",),
+    run_real: Sequence[str] = (),
+    fake_scripts: Sequence[str] = ("preflight.py", "wait_ready.py"),
     record_scripts: Sequence[str] = ("run.py",),
+    shim: bool = False,
 ) -> pathlib.Path:
-    """A fake `uv` that runs the real helper scripts, faking only the rest.
+    """A fake `uv` that runs only the scripts a caller names, faking the rest.
 
-    The heavy drivers call their own Python helpers as `uv run python <script>`
-    -- `lib/metal_knob.py`, `prompt_meta.py`, `preflight.py` -- and the helpers
-    produce values the driver interpolates into the measurement command line
-    (the arm's env prefix, the var names). Canned output for those would be a
-    transcription of the very table the port and the shell both read, which is
-    a second implementation. So this fake runs the real script for everything
-    except:
+    Fail-closed: nothing executes for real unless it is in `run_real`. Every
+    other `uv run python <script>` is recorded and exits 0, so a script that
+    would start a server, poll a port, or write outside the repo cannot run
+    unless a differential explicitly allows it. The default `run_real=()` is
+    the safe state: a differential that forgets to name its helpers gets a
+    recorded no-op, not a real server.
 
-    - `fake_scripts` (default `preflight.py`): recorded and exited 0, so the
-      driver's `--acquire-lock`/`--release-lock` never touch the machine lock;
+    - `run_real`: scripts executed for real. The heavy drivers call their own
+      helpers as `uv run python <script>` -- `lib/metal_knob.py`,
+      `prompt_meta.py` -- and the helpers produce values the driver
+      interpolates into the measurement command line (the arm's env prefix, the
+      var names). Canned output for those would be a transcription of the very
+      table the port and the shell both read, which is a second implementation.
+      So a differential names them here, and only here.
+    - `fake_scripts` (default `preflight.py`, `wait_ready.py`): recorded and
+      exited 0, so the machine lock is never taken and readiness never polls a
+      port.
     - `record_scripts` (default `run.py`): recorded and exited 0, so the
       measurement child's argv+env is captured rather than run.
+    - `shim`: when True, `ds4_qwen_tool_shim.py` prints its startup line
+      ("scaffolding strip: ON/OFF" by `SHIM_NO_STRIP`) and writes `SHIM_DUMP`
+      if set, so a driver that greps the shim's log reaches the measurement
+      child. The shim is never run for real -- it would start a server.
 
     A script is resolved relative to `repo`, matching how the `.sh` invokes it.
     Returns `exe` so a caller can chain the path construction.
     """
-    fake = set(fake_scripts)
-    record = set(record_scripts)
-    fake_literal = repr(sorted(fake))
-    record_literal = repr(sorted(record))
+    run = set(run_real)
+    run_literal = repr(sorted(run))
     repo_literal = repr(str(repo))
+    shim_literal = repr(bool(shim))
     body = textwrap.dedent(
         f"""\
         #!/usr/bin/env python3
-        import json, os, pathlib, subprocess, sys
+        import json, os, pathlib, sys
         out = os.environ["EQUIV_OUT"]
         args = sys.argv[1:]
-        if len(args) >= 3 and args[0] == "run" and args[1] == "python":
-            script, script_args = args[2], args[3:]
+        if len(args) >= 2 and args[0] == "run":
+            try:
+                i = args.index("python")
+                script, script_args = args[i + 1], args[i + 2:]
+            except ValueError:
+                script, script_args = "uv", args
         else:
             script, script_args = "uv", args
         name = pathlib.Path(script).name
@@ -343,10 +383,104 @@ def write_uv_fake_running_real(
         }}
         with open(out, "a") as h:
             h.write(json.dumps(line, separators=(",", ":")) + "\\n")
-        if name in {fake_literal} or name in {record_literal}:
+        if name == "ds4_qwen_tool_shim.py" and {shim_literal}:
+            if os.environ.get("SHIM_NO_STRIP") == "1":
+                print("scaffolding strip: OFF")
+            else:
+                print("scaffolding strip: ON")
+            dump = os.environ.get("SHIM_DUMP")
+            if dump:
+                with open(dump, "w") as h:
+                    h.write('{{"role": "user", "content": "probe"}}\\n')
             sys.exit(0)
-        real = pathlib.Path({repo_literal}) / script
-        os.execv(sys.executable, [sys.executable, str(real), *script_args])
+        if name in {run_literal}:
+            real = pathlib.Path({repo_literal}) / script
+            os.execv(sys.executable, [sys.executable, str(real), *script_args])
+        sys.exit(0)
+        """
+    )
+    exe.write_text(body)
+    exe.chmod(0o755)
+    return exe
+
+
+def write_fake_pgrep(directory: pathlib.Path) -> pathlib.Path:
+    """A fake `pgrep` that finds the tool shim and nothing else.
+
+    The heavy drivers check the tool shim is up with `pgrep -f qwen_tool_shim`
+    and stop the server with `pgrep -f 'ds4-server --metal'`. This fake echoes a
+    pid for a shim pattern and nothing for a server pattern, so the shim check
+    passes and the server stop no-ops. Returns `directory` so a caller can chain.
+    """
+    body = textwrap.dedent(
+        """\
+        #!/usr/bin/env python3
+        import sys
+        args = sys.argv[1:]
+        pattern = ""
+        for i, a in enumerate(args):
+            if a == "-f" and i + 1 < len(args):
+                pattern = args[i + 1]
+        if "qwen_tool_shim" in pattern:
+            print("4242")
+            sys.exit(0)
+        sys.exit(1)
+        """
+    )
+    exe = directory / "pgrep"
+    exe.write_text(body)
+    exe.chmod(0o755)
+    return exe
+
+
+def write_fake_pkill(directory: pathlib.Path) -> pathlib.Path:
+    """A fake `pkill` that always succeeds. A no-op, so a driver's stop calls
+    never signal a real process. Returns `directory` so a caller can chain."""
+    exe = directory / "pkill"
+    exe.write_text("#!/usr/bin/env python3\nimport sys\nsys.exit(0)\n")
+    exe.chmod(0o755)
+    return exe
+
+
+def write_fake_ds4_server(
+    tree: pathlib.Path, out: pathlib.Path, repo: pathlib.Path
+) -> pathlib.Path:
+    """A fake `./ds4-server` that records argv+env and emits the graph line.
+
+    The heavy drivers start `./ds4-server` in a tree they control (a temp
+    `$HOME/git/ds4-metal`, or `$OLD_TREE`/`$NEW_TREE`). This fake records
+    argv+env to `out`, then emits the `Qwen graph allocated` line the drivers
+    grep for. The line is not typed here: it is read from the real-run excerpt
+    under `tests/fixtures/logs/`, so the fake prints exactly what ds4 printed.
+    The MTP state is inferred from whether `--mtp-model` is present, which picks
+    the mtp or plain excerpt. It exits 0. Returns the fake's path.
+    """
+    tree.mkdir(parents=True, exist_ok=True)
+    exe = tree / "ds4-server"
+    mtp_log = repr(
+        str(repo / "tests" / "fixtures" / "logs" / "ds4-server-graph-mtp.log")
+    )
+    plain_log = repr(
+        str(repo / "tests" / "fixtures" / "logs" / "ds4-server-graph-plain.log")
+    )
+    body = textwrap.dedent(
+        f"""\
+        #!/usr/bin/env python3
+        import json, os, sys
+        out = os.environ["EQUIV_OUT"]
+        line = {{
+            "program": "ds4-server",
+            "arm": os.environ["EQUIV_ARM"],
+            "argv": sys.argv[1:],
+            "env": {{k: v for k, v in os.environ.items()}},
+        }}
+        with open(out, "a") as h:
+            h.write(json.dumps(line, separators=(",", ":")) + "\\n")
+        log = {mtp_log} if "--mtp-model" in sys.argv else {plain_log}
+        for raw in open(log):
+            if "Qwen graph allocated" in raw or "MTP sidecar loaded" in raw:
+                sys.stdout.write(raw)
+        sys.exit(0)
         """
     )
     exe.write_text(body)
