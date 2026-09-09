@@ -11,9 +11,13 @@ whether the fans are under macOS thermal control or pinned to maximum.
 
 Thermal state carries across runs, so running all of A and then all of B lets
 slow ambient drift align with condition. The phases alternate A,B,A,B,A,B and
-each is preceded by a cooldown **with the fans on auto**, so every phase
-starts from the same thermal policy rather than inheriting the previous
-phase's.
+each is preceded by a cooldown **with the fans on max**, so every phase starts
+from the same floor rather than inheriting the previous phase's heat. The
+cooldown's fan mode is deliberately NOT the phase's: uniformity is the point,
+and cooling on max is the same wait made shorter. The phase's own mode is then
+set and held for `SETTLE_IN_S` so the switch transient lands before the first
+rep instead of inside it -- otherwise dropping max->auto at t=0 would put a
+warming ramp on the auto arm alone.
 
 The cooldown waits for the die temperature to **stop falling**, not to reach
 a value. This is a derivative test, not a margin, and the reason is measured:
@@ -110,6 +114,23 @@ SETTLE_SAMPLE_S = 5
 SETTLE_WINDOW_S = 180
 SETTLE_MAX_SLOPE = 0.3  # C/minute; the p90 of a settled die's own noise
 SETTLE_MIN_S = 90
+#: The bulk cooldown runs with the fans on MAX regardless of the phase that
+#: follows. Forced cooling removes 23% of the idle gradient (die 36.53 -> 33.36
+#: C measured 2026-09-09), and on auto the die needed >610 s to stop falling
+#: from 74 C. Cooling on max is the same wait, shorter.
+#:
+#: Every phase therefore starts from the SAME floor, which is what the
+#: cooldown is for -- uniformity, not a particular temperature. It also biases
+#: conservatively: the auto arm gets a cooler start than ordinary auto
+#: operation would give it, so if max fans still win, the win is not the
+#: starting point.
+COOL_ON_MAX = True
+#: After the bulk cool, the phase's own fan mode is set and held this long
+#: before the first rep. The mode switch has a transient -- dropping from max
+#: to auto lets the die climb toward the higher auto floor -- and it must
+#: happen BEFORE the measurement, not inside the first rep of the auto arm
+#: only.
+SETTLE_IN_S = 120
 #: 420 s was not enough and the run said so. Measured 2026-09-09: after three
 #: reps the die sat at 74.11 C, and 420 s later it had reached 34.13 C but was
 #: STILL falling at 0.809 C/min. Fitting a decay to that (floor ~31.5 C, time
@@ -439,6 +460,18 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="ceiling on each cooldown; exceeding it is recorded, not fatal",
     )
     p.add_argument(
+        "--settle-in",
+        type=int,
+        default=SETTLE_IN_S,
+        help="seconds on the phase's own fan mode before its first rep",
+    )
+    p.add_argument(
+        "--cool-on-max",
+        action=argparse.BooleanOptionalAction,
+        default=COOL_ON_MAX,
+        help="run the bulk cooldown with fans forced to max",
+    )
+    p.add_argument(
         "--settle-slope",
         type=float,
         default=SETTLE_MAX_SLOPE,
@@ -504,6 +537,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             "min_s": args.settle_min,
             "timeout_s": args.settle_timeout,
             "max_slope_c_per_min": args.settle_slope,
+            "cooled_on": "max" if args.cool_on_max else "auto",
+            "settle_in_s": args.settle_in,
             "window_s": SETTLE_WINDOW_S,
             "sample_s": SETTLE_SAMPLE_S,
         },
@@ -517,13 +552,27 @@ def main(argv: Sequence[str] | None = None) -> int:
                 # Cool with the fans on AUTO before every phase, including the
                 # max ones: each phase must start from the same thermal policy,
                 # not inherit the previous phase's.
-                _fan("auto")
+                _fan("max" if args.cool_on_max else "auto")
                 cooled = cool_to_plateau(
                     f"cooldown before phase {i} ({condition})",
                     min_s=args.settle_min,
                     timeout_s=args.settle_timeout,
                     max_slope=args.settle_slope,
                 )
+                # Set the phase's own fan mode and absorb the switch transient
+                # here, where it is not being measured.
+                _fan(condition)
+                logger.info(
+                    "settle-in %ds on %s before phase %d; die=%s",
+                    args.settle_in,
+                    condition,
+                    i,
+                    f"{die_c():.2f}C" if die_c() is not None else "?",
+                )
+                time.sleep(args.settle_in)
+                cooled["cooled_on"] = "max" if args.cool_on_max else "auto"
+                cooled["settle_in_s"] = args.settle_in
+                cooled["die_after_settle_in_c"] = die_c()
                 rc, record = one_phase(i, condition, tree, gguf, prompt, args.reps, out)
                 record["cooldown"] = cooled
                 manifest["phases"].append(record)  # type: ignore[union-attr]
