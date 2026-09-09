@@ -162,6 +162,14 @@ def main(argv: list[str] | None = None) -> int:
     # free, stale and foreign all allow the commit. A stale lock names a dead
     # pid and a foreign one names another machine; neither is a run this commit
     # can damage, and refusing on them is how a guard becomes noise.
+    #
+    # `foreign` diverges from `preflight`, which refuses it. That is deliberate
+    # and rests on a fact that could change: there is one machine and one peer
+    # here, so a lock from another hostname is a leftover, not a live claim. If
+    # this tree is ever shared with a second machine -- a network home, a
+    # synced checkout -- a foreign lock becomes a run in progress somewhere
+    # else, and allowing the commit would damage it. Revisit this line then;
+    # the choice is made, not missed.
     logger.debug("commit allowed: %s (%s)", state, why)
     return 0
 
