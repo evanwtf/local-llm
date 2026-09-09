@@ -217,8 +217,18 @@ def cool_to_plateau(
     """
     began = time.monotonic()
     began_iso = now()
+    first = die_c()  # read once: two calls can straddle a sensor update
+    logger.info(
+        "%s: waiting for the die to stop falling (floor %ds, ceiling %ds, "
+        "settled at <=%.2fC between consecutive %ds medians); die now %s",
+        label,
+        min_s,
+        timeout_s,
+        delta_c,
+        SETTLE_WINDOW_S,
+        f"{first:.2f}C" if first is not None else "?",
+    )
     samples: list[tuple[float, float]] = []  # (elapsed seconds, die C)
-    first = die_c()
     outcome = "timeout"
     last_delta: float | None = None
 
@@ -413,8 +423,23 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     # Restore on every exit path: normal return, exception, atexit, signal.
     atexit.register(restore_fans)
+
+    def stop(*_: object) -> None:
+        """Exit on the FIRST signal, and ignore every one after it.
+
+        A second signal during teardown raises a second `SystemExit` from
+        wherever the first had reached, which skips the rest of the unwind.
+        That happened on 2026-09-09: `uv` forwarded the SIGTERM it received
+        while a direct one was also sent, the second landed inside
+        `child.terminate`, and a `ds4-bench` orphan kept the GPU after the
+        driver had already released the machine lock and reported clean.
+        """
+        for each in (signal.SIGINT, signal.SIGTERM):
+            signal.signal(each, signal.SIG_IGN)
+        sys.exit(130)
+
     for sig in (signal.SIGINT, signal.SIGTERM):
-        signal.signal(sig, lambda *_: sys.exit(130))
+        signal.signal(sig, stop)
 
     manifest: dict[str, object] = {
         "issue": 276,
