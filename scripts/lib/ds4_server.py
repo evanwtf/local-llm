@@ -172,7 +172,13 @@ def foreign(state_dir: pathlib.Path | None = None) -> list[preflight.Proc]:
     )
     ours = unitctl.read(UNIT, state_dir)
     our_pid = ours.pid if ours is not None else None
-    return [p for p in procs if PROCESS in p.command and p.pid != our_pid]
+    # `p.short`, not `p.command`: match the executable, not the whole
+    # command line. preflight's own parse_ps records why -- a shell
+    # running a script that merely mentions the server has the marker in
+    # its arguments, and matching those reports the shell that invoked it.
+    # That is the same self-match the pgrep this module replaced suffered
+    # from, and re-introducing it here would be a poor joke.
+    return [p for p in procs if PROCESS in p.short and p.pid != our_pid]
 
 
 def stop(why: str = "", state_dir: pathlib.Path | None = None) -> str:

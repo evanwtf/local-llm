@@ -392,3 +392,17 @@ def test_foreign_never_signals_anything() -> None:
     body = code[code.index("def foreign") : code.index("def stop")]
     for word in ("kill", "terminate", "signal", "SIGKILL", "SIGTERM"):
         assert word not in body, f"foreign() must not {word}"
+
+
+def test_a_shell_that_merely_mentions_the_server_is_not_one() -> None:
+    """The self-match trap, one layer down. `foreign()` matches the executable
+    (`Proc.short`), not the whole command line -- preflight's own `parse_ps`
+    records why: a shell running a script that mentions the server has the
+    marker in its ARGUMENTS, and matching those reports the shell that invoked
+    it. Re-introducing that inside the module that exists to delete `pgrep`
+    would be a poor joke."""
+    census = [
+        preflight.Proc(pid=1, rss_gib=0.1, command="/bin/bash -c 'ds4-server --metal'"),
+        preflight.Proc(pid=2, rss_gib=97.9, command="/g/ds4/ds4-server --metal"),
+    ]
+    assert [p.pid for p in census if ds4_server.PROCESS in p.short] == [2]
