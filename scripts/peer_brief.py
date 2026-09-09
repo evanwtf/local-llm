@@ -36,6 +36,8 @@ from lib import agent_identity, peer_state
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
 
+import machine_state
+
 import logs
 
 logger = logging.getLogger(__name__)
@@ -60,6 +62,21 @@ def _lock_line(state: str, why: str) -> str:
     if state == "stale":
         return f"stale ({why})"
     return f"{state} ({why})"
+
+
+def _occupant_line() -> str:
+    """The line every status update has to open with, computed once.
+
+    A brief is read by whoever picks the work up, and the first thing they
+    need is whether the machine is theirs. `machine_state` is the one place
+    that answers it, because it re-checks each recorded pid instead of
+    repeating what a file says: a peer stood down from a free machine on
+    2026-09-09 after reading a status row that had been false for hours.
+    """
+    got = machine_state.survey()
+    on = got["occupant"]
+    what = f"{on['what']} pid {on['pid']}, {on['resident_gib']} GiB" if on else "idle"
+    return f"Currently on GPU: {what} -- {got['verdict']} ({got['why']})"
 
 
 def _server_lines(servers: list) -> list[str]:
@@ -168,6 +185,7 @@ def brief(repo: pathlib.Path, since: str | None) -> str:
     lines += [
         "",
         "## Machine",
+        f"- {_occupant_line()}",
         f"- Run lock: {_lock_line(state, why)}",
         "- Resident servers:",
         *(f"  - {s}" for s in _server_lines(peer_state.servers())),

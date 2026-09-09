@@ -334,9 +334,12 @@ def lock_claim(path: pathlib.Path | None = None) -> Claim:
 def peer_status_claims(path: pathlib.Path | None = None) -> list[Claim]:
     """Every server row in the peer's status file, re-checked.
 
-    This is the file that lied. Its rows carry no start key, so the mtime
-    check is what does the work: a server that started after the file was
-    written is not the server the file is describing.
+    This is the file that lied. A row written since `peer_status` learned to
+    record `start_key` is checked against that -- the strong check. An older
+    row carries only a pid, and the file's own mtime is what does the work: a
+    server that started after the file was written is not the server the file
+    is describing. Both are here because the old rows do not disappear when
+    the writer improves.
     """
     path = path or PEER_STATUS
     try:
@@ -363,8 +366,12 @@ def peer_status_claims(path: pathlib.Path | None = None) -> list[Claim]:
         short = str(row.get("short", "?")) if isinstance(row, dict) else "?"
         gib = row.get("gib") if isinstance(row, dict) else None
         what = f"{short} ({gib} GiB when recorded)" if gib else short
+        key = row.get("start_key") if isinstance(row, dict) else None
         status, detail, by = check_pid(
-            pid if isinstance(pid, int) else None, recorded_at=when, expect=short
+            pid if isinstance(pid, int) else None,
+            start_key=key if isinstance(key, str) else None,
+            recorded_at=when,
+            expect=short,
         )
         claims.append(Claim("peer-status", what, pid, status, detail, by, age))
     if not claims:

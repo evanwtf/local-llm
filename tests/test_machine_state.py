@@ -192,6 +192,41 @@ def test_the_records_own_age_is_reported(peer_file, dead_pid) -> None:
     assert 9 * 3600 < claim.record_age_s < 11 * 3600
 
 
+def test_a_row_carrying_a_start_key_gets_the_strong_check(peer_file) -> None:
+    """`peer_status` records one now, so a fresh row is checkable outright
+    rather than only against the file's mtime."""
+    import unitctl
+
+    key = unitctl.start_key(os.getpid())
+    path = peer_file
+    path.write_text(
+        json.dumps(
+            {"servers": [{"short": "python", "pid": os.getpid(), "start_key": key}]}
+        )
+    )
+    (claim,) = ms.peer_status_claims(path)
+    assert (claim.status, claim.confirmed_by) == (ms.RUNNING, "start_key")
+
+
+def test_a_row_whose_start_key_no_longer_matches_is_reused(peer_file) -> None:
+    stale_key = "Mon Jan  1 00:00:00 2001"
+    write_peer(
+        peer_file,
+        [{"short": "python", "pid": os.getpid(), "start_key": stale_key}],
+    )
+    (claim,) = ms.peer_status_claims(peer_file)
+    assert claim.status == ms.REUSED
+
+
+def test_an_old_row_without_a_start_key_still_gets_the_mtime_check(
+    peer_file, dead_pid
+) -> None:
+    """Improving the writer does not retire the rows already on disk."""
+    write_peer(peer_file, [{"short": "ds4-server", "pid": dead_pid, "gib": 74.2}])
+    (claim,) = ms.peer_status_claims(peer_file)
+    assert claim.status == ms.STALE
+
+
 def test_a_missing_peer_file_is_missing_not_an_error(tmp_path) -> None:
     (claim,) = ms.peer_status_claims(tmp_path / "absent.json")
     assert claim.status == ms.MISSING

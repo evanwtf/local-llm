@@ -3,33 +3,29 @@
   "comments": {
     "112": 12,
     "158": 4,
-    "162": 17,
+    "162": 21,
     "170": 3,
     "212": 5,
-    "228": 6,
-    "232": 1,
-    "39": 22
+    "228": 8,
+    "235": 7,
+    "39": 29
   },
-  "lock": "held",
+  "lock": "free",
   "prs": {},
   "servers": [
     {
-      "age": "2d22h",
-      "gib": 0.0,
+      "age": "3d9h",
+      "gib": 0.1,
       "pid": 921,
-      "short": "ollama"
+      "short": "ollama",
+      "start_key": "Sun Sep  6 00:07:43 2026"
     },
     {
-      "age": "20m",
-      "gib": 74.2,
-      "pid": 50125,
-      "short": "ds4-server"
-    },
-    {
-      "age": "1d1h",
+      "age": "1d12h",
       "gib": 0.0,
       "pid": 27460,
-      "short": "ollama"
+      "short": "ollama",
+      "start_key": "Mon Sep  7 21:16:54 2026"
     }
   ],
   "trees": {
@@ -46,10 +42,11 @@
     "ds4-pr621": "6a20b131",
     "ds4-pr915": "88bd78a3",
     "ds4-pr952": "bbf5a796",
-    "ds4-pr952-head": "ff749b84",
+    "ds4-pr952-head": "13136675",
     "ds4-pr964": "8969dbb6",
     "ds4-pr964-new": "37f3f0d0",
     "ds4-pr990": "9803df46",
     "ds4-pr991": "236cb2a"
-  }
+  },
+  "written_at": "2026-09-09T09:34:48-0400"
 }
