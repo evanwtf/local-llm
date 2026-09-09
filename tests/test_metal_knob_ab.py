@@ -554,7 +554,12 @@ def test_the_shell_and_the_port_hand_ds4_bench_the_same_command(
 
     shim = tmp_path / "shim"
     shim.mkdir()
-    equiv.write_uv_fake_running_real(shim / "uv", probe, ROOT)
+    equiv.write_uv_fake_running_real(
+        shim / "uv",
+        probe,
+        ROOT,
+        run_real=("metal_knob.py", "prompt_meta.py"),
+    )
 
     gguf = tmp_path / "m.gguf"
     gguf.write_text("")
