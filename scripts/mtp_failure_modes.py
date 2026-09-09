@@ -123,6 +123,49 @@ def classify(reasons: tuple[str, ...], last_text: str | None) -> str:
     return OTHER
 
 
+def ledger_path() -> pathlib.Path:
+    """This machine's results ledger, where each row carries `client_log`."""
+    import sys as _sys
+
+    _repo = pathlib.Path(__file__).resolve().parent.parent
+    _sys.path.insert(0, str(_repo / "benchmarks" / "agent"))
+    import results
+
+    return results.default_path()
+
+
+def client_logs_from_ledger(
+    ledger: pathlib.Path,
+    task: str,
+    backend: str,
+    bench_root: pathlib.Path,
+) -> list[pathlib.Path]:
+    """The authoritative transcript paths for FAIL rows of (task, backend).
+
+    The ledger's `client_log` field names the exact file the harness wrote,
+    including the `.2`/`.3` suffix a #112 collision produces. A constructed
+    path cannot predict that suffix, and mtime is a proxy for "last flushed"
+    that breaks where arms interleave. Join on `client_log`, never on mtime.
+    """
+    logs: list[pathlib.Path] = []
+    if not ledger.exists():
+        return logs
+    for line in ledger.read_text().splitlines():
+        try:
+            d = json.loads(line)
+        except ValueError:
+            continue
+        if (
+            d.get("task") == task
+            and d.get("backend") == backend
+            and d.get("passed") is False
+        ):
+            log = d.get("client_log")
+            if log and pathlib.Path(log).is_relative_to(bench_root):
+                logs.append(pathlib.Path(log))
+    return logs
+
+
 def load_trials(bench_root: pathlib.Path) -> list[Trial]:
     trials: list[Trial] = []
     for sweep, tasks in DEATHS.items():

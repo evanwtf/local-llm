@@ -98,6 +98,32 @@ def test_load_trials_reads_the_death_table(tmp_path: pathlib.Path) -> None:
     assert trials[1].mode == mfm.MALFORMED
 
 
+def test_client_logs_from_ledger_returns_the_collision_file(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The helper resolves the authoritative path from the ledger, not mtime."""
+    ledger = tmp_path / "ledger.jsonl"
+    ledger.write_text(
+        json.dumps(
+            {
+                "task": "mbox-scan",
+                "backend": "qwen38fnds4mtp7shim",
+                "passed": False,
+                "client_log": str(
+                    tmp_path / "mbox-scan-qwen38fnds4mtp7shim-opencode-1.stdout.2.jsonl"
+                ),
+            }
+        )
+        + "\n"
+    )
+    logs = mfm.client_logs_from_ledger(
+        ledger, "mbox-scan", "qwen38fnds4mtp7shim", tmp_path
+    )
+    assert logs == [
+        tmp_path / "mbox-scan-qwen38fnds4mtp7shim-opencode-1.stdout.2.jsonl"
+    ]
+
+
 def test_the_default_root_is_the_tree_the_harness_actually_writes_to():
     """The first version resolved to ~/git/bench-logs/39-mtp-ab, which does not
     exist, so the script only ran with --bench-root and could not reproduce its
