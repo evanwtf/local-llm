@@ -38,6 +38,7 @@ documentation.
 | `evidence.py` | Re-run a finding's claims and say whether they still hold. #160 |
 | `exclude_rows.py` | Mark rows from an aborted or void run as excluded, so they cannot publish. |
 | `fan_ab.py` | Fans auto vs fans max, interleaved, on one build. #276 (parent #116) |
+| `fan_ab_report.py` | Read a `fan_ab.py` run: does forced cooling change anything? #276 (parent #116) |
 | `gen_equiv_fixtures.py` | Generate the argv/env equivalence fixtures for the #235 port. #235, #264, #149 |
 | `gguf_meta.py` | Print a GGUF file's metadata without loading the model. |
 | `greedy_mtp_ab.py` | The first ds4 MTP arm that can actually draft, against its own control. |
