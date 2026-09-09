@@ -137,6 +137,45 @@ def test_run_py_declares_the_ports_flag_not_the_shells():
     assert "--skip-tensor-gate" not in flags  # #264 removed it
 
 
+def test_no_run_py_flag_is_declared_non_literally():
+    """A non-literal add_argument would leave the declared set silently.
+
+    `declared_run_flags` sees only ast.Constant string flags. The day run.py
+    writes `parser.add_argument(*SPEC)` or `add_argument(f"--{name}")`, that
+    flag disappears from the set and the #264 gate starts rejecting a driver
+    that is correct -- a loud refusal that blames the wrong file. This asserts
+    the real run.py declares every flag literally, so the gate's claim of
+    reading the live source stays honest.
+    """
+    assert equiv.non_literal_flag_tests() == []
+
+
+def test_non_literal_flag_tests_fires_on_a_splat(tmp_path) -> None:
+    fake = tmp_path / "run.py"
+    fake.write_text(
+        "import argparse\n"
+        "p = argparse.ArgumentParser()\n"
+        "SPEC = ('--trials', '--verbose')\n"
+        "p.add_argument(*SPEC)\n"
+        "p.add_argument(f'--{name}')\n"
+    )
+    got = equiv.non_literal_flag_tests(fake)
+    assert len(got) == 2, got
+    assert "add_argument(*SPEC)" in " ".join(got)
+    assert "add_argument" in got[1]
+
+
+def test_non_literal_flag_tests_silent_on_literals(tmp_path) -> None:
+    fake = tmp_path / "run.py"
+    fake.write_text(
+        "import argparse\n"
+        "p = argparse.ArgumentParser()\n"
+        "p.add_argument('--trials', '--verbose')\n"
+        "p.add_argument('-v')\n"
+    )
+    assert equiv.non_literal_flag_tests(fake) == []
+
+
 def test_assert_flags_declared_ignores_values_and_names_unknown():
     flags = frozenset({"--trials", "--no-lock"})
     equiv.assert_flags_declared(["--trials", "3", "--no-lock"], flags)  # no raise

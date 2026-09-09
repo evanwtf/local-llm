@@ -293,6 +293,34 @@ def declared_run_flags(run_py: pathlib.Path = RUN_PY) -> frozenset[str]:
     return frozenset(flags)
 
 
+def non_literal_flag_tests(run_py: pathlib.Path = RUN_PY) -> list[str]:
+    """`add_argument` calls whose flag is not a literal string, one line each.
+
+    `declared_run_flags` reads only `ast.Constant` string args. A flag declared
+    from a variable, a splat (`parser.add_argument(*SPEC, ...)`), or an
+    f-string would leave the set silently, and the #264 gate would then reject
+    a driver that is correct -- a loud refusal that reads like the driver is
+    broken when the drift is in run.py. The gate's whole authority is that it
+    reflects the live source, so it must refuse to be fooled here. Returns a
+    source line per offending call; a test asserts none, and a unit test proves
+    the guard fires on a splat.
+    """
+    tree = ast.parse(pathlib.Path(run_py).read_text())
+    out: list[str] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        func = node.func
+        if not isinstance(func, ast.Attribute) or func.attr != "add_argument":
+            continue
+        first = node.args[0] if node.args else None
+        if first is not None and not (
+            isinstance(first, ast.Constant) and isinstance(first.value, str)
+        ):
+            out.append(f"line {first.lineno}: {ast.unparse(node)}")
+    return out
+
+
 def assert_flags_declared(argv: Sequence[str], declared: frozenset[str]) -> None:
     """Assertion 1 (#264): every flag in `argv` is one `run.py` declares.
 
