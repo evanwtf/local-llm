@@ -167,6 +167,10 @@ EVIDENCE = {
     "scripts/decode_ab_stack.sh": (
         "tests/test_decode_ab_stack.py::test_the_shell_and_the_port_hand_ds4_bench_the_same_command"
     ),
+    "scripts/disk_kv_mechanism_test.sh": (
+        "tests/test_disk_kv_mechanism.py::"
+        "test_the_shell_and_the_port_start_the_same_server"
+    ),
     "scripts/greedy_mtp_ab.sh": (
         "tests/test_greedy_mtp_ab.py::"
         "test_the_shell_and_the_port_hand_run_py_the_same_command"
