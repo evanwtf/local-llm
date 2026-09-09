@@ -116,3 +116,30 @@ def pytest_sessionstart(session: pytest.Session) -> None:
     lock = machine_claim()
     if lock is not None:
         raise pytest.UsageError(refusal_message(lock))
+
+
+@pytest.fixture(autouse=True)
+def _isolate_unit_records(tmp_path, monkeypatch):
+    """No test writes a unit record into the real machine's state.
+
+    `unitctl.STATE_DIR` is read from the environment at IMPORT time, so the
+    obvious isolation -- `monkeypatch.setenv("LOCAL_LLM_UNIT_DIR", tmp)` -- is
+    a silent no-op: the module constant is already bound, and the port writes
+    its record to `~/.local-llm-bench/units` on the real machine. A peer
+    session hit this on 2026-09-09 while writing the #235 retirement
+    differentials, wrote it down in a commit message, and warned me.
+
+    A commit message is discipline. This file's own header makes the argument
+    against relying on that: three voided runs were "a mechanism problem, not
+    an attention problem". So the mechanism goes here, where it costs nobody
+    anything to remember.
+
+    `syspath_prepend` and the import happen at FIXTURE time rather than at
+    conftest import, so this does not reorder `sys.path` ahead of every other
+    conftest -- which is the reason `LOCK_PATH` above is duplicated instead of
+    imported.
+    """
+    monkeypatch.syspath_prepend(str(pathlib.Path(__file__).parent / "scripts"))
+    import unitctl
+
+    monkeypatch.setattr(unitctl, "STATE_DIR", tmp_path / "units")
