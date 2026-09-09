@@ -92,7 +92,7 @@ if [ $((REPS % 2)) -ne 0 ]; then
 fi
 PROMPT=${PROMPT:-$TREE/speed-bench/promessi_sposi.txt}
 
-PY="$(dirname "$0")/metal_knob_ab.py"
+PY="$(dirname "$0")/lib/metal_knob.py"
 
 # Refuse a wrong arm before the lock or any measurement. The negative cases
 # are the whole job: an empty value is a wrong arm waiting to happen, an

@@ -17,9 +17,12 @@ import sys
 
 import pytest
 
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "scripts"))
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "scripts" / "lib"))
+sys.path.insert(0, str(ROOT / "scripts"))
 
-import metal_knob_ab as mk
+import metal_knob as mk
+import metal_knob_ab as driver
 
 
 def test_unknown_knob_refused():
@@ -272,7 +275,7 @@ def test_run_engagement_writes_count_file(tmp_path):
     script = (
         pathlib.Path(__file__).resolve().parents[1] / "scripts" / "metal_knob_ab.sh"
     )
-    py = script.parent / "metal_knob_ab.py"
+    py = script.parent / "lib" / "metal_knob.py"
     # Source only the run_engagement function, then run it against the stub.
     bash = (
         f"eval \"$(sed -n '/^run_engagement()/,/^}}/p' {script})\"\n"
@@ -409,3 +412,86 @@ def test_a_print_knob_is_not_refused_for_lacking_a_signal():
     """validate() refuses a knob with no admission signal unless acknowledged.
     A print knob has one, so it must pass without METAL_KNOB_ACK_NO_SIGNAL."""
     mk.validate("q4-mpp-payload-reuse", "1", "0")
+
+
+# ------------------------------------------------- the ported driver (#235)
+
+
+def test_the_two_arm_spellings_describe_the_same_arm() -> None:
+    """`arm_cmd` is for the shell, `arm_env` is for Python. One table.
+
+    The shell interpolated `arm_cmd`'s output into `env $env_prefix
+    ./ds4-bench ...` UNQUOTED, relying on `-u VAR` splitting into two words
+    and `VAR=value` into one. That worked because both values came from this
+    table -- it was one hand-passed value away from not working. Python asks
+    the same table for `(env, unset)` instead, and this is what stops the two
+    answers drifting.
+    """
+    for knob in mk.KNOBS:
+        for label in ("on", "off"):
+            cmd = mk.arm_cmd(knob, label, "7")
+            env, unset = mk.arm_env(knob, label, "7")
+            if cmd.startswith("-u "):
+                assert env == {} and unset == [cmd[3:]], (knob, label)
+            else:
+                var, _, value = cmd.partition("=")
+                assert env == {var: value} and unset == [], (knob, label)
+
+
+def test_only_the_presence_knobs_on_arm_unsets() -> None:
+    """`=0` still counts as set, so an assignment here is two identical arms.
+
+    `gathered-heads` is on by default and has no REQUIRE spelling: the branch
+    tests `getenv(...) != NULL`, so setting the DISABLE var to `0` takes the
+    raw-only path in BOTH arms and produces two arms wearing different labels
+    and the same numbers.
+    """
+    unsetting = {
+        (knob, label)
+        for knob in mk.KNOBS
+        for label in ("on", "off")
+        if mk.arm_env(knob, label, "1")[1]
+    }
+    assert unsetting == {(knob, "on") for knob in mk.KNOBS if mk.presence(knob)}
+    assert unsetting, "gathered-heads is a presence knob; something is wrong"
+
+
+def test_a_bad_arm_label_is_refused_by_both_spellings() -> None:
+    with pytest.raises(SystemExit):
+        mk.arm_cmd("gathered-heads", "onn", "1")
+    with pytest.raises(SystemExit):
+        mk.arm_env("gathered-heads", "onn", "1")
+
+
+def test_the_driver_refuses_an_odd_rep_count(tmp_path, monkeypatch) -> None:
+    """Refused, not warned. Alternation cancels position bias only when even.
+
+    At REPS=3 reps 1 and 3 run A-first and only rep 2 runs B-first, so the
+    bias lands 2:1 on one arm. Across #171's twelve reps whichever arm ran
+    first was faster in 9, median +0.9%, +5.9% on the first rep of a cold
+    session. An odd sweep produces a complete CSV and a plausible number with
+    no sign that half the design is missing.
+    """
+
+    def explode(*a, **k):
+        raise AssertionError("a refused run must not reach the machine")
+
+    monkeypatch.setattr(driver.child, "run", explode)
+    rc = driver.main(
+        [
+            "gathered-heads",
+            "1",
+            "0",
+            str(tmp_path / "tree"),
+            str(tmp_path / "m.gguf"),
+            str(tmp_path / "out"),
+            "--reps",
+            "3",
+        ]
+    )
+    assert rc != 0, "an odd rep count must not exit 0"
+
+
+def test_the_driver_never_calls_pgrep() -> None:
+    source = (ROOT / "scripts" / "metal_knob_ab.py").read_text()
+    assert "pgrep" not in source and "pkill" not in source

@@ -105,10 +105,26 @@ def terminate(proc: subprocess.Popen[bytes], grace: float = GRACE_S) -> None:
     for sig in (signal.SIGTERM, signal.SIGKILL):
         try:
             os.killpg(proc.pid, sig)
-        except (ProcessLookupError, PermissionError):
+        except ProcessLookupError:
+            # The group is gone. This is the ordinary case for SIGKILL after a
+            # SIGTERM the child honoured, and it is the only silent return
+            # here: nothing survives, so nothing is left holding the machine.
             return
-        except OSError:
-            logger.warning("could not signal pid %d's group", proc.pid, exc_info=True)
+        except OSError as exc:
+            # Everything else means the signal did NOT land and the child may
+            # still be alive -- PermissionError above all, which is a group we
+            # cannot reach rather than a group that has exited. There is no
+            # recovery (you cannot kill what you cannot signal), but the
+            # caller is about to release the machine lock on the strength of
+            # this returning, so it has to be loud. A silent return here reads
+            # in the log exactly like a clean teardown.
+            logger.error(
+                "could not send %s to pid %d's group (%s); the child may still "
+                "be running and the machine is about to be advertised as free",
+                sig.name,
+                proc.pid,
+                exc,
+            )
             return
         logger.info("sent %s to pid %d's group", sig.name, proc.pid)
         try:

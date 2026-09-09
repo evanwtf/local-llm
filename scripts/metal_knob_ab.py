@@ -1,468 +1,459 @@
-"""Knob table and refusal logic for scripts/metal_knob_ab.sh (#162 Task 4).
+#!/usr/bin/env python3
+"""Paired decode-rate A/B for one Metal knob env var within one tree. #162
 
-The driver varies one Metal knob between two arms of the same tree and GGUF.
-This module is the single source of truth for the knob table and the refusal
-paths, so the negative cases are testable without running a measurement.
+Port of `scripts/metal_knob_ab.sh` (#235). The knob table and every refusal
+already lived in Python; this replaces the shell that called them.
 
-Each knob has two env vars: the var that turns it on and the var that turns it
-off. For the three opt-in knobs (default off) they are the same variable, set
-to a nonzero value to enable and `0` to disable. For exact-rows they are not:
-the persistent cache is on by default, so `REQUIRE=0` means "not required" and
-leaves the cache running. Its off arm is the DISABLE var, which the source
-names "the A/B rollback arm and always wins" (ds4_metal.m:14828 at ds4-pr952 77a054e1). A knob whose
-off arm does not change the default is a wrong arm waiting to happen, so
-`validate()` refuses it.
+`decode_ab.py` varies the weights and `decode_ab_engine.sh` varies the tree.
+Nothing varied the environment within one tree, which is what this does: one
+Metal knob env var, two arms, same tree, same GGUF.
 
-gathered-heads is the first presence-based knob. The branch routes n_comp==0
-layers to the gathered-heads path unless `DS4_METAL_DISABLE_DECODE_RAW_GATHERED_ATTN`
-is set (ds4_metal.m:38408 at ds4-pr952 77a054e1, `getenv(...) != NULL`), so the feature is on by
-default and there is no REQUIRE spelling to force it. The on arm must *unset*
-the DISABLE var (`env -u`), not assign it: `=0` still counts as set and would
-take the raw-only path in both arms. So for a presence knob `on_var == off_var`
-(the same DISABLE var), and `validate()` refuses an assignment on arm instead
-of the `off_var != on_var` rule that guards the assignment-based exact-rows
-shape.
+    uv run python scripts/metal_knob_ab.py <knob> <on-value> <off-value> \\
+        <tree> <gguf> [outdir]
 
-One knob suffices even though two variables touch the n_comp==0 layers. The
-second, `DS4_METAL_DISABLE_DECODE_RAW_PACKED32` (ds4_metal.m:36774 at ds4-pr952 77a054e1), relaxes
-`packed_shape` for n_comp==0 layers, but setting GATHERED_ATTN routes those
-layers raw-only, so `packed_shape` never applies to them and the relaxation is
-moot. For n_comp!=0 layers, `n_comp != 0u` is already true on main, so the
-relaxation changes nothing there either. One variable fully reverts the
-observable difference for this model.
+## Why the port is more than a translation here
 
-The three helpers disagree on the empty string (metal_graph_tp_env_flag returns
-the default, ds4_gpu_exact_rows_persistent_env_enabled returns false,
-ds4_gpu_env_bool returns on), so an empty value is refused. The refusal runs
-before the driver takes the lock or exports anything, so no helper ever sees an
-empty value.
+The shell ran `uv run python scripts/metal_knob_ab.py <subcommand>` **ten
+times** to fetch values it then interpolated back into a command line -- shell
+calling Python calling shell, paying an interpreter start per lookup and
+turning every value into a string that had to survive word splitting. The knob
+table was always the source of truth; only the caller was in the wrong
+language. The library moved to `lib/metal_knob.py` and this calls it.
 
-The on arm uses the REQUIRE spelling and fails the run if the fail-closed error
-string appears. There is no positive admission print, so absence of the error is
-the only admission signal and it must be checked, not assumed. stream-overlap
-has no REQUIRE spelling, so it has no admission signal at all: its policy gate
-(ds4.c:71917 at ds4-pr952 77a054e1) has seven terms, and any of count, resident, ssd_streaming or
-quality can veto the path with no output. A knob with no admission signal is
-refused unless the caller passes an explicit acknowledgment, and its rows are
-marked `admission_signal: "none"` so they cannot later be read as verified.
+**The presence knob is why `unitctl.start` grew `unset`.** `gathered-heads` is
+on by default and has no REQUIRE spelling, so its ON arm must *unset*
+`DS4_METAL_DISABLE_DECODE_RAW_GATHERED_ATTN` -- `=0` still counts as set
+(`getenv(...) != NULL`) and would take the raw-only path in **both** arms,
+producing two identical arms wearing different labels. The shell said this with
+`env -u`; a dict cannot say it, which is the same absence #149's R arm is
+defined by.
 
-gathered-heads has no REQUIRE spelling, so it cannot fail closed. Instead it
-carries a count-based admission signal: the driver runs one short
-single-frontier engagement pass per arm with
-`DS4_METAL_TRACE_M5_FLASH_ATTN_PACKED32_REDUCE` set, counts the `packed FA use=`
-trace lines, and refuses the timed run unless the on arm engaged more layers
-than the off arm and both are non-zero. Equal counts mean the knob did nothing,
-which is the tight-meaningless result the driver refuses. The counts go on the
-run so every run carries its own engagement evidence.
+The unquoted `env $env_prefix` expansion the shell relied on -- `-u VAR`
+splitting into two words and `VAR=value` into one -- is gone with it. That
+worked, and it worked because both values came from a validated table; it was
+one hand-passed value away from not working.
+
+## What must not be lost
+
+**An even rep count is refused, not warned.** Alternation cancels the position
+bias only on an even count. At REPS=3, reps 1 and 3 run A-first and only rep 2
+runs B-first, so the bias lands 2:1 on one arm. Across #171's twelve reps
+whichever arm ran first was faster in 9, median +0.9%, +5.9% on the first rep
+of a cold session. An odd sweep produces a complete CSV, a plausible number,
+and no indication that half the design is missing.
+
+**OUT is absolutized before the lock (#203).** Each arm runs with `cwd=TREE`,
+so a relative OUT is created under the repo by `mkdir` and resolved under the
+ds4 tree by `--csv` -- the CSV files land nowhere. The default OUT is absolute,
+which is why the bug only ever showed on a hand-passed relative path.
+
+**A knob with no admission signal is refused unless acknowledged.** Its rows
+are marked `admission_signal: none` so they cannot later be read as verified.
 """
 
 from __future__ import annotations
 
 import argparse
+import contextlib
+import json
 import logging
+import os
 import pathlib
 import sys
+import time
+from collections.abc import Iterator, Sequence
 
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+REPO = pathlib.Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO / "scripts" / "lib"))
+sys.path.insert(0, str(REPO / "scripts"))
+sys.path.insert(0, str(REPO / "benchmarks" / "agent"))
+
+import child
+import metal_knob
+import preflight
+import prompt_meta
 
 import logs
 
 logger = logging.getLogger(__name__)
 
-# knob -> on var, off var, whether it is on by default, the fail-closed error
-# string (empty = no REQUIRE spelling), and whether the on arm unsets rather
-# than assigns. For the opt-in knobs the off var is the on var set to `0`; for
-# exact-rows it is the DISABLE var, because the cache is on by default and
-# REQUIRE=0 leaves it running. For gathered-heads it is the DISABLE var too,
-# and the on arm unsets it (presence-based, no REQUIRE spelling).
-TRACE_PATTERN = "packed FA use="
-
-KNOBS: dict[str, dict[str, str | bool]] = {
-    "session-union": {
-        "on_var": "DS4_METAL_REQUIRE_Q4_SSD_SESSION_UNION",
-        "off_var": "DS4_METAL_REQUIRE_Q4_SSD_SESSION_UNION",
-        "default_on": False,
-        "fail_error": "required Metal Q4 SSD session union is ineligible",
-    },
-    "iq2": {
-        "on_var": "DS4_METAL_REQUIRE_IQ2_XXS_SSD_PREFILL_MM",
-        "off_var": "DS4_METAL_REQUIRE_IQ2_XXS_SSD_PREFILL_MM",
-        "default_on": False,
-        "fail_error": (
-            "required Metal IQ2_XXS SSD grouped address-MM path was not selected"
-        ),
-    },
-    "exact-rows": {
-        "on_var": "DS4_METAL_REQUIRE_EXACT_ROWS_PERSISTENT_CACHE",
-        "off_var": "DS4_METAL_DISABLE_EXACT_ROWS_PERSISTENT_CACHE",
-        "default_on": True,
-        "fail_error": (
-            "Metal exact-row persistent cache is required but disabled or ineligible"
-        ),
-    },
-    "stream-overlap": {
-        "on_var": "DS4_METAL_ENABLE_Q4_STREAM_OVERLAP",
-        "off_var": "DS4_METAL_ENABLE_Q4_STREAM_OVERLAP",
-        "default_on": False,
-        "fail_error": "",
-    },
-    "gathered-heads": {
-        "on_var": "DS4_METAL_DISABLE_DECODE_RAW_GATHERED_ATTN",
-        "off_var": "DS4_METAL_DISABLE_DECODE_RAW_GATHERED_ATTN",
-        "default_on": True,
-        "fail_error": "",
-        "presence": True,
-        "trace_var": "DS4_METAL_TRACE_M5_FLASH_ATTN_PACKED32_REDUCE",
-    },
-    # ds4#952's two diagnostic opt-ins (c1909040, bbf5a796), both gated to
-    # Apple M5. They print similar-looking lines and the lines mean different
-    # things, which is the whole reason only one of them carries a signal.
-    #
-    # cooperative-source prints from the Metal library COMPILE block
-    # (ds4_metal.m:7900 at ds4-pr952 ff749b84), beside the tensor-API line and
-    # inside the same `macros[...] = @"1"` stanza. It fires on device and env
-    # alone -- it says the shader was compiled with the macro, not that any
-    # Q4_K dense matmul ever took the path. Treating it as admission would let
-    # a run that never dispatched the kernel once read as verified, which is
-    # the tight-meaningless result this table exists to refuse. So: no signal,
-    # and METAL_KNOB_ACK_NO_SIGNAL is required to measure it.
-    #
-    # There is no dispatch-level signal to use instead. When cooperative is on,
-    # the kernel is swapped by a compile macro rather than selected at the call
-    # site, so nothing prints and nothing counts.
-    "q4-mpp-cooperative": {
-        "on_var": "DS4_METAL_ENABLE_Q4_MPP_COOPERATIVE_SOURCE",
-        "off_var": "DS4_METAL_ENABLE_Q4_MPP_COOPERATIVE_SOURCE",
-        "default_on": False,
-        "fail_error": "",
-    },
-    # payload-reuse is the opposite case and does carry a real signal. Its
-    # line comes from ds4_gpu_q4_mpp_payload_reuse_admitted(), called from the
-    # two dispatch sites (ds4_metal.m:23719 at ds4-pr952 ff749b84 and
-    # ds4_metal.m:33273 at ds4-pr952 ff749b84)
-    # under `weight_type == DS4_METAL_TENSOR_Q4_K && !cooperative && enabled`.
-    # It fires only when the path is actually taken, so an off arm that prints
-    # it means the knob did not turn the path off.
-    #
-    # Note that guard's middle term: the two knobs are MUTUALLY EXCLUSIVE.
-    # With cooperative on, payload reuse never engages, so they cannot be
-    # measured together and a combined arm would measure only cooperative.
-    "q4-mpp-payload-reuse": {
-        "on_var": "DS4_METAL_ENABLE_Q4_MPP_PAYLOAD_REUSE",
-        "off_var": "DS4_METAL_ENABLE_Q4_MPP_PAYLOAD_REUSE",
-        "default_on": False,
-        "fail_error": "",
-        "admission_print": "Metal Q4 MPP payload reuse admitted",
-    },
-}
+# The same frontiers and gen budget as decode_ab and ds4's own speed-bench, so
+# the numbers stay comparable to speed-bench/m5_max.csv.
+CTX_START = 2048
+CTX_MAX = 16384
+STEP = 2048
+GEN = 128
+REPS = 4
 
 
-def has_admission_signal(knob: str) -> bool:
-    """Whether a run of this knob carries an admission check.
+class Refusing(RuntimeError):
+    """A wrong arm, refused before the lock or any measurement."""
 
-    A knob with no REQUIRE spelling has no fail-closed error, but it may still
-    carry a count-based check (gathered-heads) or no check at all
-    (stream-overlap).
+
+def absolutize(out: pathlib.Path) -> pathlib.Path:
+    """#203: resolve OUT before anything runs with a different cwd.
+
+    An arm runs with `cwd=TREE`, so a relative OUT is created under the repo by
+    `mkdir` and resolved under the ds4 tree by `--csv`. The CSVs land nowhere
+    and the run looks fine until the read-out finds no rows.
     """
-    return admission_signal(knob) != "none"
+    return out if out.is_absolute() else (pathlib.Path.cwd() / out).resolve()
 
 
-def admission_signal(knob: str) -> str:
-    """The admission signal a run of this knob carries.
+def bench_argv(
+    gguf: pathlib.Path,
+    prompt: pathlib.Path,
+    csv: pathlib.Path,
+    *,
+    ctx_start: int,
+    ctx_max: int,
+    step: int,
+    gen: int,
+) -> list[str]:
+    """`ds4-bench` for one arm. Relative binary: it resolves metal/*.metal
+    against its own tree, so it runs with `cwd=TREE`."""
+    return [
+        "./ds4-bench",
+        "-m",
+        str(gguf),
+        "--metal",
+        "--prompt-file",
+        str(prompt),
+        "--ctx-start",
+        str(ctx_start),
+        "--ctx-max",
+        str(ctx_max),
+        "--step-incr",
+        str(step),
+        "--gen-tokens",
+        str(gen),
+        "--csv",
+        str(csv),
+    ]
 
-    'fail-closed' when the on arm is checked for the REQUIRE error; 'print'
-    when the on arm must emit an admission line the off arm never emits;
-    'count' when the on arm must engage more trace lines than the off arm;
-    'none' when there is no check. The value goes on the run so a later reader
-    cannot read an unverified knob as verified.
+
+def run_bench(
+    argv: Sequence[str],
+    tree: pathlib.Path,
+    log: pathlib.Path,
+    header: str,
+    env: dict[str, str],
+    unset: Sequence[str],
+) -> int:
+    """One `ds4-bench` invocation, with the arm's environment and its header.
+
+    The header goes on the log so every measurement carries its own evidence:
+    which var, which value, and whether the on arm unsets it. The admission
+    probe can then read the log rather than trust the table.
     """
-    if fail_closed_error(knob):
-        return "fail-closed"
-    if admission_print(knob):
-        return "print"
-    if trace_var(knob):
-        return "count"
-    return "none"
+    log.write_text(header + "\n")
+    # child.run with append=True: the header stays, the arm's env and unset go
+    # to the child, and the whole process group dies with this driver (#268).
+    return child.run(argv, cwd=tree, log=log, env=env, unset=unset, append=True)
 
 
-def validate(
+def engagement(
+    knob: str,
+    label: str,
+    value: str,
+    *,
+    out: pathlib.Path,
+    tree: pathlib.Path,
+    gguf: pathlib.Path,
+    prompt: pathlib.Path,
+) -> int:
+    """One short single-frontier pass with the trace on. Returns the count.
+
+    The trace prints per dispatch, so it stays off the timed arms -- tracing
+    inside a timed arm would add I/O to one arm and not the other.
+    """
+    log = out / f"engagement-{label}.log"
+    env, unset = metal_knob.arm_env(knob, label, value)
+    trace = metal_knob.trace_var(knob)
+    if trace:
+        # A print knob has no trace var. The shell had to build the assignment
+        # rather than interpolate it, because an empty var name hands `env` a
+        # bare `=1` and kills the arm. A dict cannot have an empty key here.
+        env = {**env, trace: "1"}
+    argv = bench_argv(
+        gguf,
+        prompt,
+        out / f"engagement-{label}.csv",
+        ctx_start=CTX_START,
+        ctx_max=CTX_START,
+        step=STEP,
+        gen=GEN,
+    )
+    header = (
+        f"# engagement: {label} knob={knob} "
+        f"env {metal_knob.arm_cmd(knob, label, value)}"
+        f"{' ' + trace + '=1' if trace else ''} {' '.join(argv)}"
+    )
+    logger.info("engagement %s -> %s", label, log)
+    run_bench(argv, tree, log, header, env, unset)
+    return metal_knob.count_trace_lines(log, pattern=metal_knob.admission_pattern(knob))
+
+
+def check_admission(
     knob: str,
     on_value: str,
     off_value: str,
-    acknowledge_no_signal: bool = False,
+    *,
+    out: pathlib.Path,
+    tree: pathlib.Path,
+    gguf: pathlib.Path,
+    prompt: pathlib.Path,
+) -> tuple[int, int]:
+    """Run the engagement passes this knob's signal needs. Returns (on, off).
+
+    (0, 0) for a knob whose signal is neither `print` nor `count` -- there is
+    nothing to run, and the rows say `admission_signal: none` so they are never
+    read as verified.
+    """
+    signal = metal_knob.admission_signal(knob)
+    if signal not in ("print", "count"):
+        return 0, 0
+    kw = {"out": out, "tree": tree, "gguf": gguf, "prompt": prompt}
+    on = engagement(knob, "on", on_value, **kw)
+    off = engagement(knob, "off", off_value, **kw)
+    if signal == "print" and not metal_knob.print_admission_ok(on, off):
+        raise Refusing(
+            f"knob {knob} did not engage as expected (on={on} off={off} "
+            "admission lines); the on arm must print at least one and the off "
+            "arm none"
+        )
+    if signal == "count" and not metal_knob.count_admission_ok(on, off):
+        raise Refusing(
+            f"knob {knob} did not engage (on={on} off={off} trace lines); the "
+            "on arm must exceed the off arm and both must be non-zero"
+        )
+    return on, off
+
+
+def run_meta(
+    knob: str,
+    on_value: str,
+    off_value: str,
+    tree: pathlib.Path,
+    gguf: pathlib.Path,
+    reps: int,
+    counts: tuple[int, int],
+) -> dict[str, object]:
+    """What went on the run, so a later reader can tell what produced the rows.
+
+    Built as a dict and written with `json.dump`, not as three heredocs with a
+    conditional comma between them. The shell's version could emit invalid JSON
+    if the middle block was ever skipped for a reason the comma did not follow.
+    """
+    signal = metal_knob.admission_signal(knob)
+    meta: dict[str, object] = {
+        "knob": knob,
+        "on_var": metal_knob.on_var(knob),
+        "off_var": metal_knob.off_var(knob),
+        "on_value": on_value,
+        "off_value": off_value,
+        "admission_signal": signal,
+        "tree": str(tree),
+        "gguf": str(gguf),
+        "reps": str(reps),
+        "started": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+    }
+    if signal in ("count", "print"):
+        meta["engagement"] = {
+            "trace_var": metal_knob.trace_var(knob),
+            "pattern": metal_knob.admission_pattern(knob),
+            "on_count": str(counts[0]),
+            "off_count": str(counts[1]),
+        }
+    return meta
+
+
+def order(rep: int) -> tuple[str, str]:
+    """#130: odd reps on-off, even reps off-on, so drift divides across arms."""
+    return ("off", "on") if rep % 2 == 0 else ("on", "off")
+
+
+def run_arm(
+    knob: str,
+    label: str,
+    value: str,
+    rep: int,
+    position: int,
+    *,
+    out: pathlib.Path,
+    tree: pathlib.Path,
+    gguf: pathlib.Path,
+    prompt: pathlib.Path,
+    ctx_max: int,
 ) -> None:
-    """Refuse a wrong arm before the driver takes the lock or measures.
-
-    The on arm must be nonzero, except for a presence knob whose on arm unsets
-    the var (`env -u`) and so must carry no value at all. The off arm must
-    actually turn the knob off: for a default-off knob that is `0` on the on
-    var; for a default-on knob it is a nonzero value on the DISABLE var, and
-    the off var must differ from the on var unless the knob is presence-based
-    (where the on arm unsets the same DISABLE var the off arm sets). A
-    default-on knob whose off arm is `REQUIRE=0` leaves the cache running and
-    both arms identical, so it is refused.
-
-    A knob with no admission signal is refused unless the caller acknowledges
-    it. Without the acknowledgment the driver would produce a clean, tight,
-    meaningless result indistinguishable from "the knob does nothing".
-    """
-    if knob not in KNOBS:
-        raise SystemExit(
-            f"REFUSING: unknown knob '{knob}' (known: {', '.join(sorted(KNOBS))})"
-        )
-    meta = KNOBS[knob]
-    presence = bool(meta.get("presence", False))
-    if presence:
-        # The on arm is `env -u`, so an assignment on arm is a wrong arm by
-        # construction: `=0` still counts as set and would take the raw-only
-        # path in both arms. The sentinel "unset" marks the env -u arm; the
-        # driver's `${2:?on value}` needs a non-empty positional, so the on arm
-        # cannot be expressed as an empty string.
-        if on_value and on_value != "unset":
-            raise SystemExit(
-                f"REFUSING: knob '{knob}' is presence-based; the on arm must "
-                f"unset the var (env -u), not assign it, got on value '{on_value}'"
-            )
-    elif not on_value or on_value == "0":
-        raise SystemExit(
-            f"REFUSING: on value must be a nonzero value, got '{on_value}'"
-        )
-    if not off_value:
-        raise SystemExit(f"REFUSING: off value must not be empty, got '{off_value}'")
-    if meta["default_on"]:
-        if off_value == "0":
-            raise SystemExit(
-                f"REFUSING: knob '{knob}' is on by default; off value must be "
-                f"nonzero (DISABLE=1), got '{off_value}'"
-            )
-        if not presence and meta["off_var"] == meta["on_var"]:
-            raise SystemExit(
-                f"REFUSING: knob '{knob}' is on by default; its off var must "
-                f"differ from its on var, got off_var == on_var == {meta['on_var']}"
-            )
-    elif off_value != "0":
-        raise SystemExit(f"REFUSING: off value must be '0', got '{off_value}'")
-    if not has_admission_signal(knob) and not acknowledge_no_signal:
-        raise SystemExit(
-            f"REFUSING: knob '{knob}' has no admission signal; pass "
-            f"--ack-no-signal to measure it anyway (rows are marked "
-            f"admission_signal: none)"
-        )
-
-
-def on_var(knob: str) -> str:
-    """The env var the driver sets for the on arm."""
-    return str(KNOBS[knob]["on_var"])
-
-
-def off_var(knob: str) -> str:
-    """The env var the driver sets for the off arm."""
-    return str(KNOBS[knob]["off_var"])
-
-
-def presence(knob: str) -> bool:
-    """Whether the on arm unsets the var (`env -u`) rather than assigning it."""
-    return bool(KNOBS[knob].get("presence", False))
-
-
-def arm_cmd(knob: str, label: str, value: str) -> str:
-    """The env prefix for an arm: `-u VAR` (presence on) or `VAR=value`.
-
-    The shell runs `env $prefix ./ds4-bench ...`, so the on arm's argv is a
-    pure function of the knob table. A presence knob's on arm must unset the
-    var, not assign it; any other arm assigns. The value is the on/off value
-    the driver was given, so the prefix carries the exact arm construction.
-    """
-    if label not in ("on", "off"):
-        raise SystemExit(
-            f"REFUSING: unknown arm label '{label}' (expected 'on' or 'off')"
-        )
-    var = on_var(knob) if label == "on" else off_var(knob)
-    if label == "on" and presence(knob):
-        return f"-u {var}"
-    return f"{var}={value}"
-
-
-def fail_closed_error(knob: str) -> str:
-    """The fail-closed error string for a knob, or '' when it has no REQUIRE."""
-    return str(KNOBS[knob]["fail_error"])
-
-
-def check_fail_closed(knob: str, log: pathlib.Path) -> bool:
-    """Whether the fail-closed error appears in a run log.
-
-    There is no positive admission print, so absence of the error is the only
-    admission signal. The on arm must not fail closed.
-    """
-    error = fail_closed_error(knob)
-    if not error:
-        return False
-    return error in log.read_text(errors="replace")
-
-
-def trace_var(knob: str) -> str:
-    """The env var that traces the packed-FA path, or '' when the knob has none."""
-    return str(KNOBS[knob].get("trace_var", ""))
-
-
-def admission_print(knob: str) -> str:
-    """The stderr line the engine prints when this knob is admitted, or ''.
-
-    Not a trace: the engine prints it once, unprompted, from the dispatch
-    site. So it needs no trace var, and its absence in the off arm is
-    meaningful rather than merely smaller.
-
-    A line printed from the Metal library compile block does NOT qualify and
-    must not be listed here -- it reports that a macro was set, which is true
-    whether or not a single matmul takes the path. See q4-mpp-cooperative.
-    """
-    return str(KNOBS[knob].get("admission_print", ""))
-
-
-def admission_pattern(knob: str) -> str:
-    """The string to count in a run log to decide whether the knob engaged."""
-    printed = admission_print(knob)
-    if printed:
-        return printed
-    if trace_var(knob):
-        return TRACE_PATTERN
-    return ""
-
-
-def count_trace_lines(log: pathlib.Path, pattern: str = TRACE_PATTERN) -> int:
-    """Count the lines matching `pattern` in a run log.
-
-    The default is the packed-FA trace, which prints one line per dispatch:
-    'ds4: packed FA use=...'. A count knob's on arm must engage more layers
-    than its off arm, so the counts are the admission evidence. A print knob
-    passes its own admission string instead, which the engine emits once.
-    """
-    if not pattern:
-        raise ValueError("refusing to count an empty pattern: every line matches")
-    return sum(
-        1 for line in log.read_text(errors="replace").splitlines() if pattern in line
+    """One timed arm. Raises Refusing if the on arm failed closed."""
+    csv = out / f"{label}-rep{rep}.csv"
+    log = out / f"{label}-rep{rep}.log"
+    env, unset = metal_knob.arm_env(knob, label, value)
+    argv = bench_argv(
+        gguf, prompt, csv, ctx_start=CTX_START, ctx_max=ctx_max, step=STEP, gen=GEN
     )
+    logger.info("%s rep %d (position %d) -> %s", label, rep, position, csv)
+    header = (
+        f"# arm: {label} knob={knob} env "
+        f"{metal_knob.arm_cmd(knob, label, value)} {' '.join(argv)}"
+    )
+    run_bench(argv, tree, log, header, env, unset)
+    # The on arm's REQUIRE spelling must not fail closed. There is no positive
+    # admission print, so absence of the error is the only signal, and it must
+    # be checked rather than assumed.
+    if label == "on" and metal_knob.check_fail_closed(knob, log):
+        raise Refusing(f"{label} failed closed (knob {knob} did not take effect)")
+    prompt_meta.stamp(csv, prompt)
 
 
-def print_admission_ok(on_count: int, off_count: int) -> bool:
-    """Whether a print knob engaged in the on arm and only in the on arm.
+@contextlib.contextmanager
+def machine(what: str, owner_pid: int) -> Iterator[None]:
+    """#133: claim the machine before loading anything.
 
-    Stricter than the count check, and it can afford to be: the engine emits
-    this line only when it dispatches the path, so an off arm that emits one
-    means the knob did not turn the path off and the comparison is between two
-    identical arms wearing different labels.
+    preflight sees the process table but cannot see intent, and this driver
+    spends minutes between arms with nothing running -- a scan in that window
+    truthfully says "all clear" while the machine is committed for hours.
     """
-    return on_count > 0 and off_count == 0
+    taken, why = preflight.acquire_lock(what, pid=owner_pid)
+    if not taken:
+        raise Refusing(f"the machine is claimed by another run: {why}")
+    logger.info("machine lock held: %s", why)
+    try:
+        yield
+    finally:
+        released, why = preflight.release_lock(pid=owner_pid)
+        logger.info("machine lock released=%s: %s", released, why)
 
 
-def count_admission_ok(on_count: int, off_count: int) -> bool:
-    """Whether a count knob's on arm demonstrably engaged more than its off arm.
+def sweep(
+    knob: str,
+    on_value: str,
+    off_value: str,
+    tree: pathlib.Path,
+    gguf: pathlib.Path,
+    out: pathlib.Path,
+    *,
+    reps: int,
+    prompt: pathlib.Path,
+    ctx_max: int,
+    ack_no_signal: bool,
+    owner_pid: int,
+) -> int:
+    # Refuse a wrong arm before the lock or any measurement. The negative cases
+    # are the whole job: an empty value is a wrong arm waiting to happen, an
+    # unknown knob is a typo that would run a different experiment, and a knob
+    # with no admission signal must never be measured by accident.
+    metal_knob.validate(knob, on_value, off_value, acknowledge_no_signal=ack_no_signal)
 
-    Both counts must be non-zero (the path was selected, not merely requested)
-    and the on arm must exceed the off arm (the knob changed the layer count).
-    Equal counts mean the knob did nothing, which is the tight-meaningless
-    result the driver refuses.
-    """
-    return on_count > off_count > 0
+    # The cheap check first: a missing build used to fail mid-run, after the
+    # lock was held and the model loaded.
+    bench = tree / "ds4-bench"
+    if not (bench.exists() and os.access(bench, os.X_OK)):
+        raise Refusing(f"{bench} is missing or not executable -- build it first")
+
+    with machine(f"metal_knob_ab.py {knob}", owner_pid):
+        out.mkdir(parents=True, exist_ok=True)
+        prompt_meta.sidecar(prompt, out, show=True)
+        counts = check_admission(
+            knob, on_value, off_value, out=out, tree=tree, gguf=gguf, prompt=prompt
+        )
+        (out / "run-meta.json").write_text(
+            json.dumps(
+                run_meta(knob, on_value, off_value, tree, gguf, reps, counts), indent=2
+            )
+            + "\n"
+        )
+        for rep in range(1, reps + 1):
+            for position, label in enumerate(order(rep), 1):
+                value = on_value if label == "on" else off_value
+                with (out / "run-order.txt").open("a") as handle:
+                    handle.write(f"rep={rep} position={position} of 2 label={label}\n")
+                run_arm(
+                    knob,
+                    label,
+                    value,
+                    rep,
+                    position,
+                    out=out,
+                    tree=tree,
+                    gguf=gguf,
+                    prompt=prompt,
+                    ctx_max=ctx_max,
+                )
+    logger.info("done: %s", out)
+    return 0
 
 
-def main(argv: list[str] | None = None) -> int:
-    logs.configure(fmt=logs.PLAIN)
-    parser = argparse.ArgumentParser(description=__doc__)
-    sub = parser.add_subparsers(dest="cmd", required=True)
-
-    v = sub.add_parser("validate", help="refuse a wrong arm")
-    v.add_argument("knob")
-    v.add_argument("on_value")
-    v.add_argument("off_value")
-    v.add_argument(
+def main(argv: Sequence[str] | None = None) -> int:
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument("knob")
+    p.add_argument("on_value")
+    p.add_argument("off_value")
+    p.add_argument("tree", type=pathlib.Path)
+    p.add_argument("gguf", type=pathlib.Path)
+    p.add_argument(
+        "out",
+        nargs="?",
+        type=pathlib.Path,
+        default=REPO / "benchmarks" / "ds4" / "metal-knob-ab",
+    )
+    p.add_argument("--reps", type=int, default=int(os.environ.get("REPS", REPS)))
+    p.add_argument(
+        "--ctx-max", type=int, default=int(os.environ.get("CTX_MAX", CTX_MAX))
+    )
+    p.add_argument("--prompt", type=pathlib.Path, default=None)
+    p.add_argument(
+        "--allow-odd-reps",
+        action="store_true",
+        default=os.environ.get("ALLOW_ODD_REPS") == "1",
+    )
+    p.add_argument(
         "--ack-no-signal",
         action="store_true",
-        help="measure a knob with no admission signal; rows are marked 'none'",
+        default=os.environ.get("METAL_KNOB_ACK_NO_SIGNAL") == "1",
+        help="measure a knob with no admission signal. Without it validate() "
+        "refuses, so a knob that cannot be verified is never measured by "
+        "accident.",
     )
+    args = p.parse_args(argv)
 
-    o = sub.add_parser("on-var", help="print the on-arm env var for a knob")
-    o.add_argument("knob")
+    logs.configure()
 
-    f = sub.add_parser("off-var", help="print the off-arm env var for a knob")
-    f.add_argument("knob")
+    if args.reps % 2:
+        if not args.allow_odd_reps:
+            logger.error(
+                "REFUSING: REPS=%d is odd. Alternation cancels the position "
+                "bias only on an even count, and the bias is up to +5.9%% on a "
+                "cold first rep (#201) -- larger than most effects this script "
+                "is used to measure. Use an even count, or --allow-odd-reps.",
+                args.reps,
+            )
+            return 2
+        logger.warning(
+            "REPS=%d is odd; alternation cannot cancel the position bias "
+            "(#201). Proceeding because --allow-odd-reps was given.",
+            args.reps,
+        )
 
-    p = sub.add_parser("presence", help="print 1 if the on arm unsets the var, else 0")
-    p.add_argument("knob")
-
-    a = sub.add_parser(
-        "arm-cmd", help="print the env prefix for an arm: -u VAR or VAR=value"
-    )
-    a.add_argument("knob")
-    a.add_argument("label")
-    a.add_argument("value")
-
-    s = sub.add_parser("admission-signal", help="print the admission signal for a knob")
-    s.add_argument("knob")
-
-    c = sub.add_parser("check-fail-closed", help="exit 0 if the error is present")
-    c.add_argument("knob")
-    c.add_argument("log", type=pathlib.Path)
-
-    t = sub.add_parser("trace-var", help="print the trace var for a knob, or ''")
-    t.add_argument("knob")
-
-    ap = sub.add_parser(
-        "admission-pattern",
-        help="print the log string that proves this knob engaged, or ''",
-    )
-    ap.add_argument("knob")
-
-    n = sub.add_parser(
-        "count-trace-lines", help="print the admission line count in a log"
-    )
-    n.add_argument("log", type=pathlib.Path)
-    n.add_argument(
-        "--pattern",
-        default=TRACE_PATTERN,
-        help="the string to count (default: the packed-FA trace)",
-    )
-
-    pk = sub.add_parser(
-        "print-admission-ok",
-        help="exit 0 if the on arm printed the admission line and the off arm did not",
-    )
-    pk.add_argument("on_count", type=int)
-    pk.add_argument("off_count", type=int)
-
-    k = sub.add_parser(
-        "count-admission-ok",
-        help="exit 0 if on count > off count and both are non-zero",
-    )
-    k.add_argument("on_count", type=int)
-    k.add_argument("off_count", type=int)
-
-    args = parser.parse_args(argv)
-    if args.cmd == "validate":
-        validate(args.knob, args.on_value, args.off_value, args.ack_no_signal)
-    elif args.cmd == "on-var":
-        logger.info(on_var(args.knob))
-    elif args.cmd == "off-var":
-        logger.info(off_var(args.knob))
-    elif args.cmd == "presence":
-        logger.info("1" if presence(args.knob) else "0")
-    elif args.cmd == "arm-cmd":
-        logger.info(arm_cmd(args.knob, args.label, args.value))
-    elif args.cmd == "admission-signal":
-        logger.info(admission_signal(args.knob))
-    elif args.cmd == "trace-var":
-        logger.info(trace_var(args.knob))
-    elif args.cmd == "admission-pattern":
-        logger.info(admission_pattern(args.knob))
-    elif args.cmd == "count-trace-lines":
-        logger.info(count_trace_lines(args.log, args.pattern))
-    elif args.cmd == "print-admission-ok":
-        return 0 if print_admission_ok(args.on_count, args.off_count) else 1
-    elif args.cmd == "count-admission-ok":
-        return 0 if count_admission_ok(args.on_count, args.off_count) else 1
-    else:
-        return 0 if check_fail_closed(args.knob, args.log) else 1
-    return 0
+    prompt = args.prompt or (args.tree / "speed-bench" / "promessi_sposi.txt")
+    try:
+        return sweep(
+            args.knob,
+            args.on_value,
+            args.off_value,
+            args.tree,
+            args.gguf,
+            absolutize(args.out),
+            reps=args.reps,
+            prompt=prompt,
+            ctx_max=args.ctx_max,
+            ack_no_signal=args.ack_no_signal,
+            owner_pid=os.getpid(),
+        )
+    except (Refusing, ValueError, SystemExit) as exc:
+        logger.error("REFUSING: %s", exc)
+        return 1
 
 
 if __name__ == "__main__":

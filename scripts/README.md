@@ -41,7 +41,7 @@ documentation.
 | `machine_claim.py` | Claim the machine with intent, and make contention impossible to miss. #160 |
 | `make_next.py` | Generate NEXT.md from the open issues, so the queue cannot drift or bloat. |
 | `make_scripts_readme.py` | Generate scripts/README.md from each script's own first docstring line. |
-| `metal_knob_ab.py` | Knob table and refusal logic for scripts/metal_knob_ab.sh (#162 Task 4). |
+| `metal_knob_ab.py` | Paired decode-rate A/B for one Metal knob env var within one tree. #162 |
 | `mtp_draft_audit.py` | Audit an MTP arm's drafting counters: the server log beside the ledger. |
 | `mtp_engagement.py` | Does the engine engage MTP on the traffic we actually send it? (#148, #151) |
 | `mtp_failure_modes.py` | Classify what the #39 MTP-arm trial deaths failed on (#39). |
