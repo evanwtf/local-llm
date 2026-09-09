@@ -25,7 +25,9 @@ documentation.
 | `cohort_split.py` | Split one backend's rows at a moment in time and compare the halves. |
 | `decode_ab.py` | Paired decode-rate A/B for two GGUFs of the same model (#48). #235 stage 4. |
 | `decode_ab_engine.py` | Paired decode-rate A/B for two ENGINE BUILDS of the same GGUF. #118 |
+| `decode_ab_repeat.py` | Run the same decode A/B N times, into numbered directories (#136). |
 | `decode_ab_report.py` | Summarize a paired decode A/B produced by scripts/decode_ab.sh (#48). |
+| `decode_ab_stack.py` | Paired decode-rate A/B for two whole STACKS -- engine tree and weights together. #138 |
 | `disk_baseline.py` | Measure the internal NVMe: read bandwidth and random-read latency. |
 | `disk_kv_mechanism.py` | Is the disk-KV budget what makes arm A decline by trial 3? #112 |
 | `ds4_serve.py` | Start ds4-server on one of two Metal kernel routes, and prove which one ran. |
