@@ -28,6 +28,7 @@ documentation.
 | `disk_baseline.py` | Measure the internal NVMe: read bandwidth and random-read latency. |
 | `disk_kv_mechanism.py` | Is the disk-KV budget what makes arm A decline by trial 3? #112 |
 | `ds4_serve.py` | Start ds4-server on one of two Metal kernel routes, and prove which one ran. |
+| `equiv_five_report.py` | Report the argv/env equivalence diff for the five non-route_agent ports. #235, #264, #149 |
 | `eval_trace.py` | Read a `ds4-eval` trace: pass rate, and tokens spent reaching each answer. |
 | `evidence.py` | Re-run a finding's claims and say whether they still hold. #160 |
 | `exclude_rows.py` | Mark rows from an aborted or void run as excluded, so they cannot publish. |
