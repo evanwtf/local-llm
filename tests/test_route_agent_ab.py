@@ -26,6 +26,7 @@ sys.path.insert(0, str(ROOT / "scripts" / "lib"))
 sys.path.insert(0, str(ROOT / "benchmarks" / "agent"))
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
+import equiv
 import metal_route
 import route_ab_report
 import route_agent_ab
@@ -179,6 +180,27 @@ def test_the_driver_passes_the_flag_that_replaced_the_removed_one() -> None:
     argv = route_agent_ab.arm_argv("t-sweep1", pathlib.Path("/tmp"), 1, "abc")
     assert "--allow-unverified-route" in argv
     assert "--skip-tensor-gate" not in argv
+
+
+def test_the_shell_is_dead_by_the_flag_run_py_dropped() -> None:
+    """#264: the shell cannot work, and this names why.
+
+    Two cheap facts, no pgrep, no ds4-server, no wait_ready, no git. The shell
+    passes `--skip-tensor-gate` to run.py; run.py's parser no longer declares
+    it, so argparse exits 2 on every sweep and the `|| echo` swallows it --
+    six server restarts, hours, zero rows, exit 0. This test starts failing the
+    day someone re-adds the flag, which is the notice we want.
+    """
+    shell = (ROOT / "scripts" / "route_agent_ab.sh").read_text()
+    assert "--skip-tensor-gate" in shell, (
+        "route_agent_ab.sh no longer passes --skip-tensor-gate -- good, but "
+        "this test's premise is stale"
+    )
+    flags = equiv.declared_run_flags()
+    assert "--skip-tensor-gate" not in flags, (
+        "run.py re-declared --skip-tensor-gate; the shell may work again, and "
+        "this test must be retired with the shell"
+    )
 
 
 def test_the_run_is_pinned_to_a_harness_commit() -> None:

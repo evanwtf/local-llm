@@ -103,6 +103,18 @@ KEEP = {
 #: it in the tree is a comment explaining why the filter exists.
 DIES_WITH = {"scripts/lib/transcript_move.sh": "scripts/stack_agent_ab.sh"}
 
+#: Shell that is retired by a written deviation rather than an agreeing run.
+#: Retirement normally needs "a run that agrees"; a shell that cannot produce
+#: one is retired on the evidence that it cannot, named here so a future reader
+#: sees it where the file is listed, not only in a commit message.
+DEVIATIONS = {
+    "scripts/route_agent_ab.sh": (
+        "not retired by an agreeing run; the shell is dead by #264 and cannot "
+        "produce one. Evidence: "
+        "tests/test_route_agent_ab.py::test_the_shell_is_dead_by_the_flag_run_py_dropped"
+    ),
+}
+
 BY_NAME = re.compile(r"\b(pgrep|pkill)\b")
 
 
@@ -154,6 +166,7 @@ def survey(root: pathlib.Path = ROOT) -> dict[str, object]:
             {"path": f["path"], "lines": f["lines"], "with": DIES_WITH[str(f["path"])]}
             for f in dies
         ],
+        "deviations": [{"path": path, "why": why} for path, why in DEVIATIONS.items()],
         "portable": [{"path": f["path"], "lines": f["lines"]} for f in portable],
         "portable_lines": sum(int(f["lines"]) for f in portable),
         # What is left when every portable file is ported and every replaced
@@ -217,6 +230,8 @@ def report(s: dict[str, object]) -> None:
         logger.info("  %4s  port it        %s", f["lines"], f["path"])
     for f in s["dies_with"]:  # type: ignore[union-attr]
         logger.info("  %4s  dies with      %s  (%s)", f["lines"], f["path"], f["with"])
+    for f in s["deviations"]:  # type: ignore[union-attr]
+        logger.info("  %4s  DEVIATION      %s  -- %s", 0, f["path"], f["why"])
     for f in s["keep"]:  # type: ignore[union-attr]
         logger.info("  %4s  STAYS SHELL    %s  -- %s", f["lines"], f["path"], f["why"])
     logger.info("")

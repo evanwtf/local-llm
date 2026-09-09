@@ -122,6 +122,16 @@ def test_dies_with_names_a_script_that_is_actually_replaced() -> None:
         assert owner in shell_debt.REPLACED, f"{path} waits on unreplaced {owner}"
 
 
+def test_every_deviation_names_a_replaced_file_and_gives_evidence() -> None:
+    """A deviation retires a REPLACED shell without an agreeing run, so it must
+    name the file AND the evidence that it cannot produce one. A deviation on
+    an unreplaced file would be a way to skip porting it."""
+    for path, why in shell_debt.DEVIATIONS.items():
+        assert path in shell_debt.REPLACED, f"{path} is deviated but not replaced"
+        assert "Evidence:" in why, f"{path} deviation names no evidence"
+        assert why.strip(), f"{path} is deviated for no stated reason"
+
+
 def test_transcript_move_is_sourced_only_by_the_script_it_dies_with() -> None:
     """Asserted, because 'nothing else uses it' is the whole claim.
 
