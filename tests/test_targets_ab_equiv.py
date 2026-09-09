@@ -1,6 +1,6 @@
 """The #146 targets A/B, shell against port (#235, #146).
 
-`scripts/targets_ab.sh` -> `scripts/targets_ab.py`, which routes its
+`vault/targets_ab.sh` -> `scripts/targets_ab.py`, which routes its
 measurement through `scripts/lib/batch.py`. Both drivers run against the same
 recording fakes and what each hands its children is compared.
 
@@ -40,7 +40,7 @@ import time
 import pytest
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-SCRIPT = ROOT / "scripts" / "targets_ab.sh"
+SCRIPT = ROOT / "vault" / "targets_ab.sh"
 
 for sub in ("scripts", "scripts/lib", "benchmarks/agent"):
     sys.path.insert(0, str(ROOT / sub))

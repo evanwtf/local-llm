@@ -51,8 +51,18 @@ logger = logging.getLogger(__name__)
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
-#: The scope, as a command anyone can re-run.
-SCOPE = "scripts/*.sh"
+#: The scope, as commands anyone can re-run. Both trees, deliberately.
+#:
+#: `vault/` holds the retired drivers (see vault/README.md). They no longer
+#: run, and the honest reduction is measured against what is still in service
+#: -- but they are counted and reported, because a scope that stopped at
+#: `scripts/` would let a `git mv` do the work of a port. Moving a file is not
+#: retiring it; the differential is what retires it, and the move only records
+#: that the differential exists.
+SCOPE = ("scripts/*.sh", "vault/*.sh")
+
+#: Path prefix that marks a file as retired-and-archived rather than live.
+VAULT = "vault/"
 
 #: The line target: 10% of the 3,589 lines standing when #235 was written.
 BASELINE = 3589
@@ -61,26 +71,26 @@ TARGET = 359
 #: `<shell>: <the Python that does its job>`. Not a name match -- see the
 #: docstring. A file absent from here has no replacement yet.
 REPLACED = {
-    "scripts/greedy_mtp_ab.sh": "scripts/greedy_mtp_ab.py",
-    "scripts/mtp_treatment_gate.sh": "scripts/mtp_treatment_gate.py",
-    "scripts/route_agent_ab.sh": "scripts/route_agent_ab.py",
-    "scripts/targets_ab.sh": "scripts/targets_ab.py",
-    "scripts/strip_toggle_ab.sh": "scripts/strip_toggle_ab.py",
-    "scripts/stack_agent_ab.sh": "scripts/stack_agent_ab.py",
-    "scripts/metal_knob_ab.sh": "scripts/metal_knob_ab.py",
-    "scripts/decode_ab.sh": "scripts/decode_ab.py",
-    "scripts/decode_ab_engine.sh": "scripts/decode_ab_engine.py",
+    "vault/greedy_mtp_ab.sh": "scripts/greedy_mtp_ab.py",
+    "vault/mtp_treatment_gate.sh": "scripts/mtp_treatment_gate.py",
+    "vault/route_agent_ab.sh": "scripts/route_agent_ab.py",
+    "vault/targets_ab.sh": "scripts/targets_ab.py",
+    "vault/strip_toggle_ab.sh": "scripts/strip_toggle_ab.py",
+    "vault/stack_agent_ab.sh": "scripts/stack_agent_ab.py",
+    "vault/metal_knob_ab.sh": "scripts/metal_knob_ab.py",
+    "vault/decode_ab.sh": "scripts/decode_ab.py",
+    "vault/decode_ab_engine.sh": "scripts/decode_ab_engine.py",
     # #261 gave one module both arms; armB.sh is `--arm B`.
-    "scripts/restart_between_trials.sh": "scripts/restart_between_trials.py",
-    "scripts/restart_between_trials_armB.sh": "scripts/restart_between_trials.py",
+    "vault/restart_between_trials.sh": "scripts/restart_between_trials.py",
+    "vault/restart_between_trials_armB.sh": "scripts/restart_between_trials.py",
     # `_test` had to go: pytest collects *_test.py from the whole repo.
-    "scripts/disk_kv_mechanism_test.sh": "scripts/disk_kv_mechanism.py",
-    "scripts/ab_status.sh": "scripts/ab_status.py",
-    "scripts/decode_ab_stack.sh": "scripts/decode_ab_stack.py",
-    "scripts/decode_ab_repeat.sh": "scripts/decode_ab_repeat.py",
-    "scripts/coherence_check.sh": "scripts/coherence_check.py",
-    "scripts/lib/ds4_server.sh": "scripts/lib/ds4_server.py",
-    "scripts/lib/mlx_serve.sh": "scripts/lib/mlx_serve.py",
+    "vault/disk_kv_mechanism_test.sh": "scripts/disk_kv_mechanism.py",
+    "vault/ab_status.sh": "scripts/ab_status.py",
+    "vault/decode_ab_stack.sh": "scripts/decode_ab_stack.py",
+    "vault/decode_ab_repeat.sh": "scripts/decode_ab_repeat.py",
+    "vault/coherence_check.sh": "scripts/coherence_check.py",
+    "vault/lib/ds4_server.sh": "scripts/lib/ds4_server.py",
+    "vault/lib/mlx_serve.sh": "scripts/lib/mlx_serve.py",
 }
 
 #: Shell that should STAY shell, with the reason. Without this the 90% target
@@ -123,18 +133,18 @@ KEEP = {
 #: - `mlx_serve.sh`: the second engine, added for #191; `stack_agent_ab.sh` is
 #:   the only file that has ever sourced it.
 DIES_WITH: dict[str, tuple[str, ...]] = {
-    "scripts/lib/transcript_move.sh": ("scripts/stack_agent_ab.sh",),
-    "scripts/lib/ds4_server.sh": (
-        "scripts/disk_kv_mechanism_test.sh",
-        "scripts/greedy_mtp_ab.sh",
-        "scripts/mtp_treatment_gate.sh",
-        "scripts/restart_between_trials.sh",
-        "scripts/restart_between_trials_armB.sh",
-        "scripts/stack_agent_ab.sh",
-        "scripts/strip_toggle_ab.sh",
-        "scripts/targets_ab.sh",
+    "vault/lib/transcript_move.sh": ("vault/stack_agent_ab.sh",),
+    "vault/lib/ds4_server.sh": (
+        "vault/disk_kv_mechanism_test.sh",
+        "vault/greedy_mtp_ab.sh",
+        "vault/mtp_treatment_gate.sh",
+        "vault/restart_between_trials.sh",
+        "vault/restart_between_trials_armB.sh",
+        "vault/stack_agent_ab.sh",
+        "vault/strip_toggle_ab.sh",
+        "vault/targets_ab.sh",
     ),
-    "scripts/lib/mlx_serve.sh": ("scripts/stack_agent_ab.sh",),
+    "vault/lib/mlx_serve.sh": ("vault/stack_agent_ab.sh",),
 }
 
 #: `<shell>: <the test that clears it for deletion>`. An explicit table for
@@ -149,60 +159,60 @@ DIES_WITH: dict[str, tuple[str, ...]] = {
 #: entry names the test so a reader can run it, not a commit that describes
 #: having run it once.
 EVIDENCE = {
-    "scripts/ab_status.sh": (
+    "vault/ab_status.sh": (
         "tests/test_ab_status.py::test_the_shell_and_the_port_print_the_same_status_line"
     ),
-    "scripts/coherence_check.sh": (
+    "vault/coherence_check.sh": (
         "tests/test_coherence_check.py::test_the_shell_and_the_port_hand_ds4_the_same_command"
     ),
-    "scripts/decode_ab.sh": (
+    "vault/decode_ab.sh": (
         "tests/test_decode_ab.py::test_the_shell_and_the_port_hand_ds4_bench_the_same_command"
     ),
-    "scripts/decode_ab_engine.sh": (
+    "vault/decode_ab_engine.sh": (
         "tests/test_decode_ab_engine.py::test_the_shell_and_the_port_hand_ds4_bench_the_same_command"
     ),
-    "scripts/decode_ab_repeat.sh": (
+    "vault/decode_ab_repeat.sh": (
         "tests/test_decode_ab_repeat.py::test_the_shell_and_the_port_hand_the_harness_the_same_command"
     ),
-    "scripts/decode_ab_stack.sh": (
+    "vault/decode_ab_stack.sh": (
         "tests/test_decode_ab_stack.py::test_the_shell_and_the_port_hand_ds4_bench_the_same_command"
     ),
-    "scripts/disk_kv_mechanism_test.sh": (
+    "vault/disk_kv_mechanism_test.sh": (
         "tests/test_disk_kv_mechanism.py::"
         "test_the_shell_and_the_port_start_the_same_server"
     ),
-    "scripts/greedy_mtp_ab.sh": (
+    "vault/greedy_mtp_ab.sh": (
         "tests/test_greedy_mtp_ab.py::"
         "test_the_shell_and_the_port_hand_run_py_the_same_command"
     ),
-    "scripts/mtp_treatment_gate.sh": (
+    "vault/mtp_treatment_gate.sh": (
         "tests/test_mtp_treatment_gate_python.py::"
         "test_the_shell_and_the_port_hand_run_py_the_same_command"
     ),
-    "scripts/restart_between_trials.sh": (
+    "vault/restart_between_trials.sh": (
         "tests/test_restart_between_trials_equiv.py::"
         "test_arm_a_differs_from_its_shell_by_exactly_the_server_log"
     ),
-    "scripts/restart_between_trials_armB.sh": (
+    "vault/restart_between_trials_armB.sh": (
         "tests/test_restart_between_trials_equiv.py::"
         "test_arm_b_matches_its_shell_exactly"
     ),
-    "scripts/targets_ab.sh": (
+    "vault/targets_ab.sh": (
         "tests/test_targets_ab_equiv.py::"
         "test_the_arms_run_in_the_same_ORDER_not_merely_the_same_set"
     ),
-    "scripts/stack_agent_ab.sh": (
+    "vault/stack_agent_ab.sh": (
         "tests/test_stack_agent_ab_equiv.py::"
         "test_the_ds4_arm_gets_the_same_server_command"
     ),
-    "scripts/strip_toggle_ab.sh": (
+    "vault/strip_toggle_ab.sh": (
         "tests/test_strip_toggle_ab.py::"
         "test_the_on_arm_removes_shim_no_strip_on_both_sides"
     ),
-    "scripts/metal_knob_ab.sh": (
+    "vault/metal_knob_ab.sh": (
         "tests/test_metal_knob_ab.py::test_the_shell_and_the_port_hand_ds4_bench_the_same_command"
     ),
-    "scripts/route_agent_ab.sh": (
+    "vault/route_agent_ab.sh": (
         "tests/test_route_agent_ab.py::test_the_shell_is_dead_by_the_flag_run_py_dropped"
     ),
 }
@@ -212,7 +222,7 @@ EVIDENCE = {
 #: one is retired on the evidence that it cannot, named here so a future reader
 #: sees it where the file is listed, not only in a commit message.
 DEVIATIONS = {
-    "scripts/stack_agent_ab.sh": (
+    "vault/stack_agent_ab.sh": (
         "retired on a PARTIAL differential, and the gap is deliberate. Every "
         "other retirement here drives the real .sh end to end against "
         "recording fakes; this script is 541 lines and its top level takes "
@@ -231,7 +241,7 @@ DEVIATIONS = {
         "tests/test_stack_agent_ab_equiv.py::"
         "test_the_ds4_arm_gets_the_same_server_command"
     ),
-    "scripts/route_agent_ab.sh": (
+    "vault/route_agent_ab.sh": (
         "not retired by an agreeing run; the shell is dead by #264 and cannot "
         "produce one. Evidence: "
         "tests/test_route_agent_ab.py::test_the_shell_is_dead_by_the_flag_run_py_dropped"
@@ -242,15 +252,22 @@ BY_NAME = re.compile(r"\b(pgrep|pkill)\b")
 
 
 def shell_files(root: pathlib.Path = ROOT) -> list[str]:
-    """Tracked shell under scripts/. The index, not the working tree (#251)."""
+    """Tracked shell under scripts/ and vault/. The index, not the working
+    tree (#251): an untracked scratch .sh is not debt, and a deleted-but-staged
+    one still is."""
     out = subprocess.run(
-        ["git", "ls-files", SCOPE],
+        ["git", "ls-files", *SCOPE],
         cwd=root,
         capture_output=True,
         text=True,
         check=True,
     )
     return sorted(out.stdout.split())
+
+
+def vaulted(path: str) -> bool:
+    """Whether this file is archived rather than in service."""
+    return path.startswith(VAULT)
 
 
 def survey(root: pathlib.Path = ROOT) -> dict[str, object]:
@@ -273,9 +290,12 @@ def survey(root: pathlib.Path = ROOT) -> dict[str, object]:
                 # the port agrees with the shell; without one, the file stays
                 # whatever its Python replacement does.
                 "evidence": EVIDENCE.get(rel),
+                "vaulted": vaulted(rel),
             }
         )
     lines = sum(int(f["lines"]) for f in files)
+    vault_lines = sum(int(f["lines"]) for f in files if f["vaulted"])
+    live_lines = lines - vault_lines
     by_name = sum(int(f["by_name"]) for f in files)
     unreplaced = [f for f in files if not f["replacement_exists"]]
     keep = [f for f in unreplaced if f["path"] in KEEP]
@@ -313,6 +333,12 @@ def survey(root: pathlib.Path = ROOT) -> dict[str, object]:
     cleared = [f for f in replaced if is_cleared(f)]
     waiting = [f for f in replaced if f not in cleared]
     return {
+        # The split that stops a `git mv` from reading as a port. Archived
+        # lines are still in the repo and still counted; what they are not is
+        # in service. See vault/README.md.
+        "vaulted_files": sum(1 for f in files if f["vaulted"]),
+        "vaulted_lines": vault_lines,
+        "live_lines": live_lines,
         "cleared": [{"path": f["path"], "lines": f["lines"]} for f in cleared],
         # `blocked_on` is the sourcers a LIBRARY is still waiting for, and it
         # is empty for a driver. The two wait for different things and the
@@ -369,12 +395,23 @@ def survey(root: pathlib.Path = ROOT) -> dict[str, object]:
 
 
 def report(s: dict[str, object]) -> None:
-    logger.info("scope: git ls-files '%s'", s["scope"])
+    logger.info("scope: git ls-files %s", s["scope"])
     logger.info(
         "now:    %d files, %s lines, %s pgrep/pkill calls",
         len(s["files"]),  # type: ignore[arg-type]
         s["total_lines"],
         s["total_by_name"],
+    )
+    # Stated on its own line and never folded into the total. Moving a file to
+    # vault/ retires nothing: the differential retires it, and the move only
+    # records that the differential exists. A reader who sees the total fall
+    # is entitled to know which half of it was archiving.
+    logger.info(
+        "        of which %s lines in %d vaulted files (archived, never run); "
+        "%s lines still in service",
+        s["vaulted_lines"],
+        s["vaulted_files"],  # type: ignore[arg-type]
+        s["live_lines"],
     )
     logger.info(
         "target: %s lines (10%% of the %s standing at #235); %s%% of the way",

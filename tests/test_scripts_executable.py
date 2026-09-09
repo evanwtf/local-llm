@@ -1,6 +1,6 @@
 """Every driver in scripts/ is executable.
 
-scripts/decode_ab_engine.sh lost its executable bit and nobody noticed until a
+vault/decode_ab_engine.sh lost its executable bit and nobody noticed until a
 run of it failed with `Permission denied` (2026-09-06). It is one of the two
 drivers behind published A/B numbers, so the bit is not cosmetic: the failure
 lands at the moment someone tries to measure, and the obvious workaround --

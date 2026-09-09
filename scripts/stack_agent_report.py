@@ -1,7 +1,7 @@
 """Read out for the #138 stack A/B: two whole stacks, four sweeps, one screen.
 
 Implements the pre-registered recipe from the 23:20 analysis (see the header
-of scripts/stack_agent_ab.sh for the run and its pre-registration). The
+of scripts/stack_agent_ab.py for the run and its pre-registration). The
 judgment calls the spec left open are listed under JUDGMENT CALLS below --
 they are decisions this script makes so the 23:20 reader does not have to.
 

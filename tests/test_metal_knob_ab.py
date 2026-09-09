@@ -24,6 +24,10 @@ sys.path.insert(0, str(ROOT / "scripts"))
 import metal_knob as mk
 import metal_knob_ab as driver
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+
+from vault_neighbourhood import neighbourhood
+
 
 def test_unknown_knob_refused():
     with pytest.raises(SystemExit, match="unknown knob"):
@@ -272,10 +276,13 @@ def test_run_engagement_writes_count_file(tmp_path):
     out = tmp_path / "out"
     out.mkdir()
 
-    script = (
-        pathlib.Path(__file__).resolve().parents[1] / "scripts" / "metal_knob_ab.sh"
-    )
-    py = script.parent / "lib" / "metal_knob.py"
+    script = pathlib.Path(__file__).resolve().parents[1] / "vault" / "metal_knob_ab.sh"
+    # ROOT/scripts, not script.parent: the shell moved to vault/ and its
+    # library did not. `$(dirname "$0")/lib/metal_knob.py` inside the vaulted
+    # copy now resolves to a path that does not exist -- which is correct, it
+    # is never run -- so the test that executes its function text has to name
+    # the live library itself.
+    py = ROOT / "scripts" / "lib" / "metal_knob.py"
     # Source only the run_engagement function, then run it against the stub.
     bash = (
         f"eval \"$(sed -n '/^run_engagement()/,/^}}/p' {script})\"\n"
@@ -293,9 +300,7 @@ def test_relative_out_is_absolutized(tmp_path):
     CSV files land nowhere."""
     import subprocess
 
-    script = (
-        pathlib.Path(__file__).resolve().parents[1] / "scripts" / "metal_knob_ab.sh"
-    )
+    script = pathlib.Path(__file__).resolve().parents[1] / "vault" / "metal_knob_ab.sh"
     bash = (
         f"eval \"$(sed -n '/^absolutize_out()/,/^}}/p' {script})\"\n"
         f"cd {tmp_path}\n"
@@ -313,9 +318,7 @@ def test_absolute_out_is_unchanged(tmp_path):
     """An already-absolute OUT must pass through untouched."""
     import subprocess
 
-    script = (
-        pathlib.Path(__file__).resolve().parents[1] / "scripts" / "metal_knob_ab.sh"
-    )
+    script = pathlib.Path(__file__).resolve().parents[1] / "vault" / "metal_knob_ab.sh"
     bash = (
         f"eval \"$(sed -n '/^absolutize_out()/,/^}}/p' {script})\"\n"
         f"cd {tmp_path}\n"
@@ -590,7 +593,7 @@ def test_the_shell_and_the_port_hand_ds4_bench_the_same_command(
     got = subprocess.run(
         [
             "bash",
-            str(ROOT / "scripts" / "metal_knob_ab.sh"),
+            str(neighbourhood(tmp_path, "metal_knob_ab.sh")),
             knob,
             "1",
             "0",

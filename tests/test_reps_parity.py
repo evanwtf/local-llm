@@ -35,10 +35,10 @@ import pytest
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SCRIPTS = [
-    ROOT / "scripts" / "decode_ab.sh",
-    ROOT / "scripts" / "decode_ab_engine.sh",
-    ROOT / "scripts" / "decode_ab_stack.sh",
-    ROOT / "scripts" / "metal_knob_ab.sh",
+    ROOT / "vault" / "decode_ab.sh",
+    ROOT / "vault" / "decode_ab_engine.sh",
+    ROOT / "vault" / "decode_ab_stack.sh",
+    ROOT / "vault" / "metal_knob_ab.sh",
 ]
 
 # Deliberately absent trees, as in test_decode_ab_engine.py: the REPS guard
@@ -136,6 +136,6 @@ def test_the_engine_script_records_run_order():
     positional bias matters most -- exactly where a reader needs to test for
     the bias rather than assume it away.
     """
-    body = (ROOT / "scripts" / "decode_ab_engine.sh").read_text()
+    body = (ROOT / "vault" / "decode_ab_engine.sh").read_text()
     assert "run-order.txt" in body, "decode_ab_engine.sh does not record run order"
     assert "position=$position of 2" in body, "run-order line lacks the position"

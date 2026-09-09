@@ -29,7 +29,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import mtp_treatment_gate as gate
 from source_text import code_of
 
-SHELL = ROOT / "scripts" / "mtp_treatment_gate.sh"
+SHELL = ROOT / "vault" / "mtp_treatment_gate.sh"
 KV = pathlib.Path("/tmp/kv")
 
 

@@ -25,7 +25,7 @@ sys.path.insert(
 
 import stack_agent_report_191 as sib
 
-SCRIPT = pathlib.Path(__file__).resolve().parents[1] / "scripts" / "stack_agent_ab.sh"
+SCRIPT = pathlib.Path(__file__).resolve().parents[1] / "vault" / "stack_agent_ab.sh"
 
 NEW_BACKEND = "qwen38fnmlxserve"
 OLD_BACKEND = "qwen38fnds4kimat"
@@ -63,11 +63,15 @@ ORDER = [
     ("new-sweep2", "22:22:00"),
     ("old-sweep2", "23:04:00"),
 ]
+# Local-aware, not naive. These are wall-clock instants from a real run whose
+# `run-record.txt` was written by `date`, so the local zone IS their meaning --
+# `.astimezone()` on a naive value attaches exactly that, and the formatted
+# output is unchanged unless the format carries %z.
 STARTS = [
-    dt.datetime(2026, 9, 7, 20, 58, 0),
-    dt.datetime(2026, 9, 7, 21, 40, 0),
-    dt.datetime(2026, 9, 7, 22, 22, 0),
-    dt.datetime(2026, 9, 7, 23, 4, 0),
+    dt.datetime(2026, 9, 7, 20, 58, 0).astimezone(),
+    dt.datetime(2026, 9, 7, 21, 40, 0).astimezone(),
+    dt.datetime(2026, 9, 7, 22, 22, 0).astimezone(),
+    dt.datetime(2026, 9, 7, 23, 4, 0).astimezone(),
 ]
 
 
@@ -110,7 +114,7 @@ def write_run_dir(
     run_dir = tmp_path / "191-mlx-ab"
     run_dir.mkdir()
     if started_at is None:
-        started_at = dt.datetime(2026, 9, 7, 20, 57, 17)
+        started_at = dt.datetime(2026, 9, 7, 20, 57, 17).astimezone()
     (run_dir / "run-record.txt").write_text(
         producer_started_line(started_at) + "\n"
         "NEW backend=qwen38fnmlxserve engine=mlx-serve @ mlx-serve 26.9.1\n"

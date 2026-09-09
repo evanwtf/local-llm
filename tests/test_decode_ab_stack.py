@@ -180,7 +180,7 @@ def test_the_ple_array_is_bash_3_2_safe() -> None:
     """macOS ships bash 3.2, where "${arr[@]}" on an empty array aborts under
     set -u -- which would kill the run at the first arm without a PLE sidecar,
     after the lock is held. The ${arr[@]+"${arr[@]}"} form is safe on both."""
-    script = (ROOT / "scripts" / "decode_ab_stack.sh").read_text()
+    script = (ROOT / "vault" / "decode_ab_stack.sh").read_text()
     assert '${ple_args[@]+"${ple_args[@]}"}' in script
 
 
@@ -304,7 +304,7 @@ def test_the_shell_and_the_port_hand_ds4_bench_the_same_command(tmp_path) -> Non
     got = subprocess.run(
         [
             "bash",
-            str(ROOT / "scripts" / "decode_ab_stack.sh"),
+            str(ROOT / "vault" / "decode_ab_stack.sh"),
             "old",
             str(a),
             str(gguf_a),

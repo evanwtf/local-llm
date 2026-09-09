@@ -321,7 +321,7 @@ def test_the_shell_and_the_port_hand_ds4_bench_the_same_command(tmp_path) -> Non
         "EQUIV_PROGRAM": "ds4-bench",
         "EQUIV_ARM": "shell",
     }
-    sh = ROOT / "scripts" / "decode_ab_engine.sh"
+    sh = ROOT / "vault" / "decode_ab_engine.sh"
     got = subprocess.run(
         [
             "bash",

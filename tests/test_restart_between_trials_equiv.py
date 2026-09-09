@@ -34,8 +34,8 @@ import sys
 import pytest
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-SHELL_A = ROOT / "scripts" / "restart_between_trials.sh"
-SHELL_B = ROOT / "scripts" / "restart_between_trials_armB.sh"
+SHELL_A = ROOT / "vault" / "restart_between_trials.sh"
+SHELL_B = ROOT / "vault" / "restart_between_trials_armB.sh"
 
 for sub in ("scripts", "scripts/lib", "benchmarks/agent"):
     sys.path.insert(0, str(ROOT / sub))

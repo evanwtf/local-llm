@@ -22,7 +22,7 @@ sys.path.insert(
 
 import stack_agent_report as sar
 
-SCRIPT = pathlib.Path(__file__).resolve().parents[1] / "scripts" / "stack_agent_ab.sh"
+SCRIPT = pathlib.Path(__file__).resolve().parents[1] / "vault" / "stack_agent_ab.sh"
 
 
 def producer_fmt(pattern: str) -> str:

@@ -175,7 +175,7 @@ def test_no_python_producer_stamps_a_time_field_without_an_offset():
 
 def test_targets_ab_manifest_stamps_an_offset_not_utc_z():
     """The manifest and the results file must share one clock and one format."""
-    script = (ROOT / "scripts" / "targets_ab.sh").read_text()
+    script = (ROOT / "vault" / "targets_ab.sh").read_text()
     assert "date -u +%Y-%m-%dT%H:%M:%SZ" not in script, (
         "the manifest writes UTC Z while results.now() writes local+offset; "
         "a readout joining them is silently four hours wrong"

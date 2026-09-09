@@ -21,14 +21,19 @@ import pathlib
 import subprocess
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
-HELPER = REPO / "scripts" / "lib" / "transcript_move.sh"
+# Vaulted with its only sourcer, stack_agent_ab.sh (#235). Read as text
+# and executed by this test alone -- see vault/README.md.
+HELPER = REPO / "vault" / "lib" / "transcript_move.sh"
 
 
 def stamp(
     path: pathlib.Path, y: int, m: int, d: int, hh: int, mm: int, ss: int
 ) -> None:
     """Set the file's mtime to a fixed local instant."""
-    mtime = datetime.datetime(y, m, d, hh, mm, ss).timestamp()
+    # Naive on purpose: the helper filters transcripts by LOCAL mtime, so
+    # the fixture must be a local wall-clock instant. Attaching UTC here
+    # would shift every fixture by the offset and test the wrong file.
+    mtime = datetime.datetime(y, m, d, hh, mm, ss).timestamp()  # noqa: DTZ001
     os.utime(path, (mtime, mtime))
 
 
