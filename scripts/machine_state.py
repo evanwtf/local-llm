@@ -148,6 +148,11 @@ class Claim:
     #: number the record wrote down. The row that started this said 74.2 GiB
     #: about a pid that had not existed for hours.
     resident_gib: float | None = None
+    #: How long this pid has been running, from the OS -- not from the record's
+    #: own `started` field. A record states an intention; the process states a
+    #: fact, and #265 asks a monitor for "how long it has held" precisely so a
+    #: reader can tell a sweep that just began from one that has hung for hours.
+    held_s: int | None = None
 
     @property
     def occupies(self) -> bool:
@@ -328,7 +333,13 @@ def lock_claim(path: pathlib.Path | None = None) -> Claim:
     status, detail, by = check_pid(holder, recorded_at=recorded_at(path))
     if state == "ours":
         detail = f"{detail} (this process holds it)"
-    return Claim("run-lock", what, holder, status, detail, by, age)
+    began = started_at(holder)
+    held = (
+        int((dt.datetime.now(dt.UTC) - began).total_seconds())
+        if began is not None and status in LIVE
+        else None
+    )
+    return Claim("run-lock", what, holder, status, detail, by, age, held_s=held)
 
 
 def peer_status_claims(path: pathlib.Path | None = None) -> list[Claim]:
@@ -482,9 +493,15 @@ def describe(on: Claim | None) -> str:
     if on is None:
         return "idle"
     where = f"{on.what} pid {on.pid}"
+    # How long it has held, from the OS. #265 asked for it because "ab=no"
+    # during a live A/B sent a reader hunting for a detector, and a monitor
+    # that says WHAT and not FOR HOW LONG cannot tell a sweep that started a
+    # minute ago from one that has hung for three hours -- which is the whole
+    # question a person asks on seeing the machine busy.
+    for_ = f" for {preflight.human_age(on.held_s)}" if on.held_s is not None else ""
     if on.resident_gib:
-        return f"{where}, {on.resident_gib} GiB"
-    return f"{where} (holding the lock; no model resident this instant)"
+        return f"{where}, {on.resident_gib} GiB{for_}"
+    return f"{where}{for_} (holding the lock; no model resident this instant)"
 
 
 def verdict(claims: Sequence[Claim]) -> tuple[str, str]:

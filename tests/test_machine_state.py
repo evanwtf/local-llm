@@ -448,3 +448,90 @@ def test_every_timestamp_carries_an_offset(tmp_path, peer_file) -> None:
     )
     parsed = dt.datetime.strptime(str(got["checked_at"]), "%Y-%m-%dT%H:%M:%S%z")
     assert parsed.tzinfo is not None
+
+
+# --- how long it has held (#265) ---------------------------------------------
+
+
+def _lock_claim_with(monkeypatch, tmp_path, *, began, what="greedy_mtp_ab.py (#151)"):
+    """A RUNNING lock claim whose holder started at `began`."""
+    path = tmp_path / "run-lock.json"
+    path.write_text(
+        json.dumps(
+            {
+                "cwd": str(ROOT),
+                "hostname": os.uname().nodename,
+                "pid": 4242,
+                # Deliberately a LIE, and far younger than the real start time
+                # below. Nothing may read it: see the test that follows.
+                "started": dt.datetime.now(dt.UTC).isoformat(),
+                "what": what,
+            }
+        )
+    )
+    monkeypatch.setattr(
+        preflight, "read_lock", lambda p=None: json.loads(path.read_text())
+    )
+    monkeypatch.setattr(preflight, "lock_state", lambda *a, **k: ("theirs", "held"))
+    monkeypatch.setattr(
+        ms,
+        "check_pid",
+        lambda *a, **k: (ms.RUNNING, "pid 4242 is running", "start time"),
+    )
+    monkeypatch.setattr(ms, "started_at", lambda pid: began)
+    return ms.lock_claim(path)
+
+
+def test_the_occupant_says_how_long_it_has_held(monkeypatch, tmp_path) -> None:
+    """#265 box 2: WHAT is not enough; a reader needs FOR HOW LONG.
+
+    "ab=no" during a live A/B is what opened #265, and a monitor that names the
+    occupant without a duration cannot separate a sweep that began a minute ago
+    from one that has hung for three hours. That is the question a person
+    actually asks on seeing the machine busy.
+    """
+    began = dt.datetime.now(dt.UTC) - dt.timedelta(hours=3, minutes=12)
+    claim = _lock_claim_with(monkeypatch, tmp_path, began=began)
+    assert claim.held_s is not None
+    assert 3 * 3600 <= claim.held_s <= 3 * 3600 + 13 * 60
+    assert "for 3h" in ms.describe(claim)
+
+
+def test_the_hold_time_comes_from_the_os_not_the_records_own_started(
+    monkeypatch, tmp_path
+) -> None:
+    """The duration is the process's, never the number the lock wrote down.
+
+    This is the module's whole thesis applied to one more field -- "never the
+    number the record wrote down" is already why `resident_gib` is a live
+    census. A record states an intention at the moment it was written; a stale
+    or hand-edited `started` would report a three-hour hang as brand new, which
+    is the exact direction that lets a stuck run keep the machine.
+
+    The fixture's `started` says NOW while the process began three hours ago,
+    so a reader of the record produces ~0 and only a reader of the OS passes.
+    """
+    began = dt.datetime.now(dt.UTC) - dt.timedelta(hours=3)
+    claim = _lock_claim_with(monkeypatch, tmp_path, began=began)
+    assert claim.held_s is not None and claim.held_s > 2 * 3600
+
+
+def test_a_dead_holder_reports_no_hold_time(monkeypatch, tmp_path) -> None:
+    """A stale lock has no holder, so it has held for nothing.
+
+    Reporting an age here would say a gone process has held the machine for
+    three hours, which reads as "wait for it" when the correct instruction is
+    "something died".
+    """
+    monkeypatch.setattr(
+        ms, "check_pid", lambda *a, **k: (ms.STALE, "pid 4242 is gone", None)
+    )
+    began = dt.datetime.now(dt.UTC) - dt.timedelta(hours=3)
+    path = tmp_path / "run-lock.json"
+    path.write_text(json.dumps({"cwd": str(ROOT), "pid": 4242, "what": "x"}))
+    monkeypatch.setattr(
+        preflight, "read_lock", lambda p=None: json.loads(path.read_text())
+    )
+    monkeypatch.setattr(preflight, "lock_state", lambda *a, **k: ("theirs", "held"))
+    monkeypatch.setattr(ms, "started_at", lambda pid: began)
+    assert ms.lock_claim(path).held_s is None
