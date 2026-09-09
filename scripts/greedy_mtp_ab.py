@@ -45,7 +45,6 @@ from __future__ import annotations
 
 import argparse
 import contextlib
-import datetime
 import logging
 import os
 import pathlib
@@ -53,13 +52,14 @@ import socket
 import subprocess
 import sys
 import time
-from collections.abc import Iterator, Sequence
+from collections.abc import Callable, Iterator, Sequence
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "scripts" / "lib"))
 sys.path.insert(0, str(REPO / "scripts"))
 sys.path.insert(0, str(REPO / "benchmarks" / "agent"))
 
+import ab_driver
 import ds4_server
 import preflight
 import unitctl
@@ -86,15 +86,69 @@ TREATMENT = "qwen38fnds4mtp7greedy"
 CONTROL = "qwen38fnds4greedy"
 
 
+def arms(logdir: pathlib.Path) -> list[ab_driver.Arm]:
+    """The two arms, each with its own server and its own KV directory.
+
+    The MTP and non-MTP KV formats are incompatible and ds4 rejects the other's
+    checkpoints, so a shared directory leaves one arm re-prefilling every task
+    -- and the only symptom is that it looks slower, which is the quantity
+    being measured.
+    """
+    built = []
+    for kind, backend, want_mtp in (
+        ("mtp", TREATMENT, True),
+        ("plain", CONTROL, False),
+    ):
+        kv_dir = KV_MTP if want_mtp else KV_PLAIN
+        built.append(
+            ab_driver.Arm(
+                name=kind,
+                backend=backend,
+                serve=_server_for(kind, want_mtp, kv_dir, logdir),
+            )
+        )
+    return built
+
+
+def _server_for(
+    kind: str, want_mtp: bool, kv_dir: pathlib.Path, logdir: pathlib.Path
+) -> Callable[[str], contextlib.AbstractContextManager[object]]:
+    """A factory for this arm's server, so each round gets a fresh one.
+
+    The log is named by `tag`, not by `kind`: naming it by arm alone has round
+    2 overwrite round 1, and then `assert_graph` reads the previous round's
+    line. Caught by test_every_arm_gets_its_own_server_log.
+    """
+
+    def serve(tag: str) -> contextlib.AbstractContextManager[object]:
+        kv_dir.mkdir(parents=True, exist_ok=True)
+        return ds4_server.serving(
+            server_command(want_mtp, kv_dir),
+            logdir / f"ds4server-{tag}.log",
+            cwd=DS4_TREE,
+            model_id=MODEL_ID,
+            want_mtp=want_mtp,
+            port=SERVER_PORT,
+        )
+
+    return serve
+
+
 def arm_order(round_number: int) -> list[tuple[str, str]]:
     """(kind, backend) for one round, alternating which arm goes first.
 
     Whichever arm runs first is faster in 9 of 12 reps, median +0.9% and +5.9%
     on the first rep of a cold session (#130, #201). Alternation cancels that
     only over an even number of rounds, which `main` refuses to skip.
+
+    Kept as a thin read-out over `ab_driver.order` so this driver's own tests
+    can state the order without building servers.
     """
-    pair = [("mtp", TREATMENT), ("plain", CONTROL)]
-    return pair if round_number % 2 == 1 else list(reversed(pair))
+    pair = [
+        ab_driver.Arm(name="mtp", backend=TREATMENT, serve=ab_driver.nothing),
+        ab_driver.Arm(name="plain", backend=CONTROL, serve=ab_driver.nothing),
+    ]
+    return [(a.name, a.backend) for a in ab_driver.order(pair, round_number)]
 
 
 def port_answers(port: int, timeout: float = 1.0) -> bool:
@@ -235,49 +289,25 @@ def sweep(
     """
     logdir.mkdir(parents=True, exist_ok=True)
     logger.info("logs in: %s", logdir)
-    failed: list[str] = []
+
+    def one_arm(arm: ab_driver.Arm, tag: str, round_number: int) -> int:
+        return run_arm(arm.backend, tag, logdir, batch, trials)
+
     with run_lock(owner_pid), greedy_shim(logdir / "shim-8102.log"):
-        for round_number in range(1, rounds + 1):
-            logger.info("=== round %d of %d ===", round_number, rounds)
-            for kind, backend in arm_order(round_number):
-                tag = f"r{round_number}-{kind}"
-                want_mtp = kind == "mtp"
-                kv_dir = KV_MTP if want_mtp else KV_PLAIN
-                kv_dir.mkdir(parents=True, exist_ok=True)
-                with ds4_server.serving(
-                    server_command(want_mtp, kv_dir),
-                    logdir / f"ds4server-{tag}.log",
-                    cwd=DS4_TREE,
-                    model_id=MODEL_ID,
-                    want_mtp=want_mtp,
-                    port=SERVER_PORT,
-                ):
-                    logger.info("round %d arm %s (%s)", round_number, kind, backend)
-                    if run_arm(backend, tag, logdir, batch, trials) != 0:
-                        failed.append(tag)
+        failed = ab_driver.run(arms(logdir), rounds, one_arm)
     logger.info("complete -- %s", logdir)
     logger.info(
         "Read the MTP arm's rows for drafting_share before reading any wall "
         "time: an arm that emitted no cycle is not an MTP arm, whatever it "
         "declared."
     )
-    if failed:
-        logger.error(
-            "INCOMPLETE: %d of %d arms failed (%s). The rows that exist are "
-            "still rows, but this is not a paired run -- read it as such.",
-            len(failed),
-            rounds * 2,
-            ", ".join(failed),
-        )
-        return 1
-    return 0
+    return ab_driver.report(failed, rounds, 2)
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    # Local time, and aware: the log directory is read by a person against a
-    # wall clock, and `docs/` records times in New York.
-    stamp = datetime.datetime.now(datetime.UTC).astimezone().strftime("%Y%m%d-%H%M%S")
-    default_logdir = pathlib.Path.home() / "bench-logs" / f"greedy-mtp-ab-{stamp}"
+    default_logdir = ab_driver.logdir_for(
+        pathlib.Path.home() / "bench-logs", "greedy-mtp-ab"
+    )
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--rounds", type=int, default=int(os.environ.get("ROUNDS", "2")))
     p.add_argument("--trials", type=int, default=int(os.environ.get("TRIALS", "1")))
@@ -312,10 +342,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         return sweep(args.rounds, args.trials, args.batch, args.logdir, os.getpid())
     except (
         RuntimeError,
+        ValueError,
         ds4_server.ServerNeverStarted,
         ds4_server.GraphMismatch,
         ds4_server.NotReady,
     ) as exc:
+        # ValueError is ab_driver's refusal. The check above catches the odd
+        # round count before anything starts and exits 2, which is the clean
+        # path; this is the backstop, so a refusal the pre-check does not model
+        # still reads as a refusal rather than as a traceback. Raised by
+        # @deepseek reviewing #249.
         logger.error("REFUSING: %s", exc)
         return 1
 
