@@ -40,6 +40,13 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/ds4_server.sh"
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 TRIALS="${TRIALS:-1}"
 ROUNDS="${ROUNDS:-2}"
+# Overridable so a re-run after a broken one does not share a batch label with
+# it. 2026-09-08: the control arm died on an unbound array, leaving 15 unpaired
+# treatment rows under `greedy-mtp-ab`. They are real -- they are the first
+# agent rows in this repo that speculated at all -- but a read-out that pooled
+# them with a later paired run would compare a treatment arm against a control
+# taken an hour and a server restart apart.
+BATCH="${BATCH:-greedy-mtp-ab}"
 LOGDIR="${LOGDIR:-$HOME/bench-logs/greedy-mtp-ab-$(date +%Y%m%d-%H%M%S)}"
 
 DS4_MODEL="$HOME/models/qwen3.8-flash-next-ds4-q4/Qwen3.8-Flash-Next-Q4KExperts-BF16Emb-BF16Control-Q8GDN-Q8QSA-Q8Shared-Q8Out.gguf"
@@ -107,7 +114,7 @@ run_arm() {
     local backend="$1" tag="$2"
     (cd "$REPO" && uv run python benchmarks/agent/run.py \
         --backend "$backend" --client opencode --trials "$TRIALS" --no-lock \
-        --batch "greedy-mtp-ab" \
+        --batch "$BATCH" \
         --server-log "$LOGDIR/ds4server-$tag.log" --draft-log-engine ds4) \
         2>&1 | tee "$LOGDIR/run-$tag.log"
 }

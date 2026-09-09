@@ -133,3 +133,13 @@ def test_a_missing_graph_line_is_not_reported_as_an_mtp_head():
     absent = text.index('[ -n "$line" ]')
     loaded = text.index("control arm loaded an MTP head")
     assert absent < loaded, "check for an absent line before judging its content"
+
+
+def test_the_batch_label_can_be_overridden_for_a_re_run():
+    """A broken run leaves rows behind. Re-running under the same batch label
+    pools them with the repaired run, and the read-out then pairs a treatment
+    arm against a control from a different hour and a different server process."""
+    text = body()
+    assert 'BATCH="${BATCH:-greedy-mtp-ab}"' in text
+    assert '--batch "$BATCH"' in text
+    assert '--batch "greedy-mtp-ab"' not in text
