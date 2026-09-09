@@ -1,4 +1,4 @@
-"""Summarize a paired decode A/B produced by scripts/decode_ab.sh (#48).
+"""Summarize a paired decode A/B produced by scripts/decode_ab.py (#48).
 
 Give it several directories and it also reports the spread BETWEEN runs
 (#136). That axis is invisible from inside one run: on 2026-09-04 four

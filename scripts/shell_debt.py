@@ -133,7 +133,7 @@ KEEP = {
 #: - `mlx_serve.sh`: the second engine, added for #191; `stack_agent_ab.sh` is
 #:   the only file that has ever sourced it.
 DIES_WITH: dict[str, tuple[str, ...]] = {
-    "scripts/lib/transcript_move.sh": ("vault/stack_agent_ab.sh",),
+    "vault/lib/transcript_move.sh": ("vault/stack_agent_ab.sh",),
     "vault/lib/ds4_server.sh": (
         "vault/disk_kv_mechanism_test.sh",
         "vault/greedy_mtp_ab.sh",

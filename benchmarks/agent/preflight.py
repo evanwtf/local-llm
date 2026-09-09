@@ -527,7 +527,7 @@ def refuse_unless_empty(report: Report, backends: dict[str, dict] | None) -> str
 
     Two engines is not a harder version of one engine. It is a different
     experiment -- run them as sequential sweeps with a server swap between,
-    which is what `scripts/stack_agent_ab.sh` does.
+    which is what `scripts/stack_agent_ab.py` does.
     """
     foreign = report.stale + report.unmatched
     if foreign:
@@ -550,7 +550,7 @@ def refuse_unless_empty(report: Report, backends: dict[str, dict] | None) -> str
                 f"REFUSING: these backends span {len(engines)} engines and one "
                 f"run would hold every one of them resident at once -- {plan}. "
                 "Run them as sequential sweeps with a server swap between "
-                "(scripts/stack_agent_ab.sh), not as one interleaved batch."
+                "(scripts/stack_agent_ab.py), not as one interleaved batch."
             )
     return None
 

@@ -1,10 +1,22 @@
 # vault — retired shell drivers. Do not run anything in here.
 
-These 18 scripts drove every measurement this project published before #235.
-Each has a Python replacement, and each was retired only once a **differential**
-showed the two hand their children the same command line. They are kept because
-the runs they produced are still cited, and a result whose driver has been
-deleted cannot be re-read.
+These 18 drivers, plus one library they share, drove every measurement this
+project published before #235. They are kept because the runs they produced are
+still cited, and a result whose driver has been deleted cannot be re-read.
+
+**How each was retired, stated exactly, because it is not uniform.** Fourteen
+of the eighteen were cleared by a **differential**: the real `.sh` and its port
+were driven end to end against recording fakes and handed their children the
+same command line. The other four were not, and saying otherwise would claim
+evidence we do not have:
+
+| file | how it was cleared |
+|---|---|
+| `route_agent_ab.sh` | **No differential.** Dead by #264 — it passes `--skip-tensor-gate`, which `run.py` no longer accepts, so it cannot produce an agreeing run. |
+| `stack_agent_ab.sh` | **Partial differential.** Its `server_argv` and `sweep` function text is executed and compared; its top-level sequence is not. The gap is deliberate — #235's stopping rule. |
+| `lib/ds4_server.sh` | **No differential of its own.** A library is never invoked alone, so it can produce none; it clears when all its sourcers clear. |
+| `lib/mlx_serve.sh` | Same. |
+| `lib/transcript_move.sh` | Same — its only sourcer is `stack_agent_ab.sh`, which is in here. |
 
 **Nothing in this directory may be executed.** Not to reproduce an old run, not
 to check what a flag did, not "just to see". They are text.
@@ -29,13 +41,17 @@ Three reasons, in the order they will bite you:
    every commit. A number produced here in 2026-10 is not comparable with one
    produced by the port in the same hour.
 
-2. **Two of them carry a defect we found and fixed only in the port.**
-   `lib/ds4_server.sh` and `lib/mlx_serve.sh` chained an EXIT trap in a way
-   that handed `*_stop_on_exit` the *previous* handler's exit status, so a
-   refusal that ended in `exit 1` came out as `0`. Five of the seven callers
-   here take that path, and `mtp_treatment_gate.sh` is a gate whose entire job
-   is refusing. The fix is in these files; the point is that it lived here
-   undetected across seven callers, which is what an unmaintained script does.
+2. **Two of them carried a defect that went undetected for the life of the
+   script.** `lib/ds4_server.sh` and `lib/mlx_serve.sh` chained an EXIT trap in
+   a way that handed `*_stop_on_exit` the *previous* handler's exit status, so
+   a refusal that ended in `exit 1` came out as `0`. Five of the seven callers
+   take that path, and `mtp_treatment_gate.sh` is a gate whose entire job is
+   refusing.
+
+   **These archived copies carry the fix, not the defect** — it was repaired
+   before they were vaulted. The point is not that they are broken; it is that
+   the bug lived here undetected across seven callers, which is what an
+   unmaintained script does, and nothing here is maintained any more.
 
 3. **They take the machine.** Most of these acquire the run lock, start a
    ~100 GiB model server and hold it for hours. Running one by accident does not
@@ -78,10 +94,19 @@ so moving a file here cannot make the number look better than it is.
 test is a rule:
 
 - no file in here carries an executable bit;
-- nothing outside `vault/` sources, runs, or builds a path into it, apart from
-  the differentials that read these files as **text** to compare against;
-- every file here still has the Python replacement its retirement was granted
-  against.
+- nothing outside `vault/` **builds a path into it**, apart from the
+  differentials that read these files as **text** to compare against. Note
+  what this does and does not cover: it greps Python for a literal `vault/...`
+  path. It does not and cannot prove nothing *runs* one — `bash
+  vault/targets_ab.sh` ignores the missing executable bit — so the rule above
+  is a rule, not a mechanism;
+- every driver here still has the Python replacement its retirement was granted
+  against, and every library here has no sourcer left outside this directory;
+- **nothing live still tells a reader to run one of these paths.** That guard
+  exists because the first draft of this move shipped two: `AGENTS.md` told
+  every agent to run `scripts/coherence_check.sh` before a measurement batch,
+  and `preflight.py`'s refusal text named `scripts/stack_agent_ab.sh` as the
+  thing to do instead.
 
 The last one matters most. These were retired on the promise that a replacement
 exists. If a replacement is ever deleted, this stops being an archive and starts

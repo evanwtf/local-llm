@@ -20,7 +20,7 @@ Example -- four runs of the q4/q8 A/B at the #952 engine:
 
     DS4=~/git/ds4-pr621 CTX_MAX=65536 \\
         uv run python scripts/decode_ab_repeat.py 4 benchmarks/ds4/pr621-recheck \\
-        scripts/decode_ab.sh q4 /path/q4.gguf q8 /path/q8.gguf
+        scripts/decode_ab.py q4 /path/q4.gguf q8 /path/q8.gguf
 
 Report all of them together with:
 

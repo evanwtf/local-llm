@@ -246,7 +246,7 @@ backend flags the upstream ds4-server as stale
 
 ## The run lock
 
-`run.py`, `scripts/decode_ab.sh`, `scripts/decode_ab_engine.sh` and both
+`run.py`, `scripts/decode_ab.py`, `scripts/decode_ab_engine.py` and both
 restart-between-trials scripts claim `.run-lock.json` before loading anything
 and refuse if another live process holds it ([#133](https://github.com/evanwtf/local-llm/issues/133)).
 
