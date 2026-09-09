@@ -263,6 +263,31 @@ project has *measured* a tool-calling defect in GLM-5.3 (#41: it emits the
 string `"false"` for boolean tool arguments) — a model-behaviour trait, which
 transfers between deployments far more readily than a speed number.
 
+### The peer's quota, and what running out looks like
+
+**The `deepseek-v4-flash` peer is out of quota until 2026-10-01.** It is billed
+monthly, the allowance is spent, and no amount of asking will change that
+before the reset. Treat it as unavailable until then and do not plan work that
+depends on it.
+
+This is written down because **a peer out of credit is indistinguishable from a
+peer that is thinking.** Both are silent. On 2026-09-09 the peer stopped after
+its 11:42 commit; six messages over the next three and a half hours drew no
+reply, and its `ListAgents` row said `idle` throughout — the same row it shows
+between turns. Work was queued at it for hours on the assumption it would come
+back.
+
+So:
+
+- **A silent peer is not necessarily a stuck peer.** Before re-sending, ask
+  whether the quota could be gone. `idle` is not evidence of availability.
+- **Land the peer's work before the allowance runs out**, not after. An
+  unreviewed branch is worth less than a merged one, and a reviewer who cannot
+  answer cannot unblock it.
+- **A review condition the peer cannot satisfy is not a blocker, it is a dead
+  letter.** When an operator says "merge if the peer agrees" and the peer has
+  no credit, say so and hand the decision back rather than waiting.
+
 ## Hard rules
 
 1. **No session URLs or IDs** in any commit, issue, PR or comment.
