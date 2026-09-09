@@ -255,3 +255,29 @@ def test_this_module_knows_nothing_about_mtp() -> None:
     # would forbid the explanation, which is the same word-for-a-metric
     # confusion this repo has now made three times.
     assert "greedy_mtp_ab" in (ROOT / "scripts" / "ab_driver.py").read_text()
+
+
+def test_a_driver_can_name_its_own_tags() -> None:
+    """A tag is an interface when a report script parses it (#149).
+
+    `route_ab_report` splits `t-sweep3` into a prefix and an index, and a
+    completed run is on disk under those names. The default `r3-t` would be
+    unparseable there, so the hook is not cosmetic.
+    """
+    arms = [arm("t"), arm("r")]
+    seen: list[str] = []
+
+    def run_arm(a, tag, n):
+        seen.append(tag)
+        return 0
+
+    ab_driver.run(arms, 2, run_arm, tag_for=lambda a, n: f"{a.name}-sweep{n}")
+    assert seen == ["t-sweep1", "r-sweep1", "r-sweep2", "t-sweep2"]
+
+
+def test_the_default_tag_is_unchanged() -> None:
+    # Four drivers already read these names off disk.
+    arms = [arm("mtp"), arm("plain")]
+    seen: list[str] = []
+    ab_driver.run(arms, 2, lambda a, tag, n: seen.append(tag) or 0)
+    assert seen == ["r1-mtp", "r1-plain", "r2-plain", "r2-mtp"]

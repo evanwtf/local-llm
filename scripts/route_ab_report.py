@@ -25,9 +25,17 @@ import sys
 
 logger = logging.getLogger(__name__)
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+
+import metal_route
+
 EXPECTED_ROWS_PER_SWEEP = 15
-TENSOR_LINE = "Metal 4 tensor API enabled for Tensor kernels"
-WITHHOLD_LINE = "available but not enabled (numerics)"
+
+# One definition, imported twice. The driver asserts these per sweep and this
+# re-reads the same logs at read-out; when each kept its own copy, a change to
+# one left both halves passing and only their agreement lost.
+TENSOR_LINE = metal_route.TENSOR_LINE
+WITHHOLD_LINE = metal_route.WITHHOLD_LINE
 
 Window = tuple[str, str, dt.datetime, dt.datetime]
 

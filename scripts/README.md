@@ -63,6 +63,7 @@ documentation.
 | `report.py` | Summarize and compare measured cells, with the resolution rule applied. |
 | `restart_between_trials.py` | Restart-between-trials: does server state degrade a session? #112, #77. |
 | `route_ab_report.py` | Attribute #149 route-A/B rows to sweep windows and evaluate the screens. |
+| `route_agent_ab.py` | ds4's Metal 4 TensorOps route against the withheld one, on the agent bench. |
 | `sensor_windows.py` | Join a monitord sensor series to benchmark sweep windows. |
 | `session_decay.py` | Does a session get worse the longer the server runs? (#120) |
 | `stack_agent_report.py` | Read out for the #138 stack A/B: two whole stacks, four sweeps, one screen. |

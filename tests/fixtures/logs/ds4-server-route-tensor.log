@@ -1,0 +1,40 @@
+ds4: warming mapped tensor pages: 73.57 GiB
+ds4: warmed tensor pages in 5.297s (checksum=626506950)
+ds4: trusted local Qwen artifacts; payload checksum scan skipped
+ds4: Qwen tensor directory bound: 1211 tensors (1211 graph inputs), 48 layers, Q4_K/Q4_K routed + BF16 embedding/control + Q8_0 GDN/QSA + Q8_0 shared/output
+ds4: Qwen fast pack accepted: id=cbadff6365a353a938aef98e469b831b version=3 profile=q4_k base_files=1 tensor_manifest=93e91b17c9ccf1bd...
+ds4: derived Q8_0 hyper-connection profile: 194 matrices, 0.63 GiB (from 1.18 GiB BF16) in 0.025s
+ds4: Metal device Apple M5 Max, 128.00 GiB RAM
+ds4: Metal 4 tensor API enabled for Tensor kernels
+ds4: drift-patch flags hc_stable=on norm_unify=on kv_raw_f32=off rope_exp2_log2=off math_safe=off tensor_matmul=on
+ds4: Metal model views created in 1.700 ms, residency requested in 445.863 ms, warmup 2.811 ms (mapped 75984.34 MiB from offset 0.00 MiB)
+ds4: Metal mapped 2 Qwen GGUF artifacts as 2 shared views
+ds4: Qwen prefill admission: cap=8192 required=3.37 GiB available=27.11 GiB recommended_working_set=112.00 GiB reason=complete fast path and 8K scratch admitted
+0905 08:56:12 ds4-server: context buffers 384.19 MiB (ctx=100000, backend=metal, prefill_chunk=8192, raw_kv_rows=8192, compressed_kv_rows=3)
+ds4: Qwen graph allocated: ctx=100000 work_cap=8192 QSA=BF16 microtile=512 PLE=SSD-pread/Q4_1-to-BF16-double-buffer GDN-control=BF16 GDN-state=BF16 GDN-qkvz=Q8-concat GDN-out=Q8-HC-fused MoE-down=Q4_0-expert-split MTP=off verifier=off
+0905 08:56:12 ds4-server: KV disk cache /Users/evanhoffman/.ds4/server-kv-149t (budget=8192 MiB, cross-quant=accept, min=512, cold_max=30000, continued=10000, trim=32, align=2048, hit_half_life=21600s)
+0905 08:56:12 ds4-server: listening on http://127.0.0.1:8000
+0905 08:56:17 ds4-server: chat ctx=0..11:11 prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=uncached suffix shorter than 8192
+0905 08:56:17 ds4-server: chat ctx=0..11:11 prefill chunk 11/11 (100.0%) chunk=0.00 t/s avg=22.16 t/s 0.496s
+0905 08:56:17 ds4-server: chat ctx=0..11:11 prompt done 0.497s
+0905 08:56:17 ds4-server: chat ctx=11..12:1 gen=1 THINKING decoding chunk=40.66 t/s avg=40.66 t/s 0.025s
+0905 08:56:17 ds4-server: chat ctx=0..11:11 gen=1 THINKING finish=length 0.521s
+0905 08:56:18 ds4-server: live kv cache miss live=12 prompt=56 common=3 reason=token-mismatch
+0905 08:56:18 ds4-server: chat ctx=0..56:56 prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=uncached suffix shorter than 8192
+0905 08:56:18 ds4-server: chat ctx=0..56:56 prefill chunk 56/56 (100.0%) chunk=0.00 t/s avg=225.48 t/s 0.248s
+0905 08:56:18 ds4-server: chat ctx=0..56:56 prompt done 0.248s
+0905 08:56:19 ds4-server: chat ctx=56..104:48 gen=48 decoding chunk=43.44 t/s avg=43.44 t/s 1.105s
+0905 08:56:19 ds4-server: thinking live checkpoint remembered ctx=0..56:56 live=104 visible=348
+0905 08:56:19 ds4-server: chat ctx=0..56:56 gen=48 finish=stop 1.353s
+0905 08:56:19 ds4-server: live kv cache miss live=104 prompt=89 common=7 reason=token-mismatch
+0905 08:56:19 ds4-server: chat ctx=0..89:89 prompt start
+ds4: Qwen prefill selected chunk=2048 microtile=512 PLE=SSD-pread/BF16-double-buffer reason=uncached suffix shorter than 8192
+0905 08:56:20 ds4-server: chat ctx=0..89:89 prefill chunk 89/89 (100.0%) chunk=0.00 t/s avg=261.79 t/s 0.340s
+0905 08:56:20 ds4-server: chat ctx=0..89:89 prompt done 0.340s
+0905 08:56:21 ds4-server: chat ctx=89..139:50 gen=50 THINKING decoding chunk=43.26 t/s avg=43.26 t/s 1.156s
+0905 08:56:22 ds4-server: chat ctx=139..189:50 gen=100 decoding chunk=43.82 t/s avg=43.54 t/s 2.297s
+0905 08:56:23 ds4-server: chat ctx=189..233:44 gen=144 decoding chunk=43.51 t/s avg=43.53 t/s 3.308s
+0905 08:56:23 ds4-server: thinking live checkpoint remembered ctx=0..89:89 live=233 visible=490
+0905 08:56:23 ds4-server: chat ctx=0..89:89 gen=144 finish=stop 3.648s

@@ -61,3 +61,6 @@ extend-exclude = ["benchmarks/agent/PROMPTS.md"]
 # the file.
 "tests/test_stack_agent_report.py" = ["DTZ001"]
 "tests/test_route_ab_report.py" = ["DTZ001"]
+# Same producer, same reason: the anchor this test passes to
+# read_windows stands in for a naive `date +%H:%M:%S` line.
+"tests/test_route_agent_ab.py" = ["DTZ001"]

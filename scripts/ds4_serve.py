@@ -47,6 +47,10 @@ import subprocess
 import sys
 import time
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+
+import metal_route
+
 sys.path.insert(
     0, str(pathlib.Path(__file__).resolve().parents[1] / "benchmarks" / "agent")
 )
@@ -66,11 +70,15 @@ DEFAULT_PLE = MODELS / "Qwen3.8-Flash-Next-PLE-Q4_1.gguf"
 # The line each route prints. `fast` names the route it took; `vanilla` names
 # the route it declined and how to override, which is why the two cannot be
 # told apart by presence alone -- both mention the tensor API.
+#
+# Imported, not restated. This file matched the HEAD of the vanilla line and
+# `route_ab_report` matched its TAIL; neither substring contains the other, so
+# a reworded line would have broken one and left the other passing.
 MARKERS = {
-    "fast": "Metal 4 tensor API enabled for Tensor kernels",
-    "vanilla": "Metal 4 tensor API available but not enabled",
+    "fast": metal_route.TENSOR_LINE,
+    "vanilla": metal_route.WITHHOLD_LINE,
 }
-ANY_MARKER = "Metal 4 tensor API"
+ANY_MARKER = metal_route.ANY_MARKER
 
 SERVER_PATTERN = "ds4-server --metal"
 

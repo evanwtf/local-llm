@@ -218,3 +218,43 @@ def test_unsupported_is_not_confused_with_a_real_failure():
     failed = REAL_LOG.replace("greedy_fail=0", "greedy_fail=8")
     assert me.verdict(1, failed) == "fail"
     assert me.verdict(1, PLE_REFUSAL) == "unsupported"
+
+
+def test_a_route_can_be_named_when_a_run_prints_more_than_one_summary() -> None:
+    """#149's gate prints two summaries and they mean opposite things.
+
+    `route=auto` is the asserted candidate; against the withhold tree it runs
+    the withheld route and reads all zeros, and it is what decides pass or
+    fail. `route=tensor-optin` carries the drift the issue pre-registered.
+    Reading the wrong one is silent in both directions.
+    """
+    text = (
+        "ds4-test: Tensor summary route=auto cases=5 greedy_fail=0 "
+        "top1_mismatch=0 capture_fail=0 logits_fail=0 worst_rms=0 "
+        "worst_max_abs=0\n"
+        "ds4-test: Tensor summary route=tensor-optin cases=5 greedy_fail=8 "
+        "top1_mismatch=2 capture_fail=0 logits_fail=2 worst_rms=1.38592 "
+        "worst_max_abs=7.26952\n"
+    )
+    assert me.parse_summary(text)["worst_rms"] == 0.0
+    assert me.parse_summary(text, route="auto")["worst_rms"] == 0.0
+    optin = me.parse_summary(text, route="tensor-optin")
+    assert optin["worst_rms"] == 1.38592
+    assert optin["worst_max_abs"] == 7.26952
+
+
+def test_naming_a_route_that_is_not_there_returns_nothing() -> None:
+    text = "ds4-test: Tensor summary route=auto cases=5 worst_rms=0\n"
+    assert me.parse_summary(text, route="tensor-optin") == {}
+
+
+def test_the_verdict_still_reads_the_asserted_candidate() -> None:
+    # The default must not move: `verdict` has always read the first summary,
+    # and the withhold tree's second one fails on purpose.
+    text = (
+        "ds4-test: Tensor summary route=auto cases=5 capture_fail=0 "
+        "logits_fail=0 greedy_fail=0 top1_mismatch=0\n"
+        "ds4-test: Tensor summary route=tensor-optin cases=5 capture_fail=0 "
+        "logits_fail=2 greedy_fail=8 top1_mismatch=2\n"
+    )
+    assert me.verdict(0, text) == "pass"

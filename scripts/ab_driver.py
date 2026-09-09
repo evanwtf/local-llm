@@ -109,6 +109,7 @@ def run(
     run_arm: Callable[[Arm, str, int], int],
     *,
     allow_uneven: bool = False,
+    tag_for: Callable[[Arm, int], str] | None = None,
 ) -> list[str]:
     """Run every arm once per round, alternating. Returns the tags that failed.
 
@@ -146,7 +147,16 @@ def run(
     for round_number in range(1, rounds + 1):
         logger.info("=== round %d of %d ===", round_number, rounds)
         for arm in order(arms, round_number):
-            tag = f"r{round_number}-{arm.name}"
+            # `tag_for` exists because a tag is not only a log-file name: a
+            # report script parses it. #149's read-out splits `t-sweep3` into a
+            # prefix and an index, and the completed run is on disk under those
+            # names, so a driver whose tags the report cannot parse produces
+            # rows nothing can attribute.
+            tag = (
+                tag_for(arm, round_number)
+                if tag_for is not None
+                else f"r{round_number}-{arm.name}"
+            )
             with arm.serve(tag):
                 logger.info("round %d arm %s (%s)", round_number, arm.name, arm.backend)
                 if run_arm(arm, tag, round_number) != 0:

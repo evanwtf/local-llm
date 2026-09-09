@@ -194,6 +194,8 @@ def start(
     *,
     cwd: pathlib.Path,
     allow_foreign: bool = False,
+    env: dict[str, str] | None = None,
+    unset: Sequence[str] = (),
     state_dir: pathlib.Path | None = None,
 ) -> unitctl.Unit:
     """Start the server as the `ds4-server` unit, after stopping any leftover.
@@ -227,7 +229,15 @@ def start(
             "Starting beside it would put both on the machine at once. Stop it "
             "deliberately, or pass allow_foreign=True if that is the intent."
         )
-    return unitctl.start(UNIT, list(command), log=log, cwd=cwd, state_dir=state_dir)
+    return unitctl.start(
+        UNIT,
+        list(command),
+        log=log,
+        cwd=cwd,
+        env=env,
+        unset=unset,
+        state_dir=state_dir,
+    )
 
 
 def graph_line(log: pathlib.Path) -> str | None:
@@ -246,12 +256,18 @@ def graph_line(log: pathlib.Path) -> str | None:
     return None
 
 
-def assert_graph(log: pathlib.Path, *, want_mtp: bool) -> str:
+def assert_graph(log: pathlib.Path, *, want_mtp: bool | None) -> str:
     """Check the arm loaded what it claims. Returns the graph line.
 
     Raises ServerNeverStarted when there is no line to read, and GraphMismatch
     when there is one and it disagrees. Never reports the second in place of
     the first.
+
+    `want_mtp=None` asserts nothing and returns the line to be logged. It is
+    for a harness whose arms differ BY configuration: `stack_agent_ab` runs
+    #210/#151's MTP-on against MTP-off in the same tree, so there is no single
+    answer for it to hold. The absent-line failure is still raised, because
+    "the server never started" is true whatever the arm expected.
     """
     line = graph_line(log)
     if line is None:
@@ -259,6 +275,8 @@ def assert_graph(log: pathlib.Path, *, want_mtp: bool) -> str:
             f"no {GRAPH_MARKER!r} line in {log}; the server did not start, so "
             "nothing can be said about what it loaded"
         )
+    if want_mtp is None:
+        return line
     has_mtp = MTP_OFF not in line
     if want_mtp and not has_mtp:
         raise GraphMismatch(f"the MTP arm reports {MTP_OFF}: {line}")
@@ -290,10 +308,12 @@ def serving(
     *,
     cwd: pathlib.Path,
     model_id: str,
-    want_mtp: bool,
+    want_mtp: bool | None,
     port: int = DEFAULT_PORT,
     timeout: int = wait_ready.DEFAULT_TIMEOUT,
     allow_foreign: bool = False,
+    env: dict[str, str] | None = None,
+    unset: Sequence[str] = (),
     state_dir: pathlib.Path | None = None,
 ) -> Iterator[unitctl.Unit]:
     """Run a server for the duration of the block, and always stop it.
@@ -303,7 +323,13 @@ def serving(
     which is the #145 fix, expressed once instead of in eight drivers.
     """
     unit = start(
-        command, log, cwd=cwd, allow_foreign=allow_foreign, state_dir=state_dir
+        command,
+        log,
+        cwd=cwd,
+        allow_foreign=allow_foreign,
+        env=env,
+        unset=unset,
+        state_dir=state_dir,
     )
     try:
         base_url = f"http://127.0.0.1:{port}"
