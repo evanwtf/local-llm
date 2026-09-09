@@ -67,6 +67,7 @@ documentation.
 | `route_agent_ab.py` | ds4's Metal 4 TensorOps route against the withheld one, on the agent bench. |
 | `sensor_windows.py` | Join a monitord sensor series to benchmark sweep windows. |
 | `session_decay.py` | Does a session get worse the longer the server runs? (#120) |
+| `shell_debt.py` | How much shell is left, and how much of it can still misidentify a process. |
 | `stack_agent_ab.py` | Interleaved agent-suite A/B for two whole STACKS -- engine + weights. #138 |
 | `stack_agent_report.py` | Read out for the #138 stack A/B: two whole stacks, four sweeps, one screen. |
 | `stack_agent_report_191.py` | Read out for the #191 stack A/B: mlx-serve against ds4, one screen. |

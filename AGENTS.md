@@ -21,20 +21,32 @@ ordered the work largest-first and reached its line target while leaving three
 process-by-name lookups alive — in two small files, which sort last precisely
 because they are small.
 
-**The scope is `git ls-files 'scripts/*.sh'`**, so anyone can re-measure it:
-23 files, **3,589 lines**, and **35 `pgrep`/`pkill` calls across 11 files**
-as of 2026-09-09. The target is ≤359.
+**Do not read the numbers here; run the script.**
 
-**Priced out, the two numbers come apart, and it is worth knowing where.**
-Eight of those files already have a Python sibling -- 1,439 lines carrying
-**26 of the 35 calls**; deleting them once each replacement has arbitrated a
-run leaves 2,150 lines and 9 calls. The 9 are in five files
-(`stack_agent_ab.sh`, `targets_ab.sh`, `strip_toggle_ab.sh`,
-`restart_between_trials_armB.sh`, `disk_kv_mechanism_test.sh`) totaling 1,247
-lines; porting those leaves **903 lines and zero calls**. So **`pgrep` reaches
-zero at a 75% reduction**, and the last 544 lines down to 359 buy tests and
-readability, not safety. Do that work, but do not confuse it with the part
-that stops a measurement being wrong.
+    uv run python scripts/shell_debt.py
+
+It reports both targets against `git ls-files 'scripts/*.sh'` and says which
+`.sh` still has no Python replacement. Every number below is what it printed
+on 2026-09-09 and will be stale soon after: 23 files, **3,589 lines**, **35
+`pgrep`/`pkill` calls**. The target is ≤359 lines and **zero** by-name
+lookups.
+
+`tests/test_shell_debt.py` fails when a file matching a process by name has no
+replacement — including a **new** one, which is what stops the rule being a
+treadmill.
+
+**The two numbers come apart, and it is worth knowing where.** As of
+2026-09-09 every `.sh` carrying a `pgrep` or `pkill` has a Python replacement
+— thirteen files, 2,686 lines, all 35 calls. Deleting them leaves **903 lines
+and zero by-name lookups**, a 74.8% reduction. So **`pgrep` reaches zero at
+75%**, and the last 544 lines down to 359 buy tests and readability,
+not safety. Do that work, but do not confuse it with the part that stops a
+measurement being wrong.
+
+**Replacement is not retirement.** A `.sh` is deleted only once its Python
+replacement has produced a run that agrees with it, so the line count will sit
+at 3,589 until those runs happen. That is the intended order: a port that has
+never arbitrated a measurement has not been tested where it counts.
 
 ### Why, in the words of the failures
 
