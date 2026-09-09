@@ -336,6 +336,56 @@ def test_an_idle_machine_has_no_occupant() -> None:
     assert ms.occupant([running(1, 0.1)]) is None
 
 
+def held_lock(pid: int = 4242) -> ms.Claim:
+    return ms.Claim("run-lock", "decode_ab_stack.py base vs head", pid, ms.RUNNING, "")
+
+
+def test_a_sweep_with_no_resident_server_is_still_an_occupant() -> None:
+    """The #267 A/B, which read `idle` for its whole 21 minutes.
+
+    A ds4-bench sweep spawns a fresh process per rep that loads the model,
+    measures and exits, and `preflight.INFERENCE` lists servers only -- so
+    there is often no process to see. During a sweep the occupant is the
+    WORK, which is what the lock records.
+    """
+    got = ms.occupant([held_lock()])
+    assert got is not None
+    assert got.what == "decode_ab_stack.py base vs head"
+
+
+def test_a_resident_server_outranks_the_lock() -> None:
+    """When there IS something to name, name it rather than the lock."""
+    got = ms.occupant([held_lock(), running(7, 74.2)])
+    assert got is not None and got.pid == 7
+
+
+def test_a_stale_lock_is_not_an_occupant() -> None:
+    """A holder that is gone holds nothing."""
+    stale = ms.Claim("run-lock", "decode_ab.py", 4242, ms.STALE, "")
+    assert ms.occupant([stale]) is None
+
+
+def test_the_sentence_has_one_owner() -> None:
+    """peer_brief and the CLI both print it; two builders would drift."""
+    assert ms.describe(None) == "idle"
+    assert ms.describe(running(7, 74.2)) == "ds4-server pid 7, 74.2 GiB"
+    lock = ms.describe(held_lock())
+    assert "decode_ab_stack.py base vs head pid 4242" in lock
+    assert "no model resident" in lock, "say why there is no size, not None GiB"
+    assert "None" not in lock
+
+
+def test_the_survey_carries_the_rendered_line(tmp_path, peer_file) -> None:
+    write_peer(peer_file, [])
+    got = ms.survey(
+        lock_path=tmp_path / "no-lock.json",
+        peer_path=peer_file,
+        unit_dir=tmp_path / "units",
+        procs=[proc(4242, 74.2)],
+    )
+    assert got["occupant_line"] == "ds4-server (up 10m) pid 4242, 74.2 GiB"
+
+
 # --- the whole survey, with nothing left to the host -------------------------
 
 

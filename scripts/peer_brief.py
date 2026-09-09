@@ -74,9 +74,9 @@ def _occupant_line() -> str:
     2026-09-09 after reading a status row that had been false for hours.
     """
     got = machine_state.survey()
-    on = got["occupant"]
-    what = f"{on['what']} pid {on['pid']}, {on['resident_gib']} GiB" if on else "idle"
-    return f"Currently on GPU: {what} -- {got['verdict']} ({got['why']})"
+    return (
+        f"Currently on GPU: {got['occupant_line']} -- {got['verdict']} ({got['why']})"
+    )
 
 
 def _server_lines(servers: list) -> list[str]:

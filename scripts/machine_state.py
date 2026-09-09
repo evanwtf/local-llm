@@ -452,13 +452,39 @@ def servers() -> list[preflight.Proc]:
 
 
 def occupant(claims: Sequence[Claim]) -> Claim | None:
-    """The biggest thing actually on the machine, or None.
+    """What is on the machine, or None. `None` means idle, and idle counts.
 
     This is the answer to "Currently on GPU: what?", which every status update
-    in this project has to open with. `None` means idle, and idle counts.
+    in this project has to open with.
+
+    **The lock is the fallback, and it is not a technicality.** A resident
+    server is the obvious occupant, but a `ds4-bench` sweep has none: each rep
+    spawns a fresh process that loads the model, measures, and exits, and
+    `preflight.INFERENCE` lists servers only. During the whole of the #267 A/B
+    on 2026-09-09 this line read `idle` while three runs owned the machine.
+    The verdict was right throughout because the lock carried it; the sentence
+    a person reads was wrong. During a sweep the occupant is the WORK, which
+    is what the lock records.
     """
     on = [c for c in claims if c.occupies]
-    return max(on, key=lambda c: c.resident_gib or 0.0) if on else None
+    if on:
+        return max(on, key=lambda c: c.resident_gib or 0.0)
+    held = [c for c in claims if c.source == "run-lock" and c.status == RUNNING]
+    return held[0] if held else None
+
+
+def describe(on: Claim | None) -> str:
+    """The "Currently on GPU:" phrase. One owner, because two would drift.
+
+    `peer_brief` and this script's own CLI both print it, and before this they
+    each built it from the survey by hand.
+    """
+    if on is None:
+        return "idle"
+    where = f"{on.what} pid {on.pid}"
+    if on.resident_gib:
+        return f"{where}, {on.resident_gib} GiB"
+    return f"{where} (holding the lock; no model resident this instant)"
 
 
 def verdict(claims: Sequence[Claim]) -> tuple[str, str]:
@@ -504,6 +530,7 @@ def survey(
         "verdict": state,
         "why": why,
         "occupant": on.as_dict() if on else None,
+        "occupant_line": describe(on),
         "claims": [c.as_dict() for c in claims],
     }
 
@@ -536,11 +563,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     else:
         for claim in got["claims"]:
             logger.info("%s", Claim(**claim).line())
-        on = got["occupant"]
-        logger.info(
-            "Currently on GPU: %s",
-            f"{on['what']} pid {on['pid']}, {on['resident_gib']} GiB" if on else "idle",
-        )
+        logger.info("Currently on GPU: %s", got["occupant_line"])
         logger.info("VERDICT %s -- %s", got["verdict"], got["why"])
     return EXIT[str(got["verdict"])]
 
