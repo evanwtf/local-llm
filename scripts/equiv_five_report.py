@@ -142,9 +142,11 @@ def report_greedy_mtp() -> None:
         "  arm difference: mtp has --mtp-model/--mtp-draft/--mtp-timing in the\n"
         "    server argv; plain has none. Both sides carry the same per-arm KV\n"
         "    dir. control-shell caveat: the empty ${mtp_args[@]} was unbound under\n"
-        "    set -u on bash 3.2 (2026-09-08); the committed .sh:94 now guards with\n"
-        "    '${mtp_args[@]+\"${mtp_args[@]}\"}' and no set -u is in effect, so the\n"
-        "    plain arm is executable today -- the port encodes the fix structurally."
+        "    the still-enabled set -eu (greedy_mtp_ab.sh:35); the committed .sh:94\n"
+        "    guards with '${mtp_args[@]+\"${mtp_args[@]}\"}' (6ca27aa). That guard is\n"
+        "    what keeps the plain arm executable -- delete it and the unbound-variable\n"
+        "    error on bash 3.2 returns, so keep the guard, and the port encodes it\n"
+        "    structurally (plain arm passes no mtp flags at all)."
     )
 
 
