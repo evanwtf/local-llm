@@ -15,7 +15,9 @@ so these tests run offline with no driver loop, server, or GPU.
 from __future__ import annotations
 
 import datetime as dt
+import os
 import pathlib
+import subprocess
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -510,3 +512,77 @@ def test_assertion3_run_py_diff_is_exactly_the_sanctioned_fixes():
     # both sides name the same backend, trials, client -- the measurement inputs
     for side in (shell_run, port_run):
         assert "--backend" in side and "--client" in side and "--trials" in side
+
+
+# --------------------------------------------------------- uv's own flags
+
+
+@pytest.mark.parametrize("write", ["write_uv_fake", "write_uv_fake_running_real"])
+@pytest.mark.parametrize(
+    "extra",
+    [[], ["--frozen"], ["--frozen", "--no-sync"]],
+    ids=["bare", "frozen", "two"],
+)
+def test_a_uv_flag_does_not_change_what_the_fake_records(
+    tmp_path, write, extra
+) -> None:
+    """`uv run --frozen python X` records as X, not as uv.
+
+    Both fakes used to test `args[1] == "python"`, which is false the moment a
+    uv flag appears -- and the else branch calls the program "uv" and hands it
+    the WHOLE command line as argv. That is not a crash: the invocation still
+    records, still compares, and compares equal to every other mis-parsed call,
+    because they all become the same program with different argv. A pair whose
+    two sides spell the flag differently would then differ in argv[0..n] rather
+    than in the thing under test, and a pair that spells it the same way agrees
+    for a reason that has nothing to do with the port.
+
+    `stack_agent_ab.sh:339` is the live `--frozen` call site, so this is one
+    edit away from mattering rather than hypothetical.
+    """
+    out = tmp_path / f"{write}-{len(extra)}.jsonl"
+    # write_uv_fake takes no repo: it never execs anything, so it has no need
+    # of one. The pair is called through getattr precisely so the two parsers
+    # are asserted by the same test rather than by two that can drift.
+    make = getattr(equiv, write)
+    target = tmp_path / f"uv-{write}-{len(extra)}"
+    uv = (
+        make(target, out, ROOT) if write.endswith("running_real") else make(target, out)
+    )
+    subprocess.run(
+        [sys.executable, str(uv), "run", *extra, "python", "preflight.py", "--x"],
+        env={**os.environ, "EQUIV_OUT": str(out), "EQUIV_ARM": "a"},
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    recs = equiv.load(out)
+    assert [r.program for r in recs] == ["preflight.py"]
+    assert recs[0].argv == ("--x",)
+
+
+@pytest.mark.parametrize("write", ["write_uv_fake", "write_uv_fake_running_real"])
+def test_a_bare_uv_run_python_does_not_crash_the_fake(tmp_path, write) -> None:
+    """`uv run python` with no script names no program. It must not raise.
+
+    Reading past the end is an IndexError, which the running-real fake's
+    `except ValueError` did not cover -- a fake that dies here reports as the
+    DRIVER failing, which is a long way from the truth.
+    """
+    out = tmp_path / f"{write}-bare.jsonl"
+    make = getattr(equiv, write)
+    target = tmp_path / f"uv-bare-{write}"
+    uv = (
+        make(target, out, ROOT) if write.endswith("running_real") else make(target, out)
+    )
+    got = subprocess.run(
+        [sys.executable, str(uv), "run", "python"],
+        env={**os.environ, "EQUIV_OUT": str(out), "EQUIV_ARM": "a"},
+        capture_output=True,
+        text=True,
+        # check=False deliberately: the assertion below reports the fake's own
+        # traceback, which is the whole point. CalledProcessError would hide it.
+        check=False,
+    )
+    assert got.returncode == 0, got.stderr
+    assert [r.program for r in equiv.load(out)] == ["uv"]
