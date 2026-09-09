@@ -11,6 +11,7 @@ ordinary CSVs.
 from __future__ import annotations
 
 import ast
+import os
 import pathlib
 import sys
 
@@ -24,6 +25,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
 import decode_ab
 import decode_ab_engine as eng
+import equiv
 from source_text import code_of
 
 
@@ -274,3 +276,92 @@ def test_env_is_read_at_call_time_not_import_time(monkeypatch) -> None:
         chunk=None,
     )
     assert "DS4_METAL_PREFILL_CHUNK=4096" in text
+
+
+# ------------------------------------------------- the #235 retirement differential
+#
+# The port's claim is that, under identical inputs, it hands ds4-bench the same
+# command line the shell did. The shell cannot run on a GPU here, but it does
+# not need one: a fake `uv` no-ops the lock and prompt_meta, and a fake
+# `./ds4-bench` in each tree records the shell's real argv offline. The two
+# sides must differ in nothing but the binary's path form (the recording drops
+# argv[0], so the flags are what the recording proves equal).
+
+
+def test_the_shell_and_the_port_hand_ds4_bench_the_same_command(tmp_path) -> None:
+    """Run the real .sh under the shim, run the port's builder for the same
+    inputs, and diff. The difference is empty."""
+    import subprocess
+
+    a = a_tree(tmp_path, "A")
+    b = a_tree(tmp_path, "B")
+    gguf = tmp_path / "m.gguf"
+    gguf.write_bytes(b"GGUF")
+    prompt = tmp_path / "p.txt"
+    prompt.write_text("prompt")
+    out = tmp_path / "out"
+    shim = tmp_path / "shim"
+    shim.mkdir()
+    probe = tmp_path / "probe.jsonl"
+    equiv.write_uv_fake(shim / "uv", probe)
+    # The fake ds4-bench records argv; the fake uv no-ops preflight/prompt_meta.
+    for tree in (a, b):
+        equiv.write_fake(tree / "ds4-bench", probe)
+
+    env = {
+        "PATH": f"{shim}:{os.environ.get('PATH', '')}",
+        "HOME": str(tmp_path),
+        "REPS": "2",
+        "CTX_START": "2048",
+        "CTX_MAX": "4096",
+        "STEP": "2048",
+        "GEN": "128",
+        "PROMPT": str(prompt),
+        "EQUIV_OUT": str(probe),
+        "EQUIV_PROGRAM": "ds4-bench",
+        "EQUIV_ARM": "shell",
+    }
+    sh = ROOT / "scripts" / "decode_ab_engine.sh"
+    got = subprocess.run(
+        [
+            "bash",
+            str(sh),
+            "a",
+            str(a),
+            "b",
+            str(b),
+            str(gguf),
+            str(out),
+        ],
+        cwd=tmp_path,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=60,
+    )
+    assert got.returncode == 0, (
+        f"shell exited {got.returncode}:\n{got.stderr}\n{got.stdout}"
+    )
+
+    invs = equiv.by_program(equiv.load(probe), "ds4-bench")
+    assert len(invs) == 4, (
+        f"REPS=2 x 2 arms should record 4 ds4-bench calls, got {len(invs)}"
+    )
+    for inv in invs:
+        csv = inv.argv[inv.argv.index("--csv") + 1]
+        # The binary is argv[0], which the recording drops and canonical()
+        # ignores, so a dummy binary is fine -- the flags are what is compared.
+        expected = decode_ab.bench_argv(
+            gguf,
+            pathlib.Path(csv),
+            prompt,
+            binary=a / "ds4-bench",
+            ctx_start=2048,
+            ctx_max=4096,
+            step=2048,
+            gen=128,
+        )
+        shell_only, py_only = equiv.argv_difference(inv.argv, expected, frozenset())
+        assert shell_only == set(), f"{inv.argv} vs {expected}: shell-only {shell_only}"
+        assert py_only == set(), f"{inv.argv} vs {expected}: port-only {py_only}"

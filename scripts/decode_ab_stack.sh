@@ -129,7 +129,7 @@ for rep in $(seq 1 "$REPS"); do
     [ "$ple" != "-" ] && ple_args=(--ple "$ple")
     # ds4-bench resolves metal/*.metal relative to its own tree, so run from
     # there; without this it dies with "metal/activations.metal not found".
-    ( cd "$tree" && ./ds4-bench -m "$gguf" --metal "${ple_args[@]}" \
+    ( cd "$tree" && ./ds4-bench -m "$gguf" --metal ${ple_args[@]+"${ple_args[@]}"} \
       --prompt-file "$PROMPT" \
       --ctx-start "$CTX_START" --ctx-max "$CTX_MAX" --step-incr "$STEP" \
       --gen-tokens "$GEN" --csv "$csv" )

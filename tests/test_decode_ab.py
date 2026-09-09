@@ -14,13 +14,20 @@ machine for hours, and a guard on one of them is not a guard.
 
 from __future__ import annotations
 
+import os
 import pathlib
 import subprocess
+import sys
 
 import pytest
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "scripts"))
+sys.path.insert(0, str(ROOT / "scripts" / "lib"))
 SCRIPT = ROOT / "scripts" / "decode_ab.sh"
+
+import decode_ab
+import equiv
 
 # Absent GGUFs. The chunk guard runs before anything is loaded, so a rejected
 # value stops there and an accepted one falls through -- distinguishable with
@@ -94,3 +101,74 @@ def test_the_engine_build_is_recorded():
     assert "rev-parse --short HEAD" in script
     assert "engine_dirty" in script, "a dirty tree's sha does not name its binary"
     assert "prefill_chunk=" in script, "the chunk is an input to the result"
+
+
+# ------------------------------------------------- the #235 retirement differential
+#
+# The port's claim is that, under identical inputs, it hands ds4-bench the same
+# command line the shell did. A fake `uv` no-ops the lock and prompt_meta, and
+# a fake `./ds4-bench` in the DS4 tree records the shell's real argv offline.
+
+
+def test_the_shell_and_the_port_hand_ds4_bench_the_same_command(tmp_path) -> None:
+    ds4_tree = tmp_path / "ds4"
+    ds4_tree.mkdir()
+    gguf_a = tmp_path / "a.gguf"
+    gguf_a.write_bytes(b"GGUF")
+    gguf_b = tmp_path / "b.gguf"
+    gguf_b.write_bytes(b"GGUF")
+    prompt = tmp_path / "p.txt"
+    prompt.write_text("prompt")
+    out = tmp_path / "out"
+    shim = tmp_path / "shim"
+    shim.mkdir()
+    probe = tmp_path / "probe.jsonl"
+    equiv.write_uv_fake(shim / "uv", probe)
+    equiv.write_fake(ds4_tree / "ds4-bench", probe)
+
+    env = {
+        "PATH": f"{shim}:{os.environ.get('PATH', '')}",
+        "HOME": str(tmp_path),
+        "DS4": str(ds4_tree),
+        "REPS": "2",
+        "CTX_START": "2048",
+        "CTX_MAX": "4096",
+        "STEP": "2048",
+        "GEN": "128",
+        "PROMPT": str(prompt),
+        "EQUIV_OUT": str(probe),
+        "EQUIV_PROGRAM": "ds4-bench",
+        "EQUIV_ARM": "shell",
+    }
+    got = subprocess.run(
+        ["bash", str(SCRIPT), "a", str(gguf_a), "b", str(gguf_b), str(out)],
+        cwd=tmp_path,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=60,
+    )
+    assert got.returncode == 0, (
+        f"shell exited {got.returncode}:\n{got.stderr}\n{got.stdout}"
+    )
+
+    invs = equiv.by_program(equiv.load(probe), "ds4-bench")
+    assert len(invs) == 4, (
+        f"REPS=2 x 2 arms should record 4 ds4-bench calls, got {len(invs)}"
+    )
+    for inv in invs:
+        csv = inv.argv[inv.argv.index("--csv") + 1]
+        expected = decode_ab.bench_argv(
+            pathlib.Path(inv.argv[inv.argv.index("-m") + 1]),
+            pathlib.Path(csv),
+            prompt,
+            binary=ds4_tree / "ds4-bench",
+            ctx_start=2048,
+            ctx_max=4096,
+            step=2048,
+            gen=128,
+        )
+        shell_only, py_only = equiv.argv_difference(inv.argv, expected, frozenset())
+        assert shell_only == set(), f"{inv.argv} vs {expected}: shell-only {shell_only}"
+        assert py_only == set(), f"{inv.argv} vs {expected}: port-only {py_only}"

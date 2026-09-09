@@ -19,6 +19,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 sys.path.insert(0, str(ROOT / "scripts" / "lib"))
 
 import coherence_check
+import equiv
 
 
 @pytest.fixture
@@ -246,3 +247,70 @@ def test_the_drivers_own_lines_keep_the_iso_stamp(
             [str(gguf), "--tree", str(tree), "--log-dir", str(tmp_path / "logs")]
         )
     assert any("MODEL" in r.message for r in caplog.records)
+
+
+# --- the #235 retirement differential -----------------------------------------
+#
+# The port's claim is that, under identical inputs, it hands ds4 the same
+# command line the shell did. The shell cannot be run on a GPU here, but it
+# does not need one: `coherence_check.sh` runs `./ds4` from inside the DS4
+# tree, so a fake `ds4` in a temp tree records the shell's real argv offline.
+# The two sanctioned differences are stated, not assumed: the binary is an
+# absolute path under `cwd=tree` rather than `./ds4`, and `--tokens N` is
+# added while the shell's `tail -n "$TOKENS"` is dropped.
+
+
+def test_the_shell_and_the_port_hand_ds4_the_same_command(tmp_path, gguf) -> None:
+    """Run the real .sh under a fake ds4, run the port's argv builder for the
+    same inputs, and diff. The difference is exactly the two sanctioned pairs."""
+    ds4_tree = tmp_path / "ds4-tree"
+    ds4_tree.mkdir()
+    out = tmp_path / "probe.jsonl"
+    equiv.write_fake(ds4_tree / "ds4", out)
+    prompt = "Write a Python function, then explain."
+    tokens = 200
+    ctx = 8192
+    env = {
+        "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+        "HOME": str(tmp_path),
+        "DS4": str(ds4_tree),
+        "PROMPT": prompt,
+        "TOKENS": str(tokens),
+        "EQUIV_OUT": str(out),
+        "EQUIV_PROGRAM": "ds4",
+        "EQUIV_ARM": "shell",
+    }
+    sh = ROOT / "scripts" / "coherence_check.sh"
+    subprocess.run(
+        ["bash", str(sh), str(gguf)],
+        cwd=tmp_path,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=60,
+    )
+    shell_inv = equiv.by_program(equiv.load(out), "ds4")
+    assert len(shell_inv) == 1, "the shell should have run ds4 exactly once"
+    shell_argv = shell_inv[0].argv
+
+    py_argv = coherence_check.argv_for(
+        ds4_tree, gguf, prompt=prompt, tokens=tokens, ctx=ctx
+    )
+
+    # Sanctioned difference 1: the binary. The shell ran `./ds4` from inside
+    # the tree; the port runs the absolute path under `cwd=tree`. Both name the
+    # same file, which is the point -- the tree is part of the measurement, not
+    # a path detail. The recording drops argv[0] (it records the tokens after
+    # the program's own name), so this difference is asserted from the two
+    # sources rather than the recording: it does not change a number, and the
+    # flags are what the recording proves equal.
+    sh_source = (ROOT / "scripts" / "coherence_check.sh").read_text()
+    assert "./ds4" in sh_source
+    assert py_argv[0] == str(ds4_tree / "ds4")
+
+    # Sanctioned difference 2: `--tokens N` is added (the shell trimmed output
+    # with `tail` instead of bounding generation). Everything else is equal.
+    shell_only, py_only = equiv.argv_difference(shell_argv, py_argv, frozenset())
+    assert shell_only == set()
+    assert py_only == {("--tokens", str(tokens))}
