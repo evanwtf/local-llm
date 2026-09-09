@@ -133,6 +133,18 @@ EVIDENCE = {
     "scripts/decode_ab_stack.sh": (
         "tests/test_decode_ab_stack.py::test_the_shell_and_the_port_hand_ds4_bench_the_same_command"
     ),
+    "scripts/greedy_mtp_ab.sh": (
+        "tests/test_greedy_mtp_ab.py::"
+        "test_the_shell_and_the_port_hand_run_py_the_same_command"
+    ),
+    "scripts/mtp_treatment_gate.sh": (
+        "tests/test_mtp_treatment_gate_python.py::"
+        "test_the_shell_and_the_port_hand_run_py_the_same_command"
+    ),
+    "scripts/strip_toggle_ab.sh": (
+        "tests/test_strip_toggle_ab.py::"
+        "test_the_on_arm_removes_shim_no_strip_on_both_sides"
+    ),
     "scripts/metal_knob_ab.sh": (
         "tests/test_metal_knob_ab.py::test_the_shell_and_the_port_hand_ds4_bench_the_same_command"
     ),
