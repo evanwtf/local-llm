@@ -228,16 +228,64 @@ def test_the_config_declares_a_language_python_hook_first() -> None:
     assert hooks[0]["entry"].endswith("scripts/refuse_commit_during_benchmark.py")
 
 
+def git_common_dir() -> pathlib.Path:
+    """The gitdir hooks actually live in, from a worktree or a plain checkout.
+
+    #257: in a worktree, `.git` is a FILE containing `gitdir: ...`, so
+    `ROOT / ".git" / "hooks"` does not exist -- and the hook is installed and
+    working, because worktrees share the main repository's hooks. Hardcoding
+    `.git` made the full suite report one failure on a healthy commit from
+    every worktree, which is now the standard review workflow (#255).
+
+    `--git-common-dir` is the right question: it returns the shared gitdir
+    from a worktree and the ordinary `.git` from a normal checkout, which is
+    exactly where a shared hook lives.
+    """
+    out = subprocess.run(
+        ["git", "-C", str(ROOT), "rev-parse", "--git-common-dir"],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    return (ROOT / out).resolve()
+
+
 def test_the_pre_commit_hook_is_installed_into_the_repo() -> None:
     """#227: a config file alone is the 'skipping test' the repo rejects -- the
     guard reads as covered while a clone that never ran `pre-commit install`
     commits straight past it."""
-    git_hook = ROOT / ".git" / "hooks" / "pre-commit"
+    git_hook = git_common_dir() / "hooks" / "pre-commit"
     assert git_hook.exists(), (
         "pre-commit stage hook missing; run `uv run pre-commit install`"
     )
     assert os.access(git_hook, os.X_OK), git_hook
     assert "pre-commit" in git_hook.read_text()
+
+
+def test_the_hook_is_found_from_a_worktree_too() -> None:
+    """The regression #257 records: a worktree's `.git` is a file, so the old
+    `ROOT / ".git" / "hooks"` path did not exist and the suite reported a
+    failure on a healthy commit. That trains a reviewer to discount failures,
+    which is the habit that lets a real one through -- and it is
+    indistinguishable at a glance from the hook genuinely being absent, which
+    is what this test exists to catch."""
+    common = git_common_dir()
+    assert common.is_dir(), common
+    assert common.name == ".git" or "worktrees" not in str(common), (
+        "--git-common-dir must resolve to the SHARED gitdir, not a per-worktree one"
+    )
+
+
+def test_no_test_in_this_file_hardcodes_a_dot_git_directory() -> None:
+    """Siblings of the #257 defect. Any test assuming `.git` is a directory
+    has it."""
+    # The needle is built from two pieces on purpose. Spelled inline it
+    # appears in this assertion, so the test matches ITSELF and fails on a
+    # clean file -- the third variant of that trap this repo has hit today,
+    # after two tests that matched the docstring explaining a deleted call.
+    needle = "ROOT / " + '".git"'
+    source = code_of(pathlib.Path(__file__))
+    assert needle not in source, "use git_common_dir(); see #257"
 
 
 def test_the_hook_runs_end_to_end_as_pre_commit_invokes_it(tmp_path) -> None:
