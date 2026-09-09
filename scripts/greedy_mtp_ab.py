@@ -45,7 +45,6 @@ from __future__ import annotations
 
 import argparse
 import contextlib
-import datetime
 import logging
 import os
 import pathlib
@@ -306,10 +305,9 @@ def sweep(
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    # Local time, and aware: the log directory is read by a person against a
-    # wall clock, and `docs/` records times in New York.
-    stamp = datetime.datetime.now(datetime.UTC).astimezone().strftime("%Y%m%d-%H%M%S")
-    default_logdir = pathlib.Path.home() / "bench-logs" / f"greedy-mtp-ab-{stamp}"
+    default_logdir = ab_driver.logdir_for(
+        pathlib.Path.home() / "bench-logs", "greedy-mtp-ab"
+    )
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--rounds", type=int, default=int(os.environ.get("ROUNDS", "2")))
     p.add_argument("--trials", type=int, default=int(os.environ.get("TRIALS", "1")))
@@ -344,10 +342,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         return sweep(args.rounds, args.trials, args.batch, args.logdir, os.getpid())
     except (
         RuntimeError,
+        ValueError,
         ds4_server.ServerNeverStarted,
         ds4_server.GraphMismatch,
         ds4_server.NotReady,
     ) as exc:
+        # ValueError is ab_driver's refusal. The check above catches the odd
+        # round count before anything starts and exits 2, which is the clean
+        # path; this is the backstop, so a refusal the pre-check does not model
+        # still reads as a refusal rather than as a traceback. Raised by
+        # @deepseek reviewing #249.
         logger.error("REFUSING: %s", exc)
         return 1
 

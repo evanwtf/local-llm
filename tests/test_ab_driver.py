@@ -211,6 +211,34 @@ def test_the_tag_identifies_the_round_and_the_arm() -> None:
     assert len(set(tags)) == 4
 
 
+# --- the log directory, which keeps a re-run from pooling --------------------
+
+
+def test_a_logdir_carries_a_stamp_so_a_rerun_does_not_pool() -> None:
+    """A re-run that lands in the same directory under the same batch label is
+    unreadable afterwards: the rows sit in the ledger together and nothing
+    distinguishes them. `greedy_mtp_ab.sh` learned that at `9464e30`."""
+    root = pathlib.Path("/tmp/bench")
+    first = ab_driver.logdir_for(root, "greedy-mtp-ab", "20260909-034500")
+    second = ab_driver.logdir_for(root, "greedy-mtp-ab", "20260909-041500")
+    assert first != second
+    assert first.parent == root
+    assert first.name.startswith("greedy-mtp-ab-")
+
+
+def test_logdir_for_does_not_create_anything() -> None:
+    """A `--help` run must not litter `~/bench-logs` with an empty directory,
+    and argparse builds the default before it knows the command will run."""
+    root = pathlib.Path("/tmp/definitely-not-created-by-a-default")
+    ab_driver.logdir_for(root, "x")
+    assert not root.exists()
+
+
+def test_the_stamp_is_timezone_aware() -> None:
+    """Naive local time is what makes two machines' logs unorderable."""
+    assert len(ab_driver.stamp()) == len("20260909-034500")
+
+
 # --- the boundary the peer flagged: what must NOT live here ------------------
 
 

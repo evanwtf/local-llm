@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import contextlib
 import dataclasses
+import datetime
 import logging
 import pathlib
 from collections.abc import Callable, Iterator, Sequence
@@ -116,6 +117,13 @@ def run(
     the surviving arms are still worth having, and stopping early throws away
     good rows -- but the caller gets the list and must not report a clean run.
 
+    **A server that fails to start does stop the sweep, and that asymmetry is
+    deliberate.** A non-zero `run_arm` is usually about that arm: its client
+    died, its tasks failed. A server that will not start is usually about the
+    machine -- a missing model file, a busy port, an engine tree that no longer
+    builds -- and repeating it once per arm per round produces nothing but a
+    slower way to learn the same thing. Raised by @deepseek reviewing #249.
+
     Refuses an uneven round count before anything starts, because the refusal
     is worth nothing after the machine time is spent.
     """
@@ -170,18 +178,21 @@ def nothing(tag: str = "") -> Iterator[None]:
     yield
 
 
-def default_batch(stamp: str) -> str:
-    """The batch label, which must be overridable.
+def stamp() -> str:
+    """A local, timezone-aware stamp for a log directory name.
 
-    A re-run that pools with a broken run is unreadable afterwards: the rows
-    are in the ledger under the same label and nothing distinguishes them.
-    `greedy_mtp_ab.sh` learned this at `9464e30`.
+    Local and aware on purpose: the directory is read by a person against a
+    wall clock, and this project records times in New York.
     """
-    return stamp
+    return datetime.datetime.now(datetime.UTC).astimezone().strftime("%Y%m%d-%H%M%S")
 
 
-def logdir_for(root: pathlib.Path, name: str, stamp: str) -> pathlib.Path:
-    """`<root>/<name>-<stamp>`, created."""
-    path = root / f"{name}-{stamp}"
-    path.mkdir(parents=True, exist_ok=True)
-    return path
+def logdir_for(root: pathlib.Path, name: str, when: str | None = None) -> pathlib.Path:
+    """`<root>/<name>-<stamp>`. Not created -- the caller may only be parsing.
+
+    The stamp is what keeps a re-run from pooling with the run it is replacing.
+    A re-run that lands in the same directory, under the same batch label, is
+    unreadable afterwards: the rows are in the ledger together and nothing
+    distinguishes them. `greedy_mtp_ab.sh` learned that at `9464e30`.
+    """
+    return root / f"{name}-{when or stamp()}"
