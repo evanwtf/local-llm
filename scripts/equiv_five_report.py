@@ -294,6 +294,7 @@ def report_decode() -> None:
     )
     port_nochunk = list(port)
     # both sides carry --prefill-chunk only when set; compare the no-chunk form
+    # shell, decode_ab.sh:187-191 (the ds4-bench invocation inside run_rep)
     shell_nochunk = [
         str(binary),
         "-m",
@@ -332,6 +333,10 @@ def report_metal_knob() -> None:
     port = metal_knob_ab.bench_argv(
         gguf, prompt, csv, ctx_start=0, ctx_max=4096, step=512, gen=64
     )
+    # shell, metal_knob_ab.sh:249-252 (the ARM invocation, not the engagement
+    # probe at :136 -- that one deliberately passes --ctx-max "$CTX_START" so
+    # it measures admission at a single context, and comparing against it
+    # would report a --ctx-max difference that is not a difference).
     shell_nochunk = [
         "./ds4-bench",
         "-m",
