@@ -1,21 +1,18 @@
-"""#227 defect 2: the pre-commit guard against a live A/B (#227).
+"""The commit-time guard (#227, #237).
 
-pre-commit runs the hook as a subprocess on every commit, so the behaviour
-tests run the real script against the real pgrep and a genuinely live fake A/B,
-not a mocked match -- a mocked return would only prove the function body reads
-that return back. The branches that need no real process main() and the
-override are unit-tested the same way, and the config's `language: python` and
-"first in the list" are pinned as artifacts so a refactor cannot move them.
+A commit during a pinned run moves HARNESS_HEAD and kills every remaining
+sweep. This hook is the only place that can stop it before HEAD moves.
 
-These tests assume no real benchmark holds the machine: the root conftest
-refuses the suite while the preflight run lock is set, so a live stack_agent
-run blocks pytest before these cases run, and the "clear" case guards itself
-with a real pgrep check that skips if a genuine A/B happens to be live.
+Every test that names a date is drawn from a failure that reached the machine.
+The guard has now been wrong in both directions -- too narrow to catch eleven
+drivers, then broad enough to block every commit for hours while nothing was
+running -- and both times the cause was the same: it was looking for processes
+by name instead of reading the lock that records them.
 """
 
 from __future__ import annotations
 
-import importlib
+import json
 import os
 import pathlib
 import subprocess
@@ -25,159 +22,219 @@ import pytest
 import yaml
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-SCRIPTS = ROOT / "scripts"
 HOOK = ROOT / "scripts" / "refuse_commit_during_benchmark.py"
 CONFIG = ROOT / ".pre-commit-config.yaml"
 
-sys.path.insert(0, str(SCRIPTS))
-refuse = importlib.import_module("refuse_commit_during_benchmark")
+sys.path.insert(0, str(ROOT / "scripts"))
+sys.path.insert(0, str(ROOT / "benchmarks" / "agent"))
+
+import refuse_commit_during_benchmark as refuse
+
+HOSTNAME = "test-machine.local"
 
 
-def _spawn_ab(timeout: int = 30) -> subprocess.Popen[bytes]:
-    """A live process whose command line names stack_agent_ab.sh.
+def _code(path: pathlib.Path) -> str:
+    """`path`'s source with docstrings and comments removed.
 
-    `exec -a` replaces bash's argv[0] with the given name, so pgrep -f sees
-    `stack_agent_ab.sh` in the command line exactly like a real A/B launch.
+    A test that greps raw text cannot tell a call from an explanation of why
+    the call is gone.
     """
-    return subprocess.Popen(
-        ["bash", "-c", f"exec -a stack_agent_ab.sh sleep {timeout}"]
+    import ast
+
+    tree = ast.parse(path.read_text())
+    doc_lines: set[int] = set()
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, (ast.Module, ast.FunctionDef, ast.ClassDef))
+            and node.body
+            and ast.get_docstring(node, clean=False) is not None
+        ):
+            first = node.body[0]
+            doc_lines.update(range(first.lineno, (first.end_lineno or 0) + 1))
+    keep = []
+    for i, line in enumerate(path.read_text().splitlines(), 1):
+        if i in doc_lines or line.strip().startswith("#"):
+            continue
+        keep.append(line.split("  # ")[0])
+    return "\n".join(keep)
+
+
+def lock_file(tmp_path: pathlib.Path, payload: object) -> pathlib.Path:
+    path = tmp_path / "run-lock.json"
+    path.write_text(payload if isinstance(payload, str) else json.dumps(payload))
+    return path
+
+
+def held_by(pid: int, host: str = HOSTNAME) -> dict:
+    return {
+        "cwd": "/Users/x/git/local-llm",
+        "hostname": host,
+        "pid": pid,
+        "started": "2026-09-08T21:58:23-0400",
+        "what": "greedy_mtp_ab.sh (#151/#39)",
+    }
+
+
+# --- the drift the two hardcoded paths invite --------------------------------
+
+
+def test_the_two_lock_paths_agree() -> None:
+    """The hook is standard-library only on purpose: `language: python` builds
+    a hermetic env so `uv run pre-commit run` and a bare `git commit` invoke
+    the same interpreter, and the guard cannot be present under one and absent
+    under the other. That means it cannot import preflight, so LOCK_PATH is
+    written down twice -- and two copies drift into a guard that reads a file
+    nobody writes."""
+    import preflight
+
+    assert refuse.LOCK_PATH == preflight.LOCK_PATH
+
+
+def test_the_hook_imports_nothing_outside_the_standard_library() -> None:
+    """If it grows a third-party import, the hermetic environment stops
+    building and the guard silently disappears from a bare `git commit`."""
+    source = HOOK.read_text()
+    for forbidden in ("import yaml", "import pytest", "import requests", "import uv"):
+        assert forbidden not in source
+    assert "import preflight" not in source, "see test_the_two_lock_paths_agree"
+
+
+# --- what each lock state does -----------------------------------------------
+
+
+def test_a_held_lock_refuses_the_commit(tmp_path) -> None:
+    state, why = refuse.lock_state(
+        refuse.read_lock(lock_file(tmp_path, held_by(os.getpid()))), HOSTNAME
+    )
+    assert state == refuse.HELD
+    assert "greedy_mtp_ab.sh (#151/#39)" in why, "the reader needs to know WHICH run"
+    assert "2026-09-08T21:58:23-0400" in why, "and since when"
+
+
+def test_no_lock_allows_the_commit(tmp_path) -> None:
+    assert (
+        refuse.lock_state(refuse.read_lock(tmp_path / "absent.json"), HOSTNAME)[0]
+        == refuse.FREE
     )
 
 
-def _any_real_ab() -> bool:
-    """Whether a stack_agent A/B is live right now, independent of the hook.
-
-    The bracket keeps this probe (whose command line carries the pattern) from
-    matching itself; pgrep also excludes its own pid.
-    """
-    done = subprocess.run(
-        ["pgrep", "-f", "[s]tack_agent_ab.sh"], capture_output=True, check=False
+def test_a_dead_pid_is_stale_and_allows_the_commit(tmp_path) -> None:
+    """A lock outliving its process must not block commits forever. This is
+    the failure that had seven waiter shells blocking every commit for hours
+    while the machine was idle -- in that shape, a guard that cannot be
+    satisfied gets overridden, and then it is not a guard."""
+    dead = _a_pid_that_is_gone()
+    state, _ = refuse.lock_state(
+        refuse.read_lock(lock_file(tmp_path, held_by(dead))), HOSTNAME
     )
-    return done.returncode == 0
+    assert state == refuse.STALE
 
 
-# --- main(): refuse on a live run, allow otherwise, override wins -----------
+def test_another_machines_lock_allows_the_commit(tmp_path) -> None:
+    """A lock is a claim on one machine. Its pid means nothing here, and
+    refusing on it would block this machine on another's run."""
+    payload = held_by(os.getpid(), host="some-other-host")
+    state, _ = refuse.lock_state(
+        refuse.read_lock(lock_file(tmp_path, payload)), HOSTNAME
+    )
+    assert state == refuse.FOREIGN
 
 
-def test_refuses_when_a_live_run_is_detected(monkeypatch) -> None:
+@pytest.mark.parametrize(
+    "payload",
+    ["{ not json", "[]", '"a string"', json.dumps({"hostname": HOSTNAME})],
+    ids=["unparseable", "a list", "a string", "no pid"],
+)
+def test_an_unusable_lock_is_corrupt(tmp_path, payload) -> None:
+    """An unparseable lock is not evidence that nobody is running -- it is
+    evidence that something went wrong while claiming the machine, which is
+    exactly when a commit must not land. `preflight.read_lock` says the same,
+    and the two disagreeing would be worse than either."""
+    lock = refuse.read_lock(lock_file(tmp_path, payload))
+    assert refuse.lock_state(lock, HOSTNAME)[0] == refuse.CORRUPT
+
+
+def _a_pid_that_is_gone() -> int:
+    """A pid that has certainly exited: spawn `true` and reap it."""
+    proc = subprocess.Popen(["true"])
+    proc.wait()
+    return proc.pid
+
+
+# --- the exit codes pre-commit acts on ---------------------------------------
+
+
+def test_main_refuses_during_a_live_run(monkeypatch, tmp_path) -> None:
     monkeypatch.delenv("LOCAL_LLM_ALLOW_COMMIT_DURING_RUN", raising=False)
-    monkeypatch.setattr(refuse, "_live_run", lambda: "stack_agent_ab.sh")
+    monkeypatch.setattr(refuse, "LOCK_PATH", lock_file(tmp_path, held_by(os.getpid())))
+    monkeypatch.setattr(refuse.platform, "node", lambda: HOSTNAME)
     assert refuse.main() == 1
 
 
-def test_allows_when_no_run_is_detected(monkeypatch) -> None:
+def test_main_allows_a_commit_on_an_idle_machine(monkeypatch, tmp_path) -> None:
     monkeypatch.delenv("LOCAL_LLM_ALLOW_COMMIT_DURING_RUN", raising=False)
-    monkeypatch.setattr(refuse, "_live_run", lambda: None)
+    monkeypatch.setattr(refuse, "LOCK_PATH", tmp_path / "absent.json")
+    monkeypatch.setattr(refuse.platform, "node", lambda: HOSTNAME)
     assert refuse.main() == 0
 
 
-def test_override_allows_commit_even_during_a_live_run(monkeypatch) -> None:
+def test_the_override_still_works_during_a_live_run(monkeypatch, tmp_path) -> None:
+    """A deliberate commit during a run is sometimes right; it must be
+    possible, and it must be explicit."""
     monkeypatch.setenv("LOCAL_LLM_ALLOW_COMMIT_DURING_RUN", "1")
-    monkeypatch.setattr(refuse, "_live_run", lambda: "stack_agent_ab.sh")
+    monkeypatch.setattr(refuse, "LOCK_PATH", lock_file(tmp_path, held_by(os.getpid())))
+    monkeypatch.setattr(refuse.platform, "node", lambda: HOSTNAME)
     assert refuse.main() == 0
 
 
-# --- _live_run(): the real pgrep, against a real process --------------------
+def test_the_refusal_names_the_run_and_the_stake(monkeypatch, tmp_path, caplog) -> None:
+    """The message must say WHICH run, or the reader cannot tell whether to
+    wait five minutes or three hours -- a bare script name never did.
 
-
-def test_live_run_sees_a_real_ab_process() -> None:
-    proc = _spawn_ab()
-    try:
-        assert refuse._live_run() is not None
-    finally:
-        proc.terminate()
-        proc.wait(timeout=5)
-
-
-def test_no_live_run_counts_as_clear() -> None:
-    if _any_real_ab():
-        pytest.skip("a stack_agent A/B is genuinely live; cannot test the clear case")
-    assert refuse._live_run() is None
-
-
-def test_hook_process_refuses_against_a_live_run() -> None:
-    """The full entry pre-commit invokes, exercising real pgrep end to end."""
-    proc = _spawn_ab()
-    try:
-        done = subprocess.run(
-            [sys.executable, str(HOOK)], capture_output=True, text=True, check=False
-        )
-    finally:
-        proc.terminate()
-        proc.wait(timeout=5)
-    assert done.returncode == 1, done.stderr
-    # The message names the driver rather than saying "an A/B": with twelve
-    # of them, which one is holding the machine is the thing the reader needs.
-    assert "stack_agent_ab.sh is running" in done.stdout, done.stdout  # stdout
-
-
-def test_a_process_that_merely_names_a_driver_is_not_a_live_run() -> None:
-    """2026-09-08: seven waiter shells, built as `until ! pgrep -f
-    'metal_knob_ab.sh'; do sleep 30; done`, were live for up to six and a half
-    hours. Each matched `pgrep -f` and none was a benchmark, so the guard
-    refused every commit while the machine was idle.
-
-    The bracket in the pattern stops the hook matching ITSELF. It does nothing
-    about a third process that quotes the same name -- and that is the case
-    that actually happened."""
-    waiter = (
-        "/bin/zsh -c source /Users/x/.claude/snapshot.sh && eval "
-        "'until ! pgrep -f '\"'\"'metal_knob_ab.sh'\"'\"' >/dev/null; "
-        "do sleep 30; done'"
-    )
-    assert not refuse._is_invocation(waiter, "metal_knob_ab.sh")
-
-
-def test_a_real_invocation_is_still_seen() -> None:
-    """The fix must not buy quiet by never matching. argv[0] and argv[1] are
-    where a script's own name appears when it is the thing being run."""
-    for command in (
-        "./scripts/metal_knob_ab.sh --reps 4",
-        "/Users/x/git/local-llm/scripts/metal_knob_ab.sh",
-        "bash scripts/metal_knob_ab.sh",
-        "/bin/bash /Users/x/git/local-llm/scripts/metal_knob_ab.sh --reps 4",
-    ):
-        assert refuse._is_invocation(command, "metal_knob_ab.sh"), command
-
-
-# --- the pattern and the config, pinned as artifacts ------------------------
-#
-# The bracket is the fix: `[s]tack` matches the text "stack", never the literal
-# "[s]tack" this very hook's pgrep argument carries, so a shell or parent that
-# quotes the pattern is not the thing the regex sees.
-
-
-def test_every_pgrep_pattern_is_bracketed_so_it_does_not_match_itself() -> None:
-    """`pgrep -f` matches whole command lines, so an unbracketed pattern
-    matches the shell that quoted it and the hook refuses every commit."""
-    for pattern in refuse._PATTERNS:
-        assert pattern[0] == "[" and pattern[2] == "]", pattern
-
-
-def test_every_driver_that_runs_inside_a_held_lock_is_covered() -> None:
-    """The membership rule, enforced rather than remembered.
-
-    A driver holds the lock if it passes `--acquire-lock` (it takes one) or
-    `--no-lock` (something above it holds one). Either way its run.py calls
-    belong to one experiment and the head must not move between them.
-
-    On 2026-09-08 this list had ONE of twelve entries, and three new drivers
-    had just landed uncovered. Nothing failed, because the only test asserted
-    the single pattern was spelled correctly.
+    caplog, not capsys: `logging.basicConfig` is a no-op once any other test
+    has configured the root logger, so capsys sees an empty string and the
+    test passes or fails for a reason unrelated to the guard. That the output
+    reaches stdout in a real process is asserted by
+    `test_the_hook_runs_end_to_end_as_pre_commit_invokes_it`, which runs the
+    hook the way pre-commit does.
     """
-    import pathlib as _p
+    monkeypatch.delenv("LOCAL_LLM_ALLOW_COMMIT_DURING_RUN", raising=False)
+    monkeypatch.setattr(refuse, "LOCK_PATH", lock_file(tmp_path, held_by(os.getpid())))
+    monkeypatch.setattr(refuse.platform, "node", lambda: HOSTNAME)
+    with caplog.at_level("ERROR", logger=refuse.logger.name):
+        refuse.main()
+    out = caplog.text
+    assert "greedy_mtp_ab.sh (#151/#39)" in out
+    assert "HARNESS_HEAD" in out
 
-    scripts = _p.Path(__file__).resolve().parents[1] / "scripts"
-    holders = {
-        path.name
-        for path in scripts.glob("*.sh")
-        if "--acquire-lock" in path.read_text() or "--no-lock" in path.read_text()
-    }
-    covered = {p.replace("[", "").replace("]", "") for p in refuse._PATTERNS}
-    assert holders <= covered, (
-        f"uncovered lock-holding drivers: {sorted(holders - covered)}. "
-        f"Add them to _PATTERNS in scripts/refuse_commit_during_benchmark.py."
-    )
+
+# --- what the rewrite must have deleted --------------------------------------
+
+
+def test_the_guard_no_longer_looks_for_processes_by_name() -> None:
+    """2026-09-08, three failures from one predicate:
+
+    - Only `stack_agent_ab.sh` was listed, so eleven of the twelve lock-holding
+      drivers were uncovered and a logs-only commit killed 7 of 8 sweeps.
+    - Widened, it matched seven orphaned `until ! pgrep -f '<driver>.sh'`
+      waiter shells and refused every commit while the machine was idle.
+    - `pgrep -a` is GNU-only and GNU `pgrep -l` truncates the process name to
+      15 characters, so `stack_agent_ab.sh` arrived as `stack_agent_ab.` and
+      CI went red.
+
+    None of those is possible against a recorded pid.
+    """
+    assert "pgrep" not in _code(HOOK)
+    assert "pkill" not in _code(HOOK)
+    assert "_PATTERNS" not in _code(HOOK)
+    # The prose still discusses pgrep -- explaining why it is gone is the
+    # point of the docstring. Asserting on the raw text would forbid the
+    # explanation, which is the same word-for-a-metric confusion this
+    # module's history is full of.
+    assert "pgrep" in HOOK.read_text(), "the docstring should still explain why"
+
+
+# --- the wiring, unchanged ---------------------------------------------------
 
 
 def test_the_config_declares_a_language_python_hook_first() -> None:
@@ -198,10 +255,7 @@ def test_the_config_declares_a_language_python_hook_first() -> None:
 def test_the_pre_commit_hook_is_installed_into_the_repo() -> None:
     """#227: a config file alone is the 'skipping test' the repo rejects -- the
     guard reads as covered while a clone that never ran `pre-commit install`
-    commits straight past it. Fail closed on a missing or non-executable hook:
-    a bare `git commit` must actually run this guard, or the repo is not
-    protected. `uv run pre-commit install` wires it in (README Build and run;
-    CI runs it before pytest), so the hook must be present and executable."""
+    commits straight past it."""
     git_hook = ROOT / ".git" / "hooks" / "pre-commit"
     assert git_hook.exists(), (
         "pre-commit stage hook missing; run `uv run pre-commit install`"
@@ -210,24 +264,26 @@ def test_the_pre_commit_hook_is_installed_into_the_repo() -> None:
     assert "pre-commit" in git_hook.read_text()
 
 
-def test_the_command_line_comes_from_ps_not_from_pgrep_listing() -> None:
-    """CI went red here. macOS and Linux disagree about how to make pgrep print
-    a command line: `-a` is GNU-only and BSD prints bare pids, while GNU's `-l`
-    prints the process name from /proc truncated to 15 characters, so
-    `stack_agent_ab.sh` arrives as `stack_agent_ab.` and matches nothing.
-
-    `ps -o command=` means the same thing on both, so the source of the argv is
-    pinned here rather than rediscovered on the next red run."""
-    source = HOOK.read_text()
-    assert '"-o", "command="' in source
-    assert '"-ww"' in source, "GNU ps truncates to terminal width without it"
-    for gnu_only in ('"-af"', '"-lf"', '"-a"', '"-l"'):
-        assert f"[pgrep, {gnu_only}" not in source, f"pgrep {gnu_only} is not portable"
-
-
-def test_command_lines_survives_a_process_that_exits_between_the_two_calls() -> None:
-    """pgrep and ps are two calls. A pid can die in between, and ps then exits
-    non-zero for the whole list. That is an absence, not an error: the guard
-    fails open by design."""
-    assert refuse._command_lines(["999999"]) == []
-    assert refuse._command_lines([]) == []
+def test_the_hook_runs_end_to_end_as_pre_commit_invokes_it(tmp_path) -> None:
+    """The entry point pre-commit actually calls, in a fresh process, with a
+    lock it can see. Everything above monkeypatches; this does not."""
+    lock = lock_file(tmp_path, held_by(os.getpid()))
+    script = (
+        "import sys, pathlib, platform;"
+        f"sys.path.insert(0, {str(ROOT / 'scripts')!r});"
+        "import refuse_commit_during_benchmark as r;"
+        f"r.LOCK_PATH = pathlib.Path({str(lock)!r});"
+        f"platform.node = lambda: {HOSTNAME!r};"
+        "sys.exit(r.main())"
+    )
+    env = dict(os.environ)
+    env.pop("LOCAL_LLM_ALLOW_COMMIT_DURING_RUN", None)
+    done = subprocess.run(
+        [sys.executable, "-c", script],
+        capture_output=True,
+        text=True,
+        env=env,
+        check=False,
+    )
+    assert done.returncode == 1
+    assert "greedy_mtp_ab.sh" in done.stdout

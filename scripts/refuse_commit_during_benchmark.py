@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Refuse a commit while a lock-holding benchmark driver is live (#227).
+"""Refuse a commit while a benchmark holds the run lock (#227, #237).
 
 A commit during a pinned run moves HARNESS_HEAD, and every remaining sweep
 refuses in about a second from its own fresh process. A logs-only commit killed
@@ -7,154 +7,172 @@ refuses in about a second from its own fresh process. A logs-only commit killed
 afterwards. pre-commit is the only place a commit can be stopped before it
 moves HEAD, so this hook is the guard for that failure mode.
 
-The hook refuses only on a confident match. No match and an error both let the
-commit through (fail open): a guard that blocks every commit is worse than the
-bug it guards, and an ambiguous pgrep result is not evidence of a live run.
-Set LOCAL_LLM_ALLOW_COMMIT_DURING_RUN=1 to override for a deliberate commit.
+## Why this reads a file instead of looking for processes
 
-Only the standard library is used, so the hook needs nothing from the venv.
-`language: python` still builds a hermetic environment, so `uv run pre-commit
-run` and a bare `git commit` invoke the same interpreter -- the guard cannot be
-present under one and absent under the other, which is the whole point.
+Until 2026-09-08 this hook carried a list of driver names and searched for each
+with `pgrep -f`. That list was wrong in both directions on the same day:
+
+- **Too narrow.** Only `stack_agent_ab.sh` was listed, so eleven of the twelve
+  lock-holding drivers were uncovered.
+- **Too broad.** Once widened, it matched seven orphaned waiter shells whose
+  command lines merely quoted a driver's name -- `until ! pgrep -f
+  'metal_knob_ab.sh'; do sleep 30; done` -- and refused every commit for hours
+  while the machine sat idle. A guard that cannot be satisfied gets overridden,
+  and then it is not a guard.
+
+It also went red in CI, because `pgrep -a` is GNU-only and GNU `pgrep -l`
+truncates the process name to 15 characters, so `stack_agent_ab.sh` arrived as
+`stack_agent_ab.` and matched nothing.
+
+The run lock already answers the question, and answers it better: the driver
+that took the machine wrote it, and it records **what** and **since when**,
+which a script name never did. There is no list to maintain, nothing to match,
+and no platform difference to get wrong.
+
+## Standard library only, deliberately
+
+`language: python` builds a hermetic environment so `uv run pre-commit run` and
+a bare `git commit` invoke the same interpreter -- the guard cannot be present
+under one and absent under the other, which is the whole point. So this parses
+the lock itself rather than importing `preflight`, and LOCK_PATH is therefore
+written down twice. `test_the_two_lock_paths_agree` is what keeps them from
+drifting into a guard that reads a file nobody writes.
+
+Set LOCAL_LLM_ALLOW_COMMIT_DURING_RUN=1 to override for a deliberate commit.
 """
 
 from __future__ import annotations
 
+import errno
+import json
 import logging
 import os
-import shutil
-import subprocess
+import pathlib
+import platform
 import sys
 
 logger = logging.getLogger(__name__)
 
-# pgrep -f matches whole command lines. The bracket around the first character
-# keeps this process from matching itself: the regex ``[s]tack`` matches the
-# text "stack", never the literal string "[s]tack". Without it, whatever shell
-# or parent process quoted the pattern would be the very thing the regex sees.
-#
-# Every driver that runs inside a held machine lock. Only
-# `stack_agent_ab.sh` was listed until 2026-09-08, so ELEVEN of the twelve
-# were uncovered -- a commit during any of them moves HARNESS_HEAD between
-# arms and splits `harness_dirty` across a comparison, which is the confound
-# the guard exists to stop.
-#
-# The membership rule is mechanical and a test enforces it: a driver holds
-# the lock if it passes `--acquire-lock` (it takes the lock) or `--no-lock`
-# (something above it holds one). Either way its run.py calls belong to one
-# experiment, and the head must not move between them.
-_PATTERNS = (
-    "[d]ecode_ab.sh",
-    "[d]ecode_ab_engine.sh",
-    "[d]ecode_ab_stack.sh",
-    "[g]reedy_mtp_ab.sh",
-    "[m]etal_knob_ab.sh",
-    "[m]tp_treatment_gate.sh",
-    "[r]estart_between_trials.sh",
-    "[r]estart_between_trials_armB.sh",
-    "[r]oute_agent_ab.sh",
-    "[s]tack_agent_ab.sh",
-    "[s]trip_toggle_ab.sh",
-    "[t]argets_ab.sh",
-)
+# Must equal preflight.LOCK_PATH. A test pins that; see the module docstring
+# for why it cannot simply be imported.
+LOCK_PATH = pathlib.Path.home() / ".local-llm-bench" / "run-lock.json"
+
+FREE = "free"
+HELD = "held"
+OURS = "ours"
+STALE = "stale"
+FOREIGN = "foreign"
+CORRUPT = "corrupt"
 
 
-def _is_invocation(command: str, script: str) -> bool:
-    """True when `command` RUNS `script`, not merely mentions it.
+def read_lock(path: pathlib.Path | None = None) -> dict | None:
+    """The lock as written, None when absent, {"corrupt": True} when unreadable.
 
-    `pgrep -f` matches the whole command line, so any process that names a
-    driver matches -- including a waiter shell built from the driver's own
-    name:
-
-        /bin/zsh -c ... until ! pgrep -f 'metal_knob_ab.sh'; do sleep 30; done
-
-    Seven of those, up to six and a half hours old, were live on 2026-09-08.
-    Each was itself stuck in the self-match trap AGENTS.md warns about, and
-    together they made the guard refuse every commit while no benchmark was
-    running at all. A guard that cannot be satisfied gets overridden, and then
-    it is not a guard.
-
-    A real invocation puts the script in argv[0] (`./metal_knob_ab.sh`) or
-    argv[1] (`bash scripts/metal_knob_ab.sh`). A mention is buried deeper, in
-    a quoted string. Position is what separates them.
+    Mirrors `preflight.read_lock`. An unparseable file is not evidence that
+    nobody is running -- it is evidence that something went wrong while
+    claiming the machine, which is exactly when a commit must not land.
     """
-    tokens = command.split()
-    return any(token.split("/")[-1] == script for token in tokens[:2])
-
-
-def _command_lines(pids: list[str]) -> list[str]:
-    """Full argv for each pid, via ps. [] on any error.
-
-    Not from pgrep's own listing: the two platforms disagree about how to ask
-    for it. `-a` is GNU-only and BSD prints bare pids; `-l` on GNU prints the
-    process NAME from /proc, truncated to 15 characters, so
-    `stack_agent_ab.sh` arrives as `stack_agent_ab.` and matches nothing. CI
-    went red on exactly that. `ps -o command=` means the same thing on both.
-    """
-    if not pids:
-        return []
-    proc = subprocess.run(
-        # -ww: unlimited width. GNU ps truncates to the terminal width by
-        # default, and a driver launched by absolute path is long enough to
-        # lose its own arguments.
-        ["ps", "-ww", "-o", "command=", "-p", ",".join(pids)],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if proc.returncode != 0:
-        return []
-    return [line.strip() for line in proc.stdout.splitlines() if line.strip()]
-
-
-def _live_run() -> str | None:
-    """The driver that is running, or None.
-
-    Returns None on any error and when pgrep finds no match, so an ambiguous
-    check fails open rather than blocking a commit on doubt.
-    """
-    pgrep = shutil.which("pgrep")
-    if pgrep is None:
-        logger.warning("pgrep not found; cannot check for a live A/B; commit allowed")
+    try:
+        text = (path or LOCK_PATH).read_text()
+    except FileNotFoundError:
         return None
-    for pattern in _PATTERNS:
-        script = pattern.replace("[", "").replace("]", "")
-        proc = subprocess.run(
-            [pgrep, "-f", pattern], capture_output=True, text=True, check=False
+    except OSError:
+        return {"corrupt": True}
+    try:
+        got = json.loads(text)
+    except ValueError:
+        return {"corrupt": True}
+    return got if isinstance(got, dict) else {"corrupt": True}
+
+
+def pid_alive(pid: int) -> bool:
+    """Whether `pid` exists. EPERM counts as alive: it is someone else's."""
+    try:
+        os.kill(pid, 0)
+    except OSError as exc:
+        return exc.errno == errno.EPERM
+    return True
+
+
+def lock_state(lock: dict | None, hostname: str) -> tuple[str, str]:
+    """Classify the lock: (state, one-line explanation).
+
+    The same states `preflight.lock_state` returns, minus `ours` -- this hook
+    runs as a child of `git commit` and never holds the lock itself.
+    """
+    if lock is None:
+        return FREE, "no lock held"
+    if lock.get("corrupt"):
+        return CORRUPT, f"{LOCK_PATH} is unreadable"
+    host = lock.get("hostname")
+    if host != hostname:
+        return FOREIGN, (
+            f"the lock belongs to {host!r}, not this machine ({hostname!r})"
         )
-        # rc 0 means at least one match. Anything else -- no match (1) or an
-        # error (2+) -- means there is no live run we can prove.
-        if proc.returncode != 0:
-            continue
-        for command in _command_lines(proc.stdout.split()):
-            if _is_invocation(command, script):
-                logger.debug("live run matched: %s", command[:200])
-                return script
-    return None
+    holder = lock.get("pid")
+    if not isinstance(holder, int):
+        return CORRUPT, "the lock records no usable pid"
+    if pid_alive(holder):
+        what = lock.get("what") or "unspecified work"
+        return HELD, (
+            f"pid {holder} is running {what} since {lock.get('started', 'unknown')}"
+        )
+    return STALE, f"pid {holder} is gone; the lock is stale"
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     """Exit 1 to refuse a commit, 0 to allow it."""
+    logging.basicConfig(
+        level=logging.INFO,
+        stream=sys.stdout,
+        format="%(asctime)s %(name)s %(levelname)s %(message)s",
+    )
     if os.environ.get("LOCAL_LLM_ALLOW_COMMIT_DURING_RUN") == "1":
         logger.info("commit allowed: LOCAL_LLM_ALLOW_COMMIT_DURING_RUN=1")
         return 0
-    driver = _live_run()
-    if driver is None:
-        return 0
-    logger.error(
-        "%s is running; committing would move HARNESS_HEAD and kill every "
-        "remaining sweep, or split harness_dirty across the arms of a "
-        "comparison. Wait for the run to finish, or set "
-        "LOCAL_LLM_ALLOW_COMMIT_DURING_RUN=1 to commit anyway.",
-        driver,
-    )
-    return 1
+
+    state, why = lock_state(read_lock(), platform.node())
+
+    if state == HELD:
+        logger.error(
+            "a benchmark holds the run lock -- %s. Committing would move "
+            "HARNESS_HEAD and kill every remaining sweep, or split "
+            "harness_dirty across the arms of a comparison. Wait for the run "
+            "to finish, or set LOCAL_LLM_ALLOW_COMMIT_DURING_RUN=1 to commit "
+            "anyway.",
+            why,
+        )
+        return 1
+
+    if state == CORRUPT:
+        # Deliberately a refusal, and deliberately the one case that can block
+        # a commit with no run in progress. `preflight` already treats a
+        # corrupt lock as a busy machine, and the two disagreeing would be
+        # worse than either. Unlike the old wrong match, this one says what to
+        # do about it.
+        logger.error(
+            "the run lock is unreadable (%s), so this cannot tell whether a "
+            "benchmark is running. Inspect %s and delete it if no run is live, "
+            "or set LOCAL_LLM_ALLOW_COMMIT_DURING_RUN=1.",
+            why,
+            LOCK_PATH,
+        )
+        return 1
+
+    # free, stale and foreign all allow the commit. A stale lock names a dead
+    # pid and a foreign one names another machine; neither is a run this commit
+    # can damage, and refusing on them is how a guard becomes noise.
+    #
+    # `foreign` diverges from `preflight`, which refuses it. That is deliberate
+    # and rests on a fact that could change: there is one machine and one peer
+    # here, so a lock from another hostname is a leftover, not a live claim. If
+    # this tree is ever shared with a second machine -- a network home, a
+    # synced checkout -- a foreign lock becomes a run in progress somewhere
+    # else, and allowing the commit would damage it. Revisit this line then;
+    # the choice is made, not missed.
+    logger.debug("commit allowed: %s (%s)", state, why)
+    return 0
 
 
 if __name__ == "__main__":
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(levelname)s %(message)s",
-        stream=sys.stdout,  # house rule: one stream, and the handler goes to stdout
-    )
     raise SystemExit(main())

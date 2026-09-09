@@ -51,7 +51,7 @@ documentation.
 | `prompt_meta.py` | Which prompt a decode/prefill A/B was measured on (#140). |
 | `prune_models.py` | Delete local model weights that are superseded and re-downloadable (#111). |
 | `qwen38_metal_suites.py` | Run ds4#990's model-free Qwen3.8-Flash-Next Metal suites and report (#170). |
-| `refuse_commit_during_benchmark.py` | Refuse a commit while a lock-holding benchmark driver is live (#227). |
+| `refuse_commit_during_benchmark.py` | Refuse a commit while a benchmark holds the run lock (#227, #237). |
 | `release_notes.py` | Print the changelog section for a release, or refuse. |
 | `relevance_score.py` | Score how relevant an outside claim is to THIS project, procedurally (#230). |
 | `report.py` | Summarize and compare measured cells, with the resolution rule applied. |
