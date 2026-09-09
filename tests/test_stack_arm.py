@@ -7,6 +7,7 @@ all run before anything starts.
 
 from __future__ import annotations
 
+import os
 import pathlib
 import sys
 
@@ -34,6 +35,24 @@ def ds4_arm(name: str = "new", **kw) -> Arm:
         "kv": pathlib.Path(f"/kv/{name}"),
     }
     return Arm(**{**base, **kw})
+
+
+def on_path(tmp_path: pathlib.Path, name: str, monkeypatch) -> str:
+    """Put an executable called `name` on PATH and return the name.
+
+    The binary check reads the HOST, so a test that wants it to pass has to
+    supply the host. Two tests here instead relied on a real `mlx-serve`
+    being installed -- true on the machine that wrote them, false on the CI
+    runner, which is how 69226a9 went green locally and red in CI. A test
+    that asserts a property of the developer's laptop is not a test of the
+    code.
+    """
+    binary = tmp_path / "bin" / name
+    binary.parent.mkdir(exist_ok=True)
+    binary.write_text("#!/bin/sh\nexit 0\n")
+    binary.chmod(0o755)
+    monkeypatch.setenv("PATH", str(binary.parent), prepend=os.pathsep)
+    return name
 
 
 def mlx_arm(name: str = "new", **kw) -> Arm:
@@ -165,11 +184,12 @@ def test_a_half_pulled_mlx_pack_is_refused(tmp_path) -> None:
         stack_arm.check_assets(mlx_arm(mlx_model=pack))
 
 
-def test_a_complete_mlx_pack_passes(tmp_path) -> None:
+def test_a_complete_mlx_pack_passes(tmp_path, monkeypatch) -> None:
     pack = tmp_path / "pack"
     pack.mkdir()
     (pack / "config.json").write_text("{}")
-    stack_arm.check_assets(mlx_arm(mlx_model=pack))
+    binary = on_path(tmp_path, "mlx-serve", monkeypatch)
+    stack_arm.check_assets(mlx_arm(mlx_model=pack, mlx_bin=binary))
 
 
 def test_an_mlx_arm_with_no_pack_is_refused() -> None:
@@ -353,7 +373,7 @@ def test_a_missing_mlx_binary_is_refused(tmp_path) -> None:
         )
 
 
-def test_the_binary_check_is_per_arm(tmp_path) -> None:
+def test_the_binary_check_is_per_arm(tmp_path, monkeypatch) -> None:
     """One arm's good binary must not vouch for the other's.
 
     #225's whole point is two binaries; a check that passed as long as SOME
@@ -362,8 +382,10 @@ def test_the_binary_check_is_per_arm(tmp_path) -> None:
     pack = tmp_path / "pack"
     pack.mkdir()
     (pack / "config.json").write_text("{}")
-    # The real one on this machine resolves; the invented one must not.
-    stack_arm.check_assets(mlx_arm("new", mlx_model=pack, mlx_bin="mlx-serve"))
+    # One arm's binary is installed here, the other's is not -- stated by this
+    # test rather than inherited from whatever the host happens to have.
+    good = on_path(tmp_path, "mlx-serve", monkeypatch)
+    stack_arm.check_assets(mlx_arm("new", mlx_model=pack, mlx_bin=good))
     with pytest.raises(stack_arm.MissingAsset):
         stack_arm.check_assets(mlx_arm("old", mlx_model=pack, mlx_bin="mlx-serve-old"))
 
