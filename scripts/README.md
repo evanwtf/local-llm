@@ -19,6 +19,7 @@ documentation.
 | `backfill_iso8601.py` | Convert existing timestamps to ISO 8601 with an explicit offset. |
 | `backfill_prompt_meta.py` | Write an inferred prompt sidecar for runs measured before #140. |
 | `bitexact_ab.py` | Bit-exact A/B for two ds4 engine trees: the output-equality check #143 lacked. |
+| `calibrate_settle.py` | What slope does an already-settled die actually show? #276 |
 | `check_metal_equivalence.py` | Run ds4's Metal tensor-route equivalence test and cache the verdict (#149). |
 | `check_release_version.py` | Refuse a release whose tag disagrees with the declared version. |
 | `client_version_split.py` | Which client version took which rows, and what that confounds (#137, #131). |

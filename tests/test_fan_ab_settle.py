@@ -87,22 +87,21 @@ def test_a_decay_settles_once_the_curve_flattens(
     got = fan_ab.cool_to_plateau("t", min_s=60, timeout_s=600)
     assert got["outcome"] == "plateau"
     assert 60 < got["waited_s"] < 600
-    assert got["last_delta_c"] is not None
-    assert got["last_delta_c"] <= 0.3
+    assert got["last_slope_c_per_min"] is not None
+    assert abs(got["last_slope_c_per_min"]) < 0.3
 
 
 def test_jitter_at_the_measured_amplitude_does_not_defeat_the_gate(
     monkeypatch: pytest.MonkeyPatch, clock: FakeClock
 ) -> None:
-    """The case that killed the 1 C margin.
+    """Noise with no trend must not keep the wait open.
 
-    Idle readings swing a median of 1.77 C peak-to-peak inside 60 s. A gate on
-    consecutive samples never fires against that; a gate on 30 s medians must.
-    A deterministic sawtooth of +/-1.0 C stands in for the noise.
+    A deterministic sawtooth of +/-1.0 C has a slope of zero, so a slope test
+    settles through it. A gate comparing consecutive samples never would.
     """
     temps(monkeypatch, clock, lambda t: 36.5 + (1.0 if int(t // 5) % 2 else -1.0))
     got = fan_ab.cool_to_plateau("t", min_s=60, timeout_s=420)
-    assert got["outcome"] == "plateau", "medians should see through +/-1 C jitter"
+    assert got["outcome"] == "plateau", "a slope should see through +/-1 C jitter"
 
 
 def test_an_unreadable_sensor_falls_back_instead_of_spinning(
@@ -130,3 +129,34 @@ def test_the_record_always_says_which_way_it_ended(
     assert got["outcome"] in {"plateau", "timeout", "no_sensor"}
     for key in ("waited_s", "started_iso", "ended_iso", "start_die_c", "settle"):
         assert key in got
+
+
+def test_a_slow_steady_fall_is_not_settled(
+    monkeypatch: pytest.MonkeyPatch, clock: FakeClock
+) -> None:
+    """The defect that replaced the whole test, found by the ambient watcher.
+
+    A difference of consecutive means asks whether the change is SMALL; the
+    question is whether the change is OVER. The old gate compared two 30 s
+    medians against 0.3 C, which a die cooling at any rate below 36 C/hour
+    satisfies forever.
+
+    20 C/hour is such a rate: 0.167 C/min, well under the old bar, and over a
+    three-minute phase it is a full degree of drift. A slope test must refuse
+    it -- and 0.333 C/min is above the 0.3 C/min bound by design, so this is
+    the near case rather than an easy one.
+    """
+    temps(monkeypatch, clock, lambda t: 50.0 - (20.0 / 3600.0) * t)
+    got = fan_ab.cool_to_plateau("t", min_s=60, timeout_s=300)
+    assert got["outcome"] == "timeout", "a steady 20 C/hour fall is not settled"
+
+
+def test_the_old_difference_of_means_would_have_passed_that_fall() -> None:
+    """Pins WHY the test changed, so nobody reverts it as over-engineering.
+
+    Two 30 s medians of a 20 C/hour ramp differ by 0.167 C, comfortably inside
+    the 0.3 C bar the gate used to apply. The number is the argument.
+    """
+    rate_c_per_hour = 20.0
+    per_30s = rate_c_per_hour / 120.0
+    assert per_30s < 0.3, "which is exactly why a difference of means failed"

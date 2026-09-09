@@ -261,6 +261,27 @@ def report(outdir: pathlib.Path, column: str) -> int:
             cooled.get(index, "unrecorded"),
             f"{die[index]:.2f}C" if index in die else "unrecorded",
         )
+    if len(die) >= 2:
+        values = [die[i] for i in sorted(die)]
+        spread = max(values) - min(values)
+        # The gate's own audit. It exists to make phases start from equivalent
+        # thermal states; this is whether it did. A wide spread means the
+        # comparison rests on phases that were not alike at t=0, whatever
+        # every cooldown reported about itself.
+        logger.info(
+            "  start_die spread across %d phases: %.2fC (min %.2f, max %.2f)",
+            len(values),
+            spread,
+            min(values),
+            max(values),
+        )
+        if spread > 3.0:
+            logger.warning(
+                "start_die spread %.2fC is wide -- the phases did not begin "
+                "from equivalent thermal states, so a difference between "
+                "conditions may be a difference between starting points",
+                spread,
+            )
     if any(v == "timeout" for v in cooled.values()):
         logger.warning(
             "at least one phase began after a cooldown TIMEOUT -- it started on "

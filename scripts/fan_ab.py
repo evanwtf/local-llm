@@ -24,10 +24,24 @@ peak-to-peak, 8.27 C at p90**. So "within 1 C of idle" would fire on which
 sample you happened to read. Worse, "idle" is not a constant to aim at: it
 moves 14 C across the day with ambient and background load.
 
-A plateau test needs no knowledge of the floor. It compares two consecutive
-30 s medians -- long enough to crush the 1.77 C jitter -- and calls the
-machine settled when they differ by less than 0.3 C. That survives the office
-minisplit stepping the room mid-wait, which an absolute target does not.
+The test is a **slope**, not a difference of consecutive means. That
+distinction cost a revision: two consecutive 30 s medians differing by less
+than 0.3 C tests whether the change is *small*, and the question is whether
+the change is *over*. A die cooling at a constant `r` C/hour moves `r/120` C
+between consecutive 30 s windows, so the first version of this gate passed
+every cooling rate below **36 C/hour**. The office ambient watcher hit the
+identical failure the same evening -- its own difference-of-means bar was
+satisfied while the room fell monotonically at 1.0 C/hour.
+
+The bound is measured, not guessed. Over the three genuinely-idle stretches
+in a day of monitord samples (GPU 0 and CPU < 0.10 continuously for >= 300 s,
+835 samples past the dwell), the trailing 120 s slope of a settled die has a
+median of 0.120 C/min and a p90 of 0.277 C/min -- that is sensor noise fitted
+by least squares. `SETTLE_MAX_SLOPE` sits at that p90: below it the wait would
+rarely end at true idle, above it the wait ends on noise.
+
+A slope needs no knowledge of the floor, so it survives the office minisplit
+stepping the room mid-wait, which an absolute target does not.
 
 It can fail, so it says which way it ended. `outcome` is `plateau`,
 `timeout` (the ceiling elapsed and the die was still moving), or `no_sensor`
@@ -65,7 +79,6 @@ import logging
 import os
 import pathlib
 import signal
-import statistics
 import subprocess
 import sys
 import time
@@ -78,6 +91,7 @@ sys.path.insert(0, str(REPO / "benchmarks" / "agent"))
 
 import child
 import decode_ab
+import thermal_settle
 
 import logs
 
@@ -88,14 +102,14 @@ FANCONTROL = "/usr/local/bin/fancontrol"
 #: Phase order. Interleaved so ambient drift cannot align with condition.
 PHASES = ("auto", "max", "auto", "max", "auto", "max")
 
-#: Cooldown gate. Two consecutive medians over SETTLE_WINDOW_S seconds that
-#: differ by <= SETTLE_DELTA_C mean the die has stopped falling. The window is
-#: sized against measured idle jitter (median 1.77 C peak-to-peak over 60 s),
-#: which an instantaneous sample cannot see past.
+#: Cooldown gate. The die has stopped falling when the least-squares slope
+#: over the trailing SETTLE_WINDOW_S seconds is flatter than SETTLE_MAX_SLOPE.
+#: See the module docstring for why this is a slope and not a difference of
+#: means, and `scripts/calibrate_settle.py` for where the bound comes from.
 SETTLE_SAMPLE_S = 5
-SETTLE_WINDOW_S = 30
-SETTLE_DELTA_C = 0.3
-SETTLE_MIN_S = 60
+SETTLE_WINDOW_S = 180
+SETTLE_MAX_SLOPE = 0.3  # C/minute; the p90 of a settled die's own noise
+SETTLE_MIN_S = 90
 SETTLE_TIMEOUT_S = 420
 
 #: Used only when the sensor is unreadable and the plateau test cannot run.
@@ -194,22 +208,19 @@ def now() -> str:
     return dt.datetime.now().astimezone().strftime("%Y-%m-%dT%H:%M:%S%z")
 
 
-def _median(values: list[float]) -> float:
-    return statistics.median(values)
-
-
 def cool_to_plateau(
     label: str,
     min_s: int = SETTLE_MIN_S,
     timeout_s: int = SETTLE_TIMEOUT_S,
-    delta_c: float = SETTLE_DELTA_C,
+    max_slope: float = SETTLE_MAX_SLOPE,
 ) -> dict[str, object]:
     """Wait until the die temperature stops falling. Returns what happened.
 
-    Two consecutive medians over `SETTLE_WINDOW_S` seconds; settled when they
-    differ by no more than `delta_c`. A median, not a sample: idle readings
-    move a median of 1.77 C peak-to-peak inside a single 60 s window, so an
-    instantaneous comparison tests sampling luck rather than thermal state.
+    Least-squares slope over the trailing `SETTLE_WINDOW_S` seconds; settled
+    when it is flatter than `max_slope` C/minute. A slope, because a slope is
+    zero only when the quantity has stopped moving -- a difference of means is
+    satisfied indefinitely by any slow steady fall, which is how the first
+    version of this gate came to pass every cooling rate under 36 C/hour.
 
     Never raises, and always returns a record. The outcome matters as much as
     the wait -- a phase that began after a `timeout` started from a machine
@@ -220,17 +231,17 @@ def cool_to_plateau(
     first = die_c()  # read once: two calls can straddle a sensor update
     logger.info(
         "%s: waiting for the die to stop falling (floor %ds, ceiling %ds, "
-        "settled at <=%.2fC between consecutive %ds medians); die now %s",
+        "settled at |slope| < %.2f C/min over %ds); die now %s",
         label,
         min_s,
         timeout_s,
-        delta_c,
+        max_slope,
         SETTLE_WINDOW_S,
         f"{first:.2f}C" if first is not None else "?",
     )
     samples: list[tuple[float, float]] = []  # (elapsed seconds, die C)
     outcome = "timeout"
-    last_delta: float | None = None
+    last_slope: float | None = None
 
     while True:
         elapsed = time.monotonic() - began
@@ -245,18 +256,18 @@ def cool_to_plateau(
             outcome = "no_sensor"
             break
 
-        if elapsed >= min_s and len(samples) >= 6:
-            recent = [c for t, c in samples if t > elapsed - SETTLE_WINDOW_S]
-            prior = [
-                c
-                for t, c in samples
-                if elapsed - 2 * SETTLE_WINDOW_S < t <= elapsed - SETTLE_WINDOW_S
-            ]
-            if len(recent) >= 3 and len(prior) >= 3:
-                last_delta = abs(_median(recent) - _median(prior))
-                if last_delta <= delta_c:
-                    outcome = "plateau"
-                    break
+        if elapsed >= min_s:
+            done, slope = thermal_settle.settled(
+                samples,
+                elapsed,
+                width_s=SETTLE_WINDOW_S,
+                max_slope_c_per_min=max_slope,
+            )
+            if slope is not None:
+                last_slope = slope
+            if done:
+                outcome = "plateau"
+                break
         time.sleep(SETTLE_SAMPLE_S)
 
     waited = int(time.monotonic() - began)
@@ -278,25 +289,29 @@ def cool_to_plateau(
         "ended_iso": now(),
         "start_die_c": first,
         "end_die_c": last,
-        "last_delta_c": round(last_delta, 3) if last_delta is not None else None,
+        "last_slope_c_per_min": (
+            round(last_slope, 4) if last_slope is not None else None
+        ),
         "samples": len(samples),
         "settle": {
+            "kind": "slope",
             "window_s": SETTLE_WINDOW_S,
             "sample_s": SETTLE_SAMPLE_S,
-            "delta_c": delta_c,
+            "max_slope_c_per_min": max_slope,
             "min_s": min_s,
             "timeout_s": timeout_s,
         },
     }
     level = logger.warning if outcome == "timeout" else logger.info
     level(
-        "%s: %s after %ds -- die %s -> %s, last 30s-median delta %s",
+        "%s: %s after %ds -- die %s -> %s, last slope %s (bound %.2f C/min)",
         label,
         outcome,
         waited,
         f"{first:.2f}C" if first is not None else "?",
         f"{last:.2f}C" if last is not None else "?",
-        f"{last_delta:.2f}C" if last_delta is not None else "n/a",
+        f"{last_slope:+.3f} C/min" if last_slope is not None else "n/a",
+        max_slope,
     )
     return record
 
@@ -395,10 +410,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="ceiling on each cooldown; exceeding it is recorded, not fatal",
     )
     p.add_argument(
-        "--settle-delta",
+        "--settle-slope",
         type=float,
-        default=SETTLE_DELTA_C,
-        help="C between consecutive 30s medians that counts as settled",
+        default=SETTLE_MAX_SLOPE,
+        help="C/minute below which the die counts as settled",
     )
     p.add_argument("--prompt", type=pathlib.Path, default=None)
     args = p.parse_args(argv)
@@ -456,10 +471,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         "phases_planned": list(PHASES),
         "reps_per_phase": args.reps,
         "cooldown": {
-            "kind": "plateau",
+            "kind": "slope",
             "min_s": args.settle_min,
             "timeout_s": args.settle_timeout,
-            "delta_c": args.settle_delta,
+            "max_slope_c_per_min": args.settle_slope,
             "window_s": SETTLE_WINDOW_S,
             "sample_s": SETTLE_SAMPLE_S,
         },
@@ -478,7 +493,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     f"cooldown before phase {i} ({condition})",
                     min_s=args.settle_min,
                     timeout_s=args.settle_timeout,
-                    delta_c=args.settle_delta,
+                    max_slope=args.settle_slope,
                 )
                 rc, record = one_phase(i, condition, tree, gguf, prompt, args.reps, out)
                 record["cooldown"] = cooled
