@@ -837,7 +837,7 @@ def test_every_measuring_entry_point_takes_the_lock():
         "restart_between_trials.sh",
         "restart_between_trials_armB.sh",
     ):
-        text = (REPO_ROOT / "scripts" / name).read_text()
+        text = (REPO_ROOT / "vault" / name).read_text()
         assert "--acquire-lock" in text, name
         assert "--release-lock" in text, name
         assert "trap " in text, f"{name} must release on exit"
@@ -848,7 +848,7 @@ def test_the_restart_scripts_hold_the_lock_across_the_whole_cycle():
     where ds4-server is deliberately down. Letting each inner run.py take and
     drop its own lock would leave exactly that gap unclaimed."""
     for name in ("restart_between_trials.sh", "restart_between_trials_armB.sh"):
-        text = (REPO_ROOT / "scripts" / name).read_text()
+        text = (REPO_ROOT / "vault" / name).read_text()
         assert "--no-lock" in text, f"{name}: inner run.py must not re-take it"
         assert text.index("--acquire-lock") < text.index("run_trial 1"), (
             f"{name}: the lock must be held before the first cycle"
@@ -858,7 +858,7 @@ def test_the_restart_scripts_hold_the_lock_across_the_whole_cycle():
 def test_the_repeat_harness_captures_state_and_refuses_to_clobber():
     """#136: runs accumulate, so a completed run must never be overwritten,
     and each start state must be captured rather than hoped for."""
-    text = (REPO_ROOT / "scripts" / "decode_ab_repeat.sh").read_text()
+    text = (REPO_ROOT / "vault" / "decode_ab_repeat.sh").read_text()
     assert "already holds CSVs, skipping" in text
     assert "thermals.py" in text
     assert "fancontrol status" in text
@@ -869,7 +869,7 @@ def test_a_run_is_complete_only_when_every_csv_is_full():
     """A file being written already has a name and a header, so counting
     files reports a run finished while ds4-bench is still filling its last
     one -- and any statistic taken then includes a partial arm."""
-    text = (REPO_ROOT / "scripts" / "decode_ab_repeat.sh").read_text()
+    text = (REPO_ROOT / "vault" / "decode_ab_repeat.sh").read_text()
     assert "complete_runs()" in text
     # the skip guard must use it, not a bare ls
     assert 'complete_runs "$OUT"' in text
@@ -880,7 +880,7 @@ def test_a_run_is_complete_only_when_every_csv_is_full():
 def test_the_status_script_delegates_and_never_prints_a_silent_blank():
     """Three copies of "complete" drifted apart in one afternoon (a03ca8d),
     and a blank field reads the same as "nothing to report"."""
-    text = (REPO_ROOT / "scripts" / "ab_status.sh").read_text()
+    text = (REPO_ROOT / "vault" / "ab_status.sh").read_text()
     assert "from post_ab_run import is_complete" in text
     assert "REPORT FAILED" in text
     assert "no complete run yet" in text
@@ -893,7 +893,7 @@ def test_the_restart_cycles_audit_their_own_kv_prefix():
     only possible while the server logs still exist. Running it inside the
     cycle beats hoping someone runs it later on a log since cleaned up."""
     for name in ("restart_between_trials.sh", "restart_between_trials_armB.sh"):
-        text = (REPO_ROOT / "scripts" / name).read_text()
+        text = (REPO_ROOT / "vault" / name).read_text()
         assert "kv_prefix_audit.py" in text, name
         assert "kv-prefix-audit.txt" in text, name
         # must not abort a completed cycle on an audit failure

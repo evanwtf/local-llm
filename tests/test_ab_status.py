@@ -1,6 +1,6 @@
 """One status line, and the two fields that used to print the wrong thing.
 
-`scripts/ab_status.py` is the port of `scripts/ab_status.sh` (#235). The shell
+`scripts/ab_status.py` is the port of `vault/ab_status.sh` (#235). The shell
 set the rule in its own header -- *"a field that cannot be computed says so
 rather than printing empty"* -- and then broke it in two fields, in opposite
 directions. Both were confirmed by RUNNING the shell, not by reading it:
@@ -383,7 +383,7 @@ def test_the_shell_and_the_port_print_the_same_status_line(
         "EQUIV_ARM": "shell",
     }
     got = subprocess.run(
-        ["bash", str(ROOT / "scripts" / "ab_status.sh"), str(prefix)],
+        ["bash", str(ROOT / "vault" / "ab_status.sh"), str(prefix)],
         cwd=tmp_path,
         env=env,
         capture_output=True,

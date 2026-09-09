@@ -1,4 +1,4 @@
-"""The #210 treatment-gate driver: `scripts/mtp_treatment_gate.sh`.
+"""The #210 treatment-gate driver: `vault/mtp_treatment_gate.sh`.
 
 #210 is open because 119 MTP rows were taken with no evidence the draft head
 ever engaged. Closing it needs two things at once -- rows that carry the
@@ -25,7 +25,7 @@ import re
 import subprocess
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-SCRIPT = ROOT / "scripts" / "mtp_treatment_gate.sh"
+SCRIPT = ROOT / "vault" / "mtp_treatment_gate.sh"
 
 
 def body() -> str:

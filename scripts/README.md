@@ -28,7 +28,7 @@ documentation.
 | `decode_ab.py` | Paired decode-rate A/B for two GGUFs of the same model (#48). #235 stage 4. |
 | `decode_ab_engine.py` | Paired decode-rate A/B for two ENGINE BUILDS of the same GGUF. #118 |
 | `decode_ab_repeat.py` | Run the same decode A/B N times, into numbered directories (#136). |
-| `decode_ab_report.py` | Summarize a paired decode A/B produced by scripts/decode_ab.sh (#48). |
+| `decode_ab_report.py` | Summarize a paired decode A/B produced by scripts/decode_ab.py (#48). |
 | `decode_ab_stack.py` | Paired decode-rate A/B for two whole STACKS -- engine tree and weights together. #138 |
 | `disk_baseline.py` | Measure the internal NVMe: read bandwidth and random-read latency. |
 | `disk_kv_mechanism.py` | Is the disk-KV budget what makes arm A decline by trial 3? #112 |
@@ -37,6 +37,7 @@ documentation.
 | `eval_trace.py` | Read a `ds4-eval` trace: pass rate, and tokens spent reaching each answer. |
 | `evidence.py` | Re-run a finding's claims and say whether they still hold. #160 |
 | `exclude_rows.py` | Mark rows from an aborted or void run as excluded, so they cannot publish. |
+| `fan_ab.py` | Fans auto vs fans max, interleaved, on one build. #276 (parent #116) |
 | `gen_equiv_fixtures.py` | Generate the argv/env equivalence fixtures for the #235 port. #235, #264, #149 |
 | `gguf_meta.py` | Print a GGUF file's metadata without loading the model. |
 | `greedy_mtp_ab.py` | The first ds4 MTP arm that can actually draft, against its own control. |
@@ -90,24 +91,8 @@ documentation.
 | `unitctl.py` | start / stop / status for the processes this repo runs. #234 |
 | `upstream_sweep.py` | Sweep the repositories this project depends on, in one command. |
 | `verify_posts.py` | Verify X posts against the source, for the claims that earned an issue. |
-| `ab_status.sh` | One status line for a set of decode-A/B run directories. |
-| `coherence_check.sh` | Greedy coherence check before trusting any new GGUF (#25, #48). |
-| `decode_ab.sh` | Paired decode-rate A/B for two GGUFs of the same model (#48). |
-| `decode_ab_engine.sh` | Paired decode-rate A/B for two ENGINE BUILDS of the same GGUF (#118). |
-| `decode_ab_repeat.sh` | Run the same decode A/B N times, into numbered directories (#136). |
-| `decode_ab_stack.sh` | Paired decode A/B for two whole STACKS -- engine tree + weights together. |
-| `disk_kv_mechanism_test.sh` | 112 disk-KV mechanism test (2026-09-03). |
 | `ds4-fast.sh` | Metal 4 TensorOps: ~21% faster, not bit-exact. See scripts/ds4_serve.py. |
 | `ds4-vanilla.sh` | Reference kernels: bit-exact, slower. See scripts/ds4_serve.py. |
-| `greedy_mtp_ab.sh` | The first ds4 MTP arm that can actually draft, against its own control (#151, #39). |
 | `install-metal-ceiling.sh` | Persist the Metal wired limit across reboots. |
 | `local-agent.sh` | Start a recommended local stack and drop into a coding agent. |
-| `metal_knob_ab.sh` | Paired decode-rate A/B for a Metal knob env var within one tree (#162 Task 4). |
-| `mtp_treatment_gate.sh` | Prove the MTP refusal fires, then take rows that carry the treatment (#210). |
-| `restart_between_trials.sh` | Restart-between-trials experiment for #112. |
-| `restart_between_trials_armB.sh` | 77 arm B re-run under restart-between-trials (2026-09-03). |
-| `route_agent_ab.sh` | Interleaved agent-suite A/B for the Metal 4 TensorOps route (#149). |
-| `stack_agent_ab.sh` | Interleaved agent-suite A/B for two whole STACKS -- engine + weights (#138). |
-| `strip_toggle_ab.sh` | 112 remedy 2: does echoing the shim's own scaffolding back to the model |
-| `targets_ab.sh` | 146: does the sandbox target layout change the pass rate? |
 

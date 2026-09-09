@@ -325,8 +325,13 @@ def write_uv_fake(
         import json, os, pathlib, sys
         out = os.environ["EQUIV_OUT"]
         args = sys.argv[1:]
-        if len(args) >= 3 and args[0] == "run" and args[1] == "python":
-            script, script_args = args[2], args[3:]
+        # Find "python" rather than assuming args[1]: `uv run --frozen python`
+        # puts a flag in between, and a positional test buckets the whole
+        # command line under program "uv", where it compares equal to every
+        # other mis-parsed call instead of to its own pair.
+        if args[:1] == ["run"] and "python" in args[:-1]:
+            i = args.index("python")
+            script, script_args = args[i + 1], args[i + 2:]
         else:
             script, script_args = "uv", args
         line = {{
@@ -383,10 +388,17 @@ def write_uv_fake_running_real(
     - `shim`: when True, `ds4_qwen_tool_shim.py` prints its startup line and
       writes `SHIM_DUMP` if set, so a driver that greps the shim's log reaches
       the measurement child. The shim is never run for real -- it would start a
-      server. The ON line is read from the real-run excerpt under
-      `tests/fixtures/logs/shim-strip-on.log`; the OFF line has no real example
-      in the repo, so the differential assumes the driver's own grep target
-      (see the README there).
+      server. Both mode lines are read from real-run excerpts under
+      `tests/fixtures/logs/shim-strip-{on,off}.log`.
+
+      The OFF fixture was composed by hand until 2026-09-09 and read
+      `scaffolding strip: OFF`. The shim has never printed that: it prints
+      `scaffolding strip: OFF (experiment arm) (#112 remedy 2)`. The invented
+      line passed because `strip_toggle_ab.sh:156` greps with
+      `grep -q "$want"` -- a SUBSTRING match -- so the fixture and the driver
+      agreed with each other and neither agreed with the shim. That is the
+      same failure `benchmarks/agent/test_ds4_route.py` records in its header,
+      and it is why the fixtures exist at all.
     - `EQUIV_SHIM_HOLD_S` (read from the environment, default 0): seconds the
       fake shim stays alive after printing its mode line. It is an env var
       rather than a parameter because the two sides of one differential need
@@ -416,18 +428,18 @@ def write_uv_fake_running_real(
     repo_literal = repr(str(repo))
     shim_literal = repr(bool(shim))
     shim_on_log = repr(str(repo / "tests" / "fixtures" / "logs" / "shim-strip-on.log"))
+    shim_off_log = repr(
+        str(repo / "tests" / "fixtures" / "logs" / "shim-strip-off.log")
+    )
     body = textwrap.dedent(
         f"""\
         #!/usr/bin/env python3
         import json, os, pathlib, sys
         out = os.environ["EQUIV_OUT"]
         args = sys.argv[1:]
-        if len(args) >= 2 and args[0] == "run":
-            try:
-                i = args.index("python")
-                script, script_args = args[i + 1], args[i + 2:]
-            except ValueError:
-                script, script_args = "uv", args
+        if args[:1] == ["run"] and "python" in args[:-1]:
+            i = args.index("python")
+            script, script_args = args[i + 1], args[i + 2:]
         else:
             script, script_args = "uv", args
         name = pathlib.Path(script).name
@@ -462,16 +474,15 @@ def write_uv_fake_running_real(
             # gets nothing and the port gets an answer. Exec it for real.
             os.execv(sys.executable, [sys.executable, "-c", *script_args])
         if name == "ds4_qwen_tool_shim.py" and {shim_literal}:
-            if os.environ.get("SHIM_NO_STRIP") == "1":
-                # No real example of the OFF line exists in the repo; the
-                # differential assumes the driver's own grep target. See the
-                # README under tests/fixtures/logs/.
-                print("scaffolding strip: OFF")
-            else:
-                for raw in open({shim_on_log}):
-                    if "scaffolding strip: ON" in raw:
-                        sys.stdout.write(raw)
-                        break
+            log = (
+                {shim_off_log}
+                if os.environ.get("SHIM_NO_STRIP") == "1"
+                else {shim_on_log}
+            )
+            for raw in open(log):
+                if "scaffolding strip:" in raw:
+                    sys.stdout.write(raw)
+                    break
             dump = os.environ.get("SHIM_DUMP")
             if dump:
                 with open(dump, "w") as h:

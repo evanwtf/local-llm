@@ -18,7 +18,7 @@ import re
 import subprocess
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-SCRIPT = ROOT / "scripts" / "greedy_mtp_ab.sh"
+SCRIPT = ROOT / "vault" / "greedy_mtp_ab.sh"
 
 
 def body() -> str:

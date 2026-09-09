@@ -22,8 +22,8 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import restart_between_trials as rbt
 from source_text import code_of
 
-SHELL_A = ROOT / "scripts" / "restart_between_trials.sh"
-SHELL_B = ROOT / "scripts" / "restart_between_trials_armB.sh"
+SHELL_A = ROOT / "vault" / "restart_between_trials.sh"
+SHELL_B = ROOT / "vault" / "restart_between_trials_armB.sh"
 
 
 # --- the drift that having two copies caused ---------------------------------
@@ -270,7 +270,7 @@ def test_each_arms_run_dir_is_the_one_its_shell_wrote() -> None:
         ("A", "restart_between_trials.sh"),
         ("B", "restart_between_trials_armB.sh"),
     ):
-        text = (root / "scripts" / script).read_text()
+        text = (root / "vault" / script).read_text()
         # `mkdir -p "$BENCH_LOGS/112-run$n"` -> 112-run
         found = re.findall(r"\$BENCH_LOGS/([\w.-]+?)\$n", text)
         assert found, f"{script} does not name a run dir"

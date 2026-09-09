@@ -67,10 +67,10 @@ def test_every_mapping_names_a_python_file_that_exists() -> None:
 def test_a_mapping_to_a_missing_file_reads_as_unreplaced(monkeypatch) -> None:
     """Asserted, not assumed: the survey must not trust its own table."""
     monkeypatch.setitem(
-        shell_debt.REPLACED, "scripts/stack_agent_ab.sh", "scripts/gone.py"
+        shell_debt.REPLACED, "vault/stack_agent_ab.sh", "scripts/gone.py"
     )
     got = shell_debt.survey()
-    row = next(f for f in got["files"] if f["path"] == "scripts/stack_agent_ab.sh")
+    row = next(f for f in got["files"] if f["path"] == "vault/stack_agent_ab.sh")
     assert row["replaced_by"] == "scripts/gone.py"
     assert row["replacement_exists"] is False
     assert got["by_name_if_replaced_deleted"] >= row["by_name"]
@@ -193,7 +193,7 @@ def test_transcript_move_is_sourced_only_by_the_script_it_dies_with() -> None:
     ever sources it, deleting stack_agent_ab.sh stops being enough.
     """
     got = sourcers("scripts/lib/transcript_move.sh")
-    assert got == ["scripts/stack_agent_ab.sh"], got
+    assert got == ["vault/stack_agent_ab.sh"], got
 
 
 def test_every_unreplaced_file_is_classified() -> None:
@@ -252,11 +252,11 @@ def test_evidence_only_names_shells_that_have_a_replacement() -> None:
 #: decision somebody makes rather than a row that appears.
 OVERLAP = {
     # The shell is dead by #264 and cannot produce an agreeing run at all.
-    "scripts/route_agent_ab.sh": "cannot produce one",
+    "vault/route_agent_ab.sh": "cannot produce one",
     # 541 lines whose top level takes the lock, arms two traps, syncs
     # worktrees and starts a shim. The differential compares the two command
     # lines and says so; the rest is covered by other files.
-    "scripts/stack_agent_ab.sh": "not compared",
+    "vault/stack_agent_ab.sh": "not compared",
 }
 
 
@@ -302,7 +302,7 @@ def test_a_library_is_not_cleared_while_a_sourcer_still_waits() -> None:
     waiting = {f["path"]: f for f in got["waiting"]}
     cleared = {f["path"] for f in got["cleared"]}
 
-    for lib in ("scripts/lib/ds4_server.sh", "scripts/lib/mlx_serve.sh"):
+    for lib in ("vault/lib/ds4_server.sh", "vault/lib/mlx_serve.sh"):
         owners = set(shell_debt.DIES_WITH[lib])
         if owners & set(waiting):
             assert lib in waiting, f"{lib} cleared while {owners & set(waiting)} wait"

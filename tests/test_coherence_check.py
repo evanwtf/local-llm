@@ -1,6 +1,6 @@
 """The check that has to run before a GGUF is trusted (#25, #48, #235).
 
-`scripts/coherence_check.py` is the port of `scripts/coherence_check.sh`. It
+`scripts/coherence_check.py` is the port of `vault/coherence_check.sh`. It
 starts a model, so nothing here starts one: every test drives the argv builder
 and the refusals, and `child.run` is replaced by a recorder.
 """
@@ -280,7 +280,7 @@ def test_the_shell_and_the_port_hand_ds4_the_same_command(tmp_path, gguf) -> Non
         "EQUIV_PROGRAM": "ds4",
         "EQUIV_ARM": "shell",
     }
-    sh = ROOT / "scripts" / "coherence_check.sh"
+    sh = ROOT / "vault" / "coherence_check.sh"
     subprocess.run(
         ["bash", str(sh), str(gguf)],
         cwd=tmp_path,
@@ -305,7 +305,7 @@ def test_the_shell_and_the_port_hand_ds4_the_same_command(tmp_path, gguf) -> Non
     # the program's own name), so this difference is asserted from the two
     # sources rather than the recording: it does not change a number, and the
     # flags are what the recording proves equal.
-    sh_source = (ROOT / "scripts" / "coherence_check.sh").read_text()
+    sh_source = (ROOT / "vault" / "coherence_check.sh").read_text()
     assert "./ds4" in sh_source
     assert py_argv[0] == str(ds4_tree / "ds4")
 

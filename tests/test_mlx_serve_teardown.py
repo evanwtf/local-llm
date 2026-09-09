@@ -1,4 +1,4 @@
-"""The mlx-serve teardown helper: `scripts/lib/mlx_serve.sh` (#235).
+"""The mlx-serve teardown helper: `vault/lib/mlx_serve.sh` (#235).
 
 The twin of `test_ds4_server_teardown.py`, and it exists because the defect
 that file records has an identical copy here. `mlx_serve_arm_stop_trap` chains
@@ -31,7 +31,7 @@ import textwrap
 import pytest
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
-HELPER = REPO / "scripts" / "lib" / "mlx_serve.sh"
+HELPER = REPO / "vault" / "lib" / "mlx_serve.sh"
 
 
 @pytest.fixture
@@ -176,4 +176,4 @@ def test_the_pattern_does_not_match_a_shell_that_merely_mentions_the_server():
 
 def test_the_shell_it_guards_is_still_here():
     """When `stack_agent_ab.sh` is ported and deleted, this file goes too."""
-    assert (REPO / "scripts" / "stack_agent_ab.sh").exists()
+    assert (REPO / "vault" / "stack_agent_ab.sh").exists()

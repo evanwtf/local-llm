@@ -1672,7 +1672,7 @@ have reported a 6% regression that does not exist.
 
 A model can load, serve, and report plausible token counts while emitting
 noise — that is #25, and it cost hours. Check with
-`scripts/coherence_check.sh` before any measurement batch, at temperature 0
+`scripts/coherence_check.py` before any measurement batch, at temperature 0
 where the output is deterministic enough to read.
 
 ## Nothing may feed `results.verdict()` except the oracle

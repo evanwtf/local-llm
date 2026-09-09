@@ -1,6 +1,6 @@
 """The #112 disk-KV mechanism test, shell against port (#235, #112).
 
-`scripts/disk_kv_mechanism_test.sh` -> `scripts/disk_kv_mechanism.py`. The
+`vault/disk_kv_mechanism_test.sh` -> `scripts/disk_kv_mechanism.py`. The
 differential runs both drivers against the same recording fakes and compares
 what each hands its children.
 
@@ -30,7 +30,7 @@ import sys
 import pytest
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-SCRIPT = ROOT / "scripts" / "disk_kv_mechanism_test.sh"
+SCRIPT = ROOT / "vault" / "disk_kv_mechanism_test.sh"
 
 for sub in ("scripts", "scripts/lib", "benchmarks/agent"):
     sys.path.insert(0, str(ROOT / sub))
