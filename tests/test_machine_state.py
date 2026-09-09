@@ -12,6 +12,7 @@ a free machine. Every test here is a way that record could lie.
 
 from __future__ import annotations
 
+import dataclasses
 import datetime as dt
 import json
 import os
@@ -383,7 +384,7 @@ def test_the_survey_carries_the_rendered_line(tmp_path, peer_file) -> None:
         unit_dir=tmp_path / "units",
         procs=[proc(4242, 74.2)],
     )
-    assert got["occupant_line"] == "ds4-server (up 10m) pid 4242, 74.2 GiB"
+    assert got["occupant_line"] == "ds4-server pid 4242, 74.2 GiB for 10m"
 
 
 # --- the whole survey, with nothing left to the host -------------------------
@@ -453,8 +454,16 @@ def test_every_timestamp_carries_an_offset(tmp_path, peer_file) -> None:
 # --- how long it has held (#265) ---------------------------------------------
 
 
-def _lock_claim_with(monkeypatch, tmp_path, *, began, what="greedy_mtp_ab.py (#151)"):
-    """A RUNNING lock claim whose holder started at `began`."""
+def _lock_claim_with(
+    monkeypatch, tmp_path, *, began, taken=None, what="greedy_mtp_ab.py (#151)"
+):
+    """A RUNNING lock claim: holder started at `began`, lock taken at `taken`.
+
+    The two are separate on purpose. `preflight.acquire_lock` opens the file
+    `O_CREAT | O_EXCL` and never rewrites it, so its mtime is the moment the
+    lock was taken -- which is what "held" means, and which an agent session
+    hours older than its own lock does not share.
+    """
     path = tmp_path / "run-lock.json"
     path.write_text(
         json.dumps(
@@ -469,6 +478,9 @@ def _lock_claim_with(monkeypatch, tmp_path, *, began, what="greedy_mtp_ab.py (#1
             }
         )
     )
+    if taken is not None:
+        stamp = taken.timestamp()
+        os.utime(path, (stamp, stamp))
     monkeypatch.setattr(
         preflight, "read_lock", lambda p=None: json.loads(path.read_text())
     )
@@ -490,30 +502,55 @@ def test_the_occupant_says_how_long_it_has_held(monkeypatch, tmp_path) -> None:
     from one that has hung for three hours. That is the question a person
     actually asks on seeing the machine busy.
     """
-    began = dt.datetime.now(dt.UTC) - dt.timedelta(hours=3, minutes=12)
-    claim = _lock_claim_with(monkeypatch, tmp_path, began=began)
+    ago = dt.datetime.now(dt.UTC) - dt.timedelta(hours=3, minutes=12)
+    claim = _lock_claim_with(monkeypatch, tmp_path, began=ago, taken=ago)
     assert claim.held_s is not None
     assert 3 * 3600 <= claim.held_s <= 3 * 3600 + 13 * 60
     assert "for 3h" in ms.describe(claim)
 
 
-def test_the_hold_time_comes_from_the_os_not_the_records_own_started(
+def test_the_hold_time_is_not_the_records_own_started_field(
     monkeypatch, tmp_path
 ) -> None:
-    """The duration is the process's, never the number the lock wrote down.
+    """Never the number the record wrote down -- the module's whole thesis.
 
-    This is the module's whole thesis applied to one more field -- "never the
-    number the record wrote down" is already why `resident_gib` is a live
-    census. A record states an intention at the moment it was written; a stale
-    or hand-edited `started` would report a three-hour hang as brand new, which
-    is the exact direction that lets a stuck run keep the machine.
+    It is why `resident_gib` is a live census. A record states an intention at
+    the moment it was written; a stale or hand-edited `started` would report a
+    three-hour hang as brand new, which is the direction that lets a stuck run
+    keep the machine.
 
-    The fixture's `started` says NOW while the process began three hours ago,
-    so a reader of the record produces ~0 and only a reader of the OS passes.
+    The fixture's `started` says NOW while the lock was taken three hours ago,
+    so a reader of that field produces ~0 and only a reader of the filesystem
+    passes. `acquire_lock` writes the file `O_CREAT | O_EXCL` and never
+    rewrites it, so the mtime is filesystem metadata, not a self-report.
     """
-    began = dt.datetime.now(dt.UTC) - dt.timedelta(hours=3)
-    claim = _lock_claim_with(monkeypatch, tmp_path, began=began)
+    ago = dt.datetime.now(dt.UTC) - dt.timedelta(hours=3)
+    claim = _lock_claim_with(monkeypatch, tmp_path, began=ago, taken=ago)
     assert claim.held_s is not None and claim.held_s > 2 * 3600
+
+
+def test_a_lock_holder_older_than_its_lock_reports_the_lock_not_its_lifetime(
+    monkeypatch, tmp_path
+) -> None:
+    """The over-report this field shipped with, and the reason it was wrong.
+
+    An agent session runs for hours and takes the lock for a two-minute sweep.
+    Its process lifetime says eight hours; it has held the machine for two
+    minutes. Reporting the lifetime tells a reader to go find a hung run.
+
+    It over-reported structurally, not occasionally: `check_pid` calls a lock
+    RUNNING only when the holder began at or before the record was written, so
+    a lifetime was always >= the record's own age, never less.
+    """
+    claim = _lock_claim_with(
+        monkeypatch,
+        tmp_path,
+        began=dt.datetime.now(dt.UTC) - dt.timedelta(hours=8),
+        taken=dt.datetime.now(dt.UTC) - dt.timedelta(minutes=2),
+    )
+    assert claim.held_s is not None
+    assert claim.held_s < 10 * 60, "held the lock 2 minutes, not 8 hours"
+    assert "for 8h" not in ms.describe(claim)
 
 
 def test_a_dead_holder_reports_no_hold_time(monkeypatch, tmp_path) -> None:
@@ -535,3 +572,67 @@ def test_a_dead_holder_reports_no_hold_time(monkeypatch, tmp_path) -> None:
     monkeypatch.setattr(preflight, "lock_state", lambda *a, **k: ("theirs", "held"))
     monkeypatch.setattr(ms, "started_at", lambda pid: began)
     assert ms.lock_claim(path).held_s is None
+
+
+def test_a_resident_server_occupant_says_how_long_it_has_held(
+    tmp_path, peer_file
+) -> None:
+    """The case #265 opens with, and the one the field originally missed.
+
+    `occupant()` prefers a resident server and falls back to the lock. The
+    hold time was set in `lock_claim` alone, so whenever a server WAS resident
+    -- an agent A/B, which is what #265 was written during -- the occupant
+    line carried no duration at all. The fallback was the only path that
+    worked, and it is the path taken least.
+    """
+    write_peer(peer_file, [])
+    got = ms.survey(
+        lock_path=tmp_path / "no-lock.json",
+        peer_path=peer_file,
+        unit_dir=tmp_path / "units",
+        procs=[dataclasses.replace(proc(4242, 74.2), age_s=2 * 3600 + 30 * 60)],
+    )
+    on = got["occupant"]
+    assert on is not None, "a 74.2 GiB server is the occupant"
+    assert on["held_s"] is not None, "and it must say how long it has held"
+    assert 2 * 3600 <= on["held_s"] <= 3 * 3600
+    assert "for 2h" in str(got["occupant_line"])
+
+
+def test_a_servers_hold_time_is_its_lifetime_because_that_is_the_occupation(
+    tmp_path, peer_file
+) -> None:
+    """Servers and locks read different clocks, and the difference is real.
+
+    A server occupies the machine for exactly as long as it exists, so the OS
+    answers it. A lock's holder can outlive nothing and predate everything --
+    see the lock tests above. One field, two sources, because "how long has
+    this held the machine" has two different answers.
+    """
+    write_peer(peer_file, [])
+    got = ms.survey(
+        lock_path=tmp_path / "no-lock.json",
+        peer_path=peer_file,
+        unit_dir=tmp_path / "units",
+        procs=[dataclasses.replace(proc(4242, 74.2), age_s=4 * 60)],
+    )
+    held = got["occupant"]["held_s"]
+    assert held is not None and held < 10 * 60
+
+
+def test_an_unreadable_start_time_leaves_the_hold_unstated(tmp_path, peer_file) -> None:
+    """No number beats a wrong one. A missing start time says nothing.
+
+    The census can carry no age -- `ps` prints an `etime` that does not parse,
+    or a row assembled without one. Rendering "for 0s" there would report a
+    server that has just appeared, which is the opposite of what happened.
+    """
+    write_peer(peer_file, [])
+    got = ms.survey(
+        lock_path=tmp_path / "no-lock.json",
+        peer_path=peer_file,
+        unit_dir=tmp_path / "units",
+        procs=[dataclasses.replace(proc(4242, 74.2), age_s=None)],
+    )
+    assert got["occupant"]["held_s"] is None
+    assert " for " not in str(got["occupant_line"])
