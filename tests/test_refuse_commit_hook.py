@@ -61,19 +61,19 @@ def _any_real_ab() -> bool:
 
 def test_refuses_when_a_live_run_is_detected(monkeypatch) -> None:
     monkeypatch.delenv("LOCAL_LLM_ALLOW_COMMIT_DURING_RUN", raising=False)
-    monkeypatch.setattr(refuse, "_live_run", lambda: True)
+    monkeypatch.setattr(refuse, "_live_run", lambda: "stack_agent_ab.sh")
     assert refuse.main() == 1
 
 
 def test_allows_when_no_run_is_detected(monkeypatch) -> None:
     monkeypatch.delenv("LOCAL_LLM_ALLOW_COMMIT_DURING_RUN", raising=False)
-    monkeypatch.setattr(refuse, "_live_run", lambda: False)
+    monkeypatch.setattr(refuse, "_live_run", lambda: None)
     assert refuse.main() == 0
 
 
 def test_override_allows_commit_even_during_a_live_run(monkeypatch) -> None:
     monkeypatch.setenv("LOCAL_LLM_ALLOW_COMMIT_DURING_RUN", "1")
-    monkeypatch.setattr(refuse, "_live_run", lambda: True)
+    monkeypatch.setattr(refuse, "_live_run", lambda: "stack_agent_ab.sh")
     assert refuse.main() == 0
 
 
@@ -83,7 +83,7 @@ def test_override_allows_commit_even_during_a_live_run(monkeypatch) -> None:
 def test_live_run_sees_a_real_ab_process() -> None:
     proc = _spawn_ab()
     try:
-        assert refuse._live_run() is True
+        assert refuse._live_run() is not None
     finally:
         proc.terminate()
         proc.wait(timeout=5)
@@ -92,7 +92,7 @@ def test_live_run_sees_a_real_ab_process() -> None:
 def test_no_live_run_counts_as_clear() -> None:
     if _any_real_ab():
         pytest.skip("a stack_agent A/B is genuinely live; cannot test the clear case")
-    assert refuse._live_run() is False
+    assert refuse._live_run() is None
 
 
 def test_hook_process_refuses_against_a_live_run() -> None:
@@ -106,7 +106,38 @@ def test_hook_process_refuses_against_a_live_run() -> None:
         proc.terminate()
         proc.wait(timeout=5)
     assert done.returncode == 1, done.stderr
-    assert "A/B is running" in done.stdout, done.stdout  # house rule: stdout
+    # The message names the driver rather than saying "an A/B": with twelve
+    # of them, which one is holding the machine is the thing the reader needs.
+    assert "stack_agent_ab.sh is running" in done.stdout, done.stdout  # stdout
+
+
+def test_a_process_that_merely_names_a_driver_is_not_a_live_run() -> None:
+    """2026-09-08: seven waiter shells, built as `until ! pgrep -f
+    'metal_knob_ab.sh'; do sleep 30; done`, were live for up to six and a half
+    hours. Each matched `pgrep -f` and none was a benchmark, so the guard
+    refused every commit while the machine was idle.
+
+    The bracket in the pattern stops the hook matching ITSELF. It does nothing
+    about a third process that quotes the same name -- and that is the case
+    that actually happened."""
+    waiter = (
+        "/bin/zsh -c source /Users/x/.claude/snapshot.sh && eval "
+        "'until ! pgrep -f '\"'\"'metal_knob_ab.sh'\"'\"' >/dev/null; "
+        "do sleep 30; done'"
+    )
+    assert not refuse._is_invocation(waiter, "metal_knob_ab.sh")
+
+
+def test_a_real_invocation_is_still_seen() -> None:
+    """The fix must not buy quiet by never matching. argv[0] and argv[1] are
+    where a script's own name appears when it is the thing being run."""
+    for command in (
+        "./scripts/metal_knob_ab.sh --reps 4",
+        "/Users/x/git/local-llm/scripts/metal_knob_ab.sh",
+        "bash scripts/metal_knob_ab.sh",
+        "/bin/bash /Users/x/git/local-llm/scripts/metal_knob_ab.sh --reps 4",
+    ):
+        assert refuse._is_invocation(command, "metal_knob_ab.sh"), command
 
 
 # --- the pattern and the config, pinned as artifacts ------------------------
@@ -116,8 +147,37 @@ def test_hook_process_refuses_against_a_live_run() -> None:
 # quotes the pattern is not the thing the regex sees.
 
 
-def test_the_pgrep_pattern_is_bracketed_so_it_does_not_match_itself() -> None:
-    assert refuse._PATTERN == "[s]tack_agent_ab.sh"
+def test_every_pgrep_pattern_is_bracketed_so_it_does_not_match_itself() -> None:
+    """`pgrep -f` matches whole command lines, so an unbracketed pattern
+    matches the shell that quoted it and the hook refuses every commit."""
+    for pattern in refuse._PATTERNS:
+        assert pattern[0] == "[" and pattern[2] == "]", pattern
+
+
+def test_every_driver_that_runs_inside_a_held_lock_is_covered() -> None:
+    """The membership rule, enforced rather than remembered.
+
+    A driver holds the lock if it passes `--acquire-lock` (it takes one) or
+    `--no-lock` (something above it holds one). Either way its run.py calls
+    belong to one experiment and the head must not move between them.
+
+    On 2026-09-08 this list had ONE of twelve entries, and three new drivers
+    had just landed uncovered. Nothing failed, because the only test asserted
+    the single pattern was spelled correctly.
+    """
+    import pathlib as _p
+
+    scripts = _p.Path(__file__).resolve().parents[1] / "scripts"
+    holders = {
+        path.name
+        for path in scripts.glob("*.sh")
+        if "--acquire-lock" in path.read_text() or "--no-lock" in path.read_text()
+    }
+    covered = {p.replace("[", "").replace("]", "") for p in refuse._PATTERNS}
+    assert holders <= covered, (
+        f"uncovered lock-holding drivers: {sorted(holders - covered)}. "
+        f"Add them to _PATTERNS in scripts/refuse_commit_during_benchmark.py."
+    )
 
 
 def test_the_config_declares_a_language_python_hook_first() -> None:

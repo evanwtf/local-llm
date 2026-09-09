@@ -84,7 +84,7 @@ start_server() {
         ./ds4-server --metal -m "$DS4_MODEL" --ple "$DS4_PLE" \
             --ctx 100000 --warm-weights \
             --kv-disk-dir "$kvdir" --kv-disk-space-mb 8192 \
-            "${mtp_args[@]}" \
+            ${mtp_args[@]+"${mtp_args[@]}"} \
             --host 127.0.0.1 --port 8000 > "$LOGDIR/ds4server-$tag.log" 2>&1 &)
     (cd "$REPO" && uv run python benchmarks/agent/wait_ready.py \
         --base-url http://127.0.0.1:8000 --model qwen3.8-flash-next-q4 | tail -1)
@@ -92,6 +92,10 @@ start_server() {
     local line
     line=$(grep -m1 'Qwen graph allocated' "$LOGDIR/ds4server-$tag.log" || true)
     echo "graph($tag): $line"
+    [ -n "$line" ] || {
+        echo "REFUSING: no 'Qwen graph allocated' line in $LOGDIR/ds4server-$tag.log;" \
+             "the server did not start, so nothing can be said about its MTP head" >&2
+        exit 1; }
     case "$want_mtp:$line" in
         yes:*MTP=off*) echo "REFUSING: MTP arm reports MTP=off" >&2; exit 1 ;;
         no:*MTP=off*) ;;

@@ -56,9 +56,10 @@ MAX_LINES = 90
 
 NOTICE = (
     "> ⚠️ **OpenCode results before 2026-08-31 21:47 EDT are INVALID** — the "
-    "client was never told which directory to work in. Do not quote, pool or "
-    "compare against them: "
-    "[docs/archive/results-opencode-pre-dir.md](docs/archive/results-opencode-pre-dir.md)."
+    "client was never told which directory to work in. **Other clients are "
+    "unaffected.** The ledger holds none of these rows now; do not quote them "
+    "from older documents either: "
+    "[what happened](docs/archive/results-opencode-pre-dir.md)."
 )
 
 

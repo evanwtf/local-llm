@@ -1,4 +1,4 @@
-"""Splice gen_tables.py output into RECOMMENDATIONS.md between its markers.
+"""Splice gen_tables.py output into docs/results.md between its markers.
 
     uv run python benchmarks/agent/splice_tables.py
 
@@ -14,7 +14,7 @@ import pathlib
 
 import gen_tables
 
-DOC = pathlib.Path(__file__).resolve().parents[2] / "RECOMMENDATIONS.md"
+DOC = pathlib.Path(__file__).resolve().parents[2] / "docs/results.md"
 BEGIN = "<!-- BEGIN GENERATED -->"
 END = "<!-- END GENERATED -->"
 

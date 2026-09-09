@@ -14,6 +14,7 @@ the ordering.
 from __future__ import annotations
 
 import pathlib
+import re
 import subprocess
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -108,3 +109,27 @@ def test_the_readout_warns_that_a_declaration_is_not_a_treatment():
     """`pinned_temperature` is what someone wrote in tasks.toml. The rows are
     what the engine did."""
     assert "not an MTP arm, whatever it declared" in body()
+
+
+def test_the_control_arms_empty_argv_survives_set_u():
+    """2026-09-08: the control arm never started. `set -u` on bash 3.2 calls an
+    empty array's expansion unbound, and only the control arm's is empty -- so
+    the treatment arm ran all 15 tasks and its pair never existed. The run cost
+    an hour and produced no comparison."""
+    text = body()
+    assert re.search(r"^set -[a-z]*u", text, re.MULTILINE), "nounset is on"
+    assert '${mtp_args[@]+"${mtp_args[@]}"}' in text, (
+        "an empty array must expand to nothing, not to an unbound-variable error"
+    )
+    assert '"${mtp_args[@]}" \\' not in text
+
+
+def test_a_missing_graph_line_is_not_reported_as_an_mtp_head():
+    """The same failure printed `REFUSING: control arm loaded an MTP head`,
+    which is the opposite of what happened: there was no server and no log. A
+    diagnostic that names the wrong cause is worse than none."""
+    text = body()
+    assert '[ -n "$line" ]' in text
+    absent = text.index('[ -n "$line" ]')
+    loaded = text.index("control arm loaded an MTP head")
+    assert absent < loaded, "check for an absent line before judging its content"

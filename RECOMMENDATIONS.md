@@ -1,25 +1,16 @@
 # What to actually run
 
-**A local coding agent on an Apple Silicon Mac, when you cannot or will not use
-a hosted provider.**
-
-This file tells a stranger what to install, in what order, and what to expect.
-Every number in it was measured on one machine — an **M5 Max with 128 GB of
-unified memory** — by the benchmark in `benchmarks/agent/`. Nothing here is
-copied from a model card or a blog post.
-
-Written 2026-09-01, after re-measuring everything (#67). If you read an earlier
-version of this file, discard it: four of the five stacks it ranked were ranked
-on numbers that measured a bug in our own test harness, not the software. The
-old file is at `docs/archive/RECOMMENDATIONS-2026-08-29.md` and the explanation
-is in [`docs/archive/results-opencode-pre-dir.md`](docs/archive/results-opencode-pre-dir.md).
+**A local coding agent on an Apple Silicon Mac, when you cannot or will not
+use a hosted provider.** Every number was measured by `benchmarks/agent/` on
+one machine — an **M5 Max, 128 GB** — and re-read from the ledger 2026-09-08.
+Nothing here is from a model card. Paste section 1, pick a row in 2, or run
+one script in 3; the rest moved to [`docs/`](#where-the-rest-of-it-went).
 
 ---
 
-## If you read nothing else
+## 1. Paste this
 
-**Start here.** It is the smallest download, the easiest install, and it leaves
-your Mac usable while it runs:
+Smallest download, easiest install, leaves your Mac usable while it runs.
 
 ```sh
 # 1. The agent (the thing you type at)
@@ -52,787 +43,74 @@ cd ~/some/project
 opencode run --dir "$PWD" "add a --verbose flag to the CLI and a test for it"
 ```
 
-That is a complete working local coding agent. **18/18 on our benchmark**, and
-it needs 31 GB, so you can keep using your machine for other things.
+A complete working local coding agent. **24/24 on our benchmark**, 31 GB.
 
-**The `--dir` flag is not optional.** `opencode run` talks to a background
-server that keeps its own working directory, so it ignores the directory you
-launched it from. Leave `--dir` out and it will happily solve your task and
-write the files somewhere else. This cost us two weeks and 130 wasted trials.
+**`--dir` is not optional.** `opencode run` talks to a background server with
+its own working directory, so it ignores where you launched it. Leave `--dir`
+out and it solves your task and writes the files somewhere else. That cost us
+two weeks and 130 wasted trials.
 
 ---
 
-## The three stacks worth running
+## 2. Or pick a row
 
-**These rows are not a ranking.** Each one is here for a different reason, and
-the reason is the first column. The quick-start above installs the first row.
+**Not a ranking.** Each row is here for the reason in its first column.
+Section 1 installs row 1.
 
 | pick this if | model | server | download | pass rate | median task |
 |---|---|---|---|---|---|
 | **you are starting out** | Qwen3.6-27B-coding `mxfp8` | Ollama | 31 GB | **24/24** | 167s |
-| **you want it fast** | Qwen3.8-Flash-Next `Q4_K imatrix` | ds4, ivanfioravanti's fork | 98 GiB | **135/135** | **98s** |
+| **you want it fast** | Qwen3.8-Flash-Next `Q4_K imatrix` | ds4, ivanfioravanti's fork | 98 GiB | **196/196** | **95s** |
+| **you want a mainline engine** | Qwen3.8-Flash-Next `UD-Q3_K_XL` | llama.cpp | 84 GiB | **75/75** | 106s |
 | **you want a second lineage** | DeepSeek-V4-Flash | ds4 (DwarfStar) | 91 GB | **30/30** | 115s |
 
-*Figures re-derived from the ledger 2026-09-07 and matching the generated
-table below. The "fast" row changed engine that day; the note beneath it says
-why, and the llama.cpp figures it used to carry are kept there so the two can
-still be compared.*
+**Row 2 is 16% faster than row 3 and costs you a fork** — wall ratio 0.84
+(95% CI 0.76–0.92), 90/90 both arms, 13 of 15 tasks favouring ds4. It loads
+only on ivanfioravanti's trees, and this file has already had one stack
+withdrawn by its author. Row 3 is slower and will still be there.
 
-> **Slot 2 changed on 2026-09-07, and llama.cpp is still the mainline
-> fallback.** A paired three-pair A/B put Qwen3.8-Flash-Next on ds4 **16%
-> faster** than the same model on llama.cpp at identical pass rates: wall
-> ratio **0.84 (95% CI 0.76-0.92)**, 90/90 passing on both arms, 13 of 15
-> tasks favouring ds4, and all three pairs agreeing in direction. The rule
-> that decided it was written down before the third pair ran
-> ([#212](https://github.com/evanwtf/local-llm/issues/212)).
->
-> **The cost is a fork.** This stack loads on ivanfioravanti's trees --
-> `ds4-ivan-qwen38fn`, and as of 2026-09-08 the newer `ds4-metal` head as well
-> ([#228](https://github.com/evanwtf/local-llm/issues/228)) -- but not on
-> mainline ds4, which has no PLE sidecar support at all, and
-> `antirez/ds4#991` is still open.
-> That is the durability risk [#141](https://github.com/evanwtf/local-llm/issues/141)
-> raises, and this file has already had one stack withdrawn by its author --
-> see "The ds4 shim rows were measured on a build its author has withdrawn"
-> below. **If you want a mainline engine, run Qwen3.8-Flash-Next
-> `UD-Q3_K_XL` on llama.cpp instead: 84 GiB, 75/75, 106s median.** It is 16%
-> slower and it will still be there.
->
-> It also costs **98 GiB against 84 GiB** (105 GB against 90 GB, decimal), of
-> which 32 GB is the PLE sidecar. An earlier note here said "~105 GB against
-> 84 GB", comparing decimal GB to GiB and overstating the gap by half.
+**Do not add ds4's MTP flags.** Until 2026-09-08 they never speculated at all:
+ds4 reaches its Qwen MTP path only at temperature 0 and no agent client sends
+one ([#151](https://github.com/evanwtf/local-llm/issues/151)).
 
-## Just run one: `scripts/local-agent.sh`
+---
 
-Each row above needs weights, an engine, sometimes a shim, and a client
-configured to talk to it. That is four things to get right before you have
-typed a prompt. The wrapper does all four:
+## 3. Or run one script
 
 ```sh
 scripts/local-agent.sh <stack> [opencode|claude]
+scripts/local-agent.sh starter                     # row 1, OpenCode
+scripts/local-agent.sh fast claude                 # row 2, Claude Code
+scripts/local-agent.sh mainline                    # stock llama.cpp, no fork
+scripts/local-agent.sh lineage                     # the ds4 fork our rows come from
+scripts/local-agent.sh fast --check                # report and stop, change nothing
 ```
 
-| stack | what it starts | download |
-|---|---|---|
-| `local-agent.sh starter` | Qwen3.6-27B-coding on Ollama — row 1 | 31 GB |
-| `local-agent.sh fast` | Qwen3.8-Flash-Next Q4_K imatrix on ds4 — row 2 | 105 GB |
-| `local-agent.sh lineage` | DeepSeek-V4-Flash on ds4 — row 3 | 91 GB |
-| `local-agent.sh mainline` | Qwen3.8-Flash-Next `UD-Q3_K_XL` on llama.cpp — the fallback | 84 GB |
+It fetches weights, builds the engine, starts the server and any shim, waits
+until the endpoint answers, then hands you the agent. It asks before every
+download (`LOCAL_AGENT_YES=1` skips that) and will not start a second engine
+on a busy port. Logs in `~/.local-llm-agent/`.
 
-It fetches the weights if they are missing, clones and builds the engine if it
-is missing, starts the server and whatever shim that stack needs, waits until
-the endpoint actually answers, and then hands you the agent. Default client is
-`opencode`; pass `claude` for Claude Code.
-
-```sh
-scripts/local-agent.sh starter                 # slot 1, OpenCode
-scripts/local-agent.sh fast claude             # slot 2, Claude Code
-scripts/local-agent.sh mainline --check        # report and stop, change nothing
-scripts/local-agent.sh fast opencode -- --continue   # args after -- go to the agent
-```
-
-**It asks before downloading.** No stack here is small, and `fast` is 105 GB.
-Every fetch prints the size and waits for a yes. Set `LOCAL_AGENT_YES=1` to
-skip the prompts when you already know what you are getting.
-
-**It will not start a second engine.** If something is already listening on
-the port, it says so and reuses it. Two of these models do not fit in memory
-at once, and a wrapper that quietly started a second one would produce a
-machine that swaps rather than an error you can read.
-
-Four details it handles that are easy to get wrong by hand:
-
-- **The PLE sidecar.** `fast` needs a second 30 GB file alongside the weights.
-  Miss it and ds4 fails in a way that does not mention the sidecar.
-- **The tool-format shim.** Both ds4 Qwen stacks run behind
-  `ds4_qwen_tool_shim.py`. That is not plumbing you can skip — its scaffolding
-  strip is worth **23 points of pass rate** ([#112](https://github.com/evanwtf/local-llm/issues/112)).
-- **The Anthropic wire.** Claude Code does not speak to Ollama or llama.cpp
-  directly. For `starter` and `mainline` the wrapper starts
-  `ollama_claude_shim.py` in front; for the ds4 stacks it points Claude Code at
-  the right port itself.
-- **The OpenCode provider block.** OpenCode resolves a model only if its
-  provider is declared in `~/.config/opencode/opencode.json`, which lives
-  outside this repo. An undeclared model makes `opencode run` exit in 0.6s and
-  look exactly like a model failure — that is [#69](https://github.com/evanwtf/local-llm/issues/69),
-  and it cost six trials before anyone checked. The wrapper declares it.
-
-Logs land in `~/.local-llm-agent/`. If a server does not come up, that is where
-it said why.
-
-All three drive **OpenCode**, and that is deliberate. The whole point of a local
-setup is that it keeps working when a vendor does not — so the agent has to be
-open too. A proprietary client on an open model fails with its vendor.
-
-**Why the slowest one is the one to install first.** It is 31 GB against 84 GB,
-it installs with two `brew`/`ollama` commands, and it leaves enough memory that
-you can keep working while it runs. The two faster stacks want most of a 128 GB
-machine. Median task time of 167s against 90s is a real difference, but it is
-the difference between a coffee and a shorter coffee — it is not what will
-decide whether you keep using this.
-
-**Why a second lineage is worth 91 GB.** The first two rows are both Qwen
-models. If your reason for running locally is that a model might one day be
-unavailable to you, then betting on one maintainer rebuilds the problem you
-were trying to escape. DeepSeek-V4-Flash is the only stack here with a
-genuinely independent lineage.
-
-**Why we do not rank on median alone.** See the spread column below. A median
-hides how bad the bad runs get.
-
-**Why the fastest measured backend is not on this list.** `ornith15` tops the
-table below — 21/21 under OpenCode, 44s median, faster than anything else we
-have run. (That ranking was written on 2026-09-01, when every OpenCode row was
-1.18.25; three backends have since been measured under a later client, so read
-it against the caveat under that table — [#137](https://github.com/evanwtf/local-llm/issues/137).) It is still not the one to install, for two reasons that the median
-hides. It is **the only backend in this project's whole record that has
-produced wrong code**: it failed twice on an excision task under an earlier
-client, and it emitted Swift that did not compile from a run that otherwise
-looked completely normal — clean exit, no error, 30 tool calls
-([#45](https://github.com/evanwtf/local-llm/issues/45)). Its tail is also the
-longest here, though smaller than this file used to claim: **93s worst against
-a 44s median under OpenCode (2.1x)**, and 999.6s against 96s pooled across
-every client (10.4x). The figure published until 2026-09-07 was "30x its
-median", which no cut of the data supports — it came from dividing the worst
-Codex run by the OpenCode median, the cross-client mix this file warns about
-two tables down ([#137](https://github.com/evanwtf/local-llm/issues/137)).
-Fastest-on-average and
-occasionally, quietly wrong is a bad trade when you are not watching. The
-numbers are published because they are real; the recommendation withholds it on
-purpose.
-
-**And the row that used to sit second is worse than the table once said.**
-`qwen38fnds4mtp7shim` is the `qwen38fnds4shim` stack with ds4's MTP flags
-added and nothing else changed: same weights, same engine, same shim, same
-fifteen tasks. It passes fewer of them. A controlled A/B on 2026-09-07 --
-four sweeps, arms alternated per pair, the server restarted between them, the
-harness head pinned -- put it at **21/30 against 28/30**
-([#39](https://github.com/evanwtf/local-llm/issues/39)).
-
-**Do not read that as the cost of speculative decoding, because no draft was
-ever completed.** The arm's own server loaded the MTP head, reported it
-`state=ready draft=7`, drafted on its start-up prompts at 47-61% acceptance,
-and then emitted **not one MTP timing line** across the thirty agent trials.
-Not zero acceptance, and not the `verifier=scheduler-bypass` a turned-away
-cycle prints: no line at all.
-
-**The reason is temperature, and it was found on 2026-09-08.** ds4 reaches
-the Qwen MTP path only when `temperature <= 0.0f`
-(`ds4.c:80120 at ds4-metal ba01f5d`). Above zero a Qwen session is neither GLM
-nor DSpark, so the speculative call does one plain eval and returns
-(`ds4.c:80216 at ds4-metal ba01f5d`). A request that omits the field gets
-`DS4_DEFAULT_TEMPERATURE`, which is `1.0f`
-(`ds4.h:56 at ds4-metal ba01f5d`, `ds4_server.c:12734 at ds4-metal ba01f5d`),
-and **OpenCode sends no temperature**. So the flag is passed, the sidecar
-loads, and the speculative code never runs.
-
-Three replay rounds against the captured OpenCode payload, eight arms each,
-agreed to the cycle: only the arm with `temperature: 0` forced ever
-speculated — 52 cycles each time — against zero for the payload verbatim,
-without tools, without the system prompt, with one tool, with `max_tokens`
-cut, and with `stream_options` removed
-([#151](https://github.com/evanwtf/local-llm/issues/151)).
-
-**Two earlier readings on this page were wrong and are withdrawn.** The
-`Qwen MTP history frontier short` aborts were described here as speculation
-entered and abandoned; the line is printed from `qwen4_graph_forward`
-(`ds4.c:56314 at ds4-metal ba01f5d`, `ds4.c:56588 at ds4-metal ba01f5d`) — the
-ordinary forward pass on an MTP-enabled graph — as well as from the
-speculative implementation (`ds4.c:79189 at ds4-metal ba01f5d`), so it is not
-evidence of either. And the tool-free/tool-bearing separation was attributed
-here to prompt **size**: an 11,000-token prompt speculates normally at
-temperature 0, so size is not the cause either. Both readings came from
-correct logs and an inference that did not follow.
-
-**And the pass gap does not resolve at this size.** Thirty rows against thirty
-are fifteen tasks run twice per arm, not sixty independent trials -- a task
-the arm cannot do at all contributes two failures, and a pooled count reads
-the second as fresh evidence. Paired by task the split is 6 down, 1 up, 8
-tied; a two-sided sign test gives **p=0.125**. The direction has been the same
-at every look, which is a reason to run it again and not a reason to publish a
-number.
-
-Until 2026-09-06 it ranked **second of fifteen at an 84s median**, above every
-stack that passed all of its trials, because the timing columns counted failed
-trials. A trial that dies early is quick, so a 45% failure rate pulled the
-median down and lifted the row up a list sorted by median — two effects
-compounding on the one column a reader scans for "which is quickest"
-([#142](https://github.com/evanwtf/local-llm/issues/142)). The timings now
-count only trials that passed, which puts this row **twelfth at 177s** and left
-every stack that passes everything on the number it already had. Read the
-`passed` column first, always.
-
-None of this says speculative decoding loses work. On this machine it has
-never been measured doing any: through a coding agent no draft has ever
-completed.
-What the MTP flags do change is still open -- they allocate a different graph
-and, as we have configured them, a different disk KV directory, and either
-could carry the pass difference
-([#142](https://github.com/evanwtf/local-llm/issues/142),
-[#39](https://github.com/evanwtf/local-llm/issues/39),
-[#190](https://github.com/evanwtf/local-llm/issues/190)). What it does say is
-**do not install this one**: it adds a head that never fires and a pass rate
-that has been worse every time it has been looked at.
+Four things it gets right that are easy to miss by hand: `fast`'s 30 GB PLE
+sidecar, the tool-format shim (worth **23 points of pass rate**,
+[#112](https://github.com/evanwtf/local-llm/issues/112)), the Anthropic wire
+for Claude Code, and OpenCode's provider block — an undeclared model exits in
+0.6s looking exactly like a model failure
+([#69](https://github.com/evanwtf/local-llm/issues/69)). `scripts/README.md`
+lists every other script.
 
 ---
 
-## What is being measured
+## Where the rest of it went
 
-Every number below comes from a real coding agent doing a real task, timed end
-to end. There are two kinds of task, and they measure different things.
-
-**Excision tasks.** The agent gets a checkout of a real Python repository
-([`gmail-archive`](https://github.com/evanwtf/gmail-archive), pinned at one
-commit) in which **one function body has been deleted** and replaced with
-`raise NotImplementedError`. The repository's own test suite is the only oracle.
-No test is shown to the agent as a target, and editing tests is forbidden and
-checked afterwards. This measures whether a stack can find its way around code
-it has never seen.
-
-| task | what the agent is asked to do |
+| | |
 |---|---|
-| [`mbox-strip-envelope`](benchmarks/agent/PROMPTS.md#mbox-strip-envelope) | implement `strip_envelope` in an mbox parser |
-| [`parser-mbox-quoting`](benchmarks/agent/PROMPTS.md#parser-mbox-quoting) | implement `unquote_mbox`, which must round-trip with `requote_mbox` |
-| [`storage-blob-put`](benchmarks/agent/PROMPTS.md#storage-blob-put) | implement `BlobStore.put` |
-| [`parser-date`](benchmarks/agent/PROMPTS.md#parser-date) | implement `_date`, an email date parser |
-| [`mbox-scan`](benchmarks/agent/PROMPTS.md#mbox-scan) | implement `scan`, which walks an mbox file |
-
-**Script tasks.** The agent starts in an **empty directory** and must produce a
-working command-line program — the right filename, reading `argv`, printing to
-stdout. Trivial logic, real boilerplate, and no repository to navigate.
-
-| task | what the agent is asked to do |
-|---|---|
-| [`script-reverse`](benchmarks/agent/PROMPTS.md#script-reverse) | write `reverse.py`: take a string, print it reversed |
-| [`script-transform`](benchmarks/agent/PROMPTS.md#script-transform) | write `transform.py`: `--input` plus `--reverse`, `--sort` and `--sha256`, applied in a fixed order whatever order the flags arrive in |
-
-**The exact prompt for every task is published** in
-[`benchmarks/agent/PROMPTS.md`](benchmarks/agent/PROMPTS.md), generated from the
-file the harness actually reads, with a test that fails if the two drift. If a
-number here looks surprising, read the prompt that produced it.
-
-**Why both kinds.** The script tasks have almost no variance (1.0–2.1x between
-the best and worst run of the same task) because there is no codebase to get
-lost in, which makes them the fair way to compare stacks. The excision tasks are
-noisier but closer to real work. A stack that does well on one and badly on the
-other is telling you something.
-
-## Measured results
-
-<!-- BEGIN GENERATED -->
-
-*Generated from `results.jsonl` — 2083 rows, sha256 53c1e737834b.*
-
-#### Every stack measured under OpenCode
-
-**The three timing columns count only trials that passed.** A trial that dies early is quick, so counting failures would reward a stack for failing fast and lift it up a table sorted by median. Read the `passed` column first.
-
-| stack | passed | median | worst | spread |
-|---|---|---|---|---|
-| ornith15 | 21/21 | 44s | 93s | 5.9x |
-| qwen38fnmlxserve | 119/121 | 52s | 1377s | 64.7x |
-| qwen38fnmlxserve-git | 74/75 | 52s | 402s | 18.5x |
-| qwen38fnds4kimat | 196/196 | 95s | 472s | 12.2x |
-| Qwen3.8-Flash-Next Q3 - llama.cpp | 75/75 | 106s | 356s | 8.3x |
-| DeepSeek-V4-Flash - ds4 (Anthropic wire) | 18/18 | 110s | 221s | 4.3x |
-| qwen38fnq3reap | 21/21 | 110s | 261s | 6.8x |
-| DeepSeek-V4-Flash - ds4 | 30/30 | 115s | 230s | 4.3x |
-| Qwen3.8-Flash-Next Q3 - LM Studio | 21/21 | 122s | 261s | 4.2x |
-| gemma426 | 11/11 | 150s | 160s | 1.7x |
-| qwen36 | 11/12 | 159s | 352s | 3.6x |
-| qwen38fnds4shim | 228/262 | 160s | 792s | 20.5x |
-| Qwen3.6-27B-coding - Ollama | 24/24 | 167s | 700s | 12.6x |
-| qwen38fnds4mtp7shim | 72/127 | 177s | 638s | 11.4x |
-| qwen | 12/12 | 247s | 406s | 4.0x |
-| GLM-5.3-Flash - ds4 | 22/24 | 369s | 1227s | 18.0x |
-| gemma4 | 12/12 | 383s | 1316s | 4.8x |
-
-**Rows here were not all taken under one client.** qwen38fnq3reap under 1.18.26; qwen38fnds4kimat, qwen38fnds4mtp7shim, qwen38fnds4shim under 1.18.27; qwen38fnds4kimat, qwen38fnds4mtp7shim, qwen38fnds4shim, qwen38fnmlxserve, qwen38fnmlxserve-git, Qwen3.8-Flash-Next Q3 - llama.cpp under 1.18.29; the rest under 1.18.25. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: qwen38fnds4kimat (1.18.27, 1.18.29); qwen38fnds4mtp7shim (1.18.27, 1.18.29); qwen38fnds4shim (1.18.27, 1.18.29); Qwen3.8-Flash-Next Q3 - llama.cpp (1.18.25, 1.18.29).
-
-Excision tasks only; `script-*` excluded because they are a different class. **Spread is worst / best on the same task**, and it is the column most people forget to ask for.
-
-#### Same weights, two engines
-
-| task | what it asks for | llama.cpp | LM Studio |
-|---|---|---|---|
-| [`mbox-scan`](benchmarks/agent/PROMPTS.md#mbox-scan) | implement `scan`, which walks an mbox file | 106s | 140s |
-| [`mbox-strip-envelope`](benchmarks/agent/PROMPTS.md#mbox-strip-envelope) | implement `strip_envelope` in an mbox parser | 53s | 94s |
-| [`parser-date`](benchmarks/agent/PROMPTS.md#parser-date) | implement `_date`, an email date parser | 188s | 238s |
-| [`parser-mbox-quoting`](benchmarks/agent/PROMPTS.md#parser-mbox-quoting) | implement `unquote_mbox`, round-tripping with `requote_mbox` | 86s | 93s |
-| [`script-reverse`](benchmarks/agent/PROMPTS.md#script-reverse) | write `reverse.py` from nothing: read argv, print reversed | 41s | 57s |
-| [`script-transform`](benchmarks/agent/PROMPTS.md#script-transform) | write `transform.py`: `--input` plus three composable flags | 49s | 70s |
-| [`storage-blob-put`](benchmarks/agent/PROMPTS.md#storage-blob-put) | implement `BlobStore.put` | 95s | 124s |
-
-#### How fast each stack actually serves tokens
-
-| stack | seconds per 1k output tokens |
-|---|---|
-| ornith15 | 21s |
-| gemma426 | 21s |
-| qwen | 31s |
-| qwen38fnds4kimat | 33s |
-| qwen38fnq3reap | 38s |
-| qwen38fnmlxserve-git | 39s |
-| qwen38fnmlxserve | 42s |
-| Qwen3.8-Flash-Next Q3 - llama.cpp | 42s |
-| qwen36 | 50s |
-| DeepSeek-V4-Flash - ds4 (Anthropic wire) | 54s |
-| GLM-5.3-Flash - ds4 | 55s |
-| Qwen3.6-27B-coding - Ollama | 69s |
-| DeepSeek-V4-Flash - ds4 | 71s |
-| qwen38fnds4shim | 78s |
-| gemma4 | 84s |
-| qwen38fnds4mtp7shim | 84s |
-| Qwen3.8-Flash-Next Q3 - LM Studio | 115s |
-
-**Rows here were not all taken under one client.** qwen38fnq3reap under 1.18.26; qwen38fnds4kimat, qwen38fnds4mtp7shim, qwen38fnds4shim under 1.18.27; qwen38fnds4kimat, qwen38fnds4mtp7shim, qwen38fnds4shim, qwen38fnmlxserve, qwen38fnmlxserve-git, Qwen3.8-Flash-Next Q3 - llama.cpp under 1.18.29; the rest under 1.18.25. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: qwen38fnds4kimat (1.18.27, 1.18.29); qwen38fnds4mtp7shim (1.18.27, 1.18.29); qwen38fnds4shim (1.18.27, 1.18.29); Qwen3.8-Flash-Next Q3 - llama.cpp (1.18.25, 1.18.29).
-
-<!-- END GENERATED -->
-
-**Three conditions apply to the `qwen38fnds4*` rows, and a reproduction that
-misses them will not get these numbers.** They are set out at the end of this
-file rather than here because they are long, but they are not footnotes — each
-one changes what you would have to build to see the same result:
-
-* [The shim's scaffolding strip is load-bearing](#the-shims-scaffolding-strip-is-load-bearing-not-tidying)
-  — worth **23 points of pass rate** where it has been measured. Proxy the shim
-  without it and trials end with no tool call and no code, which reads as the
-  model failing rather than the plumbing.
-* [Three rows cannot be reproduced from upstream sources](#three-rows-here-cannot-be-reproduced-from-upstream-sources)
-  — they need a PLE sidecar that exists only on ivanfioravanti's forks.
-  `antirez/ds4` main will not load these weights at all.
-* [The build behind `qwen38fnds4shim` has been withdrawn](#the-ds4-shim-rows-were-measured-on-a-build-its-author-has-withdrawn)
-  — the Q4_0 file it measured is no longer offered on Hugging Face.
-
-**Reading the spread column.** It is the worst run divided by the best run *on
-the same task*. Anything near 4x is ordinary — these models sample at
-temperature and sometimes write four times as much code to solve the same
-problem. The two at 12x and 18x are different in kind: on one task, GLM-5.3 took
-**99 seconds once and 1,227 seconds another time**. It got the right answer both
-times.
-
-**That variance is the agent, not the machine.** We checked. Across 113 trials,
-wall time correlates with output tokens at **0.97** and with turns taken at
-0.77, while seconds-per-turn — the part the hardware controls — varies only
-1.18x. A slow run is one where the agent wrote more and took more turns, not one
-where the computer was busy.
-
-**Which is why GLM-5.3-Flash is not in the top three.** It serves tokens faster
-than almost anything here (47s per 1k) and it passes 16/18. But you cannot plan
-around it: a task that usually takes 90 seconds will occasionally take twenty
-minutes.
-
----
-
-## Full instructions
-
-### Before anything: the memory ceiling
-
-**Skip this if you are only running stack 3.** For the 84 GB and 91 GB models,
-macOS will not let the GPU hold enough memory by default, and the failure looks
-like the model refusing to load for no clear reason.
-
-```sh
-sudo sysctl iogpu.wired_limit_mb=114688     # 112 GiB, on a 128 GB Mac
-sysctl -n iogpu.wired_limit_mb              # expect 114688
-```
-
-This is a **cap, not a reservation** — with it set and nothing loaded, the GPU
-holds about 5 GB. It does not survive a reboot on its own; this repo has
-`scripts/install-metal-ceiling.sh` to make it permanent via a LaunchDaemon.
-
-**A reading of `0` means "system default", not "no limit".** After a reboot, `0`
-means your setting did not apply.
-
-### Qwen3.8-Flash-Next on ds4 — the fast one
-
-**This is a fork, and that is the whole caveat.** The build lives on
-ivanfioravanti's `qwen3.8-flash-next` branch, not mainline ds4;
-`antirez/ds4#991` is still open. The fork's own `download_model.sh` carries the
-comment *"will move to the antirez org — flip this one line then"*, so the
-authors expect it to land. Until it does, this stack is one force-push from
-needing attention. If that is not a risk you want, run the llama.cpp stack
-below instead and give up 16%.
-
-```sh
-git clone https://github.com/ivanfioravanti/ds4.git ~/git/ds4-ivan-qwen38fn
-cd ~/git/ds4-ivan-qwen38fn
-git checkout qwen3.8-flash-next
-make
-```
-
-The 45 rows behind the table were measured at `ffd85d42`. The branch moves
-daily and is force-pushed, so record the commit you built — a bare file:line
-against this tree is unverifiable a week later.
-
-**The force-push risk is no longer hypothetical, and the outcome splits.**
-Measured 2026-09-08 ([#228](https://github.com/evanwtf/local-llm/issues/228)):
-`ivanfioravanti/ds4-metal` moved 149 commits ahead of the `ba01f5d` this
-project had been building, and `ba01f5d` is **not an ancestor** of the new
-head. Which of our two ds4 stacks survives that depends on one string in the
-GGUF, `general.architecture`:
-
-| stack | architecture | `ba01f5d` | `18ca8ec` (new head) |
-|---|---|---|---|
-| `Q4_K imatrix` — the row in the table above | `qwen4exp` | refused | **loads** |
-| `Q4_0` fast-pack — the withdrawn shim build | `qwen4-exp` | loads | **refused** |
-
-Each build refuses the other's file with the same error, `ds4: required
-metadata key is missing: deepseek4.block_count`, because the loader takes
-exactly one architecture string and validation falls through to DeepSeek when
-it does not match.
-
-**For the stack recommended here this is good news, and worth taking.** On the
-new head, three 4-rep runs put it **+6.2% decode and +7.7% prefill** over the
-`ffd85d42` these numbers were measured on, with 0 of 8 frontiers against it in
-any run, and output **bit-exact** — identical selected tokens and top-20
-logits over 128 steps at 2047 and 16380 prompt tokens. Nothing about quality
-moves; it is faster and the same model.
-
-**For the Q4_0 build it is the end of the line.** That file cannot follow the
-head without a re-quant or a re-declared architecture string. It was already
-withdrawn by its author (see below); this makes the withdrawal permanent
-rather than merely inconvenient.
-
-So the durability risk [#141](https://github.com/evanwtf/local-llm/issues/141)
-raises is real and has now fired once — but it fired in the direction of the
-stack this file recommends, not against it. **Record the commit you build, and
-re-check that your weight file's `general.architecture` matches the loader
-before assuming an upgrade is free.**
-
-Weights come from `ivanfioravanti/Qwen3.8-Flash-Next-DS4-Q4` on Hugging Face.
-Two files are needed and they total ~105 GB (98 GiB): the experts, and a
-**PLE sidecar** which is a further 32 GB and is easy to miss.
-
-```sh
-export KIM=~/models/qwen3.8-flash-next-ds4-q4k-imatrix
-# Qwen3.8-Flash-Next-Q4KImatrixExperts-MXFP4Down-BF16Emb-BF16Control-Q8GDN-Q8QSA-Q8Shared-Q8Out.gguf
-# Qwen3.8-Flash-Next-PLE-Q4_1.gguf
-```
-
-Serve it, then put the tool-format shim in front. **Both halves are required** —
-OpenCode talks to the shim, not to ds4:
-
-```sh
-cd ~/git/ds4-ivan-qwen38fn
-./ds4-server --metal \
-  -m "$KIM/Qwen3.8-Flash-Next-Q4KImatrixExperts-MXFP4Down-BF16Emb-BF16Control-Q8GDN-Q8QSA-Q8Shared-Q8Out.gguf" \
-  --ple "$KIM/Qwen3.8-Flash-Next-PLE-Q4_1.gguf" \
-  --ctx 100000 --warm-weights \
-  --kv-disk-dir ~/.ds4/server-kv --kv-disk-space-mb 8192 \
-  --host 127.0.0.1 --port 8000
-
-uv run python ds4_qwen_tool_shim.py --upstream http://127.0.0.1:8000 --port 8101
-```
-
-OpenCode then points at `ds4qwenshim/qwen3.8-flash-next-q4`. The server plans
-**79.7 GiB resident** at `ctx=100000` (68.3 GiB model + 8.4 GiB buffers +
-2.9 GiB KV), which fits the 112 GiB ceiling with room to spare.
-
-**Leave MTP off**, and know that with these flags alone it was never on.
-The sidecar loads and reports `state=ready draft=7`, but ds4 reaches the Qwen
-MTP path only at `temperature <= 0.0f` (`ds4.c:80120 at ds4-metal ba01f5d`)
-and OpenCode sends no temperature, so the default `1.0f`
-(`ds4.h:56 at ds4-metal ba01f5d`) applies and no draft is ever attempted
-([#151](https://github.com/evanwtf/local-llm/issues/151)). Adding the flags
-buys a heavier server — a second graph, 359.86 MiB of state capture and its
-own `--kv-disk-dir` — and no speculation.
-
-[#39](https://github.com/evanwtf/local-llm/issues/39) measured the arm losing
-pass rate and error recovery. **Do not read that as the cost of speculative
-decoding**; whatever it costs, no draft completed. Turning MTP into a real
-treatment means pinning `temperature: 0` on the client, which is its own
-change to the regime and has not been measured here.
-
-### Qwen3.8-Flash-Next on llama.cpp — the mainline fallback
-
-```sh
-brew install cmake
-
-git clone https://github.com/ggml-org/llama.cpp ~/git/llama.cpp
-cmake -B ~/git/llama.cpp/build -S ~/git/llama.cpp -DGGML_METAL=ON -DCMAKE_BUILD_TYPE=Release
-cmake --build ~/git/llama.cpp/build -j "$(sysctl -n hw.ncpu)"
-
-pip install -U "huggingface_hub[cli]"
-hf download unsloth/Qwen3.8-Flash-Next-GGUF \
-    --include "UD-Q3_K_XL/*" \
-    --local-dir ~/models/Qwen3.8-Flash-Next-GGUF        # 84 GB
-
-~/git/llama.cpp/build/bin/llama-server \
-    -m ~/models/Qwen3.8-Flash-Next-GGUF/UD-Q3_K_XL/Qwen3.8-Flash-Next-UD-Q3_K_XL-00001-of-00003.gguf \
-    -a qwen3.8-flash-next-q3 --host 127.0.0.1 --port 8020 \
-    -c 131072 -np 1 --temp 1.0 --top-p 0.95 --top-k 20 --min-p 0.0
-```
-
-Then add this provider to `~/.config/opencode/opencode.json` and set
-`"model": "llamacpp/qwen3.8-flash-next-q3"`:
-
-```json
-"llamacpp": {
-  "name": "llama.cpp (local)",
-  "npm": "@ai-sdk/openai-compatible",
-  "options": { "baseURL": "http://127.0.0.1:8020/v1", "apiKey": "local" },
-  "models": { "qwen3.8-flash-next-q3": { "tool_call": true } }
-}
-```
-
-**Three flags that are not decoration:**
-
-- **`-np 1`.** llama.cpp defaults to four slots, each holding a full-size KV
-  cache for concurrency a single agent never uses. One slot buys you double the
-  context for 1.7 GB.
-- **`-c 131072`.** At 65536 the agent thrashes its own context compaction and a
-  task that takes 110 seconds took 842.
-- **The sampler.** These are Qwen's published values. A different `top_p`
-  measurably changed our pass rate (0.95 gave 20/21; 0.90 gave 7/15).
-
-Pass the **first shard** of the three; llama.cpp finds the rest.
-
-### DeepSeek-V4-Flash on ds4 — the second lineage
-
-```sh
-git clone https://github.com/antirez/ds4 ~/git/ds4
-cd ~/git/ds4 && make -j "$(sysctl -n hw.ncpu)"
-./download_model.sh                    # ~91 GB, follow its prompts
-./ds4-server -m gguf/<the-file-it-downloaded>.gguf --ctx 100000 --port 8000
-```
-
-Provider block, with `"model": "ds4/deepseek-v4-flash"`:
-
-```json
-"ds4": {
-  "name": "ds4 (local)",
-  "npm": "@ai-sdk/openai-compatible",
-  "options": { "baseURL": "http://127.0.0.1:8000/v1", "apiKey": "local" },
-  "models": { "deepseek-v4-flash": { "tool_call": true } }
-}
-```
-
-**Run `ds4-server` from inside its own directory.** It looks for its Metal
-shaders relative to the working directory and fails to start if you do not.
-
-### Qwen3.6-27B-coding on Ollama — see the top of this file
-
----
-
-## What we are not recommending, and why
-
-**LM Studio.** It works — 18/18, same weights as stack 1 — and its GUI is the
-easiest way to get a model running. But it served the *identical* file at
-**134 seconds per 1,000 tokens against llama.cpp's 42**, and lost on five of six
-tasks. If you want a GUI, use it; if you want the machine's speed, do not.
-
-We also stopped *testing* it on 2026-09-01. Its runtime is llama.cpp
-underneath, so on the same GGUF it cannot win — it can only add a layer, and
-the measurement above is that layer. The numbers here stand; they are simply
-not going to be re-taken.
-
-**GLM-5.3-Flash.** 16/18 and genuinely fast per token, but an 18x spread on one
-task — its three runs took 99 s, 378 s and 1,227 s. Excellent model,
-unpredictable to plan around. Revisit it.
-
-**Anything ranked by tokens per second.** This project has now measured three
-times that decode rate does not predict how long a real task takes. The 3-bit
-quant of Qwen3.8-Flash-Next decodes *slower per token* than the 2-bit one and
-finishes the suite **28% faster**. Two engines served identical weights with
-identical correctness and wall clocks of 80.5 s against 151.7 s on one task.
-Tokens per second is the
-number everyone publishes and it inverted our ranking.
-
-**A second machine, a bigger quant, exotic offloading.** All measured, none
-paid. See `benchmarks/agent/RESULTS.md`.
-
----
-
-## If you run ds4 with its disk KV cache, two ceilings decide whether it does anything
-
-Measured 2026-09-07 on `qwen38fnds4kimat`, three runs per arm, every run
-identical to the digit ([#190](https://github.com/evanwtf/local-llm/issues/190),
-[#199](https://github.com/evanwtf/local-llm/issues/199)). Both are one flag
-wide, and at ds4's defaults a coding agent gets much less from the cache than
-the flags suggest.
-
-**A cold checkpoint stops existing above 30,000 tokens.** `cold_max_tokens`
-defaults to 30000. At 53,845 and 77,845 tokens a fresh session reuses **0.0%**
-— no store is written at all, so there is nothing to hit later. Raise the cap
-and the same prompts read **98.9%** and **97.3%**.
-
-**A continued checkpoint lands only on an exact multiple of 10,240 tokens.**
-`ds4_kvstore_continued_store_target` returns 0 unless `live_tokens % step == 0`
-(`ds4_kvstore.c:751 at ds4-ivan-qwen38fn ffd85d42`), and the step is
-`ceil(10000/2048) × 2048 = 10240`. Prefill advances in 8,192-token chunks, so
-from any resume point the next landing is **five chunks — 40,960 tokens —
-away**. At 29,845 tokens the default gives **34.3%** reuse; a 2,048 step gives
-**89.2%**, storing at exactly 26,624 = 10,240 + 2 × 8,192, which the arithmetic
-named before the run produced it.
-
-**Both bite a coding agent at once.** A new session over 30k gets nothing from
-disk, and a continuing one must grow by ~41k tokens **in a single turn** to
-leave a new checkpoint. Neither shows up as an error; the session is simply
-slower than the cache flags imply.
-
-Two other things that look like knobs here and are not. The disk budget is
-inert over the range we tested — 8 GiB and 32 GiB produced byte-identical
-results — and so is the context size, 32k against 128k. Do not spend time on
-either.
-
-One trap if you go looking in the logs. An **evicted** store is written and
-never hit: at 29,845 tokens the server writes a 29,877-token entry with
-`reason=evict` and then serves the very request that produced it from a
-10,240-token entry left by an earlier, much shorter run. So a `kv cache stored`
-line is not evidence of reuse, and the store a request reads is not necessarily
-the most recent one.
-
-## How much should you trust this?
-
-**The pass rates are strong; the speed rankings are weaker than they look.**
-
-- Three trials pins a task's median to about **±28%**, so two stacks need to
-  differ by roughly 56% before the difference is real. Qwen3.8-Flash-Next
-  (90s) and DeepSeek-V4-Flash (115s) are **not** reliably distinguishable.
-  Qwen3.6-27B-coding (167s) is.
-- A perfect run of 21/21 supports "above 85%" at 95% confidence, not "100%".
-  Nothing here has run the ~35 consecutive trials a >90% claim needs.
-- Every stack was measured on **one machine**, on **one repository**, on six
-  tasks. Your code is not our code.
-
-**What we are confident about**: all three stacks work, none of them is a trap,
-and **the client you drive them with matters more than the model you pick** —
-see below.
-
-## The client matters more than the model
-
-Three clients, same server, same model, same session, same task, interleaved so
-none of them got a warmer server. `script-transform` on Qwen3.8-Flash-Next Q3:
-
-| client | median | slowest run | prompt sent | turns |
-|---|---|---|---|---|
-| **Aider** | **11.1s** | 11.9s | **737 tokens** | 1 |
-| **OpenCode** | 39.5s | 55.3s | 11,721 tokens | 5 |
-| **Claude Code** | 189.6s | 339.4s | **85,413 tokens** | 3 |
-
-Aider used **6%** of Claude Code's time. All nine runs produced correct output.
-
-**The cause is how much prompt the client sends.** This task starts in an empty
-directory and writes one file — there is no repository to read. Claude Code
-still sends 85,000 tokens of its own scaffolding, and the server prefills that
-on every turn. Output volume does not explain the gap: Claude Code wrote 1,524
-tokens against Aider's 395, under four times as many, for seventeen times the
-clock.
-
-This is why the gap grows with model size. Prefill cost scales with the model,
-so an oversized prompt is nearly free on a 31 GB model and expensive on a 90 GB
-one.
-
-### So should you use Aider?
-
-**For a self-contained script, yes — it is dramatically cheaper.** For changing
-code inside an existing repository, no:
-
-| client | one-file script tasks | tasks inside a repository |
-|---|---|---|
-| OpenCode | 15/15 | **91/93** |
-| Aider | 15/15 | **22/34** |
-
-Aider's speed comes partly from doing less — one turn, no exploration. That is
-exactly right for "write me this script" and not enough for "find where this
-behavior lives and change it". **The recommendation stays OpenCode**, with
-Aider worth reaching for on small self-contained jobs.
-
-**Claude Code is the reference point, not a recommendation here.** It is
-proprietary, so it cannot be part of a fallback that survives a vendor, and on
-these measurements it is both the slowest and the least consistent (152.5s,
-339.4s, 189.6s on the same task).
-
-## Reproducing this
-
-```sh
-git clone https://github.com/evanwtf/local-llm && cd local-llm
-uv sync
-uv run python benchmarks/agent/preflight.py        # checks servers, versions, config
-uv run python benchmarks/agent/run.py --client opencode --backend qwen38fnq3 --trials 3
-```
-
-The tables above are generated from `benchmarks/agent/results.jsonl` by
-`gen_tables.py` and spliced in by `splice_tables.py` — they are never typed by
-hand, and a test fails if this file drifts from the data.
-
-### The ds4 shim rows were measured on a build its author has withdrawn
-
-`qwen38fnds4shim`'s 135 trials ran against
-`Qwen3.8-Flash-Next-Q40RoutedExperts-…gguf` — **Q4_0 routed experts**. On
-2026-09-04 that file was replaced on Hugging Face by a Q4_K imatrix build, its
-author describing the Q4_0 one as *"faster, less accurate"*. The file we
-measured is no longer offered.
-
-Measured against it, four runs
-([#138](https://github.com/evanwtf/local-llm/issues/138)): the replacement is
-**+9.5% decode and −24.5% prefill**, and both builds answer 6/6 on a
-six-question `ds4-eval` gate. That gate ranks nothing — it says neither is
-broken — so **the accuracy claim that motivated the change is still
-unmeasured here.**
-
-Two cautions on those figures. Neither engine loads the other's weights, so
-the quant and the engine move together and neither can be credited alone. And
-prefill is prompt-dependent ([#140](https://github.com/evanwtf/local-llm/issues/140));
-that −24.5% is one prompt at 1298 KiB and must not be pooled with a figure
-taken on another.
-
-Nothing here changes the recommendation — the llama.cpp stack is still the one
-to install — but a reader reproducing our ds4 numbers should know they are
-pinned to a file the upstream author has moved on from.
-
-### Three rows here cannot be reproduced from upstream sources
-
-The `qwen38fnds4shim`, `qwen38fnds4kimat` and `qwen38fnds4mtp7shim` rows all
-need **PLE sidecar support**, and that exists only on ivanfioravanti's forks:
-[`ivanfioravanti/ds4-metal`](https://github.com/ivanfioravanti/ds4-metal) and
-[`ivanfioravanti/ds4`](https://github.com/ivanfioravanti/ds4) branch
-`qwen3.8-flash-next`. `antirez/ds4` main has no `ple_path` anywhere, so a
-build from upstream **will not load these weights at all** — it fails with
-`required tensor is missing: per_layer_token_embd.weight`.
-
-Two consequences worth stating plainly rather than discovering:
-
-* Cloning upstream `ds4` and following this file will not reproduce those
-  rows. Clone the fork named above.
-* Those rows depend on one person's branches staying available. That is a real
-  durability risk for a recommendation, tracked as
-  [#141](https://github.com/evanwtf/local-llm/issues/141), and it is a reason
-  to prefer the llama.cpp stack when either would do.
-
-The `--ple` flag is also undocumented — it is absent from `ds4-bench --help`
-and present in the parser. Passing no sidecar produces the same missing-tensor
-error as an upstream build, which reads exactly like the model being
-unsupported. It is not.
-
-### The shim's scaffolding strip is load-bearing, not tidying
-
-**All three** `qwen38fnds4*` rows — `qwen38fnds4shim`, `qwen38fnds4kimat` and
-`qwen38fnds4mtp7shim` — run behind `ds4_qwen_tool_shim.py`, which removes the
-bare `<tool_call>` tags from the content it hands back after it has recovered a
-tool call. That looked like hygiene when it shipped. It is worth **23 points of
-pass rate**, measured 2026-09-06 as an A/B over 8 runs of 15 tasks with the arm
-alternating A B B A and the server restarted before each run:
-
-| shim | passed | trials with no solution |
-|---|---|---|
-| strip on (shipped) | **53/60, 88%** | 7 |
-| strip off (`SHIM_NO_STRIP=1`) | **39/60, 65%** | 21 |
-
-Every strip-on run scored higher than every strip-off run — 15, 12, 14, 12
-against 9, 11, 10, 9 — so the gap does not rest on pooling
-([#112](https://github.com/evanwtf/local-llm/issues/112)).
-
-**The 23 points were measured on `qwen38fnds4shim` only** — all 120 A/B rows
-carry that backend. The other two run behind the same shim and so carry the
-same dependency, but neither has been measured with the strip off, and the size
-of the effect there is unknown. `qwen38fnds4kimat` is the point that matters:
-it is the strongest of the three (90/90, 97s) and therefore the one a reader is
-most likely to reproduce.
-
-**A reproduction that proxies this shim without the strip will not get these
-numbers**, and the failure will look like the model rather than the plumbing:
-the trial ends with no tool call and no code, not with wrong code. What the
-experiment does not establish is *why* — whether the echoed tags poison the
-model's context or break the client's own handling of the message.
+| running each stack by hand, and why this ranking | [`docs/stacks.md`](docs/stacks.md) |
+| every backend's numbers, and what they cannot say | [`docs/results.md`](docs/results.md) |
+| what the benchmark does, task by task | [`benchmarks/agent/METHODOLOGY.md`](benchmarks/agent/METHODOLOGY.md) |
+| the machine, and what a comparison must do | [`docs/m5max-runbook.md`](docs/m5max-runbook.md) |
+| traps that have cost a measurement | [`AGENTS.md`](AGENTS.md) · what to do next: [`NEXT.md`](NEXT.md) |
+
+> **OpenCode results before 2026-08-31 21:47 EDT are INVALID** — the client was
+> never told which directory to work in. Do not quote or compare against them:
+> [`docs/archive/results-opencode-pre-dir.md`](docs/archive/results-opencode-pre-dir.md).

@@ -29,7 +29,11 @@ import staleness
 
 HOME = pathlib.Path.home()
 GIT_DIR = HOME / "git"
-REPO = GIT_DIR / "local-llm"
+# The repo this module lives in, not `~/git/local-llm`. The hardcoded path
+# resolved on this laptop and nowhere else, so `next_top10()` returned [] on
+# every other host -- CI included, where it took a test that reads the real
+# file to expose it. AGENTS.md already records this shape from `d9a223e`.
+REPO = pathlib.Path(__file__).resolve().parents[2]
 NEXT_MD = REPO / "NEXT.md"
 ORG = "evanwtf/local-llm"
 

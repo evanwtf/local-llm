@@ -28,10 +28,15 @@ import results
 HERE = pathlib.Path(__file__).parent
 FIX = "7356460"
 
-# RECOMMENDATIONS.md sits at the repo root; PROMPTS.md publishes the exact text
-# of every task, generated from tasks.toml. A reader meeting "mbox-scan" for
-# the first time needs one line here and the prompt itself one click away.
-PROMPTS = "benchmarks/agent/PROMPTS.md"
+# These tables are spliced into docs/results.md, one directory below the repo
+# root, so the link needs `../`. It was root-relative while the tables lived in
+# RECOMMENDATIONS.md; #232 moved the file and every task link 404'd until
+# test_the_moved_docs_do_not_lose_their_links caught it.
+#
+# PROMPTS.md publishes the exact text of every task, generated from tasks.toml.
+# A reader meeting "mbox-scan" for the first time needs one line here and the
+# prompt itself one click away.
+PROMPTS = "../benchmarks/agent/PROMPTS.md"
 
 TASK_SUMMARY = {
     "mbox-strip-envelope": "implement `strip_envelope` in an mbox parser",
@@ -296,8 +301,10 @@ def render(rows: list[dict[str, Any]] | None = None) -> str:
     # results.jsonl, and stamping them with a commit that moves on every
     # unrelated edit would churn the document and train people to skim it.
     out += [
-        f"*Generated from `results.jsonl` — "
-        f"{provenance.fingerprint(results.default_path())}.*",
+        (
+            f"*Generated from `results.jsonl` — "
+            f"{provenance.fingerprint(results.default_path())}.*"
+        ),
         "",
     ]
     out += ["#### Every stack measured under OpenCode", ""]

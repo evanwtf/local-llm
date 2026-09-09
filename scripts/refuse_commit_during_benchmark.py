@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Refuse a commit while a stack_agent A/B is live (#227).
+"""Refuse a commit while a lock-holding benchmark driver is live (#227).
 
 A commit during a pinned run moves HARNESS_HEAD, and every remaining sweep
 refuses in about a second from its own fresh process. A logs-only commit killed
@@ -32,25 +32,87 @@ logger = logging.getLogger(__name__)
 # keeps this process from matching itself: the regex ``[s]tack`` matches the
 # text "stack", never the literal string "[s]tack". Without it, whatever shell
 # or parent process quoted the pattern would be the very thing the regex sees.
-_PATTERN = "[s]tack_agent_ab.sh"
+#
+# Every driver that runs inside a held machine lock. Only
+# `stack_agent_ab.sh` was listed until 2026-09-08, so ELEVEN of the twelve
+# were uncovered -- a commit during any of them moves HARNESS_HEAD between
+# arms and splits `harness_dirty` across a comparison, which is the confound
+# the guard exists to stop.
+#
+# The membership rule is mechanical and a test enforces it: a driver holds
+# the lock if it passes `--acquire-lock` (it takes the lock) or `--no-lock`
+# (something above it holds one). Either way its run.py calls belong to one
+# experiment, and the head must not move between them.
+_PATTERNS = (
+    "[d]ecode_ab.sh",
+    "[d]ecode_ab_engine.sh",
+    "[d]ecode_ab_stack.sh",
+    "[g]reedy_mtp_ab.sh",
+    "[m]etal_knob_ab.sh",
+    "[m]tp_treatment_gate.sh",
+    "[r]estart_between_trials.sh",
+    "[r]estart_between_trials_armB.sh",
+    "[r]oute_agent_ab.sh",
+    "[s]tack_agent_ab.sh",
+    "[s]trip_toggle_ab.sh",
+    "[t]argets_ab.sh",
+)
 
 
-def _live_run() -> bool:
-    """True if a stack_agent A/B is running, else False.
+def _is_invocation(command: str, script: str) -> bool:
+    """True when `command` RUNS `script`, not merely mentions it.
 
-    Returns False on any error and when pgrep finds no match, so an ambiguous
+    `pgrep -f` matches the whole command line, so any process that names a
+    driver matches -- including a waiter shell built from the driver's own
+    name:
+
+        /bin/zsh -c ... until ! pgrep -f 'metal_knob_ab.sh'; do sleep 30; done
+
+    Seven of those, up to six and a half hours old, were live on 2026-09-08.
+    Each was itself stuck in the self-match trap AGENTS.md warns about, and
+    together they made the guard refuse every commit while no benchmark was
+    running at all. A guard that cannot be satisfied gets overridden, and then
+    it is not a guard.
+
+    A real invocation puts the script in argv[0] (`./metal_knob_ab.sh`) or
+    argv[1] (`bash scripts/metal_knob_ab.sh`). A mention is buried deeper, in
+    a quoted string. Position is what separates them.
+    """
+    tokens = command.split()
+    return any(token.split("/")[-1] == script for token in tokens[:2])
+
+
+def _live_run() -> str | None:
+    """The driver that is running, or None.
+
+    Returns None on any error and when pgrep finds no match, so an ambiguous
     check fails open rather than blocking a commit on doubt.
     """
     pgrep = shutil.which("pgrep")
     if pgrep is None:
         logger.warning("pgrep not found; cannot check for a live A/B; commit allowed")
-        return False
-    proc = subprocess.run(
-        [pgrep, "-f", _PATTERN], capture_output=True, text=True, check=False
-    )
-    # rc 0 means at least one match. Anything else -- no match (1) or an error
-    # (2+) -- means there is no live run we can prove.
-    return proc.returncode == 0
+        return None
+    for pattern in _PATTERNS:
+        script = pattern.replace("[", "").replace("]", "")
+        # `-lf` prints the command line beside the pid, which is what lets a
+        # mention be told from an invocation -- and what makes a refusal
+        # diagnosable instead of a bare script name. `-lf` and not `-af`:
+        # `-a` is GNU-only, and on this Mac's BSD pgrep it prints bare pids,
+        # so every line would parse as an empty command and match nothing.
+        # `-l` with `-f` prints the full command line on both.
+        proc = subprocess.run(
+            [pgrep, "-lf", pattern], capture_output=True, text=True, check=False
+        )
+        # rc 0 means at least one match. Anything else -- no match (1) or an
+        # error (2+) -- means there is no live run we can prove.
+        if proc.returncode != 0:
+            continue
+        for line in proc.stdout.splitlines():
+            _, _, command = line.partition(" ")
+            if _is_invocation(command, script):
+                logger.debug("live run matched: %s", command[:200])
+                return script
+    return None
 
 
 def main() -> int:
@@ -58,12 +120,15 @@ def main() -> int:
     if os.environ.get("LOCAL_LLM_ALLOW_COMMIT_DURING_RUN") == "1":
         logger.info("commit allowed: LOCAL_LLM_ALLOW_COMMIT_DURING_RUN=1")
         return 0
-    if not _live_run():
+    driver = _live_run()
+    if driver is None:
         return 0
     logger.error(
-        "a stack_agent A/B is running; committing would move HARNESS_HEAD and kill "
-        "every remaining sweep. Wait for the run to finish, or set "
-        "LOCAL_LLM_ALLOW_COMMIT_DURING_RUN=1 to commit anyway."
+        "%s is running; committing would move HARNESS_HEAD and kill every "
+        "remaining sweep, or split harness_dirty across the arms of a "
+        "comparison. Wait for the run to finish, or set "
+        "LOCAL_LLM_ALLOW_COMMIT_DURING_RUN=1 to commit anyway.",
+        driver,
     )
     return 1
 

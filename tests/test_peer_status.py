@@ -148,6 +148,20 @@ def test_next_top10_parses_the_committed_file():
     assert all(i["priority"] in ("P0", "P1") for i in items)
 
 
+def test_next_md_is_found_in_this_checkout_not_on_this_laptop():
+    """The test above went red in CI and green here. `NEXT_MD` was
+    `~/git/local-llm/NEXT.md`, a path that resolves on the operator's machine
+    and on no runner, so `next_top10()` read nothing and returned []. AGENTS.md
+    already carries this shape from `d9a223e`; a hardcoded HOME path is how it
+    keeps coming back."""
+    root = pathlib.Path(__file__).resolve().parent.parent
+    assert peer_state.NEXT_MD == root / "NEXT.md"
+    assert peer_state.NEXT_MD.is_file()
+    assert pathlib.Path.home() not in peer_state.NEXT_MD.parents or (
+        root.is_relative_to(pathlib.Path.home())
+    ), "the path must come from the module's location, not from HOME"
+
+
 # The staleness comparison -- parsed file against the live P0/P1 labels --
 # deliberately does NOT live here. It needs the GitHub API, and open_p0p1()
 # returns [] on failure by design, so as a test it would pass green whenever

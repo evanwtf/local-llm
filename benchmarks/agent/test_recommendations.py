@@ -16,9 +16,17 @@ import re
 import gen_tables
 import pytest
 import splice_tables
+
 from conftest import HAS_LOCAL_RESULTS, SKIP_NO_RESULTS
 
 DOC = pathlib.Path(__file__).resolve().parents[2] / "RECOMMENDATIONS.md"
+# The generated tables and the reasoning moved to docs/ on 2026-09-08
+# (#232). DOC is what a stranger reads first; TABLES_DOC is what the
+# splice writes. A test that asserts a property of the tables must
+# name TABLES_DOC, or it silently checks a file that no longer has
+# them and passes for the wrong reason.
+TABLES_DOC = pathlib.Path(__file__).resolve().parents[2] / "docs/results.md"
+STACKS_DOC = pathlib.Path(__file__).resolve().parents[2] / "docs/stacks.md"
 
 
 @pytest.mark.skipif(not HAS_LOCAL_RESULTS, reason=SKIP_NO_RESULTS)
@@ -32,14 +40,14 @@ def test_the_generated_tables_are_current() -> None:
 
     if run.STASH_MARKER.exists():
         pytest.skip("a benchmark batch is running; results.jsonl is mid-write")
-    text = DOC.read_text()
+    text = TABLES_DOC.read_text()
     assert text == splice_tables.splice(text, gen_tables.render()), (
-        "RECOMMENDATIONS.md is stale; run splice_tables.py"
+        "docs/results.md is stale; run splice_tables.py"
     )
 
 
 def test_the_markers_survive() -> None:
-    text = DOC.read_text()
+    text = TABLES_DOC.read_text()
     assert splice_tables.BEGIN in text and splice_tables.END in text
 
 
@@ -74,12 +82,18 @@ def test_every_recommended_stack_has_a_declared_opencode_model() -> None:
 
 
 def test_the_json_snippets_parse() -> None:
-    """A newbie pastes these. A trailing comma would cost them an hour."""
-    text = DOC.read_text()
-    blocks = re.findall(r"```json\n(.*?)```", text, re.DOTALL)
-    assert blocks, "no json snippets found"
-    for b in blocks:
-        json.loads("{" + b.strip().rstrip(",") + "}")
+    """A newbie pastes these. A trailing comma would cost them an hour.
+
+    All three docs, not just DOC: the fenced snippets moved to docs/stacks.md
+    with the per-stack recipes in #232, and a test that kept reading only
+    RECOMMENDATIONS.md would have found nothing to check and passed.
+    """
+    found = 0
+    for doc in (DOC, TABLES_DOC, STACKS_DOC):
+        for b in re.findall(r"```json\n(.*?)```", doc.read_text(), re.DOTALL):
+            json.loads("{" + b.strip().rstrip(",") + "}")
+            found += 1
+    assert found, "no json snippets found in any of the three docs"
 
 
 def test_the_full_config_snippet_parses() -> None:
@@ -102,18 +116,21 @@ def test_every_task_link_resolves_to_a_real_prompt_heading() -> None:
     broken anchor is worse than no link: it looks authoritative and goes
     nowhere. PROMPTS.md is generated, so its headings move when tasks change.
     """
-    doc = DOC.read_text()
+    doc = TABLES_DOC.read_text()
     prompts = (pathlib.Path(__file__).parent / "PROMPTS.md").read_text()
     headings = set(re.findall(r"^### `([^`]+)`", prompts, re.MULTILINE))
-    linked = set(re.findall(r"\(benchmarks/agent/PROMPTS\.md#([a-z0-9-]+)\)", doc))
-    assert linked, "no task links found in RECOMMENDATIONS.md"
+    # `\.\./` since #232: the tables live in docs/, one below the root.
+    linked = set(
+        re.findall(r"\((?:\.\./)?benchmarks/agent/PROMPTS\.md#([a-z0-9-]+)\)", doc)
+    )
+    assert linked, "no task links found in docs/results.md"
     assert linked <= headings, f"dangling links: {sorted(linked - headings)}"
 
 
 def test_every_task_in_the_stack_tables_is_described() -> None:
     """No task name should appear in a results table without the reader having
     been told what it is."""
-    doc = DOC.read_text()
+    doc = TABLES_DOC.read_text()
     for task in gen_tables.TASK_SUMMARY:
         assert f"PROMPTS.md#{task}" in doc, f"{task} is never linked or described"
 
@@ -126,9 +143,7 @@ def test_the_target_repo_link_matches_the_actual_remote():
     404 in the one link that lets a reader check our work is worse than no
     link -- it looks verifiable and is not.
     """
-    doc = (
-        pathlib.Path(__file__).resolve().parent.parent.parent / "RECOMMENDATIONS.md"
-    ).read_text()
+    doc = TABLES_DOC.read_text()
     assert "evanwtf/gmail-archive" in doc
     assert "evandhoffman/gmail-archive" not in doc
 
@@ -377,7 +392,7 @@ def _between(text: str, opening: str, closing: str) -> str:
 def test_the_strip_caveat_enumerates_every_shim_backed_row() -> None:
     """The strip is worth 23 points where measured; a row it applies to and
     the caveat does not list is a reproduction that will silently miss it."""
-    doc = DOC.read_text()
+    doc = TABLES_DOC.read_text()
     listed = _between(doc, "`qwen38fnds4*` rows \u2014 ", " \u2014 run behind")
     missing = sorted(b for b in _shim_backed_backends() if b not in listed)
     assert not missing, (
@@ -391,7 +406,7 @@ def test_the_strip_caveat_counts_the_rows_it_lists() -> None:
     """ "All three" has to stay true when a fourth shim backend appears."""
     n = len(_shim_backed_backends())
     word = NUMBER_WORD[n]
-    assert f"**All {word.lower()}** `qwen38fnds4*` rows" in DOC.read_text(), (
+    assert f"**All {word.lower()}** `qwen38fnds4*` rows" in TABLES_DOC.read_text(), (
         f"{n} backends run behind the shim; the strip caveat does not say "
         f'"All {word.lower()}"'
     )
@@ -399,7 +414,7 @@ def test_the_strip_caveat_counts_the_rows_it_lists() -> None:
 
 def test_the_upstream_caveat_enumerates_every_shim_backed_row() -> None:
     """Same rows, same argument: they all launch with --ple against a fork."""
-    doc = DOC.read_text()
+    doc = TABLES_DOC.read_text()
     listed = _between(doc, "\nThe `qwen38fnds4", " rows all\nneed **PLE")
     missing = sorted(
         b for b in _shim_backed_backends() if b not in "The `qwen38fnds4" + listed
@@ -413,7 +428,7 @@ def test_the_upstream_caveat_heading_counts_the_rows() -> None:
     """The heading said "One row" while the body named two and three applied."""
     n = len(_shim_backed_backends())
     heading = f"### {NUMBER_WORD[n]} rows here cannot be reproduced"
-    assert heading in DOC.read_text(), (
+    assert heading in TABLES_DOC.read_text(), (
         f"{n} rows need the fork; the heading does not say {NUMBER_WORD[n]!r}"
     )
 
@@ -421,3 +436,48 @@ def test_the_upstream_caveat_heading_counts_the_rows() -> None:
 def test_the_shim_backend_list_is_not_empty() -> None:
     """A parser that silently finds nothing would make both tests vacuous."""
     assert len(_shim_backed_backends()) >= 3
+
+
+def test_the_recommendation_stays_short() -> None:
+    """#232: it reached 838 lines holding an answer to "what do I run".
+
+    Same failure as NEXT.md, and the same cause -- every addition was
+    reasonable on its own. The cap is on prose rather than total lines
+    because section 1 is a pastable install block that a reader needs whole,
+    and shrinking it would be shrinking the wrong thing.
+    """
+    lines = DOC.read_text().splitlines()
+    prose, fenced = 0, False
+    for line in lines:
+        if line.startswith("```"):
+            fenced = not fenced
+            continue
+        if not fenced and line.strip():
+            prose += 1
+    assert prose <= 100, (
+        f"RECOMMENDATIONS.md has {prose} lines of prose, over 100 (#232). "
+        f"New reasoning belongs in docs/stacks.md or docs/results.md."
+    )
+
+
+def test_the_three_sections_are_all_there() -> None:
+    """The issue asked for exactly three: paste it, pick a row, run a script.
+    A missing one means the answer moved somewhere a stranger will not look.
+    """
+    doc = DOC.read_text()
+    assert "## 1. Paste this" in doc
+    assert "## 2. Or pick a row" in doc
+    assert "## 3. Or run one script" in doc
+    assert "docs/stacks.md" in doc and "docs/results.md" in doc
+
+
+def test_the_moved_docs_do_not_lose_their_links() -> None:
+    """The prose moved into docs/, so every repo-root-relative link in it
+    needed a `../`. A link that resolves from the old location and not the
+    new one is exactly the 404 test_the_target_repo_link_matches_the_actual_remote
+    exists to prevent."""
+    for doc in (TABLES_DOC, STACKS_DOC):
+        text = doc.read_text()
+        for target in re.findall(r"\]\((?!https?://|#)([^)]+)\)", text):
+            path = (doc.parent / target.split("#")[0]).resolve()
+            assert path.exists(), f"{doc.name} links to a missing {target}"
