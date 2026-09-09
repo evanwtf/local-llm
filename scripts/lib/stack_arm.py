@@ -274,12 +274,29 @@ def attribution(new: Arm, old: Arm) -> str:
             "move together; neither can be attributed alone (#138, #191). This "
             "is a stack comparison, and must be reported as one."
         )
-    if new.gguf == old.gguf and new.tree == old.tree:
-        return "Same tree and same gguf in both arms: the flags are the only variable."
+    if _same_weights(new, old):
+        return (
+            "Same build and same weights in both arms: the flags are the only variable."
+        )
     return (
         "engine and quant move together in both arms; neither can be "
         "attributed alone (#138)."
     )
+
+
+def _same_weights(new: Arm, old: Arm) -> bool:
+    """Whether the two arms are served by the same build and the same weights.
+
+    Engine-aware, because `gguf` and `tree` are ds4 concepts. On an mlx-serve
+    arm both are None, so comparing them said "same" for every pair of mlx
+    arms -- including two arms serving DIFFERENT packs, which then had their
+    run record claim the flags were the only variable. Raised by @deepseek
+    reviewing #260; the record is the only place the stack is named, so a
+    false line there is worse than no line.
+    """
+    if new.engine == MLX_SERVE:
+        return new.mlx_model == old.mlx_model and new.mlx_bin == old.mlx_bin
+    return new.gguf == old.gguf and new.tree == old.tree
 
 
 def describe(new: Arm, old: Arm, *, sweeps: int) -> str:

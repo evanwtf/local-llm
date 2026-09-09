@@ -238,6 +238,41 @@ def test_same_tree_and_gguf_means_the_flags_are_the_variable() -> None:
     assert "flags are the only variable" in said
 
 
+def test_two_mlx_arms_with_different_packs_are_not_the_same_stack() -> None:
+    """The bug @deepseek found. `gguf` and `tree` are ds4 concepts and are
+    None on an mlx arm, so comparing them said "same" for EVERY pair of mlx
+    arms -- including two serving different packs, whose run record then
+    claimed the flags were the only variable. The record is the only place the
+    stack is named, so a false line there is worse than no line."""
+    said = stack_arm.attribution(
+        mlx_arm("new", mlx_model=pathlib.Path("/packs/pack-A")),
+        mlx_arm("old", mlx_model=pathlib.Path("/packs/pack-B")),
+    )
+    assert "only variable" not in said
+    assert "move together" in said
+
+
+def test_two_mlx_arms_with_the_same_pack_differ_only_in_flags() -> None:
+    """The other half: same pack, same binary, so the flags really are it."""
+    pack = pathlib.Path("/packs/same")
+    said = stack_arm.attribution(
+        mlx_arm("new", mlx_model=pack, flags="--kv-quant q8"),
+        mlx_arm("old", mlx_model=pack),
+    )
+    assert "flags are the only variable" in said
+
+
+def test_two_mlx_arms_with_different_binaries_are_not_the_same_stack() -> None:
+    """#225 runs two mlx-serve BUILDS against each other on the same pack. A
+    brew binary and a source build are not one stack."""
+    pack = pathlib.Path("/packs/same")
+    said = stack_arm.attribution(
+        mlx_arm("new", mlx_model=pack, mlx_bin="/g/mlx-serve/zig-out/bin/mlx-serve"),
+        mlx_arm("old", mlx_model=pack, mlx_bin="mlx-serve"),
+    )
+    assert "only variable" not in said
+
+
 def test_different_ggufs_move_engine_and_quant_together() -> None:
     said = stack_arm.attribution(ds4_arm("new"), ds4_arm("old"))
     assert "move together" in said
