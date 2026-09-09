@@ -176,9 +176,16 @@ def measurement_spawns(path: pathlib.Path) -> list[tuple[int, str, str]]:
 
 
 def drivers_that_spawn_the_harness() -> list[pathlib.Path]:
+    """Everything under scripts/ that names the harness, libraries included.
+
+    `scripts/lib/batch.py` is the shared measurement path for `targets_ab` and
+    `strip_toggle_ab`, and a `scripts/*.py` glob does not reach it. It is
+    correct today; the point of a guard is the day it stops being, and a
+    regression in the shared path costs two drivers rather than one.
+    """
     return sorted(
         p
-        for p in (ROOT / "scripts").glob("*.py")
+        for p in (ROOT / "scripts").rglob("*.py")
         if "benchmarks/agent/run.py" in p.read_text()
     )
 

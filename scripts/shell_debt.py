@@ -187,6 +187,10 @@ EVIDENCE = {
         "tests/test_restart_between_trials_equiv.py::"
         "test_arm_b_matches_its_shell_exactly"
     ),
+    "scripts/targets_ab.sh": (
+        "tests/test_targets_ab_equiv.py::"
+        "test_the_arms_run_in_the_same_ORDER_not_merely_the_same_set"
+    ),
     "scripts/strip_toggle_ab.sh": (
         "tests/test_strip_toggle_ab.py::"
         "test_the_on_arm_removes_shim_no_strip_on_both_sides"

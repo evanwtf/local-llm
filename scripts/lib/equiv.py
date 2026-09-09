@@ -97,6 +97,10 @@ CONTROLLED_ENV_KEYS = frozenset(
         "EQUIV_OUT",
         "EQUIV_PROGRAM",
         "EQUIV_ARM",
+        # How long the fake shim holds. A harness knob, set by whichever side
+        # supervises the shim rather than backgrounding it, so it appears on
+        # one side's children and not the other's.
+        "EQUIV_SHIM_HOLD_S",
         TENSOR_ENV,
         "LC_CTYPE",
         "__CF_USER_TEXT_ENCODING",
@@ -383,6 +387,20 @@ def write_uv_fake_running_real(
       `tests/fixtures/logs/shim-strip-on.log`; the OFF line has no real example
       in the repo, so the differential assumes the driver's own grep target
       (see the README there).
+    - `EQUIV_SHIM_HOLD_S` (read from the environment, default 0): seconds the
+      fake shim stays alive after printing its mode line. It is an env var
+      rather than a parameter because the two sides of one differential need
+      different answers from the SAME fake.
+
+      A shell BACKGROUNDS the shim and greps its log, so 0 is right there --
+      and it is not merely right, it is required: a `subprocess.run(...,
+      capture_output=True)` around the shell does not return until the last
+      holder of the pipe exits, so a held shim adds its full hold to the
+      shell's wall time. Measured: 3.1s at 0, 6.5s at 5, 61.5s at 60.
+
+      A driver that SUPERVISES the shim as a unit needs it still running when
+      the readiness poll looks -- `tool_shim.serving` raises `NeverReady`
+      against one that has already exited -- so the port side sets it.
 
     Inline `uv run python -c '<code>'` is executed for real, not faked. The
     code is the shell's own source text inlined, not an external program; a
@@ -458,6 +476,12 @@ def write_uv_fake_running_real(
             if dump:
                 with open(dump, "w") as h:
                     h.write('{{"role": "user", "content": "probe"}}\\n')
+            hold = float(os.environ.get("EQUIV_SHIM_HOLD_S", "0"))
+            if hold:
+                # Stay up for a driver that SUPERVISES the shim as a unit.
+                sys.stdout.flush()
+                import time
+                time.sleep(hold)
             sys.exit(0)
         if name in {run_literal}:
             real = pathlib.Path({repo_literal}) / script
