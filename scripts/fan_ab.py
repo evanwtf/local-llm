@@ -14,10 +14,10 @@ slow ambient drift align with condition. The phases alternate A,B,A,B,A,B and
 each is preceded by a cooldown **with the fans on max**, so every phase starts
 from the same floor rather than inheriting the previous phase's heat. The
 cooldown's fan mode is deliberately NOT the phase's: uniformity is the point,
-and cooling on max is the same wait made shorter. The phase's own mode is then
-set and held for `SETTLE_IN_S` so the switch transient lands before the first
-rep instead of inside it -- otherwise dropping max->auto at t=0 would put a
-warming ramp on the auto arm alone.
+and cooling on max is the same wait made shorter. The phase's own mode is then set and the
+sweep begins at once: both arms leave the same floor at the same temperature,
+and the fans responding to load is the treatment rather than a transient to
+be waited out.
 
 The cooldown waits for the die temperature to **stop falling**, not to reach
 a value. This is a derivative test, not a margin, and the reason is measured:
@@ -125,12 +125,18 @@ SETTLE_MIN_S = 90
 #: operation would give it, so if max fans still win, the win is not the
 #: starting point.
 COOL_ON_MAX = True
-#: After the bulk cool, the phase's own fan mode is set and held this long
-#: before the first rep. The mode switch has a transient -- dropping from max
-#: to auto lets the die climb toward the higher auto floor -- and it must
-#: happen BEFORE the measurement, not inside the first rep of the auto arm
-#: only.
-SETTLE_IN_S = 120
+#: Zero, and the reasoning matters because the opposite looks careful.
+#:
+#: Holding the phase's own fan mode before the first rep sounds like it
+#: absorbs the max->auto switch transient. It does -- by letting the auto arm
+#: WARM toward its higher floor while the max arm sits still. After 120 s the
+#: arms began at ~35 C and ~33 C: a temperature difference between conditions
+#: at t=0, which is the one thing the cooldown exists to remove.
+#:
+#: Both arms leave the same max-cooled floor and start immediately. The fans
+#: ramping in response to load IS the treatment, and under load the die passes
+#: 70 C within seconds, so there is no idle transient left to protect.
+SETTLE_IN_S = 0
 #: 420 s was not enough and the run said so. Measured 2026-09-09: after three
 #: reps the die sat at 74.11 C, and 420 s later it had reached 34.13 C but was
 #: STILL falling at 0.809 C/min. Fitting a decay to that (floor ~31.5 C, time
@@ -562,14 +568,15 @@ def main(argv: Sequence[str] | None = None) -> int:
                 # Set the phase's own fan mode and absorb the switch transient
                 # here, where it is not being measured.
                 _fan(condition)
-                logger.info(
-                    "settle-in %ds on %s before phase %d; die=%s",
-                    args.settle_in,
-                    condition,
-                    i,
-                    f"{die_c():.2f}C" if die_c() is not None else "?",
-                )
-                time.sleep(args.settle_in)
+                if args.settle_in:
+                    logger.info(
+                        "settle-in %ds on %s before phase %d; die=%s",
+                        args.settle_in,
+                        condition,
+                        i,
+                        f"{die_c():.2f}C" if die_c() is not None else "?",
+                    )
+                    time.sleep(args.settle_in)
                 cooled["cooled_on"] = "max" if args.cool_on_max else "auto"
                 cooled["settle_in_s"] = args.settle_in
                 cooled["die_after_settle_in_c"] = die_c()
