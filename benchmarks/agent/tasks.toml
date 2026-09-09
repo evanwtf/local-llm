@@ -1141,6 +1141,35 @@ model = "bonsai-27b-q1-32768"
 opencode_model = "ollama/bonsai-27b-q1-32768"
 context_tokens = 32768
 
+# #269. A DIFFERENT release from dtbonsai27b above, not a re-quant of it:
+# prism-ml/Ternary-Bonsai-27B-gguf (2026-08-31) against the Bonsai-27B-gguf
+# repo (2026-07-17). 6.67 GiB of weights against Q1_0's 3.54.
+#   https://huggingface.co/prism-ml/Ternary-Bonsai-27B-gguf
+#     -> Ternary-Bonsai-27B-Q2_0.gguf, downloaded and checksum-verified to
+#        ~/models/ternary-bonsai-27b (SOURCE.txt recorded, #111).
+# Lead: https://x.com/0xSero/status/2097620672952344680 recommends it for 8 GB
+# cards, claiming 262K context and vision.
+#
+# NOT RUNNABLE ON THIS TIER'S ENGINE. The weights are Q2_0_g128 and the model
+# card is explicit that they need custom 2-bit kernels from PrismML's
+# llama.cpp fork (https://github.com/PrismML-Eng/llama.cpp). Stock ollama
+# 0.33.3 refuses the file outright:
+#     Error: tensor "output.weight" size overflow
+# So this needs `engine = "llama.cpp"` against that fork, built with CUDA --
+# and this machine has the driver but no nvcc. Left declared, and retired so
+# no run can select it, until the fork is built. Note that its rows will not
+# be engine-comparable to the Ollama rows on this tier (#192).
+[backend.dtternarybonsai27b]
+description = "Ternary-Bonsai-27B Q2_0 GGUF via llama.cpp (desktop 3080 Ti)"
+retired = "blocked: Q2_0_g128 needs PrismML's llama.cpp fork built with CUDA; stock ollama 0.33.3 cannot parse the GGUF (2026-09-09, #269)"
+tier = "desktop-3080ti"
+base_url = "http://127.0.0.1:8080"
+auth_token = "llamacpp"
+engine = "llama.cpp"
+model = "ternary-bonsai-27b-q2-32768"
+opencode_model = "llamacpp/ternary-bonsai-27b-q2-32768"
+context_tokens = 32768
+
 [backend.dtqwen359b]
 description = "Qwen3.5 9B Q4_K_M via Ollama (desktop 3080 Ti)"
 tier = "desktop-3080ti"
