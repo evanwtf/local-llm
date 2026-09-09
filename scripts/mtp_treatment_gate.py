@@ -111,6 +111,28 @@ def port_answers(port: int, timeout: float = 1.0) -> bool:
         return False
 
 
+def port_holder(port: int) -> int | None:
+    """The pid listening on `port`, or None.
+
+    By port, not by name. The port is the resource actually in conflict, and
+    every process-identification bug in this repo came from matching a name:
+    `pgrep -f` matched the quoting shell, the commit guard matched seven waiter
+    shells, and `foreign()` matched a command line instead of a binary.
+    """
+    try:
+        done = subprocess.run(
+            ["lsof", "-nP", f"-iTCP:{port}", "-sTCP:LISTEN", "-t"],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=10,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    first = done.stdout.split()
+    return int(first[0]) if first and first[0].isdigit() else None
+
+
 def server_command(want_mtp: bool, kv_dir: pathlib.Path) -> list[str]:
     """The ds4-server argv for one arm.
 
@@ -210,16 +232,22 @@ def shim(log: pathlib.Path, dump: pathlib.Path | None = None) -> Iterator[None]:
     if port_answers(SHIM_PORT) and unitctl.state(unitctl.read(SHIM_UNIT)) != (
         unitctl.RUNNING
     ):
+        holder = port_holder(SHIM_PORT)
+        whose = f"pid {holder}" if holder is not None else "an unidentified process"
         raise Refusal(
-            f"something this run did not start is listening on :{SHIM_PORT}. "
+            f"{whose} this run did not start is listening on :{SHIM_PORT}. "
             "Stop it and re-run: this stage manages its own shim, and it "
             "cannot restore a shim it did not start."
         )
     unitctl.stop(SHIM_UNIT)
     unitctl.start(SHIM_UNIT, shim_argv(), log=log, cwd=REPO, env=env)
-    if not _wait_for_port(SHIM_PORT):
-        raise Refusal(f"the shim did not answer on :{SHIM_PORT}; see {log}")
     try:
+        # Inside the try, not before it. A raise above the try leaves the shim
+        # running -- and on the replay stage that is a payload-dumping shim,
+        # which is the exact bug this context manager exists to fix, one
+        # failure mode over. Raised by @deepseek reviewing #256.
+        if not _wait_for_port(SHIM_PORT):
+            raise Refusal(f"the shim did not answer on :{SHIM_PORT}; see {log}")
         yield
     finally:
         unitctl.stop(SHIM_UNIT)
@@ -400,7 +428,7 @@ def stage_probe(
         ["plain", "tools", "stream", "tools-stream"] if via_shim else ["plain", "tools"]
     )
     tag = "shim-" if via_shim else ""
-    worst = 0
+    first_failure = 0
     with arm(True, KV_TREATED, server_log):
         for pad in (0, 11000):
             logger.info("=== %spad=%d ===", tag, pad)
@@ -429,8 +457,10 @@ def stage_probe(
                 ],
                 logdir / f"probe-{tag}pad{pad}.log",
             )
-            worst = worst or rc
-    return worst
+            # The FIRST failure, held: a later success must not mask it.
+            if first_failure == 0:
+                first_failure = rc
+    return first_failure
 
 
 def stage_replay(logdir: pathlib.Path, server_log: pathlib.Path, trials: int) -> int:

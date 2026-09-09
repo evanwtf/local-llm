@@ -224,6 +224,77 @@ def test_a_plain_shim_carries_no_dump_variable(monkeypatch, tmp_path) -> None:
     assert seen["env"] is None
 
 
+def test_a_shim_that_never_answers_is_stopped_not_leaked(monkeypatch, tmp_path) -> None:
+    """The readiness check lives INSIDE the try, so its refusal still runs the
+    stop. A raise above the try leaves the shim running -- and on the replay
+    stage that is a payload-dumping shim, which is the exact bug this context
+    manager exists to fix, one failure mode over. Raised by @deepseek
+    reviewing #256."""
+    events = _wire_shim(monkeypatch)
+    monkeypatch.setattr(gate, "_wait_for_port", lambda *a, **k: False)
+    with (
+        pytest.raises(gate.Refusal, match="did not answer"),
+        gate.shim(tmp_path / "s.log", dump=tmp_path / "p.json"),
+    ):
+        pass
+    assert events[-1] == "shim-stop", "a shim that never answered was leaked"
+    assert events.count("shim-start") == 1
+
+
+def test_the_foreign_refusal_names_the_pid(monkeypatch, tmp_path) -> None:
+    """Matching the ds4_server refusal: an operator who is told "something" is
+    on the port has to go find it themselves, and a refusal they cannot act on
+    gets overridden rather than obeyed."""
+    monkeypatch.setattr(gate, "port_answers", lambda *a, **k: True)
+    monkeypatch.setattr(gate.unitctl, "read", lambda *a, **k: None)
+    monkeypatch.setattr(gate.unitctl, "state", lambda *a: gate.unitctl.STOPPED)
+    monkeypatch.setattr(gate, "port_holder", lambda _p: 5150)
+    with pytest.raises(gate.Refusal, match="pid 5150"), gate.shim(tmp_path / "s.log"):
+        pass
+
+
+def test_an_unidentifiable_holder_still_refuses(monkeypatch, tmp_path) -> None:
+    """`lsof` can fail or be absent. Not knowing whose process it is, is not a
+    reason to start beside it."""
+    monkeypatch.setattr(gate, "port_answers", lambda *a, **k: True)
+    monkeypatch.setattr(gate.unitctl, "read", lambda *a, **k: None)
+    monkeypatch.setattr(gate.unitctl, "state", lambda *a: gate.unitctl.STOPPED)
+    monkeypatch.setattr(gate, "port_holder", lambda _p: None)
+    with (
+        pytest.raises(gate.Refusal, match="unidentified"),
+        gate.shim(tmp_path / "s.log"),
+    ):
+        pass
+
+
+def test_the_holder_is_found_by_port_not_by_name() -> None:
+    """Every process-identification bug in this repo came from matching a
+    name: `pgrep -f` matched the quoting shell, the commit guard matched seven
+    waiter shells, `foreign()` matched a command line instead of a binary. The
+    port is the resource actually in conflict."""
+    code = code_of(ROOT / "scripts" / "mtp_treatment_gate.py")
+    body = code[code.index("def port_holder") : code.index("def server_command")]
+    assert "lsof" in body and "-iTCP" in body
+    assert "qwen_tool_shim" not in body, "identify by port, not by name"
+
+
+def test_the_first_probe_failure_is_not_masked_by_a_later_success(
+    monkeypatch, tmp_path
+) -> None:
+    """Two pad sizes run in one stage. A failure at pad=0 followed by a pass
+    at pad=11000 must still report failure."""
+    monkeypatch.setattr(gate, "arm", _null_context)
+    codes = iter([3, 0])
+    monkeypatch.setattr(gate, "_run", lambda *a, **k: next(codes))
+    assert gate.stage_probe(tmp_path, tmp_path / "s.log", 1) == 3
+
+
+def test_a_clean_probe_reports_success(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr(gate, "arm", _null_context)
+    monkeypatch.setattr(gate, "_run", lambda *a, **k: 0)
+    assert gate.stage_probe(tmp_path, tmp_path / "s.log", 1) == 0
+
+
 def test_a_foreign_shim_is_refused_not_killed(monkeypatch, tmp_path) -> None:
     """The shell ran `pkill -f qwen_tool_shim` and replaced whatever it found.
     We do not signal a process this project did not start (#252, #253), and we
