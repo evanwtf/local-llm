@@ -213,7 +213,10 @@ def test_fake_shim_emits_the_real_on_line_and_the_off_assumption(tmp_path) -> No
         check=False,
     )
     assert on.returncode == 0, on.stderr
-    assert "scaffolding strip: ON (shipped default) (#112 remedy 2)" in on.stdout
+    # Read from the fixture, not retyped. A constant typed here would agree
+    # with a fake that was typed from the same memory, which is exactly how
+    # the OFF line stayed wrong for months.
+    assert mode_line("shim-strip-on.log") in on.stdout
     off_env = dict(base, SHIM_NO_STRIP="1")
     off = subprocess.run(
         [sys.executable, str(uv), "run", "python", "ds4_qwen_tool_shim.py"],
@@ -223,7 +226,30 @@ def test_fake_shim_emits_the_real_on_line_and_the_off_assumption(tmp_path) -> No
         check=False,
     )
     assert off.returncode == 0, off.stderr
-    assert "scaffolding strip: OFF" in off.stdout
+    # The WHOLE line, not the prefix. Until 2026-09-09 the fake printed a bare
+    # `scaffolding strip: OFF` -- a line the shim has never produced -- and
+    # this assertion passed on it, because `scaffolding strip: OFF` is a
+    # substring of the real `scaffolding strip: OFF (experiment arm)
+    # (#112 remedy 2)`. So did `strip_toggle_ab.sh:156`, which greps with
+    # `grep -q "$want"`. Two substring matchers agreeing with each other is
+    # not evidence about the shim.
+    want = mode_line("shim-strip-off.log")
+    assert "(experiment arm)" in want, "the OFF fixture lost its real text"
+    assert want in off.stdout, f"want {want!r}, got {off.stdout!r}"
+
+
+def mode_line(fixture: str) -> str:
+    """The shim's `scaffolding strip: ...` line, out of a real-run excerpt.
+
+    One owner for the text. The fake reads these same two files, so a fixture
+    that loses its real wording fails here rather than quietly making the
+    differential agree with itself.
+    """
+    path = ROOT / "tests" / "fixtures" / "logs" / fixture
+    for raw in path.read_text().splitlines():
+        if "scaffolding strip:" in raw:
+            return raw.split("INFO ", 1)[-1].strip()
+    raise AssertionError(f"{fixture} carries no strip line")
 
 
 def test_fake_ds4_server_emits_the_real_graph_excerpt(tmp_path) -> None:
