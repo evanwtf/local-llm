@@ -12,6 +12,7 @@ documentation.
 | script | what it does |
 |---|---|
 | `ab_driver.py` | The arm-alternation loop every A/B driver in this repo re-implements. #235 stage 3. |
+| `ab_status.py` | One status line for a set of decode-A/B run directories. |
 | `archive_pre_dir_rows.py` | Move every pre---dir OpenCode row out of results.jsonl into the archive. |
 | `arm_order_effect.py` | How much does running second inside a rep cost? (#130) |
 | `backfill_client_version.py` | Fill `client_version` on rows that predate it, and only where it is known. |
@@ -22,6 +23,7 @@ documentation.
 | `check_release_version.py` | Refuse a release whose tag disagrees with the declared version. |
 | `client_version_split.py` | Which client version took which rows, and what that confounds (#137, #131). |
 | `client_versions.py` | Read the recorded agent client versions, and say which have moved (#131). |
+| `coherence_check.py` | Greedy coherence check before trusting any new GGUF (#25, #48). |
 | `cohort_split.py` | Split one backend's rows at a moment in time and compare the halves. |
 | `decode_ab.py` | Paired decode-rate A/B for two GGUFs of the same model (#48). #235 stage 4. |
 | `decode_ab_engine.py` | Paired decode-rate A/B for two ENGINE BUILDS of the same GGUF. #118 |

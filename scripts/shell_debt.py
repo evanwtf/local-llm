@@ -75,6 +75,8 @@ REPLACED = {
     "scripts/restart_between_trials_armB.sh": "scripts/restart_between_trials.py",
     # `_test` had to go: pytest collects *_test.py from the whole repo.
     "scripts/disk_kv_mechanism_test.sh": "scripts/disk_kv_mechanism.py",
+    "scripts/ab_status.sh": "scripts/ab_status.py",
+    "scripts/coherence_check.sh": "scripts/coherence_check.py",
     "scripts/lib/ds4_server.sh": "scripts/lib/ds4_server.py",
     "scripts/lib/mlx_serve.sh": "scripts/lib/mlx_serve.py",
 }
