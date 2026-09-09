@@ -101,11 +101,20 @@ def test_a_run_directory_with_no_csv_has_no_row_count(tmp_path) -> None:
     assert ab_status.rows(tmp_path / "r-run1") is None
 
 
-def test_no_run_directory_at_all_reads_unreadable(tmp_path) -> None:
+def test_no_run_directory_at_all_reads_unreadable(tmp_path, monkeypatch) -> None:
+    """Two named fields, not a count of the word.
+
+    Counting `unreadable` made this test assert that the HOST has a die
+    sensor: three on the CI runner, two on this laptop, and the count is the
+    only thing that changed. The sensor is stubbed so the fields under test
+    are the two this test is about.
+    """
+    monkeypatch.setattr(ab_status.thermals, "reading", lambda: {"die_max_c": 40.0})
     assert ab_status.rows(None) is None
     text, code = ab_status.line(str(tmp_path / "absent"))
     assert "\n" not in text
-    assert text.count(ab_status.UNREADABLE) == 2  # the name and the row count
+    assert f"| {ab_status.UNREADABLE} at {ab_status.UNREADABLE} rows |" in text
+    assert "die=40.0C" in text
     assert code == 0
 
 
