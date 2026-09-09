@@ -175,3 +175,40 @@ def test_the_target_is_reachable_without_porting_a_kept_file() -> None:
         f"the floor is {got['floor_lines']} lines against a target of "
         f"{got['target_lines']}; porting everything portable is no longer enough"
     )
+
+
+# --- the retirement evidence, which must name tests that exist ---------------
+
+
+def test_every_evidence_entry_names_a_test_that_exists() -> None:
+    """An entry pointing at a renamed or deleted test reports a shell as
+    cleared to delete when nothing checks it any more -- worse than no entry,
+    because it reads as done."""
+    root = pathlib.Path(shell_debt.ROOT)
+    for shell, node in shell_debt.EVIDENCE.items():
+        path, _, name = node.partition("::")
+        test_file = root / path
+        assert test_file.exists(), f"{shell}: {path} does not exist"
+        assert f"def {name}(" in test_file.read_text(), f"{shell}: no {name} in {path}"
+
+
+def test_evidence_only_names_shells_that_have_a_replacement() -> None:
+    """Evidence for a file with no port is a category error: the differential
+    would have nothing to compare the shell against."""
+    for shell in shell_debt.EVIDENCE:
+        assert shell in shell_debt.REPLACED, f"{shell} has evidence but no replacement"
+
+
+def test_a_deviation_is_not_also_expected_to_have_a_differential() -> None:
+    """route_agent_ab is retired on the #264 deadness evidence. Its entry is a
+    test, but it is a test that the shell CANNOT run -- so the two tables may
+    overlap on it, and that overlap is the deviation, not a mistake."""
+    both = set(shell_debt.EVIDENCE) & set(shell_debt.DEVIATIONS)
+    assert both == {"scripts/route_agent_ab.sh"}, both
+
+
+def test_cleared_and_waiting_account_for_every_replaced_file() -> None:
+    """A file that is neither would vanish from the retirement count."""
+    got = shell_debt.survey()
+    replaced = [f for f in got["files"] if f["replacement_exists"]]
+    assert len(got["cleared"]) + len(got["waiting"]) == len(replaced)

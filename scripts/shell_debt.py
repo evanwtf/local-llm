@@ -103,6 +103,44 @@ KEEP = {
 #: it in the tree is a comment explaining why the filter exists.
 DIES_WITH = {"scripts/lib/transcript_move.sh": "scripts/stack_agent_ab.sh"}
 
+#: `<shell>: <the test that clears it for deletion>`. An explicit table for
+#: the same reason REPLACED is one: a name match would report a shell as
+#: cleared because a test file happens to share its name, and the whole point
+#: of this column is that somebody looked.
+#:
+#: Replacement is not retirement. A .sh is deleted only once its Python
+#: replacement has produced a run that AGREES with it -- and for the drivers
+#: that means a differential: the real shell and the port both drive a
+#: recording fake child, and the recorded argv and env are compared. The
+#: entry names the test so a reader can run it, not a commit that describes
+#: having run it once.
+EVIDENCE = {
+    "scripts/ab_status.sh": (
+        "tests/test_ab_status.py::test_the_shell_and_the_port_print_the_same_status_line"
+    ),
+    "scripts/coherence_check.sh": (
+        "tests/test_coherence_check.py::test_the_shell_and_the_port_hand_ds4_the_same_command"
+    ),
+    "scripts/decode_ab.sh": (
+        "tests/test_decode_ab.py::test_the_shell_and_the_port_hand_ds4_bench_the_same_command"
+    ),
+    "scripts/decode_ab_engine.sh": (
+        "tests/test_decode_ab_engine.py::test_the_shell_and_the_port_hand_ds4_bench_the_same_command"
+    ),
+    "scripts/decode_ab_repeat.sh": (
+        "tests/test_decode_ab_repeat.py::test_the_shell_and_the_port_hand_the_harness_the_same_command"
+    ),
+    "scripts/decode_ab_stack.sh": (
+        "tests/test_decode_ab_stack.py::test_the_shell_and_the_port_hand_ds4_bench_the_same_command"
+    ),
+    "scripts/metal_knob_ab.sh": (
+        "tests/test_metal_knob_ab.py::test_the_shell_and_the_port_hand_ds4_bench_the_same_command"
+    ),
+    "scripts/route_agent_ab.sh": (
+        "tests/test_route_agent_ab.py::test_the_shell_is_dead_by_the_flag_run_py_dropped"
+    ),
+}
+
 #: Shell that is retired by a written deviation rather than an agreeing run.
 #: Retirement normally needs "a run that agrees"; a shell that cannot produce
 #: one is retired on the evidence that it cannot, named here so a future reader
@@ -146,6 +184,10 @@ def survey(root: pathlib.Path = ROOT) -> dict[str, object]:
                 "replacement_exists": bool(
                     replacement and (root / replacement).exists()
                 ),
+                # Replaced is not deletable. This names the test that says
+                # the port agrees with the shell; without one, the file stays
+                # whatever its Python replacement does.
+                "evidence": EVIDENCE.get(rel),
             }
         )
     lines = sum(int(f["lines"]) for f in files)
@@ -157,7 +199,16 @@ def survey(root: pathlib.Path = ROOT) -> dict[str, object]:
         f for f in unreplaced if f["path"] not in KEEP and f["path"] not in DIES_WITH
     ]
     floor = sum(int(f["lines"]) for f in keep)
+    replaced = [f for f in files if f["replacement_exists"]]
+    cleared = [f for f in replaced if f["evidence"] or f["path"] in DEVIATIONS]
+    waiting = [f for f in replaced if f not in cleared]
     return {
+        "cleared": [{"path": f["path"], "lines": f["lines"]} for f in cleared],
+        "waiting": [{"path": f["path"], "lines": f["lines"]} for f in waiting],
+        # The honest progress number. `reduction_pct` is 0.0 and will stay
+        # there until files are actually deleted; this says how much of the
+        # deletion is currently defensible.
+        "lines_if_cleared_deleted": lines - sum(int(f["lines"]) for f in cleared),
         "keep": [
             {"path": f["path"], "lines": f["lines"], "why": KEEP[str(f["path"])]}
             for f in keep
@@ -234,6 +285,16 @@ def report(s: dict[str, object]) -> None:
         logger.info("  %4s  DEVIATION      %s  -- %s", 0, f["path"], f["why"])
     for f in s["keep"]:  # type: ignore[union-attr]
         logger.info("  %4s  STAYS SHELL    %s  -- %s", f["lines"], f["path"], f["why"])
+    logger.info("")
+    logger.info(
+        "retirement: %d of %d replaced files are cleared to delete; "
+        "deleting those leaves %s lines",
+        len(s["cleared"]),  # type: ignore[arg-type]
+        len(s["cleared"]) + len(s["waiting"]),  # type: ignore[arg-type]
+        s["lines_if_cleared_deleted"],
+    )
+    for f in s["waiting"]:  # type: ignore[union-attr]
+        logger.info("  %4s  NO EVIDENCE    %s", f["lines"], f["path"])
     logger.info("")
     logger.info(
         "porting the %s portable lines leaves %s, against a target of %s: %s",
