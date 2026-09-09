@@ -296,3 +296,69 @@ def test_a_stale_unit_is_not_stopped_so_a_caller_must_test_for_running(state_dir
     assert found == unitctl.STALE
     assert found != unitctl.STOPPED
     unitctl.stop("probe", timeout=5, state_dir=state_dir)
+
+
+def test_a_spawn_that_cannot_be_recorded_is_stopped_not_leaked(state_dir, monkeypatch):
+    """Found by --deepseek reviewing #245: the fifth teardown path.
+
+    `start` spawns, then records. If the record never lands -- an unwritable
+    state dir, a full disk -- the process is running and NOTHING can find it.
+    `stop` reads the record, sees none, and reports `stopped` while the process
+    holds its port and its GPU memory.
+
+    The shell this replaces would have caught it: `pkill -f 'ds4-server
+    --metal'` needs no record. Refusing to search is exactly what makes the
+    recording load-bearing, so the spawn and the record must be
+    all-or-nothing.
+    """
+    spawned: list[int] = []
+    real_popen = unitctl.subprocess.Popen
+
+    def watch(*args, **kwargs):
+        proc = real_popen(*args, **kwargs)
+        spawned.append(proc.pid)
+        return proc
+
+    real_write = pathlib.Path.write_text
+
+    def fail_on_record(self, *args, **kwargs):
+        if self.suffix == ".json":
+            raise OSError("record write failed")
+        return real_write(self, *args, **kwargs)
+
+    monkeypatch.setattr(unitctl.subprocess, "Popen", watch)
+    monkeypatch.setattr(pathlib.Path, "write_text", fail_on_record)
+    with pytest.raises(OSError, match="record write failed"):
+        unitctl.start("probe", ["sleep", "60"], state_dir=state_dir)
+    monkeypatch.undo()
+
+    assert spawned, "the test is meaningless unless a process was really spawned"
+    assert group_members(spawned[0]) == [], (
+        "a process nothing can find must not survive"
+    )
+    assert unitctl.read("probe", state_dir) is None
+    assert "probe" not in unitctl._OWNED
+
+
+def test_an_interrupt_between_spawn_and_record_does_not_leak(state_dir, monkeypatch):
+    """Ctrl-C is the likeliest way to end a long batch, and it lands here as a
+    KeyboardInterrupt -- which is a BaseException, not an Exception."""
+    spawned: list[int] = []
+    real_popen = unitctl.subprocess.Popen
+
+    def watch(*args, **kwargs):
+        proc = real_popen(*args, **kwargs)
+        spawned.append(proc.pid)
+        return proc
+
+    monkeypatch.setattr(unitctl.subprocess, "Popen", watch)
+    monkeypatch.setattr(
+        unitctl, "start_key", lambda pid: (_ for _ in ()).throw(KeyboardInterrupt())
+    )
+    with pytest.raises(KeyboardInterrupt):
+        unitctl.start("probe", ["sleep", "60"], state_dir=state_dir)
+    monkeypatch.undo()
+
+    assert spawned
+    assert group_members(spawned[0]) == []
+    assert unitctl.read("probe", state_dir) is None

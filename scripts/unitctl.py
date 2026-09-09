@@ -257,17 +257,43 @@ def start(
         if handle is not subprocess.DEVNULL:
             handle.close()
 
-    unit = Unit(
-        name=name,
-        pid=proc.pid,
-        command=list(command),
-        cwd=str(cwd or pathlib.Path.cwd()),
-        log=str(log) if log else None,
-        started=datetime.datetime.now().astimezone().isoformat(timespec="seconds"),
-        start_key=start_key(proc.pid),
-        hostname=os.uname().nodename,
-    )
-    record_path(name, state_dir).write_text(json.dumps(unit.as_dict(), indent=2))
+    # Spawn-then-record is two steps, and everything between them must be
+    # all-or-nothing. If the record never lands -- an unwritable state dir, a
+    # full disk -- the process is running and NOTHING can find it: `stop`
+    # reads the record, sees none, and reports `stopped` while an 85 GiB
+    # server holds the GPU. The shell this replaces would have caught it,
+    # because `pkill -f 'ds4-server --metal'` does not need a record. Refusing
+    # to search is what makes recording load-bearing.
+    try:
+        unit = Unit(
+            name=name,
+            pid=proc.pid,
+            command=list(command),
+            cwd=str(cwd or pathlib.Path.cwd()),
+            log=str(log) if log else None,
+            started=datetime.datetime.now().astimezone().isoformat(timespec="seconds"),
+            start_key=start_key(proc.pid),
+            hostname=os.uname().nodename,
+        )
+        record_path(name, state_dir).write_text(json.dumps(unit.as_dict(), indent=2))
+    except BaseException:
+        # BaseException, not Exception: a KeyboardInterrupt between the spawn
+        # and the record leaks exactly the same way, and Ctrl-C is the
+        # likeliest way to end a long batch.
+        logger.warning(
+            "%s was spawned as pid %d but could not be recorded; stopping it "
+            "rather than leaving a process nothing can find",
+            name,
+            proc.pid,
+        )
+        _signal_group(proc.pid, signal.SIGKILL)
+        _OWNED.pop(name, None)
+        try:
+            proc.wait(timeout=5)
+        except (subprocess.TimeoutExpired, OSError):
+            pass
+        record_path(name, state_dir).unlink(missing_ok=True)
+        raise
     logger.info("started %s as pid %d: %s", name, unit.pid, " ".join(command))
     return unit
 
