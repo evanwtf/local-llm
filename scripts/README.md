@@ -47,6 +47,7 @@ documentation.
 | `mtp_log_split.py` | Did MTP draft during the batch, or only before it? (#39, #151, #210) |
 | `mtp_recovery_attribution.py` | Attribute the #39 recovery-failed events to trials, one row per trial (#39). |
 | `mtp_replay_probe.py` | Replay a captured agent request and bisect what switches ds4's MTP off (#151). |
+| `mtp_treatment_gate.py` | Prove the MTP refusal fires, then take rows that carry the treatment (#210). |
 | `paired_ab_report.py` | Read out a paired two-arm A/B from the ledger. #240 |
 | `peer_brief.py` | Generate the state half of a handoff as Markdown. #160 |
 | `peer_status.py` | One deterministic status line for the peer work. #160 |
