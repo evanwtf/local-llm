@@ -9,6 +9,7 @@ renamed or removed.
 from __future__ import annotations
 
 import pathlib
+import re
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -16,6 +17,29 @@ sys.path.insert(0, str(ROOT / "scripts" / "lib"))
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import shell_debt
+
+#: `source .../lib/<name>` -- the statement, not the name.
+#:
+#: A substring match on the filename reads a COMMENT as a dependency, and it
+#: does so silently. `lib/mlx_serve.sh` opens by calling itself "the sibling
+#: of lib/ds4_server.sh", which a substring match counted as sourcing it: the
+#: library appeared to have nine sourcers when it has eight, and deleting it
+#: would then have waited on a file that does not use it. This repo has paid
+#: for a substring matcher once already -- see the header of
+#: benchmarks/agent/test_ds4_route.py, where fixture and parser agreed with
+#: each other and neither agreed with ds4.
+SOURCE_LINE = "source"
+
+
+def sourcers(library: str) -> list[str]:
+    """Every tracked shell that actually `source`s `library`."""
+    name = pathlib.Path(library).name
+    pattern = re.compile(rf"^\s*{SOURCE_LINE}\s+.*lib/{re.escape(name)}", re.MULTILINE)
+    return sorted(
+        f
+        for f in shell_debt.shell_files()
+        if f != library and pattern.search((ROOT / f).read_text())
+    )
 
 
 def test_every_mapping_names_a_shell_file_that_exists() -> None:
@@ -116,10 +140,39 @@ def test_the_user_facing_installer_is_kept() -> None:
     assert "local-agent.sh" in (ROOT / "RECOMMENDATIONS.md").read_text()
 
 
-def test_dies_with_names_a_script_that_is_actually_replaced() -> None:
-    """A file retired by deleting another one only if that one IS replaced."""
-    for path, owner in shell_debt.DIES_WITH.items():
-        assert owner in shell_debt.REPLACED, f"{path} waits on unreplaced {owner}"
+def test_dies_with_names_scripts_that_are_actually_replaced() -> None:
+    """A file retired by deleting others only if every one of them IS replaced.
+
+    All of them, not the first: a library dies with its LAST sourcer, so one
+    unreplaced sourcer keeps it alive however many of the rest are done.
+    """
+    for path, owners in shell_debt.DIES_WITH.items():
+        assert isinstance(owners, tuple), f"{path} must name a tuple of sourcers"
+        assert owners, f"{path} dies with nothing, which retires it silently"
+        for owner in owners:
+            assert owner in shell_debt.REPLACED, f"{path} waits on unreplaced {owner}"
+
+
+def test_dies_with_names_every_file_that_sources_the_library() -> None:
+    """The list has to be complete, or the library is deleted too early.
+
+    This is the failure the mapping exists to prevent, and it is a quiet one:
+    a sourcer left off the list is not wrong today -- it is wrong on the day
+    somebody deletes the library because the names that ARE listed are gone.
+    So the list is checked against the tree rather than maintained by hand.
+    """
+    for path, owners in shell_debt.DIES_WITH.items():
+        assert sourcers(path) == sorted(owners), f"{path}: tree says {sourcers(path)}"
+
+
+def test_a_sourced_library_is_never_asked_for_its_own_evidence() -> None:
+    """EVIDENCE names a differential, and a library cannot produce one.
+
+    It is never invoked on its own, so there is no recorded argv to compare.
+    An entry here would be a differential somebody wrote against nothing.
+    """
+    for path in shell_debt.DIES_WITH:
+        assert path not in shell_debt.EVIDENCE, f"{path} is a library, not a driver"
 
 
 def test_every_deviation_names_a_replaced_file_and_gives_evidence() -> None:
@@ -139,13 +192,8 @@ def test_transcript_move_is_sourced_only_by_the_script_it_dies_with() -> None:
     explaining why lib/batch.py filters on mtime instead. If a second script
     ever sources it, deleting stack_agent_ab.sh stops being enough.
     """
-    sourcing = sorted(
-        f
-        for f in shell_debt.shell_files()
-        if "transcript_move.sh" in (ROOT / f).read_text()
-        and f != "scripts/lib/transcript_move.sh"
-    )
-    assert sourcing == ["scripts/stack_agent_ab.sh"], sourcing
+    got = sourcers("scripts/lib/transcript_move.sh")
+    assert got == ["scripts/stack_agent_ab.sh"], got
 
 
 def test_every_unreplaced_file_is_classified() -> None:
@@ -212,3 +260,34 @@ def test_cleared_and_waiting_account_for_every_replaced_file() -> None:
     got = shell_debt.survey()
     replaced = [f for f in got["files"] if f["replacement_exists"]]
     assert len(got["cleared"]) + len(got["waiting"]) == len(replaced)
+
+
+def test_a_library_is_not_cleared_while_a_sourcer_still_waits() -> None:
+    """The rule that replaced a table entry, asserted in both directions.
+
+    `lib/ds4_server.sh` is REPLACED and has no EVIDENCE of its own, so under
+    the old rule it sat in the report as "NO EVIDENCE" -- which reads as a
+    differential somebody forgot to write, for a file that cannot have one.
+    It is deletable when nothing sources it, and not before.
+    """
+    got = shell_debt.survey()
+    waiting = {f["path"]: f for f in got["waiting"]}
+    cleared = {f["path"] for f in got["cleared"]}
+
+    for lib in ("scripts/lib/ds4_server.sh", "scripts/lib/mlx_serve.sh"):
+        owners = set(shell_debt.DIES_WITH[lib])
+        if owners & set(waiting):
+            assert lib in waiting, f"{lib} cleared while {owners & set(waiting)} wait"
+            assert waiting[lib]["blocked_on"], f"{lib} waits but names nobody"
+            assert set(waiting[lib]["blocked_on"]) == owners & set(waiting)
+        else:
+            assert lib in cleared, f"{lib}: every sourcer is done, so it goes too"
+
+
+def test_a_driver_waiting_for_a_differential_names_nobody() -> None:
+    """`blocked_on` is the library case only. A driver waits on its own test,
+    and listing a sourcer for it would invent a dependency that is not there.
+    """
+    for f in shell_debt.survey()["waiting"]:
+        if f["path"] not in shell_debt.DIES_WITH:
+            assert not f["blocked_on"], f"{f['path']} is a driver, not a library"

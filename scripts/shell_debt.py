@@ -97,11 +97,45 @@ KEEP = {
     "scripts/ds4-vanilla.sh": "3-line exec shim -- AGENTS.md's documented exception",
 }
 
-#: Shell that is retired by deleting something else. `transcript_move.sh` is
-#: `source`d by exactly one file, `stack_agent_ab.sh`, which is replaced; the
-#: mtime filter in `lib/batch.py` does its job now. Every other reference to
-#: it in the tree is a comment explaining why the filter exists.
-DIES_WITH = {"scripts/lib/transcript_move.sh": "scripts/stack_agent_ab.sh"}
+#: Shell that is retired by deleting something else: `<library>: (every file
+#: that sources it)`. The library goes when the LAST of them goes, so the
+#: value is a tuple even when it holds one name -- `ds4_server.sh` has eight
+#: sourcers and a single-owner mapping could not say so.
+#:
+#: **A sourced library needs no evidence of its own, and listing it as
+#: "NO EVIDENCE" misreports the plan.** A differential compares a driver's
+#: recorded argv and env against the shell's; a library that is never invoked
+#: on its own has no such run to produce. What clears it is that nothing
+#: sources it any more -- which is a fact about other files, checked by the
+#: tests below, not a test somebody has to write for this one.
+#:
+#: That is not the same as saying a library needs no tests. `ds4_server.sh`
+#: and `mlx_serve.sh` each carry a teardown suite, and on 2026-09-09 those
+#: suites gained the case that had been missing from both: a CHAINED EXIT trap
+#: on a FAILING run. The bare branch and the succeeding chained branch were
+#: each covered, and their combination -- the only one where the wrong status
+#: is visible -- was not. See tests/test_ds4_server_teardown.py.
+#:
+#: - `transcript_move.sh`: the mtime filter in `lib/batch.py` does its job
+#:   now, and every other mention of it in the tree is a comment explaining
+#:   why that filter exists.
+#: - `ds4_server.sh`: start/stop/teardown for every ds4 driver.
+#: - `mlx_serve.sh`: the second engine, added for #191; `stack_agent_ab.sh` is
+#:   the only file that has ever sourced it.
+DIES_WITH: dict[str, tuple[str, ...]] = {
+    "scripts/lib/transcript_move.sh": ("scripts/stack_agent_ab.sh",),
+    "scripts/lib/ds4_server.sh": (
+        "scripts/disk_kv_mechanism_test.sh",
+        "scripts/greedy_mtp_ab.sh",
+        "scripts/mtp_treatment_gate.sh",
+        "scripts/restart_between_trials.sh",
+        "scripts/restart_between_trials_armB.sh",
+        "scripts/stack_agent_ab.sh",
+        "scripts/strip_toggle_ab.sh",
+        "scripts/targets_ab.sh",
+    ),
+    "scripts/lib/mlx_serve.sh": ("scripts/stack_agent_ab.sh",),
+}
 
 #: `<shell>: <the test that clears it for deletion>`. An explicit table for
 #: the same reason REPLACED is one: a name match would report a shell as
@@ -212,11 +246,51 @@ def survey(root: pathlib.Path = ROOT) -> dict[str, object]:
     ]
     floor = sum(int(f["lines"]) for f in keep)
     replaced = [f for f in files if f["replacement_exists"]]
-    cleared = [f for f in replaced if f["evidence"] or f["path"] in DEVIATIONS]
+
+    def is_cleared(f: dict[str, object]) -> bool:
+        """Whether this file is defensible to delete today.
+
+        Three ways, and the third is the library case. A driver clears on its
+        own differential (EVIDENCE) or on a written deviation. A LIBRARY has
+        neither and cannot: it is never invoked alone, so there is no recorded
+        argv to compare against the shell's. What clears it is that every file
+        which sources it is itself cleared -- at which point nothing calls it
+        and deleting it removes no behaviour.
+
+        Written as a rule rather than a table entry because the answer changes
+        as its sourcers land. `lib/ds4_server.sh` has eight; a table would
+        have to be re-edited eight times and would be wrong in between.
+        """
+        path = str(f["path"])
+        if f["evidence"] or path in DEVIATIONS:
+            return True
+        owners = DIES_WITH.get(path)
+        return bool(owners) and all(
+            g["evidence"] or str(g["path"]) in DEVIATIONS
+            for g in files
+            if str(g["path"]) in owners
+        )
+
+    cleared = [f for f in replaced if is_cleared(f)]
     waiting = [f for f in replaced if f not in cleared]
     return {
         "cleared": [{"path": f["path"], "lines": f["lines"]} for f in cleared],
-        "waiting": [{"path": f["path"], "lines": f["lines"]} for f in waiting],
+        # `blocked_on` is the sourcers a LIBRARY is still waiting for, and it
+        # is empty for a driver. The two wait for different things and the
+        # report said "NO EVIDENCE" to both, which reads as an oversight on a
+        # file that can never have evidence of its own.
+        "waiting": [
+            {
+                "path": f["path"],
+                "lines": f["lines"],
+                "blocked_on": [
+                    o
+                    for o in DIES_WITH.get(str(f["path"]), ())
+                    if o in {str(g["path"]) for g in waiting}
+                ],
+            }
+            for f in waiting
+        ],
         # The honest progress number. `reduction_pct` is 0.0 and will stay
         # there until files are actually deleted; this says how much of the
         # deletion is currently defensible.
@@ -226,7 +300,11 @@ def survey(root: pathlib.Path = ROOT) -> dict[str, object]:
             for f in keep
         ],
         "dies_with": [
-            {"path": f["path"], "lines": f["lines"], "with": DIES_WITH[str(f["path"])]}
+            {
+                "path": f["path"],
+                "lines": f["lines"],
+                "with": DIES_WITH[str(f["path"])],
+            }
             for f in dies
         ],
         "deviations": [{"path": path, "why": why} for path, why in DEVIATIONS.items()],
@@ -292,7 +370,15 @@ def report(s: dict[str, object]) -> None:
     for f in s["portable"]:  # type: ignore[union-attr]
         logger.info("  %4s  port it        %s", f["lines"], f["path"])
     for f in s["dies_with"]:  # type: ignore[union-attr]
-        logger.info("  %4s  dies with      %s  (%s)", f["lines"], f["path"], f["with"])
+        # The whole list, not the first name. A library whose last sourcer is
+        # gone is deletable and one with seven left is not, and a line that
+        # showed only one could not tell them apart.
+        logger.info(
+            "  %4s  dies with      %s  (%s)",
+            f["lines"],
+            f["path"],
+            ", ".join(f["with"]),  # type: ignore[arg-type]
+        )
     for f in s["deviations"]:  # type: ignore[union-attr]
         logger.info("  %4s  DEVIATION      %s  -- %s", 0, f["path"], f["why"])
     for f in s["keep"]:  # type: ignore[union-attr]
@@ -306,7 +392,17 @@ def report(s: dict[str, object]) -> None:
         s["lines_if_cleared_deleted"],
     )
     for f in s["waiting"]:  # type: ignore[union-attr]
-        logger.info("  %4s  NO EVIDENCE    %s", f["lines"], f["path"])
+        blocked = f["blocked_on"]
+        if blocked:
+            logger.info(
+                "  %4s  WAITS ON %-2s   %s  (%s)",
+                f["lines"],
+                len(blocked),  # type: ignore[arg-type]
+                f["path"],
+                ", ".join(pathlib.Path(o).name for o in blocked),  # type: ignore
+            )
+        else:
+            logger.info("  %4s  NO EVIDENCE    %s", f["lines"], f["path"])
     logger.info("")
     logger.info(
         "porting the %s portable lines leaves %s, against a target of %s: %s",

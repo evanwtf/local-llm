@@ -42,7 +42,9 @@ mlx_serve_stop_server() {
 # Stopping an engine that is not running is a no-op, so asking for both is
 # free and asking for one is a coin flip.
 mlx_serve_stop_on_exit() {
-  local status=$?
+  # $1 when the chained trap passes the status it captured; $? otherwise.
+  # See mlx_serve_arm_stop_trap for why the chained case cannot use $?.
+  local status=${1:-$?}
   trap - EXIT INT TERM
   mlx_serve_stop_server "teardown" || echo "WARNING: mlx-serve survived teardown" >&2
   if command -v ds4_stop_server >/dev/null 2>&1; then
@@ -61,7 +63,15 @@ mlx_serve_arm_stop_trap() {
     # shellcheck disable=SC2064  # expanding NOW is the point: $existing is the
     # text of the handler already installed, captured here and re-installed
     # alongside ours. Single quotes would defer it and lose the chain.
-    trap "${existing}; mlx_serve_stop_on_exit" EXIT
+    #
+    # The status is captured FIRST and passed in. A bare
+    # `${existing}; mlx_serve_stop_on_exit` hands mlx_serve_stop_on_exit the
+    # EXISTING trap's status -- ds4's teardown, which succeeds -- so a failed
+    # run would exit 0. Reproduced 2026-09-09: `exit 1` came out as 0 through
+    # the chained branch and as 1 through the bare one. #235 found the same
+    # defect in ds4_arm_stop_trap; this is its twin, latent because
+    # stack_agent_ab.sh is the only caller and arms nothing before it.
+    trap '_mlx_status=$?; '"${existing}"'; mlx_serve_stop_on_exit "$_mlx_status"' EXIT
   else
     trap mlx_serve_stop_on_exit EXIT
   fi
