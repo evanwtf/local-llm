@@ -11,6 +11,7 @@ it needs an engine, a GPU, or a model.
 
 from __future__ import annotations
 
+import ast
 import os
 import pathlib
 import subprocess
@@ -139,10 +140,126 @@ def test_terminate_never_raises_on_a_vanished_group(tmp_path, monkeypatch) -> No
         proc.wait()
 
 
-def test_the_driver_does_not_reach_for_subprocess_run_for_the_measurement() -> None:
-    # The engine was always managed; the thing that writes rows was not.
-    code = code_of(ROOT / "scripts" / "route_agent_ab.py")
-    assert "child.run(" in code
+def measurement_spawns(path: pathlib.Path) -> list[tuple[int, str, str]]:
+    """`(line, how, argv-expression)` for every spawn of a COMPUTED command.
+
+    The rule that separates the two kinds of subprocess a driver has:
+
+    * a **list literal** is a fixed tool -- `git`, `lsof`, `pgrep`,
+      `./ds4_test`, the KV audit. It spawns nothing of its own, finishes in
+      milliseconds, and `subprocess.run` is right for it.
+    * a **computed** argv -- `run_argv(...)`, `arm_argv(...)`, a bare `argv`
+      parameter -- is a measurement command line. `run.py` re-spawns
+      `opencode`, so it must go through `child.run`.
+
+    Reading the argv expression rather than the callee name is what makes this
+    checkable. The test it replaces asserted `"child.run(" in code` for ONE
+    driver by name, and `route_agent_ab.py` satisfied it while still calling
+    `subprocess.run` three times -- correctly, as it happens, for two `git`
+    invocations and a `./ds4_test`. A substring cannot tell those apart from
+    the measurement, so it passed while three other drivers spawned `run.py`
+    with `subprocess.run`.
+    """
+    tree = ast.parse(path.read_text())
+    out = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call) or not node.args:
+            continue
+        how = ast.unparse(node.func)
+        if how not in ("subprocess.run", "subprocess.Popen", "child.run"):
+            continue
+        argv = node.args[0]
+        if isinstance(argv, ast.List):
+            continue
+        out.append((node.lineno, how, ast.unparse(argv)))
+    return out
+
+
+def drivers_that_spawn_the_harness() -> list[pathlib.Path]:
+    return sorted(
+        p
+        for p in (ROOT / "scripts").glob("*.py")
+        if "benchmarks/agent/run.py" in p.read_text()
+    )
+
+
+def test_every_driver_spawns_the_measurement_through_child_run() -> None:
+    """The convention, over every driver, not one of them.
+
+    Three carried `subprocess.run` on the measurement while their argv/env
+    differentials were green -- and a differential cannot see this by
+    construction: `child.run` and `subprocess.run` hand the child the same
+    command line. What differs is only what happens when the driver is
+    stopped, which is the axis no differential looks at.
+    """
+    assert drivers_that_spawn_the_harness(), "found no drivers; the glob is wrong"
+    wrong = [
+        f"{path.name}:{line} {how}({argv})"
+        for path in drivers_that_spawn_the_harness()
+        for line, how, argv in measurement_spawns(path)
+        if how != "child.run"
+    ]
+    assert not wrong, "the measurement child must go through child.run (#268): " + (
+        ", ".join(wrong)
+    )
+
+
+def test_a_fixed_tool_may_still_use_subprocess_run() -> None:
+    """The exemption is real, and asserting it keeps the rule from over-reaching.
+
+    `git rev-parse`, `lsof`, `pgrep` and the KV audit spawn nothing and finish
+    at once. Routing them through `child.run` would buy nothing and would make
+    the rule look arbitrary, which is how a rule stops being followed.
+    """
+    literals = [
+        p.name
+        for p in drivers_that_spawn_the_harness()
+        if "subprocess.run(" in code_of(p)
+    ]
+    assert literals, (
+        "no driver calls subprocess.run at all any more -- if that is "
+        "deliberate, delete this test rather than letting it assert nothing"
+    )
+
+
+def test_subprocess_run_alone_leaves_the_grandchild(tmp_path) -> None:
+    """Why the rule exists, demonstrated rather than asserted.
+
+    The twin of test_the_whole_tree_dies_not_just_the_child. That one proves
+    `child.terminate` takes the tree down; this one proves the thing it is
+    being preferred over does not, so the convention carries its own evidence.
+    """
+    marker = tmp_path / "grandchild.pid"
+    script = (
+        "import subprocess, pathlib, sys, time\n"
+        "p = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(120)'])\n"
+        f"pathlib.Path({str(marker)!r}).write_text(str(p.pid))\n"
+        "time.sleep(120)\n"
+    )
+    proc = subprocess.Popen(
+        [sys.executable, "-c", script],
+        cwd=tmp_path,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.STDOUT,
+        start_new_session=True,
+    )
+    deadline = time.monotonic() + 10
+    while time.monotonic() < deadline and not marker.exists():
+        time.sleep(0.05)
+    grandchild = int(marker.read_text())
+    try:
+        assert alive(grandchild)
+        # What subprocess.run does on its way out: the immediate child, and
+        # nothing else.
+        proc.kill()
+        proc.wait()
+        time.sleep(0.5)
+        assert alive(grandchild), (
+            "the grandchild died without child.terminate, so this test proves "
+            "nothing on this platform -- check the premise before trusting the rule"
+        )
+    finally:
+        child.terminate(proc)
 
 
 def test_env_merges_and_unset_removes(tmp_path, monkeypatch) -> None:

@@ -149,7 +149,7 @@ def test_the_lock_is_released_when_a_trial_raises(monkeypatch, tmp_path) -> None
     def explode(*a, **k):
         raise RuntimeError("the trial fell over")
 
-    monkeypatch.setattr(rbt.subprocess, "run", explode)
+    monkeypatch.setattr(rbt.child, "run", explode)
     with pytest.raises(RuntimeError):
         rbt.cycle(rbt.ARMS["A"], tmp_path, tmp_path, 4242, trials=3)
     assert "lock-release" in events
@@ -242,10 +242,9 @@ def _wire(monkeypatch, tmp_path, *, rc: int = 0, server_logs: list | None = None
 
     monkeypatch.setattr(rbt.ds4_server, "serving", fake_serving)
 
-    class Done:
-        returncode = rc
-
-    monkeypatch.setattr(rbt.subprocess, "run", lambda *a, **k: Done())
+    # child.run, not subprocess.run: the driver spawns the measurement through
+    # it (#268), and it returns the status directly rather than a CompletedProcess.
+    monkeypatch.setattr(rbt.child, "run", lambda *a, **k: rc)
     monkeypatch.setattr(rbt, "kv_prefix_audit", lambda *a, **k: None)
     return events
 

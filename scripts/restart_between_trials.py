@@ -59,6 +59,7 @@ sys.path.insert(0, str(REPO / "scripts" / "lib"))
 sys.path.insert(0, str(REPO / "benchmarks" / "agent"))
 
 import ab_driver
+import child
 import ds4_server
 import preflight
 
@@ -286,16 +287,17 @@ def cycle(
             ):
                 logger.info("=== arm %s %s ===", arm.name, tag)
                 out = logdir / f"arm{arm.name}-restart-run{n}.log"
-                with out.open("wb") as handle:
-                    done = subprocess.run(
-                        run_argv(arm, server_log),
-                        cwd=REPO,
-                        stdout=handle,
-                        stderr=subprocess.STDOUT,
-                        check=False,
-                    )
-                logger.info("%s rc=%d; log %s", tag, done.returncode, out)
-                if done.returncode != 0:
+                # child.run, not subprocess.run (#268). This driver holds the
+                # machine lock across the whole cycle -- hours, with the server
+                # deliberately down between trials -- so it is the one most
+                # likely to be stopped by hand mid-run. `subprocess.run` kills
+                # its immediate child; `run.py` re-spawns `opencode`, and a
+                # signal to this driver reaches neither. The teardown order
+                # then reads: server stopped, lock released, measurement still
+                # writing rows against a server that no longer exists.
+                rc = child.run(run_argv(arm, server_log), cwd=REPO, log=out)
+                logger.info("%s rc=%d; log %s", tag, rc, out)
+                if rc != 0:
                     failed.append(tag)
             collect_transcripts(bench_logs, arm, n)
 
