@@ -1,4 +1,4 @@
-"""The server teardown helper: `scripts/lib/ds4_server.sh` (#145).
+"""The server teardown helper: `vault/lib/ds4_server.sh` (#145).
 
 `stack_agent_ab.sh` leaked its last model server on every clean finish -- four
 runs in a row, most recently 97.9 GiB -- because the final `restart_server` had
@@ -23,7 +23,7 @@ import textwrap
 import pytest
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
-HELPER = REPO / "scripts" / "lib" / "ds4_server.sh"
+HELPER = REPO / "vault" / "lib" / "ds4_server.sh"
 
 
 @pytest.fixture

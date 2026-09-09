@@ -1,6 +1,6 @@
 """The #138/#191 stack A/B, shell against port (#235, #191, #225).
 
-`scripts/stack_agent_ab.sh` -> `scripts/stack_agent_ab.py`. The last of the
+`vault/stack_agent_ab.sh` -> `scripts/stack_agent_ab.py`. The last of the
 retirement differentials, and the only one that does not drive the whole shell.
 
 ## Why this one extracts functions instead of running the script
@@ -36,7 +36,7 @@ import sys
 import pytest
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-AB = ROOT / "scripts" / "stack_agent_ab.sh"
+AB = ROOT / "vault" / "stack_agent_ab.sh"
 
 for sub in ("scripts", "scripts/lib", "benchmarks/agent"):
     sys.path.insert(0, str(ROOT / sub))

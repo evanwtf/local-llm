@@ -79,7 +79,7 @@ def test_the_report_transcribes_at_least_the_five_drivers() -> None:
 
 def test_every_cited_shell_file_exists() -> None:
     for name, _, _, _, at in transcriptions():
-        assert (ROOT / "scripts" / name).exists(), (
+        assert (ROOT / "vault" / name).exists(), (
             f"{REPORT.name}:{at} cites scripts/{name}, which does not exist"
         )
 
@@ -93,7 +93,7 @@ def test_every_transcribed_flag_is_in_the_lines_it_cites() -> None:
     """
     problems = []
     for name, start, end, flags, at in transcriptions():
-        sh = (ROOT / "scripts" / name).read_text().splitlines()
+        sh = (ROOT / "vault" / name).read_text().splitlines()
         # A generous window: the citation points at a function, and a line
         # number drifts by an edit or two without the claim becoming false.
         window = "\n".join(sh[max(0, start - 4) : min(len(sh), end + 4)])
@@ -115,11 +115,11 @@ def test_a_flag_absent_from_the_shell_would_be_caught() -> None:
     """
     cited = {name for name, *_ in transcriptions()}
     for name in cited:
-        text = (ROOT / "scripts" / name).read_text()
+        text = (ROOT / "vault" / name).read_text()
         assert "--skip-tensor-gate" not in text, (
             f"scripts/{name} carries the #264 flag; this test's premise is stale"
         )
-    route = (ROOT / "scripts" / "route_agent_ab.sh").read_text()
+    route = (ROOT / "vault" / "route_agent_ab.sh").read_text()
     assert "--skip-tensor-gate" in route, (
         "route_agent_ab.sh no longer carries --skip-tensor-gate -- good, but "
         "this test needs a new example of a flag that is really absent"

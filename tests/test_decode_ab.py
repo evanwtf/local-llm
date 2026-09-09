@@ -24,7 +24,7 @@ import pytest
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 sys.path.insert(0, str(ROOT / "scripts" / "lib"))
-SCRIPT = ROOT / "scripts" / "decode_ab.sh"
+SCRIPT = ROOT / "vault" / "decode_ab.sh"
 
 import decode_ab
 import equiv

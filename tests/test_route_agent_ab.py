@@ -191,7 +191,7 @@ def test_the_shell_is_dead_by_the_flag_run_py_dropped() -> None:
     six server restarts, hours, zero rows, exit 0. This test starts failing the
     day someone re-adds the flag, which is the notice we want.
     """
-    shell = (ROOT / "scripts" / "route_agent_ab.sh").read_text()
+    shell = (ROOT / "vault" / "route_agent_ab.sh").read_text()
     assert "--skip-tensor-gate" in shell, (
         "route_agent_ab.sh no longer passes --skip-tensor-gate -- good, but "
         "this test's premise is stale"

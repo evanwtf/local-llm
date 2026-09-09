@@ -1,6 +1,6 @@
 """The A/B runner gained a second engine (#191); the first one must not move.
 
-`scripts/stack_agent_ab.sh` was a FLAG A/B harness -- its own run-record says
+`vault/stack_agent_ab.sh` was a FLAG A/B harness -- its own run-record says
 "same tree and same gguf in both arms: the flags above are the only variable".
 #191 needed an ENGINE A/B, and the risk of that change is not that mlx-serve
 fails to start. It is that ds4's default path shifts by accident, because every
@@ -19,8 +19,8 @@ import tempfile
 import pytest
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-AB = ROOT / "scripts" / "stack_agent_ab.sh"
-LIB = ROOT / "scripts" / "lib" / "mlx_serve.sh"
+AB = ROOT / "vault" / "stack_agent_ab.sh"
+LIB = ROOT / "vault" / "lib" / "mlx_serve.sh"
 
 
 def _mlx_branch() -> str:

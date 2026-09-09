@@ -31,7 +31,7 @@ import equiv
 import tool_shim
 import unitctl
 
-SCRIPT = ROOT / "scripts" / "strip_toggle_ab.sh"
+SCRIPT = ROOT / "vault" / "strip_toggle_ab.sh"
 SHIM_VAR = "SHIM_NO_STRIP"
 
 

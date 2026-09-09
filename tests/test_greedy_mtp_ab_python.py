@@ -28,7 +28,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import greedy_mtp_ab as driver
 from source_text import code_of
 
-SHELL = ROOT / "scripts" / "greedy_mtp_ab.sh"
+SHELL = ROOT / "vault" / "greedy_mtp_ab.sh"
 
 
 # --- the bug that cost an arm on 2026-09-08 ----------------------------------

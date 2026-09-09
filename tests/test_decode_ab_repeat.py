@@ -174,7 +174,7 @@ def test_the_shell_and_the_port_hand_the_harness_the_same_command(tmp_path) -> N
     got = subprocess.run(
         [
             "bash",
-            str(ROOT / "scripts" / "decode_ab_repeat.sh"),
+            str(ROOT / "vault" / "decode_ab_repeat.sh"),
             "2",
             str(prefix),
             str(harness),
