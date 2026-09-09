@@ -19,15 +19,19 @@ cannot be computed says `unreadable` rather than a number-shaped lie.
 from __future__ import annotations
 
 import logging
+import os
 import pathlib
+import subprocess
 import sys
 
 import pytest
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
+sys.path.insert(0, str(ROOT / "scripts" / "lib"))
 
 import ab_status
+import equiv
 
 
 def run_dir(base: pathlib.Path, name: str, *, rows: int = 0) -> pathlib.Path:
@@ -342,3 +346,68 @@ def test_the_real_964_runs_report_the_reports_own_number() -> None:
     assert "\n" not in text
     assert "4/4 complete" in text
     assert text.rsplit(" | ", 1)[-1] in lines
+
+
+# ------------------------------------------------- the #235 retirement read-diff
+#
+# The port's claim is that, under identical inputs, it prints the same status
+# line the shell did. A fake `uv` no-ops the completeness check, thermals and
+# the report; the port's line() is driven with the same canned values. The two
+# lines must differ in nothing but the leading timestamp.
+
+
+def test_the_shell_and_the_port_print_the_same_status_line(
+    tmp_path, monkeypatch
+) -> None:
+    run_dir(tmp_path, "ab-run1", rows=2)
+    run_dir(tmp_path, "ab-run2", rows=2)
+    prefix = tmp_path / "ab-run"
+    shim = tmp_path / "shim"
+    shim.mkdir()
+    probe = tmp_path / "probe.jsonl"
+    equiv.write_uv_fake(
+        shim / "uv",
+        probe,
+        canned_by_script={
+            "-c": "1",  # is_complete
+            "thermals.py": '{"die_max_c": 60.0}',
+            "decode_ab_report.py": "runs: median 1.152 (n=2)\n",
+        },
+    )
+    env = {
+        "PATH": f"{shim}:{os.environ.get('PATH', '')}",
+        "HOME": str(tmp_path),
+        "WANT_RUNS": "2",
+        "EQUIV_OUT": str(probe),
+        "EQUIV_PROGRAM": "uv",
+        "EQUIV_ARM": "shell",
+    }
+    got = subprocess.run(
+        ["bash", str(ROOT / "scripts" / "ab_status.sh"), str(prefix)],
+        cwd=tmp_path,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=60,
+    )
+    assert got.returncode == 10, (
+        f"shell exited {got.returncode}:\n{got.stderr}\n{got.stdout}"
+    )
+    shell_line = got.stdout.strip().split(" | ", 1)[1]
+
+    monkeypatch.setattr(ab_status.thermals, "reading", lambda: {"die_max_c": 60.0})
+    claim = ab_status.machine_state.Claim(
+        "run-lock", "x", 1, ab_status.machine_state.MISSING, ""
+    )
+    monkeypatch.setattr(ab_status.machine_state, "lock_claim", lambda *a, **k: claim)
+
+    def fake_main(argv):
+        logging.getLogger("decode_ab_report").info("runs: median 1.152 (n=2)")
+        return 0
+
+    monkeypatch.setattr(ab_status.decode_ab_report, "main", fake_main)
+    text, code = ab_status.line(str(prefix), want=2)
+    assert code == 10
+    port_line = text.split(" | ", 1)[1]
+    assert port_line == shell_line, f"shell: {shell_line!r}\nport:  {port_line!r}"
