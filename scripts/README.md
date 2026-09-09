@@ -29,6 +29,7 @@ documentation.
 | `evidence.py` | Re-run a finding's claims and say whether they still hold. #160 |
 | `exclude_rows.py` | Mark rows from an aborted or void run as excluded, so they cannot publish. |
 | `gguf_meta.py` | Print a GGUF file's metadata without loading the model. |
+| `greedy_mtp_ab.py` | The first ds4 MTP arm that can actually draft, against its own control. |
 | `hardware_id.py` | Derive a machine's results-directory name from the machine itself. |
 | `hf_sweep.py` | Watch Hugging Face for new quants of the models we actually run. |
 | `kv_prefix_audit.py` | Measure how much prefill a stalled KV prefix costs (#64, #50). |
