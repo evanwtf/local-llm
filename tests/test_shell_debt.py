@@ -94,3 +94,74 @@ def test_the_reduction_is_measured_against_the_written_baseline() -> None:
     assert shell_debt.TARGET == round(shell_debt.BASELINE * 0.1)
     agents = (ROOT / "AGENTS.md").read_text()
     assert "3,589" in agents and "359" in agents
+
+
+def test_the_keep_list_names_files_that_exist_and_gives_a_reason() -> None:
+    tracked = set(shell_debt.shell_files())
+    for path, why in shell_debt.KEEP.items():
+        assert path in tracked, f"{path} is in KEEP but is not tracked shell"
+        assert why.strip(), f"{path} is kept for no stated reason"
+
+
+def test_the_user_facing_installer_is_kept() -> None:
+    """The 90% target must not be read as "port everything".
+
+    RECOMMENDATIONS.md section 3 tells a stranger to run
+    `scripts/local-agent.sh`. Porting it changes published instructions and
+    buys nothing -- a Python installer is still a script you paste -- and at
+    284 lines it is the single biggest file left, which is exactly what makes
+    it the one somebody reaches for when the line count is close.
+    """
+    assert "scripts/local-agent.sh" in shell_debt.KEEP
+    assert "local-agent.sh" in (ROOT / "RECOMMENDATIONS.md").read_text()
+
+
+def test_dies_with_names_a_script_that_is_actually_replaced() -> None:
+    """A file retired by deleting another one only if that one IS replaced."""
+    for path, owner in shell_debt.DIES_WITH.items():
+        assert owner in shell_debt.REPLACED, f"{path} waits on unreplaced {owner}"
+
+
+def test_transcript_move_is_sourced_only_by_the_script_it_dies_with() -> None:
+    """Asserted, because 'nothing else uses it' is the whole claim.
+
+    Every other mention of transcript_move.sh in the tree is a comment
+    explaining why lib/batch.py filters on mtime instead. If a second script
+    ever sources it, deleting stack_agent_ab.sh stops being enough.
+    """
+    sourcing = sorted(
+        f
+        for f in shell_debt.shell_files()
+        if "transcript_move.sh" in (ROOT / f).read_text()
+        and f != "scripts/lib/transcript_move.sh"
+    )
+    assert sourcing == ["scripts/stack_agent_ab.sh"], sourcing
+
+
+def test_every_unreplaced_file_is_classified() -> None:
+    """No file may sit in the remainder unaccounted for.
+
+    Either it is portable, or it dies with something, or it is kept for a
+    written reason. An unclassified file is one nobody has decided about, and
+    it will be discovered at 359 lines when the decision is expensive.
+    """
+    got = shell_debt.survey()
+    counted = len(got["portable"]) + len(got["dies_with"]) + len(got["keep"])
+    unreplaced = [f for f in got["files"] if not f["replacement_exists"]]
+    assert counted == len(unreplaced)
+
+
+def test_the_target_is_reachable_without_porting_a_kept_file() -> None:
+    """If this fails, the 90% target needs a person, not more porting.
+
+    It says: port every portable file, retire every replaced one, and the
+    lines that MUST stay shell still come in under 359. Today that is 342 --
+    17 to spare. If a new .sh lands in KEEP and pushes the floor over the
+    target, the choice is to move the target or to move a file out of KEEP,
+    and either one is the operator's call.
+    """
+    got = shell_debt.survey()
+    assert got["target_reachable"], (
+        f"the floor is {got['floor_lines']} lines against a target of "
+        f"{got['target_lines']}; porting everything portable is no longer enough"
+    )

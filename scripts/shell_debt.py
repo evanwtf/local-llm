@@ -78,6 +78,26 @@ REPLACED = {
     "scripts/lib/mlx_serve.sh": "scripts/lib/mlx_serve.py",
 }
 
+#: Shell that should STAY shell, with the reason. Without this the 90% target
+#: reads as "port everything", and the first file anyone would reach for is
+#: the one that must not move: RECOMMENDATIONS.md tells a stranger to paste
+#: `scripts/local-agent.sh`, so porting it changes published instructions and
+#: gains nothing -- a Python installer would still be a script you paste.
+KEEP = {
+    "scripts/local-agent.sh": (
+        "user-facing; RECOMMENDATIONS.md tells a stranger to run it"
+    ),
+    "scripts/install-metal-ceiling.sh": "installs a system artifact",
+    "scripts/ds4-fast.sh": "3-line exec shim -- AGENTS.md's documented exception",
+    "scripts/ds4-vanilla.sh": "3-line exec shim -- AGENTS.md's documented exception",
+}
+
+#: Shell that is retired by deleting something else. `transcript_move.sh` is
+#: `source`d by exactly one file, `stack_agent_ab.sh`, which is replaced; the
+#: mtime filter in `lib/batch.py` does its job now. Every other reference to
+#: it in the tree is a comment explaining why the filter exists.
+DIES_WITH = {"scripts/lib/transcript_move.sh": "scripts/stack_agent_ab.sh"}
+
 BY_NAME = re.compile(r"\b(pgrep|pkill)\b")
 
 
@@ -114,7 +134,29 @@ def survey(root: pathlib.Path = ROOT) -> dict[str, object]:
     lines = sum(int(f["lines"]) for f in files)
     by_name = sum(int(f["by_name"]) for f in files)
     unreplaced = [f for f in files if not f["replacement_exists"]]
+    keep = [f for f in unreplaced if f["path"] in KEEP]
+    dies = [f for f in unreplaced if f["path"] in DIES_WITH]
+    portable = [
+        f for f in unreplaced if f["path"] not in KEEP and f["path"] not in DIES_WITH
+    ]
+    floor = sum(int(f["lines"]) for f in keep)
     return {
+        "keep": [
+            {"path": f["path"], "lines": f["lines"], "why": KEEP[str(f["path"])]}
+            for f in keep
+        ],
+        "dies_with": [
+            {"path": f["path"], "lines": f["lines"], "with": DIES_WITH[str(f["path"])]}
+            for f in dies
+        ],
+        "portable": [{"path": f["path"], "lines": f["lines"]} for f in portable],
+        "portable_lines": sum(int(f["lines"]) for f in portable),
+        # What is left when every portable file is ported and every replaced
+        # file retired. If this exceeds the target, the target is unreachable
+        # without porting something in KEEP, and that is a decision for a
+        # person -- not something to discover by accident at 359.
+        "floor_lines": floor,
+        "target_reachable": floor <= TARGET,
         "scope": SCOPE,
         "files": files,
         "total_lines": lines,
@@ -164,6 +206,24 @@ def report(s: dict[str, object]) -> None:
             "replacement. Replacement is not retirement: a .sh is deleted "
             "only once its replacement has produced a run that agrees with it."
         )
+    logger.info("")
+    logger.info("of what is left:")
+    for f in s["portable"]:  # type: ignore[union-attr]
+        logger.info("  %4s  port it        %s", f["lines"], f["path"])
+    for f in s["dies_with"]:  # type: ignore[union-attr]
+        logger.info("  %4s  dies with      %s  (%s)", f["lines"], f["path"], f["with"])
+    for f in s["keep"]:  # type: ignore[union-attr]
+        logger.info("  %4s  STAYS SHELL    %s  -- %s", f["lines"], f["path"], f["why"])
+    logger.info("")
+    logger.info(
+        "porting the %s portable lines leaves %s, against a target of %s: %s",
+        s["portable_lines"],
+        s["floor_lines"],
+        s["target_lines"],
+        "reachable"
+        if s["target_reachable"]
+        else "NOT REACHABLE without porting a KEEP file",
+    )
 
 
 def main(argv: list[str] | None = None) -> int:

@@ -48,6 +48,18 @@ replacement has produced a run that agrees with it, so the line count will sit
 at 3,589 until those runs happen. That is the intended order: a port that has
 never arbitrated a measurement has not been tested where it counts.
 
+**And 90% does not mean "port everything".** The script classifies every
+remaining file, because the biggest one left is the one that must not move:
+`scripts/local-agent.sh` is 284 lines and RECOMMENDATIONS.md section 3 tells a
+stranger to run it. Porting it would change published instructions and buy
+nothing — a Python installer is still a script you paste. With it,
+`install-metal-ceiling.sh` and the two three-line `exec` shims kept as shell,
+porting the other 534 lines lands at **342 against a target of 359**. The
+margin is 17 lines, so a new `.sh` that has to stay shell can make the target
+unreachable; `test_the_target_is_reachable_without_porting_a_kept_file` fails
+when that happens, and the choice then — move the target, or move a file out
+of `KEEP` — belongs to the operator, not to whoever is porting that day.
+
 ### Why, in the words of the failures
 
 Shell arbitrated every measurement this project has published. When
