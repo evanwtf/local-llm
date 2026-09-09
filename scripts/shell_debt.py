@@ -179,6 +179,14 @@ EVIDENCE = {
         "tests/test_mtp_treatment_gate_python.py::"
         "test_the_shell_and_the_port_hand_run_py_the_same_command"
     ),
+    "scripts/restart_between_trials.sh": (
+        "tests/test_restart_between_trials_equiv.py::"
+        "test_arm_a_differs_from_its_shell_by_exactly_the_server_log"
+    ),
+    "scripts/restart_between_trials_armB.sh": (
+        "tests/test_restart_between_trials_equiv.py::"
+        "test_arm_b_matches_its_shell_exactly"
+    ),
     "scripts/strip_toggle_ab.sh": (
         "tests/test_strip_toggle_ab.py::"
         "test_the_on_arm_removes_shim_no_strip_on_both_sides"
