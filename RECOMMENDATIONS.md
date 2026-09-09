@@ -65,7 +65,7 @@ Section 1 installs row 1.
 | **you want a second lineage** | DeepSeek-V4-Flash | ds4 (DwarfStar) | 91 GB | **30/30** | 115s |
 
 **Row 2 is 16% faster than row 3 and costs you a fork** — wall ratio 0.84
-(95% CI 0.76–0.92), 90/90 both arms, 13 of 15 tasks favouring ds4. It loads
+(95% CI 0.76–0.92), 90/90 both arms, 13 of 15 tasks favoring ds4. It loads
 only on ivanfioravanti's trees, and this file has already had one stack
 withdrawn by its author. Row 3 is slower and will still be there.
 
@@ -111,6 +111,4 @@ lists every other script.
 | the machine, and what a comparison must do | [`docs/m5max-runbook.md`](docs/m5max-runbook.md) |
 | traps that have cost a measurement | [`AGENTS.md`](AGENTS.md) · what to do next: [`NEXT.md`](NEXT.md) |
 
-> **OpenCode results before 2026-08-31 21:47 EDT are INVALID** — the client was
-> never told which directory to work in. Do not quote or compare against them:
-> [`docs/archive/results-opencode-pre-dir.md`](docs/archive/results-opencode-pre-dir.md).
+> ⚠️ **OpenCode results before 2026-08-31 21:47 EDT are INVALID** — the client was never told which directory to work in. **Other clients are unaffected.** The ledger holds none of these rows now; do not quote them from older documents either: [what happened](docs/archive/results-opencode-pre-dir.md).
