@@ -117,6 +117,19 @@ def argv(
         "--kv-disk-space-mb",
         str(kv_disk_mb),
     ]
+    if mtp_model is None and (mtp_draft is not None or mtp_timing):
+        # Not refused, yet. `--mtp-draft 7` with no head is an arm that cannot
+        # speculate while looking like one that can -- the exact shape of #151,
+        # where 119 rows were taken on an arm that never drafted. Refusing is
+        # the better end state, but it is a behaviour change, and during a port
+        # a behaviour change is indistinguishable from a porting bug. Warn now,
+        # refuse in a follow-up once the drivers are across.
+        logger.warning(
+            "mtp_draft=%r mtp_timing=%r were given with no mtp_model, so no "
+            "MTP flags will be passed. This arm cannot speculate (#151)",
+            mtp_draft,
+            mtp_timing,
+        )
     if mtp_model is not None:
         args += ["--mtp-model", str(mtp_model)]
         if mtp_draft is not None:
@@ -147,7 +160,17 @@ def start(
     cwd: pathlib.Path,
     state_dir: pathlib.Path | None = None,
 ) -> unitctl.Unit:
-    """Start the server as the `ds4-server` unit, after stopping any leftover."""
+    """Start the server as the `ds4-server` unit, after stopping any leftover.
+
+    The leftover stop lives here rather than in the driver: "an arm starts from
+    a clean slate" is the invariant this module exists to hold, and a driver
+    that forgets it reproduces #145. It means `serving()` calls `unitctl.stop`
+    twice on the normal path -- once here, once in its `finally`.
+
+    That is harmless only because `unitctl.stop` is idempotent: a stale or
+    absent record is a no-op, and it never signals a pid it cannot confirm is
+    ours. **That idempotency is load-bearing here**, not incidental.
+    """
     stop("leftover from an earlier run", state_dir=state_dir)
     return unitctl.start(UNIT, list(command), log=log, cwd=cwd, state_dir=state_dir)
 

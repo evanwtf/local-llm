@@ -73,6 +73,21 @@ def test_the_mtp_arm_carries_its_three_flags(paths):
     assert "--mtp-model" in args
 
 
+def test_draft_without_a_head_warns_so_the_config_error_is_visible(paths, caplog):
+    """--deepseek's point: silently dropping a flag the caller passed is how a
+    config error hides. Refusing is the better end state; during a port a
+    behaviour change is indistinguishable from a porting bug, so it warns."""
+    with caplog.at_level("WARNING", logger=ds4_server.logger.name):
+        ds4_server.argv(
+            paths["model"],
+            paths["ple"],
+            paths["kv"],
+            binary=paths["binary"],
+            mtp_draft=7,
+        )
+    assert "cannot speculate" in caplog.text
+
+
 def test_draft_and_timing_are_ignored_without_a_head(paths):
     """`--mtp-draft 7` with no `--mtp-model` is an arm that cannot speculate
     while looking like one that can -- the exact shape of #151."""
