@@ -20,7 +20,10 @@ sys.path.insert(0, str(ROOT / "scripts" / "lib"))
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 sys.path.insert(0, str(ROOT / "scripts"))
 
+sys.path.insert(0, str(ROOT / "benchmarks" / "agent"))
+
 import ds4_server
+import preflight
 import unitctl
 from source_text import code_of
 
@@ -29,6 +32,18 @@ MTP_LINE = (
     "MTP=Q4_K/Q8_0/BF16 verifier=block/max16"
 )
 PLAIN_LINE = "ds4: Qwen graph allocated: ctx=100000 QSA=BF16 MTP=off verifier=off"
+
+
+@pytest.fixture(autouse=True)
+def empty_census(monkeypatch) -> None:
+    """No foreign ds4-server, unless a test says otherwise (#253).
+
+    `start()` consults the real process census, so without this the suite
+    would pass or fail depending on whether a server happened to be up on the
+    machine running it -- and this repo's machine runs servers for a living.
+    Same family as #251: a test that passes on machine state is not a test.
+    """
+    monkeypatch.setattr(ds4_server.preflight, "_capture", lambda _argv: "")
 
 
 @pytest.fixture
@@ -165,7 +180,7 @@ def fake_server(monkeypatch, tmp_path):
     """Stand in for a 74 GiB server: record start/stop, skip the real work."""
     events: list[str] = []
 
-    def fake_start(command, log, *, cwd, state_dir=None):
+    def fake_start(command, log, *, cwd, allow_foreign=False, state_dir=None):
         events.append("start")
         pathlib.Path(log).write_text(MTP_LINE + "\n")
         return unitctl.Unit(
@@ -291,3 +306,103 @@ def test_the_module_never_looks_for_a_process_by_name():
     assert "pgrep" not in code
     assert "pkill" not in code
     assert "DS4_SERVER_PATTERN" not in code
+
+
+# --- a foreign server, which start() must refuse (#253) ----------------------
+
+
+def _one_foreign(pid: int = 4243, gib: float = 97.9):
+    return [preflight.Proc(pid=pid, rss_gib=gib, command="ds4-server --metal")]
+
+
+def test_start_refuses_when_a_foreign_server_is_resident(monkeypatch, tmp_path) -> None:
+    """Stopping our own unit is only half of "a clean slate". Starting beside a
+    server this project did not start puts two engines on the machine at once,
+    and the symptom is not a crash -- it is a run that swaps, and rows that are
+    slow for a reason nobody records. That is #145 through the door the port
+    left open."""
+    monkeypatch.setattr(ds4_server, "foreign", lambda *a: _one_foreign())
+    with pytest.raises(ds4_server.ForeignServer, match="4243"):
+        ds4_server.start(
+            ["sleep", "60"],
+            tmp_path / "s.log",
+            cwd=ROOT,
+            state_dir=tmp_path / "units",
+        )
+    assert not ds4_server.running(tmp_path / "units")
+
+
+def test_the_refusal_names_the_pid_and_the_memory(monkeypatch, tmp_path) -> None:
+    """A refusal an operator cannot act on gets overridden rather than obeyed."""
+    monkeypatch.setattr(ds4_server, "foreign", lambda *a: _one_foreign(gib=97.9))
+    with pytest.raises(ds4_server.ForeignServer) as caught:
+        ds4_server.start(
+            ["sleep", "60"], tmp_path / "s.log", cwd=ROOT, state_dir=tmp_path / "units"
+        )
+    assert "97.9 GiB" in str(caught.value)
+
+
+def test_the_refusal_can_be_overridden_deliberately(monkeypatch, tmp_path) -> None:
+    """A refusal with no way through gets deleted rather than satisfied."""
+    monkeypatch.setattr(ds4_server, "foreign", lambda *a: _one_foreign())
+    unit = ds4_server.start(
+        ["sleep", "60"],
+        tmp_path / "s.log",
+        cwd=ROOT,
+        allow_foreign=True,
+        state_dir=tmp_path / "units",
+    )
+    assert unit.pid
+    ds4_server.stop(state_dir=tmp_path / "units")
+
+
+def test_a_clean_machine_does_not_refuse(monkeypatch, tmp_path) -> None:
+    """The negative case. Without it the guard could refuse everything and the
+    library would be unreachable until an overnight run produced nothing."""
+    monkeypatch.setattr(ds4_server, "foreign", lambda *a: [])
+    unit = ds4_server.start(
+        ["sleep", "60"], tmp_path / "s.log", cwd=ROOT, state_dir=tmp_path / "units"
+    )
+    assert unit.pid
+    ds4_server.stop(state_dir=tmp_path / "units")
+
+
+def test_our_own_server_is_not_foreign(monkeypatch, tmp_path) -> None:
+    """ "Foreign" must mean "not ours", or the check refuses our own server and
+    no arm can ever start."""
+    state = tmp_path / "units"
+    unit = ds4_server.start(
+        ["sleep", "60"], tmp_path / "s.log", cwd=ROOT, state_dir=state
+    )
+    census = [
+        preflight.Proc(pid=unit.pid, rss_gib=97.9, command="ds4-server --metal ours"),
+        preflight.Proc(
+            pid=unit.pid + 99999, rss_gib=97.9, command="ds4-server --metal"
+        ),
+    ]
+    monkeypatch.setattr(preflight, "parse_ps", lambda _text: census)
+    assert [p.pid for p in ds4_server.foreign(state)] == [unit.pid + 99999]
+    ds4_server.stop(state_dir=state)
+
+
+def test_foreign_never_signals_anything() -> None:
+    """`pkill`-ing a process this project did not start is what #235 exists to
+    remove. foreign() reports; the operator decides."""
+    code = code_of(ROOT / "scripts" / "lib" / "ds4_server.py")
+    body = code[code.index("def foreign") : code.index("def stop")]
+    for word in ("kill", "terminate", "signal", "SIGKILL", "SIGTERM"):
+        assert word not in body, f"foreign() must not {word}"
+
+
+def test_a_shell_that_merely_mentions_the_server_is_not_one() -> None:
+    """The self-match trap, one layer down. `foreign()` matches the executable
+    (`Proc.short`), not the whole command line -- preflight's own `parse_ps`
+    records why: a shell running a script that mentions the server has the
+    marker in its ARGUMENTS, and matching those reports the shell that invoked
+    it. Re-introducing that inside the module that exists to delete `pgrep`
+    would be a poor joke."""
+    census = [
+        preflight.Proc(pid=1, rss_gib=0.1, command="/bin/bash -c 'ds4-server --metal'"),
+        preflight.Proc(pid=2, rss_gib=97.9, command="/g/ds4/ds4-server --metal"),
+    ]
+    assert [p.pid for p in census if ds4_server.PROCESS in p.short] == [2]

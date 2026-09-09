@@ -7,9 +7,9 @@ P0 before P1, then by issue number; each summary is the issue's own
 first 100 words. The labels are the ranking, so there is
 nothing here to drift from.
 
-## The queue — 5 P0, 3 P1
+## The queue — 5 P0, 4 P1
 
-Open on this platform: 5 P0, 3 P1, 48 P2, 12 P3.
+Open on this platform: 5 P0, 4 P1, 48 P2, 12 P3.
 One runs at a time; the lock enforces it.
 
 1. **P0 [#158](https://github.com/evanwtf/local-llm/issues/158)** Qwen3.8-Flash-Next is upstreamed as antirez/ds4#991 — the fork dependency, the prefill claim and our own build all change at once
@@ -28,6 +28,8 @@ One runs at a time; the lock enforces it.
    Found in the arm A run for #94 (15 tasks x 3 trials, qwen38fnds4shim, OpenCode 1.18.27, harness 47a1d9f). That run scored 36/45. All nine failures are this one defect, and none of them is wrong code — every one is solution_empty: true. What it looks like Once a tool error enters the conversation, the model stops calling tools and starts narrating about the format, then emits stacked bare <tool_call> opens: Another, ending after 29 output tokens and 7.0 s: That is the model describing the call instead of making it. OpenCode sees finish=stop with no tool call, the turn ends …
 8. **P1 [#162](https://github.com/evanwtf/local-llm/issues/162)** ds4#952 re-test on Metal at head 77a054e1 — and does the f309990 prefill regression cross backends?
    ds4 PR [#952][pr] (AProjQ4) has moved 77 commits since the head we measured, and @GiorgioOppo has asked the three third-party testers to re-run: <https://github.com/antirez/ds4/pull/952#issuecomment-5560444589> @adamlawi covers CUDA (GB10 / sm_121) and @iammac2 covers ROCm (gfx1151). We are the only Metal report in that thread, so this is our lane. Our published numbers, at head 6a20b13, are in #91 and in [this comment][ours] (plus [the correction][corr] that made the ratio paired within each rep): at 6a20b13 | | ---|---| decode q4/q8 | 1.155, spread 1.5 pp over 4 runs | prefill q4/q8 | 0.999 — parity | Current head is 77a054e18726. …
+9. **P1 [#253](https://github.com/evanwtf/local-llm/issues/253)** ds4_server.start() stops our unit but does not refuse a foreign server
+   scripts/lib/ds4_server.py holds half an invariant. Found while porting its sibling; raised by @deepseek reviewing #252 and fixed there, but the ds4 side is merged and eight drivers will use it. The gap start() does this: stop() stops our unit — a server this process started and recorded. It does not see a ds4-server that this project did not start: one left by an earlier session, one started by hand, or one from a run whose unit record was removed. So if a foreign ds4-server is resident, serving() starts a second one beside it. Why that is worse than it sounds …
 
 ## Where everything else is
 

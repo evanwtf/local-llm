@@ -50,12 +50,15 @@ sys.path.insert(
 )
 
 import ds4_route
+import preflight
 import unitctl
 import wait_ready
 
 logger = logging.getLogger(__name__)
 
 UNIT = "ds4-server"
+PROCESS = "ds4-server"
+"""The name preflight's census uses for this engine."""
 DEFAULT_PORT = 8000
 DEFAULT_CTX = 100000
 DEFAULT_KV_DISK_MB = 8192
@@ -69,6 +72,15 @@ class ServerNeverStarted(RuntimeError):
     Distinct from GraphMismatch on purpose: 'we cannot see what it loaded' and
     'it loaded the wrong thing' call for different actions, and conflating them
     is what made a dead control arm report an MTP head it never had.
+    """
+
+
+class ForeignServer(RuntimeError):
+    """A resident ds4-server that this project did not start.
+
+    Its own exception because the operator action is specific and manual: find
+    out whose it is, and stop it deliberately. The one thing that must not
+    happen is starting a second server beside it.
     """
 
 
@@ -146,6 +158,29 @@ def running(state_dir: pathlib.Path | None = None) -> bool:
     return unitctl.state(unitctl.read(UNIT, state_dir)) == unitctl.RUNNING
 
 
+def foreign(state_dir: pathlib.Path | None = None) -> list[preflight.Proc]:
+    """Resident ds4-server processes that are NOT our unit, via preflight.
+
+    The leftover the unit record cannot see: a server started by an earlier
+    session, started by hand, or left by a run whose unit record was removed.
+    It is returned rather than killed -- `pkill`-ing a process this project
+    did not start is the behavior #235 exists to remove. Our own unit is
+    excluded by pid, so "foreign" means "not ours".
+    """
+    procs = preflight.parse_ps(
+        preflight._capture(["ps", "-eo", "pid,rss,etime,command"])
+    )
+    ours = unitctl.read(UNIT, state_dir)
+    our_pid = ours.pid if ours is not None else None
+    # `p.short`, not `p.command`: match the executable, not the whole
+    # command line. preflight's own parse_ps records why -- a shell
+    # running a script that merely mentions the server has the marker in
+    # its arguments, and matching those reports the shell that invoked it.
+    # That is the same self-match the pgrep this module replaced suffered
+    # from, and re-introducing it here would be a poor joke.
+    return [p for p in procs if PROCESS in p.short and p.pid != our_pid]
+
+
 def stop(why: str = "", state_dir: pathlib.Path | None = None) -> str:
     """Stop the server and forget it. Returns the state it was found in."""
     if why:
@@ -158,6 +193,7 @@ def start(
     log: pathlib.Path,
     *,
     cwd: pathlib.Path,
+    allow_foreign: bool = False,
     state_dir: pathlib.Path | None = None,
 ) -> unitctl.Unit:
     """Start the server as the `ds4-server` unit, after stopping any leftover.
@@ -170,8 +206,27 @@ def start(
     That is harmless only because `unitctl.stop` is idempotent: a stale or
     absent record is a no-op, and it never signals a pid it cannot confirm is
     ours. **That idempotency is load-bearing here**, not incidental.
+
+    **A foreign server is refused here for the same reason** (#253). Stopping
+    our own unit is only half of "a clean slate": if a ds4-server this project
+    did not start is resident, starting beside it puts two engines on the
+    machine at once, and the symptom is not a crash -- it is a run that swaps,
+    and rows that are slow for a reason nobody records. The shell this module
+    replaced prevented that with `pkill -f 'ds4-server --metal'`, which killed
+    whatever matched; refusing is the safe half of what it did.
+
+    `allow_foreign` is the way through, because a refusal with no way through
+    gets deleted rather than satisfied -- but it is a deliberate act.
     """
     stop("leftover from an earlier run", state_dir=state_dir)
+    resident = foreign(state_dir)
+    if resident and not allow_foreign:
+        detail = ", ".join(f"pid {p.pid} ({p.rss_gib:.1f} GiB)" for p in resident)
+        raise ForeignServer(
+            f"a ds4-server this run did not start is resident: {detail}. "
+            "Starting beside it would put both on the machine at once. Stop it "
+            "deliberately, or pass allow_foreign=True if that is the intent."
+        )
     return unitctl.start(UNIT, list(command), log=log, cwd=cwd, state_dir=state_dir)
 
 
@@ -238,6 +293,7 @@ def serving(
     want_mtp: bool,
     port: int = DEFAULT_PORT,
     timeout: int = wait_ready.DEFAULT_TIMEOUT,
+    allow_foreign: bool = False,
     state_dir: pathlib.Path | None = None,
 ) -> Iterator[unitctl.Unit]:
     """Run a server for the duration of the block, and always stop it.
@@ -246,7 +302,9 @@ def serving(
     yield. The stop is in a `finally`, so it happens on every exit path --
     which is the #145 fix, expressed once instead of in eight drivers.
     """
-    unit = start(command, log, cwd=cwd, state_dir=state_dir)
+    unit = start(
+        command, log, cwd=cwd, allow_foreign=allow_foreign, state_dir=state_dir
+    )
     try:
         base_url = f"http://127.0.0.1:{port}"
         if not wait_ready.ready(base_url, model_id, timeout=timeout):

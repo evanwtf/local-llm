@@ -279,3 +279,16 @@ def test_a_clean_machine_does_not_refuse(monkeypatch, state, tmp_path) -> None:
 def test_the_shell_it_replaces_is_still_here() -> None:
     """#235: deleted only after a run agrees."""
     assert (ROOT / "scripts" / "lib" / "mlx_serve.sh").exists()
+
+
+def test_a_shell_that_merely_mentions_the_server_is_not_one() -> None:
+    """`foreign()` matches the executable (`Proc.short`), not the whole command
+    line. The shell this module replaced carried `--model` in its pgrep pattern
+    precisely to dodge this, and it only ever dodged SELF-match."""
+    census = [
+        preflight.Proc(
+            pid=1, rss_gib=0.1, command="/bin/bash -c 'mlx-serve --model x'"
+        ),
+        preflight.Proc(pid=2, rss_gib=99.9, command="/g/mlx-serve/mlx-serve --model x"),
+    ]
+    assert [p.pid for p in census if mlx_serve.PROCESS in p.short] == [2]
