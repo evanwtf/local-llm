@@ -242,6 +242,13 @@ def cool_to_plateau(
     samples: list[tuple[float, float]] = []  # (elapsed seconds, die C)
     outcome = "timeout"
     last_slope: float | None = None
+    #: How many times the slope test actually produced a number. A timeout
+    #: with zero of these is a different failure from a timeout with many:
+    #: the first means the test never ran, the second means the die really
+    #: was still moving. The ambient watcher on the other machine spent six
+    #: minutes reporting `n/a` and continuing, which reads in a log exactly
+    #: like a test that keeps saying "not yet".
+    evaluations = 0
 
     while True:
         elapsed = time.monotonic() - began
@@ -265,6 +272,7 @@ def cool_to_plateau(
             )
             if slope is not None:
                 last_slope = slope
+                evaluations += 1
             if done:
                 outcome = "plateau"
                 break
@@ -293,6 +301,7 @@ def cool_to_plateau(
             round(last_slope, 4) if last_slope is not None else None
         ),
         "samples": len(samples),
+        "evaluations": evaluations,
         "settle": {
             "kind": "slope",
             "window_s": SETTLE_WINDOW_S,
@@ -302,7 +311,20 @@ def cool_to_plateau(
             "timeout_s": timeout_s,
         },
     }
-    level = logger.warning if outcome == "timeout" else logger.info
+    if outcome == "timeout" and evaluations == 0:
+        # Never evaluated. Say so as its own outcome rather than letting it
+        # read as "the die was still falling for seven minutes".
+        outcome = "no_fit"
+        logger.error(
+            "%s: the settle test never evaluated in %ds -- %d readings, and a "
+            "%ds window never held enough to fit. This phase begins on an "
+            "UNKNOWN thermal state, not a hot one",
+            label,
+            waited,
+            len(samples),
+            SETTLE_WINDOW_S,
+        )
+    level = logger.warning if outcome in ("timeout", "no_fit") else logger.info
     level(
         "%s: %s after %ds -- die %s -> %s, last slope %s (bound %.2f C/min)",
         label,

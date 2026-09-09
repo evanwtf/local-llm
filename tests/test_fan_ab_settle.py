@@ -160,3 +160,40 @@ def test_the_old_difference_of_means_would_have_passed_that_fall() -> None:
     rate_c_per_hour = 20.0
     per_30s = rate_c_per_hour / 120.0
     assert per_30s < 0.3, "which is exactly why a difference of means failed"
+
+
+def test_a_timeout_that_never_evaluated_is_its_own_outcome(
+    monkeypatch: pytest.MonkeyPatch, clock: FakeClock
+) -> None:
+    """ "No answer" must not read in the log as "not settled yet".
+
+    A sensor that answers occasionally starves the window: the test never
+    fits, reports nothing, and the wait runs to its ceiling looking exactly
+    like a die that was still falling. The ambient watcher on the other
+    machine spent six minutes in precisely that state.
+
+    `no_fit` says the phase begins on an UNKNOWN thermal state, which is worse
+    than a known-hot one, because known-hot can at least be corrected for.
+    """
+    calls = {"n": 0}
+
+    def flaky() -> float | None:
+        calls["n"] += 1
+        return 40.0 if calls["n"] == 1 else None
+
+    monkeypatch.setattr(fan_ab, "die_c", flaky)
+    monkeypatch.setattr(fan_ab, "FALLBACK_COOLDOWN_S", 1)
+    got = fan_ab.cool_to_plateau("t", min_s=60, timeout_s=300)
+    assert got["outcome"] in ("no_fit", "no_sensor")
+    assert got["evaluations"] == 0
+
+
+def test_a_real_timeout_records_the_evaluations_that_refused_it(
+    monkeypatch: pytest.MonkeyPatch, clock: FakeClock
+) -> None:
+    """The other half: a genuine timeout must prove the test was running."""
+    temps(monkeypatch, clock, lambda t: 90.0 - t / 10.0)
+    got = fan_ab.cool_to_plateau("t", min_s=60, timeout_s=200)
+    assert got["outcome"] == "timeout"
+    assert got["evaluations"] > 0, "a timeout must show the test evaluated"
+    assert got["last_slope_c_per_min"] is not None

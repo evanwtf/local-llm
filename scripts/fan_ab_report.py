@@ -288,6 +288,12 @@ def report(outdir: pathlib.Path, column: str) -> int:
             "a machine still shedding heat and is not comparable to a phase "
             "that began from a plateau"
         )
+    if any(v == "no_fit" for v in cooled.values()):
+        logger.error(
+            "at least one phase began after a cooldown that NEVER EVALUATED its "
+            "settle test -- that phase's thermal state at t=0 is unknown, which "
+            "is worse than known-hot and must not be read as a plateau"
+        )
 
     log_drift(data, labels, column)
 
