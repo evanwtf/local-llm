@@ -194,6 +194,34 @@ def by_program(invs: Iterable[Invocation], program: str) -> list[Invocation]:
     return [i for i in invs if i.program == program]
 
 
+def wait_for_program(out: pathlib.Path, program: str, timeout: float = 10.0) -> bool:
+    """Wait until `out` holds a record for `program`, or the timeout passes.
+
+    A driver's readiness poll races the server's startup. The shell greps the
+    graph line right after `wait_ready.py` returns, and the port's `serving`
+    asserts the graph line right after `wait_ready.ready` returns. A fake
+    server that records-then-exits is a separate process, so its record can
+    land after the poll returns.
+
+    The wait must happen inside the block, not after it: `serving`'s `finally`
+    kills the fake the moment the block exits, so a wait after the block would
+    never see the record. This is the fix for that race, expressed once.
+    """
+    import time
+
+    deadline = time.monotonic() + timeout
+    marker = f'"program":"{program}"'
+    while time.monotonic() < deadline:
+        try:
+            with open(out) as handle:
+                if any(marker in line for line in handle):
+                    return True
+        except FileNotFoundError:
+            pass
+        time.sleep(0.05)
+    return False
+
+
 # ------------------------------------------------------------------ the shim
 
 
@@ -518,12 +546,16 @@ def write_fake_ds4_server(
             "argv": sys.argv[1:],
             "env": {{k: v for k, v in os.environ.items()}},
         }}
-        with open(out, "a") as h:
-            h.write(json.dumps(line, separators=(",", ":")) + "\\n")
         log = {mtp_log} if "--mtp-model" in sys.argv else {plain_log}
         for raw in open(log):
             if "Qwen graph allocated" in raw or "MTP sidecar loaded" in raw:
                 sys.stdout.write(raw)
+        # Flush the graph line to the log BEFORE the record: the record is the
+        # barrier a driver's readiness poll waits on, so when it appears the
+        # log already holds the line the driver greps or asserts.
+        sys.stdout.flush()
+        with open(out, "a") as h:
+            h.write(json.dumps(line, separators=(",", ":")) + "\\n")
         sys.exit(0)
         """
     )
