@@ -34,6 +34,10 @@ import re
 import subprocess
 import sys
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+
+import logs
+
 logger = logging.getLogger(__name__)
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -251,11 +255,7 @@ def render(issues: list[dict]) -> tuple[str, list[str]]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    logging.basicConfig(
-        level=logging.INFO,
-        stream=sys.stdout,
-        format="%(asctime)s %(name)s %(levelname)s %(message)s",
-    )
+    logs.configure()
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument(
         "--check",

@@ -32,6 +32,10 @@ TASKS = AGENT / "tasks.toml"
 sys.path.insert(0, str(AGENT))
 import run as harness
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+
+import logs
+
 
 def git(args: list[str], cwd: pathlib.Path) -> str:
     got = subprocess.run(
@@ -131,11 +135,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args(argv)
 
-    logging.basicConfig(
-        level=logging.INFO,
-        stream=sys.stdout,
-        format="%(asctime)s %(name)s %(levelname)s %(message)s",
-    )
+    logs.configure()
     overrides = dict(o.split("=", 1) for o in args.origin)
     for configured, commit in sorted(targets(args.tasks_file).items()):
         path = pathlib.Path(configured).expanduser()

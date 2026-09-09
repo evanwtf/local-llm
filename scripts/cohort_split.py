@@ -32,6 +32,10 @@ sys.path.insert(
 
 import results as results_mod
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+
+import logs
+
 logger = logging.getLogger(__name__)
 
 #: Fields whose spread within a half is a confound worth printing. Each of
@@ -86,7 +90,7 @@ def describe(name: str, rows: list[dict[str, Any]]) -> list[str]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
+    logs.configure(fmt=logs.PLAIN)
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("ledger", type=pathlib.Path)
     p.add_argument("--backend", required=True)

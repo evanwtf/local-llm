@@ -38,6 +38,10 @@ import pathlib
 import subprocess
 import sys
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+
+import logs
+
 logger = logging.getLogger(__name__)
 
 
@@ -123,7 +127,7 @@ def mark(
 
 
 def main(argv: list[str] | None = None) -> int:
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
+    logs.configure(fmt=logs.PLAIN)
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("ledger", type=pathlib.Path)
     p.add_argument("--backend")

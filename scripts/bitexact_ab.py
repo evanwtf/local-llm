@@ -68,6 +68,10 @@ import subprocess
 import sys
 import time
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+
+import logs
+
 logger = logging.getLogger(__name__)
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -887,11 +891,7 @@ def report_lines(report: dict) -> list[str]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    logging.basicConfig(
-        level=logging.INFO,
-        stream=sys.stdout,
-        format="%(asctime)s %(name)s %(levelname)s %(message)s",
-    )
+    logs.configure()
     args = parse_args(argv)
     try:
         return run(args)

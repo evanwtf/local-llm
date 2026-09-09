@@ -30,6 +30,10 @@ import logging
 import pathlib
 import sys
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+
+import logs
+
 logger = logging.getLogger(__name__)
 
 
@@ -78,7 +82,7 @@ def report(table: dict[int, tuple[int, int]], min_per_trial: int = 5) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
+    logs.configure(fmt=logs.PLAIN)
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("results", type=pathlib.Path)
     p.add_argument("--backend", default=None)

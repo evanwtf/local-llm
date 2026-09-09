@@ -32,6 +32,10 @@ import pathlib
 import re
 import sys
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+
+import logs
+
 logger = logging.getLogger(__name__)
 
 #: Prefill tokens per second, for turning wasted tokens into wasted seconds.
@@ -141,7 +145,7 @@ def summarise(path: pathlib.Path, misses: list[Miss], prefill_tps: float) -> str
 
 
 def main(argv: list[str] | None = None) -> int:
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
+    logs.configure(fmt=logs.PLAIN)
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("logs", nargs="+", type=pathlib.Path)
     p.add_argument("--prefill-tps", type=float, default=DEFAULT_PREFILL_TPS)

@@ -17,6 +17,10 @@ import pathlib
 import struct
 import sys
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+
+import logs
+
 logger = logging.getLogger(__name__)
 
 # GGUF value type ids -> struct format. Type 8 is a string and 9 an array;
@@ -116,7 +120,7 @@ def main(argv: list[str] | None = None) -> int:
         help="list tensor names, dims and types instead of metadata",
     )
     args = p.parse_args(argv)
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
+    logs.configure(fmt=logs.PLAIN)
     if args.tensors:
         _meta, tensors = read(pathlib.Path(args.path), with_tensors=True)
         for name, dims, ttype in tensors:

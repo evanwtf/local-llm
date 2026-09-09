@@ -43,6 +43,10 @@ import statistics
 import sys
 from dataclasses import dataclass
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+
+import logs
+
 logger = logging.getLogger(__name__)
 
 #: `head-20d5dff6-rep3.csv` -> ("head-20d5dff6", 3)
@@ -294,7 +298,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("dirs", nargs="+")
     p.add_argument("--column", default="prefill_tps")
     args = p.parse_args(argv)
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
+    logs.configure(fmt=logs.PLAIN)
 
     any_rows = False
     for name in args.dirs:

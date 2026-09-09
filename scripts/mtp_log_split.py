@@ -44,6 +44,10 @@ sys.path.insert(
 
 import mtp_timing
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+
+import logs
+
 logger = logging.getLogger(__name__)
 
 #: run.py's own line. The byte is what makes the split reproducible.
@@ -112,7 +116,7 @@ def split(server_log: bytes, offset: int) -> dict[str, Any]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
+    logs.configure(fmt=logs.PLAIN)
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--server-log", type=pathlib.Path, required=True)
     p.add_argument(

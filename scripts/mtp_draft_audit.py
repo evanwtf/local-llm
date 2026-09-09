@@ -43,6 +43,10 @@ sys.path.insert(
 
 import mtp_timing
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+
+import logs
+
 logger = logging.getLogger(__name__)
 
 # A share that differs by more than this between the two sources means they
@@ -201,11 +205,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--results", type=pathlib.Path, default=None)
     args = parser.parse_args(argv)
 
-    logging.basicConfig(
-        level=logging.INFO,
-        stream=sys.stdout,
-        format="%(asctime)s %(name)s %(levelname)s %(message)s",
-    )
+    logs.configure()
 
     results = args.results
     if results is None:

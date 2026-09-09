@@ -62,6 +62,8 @@ import ab_driver
 import ds4_server
 import preflight
 
+import logs
+
 logger = logging.getLogger(__name__)
 
 MODELS = pathlib.Path.home() / "models" / "qwen3.8-flash-next-ds4-q4"
@@ -314,11 +316,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     args = p.parse_args(argv)
 
-    logging.basicConfig(
-        level=logging.INFO,
-        stream=sys.stdout,
-        format="%(asctime)s %(name)s %(levelname)s %(message)s",
-    )
+    logs.configure()
 
     arm = ARMS[args.arm]
     logdir = args.logdir or ab_driver.logdir_for(

@@ -75,6 +75,10 @@ import os
 
 import results as results_mod
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+
+import logs
+
 logger = logging.getLogger(__name__)
 
 # Overridable for the same reason `stack_agent_ab.sh`'s arms are -- and they
@@ -696,7 +700,7 @@ def screen_verdict(
 
 
 def main(argv: list[str] | None = None) -> int:
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
+    logs.configure(fmt=logs.PLAIN)
     collapsed = check_arms()
     if collapsed:
         logger.info("%s", collapsed)

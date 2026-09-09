@@ -75,15 +75,9 @@ import metal_route
 import ports
 import provenance
 
-logger = logging.getLogger(__name__)
+import logs
 
-#: ISO 8601, so a log line's timestamp parses without a dialect. Python's
-#: default asctime is `2026-09-09 07:00:12,481` -- a space where ISO 8601 wants
-#: `T`, a comma where it wants a dot, and no offset at all, so a line cannot be
-#: placed on a clock without knowing which machine wrote it. Setting `datefmt`
-#: drops the milliseconds, which is what makes the rest valid; these drivers
-#: log at second granularity and the sub-second field was never read.
-LOG_DATEFMT = "%Y-%m-%dT%H:%M:%S%z"
+logger = logging.getLogger(__name__)
 
 MODELS = pathlib.Path.home() / "models" / "qwen3.8-flash-next-ds4-q4"
 GGUF = MODELS / (
@@ -555,12 +549,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     args = p.parse_args(argv)
 
-    logging.basicConfig(
-        level=logging.INFO,
-        stream=sys.stdout,
-        format="%(asctime)s %(name)s %(levelname)s %(message)s",
-        datefmt=LOG_DATEFMT,
-    )
+    logs.configure()
 
     try:
         return sweep(args.sweeps_per_arm, args.trials, args.out)

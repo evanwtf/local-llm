@@ -48,6 +48,10 @@ import preflight
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from lib import agent_identity
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+
+import logs
+
 logger = logging.getLogger(__name__)
 agent_identity.install(logger)
 
@@ -149,11 +153,7 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("release", help="drop our own claim")
     sub.add_parser("status", help="report who holds the machine; non-zero when busy")
     args = parser.parse_args(argv)
-    logging.basicConfig(
-        level=logging.INFO,
-        stream=sys.stdout,
-        format="%(asctime)s %(agent)s %(name)s %(levelname)s %(message)s",
-    )
+    logs.configure(fmt="%(asctime)s %(agent)s %(name)s %(levelname)s %(message)s")
     if args.cmd == "acquire":
         return acquire(args.what, args.expected_finish, args.quiet)
     if args.cmd == "release":

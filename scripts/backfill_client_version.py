@@ -28,6 +28,10 @@ import logging
 import pathlib
 import sys
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+
+import logs
+
 logger = logging.getLogger(__name__)
 
 
@@ -84,7 +88,7 @@ def plan(lines: list[str]) -> tuple[list[str], dict[str, int]]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
+    logs.configure(fmt=logs.PLAIN)
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("results", type=pathlib.Path)
     p.add_argument("--apply", action="store_true")

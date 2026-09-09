@@ -61,6 +61,10 @@ sys.path.insert(0, str(REPO / "benchmarks" / "agent"))
 import ab_driver
 import preflight
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+
+import logs
+
 logger = logging.getLogger(__name__)
 
 RAW_CAP = 8192
@@ -359,11 +363,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     args = p.parse_args(argv)
 
-    logging.basicConfig(
-        level=logging.INFO,
-        stream=sys.stdout,
-        format="%(asctime)s %(name)s %(levelname)s %(message)s",
-    )
+    logs.configure()
 
     ds4 = pathlib.Path(os.environ.get("DS4", pathlib.Path.home() / "git" / "ds4"))
     prompt = pathlib.Path(

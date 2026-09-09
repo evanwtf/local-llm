@@ -34,6 +34,10 @@ import sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from lib import agent_identity, peer_state
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+
+import logs
+
 logger = logging.getLogger(__name__)
 agent_identity.install(logger)
 
@@ -188,11 +192,7 @@ def main(argv: list[str] | None = None) -> int:
         help="include commits since this ref, e.g. 9ab7053",
     )
     args = parser.parse_args(argv)
-    logging.basicConfig(
-        level=logging.INFO,
-        stream=sys.stdout,
-        format="%(asctime)s %(agent)s %(name)s %(levelname)s %(message)s",
-    )
+    logs.configure(fmt="%(asctime)s %(agent)s %(name)s %(levelname)s %(message)s")
     logger.info("generating handoff brief for %s", args.repo)
     for line in brief(args.repo, args.since).splitlines():
         logger.info("%s", line)

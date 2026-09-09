@@ -25,6 +25,10 @@ sys.path.insert(0, str(HERE.parent / "benchmarks" / "agent"))
 
 import results
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+
+import logs
+
 logger = logging.getLogger(__name__)
 
 TAIL_TURNS = 20
@@ -105,7 +109,7 @@ def main(argv: list[str] | None = None) -> int:
         help="results.jsonl files; default: every hardware/*/results.jsonl",
     )
     args = p.parse_args(argv)
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
+    logs.configure(fmt=logs.PLAIN)
 
     paths = [pathlib.Path(x) for x in args.paths]
     if not paths:

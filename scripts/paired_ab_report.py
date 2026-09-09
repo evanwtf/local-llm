@@ -55,6 +55,10 @@ import pathlib
 import statistics
 import sys
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+
+import logs
+
 logger = logging.getLogger(__name__)
 
 
@@ -237,11 +241,7 @@ def main(argv: list[str] | None = None) -> int:
         import results as results_mod
 
         ledger = results_mod.default_path()
-    logging.basicConfig(
-        level=logging.INFO,
-        stream=sys.stdout,
-        format="%(asctime)s %(name)s %(levelname)s %(message)s",
-    )
+    logs.configure()
     rows = load(ledger, args.batch)
     if not rows:
         logger.error("no rows in batch %r", args.batch)

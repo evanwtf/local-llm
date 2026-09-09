@@ -62,6 +62,10 @@ sys.path.insert(
 
 import wait_ready as _wait_ready
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+
+import logs
+
 logger = logging.getLogger(__name__)
 
 READY_TIMEOUT_S = 300
@@ -420,11 +424,7 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
 
-    logging.basicConfig(
-        level=logging.INFO,
-        stream=sys.stdout,
-        format="%(asctime)s %(name)s %(levelname)s %(message)s",
-    )
+    logs.configure()
 
     tree = pathlib.Path(args.tree).expanduser()
     server = tree / "ds4-server"

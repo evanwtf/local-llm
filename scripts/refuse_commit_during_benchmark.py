@@ -51,6 +51,10 @@ import pathlib
 import platform
 import sys
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+
+import logs
+
 logger = logging.getLogger(__name__)
 
 # Must equal preflight.LOCK_PATH. A test pins that; see the module docstring
@@ -122,11 +126,7 @@ def lock_state(lock: dict | None, hostname: str) -> tuple[str, str]:
 
 def main(argv: list[str] | None = None) -> int:
     """Exit 1 to refuse a commit, 0 to allow it."""
-    logging.basicConfig(
-        level=logging.INFO,
-        stream=sys.stdout,
-        format="%(asctime)s %(name)s %(levelname)s %(message)s",
-    )
+    logs.configure()
     if os.environ.get("LOCAL_LLM_ALLOW_COMMIT_DURING_RUN") == "1":
         logger.info("commit allowed: LOCAL_LLM_ALLOW_COMMIT_DURING_RUN=1")
         return 0

@@ -28,6 +28,10 @@ import logging
 import pathlib
 import sys
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+
+import logs
+
 logger = logging.getLogger(__name__)
 
 #: Below this many failures the table is a shape, not a rate. Chosen to be
@@ -122,7 +126,7 @@ def report(table: dict[int, tuple[int, int]]) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
+    logs.configure(fmt=logs.PLAIN)
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("transcripts", nargs="+", type=pathlib.Path)
     args = p.parse_args(argv)

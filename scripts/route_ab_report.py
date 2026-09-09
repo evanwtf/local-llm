@@ -29,6 +29,8 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
 
 import metal_route
 
+import logs
+
 EXPECTED_ROWS_PER_SWEEP = 15
 
 # One definition, imported twice. The driver asserts these per sweep and this
@@ -310,9 +312,7 @@ def evaluate(
 
 def main(argv: list[str] | None = None) -> int:
     repo = pathlib.Path(__file__).resolve().parent.parent
-    logging.basicConfig(
-        level=logging.INFO, stream=sys.stdout, format="%(message)s", force=True
-    )
+    logs.configure(fmt=logs.PLAIN, force=True)
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument(
         "--ledger",

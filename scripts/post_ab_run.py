@@ -22,6 +22,10 @@ import pathlib
 import subprocess
 import sys
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+
+import logs
+
 logger = logging.getLogger(__name__)
 
 MARKER = "<!-- ab-run-report: {name} -->"
@@ -135,7 +139,7 @@ def body(run: pathlib.Path) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
+    logs.configure(fmt=logs.PLAIN)
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("issue", type=int)
     p.add_argument("run", type=pathlib.Path)

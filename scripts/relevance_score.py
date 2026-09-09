@@ -58,6 +58,10 @@ import re
 import sys
 import tomllib
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+
+import logs
+
 logger = logging.getLogger(__name__)
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
@@ -391,7 +395,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     p.add_argument("--evidence", default="", help="post URL, commit, or issue")
     args = p.parse_args(argv)
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
+    logs.configure(fmt=logs.PLAIN)
     result = score(
         args.hardware,
         args.model,

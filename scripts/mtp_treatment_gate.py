@@ -66,6 +66,8 @@ import ds4_server
 import preflight
 import unitctl
 
+import logs
+
 logger = logging.getLogger(__name__)
 
 STAGES = ("bypass", "treated", "probe", "probe-shim", "replay", "silent")
@@ -530,11 +532,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     p.add_argument("--logdir", type=pathlib.Path, default=None)
     args = p.parse_args(argv)
 
-    logging.basicConfig(
-        level=logging.INFO,
-        stream=sys.stdout,
-        format="%(asctime)s %(name)s %(levelname)s %(message)s",
-    )
+    logs.configure()
 
     logdir = args.logdir or ab_driver.logdir_for(
         pathlib.Path.home() / "bench-logs", f"210-treatment-gate-{args.stage}"

@@ -58,6 +58,10 @@ import sys
 import time
 from collections.abc import Sequence
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+
+import logs
+
 logger = logging.getLogger(__name__)
 
 STATE_DIR = pathlib.Path(
@@ -437,11 +441,7 @@ def main(argv: list[str] | None = None) -> int:
     # mean exactly what it looks like.
     head, command = _split_command(list(sys.argv[1:] if argv is None else argv))
     args = parser.parse_args(head)
-    logging.basicConfig(
-        level=logging.INFO,
-        stream=sys.stdout,
-        format="%(asctime)s %(name)s %(levelname)s %(message)s",
-    )
+    logs.configure()
 
     if args.action == "start":
         if not command:

@@ -64,6 +64,8 @@ import ds4_server
 import preflight
 import unitctl
 
+import logs
+
 logger = logging.getLogger(__name__)
 
 MODELS = pathlib.Path.home() / "models" / "qwen3.8-flash-next-ds4-q4"
@@ -324,11 +326,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     args = p.parse_args(argv)
 
-    logging.basicConfig(
-        level=logging.INFO,
-        stream=sys.stdout,
-        format="%(asctime)s %(name)s %(levelname)s %(message)s",
-    )
+    logs.configure()
 
     if args.rounds % 2 and not args.allow_odd_rounds:
         logger.error(

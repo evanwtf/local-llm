@@ -151,6 +151,47 @@ a string. `scripts/backfill_iso8601.py` converts the existing naive and
 `Z`-suffixed values; it runs once, and the test is what keeps them converted. A
 convention that lives only in this document is a convention that drifts.
 
+### Log lines too -- they were the exception until 2026-09-09
+
+This section has said "in logs" since it was written, and until 2026-09-09 the
+logs were the one place it was not true. Python's default `asctime` is
+
+```
+2026-09-09 07:00:12,481          the default: a space, a comma, no offset
+2026-09-09T07:00:12-0400         what every row and manifest here carries
+```
+
+A space where ISO 8601 wants `T`, a comma where it wants a dot, and no offset
+at all -- the exact shape the rest of this section exists to forbid. It
+mattered because log lines get joined to rows by hand: *the server said X at
+07:00:12, which row was that?* is a question you cannot answer from a
+timestamp with no zone.
+
+**`scripts/lib/logs.py` owns the format, and nothing else may call
+`logging.basicConfig`.** `tests/test_logging_format.py` fails on any tracked
+file that does, and asserts against a line the logger actually wrote -- not
+against the format constant, because a constant can be right while the handler
+never uses it.
+
+```python
+import logs
+
+logs.configure()  # a driver: time, module, level, message
+logs.configure(fmt=logs.PLAIN)  # a report: the table, and nothing else
+```
+
+`PLAIN` is the one exemption and it is narrow. Several scripts render a
+markdown table through the logger, because `print` is forbidden; a timestamp
+on every row makes the table unpastable. `PLAIN` carries **no** timestamp, so
+there is no second date format -- an exemption from stamping, not from ISO
+8601.
+
+`force` defaults to False, as `basicConfig`'s own does. Setting it True tears
+down the root logger's handlers, and under pytest one of those is `caplog`'s:
+defaulting it True failed 50 tests at once, every one of them asserting on a
+message its script had written correctly to a handler that had just been
+removed.
+
 ## A download is not verified until the files are on disk (2026-09-06)
 
 `hf download` takes filenames positionally. Passing two of them after
@@ -698,11 +739,14 @@ as its own command and read the result, or use `set -o pipefail`.
 
 ## Stamp every line with the code that produced it
 
-**Never call `logging.basicConfig` in this package. Call `provenance.configure()`.**
-There is a test that fails if you do.
+**Never call `logging.basicConfig`. Inside `benchmarks/agent`, call
+`provenance.configure()`; everywhere else, `logs.configure()`.** Two tests
+fail if you do -- `test_provenance.py` for this package, and
+`tests/test_logging_format.py` for the tree. `provenance.configure()` adds the
+harness stamp on top of `logs.DATEFMT`; it does not get a clock of its own.
 
 ```
-2026-09-01 07:08:35 INFO [c263902-dirty] ds4  excision  4/14  15/15
+2026-09-01T07:08:35-0400 INFO [c263902-dirty] ds4  excision  4/14  15/15
 ```
 
 The bracketed field is the harness commit. **`-dirty` means the tree had

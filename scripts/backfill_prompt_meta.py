@@ -30,6 +30,10 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
 import prompt_meta
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+
+import logs
+
 logger = logging.getLogger(__name__)
 
 #: An explicit PROMPT= in the recorded harness line. Its presence means the
@@ -82,7 +86,7 @@ def backfill(
 
 
 def main(argv: list[str] | None = None) -> int:
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
+    logs.configure(fmt=logs.PLAIN)
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("root", type=pathlib.Path, help="tree to search for run dirs")
     p.add_argument("--prompt", required=True, type=pathlib.Path)
