@@ -15,14 +15,25 @@ each is preceded by a cooldown **with the fans on auto**, so every phase
 starts from the same thermal policy rather than inheriting the previous
 phase's.
 
-The cooldown is a fixed wait rather than a wait-for-temperature. That is a
-deliberate downgrade from what #276 specifies: the office is independently
-air-conditioned (correlation with outdoor maximum 0.37, against 0.80 for
-unconditioned rooms), so a target expressed against ambient can move while
-you are waiting for it. A fixed 180 s is honest about being arbitrary; a
-temperature target would look principled and still be chasing a moving room.
-Each phase records the die temperature it actually started from, which is the
-number that makes the comparison auditable either way.
+The cooldown waits for the die temperature to **stop falling**, not to reach
+a value. This is a derivative test, not a margin, and the reason is measured:
+across 15,027 sustained-idle samples (GPU exactly 0 for >=300 s, CPU < 0.10)
+the die median is 36.73 C but p5-p95 spans 31.14-45.12 C, and **within a
+single 60 s idle window the reading already wanders a median of 1.77 C
+peak-to-peak, 8.27 C at p90**. So "within 1 C of idle" would fire on which
+sample you happened to read. Worse, "idle" is not a constant to aim at: it
+moves 14 C across the day with ambient and background load.
+
+A plateau test needs no knowledge of the floor. It compares two consecutive
+30 s medians -- long enough to crush the 1.77 C jitter -- and calls the
+machine settled when they differ by less than 0.3 C. That survives the office
+minisplit stepping the room mid-wait, which an absolute target does not.
+
+It can fail, so it says which way it ended. `outcome` is `plateau`,
+`timeout` (the ceiling elapsed and the die was still moving), or `no_sensor`
+(thermals unreadable; falls back to a fixed wait). A phase preceded by a
+timeout started from a machine still shedding heat, and the manifest has to
+let a reader see that rather than infer it.
 
 ## What it measures
 
@@ -54,6 +65,7 @@ import logging
 import os
 import pathlib
 import signal
+import statistics
 import subprocess
 import sys
 import time
@@ -76,8 +88,18 @@ FANCONTROL = "/usr/local/bin/fancontrol"
 #: Phase order. Interleaved so ambient drift cannot align with condition.
 PHASES = ("auto", "max", "auto", "max", "auto", "max")
 
-#: Seconds of cooldown before each phase, fans on auto.
-COOLDOWN_S = 180
+#: Cooldown gate. Two consecutive medians over SETTLE_WINDOW_S seconds that
+#: differ by <= SETTLE_DELTA_C mean the die has stopped falling. The window is
+#: sized against measured idle jitter (median 1.77 C peak-to-peak over 60 s),
+#: which an instantaneous sample cannot see past.
+SETTLE_SAMPLE_S = 5
+SETTLE_WINDOW_S = 30
+SETTLE_DELTA_C = 0.3
+SETTLE_MIN_S = 60
+SETTLE_TIMEOUT_S = 420
+
+#: Used only when the sensor is unreadable and the plateau test cannot run.
+FALLBACK_COOLDOWN_S = 180
 
 CTX_START, CTX_MAX, STEP, GEN = 2048, 16384, 2048, 128
 
@@ -172,6 +194,103 @@ def now() -> str:
     return dt.datetime.now().astimezone().strftime("%Y-%m-%dT%H:%M:%S%z")
 
 
+def _median(values: list[float]) -> float:
+    return statistics.median(values)
+
+
+def cool_to_plateau(
+    label: str,
+    min_s: int = SETTLE_MIN_S,
+    timeout_s: int = SETTLE_TIMEOUT_S,
+    delta_c: float = SETTLE_DELTA_C,
+) -> dict[str, object]:
+    """Wait until the die temperature stops falling. Returns what happened.
+
+    Two consecutive medians over `SETTLE_WINDOW_S` seconds; settled when they
+    differ by no more than `delta_c`. A median, not a sample: idle readings
+    move a median of 1.77 C peak-to-peak inside a single 60 s window, so an
+    instantaneous comparison tests sampling luck rather than thermal state.
+
+    Never raises, and always returns a record. The outcome matters as much as
+    the wait -- a phase that began after a `timeout` started from a machine
+    still shedding heat, and the manifest must say so.
+    """
+    began = time.monotonic()
+    began_iso = now()
+    samples: list[tuple[float, float]] = []  # (elapsed seconds, die C)
+    first = die_c()
+    outcome = "timeout"
+    last_delta: float | None = None
+
+    while True:
+        elapsed = time.monotonic() - began
+        if elapsed >= timeout_s:
+            break
+        value = die_c()
+        if value is not None:
+            samples.append((elapsed, value))
+        elif elapsed >= SETTLE_WINDOW_S and not samples:
+            # The sensor has been silent for a whole window. Do not spin for
+            # seven minutes reading nothing -- say so and take a fixed wait.
+            outcome = "no_sensor"
+            break
+
+        if elapsed >= min_s and len(samples) >= 6:
+            recent = [c for t, c in samples if t > elapsed - SETTLE_WINDOW_S]
+            prior = [
+                c
+                for t, c in samples
+                if elapsed - 2 * SETTLE_WINDOW_S < t <= elapsed - SETTLE_WINDOW_S
+            ]
+            if len(recent) >= 3 and len(prior) >= 3:
+                last_delta = abs(_median(recent) - _median(prior))
+                if last_delta <= delta_c:
+                    outcome = "plateau"
+                    break
+        time.sleep(SETTLE_SAMPLE_S)
+
+    waited = int(time.monotonic() - began)
+    if outcome == "no_sensor":
+        logger.warning(
+            "%s: thermals unreadable after %ds -- falling back to a fixed %ds wait",
+            label,
+            waited,
+            FALLBACK_COOLDOWN_S,
+        )
+        time.sleep(FALLBACK_COOLDOWN_S)
+        waited = int(time.monotonic() - began)
+
+    last = die_c()
+    record: dict[str, object] = {
+        "outcome": outcome,
+        "waited_s": waited,
+        "started_iso": began_iso,
+        "ended_iso": now(),
+        "start_die_c": first,
+        "end_die_c": last,
+        "last_delta_c": round(last_delta, 3) if last_delta is not None else None,
+        "samples": len(samples),
+        "settle": {
+            "window_s": SETTLE_WINDOW_S,
+            "sample_s": SETTLE_SAMPLE_S,
+            "delta_c": delta_c,
+            "min_s": min_s,
+            "timeout_s": timeout_s,
+        },
+    }
+    level = logger.warning if outcome == "timeout" else logger.info
+    level(
+        "%s: %s after %ds -- die %s -> %s, last 30s-median delta %s",
+        label,
+        outcome,
+        waited,
+        f"{first:.2f}C" if first is not None else "?",
+        f"{last:.2f}C" if last is not None else "?",
+        f"{last_delta:.2f}C" if last_delta is not None else "n/a",
+    )
+    return record
+
+
 def one_phase(
     index: int,
     condition: str,
@@ -256,7 +375,21 @@ def main(argv: Sequence[str] | None = None) -> int:
     p.add_argument("gguf", type=pathlib.Path)
     p.add_argument("out", type=pathlib.Path)
     p.add_argument("--reps", type=int, default=4, help="sweeps per phase")
-    p.add_argument("--cooldown", type=int, default=COOLDOWN_S)
+    p.add_argument(
+        "--settle-min", type=int, default=SETTLE_MIN_S, help="floor on each cooldown"
+    )
+    p.add_argument(
+        "--settle-timeout",
+        type=int,
+        default=SETTLE_TIMEOUT_S,
+        help="ceiling on each cooldown; exceeding it is recorded, not fatal",
+    )
+    p.add_argument(
+        "--settle-delta",
+        type=float,
+        default=SETTLE_DELTA_C,
+        help="C between consecutive 30s medians that counts as settled",
+    )
     p.add_argument("--prompt", type=pathlib.Path, default=None)
     args = p.parse_args(argv)
 
@@ -297,7 +430,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         "prompt": prompt.name,
         "phases_planned": list(PHASES),
         "reps_per_phase": args.reps,
-        "cooldown_s": args.cooldown,
+        "cooldown": {
+            "kind": "plateau",
+            "min_s": args.settle_min,
+            "timeout_s": args.settle_timeout,
+            "delta_c": args.settle_delta,
+            "window_s": SETTLE_WINDOW_S,
+            "sample_s": SETTLE_SAMPLE_S,
+        },
         "sweep": {"ctx_start": CTX_START, "ctx_max": CTX_MAX, "step": STEP, "gen": GEN},
         "phases": [],
     }
@@ -309,15 +449,14 @@ def main(argv: Sequence[str] | None = None) -> int:
                 # max ones: each phase must start from the same thermal policy,
                 # not inherit the previous phase's.
                 _fan("auto")
-                logger.info(
-                    "cooldown %ds on auto before phase %d (%s); die=%s",
-                    args.cooldown,
-                    i,
-                    condition,
-                    f"{die_c():.2f}C" if die_c() is not None else "?",
+                cooled = cool_to_plateau(
+                    f"cooldown before phase {i} ({condition})",
+                    min_s=args.settle_min,
+                    timeout_s=args.settle_timeout,
+                    delta_c=args.settle_delta,
                 )
-                time.sleep(args.cooldown)
                 rc, record = one_phase(i, condition, tree, gguf, prompt, args.reps, out)
+                record["cooldown"] = cooled
                 manifest["phases"].append(record)  # type: ignore[union-attr]
                 (out / "fan-ab-manifest.json").write_text(
                     json.dumps(manifest, indent=2)
