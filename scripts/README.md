@@ -38,11 +38,13 @@ documentation.
 | `make_next.py` | Generate NEXT.md from the open issues, so the queue cannot drift or bloat. |
 | `make_scripts_readme.py` | Generate scripts/README.md from each script's own first docstring line. |
 | `metal_knob_ab.py` | Knob table and refusal logic for scripts/metal_knob_ab.sh (#162 Task 4). |
+| `mtp_draft_audit.py` | Audit an MTP arm's drafting counters: the server log beside the ledger. |
 | `mtp_engagement.py` | Does the engine engage MTP on the traffic we actually send it? (#148, #151) |
 | `mtp_failure_modes.py` | Classify what the #39 MTP-arm trial deaths failed on (#39). |
 | `mtp_log_split.py` | Did MTP draft during the batch, or only before it? (#39, #151, #210) |
 | `mtp_recovery_attribution.py` | Attribute the #39 recovery-failed events to trials, one row per trial (#39). |
 | `mtp_replay_probe.py` | Replay a captured agent request and bisect what switches ds4's MTP off (#151). |
+| `paired_ab_report.py` | Read out a paired two-arm A/B from the ledger. #240 |
 | `peer_brief.py` | Generate the state half of a handoff as Markdown. #160 |
 | `peer_status.py` | One deterministic status line for the peer work. #160 |
 | `post_ab_run.py` | Post one completed decode-A/B run to a GitHub issue, once. |
