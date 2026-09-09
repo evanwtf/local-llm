@@ -191,6 +191,10 @@ EVIDENCE = {
         "tests/test_targets_ab_equiv.py::"
         "test_the_arms_run_in_the_same_ORDER_not_merely_the_same_set"
     ),
+    "scripts/stack_agent_ab.sh": (
+        "tests/test_stack_agent_ab_equiv.py::"
+        "test_the_ds4_arm_gets_the_same_server_command"
+    ),
     "scripts/strip_toggle_ab.sh": (
         "tests/test_strip_toggle_ab.py::"
         "test_the_on_arm_removes_shim_no_strip_on_both_sides"
@@ -208,6 +212,25 @@ EVIDENCE = {
 #: one is retired on the evidence that it cannot, named here so a future reader
 #: sees it where the file is listed, not only in a commit message.
 DEVIATIONS = {
+    "scripts/stack_agent_ab.sh": (
+        "retired on a PARTIAL differential, and the gap is deliberate. Every "
+        "other retirement here drives the real .sh end to end against "
+        "recording fakes; this script is 541 lines and its top level takes "
+        "the machine lock, arms two chained EXIT traps, syncs worktrees, "
+        "checks two engine binaries and starts a shim before it reaches a "
+        "sweep. Driving all of that needs more scaffolding than the file has "
+        "lines, which is the stopping rule #235 set for exactly this file. "
+        "So the differential executes the shell's OWN function text -- "
+        "server_argv and sweep -- and compares the two command lines that "
+        "decide what gets measured, for both engines. NOT compared: the "
+        "top-level sequence (lock, trap arming, worktree sync, shim start, "
+        "sweep ordering), which is covered separately by "
+        "tests/test_stack_agent_ab_python.py, "
+        "tests/test_stack_agent_ab_failure.py and "
+        "tests/test_mlx_serve_teardown.py. Evidence: "
+        "tests/test_stack_agent_ab_equiv.py::"
+        "test_the_ds4_arm_gets_the_same_server_command"
+    ),
     "scripts/route_agent_ab.sh": (
         "not retired by an agreeing run; the shell is dead by #264 and cannot "
         "produce one. Evidence: "

@@ -247,12 +247,40 @@ def test_evidence_only_names_shells_that_have_a_replacement() -> None:
         assert shell in shell_debt.REPLACED, f"{shell} has evidence but no replacement"
 
 
-def test_a_deviation_is_not_also_expected_to_have_a_differential() -> None:
-    """route_agent_ab is retired on the #264 deadness evidence. Its entry is a
-    test, but it is a test that the shell CANNOT run -- so the two tables may
-    overlap on it, and that overlap is the deviation, not a mistake."""
+#: Shells that legitimately carry BOTH a differential and a deviation, with
+#: the reason each one is not a full agreeing run. Enumerated, so a third is a
+#: decision somebody makes rather than a row that appears.
+OVERLAP = {
+    # The shell is dead by #264 and cannot produce an agreeing run at all.
+    "scripts/route_agent_ab.sh": "cannot produce one",
+    # 541 lines whose top level takes the lock, arms two traps, syncs
+    # worktrees and starts a shim. The differential compares the two command
+    # lines and says so; the rest is covered by other files.
+    "scripts/stack_agent_ab.sh": "not compared",
+}
+
+
+def test_an_overlap_between_evidence_and_deviation_says_what_it_misses() -> None:
+    """The two tables may overlap, and the overlap must explain ITSELF.
+
+    An entry in EVIDENCE claims a differential; an entry in DEVIATIONS says
+    the retirement is not on a full agreeing run. A file in both is making a
+    narrower claim than EVIDENCE alone would imply -- "here is the test, and
+    here is what it does not reach" -- which is more honest than either table
+    alone, and is worthless if the deviation does not name the gap.
+
+    This replaced a version that pinned the overlap to route_agent_ab by name.
+    It passed for one file and had nothing to say about the second, which is
+    the difference between asserting a rule and recording an instance.
+    """
     both = set(shell_debt.EVIDENCE) & set(shell_debt.DEVIATIONS)
-    assert both == {"scripts/route_agent_ab.sh"}, both
+    assert both == set(OVERLAP), f"unlisted overlap: {both ^ set(OVERLAP)}"
+    for shell, marker in OVERLAP.items():
+        why = shell_debt.DEVIATIONS[shell]
+        assert marker.lower() in why.lower(), (
+            f"{shell} is in both tables but its deviation does not say what "
+            f"the differential misses (looked for {marker!r})"
+        )
 
 
 def test_cleared_and_waiting_account_for_every_replaced_file() -> None:
