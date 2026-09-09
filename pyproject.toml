@@ -71,3 +71,7 @@ extend-exclude = ["benchmarks/agent/PROMPTS.md"]
 # the bug where `[ "23:35" \< "2359" ]` was true because ':' sorts above '5'.
 "scripts/lib/batch.py" = ["DTZ006", "DTZ007"]
 "tests/test_batch.py" = ["DTZ001", "DTZ005", "DTZ006"]
+# The tags this builds are compared against sweep-order.txt, whose lines are
+# `date +%H:%M:%S` -- naive by construction. A tz-aware anchor here would be
+# the wrong fixture, not the safe one.
+"tests/test_stack_agent_ab_python.py" = ["DTZ001"]

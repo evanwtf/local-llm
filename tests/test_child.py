@@ -143,3 +143,73 @@ def test_the_driver_does_not_reach_for_subprocess_run_for_the_measurement() -> N
     # The engine was always managed; the thing that writes rows was not.
     code = code_of(ROOT / "scripts" / "route_agent_ab.py")
     assert "child.run(" in code
+
+
+def test_env_merges_and_unset_removes(tmp_path, monkeypatch) -> None:
+    """The absence case, which a dict cannot express.
+
+    #149's withheld arm is `env -u DS4_METAL_ENABLE_TENSOR`. A merged dict has
+    no way to say "not set": a key it does not mention is inherited, so an arm
+    defined by an ABSENT variable silently becomes the other arm when the
+    variable happens to be exported. That is not a hypothetical -- ds4 enables
+    the tensor route by itself on any device whose name contains M5.
+    """
+    monkeypatch.setenv("CHILD_TEST_INHERITED", "yes")
+    monkeypatch.setenv("CHILD_TEST_REMOVED", "yes")
+    log = tmp_path / "env.log"
+    rc = child.run(
+        [
+            sys.executable,
+            "-c",
+            (
+                "import os;print("
+                "os.environ.get('CHILD_TEST_INHERITED'),"
+                "os.environ.get('CHILD_TEST_REMOVED'),"
+                "os.environ.get('CHILD_TEST_ADDED'))"
+            ),
+        ],
+        cwd=tmp_path,
+        log=log,
+        env={"CHILD_TEST_ADDED": "added"},
+        unset=["CHILD_TEST_REMOVED"],
+    )
+    assert rc == 0
+    assert log.read_text().split() == ["yes", "None", "added"]
+
+
+def test_unsetting_a_variable_that_is_not_set_is_not_an_error(tmp_path) -> None:
+    log = tmp_path / "noop.log"
+    assert (
+        child.run(
+            [sys.executable, "-c", "pass"],
+            cwd=tmp_path,
+            log=log,
+            unset=["CHILD_TEST_NEVER_SET"],
+        )
+        == 0
+    )
+
+
+def test_append_keeps_what_the_log_already_holds(tmp_path) -> None:
+    """A driver writes the arm's definition first, so the probe can read it."""
+    log = tmp_path / "arm.log"
+    log.write_text("arm=withheld unset=DS4_METAL_ENABLE_TENSOR\n")
+    rc = child.run(
+        [sys.executable, "-c", "print('child ran')"],
+        cwd=tmp_path,
+        log=log,
+        append=True,
+    )
+    assert rc == 0
+    assert log.read_text().splitlines() == [
+        "arm=withheld unset=DS4_METAL_ENABLE_TENSOR",
+        "child ran",
+    ]
+
+
+def test_the_default_still_truncates(tmp_path) -> None:
+    """append=False is the default, and a re-run must not read as one run."""
+    log = tmp_path / "arm.log"
+    log.write_text("stale\n")
+    child.run([sys.executable, "-c", "print('fresh')"], cwd=tmp_path, log=log)
+    assert log.read_text() == "fresh\n"

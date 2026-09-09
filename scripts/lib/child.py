@@ -31,7 +31,7 @@ import os
 import pathlib
 import signal
 import subprocess
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 
 logger = logging.getLogger(__name__)
 
@@ -47,18 +47,38 @@ def run(
     cwd: pathlib.Path,
     log: pathlib.Path,
     timeout: float | None = None,
+    env: Mapping[str, str] | None = None,
+    unset: Sequence[str] = (),
+    append: bool = False,
 ) -> int:
     """Run `argv` to completion, and kill its whole tree on any exit path.
 
     Returns the exit status. Raises whatever the caller's interruption raises,
     after the tree is down -- the exception a driver was stopped by must not be
     replaced by a teardown detail.
+
+    `env` merges into the current environment and `unset` REMOVES keys from
+    it, which is `unitctl.start`'s contract and exists for the same reason: an
+    arm defined by a variable being absent cannot be expressed as a dict. A
+    merged dict has no way to say "not set" -- a key it does not mention is
+    inherited -- so `env -u DS4_METAL_ENABLE_TENSOR` needs `unset`, and #149's
+    withheld arm is exactly that arm.
+
+    `append` keeps what the log already holds. A driver that writes the arm's
+    own definition into the log before starting the child needs it, so the
+    admission probe can read which knob was set rather than trust a table.
     """
     log.parent.mkdir(parents=True, exist_ok=True)
-    with log.open("wb") as handle:
+    merged: dict[str, str] | None = None
+    if env or unset:
+        merged = {**os.environ, **(env or {})}
+        for key in unset:
+            merged.pop(key, None)
+    with log.open("ab" if append else "wb") as handle:
         proc = subprocess.Popen(
             list(argv),
             cwd=str(cwd),
+            env=merged,
             stdout=handle,
             stderr=subprocess.STDOUT,
             stdin=subprocess.DEVNULL,
