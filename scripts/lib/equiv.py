@@ -348,10 +348,19 @@ def write_uv_fake_running_real(
       port.
     - `record_scripts` (default `run.py`): recorded and exited 0, so the
       measurement child's argv+env is captured rather than run.
-    - `shim`: when True, `ds4_qwen_tool_shim.py` prints its startup line
-      ("scaffolding strip: ON/OFF" by `SHIM_NO_STRIP`) and writes `SHIM_DUMP`
-      if set, so a driver that greps the shim's log reaches the measurement
-      child. The shim is never run for real -- it would start a server.
+    - `shim`: when True, `ds4_qwen_tool_shim.py` prints its startup line and
+      writes `SHIM_DUMP` if set, so a driver that greps the shim's log reaches
+      the measurement child. The shim is never run for real -- it would start a
+      server. The ON line is read from the real-run excerpt under
+      `tests/fixtures/logs/shim-strip-on.log`; the OFF line has no real example
+      in the repo, so the differential assumes the driver's own grep target
+      (see the README there).
+
+    Inline `uv run python -c '<code>'` is executed for real, not faked. The
+    code is the shell's own source text inlined, not an external program; a
+    fake that records it and exits 0 would give the shell nothing while the
+    port runs the same logic in-process. `ds4_record_route` and
+    `worktree_code_dirty` depend on it.
 
     A script is resolved relative to `repo`, matching how the `.sh` invokes it.
     Returns `exe` so a caller can chain the path construction.
@@ -360,6 +369,7 @@ def write_uv_fake_running_real(
     run_literal = repr(sorted(run))
     repo_literal = repr(str(repo))
     shim_literal = repr(bool(shim))
+    shim_on_log = repr(str(repo / "tests" / "fixtures" / "logs" / "shim-strip-on.log"))
     body = textwrap.dedent(
         f"""\
         #!/usr/bin/env python3
@@ -383,11 +393,22 @@ def write_uv_fake_running_real(
         }}
         with open(out, "a") as h:
             h.write(json.dumps(line, separators=(",", ":")) + "\\n")
+        if script == "-c":
+            # Inline code is the shell's own source text, not an external
+            # program. Faking it would replace the thing under test: the shell
+            # gets nothing and the port gets an answer. Exec it for real.
+            os.execv(sys.executable, [sys.executable, "-c", *script_args])
         if name == "ds4_qwen_tool_shim.py" and {shim_literal}:
             if os.environ.get("SHIM_NO_STRIP") == "1":
+                # No real example of the OFF line exists in the repo; the
+                # differential assumes the driver's own grep target. See the
+                # README under tests/fixtures/logs/.
                 print("scaffolding strip: OFF")
             else:
-                print("scaffolding strip: ON")
+                for raw in open({shim_on_log}):
+                    if "scaffolding strip: ON" in raw:
+                        sys.stdout.write(raw)
+                        break
             dump = os.environ.get("SHIM_DUMP")
             if dump:
                 with open(dump, "w") as h:

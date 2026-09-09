@@ -43,3 +43,14 @@ Take it from a real run, record where it came from in the table above, and keep
 it short — these exist to carry a marker, not to be a corpus. A log that needs
 editing to make a test pass is not a fixture; it is a hand-written string with
 extra steps.
+
+## The OFF arm's shim line is assumed, not sourced
+
+`shim-strip-on.log` carries the ON arm's startup line, `scaffolding strip: ON
+(shipped default) (#112 remedy 2)`. The OFF arm's line — `scaffolding strip:
+OFF` — has **no real example anywhere in the repo** as of 2026-09-09. The
+equiv harness therefore emits the driver's own grep target verbatim
+(`strip_toggle_ab.sh` sets `want="scaffolding strip: OFF"` and greps for it),
+and the differential assumes that is what the shim prints in OFF mode. That
+assumption is unverified: capture a real OFF-mode shim log and add it here
+before trusting the OFF arm's differential.
