@@ -173,41 +173,185 @@ def by_program(invs: Iterable[Invocation], program: str) -> list[Invocation]:
 # ------------------------------------------------------------------ the shim
 
 
-def write_shim(directory: pathlib.Path, out: pathlib.Path) -> pathlib.Path:
-    """A directory of PATH fakes that record, then exit 0.
+def write_fake(
+    exe: pathlib.Path, out: pathlib.Path, *, canned: str = ""
+) -> pathlib.Path:
+    """A fake executable at `exe` that records argv+env, then exits 0.
 
-    Creates `ds4-server`, `opencode`, and `benchmarks/agent/run.py` under
-    `directory`. Each appends its argv (the tokens after its own name) and its
-    full environment to the JSONL at `out`, tagged with `EQUIV_PROGRAM` and
-    `EQUIV_ARM`, then exits 0. The caller sets those on the child's env, which
-    is how the recording line knows which program and arm it was.
+    Appends its argv (the tokens after its own name) and its full environment
+    to the JSONL at `out`, tagged with `EQUIV_PROGRAM` and `EQUIV_ARM`, then
+    exits 0. The caller sets those on the child's env, which is how the
+    recording line knows which program and arm it was.
 
-    Returns `directory` so a caller can chain the path construction.
+    `canned` is printed to stdout before exit. A driver's orchestration greps
+    the server's log for a line such as `Qwen graph allocated ... MTP=off`
+    before it will run the measurement; a fake that prints that line lets the
+    real `.sh` reach the argv-construction point offline. The canned text is
+    embedded as a literal, so it is the driver's own expected spelling, not a
+    transcription of it.
+
+    Returns `exe` so a caller can chain the path construction.
     """
-    (directory / "benchmarks" / "agent").mkdir(parents=True, exist_ok=True)
+    exe.parent.mkdir(parents=True, exist_ok=True)
+    canned_literal = repr(canned)
     body = textwrap.dedent(
-        """\
+        f"""\
         #!/usr/bin/env python3
         import json, os, sys
         out = os.environ["EQUIV_OUT"]
-        line = {
+        line = {{
             "program": os.environ["EQUIV_PROGRAM"],
             "arm": os.environ["EQUIV_ARM"],
             "argv": sys.argv[1:],
-            "env": {k: v for k, v in os.environ.items()},
-        }
+            "env": {{k: v for k, v in os.environ.items()}},
+        }}
         with open(out, "a") as h:
             h.write(json.dumps(line, separators=(",", ":")) + "\\n")
+        if {canned_literal}:
+            print({canned_literal})
         sys.exit(0)
         """
     )
-    run_py = directory / "benchmarks" / "agent" / "run.py"
-    run_py.write_text(body)
-    for name in ("ds4-server", "opencode"):
-        exe = directory / name
-        exe.write_text(body)
-        exe.chmod(0o755)
+    exe.write_text(body)
+    exe.chmod(0o755)
+    return exe
+
+
+def write_shim(
+    directory: pathlib.Path,
+    out: pathlib.Path,
+    programs: Sequence[str] = ("ds4-server", "opencode", "run.py"),
+) -> pathlib.Path:
+    """A directory of PATH fakes that record, then exit 0.
+
+    Creates one fake per name in `programs` under `directory`. `run.py` is
+    placed at `benchmarks/agent/run.py` (the path a driver invokes it by); the
+    rest are bare executables in `directory`. Each records argv+env to `out`
+    and exits 0.
+
+    Returns `directory` so a caller can chain the path construction.
+    """
+    for name in programs:
+        if name == "run.py":
+            write_fake(directory / "benchmarks" / "agent" / "run.py", out)
+        else:
+            write_fake(directory / name, out)
     return directory
+
+
+def write_uv_fake(
+    exe: pathlib.Path,
+    out: pathlib.Path,
+    canned_by_script: dict[str, str] | None = None,
+) -> pathlib.Path:
+    """A fake `uv` that records `uv run python <script> <args>` and exits 0.
+
+    A driver invokes its Python helpers as `uv run python <script> <args>`,
+    resolving `<script>` relative to the repo -- so a PATH fake of the script
+    cannot intercept it, but a PATH fake of `uv` can. This fake records each
+    call as an `Invocation` whose `program` is the script's basename and whose
+    `argv` is the tokens after the script's own name, then exits 0.
+
+    `canned_by_script` maps a script basename to text printed to stdout before
+    exit. A driver's orchestration reads a helper's output -- `wait_ready.py`
+    must print a ready line, `thermals.py` a JSON reading, a report a median
+    line -- and a fake that prints the driver's own expected spelling lets the
+    real `.sh` reach the argv-construction point offline. The map is embedded
+    as a literal, so it is the driver's expected output, not a transcription.
+
+    Returns `exe` so a caller can chain the path construction.
+    """
+    canned = dict(canned_by_script or {})
+    canned_literal = repr(canned)
+    body = textwrap.dedent(
+        f"""\
+        #!/usr/bin/env python3
+        import json, os, pathlib, sys
+        out = os.environ["EQUIV_OUT"]
+        args = sys.argv[1:]
+        if len(args) >= 3 and args[0] == "run" and args[1] == "python":
+            script, script_args = args[2], args[3:]
+        else:
+            script, script_args = "uv", args
+        line = {{
+            "program": pathlib.Path(script).name,
+            "arm": os.environ["EQUIV_ARM"],
+            "argv": script_args,
+            "env": {{k: v for k, v in os.environ.items()}},
+        }}
+        with open(out, "a") as h:
+            h.write(json.dumps(line, separators=(",", ":")) + "\\n")
+        canned = {canned_literal}
+        text = canned.get(pathlib.Path(script).name, "")
+        if text:
+            print(text)
+        sys.exit(0)
+        """
+    )
+    exe.write_text(body)
+    exe.chmod(0o755)
+    return exe
+
+
+def write_uv_fake_running_real(
+    exe: pathlib.Path,
+    out: pathlib.Path,
+    repo: pathlib.Path,
+    *,
+    fake_scripts: Sequence[str] = ("preflight.py",),
+    record_scripts: Sequence[str] = ("run.py",),
+) -> pathlib.Path:
+    """A fake `uv` that runs the real helper scripts, faking only the rest.
+
+    The heavy drivers call their own Python helpers as `uv run python <script>`
+    -- `lib/metal_knob.py`, `prompt_meta.py`, `preflight.py` -- and the helpers
+    produce values the driver interpolates into the measurement command line
+    (the arm's env prefix, the var names). Canned output for those would be a
+    transcription of the very table the port and the shell both read, which is
+    a second implementation. So this fake runs the real script for everything
+    except:
+
+    - `fake_scripts` (default `preflight.py`): recorded and exited 0, so the
+      driver's `--acquire-lock`/`--release-lock` never touch the machine lock;
+    - `record_scripts` (default `run.py`): recorded and exited 0, so the
+      measurement child's argv+env is captured rather than run.
+
+    A script is resolved relative to `repo`, matching how the `.sh` invokes it.
+    Returns `exe` so a caller can chain the path construction.
+    """
+    fake = set(fake_scripts)
+    record = set(record_scripts)
+    fake_literal = repr(sorted(fake))
+    record_literal = repr(sorted(record))
+    repo_literal = repr(str(repo))
+    body = textwrap.dedent(
+        f"""\
+        #!/usr/bin/env python3
+        import json, os, pathlib, subprocess, sys
+        out = os.environ["EQUIV_OUT"]
+        args = sys.argv[1:]
+        if len(args) >= 3 and args[0] == "run" and args[1] == "python":
+            script, script_args = args[2], args[3:]
+        else:
+            script, script_args = "uv", args
+        name = pathlib.Path(script).name
+        line = {{
+            "program": name,
+            "arm": os.environ["EQUIV_ARM"],
+            "argv": script_args,
+            "env": {{k: v for k, v in os.environ.items()}},
+        }}
+        with open(out, "a") as h:
+            h.write(json.dumps(line, separators=(",", ":")) + "\\n")
+        if name in {fake_literal} or name in {record_literal}:
+            sys.exit(0)
+        real = pathlib.Path({repo_literal}) / script
+        os.execv(sys.executable, [sys.executable, str(real), *script_args])
+        """
+    )
+    exe.write_text(body)
+    exe.chmod(0o755)
+    return exe
 
 
 def run_fake(
