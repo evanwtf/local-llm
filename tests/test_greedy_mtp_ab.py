@@ -143,3 +143,191 @@ def test_the_batch_label_can_be_overridden_for_a_re_run():
     assert 'BATCH="${BATCH:-greedy-mtp-ab}"' in text
     assert '--batch "$BATCH"' in text
     assert '--batch "greedy-mtp-ab"' not in text
+
+
+# ------------------------------------------------- the #235 retirement differential
+#
+# The port's claim is that, under identical inputs, it hands the measurement
+# child (`run.py`) the same argv and the same environment the shell did. The
+# shell's `run_arm` and the port's `run_arm` both invoke
+# `uv run python benchmarks/agent/run.py`; a fake `uv` on PATH records the
+# child's argv+env. The real `.sh` and the port's `sweep` run against the same
+# fake, and the recordings must agree on argv (order-free) and on env modulo
+# the controlled base.
+#
+# The two arms differ only in argv (`--backend`, `--server-log`); there is no
+# arm-specific env var, so the env assertion is that both sides hand run.py the
+# same base environment. The tag lives in the `--server-log` path, so the shell
+# and port recordings are matched by that token.
+
+import contextlib
+import os
+import sys
+
+import pytest
+
+for sub in ("scripts", "scripts/lib", "benchmarks/agent"):
+    sys.path.insert(0, str(ROOT / sub))
+
+import ds4_server
+import equiv
+import greedy_mtp_ab as driver
+
+BATCH = "greedy-mtp-ab"
+ROUNDS = 2
+TRIALS = 1
+
+# Bash and pytest both stamp the child env with variables that are artifacts of
+# the interpreter, not of the driver: PWD follows the `cd`, SHLVL counts shell
+# nesting, `_` is the last command. They differ between the two sides and mean
+# nothing to run.py, so the env comparison ignores them.
+_SHELL_ARTIFACTS = frozenset({"PWD", "OLDPWD", "SHLVL", "_"})
+
+
+@contextlib.contextmanager
+def _noop(*args, **kwargs):
+    """A server, shim, or lock that is already in the state the driver wants."""
+    yield
+
+
+def _meaningful_env(env: dict[str, str]) -> dict[str, str]:
+    """The env minus the controlled base and the interpreter artifacts."""
+    return {
+        k: v
+        for k, v in env.items()
+        if k not in equiv.CONTROLLED_ENV_KEYS and k not in _SHELL_ARTIFACTS
+    }
+
+
+def _shell_run_invs(
+    tmp_path: pathlib.Path, out: pathlib.Path, shim_dir: pathlib.Path
+) -> list[equiv.Invocation]:
+    """Run the real `.sh` against the fakes; return the run.py recordings."""
+    tree = tmp_path / "home" / "git" / "ds4-metal"
+    equiv.write_fake_ds4_server(tree, out, ROOT)
+    equiv.write_fake_pgrep(shim_dir)
+    equiv.write_fake_pkill(shim_dir)
+    logdir = tmp_path / "logs"
+    env = dict(os.environ)
+    env.update(
+        {
+            "PATH": f"{shim_dir}:{os.environ.get('PATH', '')}",
+            "HOME": str(tmp_path / "home"),
+            "EQUIV_OUT": str(out),
+            "EQUIV_ARM": "shell",
+            "LOGDIR": str(logdir),
+            "BATCH": BATCH,
+            "ROUNDS": str(ROUNDS),
+            "TRIALS": str(TRIALS),
+        }
+    )
+    got = subprocess.run(
+        ["bash", str(SCRIPT)],
+        cwd=tmp_path,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=120,
+    )
+    assert got.returncode == 0, f"shell failed:\n{got.stdout}\n{got.stderr}"
+    return equiv.by_program(equiv.load(out), "run.py")
+
+
+def _port_run_invs(
+    tmp_path: pathlib.Path,
+    out: pathlib.Path,
+    shim_dir: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> list[equiv.Invocation]:
+    """Run the port's `sweep` against the same fake; return the run.py recordings.
+
+    The port's orchestration is real except where it would touch the machine:
+    the lock, the shim, and the server are all no-ops, and the KV directories
+    are moved into tmp. `run_arm` still spawns `uv run python run.py` through
+    the fake `uv` on PATH, so the measurement child is recorded exactly as the
+    shell's was.
+    """
+    monkeypatch.setattr(driver, "run_lock", _noop)
+    monkeypatch.setattr(driver, "greedy_shim", _noop)
+    monkeypatch.setattr(ds4_server, "serving", _noop)
+    monkeypatch.setattr(driver, "KV_MTP", tmp_path / "kv-mtp")
+    monkeypatch.setattr(driver, "KV_PLAIN", tmp_path / "kv-plain")
+    # The port's process env must carry the same driver vars the shell's did,
+    # so run.py sees the same base environment on both sides.
+    monkeypatch.setenv("PATH", f"{shim_dir}:{os.environ.get('PATH', '')}")
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    monkeypatch.setenv("EQUIV_OUT", str(out))
+    monkeypatch.setenv("EQUIV_ARM", "port")
+    monkeypatch.setenv("LOGDIR", str(tmp_path / "logs"))
+    monkeypatch.setenv("BATCH", BATCH)
+    monkeypatch.setenv("ROUNDS", str(ROUNDS))
+    monkeypatch.setenv("TRIALS", str(TRIALS))
+    rc = driver.sweep(ROUNDS, TRIALS, BATCH, tmp_path / "logs", os.getpid())
+    assert rc == 0, f"port sweep failed rc={rc}"
+    return equiv.by_program(equiv.load(out), "run.py")
+
+
+def _server_log(inv: equiv.Invocation) -> str:
+    return inv.argv[inv.argv.index("--server-log") + 1]
+
+
+def test_the_shell_and_the_port_hand_run_py_the_same_command(
+    tmp_path, monkeypatch
+) -> None:
+    """The measurement child's argv and env agree between the two drivers.
+
+    The tag-bearing `--server-log` token matches a shell recording to its port
+    twin. The argv must agree order-free; the env must agree modulo the
+    controlled base and the interpreter artifacts.
+    """
+    out = tmp_path / "rec.jsonl"
+    shim_dir = tmp_path / "shim"
+    shim_dir.mkdir()
+    equiv.write_uv_fake_running_real(shim_dir / "uv", out, ROOT)
+
+    shell = _shell_run_invs(tmp_path, out, shim_dir)
+    port = _port_run_invs(tmp_path, out, shim_dir, monkeypatch)
+
+    shell_by_log = {_server_log(i): i for i in shell}
+    port_by_log = {_server_log(i): i for i in port}
+    assert shell_by_log.keys() == port_by_log.keys(), (
+        f"shell tags {sorted(shell_by_log)} vs port tags {sorted(port_by_log)}"
+    )
+
+    for tag, s in shell_by_log.items():
+        p = port_by_log[tag]
+        assert set(equiv.canonical(s.argv, frozenset())) == set(
+            equiv.canonical(p.argv, frozenset())
+        ), f"{tag}: shell argv {s.argv} vs port argv {p.argv}"
+        assert _meaningful_env(s.env) == _meaningful_env(p.env), (
+            f"{tag}: shell env {_meaningful_env(s.env)} vs "
+            f"port env {_meaningful_env(p.env)}"
+        )
+
+
+def test_the_two_arms_differ_only_in_backend_and_server_log(tmp_path) -> None:
+    """The arms are the same command except the two tokens that name them.
+
+    This is the claim the differential rests on: there is no arm-specific env
+    var, so the env comparison is about the base. If a future edit adds an
+    arm-specific env var, this test fails and the differential must be extended
+    to assert on it.
+    """
+    out = tmp_path / "rec.jsonl"
+    shim_dir = tmp_path / "shim"
+    shim_dir.mkdir()
+    equiv.write_uv_fake_running_real(shim_dir / "uv", out, ROOT)
+    invs = _shell_run_invs(tmp_path, out, shim_dir)
+    by_log = {_server_log(i): i for i in invs}
+    mtp = by_log[str(tmp_path / "logs" / "ds4server-r1-mtp.log")]
+    plain = by_log[str(tmp_path / "logs" / "ds4server-r1-plain.log")]
+    mtp_pairs = set(equiv.canonical(mtp.argv, frozenset()))
+    plain_pairs = set(equiv.canonical(plain.argv, frozenset()))
+    diff = mtp_pairs ^ plain_pairs
+    assert diff == {
+        ("--backend", driver.TREATMENT),
+        ("--backend", driver.CONTROL),
+        ("--server-log", str(tmp_path / "logs" / "ds4server-r1-mtp.log")),
+        ("--server-log", str(tmp_path / "logs" / "ds4server-r1-plain.log")),
+    }, f"arms differ on more than backend and server-log: {diff}"

@@ -393,6 +393,23 @@ def write_uv_fake_running_real(
         }}
         with open(out, "a") as h:
             h.write(json.dumps(line, separators=(",", ":")) + "\\n")
+        if name == "wait_ready.py":
+            # In production wait_ready polls the port until the server is
+            # ready. The fake server prints its graph line then records
+            # itself; once the ds4-server record appears, the graph line is
+            # already in the log the driver greps. Wait for it so the
+            # driver's grep is not racing the server's startup.
+            import time
+            deadline = time.monotonic() + 10
+            while time.monotonic() < deadline:
+                try:
+                    with open(out) as h:
+                        if any('"program":"ds4-server"' in ln for ln in h):
+                            break
+                except FileNotFoundError:
+                    pass
+                time.sleep(0.05)
+            sys.exit(0)
         if script == "-c":
             # Inline code is the shell's own source text, not an external
             # program. Faking it would replace the thing under test: the shell
@@ -475,6 +492,12 @@ def write_fake_ds4_server(
     under `tests/fixtures/logs/`, so the fake prints exactly what ds4 printed.
     The MTP state is inferred from whether `--mtp-model` is present, which picks
     the mtp or plain excerpt. It exits 0. Returns the fake's path.
+
+    The driver greps the log right after `wait_ready.py` returns, and the fake
+    `wait_ready.py` waits for this fake's record before returning -- so the
+    graph line is already in the log when the driver greps, even though a
+    Python fake's startup is slower than a shell's. The wait is the fix; the
+    fake stays Python so a test can run it with the interpreter.
     """
     tree.mkdir(parents=True, exist_ok=True)
     exe = tree / "ds4-server"
