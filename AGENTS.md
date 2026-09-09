@@ -961,6 +961,13 @@ process on the machine that arbitrates every measurement.
 So the rule has no exception for "this heredoc only contains code". Quote the
 delimiter always. If the tool call hangs and produces no output, suspect this
 before suspecting the tool -- and check `ps` for what it started.
+
+**Then kill the group, not the process.** Killing that `opencode` by pid at
+08:20 did nothing: its parent shell was still in the substitution and spawned
+another one eight seconds later, from the same dead command. Only
+`kill -TERM -<pgid>` ended it. That is the same lesson `scripts/lib/child.py`
+exists to enforce (#268) -- and I made the mistake by hand while holding the
+module that prevents it. A pid is a process; a measurement is a tree.
 ## Always measure the latest infrastructure
 
 llama.cpp, Ollama, Codex and OpenCode ship several times a day. **Update before
