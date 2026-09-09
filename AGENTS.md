@@ -945,6 +945,22 @@ PY
 enables all of them, so a body containing a Makefile line, a shell snippet, a
 price or a regex is at risk -- not only one holding backticks.
 
+**It is not only about messages, and the damage is not only lost text.** On
+2026-09-09 an unquoted `uv run python - <<PY` was writing a *source comment*:
+
+    # child.run, not subprocess.run: run.py re-spawns `opencode`, and a signal
+
+The shell substituted the backticks, so it **launched `opencode`** -- a real
+interactive agent -- and then waited for it. The tool call timed out at 120
+seconds and reported nothing; the edit never landed; and the `opencode`
+process stayed alive **38 minutes**, until a heartbeat reported an unexpected
+GPU occupant and it was traced back through its parent chain. Two costs, and
+the second is the expensive one: a silently mangled comment, and an orphaned
+process on the machine that arbitrates every measurement.
+
+So the rule has no exception for "this heredoc only contains code". Quote the
+delimiter always. If the tool call hangs and produces no output, suspect this
+before suspecting the tool -- and check `ps` for what it started.
 ## Always measure the latest infrastructure
 
 llama.cpp, Ollama, Codex and OpenCode ship several times a day. **Update before
