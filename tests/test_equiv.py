@@ -151,6 +151,55 @@ def test_uv_fake_default_executes_nothing(tmp_path) -> None:
     assert recs[0].program == "loud.py"
 
 
+def test_fake_ds4_server_emits_the_real_graph_excerpt(tmp_path) -> None:
+    """The fake's graph line is the engine's, not a hand-typed string.
+
+    The heavy drivers grep the server log for `Qwen graph allocated` and
+    `MTP=off` / `MTP=Q4_K/Q8_0/BF16` before they will run a measurement. The
+    fake must emit those markers so the real `.sh` reaches the argv-construction
+    point offline -- but the line must come from the real-run excerpt under
+    `tests/fixtures/logs/`, never be composed here. This runs the fake both
+    ways and asserts its stdout carries the markers the drivers grep for.
+    """
+    import os
+    import subprocess
+
+    out = tmp_path / "rec.jsonl"
+    tree = tmp_path / "tree"
+    fake = equiv.write_fake_ds4_server(tree, out, ROOT)
+    env = {
+        "EQUIV_OUT": str(out),
+        "EQUIV_ARM": "shell",
+        "PATH": os.environ.get("PATH", ""),
+    }
+    mtp = subprocess.run(
+        [sys.executable, str(fake), "--mtp-model", "m.gguf"],
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert mtp.returncode == 0, mtp.stderr
+    assert "Qwen graph allocated" in mtp.stdout
+    assert "MTP=Q4_K/Q8_0/BF16" in mtp.stdout
+    assert "MTP sidecar loaded" in mtp.stdout
+    plain = subprocess.run(
+        [sys.executable, str(fake)],
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert plain.returncode == 0, plain.stderr
+    assert "Qwen graph allocated" in plain.stdout
+    assert "MTP=off" in plain.stdout
+    assert "MTP sidecar loaded" not in plain.stdout
+    # both arms recorded their argv+env
+    recs = equiv.by_program(equiv.load(out), "ds4-server")
+    assert len(recs) == 2
+    assert recs[0].argv == ("--mtp-model", "m.gguf")
+
+
 def test_no_fixture_carries_env_outside_the_controlled_base() -> None:
     """A committed fixture must not record the operator's whole environment.
 

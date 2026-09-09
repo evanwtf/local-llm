@@ -442,35 +442,44 @@ def write_fake_pkill(directory: pathlib.Path) -> pathlib.Path:
     return exe
 
 
-def write_fake_ds4_server(tree: pathlib.Path, out: pathlib.Path) -> pathlib.Path:
-    """A fake `./ds4-server` that records argv+env and writes the graph line.
+def write_fake_ds4_server(
+    tree: pathlib.Path, out: pathlib.Path, repo: pathlib.Path
+) -> pathlib.Path:
+    """A fake `./ds4-server` that records argv+env and emits the graph line.
 
     The heavy drivers start `./ds4-server` in a tree they control (a temp
     `$HOME/git/ds4-metal`, or `$OLD_TREE`/`$NEW_TREE`). This fake records
-    argv+env to `out` and writes the `Qwen graph allocated` line the drivers
-    grep for, inferring the MTP state from whether `--mtp-model` is present. It
-    exits 0. Returns the fake's path.
+    argv+env to `out`, then emits the `Qwen graph allocated` line the drivers
+    grep for. The line is not typed here: it is read from the real-run excerpt
+    under `tests/fixtures/logs/`, so the fake prints exactly what ds4 printed.
+    The MTP state is inferred from whether `--mtp-model` is present, which picks
+    the mtp or plain excerpt. It exits 0. Returns the fake's path.
     """
     tree.mkdir(parents=True, exist_ok=True)
     exe = tree / "ds4-server"
+    mtp_log = repr(
+        str(repo / "tests" / "fixtures" / "logs" / "ds4-server-graph-mtp.log")
+    )
+    plain_log = repr(
+        str(repo / "tests" / "fixtures" / "logs" / "ds4-server-graph-plain.log")
+    )
     body = textwrap.dedent(
-        """\
+        f"""\
         #!/usr/bin/env python3
         import json, os, sys
         out = os.environ["EQUIV_OUT"]
-        line = {
+        line = {{
             "program": "ds4-server",
             "arm": os.environ["EQUIV_ARM"],
             "argv": sys.argv[1:],
-            "env": {k: v for k, v in os.environ.items()},
-        }
+            "env": {{k: v for k, v in os.environ.items()}},
+        }}
         with open(out, "a") as h:
             h.write(json.dumps(line, separators=(",", ":")) + "\\n")
-        if "--mtp-model" in sys.argv:
-            print("Qwen graph allocated MTP=Q4_K/Q8_0/BF16 verifier=block/max16")
-            print("MTP sidecar loaded")
-        else:
-            print("Qwen graph allocated MTP=off verifier=off")
+        log = {mtp_log} if "--mtp-model" in sys.argv else {plain_log}
+        for raw in open(log):
+            if "Qwen graph allocated" in raw or "MTP sidecar loaded" in raw:
+                sys.stdout.write(raw)
         sys.exit(0)
         """
     )
