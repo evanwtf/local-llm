@@ -33,6 +33,16 @@ line of output into the `die=` field, where it reads as a temperature.
 Both were confirmed by running them, not by reading them. Here `rows()` and
 `die_temp()` return `None` and the caller renders `unreadable`, once, in one
 place.
+
+**And the lock field watched a file nobody writes.** The shell tested
+`[ -f .run-lock.json ]` in the checkout. The lock moved to
+`~/.local-llm-bench/run-lock.json`, and `preflight.warn_legacy_lock` exists
+precisely because a lock left in a checkout is a pre-fix artifact -- so this
+field has read `free` on every run since, whatever was on the machine. It
+was the only live reader of that path left in the repo. The lock is now
+`machine_state.lock_claim()`, which also distinguishes a holder that is
+running from one that is gone: the shell's two words could not say `stale`,
+and "wait for it" and "something died" are not the same instruction.
 """
 
 from __future__ import annotations
@@ -50,6 +60,7 @@ sys.path.insert(0, str(REPO / "scripts"))
 sys.path.insert(0, str(REPO / "benchmarks" / "agent"))
 
 import decode_ab_report
+import machine_state
 import post_ab_run
 import thermals
 
@@ -58,7 +69,17 @@ import logs
 logger = logging.getLogger(__name__)
 
 WANT_RUNS = 4
-LOCK = REPO / ".run-lock.json"
+
+#: How `machine_state`'s verdict on the lock is spelled in the status line.
+#: The shell said held or free; a lock whose holder is gone is neither, and
+#: saying so is the difference between "wait" and "something died".
+LOCK_WORD = {
+    machine_state.RUNNING: "held",
+    machine_state.MISSING: "free",
+    machine_state.STALE: "stale",
+    machine_state.UNCONFIRMED: "uncertain",
+    machine_state.REUSED: "uncertain",
+}
 
 #: What a computable field says when it is not computable. One spelling, so a
 #: reader can tell "not available" from a value in every field at once.
@@ -192,11 +213,12 @@ def line(prefix: str, want: int = WANT_RUNS) -> tuple[str, int]:
     count = rows(current)
     temp = die_temp()
     now = dt.datetime.now().astimezone().strftime("%H:%M")
+    lock = LOCK_WORD.get(machine_state.lock_claim().status, UNREADABLE)
     text = (
         f"{now} | {len(done)}/{want} complete | "
         f"{current.name if current else UNREADABLE} at "
         f"{count if count is not None else UNREADABLE} rows | "
-        f"lock={'held' if LOCK.exists() else 'free'} "
+        f"lock={lock} "
         f"die={f'{temp}C' if temp is not None else UNREADABLE} | "
         f"{median_line(done)}"
     )

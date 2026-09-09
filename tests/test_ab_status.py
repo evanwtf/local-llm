@@ -152,6 +152,57 @@ def test_a_die_reading_is_reported_as_a_number(monkeypatch) -> None:
     assert ab_status.die_temp() == 41.5
 
 
+# --- the lock: a field that watched a file nobody writes ---------------------
+
+
+def lock_status(monkeypatch, status: str) -> None:
+    claim = ab_status.machine_state.Claim("run-lock", "x", 1, status, "")
+    monkeypatch.setattr(ab_status.machine_state, "lock_claim", lambda *a, **k: claim)
+
+
+def test_the_lock_is_read_from_the_path_the_lock_actually_uses() -> None:
+    """The shell tested `[ -f .run-lock.json ]` in the checkout.
+
+    The lock moved to ~/.local-llm-bench/run-lock.json, and
+    `preflight.warn_legacy_lock` exists because a lock left in a checkout is a
+    pre-fix artifact. This script was the last live reader of that path, so
+    its lock field had read `free` on every run since the move, whatever was
+    on the machine.
+    """
+    source = pathlib.Path(ab_status.__file__).read_text()
+    assert '".run-lock.json"' not in source
+    assert "machine_state.lock_claim()" in source
+
+
+def test_a_held_lock_says_held(tmp_path, monkeypatch) -> None:
+    lock_status(monkeypatch, ab_status.machine_state.RUNNING)
+    text, _ = ab_status.line(str(tmp_path / "absent"))
+    assert "lock=held" in text
+
+
+def test_no_lock_says_free(tmp_path, monkeypatch) -> None:
+    lock_status(monkeypatch, ab_status.machine_state.MISSING)
+    text, _ = ab_status.line(str(tmp_path / "absent"))
+    assert "lock=free" in text
+
+
+def test_a_lock_whose_holder_is_gone_says_stale_not_held(tmp_path, monkeypatch) -> None:
+    """The shell's two words could not say this, and it is the one a watcher
+    most needs: "wait for it" and "something died" are different orders."""
+    lock_status(monkeypatch, ab_status.machine_state.STALE)
+    text, _ = ab_status.line(str(tmp_path / "absent"))
+    assert "lock=stale" in text
+    assert "lock=held" not in text and "lock=free" not in text
+
+
+def test_a_holder_that_cannot_be_confirmed_is_not_reported_as_free(
+    tmp_path, monkeypatch
+) -> None:
+    lock_status(monkeypatch, ab_status.machine_state.UNCONFIRMED)
+    text, _ = ab_status.line(str(tmp_path / "absent"))
+    assert "lock=uncertain" in text
+
+
 # --- the median line, which belongs to the report ----------------------------
 
 
