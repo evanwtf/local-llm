@@ -2,26 +2,31 @@
   "branches": {},
   "comments": {
     "112": 12,
-    "151": 9,
     "158": 4,
     "162": 17,
     "170": 3,
-    "210": 8,
     "212": 5,
     "228": 6,
-    "39": 19
+    "232": 1,
+    "39": 22
   },
-  "lock": "free",
+  "lock": "held",
   "prs": {},
   "servers": [
     {
-      "age": "2d18h",
-      "gib": 0.1,
+      "age": "2d22h",
+      "gib": 0.0,
       "pid": 921,
       "short": "ollama"
     },
     {
-      "age": "20h54m",
+      "age": "20m",
+      "gib": 74.2,
+      "pid": 50125,
+      "short": "ds4-server"
+    },
+    {
+      "age": "1d1h",
       "gib": 0.0,
       "pid": 27460,
       "short": "ollama"
