@@ -70,6 +70,11 @@ one is wrong the result is not a crash — it is a number that looks fine. On
   unbound variable under `set -u` on bash 3.2 when the array is empty, and
   only the control arm's array was empty. The treatment arm ran all 15 tasks;
   its pair never existed. One hour of machine time, no comparison.
+  *Fixed in `6ca27aa`* by the guarded expansion
+  `${mtp_args[@]+"${mtp_args[@]}"}` — and **`set -eu` is still on line 35**,
+  so deleting that guard brings the bug straight back. The incantation is
+  load-bearing and unreadable, which is the point: the Python arm is a list
+  that is sometimes empty, and an empty list is not a special case.
 - Seven orphaned `until ! pgrep -f '<driver>.sh'` waiter shells, up to 6h30m
   old, each waiting on itself.
 - The commit guard refused every commit for hours while the machine was idle,
