@@ -99,5 +99,5 @@ documentation.
 | `ds4-fast.sh` | Metal 4 TensorOps: ~21% faster, not bit-exact. See scripts/ds4_serve.py. |
 | `ds4-vanilla.sh` | Reference kernels: bit-exact, slower. See scripts/ds4_serve.py. |
 | `install-metal-ceiling.sh` | Persist the Metal wired limit across reboots. |
-| `local-agent.sh` | Start a recommended local stack and drop into a coding agent. |
+| `local-agent.sh` | Start a recommended local stack and drop into a coding agent (see RECOMMENDATIONS.md). |
 

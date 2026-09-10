@@ -136,6 +136,13 @@ def test_check_flag_is_detected_anywhere() -> None:
     assert la.parse_invocation(["fast", "claude"]).check_only is False
 
 
+def test_no_exec_flag_is_detected_and_filtered() -> None:
+    inv = la.parse_invocation(["fast", "claude", "--no-exec", "task"])
+    assert inv.no_exec is True
+    assert inv.agent_args == ["task"]
+    assert la.parse_invocation(["fast", "claude"]).no_exec is False
+
+
 # --- confirm() ---------------------------------------------------------------
 
 
@@ -170,6 +177,22 @@ def test_bad_client_returns_before_any_fetch(monkeypatch: pytest.MonkeyPatch) ->
     monkeypatch.setattr(la, "ensure_weights", lambda *a, **k: called.append("fetch"))
     assert la.main(["fast", "badclient"]) == 2
     assert called == []
+
+
+def test_no_exec_brings_the_stack_up_but_does_not_exec(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """--no-exec runs the start pipeline and returns 0 without exec'ing."""
+    ran: list[str] = []
+    for name in ("ensure_weights", "ensure_engine", "start_server", "start_shims"):
+        monkeypatch.setattr(la, name, lambda *a, _n=name, **k: ran.append(_n))
+
+    def no_exec_allowed(*_a: object, **_k: object) -> None:
+        raise AssertionError("exec_client must not run under --no-exec")
+
+    monkeypatch.setattr(la, "exec_client", no_exec_allowed)
+    assert la.main(["fast", "opencode", "--no-exec"]) == 0
+    assert ran == ["ensure_weights", "ensure_engine", "start_server", "start_shims"]
 
 
 def test_server_not_started_twice_when_port_is_busy(

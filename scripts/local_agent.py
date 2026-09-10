@@ -197,6 +197,7 @@ class Invocation:
     stack: str
     client: str
     check_only: bool
+    no_exec: bool
     agent_args: list[str]
 
 
@@ -210,12 +211,17 @@ def parse_invocation(argv: list[str]) -> Invocation:
 
     Positional 1 is the stack, positional 2 is the client (default `opencode`).
     Everything after the first two tokens passes through to the agent, minus a
-    literal `--` separator and any `--check` flag.
+    literal `--` separator and the `--check` / `--no-exec` flags.
+
+    `--no-exec` brings the stack up (weights, engine, server, shim, wait-ready)
+    and stops before the agent exec. It is not in the shell; it exists so the
+    port can be verified end to end without an interactive agent -- start the
+    servers, prove the ports answer, then `unitctl stop` them.
     """
     if not argv:
         raise LaunchError(
             "usage: local_agent.py <starter|fast|mainline|lineage> "
-            "[opencode|claude] [--check] [-- args]"
+            "[opencode|claude] [--check] [--no-exec] [-- args]"
         )
     stack = argv[0]
     client = argv[1] if len(argv) > 1 else "opencode"
@@ -225,12 +231,13 @@ def parse_invocation(argv: list[str]) -> Invocation:
         raise LaunchError(f"unknown stack '{stack}' ({'|'.join(STACKS)})")
 
     check_only = "--check" in argv
+    no_exec = "--no-exec" in argv
     # Drop the first min(len, 2) positionals, then collect the rest, dropping a
-    # literal "--" separator and every --check. Mirrors the shell's seen_sep
-    # loop (lines 237-245): both before and after "--" pass through.
+    # literal "--" separator and the launcher's own flags. Mirrors the shell's
+    # seen_sep loop (lines 237-245): both before and after "--" pass through.
     rest = argv[min(len(argv), 2) :]
-    agent_args = [a for a in rest if a not in ("--check", "--")]
-    return Invocation(stack, client, check_only, agent_args)
+    agent_args = [a for a in rest if a not in ("--check", "--no-exec", "--")]
+    return Invocation(stack, client, check_only, no_exec, agent_args)
 
 
 def log_dir() -> pathlib.Path:
@@ -612,6 +619,12 @@ def main(argv: list[str] | None = None) -> int:
         ensure_engine(stack)
         start_server(stack)
         start_shims(stack, inv.client)
+        if inv.no_exec:
+            logger.info(
+                "--no-exec: stack is up, not starting the agent. "
+                "stop it with: scripts/unitctl.py stop <unit>"
+            )
+            return 0
         exec_client(stack, inv.client, inv.agent_args)
     except LaunchError as exc:
         logger.error("%s", exc)
