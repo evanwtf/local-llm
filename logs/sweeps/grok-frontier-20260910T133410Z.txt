@@ -1,0 +1,249 @@
+I'll search X for the last 30 days on newer Qwen, GLM, and DeepSeek releases, starting with this repo's source list and then pulling practitioner posts.Web search already shows a possible DeepSeek V4.1 Flash drop today. I'll pull X posts from the source list and verify that claim.**DeepSeek-V4.1-Flash is the only newer open-weight release in this window.** Qwen and GLM have no successor past Qwen3.8-Flash-Next and GLM-5.3-Flash.
+
+Search window: 2026-08-11 through 2026-09-10 (UTC). Sources: X keyword/thread search plus this repo’s local-LLM list (`@antirez`, `@UnslothAI`, `@ivanfioravanti`, `@ggerganov`, `@korale77`, `@0xSero`, and GGUF accounts). `@ivanfioravanti`, `@ddalcu`, and `@ggerganov` have no posts on V4.1 today.
+
+---
+
+## Family verdicts
+
+### 1. Qwen — no newer release
+
+Nothing newer than **Qwen3.8-Flash-Next** (also called Qwen3.8-Flash) showed up.
+
+- `@Alibaba_Qwen` last model posts (2026-08-26 to 2026-08-28) are still Flash-Next. No Qwen4, Qwen3.9, or Flash-Next-2.
+- Practitioners still treat Flash-Next as current. `@ivanfioravanti` (2026-09-09) talks about `qwen4-exp` vs a future final Qwen4. That means Qwen4 is not out.
+- Qwen3.8-27B GGUF is a dense sibling from **before** Flash-Next (Unsloth: 2026-08-14). It is not a successor.
+
+GGUF Q2–Q4 on ~128 GB, Apple Metal (llama.cpp / ds4): **not applicable.** There is no newer model.
+
+### 2. GLM / Zhipu — no newer release
+
+Nothing newer than **GLM-5.3-Flash** (Ox Alpha, 2026-08-26).
+
+- `@Zai_org` last model posts: Flash on 2026-08-26, then **GLM-5.3 flagship weights** on 2026-08-28. That flagship is the larger sibling (753B / 55B active), not a model after Flash.
+- Z.ai docs still list Flash as the latest Flash-class model (checked 2026-09-09).
+- One rumor post (`@defaiscope`, 2026-09-07) claimed GLM-6 in late September. That is rumor, not a release. No weights, no GGUF.
+
+GGUF Q2–Q4 on ~128 GB, Apple Metal: **not applicable** for a successor. Existing Flash GGUFs (Unsloth 3-bit for 128 GB; ds4 Q2 on M5 Max 128 GB) are the current Flash, not a new family member.
+
+### 3. DeepSeek — yes: V4.1-Flash, today
+
+**DeepSeek-V4.1-Flash** shipped 2026-09-10T06:10:09Z. Open weights, MIT, [huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash](https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash).
+
+| Question | Answer |
+|---|---|
+| Newer than V4-Flash? | **Yes.** New Causal Encoder–Decoder MoE: 552B backbone, 8B active on input / 16B on output, 196B Engram, native vision, ~510 GB official 4-bit. |
+| Q2–Q4 GGUF that fits ~128 GB? | **No.** Cruz is converting a ladder (Q2_K first, claimed **247 GB**). Repo exists, **files not uploaded yet**. Q4 estimates sit ~270 GB. `@antirez`: not a fit for 128 GB. `@UnslothAI` asked DeepSeek for smaller local models. |
+| Apple Metal (llama.cpp or ds4)? | **Not yet.** `@antirez` may add ds4 as an experiment; he points at M5 Ultra 512 GB later this year, not 128 GB. Cruz is writing a llama.cpp port. No Metal run reported. `@ivanfioravanti` / `@korale77` / `@ggerganov` silent on local V4.1 today. |
+
+---
+
+## Posts (newest first, 12)
+
+All 12 are about DeepSeek-V4.1-Flash. Qwen and GLM had no successor posts that met the filter.
+
+### 1. `@landontgreen` · 2026-09-10T12:52:41Z · post
+https://x.com/landontgreen/status/2098031909636911255
+
+> DeepSeek V4.1 Flash weights are already out!
+>
+> https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash
+
+### 2. `@0xSero` · 2026-09-10T10:36:26Z · post
+https://x.com/0xSero/status/2097997621520453924
+
+> Deepseek-v4.1-flash with ngram offloaded to NVMe is FLYING!
+>
+> If you have 2x Spark unfortunately it’s time to buy the 3rd
+
+### 3. `@ViC305` · 2026-09-10T10:16:39Z · reply
+https://x.com/ViC305/status/2097992641518719217
+
+> Im working on the GGUF ladder and EXL3 in parallel as we speak 😆
+>
+> https://huggingface.co/vcruz305/DSV4.1-Flash-EXL3-TP4
+>
+> https://huggingface.co/vcruz305/DeepSeek-V4.1-Flash-GGUF
+
+HF check at fetch time: GGUF repo is a placeholder. “Weights are not in this repo yet. Ladder in order: Q2_K_M → Q3_K_M → Q4_K_M → Q5_K_M.”
+
+### 4. `@ViC305` · 2026-09-10T10:05:46Z · post (quote of DeepSeek 2/6)
+https://x.com/ViC305/status/2097989903829319731
+
+> GGUF fans REJOICE! DeepSeek V4.1 Flash Q2_K (247GB) is uploading! Starting with the lower quant ladder up! And already working on the llama port to get you up and running 😎 And dont you worry my GGUF haters, EXL3 is on its way
+>
+> EXL3: https://huggingface.co/vcruz305/DSV4.1-Flash-EXL3-TP4
+>
+> GGUF HF Repo:
+
+(GGUF URL completed in the reply above.)
+
+### 5. `@antirez` · 2026-09-10T09:38:21Z · reply
+https://x.com/antirez/status/2097983005511807335
+
+> Reasoning in Q2 terms. DS4Flash worked well at 2 bits, qill this one still work well? There is to test, weights are also in a different format.
+
+### 6. `@antirez` · 2026-09-10T09:30:57Z · reply
+https://x.com/antirez/status/2097981142984949792
+
+> The doubt I have in the DeepSeek 4 story is what happened with DS4 PRO. It is the same architecture of Flash, that we know works very well, but it is much larger. In theory the model was capable of providing quite impressive performances, but never really delivered. A mystery.
+
+### 7. `@antirez` · 2026-09-10T09:24:23Z · reply
+https://x.com/antirez/status/2097979489296732334
+
+> For sure in the benchmarks look terrific in certain areas like cybersecurity, which is a huge use case. Certain other benchmarks look more aligned with past performances, that is why I would wait testing from the user base before trusting the best benchmarks as general proxy.
+
+### 8. `@antirez` · 2026-09-10T09:21:34Z · reply
+https://x.com/antirez/status/2097978780102881469
+
+> Probably yes, initially as an experiment, will 2 bit quants hold up? Is the speed decent? Generation uses a lot more parameters than the DS4Flash model, will be slower. Good fit for Mac M5 Ultra 512GB systems that will be released later this year. Not really a "local" model IMHO
+
+### 9. `@antirez` · 2026-09-10T09:21:33Z · post (quote of DeepSeek 1/6)
+https://x.com/antirez/status/2097978775673684459
+
+> Interesting model, not a total jump forward compared to 4.0 Flash since it is 2x the params in the backbone, but definitely better. Not a fit for 128GB systems, so a local model for the very few with 2x128GB systems or big Mac Studio systems. About supporting it in DwarfStar:
+
+### 10. `@ViC305` · 2026-09-10T07:49:15Z · post (quote of DeepSeek 1/6)
+https://x.com/ViC305/status/2097955550210449788
+
+> DeepSeek-V4.1-Flash JUST dropped, and I’m already building the GGUF + EXL3 releases. 🔥🚀 The headline that caught my attention:
+>
+> Terminal-Bench 2.1: 90.6
+>
+> That beats EVERY other frontier model in DeepSeek’s published comparison, including Claude Opus 5, GPT-5.6 Sol, Kimi K3, GLM-5.3, V4-Pro and the previous V4-Flash.
+>
+> And that is not the only one.
+>
+> V4.1-FLASH IS PUSHING AGENTIC PERFORMANCE
+>
+> DeepSeek’s reported benchmarks:
+>
+> Terminal-Bench 2.1
+> V4.1-Flash: 90.6
+> Claude Opus 5: 89.1
+> GPT-5.6 Sol: 88.8
+> Kimi K3: 88.3
+> GLM-5.3: 88.2
+> V4-Pro 0813: 87.9
+> V4-Flash 0731: 82.7
+>
+> DeepSWE v1.1
+> V4.1-Flash: 74.2
+> Claude Opus 5: 74.0
+> GPT-5.6 Sol: 73.0
+> Kimi K3: 67.5
+> GLM-5.3: 66.9
+> V4-Pro: 62.7
+> V4-Flash: 54.4
+>
+> Automation-Bench
+> V4.1-Flash: 54.8
+> Claude Opus 5: 50.3
+> GLM-5.3: 48.8
+> Kimi K3: 46.7
+> GPT-5.6 Sol: 45.8
+> V4-Pro: 43.2
+> V4-Flash: 37.7
+>
+> Agents’ Last Exam
+> V4.1-Flash: 31.8
+> Claude Opus 5: 28.6
+> GLM-5.3: 28.5
+> Kimi K3: 27.6
+> GPT-5.6 Sol: 26.7
+> V4-Pro: 25.7
+> V4-Flash: 25.2
+>
+> It also reports:
+>
+> CyberGym: 88.1
+> NL2Repo-Bench: 65.4
+> HLE w/tools: 63.9
+> SEC-Bench Pro: 62.8
+> GPQA Diamond: 90.9
+> Codeforces rating: 3471
+>
+> These are DeepSeek’s own launch numbers, not my independent measurements. I want to see how much of this survives quantization and local serving.
+>
+> THE KV CACHE MIGHT BE JUST AS INTERESTING
+>
+> DeepSeek reports global KV cache per token:
+>
+> V1: 389,120 bytes
+> V3.2: 48,068
+> V4-Flash: 3,514
+> V4.1-Flash: 890
+>
+> 890 bytes/token.
+>
+> That is another ~3.9× reduction from V4-Flash.
+>
+> DeepSeek says V4.1-Flash needs roughly:
+>
+> → 1/4 the HBM
+> → 1/8 the SSD storage
+>
+> for KV cache versus the previous generation.
+>
+> For long-context LOCAL inference, that gets my attention immediately.
+>
+> AND IT IS NATIVELY MULTIMODAL
+>
+> DeepSeek says this is the smallest member of its new architecture family, with native visual understanding and an architecture designed for higher throughput and further scaling.
+>
+> So now comes the part I care about:
+>
+> Can we make this practical on hardware people actually own?
+>
+> GGUF: already in progress.
+>
+> EXL3: already in progress.
+>
+> I’ll be testing:
+>
+> → actual model footprint
+> → one-Spark feasibility
+> → decode + prefill
+> → KV/context scaling
+> → MTP/speculative support
+> → multimodal serving
+> → Sixcat quality after quantization
+>
+> And I’ll publish the failures too, not just the successful boots.
+>
+> This one looks worth spending some time on.
+>
+> @deepseek_ai
+>
+> Official weights:
+> https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash
+>
+> GGUF + EXL3 receipts coming.
+
+### 11. `@0xSero` · 2026-09-10T07:16:58Z · post
+https://x.com/0xSero/status/2097947425851777118
+
+> Deepseek-v4.1-Flash is a completely new architecture and it is now SOTA and Frontier
+>
+> #1 on Deepswe
+> #1 on Terminal-bench-2.1
+> #3 on Terminal-bench-4
+> #1 on HLE
+>
+> Multimodal
+> Smallest kV cache
+>
+> Buzzing buzzing
+
+### 12. `@UnslothAI` · 2026-09-10T07:15:51Z · reply (to DeepSeek 1/6)
+https://x.com/UnslothAI/status/2097947144351252497
+
+> Congrats DeepSeek on another epic release! Hopefully you guys will release smaller models for people to run locally. 🙏🐋
+>
+> It's great that DeepSeek-V4.1 has 196B engram making it more accessible.
+
+---
+
+**Official source (not in the 12):** `@deepseek_ai` 2026-09-10T06:10:09Z, post 1/6, https://x.com/deepseek_ai/status/2097930608790167907. Thread 6/6 (06:10:14Z) says they will work with the open-source community on inference support: https://x.com/deepseek_ai/status/2097930627949711516.
+
+**Practical takeaway for a 128 GB Mac:** stay on Qwen3.8-Flash-Next, GLM-5.3-Flash, and DeepSeek-V4-Flash. V4.1-Flash is real and open, but the first GGUF (Q2_K ~247 GB) does not fit this machine, and nobody has run it on Metal yet.
