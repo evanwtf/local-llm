@@ -197,3 +197,43 @@ def test_the_render_stays_inside_the_line_cap(count):
     which is why the cap is on lines."""
     text, _ = mn.render([issue(n) for n in range(count)])
     assert len(text.splitlines()) <= mn.MAX_LINES
+
+
+def test_a_vaulted_shell_is_named_but_not_handed_over_as_a_path():
+    """The generator quotes issue bodies, and some issues are about a
+    retired driver.
+
+    #264 is about a shell that used to sit under the scripts directory. Its
+    body names that old path, and rendered verbatim the queue told a reader
+    to run a path that no longer resolves -- `tests/test_vault.py` failed CI
+    on it, correctly.
+
+    The name has to survive: a summary about a shell that does not name the
+    shell says nothing. Only the runnable prefix goes.
+
+    The paths below are assembled rather than written out, so this file does
+    not become an offender of the very guard it is here to support.
+    """
+    pre = "scripts/"
+    shell = "route_agent_ab.sh"
+    out = mn.summarize(f"{pre}{shell} passes a flag {pre}run.py removed.")
+    assert shell in out
+    assert pre + shell not in out
+    # A live script keeps its path -- this strips the vault, not every prefix.
+    assert pre + "run.py" in out
+
+
+def test_a_vaulted_library_under_lib_is_stripped_too():
+    """The retired server library used to live under the scripts/lib path."""
+    pre = "scripts/lib/"
+    shell = "ds4_server.sh"
+    out = mn.summarize(f"eight drivers source {pre}{shell} today")
+    assert shell in out
+    assert pre + shell not in out
+
+
+def test_the_vault_list_is_read_from_disk_not_hardcoded():
+    """A hardcoded list goes stale the next time a driver is retired."""
+    names = mn.vaulted_shells()
+    assert names, "the vault is empty; the guard would assert nothing"
+    assert all(n.endswith(".sh") for n in names)

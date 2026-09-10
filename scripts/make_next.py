@@ -55,6 +55,33 @@ MAX_P1 = 20
 
 # The queue is ten items. The rest of the file is a header and a table of
 # where things live, and neither should ever need more room.
+VAULT = REPO_ROOT / "vault"
+
+
+def vaulted_shells() -> list[str]:
+    """The names of the retired drivers, which no longer live in `scripts/`."""
+    return sorted(p.name for p in VAULT.rglob("*.sh"))
+
+
+def unrun(text: str) -> str:
+    """Strip the `scripts/` prefix from any shell that now lives in `vault/`.
+
+    An issue about a retired driver names it by the path it used to have,
+    and this file quotes issue bodies verbatim. That would hand a reader a
+    path that no longer resolves -- or send them into `vault/` to find the
+    archived copy and run it, which is the one thing the archive exists to
+    prevent (`tests/test_vault.py`).
+
+    The name is kept, because the summary is about that shell and removing
+    it would make the line meaningless. Only the runnable path goes.
+    """
+    names = vaulted_shells()
+    if not names:
+        return text
+    pattern = r"scripts/(?:lib/)?(" + "|".join(re.escape(n) for n in names) + r")"
+    return re.sub(pattern, r"\1", text)
+
+
 SUMMARY_WORDS = 100
 MAX_LINES = 90
 
@@ -179,6 +206,7 @@ def summarize(body: str, words: int = SUMMARY_WORDS) -> str:
     text = re.sub(r"^\s*[>#|]+\s*", " ", text, flags=re.MULTILINE)
     text = re.sub(r"[*`]", "", text)
     text = re.sub(r"\s+", " ", text).strip()
+    text = unrun(text)
     parts = text.split(" ")
     if len(parts) <= words:
         return text
