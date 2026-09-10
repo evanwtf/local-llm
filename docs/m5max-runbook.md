@@ -279,6 +279,146 @@ the design was missing. `ALLOW_ODD_REPS=1` overrides, deliberately.
 **Durations are estimates.** Nothing is anchored to a clock -- each step
 starts when the one before it releases the lock.
 
+## Thermal tests: what a fan or cooling comparison must do
+
+Established by #276 (fans auto vs max), which needed four attempts before the
+protocol was sound. Every restart was a real defect, and each one is a trap
+the next thermal test will hit too.
+
+### The protocol
+
+`scripts/fan_ab.py` implements this and `tests/test_fan_ab_protocol.py`
+asserts it, so it cannot drift silently:
+
+```
+1. max fans until the die plateaus (idle GPU)
+2. set fans to the arm's mode
+3. begin test
+4. end test
+5. max fans until the die plateaus
+6. begin test
+7. end test
+8. max fans until the die plateaus   <- once, after the last cycle
+9. fans auto
+```
+
+Three segments, arms `auto` then `max`, giving A,B,A,B,A,B. Step 8 runs once
+at the end so the machine is handed back in the state the next run begins
+from.
+
+### Settled means a slope, never a difference of means
+
+**Any threshold on a difference implies a rate limit nobody wrote down.**
+Compute that rate before shipping the test and ask whether it is the one you
+would have chosen.
+
+The first gate compared two consecutive 30-second medians against 0.3 C. A die
+cooling at a constant `r` C/hour moves `r/120` C between those windows, so it
+passed **every rate below 36 C/hour** -- a degree and a half of drift across a
+three-minute phase, reported as settled. Nobody would choose 36 C/hour. It was
+never written down.
+
+The office ambient watcher hit the identical failure the same evening, its own
+`delta10 < 0.2 C` bar satisfied while the room fell monotonically at 1.0
+C/hour. Two independent instruments, one wrong instrument shape.
+
+Use a least-squares slope over a trailing window. A slope is zero only when
+the quantity has stopped moving, and it needs no knowledge of the floor -- so
+it survives the room being air-conditioned underneath it.
+
+### Calibrate the bound against measured noise
+
+`scripts/calibrate_settle.py` reads monitord and reports the slope
+distribution over stretches the machine was genuinely idle. A settled M5 Max
+die shows a trailing 120 s slope with median 0.120 C/min and p90 0.277 C/min
+-- that is sensor noise fitted by least squares. The bound sits at that p90
+(0.30 C/min): below it the wait rarely ends, above it the wait ends on noise.
+
+Calibrating also corrected the predicate. At `grace=0` a day's 30,324 idle
+samples fragment into 3,688 runs, of which **three** reach five minutes,
+because a one-second CPU blip ends a stretch the die never noticed. Allow a
+grace window, and say what you allowed -- loosening it far enough admits
+stretches where the machine was working and the noise floor inflates
+sevenfold.
+
+### Give the ceiling room to actually reach idle
+
+420 s was not enough: from 74.11 C the die reached 34.13 C and was **still
+falling at 0.809 C/min**. The cost is not the wait, it is that the first phase
+follows a long idle and every later phase follows a timeout, so phase 1 starts
+several degrees colder than the rest and spends a pair. Use 900 s.
+
+### Cool on max regardless of the arm that follows
+
+The cooldown exists to make phases start **alike**, not to reach a particular
+temperature. Cooling on each phase's own mode leaves the auto arm at a higher
+floor than the max arm -- a temperature difference between conditions at t=0,
+which is the thing the cooldown removes.
+
+It also biases conservatively: the auto arm gets a cooler start than ordinary
+auto operation would give it, so a max-fan win is not a starting-point
+artefact.
+
+### Do not "settle in" on the arm's mode before measuring
+
+This one looked careful and was the largest threat to the comparison. Holding
+the phase's own fan mode before the first rep absorbs the max->auto switch
+transient by letting the **auto arm warm** toward its higher floor while the
+max arm sits still: after 120 s the arms began at ~35 C and ~33 C. Both arms
+must leave the same floor and start at once. The fans responding to load is
+the treatment, not a transient to wait out, and under load the die passes
+70 C within seconds.
+
+### Record which way every wait ended
+
+`plateau`, `timeout`, or `no_fit`. A phase preceded by a timeout began on a
+machine still shedding heat and is not comparable to one that began from a
+plateau.
+
+`no_fit` is its own outcome because **"no answer" reads in a log exactly like
+"not yet"**. If the sensor starves the window the test never evaluates, and a
+wait that runs to its ceiling looks identical to a die that was still falling.
+Count the evaluations that produced a number; zero of them at timeout means
+the phase began on an *unknown* thermal state, which is worse than a known-hot
+one because known-hot can be corrected for.
+
+### Measure the arm, do not assert it
+
+Join monitord's 1 Hz series to the rep boundaries (`scripts/lib/monitord.py`).
+Mean fan rpm says what the fans **did**; `fancontrol` reporting `forced` says
+only what was commanded. #276 measured 2,233 rpm on auto against 5,565 on max.
+
+Carry **SoC power** in the same join. It is what makes a result interpretable
+rather than merely observed: the chain a positive result needs is max fans ->
+cooler die -> less throttling -> higher sustained power -> more tok/s. Without
+power, a null cannot be told apart from a machine that was never thermally
+limited. In #276, -8.48 C bought +0.78% power and +0.6% decode -- three
+measurements that reconcile, which is what separates a mechanism from a
+correlation.
+
+### Audit the gate afterwards
+
+`fan_ab_report.py` prints the spread of `start_die_c` across phases. That is
+the cooldown's own audit -- it exists to make phases start alike, and this is
+whether it did, independent of what each cooldown reported about itself. #276
+came out at 5.91 C, with phase 1 the outlier because it followed an idle
+rather than a load.
+
+### Fan safety
+
+`fancontrol set` is never called: it is the one command that can hold fans
+*below* what thermal policy asks for. Only `max` and `auto`. Always `sudo -n`,
+which refuses rather than waiting on an invisible password prompt. Restore
+from a `finally`, an `atexit` hook **and** a SIGINT/SIGTERM handler, then
+verify `mode == auto` and log an error if it is not -- fans left forced are
+loud and nothing expires them but `auto` or a reboot.
+
+Make the signal handler one-shot. A second signal during teardown raises a
+second `SystemExit` from wherever the first had reached: on 2026-09-09 `uv`
+forwarded a SIGTERM while a direct one was also sent, the second landed inside
+`child.terminate`, and a `ds4-bench` orphan kept the GPU after the driver had
+released the lock and logged a clean shutdown.
+
 ## ollama 0.33.3 and the sampler boundary
 
 ollama on this machine is **0.33.3**, installed 2026-09-03 18:19. From that
