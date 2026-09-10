@@ -1121,7 +1121,7 @@ context_tokens = 32768
 # `ds4 --inspect` prints every specialization as `fallback` -- that is inspect
 # never initialising Metal, not a real fallback. Do not read it as one.
 [backend.qwen38fnds4]
-description = "Qwen3.8-Flash-Next Q4_0-routed fast-pack on ds4-metal qwen3.8-flash-next 2021dda, MTP off"
+description = "Qwen3.8-Flash-Next Q4_0-routed fast-pack on ds4-metal, MTP off -- BLOCKED, see #279: this pack declares general.architecture qwen4-exp and ds4-metal 6c1e836 dispatches only qwen4exp"
 base_url = "http://127.0.0.1:8000"
 auth_token = "dsv4-local"
 model = "qwen3.8-flash-next-q4"
@@ -1142,7 +1142,7 @@ engine_tree = "~/git/ds4-metal"
 # may land on either side. Run the server with --mtp-timing so the acceptance
 # and bypass counters are recorded; without them a null is not diagnosable.
 [backend.qwen38fnds4mtp7]
-description = "Qwen3.8-Flash-Next Q4 fast-pack on ds4-metal 2021dda, embedded MTP --mtp-draft 7"
+description = "Qwen3.8-Flash-Next Q4 fast-pack on ds4-metal, embedded MTP --mtp-draft 7 -- BLOCKED, see #279: same architecture-string mismatch as qwen38fnds4shim"
 base_url = "http://127.0.0.1:8000"
 auth_token = "dsv4-local"
 model = "qwen3.8-flash-next-q4"
