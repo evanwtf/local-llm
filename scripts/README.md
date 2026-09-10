@@ -65,6 +65,7 @@ documentation.
 | `peer_brief.py` | Generate the state half of a handoff as Markdown. #160 |
 | `peer_status.py` | One deterministic status line for the peer work. #160 |
 | `post_ab_run.py` | Post one completed decode-A/B run to a GitHub issue, once. |
+| `prefill_chunk_ab.py` | Paired A/B for one ds4-bench --prefill-chunk value within one tree. #267 |
 | `prefix_stability.py` | Find which cached prefix block changes between two requests (#50, #64). |
 | `prefix_stall.py` | Measure the live-KV prefix stall across a corpus of ds4-server logs (#64). |
 | `prompt_meta.py` | Which prompt a decode/prefill A/B was measured on (#140). |
