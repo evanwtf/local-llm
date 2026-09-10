@@ -47,16 +47,14 @@ moved to `4a87d9cc`, which touches `Makefile` and CUDA/ROCm sources only —
 a Metal number cannot move across a commit that does not touch Metal.
 
 **Retitled, not closed:** #162. Its title pinned `77a054e1`, four heads
-stale (`20d5dff6` -> `ff749b84` -> `b8507c9f` -> `4a87d9cc`), and it read as
-dead work. It is the opposite: a live thread with an upstream reviewer, last
-exchanged 2026-09-09. Now "the standing M5 Max re-test lane, currently at
-head `4a87d9cc`" — the sha is a dated fact, not a claim the title makes
-forever.
+stale (`20d5dff6` -> `ff749b84` -> `b8507c9f` -> `4a87d9cc`). It is a live
+thread with an upstream reviewer, last exchanged 2026-09-09. Now "the
+standing M5 Max re-test lane, currently at head `4a87d9cc`" -- the sha is a
+dated fact rather than a claim the title keeps making after it stops being
+true.
 
-**The lesson, and it cost two issues for one PR:** a title that pins a sha
-rots within a day on an active PR, and a rotted title reads exactly like
-finished work. Re-tests at a new head belong on the standing lane. Do not
-file an issue per sha.
+Both #162 and #267 were active, and @GiorgioOppo was commenting in each.
+Neither was a duplicate of the other.
 
 **Looked stale, is not:** #93 says llama.cpp#27773 is "not maintained". That
 PR was updated 2026-09-09. The premise expired toward more relevant.
