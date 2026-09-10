@@ -651,6 +651,13 @@ comparative adjective, not the number.
 | **193 s against 931 s** | 4.8x faster |
 | Aider **11.1 s**, Claude Code **189.6 s** | Aider was 17x faster |
 
+**Always give the absolute wall-clock seconds, not the relative figure alone.**
+A percentage or fraction hides magnitude, and magnitude is the point: 4.2 s →
+2.2 s and 500 s → 300 s are both "≈40% less time", but the first is noise and
+the second is worth a paragraph. So name the seconds beside every relative
+claim — "took 53% of the time: 751 s against 1429 s", never "took 53% of the
+time" on its own. Absolute numbers come first here too (issues are work logs).
+
 **A dispersion ratio is not a comparison and needs no rewriting.** "An 18x
 spread on one task" is worst-over-best *within a single cell* — a statement
 about how unstable one thing is, not a claim that A beats B. The `spread`

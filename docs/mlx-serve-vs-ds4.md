@@ -3,7 +3,41 @@
 A living scoreboard for the two stacks we run on the M5 Max. Add a row to
 **Measurements** each time one of them is measured; do not rewrite history.
 
-**Last updated:** 2026-09-08, after #191.
+**Last updated:** 2026-09-10, after #282.
+
+## Standing, as of #282 (2026-09-10) — mlx-serve 26.9.2 takes about half the wall
+
+> **Findings so far, not a verdict — no recommendation change yet.** The ds4 arm
+> below is `ffd85d42`, which turned out to be **one head behind** the ivan
+> `qwen3.8-flash-next` tip `6c1e8367` (the #228 head, reported ~+8.9% decode). A
+> **both-latest** retest — ds4 `6c1e8367` vs mlx-serve 26.9.2, multiple runs — is
+> under way; `RECOMMENDATIONS.md` stays unchanged until it confirms these numbers
+> hold with ds4 on its latest release.
+
+Two independent 2+2-sweep runs (60 rows/arm, 120 total) of the stacks as first
+measured: ds4 `qwen38fnds4kimat` @ `ffd85d42` vs **mlx-serve 26.9.2** (Homebrew)
+on `Qwen3.8-Flash-Next-MLX-Serve-mixed-4-8bit`, PLD on (recorded per row, #262).
+
+Pooled per-task geometric-mean wall, summed over 15 tasks: **ds4 1429 s,
+mlx-serve 751 s** — mlx-serve took **53% of the summed time (47% less)**; the
+paired per-task geometric ratio is **1.76 (mlx took 57% of the typical-task
+time, 43% less)**. mlx-serve wins 13 of 15 tasks; ds4 wins `parser-mbox-quoting`
+and ties `script-transform`. Pass parity: ds4 60/60, mlx-serve 59/60. Both runs
+agree (ratios 1.85 and 1.68) and within each run both position orders agree, so
+it is not position bias.
+
+**This reverses #191's dead heat**, and ds4 did not regress: its per-task times
+here (~80–140 s, one 288 s tail) match #191's ds4. mlx-serve roughly halved its
+own wall between 26.9.1 and 26.9.2 — the merged `perf(qwen4)` batch (QSA,
+allocator, prefix-cache, and #383's EOS-first spec fix, which also removed
+#191's 1377 s tail).
+
+**Still a stack comparison.** Engine, quantization and speculative decoding move
+together: mlx-serve speculates by default (PLD on), ds4 `kimat` does not. Part of
+the win is speculation — but it is the engine's shipped default, "what you get
+when you install it," which is what this project measures. It cannot be credited
+to the engine alone (#138, #191). mlx-serve also holds ~100 GiB resident against
+ds4's ~68–80 GiB.
 
 ---
 
@@ -157,6 +191,7 @@ bare stdout. Clean tree, ruff passing, right answer, wrong stream.
 |---|---|---|---|
 | 2026-09-08 | #191 | 4+4 sweeps, 120 rows, stack vs stack | SCREEN PASS; ratio 0.68, total wall tied, mlx tail to 1377s |
 | 2026-09-08 | #225 | 4+4 sweeps, 120 rows, mlx-serve 25de4d5 vs 26.9.1 | **null**: pass 59/60 both, ratio 1.00 (0.83-1.20); #191's tail did not reproduce |
+| 2026-09-10 | #282 | 2+2 sweeps ×2 runs, 120 rows, stack vs stack, mlx-serve **26.9.2** | mlx took **57% of ds4's per-task time (43% less): 751 s against 1429 s** summed over 15 tasks; wins 13/15; pass ds4 60/60, mlx 59/60; both runs + both orders agree. **Reverses #191's tie.** |
 
 ## Open questions
 
