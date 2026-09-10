@@ -136,6 +136,19 @@ def test_check_flag_is_detected_anywhere() -> None:
     assert la.parse_invocation(["fast", "claude"]).check_only is False
 
 
+def test_check_works_with_the_default_client() -> None:
+    """RECOMMENDATIONS §111 documents `local-agent.sh fast --check`. A --flag in
+    the client slot means "no client given", not a bad client -- both the shell
+    and the first port wrongly died here (found by a codex review peer pass)."""
+    inv = la.parse_invocation(["fast", "--check"])
+    assert inv.client == "opencode"
+    assert inv.check_only is True
+    assert inv.agent_args == []
+    inv2 = la.parse_invocation(["fast", "--no-exec"])
+    assert inv2.client == "opencode"
+    assert inv2.no_exec is True
+
+
 def test_no_exec_flag_is_detected_and_filtered() -> None:
     inv = la.parse_invocation(["fast", "claude", "--no-exec", "task"])
     assert inv.no_exec is True

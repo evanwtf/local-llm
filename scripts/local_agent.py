@@ -224,7 +224,17 @@ def parse_invocation(argv: list[str]) -> Invocation:
             "[opencode|claude] [--check] [--no-exec] [-- args]"
         )
     stack = argv[0]
-    client = argv[1] if len(argv) > 1 else "opencode"
+    # The client is the second positional ONLY if it is not a flag. The shell
+    # read `argv[1]` as the client unconditionally, so `local-agent.sh fast
+    # --check` -- the command RECOMMENDATIONS §111 documents -- died with
+    # "unknown client '--check'" before the flag was ever read (found by a
+    # `codex review` peer pass, then confirmed against the b167bc1 shell). A
+    # `--`-prefixed second token means "no client given, use the default".
+    client = "opencode"
+    client_consumed = False
+    if len(argv) > 1 and not argv[1].startswith("-"):
+        client = argv[1]
+        client_consumed = True
     if client not in CLIENTS:
         raise LaunchError(f"unknown client '{client}' ({'|'.join(CLIENTS)})")
     if stack not in STACKS:
@@ -232,10 +242,11 @@ def parse_invocation(argv: list[str]) -> Invocation:
 
     check_only = "--check" in argv
     no_exec = "--no-exec" in argv
-    # Drop the first min(len, 2) positionals, then collect the rest, dropping a
-    # literal "--" separator and the launcher's own flags. Mirrors the shell's
-    # seen_sep loop (lines 237-245): both before and after "--" pass through.
-    rest = argv[min(len(argv), 2) :]
+    # Drop the stack, and the client if it was actually given, then collect the
+    # rest, dropping a literal "--" separator and the launcher's own flags.
+    # Mirrors the shell's seen_sep loop (lines 237-245): both before and after
+    # "--" pass through.
+    rest = argv[(2 if client_consumed else 1) :]
     agent_args = [a for a in rest if a not in ("--check", "--no-exec", "--")]
     return Invocation(stack, client, check_only, no_exec, agent_args)
 
