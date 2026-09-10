@@ -73,6 +73,79 @@ UNIT = "mlx-serve"
 PROCESS = "mlx-serve"
 """The name preflight's census uses. It joined `INFERENCE` for #191."""
 
+# mlx-serve speculates by default and no row recorded it: 196 rows were taken
+# with Prompt Lookup Decoding on and nothing in the harness set, recorded, or
+# knew it (#262). These read what the server will actually do and return a
+# provenance string, the way `ds4_server.assert_graph` returns the graph line.
+PLD_DRAFT_LEN_DEFAULT = 5
+PLD_KEY_LEN_DEFAULT = 3
+
+
+def resolve_draft_source(*, has_mtp: bool, has_drafter: bool, pld_enabled: bool) -> str:
+    """The draft source mlx-serve will use, by its own selection priority.
+
+    mlx-serve picks one source in the order MTP > dflash > drafter > PLD. It
+    auto-loads an MTP head from `<model>/mtp/weights.safetensors` and a drafter
+    from `<model>/drafter/`. `dflash` is not observable from the model
+    directory, so it is not detected here; a pack that ships neither an `mtp/`
+    head nor a `drafter/` falls through to PLD when PLD is on -- the default,
+    and the state every mlx-serve row we hold was taken under.
+    """
+    if has_mtp:
+        return "MTP"
+    if has_drafter:
+        return "drafter"
+    if pld_enabled:
+        return "PLD"
+    return "none"
+
+
+def draft_settings(command: Sequence[str]) -> dict[str, object]:
+    """PLD on/off and its tuning, read from the mlx-serve argv.
+
+    PLD is on unless `--no-pld` is passed; `--pld` is the explicit on. The two
+    tuning flags default to mlx-serve's own 5 and 3 when absent.
+    """
+    argv = [str(a) for a in command]
+
+    def _int_after(flag: str, default: int) -> int:
+        return int(argv[argv.index(flag) + 1]) if flag in argv else default
+
+    return {
+        "pld_enabled": "--no-pld" not in argv,
+        "pld_draft_len": _int_after("--pld-draft-len", PLD_DRAFT_LEN_DEFAULT),
+        "pld_key_len": _int_after("--pld-key-len", PLD_KEY_LEN_DEFAULT),
+    }
+
+
+def model_dir_of(command: Sequence[str]) -> pathlib.Path | None:
+    """The `--model` path in an mlx-serve argv, or None if absent."""
+    argv = [str(a) for a in command]
+    return pathlib.Path(argv[argv.index("--model") + 1]) if "--model" in argv else None
+
+
+def draft_provenance(model_dir: pathlib.Path | None, command: Sequence[str]) -> str:
+    """One line naming the draft source and PLD settings, for the caller to log.
+
+    Mirrors `ds4_server.assert_graph` returning the graph line: a later reader
+    is then never in #262's position -- a speculated number with nothing beside
+    it saying the engine speculated.
+    """
+    settings = draft_settings(command)
+    has_mtp = bool(model_dir and (model_dir / "mtp" / "weights.safetensors").exists())
+    has_drafter = bool(model_dir and (model_dir / "drafter").is_dir())
+    source = resolve_draft_source(
+        has_mtp=has_mtp,
+        has_drafter=has_drafter,
+        pld_enabled=bool(settings["pld_enabled"]),
+    )
+    return (
+        f"draft_source={source} "
+        f"pld={'on' if settings['pld_enabled'] else 'off'} "
+        f"pld_draft_len={settings['pld_draft_len']} "
+        f"pld_key_len={settings['pld_key_len']}"
+    )
+
 
 class ForeignServer(RuntimeError):
     """A resident mlx-serve that this project did not start.
@@ -203,6 +276,9 @@ def serving(
         allow_foreign=allow_foreign,
         state_dir=state_dir,
     )
+    # #262: say what will draft, beside the run. mlx-serve's default is PLD on,
+    # and a silent PLD row is the mirror of #151's silent MTP claim.
+    logger.info("mlx-serve %s", draft_provenance(model_dir_of(command), command))
     try:
         yield unit
     finally:

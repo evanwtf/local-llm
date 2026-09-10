@@ -87,6 +87,15 @@ other is telling you something.
 
 **Rows here were not all taken under one client.** qwen38fnq3reap under 1.18.26; qwen38fnds4kimat, qwen38fnds4mtp7shim, qwen38fnds4shim under 1.18.27; qwen38fnds4greedy, qwen38fnds4kimat, qwen38fnds4mtp7greedy, qwen38fnds4mtp7shim, qwen38fnds4shim, qwen38fnmlxserve, qwen38fnmlxserve-git, Qwen3.8-Flash-Next Q3 - llama.cpp under 1.18.29; the rest under 1.18.25. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: qwen38fnds4kimat (1.18.27, 1.18.29); qwen38fnds4mtp7shim (1.18.27, 1.18.29); qwen38fnds4shim (1.18.27, 1.18.29); Qwen3.8-Flash-Next Q3 - llama.cpp (1.18.25, 1.18.29).
 
+**The `qwen38fnmlxserve` and `qwen38fnmlxserve-git` rows are PLD-on.** mlx-serve
+turns on Prompt Lookup Decoding by default, and every mlx-serve row here was
+taken with it on; the pack ships no MTP head or drafter, so PLD is the draft
+source ([#262](https://github.com/evanwtf/local-llm/issues/262)). That is the
+engine's own default — "what you get when you install it," which is what this
+project measures — but the speculation was never recorded, so these rows are
+not a no-speculation baseline against the ds4 arms whose MTP state we set
+explicitly.
+
 Excision tasks only; `script-*` excluded because they are a different class. **Spread is worst / best on the same task**, and it is the column most people forget to ask for.
 
 #### Same weights, two engines

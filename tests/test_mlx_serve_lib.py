@@ -292,3 +292,83 @@ def test_a_shell_that_merely_mentions_the_server_is_not_one() -> None:
         preflight.Proc(pid=2, rss_gib=99.9, command="/g/mlx-serve/mlx-serve --model x"),
     ]
     assert [p.pid for p in census if mlx_serve.PROCESS in p.short] == [2]
+
+
+# ---------------------------------------------- draft source recording (#262)
+#
+# mlx-serve speculates by default via PLD and no row recorded it: 196 rows were
+# PLD-on and silent. The guard is that a PLD run is labelled PLD, and that a
+# real MTP head or drafter overrides it -- so a later reader is never told a
+# speculated number was greedy.
+
+
+def test_our_pack_ships_no_head_so_the_source_is_pld():
+    assert (
+        mlx_serve.resolve_draft_source(
+            has_mtp=False, has_drafter=False, pld_enabled=True
+        )
+        == "PLD"
+    )
+
+
+def test_an_mtp_head_wins_over_everything():
+    assert (
+        mlx_serve.resolve_draft_source(has_mtp=True, has_drafter=True, pld_enabled=True)
+        == "MTP"
+    )
+
+
+def test_a_drafter_wins_over_pld_but_not_mtp():
+    assert (
+        mlx_serve.resolve_draft_source(
+            has_mtp=False, has_drafter=True, pld_enabled=True
+        )
+        == "drafter"
+    )
+
+
+def test_no_pld_and_no_head_is_none_not_a_silent_pld():
+    assert (
+        mlx_serve.resolve_draft_source(
+            has_mtp=False, has_drafter=False, pld_enabled=False
+        )
+        == "none"
+    )
+
+
+def test_draft_settings_default_to_pld_on_when_no_flags():
+    s = mlx_serve.draft_settings(["mlx-serve", "--model", "/m", "--serve"])
+    assert s == {"pld_enabled": True, "pld_draft_len": 5, "pld_key_len": 3}
+
+
+def test_no_pld_flag_disables_pld():
+    assert mlx_serve.draft_settings(["mlx-serve", "--no-pld"])["pld_enabled"] is False
+
+
+def test_pld_tuning_is_read_from_the_argv():
+    s = mlx_serve.draft_settings(
+        ["mlx-serve", "--pld", "--pld-draft-len", "8", "--pld-key-len", "4"]
+    )
+    assert (s["pld_draft_len"], s["pld_key_len"]) == (8, 4)
+
+
+def test_provenance_for_our_default_pack_reads_pld(tmp_path):
+    model = tmp_path / "Qwen3.8-Flash-Next-MLX-Serve-mixed-4-8bit"
+    model.mkdir()  # ships neither mtp/ nor drafter/
+    line = mlx_serve.draft_provenance(model, ["mlx-serve", "--model", str(model)])
+    assert line == "draft_source=PLD pld=on pld_draft_len=5 pld_key_len=3"
+
+
+def test_provenance_sees_an_mtp_head_on_disk(tmp_path):
+    model = tmp_path / "pack"
+    (model / "mtp").mkdir(parents=True)
+    (model / "mtp" / "weights.safetensors").write_bytes(b"")
+    line = mlx_serve.draft_provenance(model, ["mlx-serve", "--model", str(model)])
+    assert line.startswith("draft_source=MTP")
+
+
+def test_model_dir_of_extracts_the_model_path():
+    assert mlx_serve.model_dir_of(["mlx-serve", "--model", "/x/y", "--serve"]) == (
+        pathlib.Path("/x/y")
+    )
+    assert mlx_serve.model_dir_of(["mlx-serve", "--serve"]) is None
