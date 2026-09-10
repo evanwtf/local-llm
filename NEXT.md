@@ -11,7 +11,7 @@ nothing here to drift from.
 
 ## The queue — 6 P0, 9 P1
 
-Open on this platform: 6 P0, 9 P1, 52 P2, 12 P3.
+Open on this platform: 6 P0, 9 P1, 53 P2, 12 P3.
 One runs at a time; the lock enforces it.
 
 1. **P0 [#158](https://github.com/evanwtf/local-llm/issues/158)** Qwen3.8-Flash-Next is upstreamed as antirez/ds4#991 — the fork dependency, the prefill claim and our own build all change at once
