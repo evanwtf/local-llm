@@ -1187,6 +1187,35 @@ model = "bonsai-27b-q1-llamacpp-32768"
 opencode_model = "llamacpp/bonsai-27b-q1-llamacpp-32768"
 context_tokens = 32768
 
+# #278. Spark-X2.5-4B, a 4B claiming parity with models 2-3x its size on
+# agents and coding. First-party GGUF from the same org as the weights:
+#   https://huggingface.co/XHToken/Spark-X2.5-4B-GGUF -> Spark-X2.5-4B-Q8_0.gguf
+# 4.07 GiB of weights, 6016 MiB resident at 32768, fully on GPU.
+#
+# NOT SERVED BY OLLAMA at any version tested (0.33.3 and 0.34.0 both refuse:
+# "failed to validate GGUF ... without compatibility patches"), and not by the
+# PrismML fork either ("unknown model architecture: 'spark2_5'"). Support is
+# UPSTREAM llama.cpp as of b10883, so this backend names a SECOND llama.cpp
+# tree -- ~/git/llama.cpp-upstream at 91f6a6c -- distinct from the PrismML
+# d8f26ee the bonsai arms use. The model card's claim that you need the
+# XHToken fork is out of date; that fork publishes no releases.
+#
+# Two things worth knowing before reading its rows:
+#   * general.architecture is spark2_5, a genuinely novel arch -- NOT Qwen
+#     lineage, so unlike bonsai this is a real candidate for #16.
+#   * sliding_window is 512, so the KV cache is nearly free and context depth
+#     is cheap here. Runs at 32768 anyway, to compare with the rest of the tier.
+[backend.dtsparkx254b]
+description = "Spark-X2.5-4B Q8_0 GGUF via upstream llama.cpp (desktop 3080 Ti)"
+tier = "desktop-3080ti"
+base_url = "http://127.0.0.1:8080"
+auth_token = "llamacpp"
+engine = "llama.cpp"
+engine_tree = "~/git/llama.cpp-upstream"
+model = "spark-x25-4b-q8-32768"
+opencode_model = "llamacpp/spark-x25-4b-q8-32768"
+context_tokens = 32768
+
 [backend.dtqwen359b]
 description = "Qwen3.5 9B Q4_K_M via Ollama (desktop 3080 Ti)"
 tier = "desktop-3080ti"

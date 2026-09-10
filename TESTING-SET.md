@@ -33,7 +33,7 @@ GLM-5.3, which is a refusal.
 | **RAM** | **30 GiB** |
 | **Disk** | 1.8 TB NVMe, 1.3 TB free |
 | **OS** | Ubuntu 24.04 · **not always-on** |
-| **Backends** | `dtmistralnemo`, `dtgemma412b`, `dtornith15`, `dtornith159b`, `dtqwen359b`, `dtqwen359bq8`, `dtgemma4e4b`, `dtbonsai27b`, `dtternarybonsai27b`, `dtbonsai27bllamacpp` — `tier = "desktop-3080ti"` in `tasks.toml`. The last two are served by llama.cpp (PrismML fork), not Ollama, so their rows are not engine-comparable to the rest (#192, #269). |
+| **Backends** | `dtmistralnemo`, `dtgemma412b`, `dtornith15`, `dtornith159b`, `dtqwen359b`, `dtqwen359bq8`, `dtgemma4e4b`, `dtbonsai27b`, `dtternarybonsai27b`, `dtbonsai27bllamacpp`, `dtsparkx254b` — `tier = "desktop-3080ti"` in `tasks.toml`. The last three are served by llama.cpp, not Ollama, so their rows are not engine-comparable to the rest (#192, #269) — and by two DIFFERENT llama.cpp builds: the bonsai pair by the PrismML fork `d8f26ee`, `dtsparkx254b` by upstream `91f6a6c`, which is the only one that serves `spark2_5` (#278). |
 | **Data** | [`hardware/Ryzen9-7900X-32GB-RTX3080Ti-12GB/`](hardware/Ryzen9-7900X-32GB-RTX3080Ti-12GB/RESULTS.md) — `gemma4:12b-it` **0/12** (2026-09-02) |
 | **Confinement** | **none** — `sandbox-exec` is macOS-only, so `workspace_escapes` is unenforced there |
 
