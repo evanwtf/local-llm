@@ -1209,6 +1209,24 @@ def lock_state(
             f"lock belongs to {host!r}, not this machine ({hostname!r}) -- "
             "a lock is a claim on one machine and must not travel"
         )
+    if lock.get("session_claim"):
+        # #275: a claim held by an agent SESSION, not a process. The session
+        # is not a pid, so there is nothing to check for liveness -- it is
+        # held until the session releases it or a human clears it. Keying it
+        # on a pid is what made `machine_claim.py acquire` read FREE the
+        # instant its CLI process exited.
+        what = lock.get("what") or "unspecified work"
+        agent = lock.get("agent") or "an unidentified agent"
+        finish = (
+            f", expected finish {lock['expected_finish']}"
+            if lock.get("expected_finish")
+            else ""
+        )
+        return "held", (
+            f"session claim by {agent} for {what} since "
+            f"{lock.get('started', 'unknown')}{finish} -- held by an agent "
+            f"session, not a process; release it or remove {LOCK_PATH} by hand"
+        )
     holder = lock.get("pid")
     if not isinstance(holder, int):
         return "corrupt", "the lock records no usable pid"
@@ -1234,6 +1252,7 @@ def acquire_lock(
     agent_effort: str | None = None,
     expected_finish: str | None = None,
     quiet: bool = False,
+    session_claim: bool = False,
 ) -> tuple[bool, str]:
     """Claim the machine for `what`. Returns (acquired, message).
 
@@ -1281,6 +1300,11 @@ def acquire_lock(
         claim["expected_finish"] = expected_finish
     if quiet:
         claim["quiet"] = True
+    if session_claim:
+        # #275: the holder is an agent session, not this process. The pid is
+        # recorded for forensics only; lock_state must not judge this claim by
+        # its liveness, or the claim dies when the CLI that wrote it exits.
+        claim["session_claim"] = True
     try:
         # O_EXCL so two processes racing here cannot both win.
         fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
@@ -1290,6 +1314,8 @@ def acquire_lock(
         return False, f"cannot take the run lock: {exc}"
     with os.fdopen(fd, "w") as fh:
         json.dump(claim, fh, indent=2, sort_keys=True)
+    if session_claim:
+        return True, f"session claim taken for {what!r} by {agent or 'unidentified'}"
     return True, f"run lock taken for {what!r} (pid {pid})"
 
 
@@ -1297,11 +1323,31 @@ def release_lock(
     path: pathlib.Path = LOCK_PATH,
     hostname: str | None = None,
     pid: int | None = None,
+    agent: str | None = None,
 ) -> tuple[bool, str]:
-    """Drop our own lock. Never removes somebody else's."""
+    """Drop our own lock. Never removes somebody else's.
+
+    A pid-held run lock is ours when the pid matches. A session claim (#275)
+    has no live pid, so ownership is the agent identity instead: an agent
+    releases its own claim, and a different agent removing it is refused the
+    same way a stale lock is -- a human clears it deliberately.
+    """
     hostname = hostname or platform.node()
     pid = pid or os.getpid()
-    state, why = lock_state(read_lock(path), hostname, pid)
+    lock = read_lock(path)
+    if isinstance(lock, dict) and lock.get("session_claim"):
+        owner = lock.get("agent")
+        if agent is not None and owner == agent:
+            try:
+                path.unlink()
+            except OSError as exc:
+                return False, f"could not release the session claim: {exc}"
+            return True, "session claim released"
+        return False, (
+            f"refusing to release a session claim held by {owner!r}, not "
+            f"{agent!r} -- remove {path} by hand to override"
+        )
+    state, why = lock_state(lock, hostname, pid)
     if state == "free":
         return True, "no run lock to release"
     if state != "ours":

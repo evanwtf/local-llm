@@ -301,6 +301,44 @@ def test_a_held_lock_is_busy_even_with_nothing_resident() -> None:
     assert state == ms.BUSY
 
 
+def test_a_session_claim_holds_the_machine_without_a_pid() -> None:
+    """#275: a claim held by an agent session is BUSY though no process backs
+    it, and it is the occupant, so the survey does not read FREE past a claim
+    whose acquiring CLI has exited."""
+    claim = ms.Claim("run-lock", "decode A/B", None, ms.CLAIMED, "session claim")
+    state, _ = ms.verdict([claim])
+    assert state == ms.BUSY
+    assert ms.occupant([claim]) is claim
+
+
+def test_describe_names_the_agent_when_a_session_claim_has_no_pid() -> None:
+    """'Currently on GPU' must not read 'pid None' for a session claim (#275)."""
+    claim = ms.Claim("run-lock", "decode A/B", None, ms.CLAIMED, "", "opus-llama")
+    phrase = ms.describe(claim)
+    assert "pid None" not in phrase
+    assert "opus-llama" in phrase
+
+
+def test_lock_claim_reads_a_session_claim_as_claimed(tmp_path, dead_pid) -> None:
+    """A session-claim lock file, whose recorded pid has since died, must not
+    collapse to STALE the way a pid-held lock would (#275)."""
+    p = tmp_path / "run-lock.json"
+    p.write_text(
+        json.dumps(
+            {
+                "hostname": ms.platform.node(),
+                "pid": dead_pid,
+                "what": "decode A/B",
+                "agent": "opus-llama",
+                "session_claim": True,
+            }
+        )
+    )
+    claim = ms.lock_claim(p)
+    assert claim.status == ms.CLAIMED
+    assert ms.verdict([claim])[0] == ms.BUSY
+
+
 def test_a_pid_that_cannot_be_confirmed_is_uncertain_not_free() -> None:
     """The rule that matters. Not knowing is not the same as knowing it is
     free, and reporting FREE invites a second run onto a busy machine."""

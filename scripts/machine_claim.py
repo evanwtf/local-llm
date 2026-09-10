@@ -85,6 +85,10 @@ def acquire(what: str, expected_finish: str | None, quiet: bool) -> int:
         agent_effort=effort,
         expected_finish=expected_finish,
         quiet=quiet,
+        # #275: the holder is this agent session, not the CLI process, which
+        # exits the moment this returns. A session claim is held until release,
+        # so the machine reads BUSY in the meantime instead of FREE.
+        session_claim=True,
     )
     if not ok:
         logger.error("cannot claim the machine: %s", why)
@@ -94,8 +98,14 @@ def acquire(what: str, expected_finish: str | None, quiet: bool) -> int:
 
 
 def release() -> int:
-    """Drop our own claim. Never removes somebody else's."""
-    ok, why = preflight.release_lock(path=preflight.LOCK_PATH)
+    """Drop our own claim. Never removes somebody else's.
+
+    A session claim (#275) is owned by the agent identity, not a pid, so the
+    identity is what proves ownership here. An unidentified caller cannot
+    release a claim -- the same asymmetry as acquire.
+    """
+    agent = agent_identity.identity()[0] if agent_identity.is_identified() else None
+    ok, why = preflight.release_lock(path=preflight.LOCK_PATH, agent=agent)
     if not ok:
         logger.error("cannot release the machine: %s", why)
         return 1

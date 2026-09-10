@@ -96,6 +96,10 @@ UNCONFIRMED = "UNCONFIRMED"
 REUSED = "REUSED"
 STALE = "STALE"
 UNRECORDED = "UNRECORDED"
+#: A run lock held by an agent SESSION, not a process (#275). There is no pid
+#: to check for liveness; it holds the machine until released or cleared. Kept
+#: distinct from RUNNING so a reader never sees `RUNNING` beside `pid: null`.
+CLAIMED = "CLAIMED"
 
 BUSY = "BUSY"
 FREE = "FREE"
@@ -117,6 +121,10 @@ PID_EXIT = {
 
 #: Statuses that mean the process behind the record is alive.
 LIVE = (RUNNING, UNRECORDED)
+
+#: Statuses of a run lock that mean it holds the machine. RUNNING is a live
+#: process; CLAIMED is an agent session with no process (#275). Either is BUSY.
+HELD_LOCK = (RUNNING, CLAIMED)
 
 #: Resident memory, in GiB, above which a server is holding a MODEL rather
 #: than merely existing. An `ollama serve` that nobody has asked for anything
@@ -340,8 +348,14 @@ def lock_claim(path: pathlib.Path | None = None) -> Claim:
         return Claim("run-lock", "the machine lock", None, MISSING, why)
     if state in ("corrupt", "foreign"):
         return Claim("run-lock", "the machine lock", None, UNCONFIRMED, why, None, age)
-    holder = lock.get("pid")
     what = str(lock.get("what") or "unspecified work")
+    if lock.get("session_claim"):
+        # #275: held by an agent session, not a process. No pid to confirm --
+        # CLAIMED, held since the record was written, so the machine reads
+        # BUSY instead of collapsing to STALE when the acquiring CLI exits.
+        agent = str(lock.get("agent") or "an unidentified agent")
+        return Claim("run-lock", what, None, CLAIMED, why, agent, age, held_s=age)
+    holder = lock.get("pid")
     if not isinstance(holder, int):
         return Claim("run-lock", what, None, MISSING, why, None, age)
     status, detail, by = check_pid(holder, recorded_at=recorded_at(path))
@@ -506,7 +520,7 @@ def occupant(claims: Sequence[Claim]) -> Claim | None:
     on = [c for c in claims if c.occupies]
     if on:
         return max(on, key=lambda c: c.resident_gib or 0.0)
-    held = [c for c in claims if c.source == "run-lock" and c.status == RUNNING]
+    held = [c for c in claims if c.source == "run-lock" and c.status in HELD_LOCK]
     return held[0] if held else None
 
 
@@ -518,7 +532,15 @@ def describe(on: Claim | None) -> str:
     """
     if on is None:
         return "idle"
-    where = f"{on.what} pid {on.pid}"
+    # A session claim (#275) has no pid; naming its agent is the honest
+    # substitute for "pid N", and "pid None" reads like a bug in the line
+    # every status update has to open with.
+    if on.pid is None:
+        where = (
+            f"{on.what} (session claim by {on.confirmed_by or 'an unidentified agent'})"
+        )
+    else:
+        where = f"{on.what} pid {on.pid}"
     # How long it has held, from the OS. #265 asked for it because "ab=no"
     # during a live A/B sent a reader hunting for a detector, and a monitor
     # that says WHAT and not FOR HOW LONG cannot tell a sweep that started a
@@ -533,7 +555,7 @@ def describe(on: Claim | None) -> str:
 def verdict(claims: Sequence[Claim]) -> tuple[str, str]:
     """(BUSY|FREE|UNCERTAIN, why). Never FREE on the strength of not knowing."""
     busy = [c for c in claims if c.occupies]
-    held = [c for c in claims if c.source == "run-lock" and c.status == RUNNING]
+    held = [c for c in claims if c.source == "run-lock" and c.status in HELD_LOCK]
     unproven = [c for c in claims if c.status in UNPROVEN]
     if busy or held:
         return BUSY, "; ".join(f"{c.what} ({c.status.lower()})" for c in busy + held)
