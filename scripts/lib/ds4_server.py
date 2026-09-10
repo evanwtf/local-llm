@@ -62,7 +62,17 @@ PROCESS = "ds4-server"
 DEFAULT_PORT = 8000
 DEFAULT_CTX = 100000
 DEFAULT_KV_DISK_MB = 8192
-GRAPH_MARKER = "Qwen graph allocated"
+# The line that proves the Metal graph was built. It moved: ds4-metal and
+# earlier print "Qwen graph allocated ... MTP=off", which also carries the MTP
+# state; the ivanfioravanti qwen3.8-flash-next head (ffd85d42, 2026-09) prints
+# "metal backend initialized for graph diagnostics" instead and says nothing
+# about MTP when MTP is off. `graph_line` accepts either, preferring the first
+# because only it carries the MTP state the `want_mtp` checks read.
+GRAPH_MARKERS = (
+    "Qwen graph allocated",
+    "metal backend initialized for graph diagnostics",
+)
+GRAPH_MARKER = GRAPH_MARKERS[0]  # representative, for messages and back-compat
 MTP_OFF = "MTP=off"
 
 
@@ -241,18 +251,24 @@ def start(
 
 
 def graph_line(log: pathlib.Path) -> str | None:
-    """The `Qwen graph allocated` line, or None when the log does not have one.
+    """The graph-allocation line, or None when the log does not have one.
 
     None covers three cases that look identical from here and all mean the same
     thing: no log file, an empty log, and a server that died before allocating.
+
+    Accepts either marker in `GRAPH_MARKERS`, and prefers the earlier one when
+    both appear, because only the old `Qwen graph allocated` line carries the
+    MTP state that `assert_graph` reads for a `want_mtp` check.
     """
     try:
         text = log.read_text(errors="replace")
     except OSError:
         return None
-    for line in text.splitlines():
-        if GRAPH_MARKER in line:
-            return line.strip()
+    lines = text.splitlines()
+    for marker in GRAPH_MARKERS:
+        for line in lines:
+            if marker in line:
+                return line.strip()
     return None
 
 
@@ -272,8 +288,9 @@ def assert_graph(log: pathlib.Path, *, want_mtp: bool | None) -> str:
     line = graph_line(log)
     if line is None:
         raise ServerNeverStarted(
-            f"no {GRAPH_MARKER!r} line in {log}; the server did not start, so "
-            "nothing can be said about what it loaded"
+            f"no graph line ({' / '.join(repr(m) for m in GRAPH_MARKERS)}) in "
+            f"{log}; the server did not start, so nothing can be said about "
+            "what it loaded"
         )
     if want_mtp is None:
         return line

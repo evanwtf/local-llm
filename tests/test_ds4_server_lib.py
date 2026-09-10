@@ -32,6 +32,10 @@ MTP_LINE = (
     "MTP=Q4_K/Q8_0/BF16 verifier=block/max16"
 )
 PLAIN_LINE = "ds4: Qwen graph allocated: ctx=100000 QSA=BF16 MTP=off verifier=off"
+# The ivanfioravanti qwen3.8-flash-next head (ffd85d42, 2026-09) prints this
+# instead of "Qwen graph allocated", and says nothing about MTP. #282 refused
+# a healthy server because graph_line matched only the old string.
+DIAG_LINE = "ds4: metal backend initialized for graph diagnostics"
 
 
 @pytest.fixture(autouse=True)
@@ -154,6 +158,23 @@ def test_an_arm_that_loaded_what_it_asked_for_passes(paths, line, want):
 
 def test_graph_line_is_none_when_there_is_no_log(paths):
     assert ds4_server.graph_line(paths["log"]) is None
+
+
+def test_the_newer_diagnostics_marker_counts_as_a_graph_line(paths):
+    """#282: the ivan qwen3.8-flash-next head prints the diagnostics line, not
+    'Qwen graph allocated'. A healthy server must not read as never-started."""
+    paths["log"].write_text(DIAG_LINE + "\n")
+    assert ds4_server.graph_line(paths["log"]) == DIAG_LINE
+    # want_mtp=None (what stack_agent_ab passes) returns the line, does not raise.
+    assert ds4_server.assert_graph(paths["log"], want_mtp=None) == DIAG_LINE
+
+
+def test_the_mtp_bearing_line_wins_when_both_markers_appear(paths):
+    """A log with both markers must return the one carrying MTP state, so a
+    want_mtp check still reads the truth rather than the MTP-silent line."""
+    paths["log"].write_text(DIAG_LINE + "\n" + PLAIN_LINE + "\n")
+    assert ds4_server.graph_line(paths["log"]) == PLAIN_LINE
+    assert ds4_server.assert_graph(paths["log"], want_mtp=False) == PLAIN_LINE
 
 
 # --- provenance must never take down a run -----------------------------------
