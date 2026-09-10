@@ -1,0 +1,111 @@
+=== RUN 1 start Thu Sep 10 00:51:10 EDT 2026 -> benchmarks/ds4/228-stack-ab-6c1e836-20260910T005110-0400-run1 ===
+promessi_sposi.txt (1298 KiB)
+2026-09-10T00:51:10-0400 __main__ INFO # stack A/B, 2026-09-10T00:51:10-04:00
+A label=ffd85d42 tree=/Users/evanhoffman/git/ds4-ivan-qwen38fn @ ffd85d42
+A gguf=/Users/evanhoffman/models/qwen3.8-flash-next-ds4-q4k-imatrix/Qwen3.8-Flash-Next-Q4KImatrixExperts-MXFP4Down-BF16Emb-BF16Control-Q8GDN-Q8QSA-Q8Shared-Q8Out.gguf (73371680704 bytes)
+A ple=/Users/evanhoffman/models/qwen3.8-flash-next-ds4-q4k-imatrix/Qwen3.8-Flash-Next-PLE-Q4_1.gguf
+B label=6c1e836 tree=/Users/evanhoffman/git/ds4-metal-228 @ 6c1e836
+B gguf=/Users/evanhoffman/models/qwen3.8-flash-next-ds4-q4k-imatrix/Qwen3.8-Flash-Next-Q4KImatrixExperts-MXFP4Down-BF16Emb-BF16Control-Q8GDN-Q8QSA-Q8Shared-Q8Out.gguf (73371680704 bytes)
+B ple=/Users/evanhoffman/models/qwen3.8-flash-next-ds4-q4k-imatrix/Qwen3.8-Flash-Next-PLE-Q4_1.gguf
+# TWO VARIABLES: engine and weights move together. Report as a stack
+# comparison; neither half can be attributed on its own (#138).
+prompt=/Users/evanhoffman/git/ds4/speed-bench/promessi_sposi.txt
+sweep ctx_start=2048 ctx_max=16384 step=2048 gen=128 reps=4
+2026-09-10T00:51:10-0400 decode_ab INFO machine lock held: run lock taken for 'decode_ab_stack.py ffd85d42 vs 6c1e836' (pid 11817)
+2026-09-10T00:51:10-0400 ab_driver INFO === round 1 of 4 ===
+2026-09-10T00:51:10-0400 ab_driver INFO round 1 arm ffd85d42 (/Users/evanhoffman/git/ds4-ivan-qwen38fn)
+2026-09-10T00:51:10-0400 __main__ INFO ffd85d42 rep 1 (position 1) -> /Users/evanhoffman/git/local-llm/benchmarks/ds4/228-stack-ab-6c1e836-20260910T005110-0400-run1/ffd85d42-rep1.csv
+2026-09-10T00:51:51-0400 ab_driver INFO round 1 arm 6c1e836 (/Users/evanhoffman/git/ds4-metal-228)
+2026-09-10T00:51:51-0400 __main__ INFO 6c1e836 rep 1 (position 2) -> /Users/evanhoffman/git/local-llm/benchmarks/ds4/228-stack-ab-6c1e836-20260910T005110-0400-run1/6c1e836-rep1.csv
+2026-09-10T00:52:32-0400 ab_driver INFO === round 2 of 4 ===
+2026-09-10T00:52:32-0400 ab_driver INFO round 2 arm 6c1e836 (/Users/evanhoffman/git/ds4-metal-228)
+2026-09-10T00:52:32-0400 __main__ INFO 6c1e836 rep 2 (position 1) -> /Users/evanhoffman/git/local-llm/benchmarks/ds4/228-stack-ab-6c1e836-20260910T005110-0400-run1/6c1e836-rep2.csv
+2026-09-10T00:53:14-0400 ab_driver INFO round 2 arm ffd85d42 (/Users/evanhoffman/git/ds4-ivan-qwen38fn)
+2026-09-10T00:53:14-0400 __main__ INFO ffd85d42 rep 2 (position 2) -> /Users/evanhoffman/git/local-llm/benchmarks/ds4/228-stack-ab-6c1e836-20260910T005110-0400-run1/ffd85d42-rep2.csv
+2026-09-10T00:54:04-0400 ab_driver INFO === round 3 of 4 ===
+2026-09-10T00:54:04-0400 ab_driver INFO round 3 arm ffd85d42 (/Users/evanhoffman/git/ds4-ivan-qwen38fn)
+2026-09-10T00:54:04-0400 __main__ INFO ffd85d42 rep 3 (position 1) -> /Users/evanhoffman/git/local-llm/benchmarks/ds4/228-stack-ab-6c1e836-20260910T005110-0400-run1/ffd85d42-rep3.csv
+2026-09-10T00:54:52-0400 ab_driver INFO round 3 arm 6c1e836 (/Users/evanhoffman/git/ds4-metal-228)
+2026-09-10T00:54:52-0400 __main__ INFO 6c1e836 rep 3 (position 2) -> /Users/evanhoffman/git/local-llm/benchmarks/ds4/228-stack-ab-6c1e836-20260910T005110-0400-run1/6c1e836-rep3.csv
+2026-09-10T00:55:34-0400 ab_driver INFO === round 4 of 4 ===
+2026-09-10T00:55:34-0400 ab_driver INFO round 4 arm 6c1e836 (/Users/evanhoffman/git/ds4-metal-228)
+2026-09-10T00:55:34-0400 __main__ INFO 6c1e836 rep 4 (position 1) -> /Users/evanhoffman/git/local-llm/benchmarks/ds4/228-stack-ab-6c1e836-20260910T005110-0400-run1/6c1e836-rep4.csv
+2026-09-10T00:56:16-0400 ab_driver INFO round 4 arm ffd85d42 (/Users/evanhoffman/git/ds4-ivan-qwen38fn)
+2026-09-10T00:56:16-0400 __main__ INFO ffd85d42 rep 4 (position 2) -> /Users/evanhoffman/git/local-llm/benchmarks/ds4/228-stack-ab-6c1e836-20260910T005110-0400-run1/ffd85d42-rep4.csv
+2026-09-10T00:57:01-0400 decode_ab INFO machine lock released=True: run lock released
+2026-09-10T00:57:01-0400 __main__ INFO done: /Users/evanhoffman/git/local-llm/benchmarks/ds4/228-stack-ab-6c1e836-20260910T005110-0400-run1
+=== RUN 1 exit 0 Thu Sep 10 00:57:01 EDT 2026 ===
+=== RUN 2 start Thu Sep 10 00:57:01 EDT 2026 -> benchmarks/ds4/228-stack-ab-6c1e836-20260910T005110-0400-run2 ===
+promessi_sposi.txt (1298 KiB)
+2026-09-10T00:57:01-0400 __main__ INFO # stack A/B, 2026-09-10T00:57:01-04:00
+A label=ffd85d42 tree=/Users/evanhoffman/git/ds4-ivan-qwen38fn @ ffd85d42
+A gguf=/Users/evanhoffman/models/qwen3.8-flash-next-ds4-q4k-imatrix/Qwen3.8-Flash-Next-Q4KImatrixExperts-MXFP4Down-BF16Emb-BF16Control-Q8GDN-Q8QSA-Q8Shared-Q8Out.gguf (73371680704 bytes)
+A ple=/Users/evanhoffman/models/qwen3.8-flash-next-ds4-q4k-imatrix/Qwen3.8-Flash-Next-PLE-Q4_1.gguf
+B label=6c1e836 tree=/Users/evanhoffman/git/ds4-metal-228 @ 6c1e836
+B gguf=/Users/evanhoffman/models/qwen3.8-flash-next-ds4-q4k-imatrix/Qwen3.8-Flash-Next-Q4KImatrixExperts-MXFP4Down-BF16Emb-BF16Control-Q8GDN-Q8QSA-Q8Shared-Q8Out.gguf (73371680704 bytes)
+B ple=/Users/evanhoffman/models/qwen3.8-flash-next-ds4-q4k-imatrix/Qwen3.8-Flash-Next-PLE-Q4_1.gguf
+# TWO VARIABLES: engine and weights move together. Report as a stack
+# comparison; neither half can be attributed on its own (#138).
+prompt=/Users/evanhoffman/git/ds4/speed-bench/promessi_sposi.txt
+sweep ctx_start=2048 ctx_max=16384 step=2048 gen=128 reps=4
+2026-09-10T00:57:01-0400 decode_ab INFO machine lock held: run lock taken for 'decode_ab_stack.py ffd85d42 vs 6c1e836' (pid 12436)
+2026-09-10T00:57:01-0400 ab_driver INFO === round 1 of 4 ===
+2026-09-10T00:57:01-0400 ab_driver INFO round 1 arm ffd85d42 (/Users/evanhoffman/git/ds4-ivan-qwen38fn)
+2026-09-10T00:57:01-0400 __main__ INFO ffd85d42 rep 1 (position 1) -> /Users/evanhoffman/git/local-llm/benchmarks/ds4/228-stack-ab-6c1e836-20260910T005110-0400-run2/ffd85d42-rep1.csv
+2026-09-10T00:57:48-0400 ab_driver INFO round 1 arm 6c1e836 (/Users/evanhoffman/git/ds4-metal-228)
+2026-09-10T00:57:48-0400 __main__ INFO 6c1e836 rep 1 (position 2) -> /Users/evanhoffman/git/local-llm/benchmarks/ds4/228-stack-ab-6c1e836-20260910T005110-0400-run2/6c1e836-rep1.csv
+2026-09-10T00:58:31-0400 ab_driver INFO === round 2 of 4 ===
+2026-09-10T00:58:31-0400 ab_driver INFO round 2 arm 6c1e836 (/Users/evanhoffman/git/ds4-metal-228)
+2026-09-10T00:58:31-0400 __main__ INFO 6c1e836 rep 2 (position 1) -> /Users/evanhoffman/git/local-llm/benchmarks/ds4/228-stack-ab-6c1e836-20260910T005110-0400-run2/6c1e836-rep2.csv
+2026-09-10T00:59:16-0400 ab_driver INFO round 2 arm ffd85d42 (/Users/evanhoffman/git/ds4-ivan-qwen38fn)
+2026-09-10T00:59:16-0400 __main__ INFO ffd85d42 rep 2 (position 2) -> /Users/evanhoffman/git/local-llm/benchmarks/ds4/228-stack-ab-6c1e836-20260910T005110-0400-run2/ffd85d42-rep2.csv
+2026-09-10T01:00:02-0400 ab_driver INFO === round 3 of 4 ===
+2026-09-10T01:00:02-0400 ab_driver INFO round 3 arm ffd85d42 (/Users/evanhoffman/git/ds4-ivan-qwen38fn)
+2026-09-10T01:00:02-0400 __main__ INFO ffd85d42 rep 3 (position 1) -> /Users/evanhoffman/git/local-llm/benchmarks/ds4/228-stack-ab-6c1e836-20260910T005110-0400-run2/ffd85d42-rep3.csv
+2026-09-10T01:00:48-0400 ab_driver INFO round 3 arm 6c1e836 (/Users/evanhoffman/git/ds4-metal-228)
+2026-09-10T01:00:48-0400 __main__ INFO 6c1e836 rep 3 (position 2) -> /Users/evanhoffman/git/local-llm/benchmarks/ds4/228-stack-ab-6c1e836-20260910T005110-0400-run2/6c1e836-rep3.csv
+2026-09-10T01:01:30-0400 ab_driver INFO === round 4 of 4 ===
+2026-09-10T01:01:30-0400 ab_driver INFO round 4 arm 6c1e836 (/Users/evanhoffman/git/ds4-metal-228)
+2026-09-10T01:01:30-0400 __main__ INFO 6c1e836 rep 4 (position 1) -> /Users/evanhoffman/git/local-llm/benchmarks/ds4/228-stack-ab-6c1e836-20260910T005110-0400-run2/6c1e836-rep4.csv
+2026-09-10T01:02:14-0400 ab_driver INFO round 4 arm ffd85d42 (/Users/evanhoffman/git/ds4-ivan-qwen38fn)
+2026-09-10T01:02:14-0400 __main__ INFO ffd85d42 rep 4 (position 2) -> /Users/evanhoffman/git/local-llm/benchmarks/ds4/228-stack-ab-6c1e836-20260910T005110-0400-run2/ffd85d42-rep4.csv
+2026-09-10T01:03:03-0400 decode_ab INFO machine lock released=True: run lock released
+2026-09-10T01:03:03-0400 __main__ INFO done: /Users/evanhoffman/git/local-llm/benchmarks/ds4/228-stack-ab-6c1e836-20260910T005110-0400-run2
+=== RUN 2 exit 0 Thu Sep 10 01:03:03 EDT 2026 ===
+=== RUN 3 start Thu Sep 10 01:03:03 EDT 2026 -> benchmarks/ds4/228-stack-ab-6c1e836-20260910T005110-0400-run3 ===
+promessi_sposi.txt (1298 KiB)
+2026-09-10T01:03:03-0400 __main__ INFO # stack A/B, 2026-09-10T01:03:03-04:00
+A label=ffd85d42 tree=/Users/evanhoffman/git/ds4-ivan-qwen38fn @ ffd85d42
+A gguf=/Users/evanhoffman/models/qwen3.8-flash-next-ds4-q4k-imatrix/Qwen3.8-Flash-Next-Q4KImatrixExperts-MXFP4Down-BF16Emb-BF16Control-Q8GDN-Q8QSA-Q8Shared-Q8Out.gguf (73371680704 bytes)
+A ple=/Users/evanhoffman/models/qwen3.8-flash-next-ds4-q4k-imatrix/Qwen3.8-Flash-Next-PLE-Q4_1.gguf
+B label=6c1e836 tree=/Users/evanhoffman/git/ds4-metal-228 @ 6c1e836
+B gguf=/Users/evanhoffman/models/qwen3.8-flash-next-ds4-q4k-imatrix/Qwen3.8-Flash-Next-Q4KImatrixExperts-MXFP4Down-BF16Emb-BF16Control-Q8GDN-Q8QSA-Q8Shared-Q8Out.gguf (73371680704 bytes)
+B ple=/Users/evanhoffman/models/qwen3.8-flash-next-ds4-q4k-imatrix/Qwen3.8-Flash-Next-PLE-Q4_1.gguf
+# TWO VARIABLES: engine and weights move together. Report as a stack
+# comparison; neither half can be attributed on its own (#138).
+prompt=/Users/evanhoffman/git/ds4/speed-bench/promessi_sposi.txt
+sweep ctx_start=2048 ctx_max=16384 step=2048 gen=128 reps=4
+2026-09-10T01:03:03-0400 decode_ab INFO machine lock held: run lock taken for 'decode_ab_stack.py ffd85d42 vs 6c1e836' (pid 12720)
+2026-09-10T01:03:03-0400 ab_driver INFO === round 1 of 4 ===
+2026-09-10T01:03:03-0400 ab_driver INFO round 1 arm ffd85d42 (/Users/evanhoffman/git/ds4-ivan-qwen38fn)
+2026-09-10T01:03:03-0400 __main__ INFO ffd85d42 rep 1 (position 1) -> /Users/evanhoffman/git/local-llm/benchmarks/ds4/228-stack-ab-6c1e836-20260910T005110-0400-run3/ffd85d42-rep1.csv
+2026-09-10T01:03:52-0400 ab_driver INFO round 1 arm 6c1e836 (/Users/evanhoffman/git/ds4-metal-228)
+2026-09-10T01:03:52-0400 __main__ INFO 6c1e836 rep 1 (position 2) -> /Users/evanhoffman/git/local-llm/benchmarks/ds4/228-stack-ab-6c1e836-20260910T005110-0400-run3/6c1e836-rep1.csv
+2026-09-10T01:04:37-0400 ab_driver INFO === round 2 of 4 ===
+2026-09-10T01:04:37-0400 ab_driver INFO round 2 arm 6c1e836 (/Users/evanhoffman/git/ds4-metal-228)
+2026-09-10T01:04:37-0400 __main__ INFO 6c1e836 rep 2 (position 1) -> /Users/evanhoffman/git/local-llm/benchmarks/ds4/228-stack-ab-6c1e836-20260910T005110-0400-run3/6c1e836-rep2.csv
+2026-09-10T01:05:22-0400 ab_driver INFO round 2 arm ffd85d42 (/Users/evanhoffman/git/ds4-ivan-qwen38fn)
+2026-09-10T01:05:22-0400 __main__ INFO ffd85d42 rep 2 (position 2) -> /Users/evanhoffman/git/local-llm/benchmarks/ds4/228-stack-ab-6c1e836-20260910T005110-0400-run3/ffd85d42-rep2.csv
+2026-09-10T01:06:11-0400 ab_driver INFO === round 3 of 4 ===
+2026-09-10T01:06:11-0400 ab_driver INFO round 3 arm ffd85d42 (/Users/evanhoffman/git/ds4-ivan-qwen38fn)
+2026-09-10T01:06:11-0400 __main__ INFO ffd85d42 rep 3 (position 1) -> /Users/evanhoffman/git/local-llm/benchmarks/ds4/228-stack-ab-6c1e836-20260910T005110-0400-run3/ffd85d42-rep3.csv
+2026-09-10T01:07:00-0400 ab_driver INFO round 3 arm 6c1e836 (/Users/evanhoffman/git/ds4-metal-228)
+2026-09-10T01:07:00-0400 __main__ INFO 6c1e836 rep 3 (position 2) -> /Users/evanhoffman/git/local-llm/benchmarks/ds4/228-stack-ab-6c1e836-20260910T005110-0400-run3/6c1e836-rep3.csv
+2026-09-10T01:07:47-0400 ab_driver INFO === round 4 of 4 ===
+2026-09-10T01:07:47-0400 ab_driver INFO round 4 arm 6c1e836 (/Users/evanhoffman/git/ds4-metal-228)
+2026-09-10T01:07:47-0400 __main__ INFO 6c1e836 rep 4 (position 1) -> /Users/evanhoffman/git/local-llm/benchmarks/ds4/228-stack-ab-6c1e836-20260910T005110-0400-run3/6c1e836-rep4.csv
+2026-09-10T01:08:32-0400 ab_driver INFO round 4 arm ffd85d42 (/Users/evanhoffman/git/ds4-ivan-qwen38fn)
+2026-09-10T01:08:32-0400 __main__ INFO ffd85d42 rep 4 (position 2) -> /Users/evanhoffman/git/local-llm/benchmarks/ds4/228-stack-ab-6c1e836-20260910T005110-0400-run3/ffd85d42-rep4.csv
+2026-09-10T01:09:20-0400 decode_ab INFO machine lock released=True: run lock released
+2026-09-10T01:09:20-0400 __main__ INFO done: /Users/evanhoffman/git/local-llm/benchmarks/ds4/228-stack-ab-6c1e836-20260910T005110-0400-run3
+=== RUN 3 exit 0 Thu Sep 10 01:09:20 EDT 2026 ===

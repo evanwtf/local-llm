@@ -1,0 +1,105 @@
+{
+ "instrument": "scripts/bitexact_ab.py",
+ "when": "2026-09-10T00:48:40-0400",
+ "a": {
+  "label": "ffd85d42",
+  "tree": "/Users/evanhoffman/git/ds4-ivan-qwen38fn",
+  "commit": "ffd85d426313ace6dae805e9f2fb4424d5b427fd"
+ },
+ "b": {
+  "label": "6c1e836",
+  "tree": "/Users/evanhoffman/git/ds4-metal-228",
+  "commit": "6c1e83672650e1bae9fe460a05c7f131d93f055e"
+ },
+ "gguf": "/Users/evanhoffman/models/qwen3.8-flash-next-ds4-q4k-imatrix/Qwen3.8-Flash-Next-Q4KImatrixExperts-MXFP4Down-BF16Emb-BF16Control-Q8GDN-Q8QSA-Q8Shared-Q8Out.gguf",
+ "ple": "/Users/evanhoffman/models/qwen3.8-flash-next-ds4-q4/Qwen3.8-Flash-Next-PLE-Q4_1.gguf",
+ "corpus": null,
+ "prompt_file_override": "/Users/evanhoffman/git/local-llm/benchmarks/ds4/228-bitexact-6c1e836-20260910T004839-0400/prompt-f2048-2013tok.txt",
+ "frontiers": [
+  2048
+ ],
+ "gen": 128,
+ "backend": "metal",
+ "resolution": "%.9g (9 significant digits; both ds4 dump writers)",
+ "sampling_record": {
+  "requested": {
+   "temperature": 0,
+   "seed": 1,
+   "top_k": 20,
+   "raw_prompt": true
+  },
+  "engine_reports_sampling": false,
+  "note": "the CLI prints timings only; the --dump-logprobs JSON records prompt_tokens, ctx and top_k but none of the sampling parameters it used. The comparison is conditional on the recorded argv and env. The dump path itself is an eval->argmax loop and does not consult the sampler, so temperature and seed cannot change what it compares."
+ },
+ "env_pins": {
+  "DS4_MTP_SPEC_DISABLE": "1",
+  "DS4_METAL_ENABLE_TENSOR": "1"
+ },
+ "metal_route": "fast",
+ "frontier_results": [
+  {
+   "frontier": 2048,
+   "ctx": 2240,
+   "gen": 128,
+   "seed": 1,
+   "prompt_tokens": 2013,
+   "steps_expected": 128,
+   "argv": {
+    "A": [
+     "/Users/evanhoffman/git/ds4-ivan-qwen38fn/ds4",
+     "-m",
+     "/Users/evanhoffman/models/qwen3.8-flash-next-ds4-q4k-imatrix/Qwen3.8-Flash-Next-Q4KImatrixExperts-MXFP4Down-BF16Emb-BF16Control-Q8GDN-Q8QSA-Q8Shared-Q8Out.gguf",
+     "--ple",
+     "/Users/evanhoffman/models/qwen3.8-flash-next-ds4-q4/Qwen3.8-Flash-Next-PLE-Q4_1.gguf",
+     "--metal",
+     "--raw",
+     "--prompt-file",
+     "/Users/evanhoffman/git/local-llm/benchmarks/ds4/228-bitexact-6c1e836-20260910T004839-0400/prompt-f2048-2013tok.txt",
+     "--ctx",
+     "2240",
+     "--tokens",
+     "128",
+     "--temp",
+     "0",
+     "--seed",
+     "1",
+     "--logprobs-top-k",
+     "20",
+     "--dump-logprobs",
+     "/Users/evanhoffman/git/local-llm/benchmarks/ds4/228-bitexact-6c1e836-20260910T004839-0400/f2048/a1-2048.json"
+    ],
+    "B": [
+     "/Users/evanhoffman/git/ds4-metal-228/ds4",
+     "-m",
+     "/Users/evanhoffman/models/qwen3.8-flash-next-ds4-q4k-imatrix/Qwen3.8-Flash-Next-Q4KImatrixExperts-MXFP4Down-BF16Emb-BF16Control-Q8GDN-Q8QSA-Q8Shared-Q8Out.gguf",
+     "--ple",
+     "/Users/evanhoffman/models/qwen3.8-flash-next-ds4-q4/Qwen3.8-Flash-Next-PLE-Q4_1.gguf",
+     "--metal",
+     "--raw",
+     "--prompt-file",
+     "/Users/evanhoffman/git/local-llm/benchmarks/ds4/228-bitexact-6c1e836-20260910T004839-0400/prompt-f2048-2013tok.txt",
+     "--ctx",
+     "2240",
+     "--tokens",
+     "128",
+     "--temp",
+     "0",
+     "--seed",
+     "1",
+     "--logprobs-top-k",
+     "20",
+     "--dump-logprobs",
+     "/Users/evanhoffman/git/local-llm/benchmarks/ds4/228-bitexact-6c1e836-20260910T004839-0400/f2048/b-2048.json"
+    ]
+   },
+   "self_check": {
+    "identical": true,
+    "steps": 128
+   },
+   "outcome": "identical",
+   "steps": 128,
+   "detail": "identical for all 128 steps, selected tokens and top-20 logits both"
+  }
+ ],
+ "verdict": "IDENTICAL at print resolution (%.9g (9 significant digits; both ds4 dump writers)) for 1/1 frontier(s) -- consistent with the bit-exact claim. A difference below print resolution would print identically; this instrument cannot see one."
+}
