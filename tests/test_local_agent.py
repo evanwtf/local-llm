@@ -185,6 +185,76 @@ def test_server_not_started_twice_when_port_is_busy(
     la.start_server(la.STACKS["fast"])  # must not raise
 
 
+# --- the exact server / shim command lines (would this change the command?) --
+
+
+def test_ds4_server_command_matches_the_shell() -> None:
+    """local-agent.sh 196-198: ./ds4-server --metal -m M --ple P --ctx C
+    --warm-weights --host 127.0.0.1 --port N."""
+    fast = la.STACKS["fast"]
+    cmd = la.server_command(fast)
+    assert cmd[:4] == ["./ds4-server", "--metal", "-m", fast.model_file]
+    assert cmd[4:6] == ["--ple", fast.ple_file]
+    assert cmd[6:] == [
+        "--ctx",
+        "100000",
+        "--warm-weights",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "8000",
+    ]
+
+
+def test_ds4_server_command_omits_ple_when_absent() -> None:
+    """The lineage stack has no PLE sidecar; --ple must not appear."""
+    assert "--ple" not in la.server_command(la.STACKS["lineage"])
+
+
+def test_llamacpp_server_command_matches_the_shell() -> None:
+    """local-agent.sh 201-204: the sampler flags are part of the command."""
+    cmd = la.server_command(la.STACKS["mainline"])
+    assert cmd[0].endswith("/build/bin/llama-server")
+    assert cmd[1:5] == [
+        "-m",
+        la.STACKS["mainline"].model_file,
+        "-a",
+        "qwen3.8-flash-next-q3",
+    ]
+    for flag in ("--temp", "1.0", "--top-p", "0.95", "--top-k", "20", "--min-p", "0.0"):
+        assert flag in cmd
+    assert cmd[cmd.index("-c") + 1] == "131072"
+
+
+def test_ollama_server_command() -> None:
+    assert la.server_command(la.STACKS["starter"]) == ["ollama", "serve"]
+
+
+def test_shim_commands_match_the_shell() -> None:
+    fast = la.STACKS["fast"]
+    assert la.qwen_shim_command(fast) == [
+        "uv",
+        "run",
+        "python",
+        "ds4_qwen_tool_shim.py",
+        "--upstream",
+        "http://127.0.0.1:8000",
+        "--port",
+        "8101",
+    ]
+    starter = la.STACKS["starter"]
+    assert la.claude_shim_command(starter) == [
+        "uv",
+        "run",
+        "python",
+        "ollama_claude_shim.py",
+        "--port",
+        "11500",
+        "--upstream",
+        "http://127.0.0.1:11434",
+    ]
+
+
 # --- the OpenCode provider declaration (#69) ---------------------------------
 
 

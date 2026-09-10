@@ -410,23 +410,20 @@ def _git_head(tree: pathlib.Path) -> str:
     return out.stdout.strip() or "unknown"
 
 
-def start_server(stack: Stack) -> None:
-    """Start the engine as a named unit, unless the port is already answered."""
-    if listening(stack.engine_port):
-        logger.info(
-            "  something is already listening on :%d -- reusing it, not starting "
-            "a second engine",
-            stack.engine_port,
-        )
-        return
-    logger.info("starting %s on :%d", stack.engine, stack.engine_port)
-    logs = log_dir()
+def server_command(stack: Stack) -> list[str]:
+    """The exact server argv for this stack's engine.
+
+    A pure function so it can be pinned against scripts/local-agent.sh
+    (lines 194-206) in a test: a wrong flag or a dropped `--ple` is the reviewer
+    question "would this change the command", and it is the one thing a launcher
+    port must not get wrong.
+    """
     if stack.engine == "ds4":
         assert stack.engine_tree and stack.model_file
         cmd = ["./ds4-server", "--metal", "-m", stack.model_file]
         if stack.ple_file:
             cmd += ["--ple", stack.ple_file]
-        cmd += [
+        return cmd + [
             "--ctx",
             str(stack.ctx),
             "--warm-weights",
@@ -435,15 +432,9 @@ def start_server(stack: Stack) -> None:
             "--port",
             str(stack.engine_port),
         ]
-        unitctl.start(
-            "local-agent-ds4",
-            cmd,
-            log=logs / "ds4-server.log",
-            cwd=pathlib.Path(stack.engine_tree),
-        )
-    elif stack.engine == "llamacpp":
+    if stack.engine == "llamacpp":
         assert stack.engine_tree and stack.model_file
-        cmd = [
+        return [
             str(pathlib.Path(stack.engine_tree) / "build" / "bin" / "llama-server"),
             "-m",
             stack.model_file,
@@ -466,11 +457,60 @@ def start_server(stack: Stack) -> None:
             "--min-p",
             "0.0",
         ]
-        unitctl.start("local-agent-llamacpp", cmd, log=logs / "llama-server.log")
-    elif stack.engine == "ollama":
-        unitctl.start(
-            "local-agent-ollama", ["ollama", "serve"], log=logs / "ollama.log"
+    if stack.engine == "ollama":
+        return ["ollama", "serve"]
+    raise LaunchError(f"no server command for engine '{stack.engine}'")
+
+
+def qwen_shim_command(stack: Stack) -> list[str]:
+    """The ds4 Qwen tool shim argv (#112), from local-agent.sh 217-219."""
+    return [
+        "uv",
+        "run",
+        "python",
+        "ds4_qwen_tool_shim.py",
+        "--upstream",
+        f"http://127.0.0.1:{stack.engine_port}",
+        "--port",
+        str(stack.shim_port),
+    ]
+
+
+def claude_shim_command(stack: Stack) -> list[str]:
+    """The Anthropic-wire shim argv, from local-agent.sh 228-230."""
+    assert stack.claude_upstream
+    return [
+        "uv",
+        "run",
+        "python",
+        "ollama_claude_shim.py",
+        "--port",
+        str(stack.claude_port),
+        "--upstream",
+        stack.claude_upstream,
+    ]
+
+
+def start_server(stack: Stack) -> None:
+    """Start the engine as a named unit, unless the port is already answered."""
+    if listening(stack.engine_port):
+        logger.info(
+            "  something is already listening on :%d -- reusing it, not starting "
+            "a second engine",
+            stack.engine_port,
         )
+        return
+    logger.info("starting %s on :%d", stack.engine, stack.engine_port)
+    logs = log_dir()
+    unit = {"ds4": "local-agent-ds4", "llamacpp": "local-agent-llamacpp"}.get(
+        stack.engine, "local-agent-ollama"
+    )
+    log = {
+        "ds4": "ds4-server.log",
+        "llamacpp": "llama-server.log",
+    }.get(stack.engine, "ollama.log")
+    cwd = pathlib.Path(stack.engine_tree) if stack.engine == "ds4" else None
+    unitctl.start(unit, server_command(stack), log=logs / log, cwd=cwd)
     wait_ready(stack.engine_port, stack.engine, 900)
 
 
@@ -483,16 +523,7 @@ def start_shims(stack: Stack, client: str) -> None:
         logger.info("starting the ds4 Qwen tool shim on :%d", stack.shim_port)
         unitctl.start(
             "local-agent-qwen-shim",
-            [
-                "uv",
-                "run",
-                "python",
-                "ds4_qwen_tool_shim.py",
-                "--upstream",
-                f"http://127.0.0.1:{stack.engine_port}",
-                "--port",
-                str(stack.shim_port),
-            ],
+            qwen_shim_command(stack),
             log=logs / "qwen-tool-shim.log",
             cwd=REPO,
         )
@@ -509,16 +540,7 @@ def start_shims(stack: Stack, client: str) -> None:
         logger.info("starting the Anthropic-wire shim on :%d", stack.claude_port)
         unitctl.start(
             "local-agent-claude-shim",
-            [
-                "uv",
-                "run",
-                "python",
-                "ollama_claude_shim.py",
-                "--port",
-                str(stack.claude_port),
-                "--upstream",
-                stack.claude_upstream,
-            ],
+            claude_shim_command(stack),
             log=logs / "claude-shim.log",
             cwd=REPO,
         )
