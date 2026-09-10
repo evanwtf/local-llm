@@ -1591,6 +1591,16 @@ def main() -> int:
 
     report = inspect()
     log_report(report)
+    # A directory listing of every model root, so "is the pack on disk?" is
+    # always answered from the disk, not from a doc that drifts. Read-only and
+    # readdir-only (no du), so it is cheap enough to run every time. Guarded:
+    # preflight must never hard-fail because a model tree could not be read.
+    try:
+        import model_inventory
+
+        model_inventory.log_inventory()
+    except Exception as exc:  # noqa: BLE001 -- preflight must never hard-fail
+        logger.error("could not list models on disk: %s", exc)
     if args.acquire_lock:
         ok, why = acquire_lock(args.acquire_lock, pid=args.owner_pid)
         if not ok:

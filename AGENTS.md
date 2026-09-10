@@ -5,6 +5,14 @@
 Instructions for coding agents. [`CONVENTIONS.md`](CONVENTIONS.md) holds the
 standing rules about data and safety; this file covers how to work.
 
+> **Before you say a model is not on disk, run the census.** Each runtime keeps
+> models in its own tree — `~/models` (ds4/llama.cpp GGUF), `~/.mlx-serve/models`
+> (mlx-serve), `~/.ollama/models` (Ollama), plus LM Studio and the HF cache.
+> `ls ~/models` sees only the first. Run `uv run python
+> benchmarks/agent/model_inventory.py` (preflight prints it every run) or read
+> [`docs/model-locations.md`](docs/model-locations.md). Searching the wrong tree
+> is a false negative that has cost real time.
+
 ## New code is Python, not shell (2026-09-09)
 
 **Write new scripts in Python. Do not add a new `.sh` under `scripts/`, and do

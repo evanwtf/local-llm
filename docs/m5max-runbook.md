@@ -187,16 +187,47 @@ destroyed it.
 
 ## Weights on disk
 
+> **The live listing is the census, not this table:** `uv run python
+> benchmarks/agent/model_inventory.py` (preflight prints it every run). See
+> [`docs/model-locations.md`](model-locations.md). The table below is a
+> convenience with per-pack notes and goes stale; the census does not.
+
+**More than two roots, and this matters.** Weights live in several trees, and a
+search of the wrong one is a false negative:
+
+- **`~/models/`** — every GGUF and ds4 pack, downloaded by hand (`hf download`,
+  `download_model.sh`). This is what `--dir`/`--model` on ds4 and llama.cpp
+  point at. Browse with `ls ~/models` / `du -sh ~/models/*/`.
+- **`~/.mlx-serve/models/<org>/<pack>`** — every **mlx-serve** pack, managed by
+  `mlx-serve pull <org/repo>`. It is **not** under `~/models`, so `ls ~/models`
+  will not show it. List these with **`mlx-serve list`**, never a raw `ls` of
+  `~/models`. A ds4-metal GGUF of a model and its mlx-serve pack are different
+  files in different trees — e.g. Qwen3.8-Flash-Next lives as a GGUF in
+  `~/models/qwen3.8-flash-next-ds4-q4k-imatrix` *and* as an MLX pack in
+  `~/.mlx-serve/models/ddalcu/...`.
+
+### mlx-serve packs — `~/.mlx-serve/models/` (via `mlx-serve list`)
+
+| pack (org/repo) | size | notes |
+|---|---|---|
+| `ddalcu/Qwen3.8-Flash-Next-MLX-Serve-mixed-4-8bit` | **100 GB** | the mlx-serve frontier pack (mixed 4/8-bit). The `stack_agent_ab.py` / `mlx-serve-vs-ds4` MLX arm. Served by directory name; `mlx-serve serve` loads it on demand. |
+| `mlx-community/gemma-4-e4b-it-4bit` | 4.8 GB | small Gemma 4 test pack |
+
+### GGUF / ds4 packs — `~/models/` and `~/git/ds4/gguf/`
+
 | path | size | notes |
 |---|---|---|
 | `~/models/qwen3.8-flash-next-ds4-q4` | **113 GB** | the DS4 fast-pack (base 79 + PLE 32 + MTP 1.6 + vision 0.5), **not a llama.cpp GGUF** — standard GGUF tools will not load it. Contains a **symlink** `...Q4KExperts...gguf` → `...Q40RoutedExperts...gguf`; the manifest names the former and that is deliberate, so **keep the symlink**. Our copy of the manifest predates HF's `2026-09-02T23:07Z` update (we downloaded 19:50); weights are identical (`tensor_manifest_sha256` unchanged) — re-fetch only the manifest before quoting its recipe. |
+| `~/models/qwen3.8-flash-next-ds4-q4k-imatrix` | 68 GB | **the frontier ds4 pack** — Q4_K imatrix experts + PLE sidecar (`Qwen3.8-Flash-Next-PLE-Q4_1.gguf`). The recommended-setup weights (196/196, ~95 s). |
 | `~/models/Qwen3.8-Flash-Next-GGUF` | 157 GB | Q2 + Q3 (`UD-Q3_K_XL` is the recommended llama.cpp stack) |
-| `~/models/GLM-5.3-Flash-GGUF` | 101 GB | Unsloth Q2 — declares `glm5next` |
+| `~/models/Qwen3.8-Flash-Next-REAP320` | 64 GB | REAP-320 expert-pruned build |
+| `~/models/deepseek-v4-flash-aproj` | 159 GB | DeepSeek-V4-Flash AProjQ4 (84 GB) + AProjQ8 (87 GB) imatrix packs (#91/#162) |
+| `~/models/qwen38fn-mtplx-optimized-speed` | 107 GB | MTPLX-optimized Qwen3.8-Flash-Next |
+| `~/models/GLM-5.3-Flash-MLX-2bit-lite` | 5.8 GB | small GLM MLX 2-bit test pack |
 | `~/git/ds4/gguf/GLM-5.3-Flash-Q2.gguf` | 90 GB | antirez — declares `glm5-next`. **Works**: verified 2026-08-30 on the `glm-5.3-flash` branch — loads, coherent at `--temp 0`, **35.9 t/s** decode. The old "unusable, no engine loads it" note was wrong — it was tested on the wrong engine build. |
-| `~/models/GLM-5.2-GGUF` | 196.6 GiB | IQ2_XXS — streams into 30.8 GiB but is 14x too slow to use |
-| `~/models/AtomicChat-Qwen3.8-Flash-Next` | 88 GiB | 4-bit `-M64` — tested and rejected, +28% slower than 3-bit |
 
-The last two are keepable-or-deletable; neither is in the recommended set. The
+Inventory above read 2026-09-10 (`du -sh ~/models/*/`, `mlx-serve list`); sizes
+drift as packs are pulled and cleared, so re-read before quoting one. The
 one-hyphen architecture-name rule (`glm5-next` vs `glm5next`) is in AGENTS.md —
 check `general.architecture` with `uv run python scripts/gguf_meta.py <file>`
 before debugging output.
