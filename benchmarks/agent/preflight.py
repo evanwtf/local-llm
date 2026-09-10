@@ -1099,6 +1099,14 @@ def warn_if_ollama_upgrade_changes_the_sampler(
 # stash), so the lock joins it there, expanded from the home directory.
 LOCK_PATH = pathlib.Path.home() / ".local-llm-bench" / "run-lock.json"
 
+# Peer-status bookkeeping joins the lock here, out of the repo (#238). Stored
+# in `.claude/peer/status.json` inside the tree, it was a tracked file that a
+# `peer_status` run modified mid-benchmark, so every row written afterward
+# carried `harness_dirty: true` -- state a tool writes for itself naming the
+# run's own code as uncommitted. One constant, so the writer (`peer_status`)
+# and the reader (`machine_state`) cannot drift to different paths (#265).
+PEER_STATUS_PATH = pathlib.Path.home() / ".local-llm-bench" / "peer" / "status.json"
+
 
 #: The checkouts a legacy `.run-lock.json` could sit in: the main repo and
 #: every worktree under `.claude/worktrees/`. A legacy lock there means a

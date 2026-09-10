@@ -32,7 +32,13 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from lib import agent_identity, peer_state
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+# preflight owns the ~/.local-llm-bench state paths, including where peer
+# bookkeeping lives (#238).
+sys.path.insert(
+    0, str(pathlib.Path(__file__).resolve().parents[1] / "benchmarks" / "agent")
+)
 
+import preflight
 import unitctl
 
 import logs
@@ -40,8 +46,11 @@ import logs
 logger = logging.getLogger(__name__)
 agent_identity.install(logger)
 
-STATE_DIR = pathlib.Path(__file__).resolve().parents[1] / ".claude" / "peer"
-STATE_FILE = STATE_DIR / "status.json"
+# #238: out of the repo, beside the run lock. In-tree state flipped
+# `harness_dirty` on every row written after a `peer_status` run. The path is
+# owned by preflight so the reader (`machine_state`) cannot drift from it.
+STATE_FILE = preflight.PEER_STATUS_PATH
+STATE_DIR = STATE_FILE.parent
 
 
 def _snapshot(repo: pathlib.Path) -> dict:
