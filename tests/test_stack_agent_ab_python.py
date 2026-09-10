@@ -310,3 +310,20 @@ def test_the_last_pgrep_is_gone() -> None:
     code = code_of(ROOT / "scripts" / "stack_agent_ab.py")
     assert "pgrep" not in code
     assert "pkill" not in code
+
+
+def test_stamp_run_start_is_iso_and_resets_stale_sweep_order(tmp_path):
+    """#282: run-record's first line must give the report a run date, and
+    sweep-order must not carry a prior run's lines (the report attaches this
+    run's date to every one of them and then VOIDs on the interleave check)."""
+    order = tmp_path / "sweep-order.txt"
+    order.write_text("stale-sweep1 16:36:50 17:06:44\nstale-old1 17:07:08 17:54:47\n")
+
+    started = sab.stamp_run_start(tmp_path)
+
+    # The stale lines are gone -- sweep-order is per-run, not cumulative.
+    assert order.read_text() == ""
+    # A record headed by the started line parses to a real run date.
+    (tmp_path / "run-record.txt").write_text(started + "\n# stack agent A/B\n")
+    assert stack_agent_report.run_started(tmp_path) is not None
+    assert stack_agent_report.run_date(tmp_path) is not None

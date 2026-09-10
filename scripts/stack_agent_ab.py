@@ -343,8 +343,26 @@ def sweep(arm: stack_arm.Arm, tag: str, out: pathlib.Path, harness_head: str) ->
     return 1 if (rc != 0 or moved == 0) else 0
 
 
+def stamp_run_start(out: pathlib.Path) -> str:
+    """Record the run's start instant and clear the previous run's sweep order.
+
+    `stack_agent_report` takes the run DATE from `run-record.txt`'s first line
+    and the sweep windows from `sweep-order.txt`. The shell truncated both per
+    run; this port truncated run-record (it `write_text`s the record) but
+    opened sweep-order in append mode, so a prior run's lines survived and the
+    report attached THIS run's date to them. #282 (2026-09-10) VOIDed at
+    read-out on exactly that: eight stale lines plus a run-record whose first
+    line was `# stack agent A/B`, not a date. So: truncate sweep-order here,
+    and return the ISO started line for `run()` to head the record with, in the
+    shape the report's `run_started` parses (`date '+%Y-%m-%dT%H:%M:%S %Z'`).
+    """
+    (out / "sweep-order.txt").write_text("")
+    return time.strftime("%Y-%m-%dT%H:%M:%S %Z")
+
+
 def run(sweeps: int, out: pathlib.Path) -> int:
     out.mkdir(parents=True, exist_ok=True)
+    started_iso = stamp_run_start(out)
     new, old = arm_from_env("NEW"), arm_from_env("OLD")
 
     check_strip()
@@ -366,7 +384,9 @@ def run(sweeps: int, out: pathlib.Path) -> int:
         )
     harness_head = provenance.head(REPO)
 
-    record = stack_arm.describe(new, old, sweeps=sweeps)
+    # The ISO started line MUST be first: the report reads the run date from
+    # it (stamp_run_start), and without it read-out VOIDs (#282).
+    record = f"{started_iso}\n" + stack_arm.describe(new, old, sweeps=sweeps)
     record += f"\nharness pinned at {harness_head} for all {sweeps * 2} sweeps\n"
     (out / "run-record.txt").write_text(record)
     for line in record.splitlines():
