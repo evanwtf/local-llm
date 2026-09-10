@@ -130,7 +130,9 @@ RESIDENT_GIB = 8.0
 #: Statuses that mean we do not know, which is not the same as free.
 UNPROVEN = (UNCONFIRMED, REUSED)
 
-PEER_STATUS = REPO / ".claude" / "peer" / "status.json"
+# Out of the repo, beside the run lock (#238). Owned by preflight so the
+# reader here and the writer in peer_status.py cannot name different files.
+PEER_STATUS = preflight.PEER_STATUS_PATH
 
 
 @dataclasses.dataclass(frozen=True)
