@@ -105,3 +105,75 @@ def test_release_drops_our_claim(tmp_path, monkeypatch):
     assert machine_claim.acquire("decode A/B", None, False) == 0
     assert machine_claim.release() == 0
     assert not lock.exists()
+
+
+# --- #275: a claim held by an agent session outlives the CLI process --------
+#
+# `machine_claim.py acquire` runs as a short-lived CLI process and exits at
+# once, but the thing it claims the machine FOR is an agent session that keeps
+# working. A claim keyed on the CLI's own pid is dead the instant it is
+# written: the machine reads FREE to every other run, and `release` refuses
+# because the pid it would match is gone. These tests pin the claim to the
+# agent identity, not to a process, so it survives the exit. They simulate the
+# exit the only way a single test process can -- by reporting the recorded pid
+# as dead.
+
+
+_DEAD_PID = 2147483646  # not a running process on any real system
+
+
+def _set_identity(monkeypatch, agent: str) -> None:
+    monkeypatch.setenv(machine_claim.agent_identity.AGENT_VAR, agent)
+    monkeypatch.setenv(machine_claim.agent_identity.MODEL_VAR, "claude-opus-5")
+    monkeypatch.setenv(machine_claim.agent_identity.EFFORT_VAR, "high")
+
+
+def _simulate_acquiring_process_exit(lock: pathlib.Path, monkeypatch) -> None:
+    """The claim was written by a CLI process that has since exited.
+
+    A single test process cannot really fork-and-die, and its own pid always
+    reads as the lock's owner (`lock_state` returns `ours` before it ever
+    checks liveness). So rewrite the recorded pid to a foreign, dead one --
+    which is exactly what the recorded pid becomes the instant the CLI exits --
+    and report it dead.
+    """
+    data = json.loads(lock.read_text())
+    data["pid"] = _DEAD_PID
+    lock.write_text(json.dumps(data))
+    monkeypatch.setattr(preflight, "_pid_alive", lambda pid: pid != _DEAD_PID)
+
+
+def test_claim_reads_busy_after_acquiring_process_exits(tmp_path, monkeypatch):
+    """The documented acquire must NOT leave the machine reading free (#275)."""
+    _set_identity(monkeypatch, "opus-llama")
+    lock = _lock_path(tmp_path, monkeypatch)
+    assert machine_claim.acquire("decode A/B", "11:45", False) == 0
+    _simulate_acquiring_process_exit(lock, monkeypatch)
+    assert machine_claim.status() == 1, (
+        "a claim whose acquiring process has exited must still read BUSY -- "
+        "otherwise another run starts against a machine someone reserved"
+    )
+
+
+def test_claim_released_by_its_agent_after_process_exits(tmp_path, monkeypatch):
+    """release must work from a new process, keyed on agent not pid (#275)."""
+    _set_identity(monkeypatch, "opus-llama")
+    lock = _lock_path(tmp_path, monkeypatch)
+    assert machine_claim.acquire("decode A/B", None, False) == 0
+    _simulate_acquiring_process_exit(lock, monkeypatch)
+    assert machine_claim.release() == 0
+    assert not lock.exists()
+
+
+def test_claim_not_released_by_a_different_agent(tmp_path, monkeypatch):
+    """Ownership is the agent identity: another agent must not drop the claim."""
+    _set_identity(monkeypatch, "opus-llama")
+    lock = _lock_path(tmp_path, monkeypatch)
+    assert machine_claim.acquire("decode A/B", None, False) == 0
+    _simulate_acquiring_process_exit(lock, monkeypatch)
+    _set_identity(monkeypatch, "sonnet-codex")
+    assert machine_claim.release() == 1, (
+        "a claim carries an owner; a different agent releasing it is the same "
+        "mistake as stealing a stale lock"
+    )
+    assert lock.exists()
