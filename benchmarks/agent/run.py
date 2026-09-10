@@ -2228,7 +2228,7 @@ def trial_order(backends, trial):
 
 # How each engine is told to emit draft counters. Two different mechanisms,
 # and for ds4 two spellings of the same one: `--mtp-timing` on the server's
-# own command line is what scripts/restart_between_trials_armB.sh uses, while
+# own command line is what scripts/restart_between_trials.py uses, while
 # DS4_MTP_TIMING is the environment form. Checking only the environment would
 # have refused the one script in this repo that actually runs the arm.
 COUNTER_SWITCHES = {

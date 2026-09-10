@@ -362,3 +362,35 @@ def test_an_interrupt_between_spawn_and_record_does_not_leak(state_dir, monkeypa
     assert spawned
     assert group_members(spawned[0]) == []
     assert unitctl.read("probe", state_dir) is None
+
+
+def test_start_can_remove_a_variable_the_parent_exported(tmp_path, monkeypatch) -> None:
+    """An arm defined by a variable's ABSENCE cannot be expressed by a dict.
+
+    #149's R arm is exactly that: `DS4_METAL_ENABLE_TENSOR` unset. `env` merges
+    into `os.environ`, so "not mentioned" means "inherited" -- and an operator
+    who exported it in their own shell would silently hand it to the arm whose
+    definition is not having it. The shell wrote `env -u` for this reason.
+    """
+    monkeypatch.setenv("DS4_METAL_ENABLE_TENSOR", "1")
+    monkeypatch.setenv("KEEP_THIS", "yes")
+    log = tmp_path / "env.log"
+    unitctl.start(
+        "env-probe",
+        [
+            sys.executable,
+            "-c",
+            (
+                "import os,sys; sys.stdout.write(repr(("
+                "os.environ.get('DS4_METAL_ENABLE_TENSOR'),"
+                "os.environ.get('KEEP_THIS'))))"
+            ),
+        ],
+        log=log,
+        unset=("DS4_METAL_ENABLE_TENSOR",),
+        state_dir=tmp_path / "units",
+    )
+    deadline = time.monotonic() + 10
+    while time.monotonic() < deadline and not log.read_text():
+        time.sleep(0.05)
+    assert log.read_text().strip() == "(None, 'yes')"

@@ -26,3 +26,6 @@ __pycache__/
 #
 # Cloned by scripts/sync_sandbox_targets.py; safe to delete and re-create.
 sandbox/
+
+# Peer bookkeeping state lives in ~/.local-llm-bench now (#238)
+.claude/peer/

@@ -26,7 +26,7 @@ import ab_driver
 import decode_ab as driver
 from source_text import code_of
 
-SHELL = ROOT / "scripts" / "decode_ab.sh"
+SHELL = ROOT / "vault" / "decode_ab.sh"
 
 
 # --- the refusals, which must happen before 84 GiB is resident ---------------

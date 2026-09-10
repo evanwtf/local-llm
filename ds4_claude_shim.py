@@ -49,10 +49,15 @@ import argparse
 import http.server
 import json
 import logging
+import pathlib
 import re
 import sys
 import urllib.error
 import urllib.request
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "scripts" / "lib"))
+
+import logs
 
 logger = logging.getLogger(__name__)
 
@@ -242,11 +247,7 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    logging.basicConfig(
-        level=logging.INFO,
-        stream=sys.stdout,
-        format="%(asctime)s %(name)s %(levelname)s %(message)s",
-    )
+    logs.configure()
     upstream = args.upstream
     rewrite_thinking = not args.keep_thinking
     pin_counter = not args.keep_counter

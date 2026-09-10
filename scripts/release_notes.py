@@ -23,6 +23,10 @@ import signal
 import sys
 from typing import NoReturn
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+
+import logs
+
 logger = logging.getLogger(__name__)
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -49,7 +53,7 @@ def section(version: str, text: str) -> str | None:
     want = version.removeprefix("v")
     pattern = re.compile(
         rf"^##\s+v{re.escape(want)}(?![\w.])[^\n]*\n(?P<body>.*?)(?=^##\s|^---\s*$|\Z)",
-        re.M | re.S,
+        re.MULTILINE | re.DOTALL,
     )
     found = pattern.search(text)
     if not found:
@@ -63,7 +67,7 @@ def main(argv: list[str] | None = None) -> NoReturn:
     parser.add_argument("version", help="the release, e.g. v1.0.0")
     parser.add_argument("--changelog", type=pathlib.Path, default=CHANGELOG)
     args = parser.parse_args(argv)
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
+    logs.configure(fmt=logs.PLAIN)
     # These notes get piped -- `release_notes.py v1.0.0 | head` is the obvious
     # way to look at them. Restore the default SIGPIPE handler so a closed
     # reader ends the process quietly, instead of logging printing a

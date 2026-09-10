@@ -199,7 +199,7 @@ They run behind a **second shim on :8102** started with `SHIM_TEMPERATURE=0`,
 so `:8101` and the 262 rows taken through it are untouched. `qwen38fnds4greedy`
 is not optional: pinning the temperature is itself a change of regime, so a
 greedy MTP arm alone cannot separate speculation from greedy decoding.
-`scripts/greedy_mtp_ab.sh` runs them alternated. Neither has a row yet.
+`scripts/greedy_mtp_ab.py` runs them alternated. Neither has a row yet.
 
 The pack is `ivanfioravanti/Qwen3.8-Flash-Next-DS4-Q4`, a **DS4 fast-pack, not
 a llama.cpp GGUF** — standard GGUF tools will not load it. Runtime is the

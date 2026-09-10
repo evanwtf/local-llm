@@ -278,7 +278,7 @@ def test_a_clean_machine_does_not_refuse(monkeypatch, state, tmp_path) -> None:
 
 def test_the_shell_it_replaces_is_still_here() -> None:
     """#235: deleted only after a run agrees."""
-    assert (ROOT / "scripts" / "lib" / "mlx_serve.sh").exists()
+    assert (ROOT / "vault" / "lib" / "mlx_serve.sh").exists()
 
 
 def test_a_shell_that_merely_mentions_the_server_is_not_one() -> None:

@@ -1,6 +1,6 @@
 """Tests for the scaffolding-strip arm record.
 
-#78: the strip-toggle A/B (scripts/strip_toggle_ab.sh) alternates the shim's
+#78: the strip-toggle A/B (scripts/strip_toggle_ab.py) alternates the shim's
 scaffolding strip between arms, and which arm produced a row lived only in a
 hand-kept manifest beside the results file -- the row itself could not say.
 These tests pin the record that puts the arm on the row, and pin the one rule

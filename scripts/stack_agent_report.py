@@ -1,7 +1,7 @@
 """Read out for the #138 stack A/B: two whole stacks, four sweeps, one screen.
 
 Implements the pre-registered recipe from the 23:20 analysis (see the header
-of scripts/stack_agent_ab.sh for the run and its pre-registration). The
+of scripts/stack_agent_ab.py for the run and its pre-registration). The
 judgment calls the spec left open are listed under JUDGMENT CALLS below --
 they are decisions this script makes so the 23:20 reader does not have to.
 
@@ -74,6 +74,10 @@ sys.path.insert(
 import os
 
 import results as results_mod
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+
+import logs
 
 logger = logging.getLogger(__name__)
 
@@ -696,7 +700,7 @@ def screen_verdict(
 
 
 def main(argv: list[str] | None = None) -> int:
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
+    logs.configure(fmt=logs.PLAIN)
     collapsed = check_arms()
     if collapsed:
         logger.info("%s", collapsed)

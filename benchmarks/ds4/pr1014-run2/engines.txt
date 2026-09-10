@@ -1,0 +1,9 @@
+# engine A/B, 2026-09-09T16:17:37-04:00
+A label=base tree=/Users/evanhoffman/git/ds4-pr1014-base @ 6289c516
+B label=pr1014 tree=/Users/evanhoffman/git/ds4-pr1014-head @ fa089b99
+gguf=/Users/evanhoffman/models/deepseek-v4-flash-aproj/DeepSeek-V4-Flash-IQ2XXS-w2Q2K-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix-0731.gguf
+prompt=/Users/evanhoffman/git/ds4-pr1014-base/speed-bench/promessi_sposi.txt
+sweep ctx_start=2048 ctx_max=16384 step=2048 gen=128 reps=4
+prefill_chunk=<flag absent>
+DS4_METAL_PREFILL_CHUNK=<unset>
+DS4_METAL_GRAPH_RAW_CAP=<unset>

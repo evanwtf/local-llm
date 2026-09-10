@@ -26,6 +26,10 @@ import re
 import sys
 from zoneinfo import ZoneInfo
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+
+import logs
+
 logger = logging.getLogger(__name__)
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -60,7 +64,7 @@ def convert(value: str) -> str:
         # Already carries the right instant; only the offset spelling differs.
         return datetime.datetime.fromisoformat(value).strftime("%Y-%m-%dT%H:%M:%S%z")
     if UTC_Z.match(value):
-        utc = datetime.datetime.fromisoformat(value.replace("Z", "+00:00"))
+        utc = datetime.datetime.fromisoformat(value)
         return utc.astimezone(ZONE).strftime("%Y-%m-%dT%H:%M:%S%z")
     if NAIVE.match(value):
         local = datetime.datetime.fromisoformat(value).replace(tzinfo=ZONE)
@@ -92,11 +96,7 @@ def main() -> int:
     group.add_argument("--write", action="store_true")
     args = parser.parse_args()
 
-    logging.basicConfig(
-        level=logging.INFO,
-        stream=sys.stdout,
-        format="%(asctime)s %(name)s %(levelname)s %(message)s",
-    )
+    logs.configure()
 
     changed = 0
     for path in sorted(p for g in DATA_GLOBS for p in ROOT.glob(g)):

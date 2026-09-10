@@ -32,6 +32,10 @@ import re
 import statistics
 import sys
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+
+import logs
+
 logger = logging.getLogger(__name__)
 
 CASE = re.compile(r"^===== CASE \d+/\d+ (.+?) =====$", re.MULTILINE)
@@ -154,7 +158,7 @@ def describe(trace: Trace, path: pathlib.Path) -> list[str]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
+    logs.configure(fmt=logs.PLAIN)
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("traces", nargs="+", type=pathlib.Path)
     args = p.parse_args(argv)

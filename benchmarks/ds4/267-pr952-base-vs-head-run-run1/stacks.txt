@@ -1,0 +1,12 @@
+# stack A/B, 2026-09-09T09:55:19-04:00
+A label=base tree=/Users/evanhoffman/git/ds4-pr952-base @ 6289c516
+A gguf=/Users/evanhoffman/models/deepseek-v4-flash-aproj/DeepSeek-V4-Flash-IQ2XXS-w2Q2K-AProjQ4-SExpQ8-OutQ8-chat-v2-imatrix-0731.gguf (84420584288 bytes)
+A ple=-
+B label=head tree=/Users/evanhoffman/git/ds4-pr952-head @ 13136675
+B_dirty=true   # uncommitted code: the sha does not name this binary
+B gguf=/Users/evanhoffman/models/deepseek-v4-flash-aproj/DeepSeek-V4-Flash-IQ2XXS-w2Q2K-AProjQ4-SExpQ8-OutQ8-chat-v2-imatrix-0731.gguf (84420584288 bytes)
+B ple=-
+# TWO VARIABLES: engine and weights move together. Report as a stack
+# comparison; neither half can be attributed on its own (#138).
+prompt=/Users/evanhoffman/git/ds4/speed-bench/promessi_sposi.txt
+sweep ctx_start=2048 ctx_max=16384 step=2048 gen=128 reps=4

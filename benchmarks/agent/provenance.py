@@ -9,10 +9,14 @@ measured its own bugs; an unattributable number is how that survives review.
 Every entry point calls `configure()` instead of `logging.basicConfig`, which
 stamps the harness commit into each line:
 
-    2026-09-01 07:12:03 INFO [a1b2c3d] preflight: 0.0 GiB held by model servers
+    2026-09-01T07:12:03-0400 INFO [a1b2c3d] preflight: 0.0 GiB held by model servers
 
 A `-dirty` suffix means the working tree had uncommitted changes, so the line
 was produced by code that exists nowhere but this machine.
+
+The timestamp shape is not this module's to choose -- it comes from
+`scripts/lib/logs.py`, so a log line and a ledger row carry the same instant
+format and can be read against each other.
 """
 
 from __future__ import annotations
@@ -27,6 +31,12 @@ import time
 
 HERE = pathlib.Path(__file__).resolve().parent
 UNKNOWN = "nogit"
+
+# The timestamp format has exactly one owner, and it is not here. A second
+# copy of a format string is a copy that drifts -- see the three copies of
+# the Metal route markers that disagreed for months without anything failing.
+sys.path.insert(0, str(HERE.parent.parent / "scripts" / "lib"))
+import logs
 
 
 def _git(*args: str, cwd: pathlib.Path = HERE) -> str | None:
@@ -211,6 +221,7 @@ def configure(
         level=level,
         stream=stream or sys.stdout,
         format=f"%(asctime)s {name}%(levelname)s [%(harness)s@%(machine)s %(engine)s pld=%(pld)s] %(message)s",
+        datefmt=logs.DATEFMT,
         force=True,
     )
     for handler in logging.getLogger().handlers:

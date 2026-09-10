@@ -93,6 +93,10 @@ import preflight
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from lib import agent_identity
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+
+import logs
+
 logger = logging.getLogger(__name__)
 agent_identity.install(logger)
 
@@ -363,15 +367,17 @@ def _lint_claim(claim: object, ids: set[str], path: pathlib.Path) -> None:
     # than results. It is validated but not compared -- the comparison is
     # against `enumerates`, which is exact.
     context_lines = claim.get("context_lines")
-    if context_lines is not None:
-        if not isinstance(context_lines, list) or not all(
+    if context_lines is not None and (
+        not isinstance(context_lines, list)
+        or not all(
             isinstance(n, int) and not isinstance(n, bool) for n in context_lines
-        ):
-            raise Refused(
-                f"{path}: claim {claim['id']!r} context_lines must be a list "
-                "of ints -- the line numbers the statement cites as references "
-                "rather than results"
-            )
+        )
+    ):
+        raise Refused(
+            f"{path}: claim {claim['id']!r} context_lines must be a list "
+            "of ints -- the line numbers the statement cites as references "
+            "rather than results"
+        )
     if _SOURCE_CITATION.search(claim["statement"]):
         enumerates = claim.get("enumerates")
         if not isinstance(enumerates, list) or not all(
@@ -850,11 +856,7 @@ def main(argv: list[str] | None = None) -> int:
     # Every line carries the agent identity (#160 amendment 1 & 2): the report
     # is provenance, and provenance that cannot say who produced it is the
     # defect this issue exists to close.
-    logging.basicConfig(
-        level=logging.INFO,
-        stream=sys.stdout,
-        format="%(asctime)s %(agent)s %(name)s %(levelname)s %(message)s",
-    )
+    logs.configure(fmt="%(asctime)s %(agent)s %(name)s %(levelname)s %(message)s")
     # The format string names `%(agent)s`, so every record that reaches the
     # handler must carry it. The module logger has the filter; a logger this
     # process imports (preflight, say) does not, and its records would fail the

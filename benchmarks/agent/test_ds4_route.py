@@ -20,17 +20,28 @@ import pathlib
 
 import ds4_route
 
-FAST_LOG = """\
-ds4-server starting
-Metal 4 tensor API enabled for Tensor kernels
-loading weights
-"""
+# Real server output, not typed here.
+#
+# These two constants used to be strings somebody wrote from memory, and the
+# vanilla one was wrong. It read
+#
+#     Metal 4 tensor API available but not enabled (set DS4_METAL_ENABLE_TENSOR=1)
+#
+# ds4 has never printed that. It prints `... not enabled (numerics); set
+# DS4_METAL_ENABLE_TENSOR=1 to override`. The invented line appears in 0 of
+# this machine's logs and the real one in 12. Every test below passed anyway,
+# because the matcher they exercised was a substring of the head of both -- so
+# the fixture and the parser agreed with each other and neither agreed with
+# ds4. A parser tested only against strings its author typed is a test of the
+# typing.
+#
+# tests/fixtures/logs/ holds excerpts of runs this machine actually produced.
+# See its README for provenance, and tests/test_log_fixtures.py for the guard
+# that fails when a marker constant loses its real example.
+LOGS = pathlib.Path(__file__).resolve().parent.parent.parent / "tests/fixtures/logs"
 
-VANILLA_LOG = """\
-ds4-server starting
-Metal 4 tensor API available but not enabled (set DS4_METAL_ENABLE_TENSOR=1)
-loading weights
-"""
+FAST_LOG = (LOGS / "ds4-server-route-tensor.log").read_text()
+VANILLA_LOG = (LOGS / "ds4-server-route-withheld.log").read_text()
 
 
 def test_the_fast_route_is_read_off_its_own_line():

@@ -527,7 +527,7 @@ def refuse_unless_empty(report: Report, backends: dict[str, dict] | None) -> str
 
     Two engines is not a harder version of one engine. It is a different
     experiment -- run them as sequential sweeps with a server swap between,
-    which is what `scripts/stack_agent_ab.sh` does.
+    which is what `scripts/stack_agent_ab.py` does.
     """
     foreign = report.stale + report.unmatched
     if foreign:
@@ -550,7 +550,7 @@ def refuse_unless_empty(report: Report, backends: dict[str, dict] | None) -> str
                 f"REFUSING: these backends span {len(engines)} engines and one "
                 f"run would hold every one of them resident at once -- {plan}. "
                 "Run them as sequential sweeps with a server swap between "
-                "(scripts/stack_agent_ab.sh), not as one interleaved batch."
+                "(scripts/stack_agent_ab.py), not as one interleaved batch."
             )
     return None
 
@@ -1099,6 +1099,14 @@ def warn_if_ollama_upgrade_changes_the_sampler(
 # stash), so the lock joins it there, expanded from the home directory.
 LOCK_PATH = pathlib.Path.home() / ".local-llm-bench" / "run-lock.json"
 
+# Peer-status bookkeeping joins the lock here, out of the repo (#238). Stored
+# in `.claude/peer/status.json` inside the tree, it was a tracked file that a
+# `peer_status` run modified mid-benchmark, so every row written afterward
+# carried `harness_dirty: true` -- state a tool writes for itself naming the
+# run's own code as uncommitted. One constant, so the writer (`peer_status`)
+# and the reader (`machine_state`) cannot drift to different paths (#265).
+PEER_STATUS_PATH = pathlib.Path.home() / ".local-llm-bench" / "peer" / "status.json"
+
 
 #: The checkouts a legacy `.run-lock.json` could sit in: the main repo and
 #: every worktree under `.claude/worktrees/`. A legacy lock there means a
@@ -1209,6 +1217,24 @@ def lock_state(
             f"lock belongs to {host!r}, not this machine ({hostname!r}) -- "
             "a lock is a claim on one machine and must not travel"
         )
+    if lock.get("session_claim"):
+        # #275: a claim held by an agent SESSION, not a process. The session
+        # is not a pid, so there is nothing to check for liveness -- it is
+        # held until the session releases it or a human clears it. Keying it
+        # on a pid is what made `machine_claim.py acquire` read FREE the
+        # instant its CLI process exited.
+        what = lock.get("what") or "unspecified work"
+        agent = lock.get("agent") or "an unidentified agent"
+        finish = (
+            f", expected finish {lock['expected_finish']}"
+            if lock.get("expected_finish")
+            else ""
+        )
+        return "held", (
+            f"session claim by {agent} for {what} since "
+            f"{lock.get('started', 'unknown')}{finish} -- held by an agent "
+            f"session, not a process; release it or remove {LOCK_PATH} by hand"
+        )
     holder = lock.get("pid")
     if not isinstance(holder, int):
         return "corrupt", "the lock records no usable pid"
@@ -1234,6 +1260,7 @@ def acquire_lock(
     agent_effort: str | None = None,
     expected_finish: str | None = None,
     quiet: bool = False,
+    session_claim: bool = False,
 ) -> tuple[bool, str]:
     """Claim the machine for `what`. Returns (acquired, message).
 
@@ -1281,6 +1308,11 @@ def acquire_lock(
         claim["expected_finish"] = expected_finish
     if quiet:
         claim["quiet"] = True
+    if session_claim:
+        # #275: the holder is an agent session, not this process. The pid is
+        # recorded for forensics only; lock_state must not judge this claim by
+        # its liveness, or the claim dies when the CLI that wrote it exits.
+        claim["session_claim"] = True
     try:
         # The lock owns its directory. It used to exist only as a side effect
         # of the target-repo stash, so a machine that had never stashed died
@@ -1295,6 +1327,8 @@ def acquire_lock(
         return False, f"cannot take the run lock: {exc}"
     with os.fdopen(fd, "w") as fh:
         json.dump(claim, fh, indent=2, sort_keys=True)
+    if session_claim:
+        return True, f"session claim taken for {what!r} by {agent or 'unidentified'}"
     return True, f"run lock taken for {what!r} (pid {pid})"
 
 
@@ -1302,11 +1336,31 @@ def release_lock(
     path: pathlib.Path = LOCK_PATH,
     hostname: str | None = None,
     pid: int | None = None,
+    agent: str | None = None,
 ) -> tuple[bool, str]:
-    """Drop our own lock. Never removes somebody else's."""
+    """Drop our own lock. Never removes somebody else's.
+
+    A pid-held run lock is ours when the pid matches. A session claim (#275)
+    has no live pid, so ownership is the agent identity instead: an agent
+    releases its own claim, and a different agent removing it is refused the
+    same way a stale lock is -- a human clears it deliberately.
+    """
     hostname = hostname or platform.node()
     pid = pid or os.getpid()
-    state, why = lock_state(read_lock(path), hostname, pid)
+    lock = read_lock(path)
+    if isinstance(lock, dict) and lock.get("session_claim"):
+        owner = lock.get("agent")
+        if agent is not None and owner == agent:
+            try:
+                path.unlink()
+            except OSError as exc:
+                return False, f"could not release the session claim: {exc}"
+            return True, "session claim released"
+        return False, (
+            f"refusing to release a session claim held by {owner!r}, not "
+            f"{agent!r} -- remove {path} by hand to override"
+        )
+    state, why = lock_state(lock, hostname, pid)
     if state == "free":
         return True, "no run lock to release"
     if state != "ours":

@@ -22,6 +22,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import json
 import logging
 import pathlib
@@ -30,11 +31,26 @@ import sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from lib import agent_identity, peer_state
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+# preflight owns the ~/.local-llm-bench state paths, including where peer
+# bookkeeping lives (#238).
+sys.path.insert(
+    0, str(pathlib.Path(__file__).resolve().parents[1] / "benchmarks" / "agent")
+)
+
+import preflight
+import unitctl
+
+import logs
+
 logger = logging.getLogger(__name__)
 agent_identity.install(logger)
 
-STATE_DIR = pathlib.Path(__file__).resolve().parents[1] / ".claude" / "peer"
-STATE_FILE = STATE_DIR / "status.json"
+# #238: out of the repo, beside the run lock. In-tree state flipped
+# `harness_dirty` on every row written after a `peer_status` run. The path is
+# owned by preflight so the reader (`machine_state`) cannot drift from it.
+STATE_FILE = preflight.PEER_STATUS_PATH
+STATE_DIR = STATE_FILE.parent
 
 
 def _snapshot(repo: pathlib.Path) -> dict:
@@ -49,11 +65,28 @@ def _snapshot(repo: pathlib.Path) -> dict:
         for t in peer_state.ds4_trees()
     }
     state, _ = peer_state.run_lock()
+    # `start_key` is the process's own start time, and it is here because this
+    # file gets READ hours after it is written. On 2026-09-09 a peer read a
+    # row saying ds4-server pid 50125, 74.2 GiB, "age 20m" -- the pid had been
+    # gone for hours and the file was 10 hours old -- and stood down from a
+    # free machine. A row that carries a start key can be checked against the
+    # live process rather than believed; `scripts/machine_state.py` is what
+    # does the checking, and this is the field that lets it be certain rather
+    # than merely suspicious.
     servers = [
-        {"short": p.short, "pid": p.pid, "gib": round(p.rss_gib, 1), "age": p.age}
+        {
+            "short": p.short,
+            "pid": p.pid,
+            "gib": round(p.rss_gib, 1),
+            "age": p.age,
+            "start_key": unitctl.start_key(p.pid),
+        }
         for p in peer_state.servers()
     ]
     return {
+        # When this was true. A reader that has to stat the file to find out
+        # is a reader that will not bother.
+        "written_at": dt.datetime.now(dt.UTC).astimezone().strftime(logs.DATEFMT),
         "branches": {b["name"]: b["head"] for b in branches},
         "prs": {str(p.get("number")): p.get("title") for p in prs},
         # str keys, because the snapshot round-trips through JSON and JSON
@@ -162,11 +195,7 @@ def main(argv: list[str] | None = None) -> int:
         help="the repo to watch (default: ~/git/local-llm)",
     )
     args = parser.parse_args(argv)
-    logging.basicConfig(
-        level=logging.INFO,
-        stream=sys.stdout,
-        format="%(asctime)s %(agent)s %(name)s %(levelname)s %(message)s",
-    )
+    logs.configure(fmt="%(asctime)s %(agent)s %(name)s %(levelname)s %(message)s")
     current = _snapshot(args.repo)
     changed = _diff(_load_previous(), current)
     logger.info("peer status: %s", _summary(current))

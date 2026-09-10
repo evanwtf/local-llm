@@ -56,6 +56,11 @@ import signal
 import subprocess
 import sys
 import time
+from collections.abc import Sequence
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+
+import logs
 
 logger = logging.getLogger(__name__)
 
@@ -219,9 +224,19 @@ def start(
     log: pathlib.Path | None = None,
     cwd: pathlib.Path | None = None,
     env: dict[str, str] | None = None,
+    unset: Sequence[str] = (),
     state_dir: pathlib.Path | None = None,
 ) -> Unit:
-    """Start `command` as unit `name` and record its pid. Refuses a live unit."""
+    """Start `command` as unit `name` and record its pid. Refuses a live unit.
+
+    `env` adds to this process's environment; `unset` removes from it. The
+    removal is not symmetry for its own sake. A variable that defines an arm by
+    its **absence** cannot be expressed by a dict: not mentioning it means
+    "inherit", so an operator who exported it in their own shell would hand it
+    to the arm that is defined by not having it. #149's R arm is exactly that,
+    and the shell wrote `env -u DS4_METAL_ENABLE_TENSOR` for exactly this
+    reason.
+    """
     if not command:
         raise ValueError("a unit needs a command")
     existing = read(name, state_dir)
@@ -240,6 +255,8 @@ def start(
 
     merged = dict(os.environ)
     merged.update(env or {})
+    for key in unset:
+        merged.pop(key, None)
     try:
         proc = subprocess.Popen(
             command,
@@ -424,11 +441,7 @@ def main(argv: list[str] | None = None) -> int:
     # mean exactly what it looks like.
     head, command = _split_command(list(sys.argv[1:] if argv is None else argv))
     args = parser.parse_args(head)
-    logging.basicConfig(
-        level=logging.INFO,
-        stream=sys.stdout,
-        format="%(asctime)s %(name)s %(levelname)s %(message)s",
-    )
+    logs.configure()
 
     if args.action == "start":
         if not command:

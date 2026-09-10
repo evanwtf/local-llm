@@ -180,7 +180,9 @@ def fake_server(monkeypatch, tmp_path):
     """Stand in for a 74 GiB server: record start/stop, skip the real work."""
     events: list[str] = []
 
-    def fake_start(command, log, *, cwd, allow_foreign=False, state_dir=None):
+    def fake_start(
+        command, log, *, cwd, allow_foreign=False, env=None, unset=(), state_dir=None
+    ):
         events.append("start")
         pathlib.Path(log).write_text(MTP_LINE + "\n")
         return unitctl.Unit(

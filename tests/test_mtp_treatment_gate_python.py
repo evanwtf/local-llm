@@ -13,7 +13,9 @@ neither.
 from __future__ import annotations
 
 import contextlib
+import os
 import pathlib
+import subprocess
 import sys
 
 import pytest
@@ -27,7 +29,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import mtp_treatment_gate as gate
 from source_text import code_of
 
-SHELL = ROOT / "scripts" / "mtp_treatment_gate.sh"
+SHELL = ROOT / "vault" / "mtp_treatment_gate.sh"
 KV = pathlib.Path("/tmp/kv")
 
 
@@ -388,3 +390,211 @@ def _wire(monkeypatch, tmp_path: pathlib.Path, *, rc: int, rows: int = 0) -> Non
         return rc
 
     monkeypatch.setattr(gate, "_run", fake_run)
+
+
+# ------------------------------------------------- the #235 retirement differential
+#
+# The port's claim is that, under identical inputs, it hands the measurement
+# child (`run.py`) the same argv and the same environment the shell did. The
+# shell's stage and the port's `stage_*` both invoke
+# `uv run python benchmarks/agent/run.py`; a fake `uv` on PATH records the
+# child's argv+env. The real `.sh` and the port's stage run against the same
+# fake, and the recordings must agree on argv (order-free) and on env modulo
+# the controlled base.
+#
+# The three run.py stages are covered: `treated` and `silent` (both exit 0 on
+# both sides) and `bypass` (the gate fires on both sides -- the shell exits 1,
+# the port raises Refusal -- but the run.py recording is captured before the
+# refusal). The `probe`/`probe-shim`/`replay` stages run diagnostic scripts
+# (`mtp_engagement.py`, `mtp_replay_probe.py`), not the measurement child, so
+# they are out of scope here.
+
+import equiv
+import wait_ready
+
+_SHELL_ARTIFACTS = frozenset({"PWD", "OLDPWD", "SHLVL", "_"})
+
+
+def _meaningful_env(env: dict[str, str]) -> dict[str, str]:
+    """The env minus the controlled base and the interpreter artifacts."""
+    return {
+        k: v
+        for k, v in env.items()
+        if k not in equiv.CONTROLLED_ENV_KEYS and k not in _SHELL_ARTIFACTS
+    }
+
+
+def _shell_run_invs(
+    tmp_path: pathlib.Path, out: pathlib.Path, shim_dir: pathlib.Path, stage: str
+) -> subprocess.CompletedProcess:
+    """Run the real `.sh` for one stage against the fakes."""
+    tree = tmp_path / "home" / "git" / "ds4-metal"
+    equiv.write_fake_ds4_server(tree, out, ROOT)
+    equiv.write_fake_pgrep(shim_dir)
+    equiv.write_fake_pkill(shim_dir)
+    env = dict(os.environ)
+    env.update(
+        {
+            "PATH": f"{shim_dir}:{os.environ.get('PATH', '')}",
+            "HOME": str(tmp_path / "home"),
+            "EQUIV_OUT": str(out),
+            "EQUIV_ARM": "shell",
+            "LOGDIR": str(tmp_path / "logs"),
+            "TRIALS": "1",
+        }
+    )
+    return subprocess.run(
+        ["bash", str(SHELL), stage],
+        cwd=tmp_path,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=120,
+    )
+
+
+def _port_run_invs(
+    tmp_path: pathlib.Path,
+    out: pathlib.Path,
+    shim_dir: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    stage_fn,
+    server_log: pathlib.Path,
+) -> int:
+    """Run one port stage against the same fake; return its exit code.
+
+    The port's orchestration is real except where it would touch the machine:
+    the lock and the shim are no-ops, and the home-derived constants move into
+    tmp so the server argv matches the shell's. `serving` is NOT stubbed: it
+    spawns the fake ds4-server, which records its argv+env and writes the graph
+    line to the log. Only the readiness poll is stubbed -- it waits for the
+    fake's record instead of polling a real port. `_run` still spawns
+    `uv run python run.py` through the fake `uv` on PATH.
+    """
+    home = tmp_path / "home"
+    monkeypatch.setattr(gate, "run_lock", _null_context)
+    monkeypatch.setattr(gate, "shim", _null_context)
+    monkeypatch.setattr(
+        wait_ready, "ready", lambda *a, **k: equiv.wait_for_program(out, "ds4-server")
+    )
+    # The shell resolves these against $HOME; the port computed them at import
+    # from the real home. Point them at the tmp home so the server argv agrees.
+    monkeypatch.setattr(gate, "DS4_TREE", home / "git" / "ds4-metal")
+    monkeypatch.setattr(
+        gate,
+        "DS4_MODEL",
+        home
+        / "models"
+        / "qwen3.8-flash-next-ds4-q4"
+        / "Qwen3.8-Flash-Next-Q4KExperts-BF16Emb-BF16Control-Q8GDN-Q8QSA-Q8Shared-Q8Out.gguf",
+    )
+    monkeypatch.setattr(
+        gate,
+        "DS4_PLE",
+        home
+        / "models"
+        / "qwen3.8-flash-next-ds4-q4"
+        / "Qwen3.8-Flash-Next-PLE-Q4_1.gguf",
+    )
+    monkeypatch.setattr(
+        gate,
+        "DS4_MTP",
+        home
+        / "models"
+        / "qwen3.8-flash-next-ds4-q4"
+        / "qwen3.8-flash-next-q4-mtp.gguf",
+    )
+    monkeypatch.setattr(gate, "KV_TREATED", home / ".ds4" / "server-kv-mtp")
+    monkeypatch.setattr(gate, "KV_BYPASS", home / ".ds4" / "server-kv-210-bypass")
+    # The port's process env must carry the same driver vars the shell's did,
+    # so run.py sees the same base environment on both sides. DS4_MTP_TIMING
+    # is exported by the shell and set by the port's `main`; a stage called
+    # directly does not set it, so the differential does.
+    monkeypatch.setenv("PATH", f"{shim_dir}:{os.environ.get('PATH', '')}")
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("EQUIV_OUT", str(out))
+    monkeypatch.setenv("EQUIV_ARM", "port")
+    monkeypatch.setenv("LOGDIR", str(tmp_path / "logs"))
+    monkeypatch.setenv("TRIALS", "1")
+    monkeypatch.setenv("DS4_MTP_TIMING", "1")
+    return stage_fn(tmp_path / "logs", server_log, 1)
+
+
+def _assert_agree(stage: str, shell: equiv.Invocation, port: equiv.Invocation) -> None:
+    assert set(equiv.canonical(shell.argv, frozenset())) == set(
+        equiv.canonical(port.argv, frozenset())
+    ), f"{stage}: shell argv {shell.argv} vs port argv {port.argv}"
+    assert _meaningful_env(shell.env) == _meaningful_env(port.env), (
+        f"{stage}: shell env {_meaningful_env(shell.env)} vs "
+        f"port env {_meaningful_env(port.env)}"
+    )
+
+
+def test_the_shell_and_the_port_hand_run_py_the_same_command(
+    tmp_path, monkeypatch
+) -> None:
+    """The measurement child's argv and env agree between the two drivers.
+
+    `treated` and `silent` exit 0 on both sides. `bypass` fires the gate on
+    both sides (shell exit 1, port Refusal) but records run.py first, so its
+    argv is still compared.
+    """
+    for stage, stage_fn, expect_refusal in (
+        ("treated", gate.stage_treated, False),
+        ("silent", gate.stage_silent, False),
+        ("bypass", gate.stage_bypass, True),
+    ):
+        out = tmp_path / f"rec-{stage}.jsonl"
+        shim_dir = tmp_path / f"shim-{stage}"
+        shim_dir.mkdir()
+        equiv.write_uv_fake_running_real(shim_dir / "uv", out, ROOT)
+
+        shell_got = _shell_run_invs(tmp_path, out, shim_dir, stage)
+        server_log = tmp_path / "logs" / f"ds4server-{stage}.log"
+        if expect_refusal:
+            assert shell_got.returncode != 0, (
+                f"shell {stage} should be refused:\n{shell_got.stdout}\n{shell_got.stderr}"
+            )
+            with pytest.raises(gate.Refusal):
+                _port_run_invs(
+                    tmp_path, out, shim_dir, monkeypatch, stage_fn, server_log
+                )
+        else:
+            assert shell_got.returncode == 0, (
+                f"shell {stage} failed:\n{shell_got.stdout}\n{shell_got.stderr}"
+            )
+            port_rc = _port_run_invs(
+                tmp_path, out, shim_dir, monkeypatch, stage_fn, server_log
+            )
+            assert port_rc == 0, f"port {stage} failed rc={port_rc}"
+
+        invs = equiv.by_program(equiv.load(out), "run.py")
+        shell = [i for i in invs if i.arm == "shell"]
+        port = [i for i in invs if i.arm == "port"]
+        assert len(shell) == 1, f"shell {stage} recorded {len(shell)} run.py calls"
+        assert len(port) == 1, f"port {stage} recorded {len(port)} run.py calls"
+        _assert_agree(stage, shell[0], port[0])
+
+        # The treatment lives on the SERVER command line, not run.py's: the
+        # treated/silent arms carry --mtp-model, the bypass arm must not. A
+        # differential that compared only run.py would be green while the two
+        # drivers started different servers.
+        servers = equiv.by_program(equiv.load(out), "ds4-server")
+        srv_shell = [i for i in servers if i.arm == "shell"]
+        srv_port = [i for i in servers if i.arm == "port"]
+        assert len(srv_shell) == 1, (
+            f"shell {stage} recorded {len(srv_shell)} ds4-server calls"
+        )
+        assert len(srv_port) == 1, (
+            f"port {stage} recorded {len(srv_port)} ds4-server calls"
+        )
+        _assert_agree(stage, srv_shell[0], srv_port[0])
+        srv_pairs = equiv.canonical(srv_shell[0].argv, frozenset())
+        has_mtp_model = any(p[0] == "--mtp-model" for p in srv_pairs)
+        if stage == "bypass":
+            assert not has_mtp_model, (
+                f"bypass arm carried --mtp-model: {srv_shell[0].argv}"
+            )
+        else:
+            assert has_mtp_model, f"{stage} arm lost --mtp-model: {srv_shell[0].argv}"

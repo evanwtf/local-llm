@@ -29,7 +29,7 @@ def _prompt(tmp_path) -> pathlib.Path:
 
 def test_it_writes_an_inferred_sidecar_with_its_reasoning(tmp_path):
     root = tmp_path / "runs"
-    d = _run(root, "run1", "scripts/decode_ab.sh q4 a.gguf q8 b.gguf")
+    d = _run(root, "run1", "vault/decode_ab.sh q4 a.gguf q8 b.gguf")
     backfill.backfill(root, _prompt(tmp_path), apply=True)
     body = json.loads((d / prompt_meta.SIDECAR).read_text())
     assert body["inferred"] is True
@@ -39,7 +39,7 @@ def test_it_writes_an_inferred_sidecar_with_its_reasoning(tmp_path):
 
 def test_a_dry_run_writes_nothing(tmp_path):
     root = tmp_path / "runs"
-    d = _run(root, "run1", "scripts/decode_ab.sh q4 a.gguf q8 b.gguf")
+    d = _run(root, "run1", "vault/decode_ab.sh q4 a.gguf q8 b.gguf")
     written, _, _ = backfill.backfill(root, _prompt(tmp_path), apply=False)
     assert written == [d]
     assert not (d / prompt_meta.SIDECAR).exists()
@@ -47,7 +47,7 @@ def test_a_dry_run_writes_nothing(tmp_path):
 
 def test_a_run_whose_harness_line_overrides_prompt_is_skipped_not_guessed(tmp_path):
     root = tmp_path / "runs"
-    d = _run(root, "run1", "PROMPT=/other/short.txt scripts/decode_ab.sh q4 a q8 b")
+    d = _run(root, "run1", "PROMPT=/other/short.txt vault/decode_ab.sh q4 a q8 b")
     written, _, skipped = backfill.backfill(root, _prompt(tmp_path), apply=True)
     assert written == []
     assert skipped == [d]
@@ -56,7 +56,7 @@ def test_a_run_whose_harness_line_overrides_prompt_is_skipped_not_guessed(tmp_pa
 
 def test_a_run_that_already_records_its_prompt_is_left_alone(tmp_path):
     root = tmp_path / "runs"
-    d = _run(root, "run1", "scripts/decode_ab.sh q4 a.gguf q8 b.gguf")
+    d = _run(root, "run1", "vault/decode_ab.sh q4 a.gguf q8 b.gguf")
     prompt_meta.write_sidecar(
         d, name="real.txt", size=7, sha256=None, inferred=False, why="recorded"
     )
@@ -69,6 +69,6 @@ def test_a_run_that_already_records_its_prompt_is_left_alone(tmp_path):
 
 def test_it_finds_every_run_directory_under_the_root(tmp_path):
     root = tmp_path / "runs"
-    _run(root, "a/run1", "scripts/decode_ab.sh q4 x q8 y")
-    _run(root, "b/run2", "scripts/decode_ab.sh q4 x q8 y")
+    _run(root, "a/run1", "vault/decode_ab.sh q4 x q8 y")
+    _run(root, "b/run2", "vault/decode_ab.sh q4 x q8 y")
     assert len(backfill.run_dirs(root)) == 2

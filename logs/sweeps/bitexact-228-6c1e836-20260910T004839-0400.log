@@ -1,0 +1,37 @@
++(eval):13> fr=2048
++(eval):14> case 2048 (2048)
++(eval):14> PF=benchmarks/ds4/228-bitexact-6c1e836-20260910T004839-0400/prompt-f2048-2013tok.txt 
++(eval):15> TZ=America/New_York date
++(eval):15> echo '=== bitexact frontier 2048 start Thu Sep 10 00:48:39 EDT 2026 ==='
+=== bitexact frontier 2048 start Thu Sep 10 00:48:39 EDT 2026 ===
++(eval):16> uv run python scripts/bitexact_ab.py ffd85d42 /Users/evanhoffman/git/ds4-ivan-qwen38fn 6c1e836 /Users/evanhoffman/git/ds4-metal-228 /Users/evanhoffman/models/qwen3.8-flash-next-ds4-q4k-imatrix/Qwen3.8-Flash-Next-Q4KImatrixExperts-MXFP4Down-BF16Emb-BF16Control-Q8GDN-Q8QSA-Q8Shared-Q8Out.gguf --ple /Users/evanhoffman/models/qwen3.8-flash-next-ds4-q4k-imatrix/Qwen3.8-Flash-Next-PLE-Q4_1.gguf --metal-route fast --frontier 2048 --prompt-file benchmarks/ds4/228-bitexact-6c1e836-20260910T004839-0400/prompt-f2048-2013tok.txt --out benchmarks/ds4/228-bitexact-6c1e836-20260910T004839-0400/f2048
+2026-09-10T00:49:25-0400 __main__ INFO bit-exact A/B: ffd85d42 @ ffd85d426313 vs 6c1e836 @ 6c1e83672650
+2026-09-10T00:49:25-0400 __main__ INFO gguf /Users/evanhoffman/models/qwen3.8-flash-next-ds4-q4k-imatrix/Qwen3.8-Flash-Next-Q4KImatrixExperts-MXFP4Down-BF16Emb-BF16Control-Q8GDN-Q8QSA-Q8Shared-Q8Out.gguf  backend metal  gen 128  seed 1
+2026-09-10T00:49:25-0400 __main__ INFO pin: DS4_MTP_SPEC_DISABLE=1  metal_route=fast  sampling: engine reports none; conditional on the recorded argv
+2026-09-10T00:49:25-0400 __main__ INFO frontier 2048: prompt 2013 tok, ctx 2240, expected steps 128
+2026-09-10T00:49:25-0400 __main__ INFO   self-check: tree A identical for 128 steps
+2026-09-10T00:49:25-0400 __main__ INFO   a vs b: IDENTICAL -- identical for all 128 steps, selected tokens and top-20 logits both
+2026-09-10T00:49:25-0400 __main__ INFO verdict: IDENTICAL at print resolution (%.9g (9 significant digits; both ds4 dump writers)) for 1/1 frontier(s) -- consistent with the bit-exact claim. A difference below print resolution would print identically; this instrument cannot see one.
+2026-09-10T00:49:25-0400 __main__ INFO report: /Users/evanhoffman/git/local-llm/benchmarks/ds4/228-bitexact-6c1e836-20260910T004839-0400/f2048/report.json
++(eval):21> TZ=America/New_York date
++(eval):21> echo '=== bitexact frontier 2048 exit 0 Thu Sep 10 00:49:25 EDT 2026 ==='
+=== bitexact frontier 2048 exit 0 Thu Sep 10 00:49:25 EDT 2026 ===
++(eval):13> fr=16384
++(eval):14> case 16384 (2048)
++(eval):14> case 16384 (16384)
++(eval):14> PF=benchmarks/ds4/228-bitexact-6c1e836-20260910T004839-0400/prompt-f16384-16267tok.txt 
++(eval):15> TZ=America/New_York date
++(eval):15> echo '=== bitexact frontier 16384 start Thu Sep 10 00:49:25 EDT 2026 ==='
+=== bitexact frontier 16384 start Thu Sep 10 00:49:25 EDT 2026 ===
++(eval):16> uv run python scripts/bitexact_ab.py ffd85d42 /Users/evanhoffman/git/ds4-ivan-qwen38fn 6c1e836 /Users/evanhoffman/git/ds4-metal-228 /Users/evanhoffman/models/qwen3.8-flash-next-ds4-q4k-imatrix/Qwen3.8-Flash-Next-Q4KImatrixExperts-MXFP4Down-BF16Emb-BF16Control-Q8GDN-Q8QSA-Q8Shared-Q8Out.gguf --ple /Users/evanhoffman/models/qwen3.8-flash-next-ds4-q4k-imatrix/Qwen3.8-Flash-Next-PLE-Q4_1.gguf --metal-route fast --frontier 16384 --prompt-file benchmarks/ds4/228-bitexact-6c1e836-20260910T004839-0400/prompt-f16384-16267tok.txt --out benchmarks/ds4/228-bitexact-6c1e836-20260910T004839-0400/f16384
+2026-09-10T00:50:42-0400 __main__ INFO bit-exact A/B: ffd85d42 @ ffd85d426313 vs 6c1e836 @ 6c1e83672650
+2026-09-10T00:50:42-0400 __main__ INFO gguf /Users/evanhoffman/models/qwen3.8-flash-next-ds4-q4k-imatrix/Qwen3.8-Flash-Next-Q4KImatrixExperts-MXFP4Down-BF16Emb-BF16Control-Q8GDN-Q8QSA-Q8Shared-Q8Out.gguf  backend metal  gen 128  seed 1
+2026-09-10T00:50:42-0400 __main__ INFO pin: DS4_MTP_SPEC_DISABLE=1  metal_route=fast  sampling: engine reports none; conditional on the recorded argv
+2026-09-10T00:50:42-0400 __main__ INFO frontier 16384: prompt 16267 tok, ctx 16576, expected steps 128
+2026-09-10T00:50:42-0400 __main__ INFO   self-check: tree A identical for 128 steps
+2026-09-10T00:50:42-0400 __main__ INFO   a vs b: IDENTICAL -- identical for all 128 steps, selected tokens and top-20 logits both
+2026-09-10T00:50:42-0400 __main__ INFO verdict: IDENTICAL at print resolution (%.9g (9 significant digits; both ds4 dump writers)) for 1/1 frontier(s) -- consistent with the bit-exact claim. A difference below print resolution would print identically; this instrument cannot see one.
+2026-09-10T00:50:42-0400 __main__ INFO report: /Users/evanhoffman/git/local-llm/benchmarks/ds4/228-bitexact-6c1e836-20260910T004839-0400/f16384/report.json
++(eval):21> TZ=America/New_York date
++(eval):21> echo '=== bitexact frontier 16384 exit 0 Thu Sep 10 00:50:42 EDT 2026 ==='
+=== bitexact frontier 16384 exit 0 Thu Sep 10 00:50:42 EDT 2026 ===

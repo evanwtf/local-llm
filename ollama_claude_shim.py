@@ -26,8 +26,13 @@ import http.server
 import json
 import logging
 import pathlib
+import sys
 import urllib.error
 import urllib.request
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "scripts" / "lib"))
+
+import logs
 
 logger = logging.getLogger(__name__)
 
@@ -152,7 +157,6 @@ class Proxy(http.server.BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
     def do_POST(self):
-        global fails
         body = self.rfile.read(int(self.headers.get("Content-Length", 0)))
         body = hoist_system(body)  # /v1/messages, /v1/chat/completions
         body = fold_developer(body)  # /v1/responses
@@ -240,9 +244,7 @@ def main():
     )
     args = parser.parse_args()
 
-    logging.basicConfig(
-        level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s"
-    )
+    logs.configure()
     upstream = args.upstream
     if args.dump_failures:
         dump_dir = pathlib.Path(args.dump_failures)

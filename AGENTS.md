@@ -5,6 +5,133 @@
 Instructions for coding agents. [`CONVENTIONS.md`](CONVENTIONS.md) holds the
 standing rules about data and safety; this file covers how to work.
 
+## New code is Python, not shell (2026-09-09)
+
+**Write new scripts in Python. Do not add a new `.sh` under `scripts/`, and do
+not extend an existing one when the change could go in a Python module
+instead.**
+
+Set by the operator on 2026-09-09, alongside a done condition for #235: a
+**90% reduction** in shell, from 3,589 lines to **≤359**, with **every file
+containing `pgrep` or `pkill` ported first**, regardless of size. A rule that
+only removes shell while new shell keeps arriving is a treadmill.
+
+`pgrep` goes first because size and danger are unrelated. An earlier plan
+ordered the work largest-first and reached its line target while leaving three
+process-by-name lookups alive — in two small files, which sort last precisely
+because they are small.
+
+**Do not read the numbers here; run the script.**
+
+    uv run python scripts/shell_debt.py
+
+It reports both targets against `git ls-files 'scripts/*.sh'` and says which
+`.sh` still has no Python replacement. Every number below is what it printed
+on 2026-09-09 and will be stale soon after: 23 files, **3,589 lines**, **35
+`pgrep`/`pkill` calls**. The target is ≤359 lines and **zero** by-name
+lookups.
+
+`tests/test_shell_debt.py` fails when a file matching a process by name has no
+replacement — including a **new** one, which is what stops the rule being a
+treadmill.
+
+**The two numbers come apart, and it is worth knowing where.** As of
+2026-09-09 every `.sh` carrying a `pgrep` or `pkill` has a Python replacement
+— thirteen files, 2,686 lines, all 35 calls. Deleting them leaves **903 lines
+and zero by-name lookups**, a 74.8% reduction. So **`pgrep` reaches zero at
+75%**, and the last 544 lines down to 359 buy tests and readability,
+not safety. Do that work, but do not confuse it with the part that stops a
+measurement being wrong.
+
+**Replacement is not retirement.** A `.sh` is deleted only once its Python
+replacement has produced a run that agrees with it, so the line count will sit
+at 3,589 until those runs happen. That is the intended order: a port that has
+never arbitrated a measurement has not been tested where it counts.
+
+**And 90% does not mean "port everything".** The script classifies every
+remaining file, because the biggest one left is the one that must not move:
+`scripts/local-agent.sh` is 284 lines and RECOMMENDATIONS.md section 3 tells a
+stranger to run it. Porting it would change published instructions and buy
+nothing — a Python installer is still a script you paste. With it,
+`install-metal-ceiling.sh` and the two three-line `exec` shims kept as shell,
+porting the other 534 lines lands at **342 against a target of 359**. The
+margin is 17 lines, so a new `.sh` that has to stay shell can make the target
+unreachable; `test_the_target_is_reachable_without_porting_a_kept_file` fails
+when that happens, and the choice then — move the target, or move a file out
+of `KEEP` — belongs to the operator, not to whoever is porting that day.
+
+### Why, in the words of the failures
+
+Shell arbitrated every measurement this project has published. When
+one is wrong the result is not a crash — it is a number that looks fine. On
+2026-09-08 alone:
+
+- `greedy_mtp_ab.sh` **never ran its control arm**. `"${mtp_args[@]}"` is an
+  unbound variable under `set -u` on bash 3.2 when the array is empty, and
+  only the control arm's array was empty. The treatment arm ran all 15 tasks;
+  its pair never existed. One hour of machine time, no comparison.
+  *Fixed in `6ca27aa`* by the guarded expansion
+  `${mtp_args[@]+"${mtp_args[@]}"}` — and **`set -eu` is still on line 35**,
+  so deleting that guard brings the bug straight back. The incantation is
+  load-bearing and unreadable, which is the point: the Python arm is a list
+  that is sometimes empty, and an empty list is not a special case.
+- Seven orphaned `until ! pgrep -f '<driver>.sh'` waiter shells, up to 6h30m
+  old, each waiting on itself.
+- The commit guard refused every commit for hours while the machine was idle,
+  because those shells matched its patterns.
+- CI went red because `pgrep -a` is GNU-only and GNU `pgrep -l` truncates a
+  process name to 15 characters.
+
+And one that had been true for weeks before anyone looked (#264):
+
+- `route_agent_ab.sh` passes `--skip-tensor-gate`, which `run.py` removed when
+  the ds4 route gate was rewritten. argparse rejects it and exits 2 before any
+  work. Each sweep ran under `|| echo "... returned non-zero"`, so a re-run
+  would restart the 75 GiB server six times over several hours, produce **zero
+  rows**, and exit 0. Nothing checked that a flag a driver emits is a flag
+  `run.py` declares; a test now does, parsed out of `run.py`'s own
+  `add_argument` calls.
+
+None is exotic. They are the ordinary failure modes of shell: word splitting,
+empty arrays under `set -u`, text-matching for identity, and flags that differ
+between BSD and GNU. Python has none of them, and this repo already tests
+Python well.
+
+### What the port established, and what a new script inherits
+
+Use these rather than re-deriving them. Every one exists because a shell script
+got it wrong:
+
+| use | instead of | what it prevents |
+|---|---|---|
+| `scripts/unitctl.py` | `pgrep` / `pkill` | a pattern matches the shell that quoted it; bracketing only ever protected against *self*-match |
+| `scripts/lib/ds4_server.py`, `lib/mlx_serve.py` | hand-rolled start/stop | a leftover server, and a foreign one started beside ours |
+| `scripts/ab_driver.py` | a copied alternation loop | nine drivers had their own, already spelled `REPS` and `ROUNDS` |
+| `scripts/lib/stack_arm.py` | fourteen `NEW_*`/`OLD_*` variables | one wrong copy serves an arm the other arm's weights |
+| a context manager | chained `EXIT` traps | a second bare `trap` silently discards the first |
+| a list | `${arr[@]+"${arr[@]}"}` | an empty array is unbound under `set -u` on bash 3.2 |
+| `logs.configure()` | `echo` / `>&2` | a line with no timestamp, or one in a shape nothing else here parses |
+| `Proc.short` / a recorded pid / a port | matching a command line | **three separate bugs** came from matching a name |
+
+### The bar for touching shell at all
+
+A `.sh` may be edited to **fix a live defect in a script that is still
+running**, and for nothing else. If the change is a feature, a new arm, or a
+new experiment, it goes in Python — and if that means porting the script
+first, port it first.
+
+**A `.sh` is deleted only after its Python replacement has produced a run that
+agrees with it** (#235). Writing the replacement is not the same as retiring
+the original, and a port that has never arbitrated a measurement has not been
+tested where it counts.
+
+### The exception
+
+A genuine one-line shim — a wrapper that sets two variables and execs
+something else — is fine as shell, because there is nothing in it to get
+wrong. `scripts/ds4-fast.sh` and `scripts/ds4-vanilla.sh` are three lines each
+and are the shape this means.
+
 ## Cite engine source as `file:line at <sha>` (2026-09-06)
 
 A bare `ds4.c:40442` is not a citation. It is unverifiable a week later and
@@ -150,6 +277,47 @@ are not canonical, and on a shell script that compares `date +%H:%M` output as
 a string. `scripts/backfill_iso8601.py` converts the existing naive and
 `Z`-suffixed values; it runs once, and the test is what keeps them converted. A
 convention that lives only in this document is a convention that drifts.
+
+### Log lines too -- they were the exception until 2026-09-09
+
+This section has said "in logs" since it was written, and until 2026-09-09 the
+logs were the one place it was not true. Python's default `asctime` is
+
+```
+2026-09-09 07:00:12,481          the default: a space, a comma, no offset
+2026-09-09T07:00:12-0400         what every row and manifest here carries
+```
+
+A space where ISO 8601 wants `T`, a comma where it wants a dot, and no offset
+at all -- the exact shape the rest of this section exists to forbid. It
+mattered because log lines get joined to rows by hand: *the server said X at
+07:00:12, which row was that?* is a question you cannot answer from a
+timestamp with no zone.
+
+**`scripts/lib/logs.py` owns the format, and nothing else may call
+`logging.basicConfig`.** `tests/test_logging_format.py` fails on any tracked
+file that does, and asserts against a line the logger actually wrote -- not
+against the format constant, because a constant can be right while the handler
+never uses it.
+
+```python
+import logs
+
+logs.configure()  # a driver: time, module, level, message
+logs.configure(fmt=logs.PLAIN)  # a report: the table, and nothing else
+```
+
+`PLAIN` is the one exemption and it is narrow. Several scripts render a
+markdown table through the logger, because `print` is forbidden; a timestamp
+on every row makes the table unpastable. `PLAIN` carries **no** timestamp, so
+there is no second date format -- an exemption from stamping, not from ISO
+8601.
+
+`force` defaults to False, as `basicConfig`'s own does. Setting it True tears
+down the root logger's handlers, and under pytest one of those is `caplog`'s:
+defaulting it True failed 50 tests at once, every one of them asserting on a
+message its script had written correctly to a handler that had just been
+removed.
 
 ## A download is not verified until the files are on disk (2026-09-06)
 
@@ -698,11 +866,14 @@ as its own command and read the result, or use `set -o pipefail`.
 
 ## Stamp every line with the code that produced it
 
-**Never call `logging.basicConfig` in this package. Call `provenance.configure()`.**
-There is a test that fails if you do.
+**Never call `logging.basicConfig`. Inside `benchmarks/agent`, call
+`provenance.configure()`; everywhere else, `logs.configure()`.** Two tests
+fail if you do -- `test_provenance.py` for this package, and
+`tests/test_logging_format.py` for the tree. `provenance.configure()` adds the
+harness stamp on top of `logs.DATEFMT`; it does not get a clock of its own.
 
 ```
-2026-09-01 07:08:35 INFO [c263902-dirty] ds4  excision  4/14  15/15
+2026-09-01T07:08:35-0400 INFO [c263902-dirty] ds4  excision  4/14  15/15
 ```
 
 The bracketed field is the harness commit. **`-dirty` means the tree had
@@ -791,6 +962,29 @@ PY
 enables all of them, so a body containing a Makefile line, a shell snippet, a
 price or a regex is at risk -- not only one holding backticks.
 
+**It is not only about messages, and the damage is not only lost text.** On
+2026-09-09 an unquoted `uv run python - <<PY` was writing a *source comment*:
+
+    # child.run, not subprocess.run: run.py re-spawns `opencode`, and a signal
+
+The shell substituted the backticks, so it **launched `opencode`** -- a real
+interactive agent -- and then waited for it. The tool call timed out at 120
+seconds and reported nothing; the edit never landed; and the `opencode`
+process stayed alive **38 minutes**, until a heartbeat reported an unexpected
+GPU occupant and it was traced back through its parent chain. Two costs, and
+the second is the expensive one: a silently mangled comment, and an orphaned
+process on the machine that arbitrates every measurement.
+
+So the rule has no exception for "this heredoc only contains code". Quote the
+delimiter always. If the tool call hangs and produces no output, suspect this
+before suspecting the tool -- and check `ps` for what it started.
+
+**Then kill the group, not the process.** Killing that `opencode` by pid at
+08:20 did nothing: its parent shell was still in the substitution and spawned
+another one eight seconds later, from the same dead command. Only
+`kill -TERM -<pgid>` ended it. That is the same lesson `scripts/lib/child.py`
+exists to enforce (#268) -- and I made the mistake by hand while holding the
+module that prevents it. A pid is a process; a measurement is a tree.
 ## Always measure the latest infrastructure
 
 llama.cpp, Ollama, Codex and OpenCode ship several times a day. **Update before
@@ -1478,7 +1672,7 @@ have reported a 6% regression that does not exist.
 
 A model can load, serve, and report plausible token counts while emitting
 noise — that is #25, and it cost hours. Check with
-`scripts/coherence_check.sh` before any measurement batch, at temperature 0
+`scripts/coherence_check.py` before any measurement batch, at temperature 0
 where the output is deterministic enough to read.
 
 ## Nothing may feed `results.verdict()` except the oracle

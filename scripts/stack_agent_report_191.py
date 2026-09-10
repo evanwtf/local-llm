@@ -34,6 +34,10 @@ from typing import Any
 
 import stack_agent_report as rep
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+
+import logs
+
 logger = logging.getLogger(__name__)
 
 
@@ -144,7 +148,7 @@ def pairs_by_task(sweeps: list[rep.Sweep]) -> list[tuple[str, float, float]]:
 
 def main(argv: list[str] | None = None) -> int:
     configure()
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
+    logs.configure(fmt=logs.PLAIN)
     collapsed = rep.check_arms()
     if collapsed:
         logger.info("%s", collapsed)

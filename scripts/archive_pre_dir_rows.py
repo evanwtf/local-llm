@@ -38,6 +38,10 @@ sys.path.insert(0, str(ROOT / "benchmarks" / "agent"))
 
 import results
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+
+import logs
+
 RESULTS = results.default_path()
 ARCHIVE = ROOT / "docs" / "archive" / "results-opencode-pre-dir.jsonl"
 
@@ -69,7 +73,7 @@ def is_pre_dir(line: str, after: set[str]) -> bool:
 
 
 def main() -> None:
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
+    logs.configure(fmt=logs.PLAIN)
 
     # No ledger for THIS machine is the normal case everywhere except the one
     # that took the measurements. `results.default_path()` is derived from the

@@ -59,8 +59,11 @@ sys.path.insert(0, str(REPO / "scripts" / "lib"))
 sys.path.insert(0, str(REPO / "benchmarks" / "agent"))
 
 import ab_driver
+import child
 import ds4_server
 import preflight
+
+import logs
 
 logger = logging.getLogger(__name__)
 
@@ -110,7 +113,14 @@ ARMS = {
         # configuration's checkpoints when a flag changes the KV format.
         kv=pathlib.Path.home() / ".ds4" / "server-kv-mtp",
         want_mtp=True,
-        run_dir="77-armB-restart-run",
+        # The shell's name, not a tidier one. ~/bench-logs already holds
+        # 77-armB-run{1,2,3} from the shell's runs, and arm A's "112-run"
+        # matches its shell exactly -- so "77-armB-restart-run" was a slip,
+        # and it would have split one experiment's transcripts across two
+        # directory families with nothing recording that they are the same
+        # experiment. Nothing parses the name; the cost is provenance, which
+        # is the cost that shows up months later.
+        run_dir="77-armB-run",
         baseline="10/9/6 on one continuous server; arm A under restart is 42/45 (14/14/14)",
     ),
 }
@@ -277,16 +287,17 @@ def cycle(
             ):
                 logger.info("=== arm %s %s ===", arm.name, tag)
                 out = logdir / f"arm{arm.name}-restart-run{n}.log"
-                with out.open("wb") as handle:
-                    done = subprocess.run(
-                        run_argv(arm, server_log),
-                        cwd=REPO,
-                        stdout=handle,
-                        stderr=subprocess.STDOUT,
-                        check=False,
-                    )
-                logger.info("%s rc=%d; log %s", tag, done.returncode, out)
-                if done.returncode != 0:
+                # child.run, not subprocess.run (#268). This driver holds the
+                # machine lock across the whole cycle -- hours, with the server
+                # deliberately down between trials -- so it is the one most
+                # likely to be stopped by hand mid-run. `subprocess.run` kills
+                # its immediate child; `run.py` re-spawns `opencode`, and a
+                # signal to this driver reaches neither. The teardown order
+                # then reads: server stopped, lock released, measurement still
+                # writing rows against a server that no longer exists.
+                rc = child.run(run_argv(arm, server_log), cwd=REPO, log=out)
+                logger.info("%s rc=%d; log %s", tag, rc, out)
+                if rc != 0:
                     failed.append(tag)
             collect_transcripts(bench_logs, arm, n)
 
@@ -314,11 +325,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     args = p.parse_args(argv)
 
-    logging.basicConfig(
-        level=logging.INFO,
-        stream=sys.stdout,
-        format="%(asctime)s %(name)s %(levelname)s %(message)s",
-    )
+    logs.configure()
 
     arm = ARMS[args.arm]
     logdir = args.logdir or ab_driver.logdir_for(

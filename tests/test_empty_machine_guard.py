@@ -23,12 +23,10 @@ import ast
 import pathlib
 import sys
 
-import pytest
-
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "benchmarks" / "agent"))
 
-import preflight  # noqa: E402
+import preflight
 
 
 def proc(pid: int, gib: float, command: str = "/opt/llama-server -m x.gguf", **kw):
@@ -109,7 +107,7 @@ def test_the_two_engine_refusal_names_the_sequential_alternative():
     """An operator who is refused must be told what to run instead."""
     backends = {"a": {"base_url": "http://h:1"}, "b": {"base_url": "http://h:2"}}
     msg = preflight.refuse_unless_empty(empty_report(), backends)
-    assert "stack_agent_ab.sh" in msg
+    assert "stack_agent_ab.py" in msg
 
 
 def test_three_engines_refuses_and_counts_them():

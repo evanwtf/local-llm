@@ -43,6 +43,10 @@ import shutil
 import subprocess
 import sys
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+
+import logs
+
 logger = logging.getLogger(__name__)
 
 KEEP = "KEEP"
@@ -489,11 +493,7 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    logging.basicConfig(
-        level=logging.INFO,
-        stream=sys.stdout,
-        format="%(asctime)s %(levelname)s %(message)s",
-    )
+    logs.configure(fmt="%(asctime)s %(levelname)s %(message)s")
 
     known = {e.name for e in PLAN}
     unknown = [n for n in args.also if n not in known]

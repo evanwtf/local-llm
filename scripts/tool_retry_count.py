@@ -62,6 +62,10 @@ import sys
 from dataclasses import dataclass
 from typing import NoReturn, TextIO
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+
+import logs
+
 logger = logging.getLogger(__name__)
 
 #: The four event types an OpenCode transcript uses. Any other type means the
@@ -279,13 +283,15 @@ def main(argv: list[str] | None = None) -> NoReturn:
     args = p.parse_args(argv)
 
     # Diagnostics go to stderr so stdout stays clean JSONL (pipeable to jq).
-    logging.basicConfig(level=logging.INFO, stream=sys.stderr, format="%(message)s")
+    logs.configure(fmt=logs.PLAIN, stream=sys.stderr)
 
     # Rows go to stdout, or to --out when given. A separate logger keeps them
     # off the diagnostic stream.
     row_stream: TextIO = sys.stdout
     if args.out:
-        row_stream = open(args.out, "w")
+        # Deliberately unclosed: the handler holds it for the whole run,
+        # and the process exiting is what flushes it.
+        row_stream = open(args.out, "w")  # noqa: SIM115
     row_logger = logging.getLogger(__name__ + ".rows")
     row_logger.propagate = False
     row_logger.setLevel(logging.INFO)

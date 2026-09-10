@@ -18,7 +18,28 @@ sys.path.insert(
 )
 
 import peer_status
+import preflight
 from lib import peer_state
+
+_REPO = pathlib.Path(__file__).resolve().parents[1]
+
+
+def test_peer_state_lives_outside_the_repo() -> None:
+    """#238: state a tool writes for its own bookkeeping must not sit in a tree
+    whose cleanliness is a measured property. `.claude/peer/status.json` inside
+    the repo flipped `harness_dirty` on every row written after it -- splitting
+    one A/B's provenance across the arm boundary it exists to qualify."""
+    assert _REPO not in peer_status.STATE_FILE.parents, (
+        f"peer state is inside the repo at {peer_status.STATE_FILE}"
+    )
+    assert ".local-llm-bench" in peer_status.STATE_FILE.parts
+
+
+def test_writer_and_reader_agree_on_the_peer_status_path() -> None:
+    """The writer (peer_status) and the reader (machine_state, via preflight)
+    must name the same file. A path they disagree on is the #265 defect in the
+    other direction: one writes where the other never looks."""
+    assert peer_status.STATE_FILE == preflight.PEER_STATUS_PATH
 
 
 def test_summary_counts_signals():

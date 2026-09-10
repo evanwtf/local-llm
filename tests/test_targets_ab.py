@@ -23,7 +23,7 @@ import time
 import pytest
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
-SCRIPT = REPO / "scripts" / "targets_ab.sh"
+SCRIPT = REPO / "vault" / "targets_ab.sh"
 
 
 def epoch_of(hhmm: str) -> int:
@@ -32,6 +32,7 @@ def epoch_of(hhmm: str) -> int:
     h, m = map(int, hhmm.split(":"))
     return int(
         datetime.datetime.now()
+        .astimezone()
         .replace(hour=h, minute=m, second=0, microsecond=0)
         .timestamp()
     )

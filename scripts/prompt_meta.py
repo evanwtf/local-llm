@@ -30,6 +30,11 @@ import hashlib
 import json
 import logging
 import pathlib
+import sys
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+
+import logs
 
 logger = logging.getLogger(__name__)
 
@@ -213,9 +218,8 @@ def main(argv: list[str] | None = None) -> int:
     neither survives being reimplemented in each harness.
     """
     import argparse
-    import sys
 
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
+    logs.configure(fmt=logs.PLAIN)
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("--prompt", required=True, type=pathlib.Path)
     p.add_argument("--stamp", nargs="*", type=pathlib.Path, default=[])

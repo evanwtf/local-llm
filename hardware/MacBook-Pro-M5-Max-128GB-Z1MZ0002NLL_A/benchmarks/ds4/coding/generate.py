@@ -9,10 +9,16 @@ import argparse
 import json
 import logging
 import os
+import pathlib
 import re
+import sys
 import time
 import urllib.error
 import urllib.request
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[5] / "scripts" / "lib"))
+
+import logs
 
 logger = logging.getLogger(__name__)
 
@@ -71,11 +77,13 @@ def main():
     ap.add_argument("--limit", type=int, default=0, help="stop after N problems")
     args = ap.parse_args()
 
-    logging.basicConfig(
-        level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s"
-    )
+    logs.configure()
 
-    problems = [json.loads(line) for line in open(args.problems)]
+    problems = [
+        json.loads(line)
+        for line in pathlib.Path(args.problems).read_text().splitlines()
+        if line.strip()
+    ]
     if args.limit:
         problems = problems[: args.limit]
 

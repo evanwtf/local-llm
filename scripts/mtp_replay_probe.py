@@ -40,6 +40,10 @@ sys.path.insert(
 
 import mtp_timing
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+
+import logs
+
 logger = logging.getLogger(__name__)
 
 
@@ -155,11 +159,7 @@ def send(base_url: str, token: str, payload: dict, timeout: int) -> int | None:
 
 
 def run(args) -> int:
-    logging.basicConfig(
-        level=logging.INFO,
-        stream=sys.stdout,
-        format="%(asctime)s %(name)s %(levelname)s %(message)s",
-    )
+    logs.configure()
     log = pathlib.Path(args.server_log).expanduser()
     if not log.exists():
         logger.error("no server log at %s", log)

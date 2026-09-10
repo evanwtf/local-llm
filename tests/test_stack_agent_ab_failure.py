@@ -31,7 +31,7 @@ import sys
 import pytest
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-AB = ROOT / "scripts" / "stack_agent_ab.sh"
+AB = ROOT / "vault" / "stack_agent_ab.sh"
 sys.path.insert(0, str(ROOT / "benchmarks" / "agent"))
 provenance = importlib.import_module("provenance")
 

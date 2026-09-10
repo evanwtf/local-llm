@@ -34,6 +34,10 @@ import logging
 import pathlib
 import sys
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+
+import logs
+
 logger = logging.getLogger(__name__)
 
 # The death tasks, from the client logs' FAIL verdict lines. MTP arm is the
@@ -253,7 +257,7 @@ def main(argv: list[str] | None = None) -> int:
         help="the 39-mtp-ab bench-logs dir",
     )
     args = p.parse_args(argv)
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
+    logs.configure(fmt=logs.PLAIN)
 
     trials = load_trials(args.bench_root)
     if not trials:

@@ -43,6 +43,10 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
 import tool_error_conditional as tec
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+
+import logs
+
 logger = logging.getLogger(__name__)
 
 #: The bar from the pre-registration. Below it the answer is "could not tell",
@@ -417,11 +421,7 @@ def render(
 
 
 def main(argv: list[str] | None = None) -> int:
-    logging.basicConfig(
-        level=logging.INFO,
-        stream=sys.stdout,
-        format="%(asctime)s %(name)s %(levelname)s %(message)s",
-    )
+    logs.configure()
     here = pathlib.Path(__file__).resolve().parents[1] / "benchmarks" / "agent"
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument(

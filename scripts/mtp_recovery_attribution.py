@@ -33,6 +33,10 @@ import pathlib
 import re
 import sys
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+
+import logs
+
 logger = logging.getLogger(__name__)
 
 # Client log: "2026-09-07 08:45:10,751 INFO [5bfb80c@...] <task>-qwen38fnds4mtp7shim-opencode-1: PASS in 104.2s"
@@ -260,7 +264,7 @@ def main(argv: list[str] | None = None) -> int:
         help="the 0039 evidence dir",
     )
     args = p.parse_args(argv)
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
+    logs.configure(fmt=logs.PLAIN)
 
     ev = args.evidence
     # Sweep start times from the client logs' own run lines (the sweep that ran first).

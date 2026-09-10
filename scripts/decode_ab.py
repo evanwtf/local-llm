@@ -55,11 +55,15 @@ import sys
 from collections.abc import Iterator, Sequence
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO / "scripts" / "lib"))
 sys.path.insert(0, str(REPO / "scripts"))
 sys.path.insert(0, str(REPO / "benchmarks" / "agent"))
 
 import ab_driver
+import child
 import preflight
+
+import logs
 
 logger = logging.getLogger(__name__)
 
@@ -186,7 +190,7 @@ def engines_text(
     return "\n".join(lines) + "\n"
 
 
-def _git(tree: pathlib.Path, *args: str) -> str | None:
+def git_out(tree: pathlib.Path, *args: str) -> str | None:
     try:
         done = subprocess.run(
             ["git", "-C", str(tree), *args],
@@ -236,6 +240,18 @@ def sweep(
     allow_odd: bool = False,
 ) -> int:
     """The whole sweep. Returns a process exit code."""
+    # Refuse an uneven rep count HERE, before the lock and before any build
+    # check. `ab_driver.run` refuses it too, but it is called inside the lock,
+    # and a refusal after the machine is claimed is a refusal that already
+    # cost something. The shell checked it at line 56, a hundred lines before
+    # it took the lock, and that ordering is part of the behavior.
+    if not ab_driver.leads_equally(reps, len(arms_in)) and not allow_odd:
+        raise Refusal(
+            f"reps={reps} over {len(arms_in)} arms does not let each arm lead "
+            "equally often, so alternation cannot cancel the position bias "
+            "(#130, #201) -- up to +5.9% on a cold first rep, larger than most "
+            "effects this measures. Use an even count, or --allow-odd-reps."
+        )
     out.mkdir(parents=True, exist_ok=True)
     binary = ds4 / "ds4-bench"
 
@@ -256,8 +272,8 @@ def sweep(
         gen=gen,
         reps=reps,
         chunk=chunk,
-        head=_git(ds4, "rev-parse", "--short", "HEAD"),
-        dirty=bool(_git(ds4, "status", "--porcelain")),
+        head=git_out(ds4, "rev-parse", "--short", "HEAD"),
+        dirty=bool(git_out(ds4, "status", "--porcelain")),
         binary_mtime=mtime,
     )
     (out / "engines.txt").write_text(text)
@@ -277,11 +293,18 @@ def sweep(
             handle.write(
                 f"rep={rep} position={position} of {len(built)} label={arm.name}\n"
             )
+        log = out / f"{arm.name}-rep{rep}.log"
         logger.info("%s rep %d (position %d) -> %s", arm.name, rep, position, csv)
+        # child.run, not subprocess.run: a driver stopped mid-sweep must take
+        # ds4-bench with it (#268). This also moves the arm's stderr from the
+        # batch stream into its own file, which the shell did not do -- ds4
+        # prints its Metal route and pipeline fallbacks at startup, and
+        # interleaved in one stream those cannot be diffed between arms.
+        #
         # ds4-bench resolves metal/*.metal relative to its own tree, so run
         # from there. Without this it dies with
         # "metal/activations.metal not found".
-        done = subprocess.run(
+        rc = child.run(
             bench_argv(
                 pathlib.Path(arm.backend),
                 csv,
@@ -294,13 +317,18 @@ def sweep(
                 chunk=chunk,
             ),
             cwd=ds4,
-            check=False,
+            log=log,
         )
+        if rc != 0:
+            logger.error("FAILED: %s rep %d -- see %s", arm.name, rep, log)
+            for line in log.read_text(errors="replace").splitlines()[-20:]:
+                logger.error("  %s", line)
+            return rc
         # Stamp immediately, not at the end: a run that dies halfway still
         # leaves CSVs, and an unstamped one cannot be told from a
         # differently-prompted one.
         stamp_prompt(prompt, stamp=csv)
-        return done.returncode
+        return rc
 
     with run_lock(f"decode_ab.py {built[0].name} vs {built[1].name}", owner_pid):
         failed = ab_driver.run(built, reps, one_arm, allow_uneven=allow_odd)
@@ -359,11 +387,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     args = p.parse_args(argv)
 
-    logging.basicConfig(
-        level=logging.INFO,
-        stream=sys.stdout,
-        format="%(asctime)s %(name)s %(levelname)s %(message)s",
-    )
+    logs.configure()
 
     ds4 = pathlib.Path(os.environ.get("DS4", pathlib.Path.home() / "git" / "ds4"))
     prompt = pathlib.Path(

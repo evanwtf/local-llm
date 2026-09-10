@@ -49,7 +49,6 @@ import logging
 import os
 import pathlib
 import socket
-import subprocess
 import sys
 import time
 from collections.abc import Callable, Iterator, Sequence
@@ -60,9 +59,12 @@ sys.path.insert(0, str(REPO / "scripts"))
 sys.path.insert(0, str(REPO / "benchmarks" / "agent"))
 
 import ab_driver
+import child
 import ds4_server
 import preflight
 import unitctl
+
+import logs
 
 logger = logging.getLogger(__name__)
 
@@ -265,15 +267,19 @@ def arm_argv(
 def run_arm(
     backend: str, tag: str, logdir: pathlib.Path, batch: str, trials: int
 ) -> int:
-    """One arm's sweep. Returns run.py's exit code."""
+    """One arm's sweep. Returns run.py's exit code.
+
+    child.run, not subprocess.run (#268). `run.py` re-spawns `opencode`, so a
+    signal to this driver reaches neither: `subprocess.run` kills only its
+    immediate child. An arm stopped by hand otherwise leaves the measurement
+    writing rows after `sweep`'s context managers have stopped the server and
+    released the lock.
+    """
     out = logdir / f"run-{tag}.log"
     argv = arm_argv(backend, tag, logdir, batch, trials)
-    with out.open("wb") as handle:
-        done = subprocess.run(
-            argv, cwd=REPO, stdout=handle, stderr=subprocess.STDOUT, check=False
-        )
-    logger.info("arm %s finished rc=%d; log %s", tag, done.returncode, out)
-    return done.returncode
+    rc = child.run(argv, cwd=REPO, log=out)
+    logger.info("arm %s finished rc=%d; log %s", tag, rc, out)
+    return rc
 
 
 def sweep(
@@ -324,11 +330,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     args = p.parse_args(argv)
 
-    logging.basicConfig(
-        level=logging.INFO,
-        stream=sys.stdout,
-        format="%(asctime)s %(name)s %(levelname)s %(message)s",
-    )
+    logs.configure()
 
     if args.rounds % 2 and not args.allow_odd_rounds:
         logger.error(

@@ -40,6 +40,10 @@ import re
 import sys
 from dataclasses import dataclass
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+
+import logs
+
 logger = logging.getLogger(__name__)
 
 #: `live kv cache miss live=19953 prompt=11928 common=10901 vision=match reason=token-mismatch`
@@ -139,7 +143,7 @@ def main(argv: list[str] | None = None) -> int:
         "omit and only the token counts are reported",
     )
     args = p.parse_args(argv)
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
+    logs.configure(fmt=logs.PLAIN)
 
     stalls = []
     for name in args.logs:

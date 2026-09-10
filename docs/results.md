@@ -57,7 +57,7 @@ other is telling you something.
 
 <!-- BEGIN GENERATED -->
 
-*Generated from `results.jsonl` — 2158 rows, sha256 50d4586849d4.*
+*Generated from `results.jsonl` — 2186 rows, sha256 d9ad8d8b1a74.*
 
 #### Every stack measured under OpenCode
 
@@ -77,10 +77,10 @@ other is telling you something.
 | gemma426 | 11/11 | 150s | 160s | 1.7x |
 | qwen36 | 11/12 | 159s | 352s | 3.6x |
 | qwen38fnds4shim | 228/262 | 160s | 792s | 20.5x |
+| qwen38fnds4greedy | 37/40 | 163s | 806s | 14.8x |
 | Qwen3.6-27B-coding - Ollama | 24/24 | 167s | 700s | 12.6x |
 | qwen38fnds4mtp7shim | 72/127 | 177s | 638s | 11.4x |
-| qwen38fnds4greedy | 28/30 | 180s | 806s | 14.8x |
-| qwen38fnds4mtp7greedy | 36/45 | 246s | 1003s | 13.8x |
+| qwen38fnds4mtp7greedy | 48/60 | 239s | 1003s | 13.8x |
 | qwen | 12/12 | 247s | 406s | 4.0x |
 | GLM-5.3-Flash - ds4 | 22/24 | 369s | 1227s | 18.0x |
 | gemma4 | 12/12 | 383s | 1316s | 4.8x |
@@ -119,15 +119,30 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | Qwen3.6-27B-coding - Ollama | 69s |
 | DeepSeek-V4-Flash - ds4 | 71s |
 | qwen38fnds4shim | 78s |
-| qwen38fnds4greedy | 83s |
+| qwen38fnds4greedy | 82s |
 | gemma4 | 84s |
 | qwen38fnds4mtp7shim | 84s |
-| qwen38fnds4mtp7greedy | 104s |
+| qwen38fnds4mtp7greedy | 106s |
 | Qwen3.8-Flash-Next Q3 - LM Studio | 115s |
 
 **Rows here were not all taken under one client.** qwen38fnq3reap under 1.18.26; qwen38fnds4kimat, qwen38fnds4mtp7shim, qwen38fnds4shim under 1.18.27; qwen38fnds4greedy, qwen38fnds4kimat, qwen38fnds4mtp7greedy, qwen38fnds4mtp7shim, qwen38fnds4shim, qwen38fnmlxserve, qwen38fnmlxserve-git, Qwen3.8-Flash-Next Q3 - llama.cpp under 1.18.29; the rest under 1.18.25. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: qwen38fnds4kimat (1.18.27, 1.18.29); qwen38fnds4mtp7shim (1.18.27, 1.18.29); qwen38fnds4shim (1.18.27, 1.18.29); Qwen3.8-Flash-Next Q3 - llama.cpp (1.18.25, 1.18.29).
 
 <!-- END GENERATED -->
+
+**One batch above is unbalanced, and the table does not say so.** The rows
+tagged `greedy-mtp-ab-py` were taken while the Python port of the driver was
+being validated, and the run was stopped before the control arm finished:
+**15 trials on `qwen38fnds4mtp7greedy` against 10 valid on
+`qwen38fnds4greedy`** (13 taken, 3 excluded -- they were written against a
+server the driver had already stopped,
+[#268](https://github.com/evanwtf/local-llm/issues/268)). Every surviving row
+is a real trial and belongs in the per-backend totals, which is why they are
+here. But those two backends are the two arms of an A/B, they sit next to each
+other in a table sorted by median, and **their gap in this table is not that
+A/B's result** -- the arms have different n and the treatment arm alone
+carries a full sweep. Read the effect from `greedy-mtp-ab-paired`, which ran
+30 against 30.
+
 
 **Three conditions apply to the `qwen38fnds4*` rows, and a reproduction that
 misses them will not get these numbers.** They are set out at the end of this

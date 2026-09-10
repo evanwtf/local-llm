@@ -1,0 +1,108 @@
+# Stopping ds4-server, in one place -- sourced, not executed.
+#
+# #145: `stack_agent_ab.sh` restarted the server between sweeps and stopped
+# none of them, so **every** clean finish left the last arm's server resident.
+# Four runs in a row did it, most recently 97.9 GiB, and it is deterministic
+# rather than a race: the final `restart_server` simply has no matching stop.
+# It blocked the next run, and preflight called the machine healthy because a
+# leftover from a finished run is indistinguishable from a server the current
+# run needs.
+#
+# Four scripts had already written this same pkill-verify sequence by hand
+# (stack_agent_ab, disk_kv_mechanism_test, restart_between_trials and its armB
+# twin). AGENTS.md records what three copies of a predicate cost the last time;
+# this is the same shape, so the sequence lives here and they call it.
+
+# Match the server, not a shell that mentions it. `pgrep -f ds4-server` also
+# matches the script doing the pgrep, which is the self-match trap NEXT.md and
+# preflight.py both record.
+DS4_SERVER_PATTERN=${DS4_SERVER_PATTERN:-'ds4-server --metal'}
+
+ds4_server_running() {
+  pgrep -f "$DS4_SERVER_PATTERN" >/dev/null 2>&1
+}
+
+# Stop it, then prove it stopped. Returns non-zero if it will not die; the
+# caller decides whether that is fatal, because it is fatal before a run and
+# only worth reporting after one.
+ds4_stop_server() {
+  local why=${1:-}
+  ds4_server_running || return 0
+  echo "[$(date +%H:%M:%S)] stopping ds4-server${why:+ ($why)}..."
+  pkill -f "$DS4_SERVER_PATTERN" 2>/dev/null || true
+  sleep 3
+  if ds4_server_running; then
+    pkill -9 -f "$DS4_SERVER_PATTERN" 2>/dev/null || true
+    sleep 2
+  fi
+  if ds4_server_running; then
+    echo "REFUSING: ds4-server would not stop" >&2
+    return 1
+  fi
+  return 0
+}
+
+# Teardown on every exit path, not just the happy one. A run that is
+# interrupted or that dies mid-sweep leaks exactly the same 98 GiB as one that
+# finishes, and Ctrl-C is the likeliest way to end a long batch.
+#
+# The exit status is preserved: the trap runs for its side effect and must not
+# turn a failed run into a successful one, or the reverse.
+ds4_stop_on_exit() {
+  local status=${1:-$?}
+  trap - EXIT INT TERM
+  ds4_stop_server "teardown" || echo "WARNING: server survived teardown" >&2
+  exit "$status"
+}
+
+# Chain rather than replace. `restart_between_trials.sh` already traps EXIT to
+# release the preflight lock, and a second bare `trap ... EXIT` would silently
+# discard it -- the lock would then outlive the run that took it.
+#
+# The chained trap must capture the exit status before the existing trap runs.
+# A bare `existing; ds4_stop_on_exit` hands ds4_stop_on_exit the existing
+# trap's exit status, not the script's, so a failed run would exit 0.
+ds4_arm_stop_trap() {
+  local existing
+  existing=$(trap -p EXIT | sed -n "s/^trap -- '\(.*\)' EXIT$/\1/p")
+  if [ -n "$existing" ]; then
+    trap '_ds4_status=$?; '"${existing}"'; ds4_stop_on_exit "$_ds4_status"' EXIT
+  else
+    trap ds4_stop_on_exit EXIT
+  fi
+  trap ds4_stop_on_exit INT TERM
+}
+
+# Record which Metal route the server just started took (#149).
+#
+# The shell runners start `./ds4-server` directly rather than through
+# scripts/ds4_serve.py, so they have a log path and a pid but no mode. The
+# route is read out of the log the server itself wrote -- the same marker
+# ds4_serve.py asserts on -- and written where run.py can stamp it onto a row.
+#
+# Never fatal. This is provenance, and a run that dies because it could not
+# write a provenance file is worse than a run whose rows say "unrecorded".
+# Nothing is written at all when the log does not name exactly one route.
+#
+# Usage: ds4_record_route <log> <port> [pid]
+ds4_record_route() {
+  local log=$1 port=${2:-8000} pid=${3:-}
+  local repo
+  repo=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+  if [ -z "$pid" ]; then
+    pid=$(pgrep -f "$DS4_SERVER_PATTERN" | head -1)
+  fi
+  [ -n "$pid" ] || return 0
+  ( cd "$repo/.." && uv run python -c '
+import sys
+sys.path.insert(0, "benchmarks/agent")
+import pathlib
+import ds4_route
+
+log, port, pid = sys.argv[1], int(sys.argv[2]), int(sys.argv[3])
+if ds4_route.record_from_log(pathlib.Path(log), port=port, pid=pid):
+    print(f"route recorded for :{port} from {log}")
+else:
+    print(f"route NOT recorded: {log} names no single route yet", file=sys.stderr)
+' "$log" "$port" "$pid" ) || true
+}

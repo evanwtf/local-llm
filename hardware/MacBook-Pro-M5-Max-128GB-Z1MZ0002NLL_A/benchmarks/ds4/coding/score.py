@@ -9,9 +9,14 @@ import argparse
 import json
 import logging
 import os
+import pathlib
 import subprocess
 import sys
 import tempfile
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[5] / "scripts" / "lib"))
+
+import logs
 
 logger = logging.getLogger(__name__)
 
@@ -29,13 +34,11 @@ def prelude(prompt, entry_point):
     """
     lines = prompt.split("\n")
     for i, line in enumerate(lines):
-        if line.startswith(f"def {entry_point}") or line.startswith(
-            f"class {entry_point}"
-        ):
+        if line.startswith((f"def {entry_point}", f"class {entry_point}")):
             return "\n".join(lines[:i])
     # No entry-point definition in the prompt; fall back to the first block.
     for i, line in enumerate(lines):
-        if line.startswith("def ") or line.startswith("class "):
+        if line.startswith(("def ", "class ")):
             return "\n".join(lines[:i])
     return ""
 
@@ -60,6 +63,7 @@ def run_one(problem, completion, timeout, workdir):
             capture_output=True,
             timeout=timeout,
             text=True,
+            check=False,
         )
     except subprocess.TimeoutExpired:
         return False, "timeout"
@@ -77,12 +81,19 @@ def main():
     ap.add_argument("--timeout", type=float, default=15.0)
     args = ap.parse_args()
 
-    logging.basicConfig(
-        level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s"
-    )
+    logs.configure()
 
-    problems = {json.loads(l)["task_id"]: json.loads(l) for l in open(args.problems)}
-    samples = [json.loads(l) for l in open(args.samples)]
+    problem_lines = pathlib.Path(args.problems).read_text().splitlines()
+    problems = {
+        json.loads(line)["task_id"]: json.loads(line)
+        for line in problem_lines
+        if line.strip()
+    }
+    samples = [
+        json.loads(line)
+        for line in pathlib.Path(args.samples).read_text().splitlines()
+        if line.strip()
+    ]
 
     results = []
     passed = 0
@@ -104,8 +115,7 @@ def main():
 
     if args.out:
         with open(args.out, "w") as fh:
-            for r in results:
-                fh.write(json.dumps(r) + "\n")
+            fh.writelines(json.dumps(r) + "\n" for r in results)
         logger.info("wrote %s", args.out)
 
 

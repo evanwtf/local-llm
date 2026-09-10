@@ -62,9 +62,12 @@ sys.path.insert(0, str(REPO / "scripts" / "lib"))
 sys.path.insert(0, str(REPO / "benchmarks" / "agent"))
 
 import ab_driver
+import child
 import ds4_server
 import preflight
 import unitctl
+
+import logs
 
 logger = logging.getLogger(__name__)
 
@@ -308,13 +311,17 @@ def _run(argv: Sequence[str], out: pathlib.Path) -> int:
     The shell piped every stage through `tee` and recovered the status with
     `${PIPESTATUS[0]}` -- correctly, but only where it remembered. Here the
     status is the return value and there is no pipeline to lose it to.
+
+    child.run, not subprocess.run (#268). Every caller of this passes a
+    `run_argv(...)`, and `run.py` re-spawns `opencode`: a signal to this
+    driver reaches neither, and `subprocess.run` kills only its immediate
+    child. This gate refuses for a living, so it is stopped by hand more often
+    than most -- and a stop that leaves the measurement running writes rows
+    against a server `arm()` has already torn down.
     """
-    with out.open("wb") as handle:
-        done = subprocess.run(
-            list(argv), cwd=REPO, stdout=handle, stderr=subprocess.STDOUT, check=False
-        )
-    logger.info("-> rc=%d; log %s", done.returncode, out)
-    return done.returncode
+    rc = child.run(list(argv), cwd=REPO, log=out)
+    logger.info("-> rc=%d; log %s", rc, out)
+    return rc
 
 
 @contextlib.contextmanager
@@ -530,11 +537,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     p.add_argument("--logdir", type=pathlib.Path, default=None)
     args = p.parse_args(argv)
 
-    logging.basicConfig(
-        level=logging.INFO,
-        stream=sys.stdout,
-        format="%(asctime)s %(name)s %(levelname)s %(message)s",
-    )
+    logs.configure()
 
     logdir = args.logdir or ab_driver.logdir_for(
         pathlib.Path.home() / "bench-logs", f"210-treatment-gate-{args.stage}"

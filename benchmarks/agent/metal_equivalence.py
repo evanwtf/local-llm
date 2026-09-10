@@ -66,9 +66,24 @@ _INT = (
 _FLOAT = ("worst_rms", "worst_max_abs", "worst_top20_max_abs")
 
 
-def parse_summary(text: str) -> dict:
-    """The `Tensor summary` line as numbers. {} when the run printed none."""
-    line = next((ln for ln in text.splitlines() if SUMMARY_MARK in ln), None)
+def parse_summary(text: str, route: str | None = None) -> dict:
+    """The `Tensor summary` line as numbers. {} when the run printed none.
+
+    `route` selects which line, and a run can print more than one. Against the
+    withhold tree (#149) the gate prints two: `route=auto`, the asserted
+    candidate, which runs the withheld route and reads all zeros; and
+    `route=tensor-optin`, which carries the drift the issue pre-registered.
+
+    The default keeps the first, because that is what `verdict` has always read
+    and the asserted candidate is what decides pass or fail. A caller that
+    wants a specific candidate must name it: reading the wrong summary is
+    silent in both directions -- the drift line would fail a healthy build, and
+    the auto line would pass a signature check that never looked at the drift.
+    """
+    lines = [ln for ln in text.splitlines() if SUMMARY_MARK in ln]
+    if route is not None:
+        lines = [ln for ln in lines if re.search(rf"\broute={re.escape(route)}\b", ln)]
+    line = next(iter(lines), None)
     if line is None:
         return {}
     got: dict[str, object] = {}

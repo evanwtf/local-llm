@@ -1,4 +1,4 @@
-"""The server teardown helper: `scripts/lib/ds4_server.sh` (#145).
+"""The server teardown helper: `vault/lib/ds4_server.sh` (#145).
 
 `stack_agent_ab.sh` leaked its last model server on every clean finish -- four
 runs in a row, most recently 97.9 GiB -- because the final `restart_server` had
@@ -23,7 +23,7 @@ import textwrap
 import pytest
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
-HELPER = REPO / "scripts" / "lib" / "ds4_server.sh"
+HELPER = REPO / "vault" / "lib" / "ds4_server.sh"
 
 
 @pytest.fixture
@@ -91,7 +91,7 @@ def run_script(fake_ps: pathlib.Path, body: str, send_int: bool = False):
 
 def test_a_clean_finish_stops_the_server(fake_ps):
     """The exact #145 case: all sweeps complete, and the last server stays up."""
-    code, out, state = run_script(
+    code, _, state = run_script(
         fake_ps,
         """
         ds4_arm_stop_trap
@@ -104,7 +104,7 @@ def test_a_clean_finish_stops_the_server(fake_ps):
 
 def test_an_interrupted_run_stops_the_server(fake_ps):
     """Ctrl-C is the likeliest way a five-hour batch ends."""
-    code, out, state = run_script(
+    code, _, state = run_script(
         fake_ps,
         """
         ds4_arm_stop_trap
@@ -118,7 +118,7 @@ def test_an_interrupted_run_stops_the_server(fake_ps):
 
 def test_a_failing_run_stops_the_server_and_keeps_its_status(fake_ps):
     """Teardown is a side effect. It must not turn a failed run into a pass."""
-    code, out, state = run_script(
+    code, _, state = run_script(
         fake_ps,
         """
         ds4_arm_stop_trap
@@ -146,7 +146,7 @@ def test_arming_the_trap_does_not_discard_an_existing_one(fake_ps):
     A bare `trap ... EXIT` would replace it, and the lock would outlive the run
     that took it -- trading a leaked server for a leaked lock.
     """
-    code, out, state = run_script(
+    code, _, state = run_script(
         fake_ps,
         f"""
         trap 'echo released > {fake_ps}/lock' EXIT
@@ -156,6 +156,35 @@ def test_arming_the_trap_does_not_discard_an_existing_one(fake_ps):
     )
     assert code == 0
     assert state == "stopped"
+    assert (fake_ps / "lock").read_text().strip() == "released"
+
+
+def test_a_failing_run_keeps_its_status_through_a_CHAINED_trap(fake_ps):
+    """The two tests above, in the one combination neither of them covered.
+
+    `test_a_failing_run_stops_the_server_and_keeps_its_status` arms nothing
+    first, so it takes the bare branch. `test_arming_the_trap_does_not_discard_
+    an_existing_one` takes the chained branch but on a run that SUCCEEDS, where
+    0 is the right answer whichever status is read. The failure needs both at
+    once, and until 2026-09-09 nothing asked for it: the chained trap ran
+    `${existing}; ds4_stop_on_exit`, so `ds4_stop_on_exit` opened `$?` on the
+    EXISTING handler -- here the lock release, which succeeds -- and `exit 3`
+    came out as 0.
+
+    Five of the seven callers arm over an existing trap, and every refusal in
+    them ends in `exit 1`. `mtp_treatment_gate.sh` is a gate whose entire job
+    is refusing, and it was reporting success while refusing.
+    """
+    code, _, state = run_script(
+        fake_ps,
+        f"""
+        trap 'echo released > {fake_ps}/lock' EXIT
+        ds4_arm_stop_trap
+        exit 3
+    """,
+    )
+    assert code == 3, "the chained trap must not overwrite the run's status"
+    assert state == "stopped", "and it must still stop the server"
     assert (fake_ps / "lock").read_text().strip() == "released"
 
 
@@ -182,7 +211,7 @@ def test_a_server_that_will_not_die_is_reported_rather_than_ignored(fake_ps):
     """A SIGKILL that does not take it is the one case worth a loud refusal."""
     (fake_ps / "bin" / "pkill").write_text("#!/bin/sh\nexit 0\n")  # kills nothing
     (fake_ps / "bin" / "pkill").chmod(0o755)
-    code, out, _ = run_script(
+    _, out, _ = run_script(
         fake_ps,
         """
         set +e

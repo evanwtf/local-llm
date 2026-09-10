@@ -1,0 +1,22 @@
+# grok sweep
+# requested window: last 24 hours
+# written:  2026-09-10T02:59:56Z  (local: 2026-09-09 22:59:56 EDT)
+# query:    Search X for posts and replies from @antirez, @ivanfioravanti, @awnihannun, @Prince_Canuma, @reach_vb, @ggerganov, @danielhanchen, @simonw, @trueimage, @sudoingX in the last 24 hours about local LLM inference on Apple Silicon, Metal kernels, MLX, quantization recipes, MTP or speculative decoding. Output ONE bullet per post and nothing else -- no preamble, no summary: - <UTC timestamp> | @handle | <post URL> | <the claim in one sentence>. Omit any item without both a URL and a UTC timestamp. If nothing matches, output exactly: NO RESULTS
+
+I'll search those accounts for the last 24 hours and keep only posts that match the topics.The first sweep is incomplete, so I’ll search each account for the last 24 hours and keep only on-topic posts.I’ll page back through Ivan’s timeline and pull the remaining MTP and quantization posts.- 2026-09-10T02:14:50Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2097871391244820816 | Wants Anemll running on the A20 Pro Neural Engine after FP8 ANE prefill, FP8 KV-cache compression, and possible 4-bit LUT FP8 compute.
+- 2026-09-10T01:00:00Z | @sudoingX | https://x.com/sudoingX/status/2097852557796536723 | llama.cpp older than b10354 is missing Qwen 3.8 27B MTP speculative decode, measured at 33–145% decode speedup across 68 rigs; rebuild and add `--spec-type draft-mtp`.
+- 2026-09-10T00:01:00Z | @sudoingX | https://x.com/sudoingX/status/2097837709150814255 | On a 24 GB card the real KV-cache choice is Q4 at 131K context versus F16 at 32K, not “never quantize KV.”
+- 2026-09-09T23:14:16Z | @Prince_Canuma | https://x.com/Prince_Canuma/status/2097825947655221715 | The iPhone bandwidth jump is significantly better for inference but still slower than GPU.
+- 2026-09-09T23:13:23Z | @Prince_Canuma | https://x.com/Prince_Canuma/status/2097825728167366810 | The closest Apple chips to that new iPhone bandwidth class are M2, M3, and M4.
+- 2026-09-09T18:54:30Z | @sudoingX | https://x.com/sudoingX/status/2097760575426355329 | Ling Flash INT4 already does 42 tok/s with MTP on one DGX Spark and drives a daily Hermes agent.
+- 2026-09-09T18:52:57Z | @sudoingX | https://x.com/sudoingX/status/2097760186886955516 | Ling-3.0-flash-VL INT4 is already on Hugging Face at 76 GB on disk, unannounced.
+- 2026-09-09T18:22:11Z | @sudoingX | https://x.com/sudoingX/status/2097752445049004483 | Q4 weights are 17 GB and F16 KV at 131K does not fit a 3090, so the menu is F16 KV at 32K, Q8 in the middle, or Q4 KV for 131K.
+- 2026-09-09T18:14:23Z | @Prince_Canuma | https://x.com/Prince_Canuma/status/2097750481732857896 | A20 Pro’s 50% memory-bandwidth gain over A19 Pro is the number that matters for local decode, which is bandwidth-bound.
+- 2026-09-09T17:55:19Z | @sudoingX | https://x.com/sudoingX/status/2097745680571969633 | Ling-3.0-flash-VL INT4 (76 GB) and FP4 (70 GB) are already on Hugging Face, plus a GGUF ladder, and INT4 fits a single DGX Spark.
+- 2026-09-09T17:55:18Z | @sudoingX | https://x.com/sudoingX/status/2097745676532941148 | Ling-3.0-flash-VL FP8 is 126 GB on a 2x Spark cluster, and INT4 should fit one Spark the way Flash INT4 does at 71 GB.
+- 2026-09-09T15:17:25Z | @Prince_Canuma | https://x.com/Prince_Canuma/status/2097705943823753455 | Offers Q8 benchmarks for GLM 5.3 Flash on Apple Silicon.
+- 2026-09-09T15:17:07Z | @Prince_Canuma | https://x.com/Prince_Canuma/status/2097705871270625688 | Buy an M5 Ultra instead of a used M3 Ultra; with MTP, GLM 5.3 Flash is about 30–40 tok/s single-request and up to 80 tok/s at batch 4.
+- 2026-09-09T14:33:35Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2097694916105433328 | Needs an updated context benchmark of GLM 5.3 Flash because both M3 Ultras are busy.
+- 2026-09-09T14:31:44Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2097694449665216579 | GLM-5.3-Flash runs fully on one Mac up to context 4 in 4-bit via Prince Canuma’s Nativ.
+- 2026-09-09T10:17:00Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2097630341896851676 | Nearly all inference engines will have day-0 Qwen 4 support because Qwen 3.8 Flash Next already is Qwen 4 architecture.
+- 2026-09-09T08:22:52Z | @sudoingX | https://x.com/sudoingX/status/2097601618820960587 | Community-measured llama.cpp MTP speculative decode on Qwen 3.8 27B dense roughly doubles tok/s on many consumer GPUs, with the draft head already in the checkpoint.

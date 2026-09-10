@@ -33,6 +33,10 @@ import re
 import sys
 from typing import Any
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+
+import logs
+
 logger = logging.getLogger(__name__)
 
 #: Content that carries a number which moves every turn. A block matching one
@@ -160,7 +164,7 @@ def describe(a: list[Block], b: list[Block]) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
+    logs.configure(fmt=logs.PLAIN)
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("first", type=pathlib.Path)
     p.add_argument("second", type=pathlib.Path)

@@ -23,6 +23,10 @@ import sys
 import tomllib
 from typing import NoReturn
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+
+import logs
+
 logger = logging.getLogger(__name__)
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -59,7 +63,7 @@ def declared_versions(root: pathlib.Path = ROOT) -> dict[str, str]:
         root.glob("benchmarks/**/__init__.py")
     ):
         found = re.search(
-            r'^__version__\s*=\s*["\']([^"\']+)["\']', path.read_text(), re.M
+            r'^__version__\s*=\s*["\']([^"\']+)["\']', path.read_text(), re.MULTILINE
         )
         if found:
             out[str(path.relative_to(root))] = found.group(1)
@@ -86,7 +90,7 @@ def main(argv: list[str] | None = None) -> NoReturn:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("tag", help="the release tag, e.g. v1.0.0")
     args = parser.parse_args(argv)
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
+    logs.configure(fmt=logs.PLAIN)
 
     problems = disagreements(args.tag)
     if problems:

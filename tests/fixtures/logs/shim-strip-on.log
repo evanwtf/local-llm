@@ -1,0 +1,6 @@
+2026-09-09 05:40:41,894 __main__ INFO qwen tool shim on :8102 -> http://127.0.0.1:8000
+2026-09-09 05:40:41,894 __main__ INFO scaffolding strip: ON (shipped default) (#112 remedy 2)
+2026-09-09 05:40:58,637 __main__ INFO client sampling: {'temperature': 0}
+2026-09-09 05:41:08,759 __main__ INFO client sampling: none specified (server defaults)
+2026-09-09 05:41:08,759 __main__ INFO pinning temperature=0.0 on requests that send none
+2026-09-09 05:41:08,759 __main__ ERROR /api/show -> 404: b'{"error":{"message":"unknown endpoint","type":"invalid_request_error"}}\n'

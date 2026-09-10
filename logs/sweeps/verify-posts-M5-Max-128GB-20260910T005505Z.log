@@ -1,0 +1,9 @@
+2026-09-09T20:55:06-0400 INFO [8c85d85@M5-Max-128GB none pld=n/a] 2026-09-10T00:55:06Z (20:55:06 EDT) | harness 8c85d85
+2026-09-09T20:55:06-0400 INFO [8c85d85@M5-Max-128GB none pld=n/a]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-09T20:55:06-0400 INFO [8c85d85@M5-Max-128GB none pld=n/a] 2095339646662144147  VERIFIED post  @SparkLLM  Thu Sep 03 02:34:35 +0000 2026  via fxtwitter
+2026-09-09T20:55:06-0400 INFO [8c85d85@M5-Max-128GB none pld=n/a]     Spark-X2.5-4B — a 4B model that goes toe-to-toe with models 2–3× its size on agents, coding & math. Full benchmark table 👇  Weights & code: https://github.com/XHToken/Spark-X2.5
+2026-09-09T20:55:06-0400 INFO [8c85d85@M5-Max-128GB none pld=n/a] 
+2026-09-09T20:55:06-0400 INFO [8c85d85@M5-Max-128GB none pld=n/a] Verified 1: 1 confirmed, 0 not.
+2026-09-09T20:55:06-0400 INFO [8c85d85@M5-Max-128GB none pld=n/a] Paste onto the issue:
+2026-09-09T20:55:06-0400 INFO [8c85d85@M5-Max-128GB none pld=n/a]   **Verified** 2026-09-10: post exists, authored by @SparkLLM, posted Thu Sep 03 02:34:35 +0000 2026.
+2026-09-09T20:55:06-0400 INFO [8c85d85@M5-Max-128GB none pld=n/a] log: /Users/evanhoffman/git/local-llm/logs/sweeps/verify-posts-M5-Max-128GB-20260910T005505Z.log

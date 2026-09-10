@@ -1,0 +1,10 @@
+2026-09-09T21:44:47-0400 INFO [afb274d@M5-Max-128GB none pld=n/a] 2026-09-10T01:44:47Z (21:44:47 EDT) | harness afb274d
+2026-09-09T21:44:47-0400 INFO [afb274d@M5-Max-128GB none pld=n/a]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-09T21:44:47-0400 INFO [afb274d@M5-Max-128GB none pld=n/a] 2097852557796536723  VERIFIED post  @sudoingX  Thu Sep 10 01:00:00 +0000 2026  via fxtwitter
+2026-09-09T21:44:47-0400 INFO [afb274d@M5-Max-128GB none pld=n/a]     psa for every llama.cpp user: update your build.  if your llama.cpp is older than b10354, the oldest build in my table running the flag, you are missing the MTP speculative decode path for qwen 3.8 27
+2026-09-09T21:44:47-0400 INFO [afb274d@M5-Max-128GB none pld=n/a]     quotes @sudoingX: i open sourced one llama.cpp flag for qwen 3.8 27b dense on rtx 3090 and the repo is growing like crazy, strangers benching hardware i could not yet buy.  here 
+2026-09-09T21:44:47-0400 INFO [afb274d@M5-Max-128GB none pld=n/a] 
+2026-09-09T21:44:47-0400 INFO [afb274d@M5-Max-128GB none pld=n/a] Verified 1: 1 confirmed, 0 not.
+2026-09-09T21:44:47-0400 INFO [afb274d@M5-Max-128GB none pld=n/a] Paste onto the issue:
+2026-09-09T21:44:47-0400 INFO [afb274d@M5-Max-128GB none pld=n/a]   **Verified** 2026-09-10: post exists, authored by @sudoingX, posted Thu Sep 10 01:00:00 +0000 2026.
+2026-09-09T21:44:47-0400 INFO [afb274d@M5-Max-128GB none pld=n/a] log: /Users/evanhoffman/git/local-llm/logs/sweeps/verify-posts-M5-Max-128GB-20260910T014447Z.log

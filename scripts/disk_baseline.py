@@ -39,6 +39,10 @@ import statistics
 import sys
 import time
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+
+import logs
+
 logger = logging.getLogger(__name__)
 
 F_NOCACHE = 48  # <sys/fcntl.h>; not exposed by the fcntl module
@@ -169,11 +173,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--keep", action="store_true", help="do not delete the test file")
     args = p.parse_args(argv)
 
-    logging.basicConfig(
-        level=logging.INFO,
-        stream=sys.stdout,
-        format="%(asctime)s %(levelname)s %(message)s",
-    )
+    logs.configure(fmt="%(asctime)s %(levelname)s %(message)s")
     path = pathlib.Path(
         args.path or (os.environ.get("TMPDIR", "/tmp") + "/nvme-baseline.bin")
     )

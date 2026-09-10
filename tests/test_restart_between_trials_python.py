@@ -22,8 +22,8 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import restart_between_trials as rbt
 from source_text import code_of
 
-SHELL_A = ROOT / "scripts" / "restart_between_trials.sh"
-SHELL_B = ROOT / "scripts" / "restart_between_trials_armB.sh"
+SHELL_A = ROOT / "vault" / "restart_between_trials.sh"
+SHELL_B = ROOT / "vault" / "restart_between_trials_armB.sh"
 
 
 # --- the drift that having two copies caused ---------------------------------
@@ -149,7 +149,7 @@ def test_the_lock_is_released_when_a_trial_raises(monkeypatch, tmp_path) -> None
     def explode(*a, **k):
         raise RuntimeError("the trial fell over")
 
-    monkeypatch.setattr(rbt.subprocess, "run", explode)
+    monkeypatch.setattr(rbt.child, "run", explode)
     with pytest.raises(RuntimeError):
         rbt.cycle(rbt.ARMS["A"], tmp_path, tmp_path, 4242, trials=3)
     assert "lock-release" in events
@@ -242,9 +242,39 @@ def _wire(monkeypatch, tmp_path, *, rc: int = 0, server_logs: list | None = None
 
     monkeypatch.setattr(rbt.ds4_server, "serving", fake_serving)
 
-    class Done:
-        returncode = rc
-
-    monkeypatch.setattr(rbt.subprocess, "run", lambda *a, **k: Done())
+    # child.run, not subprocess.run: the driver spawns the measurement through
+    # it (#268), and it returns the status directly rather than a CompletedProcess.
+    monkeypatch.setattr(rbt.child, "run", lambda *a, **k: rc)
     monkeypatch.setattr(rbt, "kv_prefix_audit", lambda *a, **k: None)
     return events
+
+
+def test_each_arms_run_dir_is_the_one_its_shell_wrote() -> None:
+    """One experiment, one directory family.
+
+    #261 gave one module both arms. Arm A's run_dir matched its shell exactly;
+    arm B's had been tidied to `77-armB-restart-run`, and ~/bench-logs already
+    holds `77-armB-run{1,2,3}` from the shell. Nothing PARSES these names, so
+    it changes no number -- it splits one experiment's transcripts across two
+    families with nothing recording that they are the same experiment, which
+    is a cost that only shows up months later when somebody goes looking.
+
+    Read out of the shells rather than typed here, because a name typed in a
+    test is a name that agrees with whoever typed it.
+    """
+    import pathlib
+    import re
+
+    root = pathlib.Path(__file__).resolve().parent.parent
+    for arm, script in (
+        ("A", "restart_between_trials.sh"),
+        ("B", "restart_between_trials_armB.sh"),
+    ):
+        text = (root / "vault" / script).read_text()
+        # `mkdir -p "$BENCH_LOGS/112-run$n"` -> 112-run
+        found = re.findall(r"\$BENCH_LOGS/([\w.-]+?)\$n", text)
+        assert found, f"{script} does not name a run dir"
+        assert set(found) == {rbt.ARMS[arm].run_dir}, (
+            f"arm {arm}: the shell writes {sorted(set(found))}, "
+            f"the port writes {rbt.ARMS[arm].run_dir!r}"
+        )

@@ -89,6 +89,10 @@ import time
 import urllib.error
 import urllib.request
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "scripts" / "lib"))
+
+import logs
+
 logger = logging.getLogger(__name__)
 
 DEFAULT_PORT = 8101
@@ -671,11 +675,7 @@ def main() -> int:
     parser.add_argument("--upstream", default=DEFAULT_UPSTREAM)
     args = parser.parse_args()
     upstream = args.upstream.rstrip("/")
-    logging.basicConfig(
-        level=logging.INFO,
-        stream=sys.stdout,
-        format="%(asctime)s %(name)s %(levelname)s %(message)s",
-    )
+    logs.configure()
     server = http.server.ThreadingHTTPServer(("127.0.0.1", args.port), Proxy)
     # #78: write the arm down where the harness can read it back. The 112
     # A/B's arms were separable only through a hand-kept manifest of run

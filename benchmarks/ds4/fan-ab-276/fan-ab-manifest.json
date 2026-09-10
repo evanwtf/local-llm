@@ -1,0 +1,533 @@
+{
+  "issue": 276,
+  "started_iso": "2026-09-09T19:46:50-0400",
+  "tree": "/Users/evanhoffman/git/ds4-pr1014-base",
+  "tree_sha": "6289c516273979173abbc062209a81dd3706b804",
+  "gguf": "DeepSeek-V4-Flash-IQ2XXS-w2Q2K-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix-0731.gguf",
+  "prompt": "promessi_sposi.txt",
+  "protocol": [
+    "1. max fans until the die plateaus (idle GPU)",
+    "2. set fans to the arm's mode",
+    "3. begin test",
+    "4. end test",
+    "5. max fans until the die plateaus",
+    "6. begin test",
+    "7. end test",
+    "8. max fans until the die plateaus",
+    "9. fans auto"
+  ],
+  "segments": 3,
+  "arms": [
+    "auto",
+    "max"
+  ],
+  "phases_planned": [
+    "auto",
+    "max",
+    "auto",
+    "max",
+    "auto",
+    "max"
+  ],
+  "reps_per_phase": 3,
+  "cooldown": {
+    "kind": "slope",
+    "min_s": 90,
+    "timeout_s": 900,
+    "max_slope_c_per_min": 0.3,
+    "cooled_on": "max",
+    "settle_in_s": 0,
+    "window_s": 180,
+    "sample_s": 5
+  },
+  "sweep": {
+    "ctx_start": 2048,
+    "ctx_max": 16384,
+    "step": 2048,
+    "gen": 128
+  },
+  "phases": [
+    {
+      "phase": 1,
+      "condition": "auto",
+      "started_iso": "2026-09-09T19:51:02-0400",
+      "start_die_c": 30.93,
+      "fans_at_start": {
+        "fans": [
+          {
+            "actual_rpm": 5350,
+            "index": 0,
+            "max_rpm": 5349,
+            "min_rpm": 1350,
+            "mode": "auto",
+            "target_rpm": 0
+          },
+          {
+            "actual_rpm": 5772,
+            "index": 1,
+            "max_rpm": 5777,
+            "min_rpm": 1350,
+            "mode": "auto",
+            "target_rpm": 0
+          }
+        ]
+      },
+      "reps": [
+        {
+          "rep": 1,
+          "started_iso": "2026-09-09T19:51:02-0400",
+          "ended_iso": "2026-09-09T19:51:53-0400",
+          "die_c_after": 62.6,
+          "csv": "01-auto-rep1.csv",
+          "rc": 0
+        },
+        {
+          "rep": 2,
+          "started_iso": "2026-09-09T19:51:53-0400",
+          "ended_iso": "2026-09-09T19:52:46-0400",
+          "die_c_after": 72.99,
+          "csv": "01-auto-rep2.csv",
+          "rc": 0
+        },
+        {
+          "rep": 3,
+          "started_iso": "2026-09-09T19:52:46-0400",
+          "ended_iso": "2026-09-09T19:53:39-0400",
+          "die_c_after": 74.83,
+          "csv": "01-auto-rep3.csv",
+          "rc": 0
+        }
+      ],
+      "ended_iso": "2026-09-09T19:53:39-0400",
+      "end_die_c": 74.19,
+      "cooldown": {
+        "outcome": "plateau",
+        "waited_s": 251,
+        "started_iso": "2026-09-09T19:46:50-0400",
+        "ended_iso": "2026-09-09T19:51:02-0400",
+        "start_die_c": 31.97,
+        "end_die_c": 30.61,
+        "last_slope_c_per_min": -0.3,
+        "samples": 50,
+        "evaluations": 32,
+        "settle": {
+          "kind": "slope",
+          "window_s": 180,
+          "sample_s": 5,
+          "max_slope_c_per_min": 0.3,
+          "min_s": 90,
+          "timeout_s": 900
+        },
+        "cooled_on": "max",
+        "segment": 1,
+        "settle_in_s": 0,
+        "die_after_settle_in_c": 30.77
+      }
+    },
+    {
+      "phase": 2,
+      "condition": "max",
+      "started_iso": "2026-09-09T20:05:27-0400",
+      "start_die_c": 26.21,
+      "fans_at_start": {
+        "fans": [
+          {
+            "actual_rpm": 5359,
+            "index": 0,
+            "max_rpm": 5349,
+            "min_rpm": 1350,
+            "mode": "forced",
+            "target_rpm": 5349
+          },
+          {
+            "actual_rpm": 5769,
+            "index": 1,
+            "max_rpm": 5777,
+            "min_rpm": 1350,
+            "mode": "forced",
+            "target_rpm": 5777
+          }
+        ]
+      },
+      "reps": [
+        {
+          "rep": 1,
+          "started_iso": "2026-09-09T20:05:27-0400",
+          "ended_iso": "2026-09-09T20:06:16-0400",
+          "die_c_after": 51.56,
+          "csv": "02-max-rep1.csv",
+          "rc": 0
+        },
+        {
+          "rep": 2,
+          "started_iso": "2026-09-09T20:06:17-0400",
+          "ended_iso": "2026-09-09T20:07:08-0400",
+          "die_c_after": 58.84,
+          "csv": "02-max-rep2.csv",
+          "rc": 0
+        },
+        {
+          "rep": 3,
+          "started_iso": "2026-09-09T20:07:08-0400",
+          "ended_iso": "2026-09-09T20:08:00-0400",
+          "die_c_after": 61.88,
+          "csv": "02-max-rep3.csv",
+          "rc": 0
+        }
+      ],
+      "ended_iso": "2026-09-09T20:08:00-0400",
+      "end_die_c": 61.72,
+      "cooldown": {
+        "outcome": "plateau",
+        "waited_s": 707,
+        "started_iso": "2026-09-09T19:53:39-0400",
+        "ended_iso": "2026-09-09T20:05:26-0400",
+        "start_die_c": 74.43,
+        "end_die_c": 26.21,
+        "last_slope_c_per_min": -0.2957,
+        "samples": 139,
+        "evaluations": 121,
+        "settle": {
+          "kind": "slope",
+          "window_s": 180,
+          "sample_s": 5,
+          "max_slope_c_per_min": 0.3,
+          "min_s": 90,
+          "timeout_s": 900
+        },
+        "cooled_on": "max",
+        "segment": 1,
+        "settle_in_s": 0,
+        "die_after_settle_in_c": 26.53
+      }
+    },
+    {
+      "phase": 3,
+      "condition": "auto",
+      "started_iso": "2026-09-09T20:16:23-0400",
+      "start_die_c": 27.01,
+      "fans_at_start": {
+        "fans": [
+          {
+            "actual_rpm": 5346,
+            "index": 0,
+            "max_rpm": 5349,
+            "min_rpm": 1350,
+            "mode": "auto",
+            "target_rpm": 0
+          },
+          {
+            "actual_rpm": 5783,
+            "index": 1,
+            "max_rpm": 5777,
+            "min_rpm": 1350,
+            "mode": "auto",
+            "target_rpm": 0
+          }
+        ]
+      },
+      "reps": [
+        {
+          "rep": 1,
+          "started_iso": "2026-09-09T20:16:23-0400",
+          "ended_iso": "2026-09-09T20:17:13-0400",
+          "die_c_after": 58.84,
+          "csv": "03-auto-rep1.csv",
+          "rc": 0
+        },
+        {
+          "rep": 2,
+          "started_iso": "2026-09-09T20:17:13-0400",
+          "ended_iso": "2026-09-09T20:18:05-0400",
+          "die_c_after": 70.03,
+          "csv": "03-auto-rep2.csv",
+          "rc": 0
+        },
+        {
+          "rep": 3,
+          "started_iso": "2026-09-09T20:18:05-0400",
+          "ended_iso": "2026-09-09T20:18:57-0400",
+          "die_c_after": 73.55,
+          "csv": "03-auto-rep3.csv",
+          "rc": 0
+        }
+      ],
+      "ended_iso": "2026-09-09T20:18:57-0400",
+      "end_die_c": 73.23,
+      "cooldown": {
+        "outcome": "plateau",
+        "waited_s": 502,
+        "started_iso": "2026-09-09T20:08:00-0400",
+        "ended_iso": "2026-09-09T20:16:23-0400",
+        "start_die_c": 61.4,
+        "end_die_c": 27.01,
+        "last_slope_c_per_min": -0.2379,
+        "samples": 99,
+        "evaluations": 81,
+        "settle": {
+          "kind": "slope",
+          "window_s": 180,
+          "sample_s": 5,
+          "max_slope_c_per_min": 0.3,
+          "min_s": 90,
+          "timeout_s": 900
+        },
+        "cooled_on": "max",
+        "segment": 2,
+        "settle_in_s": 0,
+        "die_after_settle_in_c": 26.77
+      }
+    },
+    {
+      "phase": 4,
+      "condition": "max",
+      "started_iso": "2026-09-09T20:27:11-0400",
+      "start_die_c": 25.97,
+      "fans_at_start": {
+        "fans": [
+          {
+            "actual_rpm": 5352,
+            "index": 0,
+            "max_rpm": 5349,
+            "min_rpm": 1350,
+            "mode": "forced",
+            "target_rpm": 5349
+          },
+          {
+            "actual_rpm": 5773,
+            "index": 1,
+            "max_rpm": 5777,
+            "min_rpm": 1350,
+            "mode": "forced",
+            "target_rpm": 5777
+          }
+        ]
+      },
+      "reps": [
+        {
+          "rep": 1,
+          "started_iso": "2026-09-09T20:27:11-0400",
+          "ended_iso": "2026-09-09T20:28:01-0400",
+          "die_c_after": 50.12,
+          "csv": "04-max-rep1.csv",
+          "rc": 0
+        },
+        {
+          "rep": 2,
+          "started_iso": "2026-09-09T20:28:01-0400",
+          "ended_iso": "2026-09-09T20:28:52-0400",
+          "die_c_after": 57.8,
+          "csv": "04-max-rep2.csv",
+          "rc": 0
+        },
+        {
+          "rep": 3,
+          "started_iso": "2026-09-09T20:28:52-0400",
+          "ended_iso": "2026-09-09T20:29:43-0400",
+          "die_c_after": 61.0,
+          "csv": "04-max-rep3.csv",
+          "rc": 0
+        }
+      ],
+      "ended_iso": "2026-09-09T20:29:43-0400",
+      "end_die_c": 61.0,
+      "cooldown": {
+        "outcome": "plateau",
+        "waited_s": 492,
+        "started_iso": "2026-09-09T20:18:57-0400",
+        "ended_iso": "2026-09-09T20:27:11-0400",
+        "start_die_c": 73.39,
+        "end_die_c": 25.89,
+        "last_slope_c_per_min": -0.2906,
+        "samples": 97,
+        "evaluations": 79,
+        "settle": {
+          "kind": "slope",
+          "window_s": 180,
+          "sample_s": 5,
+          "max_slope_c_per_min": 0.3,
+          "min_s": 90,
+          "timeout_s": 900
+        },
+        "cooled_on": "max",
+        "segment": 2,
+        "settle_in_s": 0,
+        "die_after_settle_in_c": 25.97
+      }
+    },
+    {
+      "phase": 5,
+      "condition": "auto",
+      "started_iso": "2026-09-09T20:38:38-0400",
+      "start_die_c": 25.02,
+      "fans_at_start": {
+        "fans": [
+          {
+            "actual_rpm": 0,
+            "index": 0,
+            "max_rpm": 5349,
+            "min_rpm": 1350,
+            "mode": "auto",
+            "target_rpm": 0
+          },
+          {
+            "actual_rpm": 0,
+            "index": 1,
+            "max_rpm": 5777,
+            "min_rpm": 1350,
+            "mode": "auto",
+            "target_rpm": 0
+          }
+        ]
+      },
+      "reps": [
+        {
+          "rep": 1,
+          "started_iso": "2026-09-09T20:38:38-0400",
+          "ended_iso": "2026-09-09T20:39:28-0400",
+          "die_c_after": 58.52,
+          "csv": "05-auto-rep1.csv",
+          "rc": 0
+        },
+        {
+          "rep": 2,
+          "started_iso": "2026-09-09T20:39:28-0400",
+          "ended_iso": "2026-09-09T20:40:20-0400",
+          "die_c_after": 69.63,
+          "csv": "05-auto-rep2.csv",
+          "rc": 0
+        },
+        {
+          "rep": 3,
+          "started_iso": "2026-09-09T20:40:20-0400",
+          "ended_iso": "2026-09-09T20:41:12-0400",
+          "die_c_after": 73.23,
+          "csv": "05-auto-rep3.csv",
+          "rc": 0
+        }
+      ],
+      "ended_iso": "2026-09-09T20:41:12-0400",
+      "end_die_c": 72.67,
+      "cooldown": {
+        "outcome": "plateau",
+        "waited_s": 534,
+        "started_iso": "2026-09-09T20:29:43-0400",
+        "ended_iso": "2026-09-09T20:38:38-0400",
+        "start_die_c": 60.68,
+        "end_die_c": 24.94,
+        "last_slope_c_per_min": -0.2949,
+        "samples": 105,
+        "evaluations": 87,
+        "settle": {
+          "kind": "slope",
+          "window_s": 180,
+          "sample_s": 5,
+          "max_slope_c_per_min": 0.3,
+          "min_s": 90,
+          "timeout_s": 900
+        },
+        "cooled_on": "max",
+        "segment": 3,
+        "settle_in_s": 0,
+        "die_after_settle_in_c": 24.86
+      }
+    },
+    {
+      "phase": 6,
+      "condition": "max",
+      "started_iso": "2026-09-09T20:48:14-0400",
+      "start_die_c": 27.17,
+      "fans_at_start": {
+        "fans": [
+          {
+            "actual_rpm": 5351,
+            "index": 0,
+            "max_rpm": 5349,
+            "min_rpm": 1350,
+            "mode": "forced",
+            "target_rpm": 5349
+          },
+          {
+            "actual_rpm": 5782,
+            "index": 1,
+            "max_rpm": 5777,
+            "min_rpm": 1350,
+            "mode": "forced",
+            "target_rpm": 5777
+          }
+        ]
+      },
+      "reps": [
+        {
+          "rep": 1,
+          "started_iso": "2026-09-09T20:48:14-0400",
+          "ended_iso": "2026-09-09T20:49:04-0400",
+          "die_c_after": 51.8,
+          "csv": "06-max-rep1.csv",
+          "rc": 0
+        },
+        {
+          "rep": 2,
+          "started_iso": "2026-09-09T20:49:04-0400",
+          "ended_iso": "2026-09-09T20:49:55-0400",
+          "die_c_after": 58.76,
+          "csv": "06-max-rep2.csv",
+          "rc": 0
+        },
+        {
+          "rep": 3,
+          "started_iso": "2026-09-09T20:49:55-0400",
+          "ended_iso": "2026-09-09T20:50:47-0400",
+          "die_c_after": 62.36,
+          "csv": "06-max-rep3.csv",
+          "rc": 0
+        }
+      ],
+      "ended_iso": "2026-09-09T20:50:47-0400",
+      "end_die_c": 61.48,
+      "cooldown": {
+        "outcome": "plateau",
+        "waited_s": 421,
+        "started_iso": "2026-09-09T20:41:12-0400",
+        "ended_iso": "2026-09-09T20:48:14-0400",
+        "start_die_c": 72.51,
+        "end_die_c": 27.09,
+        "last_slope_c_per_min": -0.2338,
+        "samples": 83,
+        "evaluations": 65,
+        "settle": {
+          "kind": "slope",
+          "window_s": 180,
+          "sample_s": 5,
+          "max_slope_c_per_min": 0.3,
+          "min_s": 90,
+          "timeout_s": 900
+        },
+        "cooled_on": "max",
+        "segment": 3,
+        "settle_in_s": 0,
+        "die_after_settle_in_c": 27.01
+      }
+    }
+  ],
+  "final_cooldown": {
+    "outcome": "plateau",
+    "waited_s": 307,
+    "started_iso": "2026-09-09T20:50:48-0400",
+    "ended_iso": "2026-09-09T20:55:55-0400",
+    "start_die_c": 61.48,
+    "end_die_c": 29.73,
+    "last_slope_c_per_min": -0.2574,
+    "samples": 61,
+    "evaluations": 43,
+    "settle": {
+      "kind": "slope",
+      "window_s": 180,
+      "sample_s": 5,
+      "max_slope_c_per_min": 0.3,
+      "min_s": 90,
+      "timeout_s": 900
+    }
+  },
+  "ended_iso": "2026-09-09T20:55:55-0400"
+}

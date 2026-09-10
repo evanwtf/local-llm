@@ -45,6 +45,7 @@ from __future__ import annotations
 import dataclasses
 import pathlib
 import shlex
+import shutil
 import sys
 
 sys.path.insert(
@@ -257,6 +258,16 @@ def check_assets(arm: Arm) -> None:
         raise MissingAsset(f"{arm.name}: missing mlx pack dir {arm.mlx_model}")
     if not (arm.mlx_model / "config.json").exists():
         raise MissingAsset(f"{arm.name}: {arm.mlx_model} has no config.json")
+    # `command -v mlx-serve` in the shell (stack_agent_ab.sh:226), and it
+    # matters MORE here: #225 needs a different binary per arm, so mlx_bin is
+    # per-arm and a typo in one arm's MLX_BIN is a typo this is the only thing
+    # checking. Without it the run fails at the first sweep, with the machine
+    # lock held and a pack already resident.
+    if shutil.which(arm.mlx_bin) is None:
+        raise MissingAsset(
+            f"{arm.name}: {arm.mlx_bin!r} does not resolve on PATH -- an "
+            "mlx-serve arm needs its binary installed and named correctly"
+        )
 
 
 def attribution(new: Arm, old: Arm) -> str:

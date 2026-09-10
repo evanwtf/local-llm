@@ -1,4 +1,4 @@
-"""Summarize a paired decode A/B produced by scripts/decode_ab.sh (#48).
+"""Summarize a paired decode A/B produced by scripts/decode_ab.py (#48).
 
 Give it several directories and it also reports the spread BETWEEN runs
 (#136). That axis is invisible from inside one run: on 2026-09-04 four
@@ -36,6 +36,10 @@ import sys
 from collections import defaultdict
 
 import prompt_meta
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+
+import logs
 
 logger = logging.getLogger(__name__)
 
@@ -697,7 +701,7 @@ def quotable(
 
 
 def main(argv: list[str]) -> int:
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
+    logs.configure(fmt=logs.PLAIN)
     # argparse rather than scanning argv by hand: this is the most-used script
     # here and it was the only one with no --help, which a smoke test of every
     # script found. Hand-rolled flag parsing also silently accepts a
