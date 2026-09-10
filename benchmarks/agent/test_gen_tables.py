@@ -35,3 +35,23 @@ def test_two_engine_builds_are_named():
 def test_a_row_with_no_engine_version_is_ignored():
     rows = [_row("a", "ds4", "ffd85d42"), {"backend": "b", "servers": {}}]
     assert gen_tables.engine_caveat(rows) == []
+
+
+def test_no_mlxserve_row_means_no_pld_caveat():
+    """Self-retiring, like client_caveat: no mlx-serve row, no note (#262)."""
+    rows = [_row("qwen38fnds4kimat", "ds4", "ffd85d42")]
+    assert gen_tables.pld_caveat(rows) == []
+
+
+def test_an_mlxserve_row_earns_the_pld_caveat():
+    rows = [
+        _row("qwen38fnds4kimat", "ds4", "ffd85d42"),
+        _row("qwen38fnmlxserve", "mlx-serve", "26.9.2"),
+        _row("qwen38fnmlxserve-git", "mlx-serve", "26.9.2"),
+    ]
+    out = gen_tables.pld_caveat(rows)
+    assert len(out) == 2
+    assert "PLD-on" in out[1]
+    # Names each mlx-serve backend, and no ds4 backend.
+    assert "qwen38fnmlxserve" in out[1] and "qwen38fnmlxserve-git" in out[1]
+    assert "qwen38fnds4kimat" not in out[1]

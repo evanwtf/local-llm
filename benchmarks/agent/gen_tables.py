@@ -245,6 +245,42 @@ def client_caveat(
     return ["", note]
 
 
+def pld_caveat(
+    rows: list[dict[str, Any]], labels: dict[str, str] | None = None
+) -> list[str]:
+    """Say so when a table holds mlx-serve rows, which speculate by default.
+
+    #262: mlx-serve turns Prompt Lookup Decoding on by default, and every
+    mlx-serve row was taken with it on -- the pack ships no MTP head or
+    drafter, so PLD is the draft source -- but the speculation was never
+    recorded per row. So an mlx-serve row is not a no-speculation baseline
+    against a ds4 arm whose MTP state we set explicitly.
+
+    Generated, not typed, for the same reason as `client_caveat`: a note hand
+    written into the spliced region survives one regeneration and then reads as
+    current while the rows move. It retires itself the moment no mlx-serve row
+    is in the table -- `[]` -- so it never outlives what it warns about.
+    """
+    labels = LABELS if labels is None else labels
+    served = sorted(
+        {str(r.get("backend")) for r in rows if "mlxserve" in str(r.get("backend"))}
+    )
+    if not served:
+        return []
+    names = ", ".join(f"`{labels.get(b, b)}`" for b in served)
+    note = (
+        f"**The {names} rows are PLD-on.** mlx-serve turns on Prompt Lookup "
+        "Decoding by default, and every mlx-serve row here was taken with it "
+        "on; the pack ships no MTP head or drafter, so PLD is the draft source "
+        "([#262](https://github.com/evanwtf/local-llm/issues/262)). That is the "
+        'engine\'s own default — "what you get when you install it," which '
+        "is what this project measures — but the speculation was never "
+        "recorded, so these rows are not a no-speculation baseline against the "
+        "ds4 arms whose MTP state we set explicitly."
+    )
+    return ["", note]
+
+
 def engine_caveat(
     rows: list[dict[str, Any]], labels: dict[str, str] | None = None
 ) -> list[str]:
@@ -322,6 +358,7 @@ def render(rows: list[dict[str, Any]] | None = None) -> str:
     ]
     out += stack_table(rows, LABELS)
     out += client_caveat(valid_opencode(rows))
+    out += pld_caveat(valid_opencode(rows))
     out += engine_caveat(valid_opencode(rows))
     out += [
         "",

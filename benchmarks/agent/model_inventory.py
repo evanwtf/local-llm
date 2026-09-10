@@ -219,11 +219,12 @@ def main(argv: list[str] | None = None) -> int:
         help="compute each pack's size with du (slow on large trees)",
     )
     args = parser.parse_args(argv)
-    logging.basicConfig(
-        level=logging.INFO,
-        stream=sys.stdout,
-        format="%(asctime)s %(name)s %(levelname)s %(message)s",
-    )
+    # provenance.configure(), not logging.basicConfig: an entry point in this
+    # package stamps the harness commit and uses the one ISO-8601 line format
+    # (tests/test_logging_format.py, benchmarks/agent/test_provenance.py).
+    import provenance
+
+    provenance.configure()
     log_inventory(sizes=args.sizes)
     return 0
 
