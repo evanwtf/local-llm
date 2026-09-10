@@ -60,14 +60,39 @@ Section 1 installs row 1.
 | pick this if | model | server | download | pass rate | median task |
 |---|---|---|---|---|---|
 | **you are starting out** | Qwen3.6-27B-coding `mxfp8` | Ollama | 31 GB | **24/24** | 167s |
-| **you want it fast** | Qwen3.8-Flash-Next `Q4_K imatrix` | ds4, ivanfioravanti's fork | 98 GiB | **196/196** | **95s** |
+| **you want it fastest** | Qwen3.8-Flash-Next `MLX mixed-4/8bit` | **mlx-serve 26.9.2** | ~100 GiB | **60/60** | ~56s† |
+| **you want the same model on a lighter engine** | Qwen3.8-Flash-Next `Q4_K imatrix` | ds4, ivanfioravanti's fork | 98 GiB | **196/196** | 95s |
 | **you want a mainline engine** | Qwen3.8-Flash-Next `UD-Q3_K_XL` | llama.cpp | 84 GiB | **75/75** | 106s |
 | **you want a second lineage** | DeepSeek-V4-Flash | ds4 (DwarfStar) | 91 GB | **30/30** | 115s |
 
-**Row 2 is 16% faster than row 3 and costs you a fork** — wall ratio 0.84
+**The fastest verified stack is now mlx-serve 26.9.2, as of 2026-09-10 (#282).**
+In a head-to-head agent A/B with **both engines on their latest builds** — ds4
+`6c1e8367` vs mlx-serve `26.9.2`, same model (Qwen3.8-Flash-Next), two runs,
+60 trials/arm — **mlx-serve took 66% of ds4's wall time (34% less): 818 s
+against 1237 s** summed over the 15 tasks, at **equal pass (60/60 both)**,
+winning 12 of 15 tasks. Both runs agreed (paired ratio 1.50 and 1.51) and both
+position orders agreed. This **reverses #191's 2026-09-08 dead heat**: the
+`perf(qwen4)` batch in mlx-serve 26.9.2 roughly halved its own wall since
+26.9.1, and ds4's newer head (`6c1e8367`, #228) narrowed but did not close the
+gap.
+
+**It is a full-stack result, and that is the right way to read it.** Engine,
+quantization and speculative decoding move together: mlx-serve speculates by
+default (Prompt Lookup Decoding on, [#262](https://github.com/evanwtf/local-llm/issues/262)),
+ds4 `kimat` does not. The win cannot be credited to the engine alone — but the
+speculation is the engine's shipped default, "what you get when you install
+it," which is what this file measures. The cost side: mlx-serve holds ~100 GiB
+resident against ds4's ~68–80 GiB.
+
+† `~56s` is the median per-task wall from the #282 A/B (ds4 `kimat` was 75 s in
+the same A/B); it is not directly comparable to the 95 s in the ds4 row, which
+was taken in the earlier 196/196 regime. The rigorous comparison is the
+head-to-head ratio above, not the two medians side by side.
+
+**On the lighter engine (ds4 `kimat`) against llama.cpp:** wall ratio 0.84
 (95% CI 0.76–0.92), 90/90 both arms, 13 of 15 tasks favoring ds4. It loads
 only on ivanfioravanti's trees, and this file has already had one stack
-withdrawn by its author. Row 3 is slower and will still be there.
+withdrawn by its author.
 
 **Do not add ds4's MTP flags.** Until 2026-09-08 they never speculated at all:
 ds4 reaches its Qwen MTP path only at temperature 0 and no agent client sends

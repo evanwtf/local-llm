@@ -57,7 +57,7 @@ other is telling you something.
 
 <!-- BEGIN GENERATED -->
 
-*Generated from `results.jsonl` — 2186 rows, sha256 d9ad8d8b1a74.*
+*Generated from `results.jsonl` — 2426 rows, sha256 66f2a52d5c8a.*
 
 #### Every stack measured under OpenCode
 
@@ -66,9 +66,9 @@ other is telling you something.
 | stack | passed | median | worst | spread |
 |---|---|---|---|---|
 | ornith15 | 21/21 | 44s | 93s | 5.9x |
-| qwen38fnmlxserve | 119/121 | 52s | 1377s | 64.7x |
+| qwen38fnmlxserve | 238/241 | 52s | 1377s | 64.7x |
 | qwen38fnmlxserve-git | 74/75 | 52s | 402s | 18.5x |
-| qwen38fnds4kimat | 196/196 | 95s | 472s | 12.2x |
+| qwen38fnds4kimat | 316/316 | 91s | 775s | 27.0x |
 | Qwen3.8-Flash-Next Q3 - llama.cpp | 75/75 | 106s | 356s | 8.3x |
 | DeepSeek-V4-Flash - ds4 (Anthropic wire) | 18/18 | 110s | 221s | 4.3x |
 | qwen38fnq3reap | 21/21 | 110s | 261s | 6.8x |
@@ -113,7 +113,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | qwen38fnds4kimat | 33s |
 | qwen38fnq3reap | 38s |
 | qwen38fnmlxserve-git | 39s |
-| qwen38fnmlxserve | 42s |
+| qwen38fnmlxserve | 41s |
 | Qwen3.8-Flash-Next Q3 - llama.cpp | 42s |
 | qwen36 | 50s |
 | DeepSeek-V4-Flash - ds4 (Anthropic wire) | 54s |

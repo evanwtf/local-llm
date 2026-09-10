@@ -7,12 +7,13 @@ A living scoreboard for the two stacks we run on the M5 Max. Add a row to
 
 ## Standing, as of #282 (2026-09-10) — mlx-serve 26.9.2 takes about half the wall
 
-> **Findings so far, not a verdict — no recommendation change yet.** The ds4 arm
-> below is `ffd85d42`, which turned out to be **one head behind** the ivan
-> `qwen3.8-flash-next` tip `6c1e8367` (the #228 head, reported ~+8.9% decode). A
-> **both-latest** retest — ds4 `6c1e8367` vs mlx-serve 26.9.2, multiple runs — is
-> under way; `RECOMMENDATIONS.md` stays unchanged until it confirms these numbers
-> hold with ds4 on its latest release.
+> **Confirmed both-latest (2026-09-10). `RECOMMENDATIONS.md` updated.** The ds4
+> arm in the first two runs below was `ffd85d42`, one head behind the ivan tip.
+> A **both-latest** retest — ds4 `6c1e8367` (the #228 head) vs mlx-serve 26.9.2,
+> two more runs — holds: pooled n=60/arm, **mlx-serve took 66% of ds4's wall
+> time (34% less): 818 s against 1237 s** over the 15 tasks, at equal pass
+> (60/60 both), paired ratio 1.50 (the two runs gave 1.50 and 1.51). ds4's newer
+> head narrowed the gap (1.76 → 1.50) but mlx-serve still clearly leads.
 
 Two independent 2+2-sweep runs (60 rows/arm, 120 total) of the stacks as first
 measured: ds4 `qwen38fnds4kimat` @ `ffd85d42` vs **mlx-serve 26.9.2** (Homebrew)
@@ -191,7 +192,8 @@ bare stdout. Clean tree, ruff passing, right answer, wrong stream.
 |---|---|---|---|
 | 2026-09-08 | #191 | 4+4 sweeps, 120 rows, stack vs stack | SCREEN PASS; ratio 0.68, total wall tied, mlx tail to 1377s |
 | 2026-09-08 | #225 | 4+4 sweeps, 120 rows, mlx-serve 25de4d5 vs 26.9.1 | **null**: pass 59/60 both, ratio 1.00 (0.83-1.20); #191's tail did not reproduce |
-| 2026-09-10 | #282 | 2+2 sweeps ×2 runs, 120 rows, stack vs stack, mlx-serve **26.9.2** | mlx took **57% of ds4's per-task time (43% less): 751 s against 1429 s** summed over 15 tasks; wins 13/15; pass ds4 60/60, mlx 59/60; both runs + both orders agree. **Reverses #191's tie.** |
+| 2026-09-10 | #282 | 2+2 sweeps ×2 runs, 120 rows, mlx-serve **26.9.2** vs ds4 `ffd85d42` | mlx took **57% of ds4's per-task time (43% less): 751 s against 1429 s** summed over 15 tasks; wins 13/15; pass ds4 60/60, mlx 59/60; both runs + both orders agree. **Reverses #191's tie.** ds4 was one head behind. |
+| 2026-09-10 | #282 | 2+2 sweeps ×2 runs, 120 rows, **both latest**: mlx-serve 26.9.2 vs ds4 `6c1e8367` | mlx took **66% of ds4's per-task time (34% less): 818 s against 1237 s**; wins 12/15; pass 60/60 both; runs 1.50/1.51, both orders agree. ds4 latest head narrowed but did not close the gap. **RECOMMENDATIONS updated.** |
 
 ## Open questions
 
