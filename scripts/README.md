@@ -49,6 +49,7 @@ documentation.
 | `kv_prefix_audit.py` | Measure how much prefill a stalled KV prefix costs (#64, #50). |
 | `kv_prefix_reuse.py` | Measure how much of a prompt ds4 reuses from its prefix cache (#190). |
 | `load_matrix.py` | Load each of a set of gguf files with the PLE sidecar, serially, and |
+| `local_agent.py` | Start a recommended local stack and drop into a coding agent. #235 |
 | `machine_claim.py` | Claim the machine with intent, and make contention impossible to miss. #160 |
 | `machine_state.py` | Is the machine busy, and who says so? One answer, for every agent. |
 | `make_next.py` | Generate NEXT.md from the open issues, so the queue cannot drift or bloat. |
