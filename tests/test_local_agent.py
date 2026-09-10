@@ -1,131 +1,211 @@
-"""`scripts/local-agent.sh` must match what RECOMMENDATIONS.md tells people to run.
+"""The `local-agent` launcher, ported from scripts/local-agent.sh (#235).
 
-The script is a convenience wrapper, so its whole value is that a reader can
-copy a line out of the recommendations and have it work. That breaks silently
-the moment either side is edited alone, which is what these tests are for.
-
-The execution tests use `--check`, which stops before any download, build or
-server start. A test that started a 105 GB download would be worse than no
-test.
+A launcher has no benchmark number to protect, but it has the equivalent: which
+stack, which model file, which port, which context the user actually gets. A
+transcription slip in the stack table is a silent "it started the wrong thing",
+so the table is pinned value-by-value against the shell source. The rest is the
+argument contract and the two refusals the shell was careful about: validate the
+client before any download, and never start a second engine on a busy port.
 """
 
 from __future__ import annotations
 
+import json
 import pathlib
-import re
-import shutil
-import subprocess
+import sys
 
 import pytest
 
-ROOT = pathlib.Path(__file__).resolve().parents[1]
-SCRIPT = ROOT / "scripts" / "local-agent.sh"
-DOC = ROOT / "RECOMMENDATIONS.md"
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "scripts" / "lib"))
+sys.path.insert(0, str(ROOT / "scripts"))
+sys.path.insert(0, str(ROOT / "benchmarks" / "agent"))
 
-#: The stacks the script implements, one per row of the top-three table plus
-#: the mainline fallback named in the slot-2 note.
-STACKS = ("starter", "fast", "mainline", "lineage")
-CLIENTS = ("opencode", "claude")
+import local_agent as la
 
-zsh = pytest.mark.skipif(shutil.which("zsh") is None, reason="zsh not installed")
+# --- the stack table: pinned against scripts/local-agent.sh ------------------
 
 
-def run(*args: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        [str(SCRIPT), *args], capture_output=True, text=True, cwd=ROOT, timeout=120
+def test_all_four_stacks_present() -> None:
+    assert set(la.STACKS) == {"starter", "fast", "mainline", "lineage"}
+
+
+def test_stack_table_values_match_the_shell() -> None:
+    """Every value a user depends on, transcribed from local-agent.sh 64-112."""
+    starter = la.STACKS["starter"]
+    assert starter.engine == "ollama"
+    assert starter.engine_port == 11434
+    assert starter.ctx == 262144
+    assert starter.ollama_tag == "qwen3.6:27b-coding-mxfp8"
+    assert starter.opencode_model == "ollama/qwen3.6:27b-coding-mxfp8"
+    assert starter.claude_port == 11500
+    assert starter.claude_upstream == "http://127.0.0.1:11434"
+
+    fast = la.STACKS["fast"]
+    assert fast.engine == "ds4"
+    assert fast.engine_port == 8000
+    assert fast.shim_port == 8101
+    assert fast.ctx == 100000
+    assert fast.engine_tree.endswith("/git/ds4-ivan-qwen38fn")
+    assert fast.engine_branch == "qwen3.8-flash-next"
+    assert fast.model_file.endswith(
+        "/qwen3.8-flash-next-ds4-q4k-imatrix/"
+        "Qwen3.8-Flash-Next-Q4KImatrixExperts-MXFP4Down-BF16Emb-BF16Control-"
+        "Q8GDN-Q8QSA-Q8Shared-Q8Out.gguf"
     )
+    assert fast.ple_file.endswith("/Qwen3.8-Flash-Next-PLE-Q4_1.gguf")
+    assert fast.hf_repo == "ivanfioravanti/Qwen3.8-Flash-Next-DS4-Q4"
+    assert fast.opencode_baseurl == "http://127.0.0.1:8101/v1"
+    assert fast.claude_port == 8101
+    assert fast.claude_token == "dsv4-local"
+    # The fast stack is served bare over the shim, so it needs no wire shim.
+    assert fast.claude_upstream is None
+
+    mainline = la.STACKS["mainline"]
+    assert mainline.engine == "llamacpp"
+    assert mainline.engine_port == 8020
+    assert mainline.ctx == 131072
+    assert mainline.hf_include == "UD-Q3_K_XL/*"
+    assert mainline.claude_upstream == "http://127.0.0.1:8020"
+    assert mainline.shim_port is None
+
+    lineage = la.STACKS["lineage"]
+    assert lineage.engine == "ds4"
+    assert lineage.engine_port == 8000
+    assert lineage.ctx == 100000
+    assert lineage.model_file.endswith("-chat-v2-imatrix-fixed-0731.gguf")
+    assert lineage.ple_file is None
+    assert lineage.claude_upstream is None
 
 
-# --- static: the script and the doc must agree ------------------------------
+def test_only_fast_carries_a_tool_shim() -> None:
+    """The Qwen tool shim (#112) is the fast stack's, and only its."""
+    shimmed = [name for name, s in la.STACKS.items() if s.shim_port is not None]
+    assert shimmed == ["fast"]
 
 
-def test_the_script_is_executable() -> None:
-    assert SCRIPT.exists(), "scripts/local-agent.sh is missing"
-    assert SCRIPT.stat().st_mode & 0o111, "scripts/local-agent.sh is not executable"
+# --- the argument contract ---------------------------------------------------
 
 
-def test_every_stack_has_a_case_arm() -> None:
-    body = SCRIPT.read_text()
-    for stack in STACKS:
-        assert re.search(rf"^\s*{stack}\)", body, re.M), f"no case arm for '{stack}'"
+def test_stack_is_required() -> None:
+    with pytest.raises(la.LaunchError):
+        la.parse_invocation([])
 
 
-def test_the_doc_documents_every_stack_the_script_implements() -> None:
-    """Drift guard. A stack the script supports and the doc never names is a
-    stack nobody will run; the reverse is a copy-paste line that fails."""
-    doc = DOC.read_text()
-    for stack in STACKS:
-        assert f"local-agent.sh {stack}" in doc, (
-            f"RECOMMENDATIONS.md never shows `local-agent.sh {stack}`"
-        )
+def test_client_defaults_to_opencode() -> None:
+    assert la.parse_invocation(["fast"]).client == "opencode"
 
 
-def test_the_doc_names_no_stack_the_script_does_not_implement() -> None:
-    doc = DOC.read_text()
-    for found in set(re.findall(r"local-agent\.sh\s+([a-z]+)", doc)):
-        assert found in STACKS, (
-            f"the doc shows stack '{found}', which the script has no arm for"
-        )
+def test_client_is_validated_before_the_stack() -> None:
+    """A bad client with a bad stack reports the client -- the shell validates
+    it first (lines 56-59) so a typo never costs a 105 GB download."""
+    with pytest.raises(la.LaunchError, match="unknown client"):
+        la.parse_invocation(["badstack", "badclient"])
 
 
-def test_both_clients_are_reachable_from_the_doc() -> None:
-    doc = DOC.read_text()
-    for client in CLIENTS:
-        assert client in doc, f"RECOMMENDATIONS.md never mentions the '{client}' client"
+def test_bad_stack_is_rejected() -> None:
+    with pytest.raises(la.LaunchError, match="unknown stack"):
+        la.parse_invocation(["badstack", "opencode"])
 
 
-def test_the_client_is_validated_before_any_side_effect() -> None:
-    """A typo'd client must not cost a 105 GB download first.
-
-    The validation has to sit above the weights block; this asserts on order,
-    because that ordering is the whole point and it is easy to undo.
-    """
-    body = SCRIPT.read_text()
-    guard = body.index("unknown client")
-    weights = body.index("# --- 1. weights")
-    assert guard < weights, "client validation moved below the download step"
+def test_a_bare_agent_arg_is_read_as_the_client() -> None:
+    """local-agent.sh fast "task" reads "task" as the client and refuses it.
+    Preserve the quirk: pass a client explicitly, or use it after two
+    positionals."""
+    with pytest.raises(la.LaunchError, match="unknown client"):
+        la.parse_invocation(["fast", "task"])
 
 
-def test_it_never_starts_a_second_engine_on_a_busy_port() -> None:
-    body = SCRIPT.read_text()
-    assert "already listening on :$ENGINE_PORT" in body, (
-        "the reuse-don't-restart guard is gone; two resident models will not fit"
+@pytest.mark.parametrize(
+    ("argv", "expected"),
+    [
+        (["fast"], []),
+        (["fast", "claude"], []),
+        (["fast", "claude", "a", "b"], ["a", "b"]),
+        (["fast", "claude", "--", "a"], ["a"]),
+        (["fast", "claude", "--check", "a"], ["a"]),
+        (["starter", "opencode", "one", "--", "two"], ["one", "two"]),
+    ],
+)
+def test_agent_args_passthrough(argv: list[str], expected: list[str]) -> None:
+    assert la.parse_invocation(argv).agent_args == expected
+
+
+def test_check_flag_is_detected_anywhere() -> None:
+    assert la.parse_invocation(["fast", "claude", "--check"]).check_only is True
+    assert la.parse_invocation(["fast", "claude"]).check_only is False
+
+
+# --- confirm() ---------------------------------------------------------------
+
+
+def test_confirm_auto_yes(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("LOCAL_AGENT_YES", "1")
+    assert la.confirm("download 105 GB?") is True
+
+
+def test_confirm_reads_yes(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("LOCAL_AGENT_YES", raising=False)
+    monkeypatch.setattr("builtins.input", lambda _prompt: "y")
+    assert la.confirm("go?") is True
+    monkeypatch.setattr("builtins.input", lambda _prompt: "")
+    assert la.confirm("go?") is False
+
+
+# --- the two refusals --------------------------------------------------------
+
+
+def test_check_only_fetches_nothing(monkeypatch: pytest.MonkeyPatch) -> None:
+    """--check must return before ensure_weights, ensure_engine, start_server."""
+    called: list[str] = []
+    for name in ("ensure_weights", "ensure_engine", "start_server", "start_shims"):
+        monkeypatch.setattr(la, name, lambda *a, _n=name, **k: called.append(_n))
+    monkeypatch.setattr(la, "listening", lambda _port: False)
+    assert la.main(["fast", "opencode", "--check"]) == 0
+    assert called == []
+
+
+def test_bad_client_returns_before_any_fetch(monkeypatch: pytest.MonkeyPatch) -> None:
+    called: list[str] = []
+    monkeypatch.setattr(la, "ensure_weights", lambda *a, **k: called.append("fetch"))
+    assert la.main(["fast", "badclient"]) == 2
+    assert called == []
+
+
+def test_server_not_started_twice_when_port_is_busy(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A listening port is reused, never overwritten with a second engine."""
+    monkeypatch.setattr(la, "listening", lambda _port: True)
+
+    def refuse(*_a: object, **_k: object) -> None:
+        raise AssertionError("unitctl.start must not run when the port is busy")
+
+    monkeypatch.setattr(la.unitctl, "start", refuse)
+    la.start_server(la.STACKS["fast"])  # must not raise
+
+
+# --- the OpenCode provider declaration (#69) ---------------------------------
+
+
+def test_declare_opencode_provider_creates_and_is_idempotent(
+    tmp_path: pathlib.Path,
+) -> None:
+    cfg = tmp_path / "opencode.json"
+    la.declare_opencode_provider(
+        cfg, "ds4qwenshim/qwen3.8-flash-next-q4", "http://127.0.0.1:8101/v1"
     )
+    data = json.loads(cfg.read_text())
+    prov = data["provider"]["ds4qwenshim"]
+    assert prov["npm"] == "@ai-sdk/openai-compatible"
+    assert prov["options"]["baseURL"] == "http://127.0.0.1:8101/v1"
+    assert "qwen3.8-flash-next-q4" in prov["models"]
 
-
-def test_large_downloads_are_confirmed() -> None:
-    body = SCRIPT.read_text()
-    assert body.count("confirm ") >= 3, "downloads/builds are no longer confirmed"
-    assert "LOCAL_AGENT_YES" in body, "the non-interactive override is gone"
-
-
-# --- execution: --check only, no side effects -------------------------------
-
-
-@zsh
-@pytest.mark.parametrize("stack", STACKS)
-def test_check_mode_succeeds_for_every_stack(stack: str) -> None:
-    got = run(stack, "opencode", "--check")
-    assert got.returncode == 0, got.stderr
-    assert "stopping before any download" in got.stdout
-
-
-@zsh
-def test_an_unknown_stack_is_refused() -> None:
-    got = run("nope")
-    assert got.returncode != 0
-    assert "unknown stack" in got.stderr
-
-
-@zsh
-def test_an_unknown_client_is_refused() -> None:
-    got = run("fast", "claud")
-    assert got.returncode != 0
-    assert "unknown client" in got.stderr
-
-
-@zsh
-def test_no_arguments_prints_usage() -> None:
-    got = run()
-    assert got.returncode != 0
-    assert "usage:" in got.stderr
+    # A second call must not clobber an unrelated provider already present.
+    data["provider"]["other"] = {"npm": "x", "models": {"m": {}}}
+    cfg.write_text(json.dumps(data) + "\n")
+    la.declare_opencode_provider(
+        cfg, "ds4qwenshim/qwen3.8-flash-next-q4", "http://127.0.0.1:8101/v1"
+    )
+    data2 = json.loads(cfg.read_text())
+    assert data2["provider"]["other"] == {"npm": "x", "models": {"m": {}}}
