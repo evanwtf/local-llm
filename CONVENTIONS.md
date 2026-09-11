@@ -44,6 +44,27 @@ error raised.
 
 `benchmarks/ds4/0731/run_bench.sh` regenerates it and documents the invariant.
 
+## A log is filed by what it records, not by which machine ran it
+
+`logs/sweeps/` is shared; `hardware/<id>/logs/` is per-machine. The split is by
+the log's subject, not its author:
+
+- A **sweep** records the outside world on a day -- what upstream shipped, what
+  Hugging Face has, what X said. That is the same fact on every machine, so it
+  stays in the shared `logs/sweeps/`. The machine slug in the filename says who
+  ran the sweep; it does not make the finding a property of that machine.
+- A **benchmark, preflight or build** log is a property of the machine that
+  produced it, so it goes in `hardware/<id>/logs/`.
+
+`provenance.log_path(..., machine_specific=...)` encodes exactly this, and
+`test_sweep_logs_are_machine_independent.py` enforces it. #292 named
+`logs/sweeps/` as a place two machines could collide; they do not -- sweep files
+are slugged and timestamped, so no two share a path, and `.gitattributes` marks
+`logs/**` `-merge`. So the sweeps stay shared (moving them would wrongly
+attribute a machine-independent observation to one machine); only machine-
+specific logs move out, which is why four hand-committed #228 benchmark logs
+left `logs/sweeps/` for the Mac's directory.
+
 ## Keep the historical record honest
 
 Logs, traces, and saved transcripts under `benchmarks/` are records of what
