@@ -404,6 +404,51 @@ aider_model = "openai/qwen3.8-flash-next-q3"
 opencode_model = "llamacpp/qwen3.8-flash-next-q3"
 context_tokens = 131072
 
+# DeepSeek-V4-Flash on the DGX Spark. The project's one independent lineage --
+# the only model here that is neither Qwen nor GLM -- and until now a Mac-only
+# fact, because ds4 was a Mac-only fact. It is not: ds4 ships a documented
+# single-GPU GB10 path (docs/DGX_SPARK.md) and `make cuda-spark` builds it with
+# `-gencode arch=compute_121a,code=sm_121a -DDS4_CUDA_HAVE_MXF4=1`.
+#
+# NOT comparable to the Mac's `ds4` rows, and not an edit of that backend.
+# Upstream's sizing call for a single Spark is Q2 -- "Q2 is the resident target
+# for one Spark" -- while the Mac's 90.9 GiB rows are a mixed q2/q4 pack. The
+# weights here are 80.8 GiB:
+#   DeepSeek-V4-Flash-IQ2XXS-w2Q2K-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix-0731
+#
+# ds4-server speaks Anthropic natively ("Endpoints: /v1/chat/completions,
+# /v1/responses, /v1/completions, and /v1/messages"), so the smoke gate reaches
+# it with no shim in the path -- same as llama.cpp here, unlike the Mac.
+[backend.ds4dgx]
+description = "DeepSeek-V4-Flash Q2 0731 via ds4-server, CUDA sm_121a"
+base_url = "http://127.0.0.1:8000"
+auth_token = "dsv4-local"
+engine = "ds4"
+engine_tree = "~/git/ds4"
+model = "deepseek-v4-flash"
+aider_model = "openai/deepseek-v4-flash"
+opencode_model = "ds4/deepseek-v4-flash"
+context_tokens = 100000
+
+# GLM-5.3-Flash on the DGX Spark. Ollama has no local weights for this model at
+# all -- the whole library is one `:cloud` tag -- so ds4 is the only route.
+#
+# Q2 and --ctx 16384 are upstream's constraints, not ours: "Q4 does not fit
+# resident." Both differ from the Mac's glm53ds4 rows and are declared here
+# rather than left in a footnote. #39 found decode rate was what killed glm53
+# on the Mac; whether that verdict survives a different memory system and a
+# different backend is the question this backend exists to answer.
+[backend.glm53dgx]
+description = "GLM-5.3-Flash Q2 via ds4-server, CUDA sm_121a, ctx 16384"
+base_url = "http://127.0.0.1:8000"
+auth_token = "dsv4-local"
+engine = "ds4"
+engine_tree = "~/git/ds4"
+model = "glm-5.3-flash"
+aider_model = "openai/glm-5.3-flash"
+opencode_model = "ds4/glm-5.3-flash"
+context_tokens = 16384
+
 # NVIDIA's own model family, measured on NVIDIA's own hardware. GGUF, so it
 # needs no engine this project does not already run -- unlike every other
 # candidate on this machine (#296).
