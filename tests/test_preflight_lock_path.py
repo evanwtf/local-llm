@@ -141,6 +141,7 @@ def test_no_new_reader_tests_a_checkout_root_run_lock() -> None:
     ).stdout.split()
     allowed = {
         "benchmarks/agent/preflight.py",  # the legacy-lock detector + its warning
+        "scripts/refuse_commit_during_benchmark.py",  # refuses on a legacy lock (#242)
         "scripts/ab_status.py",  # docstring recording the move
         "scripts/machine_claim.py",  # docstring: same lock file, extended
     }

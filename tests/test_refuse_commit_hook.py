@@ -150,8 +150,77 @@ def test_main_refuses_during_a_live_run(monkeypatch, tmp_path) -> None:
 def test_main_allows_a_commit_on_an_idle_machine(monkeypatch, tmp_path) -> None:
     monkeypatch.delenv("LOCAL_LLM_ALLOW_COMMIT_DURING_RUN", raising=False)
     monkeypatch.setattr(refuse, "LOCK_PATH", tmp_path / "absent.json")
+    # Also control the legacy census (#242), or this test reads the real repo's
+    # checkout and would flip if a stray .run-lock.json ever sat there.
+    monkeypatch.setattr(refuse, "_legacy_lock_paths", lambda: [tmp_path / "nope.json"])
     monkeypatch.setattr(refuse.platform, "node", lambda: HOSTNAME)
     assert refuse.main() == 0
+
+
+def test_main_refuses_while_a_legacy_lock_exists(monkeypatch, tmp_path) -> None:
+    """#242: the canonical path reads free, but a pre-move lock in a checkout
+    means a pre-fix process may hold the machine where this cannot see it. A
+    lock nobody can classify is not a free machine."""
+    monkeypatch.delenv("LOCAL_LLM_ALLOW_COMMIT_DURING_RUN", raising=False)
+    monkeypatch.setattr(refuse, "LOCK_PATH", tmp_path / "absent.json")  # canonical free
+    legacy = lock_file(tmp_path, held_by(os.getpid()))
+    monkeypatch.setattr(refuse, "_legacy_lock_paths", lambda: [legacy])
+    monkeypatch.setattr(refuse.platform, "node", lambda: HOSTNAME)
+    assert refuse.main() == 1
+
+
+def test_the_override_bypasses_a_legacy_lock(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("LOCAL_LLM_ALLOW_COMMIT_DURING_RUN", "1")
+    monkeypatch.setattr(refuse, "LOCK_PATH", tmp_path / "absent.json")
+    monkeypatch.setattr(
+        refuse,
+        "_legacy_lock_paths",
+        lambda: [lock_file(tmp_path, held_by(os.getpid()))],
+    )
+    monkeypatch.setattr(refuse.platform, "node", lambda: HOSTNAME)
+    assert refuse.main() == 0
+
+
+def test_the_legacy_lock_paths_agree_with_preflight(tmp_path, monkeypatch) -> None:
+    """#242 adds a THIRD place the repo layout is written down. Like LOCK_PATH
+    (test_the_two_lock_paths_agree), the legacy list cannot import preflight, so
+    it is pinned against it here. Both walk up to the `.claude/worktrees` marker,
+    so a shared constructed repo makes them resolve the same root."""
+    import preflight
+
+    repo = tmp_path / "local-llm"
+    (repo / ".claude" / "worktrees" / "peer+242").mkdir(parents=True)
+    (repo / ".claude" / "worktrees" / "peer+242" / "run-lock.json").write_text("{}")
+    monkeypatch.setattr(
+        refuse, "__file__", str(repo / "scripts" / "refuse_commit_during_benchmark.py")
+    )
+    monkeypatch.setattr(
+        preflight, "__file__", str(repo / "benchmarks" / "agent" / "preflight.py")
+    )
+    assert sorted(refuse._legacy_lock_paths()) == sorted(preflight._legacy_lock_paths())
+
+
+def test_the_legacy_lock_paths_agree_in_a_plain_checkout(tmp_path, monkeypatch) -> None:
+    """No `.claude/worktrees` marker: both fall back to the repo root by path
+    arithmetic, and the two live at different depths (scripts/ vs
+    benchmarks/agent/). The fallback once diverged -- preflight resolved the
+    repo's PARENT -- so a plain checkout would have scanned different trees
+    (#242, Codex review). This pins the markerless case the marker-present test
+    cannot see."""
+    import preflight
+
+    repo = tmp_path / "local-llm"  # no .claude/worktrees
+    (repo / "scripts").mkdir(parents=True)
+    (repo / "benchmarks" / "agent").mkdir(parents=True)
+    monkeypatch.setattr(
+        refuse, "__file__", str(repo / "scripts" / "refuse_commit_during_benchmark.py")
+    )
+    monkeypatch.setattr(
+        preflight, "__file__", str(repo / "benchmarks" / "agent" / "preflight.py")
+    )
+    assert refuse._main_repo() == repo
+    assert preflight._main_repo() == repo
+    assert refuse._legacy_lock_paths() == preflight._legacy_lock_paths()
 
 
 def test_the_override_still_works_during_a_live_run(monkeypatch, tmp_path) -> None:

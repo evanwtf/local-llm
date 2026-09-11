@@ -1123,16 +1123,22 @@ def _main_repo() -> pathlib.Path:
     """The checkout that owns this module, worktree or not.
 
     From a worktree, `__file__` resolves into `.claude/worktrees/<name>/`, and
-    the legacy lock that matters sits in the main repo three levels up. Walk
-    up from `__file__` to the first directory that contains `.claude/
-    worktrees` -- that is the main repo. Fall back to the old three-levels-up
-    guess when the marker is absent (a plain checkout).
+    the legacy lock that matters sits in the main repo. Walk up from `__file__`
+    to the first directory that contains `.claude/worktrees` -- that is the main
+    repo. Fall back to the repo root, two levels above this module's own
+    directory (`benchmarks/agent/`), when the marker is absent (a plain
+    checkout). It used to be three levels, which resolved to the repo's PARENT
+    and made the legacy scan look outside the checkout entirely; that path is
+    never taken here because `.claude/worktrees` exists, which is how the
+    off-by-one stayed hidden. `refuse_commit_during_benchmark._main_repo`
+    mirrors this, and `test_the_legacy_lock_paths_agree_with_preflight` pins the
+    two equal in both the marker-present and plain-checkout cases (#242).
     """
     here = pathlib.Path(__file__).resolve().parent
     for parent in (here, *here.parents):
         if (parent / ".claude" / "worktrees").is_dir():
             return parent
-    return here.parent.parent.parent
+    return here.parent.parent
 
 
 def _legacy_lock_paths() -> list[pathlib.Path]:
