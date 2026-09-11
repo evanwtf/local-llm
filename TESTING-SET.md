@@ -136,6 +136,7 @@ be drawn from — OpenCode, after the `--dir` cutover, not excluded.
 | `qwen36codinggguf` | `qwen3.6:27b-coding` (**GGUF**) | Ollama | 17 GB | 0 |
 | `nemotron33` | `nemotron3:33b-q4_K_M` (**GGUF**) | Ollama | 26 GB | 0 |
 | `nemotronsuper` | `nemotron-3-super:120b-a12b-q4_K_M` (**GGUF**) | Ollama | 81 GB | 0 |
+| `qwen38fnq3dgx` | Qwen3.8-Flash-Next `UD-Q3_K_XL` | llama.cpp CUDA sm_121 | 83.8 GiB | 0 |
 
 **`qwen36codinggguf` exists because `qwen36coding` is macOS-only.** The
 `mxfp8` and `nvfp4` tags ship as sharded `vnd.ollama.image.tensor` layers,

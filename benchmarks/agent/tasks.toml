@@ -375,6 +375,35 @@ aider_model = "openai/qwen3.6:27b-coding"
 opencode_model = "ollama/qwen3.6:27b-coding"
 context_tokens = 262144
 
+# The project's primary model, on its second platform. Same weights, same
+# quantization and same engine as `qwen38fnq3` on the M5 Max -- Unsloth
+# UD-Q3_K_XL, 83.81 GiB, which matches the Mac's recorded 83.8 GiB exactly --
+# so the platform is the only variable. That makes this the cleanest
+# cross-machine comparison the project can currently construct (#295).
+#
+# NOT an edit of qwen38fnq3: those rows were taken on Metal, and pooling them
+# with these would be pooling two platforms.
+#
+# base_url points straight at llama-server. The Mac reaches it through a shim
+# on :11500 because the smoke gate speaks Anthropic; current llama.cpp master
+# compiles `/v1/messages` in natively (`post_anthropic_messages`,
+# tools/server/server.cpp), so nothing sits between the harness and the engine
+# here. Engine: 0.4.0-dev build 50, commit 481c65f, aarch64, built
+# -DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=121. Built from master, not a
+# release: v0.4.0 predates ggml-org/llama.cpp#27742, the Flash-Next merge.
+#
+# context_tokens matches qwen38fnq3's 131072 rather than the 262144 the Ollama
+# backends declare, so the two are comparable on that axis too.
+[backend.qwen38fnq3dgx]
+description = "Qwen3.8-Flash-Next 125B-A6B, Unsloth UD-Q3_K_XL, llama.cpp CUDA sm_121"
+base_url = "http://127.0.0.1:8020"
+auth_token = "local"
+engine = "llama.cpp"
+model = "qwen3.8-flash-next-q3"
+aider_model = "openai/qwen3.8-flash-next-q3"
+opencode_model = "llamacpp/qwen3.8-flash-next-q3"
+context_tokens = 131072
+
 # NVIDIA's own model family, measured on NVIDIA's own hardware. GGUF, so it
 # needs no engine this project does not already run -- unlike every other
 # candidate on this machine (#296).
