@@ -135,7 +135,8 @@ be drawn from — OpenCode, after the `--dir` cutover, not excluded.
 | `qwen38fnmlxserve-git` | the same model as MLX mixed 4/8-bit weights | mlx-serve git main+PR383 at `~/git/mlx-serve` (no shim) | 101 GB | 0 |
 | `qwen36codinggguf` | `qwen3.6:27b-coding` (**GGUF**) | Ollama | 17 GB | 0 |
 | `nemotron33` | `nemotron3:33b-q4_K_M` — **Nano Omni, multimodal/document-intelligence, not a coding model** | Ollama | 26 GB | 10 |
-| `nemotroncascade2` | `nemotron-cascade-2:30b-a3b-q4_K_M` (**agentic**, GGUF) | Ollama | 23 GB | 0 |
+| `nemotroncascade2` | `nemotron-cascade-2:30b-a3b-q4_K_M` (**agentic**, GGUF) | Ollama | 23 GB | 10 |
+| `nemotron3nano` | `nemotron-3-nano:30b-a3b-q8_0` (**agentic**, GGUF) | Ollama | 31 GB | 0 |
 | `nemotronsuper` | `nemotron-3-super:120b-a12b-q4_K_M` (**GGUF**) | Ollama | 81 GB | 0 |
 | `qwen38fnq3dgx` | Qwen3.8-Flash-Next `UD-Q3_K_XL` | llama.cpp CUDA sm_121 | 83.8 GiB | 0 |
 | `ds4dgx` | DeepSeek-V4-Flash **Q2** 0731 | ds4 CUDA sm_121a | 80.8 GiB | 0 |

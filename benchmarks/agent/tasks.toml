@@ -486,6 +486,29 @@ opencode_model = "ollama/nemotron3:33b-q4_K_M"
 # context the model never had -- and that refusal is how this was caught.
 context_tokens = 131072
 
+# NVIDIA's agentic Nano: "a new Standard for Efficient, Open, and Intelligent
+# Agentic Models" (#311). 30B total / 3B active MoE, architecture
+# `nemotron_h_moe`, capabilities completion/tools/thinking.
+#
+# q8_0 rather than the 22.6 GiB q4_K_M: 31.3 GiB on a 128 GB unified machine
+# leaves ample headroom, so there is no reason to take the quantization loss.
+#
+# context_tokens is what the SERVER LOADS, not what the card advertises. The
+# card says 1048576; ollama caps it and `ollama ps` reports 262144 with the
+# model resident at 36 GB. Declaring the card's figure would have been refused
+# by run.py's served-context check -- declaring more than the server loaded is
+# the one direction it catches. Measured by loading the model once and reading
+# `ollama ps`, rather than trusting either number.
+[backend.nemotron3nano]
+description = "Nemotron 3 Nano 30B-A3B (agentic), Q8_0 (GGUF)"
+base_url = "http://127.0.0.1:11434"
+auth_token = "ollama"
+engine = "ollama"
+model = "nemotron-3-nano:30b-a3b-q8_0"
+aider_model = "openai/nemotron-3-nano:30b-a3b-q8_0"
+opencode_model = "ollama/nemotron-3-nano:30b-a3b-q8_0"
+context_tokens = 262144
+
 # The fair Nemotron comparator, and the one nemotron33 should have been.
 # NVIDIA positions nemotron-cascade-2 as "an open 30B MoE model with 3B
 # activated parameters that delivers strong reasoning and agentic

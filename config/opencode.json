@@ -150,6 +150,24 @@
           "temperature": false,
           "tool_call": true
         },
+        "nemotron-3-nano:30b-a3b-q8_0": {
+          "limit": {
+            "context": 262144,
+            "output": 262144
+          },
+          "modalities": {
+            "input": [
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "name": "Nemotron 3 Nano 30B-A3B q8_0 (local, ollama)",
+          "reasoning": false,
+          "temperature": false,
+          "tool_call": true
+        },
         "nemotron-3-super:120b-a12b-q4_K_M": {
           "limit": {
             "context": 262144,
