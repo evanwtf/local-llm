@@ -59,13 +59,32 @@ def _ledger(tmp_path: pathlib.Path) -> pathlib.Path:
 
 
 def _run(path: pathlib.Path, *extra: str) -> subprocess.CompletedProcess:
-    return subprocess.run(
+    """Run summarize.py end to end, then remove the log it teed.
+
+    `provenance.tee(machine_specific=True)` writes into
+    `hardware/<machine>/logs/`, which is inside the repo -- so running this
+    test leaves an artifact in the working tree, and running it in CI leaves
+    one on every build. Twelve were committed before anyone noticed.
+
+    The log path is on stdout because summarize.py now reports it, so the test
+    can find and remove exactly the file it caused. Deleting by that line
+    rather than by glob means a real summarize log sitting in the same
+    directory is never touched.
+    """
+    got = subprocess.run(
         [sys.executable, str(HERE / "summarize.py"), "--results", str(path), *extra],
         capture_output=True,
         text=True,
         timeout=120,
         check=False,
     )
+    for line in (got.stdout + got.stderr).splitlines():
+        marker = "log: "
+        if marker in line:
+            logged = pathlib.Path(line.split(marker, 1)[1].strip())
+            if logged.is_file() and logged.suffix == ".log":
+                logged.unlink()
+    return got
 
 
 def test_it_exits_zero_and_reaches_the_totals(tmp_path) -> None:
@@ -76,6 +95,9 @@ def test_it_exits_zero_and_reaches_the_totals(tmp_path) -> None:
     combined = got.stdout + got.stderr
     assert "1/2 passed" in combined, combined
     assert "timeouts 1" in combined, combined
+    # The log path is reported after the totals -- the last thing main() does,
+    # and the line whose absence made `log_file` look unused (ruff F841).
+    assert "log: " in combined, combined
 
 
 def test_markdown_mode_also_completes(tmp_path) -> None:

@@ -29,3 +29,11 @@ sandbox/
 
 # Peer bookkeeping state lives in ~/.local-llm-bench now (#238)
 .claude/peer/
+
+# summarize.py tees a machine-specific log on every invocation, and
+# test_summarize.py invokes it end to end -- so a plain `pytest` run used to
+# leave artifacts in hardware/<machine>/logs/, and twelve were committed before
+# anyone noticed. The test now removes the file it caused; this is the backstop,
+# because summarize is a read-only reporting script whose output is regenerable
+# and carries nothing a result row does not.
+hardware/*/logs/summarize-*.log
