@@ -86,8 +86,19 @@ def test_an_interruption_still_reaps_the_tree(tmp_path) -> None:
     """A driver stopped mid-arm must not leave its measurement running.
 
     The exception the driver is stopping for propagates; the tree comes down
-    first.
+    first. This is #268's actual shape: the child is `run.py`, which has already
+    spawned `opencode` (the grandchild) by the time the interrupt arrives. So
+    the child spawns a grandchild and the interrupt is held until it is up --
+    then BOTH must be gone. Interrupting before the grandchild exists would
+    prove nothing, because the leak #268 describes is the grandchild.
     """
+    marker = tmp_path / "grandchild.pid"
+    grandchild_script = (
+        "import subprocess, pathlib, sys, time\n"
+        "p = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(120)'])\n"
+        f"pathlib.Path({str(marker)!r}).write_text(str(p.pid))\n"
+        "time.sleep(120)\n"
+    )
     started: dict[str, int] = {}
     real_popen = subprocess.Popen
 
@@ -95,6 +106,11 @@ def test_an_interruption_still_reaps_the_tree(tmp_path) -> None:
         def wait(self, timeout=None):
             if "pid" not in started:
                 started["pid"] = self.pid
+                # Hold the interrupt until the grandchild is up, so terminate
+                # runs against the whole tree and not a lone child.
+                deadline = time.monotonic() + 10
+                while time.monotonic() < deadline and not marker.exists():
+                    time.sleep(0.05)
                 raise KeyboardInterrupt
             return super().wait(timeout)
 
@@ -102,17 +118,22 @@ def test_an_interruption_still_reaps_the_tree(tmp_path) -> None:
     try:
         with pytest.raises(KeyboardInterrupt):
             child.run(
-                [sys.executable, "-c", "import time; time.sleep(120)"],
+                [sys.executable, "-c", grandchild_script],
                 cwd=tmp_path,
                 log=tmp_path / "i.log",
             )
     finally:
         subprocess.Popen = real_popen  # type: ignore[misc]
 
+    assert marker.exists(), "grandchild never started; the test proved nothing"
+    grandchild = int(marker.read_text())
     deadline = time.monotonic() + 10
-    while time.monotonic() < deadline and alive(started["pid"]):
+    while time.monotonic() < deadline and (alive(started["pid"]) or alive(grandchild)):
         time.sleep(0.05)
-    assert not alive(started["pid"])
+    assert not alive(started["pid"]), "the run.py child outlived the interrupt"
+    assert not alive(grandchild), (
+        "the opencode grandchild outlived the interrupt -- #268"
+    )
 
 
 def test_terminating_an_exited_child_is_a_no_op(tmp_path) -> None:
@@ -226,6 +247,57 @@ def test_a_fixed_tool_may_still_use_subprocess_run() -> None:
     assert literals, (
         "no driver calls subprocess.run at all any more -- if that is "
         "deliberate, delete this test rather than letting it assert nothing"
+    )
+
+
+#: Any one of these in a driver's source means it takes the machine lock: the
+#: raw acquire, or one of the context managers that wrap it (ab_driver, greedy,
+#: batch). Matched against `code_of`, so a mention in a docstring does not count.
+LOCK_MARKERS = ("acquire_lock", "machine_lock(", "run_lock(", ".machine(")
+
+
+def passes_no_lock(path: pathlib.Path) -> bool:
+    """True if the driver hands run.py `--no-lock` as an actual argument.
+
+    An AST string-constant match, not a substring: `"--no-lock"` and
+    `'--no-lock'` are the same argument, and a docstring that spells the flag in
+    a sentence is one long string that never equals the flag on its own. A
+    substring search gets both of those wrong.
+    """
+    return any(
+        isinstance(node, ast.Constant) and node.value == "--no-lock"
+        for node in ast.walk(ast.parse(path.read_text()))
+    )
+
+
+def test_every_measuring_driver_holds_the_machine_lock() -> None:
+    """A driver that runs a measurement must hold the lock across it (#268).
+
+    The row-writing child is `run.py`, and a driver has two correct shapes: let
+    `run.py` take the lock (no `--no-lock`, as disk_kv_mechanism does), or hold
+    the lock itself for the whole run and pass `--no-lock`. The second is
+    load-bearing because the server is down between arms and a process scan then
+    reports the machine free -- the lock is the only thing that says otherwise.
+
+    The third shape is the bug: pass `--no-lock` and hold no lock. The
+    measurement then runs with the machine advertised as free for its whole
+    length -- #268's hazard without even the transient window. route_agent_ab
+    and stack_agent_ab were both this shape, in the shell and in the port.
+
+    Keyed on `measurement_spawns`, not on naming run.py: equiv_five_report
+    reconstructs run.py's argv as data to diff it and never spawns it, so it is
+    correctly not a measuring driver.
+    """
+    wrong = []
+    for path in drivers_that_spawn_the_harness():
+        if not measurement_spawns(path):
+            continue
+        src = code_of(path)
+        if passes_no_lock(path) and not any(m in src for m in LOCK_MARKERS):
+            wrong.append(path.name)
+    assert not wrong, (
+        "a measuring driver passes --no-lock but holds no machine lock (#268), "
+        "so its rows are written on a machine advertised as free: " + ", ".join(wrong)
     )
 
 

@@ -73,6 +73,7 @@ import ds4_server
 import metal_equivalence
 import metal_route
 import ports
+import preflight
 import provenance
 
 import logs
@@ -95,6 +96,7 @@ KV = {
 BENCH_LOGS = pathlib.Path.home() / "bench-logs"
 DEFAULT_OUT = BENCH_LOGS / "149-route-ab"
 BACKEND = "qwen38fnds4shim"
+LOCK_WHAT = "route_agent_ab.py (#149/#264/#268)"
 MODEL_ID = "qwen3.8-flash-next-q4"
 SERVER_PORT = 8000
 SHIM_PORT = 8101
@@ -499,34 +501,42 @@ def sweep(sweeps: int, trials: int, out: pathlib.Path) -> int:
         raise Refusing("missing: " + ", ".join(str(p) for p in gone))
     logger.info("tree on the withhold commit: %s", check_tree())
 
-    # Point run.py's ds4 route gate at the tree that will actually serve. It
-    # fingerprints $DS4_TREE/ds4_test and defaults to ~/git/ds4-metal, so
-    # without this it judges a binary no arm runs.
-    os.environ["DS4_TREE"] = str(TREE)
-    os.environ["DS4_TEST_MODEL"] = str(GLM_Q2)
+    # Hold the machine lock for the whole run (#268). This driver passes
+    # `--no-lock` to run.py and restarts the server between arms, so between
+    # arms nothing else holds the machine -- a process scan then reads it as
+    # free. The shell never took a lock at all and neither did the first port;
+    # both ran these sweeps on a machine advertised as free.
+    with ab_driver.machine_lock(LOCK_WHAT, os.getpid(), preflight):
+        # Point run.py's ds4 route gate at the tree that will actually serve. It
+        # fingerprints $DS4_TREE/ds4_test and defaults to ~/git/ds4-metal, so
+        # without this it judges a binary no arm runs.
+        os.environ["DS4_TREE"] = str(TREE)
+        os.environ["DS4_TEST_MODEL"] = str(GLM_Q2)
 
-    validate_routes(out)
+        validate_routes(out)
 
-    if provenance.code_is_dirty(REPO, untracked=False):
-        raise Refusing(
-            "the harness has uncommitted code. A comparative run pinned to a "
-            "commit cannot be reproduced from one."
+        if provenance.code_is_dirty(REPO, untracked=False):
+            raise Refusing(
+                "the harness has uncommitted code. A comparative run pinned to "
+                "a commit cannot be reproduced from one."
+            )
+        harness_head = provenance.head(REPO)
+        write_record(out, harness_head, sweeps)
+
+        if sweeps % 2:
+            logger.warning(
+                "sweeps-per-arm=%d is odd, so T leads once more than R and the "
+                "position term does not cancel (#130, #201). Pre-registered as "
+                "such on #149.",
+                sweeps,
+            )
+
+        def one(arm: ab_driver.Arm, tag: str, round_number: int) -> int:
+            return run_arm(arm, tag, out, trials, harness_head)
+
+        failed = ab_driver.run(
+            arms(out), sweeps, one, allow_uneven=True, tag_for=tag_for
         )
-    harness_head = provenance.head(REPO)
-    write_record(out, harness_head, sweeps)
-
-    if sweeps % 2:
-        logger.warning(
-            "sweeps-per-arm=%d is odd, so T leads once more than R and the "
-            "position term does not cancel (#130, #201). Pre-registered as "
-            "such on #149.",
-            sweeps,
-        )
-
-    def one(arm: ab_driver.Arm, tag: str, round_number: int) -> int:
-        return run_arm(arm, tag, out, trials, harness_head)
-
-    failed = ab_driver.run(arms(out), sweeps, one, allow_uneven=True, tag_for=tag_for)
     logger.info("all %d sweeps complete under %s", sweeps * 2, out)
     logger.info(
         "Read it with: uv run python scripts/route_ab_report.py --run-dir %s", out

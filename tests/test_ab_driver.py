@@ -9,18 +9,31 @@ it, and it removes it only when every arm leads equally often.
 from __future__ import annotations
 
 import contextlib
+import os
 import pathlib
+import subprocess
 import sys
+import time
 
 import pytest
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "scripts" / "lib"))
 sys.path.insert(0, str(ROOT / "scripts"))
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
 import ab_driver
+import child
 from source_text import code_of
+
+
+def alive(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+    except OSError:
+        return False
+    return True
 
 
 def arm(name: str, events: list[str] | None = None) -> ab_driver.Arm:
@@ -281,3 +294,117 @@ def test_the_default_tag_is_unchanged() -> None:
     seen: list[str] = []
     ab_driver.run(arms, 2, lambda a, tag, n: seen.append(tag) or 0)
     assert seen == ["r1-mtp", "r1-plain", "r2-plain", "r2-mtp"]
+
+
+class FakePreflight:
+    """A stand-in for the preflight module: records the lock's lifecycle."""
+
+    def __init__(self, *, take: bool = True) -> None:
+        self.take = take
+        self.events: list[str] = []
+
+    def acquire_lock(self, what: str, pid: int) -> tuple[bool, str]:
+        self.events.append(f"acquire:{pid}")
+        return self.take, "held" if self.take else "busy"
+
+    def release_lock(self, pid: int) -> tuple[bool, str]:
+        self.events.append(f"release:{pid}")
+        return True, "released"
+
+
+def test_machine_lock_releases_after_the_body() -> None:
+    """The whole of #268: the release runs last, after the work it names.
+
+    A driver's `child.run` does not return until the measurement child is
+    reaped, so a release in the `finally` here is a release after the child is
+    dead -- never a lock that outlives a still-writing run.py.
+    """
+    pf = FakePreflight()
+    with ab_driver.machine_lock("route", 4242, pf):
+        pf.events.append("body")
+    assert pf.events == ["acquire:4242", "body", "release:4242"]
+
+
+def test_machine_lock_releases_even_when_the_body_raises() -> None:
+    pf = FakePreflight()
+    with pytest.raises(ValueError), ab_driver.machine_lock("route", 7, pf):
+        raise ValueError("stopped mid-arm")
+    assert pf.events == ["acquire:7", "release:7"]
+
+
+def test_machine_lock_refuses_and_does_not_release_when_the_lock_is_busy() -> None:
+    """A driver that cannot claim the machine must not run -- nor release a lock
+    it never took (releasing another owner's lock is how #268's mirror starts).
+    """
+    pf = FakePreflight(take=False)
+    with (
+        pytest.raises(RuntimeError, match="could not claim the machine"),
+        ab_driver.machine_lock("route", 9, pf),
+    ):
+        pf.events.append("body")
+    assert pf.events == ["acquire:9"]
+
+
+def test_machine_lock_releases_only_after_the_child_tree_is_reaped(tmp_path) -> None:
+    """#268 end to end, with a real tree rather than a synthetic body.
+
+    The bug was a lock released while `run.py`'s tree kept writing. Here a real
+    `child.run` spawns a grandchild (the `opencode` analog) inside a
+    `machine_lock`, and the run is interrupted mid-arm -- the actual #268 shape.
+    The preflight asserts, at the instant of release, that the grandchild is
+    already dead, so the test cannot pass unless `child.run`'s teardown reaps the
+    tree before the lock's `finally` releases.
+    """
+    marker = tmp_path / "grandchild.pid"
+    script = (
+        "import subprocess, pathlib, sys, time\n"
+        "p = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(120)'])\n"
+        f"pathlib.Path({str(marker)!r}).write_text(str(p.pid))\n"
+        "time.sleep(120)\n"  # still alive at teardown, so terminate must reap it
+    )
+
+    real_popen = subprocess.Popen
+    interrupted: dict[str, bool] = {}
+
+    class Interrupting(real_popen):  # type: ignore[misc]
+        def wait(self, timeout=None):
+            if not interrupted:
+                interrupted["yes"] = True
+                deadline = time.monotonic() + 10
+                while time.monotonic() < deadline and not marker.exists():
+                    time.sleep(0.05)
+                raise KeyboardInterrupt
+            return super().wait(timeout)
+
+    class ReleaseChecksTheTree:
+        def __init__(self) -> None:
+            self.released = False
+
+        def acquire_lock(self, what: str, pid: int) -> tuple[bool, str]:
+            return True, "held"
+
+        def release_lock(self, pid: int) -> tuple[bool, str]:
+            gc = int(marker.read_text())
+            # A short poll for reap latency, not a loophole: without the tree
+            # teardown the grandchild is a live sleep(120) that no 5 s poll ever
+            # sees exit, so a regression still fails here.
+            deadline = time.monotonic() + 5
+            while time.monotonic() < deadline and alive(gc):
+                time.sleep(0.02)
+            assert not alive(gc), "lock released while the grandchild was alive -- #268"
+            self.released = True
+            return True, "released"
+
+    pf = ReleaseChecksTheTree()
+    subprocess.Popen = Interrupting  # type: ignore[misc]
+    try:
+        with (
+            pytest.raises(KeyboardInterrupt),
+            ab_driver.machine_lock("t", 1, pf),
+        ):
+            child.run(
+                [sys.executable, "-c", script], cwd=tmp_path, log=tmp_path / "t.log"
+            )
+    finally:
+        subprocess.Popen = real_popen  # type: ignore[misc]
+    assert pf.released, "the lock never released -- the ordering assert did not run"

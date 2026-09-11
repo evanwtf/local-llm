@@ -74,6 +74,7 @@ import ab_driver
 import child
 import ds4_server
 import mlx_serve
+import preflight
 import provenance
 import stack_arm
 import tool_shim
@@ -85,6 +86,7 @@ logger = logging.getLogger(__name__)
 
 BENCH_LOGS = pathlib.Path.home() / "bench-logs"
 DEFAULT_OUT = BENCH_LOGS / "138-stack-ab"
+LOCK_WHAT = "stack_agent_ab.py (#138/#268)"
 SHIM_PORT = 8101
 
 DEFAULTS = {
@@ -412,13 +414,19 @@ def run(sweeps: int, out: pathlib.Path) -> int:
     def one(driver_arm: ab_driver.Arm, tag: str, round_number: int) -> int:
         return sweep(by_name[driver_arm.name], tag, out, harness_head)
 
-    failed = ab_driver.run(
-        driver_arms,
-        sweeps,
-        one,
-        allow_uneven=True,
-        tag_for=lambda a, n: f"{a.name}-sweep{n}",
-    )
+    # Hold the machine lock across every sweep (#268). Each arm stops both
+    # ~100 GiB servers and starts one, so between arms no server is resident
+    # and a process scan reports the machine free; run.py gets `--no-lock`
+    # because this holds it. Released last, after the measurement child is
+    # reaped -- the ordering whose absence left rows on a "free" machine.
+    with ab_driver.machine_lock(LOCK_WHAT, os.getpid(), preflight):
+        failed = ab_driver.run(
+            driver_arms,
+            sweeps,
+            one,
+            allow_uneven=True,
+            tag_for=lambda a, n: f"{a.name}-sweep{n}",
+        )
     if not failed:
         logger.info("all %d sweeps complete under %s", sweeps * 2, out)
     else:

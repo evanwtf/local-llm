@@ -188,6 +188,37 @@ def nothing(tag: str = "") -> Iterator[None]:
     yield
 
 
+@contextlib.contextmanager
+def machine_lock(what: str, owner_pid: int, preflight_module: object) -> Iterator[None]:
+    """Hold the machine lock for a whole driver run, released last (#268).
+
+    A driver runs many `run.py` children with the server stopped between arms,
+    so the lock must span the run and not each child: a process scan in a
+    server-down window truthfully reports the machine free, and the lock is the
+    only thing that says a measurement is in progress. `run.py` gets `--no-lock`
+    because this holds it instead.
+
+    The release is in the `finally`, which runs after the body -- and the body's
+    `child.run` does not return until the measurement child is reaped. So the
+    lock outlives the child, never the other way round. That ordering is the
+    whole of #268: a lock released while `run.py` kept writing left three rows
+    on a machine advertised as free.
+
+    Takes the preflight module rather than importing it, so a test can pass a
+    fake and this stays importable without benchmarks/agent on the path -- the
+    same contract as `batch.machine`.
+    """
+    taken, why = preflight_module.acquire_lock(what, pid=owner_pid)
+    if not taken:
+        raise RuntimeError(f"could not claim the machine: {why}")
+    logger.info("machine lock held: %s", why)
+    try:
+        yield
+    finally:
+        released, why = preflight_module.release_lock(pid=owner_pid)
+        logger.info("machine lock released=%s: %s", released, why)
+
+
 def stamp() -> str:
     """A local, timezone-aware stamp for a log directory name.
 
