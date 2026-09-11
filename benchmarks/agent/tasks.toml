@@ -112,6 +112,7 @@ not modify any test."""
 [[task]]
 name = "swift-downsample-buckets"
 repo = "~/git/monitor"
+platform = "darwin"
 base_commit = "cbb85ca"
 test_command = "swift test"
 file = "Sources/MonitorCore/Downsample.swift"
@@ -124,6 +125,7 @@ suite passes. Do not modify any test."""
 [[task]]
 name = "swift-csv-text"
 repo = "~/git/monitor"
+platform = "darwin"
 base_commit = "cbb85ca"
 test_command = "swift test"
 file = "Sources/MonitorCore/CSVExport.swift"
@@ -136,6 +138,7 @@ suite passes. Do not modify any test."""
 [[task]]
 name = "swift-chartaxis-spacing"
 repo = "~/git/monitor"
+platform = "darwin"
 base_commit = "cbb85ca"
 test_command = "swift test"
 file = "Sources/MonitorCore/ChartAxis.swift"
@@ -241,6 +244,7 @@ passes. Do not modify any test."""
 [[task]]
 name = "swift-scaleladder-snap"
 repo = "~/git/monitor"
+platform = "darwin"
 base_commit = "cbb85ca"
 test_command = "swift test"
 file = "Sources/MonitorCore/GaugeScale.swift"
@@ -257,6 +261,7 @@ suite passes. Do not modify any test."""
 [[task]]
 name = "swift-sevensegment-glyphs"
 repo = "~/git/monitor"
+platform = "darwin"
 base_commit = "cbb85ca"
 test_command = "swift test"
 file = "Sources/MonitorCore/SevenSegment.swift"
@@ -349,6 +354,25 @@ codex_profile = "qwen36coding"
 # opencode.json, which is NOT in git.
 aider_model = "openai/qwen3.6:27b-coding-mxfp8"
 opencode_model = "ollama/qwen3.6:27b-coding-mxfp8"
+context_tokens = 262144
+
+# The GGUF build of the same coding-tuned weights. Exists because the mxfp8 and
+# nvfp4 tags cannot be pulled outside macOS: both ship as sharded
+# `vnd.ollama.image.tensor` layers that Ollama 0.34.0 routes to MLX, and the
+# pull dies with "this model requires MLX support" before any weights move
+# (#293). This tag ships a single GGUF `image.model` layer and runs anywhere.
+#
+# NOT the same artifact as qwen36coding. Same weights, different quantization
+# and different container -- no row here may be compared to an mxfp8 row
+# without saying so. It is the portable stand-in, not a replacement.
+[backend.qwen36codinggguf]
+description = "Qwen3.6-27B coding-tuned, GGUF (portable; mxfp8 is macOS-only)"
+base_url = "http://127.0.0.1:11434"
+auth_token = "ollama"
+engine = "ollama"
+model = "qwen3.6:27b-coding"
+aider_model = "openai/qwen3.6:27b-coding"
+opencode_model = "ollama/qwen3.6:27b-coding"
 context_tokens = 262144
 
 # 35B total, 3B active. The MoE shape, and the only coding-tuned MLX MoE on

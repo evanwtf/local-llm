@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import os
 import pathlib
 import subprocess
 from typing import Any
@@ -177,6 +178,12 @@ def gates(
                 timeout=timeout,
                 stdin=subprocess.DEVNULL,
                 check=False,
+                # These gates measure the tree; they must not edit it. `uv run`
+                # rewrites a tracked uv.lock whenever the installed uv resolves
+                # differently from the committed lock, and `gates_before` runs
+                # BEFORE the agent -- so the trial's diff is dirty before the
+                # model has typed a character. See run.py:tests_pass.
+                env={**os.environ, "UV_FROZEN": "1"},
             )
         except (OSError, subprocess.SubprocessError) as exc:
             logger.debug("gate %s did not run: %s", tool, exc)

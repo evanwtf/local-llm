@@ -241,11 +241,30 @@ def tests_pass(worktree, tests, timeout, command="uv run pytest -q"):
     failures. Matching the summary string here would be a fragile substitute
     that any refactor could quietly break.
     """
+    # The oracle must not modify the tree it is judging. `uv run` resolves
+    # before it runs and will REWRITE uv.lock -- which gmail-archive tracks --
+    # whenever the installed uv would resolve differently from the committed
+    # lock. That happens on any machine whose uv is newer than the one the lock
+    # was written with, and it is silent: the tests still pass.
+    #
+    # The damage is downstream. The trial's diff is taken as `git diff HEAD`,
+    # so a rewritten lock means the diff is never empty, `solution_empty` is
+    # never true, and every saved patch carries a uv.lock hunk that the agent
+    # did not write -- polluting solution_sha256 and the structural proxies
+    # over "lines the agent added". #112's turn-1-death analysis reads
+    # solution_empty, so on such a machine it silently measures nothing.
+    #
+    # UV_FROZEN is set in the environment rather than added to `command`, so
+    # the recorded test_command is byte-identical to every row already taken
+    # and nothing here changes what is being compared. Harmless to a runner
+    # that is not uv: `swift test` never reads it.
+    env = {**os.environ, "UV_FROZEN": "1"}
     r, peak, killed = memcap.run_capped(
         [*command.split(), *tests],
         cwd=worktree,
         timeout=timeout,
         cap_gib=ORACLE_MEM_CAP_GIB,
+        env=env,
     )
     if killed:
         return (
@@ -3269,6 +3288,33 @@ def main():
     provenance.configure()
     cfg = tomllib.loads(pathlib.Path(args.tasks_file).read_text())
     tasks = [t for t in cfg["task"] if not args.task or t["name"] in args.task]
+    # A task may pin itself to a platform. The Swift excisions target
+    # `~/git/monitor`, an AppKit desktop application: it builds against the
+    # Apple SDKs, so `swift test` cannot be an oracle anywhere but macOS, and
+    # no Swift toolchain on Linux changes that.
+    #
+    # Off a Mac they are SKIPPED, which leaves a missing cell -- never a zero.
+    # A skipped task writes no row at all, so a Linux pass rate describes the
+    # suite that machine actually ran instead of being silently penalised for
+    # five tasks it was never able to attempt. The Python excisions and the
+    # script tasks are the cross-platform spine and run everywhere.
+    #
+    # Naming one with --task still runs it, the same way --backend overrides a
+    # retired or tiered backend: the gate keeps them out of the default matrix,
+    # it does not make them unreachable.
+    if not args.task:
+        for t in tasks:
+            want = t.get("platform")
+            if want and want != sys.platform:
+                logger.info(
+                    "skipping task %s: platform %s, this machine is %s",
+                    t["name"],
+                    want,
+                    sys.platform,
+                )
+        tasks = [
+            t for t in tasks if not t.get("platform") or t["platform"] == sys.platform
+        ]
     backends = {
         k: v for k, v in cfg["backend"].items() if not args.backend or k in args.backend
     }
@@ -3323,6 +3369,17 @@ def main():
             targets[(got["repo"], got["base_commit"])] = got
         for (repo_str, commit), got in targets.items():
             repo = pathlib.Path(repo_str).expanduser()
+            # Not on disk at all. Without this the first git call raises a bare
+            # FileNotFoundError from subprocess, which names the path but not
+            # what wanted it or what to do about it.
+            if not repo.is_dir():
+                raise SystemExit(
+                    f"target repo {repo} does not exist, and task "
+                    f"{got.get('_name', repo_str)} needs it.\n"
+                    f"Clone it, or select only tasks whose repo is present. "
+                    f"A task pinned to another platform is skipped "
+                    f"automatically unless --task names it."
+                )
             dirty_t = run(["git", "status", "--porcelain"], cwd=repo).stdout.strip()
             if dirty_t:
                 raise SystemExit(

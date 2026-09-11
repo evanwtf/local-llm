@@ -412,7 +412,11 @@ def _wire(monkeypatch, tmp_path: pathlib.Path, *, rc: int, rows: int = 0) -> Non
 import equiv
 import wait_ready
 
-_SHELL_ARTIFACTS = frozenset({"PWD", "OLDPWD", "SHLVL", "_"})
+# COLUMNS/LINES are terminal geometry, injected by bash when it has a tty and
+# absent when it does not. They describe the window the comparison was run
+# from, never the run, and they made these differentials fail on a machine
+# whose shell reported a size ("run 1 env differs": COLUMNS=80, LINES=24).
+_SHELL_ARTIFACTS = frozenset({"PWD", "OLDPWD", "SHLVL", "_", "COLUMNS", "LINES"})
 
 
 def _meaningful_env(env: dict[str, str]) -> dict[str, str]:

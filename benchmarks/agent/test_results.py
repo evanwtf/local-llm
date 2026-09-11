@@ -8,6 +8,7 @@ that knew about one of them silently counted the other fifteen.
 from __future__ import annotations
 
 import json
+import pathlib
 
 import pytest
 from results import (
@@ -343,10 +344,25 @@ def test_trials_agrees_with_summarize_on_the_real_results_file():
     assert sum(verdict(r) for r in mine) == sum(bool(r.get("passed")) for r in theirs)
 
 
+#: The ledger that holds the qwen38fnq2 timeouts. Named explicitly rather than
+#: derived from the machine: this asserts a fact about a specific body of rows,
+#: and those rows are committed, so the guard should hold when the suite runs
+#: anywhere. Keyed on `default_path()` it silently became a test of whichever
+#: machine ran it, and on the DGX Spark -- whose ledger has no timeouts and, on
+#: day one, no trials at all -- it failed claiming the Mac's rows had gone
+#: missing.
+CORPUS_RESULTS = (
+    pathlib.Path(__file__).resolve().parents[2]
+    / "hardware"
+    / "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A"
+    / "results.jsonl"
+)
+
+
 def test_the_real_results_file_counts_its_timeouts_as_failures():
-    if not REAL_RESULTS.exists():
-        pytest.skip("results.jsonl not present")
-    rows = trials(REAL_RESULTS)
+    if not CORPUS_RESULTS.exists():
+        pytest.skip(f"corpus ledger not present at {CORPUS_RESULTS}")
+    rows = trials(CORPUS_RESULTS)
     timed_out = [r for r in rows if "passed" not in r]
     assert timed_out, "expected the known qwen38fnq2 timeouts to still be present"
     assert all(verdict(r) is False for r in timed_out)

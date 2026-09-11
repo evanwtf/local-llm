@@ -150,13 +150,21 @@ A function body is excised from a real repository at a pinned commit; the agent
 must restore it. The repository's **own test suite** is the sole oracle -- pass
 or fail, no partial credit, no judge.
 
-| target repo | language | tests | oracle |
-|---|---|---|---|
-| `~/git/gmail-archive` | Python | 71 | `uv run pytest -q`, ~0.85 s |
-| `~/git/monitor` | Swift | 215 | `swift test`, ~0.7 s |
+| target repo | language | tests | oracle | runs on |
+|---|---|---|---|---|
+| `~/git/gmail-archive` | Python | 71 | `uv run pytest -q`, ~0.85 s | **any platform** |
+| `~/git/monitor` | Swift | 215 | `swift test`, ~0.7 s | **macOS only** |
 
 Both are pinned on a `local-llm-benchmark` branch, and **results from the two
 are not pooled** -- different repository, language and oracle.
+
+**The Swift half is macOS-only.** `monitor` is a macOS desktop application: it
+builds against AppKit and the Apple SDKs, so `swift test` cannot be the oracle
+on Linux even where a Swift toolchain exists. A non-Mac machine runs the Python
+excision and script tasks and simply has no Swift row to take -- that is a
+missing cell, not a failure, and never a zero. **Python is the cross-platform
+spine of this suite**; any comparison that spans machines of different
+platforms must be Python-only, or it is comparing a subset to a whole.
 
 | criterion | status |
 |---|---|

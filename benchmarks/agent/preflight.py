@@ -1314,6 +1314,11 @@ def acquire_lock(
         # its liveness, or the claim dies when the CLI that wrote it exits.
         claim["session_claim"] = True
     try:
+        # The state directory need not exist yet. On a machine that has never
+        # run the harness it does not, and O_CREAT fails with ENOENT -- which
+        # reads as "cannot take the run lock", as though something held it,
+        # when in truth nothing here has ever run. Create it before claiming.
+        path.parent.mkdir(parents=True, exist_ok=True)
         # O_EXCL so two processes racing here cannot both win.
         fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
     except FileExistsError:

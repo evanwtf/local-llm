@@ -32,11 +32,19 @@ HERE = pathlib.Path(__file__).resolve().parent
 #: The skip is keyed on the FILE, never on the platform: on the machine that
 #: owns the rows the tests still run, because a skipping test is not a passing
 #: test. A second machine with its own results file gets them too.
-HAS_LOCAL_RESULTS = results.default_path().exists()
+#: Existence is not enough. A brand-new machine has a results.jsonl the moment
+#: someone runs `--dry-run`, and those rows are control checks, not trials:
+#: `passed` is None on every one. The tests below compare generated tables
+#: against measured data, so a ledger holding nothing but dry runs is the same
+#: as no ledger at all -- and on the DGX Spark it failed four of them with
+#: "expected some trials" rather than skipping. Ask for real trials, which is
+#: the thing these tests actually need.
+HAS_LOCAL_RESULTS = bool(results.trials(results.default_path()))
 
 SKIP_NO_RESULTS = (
-    f"no results file for this machine at {results.default_path()}; "
-    "these tests read measured data and there is none here"
+    f"no measured trials for this machine at {results.default_path()}; "
+    "these tests read measured data and there is none here (a dry-run-only "
+    "ledger does not count)"
 )
 
 

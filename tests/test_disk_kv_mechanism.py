@@ -48,7 +48,11 @@ TRIALS = 3
 # Bash and pytest each stamp the child env with interpreter artifacts -- PWD
 # follows a `cd`, SHLVL counts nesting, `_` is the last command. They differ
 # between the two sides and mean nothing to run.py.
-_SHELL_ARTIFACTS = frozenset({"PWD", "OLDPWD", "SHLVL", "_"})
+# COLUMNS/LINES are terminal geometry, injected by bash when it has a tty and
+# absent when it does not. They describe the window the comparison was run
+# from, never the run, and they made these differentials fail on a machine
+# whose shell reported a size ("run 1 env differs": COLUMNS=80, LINES=24).
+_SHELL_ARTIFACTS = frozenset({"PWD", "OLDPWD", "SHLVL", "_", "COLUMNS", "LINES"})
 
 
 def _meaningful_env(env: dict[str, str]) -> dict[str, str]:
