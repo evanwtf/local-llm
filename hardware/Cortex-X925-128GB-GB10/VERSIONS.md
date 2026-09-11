@@ -118,6 +118,23 @@ Both local engine builds (llama.cpp `481c65f`, ds4 `make cuda-spark`) went
 through this gcc. A toolchain change is a rebuild, and a rebuild is a new
 engine version for provenance purposes.
 
+**One engine here was not built on this machine.** Installed 2026-09-11 via
+`curl -LsSf https://llama.app/install.sh | sh`:
+
+| | |
+|---|---|
+| binary | `~/.local/bin/llama`, 516 MB, single static file |
+| version | `0.4.0-dev` build **10900**, commit `50182a53f` |
+| built with | GNU 12.3.0 for Linux aarch64 — **not** the 13.3.0 above |
+| CUDA | installer probed the device and selected `121`, matching `sm_121` |
+
+It is a prebuilt upstream artifact, so the gcc row in this table does not
+describe it and no local rebuild can reproduce it. That matters for reading a
+row: `llama.cpp 481c65f` and `llama.cpp 50182a53f` are different compilers as
+well as different commits, and only the latter is upstream's own build. Recorded
+before any row cites it, because the two are otherwise indistinguishable in a
+log line that says only "llama.cpp".
+
 ## Secure boot and signing
 
 From `fwupdmgr`: DGX Spark Platform Key 2025, KEK CA 2023, UEFI CA 2023,
