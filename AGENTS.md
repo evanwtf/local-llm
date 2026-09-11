@@ -13,6 +13,43 @@ standing rules about data and safety; this file covers how to work.
 > [`docs/model-locations.md`](docs/model-locations.md). Searching the wrong tree
 > is a false negative that has cost real time.
 
+## Confirm your machine is one we manage before you compare (2026-09-11)
+
+This project measures a fixed set of machines, listed in
+[`hardware/MACHINES.md`](hardware/MACHINES.md) and defined once in
+`scripts/machines.py`. Anyone may run this code. Most will not be on one of our
+machines, and the published numbers come from ours.
+
+Check which case you are in before you compare a result:
+
+```sh
+uv run python scripts/machines.py --check
+```
+
+It prints the machine when the hardware matches the registry, and exits 1 with
+a warning when it does not. A machine that is not in the registry still runs the
+code. Its numbers do not match the published ones: a close card is not the same
+card, and a 3090 is not our 3080 Ti.
+
+The machine label is the slug from `scripts/hardware_id.py`. A machine finds its
+own issues with its own label:
+
+```sh
+gh issue list --label "hardware:$(uv run python scripts/hardware_id.py --slug)"
+```
+
+The machine label is the slug under a `hardware:` namespace; the slug itself
+stays the bare identity (`--slug` prints it). `macOS` and `Nvidia` stay as broad
+class tags (a `platform:` namespace is planned, #302). They do not identify a
+machine:
+the RTX 3080 Ti desktop and the DGX Spark are both `Nvidia`. An issue that
+consumes a machine's time carries one machine label as well.
+
+Name the machine in the third person in every record -- an issue, a commit, a
+results document, a sweep. Do not write "this machine", "this box", or "here".
+Three agents read this repo, one per machine, and a relative term points at a
+different machine for each reader (#302).
+
 ## New code is Python, not shell (2026-09-09)
 
 **Write new scripts in Python. Do not add a new `.sh` under `scripts/`, and do

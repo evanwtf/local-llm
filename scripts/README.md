@@ -52,6 +52,7 @@ documentation.
 | `local_agent.py` | Start a recommended local stack and drop into a coding agent. #235 |
 | `machine_claim.py` | Claim the machine with intent, and make contention impossible to miss. #160 |
 | `machine_state.py` | Is the machine busy, and who says so? One answer, for every agent. |
+| `machines.py` | The hardware this project manages -- the single source of truth (#302). |
 | `make_next.py` | Generate NEXT.md from the open issues, so the queue cannot drift or bloat. |
 | `make_scripts_readme.py` | Generate scripts/README.md from each script's own first docstring line. |
 | `metal_knob_ab.py` | Paired decode-rate A/B for one Metal knob env var within one tree. #162 |
