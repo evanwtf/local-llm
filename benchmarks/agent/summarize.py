@@ -134,7 +134,10 @@ def main():
                 )
             )
 
-    logger.info()
+    # A blank separator line. This was `print()` before the house-rules
+    # conversion in 500491a; `logger.info()` with no message is a TypeError,
+    # so every run crashed after emitting the table.
+    logger.info("")
     for b in backends:
         rs = [r for r in rows if r["backend"] == b]
         passed = sum(bool(r.get("passed")) for r in rs)

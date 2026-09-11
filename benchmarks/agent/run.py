@@ -138,6 +138,27 @@ def task_target(cfg, task):
     }
 
 
+def tasks_missing_targets(cfg, tasks):
+    """Tasks whose target repository is not on this machine, name -> path.
+
+    A task names the repository it is excised from, and no machine holds every
+    one: the swift-* tasks target ~/git/monitor, which is on the laptop and
+    not on the Ryzen box. Before this, an absent target surfaced only when
+    preflight ran `git status` inside it -- a FileNotFoundError naming a path
+    but not the task that wanted it, raised after the batch was already
+    assembled (#269).
+
+    Presence is the test, not readability: a path that exists but is not a
+    repository fails later with git's own message, which is the accurate one.
+    """
+    missing = {}
+    for task in tasks:
+        repo = pathlib.Path(task_target(cfg, task)["repo"]).expanduser()
+        if not repo.is_dir():
+            missing[task["name"]] = repo
+    return missing
+
+
 def script_checks(worktree, entrypoint, checks, timeout):
     """Oracle for a script task: run the thing and look at what it prints.
 
@@ -3329,6 +3350,23 @@ def main():
             for k, v in backends.items()
             if not v.get("retired") and not v.get("tier")
         }
+    # A task whose target repo is absent belongs to another machine, exactly
+    # as a tiered backend does, and is dropped from the default matrix for the
+    # same reason. Naming it explicitly is a request, so that refuses out loud
+    # rather than dropping the task the caller asked for (#269).
+    absent = tasks_missing_targets(cfg, tasks)
+    if absent and args.task:
+        listed = "\n".join(f"  {name}: {repo}" for name, repo in sorted(absent.items()))
+        raise SystemExit(
+            f"these tasks target a repository this machine does not have:\n{listed}\n"
+            "Clone it, or select tasks whose target is present."
+        )
+    for name, repo in sorted(absent.items()):
+        logger.info(
+            "skipping task %s: target repo %s is not on this machine", name, repo
+        )
+    tasks = [t for t in tasks if t["name"] not in absent]
+
     if not tasks or not backends:
         raise SystemExit("no tasks or no backends selected")
 

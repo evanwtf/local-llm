@@ -133,7 +133,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 
 ### Ryzen9-7900X-32GB-RTX3080Ti-12GB
 
-*Generated from `hardware/Ryzen9-7900X-32GB-RTX3080Ti-12GB/results.jsonl` — 16 rows, sha256 590c1de97875.*
+*Generated from `hardware/Ryzen9-7900X-32GB-RTX3080Ti-12GB/results.jsonl` — 224 rows, sha256 604807a2bef1.*
 
 #### Every stack measured under OpenCode
 
@@ -141,8 +141,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 
 | stack | passed | median | worst | spread |
 |---|---|---|---|---|
-| dtornith159b | 1/1 | 94s | 94s | 1.0x |
-| dtgemma412b | 0/12 | — | — | — |
+| dtornith159b | 12/13 | 108s | 199s | 2.6x |
 
 Excision tasks only; `script-*` excluded because they are a different class. **Spread is worst / best on the same task**, and it is the column most people forget to ask for.
 
@@ -151,7 +150,6 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | stack | seconds per 1k output tokens |
 |---|---|
 | dtornith159b | 11s |
-| dtgemma412b | 47s |
 
 <!-- END GENERATED -->
 

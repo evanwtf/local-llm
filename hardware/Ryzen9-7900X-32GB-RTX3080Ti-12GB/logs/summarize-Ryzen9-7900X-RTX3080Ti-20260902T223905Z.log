@@ -1,0 +1,13 @@
+2026-09-02 22:39:05,281 INFO [c8794f6-dirty@Ryzen9-7900X-RTX3080Ti] 2026-09-02T22:39:05Z (22:39:05 UTC) | harness c8794f6-dirty
+2026-09-02 22:39:05,308 INFO [c8794f6-dirty@Ryzen9-7900X-RTX3080Ti]   machine: x86_64, AMD Ryzen 9 7900X 12-Core Processor, 24 cores, 30.5 GiB, NVIDIA GeForce RTX 3080 Ti, 12288 MiB, confinement none
+2026-09-02 22:39:05,653 INFO [c8794f6-dirty@Ryzen9-7900X-RTX3080Ti]   stack:   ollama 0.33.2 | opencode 1.18.27
+2026-09-02 22:39:05,663 INFO [c8794f6-dirty@Ryzen9-7900X-RTX3080Ti] note: 3 row(s) set aside (marked excluded, or dry runs); see RESULTS.md provenance
+2026-09-02 22:39:05,663 INFO [c8794f6-dirty@Ryzen9-7900X-RTX3080Ti] | task | dtgemma412b pass | dtornith159b pass | dtgemma412b median s | dtornith159b median s |
+2026-09-02 22:39:05,663 INFO [c8794f6-dirty@Ryzen9-7900X-RTX3080Ti] |---|---|---|---|---|
+2026-09-02 22:39:05,663 INFO [c8794f6-dirty@Ryzen9-7900X-RTX3080Ti] | storage-blob-put | 0/6 | 4/4 | 32.0s | 104.2s |
+2026-09-02 22:39:05,663 INFO [c8794f6-dirty@Ryzen9-7900X-RTX3080Ti] | mbox-scan | 0/6 | 2/3 | 119.8s | 152.2s |
+2026-09-02 22:39:05,663 INFO [c8794f6-dirty@Ryzen9-7900X-RTX3080Ti] | script-reverse | 3/6 | 3/3 | 21.8s | 8.8s |
+2026-09-02 22:39:05,663 INFO [c8794f6-dirty@Ryzen9-7900X-RTX3080Ti] | script-transform | 0/6 | 3/3 | 29.4s | 20.9s |
+2026-09-02 22:39:05,663 INFO [c8794f6-dirty@Ryzen9-7900X-RTX3080Ti] 
+2026-09-02 22:39:05,663 INFO [c8794f6-dirty@Ryzen9-7900X-RTX3080Ti] dtgemma412b 3/24 passed   median 30.4s   median turns 3   timeouts 0
+2026-09-02 22:39:05,663 INFO [c8794f6-dirty@Ryzen9-7900X-RTX3080Ti] dtornith159b 12/13 passed   median 75.9s   median turns 10   timeouts 0

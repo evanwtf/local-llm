@@ -1048,9 +1048,15 @@ tier = "desktop-3080ti"
 base_url = "http://127.0.0.1:11434"
 auth_token = "ollama"
 engine = "ollama"
-model = "mistral-nemo:12b-instruct-2407-q4_K_M"
-opencode_model = "ollama/mistral-nemo:12b-instruct-2407-q4_K_M"
-context_tokens = 131072
+model = "mistral-nemo-12b-16384"
+opencode_model = "ollama/mistral-nemo-12b-16384"
+# 16384, NOT the 32768 the other desktop backends use. Mistral-Nemo has no
+# sliding-window attention and a heavier KV than the qwen35 pair: 32768 needs
+# 12.26 GiB and spills (10.15 GiB resident), 24576 spills too, 16384 fits at
+# 9.23 GiB with size_vram == size. Its results are therefore NOT directly
+# comparable to dtgemma412b / dtornith159b / dtqwen359b on context-sensitive
+# tasks -- the card, not the model, sets this ceiling (#114).
+context_tokens = 16384
 
 [backend.dtgemma412b]
 description = "Gemma 4 12B IT Q4_K_M via Ollama (desktop 3080 Ti)"
@@ -1058,9 +1064,14 @@ tier = "desktop-3080ti"
 base_url = "http://127.0.0.1:11434"
 auth_token = "ollama"
 engine = "ollama"
-model = "gemma4:12b-it-q4_K_M"
-opencode_model = "ollama/gemma4:12b-it-q4_K_M"
-context_tokens = 131072
+model = "gemma4-12b-it-32768"
+opencode_model = "ollama/gemma4-12b-it-32768"
+# 32768, matching dtornith159b so the two are comparable. The 0/12 recorded on
+# 2026-09-02 was served Ollama's 4096 default while claiming 131072; see the
+# banner in this machine's RESULTS.md. Gemma4's sliding-window attention makes
+# the KV cache nearly free here -- 7.80 GiB resident at 8k against 7.84 GiB at
+# 32k, fully on the GPU either way -- so the larger window costs nothing.
+context_tokens = 32768
 
 # The live experiment for this tier (#20). 35B total, 3B active, 22 GB against
 # 12 GiB of VRAM and 30 GiB of RAM -- so it needs --n-cpu-moe to stream routed
@@ -1085,6 +1096,135 @@ context_tokens = 131072
 # this card. That is a lead, not evidence: every number behind it is decode
 # rate, which this project has measured three times as non-predictive of agent
 # wall time -- and `gemma4:12b-it` is the standing proof, 72 tok/s and 0/12.
+# The chart's near-tie (#113). 0xSero's local.ai scatter puts Qwen3.5 9B Q4_K_M
+# at ~50% Intelligence against Gemma-4-12B's ~51%, and faster -- so if an
+# Intelligence Index predicted agent success, this and dtgemma412b should land
+# together. dtgemma412b scores 3/12 here and dtornith159b 9-11/12, which is the
+# test. Already on disk, 6.6 GB, fits entirely in VRAM: 6.13 GiB resident at
+# 32768, size_vram == size. Same window as the other two, so the three are
+# directly comparable (#79).
+# Q8_0 of the same weights as dtqwen359b -- #114's "quality pick". 9.27 GiB
+# resident at 32768, size_vram == size, so the quality/context trade costs
+# 3.14 GiB over the Q4_K_M and still fits.
+[backend.dtqwen359bq8]
+description = "Qwen3.5 9B Q8_0 via Ollama (desktop 3080 Ti)"
+tier = "desktop-3080ti"
+base_url = "http://127.0.0.1:11434"
+auth_token = "ollama"
+model = "qwen3.5-9b-q8-32768"
+opencode_model = "ollama/qwen3.5-9b-q8-32768"
+context_tokens = 32768
+
+# Gemma 4 E4B (#114). 9.6 GB on disk but only 3.03 GiB resident at 32768 --
+# a MatFormer-style nested model, so the download size and the loaded size
+# are very different things. The lightest backend on this tier by far.
+[backend.dtgemma4e4b]
+description = "Gemma 4 E4B IT Q4_K_M via Ollama (desktop 3080 Ti)"
+tier = "desktop-3080ti"
+base_url = "http://127.0.0.1:11434"
+auth_token = "ollama"
+model = "gemma4-e4b-32768"
+opencode_model = "ollama/gemma4-e4b-32768"
+context_tokens = 32768
+
+# The sub-1-bit class #114 raises: a 27B in 12 GiB. 5.66 GiB resident at 32768,
+# fully on GPU, from a 3.54 GiB Q1_0 GGUF.
+#   https://huggingface.co/prism-ml/Bonsai-27B-gguf -> Bonsai-27B-Q1_0.gguf
+# general.architecture = qwen35, so it is Qwen lineage and does NOT satisfy
+# the non-Qwen requirement of #16. 24 heads / 4 KV, 64 blocks, SSM layers.
+[backend.dtbonsai27b]
+description = "Bonsai-27B Q1_0 GGUF via Ollama (desktop 3080 Ti)"
+tier = "desktop-3080ti"
+base_url = "http://127.0.0.1:11434"
+auth_token = "ollama"
+model = "bonsai-27b-q1-32768"
+opencode_model = "ollama/bonsai-27b-q1-32768"
+context_tokens = 32768
+
+# #269. A DIFFERENT release from dtbonsai27b above, not a re-quant of it:
+# prism-ml/Ternary-Bonsai-27B-gguf (2026-08-31) against the Bonsai-27B-gguf
+# repo (2026-07-17). The card calls the Q1_0 file dtbonsai27b measured the
+# "1-bit companion, the phone-class operating point"; THIS is the build it
+# recommends for a desktop card.
+#   https://huggingface.co/prism-ml/Ternary-Bonsai-27B-gguf
+# Lead: https://x.com/0xSero/status/2097620672952344680
+#
+# PQ2_0, NOT Q2_0. Both files are 7,165,121,600 bytes and only one loads. The
+# repo's Q2_0 is the legacy g128 layout carrying ggml type id 42, which this
+# build reads as the official group-64 format and rejects:
+#     tensor 'output_norm.weight' has offset 337715200, expected 357580800
+# PQ2_0 is the same weights under type id 142, which loads. Keep both facts
+# here: the file that fails is the one the card's format name points at.
+#
+# Ollama cannot serve either at any version -- these need PrismML's 2-bit
+# kernels -- so this tier now has a second engine. 9.6 GiB resident at 32768,
+# fully on GPU. Its rows are NOT engine-comparable to this tier's Ollama rows
+# (#192), which is why dtbonsai27bllamacpp exists below.
+[backend.dtternarybonsai27b]
+description = "Ternary-Bonsai-27B PQ2_0 GGUF via llama.cpp PrismML fork (desktop 3080 Ti)"
+tier = "desktop-3080ti"
+base_url = "http://127.0.0.1:8080"
+auth_token = "llamacpp"
+engine = "llama.cpp"
+engine_tree = "~/git/llama.cpp"
+model = "ternary-bonsai-27b-pq2-32768"
+opencode_model = "llamacpp/ternary-bonsai-27b-pq2-32768"
+context_tokens = 32768
+
+# The control for dtternarybonsai27b: the SAME Q1_0 weights dtbonsai27b ran on
+# Ollama, re-run under the PrismML fork. Without this arm a Q2-vs-Q1 comparison
+# also changes the engine, and #192 exists because that confound is invisible
+# in a results table. Serve one at a time on :8080 -- preflight refuses a run
+# with two resident models (#112).
+[backend.dtbonsai27bllamacpp]
+description = "Bonsai-27B Q1_0 GGUF via llama.cpp PrismML fork (desktop 3080 Ti)"
+tier = "desktop-3080ti"
+base_url = "http://127.0.0.1:8080"
+auth_token = "llamacpp"
+engine = "llama.cpp"
+engine_tree = "~/git/llama.cpp"
+model = "bonsai-27b-q1-llamacpp-32768"
+opencode_model = "llamacpp/bonsai-27b-q1-llamacpp-32768"
+context_tokens = 32768
+
+# #278. Spark-X2.5-4B, a 4B claiming parity with models 2-3x its size on
+# agents and coding. First-party GGUF from the same org as the weights:
+#   https://huggingface.co/XHToken/Spark-X2.5-4B-GGUF -> Spark-X2.5-4B-Q8_0.gguf
+# 4.07 GiB of weights, 6016 MiB resident at 32768, fully on GPU.
+#
+# NOT SERVED BY OLLAMA at any version tested (0.33.3 and 0.34.0 both refuse:
+# "failed to validate GGUF ... without compatibility patches"), and not by the
+# PrismML fork either ("unknown model architecture: 'spark2_5'"). Support is
+# UPSTREAM llama.cpp as of b10883, so this backend names a SECOND llama.cpp
+# tree -- ~/git/llama.cpp-upstream at 91f6a6c -- distinct from the PrismML
+# d8f26ee the bonsai arms use. The model card's claim that you need the
+# XHToken fork is out of date; that fork publishes no releases.
+#
+# Two things worth knowing before reading its rows:
+#   * general.architecture is spark2_5, a genuinely novel arch -- NOT Qwen
+#     lineage, so unlike bonsai this is a real candidate for #16.
+#   * sliding_window is 512, so the KV cache is nearly free and context depth
+#     is cheap here. Runs at 32768 anyway, to compare with the rest of the tier.
+[backend.dtsparkx254b]
+description = "Spark-X2.5-4B Q8_0 GGUF via upstream llama.cpp (desktop 3080 Ti)"
+tier = "desktop-3080ti"
+base_url = "http://127.0.0.1:8080"
+auth_token = "llamacpp"
+engine = "llama.cpp"
+engine_tree = "~/git/llama.cpp-upstream"
+model = "spark-x25-4b-q8-32768"
+opencode_model = "llamacpp/spark-x25-4b-q8-32768"
+context_tokens = 32768
+
+[backend.dtqwen359b]
+description = "Qwen3.5 9B Q4_K_M via Ollama (desktop 3080 Ti)"
+tier = "desktop-3080ti"
+base_url = "http://127.0.0.1:11434"
+auth_token = "ollama"
+model = "qwen3.5-9b-32768"
+opencode_model = "ollama/qwen3.5-9b-32768"
+context_tokens = 32768
+
 [backend.dtornith159b]
 description = "Ornith-1.5 9B dense via Ollama (desktop 3080 Ti)"
 tier = "desktop-3080ti"
