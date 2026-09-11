@@ -1,0 +1,33 @@
+promessi_sposi.txt (1298 KiB)
+2026-09-10T05:57:24-0400 __main__ INFO # engine A/B, 2026-09-10T05:57:24-04:00
+A label=base-4a87d9cc tree=/Users/evanhoffman/git/ds4-4a87d9cc @ 4a87d9cc
+B label=tip-0fe51ea2 tree=/Users/evanhoffman/git/ds4-0fe51ea2 @ 0fe51ea2
+gguf=/Users/evanhoffman/models/deepseek-v4-flash-aproj/DeepSeek-V4-Flash-IQ2XXS-w2Q2K-AProjQ4-SExpQ8-OutQ8-chat-v2-imatrix-0731.gguf
+prompt=/Users/evanhoffman/git/ds4-4a87d9cc/speed-bench/promessi_sposi.txt
+sweep ctx_start=8192 ctx_max=32768 step=8192 gen=128 reps=4
+prefill_chunk=8192
+DS4_METAL_PREFILL_CHUNK=<unset>
+DS4_METAL_GRAPH_RAW_CAP=<unset>
+2026-09-10T05:57:24-0400 decode_ab INFO machine lock held: run lock taken for 'decode_ab_engine.py base-4a87d9cc vs tip-0fe51ea2' (pid 50545)
+2026-09-10T05:57:24-0400 ab_driver INFO === round 1 of 4 ===
+2026-09-10T05:57:24-0400 ab_driver INFO round 1 arm base-4a87d9cc (/Users/evanhoffman/git/ds4-4a87d9cc)
+2026-09-10T05:57:24-0400 __main__ INFO base-4a87d9cc rep 1 (position 1) -> /Users/evanhoffman/git/local-llm/benchmarks/ds4/267-aprojq4-tip-vs-base-run1/base-4a87d9cc-rep1.csv
+2026-09-10T05:58:29-0400 ab_driver INFO round 1 arm tip-0fe51ea2 (/Users/evanhoffman/git/ds4-0fe51ea2)
+2026-09-10T05:58:29-0400 __main__ INFO tip-0fe51ea2 rep 1 (position 2) -> /Users/evanhoffman/git/local-llm/benchmarks/ds4/267-aprojq4-tip-vs-base-run1/tip-0fe51ea2-rep1.csv
+2026-09-10T05:59:36-0400 ab_driver INFO === round 2 of 4 ===
+2026-09-10T05:59:36-0400 ab_driver INFO round 2 arm tip-0fe51ea2 (/Users/evanhoffman/git/ds4-0fe51ea2)
+2026-09-10T05:59:36-0400 __main__ INFO tip-0fe51ea2 rep 2 (position 1) -> /Users/evanhoffman/git/local-llm/benchmarks/ds4/267-aprojq4-tip-vs-base-run1/tip-0fe51ea2-rep2.csv
+2026-09-10T06:00:46-0400 ab_driver INFO round 2 arm base-4a87d9cc (/Users/evanhoffman/git/ds4-4a87d9cc)
+2026-09-10T06:00:46-0400 __main__ INFO base-4a87d9cc rep 2 (position 2) -> /Users/evanhoffman/git/local-llm/benchmarks/ds4/267-aprojq4-tip-vs-base-run1/base-4a87d9cc-rep2.csv
+2026-09-10T06:01:57-0400 ab_driver INFO === round 3 of 4 ===
+2026-09-10T06:01:57-0400 ab_driver INFO round 3 arm base-4a87d9cc (/Users/evanhoffman/git/ds4-4a87d9cc)
+2026-09-10T06:01:57-0400 __main__ INFO base-4a87d9cc rep 3 (position 1) -> /Users/evanhoffman/git/local-llm/benchmarks/ds4/267-aprojq4-tip-vs-base-run1/base-4a87d9cc-rep3.csv
+2026-09-10T06:03:08-0400 ab_driver INFO round 3 arm tip-0fe51ea2 (/Users/evanhoffman/git/ds4-0fe51ea2)
+2026-09-10T06:03:08-0400 __main__ INFO tip-0fe51ea2 rep 3 (position 2) -> /Users/evanhoffman/git/local-llm/benchmarks/ds4/267-aprojq4-tip-vs-base-run1/tip-0fe51ea2-rep3.csv
+2026-09-10T06:04:20-0400 ab_driver INFO === round 4 of 4 ===
+2026-09-10T06:04:20-0400 ab_driver INFO round 4 arm tip-0fe51ea2 (/Users/evanhoffman/git/ds4-0fe51ea2)
+2026-09-10T06:04:20-0400 __main__ INFO tip-0fe51ea2 rep 4 (position 1) -> /Users/evanhoffman/git/local-llm/benchmarks/ds4/267-aprojq4-tip-vs-base-run1/tip-0fe51ea2-rep4.csv
+2026-09-10T06:05:33-0400 ab_driver INFO round 4 arm base-4a87d9cc (/Users/evanhoffman/git/ds4-4a87d9cc)
+2026-09-10T06:05:33-0400 __main__ INFO base-4a87d9cc rep 4 (position 2) -> /Users/evanhoffman/git/local-llm/benchmarks/ds4/267-aprojq4-tip-vs-base-run1/base-4a87d9cc-rep4.csv
+2026-09-10T06:06:46-0400 decode_ab INFO machine lock released=True: run lock released
+2026-09-10T06:06:46-0400 __main__ INFO done: /Users/evanhoffman/git/local-llm/benchmarks/ds4/267-aprojq4-tip-vs-base-run1

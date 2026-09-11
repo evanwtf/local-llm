@@ -1,0 +1,5 @@
+ctx_tokens,prefill_tokens,prefill_tps,gen_tokens,gen_tps,gen_first_ms,gen_steady_tokens,gen_steady_tps,kvcache_bytes,prompt_file,prompt_bytes
+8192,8192,728.04,128,46.97,26.425,127,47.12,136750476,promessi_sposi.txt,1329139
+16384,8192,638.25,128,45.54,26.650,127,45.66,249505164,promessi_sposi.txt,1329139
+24576,8192,592.64,128,44.18,26.857,127,44.29,362259852,promessi_sposi.txt,1329139
+32768,8192,561.56,128,42.90,27.829,127,43.01,0,promessi_sposi.txt,1329139
