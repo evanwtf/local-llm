@@ -7,10 +7,13 @@ author's profile rather than the repo. It found the thing that mattered --
 on our own fast pick -- which is an argument for doing it regularly, not for
 doing it from memory.
 
-WATCHED is the single source of truth. A test asserts SOURCES.md lists exactly
-these repositories, so the document and the tool cannot drift.
+WATCHED is the single source of truth for the repositories, tagged by machine
+(#307): the Mac's Metal/MLX engines and the DGX Spark's CUDA serving stack are
+different lists, so `--platform` picks a lane. SOURCES.md is the companion list
+of who to read on X.
 
-    uv run python scripts/upstream_sweep.py --hours 24
+    uv run python scripts/upstream_sweep.py --hours 24              # all repos
+    uv run python scripts/upstream_sweep.py --hours 24 --platform dgx
 """
 
 from __future__ import annotations
@@ -31,29 +34,91 @@ import provenance
 
 logger = logging.getLogger(__name__)
 
-# repo -> why we watch it. The reason is the useful half: a sweep that lists
-# activity without saying why it matters is a second inbox.
-WATCHED: dict[str, str] = {
-    "antirez/ds4": "our primary engine; the only one that runs DeepSeek-V4-Flash and GLM-5.3",
-    "ggml-org/llama.cpp": "our fast pick's engine; `qwen4exp` IS Qwen3.8-Flash-Next",
-    "ollama/ollama": "the 31 GB entry point, and our only MLX runtime",
-    "anomalyco/opencode": "our only client",
-    "evanwtf/local-llm": "this project",
-    "evanwtf/gmail-archive": "the excision tasks' target repository",
-    "evanwtf/ds4": "our ds4 fork (#27 asks whether it can be retired)",
-    "ml-explore/mlx": "the framework everything MLX sits on",
-    "ml-explore/mlx-lm": "reference MLX server; new architectures land here first",
-    "jundot/omlx": "oMLX -- prefill leader, untested here (#60)",
-    "ddalcu/mlx-serve": "benchmarked on our exact machine; llmprobe's author",
-    "youssofal/MTPLX": "MTP speculative decoding; we hold one unreplicated number",
-    "raullenchai/Rapid-MLX": "the one MLX engine reachable by pip (#57, #60)",
-    "ARahim3/mlx-dspark": "DSpark/DFlash ported to MLX (#19, #58, #75)",
-    "Blaizzy/mlx-vlm": "expert offloading, prefix caching, Qwen3.8-Flash-Next MTP",
-    "unslothai/llama.cpp": "the fork with a working qwen4exp MTP graph (#77)",
-    "Layr-Labs/mlxfast-gemma4-26b-a4b-engine": "MLX Fast leaderboard harness (#80)",
-    "sudoingX/qwen38-mtp": "61 paired baseline-vs-MTP runs, disciplined method (#19, #39)",
-    "trymirai/uzu": "Apple-only Rust engine, reachable by pip; claims 2x MTPLX (#134)",
+# Platform tags. The engines diverge between the two machines (#307): the Mac
+# runs Metal and MLX, the DGX Spark (GB10, CUDA) runs the NVFP4/FP8 serving
+# stack. A repo that belongs to no machine -- repo hygiene, this project --
+# carries BOTH so no lane loses it.
+MAC = "mac"
+DGX = "dgx"
+BOTH = (MAC, DGX)
+
+# repo -> (why, platforms). The reason is the useful half: a sweep that lists
+# activity without saying why it matters is a second inbox. `platforms` says
+# which machine's lane includes the repo, so `--platform dgx` does not walk 12
+# MLX repos that cannot run on it, and `--platform mac` does not walk vLLM.
+WATCHED: dict[str, tuple[str, tuple[str, ...]]] = {
+    "antirez/ds4": (
+        "our primary engine; the only one that runs DeepSeek-V4-Flash and GLM-5.3",
+        BOTH,  # built `make cuda-spark` on the DGX, Metal on the Mac
+    ),
+    "ggml-org/llama.cpp": (
+        "our fast pick's engine; `qwen4exp` IS Qwen3.8-Flash-Next",
+        BOTH,  # CUDA build on the DGX, Metal on the Mac
+    ),
+    "ollama/ollama": (
+        "the 31 GB entry point; MLX runtime on the Mac, cuda_v13 on the DGX",
+        BOTH,
+    ),
+    "anomalyco/opencode": ("our only client", BOTH),
+    "evanwtf/local-llm": ("this project", BOTH),
+    "evanwtf/gmail-archive": ("the excision tasks' target repository", BOTH),
+    "evanwtf/ds4": ("our ds4 fork (#27 asks whether it can be retired)", BOTH),
+    # Mac-only: Metal and MLX have no meaning on the DGX.
+    "ml-explore/mlx": ("the framework everything MLX sits on", (MAC,)),
+    "ml-explore/mlx-lm": (
+        "reference MLX server; new architectures land here first",
+        (MAC,),
+    ),
+    "jundot/omlx": ("oMLX -- prefill leader, untested here (#60)", (MAC,)),
+    "ddalcu/mlx-serve": ("benchmarked on our exact machine; llmprobe's author", (MAC,)),
+    "youssofal/MTPLX": (
+        "MTP speculative decoding; we hold one unreplicated number",
+        (MAC,),
+    ),
+    "raullenchai/Rapid-MLX": ("the one MLX engine reachable by pip (#57, #60)", (MAC,)),
+    "ARahim3/mlx-dspark": ("DSpark/DFlash ported to MLX (#19, #58, #75)", (MAC,)),
+    "Blaizzy/mlx-vlm": (
+        "expert offloading, prefix caching, Qwen3.8-Flash-Next MTP",
+        (MAC,),
+    ),
+    "unslothai/llama.cpp": ("the fork with a working qwen4exp MTP graph (#77)", (MAC,)),
+    "Layr-Labs/mlxfast-gemma4-26b-a4b-engine": (
+        "MLX Fast leaderboard harness (#80)",
+        (MAC,),
+    ),
+    "sudoingX/qwen38-mtp": (
+        "61 paired baseline-vs-MTP runs, disciplined method (#19, #39)",
+        (MAC,),
+    ),
+    "trymirai/uzu": (
+        "Apple-only Rust engine, reachable by pip; claims 2x MTPLX (#134)",
+        (MAC,),
+    ),
+    # DGX-only: the CUDA-native serving stack that reaches NVFP4/FP8 on Blackwell,
+    # which Ollama on Linux cannot (#293). The DGX's emphasis is aggregate
+    # multi-stream throughput, so these matter more here than a single-stream Mac.
+    "vllm-project/vllm": (
+        "NVFP4/FP8 serving on Blackwell; the #299 single-Spark recipe",
+        (DGX,),
+    ),
+    "NVIDIA/TensorRT-LLM": (
+        "the other CUDA-native path to NVFP4 on the Spark (#293, #299)",
+        (DGX,),
+    ),
+    "sgl-project/sglang": (
+        "aggregate multi-stream serving; the DGX's throughput emphasis (#307)",
+        (DGX,),
+    ),
 }
+
+
+def watched_for(platform: str) -> dict[str, str]:
+    """The `repo -> why` map for `platform` ('mac', 'dgx' or 'all')."""
+    return {
+        repo: why
+        for repo, (why, platforms) in WATCHED.items()
+        if platform == "all" or platform in platforms
+    }
 
 
 def gh(path: str) -> list | dict | None:
@@ -135,6 +200,13 @@ def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--hours", type=float, default=24.0)
     p.add_argument("--quiet-empty", action="store_true", help="hide idle repos")
+    p.add_argument(
+        "--platform",
+        choices=("mac", "dgx", "all"),
+        default="all",
+        help="which machine's engines to sweep. 'mac' is Metal/MLX, 'dgx' is "
+        "the GB10 CUDA serving stack (vLLM, TensorRT-LLM); 'all' is both (#307).",
+    )
     args = p.parse_args()
 
     provenance.configure()
@@ -143,10 +215,17 @@ def main() -> int:
     since = (dt.datetime.now(dt.UTC) - dt.timedelta(hours=args.hours)).strftime(
         "%Y-%m-%dT%H:%M:%SZ"
     )
-    logger.info("Upstream sweep since %s (%.0fh)\n", since, args.hours)
+    watched = watched_for(args.platform)
+    logger.info(
+        "Upstream sweep since %s (%.0fh) -- %s: %d repos\n",
+        since,
+        args.hours,
+        args.platform,
+        len(watched),
+    )
 
     unreachable = []
-    for repo, why in WATCHED.items():
+    for repo, why in watched.items():
         got = sweep(repo, since)
         if not got["reachable"]:
             unreachable.append(repo)
