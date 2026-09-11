@@ -3461,7 +3461,20 @@ def main():
     #
     # Only applies when a ds4-server is actually up. A run on llama.cpp or
     # Ollama has no stake in ds4's kernels and must not be blocked by them.
-    if preflight.ds4_server_running():
+    #
+    # And only on macOS. The route this gate protects is ds4's **Metal 4**
+    # tensor path -- it "enables itself on M5", as the comment above says --
+    # and it does not exist in a CUDA build. On the DGX Spark, where ds4 is
+    # compiled `make cuda-spark` for sm_121a, the state is reported as
+    # "absent", which the gate below reads as "unverified" and refuses on.
+    # That turned a Metal correctness check into a hard block on a machine
+    # that has no Metal, and it cost a batch before anyone noticed the flag it
+    # was asking for could not mean anything here.
+    #
+    # Skipping is the honest answer rather than --allow-unverified-route: that
+    # flag says "measure anyway and accept no row can claim the route was
+    # checked", which understates the case. There is no route to check.
+    if sys.platform == "darwin" and preflight.ds4_server_running():
         route_state, route_summary = preflight.ds4_equivalence_state()
         if route_state == "fail":
             raise SystemExit(
