@@ -8,6 +8,7 @@ that a class tag (`macOS`/`Nvidia`) can never stand in for a machine label.
 from __future__ import annotations
 
 import pathlib
+import subprocess
 import sys
 
 import pytest
@@ -25,14 +26,33 @@ def test_every_registered_machine_has_its_hardware_directory() -> None:
         assert (ROOT / "hardware" / m.directory).is_dir(), m.slug
 
 
-def test_every_hardware_directory_is_registered() -> None:
-    """A new machine's directory without a registry entry would have no label
-    and no row in the doc -- the drift this registry exists to prevent. Force
-    the registry to be updated when a machine joins."""
+def test_every_committed_hardware_directory_is_registered() -> None:
+    """A COMMITTED machine directory without a registry entry is drift: it would
+    have no label and no row in the doc. Force the registry to be updated when a
+    machine's data joins the repo.
+
+    This reads git-TRACKED directories, not the working tree. A machine that has
+    run hardware_id or a benchmark grows an untracked `hardware/<its-own-id>/`
+    of its own -- a CI runner, a dev box -- and that local directory is not the
+    repo's record. Reading `iterdir()` once reddened the DGX bring-up PR when the
+    Linux CI runner's own `Ryzen7-PRO-8845HS-32GB-Phoenix3/` appeared in its
+    checkout; the runner is not a machine we manage and must not be registered.
+    """
+    out = subprocess.run(
+        ["git", "ls-files", "hardware/"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.split()
+    committed = {
+        pathlib.PurePosixPath(p).parts[1]
+        for p in out
+        if len(pathlib.PurePosixPath(p).parts) >= 3  # hardware/<dir>/<file>
+    }
     registered = {m.directory for m in machines.MACHINES}
-    on_disk = {p.name for p in (ROOT / "hardware").iterdir() if p.is_dir()}
-    assert on_disk <= registered, (
-        f"unregistered machine directories: {on_disk - registered}"
+    assert committed <= registered, (
+        f"committed machine directories not in the registry: {committed - registered}"
     )
 
 
