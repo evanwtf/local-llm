@@ -191,6 +191,7 @@ time, which prompt re-prefill dominates (#14).
 | `scripts/` | measurement, field-watching and machine tools |
 | `hardware/<machine>/` | results, logs and `RESULTS.md` for one machine |
 | `docs/` | [changelog](docs/changelog.md), [history](docs/history.md), [runbook](docs/m5max-runbook.md), archive |
+| `docs/node-exporter-cpufreq-deadlock-arm64.md` | not a benchmark finding: node_exporter deadlocks on aarch64 with `cppc_cpufreq`, and the symptom points away from the cause |
 | `logs/sweeps/` | gather archives; the same fact on either machine |
 
 Work is tracked as GitHub issues. [NEXT.md](NEXT.md) holds the order to work in,
