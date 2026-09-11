@@ -77,7 +77,7 @@ def main():
     p.add_argument("--markdown", action="store_true", help="emit a markdown table")
     args = p.parse_args()
     provenance.configure()
-    log_file = provenance.tee("summarize", machine_specific=True)
+    provenance.tee("summarize", machine_specific=True)
     provenance.banner(logger, engines=True)
 
     path = pathlib.Path(args.results)

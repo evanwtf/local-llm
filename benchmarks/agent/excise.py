@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Remove a function body, leaving the signature and docstring in place.
 
 The agent is given a real repository with one function hollowed out. Keeping

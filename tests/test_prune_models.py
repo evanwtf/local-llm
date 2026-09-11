@@ -230,8 +230,10 @@ def _ps_returning(lines: list[str], monkeypatch) -> None:
 def test_an_rsync_of_the_ollama_store_is_detected(monkeypatch) -> None:
     _ps_returning(
         [
-            "7208 rsync --progress -a /Users/evanhoffman/.ollama/models "
-            "lunix:/tank/data/models/ollama-models"
+            (
+                "7208 rsync --progress -a /Users/evanhoffman/.ollama/models "
+                "lunix:/tank/data/models/ollama-models"
+            )
         ],
         monkeypatch,
     )

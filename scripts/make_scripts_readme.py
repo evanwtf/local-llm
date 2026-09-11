@@ -1,6 +1,8 @@
 """Generate scripts/README.md from each script's own first docstring line."""
 
-import ast, pathlib, re
+import ast
+import pathlib
+import re
 
 root = pathlib.Path("scripts")
 rows = []

@@ -26,8 +26,8 @@ sys.path.insert(
     0, str(pathlib.Path(__file__).resolve().parent.parent / "benchmarks" / "agent")
 )
 
-import metal_equivalence as me  # noqa: E402
-import provenance  # noqa: E402
+import metal_equivalence as me
+import provenance
 
 logger = logging.getLogger(__name__)
 

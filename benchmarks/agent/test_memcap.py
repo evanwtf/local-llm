@@ -25,7 +25,7 @@ HOG = textwrap.dedent("""
 
 
 def test_a_small_command_is_untouched():
-    r, peak, killed = memcap.run_capped(["echo", "ok"], None, timeout=30, cap_gib=2.0)
+    r, _peak, killed = memcap.run_capped(["echo", "ok"], None, timeout=30, cap_gib=2.0)
     assert killed is False
     assert r.returncode == 0
     assert r.stdout.strip() == "ok"
