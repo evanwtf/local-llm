@@ -908,13 +908,17 @@ def capture_versions(cfg, backends, allow_unstamped=False):
                     str(py),
                     "-c",
                     (
-                        "import vllm, torch; print(vllm.__version__); "
-                        "print(torch.__version__); print(torch.version.cuda or '')"
+                        "import vllm, torch; print(vllm.__version__, "
+                        "torch.__version__, torch.version.cuda or '', sep='|')"
                     ),
                 ]
             )
             if probe:
-                got = probe.splitlines()
+                # One line, not three: `out` returns the first line only, so a
+                # multi-line probe silently drops everything after the first --
+                # which is how torch and its CUDA build went missing from the
+                # first row that carried the vllm version.
+                got = probe.split("|")
                 if len(got) >= 1 and got[0]:
                     env["vllm"] = got[0]
                 if len(got) >= 2 and got[1]:
