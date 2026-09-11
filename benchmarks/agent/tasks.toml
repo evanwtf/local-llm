@@ -430,6 +430,35 @@ aider_model = "openai/deepseek-v4-flash"
 opencode_model = "ds4/deepseek-v4-flash"
 context_tokens = 100000
 
+# NVFP4 on the GB10, the quantization this accelerator exists to run, via vLLM
+# 0.29.0 from the official PyPI manylinux_2_28_aarch64 wheel -- no container and
+# no local build.
+#
+# This is `nvidia/Qwen3.6-27B-NVFP4`, and it is the BASE model, not the coding
+# fine-tune. That is not a shortcut, it is the only option: NVIDIA ships no
+# coding-tuned NVFP4, and of their four NVFP4 checkpoints relevant to this
+# project it is the only one that fits 117.8 GiB -- Qwen3.8-Flash-Next-NVFP4 is
+# 123.6 GiB, DeepSeek-V4-Flash-nvfp4-DSpark 164.1 GiB, GLM-5.3-Flash-NVFP4
+# 190.4 GiB.
+#
+# **These rows are NOT comparable to qwen36codinggguf.** Different fine-tune AND
+# different engine. The control is `qwen36bf16dgx` below: the same base weights,
+# the same vLLM, quantization as the only variable. #313 has the reasoning.
+#
+# sm_120 vs sm_121: this torch ships no sm_121 cubins and FlashInfer JIT-builds
+# its sm120 FP8 GEMM for this device. It works -- that is a measured fact here,
+# not an assumption -- but it is why nvcc and ninja must be on PATH at launch.
+[backend.qwen36nvfp4dgx]
+description = "Qwen3.6-27B NVFP4 (nvidia/ModelOpt) via vLLM 0.29.0, CUDA sm_121"
+base_url = "http://127.0.0.1:8030"
+auth_token = "local"
+engine = "vllm"
+engine_tree = "~/venvs/vllm"
+model = "qwen3.6-27b-nvfp4"
+aider_model = "openai/qwen3.6-27b-nvfp4"
+opencode_model = "vllm/qwen3.6-27b-nvfp4"
+context_tokens = 131072
+
 # GLM-5.3-Flash on the DGX Spark. Ollama has no local weights for this model at
 # all -- the whole library is one `:cloud` tag -- so ds4 is the only route.
 #

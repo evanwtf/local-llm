@@ -276,6 +276,28 @@
         "baseURL": "http://127.0.0.1:11434/v1",
         "chunkTimeout": 900000
       }
+    },
+    "vllm": {
+      "name": "vLLM (local)",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "baseURL": "http://127.0.0.1:8030/v1",
+        "apiKey": "local",
+        "chunkTimeout": 900000,
+        "timeout": false
+      },
+      "models": {
+        "qwen3.6-27b-nvfp4": {
+          "name": "Qwen3.6-27B NVFP4 (local, vLLM)",
+          "tool_call": true,
+          "reasoning": false,
+          "temperature": false,
+          "limit": {
+            "context": 131072,
+            "output": 131072
+          }
+        }
+      }
     }
   },
   "small_model": "mtplx/mtplx-qwen38-27b-optimized-speed"
