@@ -2494,6 +2494,30 @@ def route_query_port(backend):
     return urlparse(declared or backend.get("base_url") or "").port
 
 
+def no_counter_note(source, counters_requested):
+    """Explain a trial that recorded no draft counters, without claiming the
+    arm did not speculate (#222).
+
+    The counter is engine-specific: `ds4-mtp-timing` measures ds4's MTP path
+    and nothing else. An arm that speculates by another mechanism -- mlx-serve's
+    prompt-lookup decoding, on by default -- is silent through it, exactly as
+    switched-off counters and an engine that never drafted are. The counter
+    cannot tell these three apart, so the note must not resolve the silence into
+    "did not speculate": that was the false read on the #191 mlx arm, whose
+    server log carried 439 draft lines while this warning pointed the other way.
+    The earlier wording named only the last two causes and invited exactly the
+    wrong conclusion.
+    """
+    return (
+        f"the {source} counter recorded nothing this trial. That does not mean "
+        "this arm did not speculate -- the counter measures one engine's "
+        "mechanism, and an arm that speculates by another (mlx-serve's "
+        "prompt-lookup decoding, say) is silent through it, exactly as "
+        "switched-off counters and an engine that never drafted are. The "
+        f"counter cannot tell these apart. counters_requested={counters_requested}"
+    )
+
+
 def draft_fields(counters, source=None, counters_requested=None, counters_on=None):
     """Row fields for one trial's draft accounting.
 
@@ -3049,13 +3073,9 @@ def one_trial(
                 )
         elif verdict == "no-counters":
             logger.warning(
-                "%s: no draft counters this trial (%s). Cause is NOT resolved "
-                "by this: an engine that never enters the speculative path "
-                "emits nothing, exactly as switched-off counters do. "
-                "counters_requested=%s",
+                "%s: %s",
                 name,
-                draft_probe.source,
-                draft_probe.counters_requested,
+                no_counter_note(draft_probe.source, draft_probe.counters_requested),
             )
 
     return result
