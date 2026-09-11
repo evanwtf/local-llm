@@ -12,7 +12,19 @@ Grace-based NVIDIA systems, and Arm server parts generally. Check with:
 cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_driver
 ```
 
-Diagnosed 2026-09-11T10:30:00-0400.
+**This is a known upstream bug with a fix in flight. It was not found here.**
+
+- <https://github.com/prometheus/node_exporter/issues/3791> — opened
+  2026-08-18 by `pablohoffman`, on this same hardware class (GB10 / DGX Spark,
+  `cppc_cpufreq`, 20 CPUs). Open.
+- <https://github.com/prometheus/procfs/pull/861> — proposed fix: bound the
+  per-policy sysfs reads with `SetReadDeadline` (5 s) so a stuck read degrades
+  gracefully instead of hanging the collector.
+
+Hit independently on `Cortex-X925-GB10` on 2026-09-11T10:30:00-0400 and
+diagnosed from scratch before the upstream issue was known. Everything below
+matches what upstream reports; it is kept because the diagnostic path is the
+useful part, not because anything here is new.
 
 ---
 
@@ -59,17 +71,32 @@ Nothing logs. No collector reports failure. The scrape simply never completes.
 
 ## Fix
 
+Two options. Both work; they trade different things.
+
+**Disable the collector** — keeps a current node_exporter:
+
 ```
 --no-collector.cpufreq
 ```
 
 Twelve consecutive scrapes were clean immediately afterwards, where two of
-three had hung before.
+three had hung before. The cost is `node_cpu_scaling_frequency_hertz`. On a
+machine pinned to the `performance` governor with a static `scaling_max_freq`
+that is close to nothing.
 
-The cost is `node_cpu_scaling_frequency_hertz`. On a machine pinned to the
-`performance` governor with a static `scaling_max_freq` that is close to
-nothing; read CPU frequency out-of-band if it is ever needed, rather than
-re-enabling the collector.
+**Or pin node_exporter to 1.11.1** — keeps the cpufreq metrics. Reported
+upstream by `rafaelkallis`: 1.11.1 vendors procfs < 0.21.x, which does not
+parallelize `SystemCpufreq`, and "completely resolves it". The cost is running
+a pinned older exporter.
+
+The regression is squarely in **node_exporter 1.12.0/1.12.1 with procfs
+v0.21.x**, so anything older than that parallel read path is unaffected.
+
+### When to revisit
+
+Re-enable `cpufreq` once procfs#861 is merged **and** node_exporter has bumped
+its procfs dependency past it. Neither had happened as of
+2026-09-11T10:30:00-0400. Until then the flag must stay.
 
 ## What the bisection looked like, and the trap in it
 
@@ -91,7 +118,8 @@ thing anyone tries. The group test is what exposes it.
 
 ## It is not a kernel read that blocks
 
-Worth knowing before filing this against the kernel or the firmware:
+Worth knowing before filing this against the kernel or the firmware — and
+upstream reports the same trap, independently:
 
 ```sh
 # sequential, all 20 CPUs
@@ -105,6 +133,20 @@ Plain `read(2)` on those files is fine, sequential or concurrent. The deadlock
 is specific to Go's netpoller handling these sysfs descriptors, which is why it
 appears in `node_exporter` and not in a shell loop — and why reproducing it
 outside Go is likely to be a waste of time.
+
+Upstream's stack trace names the exact path, which is worth having if this ever
+needs re-confirming after a version bump:
+
+```
+runtime_pollWait -> os.ReadFile
+  procfs/internal/util.ReadUintFromFile
+  procfs/sysfs.parseCpufreqCpuinfo      sysfs/system_cpu.go:284
+  procfs/sysfs.FS.SystemCpufreq.func1   sysfs/system_cpu.go:249  (errgroup)
+```
+
+The parallelism at `system_cpu.go:249` is deliberate — it exists to hide the
+kernel's intentional 50 ms per-CPU delay — which is why the fix is a read
+deadline rather than making the walk sequential.
 
 ## Related
 
