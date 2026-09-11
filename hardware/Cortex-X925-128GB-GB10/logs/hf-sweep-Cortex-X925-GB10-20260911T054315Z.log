@@ -1,0 +1,17 @@
+2026-09-11T01:43:15-0400 INFO [9028c45-dirty@Cortex-X925-GB10 none pld=n/a] 2026-09-11T05:43:15Z (01:43:15 EDT) | harness 9028c45-dirty
+2026-09-11T01:43:15-0400 INFO [9028c45-dirty@Cortex-X925-GB10 none pld=n/a]   machine: aarch64, ?, 20 cores, 121.7 GiB, NVIDIA GB10, [N/A], confinement none
+2026-09-11T01:43:15-0400 INFO [9028c45-dirty@Cortex-X925-GB10 none pld=n/a] Searching for: Qwen3.8-Flash-Next
+  against NVIDIA DGX Spark, GB10 Blackwell sm_121, 128 GB unified
+  budget 118 GiB VRAM
+
+2026-09-11T01:43:16-0400 INFO [9028c45-dirty@Cortex-X925-GB10 none pld=n/a] repo                                                       downloads    size  fit
+2026-09-11T01:43:16-0400 INFO [9028c45-dirty@Cortex-X925-GB10 none pld=n/a]   orcarouter/Qwen3.8-Flash-Next-Uncensored-GGUF                150668       ?  -
+2026-09-11T01:43:16-0400 INFO [9028c45-dirty@Cortex-X925-GB10 none pld=n/a]   TonyMFJ/Qwen3.8-Flash-Next-WinVulkan-GGUF                       470       ?  -
+2026-09-11T01:43:16-0400 INFO [9028c45-dirty@Cortex-X925-GB10 none pld=n/a]   josch15366/Qwen3.8-Flash-Next-NVFP4-LocalHessian-Experts          0       ?  -
+2026-09-11T01:43:16-0400 INFO [9028c45-dirty@Cortex-X925-GB10 none pld=n/a]   MidnightPhreaker/Qwen3.8-Flash-Next-REAP-384-exl3-4.00bpw-        0       ?  -
+2026-09-11T01:43:16-0400 INFO [9028c45-dirty@Cortex-X925-GB10 none pld=n/a]   microperceptron/Qwen3.8-Flash-Next-UNCENSORED-FP8                 0       ?  -
+2026-09-11T01:43:16-0400 INFO [9028c45-dirty@Cortex-X925-GB10 none pld=n/a]   Navin-Models/Qwen3.8-Flash-Next-Uncensored-AD-4.27-GGUF           0       ?  -
+2026-09-11T01:43:16-0400 INFO [9028c45-dirty@Cortex-X925-GB10 none pld=n/a] 
+Sizes not fetched. Re-run with --sizes to check fit.
+2026-09-11T01:43:16-0400 INFO [9028c45-dirty@Cortex-X925-GB10 none pld=n/a] 
+Legend:  (blank) loads here   ? unclassified, check it
