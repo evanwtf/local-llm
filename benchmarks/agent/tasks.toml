@@ -464,7 +464,11 @@ engine = "ollama"
 model = "nemotron3:33b-q4_K_M"
 aider_model = "openai/nemotron3:33b-q4_K_M"
 opencode_model = "ollama/nemotron3:33b-q4_K_M"
-context_tokens = 262144
+# 131072, not the 262144 the qwen entries declare: `ollama show` reports
+# "context length 131072" for this card. run.py refuses a backend that declares
+# more than the server loaded -- correctly, since a row would otherwise claim a
+# context the model never had -- and that refusal is how this was caught.
+context_tokens = 131072
 
 # 120B total, 12B active. 80.9 GiB of GGUF, which fits ONLY because this
 # machine's memory is unified -- on a 12 GiB discrete card it is not a
@@ -478,7 +482,11 @@ engine = "ollama"
 model = "nemotron-3-super:120b-a12b-q4_K_M"
 aider_model = "openai/nemotron-3-super:120b-a12b-q4_K_M"
 opencode_model = "ollama/nemotron-3-super:120b-a12b-q4_K_M"
-context_tokens = 262144
+# UNVERIFIED: these weights are not on disk yet, so nothing has read the card.
+# nemotron3:33b reports 131072; do not assume this one matches. Check with
+# `ollama show` before the first run -- run.py refuses when the declaration
+# exceeds what the server loaded.
+context_tokens = 131072
 
 # 35B total, 3B active. The MoE shape, and the only coding-tuned MLX MoE on
 # disk. Also the shape #20 needs on a 12 GiB card with 30 GiB of RAM, so a
