@@ -259,7 +259,7 @@ uv run python scripts/upstream_sweep.py --hours 24 --platform dgx    # DGX only
 ```
 
 The script's `WATCHED` dict is the source of truth, and
-`tests/test_sources_watched.py` fails if this list drifts from it. It reports
+`benchmarks/agent/test_sources.py` fails if this list drifts from it. It reports
 releases and commit subjects, and it says explicitly when a repo is
 **unreachable** -- a renamed or private repo otherwise looks exactly like a
 quiet one, and "nothing happened upstream" is the wrong conclusion to draw from
@@ -276,7 +276,7 @@ our primary engine; the only one that runs DeepSeek-V4-Flash and GLM-5.3
 our fast pick's engine; `qwen4exp` IS Qwen3.8-Flash-Next
 
 * **[`ollama/ollama`](https://github.com/ollama/ollama)**  
-the 31 GB entry point; MLX runtime on the Mac, `cuda_v13` on the DGX
+the 31 GB entry point; MLX runtime on the Mac, cuda_v13 on the DGX
 
 * **[`anomalyco/opencode`](https://github.com/anomalyco/opencode)**  
 our only client
