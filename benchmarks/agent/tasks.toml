@@ -453,11 +453,27 @@ context_tokens = 16384
 # needs no engine this project does not already run -- unlike every other
 # candidate on this machine (#296).
 #
-# 33B dense, the honest size-class comparator for qwen36codinggguf: same
-# engine, same matrix, same order of size. Pull this one first; it proves the
-# family loads before 81 GiB is spent on the big one.
+# NOT A CODING OR AGENTIC MODEL. `nemotron3` is **Nemotron 3 Nano Omni**:
+# architecture `nemotron_h_omni`, and NVIDIA describes it as "a multimodal
+# large language model that unifies video, audio, image, and text understanding
+# to support enterprise-grade Q&A, summarization, transcription, and document
+# intelligence workflows."
+#
+# It was added here as "the honest size-class comparator for qwen36codinggguf",
+# which was a selection error: that compares a coding-tuned model against a
+# document-intelligence one. The card was not read first. Its `tools`
+# capability flag is identical to the coding Qwen's, so the flag gives no
+# warning -- only the description does.
+#
+# Measured anyway, once, and the rows are kept: 1/10, median 271.2s, five of
+# ten solutions empty, one task running 98 turns without producing an edit.
+# That is a fact about Nemotron 3 Nano Omni and says nothing about Nemotron as
+# a family -- every OTHER variant is positioned for agents (see
+# nemotroncascade2 below).
+#
+# Retained rather than retired so the negative result stays findable.
 [backend.nemotron33]
-description = "Nemotron 3 33B dense, Q4_K_M (GGUF)"
+description = "Nemotron 3 Nano Omni 33B (multimodal/document-intelligence, NOT coding), Q4_K_M"
 base_url = "http://127.0.0.1:11434"
 auth_token = "ollama"
 engine = "ollama"
@@ -468,6 +484,25 @@ opencode_model = "ollama/nemotron3:33b-q4_K_M"
 # "context length 131072" for this card. run.py refuses a backend that declares
 # more than the server loaded -- correctly, since a row would otherwise claim a
 # context the model never had -- and that refusal is how this was caught.
+context_tokens = 131072
+
+# The fair Nemotron comparator, and the one nemotron33 should have been.
+# NVIDIA positions nemotron-cascade-2 as "an open 30B MoE model with 3B
+# activated parameters that delivers strong reasoning and agentic
+# capabilities" -- agentic being the axis this benchmark actually measures.
+#
+# 30B-A3B against qwen3.6:27b-coding is a genuine size-class match, and unlike
+# nemotron33 it is built for the task being scored.
+[backend.nemotroncascade2]
+description = "Nemotron Cascade 2 30B-A3B (agentic), Q4_K_M (GGUF)"
+base_url = "http://127.0.0.1:11434"
+auth_token = "ollama"
+engine = "ollama"
+model = "nemotron-cascade-2:30b-a3b-q4_K_M"
+aider_model = "openai/nemotron-cascade-2:30b-a3b-q4_K_M"
+opencode_model = "ollama/nemotron-cascade-2:30b-a3b-q4_K_M"
+# VERIFY WITH `ollama show` BEFORE THE FIRST RUN. nemotron33 declared 262144
+# against a card holding 131072 and run.py refused the batch, correctly.
 context_tokens = 131072
 
 # 120B total, 12B active. 80.9 GiB of GGUF, which fits ONLY because this
