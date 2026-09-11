@@ -1,0 +1,19 @@
+# DGX Spark X gather
+# requested window: recent (handed to the session, not a fresh grok call)
+# written: 2026-09-11T22:25:00Z (local: 2026-09-11 18:25:00 EDT)
+# source: pasted by the operator mid-session; UNVERIFIED. Verify each with
+#   scripts/verify_posts.py before promoting any to a SOURCES.md entry (#307).
+# shape: <UTC timestamp> | @handle | <post URL> | <claim, one sentence>
+
+- 2026-09-11 15:28:55 UTC | @filicroval | https://x.com/filicroval/status/2098433613674975549 | Qwen3.8-Flash-Next on a single DGX Spark hits 63.11 tok/s weighted decode with ngram-mod draftless speculation, vision enabled.
+- 2026-09-11 14:29:58 UTC | @0xBakeer | https://x.com/0xBakeer/status/2098418780506292325 | DeepSeek V4.1 Flash runs on a single DGX Spark at 20.85 tok/s greedy (up from 15.2) via a custom engine, WIP.
+- 2026-09-11 13:35:01 UTC | @jimmycheng722 | https://x.com/jimmycheng722/status/2098404951340851661 | Qwen3.8 Flash-Next on one DGX Spark returns short-context coding turns at ~45 tok/s in a local agent TUI.
+- 2026-09-11 13:00:02 UTC | @apikey_official | https://x.com/apikey_official/status/2098396147891011972 | Mia AI Lab's updated single-Spark Qwen3.8-Flash-Next recipe reaches 47 tok/s single-stream decode and 24.7% faster 8k prefill.
+- 2026-09-11 11:31:51 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2098373953286807553 | Best model to run on a single DGX Spark is Qwen3.8-Flash-Next; GLM 5.3 Flash and DeepSeek v4 Flash listed only for 2x+ setups.
+- 2026-09-11 10:54:12 UTC | @0xBakeer | https://x.com/0xBakeer/status/2098364479331344421 | DeepSeek V4.1 fitted onto one 128 GB DGX Spark with a custom ~4-bit engine after routed experts alone were 288 GB.
+- 2026-09-11 08:52:47 UTC | @ksuniri | https://x.com/ksuniri/status/2098333923596280284 | DeepSeek Hermes driven by Qwen3.8 Flash on a DGX Spark stays stable under long concurrent decode; built a live dashboard.
+- 2026-09-11 06:24:40 UTC | @shantanugoel | https://x.com/shantanugoel/status/2098296650611745157 | Qwen 3.8 Flash Next matches DeepSeek v4.1 Flash intelligence but is the one you can actually run on a single home DGX Spark.
+- 2026-09-11 05:23:13 UTC | @HealthRanger | https://x.com/HealthRanger/status/2098281186032300144 | SGLang with NVFP4 Qwen3.8-27B + DFlash2 on DGX Spark hits 413 tok/s aggregate across 16 lanes on coding and math.
+- 2026-09-11 02:20:23 UTC | @Oluwaphilemon1 | https://x.com/Oluwaphilemon1/status/2098235174722875674 | Qwen3.8-27B on a single DGX Spark reached 71.50 tok/s after a better NVFP4 drafter, D=16 speculation, FP8 KV, 24/27 quality.
+- 2026-09-11 00:37:26 UTC | @Oluwaphilemon1 | https://x.com/Oluwaphilemon1/status/2098209265387217061 | Tuned Qwen3.8-Flash-Next on one DGX Spark reaches 273 tok/s aggregate at 8 concurrent streams incl. code and structured output.
+- 2026-09-10 21:15:16 UTC | @MarkusEicher70 | https://x.com/MarkusEicher70/status/2098158391017308606 | Qwen3.8-Flash-Next on a single purchased DGX Spark now covers over 80% of daily AI use as the Hermes agent driver.
