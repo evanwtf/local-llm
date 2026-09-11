@@ -140,12 +140,9 @@ def main():
                 )
             )
 
-    # A blank separator line. `logger.info()` with no argument raises
-    # TypeError: this was a bare `print()` before 500491a (2026-09-02) and the
-    # conversion dropped the empty string. It is after the table and before the
-    # per-backend totals, so summarize.py printed its table and then died --
-    # on every machine, for nine days, with the totals block below never once
-    # reached. Nothing caught it because there was no test that ran this file.
+    # A blank separator line. This was `print()` before the house-rules
+    # conversion in 500491a; `logger.info()` with no message is a TypeError,
+    # so every run crashed after emitting the table.
     logger.info("")
     for b in backends:
         rs = [r for r in rows if r["backend"] == b]
