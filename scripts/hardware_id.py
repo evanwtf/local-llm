@@ -221,7 +221,24 @@ def facts_for_this_machine() -> tuple[dict, str]:
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--json", action="store_true", help="print the facts too")
+    p.add_argument(
+        "--slug",
+        action="store_true",
+        help="print the short machine slug (the GitHub machine label) and nothing else",
+    )
     args = p.parse_args()
+
+    # --slug is meant to be captured in a shell substitution for a label query,
+    # so it prints the bare slug to stdout with no banner, log file, or stamp:
+    #   gh issue list --label "$(hardware_id.py --slug)"
+    if args.slug:
+        facts, platform = facts_for_this_machine()
+        # A bare value for `$(...)` capture, so this is the one place that must
+        # not go through the stamped logger -- a "2026-.. INFO" prefix would
+        # land in the label query. stdout, exactly the slug, nothing else.
+        sys.stdout.write(short_slug(facts, platform) + "\n")
+        return 0
+
     provenance.configure()
     log_file = provenance.tee("hardware-id", machine_specific=True)
     provenance.banner(logger, engines=False)
