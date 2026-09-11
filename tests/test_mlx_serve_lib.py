@@ -367,6 +367,48 @@ def test_provenance_sees_an_mtp_head_on_disk(tmp_path):
     assert line.startswith("draft_source=MTP")
 
 
+# The structured form a row carries (#262). Flat keys, lower-case source, and
+# no `pld` key -- that fact is engine_identity.pld_state()'s, with its own "n/a".
+
+
+def test_draft_provenance_fields_is_structured_and_lower_case(tmp_path):
+    model = tmp_path / "Qwen3.8-Flash-Next-MLX-Serve-mixed-4-8bit"
+    model.mkdir()  # ships neither mtp/ nor drafter/
+    fields = mlx_serve.draft_provenance_fields(
+        model, ["mlx-serve", "--model", str(model)]
+    )
+    assert fields == {"draft_source": "pld", "pld_draft_len": 5, "pld_key_len": 3}
+    assert "pld" not in fields  # that is pld_state()'s key, not this one
+
+
+def test_draft_provenance_fields_sees_an_mtp_head(tmp_path):
+    model = tmp_path / "pack"
+    (model / "mtp").mkdir(parents=True)
+    (model / "mtp" / "weights.safetensors").write_bytes(b"")
+    fields = mlx_serve.draft_provenance_fields(
+        model, ["mlx-serve", "--model", str(model)]
+    )
+    assert fields["draft_source"] == "mtp"
+
+
+def test_draft_provenance_fields_read_the_pld_tuning(tmp_path):
+    model = tmp_path / "pack"
+    model.mkdir()
+    fields = mlx_serve.draft_provenance_fields(
+        model,
+        [
+            "mlx-serve",
+            "--model",
+            str(model),
+            "--pld-draft-len",
+            "8",
+            "--pld-key-len",
+            "4",
+        ],
+    )
+    assert (fields["pld_draft_len"], fields["pld_key_len"]) == (8, 4)
+
+
 def test_model_dir_of_extracts_the_model_path():
     assert mlx_serve.model_dir_of(["mlx-serve", "--model", "/x/y", "--serve"]) == (
         pathlib.Path("/x/y")

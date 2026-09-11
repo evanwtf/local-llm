@@ -35,6 +35,7 @@ import os
 import pathlib
 import shutil
 import subprocess
+import sys
 import time
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -108,6 +109,15 @@ def _argv_of(binary: str) -> list[str] | None:
     return args.stdout.split() or None
 
 
+def _pld_from_argv(argv: list[str] | None) -> str:
+    """ "on"/"off"/"n/a" from one argv snapshot; the pure rule, shared so a
+    caller that already holds an argv derives `pld` from the *same* snapshot as
+    the draft fields (a restart between two probes must not mix them)."""
+    if argv is None:
+        return "n/a"
+    return "off" if "--no-pld" in argv else "on"
+
+
 def pld_state() -> str:
     """ "on", "off", or "n/a" -- never a bool, and never a guess.
 
@@ -115,10 +125,7 @@ def pld_state() -> str:
     from "off" and must never collapse into it. That is the same discipline
     `engine_dirty` uses: an absent answer is not a negative one.
     """
-    argv = _argv_of("mlx-serve")
-    if argv is None:
-        return "n/a"
-    return "off" if "--no-pld" in argv else "on"
+    return _pld_from_argv(_argv_of("mlx-serve"))
 
 
 #: The inference servers whose build identity belongs on a log line, in the
@@ -311,5 +318,29 @@ def identity(engine: str, tree: str | None = None) -> dict[str, object]:
     # negative answer, and "ds4 has no pld field" must not read as "ds4 had
     # PLD off". ds4's own MTP state is the mirror image and is #39's.
     if engine == "mlx-serve":
-        got["pld"] = pld_state()
+        # One argv snapshot for every mlx field, so a restart between probes
+        # cannot pair `pld` from one process with `draft_source` from another.
+        argv = _argv_of("mlx-serve")
+        got["pld"] = _pld_from_argv(argv)
+        if argv is not None:
+            got.update(_mlx_draft_fields(argv))
     return got
+
+
+def _mlx_draft_fields(argv: list[str]) -> dict[str, object]:
+    """`draft_source` and the PLD tuning for the running mlx-serve (#262).
+
+    Resolution lives in `scripts/lib/mlx_serve.py`, the one place that knows
+    mlx-serve's draft-source priority; this reaches it without depending on the
+    caller's sys.path. It never raises: if the helper cannot be imported the
+    keys are simply absent, which reads as "unrecorded" -- not a guess, and not
+    "no speculation", the same discipline as the rest of this module.
+    """
+    try:
+        libdir = pathlib.Path(__file__).resolve().parents[2] / "scripts" / "lib"
+        if str(libdir) not in sys.path:
+            sys.path.insert(0, str(libdir))
+        import mlx_serve
+    except ImportError:
+        return {}
+    return mlx_serve.draft_provenance_fields(mlx_serve.model_dir_of(argv), argv)

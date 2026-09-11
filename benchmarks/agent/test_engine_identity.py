@@ -66,6 +66,54 @@ def test_a_brew_binary_reports_version_output(tmp_path, monkeypatch):
     assert got["engine_tree"] == str(fake.parent)
 
 
+def test_mlx_serve_identity_records_the_draft_source_and_pld_tuning(
+    tmp_path, monkeypatch
+):
+    """#262: an mlx-serve row must say which speculative source ran and its
+    tuning, from the running server's argv."""
+    model = tmp_path / "Qwen3.8-Flash-Next-MLX-Serve-mixed-4-8bit"
+    model.mkdir()  # ships neither mtp/ nor drafter/ -> PLD
+    argv = ["mlx-serve", "--model", str(model), "--serve"]
+    monkeypatch.setattr(engine_identity, "_argv_of", lambda _name: argv)
+    got = engine_identity.identity("mlx-serve")
+    assert got["pld"] == "on"
+    assert got["draft_source"] == "pld"
+    assert got["pld_draft_len"] == 5
+    assert got["pld_key_len"] == 3
+
+
+def test_mlx_serve_identity_reads_the_argv_once(tmp_path, monkeypatch):
+    """`pld` and `draft_source` must come from one argv snapshot -- a restart
+    between two probes would otherwise pair fields from different processes."""
+    model = tmp_path / "pack"
+    model.mkdir()
+    calls: list[str] = []
+
+    def fake_argv(name: str) -> list[str]:
+        calls.append(name)
+        return ["mlx-serve", "--model", str(model)]
+
+    monkeypatch.setattr(engine_identity, "_argv_of", fake_argv)
+    engine_identity.identity("mlx-serve")
+    assert calls == ["mlx-serve"], "the argv was probed more than once"
+
+
+def test_no_running_mlx_serve_records_no_draft_source(monkeypatch):
+    """No server means the fields are absent, not guessed. `pld` is n/a."""
+    monkeypatch.setattr(engine_identity, "_argv_of", lambda _name: None)
+    got = engine_identity.identity("mlx-serve")
+    assert got["pld"] == "n/a"
+    assert "draft_source" not in got
+
+
+def test_ds4_identity_has_no_draft_source(tmp_path):
+    """The draft fields are mlx-serve's; ds4's MTP state is #39, not this."""
+    tree = _git_tree(tmp_path)
+    got = engine_identity.identity("ds4", tree=str(tree))
+    assert "draft_source" not in got
+    assert "pld" not in got
+
+
 def test_a_tree_based_mlx_serve_records_the_sha_not_the_brew_version(
     tmp_path, monkeypatch
 ):

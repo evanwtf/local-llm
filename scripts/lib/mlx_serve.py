@@ -124,12 +124,46 @@ def model_dir_of(command: Sequence[str]) -> pathlib.Path | None:
     return pathlib.Path(argv[argv.index("--model") + 1]) if "--model" in argv else None
 
 
+def draft_provenance_fields(
+    model_dir: pathlib.Path | None, command: Sequence[str]
+) -> dict[str, object]:
+    """Structured launch provenance for the draft path, for a row to carry (#262).
+
+    The keys are flat -- `draft_source`, `pld_draft_len`, `pld_key_len` -- so they
+    sit beside the rest of a server's identity block rather than nesting a
+    parallel envelope. `pld` on/off is not included here: it is the resident
+    process's state, which `engine_identity.pld_state()` already records with its
+    own "n/a" (no server) semantics, and one fact must have one home.
+
+    `draft_source` is the mechanism mlx-serve will select, inferred from the
+    model directory and argv **assuming no dflash sidecar** -- dflash is not
+    observable here (see `resolve_draft_source`). This is launch intent, not
+    proof the request drafted: PLD self-gates per request, so a row saying
+    `draft_source=pld` still needs the per-trial draft observation (#262 phase 2)
+    to say whether it actually drafted.
+    """
+    settings = draft_settings(command)
+    has_mtp = bool(model_dir and (model_dir / "mtp" / "weights.safetensors").exists())
+    has_drafter = bool(model_dir and (model_dir / "drafter").is_dir())
+    source = resolve_draft_source(
+        has_mtp=has_mtp,
+        has_drafter=has_drafter,
+        pld_enabled=bool(settings["pld_enabled"]),
+    )
+    return {
+        "draft_source": source.lower(),
+        "pld_draft_len": settings["pld_draft_len"],
+        "pld_key_len": settings["pld_key_len"],
+    }
+
+
 def draft_provenance(model_dir: pathlib.Path | None, command: Sequence[str]) -> str:
     """One line naming the draft source and PLD settings, for the caller to log.
 
     Mirrors `ds4_server.assert_graph` returning the graph line: a later reader
     is then never in #262's position -- a speculated number with nothing beside
-    it saying the engine speculated.
+    it saying the engine speculated. The row-facing structured form is
+    `draft_provenance_fields`; this is the human log line.
     """
     settings = draft_settings(command)
     has_mtp = bool(model_dir and (model_dir / "mtp" / "weights.safetensors").exists())
