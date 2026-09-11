@@ -106,6 +106,18 @@ first run knows what to reach for, not as measured facts._
   nothing to check in a CUDA build; it used to refuse runs here and is now
   gated on macOS.
 
+## Firmware and version inventory
+
+[`VERSIONS.md`](VERSIONS.md) records every component on the DGX Spark whose
+version could move a number -- NVIDIA driver and GSP firmware, VBIOS, CUDA,
+kernel, system firmware, embedded controller, memory speed, NVMe firmware, CPU
+governor. Taken once, 2026-09-11T07:55:34-0400.
+
+Rows already carry the software half through `machine_facts()`. The firmware
+half is on no row, so a run on driver 580.173.02 and a later, faster run on a
+595.x driver would be indistinguishable from the ledger alone. Re-take
+VERSIONS.md after any driver, firmware or kernel change.
+
 ## Measured here
 
 See [`RESULTS-agent.md`](RESULTS-agent.md). In short, OpenCode on the 10-task
