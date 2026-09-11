@@ -39,10 +39,10 @@ gh issue list --label "hardware:$(uv run python scripts/hardware_id.py --slug)"
 ```
 
 The machine label is the slug under a `hardware:` namespace; the slug itself
-stays the bare identity (`--slug` prints it). `macOS` and `Nvidia` stay as broad
-class tags (a `platform:` namespace is planned, #302). They do not identify a
-machine:
-the RTX 3080 Ti desktop and the DGX Spark are both `Nvidia`. An issue that
+stays the bare identity (`--slug` prints it). `platform:macOS` and
+`platform:Nvidia` are broad class tags under the `platform:` namespace (#302).
+They do not identify a machine:
+the RTX 3080 Ti desktop and the DGX Spark are both `platform:Nvidia`. An issue that
 consumes a machine's time carries one machine label as well.
 
 Name the machine in the third person in every record -- an issue, a commit, a

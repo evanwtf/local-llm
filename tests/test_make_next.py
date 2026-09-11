@@ -24,7 +24,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "scripts"))
 import make_next as mn
 
 
-def issue(number, title="t", body="b", labels=("macOS", "P1")):
+def issue(number, title="t", body="b", labels=("platform:macOS", "P1")):
     return {
         "number": number,
         "title": title,
@@ -41,10 +41,10 @@ def test_the_labels_are_the_order_and_nothing_else_is():
     from, which was the whole failure mode."""
     got = mn.render(
         [
-            issue(300, labels=("macOS", "P1")),
-            issue(100, labels=("macOS", "P0")),
-            issue(200, labels=("macOS", "P1")),
-            issue(50, labels=("macOS", "P0")),
+            issue(300, labels=("platform:macOS", "P1")),
+            issue(100, labels=("platform:macOS", "P0")),
+            issue(200, labels=("platform:macOS", "P1")),
+            issue(50, labels=("platform:macOS", "P0")),
         ]
     )[0]
     order = [
@@ -58,19 +58,19 @@ def test_the_labels_are_the_order_and_nothing_else_is():
 def test_an_issue_with_no_priority_label_is_left_out():
     """It is invisible to every query the queue runs on; putting it in the
     file would hide that rather than fix it."""
-    assert mn.priority(issue(1, labels=("macOS",))) is None
-    assert "#1]" not in mn.render([issue(1, labels=("macOS",))])[0]
+    assert mn.priority(issue(1, labels=("platform:macOS",))) is None
+    assert "#1]" not in mn.render([issue(1, labels=("platform:macOS",))])[0]
 
 
 def test_two_priority_labels_is_a_defect_not_a_tie_to_break():
     """The queue cannot rank it, and picking one silently would make the
     contradiction unreportable."""
-    assert mn.priority(issue(1, labels=("macOS", "P0", "P1"))) is None
+    assert mn.priority(issue(1, labels=("platform:macOS", "P0", "P1"))) is None
 
 
 def test_p2_and_p3_do_not_reach_the_file():
     for label in ("P2", "P3"):
-        assert mn.priority(issue(1, labels=("macOS", label))) is None
+        assert mn.priority(issue(1, labels=("platform:macOS", label))) is None
 
 
 # --- the summary -------------------------------------------------------------
@@ -140,7 +140,7 @@ def test_an_empty_body_does_not_raise():
 def test_too_many_p0s_warns_in_the_file_and_not_only_on_stderr():
     """A warning nobody reads is not a warning. The person who needs to
     whittle is reading NEXT.md."""
-    issues = [issue(n, labels=("macOS", "P0")) for n in range(mn.MAX_P0 + 1)]
+    issues = [issue(n, labels=("platform:macOS", "P0")) for n in range(mn.MAX_P0 + 1)]
     text, warnings = mn.render(issues)
     assert warnings
     assert "P0 is 'blocks a measurement'" in warnings[0]
@@ -149,7 +149,7 @@ def test_too_many_p0s_warns_in_the_file_and_not_only_on_stderr():
 
 
 def test_too_many_p1s_warns():
-    issues = [issue(n, labels=("macOS", "P1")) for n in range(mn.MAX_P1 + 1)]
+    issues = [issue(n, labels=("platform:macOS", "P1")) for n in range(mn.MAX_P1 + 1)]
     text, warnings = mn.render(issues)
     assert warnings
     assert "Whittle" in warnings[0]
@@ -157,7 +157,7 @@ def test_too_many_p1s_warns():
 
 
 def test_a_queue_inside_the_limits_carries_no_warning():
-    issues = [issue(n, labels=("macOS", "P0")) for n in range(mn.MAX_P0)]
+    issues = [issue(n, labels=("platform:macOS", "P0")) for n in range(mn.MAX_P0)]
     text, warnings = mn.render(issues)
     assert warnings == []
     # The OpenCode banner is a ⚠️ too, so check for the warning's own words.
@@ -166,7 +166,7 @@ def test_a_queue_inside_the_limits_carries_no_warning():
 
 
 def test_the_header_states_the_counts_so_a_reader_sees_the_shape():
-    text, _ = mn.render([issue(1, labels=("macOS", "P0")), issue(2)])
+    text, _ = mn.render([issue(1, labels=("platform:macOS", "P0")), issue(2)])
     assert "1 P0, 1 P1" in text
 
 

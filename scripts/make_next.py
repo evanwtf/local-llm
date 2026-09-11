@@ -42,7 +42,7 @@ logger = logging.getLogger(__name__)
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
 TARGET = REPO_ROOT / "NEXT.md"
-PLATFORM = "macOS"
+PLATFORM = "platform:macOS"
 # The two that make the queue, and the two that do not. Both counts belong
 # in the file: "5 P0" means nothing without "and 55 P2 behind them".
 PRIORITIES = ("P0", "P1")
