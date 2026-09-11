@@ -1,0 +1,10 @@
+2026-09-11T07:07:42-0400 INFO [7ea3bf6-dirty@Cortex-X925-GB10 none pld=n/a] 2026-09-11T11:07:42Z (07:07:42 EDT) | harness 7ea3bf6-dirty
+2026-09-11T07:07:42-0400 INFO [7ea3bf6-dirty@Cortex-X925-GB10 none pld=n/a]   machine: aarch64, ?, 20 cores, 121.7 GiB, NVIDIA GB10, [N/A], confinement none
+2026-09-11T07:07:42-0400 INFO [7ea3bf6-dirty@Cortex-X925-GB10 none pld=n/a]   stack:   ds4 6289c51 | llama.cpp 481c65f | ollama 0.34.0
+2026-09-11T07:07:42-0400 INFO [7ea3bf6-dirty@Cortex-X925-GB10 none pld=n/a] note: 1 row(s) set aside (marked excluded, or dry runs); see RESULTS.md provenance
+2026-09-11T07:07:42-0400 INFO [7ea3bf6-dirty@Cortex-X925-GB10 none pld=n/a] | task | b1 pass | b1 median s |
+2026-09-11T07:07:42-0400 INFO [7ea3bf6-dirty@Cortex-X925-GB10 none pld=n/a] |---|---|---|
+2026-09-11T07:07:42-0400 INFO [7ea3bf6-dirty@Cortex-X925-GB10 none pld=n/a] | mbox-scan | 1/2 | 21.2s |
+2026-09-11T07:07:42-0400 INFO [7ea3bf6-dirty@Cortex-X925-GB10 none pld=n/a] 
+2026-09-11T07:07:42-0400 INFO [7ea3bf6-dirty@Cortex-X925-GB10 none pld=n/a] b1     1/2 passed   median 21.2s   median turns 6   timeouts 1
+2026-09-11T07:07:42-0400 INFO [7ea3bf6-dirty@Cortex-X925-GB10 none pld=n/a] log: /home/evan/git/local-llm/hardware/Cortex-X925-128GB-GB10/logs/summarize-Cortex-X925-GB10-20260911T110742Z.log

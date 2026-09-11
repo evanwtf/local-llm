@@ -21,6 +21,21 @@ def test_no_server_log_yields_no_field_at_all(tmp_path):
     assert run.draft_fields(None) is None
 
 
+def test_the_no_counter_note_does_not_claim_the_arm_did_not_speculate():
+    """#222: on the #191 mlx arm the ds4-mtp-timing counter was silent while
+    mlx-serve drafted 439 times via prompt-lookup decoding, and the old warning
+    read as 'this arm did not speculate'. The note must name the counter, allow
+    for another mechanism, and NOT resolve the silence into no speculation."""
+    note = run.no_counter_note("ds4-mtp-timing", False)
+    low = note.lower()
+    assert "ds4-mtp-timing" in note
+    # It leaves room for speculation by another mechanism ...
+    assert "prompt-lookup" in low or "another" in low
+    # ... and says outright that silence is not proof the arm did not speculate.
+    assert "does not mean this arm did not speculate" in low
+    assert "counters_requested=False" in note
+
+
 def test_the_probe_ignores_everything_written_before_it_existed(tmp_path):
     """The smoke gate drafts too, and it is not trial 1's work."""
     log = tmp_path / "server.log"

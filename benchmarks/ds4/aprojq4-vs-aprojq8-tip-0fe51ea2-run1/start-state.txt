@@ -1,0 +1,9 @@
+# run 1 of 3, launched 2026-09-10T07:19:07-04:00
+# harness: scripts/decode_ab.py aprojq4 /Users/evanhoffman/models/deepseek-v4-flash-aproj/DeepSeek-V4-Flash-IQ2XXS-w2Q2K-AProjQ4-SExpQ8-OutQ8-chat-v2-imatrix-0731.gguf aprojq8 /Users/evanhoffman/models/deepseek-v4-flash-aproj/DeepSeek-V4-Flash-IQ2XXS-w2Q2K-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix-0731.gguf --reps 4 --ctx-start 8192 --ctx-max 32768 --step 8192 --gen 128
+# fans (read only, never set):
+{"fan0_mode": "auto", "fan0_rpm": 0, "fan1_mode": "auto", "fan1_rpm": 0, "fan_rpm_max": 0}
+# thermals at launch:
+{"die_max_c": 38.53, "die_mean_c": 37.36, "fan0_mode": "auto", "fan0_rpm": 0, "fan1_mode": "auto", "fan1_rpm": 0, "fan_rpm_max": 0, "local": "07:19:07 EDT", "sensors": 42, "utc": "2026-09-10T11:19:07Z"}
+# finished: 2026-09-10T07:29:08-04:00
+# thermals at finish:
+{"die_max_c": 66.99, "die_mean_c": 65.63, "fan0_mode": "auto", "fan0_rpm": 3453, "fan1_mode": "auto", "fan1_rpm": 3729, "fan_rpm_max": 3729, "local": "07:29:08 EDT", "sensors": 42, "utc": "2026-09-10T11:29:08Z"}

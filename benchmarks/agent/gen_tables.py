@@ -63,31 +63,6 @@ def _after_fix() -> set[str]:
     return heads
 
 
-#: The ledger `docs/results.md` is generated FROM, named rather than derived.
-#:
-#: This used to be `results.default_path()` -- whichever machine happened to be
-#: running. That is fine while there is one machine and catastrophic once there
-#: are three: `splice_tables.py` is a single unconditional `DOC.write_text()`,
-#: and AGENTS.md tells every agent to run it at the end of every batch. On the
-#: DGX Spark that rewrote the corpus tables with ten rows and restamped the
-#: fingerprint line to match, silently and with no error (#300).
-#:
-#: Naming it makes the document a function of its data instead of a function of
-#: the machine, so re-splicing produces the same bytes anywhere.
-#:
-#: This is an interim answer. #292 item 5 is the real one: read every
-#: `hardware/*/results.jsonl` and emit one table per machine. When that lands,
-#: this constant becomes the loop's first element rather than its only one --
-#: and until it does, a second machine's rows are deliberately NOT in this
-#: document, because there is nowhere correct to put them yet.
-DOC_LEDGER = (
-    pathlib.Path(__file__).resolve().parents[2]
-    / "hardware"
-    / "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A"
-    / "results.jsonl"
-)
-
-
 def load(path: pathlib.Path | None = None) -> list[dict[str, Any]]:
     """Real trials only.
 
@@ -104,7 +79,7 @@ def load(path: pathlib.Path | None = None) -> list[dict[str, Any]]:
     calling it is the same mistake as `dirfix.py` hand-rolling `r.get(
     "excluded")`, which RESULTS.md already records having miscounted 14 rows.
     """
-    return results.trials(path or DOC_LEDGER)
+    return results.trials(path or results.default_path())
 
 
 def valid_opencode(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -355,16 +330,46 @@ LABELS = {
 }
 
 
-def render(rows: list[dict[str, Any]] | None = None) -> str:
-    rows = load() if rows is None else rows
-    out: list[str] = []
+def ledgers() -> list[pathlib.Path]:
+    """Every machine's committed `results.jsonl`, sorted by directory name.
+
+    The tables are a function of the data on `main`, not of whichever machine
+    runs the generator. Reading `results.default_path()` made docs/results.md a
+    picture of one machine -- whichever last ran `splice_tables.py` -- so the
+    file regenerated differently on each host and CI could never verify it
+    (#292). Globbing the committed ledgers makes `render()` produce the same
+    bytes on every machine, which is what lets CI catch a stale document.
+    """
+    root = HERE.parents[1] / "hardware"
+    return sorted(root.glob("*/results.jsonl"))
+
+
+def machine_section(
+    machine: str, path: pathlib.Path, rows: list[dict[str, Any]]
+) -> list[str]:
+    """The tables for one machine, under its own heading.
+
+    `machine` is the `hardware/<id>/` directory name -- the canonical name from
+    `hardware_id.py`, never typed. A machine with rows but no post-`--dir`
+    OpenCode trial gets a note in place of an empty table: the heading still
+    records that the machine is in the fleet.
+    """
     # The data fingerprint, not the HEAD commit: these tables are a function of
-    # results.jsonl, and stamping them with a commit that moves on every
-    # unrelated edit would churn the document and train people to skim it.
-    out += [
-        (f"*Generated from `results.jsonl` — {provenance.fingerprint(DOC_LEDGER)}.*"),
+    # the ledger, and stamping them with a commit that moves on every unrelated
+    # edit would churn the document and train people to skim it.
+    out = [
+        f"### {machine}",
+        "",
+        (
+            f"*Generated from `hardware/{machine}/results.jsonl` — "
+            f"{provenance.fingerprint(path)}.*"
+        ),
         "",
     ]
+    valid = valid_opencode(rows)
+    if not valid:
+        out += ["_No OpenCode trials after the `--dir` fix on this machine yet._", ""]
+        return out
     out += ["#### Every stack measured under OpenCode", ""]
     # The warning goes above the table, not below it. The bug it describes is
     # a misreading of the table's own sort order (#142), so it has to arrive
@@ -379,9 +384,9 @@ def render(rows: list[dict[str, Any]] | None = None) -> str:
         "",
     ]
     out += stack_table(rows, LABELS)
-    out += client_caveat(valid_opencode(rows))
-    out += pld_caveat(valid_opencode(rows))
-    out += engine_caveat(valid_opencode(rows))
+    out += client_caveat(valid)
+    out += pld_caveat(valid)
+    out += engine_caveat(valid)
     out += [
         "",
         (
@@ -390,23 +395,35 @@ def render(rows: list[dict[str, Any]] | None = None) -> str:
             "and it is the column most people forget to ask for."
         ),
         "",
-        "#### Same weights, two engines",
-        "",
     ]
-    out += engine_table(rows, "qwen38fnq3", "qwen38fnq3lms")
-    out += [
-        "",
-        "#### How fast each stack actually serves tokens",
-        "",
-    ]
+    # The two-engine table is a Mac-only comparison (llama.cpp vs LM Studio on
+    # identical weights). On a machine that ran neither arm it is a header with
+    # no rows, so suppress the whole subsection rather than print an empty one.
+    engine = engine_table(rows, "qwen38fnq3", "qwen38fnq3lms")
+    if len(engine) > 2:
+        out += ["#### Same weights, two engines", ""]
+        out += engine
+        out += [""]
+    out += ["#### How fast each stack actually serves tokens", ""]
     out += throughput_table(rows, LABELS)
     out += client_caveat(
-        [
-            r
-            for r in valid_opencode(rows)
-            if r.get("wall_seconds") and r.get("output_tokens")
-        ]
+        [r for r in valid if r.get("wall_seconds") and r.get("output_tokens")]
     )
+    return out
+
+
+def render() -> str:
+    """One section per machine, every committed ledger in directory order.
+
+    Machine-independent by construction: it reads `ledgers()`, not the current
+    machine's file, so the same bytes come out on the laptop, the Ryzen box and
+    CI. See `ledgers()` for why (#292).
+    """
+    out: list[str] = []
+    for path in ledgers():
+        if out:
+            out.append("")  # one blank line between machines
+        out += machine_section(path.parent.name, path, results.trials(path))
     return "\n".join(out) + "\n"
 
 

@@ -60,7 +60,18 @@ jobs:
       # Last, not first: Actions stops the job at the first failing step, so a
       # single reformatted line must not abort the run before pytest and hide
       # whatever the tests would have said. One run should report every
-      # problem it can; the format check is the one we can most afford to
+      # problem it can; the style checks are the ones we can most afford to
       # learn about second.
-      - name: Check formatting
-        run: uv run ruff format --check .
+      #
+      # `ruff check` (the linter) is run here, not only `ruff format --check`:
+      # CI ran the formatter but never the linter, so 24 lint findings
+      # accumulated in files nobody staged -- the pre-commit hook only lints
+      # staged files, so it could not see them (#233). The status is collected
+      # across both so one run reports every problem rather than stopping at the
+      # first, the way CLAUDE.md's baseline job does.
+      - name: Check lint and formatting
+        run: |
+          status=0
+          uv run ruff format --check . || status=$?
+          uv run ruff check . || status=$?
+          exit "$status"

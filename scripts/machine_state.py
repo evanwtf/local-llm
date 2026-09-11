@@ -138,6 +138,23 @@ RESIDENT_GIB = 8.0
 #: Statuses that mean we do not know, which is not the same as free.
 UNPROVEN = (UNCONFIRMED, REUSED)
 
+#: The claim source for a bare GPU benchmark (#277). Named so `occupies`,
+#: `verdict` and `describe` can recognise it without string-matching `what`.
+BENCH_SOURCE = "gpu-bench"
+
+#: GPU-consuming benchmark binaries that take no lock of their own: the lock is
+#: held by the driver that spawns them, so a driver that is killed, crashes, or
+#: is run by hand leaves one of these on the GPU with nothing claiming it (#277).
+#: On 2026-09-09 `machine_state` said `Currently on GPU: idle` while a `ds4-bench`
+#: sweep owned it. Matched on the executable name like `parse_ps` -- never the
+#: argv, which is the `pgrep -f` self-match this repo has paid for twice.
+#:
+#: Name-based, so it goes stale as the matrix grows -- deliberately, because the
+#: failure it adds errs toward BUSY: a benchmark wrongly omitted here reopens the
+#: silent-collision hole, while a name that never runs costs nothing. `speed-bench`
+#: is NOT here -- it is a directory in the prompt path, not a binary.
+GPU_BENCH = ("ds4-bench", "llama-bench")
+
 # Out of the repo, beside the run lock (#238). Owned by preflight so the
 # reader here and the writer in peer_status.py cannot name different files.
 PEER_STATUS = preflight.PEER_STATUS_PATH
@@ -176,7 +193,16 @@ class Claim:
     @property
     def occupies(self) -> bool:
         """Whether this is something ON the machine, not merely running."""
-        return self.status in LIVE and (self.resident_gib or 0.0) >= RESIDENT_GIB
+        if self.status not in LIVE:
+            return False
+        # A benchmark binary has no idle state: it exists only while it is
+        # working the GPU (#277), so its mere presence occupies, whatever it has
+        # loaded this instant. A server, by contrast, can sit resident-but-idle
+        # (an `ollama serve` nobody has asked anything sits at ~0 GiB), so it
+        # must clear the resident-model bar to count.
+        if self.source == BENCH_SOURCE:
+            return True
+        return (self.resident_gib or 0.0) >= RESIDENT_GIB
 
     def as_dict(self) -> dict[str, object]:
         return dataclasses.asdict(self)
@@ -504,6 +530,36 @@ def servers() -> list[preflight.Proc]:
     )
 
 
+def bench_claims(ps_text: str | None = None) -> list[Claim]:
+    """Bare GPU benchmark binaries, which hold the GPU under no lock (#277).
+
+    `ds4-bench` takes no lock of its own -- the driver that spawns it does -- so
+    a driver that dies without reaping leaves a GPU consumer that the lock
+    claim, the peer file and the unit records all miss. This is the census that
+    catches it: `GPU_BENCH` matched on the executable, via `parse_ps` so the
+    match is the same careful one the servers get. Each is reported `UNRECORDED`
+    -- alive, and nothing wrote it down -- the same status a stray server gets.
+    """
+    text = (
+        ps_text
+        if ps_text is not None
+        else preflight._capture(["ps", "-eo", "pid,rss,etime,command"])
+    )
+    return [
+        Claim(
+            BENCH_SOURCE,
+            p.short,
+            p.pid,
+            UNRECORDED,
+            "a GPU benchmark running under no lock -- a driver was killed or "
+            "crashed without reaping it, or it was started by hand (#277)",
+            resident_gib=round(p.rss_gib, 1),
+            held_s=p.age_s,
+        )
+        for p in preflight.parse_ps(text, markers=GPU_BENCH)
+    ]
+
+
 def occupant(claims: Sequence[Claim]) -> Claim | None:
     """What is on the machine, or None. `None` means idle, and idle counts.
 
@@ -572,6 +628,7 @@ def survey(
     peer_path: pathlib.Path | None = None,
     unit_dir: pathlib.Path | None = None,
     procs: Sequence[preflight.Proc] | None = None,
+    bench_text: str | None = None,
 ) -> dict[str, object]:
     """The whole answer, as the JSON both agents read."""
     live = list(procs) if procs is not None else servers()
@@ -602,6 +659,13 @@ def survey(
         for c in claims
     ]
     claims += unrecorded(claims, live)
+    # A bare benchmark holds the GPU under no lock, so it is found from the
+    # process table, not from any record (#277). Injected in tests; captured
+    # live otherwise. `procs` overriding the server census must also govern the
+    # bench census, or a test that hands in its own processes still shells out.
+    if bench_text is None and procs is not None:
+        bench_text = ""
+    claims += bench_claims(bench_text)
     state, why = verdict(claims)
     on = occupant(claims)
     return {

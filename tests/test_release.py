@@ -19,9 +19,8 @@ import pytest
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 
-import check_release_version as cv  # noqa: E402
-import release_notes as rn  # noqa: E402
-
+import check_release_version as cv
+import release_notes as rn
 
 # --- the tag itself -------------------------------------------------------
 
@@ -158,6 +157,7 @@ def _run(script: str, *args: str) -> subprocess.CompletedProcess[str]:
         [sys.executable, str(ROOT / "scripts" / script), *args],
         capture_output=True,
         text=True,
+        check=False,  # the tests assert on returncode; a failure is data, not an error
     )
 
 
@@ -298,8 +298,8 @@ def test_the_real_notes_do_not_swallow_the_legacy_history() -> None:
 HISTORY = ROOT / "docs" / "history.md"
 CHANGELOG_MD = ROOT / "docs" / "changelog.md"
 #: A pre-versioning entry: a bold date at the start of a line.
-LEGACY_ENTRY = re.compile(r"^\*\*(\d{4}-\d{2}-\d{2})", re.M)
-VERSION_HEADING = re.compile(r"^##\s+v(\d+\.\d+\.\d+)", re.M)
+LEGACY_ENTRY = re.compile(r"^\*\*(\d{4}-\d{2}-\d{2})", re.MULTILINE)
+VERSION_HEADING = re.compile(r"^##\s+v(\d+\.\d+\.\d+)", re.MULTILINE)
 
 
 def test_the_changelog_holds_no_pre_versioning_entries() -> None:

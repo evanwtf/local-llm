@@ -53,6 +53,57 @@ def test_a_model_name_written_the_way_a_person_writes_it_still_resolves():
     assert spaced in ("exact", "related")
 
 
+def test_a_model_name_with_the_version_dropped_still_resolves():
+    """#239: people write our primary model as 'Qwen Flash Next', without the
+    3.8. @ddalcu did, on our exact machine. The version is droppable; the
+    distinctive words are what name the model, so it must not read as foreign --
+    a false foreign is disqualifying (test_a_foreign_hardware_match...)."""
+    models = rs.known_models()
+    dropped = rs.match_registry("Qwen Flash Next", models)
+    full = rs.match_registry("Qwen 3.8 Flash Next", models)
+    assert dropped == full
+    assert dropped in ("exact", "related")
+
+
+def test_dropping_the_version_does_not_match_an_unrelated_model():
+    """The version-tolerant match needs a run of two or more shared words, so it
+    must not collapse models that share one word or differ by a bare number.
+
+    `Qwen2` is nobody we serve; `Some Other Flash Model` shares only 'flash'.
+    Both must stay foreign, or the rubric's most expensive error -- a false
+    exact that lets an unrelated claim reach the machine -- is let back in."""
+    models = rs.known_models()
+    assert rs.match_registry("Qwen2", models) == "foreign"
+    assert rs.match_registry("Some Other Flash Model", models) == "foreign"
+
+
+def test_a_stated_version_is_honoured_not_dropped():
+    """Version tolerance is for an OMITTED version, never a different one. A
+    claim that states a number keeps it: 'GLM 4 Flash' is not our
+    'glm-5.3-flash', and 'Gemma 2 9B' is not our gemma-4. Dropping the digit
+    would collapse distinct models and let a foreign one reach the machine."""
+    models = rs.known_models()
+    assert rs.match_registry("GLM 4 Flash", models) == "foreign"
+    assert rs.match_registry("Gemma 2 9B", models) == "foreign"
+
+
+def test_a_claim_that_adds_words_is_a_different_model():
+    """The leading match is directional: a claim may DROP a served model's
+    trailing version and build words, never ADD its own. 'GLM Flash
+    Experimental' merely starts like 'glm-5.3-flash'; it is not our model."""
+    models = rs.known_models()
+    assert rs.match_registry("GLM Flash Experimental", models) == "foreign"
+    assert rs.match_registry("Ornith B Experimental", models) == "foreign"
+
+
+def test_the_version_tolerance_does_not_leak_into_engine_matching():
+    """match_registry scores engines too. A single letters-plus-digit token
+    must not resolve a different engine exact -- 'DS5' is not 'ds4'."""
+    engines = rs.known_engines()
+    assert rs.match_registry("DS5", engines) == "foreign"
+    assert rs.match_registry("mlx4", engines) == "foreign"
+
+
 # --- the three de-subjectivizing rules ---------------------------------------
 
 

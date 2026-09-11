@@ -1,0 +1,9 @@
+# run 2 of 3, launched 2026-09-10T06:54:38-04:00
+# harness: scripts/prefill_chunk_ab.py /Users/evanhoffman/git/ds4-0fe51ea2 /Users/evanhoffman/models/deepseek-v4-flash-aproj/DeepSeek-V4-Flash-IQ2XXS-w2Q2K-AProjQ4-SExpQ8-OutQ8-chat-v2-imatrix-0731.gguf 8192 4096 --reps 4 --ctx-start 8192 --ctx-max 32768 --step 8192 --gen 128
+# fans (read only, never set):
+{"fan0_mode": "auto", "fan0_rpm": 3451, "fan1_mode": "auto", "fan1_rpm": 3726, "fan_rpm_max": 3726}
+# thermals at launch:
+{"die_max_c": 69.71, "die_mean_c": 68.09, "fan0_mode": "auto", "fan0_rpm": 3451, "fan1_mode": "auto", "fan1_rpm": 3726, "fan_rpm_max": 3726, "local": "06:54:38 EDT", "sensors": 42, "utc": "2026-09-10T10:54:38Z"}
+# finished: 2026-09-10T07:04:38-04:00
+# thermals at finish:
+{"die_max_c": 66.91, "die_mean_c": 65.24, "fan0_mode": "auto", "fan0_rpm": 3455, "fan1_mode": "auto", "fan1_rpm": 3740, "fan_rpm_max": 3740, "local": "07:04:38 EDT", "sensors": 42, "utc": "2026-09-10T11:04:38Z"}

@@ -209,8 +209,8 @@ def test_leading_sha_elsewhere_does_not_bind():
 def test_pinned_with_leading_sha_is_not_in_scan():
     """A leading-sha-bound citation is excluded from the repo scan, so a
     document that only carries raw git grep output has no bare citations."""
-    from pathlib import Path
     import tempfile
+    from pathlib import Path
 
     body = (
         "observed: 77a054e1:ds4.c:6007:static void validate_compress_ratio_metadata(m)"

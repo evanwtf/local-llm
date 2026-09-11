@@ -101,6 +101,74 @@ def test_saving_never_raises_when_the_destination_is_unusable(worktree, tmp_path
     assert grade.save_solution(blocker, "t1", worktree) == {}
 
 
+def _commit_uv_lock(worktree: pathlib.Path) -> None:
+    (worktree / "uv.lock").write_text(
+        'version = 1\n[options]\nexclude-newer = "0001-01-01T00:00:00Z"\n'
+    )
+    subprocess.run(["git", "add", "-A"], cwd=worktree, check=True)
+    subprocess.run(
+        ["git", "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "-m", "l"],
+        cwd=worktree,
+        check=True,
+    )
+
+
+def _oracle_churns_uv_lock(worktree: pathlib.Path) -> None:
+    # A bare `uv run` re-resolves under the machine's exclude-newer policy and
+    # strips the block -- the hunk no agent wrote (#285).
+    (worktree / "uv.lock").write_text("version = 1\n")
+
+
+def test_uv_lock_churn_alone_reads_as_an_empty_solution(worktree, tmp_path):
+    """#285: the oracle rewrites uv.lock in the tree the diff is taken from. An
+    agent that wrote nothing must still read as empty, not as a one-hunk patch.
+    """
+    _commit_uv_lock(worktree)
+    _oracle_churns_uv_lock(worktree)
+    got = grade.save_solution(tmp_path / "solutions", "t1", worktree)
+    assert got == {"solution_empty": True}
+
+
+def test_uv_lock_churn_is_excluded_from_a_real_solution(worktree, tmp_path):
+    """A real edit is still captured, minus the oracle's uv.lock hunk (#285)."""
+    _commit_uv_lock(worktree)
+    _solve(worktree, "    return a + b\n")
+    _oracle_churns_uv_lock(worktree)
+    got = grade.save_solution(tmp_path / "solutions", "t1", worktree)
+    patch = pathlib.Path(got["solution_patch"]).read_text()
+    assert "return a + b" in patch
+    assert "uv.lock" not in patch
+
+
+def test_two_empty_solutions_do_not_collide_on_the_lock_hunk(worktree, tmp_path):
+    """#285: solution_sha256 collided across unrelated trials whose only content
+    was the identical lock hunk. With it excluded, neither has a hash at all, so
+    there is nothing to collide.
+    """
+    _commit_uv_lock(worktree)
+    _oracle_churns_uv_lock(worktree)
+    a = grade.save_solution(tmp_path / "a", "t1", worktree)
+    b = grade.save_solution(tmp_path / "b", "t2", worktree)
+    assert "solution_sha256" not in a
+    assert "solution_sha256" not in b
+    assert a == b == {"solution_empty": True}
+
+
+def test_a_nested_uv_lock_is_also_excluded(worktree, tmp_path):
+    """The oracle can run in a subpackage, so the churn can be nested (#285)."""
+    (worktree / "pkg").mkdir()
+    (worktree / "pkg" / "uv.lock").write_text('version = 1\n[options]\nx = "y"\n')
+    subprocess.run(["git", "add", "-A"], cwd=worktree, check=True)
+    subprocess.run(
+        ["git", "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "-m", "n"],
+        cwd=worktree,
+        check=True,
+    )
+    (worktree / "pkg" / "uv.lock").write_text("version = 1\n")
+    got = grade.save_solution(tmp_path / "solutions", "t1", worktree)
+    assert got == {"solution_empty": True}
+
+
 # --- the gates -----------------------------------------------------------
 
 

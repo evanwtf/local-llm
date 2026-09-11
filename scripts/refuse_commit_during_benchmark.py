@@ -61,6 +61,35 @@ logger = logging.getLogger(__name__)
 # for why it cannot simply be imported.
 LOCK_PATH = pathlib.Path.home() / ".local-llm-bench" / "run-lock.json"
 
+
+def _main_repo() -> pathlib.Path:
+    """The checkout that owns this hook, worktree or not.
+
+    Mirrors `preflight._main_repo`: walk up to the first directory holding
+    `.claude/worktrees`, falling back to two levels up (scripts/ sits one below
+    the repo root) for a plain checkout. A third place the repo layout is
+    written down, for the same reason LOCK_PATH is -- a test pins it against
+    `preflight` so the two cannot drift into a guard that looks in the wrong
+    tree.
+    """
+    here = pathlib.Path(__file__).resolve().parent
+    for parent in (here, *here.parents):
+        if (parent / ".claude" / "worktrees").is_dir():
+            return parent
+    return here.parent
+
+
+def _legacy_lock_paths() -> list[pathlib.Path]:
+    """Where a pre-move `.run-lock.json` could sit: the main checkout and every
+    worktree. Must equal `preflight._legacy_lock_paths`; a test pins it."""
+    repo = _main_repo()
+    paths = [repo / ".run-lock.json"]
+    worktrees = repo / ".claude" / "worktrees"
+    if worktrees.is_dir():
+        paths.extend(worktrees.glob("*/run-lock.json"))
+    return paths
+
+
 FREE = "free"
 HELD = "held"
 OURS = "ours"
@@ -155,6 +184,26 @@ def main(argv: list[str] | None = None) -> int:
             "benchmark is running. Inspect %s and delete it if no run is live, "
             "or set LOCAL_LLM_ALLOW_COMMIT_DURING_RUN=1.",
             why,
+            LOCK_PATH,
+        )
+        return 1
+
+    # A legacy `.run-lock.json` in any checkout (#242). The canonical path above
+    # cannot see a pre-fix process: it holds a lock at the OLD location, so this
+    # hook would read the new path as free and let the commit through -- the
+    # exact failure it exists to stop, in the state where it matters most,
+    # because a run old enough to predate the move has been going a long time.
+    # A lock nobody can classify is not a free machine, so refuse on its mere
+    # existence. `preflight.warn_legacy_lock` only warns; a commit cannot be
+    # taken back, so here it blocks.
+    legacy = [p for p in _legacy_lock_paths() if p.exists()]
+    if legacy:
+        logger.error(
+            "a legacy run lock exists (%s). The lock now lives at %s; a legacy "
+            "lock means a pre-fix benchmark may still hold the machine where "
+            "the canonical path cannot see it. Remove it if no run is live, or "
+            "set LOCAL_LLM_ALLOW_COMMIT_DURING_RUN=1 to commit anyway.",
+            ", ".join(str(p) for p in legacy),
             LOCK_PATH,
         )
         return 1

@@ -42,6 +42,7 @@ import platform
 import subprocess
 import sys
 import time
+from collections.abc import Sequence
 from urllib.parse import urlparse
 
 import metal_equivalence
@@ -281,8 +282,14 @@ def ceiling_gib(text: str) -> float:
     return got if got is not None else STOCK_CEILING_GIB
 
 
-def parse_ps(text: str) -> list[Proc]:
-    """Read `ps -eo pid,rss,etime,command`, keeping only model servers.
+def parse_ps(text: str, markers: Sequence[str] = INFERENCE) -> list[Proc]:
+    """Read `ps -eo pid,rss,etime,command`, keeping processes matching `markers`.
+
+    `markers` defaults to the model servers (`INFERENCE`), which is every
+    existing caller. `machine_state` passes its own list to find bare benchmark
+    binaries that hold the GPU under no lock (#277); the parsing -- and, more
+    importantly, the executable-not-argv match below -- is identical, so it is
+    shared rather than copied and left to drift.
 
     The command column contains spaces, so the split is bounded at 3. RSS is
     KiB on macOS; ELAPSED is wall time since the process started (#145).
@@ -310,7 +317,7 @@ def parse_ps(text: str) -> list[Proc]:
         # invoked it. That is the same self-match NEXT.md records for
         # `pgrep -f run.py`, and it is worth not rediscovering twice.
         binary = command.split()[0] if command.split() else ""
-        if not any(marker in binary for marker in INFERENCE):
+        if not any(marker in binary for marker in markers):
             continue
         try:
             procs.append(
@@ -1116,16 +1123,22 @@ def _main_repo() -> pathlib.Path:
     """The checkout that owns this module, worktree or not.
 
     From a worktree, `__file__` resolves into `.claude/worktrees/<name>/`, and
-    the legacy lock that matters sits in the main repo three levels up. Walk
-    up from `__file__` to the first directory that contains `.claude/
-    worktrees` -- that is the main repo. Fall back to the old three-levels-up
-    guess when the marker is absent (a plain checkout).
+    the legacy lock that matters sits in the main repo. Walk up from `__file__`
+    to the first directory that contains `.claude/worktrees` -- that is the main
+    repo. Fall back to the repo root, two levels above this module's own
+    directory (`benchmarks/agent/`), when the marker is absent (a plain
+    checkout). It used to be three levels, which resolved to the repo's PARENT
+    and made the legacy scan look outside the checkout entirely; that path is
+    never taken here because `.claude/worktrees` exists, which is how the
+    off-by-one stayed hidden. `refuse_commit_during_benchmark._main_repo`
+    mirrors this, and `test_the_legacy_lock_paths_agree_with_preflight` pins the
+    two equal in both the marker-present and plain-checkout cases (#242).
     """
     here = pathlib.Path(__file__).resolve().parent
     for parent in (here, *here.parents):
         if (parent / ".claude" / "worktrees").is_dir():
             return parent
-    return here.parent.parent.parent
+    return here.parent.parent
 
 
 def _legacy_lock_paths() -> list[pathlib.Path]:
@@ -1314,10 +1327,10 @@ def acquire_lock(
         # its liveness, or the claim dies when the CLI that wrote it exits.
         claim["session_claim"] = True
     try:
-        # The state directory need not exist yet. On a machine that has never
-        # run the harness it does not, and O_CREAT fails with ENOENT -- which
-        # reads as "cannot take the run lock", as though something held it,
-        # when in truth nothing here has ever run. Create it before claiming.
+        # The lock owns its directory. It used to exist only as a side effect
+        # of the target-repo stash, so a machine that had never stashed died
+        # here on a bare errno -- after preflight passed and the model was
+        # already resident (#269).
         path.parent.mkdir(parents=True, exist_ok=True)
         # O_EXCL so two processes racing here cannot both win.
         fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)

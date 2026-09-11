@@ -44,6 +44,32 @@ error raised.
 
 `benchmarks/ds4/0731/run_bench.sh` regenerates it and documents the invariant.
 
+## A log is filed by what it records, not by which machine ran it
+
+`logs/sweeps/` is shared; `hardware/<id>/logs/` is per-machine. The split is by
+the log's subject, not its author:
+
+- A **sweep** records the outside world on a day -- what upstream shipped, what
+  Hugging Face has, what X said. That is the same fact on every machine, so it
+  stays in the shared `logs/sweeps/`. The machine slug in the filename says who
+  ran the sweep; it does not make the finding a property of that machine.
+- A **benchmark, preflight or build** log is a property of the machine that
+  produced it, so it goes in `hardware/<id>/logs/`.
+
+`provenance.log_path(..., machine_specific=...)` encodes exactly this: a new
+sweep log lands in `logs/sweeps/`, a new benchmark log in `hardware/<id>/logs/`,
+and `test_committed_logs_all_name_their_machine` holds the latter to a
+`<script>-<slug>-<UTC>Z` name.
+
+#292 named `logs/sweeps/` as a place two machines could collide. They do not:
+sweep files are slugged and timestamped, so no two share a path, and
+`.gitattributes` marks `logs/**` `-merge`. So the sweeps stay shared -- moving
+them would wrongly attribute a machine-independent observation to one machine.
+A handful of early #228 benchmark logs were committed to `logs/sweeps/` by hand,
+before that routing existed; they carry a local-time stamp and no slug, so they
+fit neither naming rule. They stay where they were first committed rather than
+being renamed to conform -- "keep the historical record honest", below, wins.
+
 ## Keep the historical record honest
 
 Logs, traces, and saved transcripts under `benchmarks/` are records of what
@@ -57,3 +83,27 @@ Benchmark scripts read `DS4_ROOT` for the engine and its weights (default
 `/Users/evanhoffman/git/ds4`) and write results beside themselves in this repo.
 Keep that split when adding an engine: binaries and weights stay where they are
 installed, numbers land here.
+
+## One main, machines are directories
+
+**A machine is a field in the data, not a branch.** Every machine commits to
+`main`; its results, logs and notes live in `hardware/<id>/` (the name from
+`scripts/hardware_id.py`, never typed). Three machines on one branch is the
+design working — one shared apparatus, many directories (#85, #292).
+
+- **Harness changes land on `main` first, always.** A per-machine branch that
+  lags `main` produces numbers from a stale harness: the Ryzen branch sat 21
+  commits behind and its rows were not comparable to the laptop's without a
+  merge first (#292).
+- **Short-lived topic branches only**, named by issue (`269-ternary-bonsai`),
+  merged within days. No long-running per-machine branch.
+- **Per-machine files never share a path**, so they never conflict:
+  `hardware/MacA/results.jsonl` and `hardware/Spark/results.jsonl` are different
+  files. `results.foreign_hardware()` refuses to pool rows across machines.
+
+**Do not `merge=union` the ledgers.** `exclude_rows.py` annotates a row in
+place and `results.load()` does not de-duplicate, so a union merge of two
+diverged checkouts restores the un-excluded copy of an archived row into every
+pass rate. `.gitattributes` explains why results.jsonl is left to the default
+3-way merge. After any merge that touched a ledger, re-run the archivers and
+check for duplicate rows before trusting an aggregate.

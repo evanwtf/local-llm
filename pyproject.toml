@@ -50,7 +50,13 @@ target-version = "py313"
 # what the model is asked and left the doc permanently at odds with its own
 # generator. Nothing else here is configured: the rest stays on ruff defaults,
 # which is what every existing check was written against.
-extend-exclude = ["benchmarks/agent/PROMPTS.md"]
+# hardware/ holds records, not the shared apparatus: per-machine results, logs,
+# and dated one-off benchmark scripts committed as evidence (hardware/README.md
+# -- "The harness itself is shared and stays out of here"). Those scripts are a
+# historical record, and CONVENTIONS.md "Keep the historical record honest"
+# says not to reformat a record to match a later style. The linter (now a CI
+# gate, #233) would otherwise demand edits to a 2026-09-07 probe script.
+extend-exclude = ["benchmarks/agent/PROMPTS.md", "hardware/"]
 
 [tool.ruff.lint.per-file-ignores]
 # The rows this reads carry naive local timestamps: results._now() writes them

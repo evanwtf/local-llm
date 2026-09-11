@@ -29,17 +29,39 @@ TABLES_DOC = pathlib.Path(__file__).resolve().parents[2] / "docs/results.md"
 STACKS_DOC = pathlib.Path(__file__).resolve().parents[2] / "docs/stacks.md"
 
 
-@pytest.mark.skipif(not HAS_LOCAL_RESULTS, reason=SKIP_NO_RESULTS)
 def test_the_generated_tables_are_current() -> None:
-    # A batch in flight is appending to results.jsonl, so the document is
-    # being compared against a moving target. Skipping keeps an unrelated
-    # commit from being blocked by a run; the check is meaningful only when
-    # the data is quiescent, and AGENTS.md makes re-splicing part of finishing
-    # a batch.
+    # No HAS_LOCAL_RESULTS gate: render() reads the committed hardware/*/
+    # results.jsonl by glob, not this machine's file (#292), so the document is
+    # verifiable on every checkout -- including CI, which could never run this
+    # check while the tables were a picture of whichever machine last spliced.
+    #
+    # A batch in flight is appending to a ledger, so the document is being
+    # compared against a moving target. Skipping keeps an unrelated commit from
+    # being blocked by a run; the check is meaningful only when the data is
+    # quiescent, and AGENTS.md makes re-splicing part of finishing a batch.
+    # STASH_MARKER exists only on a machine that is mid-run, never on CI.
     import run
 
     if run.STASH_MARKER.exists():
         pytest.skip("a benchmark batch is running; results.jsonl is mid-write")
+    # render() now reads every committed ledger by glob, so it also sees rows a
+    # finished-but-not-yet-committed batch left in the working tree (STASH_MARKER
+    # is gone by then). The doc can only match the *committed* data, so skip when
+    # any ledger is dirty or untracked: commit the rows and re-splice, then this
+    # passes. CI checks out a clean tree, so it always runs there -- which is the
+    # point of dropping the HAS_LOCAL_RESULTS gate (#292).
+    import subprocess
+
+    repo = pathlib.Path(__file__).resolve().parents[2]
+    status = subprocess.run(
+        ["git", "status", "--porcelain", "--", "hardware"],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+    if any(line.endswith("/results.jsonl") for line in status.splitlines()):
+        pytest.skip("a ledger has uncommitted rows; commit them and re-splice")
     text = TABLES_DOC.read_text()
     assert text == splice_tables.splice(text, gen_tables.render()), (
         "docs/results.md is stale; run splice_tables.py"
@@ -348,9 +370,12 @@ def test_a_timed_out_trial_is_not_a_timing():
     ]
 
 
-def test_the_table_says_which_trials_the_timings_count():
+def test_the_table_says_which_trials_the_timings_count(tmp_path):
     """A rule a reader cannot see is a second version of the same bug."""
-    doc = gen_tables.render([_trial("a", 50.0, True), _trial("a", 10.0, False)])
+    rows = [_trial("a", 50.0, True), _trial("a", 10.0, False)]
+    path = tmp_path / "results.jsonl"
+    path.write_text("")
+    doc = "\n".join(gen_tables.machine_section("MacA", path, rows))
     warning = doc.index("count only trials that passed")
     assert warning < doc.index("| stack | passed |")
 

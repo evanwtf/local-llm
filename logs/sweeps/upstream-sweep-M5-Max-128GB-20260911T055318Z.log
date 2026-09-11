@@ -1,0 +1,118 @@
+2026-09-11T01:53:18-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a] 2026-09-11T05:53:18Z (01:53:18 EDT) | harness d8c9adb
+2026-09-11T01:53:18-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-11T01:53:18-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a] Upstream sweep since 2026-09-11T01:53:18Z (4h)
+
+2026-09-11T01:53:21-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a] == antirez/ds4 -- our primary engine; the only one that runs DeepSeek-V4-Flash and GLM-5.3
+2026-09-11T01:53:21-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    PR #952 AProjQ4: imatrix-guided Q4_K dense attention projections
+2026-09-11T01:53:21-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    PR #939 glm: fix [gMASK]<sop> tokenization without BOS metadata
+2026-09-11T01:53:21-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a] 
+2026-09-11T01:53:23-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a] == ggml-org/llama.cpp -- our fast pick's engine; `qwen4exp` IS Qwen3.8-Flash-Next
+2026-09-11T01:53:23-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    vulkan: fix data race and OOB access in argsort(large) (#28705)
+2026-09-11T01:53:23-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    PR #28696 convert : add DeepSeek V4.1 (DeepseekV41ForCausalLM)
+2026-09-11T01:53:23-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    PR #28059 server : enable gzip compression (zlib)
+2026-09-11T01:53:23-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    PR #28712 ci : add self-hosted vulkan and webgpu to hf-jobs
+2026-09-11T01:53:23-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    PR #27851 ggml-cpu:  tiled mul_mat for k-quants
+2026-09-11T01:53:23-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    PR #28092 server : add --cache-disk for a persistent prompt cache
+2026-09-11T01:53:23-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    PR #26419 ggml-cuda: enable MMA FlashAttention for head dim 256 on AMD RDNA
+2026-09-11T01:53:23-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    PR #28589 hexagon: support for multi-device model split (aka row-split)
+2026-09-11T01:53:23-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    PR #28732 vulkan: split buffers and debug code into separate files, add shared headers
+2026-09-11T01:53:23-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    ... and 8 more open PRs
+2026-09-11T01:53:23-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a] 
+2026-09-11T01:53:26-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a] == ollama/ollama -- the 31 GB entry point, and our only MLX runtime
+2026-09-11T01:53:26-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    PR #14969 create: add server-side MLX imports and drop GGUF conversion
+2026-09-11T01:53:26-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    PR #18235 MLX: version bump
+2026-09-11T01:53:26-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    PR #18382 server: bound cloud proxy connect and TTFB timeouts
+2026-09-11T01:53:26-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    PR #18372 app: refresh Apps layout and command copy feedback
+2026-09-11T01:53:26-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    PR #18380 docs: fix subject-verb agreement in streaming guide
+2026-09-11T01:53:26-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a] 
+2026-09-11T01:53:28-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a] == anomalyco/opencode -- our only client
+2026-09-11T01:53:28-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    PR #48435 refactor(app): avoid deep equality in timeline row reconciliation
+2026-09-11T01:53:28-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    PR #44977 fix(app): merge adjacent file-changing tools
+2026-09-11T01:53:28-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    PR #48446 test(codemode): run vendored test262 files verbatim
+2026-09-11T01:53:28-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    PR #48445 feat(app): polish summary panels and config actions
+2026-09-11T01:53:28-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    PR #48334 feat(session): transcribe images for models without vision support
+2026-09-11T01:53:28-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    PR #48429 fix(core): pass flat settings through to native provider packages
+2026-09-11T01:53:28-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    PR #48443 fix(core): omit undefined permission metadata
+2026-09-11T01:53:28-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    PR #47637 docs(web): replace stale antigravity plugins with opencode-agy-auth
+2026-09-11T01:53:28-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    ... and 10 more open PRs
+2026-09-11T01:53:28-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a] 
+2026-09-11T01:53:30-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a] == evanwtf/local-llm -- this project
+2026-09-11T01:53:30-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    #242: the commit guard refuses on a legacy lock the canonical path cannot see
+2026-09-11T01:53:30-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    #265: guard that no new reader tests a checkout-root .run-lock.json
+2026-09-11T01:53:30-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    #277: machine_state sees a bare GPU benchmark, not just model servers
+2026-09-11T01:53:30-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    #233: run ruff check in CI, and clear the 24 findings that had accumulated
+2026-09-11T01:53:30-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    #266: count prefill-failure 500s on the row so the retry is visible
+2026-09-11T01:53:30-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    NEXT.md: regenerate — #264 and #268 closed, #292 enters the P1 queue
+2026-09-11T01:53:30-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    #292: the #228 evidence logs are historical; leave them in logs/sweeps/
+2026-09-11T01:53:30-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    #292/#269: rescue two harness fixes stranded on the Ryzen branch
+2026-09-11T01:53:30-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    #292: machine-specific logs leave logs/sweeps/; the shared dir is sweeps only
+2026-09-11T01:53:30-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    #292: gen_tables emits one section per machine, and CI verifies the doc
+2026-09-11T01:53:30-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    #292: the Spark's directory, the one-branch rule, and .gitattributes
+2026-09-11T01:53:30-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    Add verify_push.py: confirm a push landed, not that git reported success (#255)
+2026-09-11T01:53:30-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    ... and 6 more
+2026-09-11T01:53:30-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    PR #294 Make the agent harness run on Linux: platform-gate Swift, stop the oracle rewr
+2026-09-11T01:53:30-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a] 
+2026-09-11T01:53:31-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a] == evanwtf/gmail-archive -- the excision tasks' target repository
+2026-09-11T01:53:31-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    (quiet)
+2026-09-11T01:53:31-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a] 
+2026-09-11T01:53:32-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a] == evanwtf/ds4 -- our ds4 fork (#27 asks whether it can be retired)
+2026-09-11T01:53:32-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    (quiet)
+2026-09-11T01:53:32-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a] 
+2026-09-11T01:53:34-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a] == ml-explore/mlx -- the framework everything MLX sits on
+2026-09-11T01:53:34-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    Fix fp quantized matmul corruption when the quantized dim is not a multiple of 32 (#3912)
+2026-09-11T01:53:34-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    Add type hints and docstrings for ALiBi layer (#4472)
+2026-09-11T01:53:34-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    win: Use DXGI for accurate WDDM VRAM memory budget (#4457)
+2026-09-11T01:53:34-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    Break the sibling cycle when an array is released by assignment (#4453)
+2026-09-11T01:53:34-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    PR #4487 Improve metal memory usage for SDPA D512
+2026-09-11T01:53:34-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    PR #4443 Fix jaccl ring all_gather: direction 1 slice was not mirrored
+2026-09-11T01:53:34-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    PR #4483 Load global scales in qmm_t kernels
+2026-09-11T01:53:34-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a] 
+2026-09-11T01:53:36-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a] == ml-explore/mlx-lm -- reference MLX server; new architectures land here first
+2026-09-11T01:53:36-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    (quiet)
+2026-09-11T01:53:36-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a] 
+2026-09-11T01:53:37-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a] == jundot/omlx -- oMLX -- prefill leader, untested here (#60)
+2026-09-11T01:53:37-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    fix(glm5_next): remap quantized forget-gate scales/biases in sanitize (#3570)
+2026-09-11T01:53:37-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    fix: tighten Qwen INT8 prefill routing and settings (#3548)
+2026-09-11T01:53:37-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    fix(cache): keep the snapshot request dir while a queued write stages into it (#3563)
+2026-09-11T01:53:37-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    feat(m5): add INT8-activation prefill kernels for Qwen3.5/3.6/3.8 (#3548)
+2026-09-11T01:53:37-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    fix(server): serialize non-API validation errors with jsonable_encoder (#3568)
+2026-09-11T01:53:37-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    fix(cluster): recover interrupted pairing sessions (#3565)
+2026-09-11T01:53:37-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    PR #3571 feat(deepseek_v41): CSA2 + Engram support for DeepSeek-V4.1-Flash
+2026-09-11T01:53:37-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    PR #2595 feat(moe): expert offload — stream non-resident experts from the checkpoint
+2026-09-11T01:53:37-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    PR #3553 perf(qwen4_exp): Qwen3.8-Flash-Next decode: gathered attention kernel, NAX ind
+2026-09-11T01:53:37-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    PR #3535 Add opt-in Uno speculative decoding for dense K2 models
+2026-09-11T01:53:37-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    PR #3468 feat: MoE expert streaming from SSD (dense resident, experts demand-loaded)
+2026-09-11T01:53:37-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a] 
+2026-09-11T01:53:39-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a] == ddalcu/mlx-serve -- benchmarked on our exact machine; llmprobe's author
+2026-09-11T01:53:39-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    PR #406 launch(opencode2): vendor the monitor plugin in-tree
+2026-09-11T01:53:39-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a] 
+2026-09-11T01:53:41-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a] == youssofal/MTPLX -- MTP speculative decoding; we hold one unreplicated number
+2026-09-11T01:53:41-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    (quiet)
+2026-09-11T01:53:41-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a] 
+2026-09-11T01:53:42-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a] == raullenchai/Rapid-MLX -- the one MLX engine reachable by pip (#57, #60)
+2026-09-11T01:53:42-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    releases: v0.14.1, rapid-mac-v0.14.1
+2026-09-11T01:53:42-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    chore: bump version to 0.14.1
+2026-09-11T01:53:42-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    PR #3305 test(mtp): align greedy checks with batched consistency
+2026-09-11T01:53:42-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    PR #3300 test(mtp): align greedy checks with batched consistency
+2026-09-11T01:53:42-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a] 
+2026-09-11T01:53:43-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a] == ARahim3/mlx-dspark -- DSpark/DFlash ported to MLX (#19, #58, #75)
+2026-09-11T01:53:43-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    (quiet)
+2026-09-11T01:53:43-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a] 
+2026-09-11T01:53:47-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a] == Blaizzy/mlx-vlm -- expert offloading, prefix caching, Qwen3.8-Flash-Next MTP
+2026-09-11T01:53:47-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    PR #2209 Restore optimized MXFP4 and Q3 verification
+2026-09-11T01:53:47-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    PR #2219 Preserve original Chat history when replaying through Responses
+2026-09-11T01:53:47-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    PR #2214 WIP: DeepSeek V4.1 vision and language model support
+2026-09-11T01:53:47-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a] 
+2026-09-11T01:53:49-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a] == unslothai/llama.cpp -- the fork with a working qwen4exp MTP graph (#77)
+2026-09-11T01:53:49-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    PR #214 glm5next: avoid soft_max gridDim.y overflow in the indexer
+2026-09-11T01:53:49-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a] 
+2026-09-11T01:53:50-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a] == Layr-Labs/mlxfast-gemma4-26b-a4b-engine -- MLX Fast leaderboard harness (#80)
+2026-09-11T01:53:50-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    (quiet)
+2026-09-11T01:53:50-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a] 
+2026-09-11T01:53:52-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a] == sudoingX/qwen38-mtp -- 61 paired baseline-vs-MTP runs, disciplined method (#19, #39)
+2026-09-11T01:53:52-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    (quiet)
+2026-09-11T01:53:52-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a] 
+2026-09-11T01:53:53-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a] == trymirai/uzu -- Apple-only Rust engine, reachable by pip; claims 2x MTPLX (#134)
+2026-09-11T01:53:53-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]    (quiet)
+2026-09-11T01:53:53-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a] 
+2026-09-11T01:53:53-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a] log: /Users/evanhoffman/git/local-llm/logs/sweeps/upstream-sweep-M5-Max-128GB-20260911T055318Z.log

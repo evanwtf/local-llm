@@ -104,10 +104,22 @@ def save_solution(
 
     Patches hold repository content, so this follows `--client-log` and defaults
     outside this repo. Returns {} if anything at all goes wrong.
+
+    `uv.lock` is excluded from the diff (#285). The oracle runs the target's own
+    `test_command` -- a bare `uv run pytest -q` -- inside this worktree, and a
+    bare `uv run` re-resolves the lock under the machine's global `exclude-newer`
+    policy, rewriting `uv.lock` in the tree the diff is taken from. No agent
+    wrote that hunk. Left in, it made every patch non-empty: an empty solution
+    (the agent produced nothing) read as a real one, `solution_empty` never
+    fired, and four trials across two different tasks shared one
+    `solution_sha256` because the identical lock hunk was their whole content
+    (#112's `solution_empty`, #278's empty-rate).
     """
     try:
         proc = subprocess.run(
-            ["git", "diff", "HEAD"],
+            # `-- .` then exclude uv.lock at any depth: the positive pathspec is
+            # required for `:(exclude)` to have something to subtract from.
+            ["git", "diff", "HEAD", "--", ".", ":(exclude,glob)**/uv.lock"],
             cwd=worktree,
             capture_output=True,
             text=True,

@@ -19,8 +19,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-import preflight  # noqa: E402
-
+import preflight
 
 BACKEND = {
     "model": "ornith-1.5-9b-32k",

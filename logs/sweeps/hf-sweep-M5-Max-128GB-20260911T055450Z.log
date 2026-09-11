@@ -1,0 +1,31 @@
+2026-09-11T01:54:50-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a] 2026-09-11T05:54:50Z (01:54:50 EDT) | harness d8c9adb
+2026-09-11T01:54:50-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-11T01:54:50-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a] Hugging Face sweep since 2026-09-11T01:54:50Z (4h)
+
+2026-09-11T01:54:51-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a] == Qwen3.8-Flash-Next -- our fastest stack (llama.cpp Q3, and the 112 GB MLX build)
+2026-09-11T01:54:51-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]     TonyMFJ/Qwen3.8-Flash-Next-WinVulkan-GGUF                  2026-09-11T04:37         dl=470
+2026-09-11T01:54:51-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]     orcarouter/Qwen3.8-Flash-Next-Uncensored-GGUF              2026-09-11T02:20         dl=150668
+2026-09-11T01:54:51-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a] 
+2026-09-11T01:54:51-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a] == DeepSeek-V4-Flash -- our only independent lineage; ds4 serves it
+2026-09-11T01:54:51-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]     vcruz305/DeepSeek-V4.1-Flash-GGUF                          2026-09-11T05:52         dl=0
+2026-09-11T01:54:51-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]   ? Pegainfer/kern-deepseek-v41-flash-sm103                    2026-09-11T05:48         dl=0
+2026-09-11T01:54:51-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]     meshllm/DeepSeek-V4-Flash-0731-UD-Q4_K_XL-layers           2026-09-11T03:45         dl=0
+2026-09-11T01:54:51-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]   ? Joyfulxp/DeepSeek-V4-Flash-Vision-Exp-Abliterated          2026-09-11T02:55         dl=139
+2026-09-11T01:54:51-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a] 
+2026-09-11T01:54:51-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a] == Qwen3.6-27B -- the 31 GB 'start here' pick
+2026-09-11T01:54:51-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]   ? pybbb/Qwen3.6-27B-SecOPD                                   2026-09-11T04:00         dl=1099
+2026-09-11T01:54:51-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a] 
+2026-09-11T01:54:51-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a] == gemma-4-26b -- the MLX Fast leaderboard model; measured 11/11
+2026-09-11T01:54:51-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]   ? sidbaines/scimt-dispatch-gemma4-26b-charter-190m-graft-v1  2026-09-11T04:32         dl=0
+2026-09-11T01:54:51-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a] 
+2026-09-11T01:54:51-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a] == gemma-4-31b -- the Google-lineage backend, measured 12/12
+2026-09-11T01:54:51-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]   ? DJ-Research/practice_bomberman_quest-gemma-4-31b-it        2026-09-11T02:18         dl=0
+2026-09-11T01:54:51-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]   ? DJ-Research/practice_legend_of_zelda_links_awakening-gemma 2026-09-11T02:17         dl=0
+2026-09-11T01:54:51-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]   ? DJ-Research/practice_sword_of_hope_1-gemma-4-31b-it        2026-09-11T02:15         dl=0
+2026-09-11T01:54:51-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]   ? DJ-Research/practice_pokemon_red-gemma-4-31b-it            2026-09-11T02:14         dl=0
+2026-09-11T01:54:51-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a]   ? DJ-Research/practice_deja_vu_1-gemma-4-31b-it              2026-09-11T02:13         dl=0
+2026-09-11T01:54:51-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a] 
+2026-09-11T01:54:51-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a] 6 result(s) hidden as unloadable on Metal (NVFP4/FP8/ROCm/AWQ/GPTQ/EXL). Re-run with --all to see them.
+2026-09-11T01:54:51-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a] 
+Legend:  (blank) loads here   ? unclassified, check it   x hidden
+2026-09-11T01:54:51-0400 INFO [d8c9adb@M5-Max-128GB none pld=n/a] log: /Users/evanhoffman/git/local-llm/logs/sweeps/hf-sweep-M5-Max-128GB-20260911T055450Z.log

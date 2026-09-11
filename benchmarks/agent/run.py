@@ -52,6 +52,7 @@ import mtp_timing
 import mtplx_trace
 import opencode_config
 import plausibility
+import prefill_failures
 import preflight
 import provenance
 import results
@@ -2512,6 +2513,30 @@ def route_query_port(backend):
     return urlparse(declared or backend.get("base_url") or "").port
 
 
+def no_counter_note(source, counters_requested):
+    """Explain a trial that recorded no draft counters, without claiming the
+    arm did not speculate (#222).
+
+    The counter is engine-specific: `ds4-mtp-timing` measures ds4's MTP path
+    and nothing else. An arm that speculates by another mechanism -- mlx-serve's
+    prompt-lookup decoding, on by default -- is silent through it, exactly as
+    switched-off counters and an engine that never drafted are. The counter
+    cannot tell these three apart, so the note must not resolve the silence into
+    "did not speculate": that was the false read on the #191 mlx arm, whose
+    server log carried 439 draft lines while this warning pointed the other way.
+    The earlier wording named only the last two causes and invited exactly the
+    wrong conclusion.
+    """
+    return (
+        f"the {source} counter recorded nothing this trial. That does not mean "
+        "this arm did not speculate -- the counter measures one engine's "
+        "mechanism, and an arm that speculates by another (mlx-serve's "
+        "prompt-lookup decoding, say) is silent through it, exactly as "
+        "switched-off counters and an engine that never drafted are. The "
+        f"counter cannot tell these apart. counters_requested={counters_requested}"
+    )
+
+
 def draft_fields(counters, source=None, counters_requested=None, counters_on=None):
     """Row fields for one trial's draft accounting.
 
@@ -2649,6 +2674,7 @@ def one_trial(
     prepare_env_first=True,
     target_layout="legacy",
     draft_probe=None,
+    prefill_probe=None,
     require_draft=False,
     batch=None,
 ):
@@ -2978,6 +3004,22 @@ def one_trial(
         if solutions and not dry_run and worktree.exists():
             result.update(grade.save_solution(solutions, name, worktree))
         shutil.rmtree(worktree, ignore_errors=True)
+    # #266: prefill-failure 500s the server threw during THIS trial, which the
+    # client retried silently. None when no server log was given (unknown, not
+    # zero); 0 on a control arm that had one, which is the number the MTP-vs-
+    # control comparison needs. Independent of the draft counters: a control arm
+    # runs with none, and it is exactly that arm we are counting against.
+    if prefill_probe is not None:
+        failures = prefill_probe.sample()
+        if failures is not None:
+            result["prefill_failures"] = failures
+            if failures:
+                logger.warning(
+                    "%s: %d prefill-failure 500s during this trial -- each is a "
+                    "re-prefill the control arm does not do (#266)",
+                    name,
+                    failures,
+                )
     # #148: what the draft head actually did during THIS trial. None when no
     # server log was given, which is not the same as zero -- see mtp_timing.
     if (counters := draft_probe.sample() if draft_probe else None) is not None:
@@ -3050,13 +3092,9 @@ def one_trial(
                 )
         elif verdict == "no-counters":
             logger.warning(
-                "%s: no draft counters this trial (%s). Cause is NOT resolved "
-                "by this: an engine that never enters the speculative path "
-                "emits nothing, exactly as switched-off counters do. "
-                "counters_requested=%s",
+                "%s: %s",
                 name,
-                draft_probe.source,
-                draft_probe.counters_requested,
+                no_counter_note(draft_probe.source, draft_probe.counters_requested),
             )
 
     return result
@@ -3542,12 +3580,21 @@ def main():
     # the field is absent from the row, which a reader must not treat as zero
     # accepted: see mtp_timing, where those two states are kept apart.
     draft_probe = DraftProbe(args.server_log, args.draft_log_engine)
+    # #266: the prefill-failure count rides the same server log, but is
+    # engine-agnostic and independent of the draft counters, so it is a separate
+    # probe with its own byte offset.
+    prefill_probe = prefill_failures.Probe(args.server_log)
     if args.server_log:
         logger.info(
             "recording MTP draft acceptance per row from %s (%s), starting at byte %d",
             args.server_log,
             draft_probe.source,
             draft_probe.offset,
+        )
+        logger.info(
+            "recording prefill-failure 500s per row from %s, starting at byte %d",
+            args.server_log,
+            prefill_probe.offset,
         )
 
     # The smoke gate is what makes the model resident, so the served context is
@@ -3650,6 +3697,7 @@ def main():
                         prepare_env_first=not args.no_prepare_env,
                         target_layout=args.targets,
                         draft_probe=draft_probe,
+                        prefill_probe=prefill_probe,
                         require_draft=(
                             args.require_draft
                             if args.require_draft or args.no_require_draft

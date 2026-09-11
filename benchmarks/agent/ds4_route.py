@@ -42,7 +42,7 @@ if str(_SCRIPTS) not in sys.path:
 # whose log does not carry the expected one; this module reads the same lines
 # to say which one it was. Two copies would drift, and a drifted marker fails
 # open -- the route reads "unrecorded" and nobody is told why.
-from ds4_serve import ANY_MARKER, MARKERS  # noqa: E402
+from ds4_serve import ANY_MARKER, MARKERS
 
 UNRECORDED = "unrecorded"
 
@@ -170,8 +170,8 @@ __all__ = [
     "ANY_MARKER",
     "MARKERS",
     "UNRECORDED",
-    "record_from_log",
     "read_record",
+    "record_from_log",
     "route_for",
     "route_from_log",
     "write_record",
