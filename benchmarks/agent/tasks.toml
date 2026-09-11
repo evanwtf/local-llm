@@ -459,6 +459,24 @@ aider_model = "openai/qwen3.6-27b-nvfp4"
 opencode_model = "vllm/qwen3.6-27b-nvfp4"
 context_tokens = 131072
 
+# The control for qwen36nvfp4dgx, and the only reason these NVFP4 rows can say
+# anything. Same base checkpoint (Qwen/Qwen3.6-27B, first-party), same vLLM,
+# same context, same tasks, same client -- quantization is the only thing that
+# moves. BF16 is the unquantized reference, 51.7 GiB against NVFP4's 20.4 GiB.
+#
+# This pair is the experiment #313 actually asks for. Neither arm is comparable
+# to qwen36codinggguf, which is a different fine-tune on a different engine.
+[backend.qwen36bf16dgx]
+description = "Qwen3.6-27B BF16 (unquantized control) via vLLM 0.29.0, CUDA sm_121"
+base_url = "http://127.0.0.1:8030"
+auth_token = "local"
+engine = "vllm"
+engine_tree = "~/venvs/vllm"
+model = "qwen3.6-27b-bf16"
+aider_model = "openai/qwen3.6-27b-bf16"
+opencode_model = "vllm/qwen3.6-27b-bf16"
+context_tokens = 131072
+
 # GLM-5.3-Flash on the DGX Spark. Ollama has no local weights for this model at
 # all -- the whole library is one `:cloud` tag -- so ds4 is the only route.
 #

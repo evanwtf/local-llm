@@ -296,6 +296,16 @@
             "context": 131072,
             "output": 131072
           }
+        },
+        "qwen3.6-27b-bf16": {
+          "name": "Qwen3.6-27B BF16 (local, vLLM)",
+          "tool_call": true,
+          "reasoning": false,
+          "temperature": false,
+          "limit": {
+            "context": 131072,
+            "output": 131072
+          }
         }
       }
     }
