@@ -93,3 +93,25 @@ def test_warn_legacy_lock_silent_when_clean(monkeypatch, caplog) -> None:
     with caplog.at_level("WARNING", logger="preflight"):
         preflight.warn_legacy_lock()
     assert not [r for r in caplog.records if r.levelname == "WARNING"]
+
+
+def test_acquire_lock_creates_its_own_directory(tmp_path) -> None:
+    """A missing `~/.local-llm-bench/` must not abort a run.
+
+    The bug this pins: the directory was only ever created as a side effect of
+    the target-repo stash, so a machine that had never stashed had no
+    directory, and `acquire_lock` died on the bare errno --
+
+        cannot take the run lock: [Errno 2] No such file or directory
+
+    -- after preflight had passed and the model was already resident. On
+    2026-09-09 that cost a loaded server and a smoke-probe pass on the Ryzen
+    box. The lock owns its directory; nothing else may be relied on to make it.
+    """
+    lock = tmp_path / "never-existed" / "run-lock.json"
+    assert not lock.parent.exists()
+
+    ok, why = preflight.acquire_lock("a run", path=lock)
+
+    assert ok, why
+    assert lock.exists()
