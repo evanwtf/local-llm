@@ -42,6 +42,7 @@ import platform
 import subprocess
 import sys
 import time
+from collections.abc import Sequence
 from urllib.parse import urlparse
 
 import metal_equivalence
@@ -281,8 +282,14 @@ def ceiling_gib(text: str) -> float:
     return got if got is not None else STOCK_CEILING_GIB
 
 
-def parse_ps(text: str) -> list[Proc]:
-    """Read `ps -eo pid,rss,etime,command`, keeping only model servers.
+def parse_ps(text: str, markers: Sequence[str] = INFERENCE) -> list[Proc]:
+    """Read `ps -eo pid,rss,etime,command`, keeping processes matching `markers`.
+
+    `markers` defaults to the model servers (`INFERENCE`), which is every
+    existing caller. `machine_state` passes its own list to find bare benchmark
+    binaries that hold the GPU under no lock (#277); the parsing -- and, more
+    importantly, the executable-not-argv match below -- is identical, so it is
+    shared rather than copied and left to drift.
 
     The command column contains spaces, so the split is bounded at 3. RSS is
     KiB on macOS; ELAPSED is wall time since the process started (#145).
@@ -310,7 +317,7 @@ def parse_ps(text: str) -> list[Proc]:
         # invoked it. That is the same self-match NEXT.md records for
         # `pgrep -f run.py`, and it is worth not rediscovering twice.
         binary = command.split()[0] if command.split() else ""
-        if not any(marker in binary for marker in INFERENCE):
+        if not any(marker in binary for marker in markers):
             continue
         try:
             procs.append(

@@ -674,3 +674,81 @@ def test_an_unreadable_start_time_leaves_the_hold_unstated(tmp_path, peer_file) 
     )
     assert got["occupant"]["held_s"] is None
     assert " for " not in str(got["occupant_line"])
+
+
+# --- a bare GPU benchmark, holding the machine under no lock (#277) -----------
+
+_PS_BENCH = (
+    "  PID    RSS  ELAPSED COMMAND\n"
+    "72405 2000000   05:23 "
+    "/Users/x/git/ds4/ds4-bench -m /m/model.gguf --metal --csv out.csv\n"
+)
+
+
+def test_a_bare_benchmark_is_found_from_the_process_table() -> None:
+    claims = ms.bench_claims(_PS_BENCH)
+    assert [c.status for c in claims] == [ms.UNRECORDED]
+    assert claims[0].source == ms.BENCH_SOURCE
+    assert claims[0].what == "ds4-bench"
+    assert claims[0].pid == 72405
+
+
+def test_a_benchmark_occupies_even_below_the_resident_model_bar() -> None:
+    """A bench has no idle state: running at all means working the GPU (#277).
+
+    A server below RESIDENT_GIB is idle and does not occupy; a bench below it is
+    a bench that has not finished loading, and it still owns the device.
+    """
+    tiny = (
+        "  PID    RSS  ELAPSED COMMAND\n"
+        "72405 50000   00:02 /x/ds4-bench -m /m/model.gguf --metal\n"
+    )
+    claim = ms.bench_claims(tiny)[0]
+    assert claim.resident_gib < ms.RESIDENT_GIB
+    assert claim.occupies
+
+
+def test_a_process_that_merely_names_ds4_bench_is_not_matched() -> None:
+    """The executable, not the argv -- the pgrep -f self-match this repo has
+    paid for twice. A shell whose command line mentions ds4-bench is not it."""
+    shell = (
+        "  PID    RSS  ELAPSED COMMAND\n88888 1000   00:10 /bin/zsh -c echo ds4-bench\n"
+    )
+    assert ms.bench_claims(shell) == []
+
+
+def test_speed_bench_is_not_matched_it_is_a_directory() -> None:
+    """`speed-bench` is the prompt directory in the argv, never a binary."""
+    d = (
+        "  PID    RSS  ELAPSED COMMAND\n"
+        "90001 2000000   01:00 /x/ds4-server --prompt /x/speed-bench/corpus.txt\n"
+    )
+    assert ms.bench_claims(d) == []
+
+
+def test_the_survey_reports_a_bare_benchmark_as_busy(tmp_path, peer_file) -> None:
+    """The #277 scenario exactly: no lock, no resident server, a ds4-bench on
+    the GPU. The tool used to read FREE / 'Currently on GPU: idle'."""
+    write_peer(peer_file, [])
+    got = ms.survey(
+        lock_path=tmp_path / "no-lock.json",
+        peer_path=peer_file,
+        unit_dir=tmp_path / "units",
+        procs=[],  # nothing resident
+        bench_text=_PS_BENCH,
+    )
+    assert got["verdict"] == ms.BUSY
+    assert "ds4-bench" in got["occupant_line"]
+
+
+def test_no_benchmark_leaves_the_survey_free(tmp_path, peer_file) -> None:
+    """The bench census must not make an idle machine read busy."""
+    write_peer(peer_file, [])
+    got = ms.survey(
+        lock_path=tmp_path / "no-lock.json",
+        peer_path=peer_file,
+        unit_dir=tmp_path / "units",
+        procs=[],
+        bench_text="  PID    RSS  ELAPSED COMMAND\n",
+    )
+    assert got["verdict"] == ms.FREE
