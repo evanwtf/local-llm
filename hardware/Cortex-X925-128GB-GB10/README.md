@@ -46,6 +46,40 @@ per `hardware/README.md`.
   `vnd.ollama.image.tensor` layers, which Ollama 0.34.0 routes to the MLX
   runtime; the pull fails before any weights move. See #293.
 
+## 3b. One model resident at a time — enforced, not remembered
+
+Ollama keeps a model loaded for 5 minutes after use. On a discrete-VRAM box
+that is a convenience. Here it is a hazard, because **a model held on the GPU
+is system memory too**: testing a second model while the first is still warm
+put 26 GB + 19 GB in the pool at once on 2026-09-11 and pushed the machine into
+memory pressure while a build and a download were running.
+
+`preflight.py` warns about resident servers but cannot prevent this, and the
+models measured here are sized to nearly fill memory — a batch that "fits
+anyway" silently measures a contended machine. So it is enforced:
+
+```
+/etc/systemd/system/ollama.service.d/10-single-model.conf
+[Service]
+Environment="OLLAMA_MAX_LOADED_MODELS=1"
+```
+
+Confirmed in the server log as `OLLAMA_MAX_LOADED_MODELS:1`. This is part of
+this machine's serving stack and belongs in the provenance of any row taken
+here.
+
+**Do not restart the ollama service while a pull is in flight.** Doing so on
+2026-09-11 killed an 86 GB download at 98% with `Error: unexpected EOF` during
+digest verification. Ollama resumes from the partial blob, but the restart
+costs whatever was in flight.
+
+## 3c. Engines built here
+
+| engine | build | notes |
+|---|---|---|
+| Ollama | 0.34.0 (official arm64 installer) | loads `cuda_v13`; skips the bundled CUDA 12 build, which lacks sm_121 |
+| llama.cpp | `0.4.0-dev (build 50, commit 481c65f)`, aarch64 | `-DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=121`. Reports `CUDA0: NVIDIA GB10 (124610 MiB, 121166 MiB free)`. Built from **master**, not a release: v0.4.0 (2026-09-04) predates the Qwen3.8-Flash-Next merge, ggml-org/llama.cpp#27742 (2026-09-05) |
+
 ## 4. What does not run here
 
 - **The Swift half of the agent suite.** `~/git/monitor` is an AppKit desktop
