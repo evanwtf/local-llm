@@ -57,3 +57,27 @@ Benchmark scripts read `DS4_ROOT` for the engine and its weights (default
 `/Users/evanhoffman/git/ds4`) and write results beside themselves in this repo.
 Keep that split when adding an engine: binaries and weights stay where they are
 installed, numbers land here.
+
+## One main, machines are directories
+
+**A machine is a field in the data, not a branch.** Every machine commits to
+`main`; its results, logs and notes live in `hardware/<id>/` (the name from
+`scripts/hardware_id.py`, never typed). Three machines on one branch is the
+design working — one shared apparatus, many directories (#85, #292).
+
+- **Harness changes land on `main` first, always.** A per-machine branch that
+  lags `main` produces numbers from a stale harness: the Ryzen branch sat 21
+  commits behind and its rows were not comparable to the laptop's without a
+  merge first (#292).
+- **Short-lived topic branches only**, named by issue (`269-ternary-bonsai`),
+  merged within days. No long-running per-machine branch.
+- **Per-machine files never share a path**, so they never conflict:
+  `hardware/MacA/results.jsonl` and `hardware/Spark/results.jsonl` are different
+  files. `results.foreign_hardware()` refuses to pool rows across machines.
+
+**Do not `merge=union` the ledgers.** `exclude_rows.py` annotates a row in
+place and `results.load()` does not de-duplicate, so a union merge of two
+diverged checkouts restores the un-excluded copy of an archived row into every
+pass rate. `.gitattributes` explains why results.jsonl is left to the default
+3-way merge. After any merge that touched a ledger, re-run the archivers and
+check for duplicate rows before trusting an aggregate.

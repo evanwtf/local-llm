@@ -50,3 +50,14 @@ changes on a driver update breaks every link to it.
 
 The harness itself is shared and stays out of here: one apparatus, many
 machines. See #85.
+
+## One branch, not one branch per machine
+
+Every machine commits to `main`. A machine is a directory here, never a
+long-running branch (#292). A per-machine branch drifts behind `main` and then
+its numbers come from a stale harness — the Ryzen branch sat 21 commits behind,
+so its rows were not comparable to the laptop's without a merge first. Harness
+changes land on `main` first, always; results reach `main` as ordinary commits
+to `hardware/<id>/`. Per-machine `results.jsonl` files never share a path, so
+two machines never conflict. See CONVENTIONS.md, "One main, machines are
+directories", for why the ledgers are not `merge=union`.

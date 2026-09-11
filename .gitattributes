@@ -1,0 +1,18 @@
+# Machine-local logs are records, not shared source. A 3-way merge that
+# interleaves two machines' log lines is meaningless, so never content-merge
+# them: keep the committing side's copy.
+hardware/*/logs/**  -merge
+logs/**             -merge
+
+# NOTE: results*.jsonl is deliberately NOT `merge=union`, despite the #292
+# proposal. scripts/exclude_rows.py annotates a row in place (adds `excluded`/
+# `exclusion_reason` and atomically rewrites the file), and results.load() does
+# not de-duplicate. A union merge of two diverged checkouts would therefore
+# keep BOTH the original and the excluded copy of a rewritten row, and the
+# un-excluded copy would re-enter every pass rate -- a deliberately archived row
+# restored by the merge. Different machines write different
+# hardware/<id>/results.jsonl paths and never conflict; the only union scenario
+# is one machine committed from two checkouts, where the default 3-way merge
+# conflicts loudly and a human reconciles -- which is what must happen when an
+# exclusion is in the diff. See CONVENTIONS.md, "One main, machines are
+# directories".
