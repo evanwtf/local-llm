@@ -59,7 +59,7 @@ other is telling you something.
 
 ### MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A
 
-*Generated from `hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/results.jsonl` — 2426 rows, sha256 66f2a52d5c8a.*
+*Generated from `hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/results.jsonl` — 2520 rows, sha256 8f0092960f75.*
 
 #### Every stack measured under OpenCode
 
