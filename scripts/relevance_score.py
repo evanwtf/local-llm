@@ -136,6 +136,31 @@ def _normalize(text: str) -> str:
     return re.sub(r"[^a-z0-9]", "", text.lower())
 
 
+def _words(text: str) -> tuple[str, ...]:
+    """The alphabetic word tokens of a name, version numbers dropped.
+
+    'Qwen3.8-Flash-Next', 'Qwen 3.8 Flash Next' and 'Qwen Flash Next' all
+    reduce to ('qwen', 'flash', 'next'). People drop the version, and the
+    distinctive words are what name the model (#239)."""
+    return tuple(re.findall(r"[a-z]+", text.lower()))
+
+
+def _claim_leads_model(claim: tuple[str, ...], model: tuple[str, ...]) -> bool:
+    """Whether the claim's words are the leading run of the model's, 2+ words.
+
+    Directional and anchored at the START. A version-omitted NAME begins where
+    the model's name begins and stops early: 'Qwen Flash Next' is
+    'qwen3.8-flash-next' with the 3.8 dropped, so ('qwen', 'flash', 'next')
+    leads the model's own words. The claim may drop the model's trailing
+    version and build words, but it must not ADD words of its own -- 'GLM Flash
+    Experimental' is a different model that merely starts like 'glm-5.3-flash',
+    and matching it would let a foreign claim reach 'exact' and, through _color,
+    green (Codex caught the symmetric form of this on #239). A shared TAIL is
+    not an identity either, which the leading anchor already excludes. The run
+    must be at least two words: one word ('Qwen', 'Flash') leads many names."""
+    return len(claim) >= 2 and model[: len(claim)] == claim
+
+
 def known_models(tasks: dict | None = None) -> set[str]:
     """Every model this project actually serves, from tasks.toml."""
     tasks = tasks if tasks is not None else _read_tasks()
@@ -209,6 +234,18 @@ def match_registry(claimed: str, registry: set[str]) -> str:
         return "exact"
     for key in norm:
         if key and (key in n or n in key):
+            return "exact"
+    # A dropped version number is how people write the same model: 'Qwen Flash
+    # Next' is our 'Qwen3.8-Flash-Next' (#239). Tolerate the version ONLY when
+    # the claim states none -- then match its leading words against a model's.
+    # A claim that DOES carry a number keeps it: 'GLM 4 Flash' must not become
+    # 'glm-5.3-flash', and the existing digit-sensitive checks above already
+    # settled it. Without this guard, dropping digits collapses GLM 4 into GLM
+    # 5.3 and Gemma 2 into Gemma 4 -- distinct models we do not serve as one
+    # (Codex caught this on #239).
+    if not re.search(r"\d", claimed):
+        cw = _words(claimed)
+        if any(_claim_leads_model(cw, _words(r)) for r in registry):
             return "exact"
     # Family match: share a distinctive alphanumeric run of 5+ characters.
     for key in norm:
