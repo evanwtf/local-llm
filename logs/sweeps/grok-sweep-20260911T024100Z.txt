@@ -1,0 +1,29 @@
+# grok sweep
+# requested window: last 24 hours
+# written:  2026-09-11T02:41:00Z  (local: 2026-09-10 22:41:00 EDT)
+# query:    Search X for posts and replies from @antirez, @ivanfioravanti, @awnihannun, @reach_vb, @Prince_Canuma, @simonw, @ggerganov in the last 24 hours about local LLM inference on Apple Silicon (Metal, MLX, ds4, GLM, Qwen, DeepSeek, speculative decoding, MTP, prefix caching). Output ONE bullet per post and nothing else -- no preamble, no summary: - <UTC timestamp> | @handle | <post URL> | <the claim in one sentence>. Omit any item without both a URL and a UTC timestamp. If nothing matches, output exactly: NO RESULTS
+
+I'll search X for those accounts over the last 24 hours and keep only posts that have both a URL and a UTC timestamp.I’ll widen the search for missed posts and replies, then keep only items from the last 24 hours that are about local Apple Silicon inference.- 2026-09-11T02:23:45Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2098236022593319039 | DeepSeek V4.1 Flash generates many tokens before answering, which makes it less useful locally than other models.
+- 2026-09-11T00:48:11Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2098211971267182640 | He wants to test oMLX distributed inference after the Qwen3.8-Flash-Next speedups.
+- 2026-09-11T00:26:35Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2098206537131155471 | DwarfStar running DeepSeek v4.1 Flash on a 128GB M5 Max is faster than he expected.
+- 2026-09-10T21:41:42Z | @antirez | https://x.com/antirez/status/2098165042956877925 | DwarfStar offloads many routed experts and reloads them on demand, and DeepSeek v4.1's backbone is 2x 4.0 even without n-grams.
+- 2026-09-10T20:08:27Z | @antirez | https://x.com/antirez/status/2098141573837938692 | Prefill should reach native speed once fully resident, perhaps nearly 1000 tokens per second.
+- 2026-09-10T19:15:01Z | @antirez | https://x.com/antirez/status/2098128125930492000 | Prefill on 128GB can be fully resident because DeepSeek v4.1 Flash does not use the decoder during prefill, so all layers can stay in memory for large prefills.
+- 2026-09-10T18:55:54Z | @antirez | https://x.com/antirez/status/2098123316468847044 | Tensor-parallel DwarfStar hits 25 t/s splitting work 50/50 across two MacBooks via RDMA, versus 15 t/s with SSD streaming on one machine.
+- 2026-09-10T18:50:45Z | @antirez | https://x.com/antirez/status/2098122021670453520 | Prefill with SSD streaming is the easy part because DwarfStar hides next-layer loads behind layer-major compute, and DS4.1 works well.
+- 2026-09-10T18:49:20Z | @antirez | https://x.com/antirez/status/2098121665771110540 | DwarfStar runs DeepSeek v4.1 Flash on a 128GB M5 Max faster than expected with SSD streaming, helped by retaining the right experts.
+- 2026-09-10T18:40:12Z | @Prince_Canuma | https://x.com/Prince_Canuma/status/2098119366529167486 | Nativ integrations can power any agent harness, app, or workflow fully locally via MLX-VLM.
+- 2026-09-10T16:57:00Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2098093396061782520 | A second M5 Ultra would be better for running this model locally.
+- 2026-09-10T16:29:13Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2098086402001125616 | Sub-4-bit GGUF quants still keep accuracy, including Tencent Sherry at 1.25 bits.
+- 2026-09-10T15:22:05Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2098069509106229716 | Poly's Metal 4 prefill PR is about +30% but shows logit drift, so he will dig deeper before merge.
+- 2026-09-10T14:31:42Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2098056827598754200 | Qwen 3.8 Flash Next on DwarfStar reached 224K context on an M4 Max 64GB, and a Metal 4 kernel PR promises +30% prefill on M5+.
+- 2026-09-10T12:29:56Z | @antirez | https://x.com/antirez/status/2098026183778615363 | Tensor-parallel execution across two RDMA-connected Macs works well and is easy to test.
+- 2026-09-10T10:34:00Z | @antirez | https://x.com/antirez/status/2097997010368372781 | Generation will be slower than prefill on the larger model, and generation speed is the critical constraint.
+- 2026-09-10T09:38:58Z | @antirez | https://x.com/antirez/status/2097983159505723557 | DeepSeek v4.1 could fit a 128GB Mac at 2-bit if n-grams stay on SSD.
+- 2026-09-10T09:38:21Z | @antirez | https://x.com/antirez/status/2097983005511807335 | DS4 Flash worked at 2-bit but v4.1 needs testing because the weights are in a different format.
+- 2026-09-10T09:21:34Z | @antirez | https://x.com/antirez/status/2097978780102881469 | He will try 2-bit quants of DeepSeek v4.1 in DwarfStar; it should fit M5 Ultra 512GB later this year but is not really a local model.
+- 2026-09-10T09:21:33Z | @antirez | https://x.com/antirez/status/2097978775673684459 | DeepSeek v4.1 Flash is better than 4.0 but 2x the backbone params, so it does not fit 128GB and is only local on 2x128GB or big Mac Studios.
+- 2026-09-10T09:17:57Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2097977871516262503 | He implemented XBai o4 support for Apple MLX.
+- 2026-09-10T09:16:53Z | @Prince_Canuma | https://x.com/Prince_Canuma/status/2097977603403501671 | DeepSeek-V4.1-Flash is coming to MLX-VLM and Nativ.
+- 2026-09-10T08:24:18Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2097964369930035694 | An M5 Ultra 512GB is now a must-have for DeepSeek V4.1-Flash local inference.
+- 2026-09-10T06:32:57Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2097936347550130278 | He cannot wait to see antirez add DeepSeek V4.1 support in DwarfStar.
