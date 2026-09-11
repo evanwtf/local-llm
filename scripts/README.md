@@ -57,7 +57,6 @@ documentation.
 | `metal_knob_ab.py` | Paired decode-rate A/B for one Metal knob env var within one tree. #162 |
 | `mtp_draft_audit.py` | Audit an MTP arm's drafting counters: the server log beside the ledger. |
 | `mtp_engagement.py` | Does the engine engage MTP on the traffic we actually send it? (#148, #151) |
-| `mtp_failure_modes.py` | Classify what the #39 MTP-arm trial deaths failed on (#39). |
 | `mtp_log_split.py` | Did MTP draft during the batch, or only before it? (#39, #151, #210) |
 | `mtp_recovery_attribution.py` | Attribute the #39 recovery-failed events to trials, one row per trial (#39). |
 | `mtp_replay_probe.py` | Replay a captured agent request and bisect what switches ds4's MTP off (#151). |
