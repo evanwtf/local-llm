@@ -20,6 +20,7 @@ from results import (
     load,
     new_row,
     normalize,
+    rows_with_transcripts,
     trials,
     validate,
     verdict,
@@ -547,3 +548,121 @@ def test_a_legacy_row_without_the_field_at_all_is_not_condemned(tmp_path):
         "a row written now must record the version; only rows already on disk "
         "are grandfathered, and those are never re-written"
     )
+
+
+# --- rows_with_transcripts: the transcript join analyses must use (#244) -----
+
+
+def _ledger(tmp_path, rows):
+    """Write `rows` as a jsonl ledger and return its path."""
+    path = tmp_path / "results.jsonl"
+    path.write_text("".join(json.dumps(r) + "\n" for r in rows))
+    return path
+
+
+def test_rows_with_transcripts_takes_the_path_from_client_log_not_a_guess(tmp_path):
+    """The whole point: the row names the file, including a #112 `.2` sibling.
+
+    Two FAIL rows for one (task, backend) share a directory; the collision one
+    is `.stdout.2.jsonl`. A constructed or mtime-picked path cannot tell the
+    siblings apart -- the `client_log` field can, because it is what the harness
+    wrote.
+    """
+    first = tmp_path / "storage-blob-put-b-opencode-1.stdout.jsonl"
+    second = tmp_path / "storage-blob-put-b-opencode-1.stdout.2.jsonl"
+    first.write_text("{}\n")
+    second.write_text("{}\n")
+    ledger = _ledger(
+        tmp_path,
+        [
+            good_row(
+                task="storage-blob-put",
+                backend="b",
+                passed=False,
+                client_log=str(first),
+                client_log_collision=False,
+            ),
+            good_row(
+                task="storage-blob-put",
+                backend="b",
+                passed=False,
+                client_log=str(second),
+                client_log_collision=True,
+            ),
+        ],
+    )
+    got = rows_with_transcripts(
+        ledger, lambda r: r.get("passed") is False, transcript_root=tmp_path
+    )
+    assert [p for _row, p in got] == [first, second]
+
+
+def test_rows_with_transcripts_applies_the_predicate(tmp_path):
+    keep = tmp_path / "keep.jsonl"
+    drop = tmp_path / "drop.jsonl"
+    keep.write_text("{}\n")
+    drop.write_text("{}\n")
+    ledger = _ledger(
+        tmp_path,
+        [
+            good_row(task="a", backend="b", passed=False, client_log=str(keep)),
+            good_row(task="a", backend="b", passed=True, client_log=str(drop)),
+        ],
+    )
+    got = rows_with_transcripts(ledger, lambda r: r.get("passed") is False)
+    assert [p for _row, p in got] == [keep]
+
+
+def test_rows_with_transcripts_refuses_a_matching_row_with_no_client_log(tmp_path):
+    ledger = _ledger(
+        tmp_path, [good_row(task="a", backend="b", passed=False, client_log=None)]
+    )
+    with pytest.raises(ValueError, match="no client_log"):
+        rows_with_transcripts(ledger, lambda r: r.get("passed") is False)
+
+
+def test_rows_with_transcripts_refuses_a_missing_transcript(tmp_path):
+    gone = tmp_path / "gone.jsonl"
+    ledger = _ledger(
+        tmp_path, [good_row(task="a", backend="b", passed=False, client_log=str(gone))]
+    )
+    with pytest.raises(FileNotFoundError, match="transcript missing"):
+        rows_with_transcripts(ledger, lambda r: r.get("passed") is False)
+
+
+def test_rows_with_transcripts_refuses_a_partial_transcript_by_default(tmp_path):
+    """A truncated transcript is not evidence of a short trial (#244)."""
+    part = tmp_path / "part.jsonl"
+    part.write_text("{}\n")
+    ledger = _ledger(
+        tmp_path,
+        [
+            good_row(
+                task="a",
+                backend="b",
+                passed=False,
+                client_log=str(part),
+                client_log_partial=True,
+            )
+        ],
+    )
+    with pytest.raises(ValueError, match="partial transcript"):
+        rows_with_transcripts(ledger, lambda r: r.get("passed") is False)
+    # ...but a forensic caller can opt in.
+    got = rows_with_transcripts(
+        ledger, lambda r: r.get("passed") is False, allow_partial=True
+    )
+    assert [p for _row, p in got] == [part]
+
+
+def test_rows_with_transcripts_refuses_a_path_outside_the_root(tmp_path):
+    outside = tmp_path.parent / "escape.jsonl"
+    outside.write_text("{}\n")
+    ledger = _ledger(
+        tmp_path,
+        [good_row(task="a", backend="b", passed=False, client_log=str(outside))],
+    )
+    with pytest.raises(ValueError, match="outside"):
+        rows_with_transcripts(
+            ledger, lambda r: r.get("passed") is False, transcript_root=tmp_path
+        )

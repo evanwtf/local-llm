@@ -28,6 +28,7 @@ import json
 import logging
 import pathlib
 import time
+from collections.abc import Callable
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -375,6 +376,59 @@ def trials(path: pathlib.Path) -> list[dict[str, Any]]:
     `verdict()`; do not test `row["passed"]` directly.
     """
     return [r for r in usable(path) if not r.get("dry_run")]
+
+
+def rows_with_transcripts(
+    path: pathlib.Path,
+    predicate: Callable[[dict[str, Any]], bool],
+    *,
+    transcript_root: pathlib.Path | None = None,
+    allow_partial: bool = False,
+) -> list[tuple[dict[str, Any], pathlib.Path]]:
+    """Rows matching `predicate`, each paired with its transcript (#244).
+
+    The path is the row's own `client_log`, verbatim -- including the `.2`/`.3`
+    suffix a #112 collision writes when a multi-round A/B shares one
+    `--client-log` directory. Never construct a filename and never pick a
+    sibling by mtime: the row already names the file the harness wrote, and
+    every other inference gets the wrong sibling where arms interleave. This is
+    the join analyses must use.
+
+    Fail closed. A matching row with no `client_log`, or one whose file is
+    missing, raises -- a dropped row is a silently wrong count, which is the
+    class of bug this replaces. A `client_log_partial` row (a timeout's
+    truncated transcript, run.py) is refused unless `allow_partial`, because a
+    truncated transcript is not evidence of a short trial.
+
+    `transcript_root`, when given, resolves a relative `client_log` under it and
+    refuses a path that escapes it -- a row must not point an analysis outside
+    the tree it belongs to.
+    """
+    root = pathlib.Path(transcript_root).resolve() if transcript_root else None
+    out: list[tuple[dict[str, Any], pathlib.Path]] = []
+    for row in load(path):
+        if not predicate(row):
+            continue
+        who = f"{row.get('task')}/{row.get('backend')}"
+        log = row.get("client_log")
+        if not log:
+            raise ValueError(f"row for {who} has no client_log (#244)")
+        if row.get("client_log_partial") and not allow_partial:
+            raise ValueError(
+                f"{log} is a partial transcript; pass allow_partial to read it (#244)"
+            )
+        transcript = pathlib.Path(log)
+        if root is not None:
+            if not transcript.is_absolute():
+                transcript = root / transcript
+            if not transcript.resolve().is_relative_to(root):
+                raise ValueError(f"{transcript} is outside {root} (#244)")
+        if not transcript.exists():
+            raise FileNotFoundError(
+                f"transcript missing for {who}: {transcript} (#244)"
+            )
+        out.append((row, transcript))
+    return out
 
 
 # --- server_argv pooling guard (#213) --------------------------------------
