@@ -134,6 +134,8 @@ be drawn from — OpenCode, after the `--dir` cutover, not excluded.
 | `qwen38fnmlxserve` | the same model as MLX mixed 4/8-bit weights | mlx-serve 26.9.1 (no shim) | 101 GB | 1 |
 | `qwen38fnmlxserve-git` | the same model as MLX mixed 4/8-bit weights | mlx-serve git main+PR383 at `~/git/mlx-serve` (no shim) | 101 GB | 0 |
 | `qwen36codinggguf` | `qwen3.6:27b-coding` (**GGUF**) | Ollama | 17 GB | 0 |
+| `nemotron33` | `nemotron3:33b-q4_K_M` (**GGUF**) | Ollama | 26 GB | 0 |
+| `nemotronsuper` | `nemotron-3-super:120b-a12b-q4_K_M` (**GGUF**) | Ollama | 81 GB | 0 |
 
 **`qwen36codinggguf` exists because `qwen36coding` is macOS-only.** The
 `mxfp8` and `nvfp4` tags ship as sharded `vnd.ollama.image.tensor` layers,

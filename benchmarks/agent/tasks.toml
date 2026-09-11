@@ -375,6 +375,37 @@ aider_model = "openai/qwen3.6:27b-coding"
 opencode_model = "ollama/qwen3.6:27b-coding"
 context_tokens = 262144
 
+# NVIDIA's own model family, measured on NVIDIA's own hardware. GGUF, so it
+# needs no engine this project does not already run -- unlike every other
+# candidate on this machine (#296).
+#
+# 33B dense, the honest size-class comparator for qwen36codinggguf: same
+# engine, same matrix, same order of size. Pull this one first; it proves the
+# family loads before 81 GiB is spent on the big one.
+[backend.nemotron33]
+description = "Nemotron 3 33B dense, Q4_K_M (GGUF)"
+base_url = "http://127.0.0.1:11434"
+auth_token = "ollama"
+engine = "ollama"
+model = "nemotron3:33b-q4_K_M"
+aider_model = "openai/nemotron3:33b-q4_K_M"
+opencode_model = "ollama/nemotron3:33b-q4_K_M"
+context_tokens = 262144
+
+# 120B total, 12B active. 80.9 GiB of GGUF, which fits ONLY because this
+# machine's memory is unified -- on a 12 GiB discrete card it is not a
+# candidate at any quantization. That is #292's point made concrete, and it is
+# the largest model this project has ever run outside the Mac.
+[backend.nemotronsuper]
+description = "Nemotron 3 Super 120B-A12B, Q4_K_M (GGUF)"
+base_url = "http://127.0.0.1:11434"
+auth_token = "ollama"
+engine = "ollama"
+model = "nemotron-3-super:120b-a12b-q4_K_M"
+aider_model = "openai/nemotron-3-super:120b-a12b-q4_K_M"
+opencode_model = "ollama/nemotron-3-super:120b-a12b-q4_K_M"
+context_tokens = 262144
+
 # 35B total, 3B active. The MoE shape, and the only coding-tuned MLX MoE on
 # disk. Also the shape #20 needs on a 12 GiB card with 30 GiB of RAM, so a
 # number here prices that experiment before anything is pulled to the desktop.

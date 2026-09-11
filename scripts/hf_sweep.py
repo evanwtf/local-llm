@@ -96,6 +96,52 @@ PROFILES: dict[str, dict] = {
         # mxfp8 contains "fp8" and is ours; strip it before matching (#78).
         "protect": ("mxfp8",),
     },
+    "gb10-spark": {
+        "description": "NVIDIA DGX Spark, GB10 Blackwell sm_121, 128 GB unified",
+        # What Ollama reports it will actually hand the GPU: 117.8 GiB of the
+        # 121.7 GiB visible. Unified, so this is a working-set budget and not a
+        # discrete card's VRAM (#292) -- the same shape as m5-max, not
+        # rtx3080ti, however much the GPU name suggests otherwise.
+        "vram_gb": 117.8,
+        "ram_gb": 128.0,
+        "unified": True,
+        # Blackwell runs what Ampere cannot: sm_121 has FP8 *and* NVFP4
+        # hardware. This is also the only profile where tensorrt/vllm/sglang
+        # are real options (#299).
+        "usable": (
+            "gguf",
+            "q4_k",
+            "q3_k",
+            "q5_k",
+            "q6_k",
+            "q8_0",
+            "iq",
+            "bf16",
+            "nvfp4",
+            "fp8",
+            "awq",
+            "gptq",
+            "exl2",
+            "exl3",
+            "marlin",
+            "int4",
+            "w4a16",
+            "w8a8",
+            "tensorrt",
+            "vllm",
+            "sglang",
+        ),
+        # MLX is Apple's, and on Linux Ollama ships no MLX runtime at all --
+        # the runner's symbols are in the binary, the library is not, so every
+        # `mlx` and `mxfp8` build is unpullable here (#293). ROCm is AMD.
+        #
+        # No "protect" entry is needed, and none would be correct: `mxfp8` must
+        # match unusable while bare `fp8` must match usable, which is what
+        # substring matching already does. This is the exact reverse of
+        # m5-max, where `fp8` means NVIDIA and had to be protected.
+        "unusable": ("mlx", "mxfp8", "rocm"),
+        "protect": (),
+    },
     "rtx3080ti": {
         "description": "RTX 3080 Ti, 12 GiB VRAM, Ampere sm_86, 32 GB host RAM",
         "vram_gb": 12.0,

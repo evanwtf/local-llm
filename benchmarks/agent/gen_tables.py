@@ -63,6 +63,31 @@ def _after_fix() -> set[str]:
     return heads
 
 
+#: The ledger `docs/results.md` is generated FROM, named rather than derived.
+#:
+#: This used to be `results.default_path()` -- whichever machine happened to be
+#: running. That is fine while there is one machine and catastrophic once there
+#: are three: `splice_tables.py` is a single unconditional `DOC.write_text()`,
+#: and AGENTS.md tells every agent to run it at the end of every batch. On the
+#: DGX Spark that rewrote the corpus tables with ten rows and restamped the
+#: fingerprint line to match, silently and with no error (#300).
+#:
+#: Naming it makes the document a function of its data instead of a function of
+#: the machine, so re-splicing produces the same bytes anywhere.
+#:
+#: This is an interim answer. #292 item 5 is the real one: read every
+#: `hardware/*/results.jsonl` and emit one table per machine. When that lands,
+#: this constant becomes the loop's first element rather than its only one --
+#: and until it does, a second machine's rows are deliberately NOT in this
+#: document, because there is nowhere correct to put them yet.
+DOC_LEDGER = (
+    pathlib.Path(__file__).resolve().parents[2]
+    / "hardware"
+    / "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A"
+    / "results.jsonl"
+)
+
+
 def load(path: pathlib.Path | None = None) -> list[dict[str, Any]]:
     """Real trials only.
 
@@ -79,7 +104,7 @@ def load(path: pathlib.Path | None = None) -> list[dict[str, Any]]:
     calling it is the same mistake as `dirfix.py` hand-rolling `r.get(
     "excluded")`, which RESULTS.md already records having miscounted 14 rows.
     """
-    return results.trials(path or results.default_path())
+    return results.trials(path or DOC_LEDGER)
 
 
 def valid_opencode(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -337,10 +362,7 @@ def render(rows: list[dict[str, Any]] | None = None) -> str:
     # results.jsonl, and stamping them with a commit that moves on every
     # unrelated edit would churn the document and train people to skim it.
     out += [
-        (
-            f"*Generated from `results.jsonl` — "
-            f"{provenance.fingerprint(results.default_path())}.*"
-        ),
+        (f"*Generated from `results.jsonl` — {provenance.fingerprint(DOC_LEDGER)}.*"),
         "",
     ]
     out += ["#### Every stack measured under OpenCode", ""]

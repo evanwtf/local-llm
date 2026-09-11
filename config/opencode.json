@@ -150,12 +150,66 @@
           "temperature": false,
           "tool_call": true
         },
+        "nemotron-3-super:120b-a12b-q4_K_M": {
+          "limit": {
+            "context": 262144,
+            "output": 262144
+          },
+          "modalities": {
+            "input": [
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "name": "Nemotron 3 Super 120B-A12B Q4_K_M (local, ollama)",
+          "reasoning": false,
+          "temperature": false,
+          "tool_call": true
+        },
+        "nemotron3:33b-q4_K_M": {
+          "limit": {
+            "context": 262144,
+            "output": 262144
+          },
+          "modalities": {
+            "input": [
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "name": "Nemotron 3 33B Q4_K_M (local, ollama)",
+          "reasoning": false,
+          "temperature": false,
+          "tool_call": true
+        },
         "ornith-1.5:35b": {
           "limit": {
             "context": 262144,
             "output": 262144
           },
           "name": "Ornith-1.5-35B (local, ollama)",
+          "reasoning": false,
+          "temperature": false,
+          "tool_call": true
+        },
+        "qwen3.6:27b-coding": {
+          "limit": {
+            "context": 262144,
+            "output": 262144
+          },
+          "modalities": {
+            "input": [
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "name": "Qwen3.6 27B coding GGUF (local, ollama)",
           "reasoning": false,
           "temperature": false,
           "tool_call": true
