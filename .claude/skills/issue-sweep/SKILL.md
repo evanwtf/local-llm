@@ -70,8 +70,10 @@ gh issue list --state open --limit 300 \
 
 ## 3. The four label checks, cheapest first
 
-Priority labels are `P0` `P1` `P2` `P3`. Platform labels are `macOS` and
-`Nvidia`.
+Priority labels are `P0` `P1` `P2` `P3`. Platform (class) labels are
+`platform:macOS` and `platform:Nvidia`. A machine label is `hardware:<slug>`
+(see `hardware/MACHINES.md`) and names the specific box; a class label names a
+whole OS or vendor and never substitutes for it.
 
 ```python
 # uv run python - <<'PY'   (or inline; keep it out of the repo if a run is live)
@@ -79,7 +81,7 @@ import json, pathlib
 
 d = json.loads(pathlib.Path("/tmp/issues.json").read_text())
 PRIO = {"P0", "P1", "P2", "P3"}
-PLAT = {"macOS", "Nvidia"}
+PLAT = {"platform:macOS", "platform:Nvidia"}
 TYPES = {"bug", "documentation", "enhancement", "question"}
 for i in d:
     L = {l["name"] for l in i["labels"]}
@@ -122,7 +124,7 @@ no machine. NEXT.md sets the precedent explicitly: *"The one exception is
 #154, which is CI rather than a machine and is labeled `bug`."*
 
 So an unlabeled issue is a finding **only** when it would consume machine
-time. Do not mass-apply `macOS` to close a gap in a report — that is how the
+time. Do not mass-apply `platform:macOS` to close a gap in a report — that is how the
 filter stops meaning anything. An exempt issue must instead carry a type
 label (`bug`, `documentation`, `enhancement`) so it is not simply naked.
 
@@ -203,7 +205,7 @@ and why, then ask once for the whole batch — not per issue.
     closed, still queued  #148 (item 2), #143 (item 6)
     labelled P1, unqueued #208 #209 #210 #211 #213 #217 #218 #223 #224 #227
     no platform label ... #221 #222 #223 #224 #225 #227
-      of those, machine time: #224 #225      -> need macOS
+      of those, machine time: #224 #225      -> need platform:macOS
       exempt (CI/harness):    #222 #223 #227 -> need a type label
 
 **Never relabel to make the invariant pass.** The invariant is a smoke
@@ -219,7 +221,7 @@ cheap to make and expensive to notice.
 
 ```sh
 gh issue edit <n> --add-label P2 --remove-label P1
-gh issue edit <n> --add-label macOS
+gh issue edit <n> --add-label platform:macOS
 ```
 
 Then bring NEXT.md into line **in the same pass**. Editing labels and leaving

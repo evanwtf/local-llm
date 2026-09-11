@@ -24,10 +24,11 @@ finds its own queue without anyone typing a name:
 gh issue list --label "hardware:$(uv run python scripts/hardware_id.py --slug)"
 ```
 
-`macOS` and `Nvidia` stay as broad **class** tags for a query across a
-whole OS or vendor -- the RTX 3080 Ti desktop and the DGX Spark are both
-`Nvidia`. A class tag never identifies a machine on its own, so an issue
-that consumes a machine's time carries exactly one machine label as well.
+`platform:macOS` and `platform:Nvidia` stay as broad **class** tags for
+a query across a whole OS or vendor -- the RTX 3080 Ti desktop and the
+DGX Spark are both `platform:Nvidia`. A class tag never identifies a
+machine on its own, so an issue that consumes a machine's time carries
+exactly one machine label as well.
 
 ## Name the machine, never "this machine"
 

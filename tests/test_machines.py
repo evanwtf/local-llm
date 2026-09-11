@@ -2,7 +2,7 @@
 manage, and three things read it -- the GitHub machine labels, the generated
 `hardware/MACHINES.md`, and this test (#302). These pin that the registry, the
 `hardware/<id>/` directories, and the generated doc cannot drift apart, and
-that a class tag (`macOS`/`Nvidia`) can never stand in for a machine label.
+that a class tag (`platform:macOS`/`platform:Nvidia`) can never stand in for a machine label.
 """
 
 from __future__ import annotations
@@ -81,8 +81,8 @@ def test_the_github_label_is_the_slug_under_the_hardware_namespace() -> None:
 
 
 def test_a_class_label_is_never_a_machine_slug() -> None:
-    """`Nvidia` covers both the RTX 3080 Ti desktop and the DGX Spark, so a
-    class tag cannot identify a machine. It must never be a slug, and every
+    """`platform:Nvidia` covers both the RTX 3080 Ti desktop and the DGX Spark,
+    so a class tag cannot identify a machine. It must never be a slug, and every
     machine's declared classes must be real class labels."""
     slugs = {m.slug for m in machines.MACHINES}
     assert slugs.isdisjoint(machines.CLASS_LABELS)

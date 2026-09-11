@@ -16,9 +16,10 @@ A machine finds its own queue with:
     gh issue list --label "hardware:$(uv run python scripts/hardware_id.py --slug)"
 
 `directory` is its `hardware/<id>/` directory. `classes` are the broad
-`macOS`/`Nvidia` tags that also apply, for a query across a whole OS or vendor;
-they are NOT a substitute for the machine label. `name` is the third-person
-form for prose -- a record names the box, never "this machine" (#302).
+`platform:macOS`/`platform:Nvidia` tags that also apply, for a query across a
+whole OS or vendor; they are NOT a substitute for the machine label. `name` is
+the third-person form for prose -- a record names the box, never "this
+machine" (#302).
 """
 
 from __future__ import annotations
@@ -38,13 +39,11 @@ logger = logging.getLogger(__name__)
 #: presented, so a machine's query is `--label "hardware:$(hardware_id --slug)"`.
 HARDWARE_PREFIX = "hardware:"
 
-#: Broad labels for a query across an OS or a vendor. A class tag never
-#: identifies a machine on its own -- the RTX 3080 Ti desktop and the DGX Spark
-#: are both `Nvidia` -- so it never satisfies the machine-label requirement.
-#: A `platform:` namespace (platform:macOS, platform:Nvidia) is planned (#302);
-#: renaming these is coupled to make_next.py, so it is a separate step and these
-#: stay as the live label names until then.
-CLASS_LABELS: tuple[str, ...] = ("macOS", "Nvidia")
+#: Broad labels for a query across an OS or a vendor, under the `platform:`
+#: namespace. A class tag never identifies a machine on its own -- the RTX
+#: 3080 Ti desktop and the DGX Spark are both `platform:Nvidia` -- so it never
+#: satisfies the machine-label requirement (#302).
+CLASS_LABELS: tuple[str, ...] = ("platform:macOS", "platform:Nvidia")
 
 
 @dataclass(frozen=True)
@@ -77,7 +76,7 @@ MACHINES: tuple[Machine, ...] = (
         arch="arm64",
         accelerator="Apple M5 Max GPU (Metal)",
         memory="128 GiB unified",
-        classes=("macOS",),
+        classes=("platform:macOS",),
         note="primary machine; the laptop this project is premised on",
     ),
     Machine(
@@ -88,7 +87,7 @@ MACHINES: tuple[Machine, ...] = (
         arch="aarch64",
         accelerator="NVIDIA GB10 Grace Blackwell GPU",
         memory="128 GiB unified",
-        classes=("Nvidia",),
+        classes=("platform:Nvidia",),
         note="DGX Spark; unified memory, so a VRAM-based judgement does not apply",
     ),
     Machine(
@@ -99,7 +98,7 @@ MACHINES: tuple[Machine, ...] = (
         arch="x86_64",
         accelerator="NVIDIA RTX 3080 Ti (12 GB VRAM)",
         memory="32 GiB system",
-        classes=("Nvidia",),
+        classes=("platform:Nvidia",),
         note="desktop; a discrete GPU with 12 GB of VRAM",
     ),
 )
@@ -191,10 +190,11 @@ def render_markdown() -> str:
         'gh issue list --label "hardware:$(uv run python scripts/hardware_id.py --slug)"',
         "```",
         "",
-        "`macOS` and `Nvidia` stay as broad **class** tags for a query across a",
-        "whole OS or vendor -- the RTX 3080 Ti desktop and the DGX Spark are both",
-        "`Nvidia`. A class tag never identifies a machine on its own, so an issue",
-        "that consumes a machine's time carries exactly one machine label as well.",
+        "`platform:macOS` and `platform:Nvidia` stay as broad **class** tags for",
+        "a query across a whole OS or vendor -- the RTX 3080 Ti desktop and the",
+        "DGX Spark are both `platform:Nvidia`. A class tag never identifies a",
+        "machine on its own, so an issue that consumes a machine's time carries",
+        "exactly one machine label as well.",
         "",
         '## Name the machine, never "this machine"',
         "",
