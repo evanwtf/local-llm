@@ -56,14 +56,19 @@ the log's subject, not its author:
 - A **benchmark, preflight or build** log is a property of the machine that
   produced it, so it goes in `hardware/<id>/logs/`.
 
-`provenance.log_path(..., machine_specific=...)` encodes exactly this, and
-`test_sweep_logs_are_machine_independent.py` enforces it. #292 named
-`logs/sweeps/` as a place two machines could collide; they do not -- sweep files
-are slugged and timestamped, so no two share a path, and `.gitattributes` marks
-`logs/**` `-merge`. So the sweeps stay shared (moving them would wrongly
-attribute a machine-independent observation to one machine); only machine-
-specific logs move out, which is why four hand-committed #228 benchmark logs
-left `logs/sweeps/` for the Mac's directory.
+`provenance.log_path(..., machine_specific=...)` encodes exactly this: a new
+sweep log lands in `logs/sweeps/`, a new benchmark log in `hardware/<id>/logs/`,
+and `test_committed_logs_all_name_their_machine` holds the latter to a
+`<script>-<slug>-<UTC>Z` name.
+
+#292 named `logs/sweeps/` as a place two machines could collide. They do not:
+sweep files are slugged and timestamped, so no two share a path, and
+`.gitattributes` marks `logs/**` `-merge`. So the sweeps stay shared -- moving
+them would wrongly attribute a machine-independent observation to one machine.
+A handful of early #228 benchmark logs were committed to `logs/sweeps/` by hand,
+before that routing existed; they carry a local-time stamp and no slug, so they
+fit neither naming rule. They stay where they were first committed rather than
+being renamed to conform -- "keep the historical record honest", below, wins.
 
 ## Keep the historical record honest
 
