@@ -75,6 +75,25 @@ DEFAULT_CTX = 8192
 transcript = logging.getLogger("coherence.transcript")
 
 
+#: Trees that are plainly a different engine, so the refusal can name which one
+#: instead of reading as a missing ds4 binary (#287). Not exhaustive -- it only
+#: has to recognise the engines this repo now serves models with, so a reader
+#: who points --tree at a llama.cpp checkout is told the gate does not cover it
+#: rather than that a file is missing. The markers are binaries no ds4 tree has.
+OTHER_ENGINE_MARKERS: dict[str, tuple[str, ...]] = {
+    "llama.cpp": ("build/bin/llama-cli", "llama-cli", "build/bin/llama-server"),
+}
+
+
+def other_engine_tree(tree: pathlib.Path) -> tuple[str, str] | None:
+    """(engine, marker) when the tree is plainly a non-ds4 engine, else None."""
+    for engine, markers in OTHER_ENGINE_MARKERS.items():
+        for marker in markers:
+            if (tree / marker).is_file():
+                return engine, marker
+    return None
+
+
 def check_inputs(tree: pathlib.Path, ggufs: Sequence[pathlib.Path]) -> list[str]:
     """Everything wrong that is knowable without loading a model."""
     problems = []
@@ -82,7 +101,22 @@ def check_inputs(tree: pathlib.Path, ggufs: Sequence[pathlib.Path]) -> list[str]
     if not tree.is_dir():
         problems.append(f"no ds4 tree at {tree}")
     elif not (binary.is_file() and shutil.which(str(binary))):
-        problems.append(f"{binary} is not an executable file")
+        # A missing ds4 in a ds4 tree is a failed build and says so. A tree that
+        # is plainly a DIFFERENT engine is a different problem: this gate runs
+        # only ds4 (#287), so llama.cpp- and ollama-served models cannot pass it
+        # and must not be recorded as having done so. Name the engine rather
+        # than a missing file, or the gap reads as satisfied.
+        other = other_engine_tree(tree)
+        if other:
+            engine, marker = other
+            problems.append(
+                f"{tree} is a {engine} tree (found {marker}), but this coherence "
+                f"check runs only ds4 (#287): {engine}- and ollama-served models "
+                f"are not covered by the #25/#48 gate yet, so do not record them "
+                f"as having passed it"
+            )
+        else:
+            problems.append(f"{binary} is not an executable file")
     if not ggufs:
         problems.append("no model given")
     for gguf in ggufs:

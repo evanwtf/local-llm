@@ -141,6 +141,32 @@ def test_a_ds4_that_is_not_executable_is_named(tmp_path, gguf) -> None:
     assert "not an executable" in coherence_check.check_inputs(tree, [gguf])[0]
 
 
+def test_a_llama_cpp_tree_is_refused_as_an_unsupported_engine(tmp_path, gguf) -> None:
+    """#287: pointing --tree at a llama.cpp checkout used to fail with
+    '<tree>/ds4 is not an executable file', which reads as a missing binary
+    rather than the truth -- this gate runs only ds4, so no llama.cpp-served
+    model can pass it. The refusal must name the engine and #287 so the gap is
+    loud, not silently satisfied."""
+    tree = tmp_path / "llama.cpp-upstream"
+    (tree / "build" / "bin").mkdir(parents=True)
+    (tree / "build" / "bin" / "llama-cli").write_text("#!/bin/sh\n")
+    problem = coherence_check.check_inputs(tree, [gguf])[0]
+    assert "llama.cpp" in problem
+    assert "#287" in problem
+    assert "is not an executable file" not in problem
+
+
+def test_a_bare_tree_still_reads_as_a_failed_ds4_build(tmp_path, gguf) -> None:
+    """The loud engine refusal is only for a tree that is plainly another
+    engine. An empty tree is a failed ds4 build, and that message stays."""
+    tree = tmp_path / "ds4-tree"
+    tree.mkdir()
+    assert coherence_check.other_engine_tree(tree) is None
+    assert coherence_check.check_inputs(tree, [gguf]) == [
+        f"{tree / 'ds4'} is not an executable file"
+    ]
+
+
 def test_every_bad_path_is_reported_at_once(tree, tmp_path, gguf) -> None:
     """The shell found the fourth typo after three models had been paged in."""
     got = coherence_check.check_inputs(
