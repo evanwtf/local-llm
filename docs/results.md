@@ -57,6 +57,13 @@ other is telling you something.
 
 <!-- BEGIN GENERATED -->
 
+### Cortex-X925-128GB-GB10
+
+*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 134 rows, sha256 c8011f5c9a9f.*
+
+_No OpenCode trials after the `--dir` fix on this machine yet._
+
+
 ### MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A
 
 *Generated from `hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/results.jsonl` — 2520 rows, sha256 8f0092960f75.*
