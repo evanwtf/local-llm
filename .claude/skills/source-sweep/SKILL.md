@@ -22,6 +22,36 @@ expensive and uncertain one (X) is filtered by what you already know.
 
 The output is not a digest. It is **issues in our own repo**, or nothing.
 
+## Which machine: the `--platform` argument (#307)
+
+This project runs two machines with different fields, so a sweep must say which
+one it is for. Pass a platform when you invoke the skill; default to **`mac`**
+when none is given.
+
+- **`mac`** — the M5 Max, 128 GB, Metal. The Apple-Silicon lane: MLX, oMLX,
+  llama.cpp Metal, single-stream tok/s. This is the historical default and the
+  primary coding-agent machine.
+- **`dgx`** — the DGX Spark (GB10, CUDA, 128 GB unified). A different field:
+  NVFP4/FP8, vLLM and TensorRT-LLM, and **aggregate multi-stream throughput**,
+  not single-stream. Broader too — VLMs for the camera and general agent models,
+  not only coding (see the machine README).
+- **`all`** — both, when you want one pass over everything.
+
+The platform changes three things, and nothing else about the order:
+
+1. **The relevance filter** (surfaces 1a and 7b) — the Mac question is *would
+   this change a number on an M5 Max, 128 GB, Metal?*; the DGX question is
+   *would this change a number on a GB10 Spark under CUDA?* A finding rejected
+   by one lane is often exactly the other lane's lead.
+2. **The tools** — `upstream_sweep.py --platform` and `hf_sweep.py --profile`
+   take the lane (see surfaces 2 and 5).
+3. **The X accounts** — the Mac list is Tiers 1-3 in SOURCES.md; the DGX list is
+   its **DGX Spark sources** section, still being vetted. On a `dgx` sweep,
+   gather from there and verify before promoting, exactly as the Mac list was.
+
+Everything else — the seven surfaces, filing before verifying, the sweep record
+— is identical.
+
 ---
 
 ## 1. GitHub notifications
@@ -69,8 +99,10 @@ new. The comment underneath carried the Q2 table, a requantization recipe worth
 +35% that nobody had measured for quality, and a bare `@evandhoffman` asking for
 an M5 Max run.
 
-**Then apply the relevance filter — the same one as 7b.** *Would this change a
-number on an M5 Max, 128 GB, Metal?* A `mention` is not automatically relevant:
+**Then apply the relevance filter — the lane's, the same one as 7b.** On a
+`mac` sweep: *would this change a number on an M5 Max, 128 GB, Metal?* On a
+`dgx` sweep: *on a GB10 Spark under CUDA?* A `mention` is not automatically
+relevant:
 
 - **Relevant** — someone asking us to measure something, a result on Apple
   silicon, a method finding that changes how we measure, a bug in an engine we
@@ -100,8 +132,9 @@ expect it here and nowhere else.
 ## 2. Watched repositories
 
 ```sh
-uv run python scripts/upstream_sweep.py --hours 24
+uv run python scripts/upstream_sweep.py --hours 24 --platform mac
 uv run python scripts/upstream_sweep.py --hours 168 --quiet-empty   # a week
+uv run python scripts/upstream_sweep.py --hours 24 --platform dgx   # DGX lane
 ```
 
 `WATCHED` in that script is the source of truth and SOURCES.md renders it. It
@@ -159,8 +192,9 @@ file in our own repo.
 ## 5. Hugging Face — new quants of models we already run
 
 ```sh
-uv run python scripts/hf_sweep.py --hours 24
-uv run python scripts/hf_sweep.py --hours 168 --all    # a week, unfiltered
+uv run python scripts/hf_sweep.py --hours 24                    # --profile m5-max
+uv run python scripts/hf_sweep.py --hours 168 --all             # a week, unfiltered
+uv run python scripts/hf_sweep.py --hours 24 --profile gb10     # DGX lane
 ```
 
 Engines are watched by `upstream_sweep.py`; this watches **models**. A new GGUF
@@ -168,11 +202,19 @@ or MLX build of something already in our matrix would otherwise appear with
 nobody knowing, and #84 established that a quant's own declared sampler can
 move our numbers — a re-quant is not cosmetic.
 
-**It hides what cannot load on Metal, and says how many.** Most new quants of
-our models target CUDA or ROCm: on 2026-09-02 the two most recent builds of our
-fastest model were `ROCMFP4_STRIX` and `NVFP4-QSA-FP8`. A count of hidden
-results is the difference between "nothing shipped" and "nothing that runs here
-shipped", which are very different facts.
+**Pass the profile for the lane, or the classifier judges the wrong machine.**
+`--profile m5-max` (the default) hides NVFP4/FP8 as unloadable; `--profile gb10`
+does the opposite — those are the DGX Spark's target formats, and it hides MLX
+instead. The lists invert, so a `dgx` sweep run on the Mac profile would hide
+exactly what it is looking for. On the DGX lane the profile also watches
+NVIDIA's own HF org (Nemotron, NVFP4/FP8 builds).
+
+**It hides what cannot load on the chosen machine, and says how many.** Most new
+quants target one vendor: on 2026-09-02 the two most recent builds of our
+fastest model were `ROCMFP4_STRIX` and `NVFP4-QSA-FP8` — both hidden on the Mac,
+one of them loadable on the DGX. A count of hidden results is the difference
+between "nothing shipped" and "nothing that runs here shipped", which are very
+different facts.
 
 **`?` means unclassified, not uninteresting.** A bare name, or a scheme the
 classifier has not seen (`VQ-4.4bpw`, `JANG_4M`), is a question to answer, not
@@ -302,9 +344,11 @@ output only ever lands in GitHub is a sweep the operator cannot steer.
 Mark it plainly as unverified, name the handle and the claim, and separate
 "this changes what we should test" from "this is happening in the field".
 
-**7b. Judge relevance to THIS machine before verifying anything.**
+**7b. Judge relevance to THE LANE'S machine before verifying anything.**
 
-The filter is: *would this change a number on an M5 Max, 128 GB, Metal?*
+The filter is the platform's, from the top of this skill.
+
+**On a `mac` sweep** — *would this change a number on an M5 Max, 128 GB, Metal?*
 
 - **Promising** — Metal or MLX kernels, prefill or prefix caching, quantization
   recipes, MTP or speculative decoding, engines we can install, models that fit
@@ -314,6 +358,23 @@ The filter is: *would this change a number on an M5 Max, 128 GB, Metal?*
 - **A lead, not noise** — a result on an M3 or M4. Most developers have no M5,
   and an improvement there usually shows up here. Do not dismiss a finding for
   being on the wrong Apple chip.
+
+**On a `dgx` sweep** — *would this change a number on a GB10 Spark under CUDA?*
+The signs invert, so read the DGX Spark sources section of SOURCES.md, not the
+Mac tiers:
+
+- **Promising** — NVFP4/FP8 recipes, vLLM / TensorRT-LLM / SGLang serving,
+  aggregate multi-stream throughput, Nemotron and NVIDIA-org builds, VLMs for
+  the camera, agent runtimes (Hermes), models that fit in 128 GB unified.
+- **Not for us** — MLX and Metal-only kernels (no Linux arm64 runtime, #293),
+  and single-stream tok/s quoted as the headline when the machine's job is
+  concurrent serving.
+- **A lead, not noise** — a single-Spark result from another owner. The Spark
+  is one machine with one memory budget, so someone else's Spark number usually
+  transfers more directly than a cross-Apple-chip one does.
+
+**Either way, a headline decode rate is a reason to test, not a result** — this
+project has measured three times that it does not predict agent wall time.
 
 **7c. File or update an issue in our repo, marked unverified.**
 
