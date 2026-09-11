@@ -480,6 +480,23 @@ ANSWER_TREES = {"bench-solutions", "local-llm"}
 DS4_SAMPLER_NOTE = "engine defaults (not reported by ds4)"
 
 
+def sampler_note(engine):
+    """ "Effective sampling is unreported", naming the engine that did not report it.
+
+    This string is generic -- every OpenAI-compatible server reaches it -- but
+    it used to be the ds4 literal above for all of them. The first vLLM rows
+    (#320) therefore claimed a ds4 server on a machine where ds4 was not
+    running, which is worse than saying nothing: a reader grepping for ds4
+    provenance pulls them in, and a reader of one row in isolation concludes
+    ds4 served it.
+
+    An unidentified engine says so, in the same word the row uses elsewhere:
+    `unknown`. It does not guess a name, and it does not stay silent -- guessing
+    is what produced #320, and silence is what let it survive a whole run.
+    """
+    return f"engine defaults (not reported by {engine or 'unknown engine'})"
+
+
 def parse_openai_models(models, backend=None):
     """Read what an OpenAI-compatible `/v1/models` can tell us about a backend.
 
@@ -537,7 +554,10 @@ def parse_openai_models(models, backend=None):
             "requested_model": str(wanted),
         }
 
-    got = {"sampling": {}, "sampling_source": DS4_SAMPLER_NOTE}
+    got = {
+        "sampling": {},
+        "sampling_source": sampler_note((backend or {}).get("engine")),
+    }
     if entry.get("id"):
         got["served_model_id"] = entry["id"]
     if entry.get("supported_parameters"):
@@ -554,7 +574,9 @@ def parse_openai_models(models, backend=None):
 # Kept as the old name so callers and tests that predate the generalisation
 # keep working; ds4 is now one of several servers this reads.
 def parse_ds4_models(models):
-    return parse_openai_models(models)
+    # The legacy alias is ds4 by name, so it says ds4 -- explicitly now,
+    # rather than by falling through to a default that lied for everyone else.
+    return parse_openai_models(models, {"engine": "ds4"})
 
 
 def probe_openai_models(backend):
@@ -860,6 +882,46 @@ def capture_versions(cfg, backends, allow_unstamped=False):
             env["llamacpp_server_mtime"] = time.strftime(
                 "%Y-%m-%dT%H:%M:%S", time.localtime(server.stat().st_mtime)
             )
+    # vLLM is a wheel, not a checkout, so there is no commit to pin and the
+    # ~/git/<engine> shape the two blocks above rely on does not exist. What
+    # identifies the build is the wheel version plus the torch underneath it:
+    # on GB10 the kernels are JIT-built from PTX for sm_120 against an sm_121
+    # device, and torch is what decides that, so it is provenance and not
+    # trivia (VERSIONS.md).
+    #
+    # Keyed on the declared engine rather than a port. The ds4 and llama.cpp
+    # blocks match :8000 and :8020/:11500, which is why vLLM on :8030 was
+    # stamped by neither and the first NVFP4 rows carried no engine at all
+    # (#320). A port is a deployment detail; `engine` is what the backend
+    # actually claims to be.
+    vllm_trees = [
+        b.get("engine_tree")
+        for b in backends.values()
+        if (b.get("engine") or "").lower() == "vllm"
+    ]
+    if vllm_trees:
+        tree = pathlib.Path(vllm_trees[0] or "~/venvs/vllm").expanduser()
+        py = tree / "bin" / "python"
+        if py.exists():
+            probe = out(
+                [
+                    str(py),
+                    "-c",
+                    (
+                        "import vllm, torch; print(vllm.__version__); "
+                        "print(torch.__version__); print(torch.version.cuda or '')"
+                    ),
+                ]
+            )
+            if probe:
+                got = probe.splitlines()
+                if len(got) >= 1 and got[0]:
+                    env["vllm"] = got[0]
+                if len(got) >= 2 and got[1]:
+                    env["vllm_torch"] = got[1]
+                if len(got) >= 3 and got[2]:
+                    env["vllm_torch_cuda"] = got[2]
+
     # Which GGUF is in service comes from the server itself, below. An earlier
     # revision globbed `GGUF_ROOT/*/*.gguf`, which spans every quant sitting in
     # that directory: rows recorded during the Q3 runs list the Q2 shards too,
@@ -1016,9 +1078,61 @@ def capture_versions(cfg, backends, allow_unstamped=False):
     if hosted:
         env["hosted_unpinned"] = hosted
 
+    # Every engine in the run names its build, or says so.
+    #
+    # #320: vLLM matched none of the stamping blocks above, so its rows carried
+    # no engine version at all -- indistinguishable, on the row, from a run
+    # that used no engine. The final filter here drops None, which is what
+    # makes an unprobed engine vanish silently rather than loudly.
+    #
+    # An explicit `unknown` is a warning. An absent key is not. This does not
+    # refuse the run: a missing version makes a row weaker, not wrong, and
+    # provenance must never take a run down (see `out`).
+    for gap in engine_provenance(backends, env):
+        logger.warning("provenance: %s", gap)
+
     if servers:
         env["servers"] = servers
     return {k: v for k, v in env.items() if v is not None}
+
+
+# Where each engine's build ends up in `env`. An engine absent from this table
+# is stamped under its own name, so adding a backend for a new engine records
+# `<engine>_version: unknown` until someone teaches capture_versions to probe
+# it -- which is the loud failure #320 did not get.
+ENGINE_VERSION_KEYS = {
+    "ds4": ("ds4_head",),
+    "llama.cpp": ("llamacpp_head",),
+    "llamacpp": ("llamacpp_head",),
+    "ollama": ("ollama",),
+    "vllm": ("vllm",),
+    "mtplx": ("mtplx",),
+    "lmstudio": ("lmstudio_runtimes",),
+}
+
+
+def engine_provenance(backends, env):
+    """Stamp `unknown` for any engine in the run whose build was not recorded.
+
+    Mutates `env`. Returns one complaint per gap, for the caller to log.
+
+    The hosted backend is exempt: it declares no engine and has no build to
+    pin, and `hosted_unpinned` already records that it is unpinned on purpose.
+    """
+    gaps = []
+    for name, backend in sorted(backends.items()):
+        engine = str(backend.get("engine") or "").lower()
+        if not engine:
+            continue
+        keys = ENGINE_VERSION_KEYS.get(engine, (engine,))
+        if any(env.get(k) for k in keys):
+            continue
+        env[f"{engine}_version"] = "unknown"
+        gaps.append(
+            f"{name}: engine {engine!r} recorded no build; "
+            f"the row will say {engine}_version=unknown (#320)"
+        )
+    return gaps
 
 
 # Shell state that must not reach a trial. VIRTUAL_ENV is the one that has
