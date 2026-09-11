@@ -330,19 +330,46 @@ LABELS = {
 }
 
 
-def render(rows: list[dict[str, Any]] | None = None) -> str:
-    rows = load() if rows is None else rows
-    out: list[str] = []
+def ledgers() -> list[pathlib.Path]:
+    """Every machine's committed `results.jsonl`, sorted by directory name.
+
+    The tables are a function of the data on `main`, not of whichever machine
+    runs the generator. Reading `results.default_path()` made docs/results.md a
+    picture of one machine -- whichever last ran `splice_tables.py` -- so the
+    file regenerated differently on each host and CI could never verify it
+    (#292). Globbing the committed ledgers makes `render()` produce the same
+    bytes on every machine, which is what lets CI catch a stale document.
+    """
+    root = HERE.parents[1] / "hardware"
+    return sorted(root.glob("*/results.jsonl"))
+
+
+def machine_section(
+    machine: str, path: pathlib.Path, rows: list[dict[str, Any]]
+) -> list[str]:
+    """The tables for one machine, under its own heading.
+
+    `machine` is the `hardware/<id>/` directory name -- the canonical name from
+    `hardware_id.py`, never typed. A machine with rows but no post-`--dir`
+    OpenCode trial gets a note in place of an empty table: the heading still
+    records that the machine is in the fleet.
+    """
     # The data fingerprint, not the HEAD commit: these tables are a function of
-    # results.jsonl, and stamping them with a commit that moves on every
-    # unrelated edit would churn the document and train people to skim it.
-    out += [
+    # the ledger, and stamping them with a commit that moves on every unrelated
+    # edit would churn the document and train people to skim it.
+    out = [
+        f"### {machine}",
+        "",
         (
-            f"*Generated from `results.jsonl` — "
-            f"{provenance.fingerprint(results.default_path())}.*"
+            f"*Generated from `hardware/{machine}/results.jsonl` — "
+            f"{provenance.fingerprint(path)}.*"
         ),
         "",
     ]
+    valid = valid_opencode(rows)
+    if not valid:
+        out += ["_No OpenCode trials after the `--dir` fix on this machine yet._", ""]
+        return out
     out += ["#### Every stack measured under OpenCode", ""]
     # The warning goes above the table, not below it. The bug it describes is
     # a misreading of the table's own sort order (#142), so it has to arrive
@@ -357,9 +384,9 @@ def render(rows: list[dict[str, Any]] | None = None) -> str:
         "",
     ]
     out += stack_table(rows, LABELS)
-    out += client_caveat(valid_opencode(rows))
-    out += pld_caveat(valid_opencode(rows))
-    out += engine_caveat(valid_opencode(rows))
+    out += client_caveat(valid)
+    out += pld_caveat(valid)
+    out += engine_caveat(valid)
     out += [
         "",
         (
@@ -368,23 +395,35 @@ def render(rows: list[dict[str, Any]] | None = None) -> str:
             "and it is the column most people forget to ask for."
         ),
         "",
-        "#### Same weights, two engines",
-        "",
     ]
-    out += engine_table(rows, "qwen38fnq3", "qwen38fnq3lms")
-    out += [
-        "",
-        "#### How fast each stack actually serves tokens",
-        "",
-    ]
+    # The two-engine table is a Mac-only comparison (llama.cpp vs LM Studio on
+    # identical weights). On a machine that ran neither arm it is a header with
+    # no rows, so suppress the whole subsection rather than print an empty one.
+    engine = engine_table(rows, "qwen38fnq3", "qwen38fnq3lms")
+    if len(engine) > 2:
+        out += ["#### Same weights, two engines", ""]
+        out += engine
+        out += [""]
+    out += ["#### How fast each stack actually serves tokens", ""]
     out += throughput_table(rows, LABELS)
     out += client_caveat(
-        [
-            r
-            for r in valid_opencode(rows)
-            if r.get("wall_seconds") and r.get("output_tokens")
-        ]
+        [r for r in valid if r.get("wall_seconds") and r.get("output_tokens")]
     )
+    return out
+
+
+def render() -> str:
+    """One section per machine, every committed ledger in directory order.
+
+    Machine-independent by construction: it reads `ledgers()`, not the current
+    machine's file, so the same bytes come out on the laptop, the Ryzen box and
+    CI. See `ledgers()` for why (#292).
+    """
+    out: list[str] = []
+    for path in ledgers():
+        if out:
+            out.append("")  # one blank line between machines
+        out += machine_section(path.parent.name, path, results.trials(path))
     return "\n".join(out) + "\n"
 
 

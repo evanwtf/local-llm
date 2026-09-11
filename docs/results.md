@@ -57,7 +57,9 @@ other is telling you something.
 
 <!-- BEGIN GENERATED -->
 
-*Generated from `results.jsonl` — 2426 rows, sha256 66f2a52d5c8a.*
+### MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A
+
+*Generated from `hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/results.jsonl` — 2426 rows, sha256 66f2a52d5c8a.*
 
 #### Every stack measured under OpenCode
 
@@ -128,6 +130,28 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | Qwen3.8-Flash-Next Q3 - LM Studio | 115s |
 
 **Rows here were not all taken under one client.** qwen38fnq3reap under 1.18.26; qwen38fnds4kimat, qwen38fnds4mtp7shim, qwen38fnds4shim under 1.18.27; qwen38fnds4greedy, qwen38fnds4kimat, qwen38fnds4mtp7greedy, qwen38fnds4mtp7shim, qwen38fnds4shim, qwen38fnmlxserve, qwen38fnmlxserve-git, Qwen3.8-Flash-Next Q3 - llama.cpp under 1.18.29; the rest under 1.18.25. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: qwen38fnds4kimat (1.18.27, 1.18.29); qwen38fnds4mtp7shim (1.18.27, 1.18.29); qwen38fnds4shim (1.18.27, 1.18.29); Qwen3.8-Flash-Next Q3 - llama.cpp (1.18.25, 1.18.29).
+
+### Ryzen9-7900X-32GB-RTX3080Ti-12GB
+
+*Generated from `hardware/Ryzen9-7900X-32GB-RTX3080Ti-12GB/results.jsonl` — 16 rows, sha256 590c1de97875.*
+
+#### Every stack measured under OpenCode
+
+**The three timing columns count only trials that passed.** A trial that dies early is quick, so counting failures would reward a stack for failing fast and lift it up a table sorted by median. Read the `passed` column first.
+
+| stack | passed | median | worst | spread |
+|---|---|---|---|---|
+| dtornith159b | 1/1 | 94s | 94s | 1.0x |
+| dtgemma412b | 0/12 | — | — | — |
+
+Excision tasks only; `script-*` excluded because they are a different class. **Spread is worst / best on the same task**, and it is the column most people forget to ask for.
+
+#### How fast each stack actually serves tokens
+
+| stack | seconds per 1k output tokens |
+|---|---|
+| dtornith159b | 11s |
+| dtgemma412b | 47s |
 
 <!-- END GENERATED -->
 
