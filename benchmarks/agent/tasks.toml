@@ -433,13 +433,23 @@ context_tokens = 100000
 # GLM-5.3-Flash on the DGX Spark. Ollama has no local weights for this model at
 # all -- the whole library is one `:cloud` tag -- so ds4 is the only route.
 #
-# Q2 and --ctx 16384 are upstream's constraints, not ours: "Q4 does not fit
-# resident." Both differ from the Mac's glm53ds4 rows and are declared here
-# rather than left in a footnote. #39 found decode rate was what killed glm53
-# on the Mac; whether that verdict survives a different memory system and a
-# different backend is the question this backend exists to answer.
+# Q2 is upstream's constraint, not ours: "Q4 does not fit resident."
+#
+# The context is 100000, matching the Mac. An earlier draft of this backend said
+# 16384, which was a guess made before anyone reread GLM-5.3-FLASH.md: that file
+# records this same Q2 GGUF served at -c 100000 on the M5 Max, where the entire
+# 100k KV cost 1.11 GiB against 89.87 GiB of weights. KV is not what constrains
+# this model, so shrinking the window bought nothing and cost comparability.
+# 16384 also contradicted the ds4 provider block in ~/.config/opencode, which
+# declares a 100000 limit -- OpenCode would have grown a conversation past a
+# window the server could not hold, and preflight's check_served_context only
+# catches served < declared, not client > served.
+#
+# #39 found decode rate was what killed glm53 on the Mac; whether that verdict
+# survives a different memory system and a different backend is the question
+# this backend exists to answer.
 [backend.glm53dgx]
-description = "GLM-5.3-Flash Q2 via ds4-server, CUDA sm_121a, ctx 16384"
+description = "GLM-5.3-Flash Q2 via ds4-server, CUDA sm_121a, ctx 100000"
 base_url = "http://127.0.0.1:8000"
 auth_token = "dsv4-local"
 engine = "ds4"
@@ -447,7 +457,7 @@ engine_tree = "~/git/ds4"
 model = "glm-5.3-flash"
 aider_model = "openai/glm-5.3-flash"
 opencode_model = "ds4/glm-5.3-flash"
-context_tokens = 16384
+context_tokens = 100000
 
 # NVIDIA's own model family, measured on NVIDIA's own hardware. GGUF, so it
 # needs no engine this project does not already run -- unlike every other
