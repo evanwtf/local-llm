@@ -501,9 +501,14 @@ engine = "ollama"
 model = "nemotron-cascade-2:30b-a3b-q4_K_M"
 aider_model = "openai/nemotron-cascade-2:30b-a3b-q4_K_M"
 opencode_model = "ollama/nemotron-cascade-2:30b-a3b-q4_K_M"
-# VERIFY WITH `ollama show` BEFORE THE FIRST RUN. nemotron33 declared 262144
-# against a card holding 131072 and run.py refused the batch, correctly.
-context_tokens = 131072
+# Verified with `ollama show` before the first run: the card reports 262144.
+# An earlier draft of this entry said 131072, copied from nemotron33, which
+# would have under-reported the context every row ran at. run.py only refuses
+# the opposite mistake -- declaring MORE than the server loaded -- so
+# under-declaring is silent, which is why the card gets read rather than
+# guessed. Architecture is `nemotron_h_moe`; capabilities completion/tools/
+# thinking, and notably no vision, unlike the Omni variant.
+context_tokens = 262144
 
 # 120B total, 12B active. 80.9 GiB of GGUF, which fits ONLY because this
 # machine's memory is unified -- on a 12 GiB discrete card it is not a

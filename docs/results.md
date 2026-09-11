@@ -59,7 +59,7 @@ other is telling you something.
 
 ### Cortex-X925-128GB-GB10
 
-*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 114 rows, sha256 96a970f2912a.*
+*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 124 rows, sha256 4920a0af89a4.*
 
 #### Every stack measured under OpenCode
 
@@ -70,6 +70,7 @@ other is telling you something.
 | qwen38fnq3dgx | 30/30 | 127s | 315s | 6.6x |
 | qwen36codinggguf | 29/30 | 162s | 221s | 3.2x |
 | ds4dgx | 20/20 | 236s | 364s | 3.6x |
+| nemotron33 | 1/10 | — | — | — |
 
 Excision tasks only; `script-*` excluded because they are a different class. **Spread is worst / best on the same task**, and it is the column most people forget to ask for.
 
@@ -77,6 +78,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 
 | stack | seconds per 1k output tokens |
 |---|---|
+| nemotron33 | 15s |
 | qwen38fnq3dgx | 55s |
 | qwen36codinggguf | 70s |
 | ds4dgx | 87s |

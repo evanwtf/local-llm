@@ -170,8 +170,8 @@
         },
         "nemotron-cascade-2:30b-a3b-q4_K_M": {
           "limit": {
-            "context": 131072,
-            "output": 131072
+            "context": 262144,
+            "output": 262144
           },
           "modalities": {
             "input": [
