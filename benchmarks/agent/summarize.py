@@ -134,7 +134,13 @@ def main():
                 )
             )
 
-    logger.info()
+    # A blank separator line. `logger.info()` with no argument raises
+    # TypeError: this was a bare `print()` before 500491a (2026-09-02) and the
+    # conversion dropped the empty string. It is after the table and before the
+    # per-backend totals, so summarize.py printed its table and then died --
+    # on every machine, for nine days, with the totals block below never once
+    # reached. Nothing caught it because there was no test that ran this file.
+    logger.info("")
     for b in backends:
         rs = [r for r in rows if r["backend"] == b]
         passed = sum(bool(r.get("passed")) for r in rs)
@@ -146,8 +152,14 @@ def main():
             f"   timeouts {timeouts}"
         )
 
+    # Every other script that tees its output says where it went --
+    # `logger.info("log: %s", log_file)` in hardware_id.py, report.py,
+    # hf_sweep.py. This one captured the path and never reported it, which is
+    # the same broken tail: the crash above meant nothing after the table ran,
+    # so the variable sat unused and the trailing comment claimed a behavior
+    # that did not exist.
+    logger.info("log: %s", log_file)
 
-# (log path is reported by main)
 
 if __name__ == "__main__":
     main()

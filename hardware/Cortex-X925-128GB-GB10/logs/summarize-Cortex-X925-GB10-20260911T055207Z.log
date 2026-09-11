@@ -1,0 +1,17 @@
+2026-09-11T01:52:07-0400 INFO [fe89e3b-dirty@Cortex-X925-GB10 none pld=n/a] 2026-09-11T05:52:07Z (01:52:07 EDT) | harness fe89e3b-dirty
+2026-09-11T01:52:07-0400 INFO [fe89e3b-dirty@Cortex-X925-GB10 none pld=n/a]   machine: aarch64, ?, 20 cores, 121.7 GiB, NVIDIA GB10, [N/A], confinement none
+2026-09-11T01:52:07-0400 INFO [fe89e3b-dirty@Cortex-X925-GB10 none pld=n/a]   stack:   ds4 6289c51 | ollama 0.34.0
+2026-09-11T01:52:07-0400 INFO [fe89e3b-dirty@Cortex-X925-GB10 none pld=n/a] note: 1 row(s) set aside (marked excluded, or dry runs); see RESULTS.md provenance
+2026-09-11T01:52:07-0400 INFO [fe89e3b-dirty@Cortex-X925-GB10 none pld=n/a] task                    b1 pass         b1 median s   
+2026-09-11T01:52:07-0400 INFO [fe89e3b-dirty@Cortex-X925-GB10 none pld=n/a] mbox-scan               1/2             21.2s         
+2026-09-11T01:52:07-0400 INFO [fe89e3b-dirty@Cortex-X925-GB10 none pld=n/a] 
+2026-09-11T01:52:07-0400 INFO [fe89e3b-dirty@Cortex-X925-GB10 none pld=n/a] b1     1/2 passed   median 21.2s   median turns 6   timeouts 1
+2026-09-11T01:52:08-0400 INFO [fe89e3b-dirty@Cortex-X925-GB10 none pld=n/a] 2026-09-11T05:52:08Z (01:52:08 EDT) | harness fe89e3b-dirty
+2026-09-11T01:52:08-0400 INFO [fe89e3b-dirty@Cortex-X925-GB10 none pld=n/a]   machine: aarch64, ?, 20 cores, 121.7 GiB, NVIDIA GB10, [N/A], confinement none
+2026-09-11T01:52:08-0400 INFO [fe89e3b-dirty@Cortex-X925-GB10 none pld=n/a]   stack:   ds4 6289c51 | ollama 0.34.0
+2026-09-11T01:52:08-0400 INFO [fe89e3b-dirty@Cortex-X925-GB10 none pld=n/a] note: 1 row(s) set aside (marked excluded, or dry runs); see RESULTS.md provenance
+2026-09-11T01:52:08-0400 INFO [fe89e3b-dirty@Cortex-X925-GB10 none pld=n/a] | task | b1 pass | b1 median s |
+2026-09-11T01:52:08-0400 INFO [fe89e3b-dirty@Cortex-X925-GB10 none pld=n/a] |---|---|---|
+2026-09-11T01:52:08-0400 INFO [fe89e3b-dirty@Cortex-X925-GB10 none pld=n/a] | mbox-scan | 1/2 | 21.2s |
+2026-09-11T01:52:08-0400 INFO [fe89e3b-dirty@Cortex-X925-GB10 none pld=n/a] 
+2026-09-11T01:52:08-0400 INFO [fe89e3b-dirty@Cortex-X925-GB10 none pld=n/a] b1     1/2 passed   median 21.2s   median turns 6   timeouts 1

@@ -1,0 +1,17 @@
+2026-09-11T01:52:13-0400 INFO [fe89e3b-dirty@Cortex-X925-GB10 none pld=n/a] 2026-09-11T05:52:13Z (01:52:13 EDT) | harness fe89e3b-dirty
+2026-09-11T01:52:13-0400 INFO [fe89e3b-dirty@Cortex-X925-GB10 none pld=n/a]   machine: aarch64, ?, 20 cores, 121.7 GiB, NVIDIA GB10, [N/A], confinement none
+2026-09-11T01:52:13-0400 INFO [fe89e3b-dirty@Cortex-X925-GB10 none pld=n/a]   stack:   ds4 6289c51 | ollama 0.34.0
+2026-09-11T01:52:13-0400 INFO [fe89e3b-dirty@Cortex-X925-GB10 none pld=n/a] note: 10 row(s) set aside (marked excluded, or dry runs); see RESULTS.md provenance
+2026-09-11T01:52:13-0400 INFO [fe89e3b-dirty@Cortex-X925-GB10 none pld=n/a] task                    qwen36codinggguf pass  qwen36codinggguf median s
+2026-09-11T01:52:13-0400 INFO [fe89e3b-dirty@Cortex-X925-GB10 none pld=n/a] mbox-strip-envelope     1/1             140.7s        
+2026-09-11T01:52:13-0400 INFO [fe89e3b-dirty@Cortex-X925-GB10 none pld=n/a] parser-mbox-quoting     1/1             262.8s        
+2026-09-11T01:52:13-0400 INFO [fe89e3b-dirty@Cortex-X925-GB10 none pld=n/a] storage-blob-put        1/1             158.7s        
+2026-09-11T01:52:13-0400 INFO [fe89e3b-dirty@Cortex-X925-GB10 none pld=n/a] parser-date             1/1             150.4s        
+2026-09-11T01:52:13-0400 INFO [fe89e3b-dirty@Cortex-X925-GB10 none pld=n/a] mbox-scan               1/1             165.4s        
+2026-09-11T01:52:13-0400 INFO [fe89e3b-dirty@Cortex-X925-GB10 none pld=n/a] parser-mbox-quoting-nodoc  1/1             219.2s        
+2026-09-11T01:52:13-0400 INFO [fe89e3b-dirty@Cortex-X925-GB10 none pld=n/a] mbox-quoting-both-halves  1/1             249.0s        
+2026-09-11T01:52:13-0400 INFO [fe89e3b-dirty@Cortex-X925-GB10 none pld=n/a] storage-put-and-sweep   1/1             164.7s        
+2026-09-11T01:52:13-0400 INFO [fe89e3b-dirty@Cortex-X925-GB10 none pld=n/a] script-reverse          1/1             98.0s         
+2026-09-11T01:52:13-0400 INFO [fe89e3b-dirty@Cortex-X925-GB10 none pld=n/a] script-transform        1/1             215.5s        
+2026-09-11T01:52:13-0400 INFO [fe89e3b-dirty@Cortex-X925-GB10 none pld=n/a] 
+2026-09-11T01:52:13-0400 INFO [fe89e3b-dirty@Cortex-X925-GB10 none pld=n/a] qwen36codinggguf 10/10 passed   median 165.1s   median turns 11   timeouts 0
