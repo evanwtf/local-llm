@@ -224,13 +224,14 @@ def main() -> int:
     p.add_argument(
         "--slug",
         action="store_true",
-        help="print the short machine slug (the GitHub machine label) and nothing else",
+        help="print the bare machine slug (the GitHub label is hardware:<slug>) and nothing else",
     )
     args = p.parse_args()
 
     # --slug is meant to be captured in a shell substitution for a label query,
-    # so it prints the bare slug to stdout with no banner, log file, or stamp:
-    #   gh issue list --label "$(hardware_id.py --slug)"
+    # so it prints the bare slug to stdout with no banner, log file, or stamp.
+    # The machine label is that slug under the `hardware:` namespace (#302):
+    #   gh issue list --label "hardware:$(hardware_id.py --slug)"
     if args.slug:
         facts, platform = facts_for_this_machine()
         # A bare value for `$(...)` capture, so this is the one place that must

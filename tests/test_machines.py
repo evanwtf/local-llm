@@ -36,11 +36,15 @@ def test_every_hardware_directory_is_registered() -> None:
     )
 
 
-def test_slugs_are_unique_and_path_safe() -> None:
+def test_slugs_and_directories_are_unique_and_path_safe() -> None:
     """The slug is a label, a filename stamp and a prose token, so it must be
-    unique and carry no whitespace or path separator."""
+    unique and carry no whitespace or path separator. Two entries sharing a
+    directory would each claim the same machine's data, so directories are
+    unique too."""
     slugs = [m.slug for m in machines.MACHINES]
     assert len(slugs) == len(set(slugs)), slugs
+    directories = [m.directory for m in machines.MACHINES]
+    assert len(directories) == len(set(directories)), directories
     for slug in slugs:
         assert slug and not any(c.isspace() for c in slug), repr(slug)
         assert "/" not in slug and "\\" not in slug, repr(slug)
@@ -75,16 +79,32 @@ def test_the_generated_doc_is_current() -> None:
 
 
 def test_this_machine_if_managed_matches_its_registry_entry() -> None:
-    """Run on a managed box -- the DGX Spark, say -- this verifies the slug the
-    machine actually derives equals the registered one, catching a label that
-    was inferred from the directory rather than read from the hardware. On any
-    other machine (a CI runner, a dev laptop) it skips cleanly."""
+    """Run on a managed box -- the DGX Spark, say -- this catches a slug that
+    was inferred from the directory rather than read from the hardware.
+
+    It keys on the DIRECTORY, which is ground truth: the box generated it with
+    `directory_name`, and it is committed under `hardware/`. Keying on the slug
+    instead would defeat the purpose -- a wrong slug is simply not in the
+    registry, so `by_slug` returns None and the machine looks unmanaged, and the
+    test would skip exactly when it should fail. On an unmanaged machine (a CI
+    runner, a dev laptop) the directory is not registered, so it skips.
+    """
+    import hardware_id
     import provenance
 
     try:
-        slug = provenance.machine_slug()
+        facts, platform = hardware_id.facts_for_this_machine()
+        directory = hardware_id.directory_name(facts, platform)
+        derived_slug = hardware_id.short_slug(facts, platform)
     except Exception as exc:  # noqa: BLE001 -- a detection failure is a skip, not a failure
-        pytest.skip(f"cannot derive this machine's slug: {exc}")
-    if slug not in {m.slug for m in machines.MACHINES}:
-        pytest.skip(f"this machine ({slug}) is not one we manage")
-    assert (ROOT / "hardware" / machines.by_slug(slug).directory).is_dir()
+        pytest.skip(f"cannot identify this machine: {exc}")
+    entry = machines.by_directory(directory)
+    if entry is None:
+        pytest.skip(f"this machine ({directory}) is not one we manage")
+    assert derived_slug == entry.slug, (
+        f"registry slug {entry.slug!r} for {directory} does not match the slug "
+        f"the hardware derives ({derived_slug!r}) -- the registered slug is wrong"
+    )
+    # machine_slug() is what actually stamps logs and is the label's source, so
+    # pin it to the same value here rather than trusting it equals short_slug.
+    assert provenance.machine_slug() == entry.slug
