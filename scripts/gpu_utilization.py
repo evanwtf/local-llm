@@ -55,6 +55,56 @@ BUSY_OCCUPANCY = 50.0
 TARGET = 80.0
 
 
+def _dcgmi() -> dict:
+    """Temperature and power from dcgmi, which reports both more directly.
+
+    See docs/dcgmi.md. The profiling fields that would be genuinely better than
+    occupancy -- sm_active (1002), sm_occupancy (1003), tensor_active (1004),
+    dram_active (1005) -- are NOT available on this host: dcgmi answers
+    "Error setting watches. Result: -33: This request is serviced by a module of
+    DCGM that is not currently loaded". So this reads the fields that do work
+    and the busy decision still rests on power.
+
+    Needs sudo to reach the container's docker socket, so it is best-effort and
+    nvidia-smi remains the fallback.
+    """
+    try:
+        out = subprocess.run(
+            [
+                "sudo",
+                "-n",
+                "docker",
+                "exec",
+                "dcgm",
+                "dcgmi",
+                "dmon",
+                "-e",
+                "150,203,155",
+                "-c",
+                "1",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=25,
+            check=False,
+        ).stdout
+    except (OSError, subprocess.SubprocessError):
+        return {}
+    for line in out.splitlines():
+        parts = line.split()
+        if len(parts) >= 5 and parts[0] == "GPU":
+            try:
+                return {
+                    "temp_c": float(parts[2]),
+                    "occupancy": float(parts[3]),
+                    "watts": float(parts[4]),
+                    "source": "dcgmi",
+                }
+            except ValueError:
+                return {}
+    return {}
+
+
 def _query() -> dict:
     """One reading, or an empty dict when nvidia-smi cannot answer."""
     try:
@@ -117,18 +167,40 @@ def _resident_gib() -> float:
 
 
 def is_busy(sample: dict, idle_watts: float = IDLE_WATTS) -> bool:
-    """Real work, not a resident server and not a loading one misread as 96%."""
-    occ = sample.get("occupancy")
+    """Real work. **Power is the primary indicator, not occupancy.**
+
+    Measured on this GB10, and the numbers are unambiguous:
+
+        idle      9.4 W, 37 C, occupancy 0%
+        loading  36 W,   58 C, occupancy 96%   <- occupancy lies here
+        serving  35-81 W, 53-63 C
+
+    `utilization.gpu` is occupancy over time -- the fraction of the sample
+    window with at least one kernel resident -- so it reads 96% while a model is
+    merely being copied into memory, and it reads 0% mid-trial whenever an agent
+    is running a tool or a test suite rather than decoding. It is the wrong
+    primary signal in both directions.
+
+    Power separates the states cleanly: a ~4x gap between 9.4 W at rest and
+    35-81 W under any real work, with no overlap. Temperature corroborates
+    (37 C idle against 53-63 C busy) but lags by tens of seconds, so it is
+    recorded and reported, never used to decide.
+
+    Occupancy is kept only as a fallback for a machine where power is
+    unreadable.
+    """
     watts = sample.get("watts")
-    if occ is None or watts is None:
-        return False
-    return occ >= BUSY_OCCUPANCY and watts >= idle_watts
+    if watts is not None:
+        return watts >= idle_watts
+    occ = sample.get("occupancy")
+    return occ is not None and occ >= BUSY_OCCUPANCY
 
 
 def sample(path: pathlib.Path) -> dict:
-    got = _query()
+    got = _dcgmi() or _query()
     if not got:
         return {}
+    got.setdefault("source", "nvidia-smi")
     got["at"] = datetime.datetime.now().astimezone().strftime("%Y-%m-%dT%H:%M:%S%z")
     got["resident_gib"] = round(_resident_gib(), 1)
     got["busy"] = is_busy(got)
