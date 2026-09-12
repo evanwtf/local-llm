@@ -235,9 +235,20 @@ def report(rows: list[dict], hours: float, target: float = TARGET) -> dict:
     idle_resident = [
         r for r in rows if not r.get("busy") and (r.get("resident_gib") or 0) > 10
     ]
+    # The SPAN the samples actually cover, not the window that was requested.
+    # Reporting "over 24h" when the log holds twenty minutes is a lie by label:
+    # it invites a reader to treat a short, unrepresentative stretch as a day's
+    # worth of evidence. The requested window is kept separately as `asked_for`.
+    try:
+        stamps = sorted(datetime.datetime.fromisoformat(r["at"]) for r in rows)
+        span_h = (stamps[-1] - stamps[0]).total_seconds() / 3600
+    except (KeyError, ValueError):
+        span_h = 0.0
     return {
         "samples": len(rows),
-        "hours": hours,
+        "span_hours": round(span_h, 2),
+        "asked_for_hours": hours,
+        "enough_data": span_h >= hours * 0.8,
         "utilization": round(pct, 1),
         "target": target,
         "meets": pct >= target,
@@ -462,12 +473,17 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     verdict = "MEETS" if got["meets"] else "BELOW"
     logger.info(
-        "%s: %.1f%% busy over %.0fh (target %.0f%%), %d samples",
+        "%s: %.1f%% busy over the %.2fh these %d samples actually cover "
+        "(target %.0f%%, asked for %.0fh)%s",
         verdict,
         got["utilization"],
-        got["hours"],
-        got["target"],
+        got["span_hours"],
         got["samples"],
+        got["target"],
+        got["asked_for_hours"],
+        ""
+        if got["enough_data"]
+        else " -- NOT ENOUGH DATA, do not quote this as a daily figure",
     )
     if got["idle_with_a_server_resident"]:
         logger.warning(
