@@ -264,3 +264,66 @@ def test_a_refused_connection_is_unavailable_too() -> None:
     with pytest.raises(smoke.SmokeFailure) as excinfo:
         smoke.gate(BACKEND, "down", deadline=5, post=post)
     assert "did not answer" in str(excinfo.value)
+
+
+# --- the checks must not be passable by a function that ignores its input ----
+#
+# Until 2026-09-12 each smoke task asserted ONE case with a transcribed literal:
+# `assert reverse_string('hello') == 'olleh'`. A model returning a constant
+# cleared the gate whose whole job is catching a degraded model. Expectations
+# are now computed from reference implementations across several cases,
+# including the edges.
+
+
+def _fenced(body: str) -> str:
+    return f"```python\n{body}\n```"
+
+
+def _assertion(name: str) -> str:
+    return next(a for n, _p, a in smoke.SMOKE_TASKS if n == name)
+
+
+def test_a_constant_returning_reverse_is_refused():
+    """The exact cheat the old single assertion accepted."""
+    cheat = _fenced("def reverse_string(s): return 'olleh'")
+    assert not smoke.verify(cheat, _assertion("reverse"))
+    assert smoke.verify(
+        _fenced("def reverse_string(s): return s[::-1]"), _assertion("reverse")
+    )
+
+
+def test_a_constant_returning_merge_is_refused():
+    cheat = _fenced("def merge_sorted(a, b): return [1, 2, 3, 4, 5]")
+    assert not smoke.verify(cheat, _assertion("mergesorted"))
+    assert smoke.verify(
+        _fenced("def merge_sorted(a, b): return sorted(a + b)"),
+        _assertion("mergesorted"),
+    )
+
+
+def test_an_off_by_one_fib_is_refused():
+    assert not smoke.verify(_fenced("def fib(n): return n"), _assertion("fib"))
+    assert smoke.verify(
+        _fenced(
+            "def fib(n):\n"
+            "    a, b = 0, 1\n"
+            "    for _ in range(n):\n"
+            "        a, b = b, a + b\n"
+            "    return a"
+        ),
+        _assertion("fib"),
+    )
+
+
+def test_every_task_checks_more_than_one_case():
+    """One assertion is passable by a function that handles one input."""
+    for name, _prompt, assertion in smoke.SMOKE_TASKS:
+        lines = [ln for ln in assertion.splitlines() if ln.strip().startswith("assert")]
+        assert len(lines) >= 4, f"{name} has only {len(lines)} assertions"
+
+
+def test_the_edges_are_covered():
+    """Empty and single-element inputs are where a plausible answer breaks."""
+    assert "''" in _assertion("reverse")
+    assert "[]" in _assertion("mergesorted")
+    assert "fib(0)" in _assertion("fib")

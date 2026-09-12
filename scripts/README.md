@@ -43,6 +43,7 @@ documentation.
 | `fan_ab_report.py` | Read a `fan_ab.py` run: does forced cooling change anything? #276 (parent #116) |
 | `gen_equiv_fixtures.py` | Generate the argv/env equivalence fixtures for the #235 port. #235, #264, #149 |
 | `gguf_meta.py` | Print a GGUF file's metadata without loading the model. |
+| `gpu_utilization.py` | Record what the GPU is actually doing, and say whether the box is earning it. |
 | `greedy_mtp_ab.py` | The first ds4 MTP arm that can actually draft, against its own control. |
 | `hardware_id.py` | Derive a machine's results-directory name from the machine itself. |
 | `hf_sweep.py` | Watch Hugging Face for new quants of the models we actually run. |
@@ -56,6 +57,7 @@ documentation.
 | `make_next.py` | Generate NEXT.md from the open issues, so the queue cannot drift or bloat. |
 | `make_scripts_readme.py` | Generate scripts/README.md from each script's own first docstring line. |
 | `metal_knob_ab.py` | Paired decode-rate A/B for one Metal knob env var within one tree. #162 |
+| `model_probe.py` | Check a served model's answers in code, never by reading them. |
 | `mtp_draft_audit.py` | Audit an MTP arm's drafting counters: the server log beside the ledger. |
 | `mtp_engagement.py` | Does the engine engage MTP on the traffic we actually send it? (#148, #151) |
 | `mtp_log_split.py` | Did MTP draft during the batch, or only before it? (#39, #151, #210) |

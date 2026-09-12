@@ -67,6 +67,67 @@ DEADLINE_SECONDS = 300
 # needs more room is warned about rather than refused.
 MAX_TOKENS = 4000
 
+# --- the hidden checks -------------------------------------------------------
+#
+# Every expectation is COMPUTED from a reference implementation, never typed.
+# On 2026-09-12 a thinking-off probe returned `kramdetneb` for "reverse
+# benchmark" and it was accepted by eye; `"benchmark"[::-1]` is `kramhcneb`. A
+# transcribed literal can be mistyped in a way that still looks plausible, and
+# the failure mode of a wrong expectation is that a wrong answer passes.
+#
+# The model never sees any of this. It sees the prompt; the assertions are
+# built here and exec'd against whatever code it returned.
+#
+# Several cases per task, including the edges, because a single assertion is
+# passable by a function that handles one input. The empty string, the
+# single character, the already-sorted pair and the duplicate-bearing lists
+# are the cases a plausible-but-wrong implementation gets wrong.
+
+
+def _assert_lines(calls: list[tuple[str, tuple, object]]) -> str:
+    """`assert f(args) == expected` for each case, expectation computed."""
+    return "\n".join(
+        f"assert {fn}({', '.join(repr(a) for a in args)}) == {want!r}, "
+        f"{fn + str(args)!r}"
+        for fn, args, want in calls
+    )
+
+
+def _reverse_cases() -> str:
+    words = ["hello", "", "a", "racecar", "Mixed Case 123", "benchmark"]
+    return _assert_lines([("reverse_string", (w,), w[::-1]) for w in words])
+
+
+def _fib_reference(n: int) -> int:
+    a, b = 0, 1
+    for _ in range(n):
+        a, b = b, a + b
+    return a
+
+
+def _fib_cases() -> str:
+    # Kept to n <= 20: a naive exponential implementation is correct and must
+    # not time out, which would report a capability failure that is not one.
+    # 6 is deliberately absent: the prompt demonstrates fib(6), and an
+    # assertion over the demonstrated case is passable by a model that
+    # hardcodes the example. test_examples_never_reuse_the_assertion_inputs
+    # caught exactly that when 6 was in this list.
+    return _assert_lines(
+        [("fib", (n,), _fib_reference(n)) for n in (0, 1, 2, 7, 10, 20)]
+    )
+
+
+def _merge_cases() -> str:
+    pairs = [
+        ([1, 3, 5], [2, 4]),
+        ([], []),
+        ([], [1, 2]),
+        ([1, 1, 2], [1, 3]),
+        ([1, 2, 3], [4, 5]),
+    ]
+    return _assert_lines([("merge_sorted", (a, b), sorted(a + b)) for a, b in pairs])
+
+
 SMOKE_TASKS: tuple[tuple[str, str, str], ...] = (
     (
         "reverse",
@@ -76,7 +137,7 @@ SMOKE_TASKS: tuple[tuple[str, str, str], ...] = (
             "Reply with the function in a single ```python code block and "
             "nothing else."
         ),
-        "assert reverse_string('hello') == 'olleh'",
+        _reverse_cases(),
     ),
     (
         "fib",
@@ -87,7 +148,7 @@ SMOKE_TASKS: tuple[tuple[str, str, str], ...] = (
             "Reply with the function in a single ```python code block and "
             "nothing else."
         ),
-        "assert fib(0) == 0 and fib(1) == 1 and fib(10) == 55",
+        _fib_cases(),
     ),
     (
         "mergesorted",
@@ -98,7 +159,7 @@ SMOKE_TASKS: tuple[tuple[str, str, str], ...] = (
             "Reply with the function in a single ```python code block and "
             "nothing else."
         ),
-        "assert merge_sorted([1, 3, 5], [2, 4]) == [1, 2, 3, 4, 5]",
+        _merge_cases(),
     ),
 )
 
