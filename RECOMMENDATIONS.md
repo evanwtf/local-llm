@@ -2,9 +2,15 @@
 
 **A local coding agent on an Apple Silicon Mac, when you cannot or will not
 use a hosted provider.** Every number was measured by `benchmarks/agent/` on
-one machine — an **M5 Max, 128 GB** — and re-read from the ledger 2026-09-08.
-Nothing here is from a model card. Paste section 1, pick a row in 2, or run
-one script in 3; the rest moved to [`docs/`](#where-the-rest-of-it-went).
+one machine — an **M5 Max, 128 GB, macOS 26**. Nothing here is from a model
+card. Paste section 1, pick a row in 2, or run one script in 3; the rest moved
+to [`docs/`](#where-the-rest-of-it-went).
+
+**Ledger last read 2026-09-10; ranking re-verified 2026-09-12.** These numbers
+are a **pre-macOS-27 baseline**
+([#306](https://github.com/evanwtf/local-llm/issues/306)) — re-validate after
+that upgrade. A read date more than a couple of weeks old means re-check the
+ledger before trusting the rows.
 
 ---
 
@@ -75,6 +81,13 @@ position orders agreed. This **reverses #191's 2026-09-08 dead heat**: the
 `perf(qwen4)` batch in mlx-serve 26.9.2 roughly halved its own wall since
 26.9.1, and ds4's newer head (`6c1e8367`, #228) narrowed but did not close the
 gap.
+
+**The 34% is aging — re-run it before trusting it.** That A/B used ds4 at
+`6c1e8367`. ds4 has since gained prefill work never re-tested head-to-head:
+level-2 MoE tiles (+17–23% appended prefill on the `kimat` pack, now the
+promoted default, [#328](https://github.com/evanwtf/local-llm/issues/328)) and
+continued [#952](https://github.com/evanwtf/local-llm/issues/952). Treat the
+gap as current only until it is re-measured against the current ds4 head.
 
 **It is a full-stack result, and that is the right way to read it.** Engine,
 quantization and speculative decoding move together: mlx-serve speculates by

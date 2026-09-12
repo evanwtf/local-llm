@@ -9,6 +9,7 @@ Regenerate with: uv run python benchmarks/agent/splice_tables.py
 
 from __future__ import annotations
 
+import datetime
 import json
 import pathlib
 import re
@@ -76,6 +77,31 @@ def test_the_markers_survive() -> None:
 def test_the_dir_flag_is_taught() -> None:
     """Omitting --dir is silent and ruins the run; a reader must be told."""
     assert "--dir" in DOC.read_text()
+
+
+def test_the_document_carries_a_valid_dated_marker() -> None:
+    """A file with no visible date hides its own staleness: a reader cannot
+    tell a fresh measurement from a three-month-old one. Require an explicit
+    `Ledger last read YYYY-MM-DD` marker, and require it to be a real,
+    non-future date so the marker cannot rot into a placeholder that still
+    reads as current. The staleness threshold stays a human's to judge -- the
+    marker exists so a reader sees the age, deliberately not so CI fails on a
+    calendar and blocks unrelated work."""
+    doc = DOC.read_text()
+    m = re.search(r"Ledger last read (\d{4}-\d{2}-\d{2})", doc)
+    assert m, (
+        "RECOMMENDATIONS.md has no 'Ledger last read YYYY-MM-DD' marker; "
+        "without it the file cannot show its own staleness."
+    )
+    read = datetime.date.fromisoformat(m.group(1))
+    # A day of grace: the marker is stamped in local time and CI runs in UTC,
+    # so a same-day boundary must not read as "the future". A real typo (a
+    # wrong year) is still caught.
+    today_utc = datetime.datetime.now(tz=datetime.UTC).date()
+    assert read <= today_utc + datetime.timedelta(days=1), (
+        f"the ledger-read date {read} is in the future -- a typo reads as "
+        "fresher than any real measurement."
+    )
 
 
 @pytest.mark.skipif(not HAS_LOCAL_RESULTS, reason=SKIP_NO_RESULTS)
