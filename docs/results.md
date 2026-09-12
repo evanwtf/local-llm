@@ -59,7 +59,7 @@ other is telling you something.
 
 ### Cortex-X925-128GB-GB10
 
-*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 237 rows, sha256 aa6bce98c74e.*
+*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 250 rows, sha256 10b93ede0e87.*
 
 #### Every stack measured under OpenCode
 
@@ -72,6 +72,7 @@ other is telling you something.
 | qwen36nvfp4dgx | 30/30 | 179s | 545s | 6.5x |
 | qwen36nvfp4v1dgx | 29/30 | 190s | 832s | 12.3x |
 | nemotroncascade2 | 2/10 | 197s | 197s | 1.0x |
+| qwen36nvfp4specdgx | 9/13 | 236s | 984s | 21.9x |
 | ds4dgx | 20/20 | 236s | 364s | 3.6x |
 | qwen36bf16dgx | 30/30 | 432s | 1335s | 6.7x |
 | nemotron3nano | 8/10 | 580s | 1212s | 8.5x |
@@ -90,6 +91,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | qwen36codinggguf | 70s |
 | ds4dgx | 87s |
 | qwen36nvfp4dgx | 147s |
+| qwen36nvfp4specdgx | 147s |
 | qwen36nvfp4v1dgx | 160s |
 | qwen36bf16dgx | 409s |
 
