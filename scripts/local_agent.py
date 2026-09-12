@@ -466,6 +466,13 @@ def server_command(stack: Stack) -> list[str]:
             str(stack.ctx),
             "-np",
             "1",
+            # Prometheus-compatible metrics on the same port as the API,
+            # disabled by default in llama.cpp. Costs nothing when nobody
+            # scrapes it, and it is the only way to read this engine's own
+            # prefill and decode timings rather than inferring them from a
+            # caller's wall clock. vLLM exposes its equivalent unconditionally;
+            # ds4 has no endpoint at all, so its numbers must come from stderr.
+            "--metrics",
             "--temp",
             "1.0",
             "--top-p",
