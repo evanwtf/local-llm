@@ -91,6 +91,15 @@ class Arm:
     kv: pathlib.Path | None = None
     flags: str = ""
     run_flags: str = ""
+    # Per-arm server environment. `env` sets vars, `unset` removes them. Both
+    # are needed and neither substitutes for the other: an arm defined by a var
+    # being ABSENT cannot be expressed as a dict (a `=0` is not the same state),
+    # which is the #149 withheld-arm distinction. child.run merges `env` into
+    # os.environ and pops `unset`, so a partial dict is additive. This is what
+    # lets two arms differ by one within-tree env var -- e.g. the promoted
+    # DS4_QWEN4_MOE_MM_NAX default (unset) against the compensated tiles (=5).
+    env: dict[str, str] = dataclasses.field(default_factory=dict)
+    unset: tuple[str, ...] = ()
     mlx_model: pathlib.Path | None = None
     mlx_port: int = MLX_PORT
     mlx_bin: str = MLX_SERVE
@@ -331,6 +340,11 @@ def describe(new: Arm, old: Arm, *, sweeps: int) -> str:
         lines.append(
             f"{label} flags={arm.flags or '<none>'}  run.py={arm.run_flags or '<none>'}"
         )
+        if arm.env or arm.unset:
+            env_str = " ".join(f"{k}={v}" for k, v in arm.env.items()) or "<none>"
+            lines.append(
+                f"{label} env={env_str}  unset={' '.join(arm.unset) or '<none>'}"
+            )
         lines.append(f"{label} server: {' '.join(server_argv(arm))}")
     lines.append(f"# {attribution(new, old)}")
     return "\n".join(lines) + "\n"

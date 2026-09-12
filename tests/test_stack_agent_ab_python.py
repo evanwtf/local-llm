@@ -70,6 +70,37 @@ def test_every_override_the_shell_had_still_works(monkeypatch) -> None:
     assert old.run_flags == "--no-require-draft"
 
 
+def test_per_arm_env_and_unset_from_the_environment() -> None:
+    # The level-2 vs compensated tile A/B: one within-tree env var, two states.
+    # The promoted default is DS4_QWEN4_MOE_MM_NAX UNSET (level 2); the other
+    # arm sets it to 5 (compensated). `=0` would be a third state (simdgroup
+    # off), so UNSET is not the same as ENV="...=0".
+    os.environ["NEW_UNSET"] = "DS4_QWEN4_MOE_MM_NAX"
+    os.environ["OLD_ENV"] = "DS4_QWEN4_MOE_MM_NAX=5"
+    try:
+        new, old = sab.arm_from_env("NEW"), sab.arm_from_env("OLD")
+    finally:
+        del os.environ["NEW_UNSET"], os.environ["OLD_ENV"]
+    assert new.unset == ("DS4_QWEN4_MOE_MM_NAX",) and new.env == {}
+    assert old.env == {"DS4_QWEN4_MOE_MM_NAX": "5"} and old.unset == ()
+
+
+def test_env_and_unset_default_empty() -> None:
+    arm = sab.arm_from_env("NEW")
+    assert arm.env == {} and arm.unset == ()
+
+
+def test_env_token_without_equals_is_refused() -> None:
+    # A bare var name is almost always meant for *_UNSET; dropping it silently
+    # would run an arm missing the treatment it was configured with.
+    with pytest.raises(ValueError, match="not KEY=VALUE"):
+        sab._parse_env("DS4_QWEN4_MOE_MM_NAX")
+
+
+def test_a_quoted_env_value_survives_splitting() -> None:
+    assert sab._parse_env('A=1 B="two words"') == {"A": "1", "B": "two words"}
+
+
 # ------------------------------------------------------------------- guards
 
 
