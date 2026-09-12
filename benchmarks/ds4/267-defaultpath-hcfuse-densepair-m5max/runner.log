@@ -1,0 +1,13 @@
+>>> 07:08:39Z arm=default -> default-rep1.csv
+    done 07:09:34Z
+>>> 07:09:34Z arm=rollback -> rollback-rep1.csv
+    done 07:10:23Z
+>>> 07:10:23Z arm=rollback -> rollback-rep2.csv
+    done 07:11:13Z
+>>> 07:11:13Z arm=default -> default-rep2.csv
+    done 07:12:05Z
+>>> 07:12:05Z arm=default -> default-rep3.csv
+    done 07:12:58Z
+>>> 07:12:58Z arm=rollback -> rollback-rep3.csv
+    done 07:13:52Z
+DEFAULTPATH COMPLETE 07:13:52Z
