@@ -3274,7 +3274,10 @@ def one_trial(
     return result
 
 
-def main():
+def build_parser():
+    """The CLI parser, extracted so a test can introspect its choices. #319
+    added a reader engine to DraftProbe.SOURCES but not to --draft-log-engine,
+    and nothing could catch that while the parser lived inside main()."""
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("--trials", type=int, default=1)
     p.add_argument("--backend", action="append", help="repeatable; default all")
@@ -3394,12 +3397,19 @@ def main():
     )
     p.add_argument(
         "--draft-log-engine",
-        choices=["ds4", "mtplx"],
+        # Derived from the reader registry, not a hand-kept literal: #319 added
+        # "vllm" to DraftProbe.SOURCES but not to a literal choices list here,
+        # so `--draft-log-engine vllm` failed argument parsing and the vLLM
+        # probe was unreachable. Deriving the choices makes that drift
+        # impossible -- a new reader engine is a valid choice automatically.
+        choices=sorted(DraftProbe.SOURCES),
         default="ds4",
-        help="which engine wrote --server-log. The two count differently -- "
-        "ds4's `committed` includes a first token verified for free and mtplx's "
-        "exported counter already excludes it -- so the wrong choice silently "
-        "shifts every acceptance figure by one token per cycle.",
+        help="which engine wrote --server-log. ds4 and mtplx count differently "
+        "-- ds4's `committed` includes a first token verified for free and "
+        "mtplx's exported counter already excludes it -- so the wrong choice "
+        "silently shifts every acceptance figure by one token per cycle. `vllm` "
+        "reads the spec_decode counters from the server's /metrics endpoint, so "
+        "pass its base URL (not a file) as --server-log (#319).",
     )
     p.add_argument(
         "--require-draft",
@@ -3475,7 +3485,11 @@ def main():
         "read-out can select one batch exactly instead of approximating "
         "'the rows from this run' by time (#175).",
     )
-    args = p.parse_args()
+    return p
+
+
+def main():
+    args = build_parser().parse_args()
 
     if args.require_harness_head:
         want = args.require_harness_head

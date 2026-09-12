@@ -42,6 +42,26 @@ def test_counters_parse_out_of_labelled_float_rendered_lines():
     assert got == {"drafts": 713, "drafted": 3556, "accepted": 1615}
 
 
+# Two engine indices per metric, as a data-parallel or multi-engine vLLM
+# exports them. The proof figure is the total across engines.
+MULTI_ENGINE = """\
+vllm:spec_decode_num_drafts_total{engine="0",model_name="m"} 700.0
+vllm:spec_decode_num_drafts_total{engine="1",model_name="m"} 300.0
+vllm:spec_decode_num_draft_tokens_total{engine="0",model_name="m"} 3000.0
+vllm:spec_decode_num_draft_tokens_total{engine="1",model_name="m"} 1000.0
+vllm:spec_decode_num_accepted_tokens_total{engine="0",model_name="m"} 1200.0
+vllm:spec_decode_num_accepted_tokens_total{engine="1",model_name="m"} 400.0
+"""
+
+
+def test_parse_sums_every_engine_sample_not_just_the_first():
+    """A multi-engine server emits one line per engine index; reading only the
+    first (re.search) silently undercounts. The total is the figure #148
+    wants."""
+    got = vllm_spec.parse(MULTI_ENGINE)
+    assert got == {"drafts": 1000, "drafted": 4000, "accepted": 1600}
+
+
 def test_a_server_with_no_speculative_config_exports_no_family():
     assert vllm_spec.present(SCRAPE)
     assert not vllm_spec.present(NO_SPEC)
@@ -106,3 +126,14 @@ def test_a_url_probed_engine_keeps_its_base_url_intact():
     probe = run.DraftProbe("http://127.0.0.1:8030", "vllm")
     assert probe.path == "http://127.0.0.1:8030"
     assert probe.source == "vllm-spec-metrics"
+
+
+def test_the_cli_can_select_every_engine_the_probe_can_read():
+    """#319 review: the --draft-log-engine choices are derived from the reader
+    registry, so an engine DraftProbe can read is always a valid CLI choice.
+    'vllm' was added to SOURCES but not to the choices literal, making the vLLM
+    probe unreachable from the command line -- this pins the coupling."""
+    parser = run.build_parser()
+    for engine in run.DraftProbe.SOURCES:
+        args = parser.parse_args(["--draft-log-engine", engine])
+        assert args.draft_log_engine == engine

@@ -103,12 +103,22 @@ def parse(text: str) -> dict[str, int]:
         # `^name{labels} value` or `^name value`. float() because Prometheus
         # renders counters as floats ("713.0") even when they count whole
         # things; int() on that string raises.
-        m = re.search(
+        #
+        # Sum every matching sample, not just the first. A data-parallel or
+        # multi-engine vLLM exports one line per engine index --
+        # `...accepted_tokens_total{engine="0"} 40` and `{engine="1"} 37` --
+        # and `re.search` would read only engine 0 and silently undercount the
+        # rest. The total across engines is the figure the #148 assertion wants
+        # (#319). A single-engine server has one sample, so this is identical to
+        # the old behavior there.
+        total = 0
+        for m in re.finditer(
             rf"^{re.escape(metric)}(?:\{{[^}}]*\}})?\s+([0-9.eE+-]+)\s*$",
             text,
             re.MULTILINE,
-        )
-        got[key] = int(float(m.group(1))) if m else 0
+        ):
+            total += int(float(m.group(1)))
+        got[key] = total
     return got
 
 
