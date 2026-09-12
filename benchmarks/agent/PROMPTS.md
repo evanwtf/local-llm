@@ -25,14 +25,12 @@ Write a Python function reverse_string(s: str) -> str that reverses a string. Fo
 Checked with:
 
 ```python
-assert reverse_string("hello") == "olleh", "reverse_string('hello',)"
-assert reverse_string("") == "", "reverse_string('',)"
-assert reverse_string("a") == "a", "reverse_string('a',)"
-assert reverse_string("racecar") == "racecar", "reverse_string('racecar',)"
-assert reverse_string("Mixed Case 123") == "321 esaC dexiM", (
-    "reverse_string('Mixed Case 123',)"
-)
-assert reverse_string("benchmark") == "kramhcneb", "reverse_string('benchmark',)"
+assert reverse_string('hello') == 'olleh', "reverse_string('hello',)"
+assert reverse_string('') == '', "reverse_string('',)"
+assert reverse_string('a') == 'a', "reverse_string('a',)"
+assert reverse_string('racecar') == 'racecar', "reverse_string('racecar',)"
+assert reverse_string('Mixed Case 123') == '321 esaC dexiM', "reverse_string('Mixed Case 123',)"
+assert reverse_string('benchmark') == 'kramhcneb', "reverse_string('benchmark',)"
 ```
 
 ### `fib`
@@ -44,12 +42,12 @@ Write a Python function fib(n: int) -> int where fib(0) = 0, fib(1) = 1, and fib
 Checked with:
 
 ```python
-assert fib(0) == 0, "fib(0,)"
-assert fib(1) == 1, "fib(1,)"
-assert fib(2) == 1, "fib(2,)"
-assert fib(7) == 13, "fib(7,)"
-assert fib(10) == 55, "fib(10,)"
-assert fib(20) == 6765, "fib(20,)"
+assert fib(0) == 0, 'fib(0,)'
+assert fib(1) == 1, 'fib(1,)'
+assert fib(2) == 1, 'fib(2,)'
+assert fib(7) == 13, 'fib(7,)'
+assert fib(10) == 55, 'fib(10,)'
+assert fib(20) == 6765, 'fib(20,)'
 ```
 
 ### `mergesorted`
@@ -61,17 +59,11 @@ Write a Python function merge_sorted(a: list, b: list) -> list that merges two s
 Checked with:
 
 ```python
-assert merge_sorted([1, 3, 5], [2, 4]) == [1, 2, 3, 4, 5], (
-    "merge_sorted([1, 3, 5], [2, 4])"
-)
-assert merge_sorted([], []) == [], "merge_sorted([], [])"
-assert merge_sorted([], [1, 2]) == [1, 2], "merge_sorted([], [1, 2])"
-assert merge_sorted([1, 1, 2], [1, 3]) == [1, 1, 1, 2, 3], (
-    "merge_sorted([1, 1, 2], [1, 3])"
-)
-assert merge_sorted([1, 2, 3], [4, 5]) == [1, 2, 3, 4, 5], (
-    "merge_sorted([1, 2, 3], [4, 5])"
-)
+assert merge_sorted([1, 3, 5], [2, 4]) == [1, 2, 3, 4, 5], 'merge_sorted([1, 3, 5], [2, 4])'
+assert merge_sorted([], []) == [], 'merge_sorted([], [])'
+assert merge_sorted([], [1, 2]) == [1, 2], 'merge_sorted([], [1, 2])'
+assert merge_sorted([1, 1, 2], [1, 3]) == [1, 1, 1, 2, 3], 'merge_sorted([1, 1, 2], [1, 3])'
+assert merge_sorted([1, 2, 3], [4, 5]) == [1, 2, 3, 4, 5], 'merge_sorted([1, 2, 3], [4, 5])'
 ```
 
 ## Agent tasks
