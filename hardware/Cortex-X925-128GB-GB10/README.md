@@ -13,6 +13,31 @@ Cortex-X925-128GB-GB10
 
 `128GB` is the installed size per the naming convention; the OS sees 121.7 GiB.
 
+## Mission — multipurpose, unlike the Mac
+
+The M5 Max exists for one thing: a local coding agent. **This machine's job is
+broader** (set 2026-09-11):
+
+- a **multipurpose LLM server**;
+- a **coding backend served over the network** to other machines — e.g. driven
+  from the MacBook Air over the LAN, not only a local agent (#308);
+- an **agent runtime (Hermes)**, served from here (#310);
+- **vision** — streaming outdoor security-camera footage to identify what the
+  dogs are doing outside, whether a package arrived, and similar (#309).
+
+Two consequences for what we evaluate on this box:
+
+- **Models widen beyond coding** — VLMs for the camera, and general chat/agent
+  models, not only coding models. The source-sweep must cover them (#307).
+- **Engines favor concurrent network serving and vision** — vLLM (see #299's
+  single-Spark NVFP4 recipe) over a single-stream local setup. **Aggregate
+  multi-stream throughput matters more than single-stream tok/s here** — the
+  opposite emphasis from the Mac.
+
+Priority weight `1.0` (tier-1, alongside the M5 Max; the Ryzen box is `0.3`).
+The workstreams are independent — no other machine competes for this one's
+resources.
+
 ## The two things the name cannot say
 
 **This is a DGX Spark.** A GB10 Grace-Blackwell superchip: 20 Arm Cortex-X925/A725

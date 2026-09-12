@@ -9,6 +9,15 @@ This file exists because the Apple-Silicon local-inference field moves faster
 than this project measures. Two engines shipped double-digit improvements in a
 48-hour window while our own docs still described a three-engine world (#60).
 
+**Two lanes now (#307).** Every account below the [DGX Spark
+sources](#dgx-spark-sources) heading is the **Mac lane** — judged by *would this
+change a number on an M5 Max, 128 GB, Metal?* The DGX Spark (GB10, CUDA) is a
+different field: NVFP4/FP8, vLLM and TensorRT-LLM, and aggregate multi-stream
+throughput rather than single-stream tok/s. Its sources are collected in their
+own section, and the sweep splits by `--platform` (see [Repositories to
+watch](#repositories-to-watch)). An account can sit in both lanes: several
+"leans NVIDIA, against us" notes below are now a reason to read, not to skip.
+
 ---
 
 ## Tier 1 — check every time
@@ -165,6 +174,52 @@ Where weights appear first.
 
 ---
 
+## DGX Spark sources
+
+**A new lane, not yet vetted (#307).** The DGX Spark's mission is broader than
+the Mac's — a multipurpose LLM server, a coding backend served over the network,
+a Hermes agent runtime, and camera vision (see the machine README). So the
+sources widen too: NVFP4/FP8 recipes, vLLM and SGLang serving, and aggregate
+multi-stream numbers that the Mac lane rules would discard as "CUDA, not for us".
+
+**Two accounts already in this file cross into this lane** — read them here too,
+not as "against us":
+
+* **@no_stp_on_snek** (Tier 2) — **owns a DGX Spark** and posts DeepSeek-V4-Flash
+  on it; ships `TheTom/llama-cpp-turboquant` with **CUDA** kernels. The "60/40
+  against us" note was the Mac lane talking; on the DGX lane it is the point.
+* **@0xSero** (Tier 2) — the low-bit / trellis quantization writeups target
+  **NVIDIA/vLLM**, and `deepseek-v4-flash-0731-spark-sparkinfer` pins our exact
+  checkpoint for the Spark. Mac lane: reasoning transfers, kernels do not. DGX
+  lane: the kernels transfer too.
+* **@Brooooook_lyn** (Tier 2) and **@bleysg** (Tier 3) post Mac-vs-Spark
+  comparisons — now a source of Spark numbers, not just an argument.
+
+**Unverified leads, gathered 2026-09-11**
+(`logs/sweeps/grok-dgx-accounts-20260911T222500Z.txt`). These handles posted
+single-Spark results in the days to 2026-09-11. **None is verified** — run
+`scripts/verify_posts.py` on each before promoting it to a tiered entry, exactly
+as #152 and the 2026-09-06 batch were resolved. Recorded here as a starting
+point for the first DGX source sweep, not as vetted sources:
+
+| handle | claim (unverified) |
+|---|---|
+| [@Oluwaphilemon1](https://x.com/Oluwaphilemon1) | Qwen3.8-27B single Spark 71.5 tok/s (NVFP4 drafter, D=16, FP8 KV); Flash-Next 273 tok/s aggregate at 8 streams |
+| [@MiaAI_lab](https://x.com/MiaAI_lab) / [@apikey_official](https://x.com/apikey_official) | single-Spark Flash-Next recipe, 47 tok/s decode, +24.7% 8k prefill; model-choice guidance for 1x vs 2x+ |
+| [@HealthRanger](https://x.com/HealthRanger) | SGLang + NVFP4 Qwen3.8-27B + DFlash2, 413 tok/s aggregate across 16 lanes |
+| [@0xBakeer](https://x.com/0xBakeer) | DeepSeek V4.1 Flash on one 128 GB Spark via a custom ~4-bit engine, 20.85 tok/s greedy |
+| [@filicroval](https://x.com/filicroval) | Flash-Next 63.11 tok/s weighted decode, draftless ngram speculation, vision on |
+| [@ksuniri](https://x.com/ksuniri) | Hermes driven by Qwen3.8 Flash on a Spark, stable under long concurrent decode |
+| [@jimmycheng722](https://x.com/jimmycheng722) · [@shantanugoel](https://x.com/shantanugoel) · [@MarkusEicher70](https://x.com/MarkusEicher70) | daily-driver / agent-TUI reports on a single home Spark |
+
+**The same caveats apply, harder.** These are aggregate and single-stream decode
+rates, which this project has measured three times as non-predictive of agent
+wall time — leads to test on our own Spark, not numbers to repeat. And a
+company/marketing account (e.g. @apikey_official, @MiaAI_lab) needs the "read
+the repo, not the feed" filter before it earns a tier.
+
+---
+
 ## Read the repo, not the feed
 
 This file is organised around X because that is where most of this field
@@ -187,24 +242,32 @@ Bertaux Florian, Paris. **He does have an X account — @_LEFBE** — which this
 
 ## Repositories to watch
 
-**Every repo this project depends on, in one place.** X is where the field
-announces itself; GitHub is where it ships. The 2026-09-01 sweep found the fact
-that mattered most that day -- `qwen4exp` is Qwen3.8-Flash-Next, so llama.cpp
-commits under that name are work on our own fast pick -- and it nearly missed
-two repos because this file linked authors' profiles rather than their code.
+**Every repo this project depends on, in one place**, tagged by machine (#307).
+X is where the field announces itself; GitHub is where it ships. The 2026-09-01
+sweep found the fact that mattered most that day -- `qwen4exp` is
+Qwen3.8-Flash-Next, so llama.cpp commits under that name are work on our own
+fast pick -- and it nearly missed two repos because this file linked authors'
+profiles rather than their code.
 
-Run it rather than reading it:
+Run it rather than reading it. `--platform` picks a lane -- the Mac's Metal and
+MLX engines, the DGX Spark's CUDA serving stack, or both:
 
 ```sh
-uv run python scripts/upstream_sweep.py --hours 24
-uv run python scripts/upstream_sweep.py --hours 168 --quiet-empty   # a week
+uv run python scripts/upstream_sweep.py --hours 24                   # both lanes
+uv run python scripts/upstream_sweep.py --hours 168 --quiet-empty    # a week
+uv run python scripts/upstream_sweep.py --hours 24 --platform dgx    # DGX only
 ```
 
-The script's `WATCHED` dict is the source of truth and a test fails if this
-list drifts from it. It reports releases and commit subjects, and it says
-explicitly when a repo is **unreachable** -- a renamed or private repo
-otherwise looks exactly like a quiet one, and "nothing happened upstream" is
-the wrong conclusion to draw from an auth failure.
+The script's `WATCHED` dict is the source of truth, and
+`benchmarks/agent/test_sources.py` fails if this list drifts from it. It reports
+releases and commit subjects, and it says explicitly when a repo is
+**unreachable** -- a renamed or private repo otherwise looks exactly like a
+quiet one, and "nothing happened upstream" is the wrong conclusion to draw from
+an auth failure.
+
+### Both machines
+
+The engine runs on the Mac and on the DGX, or the repo belongs to no machine.
 
 * **[`antirez/ds4`](https://github.com/antirez/ds4)**  
 our primary engine; the only one that runs DeepSeek-V4-Flash and GLM-5.3
@@ -213,7 +276,7 @@ our primary engine; the only one that runs DeepSeek-V4-Flash and GLM-5.3
 our fast pick's engine; `qwen4exp` IS Qwen3.8-Flash-Next
 
 * **[`ollama/ollama`](https://github.com/ollama/ollama)**  
-the 31 GB entry point, and our only MLX runtime
+the 31 GB entry point; MLX runtime on the Mac, cuda_v13 on the DGX
 
 * **[`anomalyco/opencode`](https://github.com/anomalyco/opencode)**  
 our only client
@@ -226,6 +289,11 @@ the excision tasks' target repository
 
 * **[`evanwtf/ds4`](https://github.com/evanwtf/ds4)**  
 our ds4 fork (#27 asks whether it can be retired)
+
+### Mac only -- Metal and MLX
+
+These have no meaning on the DGX: MLX ships no Linux arm64 runtime (#293), and
+Metal is Apple-only.
 
 * **[`ml-explore/mlx`](https://github.com/ml-explore/mlx)**  
 the framework everything MLX sits on
@@ -262,6 +330,21 @@ MLX Fast leaderboard harness (#80)
 
 * **[`trymirai/uzu`](https://github.com/trymirai/uzu)**  
 Apple-only Rust engine, reachable by pip; claims 2x MTPLX (#134)
+
+### DGX Spark only -- the CUDA serving stack
+
+The path to NVFP4/FP8 on Blackwell that Ollama on Linux cannot reach (#293).
+The DGX's emphasis is aggregate multi-stream throughput, so these matter more
+here than a single-stream Mac (#307, #299).
+
+* **[`vllm-project/vllm`](https://github.com/vllm-project/vllm)**  
+NVFP4/FP8 serving on Blackwell; the #299 single-Spark recipe
+
+* **[`NVIDIA/TensorRT-LLM`](https://github.com/NVIDIA/TensorRT-LLM)**  
+the other CUDA-native path to NVFP4 on the Spark (#293, #299)
+
+* **[`sgl-project/sglang`](https://github.com/sgl-project/sglang)**  
+aggregate multi-stream serving; the DGX's throughput emphasis (#307)
 
 **Read commits, not activity counts.** A branch can be busy with vision and
 ROCm work that is out of scope here, and a two-commit day can carry the one

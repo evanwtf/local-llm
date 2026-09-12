@@ -59,7 +59,7 @@ other is telling you something.
 
 ### Cortex-X925-128GB-GB10
 
-*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 145 rows, sha256 5fdb289d2fc3.*
+*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 207 rows, sha256 7defb762368c.*
 
 #### Every stack measured under OpenCode
 
@@ -69,8 +69,10 @@ other is telling you something.
 |---|---|---|---|---|
 | qwen38fnq3dgx | 30/30 | 127s | 315s | 6.6x |
 | qwen36codinggguf | 29/30 | 162s | 221s | 3.2x |
+| qwen36nvfp4dgx | 30/30 | 179s | 545s | 6.5x |
 | nemotroncascade2 | 2/10 | 197s | 197s | 1.0x |
 | ds4dgx | 20/20 | 236s | 364s | 3.6x |
+| qwen36bf16dgx | 30/30 | 432s | 1335s | 6.7x |
 | nemotron3nano | 8/10 | 580s | 1212s | 8.5x |
 | nemotron33 | 1/10 | — | — | — |
 
@@ -86,10 +88,12 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | qwen38fnq3dgx | 55s |
 | qwen36codinggguf | 70s |
 | ds4dgx | 87s |
+| qwen36nvfp4dgx | 147s |
+| qwen36bf16dgx | 409s |
 
 ### MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A
 
-*Generated from `hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/results.jsonl` — 2426 rows, sha256 66f2a52d5c8a.*
+*Generated from `hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/results.jsonl` — 2565 rows, sha256 f01b2d48ac3a.*
 
 #### Every stack measured under OpenCode
 

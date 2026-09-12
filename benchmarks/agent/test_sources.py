@@ -29,10 +29,15 @@ def test_every_watched_repo_is_documented(doc):
 
 
 def test_every_watched_repo_says_why(doc):
-    """A list of repos with no reasons is a second inbox, not a tool."""
-    for repo, why in WATCHED.items():
+    """A list of repos with no reasons is a second inbox, not a tool.
+
+    Since #307 a WATCHED value is `(why, platforms)`: the reason is documented,
+    and the platform tag says which machine's lane the repo is in.
+    """
+    for repo, (why, platforms) in WATCHED.items():
         assert why.strip(), repo
         assert why in doc, repo
+        assert platforms and set(platforms) <= {"mac", "dgx"}, repo
 
 
 def test_the_engines_we_actually_run_are_watched():
@@ -44,6 +49,15 @@ def test_the_engines_we_actually_run_are_watched():
         "anomalyco/opencode",
     ):
         assert repo in WATCHED, repo
+
+
+def test_the_dgx_cuda_serving_stack_is_watched_on_the_dgx_lane():
+    """#307: the DGX Spark reaches NVFP4/FP8 only through a CUDA-native engine.
+    Guard against a silent revert of the three that were added."""
+    for repo in ("vllm-project/vllm", "NVIDIA/TensorRT-LLM", "sgl-project/sglang"):
+        assert repo in WATCHED, repo
+        _why, platforms = WATCHED[repo]
+        assert "dgx" in platforms and "mac" not in platforms, repo
 
 
 def test_the_target_repo_is_watched():

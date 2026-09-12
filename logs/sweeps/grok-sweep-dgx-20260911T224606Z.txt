@@ -1,0 +1,64 @@
+# grok sweep -- dgx lane
+# requested window: last 24 hours
+# written:  2026-09-11T22:46:06Z  (local: 2026-09-11 18:46:06 EDT)
+# query:    Search X for posts and replies from @Oluwaphilemon1, @MiaAI_lab, @apikey_official, @HealthRanger, @0xBakeer, @filicroval, @ksuniri, @jimmycheng722, @shantanugoel, @MarkusEicher70, @no_stp_on_snek, @0xSero, @Brooooook_lyn, @bleysg in the last 24 hours about running local LLMs on an NVIDIA DGX Spark (GB10, CUDA, 128GB unified): NVFP4 or FP8 quantization, vLLM, TensorRT-LLM, SGLang, aggregate multi-stream throughput, single-Spark recipes for Qwen3.8-Flash-Next / DeepSeek-V4-Flash / GLM-5.3-Flash, Nemotron, and agent runtimes. Output ONE bullet per post and nothing else -- no preamble, no summary: - <UTC timestamp> | @handle | <post URL> | <the claim in one sentence>. Omit any item without both a URL and a UTC timestamp. If nothing matches, output exactly: NO RESULTS
+
+I'll search X for those accounts in the last 24 hours and keep only posts that have both a URL and a UTC timestamp.I’ll search those accounts with Spark/NVFP4 keywords and pull thread context so I only keep on-topic posts.- 2026-09-11T22:05:19Z | @MiaAI_lab | https://x.com/MiaAI_lab/status/2098533371592790270 | DeepSeek v4.1 Flash on 4 DGX Sparks performs well enough that Mia would just run that.
+- 2026-09-11T20:53:42Z | @MiaAI_lab | https://x.com/MiaAI_lab/status/2098515349733794062 | The 3x DGX Spark DeepSeek v4.1 Flash setup is ring topology and needs no switch.
+- 2026-09-11T20:47:39Z | @MiaAI_lab | https://x.com/MiaAI_lab/status/2098513827222409261 | The DeepSeek v4.1 Flash Spark recipe does not care whether a switch is present.
+- 2026-09-11T20:24:19Z | @MiaAI_lab | https://x.com/MiaAI_lab/status/2098507953309438118 | DeepSeek v4.1 Flash on 3x DGX Sparks reached 69 tok/s on a single stream for a real agentic task.
+- 2026-09-11T20:24:19Z | @MiaAI_lab | https://x.com/MiaAI_lab/status/2098507956346138954 | Four Sparks should be faster, and the same GitHub repo covers both 3- and 4-Spark DeepSeek v4.1 Flash.
+- 2026-09-11T19:30:40Z | @0xSero | https://x.com/0xSero/status/2098494453535097244 | DeepSeek v4.1 Flash is being run on 2 DGX Sparks with EXL3, aiming at a 2-Spark/2x RTX 6000 Pro fit via expert pruning.
+- 2026-09-11T19:00:49Z | @0xBakeer | https://x.com/0xBakeer/status/2098486943399006576 | Further quantization of DeepSeek v4.1 Flash probably will not work well because the shipped quant is already Q4.
+- 2026-09-11T18:41:53Z | @MiaAI_lab | https://x.com/MiaAI_lab/status/2098482178619310432 | A 2x DGX Spark recipe is coming soon.
+- 2026-09-11T18:24:07Z | @HealthRanger | https://x.com/HealthRanger/status/2098477704714813557 | Qwen3.8-27B on a 450W RTX 6000 Pro hit 2500+ tok/s across 77 shared-262K lanes with MTP and SGLang, claimed equal to about five DGX Sparks.
+- 2026-09-11T18:13:12Z | @HealthRanger | https://x.com/HealthRanger/status/2098474957625762139 | HealthRanger says the next stop after desktop Qwen3.8-27B work is two DGX Sparks.
+- 2026-09-11T17:45:28Z | @0xBakeer | https://x.com/0xBakeer/status/2098467979092492509 | On the single-Spark DeepSeek v4.1 engine, NVMe expert streaming measured 2.4 GB/s effective and only 3.5 tok/s, worse than keeping a resident expert subset.
+- 2026-09-11T17:17:13Z | @0xBakeer | https://x.com/0xBakeer/status/2098460870913228974 | A ~510 GB DeepSeek v4.1 Flash model on one 128 GB Spark went from 3 to 23 tok/s by shrinking weights, and is now memory-bandwidth bound.
+- 2026-09-11T17:16:00Z | @MiaAI_lab | https://x.com/MiaAI_lab/status/2098460563240100232 | With two DGX Sparks you can run GLM 5.3 Flash and are already in a good place.
+- 2026-09-11T15:28:55Z | @filicroval | https://x.com/filicroval/status/2098433613674975549 | Single-Spark Qwen3.8-Flash-Next: 32K cold TTFT 82.4s→46.8s, prefill 388→684 tok/s, default MTP-4 weighted decode 58.62→63.11 tok/s with 5/5 exact matches, and ngram-mod was a copy/transform accelerator not true decode.
+- 2026-09-11T14:48:00Z | @MiaAI_lab | https://x.com/MiaAI_lab/status/2098423316159619241 | DeepSeek v4 Flash remains one of the best models to run on two DGX Sparks after reliability and image-support updates.
+- 2026-09-11T14:46:37Z | @MiaAI_lab | https://x.com/MiaAI_lab/status/2098422971551322295 | Qwen3.8 Flash is fine on one Spark and does not need two units.
+- 2026-09-11T14:29:58Z | @0xBakeer | https://x.com/0xBakeer/status/2098418780506292325 | DeepSeek V4.1 Flash on a single DGX Spark measured 20.85 tok/s greedy, up from 15.2 that morning (WIP repo).
+- 2026-09-11T14:27:40Z | @jimmycheng722 | https://x.com/jimmycheng722/status/2098418201100980523 | Bakeer wrote a custom engine for V4.1 on one Spark, packing 288 GB of routed experts into 128 GB with no vLLM or SGLang.
+- 2026-09-11T14:23:33Z | @MiaAI_lab | https://x.com/MiaAI_lab/status/2098417163140763817 | For two Sparks, Mia names GLM 5.3 Flash.
+- 2026-09-11T14:19:33Z | @jimmycheng722 | https://x.com/jimmycheng722/status/2098416156725907838 | Antirez did V4 Flash on Metal and Bakeer did V4.1 on a Spark: same move, different box.
+- 2026-09-11T13:56:23Z | @jimmycheng722 | https://x.com/jimmycheng722/status/2098410326307778988 | The agent TUI is pi, the model is Mia's single-Spark Qwen3.8-Flash-Next recipe, and live stats come from an auto-loaded llm-stats.ts extension.
+- 2026-09-11T13:55:49Z | @filicroval | https://x.com/filicroval/status/2098410186180301136 | The single-Spark Flash-Next recipe is above 50 tok/s and being finalized.
+- 2026-09-11T13:35:01Z | @jimmycheng722 | https://x.com/jimmycheng722/status/2098404951340851661 | Qwen3.8-Flash-Next on one DGX Spark returns short-context agent turns at about 45 tok/s in a local pi TUI with live TTFT/decode stats.
+- 2026-09-11T13:00:02Z | @apikey_official | https://x.com/apikey_official/status/2098396147891011972 | Mia's single-Spark Qwen3.8-Flash-Next recipe (125B MoE, 6B active) gained 24.7% 8k prefill (TTFT 3.74s) and 47 tok/s decode after a speculative-drafting bugfix, with gains through 256k.
+- 2026-09-11T12:37:20Z | @Oluwaphilemon1 | https://x.com/Oluwaphilemon1/status/2098390436645597351 | Under long concurrent load, DGX Spark decode stayed stable versus Mac Studio, watched via a DeepSeek Hermes / Qwen3.8 Flash dashboard.
+- 2026-09-11T12:33:03Z | @jimmycheng722 | https://x.com/jimmycheng722/status/2098389357954572533 | Single-lane tok/s is what most people care about on the Spark SGLang concurrency numbers.
+- 2026-09-11T12:16:58Z | @MiaAI_lab | https://x.com/MiaAI_lab/status/2098385309738082636 | Video of DeepSeek v4.1 Flash on 3x DGX Sparks with 4 concurrent streams.
+- 2026-09-11T12:14:29Z | @filicroval | https://x.com/filicroval/status/2098384684962975852 | Add Qwen3.8-27B as a solid single-Spark option and GLM 5.3 Flash for 3- and 4-Spark setups.
+- 2026-09-11T12:13:13Z | @jimmycheng722 | https://x.com/jimmycheng722/status/2098384365155655918 | Wants a DFlash2 drafter for Qwen3.8-Flash-Next on Spark because the default MTP is not good.
+- 2026-09-11T11:55:26Z | @0xBakeer | https://x.com/0xBakeer/status/2098379889590047131 | The single-Spark DeepSeek V4.1 engine is now at 13–21 tok/s, not the older slower state.
+- 2026-09-11T11:31:51Z | @MiaAI_lab | https://x.com/MiaAI_lab/status/2098373953286807553 | Spark recipes: 1x Qwen3.8-Flash-Next; 2x DeepSeek v4 Flash, GLM 5.3 Flash, or Qwen3.8 Flash; 3x DeepSeek v4.1 Flash TP3; 4x DeepSeek v4.1 Flash TP4.
+- 2026-09-11T11:23:10Z | @MiaAI_lab | https://x.com/MiaAI_lab/status/2098371770734485772 | DeepSeek v4.1 Flash on Sparks lives at github.com/MiaAI-Lab/DeepSeek-v4.1-Flash-DGX-Sparks.
+- 2026-09-11T11:08:39Z | @MiaAI_lab | https://x.com/MiaAI_lab/status/2098368116463906822 | Mia is currently running GLM on 2 Sparks.
+- 2026-09-11T10:58:44Z | @MiaAI_lab | https://x.com/MiaAI_lab/status/2098365621155016973 | Try the new DeepSeek v4.1 Flash recipe; it includes a TP4 path.
+- 2026-09-11T10:54:18Z | @MiaAI_lab | https://x.com/MiaAI_lab/status/2098364505289892073 | Qwen3.8-Flash is underrated for Spark.
+- 2026-09-11T10:54:16Z | @0xBakeer | https://x.com/0xBakeer/status/2098364497681432840 | Single-Spark DeepSeek V4.1 engine source: github.com/0xBakeer/deepseek-v41-flash-spark.
+- 2026-09-11T10:54:15Z | @0xBakeer | https://x.com/0xBakeer/status/2098364494355267907 | Decode on the single Spark is at 87% of the box’s memory bandwidth, so remaining gains are bytes not kernels.
+- 2026-09-11T10:54:13Z | @0xBakeer | https://x.com/0xBakeer/status/2098364486511915391 | 3-bit experts beat 4-bit at the same memory (6,260 vs 4,813 experts); GB10 is 101 GB/s at 32-byte tiles vs 218 at 128, and repacking the 3-bit kernel reached 182 GB/s.
+- 2026-09-11T10:54:12Z | @0xBakeer | https://x.com/0xBakeer/status/2098364482237947979 | SSD-streamed experts cap at 3.5 tok/s; keeping the top 31% resident is ~17 tok/s at 0.066 nats (code) / 0.19 nats (prose) quality cost.
+- 2026-09-11T10:54:12Z | @0xBakeer | https://x.com/0xBakeer/status/2098364479331344421 | Custom engine (no vLLM, no SGLang) runs DeepSeek V4.1 on one 128 GB Spark though routed experts alone are 288 GB and others use 4-Spark tensor parallel.
+- 2026-09-11T10:36:37Z | @0xBakeer | https://x.com/0xBakeer/status/2098360053791064545 | Same official DeepSeek quants on one Spark now yield 13–21 tok/s.
+- 2026-09-11T10:27:00Z | @MiaAI_lab | https://x.com/MiaAI_lab/status/2098357636030746918 | The 3x DeepSeek v4.1 Flash Spark repo also includes a TP4 path.
+- 2026-09-11T09:55:49Z | @MiaAI_lab | https://x.com/MiaAI_lab/status/2098349788672463176 | The 3x Spark DeepSeek v4.1 Flash recipe was stress-tested with concurrent long prefills.
+- 2026-09-11T09:23:18Z | @filicroval | https://x.com/filicroval/status/2098341605623087104 | A Qwen3.8-Flash-Next single-Spark update with better prefill, TTFT, and decode is coming soon.
+- 2026-09-11T08:52:47Z | @ksuniri | https://x.com/ksuniri/status/2098333923596280284 | DGX Spark decode stayed stable under long concurrency versus Mac Studio, shown on a DeepSeek Hermes (Qwen3.8 Flash) dashboard.
+- 2026-09-11T08:47:52Z | @0xBakeer | https://x.com/0xBakeer/status/2098332687052288415 | Single-Spark DeepSeek V4.1 will not match official-API quality; the work is best quality on simple hardware.
+- 2026-09-11T08:22:42Z | @MiaAI_lab | https://x.com/MiaAI_lab/status/2098326354097803703 | The 3x Spark DeepSeek v4.1 Flash recipe uses official weights with no quantization.
+- 2026-09-11T08:21:25Z | @MiaAI_lab | https://x.com/MiaAI_lab/status/2098326032717602964 | 3x DGX Spark DeepSeek v4.1 Flash: 500k context / 750k KV, ~1600–1700 tok/s prefill, ~38 tok/s prose single-stream and ~79 tok/s at 4 concurrent streams.
+- 2026-09-11T08:06:25Z | @0xBakeer | https://x.com/0xBakeer/status/2098322258037035263 | Bakeer has only one DGX Spark for the V4.1 Flash engine.
+- 2026-09-11T07:59:45Z | @0xBakeer | https://x.com/0xBakeer/status/2098320577769374097 | The single-Spark DeepSeek V4.1 Flash engine is now at 13–21 tok/s and may be useful.
+- 2026-09-11T07:41:34Z | @filicroval | https://x.com/filicroval/status/2098316001028796719 | The quantization target is still NVIDIA NVFP4.
+- 2026-09-11T07:37:36Z | @filicroval | https://x.com/filicroval/status/2098315002675441746 | DeepSeek v4.1 is genuinely good but is for higher-end compute than a single Spark.
+- 2026-09-11T07:26:18Z | @0xBakeer | https://x.com/0xBakeer/status/2098312158584971574 | DeepSeek V4.1 Flash fits in a single DGX Spark; the GitHub engine is published but still slow and WIP.
+- 2026-09-11T07:26:18Z | @0xBakeer | https://x.com/0xBakeer/status/2098312160430399851 | Repository for the single-Spark DeepSeek V4.1 Flash engine: github.com/0xBakeer/deepseek-v41-flash-spark.
+- 2026-09-11T05:23:13Z | @HealthRanger | https://x.com/HealthRanger/status/2098281186032300144 | SGLang with NVFP4 Qwen3.8-27B + DFlash2 on Asus DGX Sparks hit 413 tok/s aggregate across 16 lanes (up from 250 tok/s across 8).
+- 2026-09-11T02:20:23Z | @Oluwaphilemon1 | https://x.com/Oluwaphilemon1/status/2098235174722875674 | Qwen3.8-27B on one GB10 Spark reached 71.50 tok/s (+25.19%) via a calibrated NVFP4 drafter, D=16, FP8 KV, and a rebased runtime at 24/27 quality.
+- 2026-09-11T01:22:23Z | @ksuniri | https://x.com/ksuniri/status/2098220577265942800 | ksuniri wants a second DGX Spark to test GLM 5.3 Flash versus DeepSeek V4.1 Flash.
+- 2026-09-11T00:37:26Z | @Oluwaphilemon1 | https://x.com/Oluwaphilemon1/status/2098209265387217061 | Tuned Qwen3.8-Flash-Next on one DGX Spark reached 273 tok/s aggregate at 8 streams versus ~218 tok/s published (~25% over a 1–8 stream sweep).
+- 2026-09-10T23:30:27Z | @bleysg | https://x.com/bleysg/status/2098192409259819404 | A 512 GB Mac is ~120 TF in FP16, about one DGX Spark, but with no native FP8/FP4 matmul the Spark should be two to three times faster in practice.

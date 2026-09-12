@@ -73,6 +73,31 @@ def test_a_malformed_pulls_response_is_not_a_crash(monkeypatch, payload):
     assert us.open_pulls("r", SINCE) == []
 
 
+def test_platform_filter_splits_mac_from_dgx() -> None:
+    """#307: the DGX lane must not walk the MLX repos, and the Mac lane must not
+    walk the CUDA serving stack. Shared engines are in both."""
+    mac = us.watched_for("mac")
+    dgx = us.watched_for("dgx")
+    all_ = us.watched_for("all")
+    # MLX is Mac-only; vLLM/TensorRT-LLM are DGX-only.
+    assert "ml-explore/mlx" in mac and "ml-explore/mlx" not in dgx
+    assert "vllm-project/vllm" in dgx and "vllm-project/vllm" not in mac
+    assert "NVIDIA/TensorRT-LLM" in dgx and "NVIDIA/TensorRT-LLM" not in mac
+    # ds4 and llama.cpp run on both machines.
+    for shared in ("antirez/ds4", "ggml-org/llama.cpp", "ollama/ollama"):
+        assert shared in mac and shared in dgx
+    # 'all' is the union and loses nothing.
+    assert set(all_) == set(mac) | set(dgx)
+    assert set(all_) == set(us.WATCHED)
+
+
+def test_every_watched_repo_declares_a_real_platform() -> None:
+    """A typo'd platform tag would silently drop a repo from every lane."""
+    for repo, (_why, platforms) in us.WATCHED.items():
+        assert platforms, repo
+        assert set(platforms) <= {us.MAC, us.DGX}, repo
+
+
 def test_sweep_carries_pulls_so_quiet_empty_cannot_hide_them(monkeypatch):
     """A repo whose only news is an open PR must not read as idle.
 

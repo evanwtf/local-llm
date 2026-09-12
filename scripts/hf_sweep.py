@@ -36,7 +36,8 @@ logger = logging.getLogger(__name__)
 
 API = "https://huggingface.co/api/models"
 
-# Families we run, and why we care that a new build appeared.
+# Families we run, and why we care that a new build appeared. These are the
+# models we measure on every machine, so they are watched under every profile.
 WATCHED: dict[str, str] = {
     "Qwen3.8-Flash-Next": "our fastest stack (llama.cpp Q3, and the 112 GB MLX build)",
     "DeepSeek-V4-Flash": "our only independent lineage; ds4 serves it",
@@ -46,6 +47,38 @@ WATCHED: dict[str, str] = {
     "gemma-4-26b": "the MLX Fast leaderboard model; measured 11/11",
     "gemma-4-31b": "the Google-lineage backend, measured 12/12",
 }
+
+# Extra terms to watch only on some machines (#307). An entry is `(kind, why)`:
+# kind "name" matches a repo NAME like the base list; kind "author" sweeps a
+# whole Hugging Face org page (`?author=<org>`).
+#
+# The DGX Spark's target formats -- NVFP4, FP8, mxfp8 -- are exactly what the
+# Mac profile marks unusable and HIDES, so NVIDIA's own org is invisible on the
+# Mac by design and must be added on the Blackwell profile, not shared. `nvidia`
+# is https://huggingface.co/nvidia -- Nemotron and the NVFP4/FP8 builds that
+# only a CUDA-native engine (vLLM, TensorRT-LLM) can reach (#293, #299).
+WATCHED_EXTRA: dict[str, dict[str, tuple[str, str]]] = {
+    "gb10": {
+        "nvidia": (
+            "author",
+            "NVIDIA's own HF org: Nemotron, NVFP4/FP8 builds, DGX-loadable",
+        ),
+        "Nemotron": ("name", "NVIDIA's Nemotron lineage; NVFP4/FP8 for Blackwell"),
+    },
+}
+
+
+def watched_for(profile: str) -> list[tuple[str, str, str]]:
+    """The `(term, kind, why)` list to sweep for `profile`: the shared families
+    first, then any profile-specific extras. Kept as a function so the watch
+    loop and a test read the same list."""
+    items: list[tuple[str, str, str]] = [
+        (term, "name", why) for term, why in WATCHED.items()
+    ]
+    for term, (kind, why) in WATCHED_EXTRA.get(profile, {}).items():
+        items.append((term, kind, why))
+    return items
+
 
 # --- hardware profiles -------------------------------------------------------
 #
@@ -168,6 +201,44 @@ PROFILES: dict[str, dict] = {
         "unusable": ("nvfp4", "fp8", "mxfp8", "mlx", "rocm", "tensorrt"),
         "protect": (),
     },
+    "gb10": {
+        "description": "DGX Spark GB10, 128 GB unified, Blackwell sm_121, CUDA",
+        # A working set inside the 121.7 GiB visible unified pool, matching the
+        # Mac's headroom convention rather than the raw 128 GB.
+        "vram_gb": 112.0,
+        "ram_gb": 128.0,
+        "unified": True,
+        # Blackwell has FP8 and NVFP4 in hardware, so the NVIDIA server formats
+        # the Mac and the Ampere card cannot touch are this box's whole point:
+        # NVFP4/FP8 through vLLM or TensorRT-LLM is the #299 recipe. GGUF still
+        # loads through llama.cpp, and the AWQ/GPTQ/Marlin CUDA families run too.
+        "usable": (
+            "gguf",
+            "nvfp4",
+            "fp8",
+            "mxfp8",
+            "bf16",
+            "q4_k",
+            "q3_k",
+            "q5_k",
+            "q6_k",
+            "q8_0",
+            "iq",
+            "int4",
+            "w4a16",
+            "w8a8",
+            "awq",
+            "gptq",
+            "marlin",
+            "tensorrt",
+            "vllm",
+            "sglang",
+        ),
+        # MLX ships no Linux arm64 runtime (#293); ROCm is AMD. ExLlama's kernels
+        # do not target sm_121 yet, so EXL builds are not loadable here.
+        "unusable": ("mlx", "rocm", "exl2", "exl3"),
+        "protect": (),
+    },
 }
 
 
@@ -272,10 +343,19 @@ def repo_size_gb(repo: str) -> float | None:
     return round(max(groups.values()) / 1e9, 1) if groups else None
 
 
-def search(term: str, limit: int = 30) -> list[dict]:
-    query = urllib.parse.urlencode(
-        {"search": term, "sort": "lastModified", "direction": -1, "limit": limit}
-    )
+def search(term: str, limit: int = 30, author: str | None = None) -> list[dict]:
+    params: dict[str, object] = {
+        "sort": "lastModified",
+        "direction": -1,
+        "limit": limit,
+    }
+    # `author` sweeps a whole org page (nvidia/*); `term` matches a repo name.
+    # An author sweep passes term="" so the org is not also name-filtered.
+    if term:
+        params["search"] = term
+    if author:
+        params["author"] = author
+    query = urllib.parse.urlencode(params)
     req = urllib.request.Request(f"{API}?{query}", headers={"User-Agent": "curl/8"})
     try:
         with urllib.request.urlopen(req, timeout=30) as fh:
@@ -404,9 +484,11 @@ def main() -> int:
         return _recommend(terms, args)
 
     hidden = 0
-    for family, why in WATCHED.items():
+    for family, kind_of_search, why in watched_for(args.profile):
         fresh = []
-        for entry in search(family, args.limit):
+        author = family if kind_of_search == "author" else None
+        term = "" if kind_of_search == "author" else family
+        for entry in search(term, args.limit, author=author):
             stamp = (entry.get("lastModified") or "")[:19]
             if not stamp:
                 continue
@@ -416,7 +498,10 @@ def main() -> int:
                 continue
             if when < cutoff:
                 continue
-            kind = classify(entry["id"])
+            # Judge against the SELECTED profile. Passing no profile classified
+            # every hit against the Mac, so `--profile gb10` hid the NVFP4/FP8
+            # builds that are the DGX Spark's whole target (#307).
+            kind = classify(entry["id"], args.profile)
             if kind == "unusable" and not args.all:
                 hidden += 1
                 continue
@@ -439,13 +524,17 @@ def main() -> int:
         logger.info("")
 
     if hidden and not args.all:
-        # Never a silent filter. Most new quants target CUDA or ROCm, and a
-        # count is the difference between "nothing shipped" and "nothing that
-        # runs here shipped" -- which are very different facts.
+        # Never a silent filter. Most new quants target one vendor, and a count
+        # is the difference between "nothing shipped" and "nothing that runs
+        # here shipped" -- which are very different facts. The formats that hide
+        # invert between machines, so name this profile's, not Metal's.
+        unusable = ", ".join(PROFILES[args.profile]["unusable"])
         logger.info(
-            "%d result(s) hidden as unloadable on Metal (NVFP4/FP8/ROCm/AWQ/"
-            "GPTQ/EXL). Re-run with --all to see them.",
+            "%d result(s) hidden as unloadable on %s (%s). Re-run with --all to "
+            "see them.",
             hidden,
+            args.profile,
+            unusable,
         )
     logger.info("\nLegend:  (blank) loads here   ? unclassified, check it   x hidden")
     logger.info("log: %s", log_file)

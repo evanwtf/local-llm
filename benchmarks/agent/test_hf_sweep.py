@@ -137,3 +137,72 @@ def test_canned_queries_name_families_not_repos():
     assert "coding" in hf_sweep.CANNED and "small" in hf_sweep.CANNED
     for terms in hf_sweep.CANNED.values():
         assert terms and all("/" not in term for term in terms)
+
+
+# --- the DGX Spark (GB10) profile: NVFP4/FP8 invert the Mac's lists (#307) ---
+
+
+def test_nvfp4_and_fp8_invert_between_mac_and_dgx():
+    """The core of #307: an NVIDIA Blackwell format the Mac cannot load is
+    exactly what the DGX runs. If these agreed, the split would be pointless."""
+    for repo in ("nvidia/Qwen3.8-27B-NVFP4", "some/model-FP8-dynamic"):
+        assert hf_sweep.classify(repo, "m5-max") == "unusable", repo
+        assert hf_sweep.classify(repo, "gb10") == "usable", repo
+
+
+def test_mlx_loads_on_the_mac_and_nothing_else():
+    repo = "mlx-community/Qwen3.8-Flash-Next-4bit"
+    assert hf_sweep.classify(repo, "m5-max") == "usable"
+    assert hf_sweep.classify(repo, "gb10") == "unusable"
+    assert hf_sweep.classify(repo, "rtx3080ti") == "unusable"
+
+
+def test_every_profile_is_internally_consistent():
+    """A format cannot be both usable and unusable on one machine."""
+    for name, prof in hf_sweep.PROFILES.items():
+        usable, unusable = set(prof["usable"]), set(prof["unusable"])
+        assert usable.isdisjoint(unusable), f"{name}: {usable & unusable}"
+
+
+def test_the_dgx_watch_list_adds_nvidias_org_the_mac_list_does_not():
+    """The user's ask: watch models NVIDIA ships on its own HF org. A DGX-only
+    lane -- on the Mac those builds are hidden, so adding them there only grows
+    the hidden count."""
+    gb10 = hf_sweep.watched_for("gb10")
+    mac = hf_sweep.watched_for("m5-max")
+    gb10_terms = {(term, kind) for term, kind, _why in gb10}
+    mac_terms = {term for term, _kind, _why in mac}
+    assert ("nvidia", "author") in gb10_terms
+    assert "nvidia" not in mac_terms
+    # The shared families stay in every lane.
+    assert set(hf_sweep.WATCHED) <= {t for t, _k, _w in gb10}
+    assert set(hf_sweep.WATCHED) <= mac_terms
+
+
+def test_search_builds_an_author_query(monkeypatch):
+    """An author sweep hits `?author=<org>` and does NOT also name-filter, or the
+    org page would be intersected with a repo-name match and return nothing."""
+    captured: dict[str, str] = {}
+
+    class _Resp:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def read(self):
+            return b"[]"
+
+    def fake_urlopen(req, timeout=0):
+        captured["url"] = req.full_url
+        return _Resp()
+
+    monkeypatch.setattr(hf_sweep.urllib.request, "urlopen", fake_urlopen)
+    hf_sweep.search("", author="nvidia")
+    assert "author=nvidia" in captured["url"]
+    assert "search=" not in captured["url"]
+    # A name search still passes search= and no author=.
+    hf_sweep.search("Qwen3.8-Flash-Next")
+    assert "search=Qwen3.8-Flash-Next" in captured["url"]
+    assert "author=" not in captured["url"]
