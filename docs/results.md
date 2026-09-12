@@ -59,10 +59,37 @@ other is telling you something.
 
 ### Cortex-X925-128GB-GB10
 
-*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 134 rows, sha256 c8011f5c9a9f.*
+*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 207 rows, sha256 7defb762368c.*
 
-_No OpenCode trials after the `--dir` fix on this machine yet._
+#### Every stack measured under OpenCode
 
+**The three timing columns count only trials that passed.** A trial that dies early is quick, so counting failures would reward a stack for failing fast and lift it up a table sorted by median. Read the `passed` column first.
+
+| stack | passed | median | worst | spread |
+|---|---|---|---|---|
+| qwen38fnq3dgx | 30/30 | 127s | 315s | 6.6x |
+| qwen36codinggguf | 29/30 | 162s | 221s | 3.2x |
+| qwen36nvfp4dgx | 30/30 | 179s | 545s | 6.5x |
+| nemotroncascade2 | 2/10 | 197s | 197s | 1.0x |
+| ds4dgx | 20/20 | 236s | 364s | 3.6x |
+| qwen36bf16dgx | 30/30 | 432s | 1335s | 6.7x |
+| nemotron3nano | 8/10 | 580s | 1212s | 8.5x |
+| nemotron33 | 1/10 | — | — | — |
+
+Excision tasks only; `script-*` excluded because they are a different class. **Spread is worst / best on the same task**, and it is the column most people forget to ask for.
+
+#### How fast each stack actually serves tokens
+
+| stack | seconds per 1k output tokens |
+|---|---|
+| nemotron33 | 15s |
+| nemotroncascade2 | 17s |
+| nemotron3nano | 19s |
+| qwen38fnq3dgx | 55s |
+| qwen36codinggguf | 70s |
+| ds4dgx | 87s |
+| qwen36nvfp4dgx | 147s |
+| qwen36bf16dgx | 409s |
 
 ### MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A
 

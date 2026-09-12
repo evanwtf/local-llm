@@ -1000,6 +1000,9 @@ def test_dry_run_reports_a_script_task_without_crashing(tmp_path, monkeypatch):
     assert 'summary if not is_script else "script task; no control to check"' in source
 
 
+TIERS = {"desktop-3080ti", "gb10-spark"}
+
+
 def test_tiered_backends_are_out_of_the_default_matrix():
     """Another machine's backends must not run here by default.
 
@@ -1011,8 +1014,13 @@ def test_tiered_backends_are_out_of_the_default_matrix():
     cfg = tomllib.loads((HERE / "tasks.toml").read_text())
     tiered = {k: v for k, v in cfg["backend"].items() if v.get("tier")}
     assert tiered, "expected the desktop tier to be configured"
+    # One tier per machine that is not the machine this repo's default matrix
+    # assumes. This was `== "desktop-3080ti"` while the 3080 Ti was the only
+    # other box; the DGX Spark is the second, and #292's whole point is that a
+    # third should cost a tier name rather than a branch. Still a closed set, so
+    # a typo is caught -- it just is not a single value any more.
     for name, backend in tiered.items():
-        assert backend["tier"] == "desktop-3080ti", name
+        assert backend["tier"] in TIERS, f"{name}: unknown tier {backend['tier']!r}"
         assert backend.get("opencode_model"), name
 
 
@@ -1842,3 +1850,74 @@ def test_tasks_missing_targets_expands_the_home_directory(tmp_path, monkeypatch)
     cfg = {"repo": "~/git/present", "base_commit": "aaa", "test_command": "x"}
 
     assert run.tasks_missing_targets(cfg, [{"name": "t"}]) == {}
+
+
+# --- engine provenance (#320) ---------------------------------------------
+#
+# The first vLLM rows named ds4 as their server and carried no engine version
+# at all, because the stamping blocks key on port (:8000, :8020) and vLLM was
+# on :8030. Both halves are pinned here: the string must name the engine that
+# actually served, and an engine nobody probed must say `unknown` out loud
+# rather than vanish through the `if v is not None` filter.
+
+
+def test_sampler_note_names_the_engine_that_served():
+    assert run.sampler_note("vllm") == "engine defaults (not reported by vllm)"
+    assert run.sampler_note("ds4") == run.DS4_SAMPLER_NOTE
+
+
+def test_sampler_note_says_unknown_rather_than_guessing():
+    for absent in (None, ""):
+        assert "unknown engine" in run.sampler_note(absent)
+        assert "ds4" not in run.sampler_note(absent)
+
+
+def test_openai_models_attributes_the_backends_own_engine():
+    models = {"data": [{"id": "qwen3.6-27b-nvfp4", "context_length": 131072}]}
+    got = run.parse_openai_models(
+        models, {"model": "qwen3.6-27b-nvfp4", "engine": "vllm"}
+    )
+    assert got["sampling_source"] == "engine defaults (not reported by vllm)"
+    assert "ds4" not in got["sampling_source"]
+
+
+def test_legacy_ds4_alias_still_says_ds4():
+    models = {"data": [{"id": "deepseek-v4-flash"}]}
+    assert run.parse_ds4_models(models)["sampling_source"] == run.DS4_SAMPLER_NOTE
+
+
+def test_engine_provenance_stamps_unknown_for_an_unprobed_engine():
+    env = {}
+    gaps = run.engine_provenance({"b": {"engine": "vllm"}}, env)
+    assert env["vllm_version"] == "unknown"
+    assert len(gaps) == 1 and "vllm" in gaps[0]
+
+
+def test_engine_provenance_is_quiet_when_the_build_was_recorded():
+    env = {"vllm": "0.29.0"}
+    assert run.engine_provenance({"b": {"engine": "vllm"}}, env) == []
+    assert "vllm_version" not in env
+
+
+def test_engine_provenance_knows_where_each_engine_records_itself():
+    # ds4 records `ds4_head`, not `ds4`: a naive lookup would call every ds4
+    # row unknown.
+    env = {"ds4_head": "6289c51", "llamacpp_head": "481c65f"}
+    backends = {"a": {"engine": "ds4"}, "b": {"engine": "llama.cpp"}}
+    assert run.engine_provenance(backends, env) == []
+
+
+def test_engine_provenance_exempts_the_hosted_backend():
+    # No engine declared, no build to pin; `hosted_unpinned` covers it.
+    env = {}
+    assert run.engine_provenance({"hosted": {"model": "claude"}}, env) == []
+    assert env == {}
+
+
+def test_engine_provenance_catches_the_next_new_engine():
+    # The point of the table's fall-through: an engine nobody has taught the
+    # harness to probe is loud on the first row, not silent for a whole run.
+    env = {}
+    gaps = run.engine_provenance({"b": {"engine": "sglang"}}, env)
+    assert env["sglang_version"] == "unknown"
+    assert gaps

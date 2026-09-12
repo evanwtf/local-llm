@@ -77,7 +77,13 @@ def main():
     p.add_argument("--markdown", action="store_true", help="emit a markdown table")
     args = p.parse_args()
     provenance.configure()
-    provenance.tee("summarize", machine_specific=True)
+    # Captured, not discarded: the log path is reported at the end of main(),
+    # the way hardware_id.py / report.py / hf_sweep.py all do. It was dropped in
+    # 54fd3dd to clear ruff F841 -- correctly, at the time, because nothing used
+    # it. Nothing used it because main() crashed before it could: `logger.info()`
+    # with no argument, between the table and the totals. Fixing the crash makes
+    # the variable live again.
+    log_file = provenance.tee("summarize", machine_specific=True)
     provenance.banner(logger, engines=True)
 
     path = pathlib.Path(args.results)
@@ -149,8 +155,14 @@ def main():
             f"   timeouts {timeouts}"
         )
 
+    # Every other script that tees its output says where it went --
+    # `logger.info("log: %s", log_file)` in hardware_id.py, report.py,
+    # hf_sweep.py. This one captured the path and never reported it, which is
+    # the same broken tail: the crash above meant nothing after the table ran,
+    # so the variable sat unused and the trailing comment claimed a behavior
+    # that did not exist.
+    logger.info("log: %s", log_file)
 
-# (log path is reported by main)
 
 if __name__ == "__main__":
     main()

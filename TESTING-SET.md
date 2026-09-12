@@ -133,6 +133,24 @@ be drawn from — OpenCode, after the `--dir` cutover, not excluded.
 | `qwen38fnds4kimat` | Q4_K **imatrix** rebuild of the same model, MTP off | ds4, ivanfioravanti fork (via tool shim) | 105 GB | 0 |
 | `qwen38fnmlxserve` | the same model as MLX mixed 4/8-bit weights | mlx-serve 26.9.1 (no shim) | 101 GB | 1 |
 | `qwen38fnmlxserve-git` | the same model as MLX mixed 4/8-bit weights | mlx-serve git main+PR383 at `~/git/mlx-serve` (no shim) | 101 GB | 0 |
+| `qwen36codinggguf` | `qwen3.6:27b-coding` (**GGUF**) | Ollama | 17 GB | 0 |
+| `nemotron33` | `nemotron3:33b-q4_K_M` — **Nano Omni, multimodal/document-intelligence, not a coding model** | Ollama | 26 GB | 10 |
+| `nemotroncascade2` | `nemotron-cascade-2:30b-a3b-q4_K_M` (**agentic**, GGUF) | Ollama | 23 GB | 10 |
+| `nemotron3nano` | `nemotron-3-nano:30b-a3b-q8_0` (**agentic**, GGUF) | Ollama | 31 GB | 0 |
+| `nemotronsuper` | `nemotron-3-super:120b-a12b-q4_K_M` (**GGUF**) | Ollama | 81 GB | 0 |
+| `qwen38fnq3dgx` | Qwen3.8-Flash-Next `UD-Q3_K_XL` | llama.cpp CUDA sm_121 | 83.8 GiB | 0 |
+| `ds4dgx` | DeepSeek-V4-Flash **Q2** 0731 | ds4 CUDA sm_121a | 80.8 GiB | 0 |
+| `glm53dgx` | GLM-5.3-Flash **Q2**, ctx 100000 | ds4 CUDA sm_121a | — | 0 |
+| `qwen36nvfp4dgx` | `nvidia/Qwen3.6-27B-NVFP4` (**base**, not the coding tune) | vLLM 0.29.0 CUDA sm_121 | 20.4 GiB | 30 |
+| `qwen36bf16dgx` | `Qwen/Qwen3.6-27B` **BF16**, the unquantized control for the row above | vLLM 0.29.0 CUDA sm_121 | 51.7 GiB | 30 |
+
+**`qwen36codinggguf` exists because `qwen36coding` is macOS-only.** The
+`mxfp8` and `nvfp4` tags ship as sharded `vnd.ollama.image.tensor` layers,
+which Ollama 0.34.0 routes to the MLX runtime; on Linux/CUDA the pull fails
+with "this model requires MLX support" before any weights move (#293). The
+plain `qwen3.6:27b-coding` tag is a single GGUF layer and runs anywhere. Same
+weights, different quantization and container — **its rows are not comparable
+to `qwen36coding` rows** and must not be pooled with them.
 
 **`qwen38fnds4kimat` is a whole different STACK, not a different quant.** Ivan
 replaced the Q4_0 routed-expert file that every `qwen38fnds4shim` row was taken
@@ -259,11 +277,16 @@ the file the harness reads, with a test that fails if the two drift.
 | class | count | what it measures |
 |---|---|---|
 | **Excision** (Python) | 8 | Find your way around unfamiliar code. One function body deleted; the repo's own suite is the only oracle |
-| **Excision** (Swift) | 5 | The same, off the model's comfort ground — and a compile step Python cannot fail at |
+| **Excision** (Swift) | 5 | The same, off the model's comfort ground — and a compile step Python cannot fail at. **macOS only** — `monitor` is an AppKit desktop app, so `swift test` is not an oracle off a Mac |
 | **Script** | 2 | Empty directory, produce a working CLI. Trivial logic, real boilerplate, almost no variance |
 
 Script tasks vary 1.0–2.1× and are the fair way to compare stacks. Excision
 tasks are noisier and closer to real work.
+
+**Ten of the fifteen are cross-platform** — the 8 Python excisions and the 2
+script tasks. The 5 Swift excisions require macOS. A Linux machine's full
+matrix is therefore 10 tasks, and a cross-machine comparison that mixes a
+15-task Mac run with a 10-task Linux run is comparing different suites.
 
 ---
 

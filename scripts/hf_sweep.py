@@ -157,9 +157,19 @@ PROFILES: dict[str, dict] = {
     },
     "gb10": {
         "description": "DGX Spark GB10, 128 GB unified, Blackwell sm_121, CUDA",
-        # A working set inside the 121.7 GiB visible unified pool, matching the
-        # Mac's headroom convention rather than the raw 128 GB.
-        "vram_gb": 112.0,
+        # 117.8 GiB is measured, not conventional: it is what Ollama reports it
+        # will actually hand the GPU out of the 121.7 GiB visible pool, and
+        # llama.cpp agrees (VERSIONS.md). The 112.0 that stood here was borrowed
+        # from m5-max, where 112.0 is not a convention either -- it is the raised
+        # iogpu.wired_limit_mb, an enforced ceiling this machine has no analogue
+        # of.
+        #
+        # Read it as the addressable pool, NOT a working-set budget: a checkpoint
+        # at 117 GiB classifies usable here and would still fail to serve, because
+        # KV and activations need room the file size does not show. The nearest
+        # real case is nvidia/Qwen3.8-Flash-Next-NVFP4 at 123.6 GiB, which both
+        # numbers correctly exclude (#313).
+        "vram_gb": 117.8,
         "ram_gb": 128.0,
         "unified": True,
         # Blackwell has FP8 and NVFP4 in hardware, so the NVIDIA server formats

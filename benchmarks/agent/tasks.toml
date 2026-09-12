@@ -112,6 +112,7 @@ not modify any test."""
 [[task]]
 name = "swift-downsample-buckets"
 repo = "~/git/monitor"
+platform = "darwin"
 base_commit = "cbb85ca"
 test_command = "swift test"
 file = "Sources/MonitorCore/Downsample.swift"
@@ -124,6 +125,7 @@ suite passes. Do not modify any test."""
 [[task]]
 name = "swift-csv-text"
 repo = "~/git/monitor"
+platform = "darwin"
 base_commit = "cbb85ca"
 test_command = "swift test"
 file = "Sources/MonitorCore/CSVExport.swift"
@@ -136,6 +138,7 @@ suite passes. Do not modify any test."""
 [[task]]
 name = "swift-chartaxis-spacing"
 repo = "~/git/monitor"
+platform = "darwin"
 base_commit = "cbb85ca"
 test_command = "swift test"
 file = "Sources/MonitorCore/ChartAxis.swift"
@@ -241,6 +244,7 @@ passes. Do not modify any test."""
 [[task]]
 name = "swift-scaleladder-snap"
 repo = "~/git/monitor"
+platform = "darwin"
 base_commit = "cbb85ca"
 test_command = "swift test"
 file = "Sources/MonitorCore/GaugeScale.swift"
@@ -257,6 +261,7 @@ suite passes. Do not modify any test."""
 [[task]]
 name = "swift-sevensegment-glyphs"
 repo = "~/git/monitor"
+platform = "darwin"
 base_commit = "cbb85ca"
 test_command = "swift test"
 file = "Sources/MonitorCore/SevenSegment.swift"
@@ -350,6 +355,268 @@ codex_profile = "qwen36coding"
 aider_model = "openai/qwen3.6:27b-coding-mxfp8"
 opencode_model = "ollama/qwen3.6:27b-coding-mxfp8"
 context_tokens = 262144
+
+# The GGUF build of the same coding-tuned weights. Exists because the mxfp8 and
+# nvfp4 tags cannot be pulled outside macOS: both ship as sharded
+# `vnd.ollama.image.tensor` layers that Ollama 0.34.0 routes to MLX, and the
+# pull dies with "this model requires MLX support" before any weights move
+# (#293). This tag ships a single GGUF `image.model` layer and runs anywhere.
+#
+# NOT the same artifact as qwen36coding. Same weights, different quantization
+# and different container -- no row here may be compared to an mxfp8 row
+# without saying so. It is the portable stand-in, not a replacement.
+[backend.qwen36codinggguf]
+description = "Qwen3.6-27B coding-tuned, GGUF (portable; mxfp8 is macOS-only)"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:11434"
+auth_token = "ollama"
+engine = "ollama"
+model = "qwen3.6:27b-coding"
+aider_model = "openai/qwen3.6:27b-coding"
+opencode_model = "ollama/qwen3.6:27b-coding"
+context_tokens = 262144
+
+# The project's primary model, on its second platform. Same weights, same
+# quantization and same engine as `qwen38fnq3` on the M5 Max -- Unsloth
+# UD-Q3_K_XL, 83.81 GiB, which matches the Mac's recorded 83.8 GiB exactly --
+# so the platform is the only variable. That makes this the cleanest
+# cross-machine comparison the project can currently construct (#295).
+#
+# NOT an edit of qwen38fnq3: those rows were taken on Metal, and pooling them
+# with these would be pooling two platforms.
+#
+# base_url points straight at llama-server. The Mac reaches it through a shim
+# on :11500 because the smoke gate speaks Anthropic; current llama.cpp master
+# compiles `/v1/messages` in natively (`post_anthropic_messages`,
+# tools/server/server.cpp), so nothing sits between the harness and the engine
+# here. Engine: 0.4.0-dev build 50, commit 481c65f, aarch64, built
+# -DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=121. Built from master, not a
+# release: v0.4.0 predates ggml-org/llama.cpp#27742, the Flash-Next merge.
+#
+# context_tokens matches qwen38fnq3's 131072 rather than the 262144 the Ollama
+# backends declare, so the two are comparable on that axis too.
+[backend.qwen38fnq3dgx]
+description = "Qwen3.8-Flash-Next 125B-A6B, Unsloth UD-Q3_K_XL, llama.cpp CUDA sm_121"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8020"
+auth_token = "local"
+engine = "llama.cpp"
+model = "qwen3.8-flash-next-q3"
+aider_model = "openai/qwen3.8-flash-next-q3"
+opencode_model = "llamacpp/qwen3.8-flash-next-q3"
+context_tokens = 131072
+
+# DeepSeek-V4-Flash on the DGX Spark. The project's one independent lineage --
+# the only model here that is neither Qwen nor GLM -- and until now a Mac-only
+# fact, because ds4 was a Mac-only fact. It is not: ds4 ships a documented
+# single-GPU GB10 path (docs/DGX_SPARK.md) and `make cuda-spark` builds it with
+# `-gencode arch=compute_121a,code=sm_121a -DDS4_CUDA_HAVE_MXF4=1`.
+#
+# NOT comparable to the Mac's `ds4` rows, and not an edit of that backend.
+# Upstream's sizing call for a single Spark is Q2 -- "Q2 is the resident target
+# for one Spark" -- while the Mac's 90.9 GiB rows are a mixed q2/q4 pack. The
+# weights here are 80.8 GiB:
+#   DeepSeek-V4-Flash-IQ2XXS-w2Q2K-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix-0731
+#
+# ds4-server speaks Anthropic natively ("Endpoints: /v1/chat/completions,
+# /v1/responses, /v1/completions, and /v1/messages"), so the smoke gate reaches
+# it with no shim in the path -- same as llama.cpp here, unlike the Mac.
+[backend.ds4dgx]
+description = "DeepSeek-V4-Flash Q2 0731 via ds4-server, CUDA sm_121a"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8000"
+auth_token = "dsv4-local"
+engine = "ds4"
+engine_tree = "~/git/ds4"
+model = "deepseek-v4-flash"
+aider_model = "openai/deepseek-v4-flash"
+opencode_model = "ds4/deepseek-v4-flash"
+context_tokens = 100000
+
+# NVFP4 on the GB10, the quantization this accelerator exists to run, via vLLM
+# 0.29.0 from the official PyPI manylinux_2_28_aarch64 wheel -- no container and
+# no local build.
+#
+# This is `nvidia/Qwen3.6-27B-NVFP4`, and it is the BASE model, not the coding
+# fine-tune. That is not a shortcut, it is the only option: NVIDIA ships no
+# coding-tuned NVFP4, and of their four NVFP4 checkpoints relevant to this
+# project it is the only one that fits 117.8 GiB -- Qwen3.8-Flash-Next-NVFP4 is
+# 123.6 GiB, DeepSeek-V4-Flash-nvfp4-DSpark 164.1 GiB, GLM-5.3-Flash-NVFP4
+# 190.4 GiB.
+#
+# **These rows are NOT comparable to qwen36codinggguf.** Different fine-tune AND
+# different engine. The control is `qwen36bf16dgx` below: the same base weights,
+# the same vLLM, quantization as the only variable. #313 has the reasoning.
+#
+# sm_120 vs sm_121: this torch ships no sm_121 cubins and FlashInfer JIT-builds
+# its sm120 FP8 GEMM for this device. It works -- that is a measured fact here,
+# not an assumption -- but it is why nvcc and ninja must be on PATH at launch.
+[backend.qwen36nvfp4dgx]
+description = "Qwen3.6-27B NVFP4 (nvidia/ModelOpt) via vLLM 0.29.0, CUDA sm_121"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8030"
+auth_token = "local"
+engine = "vllm"
+engine_tree = "~/venvs/vllm"
+model = "qwen3.6-27b-nvfp4"
+aider_model = "openai/qwen3.6-27b-nvfp4"
+opencode_model = "vllm/qwen3.6-27b-nvfp4"
+context_tokens = 131072
+
+# The control for qwen36nvfp4dgx, and the only reason these NVFP4 rows can say
+# anything. Same base checkpoint (Qwen/Qwen3.6-27B, first-party), same vLLM,
+# same context, same tasks, same client -- quantization is the only thing that
+# moves. BF16 is the unquantized reference, 51.7 GiB against NVFP4's 20.4 GiB.
+#
+# This pair is the experiment #313 actually asks for. Neither arm is comparable
+# to qwen36codinggguf, which is a different fine-tune on a different engine.
+[backend.qwen36bf16dgx]
+description = "Qwen3.6-27B BF16 (unquantized control) via vLLM 0.29.0, CUDA sm_121"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8030"
+auth_token = "local"
+engine = "vllm"
+engine_tree = "~/venvs/vllm"
+model = "qwen3.6-27b-bf16"
+aider_model = "openai/qwen3.6-27b-bf16"
+opencode_model = "vllm/qwen3.6-27b-bf16"
+context_tokens = 131072
+
+# GLM-5.3-Flash on the DGX Spark. Ollama has no local weights for this model at
+# all -- the whole library is one `:cloud` tag -- so ds4 is the only route.
+#
+# Q2 is upstream's constraint, not ours: "Q4 does not fit resident."
+#
+# The context is 100000, matching the Mac. An earlier draft of this backend said
+# 16384, which was a guess made before anyone reread GLM-5.3-FLASH.md: that file
+# records this same Q2 GGUF served at -c 100000 on the M5 Max, where the entire
+# 100k KV cost 1.11 GiB against 89.87 GiB of weights. KV is not what constrains
+# this model, so shrinking the window bought nothing and cost comparability.
+# 16384 also contradicted the ds4 provider block in ~/.config/opencode, which
+# declares a 100000 limit -- OpenCode would have grown a conversation past a
+# window the server could not hold, and preflight's check_served_context only
+# catches served < declared, not client > served.
+#
+# #39 found decode rate was what killed glm53 on the Mac; whether that verdict
+# survives a different memory system and a different backend is the question
+# this backend exists to answer.
+[backend.glm53dgx]
+description = "GLM-5.3-Flash Q2 via ds4-server, CUDA sm_121a, ctx 100000"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8000"
+auth_token = "dsv4-local"
+engine = "ds4"
+engine_tree = "~/git/ds4"
+model = "glm-5.3-flash"
+aider_model = "openai/glm-5.3-flash"
+opencode_model = "ds4/glm-5.3-flash"
+context_tokens = 100000
+
+# NVIDIA's own model family, measured on NVIDIA's own hardware. GGUF, so it
+# needs no engine this project does not already run -- unlike every other
+# candidate on this machine (#296).
+#
+# NOT A CODING OR AGENTIC MODEL. `nemotron3` is **Nemotron 3 Nano Omni**:
+# architecture `nemotron_h_omni`, and NVIDIA describes it as "a multimodal
+# large language model that unifies video, audio, image, and text understanding
+# to support enterprise-grade Q&A, summarization, transcription, and document
+# intelligence workflows."
+#
+# It was added here as "the honest size-class comparator for qwen36codinggguf",
+# which was a selection error: that compares a coding-tuned model against a
+# document-intelligence one. The card was not read first. Its `tools`
+# capability flag is identical to the coding Qwen's, so the flag gives no
+# warning -- only the description does.
+#
+# Measured anyway, once, and the rows are kept: 1/10, median 271.2s, five of
+# ten solutions empty, one task running 98 turns without producing an edit.
+# That is a fact about Nemotron 3 Nano Omni and says nothing about Nemotron as
+# a family -- every OTHER variant is positioned for agents (see
+# nemotroncascade2 below).
+#
+# Retained rather than retired so the negative result stays findable.
+[backend.nemotron33]
+description = "Nemotron 3 Nano Omni 33B (multimodal/document-intelligence, NOT coding), Q4_K_M"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:11434"
+auth_token = "ollama"
+engine = "ollama"
+model = "nemotron3:33b-q4_K_M"
+aider_model = "openai/nemotron3:33b-q4_K_M"
+opencode_model = "ollama/nemotron3:33b-q4_K_M"
+# 131072, not the 262144 the qwen entries declare: `ollama show` reports
+# "context length 131072" for this card. run.py refuses a backend that declares
+# more than the server loaded -- correctly, since a row would otherwise claim a
+# context the model never had -- and that refusal is how this was caught.
+context_tokens = 131072
+
+# NVIDIA's agentic Nano: "a new Standard for Efficient, Open, and Intelligent
+# Agentic Models" (#311). 30B total / 3B active MoE, architecture
+# `nemotron_h_moe`, capabilities completion/tools/thinking.
+#
+# q8_0 rather than the 22.6 GiB q4_K_M: 31.3 GiB on a 128 GB unified machine
+# leaves ample headroom, so there is no reason to take the quantization loss.
+#
+# context_tokens is what the SERVER LOADS, not what the card advertises. The
+# card says 1048576; ollama caps it and `ollama ps` reports 262144 with the
+# model resident at 36 GB. Declaring the card's figure would have been refused
+# by run.py's served-context check -- declaring more than the server loaded is
+# the one direction it catches. Measured by loading the model once and reading
+# `ollama ps`, rather than trusting either number.
+[backend.nemotron3nano]
+description = "Nemotron 3 Nano 30B-A3B (agentic), Q8_0 (GGUF)"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:11434"
+auth_token = "ollama"
+engine = "ollama"
+model = "nemotron-3-nano:30b-a3b-q8_0"
+aider_model = "openai/nemotron-3-nano:30b-a3b-q8_0"
+opencode_model = "ollama/nemotron-3-nano:30b-a3b-q8_0"
+context_tokens = 262144
+
+# The fair Nemotron comparator, and the one nemotron33 should have been.
+# NVIDIA positions nemotron-cascade-2 as "an open 30B MoE model with 3B
+# activated parameters that delivers strong reasoning and agentic
+# capabilities" -- agentic being the axis this benchmark actually measures.
+#
+# 30B-A3B against qwen3.6:27b-coding is a genuine size-class match, and unlike
+# nemotron33 it is built for the task being scored.
+[backend.nemotroncascade2]
+description = "Nemotron Cascade 2 30B-A3B (agentic), Q4_K_M (GGUF)"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:11434"
+auth_token = "ollama"
+engine = "ollama"
+model = "nemotron-cascade-2:30b-a3b-q4_K_M"
+aider_model = "openai/nemotron-cascade-2:30b-a3b-q4_K_M"
+opencode_model = "ollama/nemotron-cascade-2:30b-a3b-q4_K_M"
+# Verified with `ollama show` before the first run: the card reports 262144.
+# An earlier draft of this entry said 131072, copied from nemotron33, which
+# would have under-reported the context every row ran at. run.py only refuses
+# the opposite mistake -- declaring MORE than the server loaded -- so
+# under-declaring is silent, which is why the card gets read rather than
+# guessed. Architecture is `nemotron_h_moe`; capabilities completion/tools/
+# thinking, and notably no vision, unlike the Omni variant.
+context_tokens = 262144
+
+# 120B total, 12B active. 80.9 GiB of GGUF, which fits ONLY because this
+# machine's memory is unified -- on a 12 GiB discrete card it is not a
+# candidate at any quantization. That is #292's point made concrete, and it is
+# the largest model this project has ever run outside the Mac.
+[backend.nemotronsuper]
+description = "Nemotron 3 Super 120B-A12B, Q4_K_M (GGUF)"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:11434"
+auth_token = "ollama"
+engine = "ollama"
+model = "nemotron-3-super:120b-a12b-q4_K_M"
+aider_model = "openai/nemotron-3-super:120b-a12b-q4_K_M"
+opencode_model = "ollama/nemotron-3-super:120b-a12b-q4_K_M"
+# UNVERIFIED: these weights are not on disk yet, so nothing has read the card.
+# nemotron3:33b reports 131072; do not assume this one matches. Check with
+# `ollama show` before the first run -- run.py refuses when the declaration
+# exceeds what the server loaded.
+context_tokens = 131072
 
 # 35B total, 3B active. The MoE shape, and the only coding-tuned MLX MoE on
 # disk. Also the shape #20 needs on a 12 GiB card with 30 GiB of RAM, so a

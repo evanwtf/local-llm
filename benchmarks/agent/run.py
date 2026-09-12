@@ -263,11 +263,30 @@ def tests_pass(worktree, tests, timeout, command="uv run pytest -q"):
     failures. Matching the summary string here would be a fragile substitute
     that any refactor could quietly break.
     """
+    # The oracle must not modify the tree it is judging. `uv run` resolves
+    # before it runs and will REWRITE uv.lock -- which gmail-archive tracks --
+    # whenever the installed uv would resolve differently from the committed
+    # lock. That happens on any machine whose uv is newer than the one the lock
+    # was written with, and it is silent: the tests still pass.
+    #
+    # The damage is downstream. The trial's diff is taken as `git diff HEAD`,
+    # so a rewritten lock means the diff is never empty, `solution_empty` is
+    # never true, and every saved patch carries a uv.lock hunk that the agent
+    # did not write -- polluting solution_sha256 and the structural proxies
+    # over "lines the agent added". #112's turn-1-death analysis reads
+    # solution_empty, so on such a machine it silently measures nothing.
+    #
+    # UV_FROZEN is set in the environment rather than added to `command`, so
+    # the recorded test_command is byte-identical to every row already taken
+    # and nothing here changes what is being compared. Harmless to a runner
+    # that is not uv: `swift test` never reads it.
+    env = {**os.environ, "UV_FROZEN": "1"}
     r, peak, killed = memcap.run_capped(
         [*command.split(), *tests],
         cwd=worktree,
         timeout=timeout,
         cap_gib=ORACLE_MEM_CAP_GIB,
+        env=env,
     )
     if killed:
         return (
@@ -461,6 +480,23 @@ ANSWER_TREES = {"bench-solutions", "local-llm"}
 DS4_SAMPLER_NOTE = "engine defaults (not reported by ds4)"
 
 
+def sampler_note(engine):
+    """ "Effective sampling is unreported", naming the engine that did not report it.
+
+    This string is generic -- every OpenAI-compatible server reaches it -- but
+    it used to be the ds4 literal above for all of them. The first vLLM rows
+    (#320) therefore claimed a ds4 server on a machine where ds4 was not
+    running, which is worse than saying nothing: a reader grepping for ds4
+    provenance pulls them in, and a reader of one row in isolation concludes
+    ds4 served it.
+
+    An unidentified engine says so, in the same word the row uses elsewhere:
+    `unknown`. It does not guess a name, and it does not stay silent -- guessing
+    is what produced #320, and silence is what let it survive a whole run.
+    """
+    return f"engine defaults (not reported by {engine or 'unknown engine'})"
+
+
 def parse_openai_models(models, backend=None):
     """Read what an OpenAI-compatible `/v1/models` can tell us about a backend.
 
@@ -518,7 +554,10 @@ def parse_openai_models(models, backend=None):
             "requested_model": str(wanted),
         }
 
-    got = {"sampling": {}, "sampling_source": DS4_SAMPLER_NOTE}
+    got = {
+        "sampling": {},
+        "sampling_source": sampler_note((backend or {}).get("engine")),
+    }
     if entry.get("id"):
         got["served_model_id"] = entry["id"]
     if entry.get("supported_parameters"):
@@ -535,7 +574,9 @@ def parse_openai_models(models, backend=None):
 # Kept as the old name so callers and tests that predate the generalisation
 # keep working; ds4 is now one of several servers this reads.
 def parse_ds4_models(models):
-    return parse_openai_models(models)
+    # The legacy alias is ds4 by name, so it says ds4 -- explicitly now,
+    # rather than by falling through to a default that lied for everyone else.
+    return parse_openai_models(models, {"engine": "ds4"})
 
 
 def probe_openai_models(backend):
@@ -841,6 +882,50 @@ def capture_versions(cfg, backends, allow_unstamped=False):
             env["llamacpp_server_mtime"] = time.strftime(
                 "%Y-%m-%dT%H:%M:%S", time.localtime(server.stat().st_mtime)
             )
+    # vLLM is a wheel, not a checkout, so there is no commit to pin and the
+    # ~/git/<engine> shape the two blocks above rely on does not exist. What
+    # identifies the build is the wheel version plus the torch underneath it:
+    # on GB10 the kernels are JIT-built from PTX for sm_120 against an sm_121
+    # device, and torch is what decides that, so it is provenance and not
+    # trivia (VERSIONS.md).
+    #
+    # Keyed on the declared engine rather than a port. The ds4 and llama.cpp
+    # blocks match :8000 and :8020/:11500, which is why vLLM on :8030 was
+    # stamped by neither and the first NVFP4 rows carried no engine at all
+    # (#320). A port is a deployment detail; `engine` is what the backend
+    # actually claims to be.
+    vllm_trees = [
+        b.get("engine_tree")
+        for b in backends.values()
+        if (b.get("engine") or "").lower() == "vllm"
+    ]
+    if vllm_trees:
+        tree = pathlib.Path(vllm_trees[0] or "~/venvs/vllm").expanduser()
+        py = tree / "bin" / "python"
+        if py.exists():
+            probe = out(
+                [
+                    str(py),
+                    "-c",
+                    (
+                        "import vllm, torch; print(vllm.__version__, "
+                        "torch.__version__, torch.version.cuda or '', sep='|')"
+                    ),
+                ]
+            )
+            if probe:
+                # One line, not three: `out` returns the first line only, so a
+                # multi-line probe silently drops everything after the first --
+                # which is how torch and its CUDA build went missing from the
+                # first row that carried the vllm version.
+                got = probe.split("|")
+                if len(got) >= 1 and got[0]:
+                    env["vllm"] = got[0]
+                if len(got) >= 2 and got[1]:
+                    env["vllm_torch"] = got[1]
+                if len(got) >= 3 and got[2]:
+                    env["vllm_torch_cuda"] = got[2]
+
     # Which GGUF is in service comes from the server itself, below. An earlier
     # revision globbed `GGUF_ROOT/*/*.gguf`, which spans every quant sitting in
     # that directory: rows recorded during the Q3 runs list the Q2 shards too,
@@ -997,9 +1082,61 @@ def capture_versions(cfg, backends, allow_unstamped=False):
     if hosted:
         env["hosted_unpinned"] = hosted
 
+    # Every engine in the run names its build, or says so.
+    #
+    # #320: vLLM matched none of the stamping blocks above, so its rows carried
+    # no engine version at all -- indistinguishable, on the row, from a run
+    # that used no engine. The final filter here drops None, which is what
+    # makes an unprobed engine vanish silently rather than loudly.
+    #
+    # An explicit `unknown` is a warning. An absent key is not. This does not
+    # refuse the run: a missing version makes a row weaker, not wrong, and
+    # provenance must never take a run down (see `out`).
+    for gap in engine_provenance(backends, env):
+        logger.warning("provenance: %s", gap)
+
     if servers:
         env["servers"] = servers
     return {k: v for k, v in env.items() if v is not None}
+
+
+# Where each engine's build ends up in `env`. An engine absent from this table
+# is stamped under its own name, so adding a backend for a new engine records
+# `<engine>_version: unknown` until someone teaches capture_versions to probe
+# it -- which is the loud failure #320 did not get.
+ENGINE_VERSION_KEYS = {
+    "ds4": ("ds4_head",),
+    "llama.cpp": ("llamacpp_head",),
+    "llamacpp": ("llamacpp_head",),
+    "ollama": ("ollama",),
+    "vllm": ("vllm",),
+    "mtplx": ("mtplx",),
+    "lmstudio": ("lmstudio_runtimes",),
+}
+
+
+def engine_provenance(backends, env):
+    """Stamp `unknown` for any engine in the run whose build was not recorded.
+
+    Mutates `env`. Returns one complaint per gap, for the caller to log.
+
+    The hosted backend is exempt: it declares no engine and has no build to
+    pin, and `hosted_unpinned` already records that it is unpinned on purpose.
+    """
+    gaps = []
+    for name, backend in sorted(backends.items()):
+        engine = str(backend.get("engine") or "").lower()
+        if not engine:
+            continue
+        keys = ENGINE_VERSION_KEYS.get(engine, (engine,))
+        if any(env.get(k) for k in keys):
+            continue
+        env[f"{engine}_version"] = "unknown"
+        gaps.append(
+            f"{name}: engine {engine!r} recorded no build; "
+            f"the row will say {engine}_version=unknown (#320)"
+        )
+    return gaps
 
 
 # Shell state that must not reach a trial. VIRTUAL_ENV is the one that has
@@ -3328,6 +3465,33 @@ def main():
     provenance.configure()
     cfg = tomllib.loads(pathlib.Path(args.tasks_file).read_text())
     tasks = [t for t in cfg["task"] if not args.task or t["name"] in args.task]
+    # A task may pin itself to a platform. The Swift excisions target
+    # `~/git/monitor`, an AppKit desktop application: it builds against the
+    # Apple SDKs, so `swift test` cannot be an oracle anywhere but macOS, and
+    # no Swift toolchain on Linux changes that.
+    #
+    # Off a Mac they are SKIPPED, which leaves a missing cell -- never a zero.
+    # A skipped task writes no row at all, so a Linux pass rate describes the
+    # suite that machine actually ran instead of being silently penalised for
+    # five tasks it was never able to attempt. The Python excisions and the
+    # script tasks are the cross-platform spine and run everywhere.
+    #
+    # Naming one with --task still runs it, the same way --backend overrides a
+    # retired or tiered backend: the gate keeps them out of the default matrix,
+    # it does not make them unreachable.
+    if not args.task:
+        for t in tasks:
+            want = t.get("platform")
+            if want and want != sys.platform:
+                logger.info(
+                    "skipping task %s: platform %s, this machine is %s",
+                    t["name"],
+                    want,
+                    sys.platform,
+                )
+        tasks = [
+            t for t in tasks if not t.get("platform") or t["platform"] == sys.platform
+        ]
     backends = {
         k: v for k, v in cfg["backend"].items() if not args.backend or k in args.backend
     }
@@ -3399,6 +3563,17 @@ def main():
             targets[(got["repo"], got["base_commit"])] = got
         for (repo_str, commit), got in targets.items():
             repo = pathlib.Path(repo_str).expanduser()
+            # Not on disk at all. Without this the first git call raises a bare
+            # FileNotFoundError from subprocess, which names the path but not
+            # what wanted it or what to do about it.
+            if not repo.is_dir():
+                raise SystemExit(
+                    f"target repo {repo} does not exist, and task "
+                    f"{got.get('_name', repo_str)} needs it.\n"
+                    f"Clone it, or select only tasks whose repo is present. "
+                    f"A task pinned to another platform is skipped "
+                    f"automatically unless --task names it."
+                )
             dirty_t = run(["git", "status", "--porcelain"], cwd=repo).stdout.strip()
             if dirty_t:
                 raise SystemExit(
@@ -3480,7 +3655,20 @@ def main():
     #
     # Only applies when a ds4-server is actually up. A run on llama.cpp or
     # Ollama has no stake in ds4's kernels and must not be blocked by them.
-    if preflight.ds4_server_running():
+    #
+    # And only on macOS. The route this gate protects is ds4's **Metal 4**
+    # tensor path -- it "enables itself on M5", as the comment above says --
+    # and it does not exist in a CUDA build. On the DGX Spark, where ds4 is
+    # compiled `make cuda-spark` for sm_121a, the state is reported as
+    # "absent", which the gate below reads as "unverified" and refuses on.
+    # That turned a Metal correctness check into a hard block on a machine
+    # that has no Metal, and it cost a batch before anyone noticed the flag it
+    # was asking for could not mean anything here.
+    #
+    # Skipping is the honest answer rather than --allow-unverified-route: that
+    # flag says "measure anyway and accept no row can claim the route was
+    # checked", which understates the case. There is no route to check.
+    if sys.platform == "darwin" and preflight.ds4_server_running():
         route_state, route_summary = preflight.ds4_equivalence_state()
         if route_state == "fail":
             raise SystemExit(

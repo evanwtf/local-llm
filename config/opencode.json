@@ -150,12 +150,102 @@
           "temperature": false,
           "tool_call": true
         },
+        "nemotron-3-nano:30b-a3b-q8_0": {
+          "limit": {
+            "context": 262144,
+            "output": 262144
+          },
+          "modalities": {
+            "input": [
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "name": "Nemotron 3 Nano 30B-A3B q8_0 (local, ollama)",
+          "reasoning": false,
+          "temperature": false,
+          "tool_call": true
+        },
+        "nemotron-3-super:120b-a12b-q4_K_M": {
+          "limit": {
+            "context": 262144,
+            "output": 262144
+          },
+          "modalities": {
+            "input": [
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "name": "Nemotron 3 Super 120B-A12B Q4_K_M (local, ollama)",
+          "reasoning": false,
+          "temperature": false,
+          "tool_call": true
+        },
+        "nemotron-cascade-2:30b-a3b-q4_K_M": {
+          "limit": {
+            "context": 262144,
+            "output": 262144
+          },
+          "modalities": {
+            "input": [
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "name": "Nemotron Cascade 2 30B-A3B (local, ollama)",
+          "reasoning": false,
+          "temperature": false,
+          "tool_call": true
+        },
+        "nemotron3:33b-q4_K_M": {
+          "limit": {
+            "context": 262144,
+            "output": 262144
+          },
+          "modalities": {
+            "input": [
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "name": "Nemotron 3 33B Q4_K_M (local, ollama)",
+          "reasoning": false,
+          "temperature": false,
+          "tool_call": true
+        },
         "ornith-1.5:35b": {
           "limit": {
             "context": 262144,
             "output": 262144
           },
           "name": "Ornith-1.5-35B (local, ollama)",
+          "reasoning": false,
+          "temperature": false,
+          "tool_call": true
+        },
+        "qwen3.6:27b-coding": {
+          "limit": {
+            "context": 262144,
+            "output": 262144
+          },
+          "modalities": {
+            "input": [
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "name": "Qwen3.6 27B coding GGUF (local, ollama)",
           "reasoning": false,
           "temperature": false,
           "tool_call": true
@@ -185,6 +275,38 @@
         "apiKey": "ollama",
         "baseURL": "http://127.0.0.1:11434/v1",
         "chunkTimeout": 900000
+      }
+    },
+    "vllm": {
+      "name": "vLLM (local)",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "baseURL": "http://127.0.0.1:8030/v1",
+        "apiKey": "local",
+        "chunkTimeout": 900000,
+        "timeout": false
+      },
+      "models": {
+        "qwen3.6-27b-nvfp4": {
+          "name": "Qwen3.6-27B NVFP4 (local, vLLM)",
+          "tool_call": true,
+          "reasoning": false,
+          "temperature": false,
+          "limit": {
+            "context": 131072,
+            "output": 131072
+          }
+        },
+        "qwen3.6-27b-bf16": {
+          "name": "Qwen3.6-27B BF16 (local, vLLM)",
+          "tool_call": true,
+          "reasoning": false,
+          "temperature": false,
+          "limit": {
+            "context": 131072,
+            "output": 131072
+          }
+        }
       }
     }
   },
