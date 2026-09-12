@@ -123,6 +123,24 @@ class Refusing(RuntimeError):
     """A pre-registered condition the run must not start under."""
 
 
+def _parse_env(spec: str) -> dict[str, str]:
+    """Parse `K=V K2=V2` into a dict. Each token must be an assignment.
+
+    A token with no `=` is refused rather than ignored: it is almost always a
+    var meant for UNSET, and silently dropping it would run an arm that does
+    not carry the treatment it was configured with.
+    """
+    env: dict[str, str] = {}
+    for tok in shlex.split(spec):
+        key, sep, value = tok.partition("=")
+        if not sep or not key:
+            raise ValueError(
+                f"env token {tok!r} is not KEY=VALUE (use *_UNSET to remove)"
+            )
+        env[key] = value
+    return env
+
+
 def arm_from_env(side: str) -> stack_arm.Arm:
     """Build one arm from `<SIDE>_*`, defaulting to #138's own stacks.
 
@@ -148,6 +166,12 @@ def arm_from_env(side: str) -> stack_arm.Arm:
         kv=pathlib.Path(get("KV", d["KV"])),
         flags=get("FLAGS"),
         run_flags=get("RUN_FLAGS"),
+        # `<SIDE>_ENV` sets server vars ("K=V K2=V2"), `<SIDE>_UNSET` removes
+        # them ("K K2"). Both shlex-split, so a value may be quoted. UNSET is
+        # not ENV="": a var must be ABSENT for the level-2 tile default, and an
+        # empty assignment is still a set var (#149).
+        env=_parse_env(get("ENV")),
+        unset=tuple(shlex.split(get("UNSET"))),
         mlx_model=pathlib.Path(mlx_model) if mlx_model else None,
         mlx_port=int(get("MLX_PORT", stack_arm.MLX_PORT)),
         mlx_bin=get("MLX_BIN", stack_arm.MLX_SERVE),
@@ -237,6 +261,11 @@ def serving(arm: stack_arm.Arm, tag: str, out: pathlib.Path) -> Iterator[object]
             # asserts nothing, which is what the shell did.
             want_mtp=None,
             port=arm.port,
+            # The per-arm server environment (#149-style presence/value): env
+            # sets, unset removes. This is how two arms differ by one within-
+            # tree env var without a second tree or a second pack.
+            env=dict(arm.env),
+            unset=arm.unset,
         ) as unit:
             yield unit
         return
