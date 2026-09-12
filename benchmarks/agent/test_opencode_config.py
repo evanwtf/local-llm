@@ -86,3 +86,51 @@ def test_other_machines_backends_are_not_reported_missing(tmp_path):
     }
     got = opencode_config.missing(backends, config)
     assert got == ["real -> ollama/undeclared:1b"]
+
+
+# --- #301: a static small_model loads a second model beside the measurement --
+
+
+def _cfg(tmp_path, payload):
+    import json
+
+    p = tmp_path / "opencode.json"
+    p.write_text(json.dumps(payload))
+    return p
+
+
+def test_a_foreign_small_model_is_reported(tmp_path):
+    """The #301 shape exactly: measuring llama.cpp while ollama holds 25 GB."""
+    cfg = _cfg(tmp_path, {"small_model": "ollama/qwen3.6:27b-coding"})
+    got = opencode_config.small_model_conflict({"llamacpp/qwen3.8-flash-next-q3"}, cfg)
+    assert got and "ollama/qwen3.6:27b-coding" in got
+
+
+def test_no_small_model_is_the_safe_configuration(tmp_path):
+    cfg = _cfg(tmp_path, {"model": "vllm/qwen3.6-27b-nvfp4"})
+    assert opencode_config.small_model_conflict({"vllm/qwen3.6-27b-nvfp4"}, cfg) is None
+
+
+def test_a_small_model_already_being_measured_is_not_a_second_model(tmp_path):
+    """Pointing it at the resident model loads nothing extra."""
+    cfg = _cfg(tmp_path, {"small_model": "vllm/qwen3.6-27b-nvfp4"})
+    assert opencode_config.small_model_conflict({"vllm/qwen3.6-27b-nvfp4"}, cfg) is None
+
+
+def test_an_unreadable_config_says_nothing_rather_than_accusing(tmp_path):
+    """Same rule as declared_models: cannot tell is not the same as unsafe."""
+    missing_file = tmp_path / "nope.json"
+    assert opencode_config.small_model_conflict({"a/b"}, missing_file) is None
+
+
+def test_the_tracked_reference_copy_declares_no_small_model():
+    """config/opencode.json is what someone restores from. #301 shipped in it."""
+    import json
+    import pathlib
+
+    repo = pathlib.Path(__file__).resolve().parents[2]
+    data = json.loads((repo / "config/opencode.json").read_text())
+    assert "small_model" not in data, (
+        "the tracked reference copy must not carry a small_model: restoring "
+        "from it would reintroduce #301's 109 GB across two engines"
+    )

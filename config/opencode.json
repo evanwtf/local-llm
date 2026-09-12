@@ -329,6 +329,5 @@
         }
       }
     }
-  },
-  "small_model": "mtplx/mtplx-qwen38-27b-optimized-speed"
+  }
 }

@@ -81,6 +81,15 @@ def log_report(backends: dict[str, dict], config: pathlib.Path = CONFIG) -> None
     if not gaps:
         wanted = sum(1 for s in backends.values() if s.get("opencode_model"))
         logger.info("opencode: all %d opencode_model entries resolve", wanted)
+    # #301: a static small_model loads a SECOND model beside the one being
+    # measured. Reported beside the #69 check because both are "the client's
+    # config decides whether this batch measures what it claims to".
+    selected = {
+        s["opencode_model"] for s in backends.values() if s.get("opencode_model")
+    }
+    conflict = small_model_conflict(selected, config)
+    if conflict:
+        logger.warning("opencode: %s", conflict)
 
 
 def sampling_for(model: str, config: pathlib.Path | None = None) -> dict | None:
@@ -113,3 +122,39 @@ def sampling_for(model: str, config: pathlib.Path | None = None) -> dict | None:
     if name not in spec:
         return None
     return dict((spec[name] or {}).get("options") or {})
+
+
+def small_model_conflict(selected: set[str], config: pathlib.Path = CONFIG):
+    """A complaint when `small_model` names a model no selected backend serves.
+
+    #301. OpenCode uses `small_model` for incidental work -- session titles,
+    summaries -- *during* a session whose main model is whatever the harness
+    selected. So a static `small_model` loads a SECOND model, on a second
+    engine, beside the backend under measurement.
+
+    That is a confound anywhere. On unified memory it is fatal: measuring
+    `qwen38fnq3dgx` (83.81 GiB resident in llama.cpp) with `small_model` on
+    `ollama/qwen3.6:27b-coding` (25 GB) put 109 GB of weights across two
+    engines on a 121.7 GiB machine, and the kernel OOM-killed llama-server.
+
+    Absent is safe and is the configuration this checks for. A value equal to
+    one of the selected backends' own models is also safe -- it is the model
+    already resident. Anything else is the failure.
+
+    Returns None when there is nothing to say, so the caller can `if`.
+    """
+    try:
+        data = json.loads(config.read_text())
+    except (OSError, json.JSONDecodeError):
+        # Same rule as declared_models: "cannot tell" is not "nothing set".
+        return None
+    small = data.get("small_model")
+    if not small or small in selected:
+        return None
+    return (
+        f"opencode small_model is {small!r}, which no selected backend serves "
+        f"({sorted(selected)}). OpenCode loads it BESIDE the backend under "
+        f"measurement, on whatever engine it names -- 109 GB across two "
+        f"engines is what OOM-killed llama-server in #301. Remove it from "
+        f"{config}, or point it at the model being measured."
+    )
