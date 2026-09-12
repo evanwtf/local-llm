@@ -121,13 +121,19 @@ def test_the_row_names_the_mechanism_that_produced_the_number(tmp_path):
 
 def test_an_unknown_engine_is_refused_rather_than_defaulted(tmp_path):
     """Defaulting here would apply ds4's free-token subtraction to another
-    engine's numbers and quietly shift every figure."""
+    engine's numbers and quietly shift every figure.
+
+    The sentinel was "vllm" until 2026-09-12, when #319 made it a real engine
+    and this test started asserting that a registered reader is refused. A
+    placeholder chosen from the space of things we might one day support
+    expires the moment we support it; "not-an-engine" cannot.
+    """
     log = tmp_path / "l"
     log.write_text("")
     try:
-        run.DraftProbe(log, "vllm")
+        run.DraftProbe(log, "not-an-engine")
     except ValueError as exc:
-        assert "vllm" in str(exc)
+        assert "not-an-engine" in str(exc)
     else:
         raise AssertionError("an unknown engine must not silently use ds4's reader")
 
