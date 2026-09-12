@@ -1,7 +1,12 @@
 # Conventions
 
-Standing rules for this repo. They exist because breaking them has cost
-something before.
+Standing rules for data and safety in this repo. They exist because breaking
+them has cost something before. **Read this before you delete or archive model
+weights, commit a log or a capture, regenerate held-out text, or merge, union,
+or branch a data file.** How to *work* — the loop, git, issues, dates, peers,
+releases — is in [`docs/agent-workflow.md`](docs/agent-workflow.md); how to run
+a measurement is in [`docs/harness-operations.md`](docs/harness-operations.md)
+and [`docs/measurement-discipline.md`](docs/measurement-discipline.md).
 
 ## Model weights are an archive, not a working set
 
@@ -21,6 +26,38 @@ The `gemma4:*-mlx-bf16` models (~77 GB) were kept under this rule in August
 2026, when Ollama could not run them at all. Ollama has since gained an MLX
 backend, so they may now be usable — which is the argument for the rule, not
 against it.
+
+## Model weights stay out of Time Machine (2026-09-06)
+
+Every directory holding GGUF weights must be excluded from Time Machine
+**before** the first file lands in it:
+
+```sh
+tmutil addexclusion ~/models
+tmutil addexclusion ~/git/ds4/gguf
+tmutil isexcluded ~/models      # verify; do not assume
+```
+
+Both of those are excluded today. Check any new weights directory with
+`isexcluded` rather than trusting that it inherited anything.
+
+The reason is size, not secrecy: a single pair of DeepSeek-V4-Flash arms is
+171 GB, it changes wholesale rather than incrementally, and it is re-downloadable
+from Hugging Face by name and SHA-256. Backing it up buys nothing and evicts
+things that are not re-downloadable.
+
+**The exclusion is why a missing weights file will not be in the backup.** On
+2026-09-06 the AProjQ4 and AProjQ8 files behind #91's published 1.155 were gone
+from this machine, and the Extreme SSD snapshot taken the same morning did not
+have them either. That is the policy working, not a backup failure -- but it
+means the recorded identity is the only route back. Keep the file name, byte
+size and SHA-256 in the results file, as
+`hardware/.../pr621-m5max/RESULTS.md:12-13` does. A weights file with no
+recorded identity and no backup is gone for good.
+
+Related: weights are archived, not deleted, when a runtime stops being able to
+load them (above). Excluding them from Time Machine is not permission to prune
+them.
 
 ## Never commit a prompt capture
 
@@ -72,10 +109,26 @@ being renamed to conform -- "keep the historical record honest", below, wins.
 
 ## Keep the historical record honest
 
-Logs, traces, and saved transcripts under `benchmarks/` are records of what
-actually ran. When paths change, **do not** rewrite them to match the new
-layout — that falsifies the record. Fix live scripts and documentation; leave
-`.log`, `.trace`, and captured transcripts alone.
+The record of what actually ran is never rewritten to look tidier. This has
+three faces, and all three are the same rule.
+
+**Never delete a result row.** A run whose conditions were wrong gets
+`"excluded": true` with a reason, and `summarize.py` skips it. Deleting it would
+falsify the record. (`results.is_excluded()` knows every exclusion key; never
+hand-roll the filter — see
+[Write results through `results.py`](docs/harness-operations.md#write-results-through-resultspy-never-by-hand).)
+
+**Do not rewrite logs, traces, and saved transcripts under `benchmarks/`** to
+match a new layout. When paths change, fix live scripts and documentation and
+leave `.log`, `.trace`, and captured transcripts alone. Rewriting them to match
+the new paths falsifies the record of what ran.
+
+**Correct prose; do not quietly rewrite it.** When new data refutes an earlier
+claim, correct the claim and say it was refuted. A superseded finding in a
+`RESULTS.md` stays visible with a marker saying what replaced it —
+corrections are added, not substituted. This is also why a spelling or style
+pass must never touch a quotation, preserved evidence, or an archived snapshot
+(see [American English spellings](docs/agent-workflow.md#american-english-spellings-only-2026-09-05)).
 
 ## Engine roots are configurable, results are local
 
@@ -96,14 +149,111 @@ design working — one shared apparatus, many directories (#85, #292).
   commits behind and its rows were not comparable to the laptop's without a
   merge first (#292).
 - **Short-lived topic branches only**, named by issue (`269-ternary-bonsai`),
-  merged within days. No long-running per-machine branch.
+  merged within days. No long-running per-machine branch **as a substitute for
+  committing to `main`** — see the exception below, which is a different thing.
 - **Per-machine files never share a path**, so they never conflict:
   `hardware/MacA/results.jsonl` and `hardware/Spark/results.jsonl` are different
   files. `results.foreign_hardware()` refuses to pool rows across machines.
 
-**Do not `merge=union` the ledgers.** `exclude_rows.py` annotates a row in
-place and `results.load()` does not de-duplicate, so a union merge of two
-diverged checkouts restores the un-excluded copy of an archived row into every
-pass rate. `.gitattributes` explains why results.jsonl is left to the default
-3-way merge. After any merge that touched a ledger, re-run the archivers and
-check for duplicate rows before trusting an aggregate.
+### The exception: a machine with no coordination channel keeps a permanent branch (2026-09-07)
+
+The rule above assumes a machine that can rebase onto `main`. One cannot.
+**`Ryzen9-7900X-32GB-RTX3080Ti-12GB` must never be deleted, rebased, or
+force-pushed.** It is not a feature branch, not a staging area, and not a
+merge waiting to happen. It is the only place a second machine can write.
+
+The Ryzen box runs on its own, and **there is no coordination channel between
+it and this laptop.** It cannot be told that main moved, cannot be asked to
+rebase, and will not notice anything done to its branch here. Its branch is
+the whole interface. Delete it and that machine has nowhere to push -- which
+is worse than losing rows, because it breaks every future run rather than
+losing a past one.
+
+`346 behind` is its **normal steady state, not drift to correct.** It is
+behind because main advances on this machine many times a day, and ahead
+because the other machine writes rows nobody has merged. Both numbers will
+grow forever. Neither is a problem and neither is a task.
+
+So the two rules do not conflict: "no long-running per-machine branch" forbids
+holding a machine's commits *off* `main` when it could merge them; it does not
+license deleting the one branch a machine with no other channel writes through.
+
+What is on it that is nowhere else, as of 2026-09-07:
+
+```
+hardware/Ryzen9-7900X-32GB-RTX3080Ti-12GB/results.jsonl
+  on origin/main   16 rows
+  on the branch   112 rows
+```
+
+96 rows across seven backends -- `dtgemma412b`, `dtornith159b`, `dtqwen359b`,
+`dtmistralnemo`, `dtqwen359bq8`, `dtgemma4e4b`, `dtbonsai27b` -- measured
+2026-09-02 to 2026-09-03, plus that tier's `RESULTS.md` and its
+`hardware-id-*` logs. None of it can be re-derived here at any price. The
+machine is a different machine.
+
+**Before deleting any branch, ask what kind it is.** The test that settles a
+feature branch is whether merging it changes anything:
+
+```sh
+git worktree add --detach /tmp/mt origin/main
+git -C /tmp/mt merge --no-commit --no-ff origin/<branch>
+git -C /tmp/mt diff --cached --shortstat origin/main   # empty => superseded
+```
+
+That test is right for code and **wrong for a machine branch**, which fails it
+exactly the way a dead branch does. Eighteen branches were deleted on
+2026-09-07 on the strength of it and every deletion was correct; this one was
+kept, and the only thing that separated it from them was asking what the
+branch was for instead of what its graph looked like.
+
+The rule: **a branch whose name is a machine name belongs to that machine.
+Leave it alone.** Do not delete it, do not rebase it, do not force-push it,
+and do not "tidy" it because it has fallen behind.
+
+Copying its rows into main is a separate question and still open. If it is
+ever done it is an append argued for under the union rule below -- never a
+`git merge`, and never anything that touches the branch itself.
+
+### Never resolve a data file by taking the union of two row sets (2026-09-07)
+
+`results.jsonl` is append-only in the ordinary case, so "keep both sides and
+dedupe" looks like the safe merge. It is not, and on 2026-09-07 it restored 90
+rows that had been deliberately archived months before.
+
+**A removal and an absence are the same shape in a union.** Rows leave that
+file on purpose: `scripts/archive_pre_dir_rows.py` moves OpenCode trials that
+predate `--dir` into `docs/archive/`, because the client was never told which
+directory to work in and those rows measure the harness rather than the model.
+A branch that forked before that archiving still carries them. Union the two
+sides and every archived row comes back, indistinguishable from a row the
+other side simply had not seen yet.
+
+`exclude_rows.py` annotates a row in place and `results.load()` does not
+de-duplicate, so a union merge of two diverged checkouts restores the
+un-excluded copy of an archived row into every pass rate. `.gitattributes`
+explains why `results.jsonl` is left to the default 3-way merge rather than a
+union.
+
+**So resolve it as `theirs` plus the rows that are genuinely new**, and then
+re-run every archiver the repo owns before committing:
+
+```sh
+uv run python scripts/archive_pre_dir_rows.py     # idempotent; says what it moved
+uv run python benchmarks/agent/splice_tables.py   # tables go stale the moment rows move
+uv run pytest -q                                  # the invariant tests are the check
+```
+
+After any merge that touched a ledger, re-run the archivers and check for
+duplicate rows before trusting an aggregate.
+
+**And do not trust CI to catch it.** The tests that assert invariants of the
+ledger are guarded on `HAS_LOCAL_RESULTS`, which is
+`results.default_path().exists()` — a path derived from the RUNNER's own
+hardware by `scripts/hardware_id.py`. On any machine that is not the one that
+took the measurements, the directory does not exist and every one of those
+tests skips. CI was green on the branch that carried the 90 rows. See #218.
+
+The instruction that caused this was mine, given to a peer, and the peer
+followed it exactly and verified the union carefully. A merge rule for a data
+file has to name what may be *missing on purpose*, or it is not a rule.

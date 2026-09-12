@@ -2,6 +2,14 @@
 # the operator's CLAUDE.md and any file contents the agent read. Never commit.
 fail-*.json
 
+# Local environment / credential files. Hosted-arm credentials such as
+# ANTHROPIC_API_KEY are read from the environment; a developer may keep them in
+# a local .env. Never commit real values. .env.example (placeholders) stays
+# tracked so the variable names stay documented.
+.env
+.env.*
+!.env.example
+
 .venv/
 __pycache__/
 *.pyc

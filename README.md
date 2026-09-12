@@ -127,7 +127,7 @@ Requires [uv](https://docs.astral.sh/uv/); `pyproject.toml` sets
 ```sh
 uv sync
 uv run pre-commit install          # wires the commit-time guard into .git/hooks
-uv run pytest -q        # 1075 tests
+uv run pytest -q        # the full suite (2,600+ tests)
 ```
 
 CI (`.github/workflows/test.yml`) runs `uv sync`, `uv run pre-commit install`,
