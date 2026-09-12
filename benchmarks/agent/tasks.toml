@@ -1157,9 +1157,34 @@ context_tokens = 32768
 # here: the file that fails is the one the card's format name points at.
 #
 # Ollama cannot serve either at any version -- these need PrismML's 2-bit
-# kernels -- so this tier now has a second engine. 9.6 GiB resident at 32768,
-# fully on GPU. Its rows are NOT engine-comparable to this tier's Ollama rows
-# (#192), which is why dtbonsai27bllamacpp exists below.
+# kernels -- so this tier now has a second engine. Its rows are NOT
+# engine-comparable to this tier's Ollama rows (#192), which is why
+# dtbonsai27bllamacpp exists below.
+#
+# THE ARGV, because no row records one (#213). The 2026-09-09 trials were taken
+# without `-np`, and reconstructing that on 2026-09-12 cost a probe run:
+#
+#   ~/git/llama.cpp/build/bin/llama-server \
+#       -m ~/models/ternary-bonsai-27b/Ternary-Bonsai-27B-PQ2_0.gguf \
+#       -a ternary-bonsai-27b-pq2-32768 --host 127.0.0.1 --port 8080 \
+#       -c 32768 -ngl 99 --api-key llamacpp
+#
+# Residency is how you tell the two apart, and 9.6 GiB is the DEFAULT:
+#
+#   default    n_slots = 4, kv_unified = true,  9632 MiB   <- the 09-09 rows
+#   -np 1      n_slots = 1, kv_unified = false, 9182 MiB   <- the 09-12 rows
+#
+# `n_ctx_slot` is 32768 in BOTH -- the four-slot case shares one unified cache,
+# so neither configuration quietly served an 8k window, which was the risk. The
+# two halves of the arm agree task for task (3/5 vs 3/5, 5/5 vs 5/5, 3/5 vs 4/5,
+# 4/5 vs 5/5), so `-np` moved no verdict here. Pass `-np 1` for new rows: one
+# agent uses one slot, and the single-slot case is the one this comment can
+# still describe in a year.
+#
+# Do not pass sampler flags. The model declares its own in the GGUF and
+# llama-server honors them -- temp 1.0, top_k 20, top_p 0.95, min_p 0.05,
+# repeat_penalty 1.0, readable at /props. A flag here would be a second,
+# undocumented regime.
 [backend.dtternarybonsai27b]
 description = "Ternary-Bonsai-27B PQ2_0 GGUF via llama.cpp PrismML fork (desktop 3080 Ti)"
 tier = "desktop-3080ti"

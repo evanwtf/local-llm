@@ -30,6 +30,11 @@ produced this file was refused until it was pointed at
 | CUDA runtime | 13.2 (via the driver) |
 | CUDA toolkit | **not installed** — no `nvcc` |
 
+**Corrected 2026-09-10: `cuda-toolkit-13-3` is installed** (`nvcc` at
+`/usr/local/cuda-13.3/bin/nvcc`, off the default `PATH`), added so #278 could
+build llama.cpp for `sm_86`. The table above is the first-run snapshot and is
+left as it was.
+
 ## Software under test
 
 | | |
@@ -610,3 +615,112 @@ Bonsai resolved to
 [`prism-ml/Bonsai-27B-gguf`](https://huggingface.co/prism-ml/Bonsai-27B-gguf)
 -> `Bonsai-27B-Q1_0.gguf`, 3.54 GiB, recorded in `~/models/bonsai-27b/SOURCE.txt`
 so #111 does not repeat.
+
+---
+
+## 2026-09-09 / 2026-09-12: Ternary-Bonsai PQ2_0 — the quant wins one task, not the suite (#269)
+
+The lead was "`Ternary-Bonsai-27B` Q2 is the build for an 8 GB card", against a
+`Bonsai-27B` Q1_0 this tier had already scored 5/12. Three arms separate the two
+things that differ between those numbers, because the naive comparison changes
+the quantization **and** the engine at once.
+
+| arm | weights | engine | pooled |
+|---|---|---|---:|
+| `dtbonsai27b` | Q1_0 | Ollama 0.33.2 | 5/12 |
+| `dtbonsai27b` | Q1_0 | Ollama 0.33.3 | 13/26 |
+| `dtbonsai27bllamacpp` | Q1_0 | llama.cpp PrismML `d8f26ee` | 26/38 |
+| `dtternarybonsai27b` | **PQ2_0** | llama.cpp PrismML `d8f26ee` | **32/40** |
+
+Read with `uv run python scripts/bonsai_quant_report.py`, which keys an arm on
+the engine build that served it rather than on the backend name.
+
+### Neither pooled contrast separates
+
+| contrast | held fixed | | | Fisher exact |
+|---|---|---:|---:|---:|
+| engine | Q1_0 weights | Ollama 13/26 | llama.cpp 26/38 | p = 0.1930 |
+| quant | llama.cpp `d8f26ee` | Q1_0 26/38 | PQ2_0 32/40 | p = 0.3032 |
+
+**So the headline claim is not supported.** 65% against 80% at these counts is
+what the ledger cannot tell apart, and the morning of 2026-09-09 read a 9/12
+against 5/12 as a decisive win for the recommended model when it was noise plus
+an engine change plus an Ollama version bump.
+
+### One task does separate, and it is a repository task
+
+| task | Q1_0 llama.cpp | PQ2_0 llama.cpp | Fisher exact |
+|---|---:|---:|---:|
+| `storage-blob-put` | 2/10 | **9/10** | **p = 0.0055** |
+| `script-transform` | 10/10 | 7/10 | p = 0.2105 |
+| `mbox-scan` | 4/8 | 6/10 | p = 1.0000 |
+| `script-reverse` | 10/10 | 10/10 | p = 1.0000 |
+
+`storage-blob-put` survives a Bonferroni correction across the four tasks
+(0.05/4 = 0.0125), and the PQ2_0 arm is also faster on it — 94.3 s median
+against 173.7 s. It is the tier's hardest task by pass rate: every Ollama arm
+scored 0, and the Q1_0 control managed 2/10.
+
+**This is the one finding here, and it is narrower than the lead.** On the
+2026-09-09 half alone the two per-task differences pointed in opposite
+directions and roughly cancelled (`storage-blob-put` p = 0.089,
+`script-transform` p = 0.095). Doubling the arm to ten trials per task split
+them: `storage-blob-put` strengthened to p = 0.0055 and `script-transform`
+weakened to p = 0.2105. The second was noise; the first was not.
+
+### Two corrections to the record
+
+**`14/26` for the Ollama 0.33.3 arm is wrong; it is 13/26.** `storage-blob-put`
+trial 5 carries `passed: true` **and** `touched_tests: true` — it edited the
+oracle, which `results.verdict()` scores as a failure and a direct read of
+`row["passed"]` does not. The engine contrast moves from p = 0.30 to p = 0.1930.
+Same conclusion, corrected number, and `scripts/report.py` has said not to read
+that field directly since 2026-09-01.
+
+**The blocker on #269 is spent.** Its comment says this box "has the driver but
+no `nvcc`". `cuda-toolkit-13-3` was installed on 2026-09-10 for #278.
+
+### Server configuration, and why it needed a probe
+
+No row records `server_argv` (#213), so the argv behind the 2026-09-09 half had
+to be reconstructed from a residency figure. `tasks.toml` recorded "9.6 GiB
+resident at 32768"; the 2026-09-12 server sat at 9182 MiB. A probe settled it:
+
+| | slots | KV | resident |
+|---|---:|---|---:|
+| default | 4 | unified | 9632 MiB |
+| `-np 1` | 1 | per-slot | 9182 MiB |
+
+So the halves were served with different `-np`, and **`n_ctx_slot` is 32768 in
+both** — the four-slot case shares one unified cache, so neither half quietly
+ran an 8k window. The halves agree task for task (3/5 vs 3/5, 5/5 vs 5/5, 3/5 vs
+4/5, 4/5 vs 5/5), so `-np` moved no verdict and the arm pools. The argv is now
+written into `tasks.toml` beside the backend, which is where it should have been.
+
+### Provenance
+
+OpenCode 1.18.27, target `gmail-archive` @ `56e55cc`, harness `ea77971` for the
+2026-09-12 rows and `a44d79a`/`b5a0432` for the 2026-09-09 rows — the diff
+between them touches locking and comments, not the measurement path. Sampler is
+the model's own, from the GGUF: temp 1.0, top_k 20, top_p 0.95, min_p 0.05,
+repeat_penalty 1.0.
+
+The 2026-09-12 rows carry `harness_dirty: true`. It is accurate and it is not
+the harness: the analysis script and its test were written into the same
+checkout while the batch ran, and two documents were edited. Every tracked file
+under `benchmarks/` and `scripts/` was byte-identical to `ea77971` for the whole
+batch — `git diff ea77971 -- benchmarks/ scripts/` is empty. Writing analysis
+into a checkout that is measuring is the 2026-09-04 trap in a smaller size.
+
+One row is unpaired: `mbox-strip-envelope` 1/1, from a batch started without
+`--task` flags and stopped once it became clear the default matrix is ten tasks
+while every prior run on this tier used four. The row is real and kept; the
+report excludes it from the contrast because no other arm has run that task.
+
+Four rows across the arm record a `workspace_escape`, and none of them reached
+answers. Three name `/home/evan/git/gmail_archive` — the underscore spelling,
+which does not exist on this box — so they are the agent guessing a path and
+finding nothing. The fourth names `~/.local/lib`, which is site-packages.
+`source_repo_intact` is `true` on every row. Confinement is `none` here (#81),
+so these are recorded rather than prevented, which is exactly why they are
+worth reading rather than skipping.
