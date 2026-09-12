@@ -69,11 +69,30 @@ def run(
     admission probe can read which knob was set rather than trust a table.
     """
     log.parent.mkdir(parents=True, exist_ok=True)
-    merged: dict[str, str] | None = None
-    if env or unset:
-        merged = {**os.environ, **(env or {})}
-        for key in unset:
-            merged.pop(key, None)
+    # ALWAYS build the environment explicitly, even with nothing to merge.
+    #
+    # #288. `env=None` hands the child the process's **C** environ, which is
+    # not the same thing as `os.environ`. `import readline` calls
+    # setenv("COLUMNS","80") and setenv("LINES","24") at the C level, and
+    # Python's mapping is a snapshot that never reflects it -- so the keys are
+    # invisible to every Python-level check, which is why #288's investigation
+    # looked at the environment and found nothing.
+    #
+    # pytest imports readline unconditionally
+    # (`_pytest/capture.py:161 at pytest 8.x` -> `_readline_workaround`), so
+    # under the suite those keys are always in the C environ. Whether a
+    # shell-vs-port differential then passes depends on which readline the
+    # interpreter links: GNU sets them, libedit does not. That is the variable
+    # #288 mistook for "the checkout" -- a `/tmp` worktree of the same commit
+    # passed because its interpreter never put them there.
+    #
+    # Filtering COLUMNS/LINES in the comparison would have silenced six tests
+    # and left the hazard: a benchmark child inheriting state nobody wrote
+    # down. An explicit dict is immune to readline today and to whatever
+    # mutates `environ` next.
+    merged: dict[str, str] = {**os.environ, **(env or {})}
+    for key in unset:
+        merged.pop(key, None)
     with log.open("ab" if append else "wb") as handle:
         proc = subprocess.Popen(
             list(argv),
