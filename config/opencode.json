@@ -72,6 +72,16 @@
           "reasoning": false,
           "temperature": false,
           "tool_call": true
+        },
+        "qwen3.8-flash-next-q3-nothink": {
+          "name": "Qwen3.8-Flash-Next Q3, thinking off (llama.cpp)",
+          "tool_call": true,
+          "reasoning": false,
+          "temperature": false,
+          "limit": {
+            "context": 131072,
+            "output": 131072
+          }
         }
       },
       "name": "llama.cpp (local)",

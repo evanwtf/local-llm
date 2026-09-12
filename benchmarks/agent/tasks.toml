@@ -406,6 +406,30 @@ aider_model = "openai/qwen3.8-flash-next-q3"
 opencode_model = "llamacpp/qwen3.8-flash-next-q3"
 context_tokens = 131072
 
+# #333 on the machine's BEST backend. qwen38fnq3dgx is 30/30 at a 108.2s median,
+# the fastest thing measured on the DGX Spark, and thinking off was worth
+# 179.6s -> 106.0s on qwen3.6-27B NVFP4. One checkpoint is not a
+# recommendation, so this asks whether the lever transfers to the model that
+# would actually be recommended.
+#
+# Same engine deliberately: the local llama.cpp build at 481c65f that produced
+# the control's rows, not the newer prebuilt at 50182a53f, so the engine does
+# not move with the treatment. Thinking is turned off with
+# --chat-template-kwargs '{"enable_thinking":false}', which uses the model's
+# OWN embedded template rather than a rewritten one -- llama.cpp exposes the
+# flag, so no template surgery is needed here and the only difference from the
+# control is that one argument.
+[backend.qwen38fnq3nothinkdgx]
+description = "Qwen3.8-Flash-Next UD-Q3_K_XL, llama.cpp CUDA sm_121, thinking OFF"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8020"
+auth_token = "local"
+engine = "llama.cpp"
+model = "qwen3.8-flash-next-q3-nothink"
+aider_model = "openai/qwen3.8-flash-next-q3-nothink"
+opencode_model = "llamacpp/qwen3.8-flash-next-q3-nothink"
+context_tokens = 131072
+
 # DeepSeek-V4-Flash on the DGX Spark. The project's one independent lineage --
 # the only model here that is neither Qwen nor GLM -- and until now a Mac-only
 # fact, because ds4 was a Mac-only fact. It is not: ds4 ships a documented
