@@ -81,6 +81,7 @@ doc.
 - American English spellings. Never rewrite a quotation, preserved evidence, or an archived snapshot.
 - Use **absolute URLs** in issue and PR comments; a relative link 404s there.
 - Post a **status update every 5 minutes** during any long run.
+- **In autonomous mode, post a heartbeat at least every 30 minutes** — even when nothing is running, so an idle or stuck window is visible. Each heartbeat carries: the **current local wall-clock time** (re-read the clock, do not infer it); **what is in flight**; an **ETA** for the current task when one exists; **what is next**; and **what is on the GPU**, opening with `Currently on GPU: <what> (issue #N)` (idle counts). This is the floor, not a ceiling — the 5-minute rule still governs an active long run.
 
 **Shell, subprocesses, and waiters** — [`docs/automation-hazards.md`](docs/automation-hazards.md)
 - New code is **Python, not shell** (#235). A `.sh` may be edited only to fix a live defect in a script that is still running.
