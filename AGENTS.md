@@ -143,6 +143,7 @@ every one on every task — read the row that matches what you are about to do.
 | download, delete, or archive model weights; commit a capture; regenerate held-out text; or merge a data file | [`CONVENTIONS.md`](CONVENTIONS.md) |
 | understand the benchmark task by task | [`benchmarks/agent/METHODOLOGY.md`](benchmarks/agent/METHODOLOGY.md) |
 | run machine operations, thermals, or a cross-machine comparison | [`docs/m5max-runbook.md`](docs/m5max-runbook.md) |
+| operate the DGX Spark: is it busy, Prometheus, ports, launching safely | [`docs/dgx-spark-runbook.md`](docs/dgx-spark-runbook.md) |
 | share the machine with another agent | [`docs/peer_agents.md`](docs/peer_agents.md) |
 | watch the field (X, Hugging Face, upstream) | [`SOURCES.md`](SOURCES.md) |
 
