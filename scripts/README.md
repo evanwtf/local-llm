@@ -31,6 +31,8 @@ documentation.
 | `decode_ab_repeat.py` | Run the same decode A/B N times, into numbered directories (#136). |
 | `decode_ab_report.py` | Summarize a paired decode A/B produced by scripts/decode_ab.py (#48). |
 | `decode_ab_stack.py` | Paired decode-rate A/B for two whole STACKS -- engine tree and weights together. #138 |
+| `degeneration_cascade.py` | Measure the #112 tool-call degeneration from captured OpenCode transcripts. |
+| `degeneration_cascade_run.py` | A fresh, transcript-capturing run of the `qwen38fnds4shim` cell for #112. |
 | `disk_baseline.py` | Measure the internal NVMe: read bandwidth and random-read latency. |
 | `disk_kv_mechanism.py` | Is the disk-KV budget what makes arm A decline by trial 3? #112 |
 | `ds4_serve.py` | Start ds4-server on one of two Metal kernel routes, and prove which one ran. |
