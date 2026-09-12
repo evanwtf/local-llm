@@ -181,6 +181,10 @@ def test_the_mtp_arms_declare_themselves():
         # are driven by clients that send no temperature, and ds4 reaches its
         # Qwen MTP path only at temperature <= 0.
         "qwen38fnds4mtp7greedy": "ds4",
+        # #319: draftless n-gram speculation on vLLM. No draft model, so no
+        # draft-model engine -- but vLLM counts acceptance, so the arm can
+        # still prove it drafted and is declared like any other.
+        "qwen36nvfp4specdgx": "vllm",
     }
 
 
