@@ -59,7 +59,7 @@ other is telling you something.
 
 ### Cortex-X925-128GB-GB10
 
-*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 381 rows, sha256 5c2bc6b3f825.*
+*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 411 rows, sha256 ee0618ef9da0.*
 
 #### Every stack measured under OpenCode
 
@@ -74,8 +74,8 @@ other is telling you something.
 | qwen36nvfp4dgx | 30/30 | 179s | 545s | 6.5x |
 | qwen36nvfp4v1dgx | 29/30 | 190s | 832s | 12.3x |
 | nemotroncascade2 | 2/10 | 197s | 197s | 1.0x |
-| ds4dgx | 30/30 | 234s | 364s | 3.6x |
 | qwen36nvfp4specdgx | 9/13 | 236s | 984s | 21.9x |
+| ds4dgx | 60/60 | 248s | 493s | 6.1x |
 | qwen36bf16dgx | 30/30 | 432s | 1335s | 6.7x |
 | nemotron3nano | 8/10 | 580s | 1212s | 8.5x |
 | nemotron33 | 1/10 | — | — | — |
