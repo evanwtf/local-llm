@@ -124,8 +124,16 @@ def lock_state() -> dict | None:
     return held
 
 
-def check() -> list[str]:
-    """Reasons not to launch. Empty means go."""
+def check(intent: str = "server") -> list[str]:
+    """Reasons not to launch. Empty means go.
+
+    `intent` matters: an occupied port blocks starting a SERVER and is exactly
+    what you want before starting a RUN against it. The first version of this
+    function refused both, which would have talked an operator out of the right
+    action -- reusing a healthy server -- on the strength of a check written to
+    prevent the opposite mistake. A guard that fires on the correct action
+    teaches people to ignore it.
+    """
     problems = []
     if tree_dirty():
         problems.append(
@@ -143,7 +151,7 @@ def check() -> list[str]:
         )
     for port in PORTS:
         model = served_model(port)
-        if model:
+        if model and intent == "server":
             problems.append(
                 f"port {port} is already serving {model!r} -- reuse it rather than "
                 f"launching a second server, which dies with EADDRINUSE while a "
@@ -177,6 +185,14 @@ def confirm(pid: int, log: pathlib.Path | None, timeout: float, quiet: float) ->
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("mode", choices=["check", "confirm"])
+    p.add_argument(
+        "--for",
+        dest="intent",
+        choices=["server", "run"],
+        default="server",
+        help="what is about to be launched. A busy port blocks a server and is "
+        "fine for a run against it.",
+    )
     p.add_argument("--pid", type=int)
     p.add_argument("--log", type=pathlib.Path)
     p.add_argument("--timeout", type=float, default=60.0)
@@ -185,11 +201,15 @@ def main(argv: list[str] | None = None) -> int:
 
     logs.configure()
     if args.mode == "check":
-        problems = check()
+        problems = check(args.intent)
         for problem in problems:
             logger.warning("not ready: %s", problem)
         if not problems:
-            logger.info("ready: tree clean, no lock, no port occupied")
+            logger.info(
+                "ready to launch a %s: tree clean, no lock%s",
+                args.intent,
+                ", no port occupied" if args.intent == "server" else "",
+            )
         return 1 if problems else 0
 
     if not args.pid:
