@@ -39,10 +39,12 @@ import argparse
 import datetime
 import json
 import logging
+import os
 import pathlib
 import subprocess
 import sys
 import time
+import urllib.request
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
 import logs
@@ -249,9 +251,187 @@ def report(rows: list[dict], hours: float, target: float = TARGET) -> dict:
     }
 
 
+# --- idleness, which is not the same question as "is a kernel resident" ------
+
+
+def machine_state(log: pathlib.Path, window: int = 10) -> dict:
+    """Is the machine failing to make progress? A verdict with its reason.
+
+    No single instantaneous signal answers this, and every one of them has been
+    wrong here on its own:
+
+    - **occupancy** reads 96% while weights are merely being copied in, and 0%
+      mid-trial whenever the agent is running a tool or a test suite instead of
+      decoding.
+    - **power** is the best single signal (9.4 W at rest against 35-81 W under
+      work) but still dips to idle levels during those same tool phases, so one
+      low reading proves nothing.
+    - **a resident server** proves less than it looks: 83 GiB held by a vLLM
+      process that finished its job an hour ago reads exactly like a server
+      about to serve.
+    - **the run lock** says a batch claimed the machine, not that it is moving;
+      a wedged run holds the lock forever.
+
+    So the verdict is a conjunction over a WINDOW, corroborated by progress:
+
+    BUSY      recent samples show real power draw
+    WORKING   power is low right now but a benchmark process is alive AND its
+              log advanced recently -- the tool-execution phase of a live trial
+    LOADING   a server process exists but does not answer yet. Weight loading is
+              disk-bound, so power stays at idle levels throughout
+    IDLE      sustained low power, no live benchmark process, no log movement.
+              The only state that is a defect, and the only one worth acting on.
+    STALLED   a benchmark process is alive and holding the lock, but power has
+              been low and its log has not advanced -- worse than idle, because
+              it looks busy
+    """
+    rows = load(log, hours=1)[-window:]
+    watts = [r["watts"] for r in rows if r.get("watts") is not None]
+    recent_power = max(watts) if watts else None
+    procs = _serving_processes()
+    bench = _benchmark_running()
+    advanced = _log_advanced_recently()
+
+    if recent_power is not None and recent_power >= IDLE_WATTS:
+        state = "BUSY"
+        why = f"peak {recent_power:.1f} W over the last {len(watts)} samples"
+    elif bench and advanced:
+        state = "WORKING"
+        why = "power low, but a benchmark is alive and its log advanced -- a trial's tool phase"
+    elif bench:
+        state = "STALLED"
+        why = "a benchmark process holds the machine but power is low and its log has not advanced"
+    elif procs and not _server_answers():
+        # Weight loading is DISK-bound, not GPU-bound: power sits at idle
+        # levels for the whole shard read, so power cannot separate loading
+        # from idle. The separating fact is that a server process exists and
+        # is not yet answering. An earlier version required >15 W here and
+        # therefore called a loading server IDLE -- the 36 W seen previously
+        # while "loading" was the later CUDA-graph capture, not the read.
+        state = "LOADING"
+        why = "a server process exists but does not answer yet -- between phases"
+    else:
+        state = "IDLE"
+        why = (
+            f"no benchmark process, no log movement, peak "
+            f"{recent_power if recent_power is None else round(recent_power, 1)} W"
+        )
+    return {
+        "state": state,
+        "why": why,
+        "peak_watts": recent_power,
+        "samples": len(watts),
+        "benchmark_running": bench,
+        "log_advanced": advanced,
+        "resident_gib": round(_resident_gib(), 1),
+        "actionable": state in {"IDLE", "STALLED"},
+    }
+
+
+def _own_tree() -> set[int]:
+    """This process and every ancestor, to exclude from any argv match.
+
+    The self-match trap, which has produced three separate bugs in this repo and
+    fired inside this very function's first version: a shell that quotes a
+    pattern matches it. Bracketing (`[b]enchmarks`) only ever protected against
+    matching the pattern literally; it does not stop a parent shell whose
+    command line happens to contain the words.
+    """
+    mine = set()
+    pid = os.getpid()
+    for _ in range(32):
+        if pid <= 1:
+            break
+        mine.add(pid)
+        try:
+            stat = pathlib.Path(f"/proc/{pid}/stat").read_text()
+            pid = int(stat.rsplit(")", 1)[1].split()[1])
+        except (OSError, IndexError, ValueError):
+            break
+    return mine
+
+
+def _cmdlines() -> list[str]:
+    """Every process's argv, excluding this process and its ancestors."""
+    mine = _own_tree()
+    out = []
+    for entry in pathlib.Path("/proc").iterdir():
+        if not entry.name.isdigit() or int(entry.name) in mine:
+            continue
+        try:
+            out.append((entry / "cmdline").read_bytes().replace(b"\0", b" ").decode())
+        except OSError:
+            continue
+    return out
+
+
+def _serving_processes() -> bool:
+    return any(
+        k in c
+        for c in _cmdlines()
+        for k in ("vllm serve", "llama-server", "ds4-server")
+    )
+
+
+def _benchmark_running() -> bool:
+    """A measurement process, matched on the harness's own module path."""
+    return any(
+        k in c
+        for c in _cmdlines()
+        for k in (
+            "benchmarks/agent/run.py",
+            "scripts/vllm_load.py",
+            "scripts/model_probe.py",
+        )
+    )
+
+
+def _server_answers(ports: tuple[int, ...] = (8020, 8030, 8000)) -> bool:
+    """Does any local model server answer a real request?
+
+    Probes /v1/models rather than /health: on 2026-08-31 a llama.cpp server
+    answered health with 200 while every completion returned 503, because an
+    84 GB model was still being read off disk.
+    """
+    for port in ports:
+        try:
+            with urllib.request.urlopen(
+                f"http://127.0.0.1:{port}/v1/models", timeout=3
+            ) as response:
+                if response.status == 200:
+                    return True
+        except Exception as exc:  # noqa: BLE001 - any failure means "not answering"
+            logger.debug("port %d did not answer: %s", port, exc)
+    return False
+
+
+def _log_advanced_recently(seconds: float = 600.0) -> bool:
+    """Has any run log been appended to lately? Progress, not intent.
+
+    A wedged run holds its lock and its process and writes nothing, which is the
+    state this distinguishes from a healthy tool phase.
+    """
+    newest = 0.0
+    roots = [
+        pathlib.Path.home() / ".local-llm-bench",
+        pathlib.Path.home() / "bench-logs",
+        pathlib.Path.home() / "git/local-llm/hardware",
+    ]
+    for root in roots:
+        if not root.exists():
+            continue
+        for path in root.rglob("*"):
+            if path.is_file():
+                try:
+                    newest = max(newest, path.stat().st_mtime)
+                except OSError:
+                    continue
+    return bool(newest) and (time.time() - newest) < seconds
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    p.add_argument("mode", choices=["sample", "watch", "report"])
+    p.add_argument("mode", choices=["sample", "watch", "report", "state"])
     p.add_argument("--log", type=pathlib.Path, default=DEFAULT_LOG)
     p.add_argument("--interval", type=float, default=30.0)
     p.add_argument("--hours", type=float, default=24.0)
@@ -263,6 +443,12 @@ def main(argv: list[str] | None = None) -> int:
         got = sample(args.log)
         logger.info("%s", json.dumps(got))
         return 0
+    if args.mode == "state":
+        got = machine_state(args.log)
+        level = logger.warning if got["actionable"] else logger.info
+        level("%s -- %s", got["state"], got["why"])
+        logger.info("%s", json.dumps(got))
+        return 2 if got["actionable"] else 0
     if args.mode == "watch":
         logger.info("sampling every %.0fs into %s", args.interval, args.log)
         while True:
