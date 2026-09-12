@@ -231,5 +231,5 @@ def test_pinned_with_leading_sha_is_not_in_scan():
 def test_allowlisted_citation_passes():
     """An allowlisted bare citation does not fail the repo scan."""
     allowlist = load_allowlist()
-    # AGENTS.md:ds4.c:40442 is the metadiscussion example of a bare citation.
-    assert "AGENTS.md:ds4.c:40442" in allowlist
+    # docs/measurement-discipline.md:ds4.c:40442 is the metadiscussion example.
+    assert "docs/measurement-discipline.md:ds4.c:40442" in allowlist

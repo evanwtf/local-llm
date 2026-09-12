@@ -113,11 +113,11 @@ def test_the_survey_totals_agree_with_its_own_rows() -> None:
 
 
 def test_the_reduction_is_measured_against_the_written_baseline() -> None:
-    # AGENTS.md quotes 3,589 -> 359. If either moves, the document is wrong,
-    # not the script.
+    # docs/automation-hazards.md quotes 3,589 -> 359. If either moves, the
+    # document is wrong, not the script.
     assert shell_debt.TARGET == round(shell_debt.BASELINE * 0.1)
-    agents = (ROOT / "AGENTS.md").read_text()
-    assert "3,589" in agents and "359" in agents
+    doc = (ROOT / "docs/automation-hazards.md").read_text()
+    assert "3,589" in doc and "359" in doc
 
 
 def test_the_keep_list_names_files_that_exist_and_gives_a_reason() -> None:

@@ -6,7 +6,7 @@
     a 90% line reduction     3,589 -> 359 lines under scripts/
     zero pgrep/pkill         every file that matches a process by NAME
 
-AGENTS.md quotes both, and a quoted number goes stale the day after it is
+docs/automation-hazards.md quotes both, and a quoted number goes stale the day after it is
 written. This computes them, so the next reader re-runs it instead of
 believing me.
 
@@ -29,7 +29,7 @@ to have an explicit table instead.
     uv run python scripts/shell_debt.py
     uv run python scripts/shell_debt.py --json
 
-Replacement is not retirement. AGENTS.md: a `.sh` is deleted only once its
+Replacement is not retirement. docs/automation-hazards.md: a `.sh` is deleted only once its
 Python replacement has produced a run that agrees with it.
 """
 
@@ -103,8 +103,8 @@ KEEP = {
         "user-facing; RECOMMENDATIONS.md tells a stranger to run it"
     ),
     "scripts/install-metal-ceiling.sh": "installs a system artifact",
-    "scripts/ds4-fast.sh": "3-line exec shim -- AGENTS.md's documented exception",
-    "scripts/ds4-vanilla.sh": "3-line exec shim -- AGENTS.md's documented exception",
+    "scripts/ds4-fast.sh": "3-line exec shim -- docs/automation-hazards.md's documented exception",
+    "scripts/ds4-vanilla.sh": "3-line exec shim -- docs/automation-hazards.md's documented exception",
 }
 
 #: Shell that is retired by deleting something else: `<library>: (every file
