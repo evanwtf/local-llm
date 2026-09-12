@@ -32,8 +32,11 @@ because re-prefill and context handling dominate it.
 
 This is a benchmark harness and a body of measurements — Python scripts and a few
 shell wrappers run from a checkout, plus the `RESULTS.md` files they produce. It
-measures a fixed set of machines; the numbers this repo publishes come from **a
-MacBook Pro M5 Max, 128 GB, macOS 26**. Confirm you are on a managed machine
+measures a registered set of machines ([`hardware/MACHINES.md`](hardware/MACHINES.md)) —
+the **M5 Max MacBook Pro (128 GB, macOS 26)**, the DGX Spark, and the Ryzen /
+RTX 3080 Ti desktop — and every published number belongs to the hardware
+recorded on it (`docs/results.md` splits its tables per machine). The M5 Max is
+the primary coding-agent machine and the one `RECOMMENDATIONS.md` targets. Confirm you are on a managed machine
 before comparing a result (`uv run python scripts/machines.py --check`), and
 **name the machine in the third person** in every record — three agents read this
 repo, one per machine, and "this machine" points somewhere different for each
@@ -49,7 +52,7 @@ uv run python benchmarks/agent/preflight.py        # servers, memory ceiling, ve
 uv run python benchmarks/agent/run.py --backend <name> --client opencode --trials 3
 uv run python benchmarks/agent/splice_tables.py    # regenerate RECOMMENDATIONS.md tables after new rows land
 uv run python scripts/report.py --backend <name>   # summarize or compare cells, with #23's resolution rule
-uv run python scripts/coherence_check.py           # temperature-0 sanity check before any measurement batch
+uv run python scripts/coherence_check.py ~/models/<model>.gguf  # temp-0 coherence check before a batch (ds4-served models, #287)
 uv run python benchmarks/agent/model_inventory.py  # census every runtime's model tree before saying a model is absent
 uv run pytest -q                                   # the suite; read the exit code, never `| tail`
 ```
@@ -57,7 +60,8 @@ uv run pytest -q                                   # the suite; read the exit co
 `uv` manages the environment (`requires-python = ">=3.11"`); engines and weights
 live outside this checkout, found via `DS4_ROOT`. CI
 (`.github/workflows/test.yml`) runs on push to `main` and on `pull_request`, on
-the self-hosted Linux runner; `ruff`/`mypy` are not yet in CI (#154). **Do not
+the self-hosted Linux runner: `pytest`, `ruff format --check`, and `ruff check`.
+`mypy` is not yet in CI (#154). **Do not
 run `pytest` or `ruff` on this Mac while a benchmark holds the run lock** — a
 suite run voids the measurement, and CI on another host covers a branch
 meanwhile.
@@ -137,7 +141,7 @@ every one on every task — read the row that matches what you are about to do.
 | start a server or engine, touch a target repo, or write the ledger | [`docs/harness-operations.md`](docs/harness-operations.md) |
 | write shell, a subprocess, a wait/monitor, or a `-m`/`--body` message | [`docs/automation-hazards.md`](docs/automation-hazards.md) |
 | file issues, branch, manage a peer, or cut a release | [`docs/agent-workflow.md`](docs/agent-workflow.md) |
-| delete or archive weights, commit a capture, or merge a data file | [`CONVENTIONS.md`](CONVENTIONS.md) |
+| download, delete, or archive model weights; commit a capture; regenerate held-out text; or merge a data file | [`CONVENTIONS.md`](CONVENTIONS.md) |
 | understand the benchmark task by task | [`benchmarks/agent/METHODOLOGY.md`](benchmarks/agent/METHODOLOGY.md) |
 | run machine operations, thermals, or a cross-machine comparison | [`docs/m5max-runbook.md`](docs/m5max-runbook.md) |
 | share the machine with another agent | [`docs/peer_agents.md`](docs/peer_agents.md) |
@@ -145,5 +149,6 @@ every one on every task — read the row that matches what you are about to do.
 
 **Maintaining these docs:** update the authoritative section in place; put a new
 long explanation or incident narrative in the supporting doc that owns its
-topic, not here; keep this file concise and within its word budget. `CLAUDE.md`
+topic, not here; keep this file within budget — **target 2,000–3,000 words,
+4,000 max** including any companion every task must read, measured with `wc -w`. `CLAUDE.md`
 is a relative symlink to this file — keep the guidance tool-neutral.

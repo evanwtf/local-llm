@@ -39,6 +39,10 @@ this catches, and a missing second file is the one that bit us.
 The general rule: a long-running job that printed a warning and kept going has
 not told you it succeeded. It told you it is still running.
 
+**A new weights directory needs a Time Machine exclusion before the first file
+lands in it** — a download is exactly when that applies. The rule is
+[Model weights stay out of Time Machine](../CONVENTIONS.md#model-weights-stay-out-of-time-machine-2026-09-06).
+
 ## The testing set is written down (2026-09-01)
 
 [`../TESTING-SET.md`](../TESTING-SET.md) lists the four axes -- hardware, client,

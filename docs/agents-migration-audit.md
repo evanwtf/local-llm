@@ -68,23 +68,37 @@ alone (1,794 words). `CLAUDE.md` is a symlink alias and is not counted again.
    resolve-as-theirs-plus-genuinely-new; the `HAS_LOCAL_RESULTS` CI-skip and
    #218; re-run archivers after any ledger merge.
 
-## Reconciled tension (documented, not silently resolved)
+## Corrected in review (PR #339): a superseded policy shown as current
 
-**Machine branches.** `CONVENTIONS.md` said "a machine is a field in the data,
-not a branch… no long-running per-machine branch"; `AGENTS.md` said "a branch
-named after a machine is permanent infrastructure" (the Ryzen branch must never
-be deleted). Both cite #292. These are not in conflict, and the reconciliation
-is now stated in `CONVENTIONS.md` under "One main, machines are directories": the
-default is that every machine that **can** rebase onto `main` commits there and
-uses only short-lived topic branches; the **exception** is a machine with **no
-coordination channel** (the Ryzen box), for which a permanent branch named after
-it is the only write interface — never deleted, rebased, or force-pushed, and
-"346 behind" is its normal steady state. "No long-running per-machine branch"
-forbids holding a machine's commits off `main` when it could merge them; it does
-not license deleting the branch of a machine that has no other way to write. All
-distinct facts from both copies are preserved (the 96 rows across seven
-backends, the feature-branch merge-test that is wrong for a machine branch, the
-still-open question of copying rows into main).
+**Machine branches.** The old `AGENTS.md` carried "a branch named after a
+machine is permanent infrastructure (2026-09-07)" — the Ryzen branch must never
+be deleted, "346 behind is normal", "copying its rows into main is still open".
+The first draft of this migration preserved that as a **current** exception and
+reconciled it against `CONVENTIONS.md`'s one-main rule. **That was wrong**, and
+review caught it: #292 has since been **completed**. The branch was merged into
+`main` in `04c63ee` ("Merge the Ryzen9-… branch into main"); `main` now carries
+its rows (`hardware/Ryzen9-…/results.jsonl` = 224), `docs/results.md` was
+re-spliced (#137), two branch-only harness fixes were recovered (`run.py`
+`tasks_missing_targets` #269; a `summarize.py` no-arg `logger.info` crash), the
+full suite passed (2841), and #292 records that the branch may now be deleted
+and the Spark writes directly to `main`.
+
+The fix: `CONVENTIONS.md` keeps the **one-main** rule as current policy, and the
+permanent-branch narrative is preserved as **labeled history** ("Historical: the
+Ryzen machine-branch, kept on 2026-09-07 and merged by #292") with the
+supersession and its evidence. The durable lesson survives — before deleting a
+branch, ask what kind it is; the graph merge-test is wrong for a machine branch —
+framed as why the branch was correctly *kept until its data was merged*, not as
+a standing "never delete". Every distinct fact from both copies is preserved
+(the seven backends, the merge-test, the recovered fixes).
+
+Five smaller review findings corrected statements written *for* this migration,
+not migrated source content: Ruff is in CI (`test.yml` runs `ruff format --check`
+and `ruff check`; only `mypy` is absent, #154); the repo publishes three machines,
+not only the M5 Max (`docs/results.md`, `hardware/MACHINES.md`); the
+`coherence_check.py` command needs a positional GGUF and checks ds4-served models
+only (#287); the weights-download procedure now links to the Time Machine rule;
+and the maintenance note now states the actual word budget.
 
 ## Correction to hand-written content
 
@@ -197,7 +211,7 @@ AGENTS.md". Destinations: MD = `docs/measurement-discipline.md`, HO =
 | 63 | A pipe hides the exit code | AH | |
 | 64 | A `tail -f` monitor never ends (+ 3 subsections) | AH | + terse rule in AGENTS.md |
 | 65 | Check a peer every 20 minutes (2026-09-07) | WF | + terse rule in AGENTS.md |
-| 66 | A branch named after a machine is permanent (2026-09-07) | CV | **reconciled** with "One main, machines are directories" |
+| 66 | A branch named after a machine is permanent (2026-09-07) | CV | **superseded** by #292 (`04c63ee`, merged to main); preserved as labeled history under "One main, machines are directories" (corrected in review, PR #339) |
 | 67 | Never resolve a data file by taking the union (2026-09-07) | CV | **consolidated** with the union lines in "One main" |
 | 68 | Cutting a release (2026-09-07) | WF | whole procedure incl. gates and the changelog/history split |
 
@@ -218,7 +232,9 @@ AGENTS.md". Destinations: MD = `docs/measurement-discipline.md`, HO =
 Completed by comparing each original section against its destination —
 including its examples, exceptions, dates, measurements, citations, tests, and
 the incident narrative — not by matching headings. Every distinct item has a
-real home reachable through a working link. Two rules were consolidated and one
-tension reconciled with all distinct facts kept (above); one hand-written figure
-was corrected with its evidence recorded and the old value noted. No rule was
-weakened, no exception dropped, and no operator decision changed.
+real home reachable through a working link. Two rules were consolidated with all
+distinct facts kept, and one policy the old file presented as current (the Ryzen
+machine-branch) was found in review to be superseded by #292 and moved to labeled
+history with its evidence (above); one hand-written figure was corrected with its
+evidence recorded and the old value noted. No rule was weakened, no exception
+dropped, and no operator decision changed.

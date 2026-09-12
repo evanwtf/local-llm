@@ -149,51 +149,24 @@ design working — one shared apparatus, many directories (#85, #292).
   commits behind and its rows were not comparable to the laptop's without a
   merge first (#292).
 - **Short-lived topic branches only**, named by issue (`269-ternary-bonsai`),
-  merged within days. No long-running per-machine branch **as a substitute for
-  committing to `main`** — see the exception below, which is a different thing.
+  merged within days. No standing long-running per-machine branch: the one
+  machine that wrote only to its own branch (the Ryzen box) was merged into
+  `main` by #292 — see the historical note below.
 - **Per-machine files never share a path**, so they never conflict:
   `hardware/MacA/results.jsonl` and `hardware/Spark/results.jsonl` are different
   files. `results.foreign_hardware()` refuses to pool rows across machines.
 
-### The exception: a machine with no coordination channel keeps a permanent branch (2026-09-07)
+### Historical: the Ryzen machine-branch, kept on 2026-09-07 and merged by #292
 
-The rule above assumes a machine that can rebase onto `main`. One cannot.
-**`Ryzen9-7900X-32GB-RTX3080Ti-12GB` must never be deleted, rebased, or
-force-pushed.** It is not a feature branch, not a staging area, and not a
-merge waiting to happen. It is the only place a second machine can write.
-
-The Ryzen box runs on its own, and **there is no coordination channel between
-it and this laptop.** It cannot be told that main moved, cannot be asked to
-rebase, and will not notice anything done to its branch here. Its branch is
-the whole interface. Delete it and that machine has nowhere to push -- which
-is worse than losing rows, because it breaks every future run rather than
-losing a past one.
-
-`346 behind` is its **normal steady state, not drift to correct.** It is
-behind because main advances on this machine many times a day, and ahead
-because the other machine writes rows nobody has merged. Both numbers will
-grow forever. Neither is a problem and neither is a task.
-
-So the two rules do not conflict: "no long-running per-machine branch" forbids
-holding a machine's commits *off* `main` when it could merge them; it does not
-license deleting the one branch a machine with no other channel writes through.
-
-What is on it that is nowhere else, as of 2026-09-07:
-
-```
-hardware/Ryzen9-7900X-32GB-RTX3080Ti-12GB/results.jsonl
-  on origin/main   16 rows
-  on the branch   112 rows
-```
-
-96 rows across seven backends -- `dtgemma412b`, `dtornith159b`, `dtqwen359b`,
-`dtmistralnemo`, `dtqwen359bq8`, `dtgemma4e4b`, `dtbonsai27b` -- measured
-2026-09-02 to 2026-09-03, plus that tier's `RESULTS.md` and its
-`hardware-id-*` logs. None of it can be re-derived here at any price. The
-machine is a different machine.
+**Superseded — kept here for the lesson, not as current policy.** For a while
+the Ryzen box (`Ryzen9-7900X-32GB-RTX3080Ti-12GB`) wrote only to a branch named
+after it, because it had **no coordination channel** to this laptop: it could
+not be told main had moved and could not be asked to rebase, so on 2026-09-07
+that branch was deliberately **kept** while eighteen other stale branches were
+deleted the same day. The reason it was kept is the durable lesson.
 
 **Before deleting any branch, ask what kind it is.** The test that settles a
-feature branch is whether merging it changes anything:
+*feature* branch is whether merging it changes anything:
 
 ```sh
 git worktree add --detach /tmp/mt origin/main
@@ -202,18 +175,29 @@ git -C /tmp/mt diff --cached --shortstat origin/main   # empty => superseded
 ```
 
 That test is right for code and **wrong for a machine branch**, which fails it
-exactly the way a dead branch does. Eighteen branches were deleted on
-2026-09-07 on the strength of it and every deletion was correct; this one was
-kept, and the only thing that separated it from them was asking what the
-branch was for instead of what its graph looked like.
+exactly the way a dead branch does. A machine's sole write channel is not a dead
+branch even when the graph says it is; the only thing that separated this branch
+from the eighteen correctly deleted was asking what it was *for*. At that point
+the branch carried ~96 rows across seven backends -- `dtgemma412b`,
+`dtornith159b`, `dtqwen359b`, `dtmistralnemo`, `dtqwen359bq8`, `dtgemma4e4b`,
+`dtbonsai27b` -- not yet on `main`, plus its `RESULTS.md` and `hardware-id-*`
+logs, none of it re-derivable here.
 
-The rule: **a branch whose name is a machine name belongs to that machine.
-Leave it alone.** Do not delete it, do not rebase it, do not force-push it,
-and do not "tidy" it because it has fallen behind.
+**#292 then closed it properly.** The branch was **merged into `main` in
+`04c63ee`** ("Merge the Ryzen9-... branch into main"): its rows are on `main`
+(`hardware/Ryzen9-7900X-32GB-RTX3080Ti-12GB/results.jsonl` now carries 224),
+`docs/results.md` was re-spliced with the desktop rollup (#137), and two
+branch-only harness fixes that would have died with the branch were recovered --
+`run.py` `tasks_missing_targets` (#269, drops a task whose target repo is absent
+on a machine) and a `summarize.py` no-arg `logger.info` crash. The full suite
+passed (2841). So the deletion blocker is **cleared**: the branch may now be
+deleted, its data is no longer branch-only, and the Spark records its rows
+directly on `main` with no branch at all.
 
-Copying its rows into main is a separate question and still open. If it is
-ever done it is an append argued for under the union rule below -- never a
-`git merge`, and never anything that touches the branch itself.
+**Current policy is therefore the one-main rule above, with no standing
+per-machine-branch exception.** Merging a machine branch is a deliberate,
+reviewed 3-way merge like #292 -- never a `merge=union` (below), which would
+restore archived rows.
 
 ### Never resolve a data file by taking the union of two row sets (2026-09-07)
 
