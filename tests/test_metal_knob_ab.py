@@ -730,3 +730,61 @@ def test_the_presence_knob_unset_reaches_the_child(tmp_path) -> None:
     assert equiv.env_key_state(port_inv.env, var) == "absent", (
         f"port child.run(unset=) left it {equiv.env_key_state(port_inv.env, var)}"
     )
+
+
+# ------------------------------------------------- the sweep() setup path
+#
+# Every test above drives the knob table, run_arm, or main's odd-rep refusal --
+# none reaches sweep()'s body past the lock. sweep() carried a call to a
+# prompt_meta function removed by the #140 API change, so it raised
+# AttributeError at setup and every run of it died before a single arm ran.
+# The breakage sat unseen because the port was not run between the refactor and
+# the next retest. This drives sweep() through the lock, admission, run-meta and
+# the rep loop with the machine and the arms mocked, so a future rename of a
+# prompt_meta symbol sweep() depends on fails here instead of mid-run.
+
+
+def test_sweep_completes_its_setup_with_machine_and_arms_mocked(
+    tmp_path, monkeypatch
+) -> None:
+    import os
+
+    tree = tmp_path / "tree"
+    tree.mkdir()
+    bench = tree / "ds4-bench"  # the cheap existence+exec check must pass
+    bench.write_text("#!/usr/bin/env bash\nexit 0\n")
+    bench.chmod(0o755)
+    gguf = tmp_path / "m.gguf"
+    gguf.write_text("")
+    prompt = tmp_path / "p.txt"
+    prompt.write_text("hello")
+    out = tmp_path / "out"
+
+    monkeypatch.setattr(
+        driver.preflight, "acquire_lock", lambda *a, **k: (True, "test")
+    )
+    monkeypatch.setattr(
+        driver.preflight, "release_lock", lambda *a, **k: (True, "test")
+    )
+    # check_admission returns an (on_count, off_count) tuple; run_meta indexes it.
+    monkeypatch.setattr(driver, "check_admission", lambda *a, **k: (1, 0))
+    arms: list[tuple] = []
+    monkeypatch.setattr(driver, "run_arm", lambda *a, **k: arms.append((a, k)))
+
+    rc = driver.sweep(
+        "q4-mpp-payload-reuse",
+        "1",
+        "0",
+        tree,
+        gguf,
+        out,
+        reps=2,
+        prompt=prompt,
+        ctx_max=2048,
+        ack_no_signal=False,
+        owner_pid=os.getpid(),
+    )
+    assert rc == 0
+    assert (out / "run-meta.json").exists(), "the knob run-meta must be written"
+    assert (out / "run-order.txt").exists(), "the alternation order must be recorded"
+    assert len(arms) == 4, "2 reps x 2 arms must each reach run_arm"

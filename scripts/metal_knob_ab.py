@@ -354,7 +354,11 @@ def sweep(
 
     with machine(f"metal_knob_ab.py {knob}", owner_pid):
         out.mkdir(parents=True, exist_ok=True)
-        prompt_meta.sidecar(prompt, out, show=True)
+        # The prompt is recorded per row by prompt_meta.stamp() in run_arm
+        # (#140), and prompt_meta.for_run() recovers it from those rows. A
+        # run-level sidecar is redundant and cannot live here: prompt_meta's
+        # SIDECAR is "run-meta.json", the same file sweep writes with the knob
+        # metadata below, so writing one would only be overwritten.
         counts = check_admission(
             knob, on_value, off_value, out=out, tree=tree, gguf=gguf, prompt=prompt
         )
