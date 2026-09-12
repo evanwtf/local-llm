@@ -180,16 +180,6 @@ def test_the_committed_file_is_what_the_generator_writes():
     assert len(text.splitlines()) <= mn.MAX_LINES
 
 
-def test_the_opencode_notice_is_near_the_top():
-    """test_invalid_data_notice.py requires it inside the first six lines of
-    every results-bearing doc, and a generated file must not be the one that
-    quietly drops it."""
-    text, _ = mn.render([issue(1)])
-    lines = text.splitlines()
-    at = next(i for i, line in enumerate(lines) if "are INVALID" in line)
-    assert at < 6
-
-
 @pytest.mark.parametrize("count", [1, 9, 30])
 def test_the_render_stays_inside_the_line_cap(count):
     """The cap is what stops the file growing back. Ten items of 100 words

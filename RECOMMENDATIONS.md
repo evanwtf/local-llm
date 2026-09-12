@@ -149,4 +149,3 @@ lists every other script.
 | the machine, and what a comparison must do | [`docs/m5max-runbook.md`](docs/m5max-runbook.md) |
 | traps that have cost a measurement | [`AGENTS.md`](AGENTS.md) · what to do next: [`NEXT.md`](NEXT.md) |
 
-> ⚠️ **OpenCode results before 2026-08-31 21:47 EDT are INVALID** — the client was never told which directory to work in. **Other clients are unaffected.** The ledger holds none of these rows now; do not quote them from older documents either: [what happened](docs/archive/results-opencode-pre-dir.md).

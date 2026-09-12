@@ -1,0 +1,15 @@
+2026-09-12T10:54:57-0400 INFO [3b53873-dirty@M5-Max-128GB none pld=n/a] 2026-09-12T14:54:57Z (10:54:57 EDT) | harness 3b53873-dirty
+2026-09-12T10:54:57-0400 INFO [3b53873-dirty@M5-Max-128GB none pld=n/a]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-12T10:54:57-0400 INFO [3b53873-dirty@M5-Max-128GB none pld=n/a] 2098588816407998898  VERIFIED post  @ivanfioravanti  Sat Sep 12 01:45:38 +0000 2026  via fxtwitter
+2026-09-12T10:54:57-0400 INFO [3b53873-dirty@M5-Max-128GB none pld=n/a]     Mega speed up on M5 and M6 for Qwen 3.8 Flash Next in my DwarfStar fork! For both q2 and q4!  Give it a try! Prefill up to +40%!  Full context benchmarks in progress, posting results soon!  Tensor=2 i
+2026-09-12T10:54:57-0400 INFO [3b53873-dirty@M5-Max-128GB none pld=n/a] 2098748283309154705  VERIFIED reply  @ivanfioravanti  Sat Sep 12 12:19:18 +0000 2026  via fxtwitter
+2026-09-12T10:54:57-0400 INFO [3b53873-dirty@M5-Max-128GB none pld=n/a]     @teortaxesTex It’s strong but weaker than V4-Flash IMO.
+2026-09-12T10:54:57-0400 INFO [3b53873-dirty@M5-Max-128GB none pld=n/a] 2098728184820773128  VERIFIED post  @antirez  Sat Sep 12 10:59:26 +0000 2026  via fxtwitter
+2026-09-12T10:54:57-0400 INFO [3b53873-dirty@M5-Max-128GB none pld=n/a]     DeepSeek v4.1 Flash support is now pushed on DwarfStar "main" branch on GitHub, and this is a YouTube video (in English language) where I test both the SSD streamed and the dual MacBook m5 max 128GB s
+2026-09-12T10:54:57-0400 INFO [3b53873-dirty@M5-Max-128GB none pld=n/a] 
+2026-09-12T10:54:57-0400 INFO [3b53873-dirty@M5-Max-128GB none pld=n/a] Verified 3: 3 confirmed, 0 not.
+2026-09-12T10:54:57-0400 INFO [3b53873-dirty@M5-Max-128GB none pld=n/a] Paste onto the issue:
+2026-09-12T10:54:57-0400 INFO [3b53873-dirty@M5-Max-128GB none pld=n/a]   **Verified** 2026-09-12: post exists, authored by @ivanfioravanti, posted Sat Sep 12 01:45:38 +0000 2026.
+2026-09-12T10:54:57-0400 INFO [3b53873-dirty@M5-Max-128GB none pld=n/a]   **Verified** 2026-09-12: post exists, authored by @ivanfioravanti, posted Sat Sep 12 12:19:18 +0000 2026.
+2026-09-12T10:54:57-0400 INFO [3b53873-dirty@M5-Max-128GB none pld=n/a]   **Verified** 2026-09-12: post exists, authored by @antirez, posted Sat Sep 12 10:59:26 +0000 2026.
+2026-09-12T10:54:57-0400 INFO [3b53873-dirty@M5-Max-128GB none pld=n/a] log: /Users/evanhoffman/git/local-llm/logs/sweeps/verify-posts-M5-Max-128GB-20260912T145457Z.log

@@ -1,0 +1,170 @@
+2026-09-12T10:44:28-0400 INFO [3b53873@M5-Max-128GB none pld=n/a] 2026-09-12T14:44:28Z (10:44:28 EDT) | harness 3b53873
+2026-09-12T10:44:28-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-12T10:44:28-0400 INFO [3b53873@M5-Max-128GB none pld=n/a] Upstream sweep since 2026-09-11T14:44:28Z (24h) -- mac: 19 repos
+
+2026-09-12T10:44:30-0400 INFO [3b53873@M5-Max-128GB none pld=n/a] == antirez/ds4 -- our primary engine; the only one that runs DeepSeek-V4-Flash and GLM-5.3
+2026-09-12T10:44:30-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    DeepSeek v4.1 Flash support for Metal
+2026-09-12T10:44:30-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #987 Introduce welcome screen with DwarfStar logo
+2026-09-12T10:44:30-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #991 Qwen3.8 flash next
+2026-09-12T10:44:30-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #1024 Enable GLM 5.3 tensor parallelism on the ROCm backend
+2026-09-12T10:44:30-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #952 AProjQ4: imatrix-guided Q4_K attention and GPU runtime optimizations
+2026-09-12T10:44:30-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #1000 server: avoid full prefix rewind when speculative decode stops
+2026-09-12T10:44:30-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #861 Consolidate ROCm exactness, distributed v3, DSpark speculation, and NHI tensor
+2026-09-12T10:44:30-0400 INFO [3b53873@M5-Max-128GB none pld=n/a] 
+2026-09-12T10:44:31-0400 INFO [3b53873@M5-Max-128GB none pld=n/a] == ggml-org/llama.cpp -- our fast pick's engine; `qwen4exp` IS Qwen3.8-Flash-Next
+2026-09-12T10:44:31-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    releases: b10930, b10929, b10927, b10926, b10924, b10923, b10922, b10921, b10920, b10919
+2026-09-12T10:44:31-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    ui : add cache (#28802)
+2026-09-12T10:44:31-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    server : allow model downloads at model limit fix issue #26809 (#28530)
+2026-09-12T10:44:31-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    ggml-cuda: hip add specific config table for AMD GCN (#27841)
+2026-09-12T10:44:31-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    server : add missing headers (#28795)
+2026-09-12T10:44:31-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    vendor : update cpp-httplib to 0.56.0 (#28787)
+2026-09-12T10:44:31-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    syscl : Handle (fail gracefully) unsupported tq1_0 quants (#28681)
+2026-09-12T10:44:31-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    rpc : fix linking when compiling with BUILD_SHARED_LIBS=OFF (#28492)
+2026-09-12T10:44:31-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    server: frame the router child state command as a whole line (#28747)
+2026-09-12T10:44:31-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    opencl: fix several bugs where the backend aborts (#27630)
+2026-09-12T10:44:31-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    opencl: add bin kernel `kernel_gemm_noshuffle_q4_k_f32_32b_trans_ila_a8_bin` (#28677)
+2026-09-12T10:44:31-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    webgpu: align tensor bindings to the type block size (#28382)
+2026-09-12T10:44:31-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    hexagon: support for multi-device model split (aka row-split) (#28589)
+2026-09-12T10:44:31-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    ... and 5 more
+2026-09-12T10:44:31-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #28498 kv-cache: save exact KV rotation metadata, reject restoring mismatched rotatio
+2026-09-12T10:44:31-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #27322 quantize: add IQ2_NL and IQ3_NL types (CPU)
+2026-09-12T10:44:31-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #27983 quantize: add IQ2_NL and IQ3_NL types (CPU + Metal + CUDA + Vulkan)
+2026-09-12T10:44:31-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #28810 gguf: guard GGML_PAD inputs against integer overflow
+2026-09-12T10:44:31-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #28712 ci : add self-hosted vulkan and webgpu to hf-jobs
+2026-09-12T10:44:31-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #28227 [SYCL] Fix get mem error
+2026-09-12T10:44:31-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #28803 download: prevent conflict when 2 processes download the same file
+2026-09-12T10:44:31-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #27016 fix/cuda-f16-activation-scaling
+2026-09-12T10:44:31-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    ... and 42 more open PRs
+2026-09-12T10:44:31-0400 INFO [3b53873@M5-Max-128GB none pld=n/a] 
+2026-09-12T10:44:33-0400 INFO [3b53873@M5-Max-128GB none pld=n/a] == ollama/ollama -- the 31 GB entry point; MLX runtime on the Mac, cuda_v13 on the DGX
+2026-09-12T10:44:33-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    llm: keep gemma3n projector off the CPU (#18376)
+2026-09-12T10:44:33-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    cmd: remove built-in agent (#18393)
+2026-09-12T10:44:33-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #17894 chat: always preserve the most recent user message during truncation
+2026-09-12T10:44:33-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #18410 README: add AI Arena Lite desktop integration
+2026-09-12T10:44:33-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #18409 installer(windows): remove ollama install path from user PATH on uninstall
+2026-09-12T10:44:33-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #18408 app/ui/app: surface failed and incomplete chat streams
+2026-09-12T10:44:33-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #18407 server: preserve imported GGUF blobs after validation
+2026-09-12T10:44:33-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #18406 server: reject invalid embeddings before returning success
+2026-09-12T10:44:33-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #17566 api: bound thinking with a token budget, per request or per model
+2026-09-12T10:44:33-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #18405 docs: strip trailing whitespace in marimo integration
+2026-09-12T10:44:33-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    ... and 20 more open PRs
+2026-09-12T10:44:33-0400 INFO [3b53873@M5-Max-128GB none pld=n/a] 
+2026-09-12T10:44:34-0400 INFO [3b53873@M5-Max-128GB none pld=n/a] == anomalyco/opencode -- our only client
+2026-09-12T10:44:34-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #48660 docs: list gutchapa-opencode-telegram under Projects
+2026-09-12T10:44:34-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #48662 fix(nix): install opencode and keep opencode2 alias
+2026-09-12T10:44:34-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #48666 chore: remove duplicate options blocks in oxlint config
+2026-09-12T10:44:34-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #48654 fix(desktop): rename Linux deb/rpm package to opencode-desktop
+2026-09-12T10:44:34-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #48655 feat(core): support FreeBSD source builds
+2026-09-12T10:44:34-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #48659 fix(core): include hidden files in glob and find results
+2026-09-12T10:44:34-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #48652 chore(stats): update GitHub star fallback
+2026-09-12T10:44:34-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #48653 fix(stats): prevent cost row jump on navigation
+2026-09-12T10:44:34-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    ... and 42 more open PRs
+2026-09-12T10:44:34-0400 INFO [3b53873@M5-Max-128GB none pld=n/a] 
+2026-09-12T10:44:35-0400 INFO [3b53873@M5-Max-128GB none pld=n/a] == evanwtf/local-llm -- this project
+2026-09-12T10:44:35-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    Update README to remove outdated warning
+2026-09-12T10:44:35-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    docs: correct README's stale ruff-in-CI claim (#339 review, finding 5)
+2026-09-12T10:44:35-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    docs: address Codex review on #339
+2026-09-12T10:44:35-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    docs: repoint tests and references to relocated rule homes
+2026-09-12T10:44:35-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    docs: add/update AGENTS.md agent guidance
+2026-09-12T10:44:35-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    #333 on the best backend: does thinking off transfer to Qwen3.8-Flash-Next
+2026-09-12T10:44:35-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    Fix main: index vllm_load.py in scripts/README.md
+2026-09-12T10:44:35-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    #334: a load generator, because the agent harness cannot measure this machine's mission
+2026-09-12T10:44:35-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    RECOMMENDATIONS: date marker + staleness caveats, and a test that enforces the marker
+2026-09-12T10:44:35-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    #333: thinking off is the largest lever on the DGX Spark after quantization
+2026-09-12T10:44:35-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    #333: name the reasoning-parser difference before the arm runs
+2026-09-12T10:44:35-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    #333: thinking off as a measured variable, with the DGX Spark's own rows as the reason
+2026-09-12T10:44:35-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    ... and 50 more
+2026-09-12T10:44:35-0400 INFO [3b53873@M5-Max-128GB none pld=n/a] 
+2026-09-12T10:44:36-0400 INFO [3b53873@M5-Max-128GB none pld=n/a] == evanwtf/gmail-archive -- the excision tasks' target repository
+2026-09-12T10:44:36-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    (quiet)
+2026-09-12T10:44:36-0400 INFO [3b53873@M5-Max-128GB none pld=n/a] 
+2026-09-12T10:44:37-0400 INFO [3b53873@M5-Max-128GB none pld=n/a] == evanwtf/ds4 -- our ds4 fork (#27 asks whether it can be retired)
+2026-09-12T10:44:37-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    (quiet)
+2026-09-12T10:44:37-0400 INFO [3b53873@M5-Max-128GB none pld=n/a] 
+2026-09-12T10:44:38-0400 INFO [3b53873@M5-Max-128GB none pld=n/a] == ml-explore/mlx -- the framework everything MLX sits on
+2026-09-12T10:44:38-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    Fix CUDA test synchronization flake (#4490)
+2026-09-12T10:44:38-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #4402 Add support for matrix transpose
+2026-09-12T10:44:38-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #4481 Use matrix kernels for global-scale gather_qqmm
+2026-09-12T10:44:38-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #4483 Load global scales in qmm_t kernels
+2026-09-12T10:44:38-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #4492 Add missing defaults to tri, tril, triu, gather_mm signatures
+2026-09-12T10:44:38-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #4369 Add fused reduction support
+2026-09-12T10:44:38-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #4366 Collapse the non sorted axes to pick the contiguous sort kernel
+2026-09-12T10:44:38-0400 INFO [3b53873@M5-Max-128GB none pld=n/a] 
+2026-09-12T10:44:40-0400 INFO [3b53873@M5-Max-128GB none pld=n/a] == ml-explore/mlx-lm -- reference MLX server; new architectures land here first
+2026-09-12T10:44:40-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    Refactor/detokenizers (#1879)
+2026-09-12T10:44:40-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    Granite nvfp4 underflow fix (#1836)
+2026-09-12T10:44:40-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #1484 Add support for ESMC and ESMFold2 models
+2026-09-12T10:44:40-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #1881 Recover qwen3_coder parameter names when the model drops the '>'
+2026-09-12T10:44:40-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #1409 fix(server): reduce prompt cache memory pressure
+2026-09-12T10:44:40-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #1862 Add pipeline() support to Qwen2 and Qwen3-Next
+2026-09-12T10:44:40-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #1880 Fix GPTQ error propagation indices across groups
+2026-09-12T10:44:40-0400 INFO [3b53873@M5-Max-128GB none pld=n/a] 
+2026-09-12T10:44:41-0400 INFO [3b53873@M5-Max-128GB none pld=n/a] == jundot/omlx -- oMLX -- prefill leader, untested here (#60)
+2026-09-12T10:44:41-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    fix: preserve CED prefill and reload cache state (#3607)
+2026-09-12T10:44:41-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    feat(deepseek_v41): add CED prefill with bounded replay (#3607)
+2026-09-12T10:44:41-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #3564 feat(admin): configurable Status dashboard and time-window stats
+2026-09-12T10:44:41-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #3602 Optimize Qwen4 HC, PLE, GDN, QSA and MTP inference
+2026-09-12T10:44:41-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #3582 feat: add generic Affine8 KV cache with M5 acceleration
+2026-09-12T10:44:41-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #3584 refactor(status): move active models above usage history (0.7.0.dev2)
+2026-09-12T10:44:41-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #3606 feat: add Spark-X2.5 model support
+2026-09-12T10:44:41-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #3604 docs(ane): add M5 Pro single-ANE reference result for Qwen3.8-27B
+2026-09-12T10:44:41-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #3588 fix(qwen35_ane): drain the hybrid merge before the next tile reuses the ANE ou
+2026-09-12T10:44:41-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #3600 fix(i18n): audit and complete the Simplified Chinese catalog (0.7.0.dev2)
+2026-09-12T10:44:41-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    ... and 25 more open PRs
+2026-09-12T10:44:41-0400 INFO [3b53873@M5-Max-128GB none pld=n/a] 
+2026-09-12T10:44:42-0400 INFO [3b53873@M5-Max-128GB none pld=n/a] == ddalcu/mlx-serve -- benchmarked on our exact machine; llmprobe's author
+2026-09-12T10:44:42-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #408 perf(qwen4): prototype paired QSA, HC and GDN prefill fusion
+2026-09-12T10:44:42-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #411 feat(app): auto-restart the server after an unexpected crash
+2026-09-12T10:44:42-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #410 Feature/ane boost
+2026-09-12T10:44:42-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #409 launch(codex): ride the user's real Codex home via --profile mlx-serve
+2026-09-12T10:44:42-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #398 fix: implement the --idle-evict-secs sweep
+2026-09-12T10:44:42-0400 INFO [3b53873@M5-Max-128GB none pld=n/a] 
+2026-09-12T10:44:43-0400 INFO [3b53873@M5-Max-128GB none pld=n/a] == youssofal/MTPLX -- MTP speculative decoding; we hold one unreplicated number
+2026-09-12T10:44:43-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #471 Allow removing stale custom models from picker
+2026-09-12T10:44:43-0400 INFO [3b53873@M5-Max-128GB none pld=n/a] 
+2026-09-12T10:44:44-0400 INFO [3b53873@M5-Max-128GB none pld=n/a] == raullenchai/Rapid-MLX -- the one MLX engine reachable by pip (#57, #60)
+2026-09-12T10:44:44-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    perf(deepseek): keep DSpark stages lazy (#3348)
+2026-09-12T10:44:44-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    perf: accelerate DeepSeek V4.1 hyper-connections (#3343)
+2026-09-12T10:44:44-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    fix(glm): retire legacy overlay on native runtime (#3344)
+2026-09-12T10:44:44-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    perf(glm): fuse routed projections in the multimodal lane (#3334)
+2026-09-12T10:44:44-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    test: stage the host facts three tests assert on (#3340)
+2026-09-12T10:44:44-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    perf: prefetch DeepSeek V4.1 Engram from SSD (#3338)
+2026-09-12T10:44:44-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    fix(mac): make follow-up turns reuse the prompt cache (7.3s -> 0.5s), plus five dogfood fixes (#3335)
+2026-09-12T10:44:44-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    fix(benchmark): preflight generation runtimes (#3333)
+2026-09-12T10:44:44-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    perf: ship mixed-precision DeepSeek V4.1 DSpark head (#3328)
+2026-09-12T10:44:44-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    feat: productize DeepSeek V4.1 DSpark K4 (#3325)
+2026-09-12T10:44:44-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    docs: add M4 multimodal and MTP benchmarks (#3330)
+2026-09-12T10:44:44-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    fix(mac): repair the document-analysis friction found dogfooding 0.14.1 (#3322)
+2026-09-12T10:44:44-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    ... and 11 more
+2026-09-12T10:44:44-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #3342 fix(glm5): support packed linear projection fallback
+2026-09-12T10:44:44-0400 INFO [3b53873@M5-Max-128GB none pld=n/a] 
+2026-09-12T10:44:45-0400 INFO [3b53873@M5-Max-128GB none pld=n/a] == ARahim3/mlx-dspark -- DSpark/DFlash ported to MLX (#19, #58, #75)
+2026-09-12T10:44:45-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    (quiet)
+2026-09-12T10:44:45-0400 INFO [3b53873@M5-Max-128GB none pld=n/a] 
+2026-09-12T10:44:46-0400 INFO [3b53873@M5-Max-128GB none pld=n/a] == Blaizzy/mlx-vlm -- expert offloading, prefix caching, Qwen3.8-Flash-Next MTP
+2026-09-12T10:44:46-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    fix(moe_offload): match nested Experts.switch_glu path (Gemma 4) (#2213)
+2026-09-12T10:44:46-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #2219 Preserve original Chat history when replaying through Responses
+2026-09-12T10:44:46-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #2214 WIP: DeepSeek V4.1 vision and language model support
+2026-09-12T10:44:46-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #2209 Restore optimized MXFP4 and Q3 verification
+2026-09-12T10:44:46-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #2177 fix(deepseek_vl_v2): convert spatial crop scalars to int
+2026-09-12T10:44:46-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #2222 fix(turboquant): drop shadowed duplicate BatchTurboQuantKVCache.zero_row_tail
+2026-09-12T10:44:46-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #2198 Add support for Indic-OCR
+2026-09-12T10:44:46-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #2199 Preserve Qwen assistant reasoning through prompt normalization
+2026-09-12T10:44:46-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #2223 Preserve message metadata through dictionary formatting
+2026-09-12T10:44:46-0400 INFO [3b53873@M5-Max-128GB none pld=n/a] 
+2026-09-12T10:44:48-0400 INFO [3b53873@M5-Max-128GB none pld=n/a] == unslothai/llama.cpp -- the fork with a working qwen4exp MTP graph (#77)
+2026-09-12T10:44:48-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    releases: b10909-mix-bea84f7
+2026-09-12T10:44:48-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #152 llama: map each contiguous run of a context's tensors, not one span over all o
+2026-09-12T10:44:48-0400 INFO [3b53873@M5-Max-128GB none pld=n/a] 
+2026-09-12T10:44:49-0400 INFO [3b53873@M5-Max-128GB none pld=n/a] == Layr-Labs/mlxfast-gemma4-26b-a4b-engine -- MLX Fast leaderboard harness (#80)
+2026-09-12T10:44:49-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    (quiet)
+2026-09-12T10:44:49-0400 INFO [3b53873@M5-Max-128GB none pld=n/a] 
+2026-09-12T10:44:50-0400 INFO [3b53873@M5-Max-128GB none pld=n/a] == sudoingX/qwen38-mtp -- 61 paired baseline-vs-MTP runs, disciplined method (#19, #39)
+2026-09-12T10:44:50-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    (quiet)
+2026-09-12T10:44:50-0400 INFO [3b53873@M5-Max-128GB none pld=n/a] 
+2026-09-12T10:44:51-0400 INFO [3b53873@M5-Max-128GB none pld=n/a] == trymirai/uzu -- Apple-only Rust engine, reachable by pip; claims 2x MTPLX (#134)
+2026-09-12T10:44:51-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #708 Traces
+2026-09-12T10:44:51-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #699 Execute fused QKVG attention projections
+2026-09-12T10:44:51-0400 INFO [3b53873@M5-Max-128GB none pld=n/a]    PR #822 Cli request logs
+2026-09-12T10:44:51-0400 INFO [3b53873@M5-Max-128GB none pld=n/a] 
+2026-09-12T10:44:51-0400 INFO [3b53873@M5-Max-128GB none pld=n/a] log: /Users/evanhoffman/git/local-llm/logs/sweeps/upstream-sweep-M5-Max-128GB-20260912T144428Z.log

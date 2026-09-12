@@ -1,0 +1,25 @@
+# grok sweep
+# requested window: last 24 hours
+# written:  2026-09-12T14:46:55Z  (local: 2026-09-12 10:46:55 EDT)
+# query:    Search X for posts and replies from @antirez, @ivanfioravanti, @awnihannun, @Prince_Canuma, @reach_vb, @ggerganov, @kyuz0, @angeloskath in the last 24 hours about local LLM inference on Apple Silicon (MLX, llama.cpp Metal, DeepSeek V4 Flash, GLM 5.3, Qwen3.8 Flash Next, speculative decode, prefill, quantization). Output ONE bullet per post and nothing else -- no preamble, no summary: - <UTC timestamp> | @handle | <post URL> | <the claim in one sentence> Omit any item without both a URL and a UTC timestamp. If nothing matches, output exactly: NO RESULTS
+
+I'll search X for those eight accounts in the last 24 hours and keep only posts that mention Apple Silicon local inference.Current UTC is 14:47 on 12 Sep 2026, so I will drop anything older than 24 hours and search each account again.I'll page older posts from those accounts and open the reply threads so I can keep only on-topic claims.- 2026-09-12T14:40:28Z | @antirez | https://x.com/antirez/status/2098783809139311076 | DeepSeek v4.1 Flash Q2 runs well on M3 Ultra 256GB, and full-residency tests were done on a 512GB machine over SSH.
+- 2026-09-12T14:10:11Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2098776187351044275 | MLX is still under-optimized for M5, and Metal 4.1 is only a start.
+- 2026-09-12T13:37:20Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2098767921246060938 | A reported local-inference issue could not be reproduced on M3 Ultra, and the commit is needed.
+- 2026-09-12T12:49:49Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2098755963381801161 | Qwen 3.8 Flash Next Q2 quality is acceptable in GGUF but weaker in MLX.
+- 2026-09-12T12:19:18Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2098748283309154705 | Qwen 3.8 Flash Next is strong but weaker than DeepSeek V4 Flash.
+- 2026-09-12T11:51:28Z | @antirez | https://x.com/antirez/status/2098741280180248789 | Dual-Mac DeepSeek setups that have RDMA can use the RDMA path just shipped in DwarfStar.
+- 2026-09-12T11:16:04Z | @antirez | https://x.com/antirez/status/2098732370039910528 | M4 Max has no RDMA, so a dual-Mac setup would have to use ordinary Thunderbolt networking latency.
+- 2026-09-12T10:59:26Z | @antirez | https://x.com/antirez/status/2098728184820773128 | DeepSeek v4.1 Flash is on DwarfStar main and was tested SSD-streamed and on dual M5 Max 128GB MacBooks.
+- 2026-09-12T09:04:47Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2098699332455370785 | Asks which quantization reached 2,000 tok/s Qwen3.8-Flash-Next prefill on mlx-serve on M5 Max 128GB.
+- 2026-09-12T07:29:49Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2098675433164444097 | On 64GB, try Qwen Flash Next Q2 on his DwarfStar branch, otherwise DeepSeek v4 Flash Q2.
+- 2026-09-12T07:07:00Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2098669691149426844 | Qwen 3.8 Flash Next on M5 Max with DwarfStar holds up well at large context.
+- 2026-09-12T04:57:00Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2098636974596772245 | Apple Silicon still has unused headroom, and ANE, M6, and fp8 should give a large boost.
+- 2026-09-12T01:55:54Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2098591401210749279 | Neural Accelerators barely beat the standard kernel until macOS 27 ships Metal 4.1 primitives.
+- 2026-09-12T01:45:38Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2098588816407998898 | A DwarfStar fork speeds Qwen 3.8 Flash Next prefill by up to 40% on M5 and M6 for Q2 and Q4.
+- 2026-09-11T23:00:56Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2098547369352868340 | A 500-token DeepSeek V4.1 Flash speed figure is not the same as finishing a local task.
+- 2026-09-11T22:57:39Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2098546541825003778 | Metal 4 tensor matmul tests on M3 Ultra were poor and should be retried with Metal 4.1 on final macOS 27.
+- 2026-09-11T17:00:48Z | @antirez | https://x.com/antirez/status/2098456739314098439 | SSD-streamed DeepSeek v4.1 Flash decode holds 16 t/s steady.
+- 2026-09-11T14:57:21Z | @antirez | https://x.com/antirez/status/2098425670489510334 | On M5 Max, full-resident encoder may not beat layer-major prefill and will trash the SSD experts cache.
+- 2026-09-11T14:49:13Z | @antirez | https://x.com/antirez/status/2098423623572681072 | DeepSeek v4.1 Flash shared KV cache also enables very fast large prefills in local low-memory inference.
+- 2026-09-11T14:47:42Z | @antirez | https://x.com/antirez/status/2098423241895194959 | Full-resident decoder trashes the experts cache, but new SSD streaming hides the reload in seconds.

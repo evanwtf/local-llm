@@ -1,7 +1,5 @@
 # Methodology
 
-> ⚠️ **OpenCode results before 2026-08-31 21:47 EDT are INVALID** — the client was never told which directory to work in. **Other clients are unaffected.** The ledger holds none of these rows now; do not quote them from older documents either: [what happened](../../docs/archive/results-opencode-pre-dir.md).
-
 Why this benchmark is built the way it is, what it can and cannot tell you, and
 how to extend it without breaking the parts that make it trustworthy.
 
