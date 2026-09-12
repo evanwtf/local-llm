@@ -143,6 +143,8 @@ be drawn from — OpenCode, after the `--dir` cutover, not excluded.
 | `glm53dgx` | GLM-5.3-Flash **Q2**, ctx 100000 | ds4 CUDA sm_121a | — | 0 |
 | `qwen36nvfp4dgx` | `nvidia/Qwen3.6-27B-NVFP4` (**base**, not the coding tune) | vLLM 0.29.0 CUDA sm_121 | 20.4 GiB | 30 |
 | `qwen36bf16dgx` | `Qwen/Qwen3.6-27B` **BF16**, the unquantized control for the row above | vLLM 0.29.0 CUDA sm_121 | 51.7 GiB | 30 |
+| `qwen36nvfp4v1dgx` | the same NVFP4 weights on vLLM's **V1** model runner, speculation off | vLLM 0.29.0 CUDA sm_121 | 20.4 GiB | 0 |
+| `qwen36nvfp4specdgx` | the same again with **draftless n-gram speculation** (5 tokens, lookup 3-8) | vLLM 0.29.0 CUDA sm_121 | 20.4 GiB | 0 |
 
 **`qwen36codinggguf` exists because `qwen36coding` is macOS-only.** The
 `mxfp8` and `nvfp4` tags ship as sharded `vnd.ollama.image.tensor` layers,

@@ -503,6 +503,10 @@ aider_model = "openai/qwen3.6-27b-nvfp4-spec"
 opencode_model = "vllm/qwen3.6-27b-nvfp4-spec"
 context_tokens = 131072
 speculative = "ngram: num_speculative_tokens=5, prompt_lookup_min=3, prompt_lookup_max=8"
+# Draftless: the draft is n-gram matches in the prompt, not a second model.
+# vLLM still counts acceptance, so the #148/#151 proof holds -- an arm that
+# accepted nothing is still caught. See benchmarks/agent/vllm_spec.py.
+draft_engine = "vllm"
 
 # The control for qwen36nvfp4dgx, and the only reason these NVFP4 rows can say
 # anything. Same base checkpoint (Qwen/Qwen3.6-27B, first-party), same vLLM,

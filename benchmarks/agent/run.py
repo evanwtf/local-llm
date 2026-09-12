@@ -59,6 +59,7 @@ import results
 import shim_strip
 import smoke
 import swift_excise
+import vllm_spec
 
 logger = logging.getLogger("agent-bench")
 HERE = pathlib.Path(__file__).parent
@@ -2369,9 +2370,20 @@ def trial_order(backends, trial):
 # own command line is what scripts/restart_between_trials.py uses, while
 # DS4_MTP_TIMING is the environment form. Checking only the environment would
 # have refused the one script in this repo that actually runs the arm.
+# Engines whose draft counters are scraped over HTTP rather than read from a
+# growing file. Their DraftProbe "path" is a base URL and must stay a string.
+URL_PROBED_ENGINES = frozenset({"vllm"})
+
 COUNTER_SWITCHES = {
     "ds4": {"env": "DS4_MTP_TIMING", "argv": "--mtp-timing"},
     "mtplx": {"env": "MTPLX_DECODE_TRACE_JSONL", "argv": "--decode-trace-jsonl"},
+    # vLLM needs no switch: it exports the spec_decode family whenever a
+    # speculative config is loaded and omits it entirely when one is not, so
+    # the counters' presence IS the proof the server is speculating. `env` and
+    # `argv` are None because there is nothing to look for, and `counters_on`
+    # special-cases that rather than searching for a flag that cannot exist
+    # (#319).
+    "vllm": {"env": None, "argv": None},
 }
 
 
@@ -2399,6 +2411,10 @@ class DraftProbe:
     SOURCES: ClassVar[dict] = {
         "ds4": ("ds4-mtp-timing", mtp_timing),
         "mtplx": ("mtplx-decode-trace", mtplx_trace),
+        # Draftless n-gram speculation. The "path" is the server's base URL and
+        # the counters are cumulative rather than appended, which vllm_spec
+        # handles behind the same read_since contract (#319).
+        "vllm": ("vllm-spec-metrics", vllm_spec),
     }
 
     # Which env var turns each engine's counters on. The operator knows
@@ -2421,9 +2437,23 @@ class DraftProbe:
                 f"{sorted(self.SOURCES)}"
             )
         self.source, self.reader = self.SOURCES.get(engine, (None, None))
-        self.path = pathlib.Path(path).expanduser() if path else None
+        # A URL is not a path. `pathlib.Path("http://host:8030")` collapses the
+        # double slash to "http:/host:8030", which scrapes nothing and reports
+        # a quiet engine rather than a broken probe -- the exact confusion #148
+        # exists to prevent. Engines whose counters live behind HTTP keep the
+        # string (#319).
+        if engine in URL_PROBED_ENGINES:
+            self.path = str(path) if path else None
+        else:
+            self.path = pathlib.Path(path).expanduser() if path else None
         self.offset = self.reader.read_since(self.path).offset if self.path else 0
         switch = self.SWITCHES.get(engine)
+        # `counters_requested` is a claim about intent read from this process's
+        # environment; for an engine with no switch the honest answer is that
+        # the counters are always on, not that nobody asked for them.
+        if engine in COUNTER_SWITCHES and switch is None:
+            self.counters_requested = True
+            return
         # Read from the server's environment as this process sees it. It is a
         # claim about the operator's intent, not proof about the server, and
         # the field name says so.
@@ -2473,6 +2503,11 @@ def counters_on(engine, ps_text=None):
     switch = COUNTER_SWITCHES.get(engine)
     if switch is None:
         return False
+    # An engine whose counters are unconditional has nothing to switch on, so
+    # there is nothing to observe on the command line either. Saying "off"
+    # here would refuse every vLLM speculative arm forever (#319).
+    if switch["env"] is None and switch["argv"] is None:
+        return True
     if os.environ.get(switch["env"]):
         return True
     text = (
@@ -3239,7 +3274,10 @@ def one_trial(
     return result
 
 
-def main():
+def build_parser():
+    """The CLI parser, extracted so a test can introspect its choices. #319
+    added a reader engine to DraftProbe.SOURCES but not to --draft-log-engine,
+    and nothing could catch that while the parser lived inside main()."""
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("--trials", type=int, default=1)
     p.add_argument("--backend", action="append", help="repeatable; default all")
@@ -3359,12 +3397,19 @@ def main():
     )
     p.add_argument(
         "--draft-log-engine",
-        choices=["ds4", "mtplx"],
+        # Derived from the reader registry, not a hand-kept literal: #319 added
+        # "vllm" to DraftProbe.SOURCES but not to a literal choices list here,
+        # so `--draft-log-engine vllm` failed argument parsing and the vLLM
+        # probe was unreachable. Deriving the choices makes that drift
+        # impossible -- a new reader engine is a valid choice automatically.
+        choices=sorted(DraftProbe.SOURCES),
         default="ds4",
-        help="which engine wrote --server-log. The two count differently -- "
-        "ds4's `committed` includes a first token verified for free and mtplx's "
-        "exported counter already excludes it -- so the wrong choice silently "
-        "shifts every acceptance figure by one token per cycle.",
+        help="which engine wrote --server-log. ds4 and mtplx count differently "
+        "-- ds4's `committed` includes a first token verified for free and "
+        "mtplx's exported counter already excludes it -- so the wrong choice "
+        "silently shifts every acceptance figure by one token per cycle. `vllm` "
+        "reads the spec_decode counters from the server's /metrics endpoint, so "
+        "pass its base URL (not a file) as --server-log (#319).",
     )
     p.add_argument(
         "--require-draft",
@@ -3440,7 +3485,11 @@ def main():
         "read-out can select one batch exactly instead of approximating "
         "'the rows from this run' by time (#175).",
     )
-    args = p.parse_args()
+    return p
+
+
+def main():
+    args = build_parser().parse_args()
 
     if args.require_harness_head:
         want = args.require_harness_head
