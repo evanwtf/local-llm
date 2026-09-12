@@ -463,6 +463,47 @@ aider_model = "openai/qwen3.6-27b-nvfp4"
 opencode_model = "vllm/qwen3.6-27b-nvfp4"
 context_tokens = 131072
 
+# #319: draftless n-gram speculation, the only untested lever against the
+# 231-234 GB/s decode wall (#317). No draft model, no extra weights -- the draft
+# comes from n-gram matches in the prompt and the tokens generated so far, which
+# is why it suits agent work: the model re-emits long verbatim spans of files it
+# has just read.
+#
+# BOTH arms are pinned to the V1 model runner, and that is not optional.
+# vLLM 0.29.0 logs "Model Runner V2 does not yet support ngram/ngram_gpu
+# speculative decoding; using the V1 model runner instead", so switching
+# speculation on ALSO switches the runner. Measured against the V2 rows in
+# qwen36nvfp4dgx that would move two things at once and attribute neither.
+# VLLM_USE_V2_MODEL_RUNNER=0 on the control restores the single variable.
+#
+# Speculation also forces max_num_scheduled_tokens to 2048, which the control
+# inherits by sharing the runner but not the scheduler setting -- recorded here
+# because it is the residual difference this pair cannot remove.
+[backend.qwen36nvfp4v1dgx]
+description = "Qwen3.6-27B NVFP4, vLLM 0.29.0 V1 runner, NO speculation -- the control for qwen36nvfp4specdgx"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8030"
+auth_token = "local"
+engine = "vllm"
+engine_tree = "~/venvs/vllm"
+model = "qwen3.6-27b-nvfp4-v1"
+aider_model = "openai/qwen3.6-27b-nvfp4-v1"
+opencode_model = "vllm/qwen3.6-27b-nvfp4-v1"
+context_tokens = 131072
+
+[backend.qwen36nvfp4specdgx]
+description = "Qwen3.6-27B NVFP4, vLLM 0.29.0 V1 runner, draftless n-gram speculation (5 tokens, lookup 3-8)"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8030"
+auth_token = "local"
+engine = "vllm"
+engine_tree = "~/venvs/vllm"
+model = "qwen3.6-27b-nvfp4-spec"
+aider_model = "openai/qwen3.6-27b-nvfp4-spec"
+opencode_model = "vllm/qwen3.6-27b-nvfp4-spec"
+context_tokens = 131072
+speculative = "ngram: num_speculative_tokens=5, prompt_lookup_min=3, prompt_lookup_max=8"
+
 # The control for qwen36nvfp4dgx, and the only reason these NVFP4 rows can say
 # anything. Same base checkpoint (Qwen/Qwen3.6-27B, first-party), same vLLM,
 # same context, same tasks, same client -- quantization is the only thing that

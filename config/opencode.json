@@ -306,6 +306,26 @@
             "context": 131072,
             "output": 131072
           }
+        },
+        "qwen3.6-27b-nvfp4-spec": {
+          "name": "NVFP4 + ngram speculation (vLLM)",
+          "tool_call": true,
+          "reasoning": false,
+          "temperature": false,
+          "limit": {
+            "context": 131072,
+            "output": 131072
+          }
+        },
+        "qwen3.6-27b-nvfp4-v1": {
+          "name": "NVFP4 V1 runner, no speculation (vLLM)",
+          "tool_call": true,
+          "reasoning": false,
+          "temperature": false,
+          "limit": {
+            "context": 131072,
+            "output": 131072
+          }
         }
       }
     }
