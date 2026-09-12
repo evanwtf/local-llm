@@ -1,0 +1,32 @@
+# ds4-ivan-qwen38fn update+build for qwen38fnds4kimat run (#212)
+# from 6c1e83672 to ivan/qwen3.8-flash-next 10830f4d6
+# started 2026-09-11T23:57:11Z
+Previous HEAD position was 6c1e8367 Document 64 GB fit data, PLE residency knobs, and thinking aliases
+HEAD is now at 10830f4d Merge compensated tensor tiles, error decomposition, and default promotion
+HEAD now: 10830f4d6919a9820382f6934362683379f26d7b
+=== make clean ===
+rm -f tests/test_qwen4_kernels tests/test_qwen4_vision
+rm -f tests/test_qwen4_host tests/test_qwen4_spec
+=== make -j8 ds4 ds4-server ===
+cc -O3 -ffast-math -g -mcpu=native -Wall -Wextra -std=c99 -c -o ds4_cli.o ds4_cli.c
+cc -O3 -ffast-math -g -mcpu=native -Wall -Wextra -std=c99 -c -o ds4_help.o ds4_help.c
+cc -O3 -ffast-math -g -mcpu=native -Wall -Wextra -std=c99 -c -o ds4_prompt_prefix.o ds4_prompt_prefix.c
+cc -O3 -ffast-math -g -mcpu=native -Wall -Wextra -std=c99 -c -o linenoise.o linenoise.c
+cc -O3 -ffast-math -g -mcpu=native -Wall -Wextra -std=c99 -c -o ds4_gpu_args.o ds4_gpu_args.c
+cc -O3 -ffast-math -g -mcpu=native -Wall -Wextra -std=c99 -c -o ds4.o ds4.c
+cc -O3 -ffast-math -g -mcpu=native -Wall -Wextra -std=c99 -c -o ds4_image.o ds4_image.c
+cc -O3 -ffast-math -g -mcpu=native -Wall -Wextra -std=c99 -c -o ds4_distributed.o ds4_distributed.c
+cc -O3 -ffast-math -g -mcpu=native -Wall -Wextra -std=c99 -c -o ds4_tp.o ds4_tp.c
+cc -O3 -ffast-math -g -mcpu=native -Wall -Wextra -std=c99 -c -o ds4_ssd.o ds4_ssd.c
+cc -O3 -ffast-math -g -mcpu=native -Wall -Wextra -fobjc-arc -c -o ds4_metal.o ds4_metal.m
+cc -O3 -ffast-math -g -mcpu=native -Wall -Wextra -std=c99   -c -o ds4_layer_pack.o ds4_layer_pack.c
+cc -O3 -ffast-math -g -mcpu=native -Wall -Wextra -std=c99 -c -o ds4_server.o ds4_server.c
+cc -O3 -ffast-math -g -mcpu=native -Wall -Wextra -std=c99 -c -o ds4_kvstore.o ds4_kvstore.c
+cc -O3 -ffast-math -g -mcpu=native -Wall -Wextra -std=c99 -c -o rax.o rax.c
+cc -O3 -ffast-math -g -mcpu=native -Wall -Wextra -std=c99 -o ds4 ds4_cli.o ds4_help.o ds4_prompt_prefix.o linenoise.o ds4_gpu_args.o ds4.o ds4_image.o ds4_distributed.o ds4_tp.o ds4_ssd.o ds4_metal.o ds4_layer_pack.o -lm -pthread -framework Foundation -framework Metal
+cc -O3 -ffast-math -g -mcpu=native -Wall -Wextra -std=c99 -o ds4-server ds4_server.o ds4_help.o ds4_kvstore.o rax.o ds4_gpu_args.o ds4.o ds4_image.o ds4_distributed.o ds4_tp.o ds4_ssd.o ds4_metal.o ds4_layer_pack.o -lm -pthread -framework Foundation -framework Metal
+make -j8 ds4 ds4-server 2>&1  15.10s user 0.75s system 209% cpu 7.577 total
+tail -40  0.00s user 0.00s system 0% cpu 7.577 total
+=== build rc=0 ===
+-rwxr-xr-x  1 evanhoffman  staff  2538144 Sep 11 19:57 ds4
+-rwxr-xr-x  1 evanhoffman  staff  2876536 Sep 11 19:57 ds4-server
