@@ -265,6 +265,73 @@ def report(rows: list[dict], hours: float, target: float = TARGET) -> dict:
 # --- idleness, which is not the same question as "is a kernel resident" ------
 
 
+PROM_DATASOURCE = "uMatQbvMk"
+PROM_POWER = 'DCGM_FI_DEV_POWER_USAGE{instance="dgx.internal:9400"}'
+# p90 over 15 minutes, validated 2026-09-12 against known-idle stretches:
+#
+#   now        76.6 W   running
+#   1h ago     77.9 W   running
+#   7h ago     11.4 W   idle (a server left resident between jobs)
+#   11h ago     9.4 W   idle
+#
+# Idle lands at 9-11 W and work at 59-78 W, with nothing near the boundary, so
+# 25 W separates them with room on both sides.
+#
+# The WINDOW is the part that matters. An agent trial alternates decode with
+# tool execution and test runs, so over 5 minutes the same running job reads
+# p50 10.2 W and p90 19.0 W -- indistinguishable from idle -- while p99 82 W
+# shows it is working. Fifteen minutes is long enough that a live run cannot
+# hide inside the gaps, and short enough to notice a machine that stopped.
+PROM_IDLE_P90_WATTS = 25.0
+PROM_WINDOW = "15m"
+
+
+def prometheus_p90(window: str = PROM_WINDOW) -> float | None:
+    """p90 GPU power over `window`, from Prometheus, or None if unreachable.
+
+    Prometheus holds far more history than this script's own sampler and at a
+    steadier cadence, so where it answers it is the better source. The token
+    lives in ~/.config/gcx/token and is exported by .bashrc, which a
+    non-interactive shell never sources -- so it is read explicitly here rather
+    than assumed to be in the environment.
+    """
+    token = pathlib.Path.home() / ".config/gcx/token"
+    env = dict(os.environ)
+    if token.exists():
+        try:
+            env["GRAFANA_TOKEN"] = token.read_text().strip()
+        except OSError:
+            return None
+    try:
+        out = subprocess.run(
+            [
+                "gcx",
+                "metrics",
+                "query",
+                "-d",
+                PROM_DATASOURCE,
+                f"quantile_over_time(0.9, {PROM_POWER}[{window}])",
+                "-o",
+                "json",
+                "--jq",
+                ".data.result[].value[1]",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=60,
+            check=False,
+            env=env,
+        ).stdout
+    except (OSError, subprocess.SubprocessError):
+        return None
+    for line in reversed(out.splitlines()):
+        try:
+            return float(line.strip().strip('"'))
+        except ValueError:
+            continue
+    return None
+
+
 def machine_state(log: pathlib.Path, window: int = 10) -> dict:
     """Is the machine failing to make progress? A verdict with its reason.
 
@@ -298,14 +365,23 @@ def machine_state(log: pathlib.Path, window: int = 10) -> dict:
     """
     rows = load(log, hours=1)[-window:]
     watts = [r["watts"] for r in rows if r.get("watts") is not None]
-    recent_power = max(watts) if watts else None
+    # Prefer Prometheus: p90 over 15 minutes is the honest "is it idle" signal,
+    # because a bursty agent workload hides inside a shorter window and a local
+    # max is one spike away from calling a dead machine busy.
+    p90 = prometheus_p90()
+    recent_power = p90 if p90 is not None else (max(watts) if watts else None)
+    threshold = PROM_IDLE_P90_WATTS if p90 is not None else IDLE_WATTS
     procs = _serving_processes()
     bench = _benchmark_running()
     advanced = _log_advanced_recently()
 
-    if recent_power is not None and recent_power >= IDLE_WATTS:
+    if recent_power is not None and recent_power >= threshold:
         state = "BUSY"
-        why = f"peak {recent_power:.1f} W over the last {len(watts)} samples"
+        why = (
+            f"p90 {recent_power:.1f} W over {PROM_WINDOW} (Prometheus)"
+            if p90 is not None
+            else f"peak {recent_power:.1f} W over the last {len(watts)} samples"
+        )
     elif bench and advanced:
         state = "WORKING"
         why = "power low, but a benchmark is alive and its log advanced -- a trial's tool phase"

@@ -59,7 +59,7 @@ other is telling you something.
 
 ### Cortex-X925-128GB-GB10
 
-*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 411 rows, sha256 ee0618ef9da0.*
+*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 441 rows, sha256 498eb0340839.*
 
 #### Every stack measured under OpenCode
 
@@ -68,7 +68,7 @@ other is telling you something.
 | stack | passed | median | worst | spread |
 |---|---|---|---|---|
 | qwen38fnq3nothinkdgx | 60/60 | 60s | 497s | 14.1x |
-| qwen38fnq3dgx | 30/30 | 127s | 315s | 6.6x |
+| qwen38fnq3dgx | 60/60 | 123s | 315s | 6.6x |
 | qwen36nvfp4nothinkdgx | 60/60 | 136s | 268s | 5.2x |
 | qwen36codinggguf | 29/30 | 162s | 221s | 3.2x |
 | qwen36nvfp4dgx | 30/30 | 179s | 545s | 6.5x |
@@ -89,7 +89,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | nemotron33 | 15s |
 | nemotroncascade2 | 17s |
 | nemotron3nano | 19s |
-| qwen38fnq3dgx | 55s |
+| qwen38fnq3dgx | 59s |
 | qwen38fnq3nothinkdgx | 68s |
 | qwen36codinggguf | 70s |
 | ds4dgx | 88s |
@@ -101,7 +101,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 
 ### MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A
 
-*Generated from `hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/results.jsonl` — 2565 rows, sha256 f01b2d48ac3a.*
+*Generated from `hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/results.jsonl` — 2625 rows, sha256 5dbdabb57168.*
 
 #### Every stack measured under OpenCode
 
@@ -118,18 +118,18 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | qwen38fnq3reap | 21/21 | 110s | 261s | 6.8x |
 | DeepSeek-V4-Flash - ds4 | 30/30 | 115s | 230s | 4.3x |
 | Qwen3.8-Flash-Next Q3 - LM Studio | 21/21 | 122s | 261s | 4.2x |
+| qwen38fnds4greedy | 64/70 | 142s | 806s | 18.2x |
 | gemma426 | 11/11 | 150s | 160s | 1.7x |
 | qwen36 | 11/12 | 159s | 352s | 3.6x |
 | qwen38fnds4shim | 228/262 | 160s | 792s | 20.5x |
-| qwen38fnds4greedy | 37/40 | 163s | 806s | 14.8x |
 | Qwen3.6-27B-coding - Ollama | 24/24 | 167s | 700s | 12.6x |
 | qwen38fnds4mtp7shim | 72/127 | 177s | 638s | 11.4x |
-| qwen38fnds4mtp7greedy | 48/60 | 239s | 1003s | 13.8x |
+| qwen38fnds4mtp7greedy | 72/90 | 194s | 1003s | 21.3x |
 | qwen | 12/12 | 247s | 406s | 4.0x |
 | GLM-5.3-Flash - ds4 | 22/24 | 369s | 1227s | 18.0x |
 | gemma4 | 12/12 | 383s | 1316s | 4.8x |
 
-**Rows here were not all taken under one client.** qwen38fnq3reap under 1.18.26; qwen38fnds4kimat, qwen38fnds4mtp7shim, qwen38fnds4shim under 1.18.27; qwen38fnds4greedy, qwen38fnds4kimat, qwen38fnds4mtp7greedy, qwen38fnds4mtp7shim, qwen38fnds4shim, qwen38fnmlxserve, qwen38fnmlxserve-git, Qwen3.8-Flash-Next Q3 - llama.cpp under 1.18.29; qwen38fnds4kimat under 1.18.30; the rest under 1.18.25. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: qwen38fnds4kimat (1.18.27, 1.18.29, 1.18.30); qwen38fnds4mtp7shim (1.18.27, 1.18.29); qwen38fnds4shim (1.18.27, 1.18.29); Qwen3.8-Flash-Next Q3 - llama.cpp (1.18.25, 1.18.29).
+**Rows here were not all taken under one client.** qwen38fnq3reap under 1.18.26; qwen38fnds4kimat, qwen38fnds4mtp7shim, qwen38fnds4shim under 1.18.27; qwen38fnds4greedy, qwen38fnds4kimat, qwen38fnds4mtp7greedy, qwen38fnds4mtp7shim, qwen38fnds4shim, qwen38fnmlxserve, qwen38fnmlxserve-git, Qwen3.8-Flash-Next Q3 - llama.cpp under 1.18.29; qwen38fnds4greedy, qwen38fnds4kimat, qwen38fnds4mtp7greedy under 1.18.30; the rest under 1.18.25. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: qwen38fnds4greedy (1.18.29, 1.18.30); qwen38fnds4kimat (1.18.27, 1.18.29, 1.18.30); qwen38fnds4mtp7greedy (1.18.29, 1.18.30); qwen38fnds4mtp7shim (1.18.27, 1.18.29); qwen38fnds4shim (1.18.27, 1.18.29); Qwen3.8-Flash-Next Q3 - llama.cpp (1.18.25, 1.18.29).
 
 **The `qwen38fnmlxserve`, `qwen38fnmlxserve-git` rows are PLD-on.** mlx-serve turns on Prompt Lookup Decoding by default, and every mlx-serve row here was taken with it on; the pack ships no MTP head or drafter, so PLD is the draft source ([#262](https://github.com/evanwtf/local-llm/issues/262)). That is the engine's own default — "what you get when you install it," which is what this project measures — but the speculation was never recorded, so these rows are not a no-speculation baseline against the ds4 arms whose MTP state we set explicitly.
 
@@ -164,14 +164,14 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | GLM-5.3-Flash - ds4 | 55s |
 | Qwen3.6-27B-coding - Ollama | 69s |
 | DeepSeek-V4-Flash - ds4 | 71s |
+| qwen38fnds4greedy | 77s |
 | qwen38fnds4shim | 78s |
-| qwen38fnds4greedy | 82s |
 | gemma4 | 84s |
 | qwen38fnds4mtp7shim | 84s |
-| qwen38fnds4mtp7greedy | 106s |
+| qwen38fnds4mtp7greedy | 90s |
 | Qwen3.8-Flash-Next Q3 - LM Studio | 115s |
 
-**Rows here were not all taken under one client.** qwen38fnq3reap under 1.18.26; qwen38fnds4kimat, qwen38fnds4mtp7shim, qwen38fnds4shim under 1.18.27; qwen38fnds4greedy, qwen38fnds4kimat, qwen38fnds4mtp7greedy, qwen38fnds4mtp7shim, qwen38fnds4shim, qwen38fnmlxserve, qwen38fnmlxserve-git, Qwen3.8-Flash-Next Q3 - llama.cpp under 1.18.29; qwen38fnds4kimat under 1.18.30; the rest under 1.18.25. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: qwen38fnds4kimat (1.18.27, 1.18.29, 1.18.30); qwen38fnds4mtp7shim (1.18.27, 1.18.29); qwen38fnds4shim (1.18.27, 1.18.29); Qwen3.8-Flash-Next Q3 - llama.cpp (1.18.25, 1.18.29).
+**Rows here were not all taken under one client.** qwen38fnq3reap under 1.18.26; qwen38fnds4kimat, qwen38fnds4mtp7shim, qwen38fnds4shim under 1.18.27; qwen38fnds4greedy, qwen38fnds4kimat, qwen38fnds4mtp7greedy, qwen38fnds4mtp7shim, qwen38fnds4shim, qwen38fnmlxserve, qwen38fnmlxserve-git, Qwen3.8-Flash-Next Q3 - llama.cpp under 1.18.29; qwen38fnds4greedy, qwen38fnds4kimat, qwen38fnds4mtp7greedy under 1.18.30; the rest under 1.18.25. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: qwen38fnds4greedy (1.18.29, 1.18.30); qwen38fnds4kimat (1.18.27, 1.18.29, 1.18.30); qwen38fnds4mtp7greedy (1.18.29, 1.18.30); qwen38fnds4mtp7shim (1.18.27, 1.18.29); qwen38fnds4shim (1.18.27, 1.18.29); Qwen3.8-Flash-Next Q3 - llama.cpp (1.18.25, 1.18.29).
 
 ### Ryzen9-7900X-32GB-RTX3080Ti-12GB
 
