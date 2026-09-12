@@ -478,6 +478,18 @@ context_tokens = 131072
 # `<think></think>` block is the default instead of an open `<think>`. Nothing
 # in the client changes, and the control is qwen36nvfp4v1dgx -- same weights,
 # same engine, same V1 runner, same flags, thinking on.
+#
+# ONE MORE DIFFERENCE, named here because it is real even though it is forced.
+# This arm serves WITHOUT --reasoning-parser qwen3; the control serves with it.
+# That is not an independent choice: the parser splits reasoning from content by
+# finding `</think>` in the GENERATED text, and the thinking-off template emits
+# the closed block in the PROMPT, so the tag never appears in the output. With
+# the parser on, everything the model generates is classified as reasoning and
+# the content comes back EMPTY -- verified before this arm ran: finish=stop,
+# 5 completion tokens, content "". That would have scored a clean 0/30 and read
+# as "thinking off destroys the model" rather than as a parser/template
+# disagreement. The parser and the template have to agree; turning it off is
+# what agreement looks like, not a second knob turned for its own sake.
 [backend.qwen36nvfp4nothinkdgx]
 description = "Qwen3.6-27B NVFP4, vLLM 0.29.0 V1 runner, thinking OFF via chat template"
 tier = "gb10-spark"
