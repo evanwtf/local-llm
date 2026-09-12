@@ -1,0 +1,22 @@
+{
+  "transcripts": 45,
+  "total_tool_errors": 5,
+  "trials_with_malformed": [
+    "parser-mbox-quoting-qwen38fnds4shim-opencode-3",
+    "script-reverse-qwen38fnds4shim-opencode-3",
+    "storage-put-and-sweep-qwen38fnds4shim-opencode-1"
+  ],
+  "recovered": [
+    "parser-mbox-quoting-qwen38fnds4shim-opencode-3"
+  ],
+  "conditional_malformed_by_prior_errors": {
+    "0": {
+      "malformed": 3,
+      "attempts": 347
+    },
+    "1": {
+      "malformed": 0,
+      "attempts": 35
+    }
+  }
+}
