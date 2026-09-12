@@ -367,6 +367,7 @@ context_tokens = 262144
 # without saying so. It is the portable stand-in, not a replacement.
 [backend.qwen36codinggguf]
 description = "Qwen3.6-27B coding-tuned, GGUF (portable; mxfp8 is macOS-only)"
+tier = "gb10-spark"
 base_url = "http://127.0.0.1:11434"
 auth_token = "ollama"
 engine = "ollama"
@@ -396,6 +397,7 @@ context_tokens = 262144
 # backends declare, so the two are comparable on that axis too.
 [backend.qwen38fnq3dgx]
 description = "Qwen3.8-Flash-Next 125B-A6B, Unsloth UD-Q3_K_XL, llama.cpp CUDA sm_121"
+tier = "gb10-spark"
 base_url = "http://127.0.0.1:8020"
 auth_token = "local"
 engine = "llama.cpp"
@@ -421,6 +423,7 @@ context_tokens = 131072
 # it with no shim in the path -- same as llama.cpp here, unlike the Mac.
 [backend.ds4dgx]
 description = "DeepSeek-V4-Flash Q2 0731 via ds4-server, CUDA sm_121a"
+tier = "gb10-spark"
 base_url = "http://127.0.0.1:8000"
 auth_token = "dsv4-local"
 engine = "ds4"
@@ -450,6 +453,7 @@ context_tokens = 100000
 # not an assumption -- but it is why nvcc and ninja must be on PATH at launch.
 [backend.qwen36nvfp4dgx]
 description = "Qwen3.6-27B NVFP4 (nvidia/ModelOpt) via vLLM 0.29.0, CUDA sm_121"
+tier = "gb10-spark"
 base_url = "http://127.0.0.1:8030"
 auth_token = "local"
 engine = "vllm"
@@ -468,6 +472,7 @@ context_tokens = 131072
 # to qwen36codinggguf, which is a different fine-tune on a different engine.
 [backend.qwen36bf16dgx]
 description = "Qwen3.6-27B BF16 (unquantized control) via vLLM 0.29.0, CUDA sm_121"
+tier = "gb10-spark"
 base_url = "http://127.0.0.1:8030"
 auth_token = "local"
 engine = "vllm"
@@ -497,6 +502,7 @@ context_tokens = 131072
 # this backend exists to answer.
 [backend.glm53dgx]
 description = "GLM-5.3-Flash Q2 via ds4-server, CUDA sm_121a, ctx 100000"
+tier = "gb10-spark"
 base_url = "http://127.0.0.1:8000"
 auth_token = "dsv4-local"
 engine = "ds4"
@@ -531,6 +537,7 @@ context_tokens = 100000
 # Retained rather than retired so the negative result stays findable.
 [backend.nemotron33]
 description = "Nemotron 3 Nano Omni 33B (multimodal/document-intelligence, NOT coding), Q4_K_M"
+tier = "gb10-spark"
 base_url = "http://127.0.0.1:11434"
 auth_token = "ollama"
 engine = "ollama"
@@ -558,6 +565,7 @@ context_tokens = 131072
 # `ollama ps`, rather than trusting either number.
 [backend.nemotron3nano]
 description = "Nemotron 3 Nano 30B-A3B (agentic), Q8_0 (GGUF)"
+tier = "gb10-spark"
 base_url = "http://127.0.0.1:11434"
 auth_token = "ollama"
 engine = "ollama"
@@ -575,6 +583,7 @@ context_tokens = 262144
 # nemotron33 it is built for the task being scored.
 [backend.nemotroncascade2]
 description = "Nemotron Cascade 2 30B-A3B (agentic), Q4_K_M (GGUF)"
+tier = "gb10-spark"
 base_url = "http://127.0.0.1:11434"
 auth_token = "ollama"
 engine = "ollama"
@@ -596,6 +605,7 @@ context_tokens = 262144
 # the largest model this project has ever run outside the Mac.
 [backend.nemotronsuper]
 description = "Nemotron 3 Super 120B-A12B, Q4_K_M (GGUF)"
+tier = "gb10-spark"
 base_url = "http://127.0.0.1:11434"
 auth_token = "ollama"
 engine = "ollama"

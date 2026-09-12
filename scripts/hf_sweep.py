@@ -129,52 +129,6 @@ PROFILES: dict[str, dict] = {
         # mxfp8 contains "fp8" and is ours; strip it before matching (#78).
         "protect": ("mxfp8",),
     },
-    "gb10-spark": {
-        "description": "NVIDIA DGX Spark, GB10 Blackwell sm_121, 128 GB unified",
-        # What Ollama reports it will actually hand the GPU: 117.8 GiB of the
-        # 121.7 GiB visible. Unified, so this is a working-set budget and not a
-        # discrete card's VRAM (#292) -- the same shape as m5-max, not
-        # rtx3080ti, however much the GPU name suggests otherwise.
-        "vram_gb": 117.8,
-        "ram_gb": 128.0,
-        "unified": True,
-        # Blackwell runs what Ampere cannot: sm_121 has FP8 *and* NVFP4
-        # hardware. This is also the only profile where tensorrt/vllm/sglang
-        # are real options (#299).
-        "usable": (
-            "gguf",
-            "q4_k",
-            "q3_k",
-            "q5_k",
-            "q6_k",
-            "q8_0",
-            "iq",
-            "bf16",
-            "nvfp4",
-            "fp8",
-            "awq",
-            "gptq",
-            "exl2",
-            "exl3",
-            "marlin",
-            "int4",
-            "w4a16",
-            "w8a8",
-            "tensorrt",
-            "vllm",
-            "sglang",
-        ),
-        # MLX is Apple's, and on Linux Ollama ships no MLX runtime at all --
-        # the runner's symbols are in the binary, the library is not, so every
-        # `mlx` and `mxfp8` build is unpullable here (#293). ROCm is AMD.
-        #
-        # No "protect" entry is needed, and none would be correct: `mxfp8` must
-        # match unusable while bare `fp8` must match usable, which is what
-        # substring matching already does. This is the exact reverse of
-        # m5-max, where `fp8` means NVIDIA and had to be protected.
-        "unusable": ("mlx", "mxfp8", "rocm"),
-        "protect": (),
-    },
     "rtx3080ti": {
         "description": "RTX 3080 Ti, 12 GiB VRAM, Ampere sm_86, 32 GB host RAM",
         "vram_gb": 12.0,
@@ -203,9 +157,19 @@ PROFILES: dict[str, dict] = {
     },
     "gb10": {
         "description": "DGX Spark GB10, 128 GB unified, Blackwell sm_121, CUDA",
-        # A working set inside the 121.7 GiB visible unified pool, matching the
-        # Mac's headroom convention rather than the raw 128 GB.
-        "vram_gb": 112.0,
+        # 117.8 GiB is measured, not conventional: it is what Ollama reports it
+        # will actually hand the GPU out of the 121.7 GiB visible pool, and
+        # llama.cpp agrees (VERSIONS.md). The 112.0 that stood here was borrowed
+        # from m5-max, where 112.0 is not a convention either -- it is the raised
+        # iogpu.wired_limit_mb, an enforced ceiling this machine has no analogue
+        # of.
+        #
+        # Read it as the addressable pool, NOT a working-set budget: a checkpoint
+        # at 117 GiB classifies usable here and would still fail to serve, because
+        # KV and activations need room the file size does not show. The nearest
+        # real case is nvidia/Qwen3.8-Flash-Next-NVFP4 at 123.6 GiB, which both
+        # numbers correctly exclude (#313).
+        "vram_gb": 117.8,
         "ram_gb": 128.0,
         "unified": True,
         # Blackwell has FP8 and NVFP4 in hardware, so the NVIDIA server formats

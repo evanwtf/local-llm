@@ -1000,6 +1000,9 @@ def test_dry_run_reports_a_script_task_without_crashing(tmp_path, monkeypatch):
     assert 'summary if not is_script else "script task; no control to check"' in source
 
 
+TIERS = {"desktop-3080ti", "gb10-spark"}
+
+
 def test_tiered_backends_are_out_of_the_default_matrix():
     """Another machine's backends must not run here by default.
 
@@ -1011,8 +1014,13 @@ def test_tiered_backends_are_out_of_the_default_matrix():
     cfg = tomllib.loads((HERE / "tasks.toml").read_text())
     tiered = {k: v for k, v in cfg["backend"].items() if v.get("tier")}
     assert tiered, "expected the desktop tier to be configured"
+    # One tier per machine that is not the machine this repo's default matrix
+    # assumes. This was `== "desktop-3080ti"` while the 3080 Ti was the only
+    # other box; the DGX Spark is the second, and #292's whole point is that a
+    # third should cost a tier name rather than a branch. Still a closed set, so
+    # a typo is caught -- it just is not a single value any more.
     for name, backend in tiered.items():
-        assert backend["tier"] == "desktop-3080ti", name
+        assert backend["tier"] in TIERS, f"{name}: unknown tier {backend['tier']!r}"
         assert backend.get("opencode_model"), name
 
 
