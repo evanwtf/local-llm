@@ -1,0 +1,23 @@
+ds4: Qwen matching v3 q4_k MTP sidecar loaded: /Users/evanhoffman/models/qwen3.8-flash-next-ds4-q4/qwen3.8-flash-next-q4-mtp.gguf (state=ready draft=7)
+ds4: Qwen MTP state capture: depth=7 slots=6 BF16-GDN/FP32-PLE=359.86 MiB fallback=restore-replay-on-failure
+ds4: Qwen graph allocated: ctx=100000 work_cap=8192 QSA=BF16 microtile=512 PLE=SSD-pread/Q4_1-to-BF16-double-buffer GDN-control=BF16 GDN-state=BF16 GDN-qkvz=Q8-concat GDN-out=Q8-HC-fused MoE-down=Q4_0-expert-split MTP=Q4_K/Q8_0/BF16 verifier=block/max16
+--- scheduler switch events (MTP -> plain) ---
+ds4: Qwen MTP scheduler switching to target decode cycles=1 target_tokens=3 actual=110.510ms baseline=65.628ms
+ds4: Qwen MTP scheduler switching to target decode cycles=1 target_tokens=3 actual=97.577ms baseline=64.887ms
+ds4: Qwen MTP scheduler switching to target decode cycles=1 target_tokens=3 actual=97.145ms baseline=64.419ms
+--- first engaged cycles ---
+ds4: Qwen MTP timing drafted=7 accepted=2 target_tokens=3 cycle=110.463 ms verifier=block
+ds4: Qwen MTP timing drafted=7 accepted=2 target_tokens=3 cycle=97.548 ms verifier=block
+ds4: Qwen MTP timing drafted=7 accepted=2 target_tokens=3 cycle=97.126 ms verifier=block
+ds4: Qwen MTP timing drafted=7 accepted=2 target_tokens=3 cycle=97.111 ms verifier=block
+ds4: Qwen MTP timing drafted=7 accepted=7 target_tokens=8 cycle=97.476 ms verifier=block
+ds4: Qwen MTP timing drafted=7 accepted=7 target_tokens=8 cycle=97.325 ms verifier=block
+--- sample bypass cycles ---
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=28.608 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.684 ms verifier=scheduler-bypass
+ds4: Qwen MTP timing drafted=0 accepted=0 target_tokens=1 cycle=22.666 ms verifier=scheduler-bypass
+--- final accepted-length histograms per request (non-zero) ---
+ds4: Qwen MTP accepted-length histogram 1=10 2=16 3=21 4=14 5=11 6=3 7=35
+ds4: Qwen MTP accepted-length histogram 1=11 2=18 3=24 4=17 5=14 6=5 7=39
+ds4: Qwen MTP accepted-length histogram 1=14 2=20 3=27 4=19 5=14 6=5 7=46
+ds4: Qwen MTP accepted-length histogram 1=15 2=22 3=29 4=21 5=15 6=6 7=52

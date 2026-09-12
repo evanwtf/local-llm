@@ -1,0 +1,42 @@
+[
+  {
+    "rep": 1,
+    "arm": "plain",
+    "generated": 200,
+    "seconds": 4.79,
+    "cycles": 198,
+    "accepted": 2,
+    "used": true,
+    "bytes": 21128
+  },
+  {
+    "rep": 1,
+    "arm": "tools",
+    "generated": 200,
+    "seconds": 5.1,
+    "cycles": 198,
+    "accepted": 2,
+    "used": true,
+    "bytes": 21112
+  },
+  {
+    "rep": 2,
+    "arm": "tools",
+    "generated": 200,
+    "seconds": 4.98,
+    "cycles": 198,
+    "accepted": 2,
+    "used": true,
+    "bytes": 21105
+  },
+  {
+    "rep": 2,
+    "arm": "plain",
+    "generated": 200,
+    "seconds": 4.17,
+    "cycles": 41,
+    "accepted": 159,
+    "used": true,
+    "bytes": 12436
+  }
+]
