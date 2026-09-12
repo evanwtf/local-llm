@@ -1,7 +1,5 @@
 # local-llm
 
-> ⚠️ **OpenCode results before 2026-08-31 21:47 EDT are INVALID** — the client was never told which directory to work in. **Other clients are unaffected.** The ledger holds none of these rows now; do not quote them from older documents either: [what happened](docs/archive/results-opencode-pre-dir.md).
-
 Find and document the best **model + engine + harness** combination for running
 a coding agent locally, judged on code quality, problem solving, and speed. The
 answer is a combination, not a model: the same weights that are slowest under
