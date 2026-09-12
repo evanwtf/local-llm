@@ -97,6 +97,7 @@ documentation.
 | `upstream_sweep.py` | Sweep the repositories this project depends on, in one command. |
 | `verify_posts.py` | Verify X posts against the source, for the claims that earned an issue. |
 | `verify_push.py` | Verify a push landed, instead of trusting that `git push` reported success (#255). |
+| `vllm_load.py` | Aggregate throughput against a vLLM server at a given concurrency (#334). |
 | `ds4-fast.sh` | Metal 4 TensorOps: ~21% faster, not bit-exact. See scripts/ds4_serve.py. |
 | `ds4-vanilla.sh` | Reference kernels: bit-exact, slower. See scripts/ds4_serve.py. |
 | `install-metal-ceiling.sh` | Persist the Metal wired limit across reboots. |
