@@ -463,6 +463,33 @@ aider_model = "openai/qwen3.6-27b-nvfp4"
 opencode_model = "vllm/qwen3.6-27b-nvfp4"
 context_tokens = 131072
 
+# #333: thinking off, as a measured variable rather than a tuning tip.
+#
+# The DGX Spark's own rows are the evidence this is worth measuring. On the
+# 10-task matrix qwen36nvfp4v1dgx spends a median 472 reasoning tokens against
+# 844 total output tokens, and the speculation arm spends 1344 against 1558 --
+# roughly half of everything these weights emit is reasoning, on tasks that are
+# small excisions. Three Nemotron backends scored 11/30 combined here with ds4
+# decode runs ending finish=length, the whole budget going to reasoning (#83).
+#
+# Single variable, server-side. The chat template is byte-identical to the
+# checkpoint's own except one condition: `enable_thinking is defined and ...
+# is false` becomes `is not defined or ... is false`, so the closed
+# `<think></think>` block is the default instead of an open `<think>`. Nothing
+# in the client changes, and the control is qwen36nvfp4v1dgx -- same weights,
+# same engine, same V1 runner, same flags, thinking on.
+[backend.qwen36nvfp4nothinkdgx]
+description = "Qwen3.6-27B NVFP4, vLLM 0.29.0 V1 runner, thinking OFF via chat template"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8030"
+auth_token = "local"
+engine = "vllm"
+engine_tree = "~/venvs/vllm"
+model = "qwen3.6-27b-nvfp4-nothink"
+aider_model = "openai/qwen3.6-27b-nvfp4-nothink"
+opencode_model = "vllm/qwen3.6-27b-nvfp4-nothink"
+context_tokens = 131072
+
 # #319: draftless n-gram speculation, the only untested lever against the
 # 231-234 GB/s decode wall (#317). No draft model, no extra weights -- the draft
 # comes from n-gram matches in the prompt and the tokens generated so far, which

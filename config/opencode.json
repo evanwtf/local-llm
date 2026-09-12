@@ -326,6 +326,16 @@
             "context": 131072,
             "output": 131072
           }
+        },
+        "qwen3.6-27b-nvfp4-nothink": {
+          "name": "Qwen3.6-27B NVFP4, thinking off (vLLM)",
+          "tool_call": true,
+          "reasoning": false,
+          "temperature": false,
+          "limit": {
+            "context": 131072,
+            "output": 131072
+          }
         }
       }
     }
