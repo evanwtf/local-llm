@@ -1,0 +1,33 @@
+run: 2026-09-12T16:03:48Z  tree head: 9803df46
+===== make test-qwen38-gdn =====
+./tests/test_qwen38_gdn
+ds4: Metal device Apple M5 Max, 128.00 GiB RAM
+ds4: Metal 4 tensor API enabled for Tensor kernels
+ds4: drift-patch flags hc_stable=on norm_unify=on kv_raw_f32=off rope_exp2_log2=off math_safe=off tensor_matmul=on
+ds4: Metal model views created in 0.024 ms, residency requested in 0.052 ms, warmup 2.949 ms (mapped 0.06 MiB from offset 0.00 MiB)
+ds4: Metal mapped mmaped model as 1 overlapping shared buffers
+Qwen3.8 GDN GPU tests: PASS
+--> test-qwen38-gdn exit=0
+===== make test-qwen38-qsa =====
+./tests/test_qwen38_qsa
+ds4: Metal device Apple M5 Max, 128.00 GiB RAM
+ds4: Metal 4 tensor API enabled for Tensor kernels
+ds4: drift-patch flags hc_stable=on norm_unify=on kv_raw_f32=off rope_exp2_log2=off math_safe=off tensor_matmul=on
+ds4: Metal model views created in 0.020 ms, residency requested in 0.045 ms, warmup 3.094 ms (mapped 0.02 MiB from offset 0.00 MiB)
+ds4: Metal mapped mmaped model as 1 overlapping shared buffers
+Qwen3.8 QSA GPU tests: PASS
+--> test-qwen38-qsa exit=0
+===== make test-qwen38-hc =====
+./tests/test_qwen38_hc
+ds4: Metal device Apple M5 Max, 128.00 GiB RAM
+ds4: Metal 4 tensor API enabled for Tensor kernels
+ds4: drift-patch flags hc_stable=on norm_unify=on kv_raw_f32=off rope_exp2_log2=off math_safe=off tensor_matmul=on
+ds4: Metal model views created in 0.021 ms, residency requested in 0.048 ms, warmup 3.385 ms (mapped 0.06 MiB from offset 0.00 MiB)
+ds4: Metal mapped mmaped model as 1 overlapping shared buffers
+ds4: Metal cleanup discarded 18 live tensor handles
+Qwen3.8 HC/PLE GPU tests: PASS
+--> test-qwen38-hc exit=0
+===== make test-qwen38-ple-hash =====
+./tests/test_qwen38_ple_hash
+Qwen3.8 PLE hash tests: PASS
+--> test-qwen38-ple-hash exit=0
