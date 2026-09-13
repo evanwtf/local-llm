@@ -59,7 +59,7 @@ other is telling you something.
 
 ### Cortex-X925-128GB-GB10
 
-*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 461 rows, sha256 579acd6296f5.*
+*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 491 rows, sha256 25218b8613dc.*
 
 #### Every stack measured under OpenCode
 
@@ -71,7 +71,7 @@ other is telling you something.
 | qwen38fnq3dgx | 60/60 | 123s | 315s | 6.6x |
 | qwen36nvfp4nothinkdgx | 60/60 | 136s | 268s | 5.2x |
 | qwen36codinggguf | 49/50 | 147s | 286s | 4.1x |
-| qwen36nvfp4dgx | 30/30 | 179s | 545s | 6.5x |
+| qwen36nvfp4dgx | 60/60 | 175s | 845s | 13.2x |
 | qwen36nvfp4v1dgx | 29/30 | 190s | 832s | 12.3x |
 | nemotroncascade2 | 2/10 | 197s | 197s | 1.0x |
 | qwen36nvfp4specdgx | 9/13 | 236s | 984s | 21.9x |
@@ -94,8 +94,8 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | qwen36codinggguf | 73s |
 | ds4dgx | 88s |
 | qwen36nvfp4nothinkdgx | 105s |
-| qwen36nvfp4dgx | 147s |
 | qwen36nvfp4specdgx | 147s |
+| qwen36nvfp4dgx | 150s |
 | qwen36nvfp4v1dgx | 160s |
 | qwen36bf16dgx | 409s |
 
