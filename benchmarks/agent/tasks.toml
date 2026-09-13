@@ -1812,6 +1812,34 @@ context_tokens = 100000
 engine = "ds4"
 engine_tree = "~/git/ds4-metal"
 
+# The SAME -q4 fast-pack as qwen38fnds4shim, but CONVERTED to the single-file
+# qwen4exp schema so it loads on the newer ds4-metal head (6c1e836, the #228
+# tree ~/git/ds4-metal-228), which dispatches only `qwen4exp` and refuses the
+# pack's original `qwen4-exp` declaration (#279). The conversion is upstream's
+# gguf-tools/qwen4_pack_to_qwen4exp.py run with --ple-external: the default
+# inline dequantizes the PLE to one 95.37 GiB F16 tensor that exceeds Metal's
+# 80.64 GiB max buffer and will not map, so the PLE stays in the Q4_1 sidecar
+# and ds4-server reads it via --ple (converted base:
+# ~/models/qwen3.8-flash-next-ds4-q4/Qwen3.8-Flash-Next-Q40Routed-qwen4exp-pleext.gguf).
+#
+# NEW SERIES, comparable to neither side: it moves the engine head (ba01f5d ->
+# 6c1e836) AND the weights (converted) against qwen38fnds4shim, and it is a
+# different quant from qwen38fnds4kimat. It exists to answer #228's question --
+# does the -q4 result survive the engine-tree move once the pack is converted.
+# Everything in the opencode -> shim -> ds4 path is identical to
+# qwen38fnds4shim (same ports, model id, shim, MTP off); only the engine tree
+# and the physical GGUF the server is pointed at differ.
+[backend.qwen38fnds4q4exp]
+description = "Qwen3.8-Flash-Next -q4 fast-pack converted to qwen4exp (--ple-external) on ds4-metal 6c1e836 via the tool-format shim, MTP off -- the 6c1e836 counterpart to qwen38fnds4shim (#279/#228)"
+base_url = "http://127.0.0.1:8101"
+engine_url = "http://127.0.0.1:8000"
+auth_token = "dsv4-local"
+model = "qwen3.8-flash-next-q4"
+opencode_model = "ds4qwenshim/qwen3.8-flash-next-q4"
+context_tokens = 100000
+engine = "ds4"
+engine_tree = "~/git/ds4-metal-228"
+
 # #191: mlx-serve on its own MLX pack. The stack-as-shipped counterpart to
 # `qwen38fnds4kimat` -- the SAME model, Qwen3.8-Flash-Next, but MLX weights at
 # mixed 4/8-bit instead of our Q4_K imatrix GGUF, served by a different engine.
