@@ -1990,6 +1990,28 @@ context_tokens = 100000
 engine = "ds4"
 engine_tree = "~/git/ds4-metal-228"
 
+# #228: the CURRENT-HEAD counterpart to qwen38fnds4q4exp. Same converted
+# qwen4exp pack, same shim/ports/MTP-off -- the ONLY thing that moves is the
+# ds4 engine tree: ds4-metal-228 @ 6c1e836 -> ds4-metal-head @ 10830f4, which
+# carries PR #5's ten M5-specific bit-exact prefill/decode optimizations (all
+# gated on ds4_gpu_device_is_m5_apple_silicon(); confirmed ancestors of this
+# head). This is the arm that answers #228's headline question -- does PR #5
+# actually speed up our primary Flash-Next-on-ds4 stack on the M5 Max -- paired
+# against qwen38fnds4q4exp so the engine tree is the only variable. Arch is
+# still qwen4exp, so the same converted pack loads (bit-exact kernel opts do not
+# change the schema). ds4-metal-head is a detached worktree pinned at the SHA,
+# so upstream force-pushes cannot move it under us.
+[backend.qwen38fnds4q4exppr5]
+description = "Qwen3.8-Flash-Next -q4 converted qwen4exp on ds4-metal-head 10830f4 (PR #5 M5 bit-exact opts), tool-format shim, MTP off -- the current-head counterpart to qwen38fnds4q4exp (#228)"
+base_url = "http://127.0.0.1:8101"
+engine_url = "http://127.0.0.1:8000"
+auth_token = "dsv4-local"
+model = "qwen3.8-flash-next-q4"
+opencode_model = "ds4qwenshim/qwen3.8-flash-next-q4"
+context_tokens = 100000
+engine = "ds4"
+engine_tree = "~/git/ds4-metal-head"
+
 # #191: mlx-serve on its own MLX pack. The stack-as-shipped counterpart to
 # `qwen38fnds4kimat` -- the SAME model, Qwen3.8-Flash-Next, but MLX weights at
 # mixed 4/8-bit instead of our Q4_K imatrix GGUF, served by a different engine.
