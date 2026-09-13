@@ -59,7 +59,7 @@ other is telling you something.
 
 ### Cortex-X925-128GB-GB10
 
-*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 616 rows, sha256 c6f664e0fcd4.*
+*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 646 rows, sha256 cce73197e076.*
 
 #### Every stack measured under OpenCode
 
@@ -75,7 +75,7 @@ other is telling you something.
 | qwen36nvfp4dgx | 60/60 | 175s | 845s | 13.2x |
 | qwen36nvfp4v1dgx | 29/30 | 190s | 832s | 12.3x |
 | nemotroncascade2 | 2/10 | 197s | 197s | 1.0x |
-| qwen36nvfp4specdgx | 9/13 | 236s | 984s | 21.9x |
+| qwen36nvfp4specdgx | 28/42 | 241s | 1094s | 24.3x |
 | ds4dgx | 60/60 | 248s | 493s | 6.1x |
 | qwen36bf16dgx | 30/30 | 432s | 1335s | 6.7x |
 | nemotron3nano | 8/10 | 580s | 1212s | 8.5x |
@@ -96,14 +96,14 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | qwen36codinggguf | 73s |
 | ds4dgx | 88s |
 | qwen36nvfp4nothinkdgx | 105s |
-| qwen36nvfp4specdgx | 147s |
+| qwen36nvfp4specdgx | 119s |
 | qwen36nvfp4dgx | 150s |
 | qwen36nvfp4v1dgx | 160s |
 | qwen36bf16dgx | 409s |
 
 ### MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A
 
-*Generated from `hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/results.jsonl` — 2716 rows, sha256 89cb8eefb69b.*
+*Generated from `hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/results.jsonl` — 2776 rows, sha256 739b7eab7b80.*
 
 #### Every stack measured under OpenCode
 

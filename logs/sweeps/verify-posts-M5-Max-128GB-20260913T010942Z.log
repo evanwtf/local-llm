@@ -1,0 +1,9 @@
+2026-09-12T21:09:42-0400 INFO [2d9e5ed@M5-Max-128GB ds4-server/ba01f5d pld=n/a] 2026-09-13T01:09:42Z (21:09:42 EDT) | harness 2d9e5ed
+2026-09-12T21:09:43-0400 INFO [2d9e5ed@M5-Max-128GB ds4-server/ba01f5d pld=n/a]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-12T21:09:43-0400 INFO [2d9e5ed@M5-Max-128GB ds4-server/ba01f5d pld=n/a] 2098919037715747127  VERIFIED post  @ivanfioravanti  Sat Sep 12 23:37:49 +0000 2026  via fxtwitter
+2026-09-12T21:09:43-0400 INFO [2d9e5ed@M5-Max-128GB ds4-server/ba01f5d pld=n/a]     Qwen 3.8 Flash Next PR 991 for DwarfStar ready for your review super @antirez   Rebased to current main and squashed to a single commit. MoE is not using standard path and is custom for Qwen. Feel fre
+2026-09-12T21:09:43-0400 INFO [2d9e5ed@M5-Max-128GB ds4-server/ba01f5d pld=n/a] 
+2026-09-12T21:09:43-0400 INFO [2d9e5ed@M5-Max-128GB ds4-server/ba01f5d pld=n/a] Verified 1: 1 confirmed, 0 not.
+2026-09-12T21:09:43-0400 INFO [2d9e5ed@M5-Max-128GB ds4-server/ba01f5d pld=n/a] Paste onto the issue:
+2026-09-12T21:09:43-0400 INFO [2d9e5ed@M5-Max-128GB ds4-server/ba01f5d pld=n/a]   **Verified** 2026-09-13: post exists, authored by @ivanfioravanti, posted Sat Sep 12 23:37:49 +0000 2026.
+2026-09-12T21:09:43-0400 INFO [2d9e5ed@M5-Max-128GB ds4-server/ba01f5d pld=n/a] log: /Users/evanhoffman/git/local-llm/logs/sweeps/verify-posts-M5-Max-128GB-20260913T010942Z.log

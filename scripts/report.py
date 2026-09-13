@@ -152,6 +152,29 @@ def homogeneous(rows_by_task: dict) -> tuple[bool, float | None]:
     return spread <= HOMOGENEITY_LIMIT, spread
 
 
+def retries(rows):
+    """(total prefill-failure retries, trials that recorded a count) for a cell.
+
+    #266: an MTP arm re-prefills on an HTTP 500 (`prefill failed at position
+    N`) the control arm never sees; the shim's retry usually succeeds, so the
+    row reads `passed: true` and a reader sees a slightly slow arm, not a
+    failing one. The extra re-prefill is cycles that do not draft, so it is a
+    confound in every MTP-versus-control wall-time comparison and it moves the
+    `drafting / cycles` denominator #235 reads.
+
+    `prefill_failures` is stamped on the row by the harness
+    (`benchmarks/agent/prefill_failures.Probe`). `None` means no server log was
+    read -- unknown, not zero -- so a row without the field does not count as a
+    measured zero. The return carries both the summed retries and how many rows
+    carried a number, so a reader sees the count and that it was measured, not
+    assumed: `0 across 3` is a real control result, `0 across 0` is unknown.
+    """
+    measured = [
+        r["prefill_failures"] for r in rows if r.get("prefill_failures") is not None
+    ]
+    return sum(measured), len(measured)
+
+
 def distinguishable(a: float, b: float) -> bool:
     """Whether two medians differ by enough for three trials to tell them apart."""
     if not a or not b:
@@ -239,6 +262,14 @@ def render(by_cell, backends) -> list[str]:
                 f"**{b}** excision: {got[0]}/{got[1]} passed, median {median}, "
                 f"worst {got[3]:.1f}s, spread {got[4]}x"
             )
+        # #266: say the re-prefills this arm carried that a control arm does
+        # not. Absolute count, never a ratio; silent when no row measured it.
+        total, measured = retries(ex)
+        if measured:
+            out.append(
+                f"  prefill-failure retries: {total} across {measured}/{len(ex)} "
+                f"trials (#266)"
+            )
 
     if len(backends) == 2:
         # #353: a wall ratio between two arms of the same model and engine is a
@@ -295,6 +326,25 @@ def render(by_cell, backends) -> list[str]:
                 f"- `{task}`: {gap:.0%} apart -- **{verdict}** "
                 f"(needs {RESOLUTION:.0%}; #23)"
             )
+
+        # #266: a wall-time A/B is not honest until it says the treatment arm
+        # carried re-prefills the control did not. Report each arm's count so a
+        # difference is visible beside the timing, not buried in a log.
+        counts = []
+        for arm in (a, b):
+            ex = [
+                r
+                for (bb, task), rows in by_cell.items()
+                if bb == arm and not task.startswith(SCRIPT_PREFIX)
+                for r in rows
+            ]
+            total, measured = retries(ex)
+            counts.append((arm, total, measured))
+        if any(m for _, _, m in counts):
+            out += ["", "**Prefill-failure retries (#266 confound):**", ""]
+            for name, total, measured in counts:
+                seen = f"{measured} trial(s) measured" if measured else "none measured"
+                out.append(f"- **{name}**: {total} retries ({seen})")
     return out
 
 

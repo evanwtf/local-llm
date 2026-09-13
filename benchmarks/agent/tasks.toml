@@ -2006,6 +2006,24 @@ engine = "mlx-serve"
 engine_tree = "~/git/mlx-serve"
 context_tokens = 100000
 
+# #262: the PLD-OFF control for the Prompt-Lookup-Decoding A/B. Byte-identical
+# to `qwen38fnmlxserve` (same brew binary, same pack, same :11234) -- the ONLY
+# difference is that the server for this arm is launched with `--no-pld`, so
+# mlx-serve does no n-gram speculation. A distinct backend name is what keeps
+# the PLD-on and PLD-off rows in separate `(backend, task)` cells at read-out;
+# this project already models config variants this way (the greedy-MTP arm and
+# its MTP-off control are two backends, not one). The authoritative PLD state
+# of any row is still its stamped `pld` field (engine_identity reads it from
+# the server argv), so a row mislabeled by a mis-launch is caught, not trusted.
+[backend.qwen38fnmlxservenopld]
+description = "Qwen3.8-Flash-Next MLX mixed-4-8bit on mlx-serve (brew 26.9.1), PLD OFF (--no-pld) -- the #262 control arm; identical pack/binary to qwen38fnmlxserve"
+base_url = "http://127.0.0.1:11234"
+model = "Qwen3.8-Flash-Next-MLX-Serve-mixed-4-8bit"
+auth_token = "local"
+opencode_model = "mlxserve/Qwen3.8-Flash-Next-MLX-Serve-mixed-4-8bit"
+engine = "mlx-serve"
+context_tokens = 100000
+
 # --- the first MTP arm that is actually an MTP arm (#151, #39) --------------
 #
 # Measured 2026-09-08: ds4 reaches its Qwen MTP path only at `temperature <=
