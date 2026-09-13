@@ -103,7 +103,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 
 ### MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A
 
-*Generated from `hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/results.jsonl` — 2911 rows, sha256 c6acb94fc1f5.*
+*Generated from `hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/results.jsonl` — 2956 rows, sha256 509e137d0f7d.*
 
 #### Every stack measured under OpenCode
 
@@ -123,7 +123,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | DeepSeek-V4-Flash - ds4 | 30/30 | 115s | 230s | 4.3x |
 | Qwen3.8-Flash-Next Q3 - LM Studio | 21/21 | 122s | 261s | 4.2x |
 | qwen38fnds4greedy | 64/70 | 142s | 806s | 18.2x |
-| qwen38fnds4q4exp | 46/46 | 142s | 313s | 4.3x |
+| qwen38fnds4q4exp | 91/91 | 148s | 397s | 7.2x |
 | gemma426 | 11/11 | 150s | 160s | 1.7x |
 | qwen38fnds4shim | 267/307 | 151s | 792s | 20.5x |
 | qwen36 | 11/12 | 159s | 352s | 3.6x |
@@ -168,7 +168,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | qwen38fniq4 | 44s |
 | qwen36 | 50s |
 | DeepSeek-V4-Flash - ds4 (Anthropic wire) | 54s |
-| qwen38fnds4q4exp | 54s |
+| qwen38fnds4q4exp | 55s |
 | GLM-5.3-Flash - ds4 | 55s |
 | Qwen3.6-27B-coding - Ollama | 69s |
 | DeepSeek-V4-Flash - ds4 | 71s |
