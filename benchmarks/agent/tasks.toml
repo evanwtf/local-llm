@@ -490,6 +490,34 @@ aider_model = "openai/qwen3.8-flash-next-q3-nothink-kv8"
 opencode_model = "llamacpp8022/qwen3.8-flash-next-q3-nothink-kv8"
 context_tokens = 131072
 
+# #344 step 1, the lever the issue says to test FIRST and the only one left
+# after both step-3 flags came back null (ubatch TTFT 1.005, q8_0 KV 1.006).
+#
+# ggml-org/llama.cpp#27172, "cuda : add DeviceBatchedTopK ggml_top_k()", a
+# draft PR at 988b6266d. One file, +68/-2, all in ggml/src/ggml-cuda/top-k.cu.
+# It batches top-k kernel launches that were issued row by row; the reported
+# effect on a DGX Spark is 1.67M launches down to 2,329 on a ~35k prompt,
+# prefill 652 -> 803 tok/s, decode unchanged.
+#
+# This is upstream llama.cpp, the engine this project already builds, not a
+# third-party tree. It does NOT compile as submitted -- top-k.cu:77 reads
+# "#elif defied CUB_TOP_K_AVAILABLE" -- so our tree carries the PR and a
+# one-word fix as two separate commits, and engine_version d9927d6 names
+# exactly that.
+#
+# ONE lever against qwen38fnq3nothinkdgx: identical argv to the control, no
+# -ub and no -ctk overrides. The only difference is the binary.
+[backend.qwen38fnq3nothinktopkdgx]
+description = "Qwen3.8-Flash-Next UD-Q3_K_XL, llama.cpp CUDA sm_121 + PR27172 batched top-k, thinking OFF"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8023"
+auth_token = "local"
+engine = "llama.cpp"
+model = "qwen3.8-flash-next-q3-nothink-topk"
+aider_model = "openai/qwen3.8-flash-next-q3-nothink-topk"
+opencode_model = "llamacpp8023/qwen3.8-flash-next-q3-nothink-topk"
+context_tokens = 131072
+
 # DeepSeek-V4-Flash on the DGX Spark. The project's one independent lineage --
 # the only model here that is neither Qwen nor GLM -- and until now a Mac-only
 # fact, because ds4 was a Mac-only fact. It is not: ds4 ships a documented
