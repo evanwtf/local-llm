@@ -430,6 +430,39 @@ aider_model = "openai/qwen3.8-flash-next-q3-nothink"
 opencode_model = "llamacpp/qwen3.8-flash-next-q3-nothink"
 context_tokens = 131072
 
+# #344 step 3, the prefill lever this engine actually exposes. The field
+# report asks for "chunked prefill (2k-4k) + FP8 KV"; only half of that is
+# reachable on llama.cpp 481c65f. `--cache-type-k` here allows f32, f16,
+# bf16, q8_0, q4_0, q4_1, iq4_nl, q5_0, q5_1 -- there is no fp8 KV type in
+# this build, so the FP8 half of that recipe is not a flag we can set and
+# gets its own arm at q8_0 rather than being folded in here.
+#
+# What this changes is the physical batch: -ub 512 -> 2048, with -b already
+# 2048, so a prefill pass submits the whole logical batch in one physical
+# chunk instead of four. That is the closest llama.cpp analogue to the
+# chunked-prefill knob, and it is the same class of fix as the ggml_top_k
+# batching PR in step 1 -- fewer, larger kernel submissions on a box whose
+# decode is already pinned at the bandwidth ceiling (#317).
+#
+# ONE lever against qwen38fnq3nothinkdgx: same weights, same engine binary at
+# 481c65f, same --chat-template-kwargs '{"enable_thinking":false}', same
+# 131072 context. Only -ub differs. Its control is the 30/30 cell committed
+# 2026-09-12 with engine-measured TTFT on every row (p50 2558 ms), so this is
+# paired against a prefill number rather than against wall time alone.
+#
+# Port 8021, not 8020, so the control's server and this one cannot be
+# confused if both are up.
+[backend.qwen38fnq3nothinkub2048dgx]
+description = "Qwen3.8-Flash-Next UD-Q3_K_XL, llama.cpp CUDA sm_121, thinking OFF, ubatch 2048"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8021"
+auth_token = "local"
+engine = "llama.cpp"
+model = "qwen3.8-flash-next-q3-nothink-ub2048"
+aider_model = "openai/qwen3.8-flash-next-q3-nothink-ub2048"
+opencode_model = "llamacpp/qwen3.8-flash-next-q3-nothink-ub2048"
+context_tokens = 131072
+
 # DeepSeek-V4-Flash on the DGX Spark. The project's one independent lineage --
 # the only model here that is neither Qwen nor GLM -- and until now a Mac-only
 # fact, because ds4 was a Mac-only fact. It is not: ds4 ships a documented
