@@ -114,9 +114,19 @@ reporting nothing wrong.* The machine is `dgx.internal` / 192.168.1.180.
 ## Before and after a launch
 
 ```sh
+uv run python scripts/machine_health.py boot                  # rebooted since last check?
 uv run python scripts/machine_health.py check --for server   # or --for run
 uv run python scripts/machine_health.py confirm --pid N --log FILE
 ```
+
+`boot` answers "did this machine reboot between turns" -- it compares the kernel
+boot id against the last-seen value in `~/.local-llm-bench/last-boot-id` (durable
+across sessions and scratchpad wipes) and reports the reboot once, with uptime.
+Run it at the top of the health-check loop: a reboot wipes every server, the run
+lock's pid, and the session scratchpad, so without it a fresh boot reads as a
+baffling run of "server died" and "stale lock" findings instead of one line that
+explains them all. It exits 2 on a detected reboot.
+
 
 `check` refuses a launch into a known-bad state: dirty tree (rows would be
 stamped `harness_dirty` and may not be published), lock held, a **stale** lock
