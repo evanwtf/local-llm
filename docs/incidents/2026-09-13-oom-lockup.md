@@ -41,6 +41,29 @@ Killing **sshd** removed remote access; killing **dbus/systemd** children left
 the session unusable. There is no clean recovery from that state over the
 network — hence the power button.
 
+## Memory timeline (node_exporter via Prometheus)
+
+Pulled from Prometheus (`gcx metrics query`, datasource `uMatQbvMk`,
+`node_memory_MemAvailable_bytes{instance="dgx.internal:9100"}`). The DGX ran on
+fumes for hours, and the monitoring itself went dark in the OOM windows.
+
+- **Minimum available: 3.1 GiB of 121.7** at 01:25 EDT, during the #354
+  speculation cell. Available sat at **3–4 GiB for sustained stretches**
+  (01:25, 02:15–02:30, 03:20–03:50) — a served, uncapped vLLM holding the pool.
+- **07:30–07:38: a flat 3.3 GiB free** while serving — the thin-margin state
+  that any spike converts into the global OOM.
+- **node_exporter scrape gaps line up with the OOM events**, because the
+  exporter was itself killed (it appears in the 03:15 and 08:34 kill lists):
+  25- and 45-minute holes at 01:00, 01:30, 02:35, and a 40-minute hole from
+  07:55 that ends at the **08:34 lockup**. Monitoring is blind exactly when the
+  box is dying — a Grafana dashboard showing "no data" here is the symptom, not
+  the absence of one.
+- Each recovery jumps straight back to ~119 GiB available (01:39, 07:39, 08:35),
+  the signature of a kill/reboot freeing the whole pool at once.
+
+The shape repeats all morning: a server loads, the pool falls to single-digit
+GiB, the OOM fires, the box reboots, repeat — six times.
+
 ## Why it locks the box instead of just killing vLLM
 
 Three facts combine, all specific to this hardware:
