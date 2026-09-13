@@ -45,3 +45,6 @@ sandbox/
 # because summarize is a read-only reporting script whose output is regenerable
 # and carries nothing a result row does not.
 hardware/*/logs/summarize-*.log
+# report.py tees the same way (provenance.tee) and its output is likewise
+# regenerable from the rows -- ignore its log for the same reason.
+hardware/*/logs/report-*.log
