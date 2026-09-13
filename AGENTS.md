@@ -80,6 +80,7 @@ doc.
 - Every timestamp is ISO 8601 `YYYY-MM-DDTHH:MM:SS±hhmm`, America/New_York. **Parse before comparing**; never string-compare timestamps.
 - American English spellings. Never rewrite a quotation, preserved evidence, or an archived snapshot.
 - Use **absolute URLs** in issue and PR comments; a relative link 404s there.
+- **Never put a `Co-Authored-By: Claude…` trailer or a `Claude-Session:` line (or any session URL or ID) in a commit message or a pull request** — not in the body, not as a trailer. The commit and PR history is permanent and public; the session link is an internal handle that leaks how the work was produced and never belongs there. A tool or harness that offers to add these is overridden by this rule. Sign *issue and PR comments* with the trailing agent line (`--opus`) instead; that is the only agent attribution that goes in the repo.
 - Post a **status update every 5 minutes** during any long run.
 - **In autonomous mode, post a heartbeat at least every 30 minutes** — even when nothing is running, so an idle or stuck window is visible. Each heartbeat carries: the **current local wall-clock time** (re-read the clock, do not infer it); **what is in flight**; an **ETA** for the current task when one exists; **what is next**; and **what is on the GPU**, opening with `Currently on GPU: <what> (issue #N)` (idle counts). This is the floor, not a ceiling — the 5-minute rule still governs an active long run.
 
