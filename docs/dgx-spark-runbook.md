@@ -127,6 +127,27 @@ lock's pid, and the session scratchpad, so without it a fresh boot reads as a
 baffling run of "server died" and "stale lock" findings instead of one line that
 explains them all. It exits 2 on a detected reboot.
 
+## Unified memory can OOM-lock the whole box — cap the server
+
+The 128 GB pool is shared between CPU and GPU with no separate VRAM ceiling, so
+an oversized GPU allocation lands on host RAM. When the pool is exhausted the
+kernel's global OOM killer cannot reclaim the GPU allocation and kills small
+userspace daemons instead — **including sshd** — which locks the machine out.
+Recovery is the **physical power button**; on 2026-09-13 this happened six
+times. Full write-up: [`docs/incidents/2026-09-13-oom-lockup.md`](incidents/2026-09-13-oom-lockup.md).
+
+Non-negotiable rules when serving here:
+
+- **Cap the server's memory** so ~30–40 GiB stays free for the host. Uncapped,
+  vLLM sizes its KV cache to leave only ~7 GiB free, and any spike then locks
+  the box. Set `--gpu-memory-utilization` low enough that steady-state
+  `MemAvailable` holds a large reserve, and *measure* it before trusting it.
+- **Never run a second memory-heavy job beside a resident server** — the pytest
+  suite and a served vLLM do not coexist in one pool. Sequence them.
+- **Wait for memory to release, not for the PID to exit,** before the next
+  launch (`scripts/memory_gate.py`), and gate each trial with
+  `run.py --memory-gate-gib N`.
+
 
 `check` refuses a launch into a known-bad state: dirty tree (rows would be
 stamped `harness_dirty` and may not be published), lock held, a **stale** lock
