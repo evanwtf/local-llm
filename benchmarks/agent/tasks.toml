@@ -1236,6 +1236,37 @@ context_tokens = 131072
 # /props at run time: temp 1.0, top_p 0.95, top_k 20, min_p 0.0, rp 1.0 (#36).
 opencode_model = "llamacpp/qwen3.8-flash-next-q3"
 
+# The IQ4_XS sibling of qwen38fnq2/q3, filed for #359 after a peer reported
+# current llama.cpp runs Flash-Next well at IQ4_XS (~40 tok/s decode -- a reason
+# to test, not a result: this project has measured three times that decode rate
+# does not predict agent wall time). UD-IQ4_XS (93.7 GiB across 3 shards) is a
+# higher, i-quant rung than UD-Q3_K_XL (83.8 GiB) and UD-Q2_K_XL (73.5 GiB), and
+# fits the 112 GiB Metal ceiling at -c 131072 -np 1.
+#
+# Kept SEPARATE from qwen38fnq2/q3, not an edit: the quant is part of the
+# condition and must stay distinguishable in results.jsonl. Everything else is
+# held constant against qwen38fnq3 -- same -c 131072 -np 1, same Qwen sampler
+# defaults (temp 1.0, top_p 0.95, top_k 20, min_p 0.0). Engine is llama.cpp
+# master 4a8993735 (Metal), which supports the arch natively
+# (src/llama-arch.cpp:43 LLM_ARCH_QWEN4EXP "qwen4exp"; src/llama-model.cpp:325);
+# qwen38fnq2/q3's rows were an older build, so the engine build is not held
+# constant and is recorded per-row.
+#
+# Launch (Mac): MODEL=~/models/Qwen3.8-Flash-Next-GGUF/UD-IQ4_XS/\
+# Qwen3.8-Flash-Next-UD-IQ4_XS-00001-of-00003.gguf ALIAS=qwen3.8-flash-next-iq4xs\
+# BACKEND=qwen38fniq4 CTX=131072 llamacpp-up   (OpenCode reaches :8020 direct.)
+[backend.qwen38fniq4]
+description = "Qwen3.8-Flash-Next 125B-A6B, Unsloth UD-IQ4_XS, llama.cpp master 4a8993735 Metal"
+base_url = "http://127.0.0.1:11500"
+auth_token = "llamacpp-local"
+model = "qwen3.8-flash-next-iq4xs"
+engine = "llama.cpp"
+codex_profile = "qwen38fniq4"
+aider_model = "openai/qwen3.8-flash-next-iq4xs"
+props_url = "http://127.0.0.1:8020"
+context_tokens = 131072
+opencode_model = "llamacpp/qwen3.8-flash-next-iq4xs"
+
 [backend.ornith15]
 description = "Ornith-1.5-35B-A3B, Q4_K_M, via Ollama"
 base_url = "http://127.0.0.1:11434"
@@ -1958,6 +1989,28 @@ opencode_model = "ds4qwenshim/qwen3.8-flash-next-q4"
 context_tokens = 100000
 engine = "ds4"
 engine_tree = "~/git/ds4-metal-228"
+
+# #228: the CURRENT-HEAD counterpart to qwen38fnds4q4exp. Same converted
+# qwen4exp pack, same shim/ports/MTP-off -- the ONLY thing that moves is the
+# ds4 engine tree: ds4-metal-228 @ 6c1e836 -> ds4-metal-head @ 10830f4, which
+# carries PR #5's ten M5-specific bit-exact prefill/decode optimizations (all
+# gated on ds4_gpu_device_is_m5_apple_silicon(); confirmed ancestors of this
+# head). This is the arm that answers #228's headline question -- does PR #5
+# actually speed up our primary Flash-Next-on-ds4 stack on the M5 Max -- paired
+# against qwen38fnds4q4exp so the engine tree is the only variable. Arch is
+# still qwen4exp, so the same converted pack loads (bit-exact kernel opts do not
+# change the schema). ds4-metal-head is a detached worktree pinned at the SHA,
+# so upstream force-pushes cannot move it under us.
+[backend.qwen38fnds4q4exppr5]
+description = "Qwen3.8-Flash-Next -q4 converted qwen4exp on ds4-metal-head 10830f4 (PR #5 M5 bit-exact opts), tool-format shim, MTP off -- the current-head counterpart to qwen38fnds4q4exp (#228)"
+base_url = "http://127.0.0.1:8101"
+engine_url = "http://127.0.0.1:8000"
+auth_token = "dsv4-local"
+model = "qwen3.8-flash-next-q4"
+opencode_model = "ds4qwenshim/qwen3.8-flash-next-q4"
+context_tokens = 100000
+engine = "ds4"
+engine_tree = "~/git/ds4-metal-head"
 
 # #191: mlx-serve on its own MLX pack. The stack-as-shipped counterpart to
 # `qwen38fnds4kimat` -- the SAME model, Qwen3.8-Flash-Next, but MLX weights at

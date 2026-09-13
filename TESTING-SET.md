@@ -131,7 +131,7 @@ be drawn from — OpenCode, after the `--dir` cutover, not excluded.
 | `qwen38fnds4mtp7greedy` | the same fast-pack, MTP `--mtp-draft 7`, **temperature pinned to 0** | ds4 (via a second tool shim on :8102) | 113 GB | 0 |
 | `qwen38fnds4greedy` | the same fast-pack, MTP off, **temperature pinned to 0** | ds4 (via a second tool shim on :8102) | 113 GB | 0 |
 | `qwen38fnds4kimat` | Q4_K **imatrix** rebuild of the same model, MTP off | ds4, ivanfioravanti fork (via tool shim) | 105 GB | 0 |
-| `qwen38fnds4q4exp` | the same `-q4` fast-pack **converted to the `qwen4exp` schema** (`--ple-external`), MTP off | ds4 `6c1e836` (ds4-metal-228, via tool shim) | 107 GB | 46 |
+| `qwen38fnds4q4exp` · `qwen38fnds4q4exppr5` | the same `-q4` fast-pack **converted to the `qwen4exp` schema** (`--ple-external`), MTP off | ds4 `6c1e836` (ds4-metal-228, via tool shim) | 107 GB | 46 |
 | `qwen38fnmlxserve` | the same model as MLX mixed 4/8-bit weights | mlx-serve 26.9.1 (no shim) | 101 GB | 1 |
 | `qwen38fnmlxserve-git` | the same model as MLX mixed 4/8-bit weights | mlx-serve git main+PR383 at `~/git/mlx-serve` (no shim) | 101 GB | 0 |
 | `qwen38fnmlxservenopld` | the same MLX mixed 4/8-bit weights, **PLD off** (`--no-pld`) — the #262 control arm | mlx-serve 26.9.1 (no shim) | 101 GB | 0 |
@@ -243,7 +243,7 @@ results:
 
 `qwen38fnq3reap` · `gemma426` · `qwen36a3b` · `qwen` · `qwen36` · `qwen38flashnext` · `qwen38fnq2` ·
 `qwen38fnq4m64` · `ornith15llamacpp` · `glm53` · `glm52ds4` · `glm53ds4shim` ·
-`mtplx` · `opus5` · `qwen38fnds4` · `qwen38fnds4mtp7`
+`mtplx` · `opus5` · `qwen38fnds4` · `qwen38fnds4mtp7` · `qwen38fniq4`
 
 **`qwen38fnds4` and `qwen38fnds4mtp7` are the engine isolation for
 Qwen3.8-Flash-Next** (#94), the pair that answers a question the set could not
