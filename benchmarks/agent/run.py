@@ -59,6 +59,7 @@ import results
 import shim_strip
 import smoke
 import swift_excise
+import timeout_policy
 import vllm_spec
 
 logger = logging.getLogger("agent-bench")
@@ -2851,6 +2852,10 @@ def one_trial(
     prefill_probe=None,
     require_draft=False,
     batch=None,
+    idle_watchdog=True,
+    idle_stall_secs=timeout_policy.DEFAULT_IDLE_STALL_SECS,
+    idle_floor_watts=timeout_policy.IDLE_FLOOR_WATTS,
+    watts_sampler=None,
 ):
     target = task_target(cfg, task)
     repo = pathlib.Path(target["repo"]).expanduser()
@@ -3049,12 +3054,42 @@ def one_trial(
                 guarded_repo(repo),
                 why_before,
             )
-        proc = run(
-            argv,
-            cwd=worktree,
-            env=agent_env(backend),
-            timeout=timeout,
-        )
+        # #366. With the watchdog on, run the client under GPU-idle-stall
+        # supervision: a trial whose GPU has been idle for a continuous window
+        # is killed early, while the hard `timeout` stays as a wall-clock
+        # backstop. Both kinds surface as subprocess.TimeoutExpired below (the
+        # existing timeout path), tagged with which kind fired, so the partial
+        # -transcript save and error="timeout" behavior are unchanged. Without
+        # the watchdog, the plain run() path is exactly as before.
+        if idle_watchdog:
+            watchdog = timeout_policy.IdleStallWatchdog(
+                watts_sampler or timeout_policy.gpu_watts,
+                idle_floor_watts=idle_floor_watts,
+                idle_stall_secs=idle_stall_secs,
+            )
+            proc = timeout_policy.run_client_with_watchdog(
+                argv,
+                cwd=worktree,
+                env=agent_env(backend),
+                timeout=timeout,
+                watchdog=watchdog,
+                log=logger,
+            )
+            if proc.idle_stalled or proc.timed_out:
+                exc = subprocess.TimeoutExpired(
+                    cmd=argv, timeout=timeout, output=proc.stdout, stderr=proc.stderr
+                )
+                exc.timeout_reason = (  # type: ignore[attr-defined]
+                    "gpu-idle-stall" if proc.idle_stalled else "wall-clock"
+                )
+                raise exc
+        else:
+            proc = run(
+                argv,
+                cwd=worktree,
+                env=agent_env(backend),
+                timeout=timeout,
+            )
         result["wall_seconds"] = round(time.monotonic() - t0, 1)
         # A failed row records that the agent did not fix the code, never why.
         # --client-log keeps the client's own event stream so the next failure
@@ -3156,6 +3191,11 @@ def one_trial(
         )
     except subprocess.TimeoutExpired as exc:
         result["error"] = "timeout"
+        # #366. Why it timed out: "gpu-idle-stall" (the GPU sat at idle power
+        # while the client did nothing) or "wall-clock" (the hard per-step
+        # deadline). A plain run() timeout carries no tag, so it is a wall-clock
+        # timeout by definition -- the default keeps that path unchanged.
+        result["timeout_reason"] = getattr(exc, "timeout_reason", "wall-clock")
 
         # The killed process still has whatever it emitted before the deadline,
         # and a timeout is the row you most want to read: it records only that
@@ -3493,6 +3533,52 @@ def build_parser():
         help="the batch id (e.g. 0906-1716) to stamp on every row, so a "
         "read-out can select one batch exactly instead of approximating "
         "'the rows from this run' by time (#175).",
+    )
+    # #366. Kill a trial that is burning the clock while the GPU sits at idle
+    # power (the client stuck not calling the model), before it rides the full
+    # per-step timeout doing nothing. GPU power is the honest signal here.
+    p.add_argument(
+        "--idle-stall-secs",
+        type=float,
+        default=timeout_policy.DEFAULT_IDLE_STALL_SECS,
+        help="kill a trial after the GPU has been continuously below the idle "
+        f"floor for this many seconds (default {timeout_policy.DEFAULT_IDLE_STALL_SECS:.0f}); "
+        "the hard --timeout stays as a wall-clock backstop (#366).",
+    )
+    p.add_argument(
+        "--idle-floor-watts",
+        type=float,
+        default=timeout_policy.IDLE_FLOOR_WATTS,
+        help="GPU watts at or above which the GPU counts as working "
+        f"(default {timeout_policy.IDLE_FLOOR_WATTS:.0f}, from gpu_utilization) (#366).",
+    )
+    p.add_argument(
+        "--no-idle-watchdog",
+        action="store_true",
+        help="disable the GPU-idle-stall watchdog; a trial then only stops on "
+        "the hard --timeout wall clock (#366).",
+    )
+    # #366. Stop pouring machine-hours into a cell that is not producing rows:
+    # once enough of a backend's planned trials have run and more than half of
+    # them timed out, stop scheduling the rest of that cell.
+    p.add_argument(
+        "--no-cell-circuit-breaker",
+        action="store_true",
+        help="disable the per-cell timeout circuit-breaker (#366).",
+    )
+    p.add_argument(
+        "--cell-min-fraction",
+        type=float,
+        default=0.25,
+        help="fraction of a cell's planned trials that must run before the "
+        "circuit-breaker will judge it (default 0.25) (#366).",
+    )
+    p.add_argument(
+        "--cell-timeout-fraction",
+        type=float,
+        default=0.50,
+        help="abort a judged cell when strictly more than this fraction of its "
+        "trials timed out (default 0.50) (#366).",
     )
     return p
 
@@ -3914,6 +4000,15 @@ def main():
 
     history = [r for r in results.trials(args.results) if not results.is_excluded(r)]
     cell: dict[tuple[str, str], list[dict]] = {}
+    # #366. Per-cell timeout circuit-breaker state, keyed by backend. A cell's
+    # planned size is every task run every trial; once enough of it has run and
+    # more than half timed out, stop scheduling the rest of that cell and fall
+    # through to the normal clean shutdown (lock release / repo restore still
+    # happen -- nothing here bypasses cleanup).
+    cb_done: dict[str, int] = {}
+    cb_timeouts: dict[str, int] = {}
+    cb_aborted: set[str] = set()
+    cb_planned_per_backend = len(tasks) * args.trials
     for trial in range(1, args.trials + 1):
         # #130: alternate which backend runs first. Throughput declines across
         # a measurement window, so a fixed order penalises whichever backend
@@ -3925,6 +4020,10 @@ def main():
         ordered = trial_order(backends, trial)
         for task in tasks:
             for position, (bname, backend) in enumerate(ordered, start=1):
+                # #366. A cell the circuit-breaker tripped schedules no more
+                # trials; existing rows are kept and never excluded.
+                if bname in cb_aborted:
+                    continue
                 # Clients innermost: the same task runs back to back on each,
                 # so server state drifts across the pair rather than between
                 # two runs hours apart.
@@ -3956,6 +4055,9 @@ def main():
                             else require_draft_default(backends)
                         ),
                         batch=args.batch,
+                        idle_watchdog=not args.no_idle_watchdog,
+                        idle_stall_secs=args.idle_stall_secs,
+                        idle_floor_watts=args.idle_floor_watts,
                     )
                     # Inside the client loop. Outside it, only the last
                     # client's row survives and half the run vanishes.
@@ -3980,6 +4082,25 @@ def main():
                         if why:
                             logger.error("IMPLAUSIBLE: %s", why)
                             raise SystemExit("halted by the plausibility gate (#55)")
+
+                    # #366. After every written row, ask whether this backend's
+                    # cell is timing out so persistently that scheduling more
+                    # trials only burns machine-hours. Keyed by backend, judged
+                    # against the planned cell size (tasks x trials).
+                    if not args.no_cell_circuit_breaker:
+                        cb_done[bname] = cb_done.get(bname, 0) + 1
+                        if r.get("error") == "timeout":
+                            cb_timeouts[bname] = cb_timeouts.get(bname, 0) + 1
+                        abort, reason = timeout_policy.cell_should_abort(
+                            cb_done[bname],
+                            cb_planned_per_backend,
+                            cb_timeouts.get(bname, 0),
+                            min_fraction=args.cell_min_fraction,
+                            timeout_fraction=args.cell_timeout_fraction,
+                        )
+                        if abort:
+                            logger.error("CELL CIRCUIT BREAKER (%s): %s", bname, reason)
+                            cb_aborted.add(bname)
 
 
 if __name__ == "__main__":
