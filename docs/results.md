@@ -103,7 +103,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 
 ### MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A
 
-*Generated from `hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/results.jsonl` — 2776 rows, sha256 739b7eab7b80.*
+*Generated from `hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/results.jsonl` — 2866 rows, sha256 c3b5eec82ec8.*
 
 #### Every stack measured under OpenCode
 
@@ -112,8 +112,8 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | stack | passed | median | worst | spread |
 |---|---|---|---|---|
 | ornith15 | 21/21 | 44s | 93s | 5.9x |
-| qwen38fnmlxservenopld | 29/30 | 46s | 187s | 9.2x |
-| qwen38fnmlxserve | 268/271 | 52s | 1377s | 64.7x |
+| qwen38fnmlxservenopld | 74/75 | 47s | 1391s | 68.2x |
+| qwen38fnmlxserve | 312/316 | 51s | 1377s | 64.7x |
 | qwen38fnmlxserve-git | 74/75 | 52s | 402s | 18.5x |
 | qwen38fnds4kimat | 361/361 | 91s | 775s | 27.0x |
 | Qwen3.8-Flash-Next Q3 - llama.cpp | 75/75 | 106s | 356s | 8.3x |
@@ -159,8 +159,8 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | gemma426 | 21s |
 | qwen | 31s |
 | qwen38fnds4kimat | 33s |
-| qwen38fnmlxservenopld | 37s |
 | qwen38fnq3reap | 38s |
+| qwen38fnmlxservenopld | 39s |
 | qwen38fnmlxserve-git | 39s |
 | qwen38fnmlxserve | 40s |
 | Qwen3.8-Flash-Next Q3 - llama.cpp | 42s |
