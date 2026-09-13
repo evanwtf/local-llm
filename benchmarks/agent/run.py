@@ -3284,6 +3284,15 @@ def build_parser():
     p.add_argument("--task", action="append", help="repeatable; default all")
     p.add_argument("--timeout", type=int, default=1800, help="seconds per step")
     p.add_argument(
+        "--memory-gate-gib",
+        type=float,
+        default=None,
+        help="before each trial, wait until at least this many GiB of host "
+        "memory is free and settled (scripts/memory_gate.py). Off by default; "
+        "set it on a unified-memory box where a resident server and a "
+        "spiking or departing peer can OOM the next trial (#360).",
+    )
+    p.add_argument(
         "--dry-run",
         action="store_true",
         help="verify each task's control failure, run no agent",
@@ -3486,6 +3495,43 @@ def build_parser():
         "'the rows from this run' by time (#175).",
     )
     return p
+
+
+def _memory_gate(min_avail_gib: float | None, timeout: int) -> None:
+    """Refuse to start a trial until memory is safe, when a floor is set.
+
+    #360: on unified memory a resident server plus a spiking or departing peer
+    over-commits the pool and the kernel OOM-kills whatever it likes, the
+    benchmark included. When --memory-gate-gib is set this blocks until
+    scripts/memory_gate.py reports the pool above that floor and no longer
+    falling. A timeout there means memory never recovered, so starting the
+    trial would invite the very OOM this prevents: raise rather than launch.
+    Off (None) is a no-op, so no other machine's runs change.
+    """
+    if not min_avail_gib:
+        return
+    gate = pathlib.Path(__file__).resolve().parents[2] / "scripts" / "memory_gate.py"
+    proc = subprocess.run(
+        [
+            sys.executable,
+            str(gate),
+            "--min-avail-gib",
+            str(min_avail_gib),
+            "--timeout",
+            str(max(30, timeout)),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    for line in proc.stdout.splitlines():
+        logger.info("memory-gate %s", line)
+    if proc.returncode != 0:
+        raise SystemExit(
+            f"memory gate: host memory never settled above {min_avail_gib} GiB "
+            "-- refusing to start the trial into a likely OOM (#360). Free the "
+            "pool or lower the floor."
+        )
 
 
 def main():
@@ -3883,6 +3929,7 @@ def main():
                 # so server state drifts across the pair rather than between
                 # two runs hours apart.
                 for client in clients:
+                    _memory_gate(args.memory_gate_gib, args.timeout)
                     r = one_trial(
                         cfg,
                         task,
