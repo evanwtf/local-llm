@@ -460,7 +460,7 @@ auth_token = "local"
 engine = "llama.cpp"
 model = "qwen3.8-flash-next-q3-nothink-ub2048"
 aider_model = "openai/qwen3.8-flash-next-q3-nothink-ub2048"
-opencode_model = "llamacpp/qwen3.8-flash-next-q3-nothink-ub2048"
+opencode_model = "llamacpp8021/qwen3.8-flash-next-q3-nothink-ub2048"
 context_tokens = 131072
 
 # DeepSeek-V4-Flash on the DGX Spark. The project's one independent lineage --
