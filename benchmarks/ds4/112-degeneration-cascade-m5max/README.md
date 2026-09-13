@@ -42,6 +42,30 @@ The three malformed turns are not one failure mode:
 - `parser-mbox-quoting` t3 — a malformed turn at step 0, then recovers clean `bash`/`read` calls, but the trial still ends empty.
 - `script-reverse` t3 — trailing format-narration *after* the solution was already written. The trial **passed**. A malformed turn is not the same as a failure.
 
+## Replication — a second 45-trial run agrees, and the pooled conditional
+
+Run 2 (`112-cascade-2`, same cell and setup, 2026-09-12 19:46–21:29 EDT) was run
+to move the result off n=1. It reproduced run 1 closely: 7 tool errors, **3**
+format-complaint turns, **all with zero prior tool errors**, k=0 4/306 (1%),
+k=1 0/38 (0%).
+
+Pooled over both runs (**90 transcripts**, `cascade-summary-pooled.json`,
+`uv run python scripts/degeneration_cascade.py <run1>/transcripts <run2>/transcripts`):
+
+| quantity | pooled |
+|---|---|
+| transcripts | 90 |
+| tool errors across all conversations | 12 |
+| format-complaint turns (in 6 trials; 3 recovered a clean call) | 6 |
+| **P(malformed \| 0 prior tool errors)** | **7 / 653 (1%)** |
+| **P(malformed \| ≥1 prior tool error)** | **0 / 73 (0%)** |
+
+Every one of the six malformed turns across both runs occurred with **no tool
+error before it**, and not one of the 73 tool-attempt steps that followed a tool
+error was malformed. The error-triggered cascade is not supported at n=90: the
+degeneration is a ~1% spontaneous event under the strip-remedy regime, not a
+function of accumulated tool errors.
+
 ## Against the original run, and the caveats
 
 The #94 run that opened #112 scored 36/45 with **9** `solution_empty`, clustered

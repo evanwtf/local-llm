@@ -1,0 +1,27 @@
+{
+  "transcripts": 90,
+  "total_tool_errors": 12,
+  "trials_with_malformed": [
+    "parser-mbox-quoting-qwen38fnds4shim-opencode-3",
+    "script-reverse-qwen38fnds4shim-opencode-3",
+    "storage-put-and-sweep-qwen38fnds4shim-opencode-1",
+    "mbox-strip-envelope-qwen38fnds4shim-opencode-1",
+    "parser-mbox-quoting-nodoc-qwen38fnds4shim-opencode-1",
+    "script-reverse-qwen38fnds4shim-opencode-1"
+  ],
+  "recovered": [
+    "parser-mbox-quoting-qwen38fnds4shim-opencode-3",
+    "mbox-strip-envelope-qwen38fnds4shim-opencode-1",
+    "script-reverse-qwen38fnds4shim-opencode-1"
+  ],
+  "conditional_malformed_by_prior_errors": {
+    "0": {
+      "malformed": 7,
+      "attempts": 653
+    },
+    "1": {
+      "malformed": 0,
+      "attempts": 73
+    }
+  }
+}

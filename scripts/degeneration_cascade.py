@@ -178,11 +178,16 @@ def conditional(trials: list[Trial]) -> dict[int, tuple[int, int]]:
 
 def main(argv: Sequence[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("transcripts", type=pathlib.Path, help="a --client-log dir")
+    p.add_argument(
+        "transcripts",
+        type=pathlib.Path,
+        nargs="+",
+        help="one or more --client-log dirs; runs are pooled",
+    )
     args = p.parse_args(argv)
     logs.configure()
 
-    files = sorted(args.transcripts.glob("*.stdout.jsonl"))
+    files = sorted(f for d in args.transcripts for f in d.glob("*.stdout.jsonl"))
     if not files:
         logger.error("no *.stdout.jsonl under %s", args.transcripts)
         return 1
@@ -225,7 +230,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             str(k): {"malformed": m, "attempts": n} for k, (m, n) in cond.items()
         },
     }
-    out = args.transcripts / "cascade-summary.json"
+    out = args.transcripts[0] / "cascade-summary.json"
     out.write_text(json.dumps(summary, indent=2) + "\n")
     logger.info("wrote %s", out)
     return 0
