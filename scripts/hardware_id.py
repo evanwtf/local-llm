@@ -213,6 +213,35 @@ def short_slug(facts: dict, platform: str) -> str:
     return path_safe(f"{cpu}-{gpu}" if gpu else cpu)
 
 
+def machine_tier(facts: dict, platform: str) -> str | None:
+    """This machine's `tier`, or None when it has none.
+
+    A `tier` on a backend names the hardware that can serve it. Until a second
+    Linux box joined, "has a tier" and "belongs to another machine" were the
+    same statement, and code read the first to mean the second. They are not:
+    on the DGX Spark every backend carries `gb10-spark`, so a check that skips
+    tiered backends skips everything that machine actually runs (#345).
+
+    `None` is a real answer -- the M5 Max, the hardware the default matrix
+    assumes -- and not "unknown". It is a tier like any other, so on a tiered
+    machine an untiered backend is foreign too.
+
+    The registry in `scripts/machines.py` is the single source of truth, keyed
+    by the slug this module derives from the hardware, so the answer cannot
+    disagree with the machine it describes.
+    """
+    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+    import machines
+
+    m = machines.by_slug(short_slug(facts, platform))
+    return m.tier if m else None
+
+
+def this_machine_tier() -> str | None:
+    """`machine_tier()` for the machine running this process."""
+    return machine_tier(*facts_for_this_machine())
+
+
 def facts_for_this_machine() -> tuple[dict, str]:
     """(facts, platform) for the machine running this process."""
     return (_darwin() if sys.platform == "darwin" else _linux()), sys.platform

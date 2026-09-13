@@ -8,6 +8,7 @@ GLM-5.3's entire published OpenCode record.
 from __future__ import annotations
 
 import json
+import pathlib
 
 import opencode_config
 
@@ -26,7 +27,13 @@ def test_declared_models_flattens_provider_and_model(tmp_path) -> None:
 def test_an_undeclared_model_is_reported(tmp_path) -> None:
     cfg = write(tmp_path, {"ds4": {"models": {"deepseek-v4-flash": {}}}})
     backends = {"glm53ds4": {"opencode_model": "ds4/glm-5.3-flash"}}
-    assert opencode_config.missing(backends, cfg) == ["glm53ds4 -> ds4/glm-5.3-flash"]
+    # own_tier is explicit, not probed. Left to the default, this test would
+    # pass on the M5 Max and fail on the DGX Spark, because an untiered
+    # backend is the Mac's and foreign anywhere else (#345). CI runs on a
+    # self-hosted Linux runner, so a machine-dependent test is a red suite
+    # waiting for whoever moves it.
+    got = opencode_config.missing(backends, cfg, own_tier=None)
+    assert got == ["glm53ds4 -> ds4/glm-5.3-flash"]
 
 
 def test_a_declared_model_is_not_reported(tmp_path) -> None:
@@ -84,7 +91,9 @@ def test_other_machines_backends_are_not_reported_missing(tmp_path):
         "gone": {"opencode_model": "ollama/old:1b", "retired": "superseded"},
         "real": {"opencode_model": "ollama/undeclared:1b"},
     }
-    got = opencode_config.missing(backends, config)
+    # Explicitly the untiered machine -- see the note in
+    # test_an_undeclared_model_is_reported about why this is not probed.
+    got = opencode_config.missing(backends, config, own_tier=None)
     assert got == ["real -> ollama/undeclared:1b"]
 
 
@@ -134,3 +143,104 @@ def test_the_tracked_reference_copy_declares_no_small_model():
         "the tracked reference copy must not carry a small_model: restoring "
         "from it would reintroduce #301's 109 GB across two engines"
     )
+
+
+# --- #345: a tier names hardware, and one of them is this machine -----------
+
+
+def _tiered_backends() -> dict[str, dict]:
+    """Two machines' backends plus an untiered one, all undeclared."""
+    return {
+        "ours": {"opencode_model": "llamacpp/not-declared", "tier": "gb10-spark"},
+        "theirs": {"opencode_model": "mlx/not-declared", "tier": "desktop-3080ti"},
+        "untiered": {"opencode_model": "ollama/not-declared"},
+        "retired": {"opencode_model": "x/gone", "retired": "superseded"},
+    }
+
+
+def test_a_backend_on_this_machines_tier_is_checked(tmp_path):
+    """#345. The guard was off on the DGX Spark, where every backend is tiered.
+
+    `missing()` skipped anything with a `tier`, on the reasoning that a tier
+    named another machine. True while `desktop-3080ti` was the only tier;
+    false once `gb10-spark` named the machine doing the checking. It cost five
+    trials: `opencode run` exits in ~1s with an empty stderr when its model is
+    undeclared, and the rows record as model failures.
+    """
+    cfg = write(tmp_path, {"llamacpp": {"models": {"declared": {}}}})
+    gaps = opencode_config.missing(_tiered_backends(), cfg, own_tier="gb10-spark")
+    assert any(g.startswith("ours ->") for g in gaps), gaps
+
+
+def test_another_machines_tier_is_still_skipped(tmp_path):
+    """The original reasoning holds for hardware this is not.
+
+    A backend that cannot run here produces a warning nobody can act on, and
+    noise in the check that exists to catch #69 is how a real warning gets
+    skimmed past.
+    """
+    cfg = write(tmp_path, {"llamacpp": {"models": {"declared": {}}}})
+    gaps = opencode_config.missing(_tiered_backends(), cfg, own_tier="gb10-spark")
+    assert not any(g.startswith("theirs ->") for g in gaps), gaps
+
+
+def test_untiered_backends_belong_to_the_untiered_machine(tmp_path):
+    """Symmetry: "untiered" is the M5 Max's tier, not everyone's.
+
+    On a tiered machine an untiered backend is as foreign as any other tier --
+    checking the 34 untiered backends from the DGX produced 34 unactionable
+    warnings, which is the same defect this issue is about, mirrored.
+    """
+    cfg = write(tmp_path, {"llamacpp": {"models": {"declared": {}}}})
+    on_dgx = opencode_config.missing(_tiered_backends(), cfg, own_tier="gb10-spark")
+    on_mac = opencode_config.missing(_tiered_backends(), cfg, own_tier=None)
+    assert not any(g.startswith("untiered ->") for g in on_dgx), on_dgx
+    assert any(g.startswith("untiered ->") for g in on_mac), on_mac
+
+
+def test_an_untiered_machine_behaves_exactly_as_before(tmp_path):
+    """No regression on the Mac: untiered checked, every tier skipped."""
+    cfg = write(tmp_path, {"llamacpp": {"models": {"declared": {}}}})
+    gaps = opencode_config.missing(_tiered_backends(), cfg, own_tier=None)
+    assert [g.split(" ->")[0] for g in gaps] == ["untiered"], gaps
+
+
+def test_a_retired_backend_is_skipped_on_its_own_tier(tmp_path):
+    """Retirement outranks the tier match; its rows are history, not a run."""
+    cfg = write(tmp_path, {"llamacpp": {"models": {"declared": {}}}})
+    backends = _tiered_backends()
+    backends["retired"]["tier"] = "gb10-spark"
+    gaps = opencode_config.missing(backends, cfg, own_tier="gb10-spark")
+    assert not any(g.startswith("retired ->") for g in gaps), gaps
+
+
+def test_every_tier_in_tasks_toml_has_an_owning_machine():
+    """A tier nobody owns is a backend nothing will ever check.
+
+    scripts/machines.py is what decides whose a tier is; a tier added to
+    tasks.toml without a machine claiming it silently disables this guard
+    for every backend carrying it.
+    """
+    import sys
+    import tomllib
+
+    root = pathlib.Path(__file__).resolve().parents[2]
+    sys.path.insert(0, str(root / "scripts"))
+    import machines
+
+    cfg = tomllib.loads((root / "benchmarks/agent/tasks.toml").read_text())
+    used = {b["tier"] for b in cfg["backend"].values() if b.get("tier")}
+    owned = {m.tier for m in machines.MACHINES if m.tier}
+    assert used <= owned, f"tiers with no owning machine: {sorted(used - owned)}"
+
+
+def test_every_managed_machine_has_at_most_one_tier():
+    """Two machines claiming one tier would make "whose is this" ambiguous."""
+    import sys
+
+    root = pathlib.Path(__file__).resolve().parents[2]
+    sys.path.insert(0, str(root / "scripts"))
+    import machines
+
+    tiers = [m.tier for m in machines.MACHINES if m.tier]
+    assert len(tiers) == len(set(tiers)), f"a tier is claimed twice: {tiers}"

@@ -8,11 +8,20 @@ generated from it. Each machine's name is derived from the hardware by
 
 ## The machines
 
-| machine | label (slug) | directory | OS / arch | accelerator | memory |
-|---|---|---|---|---|---|
-| the M5 Max MacBook Pro (128 GB) | `hardware:M5-Max-128GB` | `MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A` | macOS / arm64 | Apple M5 Max GPU (Metal) | 128 GiB unified |
-| the DGX Spark (GB10, 128 GB) | `hardware:Cortex-X925-GB10` | `Cortex-X925-128GB-GB10` | Linux / aarch64 | NVIDIA GB10 Grace Blackwell GPU | 128 GiB unified |
-| the Ryzen 9 7900X + RTX 3080 Ti desktop | `hardware:Ryzen9-7900X-RTX3080Ti` | `Ryzen9-7900X-32GB-RTX3080Ti-12GB` | Linux / x86_64 | NVIDIA RTX 3080 Ti (12 GB VRAM) | 32 GiB system |
+| machine | label (slug) | directory | `tier` | OS / arch | accelerator | memory |
+|---|---|---|---|---|---|---|
+| the M5 Max MacBook Pro (128 GB) | `hardware:M5-Max-128GB` | `MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A` | *(none)* | macOS / arm64 | Apple M5 Max GPU (Metal) | 128 GiB unified |
+| the DGX Spark (GB10, 128 GB) | `hardware:Cortex-X925-GB10` | `Cortex-X925-128GB-GB10` | `gb10-spark` | Linux / aarch64 | NVIDIA GB10 Grace Blackwell GPU | 128 GiB unified |
+| the Ryzen 9 7900X + RTX 3080 Ti desktop | `hardware:Ryzen9-7900X-RTX3080Ti` | `Ryzen9-7900X-32GB-RTX3080Ti-12GB` | `desktop-3080ti` | Linux / x86_64 | NVIDIA RTX 3080 Ti (12 GB VRAM) | 32 GiB system |
+
+A backend in `benchmarks/agent/tasks.toml` carries a `tier` naming the
+hardware that can serve it, and the M5 Max's carry none -- it is the
+machine the default matrix assumes. **"Untiered" is that machine's tier,
+not a wildcard**: on the DGX Spark an untiered backend is as foreign as a
+`desktop-3080ti` one. Reading "has a tier" as "belongs to another
+machine" was true while `desktop-3080ti` was the only tier and disabled a
+guard entirely once `gb10-spark` named the machine doing the checking
+(#345).
 
 ## The label is `hardware:` + the slug, so a machine queries its own work
 

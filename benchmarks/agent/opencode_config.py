@@ -15,8 +15,20 @@ import json
 import logging
 import os
 import pathlib
+import sys
 
 logger = logging.getLogger(__name__)
+
+
+class _Unset:
+    """Sentinel: `own_tier` was not supplied, so probe the machine.
+
+    None is a real value here -- "this machine has no tier" -- so it cannot
+    double as "not given".
+    """
+
+
+UNSET = _Unset()
 
 CONFIG = pathlib.Path(
     os.environ.get("OPENCODE_CONFIG", "~/.config/opencode/opencode.json")
@@ -41,24 +53,71 @@ def declared_models(config: pathlib.Path = CONFIG) -> set[str] | None:
     return out
 
 
-def missing(backends: dict[str, dict], config: pathlib.Path = CONFIG) -> list[str]:
+def _own_tier() -> str | None:
+    """This machine's tier, or None if it cannot be determined.
+
+    Imported lazily and defensively: this guard must never be the reason a run
+    fails to start. If the lookup raises, every tier is treated as foreign,
+    which is the behaviour that held before #345 -- quieter than it should be,
+    but never louder or fatal.
+    """
+    try:
+        sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2] / "scripts"))
+        import hardware_id
+
+        return hardware_id.this_machine_tier()
+    except Exception:  # pragma: no cover - a broken probe must not block a run
+        logger.debug("could not determine this machine's tier", exc_info=True)
+        return None
+
+
+def missing(
+    backends: dict[str, dict],
+    config: pathlib.Path = CONFIG,
+    own_tier: str | None | _Unset = UNSET,
+) -> list[str]:
     """Backends whose opencode_model is not declared. Empty if none, or if
-    the config cannot be read."""
+    the config cannot be read.
+
+    `own_tier` is this machine's tier; pass it explicitly in tests. A backend
+    on ANOTHER machine's tier is skipped, because it will never run here and a
+    warning about it is noise -- and noise in a check that exists to catch #69
+    is how a real warning gets skimmed past.
+
+    A backend on THIS machine's tier is checked like any untiered one. That is
+    #345: until a second Linux box existed, "has a tier" and "is foreign" were
+    the same statement, so the code read the first to mean the second. On the
+    DGX Spark all ten backends carry `gb10-spark`, so the old form disabled
+    this guard entirely on the one machine where every backend would trip it.
+    """
     declared = declared_models(config)
     if declared is None:
         return []
+    tier = _own_tier() if isinstance(own_tier, _Unset) else own_tier
     return sorted(
         f"{name} -> {spec['opencode_model']}"
         for name, spec in backends.items()
         if spec.get("opencode_model")
         and spec["opencode_model"] not in declared
-        # A backend belonging to another machine's tier, or a retired one, will
-        # never run here, so warning about its client declaration is noise --
-        # and noise in a check that exists to catch #69 is how a real warning
-        # gets skimmed past. run.py already drops both from the default matrix.
-        and not spec.get("tier")
+        and not _is_foreign_tier(spec, tier)
         and not spec.get("retired")
     )
+
+
+def _is_foreign_tier(spec: dict, own_tier: str | None) -> bool:
+    """True when this backend belongs to hardware this is not.
+
+    The rule is symmetric: a machine can serve exactly the backends whose tier
+    matches its own, and "untiered" is a tier like any other -- it is the M5
+    Max's, because that is the hardware the default matrix assumes.
+
+    So on the DGX Spark the seventeen `gb10-spark` backends are ours and the
+    thirty-four untiered ones are the Mac's, which is why checking their client
+    declarations here produced seventeen unactionable warnings before this was
+    made symmetric. On the Mac, `own_tier` is None and the behaviour is
+    identical to what it was before #345: untiered checked, every tier skipped.
+    """
+    return (spec.get("tier") or None) != own_tier
 
 
 def log_report(backends: dict[str, dict], config: pathlib.Path = CONFIG) -> None:
