@@ -251,6 +251,8 @@ def _ds4_tree_from_description(desc: str) -> str | None:
     """The tree a ds4 description names, or None if it names none."""
     if "ds4-metal-228" in desc:
         return "~/git/ds4-metal-228"
+    if "ds4-metal-head" in desc:
+        return "~/git/ds4-metal-head"
     if "ds4-metal" in desc:
         return "~/git/ds4-metal"
     if "ivanfioravanti/ds4" in desc:
