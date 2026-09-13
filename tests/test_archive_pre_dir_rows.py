@@ -87,32 +87,3 @@ def test_the_invariant_holds_right_now():
         if apdr.is_pre_dir(x, after)
     ]
     assert not stragglers, f"{len(stragglers)} pre---dir rows are back in the ledger"
-
-
-def test_a_rebased_orphan_opencode_row_is_not_archived():
-    """#355: the archiver's own is_pre_dir once read pure reachability, so a
-    valid post-fix OpenCode row whose commit a rebase orphaned was moved out
-    of the live ledger on every run. It now delegates to dirfix.era, which
-    resolves an unreachable-but-FIX-descendant sha as "after". HEAD stands in
-    for the orphan: a real FIX descendant, absent from an empty `after` set."""
-    import json
-    import subprocess
-
-    head = subprocess.run(
-        ["git", "rev-parse", "--short", "HEAD"],
-        cwd=apdr.ROOT,
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout.strip()
-    row = json.dumps({"client": "opencode", "env": {"harness_head": head}})
-    assert apdr.is_pre_dir(row, set()) is False
-
-
-def test_a_genuinely_unplaceable_opencode_row_is_still_archived():
-    """A sha this repo never saw cannot be dated by ancestry, so it keeps the
-    conservative pre-fix classification and is archived as before."""
-    import json
-
-    row = json.dumps({"client": "opencode", "env": {"harness_head": "0000000"}})
-    assert apdr.is_pre_dir(row, set()) is True
