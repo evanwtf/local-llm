@@ -243,7 +243,7 @@ results:
 
 `qwen38fnq3reap` · `gemma426` · `qwen36a3b` · `qwen` · `qwen36` · `qwen38flashnext` · `qwen38fnq2` ·
 `qwen38fnq4m64` · `ornith15llamacpp` · `glm53` · `glm52ds4` · `glm53ds4shim` ·
-`mtplx` · `opus5` · `qwen38fnds4` · `qwen38fnds4mtp7`
+`mtplx` · `opus5` · `qwen38fnds4` · `qwen38fnds4mtp7` · `qwen38fniq4`
 
 **`qwen38fnds4` and `qwen38fnds4mtp7` are the engine isolation for
 Qwen3.8-Flash-Next** (#94), the pair that answers a question the set could not
