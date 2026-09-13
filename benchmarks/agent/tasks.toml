@@ -463,6 +463,33 @@ aider_model = "openai/qwen3.8-flash-next-q3-nothink-ub2048"
 opencode_model = "llamacpp8021/qwen3.8-flash-next-q3-nothink-ub2048"
 context_tokens = 131072
 
+# #344 step 3, the other half. The field recipes pair chunked prefill with an
+# FP8 KV cache; llama.cpp 481c65f has no fp8 KV type at all -- --cache-type-k
+# allows f32, f16, bf16, q8_0, q4_0, q4_1, iq4_nl, q5_0, q5_1 -- so q8_0 is the
+# nearest thing, and it halves KV bytes against the f16 default.
+#
+# This is the lever #317 says is the only one that exists on this box: fewer
+# bytes per token. Decode here is pinned at 231-234 GB/s of an achievable ~273,
+# so a KV cache at half the width is a direct test of that claim on the KV side
+# rather than the weights side.
+#
+# ONE lever against qwen38fnq3nothinkdgx, and deliberately NOT stacked on the
+# ubatch arm: -ub stays at its 512 default, because ubatch 2048 measured a
+# paired TTFT ratio of 1.005 and carrying a null result into the next arm only
+# makes the next result harder to read.
+#
+# Port 8022, so control (8020), ubatch (8021) and this cannot be confused.
+[backend.qwen38fnq3nothinkkv8dgx]
+description = "Qwen3.8-Flash-Next UD-Q3_K_XL, llama.cpp CUDA sm_121, thinking OFF, q8_0 KV cache"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8022"
+auth_token = "local"
+engine = "llama.cpp"
+model = "qwen3.8-flash-next-q3-nothink-kv8"
+aider_model = "openai/qwen3.8-flash-next-q3-nothink-kv8"
+opencode_model = "llamacpp8022/qwen3.8-flash-next-q3-nothink-kv8"
+context_tokens = 131072
+
 # DeepSeek-V4-Flash on the DGX Spark. The project's one independent lineage --
 # the only model here that is neither Qwen nor GLM -- and until now a Mac-only
 # fact, because ds4 was a Mac-only fact. It is not: ds4 ships a documented

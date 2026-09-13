@@ -370,6 +370,28 @@
         "chunkTimeout": 900000,
         "timeout": false
       }
+    },
+    "llamacpp8022": {
+      "models": {
+        "qwen3.8-flash-next-q3-nothink-kv8": {
+          "name": "Qwen3.8-Flash-Next Q3, thinking off, q8_0 KV (llama.cpp)",
+          "tool_call": true,
+          "reasoning": false,
+          "temperature": false,
+          "limit": {
+            "context": 131072,
+            "output": 131072
+          }
+        }
+      },
+      "name": "llama.cpp (local, port 8022, q8_0 KV)",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "apiKey": "local",
+        "baseURL": "http://127.0.0.1:8022/v1",
+        "chunkTimeout": 900000,
+        "timeout": false
+      }
     }
   }
 }
