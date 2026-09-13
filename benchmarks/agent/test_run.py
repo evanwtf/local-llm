@@ -1921,3 +1921,32 @@ def test_engine_provenance_catches_the_next_new_engine():
     gaps = run.engine_provenance({"b": {"engine": "sglang"}}, env)
     assert env["sglang_version"] == "unknown"
     assert gaps
+
+
+def test_memory_gate_is_a_noop_when_no_floor_is_set():
+    """#360: the pre-trial memory gate is opt-in. With no --memory-gate-gib it
+    must do nothing -- no subprocess, no delay -- so no other machine's runs
+    change. It should not even resolve the script path."""
+    import run
+
+    # None and 0 both mean "off"; neither may raise or spawn anything.
+    run._memory_gate(None, 1800)
+    run._memory_gate(0, 1800)
+
+
+def test_memory_gate_raises_when_memory_never_settles(monkeypatch):
+    """A floor that never clears must stop the run, not launch into an OOM."""
+
+    import run
+
+    class _Fail:
+        returncode = 1
+        stdout = '{"result": "timeout"}'
+
+    monkeypatch.setattr(run.subprocess, "run", lambda *a, **k: _Fail())
+    try:
+        run._memory_gate(999.0, 1800)
+    except SystemExit as e:
+        assert "memory gate" in str(e)
+    else:
+        raise AssertionError("expected SystemExit when the gate times out")

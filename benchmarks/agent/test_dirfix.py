@@ -113,3 +113,45 @@ def test_no_pre_dir_opencode_rows_remain_in_results() -> None:
         and dirfix.era(json.loads(x), heads) == "before"
     ]
     assert not stragglers, f"{len(stragglers)} pre---dir rows still in results.jsonl"
+
+
+# --- #355: a rebased-orphan sha must not read as pre-fix ---------------------
+
+
+def test_a_rebased_orphan_sha_classifies_after_not_before():
+    """#355: a rebase rewrites a commit's sha but leaves rows stamped with the
+    old one. The old sha is a dangling commit -- present in the object store,
+    not reachable from HEAD, and a descendant of FIX. It must read as "after",
+    or the row is archived out of the live ledger as though it predated --dir.
+
+    Uses HEAD itself as a stand-in for the orphan: it is a real commit, a FIX
+    descendant, and (with an empty `after`) not in the reachable set, so `era`
+    must fall through to the ancestry check rather than the conservative
+    default.
+    """
+    import subprocess
+
+    repo = pathlib.Path(__file__).resolve().parent
+    head = subprocess.run(
+        ["git", "rev-parse", "--short", "HEAD"],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    row = {"env": {"harness_head": head}, "client": "opencode"}
+    # Empty reachable set forces the fallback; ancestry must still place it.
+    assert dirfix.era(row, set()) == "after"
+
+
+def test_a_sha_this_repo_never_saw_stays_before():
+    """A harness_head from another machine's history is not in the object store,
+    so ancestry cannot place it and it keeps the conservative "before" -- which
+    is what keeps the archive's foreign-sha rows out of the "after" column."""
+    row = {"env": {"harness_head": "0000000"}, "client": "opencode"}
+    assert dirfix.era(row, set()) == "before"
+
+
+def test_a_row_with_no_harness_head_stays_before():
+    """The oldest rows predate the provenance field entirely."""
+    assert dirfix.era({"client": "opencode"}, {"abc1234"}) == "before"

@@ -518,6 +518,37 @@ aider_model = "openai/qwen3.8-flash-next-q3-nothink-topk"
 opencode_model = "llamacpp8023/qwen3.8-flash-next-q3-nothink-topk"
 context_tokens = 131072
 
+# #354's server-state test. qwen36nvfp4specdgx fell 10/10 -> 6/10 -> 4/10
+# across one continuous server session while its no-speculation control held
+# 10/10, 9/10, 10/10. Trials are interleaved, so that is wall-clock decline on
+# a server that never restarted, not a task-repetition effect.
+#
+# Prefix caching is the first server-wide state to rule in or out: vLLM
+# defaults it ON, and this arm turns it OFF with --no-enable-prefix-caching.
+# Everything else is held -- same weights, same V1 runner, same
+# --reasoning-parser qwen3, same --enable-auto-tool-choice --tool-call-parser
+# qwen3_xml, same ngram config (5 tokens, lookup 3-8), same 131072 context.
+#
+# If the decline persists, prefix caching is exonerated and the cause is KV
+# fragmentation or speculation state. If it flattens, prefix caching is
+# implicated. Either answer is worth the batch.
+#
+# The argv IS recorded here, in this comment, because #332 cost five launch
+# attempts to reconstruct the arm this one is paired against.
+[backend.qwen36nvfp4specnoprefixdgx]
+description = "Qwen3.6-27B NVFP4, vLLM 0.29.0 V1, ngram spec, prefix caching OFF"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8030"
+auth_token = "local"
+engine = "vllm"
+engine_tree = "~/venvs/vllm"
+model = "qwen3.6-27b-nvfp4-spec"
+aider_model = "openai/qwen3.6-27b-nvfp4-spec"
+opencode_model = "vllm/qwen3.6-27b-nvfp4-spec"
+context_tokens = 131072
+speculative = "ngram: num_speculative_tokens=5, prompt_lookup_min=3, prompt_lookup_max=8; prefix caching OFF; --gpu-memory-utilization 0.55 (host reserve ~47 GiB, #360 OOM lockup)"
+draft_engine = "vllm"
+
 # DeepSeek-V4-Flash on the DGX Spark. The project's one independent lineage --
 # the only model here that is neither Qwen nor GLM -- and until now a Mac-only
 # fact, because ds4 was a Mac-only fact. It is not: ds4 ships a documented

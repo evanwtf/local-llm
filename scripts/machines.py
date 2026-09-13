@@ -58,6 +58,11 @@ class Machine:
     arch: str
     accelerator: str
     memory: str
+    #: The `tier` its backends carry in benchmarks/agent/tasks.toml, or None
+    #: for the machine the default matrix assumes. "Untiered" is that
+    #: machine's tier, not a wildcard: on a tiered machine an untiered
+    #: backend is as foreign as another tier's (#345).
+    tier: str | None
     classes: tuple[str, ...]
     note: str
 
@@ -76,6 +81,7 @@ MACHINES: tuple[Machine, ...] = (
         arch="arm64",
         accelerator="Apple M5 Max GPU (Metal)",
         memory="128 GiB unified",
+        tier=None,
         classes=("platform:macOS",),
         note="primary machine; the laptop this project is premised on",
     ),
@@ -87,6 +93,7 @@ MACHINES: tuple[Machine, ...] = (
         arch="aarch64",
         accelerator="NVIDIA GB10 Grace Blackwell GPU",
         memory="128 GiB unified",
+        tier="gb10-spark",
         classes=("platform:Nvidia",),
         note="DGX Spark; unified memory, so a VRAM-based judgement does not apply",
     ),
@@ -98,6 +105,7 @@ MACHINES: tuple[Machine, ...] = (
         arch="x86_64",
         accelerator="NVIDIA RTX 3080 Ti (12 GB VRAM)",
         memory="32 GiB system",
+        tier="desktop-3080ti",
         classes=("platform:Nvidia",),
         note="desktop; a discrete GPU with 12 GB of VRAM",
     ),
@@ -170,15 +178,25 @@ def render_markdown() -> str:
         "",
         "## The machines",
         "",
-        "| machine | label (slug) | directory | OS / arch | accelerator | memory |",
-        "|---|---|---|---|---|---|",
+        "| machine | label (slug) | directory | `tier` | OS / arch | accelerator | memory |",
+        "|---|---|---|---|---|---|---|",
     ]
     for m in MACHINES:
         lines.append(
-            f"| {m.name} | `{m.label}` | `{m.directory}` | {m.os} / {m.arch} "
+            f"| {m.name} | `{m.label}` | `{m.directory}` "
+            f"| {f'`{m.tier}`' if m.tier else '*(none)*'} | {m.os} / {m.arch} "
             f"| {m.accelerator} | {m.memory} |"
         )
     lines += [
+        "",
+        "A backend in `benchmarks/agent/tasks.toml` carries a `tier` naming the",
+        "hardware that can serve it, and the M5 Max's carry none -- it is the",
+        'machine the default matrix assumes. **"Untiered" is that machine\'s tier,',
+        "not a wildcard**: on the DGX Spark an untiered backend is as foreign as a",
+        '`desktop-3080ti` one. Reading "has a tier" as "belongs to another',
+        'machine" was true while `desktop-3080ti` was the only tier and disabled a',
+        "guard entirely once `gb10-spark` named the machine doing the checking",
+        "(#345).",
         "",
         "## The label is `hardware:` + the slug, so a machine queries its own work",
         "",

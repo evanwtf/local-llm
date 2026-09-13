@@ -59,6 +59,7 @@ documentation.
 | `machines.py` | The hardware this project manages -- the single source of truth (#302). |
 | `make_next.py` | Generate NEXT.md from the open issues, so the queue cannot drift or bloat. |
 | `make_scripts_readme.py` | Generate scripts/README.md from each script's own first docstring line. |
+| `memory_gate.py` | Wait for memory to be safe before starting the next trial. |
 | `metal_knob_ab.py` | Paired decode-rate A/B for one Metal knob env var within one tree. #162 |
 | `model_probe.py` | Check a served model's answers in code, never by reading them. |
 | `mtp_draft_audit.py` | Audit an MTP arm's drafting counters: the server log beside the ledger. |

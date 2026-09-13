@@ -41,6 +41,7 @@ logger = logging.getLogger(__name__)
 
 PORTS = (8000, 8020, 8030)
 LOCK = pathlib.Path.home() / ".local-llm-bench" / "run-lock.json"
+BOOT_MARK = pathlib.Path.home() / ".local-llm-bench" / "last-boot-id"
 REPO = pathlib.Path(__file__).resolve().parents[1]
 
 
@@ -124,6 +125,52 @@ def lock_state() -> dict | None:
     return held
 
 
+def uptime_seconds() -> float | None:
+    try:
+        return float(pathlib.Path("/proc/uptime").read_text().split()[0])
+    except (OSError, ValueError, IndexError):
+        return None
+
+
+def boot_id() -> str | None:
+    """This boot's kernel id -- a fresh value after every reboot."""
+    try:
+        return pathlib.Path("/proc/sys/kernel/random/boot_id").read_text().strip()
+    except OSError:
+        return None
+
+
+def boot_state() -> dict:
+    """Whether the machine rebooted since this was last called.
+
+    A reboot between turns wipes every server, the run lock's pid, and the
+    session scratchpad, so state a previous turn set up is simply gone. Left
+    undetected that reads as a baffling series of "server died"/"lock stale"
+    findings; surfaced, it explains all of them in one line. The last-seen boot
+    id lives in ~/.local-llm-bench (durable across sessions and scratchpad
+    wipes), and is stamped on every call so the first check after a reboot
+    reports it and later ones do not.
+    """
+    current = boot_id()
+    up = uptime_seconds()
+    previous = BOOT_MARK.read_text().strip() if BOOT_MARK.exists() else None
+    rebooted = bool(current and previous and current != previous)
+    first_ever = previous is None
+    if current:
+        try:
+            BOOT_MARK.parent.mkdir(parents=True, exist_ok=True)
+            BOOT_MARK.write_text(current + "\n")
+        except OSError:
+            pass
+    return {
+        "rebooted": rebooted,
+        "first_seen": first_ever,
+        "uptime_seconds": up,
+        "boot_id": current,
+        "previous_boot_id": previous,
+    }
+
+
 def check(intent: str = "server") -> list[str]:
     """Reasons not to launch. Empty means go.
 
@@ -184,7 +231,7 @@ def confirm(pid: int, log: pathlib.Path | None, timeout: float, quiet: float) ->
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    p.add_argument("mode", choices=["check", "confirm"])
+    p.add_argument("mode", choices=["check", "confirm", "boot"])
     p.add_argument(
         "--for",
         dest="intent",
@@ -200,7 +247,29 @@ def main(argv: list[str] | None = None) -> int:
     args = p.parse_args(argv)
 
     logs.configure()
+    if args.mode == "boot":
+        b = boot_state()
+        up = b["uptime_seconds"]
+        human = f"{up / 3600:.1f}h" if up is not None else "unknown"
+        if b["rebooted"]:
+            logger.warning(
+                "MACHINE REBOOTED since the last check -- servers, the run "
+                "lock's pid, and the scratchpad are gone. Uptime %s.",
+                human,
+            )
+        elif b["first_seen"]:
+            logger.info("first boot check; uptime %s (nothing to compare to)", human)
+        else:
+            logger.info("no reboot since last check; uptime %s", human)
+        return 2 if b["rebooted"] else 0
+
     if args.mode == "check":
+        b = boot_state()
+        if b["rebooted"]:
+            logger.warning(
+                "the machine rebooted since the last check -- any server or "
+                "lock a previous turn left is gone"
+            )
         problems = check(args.intent)
         for problem in problems:
             logger.warning("not ready: %s", problem)

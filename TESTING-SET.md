@@ -147,6 +147,7 @@ be drawn from — OpenCode, after the `--dir` cutover, not excluded.
 | `qwen36bf16dgx` | `Qwen/Qwen3.6-27B` **BF16**, the unquantized control for the row above | vLLM 0.29.0 CUDA sm_121 | 51.7 GiB | 30 |
 | `qwen36nvfp4v1dgx` | the same NVFP4 weights on vLLM's **V1** model runner, speculation off | vLLM 0.29.0 CUDA sm_121 | 20.4 GiB | 0 |
 | `qwen36nvfp4specdgx` | the same again with **draftless n-gram speculation** (5 tokens, lookup 3-8) | vLLM 0.29.0 CUDA sm_121 | 20.4 GiB | 0 |
+| `qwen36nvfp4specnoprefixdgx` | speculation again with **prefix caching off** — #354's test of whether the pass-rate decline is server state | vLLM 0.29.0 CUDA sm_121 | 20.4 GiB | 0 |
 | `qwen36nvfp4nothinkdgx` | the same weights with **thinking off**, via a one-condition chat-template change | vLLM 0.29.0 CUDA sm_121 | 20.4 GiB | 0 |
 | `qwen38fnq3nothinkdgx` | the machine's best backend with **thinking off**, via `--chat-template-kwargs` | llama.cpp CUDA sm_121 | 83.8 GiB | 0 |
 | `qwen38fnq3nothinkkv8dgx` | the same, thinking off, **q8_0 KV cache** | llama.cpp CUDA sm_121 | 83.8 GiB | 30 |
