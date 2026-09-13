@@ -1918,7 +1918,7 @@ engine_tree = "~/git/ds4-metal"
 # qwen38fnds4shim (same ports, model id, shim, MTP off); only the engine tree
 # and the physical GGUF the server is pointed at differ.
 [backend.qwen38fnds4q4exp]
-description = "Qwen3.8-Flash-Next -q4 fast-pack converted to qwen4exp (--ple-external) on ds4-metal 6c1e836 via the tool-format shim, MTP off -- the 6c1e836 counterpart to qwen38fnds4shim (#279/#228)"
+description = "Qwen3.8-Flash-Next -q4 fast-pack converted to qwen4exp (--ple-external) on ds4-metal-228 6c1e836 via the tool-format shim, MTP off -- the 6c1e836 counterpart to qwen38fnds4shim (#279/#228)"
 base_url = "http://127.0.0.1:8101"
 engine_url = "http://127.0.0.1:8000"
 auth_token = "dsv4-local"

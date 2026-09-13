@@ -131,6 +131,7 @@ be drawn from — OpenCode, after the `--dir` cutover, not excluded.
 | `qwen38fnds4mtp7greedy` | the same fast-pack, MTP `--mtp-draft 7`, **temperature pinned to 0** | ds4 (via a second tool shim on :8102) | 113 GB | 0 |
 | `qwen38fnds4greedy` | the same fast-pack, MTP off, **temperature pinned to 0** | ds4 (via a second tool shim on :8102) | 113 GB | 0 |
 | `qwen38fnds4kimat` | Q4_K **imatrix** rebuild of the same model, MTP off | ds4, ivanfioravanti fork (via tool shim) | 105 GB | 0 |
+| `qwen38fnds4q4exp` | the same `-q4` fast-pack **converted to the `qwen4exp` schema** (`--ple-external`), MTP off | ds4 `6c1e836` (ds4-metal-228, via tool shim) | 107 GB | 46 |
 | `qwen38fnmlxserve` | the same model as MLX mixed 4/8-bit weights | mlx-serve 26.9.1 (no shim) | 101 GB | 1 |
 | `qwen38fnmlxserve-git` | the same model as MLX mixed 4/8-bit weights | mlx-serve git main+PR383 at `~/git/mlx-serve` (no shim) | 101 GB | 0 |
 | `qwen36codinggguf` | `qwen3.6:27b-coding` (**GGUF**) | Ollama | 17 GB | 0 |
@@ -147,6 +148,9 @@ be drawn from — OpenCode, after the `--dir` cutover, not excluded.
 | `qwen36nvfp4specdgx` | the same again with **draftless n-gram speculation** (5 tokens, lookup 3-8) | vLLM 0.29.0 CUDA sm_121 | 20.4 GiB | 0 |
 | `qwen36nvfp4nothinkdgx` | the same weights with **thinking off**, via a one-condition chat-template change | vLLM 0.29.0 CUDA sm_121 | 20.4 GiB | 0 |
 | `qwen38fnq3nothinkdgx` | the machine's best backend with **thinking off**, via `--chat-template-kwargs` | llama.cpp CUDA sm_121 | 83.8 GiB | 0 |
+| `qwen38fnq3nothinkkv8dgx` | the same, thinking off, **q8_0 KV cache** | llama.cpp CUDA sm_121 | 83.8 GiB | 30 |
+| `qwen38fnq3nothinktopkdgx` | the same, thinking off, **PR27172 batched top-k** | llama.cpp CUDA sm_121 | 83.8 GiB | 0 |
+| `qwen38fnq3nothinkub2048dgx` | the same, thinking off, **ubatch 2048** | llama.cpp CUDA sm_121 | 83.8 GiB | 35 |
 
 **`qwen36codinggguf` exists because `qwen36coding` is macOS-only.** The
 `mxfp8` and `nvfp4` tags ship as sharded `vnd.ollama.image.tensor` layers,
