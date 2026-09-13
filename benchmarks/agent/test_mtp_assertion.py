@@ -185,6 +185,9 @@ def test_the_mtp_arms_declare_themselves():
         # draft-model engine -- but vLLM counts acceptance, so the arm can
         # still prove it drafted and is declared like any other.
         "qwen36nvfp4specdgx": "vllm",
+        # #354: the same arm with vLLM prefix caching off, to test whether the
+        # pass-rate decline over a server session is prefix-cache state.
+        "qwen36nvfp4specnoprefixdgx": "vllm",
     }
 
 

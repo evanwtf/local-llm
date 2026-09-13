@@ -547,6 +547,7 @@ aider_model = "openai/qwen3.6-27b-nvfp4-spec"
 opencode_model = "vllm/qwen3.6-27b-nvfp4-spec"
 context_tokens = 131072
 speculative = "ngram: num_speculative_tokens=5, prompt_lookup_min=3, prompt_lookup_max=8; prefix caching OFF"
+draft_engine = "vllm"
 
 # DeepSeek-V4-Flash on the DGX Spark. The project's one independent lineage --
 # the only model here that is neither Qwen nor GLM -- and until now a Mac-only
