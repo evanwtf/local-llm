@@ -39,6 +39,20 @@ def _write_rep(tmp_path, label: str, rep: int, by_ctx: dict[int, float]) -> None
     (tmp_path / f"{label}-rep{rep}.csv").write_text("\n".join(lines) + "\n")
 
 
+def _write_prefill_only_rep(
+    tmp_path, label: str, rep: int, by_ctx: dict[int, float]
+) -> None:
+    """A pure-prefill run (`--gen-tokens 0`): prefill_tps set, gen columns 0.
+
+    This is what #328's deep-context sweep produces, and dividing by the
+    all-zero gen_steady_tps column used to crash the whole report (#357).
+    """
+    lines = [HEADER]
+    for ctx, tps in by_ctx.items():
+        lines.append(f"{ctx},2048,{tps},0,0.0,0.0,0,0.0,0")
+    (tmp_path / f"{label}-rep{rep}.csv").write_text("\n".join(lines) + "\n")
+
+
 def _write_964_fixture(tmp_path) -> None:
     """main/pr964 at ctx 2048, exactly as measured in #118 reps 1-3."""
     _write_rep(tmp_path, "main", 1, {2048: 30.22})
@@ -174,6 +188,57 @@ def test_a_bad_directory_does_not_lose_the_others(tmp_path, caplog):
         runs, status = report.report_across_runs([good, bad], "gen_steady_tps")
     assert len(runs) == 1
     assert status == 1
+
+
+def test_pure_prefill_zero_column_is_skipped_not_an_error(tmp_path, caplog):
+    """#357: an all-zero gen_steady_tps column (gen-tokens 0) is skipped, not
+    a failure -- it must not set the error status nor abort the report."""
+    _write_prefill_only_rep(tmp_path, "comp", 1, {2048: 1000.0, 4096: 1000.0})
+    _write_prefill_only_rep(tmp_path, "level2", 1, {2048: 1200.0, 4096: 1200.0})
+    with caplog.at_level("INFO"):
+        runs, status = report.report_across_runs([tmp_path], "gen_steady_tps")
+    assert runs == []
+    assert status == 0
+    assert any("all zero" in r.getMessage() for r in caplog.records)
+
+
+def test_pure_prefill_still_reports_prefill(tmp_path):
+    """The prefill column of a pure-prefill run reports normally (#357)."""
+    _write_prefill_only_rep(tmp_path, "comp", 1, {2048: 1000.0})
+    _write_prefill_only_rep(tmp_path, "level2", 1, {2048: 1200.0})
+    runs, status = report.report_across_runs([tmp_path], "prefill_tps")
+    assert status == 0
+    assert len(runs) == 1
+    # labels sort comp < level2, so the ratio is level2/comp = 1200/1000.
+    assert runs[0][1].per_frontier[2048] == pytest.approx(1.2)
+
+
+def test_pure_prefill_run_reports_and_exits_zero(tmp_path, caplog):
+    """End to end: main on a pure-prefill dir prints prefill and exits 0."""
+    _write_prefill_only_rep(tmp_path, "comp", 1, {2048: 1000.0})
+    _write_prefill_only_rep(tmp_path, "level2", 1, {2048: 1200.0})
+    with caplog.at_level("INFO"):
+        code = report.main(["decode_ab_report.py", str(tmp_path)])
+    text = " ".join(r.getMessage() for r in caplog.records)
+    assert code == 0
+    assert "== prefill_tps ==" in text
+    assert "== gen_steady_tps ==" not in text
+
+
+def test_repeat_spread_tolerates_a_zero_column(tmp_path):
+    """repeat_spread hardcodes gen_steady_tps; on a pure-prefill run every
+    denominator is 0, so it must return None rather than divide by zero."""
+    dirs = []
+    for name in ("r1", "r2"):
+        d = tmp_path / name
+        d.mkdir()
+        _write_prefill_only_rep(d, "comp", 1, {2048: 1000.0, 4096: 1000.0})
+        _write_prefill_only_rep(d, "comp", 2, {2048: 1000.0, 4096: 1000.0})
+        _write_prefill_only_rep(d, "level2", 1, {2048: 1200.0, 4096: 1200.0})
+        _write_prefill_only_rep(d, "level2", 2, {2048: 1200.0, 4096: 1200.0})
+        got_d, _ = report.report_across_runs([d], "prefill_tps")
+        dirs.extend(got_d)
+    assert report.repeat_spread(dirs) is None
 
 
 def test_arms_with_different_rep_counts_warn(tmp_path, caplog):

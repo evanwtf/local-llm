@@ -124,7 +124,15 @@ def summarize(data: dict[str, dict[int, dict[int, float]]]) -> Summary:
         if not shared:
             skipped.append(ctx)
             continue
-        ratios = [data[b][ctx][rep] / data[a][ctx][rep] for rep in shared]
+        # Skip a rep whose denominator is 0: a pure-prefill run (`--gen-tokens
+        # 0`) has an all-zero gen_steady_tps column, and dividing by it aborted
+        # the whole report before it reached prefill_tps (#357).
+        ratios = [
+            data[b][ctx][rep] / data[a][ctx][rep] for rep in shared if data[a][ctx][rep]
+        ]
+        if not ratios:
+            skipped.append(ctx)
+            continue
         per_frontier[ctx] = st.median(ratios)
         pooled.extend(ratios)
     if not per_frontier:
@@ -244,6 +252,24 @@ def report_across_runs(
             )
         try:
             data = load(d, column)
+            # A column that has data but is entirely 0 is not an error: a
+            # pure-prefill run (`--gen-tokens 0`) has no gen_steady_tps, so skip
+            # that column for this run without failing the report (#357).
+            # prefill_tps still reports normally. An EMPTY directory (no values
+            # at all) is a different case and stays an error below.
+            values = [
+                v
+                for per_ctx in data.values()
+                for reps in per_ctx.values()
+                for v in reps.values()
+            ]
+            if values and not any(values):
+                logger.info(
+                    "%s: column %s is all zero (pure-prefill run?), skipping it",
+                    d.name or str(d),
+                    column,
+                )
+                continue
             _warn_rep_mismatch(data, d)
             got.append((d, summarize(data)))
         except (ValueError, OSError) as exc:
@@ -274,7 +300,13 @@ def repeat_spread(got: list[tuple[pathlib.Path, Summary]]) -> float | None:
             shared = sorted(set(data[a][ctx]) & set(data[b][ctx]))
             if len(shared) < 2:
                 continue
-            ratios = [data[b][ctx][r] / data[a][ctx][r] for r in shared]
+            # Guard the zero denominator of a pure-prefill run's gen_steady
+            # column (#357): with none left, this run contributes no spread.
+            ratios = [
+                data[b][ctx][r] / data[a][ctx][r] for r in shared if data[a][ctx][r]
+            ]
+            if len(ratios) < 2:
+                continue
             spreads.append(max(ratios) - min(ratios))
     return st.median(spreads) if spreads else None
 
@@ -735,7 +767,9 @@ def main(argv: list[str]) -> int:
         runs, run_status = report_across_runs(dirs, column, args.include_void)
         status = status or run_status
         if not runs:
-            break
+            # A pure-prefill run yields no gen_steady_tps runs; continue so
+            # prefill_tps still prints, rather than aborting the report (#357).
+            continue
         logger.info("== %s ==", column)
         if len(runs) > 1:
             log_between_run_spread(runs)
