@@ -30,7 +30,7 @@ budget is spent "THINKING" and never reaches a tool call (reproduces nothing).
 Deterministic at temperature 0: every treatment failure is at the same
 `pos=18411 rows=61`. The only difference between arms is the MTP head, so the
 MTP-gated history stage (`qwen4_graph_mtp_history_after_target`,
-ds4.c:56580-56640 at `ba01f5d`) is causal, not merely where the failure is
+ds4.c:56580-56640 at ds4-metal ba01f5d) is causal, not merely where the failure is
 detected.
 
 ## Retry / completion
