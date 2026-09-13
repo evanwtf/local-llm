@@ -71,6 +71,18 @@ REQUIRED_WITH_VERDICT: dict[str, type | tuple[type, ...]] = {
     "source_repo_intact": bool,
 }
 
+#: Additive optional fields: absent is fine (older rows predate them), but when
+#: present the type must hold. Validated on read as well as write, so a value
+#: is never *required* -- the same grandfathering the other post-v2 fields
+#: (client_version, target_layout, batch) get, none of which was in REQUIRED.
+OPTIONAL: dict[str, type | tuple[type, ...]] = {
+    # #366. Why a timeout row timed out: "gpu-idle-stall" (the GPU sat at idle
+    # power while the client did nothing) or "wall-clock" (the hard per-step
+    # deadline). None/absent on every non-timeout trial. Additive, so no
+    # schema bump -- older rows simply do not carry it.
+    "timeout_reason": (str, type(None)),
+}
+
 
 def now() -> str:
     """The one timestamp writer. Local time with an explicit numeric offset.
@@ -159,6 +171,10 @@ def new_row(
         # `validate` runs on read, so demanding it would retroactively condemn
         # them. Absent means "not established", never "same as now".
         "batch": batch,
+        # #366. Set only when a trial times out: "gpu-idle-stall" or
+        # "wall-clock". None on a normal completion. Additive optional field,
+        # so it stays out of REQUIRED and older rows without it still validate.
+        "timeout_reason": None,
         "excluded": False,
         "exclusion_reason": None,
     }
@@ -188,6 +204,10 @@ def validate(row: dict[str, Any]) -> list[str]:
                 errors.append(f"missing required field: {key} (trial has a verdict)")
             elif not _type_ok(row[key], want):
                 errors.append(f"wrong type for {key}: {type(row[key]).__name__}")
+
+    for key, want in OPTIONAL.items():
+        if key in row and not _type_ok(row[key], want):
+            errors.append(f"wrong type for {key}: {type(row[key]).__name__}")
 
     for key in LEGACY_EXCLUSION_KEYS:
         if key == "excluded":
