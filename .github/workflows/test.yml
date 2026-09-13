@@ -1,4 +1,4 @@
-name: test
+name: pytest + ruff (CI)
 
 on:
   push:

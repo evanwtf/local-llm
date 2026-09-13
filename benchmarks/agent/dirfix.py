@@ -12,7 +12,6 @@ the old numbers rather than exaggerating them.
 from __future__ import annotations
 
 import collections
-import functools
 import json
 import logging
 import pathlib
@@ -55,60 +54,17 @@ def fixed_commits(repo: pathlib.Path) -> set[str]:
     return heads
 
 
-@functools.lru_cache(maxsize=4096)
-def _fix_is_ancestor(sha: str) -> bool | None:
-    """Is the FIX commit an ancestor of `sha`? None when the object is absent.
-
-    This is the real "did this commit have --dir" test, and it works on a
-    dangling commit -- one a rebase orphaned but left in the object store --
-    not only on commits reachable from HEAD. A commit that never existed in
-    this repo (another machine's sha in the archive) returns None, which the
-    caller reads as "cannot tell, stay conservative".
-    """
-    repo = pathlib.Path(__file__).resolve().parent
-    if (
-        subprocess.run(
-            ["git", "cat-file", "-e", f"{sha}^{{commit}}"],
-            cwd=repo,
-            capture_output=True,
-            check=False,
-        ).returncode
-        != 0
-    ):
-        return None
-    return (
-        subprocess.run(
-            ["git", "merge-base", "--is-ancestor", FIX, sha],
-            cwd=repo,
-            capture_output=True,
-            check=False,
-        ).returncode
-        == 0
-    )
-
-
 def era(row: dict, after: set[str]) -> str:
     """Which side of the fix a row was recorded on.
 
     Provenance lives under `env`. A row predating that field has no
     harness_head at all, which is itself "before".
-
-    A harness_head that IS present but is not in `after` needs care. It used to
-    mean "before", but a rebase rewrites a commit's sha while leaving the rows
-    already stamped with the old one -- so a valid post-fix row whose commit was
-    rebased out of HEAD's history classified as "before" and was archived out
-    of the live ledger (#355). The honest test is ancestry, not reachability:
-    ask whether FIX is an ancestor of the stamped sha, which git answers for a
-    dangling commit too. A sha this repo has never seen -- another machine's,
-    in the archive -- cannot be placed that way and keeps the original
-    conservative "before".
     """
-    head = str(row.get("env", {}).get("harness_head", ""))[:7]
-    if head and head in after:
-        return "after"
-    if not head:
-        return "before"
-    return "after" if _fix_is_ancestor(head) else "before"
+    return (
+        "after"
+        if str(row.get("env", {}).get("harness_head", ""))[:7] in after
+        else "before"
+    )
 
 
 def task_class(row: dict) -> str:

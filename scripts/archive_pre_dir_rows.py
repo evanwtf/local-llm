@@ -36,7 +36,6 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 #: archive to the repo rather than to wherever it was invoked.
 sys.path.insert(0, str(ROOT / "benchmarks" / "agent"))
 
-import dirfix
 import results
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
@@ -64,18 +63,13 @@ def fixed_commits(repo: pathlib.Path) -> set[str]:
 def is_pre_dir(line: str, after: set[str]) -> bool:
     """A row this fix invalidates: an OpenCode trial from before `--dir`.
 
-    Delegates the era call to `dirfix.era`, the single classifier, rather than
-    keeping a second copy. The copy here read "harness_head not in `after`",
-    i.e. pure reachability, and a rebase makes a valid post-fix row's commit
-    unreachable while leaving the row stamped with the old sha -- so this
-    archiver moved 65 live 2026-09-12 rows into the pre---dir archive on every
-    run (#355). dirfix.era resolves an unreachable-but-FIX-descendant sha as
-    "after", so the archiver now leaves those rows where they belong.
+    A row with no `harness_head` predates the provenance field entirely, which
+    dates it before the fix.
     """
     row = json.loads(line)
     if row.get("client") != "opencode":
         return False
-    return dirfix.era(row, after) == "before"
+    return str(row.get("env", {}).get("harness_head", ""))[:7] not in after
 
 
 def main() -> None:
