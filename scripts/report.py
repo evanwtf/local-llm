@@ -97,6 +97,61 @@ def summarise(rows):
     )
 
 
+def turns(rows) -> float | None:
+    """Median turn count for a cell, or None when no row records one.
+
+    A count of agent actions, carrying no timing. It needs no precondition to
+    be readable, which is why it is the half of #353 that always applies: a
+    treatment that moves it changed what the agent DID, and one that leaves it
+    at 1.0 changed only how fast the engine went.
+    """
+    v = [r["num_turns"] for r in rows if r.get("num_turns")]
+    return statistics.median(v) if v else None
+
+
+def seconds_per_turn(rows) -> float | None:
+    """Median seconds per turn, or None when it cannot be computed.
+
+    Within one backend, wall time is mostly turn count -- r(num_turns,
+    wall_seconds) = 0.932 over 90 rows of qwen38fnq3nothinkdgx, where wall
+    spread is 25.0x and seconds-per-turn spread is 2.8x (#353). Dividing
+    removes the count.
+
+    It does NOT remove the per-turn size, which is why `homogeneous()` gates
+    it: on a cell where a turn costs 6.9 s on one task and 47.9 s on another,
+    the quotient is still carrying workload and a median over it describes
+    nothing.
+    """
+    v = [
+        r["wall_seconds"] / r["num_turns"]
+        for r in rows
+        if r.get("num_turns") and r.get("wall_seconds")
+    ]
+    return statistics.median(v) if v else None
+
+
+#: Above this ratio between a cell's cheapest and dearest per-task turn,
+#: seconds-per-turn is not isolating the engine and should not be read as
+#: though it were. 2.0 is where the measured cells separate cleanly:
+#: qwen38fnq3nothinkdgx sits at 1.6x and every vLLM NVFP4 cell at 3.9x or
+#: worse, up to 8.4x (#353).
+HOMOGENEITY_LIMIT = 2.0
+
+
+def homogeneous(rows_by_task: dict) -> tuple[bool, float | None]:
+    """(is seconds-per-turn readable here, the cell's own spread).
+
+    Takes a cell split by task, because the question is whether a turn costs
+    about the same whatever the task -- which is a property of the cell, not
+    of the metric.
+    """
+    per_task = [s for rows in rows_by_task.values() if (s := seconds_per_turn(rows))]
+    if len(per_task) < 2:
+        return True, None
+    spread = max(per_task) / min(per_task)
+    return spread <= HOMOGENEITY_LIMIT, spread
+
+
 def distinguishable(a: float, b: float) -> bool:
     """Whether two medians differ by enough for three trials to tell them apart."""
     if not a or not b:
@@ -186,8 +241,48 @@ def render(by_cell, backends) -> list[str]:
             )
 
     if len(backends) == 2:
-        out += ["", "**Can three trials tell them apart?**", ""]
+        # #353: a wall ratio between two arms of the same model and engine is a
+        # composite of an engine effect and a behavioural one, and wall time
+        # alone cannot say which moved. Read turns first -- it is a count, so it
+        # needs no precondition -- then the rates.
         a, b = backends
+        rows_a = {t: by_cell.get((a, t), []) for t in tasks}
+        rows_b = {t: by_cell.get((b, t), []) for t in tasks}
+        flat_a = [r for rows in rows_a.values() for r in rows]
+        flat_b = [r for rows in rows_b.values() for r in rows]
+        ta, tb = turns(flat_a), turns(flat_b)
+        sa, sb = seconds_per_turn(flat_a), seconds_per_turn(flat_b)
+        ok_a, spread_a = homogeneous(rows_a)
+        ok_b, spread_b = homogeneous(rows_b)
+        if ta and tb:
+            out += ["", "**What moved: the agent, or the engine? (#353)**", ""]
+            out.append(f"- turns: {ta:.0f} -> {tb:.0f}, ratio **{tb / ta:.3f}**")
+            if abs(tb / ta - 1) < 0.05:
+                out.append(
+                    "  - at ~1.0 the treatment did not change what the agent did, "
+                    "so any wall difference is the engine"
+                )
+            else:
+                out.append(
+                    "  - away from 1.0 the treatment changed the agent's "
+                    "BEHAVIOUR; a wall ratio here is not an engine measurement"
+                )
+            if sa and sb:
+                gate = "readable" if (ok_a and ok_b) else "NOT readable"
+                out.append(
+                    f"- seconds/turn: {sa:.2f}s -> {sb:.2f}s, "
+                    f"ratio **{sb / sa:.3f}** -- {gate}"
+                )
+                for name, ok, spread in ((a, ok_a, spread_a), (b, ok_b, spread_b)):
+                    if spread and not ok:
+                        out.append(
+                            f"  - `{name}` per-task turn cost spans {spread:.1f}x "
+                            f"(limit {HOMOGENEITY_LIMIT:.1f}x), so this quotient "
+                            "still carries workload -- report the per-task "
+                            "disagreement, not a median over it"
+                        )
+
+        out += ["", "**Can three trials tell them apart?**", ""]
         for task in tasks:
             ga = summarise(by_cell.get((a, task), []))
             gb = summarise(by_cell.get((b, task), []))
