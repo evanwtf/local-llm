@@ -1950,3 +1950,31 @@ def test_memory_gate_raises_when_memory_never_settles(monkeypatch):
         assert "memory gate" in str(e)
     else:
         raise AssertionError("expected SystemExit when the gate times out")
+
+
+# --- serving_vllm: the launch argv on the row (#332) ------------------------
+
+
+class _Ps:
+    def __init__(self, stdout: str) -> None:
+        self.stdout = stdout
+
+
+def test_serving_vllm_records_the_running_launch_argv(monkeypatch):
+    line = (
+        "/home/evan/venvs/vllm/bin/python /home/evan/venvs/vllm/bin/vllm serve "
+        "/models/X --port 8030 --gpu-memory-utilization 0.55 --no-enable-prefix-caching"
+    )
+    monkeypatch.setattr(
+        run.subprocess, "run", lambda *a, **k: _Ps(f"sshd\n{line}\nbash\n")
+    )
+    got = run.serving_vllm()
+    assert got is not None
+    assert got["server_argv"].startswith("/home/evan/venvs/vllm/bin/python")
+    assert "--gpu-memory-utilization 0.55" in got["server_argv"]
+    assert "--no-enable-prefix-caching" in got["server_argv"]
+
+
+def test_serving_vllm_is_none_when_no_vllm_is_up(monkeypatch):
+    monkeypatch.setattr(run.subprocess, "run", lambda *a, **k: _Ps("sshd\nbash\n"))
+    assert run.serving_vllm() is None

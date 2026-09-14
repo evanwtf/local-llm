@@ -57,6 +57,13 @@ ENGINES: dict[str, dict[str, str]] = {
     # tree-based arm must record its own binary's mtime, not the brew one's --
     # the mtime is the one fact that survives a rebuild from uncommitted code.
     "mlx-serve": {"binary": "mlx-serve", "binary_rel": "zig-out/bin/mlx-serve"},
+    # vLLM is a third kind (#332): a wheel in a venv, neither a git tree nor a
+    # brew binary. There is no commit to pin -- the build is the wheel version,
+    # read from the venv's own interpreter -- and no `--version` that a bare
+    # PATH lookup would answer correctly, because the machine may hold more than
+    # one vLLM venv. `binary_rel` is the console script whose mtime survives a
+    # reinstall from the same version; `pkg` names the import to version.
+    "vllm": {"binary_rel": "bin/vllm", "pkg": "vllm"},
 }
 
 
@@ -198,6 +205,10 @@ def _default_tree(engine: str) -> pathlib.Path | None:
         return pathlib.Path(
             os.environ.get("LLAMACPP_ROOT", "~/git/llama.cpp")
         ).expanduser()
+    if engine == "vllm":
+        # The documented venv, the same default run.py's env block uses. A
+        # backend that runs a different venv names it with `engine_tree`.
+        return pathlib.Path("~/venvs/vllm").expanduser()
     return None
 
 
@@ -267,6 +278,13 @@ def identity(engine: str, tree: str | None = None) -> dict[str, object]:
         tree_path = pathlib.Path(tree).expanduser()
     else:
         tree_path = _default_tree(engine)
+
+    # vLLM is neither a git tree nor a brew binary: the two branches below
+    # would misread it (a venv has no .git, and `shutil.which("vllm")` could
+    # resolve the wrong venv). Resolve it from the venv itself (#332).
+    if engine == "vllm":
+        return _vllm_identity(spec, tree_path)
+
     got: dict[str, object] = {"engine_name": engine}
 
     # A git tree: the sha is the version, the tree is the path, and dirty
@@ -324,6 +342,46 @@ def identity(engine: str, tree: str | None = None) -> dict[str, object]:
         got["pld"] = _pld_from_argv(argv)
         if argv is not None:
             got.update(_mlx_draft_fields(argv))
+    return got
+
+
+def _vllm_identity(
+    spec: dict[str, str], tree_path: pathlib.Path | None
+) -> dict[str, object]:
+    """Build identity for a vLLM venv (#332): version, tree, and binary mtime.
+
+    The version is read from the venv's OWN interpreter (`python -c "import
+    vllm"`), not from a PATH lookup: the machine may hold more than one vLLM
+    venv, and #320's first NVFP4 rows carried no engine at all. A venv this
+    function cannot resolve returns just the name, never a guess -- the same
+    "never guess" rule the git and brew paths follow.
+
+    The invocation (`server_argv` and the launch flags) is deliberately NOT
+    here: it is recorded once at env level by run.py, where the #213 pooling
+    guard reads it. This function answers "which build", not "how invoked".
+    """
+    got: dict[str, object] = {"engine_name": "vllm"}
+    # A venv that is not on disk is name-only, never a guessed version or a
+    # tree that does not exist -- the same rule the brew path follows when
+    # `shutil.which` finds nothing.
+    if tree_path is None or not tree_path.exists():
+        return got
+    got["engine_tree"] = str(tree_path)
+    py = tree_path / "bin" / "python"
+    if py.exists():
+        pkg = spec.get("pkg", "vllm")
+        ver = _cmd(str(py), "-c", f"import {pkg}; print({pkg}.__version__)")
+        if ver:
+            got["engine_version"] = ver
+    # The console script's mtime survives a reinstall of the same version, the
+    # same fact `engine_built` records for the git and brew engines.
+    binary = _binary_path(spec, tree_path)
+    if binary is not None:
+        m = _mtime(binary)
+        if m is not None:
+            got["engine_built"] = time.strftime(
+                "%Y-%m-%dT%H:%M:%S%z", time.localtime(m)
+            )
     return got
 
 

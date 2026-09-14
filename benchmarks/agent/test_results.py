@@ -17,11 +17,13 @@ from results import (
     REQUIRED_WITH_VERDICT,
     SCHEMA_VERSION,
     default_path,
+    graph_flags,
     is_excluded,
     load,
     new_row,
     normalize,
     rows_with_transcripts,
+    server_argv_compatible,
     trials,
     validate,
     verdict,
@@ -682,3 +684,52 @@ def test_rows_with_transcripts_refuses_a_path_outside_the_root(tmp_path):
         rows_with_transcripts(
             ledger, lambda r: r.get("passed") is False, transcript_root=tmp_path
         )
+
+
+# --- vLLM graph/cache flags in the pooling guard (#332) ---------------------
+
+_VLLM_BASE = "python vllm serve /models/X --host 0.0.0.0"
+
+
+def test_vllm_graph_flags_are_extracted():
+    argv = (
+        f"{_VLLM_BASE} --gpu-memory-utilization 0.55 --kv-cache-dtype fp8 "
+        "--no-enable-prefix-caching --reasoning-parser qwen3 --port 8030"
+    )
+    gf = graph_flags(argv)
+    assert gf["--gpu-memory-utilization"] == "0.55"
+    assert gf["--kv-cache-dtype"] == "fp8"
+    assert gf["--no-enable-prefix-caching"] == "1"
+    assert gf["--reasoning-parser"] == "qwen3"
+    assert "--port" not in gf, "a port is a deployment detail, not a graph flag"
+
+
+def test_vllm_prefix_caching_off_does_not_pool_with_the_default():
+    off = {"env": {"server_argv": f"{_VLLM_BASE} --no-enable-prefix-caching"}}
+    default = {"env": {"server_argv": _VLLM_BASE}}
+    assert not server_argv_compatible(off, default)
+
+
+def test_vllm_rows_with_the_same_graph_flags_pool_despite_port_and_model():
+    a = {
+        "env": {
+            "server_argv": f"{_VLLM_BASE} --gpu-memory-utilization 0.55 --port 8030"
+        }
+    }
+    b = {
+        "env": {
+            "server_argv": "python vllm serve /models/Y --host 0.0.0.0 "
+            "--gpu-memory-utilization 0.55 --port 8031"
+        }
+    }
+    assert server_argv_compatible(a, b)
+
+
+def test_vllm_differing_speculative_config_does_not_pool():
+    spec = {
+        "env": {
+            "server_argv": f'{_VLLM_BASE} --speculative-config {{"method":"ngram"}}'
+        }
+    }
+    plain = {"env": {"server_argv": _VLLM_BASE}}
+    assert not server_argv_compatible(spec, plain)

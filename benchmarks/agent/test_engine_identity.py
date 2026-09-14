@@ -361,3 +361,38 @@ def test_nothing_serving_says_so(monkeypatch):
     """ "none" is a fact. A blank would read as a missing field."""
     monkeypatch.setattr(engine_identity, "_argv_of", lambda _n: None)
     assert engine_identity.running_engine() == "none"
+
+
+# --- vLLM: a wheel in a venv, neither a git tree nor a brew binary (#332) ----
+
+
+def _fake_vllm_venv(tmp_path, version: str = "0.29.0") -> pathlib.Path:
+    """A throwaway venv whose `bin/python` prints a vLLM version for any args."""
+    venv = tmp_path / "venvs" / "vllm"
+    (venv / "bin").mkdir(parents=True)
+    py = venv / "bin" / "python"
+    py.write_text(f"#!/bin/sh\necho {version}\n")
+    py.chmod(0o755)
+    vbin = venv / "bin" / "vllm"
+    vbin.write_text("#!/bin/sh\n")
+    vbin.chmod(0o755)
+    return venv
+
+
+def test_vllm_reports_the_wheel_version_from_its_own_venv(tmp_path):
+    """#332: the build is the wheel version, read from the venv's interpreter,
+    not a PATH lookup that could resolve a different venv."""
+    venv = _fake_vllm_venv(tmp_path, "0.29.0")
+    got = engine_identity.identity("vllm", tree=str(venv))
+    assert got["engine_name"] == "vllm"
+    assert got["engine_version"] == "0.29.0"
+    assert got["engine_tree"] == str(venv)
+    assert "engine_built" in got, "the console-script mtime survives a reinstall"
+    assert "engine_dirty" not in got, "a wheel has no tree to be dirty"
+
+
+def test_vllm_without_a_venv_is_name_only_not_a_guess(tmp_path):
+    """An absent venv records the name, never a guessed version or a tree that
+    is not on disk -- the same 'never guess' rule as the other engines."""
+    got = engine_identity.identity("vllm", tree=str(tmp_path / "no-such-venv"))
+    assert got == {"engine_name": "vllm"}

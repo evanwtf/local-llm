@@ -459,6 +459,16 @@ def rows_with_transcripts(
 #: `--mtp` is the MTP model path, `-c`/`--ctx` the context window. The weights
 #: path (`-m`/`--model`) is deliberately absent: it is a path, and the model
 #: identity is already captured separately as `gguf_path`.
+#:
+#: The `--` block is vLLM (#332), the DGX Spark's primary engine. vLLM's
+#: behaviour is set almost entirely at launch, and every one of these changes
+#: what a row measures: the KV cache size (`--gpu-memory-utilization`,
+#: `--kv-cache-dtype`, `--max-model-len`, `--block-size`), the batch shape
+#: (`--max-num-seqs`, `--max-num-batched-tokens`), the weights precision
+#: (`--quantization`), whether the model drafts (`--speculative-config`), and
+#: whether its output can even be parsed (`--reasoning-parser`,
+#: `--tool-call-parser`) -- the missing reasoning parser is what wrote thinking
+#: into `content` on #354's reconstruction and failed every trial in ~2 s.
 GRAPH_VALUE_FLAGS: frozenset[str] = frozenset(
     {
         "--mtp",
@@ -470,13 +480,36 @@ GRAPH_VALUE_FLAGS: frozenset[str] = frozenset(
         "-c",
         "--ctx",
         "--power",
+        # vLLM (#332)
+        "--gpu-memory-utilization",
+        "--max-num-seqs",
+        "--max-num-batched-tokens",
+        "--kv-cache-dtype",
+        "--max-model-len",
+        "--block-size",
+        "--quantization",
+        "--speculative-config",
+        "--reasoning-parser",
+        "--tool-call-parser",
     }
 )
 
 #: Boolean flag families that change the graph when present. Matched by prefix
 #: so a future `--kv-disk-*` or `--ssd-streaming*` flag is caught without an
-#: edit here.
-GRAPH_BOOLEAN_PREFIXES: tuple[str, ...] = ("--kv-disk-", "--ssd-streaming")
+#: edit here. The vLLM booleans (#332) are full names, which are their own
+#: prefix: `--enforce-eager` and the cache/tooling toggles. `--no-enable-*`
+#: and `--enable-*` are distinct tokens, so a row launched with prefix caching
+#: off never pools with one that left it at the default.
+GRAPH_BOOLEAN_PREFIXES: tuple[str, ...] = (
+    "--kv-disk-",
+    "--ssd-streaming",
+    "--enforce-eager",
+    "--enable-prefix-caching",
+    "--no-enable-prefix-caching",
+    "--enable-chunked-prefill",
+    "--no-enable-chunked-prefill",
+    "--enable-auto-tool-choice",
+)
 
 
 def graph_flags(argv: str) -> dict[str, str]:

@@ -726,6 +726,32 @@ def serving_gguf(root=None):
     return None
 
 
+def serving_vllm():
+    """The argv of the running `vllm serve`, for `env['server_argv']` (#332).
+
+    vLLM's behaviour is set almost entirely at launch -- prefix caching, KV
+    dtype, `--gpu-memory-utilization`, the speculative config, the reasoning
+    and tool-call parsers -- and nothing else on a vLLM row records any of it,
+    so the #213 pooling guard (which reads `env['server_argv']`) had nothing to
+    compare and the reconstruction of `qwen36nvfp4specdgx`'s launch cost real
+    work. Mirrors `serving_gguf`: read the running process's command line,
+    which is what the kernel was given and cannot drift from what is serving.
+    Returns None when no vLLM is up, so a row the harness did not serve records
+    nothing rather than a guess.
+    """
+    try:
+        out = subprocess.run(
+            ["ps", "ax", "-o", "command="], capture_output=True, text=True, check=False
+        ).stdout
+        for line in out.splitlines():
+            if "vllm serve" not in line:
+                continue
+            return {"server_argv": " ".join(line.split())}
+    except Exception:  # noqa: BLE001 - provenance is best-effort
+        return None
+    return None
+
+
 def metal_ceiling_mb():
     """The Metal wired limit. Decides whether a ~90 GiB model loads at all.
 
@@ -927,6 +953,13 @@ def capture_versions(cfg, backends, allow_unstamped=False):
                     env["vllm_torch"] = got[1]
                 if len(got) >= 3 and got[2]:
                     env["vllm_torch_cuda"] = got[2]
+        # How it was launched. The version block above is "which build"; this
+        # is "how invoked", the half #213 showed is missing on every engine.
+        # env-level, next to `server_argv` from the ds4 path, because the
+        # pooling guard reads it there.
+        vllm_argv = serving_vllm()
+        if vllm_argv:
+            env.update(vllm_argv)
 
     # Which GGUF is in service comes from the server itself, below. An earlier
     # revision globbed `GGUF_ROOT/*/*.gguf`, which spans every quant sitting in
