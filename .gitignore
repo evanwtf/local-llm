@@ -60,3 +60,6 @@ hardware/*/logs/summarize-*.log
 # regenerable from the rows -- ignore its log for the same reason.
 >>>>>>> origin/main
 hardware/*/logs/report-*.log
+
+# Agent fork worktrees (git worktree add under .claude/); scratch, never tracked.
+.claude/worktrees/
