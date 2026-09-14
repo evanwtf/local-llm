@@ -8,8 +8,20 @@ the working environment. It follows the official
 but pins the exact versions and paths that work here.
 
 H3 is a 33B omni transformer that emits **video + 32 kHz stereo audio in one
-pass**, 4–15 s, 24 fps. On one Spark it is a *clip factory*, not real-time: a
-10-step 4 s clip at 960×576 takes ~3.5 min (numbers below).
+pass**, 4–15 s, 24 fps. On one Spark it is a *clip factory*, not real-time.
+
+> **What to expect (960×576, 10 steps, FP8 — measured on this box).** Duration is
+> **hard-capped at 4–15 s** (>15 s → HTTP 500). Render time scales *worse* than
+> linearly with duration (attention is superlinear in sequence length):
+>
+> | clip length | render time | per denoise step |
+> |---|---|---|
+> | 4 s (107 frames) | **~3.5 min** (206–209 s) | ~20.6 s |
+> | 15 s (362 frames), the max | **~17 min** (1040 s) | ~104 s |
+>
+> More steps scale it linearly: 50-step "full quality" is ~5× these (hours at 15 s).
+> Warm ≈ cold — there is no first-run penalty to wait out. For faster iteration use
+> fewer steps, a shorter clip, or the ComfyUI turbo path (#385), not this FP8 one.
 
 > **Single-tenant.** H3 needs almost the whole 128 GB unified pool. It does **not**
 > co-reside with a coding server — stop Flash-Next / any vLLM on :8030 first.
