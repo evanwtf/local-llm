@@ -2426,6 +2426,59 @@ def trial_order(backends, trial):
 # growing file. Their DraftProbe "path" is a base URL and must stay a string.
 URL_PROBED_ENGINES = frozenset({"vllm"})
 
+
+def _looks_like_url(value) -> bool:
+    """Is this an HTTP endpoint rather than a file path? (#356)
+
+    The one flag `--server-log` has to be a file for the prefill-failure scanner
+    and the ds4/mtplx draft readers, but a base URL for vLLM's `/metrics` draft
+    counters. Telling them apart by scheme lets one run route each reader to the
+    right value and refuse the wrong one with a plain message instead of an
+    `Errno 2` on a path-normalised `http:/host` (the double slash collapses).
+    """
+    return isinstance(value, str) and value.startswith(("http://", "https://"))
+
+
+class CounterSourceError(ValueError):
+    """A --server-log / --metrics-url combination no reader can use (#356)."""
+
+
+def resolve_counter_sources(draft_log_engine, server_log, metrics_url):
+    """Route --server-log / --metrics-url to the two readers (#356).
+
+    One flag cannot be both a file and a URL. For a URL-probed engine (vLLM) the
+    draft counters are an HTTP endpoint; for every other engine they are the log
+    file; the prefill-failure scanner (#266) is *always* a file scan. Returns
+    ``(draft_value, prefill_log)`` -- the value the DraftProbe should read, and
+    the value the prefill Probe should read (``None`` skips it). Raises
+    ``CounterSourceError`` on a combination no reader can use, so the caller
+    refuses with a plain message rather than surfacing an ``Errno 2`` on a
+    path-collapsed ``http:/host`` (the double slash collapses under pathlib).
+    """
+    if draft_log_engine in URL_PROBED_ENGINES:
+        # back-compat (#319): a URL passed as --server-log still feeds the draft
+        # counters when --metrics-url is not given.
+        draft_value = metrics_url or server_log
+        if draft_value and not _looks_like_url(draft_value):
+            raise CounterSourceError(
+                f"--draft-log-engine {draft_log_engine} reads draft counters from "
+                f"an HTTP endpoint; pass the server's base URL as --metrics-url, "
+                f"not a file path ({draft_value!r})"
+            )
+    else:
+        if metrics_url:
+            raise CounterSourceError(
+                f"--metrics-url is for endpoint-scraped engines "
+                f"({sorted(URL_PROBED_ENGINES)}); --draft-log-engine "
+                f"{draft_log_engine} reads a file, so pass it as --server-log"
+            )
+        draft_value = server_log
+    # A URL is never a valid input to the file scanner; skip it rather than let
+    # pathlib collapse the URL and warn per trial.
+    prefill_log = None if _looks_like_url(server_log) else server_log
+    return draft_value, prefill_log
+
+
 COUNTER_SWITCHES = {
     "ds4": {"env": "DS4_MTP_TIMING", "argv": "--mtp-timing"},
     "mtplx": {"env": "MTPLX_DECODE_TRACE_JSONL", "argv": "--decode-trace-jsonl"},
@@ -2605,9 +2658,10 @@ def speculative_preconditions(backends, server_log, ps_text=None, clients=()):
                 f"(#148, #151) -- switch them on, or drop the arm."
             )
         if not server_log:
+            flag = "--metrics-url" if engine in URL_PROBED_ENGINES else "--server-log"
             return (
                 f"{name} is a speculative arm with {switch} set, but no "
-                f"--server-log to read the counters from. The engine is "
+                f"{flag} to read the counters from. The engine is "
                 f"emitting them and nothing is listening."
             )
         if (why := greedy_precondition(name, backends[name], clients)) is not None:
@@ -3517,6 +3571,16 @@ def build_parser():
         "--draft-log-engine mtplx.",
     )
     p.add_argument(
+        "--metrics-url",
+        default=None,
+        help="the base URL of an engine whose draft counters are an HTTP endpoint "
+        "rather than a growing file -- vLLM's /metrics (#356). A vLLM speculative "
+        "arm needs BOTH: --metrics-url for the draft counters and --server-log "
+        "(a file) for the prefill-failure scanner, which one value cannot satisfy. "
+        "If omitted, a URL passed as --server-log is still accepted for the draft "
+        "counters (back-compat, #319), but the file scanner is then skipped.",
+    )
+    p.add_argument(
         "--draft-log-engine",
         # Derived from the reader registry, not a hand-kept literal: #319 added
         # "vllm" to DraftProbe.SOURCES but not to a literal choices list here,
@@ -3530,7 +3594,8 @@ def build_parser():
         "mtplx's exported counter already excludes it -- so the wrong choice "
         "silently shifts every acceptance figure by one token per cycle. `vllm` "
         "reads the spec_decode counters from the server's /metrics endpoint, so "
-        "pass its base URL (not a file) as --server-log (#319).",
+        "pass its base URL as --metrics-url (or, back-compat, as --server-log) "
+        "rather than a file (#319, #356).",
     )
     p.add_argument(
         "--require-draft",
@@ -3979,8 +4044,26 @@ def main():
     # cheaper to remove the ambiguity here than to interpret it afterwards:
     # with the switch verified on and a log to read, silence later means the
     # treatment was not applied, full stop.
+    # #356: one flag cannot be both a file and a URL. Route --server-log /
+    # --metrics-url to the draft reader and the (file-only) prefill scanner, and
+    # refuse a wrong-type combination with a plain message.
+    try:
+        draft_value, prefill_log = resolve_counter_sources(
+            args.draft_log_engine, args.server_log, args.metrics_url
+        )
+    except CounterSourceError as exc:
+        raise SystemExit(f"REFUSING: {exc}")
+    if args.server_log and prefill_log is None:
+        logger.info(
+            "prefill-failure scanning skipped: --server-log is a URL (%s), which is "
+            "the draft-counter endpoint. That scanner is a file scan -- to record "
+            "both, pass the server's log FILE as --server-log and the endpoint as "
+            "--metrics-url (#356).",
+            args.server_log,
+        )
+
     if (
-        why := speculative_preconditions(backends, args.server_log, clients=clients)
+        why := speculative_preconditions(backends, draft_value, clients=clients)
     ) is not None:
         raise SystemExit(f"REFUSING: {why}")
 
@@ -3988,21 +4071,22 @@ def main():
     # a real load that does draft -- is not credited to trial 1. No flag means
     # the field is absent from the row, which a reader must not treat as zero
     # accepted: see mtp_timing, where those two states are kept apart.
-    draft_probe = DraftProbe(args.server_log, args.draft_log_engine)
-    # #266: the prefill-failure count rides the same server log, but is
+    draft_probe = DraftProbe(draft_value, args.draft_log_engine)
+    # #266: the prefill-failure count rides a server log FILE, but is
     # engine-agnostic and independent of the draft counters, so it is a separate
-    # probe with its own byte offset.
-    prefill_probe = prefill_failures.Probe(args.server_log)
-    if args.server_log:
+    # probe with its own byte offset (and its own value now, #356).
+    prefill_probe = prefill_failures.Probe(prefill_log)
+    if draft_value:
         logger.info(
             "recording MTP draft acceptance per row from %s (%s), starting at byte %d",
-            args.server_log,
+            draft_value,
             draft_probe.source,
             draft_probe.offset,
         )
+    if prefill_log:
         logger.info(
             "recording prefill-failure 500s per row from %s, starting at byte %d",
-            args.server_log,
+            prefill_log,
             prefill_probe.offset,
         )
 
