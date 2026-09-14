@@ -17,16 +17,21 @@ sidecar Qwen3.8-Flash-Next needs, and with `--gen 0` for a cold prefill.
     uv run python scripts/moe_tile_ab.py <tree> <gguf> --ple <sidecar> \\
         --a-value 2 --b-value 5 --gen 0 --ctx-start 8192 --ctx-max 8192
 
-## The admission signal is the arithmetic, because there is no trace
+## The admission gate is the expert quant type, read from the GGUF
 
-MM_NAX has no eligibility gate for the qwen4exp expert matmul (types 12/39/16/
-10): the level -> kernel mapping is deterministic and always applies, unlike
-the opt-in knobs `metal_knob_ab.py` guards, which can request a path the engine
-never selects. And ds4 prints no line naming the chosen level. So the proof the
-two arms ran DIFFERENT code is that they produce different arithmetic: a short
-greedy generation (temp 0) differs between the arms. Identical text means the
-knob did nothing -- the tight-meaningless result -- and the run is refused. The
-two greedy outputs are kept as the #149 drift evidence the same run needs.
+MM_NAX has an eligibility gate after all: the nax tiles select only for a
+routed-expert matmul whose type is Q2_K, Q4_K, IQ2_XXS or MXFP4
+(ds4_metal.m:49290 at ds4-pr991 ccea7688). A Q4_0 pack (type 2) falls back to
+the same kernel on every level, so `=2` and `=5` are one arm wearing two labels
+and a prefill "difference" is noise -- a null that is really a mis-selected
+pack. So the gate reads the expert type from the GGUF header (`gguf_meta`) and
+refuses an ineligible pack, before the lock. This was learned the hard way: the
+first run used the `Q40Routed` pack and read a flat 0.99-1.00 null.
+
+Greedy output is NOT the gate: the two levels differ only in accumulation
+precision, so their temp-0 argmax can match even when the tiles engaged.
+Refusing on identical output would reject a real measurement. The probe records
+whether the levels flip a token, and the text, as the #149 drift evidence.
 
 ## What is inherited from the other drivers, and why
 
@@ -60,6 +65,7 @@ sys.path.insert(0, str(REPO / "benchmarks" / "agent"))
 import ab_driver
 import child
 import decode_ab
+import gguf_meta
 
 import logs
 
@@ -67,6 +73,18 @@ logger = logging.getLogger(__name__)
 
 KNOB = "DS4_QWEN4_MOE_MM_NAX"
 DEFAULT_OUT = REPO / "benchmarks" / "ds4" / "moe-tile-ab"
+
+#: The routed-expert quant types the nax tensor tiles accept: the gate is
+#: `type == 12 || 39 || 16 || 10` (ds4_metal.m:49290 at ds4-pr991 ccea7688),
+#: named from DS4_TENSOR_* (ds4.c:2340 at ds4-pr991 ccea7688). A pack whose
+#: experts are any other type -- Q4_0 (2), say -- never selects the tiles, so
+#: MM_NAX is inert and an A/B on it measures only noise. This is the
+#: eligibility gate metal_knob_ab's admission machinery guards against, made
+#: specific: read the type, do not guess.
+NAX_ELIGIBLE = {10: "Q2_K", 12: "Q4_K", 16: "IQ2_XXS", 39: "MXFP4"}
+#: The routed-expert matmul whose type decides eligibility. The gate applies
+#: per tensor; ffn_gate_exps is the main routed projection and the one to read.
+EXPERT_TENSOR = "ffn_gate_exps.weight"
 
 CTX_START = 8192
 CTX_MAX = 8192
@@ -148,18 +166,53 @@ def probe_argv(gguf: pathlib.Path, ple: pathlib.Path | None) -> list[str]:
 
 
 def generated_text(log: pathlib.Path) -> str:
-    """The model's own output from a probe log, stripped of ds4's `ds4:` lines.
+    """The model's own output from a probe log: not the header, not ds4's lines.
 
-    ds4 prints diagnostics prefixed `ds4:` to the same stream; everything else
-    is the generated continuation. Comparing the continuations, not the whole
-    log, keeps a per-run timing line out of the equality check.
+    The log's first line is the `#` arm header this driver writes, and ds4
+    prints diagnostics prefixed `ds4:` to the same stream. Both must go, or the
+    comparison sees the header (which always differs, `=2` vs `=5`) and reads
+    two identical generations as different -- the bug this line fixes.
     """
     lines = [
         ln
         for ln in log.read_text(errors="replace").splitlines()
-        if not ln.startswith("ds4:")
+        if not ln.startswith("ds4:") and not ln.startswith("#")
     ]
     return "\n".join(lines).strip()
+
+
+def expert_type(gguf: pathlib.Path) -> tuple[int, str]:
+    """The routed-expert quant type of a pack, as (type_number, name).
+
+    Read from the GGUF header without loading the model, so a pack whose
+    experts cannot use the nax tiles is caught in a second, before the lock.
+    """
+    _, tensors = gguf_meta.read(gguf, with_tensors=True)
+    for name, _dims, ttype in tensors:
+        if name.endswith(EXPERT_TENSOR):
+            return ttype, NAX_ELIGIBLE.get(ttype, f"type {ttype}")
+    raise Refusing(f"no {EXPERT_TENSOR} tensor in {gguf}; is this a routed-MoE pack?")
+
+
+def check_eligible(gguf: pathlib.Path) -> tuple[int, str]:
+    """Refuse a pack whose experts the nax tiles never select. Returns the type.
+
+    MM_NAX gates on the expert tensor type (ds4_metal.m:49290 at ds4-pr991 ccea7688):
+    only Q2_K/Q4_K/IQ2_XXS/MXFP4 take the tiles. A Q4_0 pack falls back to the same
+    kernel on every level, so `=2` and `=5` are one arm wearing two labels and
+    the prefill "difference" is noise. Read the type and refuse, rather than
+    publish a null that is really a mis-selected pack (found the hard way on the
+    Q40Routed pack, #328).
+    """
+    ttype, name = expert_type(gguf)
+    if ttype not in NAX_ELIGIBLE:
+        raise Refusing(
+            f"{EXPERT_TENSOR} is {name} (type {ttype}); the nax tiles accept only "
+            f"{sorted(NAX_ELIGIBLE.values())} (types {sorted(NAX_ELIGIBLE)}), so "
+            f"{KNOB} is inert for this pack and an A/B would measure noise. Use a "
+            "pack whose experts are a K-quant / IQ2 / MXFP4."
+        )
+    return ttype, name
 
 
 def run_bench(
@@ -197,7 +250,7 @@ def probe(
     return generated_text(log)
 
 
-def check_admission(
+def probe_arms(
     a_value: str,
     b_value: str,
     *,
@@ -206,25 +259,31 @@ def check_admission(
     gguf: pathlib.Path,
     ple: pathlib.Path | None,
 ) -> tuple[str, str]:
-    """Prove the two levels differ arithmetically. Returns (a_text, b_text).
+    """Greedy output per arm, as the #149 drift evidence. Returns (a, b).
 
-    Refuses when the greedy outputs are byte-identical: the knob did nothing,
-    and a prefill-rate difference would then be noise wearing two labels.
+    This is NOT the admission gate -- `check_eligible` is. The two tile levels
+    differ only in accumulation precision, so their greedy argmax can match on a
+    short prompt even though the tiles engaged; refusing on identical output
+    would reject a real measurement. So the probe records rather than refuses:
+    whether the two levels flip a greedy token here, and the text itself, for
+    the drift half of #328. A probe that produces no text at all is still a
+    failure -- the model did not run.
     """
     kw = {"out": out, "tree": tree, "gguf": gguf, "ple": ple}
     a_text = probe("a", a_value, **kw)
     b_text = probe("b", b_value, **kw)
     if not a_text or not b_text:
         raise Refusing(
-            "a probe produced no generated text; cannot prove the arms differ "
+            "a probe produced no generated text; the model did not run "
             f"(a={len(a_text)} chars, b={len(b_text)} chars) -- see the probe logs"
         )
-    if a_text == b_text:
-        raise Refusing(
-            f"the two tile levels ({KNOB}={a_value} vs {b_value}) produced "
-            "byte-identical greedy output, so the knob is a no-op here and a "
-            "prefill difference would be noise; refusing to measure it"
-        )
+    logger.info(
+        "greedy drift: %s (%s=%s vs %s)",
+        "levels differ" if a_text != b_text else "levels identical",
+        KNOB,
+        a_value,
+        b_value,
+    )
     return a_text, b_text
 
 
@@ -240,7 +299,8 @@ def run_meta(
     ctx_max: int,
     step: int,
     gen: int,
-    admission: tuple[str, str],
+    expert: tuple[int, str],
+    probes: tuple[str, str],
 ) -> dict[str, object]:
     """What produced the rows, beside them, so a later reader need not guess."""
     return {
@@ -258,8 +318,12 @@ def run_meta(
             "step": step,
             "gen": gen,
         },
-        "admission_signal": "greedy-output-differs",
-        "admission": {"a_chars": len(admission[0]), "b_chars": len(admission[1])},
+        "expert_type": {"number": expert[0], "name": expert[1], "nax_eligible": True},
+        "greedy_drift": {
+            "levels_differ": probes[0] != probes[1],
+            "a_chars": len(probes[0]),
+            "b_chars": len(probes[1]),
+        },
         "started": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     }
 
@@ -300,15 +364,18 @@ def sweep(
     if ple is not None and not ple.exists():
         raise Refusing(f"--ple sidecar {ple} does not exist")
 
+    # The gate: refuse a pack whose experts the nax tiles never select, before
+    # the lock. This is cheap (a header read) and is the check that would have
+    # caught the Q40Routed null for what it was (#328).
+    expert = check_eligible(gguf)
+
     prompt = prompt_for(tree)
     out.mkdir(parents=True, exist_ok=True)
     decode_ab.stamp_prompt(prompt, sidecar=out)
 
-    # Prove the levels differ before taking the lock for the timed sweep: a
-    # no-op knob should cost two short probes, not a full measurement.
-    admission = check_admission(
-        a_value, b_value, out=out, tree=tree, gguf=gguf, ple=ple
-    )
+    # Greedy drift evidence for the #149 half, before the lock: the two levels'
+    # temp-0 output, differ or not. Not a gate -- see probe_arms.
+    probes = probe_arms(a_value, b_value, out=out, tree=tree, gguf=gguf, ple=ple)
 
     meta = run_meta(
         a_value,
@@ -321,11 +388,12 @@ def sweep(
         ctx_max=ctx_max,
         step=step,
         gen=gen,
-        admission=admission,
+        expert=expert,
+        probes=probes,
     )
     (out / "run.json").write_text(json.dumps(meta, indent=2) + "\n")
-    (out / "probe-a.txt").write_text(admission[0] + "\n")
-    (out / "probe-b.txt").write_text(admission[1] + "\n")
+    (out / "probe-a.txt").write_text(probes[0] + "\n")
+    (out / "probe-b.txt").write_text(probes[1] + "\n")
     logger.info("run: %s", json.dumps(meta))
 
     values = {"a": a_value, "b": b_value}

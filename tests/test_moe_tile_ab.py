@@ -48,9 +48,14 @@ def test_probe_argv_is_greedy() -> None:
     assert "--ple" in argv
 
 
-def test_generated_text_drops_ds4_diagnostics(tmp_path) -> None:
+def test_generated_text_drops_header_and_ds4_diagnostics(tmp_path) -> None:
+    """The `#` arm header and `ds4:` lines must go, or identical generations
+    read as different (the header carries =2 vs =5)."""
     log = tmp_path / "probe.log"
-    log.write_text("ds4: loading\nhello world\nds4: prefill 100 t/s\nmore text\n")
+    log.write_text(
+        "# probe: a DS4_QWEN4_MOE_MM_NAX=2 ./ds4 ...\n"
+        "ds4: loading\nhello world\nds4: prefill 100 t/s\nmore text\n"
+    )
     assert m.generated_text(log) == "hello world\nmore text"
 
 
@@ -108,29 +113,32 @@ def test_refuses_missing_binary() -> None:
         )
 
 
-def test_admission_refuses_identical_output(monkeypatch, tmp_path) -> None:
-    """Two levels that produce byte-identical greedy text are a no-op knob."""
+def test_check_eligible_refuses_q4_0(monkeypatch) -> None:
+    """A Q4_0 (type 2) expert pack is inert for the nax tiles -- refuse it."""
+    monkeypatch.setattr(m, "expert_type", lambda gguf: (2, "type 2"))
+    with pytest.raises(m.Refusing, match="inert for this pack"):
+        m.check_eligible(pathlib.Path("q40.gguf"))
+
+
+def test_check_eligible_passes_q4_k(monkeypatch) -> None:
+    """A Q4_K (type 12) expert pack does select the nax tiles."""
+    monkeypatch.setattr(m, "expert_type", lambda gguf: (12, "Q4_K"))
+    assert m.check_eligible(pathlib.Path("q4k.gguf")) == (12, "Q4_K")
+
+
+def test_probe_arms_does_not_refuse_on_identical(monkeypatch, tmp_path) -> None:
+    """Identical greedy text is expected for a precision knob, not a refusal."""
     monkeypatch.setattr(m, "probe", lambda label, value, **kw: "same text")
-    with pytest.raises(m.Refusing, match="byte-identical"):
-        m.check_admission(
-            "2",
-            "5",
-            out=tmp_path,
-            tree=tmp_path,
-            gguf=pathlib.Path("m.gguf"),
-            ple=None,
-        )
-
-
-def test_admission_passes_when_output_differs(monkeypatch, tmp_path) -> None:
-    outputs = {"a": "level two text", "b": "compensated text"}
-    monkeypatch.setattr(m, "probe", lambda label, value, **kw: outputs[label])
-    a, b = m.check_admission(
-        "2",
-        "5",
-        out=tmp_path,
-        tree=tmp_path,
-        gguf=pathlib.Path("m.gguf"),
-        ple=None,
+    a, b = m.probe_arms(
+        "2", "5", out=tmp_path, tree=tmp_path, gguf=pathlib.Path("m.gguf"), ple=None
     )
-    assert a != b
+    assert a == b == "same text"
+
+
+def test_probe_arms_refuses_empty_output(monkeypatch, tmp_path) -> None:
+    """No generated text means the model did not run -- that is still a failure."""
+    monkeypatch.setattr(m, "probe", lambda label, value, **kw: "")
+    with pytest.raises(m.Refusing, match="did not run"):
+        m.probe_arms(
+            "2", "5", out=tmp_path, tree=tmp_path, gguf=pathlib.Path("m.gguf"), ple=None
+        )
