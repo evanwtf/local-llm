@@ -59,7 +59,7 @@ other is telling you something.
 
 ### Cortex-X925-128GB-GB10
 
-*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 878 rows, sha256 b4d2182d9130.*
+*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 962 rows, sha256 f47503b079ee.*
 
 #### Every stack measured under OpenCode
 
@@ -67,6 +67,8 @@ other is telling you something.
 
 | stack | passed | median | worst | spread |
 |---|---|---|---|---|
+| qwen36a3bnvfp4dgx | 50/51 | 35s | 83s | 6.0x |
+| ornith15a3bdgx | 30/30 | 49s | 571s | 28.8x |
 | qwen38fnq3nothinktopkdgx | 30/30 | 54s | 136s | 3.8x |
 | qwen38fnq3nothinkkv8dgx | 60/60 | 59s | 1528s | 43.9x |
 | qwen38fnq3nothinkdgx | 151/151 | 63s | 497s | 14.7x |
@@ -93,6 +95,8 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | nemotron33 | 15s |
 | nemotroncascade2 | 17s |
 | nemotron3nano | 19s |
+| qwen36a3bnvfp4dgx | 22s |
+| ornith15a3bdgx | 35s |
 | qwen38fnq3dgx | 58s |
 | qwen38fnnvfp4dgx | 59s |
 | qwen38fnq3nothinkub2048dgx | 69s |
@@ -109,7 +113,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 
 ### MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A
 
-*Generated from `hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/results.jsonl` — 3046 rows, sha256 e1166a5cf056.*
+*Generated from `hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/results.jsonl` — 3286 rows, sha256 5ee7119fcbe8.*
 
 #### Every stack measured under OpenCode
 
@@ -121,18 +125,18 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | qwen38fnmlxservenopld | 74/75 | 47s | 1391s | 68.2x |
 | qwen38fnmlxserve | 312/316 | 51s | 1377s | 64.7x |
 | qwen38fnmlxserve-git | 74/75 | 52s | 402s | 18.5x |
-| qwen38fnds4kimat | 406/406 | 90s | 775s | 27.0x |
+| qwen38fnds4kimat | 526/526 | 87s | 775s | 27.0x |
 | Qwen3.8-Flash-Next Q3 - llama.cpp | 75/75 | 106s | 356s | 8.3x |
 | DeepSeek-V4-Flash - ds4 (Anthropic wire) | 18/18 | 110s | 221s | 4.3x |
 | qwen38fnq3reap | 21/21 | 110s | 261s | 6.8x |
 | qwen38fniq4 | 45/45 | 111s | 310s | 6.2x |
 | DeepSeek-V4-Flash - ds4 | 30/30 | 115s | 230s | 4.3x |
 | Qwen3.8-Flash-Next Q3 - LM Studio | 21/21 | 122s | 261s | 4.2x |
+| qwen38fnds4shim | 387/427 | 123s | 792s | 25.5x |
 | qwen38fnds4greedy | 64/70 | 142s | 806s | 18.2x |
 | qwen38fnds4q4exp | 91/91 | 148s | 397s | 7.2x |
 | qwen38fnds4q4exppr5 | 45/45 | 149s | 367s | 7.4x |
 | gemma426 | 11/11 | 150s | 160s | 1.7x |
-| qwen38fnds4shim | 267/307 | 151s | 792s | 20.5x |
 | qwen36 | 11/12 | 159s | 352s | 3.6x |
 | Qwen3.6-27B-coding - Ollama | 24/24 | 167s | 700s | 12.6x |
 | qwen38fnds4mtp7shim | 72/127 | 177s | 638s | 11.4x |
@@ -178,10 +182,10 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | DeepSeek-V4-Flash - ds4 (Anthropic wire) | 54s |
 | qwen38fnds4q4exp | 55s |
 | GLM-5.3-Flash - ds4 | 55s |
+| qwen38fnds4shim | 65s |
 | Qwen3.6-27B-coding - Ollama | 69s |
 | DeepSeek-V4-Flash - ds4 | 71s |
 | qwen38fnds4greedy | 77s |
-| qwen38fnds4shim | 77s |
 | gemma4 | 84s |
 | qwen38fnds4mtp7shim | 84s |
 | qwen38fnds4mtp7greedy | 90s |
