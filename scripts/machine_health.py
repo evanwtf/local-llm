@@ -40,6 +40,13 @@ import logs
 logger = logging.getLogger(__name__)
 
 PORTS = (8000, 8020, 8030)
+# A departing server's memory outlives its PID on this box: the unified pool is
+# shared between CPU and GPU, so a stopped server can hold ~115 GiB for seconds
+# after its PID is gone. Launching the next server then profiles a partly-full
+# pool, sizes an oversized KV cache, and the kernel OOM-kills it (#360). Refuse
+# a SERVER launch while more than this is still held; idle baseline here is a
+# few GiB, and a resident model is ~115 GiB, so the gap is wide.
+MEM_SETTLE_MAX_GIB = float(os.environ.get("LOCAL_LLM_MEM_SETTLE_MAX_GIB", "24"))
 LOCK = pathlib.Path.home() / ".local-llm-bench" / "run-lock.json"
 BOOT_MARK = pathlib.Path.home() / ".local-llm-bench" / "last-boot-id"
 REPO = pathlib.Path(__file__).resolve().parents[1]
@@ -95,6 +102,29 @@ def served_model(port: int) -> str | None:
         ids = [m["id"] for m in data.get("data", []) if "id" in m]
         return ids[0] if ids else None
     except Exception:  # noqa: BLE001 - anything means "not answering"
+        return None
+
+
+def mem_held_gib() -> float | None:
+    """Memory genuinely in use right now, in GiB, or None if unreadable.
+
+    ``MemTotal - MemAvailable``: MemAvailable already discounts reclaimable page
+    cache, so what remains is memory a launch cannot count on getting. A server
+    that has released its port but not yet its allocation still shows here --
+    which is exactly the residual #360 needs to see before the next launch.
+    """
+    try:
+        vals: dict[str, int] = {}
+        for line in pathlib.Path("/proc/meminfo").read_text().splitlines():
+            k, _, rest = line.partition(":")
+            if k in ("MemTotal", "MemAvailable"):
+                vals[k] = int(rest.split()[0])  # kB
+            if len(vals) == 2:
+                break
+        if "MemTotal" not in vals or "MemAvailable" not in vals:
+            return None
+        return (vals["MemTotal"] - vals["MemAvailable"]) / 1048576
+    except (OSError, ValueError, IndexError):
         return None
 
 
@@ -196,13 +226,31 @@ def check(intent: str = "server") -> list[str]:
         problems.append(
             f"a STALE run lock is present (pid {lock.get('pid')} is gone) -- clear it"
         )
+    any_serving = False
     for port in PORTS:
         model = served_model(port)
+        if model:
+            any_serving = True
         if model and intent == "server":
             problems.append(
                 f"port {port} is already serving {model!r} -- reuse it rather than "
                 f"launching a second server, which dies with EADDRINUSE while a "
                 f"wait loop polls for a readiness line that never comes"
+            )
+    # Memory that outlives a departing server (#360). Only a concern for a server
+    # launch, and only worth reporting when NO port is answering -- a resident,
+    # answering server's memory is legitimate and already covered by the port
+    # message above. High usage with nothing listening is the residual trap: the
+    # previous server freed its port but not its ~115 GiB, and the next launch
+    # will size its KV cache against a pool that is about to shrink.
+    if intent == "server" and not any_serving:
+        held = mem_held_gib()
+        if held is not None and held > MEM_SETTLE_MAX_GIB:
+            problems.append(
+                f"{held:.0f} GiB is still held but no port is serving -- a departing "
+                f"server's memory has not been reclaimed yet (#360). Wait for it to "
+                f"settle (poll MemAvailable) before launching, or the new server "
+                f"sizes an oversized KV cache and is OOM-killed at startup"
             )
     return problems
 

@@ -51,3 +51,53 @@ def test_an_unreadable_boot_id_never_claims_a_reboot(monkeypatch, tmp_path):
     _redirect(monkeypatch, tmp_path, None)
     s = machine_health.boot_state()
     assert not s["rebooted"], "no current id means unknown, not rebooted"
+
+
+def _quiet_machine(monkeypatch, tmp_path):
+    """No dirty tree, no lock, nothing serving -- so only the memory guard can
+    speak in check(). Every check() below is for a SERVER launch."""
+    monkeypatch.setattr(machine_health, "LOCK", tmp_path / "run-lock.json")
+    monkeypatch.setattr(machine_health, "tree_dirty", lambda: "")
+    monkeypatch.setattr(machine_health, "served_model", lambda port: None)
+
+
+def test_server_launch_blocked_while_departing_memory_is_held(monkeypatch, tmp_path):
+    # A previous server freed its port but not its ~115 GiB: nothing is serving,
+    # yet the pool is nearly full. Launching now is the #360 OOM.
+    _quiet_machine(monkeypatch, tmp_path)
+    monkeypatch.setattr(machine_health, "mem_held_gib", lambda: 115.0)
+    problems = machine_health.check("server")
+    assert any("#360" in p for p in problems), problems
+
+
+def test_settled_memory_does_not_block_a_server_launch(monkeypatch, tmp_path):
+    # The pool has been reclaimed (idle baseline). A launch must proceed.
+    _quiet_machine(monkeypatch, tmp_path)
+    monkeypatch.setattr(machine_health, "mem_held_gib", lambda: 5.0)
+    assert machine_health.check("server") == []
+
+
+def test_a_run_launch_ignores_held_memory(monkeypatch, tmp_path):
+    # intent="run" launches no server, so it cannot cause the #360 OOM; a full
+    # pool is the healthy server it is about to run against, not a blocker.
+    _quiet_machine(monkeypatch, tmp_path)
+    monkeypatch.setattr(machine_health, "mem_held_gib", lambda: 115.0)
+    assert machine_health.check("run") == []
+
+
+def test_held_memory_is_not_reported_when_a_port_is_serving(monkeypatch, tmp_path):
+    # A resident, answering server legitimately holds the memory; the port
+    # message covers it. The memory guard must not double-report the same server.
+    _quiet_machine(monkeypatch, tmp_path)
+    monkeypatch.setattr(machine_health, "served_model", lambda port: "some-model")
+    monkeypatch.setattr(machine_health, "mem_held_gib", lambda: 115.0)
+    problems = machine_health.check("server")
+    assert problems and not any("#360" in p for p in problems), problems
+
+
+def test_unreadable_meminfo_never_blocks_a_launch(monkeypatch, tmp_path):
+    # If /proc/meminfo cannot be read, mem_held_gib returns None; unknown must
+    # not be treated as full, or a launch is blocked on missing information.
+    _quiet_machine(monkeypatch, tmp_path)
+    monkeypatch.setattr(machine_health, "mem_held_gib", lambda: None)
+    assert machine_health.check("server") == []

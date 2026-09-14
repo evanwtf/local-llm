@@ -155,6 +155,17 @@ whose pid is gone, or a port already serving — naming the model it serves,
 because **reusing that server is the fix**. A busy port blocks a *server* and is
 fine for a *run against it*; `--for` says which.
 
+It also refuses a *server* launch when a large amount of memory is held but
+**nothing is answering on any port** — a departing server that freed its port but
+not its ~115 GiB. This is the third unified-memory trap: a server's memory
+outlives its PID, so waiting for the PID to vanish is not waiting for the pool to
+free. Launch then, and vLLM profiles the still-occupied pool, sizes an oversized
+KV cache, and is OOM-killed at startup — on 2026-09-13 it chose a KV cache
+*larger* than the identically-shaped server it was replacing and died once both
+were resident (#360). The threshold is `LOCAL_LLM_MEM_SETTLE_MAX_GIB` (default
+24; idle baseline is a few GiB). `scripts/memory_gate.py` is the matching *wait*;
+`check` is the *refusal* if you skip it.
+
 `confirm` answers the other half: **a spawned process is not a working one.** On
 2026-09-12 a second vLLM was launched onto a bound port, died instantly with
 `EADDRINUSE`, and its wait loop then polled for a readiness line that would never
