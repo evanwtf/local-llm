@@ -1,0 +1,16 @@
+2026-09-13T20:46:00-0400 INFO [89007d5-dirty@M5-Max-128GB none pld=n/a] 2026-09-14T00:46:00Z (20:46:00 EDT) | harness 89007d5-dirty
+2026-09-13T20:46:00-0400 INFO [89007d5-dirty@M5-Max-128GB none pld=n/a]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-13T20:46:00-0400 INFO [89007d5-dirty@M5-Max-128GB none pld=n/a] 2098658773711700164  VERIFIED post  @0xBakeer  Sat Sep 12 06:23:37 +0000 2026  via fxtwitter
+2026-09-13T20:46:00-0400 INFO [89007d5-dirty@M5-Max-128GB none pld=n/a]     Continuing on DeepSeek-V4.1-Flash on a single DGX Spark today. Published v0.4.0-wip a few minutes ago.  17-37 tok/s across nine workloads, prefill 337 tok/s on a 5k prompt, 44% of the routed experts r
+2026-09-13T20:46:00-0400 INFO [89007d5-dirty@M5-Max-128GB none pld=n/a] 2098930191997255869  VERIFIED post  @Oluwaphilemon1  Sun Sep 13 00:22:08 +0000 2026  via fxtwitter
+2026-09-13T20:46:00-0400 INFO [89007d5-dirty@M5-Max-128GB none pld=n/a]     A DGX Spark can apparently get 25% more performance without changing the DGX Spark.  Qwen3.8-27B just hit 71.50 tok/s on a single GB10.  The previous recipe was slower.  Same model. Same hardware. Sam
+2026-09-13T20:46:00-0400 INFO [89007d5-dirty@M5-Max-128GB none pld=n/a]     quotes @Oluwaphilemon1: Same model. Same prompt. Same DGX Spark.  The only thing that changed was how much thinking Qwen3.8-27B was allowed to use.  On one DGX Spark, with no output to
+2026-09-13T20:46:01-0400 INFO [89007d5-dirty@M5-Max-128GB none pld=n/a] 2099168109567295543  VERIFIED post  @0xSero  Sun Sep 13 16:07:32 +0000 2026  via fxtwitter
+2026-09-13T20:46:01-0400 INFO [89007d5-dirty@M5-Max-128GB none pld=n/a]     The loudest this thing ever gets.  GLM-5.3-Flash on 1x DGX Spark   https://github.com/0xSero/GLM-5.3-Flash-DGX-Spark 20 - 25 tok/s    You can give this to Claude/codex
+2026-09-13T20:46:01-0400 INFO [89007d5-dirty@M5-Max-128GB none pld=n/a] 
+2026-09-13T20:46:01-0400 INFO [89007d5-dirty@M5-Max-128GB none pld=n/a] Verified 3: 3 confirmed, 0 not.
+2026-09-13T20:46:01-0400 INFO [89007d5-dirty@M5-Max-128GB none pld=n/a] Paste onto the issue:
+2026-09-13T20:46:01-0400 INFO [89007d5-dirty@M5-Max-128GB none pld=n/a]   **Verified** 2026-09-14: post exists, authored by @0xBakeer, posted Sat Sep 12 06:23:37 +0000 2026.
+2026-09-13T20:46:01-0400 INFO [89007d5-dirty@M5-Max-128GB none pld=n/a]   **Verified** 2026-09-14: post exists, authored by @Oluwaphilemon1, posted Sun Sep 13 00:22:08 +0000 2026.
+2026-09-13T20:46:01-0400 INFO [89007d5-dirty@M5-Max-128GB none pld=n/a]   **Verified** 2026-09-14: post exists, authored by @0xSero, posted Sun Sep 13 16:07:32 +0000 2026.
+2026-09-13T20:46:01-0400 INFO [89007d5-dirty@M5-Max-128GB none pld=n/a] log: /Users/evanhoffman/git/local-llm/logs/sweeps/verify-posts-M5-Max-128GB-20260914T004600Z.log
