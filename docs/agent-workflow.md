@@ -316,6 +316,25 @@ on the last, because the next task starts before the previous is merged -- and a
 stack fast-forwards cleanly if nothing lands on `main` in between. Merge from
 the bottom up if it does not.
 
+**Once a run stamps a commit's sha into rows, that sha must stay an ancestor of
+`main`.** `harness_head` is a row's answer to "which harness produced this", and
+a rebase after the run started rewrites the commit, leaving the rows pointing at
+a sha that is no longer in the history -- `git gc` then collects it and the
+provenance is a dangling pointer. On 2026-09-14 this orphaned 65 GB10 rows
+(#355): the measurements were sound, the trees identical, only the parents
+changed, but the rows would have wrongly classified as pre---`--dir` and been
+dropped. So, from the moment a run starts:
+
+- **Push the harness commit before launching**, so a later rebase is not
+  tempting. This fixes the common case for free.
+- **If the push is rejected mid-run, merge -- do not rebase.** A merge keeps the
+  stamped sha reachable; a rebase guarantees it is not.
+
+Recovering the orphans without rewriting a recorded row is
+`dirfix.REBASED_AFTER_FIX`: it maps each orphaned sha to the reachable ancestor
+it was rebased into, so the rows classify correctly while `harness_head` stays
+as written (annotate, never rewrite).
+
 **Results go to the `RESULTS.md` for the area that produced them** --
 `benchmarks/agent/`, `benchmarks/llamacpp/`, `benchmarks/ollama/`,
 `benchmarks/ds4/coding/`. Raw rows live in `results.jsonl` and are the record;
