@@ -103,6 +103,7 @@ Each script explains itself in full at the top of its own file -- what it comput
 | `upstream_sweep.py` | any | Sweep the repositories this project depends on, in one command. |
 | `verify_posts.py` | any | Verify X posts against the source, for the claims that earned an issue. |
 | `verify_push.py` | any | Verify a push landed, instead of trusting that `git push` reported success (#255). |
+| `vllm_compat_proxy.py` | any | Strip non-standard fields from a vLLM fork's chat responses so a strict |
 | `vllm_load.py` | nvidia | Aggregate throughput against a vLLM server at a given concurrency (#334). |
 | `ds4-fast.sh` | mac | Metal 4 TensorOps: ~21% faster, not bit-exact. See scripts/ds4_serve.py. |
 | `ds4-vanilla.sh` | mac | Reference kernels: bit-exact, slower. See scripts/ds4_serve.py. |
