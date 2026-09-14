@@ -28,8 +28,14 @@ import argparse
 import http.client
 import json
 import logging
+import pathlib
 import socketserver
+import sys
 from http.server import BaseHTTPRequestHandler
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+
+import logs
 
 logger = logging.getLogger("vllm_compat_proxy")
 
@@ -190,7 +196,7 @@ def main() -> int:
     p.add_argument("--upstream", type=int, default=8030, help="engine port to proxy")
     p.add_argument("--upstream-host", default="127.0.0.1")
     args = p.parse_args()
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
+    logs.configure()
     _Handler.upstream_host = args.upstream_host
     _Handler.upstream_port = args.upstream
     logger.info(

@@ -188,6 +188,9 @@ def test_the_mtp_arms_declare_themselves():
         # #354: the same arm with vLLM prefix caching off, to test whether the
         # pass-rate decline over a server session is prefix-cache state.
         "qwen36nvfp4specnoprefixdgx": "vllm",
+        # #331: the Flash-Next NVFP4 lane on vLLM runs MTP-3 draft speculation,
+        # so it declares itself like the other vLLM speculative arms.
+        "qwen38fnnvfp4dgx": "vllm",
     }
 
 
