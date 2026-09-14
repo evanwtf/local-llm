@@ -79,6 +79,7 @@ Each script explains itself in full at the top of its own file -- what it comput
 | `prompt_meta.py` | any | Which prompt a decode/prefill A/B was measured on (#140). |
 | `prune_models.py` | any | Delete local model weights that are superseded and re-downloadable (#111). |
 | `qwen38_metal_suites.py` | mac | Run ds4#990's model-free Qwen3.8-Flash-Next Metal suites and report (#170). |
+| `reasoning_budget_signature.py` | any | Does an empty agent solution coincide with a spent reasoning budget? (#349) |
 | `refuse_commit_during_benchmark.py` | any | Refuse a commit while a benchmark holds the run lock (#227, #237). |
 | `release_notes.py` | any | Print the changelog section for a release, or refuse. |
 | `relevance_score.py` | any | Score how relevant an outside claim is to THIS project, procedurally (#230). |
