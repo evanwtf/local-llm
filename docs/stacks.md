@@ -7,7 +7,9 @@ discussion, the full per-stack instructions, the stacks we decline to
 recommend and the two ds4 disk-KV ceilings, in the order they stood.
 
 Start at [`RECOMMENDATIONS.md`](../RECOMMENDATIONS.md). Come here when you
-want to run a server yourself, or want the reasoning behind the ranking.
+want to run a server yourself, or want the reasoning behind the ranking. For
+**which** external repositories each stack clones, where they go, and how the
+paths resolve, see [`external-repos.md`](external-repos.md).
 
 ---
 

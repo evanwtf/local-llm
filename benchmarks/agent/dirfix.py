@@ -24,6 +24,22 @@ import results
 logger = logging.getLogger(__name__)
 
 FIX = "7356460"  # opencode_argv gained --dir
+
+# harness_head shas that a rebase orphaned after a run had already stamped them
+# into rows (#355). The runs were post-FIX and the measurements are valid -- the
+# trees were identical, only the commit parents changed -- but `git gc` has
+# collected the originals, so `git log` cannot reach them and the rows would
+# wrongly classify as "before". Each key is the orphaned sha as recorded in the
+# rows; each value is the reachable ancestor of main it was rebased into, kept
+# so the provenance is still followable. This annotates the classifier, never
+# the rows (append-only; annotate, never rewrite). The rule that prevents new
+# entries -- keep a stamped sha an ancestor of main -- is in
+# docs/agent-workflow.md.
+REBASED_AFTER_FIX = {
+    "6f56a28": "2b734f2",  # #355, hardware/Cortex-X925-128GB-GB10 (5 rows)
+    "62d7de1": "29fee77",  # (30 rows)
+    "66d5e3a": "693f339",  # (30 rows)
+}
 # The pre---dir rows were moved out of results.jsonl by
 # scripts/archive_pre_dir_rows.py, so this reads both files. Without the
 # archive the "before" column silently empties and the fix looks unmeasured.
@@ -51,7 +67,9 @@ def fixed_commits(repo: pathlib.Path) -> set[str]:
     heads = {c[:7] for c in r.stdout.split()}
     if not heads:
         raise SystemExit(f"no commits from {FIX} in {repo}: {r.stderr.strip()}")
-    return heads
+    # Union the orphaned-but-post-fix shas (#355) after the empty-set guard, so
+    # a non-repo still refuses rather than passing on the allowlist alone.
+    return heads | set(REBASED_AFTER_FIX)
 
 
 def era(row: dict, after: set[str]) -> str:

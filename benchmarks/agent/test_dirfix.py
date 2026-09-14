@@ -24,6 +24,22 @@ def row(**kw):
     return {**base, **kw, "env": env}
 
 
+def test_a_rebased_orphan_sha_counts_as_after() -> None:
+    """#355: a post-fix sha a rebase orphaned still classifies as after, so its
+    valid rows are not dropped as pre---dir. era() only needs the sha in the
+    after-set; the union that puts it there is asserted below against the repo."""
+    for orphan in dirfix.REBASED_AFTER_FIX:
+        assert dirfix.era(row(head=orphan), set(dirfix.REBASED_AFTER_FIX)) == "after"
+
+
+@pytest.mark.skipif(not HAS_LOCAL_RESULTS, reason=SKIP_NO_RESULTS)
+def test_fixed_commits_includes_the_rebased_orphans() -> None:
+    """The union is live: fixed_commits() carries the #355 orphans, so the 65
+    rows that name them are classified after the fix, not archived as before."""
+    heads = dirfix.fixed_commits(results.default_path().parent)
+    assert set(dirfix.REBASED_AFTER_FIX) <= heads
+
+
 def test_a_row_from_after_the_fix_is_counted_as_after() -> None:
     assert dirfix.era(row(head="28b1da6"), {"28b1da6"}) == "after"
 
