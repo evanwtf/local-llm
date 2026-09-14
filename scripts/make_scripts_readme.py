@@ -55,6 +55,7 @@ MAC = frozenset(
         "kv_prefix_reuse.py",
         "load_matrix.py",
         "metal_knob_ab.py",
+        "moe_tile_ab.py",
         "mtp_draft_audit.py",
         "mtp_engagement.py",
         "mtp_log_split.py",
