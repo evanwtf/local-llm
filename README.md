@@ -140,7 +140,11 @@ that skips the install step fails the suite instead of silently losing the
 guard.
 
 Engines and weights live outside this checkout; scripts find ds4 via `DS4_ROOT`
-and write results here.
+and write results here. [`docs/external-repos.md`](docs/external-repos.md) lists
+every external repository the harness needs — where to clone it, what it is for,
+and how `DS4_ROOT` and each backend's `engine_tree` resolve — so another machine
+can obtain the stack. Weights live in the model tree
+([`docs/model-locations.md`](docs/model-locations.md)).
 
 ## How the benchmark works
 
