@@ -86,6 +86,7 @@ doc.
 
 **Shell, subprocesses, and waiters** — [`docs/automation-hazards.md`](docs/automation-hazards.md)
 - New code is **Python, not shell** (#235). A `.sh` may be edited only to fix a live defect in a script that is still running.
+- **Favor a committed, tested script over an ad-hoc heredoc** (#368). A `python3 - <<'PY'` (or `python -c`) that parses a log, reads a number, or computes anything you might run twice leaves no test and drifts between sessions — the same analysis comes out slightly different each time and no later session can reproduce it. Put it in `scripts/`, name it, test it, commit it. **Read [`scripts/README.md`](scripts/README.md) first** — the generated index of every script, its one-line purpose, and the machine it runs on (`mac` / `nvidia` / `any`); the tool you need may already exist (`gguf_meta.py` reads GGUF metadata without loading the model). Regenerate the index with `uv run python scripts/make_scripts_readme.py` when you add a script.
 - **Never put backticks — or `$VAR`, or `$(...)` — in a `-m`/`--body` argument or an unquoted heredoc.** Use `-F -` with a quoted delimiter. If a job spawned a process, kill the **group** (`kill -TERM -<pgid>`), not the pid.
 - Read the **exit status, not the tail**: `pytest -q | tail && git commit` commits on a red suite.
 - No unbounded `tail -f` or `until` waiter: poll for the task's own `[exited with code N]` line **and** for the producer being gone, with a deadline.
