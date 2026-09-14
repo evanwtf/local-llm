@@ -38,7 +38,7 @@ backend, an agent runtime, and vision (#307–#310):
 | **CPU** | Arm **Cortex-X925**, 20 cores, governor `performance` |
 | **Memory** | **128 GB LPDDR5X, unified** (CPU/GPU shared), 121.7 GiB visible |
 | **OS / arch** | Ubuntu 24.04, Linux 6.17 · **aarch64** · `tier = "gb10-spark"` |
-| **Backends** | llama.cpp CUDA, ds4 CUDA (`sm_121a`), vLLM NVFP4 (`qwen38fnnvfp4dgx` #331, `qwen36a3bnvfp4dgx` #335) — every one carries the `*dgx` suffix and `tier = "gb10-spark"` in `tasks.toml`. Blackwell reaches **FP8 and NVFP4** in hardware, but not through Ollama on Linux (no MLX runtime, #293), so NVFP4 needs a CUDA-native engine (vLLM, #299). |
+| **Backends** | llama.cpp CUDA, ds4 CUDA (`sm_121a`), vLLM NVFP4 (`qwen38fnnvfp4dgx` #331, `qwen36a3bnvfp4dgx` #335) and vLLM AWQ-INT4 (`ornith15a3bdgx` #335) — every one carries the `*dgx` suffix and `tier = "gb10-spark"` in `tasks.toml`. Blackwell reaches **FP8 and NVFP4** in hardware, but not through Ollama on Linux (no MLX runtime, #293), so NVFP4 needs a CUDA-native engine (vLLM, #299). |
 | **Data** | [`hardware/Cortex-X925-128GB-GB10/`](hardware/Cortex-X925-128GB-GB10/RECOMMENDATIONS.md) — Flash-Next `UD-Q3_K_XL` 30/30 at 108.2 s on the 10-task matrix ([`RESULTS-agent.md`](hardware/Cortex-X925-128GB-GB10/RESULTS-agent.md)); the thinking-off served lane is faster still ([`RECOMMENDATIONS.md`](hardware/Cortex-X925-128GB-GB10/RECOMMENDATIONS.md)). |
 | **Confinement** | **none** — `sandbox-exec` is macOS-only, so `workspace_escapes` is unenforced, as on the Ryzen box |
 
@@ -155,6 +155,7 @@ be drawn from — OpenCode, after the `--dir` cutover, not excluded.
 | `qwen38fnds4greedy` | the same fast-pack, MTP off, **temperature pinned to 0** | ds4 (via a second tool shim on :8102) | 113 GB | 0 |
 | `qwen38fnds4kimat` | Q4_K **imatrix** rebuild of the same model, MTP off | ds4, ivanfioravanti fork (via tool shim) | 105 GB | 0 |
 | `qwen38fnds4q4exp` · `qwen38fnds4q4exppr5` | the same `-q4` fast-pack **converted to the `qwen4exp` schema** (`--ple-external`), MTP off | ds4 `6c1e836` (ds4-metal-228, via tool shim) | 107 GB | 46 |
+| `qwen38fnds4mtpauto` | the same `-q4` qwen4exp fast-pack with **embedded MTP (nextn), MTP-on-by-pack** — the #212 pack-level MTP A/B arm against `qwen38fnds4q4exp` | ds4 `ccea768` (ds4-metal, via tool shim) | 107 GB | 0 |
 | `qwen38fnmlxserve` | the same model as MLX mixed 4/8-bit weights | mlx-serve 26.9.1 (no shim) | 101 GB | 1 |
 | `qwen38fnmlxserve-git` | the same model as MLX mixed 4/8-bit weights | mlx-serve git main+PR383 at `~/git/mlx-serve` (no shim) | 101 GB | 0 |
 | `qwen38fnmlxservenopld` | the same MLX mixed 4/8-bit weights, **PLD off** (`--no-pld`) — the #262 control arm | mlx-serve 26.9.1 (no shim) | 101 GB | 0 |
@@ -167,6 +168,8 @@ be drawn from — OpenCode, after the `--dir` cutover, not excluded.
 | `ds4dgx` | DeepSeek-V4-Flash **Q2** 0731 | ds4 CUDA sm_121a | 80.8 GiB | 0 |
 | `glm53dgx` | GLM-5.3-Flash **Q2**, ctx 100000 | ds4 CUDA sm_121a | — | 0 |
 | `qwen36nvfp4dgx` | `nvidia/Qwen3.6-27B-NVFP4` (**base**, not the coding tune) | vLLM 0.29.0 CUDA sm_121 | 20.4 GiB | 30 |
+| `qwen36a3bnvfp4dgx` | `nvidia/Qwen3.6-35B-A3B-NVFP4` (**the A3B tier**, thinking off) — fastest agent backend on this box (#335, #342) | vLLM 0.29.0 CUDA sm_121 | 24.2 GiB | 30 |
+| `ornith15a3bdgx` | `harborwater/Ornith-1.5-35B-A3B-AWQ-INT4` (multimodal `qwen3_5_moe`, served text-only) — the cross-arch A3B check (#335) | vLLM 0.29.0 CUDA sm_121 | 24.4 GiB | 30 |
 | `qwen36bf16dgx` | `Qwen/Qwen3.6-27B` **BF16**, the unquantized control for the row above | vLLM 0.29.0 CUDA sm_121 | 51.7 GiB | 30 |
 | `qwen36nvfp4v1dgx` | the same NVFP4 weights on vLLM's **V1** model runner, speculation off | vLLM 0.29.0 CUDA sm_121 | 20.4 GiB | 0 |
 | `qwen36nvfp4specdgx` | the same again with **draftless n-gram speculation** (5 tokens, lookup 3-8) | vLLM 0.29.0 CUDA sm_121 | 20.4 GiB | 0 |
