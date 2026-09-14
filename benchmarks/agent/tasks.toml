@@ -2130,3 +2130,51 @@ context_tokens = 100000
 engine = "ds4"
 engine_tree = "~/git/ds4-metal"
 pinned_temperature = 0
+
+# Qwen3.8-Flash-Next NVFP4 on vLLM -- the DGX Spark's "fastest" recommended row
+# (#314 row 2 / #331), unblocked at last. The blocker was never the weights: a
+# 98.6 GiB NVFP4 checkpoint holds a 320M-row PLE n-gram table that will not sit
+# in the 122 GiB unified pool next to a KV cache (#331/#360 OOM). The stock
+# vLLM image and blazux's PLE-mmap both OOM-killed the load. This lane is the
+# styles01 production single-Spark recipe (jaita's verified 44 t/s daily driver,
+# #331): the PLE table is served OFF-GPU via a file-backed mmap by a dedicated
+# PleOffloadWorker, dropping resident weights to 72.8 GiB, and the box stays at
+# ~24-40 GiB free throughout the load.
+#
+# NOT a `~/venvs/vllm` engine: this runs in a CONTAINER, so run.py's host-venv
+# probe records the WRONG vLLM version on the row (it sees the host 0.29.0, not
+# the container's fork). The real engine is the styles01 fork below; a
+# container-aware provenance capture is a follow-up (#332 class). Exact,
+# reproducible launch (weights hardlinked into the HF cache as Mia-AiLab, which
+# is byte-identical to our approved local-inference-lab download):
+#
+#   docker run -d --name flashnext331 --memory=104g --memory-swap=111g \
+#     --device nvidia.com/gpu=all --ipc=host --shm-size 16g \
+#     -v ~/.cache/huggingface:/cache/huggingface -p 8030:8000 \
+#     -e HF_HOME=/cache/huggingface -e HF_HUB_OFFLINE=1 -e TRANSFORMERS_OFFLINE=1 \
+#     -e VLLM_PLE_CPU_OFFLOAD=1 \
+#     -e VLLM_PLE_PACKED_TABLE_DIR=/root/.cache/vllm/ple_cache/Mia-AiLab--Qwen3.8-Flash-Next-NVFP4 \
+#     -e VLLM_MTP_DRAFT_VOCAB=/usr/local/share/draft_vocab_en_code_47k.txt \
+#     ghcr.io/styles01/qwen38-flash-next-mtp3-draftvocab47k:v7 \
+#     vllm serve Mia-AiLab/Qwen3.8-Flash-Next-NVFP4 \
+#       --revision 925d7be6c14c6c9442ef83e8f05b5a3c39304f69 \
+#       --served-model-name qwen3.8-flash-next --host 0.0.0.0 --port 8000 \
+#       --tensor-parallel-size 1 --gpu-memory-utilization 0.72 --max-num-seqs 8 \
+#       --max-num-batched-tokens 2048 --max-model-len 262144 --kv-cache-dtype fp8 \
+#       --load-format safetensors --safetensors-load-strategy lazy --enable-chunked-prefill \
+#       --reasoning-parser qwen3 --enable-auto-tool-choice --tool-call-parser qwen3_coder \
+#       --speculative-config '{"method":"mtp","num_speculative_tokens":3,"use_local_argmax_reduction":true}' \
+#       --distributed-executor-backend mp \
+#       --compilation-config '{"mode":0,"cudagraph_mode":"FULL_DECODE_ONLY","cudagraph_capture_sizes":[4,8,12,16,20,24,28,32]}'
+[backend.qwen38fnnvfp4dgx]
+description = "Qwen3.8-Flash-Next NVFP4, vLLM styles01 fork v0.1.dev20073, MTP-3 + 47k draft vocab, PLE mmap-offloaded, fp8 KV, 262k ctx"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8030"
+auth_token = "local"
+engine = "vllm"
+model = "qwen3.8-flash-next"
+aider_model = "openai/qwen3.8-flash-next"
+opencode_model = "vllm/qwen3.8-flash-next"
+context_tokens = 262144
+speculative = "MTP k=3, use_local_argmax_reduction, 47149-token draft vocab; fp8 KV; gpu-memory-utilization 0.72; PLE 320M-row n-gram table mmap-offloaded off-GPU (resident 72.8 GiB); container ghcr.io/styles01/...:v7"
+draft_engine = "vllm"
