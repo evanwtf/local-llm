@@ -52,6 +52,7 @@ Each script explains itself in full at the top of its own file -- what it comput
 | `kv_prefix_reuse.py` | mac | Measure how much of a prompt ds4 reuses from its prefix cache (#190). |
 | `load_matrix.py` | mac | Load each of a set of gguf files with the PLE sidecar, serially, and |
 | `local_agent.py` | any | Start a recommended local stack and drop into a coding agent. #235 |
+| `mac_dash.py` | any | M5 Max GPU / thermal / power snapshot from Prometheus, via gcx. |
 | `machine_claim.py` | any | Claim the machine with intent, and make contention impossible to miss. #160 |
 | `machine_health.py` | any | Is this machine in a state to start work, and did the work actually start? |
 | `machine_state.py` | any | Is the machine busy, and who says so? One answer, for every agent. |
