@@ -348,11 +348,35 @@ def render(by_cell, backends) -> list[str]:
     return out
 
 
+def window(rows, since=None, until=None):
+    """Rows whose `started` falls in the half-open-ish range (since, until].
+
+    `since` is exclusive and `until` inclusive, matching the original --since.
+    Both are ISO 8601 strings compared lexically -- valid because every row in
+    this repo carries the same America/New_York offset, so the string order is
+    the time order. A row missing `started` sorts as "", so `since` drops it
+    ("" is not > any bound) while `until` keeps it ("" <= any bound); real rows
+    always carry `started`. The two together isolate one build of a
+    force-pushed backend (#328).
+    """
+    if since:
+        rows = [r for r in rows if (r.get("started") or "") > since]
+    if until:
+        rows = [r for r in rows if (r.get("started") or "") <= until]
+    return rows
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--backend", action="append", required=True)
     p.add_argument("--client", default="opencode")
     p.add_argument("--since", help="ISO timestamp; only rows started after it")
+    p.add_argument(
+        "--until",
+        help="ISO timestamp; only rows started at or before it. With --since it "
+        "brackets a window -- e.g. to isolate one build of a force-pushed "
+        "backend, whose engine_version changes under a fixed name (#328).",
+    )
     args = p.parse_args()
 
     provenance.configure()
@@ -371,8 +395,7 @@ def main() -> int:
             cheats,
             retired,
         )
-    if args.since:
-        rows = [r for r in rows if (r.get("started") or "") > args.since]
+    rows = window(rows, args.since, args.until)
     by_cell = cells(rows, set(args.backend), args.client)
     if not by_cell:
         logger.info("no trials for %s under %s", args.backend, args.client)
