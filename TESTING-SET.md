@@ -330,9 +330,9 @@ A figure may be quoted only from rows that are **OpenCode**, **after
 never a hand-rolled `r.get("excluded")`, which misses `agent_error` rows and
 has already produced two sets of published numbers that were wrong.
 
-Every row stamps the harness commit, the engine build, the target repo commit
-and the machine's memory-ceiling setting (on the M5 Max, the Metal
-`iogpu.wired_limit_mb`). A row that cannot name the code and the engine that
+Every row stamps the harness commit, the engine build, and the target repo
+commit; M5 Max rows also stamp the Metal ceiling (`iogpu.wired_limit_mb`), which
+Linux rows do not carry. A row that cannot name the code and the engine that
 produced it cannot be re-derived once either moves.
 
 ---

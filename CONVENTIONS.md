@@ -27,7 +27,7 @@ The `gemma4:*-mlx-bf16` models (~77 GB) were kept under this rule in August
 backend, so they may now be usable — which is the argument for the rule, not
 against it.
 
-## Model weights stay out of backups — Time Machine on the M5 Max (2026-09-06)
+## Model weights stay out of Time Machine (2026-09-06)
 
 This rule is **macOS-specific** (Time Machine, `tmutil`) and governs the M5 Max.
 The DGX Spark and the Ryzen desktop run Linux and have no Time Machine — apply
