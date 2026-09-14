@@ -17,9 +17,15 @@ dev = [
     "pre-commit>=3.2",
 ]
 
-# Note: no `exclude-newer-span` here. uv 0.12.1 rejects the field, and this
-# project has no runtime dependencies -- pytest and ruff are the only things
-# resolved. Add the field when uv moves past 0.12.1.
+# No supply-chain `exclude-newer` gate here. The lock once carried a relative
+# `exclude-newer-span = "P7D"` (roll back 7 days so a freshly-published
+# malicious release has time to be caught), but uv 0.12.13 dropped the relative
+# span entirely -- it is no longer a flag, an env var, or a `[tool.uv]` field,
+# so every `uv lock` silently drops it and every interactive `uv run` rewrote
+# the lock. The fossil block was removed rather than re-implemented; this
+# project has no runtime dependencies (pytest and ruff are all that resolve),
+# so the gate bought little. To restore one on current uv, set an ABSOLUTE
+# `[tool.uv] exclude-newer = "<timestamp>"` and bump it deliberately.
 
 [tool.pytest.ini_options]
 testpaths = ["."]
