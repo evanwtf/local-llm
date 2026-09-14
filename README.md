@@ -18,8 +18,8 @@ Everything is measured on one machine: MacBook Pro M5 Max, 128 GiB, macOS
 | **harness** | the agent driving the loop | **OpenCode** (primary), Claude Code, Codex |
 
 **Which model should I run?** See
-[RECOMMENDATIONS.md](RECOMMENDATIONS.md) -- current picks for this Mac, the
-evidence behind them, and the gaps still open.
+[RECOMMENDATIONS.md](RECOMMENDATIONS.md) -- current picks organized by hardware
+platform (Apple Silicon Mac, NVIDIA DGX Spark), the evidence behind them, and the gaps still open.
 
 ## Usage
 
