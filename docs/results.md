@@ -103,7 +103,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 
 ### MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A
 
-*Generated from `hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/results.jsonl` — 3001 rows, sha256 946817a51fe1.*
+*Generated from `hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/results.jsonl` — 3046 rows, sha256 e1166a5cf056.*
 
 #### Every stack measured under OpenCode
 
@@ -115,7 +115,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | qwen38fnmlxservenopld | 74/75 | 47s | 1391s | 68.2x |
 | qwen38fnmlxserve | 312/316 | 51s | 1377s | 64.7x |
 | qwen38fnmlxserve-git | 74/75 | 52s | 402s | 18.5x |
-| qwen38fnds4kimat | 361/361 | 91s | 775s | 27.0x |
+| qwen38fnds4kimat | 406/406 | 90s | 775s | 27.0x |
 | Qwen3.8-Flash-Next Q3 - llama.cpp | 75/75 | 106s | 356s | 8.3x |
 | DeepSeek-V4-Flash - ds4 (Anthropic wire) | 18/18 | 110s | 221s | 4.3x |
 | qwen38fnq3reap | 21/21 | 110s | 261s | 6.8x |
