@@ -59,7 +59,7 @@ other is telling you something.
 
 ### Cortex-X925-128GB-GB10
 
-*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 662 rows, sha256 899b7e474387.*
+*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 663 rows, sha256 528d17cdb4e3.*
 
 #### Every stack measured under OpenCode
 
@@ -78,7 +78,6 @@ other is telling you something.
 | qwen36nvfp4specdgx | 28/42 | 241s | 1094s | 24.3x |
 | ds4dgx | 60/60 | 248s | 493s | 6.1x |
 | qwen36bf16dgx | 30/30 | 432s | 1335s | 6.7x |
-| qwen36nvfp4specnoprefixdgx | 8/16 | 478s | 1444s | 9.0x |
 | nemotron3nano | 8/10 | 580s | 1212s | 8.5x |
 | nemotron33 | 1/10 | — | — | — |
 
@@ -100,7 +99,6 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | qwen36nvfp4specdgx | 119s |
 | qwen36nvfp4dgx | 150s |
 | qwen36nvfp4v1dgx | 160s |
-| qwen36nvfp4specnoprefixdgx | 260s |
 | qwen36bf16dgx | 409s |
 
 ### MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A
