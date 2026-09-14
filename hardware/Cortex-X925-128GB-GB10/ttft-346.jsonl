@@ -1,0 +1,10 @@
+{"client_ms": 62.04073299886659, "engine_ms": 59.76986885070801, "overhead_ms": 2.27086414815858, "prompt": "trivial", "rep": 0, "model": "qwen3.6-35b-a3b-nvfp4"}
+{"client_ms": 67.83507199907035, "engine_ms": 64.97740745544434, "overhead_ms": 2.857664543626015, "prompt": "trivial", "rep": 1, "model": "qwen3.6-35b-a3b-nvfp4"}
+{"client_ms": 68.41883400011284, "engine_ms": 65.92798233032227, "overhead_ms": 2.4908516697905725, "prompt": "trivial", "rep": 2, "model": "qwen3.6-35b-a3b-nvfp4"}
+{"client_ms": 68.62416300100449, "engine_ms": 66.12920761108398, "overhead_ms": 2.4949553899205057, "prompt": "trivial", "rep": 3, "model": "qwen3.6-35b-a3b-nvfp4"}
+{"client_ms": 69.24362099925929, "engine_ms": 66.7567253112793, "overhead_ms": 2.4868956879799953, "prompt": "trivial", "rep": 4, "model": "qwen3.6-35b-a3b-nvfp4"}
+{"client_ms": 139.7291180001048, "engine_ms": 136.5950107574463, "overhead_ms": 3.1341072426585015, "prompt": "realistic", "rep": 0, "model": "qwen3.6-35b-a3b-nvfp4"}
+{"client_ms": 136.70597199961776, "engine_ms": 133.63361358642578, "overhead_ms": 3.072358413191978, "prompt": "realistic", "rep": 1, "model": "qwen3.6-35b-a3b-nvfp4"}
+{"client_ms": 137.5078940000094, "engine_ms": 134.35816764831543, "overhead_ms": 3.149726351693971, "prompt": "realistic", "rep": 2, "model": "qwen3.6-35b-a3b-nvfp4"}
+{"client_ms": 135.07369500075583, "engine_ms": 131.96301460266113, "overhead_ms": 3.1106803980947006, "prompt": "realistic", "rep": 3, "model": "qwen3.6-35b-a3b-nvfp4"}
+{"client_ms": 135.44262399955187, "engine_ms": 132.45344161987305, "overhead_ms": 2.989182379678823, "prompt": "realistic", "rep": 4, "model": "qwen3.6-35b-a3b-nvfp4"}
