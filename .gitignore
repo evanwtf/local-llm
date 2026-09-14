@@ -45,7 +45,6 @@ sandbox/
 # because summarize is a read-only reporting script whose output is regenerable
 # and carries nothing a result row does not.
 hardware/*/logs/summarize-*.log
-<<<<<<< HEAD
 
 # report.py is the same class of script and was missed: read-only, its output
 # regenerable from the ledger, carrying nothing a result row does not. Every
@@ -55,11 +54,13 @@ hardware/*/logs/summarize-*.log
 # hardware-id and hf-sweep logs ARE tracked and stay that way: those record a
 # machine fact or an outside observation at a moment, neither of which can be
 # regenerated later.
-=======
-# report.py tees the same way (provenance.tee) and its output is likewise
-# regenerable from the rows -- ignore its log for the same reason.
->>>>>>> origin/main
 hardware/*/logs/report-*.log
+
+# decode_ab.py's default output dir (scripts/decode_ab.py). Per-rep CSVs and
+# logs from a paired decode A/B -- scratch that a later run overwrites, and the
+# result is quoted on the issue, never committed. Left untracked it makes
+# `git status` dirty and sets harness_dirty on the next run's rows (#48).
+benchmarks/ds4/decode-ab/
 
 # Agent fork worktrees (git worktree add under .claude/); scratch, never tracked.
 .claude/worktrees/
