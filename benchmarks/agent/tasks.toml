@@ -2210,3 +2210,32 @@ model = "qwen3.6-35b-a3b-nvfp4"
 aider_model = "openai/qwen3.6-35b-a3b-nvfp4"
 opencode_model = "vllm/qwen3.6-35b-a3b-nvfp4"
 context_tokens = 262144
+
+# The 2nd #335 A3B candidate: Ornith-1.5, this project's fastest measured backend
+# on the M5 Max -- so this is a cross-ARCHITECTURE comparison of a known-good
+# model (only the hardware changes). Rows here are NOT pooled with the Mac's
+# Ornith rows; report as a named cross-machine comparison (RESULTS precedent).
+#
+# harborwater/Ornith-1.5-35B-A3B-AWQ-INT4 is a Qwen3_5MoeForConditionalGeneration
+# (multimodal wrapper + vision_config, hybrid linear/Mamba attention, 256 experts
+# / 8 active), AWQ-INT4. vLLM 0.29.0 serves it text-only: it auto-detects AWQ
+# (auto_awq), sets Mamba cache mode 'align', loads a chat_template.jinja from the
+# repo, and KV lands at ~45 GiB free. Same venv + nvcc/ninja-on-PATH launch as
+# qwen36a3bnvfp4dgx above. Launch:
+#   PATH=$VLLM_VENV/bin:/usr/local/cuda/bin:$PATH CUDACXX=/usr/local/cuda/bin/nvcc \
+#   vllm serve harborwater/Ornith-1.5-35B-A3B-AWQ-INT4 \
+#     --served-model-name ornith-1.5-a3b --host 0.0.0.0 --port 8030 \
+#     --gpu-memory-utilization 0.6 --max-model-len 262144 --max-num-seqs 8 \
+#     --kv-cache-dtype fp8 --enable-auto-tool-choice --tool-call-parser qwen3_coder \
+#     --reasoning-parser qwen3 --default-chat-template-kwargs '{"enable_thinking": false}'
+[backend.ornith15a3bdgx]
+description = "Ornith-1.5-35B-A3B AWQ-INT4 (harborwater) via vLLM 0.29.0, CUDA sm_121, thinking off -- cross-arch check of the Mac's fastest model (#335)"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8030"
+auth_token = "local"
+engine = "vllm"
+engine_tree = "~/venvs/vllm"
+model = "ornith-1.5-a3b"
+aider_model = "openai/ornith-1.5-a3b"
+opencode_model = "vllm/ornith-1.5-a3b"
+context_tokens = 262144
