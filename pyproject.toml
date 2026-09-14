@@ -17,15 +17,18 @@ dev = [
     "pre-commit>=3.2",
 ]
 
-# No supply-chain `exclude-newer` gate here. The lock once carried a relative
-# `exclude-newer-span = "P7D"` (roll back 7 days so a freshly-published
-# malicious release has time to be caught), but uv 0.12.13 dropped the relative
-# span entirely -- it is no longer a flag, an env var, or a `[tool.uv]` field,
-# so every `uv lock` silently drops it and every interactive `uv run` rewrote
-# the lock. The fossil block was removed rather than re-implemented; this
-# project has no runtime dependencies (pytest and ruff are all that resolve),
-# so the gate bought little. To restore one on current uv, set an ABSOLUTE
-# `[tool.uv] exclude-newer = "<timestamp>"` and bump it deliberately.
+# Supply-chain cooldown: do not resolve any package published in the last 7
+# days, so a freshly-published malicious or compromised release has a week to
+# be caught and yanked before we can pull it (uv writes the rolling window into
+# uv.lock as `exclude-newer-span = "P7D"`). `exclude-newer` takes the relative
+# duration directly -- there is no `exclude-newer-span` config key; that name
+# exists only inside the lock. Declaring it HERE is what makes it stable: uv
+# 0.9.17+ applies the cooldown on every invocation, so the lock round-trips and
+# stops churning. Before this declaration the P7D span sat in the lock but was
+# undeclared, so a bare `uv run` had no cooldown to apply and stripped it every
+# time. Exempt a specific package with `[tool.uv.exclude-newer-package]`.
+[tool.uv]
+exclude-newer = "P7D"
 
 [tool.pytest.ini_options]
 testpaths = ["."]
