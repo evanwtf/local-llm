@@ -261,7 +261,7 @@ one changes what you would have to build to see the same result:
   — worth **23 points of pass rate** where it has been measured. Proxy the shim
   without it and trials end with no tool call and no code, which reads as the
   model failing rather than the plumbing.
-* [Four rows cannot be reproduced from upstream sources](#four-rows-here-cannot-be-reproduced-from-upstream-sources)
+* [Five rows cannot be reproduced from upstream sources](#five-rows-here-cannot-be-reproduced-from-upstream-sources)
   — they need a PLE sidecar that exists only on ivanfioravanti's forks.
   `antirez/ds4` main will not load these weights at all.
 * [The build behind `qwen38fnds4shim` has been withdrawn](#the-ds4-shim-rows-were-measured-on-a-build-its-author-has-withdrawn)
@@ -386,9 +386,9 @@ Nothing here changes the recommendation — the llama.cpp stack is still the one
 to install — but a reader reproducing our ds4 numbers should know they are
 pinned to a file the upstream author has moved on from.
 
-### Four rows here cannot be reproduced from upstream sources
+### Five rows here cannot be reproduced from upstream sources
 
-The `qwen38fnds4shim`, `qwen38fnds4kimat`, `qwen38fnds4mtp7shim` and `qwen38fnds4q4exp` rows all
+The `qwen38fnds4shim`, `qwen38fnds4kimat`, `qwen38fnds4mtp7shim`, `qwen38fnds4q4exp` and `qwen38fnds4mtpauto` rows all
 need **PLE sidecar support**, and that exists only on ivanfioravanti's forks:
 [`ivanfioravanti/ds4-metal`](https://github.com/ivanfioravanti/ds4-metal) and
 [`ivanfioravanti/ds4`](https://github.com/ivanfioravanti/ds4) branch
@@ -412,8 +412,8 @@ unsupported. It is not.
 
 ### The shim's scaffolding strip is load-bearing, not tidying
 
-**All four** `qwen38fnds4*` rows — `qwen38fnds4shim`, `qwen38fnds4kimat`,
-`qwen38fnds4mtp7shim` and `qwen38fnds4q4exp` — run behind `ds4_qwen_tool_shim.py`, which removes the
+**All five** `qwen38fnds4*` rows — `qwen38fnds4shim`, `qwen38fnds4kimat`,
+`qwen38fnds4mtp7shim`, `qwen38fnds4q4exp` and `qwen38fnds4mtpauto` — run behind `ds4_qwen_tool_shim.py`, which removes the
 bare `<tool_call>` tags from the content it hands back after it has recovered a
 tool call. That looked like hygiene when it shipped. It is worth **23 points of
 pass rate**, measured 2026-09-06 as an A/B over 8 runs of 15 tasks with the arm
