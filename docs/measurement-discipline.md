@@ -273,6 +273,57 @@ and portable. If they differ, it is throughput, and belongs to the stack.
 **Say which one it is.** "X is slower than Y" without this check has been wrong
 every time it has been examined here.
 
+## Within one backend, a wall ratio is a turn-count lottery (2026-09-14)
+
+The section above is about two engines. This one is about two arms of the **same**
+engine — a flag flipped, a KV type changed — where the tokens-vs-throughput split
+does not apply because the engine is held fixed. Here a different confound rules:
+**wall time tracks how many turns the agent took, not how fast the engine ran.**
+
+Over 90 rows of `qwen38fnq3nothinkdgx`, one backend so the engine is constant,
+`r(num_turns, wall_seconds) = 0.932`. Wall time spans 19.9 s to 496.7 s across
+those rows — a 25.0x spread — while seconds-per-turn spans only 2.8x. The engine
+is not doing anything 25 times different; the agent is having conversations of 3
+to 67 turns. Two tasks carry most of it: `parser-mbox-quoting` drew turn counts of
+8, 8, 8, 9, 11, 21, 23, 42, 67 across nine control trials, and a single 67-turn
+draw moves a 3-trial median by a factor of several.
+
+So a paired **wall** ratio between two arms of one backend inherits that lottery.
+#344's ubatch-2048 arm published a wall ratio of **0.873** — 87% of the control's
+time, which reads as a 13% speed-up. Its engine-measured TTFT was **1.005** and its
+seconds-per-turn **1.007**: both say nothing changed, and they agree to 0.2 pp. The
+0.873 was the treatment drawing shorter conversations. Had the draws gone the other
+way the same null arm would have published as a 15% regression — same flag, same
+engine, opposite headline.
+
+**Read three numbers, in this order, with a gate in front:**
+
+0. **The cell's own seconds-per-turn spread across tasks.** Under ~2x the rate
+   estimator isolates the engine; much above it the quotient still carries
+   workload. `qwen38fnq3nothinkdgx` spans 1.6x (a turn is 5–9 s on every task, so
+   it passes); `qwen36nvfp4v1dgx` spans 6.9x (6.90 s to 47.93 s per turn, so it
+   fails). On a failing cell, report the per-task disagreement, not a median over it.
+1. **turns** — did the treatment change what the agent did? A count of agent
+   actions, so it needs no precondition and survives the gate. A ratio at ~1.000
+   means a pure engine change; far from 1 means the treatment changed the agent's
+   behaviour, which is itself a finding (see #354's 2.8x turn blow-up under
+   draftless speculation).
+2. **seconds-per-turn** and **TTFT** — did the engine get faster? Seconds-per-turn
+   is gated on step 0; TTFT is not, because it comes from the engine's own counter
+   rather than a ratio of medians.
+3. **wall** — what the user actually feels, and the product of the two. It is the
+   project's headline question (#14) and stays; it is just not the number an engine
+   flag is being asked.
+
+`num_turns` and `wall_seconds` are on every row, and `step_ttft_ms_median` on every
+DGX llama.cpp row since 2026-09-12, so this needs no new measurement. The estimator
+is `scripts/report.py`: `turns()` (the ungated half), `seconds_per_turn()`, and
+`homogeneous()` (the step-0 gate). A two-backend `report.py` run prints the
+"What moved: the agent, or the engine? (#353)" block, and warns when a cell's
+per-task spread makes the rate unreadable. #23's ±28% resolution rule stays as it
+is; it is the pass-rate counterpart, and its figure — derived from wall time — is
+optimistic on the two heavy-tailed tasks.
+
 ## Know what a trial count can support
 
 Measured over 398 trials by `../benchmarks/agent/sizing.py`, not estimated:
