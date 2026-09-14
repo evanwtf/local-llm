@@ -5,7 +5,8 @@ engine, model — plus the task set that runs across them. Anything not listed
 here is not part of the matrix; anything listed as retired stays documented
 because rows in `results.jsonl` still reference it.
 
-Updated 2026-09-04.
+Updated 2026-09-14 (hardware section; the Models-table row counts are the
+2026-09-04 read).
 
 ---
 
@@ -17,12 +18,34 @@ Updated 2026-09-04.
 | **OS** | macOS 26.6.2 |
 | **Metal ceiling** | `iogpu.wired_limit_mb = 114688` (112 GiB), set at boot by a LaunchDaemon |
 
-**One machine is the point, not a limitation.** Every number in
-`results.jsonl` shares a hardware baseline, which is what makes the
-comparisons mean anything. The Metal ceiling is a **cap, not a reservation** —
-with no model loaded, wired memory sits around 5 GiB — but it is *required*,
-not an optimization: stock gives ds4 a 75.5 GiB budget against an 89.87 GiB
-GLM-5.3, which is a refusal.
+**Each machine is its own baseline; rows are never pooled across them.** Every
+number in a machine's `results.jsonl` shares that machine's hardware, which is
+what makes its comparisons mean anything. On the M5 Max the Metal ceiling is a
+**cap, not a reservation** — with no model loaded, wired memory sits around
+5 GiB — but it is *required*, not an optimization: stock gives ds4 a 75.5 GiB
+budget against an 89.87 GiB GLM-5.3, which is a refusal.
+
+**The DGX Spark (GB10) is the third registered machine**, and the second
+128 GB *unified* box — so its model list is closer to the M5 Max's than to the
+Ryzen desktop's: no "12 GiB VRAM vs 32 GB RAM" split, a model is sized against
+the whole pool. It is **served over the LAN**, not a laptop you sit at, and its
+job is broader than coding — a multipurpose LLM server, a network-served coding
+backend, an agent runtime, and vision (#307–#310):
+
+| | |
+|---|---|
+| **GPU** | NVIDIA **GB10** Grace-Blackwell, `sm_121` (ds4 `sm_121a`), driver 580.173.02, CUDA 13.0 |
+| **CPU** | Arm **Cortex-X925**, 20 cores, governor `performance` |
+| **Memory** | **128 GB LPDDR5X, unified** (CPU/GPU shared), 121.7 GiB visible |
+| **OS / arch** | Ubuntu 24.04, Linux 6.17 · **aarch64** · `tier = "gb10-spark"` |
+| **Backends** | llama.cpp CUDA, ds4 CUDA (`sm_121a`), vLLM NVFP4 (`qwen38fnnvfp4dgx`, #331) — every one carries the `*dgx` suffix and `tier = "gb10-spark"` in `tasks.toml`. Blackwell reaches **FP8 and NVFP4** in hardware, but not through Ollama on Linux (no MLX runtime, #293), so NVFP4 needs a CUDA-native engine (vLLM, #299). |
+| **Data** | [`hardware/Cortex-X925-128GB-GB10/`](hardware/Cortex-X925-128GB-GB10/RECOMMENDATIONS.md) — Flash-Next `UD-Q3_K_XL` 30/30 at 108.2 s on the 10-task matrix ([`RESULTS-agent.md`](hardware/Cortex-X925-128GB-GB10/RESULTS-agent.md)); the thinking-off served lane is faster still ([`RECOMMENDATIONS.md`](hardware/Cortex-X925-128GB-GB10/RECOMMENDATIONS.md)). |
+| **Confinement** | **none** — `sandbox-exec` is macOS-only, so `workspace_escapes` is unenforced, as on the Ryzen box |
+
+**No MLX and no Swift oracle here:** the MLX model rows below stay Mac-only, and
+the 5 Swift excisions are skipped, so its full matrix is 10 tasks. Its rows stay
+in `hardware/Cortex-X925-128GB-GB10/results.jsonl` and are never pooled with the
+Mac's.
 
 **A second tier exists and has run trials.** `desktop`, reachable over ssh:
 
@@ -308,7 +331,8 @@ never a hand-rolled `r.get("excluded")`, which misses `agent_error` rows and
 has already produced two sets of published numbers that were wrong.
 
 Every row stamps the harness commit, the engine build, the target repo commit
-and the Metal ceiling. A row that cannot name the code and the engine that
+and the machine's memory-ceiling setting (on the M5 Max, the Metal
+`iogpu.wired_limit_mb`). A row that cannot name the code and the engine that
 produced it cannot be re-derived once either moves.
 
 ---

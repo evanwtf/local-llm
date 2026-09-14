@@ -6,6 +6,11 @@ one machine — an **M5 Max, 128 GB, macOS 26**. Nothing here is from a model
 card. Paste section 1, pick a row in 2, or run one script in 3; the rest moved
 to [`docs/`](#where-the-rest-of-it-went).
 
+> **This file covers the M5 Max.** The DGX Spark's picks are in
+> [`hardware/Cortex-X925-128GB-GB10/RECOMMENDATIONS.md`](hardware/Cortex-X925-128GB-GB10/RECOMMENDATIONS.md).
+> Folding this file into a per-machine layout with a thin root hub is
+> [#372](https://github.com/evanwtf/local-llm/issues/372).
+
 **Ledger last read 2026-09-10; ranking re-verified 2026-09-12.** These numbers
 are a **pre-macOS-27 baseline**
 ([#306](https://github.com/evanwtf/local-llm/issues/306)) — re-validate after

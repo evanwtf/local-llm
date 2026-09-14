@@ -1,8 +1,8 @@
 # One directory per machine
 
 Every measurement in this project is only meaningful next to the hardware that
-produced it. This project's premise is one machine at a time, and each
-directory here holds the results, logs and notes for exactly one of them.
+produced it. Each directory here holds the results, logs and notes for exactly
+one of the machines we manage.
 
 **Rows from different machines are never pooled.** `results.foreign_hardware()`
 refuses to append to a file that already holds another machine's rows, and the

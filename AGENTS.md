@@ -34,7 +34,9 @@ measures a registered set of machines ([`hardware/MACHINES.md`](hardware/MACHINE
 the **M5 Max MacBook Pro (128 GB, macOS 26)**, the DGX Spark, and the Ryzen /
 RTX 3080 Ti desktop — and every published number belongs to the hardware
 recorded on it (`docs/results.md` splits its tables per machine). The M5 Max is
-the primary coding-agent machine and the one `RECOMMENDATIONS.md` targets. Confirm you are on a managed machine
+the primary coding-agent machine; the root `RECOMMENDATIONS.md` currently gives
+its picks, and the DGX Spark's are in its hardware dir (a per-machine hub reorg
+is #372). Confirm you are on a managed machine
 before comparing a result (`uv run python scripts/machines.py --check`), and
 **name the machine in the third person** in every record — three agents read this
 repo, one per machine, and "this machine" points somewhere different for each
@@ -48,7 +50,7 @@ uv sync                                            # environment; then: uv run p
 uv run python scripts/machine_state.py             # is the machine busy, and who says so
 uv run python benchmarks/agent/preflight.py        # servers, memory ceiling, versions, notifications -- always before a batch
 uv run python benchmarks/agent/run.py --backend <name> --client opencode --trials 3
-uv run python benchmarks/agent/splice_tables.py    # regenerate RECOMMENDATIONS.md tables after new rows land
+uv run python benchmarks/agent/splice_tables.py    # regenerate docs/results.md tables after new rows land
 uv run python scripts/report.py --backend <name>   # summarize or compare cells, with #23's resolution rule
 uv run python scripts/coherence_check.py ~/models/<model>.gguf  # temp-0 coherence check before a batch (ds4-served models, #287)
 uv run python benchmarks/agent/model_inventory.py  # census every runtime's model tree before saying a model is absent
@@ -144,10 +146,22 @@ every one on every task — read the row that matches what you are about to do.
 | file issues, branch, manage a peer, or cut a release | [`docs/agent-workflow.md`](docs/agent-workflow.md) |
 | download, delete, or archive model weights; commit a capture; regenerate held-out text; or merge a data file | [`CONVENTIONS.md`](CONVENTIONS.md) |
 | understand the benchmark task by task | [`benchmarks/agent/METHODOLOGY.md`](benchmarks/agent/METHODOLOGY.md) |
-| run machine operations, thermals, or a cross-machine comparison | [`docs/m5max-runbook.md`](docs/m5max-runbook.md) |
+| operate the M5 Max: thermals, machine ops, a cross-machine comparison | [`docs/m5max-runbook.md`](docs/m5max-runbook.md) |
 | operate the DGX Spark: is it busy, Prometheus, ports, launching safely | [`docs/dgx-spark-runbook.md`](docs/dgx-spark-runbook.md) |
 | share the machine with another agent | [`docs/peer_agents.md`](docs/peer_agents.md) |
 | watch the field (X, Hugging Face, upstream) | [`SOURCES.md`](SOURCES.md) |
+
+**Placing a new document — per-machine by default.** Three machines are managed
+(`hardware/MACHINES.md`), so a new doc must say which machine it speaks for.
+Machine-specific content — a runbook, a machine's "what to run" picks, a backup
+or thermal rule, an engine-build note — lives in `hardware/<machine>/` or a
+per-machine doc named for the box, and names the machine in the third person.
+Shared content stays at root or `docs/` and reads the same on every machine: if
+it needs a machine-specific fact, scope that fact ("on the M5 Max, …") rather
+than assuming one. A doc answering "what should I run" or "how do I operate this
+box" is per-machine; a doc about the harness, the method, or the field is shared.
+Do not write a new root doc from one machine's point of view — that is the debt
+#373 pays down.
 
 **Maintaining these docs:** update the authoritative section in place; put a new
 long explanation or incident narrative in the supporting doc that owns its

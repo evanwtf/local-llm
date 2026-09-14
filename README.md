@@ -8,8 +8,13 @@ axes. This is a benchmark harness and a body of measurements, not a product --
 a collection of Python scripts and shell wrappers run from a checkout, plus the
 `RESULTS.md` files they produce.
 
-Everything is measured on one machine: MacBook Pro M5 Max, 128 GiB, macOS
-26.6.2.
+Measurements come from a registered set of machines
+([hardware/MACHINES.md](hardware/MACHINES.md)): the **M5 Max MacBook Pro**
+(128 GiB, macOS 26), the **DGX Spark** (GB10, 128 GiB, Linux/aarch64), and the
+Ryzen / RTX 3080 Ti desktop. Every number belongs to the machine that produced
+it and is never pooled across machines. The M5 Max is the primary coding-agent
+machine, and the examples below are its; the DGX Spark serves over the LAN and
+has its own recipes (linked below).
 
 | axis | what it means | example |
 |---|---|---|
@@ -18,8 +23,9 @@ Everything is measured on one machine: MacBook Pro M5 Max, 128 GiB, macOS
 | **harness** | the agent driving the loop | **OpenCode** (primary), Claude Code, Codex |
 
 **Which model should I run?** See
-[RECOMMENDATIONS.md](RECOMMENDATIONS.md) -- current picks for this Mac, the
-evidence behind them, and the gaps still open.
+[RECOMMENDATIONS.md](RECOMMENDATIONS.md) -- current picks for the M5 Max, the
+evidence behind them, and the gaps still open. The DGX Spark's picks are in
+[hardware/Cortex-X925-128GB-GB10/RECOMMENDATIONS.md](hardware/Cortex-X925-128GB-GB10/RECOMMENDATIONS.md).
 
 ## Usage
 
@@ -52,7 +58,10 @@ For Qwen via Ollama: `ollama pull qwen3.8:27b-mlx && ./claude-ollama`. If Ollama
 rejects Claude Code's request shape, see
 [docs/ollama-claude-shim.md](docs/ollama-claude-shim.md).
 
-### Serve ds4 on a chosen Metal route
+### Serve ds4 on a chosen Metal route (M5 Max)
+
+Metal is Apple-Silicon only. On the DGX Spark, ds4 serves over CUDA -- see
+[its RECOMMENDATIONS](hardware/Cortex-X925-128GB-GB10/RECOMMENDATIONS.md).
 
 ```sh
 scripts/ds4-fast.sh        # Metal 4 TensorOps: ~21% quicker, NOT bit-exact
@@ -86,9 +95,9 @@ Selected flags (`--help` for all):
 ### Preflight: check what is already running
 
 `preflight.py` reports five kinds of machine state that silently change
-results: running model servers, the Metal ceiling (`iogpu.wired_limit_mb`, 107.52
--> 112.00 GiB), tool versions, upstream `ds4` preview branches, and GitHub
-mentions. It **warns and never refuses**.
+results: running model servers, the memory ceiling (on the M5 Max, the Metal
+`iogpu.wired_limit_mb`, 107.52 -> 112.00 GiB), tool versions, upstream `ds4`
+preview branches, and GitHub mentions. It **warns and never refuses**.
 
 This matters more here than on a normal machine. Models are sized to nearly fill
 unified memory, so a server left running either fails loudly, or fits and
@@ -192,9 +201,9 @@ time, which prompt re-prefill dominates (#14).
 | `benchmarks/agent/` | the harness, its tasks and its own tests |
 | `scripts/` | measurement, field-watching and machine tools |
 | `hardware/<machine>/` | results, logs and `RESULTS.md` for one machine |
-| `docs/` | [changelog](docs/changelog.md), [history](docs/history.md), [runbook](docs/m5max-runbook.md), archive |
+| `docs/` | [changelog](docs/changelog.md), [history](docs/history.md), runbooks ([M5 Max](docs/m5max-runbook.md), [DGX Spark](docs/dgx-spark-runbook.md)), archive |
 | `docs/node-exporter-cpufreq-deadlock-arm64.md` | not a benchmark finding: node_exporter deadlocks on aarch64 with `cppc_cpufreq`, and the symptom points away from the cause |
-| `logs/sweeps/` | gather archives; the same fact on either machine |
+| `logs/sweeps/` | gather archives; the same fact on any machine |
 
 Work is tracked as GitHub issues. [NEXT.md](NEXT.md) holds the order to work in,
 [docs/changelog.md](docs/changelog.md) what shipped and why (before v1.0.0:
