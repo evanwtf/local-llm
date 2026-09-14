@@ -1,0 +1,59 @@
+# grok DGX sweep
+# window: last 48 hours
+# written: 2026-09-14T18:58:10Z
+
+I'll search X for matching posts and replies from those accounts in the last 48 hours.I'll run per-account searches so I don't miss replies from the rest of the list.I'll pull the remaining Sep 12–13 posts from the accounts that already hit the 10-result cap.- 2026-09-14 18:59:00 UTC | @filicroval | https://x.com/filicroval/status/2099573646851223726 | Qwen3.8 Flash Next is his new favorite local model, running all-local on a DGX Spark at 40–50 tok/s.
+- 2026-09-14 18:09:42 UTC | @no_stp_on_snek | https://x.com/no_stp_on_snek/status/2099561243031781579 | He is setting up DeepSeek Flash 4.1 on two DGX Sparks.
+- 2026-09-14 18:00:48 UTC | @0xBakeer | https://x.com/0xBakeer/status/2099559001155424754 | You do not need the Spark’s 128 GB if you first understand the expert-pruning concept.
+- 2026-09-14 17:35:01 UTC | @0xSero | https://x.com/0xSero/status/2099552512512585977 | His Sparks are in Mia’s hands, and Spark owners should follow her work.
+- 2026-09-14 16:52:16 UTC | @0xBakeer | https://x.com/0xBakeer/status/2099541754898759760 | On 12 GB he would leave EXL3 for llama.cpp with MoE experts in RAM (`--n-cpu-moe`) and attention on GPU, since only 3B experts are active.
+- 2026-09-14 16:31:08 UTC | @0xBakeer | https://x.com/0xBakeer/status/2099536437003604357 | His serving code is written for the Spark’s shared 128 GB and has not been adapted for a split PCIe expert setup.
+- 2026-09-14 14:48:44 UTC | @jimmycheng722 | https://x.com/jimmycheng722/status/2099510668088988091 | A real project is seeing ~45 tok/s from Qwen3.8 Flash Next on a single DGX Spark with automatic context compression.
+- 2026-09-14 14:31:54 UTC | @0xBakeer | https://x.com/0xBakeer/status/2099506428734009550 | The same expert-keep approach can be used for Kimi on 2/3/4 DGX Sparks.
+- 2026-09-14 14:15:37 UTC | @jimmycheng722 | https://x.com/jimmycheng722/status/2099502330076877146 | Qwen3.8-Flash-Next is the best 1x DGX Spark option and he is running it now with room to improve.
+- 2026-09-14 14:13:30 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2099501801376493594 | Three DGX Sparks should be cabled Tower > Spark 1 > Spark 2 > Spark 3 > Tower.
+- 2026-09-14 14:09:58 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2099500909709431006 | She shows how to connect three DGX Sparks in a ring topology.
+- 2026-09-14 13:50:41 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2099496057285595516 | She would pick 4x DGX Sparks over an M5 Ultra 512GB because Nvidia prefill and concurrency should be better, with TP=4 narrowing the Mac decode-speed gap.
+- 2026-09-14 13:37:43 UTC | @MarkusEicher70 | https://x.com/MarkusEicher70/status/2099492793668268335 | In a year he expects local open-weight models on local hardware to cover ~90% of his AI needs, and anyone who can should work on private inference.
+- 2026-09-14 13:01:56 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2099483787675472092 | Qwen3.8 Flash Next is the fastest flash model you can run on 2x DGX Sparks.
+- 2026-09-14 12:26:12 UTC | @filicroval | https://x.com/filicroval/status/2099474796853461187 | On a single DGX Spark, Agnes 3.0 Flash Preview (NVFP4) with vLLM native MTP doubles per-request decode from 10.62 to 21.89 tok/s (76.7% draft accept) versus no speculation.
+- 2026-09-14 09:47:46 UTC | @shantanugoel | https://x.com/shantanugoel/status/2099434926269771819 | He regularly uses 150–160k of 262k context and finds NVFP4 better than other quantizations.
+- 2026-09-14 09:30:26 UTC | @shantanugoel | https://x.com/shantanugoel/status/2099430562410950669 | Garbage “!” / token-id-0 outputs from the QSA sparse decode path on SM121 were fixed by routing through SGLang’s Triton kernel instead of TRT-LLM/XQA.
+- 2026-09-14 07:42:58 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2099403518691991718 | Small and medium businesses with sensitive data should self-host local AI, which is possible even on a single DGX Spark.
+- 2026-09-14 07:28:04 UTC | @0xBakeer | https://x.com/0xBakeer/status/2099399768954782000 | Non-English still loops with thinking on, long generations hit pruned experts, and six Spark profiles are not yet re-measured at 256k.
+- 2026-09-14 07:27:59 UTC | @0xBakeer | https://x.com/0xBakeer/status/2099399748495057403 | DeepSeek-V4.1-Flash (510 GB) runs on one 128 GB DGX Spark at 256k context by keeping only the experts each job needs (6 of 384 per token).
+- 2026-09-14 07:13:17 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2099396047176909228 | Official unquantized DeepSeek v4.1 Flash on 4x DGX Sparks serves 1M context and 8 concurrent sessions from an 8M KV pool at 45/73/134 tok/s prose.
+- 2026-09-14 05:39:26 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2099372429990641993 | On 3 DGX Sparks you should use native weights because they fit and decode/prefill better than other formats.
+- 2026-09-14 05:18:53 UTC | @0xBakeer | https://x.com/0xBakeer/status/2099367259172970791 | He built qwen38-flash-next-spark for llama.cpp while the other person built it for vLLM.
+- 2026-09-14 05:16:15 UTC | @0xBakeer | https://x.com/0xBakeer/status/2099366595646607661 | He is considering a 27B on the DGX Spark so there is room for an embedder.
+- 2026-09-14 04:36:14 UTC | @0xSero | https://x.com/0xSero/status/2099356527614148862 | Local models can orchestrate cloud AI through tmux and keep the loop going.
+- 2026-09-13 22:21:23 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2099262193237647618 | GLM 5.3 Flash and DeepSeek are comparable on many tasks, and GLM 5.3 Flash remains one of her favorite open models.
+- 2026-09-13 19:32:07 UTC | @MarkusEicher70 | https://x.com/MarkusEicher70/status/2099219595492041017 | The true AI-enthusiast bubble is still small, which is good because it means fewer Spark buyers.
+- 2026-09-13 18:48:20 UTC | @shantanugoel | https://x.com/shantanugoel/status/2099208575826677791 | Qwen 3.8 Flash Next is pretty good at vision even at NVFP4 on a single Spark.
+- 2026-09-13 18:43:42 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2099207408035749938 | Local DeepSeek v4.1 Flash on 4x RTX 6000 Pros is way faster than the official DeepSeek API.
+- 2026-09-13 18:32:49 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2099204670333882699 | DeepSeek v4.1 Flash hits 500 tok/s decode on 4x RTX 6000 Pros.
+- 2026-09-13 17:24:55 UTC | @0xBakeer | https://x.com/0xBakeer/status/2099187583557206063 | After 60 hours of measurements he has analyzed the whole DeepSeek 4.1 model and will publish soon.
+- 2026-09-13 17:04:46 UTC | @0xSero | https://x.com/0xSero/status/2099182510534009008 | His GLM-5.3-Flash Spark quant is solid (low KLD, 80% top agreement) and more intelligent than most 200B models.
+- 2026-09-13 16:07:32 UTC | @0xSero | https://x.com/0xSero/status/2099168109567295543 | GLM-5.3-Flash on 1x DGX Spark runs at 20–25 tok/s and is quiet enough to give to Claude/Codex.
+- 2026-09-13 16:04:36 UTC | @filicroval | https://x.com/filicroval/status/2099167372565238137 | Agnes 3.0 Flash Preview (33B) runs on a single DGX Spark and one-shotted a voxel sea turtle, with better quants still expected.
+- 2026-09-13 15:36:17 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2099160245503156251 | She still personally runs GLM 5.3 Flash on 2 Sparks.
+- 2026-09-13 15:25:16 UTC | @MarkusEicher70 | https://x.com/MarkusEicher70/status/2099157470874611955 | Hermes is his path to independent local AI, and the next step is a second Spark.
+- 2026-09-13 14:32:47 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2099144266261881085 | DeepSeek v4.1 Flash is running on 4x DGX Sparks via her GitHub recipe.
+- 2026-09-13 12:13:29 UTC | @filicroval | https://x.com/filicroval/status/2099109206359982103 | The only next hardware step he sees is NVIDIA releasing a Spark 2.
+- 2026-09-13 11:41:23 UTC | @0xBakeer | https://x.com/0xBakeer/status/2099101128583504310 | One Spark does not have the memory for it, so he is working on a better pruning method.
+- 2026-09-13 11:39:32 UTC | @0xBakeer | https://x.com/0xBakeer/status/2099100663900672251 | Replacing Grok and GPT with a local Spark is seriously impressive.
+- 2026-09-13 11:31:49 UTC | @shantanugoel | https://x.com/shantanugoel/status/2099098723414679848 | He keeps getting an itch to buy a second Spark.
+- 2026-09-13 11:21:12 UTC | @shantanugoel | https://x.com/shantanugoel/status/2099096049772363965 | He runs Qwen Flash Next NVFP4 every day on his Spark via Hermes for ~200–220-step jobs that used to be Grok 4.6 / GPT 5.6 Luna.
+- 2026-09-13 11:06:34 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2099092368515268768 | 2x DGX Spark owners now have GLM 5.3 Flash, DeepSeek v4.1/v4 Flash, and Qwen3.8-Flash-Next as strong options.
+- 2026-09-13 10:36:40 UTC | @MarkusEicher70 | https://x.com/MarkusEicher70/status/2099084842163912962 | Open-weight local AI inference cannot easily be stopped unless GPUs refuse unsigned models.
+- 2026-09-13 10:20:02 UTC | @MarkusEicher70 | https://x.com/MarkusEicher70/status/2099080656198176870 | Local AI inference with near-SOTA open weights is unenforceable to stop.
+- 2026-09-13 09:29:41 UTC | @filicroval | https://x.com/filicroval/status/2099067985348407553 | He will buy more Sparks when the price drops because two or more yield much more intelligence than one.
+- 2026-09-13 09:16:02 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2099064551459131872 | She posted how to run DeepSeek v4.1 Flash on 2 DGX Sparks.
+- 2026-09-13 09:13:22 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2099063878537666849 | DeepSeek v4.1 Flash on 2x DGX Sparks (EXL3) delivers ~32 tok/s prose, ~1000 tok/s prefill, 600k context, and a 775k KV pool.
+- 2026-09-13 06:11:52 UTC | @0xBakeer | https://x.com/0xBakeer/status/2099018206669136221 | Qwen’s tradeoff is overthinking and rough English, so compare Spark tasks end-to-end rather than tok/s.
+- 2026-09-13 05:58:04 UTC | @0xBakeer | https://x.com/0xBakeer/status/2099014731356934347 | A dense model on Spark is limited to ~270 GB/s bandwidth.
+- 2026-09-13 05:52:59 UTC | @0xBakeer | https://x.com/0xBakeer/status/2099013453352423575 | Two Sparks is a proper setup and Qwen Flash is a solid model.
+- 2026-09-13 05:44:10 UTC | @0xBakeer | https://x.com/0xBakeer/status/2099011232795598864 | BF16 27B on Spark is really slow.
+- 2026-09-13 05:42:14 UTC | @0xBakeer | https://x.com/0xBakeer/status/2099010748252905894 | Qwen Flash with TP=2 on two Sparks may beat a slow dense model on a single Spark.
+- 2026-09-12 20:24:46 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2098870457445322957 | Do not upgrade DGX Spark to driver 610.43.02 / kernel 7.0.0-1019-nvidia because it causes NCCL/RoCE registration failures.
+- 2026-09-12 19:18:47 UTC | @0xSero | https://x.com/0xSero/status/2098853851495313577 | Future model releases will be EXL3-based dynamic systems that run inference, gather observations, and let users switch bpw/pruning per use case.
