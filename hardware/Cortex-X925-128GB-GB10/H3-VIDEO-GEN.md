@@ -154,10 +154,15 @@ Confirm streams with pyav (in the omni venv):
 |---|---|---|---|---|---|
 | cats (cold first run) | 4 s | 107 | 209.1 s | 20.9 s | |
 | dogs (warm) | 4 s | 107 | 206.0 s | 20.6 s | warm ≈ cold |
-| dogs (15 s) | 15 s | ~360 | _TBD_ | _TBD_ | ~3.4× the frames |
+| dogs (max duration) | 15 s | 362 | **1039.9 s (17.3 min)** | 104.0 s | ~5× the 4 s/step |
 
 **Warm ≈ cold**: ~20.6 s/step is the steady-state cost, not a cold-start
-artifact. Denoise is ~96% of E2E. A full 50-step pass ≈ 17 min. The sub-2-min
+artifact. **Duration scales worse than linearly**: 15 s (362 frames) costs ~104 s/step
+vs ~20.6 s/step at 4 s (107 frames) — ~5× for ~3.4× the frames, because attention
+grows superlinearly with sequence length. So a 15 s clip at 10 steps is ~17 min.
+Denoise is ~96% of E2E; a full 50-step pass would be hours. **Memory is flat across
+durations** (~30–33 GiB free whether 4 s or 15 s) — the footprint is
+weight-dominated, so longer clips cost time, not pool. The sub-2-min
 "~95 s" figures in the field reports are the **ComfyUI pruned+turbo** path
 (#385), not this vLLM-Omni FP8 one. GPU during render (gcx/DCGM): util ~96 %,
 power ~63–69 W, temp ~70 °C, SM clock ~2.4 GHz, `MEM_COPY_UTIL 0` — compute-bound,
