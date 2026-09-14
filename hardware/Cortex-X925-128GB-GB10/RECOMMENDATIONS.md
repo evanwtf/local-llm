@@ -98,10 +98,14 @@ raw decode on the box (~43 tok/s, MTP speculation) — yet its **median agent wa
 (85.2 s) is over 1.5× the llama.cpp Q3 row (55.9 s)**. Two reasons, and neither
 is decode speed: on this task set the NVFP4 quant takes **more turns**
 (13 vs 9), and its agent-observed cost per turn (6.6 s) is *higher*, not lower,
-than the llama.cpp lane's (6.2 s) once re-prefill is counted. Same model family,
-so the extra turns are the quant's behaviour, not the engine. If a benchmark
-tweet quotes tok/s, it is not quoting what finishes your task. That is why row 1
-is the Q3 lane, not the higher-throughput NVFP4 lane.
+than the llama.cpp lane's (6.2 s) once re-prefill is counted. The two lanes
+differ in more than the engine — the NVFP4 lane also runs MTP speculation, and
+[#354] found that speculation *by itself* can multiply agent turn count on this
+machine — so the extra turns are not cleanly attributable to the quant alone.
+What is certain, and enough for the recommendation: the higher-throughput lane
+finishes this task set in more wall time. If a benchmark tweet quotes tok/s, it
+is not quoting what finishes your task. That is why row 1 is the Q3 lane, not the
+higher-throughput NVFP4 lane.
 
 **Prefill levers that measured null on this machine** ([#344]): the larger
 physical batch (`-ub 2048`) moved nothing and OOM-stalled the box at this model
@@ -154,4 +158,5 @@ re-prefills fast.
 [#333]: https://github.com/evanwtf/local-llm/issues/333
 [#342]: https://github.com/evanwtf/local-llm/issues/342
 [#344]: https://github.com/evanwtf/local-llm/issues/344
+[#354]: https://github.com/evanwtf/local-llm/issues/354
 [#369]: https://github.com/evanwtf/local-llm/issues/369
