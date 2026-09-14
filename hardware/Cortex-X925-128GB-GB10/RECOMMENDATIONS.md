@@ -61,8 +61,8 @@ cd ~/some/project
 opencode run --dir "$PWD" "add a --verbose flag to the CLI and a test for it"
 ```
 
-**28/29 on our benchmark (96.6%), 30.7 s median task, on the box** ([#335]) —
-about **55% of the wall time** of the next option (llama.cpp Q3, 55.9 s). Replace
+**56/57 on our benchmark (98%, n=60), 35.0 s median task, on the box** ([#335]) —
+about **63% of the wall time** of the next option (llama.cpp Q3, 55.9 s). Replace
 `SPARK-IP` with the Spark's LAN address; the WiFi round trip is on top and
 unmeasured.
 
@@ -85,10 +85,10 @@ box; "turns" is the median agent turn count.
 
 | pick this if | model | engine | pass | median | turns | note |
 |---|---|---|---|---|---|---|
-| **you want the agent done fastest** | Qwen3.6-**35B-A3B** `NVFP4`, thinking off | vLLM 0.29.0, MARLIN | **28/29 (97%)** | **30.7 s** | 11 | fastest here; 2.8 s/turn — a 3B-active MoE, cheap turns ([#335]) |
+| **you want the agent done fastest** (and the best server) | Qwen3.6-**35B-A3B** `NVFP4`, thinking off | vLLM 0.29.0, MARLIN | **56/57 (98%)** | **35.0 s** | 11 | fastest here (3.2 s/turn, a 3B-active MoE) *and* the best multi-client server — 321 tok/s at 8 concurrent seqs ([#335], [#347]) |
 | **you want the simplest server to stand up** | Flash-Next `UD-Q3_K_XL`, thinking off | llama.cpp CUDA sm_121 | **151/151** | 55.9 s | 9 | one `llama-server` binary, no venv; 6.2 s/turn |
 | **…and the KV cache halved** | same, `q8_0` KV | llama.cpp, port 8022 | **90/90** | 52.4 s | 9 | quality-neutral memory win ([#344]) |
-| **you want measured multi-client serving** | Flash-Next `NVFP4` | vLLM (styles01 fork), MTP-3 | **60/60** | 85.2 s | 13 | ~160 tok/s aggregate at 8 concurrent seqs, 262K ctx ([#308], [#331]). *Slower single-agent wall — §3.* |
+| **you want a larger model / 262K context** | Flash-Next `NVFP4` (125B-A6B) | vLLM (styles01 fork), MTP-3 | **60/60** | 85.2 s | 13 | the big-model lane, 262K ctx, packed-PLE ([#331]). Slower single-agent wall *and* lower concurrency (160 tok/s @ 8 seqs) than the A3B row above ([#308], [#347]) — §3. |
 | **you want a second, non-Qwen lineage** | DeepSeek-V4-Flash Q2 | ds4 CUDA sm_121a | **60/60** | 213.2 s | 9 | the only non-Qwen 100%-pass option ([#369] opens SSD streaming) |
 | **you want it to show its work** | Flash-Next Q3, thinking on | llama.cpp CUDA sm_121 | 92/104 (88%) | 106.1 s | 9 | reasoning in the transcript, but ~2× the wall *and* below the 90% bar ([#333]) |
 
@@ -115,7 +115,7 @@ that paid off here (§4).
 
 **Fastest tokens/sec is still not fastest agent.** The Flash-Next NVFP4/vLLM row
 has the highest *raw* single-stream decode on the box (~43 tok/s, MTP
-speculation) — yet its **median agent wall (85.2 s) is nearly 3× the A3B row**.
+speculation) — yet its **median agent wall (85.2 s) is ~2.4× the A3B row**.
 Two reasons, neither of them decode rate: it runs more turns (13 vs 11), and its
 agent-observed cost per turn (6.6 s) is *higher* once re-prefill is counted — the
 125B-A6B Flash-Next has twice A3B's active params. The lane also runs MTP
@@ -150,7 +150,7 @@ regardless of engine). The lever that pays is **how many bytes the model touches
 per turn** — and the cleanest way to cut that is **fewer active parameters**, not
 a faster engine. The A3B row is the proof: same NVFP4 quantization and the same
 vLLM as the 27B and Flash-Next lanes, but ~3B active params instead of 6B+ gives
-it 2.8 s/turn and the fastest agent wall on the box, despite taking *more* turns.
+it 3.2 s/turn and the fastest agent wall on the box, despite taking *more* turns.
 Speculation (MTP) helps single-stream decode and multi-client throughput but does
 not shorten the agent. Optimise for **cheaper turns first** (small-active-param
 model, thinking off), then fewer turns.
