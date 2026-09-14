@@ -148,6 +148,26 @@ Non-negotiable rules when serving here:
   launch (`scripts/memory_gate.py`), and gate each trial with
   `run.py --memory-gate-gib N`.
 
+**The safety net: `earlyoom` + low swappiness (#362).** Prevention above is the
+first line; `earlyoom` is the backstop that keeps the box *reachable* when
+prevention fails, so a mistake costs one killed process, not a physical reboot.
+Installed and enabled as a system service (2026-09-14):
+
+- `/etc/default/earlyoom` — `EARLYOOM_ARGS="-m 10,5 -s 20,10 -r 60 --avoid
+  '(^|/)(systemd|systemd-.*|sshd|dockerd|containerd|earlyoom)$' --prefer
+  '(^|/)(vllm|VLLM|pt_main_thread|llama-server|ollama|python[0-9.]*)$'"`. It
+  SIGTERMs at 10% available memory (~12 GiB) — before the kernel thrashes the
+  box unreachable — and **avoids** sshd/systemd/dockerd (reachability) while
+  **preferring** the inference servers and the agent's model-written python (the
+  #379 runaway). Confirm with `ps -o args= -C earlyoom` and
+  `journalctl -u earlyoom`.
+- `/etc/sysctl.d/99-dgx-oom.conf` — `vm.swappiness = 10` (was 60). Unified
+  LPDDR5X thrashes the 16 GiB swapfile hard at 60; 10 makes the kernel prefer
+  reclaim (and lets earlyoom act) over swapping anon pages.
+
+This does not replace capping the server — a SIGTERM'd run is a lost measurement,
+just not a lost machine. `earlyoom` firing on a benchmark means the cap was wrong.
+
 
 `check` refuses a launch into a known-bad state: dirty tree (rows would be
 stamped `harness_dirty` and may not be published), lock held, a **stale** lock
