@@ -59,6 +59,7 @@ Each script explains itself in full at the top of its own file -- what it comput
 | `memory_gate.py` | nvidia | Wait for memory to be safe before starting the next trial. |
 | `metal_knob_ab.py` | mac | Paired decode-rate A/B for one Metal knob env var within one tree. #162 |
 | `model_probe.py` | any | Check a served model's answers in code, never by reading them. |
+| `moe_tile_ab.py` | mac | Paired prefill/decode A/B for the ds4 MoE tensor-tile level, one tree. #328 |
 | `mtp_draft_audit.py` | mac | Audit an MTP arm's drafting counters: the server log beside the ledger. |
 | `mtp_engagement.py` | mac | Does the engine engage MTP on the traffic we actually send it? (#148, #151) |
 | `mtp_log_split.py` | mac | Did MTP draft during the batch, or only before it? (#39, #151, #210) |
