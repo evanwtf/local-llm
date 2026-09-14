@@ -33,6 +33,20 @@ Reached over ssh as `desktop`. **Not always on.**
 These are recorded here rather than in the directory name so the name stays
 stable across updates. Every row also carries them via `machine_facts()`.
 
+**Changed since, 2026-09-10: the CUDA toolkit is installed.** `cuda-toolkit-13-3`
+was added so #278 could build llama.cpp for `sm_86`; `nvcc` is at
+`/usr/local/cuda-13.3/bin/nvcc` and is not on the default `PATH`. The line above
+is the 2026-09-01 snapshot and stays as it was. Two blockers written down while
+it was absent are therefore spent -- #269's "this box has the driver but no
+`nvcc`" is the one that mattered.
+
+The tier now serves **two llama.cpp builds beside Ollama**, and they are not
+interchangeable: PrismML `d8f26ee` in `~/git/llama.cpp` carries the 2-bit
+kernels the bonsai arms need, and upstream `91f6a6c` in
+`~/git/llama.cpp-upstream` is the only one that knows the `spark2_5`
+architecture. Each backend in `tasks.toml` names its own `engine_tree`, so a
+row can say which build answered.
+
 ## What this machine can and cannot do
 
 **No FP8 and no NVFP4.** Ampere `sm_86` lacks the hardware, so every
