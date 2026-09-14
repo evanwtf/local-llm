@@ -5,8 +5,8 @@
 That means: run the sweep in [How to run it](#how-to-run-it) below, verify every
 post before repeating it, and report what changed — not who said what.
 
-This file exists because the Apple-Silicon local-inference field moves faster
-than this project measures. Two engines shipped double-digit improvements in a
+This file exists because the local-inference field moves faster than this
+project measures. Two engines shipped double-digit improvements in a
 48-hour window while our own docs still described a three-engine world (#60).
 
 **Two lanes now (#307).** Every account below the [DGX Spark
@@ -17,6 +17,8 @@ throughput rather than single-stream tok/s. Its sources are collected in their
 own section, and the sweep splits by `--platform` (see [Repositories to
 watch](#repositories-to-watch)). An account can sit in both lanes: several
 "leans NVIDIA, against us" notes below are now a reason to read, not to skip.
+The Ryzen / RTX 3080 Ti desktop has no lane of its own: it is a secondary tier
+and not always on, so nothing here is swept for it in particular.
 
 ---
 

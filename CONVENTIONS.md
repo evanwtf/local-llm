@@ -29,8 +29,14 @@ against it.
 
 ## Model weights stay out of Time Machine (2026-09-06)
 
-Every directory holding GGUF weights must be excluded from Time Machine
-**before** the first file lands in it:
+This rule is **macOS-specific** (Time Machine, `tmutil`) and governs the M5 Max.
+The DGX Spark and the Ryzen desktop run Linux and have no Time Machine — apply
+the same reasoning to whatever backup runs there, or confirm none does. The
+principle is general: do not back up a large, wholesale-changing, re-downloadable
+weights tree.
+
+On the M5 Max, every directory holding GGUF weights must be excluded from Time
+Machine **before** the first file lands in it:
 
 ```sh
 tmutil addexclusion ~/models
