@@ -10,7 +10,10 @@ locally as one trial, and a well-behaved run is untouched.
 
 from __future__ import annotations
 
+import os
 import pathlib
+import shlex
+import signal
 import sys
 import time
 
@@ -80,6 +83,64 @@ def test_well_behaved_client_is_not_killed():
     )
     assert res.memory_killed is False
     assert res.returncode == 0
+
+
+def test_sigterm_surviving_descendant_is_killed(tmp_path):
+    # The runaway is usually a DESCENDANT of the client and may ignore SIGTERM.
+    # If the leader dies on SIGTERM but the descendant does not, the kill path
+    # must still SIGKILL the whole group -- otherwise the row is excluded while
+    # the memory hog keeps growing toward the global OOM this cap exists to stop
+    # (#379 review finding). This exercises the real process tree, no injection
+    # of the kill itself.
+    pidfile = tmp_path / "child.pid"
+    child_code = (
+        "import os,signal,time;"
+        "signal.signal(signal.SIGTERM, signal.SIG_IGN);"
+        f"open({str(pidfile)!r},'w').write(str(os.getpid()));"
+        "time.sleep(120)"
+    )
+    # Leader: spawn the SIGTERM-ignoring child (same process group), then wait.
+    # The leader takes the default SIGTERM and dies; the child would survive a
+    # group SIGTERM and is only stopped by the SIGKILL escalation.
+    leader = f"python3 -c {shlex.quote(child_code)} & sleep 120"
+
+    samples = iter([1.0, 5.0, 5.0, 30.0])
+    res = timeout_policy.run_client_with_watchdog(
+        ["bash", "-c", leader],
+        cwd=None,
+        env=None,
+        timeout=None,
+        watchdog=_busy_watchdog(),
+        poll_secs=0.1,
+        grace_secs=0.5,
+        memory_cap_gib=24.0,
+        rss_sampler=lambda _pid: next(samples, 30.0),
+    )
+    assert res.memory_killed is True
+
+    # The child recorded its pid before sleeping; it must be dead soon after the
+    # kill (group SIGKILL), not orphaned and still allocating.
+    for _ in range(40):
+        if pidfile.exists() and pidfile.read_text().strip():
+            break
+        time.sleep(0.05)
+    child_pid = int(pidfile.read_text().strip())
+
+    alive = True
+    deadline = time.monotonic() + 5.0
+    while time.monotonic() < deadline:
+        try:
+            os.kill(child_pid, 0)
+            time.sleep(0.05)
+        except ProcessLookupError:
+            alive = False
+            break
+    if alive:  # never leak a 2-minute sleeper if the fix regressed
+        try:
+            os.kill(child_pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+    assert not alive, f"descendant {child_pid} survived the memory kill"
 
 
 def test_no_cap_never_samples_memory():

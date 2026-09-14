@@ -87,9 +87,18 @@ ORACLE_MEM_CAP_GIB = 8.0
 # the client phase did not, and on 2026-09-14 a model-written solution the agent
 # executed grew to ~51 GiB and drove a GLOBAL OOM that evicted the model server
 # and killed the run. The client (opencode) plus a legitimate task stays in low
-# single-digit GiB, so 24 GiB is generous headroom while still catching a
-# runaway ~4x below the box's 122 GiB -- a local kill of one trial instead of a
-# box-wide outage. Override with LOCAL_LLM_CLIENT_MEM_CAP_GIB (0 disables).
+# single-digit GiB, so 24 GiB is generous headroom while still catching a runaway
+# far below the box's 122 GiB -- a local kill of one trial instead of a box-wide
+# outage. Override with LOCAL_LLM_CLIENT_MEM_CAP_GIB (0 disables).
+#
+# This poll-based cap is a BACKSTOP, not the hard bound: it must be budgeted
+# against *free* headroom, not total RAM. With a large model server resident
+# in the same box (e.g. Flash-Next ~98 GiB), 24 GiB on top can still exceed
+# free memory -- so the authoritative bound is the per-cgroup MemoryMax on
+# claude-bg.service plus moving model servers into their own cgroup (the
+# config-lane fixes in #379). The watchdog also samples every ~2s while a cap is
+# active (DEFAULT_MEM_POLL_SECS), so overshoot past the cap is ~1 GiB, not the
+# ~7.5 GiB a 15s poll would allow.
 CLIENT_MEM_CAP_GIB = float(os.environ.get("LOCAL_LLM_CLIENT_MEM_CAP_GIB", "24"))
 
 
