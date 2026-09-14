@@ -1990,6 +1990,30 @@ context_tokens = 100000
 engine = "ds4"
 engine_tree = "~/git/ds4-metal-228"
 
+# #212/#279: the MTP-ON arm for the pack-level MTP A/B on the current head
+# (ccea768). ccea768's ds4-server has NO --mtp-draft/--nextn CLI flag -- the
+# nextn depth is baked into the model shape (g_ds4_shape.n_nextn_predict=1) and
+# the spec infra is present (DS4_SPEC_PREFIX_SLOTS 5), so MTP is a property of
+# the PACK, not a serve flag: a pack with the nextn block drafts, a trunk pack
+# does not. This backend serves Qwen3.8-Flash-Next-Q40Routed-qwen4exp-MTP-pleext
+# (the Q4_0 pack + q4-mtp sidecar folded in by gguf-tools/qwen4_pack_to_qwen4exp
+# --mtp; general.architecture qwen4exp, block_count 49, nextn embedded). It is
+# NOT declared speculative= because ccea768 surfaces no draft-acceptance counter
+# for the #148/#151 guard to read -- the wall-time result answers "is the nextn
+# pack faster at the agent tier", but cannot prove the draft accept-rate here.
+# Paired against qwen38fnds4q4exp (trunk pack) on the same ccea768 tree, the pack
+# is the only variable. GGUF/tree/KV are overridden per-arm by stack_agent_ab.
+[backend.qwen38fnds4mtpauto]
+description = "Qwen3.8-Flash-Next -q4 converted qwen4exp with embedded MTP (nextn) on ds4-metal ccea768 via the tool-format shim -- MTP-on-by-pack, the arm for the #212 pack-level MTP A/B against qwen38fnds4q4exp (trunk)"
+base_url = "http://127.0.0.1:8101"
+engine_url = "http://127.0.0.1:8000"
+auth_token = "dsv4-local"
+model = "qwen3.8-flash-next-q4"
+opencode_model = "ds4qwenshim/qwen3.8-flash-next-q4"
+context_tokens = 100000
+engine = "ds4"
+engine_tree = "~/git/ds4-metal"
+
 # #228: the CURRENT-HEAD counterpart to qwen38fnds4q4exp. Same converted
 # qwen4exp pack, same shim/ports/MTP-off -- the ONLY thing that moves is the
 # ds4 engine tree: ds4-metal-228 @ 6c1e836 -> ds4-metal-head @ 10830f4, which
