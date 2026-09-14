@@ -101,6 +101,14 @@ qwen3.6:27b-coding` (~20 GiB, smallest download, no flags) gets you an agent —
 but it scored **59/70 (84%)** at a 139 s median on this set, under the bar we'd
 stand behind. Reach for it to kick the tyres, not to do the work.
 
+**Do not reach for Ollama's `nvfp4` or `mxfp8` tags here** — this box's native
+NVFP4 has no Ollama path. `27b-coding-nvfp4` and `27b-coding-mxfp8` publish as
+MLX per-tensor layers (`application/vnd.ollama.image.tensor`), and Ollama 0.34.0
+routes those to an MLX runtime that does not exist on a CUDA box — the pull fails
+with *"this model requires MLX support"* before a byte moves. Only the plain
+`27b-coding` (a GGUF `image.model` blob, q4) runs under Ollama here. For NVFP4,
+serve it with vLLM (the fast row above), not Ollama (#293).
+
 ---
 
 ## 3. What does not help — and the trap in "fastest"
@@ -182,6 +190,7 @@ model, thinking off), then fewer turns.
 | how any single number was measured | the issue it cites, and `results.jsonl` |
 
 [#23]: https://github.com/evanwtf/local-llm/issues/23
+[#293]: https://github.com/evanwtf/local-llm/issues/293
 [#308]: https://github.com/evanwtf/local-llm/issues/308
 [#317]: https://github.com/evanwtf/local-llm/issues/317
 [#331]: https://github.com/evanwtf/local-llm/issues/331
