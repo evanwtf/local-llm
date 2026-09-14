@@ -38,7 +38,7 @@ backend, an agent runtime, and vision (#307–#310):
 | **CPU** | Arm **Cortex-X925**, 20 cores, governor `performance` |
 | **Memory** | **128 GB LPDDR5X, unified** (CPU/GPU shared), 121.7 GiB visible |
 | **OS / arch** | Ubuntu 24.04, Linux 6.17 · **aarch64** · `tier = "gb10-spark"` |
-| **Backends** | llama.cpp CUDA, ds4 CUDA (`sm_121a`), vLLM NVFP4 (`qwen38fnnvfp4dgx`, #331) — every one carries the `*dgx` suffix and `tier = "gb10-spark"` in `tasks.toml`. Blackwell reaches **FP8 and NVFP4** in hardware, but not through Ollama on Linux (no MLX runtime, #293), so NVFP4 needs a CUDA-native engine (vLLM, #299). |
+| **Backends** | llama.cpp CUDA, ds4 CUDA (`sm_121a`), vLLM NVFP4 (`qwen38fnnvfp4dgx` #331, `qwen36a3bnvfp4dgx` #335) — every one carries the `*dgx` suffix and `tier = "gb10-spark"` in `tasks.toml`. Blackwell reaches **FP8 and NVFP4** in hardware, but not through Ollama on Linux (no MLX runtime, #293), so NVFP4 needs a CUDA-native engine (vLLM, #299). |
 | **Data** | [`hardware/Cortex-X925-128GB-GB10/`](hardware/Cortex-X925-128GB-GB10/RECOMMENDATIONS.md) — Flash-Next `UD-Q3_K_XL` 30/30 at 108.2 s on the 10-task matrix ([`RESULTS-agent.md`](hardware/Cortex-X925-128GB-GB10/RESULTS-agent.md)); the thinking-off served lane is faster still ([`RECOMMENDATIONS.md`](hardware/Cortex-X925-128GB-GB10/RECOMMENDATIONS.md)). |
 | **Confinement** | **none** — `sandbox-exec` is macOS-only, so `workspace_escapes` is unenforced, as on the Ryzen box |
 
