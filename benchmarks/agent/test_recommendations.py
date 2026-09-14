@@ -20,12 +20,17 @@ import splice_tables
 
 from conftest import HAS_LOCAL_RESULTS, SKIP_NO_RESULTS
 
-DOC = pathlib.Path(__file__).resolve().parents[2] / "RECOMMENDATIONS.md"
-# The generated tables and the reasoning moved to docs/ on 2026-09-08
-# (#232). DOC is what a stranger reads first; TABLES_DOC is what the
-# splice writes. A test that asserts a property of the tables must
-# name TABLES_DOC, or it silently checks a file that no longer has
-# them and passes for the wrong reason.
+# The M5 Max picks moved to hardware/<machine>/ and the root RECOMMENDATIONS.md
+# became a per-machine map/hub (#372/#373). DOC is that machine's picks file --
+# the section-1 paste, the ledger marker, the pick table. The generated tables
+# and the reasoning moved to docs/ on 2026-09-08 (#232): TABLES_DOC is what the
+# splice writes. A test asserting a property of the tables must name TABLES_DOC,
+# or it silently checks a file that no longer has them and passes for the wrong
+# reason.
+DOC = (
+    pathlib.Path(__file__).resolve().parents[2]
+    / "hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/RECOMMENDATIONS.md"
+)
 TABLES_DOC = pathlib.Path(__file__).resolve().parents[2] / "docs/results.md"
 STACKS_DOC = pathlib.Path(__file__).resolve().parents[2] / "docs/stacks.md"
 

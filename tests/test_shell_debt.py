@@ -130,14 +130,19 @@ def test_the_keep_list_names_files_that_exist_and_gives_a_reason() -> None:
 def test_the_user_facing_installer_is_kept() -> None:
     """The 90% target must not be read as "port everything".
 
-    RECOMMENDATIONS.md section 3 tells a stranger to run
+    The M5 Max RECOMMENDATIONS.md section 3 tells a stranger to run
     `scripts/local-agent.sh`. Porting it changes published instructions and
     buys nothing -- a Python installer is still a script you paste -- and at
     284 lines it is the single biggest file left, which is exactly what makes
     it the one somebody reaches for when the line count is close.
     """
     assert "scripts/local-agent.sh" in shell_debt.KEEP
-    assert "local-agent.sh" in (ROOT / "RECOMMENDATIONS.md").read_text()
+    assert (
+        "local-agent.sh"
+        in (
+            ROOT / "hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/RECOMMENDATIONS.md"
+        ).read_text()
+    )
 
 
 def test_dies_with_names_scripts_that_are_actually_replaced() -> None:

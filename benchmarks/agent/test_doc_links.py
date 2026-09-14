@@ -31,6 +31,8 @@ DOCS = [
     "AGENTS.md",
     "CONVENTIONS.md",
     "RECOMMENDATIONS.md",
+    "hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/RECOMMENDATIONS.md",
+    "hardware/Cortex-X925-128GB-GB10/RECOMMENDATIONS.md",
     "SOURCES.md",
     "TESTING-SET.md",
     "docs/changelog.md",
