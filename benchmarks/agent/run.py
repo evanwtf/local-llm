@@ -83,6 +83,15 @@ ORACLE_TIMEOUT = 300
 # the machine reached swap. A timeout shortens an outage, a cap prevents one.
 ORACLE_MEM_CAP_GIB = 8.0
 
+# The AGENT phase's memory ceiling (#379). The oracle has had a cap since #82;
+# the client phase did not, and on 2026-09-14 a model-written solution the agent
+# executed grew to ~51 GiB and drove a GLOBAL OOM that evicted the model server
+# and killed the run. The client (opencode) plus a legitimate task stays in low
+# single-digit GiB, so 24 GiB is generous headroom while still catching a
+# runaway ~4x below the box's 122 GiB -- a local kill of one trial instead of a
+# box-wide outage. Override with LOCAL_LLM_CLIENT_MEM_CAP_GIB (0 disables).
+CLIENT_MEM_CAP_GIB = float(os.environ.get("LOCAL_LLM_CLIENT_MEM_CAP_GIB", "24"))
+
 
 def run(cmd, cwd, env=None, timeout=None):
     # stdin must be closed, not inherited. `codex exec` prints "Reading
@@ -3106,15 +3115,21 @@ def one_trial(
                 env=agent_env(backend),
                 timeout=timeout,
                 watchdog=watchdog,
+                memory_cap_gib=CLIENT_MEM_CAP_GIB or None,
                 log=logger,
             )
-            if proc.idle_stalled or proc.timed_out:
+            if proc.idle_stalled or proc.timed_out or proc.memory_killed:
                 exc = subprocess.TimeoutExpired(
                     cmd=argv, timeout=timeout, output=proc.stdout, stderr=proc.stderr
                 )
-                exc.timeout_reason = (  # type: ignore[attr-defined]
-                    "gpu-idle-stall" if proc.idle_stalled else "wall-clock"
-                )
+                if proc.memory_killed:
+                    reason = "memory-cap"
+                elif proc.idle_stalled:
+                    reason = "gpu-idle-stall"
+                else:
+                    reason = "wall-clock"
+                exc.timeout_reason = reason  # type: ignore[attr-defined]
+                exc.client_peak_rss_gib = proc.peak_rss_gib  # type: ignore[attr-defined]
                 raise exc
         else:
             proc = run(
@@ -3225,10 +3240,25 @@ def one_trial(
     except subprocess.TimeoutExpired as exc:
         result["error"] = "timeout"
         # #366. Why it timed out: "gpu-idle-stall" (the GPU sat at idle power
-        # while the client did nothing) or "wall-clock" (the hard per-step
-        # deadline). A plain run() timeout carries no tag, so it is a wall-clock
-        # timeout by definition -- the default keeps that path unchanged.
+        # while the client did nothing), "wall-clock" (the hard per-step
+        # deadline), or "memory-cap" (#379: the client tree crossed the RSS
+        # ceiling and was killed before it could OOM the box). A plain run()
+        # timeout carries no tag, so it is a wall-clock timeout by definition --
+        # the default keeps that path unchanged.
         result["timeout_reason"] = getattr(exc, "timeout_reason", "wall-clock")
+        if result["timeout_reason"] == "memory-cap":
+            # #379 item: a client memory-kill is not "the model wrote wrong
+            # code" -- the trial was aborted to protect the box, so do not count
+            # it in a pass rate. results.usable() drops the row on `excluded`.
+            peak = getattr(exc, "client_peak_rss_gib", 0.0)
+            result["client_memory_killed"] = True
+            result["peak_rss_gib"] = peak
+            result["excluded"] = True
+            result["exclusion_reason"] = (
+                f"client process tree exceeded the {CLIENT_MEM_CAP_GIB:.0f} GiB "
+                f"memory cap (peak {peak:.1f} GiB); killed to prevent a global "
+                "OOM (#379)"
+            )
 
         # The killed process still has whatever it emitted before the deadline,
         # and a timeout is the row you most want to read: it records only that

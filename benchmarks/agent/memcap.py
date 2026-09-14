@@ -77,6 +77,18 @@ def tree_rss_gib(root: int, table: dict[int, tuple[int, int]]) -> float:
     return round(total / 1024**2, 2)
 
 
+def sample_tree_rss_gib(pid: int) -> float:
+    """Resident set of `pid` and every descendant right now, in GiB.
+
+    One `ps` sweep, reused by the client watchdog (#379) so the agent phase gets
+    the same tree-RSS ceiling the oracle already has -- the agent's own executed
+    code (a runaway model-written solution) grows in a descendant, not in the
+    client process itself. Returns 0.0 when the table cannot be read, which the
+    caller treats as "unknown", never as a breach.
+    """
+    return tree_rss_gib(pid, _rss_kib_by_pid())
+
+
 def run_capped(cmd, cwd, timeout, cap_gib, env=None):
     """subprocess.run, but killed if the process tree exceeds `cap_gib`.
 

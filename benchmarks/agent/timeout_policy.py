@@ -46,6 +46,7 @@ if str(_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS))
 
 import gpu_utilization
+import memcap
 
 logger = logging.getLogger(__name__)
 
@@ -139,8 +140,9 @@ class ClientResult:
     """What a watched client run produced.
 
     ``returncode`` is None when the process was killed and never reported one.
-    ``idle_stalled`` and ``timed_out`` are the two ways the watchdog ended it;
-    both are False on a normal exit.
+    ``idle_stalled``, ``timed_out`` and ``memory_killed`` are the three ways the
+    watchdog ended it; all False on a normal exit. ``peak_rss_gib`` is the
+    largest tree-RSS sample taken during the run (0.0 when no cap was set).
     """
 
     stdout: str
@@ -148,6 +150,8 @@ class ClientResult:
     returncode: int | None
     idle_stalled: bool
     timed_out: bool
+    memory_killed: bool = False
+    peak_rss_gib: float = 0.0
 
 
 def _terminate_group(
@@ -190,6 +194,8 @@ def run_client_with_watchdog(
     watchdog: IdleStallWatchdog,
     poll_secs: float = DEFAULT_POLL_SECS,
     grace_secs: float = DEFAULT_GRACE_SECS,
+    memory_cap_gib: float | None = None,
+    rss_sampler: Callable[[int], float] = memcap.sample_tree_rss_gib,
     log: logging.Logger = logger,
 ) -> ClientResult:
     """Run a client subprocess under the idle-stall watchdog.
@@ -217,6 +223,8 @@ def run_client_with_watchdog(
     start = time.monotonic()
     idle_stalled = False
     timed_out = False
+    memory_killed = False
+    peak_rss_gib = 0.0
     stdout = ""
     stderr = ""
     while True:
@@ -229,6 +237,20 @@ def run_client_with_watchdog(
         except subprocess.TimeoutExpired:
             pass
         watchdog.sample()
+        if memory_cap_gib:
+            # The agent phase gets the ceiling the oracle already has (#82/#379).
+            # The runaway grows in a descendant of the client (model-written code
+            # the agent executed), so sample the whole tree, not just the client.
+            peak_rss_gib = max(peak_rss_gib, rss_sampler(proc.pid))
+            if peak_rss_gib > memory_cap_gib:
+                memory_killed = True
+                log.error(
+                    "client memory cap: process tree reached %.1f GiB, cap is "
+                    "%.1f GiB -- killing the group before it OOMs the box (#379)",
+                    peak_rss_gib,
+                    memory_cap_gib,
+                )
+                break
         if watchdog.stalled():
             idle_stalled = True
             log.error(
@@ -246,7 +268,7 @@ def run_client_with_watchdog(
             )
             break
 
-    if idle_stalled or timed_out:
+    if idle_stalled or timed_out or memory_killed:
         _terminate_group(proc, grace_secs, log)
         # Collect whatever was produced before and during the kill.
         try:
@@ -262,6 +284,8 @@ def run_client_with_watchdog(
         returncode=proc.returncode,
         idle_stalled=idle_stalled,
         timed_out=timed_out,
+        memory_killed=memory_killed,
+        peak_rss_gib=peak_rss_gib,
     )
 
 
