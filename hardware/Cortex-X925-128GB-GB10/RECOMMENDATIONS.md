@@ -140,6 +140,18 @@ it costs character-level exactness. Two probes that flip:
 If your work is character-level string manipulation, take the thinking-on row
 and accept the wall and the lower pass rate.
 
+**If you turn thinking on, give it a token budget.** With thinking on and a low
+`max_tokens`, the model can spend the entire budget reasoning and return **empty
+content** — a turn-1 death with no answer, not a wrong one. Measured on the A3B
+NVFP4 server ([#349], temp 0, a one-line arithmetic prompt): `max_tokens` ≤ 256
+returned empty content every time with `finish_reason=length` and
+`reasoning_tokens` exactly equal to the ceiling; the answer only appeared at 512+,
+where reasoning wanted ~400–550 tokens and needed room for the reply on top. The
+same prompt with thinking **off** returned a correct short answer at every budget
+down to `max_tokens=16`. So a thinking-on ceiling must clear the reasoning the
+prompt induces *plus* the answer — an agent turn needs far more than 512 — or the
+turn comes back empty. (Thinking-off, the default in §1, has no such floor.)
+
 ---
 
 ## 4. Why decode speed is not the thing to optimise
@@ -177,5 +189,6 @@ model, thinking off), then fewer turns.
 [#335]: https://github.com/evanwtf/local-llm/issues/335
 [#342]: https://github.com/evanwtf/local-llm/issues/342
 [#344]: https://github.com/evanwtf/local-llm/issues/344
+[#349]: https://github.com/evanwtf/local-llm/issues/349
 [#354]: https://github.com/evanwtf/local-llm/issues/354
 [#369]: https://github.com/evanwtf/local-llm/issues/369
