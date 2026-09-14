@@ -59,7 +59,7 @@ other is telling you something.
 
 ### Cortex-X925-128GB-GB10
 
-*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 758 rows, sha256 f956e5777575.*
+*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 818 rows, sha256 ace4bcb8aaad.*
 
 #### Every stack measured under OpenCode
 
@@ -68,8 +68,8 @@ other is telling you something.
 | stack | passed | median | worst | spread |
 |---|---|---|---|---|
 | qwen38fnq3nothinktopkdgx | 30/30 | 54s | 136s | 3.8x |
-| qwen38fnq3nothinkkv8dgx | 30/30 | 56s | 161s | 4.6x |
-| qwen38fnq3nothinkdgx | 121/121 | 63s | 497s | 14.7x |
+| qwen38fnq3nothinkkv8dgx | 60/60 | 59s | 1528s | 43.9x |
+| qwen38fnq3nothinkdgx | 151/151 | 63s | 497s | 14.7x |
 | qwen38fnq3nothinkub2048dgx | 4/4 | 82s | 475s | 14.2x |
 | qwen38fnq3dgx | 89/90 | 127s | 394s | 8.9x |
 | qwen36nvfp4nothinkdgx | 60/60 | 136s | 268s | 5.2x |
@@ -94,7 +94,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | nemotron3nano | 19s |
 | qwen38fnq3dgx | 58s |
 | qwen38fnq3nothinkub2048dgx | 69s |
-| qwen38fnq3nothinkdgx | 70s |
+| qwen38fnq3nothinkdgx | 69s |
 | qwen38fnq3nothinktopkdgx | 71s |
 | qwen38fnq3nothinkkv8dgx | 73s |
 | qwen36codinggguf | 73s |
