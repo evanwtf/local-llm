@@ -42,7 +42,7 @@ which task" table before each task.
 |---|---|---|
 | sleep until the next tick | `ScheduleWakeup` (`/loop` dynamic mode) | a bounded wait with a deadline, then re-enter §3 |
 | wait on a long job | `Bash run_in_background` and its exit notification | a background process; poll its exit status with a deadline |
-| message the DGX Spark peer session | `SendMessage`; get the current address from `ListAgents` or the operator | not addressable; post on the issue and tell the operator |
+| find a peer on the M5 Max itself | `ListAgents` (local rows only) and `scripts/machine_state.py` | `scripts/machine_state.py`; `ps` for agent processes |
 | a second opinion on a design or review | `codex exec` with the prompt on stdin, read-only | a Claude session, or skip and say so |
 
 Never use an unbounded `tail -f` or `until` waiter. Poll for the job's own exit
@@ -132,7 +132,7 @@ flight at X finishes; then ask the operator.
 
 ```
 tick:
-  1. date; machine_state.py; gh run list; a peer check if 20 min have passed
+  1. date; machine_state.py; gh run list; a same-machine peer check if 20 min have passed
   2. a run is live      -> check progress; 5-minute status; do not touch the checkout
   3. a run has finished -> read out (§5), post the verdict, land the rows (§6)
   4. the machine is FREE -> pick the next item (§4), preflight, launch
@@ -157,12 +157,16 @@ Metrics: <the line from `uv run python scripts/mac_dash.py`>
 During any long run, also post a status update every 5 minutes. When an update
 carries a result, post it on the issue that owns the run.
 
-### 3b. Peer check — every 20 minutes
+### 3b. Peer check — every 20 minutes, same machine only
 
+- The check covers agent sessions on the **M5 Max itself**: they share its GPU,
+  its run lock, and its checkout. Sessions on other machines (the DGX Spark)
+  run their own lanes. Do not ping them on this cadence.
+- Find same-machine peers with `ListAgents` (local rows, not Remote Control
+  rows) and `scripts/machine_state.py` (lock holder, peer status file). If there
+  is none, no check is due.
 - Check what each peer is **doing**, not whether it is idle. A peer that pushed
   and stopped does not know CI went red.
-- The DGX Spark session owns the Nvidia lane, including #394. Message it about
-  changes to shared files, reviews it owes, and API contracts (§7).
 - Silence can mean a peer is out of quota. A review condition a peer cannot
   meet is a dead letter, not a blocker.
 
@@ -252,8 +256,8 @@ Check each against its issue; the issue is current, this list is not.
 - #392 (dirfix: one shared `fixed_commits()`, a loud reclassification test,
   idempotence) belongs to the M5 Max lane. Keep `dirfix.fixed_commits(repo)` and
   `dirfix.era(row, after)` stable: the DGX Spark lane's #394
-  (`validate_ledgers.py`) calls them. Send the diff to the DGX Spark session for
-  review before merging.
+  (`validate_ledgers.py`) calls them. The contract tests guard that; CI is the
+  gate.
 - #395 (the advisory `wip` claim convention) belongs to the M5 Max lane.
 - #212 (Qwen on ds4) is the M5 Max's main program. Continue it from the issue's
   latest comment.
