@@ -295,9 +295,10 @@ code, or pinned by a test that would go red first. Prefer that to prose: an
 entry that can be made mechanical should be.
 
 **Branch per piece of work, then open a PR and let CI merge it.** `main` is
-branch-protected — **direct pushes are rejected**, so the old `--ff-only` merge
-to `main` no longer works. The gate is not a human reviewer: **no approval is
-required.** A green CI is the whole gate. When the work is done, push the branch,
+branch-protected, and **agents never push to it directly** — the old
+`--ff-only` merge to `main` is retired (see the guardrail note below for why
+that is a rule, not something GitHub enforces on our account). The gate is not
+a human reviewer: **no approval is required.** A green CI is the whole gate. When the work is done, push the branch,
 open a PR, and turn on auto-merge; the PR merges itself the moment the required
 `pytest` check passes.
 
@@ -318,11 +319,13 @@ keeps the branch's commits reachable, which is why linear history is **not**
 required here.
 
 **The protection is a guardrail, not a permission boundary.** Every agent
-session and the operator push as the same GitHub account, an admin, so
-protection cannot separate an agent from the operator. Whether GitHub rejects
-an admin's direct push or lets it bypass with a warning, the rule is the same:
-agents never push to `main` directly and never bypass a failing check. Only
-the operator decides to override. If auto-merge stalls, read the check — a red
+session and the operator push as the same GitHub account, an admin, and the
+protection does not bind admins (`enforce_admins` is off). So GitHub will not
+stop a mistaken direct push to `main` from any of us — do not rely on it to
+catch one. The rule is enforced by discipline: agents never push to `main`
+directly and never bypass a failing check. Only the operator decides to
+override. (A push rejected as `non-fast-forward` is the `strict` up-to-date
+rule or a race, not protection.) If auto-merge stalls, read the check — a red
 `pytest`, or a branch behind `main`, is the usual cause.
 
 **The branch is deleted on merge automatically** (the repo has
