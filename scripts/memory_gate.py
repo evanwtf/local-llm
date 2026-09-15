@@ -15,6 +15,10 @@ PID vanishing is not memory freed, and `nvidia-smi` cannot see the pool at
 all (`memory.used` reads N/A on GB10), so the honest signal is host
 MemAvailable from /proc/meminfo.
 
+The M5 Max has the same unified-pool hazard and no /proc/meminfo, so on macOS
+the gate reads `vm_stat` and `sysctl hw.memsize` instead (#363); see
+`parse_vm_stat`. Both paths report the same JSON fields.
+
 This gate loops once a second, prints one JSON object per reading, and exits
 0 as soon as memory is BOTH above a floor and no longer falling -- "settled",
 not merely momentarily high. It exits 1 if that never happens before the
@@ -35,13 +39,72 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
+import subprocess
 import sys
 import time
 
 GIB = 1024 * 1024  # /proc/meminfo is in kB
+BYTES_PER_GIB = 1024**3
+
+_PAGE_SIZE = re.compile(r"page size of (\d+) bytes")
+_VM_STAT_LINE = re.compile(r'^"?([^":]+)"?:\s+(\d+)\.?$')
+_VM_STAT_AVAILABLE = (
+    "Pages free",
+    "Pages inactive",
+    "Pages speculative",
+    "Pages purgeable",
+)
+
+
+def parse_vm_stat(text: str, memsize_bytes: int) -> dict[str, float]:
+    """macOS memory from `vm_stat` and `sysctl hw.memsize` (#363).
+
+    Available is free + inactive + speculative + purgeable pages: pages the
+    kernel can give a new allocation without swapping, the same meaning as
+    MemAvailable on Linux. The page size comes from vm_stat's own header and
+    never from a default: Apple silicon pages are 16 KiB, so an assumed 4 KiB
+    page would report a quarter of the real headroom. Free and inactive are
+    required; speculative and purgeable count as zero when a macOS release
+    omits them.
+    """
+    size = _PAGE_SIZE.search(text)
+    if not size:
+        raise ValueError("vm_stat output has no page size header")
+    page = int(size.group(1))
+    pages: dict[str, int] = {}
+    for line in text.splitlines():
+        m = _VM_STAT_LINE.match(line.strip())
+        if m:
+            pages[m.group(1).strip()] = int(m.group(2))
+    for key in ("Pages free", "Pages inactive"):
+        if key not in pages:
+            raise ValueError(f"vm_stat output has no {key!r} counter")
+    total = memsize_bytes / BYTES_PER_GIB
+    avail = sum(pages.get(k, 0) for k in _VM_STAT_AVAILABLE) * page / BYTES_PER_GIB
+    return {
+        "total_gib": round(total, 1),
+        "avail_gib": round(avail, 1),
+        "free_gib": round(pages["Pages free"] * page / BYTES_PER_GIB, 1),
+        "used_gib": round(total - avail, 1),
+    }
+
+
+def _darwin_sources() -> tuple[str, int]:
+    vm = subprocess.run(["vm_stat"], capture_output=True, text=True, check=True)
+    size = subprocess.run(
+        ["sysctl", "-n", "hw.memsize"], capture_output=True, text=True, check=True
+    )
+    return vm.stdout, int(size.stdout.strip())
 
 
 def _meminfo() -> dict[str, float]:
+    if sys.platform == "darwin":
+        return parse_vm_stat(*_darwin_sources())
+    return _linux_meminfo()
+
+
+def _linux_meminfo() -> dict[str, float]:
     fields: dict[str, float] = {}
     with open("/proc/meminfo") as fh:
         for line in fh:
