@@ -38,7 +38,11 @@ jobs:
       # -rs names every skip and its reason (#223). This runner skips about 37
       # tests that run on the M5 Max, and a bare -q printed only the count, so
       # a guard that went quiet looked the same as one with nothing to check.
+      # LOCAL_LLM_STRICT_SKIPS=1 fails the run on a skip whose reason is not in
+      # conftest.py's EXPECTED_SKIPS, so a guard that goes quiet turns CI red.
       - name: Test
+        env:
+          LOCAL_LLM_STRICT_SKIPS: "1"
         run: uv run pytest -q -rs
 
       # #394: the invariant tests keyed on results.default_path() only check the
