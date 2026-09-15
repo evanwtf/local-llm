@@ -66,6 +66,29 @@ The separating fact is that **a server process exists and does not answer yet**.
 Prometheus runs on lunix and already scrapes this machine. The datasource UID is
 **`uMatQbvMk`**; `docs/dcgmi.md` covers dcgmi itself.
 
+### Build llama.cpp from the evanwtf fork
+
+On the DGX Spark, build and run llama.cpp from
+[`evanwtf/llama.cpp`](https://github.com/evanwtf/llama.cpp), not directly from
+`ggml-org/llama.cpp`. The fork carries the Prometheus `model` label required to
+separate metrics from different models (#436); it was verified both at the
+local `/metrics` endpoint and after the `dgx.internal:8020` Prometheus scrape.
+The build must descend from the fork's `master` branch and include at least
+[`171824a`](https://github.com/evanwtf/llama.cpp/commit/171824a31d13b7320a7fdc72c3539d6095b6eb0).
+
+The existing checkout may keep `ggml-org/llama.cpp` as an additional upstream
+remote. This example assumes the fork remote is named `fork`. Before a DGX Spark
+build, fetch it and verify the selected revision contains its current `master`:
+
+```sh
+git fetch fork master
+git merge-base --is-ancestor fork/master HEAD
+```
+
+An upstream-only revision is not the DGX Spark operational build even when it
+is newer. Reconcile upstream changes into the fork first, then build the forked
+revision so model-labeled telemetry remains present.
+
 **The token is not in a non-interactive shell's environment.** It lives at
 `~/.config/gcx/token` and is exported as `GRAFANA_TOKEN` by `~/.bashrc`, which
 only interactive login shells source. Every `gcx` call fails `Unauthorized`
