@@ -375,11 +375,12 @@ When new evidence moves the top table, say what it used to say and why it moved.
 It has been wrong twice, and both times the old claim is more useful visible
 than deleted.
 
-## Post a status update every 5 minutes during long runs
+## Post periodic status every 30 minutes during long runs
 
 Benchmark runs here take hours. A silent agent is indistinguishable from a
-stalled one, so **report every 5 minutes** while anything long is running — a
-matrix, a model download, a build.
+stalled one, so **report every 30 minutes** while anything long is running — a
+matrix, a model download, a build. The same cadence applies while an autonomous
+operator is idle.
 
 Each update states:
 
@@ -388,11 +389,14 @@ Each update states:
 - the revised estimate to completion.
 
 Say so plainly when nothing has changed. "Still on trial 7, no results yet" is a
-valid update and is better than silence. Do not drop the cadence because the run
-looks boring; that is when a stall hides longest.
+valid update and is better than silence. Report a completion, failure, blocker,
+or operator decision immediately instead of waiting for the next tick. Do not
+add a second, shorter periodic loop; it creates noise without improving the
+operator's view.
 
 This rule exists because the cadence has been dropped mid-run before, and the
-operator had to ask where the updates went.
+operator had to ask where the updates went. Thirty minutes is the intended
+balance between observability and update spam.
 
 ## Finishing a batch includes regenerating the derived documents
 
