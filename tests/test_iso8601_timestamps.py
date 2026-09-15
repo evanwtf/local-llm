@@ -18,10 +18,14 @@ import datetime
 import json
 import pathlib
 import re
+import sys
 
 import pytest
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "scripts"))
+
+import backfill_iso8601
 
 #: `2026-09-06T17:16:48-0400`. The offset is the point: a naive timestamp is
 #: indistinguishable from a UTC one and silently hours wrong.
@@ -29,10 +33,11 @@ CANONICAL = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{4}$")
 
 #: Fields that hold a moment in time. Named rather than sniffed: a value that
 #: merely looks like a date is not necessarily one, and a rule that guesses
-#: produces the false positives that make people disable it.
-TIME_FIELDS = frozenset({"started", "finished", "ended", "authored_at", "engine_built"})
-
-DATA_GLOBS = ("benchmarks/agent/*.jsonl", "evidence/*.json")
+#: produces the false positives that make people disable it. One source with
+#: the backfill (#209), so this guard never checks a field or file the backfill
+#: does not convert.
+TIME_FIELDS = backfill_iso8601.TIME_FIELDS
+DATA_GLOBS = backfill_iso8601.DATA_GLOBS
 
 
 def _timestamps(obj: object, field: str | None = None):
@@ -157,8 +162,13 @@ def test_preflight_now_iso_carries_an_offset():
 
 
 def test_no_python_producer_stamps_a_time_field_without_an_offset():
-    """A bare %S format string reaching a time field is the whole bug."""
-    naive = re.compile(r'strftime\(\s*"%Y-%m-%dT%H:%M:%S"\s*\)')
+    """A bare %S format string reaching a time field is the whole bug.
+
+    The literal is matched on its own, not inside `strftime(...)`: run.py wrote
+    three mtime fields as `strftime(<newline> "...%S", time.localtime(...))`,
+    which a one-line `strftime("...%S")` pattern never saw (#209).
+    """
+    naive = re.compile(r'"%Y-%m-%dT%H:%M:%S"\s*[,)]')
     offenders = [
         f"{path.relative_to(ROOT)}:{n}"
         for path in sorted(ROOT.glob("benchmarks/agent/*.py"))
