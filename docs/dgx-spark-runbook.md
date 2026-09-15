@@ -219,6 +219,17 @@ were resident (#360). The threshold is `LOCAL_LLM_MEM_SETTLE_MAX_GIB` (default
 appear — the GPU sat at 9 W for twenty-five minutes while a healthy server was
 already listening.
 
+## Toolchains installed on this box (provisioning record)
+
+Packages added to `spark-231e` beyond the base image — what, how, and the version, so a rebuild is reproducible:
+
+| what | how | version | for |
+|---|---|---|---|
+| **earlyoom** | `sudo apt-get install earlyoom` | 1.7-2 | the OOM safety net (#362); config + tuning in the unified-memory section above |
+| **Rust (via rustup)** | `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \| sh -s -- -y --default-toolchain stable --profile minimal` | cargo/rustc **1.98.1** in `~/.cargo/bin` (user-local, no sudo) | building the Layr-Labs cudafast ds4 CUDA engine (#341) |
+
+**Do NOT `apt install rustc cargo` for the cudafast build.** Ubuntu noble ships **1.75.0**, which cannot parse that repo's version-4 `Cargo.lock` (`lock file version 4 requires -Znext-lockfile-bump`; v4 needs cargo ≥1.78). It was tried first and failed at the Rust adapter after the ds4 CUDA/C objects had already built — use rustup (above). `nvcc` / CUDA 13.0.88 and the vLLM venv (`~/venvs/vllm`, with its `ninja`/`nvcc` PATH gotcha) were already present and were not reinstalled.
+
 ## Matching a process by name will bite you
 
 Five separate incidents in one session came from `pkill -f` matching **the shell
