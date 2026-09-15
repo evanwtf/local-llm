@@ -294,27 +294,43 @@ session. A trap leaves the docs only when it becomes impossible — fixed in
 code, or pinned by a test that would go red first. Prefer that to prose: an
 entry that can be made mechanical should be.
 
-**Branch per piece of work, then merge it yourself.** A branch keeps one line
-of work separable while it is in progress, which is worth having. It is not a
-review gate: **do not open a pull request, and do not wait for approval.** When
-the work is done and the tests pass, merge to `main` and push.
+**Branch per piece of work, then open a PR and let CI merge it.** `main` is
+branch-protected — **direct pushes are rejected**, so the old `--ff-only` merge
+to `main` no longer works. The gate is not a human reviewer: **no approval is
+required.** A green CI is the whole gate. When the work is done, push the branch,
+open a PR, and turn on auto-merge; the PR merges itself the moment the required
+`pytest` check passes.
 
 ```sh
 git checkout -b <kind>/<issue>-<slug>     # docs/24-..., analysis/26-..., tasks/4-...
-# ... work, commit, push as you go ...
-git checkout main && git merge --ff-only <branch> && git push
-git branch -d <branch> && git push origin --delete <branch>
+# ... work, commit as you go ...
+git push -u origin <branch>
+gh pr create --fill                       # title/body from the commits
+gh pr merge --auto --merge                # merges when `pytest` is green; deletes the branch
 ```
 
-**Delete the branch once it is merged.** A merged branch left behind reads as
-work still in flight. Three of them accumulated before this rule was written,
-stacked on each other, and `main` sat fourteen commits behind the code its own
-README described.
+The protection enforces: the required `pytest` check must pass, and the branch
+must be up to date with `main` first (`strict`). **Merge with a merge commit
+(`--merge`), never squash or rebase.** Squash and rebase rewrite commit shas, so
+a `harness_head` a run stamped on the branch would no longer be an ancestor of
+`main` — the #355 orphaning failure, systematized onto every PR. A merge commit
+keeps the branch's commits reachable, which is why linear history is **not**
+required here. The operator (repo admin) can push to `main` directly in an
+emergency; agents cannot, and must not try to bypass a failing check. If
+auto-merge stalls, read the check — a red `pytest`, or a branch behind `main`,
+is the usual cause.
 
-Prefer a fast-forward. The branches here are usually a stack -- each one built
-on the last, because the next task starts before the previous is merged -- and a
-stack fast-forwards cleanly if nothing lands on `main` in between. Merge from
-the bottom up if it does not.
+**The branch is deleted on merge automatically** (the repo has
+`delete_branch_on_merge`, and `gh pr merge` deletes it too). A merged branch left
+behind reads as work still in flight; auto-delete removes that clutter. Three of
+them accumulated before this was enforced, stacked on each other, and `main` sat
+fourteen commits behind the code its own README described.
+
+The branches here are often a stack -- each built on the last, because the next
+task starts before the previous is merged. With protected `main` and `strict`
+checks, a dependent branch must be **rebased onto `main` after its parent's PR
+merges** (its parent's commits are then already in `main`); open and auto-merge
+the PRs bottom-up. Do not try to merge a branch whose base has not landed yet.
 
 **Once a run stamps a commit's sha into rows, that sha must stay an ancestor of
 `main`.** `harness_head` is a row's answer to "which harness produced this", and
