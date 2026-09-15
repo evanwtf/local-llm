@@ -162,8 +162,13 @@ def test_preflight_now_iso_carries_an_offset():
 
 
 def test_no_python_producer_stamps_a_time_field_without_an_offset():
-    """A bare %S format string reaching a time field is the whole bug."""
-    naive = re.compile(r'strftime\(\s*"%Y-%m-%dT%H:%M:%S"\s*\)')
+    """A bare %S format string reaching a time field is the whole bug.
+
+    The literal is matched on its own, not inside `strftime(...)`: run.py wrote
+    three mtime fields as `strftime(<newline> "...%S", time.localtime(...))`,
+    which a one-line `strftime("...%S")` pattern never saw (#209).
+    """
+    naive = re.compile(r'"%Y-%m-%dT%H:%M:%S"\s*[,)]')
     offenders = [
         f"{path.relative_to(ROOT)}:{n}"
         for path in sorted(ROOT.glob("benchmarks/agent/*.py"))
