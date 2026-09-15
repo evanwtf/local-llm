@@ -38,6 +38,14 @@ jobs:
       - name: Test
         run: uv run pytest -q
 
+      # #394: the invariant tests keyed on results.default_path() only check the
+      # runner's own hardware, so this Linux runner never checks the committed
+      # M5 or DGX ledgers -- a machine-local break ships green. This validates
+      # EVERY committed hardware/*/results.jsonl regardless of runner, making CI
+      # the real cross-machine net.
+      - name: Validate all committed ledgers
+        run: uv run python scripts/validate_ledgers.py
+
       - name: Check the launcher parses
         run: sh -n claude-ollama
 

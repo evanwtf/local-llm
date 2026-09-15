@@ -68,3 +68,16 @@ repos:
         language: system
         pass_filenames: false
         files: ^NEXT\.md$
+      # #394: validate every committed ledger before it lands, so a machine-local
+      # break (a pre-dir straggler, a duplicate, an archive overlap, a
+      # cross-machine row) never reaches main -- the same class as the 2026-09-14
+      # red main. Fast enough for pre-commit, and it inspects the working tree, so
+      # it must NOT mutate: the archiver runs nowhere in these hooks (TOCTOU --
+      # the commit must land exactly what was validated). Scoped to fire only when
+      # a ledger or the pre-dir archive is staged, like next-md above.
+      - id: validate-ledgers
+        name: every committed ledger holds (scripts/validate_ledgers.py)
+        entry: uv run --frozen python scripts/validate_ledgers.py
+        language: system
+        pass_filenames: false
+        files: ^(hardware/.*/results\.jsonl|docs/archive/results-opencode-pre-dir\.jsonl)$
