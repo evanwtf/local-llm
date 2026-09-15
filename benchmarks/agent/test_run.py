@@ -1535,6 +1535,65 @@ def test_one_trial_builds_the_trial_from_the_parked_checkout(tmp_path):
     assert row["control_fails_as_expected"] is True
 
 
+# --- #71: a timed-out trial still checks the guarded checkout ----------------
+#
+# The integrity check ran only when the client finished. A timeout recorded
+# `source_repo_intact: None`, so a row could flag a workspace escape and have
+# nothing to say about whether the checkout was touched.
+
+
+def _timed_out_trial(tmp_path, monkeypatch, script_for):
+    repo, commit = _tiny_repo(tmp_path)
+    script = script_for(repo)
+    monkeypatch.setitem(
+        run.CLIENTS,
+        "sleeper",
+        (lambda task, backend, worktree=None: ["python3", "-c", script], lambda _: {}),
+    )
+    row = run.one_trial(
+        {"repo": str(repo), "base_commit": commit},
+        {
+            "name": "seam",
+            "file": "mod.py",
+            "symbol": "target_fn",
+            "tests": [],
+            "test_command": "false",
+        },
+        "seam",
+        {"model": "stub", "context_tokens": 1},
+        trial=1,
+        workdir=tmp_path / "work",
+        timeout=1,
+        dry_run=False,
+        client="sleeper",
+        gates=False,
+        sandbox=False,
+        prepare_env_first=False,
+        idle_watchdog=False,
+    )
+    return row
+
+
+def test_a_timeout_still_checks_the_guarded_checkout(tmp_path, monkeypatch):
+    row = _timed_out_trial(
+        tmp_path, monkeypatch, lambda repo: "import time; time.sleep(30)"
+    )
+    assert row["error"] == "timeout"
+    assert row["source_repo_intact"] is True
+    assert "source_repo_reason" not in row
+
+
+def test_a_timeout_that_touched_the_checkout_says_so(tmp_path, monkeypatch):
+    def writes_then_sleeps(repo):
+        target = str(repo / "mod.py")
+        return f"open({target!r}, 'a').write('# agent\\n'); import time; time.sleep(30)"
+
+    row = _timed_out_trial(tmp_path, monkeypatch, writes_then_sleeps)
+    assert row["error"] == "timeout"
+    assert row["source_repo_intact"] is False
+    assert "mod.py" in row["source_repo_reason"]
+
+
 def test_the_sandbox_denies_every_parking_spot(tmp_path):
     """The real checkout keeps full history wherever it is parked, so the deny
     list has to name every parking spot -- not only the legacy -real siblings
@@ -1907,6 +1966,42 @@ def test_engine_provenance_knows_where_each_engine_records_itself():
     assert run.engine_provenance(backends, env) == []
 
 
+def test_engine_provenance_accepts_the_backends_own_server_identity():
+    # #365: a shim-fronted ds4 backend (base_url :8101, engine_url :8000) never
+    # gets `ds4_head`, but its server identity already holds the build of the
+    # tree that served it. 541 M5 Max rows said `ds4_version=unknown` beside a
+    # real `servers.<backend>.engine_version`.
+    env = {
+        "servers": {
+            "qwen38fnds4q4exp": {
+                "engine_version": "6c1e836",
+                "engine_tree": "/Users/x/git/ds4-metal-228",
+            }
+        }
+    }
+    backends = {"qwen38fnds4q4exp": {"engine": "ds4"}}
+    assert run.engine_provenance(backends, env) == []
+    assert "ds4_version" not in env
+
+
+def test_engine_provenance_server_entry_without_a_build_is_still_unknown():
+    # A server record that names no engine_version recorded no build.
+    env = {"servers": {"b": {"metal_route": "tensor"}}}
+    gaps = run.engine_provenance({"b": {"engine": "ds4"}}, env)
+    assert env["ds4_version"] == "unknown"
+    assert len(gaps) == 1
+
+
+def test_engine_provenance_another_backends_server_does_not_count():
+    # Two ds4 backends in one run: one server's build must not vouch for the
+    # other backend, whose tree may be a different commit.
+    env = {"servers": {"a": {"engine_version": "6c1e836"}}}
+    backends = {"a": {"engine": "ds4"}, "b": {"engine": "ds4"}}
+    gaps = run.engine_provenance(backends, env)
+    assert env["ds4_version"] == "unknown"
+    assert len(gaps) == 1 and gaps[0].startswith("b:")
+
+
 def test_engine_provenance_exempts_the_hosted_backend():
     # No engine declared, no build to pin; `hosted_unpinned` covers it.
     env = {}
@@ -1978,3 +2073,86 @@ def test_serving_vllm_records_the_running_launch_argv(monkeypatch):
 def test_serving_vllm_is_none_when_no_vllm_is_up(monkeypatch):
     monkeypatch.setattr(run.subprocess, "run", lambda *a, **k: _Ps("sshd\nbash\n"))
     assert run.serving_vllm() is None
+
+
+# --- #213: the ds4 provenance block runs for a shim-fronted ds4 backend ------
+#
+# capture_versions() gated ds4_head, the served GGUF and server_argv on a
+# base_url ending in :8000. A shim-fronted backend's base_url is the shim's
+# (:8101), so 94 qwen38fnds4mtp7shim rows carry no server_argv while the 3
+# direct qwen38fnds4mtp7 rows do. #211 gave backends an engine_url; the gate
+# asks route_query_port(), which reads it.
+
+
+def test_serves_ds4_counts_a_shim_that_declares_its_engine():
+    backends = {
+        "qwen38fnds4mtp7shim": {
+            "base_url": "http://127.0.0.1:8101",
+            "engine_url": "http://127.0.0.1:8000",
+        }
+    }
+    assert run.serves_ds4(backends)
+
+
+def test_serves_ds4_counts_a_direct_ds4_backend():
+    assert run.serves_ds4({"qwen38fnds4mtp7": {"base_url": "http://127.0.0.1:8000"}})
+
+
+def test_serves_ds4_ignores_a_shim_with_no_declared_engine():
+    """Nothing is inferred: an undeclared upstream is not assumed to be :8000."""
+    assert not run.serves_ds4({"shim": {"base_url": "http://127.0.0.1:8101"}})
+
+
+def test_serves_ds4_ignores_other_engines():
+    assert not run.serves_ds4({"vllm": {"base_url": "http://127.0.0.1:8030"}})
+
+
+# --- #213: llama.cpp rows record the launch argv of the server on their port -
+#
+# The llama.cpp block recorded the commit and the binary's mtime, but not how
+# llama-server was started. Several can run at once (:8020-:8023 are separate
+# arms), so the argv is taken from the process on the backend's own port.
+
+LLAMA_PS = (
+    "sshd\n"
+    "/Users/e/git/llama.cpp/build/bin/llama-server --model /m/a.gguf "
+    "--port 8021 -ub 512\n"
+    "/Users/e/git/llama.cpp/build/bin/llama-server --model /m/a.gguf "
+    "--port 8020 -c 131072 -np 1\n"
+    "bash -c tail -f llama-server.log\n"
+)
+
+
+def test_llamacpp_argv_is_the_process_on_the_requested_port():
+    got = run.llamacpp_argv(LLAMA_PS, 8020)
+    assert got is not None
+    assert got.endswith("--port 8020 -c 131072 -np 1")
+
+
+def test_llamacpp_argv_accepts_the_equals_spelling():
+    ps = "/b/llama-server --model x.gguf --port=8022\n"
+    assert run.llamacpp_argv(ps, 8022) == "/b/llama-server --model x.gguf --port=8022"
+
+
+def test_llamacpp_argv_uses_the_default_port_when_none_is_given():
+    """llama-server listens on 8080 when started without --port."""
+    ps = "./build/bin/llama-server --model x.gguf\n"
+    assert run.llamacpp_argv(ps, 8080) == ps.strip()
+    assert run.llamacpp_argv(ps, 8020) is None
+
+
+def test_llamacpp_argv_ignores_a_command_that_only_mentions_the_server():
+    assert (
+        run.llamacpp_argv("bash -c tail -f llama-server.log --port 8020\n", 8020)
+        is None
+    )
+
+
+def test_llamacpp_argv_is_none_when_no_server_is_on_the_port():
+    assert run.llamacpp_argv(LLAMA_PS, 8023) is None
+
+
+def test_llamacpp_port_maps_the_claude_code_shim_to_its_upstream():
+    assert run.llamacpp_port({"a": {"base_url": "http://127.0.0.1:8020"}}) == 8020
+    assert run.llamacpp_port({"a": {"base_url": "http://127.0.0.1:11500"}}) == 8020
+    assert run.llamacpp_port({"a": {"base_url": "http://127.0.0.1:8030"}}) is None

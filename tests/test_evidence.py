@@ -317,6 +317,64 @@ def test_lint_accepts_claim_declaring_enumerates_and_context_lines(tmp_path):
     assert evidence.load_finding(_write(tmp_path, body))["schema"] == evidence.SCHEMA
 
 
+# --- #176: every cited line number is declared exactly once ------------------
+#
+# `enumerates: []` satisfied the count rule by declaring nothing. Each line
+# number a citation names must now appear in exactly one of `enumerates` or
+# `context_lines`.
+
+
+def _citing_claim(statement, enumerates, context_lines):
+    return _command_claim(
+        statement=statement,
+        enumerates=enumerates,
+        context_lines=context_lines,
+        observed={"exit": 0, "stdout": "9ab70534:ds4_metal.m:10000:x"},
+    )
+
+
+def test_lint_rejects_a_cited_line_declared_nowhere(tmp_path):
+    body = _finding(
+        claims=[_citing_claim("the gate at ds4_metal.m:10000 is pre-M5-only", [], [])]
+    )
+    with pytest.raises(evidence.Refused, match="10000"):
+        evidence.load_finding(_write(tmp_path, body))
+
+
+def test_lint_rejects_a_cited_line_declared_in_both_fields(tmp_path):
+    body = _finding(
+        claims=[
+            _citing_claim(
+                "the gate at ds4_metal.m:10000 is pre-M5-only", [10000], [10000]
+            )
+        ]
+    )
+    with pytest.raises(evidence.Refused, match="both"):
+        evidence.load_finding(_write(tmp_path, body))
+
+
+def test_lint_accepts_a_reference_citation_in_context_lines(tmp_path):
+    """The 0162-metal-diff.json `hc-fusion-pre-m5` shape."""
+    body = _finding(
+        claims=[_citing_claim("fused at ds4_metal.m:3599 before M5", [], [3599])]
+    )
+    assert evidence.load_finding(_write(tmp_path, body))["schema"] == evidence.SCHEMA
+
+
+def test_lint_accepts_two_reference_citations(tmp_path):
+    """The 0162-metal-diff.json `ported-m5-flash-attn` shape."""
+    body = _finding(
+        claims=[
+            _citing_claim(
+                "ported from ds4_metal.m:3619 to ds4_metal.m:36769",
+                [],
+                [3619, 36769],
+            )
+        ]
+    )
+    assert evidence.load_finding(_write(tmp_path, body))["schema"] == evidence.SCHEMA
+
+
 def test_lint_rejects_context_lines_that_are_not_ints(tmp_path):
     """context_lines must be a list of ints -- a string is a silent no-op."""
     body = _finding(

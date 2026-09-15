@@ -70,6 +70,7 @@ sys.path.insert(0, str(REPO / "benchmarks" / "agent"))
 
 import child
 import metal_knob
+import outdir_guard
 import preflight
 import prompt_meta
 
@@ -420,6 +421,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         "refuses, so a knob that cannot be verified is never measured by "
         "accident.",
     )
+    p.add_argument(
+        outdir_guard.REUSE_FLAG,
+        action="store_true",
+        default=os.environ.get("REUSE_OUTDIR") == "1",
+        help="run into an outdir that already holds CSVs (resume only, #208)",
+    )
     args = p.parse_args(argv)
 
     logs.configure()
@@ -440,6 +447,13 @@ def main(argv: Sequence[str] | None = None) -> int:
             args.reps,
         )
 
+    out = absolutize(args.out)
+    try:
+        outdir_guard.refuse_reused_outdir(out, reuse=args.reuse_outdir)
+    except outdir_guard.ReusedOutdir as exc:
+        logger.error("REFUSING: %s", exc)
+        return 1
+
     prompt = args.prompt or (args.tree / "speed-bench" / "promessi_sposi.txt")
     try:
         return sweep(
@@ -448,7 +462,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             args.off_value,
             args.tree,
             args.gguf,
-            absolutize(args.out),
+            out,
             reps=args.reps,
             prompt=prompt,
             ctx_max=args.ctx_max,

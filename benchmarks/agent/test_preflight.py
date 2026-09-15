@@ -958,3 +958,29 @@ def test_an_unrecognised_title_stays_loud():
     """
     assert preflight.bears_on_this_machine("zqx: rework the frobnicator")
     assert preflight.bears_on_this_machine("")
+
+
+# --- declared background samplers (#214) ---------------------------------
+
+SAMPLER_PS = """\
+  PID    RSS  ELAPSED COMMAND
+47164   5400 20:14:02 /Users/me/Downloads/monitor-1.6.2/monitord
+51000   3100 00:10:00 -zsh -c grep monitord sensors.csv
+43967 81371136 02:10:11 ./ds4-server --port 8000
+"""
+
+
+def test_a_running_sampler_is_named():
+    """monitord ran inside every measurement for 20 hours and nothing said so."""
+    assert preflight.samplers(SAMPLER_PS) == ["monitord (pid 47164)"]
+
+
+def test_a_command_that_only_mentions_a_sampler_is_not_one():
+    text = SAMPLER_PS.replace(
+        "47164   5400 20:14:02 /Users/me/Downloads/monitor-1.6.2/monitord\n", ""
+    )
+    assert preflight.samplers(text) == []
+
+
+def test_a_model_server_is_not_a_sampler():
+    assert "ds4-server" not in " ".join(preflight.samplers(SAMPLER_PS))

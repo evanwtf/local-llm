@@ -134,6 +134,65 @@ def parse_token_dump(text: str) -> tuple[list[int], list[str]]:
     return ids, [pieces[i] for i in ids]
 
 
+def _gpt2_byte_decoder() -> dict[str, int]:
+    """GPT-2's bytes_to_unicode(), inverted: display codepoint -> byte (#229).
+
+    A byte-level-BPE vocab (Qwen, GLM, Llama) prints every byte as a visible
+    codepoint. The 188 printable bytes print as themselves; the other 68 print
+    as U+0100 onward, in byte order, so a space is U+0120 and a newline U+010A.
+    """
+    printable = [*range(0x21, 0x7F), *range(0xA1, 0xAD), *range(0xAE, 0x100)]
+    decoder = {chr(b): b for b in printable}
+    shifted = 0
+    for b in range(256):
+        if b not in printable:
+            decoder[chr(256 + shifted)] = b
+            shifted += 1
+    return decoder
+
+
+_BYTE_DECODER = _gpt2_byte_decoder()
+#: Codepoints that exist only in display form. A piece holding one is not text.
+_DISPLAY_ONLY = frozenset(c for c in _BYTE_DECODER if ord(c) >= 256)
+
+
+def is_display_form(pieces: list[str]) -> bool:
+    """Whether the pieces are GPT-2 display form rather than literal text."""
+    return any(ch in _DISPLAY_ONLY for piece in pieces for ch in piece)
+
+
+def decode_pieces(pieces: list[str]) -> str:
+    """The text a run of --dump-tokens pieces stands for (#229).
+
+    A literal vocab's pieces are the text, so they join as they are. A
+    byte-level vocab's pieces are display codepoints: each maps back to one
+    byte, and the bytes decode as UTF-8. Joining those verbatim wrote literal
+    `Ġ` characters -- a different string that re-tokenized to 4688 tokens at
+    a 2048 frontier.
+    """
+    if not is_display_form(pieces):
+        return "".join(pieces)
+    raw = bytearray()
+    for piece in pieces:
+        for ch in piece:
+            byte = _BYTE_DECODER.get(ch)
+            if byte is None:
+                raise InstrumentRefused(
+                    f"byte-level reconstruction failed: {ch!r} (U+{ord(ch):04X}) "
+                    "is not in the GPT-2 byte alphabet; cut this corpus with "
+                    "--prompt-file instead"
+                )
+            raw.append(byte)
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise InstrumentRefused(
+            f"byte-level reconstruction failed: the cut is not valid UTF-8 "
+            f"({exc}); the frontier may split a multi-byte character. Cut this "
+            "corpus with --prompt-file instead"
+        ) from exc
+
+
 def parse_dump(path: pathlib.Path) -> dict:
     """Parse a --dump-logprobs JSON file; tolerate a crash-truncated tail.
 
@@ -290,11 +349,15 @@ def tokenize_argv(tree: pathlib.Path, gguf: str, prompt: pathlib.Path) -> list[s
 def run_capture(
     argv: list[str], env: dict, timeout: int, cwd: pathlib.Path | None = None
 ) -> subprocess.CompletedProcess:
+    # UTF-8, not the locale: ds4 writes UTF-8, and a byte-level vocab's
+    # --dump-tokens pieces are display codepoints like U+0120 (#229) that a
+    # non-UTF-8 locale would mangle before decode_pieces sees them.
     return subprocess.run(
         argv,
         env=env,
         capture_output=True,
         text=True,
+        encoding="utf-8",
         timeout=timeout,
         check=False,
         cwd=None if cwd is None else str(cwd),
@@ -364,7 +427,8 @@ def frontier_prompt(
             f"{corpus} tokenizes to {len(ids)} tokens; frontier {frontier} needs more. "
             "Supply a longer --corpus or a smaller --frontier."
         )
-    prefix = "".join(pieces[:frontier])
+    reconstruction = "byte-level" if is_display_form(pieces[:frontier]) else "literal"
+    prefix = decode_pieces(pieces[:frontier])
     path = out_dir / f"prompt-{frontier}.txt"
     path.write_text(prefix)
     proc = run_capture(tokenize_argv(tree_a, gguf, path), env, timeout, tree_a)
@@ -376,8 +440,10 @@ def frontier_prompt(
     if v_ids != ids[:frontier]:
         raise InstrumentRefused(
             f"the frontier-{frontier} prompt re-tokenizes to {len(v_ids)} tokens, "
-            f"not {frontier} with the same ids -- the corpus is not prefix-stable "
-            "at this cut. Supply an exact --prompt-file instead."
+            f"not {frontier} with the same ids -- either the corpus is not "
+            "prefix-stable at this cut, or the prompt was rebuilt wrongly from "
+            f"its {reconstruction} token pieces (#229). Supply an exact "
+            "--prompt-file instead."
         )
     sha = hashlib.sha256(path.read_bytes()).hexdigest()[:12]
     logger.info(

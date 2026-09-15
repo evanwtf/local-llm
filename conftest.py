@@ -33,7 +33,9 @@ from __future__ import annotations
 import json
 import os
 import pathlib
+import re
 import socket
+import time
 
 import pytest
 
@@ -116,6 +118,104 @@ def pytest_sessionstart(session: pytest.Session) -> None:
     lock = machine_claim()
     if lock is not None:
         raise pytest.UsageError(refusal_message(lock))
+
+
+#: Seconds between re-reads of the claim once the session is running (#189).
+#:
+#: The session-start check alone let a suite that started on a free machine run
+#: to completion after a benchmark claimed it. Re-reading before every test
+#: stops the suite within seconds of the claim. The throttle keeps a free
+#: machine's cost at one small file read per interval, not one per test.
+RECHECK_INTERVAL_S = 5.0
+
+_clock = time.monotonic
+_last_recheck: float | None = None
+
+
+def pytest_runtest_setup(item: pytest.Item) -> None:
+    """Stop the session if a benchmark claimed the machine since it started.
+
+    `pytest.exit`, not a skip: a suite that skips its remaining tests reports
+    green-ish, and nobody acts on that.
+    """
+    global _last_recheck
+    if os.environ.get(OVERRIDE_ENV):
+        return
+    now = _clock()
+    if _last_recheck is not None and now - _last_recheck < RECHECK_INTERVAL_S:
+        return
+    _last_recheck = now
+    lock = machine_claim()
+    if lock is not None:
+        pytest.exit(refusal_message(lock), returncode=2)
+
+
+#: Set to 1 in CI (#223). A skip whose reason is not in EXPECTED_SKIPS then
+#: fails the run. Off by default: a developer machine skips a different set.
+STRICT_SKIPS_ENV = "LOCAL_LLM_STRICT_SKIPS"
+
+#: The skips the Linux CI runner is expected to print, as full-match patterns.
+#: Taken from the first -rs run (#417, 2026-09-15): 37 skips, 15 reasons. A new
+#: reason fails CI until someone adds it here on purpose -- a guard that goes
+#: quiet must say so, not blend into a count.
+EXPECTED_SKIPS = (
+    (
+        r"no measured trials for this machine at .+/results\.jsonl; these tests "
+        r"read measured data and there is none here \(a dry-run-only ledger does "
+        r"not count\)"
+    ),
+    r"one client version measured everything; nothing to caveat",
+    r"results\.jsonl not present",
+    r".+/git/(gmail-archive|monitor) not checked out",
+    r"script task: nothing is excised from a repo",
+    r"script task: the prompt names no repository file",
+    r"IOKit thermal sensors are macOS-only; there is no Linux equivalent to read",
+    r"gmail-archive at the pinned commit, and uv",
+    r"no ledger for this machine",
+    r"no ds4 checkout at ~/git/ds4-main",
+    r"no ds4 tree here",
+    r"no ds4 tree checked out",
+    r"this machine \(.+\) is not one we manage",
+)
+
+
+def strict_skips_enabled() -> bool:
+    return os.environ.get(STRICT_SKIPS_ENV) == "1"
+
+
+def unexpected_skips(reasons: list[str]) -> list[str]:
+    """The reasons that match no EXPECTED_SKIPS pattern, in order."""
+    out = []
+    for reason in reasons:
+        text = reason.removeprefix("Skipped: ")
+        if not any(re.fullmatch(pattern, text) for pattern in EXPECTED_SKIPS):
+            out.append(reason)
+    return out
+
+
+def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
+    """Fail the session on an unexpected skip when STRICT_SKIPS_ENV is 1."""
+    if not strict_skips_enabled():
+        return
+    reporter = session.config.pluginmanager.get_plugin("terminalreporter")
+    if reporter is None:
+        return
+    reasons = []
+    for report in reporter.stats.get("skipped", []):
+        longrepr = report.longrepr
+        if isinstance(longrepr, tuple) and len(longrepr) == 3:
+            reasons.append(str(longrepr[2]))
+    unexpected = unexpected_skips(reasons)
+    if not unexpected:
+        return
+    reporter.write_line(
+        f"UNEXPECTED SKIPS ({len(unexpected)}): add a reason to EXPECTED_SKIPS in "
+        "conftest.py only if the skip is expected on this runner (#223)",
+        red=True,
+    )
+    for reason in unexpected:
+        reporter.write_line(f"  {reason}", red=True)
+    session.exitstatus = pytest.ExitCode.TESTS_FAILED
 
 
 @pytest.fixture(autouse=True)

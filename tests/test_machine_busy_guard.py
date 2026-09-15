@@ -138,3 +138,72 @@ def test_a_free_machine_lets_the_session_start(monkeypatch):
     monkeypatch.delenv(guard.OVERRIDE_ENV, raising=False)
     monkeypatch.setattr(guard, "machine_claim", lambda: None)
     guard.pytest_sessionstart(None)
+
+
+# --- #189: the claim is re-read between tests, not only at session start ---
+
+
+class _Clock:
+    def __init__(self) -> None:
+        self.now = 1000.0
+
+    def __call__(self) -> float:
+        return self.now
+
+
+@pytest.fixture
+def clock(monkeypatch):
+    c = _Clock()
+    monkeypatch.setattr(guard, "_clock", c)
+    monkeypatch.setattr(guard, "_last_recheck", None)
+    monkeypatch.delenv(guard.OVERRIDE_ENV, raising=False)
+    return c
+
+
+def test_a_lock_that_appears_between_tests_stops_the_session(monkeypatch, clock):
+    claims = iter([None, {"pid": 1, "what": "a run", "started": "t"}])
+    monkeypatch.setattr(guard, "machine_claim", lambda: next(claims))
+    guard.pytest_runtest_setup(None)
+    clock.now += guard.RECHECK_INTERVAL_S
+    with pytest.raises(pytest.exit.Exception) as exc:
+        guard.pytest_runtest_setup(None)
+    assert "REFUSING to run tests" in str(exc.value)
+    assert "a run" in str(exc.value)
+    assert guard.OVERRIDE_ENV in str(exc.value)
+    assert exc.value.returncode == 2
+
+
+def test_the_recheck_is_throttled(monkeypatch, clock):
+    calls = []
+    monkeypatch.setattr(guard, "machine_claim", lambda: calls.append(1))
+    for _ in range(50):
+        guard.pytest_runtest_setup(None)
+        clock.now += 0.01
+    assert len(calls) == 1
+    clock.now += guard.RECHECK_INTERVAL_S
+    guard.pytest_runtest_setup(None)
+    assert len(calls) == 2
+
+
+def test_a_released_lock_does_not_wedge_a_later_check(monkeypatch, clock):
+    # A crashed benchmark leaves a dead pid; machine_claim() already reports
+    # that as None. The recheck must not remember an earlier refusal.
+    claims = iter([{"pid": 1, "what": "a run"}, None])
+    monkeypatch.setattr(guard, "machine_claim", lambda: next(claims))
+    with pytest.raises(pytest.exit.Exception):
+        guard.pytest_runtest_setup(None)
+    clock.now += guard.RECHECK_INTERVAL_S
+    guard.pytest_runtest_setup(None)
+
+
+def test_the_override_skips_the_recheck(monkeypatch, clock):
+    monkeypatch.setenv(guard.OVERRIDE_ENV, "1")
+    monkeypatch.setattr(guard, "machine_claim", lambda: {"pid": 1, "what": "a run"})
+    guard.pytest_runtest_setup(None)
+
+
+def test_a_free_machine_passes_every_recheck(monkeypatch, clock):
+    monkeypatch.setattr(guard, "machine_claim", lambda: None)
+    for _ in range(5):
+        guard.pytest_runtest_setup(None)
+        clock.now += guard.RECHECK_INTERVAL_S

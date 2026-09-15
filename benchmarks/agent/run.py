@@ -770,6 +770,45 @@ def serving_vllm():
     return None
 
 
+#: The port llama-server listens on when started without --port.
+LLAMACPP_DEFAULT_PORT = 8080
+
+#: Backend port -> the llama-server port behind it. :11500 is the shim that
+#: fronts :8020 for Claude Code.
+LLAMACPP_PORTS = {8020: 8020, 11500: 8020}
+
+
+def llamacpp_port(backends):
+    """The llama-server port the run's llama.cpp backend reaches, or None."""
+    for b in backends.values():
+        port = urlparse(b.get("base_url") or "").port
+        if port in LLAMACPP_PORTS:
+            return LLAMACPP_PORTS[port]
+    return None
+
+
+def llamacpp_argv(ps_text, port):
+    """The argv of the llama-server listening on `port`, or None (#213).
+
+    Several llama-servers can run at once (:8020-:8023 are separate arms), so
+    the match is on the port, not the first server found. The executable must
+    be llama-server itself: a shell that tails its log does not count.
+    """
+    for line in ps_text.splitlines():
+        parts = line.split()
+        if not parts or pathlib.Path(parts[0]).name != "llama-server":
+            continue
+        listens = LLAMACPP_DEFAULT_PORT
+        for i, tok in enumerate(parts):
+            if tok == "--port" and i + 1 < len(parts):
+                listens = parts[i + 1]
+            elif tok.startswith("--port="):
+                listens = tok.removeprefix("--port=")
+        if str(listens) == str(port):
+            return " ".join(parts)
+    return None
+
+
 def metal_ceiling_mb():
     """The Metal wired limit. Decides whether a ~90 GiB model loads at all.
 
@@ -850,6 +889,16 @@ def capture_versions(cfg, backends, allow_unstamped=False):
     if ceiling:
         env["metal_ceiling_mb"] = ceiling
 
+    # #214: a known sampler inside the measurement is declared, not discovered.
+    # An empty list means "looked and found none", which absence cannot say.
+    # Not `out()`: that keeps only the first line, which here is the header.
+    try:
+        ps_text = preflight._capture(["ps", "-eo", "pid,rss,etime,command"])
+        if ps_text:
+            env["samplers"] = preflight.samplers(ps_text)
+    except Exception as exc:  # noqa: BLE001 -- a sampler census must never take a run down
+        logger.warning("could not list samplers for env.samplers: %s", exc)
+
     # Interrogate the machine on every run rather than assuming last time's.
     # `macos` and `machine` above are Darwin sysctls and were simply absent on
     # Linux, so a desktop row could not say what hardware produced it. Includes
@@ -877,7 +926,7 @@ def capture_versions(cfg, backends, allow_unstamped=False):
                 if b["model"] in digests:
                     env[f"digest_{name}"] = digests[b["model"]]
 
-    if any((b.get("base_url") or "").endswith(":8000") for b in backends.values()):
+    if serves_ds4(backends):
         ds4_root = (
             serving_ds4_root()
             or pathlib.Path(os.environ.get("DS4_ROOT", "~/git/ds4")).expanduser()
@@ -928,6 +977,15 @@ def capture_versions(cfg, backends, allow_unstamped=False):
             env["llamacpp_server_mtime"] = time.strftime(
                 "%Y-%m-%dT%H:%M:%S", time.localtime(server.stat().st_mtime)
             )
+        # #213: how it was launched, from the process on the backend's port.
+        # setdefault: a run that also serves ds4 keeps the ds4 argv it has.
+        port = llamacpp_port(backends)
+        if port is not None:
+            # _capture, not out(): out() keeps only the first line.
+            ps_text = preflight._capture(["ps", "ax", "-o", "command="])
+            argv = llamacpp_argv(ps_text, port)
+            if argv:
+                env.setdefault("server_argv", argv)
     # vLLM is a wheel, not a checkout, so there is no commit to pin and the
     # ~/git/<engine> shape the two blocks above rely on does not exist. What
     # identifies the build is the wheel version plus the torch underneath it:
@@ -1175,14 +1233,24 @@ def engine_provenance(backends, env):
 
     The hosted backend is exempt: it declares no engine and has no build to
     pin, and `hosted_unpinned` already records that it is unpinned on purpose.
+
+    A backend's own server identity also counts (#365). A shim-fronted ds4
+    backend (base_url on the shim's port, engine_url on :8000) never gets
+    `ds4_head`, which is probed only for a base_url on :8000, but
+    `servers[name].engine_version` already holds the HEAD of the tree that
+    served it. Only that backend's own entry counts: in a run with two ds4
+    backends, one server's build must not vouch for another's tree.
     """
     gaps = []
+    servers = env.get("servers") or {}
     for name, backend in sorted(backends.items()):
         engine = str(backend.get("engine") or "").lower()
         if not engine:
             continue
         keys = ENGINE_VERSION_KEYS.get(engine, (engine,))
         if any(env.get(k) for k in keys):
+            continue
+        if (servers.get(name) or {}).get("engine_version"):
             continue
         env[f"{engine}_version"] = "unknown"
         gaps.append(
@@ -2780,6 +2848,17 @@ def require_draft_default(backends):
     return bool(speculative_backends(backends))
 
 
+def serves_ds4(backends):
+    """Whether any selected backend is served by the ds4-server on :8000 (#213).
+
+    The ds4 provenance block (ds4_head, the served GGUF, server_argv) used to
+    run only for a base_url ending in :8000. A shim-fronted backend's base_url
+    is the shim's port, so its rows recorded none of it. Ask route_query_port(),
+    which reads a declared engine_url first (#211) and never guesses one.
+    """
+    return any(route_query_port(b) == 8000 for b in backends.values())
+
+
 def route_query_port(backend):
     """Which port to ask `ds4_route` about for this backend (#211).
 
@@ -2932,6 +3011,45 @@ def draft_verdict(counters, counters_on=None):
     if share == 0:
         return "bypassed"
     return "partial" if share < 1 else "ok"
+
+
+def record_source_repo(result, repo, target, name):
+    """Check the guarded checkout after the agent and write it onto the row.
+
+    Runs on a finished trial and on a timed-out one (#71). A timeout used to
+    skip it, so a row could flag a workspace escape and leave
+    `source_repo_intact` unset, with nothing to say whether the checkout was
+    touched.
+    """
+    guarded = guarded_repo(repo)
+    intact, why = source_repo_state(guarded, target["base_commit"])
+    result["source_repo_intact"] = intact
+    if intact:
+        return
+    result["source_repo_reason"] = why
+    if result.get("source_repo_intact_before") is False:
+        # It was already off-baseline when the trial started. Somebody
+        # else is working in that checkout. Void the row; do not
+        # attribute it to the agent, and do not count it as a failure.
+        result["excluded"] = True
+        result["exclusion_reason"] = (
+            f"guarded checkout {guarded} was off-baseline before the "
+            "trial started; modified outside the harness"
+        )
+        logger.error(
+            "%s: guarded checkout was modified OUTSIDE the harness (%s) "
+            "-- row voided, not scored against the agent",
+            name,
+            why,
+        )
+    else:
+        logger.error(
+            "%s: guarded checkout %s went off-baseline DURING the trial "
+            "(clean before) -- %s. The agent may have left the sandbox.",
+            name,
+            guarded,
+            why,
+        )
 
 
 def one_trial(
@@ -3265,34 +3383,7 @@ def one_trial(
         if not is_script:
             result["restored_verbatim"] = grade.all_restored_verbatim(excised, keep_doc)
         result["target_repo"] = target["repo"]
-        guarded = guarded_repo(repo)
-        intact, why = source_repo_state(guarded, target["base_commit"])
-        result["source_repo_intact"] = intact
-        if not intact:
-            result["source_repo_reason"] = why
-            if result.get("source_repo_intact_before") is False:
-                # It was already off-baseline when the trial started. Somebody
-                # else is working in that checkout. Void the row; do not
-                # attribute it to the agent, and do not count it as a failure.
-                result["excluded"] = True
-                result["exclusion_reason"] = (
-                    f"guarded checkout {guarded} was off-baseline before the "
-                    "trial started; modified outside the harness"
-                )
-                logger.error(
-                    "%s: guarded checkout was modified OUTSIDE the harness (%s) "
-                    "-- row voided, not scored against the agent",
-                    name,
-                    why,
-                )
-            else:
-                logger.error(
-                    "%s: guarded checkout %s went off-baseline DURING the trial "
-                    "(clean before) -- %s. The agent may have left the sandbox.",
-                    name,
-                    guarded,
-                    why,
-                )
+        record_source_repo(result, repo, target, name)
         logger.info(
             "%s: %s in %ss (%s)",
             name,
@@ -3336,6 +3427,9 @@ def one_trial(
         save_transcript(
             client_log, name, _text(exc.stdout), _text(exc.stderr), result, partial=True
         )
+        # #71: the escape list above is recorded on a timeout, so the
+        # integrity check that answers it must run here too.
+        record_source_repo(result, repo, target, name)
         logger.error("%s: timed out after %ss", name, timeout)
     finally:
         # Before the tree goes. In `finally` on purpose: a timed-out trial has
