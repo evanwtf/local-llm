@@ -23,6 +23,7 @@ import sys
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent / "benchmarks" / "agent"))
 
+import report
 import results
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
@@ -84,6 +85,34 @@ def _wilson(k: int, n: int) -> tuple[float, float]:
     return (max(0.0, centre - half), min(1.0, centre + half))
 
 
+def select(
+    rows: list[dict],
+    backends: list[str] | None = None,
+    since: str | None = None,
+    until: str | None = None,
+) -> list[dict]:
+    """Rows for `backends` (all when empty) inside report.window's bounds (#224).
+
+    The window is report.window itself, so a tail readout and a report readout
+    of the same run select the same rows.
+    """
+    if backends:
+        rows = [r for r in rows if r.get("backend") in backends]
+    return report.window(rows, since, until)
+
+
+def wall_totals(rows: list[dict]) -> dict[str, tuple[int, float]]:
+    """{backend: (rows, summed wall_seconds)}. A missing wall counts as 0."""
+    out: dict[str, tuple[int, float]] = {}
+    for r in rows:
+        n, total = out.get(r.get("backend") or "(none)", (0, 0.0))
+        out[r.get("backend") or "(none)"] = (
+            n + 1,
+            total + (r.get("wall_seconds") or 0),
+        )
+    return out
+
+
 def _report(rows: list[dict], key: str | tuple[str, ...], label: str) -> None:
     logger.info("=== by %s ===", label)
     logger.info("%-40s %6s %6s %8s  %s", label, "tail", "total", "rate", "95% CI")
@@ -108,6 +137,14 @@ def main(argv: list[str] | None = None) -> int:
         nargs="*",
         help="results.jsonl files; default: every hardware/*/results.jsonl",
     )
+    p.add_argument(
+        "--backend",
+        action="append",
+        default=[],
+        help="keep only this backend; repeat for more (#224)",
+    )
+    p.add_argument("--since", help="started after this ISO 8601 time (exclusive)")
+    p.add_argument("--until", help="started at or before this time (inclusive)")
     args = p.parse_args(argv)
     logs.configure(fmt=logs.PLAIN)
 
@@ -124,6 +161,14 @@ def main(argv: list[str] | None = None) -> int:
     if not rows:
         logger.error("no rows in %s", ", ".join(str(p) for p in paths))
         return 1
+    unknown = sorted(set(args.backend) - {r.get("backend") for r in rows})
+    if unknown:
+        logger.error("no rows for backend %s", ", ".join(unknown))
+        return 1
+    rows = select(rows, args.backend, args.since, args.until)
+    if not rows:
+        logger.error("no rows inside the window")
+        return 1
 
     tails = tail_events(rows)
     logger.info(
@@ -133,6 +178,9 @@ def main(argv: list[str] | None = None) -> int:
     _report(rows, "task", "task")
     _report(rows, "backend", "backend")
     _report(rows, ("task", "backend"), "task x backend")
+    logger.info("=== wall per backend ===")
+    for backend, (n, total) in sorted(wall_totals(rows).items()):
+        logger.info("%-40s %6d rows %10.1f s", backend, n, total)
     return 0
 
 

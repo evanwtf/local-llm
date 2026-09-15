@@ -25,7 +25,9 @@ ds4_bench.c:275 at ds4-main 9ab70534.
     uv run python scripts/decode_ab_stack.py <label-a> <tree-a> <gguf-a> <ple-a> \\
         <label-b> <tree-b> <gguf-b> <ple-b> [outdir]
 
-Pass "-" for a PLE sidecar an arm does not use.
+Pass "-" for a PLE sidecar an arm does not use. Add `--ssd-streaming a` or
+`--ssd-streaming b` (repeatable) for an arm whose model is larger than RAM
+(#321): that arm streams experts from SSD while the other stays resident.
 
 ## What must survive the port
 
@@ -99,6 +101,7 @@ def stacks_text(
     step: int,
     gen: int,
     reps: int,
+    ssd: frozenset[str] = frozenset(),
 ) -> str:
     """Which engine tree, weights and PLE produced each arm, beside the CSVs.
 
@@ -121,6 +124,10 @@ def stacks_text(
         size = gguf.stat().st_size if gguf.exists() else None
         lines.append(f"{'AB'[position]} gguf={gguf} ({size or '?'} bytes)")
         lines.append(f"{'AB'[position]} ple={ple}")
+        # #321: a streamed arm and a resident arm are different regimes.
+        lines.append(
+            f"{'AB'[position]} ssd_streaming={'true' if label in ssd else 'false'}"
+        )
     lines.append("# TWO VARIABLES: engine and weights move together. Report as a stack")
     lines.append("# comparison; neither half can be attributed on its own (#138).")
     lines.append(f"prompt={prompt}")
@@ -143,8 +150,12 @@ def sweep(
     gen: int = GEN,
     owner_pid: int,
     allow_odd: bool = False,
+    ssd: frozenset[str] = frozenset(),
 ) -> int:
-    """The whole sweep. Returns a process exit code."""
+    """The whole sweep. Returns a process exit code.
+
+    `ssd` names the arm labels that run with --ssd-streaming (#321).
+    """
     # Refuse an uneven rep count HERE, before the lock and before any build
     # check. `ab_driver.run` refuses it too, but it is called inside the lock,
     # and a refusal after the machine is claimed is a refusal that already
@@ -168,6 +179,7 @@ def sweep(
         step=step,
         gen=gen,
         reps=reps,
+        ssd=ssd,
     )
     with (out / "stacks.txt").open("a") as handle:
         handle.write(text)
@@ -207,6 +219,8 @@ def sweep(
             # bench_argv has no ple slot; the flag is real but undocumented,
             # so this appends it rather than assuming every arm has a sidecar.
             argv += ["--ple", str(ple)]
+        if arm.name in ssd:
+            argv += ["--ssd-streaming"]
         # child.run, not subprocess.run: a driver stopped mid-sweep must take
         # ds4-bench with it (#268). cwd=tree: ds4-bench resolves metal/*.metal
         # relative to its own tree, so running both arms from one tree would
@@ -257,10 +271,19 @@ def main(argv: Sequence[str] | None = None) -> int:
         action="store_true",
         default=os.environ.get("ALLOW_ODD_REPS") == "1",
     )
+    p.add_argument(
+        "--ssd-streaming",
+        action="append",
+        choices=("a", "b"),
+        default=[],
+        help="run arm a or b with --ssd-streaming; repeat for both (#321)",
+    )
     args = p.parse_args(argv)
 
     logs.configure()
 
+    label_of = {"a": args.label_a, "b": args.label_b}
+    ssd = frozenset(label_of[arm] for arm in args.ssd_streaming)
     prompt = args.prompt or pathlib.Path(
         os.environ.get(
             "PROMPT",
@@ -284,6 +307,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             gen=args.gen,
             owner_pid=os.getpid(),
             allow_odd=args.allow_odd_reps,
+            ssd=ssd,
         )
     except (decode_ab.Refusal, ValueError) as exc:
         logger.error("REFUSING: %s", exc)
