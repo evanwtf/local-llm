@@ -59,7 +59,7 @@ other is telling you something.
 
 ### Cortex-X925-128GB-GB10
 
-*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 1112 rows, sha256 c1bff67676fa.*
+*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 1112 rows, sha256 d4169aa462b4.*
 
 #### Every stack measured under OpenCode
 
@@ -117,7 +117,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 
 ### MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A
 
-*Generated from `hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/results.jsonl` — 3406 rows, sha256 66ab5fc37ac9.*
+*Generated from `hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/results.jsonl` — 3406 rows, sha256 51aeb5006d34.*
 
 #### Every stack measured under OpenCode
 
@@ -201,7 +201,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 
 ### Ryzen9-7900X-32GB-RTX3080Ti-12GB
 
-*Generated from `hardware/Ryzen9-7900X-32GB-RTX3080Ti-12GB/results.jsonl` — 245 rows, sha256 fe004febdbb8.*
+*Generated from `hardware/Ryzen9-7900X-32GB-RTX3080Ti-12GB/results.jsonl` — 245 rows, sha256 4b149ecaca95.*
 
 #### Every stack measured under OpenCode
 
