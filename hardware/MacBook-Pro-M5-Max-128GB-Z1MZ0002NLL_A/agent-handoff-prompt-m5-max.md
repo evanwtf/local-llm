@@ -133,7 +133,7 @@ flight at X finishes; then ask the operator.
 ```
 tick:
   1. date; machine_state.py; gh run list; a same-machine peer check if 20 min have passed
-  2. a run is live      -> check progress; 5-minute status; do not touch the checkout
+  2. a run is live      -> check progress; do not touch the checkout
   3. a run has finished -> read out (§5), post the verdict, land the rows (§6)
   4. the machine is FREE -> pick the next item (§4), preflight, launch
   5. heartbeat if 30 min have passed since the last one (§3a)
@@ -154,8 +154,9 @@ Next: <the next item and why>
 Metrics: <the line from `uv run python scripts/mac_dash.py`>
 ```
 
-During any long run, also post a status update every 5 minutes. When an update
-carries a result, post it on the issue that owns the run.
+Report a run completion, failure, blocker, or operator decision immediately;
+do not add a separate five-minute status loop. Post a result on the issue that
+owns the run.
 
 ### 3b. Peer check — every 20 minutes, same machine only
 

@@ -188,7 +188,7 @@ time**, parsed, never as strings. A finished task is not a stopping condition.
 ```
 tick:
   1. TZ=America/New_York date; machine_state.py; gh run list; peer check if 20 min passed
-  2. a run is live      -> check progress; 5-minute status; DO NOT touch the checkout
+  2. a run is live      -> check progress; DO NOT touch the checkout
   3. a run has finished -> read out (§5), post the verdict, land the rows (§6),
                            then immediately launch the next thing (keep the GPU busy)
   4. the box is FREE    -> pick the next item (§4), health-check, launch a server + run
@@ -215,8 +215,8 @@ run start and a realistic ETA (remaining trials × observed per-trial wall). If
 the GPU is idle (util 0 / power ~10 W / no lock), write "Current task: idle" and
 pick the next task to launch. Next task = the next queued DGX item (P0 before P1,
 then issue number). Bullets: what changed since last tick, anything
-committed/pushed, any blocker. During any long run also post a status update
-every 5 minutes; when an update carries a result, post it on the run's issue.
+committed/pushed, any blocker. Report a run completion, failure, blocker, or
+operator decision immediately; do not add a separate five-minute status loop.
 
 Add a **Metrics** bullet with the app-level serving numbers — the header covers
 GPU util/power/temp, but not what the server is doing. Get them with the helper:
@@ -280,7 +280,7 @@ cron cannot fire — re-arm it after the operator reconnects.
 | loop | cadence | what it does |
 |---|---|---|
 | heartbeat | every 30 min, idle included | the header + bullets above (§3a) |
-| in-run status | every 5 min while a run is live | progress line on the run's issue |
+| result/event update | immediate | run completion, failure, blocker, or operator decision |
 | peer check | every 20 min | §3b — what same-machine peers are *doing*; cross-machine only when lanes cross |
 | CI / main-green | every tick | `gh run list`; a red `main` outranks all but a live measurement (§3c) |
 | PR auto-merge watch | after every PR you open | `gh pr merge --auto --merge`, then watch to MERGED; if BEHIND, `gh api -X PUT …/update-branch` and re-watch until green (§6) |
