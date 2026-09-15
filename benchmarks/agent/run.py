@@ -1185,14 +1185,24 @@ def engine_provenance(backends, env):
 
     The hosted backend is exempt: it declares no engine and has no build to
     pin, and `hosted_unpinned` already records that it is unpinned on purpose.
+
+    A backend's own server identity also counts (#365). A shim-fronted ds4
+    backend (base_url on the shim's port, engine_url on :8000) never gets
+    `ds4_head`, which is probed only for a base_url on :8000, but
+    `servers[name].engine_version` already holds the HEAD of the tree that
+    served it. Only that backend's own entry counts: in a run with two ds4
+    backends, one server's build must not vouch for another's tree.
     """
     gaps = []
+    servers = env.get("servers") or {}
     for name, backend in sorted(backends.items()):
         engine = str(backend.get("engine") or "").lower()
         if not engine:
             continue
         keys = ENGINE_VERSION_KEYS.get(engine, (engine,))
         if any(env.get(k) for k in keys):
+            continue
+        if (servers.get(name) or {}).get("engine_version"):
             continue
         env[f"{engine}_version"] = "unknown"
         gaps.append(
