@@ -12,20 +12,20 @@ Lines are moved BYTE-IDENTICAL. This never edits a recorded measurement -- a
 previous attempt to recompute a stored field corrupted 30 rows, and the rule
 since is to annotate or relocate, never to rewrite.
 
-Idempotent: running it twice moves nothing the second time.
+Idempotent: running it twice moves nothing the second time. `--check` plans
+the move, writes nothing, and exits 1 if a move is due.
 """
 
 from __future__ import annotations
 
+import argparse
 import json
 import logging
 import pathlib
-import subprocess
 import sys
 
 logger = logging.getLogger(__name__)
 
-FIX = "7356460"  # opencode_argv gained --dir
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 #: The ledger moved to hardware/<machine>/results.jsonl (#20) and this script
 #: kept a literal `benchmarks/agent/results.jsonl` relative to the CALLER's
@@ -46,25 +46,12 @@ import logs
 RESULTS = results.default_path()
 ARCHIVE = ROOT / "docs" / "archive" / "results-opencode-pre-dir.jsonl"
 
-
-def fixed_commits(repo: pathlib.Path) -> set[str]:
-    r = subprocess.run(
-        ["git", "log", "--format=%h", f"{FIX}~1..HEAD"],
-        capture_output=True,
-        text=True,
-        cwd=repo,
-        check=False,
-    )
-    heads = {c[:7] for c in r.stdout.split()}
-    if not heads:
-        raise SystemExit(f"no commits from {FIX} in {repo}: {r.stderr.strip()}")
-    # Union the orphaned-but-post-fix shas (#355), the same allowlist dirfix.py
-    # uses. `git gc` collected the originals, so `git log` cannot reach them and
-    # rows stamped with them would classify as pre-dir and be wrongly archived
-    # into the "before" file -- which is exactly what broke
-    # test_dirfix.py::test_the_archive_is_still_where_dirfix_expects_it. The
-    # archiver and the classifier must agree; share one source of truth.
-    return heads | set(dirfix.REBASED_AFTER_FIX)
+#: #392: the classifier is dirfix's, not a copy. This script once kept its own
+#: fixed_commits() without dirfix's #355 allowlist and archived 65 post-fix
+#: rows. The names stay here because scripts/validate_ledgers.py calls
+#: `apdr.fixed_commits`.
+FIX = dirfix.FIX
+fixed_commits = dirfix.fixed_commits
 
 
 def is_pre_dir(line: str, after: set[str]) -> bool:
@@ -74,12 +61,26 @@ def is_pre_dir(line: str, after: set[str]) -> bool:
     dates it before the fix.
     """
     row = json.loads(line)
-    if row.get("client") != "opencode":
-        return False
-    return str(row.get("env", {}).get("harness_head", ""))[:7] not in after
+    return row.get("client") == "opencode" and dirfix.era(row, after) == "before"
 
 
-def main() -> None:
+def plan(lines: list[str], after: set[str]) -> tuple[list[str], list[str]]:
+    """Split ledger lines into (move, keep), in order, without writing."""
+    move = [x for x in lines if is_pre_dir(x, after)]
+    keep = [x for x in lines if not is_pre_dir(x, after)]
+    # Every line must land in exactly one list, unchanged.
+    assert len(move) + len(keep) == len(lines), "row lost or duplicated"
+    return move, keep
+
+
+def main(argv: list[str] | None = None) -> int:
+    p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    p.add_argument(
+        "--check",
+        action="store_true",
+        help="plan the move, write nothing, exit 1 if any row would move",
+    )
+    args = p.parse_args(argv)
     logs.configure(fmt=logs.PLAIN)
 
     # No ledger for THIS machine is the normal case everywhere except the one
@@ -89,20 +90,17 @@ def main() -> None:
     # crash it used to raise turned a green build red on 2026-09-07.
     if not RESULTS.exists():
         logger.info("no ledger at %s; nothing to archive on this machine", RESULTS)
-        return
-
-    after = fixed_commits(ROOT)
+        return 0
 
     lines = RESULTS.read_text().splitlines(keepends=True)
-    move = [x for x in lines if is_pre_dir(x, after)]
-    keep = [x for x in lines if not is_pre_dir(x, after)]
+    move, keep = plan(lines, fixed_commits(ROOT))
 
     if not move:
         logger.info("nothing to archive; results.jsonl holds %d rows", len(keep))
-        return
-
-    # Every line must land in exactly one file, unchanged.
-    assert len(move) + len(keep) == len(lines), "row lost or duplicated"
+        return 0
+    if args.check:
+        logger.error("%d pre---dir rows would move to %s", len(move), ARCHIVE)
+        return 1
 
     existing = ARCHIVE.read_text() if ARCHIVE.exists() else ""
     if existing and not existing.endswith("\n"):
@@ -112,7 +110,8 @@ def main() -> None:
 
     logger.info("archived %d rows -> %s", len(move), ARCHIVE)
     logger.info("results.jsonl now holds %d rows", len(keep))
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
