@@ -59,7 +59,7 @@ other is telling you something.
 
 ### Cortex-X925-128GB-GB10
 
-*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 1082 rows, sha256 08ef700fb2f1.*
+*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 1112 rows, sha256 aabeb8008ab3.*
 
 #### Every stack measured under OpenCode
 
@@ -74,6 +74,7 @@ other is telling you something.
 | qwen38fnq3nothinkdgx | 181/181 | 63s | 497s | 14.7x |
 | qwen38fnq3nothinkub2048dgx | 4/4 | 82s | 475s | 14.2x |
 | qwen38fnnvfp4dgx | 60/60 | 95s | 338s | 9.5x |
+| nemotron35lightninga3bdgx | 26/30 | 125s | 377s | 11.8x |
 | qwen38fnq3dgx | 118/119 | 127s | 394s | 8.9x |
 | qwen36nvfp4nothinkdgx | 60/60 | 136s | 268s | 5.2x |
 | qwen36codinggguf | 49/50 | 147s | 286s | 4.1x |
@@ -86,6 +87,8 @@ other is telling you something.
 | nemotron3nano | 8/10 | 580s | 1212s | 8.5x |
 | nemotron33 | 1/10 | — | — | — |
 
+**Rows here were not all taken under one client.** nemotron35lightninga3bdgx under 1.18.31; the rest under 1.18.30. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name.
+
 Excision tasks only; `script-*` excluded because they are a different class. **Spread is worst / best on the same task**, and it is the column most people forget to ask for.
 
 #### How fast each stack actually serves tokens
@@ -95,6 +98,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | nemotron33 | 15s |
 | nemotroncascade2 | 17s |
 | nemotron3nano | 19s |
+| nemotron35lightninga3bdgx | 20s |
 | qwen36a3bnvfp4dgx | 21s |
 | ornith15a3bdgx | 35s |
 | qwen38fnq3dgx | 59s |
@@ -110,6 +114,8 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | qwen36nvfp4dgx | 150s |
 | qwen36nvfp4v1dgx | 160s |
 | qwen36bf16dgx | 409s |
+
+**Rows here were not all taken under one client.** nemotron35lightninga3bdgx under 1.18.31; the rest under 1.18.30. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name.
 
 ### MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A
 
