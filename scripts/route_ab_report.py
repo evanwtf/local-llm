@@ -22,6 +22,7 @@ import logging
 import pathlib
 import re
 import sys
+from zoneinfo import ZoneInfo
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +41,22 @@ TENSOR_LINE = metal_route.TENSOR_LINE
 WITHHOLD_LINE = metal_route.WITHHOLD_LINE
 
 Window = tuple[str, str, dt.datetime, dt.datetime]
+
+#: run-record.txt and sweep-order.txt are naive wall clock on the M5 Max.
+NEW_YORK = ZoneInfo("America/New_York")
+
+
+def row_started(raw: str) -> dt.datetime:
+    """A ledger `started` as naive New York wall clock, the windows' frame.
+
+    Ledger rows carry an offset (#209); the run record and sweep order do not.
+    Comparing an aware time with a naive one raises TypeError, so an aware
+    value is moved to New York and its offset dropped.
+    """
+    started = dt.datetime.fromisoformat(raw)
+    if started.tzinfo is not None:
+        started = started.astimezone(NEW_YORK).replace(tzinfo=None)
+    return started
 
 
 def run_started(run_dir: pathlib.Path) -> dt.datetime | None:
@@ -112,7 +129,7 @@ def load_rows(
         raw = row.get("started")
         if not isinstance(raw, str):
             continue
-        started = dt.datetime.fromisoformat(raw)
+        started = row_started(raw)
         if started < cut:
             continue
         if row.get("excluded") or row.get("dry_run"):
@@ -129,7 +146,7 @@ def assign(
     per: dict[str, list[dict]] = {tag: [] for tag, _, _, _ in wins}
     leftover: list[dict] = []
     for row in rows:
-        started = dt.datetime.fromisoformat(row["started"])
+        started = row_started(row["started"])
         for tag, _, start, end in wins:
             if start <= started <= end:
                 per[tag].append(row)
