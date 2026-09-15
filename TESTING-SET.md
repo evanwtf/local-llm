@@ -171,6 +171,7 @@ be drawn from — OpenCode, after the `--dir` cutover, not excluded.
 | `qwen36a3bnvfp4dgx` | `nvidia/Qwen3.6-35B-A3B-NVFP4` (**the A3B tier**, thinking off) — fastest agent backend on this box (#335, #342) | vLLM 0.29.0 CUDA sm_121 | 24.2 GiB | 30 |
 | `ornith15a3bdgx` | `harborwater/Ornith-1.5-35B-A3B-AWQ-INT4` (multimodal `qwen3_5_moe`, served text-only) — the cross-arch A3B check (#335) | vLLM 0.29.0 CUDA sm_121 | 24.4 GiB | 30 |
 | `nemotron35lightninga3bdgx` | `nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-NVFP4` (hybrid Mamba-2+MoE A3B, thinking off) — NVIDIA's A3B-leader competitor; measured slower on the agent suite (#404) | vLLM 0.29.0 CUDA sm_121 | ~18 GiB | 30 |
+| `gptoss20bdgx` | `openai/gpt-oss-20b` (MXFP4, reasoning model, `reasoning_effort=low`) — the open OpenAI model as an agent backend (#407); needs the harmony vocab pre-seeded | vLLM 0.29.0 CUDA sm_121 | ~13 GiB | 30 |
 | `qwen36bf16dgx` | `Qwen/Qwen3.6-27B` **BF16**, the unquantized control for the row above | vLLM 0.29.0 CUDA sm_121 | 51.7 GiB | 30 |
 | `qwen36nvfp4v1dgx` | the same NVFP4 weights on vLLM's **V1** model runner, speculation off | vLLM 0.29.0 CUDA sm_121 | 20.4 GiB | 0 |
 | `qwen36nvfp4specdgx` | the same again with **draftless n-gram speculation** (5 tokens, lookup 3-8) | vLLM 0.29.0 CUDA sm_121 | 20.4 GiB | 0 |
