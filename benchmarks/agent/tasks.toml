@@ -2235,6 +2235,24 @@ aider_model = "openai/qwen3.6-35b-a3b-nvfp4"
 opencode_model = "vllm/qwen3.6-35b-a3b-nvfp4"
 context_tokens = 262144
 
+# NVIDIA's own A3B, filed as a direct competitor to the #335 leader above (#404).
+# NemotronHForCausalLM: 30B total / 3B active, hybrid Mamba-2 + MoE + Attention,
+# ModelOpt NVFP4, served on vLLM 0.29.0 with fp8 KV and thinking off. Same
+# tool-call parser as the leader (qwen3_coder); reasoning parser is nemotron_v3.
+# Served at max_model_len 131072 (leader is 262144) -- do NOT pool the rows; this
+# is a same-hardware, cross-model comparison, reported as named cells.
+[backend.nemotron35lightninga3bdgx]
+description = "Nemotron-3.5-Lightning-30B-A3B NVFP4 (nvidia/ModelOpt) via vLLM 0.29.0, CUDA sm_121, hybrid Mamba-2+MoE, thinking off (#404)"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8030"
+auth_token = "local"
+engine = "vllm"
+engine_tree = "~/venvs/vllm"
+model = "nemotron-3.5-lightning-30b-a3b"
+aider_model = "openai/nemotron-3.5-lightning-30b-a3b"
+opencode_model = "vllm/nemotron-3.5-lightning-30b-a3b"
+context_tokens = 131072
+
 # The 2nd #335 A3B candidate: Ornith-1.5, this project's fastest measured backend
 # on the M5 Max -- so this is a cross-ARCHITECTURE comparison of a known-good
 # model (only the hardware changes). Rows here are NOT pooled with the Mac's
