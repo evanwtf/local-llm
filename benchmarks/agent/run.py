@@ -735,7 +735,7 @@ def serving_gguf(root=None):
                             "gguf_path": str(gguf),
                             "gguf_bytes": stat.st_size,
                             "gguf_mtime": time.strftime(
-                                "%Y-%m-%dT%H:%M:%S", time.localtime(stat.st_mtime)
+                                "%Y-%m-%dT%H:%M:%S%z", time.localtime(stat.st_mtime)
                             ),
                             "server_argv": " ".join(parts),
                         }
@@ -950,7 +950,7 @@ def capture_versions(cfg, backends, allow_unstamped=False):
         if server.exists():
             # The binary may predate HEAD. Record when it was actually built.
             env["ds4_server_mtime"] = time.strftime(
-                "%Y-%m-%dT%H:%M:%S", time.localtime(server.stat().st_mtime)
+                "%Y-%m-%dT%H:%M:%S%z", time.localtime(server.stat().st_mtime)
             )
 
     # llama.cpp is a source build off a pull request, not a released tag, so
@@ -975,7 +975,7 @@ def capture_versions(cfg, backends, allow_unstamped=False):
         server = lcpp / "build" / "bin" / "llama-server"
         if server.exists():
             env["llamacpp_server_mtime"] = time.strftime(
-                "%Y-%m-%dT%H:%M:%S", time.localtime(server.stat().st_mtime)
+                "%Y-%m-%dT%H:%M:%S%z", time.localtime(server.stat().st_mtime)
             )
         # #213: how it was launched, from the process on the backend's port.
         # setdefault: a run that also serves ds4 keeps the ds4 argv it has.

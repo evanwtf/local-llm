@@ -58,6 +58,28 @@ def _write_run_dir(
 TASKS = [f"task{i}" for i in range(15)]
 
 
+def test_offset_bearing_rows_load_and_attribute_against_naive_windows(tmp_path):
+    # #209: ledger rows carry an offset, while run-record.txt and
+    # sweep-order.txt are naive New York time. Comparing the two raised
+    # TypeError; a row must be read in New York time instead.
+    rows = [
+        _row("task0", "2026-09-05T08:30:00-0400", 10.0, True),
+        _row("task1", "2026-09-05T12:40:00+0000", 10.0, True),  # 08:40 in New York
+    ]
+    ledger = _write_ledger(tmp_path, rows)
+    run_dir = _write_run_dir(
+        tmp_path, [("t1", "08:25:00", "08:35:00"), ("r1", "08:36:00", "08:45:00")]
+    )
+    anchor = report.run_started(run_dir)
+    loaded, dropped = report.load_rows(ledger, "qwen38fnds4shim", anchor)
+    assert dropped == 0 and len(loaded) == 2
+    wins = report.read_windows(run_dir, "t", "r", anchor)
+    per, leftover = report.assign(loaded, wins)
+    assert [r["task"] for r in per["t1"]] == ["task0"]
+    assert [r["task"] for r in per["r1"]] == ["task1"]
+    assert leftover == []
+
+
 def _sweep_rows(
     idx: int, day: int, hour: int, *, fails: set[str] | None = None, wall: float = 100.0
 ) -> list[dict]:
