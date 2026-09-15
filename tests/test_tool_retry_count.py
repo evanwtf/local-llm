@@ -350,3 +350,56 @@ def test_an_empty_non_partial_transcript_is_still_corruption(tmp_path) -> None:
     path.write_text("")
     with pytest.raises(TranscriptError, match="empty"):
         count_transcript(path)
+
+
+# --- #220: what the errored calls were -------------------------------------
+#
+# A count of errors cannot say whether a trial corrupted its tool-call syntax
+# or sent well-formed calls that the client rejected. The first line of
+# `part.state.error` can. On glm53ds4, 605 of 612 calls in one trial errored.
+
+from tool_retry_count import error_kinds
+
+
+def errored(tool: str, call_id: str, error: object) -> dict:
+    event = tool_use(tool, "error", call_id, {"offset": "140"})
+    if error is not None:
+        event["part"]["state"]["error"] = error
+    return event
+
+
+def test_error_kinds_groups_by_tool_and_first_line(tmp_path) -> None:
+    schema = 'SchemaError(Expected number | undefined, got "140"\n  at ["offset"])'
+    path = write_transcript(
+        tmp_path,
+        make_transcript(
+            [
+                errored("read", "a", schema),
+                errored("read", "b", schema),
+                errored("bash", "c", "exit status 1\nstderr: no such file"),
+                tool_use("read", "completed", "d"),
+            ]
+        ),
+    )
+    kinds = error_kinds(read_tool_calls(path))
+    assert kinds == {
+        'read: SchemaError(Expected number | undefined, got "140"': 2,
+        "bash: exit status 1": 1,
+    }
+
+
+def test_an_error_without_text_is_counted_not_dropped(tmp_path) -> None:
+    path = write_transcript(tmp_path, make_transcript([errored("read", "a", None)]))
+    assert error_kinds(read_tool_calls(path)) == {"read: <no error text>": 1}
+
+
+def test_main_adds_the_breakdown_only_when_asked(tmp_path, capsys) -> None:
+    path = write_transcript(
+        tmp_path, make_transcript([errored("read", "a", "bad offset")])
+    )
+    with pytest.raises(SystemExit):
+        main([str(path)])
+    assert "errors" not in json.loads(capsys.readouterr().out)
+    with pytest.raises(SystemExit):
+        main(["--errors", str(path)])
+    assert json.loads(capsys.readouterr().out)["errors"] == {"read: bad offset": 1}

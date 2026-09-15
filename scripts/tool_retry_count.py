@@ -91,6 +91,10 @@ class ToolCall:
     tool: str
     status: str
     input: object
+    #: The first line of `part.state.error`, or None when the event has none.
+    #: It separates a malformed call from a well-formed one the client
+    #: rejected, which the error count alone cannot (#220).
+    error: str | None = None
 
 
 class TranscriptError(Exception):
@@ -190,7 +194,11 @@ def _parse_tool_call(event: dict, lineno: int) -> ToolCall:
     status = state.get("status")
     if not isinstance(status, str) or not status:
         raise TranscriptError(f"line {lineno} tool_use has no part.state.status string")
-    return ToolCall(tool=tool, status=status, input=state.get("input"))
+    raw_error = state.get("error")
+    error = None
+    if isinstance(raw_error, str) and raw_error.strip():
+        error = raw_error.strip().splitlines()[0]
+    return ToolCall(tool=tool, status=status, input=state.get("input"), error=error)
 
 
 def row_from_calls(
@@ -243,6 +251,22 @@ def infer_retries(calls: list[ToolCall]) -> int:
     return retried
 
 
+def error_kinds(calls: list[ToolCall]) -> dict[str, int]:
+    """Count errored calls by `<tool>: <first line of the error>` (#220).
+
+    A raw measurement, not a heuristic: the text is what the client recorded.
+    An errored call with no error text is counted as `<no error text>`, not
+    dropped, so the counts always sum to `errored`.
+    """
+    kinds: dict[str, int] = {}
+    for call in calls:
+        if call.status != STATUS_ERROR:
+            continue
+        key = f"{call.tool}: {call.error or '<no error text>'}"
+        kinds[key] = kinds.get(key, 0) + 1
+    return kinds
+
+
 def _expand_inputs(paths: list[str]) -> list[pathlib.Path]:
     """Expand file and directory arguments into transcript paths.
 
@@ -280,6 +304,12 @@ def main(argv: list[str] | None = None) -> NoReturn:
         help="add a retried column from the retry heuristic (a guess, not a "
         "measurement)",
     )
+    p.add_argument(
+        "--errors",
+        action="store_true",
+        help="add an errors object: errored calls counted by tool and the first "
+        "line of the client's error text (#220)",
+    )
     args = p.parse_args(argv)
 
     # Diagnostics go to stderr so stdout stays clean JSONL (pipeable to jq).
@@ -293,6 +323,10 @@ def main(argv: list[str] | None = None) -> NoReturn:
         # and the process exiting is what flushes it.
         row_stream = open(args.out, "w")  # noqa: SIM115
     row_logger = logging.getLogger(__name__ + ".rows")
+    # The logger outlives a call. Without this, a second main() in one process
+    # keeps the first call's handler and writes every row twice.
+    for old in list(row_logger.handlers):
+        row_logger.removeHandler(old)
     row_logger.propagate = False
     row_logger.setLevel(logging.INFO)
     row_handler = logging.StreamHandler(row_stream)
@@ -313,6 +347,8 @@ def main(argv: list[str] | None = None) -> NoReturn:
         row = row_from_calls(path, calls)
         if args.infer_retries:
             row["retried"] = infer_retries(calls)
+        if args.errors:
+            row["errors"] = error_kinds(calls)
         row_logger.info(json.dumps(row, sort_keys=True))
     if args.out:
         row_stream.close()
