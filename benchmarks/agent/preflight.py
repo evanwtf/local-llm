@@ -333,6 +333,29 @@ def parse_ps(text: str, markers: Sequence[str] = INFERENCE) -> list[Proc]:
     return procs
 
 
+#: Background samplers that are known, deliberate, and small (#214).
+#:
+#: monitord ran at 1 Hz inside every measurement for 20 hours on 2026-09-06
+#: and nothing declared it: it holds 5 MB, so the server check above never saw
+#: it. A sampler here is not refused. It is named on the row's `env.samplers`,
+#: so a later reader can split runs that had one from runs that did not.
+SAMPLERS = ("monitord",)
+
+
+def samplers(ps_text: str) -> list[str]:
+    """The known samplers running now, as `name (pid N)`, from `ps -eo ...`.
+
+    The match is on the executable, as in `parse_ps`: a shell that only
+    mentions a sampler in its arguments is not one.
+    """
+    found = []
+    for proc in parse_ps(ps_text, markers=SAMPLERS):
+        binary = pathlib.PurePath(proc.command.split()[0]).name
+        if binary in SAMPLERS:
+            found.append(f"{binary} (pid {proc.pid})")
+    return found
+
+
 def parse_lsof(text: str) -> dict[int, int]:
     """Read `lsof -nP -iTCP -sTCP:LISTEN` into {port: pid}.
 
@@ -1609,6 +1632,16 @@ def main() -> int:
 
     report = inspect()
     log_report(report)
+    # #214: name a known sampler, so it is declared before a batch, not found
+    # 20 hours into one. Never refuses.
+    try:
+        found = samplers(_capture(["ps", "-eo", "pid,rss,etime,command"]))
+    except ValueError:
+        found = []
+    if found:
+        logger.info(
+            "preflight: sampler running, recorded on rows: %s", ", ".join(found)
+        )
     # A directory listing of every model root, so "is the pack on disk?" is
     # always answered from the disk, not from a doc that drifts. Read-only and
     # readdir-only (no du), so it is cheap enough to run every time. Guarded:
