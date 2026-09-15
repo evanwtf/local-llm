@@ -221,6 +221,12 @@ def load_finding(path: pathlib.Path) -> dict:
     for key in ("agent", "agent_model", "agent_effort"):
         if not isinstance(finding[key], str) or not finding[key]:
             raise Refused(f"{path}: {key!r} must be a non-empty string")
+    if "superseded_by" in finding:
+        target = finding["superseded_by"]
+        if not isinstance(target, str) or not (path.parent / target).is_file():
+            raise Refused(
+                f"{path}: superseded_by {target!r} must name a finding file beside it"
+            )
     if finding["agent"] == agent_identity.UNIDENTIFIED:
         raise Refused(
             f"{path} is attributed to {agent_identity.UNIDENTIFIED!r} -- an "
@@ -668,6 +674,17 @@ def verify(finding: dict, path: pathlib.Path, include_expensive: bool) -> int:
     # machine-wide resource, so it must not move with the checkout; a
     # repo-relative path must move with it.
     repo = REPO_ROOT
+    superseded_by = finding.get("superseded_by")
+    if superseded_by:
+        # #209: corrections are added, not substituted. A superseded finding
+        # keeps its record untouched and is not re-run; its replacement is the
+        # finding that verifies.
+        logger.info("finding: %s", finding["statement"])
+        logger.info(
+            "SUPERSEDED by %s -- claims not re-run; verify that finding",
+            superseded_by,
+        )
+        return 0
     authored_in = finding.get("repo")
     if authored_in and pathlib.Path(authored_in) != repo:
         logger.info(

@@ -26,7 +26,9 @@ import preflight
 import evidence
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
-DOGFOOD = REPO / "evidence" / "0078-stale-not-broken.json"
+DOGFOOD = REPO / "evidence" / "0209-stale-not-broken.json"
+#: #209: 0078 is DOGFOOD's predecessor, kept as written and marked superseded.
+SUPERSEDED = REPO / "evidence" / "0078-stale-not-broken.json"
 
 
 def _finding(**overrides) -> dict:
@@ -141,16 +143,47 @@ def test_gate_allows_git_log():
 
 
 def test_dogfood_lints_clean():
-    """The dogfood artifact is valid under the current schema."""
+    """The dogfood artifact and its superseded predecessor both lint (#209)."""
     finding = evidence.load_finding(DOGFOOD)
     assert finding["schema"] == evidence.SCHEMA
-    assert finding["agent"] == "glm-5.3"
+    assert finding["agent"] == "opus"
+    original = evidence.load_finding(SUPERSEDED)
+    assert original["schema"] == evidence.SCHEMA
+    assert original["agent"] == "glm-5.3"
+    assert original["superseded_by"] == DOGFOOD.name
 
 
 def test_verify_dogfood_passes(monkeypatch):
     """The dogfood claims reproduce: the finding is not stale."""
     monkeypatch.setattr(preflight, "read_lock", lambda *a, **k: None)
     assert evidence.verify(evidence.load_finding(DOGFOOD), DOGFOOD, False) == 0
+
+
+def test_a_superseded_finding_is_reported_and_never_rerun(monkeypatch, caplog):
+    import logging
+
+    def rerun(claim, repo):
+        raise AssertionError(f"superseded finding re-ran {claim['id']}")
+
+    monkeypatch.setattr(preflight, "read_lock", lambda *a, **k: None)
+    monkeypatch.setattr(evidence, "run_claim", rerun)
+    finding = evidence.load_finding(SUPERSEDED)
+    with caplog.at_level(logging.INFO):
+        assert evidence.verify(finding, SUPERSEDED, False) == 0
+    assert "SUPERSEDED by 0209-stale-not-broken.json" in caplog.text
+
+
+def test_superseded_by_must_name_a_finding_beside_it(tmp_path):
+    import json
+
+    import pytest
+
+    data = json.loads(SUPERSEDED.read_text())
+    data["superseded_by"] = "no-such-finding.json"
+    moved = tmp_path / SUPERSEDED.name
+    moved.write_text(json.dumps(data))
+    with pytest.raises(evidence.Refused, match="superseded_by"):
+        evidence.load_finding(moved)
 
 
 def test_compose_reports_naive_against_aware_instead_of_raising(monkeypatch):
