@@ -315,10 +315,15 @@ must be up to date with `main` first (`strict`). **Merge with a merge commit
 a `harness_head` a run stamped on the branch would no longer be an ancestor of
 `main` — the #355 orphaning failure, systematized onto every PR. A merge commit
 keeps the branch's commits reachable, which is why linear history is **not**
-required here. The operator (repo admin) can push to `main` directly in an
-emergency; agents cannot, and must not try to bypass a failing check. If
-auto-merge stalls, read the check — a red `pytest`, or a branch behind `main`,
-is the usual cause.
+required here.
+
+**The protection is a guardrail, not a permission boundary.** Every agent
+session and the operator push as the same GitHub account, an admin, so
+protection cannot separate an agent from the operator. Whether GitHub rejects
+an admin's direct push or lets it bypass with a warning, the rule is the same:
+agents never push to `main` directly and never bypass a failing check. Only
+the operator decides to override. If auto-merge stalls, read the check — a red
+`pytest`, or a branch behind `main`, is the usual cause.
 
 **The branch is deleted on merge automatically** (the repo has
 `delete_branch_on_merge`, and `gh pr merge` deletes it too). A merged branch left
