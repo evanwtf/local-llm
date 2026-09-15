@@ -598,6 +598,15 @@ def run_compose(
                 f"cannot compare {lhs!r} and {rhs!r}: one is a timestamp, the other is not"
             )
             continue
+        if isinstance(lhs_v, datetime.datetime) and (lhs_v.tzinfo is None) != (
+            rhs_v.tzinfo is None
+        ):
+            # #209: `<` raises TypeError here, and no zone may be assumed.
+            failures.append(
+                f"cannot compare {lhs!r} and {rhs!r}: one carries an offset, "
+                "the other does not"
+            )
+            continue
         if not lhs_v < rhs_v:
             failures.append(f"{lhs!r} is not before {rhs!r}")
         detail.append(f"{lhs} < {rhs}")

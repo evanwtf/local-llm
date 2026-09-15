@@ -153,6 +153,21 @@ def test_verify_dogfood_passes(monkeypatch):
     assert evidence.verify(evidence.load_finding(DOGFOOD), DOGFOOD, False) == 0
 
 
+def test_compose_reports_naive_against_aware_instead_of_raising(monkeypatch):
+    # #209: a ledger read gained an offset while its operand, a git log with a
+    # naive --date format, did not. `<` on those raised TypeError and took the
+    # whole verify down; it must be one failed comparison instead.
+    stdout = {"row": "2026-09-01T08:15:17-0400", "commit": "2026-09-01T17:42:29"}
+    monkeypatch.setattr(
+        evidence, "run_claim", lambda claim, repo: {"stdout": stdout[claim["id"]]}
+    )
+    claim = {"id": "c", "compose": {"lt": [["row", "commit"]]}}
+    by_id = {"row": {"id": "row"}, "commit": {"id": "commit"}}
+    failures, _ = evidence.run_compose(claim, by_id, REPO)
+    assert len(failures) == 1
+    assert "offset" in failures[0]
+
+
 def _command_claim(**overrides) -> dict:
     base = {
         "id": "c",
