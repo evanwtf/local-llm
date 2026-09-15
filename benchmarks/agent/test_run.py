@@ -1907,6 +1907,42 @@ def test_engine_provenance_knows_where_each_engine_records_itself():
     assert run.engine_provenance(backends, env) == []
 
 
+def test_engine_provenance_accepts_the_backends_own_server_identity():
+    # #365: a shim-fronted ds4 backend (base_url :8101, engine_url :8000) never
+    # gets `ds4_head`, but its server identity already holds the build of the
+    # tree that served it. 541 M5 Max rows said `ds4_version=unknown` beside a
+    # real `servers.<backend>.engine_version`.
+    env = {
+        "servers": {
+            "qwen38fnds4q4exp": {
+                "engine_version": "6c1e836",
+                "engine_tree": "/Users/x/git/ds4-metal-228",
+            }
+        }
+    }
+    backends = {"qwen38fnds4q4exp": {"engine": "ds4"}}
+    assert run.engine_provenance(backends, env) == []
+    assert "ds4_version" not in env
+
+
+def test_engine_provenance_server_entry_without_a_build_is_still_unknown():
+    # A server record that names no engine_version recorded no build.
+    env = {"servers": {"b": {"metal_route": "tensor"}}}
+    gaps = run.engine_provenance({"b": {"engine": "ds4"}}, env)
+    assert env["ds4_version"] == "unknown"
+    assert len(gaps) == 1
+
+
+def test_engine_provenance_another_backends_server_does_not_count():
+    # Two ds4 backends in one run: one server's build must not vouch for the
+    # other backend, whose tree may be a different commit.
+    env = {"servers": {"a": {"engine_version": "6c1e836"}}}
+    backends = {"a": {"engine": "ds4"}, "b": {"engine": "ds4"}}
+    gaps = run.engine_provenance(backends, env)
+    assert env["ds4_version"] == "unknown"
+    assert len(gaps) == 1 and gaps[0].startswith("b:")
+
+
 def test_engine_provenance_exempts_the_hosted_backend():
     # No engine declared, no build to pin; `hosted_unpinned` covers it.
     env = {}
