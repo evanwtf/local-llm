@@ -15,6 +15,7 @@ and CI were green on the branch that did it.
 
 from __future__ import annotations
 
+import json
 import pathlib
 import subprocess
 import sys
@@ -87,6 +88,71 @@ def test_the_invariant_holds_right_now():
         if apdr.is_pre_dir(x, after)
     ]
     assert not stragglers, f"{len(stragglers)} pre---dir rows are back in the ledger"
+
+
+def test_the_archiver_has_no_classifier_of_its_own():
+    """#392: a second fixed_commits() drifted from dirfix's once and archived 65
+    post-fix rows. One classifier, so there is nothing to drift."""
+    import dirfix
+
+    assert apdr.fixed_commits is dirfix.fixed_commits
+    assert apdr.FIX == dirfix.FIX
+
+
+def test_is_pre_dir_is_dirfix_era_for_opencode_rows():
+    import dirfix
+
+    after = {"28b1da6"}
+    for env in ({}, {"harness_head": "28b1da6"}, {"harness_head": "0000000"}):
+        row = {"client": "opencode", "env": env}
+        line = json.dumps(row)
+        assert apdr.is_pre_dir(line, after) == (dirfix.era(row, after) == "before")
+    assert not apdr.is_pre_dir(json.dumps({"client": "claude", "env": {}}), after)
+
+
+PRE = '{"client":"opencode","env":{"harness_head":"0000000"}}\n'
+POST = '{"client":"opencode","env":{"harness_head":"28b1da6"}}\n'
+OTHER = '{"client":"claude","env":{}}\n'
+
+
+def test_a_second_planned_pass_moves_nothing():
+    """#392 idempotence, in the dry-run form: plan twice, never archive twice."""
+    lines = [POST, PRE, OTHER, PRE]
+    move, keep = apdr.plan(lines, {"28b1da6"})
+    assert move == [PRE, PRE]
+    assert keep == [POST, OTHER]
+    assert apdr.plan(keep, {"28b1da6"}) == ([], keep)
+
+
+def _point_at(monkeypatch, tmp_path, ledger_text):
+    ledger = tmp_path / "results.jsonl"
+    ledger.write_text(ledger_text)
+    archive = tmp_path / "archive.jsonl"
+    archive.write_text("")
+    monkeypatch.setattr(apdr, "RESULTS", ledger)
+    monkeypatch.setattr(apdr, "ARCHIVE", archive)
+    monkeypatch.setattr(apdr, "fixed_commits", lambda repo: {"28b1da6"})
+    return ledger, archive
+
+
+def test_check_reports_a_planned_move_and_writes_nothing(monkeypatch, tmp_path):
+    ledger, archive = _point_at(monkeypatch, tmp_path, POST + PRE)
+    assert apdr.main(["--check"]) == 1
+    assert ledger.read_text() == POST + PRE
+    assert archive.read_text() == ""
+
+
+def test_check_passes_on_a_clean_ledger(monkeypatch, tmp_path):
+    _point_at(monkeypatch, tmp_path, POST + OTHER)
+    assert apdr.main(["--check"]) == 0
+
+
+def test_the_real_run_then_check_is_clean(monkeypatch, tmp_path):
+    ledger, archive = _point_at(monkeypatch, tmp_path, POST + PRE)
+    assert apdr.main([]) == 0
+    assert ledger.read_text() == POST
+    assert archive.read_text() == PRE
+    assert apdr.main(["--check"]) == 0
 
 
 def test_archiver_agrees_with_dirfix_on_the_orphaned_shas():
