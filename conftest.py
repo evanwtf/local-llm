@@ -34,6 +34,7 @@ import json
 import os
 import pathlib
 import socket
+import time
 
 import pytest
 
@@ -116,6 +117,36 @@ def pytest_sessionstart(session: pytest.Session) -> None:
     lock = machine_claim()
     if lock is not None:
         raise pytest.UsageError(refusal_message(lock))
+
+
+#: Seconds between re-reads of the claim once the session is running (#189).
+#:
+#: The session-start check alone let a suite that started on a free machine run
+#: to completion after a benchmark claimed it. Re-reading before every test
+#: stops the suite within seconds of the claim. The throttle keeps a free
+#: machine's cost at one small file read per interval, not one per test.
+RECHECK_INTERVAL_S = 5.0
+
+_clock = time.monotonic
+_last_recheck: float | None = None
+
+
+def pytest_runtest_setup(item: pytest.Item) -> None:
+    """Stop the session if a benchmark claimed the machine since it started.
+
+    `pytest.exit`, not a skip: a suite that skips its remaining tests reports
+    green-ish, and nobody acts on that.
+    """
+    global _last_recheck
+    if os.environ.get(OVERRIDE_ENV):
+        return
+    now = _clock()
+    if _last_recheck is not None and now - _last_recheck < RECHECK_INTERVAL_S:
+        return
+    _last_recheck = now
+    lock = machine_claim()
+    if lock is not None:
+        pytest.exit(refusal_message(lock), returncode=2)
 
 
 @pytest.fixture(autouse=True)
