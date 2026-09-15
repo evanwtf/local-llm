@@ -36,6 +36,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 #: archive to the repo rather than to wherever it was invoked.
 sys.path.insert(0, str(ROOT / "benchmarks" / "agent"))
 
+import dirfix
 import results
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
@@ -57,7 +58,13 @@ def fixed_commits(repo: pathlib.Path) -> set[str]:
     heads = {c[:7] for c in r.stdout.split()}
     if not heads:
         raise SystemExit(f"no commits from {FIX} in {repo}: {r.stderr.strip()}")
-    return heads
+    # Union the orphaned-but-post-fix shas (#355), the same allowlist dirfix.py
+    # uses. `git gc` collected the originals, so `git log` cannot reach them and
+    # rows stamped with them would classify as pre-dir and be wrongly archived
+    # into the "before" file -- which is exactly what broke
+    # test_dirfix.py::test_the_archive_is_still_where_dirfix_expects_it. The
+    # archiver and the classifier must agree; share one source of truth.
+    return heads | set(dirfix.REBASED_AFTER_FIX)
 
 
 def is_pre_dir(line: str, after: set[str]) -> bool:

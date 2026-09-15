@@ -87,3 +87,24 @@ def test_the_invariant_holds_right_now():
         if apdr.is_pre_dir(x, after)
     ]
     assert not stragglers, f"{len(stragglers)} pre---dir rows are back in the ledger"
+
+
+def test_archiver_agrees_with_dirfix_on_the_orphaned_shas():
+    """#355: `git gc` collected the rebased-but-post-fix shas, so `git log`
+    cannot reach them. dirfix.py unions REBASED_AFTER_FIX to keep those rows
+    classified "after"; the archiver MUST union the same set, or it treats them
+    as pre-dir and moves post-fix rows into the pre-dir "before" archive --
+    which broke test_dirfix's archive invariant and turned main red on
+    2026-09-14. The two classifiers must share one source of truth.
+    """
+    import dirfix
+
+    after = apdr.fixed_commits(ROOT)
+    assert set(dirfix.REBASED_AFTER_FIX).issubset(after), (
+        "archiver fixed_commits dropped the #355 orphan shas dirfix keeps"
+    )
+    for sha in dirfix.REBASED_AFTER_FIX:
+        row = f'{{"client":"opencode","env":{{"harness_head":"{sha}"}}}}'
+        assert not apdr.is_pre_dir(row, after), (
+            f"post-fix orphan sha {sha} would be wrongly archived as pre-dir"
+        )
