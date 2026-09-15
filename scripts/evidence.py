@@ -194,7 +194,7 @@ EXPENSIVE_TIMEOUT = 900
 # rule that fires on them makes authors lie in a declaration field to get past
 # it. The alternation is longest-first so `foo.metal:1` matches the `metal`
 # extension, not `m`.
-_SOURCE_CITATION = re.compile(r"\b[\w-]+\.(?:metal|sh|py|c|m|h)\s*[: ]\s*\d{1,6}\b")
+_SOURCE_CITATION = re.compile(r"\b[\w-]+\.(?:metal|sh|py|c|m|h)\s*[: ]\s*(\d{1,6})\b")
 
 
 class Refused(Exception):
@@ -364,8 +364,11 @@ def _lint_claim(claim: object, ids: set[str], path: pathlib.Path) -> None:
     # observed has no line count to compare against.
     #
     # `context_lines` keeps its job: the citations that are references rather
-    # than results. It is validated but not compared -- the comparison is
-    # against `enumerates`, which is exact.
+    # than results. The count comparison is against `enumerates`, which is
+    # exact. Since #176, every line number a citation names must appear in
+    # exactly one of the two, so `enumerates: []` costs an explicit
+    # `context_lines` entry per citation rather than passing by declaring
+    # nothing.
     context_lines = claim.get("context_lines")
     if context_lines is not None and (
         not isinstance(context_lines, list)
@@ -387,6 +390,22 @@ def _lint_claim(claim: object, ids: set[str], path: pathlib.Path) -> None:
                 f"{path}: claim {claim['id']!r} cites a source file line but "
                 "does not declare enumerates -- the list of line numbers its "
                 "command produced, as a list of ints"
+            )
+        references = set(context_lines or [])
+        both = sorted(set(enumerates) & references)
+        if both:
+            raise Refused(
+                f"{path}: claim {claim['id']!r} declares line numbers {both} in "
+                "both enumerates and context_lines -- a cited line is a result "
+                "or a reference, not both (#176)"
+            )
+        cited = {int(m.group(1)) for m in _SOURCE_CITATION.finditer(claim["statement"])}
+        undeclared = sorted(cited - set(enumerates) - references)
+        if undeclared:
+            raise Refused(
+                f"{path}: claim {claim['id']!r} cites line numbers {undeclared} "
+                "that appear in neither enumerates nor context_lines -- declare "
+                "each as a result or a reference (#176)"
             )
         observed = claim.get("observed")
         stdout = observed.get("stdout") if isinstance(observed, dict) else observed
