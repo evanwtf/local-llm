@@ -105,6 +105,7 @@ Each script explains itself in full at the top of its own file -- what it comput
 | `ttft_probe.py` | any | Time-to-first-token against a vLLM endpoint, client-observed vs engine (#346). |
 | `unitctl.py` | any | start / stop / status for the processes this repo runs. #234 |
 | `upstream_sweep.py` | any | Sweep the repositories this project depends on, in one command. |
+| `validate_ledgers.py` | any | Validate EVERY committed hardware ledger, independent of the runner (#394). |
 | `verify_posts.py` | any | Verify X posts against the source, for the claims that earned an issue. |
 | `verify_push.py` | any | Verify a push landed, instead of trusting that `git push` reported success (#255). |
 | `vllm_compat_proxy.py` | any | Strip non-standard fields from a vLLM fork's chat responses so a strict |
