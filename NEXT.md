@@ -5,9 +5,9 @@ P0 before P1, then by issue number; each summary is the issue's own
 first 100 words. The labels are the ranking, so there is
 nothing here to drift from.
 
-## The queue — 5 P0, 2 P1
+## The queue — 5 P0, 1 P1
 
-Open on this platform: 5 P0, 2 P1, 52 P2, 16 P3.
+Open on this platform: 5 P0, 1 P1, 43 P2, 16 P3.
 One runs at a time; the lock enforces it.
 
 1. **P0 [#158](https://github.com/evanwtf/local-llm/issues/158)** Qwen3.8-Flash-Next is upstreamed as antirez/ds4#991 — the fork dependency, the prefill claim and our own build all change at once
@@ -22,8 +22,6 @@ One runs at a time; the lock enforces it.
    antirez/ds4#964 is the GLM-5.3-Flash Metal acceleration PR. We measured it twice and both results are on closed issues (#118, #143). The PR has moved 63 commits past the head we measured, and four of those commits are Metal GLM work — including one that lands exactly where our last result was a null. What we hold From #143, at head 37f3f0d, four runs per arm: | result | spread | ---|---|---| decode pr964/main | +13.3% | 1.4 pp over 4 runs | prefill pr964/main | −1.3% | 4.2 pp over 4 runs | Decode reproduced on 8 of 8 frontiers. …
 6. **P1 [#279](https://github.com/evanwtf/local-llm/issues/279)** The -q4 Qwen pack declares qwen4-exp and the current ds4-metal head refuses it, so two backends cannot launch
    Found while moving the engine tree for #228. This is a consequence of that move and needs a decision, not just a record. What breaks ~/git/ds4-metal now sits at 6c1e836 (was ba01f5d, 169 commits behind). On that head, ds4-server refuses the qwen3.8-flash-next-ds4-q4 pack: Verified directly: server exits rc=1 in 5 s. Same on ds4-bench. Two backends in benchmarks/agent/tasks.toml name that pack and engine_tree = "~/git/ds4-metal": - tasks.toml:1124 — "Qwen3.8-Flash-Next Q4_0-routed fast-pack on ds4-metal qwen3.8-flash-next 2021dda, MTP off" - tasks.toml:1145 — "Qwen3.8-Flash-Next Q4 fast-pack on ds4-metal 2021dda, embedded MTP --mtp-draft 7" I have not launched either backend end to end, so …
-7. **P1 [#328](https://github.com/evanwtf/local-llm/issues/328)** ds4 promotes level-2 (uncompensated) tensor tiles as default on M5: @ivanfioravanti claims +40% prefill for Qwen3.8-Flash-Next Q4/Q2 — measure the gain and the #149 drift it trades for
-   What it is, read off the commits (not the chart) ivan/qwen3.8-flash-next moved 10830f4d → dddb1ba6 on 2026-09-12 (three commits, 09:05–09:14 CST): - 9f0c99a8 Run the Q2 routed tiers on the Metal tensor tiles (opt-in) - 22d04615 Promote the Q2 tensor tiles to the level-2 default - dddb1ba6 Promote the level-2 tensor tiles to the default on every tier "Tensor=2" is not a new env value. It is the level-2 tensor tiles — the uncompensated 64-token half tiles — now promoted as the default, replacing the compensated tiles. Our last measured engine, 10830f4d, is literally "Merge compensated tensor tiles … default …
 
 ## Where everything else is
 

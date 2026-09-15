@@ -2253,6 +2253,24 @@ aider_model = "openai/nemotron-3.5-lightning-30b-a3b"
 opencode_model = "vllm/nemotron-3.5-lightning-30b-a3b"
 context_tokens = 131072
 
+# OpenAI's open model, MXFP4 native, served on vLLM 0.29.0 (GptOssForCausalLM,
+# MARLIN MXFP4 MoE) with reasoning_effort=low (#407). It is a reasoning model --
+# it always emits a reasoning channel, so it cannot run fully thinking-off like
+# the A3B leader; low effort is the agent-appropriate setting. Needs the harmony
+# tiktoken vocab pre-seeded in ~/.cache/tiktoken-rs-cache (the server cannot
+# download it at request time). Rows are same-hardware cross-model cells.
+[backend.gptoss20bdgx]
+description = "GPT-OSS-20B (OpenAI, MXFP4/MARLIN) via vLLM 0.29.0, CUDA sm_121, harmony reasoning (openai_gptoss), reasoning_effort=low (#407)"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8030"
+auth_token = "local"
+engine = "vllm"
+engine_tree = "~/venvs/vllm"
+model = "gpt-oss-20b"
+aider_model = "openai/gpt-oss-20b"
+opencode_model = "vllm/gpt-oss-20b"
+context_tokens = 131072
+
 # The 2nd #335 A3B candidate: Ornith-1.5, this project's fastest measured backend
 # on the M5 Max -- so this is a cross-ARCHITECTURE comparison of a known-good
 # model (only the hardware changes). Rows here are NOT pooled with the Mac's
