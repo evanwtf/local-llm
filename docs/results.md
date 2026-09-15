@@ -59,7 +59,7 @@ other is telling you something.
 
 ### Cortex-X925-128GB-GB10
 
-*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 1082 rows, sha256 08ef700fb2f1.*
+*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 1112 rows, sha256 c1bff67676fa.*
 
 #### Every stack measured under OpenCode
 
@@ -67,7 +67,7 @@ other is telling you something.
 
 | stack | passed | median | worst | spread |
 |---|---|---|---|---|
-| qwen36a3bnvfp4dgx | 78/79 | 39s | 83s | 6.0x |
+| qwen36a3bnvfp4dgx | 104/107 | 40s | 107s | 7.8x |
 | ornith15a3bdgx | 30/30 | 49s | 571s | 28.8x |
 | qwen38fnq3nothinktopkdgx | 30/30 | 54s | 136s | 3.8x |
 | qwen38fnq3nothinkkv8dgx | 90/90 | 61s | 1528s | 43.9x |
@@ -85,6 +85,8 @@ other is telling you something.
 | qwen36bf16dgx | 30/30 | 432s | 1335s | 6.7x |
 | nemotron3nano | 8/10 | 580s | 1212s | 8.5x |
 | nemotron33 | 1/10 | — | — | — |
+
+**Rows here were not all taken under one client.** qwen36a3bnvfp4dgx under 1.18.31; the rest under 1.18.30. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: qwen36a3bnvfp4dgx (1.18.30, 1.18.31).
 
 Excision tasks only; `script-*` excluded because they are a different class. **Spread is worst / best on the same task**, and it is the column most people forget to ask for.
 
@@ -110,6 +112,8 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | qwen36nvfp4dgx | 150s |
 | qwen36nvfp4v1dgx | 160s |
 | qwen36bf16dgx | 409s |
+
+**Rows here were not all taken under one client.** qwen36a3bnvfp4dgx under 1.18.31; the rest under 1.18.30. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: qwen36a3bnvfp4dgx (1.18.30, 1.18.31).
 
 ### MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A
 
