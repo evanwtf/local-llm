@@ -850,6 +850,16 @@ def capture_versions(cfg, backends, allow_unstamped=False):
     if ceiling:
         env["metal_ceiling_mb"] = ceiling
 
+    # #214: a known sampler inside the measurement is declared, not discovered.
+    # An empty list means "looked and found none", which absence cannot say.
+    # Not `out()`: that keeps only the first line, which here is the header.
+    try:
+        ps_text = preflight._capture(["ps", "-eo", "pid,rss,etime,command"])
+        if ps_text:
+            env["samplers"] = preflight.samplers(ps_text)
+    except Exception as exc:  # noqa: BLE001 -- a sampler census must never take a run down
+        logger.warning("could not list samplers for env.samplers: %s", exc)
+
     # Interrogate the machine on every run rather than assuming last time's.
     # `macos` and `machine` above are Darwin sysctls and were simply absent on
     # Linux, so a desktop row could not say what hardware produced it. Includes
