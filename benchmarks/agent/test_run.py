@@ -2046,3 +2046,54 @@ def test_serves_ds4_ignores_a_shim_with_no_declared_engine():
 
 def test_serves_ds4_ignores_other_engines():
     assert not run.serves_ds4({"vllm": {"base_url": "http://127.0.0.1:8030"}})
+
+
+# --- #213: llama.cpp rows record the launch argv of the server on their port -
+#
+# The llama.cpp block recorded the commit and the binary's mtime, but not how
+# llama-server was started. Several can run at once (:8020-:8023 are separate
+# arms), so the argv is taken from the process on the backend's own port.
+
+LLAMA_PS = (
+    "sshd\n"
+    "/Users/e/git/llama.cpp/build/bin/llama-server --model /m/a.gguf "
+    "--port 8021 -ub 512\n"
+    "/Users/e/git/llama.cpp/build/bin/llama-server --model /m/a.gguf "
+    "--port 8020 -c 131072 -np 1\n"
+    "bash -c tail -f llama-server.log\n"
+)
+
+
+def test_llamacpp_argv_is_the_process_on_the_requested_port():
+    got = run.llamacpp_argv(LLAMA_PS, 8020)
+    assert got is not None
+    assert got.endswith("--port 8020 -c 131072 -np 1")
+
+
+def test_llamacpp_argv_accepts_the_equals_spelling():
+    ps = "/b/llama-server --model x.gguf --port=8022\n"
+    assert run.llamacpp_argv(ps, 8022) == "/b/llama-server --model x.gguf --port=8022"
+
+
+def test_llamacpp_argv_uses_the_default_port_when_none_is_given():
+    """llama-server listens on 8080 when started without --port."""
+    ps = "./build/bin/llama-server --model x.gguf\n"
+    assert run.llamacpp_argv(ps, 8080) == ps.strip()
+    assert run.llamacpp_argv(ps, 8020) is None
+
+
+def test_llamacpp_argv_ignores_a_command_that_only_mentions_the_server():
+    assert (
+        run.llamacpp_argv("bash -c tail -f llama-server.log --port 8020\n", 8020)
+        is None
+    )
+
+
+def test_llamacpp_argv_is_none_when_no_server_is_on_the_port():
+    assert run.llamacpp_argv(LLAMA_PS, 8023) is None
+
+
+def test_llamacpp_port_maps_the_claude_code_shim_to_its_upstream():
+    assert run.llamacpp_port({"a": {"base_url": "http://127.0.0.1:8020"}}) == 8020
+    assert run.llamacpp_port({"a": {"base_url": "http://127.0.0.1:11500"}}) == 8020
+    assert run.llamacpp_port({"a": {"base_url": "http://127.0.0.1:8030"}}) is None

@@ -770,6 +770,45 @@ def serving_vllm():
     return None
 
 
+#: The port llama-server listens on when started without --port.
+LLAMACPP_DEFAULT_PORT = 8080
+
+#: Backend port -> the llama-server port behind it. :11500 is the shim that
+#: fronts :8020 for Claude Code.
+LLAMACPP_PORTS = {8020: 8020, 11500: 8020}
+
+
+def llamacpp_port(backends):
+    """The llama-server port the run's llama.cpp backend reaches, or None."""
+    for b in backends.values():
+        port = urlparse(b.get("base_url") or "").port
+        if port in LLAMACPP_PORTS:
+            return LLAMACPP_PORTS[port]
+    return None
+
+
+def llamacpp_argv(ps_text, port):
+    """The argv of the llama-server listening on `port`, or None (#213).
+
+    Several llama-servers can run at once (:8020-:8023 are separate arms), so
+    the match is on the port, not the first server found. The executable must
+    be llama-server itself: a shell that tails its log does not count.
+    """
+    for line in ps_text.splitlines():
+        parts = line.split()
+        if not parts or pathlib.Path(parts[0]).name != "llama-server":
+            continue
+        listens = LLAMACPP_DEFAULT_PORT
+        for i, tok in enumerate(parts):
+            if tok == "--port" and i + 1 < len(parts):
+                listens = parts[i + 1]
+            elif tok.startswith("--port="):
+                listens = tok.removeprefix("--port=")
+        if str(listens) == str(port):
+            return " ".join(parts)
+    return None
+
+
 def metal_ceiling_mb():
     """The Metal wired limit. Decides whether a ~90 GiB model loads at all.
 
@@ -938,6 +977,15 @@ def capture_versions(cfg, backends, allow_unstamped=False):
             env["llamacpp_server_mtime"] = time.strftime(
                 "%Y-%m-%dT%H:%M:%S", time.localtime(server.stat().st_mtime)
             )
+        # #213: how it was launched, from the process on the backend's port.
+        # setdefault: a run that also serves ds4 keeps the ds4 argv it has.
+        port = llamacpp_port(backends)
+        if port is not None:
+            # _capture, not out(): out() keeps only the first line.
+            ps_text = preflight._capture(["ps", "ax", "-o", "command="])
+            argv = llamacpp_argv(ps_text, port)
+            if argv:
+                env.setdefault("server_argv", argv)
     # vLLM is a wheel, not a checkout, so there is no commit to pin and the
     # ~/git/<engine> shape the two blocks above rely on does not exist. What
     # identifies the build is the wheel version plus the torch underneath it:
