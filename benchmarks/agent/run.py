@@ -3013,6 +3013,45 @@ def draft_verdict(counters, counters_on=None):
     return "partial" if share < 1 else "ok"
 
 
+def record_source_repo(result, repo, target, name):
+    """Check the guarded checkout after the agent and write it onto the row.
+
+    Runs on a finished trial and on a timed-out one (#71). A timeout used to
+    skip it, so a row could flag a workspace escape and leave
+    `source_repo_intact` unset, with nothing to say whether the checkout was
+    touched.
+    """
+    guarded = guarded_repo(repo)
+    intact, why = source_repo_state(guarded, target["base_commit"])
+    result["source_repo_intact"] = intact
+    if intact:
+        return
+    result["source_repo_reason"] = why
+    if result.get("source_repo_intact_before") is False:
+        # It was already off-baseline when the trial started. Somebody
+        # else is working in that checkout. Void the row; do not
+        # attribute it to the agent, and do not count it as a failure.
+        result["excluded"] = True
+        result["exclusion_reason"] = (
+            f"guarded checkout {guarded} was off-baseline before the "
+            "trial started; modified outside the harness"
+        )
+        logger.error(
+            "%s: guarded checkout was modified OUTSIDE the harness (%s) "
+            "-- row voided, not scored against the agent",
+            name,
+            why,
+        )
+    else:
+        logger.error(
+            "%s: guarded checkout %s went off-baseline DURING the trial "
+            "(clean before) -- %s. The agent may have left the sandbox.",
+            name,
+            guarded,
+            why,
+        )
+
+
 def one_trial(
     cfg,
     task,
@@ -3344,34 +3383,7 @@ def one_trial(
         if not is_script:
             result["restored_verbatim"] = grade.all_restored_verbatim(excised, keep_doc)
         result["target_repo"] = target["repo"]
-        guarded = guarded_repo(repo)
-        intact, why = source_repo_state(guarded, target["base_commit"])
-        result["source_repo_intact"] = intact
-        if not intact:
-            result["source_repo_reason"] = why
-            if result.get("source_repo_intact_before") is False:
-                # It was already off-baseline when the trial started. Somebody
-                # else is working in that checkout. Void the row; do not
-                # attribute it to the agent, and do not count it as a failure.
-                result["excluded"] = True
-                result["exclusion_reason"] = (
-                    f"guarded checkout {guarded} was off-baseline before the "
-                    "trial started; modified outside the harness"
-                )
-                logger.error(
-                    "%s: guarded checkout was modified OUTSIDE the harness (%s) "
-                    "-- row voided, not scored against the agent",
-                    name,
-                    why,
-                )
-            else:
-                logger.error(
-                    "%s: guarded checkout %s went off-baseline DURING the trial "
-                    "(clean before) -- %s. The agent may have left the sandbox.",
-                    name,
-                    guarded,
-                    why,
-                )
+        record_source_repo(result, repo, target, name)
         logger.info(
             "%s: %s in %ss (%s)",
             name,
@@ -3415,6 +3427,9 @@ def one_trial(
         save_transcript(
             client_log, name, _text(exc.stdout), _text(exc.stderr), result, partial=True
         )
+        # #71: the escape list above is recorded on a timeout, so the
+        # integrity check that answers it must run here too.
+        record_source_repo(result, repo, target, name)
         logger.error("%s: timed out after %ss", name, timeout)
     finally:
         # Before the tree goes. In `finally` on purpose: a timed-out trial has

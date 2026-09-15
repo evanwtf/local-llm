@@ -1535,6 +1535,65 @@ def test_one_trial_builds_the_trial_from_the_parked_checkout(tmp_path):
     assert row["control_fails_as_expected"] is True
 
 
+# --- #71: a timed-out trial still checks the guarded checkout ----------------
+#
+# The integrity check ran only when the client finished. A timeout recorded
+# `source_repo_intact: None`, so a row could flag a workspace escape and have
+# nothing to say about whether the checkout was touched.
+
+
+def _timed_out_trial(tmp_path, monkeypatch, script_for):
+    repo, commit = _tiny_repo(tmp_path)
+    script = script_for(repo)
+    monkeypatch.setitem(
+        run.CLIENTS,
+        "sleeper",
+        (lambda task, backend, worktree=None: ["python3", "-c", script], lambda _: {}),
+    )
+    row = run.one_trial(
+        {"repo": str(repo), "base_commit": commit},
+        {
+            "name": "seam",
+            "file": "mod.py",
+            "symbol": "target_fn",
+            "tests": [],
+            "test_command": "false",
+        },
+        "seam",
+        {"model": "stub", "context_tokens": 1},
+        trial=1,
+        workdir=tmp_path / "work",
+        timeout=1,
+        dry_run=False,
+        client="sleeper",
+        gates=False,
+        sandbox=False,
+        prepare_env_first=False,
+        idle_watchdog=False,
+    )
+    return row
+
+
+def test_a_timeout_still_checks_the_guarded_checkout(tmp_path, monkeypatch):
+    row = _timed_out_trial(
+        tmp_path, monkeypatch, lambda repo: "import time; time.sleep(30)"
+    )
+    assert row["error"] == "timeout"
+    assert row["source_repo_intact"] is True
+    assert "source_repo_reason" not in row
+
+
+def test_a_timeout_that_touched_the_checkout_says_so(tmp_path, monkeypatch):
+    def writes_then_sleeps(repo):
+        target = str(repo / "mod.py")
+        return f"open({target!r}, 'a').write('# agent\\n'); import time; time.sleep(30)"
+
+    row = _timed_out_trial(tmp_path, monkeypatch, writes_then_sleeps)
+    assert row["error"] == "timeout"
+    assert row["source_repo_intact"] is False
+    assert "mod.py" in row["source_repo_reason"]
+
+
 def test_the_sandbox_denies_every_parking_spot(tmp_path):
     """The real checkout keeps full history wherever it is parked, so the deny
     list has to name every parking spot -- not only the legacy -real siblings
