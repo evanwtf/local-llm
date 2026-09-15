@@ -67,6 +67,63 @@ def test_wilson_interval_stays_inside_zero_and_one():
     assert 0.0 < lo1 < hi1 < 0.2
 
 
+def _timed(backend: str, started: str, num_turns: int, wall: float) -> dict:
+    return {
+        "task": "t",
+        "backend": backend,
+        "started": started,
+        "num_turns": num_turns,
+        "wall_seconds": wall,
+    }
+
+
+def test_select_keeps_only_the_named_backends(tmp_path):
+    rows = [_timed("x", "2026-09-13T06:00:00-0400", 5, 1.0)]
+    rows += [_timed("y", "2026-09-13T06:00:00-0400", 5, 1.0)]
+    rows += [_timed("z", "2026-09-13T06:00:00-0400", 5, 1.0)]
+    got = te.select(rows, backends=["x", "z"])
+    assert [r["backend"] for r in got] == ["x", "z"]
+
+
+def test_select_with_no_backends_keeps_every_row():
+    rows = [_timed("x", "2026-09-13T06:00:00-0400", 5, 1.0)]
+    assert te.select(rows) == rows
+
+
+def test_select_applies_the_report_window_since_exclusive_until_inclusive():
+    # #224 reads one registered run, so the window must match report.window:
+    # a row stamped exactly at --since is outside, one at --until is inside.
+    rows = [
+        _timed("x", "2026-09-13T05:00:00-0400", 5, 1.0),
+        _timed("x", "2026-09-13T06:00:00-0400", 5, 1.0),
+        _timed("x", "2026-09-13T07:00:00-0400", 5, 1.0),
+    ]
+    got = te.select(
+        rows, since="2026-09-13T05:00:00-0400", until="2026-09-13T06:00:00-0400"
+    )
+    assert [r["started"] for r in got] == ["2026-09-13T06:00:00-0400"]
+
+
+def test_wall_totals_sum_wall_seconds_per_backend():
+    rows = [
+        _timed("x", "2026-09-13T06:00:00-0400", 5, 100.0),
+        _timed("x", "2026-09-13T06:01:00-0400", 30, 250.5),
+        _timed("y", "2026-09-13T06:02:00-0400", 5, 40.0),
+        {"task": "t", "backend": "y", "num_turns": 3},  # no wall: counts as 0
+    ]
+    assert te.wall_totals(rows) == {"x": (2, 350.5), "y": (2, 40.0)}
+
+
+def test_main_rejects_an_unknown_backend(tmp_path):
+    import json
+
+    ledger = tmp_path / "results.jsonl"
+    ledger.write_text(
+        json.dumps(_timed("x", "2026-09-13T06:00:00-0400", 5, 1.0)) + "\n"
+    )
+    assert te.main([str(ledger), "--backend", "nope"]) == 1
+
+
 def test_table_sorts_by_tail_count_then_rate():
     rows = [
         _row("a", "x", 30),  # a: 1 tail / 1
