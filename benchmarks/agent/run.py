@@ -887,7 +887,7 @@ def capture_versions(cfg, backends, allow_unstamped=False):
                 if b["model"] in digests:
                     env[f"digest_{name}"] = digests[b["model"]]
 
-    if any((b.get("base_url") or "").endswith(":8000") for b in backends.values()):
+    if serves_ds4(backends):
         ds4_root = (
             serving_ds4_root()
             or pathlib.Path(os.environ.get("DS4_ROOT", "~/git/ds4")).expanduser()
@@ -2798,6 +2798,17 @@ def require_draft_default(backends):
     arm is for; the escape hatch is --no-require-draft.
     """
     return bool(speculative_backends(backends))
+
+
+def serves_ds4(backends):
+    """Whether any selected backend is served by the ds4-server on :8000 (#213).
+
+    The ds4 provenance block (ds4_head, the served GGUF, server_argv) used to
+    run only for a base_url ending in :8000. A shim-fronted backend's base_url
+    is the shim's port, so its rows recorded none of it. Ask route_query_port(),
+    which reads a declared engine_url first (#211) and never guesses one.
+    """
+    return any(route_query_port(b) == 8000 for b in backends.values())
 
 
 def route_query_port(backend):

@@ -2014,3 +2014,35 @@ def test_serving_vllm_records_the_running_launch_argv(monkeypatch):
 def test_serving_vllm_is_none_when_no_vllm_is_up(monkeypatch):
     monkeypatch.setattr(run.subprocess, "run", lambda *a, **k: _Ps("sshd\nbash\n"))
     assert run.serving_vllm() is None
+
+
+# --- #213: the ds4 provenance block runs for a shim-fronted ds4 backend ------
+#
+# capture_versions() gated ds4_head, the served GGUF and server_argv on a
+# base_url ending in :8000. A shim-fronted backend's base_url is the shim's
+# (:8101), so 94 qwen38fnds4mtp7shim rows carry no server_argv while the 3
+# direct qwen38fnds4mtp7 rows do. #211 gave backends an engine_url; the gate
+# asks route_query_port(), which reads it.
+
+
+def test_serves_ds4_counts_a_shim_that_declares_its_engine():
+    backends = {
+        "qwen38fnds4mtp7shim": {
+            "base_url": "http://127.0.0.1:8101",
+            "engine_url": "http://127.0.0.1:8000",
+        }
+    }
+    assert run.serves_ds4(backends)
+
+
+def test_serves_ds4_counts_a_direct_ds4_backend():
+    assert run.serves_ds4({"qwen38fnds4mtp7": {"base_url": "http://127.0.0.1:8000"}})
+
+
+def test_serves_ds4_ignores_a_shim_with_no_declared_engine():
+    """Nothing is inferred: an undeclared upstream is not assumed to be :8000."""
+    assert not run.serves_ds4({"shim": {"base_url": "http://127.0.0.1:8101"}})
+
+
+def test_serves_ds4_ignores_other_engines():
+    assert not run.serves_ds4({"vllm": {"base_url": "http://127.0.0.1:8030"}})
