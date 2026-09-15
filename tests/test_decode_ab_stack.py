@@ -118,6 +118,93 @@ def test_ple_is_appended_only_when_the_arm_has_a_sidecar(tmp_path, monkeypatch) 
     assert "--ple" not in arm_b
 
 
+def test_ssd_streaming_is_appended_only_to_the_arms_that_stream(
+    tmp_path, monkeypatch
+) -> None:
+    """#321: a model larger than RAM streams while its baseline stays resident.
+
+    V4.1 Flash Q2 (341 GiB) must run with --ssd-streaming on a 128 GB Mac; the
+    V4 Flash 0731 baseline is measured resident. A flag applied to both arms
+    turns the baseline into a streamed run, and one applied to neither cannot
+    load the larger model at all.
+    """
+    _a, _b, arms = fake_arms(tmp_path)
+    seen: list[list[str]] = []
+
+    def capture(argv, **k):
+        seen.append(argv)
+        return 0
+
+    monkeypatch.setattr(stk.child, "run", capture)
+    monkeypatch.setattr(decode_ab, "run_lock", _no_lock)
+    monkeypatch.setattr(decode_ab, "stamp_prompt", _no_stamp)
+    monkeypatch.setattr(decode_ab, "git_out", lambda tree, *_: "abc1234")
+    stk.sweep(
+        arms,
+        2,
+        tmp_path / "out",
+        tmp_path / "p.txt",
+        owner_pid=1,
+        ssd=frozenset({"new"}),
+    )
+    streamed = [v for v in seen if "new-rep" in " ".join(v)]
+    resident = [v for v in seen if "old-rep" in " ".join(v)]
+    assert len(streamed) == 2 and len(resident) == 2
+    assert all(v.count("--ssd-streaming") == 1 for v in streamed)
+    assert not any("--ssd-streaming" in v for v in resident)
+
+
+def test_stacks_text_records_which_arm_streams(tmp_path, monkeypatch) -> None:
+    """A streamed arm and a resident arm are different regimes; say which."""
+    monkeypatch.setattr(
+        decode_ab, "git_out", lambda tree, *a: "abc1234" if "rev-parse" in a else ""
+    )
+    text = stk.stacks_text(
+        [
+            ("v4-0731", pathlib.Path("/t/A"), pathlib.Path("/a.gguf"), "-"),
+            ("v41-q2", pathlib.Path("/t/A"), pathlib.Path("/b.gguf"), "-"),
+        ],
+        prompt=pathlib.Path("/p.txt"),
+        ctx_start=2048,
+        ctx_max=16384,
+        step=2048,
+        gen=128,
+        reps=2,
+        ssd=frozenset({"v41-q2"}),
+    )
+    assert "A ssd_streaming=false" in text
+    assert "B ssd_streaming=true" in text
+
+
+def test_the_cli_maps_ssd_streaming_a_and_b_to_arm_labels(
+    tmp_path, monkeypatch
+) -> None:
+    got: dict = {}
+
+    def fake_sweep(arms, reps, out, prompt, **kwargs):
+        got.update(kwargs)
+        return 0
+
+    monkeypatch.setattr(stk, "sweep", fake_sweep)
+    rc = stk.main(
+        [
+            "v4-0731",
+            str(tmp_path),
+            str(tmp_path / "a.gguf"),
+            "-",
+            "v41-q2",
+            str(tmp_path),
+            str(tmp_path / "b.gguf"),
+            "-",
+            str(tmp_path / "out"),
+            "--ssd-streaming",
+            "b",
+        ]
+    )
+    assert rc == 0
+    assert got["ssd"] == frozenset({"v41-q2"})
+
+
 # --------------------------------------------------- refusals, before the lock
 
 
