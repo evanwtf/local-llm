@@ -136,6 +136,33 @@ userspace daemons instead — **including sshd** — which locks the machine out
 Recovery is the **physical power button**; on 2026-09-13 this happened six
 times. Full write-up: [`docs/incidents/2026-09-13-oom-lockup.md`](incidents/2026-09-13-oom-lockup.md).
 
+### The layers (defense in depth)
+
+Four protections stack. The first two are **always on**; the rest are launch
+discipline that reduce how often the always-on nets have to fire.
+
+| layer | protects | automatic? | ref |
+|---|---|---|---|
+| **earlyoom** | the **whole box** — SIGTERMs the largest runaway (inference server / model-written python), never sshd/systemd/dockerd | **yes** — systemd service, enabled at boot | #362 |
+| **client memcap** | `run.py`'s agent-client phase — the model-written code a trial executes; killed locally at 24 GiB (`LOCAL_LLM_CLIENT_MEM_CAP_GIB`, 0 disables) | **yes** — built into `run.py` | #379 / #380 |
+| **server `MemoryMax`** | the model-server process — a hard cgroup ceiling below the pool | no — set it at launch: `systemd-run --user --scope -p MemoryMax=NNG -p MemorySwapMax=0 …` | #362 |
+| **memory-gate** | waits for the pool to actually free before each trial / next launch | opt-in — `run.py --memory-gate-gib N`, `scripts/memory_gate.py` | #360 |
+| **`machine_health check --for server`** | refuses a launch while a departing server's memory is still held | run it before launching | #360 |
+
+**earlyoom is the universal net** — it protects every process on the box
+(benchmarks, model servers, the H3 video pipeline), not only `run.py`.
+**Validated 2026-09-14 (#362):** a controlled 106 GiB `python` balloon was
+SIGTERM'd at the 10% line (`earlyoom: sending SIGTERM to … "python3" … VmRSS
+108256 MiB`) while sshd and the box stayed fully reachable. The `run.py` client
+memcap closes the specific hole behind the 2026-09-13 lockup — model-written code
+growing unbounded in the agent-client phase (#379).
+
+The per-server `MemoryMax` and the memory-gate are *discipline*, not enforced: a
+server launched without the scope (a bare `vllm serve`, the published
+`local_agent.py`) has no per-server ceiling and leans entirely on earlyoom.
+**earlyoom firing on a benchmark means an upstream cap was wrong** — a lost
+measurement, not a lost machine. Full rationale and the syslog evidence: #390.
+
 Non-negotiable rules when serving here:
 
 - **Cap the server's memory** so ~30–40 GiB stays free for the host. Uncapped,
