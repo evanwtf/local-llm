@@ -19,11 +19,15 @@ import pathlib
 import signal
 import subprocess
 import textwrap
+import time
 
 import pytest
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 HELPER = REPO / "vault" / "lib" / "ds4_server.sh"
+#: A script that takes an interrupt writes this file, in $HOME, right after it
+#: arms the trap. The interrupt waits for it (#364).
+ARMED = "armed"
 
 
 @pytest.fixture
@@ -75,15 +79,24 @@ def run_script(fake_ps: pathlib.Path, body: str, send_int: bool = False):
         start_new_session=True,
     )
     if send_int:
+        # #364: wait for the script to write ARMED after it arms the trap, not
+        # for a fixed 1.0 s. Under full-suite load bash had not always armed
+        # the trap by then, so SIGINT killed it with no teardown and the test
+        # failed only in a full run.
+        armed = fake_ps / ARMED
+        deadline = time.monotonic() + 20.0
+        while not armed.exists() and proc.poll() is None:
+            if time.monotonic() > deadline:
+                proc.kill()
+                raise AssertionError(f"the script never wrote {ARMED}")
+            time.sleep(0.02)
         # **To the group, not to the shell.** bash running `sleep 30` in the
         # foreground does not act on a signal sent only to itself until the
         # child returns -- signalling just the shell made this test hang for
         # the full 30 seconds. Ctrl-C at a terminal signals the whole
         # foreground process group, and that is what has to be emulated, or
         # the test passes on a mechanism the real interrupt never uses.
-        try:
-            proc.wait(timeout=1.0)
-        except subprocess.TimeoutExpired:
+        if proc.poll() is None:
             os.killpg(os.getpgid(proc.pid), signal.SIGINT)
     out, _ = proc.communicate(timeout=30)
     return proc.returncode, out, (fake_ps / "state").read_text().strip()
@@ -108,6 +121,7 @@ def test_an_interrupted_run_stops_the_server(fake_ps):
         fake_ps,
         """
         ds4_arm_stop_trap
+        : > "$HOME/armed"
         sleep 10
     """,
         send_int=True,
@@ -221,3 +235,25 @@ def test_a_server_that_will_not_die_is_reported_rather_than_ignored(fake_ps):
     )
     assert "REFUSING: ds4-server would not stop" in out
     assert "exit=1" in out
+
+
+def test_the_interrupt_waits_for_the_trap_to_be_armed(fake_ps):
+    """#364: the interrupt used to land after a fixed 1.0 s.
+
+    Under full-suite load, bash had not always sourced the helper and armed the
+    trap by then. SIGINT killed it with no trap, the server stayed "running",
+    and the test failed only in a full run. A slow start must not change the
+    result: the interrupt waits for the script to say the trap is armed.
+    """
+    code, _, state = run_script(
+        fake_ps,
+        """
+        sleep 2
+        ds4_arm_stop_trap
+        : > "$HOME/armed"
+        sleep 10
+    """,
+        send_int=True,
+    )
+    assert state == "stopped"
+    assert code != 0
