@@ -114,6 +114,42 @@ the whole finding goes back. Verifying the peer's work on 2026-09-06 found:
 The third is the recurring one. State the mechanism, then state why it applies
 to the configuration we actually run — or say plainly that you have not checked.
 
+## Claiming repo-only work (#395)
+
+The run lock serializes GPU work only. Repo-only work — a CI fix, a ledger
+move, a shared script — has no lock, and on 2026-09-14 two sessions fixed the
+same red `main` at the same time. One commit was discarded. The claim below is
+**advisory**: a label is not atomic and does not expire, so "no claim" means
+"probably free", not "free".
+
+**To claim an issue:**
+
+1. Read the issue for an existing claim: an assignee, a `wip` label, or a
+   claiming comment that is not stale.
+2. Assign it and add the label:
+   `gh issue edit <n> --add-assignee @me --add-label wip`.
+3. Post a claiming comment. Give the agent line (`--opus`, `--codex`,
+   `--deepseek`), the machine in the third person, the claim time in
+   America/New_York ISO 8601, and the branch you will push.
+4. Put identity only in the comment. **Never put a session id in a label, a
+   comment, or a commit.** The repo is public.
+
+**To release:** remove `wip` when the PR merges or when you stop. The closing
+comment is the release. If you stop without a PR, say so in a comment.
+
+**A claim is stale after 60 minutes with no follow-up from its holder** — no
+comment, no push to the named branch. Another session may then take over.
+Post a comment first that names the stale claim and its time.
+
+**A red `main` has no issue, so claim it on the pull request that turned it
+red.** Every change reaches `main` through a merged PR. Comment on that PR
+before you push a fix, using the same fields as step 3. If a claim is already
+there and not stale, leave the fix to its holder.
+
+**Refresh before you fix.** Rebase on the current `main` and test the final
+commit, not the working tree you started from. On 2026-09-14 a push race and a
+bad capture both came from a tree that had moved underneath the session.
+
 ## Machine etiquette
 
 Claim the machine before loading anything, and release it on every exit path.

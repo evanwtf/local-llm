@@ -65,6 +65,7 @@ sys.path.insert(0, str(REPO / "benchmarks" / "agent"))
 import ab_driver
 import child
 import decode_ab
+import outdir_guard
 
 import logs
 
@@ -280,8 +281,23 @@ def main(argv: Sequence[str] | None = None) -> int:
         default=os.environ.get("ALLOW_ODD_REPS") == "1",
         help="run an odd rep count anyway; the position bias will not cancel",
     )
+    p.add_argument(
+        outdir_guard.REUSE_FLAG,
+        action="store_true",
+        default=os.environ.get("REUSE_OUTDIR") == "1",
+        help="run into an outdir that already holds CSVs (resume only, #208)",
+    )
     args = p.parse_args(argv)
     logs.configure()
+
+    # #203: absolutize before anything else, because each arm runs with
+    # cwd=tree and a relative path resolves under the ds4 tree.
+    out = args.out.resolve()
+    try:
+        outdir_guard.refuse_reused_outdir(out, reuse=args.reuse_outdir)
+    except outdir_guard.ReusedOutdir as exc:
+        logger.error("REFUSING: %s", exc)
+        return 1
 
     try:
         chunk = decode_ab.prefill_chunk(args.prefill_chunk)
@@ -289,9 +305,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             [(args.label_a, args.tree_a), (args.label_b, args.tree_b)],
             args.gguf,
             args.reps,
-            # #203: absolutize before anything else, because each arm runs
-            # with cwd=tree and a relative path resolves under the ds4 tree.
-            args.out.resolve(),
+            out,
             prompt=args.prompt,
             ctx_start=args.ctx_start,
             ctx_max=args.ctx_max,
