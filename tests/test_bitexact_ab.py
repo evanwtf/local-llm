@@ -41,6 +41,9 @@ if "--dump-tokens" in ARGS:
     for i in ids:
         piece = " pad%d" % i if i > len(words) else (
             words[i - 1] if i == 1 else " " + words[i - 1])
+        if os.environ.get("FAKE_BYTE_LEVEL"):
+            # GPT-2 display form, as ds4 prints a byte-level-BPE vocab (#229).
+            piece = piece.replace(" ", "\\u0120")
         print("%6d  %s" % (i, piece))
     sys.exit(0)
 
@@ -529,6 +532,58 @@ def test_a_corpus_that_is_not_prefix_stable_is_refused_not_mislabeled(
     assert rc == 2
     assert "prefix-stable" in caplog.text
     assert len(dump_calls(bench)) == 0  # no arm ever ran
+
+
+# --- #229: byte-level-BPE pieces are decoded, not joined as display text -----
+
+
+def test_a_byte_level_vocab_cuts_the_real_text(bench, monkeypatch):
+    """The fake prints `Ġw02` for ` w02`. Joining that verbatim wrote literal
+    `Ġ` characters, which re-tokenized to a different string and was refused
+    as a corpus that is not prefix-stable."""
+    monkeypatch.setenv("FAKE_BYTE_LEVEL", "1")
+    monkeypatch.setenv("FAKE_PLAN", "ok,ok,ok")
+    rc = ab.main(
+        [
+            "new",
+            str(bench["trees"]["tree-a"]),
+            "old",
+            str(bench["trees"]["tree-b"]),
+            str(bench["gguf"]),
+            "--corpus",
+            str(bench["corpus"]),
+            "--out",
+            str(bench["out"]),
+            "--no-lock",
+            "--gen",
+            "4",
+            "--frontier",
+            "16",
+        ]
+    )
+    assert rc != 2
+    prompt = bench["out"] / "prompt-16.txt"
+    assert prompt.read_text() == " ".join(f"w{i:02d}" for i in range(1, 17))
+
+
+def test_decode_pieces_inverts_the_gpt2_byte_map():
+    """Real pieces from `ds4 --dump-tokens` on Qwen3.8-Flash-Next (#229)."""
+    assert ab.decode_pieces(["ĠI", "ĊĊ", "ĠpuÃ²"]) == (" I\n\n può")
+
+
+def test_decode_pieces_leaves_a_literal_vocab_alone():
+    assert ab.decode_pieces(["w01", " w02", " café"]) == "w01 w02 café"
+
+
+def test_decode_pieces_refuses_a_character_outside_the_byte_alphabet():
+    with pytest.raises(ab.InstrumentRefused, match="byte-level"):
+        ab.decode_pieces(["ĠI", " x"])
+
+
+def test_decode_pieces_refuses_bytes_that_are_not_utf8():
+    """A cut can land inside a multi-byte character; that prefix is not text."""
+    with pytest.raises(ab.InstrumentRefused, match="byte-level"):
+        ab.decode_pieces(["Ġpu", "Ã"])
 
 
 def test_a_corpus_too_short_for_the_frontier_is_refused(bench, caplog):
