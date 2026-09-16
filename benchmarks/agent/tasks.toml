@@ -2165,6 +2165,12 @@ pinned_temperature = 0
 # PleOffloadWorker, dropping resident weights to 72.8 GiB, and the box stays at
 # ~24-40 GiB free throughout the load.
 #
+# Keep gpu-memory-utilization at 0.66 (#382). At 0.72 the warm server left only
+# 25 GiB available and could not clear the DGX's 30 GiB client-memory gate;
+# 0.67 fell to 29.6 GiB after one trial. At 0.66 the gate held 30.3 GiB between
+# trials while the 297,775-token KV cache still exceeded the 262,144-token
+# maximum context (1.14 full-context requests).
+#
 # NOT a `~/venvs/vllm` engine: this runs in a CONTAINER, so run.py's host-venv
 # probe records the WRONG vLLM version on the row (it sees the host 0.29.0, not
 # the container's fork). The real engine is the styles01 fork below; a
@@ -2183,7 +2189,7 @@ pinned_temperature = 0
 #     vllm serve Mia-AiLab/Qwen3.8-Flash-Next-NVFP4 \
 #       --revision 925d7be6c14c6c9442ef83e8f05b5a3c39304f69 \
 #       --served-model-name qwen3.8-flash-next --host 0.0.0.0 --port 8000 \
-#       --tensor-parallel-size 1 --gpu-memory-utilization 0.72 --max-num-seqs 8 \
+#       --tensor-parallel-size 1 --gpu-memory-utilization 0.66 --max-num-seqs 8 \
 #       --max-num-batched-tokens 2048 --max-model-len 262144 --kv-cache-dtype fp8 \
 #       --load-format safetensors --safetensors-load-strategy lazy --enable-chunked-prefill \
 #       --reasoning-parser qwen3 --enable-auto-tool-choice --tool-call-parser qwen3_coder \
@@ -2200,7 +2206,7 @@ model = "qwen3.8-flash-next"
 aider_model = "openai/qwen3.8-flash-next"
 opencode_model = "vllm/qwen3.8-flash-next"
 context_tokens = 262144
-speculative = "MTP k=3, use_local_argmax_reduction, 47149-token draft vocab; fp8 KV; gpu-memory-utilization 0.72; PLE 320M-row n-gram table mmap-offloaded off-GPU (resident 72.8 GiB); container ghcr.io/styles01/...:v7"
+speculative = "MTP k=3, use_local_argmax_reduction, 47149-token draft vocab; fp8 KV; gpu-memory-utilization 0.66; PLE 320M-row n-gram table mmap-offloaded off-GPU (resident 72.8 GiB); container ghcr.io/styles01/...:v7"
 draft_engine = "vllm"
 
 # The A3B agent tier the DGX Spark had never run (#335). This is the model the
