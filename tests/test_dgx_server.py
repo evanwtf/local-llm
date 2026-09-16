@@ -31,6 +31,9 @@ def test_profiles_own_canonical_ports_bind_and_metrics():
     assert "--metrics" in dgx_server._managed_command(
         "llamacpp", ["llama-server", "-m", "x"]
     )
+    assert "--metrics" not in dgx_server._managed_command(
+        "ds4", ["ds4-server", "--cuda", "-m", "x"]
+    )
 
 
 @pytest.mark.parametrize("option", ["--host", "--port", "--bind"])

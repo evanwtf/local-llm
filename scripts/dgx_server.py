@@ -49,9 +49,7 @@ PROFILES = {
     "llamacpp": Profile(
         8020, "/v1/models", ("--host", "0.0.0.0", "--port", "8020", "--metrics")
     ),
-    "ds4": Profile(
-        8020, "/v1/models", ("--host", "0.0.0.0", "--port", "8020", "--metrics")
-    ),
+    "ds4": Profile(8020, "/v1/models", ("--host", "0.0.0.0", "--port", "8020")),
     "vllm": Profile(8030, "/v1/models", ("--host", "0.0.0.0", "--port", "8030")),
     "omni": Profile(8041, "/v1/models", ("--host", "0.0.0.0", "--port", "8041")),
     "clip": Profile(8042, "/", ("--bind", "0.0.0.0", "8042"), memory_heavy=False),
@@ -184,7 +182,7 @@ def _managed_command(name: str, command: list[str]) -> list[str]:
         raise ValueError(
             "host and port are wrapper-owned; remove them from the command"
         )
-    if name in {"llamacpp", "ds4"} and "--metrics" in command:
+    if name == "llamacpp" and "--metrics" in command:
         raise ValueError("metrics are wrapper-owned; remove --metrics from the command")
     return [*command, *PROFILES[name].managed_args]
 
