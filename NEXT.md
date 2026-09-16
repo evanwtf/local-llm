@@ -5,9 +5,9 @@ P0 before P1, then by issue number; each summary is the issue's own
 first 100 words. The labels are the ranking, so there is
 nothing here to drift from.
 
-## The queue — 5 P0, 1 P1
+## The queue — 5 P0, 2 P1
 
-Open on this platform: 5 P0, 1 P1, 43 P2, 16 P3.
+Open on this platform: 5 P0, 2 P1, 45 P2, 16 P3.
 One runs at a time; the lock enforces it.
 
 1. **P0 [#158](https://github.com/evanwtf/local-llm/issues/158)** Qwen3.8-Flash-Next is upstreamed as antirez/ds4#991 — the fork dependency, the prefill claim and our own build all change at once
@@ -22,6 +22,8 @@ One runs at a time; the lock enforces it.
    antirez/ds4#964 is the GLM-5.3-Flash Metal acceleration PR. We measured it twice and both results are on closed issues (#118, #143). The PR has moved 63 commits past the head we measured, and four of those commits are Metal GLM work — including one that lands exactly where our last result was a null. What we hold From #143, at head 37f3f0d, four runs per arm: | result | spread | ---|---|---| decode pr964/main | +13.3% | 1.4 pp over 4 runs | prefill pr964/main | −1.3% | 4.2 pp over 4 runs | Decode reproduced on 8 of 8 frontiers. …
 6. **P1 [#279](https://github.com/evanwtf/local-llm/issues/279)** The -q4 Qwen pack declares qwen4-exp and the current ds4-metal head refuses it, so two backends cannot launch
    Found while moving the engine tree for #228. This is a consequence of that move and needs a decision, not just a record. What breaks ~/git/ds4-metal now sits at 6c1e836 (was ba01f5d, 169 commits behind). On that head, ds4-server refuses the qwen3.8-flash-next-ds4-q4 pack: Verified directly: server exits rc=1 in 5 s. Same on ds4-bench. Two backends in benchmarks/agent/tasks.toml name that pack and engine_tree = "~/git/ds4-metal": - tasks.toml:1124 — "Qwen3.8-Flash-Next Q4_0-routed fast-pack on ds4-metal qwen3.8-flash-next 2021dda, MTP off" - tasks.toml:1145 — "Qwen3.8-Flash-Next Q4 fast-pack on ds4-metal 2021dda, embedded MTP --mtp-draft 7" I have not launched either backend end to end, so …
+7. **P1 [#444](https://github.com/evanwtf/local-llm/issues/444)** OpenCode 1.18.31 step_start no longer anchors end-to-end TTFT
+   Problem benchmarks/agent/run.py::opencode_parse treats the interval from OpenCode's JSON step_start event to its first text or tool_use event as client-observed TTFT. That assumption is false in OpenCode 1.18.31. During the #346 control on the DGX Spark, three warm turns against one unchanged Qwen3.8-Flash-Next NVFP4/vLLM endpoint showed: - invocation to first text: 4.429–4.504 s - vLLM's exact one-request TTFT: 3.172–3.181 s - OpenCode JSON step_start to first text: only 47–50 ms step_start was emitted after the request had already spent most of its time in the engine. Therefore step_ttft_ms_median, step_ttft_ms_p90, and model_step_ttft_ms_median understate TTFT for this OpenCode version and must not be …
 
 ## Where everything else is
 
