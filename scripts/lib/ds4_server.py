@@ -143,8 +143,8 @@ def argv(
         # Not refused, yet. `--mtp-draft 7` with no head is an arm that cannot
         # speculate while looking like one that can -- the exact shape of #151,
         # where 119 rows were taken on an arm that never drafted. Refusing is
-        # the better end state, but it is a behaviour change, and during a port
-        # a behaviour change is indistinguishable from a porting bug. Warn now,
+        # the better end state, but it is a behavior change, and during a port
+        # a behavior change is indistinguishable from a porting bug. Warn now,
         # refuse in a follow-up once the drivers are across.
         logger.warning(
             "mtp_draft=%r mtp_timing=%r were given with no mtp_model, so no "

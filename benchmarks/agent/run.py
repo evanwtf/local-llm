@@ -747,7 +747,7 @@ def serving_gguf(root=None):
 def serving_vllm():
     """The argv of the running `vllm serve`, for `env['server_argv']` (#332).
 
-    vLLM's behaviour is set almost entirely at launch -- prefix caching, KV
+    vLLM's behavior is set almost entirely at launch -- prefix caching, KV
     dtype, `--gpu-memory-utilization`, the speculative config, the reasoning
     and tool-call parsers -- and nothing else on a vLLM row records any of it,
     so the #213 pooling guard (which reads `env['server_argv']`) had nothing to

@@ -49,7 +49,7 @@ def _last_line(done: subprocess.CompletedProcess) -> str:
     Assert on the LAST line, never on the whole of stdout: sweep() echoes its
     own progress ("=== tag ===", "done, N transcripts") and a refusal line
     before the probe prints sweep_rc. An equality check against the whole
-    buffer therefore fails on the correct behaviour -- which is what it did
+    buffer therefore fails on the correct behavior -- which is what it did
     the first time these tests were ever executed, having been written but
     never run.
     """

@@ -15,7 +15,7 @@ Schema v2 rules, for rows written from 2026-08-28:
 
   * `excluded: bool` and `exclusion_reason: str | None` are ALWAYS present.
     Absent is not the same as false.
-  * The legacy keys are violations. They are still honoured on *read*, forever,
+  * The legacy keys are violations. They are still honored on *read*, forever,
     because v1 rows are evidence and are not rewritten.
   * A row that fails validation is still written, stamped `schema_valid: false`
     with the specific violations. A trial costs up to half an hour; losing one
@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 
 SCHEMA_VERSION = 2
 
-#: Keys that meant "do not trust this row" before v2. Honoured on read forever;
+#: Keys that meant "do not trust this row" before v2. Honored on read forever;
 #: rejected on write so a sixth variant cannot appear.
 LEGACY_EXCLUSION_KEYS: tuple[str, ...] = (
     "excluded",
@@ -461,7 +461,7 @@ def rows_with_transcripts(
 #: identity is already captured separately as `gguf_path`.
 #:
 #: The `--` block is vLLM (#332), the DGX Spark's primary engine. vLLM's
-#: behaviour is set almost entirely at launch, and every one of these changes
+#: behavior is set almost entirely at launch, and every one of these changes
 #: what a row measures: the KV cache size (`--gpu-memory-utilization`,
 #: `--kv-cache-dtype`, `--max-model-len`, `--block-size`), the batch shape
 #: (`--max-num-seqs`, `--max-num-batched-tokens`), the weights precision

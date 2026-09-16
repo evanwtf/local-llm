@@ -95,7 +95,7 @@ fi
 # At PREFILL_CHUNK=8192 the two coincide exactly, because 8192 is that ceiling:
 # first frontier 8192, every later frontier 8192. That is why adamlawi's own
 # value needs no special handling. Above 8192 they diverge -- the first
-# frontier honours the flag and the rest are silently cut to 8192 -- so one run
+# frontier honors the flag and the rest are silently cut to 8192 -- so one run
 # reports two different quantities with nothing in the output saying so. Hence
 # the warning below.
 #
@@ -130,7 +130,7 @@ if [ -n "$PREFILL_CHUNK" ]; then
     echo "REFUSING: PREFILL_CHUNK=0 means 'unspecified' to ds4, not 'unlimited'" >&2
     exit 1
   fi
-  # Above 8192 only the first frontier honours the flag; raw_cap cuts the rest.
+  # Above 8192 only the first frontier honors the flag; raw_cap cuts the rest.
   # A warning, not a refusal: measuring that divergence deliberately is valid,
   # measuring it by accident is what this prevents.
   if [ "$PREFILL_CHUNK" -gt 8192 ]; then

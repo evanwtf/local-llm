@@ -26,7 +26,7 @@ then saw 50 lines of it.
 
 ds4 has the flag the name promised -- `-n, --tokens N  Maximum generated
 tokens` (`~/git/ds4` at 399acbbe, `./ds4 --help`) -- so `--tokens` is passed
-to ds4 here and the whole output is shown. This is a deliberate behaviour
+to ds4 here and the whole output is shown. This is a deliberate behavior
 change, not a transcription: the check gets shorter and cheaper, and the
 number in the flag is now the number of tokens generated.
 

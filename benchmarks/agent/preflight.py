@@ -427,7 +427,7 @@ def shim_upstream_ports(ps_text: str, selected_ports: set[int]) -> set[int]:
     named truthfully, so the association is read from it and cannot drift from
     `tasks.toml`.
 
-    Only a shim whose own --port is selected is honoured: a shim left over
+    Only a shim whose own --port is selected is honored: a shim left over
     from a different run must not shield its upstream.
     """
     ports: set[int] = set()

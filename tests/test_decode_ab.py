@@ -45,7 +45,7 @@ def run(chunk: str | None) -> subprocess.CompletedProcess[str]:
         text=True,
         env=env,
         timeout=60,
-        # Expected to exit non-zero: refusing is the behaviour under test.
+        # Expected to exit non-zero: refusing is the behavior under test.
         check=False,
     )
 
@@ -77,7 +77,7 @@ def test_the_adamlawi_and_iammac2_value_does_not_warn():
 
 
 def test_a_chunk_above_the_ceiling_warns_but_is_not_refused():
-    """Above 8192 only frontier 1 honours the flag: raw_cap cuts the rest
+    """Above 8192 only frontier 1 honors the flag: raw_cap cuts the rest
     (ds4.c:36867 at ds4-main 9ab70534, ds4.c:37541 at ds4-main 9ab70534).
     Measuring that on purpose is valid, so it warns rather than refuses."""
     p = run("65536")

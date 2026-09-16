@@ -22,7 +22,7 @@ The strip is worth **23 points of pass rate** (#112). A shim in the other mode
 does not fail, it produces a different experiment, and nothing downstream would
 ever show it. So `serving` waits for the shim's own startup line and refuses
 unless it says what the caller asked for -- `SHIM_NO_STRIP=1` being set is not
-evidence that the shim honoured it.
+evidence that the shim honored it.
 """
 
 from __future__ import annotations

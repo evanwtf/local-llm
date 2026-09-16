@@ -314,7 +314,7 @@ def survey(root: pathlib.Path = ROOT) -> dict[str, object]:
         neither and cannot: it is never invoked alone, so there is no recorded
         argv to compare against the shell's. What clears it is that every file
         which sources it is itself cleared -- at which point nothing calls it
-        and deleting it removes no behaviour.
+        and deleting it removes no behavior.
 
         Written as a rule rather than a table entry because the answer changes
         as its sourcers land. `lib/ds4_server.sh` has eight; a table would

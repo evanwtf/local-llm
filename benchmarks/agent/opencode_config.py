@@ -58,7 +58,7 @@ def _own_tier() -> str | None:
 
     Imported lazily and defensively: this guard must never be the reason a run
     fails to start. If the lookup raises, every tier is treated as foreign,
-    which is the behaviour that held before #345 -- quieter than it should be,
+    which is the behavior that held before #345 -- quieter than it should be,
     but never louder or fatal.
     """
     try:
@@ -114,7 +114,7 @@ def _is_foreign_tier(spec: dict, own_tier: str | None) -> bool:
     So on the DGX Spark the seventeen `gb10-spark` backends are ours and the
     thirty-four untiered ones are the Mac's, which is why checking their client
     declarations here produced seventeen unactionable warnings before this was
-    made symmetric. On the Mac, `own_tier` is None and the behaviour is
+    made symmetric. On the Mac, `own_tier` is None and the behavior is
     identical to what it was before #345: untiered checked, every tier skipped.
     """
     return (spec.get("tier") or None) != own_tier

@@ -225,7 +225,7 @@ Three distinct failure mechanisms replace the single one recorded before:
 * **`mbox-scan` — control unchanged.** 13 failed / 3 passed before and after,
   three times, after 194-290s of work. The file is never touched.
 * **`script-transform` — no file.** `transform.py` is never created. This is
-  the only place the old "code in a markdown fence" behaviour survives.
+  the only place the old "code in a markdown fence" behavior survives.
 * **`storage-blob-put` — it tries.** Trial 1 and 2 broke the import outright
   (`1 error`, module unloadable). **Trial 3 reached `2 failed, 15 passed`** --
   two tests short of solving the hardest task in the set, from a control state

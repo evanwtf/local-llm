@@ -126,7 +126,7 @@ def terminate(proc: subprocess.Popen[bytes], grace: float = GRACE_S) -> None:
             os.killpg(proc.pid, sig)
         except ProcessLookupError:
             # The group is gone. This is the ordinary case for SIGKILL after a
-            # SIGTERM the child honoured, and it is the only silent return
+            # SIGTERM the child honored, and it is the only silent return
             # here: nothing survives, so nothing is left holding the machine.
             return
         except OSError as exc:

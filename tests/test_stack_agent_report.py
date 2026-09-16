@@ -351,7 +351,7 @@ def test_no_run_record_and_no_cut_refuses(tmp_path, caplog):
     assert "no parseable started line" in caplog.text
 
 
-def test_an_explicit_cut_override_is_honoured(tmp_path, caplog):
+def test_an_explicit_cut_override_is_honored(tmp_path, caplog):
     rows = full_rows()
     ledger = write_ledger(tmp_path, rows)
     run_dir = write_run_dir(tmp_path)
@@ -613,7 +613,7 @@ def test_old_faster_is_named_not_swallowed():
 # --- The arms and the verdict sentence belong to the run, not to #138 ------
 #
 # On 2026-09-07 the #39 A/B (MTP flags on against off, one stack) ran with
-# NEW_BACKEND=qwen38fnds4mtp7shim. `stack_agent_ab.sh` honoured it; this
+# NEW_BACKEND=qwen38fnds4mtp7shim. `stack_agent_ab.sh` honored it; this
 # reporter did not, and the read-out came back VOID with 30 good rows on
 # disk. These tests hold both halves: the environment must reach the module,
 # and an unset environment must still reproduce #138 exactly.
