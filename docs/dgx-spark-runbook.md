@@ -150,6 +150,22 @@ lock's pid, and the session scratchpad, so without it a fresh boot reads as a
 baffling run of "server died" and "stale lock" findings instead of one line that
 explains them all. It exits 2 on a detected reboot.
 
+Long-lived servers use one recorded lifecycle interface; do not find or stop
+them by scanning process command lines:
+
+```sh
+uv run python scripts/dgx_server.py start vllm --model MODEL --memory-max 96G -- \
+    ~/venvs/vllm/bin/vllm serve MODEL --gpu-memory-utilization 0.66
+uv run python scripts/dgx_server.py status vllm
+uv run python scripts/dgx_server.py stop vllm
+```
+
+The profiles own the LAN bind, fixed port, and metrics flags: vLLM `:8030`,
+llama.cpp/ds4 `:8020`, vLLM-Omni `:8041`, clip viewing `:8042`, and Ollama
+`:11434`. Heavy profiles require `--memory-max`; the wrapper also sets zero
+swap, records the PID and scope under `~/.local-llm-bench/dgx-servers`, and
+waits for the port and unified-memory pool to clear on stop.
+
 ## Unified memory can OOM-lock the whole box — cap the server
 
 The 128 GB pool is shared between CPU and GPU with no separate VRAM ceiling, so

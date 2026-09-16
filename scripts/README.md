@@ -32,6 +32,7 @@ Each script explains itself in full at the top of its own file -- what it comput
 | `degeneration_cascade.py` | any | Measure the #112 tool-call degeneration from captured OpenCode transcripts. |
 | `degeneration_cascade_run.py` | mac | A fresh, transcript-capturing run of the `qwen38fnds4shim` cell for #112. |
 | `dgx_metrics.py` | any | DGX Spark vLLM app-level metrics snapshot from Prometheus, via gcx. |
+| `dgx_server.py` | any | Control every long-lived DGX Spark server by recorded systemd scope. #429 |
 | `disk_baseline.py` | any | Measure the internal NVMe: read bandwidth and random-read latency. |
 | `disk_kv_mechanism.py` | mac | Is the disk-KV budget what makes arm A decline by trial 3? #112 |
 | `ds4_serve.py` | mac | Start ds4-server on one of two Metal kernel routes, and prove which one ran. |
