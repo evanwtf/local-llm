@@ -160,11 +160,13 @@ uv run python scripts/dgx_server.py status vllm
 uv run python scripts/dgx_server.py stop vllm
 ```
 
-The profiles own the LAN bind, fixed port, and metrics flags: vLLM `:8030`,
-llama.cpp/ds4 `:8020`, vLLM-Omni `:8041`, clip viewing `:8042`, and Ollama
-`:11434`. Heavy profiles require `--memory-max`; the wrapper also sets zero
-swap, records the PID and scope under `~/.local-llm-bench/dgx-servers`, and
-waits for the port and unified-memory pool to clear on stop.
+The profiles own the LAN bind and fixed port: vLLM `:8030`, llama.cpp/ds4
+`:8020`, vLLM-Omni `:8041`, clip viewing `:8042`, and Ollama `:11434`.
+llama.cpp metrics are enabled by the wrapper; vLLM exposes metrics by default;
+current ds4 has no metrics option. Heavy profiles require `--memory-max`; the
+wrapper also sets zero swap, records the PID and scope under
+`~/.local-llm-bench/dgx-servers`, and waits for the port and unified-memory pool
+to clear on stop.
 
 ## Unified memory can OOM-lock the whole box — cap the server
 
