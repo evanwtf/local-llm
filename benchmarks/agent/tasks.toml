@@ -2309,6 +2309,18 @@ aider_model = "openai/nemotron-3-super-120b-a12b"
 opencode_model = "vllm/nemotron-3-super-120b-a12b"
 context_tokens = 131072
 
+[backend.nemotron3super120bmtpnopcdgx]
+description = "nemotron3super120bmtpdgx with prefix caching OFF (--no-enable-prefix-caching): isolates the garbage first-turn outputs seen with MTP + V1 runner + prefix caching (#406)"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8030"
+auth_token = "local"
+engine = "vllm"
+engine_tree = "~/venvs/vllm"
+model = "nemotron-3-super-120b-a12b"
+aider_model = "openai/nemotron-3-super-120b-a12b"
+opencode_model = "vllm/nemotron-3-super-120b-a12b"
+context_tokens = 131072
+
 # The 2nd #335 A3B candidate: Ornith-1.5, this project's fastest measured backend
 # on the M5 Max -- so this is a cross-ARCHITECTURE comparison of a known-good
 # model (only the hardware changes). Rows here are NOT pooled with the Mac's
