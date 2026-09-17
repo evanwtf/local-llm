@@ -84,7 +84,7 @@ def test_the_token_budget_reaches_ds4_rather_than_trimming_the_output(
 def test_ds4_really_has_the_tokens_flag() -> None:
     """Read from the binary, not from memory.
 
-    The port changed behaviour on the strength of `-n, --tokens N  Maximum
+    The port changed behavior on the strength of `-n, --tokens N  Maximum
     generated tokens` in `./ds4 --help`. A flag this repo believes in because
     somebody typed it once is the failure this asserts against.
     """

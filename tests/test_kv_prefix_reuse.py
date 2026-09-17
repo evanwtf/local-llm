@@ -272,7 +272,7 @@ def test_build_row_matches_the_store_by_length_not_by_recency():
 
 def test_build_row_says_so_when_no_store_matches_the_hit():
     """A hit on an entry written before this run began has no store line to
-    match. That is a fact about the row, not a licence to guess -- reporting
+    match. That is a fact about the row, not a license to guess -- reporting
     the nearest store would invent a mechanism."""
     got = {
         "prompt_tokens": 29845,

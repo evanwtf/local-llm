@@ -291,7 +291,7 @@ def test_the_collect_filter_is_a_deviation_and_is_written_down() -> None:
     on mtime against the run's own start.
 
     Asserted here so the deviation cannot be quietly removed as a "fix" that
-    restores the shell's behaviour.
+    restores the shell's behavior.
     """
     source = (ROOT / "scripts" / "disk_kv_mechanism.py").read_text()
     assert "st_mtime <= since" in source

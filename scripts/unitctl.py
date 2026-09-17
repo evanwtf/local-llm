@@ -83,7 +83,7 @@ STALE = "stale"
 # dies and stays one until somebody reaps it -- and `os.kill(pid, 0)` succeeds
 # on a zombie, so a liveness check alone reports a dead process as running
 # forever. That made every stop wait out its full timeout and then SIGKILL,
-# including for `sleep`, which honours SIGTERM immediately.
+# including for `sleep`, which honors SIGTERM immediately.
 #
 # It only bites when start and stop happen in one process, which is exactly
 # what the `serving()` context manager does. Started from the CLI and stopped

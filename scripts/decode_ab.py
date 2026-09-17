@@ -33,7 +33,7 @@ Above 8192 it warns instead of refusing, because measuring that on purpose is
 valid: `metal_graph_prefill_chunked` (`ds4.c:36867 at ds4-main 9ab70534`)
 clamps every prefill after the first to `raw_cap`, which
 `metal_graph_raw_cap_for_context` (`ds4.c:37541 at ds4-main 9ab70534`) ceilings
-at 8192. Frontier 1 honours the request and the rest are cut -- one run, two
+at 8192. Frontier 1 honors the request and the rest are cut -- one run, two
 quantities.
 
 The shell's own test file records that its `case` guard did not catch `"00"`,

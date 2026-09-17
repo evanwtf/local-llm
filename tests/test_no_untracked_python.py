@@ -40,7 +40,7 @@ SOURCE_ROOTS = ("scripts/", "tests/", "benchmarks/")
 def _untracked_python() -> list[str]:
     """Untracked, non-ignored `.py` files under the source roots.
 
-    `--others` lists untracked paths; `--exclude-standard` honours
+    `--others` lists untracked paths; `--exclude-standard` honors
     `.gitignore`, so a deliberately ignored file does not trip the guard.
     """
     out = subprocess.run(

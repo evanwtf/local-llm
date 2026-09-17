@@ -258,7 +258,7 @@ def log_dir() -> pathlib.Path:
 
 
 def confirm(prompt: str) -> bool:
-    """Ask the operator, honouring LOCAL_AGENT_YES=1."""
+    """Ask the operator, honoring LOCAL_AGENT_YES=1."""
     if os.environ.get("LOCAL_AGENT_YES") == "1":
         logger.info("auto-yes: %s", prompt)
         return True

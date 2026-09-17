@@ -5,7 +5,7 @@ A single-Spark field report claims that with thinking **on** and a short
 content** -- a turn-1 death with no tool call rather than a wrong answer. If that
 mechanism is real, some fraction of the corpus's `solution_empty` rows are budget
 exhaustion, not degeneration, and those are different defects with different fixes
-(#112 catalogued the empty solutions but not their cause).
+(#112 cataloged the empty solutions but not their cause).
 
 This scans a results.jsonl and asks whether the existing rows already separate the
 two. The tell is a row that emitted **many reasoning tokens** yet produced an

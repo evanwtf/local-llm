@@ -116,7 +116,7 @@ implementation task.
   of mine the same night, in three ways worth knowing: a citation **wrapped
   across two lines** is bare; `A and B at <sha>` pins only **B**; and a pair of
   bare line numbers had sat in a `decode_ab_engine.sh` comment for days
-  describing real behaviour and **pointing at nothing** — at `ds4-main
+  describing real behavior and **pointing at nothing** — at `ds4-main
   9ab70534` those two reads are 12994 and 37561. (Written without the stale
   numbers on purpose: quoting them here would need a new allowlist entry, and
   that list only shrinks.)

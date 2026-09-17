@@ -296,7 +296,7 @@ questioning its own code. Speed suited the work.
 Judge a candidate on active parameters and on whether the vendor advertises
 reduced thinking-token usage, not on benchmark rank. Note also that this
 project has *measured* a tool-calling defect in GLM-5.3 (#41: it emits the
-string `"false"` for boolean tool arguments) — a model-behaviour trait, which
+string `"false"` for boolean tool arguments) — a model-behavior trait, which
 transfers between deployments far more readily than a speed number.
 
 ### The peer's quota, and what running out looks like

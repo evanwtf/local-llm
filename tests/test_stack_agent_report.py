@@ -613,7 +613,7 @@ def test_old_faster_is_named_not_swallowed():
 # --- The arms and the verdict sentence belong to the run, not to #138 ------
 #
 # On 2026-09-07 the #39 A/B (MTP flags on against off, one stack) ran with
-# NEW_BACKEND=qwen38fnds4mtp7shim. `stack_agent_ab.sh` honoured it; this
+# NEW_BACKEND=qwen38fnds4mtp7shim. `stack_agent_ab.sh` honored it; this
 # reporter did not, and the read-out came back VOID with 30 good rows on
 # disk. These tests hold both halves: the environment must reach the module,
 # and an unset environment must still reproduce #138 exactly.

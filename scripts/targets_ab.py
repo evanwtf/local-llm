@@ -6,14 +6,14 @@ Port of `scripts/targets_ab.sh` (#235).
 `--targets sandbox` builds the agent's export from this repo's own clones and
 never renames anything in `~/git`. It also changes what the agent sees when it
 guesses the operator's path: under legacy the guess is satisfied, under sandbox
-it is denied. That is a behaviour change, it lands on the pass rate, and the
+it is denied. That is a behavior change, it lands on the pass rate, and the
 cutover needs a measurement rather than an argument.
 
 Pre-registered, before any run:
 
     cut over:  the two arms are within 1 task per sweep of 15, across 2 sweeps
                per arm -- the layout is a change of plumbing, not of measured
-               behaviour, and sandbox becomes the default.
+               behavior, and sandbox becomes the default.
     do not:    sandbox is worse by more than that -- the denied guess is
                costing real trials, and the cutover is abandoned on the record
                with the number that killed it.

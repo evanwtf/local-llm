@@ -306,7 +306,7 @@ engine, opposite headline.
 1. **turns** — did the treatment change what the agent did? A count of agent
    actions, so it needs no precondition and survives the gate. A ratio at ~1.000
    means a pure engine change; far from 1 means the treatment changed the agent's
-   behaviour, which is itself a finding (see #354's 2.8x turn blow-up under
+   behavior, which is itself a finding (see #354's 2.8x turn blow-up under
    draftless speculation).
 2. **seconds-per-turn** and **TTFT** — did the engine get faster? Seconds-per-turn
    is gated on step 0; TTFT is not, because it comes from the engine's own counter

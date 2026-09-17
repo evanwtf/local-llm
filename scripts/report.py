@@ -273,7 +273,7 @@ def render(by_cell, backends) -> list[str]:
 
     if len(backends) == 2:
         # #353: a wall ratio between two arms of the same model and engine is a
-        # composite of an engine effect and a behavioural one, and wall time
+        # composite of an engine effect and a behavioral one, and wall time
         # alone cannot say which moved. Read turns first -- it is a count, so it
         # needs no precondition -- then the rates.
         a, b = backends
@@ -296,7 +296,7 @@ def render(by_cell, backends) -> list[str]:
             else:
                 out.append(
                     "  - away from 1.0 the treatment changed the agent's "
-                    "BEHAVIOUR; a wall ratio here is not an engine measurement"
+                    "BEHAVIOR; a wall ratio here is not an engine measurement"
                 )
             if sa and sb:
                 gate = "readable" if (ok_a and ok_b) else "NOT readable"
