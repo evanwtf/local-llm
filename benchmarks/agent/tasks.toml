@@ -2277,6 +2277,26 @@ aider_model = "openai/gpt-oss-20b"
 opencode_model = "vllm/gpt-oss-20b"
 context_tokens = 131072
 
+# NVIDIA's 120B-total / 12B-active LatentMoE (Mamba-2 + MoE + Attention, native
+# MTP), trained in NVFP4 -- the quality tier above the A3B leader that still fits
+# one Spark (#406). 74.8 GiB checkpoint, so it runs at gpu_memory_utilization
+# 0.80 (not NVIDIA's container recipe's 0.90, which leaves the OS ~7 GiB) with
+# max_model_len 131072, marlin MoE, fp16 mamba SSM cache, fp8 KV, thinking off.
+# Reasoning parser super_v3 comes from the plugin NVIDIA ships in the checkpoint
+# snapshot. Speculative MTP is off for this first measurement. Launched with
+# scripts/dgx_server.py (MemoryMax bounds CPU memory only on GB10 -- #456).
+[backend.nemotron3super120bdgx]
+description = "Nemotron-3-Super-120B-A12B NVFP4 (nvidia) via vLLM 0.29.0, CUDA sm_121, LatentMoE, gpu-mem 0.80, 131k ctx, thinking off, no MTP (#406)"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8030"
+auth_token = "local"
+engine = "vllm"
+engine_tree = "~/venvs/vllm"
+model = "nemotron-3-super-120b-a12b"
+aider_model = "openai/nemotron-3-super-120b-a12b"
+opencode_model = "vllm/nemotron-3-super-120b-a12b"
+context_tokens = 131072
+
 # The 2nd #335 A3B candidate: Ornith-1.5, this project's fastest measured backend
 # on the M5 Max -- so this is a cross-ARCHITECTURE comparison of a known-good
 # model (only the hardware changes). Rows here are NOT pooled with the Mac's
