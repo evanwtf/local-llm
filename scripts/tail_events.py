@@ -80,9 +80,9 @@ def _wilson(k: int, n: int) -> tuple[float, float]:
     z = 1.96
     p = k / n
     denom = 1 + z * z / n
-    center = (p + z * z / (2 * n)) / denom
+    centre = (p + z * z / (2 * n)) / denom
     half = z * ((p * (1 - p) + z * z / (4 * n)) / n) ** 0.5 / denom
-    return (max(0.0, center - half), min(1.0, center + half))
+    return (max(0.0, centre - half), min(1.0, centre + half))
 
 
 def select(

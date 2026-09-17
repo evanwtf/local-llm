@@ -1825,7 +1825,7 @@ def stash_path(repo: pathlib.Path) -> pathlib.Path:
 
 
 def legacy_stash_path(repo: pathlib.Path) -> pathlib.Path:
-    """The pre-2026-09-04 location, still honoured so old markers restore."""
+    """The pre-2026-09-04 location, still honored so old markers restore."""
     return repo.with_name(repo.name + "-real")
 
 

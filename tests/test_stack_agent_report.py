@@ -351,7 +351,7 @@ def test_no_run_record_and_no_cut_refuses(tmp_path, caplog):
     assert "no parseable started line" in caplog.text
 
 
-def test_an_explicit_cut_override_is_honored(tmp_path, caplog):
+def test_an_explicit_cut_override_is_honoured(tmp_path, caplog):
     rows = full_rows()
     ledger = write_ledger(tmp_path, rows)
     run_dir = write_run_dir(tmp_path)

@@ -77,7 +77,7 @@ def test_dropping_the_version_does_not_match_an_unrelated_model():
     assert rs.match_registry("Some Other Flash Model", models) == "foreign"
 
 
-def test_a_stated_version_is_honored_not_dropped():
+def test_a_stated_version_is_honoured_not_dropped():
     """Version tolerance is for an OMITTED version, never a different one. A
     claim that states a number keeps it: 'GLM 4 Flash' is not our
     'glm-5.3-flash', and 'Gemma 2 9B' is not our gemma-4. Dropping the digit

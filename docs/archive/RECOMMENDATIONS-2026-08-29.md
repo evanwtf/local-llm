@@ -161,7 +161,7 @@ else. See issue #5.
 
 Both clients that work well are **proprietary and unmaintainable by you**:
 
-| client | license | re-installable if the vendor is cut off? |
+| client | licence | re-installable if the vendor is cut off? |
 |---|---|---|
 | Claude Code | proprietary (Anthropic) | **no** |
 | Codex | proprietary (OpenAI) | **no** |
@@ -705,7 +705,7 @@ It prints two harmless notices: a warning that connectors are disabled, and
 **Not yet verified offline: Codex and OpenCode.** Both were only ever run with
 the network up. Codex in particular is worth checking, since it is the fastest
 pairing on ds4 — and it warns on every run that it has no metadata for local
-models, which suggests it expects to reach a catalog somewhere.
+models, which suggests it expects to reach a catalogue somewhere.
 
 ---
 
