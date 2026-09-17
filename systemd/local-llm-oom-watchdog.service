@@ -1,0 +1,26 @@
+# #459: the layer behind earlyoom and the per-server MemAvailable watcher.
+# It notices an OOM kill and restarts ssh/earlyoom if either is down.
+#
+# Install (root):
+#   cp systemd/local-llm-oom-watchdog.* /etc/systemd/system/
+#   systemctl daemon-reload && systemctl enable --now local-llm-oom-watchdog.timer
+#
+# It is a system unit, not a --user one, because it restarts system units.
+[Unit]
+Description=local-llm OOM watchdog (reports kills, restores ssh/earlyoom)
+Documentation=https://github.com/evanwtf/local-llm/issues/459
+
+[Service]
+Type=oneshot
+# The event this reacts to kills ordinary processes, so the watchdog must not
+# be an ordinary candidate: never chosen by the kernel, scheduled ahead of the
+# runaway, and capped so it can never be the cause.
+OOMScoreAdjust=-1000
+Nice=-15
+MemoryMax=256M
+User=evan
+WorkingDirectory=/home/evan/git/local-llm
+ExecStart=/home/evan/.local/bin/uv run --frozen python scripts/oom_watchdog.py --once
+# Restarting system units needs root; the rest of the script does not.
+AmbientCapabilities=
+NoNewPrivileges=true

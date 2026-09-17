@@ -1,0 +1,14 @@
+# #459: every minute, and once shortly after boot -- the boot pass is the one
+# that reports what the previous boot died of.
+[Unit]
+Description=Run the local-llm OOM watchdog every minute
+Documentation=https://github.com/evanwtf/local-llm/issues/459
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=1min
+AccuracySec=10s
+Unit=local-llm-oom-watchdog.service
+
+[Install]
+WantedBy=timers.target
