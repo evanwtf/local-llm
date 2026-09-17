@@ -66,6 +66,47 @@ def test_format_line_missing_values_show_na_not_crash():
     assert "prefix-hit n/a%" in line
 
 
+# A real gcx Influx table for the smart plug (#454): columns + rows.
+OUTLET = (
+    '{"columns":["Time","value","domain","entity_id"],'
+    '"rows":[["2026-09-17T10:31:07Z",35.4,"sensor","dgx_current_consumption"]]}'
+)
+
+
+def test_outlet_value_reads_the_value_column():
+    assert dm.outlet_value(OUTLET) == 35.4
+
+
+def test_outlet_value_uses_the_column_name_not_position():
+    reordered = '{"columns":["value","Time"],"rows":[[76.7,"2026-09-17T10:17:27Z"]]}'
+    assert dm.outlet_value(reordered) == 76.7
+
+
+def test_outlet_value_empty_or_bad_is_none():
+    assert dm.outlet_value('{"columns":["Time","value"],"rows":[]}') is None
+    assert dm.outlet_value('{"columns":["Time"],"rows":[["t"]]}') is None
+    assert dm.outlet_value("") is None
+    assert dm.outlet_value("[1, 2]") is None
+
+
+def test_outlet_flux_targets_the_plug_entity():
+    q = dm.outlet_flux("30m", "max")
+    assert "range(start: -30m)" in q
+    assert 'r["entity_id"] == "dgx_current_consumption"' in q
+    assert q.endswith("|> max()")
+
+
+def test_format_line_prefixes_wall_power_when_present():
+    snap = {"wall_w": 34.7, "wall_peak_w": 76.7, "gen_tps": None}
+    line = dm.format_line(snap, window="30m")
+    assert line.startswith("wall 35 W (30m peak 77 W) | vLLM: decode n/a tok/s")
+
+
+def test_format_line_wall_missing_reading_shows_na():
+    line = dm.format_line({"wall_w": None, "wall_peak_w": None})
+    assert line.startswith("wall n/a W (30m peak n/a W) | ")
+
+
 def test_format_line_includes_ttft_only_when_present():
     assert "TTFT" not in dm.format_line({"gen_tps": 10.0})
     assert "TTFT p50 0.52s" in dm.format_line({"gen_tps": 10.0, "ttft_p50_s": 0.5172})

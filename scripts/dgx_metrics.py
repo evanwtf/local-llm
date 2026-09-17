@@ -26,6 +26,14 @@ Which metrics, and their caveats:
   the histogram is sparse and `histogram_quantile` lands on a high `le` bucket
   boundary (a bogus 48 s), so it is omitted unless `--ttft` is passed.
 
+It also reads **wall power** (#454): the DGX is plugged into a smart plug that
+Home Assistant records into InfluxDB -- not Prometheus -- which is the `DGX
+Outlet Power` panel on the `dgx-spark-overview` dashboard. That is the whole box
+at the outlet (CPU, memory, NVMe, fans, PSU loss), which `nvidia-smi` power, a
+GPU-only figure, cannot see: idle after a reboot read 34.7 W at the wall against
+about 4 W from `nvidia-smi`. Both the current reading and the peak over the
+heartbeat window are reported, because a run's peak draw falls between samples.
+
 The LAN is never emitted; only the metric values are meant for the PUBLIC repo.
 """
 
@@ -53,6 +61,11 @@ DATASOURCE = "uMatQbvMk"
 #: sources the profile that exports it, so it is read explicitly here (the
 #: `grafana-prometheus-via-gcx` gotcha).
 TOKEN_PATH = pathlib.Path.home() / ".config/gcx/token"
+
+#: The InfluxDB datasource behind Grafana that holds Home Assistant's sensors,
+#: and the smart-plug entity the DGX is plugged into (#454).
+INFLUX_DATASOURCE = "p9FyUovVk"
+OUTLET_ENTITY = "dgx_current_consumption"
 
 
 def _gcx_env() -> dict[str, str]:
@@ -106,6 +119,64 @@ def scalar(gcx_json: str) -> float | None:
         return None
 
 
+def flux_query(flux: str) -> str:
+    """Raw gcx JSON for one Flux query against InfluxDB, or `""` on failure.
+
+    Untested subprocess boundary, like `query`. gcx writes its usage hint to
+    stderr, so stdout is the result table alone.
+    """
+    try:
+        out = subprocess.run(
+            ["gcx", "datasources", "query", INFLUX_DATASOURCE, flux, "-o", "json"],
+            capture_output=True,
+            text=True,
+            timeout=60,
+            check=False,
+            env=_gcx_env(),
+        )
+    except (OSError, subprocess.SubprocessError):
+        return ""
+    return out.stdout
+
+
+def outlet_flux(window: str, agg: str) -> str:
+    """Flux for the outlet reading over `window`, reduced by `agg` (last/max)."""
+    return (
+        'from(bucket: "home_assistant/autogen")'
+        f" |> range(start: -{window})"
+        ' |> filter(fn: (r) => r["_measurement"] == "W"'
+        f' and r["entity_id"] == "{OUTLET_ENTITY}"'
+        ' and r["_field"] == "value")'
+        f" |> {agg}()"
+    )
+
+
+def outlet_value(gcx_json: str) -> float | None:
+    """The `value` cell of the first row of a gcx Influx table, or None."""
+    try:
+        table = json.loads(gcx_json)
+    except ValueError:
+        return None
+    if not isinstance(table, dict):
+        return None
+    columns = table.get("columns") or []
+    rows = table.get("rows") or []
+    if not rows or "value" not in columns:
+        return None
+    try:
+        return float(rows[0][columns.index("value")])
+    except (IndexError, TypeError, ValueError):
+        return None
+
+
+def wall_power(window: str) -> dict[str, float | None]:
+    """Outlet watts now (last sample in 10 min) and the peak over `window`."""
+    return {
+        "wall_w": outlet_value(flux_query(outlet_flux("10m", "last"))),
+        "wall_peak_w": outlet_value(flux_query(outlet_flux(window, "max"))),
+    }
+
+
 def _filter(model: str | None) -> str:
     return f'{{model_name="{model}"}}' if model else ""
 
@@ -143,8 +214,18 @@ def _n(v: float | None, fmt: str, dash: str = "n/a") -> str:
     return dash if v is None else fmt.format(v)
 
 
-def format_line(snap: dict[str, float | None]) -> str:
-    """One-line heartbeat summary. Pure: tested against fixed dicts."""
+def format_line(snap: dict[str, float | None], window: str = "30m") -> str:
+    """One-line heartbeat summary. Pure: tested against fixed dicts.
+
+    The wall-power prefix appears only when the snapshot carries it, so a
+    vLLM-only snapshot formats exactly as before.
+    """
+    prefix = ""
+    if "wall_w" in snap:
+        prefix = (
+            f"wall {_n(snap.get('wall_w'), '{:.0f}')} W"
+            f" ({window} peak {_n(snap.get('wall_peak_w'), '{:.0f}')} W) | "
+        )
     parts = [
         f"decode {_n(snap.get('gen_tps'), '{:.0f}')} tok/s",
         f"prefix-hit {_n(snap.get('prefix_hit_pct'), '{:.0f}')}%",
@@ -153,7 +234,7 @@ def format_line(snap: dict[str, float | None]) -> str:
     ]
     if "ttft_p50_s" in snap:
         parts.append(f"TTFT p50 {_n(snap.get('ttft_p50_s'), '{:.2f}')}s")
-    return "vLLM: " + ", ".join(parts)
+    return prefix + "vLLM: " + ", ".join(parts)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -166,12 +247,22 @@ def main(argv: list[str] | None = None) -> int:
         help="include TTFT p50 (only meaningful under concurrent load)",
     )
     p.add_argument("--json", action="store_true", help="emit the raw snapshot dict")
+    p.add_argument(
+        "--window",
+        default="30m",
+        help="window for the wall-power peak (default 30m, the heartbeat cadence)",
+    )
+    p.add_argument(
+        "--no-wall", action="store_true", help="skip the smart-plug wall-power reading"
+    )
     args = p.parse_args(argv)
     snap = snapshot(model=args.model, ttft=args.ttft)
+    if not args.no_wall:
+        snap = {**wall_power(args.window), **snap}
     if args.json:
         print(json.dumps(snap))
     else:
-        print(format_line(snap))
+        print(format_line(snap, window=args.window))
     return 0
 
 

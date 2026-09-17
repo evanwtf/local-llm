@@ -218,13 +218,21 @@ then issue number). Bullets: what changed since last tick, anything
 committed/pushed, any blocker. Report a run completion, failure, blocker, or
 operator decision immediately; do not add a separate five-minute status loop.
 
-Add a **Metrics** bullet with the app-level serving numbers — the header covers
-GPU util/power/temp, but not what the server is doing. Get them with the helper:
+Add a **Metrics** bullet with the **wall power** and the app-level serving
+numbers — the header covers GPU util/power/temp, but not the whole box or what
+the server is doing. Get both with the helper:
 
 ```sh
 uv run python scripts/dgx_metrics.py --model <served-model-name>
-# -> vLLM: decode 265 tok/s, prefix-hit 82%, running 8/waiting 0, prefill peak 5468 tok/s
+# -> wall 96 W (30m peak 118 W) | vLLM: decode 265 tok/s, prefix-hit 82%, running 8/waiting 0, prefill peak 5468 tok/s
 ```
+
+**Wall power always goes in the update, idle included.** The DGX is plugged into
+a smart plug that Home Assistant records into InfluxDB (datasource `p9FyUovVk`,
+entity `dgx_current_consumption` — the `DGX Outlet Power` panel), so it covers
+the whole box at the outlet, not just the GPU: idle reads ~35 W at the wall while
+`nvidia-smi` shows ~4 W. Quote the current reading **and** the peak over the
+30-minute window (`--window`), since a run's peak falls between samples. (#454)
 
 Quote **decode tok/s** (steady) and **prefix-hit %** (5-min rate) every tick, and
 **running/waiting** for queue depth. Prefill is a windowed max (it is bursty),
