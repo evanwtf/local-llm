@@ -184,8 +184,13 @@ The 128 GB pool is shared between CPU and GPU with no separate VRAM ceiling, so
 an oversized GPU allocation lands on host RAM. When the pool is exhausted the
 kernel's global OOM killer cannot reclaim the GPU allocation and kills small
 userspace daemons instead — **including sshd** — which locks the machine out.
-Recovery is the **physical power button**; on 2026-09-13 this happened six
-times. Full write-up: [`docs/incidents/2026-09-13-oom-lockup.md`](incidents/2026-09-13-oom-lockup.md).
+Recovery is the **physical power button** — or, since the smart plug, a remote
+power cycle; on 2026-09-13 this happened six times, and again on 2026-09-17.
+Write-ups: [`2026-09-13-oom-lockup.md`](incidents/2026-09-13-oom-lockup.md) (an
+uncapped server drove the pool to ~560 MB and the kernel killed sshd) and
+[`2026-09-17-oom-lockup-earlyoom-swap.md`](incidents/2026-09-17-oom-lockup-earlyoom-swap.md)
+(a JIT kernel build took 44 GiB to zero in 61 s while earlyoom sat idle, because
+its swap threshold was never met).
 
 ### The layers (defense in depth)
 
