@@ -316,7 +316,23 @@ engine, opposite headline.
    flag is being asked.
 
 `num_turns` and `wall_seconds` are on every row, and `step_ttft_ms_median` on every
-DGX llama.cpp row since 2026-09-12, so this needs no new measurement. The estimator
+DGX llama.cpp row since 2026-09-12, so this needs no new measurement.
+
+> **`step_ttft_ms_*` is not end-to-end TTFT under OpenCode 1.18.31 (#444).**
+> The field is anchored on OpenCode's `step_start` event, and in 1.18.31 that
+> event is emitted *after* the request has spent most of its time in the engine.
+> On the #346 control, three warm turns against one unchanged vLLM endpoint
+> measured invocation to first `text` at 4.429–4.504 s and vLLM's own
+> one-request TTFT at 3.172–3.181 s, while `step_start` to first `text` read
+> **47–50 ms**. So `step_ttft_ms_median`, `step_ttft_ms_p90` and
+> `model_step_ttft_ms_median` describe OpenCode's post-response serialization
+> on those rows, not first-token latency, and must carry the client version
+> whenever they are quoted. Rows written after #444 also carry
+> **`first_content_ms`** — invocation to first visible output, measured by
+> `run.py` outside the client — and `step_ttft_anchor`, which names the anchor
+> a row's in-band figure used. Where an engine counter is available (vLLM's
+> `time_to_first_token_seconds`, via `scripts/dgx_metrics.py --ttft`), prefer
+> it: it is the only wire-side TTFT on this project. The estimator
 is `scripts/report.py`: `turns()` (the ungated half), `seconds_per_turn()`, and
 `homogeneous()` (the step-0 gate). A two-backend `report.py` run prints the
 "What moved: the agent, or the engine? (#353)" block, and warns when a cell's
