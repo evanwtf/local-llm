@@ -220,6 +220,29 @@ wall time — leads to test on our own Spark, not numbers to repeat. And a
 company/marketing account (e.g. @apikey_official, @MiaAI_lab) needs the "read
 the repo, not the feed" filter before it earns a tier.
 
+### Vendor sources for this lane (operator-defined, 2026-09-17)
+
+The DGX Spark runs NVIDIA's own formats, so NVIDIA is a **primary** source here
+rather than background noise — the opposite of its standing in the Mac lane.
+Each account below was checked to exist on 2026-09-17 (`api.fxtwitter.com`,
+follower counts as read that day); a post from any of them is still gathered
+and verified like any other.
+
+| source | surface | why it is in this lane |
+|---|---|---|
+| [`huggingface.co/nvidia`](https://huggingface.co/nvidia) | Hugging Face org | Nemotron and the NVFP4/FP8 builds a CUDA-native engine can load. Already swept: `hf_sweep.py --profile gb10` watches `author=nvidia`. |
+| [`huggingface.co/RedHatAI`](https://huggingface.co/RedHatAI) | Hugging Face org | Red Hat requantizes the NVIDIA models for vLLM, and the builds get used: `NVIDIA-Nemotron-3.5-Lightning-30B-A3B-FP8` read **257,782 downloads** on 2026-09-17, against low hundreds for the community NVFP4/W4A16 builds of the same weights. Added to the `gb10` watch list. |
+| [@NVIDIAAI](https://x.com/NVIDIAAI) | X (340,435 followers) | the operator's named account: model and recipe announcements, including the DGX Spark recipes. |
+| [@NVIDIAAIDev](https://x.com/NVIDIAAIDev) | X (111,556) | the developer-facing half: serving flags, container tags, kernel notes. |
+| [@nvidia](https://x.com/nvidia) | X (2,663,678) | the corporate feed; lowest signal per post, read last. |
+| [@NVIDIADeveloper](https://x.com/NVIDIADeveloper) | X (6,194) | small and occasional; keep until a sweep shows it adds nothing over @NVIDIAAIDev. |
+| the model card in the HF repo | web | NVIDIA ships its **Spark-specific** serve command in the card, not in a repo — the `vllm/vllm-openai` container tag, the `VLLM_*` env vars and the `--speculative-config` for the MTP head all came from the Nemotron-3-Super card (#406). Read the card, not just the release note. |
+
+**The filter still applies.** A vendor account is a marketing feed with recipes
+in it: take the flags, the container tags and the model links, and treat every
+throughput number as a lead to measure here. NVIDIA's own numbers are quoted
+from 4× GB300 or a B200 more often than from one Spark.
+
 ---
 
 ## Read the repo, not the feed
