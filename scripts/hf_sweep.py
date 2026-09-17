@@ -64,6 +64,14 @@ WATCHED_EXTRA: dict[str, dict[str, tuple[str, str]]] = {
             "NVIDIA's own HF org: Nemotron, NVFP4/FP8 builds, DGX-loadable",
         ),
         "Nemotron": ("name", "NVIDIA's Nemotron lineage; NVFP4/FP8 for Blackwell"),
+        # Red Hat requantizes the NVIDIA models for vLLM and the builds get
+        # pulled: NVIDIA-Nemotron-3.5-Lightning-30B-A3B-FP8 was at 257,782
+        # downloads on 2026-09-17, against low hundreds for the community
+        # NVFP4/W4A16 builds of the same weights.
+        "RedHatAI": (
+            "author",
+            "Red Hat's FP8/NVFP4 requants of the NVIDIA models, built for vLLM",
+        ),
     },
 }
 
