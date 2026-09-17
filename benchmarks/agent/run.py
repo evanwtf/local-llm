@@ -1367,7 +1367,7 @@ def claude_prompt_tokens(usage):
     return sum(present) if present else None
 
 
-def claude_parse(stdout):
+def claude_parse(stdout, **_):
     payload = json.loads(stdout)
     usage = payload.get("usage", {})
     return {
@@ -1484,7 +1484,7 @@ def aider_argv(task, backend, worktree=None):
     return argv
 
 
-def aider_parse(stdout):
+def aider_parse(stdout, **_):
     """Aider prints a human report, not an event stream.
 
     There is no machine-readable output mode, but it does print a token line
@@ -1513,7 +1513,7 @@ def aider_parse(stdout):
     return out
 
 
-def opencode_parse(stdout):
+def opencode_parse(stdout, launched_ms=None, **_):
     """Sum OpenCode's per-step accounting into one row.
 
     OpenCode emits a JSON event stream, not a summary object. Each assistant
@@ -1527,12 +1527,30 @@ def opencode_parse(stdout):
     after 12 turns -- so the last value is not a high-water mark. Rows written
     before 2026-08-17 carry the last step's input rather than the peak.
 
-    Also records per-step TTFT (#96). The transcript stamps every event with a
-    millisecond timestamp, and each real step brackets `step_start` -> first
-    `text`/`tool_use` -> `step_finish`. The delta from step_start to the first
-    content event is the closest thing to per-turn TTFT we can compute from
-    this transcript: it is what the agent USER experienced, including OpenCode's
-    own serialization overhead. It is not the wire TTFT from ds4's perspective.
+    Also records per-step TTFT (#96) -- but read the version boundary first.
+
+    The transcript stamps every event with a millisecond timestamp, and each
+    real step brackets `step_start` -> first `text`/`tool_use` -> `step_finish`.
+    The delta from `step_start` to the first content event was taken as per-turn
+    TTFT.
+
+    **That anchor is wrong in OpenCode 1.18.31 (#444).** `step_start` is emitted
+    *after* the request has already spent most of its time in the engine. On the
+    #346 control, three warm turns against one unchanged vLLM endpoint measured
+    invocation to first `text` at 4.429-4.504 s and vLLM's own one-request TTFT
+    at 3.172-3.181 s, while `step_start` to first `text` read **47-50 ms**. So
+    `step_ttft_ms_*` and `model_step_ttft_ms_median` measure OpenCode's
+    post-response serialization, not first-token latency, and must not be
+    published as end-to-end TTFT. `step_ttft_anchor` is recorded on every row so
+    a consumer can tell which meaning a number carries.
+
+    `launched_ms` is the wall-clock epoch millisecond the client process was
+    started, taken by the caller *before* `exec`. When it is available, the
+    first content event yields `first_content_ms`: invocation to first visible
+    output, which brackets the real TTFT from the outside and cannot be fooled
+    by where the client chooses to emit `step_start`. It covers one turn (the
+    first), includes process startup, and is an upper bound -- but it is
+    measured at the consumer boundary, which is the thing #444 asked for.
 
     Tool-response acknowledgment steps -- where OpenCode records a tool result
     with no model call -- also produce a step_start/step_finish pair with a
@@ -1546,6 +1564,7 @@ def opencode_parse(stdout):
     step_ttfts_ms: list[int] = []
     current_step_open: int | None = None
     current_step_saw_content = False
+    first_content_ts: int | None = None
     for line in stdout.splitlines():
         line = line.strip()
         if not line:
@@ -1567,6 +1586,8 @@ def opencode_parse(stdout):
         ):
             step_ttfts_ms.append(ts - current_step_open)
             current_step_saw_content = True
+            if first_content_ts is None:
+                first_content_ts = ts
         elif etype == "step_finish":
             tokens = event.get("part", {}).get("tokens", {})
             turns += 1
@@ -1588,7 +1609,14 @@ def opencode_parse(stdout):
     # A trial with no timestamps (a very old transcript, or a client that
     # emits none) records no TTFT rather than a bogus zero. Absence is a
     # different signal than "0 ms".
+    if first_content_ts is not None and isinstance(launched_ms, int):
+        # Negative would mean the transcript predates the launch we timed --
+        # a mismatched log, not a measurement. Drop it rather than record it.
+        delta = first_content_ts - launched_ms
+        if delta >= 0:
+            row["first_content_ms"] = delta
     if step_ttfts_ms:
+        row["step_ttft_anchor"] = "step_start"
         real_model_ttfts = [t for t in step_ttfts_ms if t > 100]
         row["step_ttft_ms_median"] = _median_int(step_ttfts_ms)
         row["step_ttft_ms_p90"] = _percentile_int(step_ttfts_ms, 0.90)
@@ -1644,7 +1672,7 @@ def codex_argv(task, backend, worktree=None):
     ]
 
 
-def codex_parse(stdout):
+def codex_parse(stdout, **_):
     """Read Codex's JSONL event stream.
 
     **`num_turns` is deliberately None for Codex.** Codex emits one
@@ -3243,6 +3271,12 @@ def one_trial(
         # 3. Hand it to the agent.
         build_argv, parse = CLIENTS[client]
         t0 = time.monotonic()
+        # The transcript's own timestamps are wall-clock epoch ms, so the
+        # anchor a parser can subtract from has to be too. Taken here, before
+        # the process exists: #444 showed the client's first in-band event is
+        # emitted long after the request went out, so an in-band anchor
+        # understates first-token latency.
+        launched_ms = int(time.time() * 1000)
         # #54: confine the agent below the client. Its own permission layer
         # cannot do this (anomalyco/opencode#41067 submits out-of-worktree
         # paths as `../...`, which no pattern matches), so the kernel does.
@@ -3329,7 +3363,7 @@ def one_trial(
             client_log, name, proc.stdout, proc.stderr, result, worktree=worktree
         )
         try:
-            result.update(parse(proc.stdout))
+            result.update(parse(proc.stdout, launched_ms=launched_ms))
         except json.JSONDecodeError:
             result["agent_error"] = True
             result["stderr_tail"] = proc.stderr[-400:]

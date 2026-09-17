@@ -130,3 +130,81 @@ def test_percentile_helper_is_bounded() -> None:
     """One sample: p90 is the sample itself, not itself minus something."""
     assert run._percentile_int([42], 0.90) == 42
     assert run._percentile_int([], 0.90) == 0
+
+
+# --- the 1.18.31 anchor defect (#444) ----------------------------------------
+
+
+def test_opencode_1_18_31_ordering_is_caught_by_the_invocation_anchor() -> None:
+    """The regression fixture #444 asked for.
+
+    On the #346 control, three warm turns measured invocation to first `text`
+    at 4.429-4.504 s and vLLM's own TTFT at 3.172-3.181 s, while `step_start`
+    to first `text` read 47-50 ms: OpenCode 1.18.31 emits `step_start` after
+    the engine has already done the work. This fixture reproduces that
+    ordering -- a 4,450 ms wait, then a step whose in-band TTFT is 48 ms -- and
+    pins both numbers, so the in-band figure can never again be read as
+    end-to-end latency.
+    """
+    launched_ms = 1_000_000
+    stdout = make_transcript(
+        [
+            {"type": "step_start", "timestamp": launched_ms + 4_402},
+            {"type": "text", "timestamp": launched_ms + 4_450, "part": {}},
+            {
+                "type": "step_finish",
+                "timestamp": launched_ms + 4_600,
+                "part": {"tokens": {"output": 20, "input": 12_029}},
+            },
+        ]
+    )
+    row = run.opencode_parse(stdout, launched_ms=launched_ms)
+    assert row["step_ttft_ms_median"] == 48  # what the old anchor sees
+    assert row["first_content_ms"] == 4_450  # what the consumer waited
+    assert row["step_ttft_anchor"] == "step_start"
+
+
+def test_without_an_anchor_no_first_content_is_recorded() -> None:
+    """Absence, not a bogus zero: an old transcript replayed by hand has no
+    launch time to subtract."""
+    stdout = make_transcript(
+        [
+            {"type": "step_start", "timestamp": 1_000_000},
+            {"type": "text", "timestamp": 1_003_000, "part": {}},
+            {"type": "step_finish", "timestamp": 1_003_100, "part": {"tokens": {}}},
+        ]
+    )
+    row = run.opencode_parse(stdout)
+    assert "first_content_ms" not in row
+    assert row["step_ttft_ms_median"] == 3000
+
+
+def test_a_transcript_older_than_the_launch_records_no_first_content() -> None:
+    """A negative delta means the log and the launch do not belong together --
+    a mismatched file, not a measurement."""
+    stdout = make_transcript(
+        [
+            {"type": "step_start", "timestamp": 500_000},
+            {"type": "text", "timestamp": 500_100, "part": {}},
+            {"type": "step_finish", "timestamp": 500_200, "part": {"tokens": {}}},
+        ]
+    )
+    row = run.opencode_parse(stdout, launched_ms=1_000_000)
+    assert "first_content_ms" not in row
+
+
+def test_the_other_clients_accept_and_ignore_the_anchor() -> None:
+    """`parse()` is called uniformly for every client, so each signature must
+    take the anchor even where the transcript has no timestamps to use it.
+
+    Passing it must fail the way an empty transcript already fails -- a
+    JSONDecodeError the caller handles -- and never with a TypeError, which is
+    what a missed signature would raise on every trial of that client.
+    """
+    for parser in (run.claude_parse, run.codex_parse, run.aider_parse):
+        try:
+            parser("", launched_ms=1)
+        except TypeError as exc:  # pragma: no cover - the failure this pins
+            raise AssertionError(f"{parser.__name__} rejects the anchor: {exc}")
+        except json.JSONDecodeError:
+            pass  # an empty transcript, which the caller already handles

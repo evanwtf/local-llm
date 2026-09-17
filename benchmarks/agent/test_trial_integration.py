@@ -64,7 +64,7 @@ def scripted_agent(monkeypatch):
         )
         return ["python3", "-c", script]
 
-    monkeypatch.setitem(run.CLIENTS, "scripted", (argv, lambda _out: {}))
+    monkeypatch.setitem(run.CLIENTS, "scripted", (argv, lambda _out, **_: {}))
     return "scripted"
 
 
@@ -153,7 +153,7 @@ def test_a_no_docstring_task_really_withholds_the_contract(scripted_agent, tmp_p
 def test_an_agent_that_does_nothing_fails_and_says_so(monkeypatch, tmp_path):
     """The negative case: no edit, no pass, and no crash on the way out."""
     monkeypatch.setitem(
-        run.CLIENTS, "idle", (lambda t, b, w=None: ["true"], lambda _o: {})
+        run.CLIENTS, "idle", (lambda t, b, w=None: ["true"], lambda _o, **_: {})
     )
     row = _run("mbox-strip-envelope", tmp_path, "idle")
     assert results.verdict(row) is False
@@ -195,6 +195,6 @@ def test_the_agent_is_handed_a_working_environment(monkeypatch, tmp_path):
         )
         return ["python3", "-c", script]
 
-    monkeypatch.setitem(run.CLIENTS, "venv-user", (argv, lambda _o: {}))
+    monkeypatch.setitem(run.CLIENTS, "venv-user", (argv, lambda _o, **_: {}))
     row = _run("mbox-strip-envelope", tmp_path, "venv-user")
     assert results.verdict(row) is True
