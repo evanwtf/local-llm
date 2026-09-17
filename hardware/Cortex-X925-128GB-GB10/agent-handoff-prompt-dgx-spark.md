@@ -112,6 +112,17 @@ FREE. Never switch branches under a live run.
 - Before any launch: `uv run python scripts/machine_health.py check --for server`
   — it refuses while a departing server's memory is still held (memory outlives
   the PID here).
+- **`MemoryMax` does not bound CUDA memory on GB10 (#456)** — only CPU-side
+  memory counts against it. Watch `MemAvailable` yourself during a load and stop
+  the scope below ~14 GiB; earlyoom (memory-only since #458, `-s 100,100`)
+  fires at ~12 GiB. On 2026-09-17 the earlyoom-on-swap bug hard-locked the box
+  and the smart plug had to power-cycle it (#458).
+- **Prebuild FlashInfer JIT kernels before loading weights, and set `MAX_JOBS`.**
+  An unset `MAX_JOBS` lets ninja run ~22 CUTLASS `nvcc` jobs during warmup, on
+  top of the loaded weights — that was the #406 OOM. Build first in a capped
+  scope (`systemd-run --user --scope -p MemoryMax=60G … MAX_JOBS=8 python -c
+  'from flashinfer.jit.gemm.core import gen_gemm_sm120_module_cutlass_fp4 as g;
+  g().build_and_load()'`), then launch with `MAX_JOBS=3`.
 
 **Managing servers — no ps/grep/pgrep**
 - Every server that would otherwise need `ps`/`grep`/`pgrep` gets launched in a
@@ -203,7 +214,7 @@ The operator standardized the DGX heartbeat header. **First line must match this
 format exactly**, then 2-4 tight bullets:
 
 ```
-HH:MM EDT: GPU: util N%, power NW, temp: NºC.  Current task #N, in progress for N minutes, ETA HH:MM.  Next task: #N
+HH:MM EDT: GPU: util N%, power NW (GPU), NW (outlet), temp: NºC.  Current task #N, in progress for N minutes, ETA HH:MM.  Next task: #N
 ```
 
 Rules for the header: re-read the wall clock each tick (`TZ=America/New_York
@@ -276,7 +287,7 @@ makes the session autonomous rather than one-shot.
 when you are otherwise idle. Paste this as the `/loop` input:
 
 ```
-/loop 30m Post a DGX Spark (spark-231e, GB10) status update. FIRST LINE must match this header format EXACTLY: "HH:MM EDT: GPU: util N%, power NW, temp: NºC.  Current task #N, in progress for N minutes, ETA HH:MM.  Next task: #N". Rules: (1) Re-read the current wall-clock time in America/New_York each tick — never infer it. (2) GPU readings from `nvidia-smi --query-gpu=utilization.gpu,power.draw,temperature.gpu --format=csv,noheader,nounits`; round power and temp to integers, util as-is. (3) Current task = the GitHub issue whose work is running now — determine it from the run lock (`~/.local-llm-bench/run-lock.json`), the active run.py / systemd run-scope, and the backend it serves; "in progress for N minutes" from the run's start time; give a realistic ETA (remaining trials × observed per-trial wall). If the GPU is idle (util 0 / power ~10W / no run lock), write "Current task: idle" and, per the maximize-utilization directive, pick the next task to launch. (4) Next task = the next queued item from NEXT.md (P0 before P1, then by issue number, DGX/platform:Nvidia-scoped). After the header line, add 2-4 bullets: what changed since last tick, anything committed/pushed, and any blocker. Keep it tight.
+/loop 30m Post a DGX Spark (spark-231e, GB10) status update. FIRST LINE must match this header format EXACTLY: "HH:MM EDT: GPU: util N%, power NW (GPU), NW (outlet), temp: NºC.  Current task #N, in progress for N minutes, ETA HH:MM.  Next task: #N". Rules: (1) Re-read the current wall-clock time in America/New_York each tick — never infer it. (2) GPU readings from `nvidia-smi --query-gpu=utilization.gpu,power.draw,temperature.gpu --format=csv,noheader,nounits`; round power and temp to integers, util as-is; OUTLET power = the smart-plug wall reading from `uv run python scripts/dgx_metrics.py`, always labeled "(outlet)" beside the "(GPU)" figure (#454). (3) Current task = the GitHub issue whose work is running now — determine it from the run lock (`~/.local-llm-bench/run-lock.json`), the active run.py / systemd run-scope, and the backend it serves; "in progress for N minutes" from the run's start time; give a realistic ETA (remaining trials × observed per-trial wall). If the GPU is idle (util 0 / power ~10W / no run lock), write "Current task: idle" and, per the maximize-utilization directive, pick the next task to launch. (4) Next task = the next queued item from NEXT.md (P0 before P1, then by issue number, DGX/platform:Nvidia-scoped). After the header line, add 2-4 bullets: what changed since last tick, anything committed/pushed, and any blocker. Keep it tight.
 ```
 
 In Codex (no `/loop`): after each heartbeat, schedule a bounded wait of ≤30 min,
