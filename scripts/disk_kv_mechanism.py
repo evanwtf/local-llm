@@ -110,7 +110,7 @@ def run_argv(trials: int) -> list[str]:
     """`run.py` for arm A.
 
     No `--no-lock`: this script does not hold the machine lock itself, so
-    `run.py` takes it. That is the shell's behaviour and the right one for a
+    `run.py` takes it. That is the shell's behavior and the right one for a
     single-invocation test -- there is nothing here for a second claim to
     protect against.
     """

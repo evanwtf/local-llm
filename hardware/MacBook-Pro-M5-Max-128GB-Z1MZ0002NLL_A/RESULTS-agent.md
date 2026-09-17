@@ -468,7 +468,7 @@ Two harness fixes came out of it:
 
 - `run.py` now removes a stale worktree left by an aborted run, instead of
   failing every later attempt at that cell with `fatal: ... already exists`.
-- `summarize.py` honours an `excluded` key, so a retired row can stay in the
+- `summarize.py` honors an `excluded` key, so a retired row can stay in the
   data without contaminating the statistics.
 
 ---

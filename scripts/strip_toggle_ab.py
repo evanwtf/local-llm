@@ -4,7 +4,7 @@
 Port of `scripts/strip_toggle_ab.sh` (#235).
 
 The shim removes bare `<tool_call>` tags from returned content when it has
-recovered a call. That is the shipped behaviour and it has never been measured.
+recovered a call. That is the shipped behavior and it has never been measured.
 `SHIM_NO_STRIP=1` is the off arm and touches nothing else -- so the arm is the
 **shim's mode**, not a flag on `run.py`, which is the one structural difference
 from `targets_ab.py`.
@@ -34,7 +34,7 @@ Read out with `scripts/strip_ab_report.py`.
 ## Reading the arm back out of the shim
 
 The strip is worth **23 points of pass rate** (#112). Setting `SHIM_NO_STRIP`
-is not evidence the shim honoured it, and a shim in the other mode does not
+is not evidence the shim honored it, and a shim in the other mode does not
 fail -- it silently produces the other experiment. `tool_shim.serving` waits
 for the shim's own `scaffolding strip: ON/OFF` line and refuses unless it says
 what this arm asked for.

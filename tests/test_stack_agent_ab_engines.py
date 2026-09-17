@@ -174,7 +174,7 @@ def test_the_draft_log_engine_is_omitted_for_engines_run_py_rejects() -> None:
     """run.py takes --draft-log-engine ds4|mtplx and nothing else.
 
     This test previously asserted `--draft-log-engine "$engine"` was always
-    passed, which enforced the WRONG behaviour: it made the flag per-arm, and
+    passed, which enforced the WRONG behavior: it made the flag per-arm, and
     an mlx-serve arm then passed a value argparse rejects. The first sweep died
     in one second with `invalid choice: 'mlx-serve'`. A test can encode an
     assumption instead of a requirement, and this one did.

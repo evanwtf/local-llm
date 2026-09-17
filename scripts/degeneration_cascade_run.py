@@ -102,7 +102,7 @@ def tool_shim(log: pathlib.Path, timeout: float = 20.0) -> Iterator[unitctl.Unit
     This is the realistic cell #112 was found on: OpenCode sends its own
     temperature and the shim passes it through. It is *not* the greedy shim on
     :8102 (which pins temperature to 0 for the MTP arms); pinning would change
-    the regime and the degeneration behaviour with it.
+    the regime and the degeneration behavior with it.
     """
     unit = unitctl.start(
         SHIM_UNIT,

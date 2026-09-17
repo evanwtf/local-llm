@@ -13,7 +13,7 @@ reference kernels: bit-exact at `worst_rms 0`, slower, and the only route a
 reproducible quality number could be measured on.
 
 Both modes run the SAME binary, `~/git/ds4-metal-ref`. That build withholds the
-automatic M5 enable and honours `DS4_METAL_ENABLE_TENSOR`, so one binary serves
+automatic M5 enable and honors `DS4_METAL_ENABLE_TENSOR`, so one binary serves
 both routes. The ordinary `~/git/ds4-metal` build cannot serve vanilla at all:
 on any device whose name contains "M5" the route enables itself
 (`ds4_metal.m`, `default_enable`), and its only off switch,

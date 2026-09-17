@@ -283,7 +283,7 @@ def test_the_ceiling_falls_back_to_the_stock_default_when_unset():
     preflight hardcoded 112.0, which is only true *because* the sysctl is set --
     and until 2026-09-01 it did not survive a reboot. On a fresh boot the old constant would
     have overstated headroom by 4.5 GiB, which is the difference between a
-    model fitting and ds4 planning a working set the device cannot honour
+    model fitting and ds4 planning a working set the device cannot honor
     (antirez/ds4#890).
     """
     assert preflight.ceiling_gib("iogpu.wired_limit_mb: 114688") == 112.0

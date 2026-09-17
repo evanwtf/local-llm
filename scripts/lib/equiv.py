@@ -617,7 +617,7 @@ def run_fake(
     the env merge and the `unset` removal are the production path, not a copy
     of it. The fake therefore records what the port's child really sees: the
     tensor arm's key set to "1", the reference arm's key ABSENT even when the
-    operator exported it. If `child.run` ever stopped honouring `unset`, the
+    operator exported it. If `child.run` ever stopped honoring `unset`, the
     recording would say so and assertion 2 would fail on the fixture.
 
     `via` names the program `argv` was built for: `"run.py"` goes through a

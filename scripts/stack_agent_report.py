@@ -90,7 +90,7 @@ logger = logging.getLogger(__name__)
 #
 # The VOID is why it was caught rather than published: the report refused a
 # half-empty comparison instead of reporting the half it could see. Keep that
-# behaviour; it is worth more than the constants it exposed.
+# behavior; it is worth more than the constants it exposed.
 #
 # Defaults are #138 exactly, so an unset environment reproduces the old run.
 NEW_BACKEND = os.environ.get("NEW_BACKEND", "qwen38fnds4kimat")

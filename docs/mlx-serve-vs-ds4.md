@@ -117,7 +117,7 @@ parser-mbox-quoting   mlx  39.4  40.4  283.2  1377.4 s     (9, 9, 35, 334 turns)
 Drop that single task and mlx-serve finishes **29% faster** overall. It cost
 1740s against ds4's 216s and erased every win.
 
-### Known behaviour: mlx-serve is bimodal, ds4 is not
+### Known behavior: mlx-serve is bimodal, ds4 is not
 
 - ds4's maximum across all 120 rows: **20 turns**. mlx-serve's: **334**.
 - Sweep durations: ds4 spanned 2m48s across four sweeps (23m19s / 24m57s /
@@ -126,12 +126,12 @@ Drop that single task and mlx-serve finishes **29% faster** overall. It cost
   anyone.
 - Two tasks show true excursions: `parser-mbox-quoting` (334 turns) and
   `mbox-quoting-both-halves` (162). Separately, `swift-downsample-buckets`
-  runs 22-29 turns on mlx as its *normal* behaviour against ds4's 11-14 — a
+  runs 22-29 turns on mlx as its *normal* behavior against ds4's 11-14 — a
   shift, not an excursion, and a different finding.
 - Every excursion **passed**. This is a wall-time tail, not a reliability one.
 
 **Practical read:** mlx-serve is typically faster and occasionally much slower.
-Median latency favours mlx-serve; worst case favours ds4.
+Median latency favors mlx-serve; worst case favors ds4.
 
 **Now measured, not asserted (#225 census, `scripts/tail_events.py`).** Over
 2084 rows, 67 events at `num_turns > 20`:

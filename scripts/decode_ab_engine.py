@@ -43,7 +43,7 @@ silent: an odd sweep produces a complete CSV and a plausible number.
 the A/B even when the branch touches `speed-bench/`.
 
 The `PREFILL_CHUNK` reasoning -- why 0 is refused and why above 8192 only the
-first frontier honours the flag -- lives in `decode_ab.prefill_chunk`, which
+first frontier honors the flag -- lives in `decode_ab.prefill_chunk`, which
 this calls rather than restates.
 """
 

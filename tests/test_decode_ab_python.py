@@ -72,7 +72,7 @@ def test_the_ceiling_value_itself_does_not_warn(caplog) -> None:
 
 
 def test_a_chunk_above_the_ceiling_warns_but_is_not_refused(caplog) -> None:
-    """Above 8192 only frontier 1 honours the flag: raw_cap cuts the rest
+    """Above 8192 only frontier 1 honors the flag: raw_cap cuts the rest
     (ds4.c:36867 at ds4-main 9ab70534,
     ds4.c:37541 at ds4-main 9ab70534). Measuring that on purpose
     is valid, so it warns rather than refuses."""

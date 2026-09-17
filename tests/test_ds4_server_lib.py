@@ -95,7 +95,7 @@ def test_the_mtp_arm_carries_its_three_flags(paths):
 def test_draft_without_a_head_warns_so_the_config_error_is_visible(paths, caplog):
     """--deepseek's point: silently dropping a flag the caller passed is how a
     config error hides. Refusing is the better end state; during a port a
-    behaviour change is indistinguishable from a porting bug, so it warns."""
+    behavior change is indistinguishable from a porting bug, so it warns."""
     with caplog.at_level("WARNING", logger=ds4_server.logger.name):
         ds4_server.argv(
             paths["model"],

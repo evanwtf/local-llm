@@ -74,7 +74,7 @@ fi
 # Set PREFILL_CHUNK equal to STEP to make each frontier a single chunk.
 #
 # The ceiling is real but sits on a different path from the one people expect.
-# ds4_prefill_cap_for_prompt (ds4.c:12986 at ds4-main 9ab70534) honours a
+# ds4_prefill_cap_for_prompt (ds4.c:12986 at ds4-main 9ab70534) honors a
 # non-zero request as given. metal_graph_prefill_chunked
 # (ds4.c:36867 at ds4-main 9ab70534) then clamps every prefill AFTER THE FIRST
 # to raw_cap:
@@ -83,7 +83,7 @@ fi
 #
 # and metal_graph_raw_cap_for_context (ds4.c:37541 at ds4-main 9ab70534)
 # ceilings raw_cap at 8192. At 8192 the two coincide exactly, which is why
-# @iammac2's value needs no special handling; above it, frontier 1 honours the
+# @iammac2's value needs no special handling; above it, frontier 1 honors the
 # request and the rest are cut to 8192 -- one run, two quantities.
 PREFILL_CHUNK=${PREFILL_CHUNK:-}
 

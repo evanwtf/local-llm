@@ -224,7 +224,7 @@ the repo, not the feed" filter before it earns a tier.
 
 ## Read the repo, not the feed
 
-This file is organised around X because that is where most of this field
+This file is organized around X because that is where most of this field
 announces itself. For the sources below that is the wrong surface: the work is
 in a repository or an issue tracker, and the feed is chatter or silence.
 

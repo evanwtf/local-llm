@@ -1,7 +1,7 @@
 """The #112 A/B read-out must not be able to flatter itself.
 
 Every test here is a way the report could have produced a confident wrong
-answer: a p-value overriding the pre-registered bar, a favourable result
+answer: a p-value overriding the pre-registered bar, a favorable result
 reported in the wrong direction, or trials attributed to the arm that did not
 run them.
 """

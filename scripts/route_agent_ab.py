@@ -212,7 +212,7 @@ def gate_recorded(log: pathlib.Path) -> bool:
     """Whether `log` already holds a passing gate, so the run can skip it.
 
     The gate is a full GLM-5.3-Flash-Q2 load and takes tens of minutes. Reusing
-    a passing log is the shell's behaviour and worth keeping, but only when it
+    a passing log is the shell's behavior and worth keeping, but only when it
     passes **both** halves -- an OK verdict and a signature in band. The shell
     checked both here and would otherwise re-run.
     """
