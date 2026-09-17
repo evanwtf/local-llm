@@ -1,0 +1,47 @@
+# grok sweep accounts
+# requested window: 2026-09-12T00:00Z to now (last 5 days)
+# written: 2026-09-17T10:10:33Z (local: 2026-09-17 06:10:33 EDT)
+# query: Search X for posts and replies from @antirez, @ivanfioravanti, @awnihannun, @ddalcu, @Prince_Canuma, @jundotkim, @ggerganov, @unslothai, @N8Programs, @TheDavidTai, @alexziskind1, @raullenchai, @Blaizzy, @angeloskath, @zcbenz, @0xSero, @sudoingX, @mweinbach, @thdxr, @lmstudio published between 2026-09-12 and now about local LLM inference on Apple Silicon (ds4, MLX, llama.cpp Metal, oMLX, mlx-serve, DeepSeek V4.1 Flash, Qwen3.8-Flash-Next, GLM-5.3 Flash, MTP / speculative decoding, SSD expert streaming, prefill, M5 Max, opencode). Output ONE bullet per post and nothing else -- no preamble, no summary: - <UTC timestamp> | @handle | <post URL> | <the claim in one sentence>. Omit any item without both a URL and a UTC timestamp. If nothing matches, output exactly: NO RESULTS
+
+I'll search X for posts and replies from those accounts in the date window, then keep only items that have both a URL and a UTC timestamp.I'll pull remaining accounts and older posts in the window so Apple Silicon items are not missed.- 2026-09-17T07:40:23Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2100490031278305604 | Qwen 3.8 Flash Next Q2 rocks in that setup.
+- 2026-09-17T07:28:50Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2100487125783236614 | GLM 5.3 is what he uses to improve most of his Metal kernels.
+- 2026-09-17T03:55:23Z | @ddalcu | https://x.com/ddalcu/status/2100433407444455588 | He is unifying engines around a fast MLX engine with no Python, optimizing for wall-clock time and CPU cycles.
+- 2026-09-16T21:40:48Z | @TheDavidTai | https://x.com/TheDavidTai/status/2100339143263797513 | After a decode-timing bug, mlxfast kernels are 80.6 tps on MLX and 43.5 tps on CUDA, with MLX near a 100% gain.
+- 2026-09-16T19:01:28Z | @ddalcu | https://x.com/ddalcu/status/2100299042546688235 | The IFM model is now on mlxserve.com for Apple Silicon.
+- 2026-09-16T16:43:38Z | @ddalcu | https://x.com/ddalcu/status/2100264356696965316 | He posted M5 Max context-scaling numbers and asked people to verify them with llmprobe and MLXServe options.
+- 2026-09-16T16:39:54Z | @TheDavidTai | https://x.com/TheDavidTai/status/2100263416711589982 | Full-release Q4 DeepSeek 4.1 is almost 10 tps on a 128GB M5 MacBook and still climbing.
+- 2026-09-16T16:38:36Z | @ddalcu | https://x.com/ddalcu/status/2100263089392230896 | MLX-Serve already lets local Macs join over LAN sharing, with RDMA planned once his Studio arrives.
+- 2026-09-16T16:35:44Z | @ddalcu | https://x.com/ddalcu/status/2100262370056470676 | He posted M5 numbers from @Beamsters1 with the KV cache set to 8-bit.
+- 2026-09-16T13:40:52Z | @antirez | https://x.com/antirez/status/2100218360818524171 | Qwen 3.8 Next was added so 64GB systems can run a full resident model, and GLM was added as the DeepSeek competitor after DS4 lacked vision.
+- 2026-09-16T13:33:18Z | @antirez | https://x.com/antirez/status/2100216458848457058 | DwarfStar now has many fast fused kernels for major model families that others may reuse under MIT.
+- 2026-09-16T13:26:20Z | @ddalcu | https://x.com/ddalcu/status/2100214706275291596 | MLX-Serve Qwen 3.8 MTP should exceed 2k prefill at lower context, and @TheDavidTai’s benchmarks found bugs that are now fixed.
+- 2026-09-16T07:43:50Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2100128514108236188 | On 128GB both engines are good, while on 64GB DwarfStar Q2 is more stable pending mlx-serve 3.3 quantization tests.
+- 2026-09-16T06:45:45Z | @ddalcu | https://x.com/ddalcu/status/2100113894962274496 | MLX-Serve 26.9.3 is out as the fastest Mac local engine, with Qwen Flash Next over 100 tok/s on M4/M5 Max and very high prefill.
+- 2026-09-16T00:43:01Z | @ddalcu | https://x.com/ddalcu/status/2100022608481649060 | He never optimized MLX-Serve for TurboQuant and is considering removing it to cut bloat.
+- 2026-09-16T01:20:56Z | @ddalcu | https://x.com/ddalcu/status/2100032152372949272 | He is removing TurboQuant from MLX-Serve to put the engine on a diet.
+- 2026-09-15T23:39:35Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2100006646969708975 | DeepSeek V4.1 Flash on DwarfStar broke 30 tps, and a single M3 Ultra now matches two machines in decode and is faster in prefill.
+- 2026-09-15T17:11:01Z | @antirez | https://x.com/antirez/status/2099908859766726956 | Moving ngrams to SSD-only without mmap cost a few percent of speed, which he accepts for low-memory machines.
+- 2026-09-15T16:08:34Z | @TheDavidTai | https://x.com/TheDavidTai/status/2099893145978786214 | DwarfStar4 lacked Qwen 3.8 Flash Next CUDA and had only just started MLX work, so they forked DS4 with @ivanfioravanti for mlxfast.
+- 2026-09-15T09:32:09Z | @jundotkim | https://x.com/jundotkim/status/2099793384277975457 | oMLX is doing real long-horizon work, with Qwen3.8-Flash-Next-Q4 at 50–70 tps on an M3 Ultra versus 20–30 tps before.
+- 2026-09-15T09:22:06Z | @jundotkim | https://x.com/jundotkim/status/2099790852965253207 | The oMLX community benchmark is back as the largest collection of Apple Silicon MLX results.
+- 2026-09-15T07:29:51Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2099762605522853954 | He is optimizing DeepSeek v4.1 Flash on DwarfStar on M3 Ultra with matching logits and new prefill and decode tricks.
+- 2026-09-15T02:58:45Z | @TheDavidTai | https://x.com/TheDavidTai/status/2099694381355704330 | Relaxed verifiers on MLXServe hold 100+ tps at 128k and about 70 tps on Qwen 3.8 Flash Next at 1M context, gaining 8–30% at huge sizes.
+- 2026-09-14T22:31:15Z | @ddalcu | https://x.com/ddalcu/status/2099627063988670529 | Qwen Flash Next on 64GB beats Qwen 3.8 27B on intelligence and speed, especially prefill, across DS4, MLX-Serve, and mixed MLX quants.
+- 2026-09-14T19:53:55Z | @antirez | https://x.com/antirez/status/2099587467485573362 | Ngrams in the GGUF are never loaded or mmap’d; DwarfStar only reads them from SSD during inference.
+- 2026-09-14T17:53:16Z | @TheDavidTai | https://x.com/TheDavidTai/status/2099557106823074002 | Ngram offloading to SSD may erase Spark’s traditional prefill advantage.
+- 2026-09-14T14:57:48Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2099512948175557105 | He wants mlx-serve quantization tested against Q2 on ds4 because 4-bit and below in MLX has hurt quality at large context.
+- 2026-09-14T14:01:19Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2099498734593647036 | The DwarfStar code is at https://github.com/antirez/ds4.
+- 2026-09-14T13:41:38Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2099493781460443561 | Qwen3.8 Flash Next is in DwarfStar and Q2 quality is better than he expected.
+- 2026-09-14T13:18:23Z | @antirez | https://x.com/antirez/status/2099487927793299936 | Qwen3.8 Flash Next in DwarfStar covers 64GB Macs at 50–70 t/s and over 1400 t/s prefill, Metal-only, with n-grams on SSD like DS4.1F.
+- 2026-09-14T13:18:23Z | @antirez | https://x.com/antirez/status/2099487929500373366 | SSD n-grams may be less needed on 128GB Spark but the extra speed and free RAM could still tempt Spark and 64GB ROCm users.
+- 2026-09-14T10:28:56Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2099445286149968149 | He published a DwarfStar context benchmark of DeepSeek V4.1 Flash on 1x and 2x M3 Ultra 512GB and is pushing performance further.
+- 2026-09-14T01:30:48Z | @ddalcu | https://x.com/ddalcu/status/2099309860244308414 | Install the mlxserve.com DMG, enable KV4 or KV8, and start with a fixed 64k context.
+- 2026-09-14T00:37:33Z | @TheDavidTai | https://x.com/TheDavidTai/status/2099296460508405962 | MLXServe has a mixed 4/8-bit quant that fits Qwen Flash Next in 64GB.
+- 2026-09-13T23:27:12Z | @ddalcu | https://x.com/ddalcu/status/2099278755898233041 | He asked 64GB users to test Qwen Flash Next on MLX-Serve with a 3.3 bpw iQ-MLX quant, saying the next release will be faster.
+- 2026-09-13T20:42:51Z | @antirez | https://x.com/antirez/status/2099237395568701738 | Spark README prefill is still much slower than Metal because of an implementation issue he plans to fix.
+- 2026-09-13T17:26:53Z | @ddalcu | https://x.com/ddalcu/status/2099188077021298981 | The workload still fits on 96GB with MLX-Serve.
+- 2026-09-13T09:09:18Z | @antirez | https://x.com/antirez/status/2099062857732137438 | The Mac Studio is also weak at heat dissipation because Apple would not sacrifice the form factor.
+- 2026-09-13T04:08:15Z | @ddalcu | https://x.com/ddalcu/status/2098987096950104161 | Steam Hardware Survey contradicts the X impression that everyone has an M5 Max 128GB plus four 512GB Mac Studios.
+- 2026-09-12T17:19:06Z | @antirez | https://x.com/antirez/status/2098823729908187558 | M5 Max is 600 GB/s and M5 Ultra 1.2 TB/s, so two Maxes cannot match Ultra bandwidth even if parallelized perfectly.
+- 2026-09-12T14:22:02Z | @jundotkim | https://x.com/jundotkim/status/2098779170855911540 | oMLX expert offloading in 0.7.0.dev2 is not at usable speeds yet, while streamlx lookahead prefetch hits 9.2 tok/s for a 117B on a 32GB Air.
+- 2026-09-12T10:59:26Z | @antirez | https://x.com/antirez/status/2098728184820773128 | DeepSeek v4.1 Flash is on DwarfStar main, with a video of SSD streaming and a dual MacBook M5 Max 128GB coding session.
