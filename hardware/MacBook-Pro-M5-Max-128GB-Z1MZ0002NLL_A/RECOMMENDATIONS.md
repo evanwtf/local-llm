@@ -148,5 +148,5 @@ lists every other script.
 | every backend's numbers, and what they cannot say | [`docs/results.md`](../../docs/results.md) |
 | what the benchmark does, task by task | [`benchmarks/agent/METHODOLOGY.md`](../../benchmarks/agent/METHODOLOGY.md) |
 | the machine, and what a comparison must do | [`docs/m5max-runbook.md`](../../docs/m5max-runbook.md) |
-| traps that have cost a measurement | [`AGENTS.md`](../../AGENTS.md) · what to do next: [`NEXT.md`](../../NEXT.md) |
+| traps that have cost a measurement | [`AGENTS.md`](../../AGENTS.md) · what to do next: `scripts/make_next.py --platform macos` |
 

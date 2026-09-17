@@ -217,7 +217,7 @@ Write the full URL in any comment:
 https://github.com/evanwtf/local-llm/tree/main/benchmarks/ds4/pr952-f309990-run1
 ```
 
-Relative links stay correct inside `AGENTS.md`, `NEXT.md` and the rest of the
+Relative links stay correct inside `AGENTS.md` and the rest of the
 tree, where the base path is the file's own directory.
 
 This cost an upstream maintainer a 404 on the raw data he had just asked for --
@@ -248,7 +248,7 @@ this project turning into a pile of findings nobody can act on.
 | document | holds | lifetime |
 |---|---|---|
 | **GitHub issues** | every piece of work, one per issue | until closed |
-| [`../NEXT.md`](../NEXT.md) | the agenda: what order to work in | rewritten constantly |
+| P0/P1 labels (`scripts/make_next.py --platform …`) | the agenda: what order to work in, per machine | live; #463 retired the committed `NEXT.md` |
 | `benchmarks/*/RESULTS.md` | the numbers, and how they were obtained | append-only |
 | [`../RECOMMENDATIONS.md`](../RECOMMENDATIONS.md) | the top 1-3 picks, and how to run them | replaced as evidence changes |
 | [`changelog.md`](changelog.md) | what shipped, and why, one `## vX.Y.Z` section per release | append-only |
@@ -265,14 +265,16 @@ or ID anywhere; and take agent identity from `LOCAL_LLM_AGENT` /
 `LOCAL_LLM_MODEL` / `LOCAL_LLM_EFFORT` rather than from what a model believes
 about itself.
 
-**New work becomes an issue first.** Not a note in `NEXT.md`, not a TODO in a
-comment. An issue carries its own reasoning and can be argued with; `NEXT.md`
-only says what to do next, and it says it by number.
+**New work becomes an issue first.** Not a note in a doc, not a TODO in a
+comment. An issue carries its own reasoning and can be argued with; the
+priority labels only say what to do next, and they say it by number.
 
-**`NEXT.md` sets order and nothing else.** Each issue must stand on its own, so
-this file never restates one. It carries the ordered table and one snapshot of
-the current machine state. The durable machine operations live in
-[`m5max-runbook.md`](m5max-runbook.md); the traps live in the topic docs.
+**The labels set order and nothing else.** P0 before P1, then by issue number,
+per platform label; `scripts/make_next.py --platform {macos,nvidia}` prints the
+queue live. Until #463 (2026-09-17) that output was committed as `NEXT.md`,
+which went stale between regenerations and covered only macOS. The durable
+machine operations live in [`m5max-runbook.md`](m5max-runbook.md) and
+[`dgx-spark-runbook.md`](dgx-spark-runbook.md); the traps live in the topic docs.
 
 **Close the loop the same day you finish.** When a task lands:
 
@@ -281,10 +283,9 @@ the current machine state. The durable machine operations live in
    data refuted it; #4 named a blocker that turned out never to have existed.
    Write that down. An issue closed with "done" teaches nobody.
 2. **Close it.** A finished issue left open makes the agenda lie.
-3. **Prune `NEXT.md`.** Reorder the table, and move each finished item out of
-   "Done since the last update" **once its lesson has a permanent home.** That
-   is the release condition -- not age. A finding still only recorded in
-   `NEXT.md` has not landed anywhere yet.
+3. **Give the lesson a permanent home** -- a topic doc, a runbook, a test --
+   before or as the issue closes. A finding recorded only in a closed issue
+   has not landed anywhere yet.
 
 **Two things exempt from pruning moved out of `NEXT.md` (2026-09-04).** "Traps
 worth not rediscovering" now live in the topic docs, and the durable machine

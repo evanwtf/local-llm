@@ -27,7 +27,6 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 # in archived pages whose links are allowed to rot with the snapshot they record.
 DOCS = [
     "README.md",
-    "NEXT.md",
     "AGENTS.md",
     "CONVENTIONS.md",
     "RECOMMENDATIONS.md",
@@ -69,13 +68,13 @@ def test_every_relative_link_resolves(rel: str) -> None:
     assert not broken, f"{rel} links to paths that do not exist: {sorted(set(broken))}"
 
 
-def test_the_changelog_is_reachable_from_next() -> None:
+def test_the_changelog_is_reachable_from_the_readme() -> None:
     """A document nobody can find is a document that was deleted.
 
-    The changelog moved out of NEXT.md; the pointer replacing it is the only
-    thing making that a move rather than a loss.
+    The changelog moved out of NEXT.md, and #463 retired NEXT.md itself; the
+    README pointer is what keeps that a move rather than a loss.
     """
-    assert "docs/changelog.md" in (ROOT / "NEXT.md").read_text()
+    assert "docs/changelog.md" in (ROOT / "README.md").read_text()
 
 
 def test_the_history_is_reachable_from_the_changelog() -> None:

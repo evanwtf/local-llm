@@ -59,7 +59,7 @@ A new peer starts cold. It needs, in this order:
    review between tasks.
 
 `scripts/peer_brief.py` generates the derivable half — HEAD, dirty paths, the
-`NEXT.md` top 10, open P0/P1, resident servers, stale `ds4-*` trees. The
+host's P0/P1 queue (from labels), open P0/P1, resident servers, stale `ds4-*` trees. The
 judgment half is written by hand, and that is the half worth an expensive
 agent's tokens.
 
@@ -222,7 +222,7 @@ fine and is worth having.
   peer hit was the symptom. `git reset --hard origin/main` and force-push with
   `--force-with-lease`; cherry-pick anything committed after the merge.
 - **Do not touch another agent's files.** During a session, the agent driving
-  the machine owns `NEXT.md`, `RECOMMENDATIONS.md`, `docs/changelog.md`,
+  the machine owns `RECOMMENDATIONS.md`, `docs/changelog.md`,
   `SOURCES.md` and every `results*.jsonl`. These conflict badly and are the
   files most likely to be edited from judgment rather than mechanically.
 - **Sequence changes that move shared state.** The lock-path fix waited for a

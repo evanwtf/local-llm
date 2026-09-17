@@ -4,7 +4,7 @@ What shipped, and why. Newest first, one section per release.
 
 An entry belongs here the day the work lands — a test, a convention in
 `AGENTS.md`, a line in `RESULTS.md`, or an entry here is where a finding
-becomes durable. Anything still only in [`NEXT.md`](../NEXT.md) has not landed
+becomes durable. Anything still only in an issue comment has not landed
 anywhere.
 
 **Entries carry a `## vX.Y.Z` heading and end with a `---`.** That is not a
@@ -20,7 +20,8 @@ goes there.
 
 **Read this for history, not for current state.** Numbers here were true when
 written. Current results live in `hardware/<machine>/RESULTS-agent.md`, current
-picks in `RECOMMENDATIONS.md`, and the current queue in `NEXT.md`.
+picks in `RECOMMENDATIONS.md`, and the current queue from
+`scripts/make_next.py --platform {macos,nvidia}` (#463).
 
 ---
 

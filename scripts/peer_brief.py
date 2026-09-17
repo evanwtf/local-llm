@@ -3,7 +3,7 @@
 The handoff brief was written by hand -- roughly 1,400 words of repo state,
 conventions, machine rules and gotchas, composed token by token by the most
 expensive agent in the room. Nearly all of it is derivable: HEAD, dirty files,
-the NEXT.md top 10, the open P0/P1 list, commits since a ref, the run-lock
+this host's queue, the open P0/P1 list, commits since a ref, the run-lock
 holder, the resident model servers, and the `~/git/ds4-*` trees with the #70
 ancestor check.
 
@@ -108,7 +108,7 @@ def _tree_lines() -> list[str]:
 def _top10_lines() -> list[str]:
     items = peer_state.next_top10()
     if not items:
-        return ["NEXT.md top 10 unreadable"]
+        return ["queue unreadable (gh offline?)"]
     labels = _labels_by_issue()
     return [
         f"{i['rank']}. #{i['issue']} ({labels.get(i['issue'], '?')}) -- {i['title']}"
@@ -135,27 +135,6 @@ def _p0p1_lines() -> list[str]:
     ]
 
 
-def _invariant_check() -> str | None:
-    """The NEXT.md invariant: P0 + P1 is exactly the top 10.
-
-    Returns a warning line when they disagree, else None. The file is the
-    source of truth; a mismatch means the file was edited without the labels
-    being re-applied.
-    """
-    top = {i["issue"] for i in peer_state.next_top10()}
-    p0p1 = {i.get("number") for i in peer_state.open_p0p1()}
-    if not top or not p0p1:
-        return None
-    if top == p0p1:
-        return None
-    only_top = sorted(top - p0p1)
-    only_p0p1 = sorted(p0p1 - top)
-    return (
-        "INVARIANT BROKEN: NEXT.md top 10 and the P0/P1 labels disagree. "
-        f"in NEXT.md only: {only_top}; labeled P0/P1 only: {only_p0p1}"
-    )
-
-
 def brief(repo: pathlib.Path, since: str | None) -> str:
     """Render the state half of a handoff as Markdown."""
     head = peer_state.git_head(repo) or "unknown"
@@ -169,15 +148,12 @@ def brief(repo: pathlib.Path, since: str | None) -> str:
         f"- HEAD: `{head}`",
         f"- Dirty: {_dirty_line(dirty)}",
         "",
-        "## NEXT.md top 10",
+        "## Queue (this host's platform, from labels)",
         *_top10_lines(),
         "",
         "## Open P0/P1",
         *_p0p1_lines(),
     ]
-    invariant = _invariant_check()
-    if invariant:
-        lines += ["", f"- **{invariant}**"]
     if since:
         commits = peer_state.commits_since(repo, since)
         commit_lines = [f"- {c}" for c in commits] or ["none"]
