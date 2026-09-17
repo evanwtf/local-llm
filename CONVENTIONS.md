@@ -27,6 +27,23 @@ The `gemma4:*-mlx-bf16` models (~77 GB) were kept under this rule in August
 backend, so they may now be usable — which is the argument for the rule, not
 against it.
 
+## Do not download weights larger than 150% of the machine's memory (2026-09-17)
+
+**Hard cap:** a checkpoint larger than **150% of the target machine's system
+memory** is not worth downloading or evaluating. On the 128 GB machines (the M5
+Max; the DGX Spark reports 121.7 GiB) that is about **182 GiB on disk**. Read the
+size before any pull: `hf models info <repo>` reports `used_storage`, and the
+safetensors total is on the model page.
+
+A model that far over memory can only run by streaming experts from SSD, which is
+too slow for an agent backend, and every such download fills the disk with
+weights nobody can use. The official `nvidia/DeepSeek-V4.1-Flash-NVFP4` (~492
+GiB, tested on 4× GB300) prompted this rule. Record a lead like that on its issue
+with the size; do not download it and do not queue a test.
+
+This cap applies before a download. It is not a reason to delete weights already
+on disk (see the section above).
+
 ## Model weights stay out of Time Machine (2026-09-06)
 
 This rule is **macOS-specific** (Time Machine, `tmutil`) and governs the M5 Max.
