@@ -2286,7 +2286,7 @@ context_tokens = 131072
 # snapshot. Speculative MTP is off for this first measurement. Launched with
 # scripts/dgx_server.py (MemoryMax bounds CPU memory only on GB10 -- #456).
 [backend.nemotron3super120bdgx]
-description = "Nemotron-3-Super-120B-A12B NVFP4 (nvidia) via vLLM 0.29.0, CUDA sm_121, LatentMoE, gpu-mem 0.80, 131k ctx, thinking off, no MTP (#406)"
+description = "Nemotron-3-Super-120B-A12B NVFP4 (nvidia) via vLLM 0.29.0, CUDA sm_121, LatentMoE, gpu-mem 0.72, max-num-seqs 4, 131k ctx, nemotron_v3 parser, thinking off, no MTP; FlashInfer FP4 kernel prebuilt (#406)"
 tier = "gb10-spark"
 base_url = "http://127.0.0.1:8030"
 auth_token = "local"
