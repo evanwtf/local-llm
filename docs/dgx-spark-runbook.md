@@ -168,6 +168,16 @@ wrapper also sets zero swap, records the PID and scope under
 `~/.local-llm-bench/dgx-servers`, and waits for the port and unified-memory pool
 to clear on stop.
 
+**Every heavy launch also gets a MemAvailable watcher and a JIT build cap
+(#456).** `start` spawns a detached `dgx_server.py watch <name>` that polls
+`MemAvailable` once a second and stops the scope below **14 GiB**
+(`--mem-floor-gib`, `LOCAL_LLM_MEM_FLOOR_GIB`; `0` disables it), and it sets
+**`MAX_JOBS=3`** in the scope environment (`--max-jobs`,
+`LOCAL_LLM_DEFAULT_MAX_JOBS`; an explicit `MAX_JOBS=` in the command wins).
+`status` reports `mem_available_gib` and `watcher_live`. The watcher runs
+*outside* the scope it watches, so the stop it issues does not kill it first,
+and an unreadable `/proc/meminfo` never stops a server.
+
 ## Unified memory can OOM-lock the whole box — cap the server
 
 The 128 GB pool is shared between CPU and GPU with no separate VRAM ceiling, so
@@ -184,9 +194,11 @@ discipline that reduce how often the always-on nets have to fire.
 
 | layer | protects | automatic? | ref |
 |---|---|---|---|
-| **earlyoom** | the **whole box** — SIGTERMs the largest runaway (inference server / model-written python), never sshd/systemd/dockerd | **yes** — systemd service, enabled at boot | #362 |
+| **earlyoom** | the **whole box** — SIGTERMs the largest runaway (inference server / model-written python), never sshd/systemd/dockerd | **yes** — systemd service, enabled at boot; **memory-only since #458** | #362 / #458 |
+| **server MemAvailable watcher** | the model server — stops its scope below 14 GiB available, which is the only reading that sees a CUDA allocation here | **yes** — `dgx_server.py start` spawns it | #456 |
+| **`MAX_JOBS` cap on JIT builds** | the launch itself — an unset `MAX_JOBS` runs ~22 concurrent `nvcc` jobs during warmup, on top of the loaded weights | **yes** — `MAX_JOBS=3` unless the command sets it | #406 / #456 |
 | **client memcap** | `run.py`'s agent-client phase — the model-written code a trial executes; killed locally at 24 GiB (`LOCAL_LLM_CLIENT_MEM_CAP_GIB`, 0 disables) | **yes** — built into `run.py` | #379 / #380 |
-| **server `MemoryMax`** | the model-server process — a hard cgroup ceiling below the pool | no — set it at launch: `systemd-run --user --scope -p MemoryMax=NNG -p MemorySwapMax=0 …` | #362 |
+| **server `MemoryMax`** | **CPU-side memory only.** It does **not** bound CUDA allocations on GB10 — measured 71,776 MiB on the GPU against 3,762 MiB in the scope's counter — so it is not an OOM net for a model server | no — set it at launch: `systemd-run --user --scope -p MemoryMax=NNG -p MemorySwapMax=0 …` | #362 / #456 |
 | **memory-gate** | waits for the pool to actually free before each trial / next launch | opt-in — `run.py --memory-gate-gib N`, `scripts/memory_gate.py` | #360 |
 | **`machine_health check --for server`** | refuses a launch while a departing server's memory is still held | run it before launching | #360 |
 
@@ -197,6 +209,14 @@ SIGTERM'd at the 10% line (`earlyoom: sending SIGTERM to … "python3" … VmRSS
 108256 MiB`) while sshd and the box stayed fully reachable. The `run.py` client
 memcap closes the specific hole behind the 2026-09-13 lockup — model-written code
 growing unbounded in the agent-client phase (#379).
+
+**`MemoryMax` is not the per-server net it looks like (#456).** On GB10 a CUDA
+allocation is not charged to the process's cgroup, so the ceiling bounds only
+the few GiB of CPU-side memory. The nets that see the GPU side are the
+MemAvailable watcher (per server, since #456) and earlyoom (box-wide). The
+2026-09-17 lockup is the evidence: a server under `MemoryMax=108G` took the
+pool to zero, and earlyoom could not fire because its swap condition was never
+met (#458).
 
 The per-server `MemoryMax` and the memory-gate are *discipline*, not enforced: a
 server launched without the scope (a bare `vllm serve`, the published
