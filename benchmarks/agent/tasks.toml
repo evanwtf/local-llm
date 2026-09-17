@@ -2298,7 +2298,7 @@ opencode_model = "vllm/nemotron-3-super-120b-a12b"
 context_tokens = 131072
 
 [backend.nemotron3super120bmtpdgx]
-description = "Nemotron-3-Super-120B-A12B NVFP4 (nvidia) via vLLM 0.29.0, CUDA sm_121, same serve as nemotron3super120bdgx plus MTP-3 from nvidia/Nemotron-3-Super-120B-A12B-BF16-MTPv2 (#406)"
+description = "Nemotron-3-Super-120B-A12B NVFP4 (nvidia) via vLLM 0.29.0, CUDA sm_121, same serve as nemotron3super120bdgx plus MTP-3 from nvidia/Nemotron-3-Super-120B-A12B-BF16-MTPv2 (drafter moe_backend triton), gpu-mem 0.75, V1 model runner (the V2 runner ignores the drafter moe_backend override in 0.29.0) (#406)"
 tier = "gb10-spark"
 base_url = "http://127.0.0.1:8030"
 auth_token = "local"
