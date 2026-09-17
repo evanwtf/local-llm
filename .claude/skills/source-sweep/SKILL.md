@@ -334,6 +334,34 @@ post URL for every item; an item with neither is unusable.
 **grok may claim it verified the posts itself. That is not our verification.**
 Run step 7d regardless: it has fabricated a post while reporting confidence.
 
+**7a-xurl. Fill a gap with `xurl`, the official X API — sparingly.**
+
+`xurl` calls the X API v2 directly. Its results are real posts, not a model's
+summary. **Each call costs money** (pay-per-query), so grok stays the first
+tool and `xurl` fills a gap that grok left:
+
+- grok returned `NO RESULTS` for a topic you have reason to think is active;
+- grok named a thread but lost the post URL or the timestamp;
+- you need the exact wording of recent posts on one narrow topic.
+
+```sh
+xurl search "from:antirez ds4" -n 10          # min 10, max 100 per call
+xurl search "\"V4.1 Flash\" M5 Max -is:retweet" -n 10
+```
+
+Rules:
+
+- **Read only.** `xurl` can also post, reply, like, follow, and send DMs.
+  Never run any command except `search` and plain GET requests.
+- **One narrow query per call, `-n 10`.** Use X search operators (`from:`,
+  quotes, `-is:retweet`) to cut the result set before it is billed.
+  Do not loop over handles; a list of twenty accounts is twenty charges.
+- **Search covers the last 7 days only** (the recent-search endpoint).
+- **Write the output to the same scratch file as the grok gather**, with the
+  query in its header, and count the calls in the sweep record.
+- A post that `xurl` returned exists. Still run 7d on any post that earns an
+  issue: 7d records the text and the quoted post in one place.
+
 **7a-bis. Say what you found, immediately.**
 
 **Before filing anything, tell the user what is interesting** — a short spoken
