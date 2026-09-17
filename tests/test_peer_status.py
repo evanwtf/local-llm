@@ -145,47 +145,55 @@ def test_diff_orders_issues_numerically():
     ]
 
 
-# --- the NEXT.md parse, against the real file (#231) -------------------------
+# --- the queue, from labels (#463) --------------------------------------------
 
 
-def test_next_top10_parses_the_committed_file():
-    """This broke silently on 2026-09-08 and nothing failed.
-
-    NEXT.md became generated, its heading changed from `## The top 10` to
-    `## The queue -- 5 P0, 4 P1`, and its items gained a priority prefix.
-    `next_top10()` matched neither, returned [], and `peer_status` reported
-    "#39: 19 -> 0 comments" for the entire queue -- a peer comment on any of
-    them would have been invisible. Every existing test stubbed the function,
-    so the suite stayed green.
-
-    Parsing the real file is the only version of this test that would have
-    caught it.
-    """
-    items = peer_state.next_top10()
-    assert items, "next_top10() found nothing in the committed NEXT.md"
-    assert [i["rank"] for i in items] == list(range(1, len(items) + 1))
-    assert all(i["issue"] > 0 for i in items)
-    assert all(i["title"] for i in items)
-    assert all(i["priority"] in ("P0", "P1") for i in items)
+def _issue(number, *labels, title="t"):
+    return {"number": number, "title": title, "labels": [{"name": n} for n in labels]}
 
 
-def test_next_md_is_found_in_this_checkout_not_on_this_laptop():
-    """The test above went red in CI and green here. `NEXT_MD` was
-    `~/git/local-llm/NEXT.md`, a path that resolves on the operator's machine
-    and on no runner, so `next_top10()` read nothing and returned []. AGENTS.md
-    already carries this shape from `d9a223e`; a hardcoded HOME path is how it
-    keeps coming back."""
-    root = pathlib.Path(__file__).resolve().parent.parent
-    assert peer_state.NEXT_MD == root / "NEXT.md"
-    assert peer_state.NEXT_MD.is_file()
-    assert pathlib.Path.home() not in peer_state.NEXT_MD.parents or (
-        root.is_relative_to(pathlib.Path.home())
-    ), "the path must come from the module's location, not from HOME"
+def test_next_top10_ranks_one_platform_p0_before_p1(monkeypatch):
+    """The committed NEXT.md this used to parse went stale and covered only
+    macOS. The queue is now the labels, filtered to one platform."""
+    monkeypatch.setattr(
+        peer_state,
+        "open_p0p1",
+        lambda: [
+            _issue(300, "P1", "platform:Nvidia"),
+            _issue(100, "P0", "platform:Nvidia"),
+            _issue(50, "P0", "platform:macOS"),
+            _issue(200, "P1", "platform:Nvidia"),
+            _issue(250, "P0", "P1", "platform:Nvidia"),  # two priorities: a defect
+        ],
+    )
+    items = peer_state.next_top10("platform:Nvidia")
+    assert [i["issue"] for i in items] == [100, 200, 300]
+    assert [i["rank"] for i in items] == [1, 2, 3]
+    assert [i["priority"] for i in items] == ["P0", "P1", "P1"]
 
 
-# The staleness comparison -- parsed file against the live P0/P1 labels --
-# deliberately does NOT live here. It needs the GitHub API, and open_p0p1()
-# returns [] on failure by design, so as a test it would pass green whenever
-# the network was down: a skipping test wearing a passing test's clothes.
-# scripts/make_next.py --check makes the same comparison, in CI, where a
-# network failure is visible as a failure.
+def test_next_top10_defaults_to_this_hosts_platform(monkeypatch):
+    monkeypatch.setattr(
+        peer_state,
+        "open_p0p1",
+        lambda: [_issue(1, "P0", "platform:macOS"), _issue(2, "P0", "platform:Nvidia")],
+    )
+    monkeypatch.setattr(peer_state.platform, "system", lambda: "Linux")
+    assert [i["issue"] for i in peer_state.next_top10()] == [2]
+    monkeypatch.setattr(peer_state.platform, "system", lambda: "Darwin")
+    assert [i["issue"] for i in peer_state.next_top10()] == [1]
+
+
+def test_open_p0p1_asks_for_either_label_not_both(monkeypatch):
+    """gh ANDs repeated `--label` flags, so `--label P0 --label P1` matched
+    only issues carrying both -- none. The search qualifier is an OR."""
+    seen = {}
+
+    def fake_run(cmd, *args, **kwargs):
+        seen["cmd"] = cmd
+        return "[]"
+
+    monkeypatch.setattr(peer_state, "_run", fake_run)
+    assert peer_state.open_p0p1() == []
+    assert "label:P0,P1" in seen["cmd"]
+    assert "--label" not in seen["cmd"]

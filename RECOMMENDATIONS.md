@@ -25,4 +25,4 @@ machine's own file, and never quote a median from one box on another.
 | running each stack by hand, and the reasoning | [`docs/stacks.md`](docs/stacks.md) |
 | what the benchmark does, task by task | [`benchmarks/agent/METHODOLOGY.md`](benchmarks/agent/METHODOLOGY.md) |
 | the machines we manage | [`hardware/MACHINES.md`](hardware/MACHINES.md) |
-| traps that have cost a measurement | [`AGENTS.md`](AGENTS.md) · what to do next: [`NEXT.md`](NEXT.md) |
+| traps that have cost a measurement | [`AGENTS.md`](AGENTS.md) · what to do next: `scripts/make_next.py --platform …` |

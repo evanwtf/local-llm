@@ -6,7 +6,8 @@ operational facts that live outside git: the sysctl the big models cannot load
 without, the exact server argv the published rows were taken with, where every
 engine tree and weight file sits, and the client configs the harness drives.
 
-`NEXT.md` holds only what is happening *now*. Everything here stays true from
+The issue queue (`scripts/make_next.py --platform macos`) holds what is
+happening *now*. Everything here stays true from
 session to session. When a fact here changes, change it here.
 
 Updated 2026-09-04. Machine data: `hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/`.

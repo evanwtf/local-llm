@@ -205,7 +205,8 @@ time, which prompt re-prefill dominates (#14).
 | `docs/node-exporter-cpufreq-deadlock-arm64.md` | not a benchmark finding: node_exporter deadlocks on aarch64 with `cppc_cpufreq`, and the symptom points away from the cause |
 | `logs/sweeps/` | gather archives; the same fact on any machine |
 
-Work is tracked as GitHub issues. [NEXT.md](NEXT.md) holds the order to work in,
+Work is tracked as GitHub issues; their priority labels hold the order to work in
+(`uv run python scripts/make_next.py --platform macos` or `nvidia` prints it),
 [docs/changelog.md](docs/changelog.md) what shipped and why (before v1.0.0:
 [docs/history.md](docs/history.md)),
 [SOURCES.md](SOURCES.md) who to watch in the field, and

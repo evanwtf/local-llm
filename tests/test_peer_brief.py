@@ -3,8 +3,8 @@
 The brief is the derivable half of a handoff, rendered as Markdown. The wrong
 answer here is a brief that reads as authoritative while silently dropping a
 signal -- a P0 that never appears, a dirty tree reported clean, a held lock
-reported free. So the tests pin the rendering of each signal and the NEXT.md
-invariant, with the network and filesystem calls monkeypatched away.
+reported free. So the tests pin the rendering of each signal, with the network
+and filesystem calls monkeypatched away.
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ def _monkey_state(monkeypatch, **overrides) -> None:
     defaults = {
         "git_head": lambda repo: "abc1234",
         "git_dirty": lambda repo: [],
-        "next_top10": lambda: [
+        "next_top10": lambda label=None: [
             {"rank": 1, "issue": 158, "title": "upstream the fork"},
             {"rank": 2, "issue": 148, "title": "prove the draft head"},
         ],
@@ -102,23 +102,13 @@ def test_brief_renders_commits_since(monkeypatch):
     assert "abc1234 add thing" in out
 
 
-def test_invariant_holds_when_top10_matches_p0p1(monkeypatch):
+def test_the_brief_no_longer_names_a_next_md_file(monkeypatch):
+    """#463 retired the committed file; the queue section reads the labels."""
     _monkey_state(monkeypatch)
-    assert peer_brief._invariant_check() is None
-
-
-def test_invariant_warns_on_mismatch(monkeypatch):
-    _monkey_state(
-        monkeypatch,
-        open_p0p1=lambda: [
-            {"number": 158, "title": "upstream the fork", "labels": [{"name": "P0"}]},
-            {"number": 999, "title": "not in top 10", "labels": [{"name": "P1"}]},
-        ],
-    )
-    warning = peer_brief._invariant_check()
-    assert warning is not None
-    assert "INVARIANT BROKEN" in warning
-    assert "999" in warning
+    out = peer_brief.brief(pathlib.Path("/x/local-llm"), None)
+    assert "NEXT.md" not in out
+    assert "INVARIANT" not in out
+    assert "#158" in out
 
 
 def test_dirty_line_truncates(monkeypatch):

@@ -59,7 +59,7 @@ Each script explains itself in full at the top of its own file -- what it comput
 | `machine_health.py` | any | Is this machine in a state to start work, and did the work actually start? |
 | `machine_state.py` | any | Is the machine busy, and who says so? One answer, for every agent. |
 | `machines.py` | any | The hardware this project manages -- the single source of truth (#302). |
-| `make_next.py` | any | Generate NEXT.md from the open issues, so the queue cannot drift or bloat. |
+| `make_next.py` | any | Print what to do next, live from the open issues' labels. |
 | `make_scripts_readme.py` | any | Generate scripts/README.md from each script's own first docstring line. |
 | `memory_gate.py` | nvidia | Wait for memory to be safe before starting the next trial. |
 | `metal_knob_ab.py` | mac | Paired decode-rate A/B for one Metal knob env var within one tree. #162 |

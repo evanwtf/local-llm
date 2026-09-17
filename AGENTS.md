@@ -105,15 +105,15 @@ this project turning into a pile of findings nobody can act on.
 | document | holds |
 |---|---|
 | **GitHub issues** | every piece of work, one per issue, until closed |
-| [`NEXT.md`](NEXT.md) | the agenda: what order to work in |
+| the P0/P1 labels, printed by `scripts/make_next.py --platform {macos,nvidia}` | the agenda: what order to work in, per machine (#463) |
 | `benchmarks/*/RESULTS.md` | the numbers, and how they were obtained (append-only) |
 | [`RECOMMENDATIONS.md`](RECOMMENDATIONS.md) | the top 1–3 picks, and how to run them |
 | [`docs/changelog.md`](docs/changelog.md) · [`docs/history.md`](docs/history.md) | what shipped and why (before v1.0.0: history, frozen) |
 | `AGENTS.md`, `CONVENTIONS.md`, `METHODOLOGY.md` | lessons that outlive the task |
 
-- **New work becomes an issue first** — not a note in `NEXT.md`, not a TODO. An issue is a public work log: what we did and measured, in the order it happened. Do not draft an upstream reply in it; address findings to the operator, and **never post to a repository outside `evanwtf` or `evandhoffman`**.
+- **New work becomes an issue first** — not a note in a doc, not a TODO. An issue is a public work log: what we did and measured, in the order it happened. Do not draft an upstream reply in it; address findings to the operator, and **never post to a repository outside `evanwtf` or `evandhoffman`**.
 - **Branch per piece of work, then open a PR and let CI merge it** (`<kind>/<issue>-<slug>`). `main` is branch-protected, and **agents never push to it directly**. When the work is done, push the branch, open a PR, and enable auto-merge: `gh pr merge --auto --merge`. The PR merges by itself once the required `pytest` check passes and the branch is auto-deleted. **No human review is required — a green CI is the whole gate.** Use a **merge commit** (`--merge`), never squash or rebase: those rewrite commit shas, which orphans any `harness_head` a run stamped on the branch (the #355 failure — a stamped sha must stay an ancestor of `main`). **Protection is a guardrail, not a permission boundary:** every agent and the operator push as the same admin account, and protection does not bind admins here (`enforce_admins` is off). GitHub will not stop a mistaken direct push, so do not rely on it. Agents never push to `main` directly and never bypass a failing check. Only the operator decides to override. If a PR cannot merge, read the failing check and fix the cause.
-- **Close the loop the same day.** Comment what was found — including what contradicts the issue's own premise — close the issue, and prune `NEXT.md` once the lesson has a permanent home.
+- **Close the loop the same day.** Comment what was found — including what contradicts the issue's own premise — close the issue, and make sure the lesson has a permanent home.
 - More than one agent works here. Read [`docs/peer_agents.md`](docs/peer_agents.md) before delegating or taking work from a peer; take identity from `LOCAL_LLM_AGENT` / `LOCAL_LLM_MODEL` / `LOCAL_LLM_EFFORT`, sign comments with a trailing agent line (`--opus`, `--deepseek`), and **never put a session URL or ID anywhere**. Check a peer every 20 minutes, and check what it is *doing*.
 
 ## Handling secrets and credentials
