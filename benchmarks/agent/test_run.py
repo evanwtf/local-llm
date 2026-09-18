@@ -2157,3 +2157,60 @@ def test_llamacpp_port_maps_the_claude_code_shim_to_its_upstream():
     assert run.llamacpp_port({"a": {"base_url": "http://127.0.0.1:8020"}}) == 8020
     assert run.llamacpp_port({"a": {"base_url": "http://127.0.0.1:11500"}}) == 8020
     assert run.llamacpp_port({"a": {"base_url": "http://127.0.0.1:8030"}}) is None
+
+
+# --- a present-but-non-functional bwrap must not confine (found 2026-09-18) ---
+#
+# bwrap installed + unprivileged user namespaces restricted = every wrapped
+# trial exits before it starts and scores as a model failure. sandboxed() must
+# probe, not trust BWRAP.exists(), and fall back to unconfined.
+
+_HAS_SANDBOX_EXEC = pathlib.Path("/usr/bin/sandbox-exec").exists()
+
+
+def test_bwrap_works_is_false_when_the_probe_exits_nonzero(monkeypatch):
+    """A bwrap that cannot start its child reads as not working, not as absent."""
+    monkeypatch.setattr(run, "BWRAP", pathlib.Path("/bin/false"))
+    run.bwrap_works.cache_clear()
+    try:
+        assert run.bwrap_works() is False
+    finally:
+        run.bwrap_works.cache_clear()
+
+
+@pytest.mark.skipif(
+    _HAS_SANDBOX_EXEC, reason="sandbox-exec present; this targets the Linux bwrap path"
+)
+def test_sandboxed_runs_unconfined_when_bwrap_cannot_create_a_namespace(
+    tmp_path, monkeypatch
+):
+    """The bug: a present-but-broken bwrap wrapped every trial in a command that
+    could not start, and the empty result scored as a model failure. The fix
+    falls back to mechanism 'none' and leaves the argv untouched."""
+    fake_bwrap = tmp_path / "bwrap"
+    fake_bwrap.write_text("")
+    monkeypatch.setattr(run, "BWRAP", fake_bwrap)
+    monkeypatch.setattr(run, "bwrap_works", lambda: False)
+    argv = ["opencode", "run", "--dir", str(tmp_path)]
+    wrapped, denied, mechanism = run.sandboxed(argv, tmp_path, tmp_path, tmp_path)
+    assert mechanism == "none"
+    assert wrapped == argv
+    assert denied == []
+
+
+@pytest.mark.skipif(
+    _HAS_SANDBOX_EXEC, reason="sandbox-exec present; this targets the Linux bwrap path"
+)
+def test_sandboxed_uses_bwrap_when_the_probe_succeeds(tmp_path, monkeypatch):
+    """When bwrap can create a namespace, the trial is wrapped and the row
+    records mechanism 'bwrap' -- the fallback must not fire on a working host."""
+    repo, _commit = _tiny_repo(tmp_path)
+    fake_bwrap = tmp_path / "bwrap"
+    fake_bwrap.write_text("")
+    monkeypatch.setattr(run, "BWRAP", fake_bwrap)
+    monkeypatch.setattr(run, "bwrap_works", lambda: True)
+    argv = ["opencode", "run"]
+    wrapped, _denied, mechanism = run.sandboxed(argv, repo, repo, tmp_path)
+    assert mechanism == "bwrap"
+    assert wrapped[0] == str(fake_bwrap)
+    assert wrapped[-2:] == argv
