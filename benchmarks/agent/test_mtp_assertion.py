@@ -202,6 +202,8 @@ def test_the_mtp_arms_declare_themselves():
         "qwen38fnnvidianvfp4dgx": "vllm",
         # #303: Mia's 27B recipe, MTP k=2.
         "qwen3827bnvfp4miaainothinkdgx": "vllm",
+        # #298: GLM-5.3-Flash EXL3, native MTP k=2 on the vLLM fork.
+        "glm53flashexl3k2nothinkdgx": "vllm",
     }
 
 
