@@ -131,7 +131,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 
 ### MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A
 
-*Generated from `hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/results.jsonl` — 3451 rows, sha256 dc00cc837e30.*
+*Generated from `hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/results.jsonl` — 3586 rows, sha256 5f66d3e6d791.*
 
 #### Every stack measured under OpenCode
 
@@ -141,15 +141,15 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 |---|---|---|---|---|
 | ornith15 | 21/21 | 44s | 93s | 5.9x |
 | qwen38fnmlxservenopld | 74/75 | 47s | 1391s | 68.2x |
-| qwen38fnmlxserve | 327/331 | 52s | 1377s | 64.7x |
+| qwen38fnmlxserve | 372/376 | 52s | 1377s | 64.7x |
 | qwen38fnmlxserve-git | 74/75 | 52s | 402s | 18.5x |
 | qwen38fnds4kimat | 526/526 | 87s | 775s | 27.0x |
-| qwen38fnds4main | 15/15 | 96s | 215s | 4.7x |
-| Qwen3.8-Flash-Next Q3 - llama.cpp | 90/90 | 109s | 356s | 8.3x |
+| qwen38fnds4main | 60/60 | 107s | 221s | 4.9x |
 | DeepSeek-V4-Flash - ds4 (Anthropic wire) | 18/18 | 110s | 221s | 4.3x |
 | qwen38fnq3reap | 21/21 | 110s | 261s | 6.8x |
 | qwen38fniq4 | 45/45 | 111s | 310s | 6.2x |
 | DeepSeek-V4-Flash - ds4 | 30/30 | 115s | 230s | 4.3x |
+| Qwen3.8-Flash-Next Q3 - llama.cpp | 135/135 | 121s | 361s | 8.4x |
 | Qwen3.8-Flash-Next Q3 - LM Studio | 21/21 | 122s | 261s | 4.2x |
 | qwen38fnds4shim | 387/427 | 123s | 792s | 25.5x |
 | qwen38fnds4greedy | 64/70 | 142s | 806s | 18.2x |
@@ -175,13 +175,13 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 
 | task | what it asks for | llama.cpp | LM Studio |
 |---|---|---|---|
-| [`mbox-scan`](../benchmarks/agent/PROMPTS.md#mbox-scan) | implement `scan`, which walks an mbox file | 105s | 140s |
-| [`mbox-strip-envelope`](../benchmarks/agent/PROMPTS.md#mbox-strip-envelope) | implement `strip_envelope` in an mbox parser | 54s | 94s |
-| [`parser-date`](../benchmarks/agent/PROMPTS.md#parser-date) | implement `_date`, an email date parser | 208s | 238s |
-| [`parser-mbox-quoting`](../benchmarks/agent/PROMPTS.md#parser-mbox-quoting) | implement `unquote_mbox`, round-tripping with `requote_mbox` | 97s | 93s |
-| [`script-reverse`](../benchmarks/agent/PROMPTS.md#script-reverse) | write `reverse.py` from nothing: read argv, print reversed | 43s | 57s |
-| [`script-transform`](../benchmarks/agent/PROMPTS.md#script-transform) | write `transform.py`: `--input` plus three composable flags | 51s | 70s |
-| [`storage-blob-put`](../benchmarks/agent/PROMPTS.md#storage-blob-put) | implement `BlobStore.put` | 99s | 124s |
+| [`mbox-scan`](../benchmarks/agent/PROMPTS.md#mbox-scan) | implement `scan`, which walks an mbox file | 110s | 140s |
+| [`mbox-strip-envelope`](../benchmarks/agent/PROMPTS.md#mbox-strip-envelope) | implement `strip_envelope` in an mbox parser | 64s | 94s |
+| [`parser-date`](../benchmarks/agent/PROMPTS.md#parser-date) | implement `_date`, an email date parser | 203s | 238s |
+| [`parser-mbox-quoting`](../benchmarks/agent/PROMPTS.md#parser-mbox-quoting) | implement `unquote_mbox`, round-tripping with `requote_mbox` | 109s | 93s |
+| [`script-reverse`](../benchmarks/agent/PROMPTS.md#script-reverse) | write `reverse.py` from nothing: read argv, print reversed | 48s | 57s |
+| [`script-transform`](../benchmarks/agent/PROMPTS.md#script-transform) | write `transform.py`: `--input` plus three composable flags | 54s | 70s |
+| [`storage-blob-put`](../benchmarks/agent/PROMPTS.md#storage-blob-put) | implement `BlobStore.put` | 103s | 124s |
 
 #### How fast each stack actually serves tokens
 
@@ -191,13 +191,13 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | gemma426 | 21s |
 | qwen | 31s |
 | qwen38fnds4kimat | 33s |
-| qwen38fnds4main | 35s |
+| qwen38fnds4main | 37s |
 | qwen38fnq3reap | 38s |
 | qwen38fnmlxservenopld | 39s |
 | qwen38fnmlxserve-git | 39s |
 | qwen38fnmlxserve | 40s |
-| Qwen3.8-Flash-Next Q3 - llama.cpp | 44s |
 | qwen38fniq4 | 44s |
+| Qwen3.8-Flash-Next Q3 - llama.cpp | 45s |
 | qwen36 | 50s |
 | qwen38fnds4q4exppr5 | 51s |
 | qwen38fnds4q4exp | 53s |
