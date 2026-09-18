@@ -1946,6 +1946,24 @@ context_tokens = 100000
 engine = "ds4"
 engine_tree = "~/git/ds4-ivan-qwen38fn"
 
+# #158 / #306: upstream (antirez) ds4 main with upstream's own Qwen GGUF,
+# antirez/qwen3.8-flash-next-gguf qwen38-q4k (165.11 GiB file, 69.74 GiB
+# resident: Q4_K imatrix gate/up and MXFP4 down routed experts, the same scheme
+# as qwen38fnds4kimat's pack). The n-grams ship inside the GGUF and are read
+# from SSD, so the server takes no --ple. ds4#991 upstreamed Flash-Next, so
+# this replaces the ivanfioravanti fork tree as the latest ds4 for this model.
+# Same tool-format shim and ports as qwen38fnds4kimat.
+[backend.qwen38fnds4main]
+description = "Qwen3.8-Flash-Next Q4 (upstream antirez qwen38-q4k GGUF, n-grams inside) on ds4 upstream main via the tool-format shim, MTP off"
+base_url = "http://127.0.0.1:8101"
+engine_url = "http://127.0.0.1:8000"
+auth_token = "dsv4-local"
+model = "qwen3.8-flash-next-q4"
+opencode_model = "ds4qwenshim/qwen3.8-flash-next-q4"
+context_tokens = 100000
+engine = "ds4"
+engine_tree = "~/git/ds4-mainline-8db1d1d1"
+
 [backend.qwen38fnds4shim]
 description = "Qwen3.8-Flash-Next Q4 fast-pack on ds4-metal ba01f5d via the tool-format shim (non-streaming upstream), MTP off"
 base_url = "http://127.0.0.1:8101"
@@ -2196,6 +2214,19 @@ pinned_temperature = 0
 #       --speculative-config '{"method":"mtp","num_speculative_tokens":3,"use_local_argmax_reduction":true}' \
 #       --distributed-executor-backend mp \
 #       --compilation-config '{"mode":0,"cudagraph_mode":"FULL_DECODE_ONLY","cudagraph_capture_sizes":[4,8,12,16,20,24,28,32]}'
+[backend.qwen38fnnvfp4miaaidgx]
+description = "Qwen3.8-Flash-Next NVFP4 via the MiaAI-Lab single-Spark recipe (#468): Mia-AiLab/Qwen3.8-Flash-Next-NVFP4 rev 925d7be, container vllm/vllm-openai:qwen38-flash-next @sha256:fc120ece, nine patched vLLM modules mounted from the recipe repo e74e7af, V2 runner, MTP-3 + 47k draft vocab, fp8 KV, bf16 SSM state, max-num-seqs 4, 262k ctx; KV_TARGET_GIB 10 (recipe ships 20) so a benchmark client fits beside the 99 GiB model"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "vllm"
+model = "qwen3.8-flash-next"
+aider_model = "openai/qwen3.8-flash-next"
+opencode_model = "vllm8888/qwen3.8-flash-next"
+context_tokens = 262144
+speculative = "MTP k=3, use_local_argmax_reduction, 47k draft vocab (recipe files/draft_vocab_en_code_47k.txt); fp8 KV; gpu-memory-utilization 0.786; PLE table CPU-offloaded; operator-approved third-party weights, image and patches (#468)"
+draft_engine = "vllm"
+
 [backend.qwen38fnnvfp4dgx]
 description = "Qwen3.8-Flash-Next NVFP4, vLLM styles01 fork v0.1.dev20073, MTP-3 + 47k draft vocab, PLE mmap-offloaded, fp8 KV, 262k ctx"
 tier = "gb10-spark"

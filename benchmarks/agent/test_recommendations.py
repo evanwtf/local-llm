@@ -429,6 +429,11 @@ def _shim_backed_backends() -> set[str]:
     return found
 
 
+# Shim-backed rows that need no --ple and no fork: upstream ds4 main with
+# upstream's own GGUF, n-grams inside (#158). The upstream caveat must not list
+# them, and results.md names them as the exception instead.
+UPSTREAM_REPRODUCIBLE = {"qwen38fnds4main"}
+
 NUMBER_WORD = {1: "One", 2: "Two", 3: "Three", 4: "Four", 5: "Five", 6: "Six"}
 
 
@@ -473,7 +478,9 @@ def test_the_upstream_caveat_enumerates_every_shim_backed_row() -> None:
     doc = TABLES_DOC.read_text()
     listed = _between(doc, "\nThe `qwen38fnds4", " rows all\nneed **PLE")
     missing = sorted(
-        b for b in _shim_backed_backends() if b not in "The `qwen38fnds4" + listed
+        b
+        for b in _shim_backed_backends() - UPSTREAM_REPRODUCIBLE
+        if b not in "The `qwen38fnds4" + listed
     )
     assert not missing, (
         f"shim-backed backends absent from the upstream caveat's list: {missing}"
@@ -482,7 +489,7 @@ def test_the_upstream_caveat_enumerates_every_shim_backed_row() -> None:
 
 def test_the_upstream_caveat_heading_counts_the_rows() -> None:
     """The heading said "One row" while the body named two and three applied."""
-    n = len(_shim_backed_backends())
+    n = len(_shim_backed_backends() - UPSTREAM_REPRODUCIBLE)
     heading = f"### {NUMBER_WORD[n]} rows here cannot be reproduced"
     assert heading in TABLES_DOC.read_text(), (
         f"{n} rows need the fork; the heading does not say {NUMBER_WORD[n]!r}"
@@ -537,3 +544,12 @@ def test_the_moved_docs_do_not_lose_their_links() -> None:
         for target in re.findall(r"\]\((?!https?://|#)([^)]+)\)", text):
             path = (doc.parent / target.split("#")[0]).resolve()
             assert path.exists(), f"{doc.name} links to a missing {target}"
+
+
+def test_the_upstream_exceptions_are_named_and_shim_backed() -> None:
+    """An exemption from the upstream caveat must be a real shim backend, and
+    results.md must say why it is exempt, or the exemption hides a row."""
+    doc = TABLES_DOC.read_text()
+    for name in UPSTREAM_REPRODUCIBLE:
+        assert name in _shim_backed_backends(), f"{name} is not a shim backend"
+        assert f"`{name}` is the exception" in doc, f"results.md omits {name}"

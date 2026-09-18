@@ -191,6 +191,9 @@ def test_the_mtp_arms_declare_themselves():
         # #331: the Flash-Next NVFP4 lane on vLLM runs MTP-3 draft speculation,
         # so it declares itself like the other vLLM speculative arms.
         "qwen38fnnvfp4dgx": "vllm",
+        # #468: the same model through the MiaAI-Lab single-Spark recipe, also
+        # MTP-3 with a 47k draft vocab, so it must prove it drafted too.
+        "qwen38fnnvfp4miaaidgx": "vllm",
     }
 
 

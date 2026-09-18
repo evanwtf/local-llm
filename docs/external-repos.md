@@ -51,6 +51,7 @@ branch, and the sha lives on the row, not in this doc.
 | `~/git/ds4` | `evanwtf/ds4` | `antirez/ds4` | ds4 | `main` | the default ds4 engine; `DS4_ROOT` points here. DeepSeek-V4, Qwen3.8-Flash-Next, GLM |
 | `~/git/ds4-main` | `evanwtf/ds4` | `antirez/ds4` | ds4 | `main` | a second ds4 worktree pinned to the tip of main for A/B baselines |
 | `~/git/ds4-ivan-qwen38fn` | `evanwtf/ds4` | `antirez/ds4` | ds4 | PR #991 head | Qwen3.8-Flash-Next upstreaming (antirez/ds4#991); the level-2 tensor-tile builds (#328) |
+| `~/git/ds4-mainline-8db1d1d1` | `antirez/ds4` | — | ds4 | `8db1d1d1` (main) | upstream main with native Qwen3.8-Flash-Next (ds4#991); the `qwen38fnds4main` tree (#158, #306) |
 | `~/git/ds4-metal` | `ivanfioravanti/ds4-metal` | — | ds4 | `qwen3.8-flash-next` | the Metal-optimized ds4 fork; the historical engine tree for the qwen fast-packs |
 | `~/git/ds4-metal-head` | `ivanfioravanti/ds4-metal` | — | ds4 | fork head | the current ds4-metal head, for the stale-tree re-measures (#228) |
 | `~/git/ds4-metal-228` | `ivanfioravanti/ds4-metal` | — | ds4 | `6c1e8367` line | the #228 tree that dispatches only `qwen4exp` (#279) |
