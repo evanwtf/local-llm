@@ -199,7 +199,7 @@ discipline that reduce how often the always-on nets have to fire.
 
 | layer | protects | automatic? | ref |
 |---|---|---|---|
-| **earlyoom** | the **whole box** — SIGTERMs the largest runaway (inference server / model-written python), never sshd/systemd/dockerd | **yes** — systemd service, enabled at boot; **memory-only since #458** | #362 / #458 |
+| **earlyoom** | the **whole box** — SIGTERMs the largest runaway (inference server / model-written python), never sshd/systemd/dockerd | **yes** — systemd service, enabled at boot; **memory-only since #458**; its config is `scripts/setup_earlyoom.py`, and preflight reports drift from it | #362 / #458 |
 | **server MemAvailable watcher** | the model server — stops its scope below 14 GiB available, which is the only reading that sees a CUDA allocation here | **yes** — `dgx_server.py start` spawns it | #456 |
 | **`MAX_JOBS` cap on JIT builds** | the launch itself — an unset `MAX_JOBS` runs ~22 concurrent `nvcc` jobs during warmup, on top of the loaded weights | **yes** — `MAX_JOBS=3` unless the command sets it | #406 / #456 |
 | **client memcap** | `run.py`'s agent-client phase — the model-written code a trial executes; killed locally at 24 GiB (`LOCAL_LLM_CLIENT_MEM_CAP_GIB`, 0 disables) | **yes** — built into `run.py` | #379 / #380 |
@@ -208,6 +208,15 @@ discipline that reduce how often the always-on nets have to fire.
 | **`machine_health check --for server`** | refuses a launch while a departing server's memory is still held | run it before launching | #360 |
 | **OOM watchdog** (`scripts/oom_watchdog.py`, `systemd/local-llm-oom-watchdog.timer`) | **after** the fact — records every kernel/earlyoom kill where the journal cannot rotate it away, and restarts `ssh`/`earlyoom` if either is inactive | **not installed yet** — `cp systemd/local-llm-oom-watchdog.* /etc/systemd/system/ && systemctl enable --now local-llm-oom-watchdog.timer` | #459 |
 | **SBSA hardware watchdog** | a box that is powered on but unresponsive — the only layer that can act when nothing schedulable is left | **not enabled** — `/dev/watchdog0` exists, `RuntimeWatchdogUSec=0`; needs `RuntimeWatchdogSec=` in `/etc/systemd/system.conf` | #459 |
+
+**earlyoom's configuration is code.** `scripts/setup_earlyoom.py` holds the
+thresholds, the avoid/prefer regexes and the systemd drop-in; run it with no
+arguments to check the box against the repo (preflight does this on every
+invocation), and `sudo -E uv run python scripts/setup_earlyoom.py --apply` to
+write it. The setting that matters is `-s 100,100`: earlyoom acts only when
+memory **and** swap are both under their thresholds, so the original `-s 20,10`
+made it unfireable here — 2026-09-17 06:48 logged `mem avail: 0` with swap
+91.45% free and killed nothing (#458).
 
 **Neither #459 layer is installed.** The script and its timer units are in the
 repo and tested; enabling them needs root, and proving the hardware watchdog
