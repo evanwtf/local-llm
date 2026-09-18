@@ -2276,6 +2276,24 @@ context_tokens = 262144
 speculative = "MTP k=3 (NVIDIA's FP8 MTP head), use_local_argmax_reduction, 47k draft vocab (recipe files/draft_vocab_en_code_47k.txt); fp8 KV; gpu-memory-utilization 0.753; 48 GiB packed PLE table CPU-offloaded; thinking on (#493)"
 draft_engine = "vllm"
 
+# #303: Qwen3.8-27B dense, NVFP4 (unsloth), via MiaAI-Lab's single-Spark vLLM
+# recipe -- operator-approved 2026-09-18. Two deviations from the recipe as
+# shipped, both for this harness: gpu-memory-utilization 0.84 -> 0.70 (0.84
+# leaves ~15 GiB MemAvailable, under the #485 headroom gate), and thinking off
+# (to match the Flash-Next nothink arms and the A3B leader).
+[backend.qwen3827bnvfp4miaainothinkdgx]
+description = "Qwen3.8-27B dense NVFP4 (unsloth/Qwen3.8-27B-NVFP4 rev f0b7c9e, compressed-tensors) via MiaAI-Lab/Qwen3.8-27B-DGX-Spark-RTX-6000 @608a48d on vllm/vllm-openai:nightly-aarch64; YaRN x4 to 1M ctx, fp8 KV (checkpoint scheme), triton_attn, max-num-seqs 4, max-num-batched-tokens 8192, prefix caching; gpu-memory-utilization 0.70 (recipe ships 0.84) and thinking off via --default-chat-template-kwargs (recipe default is on)"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "vllm"
+model = "qwen38-27b-unsloth-nvfp4"
+aider_model = "openai/qwen38-27b-unsloth-nvfp4"
+opencode_model = "vllm8888/qwen38-27b-unsloth-nvfp4"
+context_tokens = 262144
+speculative = "MTP k=2 (checkpoint's model_mtp.safetensors); operator-approved third-party recipe (#303)"
+draft_engine = "vllm"
+
 [backend.qwen38fnnvfp4dgx]
 description = "Qwen3.8-Flash-Next NVFP4, vLLM styles01 fork v0.1.dev20073, MTP-3 + 47k draft vocab, PLE mmap-offloaded, fp8 KV, 262k ctx"
 tier = "gb10-spark"
