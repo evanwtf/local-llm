@@ -2260,6 +2260,22 @@ context_tokens = 262144
 speculative = "MTP k=3 (NVIDIA's FP8 MTP head), use_local_argmax_reduction, 47k draft vocab (recipe files/draft_vocab_en_code_47k.txt); fp8 KV; gpu-memory-utilization 0.753; 48 GiB packed PLE table CPU-offloaded; thinking off via the server's default chat-template kwargs (#493)"
 draft_engine = "vllm"
 
+# #493: the NVIDIA checkpoint with thinking ON (the template default), the one
+# lever against qwen38fnnvidianvfp4nothinkdgx -- completes checkpoint x thinking
+# with the two Mia arms.
+[backend.qwen38fnnvidianvfp4dgx]
+description = "nvidia/Qwen3.8-Flash-Next-NVFP4 rev fc694b5 served by the MiaAI recipe (#468) with TP1_MODEL_ID set, HOST_RESERVE_GIB=30, PLE_GIB=47.68, thinking ON (template default, no chat-template kwargs); KV target 10 reduced to 8.6 GiB, GMU 0.753, max-num-seqs 4, 262k ctx"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "vllm"
+model = "qwen3.8-flash-next"
+aider_model = "openai/qwen3.8-flash-next"
+opencode_model = "vllm8888/qwen3.8-flash-next"
+context_tokens = 262144
+speculative = "MTP k=3 (NVIDIA's FP8 MTP head), use_local_argmax_reduction, 47k draft vocab (recipe files/draft_vocab_en_code_47k.txt); fp8 KV; gpu-memory-utilization 0.753; 48 GiB packed PLE table CPU-offloaded; thinking on (#493)"
+draft_engine = "vllm"
+
 [backend.qwen38fnnvfp4dgx]
 description = "Qwen3.8-Flash-Next NVFP4, vLLM styles01 fork v0.1.dev20073, MTP-3 + 47k draft vocab, PLE mmap-offloaded, fp8 KV, 262k ctx"
 tier = "gb10-spark"

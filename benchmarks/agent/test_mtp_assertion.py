@@ -198,6 +198,8 @@ def test_the_mtp_arms_declare_themselves():
         "qwen38fnnvfp4miaainothinkdgx": "vllm",
         # #493: NVIDIA's checkpoint through the same recipe, same drafter.
         "qwen38fnnvidianvfp4nothinkdgx": "vllm",
+        # Its thinking-on twin, same drafter.
+        "qwen38fnnvidianvfp4dgx": "vllm",
     }
 
 
