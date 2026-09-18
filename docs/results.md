@@ -225,7 +225,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 
 ### Ryzen9-7900X-32GB-RTX3080Ti-12GB
 
-*Generated from `hardware/Ryzen9-7900X-32GB-RTX3080Ti-12GB/results.jsonl` — 245 rows, sha256 4b149ecaca95.*
+*Generated from `hardware/Ryzen9-7900X-32GB-RTX3080Ti-12GB/results.jsonl` — 275 rows, sha256 4c0e729bd358.*
 
 #### Every stack measured under OpenCode
 
@@ -240,11 +240,12 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | dtornith159b | 21/25 | 124s | 534s | 7.0x |
 | dtbonsai27b | 19/38 | 185s | 238s | 1.8x |
 | dtsparkx254b | 13/24 | 207s | 207s | 1.0x |
+| dtternarybonsai227b | 14/30 | 273s | 711s | 15.7x |
 | dtgemma412b | 3/12 | — | — | — |
 | dtmistralnemo | 0/12 | — | — | — |
 | dtgemma4e4b | 6/12 | — | — | — |
 
-**Rows here were not all taken under one client.** dtbonsai27b, dtbonsai27bllamacpp, dtsparkx254b, dtternarybonsai27b under 1.18.27; the rest under unrecorded. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: dtbonsai27b (1.18.27, unrecorded).
+**Rows here were not all taken under one client.** dtbonsai27b, dtbonsai27bllamacpp, dtsparkx254b, dtternarybonsai27b under 1.18.27; dtternarybonsai227b under 1.18.31; the rest under unrecorded. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: dtbonsai27b (1.18.27, unrecorded).
 
 Excision tasks only; `script-*` excluded because they are a different class. **Spread is worst / best on the same task**, and it is the column most people forget to ask for.
 
@@ -255,6 +256,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | dtgemma4e4b | 11s |
 | dtornith159b | 13s |
 | dtsparkx254b | 14s |
+| dtternarybonsai227b | 19s |
 | dtgemma412b | 22s |
 | dtbonsai27bllamacpp | 24s |
 | dtternarybonsai27b | 35s |
@@ -263,7 +265,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | dtqwen359b | 62s |
 | dtqwen359bq8 | 89s |
 
-**Rows here were not all taken under one client.** dtbonsai27b, dtbonsai27bllamacpp, dtsparkx254b, dtternarybonsai27b under 1.18.27; the rest under unrecorded. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: dtbonsai27b (1.18.27, unrecorded).
+**Rows here were not all taken under one client.** dtbonsai27b, dtbonsai27bllamacpp, dtsparkx254b, dtternarybonsai27b under 1.18.27; dtternarybonsai227b under 1.18.31; the rest under unrecorded. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: dtbonsai27b (1.18.27, unrecorded).
 
 <!-- END GENERATED -->
 
