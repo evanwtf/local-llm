@@ -59,7 +59,7 @@ other is telling you something.
 
 ### Cortex-X925-128GB-GB10
 
-*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 1599 rows, sha256 7dc50fbc96ef.*
+*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 1629 rows, sha256 1457d96a7339.*
 
 #### Every stack measured under OpenCode
 
@@ -70,7 +70,7 @@ other is telling you something.
 | qwen36a3bnvfp4dgx | 214/223 | 39s | 318s | 26.1x |
 | ornith15a3bdgx | 30/30 | 49s | 571s | 28.8x |
 | qwen38fnq3nothinktopkdgx | 30/30 | 54s | 136s | 3.8x |
-| qwen38fnnvfp4miaainothinkdgx | 58/60 | 55s | 1657s | 59.2x |
+| qwen38fnnvfp4miaainothinkdgx | 88/90 | 55s | 1657s | 71.4x |
 | qwen38fnq3nothinkkv8dgx | 90/90 | 61s | 1528s | 43.9x |
 | qwen38fnq3nothinkdgx | 241/241 | 66s | 1059s | 31.3x |
 | qwen38fnnvidianvfp4nothinkdgx | 90/90 | 68s | 1115s | 48.5x |
