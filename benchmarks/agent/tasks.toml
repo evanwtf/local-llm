@@ -2297,11 +2297,13 @@ draft_engine = "vllm"
 # #298: GLM-5.3-Flash (320B-A18B) as EXL3 K2 on one Spark, via vcruz305's
 # recipe -- operator-approved 2026-09-18. Third-party weights, a prebuilt vLLM
 # fork and the vllm-exl3 plugin built from a pinned ref. Deviations from the
-# recipe's standard command, for this harness: 131k context (recipe's first
-# sweep uses 8k), KV pinned at 3 GiB rather than a utilization-derived pool,
-# max-num-seqs 2, and thinking off via the patched template's enable_thinking.
+# recipe's standard command, for this harness: 64k context (the recipe's
+# follow-on serving length; its first sweep uses 8k), KV pinned at 1.5 GiB,
+# max-num-seqs 1, and thinking off via the patched template's enable_thinking.
+# 131k / 2 seqs / 3 GiB KV left 16.5 GiB idle and the first request took the
+# pool under the 13 GiB guard (2026-09-18 14:20).
 [backend.glm53flashexl3k2nothinkdgx]
-description = "GLM-5.3-Flash EXL3 K2 (vcruz305/GLM-5.3-Flash-EXL3-K2, 120 shards, 97.7 GB) via vcruz305/GLM-5.3-Flash-EXL3-K2-DGX-Spark-recipe @655e60b: prebuilt aarch64 vLLM 0.1.dev62+g878631b60 (torch 2.13.0+cu130), vllm-exl3 0.4.2 built from d3cfd394, EXL3_FUSED_MOE=1 native kernel; fp8 KV pinned 3 GiB, max-model-len 131072, max-num-seqs 2, prefix caching on; chat template patched to honor enable_thinking, thinking off by server default"
+description = "GLM-5.3-Flash EXL3 K2 (vcruz305/GLM-5.3-Flash-EXL3-K2, 120 shards, 97.7 GB) via vcruz305/GLM-5.3-Flash-EXL3-K2-DGX-Spark-recipe @655e60b: prebuilt aarch64 vLLM 0.1.dev62+g878631b60 (torch 2.13.0+cu130), vllm-exl3 0.4.2 built from d3cfd394, EXL3_FUSED_MOE=1 native kernel; fp8 KV pinned 1.5 GiB (68,656 tokens), max-model-len 65536, max-num-seqs 1, prefix caching on, DG_JIT_CACHE_DIR outside ~/.cache/vllm; chat template patched to honor enable_thinking, thinking off by server default. Idle MemAvailable 16 GiB: runs use a 1 GiB client cap and --server-floor-gib 10 (the unit guard still stops the server at 13 GiB)"
 tier = "gb10-spark"
 base_url = "http://127.0.0.1:8888"
 auth_token = "local"
@@ -2309,7 +2311,7 @@ engine = "vllm"
 model = "GLM-5.3-Flash-EXL3"
 aider_model = "openai/GLM-5.3-Flash-EXL3"
 opencode_model = "vllm8888/GLM-5.3-Flash-EXL3"
-context_tokens = 131072
+context_tokens = 65536
 speculative = "native MTP k=2; operator-approved third-party weights, runtime and plugin (#298)"
 draft_engine = "vllm"
 
