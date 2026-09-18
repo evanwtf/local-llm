@@ -54,9 +54,16 @@ row can say which build answered.
 
 **No MLX**, so most of the model list in `TESTING-SET.md` is Mac-only.
 
-**No sandbox.** `sandbox-exec` is macOS-only, so `workspace_escapes` is
-unenforced here and rows carry weaker guarantees than the Mac's. Every row
-records `confinement: none` (#81).
+**Confinement is `bwrap`, once the profile is loaded.** `sandbox-exec` is
+macOS-only, so the harness confines Linux trials with `bwrap` instead (#476,
+#477): a private `/tmp`, a PID namespace, and tmpfs covers over the answer
+paths. Rows before 2026-09-18 predate `bwrap` and record `confinement: none`
+(#81); `workspace_escapes` was unenforced for them. Ubuntu 24.04 restricts the
+user namespaces `bwrap` needs, so it requires an AppArmor profile to run here —
+without it every trial silently scored as a model failure (#516). Load the
+profile in [`setup/`](setup/README.md); rows then record `confinement: bwrap`,
+and `run.py` falls back to `confinement: none` with a warning if `bwrap` cannot
+start (#517).
 
 **12 GiB of VRAM against 32 GB of system RAM** is the shape that makes MoE
 CPU-offload interesting: the live experiment is `ornith-1.5:35b` — 22 GB with
