@@ -1676,6 +1676,29 @@ def main() -> int:
             opencode_config.log_report(tomllib.load(fh).get("backend", {}))
     except Exception as exc:  # noqa: BLE001 -- preflight must never hard-fail
         logger.error("could not check the opencode config: %s", exc)
+    # #458: earlyoom is the box-wide OOM net, and its configuration lived only
+    # in /etc/default/earlyoom until it was tracked. The one setting that
+    # decides whether this machine survives an exhaustion was edited by hand
+    # and silently wrong for days. Report drift where a launch will see it.
+    if sys.platform != "darwin":
+        try:
+            sys.path.insert(
+                0, str(pathlib.Path(__file__).resolve().parents[2] / "scripts")
+            )
+            import setup_earlyoom
+
+            differences = setup_earlyoom.drift()
+            for line in differences:
+                logger.warning("preflight: earlyoom drift -- %s", line)
+            if differences:
+                logger.warning(
+                    "preflight: run `sudo -E uv run python "
+                    "scripts/setup_earlyoom.py --apply`; until then the "
+                    "box-wide OOM net may not match what the repo records"
+                )
+        except Exception as exc:  # noqa: BLE001 -- preflight must never hard-fail
+            logger.error("could not check the earlyoom config: %s", exc)
+
     if not report.total_gib:
         logger.info("preflight: nothing is serving a model")
     elif not report.stale and not report.unmatched:
