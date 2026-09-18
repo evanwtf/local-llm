@@ -2378,6 +2378,46 @@ def sandbox_profile(worktree, repo):
     return f"(version 1)\n(allow default)\n{rules}\n", denied
 
 
+#: The trial-isolation policy, recorded per row (#477).
+#:
+#: A boolean is not enough. The mechanisms do not correspond across machines --
+#: macOS has `sandbox-exec` and nothing cgroup-like, Linux has namespaces and
+#: cgroups and no `sandbox-exec` -- so what a row needs is which DIMENSIONS
+#: were actually enforced, and by what. Then "the Mac row was path-confined,
+#: the DGX row was path-confined and kernel memory-capped, and every row before
+#: 2026-09-17 was unconfined" is a fact a reader can see rather than infer.
+#:
+#: Dimensions, in the order the policy declares them:
+#:   paths    -- writable worktree only, the answers unreadable
+#:   tmp      -- whether /tmp outside the trial is reachable
+#:   network  -- whether anything but the model server's loopback port is
+#:   memory   -- whether the client dies at a cap, and who enforces it
+CONFINEMENT_DIMENSIONS = ("paths", "tmp", "network", "memory")
+
+
+def confinement_record(mechanism, denied, memory_cap_gib):
+    """What confined this trial, dimension by dimension.
+
+    `memory` is "harness" on every platform because `run.py`'s own memcap
+    polls and kills (#380); a Linux cgroup ceiling on top would read
+    "harness+cgroup", and that is a later step of #477 rather than something
+    to claim now.
+
+    `tmp` and `network` are recorded as **unenforced** deliberately. Both are
+    currently reachable on both machines, and the two failures in #389 were a
+    write to `/tmp` that nothing refused. Writing "unenforced" is what keeps a
+    later row, taken under a stricter policy, from being pooled with this one.
+    """
+    return {
+        "mechanism": mechanism,
+        "paths": "deny-list" if denied else "none",
+        "denied_count": len(denied),
+        "tmp": "unenforced",
+        "network": "unenforced",
+        "memory": f"harness:{memory_cap_gib:.0f}GiB" if memory_cap_gib else "none",
+    }
+
+
 def sandboxed(argv, worktree, repo, tmpdir):
     """Wrap an agent invocation in the sandbox. Returns argv unchanged if the
     platform has no sandbox-exec, so this degrades to today's behavior rather
@@ -3295,6 +3335,14 @@ def one_trial(
         )
         if denied:
             result["sandbox_denied"] = denied
+        # Stamp the policy on the row, not just the mechanism (#477). An
+        # unconfined trial records that explicitly: absence of a field reads as
+        # "an older harness", which is a different claim.
+        result["confinement"] = confinement_record(
+            "sandbox-exec" if denied else "none",
+            denied,
+            CLIENT_MEM_CAP_GIB or None,
+        )
         # Sample the tripwire BEFORE the agent runs. Without a before-reading
         # the after-reading cannot tell an escape from a checkout that was
         # already off-baseline, and the harness blames the agent either way.
