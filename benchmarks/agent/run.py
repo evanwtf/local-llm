@@ -3142,6 +3142,7 @@ def draft_fields(counters, source=None, counters_requested=None, counters_on=Non
 #: coding agent -- the gate it feeds refuses a whole run, and an untested
 #: refusal is the kind that fires on the wrong thing at 3am.
 DRAFT_VERDICTS = (
+    "no-traffic",
     "no-counters",
     "silent",
     "not-used",
@@ -3169,6 +3170,10 @@ def draft_verdict(counters, counters_on=None):
     this from the server's own command line and is already computed before a
     run starts, so the harness knew and the verdict did not ask.
 
+    `no-traffic` -- the server generated nothing during the trial, so the
+    client never reached it (#503: a client that segfaulted at startup halted a
+    healthy arm's batch as `not-used`). Warns, never refuses.
+
     `not-used` -- it did speculative work and accepted nothing (#148).
 
     `bypassed` -- it accepted tokens but drafted in **zero** cycles (#210).
@@ -3183,6 +3188,17 @@ def draft_verdict(counters, counters_on=None):
     """
     if counters is None:
         return "silent" if counters_on else "no-counters"
+    # #503: the server generated nothing during the trial -- the client never
+    # reached it (a crash at startup, a refused connection). That is no
+    # evidence about the draft head in either direction, so it must not feed
+    # a batch-fatal refusal. Only a reader that reports `generated` can say
+    # this; None means "not reported" and falls through.
+    if (
+        getattr(counters, "generated", None) == 0
+        and not getattr(counters, "drafted", 0)
+        and not getattr(counters, "accepted", 0)
+    ):
+        return "no-traffic"
     saw_work = getattr(counters, "cycles", None) or getattr(counters, "records", 0)
     if not saw_work:
         # Proven on and still nothing: the engine did not speculate. Only
@@ -3534,6 +3550,18 @@ def one_trial(
         except json.JSONDecodeError:
             result["agent_error"] = True
             result["stderr_tail"] = proc.stderr[-400:]
+        # #503: a client that crashed before emitting a single event (OpenCode's
+        # Bun runtime segfaulted 484 ms in) parses cleanly as an empty stream,
+        # and the oracle then scores the untouched code as the model's failure.
+        # No output from a client that also exited non-zero is no attempt:
+        # mark it so `_client_never_ran` excludes the row instead of counting
+        # it. Both conditions, because a stub client that exits 0 silently is
+        # a legitimate do-nothing agent and must still score as a failure.
+        returncode = getattr(proc, "returncode", 0)
+        if returncode and not (proc.stdout or "").strip():
+            result["agent_error"] = True
+            result["client_returncode"] = returncode
+            result["stderr_tail"] = (proc.stderr or "")[-400:]
 
         # 4. The oracle.
         if is_script:
@@ -3725,6 +3753,14 @@ def one_trial(
                     f"this is what tool-bearing requests do (#151). Re-run "
                     f"without --require-draft to measure it deliberately."
                 )
+        elif verdict == "no-traffic":
+            logger.warning(
+                "%s: the server generated no tokens during this trial (%s) -- "
+                "the client never reached it, so this row says nothing about "
+                "the draft head either way (#503)",
+                name,
+                draft_probe.source,
+            )
         elif verdict == "no-counters":
             logger.warning(
                 "%s: %s",

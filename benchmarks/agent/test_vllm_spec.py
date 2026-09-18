@@ -137,3 +137,64 @@ def test_the_cli_can_select_every_engine_the_probe_can_read():
     for engine in run.DraftProbe.SOURCES:
         args = parser.parse_args(["--draft-log-engine", engine])
         assert args.draft_log_engine == engine
+
+
+# --- #503: no traffic is not "accepted nothing" -------------------------------
+#
+# 2026-09-18 10:21: OpenCode segfaulted 484 ms after start, no request reached
+# vLLM, and the zero delta read as `not-used` -- which --require-draft turns into
+# a batch-fatal refusal. A healthy MTP arm lost 19 trials to a client crash.
+
+GEN = """\
+# HELP vllm:generation_tokens_total Number of generation tokens.
+# TYPE vllm:generation_tokens_total counter
+vllm:generation_tokens_total{engine="0",model_name="m"} 5000.0
+"""
+
+
+def test_generated_tokens_are_read_beside_the_spec_family(monkeypatch):
+    vllm_spec.reset()
+    _scrape(monkeypatch, SCRAPE + GEN)
+    vllm_spec.read_since("http://127.0.0.1:8888")
+    _scrape(
+        monkeypatch,
+        (SCRAPE + GEN).replace("5000.0", "5684.0").replace("1615.0", "2000.0"),
+    )
+    got = vllm_spec.read_since("http://127.0.0.1:8888").counters
+    assert got.generated == 684
+    assert got.accepted == 385
+
+
+def test_a_trial_that_generated_nothing_is_no_traffic_not_a_broken_arm(monkeypatch):
+    vllm_spec.reset()
+    _scrape(monkeypatch, SCRAPE + GEN)
+    vllm_spec.read_since("http://127.0.0.1:8888")
+    got = vllm_spec.read_since("http://127.0.0.1:8888").counters  # nothing moved
+    assert got.generated == 0
+    assert run.draft_verdict(got, counters_on=True) == "no-traffic"
+    assert "no-traffic" in run.DRAFT_VERDICTS
+
+
+def test_generating_without_accepting_is_still_caught(monkeypatch):
+    """The #148 guard must survive the fix: traffic plus zero acceptance."""
+    vllm_spec.reset()
+    _scrape(monkeypatch, SCRAPE + GEN)
+    vllm_spec.read_since("http://127.0.0.1:8888")
+    _scrape(
+        monkeypatch,
+        (SCRAPE + GEN).replace("5000.0", "5400.0").replace("3556.0", "3700.0"),
+    )
+    got = vllm_spec.read_since("http://127.0.0.1:8888").counters
+    assert got.generated == 400 and got.accepted == 0
+    assert run.draft_verdict(got, counters_on=True) == "not-used"
+
+
+def test_a_server_without_the_generation_counter_reports_none_not_zero(monkeypatch):
+    """Absent is "not reported"; reading it as 0 would call every such trial
+    `no-traffic` and switch the #148 gate off."""
+    vllm_spec.reset()
+    _scrape(monkeypatch, SCRAPE)
+    vllm_spec.read_since("http://127.0.0.1:8888")
+    got = vllm_spec.read_since("http://127.0.0.1:8888").counters
+    assert got.generated is None
+    assert run.draft_verdict(got, counters_on=True) == "not-used"
