@@ -2344,6 +2344,22 @@ context_tokens = 262144
 speculative = "MTP k=2 (checkpoint's model_mtp.safetensors); operator-approved third-party recipe (#303)"
 draft_engine = "vllm"
 
+# #350 / #303: the same 27B class on SGLang with the DSpark drafter, via
+# MiaAI-Lab's SGLang recipe (operator-approved with #303). A fourth engine on
+# this box. Deviations from the recipe as shipped: mem-fraction-static 0.70
+# (recipe 0.90 via start-dspark.sh) for the #485 headroom gate, and thinking
+# off by server default (recipe default is on).
+[backend.qwen3827bsglangdsparknothinkdgx]
+description = "Qwen3.8-27B NVFP4 (RadixArk/Qwen3.8-27B-NVFP4-BF16-LMHead) on SGLang lmsysorg/sglang:qwen38-27b via MiaAI-Lab/Qwen3.8-27B-SGLang-DGX-Spark @9fb18ed start-dspark.sh: DSpark drafter RadixArk/Qwen3.8-27B-DSpark (unquant, block 7, 8 draft tokens), torch.compile, 262k ctx, fp8 KV, max 16 concurrent; mem-fraction-static 0.70 (recipe 0.90) and --default-chat-template-kwargs enable_thinking=false (recipe default on). Speculative decoding is on (DSpark) but not declared as `speculative`: the harness has no SGLang draft-counter reader, so this arm cannot prove its drafter drafted and is labelled by engine, not by treatment"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "sglang"
+model = "qwen3.8-27b-sglang"
+aider_model = "openai/qwen3.8-27b-sglang"
+opencode_model = "vllm8888/qwen3.8-27b-sglang"
+context_tokens = 262144
+
 # #298: GLM-5.3-Flash (320B-A18B) as EXL3 K2 on one Spark, via vcruz305's
 # recipe -- operator-approved 2026-09-18. Third-party weights, a prebuilt vLLM
 # fork and the vllm-exl3 plugin built from a pinned ref. Deviations from the
