@@ -176,6 +176,7 @@ be drawn from — OpenCode, after the `--dir` cutover, not excluded.
 | `nemotron3super120bdgx` | `nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-NVFP4` (120B/12B-active LatentMoE, thinking off, no MTP) — the quality tier above the A3B leader that still fits one Spark (#406) | vLLM 0.29.0 CUDA sm_121 | 74.8 GiB | 30 |
 | `nemotron3super120bmtpdgx` | the same NVFP4 weights plus the MTPv2 draft head, 3 speculative tokens — the wall-time lever for the row above (#406) | vLLM 0.29.0 CUDA sm_121 | 85.8 GiB | 0 |
 | `nemotron3super120bmtpnopcdgx` | the MTP row above with prefix caching off, to isolate corrupted outputs (#406) | vLLM 0.29.0 CUDA sm_121 | 85.8 GiB | 0 |
+| `qwen38fnnvfp4miaaidgx` | Qwen3.8-Flash-Next NVFP4 via the MiaAI-Lab single-Spark recipe: third-party weights, container and nine patched vLLM modules, operator-approved; KV target lowered 20 -> 10 GiB so a trial fits beside it (#468) | vLLM (MiaAI image) CUDA sm_121 | 99 GiB | 0 |
 | `qwen36bf16dgx` | `Qwen/Qwen3.6-27B` **BF16**, the unquantized control for the row above | vLLM 0.29.0 CUDA sm_121 | 51.7 GiB | 30 |
 | `qwen36nvfp4v1dgx` | the same NVFP4 weights on vLLM's **V1** model runner, speculation off | vLLM 0.29.0 CUDA sm_121 | 20.4 GiB | 0 |
 | `qwen36nvfp4specdgx` | the same again with **draftless n-gram speculation** (5 tokens, lookup 3-8) | vLLM 0.29.0 CUDA sm_121 | 20.4 GiB | 0 |

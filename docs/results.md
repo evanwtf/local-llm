@@ -59,7 +59,7 @@ other is telling you something.
 
 ### Cortex-X925-128GB-GB10
 
-*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 1382 rows, sha256 6505c2a4d374.*
+*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 1419 rows, sha256 c20d36c9bd3f.*
 
 #### Every stack measured under OpenCode
 
@@ -67,7 +67,7 @@ other is telling you something.
 
 | stack | passed | median | worst | spread |
 |---|---|---|---|---|
-| qwen36a3bnvfp4dgx | 183/191 | 39s | 318s | 26.1x |
+| qwen36a3bnvfp4dgx | 214/223 | 39s | 318s | 26.1x |
 | ornith15a3bdgx | 30/30 | 49s | 571s | 28.8x |
 | qwen38fnq3nothinktopkdgx | 30/30 | 54s | 136s | 3.8x |
 | qwen38fnq3nothinkkv8dgx | 90/90 | 61s | 1528s | 43.9x |
