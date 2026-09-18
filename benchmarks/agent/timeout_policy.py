@@ -175,6 +175,12 @@ def _terminate_group(
         pgid = os.getpgid(proc.pid)
     except ProcessLookupError:
         return
+    # Snapshot the counted tree BEFORE signalling anything: once the client
+    # dies its orphans are reparented and can no longer be found from it. A
+    # descendant that left the group -- a detached tool call -- is in this
+    # snapshot and not in the group, and on 2026-09-17 that is how a 24.8 GiB
+    # runaway survived this kill and grew to 108,524 MiB (#485).
+    tree = memcap.tree_pids(proc.pid, memcap._rss_kib_by_pid())
     try:
         os.killpg(pgid, signal.SIGTERM)
     except ProcessLookupError:
@@ -192,6 +198,11 @@ def _terminate_group(
         os.killpg(pgid, signal.SIGKILL)
     except ProcessLookupError:
         pass
+    for pid in tree:
+        try:
+            os.kill(pid, signal.SIGKILL)
+        except (ProcessLookupError, PermissionError):
+            continue
 
 
 def run_client_with_watchdog(
