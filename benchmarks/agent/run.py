@@ -2378,6 +2378,84 @@ def sandbox_profile(worktree, repo):
     return f"(version 1)\n(allow default)\n{rules}\n", denied
 
 
+#: bubblewrap, the Linux half of the trial-isolation policy (#476/#477).
+BWRAP = pathlib.Path("/usr/bin/bwrap")
+
+
+def bwrap_argv(argv, worktree, repo, denied):
+    """Wrap `argv` so the trial cannot see the answers, and gets its own /tmp.
+
+    The Mac enforces the policy with `sandbox-exec`: allow by default, deny the
+    paths that hold answers. Linux has no such thing, so this builds the same
+    shape out of a mount namespace -- bind the host read-write, then **cover
+    each denied path with an empty tmpfs**. The agent still has its venv, its
+    caches and the model server; the answers are simply not there.
+
+    An empty directory rather than a permission error, deliberately. The Mac
+    returns EPERM and the agent sees a failure it can log; here it sees
+    nothing to read. Both hide the answer, and the tmpfs form cannot be
+    defeated by the `../...` path shapes that made OpenCode's own permission
+    layer useless (#54).
+
+    **`/tmp` is private per trial** (operator decision, 2026-09-17). The trial
+    cannot see or pollute the host's `/tmp`, and anything it writes there dies
+    with the namespace. Note what this does NOT do: a model that writes
+    `/tmp/transform.py` instead of the worktree still succeeds *inside* the
+    sandbox and still fails the oracle, which is exactly what happened twice
+    in #389. Only a read-only `/tmp` would hand it an error, and that is a
+    stricter regime with its own A/B.
+
+    **The network namespace is shared, so the network is unenforced.** The
+    model server lives outside the sandbox on :8030 and a fresh netns would
+    lose loopback with it. The Mac profile *can* express "loopback only", so
+    this is the one dimension where Linux is weaker -- which is why the row
+    records it rather than implying parity (#477).
+
+    `--die-with-parent` so a killed harness cannot leave an orphaned agent
+    holding the pool, and `--dev-bind / /` rather than a curated bind list
+    because the agent needs CUDA device nodes, the venv, `git`, and a
+    toolchain whose exact paths are not ours to enumerate.
+    """
+    args = [
+        str(BWRAP),
+        "--dev-bind",
+        "/",
+        "/",
+        "--die-with-parent",
+        # Its own /tmp, and its own /dev/shm: vLLM's client libraries put
+        # POSIX segments there, and a leaked segment outlives the trial.
+        "--tmpfs",
+        "/tmp",
+        "--tmpfs",
+        "/dev/shm",
+    ]
+    for path in denied:
+        target = pathlib.Path(path)
+        # Only cover what exists. The host root is bind-mounted read-write, so
+        # bwrap creating a MISSING mountpoint writes through to the host: a
+        # first run of this created five empty directories in ~, including one
+        # where the harness keeps a stash marker FILE, and the next run.py
+        # raised IsADirectoryError. A path that does not exist also cannot
+        # leak an answer, so skipping it costs nothing.
+        if not target.exists():
+            continue
+        # A file cannot be covered by a tmpfs, so bind /dev/null over it: the
+        # agent reads an empty file instead of the answer. tasks.toml and
+        # results.jsonl are the two files in the deny list (#54).
+        if target.is_file():
+            args += ["--ro-bind", "/dev/null", path]
+        else:
+            args += ["--tmpfs", path]
+    # The worktree is bound last so nothing above can shadow it: it is the one
+    # place the trial must be able to write.
+    args += [
+        "--bind",
+        str(pathlib.Path(worktree).resolve()),
+        str(pathlib.Path(worktree).resolve()),
+    ]
+    return args + list(argv)
+
+
 #: The trial-isolation policy, recorded per row (#477).
 #:
 #: A boolean is not enough. The mechanisms do not correspond across machines --
@@ -2412,23 +2490,42 @@ def confinement_record(mechanism, denied, memory_cap_gib):
         "mechanism": mechanism,
         "paths": "deny-list" if denied else "none",
         "denied_count": len(denied),
-        "tmp": "unenforced",
+        # bwrap gives the trial its own /tmp and /dev/shm; sandbox-exec does
+        # not, and an unconfined trial shares the host's (#476).
+        "tmp": "private" if mechanism == "bwrap" else "unenforced",
+        # Both mechanisms share the host network namespace today: the model
+        # server is outside the sandbox on :8030 (#477).
         "network": "unenforced",
         "memory": f"harness:{memory_cap_gib:.0f}GiB" if memory_cap_gib else "none",
     }
 
 
 def sandboxed(argv, worktree, repo, tmpdir):
-    """Wrap an agent invocation in the sandbox. Returns argv unchanged if the
-    platform has no sandbox-exec, so this degrades to today's behavior rather
-    than silently not running."""
-    if not pathlib.Path("/usr/bin/sandbox-exec").exists():
-        logger.warning("no sandbox-exec on this platform; agent runs unconfined")
-        return argv, []
-    profile, denied = sandbox_profile(worktree, repo)
-    path = pathlib.Path(tmpdir) / "confine.sb"
-    path.write_text(profile)
-    return ["/usr/bin/sandbox-exec", "-f", str(path), *argv], denied
+    """Wrap an agent invocation in whichever sandbox this platform has.
+
+    macOS: `sandbox-exec` with the deny-list profile (#54). Linux: `bwrap`
+    with the same deny list expressed as tmpfs covers, plus a private /tmp
+    (#476). Returns `(argv, denied, mechanism)`; an unconfined platform
+    returns the argv unchanged with mechanism "none" rather than silently
+    pretending to confine.
+    """
+    denied_paths = None
+    if pathlib.Path("/usr/bin/sandbox-exec").exists():
+        profile, denied_paths = sandbox_profile(worktree, repo)
+        path = pathlib.Path(tmpdir) / "confine.sb"
+        path.write_text(profile)
+        return (
+            ["/usr/bin/sandbox-exec", "-f", str(path), *argv],
+            denied_paths,
+            "sandbox-exec",
+        )
+    if BWRAP.exists():
+        _, denied_paths = sandbox_profile(worktree, repo)
+        return bwrap_argv(argv, worktree, repo, denied_paths), denied_paths, "bwrap"
+    logger.warning(
+        "no sandbox-exec and no bwrap on this platform; agent runs unconfined"
+    )
+    return argv, [], "none"
 
 
 def save_transcript(
@@ -3323,7 +3420,7 @@ def one_trial(
         # sandbox=False only for the integration fixtures, whose stub agent
         # "solves" a task by copying from the un-excised reference -- the very
         # shortcut this confinement exists to stop.
-        argv, denied = (
+        argv, denied, mechanism = (
             sandboxed(
                 build_argv(task, backend, worktree),
                 worktree,
@@ -3331,7 +3428,7 @@ def one_trial(
                 worktree.parent,
             )
             if sandbox
-            else (build_argv(task, backend, worktree), [])
+            else (build_argv(task, backend, worktree), [], "none")
         )
         if denied:
             result["sandbox_denied"] = denied
@@ -3339,7 +3436,7 @@ def one_trial(
         # unconfined trial records that explicitly: absence of a field reads as
         # "an older harness", which is a different claim.
         result["confinement"] = confinement_record(
-            "sandbox-exec" if denied else "none",
+            mechanism,
             denied,
             CLIENT_MEM_CAP_GIB or None,
         )

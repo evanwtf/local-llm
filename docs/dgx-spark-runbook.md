@@ -209,6 +209,25 @@ discipline that reduce how often the always-on nets have to fire.
 | **OOM watchdog** (`scripts/oom_watchdog.py`, `systemd/local-llm-oom-watchdog.timer`) | **after** the fact — records every kernel/earlyoom kill where the journal cannot rotate it away, and restarts `ssh`/`earlyoom` if either is inactive | **not installed yet** — `cp systemd/local-llm-oom-watchdog.* /etc/systemd/system/ && systemctl enable --now local-llm-oom-watchdog.timer` | #459 |
 | **SBSA hardware watchdog** | a box that is powered on but unresponsive — the only layer that can act when nothing schedulable is left | **not enabled** — `/dev/watchdog0` exists, `RuntimeWatchdogUSec=0`; needs `RuntimeWatchdogSec=` in `/etc/systemd/system.conf` | #459 |
 
+**Trial confinement on Linux (#476).** `run.py` wraps every agent invocation in
+`bwrap`: the deny list the Mac expresses as `sandbox-exec` rules becomes tmpfs
+covers (an empty directory instead of EPERM), `/tmp` and `/dev/shm` are private
+per trial, and the worktree is the one writable path. Verified 2026-09-17 —
+inside the sandbox `~/bench-solutions` shows 0 of its 516 entries, `tasks.toml`
+is unreadable, `/tmp` holds 1 entry against the host's 580, and the 9 CUDA
+device nodes are still there.
+
+**It needs the AppArmor profile.** Ubuntu 24.04 sets
+`kernel.apparmor_restrict_unprivileged_userns=1`, so without
+`apparmor/bwrap` installed to `/etc/apparmor.d/` the sandbox fails with
+`bwrap: setting up uid map: Permission denied` and trials run unconfined. The
+profile grants `userns` to that one binary, the same shape as the shipped
+`ch-run` and `crun` profiles. Install with
+`sudo cp apparmor/bwrap /etc/apparmor.d/bwrap && sudo apparmor_parser -r /etc/apparmor.d/bwrap`.
+The network namespace is **shared** on purpose — the model server is outside the
+sandbox on `:8030` — so "loopback only" is not enforced here, and each row
+records that (#477).
+
 **earlyoom's configuration is code.** `scripts/setup_earlyoom.py` holds the
 thresholds, the avoid/prefer regexes and the systemd drop-in; run it with no
 arguments to check the box against the repo (preflight does this on every

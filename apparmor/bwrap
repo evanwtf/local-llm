@@ -1,0 +1,20 @@
+# local-llm #476: bubblewrap confines each benchmark trial to its worktree.
+#
+# Ubuntu 24.04 sets kernel.apparmor_restrict_unprivileged_userns=1, so an
+# unconfined binary cannot create a user namespace and `bwrap` fails with
+# "setting up uid map: Permission denied". This profile grants userns to that
+# one binary, the same shape as the shipped ch-run and crun profiles, rather
+# than relaxing the sysctl for every binary on the box.
+#
+# Why the harness needs it: on Linux a trial ran unconfined, so nothing stopped
+# an agent reading the un-excised reference (a pass for the wrong reason) or
+# writing outside its worktree -- two #389 failures wrote /tmp/transform.py.
+# macOS enforces the same policy with sandbox-exec; this is its counterpart.
+abi <abi/4.0>,
+include <tunables/global>
+
+profile bwrap /usr/bin/bwrap flags=(unconfined) {
+  userns,
+
+  include if exists <local/bwrap>
+}
