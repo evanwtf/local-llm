@@ -63,7 +63,7 @@ class Counters:
     accepted: int
     drafted: int
     verify_calls: int
-    generated: int
+    generated: int | None
 
     @property
     def accept_rate(self) -> float | None:
@@ -87,6 +87,12 @@ class Reading:
     offset: int
 
 
+# Not a speculative counter: every vLLM server exports it. Read beside the
+# three above so a trial can say whether it generated anything at all -- a
+# client that crashed before its first request moves no counter, and "no
+# drafts because no traffic" must not read as "drafted and accepted nothing"
+# (#503).
+_GENERATED = "vllm:generation_tokens_total"
 # base_url -> the cumulative values seen at the previous read.
 _BASELINE: dict[str, dict[str, int]] = {}
 
@@ -119,6 +125,17 @@ def parse(text: str) -> dict[str, int]:
         ):
             total += int(float(m.group(1)))
         got[key] = total
+    # Only when the server exports it, so an older scrape (or a test fixture
+    # without it) reads as "not reported", never as "generated nothing".
+    if _GENERATED in text:
+        got["generated"] = sum(
+            int(float(m.group(1)))
+            for m in re.finditer(
+                rf"^{re.escape(_GENERATED)}(?:\{{[^}}]*\}})?\s+([0-9.eE+-]+)\s*$",
+                text,
+                re.MULTILINE,
+            )
+        )
     return got
 
 
@@ -168,7 +185,7 @@ def read_since(base_url, offset: int = 0) -> Reading:
         # server did before this point -- startup, the smoke gate -- belongs to
         # no trial.
         return Reading(counters=EMPTY, offset=now["drafted"])
-    if any(now[k] < before[k] for k in now):
+    if any(now[k] < before[k] for k in _METRICS):
         logger.warning(
             "vllm spec counters went backwards (%s -> %s) -- the server "
             "restarted; re-baselining rather than reporting a negative delta",
@@ -176,18 +193,23 @@ def read_since(base_url, offset: int = 0) -> Reading:
             now,
         )
         return Reading(counters=EMPTY, offset=now["drafted"])
-    delta = {k: now[k] - before[k] for k in now}
+    delta = {k: now[k] - before[k] for k in _METRICS}
+    generated = (
+        now["generated"] - before["generated"]
+        if "generated" in now and "generated" in before
+        else None
+    )
     return Reading(
         counters=Counters(
             records=1,
             requests=delta["drafts"],
             accepted=delta["accepted"],
             drafted=delta["drafted"],
-            # vLLM reports no verify-call count and no generated-token count on
-            # this family. Zero here is "not reported", and the row records
-            # which mechanism produced the numbers so a reader can tell.
+            # vLLM reports no verify-call count on this family; zero there is
+            # "not reported". `generated` is the server-wide output-token
+            # delta, None when the server does not export it (#503).
             verify_calls=0,
-            generated=0,
+            generated=generated,
         ),
         offset=now["drafted"],
     )

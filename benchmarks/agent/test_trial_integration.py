@@ -198,3 +198,23 @@ def test_the_agent_is_handed_a_working_environment(monkeypatch, tmp_path):
     monkeypatch.setitem(run.CLIENTS, "venv-user", (argv, lambda _o, **_: {}))
     row = _run("mbox-strip-envelope", tmp_path, "venv-user")
     assert results.verdict(row) is True
+
+
+@needs_repo
+def test_a_client_that_crashes_before_any_output_is_not_a_model_failure(
+    monkeypatch, tmp_path
+):
+    """#503: OpenCode's Bun runtime segfaulted 484 ms in, emitting nothing.
+    That row must be the client's error, excluded, not a FAIL on the model."""
+    monkeypatch.setitem(
+        run.CLIENTS,
+        "crasher",
+        (
+            lambda t, b, w=None: ["python3", "-c", "import os; os.abort()"],
+            lambda _o, **_: {},
+        ),
+    )
+    row = _run("mbox-strip-envelope", tmp_path, "crasher")
+    assert row["agent_error"] is True
+    assert row["client_returncode"] != 0
+    assert results.is_excluded(row)
