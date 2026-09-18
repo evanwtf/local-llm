@@ -2214,6 +2214,19 @@ pinned_temperature = 0
 #       --speculative-config '{"method":"mtp","num_speculative_tokens":3,"use_local_argmax_reduction":true}' \
 #       --distributed-executor-backend mp \
 #       --compilation-config '{"mode":0,"cudagraph_mode":"FULL_DECODE_ONLY","cudagraph_capture_sizes":[4,8,12,16,20,24,28,32]}'
+[backend.qwen38fnnvfp4miaaidgx]
+description = "Qwen3.8-Flash-Next NVFP4 via the MiaAI-Lab single-Spark recipe (#468): Mia-AiLab/Qwen3.8-Flash-Next-NVFP4 rev 925d7be, container vllm/vllm-openai:qwen38-flash-next @sha256:fc120ece, nine patched vLLM modules mounted from the recipe repo e74e7af, V2 runner, MTP-3 + 47k draft vocab, fp8 KV, bf16 SSM state, max-num-seqs 4, 262k ctx; KV_TARGET_GIB 10 (recipe ships 20) so a benchmark client fits beside the 99 GiB model"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "vllm"
+model = "qwen3.8-flash-next"
+aider_model = "openai/qwen3.8-flash-next"
+opencode_model = "vllm8888/qwen3.8-flash-next"
+context_tokens = 262144
+speculative = "MTP k=3, use_local_argmax_reduction, 47k draft vocab (recipe files/draft_vocab_en_code_47k.txt); fp8 KV; gpu-memory-utilization 0.786; PLE table CPU-offloaded; operator-approved third-party weights, image and patches (#468)"
+draft_engine = "vllm"
+
 [backend.qwen38fnnvfp4dgx]
 description = "Qwen3.8-Flash-Next NVFP4, vLLM styles01 fork v0.1.dev20073, MTP-3 + 47k draft vocab, PLE mmap-offloaded, fp8 KV, 262k ctx"
 tier = "gb10-spark"
