@@ -1,0 +1,26 @@
+# AppArmor profile: allow bwrap to create user namespaces.
+#
+# Install as /etc/apparmor.d/bwrap on a Linux host where unprivileged user
+# namespaces are AppArmor-restricted -- Ubuntu 24.04+ ships
+#   kernel.apparmor_restrict_unprivileged_userns = 1
+# and a bwrap that is neither setuid nor granted a profile is then denied,
+# exiting with "setting up uid map: Permission denied" before it runs its
+# child. The benchmark harness wraps every Linux trial in bwrap (#476, #477),
+# so on such a host every trial produced an empty transcript and scored as a
+# model failure (#516).
+#
+# bwrap is left otherwise unconfined; this profile exists only to grant the
+# `userns` permission and to give the binary a name instead of the
+# "unconfined" label. It mirrors the shipped /etc/apparmor.d/linux-sandbox
+# profile. With it loaded, the global restriction can stay ON (=1), so only
+# bwrap is exempted rather than every binary on the box.
+
+abi <abi/4.0>,
+include <tunables/global>
+
+profile bwrap /usr/bin/bwrap flags=(unconfined) {
+  userns,
+
+  # Site-specific additions and overrides. See local/README for details.
+  include if exists <local/bwrap>
+}
