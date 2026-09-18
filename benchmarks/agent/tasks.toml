@@ -1946,6 +1946,24 @@ context_tokens = 100000
 engine = "ds4"
 engine_tree = "~/git/ds4-ivan-qwen38fn"
 
+# #158 / #306: upstream (antirez) ds4 main with upstream's own Qwen GGUF,
+# antirez/qwen3.8-flash-next-gguf qwen38-q4k (165.11 GiB file, 69.74 GiB
+# resident: Q4_K imatrix gate/up and MXFP4 down routed experts, the same scheme
+# as qwen38fnds4kimat's pack). The n-grams ship inside the GGUF and are read
+# from SSD, so the server takes no --ple. ds4#991 upstreamed Flash-Next, so
+# this replaces the ivanfioravanti fork tree as the latest ds4 for this model.
+# Same tool-format shim and ports as qwen38fnds4kimat.
+[backend.qwen38fnds4main]
+description = "Qwen3.8-Flash-Next Q4 (upstream antirez qwen38-q4k GGUF, n-grams inside) on ds4 upstream main via the tool-format shim, MTP off"
+base_url = "http://127.0.0.1:8101"
+engine_url = "http://127.0.0.1:8000"
+auth_token = "dsv4-local"
+model = "qwen3.8-flash-next-q4"
+opencode_model = "ds4qwenshim/qwen3.8-flash-next-q4"
+context_tokens = 100000
+engine = "ds4"
+engine_tree = "~/git/ds4-mainline-8db1d1d1"
+
 [backend.qwen38fnds4shim]
 description = "Qwen3.8-Flash-Next Q4 fast-pack on ds4-metal ba01f5d via the tool-format shim (non-streaming upstream), MTP off"
 base_url = "http://127.0.0.1:8101"
