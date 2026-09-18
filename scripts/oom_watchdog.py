@@ -61,7 +61,10 @@ STATE_PATH = pathlib.Path.home() / ".local-llm-bench" / "oom-watchdog.json"
 GUARDED_UNITS = ("ssh.service", "earlyoom.service")
 
 #: One line per killer, because they log nothing alike.
-KERNEL_OOM = re.compile(r"oom-kill:|Out of memory: Killed process")
+#: `(?<![\w-])` so that `earlyoom-kill:` -- this script's own label for an
+#: earlyoom event -- never matches the kernel pattern. It did, on the first
+#: night: every earlyoom kill was re-reported as a kernel OOM.
+KERNEL_OOM = re.compile(r"(?<![\w-])oom-kill:|Out of memory: Killed process")
 EARLYOOM_KILL = re.compile(r"sending SIG(TERM|KILL) to process (\d+)")
 #: earlyoom's periodic report, which is NOT a kill. It looks alarming at 0%
 #: and means only that it was watching.
@@ -96,23 +99,42 @@ def events(journal_text: str) -> list[dict[str, str]]:
 
 
 def read_journal(since: str) -> str:
-    """`journalctl --since <since>`, or "" when it cannot be read.
+    """The kernel ring and the earlyoom unit since `since`, or "" if unreadable.
 
-    Kernel and earlyoom lines both land in the system journal, so one call
-    covers both. An unreadable journal is an absence, not a crash: the restart
-    half of this script still has work to do.
+    Only those two sources can report a kill. The first version read the whole
+    journal, which includes THIS script's own warnings -- and they quote the
+    kill lines they report -- so every pass re-reported the previous pass's
+    report, one level deeper each minute (2026-09-17). The obvious fix, one
+    `journalctl -k -u earlyoom.service`, is wrong too: journalctl ANDs matches
+    on different fields, so it asks for kernel messages *from* the earlyoom
+    unit and returns nothing. A dry run over a window holding a real 106 GiB
+    earlyoom kill reported zero events. Two reads, concatenated.
+
+    An unreadable source is an absence, not a crash: the restart half of this
+    script still has work to do.
     """
-    try:
-        proc = subprocess.run(
-            ["journalctl", "--no-pager", "--since", since, "-o", "short-iso"],
-            capture_output=True,
-            text=True,
-            timeout=60,
-            check=False,
-        )
-    except (OSError, subprocess.SubprocessError):
-        return ""
-    return proc.stdout
+    out = []
+    for source in (["-k"], ["-u", "earlyoom.service"]):
+        try:
+            proc = subprocess.run(
+                [
+                    "journalctl",
+                    "--no-pager",
+                    "--since",
+                    since,
+                    "-o",
+                    "short-iso",
+                    *source,
+                ],
+                capture_output=True,
+                text=True,
+                timeout=60,
+                check=False,
+            )
+        except (OSError, subprocess.SubprocessError):
+            continue
+        out.append(proc.stdout)
+    return "\n".join(out)
 
 
 def unit_active(unit: str) -> bool | None:
