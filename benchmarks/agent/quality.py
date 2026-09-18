@@ -26,7 +26,7 @@ import results
 logger = logging.getLogger(__name__)
 
 
-def summarise(rows: list[dict[str, Any]]) -> dict[tuple[str, str, str], dict]:
+def summarize(rows: list[dict[str, Any]]) -> dict[tuple[str, str, str], dict]:
     """Per (task, backend, client), collapse the secondary measurements.
 
     Absent measurements are excluded from their averages rather than counted as
@@ -77,7 +77,7 @@ def main(argv: list[str] | None = None) -> int:
     rows = results.trials(pathlib.Path(args.results))
     if args.task:
         rows = [r for r in rows if r["task"] in args.task]
-    got = summarise(rows)
+    got = summarize(rows)
     measured = {k: v for k, v in got.items() if v["gated"] or v["hashed"]}
     if not measured:
         logger.warning(

@@ -70,10 +70,10 @@ def test_the_issue_64_trace_is_detected():
     assert runs[0][0].common == 20398
 
 
-def test_summarise_names_the_cost_of_each_stall(tmp_path):
+def test_summarize_names_the_cost_of_each_stall(tmp_path):
     p = tmp_path / "s.log"
     p.write_text(log([(0, 5000, 1000), (0, 5000, 1000), (0, 5000, 1000)]))
-    text = audit.summarise(p, audit.parse(p.read_text()), 360.0)
+    text = audit.summarize(p, audit.parse(p.read_text()), 360.0)
     assert "STALL" in text
     assert "12,000 tokens re-prefilled" in text
 
@@ -81,4 +81,4 @@ def test_summarise_names_the_cost_of_each_stall(tmp_path):
 def test_an_empty_log_says_so(tmp_path):
     p = tmp_path / "empty.log"
     p.write_text("")
-    assert "no cache-miss lines" in audit.summarise(p, [], 360.0)
+    assert "no cache-miss lines" in audit.summarize(p, [], 360.0)

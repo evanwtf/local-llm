@@ -51,13 +51,13 @@ def test_the_plateau_is_the_high_water_mark_not_the_last_value():
     """`common` can fall back on a late miss. The plateau is the best prefix
     ever reused, so a dip must not be read as the cache improving."""
     misses = ps.parse_misses(REAL_LINES)
-    s = ps.summarise(pathlib.Path("x.log"), misses)
+    s = ps.summarize(pathlib.Path("x.log"), misses)
     assert s.best_common == 20398
 
 
 def test_a_turn_far_past_the_plateau_counts_as_stalled():
     """prompt 65794 against a best prefix of 20398 is 45k re-prefilled."""
-    s = ps.summarise(pathlib.Path("x.log"), ps.parse_misses(REAL_LINES))
+    s = ps.summarize(pathlib.Path("x.log"), ps.parse_misses(REAL_LINES))
     assert s.stalled_turns == 2  # the 25468 and 65794 turns
     assert s.stalled
 
@@ -70,14 +70,14 @@ def test_a_growing_cache_is_not_stalled():
         f"vision=match reason=token-mismatch\n"
         for n in (1000, 5000, 20000, 60000)
     )
-    s = ps.summarise(pathlib.Path("x.log"), ps.parse_misses(text))
+    s = ps.summarize(pathlib.Path("x.log"), ps.parse_misses(text))
     assert s.best_common == 59900
     assert s.stalled_turns == 0
     assert not s.stalled
 
 
 def test_reprefilled_tokens_sum_the_gap_not_the_prompt():
-    s = ps.summarise(pathlib.Path("x.log"), ps.parse_misses(REAL_LINES))
+    s = ps.summarize(pathlib.Path("x.log"), ps.parse_misses(REAL_LINES))
     expected = (98 - 45) + (11928 - 10901) + (25468 - 20398) + (65794 - 20398)
     assert s.reprefilled_tokens == expected
 
@@ -86,12 +86,12 @@ def test_a_negative_gap_does_not_subtract():
     """`common` can exceed `prompt` when the live context is longer than the
     request. That is not a refund of prefill time."""
     text = "live kv cache miss live=100 prompt=50 common=80 reason=token-mismatch\n"
-    s = ps.summarise(pathlib.Path("x.log"), ps.parse_misses(text))
+    s = ps.summarize(pathlib.Path("x.log"), ps.parse_misses(text))
     assert s.reprefilled_tokens == 0
 
 
-def test_an_empty_log_summarises_to_zero_rather_than_raising():
-    s = ps.summarise(pathlib.Path("x.log"), [])
+def test_an_empty_log_summarizes_to_zero_rather_than_raising():
+    s = ps.summarize(pathlib.Path("x.log"), [])
     assert s.misses == 0
     assert s.best_common == 0
     assert not s.stalled

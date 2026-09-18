@@ -112,7 +112,7 @@ def parse_misses(text: str) -> list[Miss]:
     return out
 
 
-def summarise(path: pathlib.Path, misses: list[Miss]) -> Stall:
+def summarize(path: pathlib.Path, misses: list[Miss]) -> Stall:
     """Reduce one log's misses to the plateau and the re-prefilled total.
 
     `best_common` is the high-water mark of the reusable prefix. A turn counts
@@ -154,7 +154,7 @@ def main(argv: list[str] | None = None) -> int:
         misses = parse_misses(path.read_text(errors="replace"))
         if not misses:
             continue
-        stalls.append(summarise(path, misses))
+        stalls.append(summarize(path, misses))
 
     if not stalls:
         logger.error("no live-cache miss lines in any log given")

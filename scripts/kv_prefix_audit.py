@@ -118,7 +118,7 @@ def stalled_runs(misses: list[Miss], min_length: int = 3) -> list[list[Miss]]:
     return runs
 
 
-def summarise(path: pathlib.Path, misses: list[Miss], prefill_tps: float) -> str:
+def summarize(path: pathlib.Path, misses: list[Miss], prefill_tps: float) -> str:
     if not misses:
         return f"{path.name}: no cache-miss lines"
     runs = stalled_runs(misses)
@@ -159,7 +159,7 @@ def main(argv: list[str] | None = None) -> int:
         except OSError as exc:
             logger.error("%s: %s", path, exc)
             continue
-        logger.info("%s", summarise(path, misses, args.prefill_tps))
+        logger.info("%s", summarize(path, misses, args.prefill_tps))
         total_waste += wasted_tokens(misses)
         total_stalls += len(stalled_runs(misses))
 

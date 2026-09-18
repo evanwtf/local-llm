@@ -264,7 +264,7 @@ def _report_effects(effects: ArmEffects) -> None:
     )
 
 
-def _summarise(outdir: pathlib.Path, rows: list[tuple[int, str, float]]) -> None:
+def _summarize(outdir: pathlib.Path, rows: list[tuple[int, str, float]]) -> None:
     """One summary per run: the bare position number when the arms are the
     same, position and arm effects when they differ."""
     differ = arms_differ(outdir)
@@ -317,10 +317,10 @@ def main(argv: list[str] | None = None) -> int:
                 ratio,
                 100 * (ratio - 1),
             )
-        _summarise(outdir, rows)
+        _summarize(outdir, rows)
 
     if not any_rows:
-        logger.error("nothing to summarise")
+        logger.error("nothing to summarize")
         return 1
     return 0
 

@@ -80,7 +80,7 @@ def cells(rows, backends, client="opencode"):
     return got
 
 
-def summarise(rows):
+def summarize(rows):
     """(passed, n, median, worst, spread) for one cell, or None if empty."""
     if not rows:
         return None
@@ -235,7 +235,7 @@ def render(by_cell, backends) -> list[str]:
     for task in tasks:
         cols = []
         for b in backends:
-            got = summarise(by_cell.get((b, task), []))
+            got = summarize(by_cell.get((b, task), []))
             cols.append(
                 "-"
                 if not got
@@ -255,7 +255,7 @@ def render(by_cell, backends) -> list[str]:
             if bb == b and not task.startswith(SCRIPT_PREFIX)
             for r in rows
         ]
-        got = summarise(ex)
+        got = summarize(ex)
         if got:
             median = f"{got[2]:.1f}s" if got[2] else "n/a"
             out.append(
@@ -315,8 +315,8 @@ def render(by_cell, backends) -> list[str]:
 
         out += ["", "**Can three trials tell them apart?**", ""]
         for task in tasks:
-            ga = summarise(by_cell.get((a, task), []))
-            gb = summarise(by_cell.get((b, task), []))
+            ga = summarize(by_cell.get((a, task), []))
+            gb = summarize(by_cell.get((b, task), []))
             if not (ga and gb and ga[2] and gb[2]):
                 continue
             lo, hi = sorted((ga[2], gb[2]))

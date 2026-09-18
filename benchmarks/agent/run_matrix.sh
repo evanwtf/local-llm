@@ -37,5 +37,5 @@ curl -s -m 300 http://127.0.0.1:11434/api/generate \
 
 python3 "$HERE/run.py" --backend qwen --trials "$TRIALS" --timeout 2400 2>&1 | tee -a "$LOG"
 
-say "=== done; summarising ==="
+say "=== done; summarizing ==="
 python3 "$HERE/summarize.py" 2>&1 | tee -a "$LOG"

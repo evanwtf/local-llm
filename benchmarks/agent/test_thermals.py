@@ -25,7 +25,7 @@ def test_calibration_sensors_are_excluded():
 
     Averaging it in would raise the mean by a constant and hide a real rise.
     """
-    got = thermals.summarise(
+    got = thermals.summarize(
         [("PMU tcal", 51.8), ("PMU tdie1", 36.0), ("PMU tdie2", 38.0)]
     )
     assert got["die_max_c"] == 38.0
@@ -35,14 +35,14 @@ def test_calibration_sensors_are_excluded():
 
 def test_it_falls_back_when_no_die_sensor_is_named():
     """Another Mac may name them differently; report something, not nothing."""
-    got = thermals.summarise([("SOC MTR Temp Sensor", 40.0), ("gas gauge", 30.0)])
+    got = thermals.summarize([("SOC MTR Temp Sensor", 40.0), ("gas gauge", 30.0)])
     assert got["die_max_c"] == 40.0
     assert got["sensors"] == 2
 
 
 def test_an_empty_read_is_empty_not_zero():
     """Zero degrees would read as a very cold Mac rather than a failed read."""
-    assert thermals.summarise([]) == {}
+    assert thermals.summarize([]) == {}
 
 
 def test_a_reading_carries_the_system_clock():
