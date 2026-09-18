@@ -410,6 +410,10 @@ need **PLE sidecar support**, and that exists only on ivanfioravanti's forks:
 build from upstream **will not load these weights at all** — it fails with
 `required tensor is missing: per_layer_token_embd.weight`.
 
+`qwen38fnds4main` is the exception: upstream ds4 main with upstream's own
+`qwen38-q4k` GGUF, which carries its n-grams inside, so it takes no `--ple` and
+reproduces from upstream sources alone (#158).
+
 Two consequences worth stating plainly rather than discovering:
 
 * Cloning upstream `ds4` and following this file will not reproduce those
@@ -426,8 +430,8 @@ unsupported. It is not.
 
 ### The shim's scaffolding strip is load-bearing, not tidying
 
-**All five** `qwen38fnds4*` rows — `qwen38fnds4shim`, `qwen38fnds4kimat`,
-`qwen38fnds4mtp7shim`, `qwen38fnds4q4exp` and `qwen38fnds4mtpauto` — run behind `ds4_qwen_tool_shim.py`, which removes the
+**All six** `qwen38fnds4*` rows — `qwen38fnds4shim`, `qwen38fnds4kimat`,
+`qwen38fnds4mtp7shim`, `qwen38fnds4q4exp`, `qwen38fnds4mtpauto` and `qwen38fnds4main` — run behind `ds4_qwen_tool_shim.py`, which removes the
 bare `<tool_call>` tags from the content it hands back after it has recovered a
 tool call. That looked like hygiene when it shipped. It is worth **23 points of
 pass rate**, measured 2026-09-06 as an A/B over 8 runs of 15 tasks with the arm
