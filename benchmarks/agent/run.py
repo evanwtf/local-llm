@@ -101,6 +101,19 @@ ORACLE_MEM_CAP_GIB = 8.0
 # ~7.5 GiB a 15s poll would allow.
 CLIENT_MEM_CAP_GIB = float(os.environ.get("LOCAL_LLM_CLIENT_MEM_CAP_GIB", "24"))
 
+#: The DGX server watcher's floor (`scripts/dgx_server.py MEM_FLOOR_GIB`,
+#: #456). Below it the watcher stops the model server, so a trial's cap must
+#: leave the pool above it even when the trial spends the whole cap (#485).
+SERVER_FLOOR_GIB = 14.0
+
+#: Slack between a capped trial and the server floor. It must be MORE than 3:
+#: on 2026-09-17 the headroom was exactly 3 GiB (41 - 24 - 14) and the server
+#: watcher still fired 12 s after the client cap, because the memcap polls every
+#: ~2 s (about 1 GiB of overshoot) and a private /tmp is a tmpfs whose files are
+#: RAM, as is the page cache the trial pulls in. A legitimate trial peaks under
+#: 1 GiB, so the cap is the knob to turn, not this.
+HEADROOM_MARGIN_GIB = 4.0
+
 
 def run(cmd, cwd, env=None, timeout=None):
     # stdin must be closed, not inherited. `codex exec` prints "Reading
@@ -3993,6 +4006,15 @@ def build_parser():
         "circuit-breaker will judge it (default 0.25) (#366).",
     )
     p.add_argument(
+        "--server-floor-gib",
+        type=float,
+        default=SERVER_FLOOR_GIB,
+        help="the model server watcher's MemAvailable floor (default "
+        f"{SERVER_FLOOR_GIB:.0f}, dgx_server.py's). With --memory-gate-gib, a "
+        "trial is refused when MemAvailable - client cap - this floor is under "
+        f"{HEADROOM_MARGIN_GIB:.0f} GiB (#485). 0 disables the check.",
+    )
+    p.add_argument(
         "--cell-timeout-fraction",
         type=float,
         default=0.50,
@@ -4036,6 +4058,114 @@ def _memory_gate(min_avail_gib: float | None, timeout: int) -> None:
             f"memory gate: host memory never settled above {min_avail_gib} GiB "
             "-- refusing to start the trial into a likely OOM (#360). Free the "
             "pool or lower the floor."
+        )
+
+
+def mem_available_gib() -> float | None:
+    """`MemAvailable` in GiB, or None where there is no /proc/meminfo."""
+    try:
+        text = pathlib.Path("/proc/meminfo").read_text()
+    except OSError:
+        return None
+    for line in text.splitlines():
+        if line.startswith("MemAvailable:"):
+            return int(line.split()[1]) / (1024 * 1024)
+    return None
+
+
+def headroom_verdict(
+    avail_gib: float, cap_gib: float, floor_gib: float, margin_gib: float
+) -> tuple[bool, float, str]:
+    """Can a trial spend its whole cap without taking the server down? #485
+
+    `headroom` is what is left above the server floor if the trial reaches its
+    cap. On 2026-09-17 it was 41 - 24 - 14 = 3 GiB: the client cap fired first,
+    as it should, and the server watcher fired 12 s later anyway -- one
+    runaway trial cost the model server too. The fix is not a bigger margin in
+    one knob but checking the three numbers against each other.
+    """
+    headroom = avail_gib - cap_gib - floor_gib
+    if headroom >= margin_gib:
+        return True, headroom, ""
+    return (
+        False,
+        headroom,
+        (
+            f"memory headroom {headroom:.1f} GiB is below the {margin_gib:.0f} GiB "
+            f"margin: MemAvailable {avail_gib:.1f} GiB - client cap {cap_gib:.0f} GiB "
+            f"- server floor {floor_gib:.0f} GiB. A trial that reaches its cap would "
+            "push the pool under the server watcher's floor and stop the model server "
+            "too (#485). Lower LOCAL_LLM_CLIENT_MEM_CAP_GIB, or free memory (a smaller "
+            "KV cache on the server)."
+        ),
+    )
+
+
+def _headroom_gate(args) -> float | None:
+    """Refuse the trial when a runaway could take the server with it. #485
+
+    Runs only with --memory-gate-gib, the flag every run on a shared-pool box
+    already passes, and only with a client cap and a floor in force. Returns
+    the headroom for the row, or None when the check did not apply.
+    """
+    if not args.memory_gate_gib or not CLIENT_MEM_CAP_GIB or not args.server_floor_gib:
+        return None
+    avail = mem_available_gib()
+    if avail is None:
+        return None
+    ok, headroom, why = headroom_verdict(
+        avail, CLIENT_MEM_CAP_GIB, args.server_floor_gib, HEADROOM_MARGIN_GIB
+    )
+    if not ok:
+        raise SystemExit(why)
+    return headroom
+
+
+def backend_answers(backend, attempts: int = 3, wait: float = 10.0) -> bool:
+    """Is the backend's server still there? #485
+
+    Any HTTP response counts, error statuses included: a shim that answers GET
+    with 405 is alive. Only a refused or timed-out connection is "gone", and it
+    is asked `attempts` times so one slow reply is not read as a death.
+    """
+    url = backend.get("models_url") or backend.get("base_url")
+    if not url:
+        return True
+    for attempt in range(attempts):
+        try:
+            with urllib.request.urlopen(url.rstrip("/") + "/v1/models", timeout=10):
+                return True
+        except urllib.error.HTTPError:
+            return True
+        except (urllib.error.URLError, TimeoutError, OSError):
+            if attempt + 1 < attempts:
+                time.sleep(wait)
+    return False
+
+
+def finish_row(r, bname, backend, headroom, results_path, dry_run) -> None:
+    """Stamp the headroom, write the row, and stop if the server died. #485
+
+    The server watcher can stop the server mid-batch by design. A trial that
+    ran into a dead server measured the server, not the model, so a failed
+    row is kept but excluded -- and the batch stops, rather than scoring every
+    remaining trial against nothing, which is what it did on 2026-09-17. A
+    pass stays in: the server answered for as long as the trial needed it.
+    """
+    if headroom is not None and isinstance(r.get("confinement"), dict):
+        r["confinement"]["headroom_gib"] = round(headroom, 1)
+    server_gone = not dry_run and not backend_answers(backend)
+    if server_gone and not r.get("passed"):
+        r["excluded"] = True
+        r["exclusion_reason"] = (
+            "backend stopped answering by the end of the trial (#485)"
+        )
+    results.write_row(r, results_path)
+    if server_gone:
+        raise SystemExit(
+            f"backend {bname} stopped answering -- aborting the batch instead of "
+            "scoring the remaining trials against a dead server (#485). Check the "
+            "server watcher and earlyoom in the journal."
         )
 
 
@@ -4467,6 +4597,7 @@ def main():
                 # two runs hours apart.
                 for client in clients:
                     _memory_gate(args.memory_gate_gib, args.timeout)
+                    headroom = _headroom_gate(args)
                     r = one_trial(
                         cfg,
                         task,
@@ -4504,7 +4635,7 @@ def main():
                     # written -- a trial costs up to half an hour and losing one
                     # to a schema bug is worse than storing a flagged row.
                     r["finished"] = results.now()
-                    results.write_row(r, args.results)
+                    finish_row(r, bname, backend, headroom, args.results, args.dry_run)
 
                     # #55: let the batch disbelieve itself. A widely-used
                     # client collapsing on a backend that works under another
