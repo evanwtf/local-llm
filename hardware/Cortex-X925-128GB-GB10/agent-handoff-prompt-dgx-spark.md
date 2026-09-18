@@ -215,20 +215,40 @@ The operator standardized the DGX heartbeat header. **First line must match this
 format exactly**, then 2-4 tight bullets:
 
 ```
-HH:MM EDT: GPU: util N%, power NW (GPU), NW (outlet), temp: NºC.  Current task #N, in progress for N minutes, ETA HH:MM.  Next task: #N
+HH:MM EDT: GPU: util N%, power NW (GPU), NW (outlet), temp: NºC.  Current task #N (<model-slug>), in progress for N minutes, ETA HH:MM.  Next task: #N
 ```
 
-Rules for the header: re-read the wall clock each tick (`TZ=America/New_York
-date`); GPU from `nvidia-smi --query-gpu=utilization.gpu,power.draw,temperature.gpu
---format=csv,noheader,nounits` (round power/temp to integers, util as-is);
-current task = the issue whose work is running now, from the run lock + active
-run.py / scope + the backend it serves, with "in progress for N min" from the
-run start and a realistic ETA (remaining trials × observed per-trial wall). If
-the GPU is idle (util 0 / power ~10 W / no lock), write "Current task: idle" and
-pick the next task to launch. Next task = the next queued DGX item (P0 before P1,
-then issue number). Bullets: what changed since last tick, anything
-committed/pushed, any blocker. Report a run completion, failure, blocker, or
-operator decision immediately; do not add a separate five-minute status loop.
+Every field, and where it comes from. Guessing any of them is worse than
+omitting the tick.
+
+| field | source | rule |
+|---|---|---|
+| `HH:MM EDT` | `TZ=America/New_York date '+%H:%M %Z'` | **re-read the clock every tick.** Never infer it from the last one |
+| `util N%` | `nvidia-smi --query-gpu=utilization.gpu,power.draw,temperature.gpu --format=csv,noheader,nounits` | as-is, no rounding |
+| `NW (GPU)` | the same call | round to an integer. **GPU-only power** — it reads ~4 W idle |
+| `NW (outlet)` | `uv run python scripts/dgx_metrics.py` → the `wall` figure | round to an integer, **always labeled `(outlet)`** beside the GPU figure. This is the whole box at the smart plug: CPU, memory, NVMe, fans, PSU loss. Idle is ~29 W and a benchmark peaks near 180 W, so it is the honest "is this machine working" number (#454) |
+| `temp: NºC` | the same `nvidia-smi` call | round to an integer |
+| `#N` | the issue whose work is running | from `~/.local-llm-bench/run-lock.json` and `dgx_server.py status <name>` — **never `pgrep`** |
+| `(<model-slug>)` | the served model | the backend's `model` field from `tasks.toml`, which is what `dgx_server.py status` reports as `served_model` — e.g. `qwen3.6-35b-a3b-nvfp4`, `nemotron-3-super-120b-a12b`. An issue number alone does not say what is loaded, and several issues share a model while one issue spans several arms |
+| `in progress for N minutes` | the run's own start time (the lock's `started`, or the serve log) | not the tick interval |
+| `ETA HH:MM` | remaining trials × observed per-trial wall | say what it assumes when the spread is wide |
+| `Next task: #N` | `uv run python scripts/make_next.py --platform nvidia` | P0 before P1, then issue number |
+
+**When the box is idle**, write `Current task: idle` with no slug, and — per the
+keep-the-GPU-busy directive — name the task you are launching now rather than
+describing the queue.
+
+**Always say why the power reading is what it is.** Low GPU power is not
+automatically a problem: loading weights is disk-bound and reads ~10 W, a tick
+between trials reads near idle, and a genuinely idle box reads ~4 W GPU / ~29 W
+outlet. A reading without its reason is unreadable a day later.
+
+Then 2-4 tight bullets: what changed since the last tick (pass/fail counts read
+from the run log, never remembered), a metrics line (outlet 30-minute peak, and
+`dgx_metrics.py --model <slug>` for decode tok/s, prefix-hit, running/waiting),
+`MemAvailable` with the guard's state, and any blocker. Report a run completion,
+failure, blocker, or operator decision **immediately** — do not wait for the
+next tick, and do not add a separate five-minute loop.
 
 Add a **Metrics** bullet with the **wall power** and the app-level serving
 numbers — the header covers GPU util/power/temp, but not the whole box or what
@@ -288,7 +308,7 @@ makes the session autonomous rather than one-shot.
 when you are otherwise idle. Paste this as the `/loop` input:
 
 ```
-/loop 30m Post a DGX Spark (spark-231e, GB10) status update. FIRST LINE must match this header format EXACTLY: "HH:MM EDT: GPU: util N%, power NW (GPU), NW (outlet), temp: NºC.  Current task #N, in progress for N minutes, ETA HH:MM.  Next task: #N". Rules: (1) Re-read the current wall-clock time in America/New_York each tick — never infer it. (2) GPU readings from `nvidia-smi --query-gpu=utilization.gpu,power.draw,temperature.gpu --format=csv,noheader,nounits`; round power and temp to integers, util as-is; OUTLET power = the smart-plug wall reading from `uv run python scripts/dgx_metrics.py`, always labeled "(outlet)" beside the "(GPU)" figure (#454). (3) Current task = the GitHub issue whose work is running now — determine it from the run lock (`~/.local-llm-bench/run-lock.json`), the active run.py / systemd run-scope, and the backend it serves; "in progress for N minutes" from the run's start time; give a realistic ETA (remaining trials × observed per-trial wall). If the GPU is idle (util 0 / power ~10W / no run lock), write "Current task: idle" and, per the maximize-utilization directive, pick the next task to launch. (4) Next task = the next item from `uv run python scripts/make_next.py --platform nvidia` (P0 before P1, then by issue number). After the header line, add 2-4 bullets: what changed since last tick, anything committed/pushed, and any blocker. Keep it tight.
+/loop 30m Post a DGX Spark (spark-231e, GB10) status update. FIRST LINE must match this header format EXACTLY: "HH:MM EDT: GPU: util N%, power NW (GPU), NW (outlet), temp: NºC.  Current task #N (<model-slug>), in progress for N minutes, ETA HH:MM.  Next task: #N". Rules: (1) Re-read the current wall-clock time in America/New_York each tick — never infer it. (2) GPU readings from `nvidia-smi --query-gpu=utilization.gpu,power.draw,temperature.gpu --format=csv,noheader,nounits`; round power and temp to integers, util as-is; OUTLET power = the smart-plug wall reading from `uv run python scripts/dgx_metrics.py`, always labeled "(outlet)" beside the "(GPU)" figure (#454); if a power figure is low, say why (loading is disk-bound, between trials, idle). (3) Current task = the GitHub issue whose work is running now — determine it from the run lock (`~/.local-llm-bench/run-lock.json`) and `uv run python scripts/dgx_server.py status <name>`, never pgrep — and name the served model slug in parentheses after the issue number (the backend's `model` field, e.g. `qwen3.6-35b-a3b-nvfp4`), because an issue number alone does not say what is loaded; "in progress for N minutes" from the run's start time; give a realistic ETA (remaining trials × observed per-trial wall). If the GPU is idle (util 0 / power ~4W GPU, ~29W outlet / no run lock), write "Current task: idle" with no slug and, per the maximize-utilization directive, name the next task you are launching now. (4) Next task = the next item from `uv run python scripts/make_next.py --platform nvidia` (P0 before P1, then by issue number). After the header line, add 2-4 bullets: what changed since last tick, anything committed/pushed, and any blocker. Keep it tight.
 ```
 
 In Codex (no `/loop`): after each heartbeat, schedule a bounded wait of ≤30 min,
