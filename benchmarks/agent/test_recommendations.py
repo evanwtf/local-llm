@@ -489,7 +489,7 @@ def test_the_upstream_caveat_enumerates_every_shim_backed_row() -> None:
 
 def test_the_upstream_caveat_heading_counts_the_rows() -> None:
     """The heading said "One row" while the body named two and three applied."""
-    n = len(_shim_backed_backends())
+    n = len(_shim_backed_backends() - UPSTREAM_REPRODUCIBLE)
     heading = f"### {NUMBER_WORD[n]} rows here cannot be reproduced"
     assert heading in TABLES_DOC.read_text(), (
         f"{n} rows need the fork; the heading does not say {NUMBER_WORD[n]!r}"

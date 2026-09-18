@@ -156,6 +156,7 @@ be drawn from — OpenCode, after the `--dir` cutover, not excluded.
 | `qwen38fnds4kimat` | Q4_K **imatrix** rebuild of the same model, MTP off | ds4, ivanfioravanti fork (via tool shim) | 105 GB | 0 |
 | `qwen38fnds4q4exp` · `qwen38fnds4q4exppr5` | the same `-q4` fast-pack **converted to the `qwen4exp` schema** (`--ple-external`), MTP off | ds4 `6c1e836` (ds4-metal-228, via tool shim) | 107 GB | 46 |
 | `qwen38fnds4mtpauto` | the same `-q4` qwen4exp fast-pack with **embedded MTP (nextn), MTP-on-by-pack** — the #212 pack-level MTP A/B arm against `qwen38fnds4q4exp` | ds4 `ccea768` (ds4-metal, via tool shim) | 107 GB | 0 |
+| `qwen38fnds4main` | upstream's own `qwen38-q4k` GGUF (Q4_K imatrix gate/up, MXFP4 down; n-grams inside, no `--ple`), MTP off | ds4 upstream main `8db1d1d1` (via tool shim) | 177 GB | 0 |
 | `qwen38fnmlxserve` | the same model as MLX mixed 4/8-bit weights | mlx-serve 26.9.1 (no shim) | 101 GB | 1 |
 | `qwen38fnmlxserve-git` | the same model as MLX mixed 4/8-bit weights | mlx-serve git main+PR383 at `~/git/mlx-serve` (no shim) | 101 GB | 0 |
 | `qwen38fnmlxservenopld` | the same MLX mixed 4/8-bit weights, **PLD off** (`--no-pld`) — the #262 control arm | mlx-serve 26.9.1 (no shim) | 101 GB | 0 |
