@@ -2422,6 +2422,15 @@ def bwrap_argv(argv, worktree, repo, denied):
         "/",
         "/",
         "--die-with-parent",
+        # A PID namespace, so killing bwrap kills EVERYTHING the trial started.
+        # `--die-with-parent` alone reaches only the process bwrap starts
+        # directly; the agent's pytest -> python grandchildren were never tied
+        # to it. On 2026-09-17 the client cap killed the process group at
+        # 24.8 GiB, and the model's mbox-scan code kept running outside it --
+        # to 108,524 MiB, when earlyoom finally SIGTERMed it (#485). With its
+        # own PID namespace, bwrap's child is PID 1 inside, and when PID 1
+        # dies the kernel kills the rest of the namespace.
+        "--unshare-pid",
         # Its own /tmp, and its own /dev/shm: vLLM's client libraries put
         # POSIX segments there, and a leaked segment outlives the trial.
         "--tmpfs",

@@ -77,6 +77,57 @@ def tree_rss_gib(root: int, table: dict[int, tuple[int, int]]) -> float:
     return round(total / 1024**2, 2)
 
 
+def tree_pids(root: int, table: dict[int, tuple[int, int]]) -> list[int]:
+    """`root` and every descendant, by parent link, in discovery order.
+
+    This is the same walk `tree_rss_gib` measures, and that is the point: the
+    cap must kill exactly what it counted. A descendant that leaves the process
+    group -- a detached tool call, anything that calls `setsid` -- is still
+    reached here by its parent link, but a `killpg` never reaches it.
+    """
+    children: dict[int, list[int]] = {}
+    for pid, (ppid, _) in table.items():
+        children.setdefault(ppid, []).append(pid)
+    out, stack, seen = [], [root], set()
+    while stack:
+        pid = stack.pop()
+        if pid in seen:
+            continue
+        seen.add(pid)
+        if pid in table:
+            out.append(pid)
+        stack.extend(children.get(pid, ()))
+    return out
+
+
+def kill_tree(root: int, sig: int = signal.SIGKILL) -> int:
+    """Signal `root`'s process group AND every descendant. Returns pids signalled.
+
+    2026-09-17 (#485): the client cap measured a 24.8 GiB tree, killed the
+    process group, and the model's `mbox-scan` code kept running outside it --
+    it had left the group -- until earlyoom SIGTERMed it at 108,524 MiB. The
+    cap had counted the runaway and could not kill it.
+
+    **The snapshot is taken before anything is signalled.** Once the parent
+    dies its orphans are reparented, the parent links break, and the runaway
+    is no longer findable from `root`. Unknown (an unreadable table) falls back
+    to the group kill alone rather than doing nothing.
+    """
+    snapshot = tree_pids(root, _rss_kib_by_pid())
+    try:
+        os.killpg(os.getpgid(root), sig)
+    except (ProcessLookupError, PermissionError):
+        pass
+    signalled = 0
+    for pid in snapshot:
+        try:
+            os.kill(pid, sig)
+            signalled += 1
+        except (ProcessLookupError, PermissionError):
+            continue
+    return signalled
+
+
 def sample_tree_rss_gib(pid: int) -> float:
     """Resident set of `pid` and every descendant right now, in GiB.
 
@@ -140,7 +191,8 @@ def _run_capped_spooled(cmd, cwd, timeout, cap_gib, env, out_f, err_f):
 
     if killed or proc.poll() is None:
         try:
-            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+            # The whole counted tree, not just the group (#485).
+            kill_tree(proc.pid, signal.SIGKILL)
         except (ProcessLookupError, PermissionError):
             proc.kill()
     proc.wait()
