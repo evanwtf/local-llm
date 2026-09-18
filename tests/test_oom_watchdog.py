@@ -200,3 +200,35 @@ def test_the_hardware_watchdog_config_is_tracked_and_armed():
     assert "[Manager]" in conf
     assert "RuntimeWatchdogSec=60" in conf
     assert "RebootWatchdogSec=" in conf
+
+
+def test_the_earlyoom_label_is_not_read_as_a_kernel_oom():
+    """`earlyoom-kill:` contains `oom-kill:`. The first night, every earlyoom
+    kill was also reported as a kernel OOM because of it."""
+    line = (
+        "2026-09-17T23:21:31-04:00 spark-231e uv[53086]: WARNING earlyoom-kill: "
+        "2026-09-17T23:20:58-04:00 spark-231e earlyoom[1538]: sending SIGTERM "
+        'to process 51184 uid 1000 "python": badness 1688, VmRSS 108524 MiB'
+    )
+    assert ow.classify(line) != "kernel-oom"
+
+
+def test_the_watchdog_reads_the_two_sources_separately(monkeypatch):
+    """Only the kernel ring and the earlyoom unit can report a kill, and they
+    must be two reads: `journalctl -k -u earlyoom.service` ANDs the matches and
+    returned nothing over a window holding a real 106 GiB earlyoom kill."""
+    calls = []
+
+    class Out:
+        def __init__(self, text):
+            self.stdout = text
+
+    def fake_run(argv, **kwargs):
+        calls.append(argv)
+        return Out("kernel-line" if "-k" in argv else "earlyoom-line")
+
+    monkeypatch.setattr(ow.subprocess, "run", fake_run)
+    text = ow.read_journal("-10min")
+    assert len(calls) == 2
+    assert not any("-k" in c and "earlyoom.service" in c for c in calls)
+    assert "kernel-line" in text and "earlyoom-line" in text
