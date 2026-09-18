@@ -2328,6 +2328,25 @@ context_tokens = 262144
 # max-num-seqs 1, and thinking off via the patched template's enable_thinking.
 # 131k / 2 seqs / 3 GiB KV left 16.5 GiB idle and the first request took the
 # pool under the 13 GiB guard (2026-09-18 14:20).
+# #434: Qwen3.8-Flash-Next as EXL3 through vLLM + vllm-exl3, via vcruz305's
+# recipe -- operator-approved 2026-09-18 (turboderp's pack, the recipe's vLLM
+# patches). Deviations, for this harness: tool-call parser + auto tool choice
+# added (the recipe's serve script has none), thinking off, and the n-gram
+# table in disk mode at GMU 0.60 (the shipped resident/0.80 idled at 17.2 GiB
+# MemAvailable, under the #485 gate).
+[backend.qwen38fnexl3nothinkdgx]
+description = "Qwen3.8-Flash-Next EXL3 3.05 bpw (turboderp/Qwen3.8-Flash-Next-exl3 rev 3.05bpw_h5_ng5 @69e3343, ~80 GB) via vcruz305/Qwen3.8-Flash-Next-EXL3-DGX-Spark-recipe @b942e1f: vLLM 0.29.0 + recipe patches, exllamav3 1.4.7 from source (aarch64 patch), vllm-exl3 0.4.2 @08ed1bf; MTP k=3, 262k ctx, max-num-seqs 4, prefix caching, bf16 mamba state; n-gram table disk-backed (VLLM_EXL3_NGRAM_TABLE=disk, PIECEWISE graphs) at gpu-memory-utilization 0.60 (recipe ships resident at 0.80); tool-call parser qwen3_coder added; thinking off via --default-chat-template-kwargs"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "vllm"
+model = "Qwen3.8-Flash-Next"
+aider_model = "openai/Qwen3.8-Flash-Next"
+opencode_model = "vllm8888/Qwen3.8-Flash-Next"
+context_tokens = 262144
+speculative = "MTP k=3 (pack's MTP head + hyper-connection mixer patch); operator-approved third-party weights and runtime patches (#434)"
+draft_engine = "vllm"
+
 [backend.glm53flashexl3k2nothinkdgx]
 description = "GLM-5.3-Flash EXL3 K2 (vcruz305/GLM-5.3-Flash-EXL3-K2, 120 shards, 97.7 GB) via vcruz305/GLM-5.3-Flash-EXL3-K2-DGX-Spark-recipe @655e60b: prebuilt aarch64 vLLM 0.1.dev62+g878631b60 (torch 2.13.0+cu130), vllm-exl3 0.4.2 built from d3cfd394, EXL3_FUSED_MOE=1 native kernel; fp8 KV pinned 1.5 GiB (68,656 tokens), max-model-len 65536, max-num-seqs 1, prefix caching on, DG_JIT_CACHE_DIR outside ~/.cache/vllm; chat template patched to honor enable_thinking, thinking off by server default. Idle MemAvailable 16 GiB: runs use a 1 GiB client cap and --server-floor-gib 10 (the unit guard still stops the server at 13 GiB)"
 tier = "gb10-spark"

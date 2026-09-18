@@ -184,6 +184,7 @@ be drawn from — OpenCode, after the `--dir` cutover, not excluded.
 | `glm53flashexl3k2nothinkdgx` | GLM-5.3-Flash (320B-A18B) as **EXL3 K2** on one Spark: vcruz305's recipe, vLLM fork + vllm-exl3, MTP k=2, thinking off (#298) | vLLM fork + vllm-exl3 CUDA sm_121 | 97.7 GB | 1 |
 | `qwen3827bnvfp4miaainothinkdgx` | `unsloth/Qwen3.8-27B-NVFP4` (**dense 27B**) via MiaAI-Lab's single-Spark vLLM recipe, YaRN 1M, MTP k=2, thinking off; GMU 0.70 not the recipe's 0.84 (#303) | vLLM nightly-aarch64 CUDA sm_121 | 22.6 GB | 30 |
 | `qwen3827bsglangdsparknothinkdgx` | the 27B on **SGLang** with the **DSpark** drafter via MiaAI-Lab's SGLang recipe, thinking off, mem 0.70 not 0.90 (#350, #303) | SGLang qwen38-27b image CUDA sm_121 | 24 GB + 2.7 GB draft | 90 |
+| `qwen38fnexl3nothinkdgx` | Qwen3.8-Flash-Next as **EXL3 3.05 bpw** (turboderp's pack) via vLLM + vllm-exl3, MTP k=3, n-gram table on disk, thinking off (#434) | vLLM 0.29.0 + vllm-exl3 CUDA sm_121 | 80 GB | 0 |
 | `qwen36bf16dgx` | `Qwen/Qwen3.6-27B` **BF16**, the unquantized control for the row above | vLLM 0.29.0 CUDA sm_121 | 51.7 GiB | 30 |
 | `qwen36nvfp4v1dgx` | the same NVFP4 weights on vLLM's **V1** model runner, speculation off | vLLM 0.29.0 CUDA sm_121 | 20.4 GiB | 0 |
 | `qwen36nvfp4specdgx` | the same again with **draftless n-gram speculation** (5 tokens, lookup 3-8) | vLLM 0.29.0 CUDA sm_121 | 20.4 GiB | 0 |
