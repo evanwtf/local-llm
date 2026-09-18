@@ -26,6 +26,7 @@ Results append to results.jsonl. Nothing is overwritten, so runs accumulate.
 
 import argparse
 import atexit
+import functools
 import json
 import logging
 import os
@@ -2522,14 +2523,54 @@ def confinement_record(mechanism, denied, memory_cap_gib):
     }
 
 
+@functools.cache
+def bwrap_works() -> bool:
+    """Whether bwrap can actually create the namespaces a trial needs.
+
+    `BWRAP.exists()` is not enough. On a host where unprivileged user
+    namespaces are restricted -- Ubuntu 24.04 ships
+    `kernel.apparmor_restrict_unprivileged_userns = 1`, and a bwrap that is
+    neither setuid nor granted an AppArmor profile is denied -- bwrap exits
+    with "setting up uid map: Permission denied" *before* it runs the child.
+    The harness then wrapped every trial in a command that could not start,
+    the client wrote an empty transcript, and the oracle scored it as a model
+    failure: a whole batch of zeros that measured the sandbox, not the model
+    (found on the Ryzen / RTX 3080 Ti desktop, 2026-09-18).
+
+    Probe once with the same namespace flags `bwrap_argv` uses, cache the
+    result, and let `sandboxed()` fall back to unconfined when it fails.
+    """
+    try:
+        probe = subprocess.run(
+            [
+                str(BWRAP),
+                "--dev-bind",
+                "/",
+                "/",
+                "--unshare-pid",
+                "--tmpfs",
+                "/tmp",
+                "--",
+                "true",
+            ],
+            capture_output=True,
+            timeout=30,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return probe.returncode == 0
+
+
 def sandboxed(argv, worktree, repo, tmpdir):
     """Wrap an agent invocation in whichever sandbox this platform has.
 
     macOS: `sandbox-exec` with the deny-list profile (#54). Linux: `bwrap`
     with the same deny list expressed as tmpfs covers, plus a private /tmp
-    (#476). Returns `(argv, denied, mechanism)`; an unconfined platform
-    returns the argv unchanged with mechanism "none" rather than silently
-    pretending to confine.
+    (#476). Returns `(argv, denied, mechanism)`; a platform with no *working*
+    sandbox returns the argv unchanged with mechanism "none" rather than
+    silently pretending to confine -- or, worse, wrapping the trial in a
+    sandbox that cannot start and scoring the empty result as a model failure.
     """
     denied_paths = None
     if pathlib.Path("/usr/bin/sandbox-exec").exists():
@@ -2541,12 +2582,21 @@ def sandboxed(argv, worktree, repo, tmpdir):
             denied_paths,
             "sandbox-exec",
         )
-    if BWRAP.exists():
+    if BWRAP.exists() and bwrap_works():
         _, denied_paths = sandbox_profile(worktree, repo)
         return bwrap_argv(argv, worktree, repo, denied_paths), denied_paths, "bwrap"
-    logger.warning(
-        "no sandbox-exec and no bwrap on this platform; agent runs unconfined"
-    )
+    if BWRAP.exists():
+        logger.warning(
+            "bwrap is installed but cannot create a user namespace on this host "
+            "(kernel.apparmor_restrict_unprivileged_userns=1, and bwrap is not "
+            "setuid). Every wrapped trial would exit before it started and score "
+            "as a model failure, so the agent runs UNCONFINED (confinement: "
+            "none). Enable unprivileged user namespaces to restore confinement."
+        )
+    else:
+        logger.warning(
+            "no sandbox-exec and no bwrap on this platform; agent runs unconfined"
+        )
     return argv, [], "none"
 
 
