@@ -131,6 +131,8 @@ def test_a_cell_with_one_side_only_is_kept_with_an_empty_side():
         "macos": [],
         "engine_versions": [],
         "client_versions": [],
+        "first_started": None,
+        "last_started": None,
     }
     assert records[0]["macos27"] == {"latest": empty, "all": empty}
 
@@ -150,12 +152,22 @@ def test_main_writes_the_dataset(tmp_path):
     )
     out = tmp_path / "dataset.json"
     rc = os_compare.main(
-        ["--results", str(ledger), "--out", str(out), "--backend", "qwen38fnq3"]
+        [
+            "--results",
+            str(ledger),
+            "--out",
+            str(out),
+            "--report",
+            str(tmp_path / "report.md"),
+            "--backend",
+            "qwen38fnq3",
+        ]
     )
     assert rc == 0
     doc = json.loads(out.read_text())
     assert doc["epoch_27"] == "2026-09-18T06:53:09-04:00"
     assert doc["cells"][0]["macos27"]["latest"]["n"] == 1
+    assert "| parser-date |" in (tmp_path / "report.md").read_text()
 
 
 def test_main_refuses_an_empty_dataset(tmp_path):
@@ -163,3 +175,56 @@ def test_main_refuses_an_empty_dataset(tmp_path):
     ledger.write_text("")
     rc = os_compare.main(["--results", str(ledger), "--out", str(tmp_path / "d.json")])
     assert rc == 1
+
+
+def test_a_side_records_when_its_rows_ran():
+    records, _ = os_compare.build(
+        [
+            row("2026-09-17T23:20:00-04:00", "26.6.2"),
+            row("2026-09-17T23:40:00", "26.6.2"),
+        ],
+        ("qwen38fnq3",),
+    )
+    side = records[0]["macos26"]["latest"]
+    assert side["first_started"] == "2026-09-17T23:20:00-04:00"
+    assert side["last_started"] == "2026-09-17T23:40:00-04:00"
+
+
+def two_task_doc():
+    rows = [
+        row(BEFORE, "26.6.2", task="parser-date", wall=200.0, engine="a1"),
+        row(AFTER, "27.0", task="parser-date", wall=100.0, engine="b2"),
+        row(AFTER, "27.0", task="parser-date", wall=150.0, engine="b2"),
+        row(AFTER, "27.0", task="parser-date", wall=120.0, engine="b2"),
+        row(BEFORE, "26.6.2", task="mbox-scan", wall=50.0, engine="a1"),
+        row(AFTER, "27.0", task="mbox-scan", wall=75.0, engine="b2", passed=False),
+    ]
+    records, dropped = os_compare.build(rows, ("qwen38fnq3",))
+    return os_compare.dataset(records, dropped, ("qwen38fnq3",), "opencode")
+
+
+def test_render_gives_seconds_beside_every_percent():
+    md = os_compare.render(two_task_doc())
+    # parser-date: 27 median 120 s against 26's 200 s is 60%.
+    assert "| parser-date | 1/1 | 200.0 | 3/3 | 120.0 | 60% |" in md
+    # mbox-scan: 75 s against 50 s is 150%, and the failed trial shows.
+    assert "| mbox-scan | 1/1 | 50.0 | 0/1 | 75.0 | 150% |" in md
+
+
+def test_render_totals_sum_the_medians_per_backend():
+    md = os_compare.render(two_task_doc())
+    # 200 + 50 = 250 against 120 + 75 = 195: 78%.
+    assert "| qwen38fnq3 | 2/2 | 3/4 | 250.0 | 195.0 | 78% |" in md
+
+
+def test_render_names_the_engine_on_each_side_and_flags_a_change():
+    md = os_compare.render(two_task_doc())
+    assert "a1" in md and "b2" in md
+    assert "engine changed" in md
+
+
+def test_render_has_no_percent_for_a_one_sided_cell():
+    records, dropped = os_compare.build([row(BEFORE, "26.6.2")], ("qwen38fnq3",))
+    doc = os_compare.dataset(records, dropped, ("qwen38fnq3",), "opencode")
+    md = os_compare.render(doc)
+    assert "| parser-date | 1/1 | 100.0 | 0/0 | — | — |" in md
