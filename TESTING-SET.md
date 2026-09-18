@@ -178,7 +178,7 @@ be drawn from — OpenCode, after the `--dir` cutover, not excluded.
 | `nemotron3super120bmtpnopcdgx` | the MTP row above with prefix caching off, to isolate corrupted outputs (#406) | vLLM 0.29.0 CUDA sm_121 | 85.8 GiB | 0 |
 | `qwen38fnnvfp4miaaidgx` | Qwen3.8-Flash-Next NVFP4 via the MiaAI-Lab single-Spark recipe: third-party weights, container and nine patched vLLM modules, operator-approved; KV target lowered 20 -> 10 GiB so a trial fits beside it (#468) | vLLM (MiaAI image) CUDA sm_121 | 99 GiB | 30 |
 | `qwen38fnnvfp4miaainothinkdgx` | the MiaAI row above with **thinking off**, via the server's default chat-template kwargs; that row reasons by default and the arm it is compared with (`qwen38fnnvfp4dgx`) did not (#468) | vLLM (MiaAI image) CUDA sm_121 | 99 GiB | 30 |
-| `qwen38fnnvidianvfp4nothinkdgx` | `nvidia/Qwen3.8-Flash-Next-NVFP4` (NVIDIA's own quant, 124 GiB) through the MiaAI recipe, **thinking off** — the checkpoint lever against the row above (#493) | vLLM (MiaAI image) CUDA sm_121 | 124 GiB | 0 |
+| `qwen38fnnvidianvfp4nothinkdgx` | `nvidia/Qwen3.8-Flash-Next-NVFP4` (NVIDIA's own quant, 124 GiB) through the MiaAI recipe, **thinking off** — the checkpoint lever against the row above (#493) | vLLM (MiaAI image) CUDA sm_121 | 124 GiB | 30 |
 | `qwen36bf16dgx` | `Qwen/Qwen3.6-27B` **BF16**, the unquantized control for the row above | vLLM 0.29.0 CUDA sm_121 | 51.7 GiB | 30 |
 | `qwen36nvfp4v1dgx` | the same NVFP4 weights on vLLM's **V1** model runner, speculation off | vLLM 0.29.0 CUDA sm_121 | 20.4 GiB | 0 |
 | `qwen36nvfp4specdgx` | the same again with **draftless n-gram speculation** (5 tokens, lookup 3-8) | vLLM 0.29.0 CUDA sm_121 | 20.4 GiB | 0 |
