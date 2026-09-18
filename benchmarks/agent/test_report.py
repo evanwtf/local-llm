@@ -43,7 +43,7 @@ def test_the_threshold_matches_the_issue():
     assert 0.55 <= report.RESOLUTION <= 0.57
 
 
-def test_summarise_uses_verdict_not_the_passed_field():
+def test_summarize_uses_verdict_not_the_passed_field():
     """results.verdict() is the accessor; row["passed"] is not.
 
     A timeout carries passed: None and is a failure, not an absence.
@@ -52,15 +52,15 @@ def test_summarise_uses_verdict_not_the_passed_field():
         {"wall_seconds": 10.0, "passed": True},
         {"wall_seconds": 30.0, "passed": None, "error": "timeout"},
     ]
-    passed, n, median, worst, spread = report.summarise(rows)
+    passed, n, median, worst, spread = report.summarize(rows)
     assert (passed, n) == (1, 2)
     assert median == 20.0
     assert worst == 30.0
     assert spread == 3.0
 
 
-def test_summarise_handles_an_empty_cell():
-    assert report.summarise([]) is None
+def test_summarize_handles_an_empty_cell():
+    assert report.summarize([]) is None
 
 
 # --- #353: what moved, the agent or the engine ------------------------------

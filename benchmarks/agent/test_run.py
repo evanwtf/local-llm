@@ -406,17 +406,17 @@ def test_the_summary_falls_back_to_stderr_when_stdout_is_empty():
     not compile, which is a real and interesting failure, and the diagnosis was
     thrown away.
     """
-    got = run.summarise_run("", "error: cannot find 'Buckets' in scope\n")
+    got = run.summarize_run("", "error: cannot find 'Buckets' in scope\n")
     assert "cannot find 'Buckets'" in got
 
 
 def test_stdout_still_wins_when_present():
-    got = run.summarise_run("17 passed in 0.07s\n", "some warning\n")
+    got = run.summarize_run("17 passed in 0.07s\n", "some warning\n")
     assert got == "17 passed in 0.07s"
 
 
 def test_both_empty_is_still_reported_rather_than_crashing():
-    assert run.summarise_run("", "") == "no output"
+    assert run.summarize_run("", "") == "no output"
 
 
 def test_serving_ds4_root_is_a_git_tree_or_none() -> None:

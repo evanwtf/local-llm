@@ -159,7 +159,7 @@ def _from_rows(outdir: pathlib.Path) -> PromptRef | None:
     if len(seen) > 1:
         raise ValueError(
             f"{outdir.name} holds two prompts: {sorted(seen)}. "
-            "The arms are not comparable; do not summarise them together."
+            "The arms are not comparable; do not summarize them together."
         )
     name, size = seen.pop()
     return PromptRef(name, size, None, False)

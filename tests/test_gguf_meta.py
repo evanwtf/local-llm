@@ -66,7 +66,7 @@ def test_strings_are_decoded(sample):
 
 
 def test_a_short_numeric_array_is_kept_whole(sample):
-    """head_offsets is compared between builds; summarising it would hide a diff."""
+    """head_offsets is compared between builds; summarizing it would hide a diff."""
     assert gguf_meta.read(sample)["qwen4exp.ple.head_offsets"] == [
         0,
         20000003,
@@ -74,7 +74,7 @@ def test_a_short_numeric_array_is_kept_whole(sample):
     ]
 
 
-def test_a_long_string_array_is_summarised_not_expanded(sample):
+def test_a_long_string_array_is_summarized_not_expanded(sample):
     """A 250k-token vocabulary must not be printed or held."""
     got = gguf_meta.read(sample)["tokenizer.ggml.tokens"]
     assert "6 strings" in got
@@ -89,7 +89,7 @@ def _long_ratios(tmp_path: pathlib.Path) -> pathlib.Path:
     return p
 
 
-def test_a_long_numeric_array_is_summarised_by_default(tmp_path):
+def test_a_long_numeric_array_is_summarized_by_default(tmp_path):
     """#162: a 44-value array must not be printed or held unless asked for."""
     got = gguf_meta.read(_long_ratios(tmp_path))
     assert got["deepseek4.attention.compress_ratios"] == "[44 values]"

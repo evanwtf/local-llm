@@ -138,7 +138,7 @@ def read_sensors() -> list[tuple[str, float]]:
     return out
 
 
-def summarise(sensors: list[tuple[str, float]]) -> dict[str, float | int]:
+def summarize(sensors: list[tuple[str, float]]) -> dict[str, float | int]:
     """Die max/mean, and the count, from a sensor list.
 
     `tcal` is a calibration reference that reads about 15 C above the dies;
@@ -200,7 +200,7 @@ def fan_rpm() -> dict[str, float | int]:
 
 def reading() -> dict[str, float | int | str]:
     """One timestamped reading. The clock is the system clock, always."""
-    got: dict[str, float | int | str] = dict(summarise(read_sensors()))
+    got: dict[str, float | int | str] = dict(summarize(read_sensors()))
     got.update(fan_rpm())
     got["utc"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     got["local"] = time.strftime("%H:%M:%S %Z")

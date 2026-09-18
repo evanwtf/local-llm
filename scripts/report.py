@@ -30,7 +30,9 @@ sys.path.insert(0, str(HERE.parent / "benchmarks" / "agent"))
 
 import provenance
 import results
-import summarize
+
+# The summarize.py module, aliased: `summarize` in this file is the cell reducer.
+import summarize as ledger_summary
 
 logger = logging.getLogger(__name__)
 
@@ -80,7 +82,7 @@ def cells(rows, backends, client="opencode"):
     return got
 
 
-def summarise(rows):
+def summarize(rows):
     """(passed, n, median, worst, spread) for one cell, or None if empty."""
     if not rows:
         return None
@@ -235,7 +237,7 @@ def render(by_cell, backends) -> list[str]:
     for task in tasks:
         cols = []
         for b in backends:
-            got = summarise(by_cell.get((b, task), []))
+            got = summarize(by_cell.get((b, task), []))
             cols.append(
                 "-"
                 if not got
@@ -255,7 +257,7 @@ def render(by_cell, backends) -> list[str]:
             if bb == b and not task.startswith(SCRIPT_PREFIX)
             for r in rows
         ]
-        got = summarise(ex)
+        got = summarize(ex)
         if got:
             median = f"{got[2]:.1f}s" if got[2] else "n/a"
             out.append(
@@ -315,8 +317,8 @@ def render(by_cell, backends) -> list[str]:
 
         out += ["", "**Can three trials tell them apart?**", ""]
         for task in tasks:
-            ga = summarise(by_cell.get((a, task), []))
-            gb = summarise(by_cell.get((b, task), []))
+            ga = summarize(by_cell.get((a, task), []))
+            gb = summarize(by_cell.get((b, task), []))
             if not (ga and gb and ga[2] and gb[2]):
                 continue
             lo, hi = sorted((ga[2], gb[2]))
@@ -382,12 +384,12 @@ def main() -> int:
     provenance.configure()
     log_file = provenance.tee("report", machine_specific=True)
     provenance.banner(logger, engines=True)
-    # summarize.load() is the tested reader: it drops dry runs, drops rows
+    # ledger_summary.load() is the tested reader: it drops dry runs, drops rows
     # whose control did not fail (an excision the tests could not see), and
     # normalizes `passed` through verdict() so a timeout lands as False rather
     # than vanishing from the denominator. Reading results.jsonl any other way
     # is how fourteen legacy-keyed rows got counted (#29).
-    rows, discarded, retired, cheats = summarize.load(RESULTS)
+    rows, discarded, retired, cheats = ledger_summary.load(RESULTS)
     if discarded or cheats:
         logger.info(
             "  dropped: %d control-did-not-fail, %d touched tests; %d excluded/dry-run",

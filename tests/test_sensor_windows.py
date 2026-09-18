@@ -39,7 +39,7 @@ def test_windows_bucket_by_local_wall_clock(tmp_path):
     samples = sensor_windows.read_sensors(sensors)
     tz = dt.datetime.now().astimezone().tzinfo
     windows = sensor_windows.read_windows(order, dt.date(2026, 9, 5), tz)
-    got = sensor_windows.summarise(samples, windows)
+    got = sensor_windows.summarize(samples, windows)
     assert got[0]["samples"] == 2, "the 11:00 sample is outside the window"
     assert got[0]["gpu_c_median"] == 81.0
 

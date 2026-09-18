@@ -327,10 +327,10 @@ def tests_pass(worktree, tests, timeout, command="uv run pytest -q"):
             f"oracle memory-killed at {peak:.1f} GiB (cap {ORACLE_MEM_CAP_GIB:.1f} GiB)",
             True,
         )
-    return r.returncode == 0, summarise_run(r.stdout, r.stderr), False
+    return r.returncode == 0, summarize_run(r.stdout, r.stderr), False
 
 
-def summarise_run(stdout, stderr):
+def summarize_run(stdout, stderr):
     """One line describing a test run, preferring stdout but falling back.
 
     `swift test` writes compile errors to **stderr** and leaves stdout empty, so

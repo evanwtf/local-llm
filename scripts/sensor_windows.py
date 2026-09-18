@@ -98,7 +98,7 @@ def read_windows(path: pathlib.Path, day: dt.date, tz: dt.tzinfo | None = None):
     return windows
 
 
-def summarise(samples, windows):
+def summarize(samples, windows):
     """Per-window medians and maxima. A window with no samples is reported as
     such rather than omitted -- an empty window is a join failure, and hiding
     it is how a bad join looks like a clean one."""
@@ -142,7 +142,7 @@ def main(argv: list[str] | None = None) -> int:
         "%d samples, %d windows, local date %s", len(samples), len(windows), day
     )
     empty = 0
-    rows = summarise(samples, windows)
+    rows = summarize(samples, windows)
     for entry in rows:
         if not entry["samples"]:
             empty += 1
