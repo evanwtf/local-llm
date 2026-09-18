@@ -1,0 +1,202 @@
+2026-09-18T13:17:58-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a] 2026-09-18T17:17:58Z (13:17:58 EDT) | harness 62e6a2f
+2026-09-18T13:17:58-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-18T13:17:58-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a] Upstream sweep since 2026-09-17T17:17:58Z (24h) -- mac: 19 repos
+
+2026-09-18T13:17:59-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a] == antirez/ds4 -- our primary engine; the only one that runs DeepSeek-V4-Flash and GLM-5.3
+2026-09-18T13:17:59-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #1056 Metal: optimize Qwen3.8 kernels, MTP state and SSD MoE scheduling (Up tp 40%)
+2026-09-18T13:17:59-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #1070 ROCm: add Qwen3.8 Flash Next support for Strix Halo (gfx1151)
+2026-09-18T13:17:59-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #952 AProjQ4: imatrix-guided Q4_K attention and GPU runtime optimizations
+2026-09-18T13:17:59-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #1036 ROCm: add DeepSeek V4.1 Flash support for Strix Halo (gfx1151)
+2026-09-18T13:17:59-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #1073 Speed up DeepSeek V4.1 Flash on Metal
+2026-09-18T13:17:59-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #1083 CUDA SSD streaming: hits-first expert launch, the Metal split's counterpart (+
+2026-09-18T13:17:59-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #1084 Stream assistant content incrementally when tools are enabled
+2026-09-18T13:17:59-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #767 kv-cache: serialize only occupied compressor rows in checkpoints
+2026-09-18T13:17:59-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    ... and 11 more open PRs
+2026-09-18T13:17:59-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a] 
+2026-09-18T13:18:01-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a] == ggml-org/llama.cpp -- our fast pick's engine; `qwen4exp` IS Qwen3.8-Flash-Next
+2026-09-18T13:18:01-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    releases: b11040, b11039, b11037, b11036, b11035, b11034, b11033, b11030, b11029, b11028
+2026-09-18T13:18:01-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    ggml-cpu: add F16 input to the FWHT (#27779)
+2026-09-18T13:18:01-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    ggml : check for allocation failures to prevent crashes (#28149)
+2026-09-18T13:18:01-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    Model-Saver: Write the SWA pattern, 15 more architectures roundtrip (#29042)
+2026-09-18T13:18:01-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    ci: change ubuntu-latest to ubuntu-24.04 (#29079)
+2026-09-18T13:18:01-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    ggml-webgpu: fix supports_op condition for GET_ROWS (#28978)
+2026-09-18T13:18:01-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    ggml : handle graph buffer reservation failure (#26070)
+2026-09-18T13:18:01-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    vulkan: add IQ3_S  MMQ matmul kernels (#28822)
+2026-09-18T13:18:01-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    vocab : add ufakzeka pre-tokenizer (#29033)
+2026-09-18T13:18:01-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    cmake : fix build when GGML_CPU=OFF and GGML_CUDA=ON (#29026)
+2026-09-18T13:18:01-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    gguf-py: fix Q8_1 block size in GGML_QUANT_SIZES (2+2+32) (#29036)
+2026-09-18T13:18:01-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    ci : disable GHA cache for copilot (#29068)
+2026-09-18T13:18:01-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    ci : bump android-actions/setup-android to 4.0.4 (#29065)
+2026-09-18T13:18:01-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    ... and 1 more
+2026-09-18T13:18:01-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #28803 download: prevent conflict when 2 processes download the same file
+2026-09-18T13:18:01-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #28948 metal : add MoE and SSM_CONV fusion optimizations
+2026-09-18T13:18:01-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #28536 CUDA: Follow up of #25635, refactoring FA shared smem swizzle
+2026-09-18T13:18:01-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #26048 CUDA: Optimize prefil via fuse of w_s scale in epilogue MMQ for nvfp4 checkpoi
+2026-09-18T13:18:01-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #28702 CUDA: fuse dense Q4_K Gate/Up projections and SwiGLU for prefill
+2026-09-18T13:18:01-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #29027 fit : optimize for dense models
+2026-09-18T13:18:01-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #28913 server: fix model eviction race in router(#28698)
+2026-09-18T13:18:01-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #29085 llama: reserve graph nodes for LFM2 recurrent rollback
+2026-09-18T13:18:01-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    ... and 42 more open PRs
+2026-09-18T13:18:01-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a] 
+2026-09-18T13:18:02-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a] == ollama/ollama -- the 31 GB entry point; MLX runtime on the Mac, cuda_v13 on the DGX
+2026-09-18T13:18:02-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    tests: fix metadata deletion test flake (#18493)
+2026-09-18T13:18:02-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    nemotron_h: add MLX vision support (#17714)
+2026-09-18T13:18:02-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    ci: harden release artifact uploads (#18516)
+2026-09-18T13:18:02-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    x/transfer, server: tighten redirect handling for registry requests (#18512)
+2026-09-18T13:18:02-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    docs: clarify integrations overview and add assistant icons (#18511)
+2026-09-18T13:18:02-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    cli: add first-run onboarding shared with the desktop app (#18495)
+2026-09-18T13:18:02-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #18501 docs: document thinking control discovery
+2026-09-18T13:18:02-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #16590 llama-server: prepare to remove compatibility patch with manifest list support
+2026-09-18T13:18:02-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #18524 Add digest and provider_version to /api/chat responses
+2026-09-18T13:18:02-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #18093 Add Talos as an `ollama launch` integration
+2026-09-18T13:18:02-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #16263 responses: support namespace tool calls
+2026-09-18T13:18:02-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #18520 Allow 96-char model names so long HF GGUF pulls validate
+2026-09-18T13:18:02-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #18078 MLX: make Qwen3.8 Flash Next memory efficient
+2026-09-18T13:18:02-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #18519 app: support preview update channel
+2026-09-18T13:18:02-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    ... and 7 more open PRs
+2026-09-18T13:18:02-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a] 
+2026-09-18T13:18:04-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a] == anomalyco/opencode -- our only client
+2026-09-18T13:18:04-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    chore: generate
+2026-09-18T13:18:04-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    support jev
+2026-09-18T13:18:04-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    docs: restore GPT-5.6 Sol pricing (#49724)
+2026-09-18T13:18:04-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    chore: generate
+2026-09-18T13:18:04-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    chore(go): retire Union Alpha (#49718)
+2026-09-18T13:18:04-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    chore(stats): update GitHub star fallback (#49654)
+2026-09-18T13:18:04-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #49820 refactor(theme): align hue direction with mode
+2026-09-18T13:18:04-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #49819 fix(core): filter ambiguous watcher events
+2026-09-18T13:18:04-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #49818 feat(tui): add set-as-default for session model
+2026-09-18T13:18:04-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #49814 docs: add OCI Generative AI provider docs and logo
+2026-09-18T13:18:04-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #49799 feat(opencode): model-agnostic MCP tool search
+2026-09-18T13:18:04-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #49815 fix(app): keep shortcuts filter focused while typing
+2026-09-18T13:18:04-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #49811 fix(opencode): disable cleanup during Homebrew upgrades
+2026-09-18T13:18:04-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #49810 fix(sdk): support Node package imports
+2026-09-18T13:18:04-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    ... and 42 more open PRs
+2026-09-18T13:18:04-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a] 
+2026-09-18T13:18:05-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a] == evanwtf/local-llm -- this project
+2026-09-18T13:18:05-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    Merge pull request #508 from evanwtf/feat/499-os-report
+2026-09-18T13:18:05-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    os_compare: render docs/macos-26-vs-27.md from the dataset (#499)
+2026-09-18T13:18:05-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    Merge pull request #507 from evanwtf/results/493-think-and-303-backend
+2026-09-18T13:18:05-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    Merge branch 'main' into results/493-think-and-303-backend
+2026-09-18T13:18:05-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    Merge pull request #506 from evanwtf/feat/499-os-dataset
+2026-09-18T13:18:05-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    results: NVIDIA Flash-Next thinking on, 90/90 (#493); backend: Mia's Qwen3.8-27B recipe (#303)
+2026-09-18T13:18:05-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    os_compare: build the macOS 26-vs-27 dataset for the M5 Max (#499)
+2026-09-18T13:18:05-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    Merge pull request #505 from evanwtf/bench/499-macos27-first-boot
+2026-09-18T13:18:05-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    results: macOS 27 first-boot suite, 3 stacks x 15 tasks x 3 trials (#499)
+2026-09-18T13:18:05-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    Merge pull request #504 from evanwtf/fix/503-draft-gate-no-traffic
+2026-09-18T13:18:05-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    run.py: a client crash no longer halts a healthy MTP batch (#503)
+2026-09-18T13:18:05-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    Merge pull request #501 from evanwtf/chore/summarize-spelling
+2026-09-18T13:18:05-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    ... and 66 more
+2026-09-18T13:18:05-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a] 
+2026-09-18T13:18:06-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a] == evanwtf/gmail-archive -- the excision tasks' target repository
+2026-09-18T13:18:06-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    (quiet)
+2026-09-18T13:18:06-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a] 
+2026-09-18T13:18:07-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a] == evanwtf/ds4 -- our ds4 fork (#27 asks whether it can be retired)
+2026-09-18T13:18:07-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    (quiet)
+2026-09-18T13:18:07-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a] 
+2026-09-18T13:18:09-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a] == ml-explore/mlx -- the framework everything MLX sits on
+2026-09-18T13:18:09-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #4508 [CUDA] Add fp_gather_qmv to optimize gather_qmm
+2026-09-18T13:18:09-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #4520 Add fused Metal kernels for fast.cross_entropy
+2026-09-18T13:18:09-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #4530 Report a dead peer in JACCL instead of spinning forever; name the lin…
+2026-09-18T13:18:09-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #4529 Fix `col_reduce_longcolumn` for negative-stride views
+2026-09-18T13:18:09-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #4527 Fix default.metallib lookup under swift test with Swift Build
+2026-09-18T13:18:09-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #4531 fix(CUDA): Do not throw from ~CudaHandle while the driver is unloading
+2026-09-18T13:18:09-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #4465 Support uneven tensor parallel sharding in distributed linear layers
+2026-09-18T13:18:09-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a] 
+2026-09-18T13:18:10-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a] == ml-explore/mlx-lm -- reference MLX server; new architectures land here first
+2026-09-18T13:18:10-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    Fix mixed-bit quantized load for sanitize()-derived MLA projections (#1482)
+2026-09-18T13:18:10-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    fix(qwen3): accept nested rope_parameters (rope_theta, rope_scaling) (#1898)
+2026-09-18T13:18:10-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #1901 Add xing4_0 model support
+2026-09-18T13:18:10-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a] 
+2026-09-18T13:18:12-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a] == jundot/omlx -- oMLX -- prefill leader, untested here (#60)
+2026-09-18T13:18:12-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    releases: v0.7.0.dev4
+2026-09-18T13:18:12-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    chore: bump version to 0.7.0.dev4
+2026-09-18T13:18:12-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    fix: restore previous settings when reset is canceled
+2026-09-18T13:18:12-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    fix: disable auto classifier during Claude plan mode
+2026-09-18T13:18:12-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    fix: prevent prefill admission starvation during decode (#3726)
+2026-09-18T13:18:12-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    feat: add global settings reset to WebUI and SwiftUI
+2026-09-18T13:18:12-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    fix(moe): handle offload read failures and queue refill (#3589)
+2026-09-18T13:18:12-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    perf(moe): read missing experts in parallel with pread before the slot writes (#3589)
+2026-09-18T13:18:12-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    refactor(cache): simplify pooling boundary integration (#3290)
+2026-09-18T13:18:12-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    Fix/glm5 promoted boundary (depends on PR #3290) (#3710)
+2026-09-18T13:18:12-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    fix(cache): blank sliceable CacheList members in boundary snapshots when pm-plan is None (#3290)
+2026-09-18T13:18:12-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    fix: clarify affine decode optimization logs (#3716)
+2026-09-18T13:18:12-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    fix: filter inactive discovery interfaces and trace HELLO failures
+2026-09-18T13:18:12-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    ... and 4 more
+2026-09-18T13:18:12-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #2851 fix(specprefill): enable SpecPrefill for MLA-family models (DeepSeek/GLM)
+2026-09-18T13:18:12-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #3739 fix: keep usage history readable on mobile
+2026-09-18T13:18:12-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #2666 fix(admin): keep the main API key out of the admin dashboard URL (0.7.0.dev4)
+2026-09-18T13:18:12-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #3714 feat(admin): bounded percentage field for the MoE expert offload resident frac
+2026-09-18T13:18:12-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #3717 feat(moe): admit expert offload by checkpoint layout, not by model type
+2026-09-18T13:18:12-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #3713 feat(v41): load and offload mlx_lm affine source checkpoints
+2026-09-18T13:18:12-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #3556 feat(sampling): configure repetition context per model
+2026-09-18T13:18:12-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #3594 feat(qwen4_exp): honor YaRN rope_parameters for long-context extension
+2026-09-18T13:18:12-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    ... and 13 more open PRs
+2026-09-18T13:18:12-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a] 
+2026-09-18T13:18:13-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a] == ddalcu/mlx-serve -- benchmarked on our exact machine; llmprobe's author
+2026-09-18T13:18:13-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    fix: release build, swift warnings, faster swift tests + CI
+2026-09-18T13:18:13-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    feat: Prism Bonsai 2 lands — 2-bit Hadamard Qwen3.8-27B at full speed,
+2026-09-18T13:18:13-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #461 fix: fold a non-leading system on /v1/responses to stop the tool-schema double
+2026-09-18T13:18:13-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #449 Expert streaming from SSD for Qwen3.8-Flash-Next: the bf16 checkpoint and quan
+2026-09-18T13:18:13-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #248 Implement SeedVR2 upscaling
+2026-09-18T13:18:13-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a] 
+2026-09-18T13:18:14-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a] == youssofal/MTPLX -- MTP speculative decoding; we hold one unreplicated number
+2026-09-18T13:18:14-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #508 forge: convert Qwen3.8-Flash-Next (qwen4_exp) sources in tree (n-gram sidecar,
+2026-09-18T13:18:14-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #485 [FEAT] Speculative-cascade acceptance (opt-in, off by default): token-specific
+2026-09-18T13:18:14-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #501 perf(qwen4): overlap streamed PLE decode without changing sampled AR (stacked 
+2026-09-18T13:18:14-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #507 fix(qwen4): MTPLX_AR_PIPELINE must reproduce the classic AR sampler (byte-iden
+2026-09-18T13:18:14-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a] 
+2026-09-18T13:18:16-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a] == raullenchai/Rapid-MLX -- the one MLX engine reachable by pip (#57, #60)
+2026-09-18T13:18:16-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    feat(models): support Bonsai 2 Hadamard MLX packs (#3556)
+2026-09-18T13:18:16-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    feat(mac): let Personal Intelligence work with local files and code (#3538)
+2026-09-18T13:18:16-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    fix(rapid-mac): ship a flat-plist DMG Finder layout so the install window opens (#3468) (#3543)
+2026-09-18T13:18:16-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    feat(benchmark): add community benchmark experience (#3544)
+2026-09-18T13:18:16-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    fix(eval): reground conv-10/conv-16 media-prefix prompts with their tightened checkers (#3541)
+2026-09-18T13:18:16-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    perf(mllm): media-aware prior-turn boundary cache on the serialized lane (#3505)
+2026-09-18T13:18:16-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    refactor(mac): centralize audio readiness state (#2982)
+2026-09-18T13:18:16-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    fix(speculative): bound GLM native MTP prefill memory (#3520)
+2026-09-18T13:18:16-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    perf(mllm): skip singleton cache repack on the serialized lane (#3502)
+2026-09-18T13:18:16-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #3550 fix(desktop,agent): make Personal Intelligence and Community Benchmark survive
+2026-09-18T13:18:16-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #3554 refactor(mllm): vendor the mlx-vlm APC support surface (step 2b-1)
+2026-09-18T13:18:16-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #3555 feat(models): support Bonsai 2 Hadamard MLX packs
+2026-09-18T13:18:16-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #3465 feat(rapid-mac): selectable UI language, with Simplified Chinese
+2026-09-18T13:18:16-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #3545 refactor(mllm): vendor mlx-vlm cache types as the phase-B types+seam slice (st
+2026-09-18T13:18:16-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #3551 chore(harness): refresh drifted perf baselines (cold +35-46% on benched models
+2026-09-18T13:18:16-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #3534 refactor(mllm): deprecate the legacy mlx-vlm generation surface
+2026-09-18T13:18:16-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a] 
+2026-09-18T13:18:17-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a] == ARahim3/mlx-dspark -- DSpark/DFlash ported to MLX (#19, #58, #75)
+2026-09-18T13:18:17-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    (quiet)
+2026-09-18T13:18:17-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a] 
+2026-09-18T13:18:18-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a] == Blaizzy/mlx-vlm -- expert offloading, prefix caching, Qwen3.8-Flash-Next MTP
+2026-09-18T13:18:18-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    lfm2_vl: inherit the text LFM2 language model to enable speculative decoding (#2280)
+2026-09-18T13:18:18-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    Reduce test suite and drive model tests from JSON cases (#2276)
+2026-09-18T13:18:18-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    Add Bonsai 2 27B model. (#2293)
+2026-09-18T13:18:18-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    Fix GLM5-Next quantized head sanitization (#2290)
+2026-09-18T13:18:18-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    Fix empty assistant content for Anthropic tool calls (#2291)
+2026-09-18T13:18:18-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #2282 feat: SAM 3D Objects for MLX
+2026-09-18T13:18:18-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #2301 fixing moondream2 support 
+2026-09-18T13:18:18-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #2299 qwen3_vl_moe: feed video pixels through the vision tower
+2026-09-18T13:18:18-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #2294 Discover local models by default and expose loaded status
+2026-09-18T13:18:18-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #2279 Expose make_batch_cache for schedulers outside mlx-vlm
+2026-09-18T13:18:18-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #2298 fix: keep converted sidecars writable and record the cast dtype
+2026-09-18T13:18:18-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #2206 Rebuild speculative decoding around request caches and shared prefill
+2026-09-18T13:18:18-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #2289 Respect generation config sampling defaults
+2026-09-18T13:18:18-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    ... and 2 more open PRs
+2026-09-18T13:18:18-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a] 
+2026-09-18T13:18:20-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a] == unslothai/llama.cpp -- the fork with a working qwen4exp MTP graph (#77)
+2026-09-18T13:18:20-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    releases: b11030-mix-5ff778e, b11027-mix-3e83366
+2026-09-18T13:18:20-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    Publish in parallel again, and defer instead of giving up (#223)
+2026-09-18T13:18:20-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    Restore the resolve outputs the step split left behind (#222)
+2026-09-18T13:18:20-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    Stop the nightly losing finished builds to infrastructure (#221)
+2026-09-18T13:18:20-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    Repin the Qwen3.8-Flash-Next MTP carry onto its fixed head (#220)
+2026-09-18T13:18:20-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #224 examples : add speculative-tree, a tree-structured speculative decoding protot
+2026-09-18T13:18:20-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a] 
+2026-09-18T13:18:21-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a] == Layr-Labs/mlxfast-gemma4-26b-a4b-engine -- MLX Fast leaderboard harness (#80)
+2026-09-18T13:18:21-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    (quiet)
+2026-09-18T13:18:21-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a] 
+2026-09-18T13:18:22-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a] == sudoingX/qwen38-mtp -- 61 paired baseline-vs-MTP runs, disciplined method (#19, #39)
+2026-09-18T13:18:22-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    (quiet)
+2026-09-18T13:18:22-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a] 
+2026-09-18T13:18:23-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a] == trymirai/uzu -- Apple-only Rust engine, reachable by pip; claims 2x MTPLX (#134)
+2026-09-18T13:18:23-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a]    PR #827 A8W8/4 optimizations and improvements
+2026-09-18T13:18:23-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a] 
+2026-09-18T13:18:23-0400 INFO [62e6a2f@M5-Max-128GB none pld=n/a] log: /Users/evanhoffman/git/local-llm-wt-499/logs/sweeps/upstream-sweep-M5-Max-128GB-20260918T171757Z.log

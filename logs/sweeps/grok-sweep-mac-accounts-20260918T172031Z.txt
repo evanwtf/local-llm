@@ -1,0 +1,49 @@
+# grok sweep accounts
+# requested window: 2026-09-17T10:00Z to now (about 31 hours)
+# written: 2026-09-18T17:20:31Z (local: 2026-09-18 13:20:31 EDT)
+# query: Search X for posts and replies from @antirez, @ivanfioravanti, @awnihannun, @ddalcu, @Prince_Canuma, @jundotkim, @ggerganov, @unslothai, @N8Programs, @TheDavidTai, @alexziskind1, @raullenchai, @Blaizzy, @angeloskath, @zcbenz, @0xSero, @sudoingX, @mweinbach, @thdxr, @lmstudio, @PrismML published between 2026-09-17T10:00Z and now about local LLM inference on Apple Silicon (ds4, MLX, llama.cpp Metal, oMLX, mlx-serve, DeepSeek V4.1 Flash, Qwen3.8-Flash-Next, Qwen3.8-27B, Ternary Bonsai 2, GLM-5.3 Flash, MTP / speculative decoding, SSD expert streaming, prefill, M5 Max, macOS 27, opencode). Output ONE bullet per post and nothing else -- no preamble, no summary: - <UTC timestamp> | @handle | <post URL> | <the claim in one sentence>. Omit any item without both a URL and a UTC timestamp. If nothing matches, output exactly: NO RESULTS
+
+I'll search X for posts from those accounts in the given window and keep only items with a URL and UTC timestamp.The first pass hit the per-query cap, so I am searching remaining accounts and pulling extra posts in the same window.I still need older posts in the window and parent-thread context for some replies.I am fetching parent threads for the remaining replies and paging Ivan’s September 17 posts.I am filling remaining threads and paging a few more accounts so the list is complete.- 2026-09-17T11:18:00Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2100544796016394312 | Generative local AI is becoming amazing across text, video, image, and audio.
+- 2026-09-17T11:37:19Z | @TheDavidTai | https://x.com/TheDavidTai/status/2100549659475276271 | MLX-fast work should go to Darkbloom’s local mode and CUDA-fast work to DwarfStar4, and oMLX can pick either optimization.
+- 2026-09-17T11:54:14Z | @TheDavidTai | https://x.com/TheDavidTai/status/2100553917218103387 | mlx-serve can stretch context, but quality collapses because the model was not trained for that length.
+- 2026-09-17T11:55:19Z | @TheDavidTai | https://x.com/TheDavidTai/status/2100554188363018512 | Apple Silicon is the value buy for local LLM hardware.
+- 2026-09-17T12:46:47Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2100567141678194720 | DeepSeek V4.1 plus DSpark on two M3 Ultras with DwarfStar is running at 42 tok/s.
+- 2026-09-17T13:15:00Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2100574239883673725 | For local coding, GLM 5.3 Flash is enough, with Qwen 3.8 Flash Next second and DeepSeek v4.1 Flash third.
+- 2026-09-17T13:17:54Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2100574971869188587 | GLM 5.3 is his main driver for Metal kernel optimizations.
+- 2026-09-17T13:19:41Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2100575420697473104 | Full GLM 5.3 thinks too much and is too slow locally on his machines.
+- 2026-09-17T13:23:58Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2100576497262006354 | That local coding-model ranking will change within a month.
+- 2026-09-17T13:24:55Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2100576736580644888 | Full GLM 5.3 is only feasible online for him; he uses it for inference-engine work and Flash for everything else.
+- 2026-09-17T13:26:21Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2100577098549153831 | Strong autonomous local coding models need at least 64GB of RAM.
+- 2026-09-17T13:32:44Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2100578704720015512 | He hopes to see an M5 Ultra 256GB in action at Apple in Shanghai.
+- 2026-09-17T14:24:20Z | @TheDavidTai | https://x.com/TheDavidTai/status/2100591688326496306 | GLM and Qwen are the best mid- and low-tier local LLMs.
+- 2026-09-17T14:33:56Z | @TheDavidTai | https://x.com/TheDavidTai/status/2100594106112041375 | Buy two M5 Ultras instead of a $16k RTX Pro 6000 setup.
+- 2026-09-17T14:34:19Z | @ddalcu | https://x.com/ddalcu/status/2100594199926026640 | MLXServe now has in-app benchmarking, with community results in the app and at mlxserve.com/benchmarks.
+- 2026-09-17T14:35:52Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2100594593733505065 | DeepSeek V4.1 Flash plus DSpark on two M3 Ultras with DwarfStar hits 67.5 tok/s on coding versus 41.7 on prose.
+- 2026-09-17T14:39:52Z | @awnihannun | https://x.com/awnihannun/status/2100595600203162060 | Apple already offers MLX for efficiently running AI models on Apple hardware.
+- 2026-09-17T14:57:39Z | @ddalcu | https://x.com/ddalcu/status/2100600073885221210 | MLXServe does not show extra stats yet, but the tray menu already reports memory.
+- 2026-09-17T14:57:41Z | @TheDavidTai | https://x.com/TheDavidTai/status/2100600081695076745 | MLXServe’s new benchmark should add MTP canned prompts and a way to inspect output.
+- 2026-09-17T15:06:08Z | @ddalcu | https://x.com/ddalcu/status/2100602210509832319 | The MLXServe bench reuses the llmprobe CTX prompt but is a simpler consumer test, not llmprobe itself.
+- 2026-09-17T15:42:55Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2100611464763523160 | He prefers GLM 5.3 Flash to DeepSeek 4.1, especially on prose.
+- 2026-09-17T16:02:00Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2100616267510014357 | MLX already has M5 Ultra tunings baked in for day-0 support if you build from source.
+- 2026-09-17T16:14:35Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2100619435295859179 | Those M5 Ultra MLX tunings appear not to need extra fine-tuning.
+- 2026-09-17T17:29:42Z | @ddalcu | https://x.com/ddalcu/status/2100638337341985134 | The engine is mlxserve.com and the benchmark is LLMProbe.
+- 2026-09-17T19:18:26Z | @TheDavidTai | https://x.com/TheDavidTai/status/2100665701937688827 | Released Q4 DeepSeek v4.1 Flash now reaches 12.1 tok/s on a 128GB M5 MacBook.
+- 2026-09-17T21:03:55Z | @PrismML | https://x.com/PrismML/status/2100692248480596348 | Ternary Bonsai 2 27B is a 5.9GB Qwen3.8 27B compress that is 9x smaller and keeps 98.2% of aggregate benchmark performance.
+- 2026-09-17T21:03:56Z | @PrismML | https://x.com/PrismML/status/2100692250682610125 | Bonsai 2 27B is an outlier on intelligence density versus full-precision and other low-bit models.
+- 2026-09-17T21:03:57Z | @PrismML | https://x.com/PrismML/status/2100692257494167707 | Bonsai 2 27B weights, whitepaper, WebGPU demo, and docs are live.
+- 2026-09-17T22:06:49Z | @0xSero | https://x.com/0xSero/status/2100708075325841839 | Ternary Bonsai 2 makes Qwen3.8-27B the smartest model you can run on 16–24GB of macOS memory.
+- 2026-09-17T23:36:19Z | @TheDavidTai | https://x.com/TheDavidTai/status/2100730601342894489 | Releases should ship MLX drops in parallel with the usual GGUF files.
+- 2026-09-18T00:34:27Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2100745229233987798 | Ternary Bonsai 2 27B must be tried.
+- 2026-09-18T02:11:23Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2100769625038258497 | ~10 tok/s 2-bit Bonsai on Apple may just not be optimized yet.
+- 2026-09-18T02:23:18Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2100772624234111363 | M5 Ultra MLX scaling is not purely linear; small tricks can push it further.
+- 2026-09-18T02:46:55Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2100778568028397665 | Even access to one M5 Ultra to play and test would be amazing.
+- 2026-09-18T02:47:52Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2100778805606420569 | Custom llama.cpp is becoming the norm.
+- 2026-09-18T05:08:29Z | @thdxr | https://x.com/thdxr/status/2100814192919929259 | OpenCode trained a small local model to classify shell commands, and that job would still work better locally.
+- 2026-09-18T08:06:18Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2100858943786393673 | He will work on the existing DwarfStar DeepSeek V4.1 Flash PR from @kernelpool.
+- 2026-09-18T08:20:00Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2100862388413309225 | After a meeting at Apple Developer Center Shanghai, he is ready to push Apple Silicon local AI further.
+- 2026-09-18T08:26:16Z | @jundotkim | https://x.com/jundotkim/status/2100863967669485616 | oMLX 0.7.0.dev4 adds DeepSeek V4.1 CED prefill (up to 79% faster prompts on M3 Ultra) and multi-request Lightning MTP.
+- 2026-09-18T10:44:15Z | @TheDavidTai | https://x.com/TheDavidTai/status/2100898692689539248 | MLX has been improving a lot each release.
+- 2026-09-18T11:19:34Z | @jundotkim | https://x.com/jundotkim/status/2100907578347946298 | oMLX fails to start if API-key auth is off on a server reachable from outside; turn auth on or reset ~/.omlx.
+- 2026-09-18T12:13:47Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2100921222498333058 | Mia will soon get an M5 Ultra so they can push local AI boundaries together.
+- 2026-09-18T12:29:16Z | @0xSero | https://x.com/0xSero/status/2100925118042001796 | Local DS4.1-Flash can use the same tools as cloud models, shown managing email with Sitegeist and Claude Code.
+- 2026-09-18T17:03:55Z | @TheDavidTai | https://x.com/TheDavidTai/status/2100994237424607560 | Ternary Bonsai 2 27B runs around 40 tok/s on an M5 MacBook Pro.
