@@ -72,6 +72,7 @@ Each script explains itself in full at the top of its own file -- what it comput
 | `mtp_replay_probe.py` | mac | Replay a captured agent request and bisect what switches ds4's MTP off (#151). |
 | `mtp_treatment_gate.py` | mac | Prove the MTP refusal fires, then take rows that carry the treatment (#210). |
 | `oom_watchdog.py` | any | Notice an OOM kill and put the box's reachability back. #459 |
+| `os_compare.py` | any | Build the macOS 26-vs-27 dataset for the M5 Max (#499). |
 | `paired_ab_report.py` | any | Read out a paired two-arm A/B from the ledger. #240 |
 | `peer_brief.py` | any | Generate the state half of a handoff as Markdown. #160 |
 | `peer_status.py` | any | One deterministic status line for the peer work. #160 |

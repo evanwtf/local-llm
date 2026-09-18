@@ -1,0 +1,3232 @@
+{
+  "epoch_27": "2026-09-18T06:53:09-04:00",
+  "client": "opencode",
+  "backends": [
+    "qwen38fnq3",
+    "qwen38fnmlxserve",
+    "qwen38fnds4main"
+  ],
+  "dropped": {
+    "conflict": 0,
+    "unplaced": 0
+  },
+  "cells": [
+    {
+      "backend": "qwen38fnds4main",
+      "task": "mbox-quoting-both-halves",
+      "macos26": {
+        "latest": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 122.8,
+          "summed_wall_s": 122.8,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 122.8,
+          "summed_wall_s": 122.8,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "macos27": {
+        "latest": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 114.8,
+          "summed_wall_s": 400.4,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 114.8,
+          "summed_wall_s": 400.4,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "engine_changed": false,
+      "client_changed": false
+    },
+    {
+      "backend": "qwen38fnds4main",
+      "task": "mbox-scan",
+      "macos26": {
+        "latest": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 105.1,
+          "summed_wall_s": 105.1,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 105.1,
+          "summed_wall_s": 105.1,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "macos27": {
+        "latest": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 128.7,
+          "summed_wall_s": 347.1,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 128.7,
+          "summed_wall_s": 347.1,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "engine_changed": false,
+      "client_changed": false
+    },
+    {
+      "backend": "qwen38fnds4main",
+      "task": "mbox-strip-envelope",
+      "macos26": {
+        "latest": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 45.3,
+          "summed_wall_s": 45.3,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 45.3,
+          "summed_wall_s": 45.3,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "macos27": {
+        "latest": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 63.2,
+          "summed_wall_s": 210.7,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 63.2,
+          "summed_wall_s": 210.7,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "engine_changed": false,
+      "client_changed": false
+    },
+    {
+      "backend": "qwen38fnds4main",
+      "task": "parser-date",
+      "macos26": {
+        "latest": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 185.1,
+          "summed_wall_s": 185.1,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 185.1,
+          "summed_wall_s": 185.1,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "macos27": {
+        "latest": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 125.9,
+          "summed_wall_s": 471.7,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 125.9,
+          "summed_wall_s": 471.7,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "engine_changed": false,
+      "client_changed": false
+    },
+    {
+      "backend": "qwen38fnds4main",
+      "task": "parser-mbox-quoting",
+      "macos26": {
+        "latest": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 96.5,
+          "summed_wall_s": 96.5,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 96.5,
+          "summed_wall_s": 96.5,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "macos27": {
+        "latest": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 66.7,
+          "summed_wall_s": 197.1,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 66.7,
+          "summed_wall_s": 197.1,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "engine_changed": false,
+      "client_changed": false
+    },
+    {
+      "backend": "qwen38fnds4main",
+      "task": "parser-mbox-quoting-nodoc",
+      "macos26": {
+        "latest": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 87.4,
+          "summed_wall_s": 87.4,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 87.4,
+          "summed_wall_s": 87.4,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "macos27": {
+        "latest": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 75.2,
+          "summed_wall_s": 243.7,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 75.2,
+          "summed_wall_s": 243.7,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "engine_changed": false,
+      "client_changed": false
+    },
+    {
+      "backend": "qwen38fnds4main",
+      "task": "script-reverse",
+      "macos26": {
+        "latest": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 39.0,
+          "summed_wall_s": 39.0,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 39.0,
+          "summed_wall_s": 39.0,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "macos27": {
+        "latest": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 42.0,
+          "summed_wall_s": 129.2,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 42.0,
+          "summed_wall_s": 129.2,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "engine_changed": false,
+      "client_changed": false
+    },
+    {
+      "backend": "qwen38fnds4main",
+      "task": "script-transform",
+      "macos26": {
+        "latest": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 44.7,
+          "summed_wall_s": 44.7,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 44.7,
+          "summed_wall_s": 44.7,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "macos27": {
+        "latest": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 59.6,
+          "summed_wall_s": 168.3,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 59.6,
+          "summed_wall_s": 168.3,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "engine_changed": false,
+      "client_changed": false
+    },
+    {
+      "backend": "qwen38fnds4main",
+      "task": "storage-blob-put",
+      "macos26": {
+        "latest": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 89.4,
+          "summed_wall_s": 89.4,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 89.4,
+          "summed_wall_s": 89.4,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "macos27": {
+        "latest": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 112.5,
+          "summed_wall_s": 352.7,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 112.5,
+          "summed_wall_s": 352.7,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "engine_changed": false,
+      "client_changed": false
+    },
+    {
+      "backend": "qwen38fnds4main",
+      "task": "storage-put-and-sweep",
+      "macos26": {
+        "latest": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 158.2,
+          "summed_wall_s": 158.2,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 158.2,
+          "summed_wall_s": 158.2,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "macos27": {
+        "latest": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 149.8,
+          "summed_wall_s": 432.2,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 149.8,
+          "summed_wall_s": 432.2,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "engine_changed": false,
+      "client_changed": false
+    },
+    {
+      "backend": "qwen38fnds4main",
+      "task": "swift-chartaxis-spacing",
+      "macos26": {
+        "latest": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 215.1,
+          "summed_wall_s": 215.1,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 215.1,
+          "summed_wall_s": 215.1,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "macos27": {
+        "latest": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 174.9,
+          "summed_wall_s": 469.7,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 174.9,
+          "summed_wall_s": 469.7,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "engine_changed": false,
+      "client_changed": false
+    },
+    {
+      "backend": "qwen38fnds4main",
+      "task": "swift-csv-text",
+      "macos26": {
+        "latest": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 86.6,
+          "summed_wall_s": 86.6,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 86.6,
+          "summed_wall_s": 86.6,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "macos27": {
+        "latest": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 108.7,
+          "summed_wall_s": 349.0,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 108.7,
+          "summed_wall_s": 349.0,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "engine_changed": false,
+      "client_changed": false
+    },
+    {
+      "backend": "qwen38fnds4main",
+      "task": "swift-downsample-buckets",
+      "macos26": {
+        "latest": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 69.4,
+          "summed_wall_s": 69.4,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 69.4,
+          "summed_wall_s": 69.4,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "macos27": {
+        "latest": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 110.4,
+          "summed_wall_s": 381.6,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 110.4,
+          "summed_wall_s": 381.6,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "engine_changed": false,
+      "client_changed": false
+    },
+    {
+      "backend": "qwen38fnds4main",
+      "task": "swift-scaleladder-snap",
+      "macos26": {
+        "latest": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 153.6,
+          "summed_wall_s": 153.6,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 153.6,
+          "summed_wall_s": 153.6,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "macos27": {
+        "latest": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 114.4,
+          "summed_wall_s": 352.2,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 114.4,
+          "summed_wall_s": 352.2,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "engine_changed": false,
+      "client_changed": false
+    },
+    {
+      "backend": "qwen38fnds4main",
+      "task": "swift-sevensegment-glyphs",
+      "macos26": {
+        "latest": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 58.1,
+          "summed_wall_s": 58.1,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 58.1,
+          "summed_wall_s": 58.1,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "macos27": {
+        "latest": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 92.1,
+          "summed_wall_s": 259.9,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 92.1,
+          "summed_wall_s": 259.9,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "8db1d1d1"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "engine_changed": false,
+      "client_changed": false
+    },
+    {
+      "backend": "qwen38fnmlxserve",
+      "task": "mbox-quoting-both-halves",
+      "macos26": {
+        "latest": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 148.0,
+          "summed_wall_s": 148.0,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 22,
+          "passed": 22,
+          "median_wall_s": 50.0,
+          "summed_wall_s": 2025.8,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.1",
+            "mlx-serve 26.9.2",
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.29",
+            "1.18.30",
+            "1.18.31"
+          ]
+        }
+      },
+      "macos27": {
+        "latest": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 317.1,
+          "summed_wall_s": 815.4,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 317.1,
+          "summed_wall_s": 815.4,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "engine_changed": false,
+      "client_changed": false
+    },
+    {
+      "backend": "qwen38fnmlxserve",
+      "task": "mbox-scan",
+      "macos26": {
+        "latest": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 42.8,
+          "summed_wall_s": 42.8,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 22,
+          "passed": 21,
+          "median_wall_s": 54.4,
+          "summed_wall_s": 1213.1,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.1",
+            "mlx-serve 26.9.2",
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.29",
+            "1.18.30",
+            "1.18.31"
+          ]
+        }
+      },
+      "macos27": {
+        "latest": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 48.1,
+          "summed_wall_s": 156.4,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 48.1,
+          "summed_wall_s": 156.4,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "engine_changed": false,
+      "client_changed": false
+    },
+    {
+      "backend": "qwen38fnmlxserve",
+      "task": "mbox-strip-envelope",
+      "macos26": {
+        "latest": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 33.7,
+          "summed_wall_s": 33.7,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 23,
+          "passed": 23,
+          "median_wall_s": 24.1,
+          "summed_wall_s": 618.8,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.1",
+            "mlx-serve 26.9.2",
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.29",
+            "1.18.30",
+            "1.18.31"
+          ]
+        }
+      },
+      "macos27": {
+        "latest": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 30.7,
+          "summed_wall_s": 88.6,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 30.7,
+          "summed_wall_s": 88.6,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "engine_changed": false,
+      "client_changed": false
+    },
+    {
+      "backend": "qwen38fnmlxserve",
+      "task": "parser-date",
+      "macos26": {
+        "latest": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 58.1,
+          "summed_wall_s": 58.1,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 22,
+          "passed": 22,
+          "median_wall_s": 60.5,
+          "summed_wall_s": 1452.2,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.1",
+            "mlx-serve 26.9.2",
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.29",
+            "1.18.30",
+            "1.18.31"
+          ]
+        }
+      },
+      "macos27": {
+        "latest": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 66.4,
+          "summed_wall_s": 197.3,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 66.4,
+          "summed_wall_s": 197.3,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "engine_changed": false,
+      "client_changed": false
+    },
+    {
+      "backend": "qwen38fnmlxserve",
+      "task": "parser-mbox-quoting",
+      "macos26": {
+        "latest": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 603.1,
+          "summed_wall_s": 603.1,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 22,
+          "passed": 22,
+          "median_wall_s": 72.2,
+          "summed_wall_s": 4018.7,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.1",
+            "mlx-serve 26.9.2",
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.29",
+            "1.18.30",
+            "1.18.31"
+          ]
+        }
+      },
+      "macos27": {
+        "latest": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 55.5,
+          "summed_wall_s": 193.9,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 55.5,
+          "summed_wall_s": 193.9,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "engine_changed": false,
+      "client_changed": false
+    },
+    {
+      "backend": "qwen38fnmlxserve",
+      "task": "parser-mbox-quoting-nodoc",
+      "macos26": {
+        "latest": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 54.9,
+          "summed_wall_s": 54.9,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 22,
+          "passed": 22,
+          "median_wall_s": 47.8,
+          "summed_wall_s": 1330.2,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.1",
+            "mlx-serve 26.9.2",
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.29",
+            "1.18.30",
+            "1.18.31"
+          ]
+        }
+      },
+      "macos27": {
+        "latest": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 41.2,
+          "summed_wall_s": 133.3,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 41.2,
+          "summed_wall_s": 133.3,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "engine_changed": false,
+      "client_changed": false
+    },
+    {
+      "backend": "qwen38fnmlxserve",
+      "task": "script-reverse",
+      "macos26": {
+        "latest": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 19.6,
+          "summed_wall_s": 19.6,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 22,
+          "passed": 22,
+          "median_wall_s": 17.4,
+          "summed_wall_s": 385.6,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.1",
+            "mlx-serve 26.9.2",
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.29",
+            "1.18.30",
+            "1.18.31"
+          ]
+        }
+      },
+      "macos27": {
+        "latest": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 17.5,
+          "summed_wall_s": 56.0,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 17.5,
+          "summed_wall_s": 56.0,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "engine_changed": false,
+      "client_changed": false
+    },
+    {
+      "backend": "qwen38fnmlxserve",
+      "task": "script-transform",
+      "macos26": {
+        "latest": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 36.4,
+          "summed_wall_s": 36.4,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 22,
+          "passed": 21,
+          "median_wall_s": 25.2,
+          "summed_wall_s": 754.4,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.1",
+            "mlx-serve 26.9.2",
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.29",
+            "1.18.30",
+            "1.18.31"
+          ]
+        }
+      },
+      "macos27": {
+        "latest": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 25.7,
+          "summed_wall_s": 104.4,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 25.7,
+          "summed_wall_s": 104.4,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "engine_changed": false,
+      "client_changed": false
+    },
+    {
+      "backend": "qwen38fnmlxserve",
+      "task": "storage-blob-put",
+      "macos26": {
+        "latest": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 37.3,
+          "summed_wall_s": 37.3,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 22,
+          "passed": 22,
+          "median_wall_s": 42.3,
+          "summed_wall_s": 955.6,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.1",
+            "mlx-serve 26.9.2",
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.29",
+            "1.18.30",
+            "1.18.31"
+          ]
+        }
+      },
+      "macos27": {
+        "latest": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 39.4,
+          "summed_wall_s": 116.1,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 39.4,
+          "summed_wall_s": 116.1,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "engine_changed": false,
+      "client_changed": false
+    },
+    {
+      "backend": "qwen38fnmlxserve",
+      "task": "storage-put-and-sweep",
+      "macos26": {
+        "latest": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 47.3,
+          "summed_wall_s": 47.3,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 22,
+          "passed": 22,
+          "median_wall_s": 55.7,
+          "summed_wall_s": 1307.6,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.1",
+            "mlx-serve 26.9.2",
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.29",
+            "1.18.30",
+            "1.18.31"
+          ]
+        }
+      },
+      "macos27": {
+        "latest": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 59.0,
+          "summed_wall_s": 179.6,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 59.0,
+          "summed_wall_s": 179.6,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "engine_changed": false,
+      "client_changed": false
+    },
+    {
+      "backend": "qwen38fnmlxserve",
+      "task": "swift-chartaxis-spacing",
+      "macos26": {
+        "latest": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 57.2,
+          "summed_wall_s": 57.2,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 22,
+          "passed": 22,
+          "median_wall_s": 51.7,
+          "summed_wall_s": 1093.8,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.1",
+            "mlx-serve 26.9.2",
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.29",
+            "1.18.30",
+            "1.18.31"
+          ]
+        }
+      },
+      "macos27": {
+        "latest": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 62.8,
+          "summed_wall_s": 537.2,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 62.8,
+          "summed_wall_s": 537.2,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "engine_changed": false,
+      "client_changed": false
+    },
+    {
+      "backend": "qwen38fnmlxserve",
+      "task": "swift-csv-text",
+      "macos26": {
+        "latest": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 63.3,
+          "summed_wall_s": 63.3,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 22,
+          "passed": 21,
+          "median_wall_s": 61.2,
+          "summed_wall_s": 1686.4,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.1",
+            "mlx-serve 26.9.2",
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.29",
+            "1.18.30",
+            "1.18.31"
+          ]
+        }
+      },
+      "macos27": {
+        "latest": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 86.7,
+          "summed_wall_s": 267.0,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 86.7,
+          "summed_wall_s": 267.0,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "engine_changed": false,
+      "client_changed": false
+    },
+    {
+      "backend": "qwen38fnmlxserve",
+      "task": "swift-downsample-buckets",
+      "macos26": {
+        "latest": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 55.9,
+          "summed_wall_s": 55.9,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 22,
+          "passed": 22,
+          "median_wall_s": 64.2,
+          "summed_wall_s": 1773.9,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.1",
+            "mlx-serve 26.9.2",
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.29",
+            "1.18.30",
+            "1.18.31"
+          ]
+        }
+      },
+      "macos27": {
+        "latest": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 54.5,
+          "summed_wall_s": 166.5,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 54.5,
+          "summed_wall_s": 166.5,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "engine_changed": false,
+      "client_changed": false
+    },
+    {
+      "backend": "qwen38fnmlxserve",
+      "task": "swift-scaleladder-snap",
+      "macos26": {
+        "latest": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 56.3,
+          "summed_wall_s": 56.3,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 22,
+          "passed": 22,
+          "median_wall_s": 52.5,
+          "summed_wall_s": 1246.0,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.1",
+            "mlx-serve 26.9.2",
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.29",
+            "1.18.30",
+            "1.18.31"
+          ]
+        }
+      },
+      "macos27": {
+        "latest": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 74.3,
+          "summed_wall_s": 256.8,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 74.3,
+          "summed_wall_s": 256.8,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "engine_changed": false,
+      "client_changed": false
+    },
+    {
+      "backend": "qwen38fnmlxserve",
+      "task": "swift-sevensegment-glyphs",
+      "macos26": {
+        "latest": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 45.3,
+          "summed_wall_s": 45.3,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 22,
+          "passed": 21,
+          "median_wall_s": 40.2,
+          "summed_wall_s": 2060.4,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.1",
+            "mlx-serve 26.9.2",
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.29",
+            "1.18.30",
+            "1.18.31"
+          ]
+        }
+      },
+      "macos27": {
+        "latest": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 63.2,
+          "summed_wall_s": 538.3,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 63.2,
+          "summed_wall_s": 538.3,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "mlx-serve 26.9.4"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "engine_changed": false,
+      "client_changed": false
+    },
+    {
+      "backend": "qwen38fnq3",
+      "task": "mbox-quoting-both-halves",
+      "macos26": {
+        "latest": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 141.7,
+          "summed_wall_s": 141.7,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "972d2313b"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 94.9,
+          "summed_wall_s": 421.7,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "2092353c8"
+          ],
+          "client_versions": [
+            "1.18.29"
+          ]
+        }
+      },
+      "macos27": {
+        "latest": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 108.4,
+          "summed_wall_s": 321.4,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "911f6cdc8"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 108.4,
+          "summed_wall_s": 321.4,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "911f6cdc8"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "engine_changed": true,
+      "client_changed": false
+    },
+    {
+      "backend": "qwen38fnq3",
+      "task": "mbox-scan",
+      "macos26": {
+        "latest": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 103.9,
+          "summed_wall_s": 103.9,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "972d2313b"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 7,
+          "passed": 7,
+          "median_wall_s": 105.6,
+          "summed_wall_s": 808.8,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "2092353c8"
+          ],
+          "client_versions": [
+            "1.18.25",
+            "1.18.29"
+          ]
+        }
+      },
+      "macos27": {
+        "latest": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 172.8,
+          "summed_wall_s": 517.1,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "911f6cdc8"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 172.8,
+          "summed_wall_s": 517.1,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "911f6cdc8"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "engine_changed": true,
+      "client_changed": false
+    },
+    {
+      "backend": "qwen38fnq3",
+      "task": "mbox-strip-envelope",
+      "macos26": {
+        "latest": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 104.7,
+          "summed_wall_s": 104.7,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "972d2313b"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 7,
+          "passed": 7,
+          "median_wall_s": 53.3,
+          "summed_wall_s": 421.6,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "2092353c8"
+          ],
+          "client_versions": [
+            "1.18.25",
+            "1.18.29"
+          ]
+        }
+      },
+      "macos27": {
+        "latest": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 77.4,
+          "summed_wall_s": 227.2,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "911f6cdc8"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 77.4,
+          "summed_wall_s": 227.2,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "911f6cdc8"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "engine_changed": true,
+      "client_changed": false
+    },
+    {
+      "backend": "qwen38fnq3",
+      "task": "parser-date",
+      "macos26": {
+        "latest": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 215.3,
+          "summed_wall_s": 215.3,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "972d2313b"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 6,
+          "passed": 6,
+          "median_wall_s": 188.1,
+          "summed_wall_s": 1286.4,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "2092353c8"
+          ],
+          "client_versions": [
+            "1.18.25",
+            "1.18.29"
+          ]
+        }
+      },
+      "macos27": {
+        "latest": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 197.8,
+          "summed_wall_s": 631.9,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "911f6cdc8"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 197.8,
+          "summed_wall_s": 631.9,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "911f6cdc8"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "engine_changed": true,
+      "client_changed": false
+    },
+    {
+      "backend": "qwen38fnq3",
+      "task": "parser-mbox-quoting",
+      "macos26": {
+        "latest": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 127.2,
+          "summed_wall_s": 127.2,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "972d2313b"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 7,
+          "passed": 7,
+          "median_wall_s": 85.7,
+          "summed_wall_s": 633.5,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "2092353c8"
+          ],
+          "client_versions": [
+            "1.18.25",
+            "1.18.29"
+          ]
+        }
+      },
+      "macos27": {
+        "latest": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 127.4,
+          "summed_wall_s": 382.8,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "911f6cdc8"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 127.4,
+          "summed_wall_s": 382.8,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "911f6cdc8"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "engine_changed": true,
+      "client_changed": false
+    },
+    {
+      "backend": "qwen38fnq3",
+      "task": "parser-mbox-quoting-nodoc",
+      "macos26": {
+        "latest": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 127.6,
+          "summed_wall_s": 127.6,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "972d2313b"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 86.6,
+          "summed_wall_s": 258.3,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "2092353c8"
+          ],
+          "client_versions": [
+            "1.18.29"
+          ]
+        }
+      },
+      "macos27": {
+        "latest": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 104.2,
+          "summed_wall_s": 311.9,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "911f6cdc8"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 104.2,
+          "summed_wall_s": 311.9,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "911f6cdc8"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "engine_changed": true,
+      "client_changed": false
+    },
+    {
+      "backend": "qwen38fnq3",
+      "task": "script-reverse",
+      "macos26": {
+        "latest": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 44.1,
+          "summed_wall_s": 44.1,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "972d2313b"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 9,
+          "passed": 9,
+          "median_wall_s": 41.3,
+          "summed_wall_s": 434.5,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "2092353c8"
+          ],
+          "client_versions": [
+            "1.18.25",
+            "1.18.29"
+          ]
+        }
+      },
+      "macos27": {
+        "latest": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 59.5,
+          "summed_wall_s": 186.5,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "911f6cdc8"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 59.5,
+          "summed_wall_s": 186.5,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "911f6cdc8"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "engine_changed": true,
+      "client_changed": false
+    },
+    {
+      "backend": "qwen38fnq3",
+      "task": "script-transform",
+      "macos26": {
+        "latest": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 52.8,
+          "summed_wall_s": 52.8,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "972d2313b"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 9,
+          "passed": 9,
+          "median_wall_s": 48.6,
+          "summed_wall_s": 431.7,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "2092353c8"
+          ],
+          "client_versions": [
+            "1.18.25",
+            "1.18.29"
+          ]
+        }
+      },
+      "macos27": {
+        "latest": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 70.6,
+          "summed_wall_s": 227.6,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "911f6cdc8"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 70.6,
+          "summed_wall_s": 227.6,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "911f6cdc8"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "engine_changed": true,
+      "client_changed": false
+    },
+    {
+      "backend": "qwen38fnq3",
+      "task": "storage-blob-put",
+      "macos26": {
+        "latest": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 216.3,
+          "summed_wall_s": 216.3,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "972d2313b"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 6,
+          "passed": 6,
+          "median_wall_s": 94.7,
+          "summed_wall_s": 604.2,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "2092353c8"
+          ],
+          "client_versions": [
+            "1.18.25",
+            "1.18.29"
+          ]
+        }
+      },
+      "macos27": {
+        "latest": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 108.0,
+          "summed_wall_s": 393.6,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "911f6cdc8"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 108.0,
+          "summed_wall_s": 393.6,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "911f6cdc8"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "engine_changed": true,
+      "client_changed": false
+    },
+    {
+      "backend": "qwen38fnq3",
+      "task": "storage-put-and-sweep",
+      "macos26": {
+        "latest": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 139.5,
+          "summed_wall_s": 139.5,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "972d2313b"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 119.5,
+          "summed_wall_s": 397.9,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "2092353c8"
+          ],
+          "client_versions": [
+            "1.18.29"
+          ]
+        }
+      },
+      "macos27": {
+        "latest": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 119.2,
+          "summed_wall_s": 350.2,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "911f6cdc8"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 119.2,
+          "summed_wall_s": 350.2,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "911f6cdc8"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "engine_changed": true,
+      "client_changed": false
+    },
+    {
+      "backend": "qwen38fnq3",
+      "task": "swift-chartaxis-spacing",
+      "macos26": {
+        "latest": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 240.2,
+          "summed_wall_s": 240.2,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "972d2313b"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 221.3,
+          "summed_wall_s": 695.6,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "2092353c8"
+          ],
+          "client_versions": [
+            "1.18.29"
+          ]
+        }
+      },
+      "macos27": {
+        "latest": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 240.7,
+          "summed_wall_s": 834.7,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "911f6cdc8"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 240.7,
+          "summed_wall_s": 834.7,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "911f6cdc8"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "engine_changed": true,
+      "client_changed": false
+    },
+    {
+      "backend": "qwen38fnq3",
+      "task": "swift-csv-text",
+      "macos26": {
+        "latest": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 171.4,
+          "summed_wall_s": 171.4,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "972d2313b"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 99.7,
+          "summed_wall_s": 305.4,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "2092353c8"
+          ],
+          "client_versions": [
+            "1.18.29"
+          ]
+        }
+      },
+      "macos27": {
+        "latest": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 169.8,
+          "summed_wall_s": 543.5,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "911f6cdc8"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 169.8,
+          "summed_wall_s": 543.5,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "911f6cdc8"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "engine_changed": true,
+      "client_changed": false
+    },
+    {
+      "backend": "qwen38fnq3",
+      "task": "swift-downsample-buckets",
+      "macos26": {
+        "latest": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 105.9,
+          "summed_wall_s": 105.9,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "972d2313b"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 122.1,
+          "summed_wall_s": 353.5,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "2092353c8"
+          ],
+          "client_versions": [
+            "1.18.29"
+          ]
+        }
+      },
+      "macos27": {
+        "latest": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 131.9,
+          "summed_wall_s": 392.9,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "911f6cdc8"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 131.9,
+          "summed_wall_s": 392.9,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "911f6cdc8"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "engine_changed": true,
+      "client_changed": false
+    },
+    {
+      "backend": "qwen38fnq3",
+      "task": "swift-scaleladder-snap",
+      "macos26": {
+        "latest": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 260.8,
+          "summed_wall_s": 260.8,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "972d2313b"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 182.3,
+          "summed_wall_s": 512.8,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "2092353c8"
+          ],
+          "client_versions": [
+            "1.18.29"
+          ]
+        }
+      },
+      "macos27": {
+        "latest": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 190.9,
+          "summed_wall_s": 597.7,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "911f6cdc8"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 190.9,
+          "summed_wall_s": 597.7,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "911f6cdc8"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "engine_changed": true,
+      "client_changed": false
+    },
+    {
+      "backend": "qwen38fnq3",
+      "task": "swift-sevensegment-glyphs",
+      "macos26": {
+        "latest": {
+          "n": 1,
+          "passed": 1,
+          "median_wall_s": 97.2,
+          "summed_wall_s": 97.2,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "972d2313b"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 93.1,
+          "summed_wall_s": 256.9,
+          "macos": [
+            "26.6.2"
+          ],
+          "engine_versions": [
+            "2092353c8"
+          ],
+          "client_versions": [
+            "1.18.29"
+          ]
+        }
+      },
+      "macos27": {
+        "latest": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 121.5,
+          "summed_wall_s": 338.9,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "911f6cdc8"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        },
+        "all": {
+          "n": 3,
+          "passed": 3,
+          "median_wall_s": 121.5,
+          "summed_wall_s": 338.9,
+          "macos": [
+            "27.0"
+          ],
+          "engine_versions": [
+            "911f6cdc8"
+          ],
+          "client_versions": [
+            "1.18.31"
+          ]
+        }
+      },
+      "engine_changed": true,
+      "client_changed": false
+    }
+  ]
+}
