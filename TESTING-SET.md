@@ -159,6 +159,7 @@ be drawn from — OpenCode, after the `--dir` cutover, not excluded.
 | `qwen38fnds4main` | upstream's own `qwen38-q4k` GGUF (Q4_K imatrix gate/up, MXFP4 down; n-grams inside, no `--ple`), MTP off | ds4 upstream main `8db1d1d1` (via tool shim) | 177 GB | 0 |
 | `qwen38fnmlxserve` | the same model as MLX mixed 4/8-bit weights | mlx-serve 26.9.1 (no shim) | 101 GB | 1 |
 | `qwen38fnmlxserve-git` | the same model as MLX mixed 4/8-bit weights | mlx-serve git main+PR383 at `~/git/mlx-serve` (no shim) | 101 GB | 0 |
+| `bonsai2mlxserve` | Ternary Bonsai 2 27B (prism-ml `mlx-2bit`, Hadamard-rotated ternary, rev `3f926b41`), a Qwen3.8-27B derivative | mlx-serve git main `6dea4241` at `~/git/mlx-serve-6dea4241` (no shim) | 8.6 GB | 0 |
 | `qwen38fnmlxservenopld` | the same MLX mixed 4/8-bit weights, **PLD off** (`--no-pld`) — the #262 control arm | mlx-serve 26.9.1 (no shim) | 101 GB | 0 |
 | `qwen36codinggguf` | `qwen3.6:27b-coding` (**GGUF**) | Ollama | 17 GB | 0 |
 | `nemotron33` | `nemotron3:33b-q4_K_M` — **Nano Omni, multimodal/document-intelligence, not a coding model** | Ollama | 26 GB | 10 |

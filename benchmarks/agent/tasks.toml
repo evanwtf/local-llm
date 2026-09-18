@@ -2102,6 +2102,16 @@ engine = "mlx-serve"
 engine_tree = "~/git/mlx-serve"
 context_tokens = 100000
 
+[backend.bonsai2mlxserve]
+description = "Ternary Bonsai 2 27B (prism-ml mlx-2bit, Hadamard-rotated ternary, rev 3f926b41) on mlx-serve built from main at ~/git/mlx-serve-6dea4241, no shim, server defaults: PLD on, MTP depth 2 with a head mlx-serve grafts from ddalcu/Qwen3.8-27B-MLX-Serve-4bit (mtp.safetensors a3c8ab60) (#479)"
+base_url = "http://127.0.0.1:11234"
+model = "Ternary-Bonsai-2-27B-mlx-2bit"
+auth_token = "local"
+opencode_model = "mlxserve/Ternary-Bonsai-2-27B-mlx-2bit"
+engine = "mlx-serve"
+engine_tree = "~/git/mlx-serve-6dea4241"
+context_tokens = 100000
+
 # #262: the PLD-OFF control for the Prompt-Lookup-Decoding A/B. Byte-identical
 # to `qwen38fnmlxserve` (same brew binary, same pack, same :11234) -- the ONLY
 # difference is that the server for this arm is launched with `--no-pld`, so

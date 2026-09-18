@@ -58,6 +58,7 @@ branch, and the sha lives on the row, not in this doc.
 | `~/git/llama.cpp` | `ggml-org/llama.cpp` | — | llama.cpp | `master` | the GGUF baseline engine (Metal) |
 | `~/git/llama.cpp-upstream` | `ggml-org/llama.cpp` | — | llama.cpp | `master` | a second llama.cpp worktree for a PR-vs-master A/B; not present on every machine |
 | `~/git/mlx-serve` | `ddalcu/mlx-serve` | — | mlx-serve | `main` | the MLX serving engine (Apple Silicon) |
+| `~/git/mlx-serve-6dea4241` | `ddalcu/mlx-serve` | — | mlx-serve | `6dea4241` (main) | main with Prism Bonsai 2 support (`89eeb249`), no release yet; the `bonsai2mlxserve` tree (#479) |
 | `~/venvs/vllm` | pip (`vllm`) | — | vllm | release | the vLLM engine — a Python virtualenv, **not a git checkout**; the DGX Spark lane |
 
 Notes on the shape of this list:
