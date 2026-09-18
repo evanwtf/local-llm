@@ -2224,7 +2224,25 @@ model = "qwen3.8-flash-next"
 aider_model = "openai/qwen3.8-flash-next"
 opencode_model = "vllm8888/qwen3.8-flash-next"
 context_tokens = 262144
-speculative = "MTP k=3, use_local_argmax_reduction, 47k draft vocab (recipe files/draft_vocab_en_code_47k.txt); fp8 KV; gpu-memory-utilization 0.786; PLE table CPU-offloaded; operator-approved third-party weights, image and patches (#468)"
+speculative = "MTP k=3, use_local_argmax_reduction, 47k draft vocab (recipe files/draft_vocab_en_code_47k.txt); fp8 KV; gpu-memory-utilization 0.730; PLE table CPU-offloaded; operator-approved third-party weights, image and patches (#468)"
+draft_engine = "vllm"
+
+# ONE lever against qwen38fnnvfp4miaaidgx: thinking off. The recipe's chat
+# template reasons unless told not to, and that arm spent 98,420 reasoning
+# tokens over its 30 trials, while qwen38fnnvfp4dgx -- the arm it has to be
+# compared with -- spent none. Same container, weights, patches and KV; the
+# server is relaunched with the thinking default flipped and nothing else.
+[backend.qwen38fnnvfp4miaainothinkdgx]
+description = "qwen38fnnvfp4miaaidgx with thinking off: the same MiaAI-recipe server (#468) relaunched with EXTRA_VLLM_ARGS=--default-chat-template-kwargs.enable_thinking=false (the JSON form loses its quotes in start.sh), nothing else changed"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "vllm"
+model = "qwen3.8-flash-next"
+aider_model = "openai/qwen3.8-flash-next"
+opencode_model = "vllm8888/qwen3.8-flash-next"
+context_tokens = 262144
+speculative = "MTP k=3, use_local_argmax_reduction, 47k draft vocab (recipe files/draft_vocab_en_code_47k.txt); fp8 KV; gpu-memory-utilization 0.730; PLE table CPU-offloaded; thinking off via the server's default chat-template kwargs; operator-approved third-party weights, image and patches (#468)"
 draft_engine = "vllm"
 
 [backend.qwen38fnnvfp4dgx]

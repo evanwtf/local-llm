@@ -194,6 +194,8 @@ def test_the_mtp_arms_declare_themselves():
         # #468: the same model through the MiaAI-Lab single-Spark recipe, also
         # MTP-3 with a 47k draft vocab, so it must prove it drafted too.
         "qwen38fnnvfp4miaaidgx": "vllm",
+        # Its thinking-off twin: same server, same drafter.
+        "qwen38fnnvfp4miaainothinkdgx": "vllm",
     }
 
 
