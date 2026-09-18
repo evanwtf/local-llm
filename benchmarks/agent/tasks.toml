@@ -1712,6 +1712,46 @@ model = "bonsai-27b-q1-llamacpp-32768"
 opencode_model = "llamacpp/bonsai-27b-q1-llamacpp-32768"
 context_tokens = 32768
 
+# #479. Ternary Bonsai 2 27B, the GGUF / CUDA arm on the 3080 Ti. A newer
+# model than v1 (Qwen3.8-27B base, general.architecture `qwen35`, Hadamard-
+# rotated ternary), from prism-ml at pinned revision 6ed5e12. The M5 Max runs
+# the MLX arm of the same issue (`bonsai2mlxserve`, PR #512).
+#
+# Both packs need the PrismML llama.cpp fork -- stock llama.cpp produces
+# garbage on PTQ1_0/PQ2_0. Served here by that fork built for CUDA sm_86 at
+# `1a07bfa` (its `prism` branch, 23 commits past the v1 `d8f26ee`). Each pack
+# fits the 12 GiB of VRAM fully resident with room for a 32k KV cache, so both
+# run `-ngl 99` on GPU; at temperature 0 each returned a correct is_prime.
+#
+# `dtternarybonsai227b` (PQ2_0, 2.13 bpw, 7.2 GB) is the pre-registered
+# comparison: it holds quant, engine class and machine constant against v1's
+# `dtternarybonsai27b` (#269), so a v1-vs-v2 gap is the model generation, not
+# the format. `storage-blob-put` is the place to look (#269 closed there).
+# `dtternarybonsai2ptq127b` (PTQ1_0, 1.75 bpw, 5.95 GB) is the headline pack:
+# the first 27B-class model to fit this tier's footprint (#20). Serve one at a
+# time on :8080 -- preflight refuses a run with two resident models (#112).
+[backend.dtternarybonsai227b]
+description = "Ternary Bonsai 2 27B PQ2_0 GGUF (prism-ml rev 6ed5e12, qwen35 Hadamard-rotated ternary) via llama.cpp PrismML fork 1a07bfa built for CUDA sm_86 (desktop 3080 Ti) (#479)"
+tier = "desktop-3080ti"
+base_url = "http://127.0.0.1:8080"
+auth_token = "llamacpp"
+engine = "llama.cpp"
+engine_tree = "~/git/llama.cpp"
+model = "ternary-bonsai-2-27b-pq2-32768"
+opencode_model = "llamacpp/ternary-bonsai-2-27b-pq2-32768"
+context_tokens = 32768
+
+[backend.dtternarybonsai2ptq127b]
+description = "Ternary Bonsai 2 27B PTQ1_0 GGUF (prism-ml rev 6ed5e12, 1.75 bpw dense ternary) via llama.cpp PrismML fork 1a07bfa built for CUDA sm_86 (desktop 3080 Ti) (#479)"
+tier = "desktop-3080ti"
+base_url = "http://127.0.0.1:8080"
+auth_token = "llamacpp"
+engine = "llama.cpp"
+engine_tree = "~/git/llama.cpp"
+model = "ternary-bonsai-2-27b-ptq1-32768"
+opencode_model = "llamacpp/ternary-bonsai-2-27b-ptq1-32768"
+context_tokens = 32768
+
 # #278. Spark-X2.5-4B, a 4B claiming parity with models 2-3x its size on
 # agents and coding. First-party GGUF from the same org as the weights:
 #   https://huggingface.co/XHToken/Spark-X2.5-4B-GGUF -> Spark-X2.5-4B-Q8_0.gguf
