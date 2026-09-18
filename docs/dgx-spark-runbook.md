@@ -206,8 +206,8 @@ discipline that reduce how often the always-on nets have to fire.
 | **server `MemoryMax`** | **CPU-side memory only.** It does **not** bound CUDA allocations on GB10 — measured 71,776 MiB on the GPU against 3,762 MiB in the scope's counter — so it is not an OOM net for a model server | no — set it at launch: `systemd-run --user --scope -p MemoryMax=NNG -p MemorySwapMax=0 …` | #362 / #456 |
 | **memory-gate** | waits for the pool to actually free before each trial / next launch | opt-in — `run.py --memory-gate-gib N`, `scripts/memory_gate.py` | #360 |
 | **`machine_health check --for server`** | refuses a launch while a departing server's memory is still held | run it before launching | #360 |
-| **OOM watchdog** (`scripts/oom_watchdog.py`, `systemd/local-llm-oom-watchdog.timer`) | **after** the fact — records every kernel/earlyoom kill where the journal cannot rotate it away, and restarts `ssh`/`earlyoom` if either is inactive | **not installed yet** — `cp systemd/local-llm-oom-watchdog.* /etc/systemd/system/ && systemctl enable --now local-llm-oom-watchdog.timer` | #459 |
-| **SBSA hardware watchdog** | a box that is powered on but unresponsive — the only layer that can act when nothing schedulable is left | **not enabled** — `/dev/watchdog0` exists, `RuntimeWatchdogUSec=0`; needs `RuntimeWatchdogSec=` in `/etc/systemd/system.conf` | #459 |
+| **OOM watchdog** (`scripts/oom_watchdog.py`, `systemd/local-llm-oom-watchdog.timer`) | **after** the fact — records every kernel/earlyoom kill where the journal cannot rotate it away, and restarts `ssh`/`earlyoom` if either is inactive | **yes** — installed 2026-09-17, runs every minute | #459 |
+| **SBSA hardware watchdog** | a box that is powered on but unresponsive — the only layer that can act when nothing schedulable is left | **yes** — `systemd/watchdog.conf` installed to `/etc/systemd/system.conf.d/`, 60 s timeout; **tested**: a deliberate panic was reset in ~2.5 min with no power cut | #459 |
 
 **Trial confinement on Linux (#476).** `run.py` wraps every agent invocation in
 `bwrap`: the deny list the Mac expresses as `sandbox-exec` rules becomes tmpfs
@@ -237,9 +237,18 @@ memory **and** swap are both under their thresholds, so the original `-s 20,10`
 made it unfireable here — 2026-09-17 06:48 logged `mem avail: 0` with swap
 91.45% free and killed nothing (#458).
 
-**Neither #459 layer is installed.** The script and its timer units are in the
-repo and tested; enabling them needs root, and proving the hardware watchdog
-works means letting the box reset. Both wait on the operator.
+**Both #459 layers are live, and the hardware watchdog is proven.** On
+2026-09-17 a deliberate kernel panic (`echo c > /proc/sysrq-trigger`) at
+22:39:30 left the box wedged at a flat ~30 W; the firmware reset it at
+22:41:58 (the outlet dipped to 11 W and never to zero, so it was not a power
+cut) and the kernel was booting by 22:42:21. About 2.5 minutes, not 60 s: the
+SBSA watchdog acts in two stages, and the reset lands near twice the timeout
+after the last pet. `/sys/class/watchdog/watchdog0/bootstatus` reads **0** even
+after a watchdog reset — this driver does not report the cause — so the outlet
+trace and a previous boot with no shutdown record are the evidence. Install
+with `sudo mkdir -p /etc/systemd/system.conf.d && sudo cp systemd/watchdog.conf
+/etc/systemd/system.conf.d/ && sudo systemctl daemon-reexec`; the file needs
+its `[Manager]` header, or systemd ignores both settings.
 
 **earlyoom is the universal net** — it protects every process on the box
 (benchmarks, model servers, the H3 video pipeline), not only `run.py`.

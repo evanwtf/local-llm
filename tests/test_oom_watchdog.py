@@ -184,3 +184,19 @@ def test_json_mode_keeps_stdout_parseable(tmp_path, monkeypatch, capsys):
     # test configured it first owns the handler, and the stream this call asks
     # for may already be set. stdout staying clean is the contract that matters.
     assert json.loads(out.out)["events"][0]["kind"] == "kernel-oom"
+
+
+def test_the_hardware_watchdog_config_is_tracked_and_armed():
+    """The SBSA watchdog is the only layer that can act on a box with nothing
+    schedulable left. Tested 2026-09-17: a deliberate kernel panic at 22:39:30
+    was reset by the firmware at 22:41:58 with the outlet never dropping to
+    zero -- the box recovered itself in about 2.5 minutes instead of needing
+    the power button or the smart plug."""
+    root = pathlib.Path(__file__).resolve().parents[1]
+    conf = (root / "systemd" / "watchdog.conf").read_text()
+    # Without the section header systemd logs "Assignment outside of section.
+    # Ignoring." and the watchdog stays off -- which is what the first attempt
+    # did.
+    assert "[Manager]" in conf
+    assert "RuntimeWatchdogSec=60" in conf
+    assert "RebootWatchdogSec=" in conf
