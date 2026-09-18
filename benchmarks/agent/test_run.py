@@ -1099,7 +1099,8 @@ def test_the_results_path_is_an_option():
     """
     source = (HERE / "run.py").read_text()
     assert '"--results"' in source
-    assert "results.write_row(r, args.results)" in source
+    assert "finish_row(r, bname, backend, headroom, args.results" in source
+    assert "results.write_row(r, results_path)" in source
     assert "results.trials(args.results)" in source
     # The guard must test the file being written, not a hardcoded default.
     assert "results.trials(RESULTS)" not in source
