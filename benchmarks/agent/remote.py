@@ -201,6 +201,14 @@ def stamp(env: dict, facts: dict) -> dict:
     out.update(
         {k: v for k, v in (facts.get("facts") or {}).items() if k in SERVER_FACT_KEYS}
     )
+    # The client probed for engines it cannot see and stamped
+    # `<engine>_version: unknown` (#320's loud fallback). The server has since
+    # answered, so drop an "unknown" the server's own env contradicts -- a row
+    # carrying both `sglang` and `sglang_version: unknown` says two things.
+    for key in [k for k in out if k.endswith("_version")]:
+        engine = key.removesuffix("_version")
+        if out.get(key) == "unknown" and out.get(engine):
+            del out[key]
     out["topology"] = "remote"
     out["server_machine"] = facts.get("directory")
     return out

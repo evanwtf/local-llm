@@ -157,3 +157,14 @@ def test_every_remote_backend_has_a_local_twin_with_the_same_model():
         if b.get("topology") == "remote":
             assert b.get("model"), name
             assert b.get("base_url", "").startswith("http://127.0.0.1"), name
+
+
+def test_an_unknown_the_server_contradicts_is_dropped():
+    """The client cannot see the server's engine; the server just said (#562)."""
+    env = {"sglang_version": "unknown", "ds4_version": "unknown"}
+    facts = {"directory": "d", "env": {"sglang": "0.0.0.dev1+g708f51e44"}}
+    out = remote.stamp(env, facts)
+    assert "sglang_version" not in out
+    assert out["sglang"] == "0.0.0.dev1+g708f51e44"
+    # An engine the server said nothing about keeps its honest "unknown".
+    assert out["ds4_version"] == "unknown"
