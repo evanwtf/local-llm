@@ -15,7 +15,9 @@ This prompt is the **opener**, one half of a shift change (#556). Before the
 operator ends a session, they give it the **closer**,
 [`hardware/agent-closer-prompt.md`](../agent-closer-prompt.md), which all
 three machines share. That session then leaves a closer log in
-`~/.local-llm-bench/closer-logs/`. This prompt finds the log in §1a.
+`~/.local-llm-bench/closer-logs/`. This prompt reads the log in §1, step 8,
+and never depends on it: §1 brings the machine to a working state from any
+starting point (#558).
 
 Placeholders the operator fills in before pasting:
 
@@ -60,69 +62,198 @@ which task" table before each task.
 Never use an unbounded `tail -f` or `until` waiter. Poll for the job's own exit
 line **and** for the producer being gone, with a deadline.
 
-## 1. Boot sequence — run in order, read every output
+## 1. The opening routine — the same steps, every time
+
+Openers mop, cut the vegetables, and set the tables whatever state the
+restaurant is in. It can be Opening Day (a new machine or a fresh clone), a
+morning after a good close, or the morning after a crash where nobody closed.
+**Run every step, every time, in order.** Each step is a check followed by a
+fix: look, and fix what needs fixing. A step with nothing to fix costs seconds.
+Do not skip a step because a closer log says it is done.
+
+**Find out who owns a thing before you clean it.** Another session may still
+be alive and using it. Decide that with:
+`ListAgents` (local rows), `scripts/machine_state.py`, and the process table.
+Throwing out another cook's prep is worse than leaving the mess.
+
+In Claude Code, run `ListAgents` first. Another session on the M5 Max
+shares the GPU, the run lock, and the checkouts. That includes a fork of
+a session (`--fork-session`), which resumes with the same queue in mind.
+Agree a split with it before you touch the GPU (§3b).
+
+Write down what each step found and fixed. The first heartbeat (step 10)
+reports it.
+
+### Step 1. The kitchen exists
 
 ```sh
-date '+%Y-%m-%dT%H:%M:%S%z'                        # re-read the clock; never infer it
+TZ=America/New_York date '+%Y-%m-%dT%H:%M:%S%z'      # re-read the clock; never infer it
+command -v git gh uv                                  # all three must print a path
+gh auth status                                        # logged in to github.com?
+[ -d ~/git/local-llm/.git ] || git clone https://github.com/evanwtf/local-llm ~/git/local-llm
 cd ~/git/local-llm
-git status --short --branch                         # which branch? dirty?
+git status --short --branch                           # which branch? dirty?
 git fetch -q origin && git log --oneline -1 origin/main
-uv run python scripts/machines.py --check           # must report M5-Max-128GB; stop if not
-uv run python scripts/machine_state.py              # lock holder, resident servers, GPU occupant, verdict
-uv run python scripts/peer_brief.py                 # HEAD, dirty paths, queue, open P0/P1, stale trees
-gh run list --limit 10 --json conclusion,headSha,displayTitle   # is main green?
-gh pr list --state open                             # in-flight PRs, yours and the peer's
-gh issue list --state open --label hardware:M5-Max-128GB --label P0
-gh issue list --state open --label hardware:M5-Max-128GB --label P1
-uv run python scripts/mac_dash.py                   # thermal, power, and GPU snapshot for the first heartbeat
-uv run python scripts/unitctl.py status             # resident servers and shims, and who started them
-git worktree list                                   # worktrees a live run or a peer may use
-ls -1 ~/.local-llm-bench/closer-logs/*.md 2>/dev/null   # closer logs not yet acted on (§1a)
+[ -d .venv ] || uv sync --frozen                      # a fresh clone has no .venv
+uv run pre-commit install                             # the commit hooks; safe to repeat
+uv run python scripts/machines.py --check             # must report M5-Max-128GB
 ```
 
-In Claude Code, also run `ListAgents`. Another session on the M5 Max itself
-shares the GPU, the run lock, and the checkouts. That includes a fork of a
-session (`--fork-session`), which resumes with the same queue in mind. Agree a
-split with it before you touch the GPU (§3b).
+- A missing tool: install `uv` from https://docs.astral.sh/uv/ and `gh` from
+  https://cli.github.com/.
+  Engines and weights come later, when the first queue item needs them
+  (`docs/m5max-runbook.md`).
+- `gh auth status` fails: stop and ask the operator to log in. Never handle a
+  token yourself.
+- `machines.py --check` names another registered machine: the operator pasted
+  the wrong opener. Say so, and use that machine's opener instead.
+- `machines.py --check` names no registered machine: this is a new machine.
+  Follow "A new machine" in [`hardware/README.md`](../README.md) to register it
+  and write its opener, then start again from step 1.
 
-Then print the queue with `uv run python scripts/make_next.py --platform macos`,
-and read `AGENTS.md`, `docs/agent-workflow.md`,
-`docs/peer_agents.md`, `docs/m5max-runbook.md`, and
-`docs/measurement-discipline.md`.
+### Step 2. Did the power go out?
 
-### 1a. Read what the last crew left
+```sh
+uptime
+sysctl -n kern.boottime                               # when the machine last booted
+```
 
-A departing session runs the closer and writes a closer log to
-`~/.local-llm-bench/closer-logs/<timestamp>.md`. The log tells you what was in
-flight, what was promised, and what to do first. Minutes or days may have
-passed since it was written.
+A boot after the last log or lock was written means every job they name
+is gone, whatever they say. A server unit that was resident then is gone
+too, and `unitctl.py status` reports it as stale.
 
-1. Read every log in `~/.local-llm-bench/closer-logs/` (not in `done/`), oldest
-   first. Where two logs disagree, the newer one wins.
+### Step 3. Locks and claims
+
+```sh
+uv run python scripts/machine_state.py                # lock holder, resident servers, GPU occupant, verdict
+uv run python scripts/machine_claim.py status
+cat ~/.local-llm-bench/run-lock.json 2>/dev/null
+```
+
+- A lock held by a live process: a run is live. Leave it, and do not touch the
+  checkouts it uses (§2).
+- A **stale** lock (its pid is gone): preflight reports it and refuses to take
+  it, so that a crash is noticed. Copy what the lock recorded into a comment on
+  the owning issue: that is the run that died. Then remove the file.
+- A session claim: find the session it names:
+  `ListAgents` local rows; `ps -Ao pid,command | grep -E 'claude|codex'`.
+  If no such session is alive on this machine, record the claim on the
+  owning issue, then remove the lock file. Only the holder can `release` a
+  claim. If the session is alive, agree a split with it (§3b).
+
+### Step 4. Servers
+
+```sh
+uv run python scripts/unitctl.py status              # named units: servers and shims; stale = its pid is gone
+uv run python scripts/mac_dash.py                    # GPU memory in use, power, thermals
+```
+
+- A server that a live run uses: leave it.
+- An orphan (no live run, no live session uses it): stop it with
+  `uv run python scripts/unitctl.py stop <name>`.
+
+### Step 5. Runs
+
+```sh
+ps -Ao pid,ppid,etime,command | grep -E 'stack_agent_ab|run\.py|opencode run' | grep -v grep
+ls -t ~/.local-llm-bench/logs/ 2>/dev/null | head      # the newest run logs
+gh issue list --state open --label hardware:M5-Max-128GB --json number,title,updatedAt
+```
+
+Read the latest comment on each open issue with this machine's label. It says
+which run was in flight.
+
+- A live run: leave it, and track it (§3).
+- A run that died in the middle (its process is gone and its log has no exit
+  line): it is not a result. Record on its issue what finished and what did
+  not, and re-run it under the issue's pre-registration. Never land a partial
+  run's rows as if the run were complete.
+- A run that finished and that nobody read out: read it out and land it (§5,
+  §6).
+
+### Step 6. Worktrees, stray files, and stashes
+
+```sh
+git worktree list
+for wt in $(git worktree list --porcelain | awk '/^worktree /{print $2}'); do
+  echo "== $wt"; git -C "$wt" status --short --branch | head -20
+  git -C "$wt" log --oneline '@{u}..HEAD' 2>/dev/null   # unpushed commits
+done
+git stash list
+```
+
+Never discard any of these.
+
+- A dirty worktree that no live session owns: save its diff as a patch in
+  `~/.local-llm-bench/closer-logs/patches/`, and push its unpushed commits to a
+  branch. Removing the worktree is the operator's decision.
+- A stray file in the checkout that would set `harness_dirty` on the next run:
+  move it out of the tree.
+- A stash entry: list it in the first heartbeat. Never pop or drop it.
+- `~/git/local-llm` not on an up-to-date `main`: first confirm the branch holds
+  no unmerged work (`git log origin/main..HEAD`). Then return to `main` and
+  fast-forward, **only** when no run is live.
+
+### Step 7. Stock
+
+```sh
+df -h ~
+find ~/models -name '*.incomplete' -o -name '*.part' 2>/dev/null | head
+```
+
+- Less than 1.5 TB free: no downloads.
+- A partial download is not a model. Report it; never delete weights.
+
+### Step 8. The closer log, if there is one
+
+```sh
+ls -1 ~/.local-llm-bench/closer-logs/*.md 2>/dev/null
+```
+
+A departing session runs the closer
+([`hardware/agent-closer-prompt.md`](../agent-closer-prompt.md)) and writes a
+closer log to `~/.local-llm-bench/closer-logs/<timestamp>.md`. **No closer log
+is the normal case** on a new machine, after a crash, or after a session that
+nobody closed. Steps 1–7 have already made the machine safe; go on to step 9.
+
+When there are logs:
+
+1. Read every log in `~/.local-llm-bench/closer-logs/` (not in `done/`),
+   oldest first. Where two logs disagree, the newer one wins.
 2. Treat each line as a claim that was true at the log's `Written:` time, not
-   as a fact now. Check it against the §1 output: a job it names may have
-   finished, died, or been read out by someone else. Read the owning issue's
-   latest comment before you act on a log item.
-3. Follow the log's instructions and its "First actions for the new session"
-   unless the machine's state, the issue, or `AGENTS.md` contradicts them. A
-   patch it names is in `closer-logs/patches/`; apply it only when the machine is
-   FREE.
-4. In your first heartbeat, name the log. Say which of its items you took up,
-   which were already done, and which you dropped and why.
-5. When you have acted on a log, move it:
+   as a fact now. Check it against what steps 1–7 found. A job it names may
+   have finished, died, or been read out by someone else. Read the owning
+   issue's latest comment before you act on a log item.
+3. Take up its promises and its "First actions for the new session", unless
+   the machine's state, the issue, or `AGENTS.md` contradicts them. A patch it
+   names is in `closer-logs/patches/`; apply it only when no run is live.
+4. When you have acted on a log, move it:
    `mv <log> ~/.local-llm-bench/closer-logs/done/`. Move each patch you applied
    there too. Never delete a log or a patch.
 
-**No log means the last session did not close.** Rebuild the picture yourself:
-the latest comment on each open `hardware:M5-Max-128GB` issue, `gh pr list`,
-`git worktree list`, `unitctl.py status`, the run lock, and live processes
-(`ps -Ao pid,ppid,etime,command`). Expect loose ends: a unit nobody stopped, a
-finished run nobody read out, a worktree with unpushed work.
+The log adds promises and next actions. It never replaces a check.
 
-**The checkout.** If `~/git/local-llm` is not on an up-to-date `main`, first
-confirm the branch holds no unmerged work (`git log origin/main..HEAD`). Then
-return to `main` and fast-forward. Do this only when `machine_state.py` reports
-FREE. Never switch branches under a live run.
+### Step 9. CI, PRs, and the queue
+
+```sh
+gh run list --limit 10 --json conclusion,headSha,displayTitle   # is main green?
+gh pr list --state open                                         # in-flight PRs, yours and the peer's
+gh issue list --state open --label hardware:M5-Max-128GB --label P0
+gh issue list --state open --label hardware:M5-Max-128GB --label P1
+uv run python scripts/make_next.py --platform macos
+```
+
+A red `main` or a PR left BEHIND gets fixed as on any tick (§3c).
+
+### Step 10. Open for service
+
+Send the first heartbeat (§3a). Add one line per step: what it found and what
+you fixed. If there was a closer log, name it, and say which of its items you
+took up, which were already done, and which you dropped and why.
+
+Then read `AGENTS.md`, `docs/agent-workflow.md`, `docs/peer_agents.md`,
+`docs/m5max-runbook.md`, and `docs/measurement-discipline.md`. Run
+`uv run python scripts/peer_brief.py` for a summary of the repo state. Enter §3.
 
 ## 2. Hard rules — never break these
 

@@ -23,7 +23,7 @@ start prompt, which was called the handoff prompt until #556.
   writes a closer log.
 - **The opener starts the next one.** A fresh session starts minutes or days
   later, on a machine in an unknown state. It checks the machine first, then
-  reads the closer log (its §1a), then resumes. It must also work with no
+  reads the closer log (its §1, step 8), then resumes. It works with no
   closer log at all (#558).
 
 The closer log lives on the machine at
