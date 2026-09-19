@@ -26,12 +26,13 @@ def test_swap_is_ignored_because_the_thresholds_are_anded():
 
 
 def test_memory_thresholds_sit_below_the_per_server_floor():
-    """dgx_server.py stops a server at 14 GiB (#456); earlyoom's 10% of
-    121.7 GiB is about 12 GiB. The order matters: the wrapper should take a
-    server down cleanly before the box-wide killer has to."""
-    assert se.MEM_THRESHOLDS == "10,5"
+    """A per-server watcher stops a server at 14 GiB, or 8 GiB for a server-only
+    run (#456, #562); earlyoom's 5% of 121.7 GiB is about 6.1 GiB. The order
+    matters: the watcher should take a server down cleanly before the box-wide
+    killer has to."""
+    assert se.MEM_THRESHOLDS == "5,3"
     sigterm_pct = int(se.MEM_THRESHOLDS.split(",")[0])
-    assert sigterm_pct / 100 * 121.7 < 14.0
+    assert sigterm_pct / 100 * 121.7 < 8.0
 
 
 def test_sshd_is_never_a_victim_and_the_engines_are_preferred():
