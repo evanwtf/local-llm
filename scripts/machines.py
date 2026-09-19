@@ -109,6 +109,20 @@ MACHINES: tuple[Machine, ...] = (
         classes=("platform:Nvidia",),
         note="desktop; a discrete GPU with 12 GB of VRAM",
     ),
+    Machine(
+        slug="Corei3-7100-KabyLake-SGT2_HDGraphics630_",
+        directory="Corei3-7100-16GB-KabyLake-SGT2_HDGraphics630_",
+        name="the Core i3-7100 remote agent client",
+        os="Linux",
+        arch="x86_64",
+        accelerator="none (Intel HD Graphics 630, integrated)",
+        memory="16 GiB system",
+        # Its own tier so no backend reads as native here: it serves nothing,
+        # and untiered would claim the default-matrix machine's slot (#345).
+        tier="remote-client",
+        classes=(),
+        note="serves no model; runs OpenCode and the harness against the DGX Spark over the LAN (#562)",
+    ),
 )
 
 DOC = REPO / "hardware" / "MACHINES.md"

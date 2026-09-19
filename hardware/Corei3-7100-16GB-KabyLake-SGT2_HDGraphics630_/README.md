@@ -7,8 +7,9 @@ host names and addresses live in each machine's ssh and DNS configuration, never
 in this public repo.
 
 The directory name is what `scripts/hardware_id.py` computes on this machine
-(the trailing `_` comes from sanitizing the integrated GPU's name). The machine
-is not in `scripts/machines.py`: it has no `tier` because it serves nothing.
+(the trailing `_` comes from sanitizing the integrated GPU's name). It is
+registered in `scripts/machines.py` with `tier = "remote-client"`, which no
+backend carries, because it serves nothing.
 
 Audited 2026-09-19 over ssh, read-only apart from cloning this repo into
 `~/git/local-llm`.
