@@ -156,13 +156,19 @@ def arm_from_env(side: str) -> stack_arm.Arm:
 
     engine = get("ENGINE", stack_arm.DS4)
     mlx_model = get("MLX_MODEL")
+    # `<SIDE>_PLE=none`: the GGUF carries its own n-grams and the server takes
+    # no --ple (upstream ds4 main, #158). An empty value cannot say this: it
+    # falls back to the default sidecar.
+    ple_spec = get("PLE", d["PLE"])
+    embedded = ple_spec.lower() == "none"
     return stack_arm.Arm(
         name=side.lower(),
         backend=get("BACKEND", d["BACKEND"]),
         engine=engine,
         tree=pathlib.Path(get("TREE", d["TREE"])),
         gguf=pathlib.Path(get("GGUF", d["GGUF"])),
-        ple=pathlib.Path(get("PLE", d["PLE"])),
+        ple=None if embedded else pathlib.Path(ple_spec),
+        ple_embedded=embedded,
         kv=pathlib.Path(get("KV", d["KV"])),
         flags=get("FLAGS"),
         run_flags=get("RUN_FLAGS"),
