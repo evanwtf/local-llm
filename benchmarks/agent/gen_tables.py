@@ -245,13 +245,24 @@ def client_caveat(
     return ["", note]
 
 
+#: mlx-serve backends whose pack gets an MTP head grafted on at load, so PLD is
+#: not their only draft source. The row cannot show it: the argv probe sees
+#: only PLD (#479).
+MTP_GRAFTED = {
+    "bonsai2mlxserve": (
+        "depth 2, from ddalcu/Qwen3.8-27B-MLX-Serve-4bit; "
+        "[#479](https://github.com/evanwtf/local-llm/issues/479)"
+    ),
+}
+
+
 def pld_caveat(
     rows: list[dict[str, Any]], labels: dict[str, str] | None = None
 ) -> list[str]:
     """Say so when a table holds mlx-serve rows, which speculate by default.
 
     #262: mlx-serve turns Prompt Lookup Decoding on by default, and every
-    mlx-serve row was taken with it on -- the pack ships no MTP head or
+    mlx-serve row was taken with it on -- the Flash-Next pack ships no MTP head or
     drafter, so PLD is the draft source -- but the speculation was never
     recorded per row. So an mlx-serve row is not a no-speculation baseline
     against a ds4 arm whose MTP state we set explicitly.
@@ -268,11 +279,24 @@ def pld_caveat(
     if not served:
         return []
     names = ", ".join(f"`{labels.get(b, b)}`" for b in served)
+    grafted = [b for b in served if b in MTP_GRAFTED]
+    plain = [b for b in served if b not in MTP_GRAFTED]
+    draft = ""
+    if plain:
+        draft += (
+            f" The {', '.join(f'`{labels.get(b, b)}`' for b in plain)} pack ships "
+            "no MTP head or drafter, so PLD is its only draft source "
+            "([#262](https://github.com/evanwtf/local-llm/issues/262))."
+        )
+    for b in grafted:
+        draft += (
+            f" For `{labels.get(b, b)}`, mlx-serve also grafts an MTP head "
+            f"({MTP_GRAFTED[b]})."
+        )
     note = (
         f"**The {names} rows are PLD-on.** mlx-serve turns on Prompt Lookup "
         "Decoding by default, and every mlx-serve row here was taken with it "
-        "on; the pack ships no MTP head or drafter, so PLD is the draft source "
-        "([#262](https://github.com/evanwtf/local-llm/issues/262)). That is the "
+        f"on.{draft} That is the "
         'engine\'s own default — "what you get when you install it," which '
         "is what this project measures — but the speculation was never "
         "recorded, so these rows are not a no-speculation baseline against the "

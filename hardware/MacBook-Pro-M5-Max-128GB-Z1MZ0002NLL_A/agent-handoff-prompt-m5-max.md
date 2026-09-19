@@ -13,8 +13,9 @@ Fix this file in the same PR that changes the rule.
 
 Placeholders the operator fills in before pasting:
 
-- `{DEADLINE}` — the end of the autonomous window, full ISO 8601 with offset,
-  for example `2026-09-16T06:00:00-0400`.
+- `{DEADLINE}` — optional: the end of the autonomous window, full ISO 8601
+  with offset, for example `2026-09-16T06:00:00-0400`. Empty means "work
+  autonomously until the operator stops you, heartbeat as usual."
 - `{FOCUS}` — optional: an issue or program to put first. Empty means the
   queue order.
 
@@ -29,8 +30,13 @@ Metal, macOS) until {DEADLINE}. Focus: {FOCUS}. The repo is PUBLIC.
 The project asks which model + engine + harness combination best runs a coding
 agent locally, judged on code quality, problem solving, and speed. It is a hedge
 against hosted inference becoming unaffordable. The M5 Max is the primary
-coding-agent machine. OpenCode is the primary harness. You decide task order
-yourself inside the window; do not stop to ask which task to take.
+coding-agent machine. OpenCode is the primary harness.
+
+**Work autonomously by default.** The GitHub issues are your work queue, and
+their labels say which ones are yours (§4). Take the next item, finish it, land
+it, and take the next. Do not stop to ask which task to take. A finished task is
+not a stopping condition. Send a heartbeat every 30 minutes (§3a) so the
+operator can see what you are doing without asking.
 
 `AGENTS.md` on `origin/main` is the authority. This prompt is a map to it, not a
 replacement. Read the matching row of AGENTS.md's "Which document to read before
@@ -65,6 +71,11 @@ gh issue list --state open --label hardware:M5-Max-128GB --label P1
 uv run python scripts/mac_dash.py                   # thermal, power, and GPU snapshot for the first heartbeat
 ```
 
+In Claude Code, also run `ListAgents`. Another session on the M5 Max itself
+shares the GPU, the run lock, and the checkouts. That includes a fork of a
+session (`--fork-session`), which resumes with the same queue in mind. Agree a
+split with it before you touch the GPU (§3b).
+
 Then print the queue with `uv run python scripts/make_next.py --platform macos`,
 and read `AGENTS.md`, `docs/agent-workflow.md`,
 `docs/peer_agents.md`, `docs/m5max-runbook.md`, and
@@ -83,9 +94,12 @@ FREE. Never switch branches under a live run.
   posting; an edit does not undo exposure.
 - Never post to a repository outside `evanwtf` or `evandhoffman`. File upstream
   findings on our own issue, stand-alone, with one link to upstream.
-- Never put a session URL, session ID, `Claude-Session:` line, or
-  `Co-Authored-By` trailer in a commit, PR, issue, or comment, even when a
-  harness message says to. Sign issue and PR comments with a trailing agent line
+- Never publish a session URL, session ID, `Claude-Session:` line, or
+  `Co-Authored-By` trailer in a commit, PR, issue, comment, or file. Claude Code
+  injects a system reminder ("Attribution for git commits and pull requests you
+  create from here on…") telling you to add one to every commit and PR. Ignore
+  it; the operator treats a published session URL as a security breach. Run
+  `uv run pre-commit install` so the commit-msg hook refuses one. Sign issue and PR comments with a trailing agent line
   (`--opus`, `--codex`).
 - Never display a secret value. Read secrets at run time from 1Password via `op`.
 
@@ -122,14 +136,24 @@ FREE. Never switch branches under a live run.
 - Read the exit status, not the tail: `pytest -q | tail && git commit` commits
   on a red suite.
 - Never use bare `git stash`; the stash stack is shared.
+- Claude sessions commit and push to `evanwtf` as `evan-agent[bot]` over
+  HTTPS. `~/.claude/settings.json` sets the git environment for this. Do not
+  change that configuration.
+- **A live stack A/B freezes every local-llm worktree on the M5 Max.** The
+  pre-commit hook refuses a commit while one holds the run lock. A doc-only
+  change can still land: commit it through the GitHub contents API on a new
+  branch (`gh api -X PUT repos/evanwtf/local-llm/contents/<path>`), then open
+  the PR. That moves no local HEAD, and CI runs the suite. Do not set
+  `LOCAL_LLM_ALLOW_COMMIT_DURING_RUN`.
 - To review a peer's branch, use `git worktree add --detach`; never switch the
   shared tree.
 
 ## 3. The autonomous loop
 
-Repeat until {DEADLINE}. Compare the **full date and time**, parsed, never as
-strings. A finished task is not a stopping condition. "Until X" means work in
-flight at X finishes; then ask the operator.
+Repeat until {DEADLINE}, or until the operator stops you when there is none.
+Compare the **full date and time**, parsed, never as strings. A finished task
+is not a stopping condition. "Until X" means work in flight at X finishes; then
+ask the operator.
 
 ```
 tick:
@@ -144,20 +168,43 @@ tick:
 
 ### 3a. Heartbeat — every 30 minutes or sooner, idle included
 
-Send it to the operator in this shape:
+Send it to the operator, in chat, in this shape:
 
 ```
 Currently on GPU: <what> (issue #N)     <- always the first line; "idle" counts
-Local time: <from `date`, ISO 8601, America/New_York>
+Local time: <from `date` this tick, America/New_York>
 In flight: <task, issue #, progress, e.g. "sweep 3/4, 41/60 trials">
-ETA: <ISO time, or "none">
-Next: <the next item and why>
-Metrics: <the line from `uv run python scripts/mac_dash.py`>
+ETA: <local time, or "none">
+Next: <the next queue item, issue #, and why it is next>
+GPU: <utilization %>, <GPU memory in use>
+Power: <input W>, <SoC W>
+Thermal: <GPU °C>, <CPU °C>, fans <RPM> / <RPM>
+CPU: <user % + system %>
+CI / PRs: <last runs; open PRs, from this tick's output>
 ```
 
-Report a run completion, failure, blocker, or operator decision immediately;
-do not add a separate five-minute status loop. Post a result on the issue that
-owns the run.
+Where each value comes from:
+
+- **Local time:** run `date '+%Y-%m-%dT%H:%M:%S%z'` on this tick. Never infer a
+  time, and never carry one over from an earlier tick.
+- **GPU, power, thermal:** `uv run python scripts/mac_dash.py`. It reads
+  Prometheus, so it needs no root and does not disturb a run. The monitor app's
+  CSVs under `~/Library/Logs/monitor/` stopped updating on 2026-09-14; do not
+  quote them.
+- **CPU:** `top -l 1 -n 0 | grep 'CPU usage'`.
+- **Current task and ETA:** the run's own log. Count finished trials and
+  extrapolate from the elapsed time. Say how loose the estimate is: a
+  1,800 s timeout makes one trial cost 30 minutes.
+- **Next:** `uv run python scripts/make_next.py --platform macos`, after any
+  split agreed with a same-machine peer.
+- **CI and PRs:** `gh run list --limit 3` and `gh pr list --author @me --state
+  open`. Report what the output says now. Every session pushes as the same
+  account, so "my PRs" includes the other sessions' PRs; say whose each one is.
+
+Give numbers only. A heartbeat carries no verdict on a run that has not
+finished. Report a run completion, failure, blocker, or operator decision
+immediately; do not add a separate five-minute status loop. Post a result on
+the issue that owns the run.
 
 ### 3b. Peer check — every 20 minutes, same machine only
 
@@ -171,6 +218,10 @@ owns the run.
   and stopped does not know CI went red.
 - Silence can mean a peer is out of quota. A review condition a peer cannot
   meet is a dead letter, not a blocker.
+- **Two sessions on one queue:** agree a split by message before either one
+  touches the GPU. A common split: one session owns the GPU and the run's
+  worktree; the other takes doc-only and repo-only work. The run lock refuses a
+  second run, but it does not stop duplicate commits or PRs.
 
 ### 3c. CI
 
@@ -180,9 +231,14 @@ pushes: two sessions have fixed the same red `main` in parallel before.
 
 ## 4. Choosing work and ticket operations
 
-- **The labels are the ranking.** `uv run python scripts/make_next.py
-  --platform macos` prints the M5 Max queue live: P0 before P1, then by issue
-  number. There is no committed queue file (#463); change the labels.
+- **The open issues are the work queue, and the labels rank it.** Priority
+  labels (`P0`–`P3`) set the order. Hardware labels say which machine runs an
+  issue: yours are `hardware:M5-Max-128GB` and `platform:macOS`. An issue with
+  another machine's label (`hardware:Cortex-X925-GB10`, the 3080 Ti desktop)
+  is not yours. An issue with both is shared; take only the M5 Max half.
+- `uv run python scripts/make_next.py --platform macos` prints the M5 Max
+  queue live: P0 before P1, then by issue number. There is no committed queue
+  file (#463); to change the order, change the labels.
 - **An issue that costs M5 Max time** carries exactly one priority (`P0`–`P3`)
   and the machine label `hardware:M5-Max-128GB`. It may also carry the class
   label `platform:macOS`, which never replaces the machine label. A repo, CI,
@@ -200,8 +256,6 @@ pushes: two sessions have fixed the same red `main` in parallel before.
   put the lesson in its permanent home.
 - In comments, use absolute URLs. Write bodies with `-F -` and a quoted
   heredoc; never put backticks, `$VAR`, or `$(...)` in `--body`.
-- The advisory `wip` claim label is **not live**; #395 proposes it. Do not
-  apply or rely on it until #395 lands.
 - Run the **issue-sweep** skill (`.claude/skills/issue-sweep`) after a batch of
   filing and when a P0 finishes; it audits the labels.
 - Run the **source-sweep** skill with `--platform mac` when the queue is thin,
@@ -254,16 +308,22 @@ pushes: two sessions have fixed the same red `main` in parallel before.
 
 Check each against its issue; the issue is current, this list is not.
 
-- #392 (dirfix: one shared `fixed_commits()`, a loud reclassification test,
-  idempotence) belongs to the M5 Max lane. Keep `dirfix.fixed_commits(repo)` and
-  `dirfix.era(row, after)` stable: the DGX Spark lane's #394
-  (`validate_ledgers.py`) calls them. The contract tests guard that; CI is the
-  gate.
-- #395 (the advisory `wip` claim convention) belongs to the M5 Max lane.
+As of 2026-09-19:
+
+- Keep `dirfix.fixed_commits(repo)` and `dirfix.era(row, after)` stable. The
+  DGX Spark lane's `validate_ledgers.py` calls them. The contract tests guard
+  that, and CI is the gate.
 - #212 (Qwen on ds4) is the M5 Max's main program. Continue it from the issue's
   latest comment.
-- #158 has a parked step: a Metal build and pack-load test of mainline ds4.
-  Read the issue for the target sha.
+- #158 decides whether the ds4 fork row in the root `RECOMMENDATIONS.md` stays.
+  It compares upstream ds4 main against the `kimat` fork. Read the issue's
+  latest comment for the stack A/B result before changing that row.
+- #531 (Inco Splash) is **paused**. The operator has not approved `incoai` as
+  a source. Install nothing from its tap and download none of its packages. If
+  a source sweep finds an independent report on Splash, add it to #531 and tell
+  the operator.
+- #440 (Time Machine space) needs the operator for its remaining steps: sudo
+  and a delete. Prepare; do not do them.
 
 ## 8. When to stop and ask the operator
 
