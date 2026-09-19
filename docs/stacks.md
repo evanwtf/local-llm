@@ -146,7 +146,50 @@ holds about 5 GB. It does not survive a reboot on its own; this repo has
 **A reading of `0` means "system default", not "no limit".** After a reboot, `0`
 means your setting did not apply.
 
-### Qwen3.8-Flash-Next on ds4 — the fast one
+### Qwen3.8-Flash-Next on ds4 upstream main — the M5 Max's ds4 row
+
+This is the stack the M5 Max's "lighter engine" row names since 2026-09-19
+([#158](https://github.com/evanwtf/local-llm/issues/158),
+[#524](https://github.com/evanwtf/local-llm/issues/524)). It needs no fork and
+no PLE sidecar. In a 60-trial-per-arm stack A/B on the M5 Max, it passed 59/60
+against the `kimat` fork's 60/60, with a paired wall ratio of 0.96 (95% CI
+0.87–1.06).
+
+```sh
+git clone https://github.com/antirez/ds4.git ~/git/ds4
+cd ~/git/ds4
+make
+./download_model.sh qwen38-q4k
+```
+
+The rows were measured at `8db1d1d1`. Record the commit you build.
+
+The download is one 165.11 GiB GGUF. It holds 69.74 GiB of main and MTP
+weights and a 95.37 GiB n-gram table. The n-gram table stays on disk, and the
+server reads rows from it on demand, so keep the file on a fast local SSD.
+The script puts the file in `gguf/` in the ds4 tree.
+
+Serve it, then put the tool-format shim in front. **Both halves are
+required.** OpenCode talks to the shim, not to ds4:
+
+```sh
+cd ~/git/ds4
+./ds4-server --metal \
+  -m gguf/Qwen3.8-Flash-Next-Q4.gguf \
+  --ctx 100000 --warm-weights \
+  --kv-disk-dir ~/.ds4/server-kv --kv-disk-space-mb 8192 \
+  --host 127.0.0.1 --port 8000
+
+uv run python ds4_qwen_tool_shim.py --upstream http://127.0.0.1:8000 --port 8101
+```
+
+OpenCode then points at `ds4qwenshim/qwen3.8-flash-next-q4`, the same model
+as the fork stack below. **Leave MTP off**, for the reason given below.
+
+### Qwen3.8-Flash-Next on ds4's `kimat` fork — the earlier row
+
+**The M5 Max row moved off this stack on 2026-09-19** (see the section
+above). The steps stay here for the rows measured on it.
 
 **This is a fork, and that is the whole caveat.** The build lives on
 ivanfioravanti's `qwen3.8-flash-next` branch, not mainline ds4;
