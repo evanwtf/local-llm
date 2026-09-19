@@ -1,31 +1,35 @@
-# Closing prompt: end an agent session on any benchmark machine
+# The closer: end an agent session on any benchmark machine
 
 This file is a **prompt**. Paste everything below the line into a session you
 are about to end, on any machine in [`MACHINES.md`](MACHINES.md). It is the
-other half of each machine's handoff prompt (#556):
+other half of each machine's opener (#556):
 
-| machine | opening (handoff) prompt |
+| machine | opener |
 |---|---|
-| M5 Max MacBook Pro | [`agent-handoff-prompt-m5-max.md`](MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/agent-handoff-prompt-m5-max.md) |
-| DGX Spark | [`agent-handoff-prompt-dgx-spark.md`](Cortex-X925-128GB-GB10/agent-handoff-prompt-dgx-spark.md) |
-| Ryzen / RTX 3080 Ti desktop | [`agent-handoff-prompt-ryzen-3080ti.md`](Ryzen9-7900X-32GB-RTX3080Ti-12GB/agent-handoff-prompt-ryzen-3080ti.md) |
+| M5 Max MacBook Pro | [`agent-opener-prompt-m5-max.md`](MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/agent-opener-prompt-m5-max.md) |
+| DGX Spark | [`agent-opener-prompt-dgx-spark.md`](Cortex-X925-128GB-GB10/agent-opener-prompt-dgx-spark.md) |
+| Ryzen / RTX 3080 Ti desktop | [`agent-opener-prompt-ryzen-3080ti.md`](Ryzen9-7900X-32GB-RTX3080Ti-12GB/agent-opener-prompt-ryzen-3080ti.md) |
 
 Think of a restaurant crew. At the end of the night the closers clean the
 station and write the log. In the morning the openers read the log, check the
 station for themselves, and start service. A good close leaves the openers
 little to clean up.
 
-- **This prompt closes.** The departing session stops taking new work. It
-  accounts for everything in flight, puts each piece in a durable place, and
-  writes a closing log.
-- **The handoff prompt opens.** A fresh session starts minutes or days later,
-  on a machine in an unknown state. It checks the machine first, then reads the
-  closing log (its §1a), then resumes.
+**Terms.** The **closer** is this prompt. The **opener** is each machine's
+start prompt, which was called the handoff prompt until #556.
 
-The closing log lives on the machine at
-`~/.local-llm-bench/handoff/<timestamp>.md`, beside the run lock. It is outside
-the repo because it names local paths, pids, and worktrees. Public state still
-goes on the issues.
+- **The closer ends a session.** The departing session stops taking new work.
+  It accounts for everything in flight, puts each piece in a durable place, and
+  writes a closer log.
+- **The opener starts the next one.** A fresh session starts minutes or days
+  later, on a machine in an unknown state. It checks the machine first, then
+  reads the closer log (its §1a), then resumes. It must also work with no
+  closer log at all (#558).
+
+The closer log lives on the machine at
+`~/.local-llm-bench/closer-logs/<timestamp>.md`, beside the run lock. It is
+outside the repo because it names local paths, pids, and worktrees. Public
+state still goes on the issues.
 
 Why close at all: a session that runs for days carries tens of millions of
 tokens, and its judgment degrades. A fresh session with a good log is better
@@ -42,11 +46,11 @@ Placeholder the operator fills in before pasting:
 # Close this session
 
 You are about to be ended. Reason: {REASON}. The next session starts cold. It
-knows only what the disk, git, GitHub, and your closing log tell it. Your
+knows only what the disk, git, GitHub, and your closer log tell it. Your
 memory of this conversation dies with you. Write down everything the next
 session needs before you stop.
 
-The rules in `AGENTS.md` and in this machine's handoff prompt (§2, the hard
+The rules in `AGENTS.md` and in this machine's opener (§2, the hard
 rules) still apply while you close. In particular: no session URLs or IDs
 anywhere, nothing private in the public repo, and no commits in a checkout that
 a live run has frozen.
@@ -89,7 +93,7 @@ for wt in $(git worktree list --porcelain | awk '/^worktree /{print $2}'); do
   git -C "$wt" log --oneline '@{u}..HEAD' 2>/dev/null   # unpushed commits
 done
 git stash list                                      # read only; never pop or drop another session's entry
-ls -1 ~/.local-llm-bench/handoff/*.md 2>/dev/null   # a log an earlier session left and nobody acted on
+ls -1 ~/.local-llm-bench/closer-logs/*.md 2>/dev/null   # a log an earlier session left and nobody acted on
 gh pr list --state open --json number,title,headRefName,mergeStateStatus,autoMergeRequest
 gh run list --limit 10 --json conclusion,status,headBranch,displayTitle
 ```
@@ -106,7 +110,7 @@ Then go back through this conversation. List every item that is not finished:
 - anything you were told not to touch.
 
 An earlier log that nobody acted on is still open work. Fold its open items
-into your log, then move it to `handoff/done/`.
+into your log, then move it to `closer-logs/done/`.
 
 ## 3. Make every live job safe to outlive you
 
@@ -131,16 +135,16 @@ Work that lives only in your context or in an uncommitted file is lost.
 - Unfinished but worth keeping: push the branch and open a **draft** PR that
   says what is left. Record it.
 - When a live run has frozen the checkouts, the pre-commit hook refuses a
-  commit. Land a doc-only change through the GitHub contents API (the handoff
-  prompt says how). For anything else, save a patch:
-  `git -C <worktree> diff > ~/.local-llm-bench/handoff/patches/<worktree-name>.patch`.
+  commit. Land a doc-only change through the GitHub contents API (the opener
+  says how). For anything else, save a patch:
+  `git -C <worktree> diff > ~/.local-llm-bench/closer-logs/patches/<worktree-name>.patch`.
   Name the patch in the log.
 - A worktree whose branch has merged: leave it if a run uses it. Otherwise note
   it as safe to remove. Do not remove a worktree that a peer or a run uses.
 
 **Results:**
 - A run finished and its rows are not landed: land them now if the machine is
-  FREE (handoff prompt, "Landing results"). If it is not FREE, record the run's
+  FREE (opener, "Landing results"). If it is not FREE, record the run's
   output folder and the read-out steps.
 
 **Issues — the public log:**
@@ -150,8 +154,8 @@ Work that lives only in your context or in an uncommitted file is lost.
 - An operator decision about an issue goes on that issue.
 
 **Rules and lessons:**
-- A rule for the repo or for every agent goes into `AGENTS.md` or the handoff
-  prompts, through a PR.
+- A rule for the repo or for every agent goes into `AGENTS.md` or the openers,
+  through a PR.
 - A fact about the operator, or about how to work with them, goes into your
   memory folder (the path your system prompt names). Update an existing memory
   before you add one. If this machine has `~/git/claude`, publish it:
@@ -174,18 +178,18 @@ Work that lives only in your context or in an uncommitted file is lost.
 - Leave `~/git/local-llm` on `main`. Do not switch it under a live run.
 - Do not run `git stash`, `git clean`, or `git reset --hard` to tidy up.
 
-## 6. Write the closing log
+## 6. Write the closer log
 
 ```sh
-mkdir -p ~/.local-llm-bench/handoff/patches ~/.local-llm-bench/handoff/done
-LOG=~/.local-llm-bench/handoff/$(TZ=America/New_York date '+%Y-%m-%dT%H%M%S%z').md
+mkdir -p ~/.local-llm-bench/closer-logs/patches ~/.local-llm-bench/closer-logs/done
+LOG=~/.local-llm-bench/closer-logs/$(TZ=America/New_York date '+%Y-%m-%dT%H%M%S%z').md
 ```
 
 Write the log to `$LOG`, in this shape. Keep every heading. Under a heading
 with nothing in it, write "none".
 
 ```markdown
-# Closing log
+# Closer log
 
 Written: <from `date`, full ISO 8601 with offset>
 Machine: <the slug from machines.py --check>
@@ -220,7 +224,7 @@ When each one exits, do this: <the exact read-out steps, in order>
 ## Do not touch
 - <item and why: paused, awaiting approval, another session's>
 
-## First actions for the opener
+## First actions for the new session
 1. <in order; the most time-sensitive first>
 
 ## Suspicions and unknowns
@@ -232,7 +236,7 @@ Rules for the log:
 - Every time is a full ISO 8601 time with offset, from `date`, in New York.
 - Every number comes from a command you ran while you closed.
 - Name the evidence for each claim (a log path, a PR, an issue comment), so the
-  opener can check it.
+  new session can check it.
 - Put no secret in the log.
 
 ## 7. Check your close, then report
@@ -244,7 +248,7 @@ Rules for the log:
 - Tell the operator, in chat:
   - the log's path,
   - the live jobs and their ETAs,
-  - the first action for the opener,
+  - the first action for the new session,
   - "Ready to end."
 
 Then stop. Do not end the session yourself; the operator ends it.

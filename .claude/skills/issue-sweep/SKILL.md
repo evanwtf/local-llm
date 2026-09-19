@@ -41,7 +41,7 @@ uv run python scripts/make_next.py --platform nvidia
 
 **Before reading any issue, write down what each machine should be doing
 next**, from the operator's most recent direction (this conversation, the
-handoff prompt, recent issue comments) and the machine's current state
+opener prompt, recent issue comments) and the machine's current state
 (`scripts/machine_state.py`). Then compare that to the printed queue.
 Otherwise the labels anchor you and you audit the queue against itself.
 

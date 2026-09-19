@@ -1,4 +1,4 @@
-# Handoff prompt: the autonomous operator on the M5 Max MacBook Pro (128 GB)
+# Opener: the autonomous operator on the M5 Max MacBook Pro (128 GB)
 
 This file is a **prompt**. Paste everything below the line into a fresh Claude
 Code or Codex session started on the M5 Max MacBook Pro (128 GB, macOS,
@@ -11,11 +11,11 @@ desktop have their own lanes; see [`hardware/MACHINES.md`](../MACHINES.md).
 Where this prompt and `AGENTS.md` on `origin/main` disagree, `AGENTS.md` wins.
 Fix this file in the same PR that changes the rule.
 
-This is the **opening** half of a shift change (#556). Before the operator ends
-a session, they give it
-[`hardware/agent-closing-prompt.md`](../agent-closing-prompt.md), which all
-three machines share. That session then leaves a closing log in
-`~/.local-llm-bench/handoff/`. This prompt finds the log in §1a.
+This prompt is the **opener**, one half of a shift change (#556). Before the
+operator ends a session, they give it the **closer**,
+[`hardware/agent-closer-prompt.md`](../agent-closer-prompt.md), which all
+three machines share. That session then leaves a closer log in
+`~/.local-llm-bench/closer-logs/`. This prompt finds the log in §1a.
 
 Placeholders the operator fills in before pasting:
 
@@ -77,7 +77,7 @@ gh issue list --state open --label hardware:M5-Max-128GB --label P1
 uv run python scripts/mac_dash.py                   # thermal, power, and GPU snapshot for the first heartbeat
 uv run python scripts/unitctl.py status             # resident servers and shims, and who started them
 git worktree list                                   # worktrees a live run or a peer may use
-ls -1 ~/.local-llm-bench/handoff/*.md 2>/dev/null   # closing logs not yet acted on (§1a)
+ls -1 ~/.local-llm-bench/closer-logs/*.md 2>/dev/null   # closer logs not yet acted on (§1a)
 ```
 
 In Claude Code, also run `ListAgents`. Another session on the M5 Max itself
@@ -92,25 +92,25 @@ and read `AGENTS.md`, `docs/agent-workflow.md`,
 
 ### 1a. Read what the last crew left
 
-A departing session runs the closing prompt and writes a closing log to
-`~/.local-llm-bench/handoff/<timestamp>.md`. The log tells you what was in
+A departing session runs the closer and writes a closer log to
+`~/.local-llm-bench/closer-logs/<timestamp>.md`. The log tells you what was in
 flight, what was promised, and what to do first. Minutes or days may have
 passed since it was written.
 
-1. Read every log in `~/.local-llm-bench/handoff/` (not in `done/`), oldest
+1. Read every log in `~/.local-llm-bench/closer-logs/` (not in `done/`), oldest
    first. Where two logs disagree, the newer one wins.
 2. Treat each line as a claim that was true at the log's `Written:` time, not
    as a fact now. Check it against the §1 output: a job it names may have
    finished, died, or been read out by someone else. Read the owning issue's
    latest comment before you act on a log item.
-3. Follow the log's instructions and its "First actions for the opener"
+3. Follow the log's instructions and its "First actions for the new session"
    unless the machine's state, the issue, or `AGENTS.md` contradicts them. A
-   patch it names is in `handoff/patches/`; apply it only when the machine is
+   patch it names is in `closer-logs/patches/`; apply it only when the machine is
    FREE.
 4. In your first heartbeat, name the log. Say which of its items you took up,
    which were already done, and which you dropped and why.
 5. When you have acted on a log, move it:
-   `mv <log> ~/.local-llm-bench/handoff/done/`. Move each patch you applied
+   `mv <log> ~/.local-llm-bench/closer-logs/done/`. Move each patch you applied
    there too. Never delete a log or a patch.
 
 **No log means the last session did not close.** Rebuild the picture yourself:
