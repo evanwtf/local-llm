@@ -389,6 +389,15 @@ def test_confinement_names_what_actually_confined_the_agent(monkeypatch):
     monkeypatch.setattr(preflight.sys, "platform", "darwin")
     assert preflight.confinement() == "sandbox-exec"
     monkeypatch.setattr(preflight.sys, "platform", "linux")
+    monkeypatch.setattr(preflight, "BWRAP", preflight.pathlib.Path("/bin/sh"))
+    monkeypatch.setattr(preflight, "_bwrap_ok", lambda: True)
+    assert preflight.confinement() == "bwrap"
+    monkeypatch.setattr(preflight, "_bwrap_ok", lambda: False)
+    assert preflight.confinement() == "none"
+    monkeypatch.setattr(preflight, "_bwrap_ok", lambda: True)
+    monkeypatch.setattr(
+        preflight, "BWRAP", preflight.pathlib.Path("/nonexistent/bwrap")
+    )
     assert preflight.confinement() == "none"
 
 
