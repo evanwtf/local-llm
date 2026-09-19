@@ -1,17 +1,21 @@
 # What to actually run on the M5 Max
 
-**A local coding agent on an Apple Silicon Mac (M5 Max, 128 GB, macOS 26), when
+**A local coding agent on an Apple Silicon Mac (M5 Max, 128 GB, macOS 27), when
 you cannot or will not use a hosted provider.** Every number was measured by
 `benchmarks/agent/` on this machine. Nothing here is from a model card. Paste
 section 1, pick a row in 2, or run one script in 3; the rest moved to
 [`docs/`](#where-the-rest-of-it-went). The map of all machines is the root
 [`RECOMMENDATIONS.md`](../../RECOMMENDATIONS.md).
 
-**Ledger last read 2026-09-10; ranking re-verified 2026-09-12.** These numbers
-are a **pre-macOS-27 baseline**
-([#306](https://github.com/evanwtf/local-llm/issues/306)) — re-validate after
-that upgrade. A read date more than a couple of weeks old means re-check the
-ledger before trusting the rows.
+**Ledger last read 2026-09-19 ([#524](https://github.com/evanwtf/local-llm/issues/524)).**
+Section 2's pass and median columns come from `scripts/reco_rows.py`, pooled
+across engine builds and macOS 26 and 27. A read date more than a couple of
+weeks old means re-check the ledger before trusting the rows.
+
+**macOS 27 (2026-09-18, [#306](https://github.com/evanwtf/local-llm/issues/306))
+did not break a pick:** mlx-serve, llama.cpp and ds4 main each passed 45/45 on
+it ([`docs/macos-26-vs-27.md`](../../docs/macos-26-vs-27.md)). The macOS 26
+side is one trial per task, so its wall times are not an OS effect.
 
 ---
 
@@ -67,10 +71,18 @@ Section 1 installs row 1.
 | pick this if | model | server | download | pass rate | median task |
 |---|---|---|---|---|---|
 | **you are starting out** | Qwen3.6-27B-coding `mxfp8` | Ollama | 31 GB | **24/24** | 167s |
-| **you want it fastest** | Qwen3.8-Flash-Next `MLX mixed-4/8bit` | **mlx-serve 26.9.2** | ~100 GiB | **60/60** | ~56s† |
-| **you want the same model on a lighter engine** | Qwen3.8-Flash-Next `Q4_K imatrix` | ds4, ivanfioravanti's fork | 98 GiB | **196/196** | 95s |
-| **you want a mainline engine** | Qwen3.8-Flash-Next `UD-Q3_K_XL` | llama.cpp | 84 GiB | **75/75** | 106s |
+| **you want it fastest** | Qwen3.8-Flash-Next `MLX mixed-4/8bit` | **mlx-serve** (26.9.1–26.9.4) | ~100 GiB | **372/376** | 52s |
+| **you want the same model on a lighter engine** | Qwen3.8-Flash-Next `Q4_K imatrix` | ds4, ivanfioravanti's fork | 98 GiB | **526/526** | 87s |
+| **you want a mainline engine** | Qwen3.8-Flash-Next `UD-Q3_K_XL` | llama.cpp | 84 GiB | **135/135** | 121s |
 | **you want a second lineage** | DeepSeek-V4-Flash | ds4 (DwarfStar) | 91 GB | **30/30** | 115s |
+
+Every row counts passed / usable OpenCode trials and the median passing
+excision task. The rows come from different weeks; the head-to-head below is
+the rigorous comparison.
+
+**Measured and not picked:** Ternary Bonsai 2 27B on mlx-serve main passed 27
+of 44 trials (95% CI 47–74%). Its median passing excision task took 326 s
+([#479](https://github.com/evanwtf/local-llm/issues/479)).
 
 **The fastest verified stack is now mlx-serve 26.9.2, as of 2026-09-10 (#282).**
 In a head-to-head agent A/B with **both engines on their latest builds** — ds4
@@ -88,7 +100,10 @@ gap.
 level-2 MoE tiles (+17–23% appended prefill on the `kimat` pack, now the
 promoted default, [#328](https://github.com/evanwtf/local-llm/issues/328)) and
 continued [#952](https://github.com/evanwtf/local-llm/issues/952). Treat the
-gap as current only until it is re-measured against the current ds4 head.
+gap as current only until it is re-measured against the current ds4 head. As
+of 2026-09-19 that head-to-head has not been re-run.
+[#158](https://github.com/evanwtf/local-llm/issues/158) is measuring ds4
+upstream main against the `kimat` fork, which decides the ds4 side of it.
 
 **It is a full-stack result, and that is the right way to read it.** Engine,
 quantization and speculative decoding move together: mlx-serve speculates by
@@ -97,11 +112,6 @@ ds4 `kimat` does not. The win cannot be credited to the engine alone — but the
 speculation is the engine's shipped default, "what you get when you install
 it," which is what this file measures. The cost side: mlx-serve holds ~100 GiB
 resident against ds4's ~68–80 GiB.
-
-† `~56s` is the median per-task wall from the #282 A/B (ds4 `kimat` was 75 s in
-the same A/B); it is not directly comparable to the 95 s in the ds4 row, which
-was taken in the earlier 196/196 regime. The rigorous comparison is the
-head-to-head ratio above, not the two medians side by side.
 
 **On the lighter engine (ds4 `kimat`) against llama.cpp:** wall ratio 0.84
 (95% CI 0.76–0.92), 90/90 both arms, 13 of 15 tasks favoring ds4. It loads

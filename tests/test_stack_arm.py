@@ -399,3 +399,37 @@ def test_an_absolute_path_to_a_binary_is_accepted_when_it_exists(tmp_path) -> No
     binary.write_text("#!/bin/sh\nexit 0\n")
     binary.chmod(0o755)
     stack_arm.check_assets(mlx_arm(mlx_model=pack, mlx_bin=str(binary)))
+
+
+# --- a GGUF that carries its own n-grams (#158) ------------------------------
+# Upstream ds4 main loads Qwen3.8-Flash-Next from one GGUF with the n-gram
+# table inside, and takes no --ple. The fork packs keep it in a sidecar. An arm
+# must be able to say "no sidecar" without that reading as "sidecar missing".
+
+
+def test_an_embedded_ple_arm_omits_the_ple_flag() -> None:
+    argv = stack_arm.server_argv(ds4_arm(ple=None, ple_embedded=True))
+    assert "--ple" not in argv
+    assert "-m" in argv
+
+
+def test_a_sidecar_arm_still_passes_its_ple() -> None:
+    argv = stack_arm.server_argv(ds4_arm())
+    assert argv[argv.index("--ple") + 1] == "/m/ple.gguf"
+
+
+def test_a_ds4_arm_with_no_ple_and_no_declaration_is_still_refused() -> None:
+    # None alone keeps meaning "missing": the refusal must not be weakened.
+    with pytest.raises(ValueError, match="needs ple"):
+        stack_arm.server_argv(ds4_arm(ple=None))
+
+
+def test_an_arm_cannot_both_embed_and_name_a_sidecar() -> None:
+    with pytest.raises(ValueError, match="ple_embedded"):
+        ds4_arm(ple_embedded=True)
+
+
+def test_assets_of_an_embedded_ple_arm_need_only_the_gguf(tmp_path) -> None:
+    gguf = tmp_path / "model.gguf"
+    gguf.write_text("x")
+    stack_arm.check_assets(ds4_arm(gguf=gguf, ple=None, ple_embedded=True))

@@ -19,6 +19,10 @@
 # (so a bare `git commit` runs this hook), because a guard that never runs is
 # worse than no guard -- it reads as covered. `uv run pre-commit install` wires
 # it into git; see the Build and run section of README.md.
+# Hooks without `stages` run at pre-commit only; the session-ID guard below is
+# the one commit-msg hook, and `pre-commit install` wires both hook types.
+default_install_hook_types: [pre-commit, commit-msg]
+default_stages: [pre-commit]
 repos:
   - repo: local
     hooks:
@@ -66,3 +70,12 @@ repos:
         language: system
         pass_filenames: false
         files: ^(hardware/.*/results\.jsonl|docs/archive/results-opencode-pre-dir\.jsonl)$
+      # Claude session URLs and IDs may never be published (AGENTS.md). The
+      # harness injects a reminder telling agents to append one to every
+      # commit; on 2026-09-18 an agent obeyed it on 21 commits here. This runs
+      # on the message itself, which no pre-commit-stage hook can see.
+      - id: refuse-session-ids
+        name: no Claude session URL, ID, or trailer in the commit message
+        entry: python scripts/refuse_session_ids.py
+        language: python
+        stages: [commit-msg]

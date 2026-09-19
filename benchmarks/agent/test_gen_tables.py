@@ -121,3 +121,21 @@ def test_an_mlxserve_row_earns_the_pld_caveat():
     # Names each mlx-serve backend, and no ds4 backend.
     assert "qwen38fnmlxserve" in out[1] and "qwen38fnmlxserve-git" in out[1]
     assert "qwen38fnds4kimat" not in out[1]
+
+
+def test_the_pld_caveat_names_a_grafted_mtp_head_where_one_ran():
+    """#479: mlx-serve grafts an MTP head onto the Bonsai 2 pack, so "the pack
+    ships no MTP head" is false for those rows and must not be said of them."""
+    rows = [
+        _row("qwen38fnmlxserve", "mlx-serve", "26.9.2"),
+        _row("bonsai2mlxserve", "mlx-serve", "6dea424"),
+    ]
+    note = gen_tables.pld_caveat(rows)[1]
+    assert "grafts an MTP head" in note
+    assert "`bonsai2mlxserve`" in note.split("grafts an MTP head")[0].rsplit(".", 1)[-1]
+    assert "the pack ships no MTP head" not in note
+
+
+def test_the_pld_caveat_says_nothing_of_a_graft_when_none_ran():
+    rows = [_row("qwen38fnmlxserve", "mlx-serve", "26.9.2")]
+    assert "graft" not in gen_tables.pld_caveat(rows)[1]
