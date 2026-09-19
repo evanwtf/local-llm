@@ -166,6 +166,18 @@ tick:
      (about 20-30 min as a fallback); while idle, start work instead of sleeping
 ```
 
+**After you launch a run, confirm that it started measuring.** Within a few
+minutes, check that its first sweep passed preflight and that an `opencode run`
+process exists. A gate refusal fails every sweep in minutes. On 2026-09-19 the
+#158 A/B exited 8 of 8 at 00:35 on a preflight refusal. Nobody read the exit,
+and the GPU sat idle until 06:42.
+
+**Your heartbeat schedule dies with the session.** A `CronCreate` job is
+session-only, so a restart or a compaction that restarts the session loses
+it. After any restart, run `CronList` and recreate the heartbeat if it is
+gone. On 2026-09-19 the job was lost at about 00:20, and there was no
+heartbeat until 06:42.
+
 ### 3a. Heartbeat — every 30 minutes or sooner, idle included
 
 Send it to the operator, in chat, in this shape:
