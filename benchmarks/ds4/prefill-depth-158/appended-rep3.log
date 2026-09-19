@@ -1,0 +1,10 @@
+ds4: Qwen BF16 n-grams: 95.37 GiB, disk reads only
+ds4: Metal device Apple M5 Max, 128.00 GiB RAM
+ds4: Metal 4 tensor API enabled for Tensor kernels
+ds4: drift-patch flags hc_stable=on norm_unify=on kv_raw_f32=off rope_exp2_log2=off math_safe=off tensor_matmul=on
+ds4: Metal model views created in 2.208 ms, residency requested in 774.975 ms, warmup 3.922 ms (mapped 71400.44 MiB from offset 10.51 MiB)
+ds4: Metal mapped mmaped model as 1 overlapping shared buffers
+ds4: metal backend initialized for graph diagnostics
+ds4: memory: KV 2.08 GiB (raw 1.63 + compressed 0.46) + buffers 8.24 GiB + resident model 69.73 GiB = 80.05 GiB planned
+ds4: memory detail: ctx=65537 prefill_cap=8192 raw_kv_rows=65537 compressed_kv_rows=16385 backend=metal
+ds4-bench: context buffers 10573.75 MiB (ctx=65537, backend=metal, prefill_chunk=8192, raw_kv_rows=65537, compressed_kv_rows=16385)
