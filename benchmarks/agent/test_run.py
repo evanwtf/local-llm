@@ -2406,3 +2406,36 @@ def test_agent_env_sets_the_trial_path(monkeypatch, tmp_path):
     monkeypatch.setenv("PATH", "/usr/bin")
     env = run.agent_env({"model": "m", "context_tokens": 1}, tmp_path)
     assert env["PATH"].split(os.pathsep)[0] == str(tmp_path / ".venv" / "bin")
+
+
+def test_the_sglang_container_is_found_by_its_served_model():
+    containers = [
+        ("aaa", "postgres:18", ["docker-entrypoint.sh", "postgres"]),
+        (
+            "bbb",
+            "lmsysorg/sglang@sha256:0020",
+            ["python3", "-m", "sglang.launch_server", "--served-model-name", "m1"],
+        ),
+    ]
+    assert run._sglang_container({"m1"}, containers)[0] == "bbb"
+    assert run._sglang_container({"other"}, containers) is None
+
+
+def test_serving_sglang_records_image_and_argv(monkeypatch):
+    containers = [
+        (
+            "bbb",
+            "lmsysorg/sglang@sha256:0020",
+            ["python3", "-m", "sglang.launch_server", "--served-model-name", "m1"],
+        )
+    ]
+    monkeypatch.setattr(
+        run.subprocess,
+        "run",
+        lambda *a, **k: subprocess.CompletedProcess(a[0], 0, stdout="0.5.19\n"),
+    )
+    got = run.serving_sglang({"m1"}, inspect_all=lambda: containers)
+    assert got["sglang_image"] == "lmsysorg/sglang@sha256:0020"
+    assert got["server_argv"].endswith("--served-model-name m1")
+    assert got["sglang"] == "0.5.19"
+    assert run.serving_sglang({"nope"}, inspect_all=lambda: containers) == {}

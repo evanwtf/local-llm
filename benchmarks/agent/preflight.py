@@ -828,6 +828,11 @@ def ds4_server_running(ps_text: str | None = None) -> bool:
 
 def report_ds4_equivalence() -> None:
     """Say where the equivalence check stands, at a level matching the risk."""
+    # Metal exists only on macOS. On Linux the route cannot run, so a warning
+    # that it is UNVERIFIED is noise in every run's header (#562's first remote
+    # run printed it on a client that serves nothing).
+    if sys.platform != "darwin":
+        return
     state, summary = ds4_equivalence_state()
     if state == "pass":
         # Report the drift even on a pass. Greedy agreement is not
