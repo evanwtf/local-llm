@@ -57,6 +57,7 @@ import plausibility
 import prefill_failures
 import preflight
 import provenance
+import remote
 import results
 import shim_strip
 import smoke
@@ -4226,6 +4227,12 @@ def _memory_gate(min_avail_gib: float | None, timeout: int) -> None:
             str(min_avail_gib),
             "--timeout",
             str(max(30, timeout)),
+            # #562: gate on the server's pool, not the client's.
+            *(
+                ["--node-exporter", remote.node_exporter_url(server)]
+                if (server := remote.host())
+                else []
+            ),
         ],
         capture_output=True,
         text=True,
@@ -4242,7 +4249,13 @@ def _memory_gate(min_avail_gib: float | None, timeout: int) -> None:
 
 
 def mem_available_gib() -> float | None:
-    """`MemAvailable` in GiB, or None where there is no /proc/meminfo."""
+    """`MemAvailable` in GiB, or None where there is no /proc/meminfo.
+
+    In remote mode (#562) the pool that needs protecting is the **server's**,
+    so it is read from the server's node_exporter rather than from here.
+    """
+    if server := remote.host():
+        return remote.mem_available_gib(server)
     try:
         text = pathlib.Path("/proc/meminfo").read_text()
     except OSError:
@@ -4293,8 +4306,12 @@ def _headroom_gate(args) -> float | None:
     avail = mem_available_gib()
     if avail is None:
         return None
+    # Remote mode (#562): the trial's memory is on the client, so a runaway
+    # client cannot push the server's pool under its floor. Only the server's
+    # own headroom counts.
+    cap = 0.0 if remote.host() else CLIENT_MEM_CAP_GIB
     ok, headroom, why = headroom_verdict(
-        avail, CLIENT_MEM_CAP_GIB, args.server_floor_gib, HEADROOM_MARGIN_GIB
+        avail, cap, args.server_floor_gib, HEADROOM_MARGIN_GIB
     )
     if not ok:
         raise SystemExit(why)
@@ -4428,6 +4445,32 @@ def main():
     # as a tiered backend does, and is dropped from the default matrix for the
     # same reason. Naming it explicitly is a request, so that refuses out loud
     # rather than dropping the task the caller asked for (#269).
+    # #562: remote mode. The server is another machine; point every backend URL
+    # at it, and let the server's own facts decide whose ledger the rows join.
+    server_facts = None
+    if server := remote.host():
+        server_facts = remote.server_facts()
+        if server_facts is None:
+            raise SystemExit(
+                f"{remote.ENV_HOST} is set but {remote.ENV_FACTS} is not: a remote row "
+                "must describe the server's hardware and engine, which only the "
+                "server can report. Run scripts/server_facts.py there and point "
+                f"{remote.ENV_FACTS} at its output."
+            )
+        if set(backends) != {server_facts.get("backend")}:
+            raise SystemExit(
+                f"the server facts describe backend {server_facts.get('backend')!r}, "
+                f"but this run selects {sorted(backends)}. Remote mode runs one "
+                "backend, the one the server is serving."
+            )
+        backends = {k: remote.rewrite(v, server) for k, v in backends.items()}
+        if args.results == RESULTS:
+            args.results = remote.results_path(HERE.parents[1], server_facts)
+        logger.info(
+            "remote mode: server %s, rows to %s",
+            server_facts["directory"],
+            args.results,
+        )
     absent = tasks_missing_targets(cfg, tasks)
     if absent and args.task:
         listed = "\n".join(f"  {name}: {repo}" for name, repo in sorted(absent.items()))
@@ -4710,6 +4753,8 @@ def main():
         atexit.register(lambda: logger.info("%s", preflight.release_lock()[1]))
 
     versions = capture_versions(cfg, backends, allow_unstamped=args.allow_unstamped)
+    if server_facts is not None:
+        versions = remote.stamp(versions, server_facts)
     versions["client"] = ",".join(clients)
 
     # #54: every target at a known commit that exists upstream, with no strays,
@@ -4734,7 +4779,9 @@ def main():
     # `git pull` refused to merge over them. Mixing hardware does not corrupt a
     # row, it corrupts every comparison drawn across the file, after the fact.
     foreign = results.foreign_hardware(
-        results.trials(args.results), preflight.machine_facts()
+        results.trials(args.results),
+        # #562: a remote row describes the server, so compare the server's.
+        server_facts["facts"] if server_facts else preflight.machine_facts(),
     )
     if foreign and not args.allow_foreign_hardware:
         raise SystemExit(
