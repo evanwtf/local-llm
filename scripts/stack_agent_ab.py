@@ -352,6 +352,19 @@ def collect_transcripts(
     return moved
 
 
+def gate_env(arm: stack_arm.Arm) -> dict[str, str]:
+    """Point run.py's #149 equivalence gate at this arm's own build and pack.
+
+    The gate looks up a verdict for DS4_TREE / DS4_TEST_MODEL. Their defaults
+    are a DeepSeek tree and pack that no Qwen arm serves, so without this every
+    sweep of #158's A/B refused as "unverified (stale)" while each arm's own
+    build had a verdict.
+    """
+    if arm.tree is None or arm.gguf is None:
+        return {}
+    return {"DS4_TREE": str(arm.tree), "DS4_TEST_MODEL": str(arm.gguf)}
+
+
 def sweep(arm: stack_arm.Arm, tag: str, out: pathlib.Path, harness_head: str) -> int:
     """One sweep. Returns 0 only if run.py survived AND left transcripts.
 
@@ -370,7 +383,9 @@ def sweep(arm: stack_arm.Arm, tag: str, out: pathlib.Path, harness_head: str) ->
     log = out / f"{tag}.log"
     # child.run, not subprocess.run: run.py re-spawns `opencode`, and a signal
     # to this driver reaches neither (#268).
-    rc = child.run(run_argv(arm, tag, out, harness_head), cwd=REPO, log=log)
+    rc = child.run(
+        run_argv(arm, tag, out, harness_head), cwd=REPO, log=log, env=gate_env(arm)
+    )
     if rc != 0:
         logger.warning("%s returned non-zero (rc=%d); see %s", tag, rc, log)
     moved = collect_transcripts(arm, tag, out, since)

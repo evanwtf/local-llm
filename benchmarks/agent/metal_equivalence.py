@@ -106,7 +106,16 @@ def parse_summary(text: str, route: str | None = None) -> dict:
 # of the model we run most; calling it "unknown" would demand a re-run that
 # cannot succeed. Either way the gate becomes a flag people always pass, which
 # is how an assertion stops being one.
-UNSUPPORTED_MARKERS = ("requires --ple", "requires a PLE")
+#
+# Trees word it differently. The kimat fork's ds4_test opens the pack, finds no
+# PLE tensor, and stops with "required tensor is missing:
+# per_layer_token_embd.weight" (#158). Only that tensor means "needs a
+# sidecar"; any other missing tensor is a broken pack and stays a failure.
+UNSUPPORTED_MARKERS = (
+    "requires --ple",
+    "requires a PLE",
+    "required tensor is missing: per_layer_token_embd",
+)
 
 
 def verdict(returncode: int, text: str) -> str:
