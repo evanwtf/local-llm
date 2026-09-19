@@ -1,5 +1,7 @@
 # local-llm
 
+<!-- test: git app auth check — temporary, remove before merging (test/git-app-auth-check) -->
+
 Find and document the best **model + engine + harness** combination for running
 a coding agent locally, judged on code quality, problem solving, and speed. The
 answer is a combination, not a model: the same weights that are slowest under
