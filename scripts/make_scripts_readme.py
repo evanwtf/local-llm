@@ -36,6 +36,7 @@ MAC = frozenset(
         "calibrate_settle.py",
         "check_metal_equivalence.py",
         "coherence_check.py",
+        "daemons_idle.py",
         "decode_ab.py",
         "decode_ab_engine.py",
         "decode_ab_repeat.py",
