@@ -59,7 +59,7 @@ other is telling you something.
 
 ### Cortex-X925-128GB-GB10
 
-*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 2481 rows, sha256 0f49244bd1d1.*
+*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 2571 rows, sha256 f43197c5d2b9.*
 
 #### Every stack measured under OpenCode
 
@@ -69,6 +69,7 @@ other is telling you something.
 |---|---|---|---|---|
 | qwen36a3bsglangdgx | 90/90 | 28s | 136s | 17.3x |
 | qwen36a3bnvfp4dgx | 379/402 | 35s | 318s | 31.5x |
+| qwen36a3bsglangrcdgx | 89/89 | 41s | 158s | 12.7x |
 | qwen3827bsglangdflash2nothinkdgx | 90/90 | 44s | 279s | 22.0x |
 | ornith15a3bdgx | 30/30 | 49s | 571s | 28.8x |
 | qwen3827bsglangdsparkpinnednothinkdgx | 89/90 | 54s | 191s | 12.3x |
@@ -117,6 +118,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | nemotron35lightninga3bdgx | 20s |
 | qwen36a3bsglangdgx | 20s |
 | qwen36a3bnvfp4dgx | 22s |
+| qwen36a3bsglangrcdgx | 23s |
 | gptoss20bdgx | 25s |
 | qwen3827bsglangdflash2dgx | 35s |
 | ornith15a3bdgx | 35s |
