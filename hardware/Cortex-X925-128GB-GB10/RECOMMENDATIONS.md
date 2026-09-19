@@ -6,7 +6,7 @@ was measured by `benchmarks/agent/` on this machine with **OpenCode** — the on
 client this file uses, so there is no client column. Nothing here is from a model
 card. Paste section 1, pick a row in section 2, or read what does not help in 3.
 
-**Ledger last read 2026-09-14.** A read date more than a couple of weeks old means
+**Ledger last read 2026-09-18** (#524). A read date more than a couple of weeks old means
 re-check `results.jsonl` before trusting these rows.
 
 > **The one thing nobody has measured: the LAN round trip.** Every median here
@@ -61,13 +61,14 @@ cd ~/some/project
 opencode run --dir "$PWD" "add a --verbose flag to the CLI and a test for it"
 ```
 
-**56/57 on our benchmark (98%, n=60), 35.0 s median task, on the box** ([#335]) —
-about **63% of the wall time** of the next option (llama.cpp Q3, 55.9 s). Replace
-`SPARK-IP` with the Spark's LAN address; the WiFi round trip is on top and
-unmeasured.
+**296/312 on our benchmark (95%), 36.8 s median task, on the box** ([#335], refreshed
+confined in [#524]) — **56% of the wall time** of the simplest option (llama.cpp Q3, 65.9 s).
+Its one systematic miss is `script-transform`: in every batch the agent ends in
+about 12 s without creating `transform.py` in the worktree ([#389], [#477]). Replace `SPARK-IP` with the Spark's LAN
+address; the WiFi round trip is on top and unmeasured.
 
 **Prefer a plain binary over vLLM?** The **llama.cpp Q3** row in section 2 is
-~1.8× the wall but a single self-contained `llama-server` — no venv, no
+179% of the wall time but a single self-contained `llama-server` — no venv, no
 `nvcc`/`ninja`, no MoE quirks. If standing up vLLM is friction, start there.
 
 **`--dir` is not optional.** `opencode run` talks to a background server with its
@@ -83,18 +84,24 @@ only — engine and model — plus how the laptop reaches it (all `:PORT/v1`).
 "pass" is usable trials on the ledger; "median" is OpenCode wall seconds on the
 box; "turns" is the median agent turn count.
 
-| pick this if | model | engine | pass | median | turns | note |
-|---|---|---|---|---|---|---|
-| **you want the agent done fastest** (and the best server) | Qwen3.6-**35B-A3B** `NVFP4`, thinking off | vLLM 0.29.0, MARLIN | **56/57 (98%)** | **35.0 s** | 11 | fastest here (3.2 s/turn, a 3B-active MoE) *and* the best multi-client server — 321 tok/s at 8 concurrent seqs ([#335], [#347]) |
-| **you want the simplest server to stand up** | Flash-Next `UD-Q3_K_XL`, thinking off | llama.cpp CUDA sm_121 | **151/151** | 55.9 s | 9 | one `llama-server` binary, no venv; 6.2 s/turn |
-| **…and the KV cache halved** | same, `q8_0` KV | llama.cpp, port 8022 | **90/90** | 52.4 s | 9 | quality-neutral memory win ([#344]) |
-| **you want a larger model / 262K context** | Flash-Next `NVFP4` (125B-A6B) | vLLM (styles01 fork), MTP-3 | **60/60** | 85.2 s | 13 | the big-model lane, 262K ctx, packed-PLE ([#331]). Slower single-agent wall *and* lower concurrency (160 tok/s @ 8 seqs) than the A3B row above ([#308], [#347]) — §3. |
-| **you want a second, non-Qwen lineage** | DeepSeek-V4-Flash Q2 | ds4 CUDA sm_121a | **60/60** | 213.2 s | 9 | the only non-Qwen 100%-pass option ([#369] opens SSD streaming) |
-| **you want it to show its work** | Flash-Next Q3, thinking on | llama.cpp CUDA sm_121 | 92/104 (88%) | 106.1 s | 9 | reasoning in the transcript, but ~2× the wall *and* below the 90% bar ([#333]) |
+| pick this if | model | engine | pass | median | worst | turns | note |
+|---|---|---|---|---|---|---|---|
+| **you want the agent done fastest** (and the best server) | Qwen3.6-**35B-A3B** `NVFP4`, thinking off | vLLM 0.29.0, MARLIN | **296/312 (95%)** | **36.8 s** | 318 s | 11 | fastest here (a 3B-active MoE) *and* the best multi-client server — 452 tok/s at 16 concurrent streams with `--max-num-seqs 16`; §1's `--max-num-seqs 8` caps it near 305 tok/s ([#335], [#308]). Misses `script-transform` systematically ([#477]) |
+| **you want the simplest server to stand up** | Flash-Next `UD-Q3_K_XL`, thinking off | llama.cpp CUDA sm_121 | **241/241** | 65.9 s | 1,059 s | 10 | one `llama-server` binary, no venv |
+| **…and the KV cache halved** | same, `q8_0` KV | llama.cpp, port 8022 | **90/90** | 61.4 s | 1,528 s | 9 | quality-neutral memory win ([#344]) |
+| **you want a dense model with the shortest tail** | Qwen3.8-**27B** `NVFP4` (RadixArk BF16-head), thinking off | **SGLang** + DSpark drafter (MiaAI-Lab recipe) | **90/90** | 65.6 s | **278 s** | 13 | no trial over 300 s in 90; 33.8 tok/s single-stream, 189 tok/s at 8 streams. Recipe ships `--mem-fraction-static 0.90`; run it at 0.70 so an agent client fits beside it ([#350]) |
+| **you want a larger model / 262K context** | Flash-Next `NVFP4` (NVIDIA's own checkpoint), thinking off | vLLM (MiaAI-Lab recipe), MTP-3 | **90/90** | 68.0 s | 1,115 s | 13.5 | the big-model lane. Thinking off is the fastest median but carries a long tail on the parser tasks; **thinking on** is 90/90, 120.8 s median, worst 281 s — the predictable choice ([#493]). The older styles01 build is 60/60, 95.4 s ([#331]) |
+| **you want a second, non-Qwen lineage** | DeepSeek-V4-Flash Q2 | ds4 CUDA sm_121a | **60/60** | 247.6 s | 493 s | 10 | the only non-Qwen 100%-pass option ([#369] opens SSD streaming) |
+| **you want it to show its work** | Flash-Next Q3, thinking on | llama.cpp CUDA sm_121 | **118/119 (99%)** | 127.4 s | 394 s | 10 | reasoning in the transcript, at 193% of the thinking-off Q3 row's wall ([#333]) |
 
-The first five rows clear [#23]'s bar for a **>90%** claim. **The thinking-on row
-does not (88%)**, and neither does the one-command Ollama option below (84%) —
-both are here for completeness, not as recommendations.
+Every row is regenerated from the ledger by `uv run python scripts/reco_rows.py
+--results hardware/Cortex-X925-128GB-GB10/results.jsonl <backend>...` ([#524]):
+**pass** counts every usable OpenCode trial; **median / worst / turns** count
+only the non-script tasks that *passed*, the same basis as the generated tables
+in `docs/results.md` (a trial that dies early is quick, [#142]). That basis is
+why these medians differ from the full-suite figures this file quoted before
+2026-09-18. All seven rows clear [#23]'s bar for a **>90%** claim; the
+one-command Ollama option below (84%) does not.
 
 **The one-command option, and why it is not a row above.** `ollama pull
 qwen3.6:27b-coding` (~20 GiB, smallest download, no flags) gets you an agent —
@@ -121,15 +128,36 @@ and re-prefill — so the per-turn cost, which [#317] identifies as the thing th
 dominates agent wall time, collapses. Active-parameter count is the model lever
 that paid off here (§4).
 
-**Fastest tokens/sec is still not fastest agent.** The Flash-Next NVFP4/vLLM row
-has the highest *raw* single-stream decode on the box (~43 tok/s, MTP
-speculation) — yet its **median agent wall (85.2 s) is ~2.4× the A3B row**.
-Two reasons, neither of them decode rate: it runs more turns (13 vs 11), and its
-agent-observed cost per turn (6.6 s) is *higher* once re-prefill is counted — the
-125B-A6B Flash-Next has twice A3B's active params. The lane also runs MTP
-speculation, and [#354] found speculation can *itself* multiply agent turn count
-here, so the extra turns are not cleanly attributable to one cause. If a benchmark
+**Fastest tokens/sec is still not fastest agent.** The Flash-Next NVFP4 lanes have
+the highest *raw* single-stream decode on the box (39–50 tok/s with MTP) — yet their
+median agent wall (68.0 s for NVIDIA's checkpoint, thinking off) is **185% of the A3B
+row's**. They run more turns (13.5 vs 11), and each turn costs more once re-prefill
+is counted — the 125B-A6B Flash-Next has twice A3B's active params. [#354] also found
+speculation can *itself* multiply agent turn count here, so the extra turns are not
+cleanly attributable to one cause. If a benchmark
 tweet quotes tok/s, it is not quoting what finishes your task.
+
+**Measured and not recommended, 2026-09-18.**
+
+- **Flash-Next EXL3 through vLLM + vllm-exl3 with MTP k=3 corrupts output.** 2 of 5
+  trials degenerated into tens of thousands of tokens of gibberish, and in both the
+  draft acceptance collapsed to 0.02–0.07 (clean trials: 0.82–0.88). With MTP off,
+  6 trials produced no corruption but thrashed (4/6, two coherent timeouts) ([#434]).
+  A per-row acceptance collapse is a usable detector for this failure.
+- **GLM-5.3-Flash EXL3 K2 serves on one Spark but leaves no room for an agent.** Idle
+  MemAvailable settles at 14.5–16 GiB, under what a trial needs above the server's
+  safety floor; 16.3 tok/s single-stream ([#298]).
+- **The same 27B class on vLLM + MTP is 30/30 but takes 172% of the SGLang + DSpark row's
+  median** (113.0 s vs 65.6 s on this basis) ([#303], [#350]).
+
+**Setup traps worth knowing.** A server's `--gpu-memory-utilization` has to leave
+room for the agent client *and* the box's own MemAvailable floor, or the harness's
+headroom gate refuses the trial ([#485]); the recipe defaults above (0.80–0.90) are
+set for a server alone. Thinking off is a server default via
+`--default-chat-template-kwargs`; in launchers that build argv as a shell array the
+JSON form loses its quotes, so use `--default-chat-template-kwargs.enable_thinking=false`.
+A container engine that runs as root leaves `~/.cache/vllm/deep_gemm` root-owned,
+which breaks DeepGEMM's JIT in a later venv engine; point `DG_JIT_CACHE_DIR` elsewhere.
 
 **Prefill levers that measured null on this machine** ([#344]): the larger
 physical batch (`-ub 2048`) moved nothing and OOM-stalled the box at this model
@@ -201,3 +229,13 @@ model, thinking off), then fewer turns.
 [#349]: https://github.com/evanwtf/local-llm/issues/349
 [#354]: https://github.com/evanwtf/local-llm/issues/354
 [#369]: https://github.com/evanwtf/local-llm/issues/369
+[#142]: https://github.com/evanwtf/local-llm/issues/142
+[#298]: https://github.com/evanwtf/local-llm/issues/298
+[#303]: https://github.com/evanwtf/local-llm/issues/303
+[#350]: https://github.com/evanwtf/local-llm/issues/350
+[#434]: https://github.com/evanwtf/local-llm/issues/434
+[#477]: https://github.com/evanwtf/local-llm/issues/477
+[#485]: https://github.com/evanwtf/local-llm/issues/485
+[#493]: https://github.com/evanwtf/local-llm/issues/493
+[#524]: https://github.com/evanwtf/local-llm/issues/524
+[#389]: https://github.com/evanwtf/local-llm/issues/389
