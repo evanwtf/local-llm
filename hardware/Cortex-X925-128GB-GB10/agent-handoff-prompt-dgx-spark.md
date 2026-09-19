@@ -59,7 +59,7 @@ a server.
 | wait on a long job | `Monitor` (dedicated) or `Bash run_in_background` + its exit notice | a background process; poll its exit status with a deadline |
 | find a peer on this box | `ListAgents` (local rows) + `scripts/machine_state.py` | `scripts/machine_state.py`; identify servers by their systemd `--user` scope units, **not** `ps`/`pgrep` |
 | reach the M5 Max session | `SendMessage` to its bridge address | leave a note on the shared issue |
-| GPU/thermal/power metrics | `nvidia-smi` + `gcx` (Prometheus) | same |
+| GPU/thermal/power metrics | `nvidia-smi`, `scripts/dgx_metrics.py` (outlet power + serving counters), `sensors` (fan RPM) | same |
 | a second opinion | `codex exec` with the prompt on stdin, read-only | a Claude session, or skip and say so |
 
 Never use an unbounded `tail -f` or `until` waiter. Poll for the job's own exit
@@ -82,7 +82,11 @@ gh pr list --state open                              # in-flight PRs, yours and 
 gh issue list --state open --label hardware:Cortex-X925-GB10 --label P0
 gh issue list --state open --label hardware:Cortex-X925-GB10 --label P1
 nvidia-smi --query-gpu=utilization.gpu,power.draw,temperature.gpu,memory.used --format=csv,noheader
-curl -s -m3 http://127.0.0.1:8030/v1/models -o /dev/null -w 'vLLM :8030 -> %{http_code}\n'   # is a server up?
+sensors | grep -E '^Fan [0-9]'                       # fan RPM (nvfanread hwmon driver)
+uv run python scripts/dgx_server.py status vllm      # a scope-managed server? (also llamacpp, ds4, omni, ...)
+docker ps --format '{{.Names}} {{.Status}}'          # a container-served engine (SGLang, recipe images)?
+curl -s -m3 http://127.0.0.1:8030/v1/models -o /dev/null -w 'vLLM :8030 -> %{http_code}\n'
+curl -s -m3 http://127.0.0.1:8888/v1/models -o /dev/null -w 'recipe :8888 -> %{http_code}\n'
 ```
 
 Then print the queue with `uv run python scripts/make_next.py --platform nvidia`,
@@ -126,13 +130,20 @@ FREE. Never switch branches under a live run.
   g().build_and_load()'`), then launch with `MAX_JOBS=3`.
 
 **Managing servers — no ps/grep/pgrep**
-- Every server that would otherwise need `ps`/`grep`/`pgrep` gets launched in a
-  named `systemd-run --user --scope --unit=<name>` and is managed by that unit:
-  `systemctl --user stop <name>.scope`, `systemctl --user status <name>.scope`.
+- Host-installed engines go through **`scripts/dgx_server.py`** (#429):
+  `start {llamacpp,ds4,vllm,omni,clip,ollama} --model … [--memory-max …]
+  [--mem-floor-gib 14] [--max-jobs 3]`, then `status <name>` / `stop <name>`.
+  It launches inside a named systemd `--user` scope and starts a watcher that
+  stops the server when `MemAvailable` falls below the floor (14 GiB default).
   **Never `pgrep`/`pkill` a server** — it matches its own command line, leaves
-  workers behind, and needs retries. The start/stop/status wrapper that
-  standardizes this is #429; use it once it lands.
-- Canonical ports: **8030 → vLLM**, **8020 → llama.cpp / ds4**. Bind servers to
+  workers behind, and needs retries.
+- **Container-served engines** (SGLang, and the third-party recipes' vLLM
+  images) are not under `dgx_server.py`. Start and stop them with the recipe's
+  own scripts or `docker stop <container>`, and run your own `MemAvailable`
+  watcher that `docker stop`s the container below ~13 GiB: neither `MemoryMax`
+  nor `docker --memory` bounds CUDA memory on GB10 (#456).
+- Canonical ports: **8030 → vLLM**, **8020 → llama.cpp / ds4**; recipe
+  containers serve on **8888** (their `tasks.toml` backends say so). Bind servers to
   `0.0.0.0` for LAN serving + Prometheus; keep any published copy-paste launcher
   loopback. vLLM exposes `/metrics` on its port by default; pass `--metrics` to
   `llama-server`.
@@ -214,12 +225,19 @@ tick:
 
 ### 3a. Heartbeat — every 30 minutes or sooner, idle included
 
-The operator standardized the DGX heartbeat header. **First line must match this
-format exactly**, then 2-4 tight bullets:
+The operator standardized the DGX heartbeat. Open with one line naming what is
+on the GPU (idle counts), then the header line **exactly** in this format, then
+2-4 tight bullets:
 
 ```
+Currently on GPU: <what> (issue #N)
 HH:MM EDT: GPU: util N%, power NW (GPU), NW (outlet), temp: NºC.  Current task #N (<model-slug>), in progress for N minutes, ETA HH:MM.  Next task: #N
 ```
+
+Every heartbeat carries: the **system clock time**, **GPU utilization**, **GPU
+and outlet power**, **thermals and fan RPM**, the **current task** (issue #,
+served model, ETA), and the **next task**. The header holds all but the fans;
+the Metrics bullet holds those.
 
 Every field, and where it comes from. Guessing any of them is worse than
 omitting the tick.
@@ -235,7 +253,8 @@ omitting the tick.
 | `(<model-slug>)` | the served model | the backend's `model` field from `tasks.toml`, which is what `dgx_server.py status` reports as `served_model` — e.g. `qwen3.6-35b-a3b-nvfp4`, `nemotron-3-super-120b-a12b`. An issue number alone does not say what is loaded, and several issues share a model while one issue spans several arms |
 | `in progress for N minutes` | the run's own start time (the lock's `started`, or the serve log) | not the tick interval |
 | `ETA HH:MM` | remaining trials × observed per-trial wall | say what it assumes when the spread is wide |
-| `Next task: #N` | `uv run python scripts/make_next.py --platform nvidia` | P0 before P1, then issue number |
+| `Next task: #N` | `uv run python scripts/make_next.py --platform nvidia`, **keeping only issues that also carry `hardware:Cortex-X925-GB10`** (§4) | P0 before P1, then issue number |
+| fan RPM (Metrics bullet) | `sensors \| grep -E '^Fan [0-9]'` (the `nvfanread` hwmon driver; Prometheus has it as `node_hwmon_fan_rpm`) | both fans, as read, in the Metrics bullet |
 
 **When the box is idle**, write `Current task: idle` with no slug, and — per the
 keep-the-GPU-busy directive — name the task you are launching now rather than
@@ -247,9 +266,12 @@ between trials reads near idle, and a genuinely idle box reads ~4 W GPU / ~29 W
 outlet. A reading without its reason is unreadable a day later.
 
 Then 2-4 tight bullets: what changed since the last tick (pass/fail counts read
-from the run log, never remembered), a metrics line (outlet 30-minute peak, and
-`dgx_metrics.py --model <slug>` for decode tok/s, prefix-hit, running/waiting),
-`MemAvailable` with the guard's state, and any blocker. Report a run completion,
+from the run log, never remembered), a metrics line (outlet 30-minute peak, fan
+RPM, and `dgx_metrics.py --model <slug>` for decode tok/s, prefix-hit,
+running/waiting), `MemAvailable` with the guard's state, and any blocker.
+`dgx_metrics.py`'s serving counters are vLLM's; against an SGLang server they
+read `n/a`. Say so, and take SGLang's decode throughput and speculative accept
+rate from its own decode log (`docker logs <container>`). Report a run completion,
 failure, blocker, or operator decision **immediately** — do not wait for the
 next tick, and do not add a separate five-minute loop.
 
@@ -311,7 +333,7 @@ makes the session autonomous rather than one-shot.
 when you are otherwise idle. Paste this as the `/loop` input:
 
 ```
-/loop 30m Post a DGX Spark (spark-231e, GB10) status update. FIRST LINE must match this header format EXACTLY: "HH:MM EDT: GPU: util N%, power NW (GPU), NW (outlet), temp: NºC.  Current task #N (<model-slug>), in progress for N minutes, ETA HH:MM.  Next task: #N". Rules: (1) Re-read the current wall-clock time in America/New_York each tick — never infer it. (2) GPU readings from `nvidia-smi --query-gpu=utilization.gpu,power.draw,temperature.gpu --format=csv,noheader,nounits`; round power and temp to integers, util as-is; OUTLET power = the smart-plug wall reading from `uv run python scripts/dgx_metrics.py`, always labeled "(outlet)" beside the "(GPU)" figure (#454); if a power figure is low, say why (loading is disk-bound, between trials, idle). (3) Current task = the GitHub issue whose work is running now — determine it from the run lock (`~/.local-llm-bench/run-lock.json`) and `uv run python scripts/dgx_server.py status <name>`, never pgrep — and name the served model slug in parentheses after the issue number (the backend's `model` field, e.g. `qwen3.6-35b-a3b-nvfp4`), because an issue number alone does not say what is loaded; "in progress for N minutes" from the run's start time; give a realistic ETA (remaining trials × observed per-trial wall). If the GPU is idle (util 0 / power ~4W GPU, ~29W outlet / no run lock), write "Current task: idle" with no slug and, per the maximize-utilization directive, name the next task you are launching now. (4) Next task = the next item from `uv run python scripts/make_next.py --platform nvidia` (P0 before P1, then by issue number). After the header line, add 2-4 bullets: what changed since last tick, anything committed/pushed, and any blocker. Keep it tight.
+/loop 30m Post a DGX Spark (spark-231e, GB10) status update. Open with "Currently on GPU: <what> (issue #N)" (idle counts). Then the header line EXACTLY in this format: "HH:MM EDT: GPU: util N%, power NW (GPU), NW (outlet), temp: NºC.  Current task #N (<model-slug>), in progress for N minutes, ETA HH:MM.  Next task: #N". Rules: (1) Re-read the wall-clock time with `TZ=America/New_York date`; never infer it. (2) GPU util/power/temp from `nvidia-smi --query-gpu=utilization.gpu,power.draw,temperature.gpu --format=csv,noheader,nounits`; OUTLET power = the "wall" figure from `uv run python scripts/dgx_metrics.py --model <served model>`, always labeled "(outlet)" beside "(GPU)"; round watts and temp; if power is low, say why (loading, between trials, idle). (3) Current task = the issue whose work is running, from ~/.local-llm-bench/run-lock.json and `uv run python scripts/dgx_server.py status <name>` or `docker ps` for a container-served engine (never pgrep); put the served model slug in parentheses after the issue number; elapsed from the run's start; ETA = remaining trials × observed per-trial wall. If idle, write "Current task: idle" and LAUNCH the next GPU task in the same turn. (4) Next task from `uv run python scripts/make_next.py --platform nvidia`, keeping only issues labeled hardware:Cortex-X925-GB10. After the header, 2-4 bullets: progress since last tick (pass/fail read from the run log), a Metrics bullet (outlet 30m peak, fan RPM from `sensors`, and decode tok/s, prefix-hit, running/waiting — n/a for SGLang, say so), MemAvailable and guard status, any blocker. Report only what already happened — never phrase an intention as in progress.
 ```
 
 In Codex (no `/loop`): after each heartbeat, schedule a bounded wait of ≤30 min,
@@ -338,13 +360,20 @@ to short polls (§0).
 
 ## 4. Choosing work and ticket operations
 
-- **The labels are the ranking.** `uv run python scripts/make_next.py
-  --platform nvidia` prints the DGX queue live: P0 before P1, then by issue
-  number. There is no committed queue file (#463); change the labels.
-- **An issue that costs DGX time** carries exactly one priority (`P0`–`P3`) and
-  the machine label `hardware:Cortex-X925-GB10`. It may also carry the class
-  label `platform:Nvidia` (never a substitute for the machine label) and, for
-  vision/video work, `Vision` / `Video-Gen`. A repo/CI/harness defect needs no
+- **The GitHub issues are the work queue and the labels are the ranking.**
+  `uv run python scripts/make_next.py --platform nvidia` prints it live: P0
+  before P1, then by issue number. There is no committed queue file (#463);
+  change the labels.
+- **`--platform nvidia` is the class, not this box.** It filters on
+  `platform:Nvidia`, which also covers the Ryzen / RTX 3080 Ti desktop. Work
+  for this machine is the subset that also carries `hardware:Cortex-X925-GB10`;
+  skip the rest (on 2026-09-19, #16, #83 and #92 were in the list and
+  belonged to the 3080 and the M5 Max).
+- **An issue that costs DGX time** carries exactly one priority (`P0`–`P3`),
+  the machine label `hardware:Cortex-X925-GB10`, and the class label
+  `platform:Nvidia`. Without the class label `make_next.py` never shows it;
+  without the machine label nothing says it is this box's. Vision and video
+  work adds `Vision` / `Video-Gen`. A repo/CI/harness defect needs no
   machine label but carries a type label (`bug`, `enhancement`, `documentation`).
 - **New work becomes an issue first.** An issue is a public work log: results in
   the order they happened, absolute numbers and command lines, no process
@@ -380,8 +409,13 @@ to short polls (§0).
   batch, never after (upgrade `opencode`, etc. first). A version change starts a
   new series.
 - **Agent runs:** `uv run python benchmarks/agent/run.py --backend <name>
-  --client opencode --trials 3 --memory-gate-gib 30`. Pass `--dir` semantics are
-  handled by the harness; OpenCode is the client unless the run is about another.
+  --client opencode --trials 3 --memory-gate-gib <N> --server-floor-gib <F>`.
+  Before each trial the headroom gate (#485) requires `MemAvailable` minus the
+  client cap (`LOCAL_LLM_CLIENT_MEM_CAP_GIB`, default 24) minus the server floor
+  to leave at least 4 GiB. With a large model resident, lower the client cap
+  (e.g. `LOCAL_LLM_CLIENT_MEM_CAP_GIB=2`) rather than the floor. Trials run
+  inside a bwrap sandbox that also denies container-daemon sockets (#527).
+  OpenCode is the client unless the run is about another.
 - **Aggregate throughput** (this box's headline metric): `scripts/vllm_load.py
   --base-url http://127.0.0.1:8030 --model <served-name> --concurrency 1 2 4 8 16
   --json-out <file>`. Note `max_num_seqs` is the ceiling: repeat each level ≥3×
@@ -431,9 +465,9 @@ Check each against its issue; the issue is current, this list is not.
 - **Recommendations revalidation (#389).** Re-run the RECOMMENDATIONS cells on the
   current stack on a cadence; the A3B leader was reconfirmed (28/30, median 35.2s)
   this cycle.
-- **Serve-control wrappers (#429).** Build start/stop/status scripts with PID
-  logging + standard ports + metrics for every DGX server; until then, use the
-  systemd scope-unit handle, never pgrep.
+- **Serve-control wrapper (#429).** Landed as `scripts/dgx_server.py`
+  (start/watch/stop/status by recorded systemd scope). Container-served engines
+  are outside it (§2).
 - **Remote-control reliability (#428).** The 4091 outage that froze the loop.
 - **OOM protection (#390, #362).** Documented in the runbook; keep every launch
   inside the MemoryMax scope.
