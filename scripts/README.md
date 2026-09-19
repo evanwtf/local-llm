@@ -88,6 +88,7 @@ Each script explains itself in full at the top of its own file -- what it comput
 | `reasoning_budget_sweep.py` | any | Does a short max_tokens with thinking ON return empty content? (#349) |
 | `reco_rows.py` | any | The numbers a RECOMMENDATIONS row quotes, regenerated from a ledger. #524 |
 | `refuse_commit_during_benchmark.py` | any | Refuse a commit while a benchmark holds the run lock (#227, #237). |
+| `refuse_session_ids.py` | any | Refuse a commit message or PR text that carries a Claude session URL or ID. |
 | `release_notes.py` | any | Print the changelog section for a release, or refuse. |
 | `relevance_score.py` | any | Score how relevant an outside claim is to THIS project, procedurally (#230). |
 | `report.py` | any | Summarize and compare measured cells, with the resolution rule applied. |
