@@ -1,4 +1,4 @@
-# Handoff prompt: the autonomous operator on the Ryzen 9 7900X / RTX 3080 Ti desktop
+# Opener: the autonomous operator on the Ryzen 9 7900X / RTX 3080 Ti desktop
 
 This file is a **prompt**. Paste everything below the line into a fresh Claude
 Code or Codex session started on the Ryzen 9 7900X + RTX 3080 Ti desktop
@@ -9,12 +9,18 @@ operations, and landing results.
 
 It speaks for the Ryzen / RTX 3080 Ti desktop only. The M5 Max MacBook Pro and
 the DGX Spark have their own lanes; see [`hardware/MACHINES.md`](../MACHINES.md).
-The M5 Max has its own handoff at
-[`hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/agent-handoff-prompt-m5-max.md`](../MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/agent-handoff-prompt-m5-max.md);
+The M5 Max has its own opener at
+[`hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/agent-opener-prompt-m5-max.md`](../MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/agent-opener-prompt-m5-max.md);
 the DGX Spark at
-[`hardware/Cortex-X925-128GB-GB10/agent-handoff-prompt-dgx-spark.md`](../Cortex-X925-128GB-GB10/agent-handoff-prompt-dgx-spark.md).
+[`hardware/Cortex-X925-128GB-GB10/agent-opener-prompt-dgx-spark.md`](../Cortex-X925-128GB-GB10/agent-opener-prompt-dgx-spark.md).
 Where this prompt and `AGENTS.md` on `origin/main` disagree, `AGENTS.md` wins.
 Fix this file in the same PR that changes the rule.
+
+This prompt is the **opener**, one half of a shift change (#556). Before the
+operator ends a session, they give it the **closer**,
+[`hardware/agent-closer-prompt.md`](../agent-closer-prompt.md), which all
+three machines share. That session then leaves a closer log in
+`~/.local-llm-bench/closer-logs/`. This prompt finds the log in §1a.
 
 Placeholders the operator fills in before pasting:
 
@@ -76,6 +82,8 @@ gh pr list --state open                              # in-flight PRs, yours and 
 gh issue list --state open --label hardware:Ryzen9-7900X-RTX3080Ti --label P0
 gh issue list --state open --label hardware:Ryzen9-7900X-RTX3080Ti --label P1
 nvidia-smi --query-gpu=utilization.gpu,power.draw,temperature.gpu,fan.speed,memory.used --format=csv,noheader
+git worktree list                                    # worktrees a live run or a peer may use
+ls -1 ~/.local-llm-bench/closer-logs/*.md 2>/dev/null    # closer logs not yet acted on (§1a)
 ```
 
 Then print the queue with `uv run python scripts/make_next.py --platform nvidia`,
@@ -88,6 +96,39 @@ AppArmor confinement setup).
 **This box is not always on.** The operator powers it up for a window. If you
 are running, it is on; there is no "did it reboot" gate like the DGX. Do not
 assume the box was up between windows.
+
+### 1a. Read what the last crew left
+
+A departing session runs the closer and writes a closer log to
+`~/.local-llm-bench/closer-logs/<timestamp>.md`. The log tells you what was in
+flight, what was promised, and what to do first. Minutes or days may have
+passed since it was written.
+
+1. Read every log in `~/.local-llm-bench/closer-logs/` (not in `done/`), oldest
+   first. Where two logs disagree, the newer one wins.
+2. Treat each line as a claim that was true at the log's `Written:` time, not
+   as a fact now. Check it against the §1 output: a job it names may have
+   finished, died, or been read out by someone else. Read the owning issue's
+   latest comment before you act on a log item.
+3. Follow the log's instructions and its "First actions for the new session"
+   unless the machine's state, the issue, or `AGENTS.md` contradicts them. A
+   patch it names is in `closer-logs/patches/`; apply it only when the machine is
+   FREE.
+4. In your first heartbeat, name the log. Say which of its items you took up,
+   which were already done, and which you dropped and why.
+5. When you have acted on a log, move it:
+   `mv <log> ~/.local-llm-bench/closer-logs/done/`. Move each patch you applied
+   there too. Never delete a log or a patch.
+
+**No log means the last session did not close.** Rebuild the picture yourself:
+the latest comment on each open `hardware:Ryzen9-7900X-RTX3080Ti` issue, `gh pr
+list`, `git worktree list`, `nvidia-smi`, the run lock, and live processes
+(`ps -Ao pid,ppid,etime,command`). Expect loose ends: a finished run nobody
+read out, a worktree with unpushed work.
+
+**This box may have been off since the log was written.** A job the log names
+as live is then gone. Look for its output and its ledger rows before you
+re-run it.
 
 **The checkout.** If `~/git/local-llm` is not on an up-to-date `main`, first
 confirm the branch holds no unmerged work (`git log origin/main..HEAD`). Then
