@@ -358,3 +358,16 @@ def test_stamp_run_start_is_iso_and_resets_stale_sweep_order(tmp_path):
     (tmp_path / "run-record.txt").write_text(started + "\n# stack agent A/B\n")
     assert stack_agent_report.run_started(tmp_path) is not None
     assert stack_agent_report.run_date(tmp_path) is not None
+
+
+def test_ple_none_declares_an_embedded_ngram_table(monkeypatch) -> None:
+    # #158: upstream ds4 main's GGUF carries its n-grams. `NEW_PLE=none` must
+    # say so; an empty value would fall back to the fork's sidecar path.
+    monkeypatch.setenv("NEW_PLE", "none")
+    arm = sab.arm_from_env("NEW")
+    assert arm.ple is None and arm.ple_embedded is True
+
+
+def test_the_default_ple_is_still_a_sidecar() -> None:
+    arm = sab.arm_from_env("OLD")
+    assert arm.ple is not None and arm.ple_embedded is False

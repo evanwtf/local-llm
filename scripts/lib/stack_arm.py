@@ -88,6 +88,9 @@ class Arm:
     tree: pathlib.Path | None = None
     gguf: pathlib.Path | None = None
     ple: pathlib.Path | None = None
+    # True when the GGUF carries its own n-gram table and the server takes no
+    # --ple (upstream ds4 main, #158). `ple=None` alone still means "missing".
+    ple_embedded: bool = False
     kv: pathlib.Path | None = None
     flags: str = ""
     run_flags: str = ""
@@ -108,6 +111,11 @@ class Arm:
         if self.engine not in ENGINES:
             raise ValueError(
                 f"unknown engine {self.engine!r}; expected one of {ENGINES}"
+            )
+        if self.ple_embedded and self.ple is not None:
+            raise ValueError(
+                f"{self.name}: ple_embedded and a ple sidecar ({self.ple}) "
+                "contradict each other"
             )
 
     @property
@@ -161,16 +169,17 @@ def server_argv(arm: Arm) -> list[str]:
     """
     extra = shlex.split(arm.flags) if arm.flags else []
     if arm.is_ds4:
-        for field in ("gguf", "ple", "kv"):
+        needed = ("gguf", "kv") if arm.ple_embedded else ("gguf", "ple", "kv")
+        for field in needed:
             if getattr(arm, field) is None:
                 raise ValueError(f"{arm.name}: a ds4 arm needs {field}")
+        ple = [] if arm.ple_embedded else ["--ple", str(arm.ple)]
         return [
             "./ds4-server",
             "--metal",
             "-m",
             str(arm.gguf),
-            "--ple",
-            str(arm.ple),
+            *ple,
             "--ctx",
             str(DEFAULT_CTX),
             "--warm-weights",
@@ -254,7 +263,7 @@ def check_assets(arm: Arm) -> None:
     whole run at the first sweep rather than at the first second.
     """
     if arm.is_ds4:
-        for field in ("gguf", "ple"):
+        for field in ("gguf",) if arm.ple_embedded else ("gguf", "ple"):
             path = getattr(arm, field)
             if path is None:
                 raise MissingAsset(f"{arm.name}: a ds4 arm needs {field}")
