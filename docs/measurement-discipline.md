@@ -489,14 +489,44 @@ together, and a result that cannot attribute its cause must say so.
 
 **Confinement is one of those variables (#477).** A row's `confinement` field
 records what isolated the trial: its mechanism, deny list, `/tmp` and network
-policy, and memory cap. On the DGX Spark every row from 2026-09-17T23:34-0400
-on carries `"mechanism": "bwrap"`. Rows **without** the field predate
-confinement on Linux and ran unconfined; they were not backfilled, because the
-missing field already marks the boundary and no reader treats it otherwise. Do
-not pool the two on a task where the sandbox is what moved: `script-transform`
-went 12/20 unconfined and 9/10 confined on the A3B leader (#477). Before
-2026-09-19 the run header printed `confinement none` on Linux even for
-confined trials; the row field was right, the header was not.
+policy, and memory cap. The policy is the same on every machine: the trial
+writes only its worktree and cannot read the answers. What each mechanism
+enforces is not the same, and the field says which:
+
+| dimension | M5 Max (`sandbox-exec`) | DGX Spark (`bwrap`) |
+|---|---|---|
+| `paths` | `deny-list` | `deny-list` |
+| `tmp` | `unenforced`: the host's `/tmp` | `private`: its own `/tmp` and `/dev/shm` |
+| `network` | `unenforced` | `unenforced` |
+| `memory` | `harness:<cap>`, `run.py`'s memcap | `harness:<cap>`, `run.py`'s memcap |
+
+`run.py`'s `confinement_record` writes these values. The `sandbox-exec`
+profile could express a loopback-only network, but the stamp records what is
+enforced, not what could be.
+
+**A missing field means different things on the two machines.**
+
+- **On the DGX Spark**, every row from 2026-09-17T23:34-0400 on carries
+  `"mechanism": "bwrap"`. Rows without the field predate confinement on Linux
+  and ran unconfined. They were not backfilled, because the missing field
+  already marks the boundary.
+- **On the M5 Max**, the field starts at 2026-09-17T23:12:11-0400, but
+  `sandbox-exec` confined trials long before that (#54). As of 2026-09-19 the
+  ledger holds 3,751 rows:
+  - 345 carry the field;
+  - 2,627 have no field but have a `sandbox_denied` list, which means they
+    ran under `sandbox-exec` (2026-08-31T09:08 to 2026-09-14T20:54);
+  - 779 have neither and ran unconfined (2026-08-15T20:38 to
+    2026-09-01T20:51).
+
+  On the M5 Max, read `sandbox_denied`, not the missing field, to find an
+  unconfined row.
+
+Do not pool confined and unconfined rows on a task where the sandbox is what
+moved: `script-transform` went 12/20 unconfined and 9/10 confined on the A3B
+leader (#477). Before 2026-09-19 the run
+header printed `confinement none` on Linux even for confined trials. The row
+field was right, but the header was wrong.
 
 ## Observe the wire call, not the status code
 
