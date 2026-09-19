@@ -1292,10 +1292,44 @@ LEAKY_ENV = (
 )
 
 
-def agent_env(backend):
+def harness_venv_bin() -> pathlib.Path | None:
+    """The `bin/` of the virtualenv running this harness, or None outside one."""
+    if sys.prefix == sys.base_prefix:
+        return None
+    return pathlib.Path(sys.prefix) / "bin"
+
+
+def trial_path(path: str, worktree=None) -> str:
+    """PATH for the agent: the harness's venv out, the trial's own venv first.
+
+    #579. `uv run` puts the harness's `.venv/bin` first on PATH, and the agent
+    inherited it, so `python` meant the HARNESS's interpreter. In the legacy
+    layout that happened to work -- the harness venv carries an editable
+    install of the target at `~/git/<name>`, which is where the legacy export
+    stands -- but in the sandbox layout the trial lives elsewhere, and 52 of 85
+    `python -m pytest` calls on a remote client died at collection with
+    `No module named 'gmail_archive'`. The agents spent turns finding `uv run
+    pytest`, and the topology A/B measured that instead of the server.
+
+    The trial's `.venv` is what `prepare_env` built from the target's own
+    lockfile (`uv sync --frozen`), so it is the environment the task is about.
+    """
+    parts = [p for p in path.split(os.pathsep) if p]
+    harness = harness_venv_bin()
+    if harness is not None:
+        parts = [p for p in parts if pathlib.Path(p) != harness]
+    if worktree is not None:
+        venv_bin = pathlib.Path(worktree) / ".venv" / "bin"
+        if venv_bin.is_dir():
+            parts = [str(venv_bin), *[p for p in parts if p != str(venv_bin)]]
+    return os.pathsep.join(parts)
+
+
+def agent_env(backend, worktree=None):
     env = dict(os.environ)
     for key in LEAKY_ENV:
         env.pop(key, None)
+    env["PATH"] = trial_path(env.get("PATH", ""), worktree)
 
     # A backend with no base_url is the hosted API -- the reference point the
     # local backends are measured against. Leave the ambient auth alone and
@@ -3658,7 +3692,7 @@ def one_trial(
             proc = timeout_policy.run_client_with_watchdog(
                 argv,
                 cwd=worktree,
-                env=agent_env(backend),
+                env=agent_env(backend, worktree),
                 timeout=timeout,
                 watchdog=watchdog,
                 memory_cap_gib=CLIENT_MEM_CAP_GIB or None,
@@ -3681,7 +3715,7 @@ def one_trial(
             proc = run(
                 argv,
                 cwd=worktree,
-                env=agent_env(backend),
+                env=agent_env(backend, worktree),
                 timeout=timeout,
             )
         result["wall_seconds"] = round(time.monotonic() - t0, 1)
