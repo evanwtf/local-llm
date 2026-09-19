@@ -186,6 +186,7 @@ be drawn from — OpenCode, after the `--dir` cutover, not excluded.
 | `qwen3827bsglangdsparknothinkdgx` | the 27B on **SGLang** with the **DSpark** drafter via MiaAI-Lab's SGLang recipe, thinking off, mem 0.70 not 0.90 (#350, #303) | SGLang qwen38-27b image CUDA sm_121 | 24 GB + 2.7 GB draft | 90 |
 | `qwen3827bsglangdflash2nothinkdgx` | the SGLang 27B row above with the **DFlash2** drafter instead of DSpark (#303) | SGLang dev image CUDA sm_121 | 24 GB + 2.6 GB draft | 90 |
 | `qwen3827bsglangdsparkpinnednothinkdgx` | the DSpark row on the **DFlash2 row's pinned image**: separates the image from the drafter (#303) | SGLang dev image CUDA sm_121 | 24 GB + 2.7 GB draft | 90 |
+| `qwen3827bsglangdflash2dgx` | the DFlash2 row with **thinking on** (the template default): the thinking lever on the 27B, as #493 did for Flash-Next (#303) | SGLang dev image CUDA sm_121 | 24 GB + 2.6 GB draft | 0 |
 | `qwen38fnexl3nothinkdgx` | Qwen3.8-Flash-Next as **EXL3 3.05 bpw** (turboderp's pack) via vLLM + vllm-exl3, MTP k=3, n-gram table on disk, thinking off (#434) | vLLM 0.29.0 + vllm-exl3 CUDA sm_121 | 80 GB | 5 |
 | `qwen38fnexl3nomtpnothinkdgx` | the EXL3 row above with **MTP off**: isolates whether the drafter causes its corrupted generations (#434) | vLLM 0.29.0 + vllm-exl3 CUDA sm_121 | 80 GB | 6 |
 | `qwen36bf16dgx` | `Qwen/Qwen3.6-27B` **BF16**, the unquantized control for the row above | vLLM 0.29.0 CUDA sm_121 | 51.7 GiB | 30 |

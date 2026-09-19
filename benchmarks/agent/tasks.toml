@@ -2404,6 +2404,20 @@ aider_model = "openai/qwen3.8-27b-sglang"
 opencode_model = "vllm8888/qwen3.8-27b-sglang"
 context_tokens = 262144
 
+# #303: the DFlash2 arm with thinking ON (the chat template's default). One
+# lever against qwen3827bsglangdflash2nothinkdgx: thinking. The same question
+# #493 answered for Flash-Next.
+[backend.qwen3827bsglangdflash2dgx]
+description = "Qwen3.8-27B NVFP4 (RadixArk/Qwen3.8-27B-NVFP4-BF16-LMHead) on SGLang via MiaAI-Lab/Qwen3.8-27B-SGLang-DGX-Spark @9fb18ed start-dflash.sh: DFlash2 drafter z-lab/Qwen3.8-27B-DFlash2 @50307d4, 8 draft tokens, official lmsysorg dev image pinned by digest (nightly-cu134-20260909-708f51e); mem-fraction-static 0.70 (recipe 0.90); thinking ON (template default, no chat-template kwargs). Speculative decoding on but not declared `speculative`: no SGLang draft-counter reader exists"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "sglang"
+model = "qwen3.8-27b-sglang"
+aider_model = "openai/qwen3.8-27b-sglang"
+opencode_model = "vllm8888/qwen3.8-27b-sglang"
+context_tokens = 262144
+
 [backend.qwen38fnexl3nothinkdgx]
 description = "Qwen3.8-Flash-Next EXL3 3.05 bpw (turboderp/Qwen3.8-Flash-Next-exl3 rev 3.05bpw_h5_ng5 @69e3343, ~80 GB) via vcruz305/Qwen3.8-Flash-Next-EXL3-DGX-Spark-recipe @b942e1f: vLLM 0.29.0 + recipe patches, exllamav3 1.4.7 from source (aarch64 patch), vllm-exl3 0.4.2 @08ed1bf; MTP k=3, 262k ctx, max-num-seqs 4, prefix caching, bf16 mamba state; n-gram table disk-backed (VLLM_EXL3_NGRAM_TABLE=disk, PIECEWISE graphs) at gpu-memory-utilization 0.60 (recipe ships resident at 0.80); tool-call parser qwen3_coder added; thinking off via --default-chat-template-kwargs"
 tier = "gb10-spark"
