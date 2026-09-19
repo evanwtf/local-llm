@@ -487,6 +487,17 @@ caveat into the backend block in `tasks.toml` at the moment you add it, not
 afterwards — engine, quant, tune, and default sampler settings all move
 together, and a result that cannot attribute its cause must say so.
 
+**Confinement is one of those variables (#477).** A row's `confinement` field
+records what isolated the trial: its mechanism, deny list, `/tmp` and network
+policy, and memory cap. On the DGX Spark every row from 2026-09-17T23:34-0400
+on carries `"mechanism": "bwrap"`. Rows **without** the field predate
+confinement on Linux and ran unconfined; they were not backfilled, because the
+missing field already marks the boundary and no reader treats it otherwise. Do
+not pool the two on a task where the sandbox is what moved: `script-transform`
+went 12/20 unconfined and 9/10 confined on the A3B leader (#477). Before
+2026-09-19 the run header printed `confinement none` on Linux even for
+confined trials; the row field was right, the header was not.
+
 ## Observe the wire call, not the status code
 
 When two components can talk over more than one protocol, check which one they
