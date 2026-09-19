@@ -170,6 +170,7 @@ EXPECTED_SKIPS = (
     r"script task: nothing is excised from a repo",
     r"script task: the prompt names no repository file",
     r"IOKit thermal sensors are macOS-only; there is no Linux equivalent to read",
+    r"nvidia-smi is not installed; there is no GPU thermal source to read",
     r"gmail-archive at the pinned commit, and uv",
     r"no ledger for this machine",
     r"no ds4 checkout at ~/git/ds4-main",

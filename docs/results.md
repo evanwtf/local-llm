@@ -59,7 +59,7 @@ other is telling you something.
 
 ### Cortex-X925-128GB-GB10
 
-*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 1749 rows, sha256 f0196fa93ba5.*
+*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 1941 rows, sha256 764dabfd923e.*
 
 #### Every stack measured under OpenCode
 
@@ -67,11 +67,12 @@ other is telling you something.
 
 | stack | passed | median | worst | spread |
 |---|---|---|---|---|
-| qwen36a3bnvfp4dgx | 214/223 | 39s | 318s | 26.1x |
+| qwen36a3bnvfp4dgx | 296/312 | 37s | 318s | 30.3x |
 | ornith15a3bdgx | 30/30 | 49s | 571s | 28.8x |
 | qwen38fnq3nothinktopkdgx | 30/30 | 54s | 136s | 3.8x |
 | qwen38fnnvfp4miaainothinkdgx | 88/90 | 55s | 1657s | 71.4x |
 | qwen38fnq3nothinkkv8dgx | 90/90 | 61s | 1528s | 43.9x |
+| qwen3827bsglangdsparknothinkdgx | 90/90 | 66s | 278s | 11.7x |
 | qwen38fnq3nothinkdgx | 241/241 | 66s | 1059s | 31.3x |
 | qwen38fnnvidianvfp4nothinkdgx | 90/90 | 68s | 1115s | 48.5x |
 | qwen38fnq3nothinkub2048dgx | 4/4 | 82s | 475s | 14.2x |
@@ -81,21 +82,24 @@ other is telling you something.
 | qwen38fnnvidianvfp4dgx | 90/90 | 121s | 281s | 7.5x |
 | nemotron35lightninga3bdgx | 26/30 | 125s | 377s | 11.8x |
 | qwen38fnq3dgx | 118/119 | 127s | 394s | 8.9x |
+| qwen38fnexl3nothinkdgx | 4/5 | 132s | 1768s | 20.5x |
 | qwen36nvfp4nothinkdgx | 60/60 | 136s | 268s | 5.2x |
 | qwen36codinggguf | 49/50 | 147s | 286s | 4.1x |
 | qwen38fnnvfp4miaaidgx | 30/30 | 150s | 367s | 6.5x |
 | qwen36nvfp4dgx | 60/60 | 175s | 845s | 13.2x |
 | qwen36nvfp4v1dgx | 29/30 | 190s | 832s | 12.3x |
+| qwen38fnexl3nomtpnothinkdgx | 4/6 | 196s | 1696s | 16.5x |
 | nemotroncascade2 | 2/10 | 197s | 197s | 1.0x |
 | nemotron3super120bdgx | 28/30 | 212s | 1364s | 12.3x |
 | qwen36nvfp4specdgx | 28/42 | 241s | 1094s | 24.3x |
 | ds4dgx | 60/60 | 248s | 493s | 6.1x |
+| glm53flashexl3k2nothinkdgx | 1/1 | 274s | 274s | 1.0x |
 | nemotron3super120bmtpnopcdgx | 29/30 | 374s | 1154s | 7.7x |
 | qwen36bf16dgx | 30/30 | 432s | 1335s | 6.7x |
 | nemotron3nano | 8/10 | 580s | 1212s | 8.5x |
 | nemotron33 | 1/10 | — | — | — |
 
-**Rows here were not all taken under one client.** gptoss20bdgx, nemotron35lightninga3bdgx, nemotron3super120bdgx, nemotron3super120bmtpnopcdgx, qwen36a3bnvfp4dgx, qwen3827bnvfp4miaainothinkdgx, qwen38fnnvfp4miaaidgx, qwen38fnnvfp4miaainothinkdgx, qwen38fnnvidianvfp4dgx, qwen38fnnvidianvfp4nothinkdgx, qwen38fnq3nothinkdgx under 1.18.31; the rest under 1.18.30. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: qwen36a3bnvfp4dgx (1.18.30, 1.18.31); qwen38fnq3nothinkdgx (1.18.30, 1.18.31).
+**Rows here were not all taken under one client.** glm53flashexl3k2nothinkdgx, gptoss20bdgx, nemotron35lightninga3bdgx, nemotron3super120bdgx, nemotron3super120bmtpnopcdgx, qwen36a3bnvfp4dgx, qwen3827bnvfp4miaainothinkdgx, qwen3827bsglangdsparknothinkdgx, qwen38fnexl3nomtpnothinkdgx, qwen38fnexl3nothinkdgx, qwen38fnnvfp4miaaidgx, qwen38fnnvfp4miaainothinkdgx, qwen38fnnvidianvfp4dgx, qwen38fnnvidianvfp4nothinkdgx, qwen38fnq3nothinkdgx under 1.18.31; the rest under 1.18.30. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: qwen36a3bnvfp4dgx (1.18.30, 1.18.31); qwen38fnq3nothinkdgx (1.18.30, 1.18.31).
 
 Excision tasks only; `script-*` excluded because they are a different class. **Spread is worst / best on the same task**, and it is the column most people forget to ask for.
 
@@ -111,9 +115,12 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | gptoss20bdgx | 25s |
 | ornith15a3bdgx | 35s |
 | qwen38fnnvfp4miaainothinkdgx | 43s |
+| qwen3827bsglangdsparknothinkdgx | 48s |
 | qwen38fnnvidianvfp4nothinkdgx | 49s |
+| qwen38fnexl3nothinkdgx | 56s |
 | qwen38fnq3dgx | 59s |
 | qwen38fnnvfp4dgx | 59s |
+| qwen38fnexl3nomtpnothinkdgx | 66s |
 | qwen38fnq3nothinkub2048dgx | 69s |
 | qwen38fnq3nothinkdgx | 70s |
 | qwen38fnq3nothinktopkdgx | 71s |
@@ -130,8 +137,9 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | qwen36nvfp4dgx | 150s |
 | qwen36nvfp4v1dgx | 160s |
 | qwen36bf16dgx | 409s |
+| glm53flashexl3k2nothinkdgx | 463s |
 
-**Rows here were not all taken under one client.** gptoss20bdgx, nemotron35lightninga3bdgx, nemotron3super120bdgx, nemotron3super120bmtpnopcdgx, qwen36a3bnvfp4dgx, qwen3827bnvfp4miaainothinkdgx, qwen38fnnvfp4miaaidgx, qwen38fnnvfp4miaainothinkdgx, qwen38fnnvidianvfp4dgx, qwen38fnnvidianvfp4nothinkdgx, qwen38fnq3nothinkdgx under 1.18.31; the rest under 1.18.30. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: qwen36a3bnvfp4dgx (1.18.30, 1.18.31); qwen38fnq3nothinkdgx (1.18.30, 1.18.31).
+**Rows here were not all taken under one client.** glm53flashexl3k2nothinkdgx, gptoss20bdgx, nemotron35lightninga3bdgx, nemotron3super120bdgx, nemotron3super120bmtpnopcdgx, qwen36a3bnvfp4dgx, qwen3827bnvfp4miaainothinkdgx, qwen3827bsglangdsparknothinkdgx, qwen38fnexl3nomtpnothinkdgx, qwen38fnexl3nothinkdgx, qwen38fnnvfp4miaaidgx, qwen38fnnvfp4miaainothinkdgx, qwen38fnnvidianvfp4dgx, qwen38fnnvidianvfp4nothinkdgx, qwen38fnq3nothinkdgx under 1.18.31; the rest under 1.18.30. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: qwen36a3bnvfp4dgx (1.18.30, 1.18.31); qwen38fnq3nothinkdgx (1.18.30, 1.18.31).
 
 ### MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A
 
@@ -221,7 +229,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 
 ### Ryzen9-7900X-32GB-RTX3080Ti-12GB
 
-*Generated from `hardware/Ryzen9-7900X-32GB-RTX3080Ti-12GB/results.jsonl` — 245 rows, sha256 4b149ecaca95.*
+*Generated from `hardware/Ryzen9-7900X-32GB-RTX3080Ti-12GB/results.jsonl` — 347 rows, sha256 04164278449d.*
 
 #### Every stack measured under OpenCode
 
@@ -231,16 +239,18 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 |---|---|---|---|---|
 | dtternarybonsai27b | 33/41 | 86s | 422s | 13.4x |
 | dtqwen359b | 9/12 | 98s | 156s | 1.8x |
+| dtornith159b | 28/37 | 101s | 534s | 16.2x |
 | dtbonsai27bllamacpp | 26/38 | 117s | 335s | 6.0x |
 | dtqwen359bq8 | 9/12 | 119s | 119s | 1.4x |
-| dtornith159b | 21/25 | 124s | 534s | 7.0x |
+| dtsparkx254b | 21/54 | 173s | 207s | 1.3x |
 | dtbonsai27b | 19/38 | 185s | 238s | 1.8x |
-| dtsparkx254b | 13/24 | 207s | 207s | 1.0x |
+| dtternarybonsai227b | 14/30 | 273s | 711s | 15.7x |
+| dtternarybonsai2ptq127b | 17/30 | 353s | 1036s | 11.7x |
 | dtgemma412b | 3/12 | — | — | — |
 | dtmistralnemo | 0/12 | — | — | — |
 | dtgemma4e4b | 6/12 | — | — | — |
 
-**Rows here were not all taken under one client.** dtbonsai27b, dtbonsai27bllamacpp, dtsparkx254b, dtternarybonsai27b under 1.18.27; the rest under unrecorded. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: dtbonsai27b (1.18.27, unrecorded).
+**Rows here were not all taken under one client.** dtbonsai27b, dtbonsai27bllamacpp, dtsparkx254b, dtternarybonsai27b under 1.18.27; dtornith159b, dtsparkx254b, dtternarybonsai227b, dtternarybonsai2ptq127b under 1.18.31; the rest under unrecorded. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: dtbonsai27b (1.18.27, unrecorded); dtornith159b (1.18.31, unrecorded); dtsparkx254b (1.18.27, 1.18.31).
 
 Excision tasks only; `script-*` excluded because they are a different class. **Spread is worst / best on the same task**, and it is the column most people forget to ask for.
 
@@ -249,17 +259,19 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | stack | seconds per 1k output tokens |
 |---|---|
 | dtgemma4e4b | 11s |
-| dtornith159b | 13s |
-| dtsparkx254b | 14s |
+| dtornith159b | 11s |
+| dtsparkx254b | 16s |
+| dtternarybonsai227b | 19s |
 | dtgemma412b | 22s |
 | dtbonsai27bllamacpp | 24s |
+| dtternarybonsai2ptq127b | 25s |
 | dtternarybonsai27b | 35s |
 | dtmistralnemo | 36s |
 | dtbonsai27b | 42s |
 | dtqwen359b | 62s |
 | dtqwen359bq8 | 89s |
 
-**Rows here were not all taken under one client.** dtbonsai27b, dtbonsai27bllamacpp, dtsparkx254b, dtternarybonsai27b under 1.18.27; the rest under unrecorded. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: dtbonsai27b (1.18.27, unrecorded).
+**Rows here were not all taken under one client.** dtbonsai27b, dtbonsai27bllamacpp, dtsparkx254b, dtternarybonsai27b under 1.18.27; dtornith159b, dtsparkx254b, dtternarybonsai227b, dtternarybonsai2ptq127b under 1.18.31; the rest under unrecorded. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: dtbonsai27b (1.18.27, unrecorded); dtornith159b (1.18.31, unrecorded); dtsparkx254b (1.18.27, 1.18.31).
 
 <!-- END GENERATED -->
 

@@ -56,7 +56,7 @@ Mac's.
 | **RAM** | **30 GiB** |
 | **Disk** | 1.8 TB NVMe, 1.3 TB free |
 | **OS** | Ubuntu 24.04 · **not always-on** |
-| **Backends** | `dtmistralnemo`, `dtgemma412b`, `dtornith15`, `dtornith159b`, `dtqwen359b`, `dtqwen359bq8`, `dtgemma4e4b`, `dtbonsai27b`, `dtternarybonsai27b`, `dtbonsai27bllamacpp`, `dtsparkx254b` — `tier = "desktop-3080ti"` in `tasks.toml`. The last three are served by llama.cpp, not Ollama, so their rows are not engine-comparable to the rest (#192, #269) — and by two DIFFERENT llama.cpp builds: the bonsai pair by the PrismML fork `d8f26ee`, `dtsparkx254b` by upstream `91f6a6c`, which is the only one that serves `spark2_5` (#278). |
+| **Backends** | `dtmistralnemo`, `dtgemma412b`, `dtornith15`, `dtornith159b`, `dtqwen359b`, `dtqwen359bq8`, `dtgemma4e4b`, `dtbonsai27b`, `dtternarybonsai27b`, `dtbonsai27bllamacpp`, `dtternarybonsai227b`, `dtternarybonsai2ptq127b`, `dtsparkx254b` — `tier = "desktop-3080ti"` in `tasks.toml`. The five llama.cpp-served backends (`dtternarybonsai27b`, `dtbonsai27bllamacpp`, `dtternarybonsai227b`, `dtternarybonsai2ptq127b`, `dtsparkx254b`) are not engine-comparable to the Ollama ones (#192, #269), and run under three DIFFERENT llama.cpp builds: the v1 bonsai pair by the PrismML fork `d8f26ee`; the v2 Ternary Bonsai 2 pair (`dtternarybonsai227b` PQ2_0, `dtternarybonsai2ptq127b` PTQ1_0) by the newer PrismML fork `1a07bfa` (#479); and `dtsparkx254b` by upstream `91f6a6c`, the only one that serves `spark2_5` (#278). |
 | **Data** | [`hardware/Ryzen9-7900X-32GB-RTX3080Ti-12GB/`](hardware/Ryzen9-7900X-32GB-RTX3080Ti-12GB/RESULTS.md) — `gemma4:12b-it` **0/12** (2026-09-02) |
 | **Confinement** | **none** — `sandbox-exec` is macOS-only, so `workspace_escapes` is unenforced there |
 
@@ -181,8 +181,12 @@ be drawn from — OpenCode, after the `--dir` cutover, not excluded.
 | `qwen38fnnvfp4miaainothinkdgx` | the MiaAI row above with **thinking off**, via the server's default chat-template kwargs; that row reasons by default and the arm it is compared with (`qwen38fnnvfp4dgx`) did not (#468) | vLLM (MiaAI image) CUDA sm_121 | 99 GiB | 90 |
 | `qwen38fnnvidianvfp4nothinkdgx` | `nvidia/Qwen3.8-Flash-Next-NVFP4` (NVIDIA's own quant, 124 GiB) through the MiaAI recipe, **thinking off** — the checkpoint lever against the row above (#493) | vLLM (MiaAI image) CUDA sm_121 | 124 GiB | 90 |
 | `qwen38fnnvidianvfp4dgx` | the NVIDIA row above with **thinking on** (the template default) — completes checkpoint × thinking with the two MiaAI rows (#493) | vLLM (MiaAI image) CUDA sm_121 | 124 GiB | 90 |
-| `glm53flashexl3k2nothinkdgx` | GLM-5.3-Flash (320B-A18B) as **EXL3 K2** on one Spark: vcruz305's recipe, vLLM fork + vllm-exl3, MTP k=2, thinking off (#298) | vLLM fork + vllm-exl3 CUDA sm_121 | 97.7 GB | 0 |
+| `glm53flashexl3k2nothinkdgx` | GLM-5.3-Flash (320B-A18B) as **EXL3 K2** on one Spark: vcruz305's recipe, vLLM fork + vllm-exl3, MTP k=2, thinking off (#298) | vLLM fork + vllm-exl3 CUDA sm_121 | 97.7 GB | 1 |
 | `qwen3827bnvfp4miaainothinkdgx` | `unsloth/Qwen3.8-27B-NVFP4` (**dense 27B**) via MiaAI-Lab's single-Spark vLLM recipe, YaRN 1M, MTP k=2, thinking off; GMU 0.70 not the recipe's 0.84 (#303) | vLLM nightly-aarch64 CUDA sm_121 | 22.6 GB | 30 |
+| `qwen3827bsglangdsparknothinkdgx` | the 27B on **SGLang** with the **DSpark** drafter via MiaAI-Lab's SGLang recipe, thinking off, mem 0.70 not 0.90 (#350, #303) | SGLang qwen38-27b image CUDA sm_121 | 24 GB + 2.7 GB draft | 90 |
+| `qwen3827bsglangdflash2nothinkdgx` | the SGLang 27B row above with the **DFlash2** drafter instead of DSpark (#303) | SGLang dev image CUDA sm_121 | 24 GB + 2.6 GB draft | 0 |
+| `qwen38fnexl3nothinkdgx` | Qwen3.8-Flash-Next as **EXL3 3.05 bpw** (turboderp's pack) via vLLM + vllm-exl3, MTP k=3, n-gram table on disk, thinking off (#434) | vLLM 0.29.0 + vllm-exl3 CUDA sm_121 | 80 GB | 5 |
+| `qwen38fnexl3nomtpnothinkdgx` | the EXL3 row above with **MTP off**: isolates whether the drafter causes its corrupted generations (#434) | vLLM 0.29.0 + vllm-exl3 CUDA sm_121 | 80 GB | 6 |
 | `qwen36bf16dgx` | `Qwen/Qwen3.6-27B` **BF16**, the unquantized control for the row above | vLLM 0.29.0 CUDA sm_121 | 51.7 GiB | 30 |
 | `qwen36nvfp4v1dgx` | the same NVFP4 weights on vLLM's **V1** model runner, speculation off | vLLM 0.29.0 CUDA sm_121 | 20.4 GiB | 0 |
 | `qwen36nvfp4specdgx` | the same again with **draftless n-gram speculation** (5 tokens, lookup 3-8) | vLLM 0.29.0 CUDA sm_121 | 20.4 GiB | 0 |

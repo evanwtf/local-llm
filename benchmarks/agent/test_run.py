@@ -16,6 +16,7 @@ import os
 import pathlib
 import subprocess
 import sys
+import time
 import tomllib
 import types
 import urllib.error
@@ -1355,6 +1356,75 @@ def test_the_first_write_is_not_marked_as_a_collision(tmp_path):
 
 
 # ---------------------------------------------------------------------------
+# #103: a transcript filename carries no run identity, so a re-run of the same
+# cell under a different client or harness overwrites the evidence. #112 kept
+# the earlier file behind a numeric suffix; the run tag names *which* run each
+# transcript belongs to, which the suffix cannot.
+
+
+def test_transcript_run_tag_names_client_version_and_harness_commit():
+    tag = run.transcript_run_tag(
+        {"opencode": "1.18.31", "harness_head": "fbd9da6"},
+        "opencode",
+        when=time.gmtime(0),
+    )
+    assert tag == "1.18.31-fbd9da6-19700101T000000Z"
+
+
+def test_transcript_run_tag_sanitizes_spaces_and_parens():
+    tag = run.transcript_run_tag(
+        {"claude": "2.1.277 (Claude Code)", "harness_head": "abc1234"},
+        "claude",
+        when=time.gmtime(0),
+    )
+    assert tag == "2.1.277_Claude_Code-abc1234-19700101T000000Z"
+
+
+def test_transcript_run_tag_marks_missing_identity_unknown():
+    tag = run.transcript_run_tag({}, "opencode", when=time.gmtime(0))
+    assert tag == "unknown-unknown-19700101T000000Z"
+
+
+def test_a_run_tag_keeps_two_runs_of_the_same_cell_apart(tmp_path):
+    """The #103 failure: ornith measured on 1.18.26 then 1.18.27 ninety
+    minutes apart, and the second run overwrote all twelve transcripts. With
+    the run tag in the name, each run's transcript stands on its own -- no
+    numeric #112 suffix needed, and each says which run produced it."""
+    r1: dict = {}
+    r2: dict = {}
+    run.save_transcript(
+        tmp_path,
+        "mbox-scan-1",
+        '{"a": 1}',
+        "",
+        r1,
+        run_tag="1.18.26-aaa1111-20260902T100000Z",
+    )
+    run.save_transcript(
+        tmp_path,
+        "mbox-scan-1",
+        '{"b": 2}',
+        "",
+        r2,
+        run_tag="1.18.27-aaa1111-20260902T113000Z",
+    )
+    assert pathlib.Path(r1["client_log"]).read_text() == '{"a": 1}'
+    assert pathlib.Path(r2["client_log"]).read_text() == '{"b": 2}'
+    assert r1["client_log"] != r2["client_log"]
+    assert "1.18.26" in pathlib.Path(r1["client_log"]).name
+    assert "1.18.27" in pathlib.Path(r2["client_log"]).name
+    assert r2.get("client_log_collision") is not True
+    assert ".2.jsonl" not in pathlib.Path(r2["client_log"]).name
+
+
+def test_one_trial_passes_the_run_tag_to_save_transcript():
+    """Wiring guard: the identity must reach the filename, not just exist."""
+    source = pathlib.Path(run.__file__).read_text()
+    assert "transcript_run_tag(" in source
+    assert "run_tag=run_tag" in source
+
+
+# ---------------------------------------------------------------------------
 # A live run owns its stashed repositories. Restoring them under it destroys
 # the real checkout -- measured 2026-09-04, and it took the operator's repo
 # with it.
@@ -2157,3 +2227,109 @@ def test_llamacpp_port_maps_the_claude_code_shim_to_its_upstream():
     assert run.llamacpp_port({"a": {"base_url": "http://127.0.0.1:8020"}}) == 8020
     assert run.llamacpp_port({"a": {"base_url": "http://127.0.0.1:11500"}}) == 8020
     assert run.llamacpp_port({"a": {"base_url": "http://127.0.0.1:8030"}}) is None
+
+
+# --- a present-but-non-functional bwrap must not confine (found 2026-09-18) ---
+#
+# bwrap installed + unprivileged user namespaces restricted = every wrapped
+# trial exits before it starts and scores as a model failure. sandboxed() must
+# probe, not trust BWRAP.exists(), and fall back to unconfined.
+
+_HAS_SANDBOX_EXEC = pathlib.Path("/usr/bin/sandbox-exec").exists()
+
+
+def test_bwrap_works_is_false_when_the_probe_exits_nonzero(monkeypatch):
+    """A bwrap that cannot start its child reads as not working, not as absent."""
+    monkeypatch.setattr(run, "BWRAP", pathlib.Path("/bin/false"))
+    run.bwrap_works.cache_clear()
+    try:
+        assert run.bwrap_works() is False
+    finally:
+        run.bwrap_works.cache_clear()
+
+
+@pytest.mark.skipif(
+    _HAS_SANDBOX_EXEC, reason="sandbox-exec present; this targets the Linux bwrap path"
+)
+def test_sandboxed_runs_unconfined_when_bwrap_cannot_create_a_namespace(
+    tmp_path, monkeypatch
+):
+    """The bug: a present-but-broken bwrap wrapped every trial in a command that
+    could not start, and the empty result scored as a model failure. The fix
+    falls back to mechanism 'none' and leaves the argv untouched."""
+    fake_bwrap = tmp_path / "bwrap"
+    fake_bwrap.write_text("")
+    monkeypatch.setattr(run, "BWRAP", fake_bwrap)
+    monkeypatch.setattr(run, "bwrap_works", lambda: False)
+    argv = ["opencode", "run", "--dir", str(tmp_path)]
+    wrapped, denied, mechanism = run.sandboxed(argv, tmp_path, tmp_path, tmp_path)
+    assert mechanism == "none"
+    assert wrapped == argv
+    assert denied == []
+
+
+@pytest.mark.skipif(
+    _HAS_SANDBOX_EXEC, reason="sandbox-exec present; this targets the Linux bwrap path"
+)
+def test_sandboxed_uses_bwrap_when_the_probe_succeeds(tmp_path, monkeypatch):
+    """When bwrap can create a namespace, the trial is wrapped and the row
+    records mechanism 'bwrap' -- the fallback must not fire on a working host."""
+    repo, _commit = _tiny_repo(tmp_path)
+    fake_bwrap = tmp_path / "bwrap"
+    fake_bwrap.write_text("")
+    monkeypatch.setattr(run, "BWRAP", fake_bwrap)
+    monkeypatch.setattr(run, "bwrap_works", lambda: True)
+    argv = ["opencode", "run"]
+    wrapped, _denied, mechanism = run.sandboxed(argv, repo, repo, tmp_path)
+    assert mechanism == "bwrap"
+    assert wrapped[0] == str(fake_bwrap)
+    assert wrapped[-2:] == argv
+
+
+# --- A container daemon is a way out of the sandbox --------------------------
+#
+# 2026-09-18: a trial ran `docker compose up` inside bwrap. The daemon runs as
+# root on the host, bind-mounted the worktree's relative ./data/blobs at the
+# real ~/git/gmail-archive path while the real checkout was stashed away, and
+# the harness could not restore the stash over the root-owned directory.
+
+
+def test_a_socket_in_the_deny_list_gets_dev_null_bound_over_it(tmp_path):
+    import socket
+
+    sock_path = tmp_path / "docker.sock"
+    s = socket.socket(socket.AF_UNIX)
+    s.bind(str(sock_path))
+    try:
+        args = run.bwrap_argv(["true"], tmp_path / "wt", tmp_path, [str(sock_path)])
+    finally:
+        s.close()
+    i = args.index(str(sock_path))
+    assert args[i - 2 : i] == ["--ro-bind", "/dev/null"]
+
+
+def test_a_directory_still_gets_a_tmpfs(tmp_path):
+    d = tmp_path / "answers"
+    d.mkdir()
+    args = run.bwrap_argv(["true"], tmp_path / "wt", tmp_path, [str(d)])
+    i = args.index(str(d))
+    assert args[i - 1] == "--tmpfs"
+
+
+def test_container_daemon_sockets_are_found_and_deduplicated(tmp_path):
+    import socket
+
+    real = tmp_path / "run" / "docker.sock"
+    real.parent.mkdir()
+    s = socket.socket(socket.AF_UNIX)
+    s.bind(str(real))
+    link = tmp_path / "var-run-docker.sock"
+    link.symlink_to(real)
+    try:
+        got = run.container_daemon_sockets(
+            (str(real), str(link), str(tmp_path / "absent.sock"))
+        )
+    finally:
+        s.close()
+    assert got.count(str(real.resolve())) == 1
+    assert str(tmp_path / "absent.sock") not in got

@@ -1712,6 +1712,46 @@ model = "bonsai-27b-q1-llamacpp-32768"
 opencode_model = "llamacpp/bonsai-27b-q1-llamacpp-32768"
 context_tokens = 32768
 
+# #479. Ternary Bonsai 2 27B, the GGUF / CUDA arm on the 3080 Ti. A newer
+# model than v1 (Qwen3.8-27B base, general.architecture `qwen35`, Hadamard-
+# rotated ternary), from prism-ml at pinned revision 6ed5e12. The M5 Max runs
+# the MLX arm of the same issue (`bonsai2mlxserve`, PR #512).
+#
+# Both packs need the PrismML llama.cpp fork -- stock llama.cpp produces
+# garbage on PTQ1_0/PQ2_0. Served here by that fork built for CUDA sm_86 at
+# `1a07bfa` (its `prism` branch, 23 commits past the v1 `d8f26ee`). Each pack
+# fits the 12 GiB of VRAM fully resident with room for a 32k KV cache, so both
+# run `-ngl 99` on GPU; at temperature 0 each returned a correct is_prime.
+#
+# `dtternarybonsai227b` (PQ2_0, 2.13 bpw, 7.2 GB) is the pre-registered
+# comparison: it holds quant, engine class and machine constant against v1's
+# `dtternarybonsai27b` (#269), so a v1-vs-v2 gap is the model generation, not
+# the format. `storage-blob-put` is the place to look (#269 closed there).
+# `dtternarybonsai2ptq127b` (PTQ1_0, 1.75 bpw, 5.95 GB) is the headline pack:
+# the first 27B-class model to fit this tier's footprint (#20). Serve one at a
+# time on :8080 -- preflight refuses a run with two resident models (#112).
+[backend.dtternarybonsai227b]
+description = "Ternary Bonsai 2 27B PQ2_0 GGUF (prism-ml rev 6ed5e12, qwen35 Hadamard-rotated ternary) via llama.cpp PrismML fork 1a07bfa built for CUDA sm_86 (desktop 3080 Ti) (#479)"
+tier = "desktop-3080ti"
+base_url = "http://127.0.0.1:8080"
+auth_token = "llamacpp"
+engine = "llama.cpp"
+engine_tree = "~/git/llama.cpp"
+model = "ternary-bonsai-2-27b-pq2-32768"
+opencode_model = "llamacpp/ternary-bonsai-2-27b-pq2-32768"
+context_tokens = 32768
+
+[backend.dtternarybonsai2ptq127b]
+description = "Ternary Bonsai 2 27B PTQ1_0 GGUF (prism-ml rev 6ed5e12, 1.75 bpw dense ternary) via llama.cpp PrismML fork 1a07bfa built for CUDA sm_86 (desktop 3080 Ti) (#479)"
+tier = "desktop-3080ti"
+base_url = "http://127.0.0.1:8080"
+auth_token = "llamacpp"
+engine = "llama.cpp"
+engine_tree = "~/git/llama.cpp"
+model = "ternary-bonsai-2-27b-ptq1-32768"
+opencode_model = "llamacpp/ternary-bonsai-2-27b-ptq1-32768"
+context_tokens = 32768
+
 # #278. Spark-X2.5-4B, a 4B claiming parity with models 2-3x its size on
 # agents and coding. First-party GGUF from the same org as the weights:
 #   https://huggingface.co/XHToken/Spark-X2.5-4B-GGUF -> Spark-X2.5-4B-Q8_0.gguf
@@ -2304,14 +2344,82 @@ context_tokens = 262144
 speculative = "MTP k=2 (checkpoint's model_mtp.safetensors); operator-approved third-party recipe (#303)"
 draft_engine = "vllm"
 
+# #350 / #303: the same 27B class on SGLang with the DSpark drafter, via
+# MiaAI-Lab's SGLang recipe (operator-approved with #303). A fourth engine on
+# this box. Deviations from the recipe as shipped: mem-fraction-static 0.70
+# (recipe 0.90 via start-dspark.sh) for the #485 headroom gate, and thinking
+# off by server default (recipe default is on).
+[backend.qwen3827bsglangdsparknothinkdgx]
+description = "Qwen3.8-27B NVFP4 (RadixArk/Qwen3.8-27B-NVFP4-BF16-LMHead) on SGLang lmsysorg/sglang:qwen38-27b via MiaAI-Lab/Qwen3.8-27B-SGLang-DGX-Spark @9fb18ed start-dspark.sh: DSpark drafter RadixArk/Qwen3.8-27B-DSpark (unquant, block 7, 8 draft tokens), torch.compile, 262k ctx, fp8 KV, max 16 concurrent; mem-fraction-static 0.70 (recipe 0.90) and --default-chat-template-kwargs enable_thinking=false (recipe default on). Speculative decoding is on (DSpark) but not declared as `speculative`: the harness has no SGLang draft-counter reader, so this arm cannot prove its drafter drafted and is labelled by engine, not by treatment"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "sglang"
+model = "qwen3.8-27b-sglang"
+aider_model = "openai/qwen3.8-27b-sglang"
+opencode_model = "vllm8888/qwen3.8-27b-sglang"
+context_tokens = 262144
+
 # #298: GLM-5.3-Flash (320B-A18B) as EXL3 K2 on one Spark, via vcruz305's
 # recipe -- operator-approved 2026-09-18. Third-party weights, a prebuilt vLLM
 # fork and the vllm-exl3 plugin built from a pinned ref. Deviations from the
-# recipe's standard command, for this harness: 131k context (recipe's first
-# sweep uses 8k), KV pinned at 3 GiB rather than a utilization-derived pool,
-# max-num-seqs 2, and thinking off via the patched template's enable_thinking.
+# recipe's standard command, for this harness: 64k context (the recipe's
+# follow-on serving length; its first sweep uses 8k), KV pinned at 1.5 GiB,
+# max-num-seqs 1, and thinking off via the patched template's enable_thinking.
+# 131k / 2 seqs / 3 GiB KV left 16.5 GiB idle and the first request took the
+# pool under the 13 GiB guard (2026-09-18 14:20).
+# #434: Qwen3.8-Flash-Next as EXL3 through vLLM + vllm-exl3, via vcruz305's
+# recipe -- operator-approved 2026-09-18 (turboderp's pack, the recipe's vLLM
+# patches). Deviations, for this harness: tool-call parser + auto tool choice
+# added (the recipe's serve script has none), thinking off, and the n-gram
+# table in disk mode at GMU 0.60 (the shipped resident/0.80 idled at 17.2 GiB
+# MemAvailable, under the #485 gate).
+# #303: the same 27B on SGLang with the DFlash2 block-diffusion drafter instead
+# of DSpark -- the recipe's start-dflash.sh, the drafter #303's headline number
+# is about. One lever against qwen3827bsglangdsparknothinkdgx: the drafter (and
+# the pinned dev image it needs). Same deviations: mem 0.70, thinking off.
+[backend.qwen3827bsglangdflash2nothinkdgx]
+description = "Qwen3.8-27B NVFP4 (RadixArk/Qwen3.8-27B-NVFP4-BF16-LMHead) on SGLang via MiaAI-Lab/Qwen3.8-27B-SGLang-DGX-Spark @9fb18ed start-dflash.sh: DFlash2 drafter z-lab/Qwen3.8-27B-DFlash2 @50307d4, 8 draft tokens, official lmsysorg dev image pinned by digest; mem-fraction-static 0.70 (recipe 0.90), thinking off via --default-chat-template-kwargs. Speculative decoding on but not declared `speculative`: no SGLang draft-counter reader exists"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "sglang"
+model = "qwen3.8-27b-sglang"
+aider_model = "openai/qwen3.8-27b-sglang"
+opencode_model = "vllm8888/qwen3.8-27b-sglang"
+context_tokens = 262144
+
+[backend.qwen38fnexl3nothinkdgx]
+description = "Qwen3.8-Flash-Next EXL3 3.05 bpw (turboderp/Qwen3.8-Flash-Next-exl3 rev 3.05bpw_h5_ng5 @69e3343, ~80 GB) via vcruz305/Qwen3.8-Flash-Next-EXL3-DGX-Spark-recipe @b942e1f: vLLM 0.29.0 + recipe patches, exllamav3 1.4.7 from source (aarch64 patch), vllm-exl3 0.4.2 @08ed1bf; MTP k=3, 262k ctx, max-num-seqs 4, prefix caching, bf16 mamba state; n-gram table disk-backed (VLLM_EXL3_NGRAM_TABLE=disk, PIECEWISE graphs) at gpu-memory-utilization 0.60 (recipe ships resident at 0.80); tool-call parser qwen3_coder added; thinking off via --default-chat-template-kwargs"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "vllm"
+model = "Qwen3.8-Flash-Next"
+aider_model = "openai/Qwen3.8-Flash-Next"
+opencode_model = "vllm8888/Qwen3.8-Flash-Next"
+context_tokens = 262144
+speculative = "MTP k=3 (pack's MTP head + hyper-connection mixer patch); operator-approved third-party weights and runtime patches (#434)"
+draft_engine = "vllm"
+
+# #434: the same EXL3 server with MTP off (SPEC_CONFIG=none), the one lever
+# against qwen38fnexl3nothinkdgx. With MTP k=3, 2 of the first 5 trials went
+# into corrupted generation (33k tokens of gibberish; acceptance 0.07 and 0.02
+# against 0.82-0.88 on clean rows). This arm asks whether the drafter is the
+# cause.
+[backend.qwen38fnexl3nomtpnothinkdgx]
+description = "qwen38fnexl3nothinkdgx with speculative decoding off (SPEC_CONFIG=none), nothing else changed: turboderp 3.05 bpw EXL3 pack, vLLM 0.29.0 + vllm-exl3 0.4.2 @08ed1bf, n-gram table on disk, GMU 0.60, thinking off"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "vllm"
+model = "Qwen3.8-Flash-Next"
+aider_model = "openai/Qwen3.8-Flash-Next"
+opencode_model = "vllm8888/Qwen3.8-Flash-Next"
+context_tokens = 262144
+
 [backend.glm53flashexl3k2nothinkdgx]
-description = "GLM-5.3-Flash EXL3 K2 (vcruz305/GLM-5.3-Flash-EXL3-K2, 120 shards, 97.7 GB) via vcruz305/GLM-5.3-Flash-EXL3-K2-DGX-Spark-recipe @655e60b: prebuilt aarch64 vLLM 0.1.dev62+g878631b60 (torch 2.13.0+cu130), vllm-exl3 0.4.2 built from d3cfd394, EXL3_FUSED_MOE=1 native kernel; fp8 KV pinned 3 GiB, max-model-len 131072, max-num-seqs 2, prefix caching on; chat template patched to honor enable_thinking, thinking off by server default"
+description = "GLM-5.3-Flash EXL3 K2 (vcruz305/GLM-5.3-Flash-EXL3-K2, 120 shards, 97.7 GB) via vcruz305/GLM-5.3-Flash-EXL3-K2-DGX-Spark-recipe @655e60b: prebuilt aarch64 vLLM 0.1.dev62+g878631b60 (torch 2.13.0+cu130), vllm-exl3 0.4.2 built from d3cfd394, EXL3_FUSED_MOE=1 native kernel; fp8 KV pinned 1.5 GiB (68,656 tokens), max-model-len 65536, max-num-seqs 1, prefix caching on, DG_JIT_CACHE_DIR outside ~/.cache/vllm; chat template patched to honor enable_thinking, thinking off by server default. Idle MemAvailable 16 GiB: runs use a 1 GiB client cap and --server-floor-gib 10 (the unit guard still stops the server at 13 GiB)"
 tier = "gb10-spark"
 base_url = "http://127.0.0.1:8888"
 auth_token = "local"
@@ -2319,7 +2427,7 @@ engine = "vllm"
 model = "GLM-5.3-Flash-EXL3"
 aider_model = "openai/GLM-5.3-Flash-EXL3"
 opencode_model = "vllm8888/GLM-5.3-Flash-EXL3"
-context_tokens = 131072
+context_tokens = 65536
 speculative = "native MTP k=2; operator-approved third-party weights, runtime and plugin (#298)"
 draft_engine = "vllm"
 

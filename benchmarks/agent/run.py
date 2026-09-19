@@ -26,6 +26,7 @@ Results append to results.jsonl. Nothing is overwritten, so runs accumulate.
 
 import argparse
 import atexit
+import functools
 import json
 import logging
 import os
@@ -2395,6 +2396,50 @@ def sandbox_profile(worktree, repo):
 BWRAP = pathlib.Path("/usr/bin/bwrap")
 
 
+#: Container-daemon sockets a trial must not reach. The daemons run as root
+#: OUTSIDE the sandbox, so a client inside it acts on the real host: on
+#: 2026-09-18 a trial ran `docker compose up` from its worktree, the daemon
+#: bind-mounted `./data/blobs` at the real `~/git/gmail-archive` path (where
+#: the checkout had been stashed away) and created it root-owned, and the
+#: harness could not restore the stash over it. The stack was still running an
+#: hour later. Covering the socket turns that into "cannot connect".
+CONTAINER_DAEMON_SOCKETS = (
+    "/run/docker.sock",
+    "/var/run/docker.sock",
+    "/run/containerd/containerd.sock",
+    "/run/podman/podman.sock",
+)
+
+
+def container_daemon_sockets(candidates=CONTAINER_DAEMON_SOCKETS):
+    """The daemon sockets present on this host, deduplicated by real path.
+
+    Rootless Docker/Podman live under the user's runtime dir, so those are
+    added too. /var/run is normally a symlink to /run; one cover per real
+    socket is enough, and binding over the symlink path twice is noise.
+    """
+    runtime = pathlib.Path(f"/run/user/{os.getuid()}")
+    paths = [
+        *candidates,
+        str(runtime / "docker.sock"),
+        str(runtime / "podman" / "podman.sock"),
+    ]
+    out, seen = [], set()
+    for path in paths:
+        p = pathlib.Path(path)
+        try:
+            if not p.exists():
+                continue
+            real = p.resolve()
+        except OSError:
+            continue
+        if real in seen:
+            continue
+        seen.add(real)
+        out.append(str(real))
+    return out
+
+
 def bwrap_argv(argv, worktree, repo, denied):
     """Wrap `argv` so the trial cannot see the answers, and gets its own /tmp.
 
@@ -2461,13 +2506,14 @@ def bwrap_argv(argv, worktree, repo, denied):
         # leak an answer, so skipping it costs nothing.
         if not target.exists():
             continue
-        # A file cannot be covered by a tmpfs, so bind /dev/null over it: the
-        # agent reads an empty file instead of the answer. tasks.toml and
-        # results.jsonl are the two files in the deny list (#54).
-        if target.is_file():
-            args += ["--ro-bind", "/dev/null", path]
-        else:
+        # Only a directory can be covered by a tmpfs. Anything else -- a file
+        # (tasks.toml, results.jsonl, #54) or a socket (the container daemons
+        # below) -- gets /dev/null bound over it: the agent reads an empty file,
+        # and a client that tries to connect finds no socket.
+        if target.is_dir():
             args += ["--tmpfs", path]
+        else:
+            args += ["--ro-bind", "/dev/null", path]
     # The worktree is bound last so nothing above can shadow it: it is the one
     # place the trial must be able to write.
     args += [
@@ -2522,14 +2568,54 @@ def confinement_record(mechanism, denied, memory_cap_gib):
     }
 
 
+@functools.cache
+def bwrap_works() -> bool:
+    """Whether bwrap can actually create the namespaces a trial needs.
+
+    `BWRAP.exists()` is not enough. On a host where unprivileged user
+    namespaces are restricted -- Ubuntu 24.04 ships
+    `kernel.apparmor_restrict_unprivileged_userns = 1`, and a bwrap that is
+    neither setuid nor granted an AppArmor profile is denied -- bwrap exits
+    with "setting up uid map: Permission denied" *before* it runs the child.
+    The harness then wrapped every trial in a command that could not start,
+    the client wrote an empty transcript, and the oracle scored it as a model
+    failure: a whole batch of zeros that measured the sandbox, not the model
+    (found on the Ryzen / RTX 3080 Ti desktop, 2026-09-18).
+
+    Probe once with the same namespace flags `bwrap_argv` uses, cache the
+    result, and let `sandboxed()` fall back to unconfined when it fails.
+    """
+    try:
+        probe = subprocess.run(
+            [
+                str(BWRAP),
+                "--dev-bind",
+                "/",
+                "/",
+                "--unshare-pid",
+                "--tmpfs",
+                "/tmp",
+                "--",
+                "true",
+            ],
+            capture_output=True,
+            timeout=30,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return probe.returncode == 0
+
+
 def sandboxed(argv, worktree, repo, tmpdir):
     """Wrap an agent invocation in whichever sandbox this platform has.
 
     macOS: `sandbox-exec` with the deny-list profile (#54). Linux: `bwrap`
     with the same deny list expressed as tmpfs covers, plus a private /tmp
-    (#476). Returns `(argv, denied, mechanism)`; an unconfined platform
-    returns the argv unchanged with mechanism "none" rather than silently
-    pretending to confine.
+    (#476). Returns `(argv, denied, mechanism)`; a platform with no *working*
+    sandbox returns the argv unchanged with mechanism "none" rather than
+    silently pretending to confine -- or, worse, wrapping the trial in a
+    sandbox that cannot start and scoring the empty result as a model failure.
     """
     denied_paths = None
     if pathlib.Path("/usr/bin/sandbox-exec").exists():
@@ -2541,17 +2627,61 @@ def sandboxed(argv, worktree, repo, tmpdir):
             denied_paths,
             "sandbox-exec",
         )
-    if BWRAP.exists():
+    if BWRAP.exists() and bwrap_works():
         _, denied_paths = sandbox_profile(worktree, repo)
+        denied_paths = [*denied_paths, *container_daemon_sockets()]
         return bwrap_argv(argv, worktree, repo, denied_paths), denied_paths, "bwrap"
-    logger.warning(
-        "no sandbox-exec and no bwrap on this platform; agent runs unconfined"
-    )
+    if BWRAP.exists():
+        logger.warning(
+            "bwrap is installed but cannot create a user namespace on this host "
+            "(kernel.apparmor_restrict_unprivileged_userns=1, and bwrap is not "
+            "setuid). Every wrapped trial would exit before it started and score "
+            "as a model failure, so the agent runs UNCONFINED (confinement: "
+            "none). Enable unprivileged user namespaces to restore confinement."
+        )
+    else:
+        logger.warning(
+            "no sandbox-exec and no bwrap on this platform; agent runs unconfined"
+        )
     return argv, [], "none"
 
 
+def _transcript_slug(value):
+    """A filesystem-safe token for a transcript filename (#103)."""
+    if not value:
+        return "unknown"
+    slug = re.sub(r"[^A-Za-z0-9.]+", "_", str(value)).strip("_")
+    return slug or "unknown"
+
+
+def transcript_run_tag(versions, client, when=None):
+    """A run's identity for its transcript filename (#103).
+
+    `<client_version>-<harness_commit>-<UTC>`. #112 stopped a re-run silently
+    overwriting an earlier transcript by keeping it behind a numeric suffix;
+    this names *which* run each file belongs to, so the before-side of a
+    two-run comparison is identifiable rather than merely preserved. The
+    ornith case that earned #103 -- 1.18.26 then 1.18.27, ninety minutes
+    apart, twelve transcripts overwritten -- would have kept both sets.
+    """
+    versions = versions or {}
+    stamp = time.strftime("%Y%m%dT%H%M%SZ", when or time.gmtime())
+    return (
+        f"{_transcript_slug(versions.get(client))}"
+        f"-{_transcript_slug(versions.get('harness_head'))}"
+        f"-{stamp}"
+    )
+
+
 def save_transcript(
-    client_log, name, stdout, stderr, result, partial=False, worktree=""
+    client_log,
+    name,
+    stdout,
+    stderr,
+    result,
+    partial=False,
+    worktree="",
+    run_tag="",
 ):
     """Keep the client's own event stream for this trial, if asked to.
 
@@ -2565,7 +2695,12 @@ def save_transcript(
         return
     client_log.mkdir(parents=True, exist_ok=True)
     suffix = ".partial" if partial else ""
-    out = client_log / f"{name}.stdout{suffix}.jsonl"
+    # #103: the run's identity goes in the filename, so a re-run of the same
+    # cell lands beside its predecessor rather than on top of it. The #112
+    # numeric-suffix guard below stays as a backstop for the rare case of two
+    # writes that share a tag (an empty tag, or the same run writing twice).
+    stem = f"{name}-{run_tag}" if run_tag else name
+    out = client_log / f"{stem}.stdout{suffix}.jsonl"
     body = stdout or ""
     # #112: never overwrite a transcript. The trial name repeats across
     # sweeps, so a second sweep into the same --client-log directory used to
@@ -2581,7 +2716,7 @@ def save_transcript(
         collision = True
         index = 2
         while True:
-            candidate = client_log / f"{name}.stdout{suffix}.{index}.jsonl"
+            candidate = client_log / f"{stem}.stdout{suffix}.{index}.jsonl"
             if not candidate.exists():
                 out = candidate
                 break
@@ -2599,7 +2734,7 @@ def save_transcript(
         )
     out.write_text(body)
     if stderr:
-        stderr_path = client_log / f"{name}.stderr{suffix}.log"
+        stderr_path = client_log / f"{stem}.stderr{suffix}.log"
         if collision:
             stderr_path = client_log / f"{out.stem}.log"
         stderr_path.write_text(stderr)
@@ -3287,6 +3422,9 @@ def one_trial(
     repo = pathlib.Path(target["repo"]).expanduser()
     suffix = "" if client == "claude" else f"-{client}"
     name = f"{task['name']}-{backend_name}{suffix}-{trial}"
+    # #103: stamp the transcript filename with which run produced it, so a
+    # re-run of this cell never overwrites the evidence from the last one.
+    run_tag = transcript_run_tag(versions, client)
     is_script = task.get("kind") == "script"
     # Where the trial builds from, and where the agent works.
     #
@@ -3543,7 +3681,13 @@ def one_trial(
         # outside the repo by default: these transcripts carry file contents
         # the agent read, and this repo does not commit prompts.
         save_transcript(
-            client_log, name, proc.stdout, proc.stderr, result, worktree=worktree
+            client_log,
+            name,
+            proc.stdout,
+            proc.stderr,
+            result,
+            worktree=worktree,
+            run_tag=run_tag,
         )
         try:
             result.update(parse(proc.stdout, launched_ms=launched_ms))
@@ -3654,7 +3798,13 @@ def one_trial(
             return v if isinstance(v, str) else v.decode("utf-8", "replace")
 
         save_transcript(
-            client_log, name, _text(exc.stdout), _text(exc.stderr), result, partial=True
+            client_log,
+            name,
+            _text(exc.stdout),
+            _text(exc.stderr),
+            result,
+            partial=True,
+            run_tag=run_tag,
         )
         # #71: the escape list above is recorded on a timeout, so the
         # integrity check that answers it must run here too.

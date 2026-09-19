@@ -85,6 +85,7 @@ Each script explains itself in full at the top of its own file -- what it comput
 | `qwen38_metal_suites.py` | mac | Run ds4#990's model-free Qwen3.8-Flash-Next Metal suites and report (#170). |
 | `reasoning_budget_signature.py` | any | Does an empty agent solution coincide with a spent reasoning budget? (#349) |
 | `reasoning_budget_sweep.py` | any | Does a short max_tokens with thinking ON return empty content? (#349) |
+| `reco_rows.py` | any | The numbers a RECOMMENDATIONS row quotes, regenerated from a ledger. #524 |
 | `refuse_commit_during_benchmark.py` | any | Refuse a commit while a benchmark holds the run lock (#227, #237). |
 | `release_notes.py` | any | Print the changelog section for a release, or refuse. |
 | `relevance_score.py` | any | Score how relevant an outside claim is to THIS project, procedurally (#230). |
@@ -104,7 +105,7 @@ Each script explains itself in full at the top of its own file -- what it comput
 | `sync_sandbox_targets.py` | any | Clone the harness's own copies of the task repositories into `sandbox/`. |
 | `tail_events.py` | any | Count num_turns > 20 events across the ledger, by task and by backend (#191). |
 | `targets_ab.py` | any | Does the sandbox target layout change the pass rate? #146 |
-| `thermals.py` | mac | Read this Mac's die temperatures, with a timestamp, without sudo. |
+| `thermals.py` | mac | Read this machine's temperatures, with a timestamp, without sudo. |
 | `tool_error_conditional.py` | any | Does a tool error make the NEXT tool call more likely to fail? (#112) |
 | `tool_retry_count.py` | any | Count tool-call outcomes from an OpenCode client transcript. |
 | `ttft_probe.py` | any | Time-to-first-token against a vLLM endpoint, client-observed vs engine (#346). |
