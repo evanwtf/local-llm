@@ -2333,3 +2333,28 @@ def test_container_daemon_sockets_are_found_and_deduplicated(tmp_path):
         s.close()
     assert got.count(str(real.resolve())) == 1
     assert str(tmp_path / "absent.sock") not in got
+
+
+# --- The run log names why a trial stopped ------------------------------------
+#
+# 2026-09-18 (#479): a client killed at the 24 GiB memory cap after 109 s was
+# logged "timed out after 1800s". The row said memory-cap and excluded; the log
+# line a person reads during the run said something false.
+
+
+def test_a_wall_clock_timeout_is_logged_as_a_timeout():
+    msg = run.timeout_message("t-1", 1800, {"timeout_reason": "wall-clock"})
+    assert msg == "t-1: timed out after 1800s"
+
+
+def test_a_memory_cap_kill_is_not_logged_as_a_timeout():
+    msg = run.timeout_message(
+        "t-1", 1800, {"timeout_reason": "memory-cap", "peak_rss_gib": 25.74}
+    )
+    assert "timed out" not in msg
+    assert "memory cap" in msg and "25.7 GiB" in msg and "excluded" in msg
+
+
+def test_a_gpu_idle_stall_names_itself():
+    msg = run.timeout_message("t-1", 1800, {"timeout_reason": "gpu-idle-stall"})
+    assert msg == "t-1: stopped -- gpu-idle-stall"

@@ -3390,6 +3390,25 @@ def record_source_repo(result, repo, target, name):
         )
 
 
+def timeout_message(name: str, timeout: float, result: dict) -> str:
+    """The run-log line for a trial the harness stopped, naming why.
+
+    #479: a memory-cap kill after 109 s was logged "timed out after 1800s".
+    The row was right (memory-cap, excluded); the line a person watches
+    during a run was not.
+    """
+    reason = result.get("timeout_reason", "wall-clock")
+    if reason == "wall-clock":
+        return f"{name}: timed out after {timeout}s"
+    if reason == "memory-cap":
+        peak = result.get("peak_rss_gib", 0.0)
+        return (
+            f"{name}: killed at the client memory cap "
+            f"(peak {peak:.1f} GiB) -- row excluded (#379)"
+        )
+    return f"{name}: stopped -- {reason}"
+
+
 def one_trial(
     cfg,
     task,
@@ -3809,7 +3828,7 @@ def one_trial(
         # #71: the escape list above is recorded on a timeout, so the
         # integrity check that answers it must run here too.
         record_source_repo(result, repo, target, name)
-        logger.error("%s: timed out after %ss", name, timeout)
+        logger.error("%s", timeout_message(name, timeout, result))
     finally:
         # Before the tree goes. In `finally` on purpose: a timed-out trial has
         # written code too, and that half-finished patch is the most diagnostic
