@@ -98,19 +98,29 @@ def _darwin_sources() -> tuple[str, int]:
     return vm.stdout, int(size.stdout.strip())
 
 
-def _meminfo() -> dict[str, float]:
-    if sys.platform == "darwin":
-        return parse_vm_stat(*_darwin_sources())
-    return _linux_meminfo()
+#: #562: when set, read the pool from this node_exporter instead of locally --
+#: the harness runs on a client and the pool to protect is the server's.
+NODE_EXPORTER: str | None = None
 
 
-def _linux_meminfo() -> dict[str, float]:
+def _node_exporter_meminfo(url: str) -> dict[str, float]:
+    import urllib.request
+
+    with urllib.request.urlopen(url, timeout=5) as resp:
+        text = resp.read().decode("utf-8", "replace")
     fields: dict[str, float] = {}
-    with open("/proc/meminfo") as fh:
-        for line in fh:
-            key, _, rest = line.partition(":")
-            if key in ("MemTotal", "MemAvailable", "MemFree"):
-                fields[key] = int(rest.split()[0]) / GIB
+    for key in ("MemTotal", "MemAvailable", "MemFree"):
+        m = re.search(
+            rf"^node_memory_{key}_bytes(?:\{{[^}}]*\}})?\s+([0-9.eE+-]+)\s*$",
+            text,
+            re.MULTILINE,
+        )
+        if m:
+            fields[key] = float(m.group(1)) / BYTES_PER_GIB
+    return _summarize(fields)
+
+
+def _summarize(fields: dict[str, float]) -> dict[str, float]:
     total = fields.get("MemTotal", 0.0)
     avail = fields.get("MemAvailable", 0.0)
     return {
@@ -123,6 +133,24 @@ def _linux_meminfo() -> dict[str, float]:
         # allocation succeeding.
         "used_gib": round(total - avail, 1),
     }
+
+
+def _meminfo() -> dict[str, float]:
+    if NODE_EXPORTER:
+        return _node_exporter_meminfo(NODE_EXPORTER)
+    if sys.platform == "darwin":
+        return parse_vm_stat(*_darwin_sources())
+    return _linux_meminfo()
+
+
+def _linux_meminfo() -> dict[str, float]:
+    fields: dict[str, float] = {}
+    with open("/proc/meminfo") as fh:
+        for line in fh:
+            key, _, rest = line.partition(":")
+            if key in ("MemTotal", "MemAvailable", "MemFree"):
+                fields[key] = int(rest.split()[0]) / GIB
+    return _summarize(fields)
 
 
 def gate(
@@ -187,7 +215,15 @@ def main(argv: list[str] | None = None) -> int:
         help="consecutive good samples required before declaring ready, so a "
         "momentary spike does not wave a launch through",
     )
+    p.add_argument(
+        "--node-exporter",
+        default=None,
+        help="read memory from this node_exporter /metrics URL instead of this "
+        "machine (#562: the harness is on a client, the pool is the server's)",
+    )
     args = p.parse_args(argv)
+    global NODE_EXPORTER
+    NODE_EXPORTER = args.node_exporter
     ready = gate(args.min_avail_gib, args.timeout, args.interval, args.settle_readings)
     return 0 if ready else 1
 

@@ -328,6 +328,48 @@ were resident (#360). The threshold is `LOCAL_LLM_MEM_SETTLE_MAX_GIB` (default
 appear — the GPU sat at 9 W for twenty-five minutes while a healthy server was
 already listening.
 
+## Serving to a remote agent client (#562)
+
+The Spark's intended use is a model server that other machines' agents call over
+the LAN. A remote run puts OpenCode and the harness on a client machine, so the
+Spark's pool holds only the server and the server can take the memory its recipe
+ships with. The client's spec sheet is under `hardware/` (it serves nothing, so
+its tier is `remote-client`).
+
+1. **On the Spark:** start the server as usual (bound to `0.0.0.0`), then write its
+   facts for the backend it serves:
+
+   ```sh
+   uv run python scripts/server_facts.py --backend <name> --out /tmp/server-facts.json
+   ```
+
+   This records the Spark's hardware and the engine provenance (`capture_versions`,
+   including `server_argv`), which the client cannot read from its own machine.
+2. **Copy the facts file to the client.** Point its OpenCode config at the Spark: a
+   provider `baseURL` on the Spark's LAN name, kept in the client's
+   `~/.config/opencode/opencode.json`, never in this repo.
+3. **On the client:**
+
+   ```sh
+   LOCAL_LLM_SERVER_HOST=<spark's LAN name> \
+   LOCAL_LLM_SERVER_FACTS=/path/to/server-facts.json \
+   LOCAL_LLM_CLIENT_MEM_CAP_GIB=<below the client's RAM> \
+   uv run python benchmarks/agent/run.py --backend <name> --client opencode \
+       --trials 3 --targets sandbox --memory-gate-gib 18 --server-floor-gib 13
+   ```
+
+What remote mode changes (`benchmarks/agent/remote.py`):
+
+- Every backend URL's loopback host becomes `LOCAL_LLM_SERVER_HOST`.
+- The memory gate and the #485 headroom gate read the **Spark's** `MemAvailable`
+  from its node_exporter (`:9100`), not the client's. The headroom check drops the
+  client cap, because a runaway client cannot push the Spark's pool down.
+- Rows describe the Spark: its hardware facts and engine provenance fill `env`.
+  The client's hardware and confinement go under `env.client_machine`, and
+  `env.topology` is `"remote"`. Rows land in the Spark's ledger by default.
+- The run lock is the client's. The Spark's operator must not load another model
+  mid-run; nothing on the Spark enforces that yet.
+
 ## Toolchains installed on this box (provisioning record)
 
 Packages added to `spark-231e` beyond the base image — what, how, and the version, so a rebuild is reproducible:
