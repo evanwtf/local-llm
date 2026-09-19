@@ -63,6 +63,7 @@ Each script explains itself in full at the top of its own file -- what it comput
 | `make_scripts_readme.py` | any | Generate scripts/README.md from each script's own first docstring line. |
 | `memory_gate.py` | nvidia | Wait for memory to be safe before starting the next trial. |
 | `metal_knob_ab.py` | mac | Paired decode-rate A/B for one Metal knob env var within one tree. #162 |
+| `mlxserve_turns.py` | any | Per-turn prefill and decode from an mlx-serve log, bucketed by context. #479 |
 | `model_probe.py` | any | Check a served model's answers in code, never by reading them. |
 | `moe_tile_ab.py` | mac | Paired prefill/decode A/B for the ds4 MoE tensor-tile level, one tree. #328 |
 | `mtp_draft_audit.py` | mac | Audit an MTP arm's drafting counters: the server log beside the ledger. |
