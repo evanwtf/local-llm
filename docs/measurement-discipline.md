@@ -330,9 +330,16 @@ DGX llama.cpp row since 2026-09-12, so this needs no new measurement.
 > whenever they are quoted. Rows written after #444 also carry
 > **`first_content_ms`** — invocation to first visible output, measured by
 > `run.py` outside the client — and `step_ttft_anchor`, which names the anchor
-> a row's in-band figure used. Where an engine counter is available (vLLM's
-> `time_to_first_token_seconds`, via `scripts/dgx_metrics.py --ttft`), prefer
-> it: it is the only wire-side TTFT on this project. The estimator
+> a row's in-band figure used. Where an engine counter is available, prefer
+> it: it is the only wire-side TTFT on this project. Rows on vLLM and SGLang
+> backends carry it per trial: **`engine_ttft_ms_mean`** is the change in the
+> engine's `time_to_first_token_seconds` histogram sum over the change in its
+> count, scraped just before and just after the trial, with
+> `engine_ttft_requests` (how many requests the mean covers) and
+> `engine_ttft_source` beside it (`benchmarks/agent/engine_ttft.py`). It is
+> exact only while the trial is the server's only client; a request count far
+> above the trial's model steps means something else was using the server.
+> Engines without the histogram (llama.cpp, ds4, Ollama) record nothing. The estimator
 is `scripts/report.py`: `turns()` (the ungated half), `seconds_per_turn()`, and
 `homogeneous()` (the step-0 gate). A two-backend `report.py` run prints the
 "What moved: the agent, or the engine? (#353)" block, and warns when a cell's
@@ -479,6 +486,17 @@ Every backend added here changes more than one variable at a time. Write the
 caveat into the backend block in `tasks.toml` at the moment you add it, not
 afterwards — engine, quant, tune, and default sampler settings all move
 together, and a result that cannot attribute its cause must say so.
+
+**Confinement is one of those variables (#477).** A row's `confinement` field
+records what isolated the trial: its mechanism, deny list, `/tmp` and network
+policy, and memory cap. On the DGX Spark every row from 2026-09-17T23:34-0400
+on carries `"mechanism": "bwrap"`. Rows **without** the field predate
+confinement on Linux and ran unconfined; they were not backfilled, because the
+missing field already marks the boundary and no reader treats it otherwise. Do
+not pool the two on a task where the sandbox is what moved: `script-transform`
+went 12/20 unconfined and 9/10 confined on the A3B leader (#477). Before
+2026-09-19 the run header printed `confinement none` on Linux even for
+confined trials; the row field was right, the header was not.
 
 ## Observe the wire call, not the status code
 

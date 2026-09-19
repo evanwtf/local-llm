@@ -34,6 +34,7 @@ from __future__ import annotations
 import argparse
 import dataclasses
 import datetime as dt
+import functools
 import json
 import logging
 import os
@@ -257,7 +258,51 @@ def confinement() -> str:
     a macOS row look identical in results.jsonl while carrying different
     guarantees (#81).
     """
-    return "sandbox-exec" if sys.platform == "darwin" else "none"
+    if sys.platform == "darwin":
+        return "sandbox-exec"
+    # Linux trials run under bwrap whenever it can create its namespaces
+    # (#476, #477); run.py falls back to unconfined only when it cannot (#516).
+    # This said "none" on every Linux row header until 2026-09-19, while every
+    # trial since 2026-09-17 was in fact confined.
+    return "bwrap" if BWRAP.exists() and _bwrap_ok() else "none"
+
+
+BWRAP = pathlib.Path("/usr/bin/bwrap")
+
+
+def bwrap_probe(binary: pathlib.Path) -> bool:
+    """Whether `binary` can create the namespaces a trial needs.
+
+    Existing is not enough. On a host where unprivileged user namespaces are
+    restricted (Ubuntu 24.04's `kernel.apparmor_restrict_unprivileged_userns`),
+    bwrap exits with "setting up uid map: Permission denied" before it runs the
+    child. So probe with the same namespace flags `run.bwrap_argv` uses.
+    """
+    try:
+        probe = subprocess.run(
+            [
+                str(binary),
+                "--dev-bind",
+                "/",
+                "/",
+                "--unshare-pid",
+                "--tmpfs",
+                "/tmp",
+                "--",
+                "true",
+            ],
+            capture_output=True,
+            timeout=30,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return probe.returncode == 0
+
+
+@functools.cache
+def _bwrap_ok() -> bool:
+    return bwrap_probe(BWRAP)
 
 
 def parse_wired_limit(text: str) -> float | None:
