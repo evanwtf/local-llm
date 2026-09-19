@@ -1,22 +1,27 @@
-"""Read this Mac's die temperatures, with a timestamp, without sudo.
+"""Read this machine's temperatures, with a timestamp, without sudo.
 
 Written because a benchmark's numbers moved 8-11% across three sweeps and the
 only available explanation was "the machine got hot" -- which was a guess. A
 run that drifts needs a temperature next to it, or the drift stays a story.
 
-`powermetrics` gives this but needs root, and this project runs unattended.
-The IOKit HID thermal sensors are readable by any user: 52 of them on an
-M5 Max, exposed as `PrimaryUsagePage 0xff00 / PrimaryUsage 5` services whose
-`kIOHIDEventTypeTemperature` field carries degrees Celsius.
+Two sources, whichever the machine has (#326):
+
+- **Mac**: `powermetrics` gives die temperatures but needs root, and this
+  project runs unattended. The IOKit HID thermal sensors are readable by any
+  user: 52 of them on an M5 Max, exposed as `PrimaryUsagePage 0xff00 /
+  PrimaryUsage 5` services whose `kIOHIDEventTypeTemperature` field carries
+  degrees Celsius. `tdie*` are die sensors and are what this reports; `tcal`
+  is a calibration reference that reads ~15 C high, so it is excluded.
+- **Nvidia (DGX Spark, RTX 3080 Ti)**: `nvidia-smi` reports GPU temperature,
+  power, and clocks without root. Both boxes throttle under a sustained sweep,
+  which is exactly what a long agent campaign produces.
+
+`reading()` merges whichever applies, so a caller gets a comparable timestamped
+dict on any machine. The absolute values matter less than the trend in one run.
 
     uv run python scripts/thermals.py                 # one reading
     uv run python scripts/thermals.py --watch 300     # every 300s until killed
     uv run python scripts/thermals.py --json
-
-Sensor names come from the SMC and are not documented by Apple. `tdie*` are
-die sensors and are what this reports; `tcal` is a calibration reference and
-reads ~15 C high, so it is excluded rather than averaged in. The absolute
-values are less useful than the trend during one run.
 """
 
 from __future__ import annotations
@@ -27,6 +32,7 @@ import ctypes.util
 import json
 import logging
 import pathlib
+import shutil
 import statistics
 import subprocess
 import sys
@@ -198,10 +204,113 @@ def fan_rpm() -> dict[str, float | int]:
     return out
 
 
+#: nvidia-smi reads GPU temperature, power, and clocks without root, so it is
+#: the Linux/CUDA counterpart to the Mac's IOKit sensors (#326). Absent on the
+#: Mac and on a Linux box with no NVIDIA GPU; `gpu_thermals()` then reads
+#: nothing, the same way `read_sensors()` does off macOS.
+NVIDIA = shutil.which("nvidia-smi")
+
+#: The fields queried, in order. Positional, so the parser maps by index and
+#: never depends on nvidia-smi's default column set.
+_NVIDIA_QUERY = (
+    "index",
+    "temperature.gpu",
+    "power.draw",
+    "clocks.gr",
+    "clocks.mem",
+    "utilization.gpu",
+)
+
+
+def parse_nvidia_smi(text: str) -> dict[str, float | int]:
+    """Per-GPU temperature/power/clocks from `nvidia-smi` CSV, plus the maxima.
+
+    One row per GPU, `nounits`. A field a GPU cannot report prints as `[N/A]`
+    and is dropped without dropping the row. The maxima are what a long sweep
+    is read against: the hottest die is the one that throttles, not the first.
+    """
+    out: dict[str, float | int] = {}
+    temps: list[float] = []
+    powers: list[float] = []
+    for line in text.splitlines():
+        parts = [p.strip() for p in line.strip().split(",")]
+        if len(parts) != len(_NVIDIA_QUERY):
+            continue
+        fields = dict(zip(_NVIDIA_QUERY, parts, strict=True))
+
+        def num(key: str, cast=float, fields=fields):
+            value = fields.get(key, "")
+            if not value or value.upper() == "N/A" or value.startswith("["):
+                return None
+            try:
+                return cast(value)
+            except ValueError:
+                return None
+
+        idx = num("index", int)
+        if idx is None:
+            continue
+        temp = num("temperature.gpu")
+        power = num("power.draw")
+        clock = num("clocks.gr", int)
+        mem_clock = num("clocks.mem", int)
+        util = num("utilization.gpu", int)
+        if temp is not None:
+            out[f"gpu{idx}_temp_c"] = temp
+            temps.append(temp)
+        if power is not None:
+            out[f"gpu{idx}_power_w"] = power
+            powers.append(power)
+        if clock is not None:
+            out[f"gpu{idx}_clock_mhz"] = clock
+        if mem_clock is not None:
+            out[f"gpu{idx}_mem_clock_mhz"] = mem_clock
+        if util is not None:
+            out[f"gpu{idx}_util_pct"] = util
+    if temps:
+        out["gpu_temp_max_c"] = round(max(temps), 2)
+    if powers:
+        out["gpu_power_max_w"] = round(max(powers), 2)
+    return out
+
+
+def gpu_thermals() -> dict[str, float | int]:
+    """One nvidia-smi reading, or empty when there is no GPU to read (#326).
+
+    Empty on a missing tool, a non-zero exit, or unparsable output -- the same
+    contract as `fan_rpm()`: never a fabricated number beside a temperature.
+    """
+    if not NVIDIA:
+        return {}
+    try:
+        got = subprocess.run(
+            [
+                NVIDIA,
+                "--query-gpu=" + ",".join(_NVIDIA_QUERY),
+                "--format=csv,noheader,nounits",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return {}
+    if got.returncode != 0:
+        return {}
+    return parse_nvidia_smi(got.stdout)
+
+
 def reading() -> dict[str, float | int | str]:
-    """One timestamped reading. The clock is the system clock, always."""
+    """One timestamped reading. The clock is the system clock, always.
+
+    Merges every source; each returns nothing where it does not apply, so the
+    Mac contributes die sensors and fans and an Nvidia box contributes GPU
+    temperature, power, and clocks, with no platform branch here.
+    """
     got: dict[str, float | int | str] = dict(summarize(read_sensors()))
     got.update(fan_rpm())
+    got.update(gpu_thermals())
     got["utc"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     got["local"] = time.strftime("%H:%M:%S %Z")
     return got
@@ -225,12 +334,12 @@ def main() -> int:
 
     def emit() -> dict:
         got = reading()
-        if not got.get("sensors"):
-            logger.error("no thermal sensors readable")
+        if not got.get("sensors") and "gpu_temp_max_c" not in got:
+            logger.error("no thermal source readable (no die sensors, no nvidia-smi)")
             return got
         if args.json:
             logger.info(json.dumps(got))
-        else:
+        elif got.get("sensors"):
             logger.info(
                 "%s  die max %.2f C  mean %.2f C  (%d sensors)",
                 got["local"],
@@ -238,11 +347,21 @@ def main() -> int:
                 got["die_mean_c"],
                 got["sensors"],
             )
+        else:
+            logger.info(
+                "%s  gpu max %.2f C  power max %s W",
+                got["local"],
+                got["gpu_temp_max_c"],
+                got.get("gpu_power_max_w", "?"),
+            )
         return got
+
+    def _readable(got: dict) -> bool:
+        return bool(got.get("sensors")) or "gpu_temp_max_c" in got
 
     first = emit()
     if not args.watch:
-        return 0 if first.get("sensors") else 1
+        return 0 if _readable(first) else 1
     try:
         while True:
             time.sleep(args.watch)
