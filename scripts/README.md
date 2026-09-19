@@ -111,6 +111,7 @@ Each script explains itself in full at the top of its own file -- what it comput
 | `targets_ab.py` | any | Does the sandbox target layout change the pass rate? #146 |
 | `thermals.py` | mac | Read this machine's temperatures, with a timestamp, without sudo. |
 | `thermals_summary.py` | any | Summarize a `thermals.py --watch --json` log into a run's thermal envelope. |
+| `tm_model_guard.py` | mac | Fail if Time Machine would back up a model file. #440 |
 | `tool_error_conditional.py` | any | Does a tool error make the NEXT tool call more likely to fail? (#112) |
 | `tool_retry_count.py` | any | Count tool-call outcomes from an OpenCode client transcript. |
 | `ttft_probe.py` | any | Time-to-first-token against a vLLM endpoint, client-observed vs engine (#346). |
