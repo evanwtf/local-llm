@@ -996,3 +996,15 @@ def test_a_command_that_only_mentions_a_sampler_is_not_one():
 
 def test_a_model_server_is_not_a_sampler():
     assert "ds4-server" not in " ".join(preflight.samplers(SAMPLER_PS))
+
+
+def test_the_metal_equivalence_report_is_silent_off_macos(monkeypatch, caplog):
+    monkeypatch.setattr(preflight.sys, "platform", "linux")
+    monkeypatch.setattr(
+        preflight,
+        "ds4_equivalence_state",
+        lambda: (_ for _ in ()).throw(AssertionError),
+    )
+    with caplog.at_level("INFO"):
+        preflight.report_ds4_equivalence()
+    assert "Metal" not in caplog.text
