@@ -59,7 +59,7 @@ other is telling you something.
 
 ### Cortex-X925-128GB-GB10
 
-*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 2121 rows, sha256 272e8a3b0ec6.*
+*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 2211 rows, sha256 17207d5cfba2.*
 
 #### Every stack measured under OpenCode
 
@@ -88,6 +88,7 @@ other is telling you something.
 | qwen36nvfp4nothinkdgx | 60/60 | 136s | 268s | 5.2x |
 | qwen36codinggguf | 49/50 | 147s | 286s | 4.1x |
 | qwen38fnnvfp4miaaidgx | 30/30 | 150s | 367s | 6.5x |
+| qwen3827bsglangdflash2dgx | 89/90 | 157s | 581s | 18.3x |
 | qwen36nvfp4dgx | 60/60 | 175s | 845s | 13.2x |
 | qwen36nvfp4v1dgx | 29/30 | 190s | 832s | 12.3x |
 | qwen38fnexl3nomtpnothinkdgx | 4/6 | 196s | 1696s | 16.5x |
@@ -101,7 +102,7 @@ other is telling you something.
 | nemotron3nano | 8/10 | 580s | 1212s | 8.5x |
 | nemotron33 | 1/10 | — | — | — |
 
-**Rows here were not all taken under one client.** glm53flashexl3k2nothinkdgx, gptoss20bdgx, nemotron35lightninga3bdgx, nemotron3super120bdgx, nemotron3super120bmtpnopcdgx, qwen36a3bnvfp4dgx, qwen3827bnvfp4miaainothinkdgx, qwen3827bsglangdflash2nothinkdgx, qwen3827bsglangdsparknothinkdgx, qwen3827bsglangdsparkpinnednothinkdgx, qwen38fnexl3nomtpnothinkdgx, qwen38fnexl3nothinkdgx, qwen38fnnvfp4miaaidgx, qwen38fnnvfp4miaainothinkdgx, qwen38fnnvidianvfp4dgx, qwen38fnnvidianvfp4nothinkdgx, qwen38fnq3nothinkdgx under 1.18.31; the rest under 1.18.30. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: qwen36a3bnvfp4dgx (1.18.30, 1.18.31); qwen38fnq3nothinkdgx (1.18.30, 1.18.31).
+**Rows here were not all taken under one client.** glm53flashexl3k2nothinkdgx, gptoss20bdgx, nemotron35lightninga3bdgx, nemotron3super120bdgx, nemotron3super120bmtpnopcdgx, qwen36a3bnvfp4dgx, qwen3827bnvfp4miaainothinkdgx, qwen3827bsglangdflash2dgx, qwen3827bsglangdflash2nothinkdgx, qwen3827bsglangdsparknothinkdgx, qwen3827bsglangdsparkpinnednothinkdgx, qwen38fnexl3nomtpnothinkdgx, qwen38fnexl3nothinkdgx, qwen38fnnvfp4miaaidgx, qwen38fnnvfp4miaainothinkdgx, qwen38fnnvidianvfp4dgx, qwen38fnnvidianvfp4nothinkdgx, qwen38fnq3nothinkdgx under 1.18.31; the rest under 1.18.30. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: qwen36a3bnvfp4dgx (1.18.30, 1.18.31); qwen38fnq3nothinkdgx (1.18.30, 1.18.31).
 
 Excision tasks only; `script-*` excluded because they are a different class. **Spread is worst / best on the same task**, and it is the column most people forget to ask for.
 
@@ -115,6 +116,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | nemotron35lightninga3bdgx | 20s |
 | qwen36a3bnvfp4dgx | 22s |
 | gptoss20bdgx | 25s |
+| qwen3827bsglangdflash2dgx | 35s |
 | ornith15a3bdgx | 35s |
 | qwen3827bsglangdflash2nothinkdgx | 39s |
 | qwen38fnnvfp4miaainothinkdgx | 43s |
@@ -143,7 +145,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | qwen36bf16dgx | 409s |
 | glm53flashexl3k2nothinkdgx | 463s |
 
-**Rows here were not all taken under one client.** glm53flashexl3k2nothinkdgx, gptoss20bdgx, nemotron35lightninga3bdgx, nemotron3super120bdgx, nemotron3super120bmtpnopcdgx, qwen36a3bnvfp4dgx, qwen3827bnvfp4miaainothinkdgx, qwen3827bsglangdflash2nothinkdgx, qwen3827bsglangdsparknothinkdgx, qwen3827bsglangdsparkpinnednothinkdgx, qwen38fnexl3nomtpnothinkdgx, qwen38fnexl3nothinkdgx, qwen38fnnvfp4miaaidgx, qwen38fnnvfp4miaainothinkdgx, qwen38fnnvidianvfp4dgx, qwen38fnnvidianvfp4nothinkdgx, qwen38fnq3nothinkdgx under 1.18.31; the rest under 1.18.30. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: qwen36a3bnvfp4dgx (1.18.30, 1.18.31); qwen38fnq3nothinkdgx (1.18.30, 1.18.31).
+**Rows here were not all taken under one client.** glm53flashexl3k2nothinkdgx, gptoss20bdgx, nemotron35lightninga3bdgx, nemotron3super120bdgx, nemotron3super120bmtpnopcdgx, qwen36a3bnvfp4dgx, qwen3827bnvfp4miaainothinkdgx, qwen3827bsglangdflash2dgx, qwen3827bsglangdflash2nothinkdgx, qwen3827bsglangdsparknothinkdgx, qwen3827bsglangdsparkpinnednothinkdgx, qwen38fnexl3nomtpnothinkdgx, qwen38fnexl3nothinkdgx, qwen38fnnvfp4miaaidgx, qwen38fnnvfp4miaainothinkdgx, qwen38fnnvidianvfp4dgx, qwen38fnnvidianvfp4nothinkdgx, qwen38fnq3nothinkdgx under 1.18.31; the rest under 1.18.30. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: qwen36a3bnvfp4dgx (1.18.30, 1.18.31); qwen38fnq3nothinkdgx (1.18.30, 1.18.31).
 
 ### MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A
 
