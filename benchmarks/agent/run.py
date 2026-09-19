@@ -2646,8 +2646,42 @@ def sandboxed(argv, worktree, repo, tmpdir):
     return argv, [], "none"
 
 
+def _transcript_slug(value):
+    """A filesystem-safe token for a transcript filename (#103)."""
+    if not value:
+        return "unknown"
+    slug = re.sub(r"[^A-Za-z0-9.]+", "_", str(value)).strip("_")
+    return slug or "unknown"
+
+
+def transcript_run_tag(versions, client, when=None):
+    """A run's identity for its transcript filename (#103).
+
+    `<client_version>-<harness_commit>-<UTC>`. #112 stopped a re-run silently
+    overwriting an earlier transcript by keeping it behind a numeric suffix;
+    this names *which* run each file belongs to, so the before-side of a
+    two-run comparison is identifiable rather than merely preserved. The
+    ornith case that earned #103 -- 1.18.26 then 1.18.27, ninety minutes
+    apart, twelve transcripts overwritten -- would have kept both sets.
+    """
+    versions = versions or {}
+    stamp = time.strftime("%Y%m%dT%H%M%SZ", when or time.gmtime())
+    return (
+        f"{_transcript_slug(versions.get(client))}"
+        f"-{_transcript_slug(versions.get('harness_head'))}"
+        f"-{stamp}"
+    )
+
+
 def save_transcript(
-    client_log, name, stdout, stderr, result, partial=False, worktree=""
+    client_log,
+    name,
+    stdout,
+    stderr,
+    result,
+    partial=False,
+    worktree="",
+    run_tag="",
 ):
     """Keep the client's own event stream for this trial, if asked to.
 
@@ -2661,7 +2695,12 @@ def save_transcript(
         return
     client_log.mkdir(parents=True, exist_ok=True)
     suffix = ".partial" if partial else ""
-    out = client_log / f"{name}.stdout{suffix}.jsonl"
+    # #103: the run's identity goes in the filename, so a re-run of the same
+    # cell lands beside its predecessor rather than on top of it. The #112
+    # numeric-suffix guard below stays as a backstop for the rare case of two
+    # writes that share a tag (an empty tag, or the same run writing twice).
+    stem = f"{name}-{run_tag}" if run_tag else name
+    out = client_log / f"{stem}.stdout{suffix}.jsonl"
     body = stdout or ""
     # #112: never overwrite a transcript. The trial name repeats across
     # sweeps, so a second sweep into the same --client-log directory used to
@@ -2677,7 +2716,7 @@ def save_transcript(
         collision = True
         index = 2
         while True:
-            candidate = client_log / f"{name}.stdout{suffix}.{index}.jsonl"
+            candidate = client_log / f"{stem}.stdout{suffix}.{index}.jsonl"
             if not candidate.exists():
                 out = candidate
                 break
@@ -2695,7 +2734,7 @@ def save_transcript(
         )
     out.write_text(body)
     if stderr:
-        stderr_path = client_log / f"{name}.stderr{suffix}.log"
+        stderr_path = client_log / f"{stem}.stderr{suffix}.log"
         if collision:
             stderr_path = client_log / f"{out.stem}.log"
         stderr_path.write_text(stderr)
@@ -3383,6 +3422,9 @@ def one_trial(
     repo = pathlib.Path(target["repo"]).expanduser()
     suffix = "" if client == "claude" else f"-{client}"
     name = f"{task['name']}-{backend_name}{suffix}-{trial}"
+    # #103: stamp the transcript filename with which run produced it, so a
+    # re-run of this cell never overwrites the evidence from the last one.
+    run_tag = transcript_run_tag(versions, client)
     is_script = task.get("kind") == "script"
     # Where the trial builds from, and where the agent works.
     #
@@ -3639,7 +3681,13 @@ def one_trial(
         # outside the repo by default: these transcripts carry file contents
         # the agent read, and this repo does not commit prompts.
         save_transcript(
-            client_log, name, proc.stdout, proc.stderr, result, worktree=worktree
+            client_log,
+            name,
+            proc.stdout,
+            proc.stderr,
+            result,
+            worktree=worktree,
+            run_tag=run_tag,
         )
         try:
             result.update(parse(proc.stdout, launched_ms=launched_ms))
@@ -3750,7 +3798,13 @@ def one_trial(
             return v if isinstance(v, str) else v.decode("utf-8", "replace")
 
         save_transcript(
-            client_log, name, _text(exc.stdout), _text(exc.stderr), result, partial=True
+            client_log,
+            name,
+            _text(exc.stdout),
+            _text(exc.stderr),
+            result,
+            partial=True,
+            run_tag=run_tag,
         )
         # #71: the escape list above is recorded on a timeout, so the
         # integrity check that answers it must run here too.

@@ -105,7 +105,7 @@ Each script explains itself in full at the top of its own file -- what it comput
 | `sync_sandbox_targets.py` | any | Clone the harness's own copies of the task repositories into `sandbox/`. |
 | `tail_events.py` | any | Count num_turns > 20 events across the ledger, by task and by backend (#191). |
 | `targets_ab.py` | any | Does the sandbox target layout change the pass rate? #146 |
-| `thermals.py` | mac | Read this Mac's die temperatures, with a timestamp, without sudo. |
+| `thermals.py` | mac | Read this machine's temperatures, with a timestamp, without sudo. |
 | `tool_error_conditional.py` | any | Does a tool error make the NEXT tool call more likely to fail? (#112) |
 | `tool_retry_count.py` | any | Count tool-call outcomes from an OpenCode client transcript. |
 | `ttft_probe.py` | any | Time-to-first-token against a vLLM endpoint, client-observed vs engine (#346). |

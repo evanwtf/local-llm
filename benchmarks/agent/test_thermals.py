@@ -121,6 +121,76 @@ def test_a_stopped_fan_is_zero_not_missing(monkeypatch):
     assert thermals.fan_rpm()["fan0_rpm"] == 0
 
 
+# ---------------------------------------------------------------------------
+# #326: the Nvidia machines throttle under a long sweep, and thermals.py read
+# nothing there. nvidia-smi reports temperature, power, and clocks without root.
+
+
+def test_parse_nvidia_smi_reads_one_gpu():
+    got = thermals.parse_nvidia_smi("0, 45, 389.67, 1965, 9501, 98")
+    assert got["gpu0_temp_c"] == 45.0
+    assert got["gpu0_power_w"] == 389.67
+    assert got["gpu0_clock_mhz"] == 1965
+    assert got["gpu0_util_pct"] == 98
+    assert got["gpu_temp_max_c"] == 45.0
+    assert got["gpu_power_max_w"] == 389.67
+
+
+def test_parse_nvidia_smi_reports_the_hottest_of_several():
+    """A multi-GPU box's throttle is the hottest die, not the first one."""
+    got = thermals.parse_nvidia_smi(
+        "0, 61, 250.0, 1800, 9501, 100\n1, 72, 300.5, 1750, 9501, 100\n"
+    )
+    assert got["gpu1_temp_c"] == 72.0
+    assert got["gpu_temp_max_c"] == 72.0
+    assert got["gpu_power_max_w"] == 300.5
+
+
+def test_parse_nvidia_smi_skips_na_fields_without_dropping_the_row():
+    """nvidia-smi prints [N/A] for a field a GPU cannot report; keep the rest."""
+    got = thermals.parse_nvidia_smi("0, 45, [N/A], 1965, 9501, 0")
+    assert got["gpu0_temp_c"] == 45.0
+    assert "gpu0_power_w" not in got
+    assert "gpu_power_max_w" not in got
+    assert got["gpu0_clock_mhz"] == 1965
+
+
+def test_parse_nvidia_smi_is_empty_on_garbage():
+    assert thermals.parse_nvidia_smi("no such output") == {}
+    assert thermals.parse_nvidia_smi("") == {}
+
+
+def test_gpu_thermals_absent_when_nvidia_smi_is_missing(monkeypatch):
+    """No fabricated temperature when the tool is not installed."""
+    monkeypatch.setattr(thermals, "NVIDIA", None)
+    assert thermals.gpu_thermals() == {}
+
+
+def test_gpu_thermals_absent_on_nonzero_exit(monkeypatch):
+    monkeypatch.setattr(thermals, "NVIDIA", "/usr/bin/nvidia-smi")
+    monkeypatch.setattr(
+        thermals.subprocess,
+        "run",
+        lambda *a, **k: types.SimpleNamespace(returncode=9, stdout="", stderr="err"),
+    )
+    assert thermals.gpu_thermals() == {}
+
+
+@pytest.mark.skipif(
+    not thermals.NVIDIA,
+    reason="nvidia-smi is not installed; there is no GPU thermal source to read",
+)
+def test_the_gpu_reports_a_plausible_temperature():
+    """Live check on a machine with nvidia-smi. A GPU that is on is 10-110 C.
+
+    Keyed on `thermals.NVIDIA`, not a platform string, so it runs on the DGX
+    and the 3080 Ti and stays skipped only where there is genuinely no GPU.
+    """
+    got = thermals.reading()
+    assert "gpu_temp_max_c" in got, "nvidia-smi returned no temperature"
+    assert 10.0 < got["gpu_temp_max_c"] < 110.0
+
+
 def test_thermals_never_sets_a_fan():
     """Fan state is an operator decision (#116). Reading only.
 

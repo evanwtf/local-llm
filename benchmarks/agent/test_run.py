@@ -16,6 +16,7 @@ import os
 import pathlib
 import subprocess
 import sys
+import time
 import tomllib
 import types
 import urllib.error
@@ -1352,6 +1353,75 @@ def test_a_third_collision_gets_its_own_name(tmp_path):
 
 def test_the_first_write_is_not_marked_as_a_collision(tmp_path):
     assert _save(tmp_path, "t", "a").get("client_log_collision") is not True
+
+
+# ---------------------------------------------------------------------------
+# #103: a transcript filename carries no run identity, so a re-run of the same
+# cell under a different client or harness overwrites the evidence. #112 kept
+# the earlier file behind a numeric suffix; the run tag names *which* run each
+# transcript belongs to, which the suffix cannot.
+
+
+def test_transcript_run_tag_names_client_version_and_harness_commit():
+    tag = run.transcript_run_tag(
+        {"opencode": "1.18.31", "harness_head": "fbd9da6"},
+        "opencode",
+        when=time.gmtime(0),
+    )
+    assert tag == "1.18.31-fbd9da6-19700101T000000Z"
+
+
+def test_transcript_run_tag_sanitizes_spaces_and_parens():
+    tag = run.transcript_run_tag(
+        {"claude": "2.1.277 (Claude Code)", "harness_head": "abc1234"},
+        "claude",
+        when=time.gmtime(0),
+    )
+    assert tag == "2.1.277_Claude_Code-abc1234-19700101T000000Z"
+
+
+def test_transcript_run_tag_marks_missing_identity_unknown():
+    tag = run.transcript_run_tag({}, "opencode", when=time.gmtime(0))
+    assert tag == "unknown-unknown-19700101T000000Z"
+
+
+def test_a_run_tag_keeps_two_runs_of_the_same_cell_apart(tmp_path):
+    """The #103 failure: ornith measured on 1.18.26 then 1.18.27 ninety
+    minutes apart, and the second run overwrote all twelve transcripts. With
+    the run tag in the name, each run's transcript stands on its own -- no
+    numeric #112 suffix needed, and each says which run produced it."""
+    r1: dict = {}
+    r2: dict = {}
+    run.save_transcript(
+        tmp_path,
+        "mbox-scan-1",
+        '{"a": 1}',
+        "",
+        r1,
+        run_tag="1.18.26-aaa1111-20260902T100000Z",
+    )
+    run.save_transcript(
+        tmp_path,
+        "mbox-scan-1",
+        '{"b": 2}',
+        "",
+        r2,
+        run_tag="1.18.27-aaa1111-20260902T113000Z",
+    )
+    assert pathlib.Path(r1["client_log"]).read_text() == '{"a": 1}'
+    assert pathlib.Path(r2["client_log"]).read_text() == '{"b": 2}'
+    assert r1["client_log"] != r2["client_log"]
+    assert "1.18.26" in pathlib.Path(r1["client_log"]).name
+    assert "1.18.27" in pathlib.Path(r2["client_log"]).name
+    assert r2.get("client_log_collision") is not True
+    assert ".2.jsonl" not in pathlib.Path(r2["client_log"]).name
+
+
+def test_one_trial_passes_the_run_tag_to_save_transcript():
+    """Wiring guard: the identity must reach the filename, not just exist."""
+    source = pathlib.Path(run.__file__).read_text()
+    assert "transcript_run_tag(" in source
+    assert "run_tag=run_tag" in source
 
 
 # ---------------------------------------------------------------------------
