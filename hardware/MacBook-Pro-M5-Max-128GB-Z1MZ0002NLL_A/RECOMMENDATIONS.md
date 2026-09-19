@@ -72,13 +72,17 @@ Section 1 installs row 1.
 |---|---|---|---|---|---|
 | **you are starting out** | Qwen3.6-27B-coding `mxfp8` | Ollama | 31 GB | **24/24** | 167s |
 | **you want it fastest** | Qwen3.8-Flash-Next `MLX mixed-4/8bit` | **mlx-serve** (26.9.1–26.9.4) | ~100 GiB | **372/376** | 52s |
-| **you want the same model on a lighter engine** | Qwen3.8-Flash-Next `Q4_K imatrix` | ds4, ivanfioravanti's fork | 98 GiB | **526/526** | 87s |
+| **you want the same model on a lighter engine** | Qwen3.8-Flash-Next `qwen38-q4k` | ds4 upstream main | 165 GiB | **119/120** | 109s |
 | **you want a mainline engine** | Qwen3.8-Flash-Next `UD-Q3_K_XL` | llama.cpp | 84 GiB | **135/135** | 121s |
 | **you want a second lineage** | DeepSeek-V4-Flash | ds4 (DwarfStar) | 91 GB | **30/30** | 115s |
 
 Every row counts passed / usable OpenCode trials and the median passing
 excision task. The rows come from different weeks; the head-to-head below is
 the rigorous comparison.
+
+**The ds4 row left the `kimat` fork for upstream main on 2026-09-19** (#158:
+59/60 against 60/60, paired wall 0.96, 95% CI 0.87–1.06). It needs no sidecar;
+95 GiB of its 165 GiB file stays on disk. Steps: [`docs/stacks.md`](../../docs/stacks.md).
 
 **Measured and not picked:** Ternary Bonsai 2 27B on mlx-serve main passed 27
 of 44 trials (95% CI 47–74%). Its median passing excision task took 326 s
@@ -102,8 +106,8 @@ promoted default, [#328](https://github.com/evanwtf/local-llm/issues/328)) and
 continued [#952](https://github.com/evanwtf/local-llm/issues/952). Treat the
 gap as current only until it is re-measured against the current ds4 head. As
 of 2026-09-19 that head-to-head has not been re-run.
-[#158](https://github.com/evanwtf/local-llm/issues/158) is measuring ds4
-upstream main against the `kimat` fork, which decides the ds4 side of it.
+[#158](https://github.com/evanwtf/local-llm/issues/158) settled which ds4
+stack the re-run uses: upstream main, the stack in the table above.
 
 **It is a full-stack result, and that is the right way to read it.** Engine,
 quantization and speculative decoding move together: mlx-serve speculates by
@@ -113,10 +117,10 @@ speculation is the engine's shipped default, "what you get when you install
 it," which is what this file measures. The cost side: mlx-serve holds ~100 GiB
 resident against ds4's ~68–80 GiB.
 
-**On the lighter engine (ds4 `kimat`) against llama.cpp:** wall ratio 0.84
-(95% CI 0.76–0.92), 90/90 both arms, 13 of 15 tasks favoring ds4. It loads
-only on ivanfioravanti's trees, and this file has already had one stack
-withdrawn by its author.
+**On ds4 against llama.cpp:** wall ratio 0.84 (95% CI 0.76–0.92), 90/90 both
+arms, 13 of 15 tasks favoring ds4. That A/B ran the `kimat` fork, before the
+row moved to upstream main. Upstream main matched the fork in #158, but it has
+not run against llama.cpp itself.
 
 **Do not add ds4's MTP flags.** Until 2026-09-08 they never speculated at all:
 ds4 reaches its Qwen MTP path only at temperature 0 and no agent client sends
