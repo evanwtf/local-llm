@@ -51,11 +51,17 @@ logger = logging.getLogger(__name__)
 DEFAULTS_PATH = pathlib.Path("/etc/default/earlyoom")
 DROPIN_PATH = pathlib.Path("/etc/systemd/system/earlyoom.service.d/priority.conf")
 
-#: SIGTERM at 10% of MemTotal, SIGKILL at 5%. On 121.7 GiB that is about
-#: 12 GiB and 6 GiB -- below `dgx_server.py`'s own 14 GiB floor (#456), so the
-#: per-server watcher gets to stop a server cleanly before the box-wide killer
-#: has to.
-MEM_THRESHOLDS = "10,5"
+#: SIGTERM at 5% of MemTotal, SIGKILL at 3%. On 121.7 GiB that is about
+#: 6.1 GiB and 3.7 GiB -- below every per-server watcher floor in use (#456):
+#: 14 GiB when the harness runs on this box, 8 GiB when it runs on a remote
+#: client and the box holds only the server (#562). So a watcher still stops a
+#: server cleanly before the box-wide killer has to.
+#:
+#: Was 10,5 (~12 / ~6 GiB) until 2026-09-19. That was sized for a server and a
+#: trial sharing one pool; with the client off the box the servers can take
+#: the memory their recipes ship with, and a 12 GiB SIGTERM line would kill
+#: them at rest (operator-approved, #562).
+MEM_THRESHOLDS = "5,3"
 
 #: 100,100 -- i.e. ignore swap. See the module docstring: the AND with swap is
 #: what made this unfireable on 2026-09-17.
