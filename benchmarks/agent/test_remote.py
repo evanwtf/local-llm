@@ -119,3 +119,24 @@ def test_memory_gate_reads_a_node_exporter(monkeypatch):
     )
     got = memory_gate._node_exporter_meminfo("http://srv:9100/metrics")
     assert got["avail_gib"] == 24.1 and got["total_gib"] == 121.7
+
+
+def test_the_servers_gpu_power_is_read_from_dcgm():
+    text = (
+        'DCGM_FI_DEV_POWER_USAGE{gpu="0",modelName="NVIDIA GB10"} 9.823000\n'
+        'DCGM_FI_DEV_GPU_TEMP{gpu="0"} 38\n'
+    )
+    assert remote.parse_dcgm_watts(text) == 9.823
+    assert remote.parse_dcgm_watts("nothing here\n") is None
+
+
+def test_in_sandbox_layout_the_tripwire_watches_the_harness_clone(
+    monkeypatch, tmp_path
+):
+    """Not the operator's checkout, which the trial never touches (#146, #562)."""
+    clone = tmp_path / "sandbox" / "gmail-archive"
+    (clone / ".git").mkdir(parents=True)
+    monkeypatch.setattr(run, "SANDBOX_ROOT", tmp_path / "sandbox")
+    operator = tmp_path / "git" / "gmail-archive"
+    assert run.guarded_repo(operator, "sandbox") == clone
+    assert run.guarded_repo(operator, "legacy") == operator

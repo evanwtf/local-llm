@@ -1752,14 +1752,23 @@ CLIENTS = {
 }
 
 
-def guarded_repo(repo):
+def guarded_repo(repo, target_layout="legacy"):
     """The checkout the tripwire watches.
 
     #54: while stashed, the real checkout is parked at `stash_path(repo)` --
     `legacy_stash_path(repo)` for markers written before 2026-09-04 -- and the
     export stands at `repo`. The export is *supposed* to be modified -- that is
     the trial -- so the tripwire has to watch the real one.
+
+    #146/#562: in the sandbox layout the trial is built from the harness's own
+    `sandbox/<name>` clone, pinned at the base commit, and the operator's
+    checkout plays no part (the profile denies it). The tripwire watches the
+    clone. Watching the operator's checkout instead voided every trial on a
+    client whose checkout is deliberately elsewhere -- a live service's tree
+    at its own HEAD -- although nothing about the trial had moved.
     """
+    if target_layout == "sandbox" and (clone := sandbox_checkout(repo)):
+        return clone
     for real in (stash_path(repo), legacy_stash_path(repo)):
         if real.exists():
             return real
@@ -3327,7 +3336,7 @@ def draft_verdict(counters, counters_on=None):
     return "partial" if share < 1 else "ok"
 
 
-def record_source_repo(result, repo, target, name):
+def record_source_repo(result, repo, target, name, target_layout="legacy"):
     """Check the guarded checkout after the agent and write it onto the row.
 
     Runs on a finished trial and on a timed-out one (#71). A timeout used to
@@ -3335,7 +3344,7 @@ def record_source_repo(result, repo, target, name):
     `source_repo_intact` unset, with nothing to say whether the checkout was
     touched.
     """
-    guarded = guarded_repo(repo)
+    guarded = guarded_repo(repo, target_layout)
     intact, why = source_repo_state(guarded, target["base_commit"])
     result["source_repo_intact"] = intact
     if intact:
@@ -3615,7 +3624,7 @@ def one_trial(
         # the after-reading cannot tell an escape from a checkout that was
         # already off-baseline, and the harness blames the agent either way.
         intact_before, why_before = source_repo_state(
-            guarded_repo(repo), target["base_commit"]
+            guarded_repo(repo, target_layout), target["base_commit"]
         )
         result["source_repo_intact_before"] = intact_before
         if not intact_before:
@@ -3624,7 +3633,7 @@ def one_trial(
                 "%s: guarded checkout %s is ALREADY off-baseline before the agent "
                 "runs -- %s. Environment fault, not an escape; this trial is void",
                 name,
-                guarded_repo(repo),
+                guarded_repo(repo, target_layout),
                 why_before,
             )
         # #366. With the watchdog on, run the client under GPU-idle-stall
@@ -3636,7 +3645,13 @@ def one_trial(
         # the watchdog, the plain run() path is exactly as before.
         if idle_watchdog:
             watchdog = timeout_policy.IdleStallWatchdog(
-                watts_sampler or timeout_policy.gpu_watts,
+                watts_sampler
+                or (
+                    # #562: the GPU that goes idle is the server's.
+                    functools.partial(remote.gpu_watts, server)
+                    if (server := remote.host())
+                    else timeout_policy.gpu_watts
+                ),
                 idle_floor_watts=idle_floor_watts,
                 idle_stall_secs=idle_stall_secs,
             )
@@ -3751,7 +3766,7 @@ def one_trial(
         if not is_script:
             result["restored_verbatim"] = grade.all_restored_verbatim(excised, keep_doc)
         result["target_repo"] = target["repo"]
-        record_source_repo(result, repo, target, name)
+        record_source_repo(result, repo, target, name, target_layout)
         logger.info(
             "%s: %s in %ss (%s)",
             name,
@@ -3803,7 +3818,7 @@ def one_trial(
         )
         # #71: the escape list above is recorded on a timeout, so the
         # integrity check that answers it must run here too.
-        record_source_repo(result, repo, target, name)
+        record_source_repo(result, repo, target, name, target_layout)
         logger.error("%s", timeout_message(name, timeout, result))
     finally:
         # Before the tree goes. In `finally` on purpose: a timed-out trial has

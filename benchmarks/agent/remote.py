@@ -43,6 +43,7 @@ logger = logging.getLogger("agent-bench")
 ENV_HOST = "LOCAL_LLM_SERVER_HOST"
 ENV_FACTS = "LOCAL_LLM_SERVER_FACTS"
 NODE_EXPORTER_PORT = 9100
+DCGM_EXPORTER_PORT = 9400
 #: Every backend field that names the server.
 URL_KEYS = ("base_url", "models_url", "props_url", "engine_url")
 LOOPBACK = {"127.0.0.1", "localhost", "0.0.0.0", "::1"}
@@ -118,6 +119,34 @@ def server_meminfo(server: str, timeout: float = 5.0) -> dict[str, float]:
 def mem_available_gib(server: str) -> float | None:
     """The server's MemAvailable in GiB, or None when it cannot be read."""
     return server_meminfo(server).get("MemAvailable")
+
+
+def parse_dcgm_watts(text: str) -> float | None:
+    """Summed `DCGM_FI_DEV_POWER_USAGE` across GPUs, or None if absent."""
+    values = [
+        float(m.group(1))
+        for m in re.finditer(
+            r"^DCGM_FI_DEV_POWER_USAGE(?:\{[^}]*\})?\s+([0-9.eE+-]+)\s*$",
+            text,
+            re.MULTILINE,
+        )
+    ]
+    return sum(values) if values else None
+
+
+def gpu_watts(server: str, timeout: float = 5.0) -> float | None:
+    """The server's GPU power from its DCGM exporter, or None if unreadable.
+
+    The idle-stall watchdog's sampler in remote mode: the client has no GPU,
+    and `timeout_policy.gpu_watts` would read None forever, which the watchdog
+    holds rather than counts as idle -- safe, but it disables the watchdog.
+    """
+    url = f"http://{server}:{DCGM_EXPORTER_PORT}/metrics"
+    try:
+        with urllib.request.urlopen(url, timeout=timeout) as r:
+            return parse_dcgm_watts(r.read().decode("utf-8", "replace"))
+    except (urllib.error.URLError, OSError, ValueError):
+        return None
 
 
 def server_facts(path: str | None = None) -> dict | None:
