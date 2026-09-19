@@ -1,0 +1,30 @@
+name: no Claude session URLs
+
+# Claude session URLs and IDs may never be published (AGENTS.md). The
+# commit-msg hook stops them locally; this catches a clone without the hook,
+# and the PR title and body, which no hook sees. A separate workflow so a PR
+# body edit re-runs only this check, not the whole suite.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+jobs:
+  check:
+    runs-on: [self-hosted, Linux, X64]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Values arrive through env, never interpolated into the script.
+      - name: PR title, body, and every commit message
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          status=0
+          python3 scripts/refuse_session_ids.py --text "$PR_TITLE"$'\n'"$PR_BODY" || status=$?
+          python3 scripts/refuse_session_ids.py --git-range "$BASE_SHA..$HEAD_SHA" || status=$?
+          exit "$status"
