@@ -2418,6 +2418,20 @@ aider_model = "openai/qwen3.8-27b-sglang"
 opencode_model = "vllm8888/qwen3.8-27b-sglang"
 context_tokens = 262144
 
+# #553: the DGX agent leader (qwen36a3bnvfp4dgx, vLLM 0.29.0) on SGLang's
+# digest-pinned nightly -- the image that cut #303's DSpark arm from 65.6 s to
+# 53.7 s. Flags matched to the vLLM arm where the engines allow.
+[backend.qwen36a3bsglangdgx]
+description = "Qwen3.6-35B-A3B NVFP4 (nvidia/Qwen3.6-35B-A3B-NVFP4) on SGLang, official lmsysorg image pinned by digest (nightly-cu134-20260909-708f51e): 262k ctx, fp8 KV, max-running-requests 8, mem-fraction-static 0.60, reasoning parser qwen3, tool-call parser qwen3_coder, thinking off via --default-chat-template-kwargs, --moe-runner-backend flashinfer_cutlass (the default FLASHINFER_TRTLLM runner refuses NVFP4 MoE here); no speculative decoding. Matched to qwen36a3bnvfp4dgx (vLLM: max_num_seqs 8, gpu_memory_utilization 0.6, fp8 KV)"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "sglang"
+model = "qwen3.6-35b-a3b-sglang"
+aider_model = "openai/qwen3.6-35b-a3b-sglang"
+opencode_model = "vllm8888/qwen3.6-35b-a3b-sglang"
+context_tokens = 262144
+
 [backend.qwen38fnexl3nothinkdgx]
 description = "Qwen3.8-Flash-Next EXL3 3.05 bpw (turboderp/Qwen3.8-Flash-Next-exl3 rev 3.05bpw_h5_ng5 @69e3343, ~80 GB) via vcruz305/Qwen3.8-Flash-Next-EXL3-DGX-Spark-recipe @b942e1f: vLLM 0.29.0 + recipe patches, exllamav3 1.4.7 from source (aarch64 patch), vllm-exl3 0.4.2 @08ed1bf; MTP k=3, 262k ctx, max-num-seqs 4, prefix caching, bf16 mamba state; n-gram table disk-backed (VLLM_EXL3_NGRAM_TABLE=disk, PIECEWISE graphs) at gpu-memory-utilization 0.60 (recipe ships resident at 0.80); tool-call parser qwen3_coder added; thinking off via --default-chat-template-kwargs"
 tier = "gb10-spark"
