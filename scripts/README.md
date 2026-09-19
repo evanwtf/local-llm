@@ -24,6 +24,7 @@ Each script explains itself in full at the top of its own file -- what it comput
 | `client_versions.py` | any | Read the recorded agent client versions, and say which have moved (#131). |
 | `coherence_check.py` | mac | Greedy coherence check before trusting any new GGUF (#25, #48). |
 | `cohort_split.py` | any | Split one backend's rows at a moment in time and compare the halves. |
+| `daemons_idle.py` | mac | Wait until macOS's background daemons are idle before a timed run. #499, #214 |
 | `decode_ab.py` | mac | Paired decode-rate A/B for two GGUFs of the same model (#48). #235 stage 4. |
 | `decode_ab_engine.py` | mac | Paired decode-rate A/B for two ENGINE BUILDS of the same GGUF. #118 |
 | `decode_ab_repeat.py` | mac | Run the same decode A/B N times, into numbered directories (#136). |
