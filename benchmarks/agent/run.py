@@ -4560,6 +4560,21 @@ def main():
     # as a tiered backend does, and is dropped from the default matrix for the
     # same reason. Naming it explicitly is a request, so that refuses out loud
     # rather than dropping the task the caller asked for (#269).
+    # #562: a backend's declared topology must match the run, or remote and
+    # local rows of one backend name would pool in every table.
+    if mismatch := remote.topology_mismatch(backends, remote.host() is not None):
+        raise SystemExit(
+            (
+                'these backends are declared topology = "remote" and need '
+                f"{remote.ENV_HOST}: {mismatch}"
+            )
+            if remote.host() is None
+            else (
+                f"{remote.ENV_HOST} is set, but these backends are not declared "
+                f'topology = "remote" in tasks.toml: {mismatch}. Add a remote twin; '
+                "remote and local rows must not share a backend name."
+            )
+        )
     # #562: remote mode. The server is another machine; point every backend URL
     # at it, and let the server's own facts decide whose ledger the rows join.
     server_facts = None

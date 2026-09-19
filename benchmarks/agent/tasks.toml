@@ -2432,6 +2432,124 @@ aider_model = "openai/qwen3.6-35b-a3b-sglang"
 opencode_model = "vllm8888/qwen3.6-35b-a3b-sglang"
 context_tokens = 262144
 
+# #562: the #553 A3B SGLang arm, unchanged, driven from a remote client -- the
+# topology A/B against qwen36a3bsglangdgx.
+[backend.qwen36a3bsglangrcdgx]
+description = "Qwen3.6-35B-A3B NVFP4 (nvidia/Qwen3.6-35B-A3B-NVFP4) on SGLang, official lmsysorg image pinned by digest (nightly-cu134-20260909-708f51e): 262k ctx, fp8 KV, max-running-requests 8, mem-fraction-static 0.60, reasoning parser qwen3, tool-call parser qwen3_coder, thinking off via --default-chat-template-kwargs, --moe-runner-backend flashinfer_cutlass (the default FLASHINFER_TRTLLM runner refuses NVFP4 MoE here); no speculative decoding. Matched to qwen36a3bnvfp4dgx (vLLM: max_num_seqs 8, gpu_memory_utilization 0.6, fp8 KV); REMOTE CLIENT (#562): OpenCode and the harness run on another machine and reach this server over the LAN"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "sglang"
+model = "qwen3.6-35b-a3b-sglang"
+aider_model = "openai/qwen3.6-35b-a3b-sglang"
+opencode_model = "vllm8888/qwen3.6-35b-a3b-sglang"
+context_tokens = 262144
+topology = "remote"
+
+# #562 full-memory retest of the RECOMMENDATIONS rows, each driven from a
+# remote client so the Spark holds only the server. Engines with a memory knob
+# take their recipe's setting (or 0.85 where there is no recipe); llama.cpp and
+# ds4 have none and run unchanged, so for them only the topology moves.
+[backend.qwen36a3bsglangfmrcdgx]
+description = "Qwen3.6-35B-A3B NVFP4 (nvidia/Qwen3.6-35B-A3B-NVFP4) on SGLang, official lmsysorg image pinned by digest (nightly-cu134-20260909-708f51e): 262k ctx, fp8 KV, max-running-requests 8, mem-fraction-static 0.85, reasoning parser qwen3, tool-call parser qwen3_coder, thinking off via --default-chat-template-kwargs, --moe-runner-backend flashinfer_cutlass (the default FLASHINFER_TRTLLM runner refuses NVFP4 MoE here); no speculative decoding. Matched to qwen36a3bnvfp4dgx (vLLM: max_num_seqs 8, gpu_memory_utilization 0.6, fp8 KV); REMOTE CLIENT (#562): OpenCode and the harness run on another machine and reach this server over the LAN; FULL MEMORY (#562): server-only box, harness memory gates off, per-server watcher floor 8 GiB"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "sglang"
+model = "qwen3.6-35b-a3b-sglang"
+aider_model = "openai/qwen3.6-35b-a3b-sglang"
+opencode_model = "vllm8888/qwen3.6-35b-a3b-sglang"
+context_tokens = 262144
+topology = "remote"
+
+[backend.qwen36a3bnvfp4fmrcdgx]
+description = "Qwen3.6-35B-A3B NVFP4 (nvidia/ModelOpt) via vLLM 0.29.0, CUDA sm_121, thinking off -- the NVIDIA CLI-agent default the box skipped (#335); REMOTE CLIENT (#562): OpenCode and the harness run on another machine and reach this server over the LAN; FULL MEMORY (#562): server-only box, harness memory gates off, per-server watcher floor 8 GiB; gpu-memory-utilization 0.85 (was 0.6)"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8030"
+auth_token = "local"
+engine = "vllm"
+engine_tree = "~/venvs/vllm"
+model = "qwen3.6-35b-a3b-nvfp4"
+aider_model = "openai/qwen3.6-35b-a3b-nvfp4"
+opencode_model = "vllm/qwen3.6-35b-a3b-nvfp4"
+context_tokens = 262144
+topology = "remote"
+
+[backend.qwen3827bsglangdflash2nothinkfmrcdgx]
+description = "Qwen3.8-27B NVFP4 (RadixArk/Qwen3.8-27B-NVFP4-BF16-LMHead) on SGLang via MiaAI-Lab/Qwen3.8-27B-SGLang-DGX-Spark @9fb18ed start-dflash.sh: DFlash2 drafter z-lab/Qwen3.8-27B-DFlash2 @50307d4, 8 draft tokens, official lmsysorg dev image pinned by digest; mem-fraction-static 0.90 (the recipe's), thinking off via --default-chat-template-kwargs. Speculative decoding on but not declared `speculative`: no SGLang draft-counter reader exists; REMOTE CLIENT (#562): OpenCode and the harness run on another machine and reach this server over the LAN; FULL MEMORY (#562): server-only box, harness memory gates off, per-server watcher floor 8 GiB"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "sglang"
+model = "qwen3.8-27b-sglang"
+aider_model = "openai/qwen3.8-27b-sglang"
+opencode_model = "vllm8888/qwen3.8-27b-sglang"
+context_tokens = 262144
+topology = "remote"
+
+[backend.qwen38fnnvidianvfp4nothinkfmrcdgx]
+description = "nvidia/Qwen3.8-Flash-Next-NVFP4 rev fc694b5 (NVIDIA's mixed-precision quant: NVFP4 routed experts, BF16 attention/shared experts, FP8 MTP, FP8 PLE table) served by the MiaAI recipe (#468) with TP1_MODEL_ID set, HOST_RESERVE_GIB=26, PLE_GIB=47.68, thinking off via --default-chat-template-kwargs.enable_thinking=false; KV target 10 reduced to 8.6 GiB, GMU 0.753, max-num-seqs 4, 262k ctx; REMOTE CLIENT (#562): OpenCode and the harness run on another machine and reach this server over the LAN; FULL MEMORY (#562): server-only box, harness memory gates off, per-server watcher floor 8 GiB; HOST_RESERVE_GIB 26 is the recipe's own default (the local arm used 30); recipe at 6b50864"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "vllm"
+model = "qwen3.8-flash-next"
+aider_model = "openai/qwen3.8-flash-next"
+opencode_model = "vllm8888/qwen3.8-flash-next"
+context_tokens = 262144
+speculative = "MTP k=3 (NVIDIA's FP8 MTP head), use_local_argmax_reduction, 47k draft vocab (recipe files/draft_vocab_en_code_47k.txt); fp8 KV; gpu-memory-utilization 0.753; 48 GiB packed PLE table CPU-offloaded; thinking off via the server's default chat-template kwargs (#493)"
+draft_engine = "vllm"
+topology = "remote"
+
+[backend.qwen38fnq3nothinkrcdgx]
+description = "Qwen3.8-Flash-Next UD-Q3_K_XL, llama.cpp CUDA sm_121, thinking OFF; REMOTE CLIENT (#562): OpenCode and the harness run on another machine and reach this server over the LAN"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8020"
+auth_token = "local"
+engine = "llama.cpp"
+model = "qwen3.8-flash-next-q3-nothink"
+aider_model = "openai/qwen3.8-flash-next-q3-nothink"
+opencode_model = "llamacpp/qwen3.8-flash-next-q3-nothink"
+context_tokens = 131072
+topology = "remote"
+
+[backend.qwen38fnq3nothinkkv8rcdgx]
+description = "Qwen3.8-Flash-Next UD-Q3_K_XL, llama.cpp CUDA sm_121, thinking OFF, q8_0 KV cache; REMOTE CLIENT (#562): OpenCode and the harness run on another machine and reach this server over the LAN"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8022"
+auth_token = "local"
+engine = "llama.cpp"
+model = "qwen3.8-flash-next-q3-nothink-kv8"
+aider_model = "openai/qwen3.8-flash-next-q3-nothink-kv8"
+opencode_model = "llamacpp8022/qwen3.8-flash-next-q3-nothink-kv8"
+context_tokens = 131072
+topology = "remote"
+
+[backend.ds4rcdgx]
+description = "DeepSeek-V4-Flash Q2 0731 via ds4-server, CUDA sm_121a; REMOTE CLIENT (#562): OpenCode and the harness run on another machine and reach this server over the LAN"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8000"
+auth_token = "dsv4-local"
+engine = "ds4"
+engine_tree = "~/git/ds4"
+model = "deepseek-v4-flash"
+aider_model = "openai/deepseek-v4-flash"
+opencode_model = "ds4/deepseek-v4-flash"
+context_tokens = 100000
+topology = "remote"
+
+[backend.qwen38fnq3rcdgx]
+description = "Qwen3.8-Flash-Next 125B-A6B, Unsloth UD-Q3_K_XL, llama.cpp CUDA sm_121; REMOTE CLIENT (#562): OpenCode and the harness run on another machine and reach this server over the LAN"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8020"
+auth_token = "local"
+engine = "llama.cpp"
+model = "qwen3.8-flash-next-q3"
+aider_model = "openai/qwen3.8-flash-next-q3"
+opencode_model = "llamacpp/qwen3.8-flash-next-q3"
+context_tokens = 131072
+topology = "remote"
+
 [backend.qwen38fnexl3nothinkdgx]
 description = "Qwen3.8-Flash-Next EXL3 3.05 bpw (turboderp/Qwen3.8-Flash-Next-exl3 rev 3.05bpw_h5_ng5 @69e3343, ~80 GB) via vcruz305/Qwen3.8-Flash-Next-EXL3-DGX-Spark-recipe @b942e1f: vLLM 0.29.0 + recipe patches, exllamav3 1.4.7 from source (aarch64 patch), vllm-exl3 0.4.2 @08ed1bf; MTP k=3, 262k ctx, max-num-seqs 4, prefix caching, bf16 mamba state; n-gram table disk-backed (VLLM_EXL3_NGRAM_TABLE=disk, PIECEWISE graphs) at gpu-memory-utilization 0.60 (recipe ships resident at 0.80); tool-call parser qwen3_coder added; thinking off via --default-chat-template-kwargs"
 tier = "gb10-spark"
