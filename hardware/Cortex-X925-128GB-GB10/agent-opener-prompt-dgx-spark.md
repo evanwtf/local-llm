@@ -1,4 +1,4 @@
-# Handoff prompt: the autonomous operator on the DGX Spark (spark-231e, GB10)
+# Opener: the autonomous operator on the DGX Spark (spark-231e, GB10)
 
 This file is a **prompt**. Paste everything below the line into a fresh Claude
 Code or Codex session started on the DGX Spark (GB10 Grace-Blackwell, 128 GB
@@ -8,10 +8,18 @@ peer checks, ticket operations, launching servers safely, and landing results.
 
 It speaks for the DGX Spark only. The M5 Max MacBook Pro and the Ryzen / RTX
 3080 Ti desktop have their own lanes; see [`hardware/MACHINES.md`](../MACHINES.md).
-The M5 Max has its own handoff at
-[`hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/agent-handoff-prompt-m5-max.md`](../MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/agent-handoff-prompt-m5-max.md).
+The M5 Max has its own opener at
+[`hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/agent-opener-prompt-m5-max.md`](../MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/agent-opener-prompt-m5-max.md).
 Where this prompt and `AGENTS.md` / `CLAUDE.md` on `origin/main` disagree,
 `AGENTS.md` wins. Fix this file in the same PR that changes the rule.
+
+This prompt is the **opener**, one half of a shift change (#556). Before the
+operator ends a session, they give it the **closer**,
+[`hardware/agent-closer-prompt.md`](../agent-closer-prompt.md), which all
+three machines share. That session then leaves a closer log in
+`~/.local-llm-bench/closer-logs/`. This prompt reads the log in §1, step 8,
+and never depends on it: §1 brings the machine to a working state from any
+starting point (#558).
 
 Placeholders the operator fills in before pasting:
 
@@ -67,38 +75,201 @@ line **and** for the producer being gone, with a deadline. Note: a long-lived
 background bash watcher can be reaped by the harness while a vLLM server holds
 ~72 GiB — prefer `Monitor`, or short bounded polls, and re-arm.
 
-## 1. Boot sequence — run in order, read every output
+## 1. The opening routine — the same steps, every time
+
+Openers mop, cut the vegetables, and set the tables whatever state the
+restaurant is in. It can be Opening Day (a new machine or a fresh clone), a
+morning after a good close, or the morning after a crash where nobody closed.
+**Run every step, every time, in order.** Each step is a check followed by a
+fix: look, and fix what needs fixing. A step with nothing to fix costs seconds.
+Do not skip a step because a closer log says it is done.
+
+**Find out who owns a thing before you clean it.** Another session may still
+be alive and using it. Decide that with:
+`ListAgents` (local rows), `scripts/machine_state.py`, and the systemd `--user` scope units.
+Throwing out another cook's prep is worse than leaving the mess.
+
+Write down what each step found and fixed. The first heartbeat (step 10)
+reports it.
+
+### Step 1. The kitchen exists
 
 ```sh
-TZ=America/New_York date '+%Y-%m-%dT%H:%M:%S%z'     # re-read the clock; never infer it
+TZ=America/New_York date '+%Y-%m-%dT%H:%M:%S%z'      # re-read the clock; never infer it
+command -v git gh uv                                  # all three must print a path
+gh auth status                                        # logged in to github.com?
+[ -d ~/git/local-llm/.git ] || git clone https://github.com/evanwtf/local-llm ~/git/local-llm
 cd ~/git/local-llm
-git status --short --branch                          # which branch? dirty?
+git status --short --branch                           # which branch? dirty?
 git fetch -q origin && git log --oneline -1 origin/main
-uv run python scripts/machines.py --check            # MUST report Cortex-X925-GB10; stop if not
-uv run python scripts/machine_health.py boot         # did the box reboot since last turn? (exits 2 if so)
-uv run python scripts/machine_state.py               # lock holder, resident servers, GPU occupant, verdict
-gh run list --limit 10 --json conclusion,headSha,displayTitle   # is main green?
-gh pr list --state open                              # in-flight PRs, yours and the peer's
-gh issue list --state open --label hardware:Cortex-X925-GB10 --label P0
-gh issue list --state open --label hardware:Cortex-X925-GB10 --label P1
-nvidia-smi --query-gpu=utilization.gpu,power.draw,temperature.gpu,memory.used --format=csv,noheader
-sensors | grep -E '^Fan [0-9]'                       # fan RPM (nvfanread hwmon driver)
-uv run python scripts/dgx_server.py status vllm      # a scope-managed server? (also llamacpp, ds4, omni, ...)
-docker ps --format '{{.Names}} {{.Status}}'          # a container-served engine (SGLang, recipe images)?
-curl -s -m3 http://127.0.0.1:8030/v1/models -o /dev/null -w 'vLLM :8030 -> %{http_code}\n'
-curl -s -m3 http://127.0.0.1:8888/v1/models -o /dev/null -w 'recipe :8888 -> %{http_code}\n'
+[ -d .venv ] || uv sync --frozen                      # a fresh clone has no .venv
+uv run pre-commit install                             # the commit hooks; safe to repeat
+uv run python scripts/machines.py --check             # must report Cortex-X925-GB10
 ```
 
-Then print the queue with `uv run python scripts/make_next.py --platform nvidia`,
-and read `AGENTS.md`/`CLAUDE.md`, `docs/agent-workflow.md`,
-`docs/peer_agents.md`, `docs/dgx-spark-runbook.md`,
-`docs/measurement-discipline.md`, and this machine's
-`hardware/Cortex-X925-128GB-GB10/{README,RECOMMENDATIONS,RESULTS-agent,VERSIONS}.md`.
+- A missing tool: install `uv` from https://docs.astral.sh/uv/ and `gh` from
+  https://cli.github.com/.
+  Engines, containers, and weights come later, when the first queue item
+  needs them (`docs/dgx-spark-runbook.md`).
+- `gh auth status` fails: stop and ask the operator to log in. Never handle a
+  token yourself.
+- `machines.py --check` names another registered machine: the operator pasted
+  the wrong opener. Say so, and use that machine's opener instead.
+- `machines.py --check` names no registered machine: this is a new machine.
+  Follow "A new machine" in [`hardware/README.md`](../README.md) to register it
+  and write its opener, then start again from step 1.
 
-**The checkout.** If `~/git/local-llm` is not on an up-to-date `main`, first
-confirm the branch holds no unmerged work (`git log origin/main..HEAD`), then
-return to `main` and fast-forward — **only** when `machine_state.py` reports
-FREE. Never switch branches under a live run.
+### Step 2. Did the power go out?
+
+```sh
+uptime
+uv run python scripts/machine_health.py boot          # exits 2 if the box rebooted since the last turn
+```
+
+A reboot means every job that a log or a lock names is gone, whatever
+they say. The OOM lockups in `docs/incidents/2026-09-13-oom-lockup.md`
+and #458 ended in a power cycle, so a reboot here is often a crash. Find
+what was running before it, and record it on the owning issue.
+
+### Step 3. Locks and claims
+
+```sh
+uv run python scripts/machine_state.py                # lock holder, resident servers, GPU occupant, verdict
+uv run python scripts/machine_claim.py status
+cat ~/.local-llm-bench/run-lock.json 2>/dev/null
+```
+
+- A lock held by a live process: a run is live. Leave it, and do not touch the
+  checkouts it uses (§2).
+- A **stale** lock (its pid is gone): preflight reports it and refuses to take
+  it, so that a crash is noticed. Copy what the lock recorded into a comment on
+  the owning issue: that is the run that died. Then remove the file.
+- A session claim: find the session it names:
+  `ListAgents` local rows; `ps -Ao pid,command | grep -E 'claude|codex'`.
+  If no such session is alive on this machine, record the claim on the
+  owning issue, then remove the lock file. Only the holder can `release` a
+  claim. If the session is alive, agree a split with it (§3b).
+
+### Step 4. Servers
+
+```sh
+for s in llamacpp ds4 vllm omni clip ollama; do uv run python scripts/dgx_server.py status $s; done
+docker ps --format '{{.Names}} {{.Status}}'           # container-served engines (SGLang, recipe images)
+curl -s -m3 http://127.0.0.1:8030/v1/models -o /dev/null -w 'vLLM :8030 -> %{http_code}\n'
+curl -s -m3 http://127.0.0.1:8888/v1/models -o /dev/null -w 'recipe :8888 -> %{http_code}\n'
+nvidia-smi --query-gpu=utilization.gpu,power.draw,temperature.gpu,memory.used --format=csv,noheader
+sensors | grep -E '^Fan [0-9]'                        # fan RPM (nvfanread hwmon driver)
+```
+
+- A server that a live run uses: leave it.
+- An orphan (no live run, no live session uses it): stop it with
+  `uv run python scripts/dgx_server.py stop <name>`, or `docker stop <container>`.
+  Memory can outlive the pid here: run
+  `uv run python scripts/machine_health.py check --for server` after the stop.
+  Never `pkill` a server (§2).
+
+### Step 5. Runs
+
+```sh
+ps -Ao pid,ppid,etime,command | grep -E 'stack_agent_ab|run\.py|opencode run' | grep -v grep
+ls -t ~/.local-llm-bench/logs/ 2>/dev/null | head      # the newest run logs
+gh issue list --state open --label hardware:Cortex-X925-GB10 --json number,title,updatedAt
+```
+
+Read the latest comment on each open issue with this machine's label. It says
+which run was in flight.
+
+- A live run: leave it, and track it (§3).
+- A run that died in the middle (its process is gone and its log has no exit
+  line): it is not a result. Record on its issue what finished and what did
+  not, and re-run it under the issue's pre-registration. Never land a partial
+  run's rows as if the run were complete.
+- A run that finished and that nobody read out: read it out and land it (§5,
+  §6).
+
+### Step 6. Worktrees, stray files, and stashes
+
+```sh
+git worktree list
+for wt in $(git worktree list --porcelain | awk '/^worktree /{print $2}'); do
+  echo "== $wt"; git -C "$wt" status --short --branch | head -20
+  git -C "$wt" log --oneline '@{u}..HEAD' 2>/dev/null   # unpushed commits
+done
+git stash list
+```
+
+Never discard any of these.
+
+- A dirty worktree that no live session owns: save its diff as a patch in
+  `~/.local-llm-bench/closer-logs/patches/`, and push its unpushed commits to a
+  branch. Removing the worktree is the operator's decision.
+- A stray file in the checkout that would set `harness_dirty` on the next run:
+  move it out of the tree.
+- A stash entry: list it in the first heartbeat. Never pop or drop it.
+- `~/git/local-llm` not on an up-to-date `main`: first confirm the branch holds
+  no unmerged work (`git log origin/main..HEAD`). Then return to `main` and
+  fast-forward, **only** when no run is live.
+
+### Step 7. Stock
+
+```sh
+df -h ~
+find ~/models -name '*.incomplete' -o -name '*.part' 2>/dev/null | head
+```
+
+- Less than 1.5 TB free: no downloads.
+- A partial download is not a model. Report it; never delete weights.
+
+### Step 8. The closer log, if there is one
+
+```sh
+ls -1 ~/.local-llm-bench/closer-logs/*.md 2>/dev/null
+```
+
+A departing session runs the closer
+([`hardware/agent-closer-prompt.md`](../agent-closer-prompt.md)) and writes a
+closer log to `~/.local-llm-bench/closer-logs/<timestamp>.md`. **No closer log
+is the normal case** on a new machine, after a crash, or after a session that
+nobody closed. Steps 1–7 have already made the machine safe; go on to step 9.
+
+When there are logs:
+
+1. Read every log in `~/.local-llm-bench/closer-logs/` (not in `done/`),
+   oldest first. Where two logs disagree, the newer one wins.
+2. Treat each line as a claim that was true at the log's `Written:` time, not
+   as a fact now. Check it against what steps 1–7 found. A job it names may
+   have finished, died, or been read out by someone else. Read the owning
+   issue's latest comment before you act on a log item.
+3. Take up its promises and its "First actions for the new session", unless
+   the machine's state, the issue, or `AGENTS.md` contradicts them. A patch it
+   names is in `closer-logs/patches/`; apply it only when no run is live.
+4. When you have acted on a log, move it:
+   `mv <log> ~/.local-llm-bench/closer-logs/done/`. Move each patch you applied
+   there too. Never delete a log or a patch.
+
+The log adds promises and next actions. It never replaces a check.
+
+### Step 9. CI, PRs, and the queue
+
+```sh
+gh run list --limit 10 --json conclusion,headSha,displayTitle   # is main green?
+gh pr list --state open                                         # in-flight PRs, yours and the peer's
+gh issue list --state open --label hardware:Cortex-X925-GB10 --label P0
+gh issue list --state open --label hardware:Cortex-X925-GB10 --label P1
+uv run python scripts/make_next.py --platform nvidia
+```
+
+A red `main` or a PR left BEHIND gets fixed as on any tick (§3c).
+
+### Step 10. Open for service
+
+Send the first heartbeat (§3a). Add one line per step: what it found and what
+you fixed. If there was a closer log, name it, and say which of its items you
+took up, which were already done, and which you dropped and why.
+
+Then read `AGENTS.md`/`CLAUDE.md`, `docs/agent-workflow.md`, `docs/peer_agents.md`,
+`docs/dgx-spark-runbook.md`, `docs/measurement-discipline.md`, and this machine's
+`hardware/Cortex-X925-128GB-GB10/{README,RECOMMENDATIONS,RESULTS-agent,VERSIONS}.md`. Arm the update-loops (§3d). Enter §3.
 
 ## 2. Hard rules — never break these
 
