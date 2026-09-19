@@ -59,7 +59,7 @@ other is telling you something.
 
 ### Cortex-X925-128GB-GB10
 
-*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 2391 rows, sha256 254c260aa54f.*
+*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 2481 rows, sha256 0f49244bd1d1.*
 
 #### Every stack measured under OpenCode
 
@@ -76,7 +76,7 @@ other is telling you something.
 | qwen38fnnvfp4miaainothinkdgx | 88/90 | 55s | 1657s | 71.4x |
 | qwen38fnq3nothinkkv8dgx | 90/90 | 61s | 1528s | 43.9x |
 | qwen3827bsglangdsparknothinkdgx | 90/90 | 66s | 278s | 11.7x |
-| qwen38fnq3nothinkdgx | 241/241 | 66s | 1059s | 31.3x |
+| qwen38fnq3nothinkdgx | 331/331 | 67s | 1059s | 43.8x |
 | qwen38fnnvidianvfp4nothinkdgx | 90/90 | 68s | 1115s | 48.5x |
 | qwen38fnq3nothinkub2048dgx | 4/4 | 82s | 475s | 14.2x |
 | qwen38fnnvfp4dgx | 60/60 | 95s | 338s | 9.5x |
@@ -130,10 +130,10 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | qwen38fnnvfp4dgx | 59s |
 | qwen38fnexl3nomtpnothinkdgx | 66s |
 | qwen38fnq3nothinkub2048dgx | 69s |
-| qwen38fnq3nothinkdgx | 70s |
 | qwen38fnq3nothinktopkdgx | 71s |
 | qwen38fnq3nothinkkv8dgx | 72s |
 | qwen36codinggguf | 73s |
+| qwen38fnq3nothinkdgx | 73s |
 | nemotron3super120bdgx | 75s |
 | qwen3827bnvfp4miaainothinkdgx | 81s |
 | ds4dgx | 88s |
@@ -239,7 +239,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 
 ### Ryzen9-7900X-32GB-RTX3080Ti-12GB
 
-*Generated from `hardware/Ryzen9-7900X-32GB-RTX3080Ti-12GB/results.jsonl` — 347 rows, sha256 04164278449d.*
+*Generated from `hardware/Ryzen9-7900X-32GB-RTX3080Ti-12GB/results.jsonl` — 437 rows, sha256 e7999f22c9c1.*
 
 #### Every stack measured under OpenCode
 
@@ -247,9 +247,10 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 
 | stack | passed | median | worst | spread |
 |---|---|---|---|---|
+| dtgemma4e4b | 14/42 | 26s | 32s | 1.7x |
+| dtqwen359b | 21/42 | 85s | 156s | 2.7x |
 | dtternarybonsai27b | 33/41 | 86s | 422s | 13.4x |
-| dtqwen359b | 9/12 | 98s | 156s | 1.8x |
-| dtornith159b | 28/37 | 101s | 534s | 16.2x |
+| dtornith159b | 49/67 | 93s | 534s | 16.2x |
 | dtbonsai27bllamacpp | 26/38 | 117s | 335s | 6.0x |
 | dtqwen359bq8 | 9/12 | 119s | 119s | 1.4x |
 | dtsparkx254b | 21/54 | 173s | 207s | 1.3x |
@@ -258,9 +259,8 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | dtternarybonsai2ptq127b | 17/30 | 353s | 1036s | 11.7x |
 | dtgemma412b | 3/12 | — | — | — |
 | dtmistralnemo | 0/12 | — | — | — |
-| dtgemma4e4b | 6/12 | — | — | — |
 
-**Rows here were not all taken under one client.** dtbonsai27b, dtbonsai27bllamacpp, dtsparkx254b, dtternarybonsai27b under 1.18.27; dtornith159b, dtsparkx254b, dtternarybonsai227b, dtternarybonsai2ptq127b under 1.18.31; the rest under unrecorded. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: dtbonsai27b (1.18.27, unrecorded); dtornith159b (1.18.31, unrecorded); dtsparkx254b (1.18.27, 1.18.31).
+**Rows here were not all taken under one client.** dtbonsai27b, dtbonsai27bllamacpp, dtsparkx254b, dtternarybonsai27b under 1.18.27; dtgemma4e4b, dtornith159b, dtqwen359b, dtsparkx254b, dtternarybonsai227b, dtternarybonsai2ptq127b under 1.18.31; the rest under unrecorded. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: dtbonsai27b (1.18.27, unrecorded); dtgemma4e4b (1.18.31, unrecorded); dtornith159b (1.18.31, unrecorded); dtqwen359b (1.18.31, unrecorded); dtsparkx254b (1.18.27, 1.18.31).
 
 Excision tasks only; `script-*` excluded because they are a different class. **Spread is worst / best on the same task**, and it is the column most people forget to ask for.
 
@@ -268,7 +268,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 
 | stack | seconds per 1k output tokens |
 |---|---|
-| dtgemma4e4b | 11s |
+| dtgemma4e4b | 10s |
 | dtornith159b | 11s |
 | dtsparkx254b | 16s |
 | dtternarybonsai227b | 19s |
@@ -277,11 +277,11 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | dtternarybonsai2ptq127b | 25s |
 | dtternarybonsai27b | 35s |
 | dtmistralnemo | 36s |
+| dtqwen359b | 40s |
 | dtbonsai27b | 42s |
-| dtqwen359b | 62s |
 | dtqwen359bq8 | 89s |
 
-**Rows here were not all taken under one client.** dtbonsai27b, dtbonsai27bllamacpp, dtsparkx254b, dtternarybonsai27b under 1.18.27; dtornith159b, dtsparkx254b, dtternarybonsai227b, dtternarybonsai2ptq127b under 1.18.31; the rest under unrecorded. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: dtbonsai27b (1.18.27, unrecorded); dtornith159b (1.18.31, unrecorded); dtsparkx254b (1.18.27, 1.18.31).
+**Rows here were not all taken under one client.** dtbonsai27b, dtbonsai27bllamacpp, dtsparkx254b, dtternarybonsai27b under 1.18.27; dtgemma4e4b, dtornith159b, dtqwen359b, dtsparkx254b, dtternarybonsai227b, dtternarybonsai2ptq127b under 1.18.31; the rest under unrecorded. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: dtbonsai27b (1.18.27, unrecorded); dtgemma4e4b (1.18.31, unrecorded); dtornith159b (1.18.31, unrecorded); dtqwen359b (1.18.31, unrecorded); dtsparkx254b (1.18.27, 1.18.31).
 
 <!-- END GENERATED -->
 
