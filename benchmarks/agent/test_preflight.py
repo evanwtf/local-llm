@@ -403,6 +403,8 @@ def test_confinement_names_what_actually_confined_the_agent(monkeypatch):
 
 def test_log_report_does_not_print_a_ceiling_off_darwin(monkeypatch, caplog):
     monkeypatch.setattr(preflight.sys, "platform", "linux")
+    # Pin the bwrap probe: the confinement it names depends on the host (#477).
+    monkeypatch.setattr(preflight, "_bwrap_ok", lambda: False)
     report = preflight.Report([], [], 0.0, 0.0)
     with caplog.at_level("INFO"):
         preflight.log_report(report)
@@ -416,12 +418,13 @@ def test_machine_facts_describe_this_machine(monkeypatch):
     facts = preflight.machine_facts()
     assert facts["arch"]
     assert facts["os"]
-    assert facts["confinement"] in {"sandbox-exec", "none"}
+    assert facts["confinement"] in {"sandbox-exec", "bwrap", "none"}
     assert isinstance(facts["cpu_count"], int)
 
 
 def test_machine_facts_omit_the_metal_ceiling_off_darwin(monkeypatch):
     monkeypatch.setattr(preflight.sys, "platform", "linux")
+    monkeypatch.setattr(preflight, "_bwrap_ok", lambda: False)
     facts = preflight.machine_facts()
     assert "metal_ceiling_gib" not in facts
     assert facts["confinement"] == "none"
