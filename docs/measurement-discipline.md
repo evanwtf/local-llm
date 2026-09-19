@@ -330,9 +330,16 @@ DGX llama.cpp row since 2026-09-12, so this needs no new measurement.
 > whenever they are quoted. Rows written after #444 also carry
 > **`first_content_ms`** — invocation to first visible output, measured by
 > `run.py` outside the client — and `step_ttft_anchor`, which names the anchor
-> a row's in-band figure used. Where an engine counter is available (vLLM's
-> `time_to_first_token_seconds`, via `scripts/dgx_metrics.py --ttft`), prefer
-> it: it is the only wire-side TTFT on this project. The estimator
+> a row's in-band figure used. Where an engine counter is available, prefer
+> it: it is the only wire-side TTFT on this project. Rows on vLLM and SGLang
+> backends carry it per trial: **`engine_ttft_ms_mean`** is the change in the
+> engine's `time_to_first_token_seconds` histogram sum over the change in its
+> count, scraped just before and just after the trial, with
+> `engine_ttft_requests` (how many requests the mean covers) and
+> `engine_ttft_source` beside it (`benchmarks/agent/engine_ttft.py`). It is
+> exact only while the trial is the server's only client; a request count far
+> above the trial's model steps means something else was using the server.
+> Engines without the histogram (llama.cpp, ds4, Ollama) record nothing. The estimator
 is `scripts/report.py`: `turns()` (the ungated half), `seconds_per_turn()`, and
 `homogeneous()` (the step-0 gate). A two-backend `report.py` run prints the
 "What moved: the agent, or the engine? (#353)" block, and warns when a cell's

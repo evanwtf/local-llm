@@ -46,6 +46,7 @@ from urllib.parse import urlparse
 
 import ds4_route
 import engine_identity
+import engine_ttft
 import excise
 import grade
 import memcap
@@ -4777,6 +4778,16 @@ def main():
                 for client in clients:
                     _memory_gate(args.memory_gate_gib, args.timeout)
                     headroom = _headroom_gate(args)
+                    # #444 step 3: the engine's own TTFT for this trial, as the
+                    # change in its histogram across the trial. Scraped after
+                    # the gates so nothing they send is credited to the trial.
+                    ttft_url = (
+                        backend.get("base_url")
+                        if not args.dry_run
+                        and backend.get("engine") in engine_ttft.HISTOGRAMS
+                        else None
+                    )
+                    ttft_before = engine_ttft.scrape(ttft_url)
                     r = one_trial(
                         cfg,
                         task,
@@ -4814,6 +4825,9 @@ def main():
                     # written -- a trial costs up to half an hour and losing one
                     # to a schema bug is worse than storing a flagged row.
                     r["finished"] = results.now()
+                    r.update(
+                        engine_ttft.fields(ttft_before, engine_ttft.scrape(ttft_url))
+                    )
                     finish_row(r, bname, backend, headroom, args.results, args.dry_run)
 
                     # #55: let the batch disbelieve itself. A widely-used

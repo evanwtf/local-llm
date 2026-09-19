@@ -399,8 +399,8 @@ describing the queue.
 Then add 2-4 tight bullets: what changed since the last tick (pass/fail counts
 read from the run log, never remembered), `MemAvailable` if a run is split onto
 the CPU, and any blocker. The full thermal/power envelope for a completed run
-comes from `uv run python scripts/thermals.py --window <duration>` (a spot
-sample misses throttle peaks). Report a run completion, failure, blocker, or
+comes from the sampler that ran beside it, summarized by
+`scripts/thermals_summary.py` (§5; a spot sample misses throttle peaks). Report a run completion, failure, blocker, or
 operator decision **immediately** — do not wait for the next tick, and do not
 add a separate five-minute loop. Post a result on the issue that owns the run.
 
@@ -490,10 +490,17 @@ then re-run the same spec.
 - Read results with `uv run python scripts/report.py` (#23's resolution rule;
   `--since <ISO>` limits the window). Join a trial to its transcript on
   `client_log`, never on file mtime.
-- Record every run's thermal envelope with
-  `uv run python scripts/thermals.py --window <duration>` — it reads the GPU
-  temperature, power, clocks, and fan from `nvidia-smi` (#326). A spot sample
-  misses throttle peaks.
+- Record every run's thermal envelope. `thermals.py` reads the GPU
+  temperature, power, clocks, and fan from `nvidia-smi` (#326), but it samples
+  live and keeps no history, so start a sampler with the run and summarize it
+  over the run's window afterward (#561). A spot sample misses throttle peaks.
+  Stop the sampler by its `python3` pid, not only the `uv run` wrapper, or it
+  keeps writing into the next run's window.
+
+  ```sh
+  uv run python scripts/thermals.py --watch 15 --json --quiet > ~/.local-llm-bench/thermals/<run>.log 2>&1 &
+  uv run python scripts/thermals_summary.py ~/.local-llm-bench/thermals/<run>.log --since <start> --until <end>
+  ```
 
 ## 6. Landing results
 
