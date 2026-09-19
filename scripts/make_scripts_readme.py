@@ -74,6 +74,7 @@ MAC = frozenset(
         "stack_agent_report_191.py",
         "strip_toggle_ab.py",
         "thermals.py",
+        "tm_model_guard.py",
     }
 )
 

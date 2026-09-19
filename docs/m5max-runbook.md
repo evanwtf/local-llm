@@ -233,6 +233,25 @@ one-hyphen architecture-name rule (`glm5-next` vs `glm5next`) is in AGENTS.md â€
 check `general.architecture` with `uv run python scripts/gguf_meta.py <file>`
 before debugging output.
 
+### Keep weights out of Time Machine (#440)
+
+Time Machine backs up the M5 Max every hour, to a local SSD and to a network
+share. Its exclusion list names directories, so a new weight directory is
+backed up until someone excludes it. On 2026-09-18 six such directories (773
+GB) filled the network share to 94%, and the fix deleted this machine's whole
+backup history.
+
+After any download, and after creating an engine worktree with its own
+`gguf/` directory, run:
+
+```sh
+uv run python scripts/tm_model_guard.py      # exit 1 names every included model file
+sudo tmutil addexclusion -p <directory>      # the fix: a fixed-path exclusion
+```
+
+Use the fixed-path form (`-p`, needs sudo). A sticky exclusion (no `-p`) lives
+on the directory and is lost when the directory is deleted and made again.
+
 ## Clients
 
 - **`~/.config/opencode/opencode.json`** holds the providers: `ds4` (model
