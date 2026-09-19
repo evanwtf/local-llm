@@ -2396,6 +2396,50 @@ def sandbox_profile(worktree, repo):
 BWRAP = pathlib.Path("/usr/bin/bwrap")
 
 
+#: Container-daemon sockets a trial must not reach. The daemons run as root
+#: OUTSIDE the sandbox, so a client inside it acts on the real host: on
+#: 2026-09-18 a trial ran `docker compose up` from its worktree, the daemon
+#: bind-mounted `./data/blobs` at the real `~/git/gmail-archive` path (where
+#: the checkout had been stashed away) and created it root-owned, and the
+#: harness could not restore the stash over it. The stack was still running an
+#: hour later. Covering the socket turns that into "cannot connect".
+CONTAINER_DAEMON_SOCKETS = (
+    "/run/docker.sock",
+    "/var/run/docker.sock",
+    "/run/containerd/containerd.sock",
+    "/run/podman/podman.sock",
+)
+
+
+def container_daemon_sockets(candidates=CONTAINER_DAEMON_SOCKETS):
+    """The daemon sockets present on this host, deduplicated by real path.
+
+    Rootless Docker/Podman live under the user's runtime dir, so those are
+    added too. /var/run is normally a symlink to /run; one cover per real
+    socket is enough, and binding over the symlink path twice is noise.
+    """
+    runtime = pathlib.Path(f"/run/user/{os.getuid()}")
+    paths = [
+        *candidates,
+        str(runtime / "docker.sock"),
+        str(runtime / "podman" / "podman.sock"),
+    ]
+    out, seen = [], set()
+    for path in paths:
+        p = pathlib.Path(path)
+        try:
+            if not p.exists():
+                continue
+            real = p.resolve()
+        except OSError:
+            continue
+        if real in seen:
+            continue
+        seen.add(real)
+        out.append(str(real))
+    return out
+
+
 def bwrap_argv(argv, worktree, repo, denied):
     """Wrap `argv` so the trial cannot see the answers, and gets its own /tmp.
 
@@ -2462,13 +2506,14 @@ def bwrap_argv(argv, worktree, repo, denied):
         # leak an answer, so skipping it costs nothing.
         if not target.exists():
             continue
-        # A file cannot be covered by a tmpfs, so bind /dev/null over it: the
-        # agent reads an empty file instead of the answer. tasks.toml and
-        # results.jsonl are the two files in the deny list (#54).
-        if target.is_file():
-            args += ["--ro-bind", "/dev/null", path]
-        else:
+        # Only a directory can be covered by a tmpfs. Anything else -- a file
+        # (tasks.toml, results.jsonl, #54) or a socket (the container daemons
+        # below) -- gets /dev/null bound over it: the agent reads an empty file,
+        # and a client that tries to connect finds no socket.
+        if target.is_dir():
             args += ["--tmpfs", path]
+        else:
+            args += ["--ro-bind", "/dev/null", path]
     # The worktree is bound last so nothing above can shadow it: it is the one
     # place the trial must be able to write.
     args += [
@@ -2584,6 +2629,7 @@ def sandboxed(argv, worktree, repo, tmpdir):
         )
     if BWRAP.exists() and bwrap_works():
         _, denied_paths = sandbox_profile(worktree, repo)
+        denied_paths = [*denied_paths, *container_daemon_sockets()]
         return bwrap_argv(argv, worktree, repo, denied_paths), denied_paths, "bwrap"
     if BWRAP.exists():
         logger.warning(
