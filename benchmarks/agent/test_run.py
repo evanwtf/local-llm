@@ -2294,14 +2294,32 @@ def test_sandboxed_uses_bwrap_when_the_probe_succeeds(tmp_path, monkeypatch):
 # the harness could not restore the stash over the root-owned directory.
 
 
-def test_a_socket_in_the_deny_list_gets_dev_null_bound_over_it(tmp_path):
+@pytest.fixture
+def sock_dir():
+    """A short directory to bind a Unix socket in.
+
+    macOS caps an AF_UNIX path at 104 bytes, and pytest's `tmp_path` there sits
+    under /var/folders/..., which is already longer, so `bind` fails with "AF_UNIX
+    path too long". Linux allows 108 and a shorter tmp root, so CI never saw it.
+    """
+    import shutil
+    import tempfile
+
+    d = pathlib.Path(tempfile.mkdtemp(prefix="sock-", dir="/tmp"))
+    try:
+        yield d
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_a_socket_in_the_deny_list_gets_dev_null_bound_over_it(sock_dir):
     import socket
 
-    sock_path = tmp_path / "docker.sock"
+    sock_path = sock_dir / "docker.sock"
     s = socket.socket(socket.AF_UNIX)
     s.bind(str(sock_path))
     try:
-        args = run.bwrap_argv(["true"], tmp_path / "wt", tmp_path, [str(sock_path)])
+        args = run.bwrap_argv(["true"], sock_dir / "wt", sock_dir, [str(sock_path)])
     finally:
         s.close()
     i = args.index(str(sock_path))
@@ -2316,20 +2334,20 @@ def test_a_directory_still_gets_a_tmpfs(tmp_path):
     assert args[i - 1] == "--tmpfs"
 
 
-def test_container_daemon_sockets_are_found_and_deduplicated(tmp_path):
+def test_container_daemon_sockets_are_found_and_deduplicated(sock_dir):
     import socket
 
-    real = tmp_path / "run" / "docker.sock"
+    real = sock_dir / "run" / "docker.sock"
     real.parent.mkdir()
     s = socket.socket(socket.AF_UNIX)
     s.bind(str(real))
-    link = tmp_path / "var-run-docker.sock"
+    link = sock_dir / "var-run-docker.sock"
     link.symlink_to(real)
     try:
         got = run.container_daemon_sockets(
-            (str(real), str(link), str(tmp_path / "absent.sock"))
+            (str(real), str(link), str(sock_dir / "absent.sock"))
         )
     finally:
         s.close()
     assert got.count(str(real.resolve())) == 1
-    assert str(tmp_path / "absent.sock") not in got
+    assert str(sock_dir / "absent.sock") not in got
