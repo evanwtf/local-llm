@@ -2378,6 +2378,36 @@ def test_a_gpu_idle_stall_names_itself():
     assert msg == "t-1: stopped -- gpu-idle-stall"
 
 
+def test_the_agent_never_inherits_the_harness_venv(monkeypatch, tmp_path):
+    """#579: `python` must mean the trial's environment, not the harness's."""
+    harness = tmp_path / "harness" / ".venv" / "bin"
+    monkeypatch.setattr(run, "harness_venv_bin", lambda: harness)
+    path = os.pathsep.join([str(harness), "/usr/local/bin", "/usr/bin"])
+    assert str(harness) not in run.trial_path(path).split(os.pathsep)
+
+
+def test_the_trials_own_venv_comes_first(monkeypatch, tmp_path):
+    monkeypatch.setattr(run, "harness_venv_bin", lambda: None)
+    worktree = tmp_path / "trial"
+    (worktree / ".venv" / "bin").mkdir(parents=True)
+    got = run.trial_path("/usr/local/bin:/usr/bin", worktree).split(os.pathsep)
+    assert got[0] == str(worktree / ".venv" / "bin")
+    assert got[1:] == ["/usr/local/bin", "/usr/bin"]
+
+
+def test_a_trial_without_a_venv_keeps_the_path(monkeypatch, tmp_path):
+    monkeypatch.setattr(run, "harness_venv_bin", lambda: None)
+    assert run.trial_path("/usr/bin", tmp_path) == "/usr/bin"
+
+
+def test_agent_env_sets_the_trial_path(monkeypatch, tmp_path):
+    monkeypatch.setattr(run, "harness_venv_bin", lambda: None)
+    (tmp_path / ".venv" / "bin").mkdir(parents=True)
+    monkeypatch.setenv("PATH", "/usr/bin")
+    env = run.agent_env({"model": "m", "context_tokens": 1}, tmp_path)
+    assert env["PATH"].split(os.pathsep)[0] == str(tmp_path / ".venv" / "bin")
+
+
 def test_the_sglang_container_is_found_by_its_served_model():
     containers = [
         ("aaa", "postgres:18", ["docker-entrypoint.sh", "postgres"]),
