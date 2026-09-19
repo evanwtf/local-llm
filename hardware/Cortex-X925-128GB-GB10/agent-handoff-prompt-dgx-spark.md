@@ -13,6 +13,12 @@ The M5 Max has its own handoff at
 Where this prompt and `AGENTS.md` / `CLAUDE.md` on `origin/main` disagree,
 `AGENTS.md` wins. Fix this file in the same PR that changes the rule.
 
+This is the **opening** half of a shift change (#556). Before the operator ends
+a session, they give it
+[`hardware/agent-closing-prompt.md`](../agent-closing-prompt.md), which all
+three machines share. That session then leaves a closing log in
+`~/.local-llm-bench/handoff/`. This prompt finds the log in §1a.
+
 Placeholders the operator fills in before pasting:
 
 - `{DEADLINE}` — the end of the autonomous window, full ISO 8601 with offset,
@@ -87,6 +93,8 @@ uv run python scripts/dgx_server.py status vllm      # a scope-managed server? (
 docker ps --format '{{.Names}} {{.Status}}'          # a container-served engine (SGLang, recipe images)?
 curl -s -m3 http://127.0.0.1:8030/v1/models -o /dev/null -w 'vLLM :8030 -> %{http_code}\n'
 curl -s -m3 http://127.0.0.1:8888/v1/models -o /dev/null -w 'recipe :8888 -> %{http_code}\n'
+git worktree list                                    # worktrees a live run or a peer may use
+ls -1 ~/.local-llm-bench/handoff/*.md 2>/dev/null    # closing logs not yet acted on (§1a)
 ```
 
 Then print the queue with `uv run python scripts/make_next.py --platform nvidia`,
@@ -94,6 +102,36 @@ and read `AGENTS.md`/`CLAUDE.md`, `docs/agent-workflow.md`,
 `docs/peer_agents.md`, `docs/dgx-spark-runbook.md`,
 `docs/measurement-discipline.md`, and this machine's
 `hardware/Cortex-X925-128GB-GB10/{README,RECOMMENDATIONS,RESULTS-agent,VERSIONS}.md`.
+
+### 1a. Read what the last crew left
+
+A departing session runs the closing prompt and writes a closing log to
+`~/.local-llm-bench/handoff/<timestamp>.md`. The log tells you what was in
+flight, what was promised, and what to do first. Minutes or days may have
+passed since it was written.
+
+1. Read every log in `~/.local-llm-bench/handoff/` (not in `done/`), oldest
+   first. Where two logs disagree, the newer one wins.
+2. Treat each line as a claim that was true at the log's `Written:` time, not
+   as a fact now. Check it against the §1 output: a job it names may have
+   finished, died, or been read out by someone else. Read the owning issue's
+   latest comment before you act on a log item.
+3. Follow the log's instructions and its "First actions for the opener"
+   unless the machine's state, the issue, or `AGENTS.md` contradicts them. A
+   patch it names is in `handoff/patches/`; apply it only when the machine is
+   FREE.
+4. In your first heartbeat, name the log. Say which of its items you took up,
+   which were already done, and which you dropped and why.
+5. When you have acted on a log, move it:
+   `mv <log> ~/.local-llm-bench/handoff/done/`. Move each patch you applied
+   there too. Never delete a log or a patch.
+
+**No log means the last session did not close.** Rebuild the picture yourself:
+the latest comment on each open `hardware:Cortex-X925-GB10` issue, `gh pr
+list`, `git worktree list`, `dgx_server.py status <name>` for each engine,
+`docker ps`, the run lock, and `machine_health.py boot`. Expect loose ends: a
+scope or container nobody stopped, a finished run nobody read out, a worktree
+with unpushed work.
 
 **The checkout.** If `~/git/local-llm` is not on an up-to-date `main`, first
 confirm the branch holds no unmerged work (`git log origin/main..HEAD`), then
