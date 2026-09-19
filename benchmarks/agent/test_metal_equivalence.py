@@ -213,6 +213,27 @@ def test_a_model_the_fixtures_cannot_load_is_unsupported_not_failed():
     assert me.verdict(1, PLE_REFUSAL) == "unsupported"
 
 
+# 2026-09-19 (#158): the kimat fork tree's ds4_test does not print "requires
+# --ple". It opens the pack, finds no PLE tensor, and stops. The checker read
+# that as "fail", and the gate would then refuse the arm as a route failure.
+PLE_TENSOR_MISSING = """\
+metal-tensor-equivalence:
+ds4: required tensor is missing: per_layer_token_embd.weight
+"""
+
+
+def test_a_missing_ple_tensor_is_unsupported_not_failed():
+    assert me.verdict(1, PLE_TENSOR_MISSING) == "unsupported"
+    assert me.verdict(0, PLE_TENSOR_MISSING) == "unsupported"
+
+
+def test_another_missing_tensor_is_still_a_failure():
+    """Only the PLE tensor means "needs a sidecar"; any other missing tensor
+    is a broken pack or build, and must not be waved through."""
+    text = "metal-tensor-equivalence:\nds4: required tensor is missing: blk.0.attn_q.weight\n"
+    assert me.verdict(1, text) == "fail"
+
+
 def test_unsupported_is_not_confused_with_a_real_failure():
     """A genuine equivalence failure and an unloadable model both exit 1."""
     failed = REAL_LOG.replace("greedy_fail=0", "greedy_fail=8")

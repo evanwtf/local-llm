@@ -371,3 +371,33 @@ def test_ple_none_declares_an_embedded_ngram_table(monkeypatch) -> None:
 def test_the_default_ple_is_still_a_sidecar() -> None:
     arm = sab.arm_from_env("OLD")
     assert arm.ple is not None and arm.ple_embedded is False
+
+
+# 2026-09-19 (#158): run.py's #149 gate looks up an equivalence verdict for
+# DS4_TREE / DS4_TEST_MODEL, whose defaults are a DeepSeek tree and pack that
+# neither arm serves. Every sweep of the upstream-vs-kimat A/B refused as
+# "unverified (stale)" though each arm's own build had a verdict.
+
+
+def test_the_gate_env_names_the_arms_own_tree_and_pack(monkeypatch) -> None:
+    monkeypatch.setenv("OLD_TREE", "/trees/kimat")
+    monkeypatch.setenv("OLD_GGUF", "/models/kimat.gguf")
+    env = sab.gate_env(sab.arm_from_env("OLD"))
+    assert env == {"DS4_TREE": "/trees/kimat", "DS4_TEST_MODEL": "/models/kimat.gguf"}
+
+
+def test_the_sweep_hands_run_py_its_arms_gate_env(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("NEW_TREE", "/trees/main")
+    monkeypatch.setenv("NEW_GGUF", "/models/main.gguf")
+    seen: dict = {}
+
+    def fake_run(*a, **k):
+        seen.update(k.get("env") or {})
+        return 0
+
+    monkeypatch.setattr(sab, "worktree_state", lambda: (True, "clean"))
+    monkeypatch.setattr(sab.child, "run", fake_run)
+    monkeypatch.setattr(sab, "collect_transcripts", lambda *a, **k: 15)
+    sab.sweep(sab.arm_from_env("NEW"), "new-sweep1", tmp_path, "abc")
+    assert seen["DS4_TREE"] == "/trees/main"
+    assert seen["DS4_TEST_MODEL"] == "/models/main.gguf"
