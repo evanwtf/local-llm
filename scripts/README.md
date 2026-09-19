@@ -79,6 +79,7 @@ Each script explains itself in full at the top of its own file -- what it comput
 | `peer_status.py` | any | One deterministic status line for the peer work. #160 |
 | `post_ab_run.py` | any | Post one completed decode-A/B run to a GitHub issue, once. |
 | `prefill_chunk_ab.py` | mac | Paired A/B for one ds4-bench --prefill-chunk value within one tree. #267 |
+| `prefill_depth.py` | any | Cold prefill against appended-token prefill at depth, one ds4 tree. #158 |
 | `prefix_stability.py` | mac | Find which cached prefix block changes between two requests (#50, #64). |
 | `prefix_stall.py` | mac | Measure the live-KV prefix stall across a corpus of ds4-server logs (#64). |
 | `prompt_meta.py` | any | Which prompt a decode/prefill A/B was measured on (#140). |
@@ -88,6 +89,7 @@ Each script explains itself in full at the top of its own file -- what it comput
 | `reasoning_budget_sweep.py` | any | Does a short max_tokens with thinking ON return empty content? (#349) |
 | `reco_rows.py` | any | The numbers a RECOMMENDATIONS row quotes, regenerated from a ledger. #524 |
 | `refuse_commit_during_benchmark.py` | any | Refuse a commit while a benchmark holds the run lock (#227, #237). |
+| `refuse_session_ids.py` | any | Refuse a commit message or PR text that carries a Claude session URL or ID. |
 | `release_notes.py` | any | Print the changelog section for a release, or refuse. |
 | `relevance_score.py` | any | Score how relevant an outside claim is to THIS project, procedurally (#230). |
 | `report.py` | any | Summarize and compare measured cells, with the resolution rule applied. |
