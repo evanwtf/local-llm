@@ -786,6 +786,93 @@ def serving_vllm():
     return None
 
 
+def _sglang_container(models, inspect_all):
+    """(id, image, command) of the container serving one of `models`, or None.
+
+    `inspect_all` returns `[(id, image_ref, command_list), ...]`. A container
+    counts when its command runs SGLang and names one of the backend's models
+    as `--served-model-name`, so a second container on the box cannot vouch
+    for this backend.
+    """
+    for cid, image, cmd in inspect_all:
+        joined = " ".join(cmd)
+        if "sglang" not in joined:
+            continue
+        for i, tok in enumerate(cmd):
+            if (
+                tok == "--served-model-name"
+                and i + 1 < len(cmd)
+                and cmd[i + 1] in models
+            ):
+                return cid, image, cmd
+    return None
+
+
+def _docker_inspect_all():
+    try:
+        ids = subprocess.run(
+            ["docker", "ps", "-q"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        ).stdout.split()
+        if not ids:
+            return []
+        out = subprocess.run(
+            ["docker", "inspect", "--format", "{{json .}}", *ids],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        ).stdout
+    except (OSError, subprocess.SubprocessError):
+        return []
+    found = []
+    for line in out.splitlines():
+        try:
+            info = json.loads(line)
+        except ValueError:
+            continue
+        cfg = info.get("Config") or {}
+        cmd = [*(cfg.get("Entrypoint") or []), *(cfg.get("Cmd") or [])]
+        found.append((info.get("Id", "")[:12], cfg.get("Image", ""), cmd))
+    return found
+
+
+def serving_sglang(models, inspect_all=_docker_inspect_all):
+    """The image, SGLang version and launch argv of the serving container.
+
+    Best-effort, like the other `serving_*` probes: an empty dict when no
+    matching container is up, so a row records nothing rather than a guess.
+    """
+    hit = _sglang_container(models, inspect_all())
+    if hit is None:
+        return {}
+    cid, image, cmd = hit
+    got = {"sglang_image": image, "server_argv": " ".join(cmd)}
+    try:
+        version = subprocess.run(
+            [
+                "docker",
+                "exec",
+                cid,
+                "python3",
+                "-c",
+                "import sglang; print(sglang.__version__)",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=60,
+            check=False,
+        ).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        version = ""
+    if version:
+        got["sglang"] = version.splitlines()[-1]
+    return got
+
+
 #: The port llama-server listens on when started without --port.
 LLAMACPP_DEFAULT_PORT = 8080
 
@@ -1053,6 +1140,18 @@ def capture_versions(cfg, backends, allow_unstamped=False):
         if vllm_argv:
             env.update(vllm_argv)
 
+    # SGLang runs from a container image, not a venv or a checkout, so the
+    # build is the image (and the `sglang` package inside it) and the launch
+    # is the container's command. Rows before this carried
+    # `sglang_version=unknown` and no `server_argv` (#562 first remote run).
+    sglang_models = {
+        b.get("model")
+        for b in backends.values()
+        if str(b.get("engine") or "").lower() == "sglang" and b.get("model")
+    }
+    if sglang_models:
+        env.update(serving_sglang(sglang_models))
+
     # Which GGUF is in service comes from the server itself, below. An earlier
     # revision globbed `GGUF_ROOT/*/*.gguf`, which spans every quant sitting in
     # that directory: rows recorded during the Q3 runs list the Q2 shards too,
@@ -1237,6 +1336,7 @@ ENGINE_VERSION_KEYS = {
     "llamacpp": ("llamacpp_head",),
     "ollama": ("ollama",),
     "vllm": ("vllm",),
+    "sglang": ("sglang", "sglang_image"),
     "mtplx": ("mtplx",),
     "lmstudio": ("lmstudio_runtimes",),
 }

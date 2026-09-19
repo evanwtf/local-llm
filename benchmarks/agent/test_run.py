@@ -2376,3 +2376,36 @@ def test_a_memory_cap_kill_is_not_logged_as_a_timeout():
 def test_a_gpu_idle_stall_names_itself():
     msg = run.timeout_message("t-1", 1800, {"timeout_reason": "gpu-idle-stall"})
     assert msg == "t-1: stopped -- gpu-idle-stall"
+
+
+def test_the_sglang_container_is_found_by_its_served_model():
+    containers = [
+        ("aaa", "postgres:18", ["docker-entrypoint.sh", "postgres"]),
+        (
+            "bbb",
+            "lmsysorg/sglang@sha256:0020",
+            ["python3", "-m", "sglang.launch_server", "--served-model-name", "m1"],
+        ),
+    ]
+    assert run._sglang_container({"m1"}, containers)[0] == "bbb"
+    assert run._sglang_container({"other"}, containers) is None
+
+
+def test_serving_sglang_records_image_and_argv(monkeypatch):
+    containers = [
+        (
+            "bbb",
+            "lmsysorg/sglang@sha256:0020",
+            ["python3", "-m", "sglang.launch_server", "--served-model-name", "m1"],
+        )
+    ]
+    monkeypatch.setattr(
+        run.subprocess,
+        "run",
+        lambda *a, **k: subprocess.CompletedProcess(a[0], 0, stdout="0.5.19\n"),
+    )
+    got = run.serving_sglang({"m1"}, inspect_all=lambda: containers)
+    assert got["sglang_image"] == "lmsysorg/sglang@sha256:0020"
+    assert got["server_argv"].endswith("--served-model-name m1")
+    assert got["sglang"] == "0.5.19"
+    assert run.serving_sglang({"nope"}, inspect_all=lambda: containers) == {}
