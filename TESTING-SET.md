@@ -188,6 +188,15 @@ be drawn from — OpenCode, after the `--dir` cutover, not excluded.
 | `qwen3827bsglangdsparkpinnednothinkdgx` | the DSpark row on the **DFlash2 row's pinned image**: separates the image from the drafter (#303) | SGLang dev image CUDA sm_121 | 24 GB + 2.7 GB draft | 90 |
 | `qwen3827bsglangdflash2dgx` | the DFlash2 row with **thinking on** (the template default): the thinking lever on the 27B, as #493 did for Flash-Next (#303) | SGLang dev image CUDA sm_121 | 24 GB + 2.6 GB draft | 90 |
 | `qwen36a3bsglangdgx` | the A3B NVFP4 agent leader on **SGLang**'s pinned nightly instead of vLLM, flags matched (#553) | SGLang dev image CUDA sm_121 | 22 GB | 90 |
+| `qwen36a3bsglangrcdgx` | the #553 A3B SGLang arm unchanged, OpenCode on a **remote client**: the topology A/B (#562) | SGLang dev image CUDA sm_121 | 22 GB | 0 |
+| `qwen36a3bsglangfmrcdgx` | A3B SGLang, remote client, **full memory** (mem-fraction 0.85) (#562) | SGLang dev image CUDA sm_121 | 22 GB | 0 |
+| `qwen36a3bnvfp4fmrcdgx` | A3B vLLM, remote client, **full memory** (gpu-memory-utilization 0.85) (#562) | vLLM 0.29.0 CUDA sm_121 | 24.2 GiB | 0 |
+| `qwen3827bsglangdflash2nothinkfmrcdgx` | 27B SGLang + DFlash2, remote client, **full memory** (the recipe's 0.90) (#562) | SGLang dev image CUDA sm_121 | 24 GB + 2.6 GB draft | 0 |
+| `qwen38fnnvidianvfp4nothinkfmrcdgx` | NVIDIA Flash-Next NVFP4 via MiaAI, remote client, **full memory** (recipe default reserve 26 GiB, recipe 6b50864) (#562) | vLLM (MiaAI image) CUDA sm_121 | 124 GiB | 0 |
+| `qwen38fnq3nothinkrcdgx` | Flash-Next Q3 llama.cpp, thinking off, remote client (no memory knob) (#562) | llama.cpp CUDA sm_121 | 83.8 GiB | 0 |
+| `qwen38fnq3nothinkkv8rcdgx` | the q8_0-KV Q3 row, remote client (#562) | llama.cpp CUDA sm_121 | 83.8 GiB | 0 |
+| `ds4rcdgx` | DeepSeek-V4-Flash on ds4, remote client (#562) | ds4 CUDA sm_121a | 80.8 GiB | 0 |
+| `qwen38fnq3rcdgx` | Flash-Next Q3 llama.cpp, thinking on, remote client (#562) | llama.cpp CUDA sm_121 | 83.8 GiB | 0 |
 | `qwen38fnexl3nothinkdgx` | Qwen3.8-Flash-Next as **EXL3 3.05 bpw** (turboderp's pack) via vLLM + vllm-exl3, MTP k=3, n-gram table on disk, thinking off (#434) | vLLM 0.29.0 + vllm-exl3 CUDA sm_121 | 80 GB | 5 |
 | `qwen38fnexl3nomtpnothinkdgx` | the EXL3 row above with **MTP off**: isolates whether the drafter causes its corrupted generations (#434) | vLLM 0.29.0 + vllm-exl3 CUDA sm_121 | 80 GB | 6 |
 | `qwen36bf16dgx` | `Qwen/Qwen3.6-27B` **BF16**, the unquantized control for the row above | vLLM 0.29.0 CUDA sm_121 | 51.7 GiB | 30 |

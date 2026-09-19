@@ -140,3 +140,20 @@ def test_in_sandbox_layout_the_tripwire_watches_the_harness_clone(
     operator = tmp_path / "git" / "gmail-archive"
     assert run.guarded_repo(operator, "sandbox") == clone
     assert run.guarded_repo(operator, "legacy") == operator
+
+
+def test_topology_must_match_the_run():
+    backends = {"local": {}, "far": {"topology": "remote"}}
+    assert remote.topology_mismatch(backends, remote_mode=True) == ["local"]
+    assert remote.topology_mismatch(backends, remote_mode=False) == ["far"]
+
+
+def test_every_remote_backend_has_a_local_twin_with_the_same_model():
+    """A remote backend is the same config reached from elsewhere (#562)."""
+    import tomllib
+
+    cfg = tomllib.loads((pathlib.Path(run.__file__).parent / "tasks.toml").read_text())
+    for name, b in cfg["backend"].items():
+        if b.get("topology") == "remote":
+            assert b.get("model"), name
+            assert b.get("base_url", "").startswith("http://127.0.0.1"), name

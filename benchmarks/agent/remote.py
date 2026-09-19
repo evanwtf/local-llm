@@ -206,6 +206,19 @@ def stamp(env: dict, facts: dict) -> dict:
     return out
 
 
+def topology_mismatch(backends: dict[str, dict], remote_mode: bool) -> list[str]:
+    """Backends whose declared `topology` does not match this run.
+
+    A remote row and a local row of the same backend name would pool in every
+    table keyed by backend (`gen_tables`, `reco_rows`), although they measure
+    different things: a remote trial carries the LAN and the client's CPU. So a
+    remote run needs a backend declared `topology = "remote"` in `tasks.toml`,
+    and a local run refuses one.
+    """
+    want = "remote" if remote_mode else None
+    return sorted(n for n, b in backends.items() if (b.get("topology") or None) != want)
+
+
 def results_path(repo: pathlib.Path, facts: dict) -> pathlib.Path:
     """The server's ledger: rows describe the server, so they live there."""
     return repo / "hardware" / facts["directory"] / "results.jsonl"
