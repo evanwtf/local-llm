@@ -63,7 +63,7 @@ repos:
       # red main. Fast enough for pre-commit, and it inspects the working tree, so
       # it must NOT mutate: the archiver runs nowhere in these hooks (TOCTOU --
       # the commit must land exactly what was validated). Scoped to fire only when
-      # a ledger or the pre-dir archive is staged, like next-md above.
+      # a ledger or the pre-dir archive is staged.
       - id: validate-ledgers
         name: every committed ledger holds (scripts/validate_ledgers.py)
         entry: uv run --frozen python scripts/validate_ledgers.py
