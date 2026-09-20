@@ -604,7 +604,7 @@ HARDWARE_KEYS = ("arch", "cpu")
 #: The `env.client_machine` fields that identify the machine running the
 #: harness. CPU and memory are what move a trial's wall clock; arch and
 #: confinement change what the agent can do at all.
-CLIENT_KEYS = ("arch", "cpu", "memory_gib", "confinement")
+CLIENT_KEYS = ("arch", "cpu", "memory_gib", "confinement", "client_image")
 
 #: What `client_identity` returns for a row whose harness ran on the server.
 LOCAL_CLIENT = ("local",)

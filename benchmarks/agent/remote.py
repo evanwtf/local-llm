@@ -190,9 +190,14 @@ def stamp(env: dict, facts: dict) -> dict:
     hardware identity is the server's and it belongs in the server's ledger.
     """
     out = dict(env)
+    # "client_image" travels with the client's facts or the grouping key reads
+    # None for it and a containerised row pools with a bare-metal one (#611).
     out["client_machine"] = {
-        k: env[k] for k in (*SERVER_FACT_KEYS, "confinement") if k in env
+        k: env[k]
+        for k in (*SERVER_FACT_KEYS, "confinement", "client_image")
+        if k in env
     }
+    out.pop("client_image", None)
     for key in SERVER_FACT_KEYS:
         out.pop(key, None)
     for key, value in (facts.get("env") or {}).items():

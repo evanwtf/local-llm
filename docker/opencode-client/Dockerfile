@@ -39,8 +39,12 @@ ENV DEBIAN_FRONTEND=noninteractive \
 # both arches by construction. curl and ca-certificates are for the two
 # installers below; the rest is what a trial's `uv sync` needs to build any
 # wheel that has no arm64 wheel published.
+# `lsof` and `procps` are not optional: preflight.py reads listening ports
+# from `lsof -nP -iTCP -sTCP:LISTEN` and processes from `ps -eo ...`, and a
+# missing one aborts the batch with FileNotFoundError rather than degrading.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates curl git bubblewrap \
+        lsof procps \
         build-essential pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
