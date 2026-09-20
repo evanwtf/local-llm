@@ -32,11 +32,21 @@ sys.path.insert(
 )
 
 import gen_tables
+import results
 
 
-def row(rows: list[dict], backend: str) -> dict:
-    """The quoted columns for one backend, from already-loaded usable rows."""
+def row(rows: list[dict], backend: str, client: tuple[str, ...] | None = None) -> dict:
+    """The quoted columns for one backend on one client machine.
+
+    `client` is a `results.client_identity`. Passing None keeps every row,
+    which is only safe when the ledger holds a single client -- these numbers
+    are pasted into RECOMMENDATIONS.md as headline figures with no caveat
+    mechanism, so a pooled median here is the least visible way to be wrong
+    (#562).
+    """
     mine = [r for r in rows if r.get("backend") == backend]
+    if client is not None:
+        mine = [r for r in mine if results.client_identity(r) == client]
     timed = [
         r
         for r in gen_tables._excision(mine)
@@ -46,6 +56,7 @@ def row(rows: list[dict], backend: str) -> dict:
     turns = [r["num_turns"] for r in timed if r.get("num_turns") is not None]
     return {
         "backend": backend,
+        "client": client,
         "passed": sum(1 for r in mine if r.get("passed")),
         "trials": len(mine),
         "median_s": round(statistics.median(walls), 1) if walls else None,
@@ -60,14 +71,32 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--results", type=pathlib.Path, default=None)
     args = p.parse_args(argv)
     rows = gen_tables.valid_opencode(gen_tables.load(args.results))
-    print("| backend | pass | median | worst | turns |")
-    print("|---|---|---|---|---|")
+    wanted = [r for r in rows if r.get("backend") in set(args.backends)]
+    clients = results.clients_in(wanted)
+    # One column more only when it carries information. A ledger measured on
+    # one machine prints exactly what it printed before this split existed.
+    split = len(clients) > 1
+    names = gen_tables.client_names(wanted)
+    head = (
+        "| backend | client | pass | median | worst | turns |"
+        if split
+        else ("| backend | pass | median | worst | turns |")
+    )
+    print(head)
+    print("|---|---|---|---|---|---|" if split else "|---|---|---|---|---|")
     for name in args.backends:
-        r = row(rows, name)
-        med = f"{r['median_s']} s" if r["median_s"] is not None else "—"
-        worst = f"{r['worst_s']} s" if r["worst_s"] is not None else "—"
-        turns = r["turns"] if r["turns"] is not None else "—"
-        print(f"| {name} | {r['passed']}/{r['trials']} | {med} | {worst} | {turns} |")
+        for client in clients if split else [None]:
+            r = row(rows, name, client)
+            if not r["trials"]:
+                continue
+            med = f"{r['median_s']} s" if r["median_s"] is not None else "—"
+            worst = f"{r['worst_s']} s" if r["worst_s"] is not None else "—"
+            turns = r["turns"] if r["turns"] is not None else "—"
+            cell = f" {names.get(client, 'local')} |" if split else ""
+            print(
+                f"| {name} |{cell} {r['passed']}/{r['trials']} | "
+                f"{med} | {worst} | {turns} |"
+            )
     return 0
 
 

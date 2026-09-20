@@ -601,6 +601,78 @@ def unknown_argv(rows: list[dict[str, Any]]) -> bool:
 
 HARDWARE_KEYS = ("arch", "cpu")
 
+#: The `env.client_machine` fields that identify the machine running the
+#: harness. CPU and memory are what move a trial's wall clock; arch and
+#: confinement change what the agent can do at all.
+CLIENT_KEYS = ("arch", "cpu", "memory_gib", "confinement")
+
+#: What `client_identity` returns for a row whose harness ran on the server.
+LOCAL_CLIENT = ("local",)
+
+
+def client_identity(row: dict[str, Any]) -> tuple[str, ...]:
+    """The machine that RAN this trial, as a grouping key.
+
+    Rows live in one file per **server** machine (#20), so the server is
+    already the file. In remote mode (#562) the harness runs somewhere else
+    and `remote.stamp` files the client's facts under `env.client_machine`.
+
+    Two different client machines can produce rows for the **same backend
+    name**, and every aggregate in this repo keys on backend. Pooling them
+    folds an i3 and a 12-core desktop into one median, silently -- the same
+    hazard `remote.topology_mismatch` guards at write time for local-vs-remote,
+    one level down and unguarded until now. A trial's wall clock is roughly a
+    third client-side work (#562), so the two do not belong in one sample.
+
+    Returns `LOCAL_CLIENT` when the harness ran on the server itself, so a
+    local row never compares equal to a remote one.
+    """
+    env = row.get("env") or {}
+    machine = env.get("client_machine")
+    if not machine:
+        return LOCAL_CLIENT
+    return (
+        str(env.get("topology") or "remote"),
+        *(str(machine.get(k)) for k in CLIENT_KEYS),
+    )
+
+
+def client_label(row: dict[str, Any]) -> str:
+    """A short name for `client_identity`, for table rows and captions.
+
+    The CPU is normalised by `scripts/hardware_id.py`, the same function that
+    names the `hardware/` directories, so the label reads as a prefix of the
+    client's own directory name rather than a second naming scheme. It omits
+    the GPU because `env.client_machine` does not record one.
+    """
+    import sys
+
+    sys.path.insert(0, str(_REPO / "scripts"))
+    import hardware_id
+
+    machine = (row.get("env") or {}).get("client_machine")
+    if not machine:
+        return "local"
+    cpu = hardware_id.normalise_cpu(str(machine.get("cpu") or ""))
+    gib = machine.get("memory_gib")
+    parts = [cpu or "client"]
+    if gib:
+        parts.append(f"{hardware_id.installed_memory_gb(float(gib) * 1024**3)}GB")
+    return hardware_id.path_safe("-".join(parts))
+
+
+def clients_in(rows: list[dict[str, Any]]) -> list[tuple[str, ...]]:
+    """Every distinct client identity present, most rows first.
+
+    A caller with one entry may key on backend alone and lose nothing. A
+    caller with two must split, or say which one each number came from.
+    """
+    counts: dict[tuple[str, ...], int] = {}
+    for row in rows:
+        key = client_identity(row)
+        counts[key] = counts.get(key, 0) + 1
+    return sorted(counts, key=lambda k: (-counts[k], k))
+
 
 def hardware_of(row: dict[str, Any]) -> tuple[str, ...] | None:
     """The hardware identity a row claims, or None when it does not say."""
