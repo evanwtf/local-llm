@@ -86,6 +86,24 @@ def missing_mounts(home: pathlib.Path, mounts=MOUNTS) -> list[str]:
     return [rel for rel, _ in mounts if not (home / rel).exists()]
 
 
+def translate_paths(command: list[str], home: pathlib.Path) -> list[str]:
+    """Rewrite host-home paths in the harness arguments to the container's.
+
+    The wrapper passes `run.py` arguments through verbatim, so a host path
+    among them points somewhere that does not exist inside the container.
+    `--client-log $HOME/bench-logs/<run>` is the one that bit: the harness
+    wrote every transcript to a container-local directory and they were
+    discarded when the container exited. The rows survived -- the ledger is
+    inside the mounted repo -- so the run LOOKED complete while the per-trial
+    evidence was gone (#611).
+    """
+    prefix = f"{home}/"
+    return [
+        f"{CONTAINER_HOME}/{arg[len(prefix) :]}" if arg.startswith(prefix) else arg
+        for arg in command
+    ]
+
+
 def docker_argv(
     *,
     image: str,
@@ -140,7 +158,7 @@ def docker_argv(
         "run",
         "python",
         "benchmarks/agent/run.py",
-        *command,
+        *translate_paths(command, home),
     ]
 
 
