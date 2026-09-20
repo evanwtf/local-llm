@@ -2476,7 +2476,7 @@ context_tokens = 262144
 topology = "remote"
 
 [backend.qwen3827bsglangdflash2nothinkfmrcdgx]
-description = "Qwen3.8-27B NVFP4 (RadixArk/Qwen3.8-27B-NVFP4-BF16-LMHead) on SGLang via MiaAI-Lab/Qwen3.8-27B-SGLang-DGX-Spark @9fb18ed start-dflash.sh: DFlash2 drafter z-lab/Qwen3.8-27B-DFlash2 @50307d4, 8 draft tokens, official lmsysorg dev image pinned by digest; mem-fraction-static 0.90 (the recipe's), thinking off via --default-chat-template-kwargs. Speculative decoding on but not declared `speculative`: no SGLang draft-counter reader exists; REMOTE CLIENT (#562): OpenCode and the harness run on another machine and reach this server over the LAN; FULL MEMORY (#562): server-only box, harness memory gates off, per-server watcher floor 8 GiB"
+description = "Qwen3.8-27B NVFP4 (RadixArk/Qwen3.8-27B-NVFP4-BF16-LMHead) on SGLang via MiaAI-Lab/Qwen3.8-27B-SGLang-DGX-Spark @9fb18ed start-dflash.sh: DFlash2 drafter z-lab/Qwen3.8-27B-DFlash2 @50307d4, 8 draft tokens, official lmsysorg dev image pinned by digest; mem-fraction-static 0.85, NOT the recipe's 0.90: at 0.90 this server runs the box down to 6351 MiB MemAvailable under load, below earlyoom's own SIGTERM line (5% of 121.7 GiB, ~6.2 GiB), so the box-wide killer would take it mid-batch (#582); thinking off via --default-chat-template-kwargs. Speculative decoding on but not declared `speculative`: no SGLang draft-counter reader exists; REMOTE CLIENT (#562): OpenCode and the harness run on another machine and reach this server over the LAN; FULL MEMORY (#562): server-only box, harness memory gates off, per-server watcher floor 8 GiB"
 tier = "gb10-spark"
 base_url = "http://127.0.0.1:8888"
 auth_token = "local"
