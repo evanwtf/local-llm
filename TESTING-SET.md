@@ -193,7 +193,7 @@ be drawn from — OpenCode, after the `--dir` cutover, not excluded.
 | `qwen36a3bnvfp4fmrcdgx` | A3B vLLM, remote client, **full memory** (gpu-memory-utilization 0.85) (#562) | vLLM 0.29.0 CUDA sm_121 | 24.2 GiB | 90 |
 | `qwen3827bsglangdflash2nothinkfmrcdgx` | 27B SGLang + DFlash2, remote client, **full memory** (0.85; the recipe's 0.90 drops the box under earlyoom's line, #582) (#562) | SGLang dev image CUDA sm_121 | 24 GB + 2.6 GB draft | 90 |
 | `qwen38fnnvidianvfp4nothinkfmrcdgx` | NVIDIA Flash-Next NVFP4 via MiaAI, remote client, **full memory** (recipe default reserve 26 GiB, recipe 6b50864) (#562) | vLLM (MiaAI image) CUDA sm_121 | 124 GiB | 0 |
-| `qwen38fnq3nothinkrcdgx` | Flash-Next Q3 llama.cpp, thinking off, remote client (no memory knob) (#562) | llama.cpp CUDA sm_121 | 83.8 GiB | 0 |
+| `qwen38fnq3nothinkrcdgx` | Flash-Next Q3 llama.cpp, thinking off, remote client (no memory knob) (#562) | llama.cpp CUDA sm_121 | 83.8 GiB | 90 |
 | `qwen38fnq3nothinkkv8rcdgx` | the q8_0-KV Q3 row, remote client (#562) | llama.cpp CUDA sm_121 | 83.8 GiB | 0 |
 | `ds4rcdgx` | DeepSeek-V4-Flash on ds4, remote client (#562) | ds4 CUDA sm_121a | 80.8 GiB | 0 |
 | `qwen38fnq3rcdgx` | Flash-Next Q3 llama.cpp, thinking on, remote client (#562) | llama.cpp CUDA sm_121 | 83.8 GiB | 0 |
