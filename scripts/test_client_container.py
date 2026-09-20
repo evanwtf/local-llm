@@ -112,3 +112,27 @@ def test_the_hosts_opencode_config_is_read_only():
     assert (
         f"{HOME / '.config/opencode'}:{mod.CONTAINER_HOME}/.config/opencode:ro" in argv
     )
+
+
+def test_host_paths_in_the_harness_arguments_are_translated():
+    """--client-log $HOME/bench-logs/<run> pointed at a path that does not
+    exist in the container, so every transcript was written to container-local
+    storage and discarded on exit. The rows survived -- the ledger is inside
+    the mounted repo -- so the run looked complete while the per-trial
+    evidence was gone (#611)."""
+    got = mod.translate_paths(
+        ["--client-log", f"{HOME}/bench-logs/611c", "--trials", "3"], HOME
+    )
+    assert got == [
+        "--client-log",
+        f"{mod.CONTAINER_HOME}/bench-logs/611c",
+        "--trials",
+        "3",
+    ]
+
+
+def test_arguments_that_are_not_host_paths_are_left_alone():
+    got = mod.translate_paths(
+        ["--backend", "b", "--metrics-url", "http://srv:8888"], HOME
+    )
+    assert got == ["--backend", "b", "--metrics-url", "http://srv:8888"]

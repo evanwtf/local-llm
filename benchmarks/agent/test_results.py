@@ -812,3 +812,14 @@ def test_two_machines_running_the_same_image_still_differ():
     i3 = _remote({**_I3, "client_image": image})
     desktop = _remote({**_DESKTOP, "client_image": image})
     assert client_identity(i3) != client_identity(desktop)
+
+
+def test_the_label_says_when_a_row_came_from_the_image():
+    """Two rows that group apart must also READ apart, or a table shows the
+    same name twice with different numbers (#611)."""
+    bare = _remote(_I3)
+    boxed = _remote(
+        {**_I3, "client_image": "opencode=1.18.31 uv=0.12.13 python=3.14.4"}
+    )
+    assert client_label(bare) == "Corei3-7100-16GB"
+    assert client_label(boxed) == "Corei3-7100-16GB+image"
