@@ -112,11 +112,49 @@ def _timed(rows: list[dict[str, Any]]) -> list[float]:
     ]
 
 
+def stack_key(row: dict[str, Any]) -> tuple[str, tuple[str, ...]]:
+    """What a table row is: a backend **on one client machine** (#562).
+
+    Keying on backend alone folded two client machines into one median the
+    moment a second one existed, and a trial's wall clock is roughly a third
+    client-side work. The client is part of the identity of every number in
+    these tables, so it is part of the key -- always, not only when a split
+    happens to be visible.
+    """
+    return (row["backend"], results.client_identity(row))
+
+
+def client_names(rows: list[dict[str, Any]]) -> dict[tuple[str, ...], str]:
+    """A short name per client identity, taken from the rows themselves."""
+    return {results.client_identity(r): results.client_label(r) for r in rows}
+
+
+def stack_name(
+    key: tuple[str, tuple[str, ...]],
+    labels: dict[str, str],
+    split: bool,
+    names: dict[tuple[str, ...], str],
+) -> str:
+    """The displayed name; the client is named only when a table has two.
+
+    A section measured entirely on one machine reads exactly as it did before
+    this split existed -- naming a client that never varies is noise. The
+    suffix appears the moment it carries information.
+    """
+    backend, client = key
+    base = labels.get(backend, backend)
+    if not split or client == results.LOCAL_CLIENT:
+        return base
+    return f"{base} @ {names.get(client, 'remote')}"
+
+
 def stack_table(rows: list[dict[str, Any]], labels: dict[str, str]) -> list[str]:
     """Pass rate and wall time per backend, OpenCode only."""
     by = collections.defaultdict(list)
     for r in valid_opencode(rows):
-        by[r["backend"]].append(r)
+        by[stack_key(r)].append(r)
+    split = len({k[1] for k in by}) > 1
+    names = client_names(rows)
     out = [
         "| stack | passed | median | worst | spread |",
         "|---|---|---|---|---|",
@@ -136,7 +174,9 @@ def stack_table(rows: list[dict[str, Any]], labels: dict[str, str]) -> list[str]
             )
         else:
             timing = "\u2014 | \u2014 | \u2014 |"
-        out.append(f"| {labels.get(name, name)} | {p}/{len(rs)} | {timing}")
+        out.append(
+            f"| {stack_name(name, labels, split, names)} | {p}/{len(rs)} | {timing}"
+        )
     return out
 
 
@@ -164,10 +204,14 @@ def throughput_table(rows: list[dict[str, Any]], labels: dict[str, str]) -> list
     by = collections.defaultdict(list)
     for r in valid_opencode(rows):
         if r.get("wall_seconds") and r.get("output_tokens"):
-            by[r["backend"]].append(r["wall_seconds"] / r["output_tokens"] * 1000)
+            by[stack_key(r)].append(r["wall_seconds"] / r["output_tokens"] * 1000)
     out = ["| stack | seconds per 1k output tokens |", "|---|---|"]
+    split = len({k[1] for k in by}) > 1
+    names = client_names(rows)
     for name, v in sorted(by.items(), key=lambda kv: statistics.median(kv[1])):
-        out.append(f"| {labels.get(name, name)} | {statistics.median(v):.0f}s |")
+        out.append(
+            f"| {stack_name(name, labels, split, names)} | {statistics.median(v):.0f}s |"
+        )
     return out
 
 

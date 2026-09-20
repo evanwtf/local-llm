@@ -69,9 +69,9 @@ other is telling you something.
 |---|---|---|---|---|
 | qwen36a3bsglangdgx | 90/90 | 28s | 136s | 17.3x |
 | qwen36a3bnvfp4dgx | 379/402 | 35s | 318s | 31.5x |
-| qwen36a3bnvfp4fmrcdgx | 82/89 | 39s | 104s | 7.9x |
-| qwen36a3bsglangfmrcdgx | 89/90 | 39s | 226s | 19.2x |
-| qwen36a3bsglangrcdgx | 89/89 | 41s | 158s | 12.7x |
+| qwen36a3bnvfp4fmrcdgx @ Corei3-7100-16GB | 82/89 | 39s | 104s | 7.9x |
+| qwen36a3bsglangfmrcdgx @ Corei3-7100-16GB | 89/90 | 39s | 226s | 19.2x |
+| qwen36a3bsglangrcdgx @ Corei3-7100-16GB | 89/89 | 41s | 158s | 12.7x |
 | qwen3827bsglangdflash2nothinkdgx | 90/90 | 44s | 279s | 22.0x |
 | ornith15a3bdgx | 30/30 | 49s | 571s | 28.8x |
 | qwen3827bsglangdsparkpinnednothinkdgx | 89/90 | 54s | 191s | 12.3x |
@@ -79,13 +79,13 @@ other is telling you something.
 | qwen38fnnvfp4miaainothinkdgx | 88/90 | 55s | 1657s | 71.4x |
 | qwen38fnq3nothinkkv8dgx | 90/90 | 61s | 1528s | 43.9x |
 | qwen3827bsglangdsparknothinkdgx | 90/90 | 66s | 278s | 11.7x |
-| qwen3827bsglangdflash2nothinkfmrcdgx | 90/90 | 66s | 260s | 10.1x |
+| qwen3827bsglangdflash2nothinkfmrcdgx @ Corei3-7100-16GB | 90/90 | 66s | 260s | 10.1x |
 | qwen38fnq3nothinkdgx | 331/331 | 67s | 1059s | 43.8x |
 | qwen38fnnvidianvfp4nothinkdgx | 90/90 | 68s | 1115s | 48.5x |
 | qwen38fnq3nothinkub2048dgx | 4/4 | 82s | 475s | 14.2x |
-| qwen38fnq3nothinkrcdgx | 89/90 | 85s | 251s | 5.5x |
+| qwen38fnq3nothinkrcdgx @ Corei3-7100-16GB | 89/90 | 85s | 251s | 5.5x |
 | qwen38fnnvfp4dgx | 60/60 | 95s | 338s | 9.5x |
-| qwen38fnq3nothinkkv8rcdgx | 90/90 | 96s | 594s | 13.0x |
+| qwen38fnq3nothinkkv8rcdgx @ Corei3-7100-16GB | 90/90 | 96s | 594s | 13.0x |
 | gptoss20bdgx | 24/30 | 99s | 159s | 4.6x |
 | qwen3827bnvfp4miaainothinkdgx | 30/30 | 113s | 317s | 7.6x |
 | qwen38fnnvidianvfp4dgx | 90/90 | 121s | 281s | 7.5x |
@@ -123,9 +123,9 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | nemotron35lightninga3bdgx | 20s |
 | qwen36a3bsglangdgx | 20s |
 | qwen36a3bnvfp4dgx | 22s |
-| qwen36a3bsglangrcdgx | 23s |
-| qwen36a3bnvfp4fmrcdgx | 24s |
-| qwen36a3bsglangfmrcdgx | 24s |
+| qwen36a3bsglangrcdgx @ Corei3-7100-16GB | 23s |
+| qwen36a3bnvfp4fmrcdgx @ Corei3-7100-16GB | 24s |
+| qwen36a3bsglangfmrcdgx @ Corei3-7100-16GB | 24s |
 | gptoss20bdgx | 25s |
 | qwen3827bsglangdflash2dgx | 35s |
 | ornith15a3bdgx | 35s |
@@ -134,7 +134,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | qwen3827bsglangdsparkpinnednothinkdgx | 47s |
 | qwen3827bsglangdsparknothinkdgx | 48s |
 | qwen38fnnvidianvfp4nothinkdgx | 49s |
-| qwen3827bsglangdflash2nothinkfmrcdgx | 50s |
+| qwen3827bsglangdflash2nothinkfmrcdgx @ Corei3-7100-16GB | 50s |
 | qwen38fnexl3nothinkdgx | 56s |
 | qwen38fnq3dgx | 59s |
 | qwen38fnnvfp4dgx | 59s |
@@ -147,8 +147,8 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | nemotron3super120bdgx | 75s |
 | qwen3827bnvfp4miaainothinkdgx | 81s |
 | ds4dgx | 88s |
-| qwen38fnq3nothinkkv8rcdgx | 90s |
-| qwen38fnq3nothinkrcdgx | 91s |
+| qwen38fnq3nothinkkv8rcdgx @ Corei3-7100-16GB | 90s |
+| qwen38fnq3nothinkrcdgx @ Corei3-7100-16GB | 91s |
 | qwen38fnnvfp4miaaidgx | 100s |
 | qwen36nvfp4nothinkdgx | 105s |
 | qwen38fnnvidianvfp4dgx | 105s |

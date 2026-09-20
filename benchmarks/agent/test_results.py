@@ -13,9 +13,13 @@ import pathlib
 import pytest
 from results import (
     LEGACY_EXCLUSION_KEYS,
+    LOCAL_CLIENT,
     REQUIRED,
     REQUIRED_WITH_VERDICT,
     SCHEMA_VERSION,
+    client_identity,
+    client_label,
+    clients_in,
     default_path,
     graph_flags,
     is_excluded,
@@ -733,3 +737,59 @@ def test_vllm_differing_speculative_config_does_not_pool():
     }
     plain = {"env": {"server_argv": _VLLM_BASE}}
     assert not server_argv_compatible(spec, plain)
+
+
+# --- grouping by the machine that ran the trial (#562) ----------------------
+
+_I3 = {
+    "arch": "x86_64",
+    "os": "Linux 7.0.0-31-generic",
+    "cpu": "Intel(R) Core(TM) i3-7100 CPU @ 3.90GHz",
+    "cpu_count": 4,
+    "memory_gib": 15.0,
+    "confinement": "bwrap",
+}
+_DESKTOP = {
+    "arch": "x86_64",
+    "cpu": "AMD Ryzen 9 7900X 12-Core Processor",
+    "memory_gib": 30.5,
+    "confinement": "bwrap",
+}
+
+
+def _remote(machine):
+    return {"backend": "b", "env": {"topology": "remote", "client_machine": machine}}
+
+
+def test_a_row_whose_harness_ran_on_the_server_is_local():
+    assert client_identity({"env": {"arch": "aarch64"}}) == LOCAL_CLIENT
+    assert client_label({"env": {}}) == "local"
+
+
+def test_two_client_machines_never_share_a_group():
+    """The whole point: same backend, same server, different box."""
+    assert client_identity(_remote(_I3)) != client_identity(_remote(_DESKTOP))
+
+
+def test_a_local_row_never_groups_with_a_remote_one():
+    assert client_identity(_remote(_I3)) != client_identity({"env": {}})
+
+
+def test_the_same_client_groups_with_itself():
+    assert client_identity(_remote(_I3)) == client_identity(_remote(dict(_I3)))
+
+
+def test_the_label_reads_as_the_clients_directory_name():
+    assert client_label(_remote(_I3)) == "Corei3-7100-16GB"
+
+
+def test_clients_in_orders_by_how_many_rows_each_contributed():
+    rows = [_remote(_I3)] * 3 + [_remote(_DESKTOP)] * 5 + [{"env": {}}]
+    got = clients_in(rows)
+    assert got[0] == client_identity(_remote(_DESKTOP))
+    assert got[1] == client_identity(_remote(_I3))
+    assert LOCAL_CLIENT in got
+
+
+def test_one_client_means_nothing_to_split():
+    assert clients_in([_remote(_I3), _remote(_I3)]) == [client_identity(_remote(_I3))]
