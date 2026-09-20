@@ -88,26 +88,27 @@ the rigorous comparison.
 of 44 trials (95% CI 47–74%). Its median passing excision task took 326 s
 ([#479](https://github.com/evanwtf/local-llm/issues/479)).
 
-**The fastest verified stack is now mlx-serve 26.9.2, as of 2026-09-10 (#282).**
-In a head-to-head agent A/B with **both engines on their latest builds** — ds4
-`6c1e8367` vs mlx-serve `26.9.2`, same model (Qwen3.8-Flash-Next), two runs,
-60 trials/arm — **mlx-serve took 66% of ds4's wall time (34% less): 818 s
-against 1237 s** summed over the 15 tasks, at **equal pass (60/60 both)**,
-winning 12 of 15 tasks. Both runs agreed (paired ratio 1.50 and 1.51) and both
-position orders agreed. This **reverses #191's 2026-09-08 dead heat**: the
-`perf(qwen4)` batch in mlx-serve 26.9.2 roughly halved its own wall since
-26.9.1, and ds4's newer head (`6c1e8367`, #228) narrowed but did not close the
-gap.
+**The fastest verified stack is mlx-serve, re-confirmed at the current ds4
+upstream head on 2026-09-20
+([#577](https://github.com/evanwtf/local-llm/issues/577)).** In an interleaved
+agent A/B on **macOS 27.0** — ds4 upstream main `8db1d1d1` (the
+[#158](https://github.com/evanwtf/local-llm/issues/158)-settled stack, rebuilt
+clean on the 27 toolchain) vs mlx-serve `26.9.4`, same model
+(Qwen3.8-Flash-Next), 4 sweeps, 60 trials/arm — **mlx-serve took 65% of ds4's
+wall time (35% less): 3770 s against 5822 s** summed over the 15 tasks. The
+paired wall ratio (geometric mean of per-task ratios) is **1.84 (95% CI
+1.59–2.13)**, with mlx-serve faster on 14 of 15 tasks and one tie; all four
+sweeps agreed on the direction. Pass rates were **indistinguishable —
+mlx-serve 60/60, ds4 59/60** (one multi-turn death; sign test p=1.00).
 
-**The 34% is aging — re-run it before trusting it.** That A/B used ds4 at
-`6c1e8367`. ds4 has since gained prefill work never re-tested head-to-head:
-level-2 MoE tiles (+17–23% appended prefill on the `kimat` pack, now the
-promoted default, [#328](https://github.com/evanwtf/local-llm/issues/328)) and
-continued [#952](https://github.com/evanwtf/local-llm/issues/952). Treat the
-gap as current only until it is re-measured against the current ds4 head. As
-of 2026-09-19 that head-to-head has not been re-run.
-[#158](https://github.com/evanwtf/local-llm/issues/158) settled which ds4
-stack the re-run uses: upstream main, the stack in the table above.
+This **refreshes the earlier #282 figure** (34% less at ds4 `6c1e8367`,
+2026-09-10): the gap holds at the current upstream head `8db1d1d1`, which has
+since taken level-2 MoE tiles
+([#328](https://github.com/evanwtf/local-llm/issues/328)) and
+[#952](https://github.com/evanwtf/local-llm/issues/952) — none of it closed the
+agent-wall gap at screen resolution. This A/B is a pre-registered SCREEN
+(n=60/arm resolves ~17–26% paired wall), so it establishes the direction and
+rough size, not a precise superiority margin.
 
 **It is a full-stack result, and that is the right way to read it.** Engine,
 quantization and speculative decoding move together: mlx-serve speculates by
