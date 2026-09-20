@@ -220,6 +220,29 @@ def gpu_description() -> str | None:
     return raw.splitlines()[0].strip() if raw else None
 
 
+def client_image() -> str | None:
+    """The pinned client image this is running in, or None on bare metal.
+
+    Without this the container is invisible to every grouping in the repo
+    (#611). `confinement` still reads "bwrap" inside the image -- correctly,
+    because bwrap is still what confines the agent -- and arch, cpu and
+    memory are the host's, so a containerised row and a bare-metal row from
+    the same box carry an identical client identity and pool into one median.
+    That is the hazard `results.client_identity` exists to prevent, one level
+    deeper than #608 looked.
+
+    The image sets these; nothing else does.
+    """
+    if not os.environ.get("LOCAL_LLM_CLIENT_IMAGE"):
+        return None
+    parts = [
+        f"opencode={os.environ.get('LOCAL_LLM_PINNED_OPENCODE', '?')}",
+        f"uv={os.environ.get('LOCAL_LLM_PINNED_UV', '?')}",
+        f"python={os.environ.get('LOCAL_LLM_PINNED_PYTHON', '?')}",
+    ]
+    return " ".join(parts)
+
+
 def machine_facts() -> dict[str, object]:
     """Interrogate the machine on every run, rather than assuming last time's.
 
@@ -238,6 +261,9 @@ def machine_facts() -> dict[str, object]:
         "gpu": gpu_description(),
         "confinement": confinement(),
     }
+    image = client_image()
+    if image:
+        facts["client_image"] = image
     ceiling, raised = metal_ceiling()
     if ceiling is not None:
         facts["metal_ceiling_gib"] = ceiling

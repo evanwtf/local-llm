@@ -168,3 +168,18 @@ def test_an_unknown_the_server_contradicts_is_dropped():
     assert out["sglang"] == "0.0.0.dev1+g708f51e44"
     # An engine the server said nothing about keeps its honest "unknown".
     assert out["ds4_version"] == "unknown"
+
+
+def test_the_client_image_travels_with_the_clients_facts():
+    """#611: without this the grouping key reads None for client_image and a
+    containerised row pools with a bare-metal one from the same box."""
+    env = {
+        "arch": "x86_64",
+        "cpu": "Intel(R) Core(TM) i3-7100 CPU @ 3.90GHz",
+        "memory_gib": 15.0,
+        "confinement": "bwrap",
+        "client_image": "opencode=1.18.31 uv=0.12.13 python=3.14.4",
+    }
+    out = remote.stamp(env, {"directory": "d", "facts": {"arch": "aarch64"}})
+    assert out["client_machine"]["client_image"].startswith("opencode=1.18.31")
+    assert "client_image" not in out
