@@ -84,6 +84,18 @@ def docker_argv(
 ) -> list[str]:
     """The full `docker run` for one harness invocation."""
     env = [
+        # The mounted repo is owned by the host user and the container runs as
+        # root, so git refuses every operation on it with "detected dubious
+        # ownership". The harness clones the sandbox target for each trial, so
+        # this is not cosmetic: without it no trial can start. Passed as
+        # environment rather than baked into the image, so the image stays
+        # usable by a non-root user later.
+        "-e",
+        "GIT_CONFIG_COUNT=1",
+        "-e",
+        "GIT_CONFIG_KEY_0=safe.directory",
+        "-e",
+        "GIT_CONFIG_VALUE_0=*",
         "-e",
         f"HOME={CONTAINER_HOME}",
         "-e",

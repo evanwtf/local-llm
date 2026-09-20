@@ -84,3 +84,13 @@ def test_a_missing_mount_is_named_before_the_run_starts(tmp_path):
 def test_the_harness_is_what_the_container_runs():
     argv = _argv()
     assert argv[-5:] == ["benchmarks/agent/run.py", "--backend", "b", "--trials", "3"]
+
+
+def test_git_is_told_the_mounted_repo_is_safe():
+    """The repo is owned by the host user and the container runs as root, so
+    git refuses to clone the sandbox target with "detected dubious ownership".
+    Without this no trial can start."""
+    argv = _argv()
+    assert "GIT_CONFIG_COUNT=1" in argv
+    assert "GIT_CONFIG_KEY_0=safe.directory" in argv
+    assert "GIT_CONFIG_VALUE_0=*" in argv
