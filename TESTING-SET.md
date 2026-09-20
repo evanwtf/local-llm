@@ -196,7 +196,7 @@ be drawn from — OpenCode, after the `--dir` cutover, not excluded.
 | `qwen38fnq3nothinkrcdgx` | Flash-Next Q3 llama.cpp, thinking off, remote client (no memory knob) (#562) | llama.cpp CUDA sm_121 | 83.8 GiB | 90 |
 | `qwen38fnq3nothinkkv8rcdgx` | the q8_0-KV Q3 row, remote client (#562) | llama.cpp CUDA sm_121 | 83.8 GiB | 90 |
 | `ds4rcdgx` | DeepSeek-V4-Flash on ds4, remote client (#562) | ds4 CUDA sm_121a | 80.8 GiB | 0 |
-| `qwen38fnq3rcdgx` | Flash-Next Q3 llama.cpp, thinking on, remote client (#562) | llama.cpp CUDA sm_121 | 83.8 GiB | 0 |
+| `qwen38fnq3rcdgx` | Flash-Next Q3 llama.cpp, thinking on, remote client (#562) | llama.cpp CUDA sm_121 | 83.8 GiB | 90 |
 | `qwen38fnexl3nothinkdgx` | Qwen3.8-Flash-Next as **EXL3 3.05 bpw** (turboderp's pack) via vLLM + vllm-exl3, MTP k=3, n-gram table on disk, thinking off (#434) | vLLM 0.29.0 + vllm-exl3 CUDA sm_121 | 80 GB | 5 |
 | `qwen38fnexl3nomtpnothinkdgx` | the EXL3 row above with **MTP off**: isolates whether the drafter causes its corrupted generations (#434) | vLLM 0.29.0 + vllm-exl3 CUDA sm_121 | 80 GB | 6 |
 | `qwen36bf16dgx` | `Qwen/Qwen3.6-27B` **BF16**, the unquantized control for the row above | vLLM 0.29.0 CUDA sm_121 | 51.7 GiB | 30 |
