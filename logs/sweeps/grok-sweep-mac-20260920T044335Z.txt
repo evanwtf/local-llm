@@ -1,0 +1,47 @@
+# grok sweep (mac lane)
+# requested window: last 24 hours
+# written:  2026-09-20T04:43:35Z  (local: 2026-09-20 00:43:35 EDT)
+# query:    Search X for posts and replies from @antirez, @ivanfioravanti, @ddalcu, @Beamsters1, @Spangler3000, @jundotkim, @ggerganov, @korale77, @Youssofal_, @Raullen, @rapidmlx, @awnihannun, @N8Programs, @Prince_Canuma, @sudoingX, @_ARahim_, @TheDavidTai, @0xkydo, @yukonresearch, @trymirai, @UnslothAI, @13scoobie, @0xZKnw, @no_stp_on_snek in the last 24 hours about local LLM inference on Apple Silicon (MLX, Metal, llama.cpp, ds4, DeepSeek-V4-Flash, Qwen3.8-Flash-Next, GLM-5.3-Flash, MTP, speculative decoding, quantization, prefill, M5 Max). Output ONE bullet per post and nothing else -- no preamble, no summary: - <UTC timestamp> | @handle | <post URL> | <the claim in one sentence>. Omit any item without both a URL and a UTC timestamp. If nothing matches, output exactly: NO RESULTS
+
+I'll search X for posts and replies from those accounts in the last 24 hours, then keep only items that mention local LLM inference on Apple Silicon.The first pass left gaps on several accounts and the 24-hour cutoff, so I’m filling those next.- 2026-09-20T04:43:38Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2101532716487348661 | DeepSeek v4.1 Flash has a strong architecture but is not the most intelligent model despite its SOTA aura.
+- 2026-09-20T04:41:58Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2101532294099927321 | 4.1 Flash has a great architecture but unimpressive pure intelligence.
+- 2026-09-20T04:12:03Z | @TheDavidTai | https://x.com/TheDavidTai/status/2101524765034909844 | DeepSeek v4.1 hit 16.58 tps on Fable, with Q2 unusable and Q4 at the edge of usability if it can reach 20 tps.
+- 2026-09-20T04:04:06Z | @TheDavidTai | https://x.com/TheDavidTai/status/2101522764792238263 | GLM 5.3 at a 20k range beats DSv4.1 at a 10k range as the near-frontier bar.
+- 2026-09-20T03:25:11Z | @Beamsters1 | https://x.com/Beamsters1/status/2101512974079066278 | A 4-bit Step 5 600B-A27B with ~200B ngram could fit a 256GB M5 Ultra and beat GLM-5.3 Flash.
+- 2026-09-19T21:51:02Z | @ddalcu | https://x.com/ddalcu/status/2101428880930148638 | The next MLX Chat version will let you add any MLX model by Hugging Face ID.
+- 2026-09-19T20:55:37Z | @ddalcu | https://x.com/ddalcu/status/2101414933493579906 | mlx-serve-gguf is underway and would replace llama.cpp if a native GGUF engine matches MLX speed on modern GGUFs.
+- 2026-09-19T20:00:18Z | @ddalcu | https://x.com/ddalcu/status/2101401014616150154 | MLX Chat on iPhone 18 Pro is still very fast on an older MLX-Serve build with no NAX.
+- 2026-09-19T19:14:19Z | @ddalcu | https://x.com/ddalcu/status/2101389439813513320 | Asks whether a Rust GGUF engine runs on Metal without llama.cpp.
+- 2026-09-19T18:54:05Z | @ddalcu | https://x.com/ddalcu/status/2101384349195051480 | MLX-Serve on iPhone is a better selling point than cherry-picked hardware benches.
+- 2026-09-19T18:44:20Z | @ddalcu | https://x.com/ddalcu/status/2101381894172545446 | GGUF via llama.cpp is much slower, and a native path is being built to match MLX speed.
+- 2026-09-19T18:42:48Z | @ddalcu | https://x.com/ddalcu/status/2101381508829233543 | Context goes to 1M tokens, not 64k.
+- 2026-09-19T18:41:56Z | @ddalcu | https://x.com/ddalcu/status/2101381294139551826 | Latest MLX-Serve can evict by time or by memory GB in settings.
+- 2026-09-19T18:16:15Z | @ddalcu | https://x.com/ddalcu/status/2101374830599713091 | Use `npx llmprobe localhost:11234 --eval --eval-suite code` to benchmark and eval any local engine.
+- 2026-09-19T18:10:50Z | @TheDavidTai | https://x.com/TheDavidTai/status/2101373464154181820 | yukon.org/mlxfast is near 100% after GordoAR and fkiene gains, and the CUDA arm is almost 3× faster than at the start.
+- 2026-09-19T18:08:06Z | @ddalcu | https://x.com/ddalcu/status/2101372776833569005 | On 64GB, Next iQ-MLX is probably better than 4-bit 27B and should be compared to 6-bit or 8-bit 27B.
+- 2026-09-19T18:03:36Z | @_ARahim_ | https://x.com/_ARahim_/status/2101371644296237488 | Asks whether to pick DSv4 Pro or GLM-5.3 Flash.
+- 2026-09-19T17:59:58Z | @ddalcu | https://x.com/ddalcu/status/2101370730755543529 | MLX-Serve is not yet optimized for Qwen 27B on M5-class Macs; Qwen Flash Next 4-8 quant is the model to run, tested to 1M context.
+- 2026-09-19T17:53:34Z | @ddalcu | https://x.com/ddalcu/status/2101369121199849784 | Qwen Flash 4-8 mixed quant raises prefill and decode on 96/128GB, with quality compromises if forced into 64GB.
+- 2026-09-19T17:44:25Z | @_ARahim_ | https://x.com/_ARahim_/status/2101366816136454244 | Asks that mlx-dspark be tried as well.
+- 2026-09-19T17:10:03Z | @ddalcu | https://x.com/ddalcu/status/2101358167712018629 | MLX needs 6-bit quantization or higher.
+- 2026-09-19T16:38:39Z | @ddalcu | https://x.com/ddalcu/status/2101350267513950552 | A newer MLX Chat build is already faster, with extra features, at the App Store link.
+- 2026-09-19T16:19:25Z | @ddalcu | https://x.com/ddalcu/status/2101345427551387969 | The iPhone local run has not been soak-tested for long load but has thermal headroom because it is fast.
+- 2026-09-19T15:59:11Z | @ddalcu | https://x.com/ddalcu/status/2101340335875977629 | The cited chart is MTPLX numbers, not MLX-Serve; use llmprobe against any engine for a fair comparison.
+- 2026-09-19T15:09:33Z | @ddalcu | https://x.com/ddalcu/status/2101327844949278942 | The 36 tok/s iPhone demo is a local-dev MLX-Serve build, not the App Store build.
+- 2026-09-19T15:08:50Z | @ddalcu | https://x.com/ddalcu/status/2101327664015393044 | MLX-Serve 26.9.5-dev on iPhone 18 hits 36 tok/s with Gemma 4 e4b.
+- 2026-09-19T13:41:05Z | @ddalcu | https://x.com/ddalcu/status/2101305579817889949 | iPhone 18 Pro local generation feels faster than an M4 Mini or M1 Pro, and MLX-Serve LAN/HTTP sharing is under consideration.
+- 2026-09-19T12:52:20Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2101293314343358817 | Competing engines that push Apple Silicon to the limit are good for users.
+- 2026-09-19T12:39:54Z | @ddalcu | https://x.com/ddalcu/status/2101290182620201347 | MLX and GGUF are the current standards, and a third engine format fragments the ecosystem.
+- 2026-09-19T12:34:17Z | @ddalcu | https://x.com/ddalcu/status/2101288771853410357 | Community 36GB hardware results can be uploaded now.
+- 2026-09-19T12:31:58Z | @ddalcu | https://x.com/ddalcu/status/2101288188815847646 | Qwen Flash Next is the clear winner in that comparison.
+- 2026-09-19T12:28:02Z | @ddalcu | https://x.com/ddalcu/status/2101287197445902760 | Splash does not use standard models and further fragments the local-engine ecosystem.
+- 2026-09-19T09:17:04Z | @Prince_Canuma | https://x.com/Prince_Canuma/status/2101239137944703204 | The feature is already supported on the MLX-VLM main branch.
+- 2026-09-19T08:12:47Z | @Beamsters1 | https://x.com/Beamsters1/status/2101222963341074698 | Questions whether 3000–4000 tok/s M5 Ultra prefill is actually bad.
+- 2026-09-19T06:34:57Z | @Beamsters1 | https://x.com/Beamsters1/status/2101198339119161685 | M4 Pro is borderline unusable because it lacks hardware-accelerated prefill and has about half of Max memory bandwidth.
+- 2026-09-19T06:25:24Z | @ddalcu | https://x.com/ddalcu/status/2101195939352371523 | New engines should pick MLX or GGUF, as MLX-Serve and DS4 did, instead of inventing a third format.
+- 2026-09-19T06:17:39Z | @Beamsters1 | https://x.com/Beamsters1/status/2101193987658842384 | An M4 Pro could get about half the speed on Qwen3.8-Flash-Next-MLX-Serve-iQ-MLX-3.3bpw, at lower quality.
+- 2026-09-19T06:08:57Z | @ddalcu | https://x.com/ddalcu/status/2101191797917528159 | Splash should test Gemma4, Qwen Flash, DeepSeek, MTP, DFlash, DFlash2, and DSpark on M1 and M2 as well.
+- 2026-09-19T05:20:04Z | @ddalcu | https://x.com/ddalcu/status/2101179495432491303 | MLX-Serve aims to combine Ollama-like simplicity with advanced local LLM features, best tried via the .app not the CLI.
+- 2026-09-19T05:16:41Z | @ddalcu | https://x.com/ddalcu/status/2101178645876281815 | The posted numbers are M4 Max, a batch-decode speedup is in testing, and the engine works on other models too.
+- 2026-09-19T04:54:22Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2101173030336508203 | mlx-serve is the champion Splash has to beat.
+- 2026-09-19T04:53:13Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2101172737783787756 | mlx-serve is unbeatable.

@@ -1,0 +1,71 @@
+2026-09-20T00:42:24-0400 INFO [80773a2@M5-Max-128GB none pld=n/a] 2026-09-20T04:42:24Z (00:42:24 EDT) | harness 80773a2
+2026-09-20T00:42:24-0400 INFO [80773a2@M5-Max-128GB none pld=n/a]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-20T00:42:24-0400 INFO [80773a2@M5-Max-128GB none pld=n/a] Hugging Face sweep since 2026-09-19T04:42:24Z (24h)
+
+2026-09-20T00:42:24-0400 INFO [80773a2@M5-Max-128GB none pld=n/a] == Qwen3.8-Flash-Next -- our fastest stack (llama.cpp Q3, and the 112 GB MLX build)
+2026-09-20T00:42:24-0400 INFO [80773a2@M5-Max-128GB none pld=n/a]     dongnhdev/Qwen3.8-Flash-Next-OrcaUncensored-IQ2-Complete   2026-09-20T04:28         dl=0
+2026-09-20T00:42:24-0400 INFO [80773a2@M5-Max-128GB none pld=n/a]   ? Davd-b01/qwen3.8-flash-next-40b-prune-research             2026-09-20T04:10         dl=0
+2026-09-20T00:42:24-0400 INFO [80773a2@M5-Max-128GB none pld=n/a]   ? ahmed-amedo/Qwen3.8-Flash-Next                             2026-09-20T03:24         dl=0
+2026-09-20T00:42:24-0400 INFO [80773a2@M5-Max-128GB none pld=n/a]   ? changh95/qwen3.8-flash-next-p150x8                         2026-09-20T01:11         dl=0
+2026-09-20T00:42:24-0400 INFO [80773a2@M5-Max-128GB none pld=n/a]   ? TheDrainFlorist/Qwen3.8-Flash-Next-VQ-5.5bpw               2026-09-20T00:24         dl=2277
+2026-09-20T00:42:24-0400 INFO [80773a2@M5-Max-128GB none pld=n/a]   ? TheDrainFlorist/Qwen3.8-Flash-Next-VQ-4.4bpw               2026-09-20T00:24         dl=2822
+2026-09-20T00:42:24-0400 INFO [80773a2@M5-Max-128GB none pld=n/a]   ? TheDrainFlorist/Qwen3.8-Flash-Next-VQ-3.2bpw               2026-09-20T00:23         dl=2480
+2026-09-20T00:42:24-0400 INFO [80773a2@M5-Max-128GB none pld=n/a]   ? TheDrainFlorist/Qwen3.8-Flash-Next-VQ-2.1bpw               2026-09-20T00:23         dl=3619
+2026-09-20T00:42:24-0400 INFO [80773a2@M5-Max-128GB none pld=n/a]   ? SargeDev/qwen3.8-flash-next-lil-rascal-uncensored          2026-09-19T23:22         dl=0
+2026-09-20T00:42:24-0400 INFO [80773a2@M5-Max-128GB none pld=n/a]     EasiiX/Qwen3.8-Flash-Next-MTP-Strix-Halo-GGUF              2026-09-19T21:32         dl=6569
+2026-09-20T00:42:24-0400 INFO [80773a2@M5-Max-128GB none pld=n/a]   ? peonist-ai/halogen-qwen3.8-flash-next                      2026-09-19T21:29         dl=0
+2026-09-20T00:42:24-0400 INFO [80773a2@M5-Max-128GB none pld=n/a]     Atomic-Germ/Qwen3.8-Flash-Next-APEX-GGUF                   2026-09-19T20:38         dl=0
+2026-09-20T00:42:24-0400 INFO [80773a2@M5-Max-128GB none pld=n/a]   ? NovaeonStudio/Qwen3.8-Flash-Next-Uncensored-oQ3e-fp16-mtp  2026-09-19T19:32         dl=301
+2026-09-20T00:42:24-0400 INFO [80773a2@M5-Max-128GB none pld=n/a]     airagrp/Qwen3.8-Flash-Next-mixed-6-8-ple8-mlx-serve        2026-09-19T19:03         dl=0
+2026-09-20T00:42:24-0400 INFO [80773a2@M5-Max-128GB none pld=n/a]     cygnal/Qwen3.8-Flash-Next-Heretic2-IQ4XS-NGQ4-GGUF         2026-09-19T18:45         dl=0
+2026-09-20T00:42:24-0400 INFO [80773a2@M5-Max-128GB none pld=n/a]     pfeifferj/Qwen3.8-Flash-Next-GSQ-RCO-GGUF                  2026-09-19T15:59         dl=17939
+2026-09-20T00:42:24-0400 INFO [80773a2@M5-Max-128GB none pld=n/a]   ? xv0y5ncu/Qwen3.8-Flash-Next-GLQ-trellis-3inst-3bpw-ple4    2026-09-19T15:54         dl=5
+2026-09-20T00:42:24-0400 INFO [80773a2@M5-Max-128GB none pld=n/a]   ? klee100/Qwen3.8-Flash-Next-AutoRound-3bpw-MTP              2026-09-19T15:28         dl=391
+2026-09-20T00:42:24-0400 INFO [80773a2@M5-Max-128GB none pld=n/a]     neopolita/Qwen3.8-Flash-Next-119B-A5B-Niwaki-v2.4-3bit-ggu 2026-09-19T13:10         dl=0
+2026-09-20T00:42:24-0400 INFO [80773a2@M5-Max-128GB none pld=n/a]     neopolita/Qwen3.8-Flash-Next-119B-A5B-Niwaki-v2.4-3bit-mlx 2026-09-19T13:10         dl=0
+2026-09-20T00:42:24-0400 INFO [80773a2@M5-Max-128GB none pld=n/a]   ? Shinrali/Qwen3.8-Flash-Next-NVIDIA-Hybrid-Single-Spark     2026-09-19T12:34         dl=495
+2026-09-20T00:42:24-0400 INFO [80773a2@M5-Max-128GB none pld=n/a]     boxrunner/Qwen3.8-Flash-Next-mixC-GGUF                     2026-09-19T09:18         dl=70
+2026-09-20T00:42:24-0400 INFO [80773a2@M5-Max-128GB none pld=n/a]   ? hipfire-models/qwen3.8-flash-next                          2026-09-19T09:02         dl=0
+2026-09-20T00:42:24-0400 INFO [80773a2@M5-Max-128GB none pld=n/a]   ? manjunathshiva/Qwen3.8-Flash-Next-tq4a-tq2e-g64            2026-09-19T04:54         dl=1650
+2026-09-20T00:42:24-0400 INFO [80773a2@M5-Max-128GB none pld=n/a] 
+2026-09-20T00:42:24-0400 INFO [80773a2@M5-Max-128GB none pld=n/a] == DeepSeek-V4-Flash -- our only independent lineage; ds4 serves it
+2026-09-20T00:42:24-0400 INFO [80773a2@M5-Max-128GB none pld=n/a]   ? drawthingsai/DeepSeek-V4.1-Flash                           2026-09-20T04:21         dl=0
+2026-09-20T00:42:24-0400 INFO [80773a2@M5-Max-128GB none pld=n/a]   ? helenk/DeepSeek-V4.1-Flash-WARP                            2026-09-19T15:33         dl=0
+2026-09-20T00:42:24-0400 INFO [80773a2@M5-Max-128GB none pld=n/a]   ? Vikashverma077/DeepSeek-V4.1-Flash                         2026-09-19T14:05         dl=0
+2026-09-20T00:42:24-0400 INFO [80773a2@M5-Max-128GB none pld=n/a]   ? msuiche/DeepSeek-V4-Flash-Vision-Exp-abliterated-cyber-GLP 2026-09-19T08:11         dl=12
+2026-09-20T00:42:24-0400 INFO [80773a2@M5-Max-128GB none pld=n/a]   ? HDdeng/DeepSeek-V4.1-Flash                                 2026-09-19T07:48         dl=0
+2026-09-20T00:42:24-0400 INFO [80773a2@M5-Max-128GB none pld=n/a] 
+2026-09-20T00:42:25-0400 INFO [80773a2@M5-Max-128GB none pld=n/a] == GLM-5.3-Flash -- the other non-Qwen on ds4
+2026-09-20T00:42:25-0400 INFO [80773a2@M5-Max-128GB none pld=n/a]   ? Cypherfox/GLM-5.3-Flash-dealignai-orcarouter-merge         2026-09-19T18:41         dl=220
+2026-09-20T00:42:25-0400 INFO [80773a2@M5-Max-128GB none pld=n/a]   ? fegerg4rge/GLM-5.3-Flash-Uncensored-clone                  2026-09-19T08:00         dl=0
+2026-09-20T00:42:25-0400 INFO [80773a2@M5-Max-128GB none pld=n/a] 
+2026-09-20T00:42:25-0400 INFO [80773a2@M5-Max-128GB none pld=n/a] == Qwen3.6-27B -- the 31 GB 'start here' pick
+2026-09-20T00:42:25-0400 INFO [80773a2@M5-Max-128GB none pld=n/a]   ? ceselder/qwen3.6-27b-mlp-jlens                             2026-09-20T03:13         dl=0
+2026-09-20T00:42:25-0400 INFO [80773a2@M5-Max-128GB none pld=n/a]     bielquants/Qwen3.6-27B-Fable-Fusion-711-Uncensored-Heretic 2026-09-19T23:38         dl=0
+2026-09-20T00:42:25-0400 INFO [80773a2@M5-Max-128GB none pld=n/a]   ? Johneeee/Qwen3.6-27B-Fable-Fusion-711-Uncensored-Heretic-N 2026-09-19T09:03         dl=0
+2026-09-20T00:42:25-0400 INFO [80773a2@M5-Max-128GB none pld=n/a]   ? Johneeee/Qwen3.6-27B-Fable-Fusion-711-Uncensored-Heretic-N 2026-09-19T08:54         dl=0
+2026-09-20T00:42:25-0400 INFO [80773a2@M5-Max-128GB none pld=n/a] 
+2026-09-20T00:42:25-0400 INFO [80773a2@M5-Max-128GB none pld=n/a] == Ornith-1.5 -- fastest measured backend
+2026-09-20T00:42:25-0400 INFO [80773a2@M5-Max-128GB none pld=n/a]   ? Activate997/ornith-1.5-9b-finetuned                        2026-09-20T01:08         dl=0
+2026-09-20T00:42:25-0400 INFO [80773a2@M5-Max-128GB none pld=n/a]     Atomic-Germ/Ornith-1.5-35B-A3B-REAP50-GGUF                 2026-09-20T00:11         dl=1097
+2026-09-20T00:42:25-0400 INFO [80773a2@M5-Max-128GB none pld=n/a]   ? 3MPER0RR/Ornith-1.5-35B-A3B-3MPER0RR-abliterated           2026-09-19T20:12         dl=166
+2026-09-20T00:42:25-0400 INFO [80773a2@M5-Max-128GB none pld=n/a]   ? FlatFootInternational/Ornith-1.5-9B-MTPLX-Q8G32            2026-09-19T17:38         dl=0
+2026-09-20T00:42:25-0400 INFO [80773a2@M5-Max-128GB none pld=n/a]     gbuzhf/Ornith-1.5-35B-A3B-Huihui-Sangreal-MTP-ICE-GGUF     2026-09-19T17:16         dl=848
+2026-09-20T00:42:25-0400 INFO [80773a2@M5-Max-128GB none pld=n/a] 
+2026-09-20T00:42:25-0400 INFO [80773a2@M5-Max-128GB none pld=n/a] == gemma-4-26b -- the MLX Fast leaderboard model; measured 11/11
+2026-09-20T00:42:25-0400 INFO [80773a2@M5-Max-128GB none pld=n/a]     jir88/Gemma4-Gutenberg-26B-A4B-lora-F16-GGUF               2026-09-20T04:40         dl=0
+2026-09-20T00:42:25-0400 INFO [80773a2@M5-Max-128GB none pld=n/a]     Atomic-Germ/Gemma4-26B-A4B-Instruct-QAT-GGUF               2026-09-20T00:11         dl=0
+2026-09-20T00:42:25-0400 INFO [80773a2@M5-Max-128GB none pld=n/a]   ? TheDrainFlorist/gemma-4-26b-a4b-it-VQ-6.2bpw               2026-09-19T22:45         dl=426
+2026-09-20T00:42:25-0400 INFO [80773a2@M5-Max-128GB none pld=n/a]   ? dureduck/gemma4-26b-a4b-gsm8k-grpo-base-start-20260912-r1  2026-09-19T22:13         dl=0
+2026-09-20T00:42:25-0400 INFO [80773a2@M5-Max-128GB none pld=n/a]   ? moebiusT7/gemma-4-26b-a4b-mobius-custom-c1                 2026-09-19T14:09         dl=774
+2026-09-20T00:42:25-0400 INFO [80773a2@M5-Max-128GB none pld=n/a]   ? dureduck/gemma4-26b-a4b-gsm8k-synthetic-cot6144-sft-202609 2026-09-19T08:09         dl=0
+2026-09-20T00:42:25-0400 INFO [80773a2@M5-Max-128GB none pld=n/a]     Bakq225/bakai-gemma-4-26b-a4b-gguf                         2026-09-19T06:54         dl=1611
+2026-09-20T00:42:25-0400 INFO [80773a2@M5-Max-128GB none pld=n/a] 
+2026-09-20T00:42:25-0400 INFO [80773a2@M5-Max-128GB none pld=n/a] == gemma-4-31b -- the Google-lineage backend, measured 12/12
+2026-09-20T00:42:25-0400 INFO [80773a2@M5-Max-128GB none pld=n/a]   ? joshycodes/gemma-4-31b-it-commitments-sdf                  2026-09-20T03:42         dl=0
+2026-09-20T00:42:25-0400 INFO [80773a2@M5-Max-128GB none pld=n/a]   ? llmfan46/gemma-4-31B-it-uncensored-heretic                 2026-09-19T16:25         dl=48769
+2026-09-20T00:42:25-0400 INFO [80773a2@M5-Max-128GB none pld=n/a] 
+2026-09-20T00:42:25-0400 INFO [80773a2@M5-Max-128GB none pld=n/a] 22 result(s) hidden as unloadable on m5-max (nvfp4, fp8, rocm, awq, gptq, exl2, exl3, marlin, int4, w4a16, w8a8, tensorrt, vllm, sglang). Re-run with --all to see them.
+2026-09-20T00:42:25-0400 INFO [80773a2@M5-Max-128GB none pld=n/a] 
+Legend:  (blank) loads here   ? unclassified, check it   x hidden
+2026-09-20T00:42:25-0400 INFO [80773a2@M5-Max-128GB none pld=n/a] log: /Users/evanhoffman/git/local-llm/logs/sweeps/hf-sweep-M5-Max-128GB-20260920T044224Z.log
