@@ -189,8 +189,8 @@ be drawn from — OpenCode, after the `--dir` cutover, not excluded.
 | `qwen3827bsglangdflash2dgx` | the DFlash2 row with **thinking on** (the template default): the thinking lever on the 27B, as #493 did for Flash-Next (#303) | SGLang dev image CUDA sm_121 | 24 GB + 2.6 GB draft | 90 |
 | `qwen36a3bsglangdgx` | the A3B NVFP4 agent leader on **SGLang**'s pinned nightly instead of vLLM, flags matched (#553) | SGLang dev image CUDA sm_121 | 22 GB | 90 |
 | `qwen36a3bsglangrcdgx` | the #553 A3B SGLang arm unchanged, OpenCode on a **remote client**: the topology A/B (#562) | SGLang dev image CUDA sm_121 | 22 GB | 90 |
-| `qwen36a3bsglangfmrcdgx` | A3B SGLang, remote client, **full memory** (mem-fraction 0.85) (#562) | SGLang dev image CUDA sm_121 | 22 GB | 0 |
-| `qwen36a3bnvfp4fmrcdgx` | A3B vLLM, remote client, **full memory** (gpu-memory-utilization 0.85) (#562) | vLLM 0.29.0 CUDA sm_121 | 24.2 GiB | 0 |
+| `qwen36a3bsglangfmrcdgx` | A3B SGLang, remote client, **full memory** (mem-fraction 0.85) (#562) | SGLang dev image CUDA sm_121 | 22 GB | 90 |
+| `qwen36a3bnvfp4fmrcdgx` | A3B vLLM, remote client, **full memory** (gpu-memory-utilization 0.85) (#562) | vLLM 0.29.0 CUDA sm_121 | 24.2 GiB | 90 |
 | `qwen3827bsglangdflash2nothinkfmrcdgx` | 27B SGLang + DFlash2, remote client, **full memory** (the recipe's 0.90) (#562) | SGLang dev image CUDA sm_121 | 24 GB + 2.6 GB draft | 0 |
 | `qwen38fnnvidianvfp4nothinkfmrcdgx` | NVIDIA Flash-Next NVFP4 via MiaAI, remote client, **full memory** (recipe default reserve 26 GiB, recipe 6b50864) (#562) | vLLM (MiaAI image) CUDA sm_121 | 124 GiB | 0 |
 | `qwen38fnq3nothinkrcdgx` | Flash-Next Q3 llama.cpp, thinking off, remote client (no memory knob) (#562) | llama.cpp CUDA sm_121 | 83.8 GiB | 0 |
