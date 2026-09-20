@@ -7,7 +7,7 @@ section 1, pick a row in 2, or run one script in 3; the rest moved to
 [`docs/`](#where-the-rest-of-it-went). The map of all machines is the root
 [`RECOMMENDATIONS.md`](../../RECOMMENDATIONS.md).
 
-**Ledger last read 2026-09-19 ([#524](https://github.com/evanwtf/local-llm/issues/524)).**
+**Ledger last read 2026-09-20 ([#577](https://github.com/evanwtf/local-llm/issues/577)).**
 Section 2's pass and median columns come from `scripts/reco_rows.py`, pooled
 across engine builds and macOS 26 and 27. A read date more than a couple of
 weeks old means re-check the ledger before trusting the rows.
@@ -71,8 +71,8 @@ Section 1 installs row 1.
 | pick this if | model | server | download | pass rate | median task |
 |---|---|---|---|---|---|
 | **you are starting out** | Qwen3.6-27B-coding `mxfp8` | Ollama | 31 GB | **24/24** | 167s |
-| **you want it fastest** | Qwen3.8-Flash-Next `MLX mixed-4/8bit` | **mlx-serve** (26.9.1–26.9.4) | ~100 GiB | **372/376** | 52s |
-| **you want the same model on a lighter engine** | Qwen3.8-Flash-Next `qwen38-q4k` | ds4 upstream main | 165 GiB | **119/120** | 109s |
+| **you want it fastest** | Qwen3.8-Flash-Next `MLX mixed-4/8bit` | **mlx-serve** (26.9.1–26.9.4) | ~100 GiB | **432/436** | 52s |
+| **you want the same model on a lighter engine** | Qwen3.8-Flash-Next `qwen38-q4k` | ds4 upstream main | 165 GiB | **178/180** | 106s |
 | **you want a mainline engine** | Qwen3.8-Flash-Next `UD-Q3_K_XL` | llama.cpp | 84 GiB | **135/135** | 121s |
 | **you want a second lineage** | DeepSeek-V4-Flash | ds4 (DwarfStar) | 91 GB | **30/30** | 115s |
 
