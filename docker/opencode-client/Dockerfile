@@ -26,11 +26,14 @@ ARG UV_VERSION=0.12.13
 # resolves the same Python on every client.
 ARG PYTHON_VERSION=3.14.4
 
+# The OpenCode installer hardcodes INSTALL_DIR=$HOME/.opencode/bin and honours
+# no override, so the binary's location is a property of HOME, not a choice.
+# The image runs as root, so that is /root/.opencode/bin -- on PATH here. A
+# future non-root user would need this re-pointed, not just a USER line.
 ENV DEBIAN_FRONTEND=noninteractive \
-    PATH=/opt/opencode/bin:/opt/uv/bin:$PATH \
+    PATH=/root/.opencode/bin:/opt/uv/bin:$PATH \
     UV_INSTALL_DIR=/opt/uv/bin \
-    UV_PYTHON_INSTALL_DIR=/opt/uv/python \
-    OPENCODE_INSTALL_DIR=/opt/opencode
+    UV_PYTHON_INSTALL_DIR=/opt/uv/python
 
 # git and bubblewrap come from the base image, so they are the same build on
 # both arches by construction. curl and ca-certificates are for the two
