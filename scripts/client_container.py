@@ -37,13 +37,24 @@ from lib import child
 #: container's HOME. A missing one fails as a model problem rather than a
 #: mount problem, which is why they are enumerated rather than discovered.
 MOUNTS = (
-    "git/local-llm",
-    "git/gmail-archive",
-    "bench-logs",
-    "bench-solutions",
-    ".config/opencode",
-    ".local/share/opencode",
+    ("git/local-llm", "rw"),
+    ("git/gmail-archive", "rw"),
+    ("bench-logs", "rw"),
+    ("bench-solutions", "rw"),
+    # Read-only: the harness reads the model declarations from opencode.json
+    # and nothing should write back into the host's configuration.
+    (".config/opencode", "ro"),
 )
+
+#: NOT mounted, deliberately. OpenCode's state directory
+#: (`~/.local/share/opencode`) is the host's database, owned by the host user.
+#: Under bwrap inside the container the process is mapped into a user
+#: namespace where root's override does not apply, so opening its log fails
+#: with `PermissionDenied: /root/.local/share/opencode/log/opencode.log` and
+#: every trial dies in under a second having never reached the server. Letting
+#: the container create its own state is also the correct shape: a pinned
+#: client that inherits the host's database is not pinned.
+UNMOUNTED = (".local/share/opencode",)
 
 #: The minimum privilege posture bwrap needs inside Docker (#611). Every
 #: weaker combination was measured and fails at a different stage.
@@ -64,14 +75,15 @@ PROJECT_ENV = "/opt/harness-venv"
 def mount_args(home: pathlib.Path, mounts=MOUNTS) -> list[str]:
     """`-v host:container` for each mount, same relative path under HOME."""
     out = []
-    for rel in mounts:
-        out += ["-v", f"{home / rel}:{CONTAINER_HOME}/{rel}"]
+    for rel, mode in mounts:
+        suffix = ":ro" if mode == "ro" else ""
+        out += ["-v", f"{home / rel}:{CONTAINER_HOME}/{rel}{suffix}"]
     return out
 
 
 def missing_mounts(home: pathlib.Path, mounts=MOUNTS) -> list[str]:
     """Which mounts do not exist on the host, so the failure is named early."""
-    return [rel for rel in mounts if not (home / rel).exists()]
+    return [rel for rel, _ in mounts if not (home / rel).exists()]
 
 
 def docker_argv(

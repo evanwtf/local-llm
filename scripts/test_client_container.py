@@ -45,8 +45,9 @@ def test_home_is_the_containers_own_so_tilde_paths_resolve():
 def test_every_mount_lands_at_the_same_relative_path():
     got = mod.mount_args(HOME)
     pairs = [got[i + 1] for i in range(0, len(got), 2)]
-    for rel in mod.MOUNTS:
-        assert f"{HOME / rel}:{mod.CONTAINER_HOME}/{rel}" in pairs
+    for rel, mode in mod.MOUNTS:
+        suffix = ":ro" if mode == "ro" else ""
+        assert f"{HOME / rel}:{mod.CONTAINER_HOME}/{rel}{suffix}" in pairs
 
 
 def test_the_measured_privilege_posture_is_what_ships():
@@ -94,3 +95,20 @@ def test_git_is_told_the_mounted_repo_is_safe():
     assert "GIT_CONFIG_COUNT=1" in argv
     assert "GIT_CONFIG_KEY_0=safe.directory" in argv
     assert "GIT_CONFIG_VALUE_0=*" in argv
+
+
+def test_the_hosts_opencode_state_is_not_mounted():
+    """Under bwrap inside the container the process is mapped into a user
+    namespace where root's override does not apply, so the host's state dir
+    (owned by the host user) makes OpenCode die opening its own log --
+    every trial fails in under a second, never reaching the server."""
+    mounted = {rel for rel, _ in mod.MOUNTS}
+    assert ".local/share/opencode" not in mounted
+    assert ".local/share/opencode" in mod.UNMOUNTED
+
+
+def test_the_hosts_opencode_config_is_read_only():
+    argv = _argv()
+    assert (
+        f"{HOME / '.config/opencode'}:{mod.CONTAINER_HOME}/.config/opencode:ro" in argv
+    )
