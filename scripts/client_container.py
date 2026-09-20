@@ -28,8 +28,10 @@ from __future__ import annotations
 
 import argparse
 import pathlib
-import subprocess
 import sys
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from lib import child
 
 #: Host paths the harness reads or writes, mounted at the same path under the
 #: container's HOME. A missing one fails as a model problem rather than a
@@ -138,6 +140,11 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--home", type=pathlib.Path, default=pathlib.Path.home())
     p.add_argument("--mem-cap-gib", type=int, default=None)
     p.add_argument("--name", default=None)
+    p.add_argument(
+        "--log",
+        type=pathlib.Path,
+        default=pathlib.Path.home() / "bench-logs" / "client-container.log",
+    )
     p.add_argument("--print", action="store_true", help="print the argv, do not run")
     p.add_argument("command", nargs=argparse.REMAINDER)
     args = p.parse_args(argv)
@@ -166,7 +173,13 @@ def main(argv: list[str] | None = None) -> int:
     if args.print:
         print(" ".join(full))
         return 0
-    return subprocess.run(full, check=False).returncode
+    # child.run, not subprocess.run (#268): a driver stopped mid-batch must
+    # take the measurement down with it. That matters more here, not less --
+    # `docker run` forwards signals to the container's PID 1, so the harness
+    # inside dies with the wrapper instead of writing rows against a server
+    # the driver has already stopped.
+    args.log.parent.mkdir(parents=True, exist_ok=True)
+    return child.run(full, cwd=pathlib.Path.cwd(), log=args.log, append=True)
 
 
 if __name__ == "__main__":
