@@ -1425,10 +1425,26 @@ def trial_path(path: str, worktree=None) -> str:
     return os.pathsep.join(parts)
 
 
-def agent_env(backend, worktree=None):
+def clean_env() -> dict[str, str]:
+    """`os.environ` with the shell state in LEAKY_ENV removed.
+
+    Both the step that BUILDS a trial's virtualenv and the step that runs the
+    agent in it need this. Scrubbing only the second was a real gap: with
+    `UV_PROJECT_ENVIRONMENT` set in the calling shell, `prepare_env`'s
+    `uv sync` puts the trial's venv wherever that points, so `<trial>/.venv`
+    never exists and the agent has no `python` at all -- #579's failure
+    arriving through the other door. Found running the harness in a container
+    (#611), where the variable is set deliberately to keep the harness off the
+    host's virtualenv.
+    """
     env = dict(os.environ)
     for key in LEAKY_ENV:
         env.pop(key, None)
+    return env
+
+
+def agent_env(backend, worktree=None):
+    env = clean_env()
     env["PATH"] = trial_path(env.get("PATH", ""), worktree)
 
     # A backend with no base_url is the hosted API -- the reference point the
@@ -2323,6 +2339,7 @@ def prepare_env(dest, timeout=600):
             text=True,
             timeout=timeout,
             stdin=subprocess.DEVNULL,
+            env=clean_env(),
             check=False,
         )
     except (OSError, subprocess.SubprocessError) as exc:

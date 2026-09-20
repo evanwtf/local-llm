@@ -59,7 +59,7 @@ other is telling you something.
 
 ### Cortex-X925-128GB-GB10
 
-*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 3111 rows, sha256 fb36911ce234.*
+*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 3201 rows, sha256 4474009cb8a7.*
 
 #### Every stack measured under OpenCode
 
@@ -82,6 +82,7 @@ other is telling you something.
 | qwen3827bsglangdflash2nothinkfmrcdgx @ Corei3-7100-16GB | 90/90 | 66s | 260s | 10.1x |
 | qwen38fnq3nothinkdgx | 331/331 | 67s | 1059s | 43.8x |
 | qwen38fnnvidianvfp4nothinkdgx | 90/90 | 68s | 1115s | 48.5x |
+| qwen38fnnvidianvfp4nothinkfmrcdgx @ Corei3-7100-16GB | 89/90 | 69s | 1627s | 63.8x |
 | qwen38fnq3nothinkub2048dgx | 4/4 | 82s | 475s | 14.2x |
 | qwen38fnq3nothinkrcdgx @ Corei3-7100-16GB | 89/90 | 85s | 251s | 5.5x |
 | qwen38fnnvfp4dgx | 60/60 | 95s | 338s | 9.5x |
@@ -136,6 +137,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | qwen3827bsglangdsparknothinkdgx | 48s |
 | qwen38fnnvidianvfp4nothinkdgx | 49s |
 | qwen3827bsglangdflash2nothinkfmrcdgx @ Corei3-7100-16GB | 50s |
+| qwen38fnnvidianvfp4nothinkfmrcdgx @ Corei3-7100-16GB | 55s |
 | qwen38fnexl3nothinkdgx | 56s |
 | qwen38fnq3dgx | 59s |
 | qwen38fnnvfp4dgx | 59s |
