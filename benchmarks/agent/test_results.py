@@ -793,3 +793,33 @@ def test_clients_in_orders_by_how_many_rows_each_contributed():
 
 def test_one_client_means_nothing_to_split():
     assert clients_in([_remote(_I3), _remote(_I3)]) == [client_identity(_remote(_I3))]
+
+
+def test_a_containerised_row_never_pools_with_a_bare_metal_one():
+    """#611: inside the image, arch, cpu, memory and confinement are all the
+    host's -- confinement still reads "bwrap" because bwrap is still what
+    confines the agent. Only the image distinguishes them."""
+    bare = _remote(_I3)
+    boxed = _remote(
+        {**_I3, "client_image": "opencode=1.18.31 uv=0.12.13 python=3.14.4"}
+    )
+    assert client_identity(bare) != client_identity(boxed)
+
+
+def test_two_machines_running_the_same_image_still_differ():
+    """The image pins the toolchain; it does not make two CPUs one machine."""
+    image = "opencode=1.18.31 uv=0.12.13 python=3.14.4"
+    i3 = _remote({**_I3, "client_image": image})
+    desktop = _remote({**_DESKTOP, "client_image": image})
+    assert client_identity(i3) != client_identity(desktop)
+
+
+def test_the_label_says_when_a_row_came_from_the_image():
+    """Two rows that group apart must also READ apart, or a table shows the
+    same name twice with different numbers (#611)."""
+    bare = _remote(_I3)
+    boxed = _remote(
+        {**_I3, "client_image": "opencode=1.18.31 uv=0.12.13 python=3.14.4"}
+    )
+    assert client_label(bare) == "Corei3-7100-16GB"
+    assert client_label(boxed) == "Corei3-7100-16GB+image"

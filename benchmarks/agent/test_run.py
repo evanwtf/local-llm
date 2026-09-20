@@ -2439,3 +2439,32 @@ def test_serving_sglang_records_image_and_argv(monkeypatch):
     assert got["server_argv"].endswith("--served-model-name m1")
     assert got["sglang"] == "0.5.19"
     assert run.serving_sglang({"nope"}, inspect_all=lambda: containers) == {}
+
+
+def test_prepare_env_does_not_inherit_the_shells_uv_project_environment(
+    monkeypatch, tmp_path
+):
+    """#611: with UV_PROJECT_ENVIRONMENT set, `uv sync` puts the trial's venv
+    wherever it points, so `<trial>/.venv` never exists and the agent has no
+    `python`. Scrubbing it only in agent_env left this door open."""
+    monkeypatch.setenv("UV_PROJECT_ENVIRONMENT", "/opt/harness-venv")
+    monkeypatch.setenv("VIRTUAL_ENV", "/somewhere/else")
+    seen = {}
+
+    def fake_run(argv, **kw):
+        seen["env"] = kw.get("env")
+        return types.SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    (tmp_path / "pyproject.toml").write_text("[project]\nname='x'\nversion='0'\n")
+    monkeypatch.setattr(run.subprocess, "run", fake_run)
+    run.prepare_env(tmp_path)
+    assert "UV_PROJECT_ENVIRONMENT" not in seen["env"]
+    assert "VIRTUAL_ENV" not in seen["env"]
+
+
+def test_clean_env_keeps_everything_that_is_not_shell_state(monkeypatch):
+    monkeypatch.setenv("UV_PROJECT_ENVIRONMENT", "/opt/harness-venv")
+    monkeypatch.setenv("LOCAL_LLM_SERVER_HOST", "srv")
+    got = run.clean_env()
+    assert "UV_PROJECT_ENVIRONMENT" not in got
+    assert got["LOCAL_LLM_SERVER_HOST"] == "srv"

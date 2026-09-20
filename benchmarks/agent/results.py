@@ -604,7 +604,7 @@ HARDWARE_KEYS = ("arch", "cpu")
 #: The `env.client_machine` fields that identify the machine running the
 #: harness. CPU and memory are what move a trial's wall clock; arch and
 #: confinement change what the agent can do at all.
-CLIENT_KEYS = ("arch", "cpu", "memory_gib", "confinement")
+CLIENT_KEYS = ("arch", "cpu", "memory_gib", "confinement", "client_image")
 
 #: What `client_identity` returns for a row whose harness ran on the server.
 LOCAL_CLIENT = ("local",)
@@ -658,7 +658,12 @@ def client_label(row: dict[str, Any]) -> str:
     parts = [cpu or "client"]
     if gib:
         parts.append(f"{hardware_id.installed_memory_gb(float(gib) * 1024**3)}GB")
-    return hardware_id.path_safe("-".join(parts))
+    name = hardware_id.path_safe("-".join(parts))
+    # The image is part of the identity (#611), so it has to be part of the
+    # NAME too. Without this a table shows the same label twice with different
+    # numbers -- the rows are correctly separate and the reader cannot tell
+    # which is which, which is its own kind of wrong.
+    return f"{name}+image" if machine.get("client_image") else name
 
 
 def clients_in(rows: list[dict[str, Any]]) -> list[tuple[str, ...]]:
