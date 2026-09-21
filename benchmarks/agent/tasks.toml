@@ -2563,6 +2563,20 @@ context_tokens = 262144
 speculative = "MTP k=3 (pack's MTP head + hyper-connection mixer patch); operator-approved third-party weights and runtime patches (#434)"
 draft_engine = "vllm"
 
+[backend.qwen38fnexl3nothinkrcdgx]
+description = "Qwen3.8-Flash-Next EXL3 3.05 bpw (turboderp/Qwen3.8-Flash-Next-exl3 rev 3.05bpw_h5_ng5 @69e3343, ~80 GB) via vcruz305/Qwen3.8-Flash-Next-EXL3-DGX-Spark-recipe @b942e1f: vLLM 0.29.0 + recipe patches, exllamav3 1.4.7 from source (aarch64 patch), vllm-exl3 0.4.2 @08ed1bf; MTP k=3, 262k ctx, max-num-seqs 4, prefix caching, bf16 mamba state; n-gram table disk-backed (NGRAM_TABLE=disk) at gpu-memory-utilization 0.60, matching qwen38fnexl3nothinkdgx exactly so the rows pool with it; thinking off via --default-chat-template-kwargs. REMOTE CLIENT (#562): OpenCode and the harness run on another machine and reach this server over the LAN, so the 80 GB pack no longer shares the pool with a trial"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "vllm"
+model = "Qwen3.8-Flash-Next"
+aider_model = "openai/Qwen3.8-Flash-Next"
+opencode_model = "vllm8888/Qwen3.8-Flash-Next"
+context_tokens = 262144
+speculative = "MTP k=3 (pack's MTP head + hyper-connection mixer patch); operator-approved third-party weights and runtime patches (#434)"
+draft_engine = "vllm"
+topology = "remote"
+
 # #434: the same EXL3 server with MTP off (SPEC_CONFIG=none), the one lever
 # against qwen38fnexl3nothinkdgx. With MTP k=3, 2 of the first 5 trials went
 # into corrupted generation (33k tokens of gibberish; acceptance 0.07 and 0.02
