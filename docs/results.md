@@ -59,7 +59,7 @@ other is telling you something.
 
 ### Cortex-X925-128GB-GB10
 
-*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 3743 rows, sha256 073306f84e37.*
+*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 3833 rows, sha256 e7f20e0886b7.*
 
 #### Every stack measured under OpenCode
 
@@ -88,7 +88,7 @@ other is telling you something.
 | qwen38fnnvidianvfp4nothinkfmrcdgx @ Corei3-7100-16GB | 89/90 | 69s | 1627s | 63.8x |
 | qwen38fnq3nothinkrcdgx @ Corei3-7100-16GB+image | 91/91 | 82s | 225s | 8.8x |
 | qwen38fnq3nothinkub2048dgx | 4/4 | 82s | 475s | 14.2x |
-| qwen38fnq3nothinkrcdgx @ Corei3-7100-16GB | 89/90 | 85s | 251s | 5.5x |
+| qwen38fnq3nothinkrcdgx @ Corei3-7100-16GB | 179/180 | 88s | 792s | 19.6x |
 | qwen38fnnvfp4dgx | 60/60 | 95s | 338s | 9.5x |
 | qwen38fnq3nothinkkv8rcdgx @ Corei3-7100-16GB | 90/90 | 96s | 594s | 13.0x |
 | qwen38fnnvidianvfp4nothinkfmrcdgx @ Corei3-7100-16GB+image | 90/90 | 97s | 757s | 28.8x |
@@ -164,7 +164,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | ds4dgx | 88s |
 | qwen38fnq3nothinkkv8rcdgx @ Corei3-7100-16GB | 90s |
 | qwen38fnq3nothinkrcdgx @ Ryzen9-7900X-32GB | 91s |
-| qwen38fnq3nothinkrcdgx @ Corei3-7100-16GB | 91s |
+| qwen38fnq3nothinkrcdgx @ Corei3-7100-16GB | 93s |
 | qwen38fnnvfp4miaaidgx | 100s |
 | qwen36nvfp4nothinkdgx | 105s |
 | qwen38fnnvidianvfp4dgx | 105s |
