@@ -59,7 +59,7 @@ other is telling you something.
 
 ### Cortex-X925-128GB-GB10
 
-*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 4013 rows, sha256 d31479546230.*
+*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 4014 rows, sha256 aa576354279d.*
 
 #### Every stack measured under OpenCode
 
@@ -115,6 +115,7 @@ other is telling you something.
 | nemotron3super120bmtpnopcdgx | 29/30 | 374s | 1154s | 7.7x |
 | qwen36bf16dgx | 30/30 | 432s | 1335s | 6.7x |
 | nemotron3nano | 8/10 | 580s | 1212s | 8.5x |
+| glm53flashexl3k2nothinkrcdgx @ Ryzen9-7900X-32GB+image | 1/1 | 1379s | 1379s | 1.0x |
 | nemotron33 | 1/10 | — | — | — |
 
 **Rows here were not all taken under one client.** ds4dgx, nemotron33, nemotron3nano, nemotroncascade2, ornith15a3bdgx, qwen36a3bnvfp4dgx, qwen36bf16dgx, qwen36codinggguf, qwen36nvfp4dgx, qwen36nvfp4nothinkdgx, qwen36nvfp4specdgx, qwen36nvfp4v1dgx, qwen38fnnvfp4dgx, qwen38fnq3dgx, qwen38fnq3nothinkdgx, qwen38fnq3nothinkkv8dgx, qwen38fnq3nothinktopkdgx, qwen38fnq3nothinkub2048dgx under 1.18.30; the rest under 1.18.31. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: qwen36a3bnvfp4dgx (1.18.30, 1.18.31); qwen38fnq3nothinkdgx (1.18.30, 1.18.31).
@@ -172,6 +173,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | qwen36nvfp4specdgx | 119s |
 | qwen36nvfp4dgx | 150s |
 | qwen36nvfp4v1dgx | 160s |
+| glm53flashexl3k2nothinkrcdgx @ Ryzen9-7900X-32GB+image | 358s |
 | qwen36bf16dgx | 409s |
 | glm53flashexl3k2nothinkdgx | 463s |
 
