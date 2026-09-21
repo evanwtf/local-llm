@@ -1,0 +1,18 @@
+2026-09-21T00:08:28-0400 INFO [300c189@Cortex-X925-GB10 none pld=n/a] 2026-09-21T04:08:28Z (00:08:28 EDT) | harness 300c189
+2026-09-21T00:08:28-0400 INFO [300c189@Cortex-X925-GB10 none pld=n/a]   machine: aarch64, ?, 20 cores, 121.7 GiB, NVIDIA GB10, [N/A], confinement bwrap
+2026-09-21T00:08:28-0400 INFO [300c189@Cortex-X925-GB10 none pld=n/a] 2101565208481386854  VERIFIED post  @shantanugoel  Sun Sep 20 06:52:45 +0000 2026  via fxtwitter
+2026-09-21T00:08:28-0400 INFO [300c189@Cortex-X925-GB10 none pld=n/a]     The gap in token usage v/s output for low/medium/xHigh thinking on Qwen 3.8 Flash Next (and many models similarly) is mind boggling.  I gave the same Voxel Pagoda Garden prompt to all 3 (The EXL3 4.05
+2026-09-21T00:08:28-0400 INFO [300c189@Cortex-X925-GB10 none pld=n/a] [
+  {
+    "id": "2101565208481386854",
+    "status": "ok",
+    "author": "shantanugoel",
+    "created_at": "Sun Sep 20 06:52:45 +0000 2026",
+    "text": "The gap in token usage v/s output for low/medium/xHigh thinking on Qwen 3.8 Flash Next (and many models similarly) is mind boggling.\n\nI gave the same Voxel Pagoda Garden prompt to all 3 (The EXL3 4.05 bpw variant on my dgx spark) and the outcome was interesting, yet re-affirming what we know. \"Medium is typically the best thinking level\"\n\nThe video shows first low, then med, then xHigh.\n\nLow: Output was pretty crap, mesh holes everywhere, bare minimum output. Total tokens around 3.2 million\n\nMedium: Decent output. Not a lot extra done but did what was told well and nice touch with fish and a pool. Great clouds, no mesh holes. Ended up using actually less tokens than low (~1.5 million)\n\nxHigh: Great output. Lots of attention to detail, tons of extra detailed features, including an amazing waterfall, day/night cycles, awesome lighting and reflections, BUT turned out a bit too crowded and worse clouds than med. Token usage: Through the roof (~36 million)",
+    "is_reply": false,
+    "quoted_author": null,
+    "quoted_text": null,
+    "source": "fxtwitter"
+  }
+]
+2026-09-21T00:08:28-0400 INFO [300c189@Cortex-X925-GB10 none pld=n/a] log: /home/evan/git/local-llm/logs/sweeps/verify-posts-Cortex-X925-GB10-20260921T040828Z.log

@@ -1,0 +1,46 @@
+2026-09-21T00:08:24-0400 INFO [300c189@Cortex-X925-GB10 none pld=n/a] 2026-09-21T04:08:24Z (00:08:24 EDT) | harness 300c189
+2026-09-21T00:08:24-0400 INFO [300c189@Cortex-X925-GB10 none pld=n/a]   machine: aarch64, ?, 20 cores, 121.7 GiB, NVIDIA GB10, [N/A], confinement bwrap
+2026-09-21T00:08:24-0400 INFO [300c189@Cortex-X925-GB10 none pld=n/a] 2101565208481386854  VERIFIED post  @shantanugoel  Sun Sep 20 06:52:45 +0000 2026  via fxtwitter
+2026-09-21T00:08:24-0400 INFO [300c189@Cortex-X925-GB10 none pld=n/a]     The gap in token usage v/s output for low/medium/xHigh thinking on Qwen 3.8 Flash Next (and many models similarly) is mind boggling.  I gave the same Voxel Pagoda Garden prompt to all 3 (The EXL3 4.05
+2026-09-21T00:08:24-0400 INFO [300c189@Cortex-X925-GB10 none pld=n/a] 2101829035038748770  VERIFIED post  @Oluwaphilemon1  Mon Sep 21 00:21:06 +0000 2026  via fxtwitter
+2026-09-21T00:08:24-0400 INFO [300c189@Cortex-X925-GB10 none pld=n/a]     Qwen3.8-Flash just got a pretty serious update for running on a single NVIDIA DGX Spark.  The new build is hitting:  117 tok/s for prose 180 tok/s for code 8 concurrent streams  And that’s on one Spar
+2026-09-21T00:08:24-0400 INFO [300c189@Cortex-X925-GB10 none pld=n/a]     quotes @Oluwaphilemon1: Qwen3.5-2B just answered four questions about a 448×448 image in around 800ms.  The impressive part isn’t only the speed.  It’s the idea behind the serving arch
+2026-09-21T00:08:24-0400 INFO [300c189@Cortex-X925-GB10 none pld=n/a] 2101667207629406463  VERIFIED post  @0xBakeer  Sun Sep 20 13:38:04 +0000 2026  via fxtwitter
+2026-09-21T00:08:24-0400 INFO [300c189@Cortex-X925-GB10 none pld=n/a]     Six small games, and the model picks every move. It reads a text description of the board, answers three typed questions in one forward pass, and the game moves. 60 ms per move on my Spark, 30 on the 
+2026-09-21T00:08:24-0400 INFO [300c189@Cortex-X925-GB10 none pld=n/a]     quotes @0xBakeer: I put a second model next to the LLM on my Spark. It does not write text. You send it a state and typed questions, and it answers every one of them in a single 
+2026-09-21T00:08:24-0400 INFO [300c189@Cortex-X925-GB10 none pld=n/a] [
+  {
+    "id": "2101565208481386854",
+    "status": "ok",
+    "author": "shantanugoel",
+    "created_at": "Sun Sep 20 06:52:45 +0000 2026",
+    "text": "The gap in token usage v/s output for low/medium/xHigh thinking on Qwen 3.8 Flash Next (and many models similarly) is mind boggling.\n\nI gave the same Voxel Pagoda Garden prompt to all 3 (The EXL3 4.05 bpw variant on my dgx spark) and the outcome was interesting, yet re-affirming what we know. \"Medium is typically the best thinking level\"\n\nThe video shows first low, then med, then xHigh.\n\nLow: Output was pretty crap, mesh holes everywhere, bare minimum output. Total tokens around 3.2 million\n\nMedium: Decent output. Not a lot extra done but did what was told well and nice touch with fish and a pool. Great clouds, no mesh holes. Ended up using actually less tokens than low (~1.5 million)\n\nxHigh: Great output. Lots of attention to detail, tons of extra detailed features, including an amazing waterfall, day/night cycles, awesome lighting and reflections, BUT turned out a bit too crowded and worse clouds than med. Token usage: Through the roof (~36 million)",
+    "is_reply": false,
+    "quoted_author": null,
+    "quoted_text": null,
+    "source": "fxtwitter"
+  },
+  {
+    "id": "2101829035038748770",
+    "status": "ok",
+    "author": "Oluwaphilemon1",
+    "created_at": "Mon Sep 21 00:21:06 +0000 2026",
+    "text": "Qwen3.8-Flash just got a pretty serious update for running on a single NVIDIA DGX Spark.\n\nThe new build is hitting:\n\n117 tok/s for prose\n180 tok/s for code\n8 concurrent streams\n\nAnd that\u2019s on one Spark.\n\nThe update isn\u2019t just about raw throughput either.\n\nThere\u2019s now optional official NVIDIA NVFP4 support, giving you another way to optimize the model for the hardware.\n\nPeak memory usage has also dropped from around 101 GiB to 91 GiB.\n\nThat\u2019s a meaningful reduction when you\u2019re working with a machine where memory capacity is one of the main constraints.\n\nThe serving setup also got more practical.\n\nThere\u2019s now a 24/7 auto-restart supervisor, so the server can recover automatically instead of requiring manual intervention whenever something goes wrong.\n\nCached-token reporting is included in every response too.\n\nThat makes it much easier to see what\u2019s actually happening during inference, especially for long-context workloads where a large portion of the prompt may already be cached.\n\nAnd apparently, a lot of bugs were fixed in the process.\n\nThat\u2019s probably the less exciting part of the announcement, but arguably one of the most important for anyone actually running the model continuously.\n\nSo the current single-Spark setup looks like:\n\nQwen3.8-Flash\n117 tok/s prose\n180 tok/s code\n8 streams\nOptional NVIDIA NVFP4\n91 GiB peak memory\n24/7 auto-restart\nCached-token reporting\nA pile of bug fixes\n\nThis is the kind of update I like seeing for local inference.\n\nNot just a bigger benchmark number.\n\nLower memory usage, better concurrency, crash recovery, visibility into cached tokens, and hardware-specific optimization.\n\nThe DGX Spark is a relatively compact machine, but these optimizations make a single unit considerably more interesting as a serious local inference box.\n\nIf you\u2019re running Qwen3.8-Flash on a Spark, this looks like a build worth updating to.",
+    "is_reply": false,
+    "quoted_author": "Oluwaphilemon1",
+    "quoted_text": "Qwen3.5-2B just answered four questions about a 448\u00d7448 image in around 800ms.\n\nThe impressive part isn\u2019t only the speed.\n\nIt\u2019s the idea behind the serving architecture.\n\nIf a JEV-compatible server can be integrated directly into llama.cpp, models could potentially behave in a JEV-like way without modifying the models themselves.\n\nThe model stays unchanged.\n\nThe runtime provides the capability.\n\nThat could make this much more interesting for local AI because you wouldn\u2019t need a separate model variant every time a new inference technique comes along.\n\nQwen3.5-2B is a good example.\n\nFour questions about the same image, roughly 800ms total, with a 448\u00d7448 input.\n\nThat\u2019s the kind of latency that starts making small multimodal models feel much more practical for interactive local applications.\n\nAnd this is part of a bigger shift happening in local inference.\n\nThe model is only one piece of the stack now.\n\nThe runtime matters.\n\nThe serving architecture matters.\n\nSpeculative decoding matters.\n\nCaching matters.\n\nHow the server schedules and reuses computation matters.\n\nInstead of modifying every model to support every new optimization, a compatible server could potentially make those capabilities available across many models.\n\nThat\u2019s a much more scalable approach.\n\nQwen3.5-2B doesn\u2019t suddenly become a different model.\n\nThe way we serve it changes what it can do efficiently.\n\nFour image questions in ~800ms is a small demo, but the architecture behind it is the part worth watching.\n\nIf JEV-style serving becomes a generic llama.cpp capability, the impact could extend far beyond one model. https://x.com/kis/status/2101426969971916863/video/1",
+    "source": "fxtwitter"
+  },
+  {
+    "id": "2101667207629406463",
+    "status": "ok",
+    "author": "0xBakeer",
+    "created_at": "Sun Sep 20 13:38:04 +0000 2026",
+    "text": "Six small games, and the model picks every move. It reads a text description of the board, answers three typed questions in one forward pass, and the game moves. 60 ms per move on my Spark, 30 on the Mac.\n\nIt is not good at games tbh.\n\nSnake averages 1.4 points where a ten-line heuristic gets 26. The dungeon crawler scores below random. The one it plays well is the Flappy clone: one yes or no per frame, and there it flies, 0.975 AUROC on the flap decision.\n\nWhat the video shows is the speed. 15 to 32 decisions per second per game, 87 answers per second when it judges 12 minesweeper cells in one call, zero output tokens.\n\nThe games are in the repo, each with its numbers. Idk yet what these models are for beyond triage and gates, but the loop is fast enough to find out.",
+    "is_reply": false,
+    "quoted_author": "0xBakeer",
+    "quoted_text": "I put a second model next to the LLM on my Spark. It does not write text. You send it a state and typed questions, and it answers every one of them in a single forward pass, each with a probability.\n\nYes it is Jev the open source version. It can be installed on macOS, any Nvidia gpu or dgx sparks\n\nOne question takes 20.6 ms on the Spark and 30.3 ms on my M2 Max. Fifty questions in one call take 157 ms.\n\nThe model is Laya, an open 421M encoder. I serve it through a Jev-compatible API and called the repo arbiter.",
+    "source": "fxtwitter"
+  }
+]
+2026-09-21T00:08:24-0400 INFO [300c189@Cortex-X925-GB10 none pld=n/a] log: /home/evan/git/local-llm/logs/sweeps/verify-posts-Cortex-X925-GB10-20260921T040824Z.log
