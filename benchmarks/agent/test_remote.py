@@ -183,3 +183,64 @@ def test_the_client_image_travels_with_the_clients_facts():
     out = remote.stamp(env, {"directory": "d", "facts": {"arch": "aarch64"}})
     assert out["client_machine"]["client_image"].startswith("opencode=1.18.31")
     assert "client_image" not in out
+
+
+def test_the_client_memory_cap_is_stamped_and_travels_with_the_client():
+    """#477: the cap decides which tasks finish, so a row must say which one.
+
+    `mbox-scan` peaks at 17.1 GiB on the desktop: excluded at 16, completes at
+    24. Two arms taken at different caps are not one sample, and until this
+    they were indistinguishable in the ledger.
+    """
+    env = {
+        "arch": "x86_64",
+        "cpu": "AMD Ryzen 9 7900X 12-Core Processor",
+        "confinement": "bwrap",
+        "client_mem_cap_gib": 8.0,
+    }
+    facts = {"directory": "d", "facts": {"arch": "aarch64"}}
+    out = remote.stamp(env, facts)
+    assert out["client_machine"]["client_mem_cap_gib"] == 8.0
+    # It describes the CLIENT, so it must not be left at the top level, where
+    # the row's own hardware identity lives.
+    assert "client_mem_cap_gib" not in out
+
+
+def test_two_caps_are_two_clients():
+    """The whole point: the same box at two caps must not pool into one cell."""
+    import results
+
+    def row(cap):
+        return {
+            "env": {
+                "topology": "remote",
+                "client_machine": {
+                    "arch": "x86_64",
+                    "cpu": "AMD Ryzen 9 7900X 12-Core Processor",
+                    "memory_gib": 30.5,
+                    "confinement": "bwrap",
+                    "client_image": None,
+                    "client_mem_cap_gib": cap,
+                },
+            }
+        }
+
+    assert results.client_identity(row(8.0)) != results.client_identity(row(24.0))
+    assert results.client_label(row(8.0)).endswith("@8g")
+    assert results.client_label(row(24.0)).endswith("@24g")
+
+
+def test_the_stamped_default_matches_the_cap_the_harness_enforces():
+    """preflight reads the env; run owns the constant. They must not drift."""
+    import preflight
+
+    assert preflight.client_mem_cap_gib() == run.CLIENT_MEM_CAP_GIB
+
+
+def test_a_disabled_cap_is_not_stamped(monkeypatch):
+    """`0` disables the cap, and "no cap" is not the same fact as "24 GiB"."""
+    import preflight
+
+    monkeypatch.setenv("LOCAL_LLM_CLIENT_MEM_CAP_GIB", "0")
+    assert preflight.client_mem_cap_gib() is None
+    assert "client_mem_cap_gib" not in preflight.machine_facts()
