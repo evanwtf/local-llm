@@ -199,6 +199,7 @@ be drawn from — OpenCode, after the `--dir` cutover, not excluded.
 | `ds4rcdgx` | DeepSeek-V4-Flash on ds4, remote client (#562) | ds4 CUDA sm_121a | 80.8 GiB | 0 |
 | `qwen38fnq3rcdgx` | Flash-Next Q3 llama.cpp, thinking on, remote client (#562) | llama.cpp CUDA sm_121 | 83.8 GiB | 90 |
 | `qwen38fnexl3nothinkdgx` | Qwen3.8-Flash-Next as **EXL3 3.05 bpw** (turboderp's pack) via vLLM + vllm-exl3, MTP k=3, n-gram table on disk, thinking off (#434) | vLLM 0.29.0 + vllm-exl3 CUDA sm_121 | 80 GB | 5 |
+| `qwen38fnexl3nothinkrcdgx` | the EXL3 row above from a **remote client** (#562), identical server config (ngram on disk, GMU 0.60) so the rows pool; the 80 GB pack no longer shares the pool with a trial | vLLM 0.29.0 + vllm-exl3 CUDA sm_121 | ~80 GB | 0 |
 | `qwen38fnexl3nomtpnothinkdgx` | the EXL3 row above with **MTP off**: isolates whether the drafter causes its corrupted generations (#434) | vLLM 0.29.0 + vllm-exl3 CUDA sm_121 | 80 GB | 6 |
 | `qwen36bf16dgx` | `Qwen/Qwen3.6-27B` **BF16**, the unquantized control for the row above | vLLM 0.29.0 CUDA sm_121 | 51.7 GiB | 30 |
 | `qwen36nvfp4v1dgx` | the same NVFP4 weights on vLLM's **V1** model runner, speculation off | vLLM 0.29.0 CUDA sm_121 | 20.4 GiB | 0 |

@@ -211,6 +211,10 @@ def test_the_mtp_arms_declare_themselves():
         "glm53flashexl3k2nothinkrcdgx": "vllm",
         # #434: Flash-Next EXL3 via vllm-exl3, MTP k=3.
         "qwen38fnexl3nothinkdgx": "vllm",
+        # Its remote-client twin (#562), same server and drafter. The local
+        # arm saw 2 of its first 5 trials produce corrupted generation, so
+        # this arm must prove it drafted just as loudly.
+        "qwen38fnexl3nothinkrcdgx": "vllm",
     }
 
 
