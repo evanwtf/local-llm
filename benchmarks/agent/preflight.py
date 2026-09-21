@@ -243,6 +243,27 @@ def client_image() -> str | None:
     return " ".join(parts)
 
 
+def client_mem_cap_gib() -> float | None:
+    """The per-trial client memory cap in effect, or None when disabled.
+
+    The cap kills a trial whose client process tree exceeds it, so it decides
+    which tasks can finish at all -- `mbox-scan` peaks at 17.1 GiB on the
+    desktop and is excluded under 16 and completes under 24. It was never
+    stamped, so a row could not say which cap produced it and two arms taken
+    at different caps pooled into one median looking identical (#477).
+
+    Read from the environment rather than imported from `run`, which imports
+    this module; `test_preflight.py` pins the two to the same default so they
+    cannot drift.
+    """
+    raw = os.environ.get("LOCAL_LLM_CLIENT_MEM_CAP_GIB", "24")
+    try:
+        cap = float(raw)
+    except ValueError:
+        return None
+    return cap or None
+
+
 def machine_facts() -> dict[str, object]:
     """Interrogate the machine on every run, rather than assuming last time's.
 
@@ -264,6 +285,9 @@ def machine_facts() -> dict[str, object]:
     image = client_image()
     if image:
         facts["client_image"] = image
+    cap = client_mem_cap_gib()
+    if cap is not None:
+        facts["client_mem_cap_gib"] = cap
     ceiling, raised = metal_ceiling()
     if ceiling is not None:
         facts["metal_ceiling_gib"] = ceiling

@@ -194,10 +194,16 @@ def stamp(env: dict, facts: dict) -> dict:
     # None for it and a containerised row pools with a bare-metal one (#611).
     out["client_machine"] = {
         k: env[k]
-        for k in (*SERVER_FACT_KEYS, "confinement", "client_image")
+        for k in (
+            *SERVER_FACT_KEYS,
+            "confinement",
+            "client_image",
+            "client_mem_cap_gib",
+        )
         if k in env
     }
     out.pop("client_image", None)
+    out.pop("client_mem_cap_gib", None)
     for key in SERVER_FACT_KEYS:
         out.pop(key, None)
     for key, value in (facts.get("env") or {}).items():

@@ -604,7 +604,18 @@ HARDWARE_KEYS = ("arch", "cpu")
 #: The `env.client_machine` fields that identify the machine running the
 #: harness. CPU and memory are what move a trial's wall clock; arch and
 #: confinement change what the agent can do at all.
-CLIENT_KEYS = ("arch", "cpu", "memory_gib", "confinement", "client_image")
+CLIENT_KEYS = (
+    "arch",
+    "cpu",
+    "memory_gib",
+    "confinement",
+    "client_image",
+    # The per-trial memory cap decides which tasks can finish (#477). Two arms
+    # at different caps are not one sample: `mbox-scan` is excluded at 16 GiB
+    # and completes at 24, so pooling them compares a 9-task arm with a
+    # 10-task one and calls the difference speed.
+    "client_mem_cap_gib",
+)
 
 #: What `client_identity` returns for a row whose harness ran on the server.
 LOCAL_CLIENT = ("local",)
@@ -663,7 +674,14 @@ def client_label(row: dict[str, Any]) -> str:
     # NAME too. Without this a table shows the same label twice with different
     # numbers -- the rows are correctly separate and the reader cannot tell
     # which is which, which is its own kind of wrong.
-    return f"{name}+image" if machine.get("client_image") else name
+    if machine.get("client_image"):
+        name = f"{name}+image"
+    # Same reason as the image above: a key that splits the identity has to
+    # split the NAME, or a table prints one label twice with different numbers.
+    cap = machine.get("client_mem_cap_gib")
+    if cap:
+        name = f"{name}@{float(cap):g}g"
+    return name
 
 
 def clients_in(rows: list[dict[str, Any]]) -> list[tuple[str, ...]]:
