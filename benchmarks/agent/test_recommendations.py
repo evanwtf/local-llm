@@ -129,7 +129,7 @@ def test_every_recommended_stack_has_a_declared_opencode_model() -> None:
     declared = opencode_config.declared_models(ref)
     with (pathlib.Path(__file__).parent / "tasks.toml").open("rb") as fh:
         backends = tomllib.load(fh)["backend"]
-    for name in ("qwen38fnq3", "ds4", "qwen36coding"):
+    for name in ("qwen38fnq3", "ds4", "qwen36coding", "ornith15"):
         model = backends[name]["opencode_model"]
         assert model in declared, f"{name} -> {model} is not in config/opencode.json"
 

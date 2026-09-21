@@ -30,12 +30,14 @@ genuinely independent lineage.
 **Why we do not rank on median alone.** See the spread column below. A median
 hides how bad the bad runs get.
 
-**Why the fastest measured backend is not on this list.** `ornith15` tops the
+**Why the smallest fast backend carries a warning.** `ornith15` tops the
 table below — 21/21 under OpenCode, 44s median, faster than anything else we
-have run. (That ranking was written on 2026-09-01, when every OpenCode row was
+have run — and at 22 GB it is the smallest download, so RECOMMENDATIONS now
+lists it as "smallest — but has shipped wrong code". Install it only with the
+caveat below in view. (That ranking was written on 2026-09-01, when every OpenCode row was
 1.18.25; three backends have since been measured under a later client, so read
-it against the caveat under that table — [#137](https://github.com/evanwtf/local-llm/issues/137).) It is still not the one to install, for two reasons that the median
-hides. It is **the only backend in this project's whole record that has
+it against the caveat under that table — [#137](https://github.com/evanwtf/local-llm/issues/137).) Two reasons the median hides are why the row carries a
+blunt warning rather than a clean recommendation. It is **the only backend in this project's whole record that has
 produced wrong code**: it failed twice on an excision task under an earlier
 client, and it emitted Swift that did not compile from a run that otherwise
 looked completely normal — clean exit, no error, 30 tool calls
@@ -47,9 +49,9 @@ median", which no cut of the data supports — it came from dividing the worst
 Codex run by the OpenCode median, the cross-client mix this file warns about
 two tables down ([#137](https://github.com/evanwtf/local-llm/issues/137)).
 Fastest-on-average and
-occasionally, quietly wrong is a bad trade when you are not watching. The
-numbers are published because they are real; the recommendation withholds it on
-purpose.
+occasionally, quietly wrong is a bad trade when you are not watching, so the
+row names that risk instead of hiding it: pick it for the small footprint, and
+read what it writes.
 
 **And the row that used to sit second is worse than the table once said.**
 `qwen38fnds4mtp7shim` is the `qwen38fnds4shim` stack with ds4's MTP flags
