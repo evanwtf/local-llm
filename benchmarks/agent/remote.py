@@ -177,6 +177,15 @@ CLIENT_KEYS = frozenset(
         "confinement",
         "macos",
         "machine",
+        # These two describe the CLIENT and are already filed under
+        # `client_machine` above. Without them here the loop below copies the
+        # SERVER's value to the row's top level: `server_facts.py` runs
+        # `machine_facts()` on the server, so the server reports its own cap,
+        # and a remote row then claims a cap belonging to the wrong machine.
+        # `client_image` never bit only because the server's is None and the
+        # loop skips None; the cap is a number, so it did (#477).
+        "client_image",
+        "client_mem_cap_gib",
     }
 )
 

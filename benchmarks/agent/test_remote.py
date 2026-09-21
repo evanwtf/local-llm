@@ -244,3 +244,32 @@ def test_a_disabled_cap_is_not_stamped(monkeypatch):
     monkeypatch.setenv("LOCAL_LLM_CLIENT_MEM_CAP_GIB", "0")
     assert preflight.client_mem_cap_gib() is None
     assert "client_mem_cap_gib" not in preflight.machine_facts()
+
+
+def test_the_servers_own_cap_never_lands_on_a_remote_row():
+    """#477 regression: the server reports a cap too, and it is not the client's.
+
+    `server_facts.py` runs `preflight.machine_facts()` ON THE SERVER, so the
+    facts file carries that box's `client_mem_cap_gib`. `stamp` copies every
+    server-env key it does not recognise to the row's top level, so the
+    server's 24 GiB landed on a row whose client ran at 8 -- caught live on
+    the first GLM-5.3-Flash EXL3 trial.
+    """
+    env = {
+        "arch": "x86_64",
+        "cpu": "Intel(R) Core(TM) i3-7100 CPU @ 3.90GHz",
+        "confinement": "bwrap",
+        "client_mem_cap_gib": 8.0,
+        "client_image": "opencode=1.18.31",
+    }
+    facts = {
+        "directory": "d",
+        "facts": {"arch": "aarch64"},
+        # what the SERVER's own machine_facts() reports
+        "env": {"client_mem_cap_gib": 24.0, "vllm": "0.29.0"},
+    }
+    out = remote.stamp(env, facts)
+    assert out["client_machine"]["client_mem_cap_gib"] == 8.0
+    assert "client_mem_cap_gib" not in out, "the server's cap leaked onto the row"
+    assert "client_image" not in out
+    assert out["vllm"] == "0.29.0"
