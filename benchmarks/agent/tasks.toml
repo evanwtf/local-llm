@@ -2592,6 +2592,20 @@ context_tokens = 65536
 speculative = "native MTP k=2; operator-approved third-party weights, runtime and plugin (#298)"
 draft_engine = "vllm"
 
+[backend.glm53flashexl3k2nothinkrcdgx]
+description = "GLM-5.3-Flash EXL3 K2 (vcruz305/GLM-5.3-Flash-EXL3-K2, 120 shards, 97.7 GB) via vcruz305/GLM-5.3-Flash-EXL3-K2-DGX-Spark-recipe @655e60b: prebuilt aarch64 vLLM 0.1.dev62+g878631b60 (torch 2.13.0+cu130), vllm-exl3 0.4.2 built from d3cfd394, EXL3_FUSED_MOE=1 native kernel; fp8 KV pinned 1.5 GiB (68,656 tokens), max-model-len 65536, max-num-seqs 1, prefix caching on; chat template patched to honor enable_thinking, thinking off by server default. REMOTE CLIENT (#562): OpenCode and the harness run on another machine and reach this server over the LAN. This backend exists because the LOCAL twin could not be measured: at 97.7 GB the box had 16 GiB idle, so its runs used a 1 GiB client cap and the ledger holds exactly ONE row for it. Moving the client off the box gives the server the whole 121.7 GiB pool and the client its own memory, which is the entire point of #562"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "vllm"
+model = "GLM-5.3-Flash-EXL3"
+aider_model = "openai/GLM-5.3-Flash-EXL3"
+opencode_model = "vllm8888/GLM-5.3-Flash-EXL3"
+context_tokens = 65536
+speculative = "native MTP k=2; operator-approved third-party weights, runtime and plugin (#298)"
+draft_engine = "vllm"
+topology = "remote"
+
 [backend.qwen38fnnvfp4dgx]
 description = "Qwen3.8-Flash-Next NVFP4, vLLM styles01 fork v0.1.dev20073, MTP-3 + 47k draft vocab, PLE mmap-offloaded, fp8 KV, 262k ctx"
 tier = "gb10-spark"
