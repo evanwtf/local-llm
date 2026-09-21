@@ -1,0 +1,9 @@
+2026-09-21T05:45:30-0400 INFO [ec41145@M5-Max-128GB none pld=n/a] 2026-09-21T09:45:30Z (05:45:30 EDT) | harness ec41145
+2026-09-21T05:45:30-0400 INFO [ec41145@M5-Max-128GB none pld=n/a]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-21T05:45:31-0400 INFO [ec41145@M5-Max-128GB none pld=n/a] 2101626627994140677  VERIFIED post  @TahaTesser  Sun Sep 20 10:56:49 +0000 2026  via fxtwitter
+2026-09-21T05:45:31-0400 INFO [ec41145@M5-Max-128GB none pld=n/a]     TIL macOS 27 now comes with new fm cli 🤯  We can now use Apple's Foundation Models (on device) from CLI!
+2026-09-21T05:45:31-0400 INFO [ec41145@M5-Max-128GB none pld=n/a] 
+2026-09-21T05:45:31-0400 INFO [ec41145@M5-Max-128GB none pld=n/a] Verified 1: 1 confirmed, 0 not.
+2026-09-21T05:45:31-0400 INFO [ec41145@M5-Max-128GB none pld=n/a] Paste onto the issue:
+2026-09-21T05:45:31-0400 INFO [ec41145@M5-Max-128GB none pld=n/a]   **Verified** 2026-09-21: post exists, authored by @TahaTesser, posted Sun Sep 20 10:56:49 +0000 2026.
+2026-09-21T05:45:31-0400 INFO [ec41145@M5-Max-128GB none pld=n/a] log: /Users/evanhoffman/git/local-llm/logs/sweeps/verify-posts-M5-Max-128GB-20260921T094530Z.log
