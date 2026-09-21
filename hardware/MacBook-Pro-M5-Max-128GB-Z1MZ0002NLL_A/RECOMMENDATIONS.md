@@ -71,7 +71,7 @@ Section 1 installs row 1.
 | pick this if | model | server | download | pass rate | median task |
 |---|---|---|---|---|---|
 | **you are starting out** | Qwen3.6-27B-coding `mxfp8` | Ollama | 31 GB | **24/24** | 167s |
-| **smallest — but has shipped wrong code** | Ornith-1.5-35B-A3B `Q4_K_M` | Ollama | 22 GB | **21/21** | 44s |
+| **smallest — but has shipped wrong code** | Ornith-1.5-35B-A3B `Q4_K_M` | Ollama | 22 GB | **60/66** | 61s |
 | **you want it fastest** | Qwen3.8-Flash-Next `MLX mixed-4/8bit` | **mlx-serve** (26.9.1–26.9.4) | ~100 GiB | **432/436** | 52s |
 | **you want the same model on a lighter engine** | Qwen3.8-Flash-Next `qwen38-q4k` | ds4 upstream main | 165 GiB | **178/180** | 106s |
 | **you want a mainline engine** | Qwen3.8-Flash-Next `UD-Q3_K_XL` | llama.cpp | 84 GiB | **135/135** | 121s |
@@ -84,7 +84,7 @@ excision task, from different weeks; the head-to-head below is the rigorous one.
 59/60 against 60/60, paired wall 0.96, 95% CI 0.87–1.06). It needs no sidecar;
 95 GiB of its 165 GiB file stays on disk. Steps: [`docs/stacks.md`](../../docs/stacks.md).
 
-**Ornith-1.5 is the smallest and installs fast, but it is the only stack on record to ship silently-wrong code** — non-compiling Swift from a clean-looking run ([#45](https://github.com/evanwtf/local-llm/issues/45)), a Qwen derivative with the longest tail (999.6s worst, pooled). Watch its output; n=21. Detail: [`docs/stacks.md`](../../docs/stacks.md).
+**Ornith-1.5 is the smallest and installs fast, but it is the only stack on record to ship silently-wrong code** — 6 of 66 trials failed, incl. a `swift-csv-text` crash and non-compiling Swift from a clean-looking run ([#45](https://github.com/evanwtf/local-llm/issues/45)); a Qwen derivative with the longest tail (999.6s worst, pooled). Watch its output. Detail: [`docs/stacks.md`](../../docs/stacks.md).
 
 **Measured and not picked:** Ternary Bonsai 2 27B on mlx-serve main passed 27
 of 44 trials (95% CI 47–74%). Its median passing excision task took 326 s
