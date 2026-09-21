@@ -59,7 +59,7 @@ other is telling you something.
 
 ### Cortex-X925-128GB-GB10
 
-*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 3291 rows, sha256 a2e484b9b99d.*
+*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 3471 rows, sha256 6b7618b06503.*
 
 #### Every stack measured under OpenCode
 
@@ -68,6 +68,7 @@ other is telling you something.
 | stack | passed | median | worst | spread |
 |---|---|---|---|---|
 | qwen36a3bsglangdgx | 90/90 | 28s | 136s | 17.3x |
+| qwen36a3bsglangfmrcdgx @ Ryzen9-7900X-32GB+image | 89/89 | 30s | 207s | 25.5x |
 | qwen36a3bnvfp4dgx | 379/402 | 35s | 318s | 31.5x |
 | qwen36a3bnvfp4fmrcdgx @ Corei3-7100-16GB | 82/89 | 39s | 104s | 7.9x |
 | qwen36a3bsglangfmrcdgx @ Corei3-7100-16GB | 89/90 | 39s | 226s | 19.2x |
@@ -80,6 +81,7 @@ other is telling you something.
 | qwen38fnq3nothinkkv8dgx | 90/90 | 61s | 1528s | 43.9x |
 | qwen3827bsglangdsparknothinkdgx | 90/90 | 66s | 278s | 11.7x |
 | qwen3827bsglangdflash2nothinkfmrcdgx @ Corei3-7100-16GB | 90/90 | 66s | 260s | 10.1x |
+| qwen38fnnvidianvfp4nothinkfmrcdgx @ Ryzen9-7900X-32GB+image | 89/90 | 66s | 772s | 35.9x |
 | qwen38fnq3nothinkdgx | 331/331 | 67s | 1059s | 43.8x |
 | qwen38fnnvidianvfp4nothinkdgx | 90/90 | 68s | 1115s | 48.5x |
 | qwen38fnnvidianvfp4nothinkfmrcdgx @ Corei3-7100-16GB | 89/90 | 69s | 1627s | 63.8x |
@@ -122,6 +124,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 |---|---|
 | nemotron33 | 15s |
 | nemotroncascade2 | 17s |
+| qwen36a3bsglangfmrcdgx @ Ryzen9-7900X-32GB+image | 19s |
 | nemotron3nano | 19s |
 | nemotron35lightninga3bdgx | 20s |
 | qwen36a3bsglangdgx | 20s |
@@ -134,6 +137,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | ornith15a3bdgx | 35s |
 | qwen3827bsglangdflash2nothinkdgx | 39s |
 | qwen38fnnvfp4miaainothinkdgx | 43s |
+| qwen38fnnvidianvfp4nothinkfmrcdgx @ Ryzen9-7900X-32GB+image | 45s |
 | qwen3827bsglangdsparkpinnednothinkdgx | 47s |
 | qwen3827bsglangdsparknothinkdgx | 48s |
 | qwen38fnnvidianvfp4nothinkdgx | 49s |
