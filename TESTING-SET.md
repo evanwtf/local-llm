@@ -189,7 +189,7 @@ be drawn from — OpenCode, after the `--dir` cutover, not excluded.
 | `qwen3827bsglangdflash2dgx` | the DFlash2 row with **thinking on** (the template default): the thinking lever on the 27B, as #493 did for Flash-Next (#303) | SGLang dev image CUDA sm_121 | 24 GB + 2.6 GB draft | 90 |
 | `qwen36a3bsglangdgx` | the A3B NVFP4 agent leader on **SGLang**'s pinned nightly instead of vLLM, flags matched (#553) | SGLang dev image CUDA sm_121 | 22 GB | 90 |
 | `qwen36a3bsglangrcdgx` | the #553 A3B SGLang arm unchanged, OpenCode on a **remote client**: the topology A/B (#562) | SGLang dev image CUDA sm_121 | 22 GB | 90 |
-| `qwen36a3bsglangfmrcdgx` | A3B SGLang, remote client, **full memory** (mem-fraction 0.85) (#562) | SGLang dev image CUDA sm_121 | 22 GB | 90 |
+| `qwen36a3bsglangfmrcdgx` | A3B SGLang, remote client, **full memory** (mem-fraction 0.85) (#562) | SGLang dev image CUDA sm_121 | 22 GB | 180 |
 | `qwen36a3bnvfp4fmrcdgx` | A3B vLLM, remote client, **full memory** (gpu-memory-utilization 0.85) (#562) | vLLM 0.29.0 CUDA sm_121 | 24.2 GiB | 90 |
 | `qwen3827bsglangdflash2nothinkfmrcdgx` | 27B SGLang + DFlash2, remote client, **full memory** (0.85; the recipe's 0.90 drops the box under earlyoom's line, #582) (#562) | SGLang dev image CUDA sm_121 | 24 GB + 2.6 GB draft | 90 |
 | `qwen38fnnvidianvfp4nothinkfmrcdgx` | NVIDIA Flash-Next NVFP4 via MiaAI, remote client, reserve 30 GiB (the recipe's own value for this checkpoint, #583), recipe 6b50864 (#562). **270 rows across three clients**: 90 bare-metal on the i3, 90 from the pinned client image on the i3, and 90 from the image on the Ryzen 9 7900X (#611), split by `client_machine` and `client_image` in every table | vLLM (MiaAI image) CUDA sm_121 | 124 GiB | 270 |
