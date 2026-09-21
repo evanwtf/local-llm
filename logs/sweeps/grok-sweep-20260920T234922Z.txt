@@ -1,0 +1,27 @@
+# grok sweep
+# requested window: last 14 hours
+# written:  2026-09-20T23:49:22Z  (local: 2026-09-20 19:49:22 EDT)
+# query:    Search X for posts and replies from @antirez, @ivanfioravanti, @awnihannun, @Prince_Canuma, @ddalcu, @zhijianliu_, @reach_vb, @mlx_community in the last 14 hours about local LLM inference on Apple Silicon (MLX, mlx-serve, oMLX, llama.cpp Metal, ds4/DwarfStar, Qwen3.8-Flash-Next, GLM 5.3 Flash, DeepSeek V4.1 Flash, Inco Splash, speculative/MTP decoding, quantization). Output ONE bullet per post and nothing else -- no preamble, no summary: - <UTC timestamp> | @handle | <post URL> | <the claim in one sentence>. Omit any item without both a URL and a UTC timestamp. If nothing matches, output exactly: NO RESULTS
+
+I'll search X for those accounts in the last 14 hours and return matching posts in the format you specified.Window is the last 14 hours from 09:49 UTC. Searching those accounts for matching posts.Fetching parent threads and remaining posts so I can keep only on-topic claims.Fetching remaining reply threads and paging through more posts from those accounts.Checking remaining reply context and filling gaps in the 14-hour window.- 2026-09-20T23:47:13Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2101820505963876757 | mlx-serve PR #477, developed on M1 Pro 32GB, should run faster than ever on M5.
+- 2026-09-20T22:34:16Z | @ddalcu | https://x.com/ddalcu/status/2101802148916801881 | He cuts Qwen thinking at 2000 tokens on low and 4000 on medium, and leaves xHigh unconstrained.
+- 2026-09-20T22:10:48Z | @ddalcu | https://x.com/ddalcu/status/2101796243127025889 | MLXServe skills (or GBrain) can replace autocompact by summarizing a chat and pasting it into a new conversation.
+- 2026-09-20T20:33:40Z | @zhijianliu_ | https://x.com/zhijianliu_/status/2101771797477896272 | He is glad people are seeing Splash beat oMLX on M5 Pro Qwen serving, including cached 32K TTFT.
+- 2026-09-20T19:35:48Z | @ddalcu | https://x.com/ddalcu/status/2101757237198786593 | Bonsai-2 is the best model you can run on 16GB today and hits about 15 tok/s on M1 Pro.
+- 2026-09-20T18:13:40Z | @zhijianliu_ | https://x.com/zhijianliu_/status/2101736564749697498 | Inco released a DFlash2 draft for Qwen A3B in the Splash package.
+- 2026-09-20T17:53:41Z | @ddalcu | https://x.com/ddalcu/status/2101731537184014406 | The next mlx-serve release will be a strong answer to Splash on Mac.
+- 2026-09-20T17:20:52Z | @ddalcu | https://x.com/ddalcu/status/2101723280914661826 | Multiple models and multiple sessions are already common across local engines, not unique to Splash.
+- 2026-09-20T16:56:29Z | @ddalcu | https://x.com/ddalcu/status/2101717141103771985 | Qwen Image in mlx-serve needs the unreleased PR #477 branch build, not main.
+- 2026-09-20T16:44:36Z | @ddalcu | https://x.com/ddalcu/status/2101714151206723726 | Apple's on-device local model is denying the request with a very short reply, not throwing an error.
+- 2026-09-20T16:14:49Z | @ddalcu | https://x.com/ddalcu/status/2101706658682438001 | mlx-serve PR #477 is ready for review after M1 Pro 32GB work and should be very fast on M5.
+- 2026-09-20T16:05:54Z | @ddalcu | https://x.com/ddalcu/status/2101704413383389244 | He tested BF16 KV rather than KV8 versus Splash, will address those gaps, and is running NAX on iPhone 18 Pro plus M4/M1 Macs.
+- 2026-09-20T14:53:52Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2101686286348423357 | OpenCode's larger prompts make it slower than omp with local models.
+- 2026-09-20T14:41:28Z | @ddalcu | https://x.com/ddalcu/status/2101683165177737387 | MLX-Serve serving Bonsai-2 over HTTP reports 8GB on device and may need LSSupportsGameMode.
+- 2026-09-20T14:33:35Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2101681181938925824 | The same increased-memory entitlement is limited to 5GB on iPad M5.
+- 2026-09-20T14:28:31Z | @ddalcu | https://x.com/ddalcu/status/2101679904492261785 | mlx-serve uses Apple's com.apple.developer.kernel.increased-memory-limit entitlement to raise the iOS/iPad memory cap.
+- 2026-09-20T13:22:09Z | @ddalcu | https://x.com/ddalcu/status/2101663205248373085 | Overnight NAX runs of Bonsai-2 stayed up under high temps with no crashes.
+- 2026-09-20T13:18:40Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2101662325887406200 | His M5 Max MLX/MFLUX Qwen-Image-2.1 path used ~31GB peak, and he expects mlx-serve to beat those times.
+- 2026-09-20T12:01:13Z | @ddalcu | https://x.com/ddalcu/status/2101642835690659864 | iPhone 18 Pro NAX is strong for local inference but has 12GB RAM with an 8GB app crash ceiling.
+- 2026-09-20T11:27:32Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2101634358721311011 | He is surprised mlx-serve is being tested on iPhone.
+- 2026-09-20T11:26:36Z | @ddalcu | https://x.com/ddalcu/status/2101634123903176767 | mlx-serve OOMs on M5 Pro + DFlash2 + KV8 + 27B 4-bit were a combo he could not reproduce, and he is now testing on iPhone.
+- 2026-09-20T11:05:25Z | @ddalcu | https://x.com/ddalcu/status/2101628794620551302 | On M4 Max, mlx-serve (especially the latest branch) beats Splash, and none of them have M5 Pro 48GB.
