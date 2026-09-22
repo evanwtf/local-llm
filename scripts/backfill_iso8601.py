@@ -51,6 +51,13 @@ LEDGER_ZONES = {
     "Cortex-X925-128GB-GB10": ZONE,
     "MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A": ZONE,
     "Ryzen9-7900X-32GB-RTX3080Ti-12GB": UTC,
+    # The cluster's rows are written by the harness on the remote client, and
+    # that box runs UTC -- its `started` values carry `+0000` (#649). Every
+    # row in this ledger is already zone-aware, so this entry governs nothing
+    # that exists; it is here because a hardware directory with no zone is
+    # refused rather than guessed, and UTC is the honest answer for the
+    # machine that writes it.
+    "Cortex-X925-128GB-GB10-x2": UTC,
 }
 
 #: Fields that hold a moment in time. The three `*_mtime` fields are file
