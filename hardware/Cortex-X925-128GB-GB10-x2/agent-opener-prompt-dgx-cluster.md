@@ -272,7 +272,24 @@ uv run python scripts/make_next.py --platform nvidia
 
 ### Step 10. Open for service
 
-Post the first heartbeat (§3a) with what steps 1–9 found and fixed, the fabric
+**Arm the heartbeat loop before anything else in this step.** Do not carry the
+30-minute cadence yourself — you will drift. This was measured: a session
+running this prompt posted its first three heartbeats 57 and 40 minutes apart
+while believing it was on 30, and only noticed when the operator said so.
+
+```
+/loop 30m Post the cluster heartbeat to the issue for the work currently on the
+GPU, in the format §3a specifies. Read every field fresh on BOTH nodes — never
+carry one over from the last tick. If a run has finished, read it out, land the
+rows in the cluster ledger, post the verdict, and start the next thing rather
+than idling.
+```
+
+That schedules a recurring job and fires the first one immediately. It expires
+after 7 days and dies with the session, so re-arm it in every opener — which is
+why it is a step here rather than a note.
+
+Then post that first heartbeat with what steps 1–9 found and fixed, the fabric
 numbers from step 2b, and the task you are launching now.
 
 ## 2. Hard rules — never break these
@@ -350,13 +367,18 @@ The fields and their sources are unchanged — only the presentation. Keep the
 GPU-occupant line first and on its own; it is the one line a reader scanning a
 long issue needs.
 
+**The cadence is the loop's job, not yours** (§1 step 10). Tracking 30 minutes
+by hand across long tool calls does not work; a session that tried drifted to
+57 minutes without noticing. If you find yourself computing whether a tick is
+due, the loop is not armed — arm it.
+
 Every field, and where it comes from. Guessing any of them is worse than
 omitting the tick — read them fresh, every tick, on both nodes.
 
 | field | source | rule |
 |---|---|---|
 | `HH:MM EDT` | `TZ=America/New_York date '+%H:%M %Z'` | **re-read the clock.** Never infer it from the last tick |
-| per-node `util`, `NW GPU`, `NºC` | `nvidia-smi --query-gpu=utilization.gpu,power.draw,temperature.gpu --format=csv,noheader,nounits`, run on each node | GPU-only power; reads ~4-5 W idle |
+| per-node `util`, `NW GPU`, `NºC` | `nvidia-smi --query-gpu=utilization.gpu,power.draw,temperature.gpu --format=csv,noheader,nounits`, run on each node | GPU-only power; reads ~4-5 W idle. **`util` is noisy on a TP split** — an instantaneous sample lands between kernels and reads 0% on a working node. Power and temperature are the reliable pair: 24.9 W at 69ºC is working, 3.9 W at 41ºC is idle |
 | per-node `GiB avail` | `awk '/MemAvailable/{printf "%.1f", $2/1048576}' /proc/meminfo`, each node | the floor comes during prefill, not at boot |
 | `outlet: NW + NW = NW pair` | `scripts/dgx_metrics.py` for the head; the peer's own plug for the worker | each Spark has its own smart plug in Home Assistant (InfluxDB `p9FyUovVk`, measurement `W`, entities `dgx_current_consumption` and `dgx_2_current_consumption`). Idle ~45 W each; a two-node run peaked at 186.8 W and 193.8 W. **Always give both and the sum** |
 | `N/N cabled up` | `ethtool` per interface, counting interfaces on cabled cages | e.g. `4/4` with both cables in, `2/2` with one |
