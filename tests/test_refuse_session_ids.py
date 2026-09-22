@@ -89,7 +89,10 @@ def test_the_config_runs_it_at_commit_msg() -> None:
     cfg = (ROOT / ".pre-commit-config.yaml").read_text()
     assert "scripts/refuse_session_ids.py" in cfg
     assert "stages: [commit-msg]" in cfg
-    assert "default_install_hook_types: [pre-commit, commit-msg]" in cfg
+    assert "default_install_hook_types: [pre-commit, commit-msg, pre-push]" in cfg, (
+        "pre-push joined the installed types when `pytest -m fast` became the "
+        "push gate; the commit-msg guard this test protects is unaffected"
+    )
 
 
 def test_ci_checks_pr_text_and_commits() -> None:

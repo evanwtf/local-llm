@@ -26,6 +26,13 @@ default_stages: [pre-commit]
 repos:
   - repo: local
     hooks:
+      - id: refuse-commit-during-benchmark
+        name: refuse commit while a stack_agent A/B is live
+        entry: python scripts/refuse_commit_during_benchmark.py
+        language: python
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]
       # The push gate. `pytest -m fast` is the ~180 repo-CONTRACT guards --
       # registry, generated docs, script index, ledger shape, tasks.toml -- out
       # of ~3,500 tests. Those are the failures worth blocking a push on,
@@ -42,18 +49,11 @@ repos:
       # remembering to mark it.
       - id: pytest-fast
         name: pytest -m fast (repo-contract guards; CI runs the rest)
-        entry: uv run pytest -m fast -q
+        entry: uv run --frozen pytest -m fast -q
         language: system
         pass_filenames: false
         always_run: true
         stages: [pre-push]
-      - id: refuse-commit-during-benchmark
-        name: refuse commit while a stack_agent A/B is live
-        entry: python scripts/refuse_commit_during_benchmark.py
-        language: python
-        pass_filenames: false
-        always_run: true
-        stages: [pre-commit]
       # CI gates `ruff format --check .` and this hook is the local mirror of it.
       # Landing #227 without this cost a red main the same hour: ruff was run
       # BEFORE a new file was added, only pytest was re-run afterwards, and the
