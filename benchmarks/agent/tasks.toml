@@ -2859,3 +2859,35 @@ aider_model = "openai/qwen3.8-flash-next"
 opencode_model = "vllm8888/qwen3.8-flash-next"
 context_tokens = 262144
 topology = "remote"
+
+# #648: GLM-5.3-Flash across BOTH DGX Sparks, via
+# MiaAI-Lab/GLM-5.3-Flash-2x-DGX-Sparks @c1b7d4c (EXL3 tensor-parallel build of
+# vLLM). Weights Mia-AiLab/GLM-5.3-Flash-EXL3-TR3-4bpw rev 25a44fd and drafter
+# incoai/GLM-5.3-Flash-DFlash2 rev dc77ff1, both approved by the operator
+# 2026-09-22 (per artifact; #531's incoai Splash pause stands).
+#
+# Departures from the recipe, all measured here:
+#   GPU_MEM_UTIL=0.86, not 0.85 -- at 0.80 and 0.85 the launch refused with
+#   "buffer_size exceeds device memory budget"; 0.86 boots.
+#   MAX_MODEL_LEN=262144, not 850000 -- matches the Qwen two-node arm.
+#   HEAD_/WORKER_CX7_IF and _IB name the p1 cage on both nodes -- the recipe's
+#   defaults encode cross-cage cabling; ours is straight-through, and the
+#   generic IFACE/IB_HCA are ignored by this recipe.
+#   GLM53_DEFAULT_REASONING_EFFORT=low -- without it the template renders effort
+#   Max and a 600-token request ends at the cap with the answer truncated.
+#
+# Speculative decoding (DFlash, 7 tokens) is on but not declared as
+# `speculative`, for the same reason as the Qwen two-node arm: the client is
+# remote and cannot read the server's argv. vLLM exports its spec_decode
+# counters on :8888/metrics.
+[backend.glm53fexl3dual2xrc]
+description = "GLM-5.3-Flash EXL3 4bpw (Mia-AiLab/GLM-5.3-Flash-EXL3-TR3-4bpw rev 25a44fd, 164 GiB) across TWO DGX Sparks: EXL3 vLLM TP=2 over 200 Gb/s ConnectX-7 RoCE via MiaAI-Lab/GLM-5.3-Flash-2x-DGX-Sparks @c1b7d4c, image ghcr.io/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-instanttensor built from the recipe Dockerfile (sha256:6cb72b36), DFlash speculative decoding with incoai/GLM-5.3-Flash-DFlash2 rev dc77ff1 (7 tokens, draft TP=2), fp8 KV, 262144 context, max-num-seqs 4, GPU_MEM_UTIL 0.86, reasoning_effort low as a server default. Measured KV pool on the pair: 393,928 tokens, 1.50x concurrency at a 262k request; MemAvailable with the server idle 3.3 GiB head, 4.0 GiB worker. REMOTE CLIENT (#562/#649): OpenCode and the harness run on the Core i3-7100 client over the LAN. The single-Spark comparison is #298, GLM-5.3-Flash Q2 on ds4 at 16k context"
+tier = "gb10-spark-x2"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "vllm"
+model = "GLM-5.3-Flash-EXL3"
+aider_model = "openai/GLM-5.3-Flash-EXL3"
+opencode_model = "vllm8888/GLM-5.3-Flash-EXL3"
+context_tokens = 262144
+topology = "remote"
