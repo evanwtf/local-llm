@@ -146,22 +146,33 @@ ping -c2 -M do -s 8972 <peer fabric ip>     # jumbo, do-not-fragment
 
 Known-good on this pair, so a departure is visible:
 
-| check | healthy |
-|---|---|
-| link, each cabled interface | 200000Mb/s, `Link detected: yes` |
-| `rdma link show` | ACTIVE on every cabled device |
-| ping RTT, average | ~0.3 ms |
-| `ib_write_bw`, both paths of one cage | **196.08 Gb/s** |
-| two-node all-reduce, 1 GiB | **187.10 Gb/s** |
+| check | healthy | operator's threshold |
+|---|---|---|
+| link, each cabled interface | 200000Mb/s, `Link detected: yes` | all cabled interfaces up |
+| `rdma link show` | ACTIVE on every cabled device | count equals the cabled interfaces |
+| ping RTT, average | 0.3–1.2 ms observed | **< 2 ms** |
+| two-node all-reduce, 1 GiB | 187–196 Gb/s observed | **> 180 Gb/s** |
+| `ib_write_bw`, both paths of one cage | 196.08 Gb/s; 218.36 across all four | no threshold; the collective is the gate |
 
-**An unexplained order-of-magnitude latency anomaly is a blocker, not a
-footnote.** ~1 ms where ~0.3 ms is normal has preceded a node that passed every
-functional check while running the collective at 13% of the link. A reboot
-fixed it; `nmcli con down/up` did not.
+**These two thresholds are the operator's, and they are what "healthy" means
+here** — over **180 Gb/s** on the collective and under **2 ms** RTT. Do not
+invent a tighter one from a single good reading.
 
-**The test for that state is the collective**, not latency and not
-`ib_write_bw` — both read fine throughout that incident. If a two-node number
-looks wrong, run `scripts/cluster_allreduce.py` before blaming the engine.
+**RTT alone decides nothing — the collective is the gate.** RTT on this pair
+drifts between 0.3 and 1.2 ms depending on which subnet is measured and how
+recently a node booted, and it has read ~1 ms while the collective ran at full
+speed. An earlier version of this prompt called ~0.3 ms "healthy" and ~1 ms a
+blocker; that was one reading from a single-cable configuration taken right
+after a reboot, and following it would send you chasing a fabric that is fine.
+
+What is real: a node once passed **every** functional check — links up, RoCE
+ACTIVE, both subnets pinging, jumbo clean, `ib_write_bw` at 196 Gb/s, a
+numerically correct all-reduce — while running the collective at **13% of the
+link**. A reboot fixed it; `nmcli con down/up` did not.
+
+So: **run `scripts/cluster_allreduce.py` and read the 1 GiB figure.** Over
+180 Gb/s, the fabric is fine whatever the RTT says. Under it, reboot the
+worker and measure again before blaming the engine.
 
 ### Step 3. Locks and claims
 
@@ -341,7 +352,7 @@ omitting the tick — read them fresh, every tick, on both nodes.
 | `outlet: NW + NW = NW pair` | `scripts/dgx_metrics.py` for the head; the peer's own plug for the worker | each Spark has its own smart plug in Home Assistant (InfluxDB `p9FyUovVk`, measurement `W`, entities `dgx_current_consumption` and `dgx_2_current_consumption`). Idle ~45 W each; a two-node run peaked at 186.8 W and 193.8 W. **Always give both and the sum** |
 | `N/N cabled up` | `ethtool` per interface, counting interfaces on cabled cages | e.g. `4/4` with both cables in, `2/2` with one |
 | `RoCE N ACTIVE` | `rdma link show \| grep -c ACTIVE` | must equal the cabled-interface count |
-| `RTT N.NN ms` | `ping -c5` to the peer's fabric address, the average | **~0.3 ms is healthy; ~1 ms is a blocker** (§1 step 2b) |
+| `RTT N.NN ms` | `ping -c5` to the peer's fabric address, the average | **healthy under 2 ms.** Report it every tick; it is not a blocker on its own, and the collective is what decides (§1 step 2b) |
 | `#N` | the issue whose work is running | from the run lock and the server wrapper's status — **never `pgrep`** |
 | `(<model-slug>)` | the backend's `model` field in `tasks.toml` | an issue number alone does not say what is loaded |
 | `N min in` | the run's own start time | not the tick interval |
@@ -467,8 +478,9 @@ repaired afterwards: nothing in it records the topology.
 ## 8. When to stop and ask the operator
 
 - A node is unreachable and a reboot did not bring it back.
-- The fabric measures materially below the known-good numbers in §1 step 4 and
-  a reboot of the worker did not fix it.
+- The two-node all-reduce measures **below 180 Gb/s** at 1 GiB and a reboot of
+  the worker did not fix it. RTT above 2 ms with the collective still over
+  180 Gb/s is worth reporting, not stopping for.
 - Weights or a container image from a party not already approved — **weights
   and images are executable trust**. Ask before pulling.
 - Anything that needs physical access: cabling, a power cycle of the head, MOK
