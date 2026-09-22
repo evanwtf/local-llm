@@ -712,6 +712,28 @@ run before `git add` passes; CI, which sees the staged tree, does not.
 `hardware/MACHINES.md`. **Run `pytest` after `git add`, not before** — that
 is the general lesson, and it applies to any test that reads tracked files.
 
+### 22. A large model's default reasoning effort eats the whole token budget — **HIT**
+
+*Symptom:* the cluster serves, `/v1/models` answers, and a plain chat
+request comes back with empty or truncated content and
+`finish_reason: length`. It looks like a broken template or a dead rank.
+
+*Cause:* the checkpoint's chat template defaults to its highest reasoning
+effort, and thinking spends the whole `max_tokens` before the answer starts.
+Hit on three two-node arms in a row: Qwen3.8-Flash-Next defaults to `xhigh`
+and returned `content: null`; GLM-5.3-Flash renders effort Max and, at
+`max_tokens` 600, ended at the cap with 2,473 characters of reasoning and a
+cut-off answer; DeepSeek V4-Flash needed the same fix.
+
+*Fix:* launch with reasoning effort **low** as a server default:
+`--default-chat-template-kwargs '{"reasoning_effort":"low"}'`, or the recipe's
+own variable (GLM: `GLM53_DEFAULT_REASONING_EFFORT=low`). Confirm it in the
+server's argv, not the `.env`. Then a plain request with no
+`chat_template_kwargs` must end in `finish_reason: stop` with content: GLM
+went to 188, 199 and 223 tokens, all `stop`. The operator made this the
+default for every large model on 2026-09-22. A higher effort is its own arm
+under its own backend name.
+
 ## Verification checklist
 
 Run top to bottom. Do not skip a line because the one above it "obviously"
