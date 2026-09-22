@@ -50,21 +50,30 @@ Layers 6 and 7 are #648 and #649. Everything below them is #646.
 
 ## Layer 0–1: physical and link
 
-**OBSERVED 2026-09-22T00:06-0400.** Two Amphenol NJAAKK-N911 DAC cables
-(NVIDIA PN `930-51986-0000-000`, 400 mm) are attached, one per QSFP port,
-between the two nodes. Both links are up on both nodes:
+**OBSERVED 2026-09-22T00:33-0400. Exactly one cable is connected, not two.**
 
-| interface | node A | node B |
-|---|---|---|
-| `enp1s0f1np1` | 200000Mb/s, link detected yes | 200000Mb/s, link detected yes |
-| `enP2p1s0f1np1` | 200000Mb/s, link detected yes | 200000Mb/s, link detected yes |
-| `enp1s0f0np0` | no cable | no cable |
-| `enP2p1s0f0np0` | no cable | no cable |
+Each Spark has **two QSFP cages**, `p0` and `p1`. Each cage is reachable over
+**two PCIe paths** (domains `0000:01:00.x` and `0002:01:00.x`), so four
+ethernet interfaces and four RoCE devices exist for two physical cages. Read
+`/sys/class/net/<iface>/phys_port_name` to learn which cage an interface
+speaks for — the interface name does not tell you.
 
-Each physical QSFP port presents **two** logical ethernet interfaces plus
-matching RoCE devices — two PCIe paths to one physical port. That is why four
-interfaces exist for two ports, and why "the cable is in port 1" does not
-identify an interface.
+| interface | PCI | cage | node A | node B |
+|---|---|---|---|---|
+| `enp1s0f1np1` | `0000:01:00.1` | **p1** | 200000Mb/s, Direct Attach Copper, link yes | 200000Mb/s, link yes |
+| `enP2p1s0f1np1` | `0002:01:00.1` | **p1** | 200000Mb/s, Direct Attach Copper, link yes | 200000Mb/s, link yes |
+| `enp1s0f0np0` | `0000:01:00.0` | p0 | no cable | no cable |
+| `enP2p1s0f0np0` | `0002:01:00.0` | p0 | no cable | no cable |
+
+**Both live interfaces are the same physical wire.** They are two PCIe paths
+to cage `p1`, and cage `p1` on node A is cabled to cage `p1` on node B. Cage
+`p0` reports "No cable" on both nodes, so the second NJAAKK-N911 cable in hand
+is **not plugged in**. Connecting it needs physical access to both chassis.
+
+The consequence that matters: **the ceiling is one 200 Gb/s link, not two.**
+Traffic over `enp1s0f1np1` and `enP2p1s0f1np1` shares one wire. Using both
+can help saturate the wire if a single PCIe path cannot, but it cannot exceed
+it, and nothing here should be described as 400 Gb/s.
 
 **The NIC does not exist until a cable is attached.** Before cabling, node A
 showed no Mellanox device on the PCI bus at all, an empty
@@ -80,24 +89,25 @@ sudo ethtool <iface> | grep -Ei 'speed|link detected'
 sudo lshw -c net -short
 ```
 
-### Which port on one node reaches which port on the other
+### Which cage pairs with which — resolved
 
-**PLANNED — undecided.** Two cables are attached, so both physical ports are
-in use on both nodes. With no addresses configured, neither node can tell
-which of its ports terminates at which of the peer's: the interfaces carry no
-IPv6 link-local either, so a multicast neighbour probe returns nothing.
+**OBSERVED.** Cage `p1` on node A to cage `p1` on node B. It is not an
+inference: `p1` is the only cage showing a link on either node, and a cable
+has two ends.
 
-Resolve it empirically during bring-up: address one pair, ping, and swap if it
-fails. **Record the answer here**, because every NCCL and Ray configuration
-afterwards names interfaces explicitly and a wrong pairing produces a hang
-rather than an error.
+This was open while the topology was assumed to be two cables. It is worth
+keeping the method, because it returns the moment the second cable goes in:
+with no addresses configured, the interfaces carry no IPv6 link-local either,
+so a multicast neighbour probe returns nothing and neither node can say which
+of its cages reaches which of the peer's. Resolve it by addressing one pair,
+pinging, and swapping if it fails — then **record the answer here**, because
+every NCCL and Ray configuration afterwards names interfaces explicitly and a
+wrong pairing hangs rather than errors.
 
-Do not assume a straight-through pairing. MiaAI-Lab's published two-Spark
-topology (REPORTED) cables `enp1s0f1np1` on the head to `enp1s0f0np0` on the
-worker — different ports at the two ends — and their recipe works. A
-cross-port pairing is normal, not a miscabling.
-
----
+Do not assume a straight-through pairing when the second cable is added.
+MiaAI-Lab's published two-Spark topology (REPORTED) cables `enp1s0f1np1` on
+the head to `enp1s0f0np0` on the worker — different cages at the two ends —
+and their recipe works. A cross-cage pairing is normal, not a miscabling.
 
 ## Layer 2: addressing
 
@@ -129,17 +139,19 @@ failure in this whole stack.
 
 ### Bonding, and why the default is not to
 
-**PLANNED — decision open.** Two cables between two hosts invite bonding, but
-LACP needs a switch and there is none. What remains is `balance-rr` or
-`active-backup`.
+**PLANNED — decision open.** With one cable connected there is nothing to
+bond for bandwidth: the two live interfaces are two PCIe paths to a single
+wire, and no bonding mode makes one cable carry more than 200 Gb/s. Bonding
+them would buy path redundancy against a PCIe-path failure, not throughput.
 
-The default should be **two independent subnets, not a bond**. NVIDIA's own
-guidance and every third-party recipe read here configure independent
-interfaces and hand *both* names to NCCL via `NCCL_SOCKET_IFNAME`, letting the
-collective library use both rails itself. That is also easier to diagnose:
-with a bond, a single failed rail degrades silently.
-
----
+If the second cable is connected later, two genuinely independent wires
+exist and the question becomes real. Even then the default should be **two
+independent subnets, not a bond**. LACP needs a switch and there is none,
+leaving `balance-rr` or `active-backup`. NVIDIA's own guidance and every
+third-party recipe read here configure independent interfaces and hand *both*
+names to NCCL via `NCCL_SOCKET_IFNAME`, letting the collective library use
+both rails itself. That is also easier to diagnose: with a bond, a single
+failed rail degrades silently.
 
 ## Layer 3: RoCE and RDMA
 

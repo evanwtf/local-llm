@@ -98,6 +98,21 @@ MACHINES: tuple[Machine, ...] = (
         note="DGX Spark; unified memory, so a VRAM-based judgement does not apply",
     ),
     Machine(
+        slug="Cortex-X925-GB10-x2",
+        directory="Cortex-X925-128GB-GB10-x2",
+        name="the dual DGX Spark cluster (2x GB10, 2x 128 GiB)",
+        os="Linux",
+        arch="aarch64",
+        accelerator="2x NVIDIA GB10 Grace Blackwell GPU (one per node)",
+        memory="256 GiB unified (2x 128 GiB, not one pool)",
+        # Its own tier: a gb10-spark backend is not automatically runnable
+        # across two nodes, and one that needs two nodes must not read as
+        # native on one. Neither inherits from the other (#345, #647).
+        tier="gb10-spark-x2",
+        classes=("platform:Nvidia",),
+        note="two DGX Sparks cabled directly over 200 Gb/s ConnectX-7 RoCE; every byte is on one side of the link (#646)",
+    ),
+    Machine(
         slug="Ryzen9-7900X-RTX3080Ti",
         directory="Ryzen9-7900X-32GB-RTX3080Ti-12GB",
         name="the Ryzen 9 7900X + RTX 3080 Ti desktop",

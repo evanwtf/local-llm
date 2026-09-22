@@ -13,9 +13,15 @@ one records what the hardware is.
 
 ## Status
 
-**Not yet assembled.** Both cables are attached and both links carry signal,
-but no interface holds an address and nothing has been served across the pair.
-Bring-up is #646. Nothing in this directory is a measurement yet.
+**Not yet assembled.** One 200 Gb/s cable is connected and its link carries
+signal, but no interface holds an address and nothing has been served across
+the pair. Bring-up is #646. Nothing in this directory is a measurement yet.
+
+**One cable, not two.** Two NJAAKK-N911 cables were bought; one is plugged in,
+between QSFP cage `p1` on each node. The pair's ceiling is therefore a single
+200 Gb/s link. See [`CLUSTER-SETUP.md`](CLUSTER-SETUP.md) for why four
+ethernet interfaces exist for two cages, and why two of them being up does not
+mean two cables.
 
 ## The two nodes
 
