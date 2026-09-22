@@ -2832,3 +2832,30 @@ aider_model = "openai/qwen3.8-flash-next"
 opencode_model = "vllm8888/qwen3.8-flash-next"
 context_tokens = 262144
 topology = "remote"
+
+# #664 A/B arm: identical to qwen38fnnvfp4dual2xrc except for the container
+# flags every published two-node guide sets and the recipe does not --
+# --cap-add IPC_LOCK, VLLM_NVFP4_GEMM_BACKEND=marlin,
+# VLLM_FLASHINFER_ALLREDUCE_BACKEND=trtllm, VLLM_USE_FLASHINFER_MOE_FP4=0.
+#
+# Its own backend name because a shared one would merge these rows into the
+# baseline's cell and make the arms unseparable afterwards. Same weights, same
+# image, same GPU_MEMORY_UTILIZATION, same reasoning_effort, same tasks.
+#
+# The flags cannot be delivered through the recipe's own EXTRA_DOCKER_ARGS:
+# that variable is read and appended to a DOCKER_ARGS array which is never
+# expanded, so it is a documented no-op. Both launch heredocs are patched
+# locally instead, and the flags are verified in `docker inspect` on BOTH
+# containers before a trial runs -- a silent no-op is indistinguishable from
+# a negative result.
+[backend.qwen38fnnvfp4dual2xrcflags]
+description = "qwen38fnnvfp4dual2xrc with the published two-node vLLM flags applied: --cap-add IPC_LOCK plus VLLM_NVFP4_GEMM_BACKEND=marlin, VLLM_FLASHINFER_ALLREDUCE_BACKEND=trtllm and VLLM_USE_FLASHINFER_MOE_FP4=0 on both nodes. Everything else identical to that arm -- nvidia/Qwen3.8-Flash-Next-NVFP4 across two DGX Sparks, vLLM TP=2 + expert parallel + MTP 3, fp8 KV, 262144 context, GPU_MEMORY_UTILIZATION 0.78, reasoning_effort low server-side. KV pool with the flags: 3,422,516 tokens against the baseline's 3,413,729, a 0.3% difference, so any effect is throughput and not capacity. The allreduce backend is the one expected to matter: it is on the critical path for every token on a two-node MoE. REMOTE CLIENT (#562/#649)"
+tier = "gb10-spark-x2"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "vllm"
+model = "qwen3.8-flash-next"
+aider_model = "openai/qwen3.8-flash-next"
+opencode_model = "vllm8888/qwen3.8-flash-next"
+context_tokens = 262144
+topology = "remote"
