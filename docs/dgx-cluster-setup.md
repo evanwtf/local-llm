@@ -629,7 +629,57 @@ state agree with each other perfectly.
 The only symptom that pointed at it was ping RTT: 1.016 ms before, 0.282 ms
 after. It was recorded and dismissed as CPU idle states.
 
-### 19. Repo gotcha: a committed `hardware/<dir>/` needs a registry entry — **HIT**
+### 19. The fabric addresses are separate SSH identities — **HIT**
+
+*Symptom:* `Host key verification failed` at a launcher's worker step, after
+passwordless SSH between the nodes was verified and working.
+
+*Cause:* SSH was verified by the nodes' **LAN names**. A launcher drives the
+worker by its **fabric address** (`10.0.0.2`), which is a different host
+identity with its own `known_hosts` entry — as are `10.0.1.2` and any
+`/etc/hosts` alias for them.
+
+*Cost here:* a 157 GiB head download completed and then the worker-staging
+step died immediately, at the end of 1 h 43 m.
+
+*Fix:* accept every fabric identity in **both** directions before launching —
+each address and each alias, head to worker and worker to head. **Verify SSH
+by the exact name the launcher will use**, not by any name that reaches the
+box. This is gotcha 12 in a second costume, and knowing gotcha 12 did not
+prevent it.
+
+### 20. Each node may download the whole checkpoint from the internet — **HIT**
+
+*Symptom:* the worker stages its weights slowly and the fabric is idle.
+
+*Cause:* the recipe's default `DSPARK_WORKER_HF_NFS=0` gives each node its
+own Hugging Face cache, so the worker fetches the checkpoint from the
+internet rather than from the head. Measured with interface counters during
+the copy, not assumed:
+
+| interface | throughput |
+|---|---|
+| head, fabric path 0 tx | 0 MiB/s |
+| head, fabric path 1 tx | 0 MiB/s |
+| head, management tx | 0 MiB/s |
+| **worker, management rx** | **48 MiB/s** |
+| worker, fabric rx | 0 MiB/s |
+
+Nothing leaves the head at all. The pair spends **2 x 157 GiB of WAN
+transfer** while a link that measures 196.08 Gb/s sits unused.
+
+*Fix:* `DSPARK_WORKER_HF_NFS=1` (or the equivalent `--nfs` in the sibling
+recipes) shares the head's cache over NFS on the ConnectX link and skips the
+second download entirely. **Set it before the first download, not after** —
+by the time the second copy is visible, the transfer that would have been
+saved is already most of the way done.
+
+*Check it the same way:* read `tx_bytes`/`rx_bytes` under
+`/sys/class/net/<iface>/statistics/` on both nodes during any bulk transfer.
+A staging step that is not moving bytes on the fabric is not using it,
+whatever the configuration says.
+
+### 21. Repo gotcha: a committed `hardware/<dir>/` needs a registry entry — **HIT**
 
 *Symptom:* CI red on a docs-only branch:
 `committed machine directories not in the registry`.
