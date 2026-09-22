@@ -58,7 +58,7 @@ treat it as a machine with its own lane. One session drives the pair.
 map to it. Read the matching row of its "Which document to read before which
 task" table before each task. Before touching the fabric, or before concluding
 the fabric is at fault, read
-[`docs/dgx-cluster-setup.md`](../../docs/dgx-cluster-setup.md) — it carries 21
+[`docs/dgx-cluster-setup.md`](../../docs/dgx-cluster-setup.md) — it carries 23
 numbered gotchas, most of which fail silently. Before launching a single-node
 server, [`docs/dgx-spark-runbook.md`](../../docs/dgx-spark-runbook.md) still
 applies unchanged.
@@ -302,6 +302,15 @@ takes small daemons including `sshd` — which on node B means losing the worker
 mid-run with no console. Read
 [`docs/incidents/2026-09-13-oom-lockup.md`](../../docs/incidents/2026-09-13-oom-lockup.md).
 
+**Check memory before anything significant, on every node it touches**: a
+download, an image pull, a launch, a load test, a trial run. If more than 50%
+is in use, stop and work out the right course before adding load; usually
+that means stopping a server whose result is already posted. If jobs are
+killed for memory pressure, free the memory, restore `earlyoom`, run preflight,
+and continue. Gotcha 1 in
+[`docs/dgx-cluster-setup.md`](../../docs/dgx-cluster-setup.md) has the
+incident that made this the rule.
+
 Cluster-specific rules on top:
 
 - **Start the worker rank first, then the head.** Every two-node recipe here
@@ -326,6 +335,18 @@ Cluster-specific rules on top:
   than after a boot — the floor comes during prefill.
 - **Never reboot the head to fix something on the worker.** Rebooting the head
   ends this session.
+- **Launch every large model with reasoning effort `low`, server-side.**
+  Operator decision, 2026-09-22. Three two-node arms in a row found the same
+  failure one launch too late: DeepSeek V4-Flash, Qwen3.8-Flash-Next (which
+  defaults to `xhigh` and returned `content: null`), and GLM-5.3-Flash (which
+  renders effort Max and ended a 600-token request at the cap with the answer
+  truncated). Set it in the launch, usually
+  `--default-chat-template-kwargs '{"reasoning_effort":"low"}'` or the recipe's
+  own variable, and confirm it in the server's argv. A plain request without
+  `chat_template_kwargs` must end in `finish_reason: stop` with content before
+  any trial. A higher effort is a separate arm with its own backend name,
+  worked up from `low` only when there is a reason to. Gotcha 23 in
+  [`docs/dgx-cluster-setup.md`](../../docs/dgx-cluster-setup.md).
 - **Do not commit while a run holds the lock**, and do not run `pytest` or
   `ruff` during a measurement, on either node.
 
