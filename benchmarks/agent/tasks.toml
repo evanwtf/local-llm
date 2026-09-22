@@ -2593,6 +2593,18 @@ aider_model = "openai/Qwen3.8-Flash-Next"
 opencode_model = "vllm8888/Qwen3.8-Flash-Next"
 context_tokens = 262144
 
+[backend.qwen38fnexl3nomtpnothinkrcdgx]
+description = "qwen38fnexl3nothinkrcdgx with speculative decoding off (SPEC_CONFIG=none), nothing else changed: turboderp 3.05 bpw EXL3 pack, vLLM 0.29.0 + vllm-exl3 0.4.2 @08ed1bf, n-gram table on disk, GMU 0.60, thinking off; REMOTE CLIENT (#562). This is the lever for the #434 corruption: the MTP arm reproduced it from a remote client with 46 GiB free -- one trial of 30 emitted 36,340 output tokens against a 1,303 median, with MTP acceptance at 0.007% over a ten-minute window -- so memory pressure is excluded and the drafter is the remaining suspect. If corruption recurs here with the drafter off, it is the model or the pack, not speculation"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "vllm"
+model = "Qwen3.8-Flash-Next"
+aider_model = "openai/Qwen3.8-Flash-Next"
+opencode_model = "vllm8888/Qwen3.8-Flash-Next"
+context_tokens = 262144
+topology = "remote"
+
 [backend.glm53flashexl3k2nothinkdgx]
 description = "GLM-5.3-Flash EXL3 K2 (vcruz305/GLM-5.3-Flash-EXL3-K2, 120 shards, 97.7 GB) via vcruz305/GLM-5.3-Flash-EXL3-K2-DGX-Spark-recipe @655e60b: prebuilt aarch64 vLLM 0.1.dev62+g878631b60 (torch 2.13.0+cu130), vllm-exl3 0.4.2 built from d3cfd394, EXL3_FUSED_MOE=1 native kernel; fp8 KV pinned 1.5 GiB (68,656 tokens), max-model-len 65536, max-num-seqs 1, prefix caching on, DG_JIT_CACHE_DIR outside ~/.cache/vllm; chat template patched to honor enable_thinking, thinking off by server default. Idle MemAvailable 16 GiB: runs use a 1 GiB client cap and --server-floor-gib 10 (the unit guard still stops the server at 13 GiB)"
 tier = "gb10-spark"
