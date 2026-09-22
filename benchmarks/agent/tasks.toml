@@ -2807,3 +2807,28 @@ aider_model = "openai/deepseek-v4-flash-vision-exp"
 opencode_model = "vllm8888/deepseek-v4-flash-vision-exp"
 context_tokens = 1048576
 topology = "remote"
+
+# #663: Qwen3.8-Flash-Next NVFP4 across BOTH DGX Sparks, via
+# MiaAI-Lab/Qwen3.8-Flash-Next-Dual-DGX-Sparks. vLLM TP=2 + expert parallel +
+# MTP 3 over the 200 Gb/s fabric. First-party NVIDIA weights, so no source
+# decision gates it (#650).
+#
+# Two departures from the recipe's defaults, both measured here:
+#   GPU_MEMORY_UTILIZATION=0.78, not 0.835 -- the recipe assumes a head that
+#   carries nothing else; ours also runs the harness and monitoring, and 0.835
+#   hit NVRM OOM and then earlyoom.
+#   --default-chat-template-kwargs '{"reasoning_effort":"low"}' -- the
+#   checkpoint defaults to xhigh, which spends an entire token budget reasoning
+#   and returns content: null. Set server-side so the client needs no special
+#   config, and so this matches the DeepSeek two-node arm.
+[backend.qwen38fnnvfp4dual2xrc]
+description = "Qwen3.8-Flash-Next NVFP4 (nvidia/Qwen3.8-Flash-Next-NVFP4, 133 GiB) across TWO DGX Sparks: vLLM TP=2 + expert parallel + MTP 3 over 200 Gb/s ConnectX-7 RoCE, image vllm/vllm-openai:qwen38-flash-next, fp8 KV, 262144 native context, GPU_MEMORY_UTILIZATION 0.78, reasoning_effort low as a server default. Measured KV pool on the pair at 0.78: 28.93 GiB, 3,413,729 tokens, 13.02x concurrency at a 262k request. REMOTE CLIENT (#562/#649): OpenCode and the harness run on the Core i3-7100 client over the LAN. The single-Spark comparison is the #468/#493 Flash-Next work, which had to run at gpu-memory-utilization 0.60 because the client shared the box"
+tier = "gb10-spark-x2"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "vllm"
+model = "qwen3.8-flash-next"
+aider_model = "openai/qwen3.8-flash-next"
+opencode_model = "vllm8888/qwen3.8-flash-next"
+context_tokens = 262144
+topology = "remote"
