@@ -1001,7 +1001,23 @@ def test_dry_run_reports_a_script_task_without_crashing(tmp_path, monkeypatch):
     assert 'summary if not is_script else "script task; no control to check"' in source
 
 
-TIERS = {"desktop-3080ti", "gb10-spark"}
+def _registered_tiers() -> set[str]:
+    """The tiers the machine registry declares, rather than a literal here.
+
+    This was a hardcoded set and it drifted: the cluster's `gb10-spark-x2`
+    existed in `scripts/machines.py` and a backend carrying it failed this
+    test as an "unknown tier". Reading the registry means adding a machine
+    costs a registry entry and nothing else, which is #292's point.
+    """
+    import sys
+
+    sys.path.insert(0, str(HERE.parent.parent / "scripts"))
+    import machines
+
+    return {m.tier for m in machines.MACHINES if m.tier}
+
+
+TIERS = _registered_tiers()
 
 
 def test_tiered_backends_are_out_of_the_default_matrix():

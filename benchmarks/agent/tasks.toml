@@ -2785,3 +2785,25 @@ model = "ornith-1.5-a3b"
 aider_model = "openai/ornith-1.5-a3b"
 opencode_model = "vllm/ornith-1.5-a3b"
 context_tokens = 262144
+
+# #649/#650: DeepSeek-V4-Flash-Vision-Exp across BOTH DGX Sparks, via
+# MiaAI-Lab/DeepSeek-v4-Flash-DSpark-2x-DGX-Spark. vLLM TP=2, one GB10 per
+# node, over the 200 Gb/s ConnectX-7 fabric (#646: link 196.08 Gb/s, two-node
+# all-reduce 187.10 Gb/s). Operator-selected 2026-09-22; official DeepSeek
+# checkpoint at revision 86f746b3, ABLITERATED=0, image pinned by digest.
+#
+# tier is `gb10-spark-x2`, NOT `gb10-spark`: this backend needs two nodes and
+# must not read as native on one, and a single-Spark backend is not runnable
+# here (#345, #647). Rows belong in the cluster's ledger, which
+# server_facts.py --cluster-peer arranges.
+[backend.dsv4flashvisiondspark2xrc]
+description = "DeepSeek-V4-Flash-Vision-Exp (official, rev 86f746b3) on TWO DGX Sparks: vLLM TP=2 across nodes via ghcr.io/anemll/dspark-vllm-gx10:0.1.1 (pinned by digest), DSpark speculative decoding with MTP_NUM_TOKENS=6, nvfp4_ds_mla KV, 1M context, max 6 concurrent seqs, thinking low by server default. Measured KV pool on this pair: 16.84 GiB on rank 0 and 15.7 GiB on rank 1, 2,331,577 tokens, 2.22x concurrency at a 1M-token request. REMOTE CLIENT (#562/#649): OpenCode and the harness run on the Core i3-7100 client over the LAN, so the pair's memory holds only the server"
+tier = "gb10-spark-x2"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "vllm"
+model = "deepseek-v4-flash-vision-exp"
+aider_model = "openai/deepseek-v4-flash-vision-exp"
+opencode_model = "vllm8888/deepseek-v4-flash-vision-exp"
+context_tokens = 1048576
+topology = "remote"
