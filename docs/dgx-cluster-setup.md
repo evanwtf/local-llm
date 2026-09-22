@@ -147,6 +147,22 @@ reboot it averaged **0.282 ms**. The same reboot took the all-reduce from
 24.20 to 187.10 Gb/s (Layer 5). An unexplained order-of-magnitude latency
 anomaly is a blocker, not a footnote.
 
+### Is the second cable worth it? No, and it is measured
+
+**OBSERVED 2026-09-22.** Both cables are now connected. The second one moved
+the raw link from 196.08 to 218.36 Gb/s (+11.4%) and the two-node all-reduce
+from 187.10 to 196.09 Gb/s (**+4.8%**). It cannot do better: the host-to-NIC
+PCIe budget is about 224 Gb/s and one cable already delivered 196, because
+both cages are served by the same two Gen5 x4 devices.
+
+The demonstration is that every path halves when all four run at once —
+109.3 Gb/s alone, 54.59 Gb/s together, and 4 x 54.59 = 218.36 against
+2 x 109.3 = 218.6, agreeing to 0.1%.
+
+Full write-up, aimed at someone deciding whether to buy or connect the second
+cable: [`second-cable-dgx-spark-cluster.md`](second-cable-dgx-spark-cluster.md).
+Working notes in #659.
+
 ### Bonding, and why the default is not to
 
 **PLANNED — decision open.** With one cable connected there is nothing to
