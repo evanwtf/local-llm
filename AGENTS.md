@@ -148,6 +148,7 @@ every one on every task — read the row that matches what you are about to do.
 | operate the M5 Max: thermals, machine ops, a cross-machine comparison | [`docs/m5max-runbook.md`](docs/m5max-runbook.md) |
 | operate the DGX Spark: is it busy, Prometheus, ports, launching safely | [`docs/dgx-spark-runbook.md`](docs/dgx-spark-runbook.md) |
 | set up, verify, or debug the two-Spark cluster: fabric, RoCE, NCCL, the head node | [`docs/dgx-cluster-setup.md`](docs/dgx-cluster-setup.md) |
+| build the two-Spark cluster from scratch, step by step | [`docs/dgx-cluster-howto.md`](docs/dgx-cluster-howto.md) |
 | share the machine with another agent | [`docs/peer_agents.md`](docs/peer_agents.md) |
 | watch the field (X, Hugging Face, upstream) | [`SOURCES.md`](SOURCES.md) |
 
