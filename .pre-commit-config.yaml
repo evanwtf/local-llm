@@ -21,11 +21,32 @@
 # it into git; see the Build and run section of README.md.
 # Hooks without `stages` run at pre-commit only; the session-ID guard below is
 # the one commit-msg hook, and `pre-commit install` wires both hook types.
-default_install_hook_types: [pre-commit, commit-msg]
+default_install_hook_types: [pre-commit, commit-msg, pre-push]
 default_stages: [pre-commit]
 repos:
   - repo: local
     hooks:
+      # The push gate. `pytest -m fast` is the ~180 repo-CONTRACT guards --
+      # registry, generated docs, script index, ledger shape, tasks.toml -- out
+      # of ~3,500 tests. Those are the failures worth blocking a push on,
+      # because they mean a convention drifted and CI will catch them minutes
+      # later with the branch already pushed.
+      #
+      # The full suite stays in CI. Gating a push on all 3,500 costs ~3.5
+      # minutes every time and grows with the test count, which is the thing
+      # this deliberately does not do: the gate is chosen by what a failure
+      # MEANS, not by how many tests exist.
+      #
+      # conftest.FAST_MODULES decides membership, by module path, so a new
+      # guard added to one of those files joins the gate without anyone
+      # remembering to mark it.
+      - id: pytest-fast
+        name: pytest -m fast (repo-contract guards; CI runs the rest)
+        entry: uv run pytest -m fast -q
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
       - id: refuse-commit-during-benchmark
         name: refuse commit while a stack_agent A/B is live
         entry: python scripts/refuse_commit_during_benchmark.py

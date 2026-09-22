@@ -54,7 +54,8 @@ uv run python benchmarks/agent/splice_tables.py    # regenerate docs/results.md 
 uv run python scripts/report.py --backend <name>   # summarize or compare cells, with #23's resolution rule
 uv run python scripts/coherence_check.py ~/models/<model>.gguf  # temp-0 coherence check before a batch (ds4-served models, #287)
 uv run python benchmarks/agent/model_inventory.py  # census every runtime's model tree before saying a model is absent
-uv run pytest -q                                   # the suite; read the exit code, never `| tail`
+uv run pytest -m fast -q                           # the push gate: ~180 repo-contract guards, seconds
+uv run pytest -q                                   # the whole suite (~3,500); read the exit code, never `| tail`
 ```
 
 `uv` manages the environment (`requires-python = ">=3.11"`); engines and weights
@@ -90,6 +91,7 @@ doc.
 - **Favor a committed, tested script over an ad-hoc heredoc** (#368). A `python3 - <<'PY'` (or `python -c`) that parses a log, reads a number, or computes anything you might run twice leaves no test and drifts between sessions — the same analysis comes out slightly different each time and no later session can reproduce it. Put it in `scripts/`, name it, test it, commit it. **Read [`scripts/README.md`](scripts/README.md) first** — the generated index of every script, its one-line purpose, and the machine it runs on (`mac` / `nvidia` / `any`); the tool you need may already exist (`gguf_meta.py` reads GGUF metadata without loading the model). Regenerate the index with `uv run python scripts/make_scripts_readme.py` when you add a script.
 - **Never put backticks — or `$VAR`, or `$(...)` — in a `-m`/`--body` argument or an unquoted heredoc.** Use `-F -` with a quoted delimiter. If a job spawned a process, kill the **group** (`kill -TERM -<pgid>`), not the pid.
 - Read the **exit status, not the tail**: `pytest -q | tail && git commit` commits on a red suite.
+- **`pytest -m fast` is what a push needs, not the whole suite.** It is the ~180 contract guards -- registry, generated docs, script index, ledger shape -- and a `pre-push` hook runs it. The full ~3,500 belong to CI. Membership comes from `conftest.FAST_MODULES` by module path, so a guard added to one of those files joins the gate on its own; never write `@pytest.mark.fast` by hand.
 - No unbounded `tail -f` or `until` waiter: poll for the task's own `[exited with code N]` line **and** for the producer being gone, with a deadline.
 
 **Operating the harness** — [`docs/harness-operations.md`](docs/harness-operations.md)

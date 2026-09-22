@@ -244,3 +244,57 @@ def _isolate_unit_records(tmp_path, monkeypatch):
     import unitctl
 
     monkeypatch.setattr(unitctl, "STATE_DIR", tmp_path / "units")
+
+
+#: Modules whose tests are repo-CONTRACT guards: they fail when a convention
+#: has drifted, not when behaviour is wrong. Those are the ones worth blocking
+#: a push on -- they are the failures a reviewer cannot see and CI catches
+#: minutes later, after the branch is already pushed.
+#:
+#: The list is modules, not individual tests, and conftest applies the marker.
+#: Writing `@pytest.mark.fast` on a test by hand would rot: the next guard
+#: added to one of these files would silently miss the gate.
+#:
+#: A member must be HERMETIC. benchmarks/agent/test_task_definitions.py was
+#: in this list for one commit and the gate rejected its own push: that
+#: module reads ~/git/gmail-archive and asserts each task's target file is
+#: excisable, so it fails whenever a benchmark has that checkout mid-run.
+#: A push gate that depends on another repository's working tree blocks
+#: pushes for reasons that have nothing to do with the push.
+#:
+#: This is deliberately NOT "every test under a second". The suite is ~3,500
+#: tests and about 3.5 minutes, spread evenly -- there is no slow tail to cut.
+#: Selecting by speed would mean curating thousands of entries and re-curating
+#: them forever. Selecting by *what a failure means* is stable: a contract
+#: guard stays a contract guard.
+FAST_MODULES = frozenset(
+    {
+        "tests/test_machines.py",  # registry <-> hardware dirs <-> MACHINES.md
+        "tests/test_shift_change.py",  # the opener/closer contract
+        "tests/test_scripts_readme.py",  # the generated script index
+        "tests/test_cluster_id.py",  # cluster identity, and its refusals
+        "tests/test_backfill_iso8601.py",  # every ledger declares its zone
+        "tests/test_iso8601_timestamps.py",  # timestamp shape in the ledgers
+        "tests/test_validate_ledgers.py",  # ledger rows parse and hold
+        "tests/test_workspace_escape.py",  # the sandbox stays a sandbox
+        "benchmarks/agent/test_testing_set.py",  # live backends are documented
+    }
+)
+
+
+def pytest_collection_modifyitems(
+    config: pytest.Config, items: list[pytest.Item]
+) -> None:
+    """Mark every test in a FAST_MODULES file `fast`.
+
+    Derived from the path, so adding a guard to one of those files puts it in
+    the gate automatically and nobody has to remember.
+    """
+    root = pathlib.Path(config.rootpath)
+    for item in items:
+        try:
+            rel = pathlib.Path(item.fspath).resolve().relative_to(root).as_posix()
+        except ValueError:
+            continue
+        if rel in FAST_MODULES:
+            item.add_marker(pytest.mark.fast)
