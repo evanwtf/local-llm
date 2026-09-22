@@ -183,6 +183,26 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 
 **Rows here were not all taken under one client.** ds4dgx, nemotron33, nemotron3nano, nemotroncascade2, ornith15a3bdgx, qwen36a3bnvfp4dgx, qwen36bf16dgx, qwen36codinggguf, qwen36nvfp4dgx, qwen36nvfp4nothinkdgx, qwen36nvfp4specdgx, qwen36nvfp4v1dgx, qwen38fnnvfp4dgx, qwen38fnq3dgx, qwen38fnq3nothinkdgx, qwen38fnq3nothinkkv8dgx, qwen38fnq3nothinktopkdgx, qwen38fnq3nothinkub2048dgx under 1.18.30; the rest under 1.18.31. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: qwen36a3bnvfp4dgx (1.18.30, 1.18.31); qwen38fnq3nothinkdgx (1.18.30, 1.18.31).
 
+### Cortex-X925-128GB-GB10-x2
+
+*Generated from `hardware/Cortex-X925-128GB-GB10-x2/results.jsonl` — 10 rows, sha256 a3cc146c5808.*
+
+#### Every stack measured under OpenCode
+
+**The three timing columns count only trials that passed.** A trial that dies early is quick, so counting failures would reward a stack for failing fast and lift it up a table sorted by median. Read the `passed` column first.
+
+| stack | passed | median | worst | spread |
+|---|---|---|---|---|
+| dsv4flashvisiondspark2xrc | 10/10 | 90s | 183s | 3.7x |
+
+Excision tasks only; `script-*` excluded because they are a different class. **Spread is worst / best on the same task**, and it is the column most people forget to ask for.
+
+#### How fast each stack actually serves tokens
+
+| stack | seconds per 1k output tokens |
+|---|---|
+| dsv4flashvisiondspark2xrc | 35s |
+
 ### MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A
 
 *Generated from `hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/results.jsonl` — 3916 rows, sha256 04734ff0320e.*
