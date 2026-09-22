@@ -334,12 +334,21 @@ cluster heartbeat that reports one node, or omits the link, is incomplete** —
 the whole reason this machine is two boxes is that either one can be the
 problem.
 
-```
-Currently on GPU: <what> (issue #N)
-HH:MM EDT | head: util N%, NW GPU, NºC, N.N GiB avail | worker: util N%, NW GPU, NºC, N.N GiB avail
-         | outlet: NW + NW = NW pair | link: N/N cabled up, RoCE N ACTIVE, RTT N.NN ms
-         | task #N (<model-slug>), N min in, ETA HH:MM | next #N
-```
+**Write it as ordinary text, not a fenced code block.** A fence renders as a
+grey monospace slab that wraps badly on a phone and reads as machine output
+rather than a status anyone would want to skim. Bold the field names and
+separate them with `·`:
+
+> **Currently on GPU:** \<what\> (#N)
+>
+> **HH:MM EDT** — **head** util N%, NW, NºC, N.N GiB avail · **worker** util
+> N%, NW, NºC, N.N GiB avail · **outlet** NW + NW = NW pair · **link** N/N up,
+> RoCE N ACTIVE, RTT N.NN ms · **task** #N (\<model-slug\>), N/M trials, N min
+> in, ETA HH:MM · **next** \<what\>
+
+The fields and their sources are unchanged — only the presentation. Keep the
+GPU-occupant line first and on its own; it is the one line a reader scanning a
+long issue needs.
 
 Every field, and where it comes from. Guessing any of them is worse than
 omitting the tick — read them fresh, every tick, on both nodes.
