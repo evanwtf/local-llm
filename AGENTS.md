@@ -147,7 +147,7 @@ every one on every task — read the row that matches what you are about to do.
 | understand the benchmark task by task | [`benchmarks/agent/METHODOLOGY.md`](benchmarks/agent/METHODOLOGY.md) |
 | operate the M5 Max: thermals, machine ops, a cross-machine comparison | [`docs/m5max-runbook.md`](docs/m5max-runbook.md) |
 | operate the DGX Spark: is it busy, Prometheus, ports, launching safely | [`docs/dgx-spark-runbook.md`](docs/dgx-spark-runbook.md) |
-| set up, verify, or debug the two-Spark cluster: fabric, RoCE, NCCL, the head node | [`hardware/Cortex-X925-128GB-GB10-x2/CLUSTER-SETUP.md`](hardware/Cortex-X925-128GB-GB10-x2/CLUSTER-SETUP.md) |
+| set up, verify, or debug the two-Spark cluster: fabric, RoCE, NCCL, the head node | [`docs/dgx-cluster-setup.md`](docs/dgx-cluster-setup.md) |
 | share the machine with another agent | [`docs/peer_agents.md`](docs/peer_agents.md) |
 | watch the field (X, Hugging Face, upstream) | [`SOURCES.md`](SOURCES.md) |
 
