@@ -8,6 +8,11 @@ tracked in #646; the ledger separation the cluster needs is #647.
 launching anything that spans both nodes, and before concluding that the
 fabric is at fault.**
 
+**Building the pair from nothing?** [`dgx-cluster-howto.md`](dgx-cluster-howto.md)
+is the short path: the steps in order, with the check that catches each one
+going wrong. This file is the reasoning behind them and the gotcha
+catalogue — read it when a step there fails.
+
 ## Status of every claim in this document
 
 The fabric is **up and measured**; nothing has been served across the pair
