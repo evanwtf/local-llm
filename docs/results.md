@@ -59,7 +59,7 @@ other is telling you something.
 
 ### Cortex-X925-128GB-GB10
 
-*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 4032 rows, sha256 e8cee7fd8a84.*
+*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 4062 rows, sha256 0c2df5c53c6e.*
 
 #### Every stack measured under OpenCode
 
@@ -86,6 +86,7 @@ other is telling you something.
 | qwen38fnq3nothinkdgx | 331/331 | 67s | 1059s | 43.8x |
 | qwen38fnnvidianvfp4nothinkdgx | 90/90 | 68s | 1115s | 48.5x |
 | qwen38fnnvidianvfp4nothinkfmrcdgx @ Corei3-7100-16GB | 89/90 | 69s | 1627s | 63.8x |
+| qwen38fnexl3nothinkrcdgx @ Ryzen9-7900X-32GB+image@24g | 25/29 | 81s | 1713s | 51.1x |
 | qwen38fnq3nothinkrcdgx @ Corei3-7100-16GB+image | 91/91 | 82s | 225s | 8.8x |
 | qwen38fnq3nothinkub2048dgx | 4/4 | 82s | 475s | 14.2x |
 | qwen38fnq3nothinkrcdgx @ Corei3-7100-16GB | 179/180 | 88s | 792s | 19.6x |
@@ -144,6 +145,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | qwen38fnnvfp4miaainothinkdgx | 43s |
 | qwen38fnnvidianvfp4nothinkfmrcdgx @ Ryzen9-7900X-32GB+image | 45s |
 | qwen3827bsglangdsparkpinnednothinkdgx | 47s |
+| qwen38fnexl3nothinkrcdgx @ Ryzen9-7900X-32GB+image@24g | 48s |
 | qwen3827bsglangdsparknothinkdgx | 48s |
 | qwen38fnnvidianvfp4nothinkdgx | 49s |
 | qwen3827bsglangdflash2nothinkfmrcdgx @ Corei3-7100-16GB | 50s |
