@@ -42,6 +42,10 @@ import shlex
 import subprocess
 import sys
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+
+import logs
+
 logger = logging.getLogger(__name__)
 
 #: Sourcing runs arbitrary code from the file, which is the whole point -- the
@@ -137,7 +141,7 @@ def main(argv: list[str] | None = None) -> int:
     c.add_argument("key", nargs="+")
     args = p.parse_args(argv)
 
-    logging.basicConfig(level=logging.INFO, format="%(message)s")
+    logs.configure(fmt=logs.PLAIN)
 
     if args.cmd == "set":
         set_keys(args.path, args.assignment)
