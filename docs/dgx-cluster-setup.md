@@ -262,34 +262,56 @@ directory's README for the `nvfanread` consequence.
 
 ## Layer 5: collectives
 
-**PLANNED.** The structural test, and the one that catches the failure this
-whole document exists for: a link that pings and still stalls.
+**OBSERVED 2026-09-22T01:20-0400. Works, is correct, and is far below the
+link's raw rate.**
+
+`scripts/cluster_allreduce.py` under `torchrun`, one rank per node, inside
+the serving image. bf16, median of 20 iterations, bus bandwidth by
+nccl-tests' definition (`algbw * 2(n-1)/n`, which equals algbw at two ranks):
+
+| message | latency | busbw |
+|---|---|---|
+| 1 MiB | 0.800 ms | 10.49 Gb/s |
+| 4 MiB | 1.450 ms | 23.15 Gb/s |
+| 16 MiB | 5.481 ms | 24.49 Gb/s |
+| 64 MiB | 22.659 ms | 23.69 Gb/s |
+| 256 MiB | 90.028 ms | 23.85 Gb/s |
+| 1 GiB | 355.025 ms | 24.20 Gb/s |
+
+Correctness passes: an all-reduce of ones returns exactly the world size.
+
+**The collective plateaus at ~24 Gb/s — 12% of the 196.08 Gb/s the same link
+delivers under `ib_write_bw`.** That gap is not the fabric. Three separate
+tuning attempts landed within 1% of each other:
+
+| configuration | busbw at 1 GiB |
+|---|---|
+| RDMA, default tuning | 24.20 Gb/s |
+| `NCCL_NET_GDR_LEVEL=5`, `NCCL_DMABUF_ENABLE=1` | 24.25 Gb/s |
+| `NCCL_BUFFSIZE=16M`, 4 QPs/connection, 4 channels/peer | 24.02 Gb/s |
+
+NCCL is doing the right things: it finds both HCAs, builds 32 channels and
+alternates them across `NET/IB/0` and `NET/IB/1`, both reporting
+`speed=200000`. What it cannot do is **GPUDirect RDMA** —
+`GPU Direct RDMA Disabled for HCA` on both, and the GDR levers change
+nothing. On GB10 the GPU's memory *is* host memory, so every byte is staged
+through host buffers on both sides rather than moving NIC-to-GPU directly.
+
+**Plan around 24 Gb/s of collective bandwidth, not 200.** The raw link figure
+describes what `ib_write_bw` does between two host buffers; it is not what a
+tensor-parallel split will see. Whether ~24 Gb/s is adequate is a question
+about the model's per-layer exchange, and #648 should measure it rather than
+assume in either direction.
 
 ```sh
-# nccl-tests, across both nodes
-NCCL_SOCKET_IFNAME=<ethernet ifaces, both rails>
-NCCL_IB_HCA=<roce devices>
-NCCL_IB_DISABLE=0
-NCCL_NET_GDR_LEVEL=5
-all_reduce_perf ...
+torchrun --nnodes 2 --node-rank <0|1> --nproc-per-node 1 \
+    --master-addr <head fabric ip> --master-port 29500 \
+    scripts/cluster_allreduce.py
 ```
 
-**Pin the interfaces explicitly. This is the known hang.** MiaAI-Lab's
-two-Spark recipe records it plainly (REPORTED):
-
-> Ray may use the `10.0.0.1`/`10.0.0.2` aliases; **NCCL cannot** — `start.sh`
-> pins the CX7 NICs and IB HCAs so `ncclCommInitRank` does not hang.
-
-The failure signature is a process that starts, prints nothing further, and
-never exits — `ncclCommInitRank` waiting forever. It is not a crash, there is
-no error message, and it looks exactly like a slow model load. If a two-node
-launch appears to hang during initialisation, check the interface pinning
-before anything else.
-
-Record the achieved bandwidth in #646. **200 Gb/s is the port's rating, not a
-measurement**, and must never be quoted as one.
-
----
+Run it inside the serving image with `--device /dev/infiniband`,
+`--ulimit memlock=-1`, `--network host`, `--ipc=host`, and **both** names in
+`NCCL_SOCKET_IFNAME` and `NCCL_IB_HCA` (gotchas 16 and 17).
 
 ## Layer 6: the engine
 
@@ -529,7 +551,39 @@ allocations not charged to any process's RSS. The OOM killer scores by RSS.
 floor comes during prefill, not at load. Disable `earlyoom` on both nodes if
 present.
 
-### 16. Repo gotcha: a committed `hardware/<dir>/` needs a registry entry — **HIT**
+### 16. A container without `/dev/infiniband` silently falls back to TCP — **HIT**
+
+*Symptom:* the collective runs, returns correct results, and is slow. No
+error, no warning at default verbosity.
+
+*Cause:* `docker run` without the RDMA character devices. NCCL logs
+`NET/IB : No device found`, selects `NET/Socket`, and everything keeps
+working over TCP. Measured here: **16.35 Gb/s** on the socket path against
+**24.20 Gb/s** once RDMA was available, and 3.013 ms against 0.800 ms of
+latency at 1 MiB.
+
+*Fix:* `--device /dev/infiniband:/dev/infiniband`. The recipe's own compose
+file does this; a hand-rolled `docker run` for testing is what missed it.
+Confirm with `NCCL_DEBUG=INFO NCCL_DEBUG_SUBSYS=NET` and look for
+`NET/IB : Using [0]... [1]...` rather than `Using network Socket`.
+
+**This is the most dangerous entry in this list**, because the fallback path
+produces plausible numbers. Always confirm the transport; never infer it from
+"it worked".
+
+### 17. RDMA needs unlimited locked memory in the container — **HIT**
+
+*Symptom:* `ibv_reg_mr_iova2 failed with error Cannot allocate memory`, then
+`ibv_create_qp failed`, then `ncclSystemError`. The job dies at init.
+
+*Cause:* Docker's default `memlock` limit. RDMA registers pinned memory
+regions and cannot fall back to unpinned.
+
+*Fix:* `--ulimit memlock=-1 --ulimit stack=67108864`. The host's own limit is
+already `unlimited`, which is why this appears only inside a container. The
+recipe's compose file sets both.
+
+### 18. Repo gotcha: a committed `hardware/<dir>/` needs a registry entry — **HIT**
 
 *Symptom:* CI red on a docs-only branch:
 `committed machine directories not in the registry`.
@@ -561,7 +615,7 @@ works. Results from 2026-09-22 in the right column.
 | 11 | `id` matches on both | uid 1000, gid 1000, both |
 | 12 | `ib_write_bw`, one path, then both concurrently | 111.86 / **196.08 Gb/s** |
 | 13 | `iperf3 -P 8` on the IP path | 111 Gb/s, 0 retransmits |
-| 14 | `all_reduce_perf` across both nodes | **not yet done** |
+| 14 | all-reduce across both nodes (`scripts/cluster_allreduce.py`) | correct; **24.20 Gb/s** at 1 GiB |
 | 15 | only now, a model | #648 |
 
 ## Open decisions

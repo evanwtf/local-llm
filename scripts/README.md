@@ -25,6 +25,7 @@ Each script explains itself in full at the top of its own file -- what it comput
 | `client_preflight.py` | any | Check a remote client is fit to run trials against the server. #562/#579 |
 | `client_version_split.py` | any | Which client version took which rows, and what that confounds (#137, #131). |
 | `client_versions.py` | any | Read the recorded agent client versions, and say which have moved (#131). |
+| `cluster_allreduce.py` | any | Measure NCCL all-reduce bandwidth across the DGX Spark cluster's nodes. |
 | `coherence_check.py` | mac | Greedy coherence check before trusting any new GGUF (#25, #48). |
 | `cohort_split.py` | any | Split one backend's rows at a moment in time and compare the halves. |
 | `daemons_idle.py` | mac | Wait until macOS's background daemons are idle before a timed run. #499, #214 |
