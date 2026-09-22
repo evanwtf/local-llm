@@ -21,11 +21,14 @@ REPO = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "scripts"))
 sys.path.insert(0, str(REPO / "benchmarks" / "agent"))
 
+import cluster_id
 import hardware_id
 import preflight
 
 
-def collect(backend: str, tasks_file: pathlib.Path) -> dict:
+def collect(
+    backend: str, tasks_file: pathlib.Path, cluster_peer: str | None = None
+) -> dict:
     """The server's hardware facts and the engine provenance for `backend`.
 
     The engine half is `run.capture_versions` itself, run here on the server:
@@ -41,8 +44,17 @@ def collect(backend: str, tasks_file: pathlib.Path) -> dict:
     if backend not in cfg["backend"]:
         raise SystemExit(f"unknown backend {backend!r} in {tasks_file}")
     facts, platform = hardware_id.facts_for_this_machine()
+    # A two-node server is a different machine from one Spark, and its rows
+    # must not land in the single-Spark ledger (#647). The peer is verified
+    # before the name is used, and a failed check raises rather than falling
+    # back -- see cluster_id.
+    directory = (
+        cluster_id.verify_and_name(cluster_peer)
+        if cluster_peer
+        else hardware_id.directory_name(facts, platform)
+    )
     return {
-        "directory": hardware_id.directory_name(facts, platform),
+        "directory": directory,
         "backend": backend,
         "facts": preflight.machine_facts(),
         "env": run.capture_versions(
@@ -60,8 +72,16 @@ def main(argv: list[str] | None = None) -> int:
         default=REPO / "benchmarks" / "agent" / "tasks.toml",
     )
     p.add_argument("--out", type=pathlib.Path, required=True)
+    p.add_argument(
+        "--cluster-peer",
+        metavar="HOST",
+        help="this server spans two nodes: the peer to verify before naming "
+        "the cluster. Refuses if the peer is unreachable, is different "
+        "hardware, or has no ACTIVE RDMA link -- it never falls back to the "
+        "single-node name (#647)",
+    )
     args = p.parse_args(argv)
-    data = collect(args.backend, args.tasks_file)
+    data = collect(args.backend, args.tasks_file, args.cluster_peer)
     args.out.write_text(json.dumps(data, indent=2, default=str) + "\n")
     print(
         json.dumps(
