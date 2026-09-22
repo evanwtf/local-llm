@@ -44,6 +44,7 @@ markers = [
     "integration: needs ~/git/gmail-archive at the pinned commit and uv",
     "slow: allocates real memory or takes seconds; not part of the default run",
     "real_stash_paths: reads this machine's real repositories; opts out of conftest's stash redirect",
+    "fast: a repo-contract guard -- registry, docs, indexes, ledger shape. Applied by conftest from FAST_MODULES, never written on a test by hand. `pytest -m fast` is the pre-push gate; CI still runs everything",
 ]
 
 [tool.ruff]
