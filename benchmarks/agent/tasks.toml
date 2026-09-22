@@ -2891,3 +2891,34 @@ aider_model = "openai/GLM-5.3-Flash-EXL3"
 opencode_model = "vllm8888/GLM-5.3-Flash-EXL3"
 context_tokens = 262144
 topology = "remote"
+
+# #672: MiMo-V2.6-Flash-RL (309B total, 15B active, MXFP4 experts) across BOTH
+# DGX Sparks, via MiaAI-Lab/MiMo-V2.6-Flash-2x-DGX-Sparks @201be3e. The first
+# model on this pair that cannot run on one Spark at all (161 GiB of weights).
+# First-party weights (XiaomiMiMo, rev 3b38d06), DFlash drafter shipped inside
+# the checkpoint, official SGLang base image. The worker loads the head's
+# checkpoint over NFS, as the recipe requires.
+#
+# Departures from the recipe, measured here:
+#   MEM_FRACTION_STATIC=0.90, not 0.93 -- boot 1 at 0.93 hit NVRM
+#   NV_ERR_NO_MEMORY on the head while allocating a 1,903,104-token KV pool,
+#   then earlyoom SIGTERM; the head container exited.
+#   MAX_TOTAL_TOKENS=1048576, not 2743808 -- four full 262k contexts; the DFlash
+#   draft pool is sized to the same count.
+#   CONTEXT_LENGTH=262144, not 1M -- matches the other two-node arms.
+#   SPEC_ALGO=DFLASH / 8 draft tokens / decode graphs to 8 -- the recipe's own
+#   recommendation for code (its default is EAGLE).
+#   Thinking off as a server default (--default-chat-template-kwargs
+#   {"enable_thinking":false}) -- MiMo's template has only that switch, so off is
+#   its lowest effort (gotcha 23).
+[backend.mimo26fdual2xrc]
+description = "MiMo-V2.6-Flash-RL (XiaomiMiMo, rev 3b38d06, 161 GiB, 309B-A15B MXFP4 experts) across TWO DGX Sparks: SGLang TP=2 EP=2 via MiaAI-Lab/MiMo-V2.6-Flash-2x-DGX-Sparks @201be3e, image built from lmsysorg/sglang:nightly-dev-cu13-20260921-0f6761b5 (sha256:987c7e4b), worker loads the head's checkpoint over NFS, DFlash speculative decoding (in-checkpoint drafter, 8 draft tokens), fp8 KV, 262144 context, mem-fraction-static 0.90, max-total-tokens 1,048,576 (full-attention pool allocated at exactly that; SWA pool 31,424 tokens, 7.09 GB), thinking off as a server default. Boot low MemAvailable 8.9 GiB head / 9.6 GiB worker; a 112,220-token prefill took 86.0 s with MemAvailable no lower than 14.0 / 15.4 GiB. REMOTE CLIENT (#562/#649): OpenCode and the harness run on the Core i3-7100 client over the LAN. No single-Spark comparison exists: the weights do not fit one node"
+tier = "gb10-spark-x2"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "sglang"
+model = "MiMo-v2.6-Flash"
+aider_model = "openai/MiMo-v2.6-Flash"
+opencode_model = "vllm8888/MiMo-v2.6-Flash"
+context_tokens = 262144
+topology = "remote"
