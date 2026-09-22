@@ -94,6 +94,9 @@ ORACLE_MEM_CAP_GIB = 8.0
 # far below the box's 122 GiB -- a local kill of one trial instead of a box-wide
 # outage. Override with LOCAL_LLM_CLIENT_MEM_CAP_GIB (0 disables).
 #
+# Inside a container with a memory limit the watcher is off by default and
+# the kernel enforces the limit (#680, memcap.default_client_cap_gib).
+#
 # This poll-based cap is a BACKSTOP, not the hard bound: it must be budgeted
 # against *free* headroom, not total RAM. With a large model server resident
 # in the same box (e.g. Flash-Next ~98 GiB), 24 GiB on top can still exceed
@@ -102,7 +105,7 @@ ORACLE_MEM_CAP_GIB = 8.0
 # config-lane fixes in #379). The watchdog also samples every ~2s while a cap is
 # active (DEFAULT_MEM_POLL_SECS), so overshoot past the cap is ~1 GiB, not the
 # ~7.5 GiB a 15s poll would allow.
-CLIENT_MEM_CAP_GIB = float(os.environ.get("LOCAL_LLM_CLIENT_MEM_CAP_GIB", "24"))
+CLIENT_MEM_CAP_GIB = memcap.default_client_cap_gib()
 
 #: The DGX server watcher's floor (`scripts/dgx_server.py MEM_FLOOR_GIB`,
 #: #456). Below it the watcher stops the model server, so a trial's cap must
@@ -3536,6 +3539,12 @@ def timeout_message(name: str, timeout: float, result: dict) -> str:
     reason = result.get("timeout_reason", "wall-clock")
     if reason == "wall-clock":
         return f"{name}: timed out after {timeout}s"
+    if reason == "memory-cap" and result.get("kernel_oom_kills"):
+        limit = result.get("client_mem_limit_gib")
+        return (
+            f"{name}: OOM-killed by the kernel at the container's "
+            f"{limit} GiB limit -- row excluded (#680)"
+        )
     if reason == "memory-cap":
         peak = result.get("peak_rss_gib", 0.0)
         return (
@@ -3794,6 +3803,14 @@ def one_trial(
         # existing timeout path), tagged with which kind fired, so the partial
         # -transcript save and error="timeout" behavior are unchanged. Without
         # the watchdog, the plain run() path is exactly as before.
+        # #680: in a memory-limited container the kernel, not the watcher,
+        # enforces the limit. Make the client tree its first victim, record the
+        # limit on the row, and count kernel kills around the client phase so
+        # one is recorded as a memory kill, never as the model's failure.
+        if (container_limit := memcap.cgroup_limit_gib()) is not None:
+            argv = memcap.oom_first(argv)
+            result["client_mem_limit_gib"] = round(container_limit, 2)
+        oom_before = memcap.cgroup_oom_kills()
         if idle_watchdog:
             watchdog = timeout_policy.IdleStallWatchdog(
                 watts_sampler
@@ -3835,6 +3852,16 @@ def one_trial(
                 env=agent_env(backend, worktree),
                 timeout=timeout,
             )
+        oom_after = memcap.cgroup_oom_kills()
+        if oom_before is not None and oom_after is not None and oom_after > oom_before:
+            exc = subprocess.TimeoutExpired(
+                cmd=argv, timeout=timeout, output=proc.stdout, stderr=proc.stderr
+            )
+            exc.timeout_reason = "memory-cap"  # type: ignore[attr-defined]
+            peak_seen = getattr(proc, "peak_rss_gib", 0.0)
+            exc.client_peak_rss_gib = peak_seen  # type: ignore[attr-defined]
+            exc.kernel_oom_kills = oom_after - oom_before  # type: ignore[attr-defined]
+            raise exc
         result["wall_seconds"] = round(time.monotonic() - t0, 1)
         # A failed row records that the agent did not fix the code, never why.
         # --client-log keeps the client's own event stream so the next failure
@@ -3940,6 +3967,9 @@ def one_trial(
             # it in a pass rate. results.usable() drops the row on `excluded`.
             peak = getattr(exc, "client_peak_rss_gib", 0.0)
             result["client_memory_killed"] = True
+            if kills := getattr(exc, "kernel_oom_kills", 0):
+                # #680: the kernel, not the watcher, killed inside the cgroup.
+                result["kernel_oom_kills"] = kills
             result["peak_rss_gib"] = peak
             result["excluded"] = True
             result["exclusion_reason"] = (
