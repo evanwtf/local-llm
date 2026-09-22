@@ -8,7 +8,7 @@ see #647 for why that separation needs machinery behind it rather than a
 convention.
 
 **Setup, verification and failure modes:
-[`CLUSTER-SETUP.md`](CLUSTER-SETUP.md).** That is the operating document; this
+[`docs/dgx-cluster-setup.md`](../../docs/dgx-cluster-setup.md).** That is the operating document; this
 one records what the hardware is.
 
 ## Status
@@ -19,7 +19,7 @@ the pair. Bring-up is #646. Nothing in this directory is a measurement yet.
 
 **One cable, not two.** Two NJAAKK-N911 cables were bought; one is plugged in,
 between QSFP cage `p1` on each node. The pair's ceiling is therefore a single
-200 Gb/s link. See [`CLUSTER-SETUP.md`](CLUSTER-SETUP.md) for why four
+200 Gb/s link. See [`docs/dgx-cluster-setup.md`](../../docs/dgx-cluster-setup.md) for why four
 ethernet interfaces exist for two cages, and why two of them being up does not
 mean two cables.
 
