@@ -95,7 +95,7 @@ MACHINES: tuple[Machine, ...] = (
         memory="128 GiB unified",
         tier="gb10-spark",
         classes=("platform:Nvidia",),
-        note="DGX Spark; unified memory, so a VRAM-based judgement does not apply",
+        note="DGX Spark; unified memory, so a VRAM-based judgement does not apply. Now node A of the dual-Spark cluster: it keeps this ledger for single-node results, but its work queue moved to Cortex-X925-GB10-x2 (#646)",
     ),
     Machine(
         slug="Cortex-X925-GB10-x2",
@@ -110,7 +110,7 @@ MACHINES: tuple[Machine, ...] = (
         # native on one. Neither inherits from the other (#345, #647).
         tier="gb10-spark-x2",
         classes=("platform:Nvidia",),
-        note="two DGX Sparks cabled directly over 200 Gb/s ConnectX-7 RoCE; every byte is on one side of the link (#646)",
+        note="two DGX Sparks cabled directly over 200 Gb/s ConnectX-7 RoCE; every byte is on one side of the link. This pair IS the DGX lane -- it replaced the single Spark, which is its node A; single-node runs still record to that machine's ledger (#646)",
     ),
     Machine(
         slug="Ryzen9-7900X-RTX3080Ti",

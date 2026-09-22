@@ -7,7 +7,8 @@ other half of each machine's opener (#556):
 | machine | opener |
 |---|---|
 | M5 Max MacBook Pro | [`agent-opener-prompt-m5-max.md`](MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/agent-opener-prompt-m5-max.md) |
-| DGX Spark | [`agent-opener-prompt-dgx-spark.md`](Cortex-X925-128GB-GB10/agent-opener-prompt-dgx-spark.md) |
+| dual DGX Spark cluster | [`agent-opener-prompt-dgx-cluster.md`](Cortex-X925-128GB-GB10-x2/agent-opener-prompt-dgx-cluster.md) |
+| DGX Spark (superseded by the cluster above) | [`agent-opener-prompt-dgx-spark.md`](Cortex-X925-128GB-GB10/agent-opener-prompt-dgx-spark.md) |
 | Ryzen / RTX 3080 Ti desktop | [`agent-opener-prompt-ryzen-3080ti.md`](Ryzen9-7900X-32GB-RTX3080Ti-12GB/agent-opener-prompt-ryzen-3080ti.md) |
 
 Think of a restaurant crew. At the end of the night the closers clean the
