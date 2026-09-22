@@ -185,7 +185,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 
 ### Cortex-X925-128GB-GB10-x2
 
-*Generated from `hardware/Cortex-X925-128GB-GB10-x2/results.jsonl` — 100 rows, sha256 1ad4196e8639.*
+*Generated from `hardware/Cortex-X925-128GB-GB10-x2/results.jsonl` — 130 rows, sha256 52db5a05ea92.*
 
 #### Every stack measured under OpenCode
 
@@ -193,9 +193,10 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 
 | stack | passed | median | worst | spread |
 |---|---|---|---|---|
-| dsv4flashvisiondspark2xrc | 40/40 | 82s | 187s | 6.6x |
-| qwen38fnnvfp4dual2xrcflags | 30/30 | 86s | 412s | 12.4x |
-| qwen38fnnvfp4dual2xrc | 30/30 | 99s | 178s | 5.5x |
+| glm53fexl3dual2xrc @ Corei3-7100-16GB+image@24g | 30/30 | 62s | 130s | 4.3x |
+| dsv4flashvisiondspark2xrc @ Corei3-7100-16GB+image@10g | 40/40 | 82s | 187s | 6.6x |
+| qwen38fnnvfp4dual2xrcflags @ Corei3-7100-16GB+image@10g | 30/30 | 86s | 412s | 12.4x |
+| qwen38fnnvfp4dual2xrc @ Corei3-7100-16GB+image@10g | 30/30 | 99s | 178s | 5.5x |
 
 Excision tasks only; `script-*` excluded because they are a different class. **Spread is worst / best on the same task**, and it is the column most people forget to ask for.
 
@@ -203,9 +204,10 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 
 | stack | seconds per 1k output tokens |
 |---|---|
-| dsv4flashvisiondspark2xrc | 30s |
-| qwen38fnnvfp4dual2xrcflags | 76s |
-| qwen38fnnvfp4dual2xrc | 78s |
+| dsv4flashvisiondspark2xrc @ Corei3-7100-16GB+image@10g | 30s |
+| qwen38fnnvfp4dual2xrcflags @ Corei3-7100-16GB+image@10g | 76s |
+| qwen38fnnvfp4dual2xrc @ Corei3-7100-16GB+image@10g | 78s |
+| glm53fexl3dual2xrc @ Corei3-7100-16GB+image@24g | 88s |
 
 ### MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A
 
