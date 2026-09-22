@@ -1,5 +1,20 @@
 # Opener: the autonomous operator on the DGX Spark (spark-231e, GB10)
 
+> **Superseded 2026-09-22.** A second Spark joined this one as a two-node
+> cluster, and the pair replaced the single box as the DGX lane — there is no
+> single-vs-dual A/B programme and no separate single-Spark queue. Paste
+> [`../Cortex-X925-128GB-GB10-x2/agent-opener-prompt-dgx-cluster.md`](../Cortex-X925-128GB-GB10-x2/agent-opener-prompt-dgx-cluster.md)
+> instead.
+>
+> This file is kept for two reasons: it states the shared rules (unified-memory
+> OOM, launch safety, measurement discipline, ticket operations) at more length
+> than the cluster opener repeats them, and it is the record of how this box was
+> operated alone. **Its §2 hard rules still apply**, on both nodes.
+>
+> What did *not* move: this machine's **ledger**. A run on one node still
+> belongs in `results.jsonl` here, beside the rows it is comparable to. Only a
+> run that spans both nodes goes to the cluster's ledger.
+
 This file is a **prompt**. Paste everything below the line into a fresh Claude
 Code or Codex session started on the DGX Spark (GB10 Grace-Blackwell, 128 GB
 unified LPDDR5X, aarch64, sm_121, label `hardware:Cortex-X925-GB10`). It lets
