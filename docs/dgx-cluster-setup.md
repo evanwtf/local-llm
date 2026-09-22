@@ -140,9 +140,12 @@ sudo nmcli con mod <profile> \
 0.661/1.016/1.645 ms; 10.0.1.0/24 1.100/1.297/1.484 ms), and jumbo frames
 pass end-to-end — `ping -M do -s 8972`, 3/3, no fragmentation.
 
-**Unexplained: RTT is ~1 ms where a direct DAC should give tens of
-microseconds.** Throughput is at line rate, so this is not a link fault;
-CPU idle states are the likely cause. Recorded, not chased.
+**The RTT anomaly was the one real warning sign, and it was dismissed.**
+Before the peer reboot, RTT averaged 1.016 ms where a direct DAC should give
+tens of microseconds; it was recorded as probably CPU idle states. After the
+reboot it averaged **0.282 ms**. The same reboot took the all-reduce from
+24.20 to 187.10 Gb/s (Layer 5). An unexplained order-of-magnitude latency
+anomaly is a blocker, not a footnote.
 
 ### Bonding, and why the default is not to
 
@@ -262,46 +265,64 @@ directory's README for the `nvfanread` consequence.
 
 ## Layer 5: collectives
 
-**OBSERVED 2026-09-22T01:20-0400. Works, is correct, and is far below the
-link's raw rate.**
+**OBSERVED 2026-09-22T01:40-0400. At line rate, after a reboot — see the
+correction below, it matters more than the number.**
 
-`scripts/cluster_allreduce.py` under `torchrun`, one rank per node, inside
-the serving image. bf16, median of 20 iterations, bus bandwidth by
-nccl-tests' definition (`algbw * 2(n-1)/n`, which equals algbw at two ranks):
+`scripts/cluster_allreduce.py` under `torchrun`, one rank per node, inside the
+serving image. bf16, median of 20 iterations, bus bandwidth by nccl-tests'
+definition (`algbw * 2(n-1)/n`, which equals algbw at two ranks). Three
+consecutive runs at 1 GiB: **184.84, 187.14, 187.10 Gb/s** — median
+**187.10 Gb/s**, which is **95.4% of the 196.08 Gb/s** the link delivers
+under `ib_write_bw`.
+
+Representative run:
 
 | message | latency | busbw |
 |---|---|---|
-| 1 MiB | 0.800 ms | 10.49 Gb/s |
-| 4 MiB | 1.450 ms | 23.15 Gb/s |
-| 16 MiB | 5.481 ms | 24.49 Gb/s |
-| 64 MiB | 22.659 ms | 23.69 Gb/s |
-| 256 MiB | 90.028 ms | 23.85 Gb/s |
-| 1 GiB | 355.025 ms | 24.20 Gb/s |
+| 1 MiB | 1.160 ms | 7.23 Gb/s |
+| 4 MiB | 0.655 ms | 51.23 Gb/s |
+| 16 MiB | 0.894 ms | 150.06 Gb/s |
+| 64 MiB | 3.407 ms | 157.57 Gb/s |
+| 256 MiB | 12.908 ms | 166.37 Gb/s |
+| 1 GiB | 46.473 ms | 184.84 Gb/s |
 
 Correctness passes: an all-reduce of ones returns exactly the world size.
 
-**The collective plateaus at ~24 Gb/s — 12% of the 196.08 Gb/s the same link
-delivers under `ib_write_bw`.** That gap is not the fabric. Three separate
-tuning attempts landed within 1% of each other:
+The collective reaches line rate. **Plan around ~187 Gb/s.**
 
-| configuration | busbw at 1 GiB |
-|---|---|
-| RDMA, default tuning | 24.20 Gb/s |
-| `NCCL_NET_GDR_LEVEL=5`, `NCCL_DMABUF_ENABLE=1` | 24.25 Gb/s |
-| `NCCL_BUFFSIZE=16M`, 4 QPs/connection, 4 channels/peer | 24.02 Gb/s |
+### The correction: a reconfigured node stays degraded until it is rebooted
 
-NCCL is doing the right things: it finds both HCAs, builds 32 channels and
-alternates them across `NET/IB/0` and `NET/IB/1`, both reporting
-`speed=200000`. What it cannot do is **GPUDirect RDMA** —
-`GPU Direct RDMA Disabled for HCA` on both, and the GDR levers change
-nothing. On GB10 the GPU's memory *is* host memory, so every byte is staged
-through host buffers on both sides rather than moving NIC-to-GPU directly.
+Before the peer was rebooted, the identical test plateaued at **24.20 Gb/s**
+— 12% of the link — and stayed there across three tuning attempts (default
+24.20, `NCCL_NET_GDR_LEVEL=5` + `NCCL_DMABUF_ENABLE=1` 24.25,
+`NCCL_BUFFSIZE=16M` with 4 QPs per connection 24.02). The consistency made it
+look like a hardware ceiling, and it was written up as one, with GB10's lack
+of GPUDirect RDMA as the explanation.
 
-**Plan around 24 Gb/s of collective bandwidth, not 200.** The raw link figure
-describes what `ib_write_bw` does between two host buffers; it is not what a
-tensor-parallel split will see. Whether ~24 Gb/s is adequate is a question
-about the model's per-layer exchange, and #648 should measure it rather than
-assume in either direction.
+**That explanation was wrong.** GPUDirect RDMA is still disabled after the
+reboot — `GPU Direct RDMA Disabled for HCA` on both — and the collective now
+runs at 187 Gb/s anyway. Staging through host buffers was never the limiter.
+
+What actually changed: the peer had had its NetworkManager fabric profiles
+created, renamed, re-addressed and re-activated several times during bring-up
+(gotchas 5 and 6). Something in that churn left the node in a state that
+passed **every** functional check — link up, RoCE ACTIVE, both subnets
+pinging, jumbo frames clean, `ib_write_bw` at 196 Gb/s, a numerically correct
+all-reduce — while the collective ran at 13% of its speed. The only visible
+symptom was latency: **ping RTT averaged 1.016 ms before the reboot and
+0.282 ms after**, a 3.6x drop that was noted at the time and dismissed as
+CPU idle states.
+
+The lesson is procedural, not architectural:
+
+- **Reboot both nodes after configuring the fabric, before measuring
+  anything.** Configuration churn leaves state that survives `nmcli con
+  down/up` and is invisible to every functional test.
+- **A consistent number is not a correct number.** Three tuning attempts
+  agreeing within 1% was read as a plateau; they were all measuring the same
+  degraded state.
+- **Treat an unexplained latency anomaly as a blocker, not a footnote.** The
+  1 ms RTT was the only evidence, and it was recorded and set aside.
 
 ```sh
 torchrun --nnodes 2 --node-rank <0|1> --nproc-per-node 1 \
@@ -583,7 +604,32 @@ regions and cannot fall back to unpinned.
 already `unlimited`, which is why this appears only inside a container. The
 recipe's compose file sets both.
 
-### 18. Repo gotcha: a committed `hardware/<dir>/` needs a registry entry — **HIT**
+### 18. A reconfigured node stays degraded until rebooted — **HIT**
+
+*Symptom:* everything passes and the collective runs at 13% of the link.
+Link up, RoCE ACTIVE, both subnets pinging, jumbo frames clean,
+`ib_write_bw` at 196 Gb/s, a numerically correct all-reduce — and 24.20 Gb/s
+where 187 was available.
+
+*Cause:* NetworkManager fabric profiles created, renamed, re-addressed and
+re-activated repeatedly during bring-up (gotchas 5 and 6) leave state that
+`nmcli con down/up` does not clear.
+
+*Fix:* **reboot both nodes after configuring the fabric, before measuring
+anything.** One reboot took the all-reduce from 24.20 to 187.10 Gb/s with no
+other change.
+
+*The trap inside the trap:* three different tuning attempts agreed within 1%
+(24.20 / 24.25 / 24.02), which read as a hardware plateau and was published
+as one, with GB10's lack of GPUDirect RDMA as the explanation. GDR is still
+disabled at 187 Gb/s, so that explanation was simply wrong. **A consistent
+number is not a correct number** — repeated measurements of one degraded
+state agree with each other perfectly.
+
+The only symptom that pointed at it was ping RTT: 1.016 ms before, 0.282 ms
+after. It was recorded and dismissed as CPU idle states.
+
+### 19. Repo gotcha: a committed `hardware/<dir>/` needs a registry entry — **HIT**
 
 *Symptom:* CI red on a docs-only branch:
 `committed machine directories not in the registry`.
@@ -609,13 +655,13 @@ works. Results from 2026-09-22 in the right column.
 | 5 | ping both subnets, both directions | 0% loss; 1.016 ms and 1.297 ms avg |
 | 6 | `ping -M do -s 8972` — jumbo end-to-end | 3/3, no fragmentation |
 | 7 | `rp_filter` is 2 on both nodes | already 2, no change |
-| 8 | reboot one node; re-run 1–7 unchanged | **not yet done** |
+| 8 | reboot one node; re-run 1–7 unchanged | survived: addresses, MTU 9000, RoCE ACTIVE, no link flap |
 | 9 | `ssh` both directions, passwordless | working |
 | 10 | same `DGX_SWBUILD_VERSION` and kernel on both | **mismatched** — gotcha 11 |
 | 11 | `id` matches on both | uid 1000, gid 1000, both |
 | 12 | `ib_write_bw`, one path, then both concurrently | 111.86 / **196.08 Gb/s** |
 | 13 | `iperf3 -P 8` on the IP path | 111 Gb/s, 0 retransmits |
-| 14 | all-reduce across both nodes (`scripts/cluster_allreduce.py`) | correct; **24.20 Gb/s** at 1 GiB |
+| 14 | all-reduce across both nodes (`scripts/cluster_allreduce.py`) | correct; **187.10 Gb/s** median at 1 GiB |
 | 15 | only now, a model | #648 |
 
 ## Open decisions
