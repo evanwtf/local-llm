@@ -185,7 +185,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 
 ### Cortex-X925-128GB-GB10-x2
 
-*Generated from `hardware/Cortex-X925-128GB-GB10-x2/results.jsonl` — 10 rows, sha256 a3cc146c5808.*
+*Generated from `hardware/Cortex-X925-128GB-GB10-x2/results.jsonl` — 40 rows, sha256 e10cffb5ea4b.*
 
 #### Every stack measured under OpenCode
 
@@ -193,7 +193,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 
 | stack | passed | median | worst | spread |
 |---|---|---|---|---|
-| dsv4flashvisiondspark2xrc | 10/10 | 90s | 183s | 3.7x |
+| dsv4flashvisiondspark2xrc | 40/40 | 82s | 187s | 6.6x |
 
 Excision tasks only; `script-*` excluded because they are a different class. **Spread is worst / best on the same task**, and it is the column most people forget to ask for.
 
@@ -201,7 +201,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 
 | stack | seconds per 1k output tokens |
 |---|---|
-| dsv4flashvisiondspark2xrc | 35s |
+| dsv4flashvisiondspark2xrc | 30s |
 
 ### MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A
 
