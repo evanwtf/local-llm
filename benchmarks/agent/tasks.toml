@@ -2943,3 +2943,32 @@ aider_model = "openai/GLM-5.3-Flash-EXL3"
 opencode_model = "vllm8888/GLM-5.3-Flash-EXL3"
 context_tokens = 262144
 topology = "remote"
+
+# #685: DeepSeek V4.1 Flash across BOTH DGX Sparks via
+# MiaAI-Lab/DeepSeek-v4.1-Flash-EXL3-2x-DGX-Sparks @6f7d159: vLLM TP=2 with
+# ExLlamaV3, weights Mia-AiLab/DeepSeek-V4.1-Flash-EXL3-2.9bpw @64ba41b plus
+# the Engram tables (shards 47-48) of deepseek-ai/DeepSeek-V4.1-Flash @dba1be0,
+# 385 GiB in all (operator-approved, 2026-09-22, as a download-cap exception).
+#
+# Departures from the recipe:
+#   MAX_MODEL_LEN=262144, not 600000 -- matches every other two-node arm.
+#   DSV41_MEM_GUARD=1 (ships 0) at 1.5 GiB -- earlyoom is stopped for this run
+#   (operator-approved), so the recipe's guard is the only protection.
+#   reasoning_effort low as a server default (gotcha 23).
+#   BUILD=1 -- the image is built from the recipe Dockerfile on the official
+#   vllm/vllm-openai:deepseekv41-flash-0909 base, not pulled prebuilt from GHCR.
+#   start.sh's RoCE GID preflight patched to read the first device of the
+#   comma-separated HCA list, so NCCL gets both PCIe paths of cage p1.
+# DSpark speculation (in-checkpoint, k=3) is on and not declared `speculative`,
+# for the same reason as the other remote two-node arms.
+[backend.dsv41fexl3dual2xrc]
+description = "DeepSeek V4.1 Flash EXL3 2.9 bpw (Mia-AiLab/DeepSeek-V4.1-Flash-EXL3-2.9bpw @64ba41b, 196 GiB) plus the native Engram tables (deepseek-ai/DeepSeek-V4.1-Flash shards 47-48 @dba1be0, 189 GiB) across TWO DGX Sparks: vLLM TP=2 + ExLlamaV3 via MiaAI-Lab/DeepSeek-v4.1-Flash-EXL3-2x-DGX-Sparks @6f7d159 (image built locally from its Dockerfile on vllm/vllm-openai:deepseekv41-flash-0909), in-checkpoint DSpark speculation k=3, fp8_ds_mla KV, 262144 context, max-num-seqs 2, GPU_MEM_UTIL 0.88, reasoning_effort low server-side, recipe memory guard on at 1.5 GiB with earlyoom off for the run. REMOTE CLIENT (#562/#649): OpenCode and the harness run on the Core i3-7100 client in a 12 GiB container"
+tier = "gb10-spark-x2"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "vllm"
+model = "DeepSeek-v4.1-Flash-EXL3"
+aider_model = "openai/DeepSeek-v4.1-Flash-EXL3"
+opencode_model = "vllm8888/DeepSeek-v4.1-Flash-EXL3"
+context_tokens = 262144
+topology = "remote"
