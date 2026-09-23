@@ -307,7 +307,7 @@ Then read `AGENTS.md`/`CLAUDE.md`, `docs/agent-workflow.md`, `docs/peer_agents.m
   memory counts against it. Watch `MemAvailable` yourself during a load and stop
   the scope below ~14 GiB (8 GiB for a server-only run driven from a remote
   client, #562); earlyoom (memory-only since #458, `-s 100,100`) fires at
-  ~6 GiB since 2026-09-19. On 2026-09-17 the earlyoom-on-swap bug hard-locked the box
+  1.0 GiB (SIGKILL 0.5 GiB) since 2026-09-23 (#700). On 2026-09-17 the earlyoom-on-swap bug hard-locked the box
   and the smart plug had to power-cycle it (#458).
 - **Prebuild FlashInfer JIT kernels before loading weights, and set `MAX_JOBS`.**
   An unset `MAX_JOBS` lets ninja run ~22 CUTLASS `nvcc` jobs during warmup, on

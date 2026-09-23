@@ -289,14 +289,22 @@ first line; `earlyoom` is the backstop that keeps the box *reachable* when
 prevention fails, so a mistake costs one killed process, not a physical reboot.
 Installed and enabled as a system service (2026-09-14):
 
-- `/etc/default/earlyoom` — `EARLYOOM_ARGS="-m 5,3 -s 100,100 -r 60 --avoid
+- `/etc/default/earlyoom` — `EARLYOOM_ARGS="-M 1048576,524288 -s 100,100 -r 60 --avoid
   '(^|/)(systemd|systemd-.*|sshd|dockerd|containerd|earlyoom)$' --prefer
   '(^|/)(vllm|VLLM|pt_main_thread|llama-server|ollama|python[0-9.]*)$'"`,
-  written by `scripts/setup_earlyoom.py`. It SIGTERMs at 5% available memory
-  (~6.1 GiB) and SIGKILLs at 3% (~3.7 GiB) — before the kernel thrashes the
-  box unreachable. It was `-m 10,5 -s 20,10` when installed on 2026-09-14;
-  `-s 100,100` since #458, and `-m 5,3` since 2026-09-19, when remote runs
-  (#562) left the box holding only the server. It **avoids** sshd/systemd/dockerd (reachability) while
+  written by `scripts/setup_earlyoom.py`, on **both** cluster nodes. `-M` is
+  KiB: it SIGTERMs at **1.0 GiB** available and SIGKILLs at **0.5 GiB**
+  (earlyoom logs these as 0.82% and 0.41% of 124,608 MiB) — the last net,
+  below every cleaner stop: the two-node recipe memguards at 1.5 GiB and the
+  `dgx_server.py` watcher at 14 GiB (8 GiB server-only). History: `-m 10,5
+  -s 20,10` when installed on 2026-09-14; `-s 100,100` since #458; `-m 5,3`
+  (~6.1 / ~3.7 GiB) from 2026-09-19, when remote runs (#562) left the box
+  holding only the server; `-M 1048576,524288` since 2026-09-23 (#700),
+  because two-node models idle at 2.7–4.5 GiB and the 5% line killed them at
+  rest, so every run had to stop it by hand. Disabling it was rejected: it is
+  the only net that does not depend on a recipe. **The cost is runway** — ~1
+  GiB instead of ~6 against allocation ramps that can move a GiB in under a
+  second, and where the box stops answering below 1 GiB is unmeasured. It **avoids** sshd/systemd/dockerd (reachability) while
   **preferring** the inference servers and the agent's model-written python (the
   #379 runaway). Confirm with `ps -o args= -C earlyoom` and
   `journalctl -u earlyoom`.

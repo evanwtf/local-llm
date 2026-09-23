@@ -25,14 +25,31 @@ def test_swap_is_ignored_because_the_thresholds_are_anded():
     assert "-s 20,10" not in se.earlyoom_args()
 
 
-def test_memory_thresholds_sit_below_the_per_server_floor():
-    """A per-server watcher stops a server at 14 GiB, or 8 GiB for a server-only
-    run (#456, #562); earlyoom's 5% of 121.7 GiB is about 6.1 GiB. The order
-    matters: the watcher should take a server down cleanly before the box-wide
-    killer has to."""
-    assert se.MEM_THRESHOLDS == "5,3"
-    sigterm_pct = int(se.MEM_THRESHOLDS.split(",")[0])
-    assert sigterm_pct / 100 * 121.7 < 8.0
+def test_memory_thresholds_are_one_and_a_half_gib_absolute():
+    """#700: SIGTERM at exactly 1.0 GiB and SIGKILL at 0.5 GiB, as KiB for
+    `-M` -- not `-m`, which is a percentage and would read "1,0.5" as 1%."""
+    assert se.MEM_THRESHOLDS_KIB == "1048576,524288"
+    term_kib, kill_kib = (int(v) for v in se.MEM_THRESHOLDS_KIB.split(","))
+    assert term_kib * 1024 == 1 << 30
+    assert kill_kib * 1024 == 1 << 29
+    args = se.earlyoom_args()
+    assert "-M 1048576,524288" in args
+    assert "-m " not in args
+
+
+def test_memory_thresholds_sit_below_every_cleaner_stop():
+    """The recipe memguards stop a two-node server at 1.5 GiB, and
+    dgx_server.py's watcher at 8 GiB at the lowest (#456, #562); earlyoom
+    must fire below both, so the clean stop always gets the first chance."""
+    term_gib = int(se.MEM_THRESHOLDS_KIB.split(",")[0]) / (1 << 20)
+    assert term_gib < 1.5
+
+
+def test_the_line_clears_the_two_node_models_at_rest():
+    """GLM-5.3-Flash idles at 2.7 GiB on the head (#648); the 5% line
+    (~6.1 GiB) killed it at load on 2026-09-23 (#700)."""
+    term_gib = int(se.MEM_THRESHOLDS_KIB.split(",")[0]) / (1 << 20)
+    assert term_gib < 2.7
 
 
 def test_sshd_is_never_a_victim_and_the_engines_are_preferred():

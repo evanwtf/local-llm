@@ -424,7 +424,7 @@ touches**. **If more than 50% of memory is in use, stop and evaluate**: what
 holds it, what the new job adds, and the right course, which is usually to stop
 a server whose result is already posted, with its own wrapper, before
 starting. A model is never kept "warm until the next one is ready" when the
-next one needs a download. After a server stops, restore `earlyoom` and run
+next one needs a download. After a server stops, confirm `earlyoom` is running on both nodes and run
 preflight (`scripts/machine_health.py check`, `scripts/machine_state.py`,
 `MemAvailable` and swap on both nodes) before resuming. Stopping the server
 freed 107.5 GiB on the head (8.7 to 116.2 GiB available) and 112.2 GiB on the worker (4.4 to 116.6).
@@ -620,8 +620,13 @@ process actually consuming memory survives.
 allocations not charged to any process's RSS. The OOM killer scores by RSS.
 
 *Fix:* watch `MemAvailable` **after a long prompt**, not after a boot — the
-floor comes during prefill, not at load. Disable `earlyoom` on both nodes if
-present.
+floor comes during prefill, not at load. Keep `earlyoom` on both nodes at the
+#700 line — SIGTERM at 1.0 GiB, SIGKILL at 0.5 GiB (`-M 1048576,524288`) —
+with `--prefer` naming the engine processes, so the RSS score does not decide
+the victim. Its older 5% line (~6.1 GiB) sat above the 2.7 GiB GLM-5.3-Flash
+idles at, and on 2026-09-23 it SIGTERMed a GLM launch during DFlash2 capture;
+the fix was the line, not disabling it (the GLM recipe has no memguard of its
+own).
 
 ### 17. A container without `/dev/infiniband` silently falls back to TCP — **HIT**
 
