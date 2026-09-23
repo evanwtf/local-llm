@@ -66,6 +66,10 @@ TOKEN_PATH = pathlib.Path.home() / ".config/gcx/token"
 #: and the smart-plug entity the DGX is plugged into (#454).
 INFLUX_DATASOURCE = "p9FyUovVk"
 OUTLET_ENTITY = "dgx_current_consumption"
+#: The cluster's worker node has its own plug. The cluster heartbeat must give
+#: both outlets and their sum (hardware/Cortex-X925-128GB-GB10-x2 opener, §3a);
+#: reading only the head's hid the worker's half of every two-node run.
+WORKER_OUTLET_ENTITY = "dgx_2_current_consumption"
 
 
 def _gcx_env() -> dict[str, str]:
@@ -139,13 +143,13 @@ def flux_query(flux: str) -> str:
     return out.stdout
 
 
-def outlet_flux(window: str, agg: str) -> str:
+def outlet_flux(window: str, agg: str, entity: str = OUTLET_ENTITY) -> str:
     """Flux for the outlet reading over `window`, reduced by `agg` (last/max)."""
     return (
         'from(bucket: "home_assistant/autogen")'
         f" |> range(start: -{window})"
         ' |> filter(fn: (r) => r["_measurement"] == "W"'
-        f' and r["entity_id"] == "{OUTLET_ENTITY}"'
+        f' and r["entity_id"] == "{entity}"'
         ' and r["_field"] == "value")'
         f" |> {agg}()"
     )
@@ -170,11 +174,19 @@ def outlet_value(gcx_json: str) -> float | None:
 
 
 def wall_power(window: str) -> dict[str, float | None]:
-    """Outlet watts now (last sample in 10 min) and the peak over `window`."""
+    """Outlet watts now (last sample in 10 min) and the peak over `window`,
+    for the head and for the cluster's worker."""
+    w = WORKER_OUTLET_ENTITY
     return {
         "wall_w": outlet_value(flux_query(outlet_flux("10m", "last"))),
         "wall_peak_w": outlet_value(flux_query(outlet_flux(window, "max"))),
+        "worker_wall_w": outlet_value(flux_query(outlet_flux("10m", "last", w))),
+        "worker_wall_peak_w": outlet_value(flux_query(outlet_flux(window, "max", w))),
     }
+
+
+def _sum(a: float | None, b: float | None) -> float | None:
+    return None if a is None or b is None else a + b
 
 
 def _filter(model: str | None) -> str:
@@ -221,7 +233,16 @@ def format_line(snap: dict[str, float | None], window: str = "30m") -> str:
     vLLM-only snapshot formats exactly as before.
     """
     prefix = ""
-    if "wall_w" in snap:
+    if "worker_wall_w" in snap:
+        # A pair sum is n/a unless both plugs answered: half a pair is not a pair.
+        head, worker = snap.get("wall_w"), snap.get("worker_wall_w")
+        prefix = (
+            f"outlet {_n(head, '{:.0f}')} W + {_n(worker, '{:.0f}')} W"
+            f" = {_n(_sum(head, worker), '{:.0f}')} W pair"
+            f" ({window} peak {_n(snap.get('wall_peak_w'), '{:.0f}')} W"
+            f" + {_n(snap.get('worker_wall_peak_w'), '{:.0f}')} W) | "
+        )
+    elif "wall_w" in snap:
         prefix = (
             f"wall {_n(snap.get('wall_w'), '{:.0f}')} W"
             f" ({window} peak {_n(snap.get('wall_peak_w'), '{:.0f}')} W) | "
