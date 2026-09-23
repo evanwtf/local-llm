@@ -185,7 +185,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 
 ### Cortex-X925-128GB-GB10-x2
 
-*Generated from `hardware/Cortex-X925-128GB-GB10-x2/results.jsonl` — 160 rows, sha256 7acfa332b51b.*
+*Generated from `hardware/Cortex-X925-128GB-GB10-x2/results.jsonl` — 162 rows, sha256 c0fac42182e2.*
 
 #### Every stack measured under OpenCode
 
@@ -198,6 +198,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | qwen38fnnvfp4dual2xrcflags @ Corei3-7100-16GB+image@10g | 30/30 | 86s | 412s | 12.4x |
 | mimo26fdual2xrc @ Corei3-7100-16GB+image@10g | 23/28 | 86s | 862s | 24.0x |
 | qwen38fnnvfp4dual2xrc @ Corei3-7100-16GB+image@10g | 30/30 | 99s | 178s | 5.5x |
+| mimo26fdual2xrc @ Corei3-7100-16GB+image | 2/2 | 370s | 592s | 4.0x |
 
 Excision tasks only; `script-*` excluded because they are a different class. **Spread is worst / best on the same task**, and it is the column most people forget to ask for.
 
@@ -207,6 +208,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 |---|---|
 | dsv4flashvisiondspark2xrc @ Corei3-7100-16GB+image@10g | 30s |
 | mimo26fdual2xrc @ Corei3-7100-16GB+image@10g | 38s |
+| mimo26fdual2xrc @ Corei3-7100-16GB+image | 40s |
 | qwen38fnnvfp4dual2xrcflags @ Corei3-7100-16GB+image@10g | 76s |
 | qwen38fnnvfp4dual2xrc @ Corei3-7100-16GB+image@10g | 78s |
 | glm53fexl3dual2xrc @ Corei3-7100-16GB+image@24g | 88s |
