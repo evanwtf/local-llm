@@ -1,0 +1,100 @@
+2026-09-22T22:36:43-0400 INFO [e359828@M5-Max-128GB none pld=n/a] 2026-09-23T02:36:43Z (22:36:43 EDT) | harness e359828
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a] Hugging Face sweep since 2026-09-21T02:36:44Z (48h)
+
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a] == Qwen3.8-Flash-Next -- our fastest stack (llama.cpp Q3, and the 112 GB MLX build)
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]     ji-farthing/Qwen3.8-Flash-Next-ik-llama-GGUF_v2            2026-09-23T01:34         dl=271
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]   ? Youssofal/Qwen3.8-Flash-Next-MTPLX-Optimized-Quality       2026-09-23T01:06         dl=0
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]   ? sjettTT/qwen3.8-flash-next_p150x4                          2026-09-22T23:25         dl=0
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]   ? Youssofal/Qwen3.8-Flash-Next-MTPLX-Bare-Speed              2026-09-22T22:02         dl=5345
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]   ? Youssofal/Qwen3.8-Flash-Next-MTPLX-Optimized-Speed         2026-09-22T22:02         dl=16166
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]   ? baerquants/Qwen3.8-Flash-Next                              2026-09-22T20:55         dl=0
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]   ? peonist-ai/halogen-qwen3.8-flash-next                      2026-09-22T20:12         dl=0
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]     neopolita/Qwen3.8-Flash-Next-Saikei-v1.0-gguf              2026-09-22T19:44         dl=0
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]     neopolita/Qwen3.8-Flash-Next-Saikei-v1.0-4bit-mlx          2026-09-22T19:44         dl=0
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]   ? WIlfLin/JEV-Qwen3.8-Flash-Next-Linear-Runtime              2026-09-22T19:41         dl=0
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]   ? hipfire-models/qwen3.8-flash-next                          2026-09-22T18:29         dl=0
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]   ? sharonSD/Qwen3.8-Flash-Next                                2026-09-22T18:16         dl=0
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]   ? INCModel3/Qwen3.8-Flash-Next-MXFP4-Mixed-CT-RTN-AutoRound  2026-09-22T18:00         dl=0
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]     dongnhdev/Qwen3.8-Flash-Next-OrcaUncensored-IQ2-Light      2026-09-22T12:43         dl=1606
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]   ? zeusdevpro/Qwen3.8-Flash-Next-Uncensored-Q8-UDQ4K-DS4      2026-09-22T05:12         dl=0
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]   ? konizquants/Qwen3.8-Flash-Next                             2026-09-21T23:29         dl=11
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]     spiritfather/cyberneurova-Qwen3.8-Flash-Next-i1-GGUF       2026-09-21T23:23         dl=3507
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]   ? G1LL1/Qwen3.8-Flash-Next-Uncensored-orca-halogen           2026-09-21T20:46         dl=0
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]     spiritfather/cyberneurova-Qwen3.8-Flash-Next-GGUF          2026-09-21T18:40         dl=976
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]   ? KoenKeunen/Qwen3.8-Flash-Next-UD-Q2_K_XL                   2026-09-21T17:59         dl=0
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]     mensaprodigy/Qwen3.8-Flash-Next-REAP-384-oQ4e-BF16-MTP-PLE 2026-09-21T17:50         dl=28
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]     mensaprodigy/Qwen3.8-Flash-Next-REAP-288-oQ4e-BF16-MTP-PLE 2026-09-21T15:27         dl=35
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]     mensaprodigy/Qwen3.8-Flash-Next-REAP-384-oQ5e-BF16-MTP-PLE 2026-09-21T14:48         dl=44
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a] 
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a] == DeepSeek-V4-Flash -- our only independent lineage; ds4 serves it
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]   ? zichenshang/DeepSeek-V4-Flash-0731-speedy-colibri-mxfp4    2026-09-23T00:49         dl=0
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]     smalinin/DeepSeek-V4.1-Flash-GGUF                          2026-09-22T22:29         dl=7939
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]   ? baerquants/DeepSeek-V4.1-Flash                             2026-09-22T19:54         dl=0
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]   ? T-K-C/DeepSeek-V4.1-Flash                                  2026-09-22T16:37         dl=0
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]     siendsi/DeepSeek-V4-Flash-192t2-UD-IQ1_S                   2026-09-22T11:31         dl=0
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]   ? caiovicentino1/DeepSeek-V4.1-Flash-HLWQ-Engram-Q5          2026-09-22T00:41         dl=52
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]   ? caiovicentino1/DeepSeek-V4.1-Flash-HLWQ-Engram-Q4          2026-09-22T00:41         dl=76
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]   ? konizquants/DeepSeek-V4.1-Flash                            2026-09-21T23:11         dl=14
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]   ? drawthingsai/DeepSeek-V4.1-Flash                           2026-09-21T22:50         dl=0
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a] 
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a] == GLM-5.3-Flash -- the other non-Qwen on ds4
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]     GlobalCybersecurityAlliance/GLM-5.3-Flash-Uncensored-RCO-G 2026-09-23T01:31         dl=0
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]     baerquants/GLM-5.3-Flash-UD-Q4_K_XL-layers                 2026-09-22T20:02         dl=0
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]   ? Cypherfox/GLM-5.3-Flash-dealignai-orcarouter-merge         2026-09-22T19:57         dl=783
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]   ? GlobalCybersecurityAlliance/GLM-5.3-Flash-Uncensored       2026-09-22T12:37         dl=0
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]     GlobalCybersecurityAlliance/GLM-5.3-Flash-Uncensored-MLX   2026-09-22T01:37         dl=0
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]     autotrust/GLM-5.3-Flash-GGUF-DGX-Spark                     2026-09-22T00:20         dl=315
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]     intel-ai/GLM-5.3-Flash-MXFP8-CT-AutoRound                  2026-09-22T00:07         dl=12
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]     avar6/GLM-5.3-Flash-BF16-gguf                              2026-09-21T23:18         dl=10092
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]   ? konizquants/GLM-5.3-Flash                                  2026-09-21T23:18         dl=11
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]   ? DogContext/GLM-5.3-Flash-Uncensored-Q2-ds4                 2026-09-21T16:43         dl=27110
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a] 
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a] == Qwen3.6-27B -- the 31 GB 'start here' pick
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]   ? Logics-MLLM/Logics-SWE-Qwen3.6-27B                         2026-09-23T01:46         dl=42
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]     mradermacher/Qwen3.6-27B-A3B-Coder-GGUF                    2026-09-23T00:23         dl=1868
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]   ? ponoma16/sql-qwen3.6-27b-v7-no-think                       2026-09-22T00:46         dl=0
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]   ? ponoma16/sql-qwen3.6-27b-v7                                2026-09-22T00:35         dl=0
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]   ? Johneeee/Qwen3.6-27B-Fable-Fusion-711-Uncensored-Heretic-N 2026-09-21T05:34         dl=16
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a] 
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a] == Ornith-1.5 -- fastest measured backend
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]     IsValorum/Ornith-1.5-35B-A3B-APEX-I-MiniPlus-V2.1-GGUF     2026-09-23T01:14         dl=0
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]   ? zichenshang/Ornith-1.5-35B-colibri-i8                      2026-09-23T00:19         dl=0
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]     poisonxa/Ornith-1.5-35B-A3B-PXQ4-GGUF                      2026-09-22T19:58         dl=0
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]     TONY197022/Ornith-1.5-9B-GGUF                              2026-09-22T19:38         dl=0
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]   ? TONY197022/my-ornith-1.5-9b                                2026-09-22T19:23         dl=0
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]     georgeis55/Ornith-1.5-35B-A3B-refusal-ablated-MLX-oQ8-mtp  2026-09-22T17:40         dl=1173
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]     ChengyiX/Ornith-1.5-35B-A3B-Q6_K-LocalMoe-M4Max            2026-09-22T17:33         dl=0
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]     ChengyiX/Ornith-1.5-35B-A3B-Q4_K_M-LocalMoe-M4Max          2026-09-22T17:33         dl=0
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]   ? tt-hous/ornith-1.5-9b                                      2026-09-22T12:54         dl=0
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]     InferForge/Ornith-1.5-9B-Q3_K_M                            2026-09-22T10:46         dl=0
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]     InferForge/Ornith-1.5-9B-Q4_K_M                            2026-09-22T09:36         dl=0
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]   ? ezoushen/ornith-1.5-35b-a3b-splash                         2026-09-22T06:16         dl=0
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]   ? FlatFootInternational/Ornith-1.5-9B-MTPLX-Q8G32            2026-09-22T03:03         dl=58
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]   ? damfle/ornith-1.5-35b-a3b-custom                           2026-09-21T07:42         dl=269
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]   ? PrinceMridul-Sol9x/ornith-1.5-9b-sft-lora                  2026-09-21T06:24         dl=0
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]   ? pewnobihh/Ornith-1.5-35B-A3B-oQ4e-mtp                      2026-09-21T05:33         dl=0
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a] 
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a] == gemma-4-26b -- the MLX Fast leaderboard model; measured 11/11
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]   ? litert-community/gemma-4-26B-A4B-it-litert-lm              2026-09-23T02:09         dl=985
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]     Brunobkr/OFFFELLIA_gemma-4-26B-A4B-it-ultra-uncensored-her 2026-09-22T20:05         dl=866
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]   ? dureduck/gemma4-26b-a4b-gsm8k-grpo-stopturn4096-20260922   2026-09-22T17:19         dl=0
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]     nwtgck/gemma-4-26B-A4B-it-qat-q4_0-gguf                    2026-09-22T13:20         dl=0
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]     Naphula/gemma-4-26B-A4B-it-SOMPOA-heresy-IQ4_NL-GGUF       2026-09-22T12:34         dl=0
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]   ? kazzy1337/google-gemma-4-26B-A4B-it-auto-smart             2026-09-22T02:54         dl=331
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]   ? dureduck/gemma4-26b-a4b-gsm8k-grpo-base-start-20260912-r1  2026-09-21T09:04         dl=0
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]   ? OpenExplorer/gemma-4-26B-A4B-it                            2026-09-21T07:47         dl=0
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a] 
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a] == gemma-4-31b -- the Google-lineage backend, measured 12/12
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]   ? xxxajk/gold_gemma-4-31B-it                                 2026-09-23T02:35         dl=0
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]   ? litert-community/gemma-4-31B-it-litert-lm                  2026-09-23T02:10         dl=791
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]     DeusImperator/gemma-4-31B-it-scotoma-2-GGUF-long-ctx       2026-09-22T18:40         dl=496
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]   ? SynthCode-Project/Gemma4-31B-all-milestones                2026-09-22T17:56         dl=0
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]   ? joshycodes/gemma-4-31b-it-control-B2-sdf                   2026-09-22T01:16         dl=14
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]   ? eneotu/gemma4_31b_high_entropy_alloy_lora                  2026-09-21T15:52         dl=0
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a]     LeDissolution/Gemma-4-31B-it-Gewell_BF16                   2026-09-21T09:16         dl=0
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a] 
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a] 27 result(s) hidden as unloadable on m5-max (nvfp4, fp8, rocm, awq, gptq, exl2, exl3, marlin, int4, w4a16, w8a8, tensorrt, vllm, sglang). Re-run with --all to see them.
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a] 
+Legend:  (blank) loads here   ? unclassified, check it   x hidden
+2026-09-22T22:36:44-0400 INFO [e359828@M5-Max-128GB none pld=n/a] log: /Users/evanhoffman/git/local-llm/logs/sweeps/hf-sweep-M5-Max-128GB-20260923T023643Z.log
