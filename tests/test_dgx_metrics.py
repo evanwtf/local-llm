@@ -102,6 +102,30 @@ def test_format_line_prefixes_wall_power_when_present():
     assert line.startswith("wall 35 W (30m peak 77 W) | vLLM: decode n/a tok/s")
 
 
+def test_outlet_flux_can_target_the_worker_plug():
+    q = dm.outlet_flux("10m", "last", dm.WORKER_OUTLET_ENTITY)
+    assert 'r["entity_id"] == "dgx_2_current_consumption"' in q
+    assert 'r["entity_id"] == "dgx_current_consumption"' not in q
+
+
+def test_format_line_gives_both_outlets_and_the_pair_sum():
+    snap = {
+        "wall_w": 53.4,
+        "wall_peak_w": 96.2,
+        "worker_wall_w": 45.1,
+        "worker_wall_peak_w": 48.0,
+        "gen_tps": None,
+    }
+    line = dm.format_line(snap, window="30m")
+    assert line.startswith("outlet 53 W + 45 W = 98 W pair (30m peak 96 W + 48 W) | ")
+
+
+def test_format_line_pair_sum_is_na_when_one_plug_is_silent():
+    snap = {"wall_w": 53.4, "wall_peak_w": 96.2, "worker_wall_w": None}
+    line = dm.format_line(snap)
+    assert line.startswith("outlet 53 W + n/a W = n/a W pair (30m peak 96 W + n/a W)")
+
+
 def test_format_line_wall_missing_reading_shows_na():
     line = dm.format_line({"wall_w": None, "wall_peak_w": None})
     assert line.startswith("wall n/a W (30m peak n/a W) | ")
