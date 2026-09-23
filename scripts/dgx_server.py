@@ -42,8 +42,8 @@ MEM_SETTLE_MAX_GIB = float(os.environ.get("LOCAL_LLM_MEM_SETTLE_MAX_GIB", "24"))
 #: while Nemotron-3-Super loaded under `MemoryMax=108G`, nvidia-smi showed the
 #: EngineCore holding 71,776 MiB while the scope's own `memory.current` read
 #: 3,762 MiB. Only `MemAvailable` sees the GPU side, so the wrapper watches it
-#: and stops the scope itself. earlyoom (memory-only since #458) fires at ~10%
-#: of 121.7 GiB, about 12 GiB, so the floor sits above it: the wrapper should
+#: and stops the scope itself. earlyoom (memory-only since #458) fires at
+#: 1.0 GiB since #700, so the floor sits well above it: the wrapper should
 #: take the server down cleanly before the box-wide killer has to.
 MEM_FLOOR_GIB = float(os.environ.get("LOCAL_LLM_MEM_FLOOR_GIB", "14"))
 

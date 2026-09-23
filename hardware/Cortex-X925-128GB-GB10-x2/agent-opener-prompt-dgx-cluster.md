@@ -198,10 +198,16 @@ ssh <peer> 'systemctl is-active earlyoom 2>/dev/null || echo "not installed"'
 launch fail in a way that looks like a fabric problem. Stop it with the
 recipe's own wrapper — never `pgrep`/`pkill`.
 
-Some two-node recipes require `earlyoom` **off** on both hosts, because it
-kills the server under deep-context load. If a previous session stopped it,
-**restarting it when the pair is released is your job.** Report it as down in
-every heartbeat until it is back. Stop it for the run; never disable it.
+**`earlyoom` runs on both nodes, for every run — do not stop it.** Since #700
+it SIGTERMs at **1.0 GiB** `MemAvailable` and SIGKILLs at **0.5 GiB**
+(`-M 1048576,524288`), below the 2.7–4.5 GiB the large two-node models idle
+at and below the recipes' 1.5 GiB memguards. Before #700, at 5% (~6.1 GiB),
+every such run had to stop it by hand, and on 2026-09-23 a launch that did
+not was killed at load. Check the live config with
+`uv run python scripts/setup_earlyoom.py` on each node (exit 0 = matches the
+repo). If it is inactive or drifted on either node, fix that before the
+launch (`sudo -E uv run python scripts/setup_earlyoom.py --apply`), and report
+it as down in every heartbeat until it is back.
 
 ### Step 5. Runs
 
@@ -306,7 +312,7 @@ mid-run with no console. Read
 download, an image pull, a launch, a load test, a trial run. If more than 50%
 is in use, stop and work out the right course before adding load; usually
 that means stopping a server whose result is already posted. If jobs are
-killed for memory pressure, free the memory, restore `earlyoom`, run preflight,
+killed for memory pressure, free the memory, confirm `earlyoom` is running on both nodes, run preflight,
 and continue. Gotcha 1 in
 [`docs/dgx-cluster-setup.md`](../../docs/dgx-cluster-setup.md) has the
 incident that made this the rule.
@@ -514,7 +520,8 @@ repaired afterwards: nothing in it records the topology.
 
 ## 7. Standing contracts and parked work
 
-- **`earlyoom` restored** on any node where a run stopped it.
+- **`earlyoom` running on both nodes** at the #700 line (1.0 / 0.5 GiB). A
+  run no longer stops it; if one did, restarting it is the first thing after.
 - **Both fabric cages are cabled.** The second cable is worth **+4.8%** on the
   collective, not a doubling — the PCIe budget binds before the wire does
   ([`docs/second-cable-dgx-spark-cluster.md`](../../docs/second-cable-dgx-spark-cluster.md)).
