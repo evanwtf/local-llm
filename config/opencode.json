@@ -277,6 +277,42 @@
           "reasoning": false,
           "temperature": false,
           "tool_call": true
+        },
+        "qwen3.8:27b-mlx": {
+          "limit": {
+            "context": 262144,
+            "output": 262144
+          },
+          "modalities": {
+            "input": [
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "name": "Qwen3.8 27B MLX (local, ollama)",
+          "reasoning": false,
+          "temperature": false,
+          "tool_call": true
+        },
+        "qwen3.6:27b-mlx": {
+          "limit": {
+            "context": 262144,
+            "output": 262144
+          },
+          "modalities": {
+            "input": [
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "name": "Qwen3.6 27B MLX (local, ollama)",
+          "reasoning": false,
+          "temperature": false,
+          "tool_call": true
         }
       },
       "name": "Ollama (local)",
