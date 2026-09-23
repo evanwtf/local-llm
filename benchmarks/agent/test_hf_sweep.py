@@ -150,6 +150,13 @@ def test_nvfp4_and_fp8_invert_between_mac_and_dgx():
         assert hf_sweep.classify(repo, "gb10") == "usable", repo
 
 
+def test_exl3_loads_on_the_spark_not_the_mac():
+    """#434 and #648 served EXL3 on sm_121; hiding it hid a format we run."""
+    repo = "Mia-AiLab/GLM-5.3-Flash-EXL3-TR3-4bpw"
+    assert hf_sweep.classify(repo, "gb10") == "usable"
+    assert hf_sweep.classify(repo, "m5-max") == "unusable"
+
+
 def test_mlx_loads_on_the_mac_and_nothing_else():
     repo = "mlx-community/Qwen3.8-Flash-Next-4bit"
     assert hf_sweep.classify(repo, "m5-max") == "usable"

@@ -1,0 +1,69 @@
+# grok sweep (mac lane, tier 1)
+# requested window: last 48 hours
+# written:  2026-09-23T02:34:57Z  (local: 2026-09-22 22:34:57 EDT)
+# query:    Search X for posts and replies from @antirez, @ivanfioravanti, @ddalcu, @Spangler3000, @jundotkim, @ggerganov, @korale77 and @Beamsters1 in the last 48 hours about local LLM inference on Apple Silicon: Metal, MLX, oMLX, mlx-serve, Rapid-MLX, llama.cpp, DwarfStar/ds4, quantization recipes, decode or prefill numbers, prefix caching, MTP or speculative decoding, M5 Max results, and local coding agents (OpenCode, Claude Code, Codex against local models). Output ONE bullet per post and nothing else -- no preamble, no summary: - <UTC timestamp> | @handle | <post URL> | <the claim in one sentence>. Omit any item without both a URL and a UTC timestamp. If nothing matches, output exactly: NO RESULTS
+
+I'll search those accounts for the last 48 hours and keep only posts that match the Apple Silicon inference topics.The first pass hit the result cap and missed several accounts. I’ll page the rest of the 48-hour window and pull thread context for the short replies.- 2026-09-23 02:35:04 UTC | @ivanfioravanti | https://x.com/ivanfioravanti/status/2102587524287975731 | He will keep both of his M3 Ultra machines.
+- 2026-09-23 02:01:19 UTC | @Beamsters1 | https://x.com/Beamsters1/status/2102579028377170131 | Models that ship native FP8 dense layers will not need an MLX affine requant or a bf16 dequant step.
+- 2026-09-23 00:28:55 UTC | @ddalcu | https://x.com/ddalcu/status/2102555776606716387 | The next mlx-serve release will ship Laya in about three days.
+- 2026-09-22 21:56:47 UTC | @ddalcu | https://x.com/ddalcu/status/2102517490534539432 | Try OpenCode first, then fall back to ompi and Gemma 31B if that fails.
+- 2026-09-22 21:10:50 UTC | @ddalcu | https://x.com/ddalcu/status/2102505929380143518 | A Qwen preserve_thinking bug in mlx-serve depends on the agent or harness, and he thinks he found it.
+- 2026-09-22 20:56:39 UTC | @ddalcu | https://x.com/ddalcu/status/2102502357464736030 | An iPhone 18 runs Bonsai-1 at 10 tok/s and Mimo Qwen 9B at 27 tok/s, but he still wants a 16GB or 12GB iPad M5 or above for quality.
+- 2026-09-22 20:22:47 UTC | @ddalcu | https://x.com/ddalcu/status/2102493833863045445 | He says about 7GB is the size needed for that model to run on a phone.
+- 2026-09-22 18:24:01 UTC | @ddalcu | https://x.com/ddalcu/status/2102463945512788174 | A 4B speed headline is not a serious test, small models already hit 700 tok/s for him, and results should include M1 through M4 as well as M5 Max.
+- 2026-09-22 16:39:00 UTC | @ivanfioravanti | https://x.com/ivanfioravanti/status/2102437517517844785 | He tells people to try MLX-LM-LoRA.
+- 2026-09-22 15:36:26 UTC | @ivanfioravanti | https://x.com/ivanfioravanti/status/2102421774378127840 | The price increase of the M5 Ultra with 512GB was left out of the comparison.
+- 2026-09-22 14:25:30 UTC | @jundotkim | https://x.com/jundotkim/status/2102403921490882868 | He thanks Korean oMLX users for their support.
+- 2026-09-22 14:23:37 UTC | @jundotkim | https://x.com/jundotkim/status/2102403447467409844 | He thanks a contributor for pushing MLX forward.
+- 2026-09-22 14:21:47 UTC | @ddalcu | https://x.com/ddalcu/status/2102402987578573240 | He cites llama.cpp as a project that can slow down once it sits inside a corporate reporting structure.
+- 2026-09-22 13:00:51 UTC | @ggerganov | https://x.com/ggerganov/status/2102382619845410978 | GGUF models can run in transformers because this work brings ggml Metal kernels into that stack.
+- 2026-09-22 12:58:14 UTC | @ddalcu | https://x.com/ddalcu/status/2102381959431274692 | He pins a commit so every new mlx-serve language or media port supports both a bf16 pack and the quantized packs.
+- 2026-09-22 12:52:07 UTC | @ddalcu | https://x.com/ddalcu/status/2102380423095497085 | The JEV branch is on mlx-serve main and plays two-player Pac-Man through Laya and MLX-Serve.
+- 2026-09-22 12:46:32 UTC | @Beamsters1 | https://x.com/Beamsters1/status/2102379015524982785 | His Qwen image pull request already covers bf16 and w8a8, and MiMo took most of his time that day.
+- 2026-09-22 12:44:40 UTC | @Beamsters1 | https://x.com/Beamsters1/status/2102378547671429577 | oMLX is a strong project, and he reworked its chat interface months ago.
+- 2026-09-22 12:42:11 UTC | @ddalcu | https://x.com/ddalcu/status/2102377922275262753 | 8-bit is about 99.9% quality, and he is open to broader bf16 support in mlx-serve because most people have little RAM.
+- 2026-09-22 12:20:55 UTC | @ivanfioravanti | https://x.com/ivanfioravanti/status/2102372568401691008 | He plans to connect two M5 Ultra machines with two M3 Ultra machines.
+- 2026-09-22 12:13:49 UTC | @ddalcu | https://x.com/ddalcu/status/2102370783410458877 | MLX-Serve 26.9.5 adds Qwen Image 2.1, Prism Bonsai 2, faster concurrent streams, and charts and evals.
+- 2026-09-22 11:58:58 UTC | @ivanfioravanti | https://x.com/ivanfioravanti/status/2102367046772089287 | He wants that person to push the Apple Silicon local-AI ecosystem further.
+- 2026-09-22 11:55:14 UTC | @Beamsters1 | https://x.com/Beamsters1/status/2102366105549643788 | Prefill on the M5 Max is above 1500 tok/s.
+- 2026-09-22 11:54:57 UTC | @Beamsters1 | https://x.com/Beamsters1/status/2102366036276252828 | That Qwen3.8-Flash-Next run is at 1M context.
+- 2026-09-22 11:48:34 UTC | @Beamsters1 | https://x.com/Beamsters1/status/2102364428805284017 | He built the MiMo path from scratch.
+- 2026-09-22 11:44:04 UTC | @Beamsters1 | https://x.com/Beamsters1/status/2102363296116637842 | EXL3 is already on the same branch, and he has not changed the label yet.
+- 2026-09-22 11:23:24 UTC | @jundotkim | https://x.com/jundotkim/status/2102358096165429677 | His GitHub account is restored and the oMLX repo is accessible again.
+- 2026-09-22 11:23:03 UTC | @jundotkim | https://x.com/jundotkim/status/2102358006969294856 | GitHub cleared an automated abuse flag and restored the oMLX repo.
+- 2026-09-22 11:18:29 UTC | @jundotkim | https://x.com/jundotkim/status/2102356858036195733 | GitHub said the oMLX suspension was an automated abuse flag, and manual review restored the account.
+- 2026-09-22 09:56:54 UTC | @Beamsters1 | https://x.com/Beamsters1/status/2102336327006183746 | Qwen3.8-Flash reaches 60+ tok/s serial, but the MTP verifiers could not keep up with their overhead.
+- 2026-09-22 09:53:05 UTC | @Beamsters1 | https://x.com/Beamsters1/status/2102335365793378407 | His kernel hit 3500 tok/s prefill and 70 tok/s decode at 1M context, and he expects more once he has an M5 Ultra.
+- 2026-09-22 09:17:35 UTC | @jundotkim | https://x.com/jundotkim/status/2102326434220191982 | GitHub suspensions like his are common, and he has asked every channel to restore the account on the day of the oMLX announcement.
+- 2026-09-22 09:17:21 UTC | @jundotkim | https://x.com/jundotkim/status/2102326373918646767 | The same GitHub suspension landed on the day of his announcement, and he is pushing every channel to clear it.
+- 2026-09-22 08:19:37 UTC | @Beamsters1 | https://x.com/Beamsters1/status/2102311846044664071 | The M5 already has native 8-bit, and his quant packs near-4-bit quality into 3 bits to cut RAM on consumer Macs.
+- 2026-09-22 08:13:19 UTC | @Beamsters1 | https://x.com/Beamsters1/status/2102310257418805530 | A usable MiMo build will land after the original weights run.
+- 2026-09-22 07:46:50 UTC | @jundotkim | https://x.com/jundotkim/status/2102303594083131747 | GitHub suspended his account right after he posted about joining Hugging Face, and he thinks it is an automated false positive.
+- 2026-09-22 07:06:04 UTC | @ivanfioravanti | https://x.com/ivanfioravanti/status/2102293334794571959 | The MLX team needs more investment.
+- 2026-09-22 06:54:24 UTC | @Beamsters1 | https://x.com/Beamsters1/status/2102290397187997853 | MiMo v2.6 Flash runs at full weight, with no quant, on an M5 Max with 128GB and reaches about 16–18 tok/s once the cache is warm.
+- 2026-09-22 06:53:02 UTC | @jundotkim | https://x.com/jundotkim/status/2102290056186884442 | He joined Hugging Face, oMLX stays Apache 2.0 in the same repo under his lead, and he will spend more time on oMLX and upstream MLX.
+- 2026-09-22 06:25:00 UTC | @ivanfioravanti | https://x.com/ivanfioravanti/status/2102282998481903743 | The quoted M5 Ultra result of 3740 tok/s prefill and 149 tok/s batched decode for Qwen 3.8 Flash Next is only the start.
+- 2026-09-22 05:49:28 UTC | @Beamsters1 | https://x.com/Beamsters1/status/2102274059816022198 | EXL3 is slow on Apple because it targets NVIDIA, and he will build a Mac quant with similar quality and much higher speed.
+- 2026-09-22 04:36:47 UTC | @ddalcu | https://x.com/ddalcu/status/2102255768405999800 | The 49GB Qwen3.8-Flash-Next pack leaves room to run it on 64GB machines.
+- 2026-09-22 04:30:24 UTC | @Beamsters1 | https://x.com/Beamsters1/status/2102254158636318785 | Qwen3.8-Flash-Next in an EXL3 hybrid fits in 49GB, so an M5 Max with 64GB can run near-4-bit quality at 70+ tok/s.
+- 2026-09-22 00:46:23 UTC | @ivanfioravanti | https://x.com/ivanfioravanti/status/2102197785508659449 | Do not judge M5 Ultra inference yet, because the MLX team is still optimizing, and he wanted early hardware from Apple.
+- 2026-09-22 00:36:12 UTC | @Beamsters1 | https://x.com/Beamsters1/status/2102195222092636232 | mlx-serve with Qwen3.8-Flash-Next should show about 3500 tok/s prefill and 100+ tok/s decode.
+- 2026-09-21 23:27:39 UTC | @ivanfioravanti | https://x.com/ivanfioravanti/status/2102177970353787228 | After meeting Apple in Shanghai, he hopes to get a machine soon so he can test and improve performance.
+- 2026-09-21 23:26:26 UTC | @Beamsters1 | https://x.com/Beamsters1/status/2102177663804907563 | No kernel is optimized enough yet to run that GLM 5.3 Flash comparison fairly on the M5 Ultra.
+- 2026-09-21 20:21:28 UTC | @ddalcu | https://x.com/ddalcu/status/2102131118191550947 | Decode should go much higher once his M5 Ultra arrives, and TokenV3 MTP in mlx-serve is already very fast on an M4 Max.
+- 2026-09-21 19:58:57 UTC | @ddalcu | https://x.com/ddalcu/status/2102125451137237116 | mlx-serve can load a custom MLX model by Hugging Face id if it fits in RAM, and the bundled set includes LFM 2.6B 4-bit, Kokoro, Flux.2 Klein 4B 3-bit, and Ace-Step.
+- 2026-09-21 16:15:27 UTC | @Beamsters1 | https://x.com/Beamsters1/status/2102069206078685565 | Qwen2.1 image generation in mlx-serve needs M5 or later, and a 1024x1024 image at 30 steps now takes 44 seconds.
+- 2026-09-21 15:32:00 UTC | @ivanfioravanti | https://x.com/ivanfioravanti/status/2102058268960907288 | He is watching many people post M5 Ultra Mac Studio local-AI test results.
+- 2026-09-21 14:09:11 UTC | @ivanfioravanti | https://x.com/ivanfioravanti/status/2102037428831682837 | He wants to run that model locally on a DGX Spark plus Apple Silicon.
+- 2026-09-21 14:08:05 UTC | @Beamsters1 | https://x.com/Beamsters1/status/2102037152704172498 | A reasoning cutoff needs context injection that tells the model how many tokens remain, around 4000, 6000, and 8000.
+- 2026-09-21 14:07:23 UTC | @ivanfioravanti | https://x.com/ivanfioravanti/status/2102036975066783778 | The same Metal kernel family needs different launch and tile sizes to fill an Ultra, so Apple Silicon LLM speed can still rise a lot in software.
+- 2026-09-21 13:47:21 UTC | @ddalcu | https://x.com/ddalcu/status/2102031935702782315 | On the MLX path, reasoning_effort stops a long think by injecting an early-stop line and </think> in one forward pass, or a harness can do the same with an assistant prefill.
+- 2026-09-21 13:45:37 UTC | @ivanfioravanti | https://x.com/ivanfioravanti/status/2102031495334449303 | The M5 Ultra review numbers are only a starting point and should improve within weeks, and he wants the 512GB machine.
+- 2026-09-21 13:29:31 UTC | @Beamsters1 | https://x.com/Beamsters1/status/2102027445964771468 | The High reasoning setting loses very little quality and uses less than half the thinking tokens.
+- 2026-09-21 13:27:32 UTC | @Beamsters1 | https://x.com/Beamsters1/status/2102026945127154099 | On ddalcu/mlx-serve, Qwen3.8 Flash Next hits 100+ tok/s on an M5 Max and about 60 tok/s out to 1M context.
+- 2026-09-21 13:08:54 UTC | @jundotkim | https://x.com/jundotkim/status/2102022258055405645 | oMLX was part of the M5 Ultra Mac Studio review, and the next oMLX release is coming.
+- 2026-09-21 08:37:30 UTC | @jundotkim | https://x.com/jundotkim/status/2101953956616548365 | He keeps over 130 models in oMLX on version 18, and he will check whether model count or one model causes the load errors.
+- 2026-09-21 08:08:56 UTC | @jundotkim | https://x.com/jundotkim/status/2101946766430191961 | A large oMLX test set has not reproduced the reported loading failure, and he asks for the model count so he can try.
+- 2026-09-21 05:55:37 UTC | @ivanfioravanti | https://x.com/ivanfioravanti/status/2101913216104251568 | Each later Apple generation is faster, and M5 Ultra versus M3 Ultra will still be a large jump.
+- 2026-09-21 05:40:00 UTC | @ivanfioravanti | https://x.com/ivanfioravanti/status/2101909286712480134 | He is waiting for people with an M5 Ultra to post inference benchmarks.
+[exited with code 0]

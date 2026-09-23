@@ -46,6 +46,7 @@ import time
 from collections.abc import Sequence
 from urllib.parse import urlparse
 
+import memcap
 import metal_equivalence
 import opencode_config
 import provenance
@@ -252,13 +253,13 @@ def client_mem_cap_gib() -> float | None:
     stamped, so a row could not say which cap produced it and two arms taken
     at different caps pooled into one median looking identical (#477).
 
-    Read from the environment rather than imported from `run`, which imports
-    this module; `test_preflight.py` pins the two to the same default so they
-    cannot drift.
+    Computed by `memcap.default_client_cap_gib`, the same function `run` uses,
+    rather than imported from `run`, which imports this module: an explicit
+    env override, else off inside a memory-limited container (the kernel
+    enforces the limit, #680), else 24 GiB.
     """
-    raw = os.environ.get("LOCAL_LLM_CLIENT_MEM_CAP_GIB", "24")
     try:
-        cap = float(raw)
+        cap = memcap.default_client_cap_gib()
     except ValueError:
         return None
     return cap or None

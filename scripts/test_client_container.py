@@ -136,3 +136,25 @@ def test_arguments_that_are_not_host_paths_are_left_alone():
         ["--backend", "b", "--metrics-url", "http://srv:8888"], HOME
     )
     assert got == ["--backend", "b", "--metrics-url", "http://srv:8888"]
+
+
+def test_the_container_gets_a_hard_memory_limit_by_default():
+    """#680: without --memory the harness cap had nothing under it, and the
+    default 24 GiB cap sat above the 15 GiB client entirely."""
+    argv = _argv()
+    i = argv.index("--memory")
+    assert argv[i + 1] == "12288m"
+    j = argv.index("--memory-swap")
+    assert argv[j + 1] == argv[i + 1], "swap must be capped too, or it pages instead"
+
+
+def test_the_memory_limit_can_be_changed_or_disabled():
+    argv = _argv(mem_limit_gib=10)
+    assert argv[argv.index("--memory") + 1] == "10240m"
+    assert "--memory" not in _argv(mem_limit_gib=0)
+    assert "--memory" not in _argv(mem_limit_gib=None)
+
+
+def test_the_limit_is_a_docker_flag_not_harness_argv():
+    argv = _argv()
+    assert argv.index("--memory") < argv.index("img")

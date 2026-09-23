@@ -109,6 +109,25 @@ WATCHED: dict[str, tuple[str, tuple[str, ...]]] = {
         "aggregate multi-stream serving; the DGX's throughput emphasis (#307)",
         (DGX,),
     ),
+    # MiaAI-Lab: the two-node DGX Spark recipes this pair actually runs
+    # (operator, 2026-09-22). Recipe fixes land here first, often the same day,
+    # and a launcher change moves our numbers before any engine release does.
+    "MiaAI-Lab/Qwen3.8-Flash-Next-Dual-DGX-Sparks": (
+        "the Qwen3.8-Flash-Next two-node recipe we run (#663, #664)",
+        (DGX,),
+    ),
+    "MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks": (
+        "the GLM-5.3-Flash EXL3 two-node recipe we run (#648)",
+        (DGX,),
+    ),
+    "MiaAI-Lab/MiMo-V2.6-Flash-2x-DGX-Sparks": (
+        "the MiMo-V2.6-Flash SGLang two-node recipe we run (#672)",
+        (DGX,),
+    ),
+    "MiaAI-Lab/DeepSeek-v4.1-Flash-EXL3-2x-DGX-Sparks": (
+        "DeepSeek V4.1 Flash EXL3 on two Sparks: a candidate arm, not yet run",
+        (DGX,),
+    ),
 }
 
 

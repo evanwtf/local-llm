@@ -2859,3 +2859,116 @@ aider_model = "openai/qwen3.8-flash-next"
 opencode_model = "vllm8888/qwen3.8-flash-next"
 context_tokens = 262144
 topology = "remote"
+
+# #648: GLM-5.3-Flash across BOTH DGX Sparks, via
+# MiaAI-Lab/GLM-5.3-Flash-2x-DGX-Sparks @c1b7d4c (EXL3 tensor-parallel build of
+# vLLM). Weights Mia-AiLab/GLM-5.3-Flash-EXL3-TR3-4bpw rev 25a44fd and drafter
+# incoai/GLM-5.3-Flash-DFlash2 rev dc77ff1, both approved by the operator
+# 2026-09-22 (per artifact; #531's incoai Splash pause stands).
+#
+# Departures from the recipe, all measured here:
+#   GPU_MEM_UTIL=0.86, not 0.85 -- at 0.80 and 0.85 the launch refused with
+#   "buffer_size exceeds device memory budget"; 0.86 boots.
+#   MAX_MODEL_LEN=262144, not 850000 -- matches the Qwen two-node arm.
+#   HEAD_/WORKER_CX7_IF and _IB name the p1 cage on both nodes -- the recipe's
+#   defaults encode cross-cage cabling; ours is straight-through, and the
+#   generic IFACE/IB_HCA are ignored by this recipe.
+#   GLM53_DEFAULT_REASONING_EFFORT=low -- without it the template renders effort
+#   Max and a 600-token request ends at the cap with the answer truncated.
+#
+# Speculative decoding (DFlash, 7 tokens) is on but not declared as
+# `speculative`, for the same reason as the Qwen two-node arm: the client is
+# remote and cannot read the server's argv. vLLM exports its spec_decode
+# counters on :8888/metrics.
+[backend.glm53fexl3dual2xrc]
+description = "GLM-5.3-Flash EXL3 4bpw (Mia-AiLab/GLM-5.3-Flash-EXL3-TR3-4bpw rev 25a44fd, 164 GiB) across TWO DGX Sparks: EXL3 vLLM TP=2 over 200 Gb/s ConnectX-7 RoCE via MiaAI-Lab/GLM-5.3-Flash-2x-DGX-Sparks @c1b7d4c, image ghcr.io/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-instanttensor built from the recipe Dockerfile (sha256:6cb72b36), DFlash speculative decoding with incoai/GLM-5.3-Flash-DFlash2 rev dc77ff1 (7 tokens, draft TP=2), fp8 KV, 262144 context, max-num-seqs 4, GPU_MEM_UTIL 0.86, reasoning_effort low as a server default. Measured KV pool on the pair: 393,928 tokens, 1.50x concurrency at a 262k request; MemAvailable with the server idle 3.3 GiB head, 4.0 GiB worker. REMOTE CLIENT (#562/#649): OpenCode and the harness run on the Core i3-7100 client over the LAN. The single-Spark comparison is #298, GLM-5.3-Flash Q2 on ds4 at 16k context"
+tier = "gb10-spark-x2"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "vllm"
+model = "GLM-5.3-Flash-EXL3"
+aider_model = "openai/GLM-5.3-Flash-EXL3"
+opencode_model = "vllm8888/GLM-5.3-Flash-EXL3"
+context_tokens = 262144
+topology = "remote"
+
+# #672: MiMo-V2.6-Flash-RL (309B total, 15B active, MXFP4 experts) across BOTH
+# DGX Sparks, via MiaAI-Lab/MiMo-V2.6-Flash-2x-DGX-Sparks @201be3e. The first
+# model on this pair that cannot run on one Spark at all (161 GiB of weights).
+# First-party weights (XiaomiMiMo, rev 3b38d06), DFlash drafter shipped inside
+# the checkpoint, official SGLang base image. The worker loads the head's
+# checkpoint over NFS, as the recipe requires.
+#
+# Departures from the recipe, measured here:
+#   MEM_FRACTION_STATIC=0.90, not 0.93 -- boot 1 at 0.93 hit NVRM
+#   NV_ERR_NO_MEMORY on the head while allocating a 1,903,104-token KV pool,
+#   then earlyoom SIGTERM; the head container exited.
+#   MAX_TOTAL_TOKENS=1048576, not 2743808 -- four full 262k contexts; the DFlash
+#   draft pool is sized to the same count.
+#   CONTEXT_LENGTH=262144, not 1M -- matches the other two-node arms.
+#   SPEC_ALGO=DFLASH / 8 draft tokens / decode graphs to 8 -- the recipe's own
+#   recommendation for code (its default is EAGLE).
+#   Thinking off as a server default (--default-chat-template-kwargs
+#   {"enable_thinking":false}) -- MiMo's template has only that switch, so off is
+#   its lowest effort (gotcha 23).
+[backend.mimo26fdual2xrc]
+description = "MiMo-V2.6-Flash-RL (XiaomiMiMo, rev 3b38d06, 161 GiB, 309B-A15B MXFP4 experts) across TWO DGX Sparks: SGLang TP=2 EP=2 via MiaAI-Lab/MiMo-V2.6-Flash-2x-DGX-Sparks @201be3e, image built from lmsysorg/sglang:nightly-dev-cu13-20260921-0f6761b5 (sha256:987c7e4b), worker loads the head's checkpoint over NFS, DFlash speculative decoding (in-checkpoint drafter, 8 draft tokens), fp8 KV, 262144 context, mem-fraction-static 0.90, max-total-tokens 1,048,576 (full-attention pool allocated at exactly that; SWA pool 31,424 tokens, 7.09 GB), thinking off as a server default. Boot low MemAvailable 8.9 GiB head / 9.6 GiB worker; a 112,220-token prefill took 86.0 s with MemAvailable no lower than 14.0 / 15.4 GiB. REMOTE CLIENT (#562/#649): OpenCode and the harness run on the Core i3-7100 client over the LAN. No single-Spark comparison exists: the weights do not fit one node"
+tier = "gb10-spark-x2"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "sglang"
+model = "MiMo-v2.6-Flash"
+aider_model = "openai/MiMo-v2.6-Flash"
+opencode_model = "vllm8888/MiMo-v2.6-Flash"
+context_tokens = 262144
+topology = "remote"
+
+# #648 re-run: the same server as glm53fexl3dual2xrc (MiaAI-Lab GLM-5.3-Flash EXL3
+# recipe @c1b7d4c, GPU_MEM_UTIL 0.86, reasoning_effort low, 262k context), with
+# the two client-side faults #680 found in that arm fixed:
+#   - the client's OpenCode entry for GLM-5.3-Flash-EXL3 declared
+#     limit.context 65536 while the row said 262144 (#680 finding 4); it is now
+#     262144, so OpenCode can use the context the server offers;
+#   - the client ran under a 24 GiB watcher cap on a 15 GiB machine (#680
+#     finding 8); it now runs in a 12 GiB container the kernel enforces (#683).
+# Its own name so the rows never pool with the 64k-client rows.
+[backend.glm53fexl3dual2xrcctx]
+description = "glm53fexl3dual2xrc re-run with the client fixed: same GLM-5.3-Flash EXL3 4bpw server across TWO DGX Sparks (MiaAI-Lab recipe @c1b7d4c, EXL3 vLLM TP=2, DFlash2 7 tokens, fp8 KV, 262144 context, GPU_MEM_UTIL 0.86, reasoning_effort low server-side), but OpenCode's limit.context for the model is 262144 (was 65536 in the first arm) and the client runs in a 12 GiB memory-limited container with the kernel enforcing it (#683). REMOTE CLIENT (#562/#649)"
+tier = "gb10-spark-x2"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "vllm"
+model = "GLM-5.3-Flash-EXL3"
+aider_model = "openai/GLM-5.3-Flash-EXL3"
+opencode_model = "vllm8888/GLM-5.3-Flash-EXL3"
+context_tokens = 262144
+topology = "remote"
+
+# #685: DeepSeek V4.1 Flash across BOTH DGX Sparks via
+# MiaAI-Lab/DeepSeek-v4.1-Flash-EXL3-2x-DGX-Sparks @6f7d159: vLLM TP=2 with
+# ExLlamaV3, weights Mia-AiLab/DeepSeek-V4.1-Flash-EXL3-2.9bpw @64ba41b plus
+# the Engram tables (shards 47-48) of deepseek-ai/DeepSeek-V4.1-Flash @dba1be0,
+# 385 GiB in all (operator-approved, 2026-09-22, as a download-cap exception).
+#
+# Departures from the recipe:
+#   MAX_MODEL_LEN=262144, not 600000 -- matches every other two-node arm.
+#   DSV41_MEM_GUARD=1 (ships 0) at 1.5 GiB -- earlyoom is stopped for this run
+#   (operator-approved), so the recipe's guard is the only protection.
+#   reasoning_effort low as a server default (gotcha 23).
+#   BUILD=1 -- the image is built from the recipe Dockerfile on the official
+#   vllm/vllm-openai:deepseekv41-flash-0909 base, not pulled prebuilt from GHCR.
+#   start.sh's RoCE GID preflight patched to read the first device of the
+#   comma-separated HCA list, so NCCL gets both PCIe paths of cage p1.
+# DSpark speculation (in-checkpoint, k=3) is on and not declared `speculative`,
+# for the same reason as the other remote two-node arms.
+[backend.dsv41fexl3dual2xrc]
+description = "DeepSeek V4.1 Flash EXL3 2.9 bpw (Mia-AiLab/DeepSeek-V4.1-Flash-EXL3-2.9bpw @64ba41b, 196 GiB) plus the native Engram tables (deepseek-ai/DeepSeek-V4.1-Flash shards 47-48 @dba1be0, 189 GiB) across TWO DGX Sparks: vLLM TP=2 + ExLlamaV3 via MiaAI-Lab/DeepSeek-v4.1-Flash-EXL3-2x-DGX-Sparks @6f7d159 (image built locally from its Dockerfile on vllm/vllm-openai:deepseekv41-flash-0909), in-checkpoint DSpark speculation k=3, fp8_ds_mla KV, 262144 context, max-num-seqs 2, GPU_MEM_UTIL 0.88, reasoning_effort low server-side, recipe memory guard on at 1.5 GiB with earlyoom off for the run. REMOTE CLIENT (#562/#649): OpenCode and the harness run on the Core i3-7100 client in a 12 GiB container"
+tier = "gb10-spark-x2"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "vllm"
+model = "DeepSeek-v4.1-Flash-EXL3"
+aider_model = "openai/DeepSeek-v4.1-Flash-EXL3"
+opencode_model = "vllm8888/DeepSeek-v4.1-Flash-EXL3"
+context_tokens = 262144
+topology = "remote"

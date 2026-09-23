@@ -197,6 +197,39 @@ not as "against us":
 * **@Brooooook_lyn** (Tier 2) and **@bleysg** (Tier 3) post Mac-vs-Spark
   comparisons — now a source of Spark numbers, not just an argument.
 
+### Vetted: MiaAI-Lab (operator-added, 2026-09-22)
+
+**[@MiaAI_lab](https://x.com/MiaAI_lab) and its GitHub account
+[MiaAI-Lab](https://github.com/MiaAI-Lab)** publish maintained 1x, 2x and 3-4x
+DGX Spark recipes. This pair has run three of them end to end, so the "read the
+repo, not the feed" filter below is satisfied by our own rows, not by the feed:
+Qwen3.8-Flash-Next NVFP4 (#663, 30/30), GLM-5.3-Flash EXL3 (#648, 30/30) and
+MiMo-V2.6-Flash on SGLang (#672). Their READMEs carry measured memory budgets,
+which have been accurate to within a few GiB on our nodes.
+
+Watched repos (rendered from `WATCHED` in `scripts/upstream_sweep.py`):
+
+* [MiaAI-Lab/Qwen3.8-Flash-Next-Dual-DGX-Sparks](https://github.com/MiaAI-Lab/Qwen3.8-Flash-Next-Dual-DGX-Sparks) — the Qwen3.8-Flash-Next two-node recipe we run (#663, #664)
+* [MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks](https://github.com/MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks) — the GLM-5.3-Flash EXL3 two-node recipe we run (#648)
+* [MiaAI-Lab/MiMo-V2.6-Flash-2x-DGX-Sparks](https://github.com/MiaAI-Lab/MiMo-V2.6-Flash-2x-DGX-Sparks) — the MiMo-V2.6-Flash SGLang two-node recipe we run (#672)
+* [MiaAI-Lab/DeepSeek-v4.1-Flash-EXL3-2x-DGX-Sparks](https://github.com/MiaAI-Lab/DeepSeek-v4.1-Flash-EXL3-2x-DGX-Sparks) — DeepSeek V4.1 Flash EXL3 on two Sparks: a candidate arm, not yet run
+
+**They ship new recipe repos often, sometimes several a day.** A DGX sweep also
+lists the account's recently pushed repos, because a new model's recipe is a new
+repo, not a commit to a watched one:
+
+```sh
+gh api "users/MiaAI-Lab/repos?sort=pushed&per_page=15" \
+  --jq '.[] | "\(.pushed_at) created=\(.created_at[:10]) \(.name)"'
+```
+
+**The caveats that still apply.** Their decode and throughput figures are short-prompt
+serving numbers, not agent wall time. Their `GPU_MEM_UTIL` and similar defaults
+assume a head carrying only the server. That is also true of ours now that the client is remote,
+so our departures from their memory settings need a measured reason (#672 needed one: 0.93 did
+not fit with DFlash). Their weights are third-party quants and are approved **per artifact**
+(#648's EXL3 and DFlash2 were).
+
 **Unverified leads, gathered 2026-09-11**
 (`logs/sweeps/grok-dgx-accounts-20260911T222500Z.txt`). These handles posted
 single-Spark results in the days to 2026-09-11. **None is verified** — run
@@ -207,7 +240,7 @@ point for the first DGX source sweep, not as vetted sources:
 | handle | claim (unverified) |
 |---|---|
 | [@Oluwaphilemon1](https://x.com/Oluwaphilemon1) | Qwen3.8-27B single Spark 71.5 tok/s (NVFP4 drafter, D=16, FP8 KV); Flash-Next 273 tok/s aggregate at 8 streams |
-| [@MiaAI_lab](https://x.com/MiaAI_lab) / [@apikey_official](https://x.com/apikey_official) | single-Spark Flash-Next recipe, 47 tok/s decode, +24.7% 8k prefill; model-choice guidance for 1x vs 2x+ |
+| [@apikey_official](https://x.com/apikey_official) | single-Spark Flash-Next recipe, 47 tok/s decode, +24.7% 8k prefill; model-choice guidance for 1x vs 2x+ (@MiaAI_lab, the same recipes, is now vetted above) |
 | [@HealthRanger](https://x.com/HealthRanger) | SGLang + NVFP4 Qwen3.8-27B + DFlash2, 413 tok/s aggregate across 16 lanes |
 | [@0xBakeer](https://x.com/0xBakeer) | DeepSeek V4.1 Flash on one 128 GB Spark via a custom ~4-bit engine, 20.85 tok/s greedy |
 | [@filicroval](https://x.com/filicroval) | Flash-Next 63.11 tok/s weighted decode, draftless ngram speculation, vision on |

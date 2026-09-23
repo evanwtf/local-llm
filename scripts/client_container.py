@@ -19,6 +19,12 @@ decision that would otherwise be made wrong silently:
   and the thing protecting the host is the same bwrap layer as before.
 * **--network host.** The server is reached over the LAN and the point is to
   measure the client, not to add a bridge hop to every request.
+* **--memory, with --memory-swap equal to it.** A hard ceiling the kernel
+  enforces on the whole container (#680). Inside it the harness turns its own
+  memory watcher off, launches the client at oom_score_adj 1000 so a runaway
+  trial is the kernel's victim rather than the harness, and reads kernel kills
+  back from the cgroup. Swap is capped too, or the container would page
+  instead of hitting the limit.
 
     uv run python scripts/client_container.py --server <host> \\
         --facts ~/facts.json -- --backend <name> --client opencode --trials 3
@@ -68,6 +74,10 @@ PRIVILEGES = (
 )
 
 CONTAINER_HOME = "/root"
+#: The container's hard memory limit (#680). The client is 15 GiB; 12 leaves
+#: the OS and its own services ~3 GiB. The kernel enforces it inside.
+DEFAULT_MEM_LIMIT_GIB = 12.0
+
 #: Outside the mounted repo, so `uv run` cannot pick up the host's .venv.
 PROJECT_ENV = "/opt/harness-venv"
 
@@ -104,6 +114,14 @@ def translate_paths(command: list[str], home: pathlib.Path) -> list[str]:
     ]
 
 
+def memory_args(limit_gib: float | None) -> list[str]:
+    """`--memory` and an equal `--memory-swap`, or nothing when disabled."""
+    if not limit_gib:
+        return []
+    size = f"{int(limit_gib * 1024)}m"
+    return ["--memory", size, "--memory-swap", size]
+
+
 def docker_argv(
     *,
     image: str,
@@ -112,6 +130,7 @@ def docker_argv(
     facts: pathlib.Path,
     command: list[str],
     mem_cap_gib: int | None = None,
+    mem_limit_gib: float | None = DEFAULT_MEM_LIMIT_GIB,
     name: str | None = None,
 ) -> list[str]:
     """The full `docker run` for one harness invocation."""
@@ -147,6 +166,7 @@ def docker_argv(
         "--network",
         "host",
         *PRIVILEGES,
+        *memory_args(mem_limit_gib),
         *mount_args(home),
         "-v",
         f"{facts}:{CONTAINER_HOME}/{facts.name}:ro",
@@ -169,6 +189,12 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--facts", type=pathlib.Path, required=True)
     p.add_argument("--home", type=pathlib.Path, default=pathlib.Path.home())
     p.add_argument("--mem-cap-gib", type=int, default=None)
+    p.add_argument(
+        "--mem-limit-gib",
+        type=float,
+        default=DEFAULT_MEM_LIMIT_GIB,
+        help="container hard memory limit, enforced by the kernel (0: none)",
+    )
     p.add_argument("--name", default=None)
     p.add_argument(
         "--log",
@@ -198,6 +224,7 @@ def main(argv: list[str] | None = None) -> int:
         facts=args.facts.resolve(),
         command=command,
         mem_cap_gib=args.mem_cap_gib,
+        mem_limit_gib=args.mem_limit_gib,
         name=args.name,
     )
     if args.print:

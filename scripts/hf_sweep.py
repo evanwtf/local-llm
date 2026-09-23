@@ -205,10 +205,13 @@ PROFILES: dict[str, dict] = {
             "tensorrt",
             "vllm",
             "sglang",
+            # EXL3 serves on sm_121: #434 (Flash-Next, one Spark) and #648
+            # (GLM-5.3-Flash, two Sparks) both ran it through EXL3 vLLM builds.
+            "exl3",
         ),
-        # MLX ships no Linux arm64 runtime (#293); ROCm is AMD. ExLlama's kernels
-        # do not target sm_121 yet, so EXL builds are not loadable here.
-        "unusable": ("mlx", "rocm", "exl2", "exl3"),
+        # MLX ships no Linux arm64 runtime (#293); ROCm is AMD. EXL2 has never
+        # been run on the Spark, so it stays hidden until one is.
+        "unusable": ("mlx", "rocm", "exl2"),
         "protect": (),
     },
 }

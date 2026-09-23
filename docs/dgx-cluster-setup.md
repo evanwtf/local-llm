@@ -326,7 +326,7 @@ runs at 187 Gb/s anyway. Staging through host buffers was never the limiter.
 
 What actually changed: the peer had had its NetworkManager fabric profiles
 created, renamed, re-addressed and re-activated several times during bring-up
-(gotchas 5 and 6). Something in that churn left the node in a state that
+(gotchas 6 and 7). Something in that churn left the node in a state that
 passed **every** functional check — link up, RoCE ACTIVE, both subnets
 pinging, jumbo frames clean, `ib_write_bw` at 196 Gb/s, a numerically correct
 all-reduce — while the collective ran at 13% of its speed. The only visible
@@ -353,7 +353,7 @@ torchrun --nnodes 2 --node-rank <0|1> --nproc-per-node 1 \
 
 Run it inside the serving image with `--device /dev/infiniband`,
 `--ulimit memlock=-1`, `--network host`, `--ipc=host`, and **both** names in
-`NCCL_SOCKET_IFNAME` and `NCCL_IB_HCA` (gotchas 16 and 17).
+`NCCL_SOCKET_IFNAME` and `NCCL_IB_HCA` (gotchas 17 and 18).
 
 ## Layer 6: the engine
 
@@ -404,7 +404,37 @@ found already correct (**CLEAR**), was avoided by a deliberate choice
 (**REPORTED**). Read the whole list before redoing this; several are silent
 and several cost real time.
 
-### 1. The ConnectX-7 does not exist until a cable is plugged in — **HIT**
+### 1. Memory: check it before anything significant, and stop at 50% — **HIT**
+
+*Symptom:* background jobs on the head killed for critical memory pressure,
+7 GiB of swap in use, a resident server one allocation away from the OOM
+killer taking `sshd`. No error from the jobs themselves.
+
+*Cause:* 2026-09-22 (#672). GLM-5.3-Flash was left resident across both
+nodes at `GPU_MEM_UTIL=0.86` after its verdict was posted, leaving the head
+3–8 GiB of `MemAvailable`. On top of it went a 161 GiB `hf download`, a
+`docker pull` of a ~20 GB image, and a throughput sweep. On a Spark the
+128 GB pool is shared between CPU and GPU: a resident model is host memory,
+and page cache, image extraction and the load test all compete for what is
+left.
+
+*Fix:* before anything significant (a download, an image pull, a launch, a
+load test, a trial run), read `MemAvailable` and swap on **every node it
+touches**. **If more than 50% of memory is in use, stop and evaluate**: what
+holds it, what the new job adds, and the right course, which is usually to stop
+a server whose result is already posted, with its own wrapper, before
+starting. A model is never kept "warm until the next one is ready" when the
+next one needs a download. After a server stops, restore `earlyoom` and run
+preflight (`scripts/machine_health.py check`, `scripts/machine_state.py`,
+`MemAvailable` and swap on both nodes) before resuming. Stopping the server
+freed 107.5 GiB on the head (8.7 to 116.2 GiB available) and 112.2 GiB on the worker (4.4 to 116.6).
+
+**The #1 DGX rule.** Every other entry in this list costs time. This one can
+cost the node: when the pool runs out, the OOM killer takes small daemons
+first, and on the worker that means losing it with no console
+([`incidents/2026-09-13-oom-lockup.md`](incidents/2026-09-13-oom-lockup.md)).
+
+### 2. The ConnectX-7 does not exist until a cable is plugged in — **HIT**
 
 *Symptom:* no Mellanox device in `lspci`, `/sys/class/infiniband/` empty,
 `ibdev2netdev` and `rdma link show` print nothing, `mlx5_ib` bound to zero
@@ -417,7 +447,7 @@ devices behave, which is why it reads as a fault.
 *Fix:* attach the cable. Do not debug a missing ConnectX-7 on an uncabled
 Spark. This cost #641 an open question for weeks.
 
-### 2. Four interfaces, two physical cages — **HIT**
+### 3. Four interfaces, two physical cages — **HIT**
 
 *Symptom:* `enp1s0f0np0`, `enp1s0f1np1`, `enP2p1s0f0np0`, `enP2p1s0f1np1`
 for what is obviously a two-port NIC.
@@ -430,7 +460,7 @@ which cage it speaks for.
 static address to an interface on the uncabled cage produces a silent
 blackhole: the config applies, nothing moves.
 
-### 3. Two interfaces up does **not** mean two cables — **HIT**
+### 4. Two interfaces up does **not** mean two cables — **HIT**
 
 *Symptom:* two interfaces at 200000Mb/s with `Link detected: yes`, two
 reporting `No cable`, and two cables sitting in the box. Reads as "both
@@ -443,7 +473,7 @@ cage `p1` on each node.
 *Fix:* count *cages* with a link, not interfaces. Group interfaces by
 `phys_port_name` first, then count.
 
-### 4. One PCIe path cannot saturate the port — **HIT**
+### 5. One PCIe path cannot saturate the port — **HIT**
 
 *Symptom:* a correctly configured 200 Gb/s link benchmarks at ~110 Gb/s and
 more queue pairs do not help.
@@ -456,7 +486,7 @@ not concurrency.
 the port rating. Give every NCCL/Ray/engine configuration both interface
 names and both HCA names. Naming one silently halves the fabric.
 
-### 5. NetworkManager profile names map to different interfaces on each node — **HIT**
+### 6. NetworkManager profile names map to different interfaces on each node — **HIT**
 
 *Symptom:* the same `nmcli` command run on both nodes leaves the subnets
 crossed — the peers do not ping even though every address looks right.
@@ -469,7 +499,7 @@ number-to-interface binding is **not the same on two machines**. Node B's
 `connection.interface-name <iface>`, and verify with
 `nmcli -t -f NAME,DEVICE con show --active`.
 
-### 6. Reusing a profile while the address is live fails — **HIT**
+### 7. Reusing a profile while the address is live fails — **HIT**
 
 *Symptom:* `Connection activation failed: IP configuration could not be
 reserved (no available address, timeout, etc.)`.
@@ -480,7 +510,7 @@ while the old one is still up means the address exists twice for a moment.
 *Fix:* `nmcli con down` **both** profiles, then modify, then bring both up.
 The error names DHCP-ish causes and is really a duplicate-address conflict.
 
-### 7. Configure with `nmcli`, not netplan — **AVOIDED**
+### 8. Configure with `nmcli`, not netplan — **AVOIDED**
 
 *Cause:* DGX OS ships Ubuntu Desktop with NetworkManager as the renderer, and
 `/etc/netplan/` holds only `00-installer-config.yaml` with
@@ -497,7 +527,7 @@ apply` warns.
 Note the property name: NetworkManager wants `802-3-ethernet.mtu` (or
 `ethernet.mtu`); `ipv4.mtu` does not exist and errors.
 
-### 8. MTU mismatch passes ping and deadlocks collectives — **CLEAR**
+### 9. MTU mismatch passes ping and deadlocks collectives — **CLEAR**
 
 *Symptom:* everything works until a real collective, which hangs.
 
@@ -508,7 +538,7 @@ frame does not.
 with `ping -M do -s 8972 <peer>` — `-M do` forbids fragmentation, so it
 fails loudly instead of silently degrading. Verified here, 3/3.
 
-### 9. Strict reverse-path filtering drops replies across two subnets — **CLEAR**
+### 10. Strict reverse-path filtering drops replies across two subnets — **CLEAR**
 
 *Symptom:* traffic sent on one subnet and answered on the other is dropped
 with no log.
@@ -520,7 +550,7 @@ match the inbound interface — the normal case when two subnets share a wire.
 `default` and each fabric interface — DGX OS ships it that way. Check rather
 than assume, in both directions.
 
-### 10. mDNS leaks fabric lookups onto the management network — **AVOIDED**
+### 11. mDNS leaks fabric lookups onto the management network — **AVOIDED**
 
 *Cause:* both units ship with `spark-xxxx.local` mDNS names. Back-to-back
 with no upstream DNS, resolution for the peer falls back to Wi-Fi or the
@@ -530,7 +560,7 @@ management ethernet — so a "fabric" connection silently runs at 1 GbE.
 every launcher at those names. Never use `.local` for cluster traffic.
 Done here: `spark-a-cx7` / `spark-b-cx7`.
 
-### 11. `apt-get upgrade` will not move you to a new kernel — **HIT**
+### 12. `apt-get upgrade` will not move you to a new kernel — **HIT**
 
 *Symptom:* both nodes are fully upgraded and still differ — 7.2.3 with kernel
 `6.17.0-1032-nvidia` against 7.5.0 with `7.0.0-1019-nvidia`.
@@ -549,7 +579,7 @@ against candidate and settles the question in one command.
 node_exporter) must be rebuilt and re-signed against the new kernel, or the
 fan series disappears from Prometheus with no error.
 
-### 12. Key auth configured does not mean this account can connect — **HIT**
+### 13. Key auth configured does not mean this account can connect — **HIT**
 
 *Symptom:* `Host key verification failed`, which reads as an authentication
 problem.
@@ -561,7 +591,7 @@ was set up; the host key was not accepted for every account that needs it.
 launchers and every `docker save | ssh docker load` step need the reverse
 direction too, and a one-way setup passes a casual test.
 
-### 13. NCCL cannot use IP aliases, and hangs rather than errors — **REPORTED**
+### 14. NCCL cannot use IP aliases, and hangs rather than errors — **REPORTED**
 
 *Symptom:* a two-node launch starts, prints nothing further, and never exits.
 Indistinguishable from a slow model load.
@@ -573,7 +603,7 @@ the fabric. Ray tolerates aliases; NCCL does not.
 (RoCE device names, **both**) explicitly. Check this before suspecting the
 fabric.
 
-### 14. DAC link flap after a one-sided reboot — **REPORTED**
+### 15. DAC link flap after a one-sided reboot — **REPORTED**
 
 *Symptom:* `NO-CARRIER` on an interface that is physically plugged in, after
 one node reboots while the other stays up.
@@ -581,7 +611,7 @@ one node reboots while the other stays up.
 *Fix:* `sudo ip link set <iface> down && sudo ip link set <iface> up`, and
 check FEC negotiation with `sudo ethtool --show-fec <iface>`.
 
-### 15. The OOM killer cannot see the model — **REPORTED**
+### 16. The OOM killer cannot see the model — **REPORTED**
 
 *Symptom:* something innocent is killed under memory pressure while the
 process actually consuming memory survives.
@@ -593,7 +623,7 @@ allocations not charged to any process's RSS. The OOM killer scores by RSS.
 floor comes during prefill, not at load. Disable `earlyoom` on both nodes if
 present.
 
-### 16. A container without `/dev/infiniband` silently falls back to TCP — **HIT**
+### 17. A container without `/dev/infiniband` silently falls back to TCP — **HIT**
 
 *Symptom:* the collective runs, returns correct results, and is slow. No
 error, no warning at default verbosity.
@@ -613,7 +643,7 @@ Confirm with `NCCL_DEBUG=INFO NCCL_DEBUG_SUBSYS=NET` and look for
 produces plausible numbers. Always confirm the transport; never infer it from
 "it worked".
 
-### 17. RDMA needs unlimited locked memory in the container — **HIT**
+### 18. RDMA needs unlimited locked memory in the container — **HIT**
 
 *Symptom:* `ibv_reg_mr_iova2 failed with error Cannot allocate memory`, then
 `ibv_create_qp failed`, then `ncclSystemError`. The job dies at init.
@@ -625,7 +655,7 @@ regions and cannot fall back to unpinned.
 already `unlimited`, which is why this appears only inside a container. The
 recipe's compose file sets both.
 
-### 18. A reconfigured node stays degraded until rebooted — **HIT**
+### 19. A reconfigured node stays degraded until rebooted — **HIT**
 
 *Symptom:* everything passes and the collective runs at 13% of the link.
 Link up, RoCE ACTIVE, both subnets pinging, jumbo frames clean,
@@ -633,7 +663,7 @@ Link up, RoCE ACTIVE, both subnets pinging, jumbo frames clean,
 where 187 was available.
 
 *Cause:* NetworkManager fabric profiles created, renamed, re-addressed and
-re-activated repeatedly during bring-up (gotchas 5 and 6) leave state that
+re-activated repeatedly during bring-up (gotchas 6 and 7) leave state that
 `nmcli con down/up` does not clear.
 
 *Fix:* **reboot both nodes after configuring the fabric, before measuring
@@ -650,7 +680,7 @@ state agree with each other perfectly.
 The only symptom that pointed at it was ping RTT: 1.016 ms before, 0.282 ms
 after. It was recorded and dismissed as CPU idle states.
 
-### 19. The fabric addresses are separate SSH identities — **HIT**
+### 20. The fabric addresses are separate SSH identities — **HIT**
 
 *Symptom:* `Host key verification failed` at a launcher's worker step, after
 passwordless SSH between the nodes was verified and working.
@@ -666,10 +696,10 @@ step died immediately, at the end of 1 h 43 m.
 *Fix:* accept every fabric identity in **both** directions before launching —
 each address and each alias, head to worker and worker to head. **Verify SSH
 by the exact name the launcher will use**, not by any name that reaches the
-box. This is gotcha 12 in a second costume, and knowing gotcha 12 did not
+box. This is gotcha 13 in a second costume, and knowing gotcha 13 did not
 prevent it.
 
-### 20. Each node may download the whole checkpoint from the internet — **HIT**
+### 21. Each node may download the whole checkpoint from the internet — **HIT**
 
 *Symptom:* the worker stages its weights slowly and the fabric is idle.
 
@@ -700,7 +730,7 @@ saved is already most of the way done.
 A staging step that is not moving bytes on the fabric is not using it,
 whatever the configuration says.
 
-### 21. Repo gotcha: a committed `hardware/<dir>/` needs a registry entry — **HIT**
+### 22. Repo gotcha: a committed `hardware/<dir>/` needs a registry entry — **HIT**
 
 *Symptom:* CI red on a docs-only branch:
 `committed machine directories not in the registry`.
@@ -711,6 +741,28 @@ run before `git add` passes; CI, which sees the staged tree, does not.
 *Fix:* add the entry to `scripts/machines.py` and regenerate
 `hardware/MACHINES.md`. **Run `pytest` after `git add`, not before** — that
 is the general lesson, and it applies to any test that reads tracked files.
+
+### 23. A large model's default reasoning effort eats the whole token budget — **HIT**
+
+*Symptom:* the cluster serves, `/v1/models` answers, and a plain chat
+request comes back with empty or truncated content and
+`finish_reason: length`. It looks like a broken template or a dead rank.
+
+*Cause:* the checkpoint's chat template defaults to its highest reasoning
+effort, and thinking spends the whole `max_tokens` before the answer starts.
+Hit on three two-node arms in a row: Qwen3.8-Flash-Next defaults to `xhigh`
+and returned `content: null`; GLM-5.3-Flash renders effort Max and, at
+`max_tokens` 600, ended at the cap with 2,473 characters of reasoning and a
+cut-off answer; DeepSeek V4-Flash needed the same fix.
+
+*Fix:* launch with reasoning effort **low** as a server default:
+`--default-chat-template-kwargs '{"reasoning_effort":"low"}'`, or the recipe's
+own variable (GLM: `GLM53_DEFAULT_REASONING_EFFORT=low`). Confirm it in the
+server's argv, not the `.env`. Then a plain request with no
+`chat_template_kwargs` must end in `finish_reason: stop` with content: GLM
+went to 188, 199 and 223 tokens, all `stop`. The operator made this the
+default for every large model on 2026-09-22. A higher effort is its own arm
+under its own backend name.
 
 ## Verification checklist
 
@@ -728,7 +780,7 @@ works. Results from 2026-09-22 in the right column.
 | 7 | `rp_filter` is 2 on both nodes | already 2, no change |
 | 8 | reboot one node; re-run 1–7 unchanged | survived: addresses, MTU 9000, RoCE ACTIVE, no link flap |
 | 9 | `ssh` both directions, passwordless | working |
-| 10 | same `DGX_SWBUILD_VERSION` and kernel on both | **mismatched** — gotcha 11 |
+| 10 | same `DGX_SWBUILD_VERSION` and kernel on both | **mismatched** — gotcha 12 |
 | 11 | `id` matches on both | uid 1000, gid 1000, both |
 | 12 | `ib_write_bw`, one path, then both concurrently | 111.86 / **196.08 Gb/s** |
 | 13 | `iperf3 -P 8` on the IP path | 111 Gb/s, 0 retransmits |

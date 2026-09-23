@@ -82,3 +82,83 @@ def test_the_oracle_declares_a_cap():
     assert 0 < run.ORACLE_MEM_CAP_GIB <= 16
     source = (pathlib.Path(run.__file__)).read_text()
     assert "cap_gib=ORACLE_MEM_CAP_GIB" in source
+
+
+# --- #680: the client cap follows the container's cgroup limit ---------------
+
+
+def _cgroup(tmp_path, max_value=None, events=None):
+    if max_value is not None:
+        (tmp_path / "memory.max").write_text(f"{max_value}\n")
+    if events is not None:
+        (tmp_path / "memory.events").write_text(events)
+    return tmp_path
+
+
+def test_a_cgroup_limit_is_read_in_gib(tmp_path):
+    root = _cgroup(tmp_path, 12 * 1024**3)
+    assert memcap.cgroup_limit_gib(root) == 12.0
+
+
+def test_an_unlimited_cgroup_has_no_limit(tmp_path):
+    assert memcap.cgroup_limit_gib(_cgroup(tmp_path, "max")) is None
+
+
+def test_no_cgroup_files_means_no_limit_not_a_guess(tmp_path):
+    assert memcap.cgroup_limit_gib(tmp_path) is None
+
+
+def test_a_v1_unlimited_sentinel_is_no_limit(tmp_path):
+    (tmp_path / "memory").mkdir()
+    (tmp_path / "memory" / "memory.limit_in_bytes").write_text("9223372036854771712\n")
+    assert memcap.cgroup_limit_gib(tmp_path) is None
+
+
+def test_inside_a_limited_container_the_watcher_is_off(tmp_path):
+    """The kernel enforces the container limit (#680); the watcher existed only
+    to keep a global OOM from taking sshd and the model server (#82, #379)."""
+    root = _cgroup(tmp_path, 12 * 1024**3)
+    assert memcap.default_client_cap_gib({}, root) == 0.0
+
+
+def test_an_explicit_cap_still_wins_over_the_cgroup(tmp_path):
+    root = _cgroup(tmp_path, 12 * 1024**3)
+    env = {"LOCAL_LLM_CLIENT_MEM_CAP_GIB": "10"}
+    assert memcap.default_client_cap_gib(env, root) == 10.0
+
+
+def test_without_a_limit_the_uncontained_default_holds(tmp_path):
+    assert memcap.default_client_cap_gib({}, _cgroup(tmp_path, "max")) == 24.0
+    assert memcap.default_client_cap_gib({}, tmp_path) == 24.0
+
+
+def test_the_client_is_made_the_kernels_first_victim():
+    wrapped = memcap.oom_first(["opencode", "run", "--dir", "/w"])
+    assert wrapped[:2] == ["sh", "-c"]
+    assert "1000 > /proc/self/oom_score_adj" in wrapped[2]
+    assert 'exec "$@"' in wrapped[2]
+    assert wrapped[4:] == ["opencode", "run", "--dir", "/w"]
+
+
+def test_kernel_oom_kills_are_counted(tmp_path):
+    events = "low 0\nhigh 0\nmax 3\noom 1\noom_kill 2\noom_group_kill 0\n"
+    assert memcap.cgroup_oom_kills(_cgroup(tmp_path, events=events)) == 2
+
+
+def test_unreadable_oom_counter_is_none(tmp_path):
+    assert memcap.cgroup_oom_kills(tmp_path) is None
+
+
+def test_a_kernel_kill_is_named_in_the_run_log():
+    import run
+
+    line = run.timeout_message(
+        "t",
+        1800,
+        {
+            "timeout_reason": "memory-cap",
+            "kernel_oom_kills": 1,
+            "client_mem_limit_gib": 12.0,
+        },
+    )
+    assert "kernel" in line and "12.0 GiB" in line and "excluded" in line
