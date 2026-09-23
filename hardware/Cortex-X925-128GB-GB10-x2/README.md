@@ -13,7 +13,15 @@ one records what the hardware is.
 
 ## Status
 
-**Not yet assembled.** One 200 Gb/s cable is connected and its link carries
+**In service since 2026-09-22.** Bring-up (#646) closed on 2026-09-23, after
+the post-reboot checks on kernel 7.0.0-1019 passed: two-node all-reduce 185.60
+Gb/s median at 1 GiB. Five models have been served across both nodes;
+[`results.jsonl`](results.jsonl) holds the rows, and
+[`RECOMMENDATIONS.md`](RECOMMENDATIONS.md) holds a **provisional** ranking.
+
+*The status below is the pre-bring-up snapshot, kept for history.*
+
+**Not yet assembled** (before 2026-09-22). One 200 Gb/s cable is connected and its link carries
 signal, but no interface holds an address and nothing has been served across
 the pair. Bring-up is #646. Nothing in this directory is a measurement yet.
 
