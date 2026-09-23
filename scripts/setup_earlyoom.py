@@ -199,10 +199,13 @@ def apply() -> int:
         if proc.returncode:
             logger.error("%s failed: %s", " ".join(argv), proc.stderr.strip()[:200])
             return 1
+    # Passed as an argument: logging applies %-formatting only when there are
+    # args, so a literal "%%" in a bare message printed as "%%".
     logger.warning(
+        "%s",
         "earlyoom restarted. Verify the thresholds it logs: it must say "
-        "'swap <= 100.00%%', not the old 20%%, or it cannot fire on this box; "
-        "and 'mem <=  0.82%%' / '0.41%%' on a 121.7 GiB Spark (1.0 / 0.5 GiB)."
+        "'swap <= 100.00%', not the old 20%, or it cannot fire on this box; "
+        "and 'mem <=  0.82%' / '0.41%' on a 121.7 GiB Spark (1.0 / 0.5 GiB).",
     )
     return 0
 
