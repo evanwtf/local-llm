@@ -72,6 +72,13 @@ meanwhile.
 Each rule is actionable on its own; the incident that earned it is in the linked
 doc.
 
+**Build it so it cannot be forgotten** — the operator's rule, 2026-09-22
+- Two tests for anything you add: **can someone with no context rerun it**, and **is it hard to get wrong by forgetting**. A procedure that needs a person to remember a step will be run wrong, and the failure will be blamed on attention.
+- Prefer a **mechanism over a discipline**, every time. The repo already works this way and it keeps paying: `hardware_id.py` derives a machine name rather than trusting a typed one; `conftest.py` refuses to run the suite while a benchmark holds the lock, after three comparisons were voided by people who had been told not to; `refuse_session_ids.py` is a hook because the rule alone was broken 21 times in a day.
+- Three more landed on 2026-09-22, each replacing a thing that had just been forgotten: `/loop 30m` for the heartbeat, after a session drifted to 57-minute gaps while believing it was on 30; a `pre-push` hook running `pytest -m fast`, so the gate is the default rather than a habit; and `scripts/env_file.py`, which writes a shell-sourced `.env` with `shlex.quote` **and then sources it to check the value survived** — the same quoting bug was hit twice in one hour, an hour apart, by someone who had written up the first one.
+- **Verify the thing you just did, in the same breath.** Every one of those bugs was silent: the value vanished, the tick never fired, the gate passed vacuously. A write that is not read back is a guess. Cheap round-trips beat careful authors.
+- Write the **reason** beside the mechanism. A guard whose purpose is not on the page gets deleted by the next person who finds it inconvenient.
+
 **Reporting a number** — [`docs/measurement-discipline.md`](docs/measurement-discipline.md)
 - Give the absolute wall-clock seconds beside every ratio, and **never write "N× faster"** — write "took 53% of the time: 751 s against 1429 s".
 - **One trial is not a result.** A 3-trial median carries ±28%, so two medians need about a 56% gap before the difference is real. Quote pass rates with a confidence interval.
