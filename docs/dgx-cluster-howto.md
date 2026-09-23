@@ -209,10 +209,13 @@ Recipes differ; the constants on this pair are:
 - **Lower `GPU_MEMORY_UTILIZATION` below the recipe's default** if the head
   also runs the harness and monitoring. 0.835 hit `NVRM: Out of memory` on
   this pair; 0.78 works.
-- **Stop `earlyoom` for the run, and restart it after.** It sends SIGTERM to
-  the server, and on GB10 the weights live in driver allocations not charged
-  to RSS — so an RSS-scoring killer picks the wrong victim and then reports
-  `kill failed: Timer expired`.
+- **Leave `earlyoom` running, at 1.0 / 0.5 GiB, on both nodes (#700).** At its
+  old 5% line (~6.1 GiB) it killed large two-node models at rest (GLM-5.3-Flash
+  idles at 2.7 GiB on the head), so it used to be stopped for every run. Since
+  #700 it fires only below the recipes' own 1.5 GiB memguards, and its
+  `--prefer` list names the engine processes, so it is the last net rather than
+  the first. Install and configure it with `scripts/setup_earlyoom.py --apply`
+  on each node.
 - **Check the model's chat template defaults.** Qwen3.8-Flash-Next defaults to
   `reasoning_effort: xhigh` and will spend an entire token budget reasoning
   and return `content: null`. Set the server default rather than making every
@@ -225,5 +228,5 @@ what you think.
 ## 11. Release the pair
 
 - Stop the servers with the recipe's own wrapper, never `pkill`.
-- **Restart `earlyoom`** on any node where it was stopped.
+- **Confirm `earlyoom` is running** on both nodes (`systemctl is-active earlyoom`).
 - Leave the monitoring containers up.

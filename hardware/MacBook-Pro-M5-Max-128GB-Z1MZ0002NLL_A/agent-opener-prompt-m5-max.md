@@ -347,22 +347,34 @@ it. After any restart, run `CronList` and recreate the heartbeat if it is
 gone. On 2026-09-19 the job was lost at about 00:20, and there was no
 heartbeat until 06:42.
 
+**Do not trust the internal scheduler alone.** The operator reported on
+2026-09-23 that heartbeats built on the Claude Code internal scheduler
+(`CronCreate`, `ScheduleWakeup`, `/loop`) have been flaky, and may need system
+cron. Until a system-cron heartbeat exists
+([#704](https://github.com/evanwtf/local-llm/issues/704)), give the heartbeat a
+second wake path that the scheduler does not own: a `Bash run_in_background`
+timer (`sleep 1800`) re-invokes the session when it exits. Re-arm the timer at
+each heartbeat. Compare each heartbeat's time with the previous one, and say so
+when the gap is over 35 minutes.
+
 ### 3a. Heartbeat — every 30 minutes or sooner, idle included
 
-Send it to the operator, in chat, in this shape:
+Send it to the operator, in chat, as **regular text**. Do not put it in a code
+block or any other preformatted text (the operator's rule, 2026-09-23). The
+first line is a plain sentence. Each other field is one bullet:
 
-```
-Currently on GPU: <what> (issue #N)     <- always the first line; "idle" counts
-Local time: <from `date` this tick, America/New_York>
-In flight: <task, issue #, progress, e.g. "sweep 3/4, 41/60 trials">
-ETA: <local time, or "none">
-Next: <the next queue item, issue #, and why it is next>
-GPU: <utilization %>, <GPU memory in use>
-Power: <input W>, <SoC W>
-Thermal: <GPU °C>, <CPU °C>, fans <RPM> / <RPM>
-CPU: <user % + system %>
-CI / PRs: <last runs; open PRs, from this tick's output>
-```
+Currently on GPU: <what> (issue #N). This is always the first line; "idle"
+counts.
+
+- **Local time:** <from `date` this tick, America/New_York>
+- **In flight:** <task, issue #, progress, e.g. "sweep 3/4, 41/60 trials">
+- **ETA:** <local time, or "none">
+- **Next:** <the next queue item, issue #, and why it is next>
+- **GPU:** <utilization %>, <GPU memory in use>
+- **Power:** <input W>, <SoC W>
+- **Thermal:** <GPU °C>, <CPU °C>, fans <RPM> / <RPM>
+- **CPU:** <user % + system %>
+- **CI / PRs:** <last runs; open PRs, from this tick's output>
 
 Where each value comes from:
 
