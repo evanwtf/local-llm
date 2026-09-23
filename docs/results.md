@@ -185,7 +185,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 
 ### Cortex-X925-128GB-GB10-x2
 
-*Generated from `hardware/Cortex-X925-128GB-GB10-x2/results.jsonl` — 162 rows, sha256 c0fac42182e2.*
+*Generated from `hardware/Cortex-X925-128GB-GB10-x2/results.jsonl` — 192 rows, sha256 f2a0fc70569e.*
 
 #### Every stack measured under OpenCode
 
@@ -193,6 +193,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 
 | stack | passed | median | worst | spread |
 |---|---|---|---|---|
+| glm53fexl3dual2xrcctx @ Corei3-7100-16GB+image | 30/30 | 49s | 123s | 4.0x |
 | glm53fexl3dual2xrc @ Corei3-7100-16GB+image@24g | 30/30 | 62s | 130s | 4.3x |
 | dsv4flashvisiondspark2xrc @ Corei3-7100-16GB+image@10g | 40/40 | 82s | 187s | 6.6x |
 | qwen38fnnvfp4dual2xrcflags @ Corei3-7100-16GB+image@10g | 30/30 | 86s | 412s | 12.4x |
@@ -211,6 +212,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | mimo26fdual2xrc @ Corei3-7100-16GB+image | 40s |
 | qwen38fnnvfp4dual2xrcflags @ Corei3-7100-16GB+image@10g | 76s |
 | qwen38fnnvfp4dual2xrc @ Corei3-7100-16GB+image@10g | 78s |
+| glm53fexl3dual2xrcctx @ Corei3-7100-16GB+image | 85s |
 | glm53fexl3dual2xrc @ Corei3-7100-16GB+image@24g | 88s |
 
 ### MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A
