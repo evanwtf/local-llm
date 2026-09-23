@@ -2972,3 +2972,23 @@ aider_model = "openai/DeepSeek-v4.1-Flash-EXL3"
 opencode_model = "vllm8888/DeepSeek-v4.1-Flash-EXL3"
 context_tokens = 262144
 topology = "remote"
+
+# #672 second arm (operator, 2026-09-22): mimo26fdual2xrc with thinking ON.
+# The only change is that the server-side --default-chat-template-kwargs
+# {"enable_thinking":false} is removed; MiMo's template thinks unless
+# enable_thinking is explicitly false. Same weights, recipe, 0.90 fraction,
+# 1,048,576-token pin, DFlash 8, 262k context, and client (OpenCode output cap
+# 16,384; 12 GiB container). The question: is the thinking-off arm's runaway
+# rate (10 of 30 trials with a step at the 16,384-token output cap) an
+# artifact of disabling thinking?
+[backend.mimo26fdual2xrcthink]
+description = "mimo26fdual2xrc with thinking ON: MiMo-V2.6-Flash-RL (XiaomiMiMo rev 3b38d06) across TWO DGX Sparks, SGLang TP=2 EP=2 via MiaAI-Lab recipe @201be3e, DFlash 8, fp8 KV, 262144 context, mem-fraction-static 0.90, max-total-tokens 1,048,576, with NO server-side enable_thinking default (the template thinks). Everything else identical to mimo26fdual2xrc. REMOTE CLIENT (#562/#649), 12 GiB kernel-enforced client container"
+tier = "gb10-spark-x2"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "sglang"
+model = "MiMo-v2.6-Flash"
+aider_model = "openai/MiMo-v2.6-Flash"
+opencode_model = "vllm8888/MiMo-v2.6-Flash"
+context_tokens = 262144
+topology = "remote"
