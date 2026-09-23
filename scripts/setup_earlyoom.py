@@ -51,17 +51,28 @@ logger = logging.getLogger(__name__)
 DEFAULTS_PATH = pathlib.Path("/etc/default/earlyoom")
 DROPIN_PATH = pathlib.Path("/etc/systemd/system/earlyoom.service.d/priority.conf")
 
-#: SIGTERM at 5% of MemTotal, SIGKILL at 3%. On 121.7 GiB that is about
-#: 6.1 GiB and 3.7 GiB -- below every per-server watcher floor in use (#456):
-#: 14 GiB when the harness runs on this box, 8 GiB when it runs on a remote
-#: client and the box holds only the server (#562). So a watcher still stops a
-#: server cleanly before the box-wide killer has to.
+#: SIGTERM at 1.0 GiB MemAvailable, SIGKILL at 0.5 GiB -- absolute sizes, in
+#: KiB, for `-M` (#700, operator decision 2026-09-23). Below every other floor
+#: in use, so a cleaner stop always gets the first chance: the two-node recipe
+#: memguards at 1.5 GiB, and `dgx_server.py`'s watcher at 14 GiB (8 GiB for a
+#: server-only run, #456, #562).
 #:
-#: Was 10,5 (~12 / ~6 GiB) until 2026-09-19. That was sized for a server and a
-#: trial sharing one pool; with the client off the box the servers can take
-#: the memory their recipes ship with, and a 12 GiB SIGTERM line would kill
-#: them at rest (operator-approved, #562).
-MEM_THRESHOLDS = "5,3"
+#: Why so low: large two-node models idle below any percentage line that
+#: leaves real runway -- GLM-5.3-Flash at 2.7-3.3 GiB on the head (#648),
+#: DeepSeek V4.1 at ~4.5 GiB (#685). At the old 5% (~6.1 GiB) every such run
+#: had to stop earlyoom by hand and remember to restart it; on 2026-09-23 that
+#: step was missed and it SIGTERMed a GLM launch at load (#700). Disabling it
+#: was rejected: it is the only net that does not depend on a recipe (#485
+#: caught a 108,524 MiB runaway; the GLM recipe has no memguard at all).
+#:
+#: The cost: ~1 GiB of runway instead of ~6, against allocation ramps that can
+#: move a GiB in under a second. Where between 0 and 1 GiB the box stops
+#: answering is unmeasured (the 2026-09-17 lock logged 0%).
+#:
+#: History: -m 10,5 (~12 / ~6 GiB) at install, 2026-09-14; -m 5,3 from
+#: 2026-09-19 when remote clients left the box holding only the server (#562);
+#: -M 1048576,524288 from 2026-09-23 (#700).
+MEM_THRESHOLDS_KIB = "1048576,524288"
 
 #: 100,100 -- i.e. ignore swap. See the module docstring: the AND with swap is
 #: what made this unfireable on 2026-09-17.
@@ -83,7 +94,7 @@ PREFER_REGEX = r"(^|/)(vllm|VLLM|pt_main_thread|llama-server|ollama|python[0-9.]
 def earlyoom_args() -> str:
     """The `EARLYOOM_ARGS` value, as one shell-quoted line."""
     return (
-        f"-m {MEM_THRESHOLDS} -s {SWAP_THRESHOLDS} -r {REPORT_SECONDS} "
+        f"-M {MEM_THRESHOLDS_KIB} -s {SWAP_THRESHOLDS} -r {REPORT_SECONDS} "
         f"--avoid '{AVOID_REGEX}' --prefer '{PREFER_REGEX}'"
     )
 
@@ -97,6 +108,10 @@ def defaults_file() -> str:
 # unfireable on this box: with vm.swappiness=10 a GPU-side ramp does not drain
 # swap. 2026-09-17 06:48: "mem avail: 0 of 124610 MiB (0.00%), swap free:
 # 14983 of 16383 MiB (91.45%)" -- nothing was killed, and the box hard-locked.
+#
+# -M {MEM_THRESHOLDS_KIB} is KiB: SIGTERM at 1.0 GiB available, SIGKILL at
+# 0.5 GiB (#700). Large two-node models idle at 2.7-4.5 GiB, so a higher line
+# killed them at rest and had to be stopped by hand for every run.
 EARLYOOM_ARGS="{earlyoom_args()}"
 """
 
@@ -184,9 +199,13 @@ def apply() -> int:
         if proc.returncode:
             logger.error("%s failed: %s", " ".join(argv), proc.stderr.strip()[:200])
             return 1
+    # Passed as an argument: logging applies %-formatting only when there are
+    # args, so a literal "%%" in a bare message printed as "%%".
     logger.warning(
+        "%s",
         "earlyoom restarted. Verify the thresholds it logs: it must say "
-        "'swap <= 100.00%%', not the old 20%%, or it cannot fire on this box."
+        "'swap <= 100.00%', not the old 20%, or it cannot fire on this box; "
+        "and 'mem <=  0.82%' / '0.41%' on a 121.7 GiB Spark (1.0 / 0.5 GiB).",
     )
     return 0
 
