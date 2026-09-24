@@ -27,6 +27,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 pytestmark = pytest.mark.real_stash_paths
 sys.path.insert(0, str(HERE))
 
+import replay
 import run as runner
 
 CFG = tomllib.loads((HERE / "tasks.toml").read_text())
@@ -75,6 +76,10 @@ def test_every_task_names_at_least_one_target(task):
     if task.get("kind") == "script":
         assert task.get("entrypoint"), task["name"]
         return
+    if replay.is_replay(task):
+        # A replay task (#714) removes the files it reverts, not a symbol.
+        assert replay.validate(task) == [], task["name"]
+        return
     targets = runner.targets(task)
     assert targets, task["name"]
     for t in targets:
@@ -89,6 +94,9 @@ def test_every_task_target_is_excisable(task):
     """
     if task.get("kind") == "script":
         pytest.skip("script task: nothing is excised from a repo")
+    if replay.is_replay(task):
+        # Checked by test_a_replay_task_reverts_what_its_commit_touched.
+        pytest.skip("replay task: nothing is excised from a repo")
     if not _available(task):
         pytest.skip(f"{_repo(task)} not checked out")
     keep_doc = task.get("keep_docstring", True)
@@ -113,7 +121,49 @@ def test_a_task_prompt_names_the_file_it_edits(task):
     prompt = task.get("prompt") or ""
     if not prompt:
         pytest.skip("no prompt: inherited")
+    if replay.is_replay(task):
+        # A replay task's work spans the files its commit touched; what the
+        # prompt must name is the failing tests, and the no-edit rule.
+        for test in task["tests"]:
+            assert test.split("::")[0] in prompt, f"{task['name']} omits {test}"
+        assert "Do not modify any test." in prompt, task["name"]
+        return
     for target in runner.targets(task):
         assert target["file"] in prompt, (
             f"{task['name']} does not name {target['file']}"
         )
+
+
+#: Files a replay task keeps at its commit rather than reverting: the test
+#: environment. Without C's dependencies the tests cannot import, and adding a
+#: dependency is a packaging exercise, not the feature (tasks.toml says so).
+REPLAY_KEPT = {"pyproject.toml", "uv.lock"}
+
+REPLAYS = [t for t in TASKS if replay.is_replay(t)]
+
+
+@pytest.mark.parametrize("task", REPLAYS, ids=[t["name"] for t in REPLAYS])
+def test_a_replay_task_reverts_what_its_commit_touched(task):
+    """`revert` is exactly the commit's non-test files, less the environment.
+
+    Hand-written on purpose, so a reader sees it; checked here, so a file
+    left off -- which would hand the agent part of the answer -- fails a test
+    instead of a trial. Skips when the commit is not in the local checkout.
+    """
+    if not _available(task):
+        pytest.skip(f"{_repo(task)} not checked out")
+    commit = runner.task_target(CFG, task)["base_commit"]
+    got = subprocess.run(
+        ["git", "diff", "--name-only", f"{commit}^1", commit],
+        cwd=_repo(task),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if got.returncode != 0:
+        pytest.skip(f"{commit} is not in {_repo(task)}")
+    touched = set(got.stdout.split())
+    source = {p for p in touched if not p.startswith("tests/")} - REPLAY_KEPT
+    assert set(task["revert"]) == source, task["name"]
+    for test in task["tests"]:
+        assert test.split("::")[0] in touched, f"{task['name']}: {test} not in commit"

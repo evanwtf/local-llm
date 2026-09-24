@@ -26,6 +26,7 @@ Each script explains itself in full at the top of its own file -- what it comput
 | `client_version_split.py` | any | Which client version took which rows, and what that confounds (#137, #131). |
 | `client_versions.py` | any | Read the recorded agent client versions, and say which have moved (#131). |
 | `cluster_allreduce.py` | any | Measure NCCL all-reduce bandwidth across the DGX Spark cluster's nodes. |
+| `cluster_heartbeat.py` | any | Post the two-Spark cluster heartbeat from a timer, independent of any agent session. |
 | `cluster_id.py` | any | Derive the dual-Spark cluster's machine identity, and refuse to guess it. |
 | `coherence_check.py` | mac | Greedy coherence check before trusting any new GGUF (#25, #48). |
 | `cohort_split.py` | any | Split one backend's rows at a moment in time and compare the halves. |
@@ -131,6 +132,7 @@ Each script explains itself in full at the top of its own file -- what it comput
 | `validate_ledgers.py` | any | Validate EVERY committed hardware ledger, independent of the runner (#394). |
 | `verify_posts.py` | any | Verify X posts against the source, for the claims that earned an issue. |
 | `verify_push.py` | any | Verify a push landed, instead of trusting that `git push` reported success (#255). |
+| `verify_replay_tasks.py` | any | Check that each replay task (#714) is a valid task before any trial runs it. |
 | `vllm_compat_proxy.py` | any | Strip non-standard fields from a vLLM fork's chat responses so a strict |
 | `vllm_load.py` | nvidia | Aggregate throughput against a vLLM server at a given concurrency (#334). |
 | `ds4-fast.sh` | mac | Metal 4 TensorOps: ~21% faster, not bit-exact. See scripts/ds4_serve.py. |

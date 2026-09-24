@@ -81,6 +81,14 @@ OPTIONAL: dict[str, type | tuple[type, ...]] = {
     # deadline). None/absent on every non-timeout trial. Additive, so no
     # schema bump -- older rows simply do not carry it.
     "timeout_reason": (str, type(None)),
+    # #714. Set only on a replay task's row: "replay", and what reproduces it
+    # -- `replay.commit` and `replay.parent` (full shas), `replay.reverted`
+    # (each path and whether it was restored from the parent or deleted),
+    # `replay.commit_lines`, and after the agent `replay.recall` (per file:
+    # verbatim against the commit, lines differing from it and from the
+    # parent). Absent on every other row, which is every row before it.
+    "task_kind": str,
+    "replay": dict,
 }
 
 

@@ -51,6 +51,13 @@ def main() -> None:
         "forbidden by the prompt and checked afterwards (`touched_tests`)."
     )
     add("")
+    add(
+        "A **replay** task (#714) is larger: the checkout is a real commit of the "
+        "target repository with the files that commit touched put back to their "
+        "state before it, and the commit's own tests are the oracle. Its prompt "
+        "restates the commit message and names the failing test files."
+    )
+    add("")
 
     add("## Smoke probes")
     add("")
@@ -102,6 +109,9 @@ def main() -> None:
             meta.append(f"oracle `{task['test_command']}`")
         if task.get("keep_docstring") is not None:
             meta.append(f"keep_docstring `{task['keep_docstring']}`")
+        if task.get("kind") == "replay":
+            reverted = ", ".join(f"`{p}`" for p in task["revert"])
+            meta.append(f"replay: reverted to the parent {reverted}")
         if meta:
             add(" · ".join(meta))
             add("")
