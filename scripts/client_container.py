@@ -184,7 +184,7 @@ def docker_argv(
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    p.add_argument("--image", default="local-llm-client:1.18.31")
+    p.add_argument("--image", default="local-llm-client:1.18.32")
     p.add_argument("--server", required=True)
     p.add_argument("--facts", type=pathlib.Path, required=True)
     p.add_argument("--home", type=pathlib.Path, default=pathlib.Path.home())
