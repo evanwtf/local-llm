@@ -108,6 +108,16 @@ def is_replay(row: dict[str, Any]) -> bool:
     )
 
 
+def is_hard_replay(row: dict[str, Any]) -> bool:
+    """A harder replay task (#726): held-out tests, or a span of commits.
+
+    The row says so itself (`replay.suite`, stamped from the task's `suite`),
+    so the split does not depend on a task name. Every #714 row predates the
+    field and stays in the first replay table.
+    """
+    return (row.get("replay") or {}).get("suite") == "hard"
+
+
 def _timed(rows: list[dict[str, Any]]) -> list[float]:
     """Wall times of the excision trials that **passed**.
 
@@ -160,17 +170,35 @@ def stack_name(
     return f"{base} @ {names.get(client, 'remote')}"
 
 
-def stack_table(rows: list[dict[str, Any]], labels: dict[str, str]) -> list[str]:
-    """Pass rate and wall time per backend, OpenCode only."""
+def _hidden_cell(rs: list[dict[str, Any]]) -> str:
+    """Held-out tests passed / trials that held tests out (#726), or a dash."""
+    judged = [v for v in map(results.hidden_verdict, rs) if v is not None]
+    return f"{sum(judged)}/{len(judged)}" if judged else "—"
+
+
+def stack_table(
+    rows: list[dict[str, Any]], labels: dict[str, str], hidden: bool = False
+) -> list[str]:
+    """Pass rate and wall time per backend, OpenCode only.
+
+    `hidden` adds the held-out-test column (#726) beside `passed`, which
+    stays the visible oracle.
+    """
     by = collections.defaultdict(list)
     for r in valid_opencode(rows):
         by[stack_key(r)].append(r)
     split = len({k[1] for k in by}) > 1
     names = client_names(rows)
-    out = [
-        "| stack | passed | median | worst | spread |",
-        "|---|---|---|---|---|",
-    ]
+    if hidden:
+        out = [
+            "| stack | passed | hidden passed | median | worst | spread |",
+            "|---|---|---|---|---|---|",
+        ]
+    else:
+        out = [
+            "| stack | passed | median | worst | spread |",
+            "|---|---|---|---|---|",
+        ]
     # A stack with no passing trial has no timing at all. It keeps its row --
     # the pass column is the whole point of it -- and sorts last.
     rank = sorted(by.items(), key=lambda kv: statistics.median(_timed(kv[1]) or [1e9]))
@@ -186,8 +214,10 @@ def stack_table(rows: list[dict[str, Any]], labels: dict[str, str]) -> list[str]
             )
         else:
             timing = "\u2014 | \u2014 | \u2014 |"
+        extra = f" {_hidden_cell(rs)} |" if hidden else ""
         out.append(
-            f"| {stack_name(name, labels, split, names)} | {p}/{len(rs)} | {timing}"
+            f"| {stack_name(name, labels, split, names)} | {p}/{len(rs)} |{extra} "
+            f"{timing}"
         )
     return out
 
@@ -476,7 +506,8 @@ def machine_section(
         ),
         "",
     ]
-    replay = [r for r in rows if is_replay(r)]
+    replay = [r for r in rows if is_replay(r) and not is_hard_replay(r)]
+    hard = [r for r in rows if is_hard_replay(r)]
     if valid_opencode(replay):
         out += ["#### Replay tasks: rebuild a real commit from its tests (#714)", ""]
         out += stack_table(replay, LABELS)
@@ -487,6 +518,24 @@ def machine_section(
                 "Seven commits from gmail-archive's history, 60-600 changed "
                 "lines each. The target repo is public, so a pass may be "
                 "partly recall; see each row's `replay` record."
+            ),
+            "",
+        ]
+    if valid_opencode(hard):
+        out += [
+            "#### Harder replay tasks: held-out tests and commit spans (#726)",
+            "",
+        ]
+        out += stack_table(hard, LABELS, hidden=any("hidden" in r for r in hard))
+        out += client_caveat(valid_opencode(hard))
+        out += [
+            "",
+            (
+                "`passed` is the tests the agent could see. **`hidden passed` "
+                "is tests it never saw**, run only by the oracle, over the "
+                "trials whose task holds tests out; a dash means none did. "
+                "Kept apart from the table above so its seven tasks stay "
+                "comparable."
             ),
             "",
         ]

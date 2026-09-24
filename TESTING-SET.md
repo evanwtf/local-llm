@@ -356,7 +356,7 @@ the file the harness reads, with a test that fails if the two drift.
 | **Excision** (Python) | 8 | Find your way around unfamiliar code. One function body deleted; the repo's own suite is the only oracle |
 | **Excision** (Swift) | 5 | The same, off the model's comfort ground — and a compile step Python cannot fail at. **macOS only** — `monitor` is an AppKit desktop app, so `swift test` is not an oracle off a Mac |
 | **Script** | 2 | Empty directory, produce a working CLI. Trivial logic, real boilerplate, almost no variance |
-| **Replay** (Python) | 7 | Rebuild a real gmail-archive feature commit, 37 to 583 reverted lines across 1 to 9 files, from its own tests (#714). **Not in the default matrix**: run with `--replay --targets sandbox`. See [METHODOLOGY](benchmarks/agent/METHODOLOGY.md#replay-tasks-714) |
+| **Replay** (Python) | 14 | Rebuild a real gmail-archive feature commit, 37 to 583 reverted lines across 1 to 9 files, from its own tests (#714). Seven more are harder (#726): five of the original seven with some tests held out of the agent's tree and run only by the oracle, and a five-commit span of 1,643 added lines with held-out tests, once with a prompt that names no test file. **Not in the default matrix**: run the first seven with `--replay --targets sandbox`, the harder seven with `--replay-hard --targets sandbox`. See [METHODOLOGY](benchmarks/agent/METHODOLOGY.md#replay-tasks-714) |
 
 Script tasks vary 1.0–2.1× and are the fair way to compare stacks. Excision
 tasks are noisier and closer to real work.

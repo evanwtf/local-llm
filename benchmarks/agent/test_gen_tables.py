@@ -165,3 +165,44 @@ def test_replay_rows_get_their_own_table_and_leave_the_excision_table_alone(tmp_
     # the excision table's worst is the excision worst, not the replay trial
     assert "| 2/2 | 50s | 60s |" in excision
     assert "| 1/1 | 500s | 500s |" in replay
+
+
+def test_harder_replay_rows_get_a_table_with_a_hidden_column(tmp_path):
+    """#726: held-out verdicts sit beside the visible ones, in their own table,
+    and the #714 table is not moved by them."""
+
+    def row(task, secs, **kw):
+        return {
+            "task": task,
+            "backend": "b",
+            "client": "opencode",
+            "passed": True,
+            "touched_tests": False,
+            "wall_seconds": secs,
+            "timestamp": "2026-09-24T10:00:00-0400",
+            "env": {"harness_head": min(gen_tables._after_fix())},
+            "task_kind": "replay",
+            **kw,
+        }
+
+    hard = {"replay": {"suite": "hard"}, "hidden": {"tests": ["tests/t.py::x"]}}
+    rows = [
+        row("replay-defang", 500.0),
+        # visible pass, hidden fail: the case these tasks exist to catch
+        row("replay-defang-hidden", 300.0, hidden_passed=False, **hard),
+        row("replay-defang-hidden", 320.0, hidden_passed=True, **hard),
+        # a span with nothing held out still belongs to the harder table
+        row("replay-span-x", 900.0, replay={"suite": "hard"}),
+    ]
+    path = tmp_path / "results.jsonl"
+    path.write_text("".join(json.dumps(r) + "\n" for r in rows))
+    text = "\n".join(gen_tables.machine_section("M", path, rows))
+    first, harder = text.split("#### Harder replay tasks")
+    assert "| 1/1 | 500s | 500s |" in first.split("#### Replay tasks")[1]
+    assert "| stack | passed | hidden passed | median |" in harder
+    # three trials pass visibly; two held tests out, and one of those passed
+    assert "| 3/3 | 1/2 | 320s | 900s |" in harder
+
+
+def test_the_hidden_cell_is_a_dash_when_nothing_was_held_out():
+    assert gen_tables._hidden_cell([{"passed": True}]) == "—"

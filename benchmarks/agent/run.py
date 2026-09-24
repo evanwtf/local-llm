@@ -226,10 +226,25 @@ def select_replay(tasks, cfg, args):
     definition stops the batch before a trial is spent on it.
     """
     wanted = set(args.task or [])
-    if getattr(args, "replay", False):
+    # --replay is the #714 set and --replay-hard the #726 one: a batch taken
+    # with --replay before the harder tasks existed runs the same tasks now.
+    suites = {
+        s
+        for s, on in (
+            ("714", getattr(args, "replay", False)),
+            ("hard", getattr(args, "replay_hard", False)),
+        )
+        if on
+    }
+    if suites:
         # The replay tasks, plus whatever --task named -- not the default
         # matrix as well, which is what an unfiltered `tasks` holds here.
-        tasks = [t for t in cfg["task"] if replay.is_replay(t) or t["name"] in wanted]
+        tasks = [
+            t
+            for t in cfg["task"]
+            if (replay.is_replay(t) and replay.suite(t) in suites)
+            or t["name"] in wanted
+        ]
     elif not wanted:
         for t in tasks:
             if replay.is_replay(t):
@@ -3893,18 +3908,43 @@ def one_trial(
             # commit's author did and C's own tests are the oracle. Before
             # prepare_env, so the environment is built from what the agent
             # is handed.
+            # #726: a span reverts to the parent of its FIRST commit.
+            start = task.get("span_start")
             reverted = replay.revert(
-                source, target["base_commit"], task["revert"], worktree
+                source, target["base_commit"], task["revert"], worktree, start
             )
             result["task_kind"] = replay.KIND
             result["replay"] = {
                 "commit": replay.resolve(source, target["base_commit"]),
-                "parent": replay.parent_of(source, target["base_commit"]),
+                # The state the agent starts from: C^, or span_start^.
+                "parent": replay.parent_of(source, start or target["base_commit"]),
                 "reverted": reverted,
                 "commit_lines": replay.commit_size(
-                    source, target["base_commit"], task["revert"]
+                    source, target["base_commit"], task["revert"], start
                 ),
             }
+            if replay.suite(task) != "714":
+                result["replay"]["suite"] = replay.suite(task)
+            if start:
+                result["replay"]["span_start"] = replay.resolve(source, start)
+                result["replay"]["span_commits"] = replay.span_commits(
+                    source, start, target["base_commit"]
+                )
+            if hidden := task.get("hidden_tests"):
+                # #726: cut the held-out tests out of the agent's tree, then
+                # read the tree back -- a cut that missed would hand the agent
+                # the very tests the hidden verdict is supposed to be blind to.
+                result["hidden"] = {
+                    "tests": hidden,
+                    "ref": replay.resolve(
+                        source, task.get("hidden_ref") or target["base_commit"]
+                    ),
+                    "hidden": replay.hide(worktree, hidden),
+                }
+                if left := replay.still_visible(worktree, hidden):
+                    raise SystemExit(
+                        f"{name}: hidden tests still visible after hiding: {left}"
+                    )
         # #4: build the env before the agent sees it, so wall time measures
         # the task and not the discovery of how to run pytest. Recorded on the
         # row because it starts a new series.
@@ -4175,6 +4215,26 @@ def one_trial(
                 replay.track_new_files(worktree)
             diff = git(["diff", "HEAD", "--stat", "--", "tests/"], worktree)
             result["touched_tests"] = bool(diff)
+        # #726: the held-out tests, after touched_tests has judged only what
+        # the agent could see. They go back in for this one run and come out
+        # again, so the gates, recall and saved patch below read the agent's
+        # files and never the hidden ones. Skipped when the visible oracle was
+        # memory-killed: the row is excluded anyway.
+        if "hidden" in result and not result.get("oracle_killed"):
+            with replay.hidden_restored(
+                worktree, source, result["hidden"]["ref"], result["hidden"]["tests"]
+            ):
+                h_passed, h_summary, h_killed = tests_pass(
+                    worktree,
+                    result["hidden"]["tests"],
+                    ORACLE_TIMEOUT,
+                    target["test_command"],
+                )
+            result["hidden_passed"] = h_passed
+            result["hidden"]["pytest"] = h_summary
+            result["hidden"]["counts"] = replay.counts(h_summary)
+            if h_killed:
+                result["hidden"]["oracle_killed"] = True
         # Did the agent leave the sandbox? The source repo should be untouched
         # and on its original commit. An agent that wandered there invalidates
         # both the isolation and, potentially, the excision.
@@ -4198,7 +4258,11 @@ def one_trial(
         # had it, with a per-file line count beside it. Recall, not a verdict.
         if is_replay:
             recalled = replay.recall(
-                worktree, source, target["base_commit"], task["revert"]
+                worktree,
+                source,
+                target["base_commit"],
+                task["revert"],
+                task.get("span_start"),
             )
             result["restored_verbatim"] = recalled["verbatim"]
             result["replay"]["recall"] = recalled["files"]
@@ -4390,6 +4454,13 @@ def build_parser():
         action="store_true",
         help="run every replay task (#714), plus any --task named. They are "
         "out of the default matrix, and need --targets sandbox.",
+    )
+    p.add_argument(
+        "--replay-hard",
+        action="store_true",
+        help="run the harder replay tasks (#726: hidden tests, commit spans), "
+        "plus any --task named. Separate from --replay so neither set grows "
+        "when the other does; pass both for both. Needs --targets sandbox.",
     )
     p.add_argument("--timeout", type=int, default=1800, help="seconds per step")
     p.add_argument(
