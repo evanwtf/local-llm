@@ -1,0 +1,22 @@
+# #691: the two-Spark cluster heartbeat, independent of any agent session.
+#
+# A session's own 30-minute cron silently skipped ticks while still registered
+# (2026-09-22, four missed), so the heartbeat that exists to expose a stuck
+# window depended on the thing that got stuck. This posts from PID 1's timer
+# instead; the operating session only updates the state file
+# (`scripts/cluster_heartbeat.py --set '{...}'`).
+#
+# Install (as the operator's user, on the head; linger must be on):
+#   cp systemd/local-llm-cluster-heartbeat.* ~/.config/systemd/user/
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now local-llm-cluster-heartbeat.timer
+[Unit]
+Description=local-llm two-Spark cluster heartbeat (posts to the working issue)
+Documentation=https://github.com/evanwtf/local-llm/issues/691
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/git/local-llm
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=%h/.local/bin/uv run --frozen python scripts/cluster_heartbeat.py
+TimeoutStartSec=300
