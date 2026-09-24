@@ -142,6 +142,9 @@ LongYinan, author of napi.rs. **Publishes MXFP4/MXFP8 dynamic MLX checkpoints** 
 * **@no_stp_on_snek**: X: [@no_stp_on_snek](https://x.com/no_stp_on_snek) · GitHub: [@TheTom](https://github.com/TheTom) · Repo: [llama-cpp-turboquant](https://github.com/TheTom/llama-cpp-turboquant) · [turboquant_plus](https://github.com/TheTom/turboquant_plus)  
 Tom Turney. **TurboQuant KV-cache compression, shipped as a llama.cpp fork with Metal and CUDA kernels** (2.3k★, pushed daily) — llama.cpp is our fast pick's engine and KV cache is the prefill lever (#14, #50). Also building `atlas`, a Rust inference engine. **Owns an M5 Max, an RTX 5090 and a DGX Spark, and the window leans NVIDIA — roughly 60/40 against us** (verified 2026-09-03 technical original is DeepSeek-V4-Flash on the Spark). He has said he will want Metal testers. **High volume, ~200–400 items in 30 days and mostly short replies** — the volume rule below applies to him as it does to @mweinbach; read the repo before the feed.
 
+* **@ashxhart**: X: [@ashxhart](https://x.com/ashxhart)  
+**Owns an M5 Max 128 GB**, plus an M3 Ultra 256 GB and 2x DGX Spark, and posts engine work with agent-relevant numbers, not only decode. Posted 2026-09-23, verified 2026-09-24 ([post](https://x.com/ashxhart/status/2102759677637321146)): **TensorFold** on dense Qwen3.8-27B 4-bit on the M5 Max, fresh agent-session TTFT **30 s -> 0.42 s** and live agent turns **~22 -> ~94 tok/s**. Also an oMLX PR for a Mac/CUDA cluster path ([post](https://x.com/ashxhart/status/2102709068125044809)), and an M3 Ultra MLX tuning thread in the 2026-09-08 mac sweep (Flash-Next 4-bit, 42 -> 73 tok/s). **TensorFold is not released** ("will open-source it"), and his 200 tok/s drafter figure is a proof of concept. Added 2026-09-24 from #722: four posts across 16 days make a pattern.
+
 ## Tier 3 — occasional
 
 * **@TeksEdge**: X: [@TeksEdge](https://x.com/TeksEdge) · Website: [teksed.com](https://teksed.com)  
@@ -171,6 +174,20 @@ Mac vs DGX Spark arguments — heat, occasionally light. GitHub is a **probable*
 * **@atomic_chat_hq**: X: [@atomic_chat_hq](https://x.com/atomic_chat_hq) · GitHub: [@AtomicBot-ai](https://github.com/AtomicBot-ai) · HF: [AtomicChat](https://huggingface.co/AtomicChat) · Website: [atomic.chat](https://atomic.chat)  
 **Atomic Chat — a company, not a person.** A local-first agent over llama.cpp and MLX ([`atomic-agent`](https://github.com/AtomicBot-ai/atomic-agent) 2.5k★, [`Atomic-Chat`](https://github.com/AtomicBot-ai/Atomic-Chat) 1.4k★), an `atomic-quantizer`, a **`llama-cpp-turboquant` nightly fork**, and "Atomic Dynamic" GGUF + MLX quants on Hugging Face. Verified 2026-08-26, their claim: **1-bit Qwen3.8-Flash-Next (79 GB) on an M5 Max 64 GB at 30 tok/s, inside an 8-minute agent loop** — our model, our endpoint, and a memory tier below ours (#20). **Read the quants and the repos, not the feed**: about half the window is rented 4x RTX PRO 6000 demos and product promotion, and the Mac numbers are single vendor demos.
 
+* **@RevTheD3v**: X: [@RevTheD3v](https://x.com/RevTheD3v)  
+Posted the only public config that matches our M5 Max fast pick ([post](https://x.com/RevTheD3v/status/2102868037854491105), verified 2026-09-24): Qwen3.8-Flash-Next mixed 4/8 on **mlx-serve 26.9.2**, MLX 0.32.2, MTP + PLD draft 5, 8-bit KV, 10 GB prefix cache, NAX on, OpenCode wired up, 128 GB. He reports **~61 GB loaded**, against our ~100 GiB resident, which is a config question worth a test on its own. One post so far; promote on a second. Added 2026-09-24 from #722.
+
+* **@Sean74695991625**: X: [@Sean74695991625](https://x.com/Sean74695991625)  
+Publicly asks this repo's question ([post](https://x.com/Sean74695991625/status/2100640297021821352), verified 2026-09-24): how good a local coding agent gets on an M5 Max 128 GB, starting from MTPLX 2.11.3. Low volume. If he publishes results, they are the closest outside comparison we will get. Added 2026-09-24 from #722.
+
+* **@ldreisi**: X: [@ldreisi](https://x.com/ldreisi)  
+Daily driver per his bio: **M5 Max 128 GB with oMLX + OpenCode**, Qwen Code and Hermes, beside a 4x3090 box. oMLX is the engine we have not measured (#60), and a user running it under OpenCode on our exact machine is the account most likely to report a real-session problem. Added 2026-09-24 from #722.
+
+* **@liuliu**: X: [@liuliu](https://x.com/liuliu)  
+Engine maintainer. Argues MLX and llama.cpp are already near the hardware ceiling on Apple silicon ([post](https://x.com/liuliu/status/2102433086491505080), verified 2026-09-24), so the next big step is a new machine. Read him as a **check on claims** that look too good, not as a source of numbers. Added 2026-09-24 from #722.
+
+* **Splash users, watched through #531 only**: [@Guikingone](https://x.com/Guikingone) (OpenCode on an M5 Max 64 GB, 40–50 tok/s on a loaded machine) and [@techowknow](https://x.com/techowknow) (Splash-HQ Q8, ~75 tok/s on an M5 Max) are the independent Splash reports from #722. **Not tiered**: Splash is paused and `incoai` is not an approved source, so a tier would suggest the engine is on our path. Record what they post on #531.
+
 * **mlx-community**: HF: [mlx-community](https://huggingface.co/mlx-community)  
 Where weights appear first.
 
@@ -184,7 +201,7 @@ a Hermes agent runtime, and camera vision (see the machine README). So the
 sources widen too: NVFP4/FP8 recipes, vLLM and SGLang serving, and aggregate
 multi-stream numbers that the Mac lane rules would discard as "CUDA, not for us".
 
-**Two accounts already in this file cross into this lane** — read them here too,
+**These accounts already in this file cross into this lane** — read them here too,
 not as "against us":
 
 * **@no_stp_on_snek** (Tier 2) — **owns a DGX Spark** and posts DeepSeek-V4-Flash
@@ -196,6 +213,12 @@ not as "against us":
   lane: the kernels transfer too.
 * **@Brooooook_lyn** (Tier 2) and **@bleysg** (Tier 3) post Mac-vs-Spark
   comparisons — now a source of Spark numbers, not just an argument.
+* **@sudoingX** (Tier 2) is now a **2x Spark operator on official FP8
+  Qwen3.8-Flash-Next** (45 tok/s fresh, 35 mid-build, with MTP and Hermes). #721.
+  Added 2026-09-24 from #722.
+* **@Raullen** (Tier 2) posted the only multi-agent coding session on the 2x
+  Spark GLM-5.3-Flash EXL3 stack we rank first (two Codex agents, 2026-08-28).
+  Added 2026-09-24 from #722.
 
 ### Vetted: MiaAI-Lab (operator-added, 2026-09-22)
 
@@ -229,6 +252,32 @@ assume a head carrying only the server. That is also true of ours now that the c
 so our departures from their memory settings need a measured reason (#672 needed one: 0.93 did
 not fit with DFlash). Their weights are third-party quants and are approved **per artifact**
 (#648's EXL3 and DFlash2 were).
+
+### Added 2026-09-24 from the field scan (#722)
+
+The posts cited here were checked with `scripts/verify_posts.py` on 2026-09-24:
+#722's 70 of 70, and @plotarmordev's in that day's DGX sweep. Verification
+proves the author, not the number.
+
+| handle | why | what to read |
+|---|---|---|
+| [@ViC305](https://x.com/ViC305) | The densest single-Spark source: EXL3 Flash-Next recipes, the EXL3-vs-NVFP4 split with the metric written down ([post](https://x.com/ViC305/status/2102228607494201632)), the MTP collapse past about 164k, 8-bit KV scaling with context, and a one-Spark DeepSeek-V4.1 SAGE-EXL3. He corrects his own artifacts (103.8 tok/s was a 32-token artifact). | His ExLlamaV3 fork ([vcruz305/exllamav3](https://github.com/vcruz305/exllamav3)) before his feed: recipe-first, high volume. |
+| [@yume_arasaki](https://x.com/yume_arasaki) | Owns 2x Spark and **reproduces other people's claims**. He publishes a grid (code, prose, JSON, needle to 243k, tools, J/token) and retracted his own headline ([post](https://x.com/yume_arasaki/status/2101741448811229219)). He also states that prefill, not decode, is the agent bottleneck. | Replications, especially of @ViC305. |
+| [@sfxnz](https://x.com/sfxnz) | Author of the second DeepSeek V4.1 Flash EXL3 **2x Spark** recipe (#685). | [sfxnz/DeepSeek-V4.1-Flash-EXL3-vLLM-2x-DGX-Spark](https://github.com/sfxnz/DeepSeek-V4.1-Flash-EXL3-vLLM-2x-DGX-Spark), before V4.1 runs in #717. |
+| [@plotarmordev](https://x.com/plotarmordev) | Published a full **GLM-5.3-Flash EXL3 2x Spark long-coding config**, each opt-in with its gain and cost ([post](https://x.com/plotarmordev/status/2102840170672218204)). That is our first-ranked dual stack; noted on #648. | The config, when #717 picks tuning arms. |
+| [@AlexanderChopra](https://x.com/AlexanderChopra) | 2x Spark GLM EXL3 memory sweep to 500k input with head `MemAvailable` per step, and the page-cache-vs-CUDA InstantTensor load failure with its eviction fix ([post](https://x.com/AlexanderChopra/status/2102830367119945985)). | Operational posts only; most of the feed is cybersecurity. |
+| [@JoesInvestments](https://x.com/JoesInvestments) | Ported GLM-5.3 NVFP4 + DFlash2 to stock vLLM 0.30.0 and published the losses with the wins: all-reduce moves MoE serving about 2%, and 2,304-token prefix blocks miss short agent prompts ([post](https://x.com/JoesInvestments/status/2102862941020176643)). Runs 4 Sparks; most of it transfers. | vLLM-version deltas. |
+| [@mrru5s3ll](https://x.com/mrru5s3ll) | Writes the Spark-facing reading of vLLM releases: GB10 FP8 swizzle, NVFP4 default on SM121, Fast Start ([post](https://x.com/mrru5s3ll/status/2102595090934075740)). | Release summaries: a cheap signal that an engine bump matters here. |
+
+**Occasional, not regular:** [@mmastrac](https://x.com/mmastrac) and
+[@2WildTech](https://x.com/2WildTech) (TP=4 on four Sparks, not our topology;
+@2WildTech is secondhand so far, so open the timeline once before relying on
+him), [@AronMakesCrafts](https://x.com/AronMakesCrafts) (one well-measured
+single-Spark Mia run), and [@johncodes](https://x.com/johncodes) (2x Spark
+daily-driver anecdotes, no numbers). For llama.cpp's unified-memory mmap fix,
+watch [ggml-org/llama.cpp#29030](https://github.com/ggml-org/llama.cpp/pull/29030)
+rather than the accounts that pointed at it. [@filicroval](https://x.com/filicroval)
+stays in the unverified table below until the single-Spark GLM recipe is posted.
 
 **Unverified leads, gathered 2026-09-11**
 (`logs/sweeps/grok-dgx-accounts-20260911T222500Z.txt`). These handles posted
