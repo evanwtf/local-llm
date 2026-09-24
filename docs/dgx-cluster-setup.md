@@ -769,6 +769,53 @@ went to 188, 199 and 223 tokens, all `stop`. The operator made this the
 default for every large model on 2026-09-22. A higher effort is its own arm
 under its own backend name.
 
+### 24. A node-to-node copy runs at a fifth of the link: one ssh stream is cipher-bound — **HIT**
+
+*Symptom:* `rsync` of a checkpoint from the head to the worker over the
+CX7 name (`spark-b-cx7`) holds at **~310–330 MB/s**. A 173 GiB checkpoint
+takes nine minutes on a link the all-reduce measures at 196 Gb/s.
+
+*Cause:* one `rsync` is one ssh connection, and one ssh connection encrypts on
+one core. The fabric is not the limit.
+
+*Fix:* copy between the nodes **over the CX7 names, never the LAN names**
+(`spark-b-cx7` / `spark-a-cx7`), with `rsync` over ssh set to **`aes128-gcm@openssh.com`**
+(GB10's Arm cores have AES instructions) and compression off, split across
+parallel streams:
+
+```sh
+ls "$SNAPSHOT" | sort > files.txt && split -n r/4 -d files.txt part.
+for i in 0 1 2 3; do
+  rsync -aL --partial --files-from=part.0$i \
+    -e 'ssh -c aes128-gcm@openssh.com -o Compression=no' \
+    "$SNAPSHOT/" spark-b-cx7:<dest>/ &
+done; wait
+```
+
+Measured 2026-09-24 on the official Qwen3.8-Flash-Next FP8 checkpoint: a single
+stream with the default cipher, 310–330 MB/s. Four streams with `aes128-gcm`,
+**1,739 MiB/s** transmitted on one CX7 path (`enp1s0f1np1` counters over 20 s).
+The cipher and the stream count changed together, so this does not separate
+the two. Run long copies as a `systemd-run --user` unit so the session reaper
+cannot kill them (#691).
+
+### 25. A recipe's worker sync can copy only symlinks: HF's shared blob store — **HIT**
+
+*Symptom:* a launcher reports `Worker has a local checkpoint copy`, and the
+worker's model directory holds **~10 MB**. The worker rank then fails at load.
+
+*Cause:* the current `hf` CLI (xet) stores shards content-addressed in the
+**shared** `~/.cache/huggingface/hub/blobs/xx/<sha256>`, outside the model's
+own directory. The snapshot's safetensors are symlinks into that store. A
+recipe that `rsync`s `hub/models--<org>--<name>/` copies dangling symlinks,
+and a check that tests for the directory passes. Seen 2026-09-24 on
+`Qwen/Qwen3.8-Flash-Next-FP8` with the MiaAI-Lab Flash-Next recipe (#721).
+
+*Fix:* before a two-node launch, check the worker **by size, not by
+directory**. `find -L <snapshot> -name '*.safetensors' -size +100M | wc -l`
+must equal the shard count. Copy with `rsync -L` (dereference), as in
+gotcha 24.
+
 ## Verification checklist
 
 Run top to bottom. Do not skip a line because the one above it "obviously"

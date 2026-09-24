@@ -201,7 +201,7 @@ time, which prompt re-prefill dominates (#14).
 | `benchmarks/agent/` | the harness, its tasks and its own tests |
 | `scripts/` | measurement, field-watching and machine tools |
 | `hardware/<machine>/` | results, logs and `RESULTS.md` for one machine |
-| `docs/` | [changelog](docs/changelog.md), [history](docs/history.md), runbooks ([M5 Max](docs/m5max-runbook.md), [DGX Spark](docs/dgx-spark-runbook.md)), archive |
+| `docs/` | [changelog](docs/changelog.md), [history](docs/history.md), runbooks ([M5 Max](docs/m5max-runbook.md), [DGX Spark](docs/dgx-spark-runbook.md)), [the two-Spark cluster gotchas](docs/dgx-cluster-setup.md#gotchas--the-full-list), archive |
 | `docs/node-exporter-cpufreq-deadlock-arm64.md` | not a benchmark finding: node_exporter deadlocks on aarch64 with `cppc_cpufreq`, and the symptom points away from the cause |
 | `logs/sweeps/` | gather archives; the same fact on any machine |
 
