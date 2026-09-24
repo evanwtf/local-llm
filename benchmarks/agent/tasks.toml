@@ -3081,6 +3081,24 @@ opencode_model = "vllm8888/qwen3.8-flash-next"
 context_tokens = 262144
 topology = "remote"
 
+# #721: the OFFICIAL FP8 checkpoint (Qwen/Qwen3.8-Flash-Next-FP8, 172.8 GiB) of
+# the same model, same recipe (MiaAI-Lab Qwen3.8-Flash-Next-Dual-DGX-Sparks,
+# ./start-fp8.sh), same launch patch as the flags arm. The quality-first ranking
+# (#717) wants the higher-precision build measured beside NVFP4: half the bits
+# are gone in NVFP4 and not here. Served as qwen3.8-flash-next-fp8, native 262K,
+# no YaRN; the recipe documents ~500k KV tokens against NVFP4's 3.65M.
+[backend.qwen38fnfp8dual2xrc]
+description = "Qwen3.8-Flash-Next official FP8 (Qwen/Qwen3.8-Flash-Next-FP8, 172.8 GiB) across TWO DGX Sparks: vLLM TP=2 + expert parallel + MTP 3 over 200 Gb/s ConnectX-7 RoCE on all four fabric paths, image vllm/vllm-openai:qwen38-flash-next, recipe start-fp8.sh, 262144 native context, GPU_MEMORY_UTILIZATION 0.78, reasoning_effort low as a server default, launched with the #664 flags (only the trtllm allreduce backend is relevant to FP8 weights). REMOTE CLIENT (#562/#649): OpenCode and the harness run on the Core i3-7100 client over the LAN"
+tier = "gb10-spark-x2"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "vllm"
+model = "qwen3.8-flash-next-fp8"
+aider_model = "openai/qwen3.8-flash-next-fp8"
+opencode_model = "vllm8888/qwen3.8-flash-next-fp8"
+context_tokens = 262144
+topology = "remote"
+
 # #648: GLM-5.3-Flash across BOTH DGX Sparks, via
 # MiaAI-Lab/GLM-5.3-Flash-2x-DGX-Sparks @c1b7d4c (EXL3 tensor-parallel build of
 # vLLM). Weights Mia-AiLab/GLM-5.3-Flash-EXL3-TR3-4bpw rev 25a44fd and drafter
