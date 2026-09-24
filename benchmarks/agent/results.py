@@ -89,6 +89,15 @@ OPTIONAL: dict[str, type | tuple[type, ...]] = {
     # parent). Absent on every other row, which is every row before it.
     "task_kind": str,
     "replay": dict,
+    # #726. Set only on a replay task with held-out tests. `hidden` records
+    # which node ids were held out, the commit their files came from (`ref`),
+    # what hiding did to each, and after the agent the held-out run's
+    # `pytest` summary and `counts`. `hidden_passed` is that run's result.
+    # It never reaches `passed` or verdict(): `passed` stays the visible
+    # oracle, so a replay task's series means what it meant. See
+    # hidden_verdict().
+    "hidden": dict,
+    "hidden_passed": bool,
 }
 
 
@@ -395,6 +404,27 @@ def verdict(row: dict[str, Any]) -> bool:
     if row.get("control_fails_as_expected") is False:  # noqa: SIM103
         return False  # the excision was invisible to the tests
     return True
+
+
+def hidden_verdict(row: dict[str, Any]) -> bool | None:
+    """Did the held-out tests (#726) pass, with every guard holding?
+
+    None on a row whose task holds no tests out -- every row before #726.
+    Otherwise the same guards as verdict() (a trial that edited the visible
+    tests or left the sandbox proves nothing), then `hidden_passed`. A
+    timeout never ran the held-out tests, so it is False, as it is for
+    verdict(). Independent of the visible oracle: a visible failure with a
+    hidden pass is recorded as it happened.
+    """
+    if "hidden" not in row:
+        return None
+    if row.get("dry_run"):
+        raise ValueError("a dry run has no verdict; filter it out with trials()")
+    if row.get("touched_tests") or row.get("source_repo_intact") is False:
+        return False
+    if row.get("control_fails_as_expected") is False:
+        return False
+    return row.get("hidden_passed") is True
 
 
 def trials(path: pathlib.Path) -> list[dict[str, Any]]:

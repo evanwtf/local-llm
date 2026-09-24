@@ -59,6 +59,7 @@ Each script explains itself in full at the top of its own file -- what it comput
 | `greedy_mtp_ab.py` | mac | The first ds4 MTP arm that can actually draft, against its own control. |
 | `hardware_id.py` | any | Derive a machine's results-directory name from the machine itself. |
 | `hf_sweep.py` | any | Watch Hugging Face for new quants of the models we actually run. |
+| `hidden_test_candidates.py` | any | Pick a replay task's held-out tests (#726) by measuring each test, not guessing. |
 | `kv_prefix_audit.py` | mac | Measure how much prefill a stalled KV prefix costs (#64, #50). |
 | `kv_prefix_reuse.py` | mac | Measure how much of a prompt ds4 reuses from its prefix cache (#190). |
 | `load_matrix.py` | mac | Load each of a set of gguf files with the PLE sidecar, serially, and |
@@ -132,7 +133,7 @@ Each script explains itself in full at the top of its own file -- what it comput
 | `validate_ledgers.py` | any | Validate EVERY committed hardware ledger, independent of the runner (#394). |
 | `verify_posts.py` | any | Verify X posts against the source, for the claims that earned an issue. |
 | `verify_push.py` | any | Verify a push landed, instead of trusting that `git push` reported success (#255). |
-| `verify_replay_tasks.py` | any | Check that each replay task (#714) is a valid task before any trial runs it. |
+| `verify_replay_tasks.py` | any | Check that each replay task (#714, #726) is a valid task before any trial runs it. |
 | `vllm_compat_proxy.py` | any | Strip non-standard fields from a vLLM fork's chat responses so a strict |
 | `vllm_load.py` | nvidia | Aggregate throughput against a vLLM server at a given concurrency (#334). |
 | `ds4-fast.sh` | mac | Metal 4 TensorOps: ~21% faster, not bit-exact. See scripts/ds4_serve.py. |

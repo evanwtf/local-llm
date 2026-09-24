@@ -55,7 +55,10 @@ def main() -> None:
         "A **replay** task (#714) is larger: the checkout is a real commit of the "
         "target repository with the files that commit touched put back to their "
         "state before it, and the commit's own tests are the oracle. Its prompt "
-        "restates the commit message and names the failing test files."
+        "restates the commit message and names the failing test files. The "
+        "harder replay tasks (#726) revert a span of commits, or hold some of "
+        "the tests out of the agent's tree and run them only in the oracle; "
+        "their prompts say so."
     )
     add("")
 
@@ -111,7 +114,18 @@ def main() -> None:
             meta.append(f"keep_docstring `{task['keep_docstring']}`")
         if task.get("kind") == "replay":
             reverted = ", ".join(f"`{p}`" for p in task["revert"])
-            meta.append(f"replay: reverted to the parent {reverted}")
+            if task.get("span_start"):
+                meta.append(
+                    f"replay span from `{task['span_start']}`: reverted to "
+                    f"`{task['span_start']}^` {reverted}"
+                )
+            else:
+                meta.append(f"replay: reverted to the parent {reverted}")
+            if task.get("hidden_tests"):
+                # The ids only: the text of a held-out test is never published
+                # here, any more than it is shown to the agent.
+                n = len(task["hidden_tests"])
+                meta.append(f"{n} held-out test{'s' * (n != 1)}")
         if meta:
             add(" · ".join(meta))
             add("")

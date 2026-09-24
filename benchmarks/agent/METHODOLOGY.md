@@ -465,7 +465,7 @@ of the default matrix, so no existing comparison changes: run them with
 - **The tests are visible**, and the prompt names them. The agent can read what
   is expected and write to it. That is the same contract as a real task
   handed over with failing tests, but it is not specification-only problem
-  solving.
+  solving. The harder tasks below hold some tests out (#726).
 - **Recall is possible.** `evanwtf/gmail-archive` is a public repository
   (created 2026-08-05), and it was written with Claude. A model trained on it
   after that date may have seen these exact commits. `restored_verbatim` on a
@@ -486,6 +486,88 @@ of the default matrix, so no existing comparison changes: run them with
   assertion. That is the feature missing, and it is what the task is. Only
   `replay-mbox-separator` (3 of 19 tests fail) and `replay-login-throttle` (3 of
   54) fail at assertions.
+
+### Harder replay tasks: held-out tests and spans (#726)
+
+**Why.** After one run each, both cluster stacks passed all 21 replay trials
+(#726 has the table), so the seven tasks above rank only time. Two changes
+make a task harder with no judge model. The new tasks carry `suite = "hard"`
+and run with `--replay-hard --targets sandbox`. `--replay` still runs exactly
+the seven above, so neither set grows when the other does.
+
+**Held-out tests.** `hidden_tests` lists pytest node ids the agent never sees.
+After the revert and before the starting commit, `replay.hide` removes them
+from the agent's tree. A bare file id deletes the file; `file::Class` or
+`file::Class::test` cuts that definition out of its file, with its decorators
+and the comment block directly above it. The tree is then read back
+(`replay.still_visible`), and a trial stops if any held-out id is still
+defined. `touched_tests` is taken against that starting commit, so it covers
+only tests the agent could see. After the visible oracle,
+`replay.hidden_restored` writes the held-out files back and runs the held-out
+ids once. The files come from `base_commit`, or from `hidden_ref` when the
+tests are regression tests the repository added later. Afterwards every file
+goes back to how the agent left it, so the gates, recall and saved patch never
+see a held-out test.
+
+**The verdict.** `passed` stays the visible oracle, and `results.verdict()` is
+unchanged, so a replay task's series means what it meant. The held-out run is
+recorded beside it: `hidden_passed`, plus `hidden.pytest`, `hidden.counts`,
+`hidden.ref` and what hiding did to each id (`hidden.hidden`).
+`results.hidden_verdict()` applies the same guards as `verdict()` (no touched
+tests, sandbox intact, control failed) and then reads `hidden_passed`. It is
+None on a row whose task holds nothing out. A timeout is False, as it is for
+`verdict()`. The harder tasks get their own table in `docs/results.md`, with a
+`hidden passed` column beside `passed`. A visible pass with a hidden failure
+is the signal these tasks exist for: a solution fitted to the tests it could
+read.
+
+**Choosing them.** `scripts/hidden_test_candidates.py` measures every test
+function in the task's visible files. A function is eligible if it passes at
+the reference, fails after the revert, and is not older than the work (a test
+the file already had fails after the revert only because its file cannot
+import something new). Of the eligible functions it proposes the third with
+the smallest sha256 of their node id. That choice is reproducible and blind
+to what each test checks. It never takes every eligible test, so the visible
+control still fails. `--later REF` instead proposes tests that REF added to
+the same files, run from REF's copy against the reference tree.
+`scripts/verify_replay_tasks.py` then proves each task, on the tree exactly
+as the agent gets it:
+
+- the visible tests pass at the reference with the held-out ones cut;
+- the held-out tests pass there twice, with identical counts;
+- both sets fail after the revert;
+- no held-out test uses a name the project defines that the agent cannot
+  read: not in the prompt, the visible tests, or the starting source. A test
+  that calls a function nothing visible names fails for the name, not the
+  behavior. Three of `main`'s later regression tests for the web login fail
+  this check on `_client_id`, so they are left out.
+
+**Spans.** `span_start` names the first of several consecutive commits,
+and `base_commit` the last. The revert puts every path back to `span_start^`,
+and `revert` must be every non-test file the span touched, net
+(`test_task_definitions.py` checks this). The row records `replay.span_start`
+and `replay.span_commits`. `replay-span-web-ui` is 7ef1734 through f4faf86:
+the Gmail-style UI rebuild, URL defanging, the day picker and its inbox
+checkbox, and search operators. That is 1,643 added and 686 removed lines
+across 17 files, 4 of them new. Its oracle is five test files, 96 tests that
+need no database and 26 that skip without one. `replay-span-web-ui-no-test-names`
+is the same task with a prompt that names no test file
+(`prompt_names_tests = false`, which `replay.validate` enforces), so the agent
+has to find what to run.
+
+**Considered and not added.** The analytics span (dd20a74..03f88dd, 1,189
+added lines) has 5 database-free tests of its own, 3 skip, and the rest of its
+oracle would be the `filesize` filter, so almost none of the classifier would
+be checked. Phase 7's web UI (04d00c3, 1,002 lines) has 12 database-free
+tests. The IMAP work has no database-free tests. `replay-mbox-separator` and
+`replay-login-throttle` have 3 discriminating tests each, too few to split.
+
+**Limits.** The held-out node ids are public in `tasks.toml`, which the
+agent's confinement denies; `PROMPTS.md` gives only their count. A held-out test is still one the
+commit's author wrote, so it shares the visible tests' view of the feature.
+Cutting a test leaves any helper or fixture only it used in the visible file.
+Each prompt says `The check also runs tests you cannot see.`, and
+`replay.validate` requires that sentence.
 
 ### Measurements taken alongside the verdict
 

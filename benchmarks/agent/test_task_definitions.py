@@ -123,9 +123,12 @@ def test_a_task_prompt_names_the_file_it_edits(task):
         pytest.skip("no prompt: inherited")
     if replay.is_replay(task):
         # A replay task's work spans the files its commit touched; what the
-        # prompt must name is the failing tests, and the no-edit rule.
-        for test in task["tests"]:
-            assert test.split("::")[0] in prompt, f"{task['name']} omits {test}"
+        # prompt must name is the failing tests, and the no-edit rule. A
+        # task whose point is to name none (#726) is held to that by
+        # replay.validate instead.
+        if task.get("prompt_names_tests", True):
+            for test in task["tests"]:
+                assert test.split("::")[0] in prompt, f"{task['name']} omits {test}"
         assert "Do not modify any test." in prompt, task["name"]
         return
     for target in runner.targets(task):
@@ -153,8 +156,10 @@ def test_a_replay_task_reverts_what_its_commit_touched(task):
     if not _available(task):
         pytest.skip(f"{_repo(task)} not checked out")
     commit = runner.task_target(CFG, task)["base_commit"]
+    # A span (#726) is the net change from its first commit's parent.
+    start = replay.start_of(task)
     got = subprocess.run(
-        ["git", "diff", "--name-only", f"{commit}^1", commit],
+        ["git", "diff", "--name-only", f"{start}^1", commit],
         cwd=_repo(task),
         capture_output=True,
         text=True,
@@ -167,3 +172,13 @@ def test_a_replay_task_reverts_what_its_commit_touched(task):
     assert set(task["revert"]) == source, task["name"]
     for test in task["tests"]:
         assert test.split("::")[0] in touched, f"{task['name']}: {test} not in commit"
+    # #726: every held-out test's file is where the oracle will read it.
+    ref = task.get("hidden_ref") or commit
+    for path in replay.hidden_files(task.get("hidden_tests") or []):
+        exists = subprocess.run(
+            ["git", "cat-file", "-e", f"{ref}:{path}"],
+            cwd=_repo(task),
+            capture_output=True,
+            check=False,
+        )
+        assert exists.returncode == 0, f"{task['name']}: {path} not at {ref}"
