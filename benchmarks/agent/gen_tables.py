@@ -96,6 +96,18 @@ def _excision(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [r for r in rows if not str(r.get("task", "")).startswith("script-")]
 
 
+def is_replay(row: dict[str, Any]) -> bool:
+    """A replay task (#714): rebuild a real commit from its tests.
+
+    Replay trials run 5-20x longer than an excision and are a different
+    difficulty class, so pooling them into the excision table would move every
+    median and worst it prints. They get their own table instead.
+    """
+    return row.get("task_kind") == "replay" or str(row.get("task", "")).startswith(
+        "replay-"
+    )
+
+
 def _timed(rows: list[dict[str, Any]]) -> list[float]:
     """Wall times of the excision trials that **passed**.
 
@@ -451,7 +463,7 @@ def machine_section(
         ),
         "",
     ]
-    out += stack_table(rows, LABELS)
+    out += stack_table([r for r in rows if not is_replay(r)], LABELS)
     out += client_caveat(valid)
     out += pld_caveat(valid)
     out += engine_caveat(valid)
@@ -464,6 +476,20 @@ def machine_section(
         ),
         "",
     ]
+    replay = [r for r in rows if is_replay(r)]
+    if valid_opencode(replay):
+        out += ["#### Replay tasks: rebuild a real commit from its tests (#714)", ""]
+        out += stack_table(replay, LABELS)
+        out += client_caveat(valid_opencode(replay))
+        out += [
+            "",
+            (
+                "Seven commits from gmail-archive's history, 60-600 changed "
+                "lines each. The target repo is public, so a pass may be "
+                "partly recall; see each row's `replay` record."
+            ),
+            "",
+        ]
     # The two-engine table is a Mac-only comparison (llama.cpp vs LM Studio on
     # identical weights). On a machine that ran neither arm it is a header with
     # no rows, so suppress the whole subsection rather than print an empty one.

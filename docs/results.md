@@ -185,7 +185,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 
 ### Cortex-X925-128GB-GB10-x2
 
-*Generated from `hardware/Cortex-X925-128GB-GB10-x2/results.jsonl` — 252 rows, sha256 666cc3c531c3.*
+*Generated from `hardware/Cortex-X925-128GB-GB10-x2/results.jsonl` — 303 rows, sha256 3576b90bc793.*
 
 #### Every stack measured under OpenCode
 
@@ -193,6 +193,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 
 | stack | passed | median | worst | spread |
 |---|---|---|---|---|
+| glm53fexl3dual2xrcctx @ Corei3-7100-16GB+image | 30/30 | 48s | 96s | 4.0x |
 | glm53fexl3dual2xrcctx @ Corei3-7100-16GB+image | 30/30 | 49s | 123s | 4.0x |
 | glm53fexl3dual2xrc @ Corei3-7100-16GB+image@24g | 30/30 | 62s | 130s | 4.3x |
 | dsv41fexl3dual2xrc @ Corei3-7100-16GB+image | 30/30 | 75s | 214s | 5.8x |
@@ -203,7 +204,17 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | mimo26fdual2xrcthink @ Corei3-7100-16GB+image@10g | 30/30 | 211s | 796s | 11.7x |
 | mimo26fdual2xrc @ Corei3-7100-16GB+image | 2/2 | 370s | 592s | 4.0x |
 
+**Rows here were not all taken under one client.** glm53fexl3dual2xrcctx under 1.18.32; the rest under 1.18.31. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: glm53fexl3dual2xrcctx (1.18.31, 1.18.32).
+
 Excision tasks only; `script-*` excluded because they are a different class. **Spread is worst / best on the same task**, and it is the column most people forget to ask for.
+
+#### Replay tasks: rebuild a real commit from its tests (#714)
+
+| stack | passed | median | worst | spread |
+|---|---|---|---|---|
+| glm53fexl3dual2xrcctx | 21/21 | 216s | 556s | 21.9x |
+
+Seven commits from gmail-archive's history, 60-600 changed lines each. The target repo is public, so a pass may be partly recall; see each row's `replay` record.
 
 #### How fast each stack actually serves tokens
 
@@ -213,11 +224,14 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | mimo26fdual2xrc @ Corei3-7100-16GB+image@10g | 38s |
 | mimo26fdual2xrc @ Corei3-7100-16GB+image | 40s |
 | mimo26fdual2xrcthink @ Corei3-7100-16GB+image@10g | 44s |
+| glm53fexl3dual2xrcctx @ Corei3-7100-16GB+image | 63s |
 | dsv41fexl3dual2xrc @ Corei3-7100-16GB+image | 68s |
 | qwen38fnnvfp4dual2xrcflags @ Corei3-7100-16GB+image@10g | 76s |
 | qwen38fnnvfp4dual2xrc @ Corei3-7100-16GB+image@10g | 78s |
 | glm53fexl3dual2xrcctx @ Corei3-7100-16GB+image | 85s |
 | glm53fexl3dual2xrc @ Corei3-7100-16GB+image@24g | 88s |
+
+**Rows here were not all taken under one client.** glm53fexl3dual2xrcctx under 1.18.32; the rest under 1.18.31. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: glm53fexl3dual2xrcctx (1.18.31, 1.18.32).
 
 ### MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A
 
