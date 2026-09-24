@@ -242,6 +242,17 @@ docker images --digests | head && ssh <peer> 'docker images --digests | head'
 uv run python benchmarks/agent/model_inventory.py
 ```
 
+**Under 600 GB free on either node is critical** (operator, 2026-09-24). Do not
+start a download, an image pull or a worker copy that would cross it. Free
+space first, from the audited list on #697, and only with the operator's go:
+deletion is irreversible, and the harness blocks an agent from doing it, so
+the approved set goes into a script the operator runs. **Plan every download
+up front.** List what the window's arms need on both nodes before the first
+launch, and fetch it while the pair is between runs, never during a
+measurement. A run that overlapped a download is void (operator, 2026-09-24).
+Copies between the nodes go over the CX7 names with `aes128-gcm` and parallel
+streams (gotcha 24).
+
 ### Step 8. The closer log, if there is one
 
 ```sh
@@ -385,8 +396,8 @@ separate them with `·`:
 
 > **Currently on GPU:** \<what\> (#N)
 >
-> **HH:MM EDT** — **head** util N%, NW, NºC, N.N GiB avail · **worker** util
-> N%, NW, NºC, N.N GiB avail · **outlet** NW + NW = NW pair · **link** N/N up,
+> **HH:MM EDT** — **head** util N%, NW, NºC, N.N GiB avail, N GB disk free ·
+> **worker** util N%, NW, NºC, N.N GiB avail, N GB disk free · **outlet** NW + NW = NW pair · **link** N/N up,
 > RoCE N ACTIVE, RTT N.NN ms · **task** #N (\<model-slug\>), N/M trials, N min
 > in, ETA HH:MM · **next** \<what\>
 
@@ -407,6 +418,7 @@ omitting the tick — read them fresh, every tick, on both nodes.
 | `HH:MM EDT` | `TZ=America/New_York date '+%H:%M %Z'` | **re-read the clock.** Never infer it from the last tick |
 | per-node `util`, `NW GPU`, `NºC` | `nvidia-smi --query-gpu=utilization.gpu,power.draw,temperature.gpu --format=csv,noheader,nounits`, run on each node | GPU-only power; reads ~4-5 W idle. **`util` is noisy on a TP split** — an instantaneous sample lands between kernels and reads 0% on a working node. Power and temperature are the reliable pair: 24.9 W at 69ºC is working, 3.9 W at 41ºC is idle |
 | per-node `GiB avail` | `awk '/MemAvailable/{printf "%.1f", $2/1048576}' /proc/meminfo`, each node | the floor comes during prefill, not at boot |
+| per-node `GB disk free` | `df -B1 --output=avail /`, each node, in decimal GB | **under 600 GB is critical**: flagged `(CRITICAL)` in the header and named in a bullet. No download or copy until space is freed (#697) |
 | `outlet: NW + NW = NW pair` | `scripts/dgx_metrics.py` for the head; the peer's own plug for the worker | each Spark has its own smart plug in Home Assistant (InfluxDB `p9FyUovVk`, measurement `W`, entities `dgx_current_consumption` and `dgx_2_current_consumption`). Idle ~45 W each; a two-node run peaked at 186.8 W and 193.8 W. **Always give both and the sum** |
 | `N/N cabled up` | `ethtool` per interface, counting interfaces on cabled cages | e.g. `4/4` with both cables in, `2/2` with one |
 | `RoCE N ACTIVE` | `rdma link show \| grep -c ACTIVE` | must equal the cabled-interface count |

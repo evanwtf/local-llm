@@ -24,6 +24,7 @@ NOW = dt.datetime(2026, 9, 24, 9, 40, tzinfo=EDT)
 PROBE_IDLE = """gpu=0,3.88,39
 mem_kib=121424384
 earlyoom=active
+disk_free_b=1267400000000
 links_up=4
 links_total=4
 roce_active=4
@@ -40,6 +41,7 @@ MACHINE_STATE = (
 
 def node(power: float) -> hb.Node:
     return hb.Node(
+        disk_free_gb=1267.4,
         util=90,
         power_w=power,
         temp_c=60,
@@ -55,6 +57,7 @@ def test_parse_probe_reads_every_field():
     n = hb.parse_probe(PROBE_IDLE)
     assert (n.util, n.power_w, n.temp_c) == (0, 3.88, 39)
     assert n.mem_gib == pytest.approx(115.8, abs=0.05)  # 121424384 KiB, a known value
+    assert n.disk_free_gb == pytest.approx(1267.4)  # decimal GB, as df -B1 counts
     assert (n.earlyoom, n.links_up, n.links_total, n.roce_active) == ("active", 4, 4, 4)
 
 
@@ -169,3 +172,14 @@ def test_the_peer_address_is_never_rendered():
     # The post goes to a public issue; only the RTT number may appear.
     body = render({"issue": 711})
     assert "10.0." not in body and "spark-b" not in body
+
+
+def test_render_shows_disk_free_and_flags_it_below_600_gb():
+    body = render({"issue": 711})
+    assert "13.9 GiB avail, 1,267 GB disk free" in body
+    assert "Disk critical" not in body
+    w = node(44)
+    w.disk_free_gb = 598.0
+    low = render({"issue": 711}, worker=w)
+    assert "598 GB disk free **(CRITICAL)**" in low
+    assert "**Disk critical:** worker below 600 GB free" in low

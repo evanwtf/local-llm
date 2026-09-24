@@ -61,6 +61,7 @@ PROBE = (
     "echo gpu=$(nvidia-smi --query-gpu=utilization.gpu,power.draw,temperature.gpu"
     " --format=csv,noheader,nounits | head -1 | tr -d ' ');"
     " echo mem_kib=$(awk '/MemAvailable/{print $2}' /proc/meminfo);"
+    " echo disk_free_b=$(df -B1 --output=avail / | tail -1 | tr -d ' ');"
     " echo earlyoom=$(systemctl is-active earlyoom 2>/dev/null || true);"
     " c=0; for i in " + " ".join(FABRIC_IFACES) + "; do"
     ' [ "$(cat /sys/class/net/$i/carrier 2>/dev/null)" = 1 ] && c=$((c+1)); done;'
@@ -70,6 +71,10 @@ PROBE = (
 
 #: Below this many watts a GB10 is at its idle floor (opener §3a: ~4-5 W idle).
 IDLE_W = 10.0
+#: Free space on / below this is critical (operator, 2026-09-24): the weights for
+#: the next arm, a worker copy, or a log burst must never be what fills a node.
+#: Decimal GB, as `df -B1` counts it.
+DISK_CRITICAL_GB = 600
 #: Notes older than this are called out: the session that owns them may be stuck.
 STALE_NOTES_MIN = 45
 
@@ -82,6 +87,7 @@ class Node:
     power_w: float | None = None
     temp_c: float | None = None
     mem_gib: float | None = None
+    disk_free_gb: float | None = None
     earlyoom: str | None = None
     links_up: int | None = None
     links_total: int | None = None
@@ -107,6 +113,8 @@ def parse_probe(text: str) -> Node:
         n.util, n.power_w, n.temp_c = (_num(g) for g in gpu)
     if (m := _num(kv.get("mem_kib", ""))) is not None:
         n.mem_gib = m / 1048576
+    if (d := _num(kv.get("disk_free_b", ""))) is not None:
+        n.disk_free_gb = d / 1e9
     n.earlyoom = kv.get("earlyoom") or None
     for key in ("links_up", "links_total", "roce_active"):
         if (v := _num(kv.get(key, ""))) is not None:
@@ -135,8 +143,14 @@ def node_header(name: str, n: Node) -> str:
         return f"**{name}** UNREACHABLE"
     return (
         f"**{name}** util {_f(n.util, '{:.0f}')}%, {_f(n.power_w, '{:.0f}')}W,"
-        f" {_f(n.temp_c, '{:.0f}')}ºC, {_f(n.mem_gib, '{:.1f}')} GiB avail"
+        f" {_f(n.temp_c, '{:.0f}')}ºC, {_f(n.mem_gib, '{:.1f}')} GiB avail,"
+        f" {_f(n.disk_free_gb, '{:,.0f}')} GB disk free"
+        + (" **(CRITICAL)**" if disk_critical(n) else "")
     )
+
+
+def disk_critical(n: Node) -> bool:
+    return n.disk_free_gb is not None and n.disk_free_gb < DISK_CRITICAL_GB
 
 
 def power_reason(head: Node, worker: Node, occupant: str) -> str:
@@ -221,6 +235,12 @@ def render(
         f" {_f(worker.mem_gib, '{:.1f}')} GiB worker. earlyoom: {', '.join(eo)}"
         + (" — **DOWN, fix before the next launch**." if down else ".")
     )
+    low = [name for name, n in (("head", head), ("worker", worker)) if disk_critical(n)]
+    if low:
+        bullets.append(
+            f"- **Disk critical:** {' and '.join(low)} below {DISK_CRITICAL_GB} GB free."
+            " No download or copy until space is freed (#697)."
+        )
     age = minutes_since(state.get("updated"), now)
     if age is None:
         bullets.append("- **Notes:** the operating session has not recorded any.")
