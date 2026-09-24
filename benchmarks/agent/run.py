@@ -974,6 +974,8 @@ def capture_versions(cfg, backends, allow_unstamped=False):
         # names the precedence rule; this names the build that applied it,
         # which is what a release note is looked up by.
         "ollama": out(["ollama", "--version"]),
+        # #707: the runner has no --version; the build's own vcs stamp names it.
+        "unreal": unreal_runner_version(UNREAL_RUNNER),
     }
 
     # The harness itself: which run.py produced this row. A row that cannot name
@@ -1478,6 +1480,14 @@ def agent_env(backend, worktree=None):
         # server's non-secret local credential.
         CODEX_API_KEY=backend["auth_token"],
     )
+    # #707: Unreal Agent reads its provider, endpoint and model from the
+    # environment. Every provider speaks the Responses API under /v1.
+    if backend.get("unreal_provider"):
+        env.update(
+            UNREAL_HARNESS_LLM_PROVIDER=backend["unreal_provider"],
+            UNREAL_HARNESS_LLM_BASE_URL=backend["base_url"].rstrip("/") + "/v1",
+            UNREAL_HARNESS_LLM_MODEL=backend.get("unreal_model", backend["model"]),
+        )
     return env
 
 
@@ -1897,11 +1907,156 @@ def codex_parse(stdout, **_):
     }
 
 
+#: #707: Unreal Agent is built from source at a pinned sha, not installed on
+#: PATH, so the harness names the binary it runs and stamps that build.
+UNREAL_RUNNER = pathlib.Path(
+    os.environ.get("UNREAL_AGENT_RUNNER", "~/.local-llm-bench/bin/unreal-agent-runner")
+).expanduser()
+
+
+def unreal_runner_version(binary: pathlib.Path) -> str | None:
+    """`unreal-agent-runner <sha7>` from the build's own vcs stamp, or None.
+
+    The runner has no `--version`. `go version -m` reads `vcs.revision` and
+    `vcs.modified` from the binary, so the row names the build that ran rather
+    than a sha someone typed. A build from a modified tree says `-dirty`.
+    """
+    if not binary.exists():
+        return None
+    try:
+        r = run(["go", "version", "-m", str(binary)], cwd=None, timeout=30)
+    # Deliberately blind, like every other version probe: never take a run down.
+    except Exception:  # noqa: BLE001
+        return None
+    return parse_go_buildinfo(r.stdout)
+
+
+def parse_go_buildinfo(text: str) -> str | None:
+    fields = dict(
+        m.groups()
+        for m in re.finditer(r"^\s*build\s+(vcs\.\w+)=(\S+)", text, re.MULTILINE)
+    )
+    sha = fields.get("vcs.revision")
+    if not sha:
+        return None
+    dirty = "-dirty" if fields.get("vcs.modified") == "true" else ""
+    return f"unreal-agent-runner {sha[:7]}{dirty}"
+
+
+def unreal_argv(task, backend, worktree=None):
+    """Unreal Agent, headless, one JSON request (#707).
+
+    The request goes as the positional JSON form, not `-p`, because only the
+    JSON form carries `thinking_level`. Its default is "high"; the backend may
+    set `unreal_thinking_level`, and the argv records the value either way.
+
+    `-log-directory` defaults to `<workspace>/logs` and `-session-directory` to
+    `.harness/sessions` in the cwd -- both inside the trial checkout, where
+    they would land in `solution_patch`. They go to a fresh temp dir instead.
+
+    The runner loads `<workspace>/.env` into its own environment
+    (cmd/internal/agentrunner/run.go at b7c9bf1). A target repo with a `.env`
+    would configure the agent, so refuse rather than run a different setup.
+    """
+    model = backend.get("unreal_model")
+    if not model:
+        raise SystemExit(
+            f"backend {backend['model']!r} has no unreal_model in tasks.toml"
+        )
+    if worktree is None:
+        raise SystemExit("unreal_argv requires a worktree for -workspace")
+    worktree = pathlib.Path(worktree)
+    if (worktree / ".env").exists():
+        raise SystemExit(
+            f"{worktree}/.env exists; unreal-agent-runner would load it into the "
+            "agent's environment (#707)"
+        )
+    state = pathlib.Path(tempfile.mkdtemp(prefix=f"unreal-{worktree.name}-"))
+    request = {
+        "prompt": task["prompt"],
+        "model": model,
+        "thinking_level": backend.get("unreal_thinking_level", "high"),
+    }
+    return [
+        str(UNREAL_RUNNER),
+        "-workspace",
+        str(worktree),
+        "-log-directory",
+        str(state / "logs"),
+        "-session-directory",
+        str(state / "sessions"),
+        json.dumps(request),
+    ]
+
+
+def unreal_parse(stdout, **_):
+    """Read Unreal Agent's JSONL session events (#707).
+
+    Each model round trip is one `model_response` event, so turns are counted
+    from those. Input tokens are the peak, not the sum, for the same reason as
+    opencode_parse: every turn resends the conversation. Tool calls are
+    counted by distinct `CallID`, because each call emits one
+    `tool_call_status` per state change (ready, then completed).
+    """
+    turns = 0
+    out_tokens = 0
+    reasoning = 0
+    peak_input = None
+    peak_cached = None
+    calls: set[str] = set()
+    failed_calls: set[str] = set()
+    failures = 0
+    stop = None
+    for line in stdout.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(event, dict):
+            continue
+        kind = event.get("Kind")
+        data = event.get("Data") or {}
+        if kind == "model_response":
+            response = data.get("Response") or {}
+            usage = response.get("Usage") or {}
+            turns += 1
+            out_tokens += usage.get("OutputTokens") or 0
+            reasoning += usage.get("ReasoningTokens") or 0
+            if usage.get("InputTokens"):
+                peak_input = max(peak_input or 0, usage["InputTokens"])
+            if usage.get("CachedInputTokens"):
+                peak_cached = max(peak_cached or 0, usage["CachedInputTokens"])
+            if response.get("Failure"):
+                failures += 1
+            stop = response.get("Stop")
+        elif kind == "tool_call_status" and data.get("CallID"):
+            calls.add(data["CallID"])
+            if (data.get("Status") or {}).get("Error"):
+                failed_calls.add(data["CallID"])
+    if not turns:
+        raise json.JSONDecodeError("no model_response events", stdout[:200], 0)
+    return {
+        "num_turns": turns,
+        "input_tokens": peak_input,
+        "cache_read_input_tokens": peak_cached,
+        "output_tokens": out_tokens,
+        "reasoning_tokens": reasoning,
+        "tool_items": len(calls),
+        "tool_errors": len(failed_calls),
+        "stop_reason": stop,
+        "agent_error": failures > 0,
+    }
+
+
 CLIENTS = {
     "claude": (claude_argv, claude_parse),
     "opencode": (opencode_argv, opencode_parse),
     "codex": (codex_argv, codex_parse),
     "aider": (aider_argv, aider_parse),
+    "unreal": (unreal_argv, unreal_parse),
 }
 
 
