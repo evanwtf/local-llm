@@ -7,6 +7,8 @@ told, the way `client_caveat` names a client split (#137).
 
 from __future__ import annotations
 
+import json
+
 import gen_tables
 
 
@@ -139,3 +141,27 @@ def test_the_pld_caveat_names_a_grafted_mtp_head_where_one_ran():
 def test_the_pld_caveat_says_nothing_of_a_graft_when_none_ran():
     rows = [_row("qwen38fnmlxserve", "mlx-serve", "26.9.2")]
     assert "graft" not in gen_tables.pld_caveat(rows)[1]
+
+
+def test_replay_rows_get_their_own_table_and_leave_the_excision_table_alone(tmp_path):
+    def row(task, secs, **kw):
+        return {
+            "task": task,
+            "backend": "b",
+            "client": "opencode",
+            "passed": True,
+            "wall_seconds": secs,
+            "timestamp": "2026-09-24T10:00:00-0400",
+            "env": {"harness_head": min(gen_tables._after_fix())},
+            **kw,
+        }
+
+    rows = [row("mbox-scan", 40.0), row("mbox-scan", 60.0)]
+    rows += [row("replay-defang", 500.0, task_kind="replay")]
+    path = tmp_path / "results.jsonl"
+    path.write_text("".join(json.dumps(r) + "\n" for r in rows))
+    text = "\n".join(gen_tables.machine_section("M", path, rows))
+    excision, replay = text.split("#### Replay tasks")
+    # the excision table's worst is the excision worst, not the replay trial
+    assert "| 2/2 | 50s | 60s |" in excision
+    assert "| 1/1 | 500s | 500s |" in replay
