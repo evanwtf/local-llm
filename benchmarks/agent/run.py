@@ -58,6 +58,7 @@ import prefill_failures
 import preflight
 import provenance
 import remote
+import replay
 import results
 import shim_strip
 import smoke
@@ -167,13 +168,24 @@ def task_target(cfg, task):
     A task may name its own; otherwise it inherits the file-level defaults.
     Inheritance matters: 558 recorded rows name tasks defined before this
     existed, and a task name has to keep meaning what it meant.
+
+    `sandbox` names the harness's clone under sandbox/ (#146). Tasks share
+    their repository's clone, `sandbox/<name>`, pinned at the one commit
+    those tasks agree on. A replay task (#714) pins a commit of its own, so it
+    gets its own clone, `sandbox/<name>@<sha7>`: one checkout cannot sit at two
+    commits, and keying the replay clones apart leaves every existing task's
+    clone, and every client that already synced it, exactly as it was.
     """
+    repo = task.get("repo", cfg["repo"])
+    commit = task.get("base_commit", cfg["base_commit"])
+    name = pathlib.Path(repo).name
     return {
-        "repo": task.get("repo", cfg["repo"]),
-        "base_commit": task.get("base_commit", cfg["base_commit"]),
+        "repo": repo,
+        "base_commit": commit,
         "test_command": task.get(
             "test_command", cfg.get("test_command", "uv run pytest -q")
         ),
+        "sandbox": f"{name}@{commit[:7]}" if replay.is_replay(task) else name,
     }
 
 
@@ -196,6 +208,49 @@ def tasks_missing_targets(cfg, tasks):
         if not repo.is_dir():
             missing[task["name"]] = repo
     return missing
+
+
+def select_replay(tasks, cfg, args):
+    """Apply the replay-task (#714) gate to an already-selected task list.
+
+    Replay tasks are opt-in: out of the default matrix, in with `--replay`
+    (all of them) or `--task NAME`. Two reasons. They are a new class whose
+    rows must not quietly join the 10-task matrix every existing comparison
+    is taken over; and each pins its own commit of a repository the default
+    matrix also pins, which only the sandbox layout can serve -- the legacy
+    layout parks and resets the operator's one checkout, and one checkout
+    cannot be at two commits. So a replay task under `--targets legacy`
+    refuses rather than resetting the operator's tree to a feature commit.
+
+    Every selected replay task is validated here too, so a malformed
+    definition stops the batch before a trial is spent on it.
+    """
+    wanted = set(args.task or [])
+    if getattr(args, "replay", False):
+        # The replay tasks, plus whatever --task named -- not the default
+        # matrix as well, which is what an unfiltered `tasks` holds here.
+        tasks = [t for t in cfg["task"] if replay.is_replay(t) or t["name"] in wanted]
+    elif not wanted:
+        for t in tasks:
+            if replay.is_replay(t):
+                logger.info(
+                    "skipping task %s: a replay task (#714); select it with "
+                    "--replay or --task",
+                    t["name"],
+                )
+        tasks = [t for t in tasks if not replay.is_replay(t)]
+    chosen = [t for t in tasks if replay.is_replay(t)]
+    for t in chosen:
+        if errors := replay.validate(t):
+            raise SystemExit("\n".join(errors))
+    if chosen and args.targets != "sandbox":
+        raise SystemExit(
+            "replay tasks need --targets sandbox: each pins its own commit "
+            f"({', '.join(t['name'] for t in chosen)}), and the legacy layout "
+            "would reset the operator's checkout to it. Sync the clones with "
+            "uv run python scripts/sync_sandbox_targets.py"
+        )
+    return tasks
 
 
 def script_checks(worktree, entrypoint, checks, timeout):
@@ -1905,7 +1960,7 @@ CLIENTS = {
 }
 
 
-def guarded_repo(repo, target_layout="legacy"):
+def guarded_repo(repo, target_layout="legacy", sandbox_name=None):
     """The checkout the tripwire watches.
 
     #54: while stashed, the real checkout is parked at `stash_path(repo)` --
@@ -1920,7 +1975,7 @@ def guarded_repo(repo, target_layout="legacy"):
     client whose checkout is deliberately elsewhere -- a live service's tree
     at its own HEAD -- although nothing about the trial had moved.
     """
-    if target_layout == "sandbox" and (clone := sandbox_checkout(repo)):
+    if target_layout == "sandbox" and (clone := sandbox_checkout(repo, sandbox_name)):
         return clone
     for real in (stash_path(repo), legacy_stash_path(repo)):
         if real.exists():
@@ -2060,7 +2115,7 @@ def stash_targets(pairs):
             "aside. Run preflight.py to restore them before starting."
         )
     moved = []
-    for repo, _commit in pairs:
+    for repo, *_ in pairs:
         repo = pathlib.Path(repo).expanduser()
         real = stash_path(repo)
         if real.exists() or legacy_stash_path(repo).exists():
@@ -2200,14 +2255,17 @@ def restore_targets():
 SANDBOX_ROOT = HERE.parent.parent / "sandbox"
 
 
-def sandbox_checkout(repo):
+def sandbox_checkout(repo, name=None):
     """The harness's own clone of this repo, or None when it is not synced.
 
     Keyed by basename like stash_path(), mirroring a configured ~/git/<name>
     at sandbox/<name>. A full clone carries history, so it is an un-excised
-    copy of the answer -- sandbox_profile denies it.
+    copy of the answer -- sandbox_profile denies it (all of SANDBOX_ROOT, so
+    the per-commit clones below are denied too). `name` is task_target()'s
+    `sandbox`, which differs from the basename only for a replay task's
+    per-commit clone, `<name>@<sha7>` (#714).
     """
-    clone = SANDBOX_ROOT / pathlib.Path(repo).name
+    clone = SANDBOX_ROOT / (name or pathlib.Path(repo).name)
     return clone if (clone / ".git").exists() else None
 
 
@@ -2246,13 +2304,17 @@ def ensure_sandbox_targets(pairs):
     cannot be trusted, and the same rule holds at the start -- the operator
     runs the sync script and sees its output.
     """
-    for repo_str, commit in pairs:
+    # Items are (repo, commit) or (repo, commit, sandbox name); the third is
+    # task_target()'s `sandbox`, and absent means the repo's own clone.
+    for repo_str, commit, *key in pairs:
         repo = pathlib.Path(repo_str).expanduser()
-        clone = sandbox_checkout(repo)
+        name = key[0] if key else repo.name
+        clone = sandbox_checkout(repo, name)
         if clone is None:
             raise SystemExit(
-                f"sandbox checkout {SANDBOX_ROOT / repo.name} is missing for "
-                f"{repo} -- run: uv run python scripts/sync_sandbox_targets.py"
+                f"sandbox checkout {SANDBOX_ROOT / name} is missing for "
+                f"{repo} at {commit} -- run: uv run python "
+                "scripts/sync_sandbox_targets.py"
             )
         head = _sandbox_commit_ok(clone, commit)
         logger.info("sandbox target ok: %s at %s", clone, head[:12])
@@ -2275,7 +2337,7 @@ def setup_targets(pairs, layout):
     if layout == "sandbox":
         ensure_sandbox_targets(pairs)
         return
-    for repo, commit in pairs:
+    for repo, commit, *_ in pairs:
         ensure_pristine(repo, commit)
 
     # #54: stand the export where the model expects the repo to be, so a
@@ -3498,7 +3560,7 @@ def record_source_repo(result, repo, target, name, target_layout="legacy"):
     `source_repo_intact` unset, with nothing to say whether the checkout was
     touched.
     """
-    guarded = guarded_repo(repo, target_layout)
+    guarded = guarded_repo(repo, target_layout, target.get("sandbox"))
     intact, why = source_repo_state(guarded, target["base_commit"])
     result["source_repo_intact"] = intact
     if intact:
@@ -3590,6 +3652,7 @@ def one_trial(
     # re-run of this cell never overwrites the evidence from the last one.
     run_tag = transcript_run_tag(versions, client)
     is_script = task.get("kind") == "script"
+    is_replay = replay.is_replay(task)
     # Where the trial builds from, and where the agent works.
     #
     # legacy (#54): the real checkout is parked -- STASH_ROOT, or the legacy
@@ -3602,11 +3665,11 @@ def one_trial(
     # the workdir, and the profile DENIES the configured path -- the guess
     # fails closed. The stash machinery is not used at all.
     if target_layout == "sandbox":
-        source = sandbox_checkout(repo)
+        source = sandbox_checkout(repo, target["sandbox"])
         if source is None and not is_script:
             raise SystemExit(
-                f"sandbox checkout {SANDBOX_ROOT / repo.name} is missing for "
-                f"{repo} -- run: uv run python scripts/sync_sandbox_targets.py"
+                f"sandbox checkout {SANDBOX_ROOT / target['sandbox']} is missing "
+                f"for {repo} -- run: uv run python scripts/sync_sandbox_targets.py"
             )
         if source is not None:
             # Per-trial, not only at setup: a re-sync under a live batch moves
@@ -3669,6 +3732,24 @@ def one_trial(
             target["base_commit"],
             worktree,
         )
+        if is_replay:
+            # #714: the tree is C; put the files C touched back to C^, from
+            # the source's object store, so the agent starts where the
+            # commit's author did and C's own tests are the oracle. Before
+            # prepare_env, so the environment is built from what the agent
+            # is handed.
+            reverted = replay.revert(
+                source, target["base_commit"], task["revert"], worktree
+            )
+            result["task_kind"] = replay.KIND
+            result["replay"] = {
+                "commit": replay.resolve(source, target["base_commit"]),
+                "parent": replay.parent_of(source, target["base_commit"]),
+                "reverted": reverted,
+                "commit_lines": replay.commit_size(
+                    source, target["base_commit"], task["revert"]
+                ),
+            }
         # #4: build the env before the agent sees it, so wall time measures
         # the task and not the discovery of how to run pytest. Recorded on the
         # row because it starts a new series.
@@ -3681,16 +3762,27 @@ def one_trial(
             #    original body exists nowhere in this checkout -- not in history,
             #    not in an object store shared with anything else.
             keep_doc = task.get("keep_docstring", True)
-            result["keep_docstring"] = keep_doc
             excised = []
-            for t in targets(task):
-                path = worktree / t["file"]
-                body = exciser_for(t["file"])(
-                    path, t["symbol"], keep_docstring=keep_doc
+            if is_replay:
+                # Nothing is excised: the revert above is the removal. The
+                # commit's added lines stand in for removed_lines, so a table
+                # that sizes tasks by it still reads in the same unit.
+                result["removed_lines"] = result["replay"]["commit_lines"]["added"]
+                result["removed_symbols"] = []
+                initial = "benchmark: starting state"
+            else:
+                result["keep_docstring"] = keep_doc
+                for t in targets(task):
+                    path = worktree / t["file"]
+                    body = exciser_for(t["file"])(
+                        path, t["symbol"], keep_docstring=keep_doc
+                    )
+                    excised.append((path, t["symbol"], body))
+                result["removed_lines"] = sum(
+                    len(b.splitlines()) for _, _, b in excised
                 )
-                excised.append((path, t["symbol"], body))
-            result["removed_lines"] = sum(len(b.splitlines()) for _, _, b in excised)
-            result["removed_symbols"] = [t["symbol"] for t in targets(task)]
+                result["removed_symbols"] = [t["symbol"] for t in targets(task)]
+                initial = f"benchmark: {', '.join(result['removed_symbols'])} removed"
             git(["init", "-q", "-b", "main"], worktree)
             git(["add", "-A"], worktree)
             git(
@@ -3702,7 +3794,7 @@ def one_trial(
                     "commit",
                     "-q",
                     "-m",
-                    f"benchmark: {', '.join(result['removed_symbols'])} removed",
+                    initial,
                 ],
                 worktree,
             )
@@ -3784,7 +3876,7 @@ def one_trial(
         # the after-reading cannot tell an escape from a checkout that was
         # already off-baseline, and the harness blames the agent either way.
         intact_before, why_before = source_repo_state(
-            guarded_repo(repo, target_layout), target["base_commit"]
+            guarded_repo(repo, target_layout, target["sandbox"]), target["base_commit"]
         )
         result["source_repo_intact_before"] = intact_before
         if not intact_before:
@@ -3793,7 +3885,7 @@ def one_trial(
                 "%s: guarded checkout %s is ALREADY off-baseline before the agent "
                 "runs -- %s. Environment fault, not an escape; this trial is void",
                 name,
-                guarded_repo(repo, target_layout),
+                guarded_repo(repo, target_layout, target["sandbox"]),
                 why_before,
             )
         # #366. With the watchdog on, run the client under GPU-idle-stall
@@ -3922,6 +4014,10 @@ def one_trial(
         if is_script:
             result["touched_tests"] = False
         else:
+            if is_replay:
+                # A new file under tests/ (a conftest.py) counts as touching
+                # them; `git diff HEAD` alone does not list untracked files.
+                replay.track_new_files(worktree)
             diff = git(["diff", "HEAD", "--stat", "--", "tests/"], worktree)
             result["touched_tests"] = bool(diff)
         # Did the agent leave the sandbox? The source repo should be untouched
@@ -3941,7 +4037,17 @@ def one_trial(
         # no original text to have recalled. Left as None rather than False,
         # since False would assert the agent wrote something new -- a claim this
         # check cannot make when there was never a reference.
-        if not is_script:
+        #
+        # A replay task (#714) has no hollowed-out symbol; the analogue is
+        # whether every reverted file came back byte-for-byte as the commit
+        # had it, with a per-file line count beside it. Recall, not a verdict.
+        if is_replay:
+            recalled = replay.recall(
+                worktree, source, target["base_commit"], task["revert"]
+            )
+            result["restored_verbatim"] = recalled["verbatim"]
+            result["replay"]["recall"] = recalled["files"]
+        elif not is_script:
             result["restored_verbatim"] = grade.all_restored_verbatim(excised, keep_doc)
         result["target_repo"] = target["repo"]
         record_source_repo(result, repo, target, name, target_layout)
@@ -4006,6 +4112,10 @@ def one_trial(
         # written code too, and that half-finished patch is the most diagnostic
         # artifact a timeout produces.
         if solutions and not dry_run and worktree.exists():
+            if is_replay:
+                # The modules the commit created are new files; without this
+                # the patch leaves them out (#714).
+                replay.track_new_files(worktree)
             result.update(grade.save_solution(solutions, name, worktree))
         shutil.rmtree(worktree, ignore_errors=True)
     # #266: prefill-failure 500s the server threw during THIS trial, which the
@@ -4120,6 +4230,12 @@ def build_parser():
     p.add_argument("--trials", type=int, default=1)
     p.add_argument("--backend", action="append", help="repeatable; default all")
     p.add_argument("--task", action="append", help="repeatable; default all")
+    p.add_argument(
+        "--replay",
+        action="store_true",
+        help="run every replay task (#714), plus any --task named. They are "
+        "out of the default matrix, and need --targets sandbox.",
+    )
     p.add_argument("--timeout", type=int, default=1800, help="seconds per step")
     p.add_argument(
         "--memory-gate-gib",
@@ -4615,6 +4731,7 @@ def main():
         tasks = [
             t for t in tasks if not t.get("platform") or t["platform"] == sys.platform
         ]
+    tasks = select_replay(tasks, cfg, args)
     backends = {
         k: v for k, v in cfg["backend"].items() if not args.backend or k in args.backend
     }
@@ -4711,9 +4828,15 @@ def main():
     # #146 their state is not the run's business; the sandbox clones are
     # validated instead, before the smoke gate spends a minute on a batch that
     # cannot start.
+    # (repo, commit, sandbox clone name): the third keeps a replay task's
+    # per-commit clone (#714) apart from its repository's shared one.
     pairs = sorted(
         {
-            (task_target(cfg, t)["repo"], task_target(cfg, t)["base_commit"])
+            (
+                (got := task_target(cfg, t))["repo"],
+                got["base_commit"],
+                got["sandbox"],
+            )
             for t in tasks
         }
     )

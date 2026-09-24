@@ -426,6 +426,67 @@ in the hollowed-out file. A comment that describes the algorithm hands over the
 answer. None of the current targets has one; `test_excise.py` pins the
 behavior.
 
+### Replay tasks (#714)
+
+**What they measure.** An excision task asks for one function body back. On the
+cluster ledger, seven of eight stacks pass every trial of those (#711), so
+they no longer separate models on problem solving. A replay task is a larger,
+real unit of work: a gmail-archive commit C that added a feature together with
+its tests. The harness exports C, puts every file C touched back to its state at
+C's first parent (a file C created is deleted), and keeps C's tests. The agent
+gets a plain-language description of the feature, restated from the commit
+message, and the names of the failing test files. It has to rebuild the feature
+across however many files it takes. The oracle is C's listed tests, and there is
+no judge model. The seven tasks revert 37 to 583 lines across 1 to 9 files.
+
+**How.** `kind = "replay"`, `base_commit` = C, `revert` = the paths to put back,
+`tests` = the oracle (see `tasks.toml`). `revert` is written out by hand and
+checked by `test_task_definitions.py`: it must be exactly C's non-test files
+minus `pyproject.toml` and `uv.lock`, which stay at C because the tests cannot
+import without C's dependencies, and adding a dependency is packaging work, not
+the feature. The control check and `touched_tests` work as they do for
+excision. A file the agent creates counts too: a replay trial marks new files
+`--intent-to-add` before it diffs, so a new `tests/conftest.py` counts as
+touching the tests and the saved patch includes the new modules.
+`scripts/verify_replay_tasks.py` re-derives each task's validity: the tests
+pass at C and fail after the revert. The commit and parent shas, the reverted
+paths, and C's line counts go on every row under `replay`, with
+`task_kind = "replay"`.
+
+**Opt-in, sandbox only.** The tasks pin commits on gmail-archive's `main`, not
+the `56e55cc` the matrix pins. One checkout cannot sit at both, so each replay
+task has its own clone, `sandbox/gmail-archive@<sha7>`, made by
+`scripts/sync_sandbox_targets.py`. The legacy layout refuses them. They are out
+of the default matrix, so no existing comparison changes: run them with
+`--replay --targets sandbox`.
+
+**Limits.**
+
+- **The tests are visible**, and the prompt names them. The agent can read what
+  is expected and write to it. That is the same contract as a real task
+  handed over with failing tests, but it is not specification-only problem
+  solving.
+- **Recall is possible.** `evanwtf/gmail-archive` is a public repository
+  (created 2026-08-05), and it was written with Claude. A model trained on it
+  after that date may have seen these exact commits. `restored_verbatim` on a
+  replay row is true only if every reverted file matches C byte for byte, and
+  `replay.recall` records per file the lines that differ from C and from the
+  starting state. Both are recorded beside the verdict and never change it.
+  Read a verbatim match as recall. The hosted reference is time-only here too
+  (see *Authorship contamination* above).
+- **Untested surface is unchecked.** A commit's CSS, templates and docs are
+  reverted with it, and the prompt describes them, but no test reads them. The
+  oracle only proves the tested part.
+- **The oracle is only the listed tests.** `replay-gmail-api-sources` leaves out
+  `TestMboxSource`: its six tests read a fixture that gmail-archive's
+  `.gitignore` (`*.mbox`) kept out of the commit, so they fail at C itself. The
+  prompt tells the agent so.
+- **Most controls fail at collection.** When C created the module a test
+  imports, the reverted tree fails with an import error rather than a failing
+  assertion. That is the feature missing, and it is what the task is. Only
+  `replay-mbox-separator` (3 of 19 tests fail) and `replay-login-throttle` (3 of
+  54) fail at assertions.
+
 ### Measurements taken alongside the verdict
 
 The oracle is binary and stays the authority — `results.verdict()` is the only

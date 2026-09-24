@@ -297,6 +297,224 @@ checks = [
     ["ab cd", "dc ba"],
 ]
 
+# --- replay tasks (#714) ------------------------------------------------------
+# Rebuild a real feature commit from its own tests. `base_commit` is the
+# commit C, on gmail-archive's `main` (ahead of the 56e55cc the tasks above
+# pin). The harness exports C, puts every path in `revert` back to C^ (the
+# first parent; a path C created is deleted), and C's `tests` are the
+# oracle: the control check must see them fail, and `touched_tests` guards
+# them exactly as it does for an excision.
+#
+# `revert` is every non-test file the commit touched EXCEPT the environment
+# (`pyproject.toml`, `uv.lock`): the tests need C's dependencies to import at
+# all, and a dependency the agent must add is a packaging exercise, not the
+# feature. Docs and config examples the commit changed are reverted with the
+# source, since they describe the feature.
+#
+# Out of the default matrix; run them with `--replay --targets sandbox`. Each
+# gets its own sandbox clone, sandbox/gmail-archive@<sha7>, made by
+# scripts/sync_sandbox_targets.py. scripts/verify_replay_tasks.py re-checks
+# that each passes at C and fails after the revert.
+#
+# The prompts restate the commit message in plain terms: what the feature is
+# and the constraints the message states, never the commit or its diff.
+
+[[task]]
+name = "replay-mbox-separator"
+kind = "replay"
+base_commit = "0ce03e6"
+revert = ["src/gmail_archive/mbox.py"]
+tests = ["tests/test_mbox.py"]
+prompt = """An mbox writer puts a blank line before each `From_` line. That \
+blank line is framing: it belongs to the file, not to the message, and a \
+reader should drop it. `strip_envelope` in src/gmail_archive/mbox.py drops \
+the `From_` line but keeps the blank separator line, so every message it \
+returns ends with a byte that was never part of the message. Fix it: remove \
+exactly one trailing newline, and only if one is present. Mail may use CRLF \
+line endings, a body's own last line may be blank, and a message may have no \
+trailing newline at all. tests/test_mbox.py currently fails; make it pass. \
+Do not modify any test."""
+
+[[task]]
+name = "replay-login-throttle"
+kind = "replay"
+base_commit = "ecca282"
+revert = [
+    ".env.example",
+    "src/gmail_archive/config.py",
+    "src/gmail_archive/web/app.py",
+    "src/gmail_archive/web/auth.py",
+]
+tests = ["tests/test_web_auth.py"]
+prompt = """The web UI's login throttle has two defects. First, it keys on \
+the connecting address, which behind a reverse proxy is the proxy, so every \
+user shares one bucket and five bad guesses from anyone lock out everyone. \
+Add a setting, GMAIL_ARCHIVE_TRUST_PROXY, off by default: when it is on, \
+identify the client from X-Forwarded-For, using the rightmost entry (the one \
+the trusted proxy itself observed); when it is off, ignore that header, \
+since anyone talking to the app directly can forge it. Second, the \
+throttle's record of clients never shrinks. Prune entries older than the \
+lockout window when a failure is recorded, without releasing any client \
+that is still inside its lockout. tests/test_web_auth.py currently fails; \
+make it pass. Do not modify any test."""
+
+[[task]]
+name = "replay-relative-dates"
+kind = "replay"
+base_commit = "8fe6d74"
+revert = [
+    "src/gmail_archive/web/app.py",
+    "src/gmail_archive/web/filters.py",
+    "src/gmail_archive/web/static/style.css",
+    "src/gmail_archive/web/templates/message.html",
+    "src/gmail_archive/web/templates/messages.html",
+    "src/gmail_archive/web/templates/search.html",
+    "src/gmail_archive/web/templates/thread.html",
+]
+tests = ["tests/test_web_filters.py"]
+prompt = """In the web UI, message lists, thread cards and the message \
+detail page should show each message's age under its timestamp, for example \
+"39 hours ago". Add a `relative_date` Jinja filter in \
+src/gmail_archive/web/filters.py, so it can be tested without FastAPI, \
+register it, and use it in those templates. The hour band runs to 48 hours \
+rather than 24, so yesterday afternoon reads "32 hours ago", and the month \
+band runs to 24 months for the same reason. None renders as an empty string, \
+because some messages have no parseable date, and a future timestamp renders \
+as "in 2 hours" rather than being clamped to zero. Also widen the main \
+layout to 95% of the viewport, and raise the cap on the From column, keeping \
+an ellipsis as a narrow-screen fallback and a title attribute so a truncated \
+address is readable on hover. tests/test_web_filters.py currently fails; \
+make it pass. Do not modify any test."""
+
+[[task]]
+name = "replay-defang"
+kind = "replay"
+base_commit = "c581b29"
+revert = [
+    "src/gmail_archive/web/app.py",
+    "src/gmail_archive/web/filters.py",
+    "src/gmail_archive/web/templates/_row.html",
+    "src/gmail_archive/web/templates/message.html",
+]
+tests = ["tests/test_web_defang.py"]
+prompt = """Defang URLs in archived content, so nothing a rendered message \
+references can load from outside. In every rendered message body and list \
+snippet, rewrite http:// to hxxp://, https:// to hxxps://, and the same for \
+ftp, ftps, ws, wss and file. Protocol-relative URLs (src="//host/pixel.gif") \
+must be caught too, since they inherit the page's scheme. Leave mailto: and \
+data: alone, and keep URLs readable. Put this in a `defang` filter in \
+src/gmail_archive/web/filters.py. While doing it, fix an HTML injection: the \
+search snippet is rendered with `|safe` and nothing escapes it first, so a \
+message's text can inject markup into the results page. Escape the snippet \
+in a `highlight_snippet` function in the filters module rather than in the \
+template, then add the highlight markup. tests/test_web_defang.py currently \
+fails; make it pass. Do not modify any test."""
+
+[[task]]
+name = "replay-search-operators"
+kind = "replay"
+base_commit = "f4faf86"
+revert = [
+    "src/gmail_archive/query.py",
+    "src/gmail_archive/searchquery.py",
+    "src/gmail_archive/web/app.py",
+    "src/gmail_archive/web/static/style.css",
+    "src/gmail_archive/web/templates/_help.html",
+    "src/gmail_archive/web/templates/base.html",
+    "src/gmail_archive/web/templates/search.html",
+]
+tests = ["tests/test_searchquery.py"]
+prompt = """Search covers only the full-text index of subject and body, so \
+there is no way to find mail from a given sender. Add search operators: \
+from: to: subject: label: before: after: on: is: has:attachment. They \
+combine with each other and with free text, values may be quoted, and a \
+query made only of operators is valid. Parse queries in a new module, \
+src/gmail_archive/searchquery.py, which produces values only; SQL stays in \
+src/gmail_archive/query.py, the one module that writes it. An unknown \
+operator stays in the free text rather than being dropped. A recognized \
+operator with an unusable value, such as before:tuesday, is rejected and \
+reported rather than guessed at. Addresses and subjects match as \
+case-insensitive substrings; labels match exactly. Relevance sort falls back \
+to date when there is no free text. Also add a "?" help button to the web \
+UI: a <details>/<summary> popover whose content lives in a _help.html \
+partial and documents searching and these operators. \
+tests/test_searchquery.py currently fails; make it pass. Do not modify any \
+test."""
+
+[[task]]
+name = "replay-web-auth"
+kind = "replay"
+base_commit = "52eaf52"
+revert = [
+    ".env.example",
+    "docker-compose.yml",
+    "src/gmail_archive/cli.py",
+    "src/gmail_archive/config.py",
+    "src/gmail_archive/web/app.py",
+    "src/gmail_archive/web/auth.py",
+    "src/gmail_archive/web/static/style.css",
+    "src/gmail_archive/web/templates/base.html",
+    "src/gmail_archive/web/templates/login.html",
+]
+tests = ["tests/test_web_auth.py"]
+prompt = """The web UI serves the whole archive to anyone who can reach its \
+port. Add single-user authentication: a password and a signed cookie, with \
+no user table, registration or reset. A `gmail-archive set-password` command \
+prompts with hidden input and prints only the hash, which the operator puts \
+in GMAIL_ARCHIVE_WEB_PASSWORD_HASH. Hash with scrypt from the standard \
+library (n=2**15, a salt per hash), and separate the hash's fields with ":", \
+never "$", which Docker Compose interpolates inside .env values. The session \
+cookie is HMAC-signed, HttpOnly, SameSite=Lax, and Secure only when the \
+request arrived over TLS. Derive the signing key from the stored hash, so \
+changing the password invalidates every session. Throttle login per client: \
+five failures, then a lockout. Deny by default: middleware allows /healthz, \
+/login, /logout and /static/*, and requires a session for everything else. \
+With no hash configured the archive stays open, as before, and says so in \
+the log and in a "NO PASSWORD SET" chip in the header. Parse the login form \
+with parse_qs rather than adding a dependency, and refuse an open redirect: \
+a `next` value must start with a single "/", not "//". \
+tests/test_web_auth.py currently fails; make it pass. Do not modify any \
+test."""
+
+[[task]]
+name = "replay-gmail-api-sources"
+kind = "replay"
+base_commit = "ce547d6"
+revert = [
+    "docs/progress.md",
+    "src/gmail_archive/sources/__init__.py",
+    "src/gmail_archive/sources/gmail_api_source.py",
+    "src/gmail_archive/sources/mbox_source.py",
+    "src/gmail_archive/sources/protocol.py",
+]
+# Every class in the test file but TestMboxSource. Its six tests read
+# tests/fixtures/simple.mbox, which the target repository's .gitignore
+# (`*.mbox`) kept out of the commit, so they fail at C itself -- measured with
+# scripts/verify_replay_tasks.py: 24 of 30 pass at C, and those six are the
+# rest. The oracle is the 24; the prompt tells the agent the six cannot pass.
+tests = [
+    "tests/test_sources.py::TestGmailApiListMessages",
+    "tests/test_sources.py::TestGmailApiGetMessage",
+    "tests/test_sources.py::TestGmailApiRetryAndErrors",
+    "tests/test_sources.py::TestGmailApiTokenRefresh",
+    "tests/test_sources.py::TestGmailApiHistory",
+    "tests/test_sources.py::TestGmailApiProfile",
+    "tests/test_sources.py::TestMessageSourceProtocol",
+    "tests/test_sources.py::TestBase64Decode",
+    "tests/test_sources.py::TestParseHistoryEntry",
+]
+prompt = """Add a message-source abstraction in a new package, \
+src/gmail_archive/sources/: a MessageSource protocol with list_messages, \
+get_message and list_all; an MboxSource adapter that wraps the existing \
+byte-level mbox splitter; and a GmailApiSource that talks to the Gmail API \
+over httpx, with OAuth2 token management and retries: honor Retry-After on \
+a 429, retry a 5xx, and refresh the token on a 401. It also supports \
+incremental sync from a historyId through list_history. Nothing touches the \
+real network; the tests use respx mocks. tests/test_sources.py currently \
+fails; make it pass, except the TestMboxSource class: its tests read a \
+fixture file that is not in the repository, so they fail whatever you write \
+and are not part of the check. Do not modify any test."""
+
 # --- backends ------------------------------------------------------------
 # Each backend is the environment Claude Code runs under. Context windows
 # differ on purpose: each model gets its real window, because capping a model
