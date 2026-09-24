@@ -7,6 +7,11 @@ usable checkout a load-bearing part of the harness without telling him.
 
 Every path this writes is under `sandbox/`. It reads ~/git only to learn a
 remote URL, and refuses to write there.
+
+A replay task (#714) pins its own commit, so it gets its own clone,
+`sandbox/<name>@<sha7>`, beside the repository's shared `sandbox/<name>`. Each
+is a full clone of the remote, so a commit that is on the remote's `main` but
+not on the operator's checked-out branch is still there to check out.
 """
 
 from __future__ import annotations
@@ -46,28 +51,34 @@ def git(args: list[str], cwd: pathlib.Path) -> str:
     return got.stdout.strip()
 
 
-def targets(tasks_file: pathlib.Path) -> dict[str, str]:
-    """{repo path as configured: base_commit}, one entry per distinct repo.
+def targets(tasks_file: pathlib.Path) -> dict[str, tuple[str, str]]:
+    """{sandbox clone name: (repo path as configured, base_commit)}.
 
-    A repo named by several tasks must be pinned to one commit; two commits for
+    One entry per clone, and the clone name is run.task_target()'s
+    `sandbox`: `<repo basename>` for every ordinary task, so tasks on one repo
+    share one clone, and `<repo basename>@<sha7>` for a replay task (#714),
+    which pins a commit of its own and so gets a clone of its own.
+
+    Tasks that share a clone must be pinned to one commit; two commits for
     one checkout cannot both be satisfied, and silently taking the last would
     make half the tasks unbuildable in a way nothing reports.
     """
     cfg = tomllib.loads(tasks_file.read_text())
-    found: dict[str, str] = {}
+    found: dict[str, tuple[str, str]] = {}
     for task in cfg.get("task", []):
         # A script task starts from an empty directory: no repo to clone.
         if task.get("kind") == "script":
             continue
         target = harness.task_target(cfg, task)
-        repo, commit = target["repo"], target["base_commit"]
-        if repo in found and found[repo] != commit:
+        name, repo, commit = target["sandbox"], target["repo"], target["base_commit"]
+        if name in found and found[name] != (repo, commit):
             raise SystemExit(
-                f"{repo} is pinned to both {found[repo]} and {commit} "
+                f"{repo} is pinned to both {found[name][1]} and {commit} "
                 f"(task {task.get('name')}); one checkout cannot be at "
-                f"two commits."
+                f"two commits. A task at a commit of its own must be a "
+                f'kind = "replay" task, which gets its own clone.'
             )
-        found[repo] = commit
+        found[name] = (repo, commit)
     return found
 
 
@@ -137,10 +148,11 @@ def main(argv: list[str] | None = None) -> int:
 
     logs.configure()
     overrides = dict(o.split("=", 1) for o in args.origin)
-    for configured, commit in sorted(targets(args.tasks_file).items()):
+    for name, (configured, commit) in sorted(targets(args.tasks_file).items()):
         path = pathlib.Path(configured).expanduser()
-        name = path.name
-        url = overrides.get(name) or origin_of(path)
+        # --origin is keyed by the repository, so one override covers the
+        # repo's shared clone and every per-commit replay clone of it.
+        url = overrides.get(path.name) or origin_of(path)
         sync_one(name, url, commit, dry_run=args.dry_run)
     return 0
 

@@ -82,7 +82,9 @@ def _get(url: str, timeout: float = 10.0) -> str | None:
 def trial_environment(cfg: dict, task: dict, backend: dict, rep: Report) -> None:
     """Build one trial workspace the harness's way and run the agent's command."""
     target = run.task_target(cfg, task)
-    clone = run.sandbox_checkout(pathlib.Path(target["repo"]).expanduser())
+    clone = run.sandbox_checkout(
+        pathlib.Path(target["repo"]).expanduser(), target["sandbox"]
+    )
     if clone is None:
         rep.check("trial environment", False, "no sandbox clone to export from")
         return
@@ -215,7 +217,9 @@ def main(argv: list[str] | None = None) -> int:
         rep.check("task", False, f"{args.task} not in {args.tasks_file}")
     else:
         target = run.task_target(cfg, task)
-        clone = run.sandbox_checkout(pathlib.Path(target["repo"]).expanduser())
+        clone = run.sandbox_checkout(
+            pathlib.Path(target["repo"]).expanduser(), target["sandbox"]
+        )
         head = (
             subprocess.run(
                 ["git", "-C", str(clone), "rev-parse", "HEAD"],

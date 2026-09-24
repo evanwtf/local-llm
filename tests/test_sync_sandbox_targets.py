@@ -46,19 +46,36 @@ def write_tasks(tmp_path, text=TASKS):
 
 def test_one_entry_per_repo_not_per_task(tmp_path):
     got = sync.targets(write_tasks(tmp_path))
-    assert got == {"~/git/monitor": "aaaaaaa", "~/git/gmail-archive": "bbbbbbb"}
+    assert got == {
+        "monitor": ("~/git/monitor", "aaaaaaa"),
+        "gmail-archive": ("~/git/gmail-archive", "bbbbbbb"),
+    }
 
 
 def test_a_task_inherits_the_file_level_repo(tmp_path):
     """The rule run.task_target owns. Re-deriving it is how run.py and
     provenance ended up disagreeing about what "dirty" meant."""
-    assert sync.targets(write_tasks(tmp_path))["~/git/gmail-archive"] == "bbbbbbb"
+    assert sync.targets(write_tasks(tmp_path))["gmail-archive"] == (
+        "~/git/gmail-archive",
+        "bbbbbbb",
+    )
 
 
 def test_a_script_task_is_skipped(tmp_path):
     """Script tasks start from an empty directory: nothing to clone."""
     got = sync.targets(write_tasks(tmp_path))
-    assert set(got) == {"~/git/monitor", "~/git/gmail-archive"}
+    assert set(got) == {"monitor", "gmail-archive"}
+
+
+def test_a_replay_task_at_another_commit_gets_its_own_clone(tmp_path):
+    """#714: the one repo at two commits is allowed for a replay task, as a
+    second clone keyed by the commit; the shared clone is unchanged."""
+    text = TASKS + (
+        '\n[[task]]\nname = "replay"\nkind = "replay"\nbase_commit = "ccccccc9"\n'
+    )
+    got = sync.targets(write_tasks(tmp_path, text))
+    assert got["gmail-archive"] == ("~/git/gmail-archive", "bbbbbbb")
+    assert got["gmail-archive@ccccccc"] == ("~/git/gmail-archive", "ccccccc9")
 
 
 def test_two_commits_for_one_repo_is_refused(tmp_path):

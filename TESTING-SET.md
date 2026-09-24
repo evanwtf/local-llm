@@ -346,7 +346,8 @@ three other lineages.
 
 ## Tasks
 
-Fifteen defined, in three classes. The exact prompt for each is published in
+Fifteen in the default matrix, in three classes, plus a fourth class that runs
+only when asked for. The exact prompt for each is published in
 [`benchmarks/agent/PROMPTS.md`](benchmarks/agent/PROMPTS.md), generated from
 the file the harness reads, with a test that fails if the two drift.
 
@@ -355,6 +356,7 @@ the file the harness reads, with a test that fails if the two drift.
 | **Excision** (Python) | 8 | Find your way around unfamiliar code. One function body deleted; the repo's own suite is the only oracle |
 | **Excision** (Swift) | 5 | The same, off the model's comfort ground — and a compile step Python cannot fail at. **macOS only** — `monitor` is an AppKit desktop app, so `swift test` is not an oracle off a Mac |
 | **Script** | 2 | Empty directory, produce a working CLI. Trivial logic, real boilerplate, almost no variance |
+| **Replay** (Python) | 7 | Rebuild a real gmail-archive feature commit, 37 to 583 reverted lines across 1 to 9 files, from its own tests (#714). **Not in the default matrix**: run with `--replay --targets sandbox`. See [METHODOLOGY](benchmarks/agent/METHODOLOGY.md#replay-tasks-714) |
 
 Script tasks vary 1.0–2.1× and are the fair way to compare stacks. Excision
 tasks are noisier and closer to real work.
