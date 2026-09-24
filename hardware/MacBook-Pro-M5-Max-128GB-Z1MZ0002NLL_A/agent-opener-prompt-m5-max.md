@@ -56,6 +56,7 @@ which task" table before each task.
 |---|---|---|
 | sleep until the next tick | `ScheduleWakeup` (`/loop` dynamic mode) | a bounded wait with a deadline, then re-enter §3 |
 | wait on a long job | `Bash run_in_background` and its exit notification | a background process; poll its exit status with a deadline |
+| the 30-minute heartbeat | `/loop 30m <heartbeat prompt>` (a `CronCreate` job), plus a `Bash run_in_background` `sleep 1860` backstop | a bounded wait to the next :00 or :30, then §3a |
 | find a peer on the M5 Max itself | `ListAgents` (local rows only) and `scripts/machine_state.py` | `scripts/machine_state.py`; `ps` for agent processes |
 | a second opinion on a design or review | `codex exec` with the prompt on stdin, read-only | a Claude session, or skip and say so |
 
@@ -247,9 +248,17 @@ A red `main` or a PR left BEHIND gets fixed as on any tick (§3c).
 
 ### Step 10. Open for service
 
-Send the first heartbeat (§3a). Add one line per step: what it found and what
-you fixed. If there was a closer log, name it, and say which of its items you
-took up, which were already done, and which you dropped and why.
+**Arm the heartbeat loop before anything else in this step** (§3, "The
+heartbeat schedule"). In Claude Code, invoke `/loop` with this input, verbatim:
+
+```text
+30m Send the §3a heartbeat for the M5 Max local-llm operator session as its own final message: first line "<`TZ=America/New_York date '+%Y-%m-%dT%H:%M:%S%z'`> — Currently on GPU: <what> (issue #N)", then bullets for in flight (trial count from the run log in ~/.local-llm-bench/logs/), ETA, next, GPU, power, thermal (scripts/mac_dash.py), CPU (top), disk free (df -h ~), CI/PRs. Say so if the gap since the last heartbeat exceeds 35 minutes. Then continue the autonomous loop.
+```
+
+Then arm the backstop timer, and send the first heartbeat (§3a). Add one line
+per step: what it found and what you fixed. If there was a closer log, name
+it, and say which of its items you took up, which were already done, and which
+you dropped and why.
 
 Then read `AGENTS.md`, `docs/agent-workflow.md`, `docs/peer_agents.md`,
 `docs/m5max-runbook.md`, and `docs/measurement-discipline.md`. Run
@@ -280,11 +289,20 @@ Then read `AGENTS.md`, `docs/agent-workflow.md`, `docs/peer_agents.md`,
   pinned run. An untracked file sets `harness_dirty` on every row and voids the
   run at read-out; a logs-only commit once killed 7 of 8 sweeps. Stage edits
   outside the repo and apply them after the run reports.
+- **The sweep scripts write into the checkout.** `upstream_sweep.py`,
+  `hf_sweep.py` and `verify_posts.py` each write a log under `logs/sweeps/`,
+  which is not gitignored. During a run, move those logs out of the tree as soon
+  as the script exits. `harness_dirty` is stamped once, at batch launch, but a
+  stray file still dirties the next batch. Skip `preflight.py` during a run: its
+  smoke test loads the GPU.
 - One run at a time. `preflight.py` owns the lock
   (`~/.local-llm-bench/run-lock.json`); `scripts/machine_claim.py` records
   intent.
 - **Never drive the screen.** The operator uses this MacBook while you run: no
   synthetic clicks or drags, no window moves, no `set frontmost`. Ask first.
+  That includes app updates: Ollama updates from `/Applications/Ollama.app`,
+  not the CLI (`docs/m5max-runbook.md`). Ask the operator for the click, and
+  keep the ask in the heartbeat's **Next** line until it is done.
 - Invent no limits (no "quiet hours", no fan-noise rule). GPU work runs day or
   night; the operator stops a problem.
 - Downloads are allowed while 1.5 TB or more stays free. Weights and containers
@@ -308,11 +326,15 @@ Then read `AGENTS.md`, `docs/agent-workflow.md`, `docs/peer_agents.md`,
 - Claude sessions commit and push to `evanwtf` as `evan-agent[bot]` over
   HTTPS. `~/.claude/settings.json` sets the git environment for this. Do not
   change that configuration.
-- **A live stack A/B freezes every local-llm worktree on the M5 Max.** The
-  pre-commit hook refuses a commit while one holds the run lock. A doc-only
-  change can still land: commit it through the GitHub contents API on a new
-  branch (`gh api -X PUT repos/evanwtf/local-llm/contents/<path>`), then open
-  the PR. That moves no local HEAD, and CI runs the suite. Do not set
+- **Any live run freezes every local-llm worktree on the M5 Max.** The
+  pre-commit hook refuses a commit while a stack A/B holds the run lock, and
+  the no-commit rule above covers every other run. A doc-only change can still
+  land: commit it through the GitHub contents API on a new branch
+  (`gh api -X PUT repos/evanwtf/local-llm/contents/<path>`), then open the PR.
+  That moves no local HEAD, and CI runs the suite. Make the API calls with an
+  `evan-agent` installation token
+  (`GH_TOKEN=$(~/.config/evan-agent/gh_app_token.sh 162860362)`), so the
+  commit is the bot's and GitHub signs it. Do not set
   `LOCAL_LLM_ALLOW_COMMIT_DURING_RUN`.
 - To review a peer's branch, use `git worktree add --detach`; never switch the
   shared tree.
@@ -330,7 +352,8 @@ tick:
   2. a run is live      -> check progress; do not touch the checkout
   3. a run has finished -> read out (§5), post the verdict, land the rows (§6)
   4. the machine is FREE -> pick the next item (§4), preflight, launch
-  5. heartbeat if 30 min have passed since the last one (§3a)
+  5. the heartbeat runs on the /loop job's clock (§3a); on a backstop wake,
+     check that one went out in the last 35 min
   6. schedule the next tick: while a run is live, its next ETA checkpoint
      (about 20-30 min as a fallback); while idle, start work instead of sleeping
 ```
@@ -341,32 +364,46 @@ process exists. A gate refusal fails every sweep in minutes. On 2026-09-19 the
 #158 A/B exited 8 of 8 at 00:35 on a preflight refusal. Nobody read the exit,
 and the GPU sat idle until 06:42.
 
-**Your heartbeat schedule dies with the session.** A `CronCreate` job is
-session-only, so a restart or a compaction that restarts the session loses
-it. After any restart, run `CronList` and recreate the heartbeat if it is
-gone. On 2026-09-19 the job was lost at about 00:20, and there was no
-heartbeat until 06:42.
+**The heartbeat schedule.** The heartbeat runs on its own clock, not on your
+turns: every 30 minutes, whatever else you have posted in between (the
+operator's rule, 2026-09-24).
 
-**Do not trust the internal scheduler alone.** The operator reported on
-2026-09-23 that heartbeats built on the Claude Code internal scheduler
-(`CronCreate`, `ScheduleWakeup`, `/loop`) have been flaky, and may need system
-cron. Until a system-cron heartbeat exists
-([#704](https://github.com/evanwtf/local-llm/issues/704)), give the heartbeat a
-second wake path that the scheduler does not own: a `Bash run_in_background`
-timer (`sleep 1800`) re-invokes the session when it exits. Re-arm the timer at
-each heartbeat. Compare each heartbeat's time with the previous one, and say so
-when the gap is over 35 minutes.
+- **Primary: the `/loop 30m` job** armed in §1, step 10. It is a `CronCreate`
+  job, so it fires at :00 and :30 with up to about 5 minutes of jitter, and
+  **only between tool calls**. Keep every foreground command under about two
+  minutes. Put a long wait (a PR, a run, a download) in `Bash
+  run_in_background`, so a tick is never held behind it.
+- **It dies with the session.** A restart, or a compaction that restarts the
+  session, loses it. After any restart, run `CronList` and re-arm it if it is
+  gone. On 2026-09-19 the job was lost at about 00:20, and there was no
+  heartbeat until 06:42.
+- **Backstop: a `Bash run_in_background` timer** (`sleep 1860`). It re-invokes
+  the session when it exits. When it fires, check whether the loop already sent
+  a heartbeat inside the last 35 minutes. If it did, only re-arm the timer; if
+  it did not, send the heartbeat now and say the loop missed.
+- **System cron is not used.** On 2026-09-24 the permission classifier refused a
+  cron job that types into the session's own tmux pane, and `crontab` then hung
+  on a macOS permission prompt. The operator dropped it (#704).
+- Compare each heartbeat's time with the previous one, and say so when the gap
+  is over 35 minutes.
 
 ### 3a. Heartbeat — every 30 minutes or sooner, idle included
 
-Send it to the operator, in chat, as **regular text**. Do not put it in a code
-block or any other preformatted text (the operator's rule, 2026-09-23). The
-first line is a plain sentence. Each other field is one bullet:
+Send it to the operator, in chat, as **regular text**, and make it **the last
+message of the turn**. Text written between tool calls may never reach the
+operator: on 2026-09-24 they saw none of three heartbeats sent that way. Do not
+put it in a code block or any other preformatted text (the operator's rule,
+2026-09-23).
 
-Currently on GPU: <what> (issue #N). This is always the first line; "idle"
-counts.
+The first line is a plain sentence that **starts with the timestamp**. Without
+it the operator sees a text stream with no idea when anything was posted (the
+operator's rule, 2026-09-24):
 
-- **Local time:** <from `date` this tick, America/New_York>
+<`date` this tick, America/New_York> — Currently on GPU: <what> (issue #N).
+"idle" counts.
+
+Each other field is one bullet:
+
 - **In flight:** <task, issue #, progress, e.g. "sweep 3/4, 41/60 trials">
 - **ETA:** <local time, or "none">
 - **Next:** <the next queue item, issue #, and why it is next>
@@ -374,17 +411,21 @@ counts.
 - **Power:** <input W>, <SoC W>
 - **Thermal:** <GPU °C>, <CPU °C>, fans <RPM> / <RPM>
 - **CPU:** <user % + system %>
+- **Disk:** <free space on the data volume>, and whether it is under the
+  1.5 TB download threshold (§2)
 - **CI / PRs:** <last runs; open PRs, from this tick's output>
 
 Where each value comes from:
 
-- **Local time:** run `date '+%Y-%m-%dT%H:%M:%S%z'` on this tick. Never infer a
-  time, and never carry one over from an earlier tick.
+- **Timestamp:** run `TZ=America/New_York date '+%Y-%m-%dT%H:%M:%S%z'` on this
+  tick. Never infer a time, and never carry one over from an earlier tick.
 - **GPU, power, thermal:** `uv run python scripts/mac_dash.py`. It reads
   Prometheus, so it needs no root and does not disturb a run. The monitor app's
   CSVs under `~/Library/Logs/monitor/` stopped updating on 2026-09-14; do not
   quote them.
 - **CPU:** `top -l 1 -n 0 | grep 'CPU usage'`.
+- **Disk:** `df -h ~`, the `Avail` column. It reads the data volume that holds
+  `~/models`.
 - **Current task and ETA:** the run's own log. Count finished trials and
   extrapolate from the elapsed time. Say how loose the estimate is: a
   1,800 s timeout makes one trial cost 30 minutes.
