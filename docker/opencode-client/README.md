@@ -17,6 +17,7 @@ Verified builds:
 | arch | built | opencode | uv | python | git |
 |---|---|---|---|---|---|
 | `aarch64` | 2026-09-20 | 1.18.31 | 0.12.13 | 3.14.4 | 2.53.0 |
+| `x86_64` | 2026-09-24 | 1.18.32 | 0.12.13 | 3.14.4 | 2.53.0 |
 
 ## bwrap needs real privileges in here, and that is the whole security story
 
