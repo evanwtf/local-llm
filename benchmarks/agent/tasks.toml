@@ -572,6 +572,9 @@ codex_profile = "qwen36coding"
 # opencode.json, which is NOT in git.
 aider_model = "openai/qwen3.6:27b-coding-mxfp8"
 opencode_model = "ollama/qwen3.6:27b-coding-mxfp8"
+# #707: Unreal Agent, through its native `ollama` provider (Responses API).
+unreal_provider = "ollama"
+unreal_model = "qwen3.6:27b-coding-mxfp8"
 context_tokens = 262144
 
 # The GGUF build of the same coding-tuned weights. Exists because the mxfp8 and

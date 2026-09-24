@@ -2484,3 +2484,163 @@ def test_clean_env_keeps_everything_that_is_not_shell_state(monkeypatch):
     got = run.clean_env()
     assert "UV_PROJECT_ENVIRONMENT" not in got
     assert got["LOCAL_LLM_SERVER_HOST"] == "srv"
+
+
+# --- #707: the Unreal Agent client -------------------------------------------
+#
+# Event shapes are from a real unreal-agent-runner b7c9bf1 session against
+# Ollama 0.34.3 (one Bash call, two model turns), trimmed to the fields read.
+
+_UNREAL_EVENTS = [
+    {"Sequence": 1, "Kind": "input", "Data": {"Kind": "control"}},
+    {"Sequence": 4, "Kind": "turn", "Data": {"ID": "t1"}},
+    {
+        "Sequence": 5,
+        "Kind": "model_response",
+        "Data": {
+            "TurnID": "t1",
+            "Response": {
+                "Stop": "complete",
+                "Usage": {
+                    "InputTokens": 803,
+                    "CachedInputTokens": 0,
+                    "OutputTokens": 57,
+                    "ReasoningTokens": 0,
+                },
+                "Failure": None,
+            },
+        },
+    },
+    {
+        "Sequence": 6,
+        "Kind": "tool_call_status",
+        "Data": {"CallID": "call_a", "Status": {"Error": ""}},
+    },
+    {
+        "Sequence": 7,
+        "Kind": "tool_call_status",
+        "Data": {"CallID": "call_a", "Status": {"Error": ""}},
+    },
+    {
+        "Sequence": 9,
+        "Kind": "model_response",
+        "Data": {
+            "TurnID": "t2",
+            "Response": {
+                "Stop": "complete",
+                "Usage": {
+                    "InputTokens": 879,
+                    "CachedInputTokens": 861,
+                    "OutputTokens": 29,
+                    "ReasoningTokens": 4,
+                },
+                "Failure": None,
+            },
+        },
+    },
+]
+
+
+def _unreal_stdout(events) -> str:
+    return "\n".join(json.dumps(e) for e in events) + "\n"
+
+
+def test_unreal_parse_counts_turns_and_peaks_input() -> None:
+    row = run.unreal_parse(_unreal_stdout(_UNREAL_EVENTS))
+    assert row["num_turns"] == 2
+    assert row["input_tokens"] == 879  # the peak, not the 1682 sum
+    assert row["cache_read_input_tokens"] == 861
+    assert row["output_tokens"] == 86
+    assert row["reasoning_tokens"] == 4
+    # Two status events for one call: one tool call, not two.
+    assert row["tool_items"] == 1
+    assert row["tool_errors"] == 0
+    assert row["stop_reason"] == "complete"
+    assert row["agent_error"] is False
+
+
+def test_unreal_parse_flags_a_failed_turn_and_a_failed_call() -> None:
+    events = json.loads(json.dumps(_UNREAL_EVENTS))
+    events[2]["Data"]["Response"]["Failure"] = {"Message": "boom"}
+    events[4]["Data"]["Status"]["Error"] = "exit 1"
+    row = run.unreal_parse(_unreal_stdout(events))
+    assert row["agent_error"] is True
+    assert row["tool_errors"] == 1
+
+
+def test_unreal_parse_refuses_a_stream_with_no_model_turn() -> None:
+    with pytest.raises(json.JSONDecodeError):
+        run.unreal_parse(_unreal_stdout(_UNREAL_EVENTS[:2]) + "not json\n")
+
+
+def _unreal_backend() -> dict:
+    return {
+        "model": "qwen3.6:27b-coding-mxfp8",
+        "base_url": "http://127.0.0.1:11434",
+        "auth_token": "ollama",
+        "context_tokens": 262144,
+        "unreal_provider": "ollama",
+        "unreal_model": "qwen3.6:27b-coding-mxfp8",
+    }
+
+
+def test_unreal_argv_keeps_state_out_of_the_worktree(tmp_path) -> None:
+    wt = tmp_path / "agent-bench-x-qwen36coding-1"
+    wt.mkdir()
+    argv = run.unreal_argv({"prompt": "go"}, _unreal_backend(), wt)
+    assert argv[0] == str(run.UNREAL_RUNNER)
+    assert argv[argv.index("-workspace") + 1] == str(wt)
+    for flag in ("-log-directory", "-session-directory"):
+        path = pathlib.Path(argv[argv.index(flag) + 1])
+        assert wt not in path.parents, f"{flag} would land in solution_patch"
+    request = json.loads(argv[-1])
+    assert request == {
+        "prompt": "go",
+        "model": "qwen3.6:27b-coding-mxfp8",
+        "thinking_level": "high",
+    }
+
+
+def test_unreal_argv_refuses_a_workspace_env_file(tmp_path) -> None:
+    (tmp_path / ".env").write_text("UNREAL_HARNESS_LLM_MODEL=other\n")
+    with pytest.raises(SystemExit, match=".env"):
+        run.unreal_argv({"prompt": "go"}, _unreal_backend(), tmp_path)
+
+
+def test_unreal_argv_refuses_without_a_model_or_worktree(tmp_path) -> None:
+    backend = _unreal_backend()
+    with pytest.raises(SystemExit):
+        run.unreal_argv({"prompt": "go"}, backend, None)
+    del backend["unreal_model"]
+    with pytest.raises(SystemExit, match="unreal_model"):
+        run.unreal_argv({"prompt": "go"}, backend, tmp_path)
+
+
+def test_agent_env_points_unreal_at_the_backend() -> None:
+    env = run.agent_env(_unreal_backend())
+    assert env["UNREAL_HARNESS_LLM_PROVIDER"] == "ollama"
+    assert env["UNREAL_HARNESS_LLM_BASE_URL"] == "http://127.0.0.1:11434/v1"
+    assert env["UNREAL_HARNESS_LLM_MODEL"] == "qwen3.6:27b-coding-mxfp8"
+
+
+def test_agent_env_sets_no_unreal_vars_for_other_backends() -> None:
+    backend = _unreal_backend()
+    del backend["unreal_provider"]
+    assert not any(k.startswith("UNREAL_HARNESS_") for k in run.agent_env(backend))
+
+
+_GO_VERSION_M = """\
+/x/unreal-agent-runner: go1.27.1
+\tpath\tgithub.com/unreallabsai/unreal-agent/cmd/unreal-agent-runner
+\tbuild\tvcs=git
+\tbuild\tvcs.revision=b7c9bf1c5c2fa4127255c07727a7c8413e23944a
+\tbuild\tvcs.time=2026-09-22T16:16:57Z
+\tbuild\tvcs.modified=false
+"""
+
+
+def test_parse_go_buildinfo_names_the_build() -> None:
+    assert run.parse_go_buildinfo(_GO_VERSION_M) == "unreal-agent-runner b7c9bf1"
+    dirty = _GO_VERSION_M.replace("modified=false", "modified=true")
+    assert run.parse_go_buildinfo(dirty) == "unreal-agent-runner b7c9bf1-dirty"
+    assert run.parse_go_buildinfo("no build info") is None
