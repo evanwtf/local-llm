@@ -169,6 +169,9 @@ EXPECTED_SKIPS = (
     r".+/git/(gmail-archive|monitor) not checked out",
     r"script task: nothing is excised from a repo",
     r"script task: the prompt names no repository file",
+    # #714: a replay task reverts whole files, so the excision check does not
+    # apply; test_a_replay_task_reverts_what_its_commit_touched covers it.
+    r"replay task: nothing is excised from a repo",
     r"IOKit thermal sensors are macOS-only; there is no Linux equivalent to read",
     r"nvidia-smi is not installed; there is no GPU thermal source to read",
     r"gmail-archive at the pinned commit, and uv",

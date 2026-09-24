@@ -56,10 +56,14 @@ def test_every_task_is_counted(doc, backends):
     tasks = tomllib.loads(CONFIG.read_text())["task"]
     swift = [t for t in tasks if t["name"].startswith("swift-")]
     script = [t for t in tasks if t["name"].startswith("script-")]
-    python_excision = [t for t in tasks if t not in swift and t not in script]
+    replay = [t for t in tasks if t.get("kind") == "replay"]
+    python_excision = [
+        t for t in tasks if t not in swift and t not in script and t not in replay
+    ]
     assert f"| **Excision** (Python) | {len(python_excision)} |" in doc
     assert f"| **Excision** (Swift) | {len(swift)} |" in doc
     assert f"| **Script** | {len(script)} |" in doc
+    assert f"| **Replay** (Python) | {len(replay)} |" in doc
 
 
 def test_the_cutover_timestamp_matches_the_archive_note(doc):
