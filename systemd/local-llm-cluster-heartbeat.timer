@@ -1,0 +1,14 @@
+# #691: every 30 minutes, off the :00/:30 marks. Persistent=true posts a missed
+# tick after a reboot or suspend instead of skipping it silently.
+[Unit]
+Description=Post the two-Spark cluster heartbeat every 30 minutes
+Documentation=https://github.com/evanwtf/local-llm/issues/691
+
+[Timer]
+OnCalendar=*-*-* *:07,37:00
+Persistent=true
+AccuracySec=30s
+Unit=local-llm-cluster-heartbeat.service
+
+[Install]
+WantedBy=timers.target
