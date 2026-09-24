@@ -117,7 +117,11 @@ in the first heartbeat, work single-node items, and do not pretend otherwise.
 **Verify SSH by the exact names a launcher will use.** The fabric addresses are
 separate host identities from the LAN name, each with its own `known_hosts`
 entry, in **both** directions. A 157 GiB download once finished and then died
-instantly on `Host key verification failed` at the worker step.
+instantly on `Host key verification failed` at the worker step. Check every
+name: the worker's LAN name, its CX7 name (`spark-b-cx7`) and both fabric
+addresses, and the reverse set from the worker. Accept a missing key only
+after comparing it with the host's own key read over a name that already works
+(`ssh-keyscan -t ed25519 <name>` against `/etc/ssh/ssh_host_ed25519_key.pub`).
 
 ### Step 2. Did the power go out?
 
@@ -184,6 +188,13 @@ gh issue list --label wip --state open            # someone's claiming comment
 The lock lives on the head. A lock naming a job that step 2 showed is gone is
 stale — clear it and say so.
 
+**A remote-client run does not take the head's lock.** The harness runs in the
+client container on the Core i3-7100, and its lock dies with that container
+(#680, finding 6), so `machine_state.py` on the head reads FREE mid-run. Before
+launching trials, claim the head as a session:
+`LOCAL_LLM_AGENT=… uv run python scripts/machine_claim.py acquire --what "<issue> <model> remote-client trials" --expected-finish HH:MM`,
+and `release` it when the pair is free again.
+
 ### Step 4. Servers
 
 ```sh
@@ -193,6 +204,13 @@ ssh <peer> 'docker ps --format "{{.Names}}\t{{.Status}}"'
 systemctl is-active earlyoom && systemctl is-enabled earlyoom
 ssh <peer> 'systemctl is-active earlyoom 2>/dev/null || echo "not installed"'
 ```
+
+**Launch every server as a `systemd-run --user --property=KillMode=process`
+unit**, with its log appended to a file. A background shell of the session is
+killed by the harness's memory reaper once a model is resident, and a plain
+transient unit kills the recipe's `setsid` helpers (its memory guard) when the
+launcher exits (#691). After the launcher exits, confirm the recipe's memory
+guard is alive on **both** nodes, if it has one.
 
 **A stale worker container on node B holds its whole GPU** and makes the next
 launch fail in a way that looks like a fabric problem. Stop it with the
@@ -218,6 +236,12 @@ uv run python scripts/machine_state.py
 
 A run that the lock claims but no process backs is finished or dead. Read out
 what it produced before deciding which.
+
+Trials run on the **client**, not here. Their verdicts are in
+`~/bench-logs/client-container.log` on the Core i3-7100 (one
+`<task>-<backend>-opencode-<n>: PASS|FAIL in N s` line per trial). A live run
+is a `docker ps` container there, named at launch with `--name`. Rows
+accumulate in **the client checkout's** ledger file until they are landed (§6).
 
 ### Step 6. Worktrees, stray files, and stashes
 
@@ -289,25 +313,39 @@ uv run python scripts/make_next.py --platform nvidia
 
 ### Step 10. Open for service
 
-**Arm the heartbeat loop before anything else in this step.** Do not carry the
-30-minute cadence yourself — you will drift. This was measured: a session
-running this prompt posted its first three heartbeats 57 and 40 minutes apart
-while believing it was on 30, and only noticed when the operator said so.
+**The heartbeat is posted by a `systemd --user` timer, not by this session.**
+A session's own scheduler silently skips ticks: a `/loop 30m` job missed four
+in one evening while still registered (#691), and a session that tracked the
+cadence by hand drifted to 57-minute gaps. So `local-llm-cluster-heartbeat.timer`
+runs `scripts/cluster_heartbeat.py` at :07 and :37. It reads every §3a field
+fresh on both nodes and posts to the issue named in
+`~/.local-llm-bench/heartbeat.json`.
+
+```sh
+systemctl --user is-enabled local-llm-cluster-heartbeat.timer   # install steps are in the unit file
+journalctl --user -u local-llm-cluster-heartbeat.service -n 3    # the last post succeeded
+uv run python scripts/cluster_heartbeat.py --set '{"issue": N, "task": "...", "next": "...", "notes": ["..."]}'
+uv run python scripts/cluster_heartbeat.py --dry-run             # what the next post will say
+```
+
+**Your half is the state file:** keep `task` (issue, model slug, N/M trials,
+start, ETA), `next`, and `notes` (what changed, with counts read from the log,
+and any blocker) current. Notes older than 45 minutes are flagged in the post,
+which is how a stuck session shows. Then arm a **work tick** for yourself, which
+does not post:
 
 ```
-/loop 30m Post the cluster heartbeat to the issue for the work currently on the
-GPU, in the format §3a specifies. Read every field fresh on BOTH nodes — never
-carry one over from the last tick. If a run has finished, read it out, land the
-rows in the cluster ledger, post the verdict, and start the next thing rather
-than idling.
+/loop 30m Cluster work tick: confirm the heartbeat timer's last run succeeded
+(post manually only if it failed); read trial progress fresh from the client
+log and both nodes; update heartbeat.json via cluster_heartbeat.py --set; if a
+run has finished, read it out, land the rows, post the verdict, and start the
+next thing.
 ```
 
-That schedules a recurring job and fires the first one immediately. It expires
-after 7 days and dies with the session, so re-arm it in every opener — which is
-why it is a step here rather than a note.
-
-Then post that first heartbeat with what steps 1–9 found and fixed, the fabric
-numbers from step 2b, and the task you are launching now.
+Offset it from the timer (for example `2,32 * * * *`) so the state is fresh
+when the timer posts. Then post the **first** heartbeat yourself, with what
+steps 1–9 found and fixed, the fabric numbers from step 2b, and the task you
+are launching now.
 
 ## 2. Hard rules — never break these
 
@@ -382,6 +420,35 @@ tick:
 A finished task is not a stopping condition. "Until {DEADLINE}" means work in
 flight at that time finishes, then you ask the operator.
 
+**One arm, start to finish** (the shape every run today takes):
+
+1. **Launch** the recipe as a systemd unit (step 4). Wait on the API with a
+   watcher that matches failures as well as success. Filter out the
+   transformers `min_frames`/`max_frames` docstring `[ERROR]` lines: they are
+   noise.
+2. **Pre-trial checks:**
+   - reasoning effort `low` appears in the server's **argv**, and any
+     arm-specific flags show in `docker inspect` on **both** containers;
+   - three plain requests end in `finish_reason: stop` with content;
+   - a long decode (about 6,000 tokens) completes across the pair;
+   - `MemAvailable` is recorded on both nodes, and `earlyoom` is active on both.
+
+   If KV memory is short, vLLM names the gap ("estimated maximum model length is
+   …"). Raise that arm's GPU memory utilization through a per-launch override,
+   not the shared `.env`, and record the value in its backend.
+3. **Facts and client:** run `server_facts.py --backend <name> --cluster-peer
+   spark-b-cx7` and copy the facts file to the client. On the client, `git pull`
+   and `uv run python scripts/sync_sandbox_targets.py`, then start
+   `scripts/client_container.py --server dgx.internal --facts … --name <run> --
+   --backend <name> --client opencode --trials 3 --targets sandbox` (add
+   `--replay` or `--replay-hard` for those sets), detached with `setsid nohup`.
+4. **Watch** by polling the client log over ssh, and report each new verdict line
+   and the container's exit. Two traps, both hit: a `Monitor` expires after 30
+   minutes, so re-arm it; and `grep -c` exits non-zero on zero matches, so add
+   `|| true` or the exit check reads as an ssh failure and loops forever. A
+   watcher that misses the exit left the pair idle for 24 minutes.
+5. **Land and read out** between runs (§6), then launch the next arm.
+
 ### 3a. Heartbeat — every 30 minutes, idle included
 
 Open with the GPU occupant line, then the header, then the bullets. **A
@@ -405,10 +472,9 @@ The fields and their sources are unchanged — only the presentation. Keep the
 GPU-occupant line first and on its own; it is the one line a reader scanning a
 long issue needs.
 
-**The cadence is the loop's job, not yours** (§1 step 10). Tracking 30 minutes
-by hand across long tool calls does not work; a session that tried drifted to
-57 minutes without noticing. If you find yourself computing whether a tick is
-due, the loop is not armed — arm it.
+**The cadence is the timer's job, not yours** (§1 step 10). `cluster_heartbeat.py`
+builds the header from the sources below; you supply `task`, `next` and `notes`.
+If you find yourself computing whether a tick is due, check the timer.
 
 Every field, and where it comes from. Guessing any of them is worse than
 omitting the tick — read them fresh, every tick, on both nodes.
@@ -488,6 +554,11 @@ peer that pushed and stopped does not know CI went red.
 
 ## 5. Measurement discipline
 
+- **A run that overlapped a download, a worker copy, or any other bulk transfer
+  on either node is void** (operator, 2026-09-24). Keep its rows out of the
+  ledger, say so on the issue, and rerun it on a clean launch. Plan downloads
+  up front (step 7).
+
 - **Three datapoints minimum.** One run concludes nothing. Do not post a claim,
   retraction or recommendation on n=1.
 - Report speed as time taken ("took 68% of the time: 306 s vs 452 s"), never
@@ -524,6 +595,13 @@ repaired afterwards: nothing in it records the topology.
   happens to be plugged in.
 - A backend that needs two nodes carries tier `gb10-spark-x2`; a single-node
   backend keeps `gb10-spark`. Neither inherits from the other.
+- **Remote-client rows land from the head, between runs.** The rows are in the
+  client checkout's ledger:
+  `git diff -U0 hardware/Cortex-X925-128GB-GB10-x2/results.jsonl | grep '^+{' | cut -c2-`.
+  Copy them out, restore the client's file (`git checkout --`), append them in a
+  worktree off `origin/main` on the head, regenerate, and open a PR. The push
+  hook runs `pytest -m fast`, and no test runs during a measurement, so land in
+  the gap before the next batch starts.
 - **Any change to a ledger regenerates `docs/results.md` in the same commit**
   (`uv run python benchmarks/agent/splice_tables.py`), and `pytest` runs before
   every push. Run `pytest` **after** `git add` — the machine-registry and
@@ -541,10 +619,11 @@ repaired afterwards: nothing in it records the topology.
 - **Fan RPM is missing on node B** until a MOK-signed `nvfanread` is installed
   (`evanwtf/dgx-spark-fan-override#14`). `node_hwmon_fan_rpm` absent there is
   expected, not a fault.
-- **The two nodes may run different kernels.** `apt-get upgrade` never installs
-  a new kernel package; `full-upgrade` does. Check
-  `apt-cache policy linux-nvidia-hwe-24.04` on both before blaming a version
-  difference for a behaviour difference.
+- **Both nodes run kernel 7.0.0-1019-nvidia with `kho=off`** (checked
+  2026-09-24). `apt-get upgrade` never installs a new kernel package, but
+  `full-upgrade` does, and one that moves the NVIDIA driver leaves the GPU dead
+  until a reboot. Check `apt-cache policy linux-nvidia-hwe-24.04` on both before
+  blaming a version difference for a behaviour difference.
 
 ## 8. When to stop and ask the operator
 
