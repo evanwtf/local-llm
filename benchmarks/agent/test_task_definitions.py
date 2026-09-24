@@ -95,7 +95,8 @@ def test_every_task_target_is_excisable(task):
     if task.get("kind") == "script":
         pytest.skip("script task: nothing is excised from a repo")
     if replay.is_replay(task):
-        pytest.skip("replay task: test_a_replay_task_reverts_what_its_commit_touched")
+        # Checked by test_a_replay_task_reverts_what_its_commit_touched.
+        pytest.skip("replay task: nothing is excised from a repo")
     if not _available(task):
         pytest.skip(f"{_repo(task)} not checked out")
     keep_doc = task.get("keep_docstring", True)
