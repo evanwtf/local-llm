@@ -1,0 +1,57 @@
+#!/usr/bin/env python3
+"""`swift` for an agent inside the harness sandbox (#719).
+
+SwiftPM compiles Package.swift under its own `sandbox-exec`, and macOS
+refuses to apply a sandbox inside a sandbox. Under the harness's confinement
+(#54) every `swift build`, `swift test` and `swift run` failed with "Invalid
+manifest ... sandbox_apply: Operation not permitted". That error is in 238 of
+271 OpenCode Swift transcripts. The agent then spent its time working around a
+test runner the harness broke, and that time landed in wall_seconds.
+
+This shim adds `--disable-sandbox` to those three subcommands and execs the
+real toolchain, found on PATH after this directory. The harness sandbox still
+confines the agent; only SwiftPM's inner sandbox is dropped. Every other
+invocation passes through unchanged. Stdlib only: it must run under whatever
+python3 the trial's PATH offers.
+"""
+
+from __future__ import annotations
+
+import os
+import pathlib
+import sys
+
+NESTED = ("build", "test", "run")
+FLAG = "--disable-sandbox"
+
+
+def rewrite(args: list[str]) -> list[str]:
+    """Arguments for the real swift: the flag right after a SwiftPM subcommand."""
+    if args and args[0] in NESTED and FLAG not in args:
+        return [args[0], FLAG, *args[1:]]
+    return list(args)
+
+
+def real_swift(path: str, here: pathlib.Path) -> str | None:
+    """The first `swift` on `path` that is not in this shim's directory."""
+    for entry in path.split(os.pathsep):
+        if not entry or pathlib.Path(entry).resolve() == here:
+            continue
+        candidate = pathlib.Path(entry) / "swift"
+        if candidate.is_file() and os.access(candidate, os.X_OK):
+            return str(candidate)
+    return None
+
+
+def main() -> int:
+    here = pathlib.Path(__file__).resolve().parent
+    target = real_swift(os.environ.get("PATH", ""), here)
+    if target is None:
+        sys.stderr.write("swift shim (#719): no real swift on PATH\n")
+        return 127
+    os.execv(target, [target, *rewrite(sys.argv[1:])])
+    return 0  # not reached
+
+
+if __name__ == "__main__":
+    sys.exit(main())

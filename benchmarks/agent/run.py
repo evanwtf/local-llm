@@ -1518,9 +1518,31 @@ def clean_env() -> dict[str, str]:
     return env
 
 
+#: #719: `swift` for the agent, first on the trial PATH on macOS. SwiftPM
+#: sandboxes its own manifest build with sandbox-exec, which macOS refuses
+#: inside the harness's sandbox-exec; the shim adds `--disable-sandbox`.
+SHIM_DIR = HERE.resolve() / "shims"
+SWIFT_SHIM = sys.platform == "darwin"
+
+
+def with_swift_shim(path: str, worktree=None) -> str:
+    """`path` with SHIM_DIR in front, after the trial's own venv if it leads.
+
+    The venv holds no `swift`, so the order between them does not matter for
+    the shim; keeping the venv first keeps #579's rule intact.
+    """
+    parts = [p for p in path.split(os.pathsep) if p and p != str(SHIM_DIR)]
+    venv = str(pathlib.Path(worktree) / ".venv" / "bin") if worktree else None
+    at = 1 if parts and parts[0] == venv else 0
+    parts.insert(at, str(SHIM_DIR))
+    return os.pathsep.join(parts)
+
+
 def agent_env(backend, worktree=None):
     env = clean_env()
     env["PATH"] = trial_path(env.get("PATH", ""), worktree)
+    if SWIFT_SHIM:
+        env["PATH"] = with_swift_shim(env["PATH"], worktree)
 
     # A backend with no base_url is the hosted API -- the reference point the
     # local backends are measured against. Leave the ambient auth alone and
@@ -2962,6 +2984,9 @@ def confinement_record(mechanism, denied, memory_cap_gib):
         # server is outside the sandbox on :8030 (#477).
         "network": "unenforced",
         "memory": f"harness:{memory_cap_gib:.0f}GiB" if memory_cap_gib else "none",
+        # #719: SwiftPM's own sandbox cannot nest inside sandbox-exec, so the
+        # shim drops it. Rows before this key could not run `swift test`.
+        "swiftpm_sandbox": "disabled-by-shim" if SWIFT_SHIM else "default",
     }
 
 

@@ -2644,3 +2644,82 @@ def test_parse_go_buildinfo_names_the_build() -> None:
     dirty = _GO_VERSION_M.replace("modified=false", "modified=true")
     assert run.parse_go_buildinfo(dirty) == "unreal-agent-runner b7c9bf1-dirty"
     assert run.parse_go_buildinfo("no build info") is None
+
+
+# --- #719: the swift shim ----------------------------------------------------
+#
+# SwiftPM's manifest build runs under its own sandbox-exec, which macOS refuses
+# inside the harness's sandbox-exec. The shim adds --disable-sandbox.
+
+
+def _swift_shim():
+    import importlib.machinery
+    import importlib.util
+
+    path = run.SHIM_DIR / "swift"
+    loader = importlib.machinery.SourceFileLoader("swift_shim", str(path))
+    spec = importlib.util.spec_from_loader("swift_shim", loader)
+    module = importlib.util.module_from_spec(spec)
+    loader.exec_module(module)
+    return module
+
+
+def test_swift_shim_is_executable():
+    assert os.access(run.SHIM_DIR / "swift", os.X_OK)
+
+
+def test_swift_shim_adds_the_flag_to_swiftpm_subcommands_only():
+    shim = _swift_shim()
+    assert shim.rewrite(["test"]) == ["test", "--disable-sandbox"]
+    assert shim.rewrite(["build", "-c", "release"]) == [
+        "build",
+        "--disable-sandbox",
+        "-c",
+        "release",
+    ]
+    assert shim.rewrite(["run", "x"]) == ["run", "--disable-sandbox", "x"]
+    # Already there, not a SwiftPM subcommand, or nothing at all: unchanged.
+    assert shim.rewrite(["test", "--disable-sandbox"]) == ["test", "--disable-sandbox"]
+    assert shim.rewrite(["--version"]) == ["--version"]
+    assert shim.rewrite(["-e", "print(1)"]) == ["-e", "print(1)"]
+    assert shim.rewrite([]) == []
+
+
+def test_swift_shim_never_finds_itself(tmp_path):
+    shim = _swift_shim()
+    real = tmp_path / "bin"
+    real.mkdir()
+    (real / "swift").write_text("#!/bin/sh\n")
+    (real / "swift").chmod(0o755)
+    path = os.pathsep.join([str(run.SHIM_DIR), str(real)])
+    assert shim.real_swift(path, run.SHIM_DIR.resolve()) == str(real / "swift")
+    assert shim.real_swift(str(run.SHIM_DIR), run.SHIM_DIR.resolve()) is None
+
+
+def test_with_swift_shim_goes_after_the_trial_venv(tmp_path):
+    venv = str(tmp_path / ".venv" / "bin")
+    got = run.with_swift_shim(f"{venv}:/usr/bin", tmp_path).split(os.pathsep)
+    assert got == [venv, str(run.SHIM_DIR), "/usr/bin"]
+    got = run.with_swift_shim("/usr/bin", tmp_path).split(os.pathsep)
+    assert got == [str(run.SHIM_DIR), "/usr/bin"]
+    # Applied twice, it still appears once.
+    twice = run.with_swift_shim(run.with_swift_shim("/usr/bin"))
+    assert twice.split(os.pathsep).count(str(run.SHIM_DIR)) == 1
+
+
+def test_agent_env_puts_the_shim_on_path_only_when_enabled(monkeypatch, tmp_path):
+    monkeypatch.setattr(run, "harness_venv_bin", lambda: None)
+    monkeypatch.setenv("PATH", "/usr/bin")
+    backend = {"model": "m", "context_tokens": 1}
+    monkeypatch.setattr(run, "SWIFT_SHIM", True)
+    assert str(run.SHIM_DIR) in run.agent_env(backend, tmp_path)["PATH"]
+    monkeypatch.setattr(run, "SWIFT_SHIM", False)
+    assert str(run.SHIM_DIR) not in run.agent_env(backend, tmp_path)["PATH"]
+
+
+def test_confinement_records_the_swiftpm_sandbox(monkeypatch):
+    monkeypatch.setattr(run, "SWIFT_SHIM", True)
+    rec = run.confinement_record("sandbox-exec", ["/x"], 24)
+    assert rec["swiftpm_sandbox"] == "disabled-by-shim"
+    monkeypatch.setattr(run, "SWIFT_SHIM", False)
+    assert run.confinement_record("bwrap", [], None)["swiftpm_sandbox"] == "default"
