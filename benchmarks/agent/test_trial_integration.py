@@ -210,7 +210,13 @@ def test_a_client_that_crashes_before_any_output_is_not_a_model_failure(
         run.CLIENTS,
         "crasher",
         (
-            lambda t, b, w=None: ["python3", "-c", "import os; os.abort()"],
+            # SIGKILL, not os.abort(): on macOS a SIGABRT opens a "Python quit
+            # unexpectedly" dialog on the operator's screen every run (#738).
+            lambda t, b, w=None: [
+                "python3",
+                "-c",
+                "import os, signal; os.kill(os.getpid(), signal.SIGKILL)",
+            ],
             lambda _o, **_: {},
         ),
     )
