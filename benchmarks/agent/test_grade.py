@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import pathlib
+import shutil
 import subprocess
 
 import grade
@@ -204,6 +205,52 @@ def test_a_python_gate_still_applies_to_a_python_tree(worktree):
 def test_an_unknown_tool_is_not_filtered_by_language(tmp_path):
     """Only the tools with a known language are skipped; anything else runs."""
     assert grade.gate_applies("definitely-not-a-tool", tmp_path) is True
+
+
+SWIFT_WARNING = (
+    "\x1b[1m/wt/Sources/X.swift:3:9: \x1b[1;33mwarning: \x1b[1;39minitialization of"
+    " immutable value 'u' was never used\x1b[0;0m\n"
+    "  |         `- \x1b[1;33mwarning: \x1b[1;39minitialization of immutable value\n"
+)
+
+
+def test_the_swift_counter_reads_through_colour_codes():
+    """#46: the compiler colours its output even into a pipe, and the colour
+    codes split ": warning:" so a plain match counted 0."""
+    assert grade._count_swift_warnings(SWIFT_WARNING) == 1
+
+
+def test_the_swift_counter_counts_a_location_once():
+    """SwiftPM can print one warning twice (per target, per caret line)."""
+    assert grade._count_swift_warnings(SWIFT_WARNING * 2) == 1
+
+
+def test_the_swift_counter_ignores_other_lines():
+    assert grade._count_swift_warnings("Build complete! (7.15 sec)\n") == 0
+
+
+def _swift_package(root: pathlib.Path, body: str) -> pathlib.Path:
+    (root / "Sources" / "P").mkdir(parents=True)
+    (root / "Package.swift").write_text(
+        "// swift-tools-version:5.9\nimport PackageDescription\n"
+        'let package = Package(name: "P", targets: [.target(name: "P")])\n'
+    )
+    (root / "Sources" / "P" / "P.swift").write_text(body)
+    subprocess.run(["git", "init", "-q", "-b", "main"], cwd=root, check=True)
+    subprocess.run(["git", "add", "-A"], cwd=root, check=True)
+    return root
+
+
+@pytest.mark.skipif(shutil.which("swift") is None, reason="needs a swift toolchain")
+def test_the_swift_gate_counts_a_real_warning(tmp_path):
+    clean = _swift_package(tmp_path / "a", "public func f() -> Int { 1 }\n")
+    dirty = _swift_package(tmp_path / "b", "public func f() { let u = 1 }\n")
+    assert grade.gates(clean, timeout=300, tools=["swift"]) == {"swift": 0}
+    assert grade.gates(dirty, timeout=300, tools=["swift"]) == {"swift": 1}
+
+
+def test_the_swift_gate_does_not_apply_to_a_python_tree(worktree):
+    assert grade.gate_applies("swift", worktree) is False
 
 
 def test_gates_cannot_change_a_verdict():
