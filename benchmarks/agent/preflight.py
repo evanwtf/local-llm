@@ -65,7 +65,7 @@ logger = logging.getLogger(__name__)
 # undetectable while under-reporting headroom by the size of a model. Add an
 # engine here the moment it can run on this machine, not the moment it earns a
 # row. `mlx-serve` was added for #191 before its first measurement.
-INFERENCE = ("llama-server", "ollama", "ds4-server", "mtplx", "mlx-serve")
+INFERENCE = ("llama-server", "ollama", "ds4-server", "mtplx", "mlx-serve", "sushi")
 
 # The tool shim's script name. The shim is not an inference process, but it
 # knows where the real server lives: its --upstream names the port that a

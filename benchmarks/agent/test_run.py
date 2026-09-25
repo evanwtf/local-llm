@@ -2656,7 +2656,7 @@ def _swift_shim():
     import importlib.machinery
     import importlib.util
 
-    path = run.SHIM_DIR / "swift"
+    path = run.SHIM_SRC / "swift"
     loader = importlib.machinery.SourceFileLoader("swift_shim", str(path))
     spec = importlib.util.spec_from_loader("swift_shim", loader)
     module = importlib.util.module_from_spec(spec)
@@ -2665,7 +2665,7 @@ def _swift_shim():
 
 
 def test_swift_shim_is_executable():
-    assert os.access(run.SHIM_DIR / "swift", os.X_OK)
+    assert os.access(run.SHIM_SRC / "swift", os.X_OK)
 
 
 def test_swift_shim_adds_the_flag_to_swiftpm_subcommands_only():
@@ -2691,9 +2691,9 @@ def test_swift_shim_never_finds_itself(tmp_path):
     real.mkdir()
     (real / "swift").write_text("#!/bin/sh\n")
     (real / "swift").chmod(0o755)
-    path = os.pathsep.join([str(run.SHIM_DIR), str(real)])
-    assert shim.real_swift(path, run.SHIM_DIR.resolve()) == str(real / "swift")
-    assert shim.real_swift(str(run.SHIM_DIR), run.SHIM_DIR.resolve()) is None
+    path = os.pathsep.join([str(run.SHIM_SRC), str(real)])
+    assert shim.real_swift(path, run.SHIM_SRC.resolve()) == str(real / "swift")
+    assert shim.real_swift(str(run.SHIM_SRC), run.SHIM_SRC.resolve()) is None
 
 
 def test_with_swift_shim_goes_after_the_trial_venv(tmp_path):
@@ -2708,6 +2708,7 @@ def test_with_swift_shim_goes_after_the_trial_venv(tmp_path):
 
 
 def test_agent_env_puts_the_shim_on_path_only_when_enabled(monkeypatch, tmp_path):
+    monkeypatch.setattr(run, "SHIM_DIR", tmp_path / "shims")
     monkeypatch.setattr(run, "harness_venv_bin", lambda: None)
     monkeypatch.setenv("PATH", "/usr/bin")
     backend = {"model": "m", "context_tokens": 1}
@@ -2723,3 +2724,37 @@ def test_confinement_records_the_swiftpm_sandbox(monkeypatch):
     assert rec["swiftpm_sandbox"] == "disabled-by-shim"
     monkeypatch.setattr(run, "SWIFT_SHIM", False)
     assert run.confinement_record("bwrap", [], None)["swiftpm_sandbox"] == "default"
+
+
+# --- #743: the agent runs an installed copy, outside every answer tree -------
+
+
+def test_install_shims_copies_them_executable_and_keeps_them_current(tmp_path):
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "swift").write_text("#!/bin/sh\necho one\n")
+    dest = run.install_shims(src, tmp_path / "dest")
+    assert (dest / "swift").read_text() == "#!/bin/sh\necho one\n"
+    assert os.access(dest / "swift", os.X_OK)
+    # An unchanged source leaves the copy alone; a changed one replaces it.
+    before = (dest / "swift").stat().st_mtime_ns
+    run.install_shims(src, dest)
+    assert (dest / "swift").stat().st_mtime_ns == before
+    (src / "swift").write_text("#!/bin/sh\necho two\n")
+    run.install_shims(src, dest)
+    assert (dest / "swift").read_text() == "#!/bin/sh\necho two\n"
+    assert sorted(p.name for p in dest.iterdir()) == ["swift"]
+
+
+def test_the_agent_path_names_no_answer_tree(monkeypatch, tmp_path):
+    """#743: `which swift` printed a path inside this checkout, and the row was
+    excluded as answer exposure. No PATH entry may sit in an answer tree."""
+    monkeypatch.setattr(run, "harness_venv_bin", lambda: None)
+    monkeypatch.setattr(run, "SWIFT_SHIM", True)
+    monkeypatch.setattr(run, "install_shims", lambda *a, **k: run.SHIM_DIR)
+    monkeypatch.setenv("PATH", "/usr/bin:/bin")
+    path = run.agent_env({"model": "m", "context_tokens": 1}, tmp_path)["PATH"]
+    for entry in path.split(os.pathsep):
+        assert not run.ANSWER_TREES.intersection(entry.split("/")), entry
+    assert str(run.SHIM_DIR) in path.split(os.pathsep)
+    assert not run.SHIM_DIR.is_relative_to(run.HERE.resolve().parent.parent)

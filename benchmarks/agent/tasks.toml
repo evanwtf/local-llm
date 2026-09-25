@@ -2870,6 +2870,23 @@ opencode_model = "mlxserve/Qwen3.8-Flash-Next-MLX-Serve-mixed-4-8bit"
 engine = "mlx-serve"
 context_tokens = 100000
 
+# #749: Sushi, @Beamsters1's detached mlx-serve fork, serving the same model as
+# qwen38fnmlxserve with an EXL3-expert "sushi" pack. The author claims KLD 0.063
+# against bf16 in ~64 GiB of GPU memory, against 0.082 in ~70 GiB for the
+# mixed-4-8bit pack above. Built from source at v1.0.2 (`zig build
+# -Doptimize=ReleaseFast`); the weights live in ~/models, which Time Machine
+# skips. Launched with the README's 128 GB flags: `--mtp --kv-quant 8
+# --mtp-head-kv-quant`, the prefix cache in RAM and on disk, `--temp 1`.
+[backend.qwen38fnsushi4]
+description = "Qwen3.8-Flash-Next Sushi-4bpw (EXL3 experts + 8-bit dense) on sushi v1.0.2 built from source at ~/git/sushi, MTP on, kv8 (#749)"
+base_url = "http://127.0.0.1:12345"
+model = "Qwen3.8-Flash-Next-Sushi-4bpw"
+auth_token = "local"
+opencode_model = "sushi/Qwen3.8-Flash-Next-Sushi-4bpw"
+engine = "sushi"
+engine_tree = "~/git/sushi"
+context_tokens = 100000
+
 # --- the first MTP arm that is actually an MTP arm (#151, #39) --------------
 #
 # Measured 2026-09-08: ds4 reaches its Qwen MTP path only at `temperature <=
