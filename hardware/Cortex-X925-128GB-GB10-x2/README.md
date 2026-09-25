@@ -13,7 +13,7 @@ convention.
 | [`docs/dgx-cluster-setup.md`](../../docs/dgx-cluster-setup.md) | setup, verification, and [the numbered gotchas](../../docs/dgx-cluster-setup.md#gotchas--the-full-list) |
 | [`docs/dgx-cluster-howto.md`](../../docs/dgx-cluster-howto.md) | building the pair from scratch, step by step |
 | [`agent-opener-prompt-dgx-cluster.md`](agent-opener-prompt-dgx-cluster.md) | the operating routine for an agent session on the head |
-| [`RECOMMENDATIONS.md`](RECOMMENDATIONS.md) | what to run, a **provisional** ranking |
+| [`RECOMMENDATIONS.md`](RECOMMENDATIONS.md) | what to run: **provisional**, with the rounds done per stack at the top |
 | [`results.jsonl`](results.jsonl) | the two-node ledger (tier `gb10-spark-x2`) |
 
 ## Status, 2026-09-23
