@@ -1521,8 +1521,36 @@ def clean_env() -> dict[str, str]:
 #: #719: `swift` for the agent, first on the trial PATH on macOS. SwiftPM
 #: sandboxes its own manifest build with sandbox-exec, which macOS refuses
 #: inside the harness's sandbox-exec; the shim adds `--disable-sandbox`.
-SHIM_DIR = HERE.resolve() / "shims"
+#:
+#: #743: the source lives in the repo (SHIM_SRC), but the agent runs a copy in
+#: SHIM_DIR, outside every answer tree. On the PATH, a directory inside this
+#: checkout told the agent where the answers are, and `which swift` alone got
+#: a genuine FAIL excluded as answer exposure (#54).
+SHIM_SRC = HERE.resolve() / "shims"
+SHIM_DIR = pathlib.Path.home() / ".local-llm-bench" / "shims"
 SWIFT_SHIM = sys.platform == "darwin"
+
+
+def install_shims(src: pathlib.Path = SHIM_SRC, dest: pathlib.Path | None = None):
+    """Copy every shim in `src` to `dest` (default SHIM_DIR), executable.
+
+    A file is rewritten only when its bytes differ, through a temp file and a
+    rename, so a trial never sees a half-written shim.
+    """
+    dest = SHIM_DIR if dest is None else dest
+    dest.mkdir(parents=True, exist_ok=True)
+    for shim in sorted(src.iterdir()):
+        if not shim.is_file():
+            continue
+        body = shim.read_bytes()
+        target = dest / shim.name
+        if target.is_file() and target.read_bytes() == body:
+            continue
+        tmp = dest / f".{shim.name}.tmp"
+        tmp.write_bytes(body)
+        tmp.chmod(0o755)
+        tmp.replace(target)
+    return dest
 
 
 def with_swift_shim(path: str, worktree=None) -> str:
@@ -1542,6 +1570,7 @@ def agent_env(backend, worktree=None):
     env = clean_env()
     env["PATH"] = trial_path(env.get("PATH", ""), worktree)
     if SWIFT_SHIM:
+        install_shims()
         env["PATH"] = with_swift_shim(env["PATH"], worktree)
 
     # A backend with no base_url is the hosted API -- the reference point the
