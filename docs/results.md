@@ -185,7 +185,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 
 ### Cortex-X925-128GB-GB10-x2
 
-*Generated from `hardware/Cortex-X925-128GB-GB10-x2/results.jsonl` — 384 rows, sha256 956c05651843.*
+*Generated from `hardware/Cortex-X925-128GB-GB10-x2/results.jsonl` — 405 rows, sha256 b39dac101668.*
 
 #### Every stack measured under OpenCode
 
@@ -216,6 +216,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 |---|---|---|---|---|
 | glm53fexl3dual2xrcctx | 21/21 | 216s | 556s | 21.9x |
 | dsv41fexl3dual2xrc | 21/21 | 410s | 998s | 23.7x |
+| qwen38fnfp8dual2xrc | 21/21 | 502s | 1152s | 20.9x |
 
 Seven commits from gmail-archive's history, 60-600 changed lines each. The target repo is public, so a pass may be partly recall; see each row's `replay` record.
 
@@ -232,7 +233,7 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 | dsv41fexl3dual2xrc @ Corei3-7100-16GB+image | 74s |
 | qwen38fnnvfp4dual2xrcflags @ Corei3-7100-16GB+image@10g | 76s |
 | qwen38fnnvfp4dual2xrc @ Corei3-7100-16GB+image@10g | 78s |
-| qwen38fnfp8dual2xrc @ Corei3-7100-16GB+image | 84s |
+| qwen38fnfp8dual2xrc @ Corei3-7100-16GB+image | 83s |
 | glm53fexl3dual2xrcctx @ Corei3-7100-16GB+image | 85s |
 | glm53fexl3dual2xrc @ Corei3-7100-16GB+image@24g | 88s |
 
