@@ -64,6 +64,10 @@ ENGINES: dict[str, dict[str, str]] = {
     # one vLLM venv. `binary_rel` is the console script whose mtime survives a
     # reinstall from the same version; `pkg` names the import to version.
     "vllm": {"binary_rel": "bin/vllm", "pkg": "vllm"},
+    # Sushi (#749) is a detached mlx-serve fork, built from source by zig at a
+    # release tag. A backend names its tree (`engine_tree`), so a row records
+    # the tag's sha and the binary's mtime.
+    "sushi": {"binary_rel": "zig-out/bin/sushi"},
 }
 
 
@@ -137,7 +141,7 @@ def pld_state() -> str:
 
 #: The inference servers whose build identity belongs on a log line, in the
 #: order they are looked for. One is resident at a time on this machine.
-RESIDENT = ("mlx-serve", "ds4-server")
+RESIDENT = ("mlx-serve", "sushi", "ds4-server")
 
 
 def _sha_of_tree(path: pathlib.Path) -> str | None:

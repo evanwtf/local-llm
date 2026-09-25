@@ -1008,3 +1008,12 @@ def test_the_metal_equivalence_report_is_silent_off_macos(monkeypatch, caplog):
     with caplog.at_level("INFO"):
         preflight.report_ds4_equivalence()
     assert "Metal" not in caplog.text
+
+
+def test_a_sushi_server_counts_as_inference():
+    """#749: a resident Sushi server holds GPU memory like mlx-serve does."""
+    ps = (
+        "  PID    RSS ELAPSED COMMAND\n"
+        "  501 67108864 01:00 /Users/x/git/sushi/zig-out/bin/sushi serve --model m\n"
+    )
+    assert [p.pid for p in preflight.parse_ps(ps)] == [501]

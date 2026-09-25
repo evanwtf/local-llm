@@ -59,6 +59,7 @@ branch, and the sha lives on the row, not in this doc.
 | `~/git/llama.cpp-upstream` | `ggml-org/llama.cpp` | — | llama.cpp | `master` | a second llama.cpp worktree for a PR-vs-master A/B; not present on every machine |
 | `~/git/mlx-serve` | `ddalcu/mlx-serve` | — | mlx-serve | `main` | the MLX serving engine (Apple Silicon) |
 | `~/git/mlx-serve-6dea4241` | `ddalcu/mlx-serve` | — | mlx-serve | `6dea4241` (main) | main with Prism Bonsai 2 support (`89eeb249`), no release yet; the `bonsai2mlxserve` tree (#479) |
+| `~/git/sushi` | `beamivalice/sushi` | — | sushi | `v1.0.2` (`1a5332d`) | Sushi, a detached mlx-serve fork for Qwen3.8-Flash-Next EXL3 packs, built with the repo's pinned Zig 0.17 nightly and MLX submodules; the `qwen38fnsushi4` tree (#749) |
 | `~/venvs/vllm` | pip (`vllm`) | — | vllm | release | the vLLM engine — a Python virtualenv, **not a git checkout**; the DGX Spark lane |
 
 Notes on the shape of this list:
