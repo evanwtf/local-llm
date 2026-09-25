@@ -1602,12 +1602,15 @@ def agent_env(backend, worktree=None):
         CODEX_API_KEY=backend["auth_token"],
     )
     # #707: Unreal Agent reads its provider, endpoint and model from the
-    # environment. Every provider speaks the Responses API under /v1.
+    # environment. Every provider speaks the Responses API under /v1. The
+    # `openai` provider (used for mlx-serve) refuses to start without a key,
+    # so it gets the server's non-secret local token; `ollama` ignores it.
     if backend.get("unreal_provider"):
         env.update(
             UNREAL_HARNESS_LLM_PROVIDER=backend["unreal_provider"],
             UNREAL_HARNESS_LLM_BASE_URL=backend["base_url"].rstrip("/") + "/v1",
             UNREAL_HARNESS_LLM_MODEL=backend.get("unreal_model", backend["model"]),
+            UNREAL_HARNESS_LLM_API_KEY=backend["auth_token"],
         )
     return env
 
