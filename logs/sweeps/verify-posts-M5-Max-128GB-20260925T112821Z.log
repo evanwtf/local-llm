@@ -1,0 +1,9 @@
+2026-09-25T07:28:22-0400 INFO [5274ecd@M5-Max-128GB sushi/unknown pld=n/a] 2026-09-25T11:28:22Z (07:28:22 EDT) | harness 5274ecd
+2026-09-25T07:28:22-0400 INFO [5274ecd@M5-Max-128GB sushi/unknown pld=n/a]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-25T07:28:22-0400 INFO [5274ecd@M5-Max-128GB sushi/unknown pld=n/a] 2103415121569628262  VERIFIED post  @ashxhart  Fri Sep 25 09:23:39 +0000 2026  via fxtwitter
+2026-09-25T07:28:22-0400 INFO [5274ecd@M5-Max-128GB sushi/unknown pld=n/a]     I just killed Time to First Token. 🚀  Fresh sessions kept making my model reread the same opening prompt/tokens. So I precomputed them once and saved the state.  My TTFT dropped from 19s to 0.3s, a 63
+2026-09-25T07:28:22-0400 INFO [5274ecd@M5-Max-128GB sushi/unknown pld=n/a] 
+2026-09-25T07:28:22-0400 INFO [5274ecd@M5-Max-128GB sushi/unknown pld=n/a] Verified 1: 1 confirmed, 0 not.
+2026-09-25T07:28:22-0400 INFO [5274ecd@M5-Max-128GB sushi/unknown pld=n/a] Paste onto the issue:
+2026-09-25T07:28:22-0400 INFO [5274ecd@M5-Max-128GB sushi/unknown pld=n/a]   **Verified** 2026-09-25: post exists, authored by @ashxhart, posted Fri Sep 25 09:23:39 +0000 2026.
+2026-09-25T07:28:22-0400 INFO [5274ecd@M5-Max-128GB sushi/unknown pld=n/a] log: /Users/evanhoffman/git/local-llm-wt-sushi/logs/sweeps/verify-posts-M5-Max-128GB-20260925T112821Z.log
