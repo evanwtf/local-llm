@@ -4301,7 +4301,11 @@ def one_trial(
         if gates:
             after = grade.gates(worktree, GATE_TIMEOUT)
             result["gates_after"] = after
-            result["gates_delta"] = grade.delta(result.get("gates_before") or {}, after)
+            # None, not {}, when nothing was measured (#46): a Swift tree has no
+            # gate yet, and an empty dict reads too much like "no change".
+            result["gates_delta"] = (
+                grade.delta(result.get("gates_before") or {}, after) or None
+            )
         # True only if every hollowed-out symbol came back unchanged; None if
         # any of them is unreadable. A partial match is not recall.
         #

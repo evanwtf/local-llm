@@ -40,7 +40,12 @@ def summarize(rows: list[dict[str, Any]]) -> dict[tuple[str, str, str], dict]:
 
     out = {}
     for key, cell in cells.items():
-        deltas = [r["gates_delta"] for r in cell if r.get("gates_delta")]
+        # A marked row's delta came from a gate that read no file (#46).
+        deltas = [
+            r["gates_delta"]
+            for r in cell
+            if r.get("gates_delta") and not r.get("gates_inapplicable")
+        ]
         decided = [
             r["restored_verbatim"]
             for r in cell

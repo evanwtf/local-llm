@@ -185,6 +185,27 @@ def test_a_missing_toolchain_is_an_absent_measurement_not_a_zero(worktree):
     assert got == {}
 
 
+def test_a_python_gate_is_absent_on_a_tree_with_no_python(tmp_path):
+    """#46: ruff on a Swift tree lints nothing and reports "All checks passed",
+    which counted as a clean 0 on ~1,100 Swift rows. Absent, not zero."""
+    wt = tmp_path / "swift"
+    (wt / "Sources").mkdir(parents=True)
+    (wt / "Sources" / "X.swift").write_text("enum X {}\n")
+    subprocess.run(["git", "init", "-q", "-b", "main"], cwd=wt, check=True)
+    subprocess.run(["git", "add", "-A"], cwd=wt, check=True)
+    assert grade.gates(wt, timeout=60) == {}
+
+
+def test_a_python_gate_still_applies_to_a_python_tree(worktree):
+    assert grade.gate_applies("ruff", worktree) is True
+    assert grade.gate_applies("mypy", worktree) is True
+
+
+def test_an_unknown_tool_is_not_filtered_by_language(tmp_path):
+    """Only the tools with a known language are skipped; anything else runs."""
+    assert grade.gate_applies("definitely-not-a-tool", tmp_path) is True
+
+
 def test_gates_cannot_change_a_verdict():
     """The oracle is the authority. Gates ride alongside it and never into it."""
     row = {"passed": True, "excluded": False}
