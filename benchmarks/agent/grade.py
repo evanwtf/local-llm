@@ -167,6 +167,32 @@ def _count_mypy(stdout: str) -> int:
 
 COUNTERS = {"ruff": _count_ruff, "mypy": _count_mypy}
 ARGV = {"ruff": ["ruff", "check", "."], "mypy": ["mypy"]}
+# #46: the file suffix each tool reads. On a tree with none of them, ruff
+# lints nothing and prints "All checks passed", which counts as a clean 0.
+LANGUAGE = {"ruff": ".py", "mypy": ".py"}
+
+
+def gate_applies(tool: str, worktree: pathlib.Path) -> bool:
+    """Does the tree track a file this tool reads?
+
+    True for a tool with no known language, and when git cannot list the
+    tree: both fall back to running the tool, as before #46.
+    """
+    suffix = LANGUAGE.get(tool)
+    if suffix is None:
+        return True
+    try:
+        proc = subprocess.run(
+            ["git", "ls-files", "--", f"*{suffix}"],
+            cwd=worktree,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=True,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return True
+    return bool(proc.stdout.strip())
 
 
 def gates(
@@ -174,12 +200,16 @@ def gates(
 ) -> dict[str, int]:
     """Run the repository's own checkers and count what they say.
 
-    Returns a count per tool that ran. A tool that is missing, times out, or
-    crashes is simply absent from the result -- never present as 0. Read a
+    Returns a count per tool that ran. A tool that is missing, times out,
+    crashes, or reads no file in the tree is absent from the result -- never
+    present as 0. Read a
     missing key as "not measured", and pair the result with `delta()`.
     """
     got: dict[str, int] = {}
     for tool in tools or DEFAULT_TOOLS:
+        if not gate_applies(tool, worktree):
+            logger.debug("gate %s does not apply to this tree", tool)
+            continue
         argv = ARGV.get(tool, [tool])
         try:
             proc = subprocess.run(
