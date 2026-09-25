@@ -185,7 +185,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 
 ### Cortex-X925-128GB-GB10-x2
 
-*Generated from `hardware/Cortex-X925-128GB-GB10-x2/results.jsonl` — 456 rows, sha256 3ca1cd1ee8eb.*
+*Generated from `hardware/Cortex-X925-128GB-GB10-x2/results.jsonl` — 486 rows, sha256 8a1f49b22fc8.*
 
 #### Every stack measured under OpenCode
 
@@ -201,13 +201,14 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | qwen38fnnvfp4dual2xrcflags @ Corei3-7100-16GB+image@10g | 30/30 | 86s | 412s | 12.4x |
 | mimo26fdual2xrc @ Corei3-7100-16GB+image@10g | 23/28 | 86s | 862s | 24.0x |
 | dsv41fexl3dual2xrc @ Corei3-7100-16GB+image | 30/30 | 87s | 232s | 6.6x |
+| dsv4flashvisiondspark2xrc @ Corei3-7100-16GB+image | 30/30 | 91s | 202s | 7.9x |
 | qwen38fnfp8dual2xrc @ Corei3-7100-16GB+image | 30/30 | 93s | 278s | 6.3x |
 | qwen38fnnvfp4dual2xrc @ Corei3-7100-16GB+image@10g | 30/30 | 99s | 178s | 5.5x |
 | qwen38fnnvfp4dual2xrcflags @ Corei3-7100-16GB+image | 30/30 | 114s | 304s | 8.9x |
 | mimo26fdual2xrcthink @ Corei3-7100-16GB+image@10g | 30/30 | 211s | 796s | 11.7x |
 | mimo26fdual2xrc @ Corei3-7100-16GB+image | 2/2 | 370s | 592s | 4.0x |
 
-**Rows here were not all taken under one client.** dsv41fexl3dual2xrc, glm53fexl3dual2xrcctx, qwen38fnfp8dual2xrc, qwen38fnnvfp4dual2xrcflags under 1.18.32; the rest under 1.18.31. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: dsv41fexl3dual2xrc (1.18.31, 1.18.32); glm53fexl3dual2xrcctx (1.18.31, 1.18.32); qwen38fnnvfp4dual2xrcflags (1.18.31, 1.18.32).
+**Rows here were not all taken under one client.** dsv41fexl3dual2xrc, dsv4flashvisiondspark2xrc, glm53fexl3dual2xrcctx, qwen38fnfp8dual2xrc, qwen38fnnvfp4dual2xrcflags under 1.18.32; the rest under 1.18.31. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: dsv41fexl3dual2xrc (1.18.31, 1.18.32); dsv4flashvisiondspark2xrc (1.18.31, 1.18.32); glm53fexl3dual2xrcctx (1.18.31, 1.18.32); qwen38fnnvfp4dual2xrcflags (1.18.31, 1.18.32).
 
 Excision tasks only; `script-*` excluded because they are a different class. **Spread is worst / best on the same task**, and it is the column most people forget to ask for.
 
@@ -226,6 +227,7 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 
 | stack | seconds per 1k output tokens |
 |---|---|
+| dsv4flashvisiondspark2xrc @ Corei3-7100-16GB+image | 30s |
 | dsv4flashvisiondspark2xrc @ Corei3-7100-16GB+image@10g | 30s |
 | mimo26fdual2xrc @ Corei3-7100-16GB+image@10g | 38s |
 | mimo26fdual2xrc @ Corei3-7100-16GB+image | 40s |
@@ -240,7 +242,7 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 | glm53fexl3dual2xrcctx @ Corei3-7100-16GB+image | 85s |
 | glm53fexl3dual2xrc @ Corei3-7100-16GB+image@24g | 88s |
 
-**Rows here were not all taken under one client.** dsv41fexl3dual2xrc, glm53fexl3dual2xrcctx, qwen38fnfp8dual2xrc, qwen38fnnvfp4dual2xrcflags under 1.18.32; the rest under 1.18.31. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: dsv41fexl3dual2xrc (1.18.31, 1.18.32); glm53fexl3dual2xrcctx (1.18.31, 1.18.32); qwen38fnnvfp4dual2xrcflags (1.18.31, 1.18.32).
+**Rows here were not all taken under one client.** dsv41fexl3dual2xrc, dsv4flashvisiondspark2xrc, glm53fexl3dual2xrcctx, qwen38fnfp8dual2xrc, qwen38fnnvfp4dual2xrcflags under 1.18.32; the rest under 1.18.31. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: dsv41fexl3dual2xrc (1.18.31, 1.18.32); dsv4flashvisiondspark2xrc (1.18.31, 1.18.32); glm53fexl3dual2xrcctx (1.18.31, 1.18.32); qwen38fnnvfp4dual2xrcflags (1.18.31, 1.18.32).
 
 ### MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A
 
