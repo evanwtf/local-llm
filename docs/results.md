@@ -185,7 +185,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 
 ### Cortex-X925-128GB-GB10-x2
 
-*Generated from `hardware/Cortex-X925-128GB-GB10-x2/results.jsonl` — 486 rows, sha256 8a1f49b22fc8.*
+*Generated from `hardware/Cortex-X925-128GB-GB10-x2/results.jsonl` — 507 rows, sha256 b1b90aad4435.*
 
 #### Every stack measured under OpenCode
 
@@ -219,6 +219,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | glm53fexl3dual2xrcctx | 21/21 | 216s | 556s | 21.9x |
 | dsv41fexl3dual2xrc | 21/21 | 410s | 998s | 23.7x |
 | qwen38fnnvfp4dual2xrcflags | 21/21 | 430s | 1006s | 23.1x |
+| dsv4flashvisiondspark2xrc | 21/21 | 453s | 740s | 24.8x |
 | qwen38fnfp8dual2xrc | 21/21 | 502s | 1152s | 20.9x |
 
 Seven commits from gmail-archive's history, 60-600 changed lines each. The target repo is public, so a pass may be partly recall; see each row's `replay` record.
@@ -227,7 +228,7 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 
 | stack | seconds per 1k output tokens |
 |---|---|
-| dsv4flashvisiondspark2xrc @ Corei3-7100-16GB+image | 30s |
+| dsv4flashvisiondspark2xrc @ Corei3-7100-16GB+image | 29s |
 | dsv4flashvisiondspark2xrc @ Corei3-7100-16GB+image@10g | 30s |
 | mimo26fdual2xrc @ Corei3-7100-16GB+image@10g | 38s |
 | mimo26fdual2xrc @ Corei3-7100-16GB+image | 40s |
