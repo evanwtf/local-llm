@@ -275,6 +275,10 @@ instead.
 
 ### Keep weights out of Time Machine (#440)
 
+> **Since #755, the fix for a new weights directory is to move it onto the
+> `Models` volume (above), not to add an exclusion.** `tm_model_guard.py` below
+> still finds any model file Time Machine would back up.
+
 Time Machine backs up the M5 Max every hour, to a local SSD and to a network
 share. Its exclusion list names directories, so a new weight directory is
 backed up until someone excludes it. On 2026-09-18 six such directories (773

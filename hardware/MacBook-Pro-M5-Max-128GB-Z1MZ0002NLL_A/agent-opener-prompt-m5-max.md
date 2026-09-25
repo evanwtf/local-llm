@@ -308,6 +308,9 @@ Then read `AGENTS.md`, `docs/agent-workflow.md`, `docs/peer_agents.md`,
 - Downloads are allowed while 1.5 TB or more stays free. Weights and containers
   come from known-good sources only; an unvetted source needs approval. Never
   propose deleting weights; they are an archive.
+- Weights go on the `Models` volume (`/Volumes/Models`), never on the Data
+  volume. Before a new engine's first download, move its model or cache
+  directory there and leave a symlink (`docs/m5max-runbook.md`, #755).
 
 **Git**
 - `main` is branch-protected (required check `pytest`). **Never push to

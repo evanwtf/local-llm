@@ -55,17 +55,25 @@ the same reasoning to whatever backup runs there, or confirm none does. The
 principle is general: do not back up a large, wholesale-changing, re-downloadable
 weights tree.
 
-On the M5 Max, every directory holding GGUF weights must be excluded from Time
-Machine **before** the first file lands in it:
+On the M5 Max, **every directory holding weights or an engine's model cache lives
+on the `Models` volume** (`/Volumes/Models`), with a symlink at the path the
+engine expects. The volume is excluded from Time Machine as a whole, so nothing
+on it is backed up or pinned by a snapshot. Move a new directory there
+**before** the first file lands in it; the steps are in
+[`docs/m5max-runbook.md`](docs/m5max-runbook.md#weights-live-on-the-models-volume-755).
 
 ```sh
-tmutil addexclusion ~/models
-tmutil addexclusion ~/git/ds4/gguf
-tmutil isexcluded ~/models      # verify; do not assume
+ls -ld ~/.newengine                       # expect: ~/.newengine -> /Volumes/Models/newengine
+tmutil isexcluded /Volumes/Models         # expect [Excluded]; verify, do not assume
+uv run python scripts/tm_model_guard.py   # exit 1 names any model file Time Machine includes
 ```
 
-Both of those are excluded today. Check any new weights directory with
-`isexcluded` rather than trusting that it inherited anything.
+**Why a volume, not a directory exclusion (2026-09-25, #755).** An exclusion
+keeps a directory out of the backup copy, but a local snapshot is of the whole
+Data volume and ignores exclusions. A 1,004 GiB delete freed almost nothing
+until `sudo tmutil deletelocalsnapshots /` ran, and a downloaded file is pinned
+by every snapshot taken while it exists. Time Machine takes no local snapshot
+of the excluded `Models` volume (checked 2026-09-25).
 
 The reason is size, not secrecy: a single pair of DeepSeek-V4-Flash arms is
 171 GB, it changes wholesale rather than incrementally, and it is re-downloadable
