@@ -2776,3 +2776,42 @@ def test_the_agent_path_names_no_answer_tree(monkeypatch, tmp_path):
         assert not run.ANSWER_TREES.intersection(entry.split("/")), entry
     assert str(run.SHIM_DIR) in path.split(os.pathsep)
     assert not run.SHIM_DIR.is_relative_to(run.HERE.resolve().parent.parent)
+
+
+# #703: a dry run wrote four rows into the live M5 Max ledger and the #55 gate
+# halted on them as 0/4.
+
+
+def test_a_dry_run_never_writes_the_live_ledger(tmp_path):
+    live = tmp_path / "hardware" / "results.jsonl"
+    got = run.dry_run_results(
+        live, live, True, "20260923T052900", root=tmp_path / "dry"
+    )
+    assert got == tmp_path / "dry" / "results-20260923T052900.jsonl"
+    assert got != live
+    assert got.parent.is_dir()
+
+
+def test_a_dry_run_keeps_a_ledger_the_caller_named(tmp_path):
+    live = tmp_path / "results.jsonl"
+    named = tmp_path / "mine.jsonl"
+    assert run.dry_run_results(named, live, True, "x", root=tmp_path / "dry") == named
+
+
+def test_a_real_run_still_writes_the_live_ledger(tmp_path):
+    live = tmp_path / "results.jsonl"
+    assert run.dry_run_results(live, live, False, "x", root=tmp_path / "dry") == live
+    assert not (tmp_path / "dry").exists()
+
+
+@pytest.mark.parametrize(
+    ("allow_implausible", "dry_run", "applies"),
+    [
+        (False, False, True),
+        (True, False, False),
+        (False, True, False),
+        (True, True, False),
+    ],
+)
+def test_the_plausibility_gate_skips_a_dry_run(allow_implausible, dry_run, applies):
+    assert run.plausibility_applies(allow_implausible, dry_run) is applies
