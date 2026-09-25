@@ -105,6 +105,7 @@ doc.
 - Update every component before a batch (`preflight.py`), never after; a version change starts a new series.
 - `opencode run` ignores the caller's working directory — **always pass `--dir`**. Measure OpenCode unless the run is specifically about another client.
 - Start from a clean reference repo on the pinned commit; restart the server between arms; wait on a real completion, never on `/health`.
+- **On the M5 Max, model weights live on the `Models` volume** (`/Volumes/Models`, excluded from Time Machine), never on the Data volume. A new engine's model or cache directory moves there before its first download, with a symlink left at the default path. A local snapshot ignores exclusions and pins a deleted file for a day (#755). How: [`docs/m5max-runbook.md`](docs/m5max-runbook.md#weights-live-on-the-models-volume-755).
 
 ## The working loop
 
