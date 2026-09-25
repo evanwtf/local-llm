@@ -249,7 +249,7 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 
 ### MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A
 
-*Generated from `hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/results.jsonl` — 4081 rows, sha256 6790eeb33189.*
+*Generated from `hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/results.jsonl` — 4171 rows, sha256 00cd726b992b.*
 
 #### Every stack measured under OpenCode
 
@@ -257,8 +257,9 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 
 | stack | passed | median | worst | spread |
 |---|---|---|---|---|
+| qwen38fnsushi4 | 43/45 | 31s | 154s | 12.6x |
 | qwen38fnmlxservenopld | 74/75 | 47s | 1391s | 68.2x |
-| qwen38fnmlxserve | 432/436 | 52s | 1377s | 64.7x |
+| qwen38fnmlxserve | 476/481 | 51s | 1377s | 67.5x |
 | qwen38fnmlxserve-git | 74/75 | 52s | 402s | 18.5x |
 | ornith15 | 60/66 | 61s | 573s | 36.5x |
 | qwen38fnds4kimat | 586/586 | 91s | 775s | 27.0x |
@@ -284,7 +285,7 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 | GLM-5.3-Flash - ds4 | 22/24 | 369s | 1227s | 18.0x |
 | gemma4 | 12/12 | 383s | 1316s | 4.8x |
 
-**Rows here were not all taken under one client.** qwen38fnq3reap under 1.18.26; qwen38fnds4kimat, qwen38fnds4mtp7shim, qwen38fnds4shim under 1.18.27; qwen38fnds4greedy, qwen38fnds4kimat, qwen38fnds4mtp7greedy, qwen38fnds4mtp7shim, qwen38fnds4shim, qwen38fnmlxserve, qwen38fnmlxserve-git, Qwen3.8-Flash-Next Q3 - llama.cpp under 1.18.29; qwen38fnds4greedy, qwen38fnds4kimat, qwen38fnds4mtp7greedy, qwen38fnds4mtpauto, qwen38fnds4q4exp, qwen38fnds4q4exppr5, qwen38fnds4shim, qwen38fniq4, qwen38fnmlxserve, qwen38fnmlxservenopld under 1.18.30; bonsai2mlxserve, ornith15, qwen38fnds4kimat, qwen38fnds4main, qwen38fnmlxserve, Qwen3.8-Flash-Next Q3 - llama.cpp under 1.18.31; qwen, Qwen3.6-27B-coding - Ollama under 1.18.32; the rest under 1.18.25. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: ornith15 (1.18.25, 1.18.31); qwen (1.18.25, 1.18.32); Qwen3.6-27B-coding - Ollama (1.18.25, 1.18.32); qwen38fnds4greedy (1.18.29, 1.18.30); qwen38fnds4kimat (1.18.27, 1.18.29, 1.18.30, 1.18.31); qwen38fnds4mtp7greedy (1.18.29, 1.18.30); qwen38fnds4mtp7shim (1.18.27, 1.18.29); qwen38fnds4shim (1.18.27, 1.18.29, 1.18.30); qwen38fnmlxserve (1.18.29, 1.18.30, 1.18.31); Qwen3.8-Flash-Next Q3 - llama.cpp (1.18.25, 1.18.29, 1.18.31).
+**Rows here were not all taken under one client.** qwen38fnq3reap under 1.18.26; qwen38fnds4kimat, qwen38fnds4mtp7shim, qwen38fnds4shim under 1.18.27; qwen38fnds4greedy, qwen38fnds4kimat, qwen38fnds4mtp7greedy, qwen38fnds4mtp7shim, qwen38fnds4shim, qwen38fnmlxserve, qwen38fnmlxserve-git, Qwen3.8-Flash-Next Q3 - llama.cpp under 1.18.29; qwen38fnds4greedy, qwen38fnds4kimat, qwen38fnds4mtp7greedy, qwen38fnds4mtpauto, qwen38fnds4q4exp, qwen38fnds4q4exppr5, qwen38fnds4shim, qwen38fniq4, qwen38fnmlxserve, qwen38fnmlxservenopld under 1.18.30; bonsai2mlxserve, ornith15, qwen38fnds4kimat, qwen38fnds4main, qwen38fnmlxserve, Qwen3.8-Flash-Next Q3 - llama.cpp under 1.18.31; qwen, Qwen3.6-27B-coding - Ollama, qwen38fnmlxserve, qwen38fnsushi4 under 1.18.32; the rest under 1.18.25. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: ornith15 (1.18.25, 1.18.31); qwen (1.18.25, 1.18.32); Qwen3.6-27B-coding - Ollama (1.18.25, 1.18.32); qwen38fnds4greedy (1.18.29, 1.18.30); qwen38fnds4kimat (1.18.27, 1.18.29, 1.18.30, 1.18.31); qwen38fnds4mtp7greedy (1.18.29, 1.18.30); qwen38fnds4mtp7shim (1.18.27, 1.18.29); qwen38fnds4shim (1.18.27, 1.18.29, 1.18.30); qwen38fnmlxserve (1.18.29, 1.18.30, 1.18.31, 1.18.32); Qwen3.8-Flash-Next Q3 - llama.cpp (1.18.25, 1.18.29, 1.18.31).
 
 **The `bonsai2mlxserve`, `qwen38fnmlxserve`, `qwen38fnmlxserve-git`, `qwen38fnmlxservenopld` rows are PLD-on.** mlx-serve turns on Prompt Lookup Decoding by default, and every mlx-serve row here was taken with it on. The `qwen38fnmlxserve`, `qwen38fnmlxserve-git`, `qwen38fnmlxservenopld` pack ships no MTP head or drafter, so PLD is its only draft source ([#262](https://github.com/evanwtf/local-llm/issues/262)). For `bonsai2mlxserve`, mlx-serve also grafts an MTP head (depth 2, from ddalcu/Qwen3.8-27B-MLX-Serve-4bit; [#479](https://github.com/evanwtf/local-llm/issues/479)). That is the engine's own default — "what you get when you install it," which is what this project measures — but the speculation was never recorded, so these rows are not a no-speculation baseline against the ds4 arms whose MTP state we set explicitly.
 
@@ -309,6 +310,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | ornith15 | 19s |
 | gemma426 | 21s |
 | qwen | 30s |
+| qwen38fnsushi4 | 31s |
 | qwen38fnds4kimat | 33s |
 | qwen38fnds4main | 36s |
 | qwen38fnq3reap | 38s |
@@ -333,7 +335,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | Qwen3.6-27B-coding - Ollama | 104s |
 | Qwen3.8-Flash-Next Q3 - LM Studio | 115s |
 
-**Rows here were not all taken under one client.** qwen38fnq3reap under 1.18.26; qwen38fnds4kimat, qwen38fnds4mtp7shim, qwen38fnds4shim under 1.18.27; qwen38fnds4greedy, qwen38fnds4kimat, qwen38fnds4mtp7greedy, qwen38fnds4mtp7shim, qwen38fnds4shim, qwen38fnmlxserve, qwen38fnmlxserve-git, Qwen3.8-Flash-Next Q3 - llama.cpp under 1.18.29; qwen38fnds4greedy, qwen38fnds4kimat, qwen38fnds4mtp7greedy, qwen38fnds4mtpauto, qwen38fnds4q4exp, qwen38fnds4q4exppr5, qwen38fnds4shim, qwen38fniq4, qwen38fnmlxserve, qwen38fnmlxservenopld under 1.18.30; bonsai2mlxserve, ornith15, qwen38fnds4kimat, qwen38fnds4main, qwen38fnmlxserve, Qwen3.8-Flash-Next Q3 - llama.cpp under 1.18.31; qwen, Qwen3.6-27B-coding - Ollama under 1.18.32; the rest under 1.18.25. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: ornith15 (1.18.25, 1.18.31); qwen (1.18.25, 1.18.32); Qwen3.6-27B-coding - Ollama (1.18.25, 1.18.32); qwen38fnds4greedy (1.18.29, 1.18.30); qwen38fnds4kimat (1.18.27, 1.18.29, 1.18.30, 1.18.31); qwen38fnds4mtp7greedy (1.18.29, 1.18.30); qwen38fnds4mtp7shim (1.18.27, 1.18.29); qwen38fnds4shim (1.18.27, 1.18.29, 1.18.30); qwen38fnmlxserve (1.18.29, 1.18.30, 1.18.31); Qwen3.8-Flash-Next Q3 - llama.cpp (1.18.25, 1.18.29, 1.18.31).
+**Rows here were not all taken under one client.** qwen38fnq3reap under 1.18.26; qwen38fnds4kimat, qwen38fnds4mtp7shim, qwen38fnds4shim under 1.18.27; qwen38fnds4greedy, qwen38fnds4kimat, qwen38fnds4mtp7greedy, qwen38fnds4mtp7shim, qwen38fnds4shim, qwen38fnmlxserve, qwen38fnmlxserve-git, Qwen3.8-Flash-Next Q3 - llama.cpp under 1.18.29; qwen38fnds4greedy, qwen38fnds4kimat, qwen38fnds4mtp7greedy, qwen38fnds4mtpauto, qwen38fnds4q4exp, qwen38fnds4q4exppr5, qwen38fnds4shim, qwen38fniq4, qwen38fnmlxserve, qwen38fnmlxservenopld under 1.18.30; bonsai2mlxserve, ornith15, qwen38fnds4kimat, qwen38fnds4main, qwen38fnmlxserve, Qwen3.8-Flash-Next Q3 - llama.cpp under 1.18.31; qwen, Qwen3.6-27B-coding - Ollama, qwen38fnmlxserve, qwen38fnsushi4 under 1.18.32; the rest under 1.18.25. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: ornith15 (1.18.25, 1.18.31); qwen (1.18.25, 1.18.32); Qwen3.6-27B-coding - Ollama (1.18.25, 1.18.32); qwen38fnds4greedy (1.18.29, 1.18.30); qwen38fnds4kimat (1.18.27, 1.18.29, 1.18.30, 1.18.31); qwen38fnds4mtp7greedy (1.18.29, 1.18.30); qwen38fnds4mtp7shim (1.18.27, 1.18.29); qwen38fnds4shim (1.18.27, 1.18.29, 1.18.30); qwen38fnmlxserve (1.18.29, 1.18.30, 1.18.31, 1.18.32); Qwen3.8-Flash-Next Q3 - llama.cpp (1.18.25, 1.18.29, 1.18.31).
 
 ### Ryzen9-7900X-32GB-RTX3080Ti-12GB
 
