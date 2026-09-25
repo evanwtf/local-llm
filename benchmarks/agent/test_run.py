@@ -2623,6 +2623,24 @@ def test_agent_env_points_unreal_at_the_backend() -> None:
     assert env["UNREAL_HARNESS_LLM_MODEL"] == "qwen3.6:27b-coding-mxfp8"
 
 
+def test_agent_env_gives_unreal_the_backends_local_key() -> None:
+    """The runner's `openai` provider refuses to start without a key (#707).
+
+    mlx-serve speaks the Responses API through that provider, and the key is
+    the server's non-secret local token, the same one the other clients get.
+    """
+    backend = {
+        **_unreal_backend(),
+        "unreal_provider": "openai",
+        "base_url": "http://127.0.0.1:11234",
+        "auth_token": "local",
+    }
+    env = run.agent_env(backend)
+    assert env["UNREAL_HARNESS_LLM_PROVIDER"] == "openai"
+    assert env["UNREAL_HARNESS_LLM_BASE_URL"] == "http://127.0.0.1:11234/v1"
+    assert env["UNREAL_HARNESS_LLM_API_KEY"] == "local"
+
+
 def test_agent_env_sets_no_unreal_vars_for_other_backends() -> None:
     backend = _unreal_backend()
     del backend["unreal_provider"]

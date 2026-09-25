@@ -2867,6 +2867,10 @@ base_url = "http://127.0.0.1:11234"
 model = "Qwen3.8-Flash-Next-MLX-Serve-mixed-4-8bit"
 auth_token = "local"
 opencode_model = "mlxserve/Qwen3.8-Flash-Next-MLX-Serve-mixed-4-8bit"
+# #707: Unreal Agent through its `openai` provider. mlx-serve 26.9.5 serves
+# POST /v1/responses; one tool call round-tripped on 2026-09-25 (36 s).
+unreal_provider = "openai"
+unreal_model = "Qwen3.8-Flash-Next-MLX-Serve-mixed-4-8bit"
 engine = "mlx-serve"
 context_tokens = 100000
 
