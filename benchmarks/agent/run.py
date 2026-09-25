@@ -4935,6 +4935,34 @@ def backend_answers(backend, attempts: int = 3, wait: float = 10.0) -> bool:
     return False
 
 
+DRY_RUN_ROOT = pathlib.Path.home() / ".local-llm-bench" / "dry-run"
+
+
+def dry_run_results(results_path, default, dry_run, stamp, root=DRY_RUN_ROOT):
+    """Where a batch's rows go: a dry run never writes the live ledger. #703
+
+    A dry run runs no agent, so every row it writes carries `dry_run: true` and
+    `passed: null`. On 2026-09-23 one wrote four such rows into the M5 Max
+    ledger; the next `git add` would have published them, and the plausibility
+    gate read them as 0/4. A dry run goes to a scratch file outside the repo
+    unless the caller named a ledger with --results, which is a choice.
+    """
+    if not dry_run or results_path != default:
+        return results_path
+    root.mkdir(parents=True, exist_ok=True)
+    return root / f"results-{stamp}.jsonl"
+
+
+def plausibility_applies(allow_implausible, dry_run) -> bool:
+    """Whether the #55 gate judges this batch.
+
+    A dry run ran no agent, so its rows have no pass or fail to judge: 0/4 is
+    the shape of a dry run, not of a harness bug. On 2026-09-23 the gate halted
+    a dry run on exactly that (#703).
+    """
+    return not allow_implausible and not dry_run
+
+
 def finish_row(r, bname, backend, headroom, results_path, dry_run) -> None:
     """Stamp the headroom, write the row, and stop if the server died. #485
 
@@ -4963,6 +4991,11 @@ def finish_row(r, bname, backend, headroom, results_path, dry_run) -> None:
 
 def main():
     args = build_parser().parse_args()
+    args.results = dry_run_results(
+        args.results, RESULTS, args.dry_run, time.strftime("%Y%m%dT%H%M%S")
+    )
+    if args.dry_run:
+        logger.info("dry run: rows to %s, not the live ledger (#703)", args.results)
 
     if args.require_harness_head:
         want = args.require_harness_head
@@ -5501,7 +5534,7 @@ def main():
                     # asked. Check after every trial so the alarm costs four
                     # trials rather than fifteen.
                     cell.setdefault((bname, client), []).append(r)
-                    if not args.allow_implausible:
+                    if plausibility_applies(args.allow_implausible, args.dry_run):
                         why = plausibility.implausible(
                             cell[(bname, client)], history, bname, client
                         )
