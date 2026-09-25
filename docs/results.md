@@ -185,7 +185,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 
 ### Cortex-X925-128GB-GB10-x2
 
-*Generated from `hardware/Cortex-X925-128GB-GB10-x2/results.jsonl` — 537 rows, sha256 5c7075256d2e.*
+*Generated from `hardware/Cortex-X925-128GB-GB10-x2/results.jsonl` — 556 rows, sha256 6b8b45be39cd.*
 
 #### Every stack measured under OpenCode
 
@@ -222,6 +222,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | qwen38fnnvfp4dual2xrcflags | 21/21 | 430s | 1006s | 23.1x |
 | dsv4flashvisiondspark2xrc | 21/21 | 453s | 740s | 24.8x |
 | qwen38fnfp8dual2xrc | 21/21 | 502s | 1152s | 20.9x |
+| mimo26fdual2xrcthink | 11/19 | 531s | 1467s | 12.1x |
 
 Seven commits from gmail-archive's history, 60-600 changed lines each. The target repo is public, so a pass may be partly recall; see each row's `replay` record.
 
