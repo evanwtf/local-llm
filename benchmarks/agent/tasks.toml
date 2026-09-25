@@ -3748,3 +3748,15 @@ aider_model = "openai/MiMo-v2.6-Flash"
 opencode_model = "vllm8888/MiMo-v2.6-Flash"
 context_tokens = 262144
 topology = "remote"
+
+[backend.ling30fdual2xrc]
+description = "Ling-3.0-flash official FP8 (inclusionAI rev 88d48c5, BailingMoeV3, 124B total / 5.1B active) across TWO DGX Sparks, mainline SGLang nightly-dev-cu13-20260921-0f6761b5, TP=2 (one rank per node) over all four CX7 HCAs, built-in MTP (NextN) as EAGLE 3 steps / 4 draft tokens, 262144 context, thinking ON (the card's default; operator decision #752), ling3 reasoning + tool-call parsers, weights local on both nodes. Launcher: ~/ling-dual/start.sh (#752). REMOTE CLIENT (#562/#649), 12 GiB kernel-enforced client container"
+tier = "gb10-spark-x2"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "sglang"
+model = "Ling-3.0-flash"
+aider_model = "openai/Ling-3.0-flash"
+opencode_model = "vllm8888/Ling-3.0-flash"
+context_tokens = 262144
+topology = "remote"
