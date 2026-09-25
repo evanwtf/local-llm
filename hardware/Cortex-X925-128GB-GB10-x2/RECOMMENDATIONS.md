@@ -68,7 +68,7 @@ passed trials only). One row per run:
 | Qwen3.8-Flash-Next NVFP4 | 21/21 | 3,036.8 s | 430 s | 1,006 s |
 | DeepSeek V4.1 Flash EXL3 | 21/21 | 3,207.7 s | 410 s | 998 s |
 | Qwen3.8-Flash-Next FP8 | 21/21 | 3,823.1 s | 502 s | 1,152 s |
-| MiMo-V2.6-Flash, thinking on | **11 of 17 so far** | — | — | 6 failures: 5 timeouts at 1,800 s, 1 test error |
+| MiMo-V2.6-Flash, thinking on | **11/19**, stopped early | — | — | 8 failures: 6 timeouts at 1,800 s, 2 collection errors |
 
 21/21 has a Wilson 95% interval of 84.5–100%, so the five 21/21 stacks are not
 separated on pass rate. None of the 105 trials in those rows restored the
@@ -92,8 +92,10 @@ checked).
 - **Do not run MiMo-V2.6-Flash as a coding backend.** It is the slowest stack on
   every task, and the only one to fail replay tasks: web-auth and
   search-operators timed out, gmail-api-sources errored, and on round 3 the
-  smallest task (121–192 s in rounds 1–2) ran to the 1,800 s limit. Thinking
-  off is worse (23/28 on the standard set, with runaway 16,384-token steps).
+  smallest task (121–192 s in rounds 1–2) ran to the 1,800 s limit. The run
+  was stopped at 19 of 21 trials under the #762 early-stop rule (7 failures on a
+  21-trial set). Thinking off is worse (23/28 on the standard set, with runaway
+  16,384-token steps).
 
 ## 3. How to run the pick
 
