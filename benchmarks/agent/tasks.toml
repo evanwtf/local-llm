@@ -2874,6 +2874,23 @@ unreal_model = "Qwen3.8-Flash-Next-MLX-Serve-mixed-4-8bit"
 engine = "mlx-serve"
 context_tokens = 100000
 
+# #707: mlx-serve built from origin/main 3a9181f at ~/git/mlx-serve-main, PLD
+# off. Release 26.9.5 drops a function_call_output whose `output` is an array
+# of input_text parts, which is the only form Unreal Agent sends, so its model
+# saw every tool result as empty. The fix is 92d1c1a on main (no release yet).
+# The engine_tree makes the ledger stamp that sha, not the release version.
+[backend.qwen38fnmlxservenopld-main]
+description = "Qwen3.8-Flash-Next MLX mixed-4-8bit on mlx-serve origin/main 3a9181f (~/git/mlx-serve-main), PLD OFF (--no-pld); carries the Responses content-parts fix (92d1c1a) Unreal Agent needs"
+base_url = "http://127.0.0.1:11234"
+model = "Qwen3.8-Flash-Next-MLX-Serve-mixed-4-8bit"
+auth_token = "local"
+opencode_model = "mlxserve/Qwen3.8-Flash-Next-MLX-Serve-mixed-4-8bit"
+unreal_provider = "openai"
+unreal_model = "Qwen3.8-Flash-Next-MLX-Serve-mixed-4-8bit"
+engine = "mlx-serve"
+engine_tree = "~/git/mlx-serve-main"
+context_tokens = 100000
+
 # #749: Sushi, @Beamsters1's detached mlx-serve fork, serving the same model as
 # qwen38fnmlxserve with an EXL3-expert "sushi" pack. The author claims KLD 0.063
 # against bf16 in ~64 GiB of GPU memory, against 0.082 in ~70 GiB for the
