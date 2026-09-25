@@ -233,6 +233,46 @@ one-hyphen architecture-name rule (`glm5-next` vs `glm5next`) is in AGENTS.md â€
 check `general.architecture` with `uv run python scripts/gguf_meta.py <file>`
 before debugging output.
 
+### Weights live on the `Models` volume (#755)
+
+Since 2026-09-25 every model directory on the M5 Max lives on a separate APFS
+volume, `/Volumes/Models`, in the internal container. The old paths are
+symlinks into it, so no engine or config changed:
+
+| path | on the volume |
+|---|---|
+| `~/models` | `models` |
+| `~/.ollama/models` | `ollama` |
+| `~/.ds4` | `ds4-state` |
+| `~/.mlx-serve/models` | `mlx-serve` |
+| `~/git/ds4/gguf` | `ds4-gguf` |
+| `~/.mtplx` | `mtplx` |
+| `~/.sushi` | `sushi` |
+| `~/.cache/huggingface` | `huggingface` |
+| `~/git/mlxfast-gemma4-26b-a4b/weights` | `mlxfast-weights` |
+| `~/.lmstudio` | `lmstudio` |
+
+**Why a volume, not only exclusions:** a local Time Machine snapshot covers the
+whole Data volume and ignores exclusions. On 2026-09-25 a 1,004 GiB delete
+freed almost nothing until `sudo tmutil deletelocalsnapshots /` ran. The
+`Models` volume is excluded as a whole, and Time Machine should take no snapshots of
+a volume it does not back up, so a delete there frees its space at once (#755
+records the check).
+
+**A new engine with a new model directory:** move the directory onto the volume
+and leave a symlink. Copy, verify, and only then delete:
+
+```sh
+SRC=~/.newengine; DST=/Volumes/Models/newengine
+/opt/homebrew/bin/rsync -aHX "$SRC/" "$DST/"
+test -z "$(/opt/homebrew/bin/rsync -aHXn --checksum --itemize-changes "$SRC/" "$DST/")" \
+  && rm -rf "$SRC" && ln -s "$DST" "$SRC"
+```
+
+`tmutil addexclusion -v` and `tmutil disable` need Full Disk Access for the
+terminal. Set a volume exclusion in System Settings > Time Machine > Options
+instead.
+
 ### Keep weights out of Time Machine (#440)
 
 Time Machine backs up the M5 Max every hour, to a local SSD and to a network
