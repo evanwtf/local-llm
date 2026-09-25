@@ -255,9 +255,9 @@ symlinks into it, so no engine or config changed:
 **Why a volume, not only exclusions:** a local Time Machine snapshot covers the
 whole Data volume and ignores exclusions. On 2026-09-25 a 1,004 GiB delete
 freed almost nothing until `sudo tmutil deletelocalsnapshots /` ran. The
-`Models` volume is excluded as a whole, and Time Machine should take no snapshots of
-a volume it does not back up, so a delete there frees its space at once (#755
-records the check).
+`Models` volume is excluded as a whole, and Time Machine takes no local
+snapshots of it (checked 2026-09-25: the 10:52 hourly snapshot covered `/` and
+nothing on `/Volumes/Models`), so a delete there frees its space at once.
 
 **A new engine with a new model directory:** move the directory onto the volume
 and leave a symlink. Copy, verify, and only then delete:
