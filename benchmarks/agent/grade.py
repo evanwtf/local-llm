@@ -38,7 +38,9 @@ import hashlib
 import logging
 import os
 import pathlib
+import re
 import subprocess
+import tempfile
 from typing import Any
 
 import excise
@@ -48,7 +50,10 @@ logger = logging.getLogger(__name__)
 
 # ruff and mypy are gmail-archive's own dev dependencies, declared in its
 # pyproject. `uv run` inside the worktree gets the versions the repo pins.
-DEFAULT_TOOLS = ["ruff", "mypy"]
+# `swift` is a compiler-warning count for SwiftPM trees (#46). It is weaker
+# than `mypy --strict`: the compiler checks types anyway, so a warning is the
+# only extra signal, and a Swift delta is not comparable to a Python one.
+DEFAULT_TOOLS = ["ruff", "mypy", "swift"]
 
 
 def _normalize(body: str) -> str:
@@ -165,11 +170,22 @@ def _count_mypy(stdout: str) -> int:
     return sum(1 for ln in stdout.splitlines() if ": error:" in ln)
 
 
-COUNTERS = {"ruff": _count_ruff, "mypy": _count_mypy}
+# The compiler colours its diagnostics even into a pipe, and the colour codes
+# split ": warning:". Strip SGR colours and OSC 8 hyperlinks before matching.
+_ANSI = re.compile(r"\x1b\[[0-9;]*m|\x1b\]8;;[^\x1b]*\x1b\\")
+_SWIFT_WARNING = re.compile(r"^(\S+:\d+:\d+): warning: ", re.MULTILINE)
+
+
+def _count_swift_warnings(output: str) -> int:
+    """Distinct warning locations: SwiftPM can print one warning twice."""
+    return len(set(_SWIFT_WARNING.findall(_ANSI.sub("", output))))
+
+
+COUNTERS = {"ruff": _count_ruff, "mypy": _count_mypy, "swift": _count_swift_warnings}
 ARGV = {"ruff": ["ruff", "check", "."], "mypy": ["mypy"]}
 # #46: the file suffix each tool reads. On a tree with none of them, ruff
 # lints nothing and prints "All checks passed", which counts as a clean 0.
-LANGUAGE = {"ruff": ".py", "mypy": ".py"}
+LANGUAGE = {"ruff": ".py", "mypy": ".py", "swift": ".swift"}
 
 
 def gate_applies(tool: str, worktree: pathlib.Path) -> bool:
@@ -210,6 +226,11 @@ def gates(
         if not gate_applies(tool, worktree):
             logger.debug("gate %s does not apply to this tree", tool)
             continue
+        if tool == "swift":
+            got_swift = _swift_gate(worktree, timeout)
+            if got_swift is not None:
+                got[tool] = got_swift
+            continue
         argv = ARGV.get(tool, [tool])
         try:
             proc = subprocess.run(
@@ -243,6 +264,36 @@ def gates(
             continue
         got[tool] = counter(proc.stdout)
     return got
+
+
+def _swift_gate(worktree: pathlib.Path, timeout: int) -> int | None:
+    """Warnings from a fresh `swift build`, or None if it did not build.
+
+    Fresh, because an incremental build prints warnings only for the files it
+    recompiles, so a before/after pair would compare different file sets. A
+    cold build of ~/git/monitor took 9 s on the M5 Max. The scratch path is
+    outside the tree, so the gate leaves no `.build` behind in the diff.
+
+    A failed build is None, not a count: its warnings stop at the first error.
+    """
+    with tempfile.TemporaryDirectory(prefix="gate-swift-") as scratch:
+        try:
+            proc = subprocess.run(
+                ["swift", "build", "--scratch-path", scratch],
+                cwd=worktree,
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                stdin=subprocess.DEVNULL,
+                check=False,
+            )
+        except (OSError, subprocess.SubprocessError) as exc:
+            logger.debug("gate swift did not run: %s", exc)
+            return None
+    if proc.returncode != 0:
+        logger.debug("gate swift: build failed: %s", proc.stderr.strip()[-200:])
+        return None
+    return _count_swift_warnings(proc.stdout + proc.stderr)
 
 
 def delta(before: dict[str, int], after: dict[str, int]) -> dict[str, int]:
