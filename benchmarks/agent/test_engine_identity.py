@@ -396,3 +396,13 @@ def test_vllm_without_a_venv_is_name_only_not_a_guess(tmp_path):
     is not on disk -- the same 'never guess' rule as the other engines."""
     got = engine_identity.identity("vllm", tree=str(tmp_path / "no-such-venv"))
     assert got == {"engine_name": "vllm"}
+
+
+def test_sushi_is_a_tree_built_engine(tmp_path):
+    """#749: Sushi is built from source at a tag, so a row carries its sha."""
+    tree = _git_tree(tmp_path)
+    got = engine_identity.identity("sushi", tree=str(tree))
+    assert got["engine_name"] == "sushi"
+    assert got["engine_version"], "a git tree must report a sha"
+    assert got["engine_tree"] == str(tree)
+    assert "sushi" in engine_identity.RESIDENT
