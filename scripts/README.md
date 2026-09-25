@@ -22,6 +22,7 @@ Each script explains itself in full at the top of its own file -- what it comput
 | `check_metal_equivalence.py` | mac | Run ds4's Metal tensor-route equivalence test and cache the verdict (#149). |
 | `check_release_version.py` | any | Refuse a release whose tag disagrees with the declared version. |
 | `client_container.py` | any | Run the harness inside the pinned client image. #611 |
+| `client_effort.py` | any | Turns and tokens per task, per client, for one backend (#707). |
 | `client_preflight.py` | any | Check a remote client is fit to run trials against the server. #562/#579 |
 | `client_version_split.py` | any | Which client version took which rows, and what that confounds (#137, #131). |
 | `client_versions.py` | any | Read the recorded agent client versions, and say which have moved (#131). |
