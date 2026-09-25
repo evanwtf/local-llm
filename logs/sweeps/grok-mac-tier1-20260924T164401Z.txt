@@ -1,0 +1,30 @@
+# grok sweep
+# requested window: last 24 hours
+# written:  2026-09-24T16:44:01Z  (local: 2026-09-24 12:44:01 EDT)
+# query:    Search X for posts and replies from @antirez @beamivalice @Beamsters1 @ddalcu @ggerganov @ivanfioravanti @jundotkim @korale77 @Spangler3000  in the last 24 hours about local LLM inference on Apple Silicon (MLX, Metal, llama.cpp, ds4, oMLX, mlx-serve, MTP, speculative decoding, quantization, coding agents). Output ONE bullet per post and nothing else -- no preamble, no summary: - <UTC timestamp> | @handle | <post URL> | <the claim in one sentence>. Omit any item without both a URL and a UTC timestamp. If nothing matches, output exactly: NO RESULTS
+
+I'll search X for posts from those accounts in the last 24 hours and keep only items that match local LLM inference on Apple Silicon.The first pass found several matching posts; I’ll search each account and fetch reply threads so I only keep on-topic items from the last 24 hours.I’ll pull thread context for the replies and page older posts so I can drop anything that is off-topic or outside the 24-hour window.- 2026-09-24 16:40:00 UTC | @Beamsters1 | https://x.com/Beamsters1/status/2103162545616150986 | Qwen3.8-Flash-Next as a 63.5GB sushi4 pack ran a local pagoda coding-agent scene at high quality but took over an hour and needs a 96GB+ machine.
+- 2026-09-24 16:03:22 UTC | @ddalcu | https://x.com/ddalcu/status/2103153328142061596 | MLX-Serve's real gain is wall-clock task time and tool-call loop speed, because the API layer keeps the GPU busy rather than only raw decode/prefill.
+- 2026-09-24 14:56:50 UTC | @ddalcu | https://x.com/ddalcu/status/2103136583411183984 | MLX-Serve runs on the Xcode Beta for iOS 27.1 Duo Edition with no code changes.
+- 2026-09-24 15:25:23 UTC | @ivanfioravanti | https://x.com/ivanfioravanti/status/2103143768853516548 | Anemll's patched CoreML FP8-on-M6 tests are enough to make him buy a Mac Mini.
+- 2026-09-24 14:50:55 UTC | @ivanfioravanti | https://x.com/ivanfioravanti/status/2103135095515177217 | He is home and ready to upgrade and test MTPLX V2.12 for local AI on Mac.
+- 2026-09-24 14:45:53 UTC | @ivanfioravanti | https://x.com/ivanfioravanti/status/2103133826654351840 | LiteLLM 1.102.1 is a great way to share access to local AI models.
+- 2026-09-24 13:25:21 UTC | @Beamsters1 | https://x.com/Beamsters1/status/2103113560121594165 | For DSv4.1, kv8 costs almost nothing for the first 128k tokens and KLD may not move beyond 0.01.
+- 2026-09-24 13:16:04 UTC | @Beamsters1 | https://x.com/Beamsters1/status/2103111223722303714 | On DSv4.1, kv8 would save only about 0.5kB per token, not 0.5GB per expert layer.
+- 2026-09-24 13:09:24 UTC | @Beamsters1 | https://x.com/Beamsters1/status/2103109547925901397 | 26 tok/s decode with DSv4.1 EXL3 on an M5 MacBook is a massive result.
+- 2026-09-24 11:34:55 UTC | @ddalcu | https://x.com/ddalcu/status/2103085769921614165 | Nightly MLX-Serve stress tests on his machine have not caused a reboot in a while.
+- 2026-09-24 08:16:33 UTC | @Beamsters1 | https://x.com/Beamsters1/status/2103035849235403221 | Prefill for the upcoming Qwen3.8-Flash-Next package is 1500++ tok/s.
+- 2026-09-24 07:42:54 UTC | @Beamsters1 | https://x.com/Beamsters1/status/2103027381435031789 | The mixed 4-8bit Qwen3.8-Flash-Next MLX-Serve pack sustains 70 t/s to 1M context on a single 128GB machine.
+- 2026-09-24 05:57:53 UTC | @Beamsters1 | https://x.com/Beamsters1/status/2103000950130782270 | Qwen3.8-Flash-Next at 49GB with 8-bit KV cache produces good pagoda-scene quality and is a final check before a weekend release.
+- 2026-09-24 03:55:29 UTC | @Beamsters1 | https://x.com/Beamsters1/status/2102970147904602283 | A local coding-agent voxel pagoda, rumored to be MiniMax M3.1, produced an impressive result.
+- 2026-09-24 01:07:58 UTC | @Beamsters1 | https://x.com/Beamsters1/status/2102927994218275326 | The 70 t/s local MiMo run is MiMo-2.6 Flash at 2.5 bpw EXL3 hybrid.
+- 2026-09-24 00:57:01 UTC | @Beamsters1 | https://x.com/Beamsters1/status/2102925236903801017 | MiMo-v2.6-Flash as a 97GB quant does 600-1000 t/s prefill and up to 500,000 context.
+- 2026-09-24 00:53:59 UTC | @Beamsters1 | https://x.com/Beamsters1/status/2102924472957485127 | MiMo-2.6 hits 70 t/s locally on M5 Max with 92% top-1 agree and 0.078 KLD, still in lab and coming for 128GB systems.
+- 2026-09-23 22:56:00 UTC | @Beamsters1 | https://x.com/Beamsters1/status/2102894780732887372 | A 512GB Mac Studio is only worth it if you want to run 700B-1T models locally.
+- 2026-09-23 22:53:28 UTC | @ddalcu | https://x.com/ddalcu/status/2102894142447862013 | The Qwen3.8-Flash-Next M5 Max 70-90 t/s package is the one to use on a new M5 Pro, at about half that speed.
+- 2026-09-23 22:52:23 UTC | @ddalcu | https://x.com/ddalcu/status/2102893873320382783 | 256GB is the sweet spot for enthusiasts, and 512GB is only needed if you quantize models.
+- 2026-09-23 22:27:44 UTC | @Beamsters1 | https://x.com/Beamsters1/status/2102887669986623982 | A 49GB pack cannot load on 48GB RAM, but you can stream it from SSD or use a 2-bit pack under 40GB if quality holds.
+- 2026-09-23 22:25:40 UTC | @Beamsters1 | https://x.com/Beamsters1/status/2102887146877247967 | Quality versus the mixed-bit Qwen3.8-Flash-Next pack is not a cliff, only a slight drop.
+- 2026-09-23 22:24:13 UTC | @Beamsters1 | https://x.com/Beamsters1/status/2102886782438437344 | The Qwen3.8-Flash-Next speed demo used 1,000,000 context.
+- 2026-09-23 19:20:59 UTC | @ddalcu | https://x.com/ddalcu/status/2102840672869044349 | Most of the M5 Ultra local-AI project setups in NetworkChuck's video can be replaced by a single faster solution.
+- 2026-09-23 18:36:49 UTC | @ddalcu | https://x.com/ddalcu/status/2102829554557690320 | M6 TFLOPS and memory bandwidth look strong enough that MiniMax H3-class models could get a 3x boost.
