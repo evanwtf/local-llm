@@ -116,3 +116,17 @@ def test_answer_rules_follow_the_allow_list(tmp_path, home):
     answer = lines.index(f'(deny file-read-data (subpath "{repo}"))')
     assert answer > last_allow
     assert lines.index(f'(deny file-read-data (subpath "{home}"))') < last_allow
+
+
+@needs_sandbox
+def test_a_symlinked_config_is_readable_through_its_link(tmp_path, home):
+    """The sandbox checks the resolved path. `~/.gitconfig` pointing into a
+    dotfiles checkout was unreadable until the target was allowed too."""
+    dotfiles = home / "git" / "dotfiles"
+    dotfiles.mkdir(parents=True)
+    (dotfiles / "gitconfig").write_text("[user]\n")
+    (home / ".gitconfig").symlink_to(dotfiles / "gitconfig")
+    result = _cat(_profile(tmp_path, home), home / ".gitconfig")
+    assert result.returncode == 0, result.stderr
+    (dotfiles / "notes.txt").write_text("private\n")
+    assert _cat(_profile(tmp_path, home), dotfiles / "notes.txt").returncode != 0

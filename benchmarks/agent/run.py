@@ -2784,6 +2784,30 @@ HOME_READABLE = (
 )
 
 
+def readable_targets(entry):
+    """`entry`, plus where it and its immediate symlinked children resolve.
+
+    The sandbox checks the resolved path, not the one the tool opened. On the
+    M5 Max `~/.gitconfig` is a symlink into a dotfiles checkout, so allowing
+    the link alone left `git` unable to read its config (found in the #780
+    live check). One level of children covers `~/.config/git/ignore` and
+    SwiftPM's `~/.swiftpm/*` links without walking a whole cache.
+    """
+    entry = pathlib.Path(entry)
+    out = [str(entry)]
+    try:
+        real = str(entry.resolve())
+        if real != str(entry):
+            out.append(real)
+        if entry.is_dir():
+            for child in entry.iterdir():
+                if child.is_symlink():
+                    out.append(str(child.resolve()))
+    except OSError:
+        pass
+    return out
+
+
 def sandbox_profile(worktree, repo, home=None):
     """A macOS sandbox profile that hides every other copy of the answer.
 
@@ -2882,9 +2906,15 @@ def sandbox_profile(worktree, repo, home=None):
     def kind(path):
         return "literal" if pathlib.Path(path).is_file() else "subpath"
 
-    readable = [str(home / rel) for rel in HOME_READABLE]
-    readable.append(str(HERE.resolve().parent.parent))
-    readable.append(keep)
+    readable = []
+    for entry in [
+        *(home / rel for rel in HOME_READABLE),
+        HERE.resolve().parent.parent,
+        pathlib.Path(keep),
+    ]:
+        for path in readable_targets(entry):
+            if path not in readable:
+                readable.append(path)
     home_rules = [f'(deny file-read-data (subpath "{home}"))'] + [
         f'(allow file-read-data ({kind(p)} "{p}"))' for p in readable
     ]
