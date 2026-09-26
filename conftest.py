@@ -182,6 +182,8 @@ EXPECTED_SKIPS = (
     r"this machine \(.+\) is not one we manage",
     # #46: the Linux CI runner has no Swift toolchain; the Mac runs this test.
     r"needs a swift toolchain",
+    # #780: the home allow-list is a sandbox-exec profile; Linux has bwrap.
+    r"needs sandbox-exec \(macOS\)",
 )
 
 
