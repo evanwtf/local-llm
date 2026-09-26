@@ -185,7 +185,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 
 ### Cortex-X925-128GB-GB10-x2
 
-*Generated from `hardware/Cortex-X925-128GB-GB10-x2/results.jsonl` — 779 rows, sha256 dda13eddd664.*
+*Generated from `hardware/Cortex-X925-128GB-GB10-x2/results.jsonl` — 809 rows, sha256 6dbe388cca2a.*
 
 #### Every stack measured under OpenCode
 
@@ -199,9 +199,9 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | dsv41fexl3dual2xrc @ Corei3-7100-16GB+image | 30/30 | 75s | 214s | 5.8x |
 | dsv41fexl3dual2xrc @ Corei3-7100-16GB+image | 60/60 | 77s | 330s | 9.4x |
 | dsv4flashvisiondspark2xrc @ Corei3-7100-16GB+image@10g | 40/40 | 82s | 187s | 6.6x |
+| dsv4flashvisiondspark2xrc @ Corei3-7100-16GB+image | 60/60 | 85s | 347s | 13.5x |
 | qwen38fnnvfp4dual2xrcflags @ Corei3-7100-16GB+image@10g | 30/30 | 86s | 412s | 12.4x |
 | mimo26fdual2xrc @ Corei3-7100-16GB+image@10g | 23/28 | 86s | 862s | 24.0x |
-| dsv4flashvisiondspark2xrc @ Corei3-7100-16GB+image | 30/30 | 91s | 202s | 7.9x |
 | qwen38fnfp8dual2xrc @ Corei3-7100-16GB+image | 30/30 | 93s | 278s | 6.3x |
 | qwen38fnnvfp4dual2xrc @ Corei3-7100-16GB+image@10g | 30/30 | 99s | 178s | 5.5x |
 | qwen38fnnvfp4dual2xrcflags @ Corei3-7100-16GB+image | 30/30 | 114s | 304s | 8.9x |
@@ -232,7 +232,7 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 
 | stack | seconds per 1k output tokens |
 |---|---|
-| dsv4flashvisiondspark2xrc @ Corei3-7100-16GB+image | 27s |
+| dsv4flashvisiondspark2xrc @ Corei3-7100-16GB+image | 28s |
 | dsv4flashvisiondspark2xrc @ Corei3-7100-16GB+image@10g | 30s |
 | mimo26fdual2xrc @ Corei3-7100-16GB+image@10g | 38s |
 | mimo26fdual2xrc @ Corei3-7100-16GB+image | 40s |
