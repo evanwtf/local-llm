@@ -1,0 +1,81 @@
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] 2026-09-26T17:54:25Z (13:54:25 EDT) | harness 745bac5
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] Hugging Face sweep since 2026-09-25T17:54:25Z (24h)
+
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] == Qwen3.8-Flash-Next -- our fastest stack (llama.cpp Q3, and the 112 GB MLX build)
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]   ? tatianyi/Qwen3.8-Flash-Next-Uncensored-Halogen             2026-09-26T17:47         dl=0
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]     Baekpica/Swift1.5-Qwen3.8-Flash-Next-Mixed-Quant-GGUF      2026-09-26T16:04         dl=0
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]     ISTA-DASLab/Qwen3.8-Flash-Next-GSQ-RCO-GGUF                2026-09-26T14:43         dl=353422
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]   ? KoenKeunen/Qwen3.8-Flash-Next-UD-Q2_K_XL                   2026-09-26T14:36         dl=0
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]     pentacoxian-dev/Qwen3.8-Flash-Next-IQ3E-Q8D-MTP-GGUF       2026-09-26T13:40         dl=356
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]     bartowski/ukisai_Swift-Qwen3.8-Flash-Next-GGUF             2026-09-26T10:29         dl=0
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]     1bit-MONSTER/Qwen3.8-Flash-Next-UD-Q4_K_XL-MTP             2026-09-26T09:45         dl=0
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]     beamster/Qwen3.8-Flash-Next-Sushi-3bpw                     2026-09-26T07:11         dl=180
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]   ? sjettTT/qwen3.8-flash-next_p150x4                          2026-09-26T03:49         dl=0
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]   ? peonist-ai/halogen-qwen3.8-flash-next                      2026-09-26T01:48         dl=0
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]     meshllm/Qwen3.8-Flash-Next-UD-IQ4_XS-layers                2026-09-25T22:19         dl=7682
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]     mlx-community/Qwen3.8-Flash-Next-4bit-mtp                  2026-09-25T19:15         dl=540
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] 
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] == DeepSeek-V4-Flash -- our only independent lineage; ds4 serves it
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]   ? PoisonZ7/DeepSeek-V4-Flash-Base                            2026-09-26T14:51         dl=0
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]     meshllm/DeepSeek-V4-Flash-UD-Q4_K_XL-layers                2026-09-25T22:19         dl=3711
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]     meshllm/DeepSeek-V4-Flash-0731-UD-Q4_K_XL-layers           2026-09-25T22:19         dl=6750
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]   ? wenzhouwu/YoungAi-DeepSeek-V4.1-Flash                      2026-09-25T20:13         dl=0
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] 
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] == GLM-5.3-Flash -- the other non-Qwen on ds4
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]     brandonmusic/GLM-5.3-Flash-TrellisMX-MXFP8                 2026-09-26T17:45         dl=0
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]     neuralll/GLM-5.3-Flash-MTP-GGUF                            2026-09-26T16:31         dl=0
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]     onicubag/GLM-5.3-Flash-IQ6_K-GGUF                          2026-09-26T16:15         dl=0
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]   ? JANGQ-AI/GLM-5.3-Flash-JANGTQ2                             2026-09-26T13:22         dl=0
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]   ? canada-quant/GLM-5.3-Flash-DFlash2-F                       2026-09-26T13:14         dl=562
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]   ? canada-quant/GLM-5.3-Flash-DFlash2-G                       2026-09-26T13:14         dl=728
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]     neuralll/GLM-5.3-Flash-GSQ-RCO-3.0bit-Q4Kattn-GGUF         2026-09-26T11:42         dl=5602
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]     huihui-ai/GLM-5.3-Flash-abliterated-GGUF                   2026-09-26T11:29         dl=0
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]     elvezjp/GLM-5.3-Flash-ELVEZ-KDA-Q8_0-gguf                  2026-09-26T07:19         dl=152
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]   ? 5yencat/GLM-5.3-Flash-CYBER-oQ4e-mtp                       2026-09-26T05:44         dl=2
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]     meshllm/GLM-5.3-Flash-UD-Q4_K_XL-layers                    2026-09-25T22:19         dl=10944
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]     BoldingBuilds/orcarouter_GLM-5.3-Flash-Uncensored-GGUF     2026-09-25T20:59         dl=23591
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]     BoldingBuilds/GLM-5.3-Flash-Uncensored-GGUF                2026-09-25T20:58         dl=4205
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]     mlx-community/GLM-5.3-Flash-4bit                           2026-09-25T19:15         dl=140
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]   ? RedHatAI/GLM-5.3-Flash-speculator.dspark-preview           2026-09-25T18:47         dl=44
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] 
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] == Qwen3.6-27B -- the 31 GB 'start here' pick
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]   ? texdata/Qwen3.6-27B-slo-med-mt-LoRA                        2026-09-26T16:14         dl=16
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]     texdata/Qwen3.6-27B-slo-med-mt-GGUF-Q8                     2026-09-26T16:14         dl=176
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]   ? texdata/Qwen3.6-27B-slo-med-mt                             2026-09-26T16:13         dl=18
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]   ? texdata/Qwen3.6-27B-slo-med-mt-LoRA-v3                     2026-09-26T15:35         dl=15
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]     LuffyTheFox/Qwen3.6-27B-Uncensored-Genesis-GGUF            2026-09-26T11:25         dl=453
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]   ? randomsubmit/GraphForge-Qwen3.6-27B-SFT                    2026-09-26T00:45         dl=3
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]   ? adamkarvonen/checkpoints_latentqa_cls_past_lens_addition_Q 2026-09-25T23:51         dl=11
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]     Kiseichu/Qwen3.6-27B-Fable-Fus-711-UnHeretic-NM-DAU-NEO-MA 2026-09-25T21:18         dl=30
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] 
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] == Ornith-1.5 -- fastest measured backend
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]   ? blaj/Ornith-1.5-9B-ov-int8                                 2026-09-26T17:40         dl=0
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]   ? tt-hous/ornith-1.5-9b                                      2026-09-26T14:26         dl=0
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]     LuffyTheFox/Ornith1.5-35B-A3B-Genesis-Hermes-GGUF          2026-09-26T11:30         dl=4337
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]     el4/Ornith-1.5-35B-A3B-ONYX-GGUF                           2026-09-26T03:31         dl=3736
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]     meshllm/Ornith-1.5-35B-Q4_K_M-layers                       2026-09-25T22:19         dl=4730
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]   ? r3lax/Huihui-Ornith-1.5-35B-A3B-abliterated-MTPLX-mixed8-4 2026-09-25T21:36         dl=80
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]     mradermacher/Cyber-Ornith-1.5-9B-OBLITERATED-i1-GGUF       2026-09-25T20:18         dl=2314
+2026-09-26T13:54:25-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] 
+2026-09-26T13:54:26-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] == gemma-4-26b -- the MLX Fast leaderboard model; measured 11/11
+2026-09-26T13:54:26-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]     meshllm/gemma-4-26B-A4B-it-qat-UD-Q4_K_XL-layers           2026-09-25T22:19         dl=5167
+2026-09-26T13:54:26-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]   ? DonaldHump/Gemma4-26B-A4B-Uncensored-HauhauCS-Balanced     2026-09-25T19:10         dl=959
+2026-09-26T13:54:26-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] 
+2026-09-26T13:54:26-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] == gemma-4-31b -- the Google-lineage backend, measured 12/12
+2026-09-26T13:54:26-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]   ? Nimbz/Gemma-4-Orthia-31B                                   2026-09-26T17:45         dl=0
+2026-09-26T13:54:26-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]     ramgpt/Gemma4-Writer-31B-F-GGUF                            2026-09-26T17:12         dl=0
+2026-09-26T13:54:26-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]   ? charlie090/gemma-4-31B-it                                  2026-09-26T09:43         dl=0
+2026-09-26T13:54:26-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]   ? PixelProof/gemma-4-31b-pixelproof-lora-adapters            2026-09-26T05:15         dl=0
+2026-09-26T13:54:26-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]   ? ConicCat/Gemma4-Writer-31B-F                               2026-09-26T00:42         dl=8
+2026-09-26T13:54:26-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]     meshllm/gemma-4-31B-it-qat-UD-Q4_K_XL-layers               2026-09-25T22:19         dl=6869
+2026-09-26T13:54:26-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]   ? neural-nova/gemma-4-31B-it-optimized                       2026-09-25T19:12         dl=0
+2026-09-26T13:54:26-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]   ? katiyardinesh/gemma-4-31B-it-custom                        2026-09-25T18:21         dl=139
+2026-09-26T13:54:26-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] 
+2026-09-26T13:54:26-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] == beamster -- Sushi's EXL3 Flash-Next packs for Metal (#749)
+2026-09-26T13:54:26-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]     beamster/Qwen3.8-Flash-Next-Sushi-3bpw                     2026-09-26T07:11         dl=180
+2026-09-26T13:54:26-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] 
+2026-09-26T13:54:26-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] 8 result(s) hidden as unloadable on m5-max (nvfp4, fp8, rocm, awq, gptq, exl2, exl3, marlin, int4, w4a16, w8a8, tensorrt, vllm, sglang). Re-run with --all to see them.
+2026-09-26T13:54:26-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] 
+Legend:  (blank) loads here   ? unclassified, check it   x hidden
+2026-09-26T13:54:26-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] log: /Users/evanhoffman/git/local-llm/logs/sweeps/hf-sweep-M5-Max-128GB-20260926T175425Z.log

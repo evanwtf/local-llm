@@ -1,0 +1,217 @@
+2026-09-26T13:53:49-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] 2026-09-26T17:53:49Z (13:53:49 EDT) | harness 745bac5
+2026-09-26T13:53:49-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-26T13:53:49-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] Upstream sweep since 2026-09-25T17:53:49Z (24h) -- mac: 20 repos
+
+2026-09-26T13:53:50-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] == antirez/ds4 -- our primary engine; the only one that runs DeepSeek-V4-Flash and GLM-5.3
+2026-09-26T13:53:50-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #1056 Metal: optimize Qwen3.8 kernels, MTP state and SSD MoE scheduling (Up tp 40%)
+2026-09-26T13:53:50-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #1131 Read integer request seeds without rounding them through a double
+2026-09-26T13:53:50-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #1011 ROCm: accelerate GLM 5.3 prefill and reduce MTP overhead on gfx1151
+2026-09-26T13:53:50-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #1128 Metal: reject unsupported shapes in five kernels (BF16 partial blocks, head gr
+2026-09-26T13:53:50-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #1130 CUDA: give the ldmatrix helpers the .shared state space
+2026-09-26T13:53:50-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] 
+2026-09-26T13:53:52-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] == ggml-org/llama.cpp -- our fast pick's engine; `qwen4exp` IS Qwen3.8-Flash-Next
+2026-09-26T13:53:52-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    releases: b11201, b11200, b11199, b11195, b11194, b11193, b11192, b11191, b11190, b11189
+2026-09-26T13:53:52-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    Revert "Change max context length for auto-fitting with unified KV (#28849)" (#29437)
+2026-09-26T13:53:52-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    jinja : implement sameas test (#29448)
+2026-09-26T13:53:52-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    jinja : fix compile error (#29468)
+2026-09-26T13:53:52-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    llama : fix K/V and recurrent state cleanup after failed restores (#27530)
+2026-09-26T13:53:52-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    jinja : support noncall test statements with arg (#29443)
+2026-09-26T13:53:52-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    polished Readme and llama-bench (#28968)
+2026-09-26T13:53:52-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    ggml-cpu:  tiled mul_mat for k-quants (#27851)
+2026-09-26T13:53:52-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    opencl: add A8 Q8_0 non-MoE dp4a binary kernel (#29439)
+2026-09-26T13:53:52-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    hexagon: find software divide calls using binary inspection tool (#29449)
+2026-09-26T13:53:52-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    vendor : update cpp-httplib to 0.58.0 (#29407)
+2026-09-26T13:53:52-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    common,rpc : simplify fs_create_directory_with_parents() (#29432)
+2026-09-26T13:53:52-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #29486 server : fix usage.completion_tokens undercount with n > 1
+2026-09-26T13:53:52-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #29479 server : fix wake_fd warning on Windows
+2026-09-26T13:53:52-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #29478 ggml-cuda: HIP: optimize non-saturating packed byte subtraction (`__vsubss4`)
+2026-09-26T13:53:52-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #29394 kleidiai: use SME2 kernels for CPU flash attention
+2026-09-26T13:53:52-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #29100 cuda: FWHT kernels for block widths above 512
+2026-09-26T13:53:52-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #29416 [Model] Support MiniCPM-V 4.7
+2026-09-26T13:53:52-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #29442 Feature: BF16/FP16 conversion to f32 chunking
+2026-09-26T13:53:52-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #29483 webgpu: add MMVQ support for Q1_0/Q5_0/Q5_1/Q3_K/Q5_K/Q6_K/MXFP4
+2026-09-26T13:53:52-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    ... and 42 more open PRs
+2026-09-26T13:53:52-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] 
+2026-09-26T13:53:53-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] == ollama/ollama -- the 31 GB entry point; MLX runtime on the Mac, cuda_v13 on the DGX
+2026-09-26T13:53:53-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    bench: use HumanEval patch prompts (#17480)
+2026-09-26T13:53:53-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #18665 cmd: add stop --all and multi-model stop
+2026-09-26T13:53:53-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #18664 model/parsers: recover Gemma4 tool calls with trailing noise
+2026-09-26T13:53:53-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #18651 MLX: version bump
+2026-09-26T13:53:53-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #18663 model/parsers: preserve GLM string argument content
+2026-09-26T13:53:53-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #18660 Bug fix : app/webview: define NOMINMAX before including windows.h
+2026-09-26T13:53:53-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #9131 Add API key authentication for Ollama server
+2026-09-26T13:53:53-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #18662 Feature : app/wintray: open the UI on a single left click of the tray icon - U
+2026-09-26T13:53:53-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #18661 Feature : UX improvement - app: allow a narrow window and add an always-on-top
+2026-09-26T13:53:53-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    ... and 10 more open PRs
+2026-09-26T13:53:53-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] 
+2026-09-26T13:53:54-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] == anomalyco/opencode -- our only client
+2026-09-26T13:53:54-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    docs(web): link kimaki to product website (#49735)
+2026-09-26T13:53:54-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    docs(go): add LongCat 2.5 Preview Free to V1 pages (#51488)
+2026-09-26T13:53:54-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    chore: update nix node_modules hashes
+2026-09-26T13:53:54-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    refactor(core): share a browser opener across opencode and tui (#51414)
+2026-09-26T13:53:54-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #51528 fix(app): keep workspace message text readable on accent themes
+2026-09-26T13:53:54-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #50622 fix(nix): use current completion CLI flags
+2026-09-26T13:53:54-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #45546 feat(telegram): add bi-directional telegram tui session bridge
+2026-09-26T13:53:54-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #51525 fix(core): reduce repeated session history loads
+2026-09-26T13:53:54-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #51524 fix(app): notify when permission is required
+2026-09-26T13:53:54-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #51518 fix(util): clean up orphaned npm staging directories
+2026-09-26T13:53:54-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #51438 docs: add aiev plugins to ecosystem
+2026-09-26T13:53:54-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #51514 fix(core): treat an empty session subpath as no subpath
+2026-09-26T13:53:54-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    ... and 42 more open PRs
+2026-09-26T13:53:54-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] 
+2026-09-26T13:53:55-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] == evanwtf/local-llm -- this project
+2026-09-26T13:53:55-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    rows: #717 NVFP4 Flash-Next v0.30 arm (recipe d23790b), replay 21/21 (#791)
+2026-09-26T13:53:55-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    rows: #717 NVFP4 Flash-Next (#664 flags) replay batch 3, 21/21 (#790)
+2026-09-26T13:53:55-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    Merge pull request #789 from evanwtf/sources/sushi-tier1
+2026-09-26T13:53:55-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    Watch Sushi as a tier-1 repo, and the beamster HF org
+2026-09-26T13:53:55-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    backend: #717 NVFP4 Flash-Next on the latest recipe + vLLM 0.30.0 (#787)
+2026-09-26T13:53:55-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    Merge pull request #788 from evanwtf/fix/780-trial-env-allowlist
+2026-09-26T13:53:55-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    Give local-backend trials an allow-listed environment (#780)
+2026-09-26T13:53:55-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    Merge pull request #786 from evanwtf/fix/780-home-read-allowlist
+2026-09-26T13:53:55-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    Expect the sandbox-exec skip on the Linux CI runner (#780)
+2026-09-26T13:53:55-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    Merge branch 'main' into fix/780-home-read-allowlist
+2026-09-26T13:53:55-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    Merge pull request #784 from evanwtf/rows/redact-749r3-escapes
+2026-09-26T13:53:55-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    Regenerate docs/results.md for the redacted ledger
+2026-09-26T13:53:55-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    ... and 39 more
+2026-09-26T13:53:55-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] 
+2026-09-26T13:53:56-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] == evanwtf/gmail-archive -- the excision tasks' target repository
+2026-09-26T13:53:56-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    (quiet)
+2026-09-26T13:53:56-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] 
+2026-09-26T13:53:57-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] == evanwtf/ds4 -- our ds4 fork (#27 asks whether it can be retired)
+2026-09-26T13:53:57-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    (quiet)
+2026-09-26T13:53:57-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] 
+2026-09-26T13:53:59-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] == ml-explore/mlx -- the framework everything MLX sits on
+2026-09-26T13:53:59-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    [Metal] Gather mm improvement (#4567)
+2026-09-26T13:53:59-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    Support shapeless compilation of scan operations (#4510)
+2026-09-26T13:53:59-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    Improve metal memory usage for SDPA D512 (#4487)
+2026-09-26T13:53:59-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #4568 Perf: Metal kernel source hash cache
+2026-09-26T13:53:59-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #4564 Make scheduler and CPU allocator fork-safe
+2026-09-26T13:53:59-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #3117 [CUDA][Performance] Add radix select implementation for efficient partition op
+2026-09-26T13:53:59-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #4531 fix(CUDA): Do not throw from ~CudaHandle while the driver is unloading
+2026-09-26T13:53:59-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #4501 Add fixed size `unique` operation 
+2026-09-26T13:53:59-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #4520 Add fused Metal kernels for fast.cross_entropy
+2026-09-26T13:53:59-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] 
+2026-09-26T13:54:00-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] == ml-explore/mlx-lm -- reference MLX server; new architectures land here first
+2026-09-26T13:54:00-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #1788 Add Qwen3.8-Flash-Next (qwen4_exp) model support
+2026-09-26T13:54:00-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #1207 feat(server): add OpenAI Responses API endpoint (/v1/responses)
+2026-09-26T13:54:00-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] 
+2026-09-26T13:54:02-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] == jundot/omlx -- oMLX -- prefill leader, untested here (#60)
+2026-09-26T13:54:02-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    perf: faster Qwen3.8 speculative decode including non-NAX devices (#3958)
+2026-09-26T13:54:02-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    ci: run tests on macos-15 to match the support floor
+2026-09-26T13:54:02-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    fix: restore oQ A8 prefill on M5 packed projections (#3952)
+2026-09-26T13:54:02-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #3510 feat(thinking): add opt-in EOS guard
+2026-09-26T13:54:02-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #3311 fix(memory): warn when a custom ceiling is set but tier is not custom
+2026-09-26T13:54:02-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #3962 test: reset the image decode cache between tests
+2026-09-26T13:54:02-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #3955 perf(vlm): enable vision feature cache for qwen4_exp; partial-miss encode + by
+2026-09-26T13:54:02-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #3963 fix(qwen4_exp): stop MLX pool growth when Lightning MTP batches two or more ro
+2026-09-26T13:54:02-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #3851 feat(admin): the chat page's right panel becomes the shared drawer
+2026-09-26T13:54:02-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #3826 fix(app): count in 万 in Chinese, every other language unchanged
+2026-09-26T13:54:02-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #3811 fix(specprefill): keep selected tokens at their original positions on mRoPE VL
+2026-09-26T13:54:02-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    ... and 42 more open PRs
+2026-09-26T13:54:02-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] 
+2026-09-26T13:54:03-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] == ddalcu/mlx-serve -- benchmarked on our exact machine; llmprobe's author
+2026-09-26T13:54:03-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    releases: v26.9.6
+2026-09-26T13:54:03-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    fix: a second server can no longer listen on a port already in use (#569)
+2026-09-26T13:54:03-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    perf: serve bf16 KV with the fused split-K QSA verify kernel (#555)
+2026-09-26T13:54:03-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    perf: PLE n-gram gather on the GPU (#539)
+2026-09-26T13:54:03-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    feat: --prefill-decode-share keeps decoding streams moving through another request's prefill (#568)
+2026-09-26T13:54:03-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    fix: load Nemotron-H MoE checkpoints (layers_block_type list + MoE blocks) (#559)
+2026-09-26T13:54:03-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    Qwen-Image-2.1 instruction editing (unified t2i+edit, up to 10 references) (#512)
+2026-09-26T13:54:03-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    i18n(console): translate the built-in console into Simplified Chinese (#487)
+2026-09-26T13:54:03-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    feat(console): add a light theme with a switch (#485)
+2026-09-26T13:54:03-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    i18n(app): route the alerts and hints through the catalog (#463)
+2026-09-26T13:54:03-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    perf: one fused kernel for the QSA indexer's pooled-key upkeep (#556)
+2026-09-26T13:54:03-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    perf: gqa-aware causal sdpa split keeps MTP verify widths on the vector kernel (#554)
+2026-09-26T13:54:03-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    perf: solo greedy MTP rounds draft the next chain before the host read (#545)
+2026-09-26T13:54:03-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    ... and 12 more
+2026-09-26T13:54:03-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #572 app: the type floor is 12, roles pick the step, and ink a person can read
+2026-09-26T13:54:03-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #558 perf: fold the GDN verify norm-gate and rollback concat into the recurrence ke
+2026-09-26T13:54:03-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #570 docs: the type rule keeps its rule, the numbers move to a gotcha
+2026-09-26T13:54:03-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #562 test: key the type guards on structure, not on literals
+2026-09-26T13:54:03-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #560 Prepare sushi submodule integration for single-binary EXL3
+2026-09-26T13:54:03-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #563 perf(qwen-image): cache multi-reference edit prefix KV (stacked on #512)
+2026-09-26T13:54:03-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #373 feat(vision): append-only Qwen media history and RAM cache reuse
+2026-09-26T13:54:03-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] 
+2026-09-26T13:54:04-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] == beamivalice/sushi -- Sushi, the mlx-serve fork with EXL3 Flash-Next packs; our fastest Mac stack (#749)
+2026-09-26T13:54:04-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    releases: v1.0.4
+2026-09-26T13:54:04-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    Adjust ctx-size parameter in README.md
+2026-09-26T13:54:04-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    Revise README with updated parameters and explanations
+2026-09-26T13:54:04-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    Release v1.0.4 with context-aware load admission
+2026-09-26T13:54:04-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    Specialize MiMo K2.25 non-NAX prefill weight reads
+2026-09-26T13:54:04-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    sushi image assets
+2026-09-26T13:54:04-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    A MiMo verify wider than the decode arithmetic is refused by name, not re-armed
+2026-09-26T13:54:04-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    docs: the n-gram gather arm is measured, and the rule that replaced a formula
+2026-09-26T13:54:04-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    The n-gram gather arm is measured on the table, not predicted from RAM
+2026-09-26T13:54:04-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    The n-gram prefill gather pools at any kv when the table cannot stay in page cache beside the weights
+2026-09-26T13:54:04-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    README: the 64 GB recipe is two launches off one measured budget
+2026-09-26T13:54:04-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    EXL3 prefill on M1-M4: a simdgroup-matrix expert GEMM
+2026-09-26T13:54:04-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #6 qwen4 verify rows read the hyper-connection weights once per row group
+2026-09-26T13:54:04-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #7 Stream tool-call arguments as they are written
+2026-09-26T13:54:04-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #2 Docs: build from source, sushi launch agents, submodule setup
+2026-09-26T13:54:04-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #5 The admission eviction pass drains the GPU stream before it reads live memory
+2026-09-26T13:54:04-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] 
+2026-09-26T13:54:05-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] == youssofal/MTPLX -- MTP speculative decoding; we hold one unreplicated number
+2026-09-26T13:54:05-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #538 Update transformers requirement from !=5.13.0,<5.15,>=5.10.0 to >=5.10.0,!=5.1
+2026-09-26T13:54:05-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #520 feat: mtplx supervise - multi-model JIT loading, idle unload, self-healing res
+2026-09-26T13:54:05-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #536 Cap pending idle-persistence bytes
+2026-09-26T13:54:05-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #535 Tests no longer read the user's ~/.mtplx/config.toml or depend on the Mac's me
+2026-09-26T13:54:05-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #534 Session bank: report why the RAM lane refused a shared prompt start
+2026-09-26T13:54:05-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #533 Memoize segmented chat encodes per segment
+2026-09-26T13:54:05-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #532 Prompt scoring: top-K per chunk without a full-vocabulary log-softmax
+2026-09-26T13:54:05-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #531 Drop the answer's leading separator from streamed content when it arrives afte
+2026-09-26T13:54:05-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    ... and 1 more open PRs
+2026-09-26T13:54:05-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] 
+2026-09-26T13:54:06-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] == raullenchai/Rapid-MLX -- the one MLX engine reachable by pip (#57, #60)
+2026-09-26T13:54:06-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #3769 dev: one local verification command from report or diff to evidence
+2026-09-26T13:54:06-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #3766 exp(computer-use): attribute planner, verifier, and agent-loop failures
+2026-09-26T13:54:06-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #3763 Deduplicate repeated model serve failure telemetry
+2026-09-26T13:54:06-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #3765 feat: add telemetry capability context
+2026-09-26T13:54:06-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #3771 test: prove effective runtime resolver parity
+2026-09-26T13:54:06-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #3770 feat: define effective runtime config contract
+2026-09-26T13:54:06-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #3762 feat: run Qwen Image 2.1 on low-memory Macs
+2026-09-26T13:54:06-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #3761 fix(reasoning): apply user stop= only to the answer on <think> models
+2026-09-26T13:54:06-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    ... and 3 more open PRs
+2026-09-26T13:54:06-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] 
+2026-09-26T13:54:07-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] == ARahim3/mlx-dspark -- DSpark/DFlash ported to MLX (#19, #58, #75)
+2026-09-26T13:54:07-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    (quiet)
+2026-09-26T13:54:07-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] 
+2026-09-26T13:54:08-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] == Blaizzy/mlx-vlm -- expert offloading, prefix caching, Qwen3.8-Flash-Next MTP
+2026-09-26T13:54:08-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    docs: link corrected multimodal checkpoints (#2372)
+2026-09-26T13:54:08-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    tests: remove restored Mistral test class (#2371)
+2026-09-26T13:54:08-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    Cleanup/moondream qwen test ownership (#2366)
+2026-09-26T13:54:08-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    Refactor/gliner model scope (#2363)
+2026-09-26T13:54:08-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    Cleanup/model test ownership (#2364)
+2026-09-26T13:54:08-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    Feat/lfm2 colbert (#2360)
+2026-09-26T13:54:08-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    Merge pull request #2344 from pierre427/fix/tool-parser-robustness
+2026-09-26T13:54:08-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    Fix Qwen3-VL position embeddings with a quantized pos_embed (#2304)
+2026-09-26T13:54:08-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    Drop whitespace between streamed tool calls
+2026-09-26T13:54:08-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    Keep literal parameter tags in closed Qwen3-Coder values
+2026-09-26T13:54:08-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #2279 Expose make_cache for schedulers outside mlx-vlm
+2026-09-26T13:54:08-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #2214 DeepSeek V4.1 vision and language model support
+2026-09-26T13:54:08-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #2356 apc: restore a single-row hit into its own cache, not a batch merge
+2026-09-26T13:54:08-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #2336 fix(qwen3.5): preserve KV capacity after a batch shrinks to one request
+2026-09-26T13:54:08-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #2248 Video Depth Anything: add opt-in fused Metal preprocessing
+2026-09-26T13:54:08-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #2369 Strip newlines after the thinking close tag across stream chunks
+2026-09-26T13:54:08-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #1964 reformatting docs: move the README into a docs/ site
+2026-09-26T13:54:08-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #2367 Read PIL images as channels-last in the Gemma 4 image processors
+2026-09-26T13:54:08-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    ... and 2 more open PRs
+2026-09-26T13:54:08-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] 
+2026-09-26T13:54:09-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] == unslothai/llama.cpp -- the fork with a working qwen4exp MTP graph (#77)
+2026-09-26T13:54:09-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    Fix ROCm CPU performance, update the ROCm toolchain, and bundle Windows ARM64 CUDA libraries (#233)
+2026-09-26T13:54:09-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #227 fit: measure a draft head that borrows the target's embeddings
+2026-09-26T13:54:09-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #146 ci: ship test-backend-ops in the Vulkan and ROCm prebuilts
+2026-09-26T13:54:09-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] 
+2026-09-26T13:54:10-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] == Layr-Labs/mlxfast-gemma4-26b-a4b-engine -- MLX Fast leaderboard harness (#80)
+2026-09-26T13:54:10-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    (quiet)
+2026-09-26T13:54:10-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] 
+2026-09-26T13:54:11-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] == sudoingX/qwen38-mtp -- 61 paired baseline-vs-MTP runs, disciplined method (#19, #39)
+2026-09-26T13:54:11-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    Fix PR #87 intake: workload row to the end of the table, rule 1 credit, plain dashes in the footnote
+2026-09-26T13:54:11-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    Merge PR #87: RTX 3090 JSON/tool-call workload row, 34.0 to 84.4 at n-max 4, draft depth swept by workload (custom method)
+2026-09-26T13:54:11-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    docs: report workload-specific RTX 3090 draft depth
+2026-09-26T13:54:11-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] 
+2026-09-26T13:54:12-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] == trymirai/uzu -- Apple-only Rust engine, reachable by pip; claims 2x MTPLX (#134)
+2026-09-26T13:54:12-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #796 Big refactor (metal4 gone out of control)
+2026-09-26T13:54:12-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #866 Add Hadamard output to CPU embedding and normalization
+2026-09-26T13:54:12-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]    PR #860 Benchmarks
+2026-09-26T13:54:12-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] 
+2026-09-26T13:54:12-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] log: /Users/evanhoffman/git/local-llm/logs/sweeps/upstream-sweep-M5-Max-128GB-20260926T175349Z.log

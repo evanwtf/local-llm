@@ -1,0 +1,14 @@
+# grok sweep
+# requested window: last 24 hours
+# written:  2026-09-26T17:55:04Z  (local: 2026-09-26 13:55:04 EDT)
+# query:    Search X for posts and replies from @antirez, @ivanfioravanti, @Beamsters1, @beamivalice, @ddalcu, @jundotkim, @jundot, @ggerganov, @korale77, @Spangler3000, @eclaire, @jonathan308 in the last 24 hours about local LLM inference on Apple Silicon (MLX, Metal, llama.cpp, ds4, oMLX, mlx-serve, Sushi, M5 Max). Output ONE bullet per post and nothing else -- no preamble, no summary: - <UTC timestamp> | @handle | <post URL> | <the claim in one sentence>. Omit any item without both a URL and a UTC timestamp. If nothing matches, output exactly: NO RESULTS
+
+Internal error: {
+  "message": "API error (status 402 Payment Required): Grok Build usage balance exhausted",
+  "http_status": 402
+}
+Error: Internal error: {
+  "message": "API error (status 402 Payment Required): Grok Build usage balance exhausted",
+  "http_status": 402
+}
+[exited with code 1]
