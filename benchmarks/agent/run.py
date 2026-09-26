@@ -2751,7 +2751,64 @@ def ensure_pristine(repo, commit):
     return sha
 
 
-def sandbox_profile(worktree, repo):
+#: #780: what a trial may read under the operator's home directory. Everything
+#: else under $HOME is unreadable. The deny-list below hides the answers, but on
+#: 2026-09-25 it left the rest of the home directory open: an agent looking for
+#: "a real mailbox" listed ~/Downloads, extracted a personal mail archive into
+#: $TMPDIR and ran a script over it. Keys, ~/.ssh, ~/.aws and every other repo
+#: were just as readable.
+#:
+#: Each entry is here because a tool the trial runs needs it. The client, its
+#: config and its state; uv's interpreters and cache; git's config; SwiftPM's
+#: caches; the swift shim (#719). The harness checkout itself is added in
+#: `sandbox_profile` because OpenCode lstat()s its launch directory (#54).
+HOME_READABLE = (
+    ".opencode",
+    ".config/opencode",
+    ".local/share/opencode",
+    ".local/state/opencode",
+    ".cache/opencode",
+    ".bun",
+    ".npm",
+    ".local/bin",
+    ".local/share/uv",
+    ".cache/uv",
+    ".config/uv",
+    ".gitconfig",
+    ".config/git",
+    ".swiftpm",
+    "Library/Caches/org.swift.swiftpm",
+    "Library/org.swift.swiftpm",
+    "Library/Developer",
+    ".local-llm-bench/shims",
+)
+
+
+def readable_targets(entry):
+    """`entry`, plus where it and its immediate symlinked children resolve.
+
+    The sandbox checks the resolved path, not the one the tool opened. On the
+    M5 Max `~/.gitconfig` is a symlink into a dotfiles checkout, so allowing
+    the link alone left `git` unable to read its config (found in the #780
+    live check). One level of children covers `~/.config/git/ignore` and
+    SwiftPM's `~/.swiftpm/*` links without walking a whole cache.
+    """
+    entry = pathlib.Path(entry)
+    out = [str(entry)]
+    try:
+        real = str(entry.resolve())
+        if real != str(entry):
+            out.append(real)
+        if entry.is_dir():
+            for child in entry.iterdir():
+                if child.is_symlink():
+                    out.append(str(child.resolve()))
+    except OSError:
+        pass
+    return out
+
+
+def sandbox_profile(worktree, repo, home=None):
     """A macOS sandbox profile that hides every other copy of the answer.
 
     #54: OpenCode is not confined to its workspace. `opencode run` is headless,
@@ -2774,9 +2831,18 @@ def sandbox_profile(worktree, repo):
     186 correct patches and this repo's tracked results.jsonl names their paths.
 
     `allow default` on purpose: the agent still needs its venv, caches, the
-    model server and the trial checkout. This hides the answers, nothing else.
+    model server and the trial checkout.
+
+    #780: under $HOME that is no longer "allow". The profile denies reading
+    file contents anywhere under `home`, then allows HOME_READABLE, the harness
+    checkout and the trial worktree. Metadata stays readable, because tools
+    resolve paths through the home directory. The answer denies come last and
+    name `file-read-data` explicitly. The sandbox applies the last matching
+    rule for an operation, and a rule for `file-read-data` takes precedence
+    over one for `file-read*`, so a wildcard deny alone would lose to the
+    allows above it (verified on macOS 27).
     """
-    home = pathlib.Path.home()
+    home = pathlib.Path(home).resolve() if home else pathlib.Path.home()
     keep = str(pathlib.Path(worktree).resolve())
     denied = []
     repo_path = pathlib.Path(repo).expanduser().resolve()
@@ -2836,10 +2902,28 @@ def sandbox_profile(worktree, repo):
         leak = str(leak.resolve())
         if not keep.startswith(leak) and leak not in denied:
             denied.append(leak)
-    rules = "\n".join(
-        f'(deny file-read* ({"literal" if pathlib.Path(d).is_file() else "subpath"} "{d}"))'
+
+    def kind(path):
+        return "literal" if pathlib.Path(path).is_file() else "subpath"
+
+    readable = []
+    for entry in [
+        *(home / rel for rel in HOME_READABLE),
+        HERE.resolve().parent.parent,
+        pathlib.Path(keep),
+    ]:
+        for path in readable_targets(entry):
+            if path not in readable:
+                readable.append(path)
+    home_rules = [f'(deny file-read-data (subpath "{home}"))'] + [
+        f'(allow file-read-data ({kind(p)} "{p}"))' for p in readable
+    ]
+    answer_rules = [
+        f'(deny {op} ({kind(d)} "{d}"))'
         for d in denied
-    )
+        for op in ("file-read*", "file-read-data")
+    ]
+    rules = "\n".join(home_rules + answer_rules)
     return f"(version 1)\n(allow default)\n{rules}\n", denied
 
 
@@ -3007,7 +3091,15 @@ def confinement_record(mechanism, denied, memory_cap_gib):
     """
     return {
         "mechanism": mechanism,
-        "paths": "deny-list" if denied else "none",
+        # #780: sandbox-exec also denies reads under $HOME outside an
+        # allow-list; bwrap still covers only the answer paths.
+        "paths": (
+            "none"
+            if not denied
+            else "home-allow-list"
+            if mechanism == "sandbox-exec"
+            else "deny-list"
+        ),
         "denied_count": len(denied),
         # bwrap gives the trial its own /tmp and /dev/shm; sandbox-exec does
         # not, and an unconfined trial shares the host's (#476).
@@ -3038,7 +3130,8 @@ def bwrap_works() -> bool:
 def sandboxed(argv, worktree, repo, tmpdir):
     """Wrap an agent invocation in whichever sandbox this platform has.
 
-    macOS: `sandbox-exec` with the deny-list profile (#54). Linux: `bwrap`
+    macOS: `sandbox-exec` with the home allow-list and answer deny-list
+    profile (#54, #780). Linux: `bwrap`
     with the same deny list expressed as tmpfs covers, plus a private /tmp
     (#476). Returns `(argv, denied, mechanism)`; a platform with no *working*
     sandbox returns the argv unchanged with mechanism "none" rather than

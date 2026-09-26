@@ -33,8 +33,15 @@ def test_a_confined_trial_names_its_mechanism_and_deny_list():
         "sandbox-exec", ["/home/x/bench-solutions", "/home/x/git/gmail-archive"], 24
     )
     assert record["mechanism"] == "sandbox-exec"
-    assert record["paths"] == "deny-list"
+    assert record["paths"] == "home-allow-list"
     assert record["denied_count"] == 2
+
+
+def test_bwrap_still_records_a_deny_list():
+    """#780 changed only the macOS profile. A Linux row must not claim the
+    home allow-list, or it would pool with rows taken under a stricter policy."""
+    record = run.confinement_record("bwrap", ["/home/x/bench-solutions"], 24)
+    assert record["paths"] == "deny-list"
 
 
 def test_an_unconfined_trial_says_so_explicitly():
