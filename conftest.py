@@ -180,6 +180,8 @@ EXPECTED_SKIPS = (
     r"no ds4 tree here",
     r"no ds4 tree checked out",
     r"this machine \(.+\) is not one we manage",
+    # #46: the Linux CI runner has no Swift toolchain; the Mac runs this test.
+    r"needs a swift toolchain",
 )
 
 

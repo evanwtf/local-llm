@@ -1,0 +1,9 @@
+2026-09-25T06:57:26-0400 INFO [1d5fefd@M5-Max-128GB none pld=n/a] 2026-09-25T10:57:26Z (06:57:26 EDT) | harness 1d5fefd
+2026-09-25T06:57:26-0400 INFO [1d5fefd@M5-Max-128GB none pld=n/a]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-25T06:57:26-0400 INFO [1d5fefd@M5-Max-128GB none pld=n/a] 2103303476574847060  VERIFIED post  @TeksEdge  Fri Sep 25 02:00:00 +0000 2026  via fxtwitter
+2026-09-25T06:57:26-0400 INFO [1d5fefd@M5-Max-128GB none pld=n/a]     Hugging Face did Apple silicon a solid and users can use GGUFs directly. 🍎 🤯  Transformers can now load GGUF quants directly on Apple Silicon and keep the weights packed instead of expanding them back
+2026-09-25T06:57:26-0400 INFO [1d5fefd@M5-Max-128GB none pld=n/a] 
+2026-09-25T06:57:26-0400 INFO [1d5fefd@M5-Max-128GB none pld=n/a] Verified 1: 1 confirmed, 0 not.
+2026-09-25T06:57:26-0400 INFO [1d5fefd@M5-Max-128GB none pld=n/a] Paste onto the issue:
+2026-09-25T06:57:26-0400 INFO [1d5fefd@M5-Max-128GB none pld=n/a]   **Verified** 2026-09-25: post exists, authored by @TeksEdge, posted Fri Sep 25 02:00:00 +0000 2026.
+2026-09-25T06:57:26-0400 INFO [1d5fefd@M5-Max-128GB none pld=n/a] log: /Users/evanhoffman/git/local-llm-wt-707s/logs/sweeps/verify-posts-M5-Max-128GB-20260925T105725Z.log

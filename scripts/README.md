@@ -13,6 +13,7 @@ Each script explains itself in full at the top of its own file -- what it comput
 | `archive_pre_dir_rows.py` | any | Move every pre---dir OpenCode row out of results.jsonl into the archive. |
 | `arm_order_effect.py` | any | How much does running second inside a rep cost? (#130) |
 | `backfill_client_version.py` | any | Fill `client_version` on rows that predate it, and only where it is known. |
+| `backfill_gates_inapplicable.py` | any | Mark the Python-gate results on Swift rows as not measured (#46). |
 | `backfill_iso8601.py` | any | Convert existing timestamps to ISO 8601 with an explicit offset. |
 | `backfill_prompt_meta.py` | any | Write an inferred prompt sidecar for runs measured before #140. |
 | `bitexact_ab.py` | mac | Bit-exact A/B for two ds4 engine trees: the output-equality check #143 lacked. |
@@ -65,7 +66,7 @@ Each script explains itself in full at the top of its own file -- what it comput
 | `kv_prefix_reuse.py` | mac | Measure how much of a prompt ds4 reuses from its prefix cache (#190). |
 | `load_matrix.py` | mac | Load each of a set of gguf files with the PLE sidecar, serially, and |
 | `local_agent.py` | any | Start a recommended local stack and drop into a coding agent. #235 |
-| `mac_dash.py` | any | M5 Max GPU / thermal / power snapshot from Prometheus, via gcx. |
+| `mac_dash.py` | any | M5 Max GPU / thermal / power snapshot from the local exporter; history via gcx. |
 | `machine_claim.py` | any | Claim the machine with intent, and make contention impossible to miss. #160 |
 | `machine_health.py` | any | Is this machine in a state to start work, and did the work actually start? |
 | `machine_state.py` | any | Is the machine busy, and who says so? One answer, for every agent. |

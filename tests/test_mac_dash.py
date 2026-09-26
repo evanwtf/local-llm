@@ -17,7 +17,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "scripts"))
 import mac_dash
 
 # One instant-query result, as gcx -o json returns it.
-SCALAR = '{"status":"success","data":{"resultType":"vector","result":[{"metric":{"__name__":"macos_gpu_utilization_ratio","instance":"192.168.1.112:9650","job":"macmonitor_exporter"},"value":[1789398389.085,"0.97"]}]}}'
+SCALAR = '{"status":"success","data":{"resultType":"vector","result":[{"metric":{"__name__":"macos_gpu_utilization_ratio","instance":"host.example:9650","job":"macmonitor_exporter"},"value":[1789398389.085,"0.97"]}]}}'
 
 # Several series under one metric, keyed by a label.
 LABELED = '{"data":{"result":[{"metric":{"sensor":"gpu"},"value":[1,"57.9"]},{"metric":{"sensor":"cpu"},"value":[1,"62.3"]},{"metric":{"sensor":"battery"},"value":[1,"31.9"]}]}}'
@@ -92,3 +92,58 @@ def test_render_envelope_reports_peaks_and_the_util_floor() -> None:
     assert "GPU temp peak 98.5 C" in body
     assert "Power peak 134.8 W, p90 115.5 W" in body
     assert "GPU-util floor: 0%" in body
+
+
+# --- the local exporter (snapshot mode) --------------------------------------
+
+EXPOSITION = """\
+# HELP macos_gpu_utilization_ratio GPU utilization.
+# TYPE macos_gpu_utilization_ratio gauge
+macos_gpu_utilization_ratio 0.99
+macos_gpu_vram_used_bytes 2.0905984e+07
+macos_smc_temperature_celsius{sensor="gpu"} 76.046875
+macos_smc_temperature_celsius{sensor="cpu"} 58.484375
+macos_smc_fan_rpm{fan="1"} 0
+macos_smc_power_watts{rail="input"} 122.48
+macos_smc_power_watts{rail="soc"} 114.98
+node_load1 3.2
+"""
+
+
+def test_parse_exposition_reads_plain_and_labelled_samples() -> None:
+    got = mac_dash.parse_exposition(EXPOSITION)
+    assert got["macos_gpu_utilization_ratio"] == {(): 0.99}
+    assert got["macos_gpu_vram_used_bytes"] == {(): 20905984.0}
+    assert got["macos_smc_temperature_celsius"][(("sensor", "gpu"),)] == 76.046875
+
+
+def test_parse_exposition_skips_comments_and_garbage() -> None:
+    got = mac_dash.parse_exposition('# HELP x\nnot a sample\nx{a="1"} nan-ish\n')
+    assert got == {}
+
+
+def test_a_local_snapshot_has_the_same_shape_as_a_gcx_one() -> None:
+    snap = mac_dash.snapshot_from_exposition(EXPOSITION)
+    assert snap["gpu_util"] == 0.99
+    assert snap["temp"] == {"gpu": 76.046875, "cpu": 58.484375}
+    assert snap["fan"] == {"1": 0.0}
+    assert snap["power"] == {"input": 122.48, "soc": 114.98}
+
+
+def test_a_zero_reading_stays_zero_and_a_missing_one_is_none() -> None:
+    """Fans at 0 rpm are a reading. An absent metric is not."""
+    snap = mac_dash.snapshot_from_exposition('macos_smc_fan_rpm{fan="1"} 0\n')
+    assert snap["fan"] == {"1": 0.0}
+    assert snap["gpu_util"] is None
+    assert snap["power"] == {}
+
+
+def test_an_unreachable_exporter_is_an_empty_snapshot_not_zeros() -> None:
+    snap = mac_dash.snapshot_from_exposition("")
+    assert snap["gpu_util"] is None and snap["temp"] == {}
+
+
+def test_the_prometheus_instance_is_not_in_the_source() -> None:
+    """The repo is public: the LAN address comes from the environment."""
+    src = pathlib.Path(mac_dash.__file__).read_text()
+    assert "192.168." not in src

@@ -68,3 +68,21 @@ def test_a_failing_trial_still_contributes_its_gate_delta():
 def test_cells_are_split_by_client_not_just_backend():
     rows = [_row(client="claude"), _row(client="codex")]
     assert len(quality.summarize(rows)) == 2
+
+
+def test_a_gate_marked_inapplicable_is_not_counted_as_clean():
+    """#46: ruff on a Swift tree recorded 0 without reading a file."""
+    rows = [_row(gates_delta={"ruff": 0}, gates_inapplicable=True)]
+    got = quality.summarize(rows)[("t", "b", "claude")]
+    assert got["gated"] == 0
+    assert got["ruff"] is None
+
+
+def test_a_tool_is_averaged_only_over_rows_that_ran_it():
+    """#46: a Swift row has a swift delta and no ruff. Reading the missing
+    ruff as 0 would report the Swift cell as lint-clean."""
+    rows = [_row(gates_delta={"swift": 2}), _row(gates_delta={"swift": 4})]
+    got = quality.summarize(rows)[("t", "b", "claude")]
+    assert got["swift"] == 3
+    assert got["ruff"] is None
+    assert got["mypy"] is None

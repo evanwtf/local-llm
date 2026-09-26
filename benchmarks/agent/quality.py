@@ -26,6 +26,15 @@ import results
 logger = logging.getLogger(__name__)
 
 
+TOOLS = ("ruff", "mypy", "swift")
+
+
+def _mean(deltas: list[dict[str, int]], tool: str) -> float | None:
+    """The tool's mean delta over the rows that ran it (#46): absent is not 0."""
+    got = [d[tool] for d in deltas if tool in d]
+    return sum(got) / len(got) if got else None
+
+
 def summarize(rows: list[dict[str, Any]]) -> dict[tuple[str, str, str], dict]:
     """Per (task, backend, client), collapse the secondary measurements.
 
@@ -40,7 +49,12 @@ def summarize(rows: list[dict[str, Any]]) -> dict[tuple[str, str, str], dict]:
 
     out = {}
     for key, cell in cells.items():
-        deltas = [r["gates_delta"] for r in cell if r.get("gates_delta")]
+        # A marked row's delta came from a gate that read no file (#46).
+        deltas = [
+            r["gates_delta"]
+            for r in cell
+            if r.get("gates_delta") and not r.get("gates_inapplicable")
+        ]
         decided = [
             r["restored_verbatim"]
             for r in cell
@@ -51,12 +65,7 @@ def summarize(rows: list[dict[str, Any]]) -> dict[tuple[str, str, str], dict]:
             "n": len(cell),
             "passed": sum(results.verdict(r) for r in cell),
             "gated": len(deltas),
-            "ruff": (
-                sum(d.get("ruff", 0) for d in deltas) / len(deltas) if deltas else None
-            ),
-            "mypy": (
-                sum(d.get("mypy", 0) for d in deltas) / len(deltas) if deltas else None
-            ),
+            **{tool: _mean(deltas, tool) for tool in TOOLS},
             "verbatim": sum(bool(v) for v in decided),
             "verbatim_of": len(decided),
             "distinct": len(set(hashes)),
@@ -88,25 +97,27 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     logger.info(
-        "%-30s %-14s %-8s %6s %8s %8s %10s %10s",
+        "%-30s %-14s %-8s %6s %8s %8s %8s %10s %10s",
         "task",
         "backend",
         "client",
         "pass",
         "ruff",
         "mypy",
+        "swift",
         "verbatim",
         "distinct",
     )
     for (task, backend, client), v in sorted(measured.items()):
         logger.info(
-            "%-30s %-14s %-8s %6s %8s %8s %10s %10s",
+            "%-30s %-14s %-8s %6s %8s %8s %8s %10s %10s",
             task[:30],
             backend[:14],
             client,
             f"{v['passed']}/{v['n']}",
             "-" if v["ruff"] is None else f"{v['ruff']:+.1f}",
             "-" if v["mypy"] is None else f"{v['mypy']:+.1f}",
+            "-" if v["swift"] is None else f"{v['swift']:+.1f}",
             f"{v['verbatim']}/{v['verbatim_of']}" if v["verbatim_of"] else "-",
             f"{v['distinct']}/{v['hashed']}" if v["hashed"] else "-",
         )
