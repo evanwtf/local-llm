@@ -1566,8 +1566,49 @@ def with_swift_shim(path: str, worktree=None) -> str:
     return os.pathsep.join(parts)
 
 
+#: #780: the environment variables a local-backend trial inherits. Everything
+#: else in the launching shell is dropped. That shell is often an agent
+#: session: it carried the session ID and messaging token, `SSH_AUTH_SOCK`
+#: (the operator's SSH keys, through a socket outside $HOME that the sandbox
+#: does not cover), and a bot's git identity. The harness then sets what the
+#: client needs on top. `OPENCODE_CONFIG` stays because `opencode_config.py`
+#: honors it; `DEVELOPER_DIR` and `SDKROOT` pick the Swift toolchain.
+TRIAL_ENV_KEEP = frozenset(
+    {
+        "PATH",
+        "HOME",
+        "USER",
+        "LOGNAME",
+        "SHELL",
+        "TMPDIR",
+        "LANG",
+        "TERM",
+        "TZ",
+        "__CF_USER_TEXT_ENCODING",
+        "HOMEBREW_PREFIX",
+        "HOMEBREW_CELLAR",
+        "HOMEBREW_REPOSITORY",
+        "OPENCODE_CONFIG",
+        "DEVELOPER_DIR",
+        "SDKROOT",
+    }
+)
+TRIAL_ENV_PREFIXES = ("LC_", "UV_")
+
+
+def trial_env():
+    """`clean_env()` reduced to TRIAL_ENV_KEEP and TRIAL_ENV_PREFIXES (#780)."""
+    return {
+        key: value
+        for key, value in clean_env().items()
+        if key in TRIAL_ENV_KEEP or key.startswith(TRIAL_ENV_PREFIXES)
+    }
+
+
 def agent_env(backend, worktree=None):
-    env = clean_env()
+    # A hosted reference arm keeps the whole environment: its login lives
+    # there. A local backend gets only what the trial needs (#780).
+    env = trial_env() if backend.get("base_url") else clean_env()
     env["PATH"] = trial_path(env.get("PATH", ""), worktree)
     if SWIFT_SHIM:
         install_shims()

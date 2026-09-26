@@ -7,6 +7,7 @@ check is what keeps those two apart, so it is tested before it is trusted.
 
 from __future__ import annotations
 
+import os
 import pathlib
 import sys
 
@@ -139,3 +140,46 @@ def test_the_repo_itself_is_still_readable() -> None:
     )
     repo = str(pathlib.Path.home() / "git/local-llm")
     assert repo not in denied
+
+
+_LOCAL = {
+    "base_url": "http://127.0.0.1:8000",
+    "model": "m",
+    "auth_token": "tok",
+    "context_tokens": 1,
+}
+
+
+def test_a_local_trial_does_not_inherit_session_credentials(monkeypatch) -> None:
+    """#780: the launching shell is often an agent session. Its session token,
+    the SSH agent socket and a bot's git identity must not reach the trial."""
+    for key in (
+        "CLAUDE_CODE_SESSION_ID",
+        "CLAUDE_CODE_MESSAGING_TOKEN",
+        "SSH_AUTH_SOCK",
+        "GIT_CONFIG_KEY_0",
+        "GITHUB_TOKEN",
+        "LOCAL_LLM_SERVER_HOST",
+    ):
+        monkeypatch.setenv(key, "from-the-shell")
+    env = run.agent_env(_LOCAL)
+    leaked = [k for k, v in env.items() if v == "from-the-shell"]
+    assert leaked == []
+
+
+def test_a_local_trial_keeps_what_its_tools_need(monkeypatch) -> None:
+    monkeypatch.setenv("LC_ALL", "en_US.UTF-8")
+    monkeypatch.setenv("UV_CACHE_DIR", "/tmp/uv-cache")
+    env = run.agent_env(_LOCAL)
+    for key in ("PATH", "HOME", "TMPDIR"):
+        if key in os.environ:
+            assert key in env, key
+    assert env["LC_ALL"] == "en_US.UTF-8"
+    assert env["UV_CACHE_DIR"] == "/tmp/uv-cache"
+    assert env["ANTHROPIC_AUTH_TOKEN"] == "tok"
+
+
+def test_the_hosted_reference_keeps_the_shell_environment(monkeypatch) -> None:
+    """A hosted arm's login lives in the environment; #780 leaves it alone."""
+    monkeypatch.setenv("LOCAL_LLM_SERVER_HOST", "srv")
+    assert run.agent_env({"model": "claude-opus-5"})["LOCAL_LLM_SERVER_HOST"] == "srv"
