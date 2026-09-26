@@ -71,6 +71,12 @@ WATCHED: dict[str, tuple[str, tuple[str, ...]]] = {
     ),
     "jundot/omlx": ("oMLX -- prefill leader, untested here (#60)", (MAC,)),
     "ddalcu/mlx-serve": ("benchmarked on our exact machine; llmprobe's author", (MAC,)),
+    # Operator, 2026-09-26: tier 1. Five releases in two days (v1.0.0-v1.0.4),
+    # and #749 measured it at 52% of mlx-serve's pooled time on the M5 Max.
+    "beamivalice/sushi": (
+        "Sushi, the mlx-serve fork with EXL3 Flash-Next packs; our fastest Mac stack (#749)",
+        (MAC,),
+    ),
     "youssofal/MTPLX": (
         "MTP speculative decoding; we hold one unreplicated number",
         (MAC,),

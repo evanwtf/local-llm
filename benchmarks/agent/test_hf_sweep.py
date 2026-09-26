@@ -213,3 +213,25 @@ def test_search_builds_an_author_query(monkeypatch):
     hf_sweep.search("Qwen3.8-Flash-Next")
     assert "search=Qwen3.8-Flash-Next" in captured["url"]
     assert "author=" not in captured["url"]
+
+
+def test_a_sushi_pack_is_usable_on_the_m5_max_even_when_it_says_exl3():
+    """#749: Sushi runs EXL3 experts on Metal. Without the `always` rule an
+    `-EXL3` Sushi pack would be hidden as a CUDA format."""
+    assert (
+        hf_sweep.classify("beamster/Qwen3.8-Flash-Next-Sushi-4bpw", "m5-max")
+        == "usable"
+    )
+    assert (
+        hf_sweep.classify("beamster/Qwen3.8-Flash-Next-Sushi-EXL3-3bpw", "m5-max")
+        == "usable"
+    )
+    assert (
+        hf_sweep.classify("someone/Qwen3.8-Flash-Next-EXL3-4bpw", "m5-max")
+        == "unusable"
+    )
+
+
+def test_the_sushi_pack_org_is_watched_on_the_m5_max():
+    terms = {(term, kind) for term, kind, _why in hf_sweep.watched_for("m5-max")}
+    assert ("beamster", "author") in terms

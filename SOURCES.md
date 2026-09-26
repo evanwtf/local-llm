@@ -414,6 +414,9 @@ oMLX -- prefill leader, untested here (#60)
 * **[`ddalcu/mlx-serve`](https://github.com/ddalcu/mlx-serve)**  
 benchmarked on our exact machine; llmprobe's author
 
+* **[`beamivalice/sushi`](https://github.com/beamivalice/sushi)**  
+Sushi, the mlx-serve fork with EXL3 Flash-Next packs; our fastest Mac stack (#749)
+
 * **[`youssofal/MTPLX`](https://github.com/youssofal/MTPLX)**  
 MTP speculative decoding; we hold one unreplicated number
 
