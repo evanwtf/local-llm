@@ -47,6 +47,7 @@ def test_the_engines_we_actually_run_are_watched():
         "ggml-org/llama.cpp",
         "ollama/ollama",
         "anomalyco/opencode",
+        "beamivalice/sushi",
     ):
         assert repo in WATCHED, repo
 

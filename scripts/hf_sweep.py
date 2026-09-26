@@ -58,6 +58,14 @@ WATCHED: dict[str, str] = {
 # is https://huggingface.co/nvidia -- Nemotron and the NVFP4/FP8 builds that
 # only a CUDA-native engine (vLLM, TensorRT-LLM) can reach (#293, #299).
 WATCHED_EXTRA: dict[str, dict[str, tuple[str, str]]] = {
+    "m5-max": {
+        # Operator, 2026-09-26: Sushi is tier 1. Its packs are published by
+        # this org, and a new pack is a new repo, not a new release.
+        "beamster": (
+            "author",
+            "Sushi's EXL3 Flash-Next packs for Metal (#749)",
+        ),
+    },
     "gb10": {
         "nvidia": (
             "author",
@@ -136,6 +144,9 @@ PROFILES: dict[str, dict] = {
         ),
         # mxfp8 contains "fp8" and is ours; strip it before matching (#78).
         "protect": ("mxfp8",),
+        # Sushi packs carry EXL3 experts but run on Metal under Sushi (#749),
+        # so a Sushi name is usable even when it also says "exl3".
+        "always": ("sushi",),
     },
     "rtx3080ti": {
         "description": "RTX 3080 Ti, 12 GiB VRAM, Ampere sm_86, 32 GB host RAM",
@@ -227,6 +238,8 @@ def classify(repo_id: str, profile: str = "m5-max") -> str:
     """
     prof = PROFILES[profile]
     lowered = repo_id.lower()
+    if any(term in lowered for term in prof.get("always", ())):
+        return "usable"
     # Strip protected substrings before matching the general list: `mxfp8` is
     # MLX's own 8-bit format and contains "fp8", which means NVIDIA. Matching
     # the general first hides every new build of models we actually run -- the
