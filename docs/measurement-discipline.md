@@ -495,10 +495,18 @@ enforces is not the same, and the field says which:
 
 | dimension | M5 Max (`sandbox-exec`) | DGX Spark (`bwrap`) |
 |---|---|---|
-| `paths` | `deny-list` | `deny-list` |
+| `paths` | `home-allow-list` from #780 (`deny-list` before) | `deny-list` |
 | `tmp` | `unenforced`: the host's `/tmp` | `private`: its own `/tmp` and `/dev/shm` |
 | `network` | `unenforced` | `unenforced` |
 | `memory` | `harness:<cap>`, `run.py`'s memcap | `harness:<cap>`, `run.py`'s memcap |
+
+**`home-allow-list` (#780):** on 2026-09-25 a trial read personal files in
+the operator's home directory, which the deny-list left open. The Mac profile
+now denies reading file contents under `$HOME`, except for `HOME_READABLE` in
+`run.py` (the client, uv, git, SwiftPM and the swift shim), the harness checkout
+and the worktree. A tool that fails with "Operation not permitted" on a home
+path needs that path added there, with its reason. Rows stamped
+`home-allow-list` must not pool with `deny-list` rows.
 
 `run.py`'s `confinement_record` writes these values. The `sandbox-exec`
 profile could express a loopback-only network, but the stamp records what is
