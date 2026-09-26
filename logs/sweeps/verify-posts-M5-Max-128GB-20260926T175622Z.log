@@ -1,0 +1,9 @@
+2026-09-26T13:56:22-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] 2026-09-26T17:56:22Z (13:56:22 EDT) | harness 745bac5
+2026-09-26T13:56:22-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]   machine: arm64, Apple M5 Max, 18 cores, 128.0 GiB, Metal ceiling 112.0 GiB raised, confinement sandbox-exec
+2026-09-26T13:56:22-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] 2103864855233192240  VERIFIED post  @Beamsters1  Sat Sep 26 15:10:44 +0000 2026  via fxtwitter
+2026-09-26T13:56:22-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]     MiMo-v2.6-Flash is coming in 🍣 Sushi 1.1 - hybrid quant part is done, support full 1m context with vision and you can ask it to use read-only tools in a simple terminal chat. Expect peak prefill ~1,00
+2026-09-26T13:56:22-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] 
+2026-09-26T13:56:22-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] Verified 1: 1 confirmed, 0 not.
+2026-09-26T13:56:22-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] Paste onto the issue:
+2026-09-26T13:56:22-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a]   **Verified** 2026-09-26: post exists, authored by @Beamsters1, posted Sat Sep 26 15:10:44 +0000 2026.
+2026-09-26T13:56:22-0400 INFO [745bac5@M5-Max-128GB sushi/27ca1c8 pld=n/a] log: /Users/evanhoffman/git/local-llm/logs/sweeps/verify-posts-M5-Max-128GB-20260926T175622Z.log
