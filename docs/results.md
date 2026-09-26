@@ -185,7 +185,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 
 ### Cortex-X925-128GB-GB10-x2
 
-*Generated from `hardware/Cortex-X925-128GB-GB10-x2/results.jsonl` — 581 rows, sha256 635109084a0c.*
+*Generated from `hardware/Cortex-X925-128GB-GB10-x2/results.jsonl` — 602 rows, sha256 9d64261c664f.*
 
 #### Every stack measured under OpenCode
 
@@ -220,7 +220,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | glm53fexl3dual2xrcctx | 42/42 | 216s | 601s | 23.7x |
 | dsv41fexl3dual2xrc | 21/21 | 410s | 998s | 23.7x |
 | qwen38fnnvfp4dual2xrcflags | 21/21 | 430s | 1006s | 23.1x |
-| dsv4flashvisiondspark2xrc | 21/21 | 453s | 740s | 24.8x |
+| dsv4flashvisiondspark2xrc | 42/42 | 435s | 761s | 25.5x |
 | qwen38fnfp8dual2xrc | 21/21 | 502s | 1152s | 20.9x |
 | ling30fdual2xrc | 3/4 | 530s | 633s | 1.9x |
 | mimo26fdual2xrcthink | 11/19 | 531s | 1467s | 12.1x |
@@ -231,7 +231,7 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 
 | stack | seconds per 1k output tokens |
 |---|---|
-| dsv4flashvisiondspark2xrc @ Corei3-7100-16GB+image | 29s |
+| dsv4flashvisiondspark2xrc @ Corei3-7100-16GB+image | 27s |
 | dsv4flashvisiondspark2xrc @ Corei3-7100-16GB+image@10g | 30s |
 | mimo26fdual2xrc @ Corei3-7100-16GB+image@10g | 38s |
 | mimo26fdual2xrc @ Corei3-7100-16GB+image | 40s |
