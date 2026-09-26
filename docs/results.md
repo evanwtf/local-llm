@@ -252,7 +252,7 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 
 ### MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A
 
-*Generated from `hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/results.jsonl` — 4451 rows, sha256 f79634275793.*
+*Generated from `hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/results.jsonl` — 4493 rows, sha256 e83f7eef8071.*
 
 #### Every stack measured under OpenCode
 
@@ -294,6 +294,22 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 
 Excision tasks only; `script-*` excluded because they are a different class. **Spread is worst / best on the same task**, and it is the column most people forget to ask for.
 
+#### Replay tasks: rebuild a real commit from its tests (#714)
+
+| stack | passed | median | worst | spread |
+|---|---|---|---|---|
+| qwen38fnmlxserve | 18/20 | 313s | 940s | 16.6x |
+
+Seven commits from gmail-archive's history, 60-600 changed lines each. The target repo is public, so a pass may be partly recall; see each row's `replay` record.
+
+#### Harder replay tasks: held-out tests and commit spans (#726)
+
+| stack | passed | hidden passed | median | worst | spread |
+|---|---|---|---|---|---|
+| qwen38fnmlxserve | 17/20 | 1/20 | 694s | 1594s | 7.3x |
+
+`passed` is the tests the agent could see. **`hidden passed` is tests it never saw**, run only by the oracle, over the trials whose task holds tests out; a dash means none did. Kept apart from the table above so its seven tasks stay comparable.
+
 #### Same weights, two engines
 
 | task | what it asks for | llama.cpp | LM Studio |
@@ -319,7 +335,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | qwen38fnq3reap | 38s |
 | qwen38fnmlxservenopld | 39s |
 | qwen38fnmlxserve-git | 39s |
-| qwen38fnmlxserve | 41s |
+| qwen38fnmlxserve | 40s |
 | qwen38fniq4 | 44s |
 | Qwen3.8-Flash-Next Q3 - llama.cpp | 45s |
 | qwen36 | 50s |
