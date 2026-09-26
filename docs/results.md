@@ -185,7 +185,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 
 ### Cortex-X925-128GB-GB10-x2
 
-*Generated from `hardware/Cortex-X925-128GB-GB10-x2/results.jsonl` — 665 rows, sha256 5f22c9f143c0.*
+*Generated from `hardware/Cortex-X925-128GB-GB10-x2/results.jsonl` — 686 rows, sha256 25338c9137d7.*
 
 #### Every stack measured under OpenCode
 
@@ -220,7 +220,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | glm53fexl3dual2xrcctx | 63/63 | 216s | 608s | 23.9x |
 | dsv41fexl3dual2xrc | 42/42 | 412s | 999s | 23.8x |
 | qwen38fnnvfp4dual2xrcflags | 42/42 | 428s | 1006s | 23.1x |
-| dsv4flashvisiondspark2xrc | 42/42 | 435s | 761s | 25.5x |
+| dsv4flashvisiondspark2xrc | 63/63 | 435s | 923s | 31.0x |
 | qwen38fnfp8dual2xrc | 21/21 | 502s | 1152s | 20.9x |
 | ling30fdual2xrc | 3/4 | 530s | 633s | 1.9x |
 | mimo26fdual2xrcthink | 11/19 | 531s | 1467s | 12.1x |
