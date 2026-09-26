@@ -1,4 +1,4 @@
-"""M5 Max GPU / thermal / power snapshot from Prometheus, via gcx.
+"""M5 Max GPU / thermal / power snapshot from the local exporter; history via gcx.
 
 The `mac-overview` Grafana dashboard draws `macos_*` (macmonitor_exporter) and
 `node_*` (node_exporter) series for the M5 Max. This reads the same series from
@@ -16,7 +16,10 @@ the transport.
 Two modes:
 
 * **snapshot** (default) -- the current values, as a compact heartbeat line and
-  an issue-ready block.
+  an issue-ready block. Read from the exporter on this machine
+  (`http://127.0.0.1:9650/metrics`), not through Grafana: a current value needs
+  no history, and the gcx path failed with "Network error" for every heartbeat
+  on 2026-09-25 while the exporter itself answered.
 * **envelope** (`--window 210m`) -- the peaks over a past window: max GPU and CPU
   temperature, max and p90 input power, max fan, and the GPU-utilization floor.
   A single instantaneous sample misses a brief throttle-zone excursion; the
@@ -24,8 +27,8 @@ Two modes:
   GPU peak was 98.5 C).
 
 The instance label carries the `:9650` port, so a bare IP matches nothing. The
-LAN IP is a private detail -- it is a constant here, never emitted; only the
-metric values are meant for the PUBLIC repo's issues.
+repo is PUBLIC, so the instance comes from `MAC_DASH_INSTANCE` in the
+environment, never from this file.
 """
 
 from __future__ import annotations
@@ -35,8 +38,10 @@ import json
 import logging
 import os
 import pathlib
+import re
 import subprocess
 import sys
+import urllib.request
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
 
@@ -44,9 +49,14 @@ import logs
 
 logger = logging.getLogger(__name__)
 
-#: The M5 Max under `job="macmonitor_exporter"`. The `:9650` port is part of the
-#: label; several hosts share these series, so the filter must be exact.
-INSTANCE = "192.168.1.112:9650"
+#: The M5 Max under `job="macmonitor_exporter"`, e.g. `<lan-ip>:9650`. The port
+#: is part of the label; several hosts share these series, so the filter must be
+#: exact. Envelope mode only.
+INSTANCE_ENV = "MAC_DASH_INSTANCE"
+INSTANCE = os.environ.get(INSTANCE_ENV, "")
+
+#: The exporter on this machine. Snapshot mode reads it directly.
+EXPORTER_URL = os.environ.get("MAC_DASH_EXPORTER", "http://127.0.0.1:9650/metrics")
 
 #: The Prometheus datasource behind Grafana (shared with the DGX; see
 #: `scripts/gpu_utilization.py` and `docs/dgx-spark-runbook.md`).
@@ -124,8 +134,74 @@ def _sel(metric: str) -> str:
     return f'{metric}{{instance="{INSTANCE}"}}'
 
 
+_SAMPLE = re.compile(r"^([A-Za-z_:][\w:]*)(?:\{([^}]*)\})?\s+(\S+)")
+_LABEL = re.compile(r'(\w+)="((?:[^"\\]|\\.)*)"')
+
+Series = dict[tuple[tuple[str, str], ...], float]
+
+
+def parse_exposition(text: str) -> dict[str, Series]:
+    """Prometheus text format -> {metric: {sorted label pairs: value}}.
+
+    Comments and lines that do not parse are skipped, never read as 0.
+    """
+    out: dict[str, Series] = {}
+    for line in text.splitlines():
+        m = _SAMPLE.match(line)
+        if not m:
+            continue
+        try:
+            value = float(m.group(3))
+        except ValueError:
+            continue
+        labels = tuple(sorted(_LABEL.findall(m.group(2) or "")))
+        out.setdefault(m.group(1), {})[labels] = value
+    return out
+
+
+def snapshot_from_exposition(text: str) -> dict[str, object]:
+    """The same shape as `snapshot_via_gcx`, from the exporter's own text."""
+    got = parse_exposition(text)
+
+    def one(metric: str) -> float | None:
+        return got.get(metric, {}).get(())
+
+    def by(metric: str, key: str) -> dict[str, float]:
+        return {
+            dict(labels)[key]: v
+            for labels, v in got.get(metric, {}).items()
+            if key in dict(labels)
+        }
+
+    return {
+        "gpu_util": one("macos_gpu_utilization_ratio"),
+        "vram_bytes": one("macos_gpu_vram_used_bytes"),
+        "temp": {
+            k: v
+            for k, v in by("macos_smc_temperature_celsius", "sensor").items()
+            if k in {"gpu", "cpu", "enclosure"}
+        },
+        "fan": by("macos_smc_fan_rpm", "fan"),
+        "power": by("macos_smc_power_watts", "rail"),
+    }
+
+
+def fetch_exposition(url: str = EXPORTER_URL) -> str:
+    """The exporter's text, or `""` if it does not answer."""
+    try:
+        with urllib.request.urlopen(url, timeout=10) as resp:
+            return str(resp.read().decode("utf-8", "replace"))
+    except (OSError, ValueError):
+        return ""
+
+
 def snapshot() -> dict[str, object]:
-    """The current GPU / thermal / power values."""
+    """The current values, read from the exporter on this machine."""
+    return snapshot_from_exposition(fetch_exposition())
+
+
+def snapshot_via_gcx() -> dict[str, object]:
+    """The current values through Grafana. Needs `MAC_DASH_INSTANCE`."""
     return {
         "gpu_util": scalar(query(_sel("macos_gpu_utilization_ratio"))),
         "vram_bytes": scalar(query(_sel("macos_gpu_vram_used_bytes"))),
@@ -219,6 +295,12 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = p.parse_args(argv)
     if args.window:
+        if not INSTANCE:
+            logger.error(
+                "envelope mode needs %s=<ip>:9650 (the Prometheus instance label)",
+                INSTANCE_ENV,
+            )
+            return 2
         lines = render_envelope(envelope(args.window), args.window)
     else:
         lines = render_snapshot(snapshot())
