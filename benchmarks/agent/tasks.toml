@@ -3606,7 +3606,7 @@ topology = "remote"
 # no YaRN; the recipe documents ~500k KV tokens against NVFP4's 3.65M.
 
 [backend.qwen38fnnvfp4dual2xrcv030]
-description = "qwen38fnnvfp4dual2xrcflags moved to the latest recipe and engine (#717, 2026-09-26): MiaAI-Lab Qwen3.8-Flash-Next-Dual-DGX-Sparks @d23790b, vLLM 0.30.0 lane (start-v030.sh, stock vllm/vllm-openai:v0.30.0), MTP block drop disabled + index share on (the recipe multi-turn change), BF16 KV, GMU 0.78, the #664 flags via EXTRA_DOCKER_ARGS (now honoured upstream). Same weights (nvidia/Qwen3.8-Flash-Next-NVFP4), same client. REMOTE CLIENT (#562/#649), 12 GiB kernel-enforced client container"
+description = "qwen38fnnvfp4dual2xrcflags moved to the latest recipe and engine (#717, 2026-09-26): MiaAI-Lab Qwen3.8-Flash-Next-Dual-DGX-Sparks @d23790b, vLLM 0.30.0 lane (start-v030.sh, stock vllm/vllm-openai:v0.30.0), MTP block drop disabled + index share on (the recipe multi-turn change), BF16 KV, GMU 0.78, the #664 flags via the local start.sh patch (upstream EXTRA_DOCKER_ARGS is still not applied to the vllm-fn docker run). Same weights (nvidia/Qwen3.8-Flash-Next-NVFP4), same client. REMOTE CLIENT (#562/#649), 12 GiB kernel-enforced client container"
 tier = "gb10-spark-x2"
 base_url = "http://127.0.0.1:8888"
 auth_token = "local"
