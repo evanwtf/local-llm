@@ -252,7 +252,7 @@ A red `main` or a PR left BEHIND gets fixed as on any tick (§3c).
 heartbeat schedule"). In Claude Code, invoke `/loop` with this input, verbatim:
 
 ```text
-30m Send the §3a heartbeat for the M5 Max local-llm operator session as its own final message: first line "<`TZ=America/New_York date '+%Y-%m-%dT%H:%M:%S%z'`> — Currently on GPU: <what> (issue #N)", then bullets for in flight (trial count from the run log in ~/.local-llm-bench/logs/), ETA, next, GPU, power, thermal (scripts/mac_dash.py), CPU (top), disk free (df -h ~), CI/PRs. Say so if the gap since the last heartbeat exceeds 35 minutes. Then continue the autonomous loop.
+30m Send the §3a heartbeat for the M5 Max local-llm operator session as its own final message: first line "**<`TZ=America/New_York date '+%Y-%m-%d %H:%M'`>** — Currently on GPU: <what> (issue #N)" (the timestamp in bold, as YYYY-MM-DD HH:MM), then bullets for in flight (trial count from the run log in ~/.local-llm-bench/logs/), ETA, next, GPU, power, thermal (scripts/mac_dash.py), CPU (top), disk free (df -h ~), CI/PRs. Say so if the gap since the last heartbeat exceeds 35 minutes. Then continue the autonomous loop.
 ```
 
 Then arm the backstop timer, and send the first heartbeat (§3a). Add one line
@@ -400,10 +400,11 @@ put it in a code block or any other preformatted text (the operator's rule,
 
 The first line is a plain sentence that **starts with the timestamp**. Without
 it the operator sees a text stream with no idea when anything was posted (the
-operator's rule, 2026-09-24):
+operator's rule, 2026-09-24). Write the timestamp in bold as
+`YYYY-MM-DD HH:MM`, not full ISO 8601 (the operator's rule, 2026-09-26):
 
-<`date` this tick, America/New_York> — Currently on GPU: <what> (issue #N).
-"idle" counts.
+**<`date` this tick, America/New_York>** — Currently on GPU: <what> (issue #N).
+"idle" counts. Example: **2026-09-26 15:38** — Currently on GPU: idle.
 
 Each other field is one bullet:
 
@@ -420,8 +421,10 @@ Each other field is one bullet:
 
 Where each value comes from:
 
-- **Timestamp:** run `TZ=America/New_York date '+%Y-%m-%dT%H:%M:%S%z'` on this
-  tick. Never infer a time, and never carry one over from an earlier tick.
+- **Timestamp:** run `TZ=America/New_York date '+%Y-%m-%d %H:%M'` on this
+  tick. Never infer a time, and never carry one over from an earlier tick. This
+  short form is for the chat heartbeat only; times in logs, issues, and the
+  ledger stay full ISO 8601.
 - **GPU, power, thermal:** `uv run python scripts/mac_dash.py`. It reads
   Prometheus, so it needs no root and does not disturb a run. The monitor app's
   CSVs under `~/Library/Logs/monitor/` stopped updating on 2026-09-14; do not
