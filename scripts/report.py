@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import argparse
 import collections
+import dataclasses
 import logging
 import pathlib
 import statistics
@@ -177,6 +178,69 @@ def retries(rows):
     return sum(measured), len(measured)
 
 
+@dataclasses.dataclass(frozen=True)
+class HiddenSummary:
+    """The held-out verdict for a set of rows (#726, #803).
+
+    `rows` counts every row that holds tests out; `whole` is how many of them
+    passed the held-out run outright under `results.hidden_verdict()`.
+    `tests_passed` / `tests_total` sum `passed` and `passed + failed` over the
+    rows whose held-out run collected tests. `invalid` rows ended in a
+    collection error with nothing collected (#801): that measures the task,
+    not the model, so it is never folded in as 0/N. `no_result` rows never ran
+    the held-out tests, most often a timeout.
+    """
+
+    rows: int
+    whole: int
+    tests_passed: int
+    tests_total: int
+    invalid: int
+    no_result: int
+
+
+def hidden_summary(rows) -> HiddenSummary | None:
+    """Sum the held-out verdict over `rows`, or None when none holds tests out.
+
+    #803: this is the half of a `--replay-hard` row that report.py used to
+    drop. `passed` is the VISIBLE suite; two M5 Max read-outs (#749, #762)
+    published it as the result of a hard-set run while the held-out run,
+    recorded on the same rows, told a different story.
+    """
+    held = [r for r in rows if "hidden" in r]
+    if not held:
+        return None
+    whole = tests_passed = tests_total = invalid = no_result = 0
+    for r in held:
+        if results.hidden_verdict(r):
+            whole += 1
+        c = (r.get("hidden") or {}).get("counts")
+        if not c:
+            no_result += 1
+            continue
+        ran = c.get("passed", 0) + c.get("failed", 0)
+        if ran == 0 and c.get("errors", 0) > 0:
+            invalid += 1
+            continue
+        tests_passed += c.get("passed", 0)
+        tests_total += ran
+    return HiddenSummary(
+        len(held), whole, tests_passed, tests_total, invalid, no_result
+    )
+
+
+def _hidden_cell(got: HiddenSummary) -> str:
+    parts = [
+        f"{got.whole}/{got.rows} whole",
+        f"{got.tests_passed}/{got.tests_total} tests",
+    ]
+    if got.invalid:
+        parts.append(f"{got.invalid} invalid")
+    if got.no_result:
+        parts.append(f"{got.no_result} no result")
+    return " · ".join(parts)
+
+
 def distinguishable(a: float, b: float) -> bool:
     """Whether two medians differ by enough for three trials to tell them apart."""
     if not a or not b:
@@ -272,6 +336,52 @@ def render(by_cell, backends) -> list[str]:
                 f"  prefill-failure retries: {total} across {measured}/{len(ex)} "
                 f"trials (#266)"
             )
+
+    # #803: the held-out verdict, beside the visible one and never merged into
+    # it. Silent unless some row holds tests out (#726).
+    hidden_tasks = [
+        t
+        for t in tasks
+        if any(hidden_summary(by_cell.get((b, t), [])) for b in backends)
+    ]
+    if hidden_tasks:
+        out += [
+            "",
+            (
+                "**Hidden tests (#726)** -- the held-out verdict; the table above "
+                "is the visible suite. A collection error is invalid, not 0/N (#801)."
+            ),
+            "",
+            f"| task | {' | '.join(backends)} |",
+            "|---" * (len(backends) + 1) + "|",
+        ]
+        for task in hidden_tasks:
+            cols = []
+            for b in backends:
+                got = hidden_summary(by_cell.get((b, task), []))
+                cols.append(_hidden_cell(got) if got else "-")
+            out.append(f"| `{task}` | {' | '.join(cols)} |")
+        out.append("")
+        for b in backends:
+            got = hidden_summary(
+                [r for t in hidden_tasks for r in by_cell.get((b, t), [])]
+            )
+            if not got:
+                continue
+            share = (
+                f" ({got.tests_passed / got.tests_total:.1%})"
+                if got.tests_total
+                else ""
+            )
+            line = (
+                f"**{b}** hidden: {got.whole}/{got.rows} whole-task passes, "
+                f"{got.tests_passed}/{got.tests_total} tests{share}"
+            )
+            if got.invalid:
+                line += f", {got.invalid} invalid"
+            if got.no_result:
+                line += f", {got.no_result} no result"
+            out.append(line)
 
     if len(backends) == 2:
         # #353: a wall ratio between two arms of the same model and engine is a
