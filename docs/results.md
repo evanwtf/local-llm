@@ -185,7 +185,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 
 ### Cortex-X925-128GB-GB10-x2
 
-*Generated from `hardware/Cortex-X925-128GB-GB10-x2/results.jsonl` — 830 rows, sha256 d25049a1ed9c.*
+*Generated from `hardware/Cortex-X925-128GB-GB10-x2/results.jsonl` — 851 rows, sha256 19940a92dca6.*
 
 #### Every stack measured under OpenCode
 
@@ -233,6 +233,7 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 | stack | passed | hidden passed | median | worst | spread |
 |---|---|---|---|---|---|
 | glm53fexl3dual2xrcctx | 21/21 | 3/21 | 546s | 2067s | 14.3x |
+| dsv4flashvisiondspark2xrc | 20/21 | 0/21 | 682s | 3557s | 10.4x |
 
 `passed` is the tests the agent could see. **`hidden passed` is tests it never saw**, run only by the oracle, over the trials whose task holds tests out; a dash means none did. Kept apart from the table above so its seven tasks stay comparable.
 
@@ -240,7 +241,7 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 
 | stack | seconds per 1k output tokens |
 |---|---|
-| dsv4flashvisiondspark2xrc @ Corei3-7100-16GB+image | 28s |
+| dsv4flashvisiondspark2xrc @ Corei3-7100-16GB+image | 27s |
 | dsv4flashvisiondspark2xrc @ Corei3-7100-16GB+image@10g | 30s |
 | mimo26fdual2xrc @ Corei3-7100-16GB+image@10g | 38s |
 | mimo26fdual2xrc @ Corei3-7100-16GB+image | 40s |
