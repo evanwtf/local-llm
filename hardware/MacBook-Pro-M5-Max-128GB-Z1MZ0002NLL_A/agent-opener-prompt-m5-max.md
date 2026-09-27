@@ -354,7 +354,8 @@ tick:
   1. date; machine_state.py; gh run list; a same-machine peer check if 20 min have passed
   2. a run is live      -> check progress; do not touch the checkout
   3. a run has finished -> read out (§5), post the verdict, land the rows (§6)
-  4. the machine is FREE -> pick the next item (§4), preflight, launch
+  4. the machine is FREE -> pick the next item (§4) that the weekly cap
+     allows (§5), preflight, launch; if none qualifies, do non-GPU work
   5. the heartbeat runs on the /loop job's clock (§3a); on a backstop wake,
      check that one went out in the last 35 min
   6. schedule the next tick: while a run is live, its next ETA checkpoint
@@ -505,6 +506,13 @@ pushes: two sessions have fixed the same red `main` in parallel before.
 
 - **Three datapoints minimum.** One run concludes nothing: no claim, retraction,
   or post until there are three. A 3-trial median carries ±28%.
+- **Test any one model or engine at most once a week** (operator, 2026-09-27,
+  #762): "this is not a 'test machine' it's my actual laptop, and if it's
+  benchmarking stuff then I can't actually use it." Before a launch, check the
+  ledger for that model or engine's last batch. If it was less than 7 days ago,
+  do not launch. A new release does not reset the week, and repeat runs toward
+  three datapoints wait too; report a single run as one run. Never start a run
+  only to fill idle time.
 - Report speed as time taken: "took 53% of the time: 751 s against 1429 s".
   Never write "N× faster".
 - Read every number out of a log in the same turn; never recall or estimate one.
