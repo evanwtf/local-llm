@@ -264,7 +264,7 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 
 ### MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A
 
-*Generated from `hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/results.jsonl` — 4577 rows, sha256 ecce80ddb76d.*
+*Generated from `hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/results.jsonl` — 4619 rows, sha256 f8a8d488f43c.*
 
 #### Every stack measured under OpenCode
 
@@ -310,7 +310,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 
 | stack | passed | median | worst | spread |
 |---|---|---|---|---|
-| qwen38fnsushi4 | 19/21 | 196s | 1174s | 49.7x |
+| qwen38fnsushi4 | 38/41 | 237s | 1460s | 61.9x |
 | qwen38fnmlxserve | 39/41 | 307s | 1726s | 32.1x |
 
 Seven commits from gmail-archive's history, 60-600 changed lines each. The target repo is public, so a pass may be partly recall; see each row's `replay` record.
@@ -319,7 +319,7 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 
 | stack | passed | hidden passed | median | worst | spread |
 |---|---|---|---|---|---|
-| qwen38fnsushi4 | 19/21 | 2/21 | 698s | 1734s | 13.9x |
+| qwen38fnsushi4 | 32/42 | 3/42 | 687s | 1734s | 13.9x |
 | qwen38fnmlxserve | 36/41 | 2/41 | 725s | 1706s | 7.8x |
 
 `passed` is the tests the agent could see. **`hidden passed` is tests it never saw**, run only by the oracle, over the trials whose task holds tests out; a dash means none did. Kept apart from the table above so its seven tasks stay comparable.
@@ -342,7 +342,7 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 |---|---|
 | ornith15 | 19s |
 | gemma426 | 21s |
-| qwen38fnsushi4 | 28s |
+| qwen38fnsushi4 | 26s |
 | qwen | 30s |
 | qwen38fnds4kimat | 33s |
 | qwen38fnds4main | 36s |
