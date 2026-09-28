@@ -30,6 +30,7 @@ import logging
 import pathlib
 import statistics
 import sys
+import tomllib
 from collections.abc import Iterable, Sequence
 from typing import Any
 
@@ -59,7 +60,10 @@ class Verdict:
 
 
 def _batches(
-    rows: Iterable[Row], tasks: Sequence[str], client: str
+    rows: Iterable[Row],
+    tasks: Sequence[str],
+    client: str,
+    suites: dict[str, str] | None = None,
 ) -> dict[str, list[Row]]:
     """Runs (``screening.runs``) that ran every one of ``tasks`` on ``client``."""
     wanted = set(tasks)
@@ -73,7 +77,7 @@ def _batches(
     ]
     return {
         b: rs
-        for b, rs in screening.runs(pool).items()
+        for b, rs in screening.runs(pool, suites).items()
         if {r["task"] for r in rs} == wanted
     }
 
@@ -96,6 +100,7 @@ def screen(
     keep_min: int = 3,
     keep_max: int = 5,
     band: float = 0.25,
+    suites: dict[str, str] | None = None,
 ) -> list[Verdict]:
     """One verdict per stack (backend): kept first, fastest first.
 
@@ -104,7 +109,7 @@ def screen(
     instead lets one stack's repeat runs fill every kept place.
     """
     by_stack: dict[str, list[tuple[str, list[Row]]]] = {}
-    for key, rs in _batches(rows, tasks, client).items():
+    for key, rs in _batches(rows, tasks, client, suites).items():
         by_stack.setdefault(rs[0].get("backend", "?"), []).append((key, rs))
     stats = []
     for backend, stack_runs in by_stack.items():
@@ -216,6 +221,12 @@ def main() -> int:
         "--standard", action="store_true", help="the non-replay tasks instead"
     )
     p.add_argument("--timeout", type=float, default=1800.0)
+    p.add_argument(
+        "--tasks-file",
+        type=pathlib.Path,
+        default=HERE.parent / "benchmarks" / "agent" / "tasks.toml",
+        help="where each task's suite (standard, replay, hard) is defined",
+    )
     p.add_argument("--gate", type=float, default=0.90)
     p.add_argument("--time-multiple", type=float, default=screening.TIME_MULTIPLE)
     p.add_argument("--keep-min", type=int, default=3)
@@ -225,6 +236,7 @@ def main() -> int:
 
     provenance.configure()
     rows = results.trials(args.results)
+    suites = screening.suite_map(tomllib.loads(args.tasks_file.read_text()))
     names = {
         r["task"] for r in rows if r.get("client") == args.client and r.get("task")
     }
@@ -236,7 +248,7 @@ def main() -> int:
     # all use one set: the DGX cluster ran 7 replay tasks, then 14.
     pool = [r for r in rows if r.get("client") == args.client and r["task"] in tasks]
     sets: dict[frozenset[str], int] = {}
-    for rs in screening.runs(pool).values():
+    for rs in screening.runs(pool, suites).values():
         key = frozenset(r["task"] for r in rs)
         sets[key] = sets.get(key, 0) + 1
     shared = sorted((s for s, n in sets.items() if n >= 2), key=len, reverse=True)
@@ -254,6 +266,7 @@ def main() -> int:
             keep_min=args.keep_min,
             keep_max=args.keep_max,
             band=args.band,
+            suites=suites,
         )
         logger.info(
             "%s: %d tasks, %d stacks ran all of them on %s",

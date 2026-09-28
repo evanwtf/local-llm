@@ -5620,7 +5620,12 @@ def main():
                 else history
             )
             leaders[client] = screening.pick_leader(
-                pool, task_names, client, args.batch, args.timeout
+                pool,
+                task_names,
+                client,
+                args.batch,
+                args.timeout,
+                suites=screening.suite_map(cfg),
             )
             lead = leaders[client]
             if lead is None:

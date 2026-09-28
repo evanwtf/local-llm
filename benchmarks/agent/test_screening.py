@@ -242,3 +242,42 @@ def test_pick_leader_finds_a_batchless_leader() -> None:
     assert lead is not None
     assert lead.batch == "glm@2026-09-24T13:00"
     assert (lead.passes, lead.rows) == (14, 14)
+
+
+def test_runs_split_a_standard_block_from_a_replay_block_under_the_gap() -> None:
+    # A standard run then a replay run on one launch: no (task, trial) pair
+    # repeats and the gap is under 3 h, so only the suite tells them apart.
+    rows = [
+        loose("defang", 1, "2026-09-24T13:00:00-0400"),
+        loose("login", 1, "2026-09-24T13:20:00-0400"),
+        loose("replay-defang", 1, "2026-09-24T13:40:00-0400"),
+        loose("replay-login", 1, "2026-09-24T14:00:00-0400"),
+    ]
+    got = sc.runs(rows)
+    assert sorted(len(v) for v in got.values()) == [2, 2]
+    assert {r["task"] for r in got["glm@2026-09-24T13:40"]} == {
+        "replay-defang",
+        "replay-login",
+    }
+
+
+def test_suite_map_splits_the_714_set_from_the_hard_set() -> None:
+    cfg = {
+        "task": [
+            {"name": "defang"},
+            {"name": "replay-a", "kind": "replay"},
+            {"name": "replay-b-hidden", "kind": "replay", "suite": "hard"},
+        ]
+    }
+    suites = sc.suite_map(cfg)
+    assert suites == {
+        "defang": "standard",
+        "replay-a": "replay",
+        "replay-b-hidden": "hard",
+    }
+    rows = [
+        loose("replay-a", 1, "2026-09-24T13:00:00-0400"),
+        loose("replay-b-hidden", 1, "2026-09-24T13:20:00-0400"),
+    ]
+    assert len(sc.runs(rows, suites)) == 2
+    assert len(sc.runs(rows)) == 1  # the name fallback cannot tell them apart
