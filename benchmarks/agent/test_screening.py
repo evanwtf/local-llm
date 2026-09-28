@@ -194,3 +194,51 @@ def test_sushi_run_2_shape_stops_at_its_eleventh_failure() -> None:
             fired_at = i + 1
             break
     assert fired_at == 11
+
+
+# --- runs without a batch (the DGX cluster's rows carry batch: null) ---------
+
+
+def loose(task, trial, started, backend="glm"):
+    r = row(task, trial, batch=None)
+    r.update(backend=backend, started=started)
+    return r
+
+
+def test_runs_split_batchless_rows_on_a_repeated_trial() -> None:
+    rows = [
+        loose("a", 1, "2026-09-24T13:00:00-0400"),
+        loose("b", 1, "2026-09-24T13:30:00-0400"),
+        loose("a", 1, "2026-09-24T14:00:00-0400"),  # (a, 1) again: a new run
+    ]
+    got = sc.runs(rows)
+    assert sorted(got) == ["glm@2026-09-24T13:00", "glm@2026-09-24T14:00"]
+    assert len(got["glm@2026-09-24T13:00"]) == 2
+
+
+def test_runs_split_batchless_rows_on_a_three_hour_gap() -> None:
+    rows = [
+        loose("a", 1, "2026-09-24T13:00:00-0400"),
+        loose("b", 1, "2026-09-24T16:00:00-0400"),  # exactly 3 h: same run
+        loose("c", 1, "2026-09-24T19:00:01-0400"),  # over 3 h: a new run
+    ]
+    assert [len(v) for v in sc.runs(rows).values()] == [2, 1]
+
+
+def test_runs_keep_batches_whole_and_backends_apart() -> None:
+    rows = [row("a", 1, batch="b1"), row("a", 1, batch="b1")]
+    rows += [loose("a", 1, "2026-09-24T13:00:00-0400", backend="x")]
+    rows += [loose("a", 1, "2026-09-24T13:05:00-0400", backend="y")]
+    got = sc.runs(rows)
+    assert len(got["b1"]) == 2
+    assert "x@2026-09-24T13:00" in got and "y@2026-09-24T13:05" in got
+
+
+def test_pick_leader_finds_a_batchless_leader() -> None:
+    rows = [
+        loose(t, 1, f"2026-09-24T13:{i:02d}:00-0400") for i, t in enumerate(TASKS14)
+    ]
+    lead = sc.pick_leader(rows, TASKS14, "opencode", exclude_batch=None)
+    assert lead is not None
+    assert lead.batch == "glm@2026-09-24T13:00"
+    assert (lead.passes, lead.rows) == (14, 14)
