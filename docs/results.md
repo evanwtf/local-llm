@@ -185,7 +185,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 
 ### Cortex-X925-128GB-GB10-x2
 
-*Generated from `hardware/Cortex-X925-128GB-GB10-x2/results.jsonl` — 956 rows, sha256 3f0f75974053.*
+*Generated from `hardware/Cortex-X925-128GB-GB10-x2/results.jsonl` — 977 rows, sha256 8ec4bb1a9be3.*
 
 #### Every stack measured under OpenCode
 
@@ -236,7 +236,7 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 | glm53fexl3dual2xrcctx | 41/42 | 4/42 | 492s | 2067s | 14.3x |
 | glm53fexl3dual2xrclatest | 19/21 | 4/21 | 515s | 2046s | 15.6x |
 | dsv4flashvisiondspark2xrc | 20/21 | 0/21 | 682s | 3557s | 10.4x |
-| qwen38fnnvfp4dual2xrcflags | 21/21 | 1/21 | 740s | 2557s | 9.4x |
+| qwen38fnnvfp4dual2xrcflags | 42/42 | 2/42 | 788s | 2557s | 9.4x |
 | dsv41fexl3dual2xrc | 16/17 | 2/17 | 1140s | 3471s | 9.6x |
 
 `passed` is the tests the agent could see. **`hidden passed` is tests it never saw**, run only by the oracle, over the trials whose task holds tests out; a dash means none did. Kept apart from the table above so its seven tasks stay comparable.
@@ -255,8 +255,8 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 | mimo26fdual2xrcthink @ Corei3-7100-16GB+image | 45s |
 | glm53fexl3dual2xrcctx @ Corei3-7100-16GB+image | 50s |
 | qwen38fnnvfp4dual2xrcv030 @ Corei3-7100-16GB+image | 62s |
+| qwen38fnnvfp4dual2xrcflags @ Corei3-7100-16GB+image | 68s |
 | dsv41fexl3dual2xrc @ Corei3-7100-16GB+image | 68s |
-| qwen38fnnvfp4dual2xrcflags @ Corei3-7100-16GB+image | 70s |
 | qwen38fnnvfp4dual2xrcflags @ Corei3-7100-16GB+image@10g | 76s |
 | dsv41fexl3dual2xrc @ Corei3-7100-16GB+image | 77s |
 | qwen38fnnvfp4dual2xrc @ Corei3-7100-16GB+image@10g | 78s |
