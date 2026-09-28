@@ -60,6 +60,7 @@ import provenance
 import remote
 import replay
 import results
+import screening
 import shim_strip
 import smoke
 import swift_excise
@@ -4935,6 +4936,22 @@ def build_parser():
         help="abort a judged cell when strictly more than this fraction of its "
         "trials timed out (default 0.50) (#366).",
     )
+    # #762. The early stop is on by default, so a bad model costs a fraction of
+    # a run: compute time is finite, and not spending it on bad models is a
+    # primary goal (operator, 2026-09-27). It needs a leader on the same task
+    # set in this ledger; without one it logs that and stays off.
+    p.add_argument(
+        "--no-early-stop",
+        action="store_true",
+        help="disable the #762 early stop (failure and time stops against the "
+        "leader). Use it for a leader's own baseline run.",
+    )
+    p.add_argument(
+        "--early-stop-leader",
+        metavar="BATCH",
+        help="compare against this batch instead of the automatic leader (the "
+        "best pass rate on the same task set and client, then the fastest) (#762).",
+    )
     return p
 
 
@@ -5592,6 +5609,41 @@ def main():
     cb_timeouts: dict[str, int] = {}
     cb_aborted: set[str] = set()
     cb_planned_per_backend = len(tasks) * args.trials
+    # #762. The early stop's leader, per client, chosen once from the ledger.
+    task_names = [t["name"] for t in tasks]
+    leaders: dict[str, screening.Leader | None] = {}
+    if not args.no_early_stop and not args.dry_run:
+        for client in clients:
+            pool = (
+                [r for r in history if r.get("batch") == args.early_stop_leader]
+                if args.early_stop_leader
+                else history
+            )
+            leaders[client] = screening.pick_leader(
+                pool, task_names, client, args.batch, args.timeout
+            )
+            lead = leaders[client]
+            if lead is None:
+                logger.warning(
+                    "early stop OFF for %s: no leader in %s ran all %d tasks (#762)",
+                    client,
+                    args.results,
+                    len(task_names),
+                )
+            else:
+                logger.info(
+                    "early stop ON for %s: leader %s passed %d/%d; failure stop at "
+                    "%d of %d planned trials, time stop at %.0f%% (#762)",
+                    client,
+                    lead.batch,
+                    lead.passes,
+                    lead.rows,
+                    screening.failure_threshold(
+                        lead.passes, lead.rows, cb_planned_per_backend
+                    ),
+                    cb_planned_per_backend,
+                    100 * screening.TIME_MULTIPLE,
+                )
     for trial in range(1, args.trials + 1):
         # #130: alternate which backend runs first. Throughput declines across
         # a measurement window, so a fixed order penalises whichever backend
@@ -5697,6 +5749,38 @@ def main():
                         )
                         if abort:
                             logger.error("CELL CIRCUIT BREAKER (%s): %s", bname, reason)
+                            cb_aborted.add(bname)
+
+                    # #762. After every written row, ask whether this cell can
+                    # still earn a place against the leader. The rows already
+                    # written stay in the ledger; the stop only schedules no more.
+                    lead = leaders.get(client)
+                    if lead is not None and bname not in cb_aborted:
+                        done = cell[(bname, client)]
+                        stop, why = screening.should_stop(
+                            done, lead, task_names, cb_planned_per_backend, args.timeout
+                        )
+                        if stop:
+                            first_run = not any(
+                                r.get("backend") == bname
+                                and r.get("task") in task_names
+                                for r in history
+                            )
+                            screening.write_abort(
+                                args.results.with_name("screening-aborts.jsonl"),
+                                batch=args.batch,
+                                backend=bname,
+                                client=client,
+                                tasks=task_names,
+                                done=done,
+                                leader=lead,
+                                reason=why,
+                                first_run=first_run,
+                                when=results.now(),
+                            )
+                            logger.error(
+                                "EARLY STOP (%s, %s): %s (#762)", bname, client, why
+                            )
                             cb_aborted.add(bname)
 
 
