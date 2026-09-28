@@ -32,6 +32,7 @@ effort, the context length, the sampler. The abort record says so.
 
 from __future__ import annotations
 
+import datetime
 import json
 import math
 import pathlib
@@ -40,6 +41,7 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
+import replay
 import results
 
 #: The operator's thresholds (#762, 2026-09-25).
@@ -101,32 +103,100 @@ def leader_from_rows(
     )
 
 
+#: Rows without a batch start a new run after a gap this long (seconds).
+RUN_GAP_SECONDS = 3 * 3600
+
+
+def runs(
+    rows: Iterable[Row], suites: dict[str, str] | None = None
+) -> dict[str, list[Row]]:
+    """Group rows into runs: one launch of one stack.
+
+    A row with a ``batch`` belongs to that batch. The DGX cluster's rows carry
+    no batch (``batch: null``), and one backend there has several runs over
+    several days, some on half the task set. Those rows split per backend,
+    client, and suite, then in start order into a new run whenever a (task,
+    trial) pair repeats or ``RUN_GAP_SECONDS`` pass between two rows. The key
+    is then ``backend@<first started, to the minute>``.
+
+    The suite split comes first because a standard run and a replay run
+    launched back to back share no task names and sit under the gap: without
+    it, the cluster's runs fused into 17-task groups that matched neither set.
+    ``suites`` maps task name to suite (``suite_map``); a task missing from it
+    falls back to its name: "replay" for ``replay-*``, else "standard".
+    """
+    out: dict[str, list[Row]] = {}
+    loose: dict[tuple[str, str, str], list[Row]] = {}
+    for r in rows:
+        if r.get("batch"):
+            out.setdefault(r["batch"], []).append(r)
+        else:
+            key = (r.get("backend", "?"), r.get("client", "?"), _suite(r, suites))
+            loose.setdefault(key, []).append(r)
+    for (backend, _client, _set), rs in loose.items():
+        rs.sort(key=lambda r: _when(r))
+        current: list[Row] = []
+        seen: set[tuple[str, int]] = set()
+        for r in rs:
+            pair = (r["task"], int(r["trial"]))
+            gap = (_when(r) - _when(current[-1])).total_seconds() if current else 0.0
+            if current and (pair in seen or gap > RUN_GAP_SECONDS):
+                out[f"{backend}@{current[0]['started'][:16]}"] = current
+                current, seen = [], set()
+            current.append(r)
+            seen.add(pair)
+        if current:
+            out[f"{backend}@{current[0]['started'][:16]}"] = current
+    return out
+
+
+def suite_map(cfg: dict[str, Any]) -> dict[str, str]:
+    """Task name -> suite from tasks.toml: "standard", "replay" (#714), or "hard"."""
+    out = {}
+    for t in cfg.get("task", []):
+        if not replay.is_replay(t):
+            out[t["name"]] = "standard"
+        else:
+            out[t["name"]] = "hard" if replay.suite(t) == "hard" else "replay"
+    return out
+
+
+def _suite(row: Row, suites: dict[str, str] | None) -> str:
+    task = row.get("task", "")
+    if suites and task in suites:
+        return suites[task]
+    return "replay" if task.startswith("replay-") else "standard"
+
+
+def _when(row: Row) -> datetime.datetime:
+    return datetime.datetime.fromisoformat(row["started"])
+
+
 def pick_leader(
     history: Iterable[Row],
     tasks: Sequence[str],
     client: str,
     exclude_batch: str | None,
     timeout: float = 1800.0,
+    suites: dict[str, str] | None = None,
 ) -> Leader | None:
-    """The best earlier batch that ran every one of ``tasks`` on ``client``.
+    """The best earlier run that ran every one of ``tasks`` on ``client``.
 
-    None when no batch qualifies; the caller runs without an early stop.
+    None when no run qualifies; the caller runs without an early stop.
     """
     wanted = set(tasks)
-    batches: dict[str, list[Row]] = {}
-    for r in history:
-        if (
-            r.get("batch")
-            and r.get("batch") != exclude_batch
-            and r.get("client") == client
-            and r.get("task") in wanted
-            and not r.get("dry_run")
-            and not results.is_excluded(r)
-        ):
-            batches.setdefault(r["batch"], []).append(r)
+    pool = [
+        r
+        for r in history
+        if (not exclude_batch or r.get("batch") != exclude_batch)
+        and r.get("client") == client
+        and r.get("task") in wanted
+        and not r.get("dry_run")
+        and not results.is_excluded(r)
+    ]
     candidates = [
-        leader_from_rows(rows, batch, timeout)
-        for batch, rows in batches.items()
+        leader_from_rows(rows, key, timeout)
+        for key, rows in runs(pool, suites).items()
         if {r["task"] for r in rows} == wanted
     ]
     if not candidates:
