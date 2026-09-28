@@ -3719,6 +3719,24 @@ opencode_model = "vllm8888/GLM-5.3-Flash-EXL3"
 context_tokens = 262144
 topology = "remote"
 
+# #717: glm53fexl3dual2xrcctx on the LATEST MiaAI-Lab recipe (@943912c, 43
+# commits past the 0f49cfd launch the ctx rows used). Same image (GHCR
+# :exl3-instanttensor, digest 447114ee, unchanged), same weights, same .env;
+# only the launcher and its host-mounted overlays move, among them the #264 KV
+# tail-seed stride fix (vLLM #57477 backport), loader v2, the degenerate-engine
+# warmup canary and the boot-time changes. Its own name so the rows never pool.
+[backend.glm53fexl3dual2xrclatest]
+description = "glm53fexl3dual2xrcctx on the latest MiaAI-Lab GLM-5.3-Flash-2x-DGX-Sparks recipe @943912c (was 0f49cfd): same GHCR image (:exl3-instanttensor, digest 447114ee), same weights and .env (EXL3 vLLM TP=2, DFlash2, fp8 KV, 262144 context, GPU_MEM_UTIL 0.86, reasoning_effort low server-side); the new launcher adds host-mounted overlays incl. the #264 KV tail-seed stride fix, loader v2 and a warmup canary. REMOTE CLIENT (#562/#649), 12 GiB kernel-enforced client container"
+tier = "gb10-spark-x2"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "vllm"
+model = "GLM-5.3-Flash-EXL3"
+aider_model = "openai/GLM-5.3-Flash-EXL3"
+opencode_model = "vllm8888/GLM-5.3-Flash-EXL3"
+context_tokens = 262144
+topology = "remote"
+
 # #685: DeepSeek V4.1 Flash across BOTH DGX Sparks via
 # MiaAI-Lab/DeepSeek-v4.1-Flash-EXL3-2x-DGX-Sparks @6f7d159: vLLM TP=2 with
 # ExLlamaV3, weights Mia-AiLab/DeepSeek-V4.1-Flash-EXL3-2.9bpw @64ba41b plus
