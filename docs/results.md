@@ -185,7 +185,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 
 ### Cortex-X925-128GB-GB10-x2
 
-*Generated from `hardware/Cortex-X925-128GB-GB10-x2/results.jsonl` — 893 rows, sha256 8a56e2da6465.*
+*Generated from `hardware/Cortex-X925-128GB-GB10-x2/results.jsonl` — 914 rows, sha256 24815e5db387.*
 
 #### Every stack measured under OpenCode
 
@@ -232,7 +232,7 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 
 | stack | passed | hidden passed | median | worst | spread |
 |---|---|---|---|---|---|
-| glm53fexl3dual2xrcctx | 21/21 | 3/21 | 546s | 2067s | 14.3x |
+| glm53fexl3dual2xrcctx | 41/42 | 4/42 | 492s | 2067s | 14.3x |
 | dsv4flashvisiondspark2xrc | 20/21 | 0/21 | 682s | 3557s | 10.4x |
 | qwen38fnnvfp4dual2xrcflags | 21/21 | 1/21 | 740s | 2557s | 9.4x |
 | dsv41fexl3dual2xrc | 16/17 | 2/17 | 1140s | 3471s | 9.6x |
