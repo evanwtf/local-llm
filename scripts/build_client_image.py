@@ -30,7 +30,7 @@ CONTEXT = REPO / "docker" / "opencode-client"
 #: test failure rather than a surprise at build time.
 PINS = {
     "opencode": "1.18.33",
-    "uv": "0.12.19",
+    "uv": "0.12.20",
     "python": "3.14.7",
 }
 
