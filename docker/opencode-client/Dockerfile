@@ -12,7 +12,7 @@
 # architecture: the OpenCode and uv installers both resolve it themselves, and
 # every other component comes from the base image's own arch.
 #
-#   docker build -t local-llm-client:1.18.32 docker/opencode-client
+#   docker build -t local-llm-client:1.18.33 docker/opencode-client
 #
 # Verify with scripts/build_client_image.py, which builds and then checks the
 # pinned versions from inside the image.
@@ -20,11 +20,11 @@
 FROM ubuntu:26.04
 
 # Pins. Every one of these is a variable a row would otherwise carry silently.
-ARG OPENCODE_VERSION=1.18.32
-ARG UV_VERSION=0.12.13
+ARG OPENCODE_VERSION=1.18.33
+ARG UV_VERSION=0.12.20
 # The interpreter uv hands the trial's venv. Pinned so the same target commit
 # resolves the same Python on every client.
-ARG PYTHON_VERSION=3.14.4
+ARG PYTHON_VERSION=3.14.7
 
 # The OpenCode installer hardcodes INSTALL_DIR=$HOME/.opencode/bin and honours
 # no override, so the binary's location is a property of HOME, not a choice.

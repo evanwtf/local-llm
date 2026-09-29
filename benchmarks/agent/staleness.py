@@ -1,5 +1,11 @@
 """Is anything we are measuring through out of date?
 
+**Superseded 2026-09-28 for currency (#726).** The operator reversed the
+no-refusal rule below: "it should not be 'advisory'. It should require pulling
+the latest versions and using them." `benchmarks/agent/currency.py` is the gate;
+`client_container.py` and `server_facts.py` refuse through it, and
+`scripts/preflight_daily.py` runs it daily. The recording below still holds.
+
 llama.cpp, Ollama, Codex and OpenCode all move several times a day. This
 project records the version of every component on every row, so drift does not
 corrupt old results -- but it does mean a batch started today can be measuring a
