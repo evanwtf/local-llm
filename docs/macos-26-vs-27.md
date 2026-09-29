@@ -8,95 +8,96 @@ Machine: MacBook Pro M5 Max, 128 GB. Client: opencode. Issue: [#499](https://git
 - Data: [`dataset.json`](../hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/benchmarks/macos-26-vs-27/dataset.json).
 - Each side uses only its newest engine version (`latest`). The last column shows every macOS 26 row, for context.
 - **27 / 26** is the macOS 27 median wall time as a percent of the macOS 26 median. Wall times are in seconds.
-- Rows dropped: 0 conflict, 0 unplaced.
+- **27s** is macOS 27 settled: the same stacks and tasks rerun from `2026-09-29T07:51:52-04:00` ([#834](https://github.com/evanwtf/local-llm/issues/834)), on fresh engine builds. **27s / 26** and **27s / 27** compare it with macOS 26 and with 27 on first boot. The 27 column is first boot only, rows started before `2026-09-19T00:00:00-04:00`.
+- Rows dropped: 0 conflict, 0 unplaced, 396 interim (macOS 27 rows from other work between first boot and the settled rerun).
 
 ## Totals
 
-Sums of the per-task medians, over tasks with a median on both sides.
+Sums of the per-task medians. The 26 and 27 sums cover tasks with a median on both; the 27s columns cover tasks with a median in all three.
 
-| backend | 26 passed | 27 passed | 26 sum (s) | 27 sum (s) | 27 / 26 |
-|---|---:|---:|---:|---:|---:|
-| qwen38fnds4main | 15/15 | 45/45 | 1556.3 | 1538.9 | 99% |
-| qwen38fnmlxserve | 15/15 | 45/45 | 1359.2 | 1042.1 | 77% |
-| qwen38fnq3 | 15/15 | 45/45 | 2148.6 | 2000.1 | 93% |
+| backend | 26 passed | 27 passed | 26 sum (s) | 27 sum (s) | 27 / 26 | 27s passed | 27s sum (s) | 27s / 26 | 27s / 27 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| qwen38fnds4main | 15/15 | 45/45 | 1556.3 | 1538.9 | 99% | 44/45 | 1223.0 | 79% | 79% |
+| qwen38fnmlxserve | 15/15 | 45/45 | 1359.2 | 1042.1 | 77% | 44/45 | 865.4 | 64% | 83% |
+| qwen38fnq3 | 15/15 | 45/45 | 2148.6 | 2000.1 | 93% | 45/45 | 1245.0 | 58% | 62% |
 
 ## qwen38fnds4main
 
-| | macOS 26 | macOS 27 |
-|---|---|---|
-| macOS | `26.6.2` | `27.0` |
-| engine | `8db1d1d1` | `8db1d1d1` |
-| client | `1.18.31` | `1.18.31` |
-| ran | 2026-09-18T00:20:14-04:00 to 2026-09-18T00:48:16-04:00 | 2026-09-18T10:42:55-04:00 to 2026-09-18T12:09:13-04:00 |
+| | macOS 26 | macOS 27, first boot | macOS 27, settled |
+|---|---|---|---|
+| macOS | `26.6.2` | `27.0` | `27.0.1` |
+| engine | `8db1d1d1` | `8db1d1d1` | `0aaea5a2` |
+| client | `1.18.31` | `1.18.31` | `1.18.33` |
+| ran | 2026-09-18T00:20:14-04:00 to 2026-09-18T00:48:16-04:00 | 2026-09-18T10:42:55-04:00 to 2026-09-18T12:09:13-04:00 | 2026-09-29T10:19:28-04:00 to 2026-09-29T11:37:57-04:00 |
 
-| task | 26 passed | 26 median (s) | 27 passed | 27 median (s) | 27 / 26 | 26 all rows: median (s), n |
-|---|---:|---:|---:|---:|---:|---:|
-| mbox-quoting-both-halves | 1/1 | 122.8 | 3/3 | 114.8 | 93% | 122.8, 1 |
-| mbox-scan | 1/1 | 105.1 | 3/3 | 128.7 | 122% | 105.1, 1 |
-| mbox-strip-envelope | 1/1 | 45.3 | 3/3 | 63.2 | 140% | 45.3, 1 |
-| parser-date | 1/1 | 185.1 | 3/3 | 125.9 | 68% | 185.1, 1 |
-| parser-mbox-quoting | 1/1 | 96.5 | 3/3 | 66.7 | 69% | 96.5, 1 |
-| parser-mbox-quoting-nodoc | 1/1 | 87.4 | 3/3 | 75.2 | 86% | 87.4, 1 |
-| script-reverse | 1/1 | 39.0 | 3/3 | 42.0 | 108% | 39.0, 1 |
-| script-transform | 1/1 | 44.7 | 3/3 | 59.6 | 133% | 44.7, 1 |
-| storage-blob-put | 1/1 | 89.4 | 3/3 | 112.5 | 126% | 89.4, 1 |
-| storage-put-and-sweep | 1/1 | 158.2 | 3/3 | 149.8 | 95% | 158.2, 1 |
-| swift-chartaxis-spacing | 1/1 | 215.1 | 3/3 | 174.9 | 81% | 215.1, 1 |
-| swift-csv-text | 1/1 | 86.6 | 3/3 | 108.7 | 126% | 86.6, 1 |
-| swift-downsample-buckets | 1/1 | 69.4 | 3/3 | 110.4 | 159% | 69.4, 1 |
-| swift-scaleladder-snap | 1/1 | 153.6 | 3/3 | 114.4 | 74% | 153.6, 1 |
-| swift-sevensegment-glyphs | 1/1 | 58.1 | 3/3 | 92.1 | 159% | 58.1, 1 |
+| task | 26 passed | 26 median (s) | 27 passed | 27 median (s) | 27 / 26 | 27s passed | 27s median (s) | 27s / 26 | 27s / 27 | 26 all rows: median (s), n |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| mbox-quoting-both-halves | 1/1 | 122.8 | 3/3 | 114.8 | 93% | 3/3 | 124.8 | 102% | 109% | 122.8, 1 |
+| mbox-scan | 1/1 | 105.1 | 3/3 | 128.7 | 122% | 3/3 | 71.6 | 68% | 56% | 105.1, 1 |
+| mbox-strip-envelope | 1/1 | 45.3 | 3/3 | 63.2 | 140% | 3/3 | 49.3 | 109% | 78% | 45.3, 1 |
+| parser-date | 1/1 | 185.1 | 3/3 | 125.9 | 68% | 3/3 | 139.8 | 76% | 111% | 185.1, 1 |
+| parser-mbox-quoting | 1/1 | 96.5 | 3/3 | 66.7 | 69% | 3/3 | 81.2 | 84% | 122% | 96.5, 1 |
+| parser-mbox-quoting-nodoc | 1/1 | 87.4 | 3/3 | 75.2 | 86% | 3/3 | 83.0 | 95% | 110% | 87.4, 1 |
+| script-reverse | 1/1 | 39.0 | 3/3 | 42.0 | 108% | 3/3 | 16.4 | 42% | 39% | 39.0, 1 |
+| script-transform | 1/1 | 44.7 | 3/3 | 59.6 | 133% | 3/3 | 26.6 | 60% | 45% | 44.7, 1 |
+| storage-blob-put | 1/1 | 89.4 | 3/3 | 112.5 | 126% | 3/3 | 70.4 | 79% | 63% | 89.4, 1 |
+| storage-put-and-sweep | 1/1 | 158.2 | 3/3 | 149.8 | 95% | 3/3 | 87.6 | 55% | 58% | 158.2, 1 |
+| swift-chartaxis-spacing | 1/1 | 215.1 | 3/3 | 174.9 | 81% | 3/3 | 139.1 | 65% | 80% | 215.1, 1 |
+| swift-csv-text | 1/1 | 86.6 | 3/3 | 108.7 | 126% | 3/3 | 104.7 | 121% | 96% | 86.6, 1 |
+| swift-downsample-buckets | 1/1 | 69.4 | 3/3 | 110.4 | 159% | 2/3 | 82.0 | 118% | 74% | 69.4, 1 |
+| swift-scaleladder-snap | 1/1 | 153.6 | 3/3 | 114.4 | 74% | 3/3 | 83.7 | 54% | 73% | 153.6, 1 |
+| swift-sevensegment-glyphs | 1/1 | 58.1 | 3/3 | 92.1 | 159% | 3/3 | 62.8 | 108% | 68% | 58.1, 1 |
 
 ## qwen38fnmlxserve
 
-| | macOS 26 | macOS 27 |
-|---|---|---|
-| macOS | `26.6.2` | `27.0` |
-| engine | `mlx-serve 26.9.4` | `mlx-serve 26.9.4` |
-| client | `1.18.31` | `1.18.31` |
-| ran | 2026-09-17T23:51:46-04:00 to 2026-09-18T00:16:40-04:00 | 2026-09-18T09:30:24-04:00 to 2026-09-18T10:40:33-04:00 |
+| | macOS 26 | macOS 27, first boot | macOS 27, settled |
+|---|---|---|---|
+| macOS | `26.6.2` | `27.0` | `27.0.1` |
+| engine | `mlx-serve 26.9.4` | `mlx-serve 26.9.4` | `mlx-serve 26.9.6` |
+| client | `1.18.31` | `1.18.31` | `1.18.33` |
+| ran | 2026-09-17T23:51:46-04:00 to 2026-09-18T00:16:40-04:00 | 2026-09-18T09:30:24-04:00 to 2026-09-18T10:40:33-04:00 | 2026-09-29T07:52:39-04:00 to 2026-09-29T08:59:55-04:00 |
 
-| task | 26 passed | 26 median (s) | 27 passed | 27 median (s) | 27 / 26 | 26 all rows: median (s), n |
-|---|---:|---:|---:|---:|---:|---:|
-| mbox-quoting-both-halves | 1/1 | 148.0 | 3/3 | 317.1 | 214% | 50.0, 22 |
-| mbox-scan | 1/1 | 42.8 | 3/3 | 48.1 | 112% | 54.4, 22 |
-| mbox-strip-envelope | 1/1 | 33.7 | 3/3 | 30.7 | 91% | 24.1, 23 |
-| parser-date | 1/1 | 58.1 | 3/3 | 66.4 | 114% | 60.5, 22 |
-| parser-mbox-quoting | 1/1 | 603.1 | 3/3 | 55.5 | 9% | 72.2, 22 |
-| parser-mbox-quoting-nodoc | 1/1 | 54.9 | 3/3 | 41.2 | 75% | 47.8, 22 |
-| script-reverse | 1/1 | 19.6 | 3/3 | 17.5 | 89% | 17.4, 22 |
-| script-transform | 1/1 | 36.4 | 3/3 | 25.7 | 71% | 25.2, 22 |
-| storage-blob-put | 1/1 | 37.3 | 3/3 | 39.4 | 106% | 42.3, 22 |
-| storage-put-and-sweep | 1/1 | 47.3 | 3/3 | 59.0 | 125% | 55.7, 22 |
-| swift-chartaxis-spacing | 1/1 | 57.2 | 3/3 | 62.8 | 110% | 51.7, 22 |
-| swift-csv-text | 1/1 | 63.3 | 3/3 | 86.7 | 137% | 61.2, 22 |
-| swift-downsample-buckets | 1/1 | 55.9 | 3/3 | 54.5 | 97% | 64.2, 22 |
-| swift-scaleladder-snap | 1/1 | 56.3 | 3/3 | 74.3 | 132% | 52.5, 22 |
-| swift-sevensegment-glyphs | 1/1 | 45.3 | 3/3 | 63.2 | 140% | 40.2, 22 |
+| task | 26 passed | 26 median (s) | 27 passed | 27 median (s) | 27 / 26 | 27s passed | 27s median (s) | 27s / 26 | 27s / 27 | 26 all rows: median (s), n |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| mbox-quoting-both-halves | 1/1 | 148.0 | 3/3 | 317.1 | 214% | 3/3 | 52.3 | 35% | 16% | 50.0, 22 |
+| mbox-scan | 1/1 | 42.8 | 3/3 | 48.1 | 112% | 3/3 | 33.1 | 77% | 69% | 54.4, 22 |
+| mbox-strip-envelope | 1/1 | 33.7 | 3/3 | 30.7 | 91% | 3/3 | 31.0 | 92% | 101% | 24.1, 23 |
+| parser-date | 1/1 | 58.1 | 3/3 | 66.4 | 114% | 3/3 | 65.5 | 113% | 99% | 60.5, 22 |
+| parser-mbox-quoting | 1/1 | 603.1 | 3/3 | 55.5 | 9% | 3/3 | 244.1 | 40% | 440% | 72.2, 22 |
+| parser-mbox-quoting-nodoc | 1/1 | 54.9 | 3/3 | 41.2 | 75% | 2/3 | 92.8 | 169% | 225% | 47.8, 22 |
+| script-reverse | 1/1 | 19.6 | 3/3 | 17.5 | 89% | 3/3 | 11.4 | 58% | 65% | 17.4, 22 |
+| script-transform | 1/1 | 36.4 | 3/3 | 25.7 | 71% | 3/3 | 15.6 | 43% | 61% | 25.2, 22 |
+| storage-blob-put | 1/1 | 37.3 | 3/3 | 39.4 | 106% | 3/3 | 42.0 | 113% | 107% | 42.3, 22 |
+| storage-put-and-sweep | 1/1 | 47.3 | 3/3 | 59.0 | 125% | 3/3 | 43.9 | 93% | 74% | 55.7, 22 |
+| swift-chartaxis-spacing | 1/1 | 57.2 | 3/3 | 62.8 | 110% | 3/3 | 47.8 | 84% | 76% | 51.7, 22 |
+| swift-csv-text | 1/1 | 63.3 | 3/3 | 86.7 | 137% | 3/3 | 64.9 | 103% | 75% | 61.2, 22 |
+| swift-downsample-buckets | 1/1 | 55.9 | 3/3 | 54.5 | 97% | 3/3 | 44.4 | 79% | 81% | 64.2, 22 |
+| swift-scaleladder-snap | 1/1 | 56.3 | 3/3 | 74.3 | 132% | 3/3 | 42.8 | 76% | 58% | 52.5, 22 |
+| swift-sevensegment-glyphs | 1/1 | 45.3 | 3/3 | 63.2 | 140% | 3/3 | 33.8 | 75% | 53% | 40.2, 22 |
 
 ## qwen38fnq3
 
-| | macOS 26 | macOS 27 |
-|---|---|---|
-| macOS | `26.6.2` | `27.0` |
-| engine (engine changed) | `972d2313b` | `911f6cdc8` |
-| client | `1.18.31` | `1.18.31` |
-| ran | 2026-09-17T23:12:11-04:00 to 2026-09-17T23:50:06-04:00 | 2026-09-18T07:37:03-04:00 to 2026-09-18T09:28:19-04:00 |
+| | macOS 26 | macOS 27, first boot | macOS 27, settled |
+|---|---|---|---|
+| macOS | `26.6.2` | `27.0` | `27.0.1` |
+| engine (engine changed) | `972d2313b` | `911f6cdc8` | `8019dc563` |
+| client | `1.18.31` | `1.18.31` | `1.18.33` |
+| ran | 2026-09-17T23:12:11-04:00 to 2026-09-17T23:50:06-04:00 | 2026-09-18T07:37:03-04:00 to 2026-09-18T09:28:19-04:00 | 2026-09-29T09:03:24-04:00 to 2026-09-29T10:18:17-04:00 |
 
-| task | 26 passed | 26 median (s) | 27 passed | 27 median (s) | 27 / 26 | 26 all rows: median (s), n |
-|---|---:|---:|---:|---:|---:|---:|
-| mbox-quoting-both-halves | 1/1 | 141.7 | 3/3 | 108.4 | 76% | 94.9, 3 |
-| mbox-scan | 1/1 | 103.9 | 3/3 | 172.8 | 166% | 105.6, 7 |
-| mbox-strip-envelope | 1/1 | 104.7 | 3/3 | 77.4 | 74% | 53.3, 7 |
-| parser-date | 1/1 | 215.3 | 3/3 | 197.8 | 92% | 188.1, 6 |
-| parser-mbox-quoting | 1/1 | 127.2 | 3/3 | 127.4 | 100% | 85.7, 7 |
-| parser-mbox-quoting-nodoc | 1/1 | 127.6 | 3/3 | 104.2 | 82% | 86.6, 3 |
-| script-reverse | 1/1 | 44.1 | 3/3 | 59.5 | 135% | 41.3, 9 |
-| script-transform | 1/1 | 52.8 | 3/3 | 70.6 | 134% | 48.6, 9 |
-| storage-blob-put | 1/1 | 216.3 | 3/3 | 108.0 | 50% | 94.7, 6 |
-| storage-put-and-sweep | 1/1 | 139.5 | 3/3 | 119.2 | 85% | 119.5, 3 |
-| swift-chartaxis-spacing | 1/1 | 240.2 | 3/3 | 240.7 | 100% | 221.3, 3 |
-| swift-csv-text | 1/1 | 171.4 | 3/3 | 169.8 | 99% | 99.7, 3 |
-| swift-downsample-buckets | 1/1 | 105.9 | 3/3 | 131.9 | 125% | 122.1, 3 |
-| swift-scaleladder-snap | 1/1 | 260.8 | 3/3 | 190.9 | 73% | 182.3, 3 |
-| swift-sevensegment-glyphs | 1/1 | 97.2 | 3/3 | 121.5 | 125% | 93.1, 3 |
+| task | 26 passed | 26 median (s) | 27 passed | 27 median (s) | 27 / 26 | 27s passed | 27s median (s) | 27s / 26 | 27s / 27 | 26 all rows: median (s), n |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| mbox-quoting-both-halves | 1/1 | 141.7 | 3/3 | 108.4 | 76% | 3/3 | 62.6 | 44% | 58% | 94.9, 3 |
+| mbox-scan | 1/1 | 103.9 | 3/3 | 172.8 | 166% | 3/3 | 76.3 | 73% | 44% | 105.6, 7 |
+| mbox-strip-envelope | 1/1 | 104.7 | 3/3 | 77.4 | 74% | 3/3 | 38.3 | 37% | 49% | 53.3, 7 |
+| parser-date | 1/1 | 215.3 | 3/3 | 197.8 | 92% | 3/3 | 133.0 | 62% | 67% | 188.1, 6 |
+| parser-mbox-quoting | 1/1 | 127.2 | 3/3 | 127.4 | 100% | 3/3 | 65.6 | 52% | 51% | 85.7, 7 |
+| parser-mbox-quoting-nodoc | 1/1 | 127.6 | 3/3 | 104.2 | 82% | 3/3 | 77.3 | 61% | 74% | 86.6, 3 |
+| script-reverse | 1/1 | 44.1 | 3/3 | 59.5 | 135% | 3/3 | 11.2 | 25% | 19% | 41.3, 9 |
+| script-transform | 1/1 | 52.8 | 3/3 | 70.6 | 134% | 3/3 | 20.5 | 39% | 29% | 48.6, 9 |
+| storage-blob-put | 1/1 | 216.3 | 3/3 | 108.0 | 50% | 3/3 | 75.0 | 35% | 69% | 94.7, 6 |
+| storage-put-and-sweep | 1/1 | 139.5 | 3/3 | 119.2 | 85% | 3/3 | 104.2 | 75% | 87% | 119.5, 3 |
+| swift-chartaxis-spacing | 1/1 | 240.2 | 3/3 | 240.7 | 100% | 3/3 | 175.8 | 73% | 73% | 221.3, 3 |
+| swift-csv-text | 1/1 | 171.4 | 3/3 | 169.8 | 99% | 3/3 | 128.2 | 75% | 76% | 99.7, 3 |
+| swift-downsample-buckets | 1/1 | 105.9 | 3/3 | 131.9 | 125% | 3/3 | 77.7 | 73% | 59% | 122.1, 3 |
+| swift-scaleladder-snap | 1/1 | 260.8 | 3/3 | 190.9 | 73% | 3/3 | 152.4 | 58% | 80% | 182.3, 3 |
+| swift-sevensegment-glyphs | 1/1 | 97.2 | 3/3 | 121.5 | 125% | 3/3 | 46.9 | 48% | 39% | 93.1, 3 |

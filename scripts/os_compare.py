@@ -28,6 +28,17 @@ lists the engine and client versions on each side. A difference in a cell
 whose versions also changed cannot be credited to the OS alone, and the report
 must say so beside the number.
 
+## Three states: 26, 27 on first boot, 27 settled (#834)
+
+#499 took its macOS 27 rows on first boot, 2026-09-18, while the upgrade's
+indexing daemons used more than 3 CPU cores. #834 reran the same stacks and
+tasks once the machine had settled, from SETTLED_27 on. So a 27 row is "first
+boot" when it started before FIRST_BOOT_END, "settled" from SETTLED_27, and
+"interim" in between. An interim row is other work on 27, neither state, and
+it is counted, not used. The #834 rows ran on fresh engine builds (the
+operator's call, 2026-09-29), so `settled_engine_changed` is set wherever the
+engine moved between first boot and settled.
+
 Each side carries two summaries. `latest` is the side's newest engine version
 only -- the comparison the report makes. `all` is every placed row, for context.
 """
@@ -60,6 +71,12 @@ NEW_YORK = ZoneInfo("America/New_York")
 # First boot of macOS 27.0 (26A428) on the M5 Max, from kern.boottime (#306).
 EPOCH_27 = dt.datetime.fromisoformat("2026-09-18T06:53:09-04:00")
 SIDES = ("26", "27")
+# Every #499 macOS 27 row ran on first-boot day, 2026-09-18.
+FIRST_BOOT_END = dt.datetime.fromisoformat("2026-09-19T00:00:00-04:00")
+# The #834 settled rerun's launch.
+SETTLED_27 = dt.datetime.fromisoformat("2026-09-29T07:51:52-04:00")
+# State key -> the record key it is written under.
+STATES = {"26": "macos26", "27": "macos27", "27s": "macos27_settled"}
 # The stacks that took the last macOS 26 datapoint on 2026-09-17 (#306).
 DEFAULT_BACKENDS = ("qwen38fnq3", "qwen38fnmlxserve", "qwen38fnds4main")
 DEFAULT_OUT = (
@@ -107,6 +124,21 @@ def os_side(row: dict[str, Any]) -> str | None:
     t = started_at(row)
     if t is not None and t < EPOCH_27:
         return "26"
+    return None
+
+
+def state(row: dict[str, Any]) -> str | None:
+    """'26', '27' (first boot), '27s' (settled), or None (unplaced or interim)."""
+    side = os_side(row)
+    if side != "27":
+        return side
+    t = started_at(row)
+    if t is None:
+        return None
+    if t < FIRST_BOOT_END:
+        return "27"
+    if t >= SETTLED_27:
+        return "27s"
     return None
 
 
@@ -162,8 +194,8 @@ def build(
     `all` alone three old rows outvote the one fresh baseline row taken just
     before the upgrade (2026-09-17, llama.cpp 972d2313b against 2092353c8).
     """
-    split: dict[str, list[dict[str, Any]]] = {s: [] for s in SIDES}
-    dropped = {"conflict": 0, "unplaced": 0}
+    split: dict[str, list[dict[str, Any]]] = {s: [] for s in STATES}
+    dropped = {"conflict": 0, "unplaced": 0, "interim": 0}
     for r in rows:
         if r.get("backend") not in backends or r.get("client") != client:
             continue
@@ -174,17 +206,21 @@ def build(
         if side is None:
             dropped["unplaced"] += 1
             continue
-        split[side].append(r)
+        st = state(r)
+        if st is None:
+            dropped["interim"] += 1
+            continue
+        split[st].append(r)
     wanted = set(backends)
-    everything = {s: report.cells(split[s], wanted, client) for s in SIDES}
+    everything = {s: report.cells(split[s], wanted, client) for s in STATES}
     latest = {}
-    for s in SIDES:
+    for s in STATES:
         grouped: dict[tuple[str, str], list[dict[str, Any]]] = {}
         for r in split[s]:
             grouped.setdefault((r["backend"], r["task"]), []).append(r)
         newest = [r for cell in grouped.values() for r in newest_version_rows(cell)]
         latest[s] = report.cells(newest, wanted, client)
-    keys = sorted(set(everything["26"]) | set(everything["27"]))
+    keys = sorted(set().union(*(everything[s] for s in STATES)))
     records = []
     for key in keys:
         sides = {
@@ -192,17 +228,19 @@ def build(
                 "latest": side_summary(latest[s].get(key, [])),
                 "all": side_summary(everything[s].get(key, [])),
             }
-            for s in SIDES
+            for s in STATES
         }
-        a, b = sides["26"]["latest"], sides["27"]["latest"]
+        a, b, c = (sides[s]["latest"] for s in ("26", "27", "27s"))
         records.append(
             {
                 "backend": key[0],
                 "task": key[1],
-                "macos26": sides["26"],
-                "macos27": sides["27"],
+                **{STATES[s]: sides[s] for s in STATES},
                 "engine_changed": a["engine_versions"] != b["engine_versions"],
                 "client_changed": a["client_versions"] != b["client_versions"],
+                "settled_engine_changed": (
+                    b["engine_versions"] != c["engine_versions"]
+                ),
             }
         )
     return records, dropped
@@ -217,6 +255,8 @@ def dataset(
     """The document written to dataset.json."""
     return {
         "epoch_27": EPOCH_27.isoformat(),
+        "first_boot_end": FIRST_BOOT_END.isoformat(),
+        "settled_27": SETTLED_27.isoformat(),
         "client": client,
         "backends": list(backends),
         "dropped": dropped,
@@ -234,14 +274,36 @@ def _pct(new: float | None, old: float | None) -> str:
     return f"{round(100 * new / old)}%"
 
 
+SETTLED_KEY = STATES["27s"]
+_EMPTY = {
+    "n": 0,
+    "passed": 0,
+    "median_wall_s": None,
+    "summed_wall_s": None,
+    "macos": [],
+    "engine_versions": [],
+    "client_versions": [],
+    "first_started": None,
+    "last_started": None,
+}
+
+
+def _settled(cell: dict[str, Any]) -> dict[str, Any]:
+    """The settled state, empty for a dataset written before #834."""
+    return cell.get(SETTLED_KEY) or {"latest": _EMPTY, "all": _EMPTY}
+
+
 def _union(cells: list[dict[str, Any]], side: str, field: str) -> str:
-    vals = sorted({v for c in cells for v in c[side]["latest"][field]})
+    vals = sorted(
+        {v for c in cells for v in (c.get(side) or _settled(c))["latest"][field]}
+    )
     return ", ".join(f"`{v}`" for v in vals) or "—"
 
 
 def _span(cells: list[dict[str, Any]], side: str) -> str:
-    firsts = [f for c in cells if (f := c[side]["latest"]["first_started"])]
-    lasts = [f for c in cells if (f := c[side]["latest"]["last_started"])]
+    got = [(c.get(side) or _settled(c))["latest"] for c in cells]
+    firsts = [f for g in got if (f := g["first_started"])]
+    lasts = [f for g in got if (f := g["last_started"])]
     if not firsts:
         return "—"
     return f"{min(firsts, key=dt.datetime.fromisoformat)} to {max(lasts, key=dt.datetime.fromisoformat)}"
@@ -284,20 +346,44 @@ def render(doc: dict[str, Any]) -> str:
             "macOS 26 median. Wall times are in seconds."
         ),
         (
+            "- **27s** is macOS 27 settled: the same stacks and tasks rerun from "
+            f"`{doc['settled_27']}` ([#834](https://github.com/evanwtf/local-llm/"
+            "issues/834)), on fresh engine builds. **27s / 26** and **27s / 27** "
+            "compare it with macOS 26 and with 27 on first boot. The 27 column is "
+            f"first boot only, rows started before `{doc['first_boot_end']}`."
+        ),
+        (
             f"- Rows dropped: {doc['dropped']['conflict']} conflict, "
-            f"{doc['dropped']['unplaced']} unplaced."
+            f"{doc['dropped']['unplaced']} unplaced, "
+            f"{doc['dropped'].get('interim', 0)} interim (macOS 27 rows from "
+            "other work between first boot and the settled rerun)."
         ),
         "",
         "## Totals",
         "",
-        "Sums of the per-task medians, over tasks with a median on both sides.",
+        (
+            "Sums of the per-task medians. The 26 and 27 sums cover tasks with a "
+            "median on both; the 27s columns cover tasks with a median in all three."
+        ),
         "",
-        "| backend | 26 passed | 27 passed | 26 sum (s) | 27 sum (s) | 27 / 26 |",
-        "|---|---:|---:|---:|---:|---:|",
+        (
+            "| backend | 26 passed | 27 passed | 26 sum (s) | 27 sum (s) | 27 / 26 "
+            "| 27s passed | 27s sum (s) | 27s / 26 | 27s / 27 |"
+        ),
+        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for backend, cells in by_backend.items():
         a = [c["macos26"]["latest"] for c in cells]
         b = [c["macos27"]["latest"] for c in cells]
+        z = [_settled(c)["latest"] for c in cells]
+        three = [
+            (x["median_wall_s"], y["median_wall_s"], w["median_wall_s"])
+            for x, y, w in zip(a, b, z, strict=True)
+            if None not in (x["median_wall_s"], y["median_wall_s"], w["median_wall_s"])
+        ]
+        t26 = round(sum(x for x, _, _ in three), 1) if three else None
+        t27 = round(sum(y for _, y, _ in three), 1) if three else None
+        t27s = round(sum(w for _, _, w in three), 1) if three else None
         both = [
             (x["median_wall_s"], y["median_wall_s"])
             for x, y in zip(a, b, strict=True)
@@ -309,7 +395,9 @@ def render(doc: dict[str, Any]) -> str:
             f"| {backend} "
             f"| {sum(x['passed'] for x in a)}/{sum(x['n'] for x in a)} "
             f"| {sum(y['passed'] for y in b)}/{sum(y['n'] for y in b)} "
-            f"| {_secs(s26)} | {_secs(s27)} | {_pct(s27, s26)} |"
+            f"| {_secs(s26)} | {_secs(s27)} | {_pct(s27, s26)} "
+            f"| {sum(w['passed'] for w in z)}/{sum(w['n'] for w in z)} "
+            f"| {_secs(t27s)} | {_pct(t27s, t26)} | {_pct(t27s, t27)} |"
         )
     for backend, cells in by_backend.items():
         changed = any(c["engine_changed"] for c in cells)
@@ -317,39 +405,50 @@ def render(doc: dict[str, Any]) -> str:
             "",
             f"## {backend}",
             "",
-            "| | macOS 26 | macOS 27 |",
-            "|---|---|---|",
+            "| | macOS 26 | macOS 27, first boot | macOS 27, settled |",
+            "|---|---|---|---|",
             (
                 f"| macOS | {_union(cells, 'macos26', 'macos')} "
-                f"| {_union(cells, 'macos27', 'macos')} |"
+                f"| {_union(cells, 'macos27', 'macos')} "
+                f"| {_union(cells, SETTLED_KEY, 'macos')} |"
             ),
             (
                 f"| engine{' (engine changed)' if changed else ''} "
                 f"| {_union(cells, 'macos26', 'engine_versions')} "
-                f"| {_union(cells, 'macos27', 'engine_versions')} |"
+                f"| {_union(cells, 'macos27', 'engine_versions')} "
+                f"| {_union(cells, SETTLED_KEY, 'engine_versions')} |"
             ),
             (
                 f"| client | {_union(cells, 'macos26', 'client_versions')} "
-                f"| {_union(cells, 'macos27', 'client_versions')} |"
+                f"| {_union(cells, 'macos27', 'client_versions')} "
+                f"| {_union(cells, SETTLED_KEY, 'client_versions')} |"
             ),
-            f"| ran | {_span(cells, 'macos26')} | {_span(cells, 'macos27')} |",
+            (
+                f"| ran | {_span(cells, 'macos26')} | {_span(cells, 'macos27')} "
+                f"| {_span(cells, SETTLED_KEY)} |"
+            ),
             "",
             (
                 "| task | 26 passed | 26 median (s) | 27 passed | 27 median (s) "
-                "| 27 / 26 | 26 all rows: median (s), n |"
+                "| 27 / 26 | 27s passed | 27s median (s) | 27s / 26 | 27s / 27 "
+                "| 26 all rows: median (s), n |"
             ),
-            "|---|---:|---:|---:|---:|---:|---:|",
+            "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
         ]
         for c in cells:
-            x, y, h = (
+            x, y, w, h = (
                 c["macos26"]["latest"],
                 c["macos27"]["latest"],
+                _settled(c)["latest"],
                 c["macos26"]["all"],
             )
             out.append(
                 f"| {c['task']} | {x['passed']}/{x['n']} | {_secs(x['median_wall_s'])} "
                 f"| {y['passed']}/{y['n']} | {_secs(y['median_wall_s'])} "
                 f"| {_pct(y['median_wall_s'], x['median_wall_s'])} "
+                f"| {w['passed']}/{w['n']} | {_secs(w['median_wall_s'])} "
+                f"| {_pct(w['median_wall_s'], x['median_wall_s'])} "
+                f"| {_pct(w['median_wall_s'], y['median_wall_s'])} "
                 f"| {_secs(h['median_wall_s'])}, {h['n']} |"
             )
     return "\n".join(out) + "\n"
@@ -391,12 +490,13 @@ def main(argv: list[str] | None = None) -> int:
             "  [engine changed]" if r["engine_changed"] else "",
         )
     logger.info(
-        "wrote %s and %s: %d cells; dropped %d conflict, %d unplaced",
+        "wrote %s and %s: %d cells; dropped %d conflict, %d unplaced, %d interim",
         args.out,
         args.report,
         len(records),
         dropped["conflict"],
         dropped["unplaced"],
+        dropped["interim"],
     )
     return 0
 
