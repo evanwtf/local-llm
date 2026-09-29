@@ -516,6 +516,56 @@ def test_the_directory_precedes_the_prompt() -> None:
     assert argv[-1] == "go"
 
 
+# --- #263: the rest of the CLI contract --------------------------------------
+#
+# A new OpenCode major version is where the --dir failure comes back. The gate
+# reads `opencode run --help` and refuses a batch whose argv uses a flag, or a
+# --format value, that the installed client no longer lists.
+
+_HELP_1_18 = """
+      --format       format: default (formatted) or json (raw JSON events)
+                                          [string] [choices: "default", "json"]
+  -m, --model        model to use in the format of provider/model   [string]
+      --dir          directory to run in, path on remote server if attaching
+      --auto         auto-approve permissions that are not explicitly denied
+"""
+
+
+def test_the_current_help_satisfies_the_contract() -> None:
+    assert run.opencode_cli_gaps(_HELP_1_18) == []
+
+
+def test_a_dropped_flag_is_named() -> None:
+    help_text = _HELP_1_18.replace("--dir ", "--cwd ")
+    assert run.opencode_cli_gaps(help_text) == ["--dir"]
+
+
+def test_a_dropped_format_value_is_named() -> None:
+    help_text = _HELP_1_18.replace('"json"', '"jsonl"')
+    assert run.opencode_cli_gaps(help_text) == ['--format "json"']
+
+
+def test_the_contract_is_read_from_the_argv_builder() -> None:
+    """The flag list is derived, not copied, so a flag added to opencode_argv
+    is checked without anyone remembering to add it here."""
+    argv = run.opencode_argv({"prompt": "go"}, _opencode_backend(), "/w")
+    flags = {a for a in argv if a.startswith("--")}
+    assert flags == set(run.opencode_contract_flags())
+
+
+def test_the_gate_refuses_only_for_opencode(monkeypatch) -> None:
+    monkeypatch.setattr(run, "_opencode_run_help", lambda: "no flags here")
+    assert run.opencode_cli_gate(["aider"]) is None
+    why = run.opencode_cli_gate(["opencode"])
+    assert why is not None and "--dir" in why
+
+
+def test_the_gate_passes_when_the_help_cannot_be_read(monkeypatch) -> None:
+    """No opencode binary is its own, louder failure at the first trial."""
+    monkeypatch.setattr(run, "_opencode_run_help", lambda: None)
+    assert run.opencode_cli_gate(["opencode"]) is None
+
+
 def test_every_client_is_offered_the_worktree(tmp_path) -> None:
     """The builders share one signature, so a new client cannot silently
     lose the argument the way OpenCode silently ignored the cwd."""
