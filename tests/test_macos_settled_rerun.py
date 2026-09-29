@@ -47,3 +47,30 @@ def test_every_backend_exists_in_tasks_toml() -> None:
     backends = tomllib.loads(toml.read_text())["backend"]
     for stack in m.PLAN:
         assert stack.backend in backends
+
+
+def test_the_ds4_stack_names_its_tree_for_the_route_gate() -> None:
+    """run.py's #149 gate reads DS4_TREE and DS4_TEST_MODEL, not the backend's
+    engine_tree. Without them it checked ~/git/ds4-metal and refused the
+    stack as "stale" on 2026-09-29."""
+    ds4 = next(s for s in m.PLAN if s.backend == "qwen38fnds4main")
+    server = ds4.units[0]
+    assert ds4.env["DS4_TREE"] == str(server.cwd)
+    assert ds4.env["DS4_TEST_MODEL"] == server.argv[server.argv.index("-m") + 1]
+
+
+def test_llama_server_waits_for_health_not_the_port() -> None:
+    """llama-server listens while it loads and answers 503; on 2026-09-29 the
+    smoke gate hit that 503 and the stack never ran."""
+    llama = next(u for s in m.PLAN for u in s.units if u.name == "834-llama-server")
+    assert llama.ready_path == "/health"
+
+
+def test_ready_needs_a_200(monkeypatch) -> None:
+    import urllib.error
+
+    def refuse(url, timeout):
+        raise urllib.error.HTTPError(url, 503, "Loading model", {}, None)
+
+    monkeypatch.setattr(m.urllib.request, "urlopen", refuse)
+    assert m.answering(8020, "/health") is False
