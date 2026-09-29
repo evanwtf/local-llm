@@ -1,8 +1,10 @@
 # What to run on the dual DGX Spark cluster
 
-> **Ledger last read 2026-09-29, 05:55 EDT.** Testing is paused here by the
-> operator. The pick has three or more runs behind it on every task set, and
-> nothing measured since the last version of this file changed it.
+> **Ledger last read 2026-09-29, 12:50 EDT.** Testing is paused here by the
+> operator. The pick has three or more runs behind it on every task set.
+> Since then, one TensorFold run was faster than GLM on both task sets, but on
+> different weights and with fewer hidden tests passed (section 3). It does
+> not change the pick.
 >
 > | stack | standard-set runs | replay runs (#714) | hard-set runs (#726) |
 > |---|---|---|---|
@@ -11,6 +13,7 @@
 > | Qwen3.8-Flash-Next NVFP4 | 3 | 3 + 1 on vLLM 0.30 | 2 |
 > | Qwen3.8-Flash-Next hibrid48 (vr8vr8's recipe) | 0 | 1 | 0 |
 > | DeepSeek V4.1 Flash EXL3 | 3 | 3 | 1 |
+> | GLM-5.3-Flash abliterated EXL3 on TensorFold (jayleaton's recipe) | 0 | 1 | 1 |
 >
 > "Passes the suite" is the whole quality claim. Aggregate throughput with
 > several clients at once is **not measured**, because there is one client
@@ -39,7 +42,8 @@ at the recipe's latest commit, with reasoning effort `low` set on the server.
   - On the hard set it passed 20 of 21 visible verdicts in three of its four
     runs, the same as the next two stacks' best.
   - Hidden-test pass rates do not separate any of the stacks (section 2).
-- **Speed: fastest on every task set.**
+- **Speed: fastest on every task set, among stacks that match its quality.**
+  One TensorFold run on abliterated GLM weights was faster (section 3).
 
   | task set | GLM | next-fastest stack |
   |---|---|---|
@@ -62,7 +66,8 @@ run.
 
 | stack | runs | passed | sum of per-task medians | median trial | worst trial |
 |---|---|---|---|---|---|
-| **GLM-5.3-Flash EXL3**, recipe @0f49cfd | 3 | 63/63 | **1,901.1 s** | 216 s | 608 s |
+| GLM-5.3-Flash abliterated EXL3 on TensorFold, jayleaton's recipe | 1 | 20/21 | **1,261.7 s** | 156.1 s | 469.5 s |
+| **GLM-5.3-Flash EXL3**, recipe @0f49cfd | 3 | 63/63 | 1,901.1 s | 216 s | 608 s |
 | GLM-5.3-Flash EXL3, recipe @943912c | 1 | 19/21 | 2,018.9 s | 232.9 s | 592.2 s |
 | Qwen3.8-Flash-Next hibrid48, vr8vr8's recipe | 1 | 21/21 | 2,545.7 s | 343.8 s | 692.9 s |
 | DeepSeek-V4-Flash-Vision-Exp | 3 | 63/63 | 2,757.7 s | 435 s | 923 s |
@@ -75,7 +80,7 @@ run.
 
 A sum of medians is the time to run the whole set once, at each task's typical
 time. Both of GLM @943912c's failures were one test that the task sets up as a
-trap (below).
+trap (below). TensorFold's one fail passed, but edited the test file.
 
 ### Hard set (#726)
 
@@ -93,6 +98,7 @@ spans five commits. 7 tasks × 3 trials, 3,600 s timeout.
 | DeepSeek-V4-Flash-Vision-Exp | 1 | 20/21 | 0/18 | 208/295 | 682 s |
 | | 2 | 20/21 | 0/18 | 220/321 | 841.8 s |
 | DeepSeek V4.1 Flash EXL3 | 1 | 16/17 valid | 2/14 | 157/217 | 1,140 s |
+| GLM-5.3-Flash abliterated EXL3 on TensorFold, jayleaton's recipe | 1 | 20/21 | 2/18 | 204/321 | 354.8 s |
 
 **How to read the hard-set table:**
 
@@ -105,8 +111,9 @@ spans five commits. 7 tasks × 3 trials, 3,600 s timeout.
 - **V4.1 has 4 of its 21 rows excluded for answer exposure (#54).** The agent
   opened the directory that holds earlier trials' solution patches. Its counts
   cover the 17 valid rows.
-- **Hidden-test pass rates do not separate the stacks.** Every run lands
-  between 68.5% and 72.9% of the tests collected. Every stack writes code that
+- **Hidden-test pass rates do not separate the stacks.** Every run on
+  vLLM lands between 68.5% and 72.9% of the tests collected. The one
+  TensorFold run is below that range, at 63.6%. Every stack writes code that
   passes the tests it can see and fails some of the tests it can't, and none
   does clearly better at that.
 
@@ -164,6 +171,26 @@ client image.
   the latest recipe and client. NVFP4 on vLLM 0.30 (recipe @d23790b) took
   3,157.4 s on replay, within its three-run range.
 
+- **TensorFold on jayleaton's recipe is the fastest stack measured, but not
+  the best (#840).** It ran GLM-5.3-Flash on TensorFold v0.3.4 with the
+  recipe's own patches
+  ([jayleaton/glm53-tensorfold-spark](https://github.com/jayleaton/glm53-tensorfold-spark),
+  rows in #839 and #843).
+  - **Speed:** replay took 66% of GLM's time (1,261.7 s against 1,901.1 s).
+    The hard set took 85% of the time of GLM's fastest run (10,838.3 s summed
+    against 12,744.9 s; median trial 354.8 s against 359.9 s).
+  - **Quality:** it passed 204 of 321 hidden tests (63.6%). That is below every
+    vLLM run (68.5–72.9%), and below GLM's latest run at 230 of 321 (71.7%).
+  - **Different weights:** the recipe serves an abliterated, re-quantized
+    build (`neko-legends/GLM-5.3-Flash-Uncensored-EXL3`), not the TR3-4bpw
+    weights the pick uses. The speed and the quality gap can come from the
+    engine, the weights, or both. One run cannot say which.
+  - **One serving failure:** on the hard set, one trial got a tool call back
+    as plain text, which the client did not run. The replay fail edited a
+    test file.
+  - It has one run per task set. The next step is stock TensorFold on the
+    pick's own weights (section 6).
+
 ### Screened out
 
 These were stopped under the #762 rules (below 90% passed, or more than 2× the
@@ -215,8 +242,10 @@ context. Set its per-step output limit to 65,536, the server's own default; at
   rows landed.
 - **Ling-3.0-flash** (120 GiB per node, plus a 2.6 GiB drafter) has a prune
   script ready and is waiting for the operator's go.
-- **TensorFold's GLM 4-bit weights** (about 170 GiB per node) are waiting for a
-  keep-or-delete decision.
+- **TensorFold's GLM 4-bit weights** (about 170 GiB per node) stay, at the
+  operator's word.
+- **The abliterated GLM EXL3 weights** for jayleaton's recipe (164 GiB per
+  node) stay for more runs (#840).
 - **Qwen3.8-Flash-Next hibrid48** (99 GB per node) arrived for #806 and stays
   while it has only one run.
 - **FP8 Flash-Next is the next to let go** if space is needed: NVFP4 is the
@@ -227,6 +256,8 @@ context. Set its per-step output limit to 65,536, the server's own default; at
 Testing on the cluster is paused by the operator as of 2026-09-29. When it
 resumes, in order:
 
+- **Stock TensorFold (v0.3.6.3) on the pick's own EXL3 weights** (#840).
+  This separates the engine's speed from the abliterated weights' quality.
 - **More runs of GLM on the latest recipe.** It has one hard-set run and no
   replay run on @94ae731. Its fastest-ever result needs two more to count.
 - **hibrid48's second and third replay runs, and its hard set** (#806).
