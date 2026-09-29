@@ -71,6 +71,7 @@ Each script explains itself in full at the top of its own file -- what it comput
 | `machine_health.py` | any | Is this machine in a state to start work, and did the work actually start? |
 | `machine_state.py` | any | Is the machine busy, and who says so? One answer, for every agent. |
 | `machines.py` | any | The hardware this project manages -- the single source of truth (#302). |
+| `macos_settled_rerun.py` | any | Rerun #499's three stacks on their macOS-27 first-boot builds, in order. #834 |
 | `make_next.py` | any | Print what to do next, live from the open issues' labels. |
 | `make_scripts_readme.py` | any | Generate scripts/README.md from each script's own first docstring line. |
 | `memory_gate.py` | nvidia | Wait for memory to be safe before starting the next trial. |
