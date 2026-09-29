@@ -95,6 +95,7 @@ Each script explains itself in full at the top of its own file -- what it comput
 | `prefill_depth.py` | any | Cold prefill against appended-token prefill at depth, one ds4 tree. #158 |
 | `prefix_stability.py` | mac | Find which cached prefix block changes between two requests (#50, #64). |
 | `prefix_stall.py` | mac | Measure the live-KV prefix stall across a corpus of ds4-server logs (#64). |
+| `preflight_daily.py` | any | The daily currency check, for every machine in use. #726 |
 | `prompt_meta.py` | any | Which prompt a decode/prefill A/B was measured on (#140). |
 | `prune_models.py` | any | Delete local model weights that are superseded and re-downloadable (#111). |
 | `qwen38_metal_suites.py` | mac | Run ds4#990's model-free Qwen3.8-Flash-Next Metal suites and report (#170). |

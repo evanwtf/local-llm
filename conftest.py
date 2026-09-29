@@ -285,6 +285,7 @@ FAST_MODULES = frozenset(
         "tests/test_validate_ledgers.py",  # ledger rows parse and hold
         "tests/test_workspace_escape.py",  # the sandbox stays a sandbox
         "benchmarks/agent/test_testing_set.py",  # live backends are documented
+        "tests/test_currency.py",  # the version gate refuses stale and unknown
     }
 )
 

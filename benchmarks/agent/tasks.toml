@@ -3545,6 +3545,8 @@ aider_model = "openai/deepseek-v4-flash-vision-exp"
 opencode_model = "vllm8888/deepseek-v4-flash-vision-exp"
 context_tokens = 1048576
 topology = "remote"
+# #726 gate (2026-09-28): server_facts.py refuses while these are behind upstream.
+recipe_dir = "~/dspark-2x"
 
 # #663: Qwen3.8-Flash-Next NVFP4 across BOTH DGX Sparks, via
 # MiaAI-Lab/Qwen3.8-Flash-Next-Dual-DGX-Sparks. vLLM TP=2 + expert parallel +
@@ -3597,6 +3599,9 @@ aider_model = "openai/qwen3.8-flash-next"
 opencode_model = "vllm8888/qwen3.8-flash-next"
 context_tokens = 262144
 topology = "remote"
+# #726 gate (2026-09-28): server_facts.py refuses while these are behind upstream.
+recipe_dir = "~/qwen38-dual"
+image = "vllm/vllm-openai:qwen38-flash-next"
 
 # #721: the OFFICIAL FP8 checkpoint (Qwen/Qwen3.8-Flash-Next-FP8, 172.8 GiB) of
 # the same model, same recipe (MiaAI-Lab Qwen3.8-Flash-Next-Dual-DGX-Sparks,
@@ -3616,6 +3621,9 @@ aider_model = "openai/qwen3.8-flash-next"
 opencode_model = "vllm8888/qwen3.8-flash-next"
 context_tokens = 262144
 topology = "remote"
+# #726 gate (2026-09-28): server_facts.py refuses while these are behind upstream.
+recipe_dir = "~/qwen38-dual-latest"
+image = "vllm/vllm-openai:v0.30.0"
 
 # #721: the OFFICIAL FP8 checkpoint (Qwen/Qwen3.8-Flash-Next-FP8, 172.8 GiB) of
 # the same model, same recipe (MiaAI-Lab Qwen3.8-Flash-Next-Dual-DGX-Sparks,
@@ -3666,6 +3674,9 @@ aider_model = "openai/GLM-5.3-Flash-EXL3"
 opencode_model = "vllm8888/GLM-5.3-Flash-EXL3"
 context_tokens = 262144
 topology = "remote"
+# #726 gate (2026-09-28): server_facts.py refuses while these are behind upstream.
+recipe_dir = "~/glm53-exl3"
+image = "ghcr.io/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-instanttensor"
 
 # #672: MiMo-V2.6-Flash-RL (309B total, 15B active, MXFP4 experts) across BOTH
 # DGX Sparks, via MiaAI-Lab/MiMo-V2.6-Flash-2x-DGX-Sparks @201be3e. The first
@@ -3718,6 +3729,32 @@ aider_model = "openai/GLM-5.3-Flash-EXL3"
 opencode_model = "vllm8888/GLM-5.3-Flash-EXL3"
 context_tokens = 262144
 topology = "remote"
+# #726 gate (2026-09-28): server_facts.py refuses while these are behind upstream.
+recipe_dir = "~/glm53-exl3"
+image = "ghcr.io/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-instanttensor"
+
+# #726: the latest of everything, with OpenCode's per-step output cap raised
+# from 16,384 to 65,536 tokens (the GLM server's own default, mt_default=65536).
+# The cap cut 2 of 132 GLM trials (span tasks, `reason: length`) while NVFP4 ran
+# at 262,144 and DSV4-V at 1,048,576 (#726 finding, 2026-09-28). MiaAI-Lab
+# recipe @94ae731 (upstream main on 2026-09-28), the unchanged GHCR image
+# (digest 447114ee), OpenCode 1.18.33 in client image local-llm-client:1.18.33.
+# The cap moves through a second OpenCode provider entry, `vllm8888out64k`, so
+# the 16,384 entry and every earlier row stay reproducible.
+[backend.glm53fexl3dual2xrclatestout64k]
+description = "GLM-5.3-Flash EXL3 4bpw across TWO DGX Sparks on the latest of everything: MiaAI-Lab GLM-5.3-Flash-2x-DGX-Sparks @94ae731, GHCR image digest 447114ee, the recipe's @94ae731 defaults adopted (GPU_MEM_UTIL 0.85, 11.8 GB KV pool, GLM53_DENSE_FP8=all, GLM53_KDA_BF16_LARGE_M=1, loader clone on, prefetch off, host memory hygiene on) with our own 262144 context, four-interface fabric and reasoning_effort low server-side (EXL3 vLLM TP=2, DFlash2, fp8 KV), client image local-llm-client:1.18.33 (OpenCode 1.18.33, uv 0.12.19, CPython 3.14.7), and OpenCode limit.output 65,536 instead of 16,384 (provider entry vllm8888out64k, same baseURL). REMOTE CLIENT (#562/#649), 12 GiB kernel-enforced client container"
+tier = "gb10-spark-x2"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "vllm"
+model = "GLM-5.3-Flash-EXL3"
+aider_model = "openai/GLM-5.3-Flash-EXL3"
+opencode_model = "vllm8888out64k/GLM-5.3-Flash-EXL3"
+context_tokens = 262144
+topology = "remote"
+# #726 gate (2026-09-28): server_facts.py refuses while these are behind upstream.
+recipe_dir = "~/glm53-exl3-latest"
+image = "ghcr.io/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-instanttensor"
 
 # #717: glm53fexl3dual2xrcctx on the LATEST MiaAI-Lab recipe (@943912c, 43
 # commits past the 0f49cfd launch the ctx rows used). Same image (GHCR
@@ -3736,6 +3773,9 @@ aider_model = "openai/GLM-5.3-Flash-EXL3"
 opencode_model = "vllm8888/GLM-5.3-Flash-EXL3"
 context_tokens = 262144
 topology = "remote"
+# #726 gate (2026-09-28): server_facts.py refuses while these are behind upstream.
+recipe_dir = "~/glm53-exl3-latest"
+image = "ghcr.io/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-instanttensor"
 
 # #685: DeepSeek V4.1 Flash across BOTH DGX Sparks via
 # MiaAI-Lab/DeepSeek-v4.1-Flash-EXL3-2x-DGX-Sparks @6f7d159: vLLM TP=2 with
@@ -3765,6 +3805,8 @@ aider_model = "openai/DeepSeek-v4.1-Flash-EXL3"
 opencode_model = "vllm8888/DeepSeek-v4.1-Flash-EXL3"
 context_tokens = 262144
 topology = "remote"
+# #726 gate (2026-09-28): server_facts.py refuses while these are behind upstream.
+recipe_dir = "~/dsv41-exl3"
 
 # #672 second arm (operator, 2026-09-22): mimo26fdual2xrc with thinking ON.
 # The only change is that the server-side --default-chat-template-kwargs

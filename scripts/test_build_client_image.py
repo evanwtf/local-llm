@@ -57,7 +57,8 @@ def test_python_and_opencode_versions_parse():
 
 def test_a_pin_mismatch_is_reported_not_swallowed():
     got = mod.check_pins(
-        {"opencode": "1.18.30", "uv": "0.12.13", "python": "3.14.4"}, mod.PINS
+        {"opencode": "1.18.30", "uv": mod.PINS["uv"], "python": mod.PINS["python"]},
+        mod.PINS,
     )
     by_name = {name: ok for name, ok, _ in got}
     assert by_name["opencode"] is False
@@ -67,4 +68,4 @@ def test_a_pin_mismatch_is_reported_not_swallowed():
 def test_a_missing_tool_is_a_failure_with_a_readable_detail():
     got = {name: (ok, detail) for name, ok, detail in mod.check_pins({}, mod.PINS)}
     assert got["uv"][0] is False
-    assert "missing" in got["uv"][1] and "pinned 0.12.13" in got["uv"][1]
+    assert "missing" in got["uv"][1] and f"pinned {mod.PINS['uv']}" in got["uv"][1]
