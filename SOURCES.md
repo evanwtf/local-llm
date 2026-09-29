@@ -76,6 +76,9 @@ Rapid-MLX (#57). Apache 2.0, OpenAI-compatible, claims 12x prefix cache.
 * **@awnihannun**: X: [@awnihannun](https://x.com/awnihannun) · GitHub: [@awni](https://github.com/awni) · Website: [awnihannun.com](https://awnihannun.com/)  
 Co-created MLX. Lower volume since leaving Apple, still framework source-of-truth.
 
+* **@jayleaton**: X: [@jayleaton](https://x.com/jayleaton) · GitHub: [jayleaton/glm53-tensorfold-spark](https://github.com/jayleaton/glm53-tensorfold-spark)  
+**GLM-5.3-Flash on TensorFold across two DGX Sparks** (operator-added, 2026-09-29, #798). The recipe pins TensorFold v0.3.4 and adds 57 patches: a latent FP8 KV cache, a 1,048,576-token pool shared by 4 requests, chunked prefill, and a RoCE all-gather. It claims ~1.8x vLLM decode on the same weights, which are the abliterated `neko-legends/GLM-5.3-Flash-Uncensored-EXL3`. "I will publish all future updates on X." DGX lane; the repo ships fast (two merged PRs on its first full day), so read its commits, not just the feed.
+
 * **@zcbenz**: X: [@zcbenz](https://x.com/zcbenz) · GitHub: [@zcbenz](https://github.com/zcbenz) · Website: [zcbenz.com](https://zcbenz.com)  
 mlx-lm maintainer.
 
@@ -216,6 +219,8 @@ not as "against us":
 * **@sudoingX** (Tier 2) is now a **2x Spark operator on official FP8
   Qwen3.8-Flash-Next** (45 tok/s fresh, 35 mid-build, with MTP and Hermes). #721.
   Added 2026-09-24 from #722.
+* **@jayleaton** (Tier 2) runs GLM-5.3-Flash on TensorFold across two Sparks and
+  publishes the recipe we screen on #798. Added 2026-09-29 by the operator.
 * **@Raullen** (Tier 2) posted the only multi-agent coding session on the 2x
   Spark GLM-5.3-Flash EXL3 stack we rank first (two Codex agents, 2026-08-28).
   Added 2026-09-24 from #722.

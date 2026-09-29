@@ -3733,6 +3733,32 @@ topology = "remote"
 recipe_dir = "~/glm53-exl3"
 image = "ghcr.io/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-instanttensor"
 
+# #798 (operator-approved 2026-09-29): GLM-5.3-Flash on TensorFold via
+# https://github.com/jayleaton/glm53-tensorfold-spark (@e9c8cbb): TensorFold
+# v0.3.4 as a pinned submodule plus the recipe's 57 patches, image built locally
+# (glm53-tensorfold:dev). Weights: the ABLITERATED
+# neko-legends/GLM-5.3-Flash-Uncensored-EXL3 @07135ec (Local Inference Lab,
+# gated, ShapleyMCG 1.0) -- a different model from our GLM pick, so a number
+# here is not GLM's. Drafter incoai/GLM-5.3-Flash-DFlash2 @7d74cdd.
+# config/prod.env as shipped (4 requests over a shared 1,048,576-token KV pool,
+# FP8 latent KV, RoCE all-gather) except: HOST 0.0.0.0, PORT 8888, and
+# GLM53_TF_DEFAULT_EFFORT=low. Client entry tf8888: context 262,144 like every
+# GLM arm, output 32,768 = the recipe's MAX_TOKENS.
+[backend.glm53ftfjaydual2xrc]
+description = "GLM-5.3-Flash (abliterated EXL3, neko-legends/GLM-5.3-Flash-Uncensored-EXL3 @07135ec) on TensorFold v0.3.4 + 57 patches across TWO DGX Sparks via jayleaton/glm53-tensorfold-spark @e9c8cbb: 4 requests over a shared 1,048,576-token FP8 latent KV pool, RoCE all-gather, DFlash2 drafter @7d74cdd, reasoning effort low server-side, :8888. REMOTE CLIENT (#562/#649), 12 GiB kernel-enforced client container; OpenCode output cap 32,768 (the recipe's MAX_TOKENS)"
+tier = "gb10-spark-x2"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "tensorfold"
+model = "GLM-5.3-Flash-EXL3"
+aider_model = "openai/GLM-5.3-Flash-EXL3"
+opencode_model = "tf8888/GLM-5.3-Flash-EXL3"
+context_tokens = 262144
+topology = "remote"
+# #726 gate (2026-09-28): server_facts.py refuses while these are behind upstream.
+# No image: it is built locally from this recipe, so the recipe pin is the check.
+recipe_dir = "~/jay-tensorfold"
+
 # #806 (P1, operator-approved 2026-09-29): vr8vr8's Qwen3.8-Flash-Next two-Spark
 # recipe, myllmbox/qwen38-flash-next-cluster-recipe (v4.1), with its own weights
 # (myllmbox/Qwen3.8-Flash-Next-hibrid48, NVFP4 output head) and image
