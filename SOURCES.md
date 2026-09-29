@@ -479,7 +479,9 @@ most of the effort on CUDA benchmarks and vision releases.
 
 1. **Gather with grok, and assume every word is unverified.**
 2. **Judge relevance to this machine first** — would it change a number on an
-   M5 Max, 128 GB, Metal? A result on an M3 or M4 is a **lead, not noise**.
+   M5 Max, 128 GB, Metal? A result on an M3 or M4 is a **lead, not noise**,
+   and a result on an M5 Ultra is the closest lead of all: same GPU
+   generation, so its kernel work usually reaches the M5 Max.
 3. **Say what you found, out loud, before filing anything.** A short summary
    leading with what bears on this machine, marked unverified. A sweep whose
    output only lands in GitHub is one the operator cannot steer.
