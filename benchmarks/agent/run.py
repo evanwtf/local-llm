@@ -2738,6 +2738,13 @@ def paths_outside(stdout, worktree):
         if CLIENT_INSTALL_RE.search(full):
             continue
         parts = full[len(home) + 1 :].split("/")[:2]
+        # #780: the ledger is public, and a trial once listed archive files in
+        # a download folder by name. Keep the second segment only where it is
+        # evidence and not personal content: a dot-directory (a tool's config)
+        # or ~/git (the repository #54 diagnoses). The first segment always
+        # stays, so ANSWER_TREES still recognises the escape.
+        if len(parts) == 2 and not (parts[0].startswith(".") or parts[0] == "git"):
+            parts[1] = "<redacted>"
         tree = f"{home}/" + "/".join(parts)
         seen[tree] = seen.get(tree, 0) + 1
     return sorted(seen, key=lambda k: -seen[k])
