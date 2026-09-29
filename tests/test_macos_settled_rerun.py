@@ -1,7 +1,8 @@
 """Tests for scripts/macos_settled_rerun.py (#834).
 
-The rerun is only worth anything if it matches #499's first-boot rows, so the
-plan is pinned here: the same 15 tasks, the same order, the same builds.
+The rerun is only comparable with #499's rows if it runs the same 15 tasks in
+the same order, so those are pinned here. The builds are the fresh ones the
+operator asked for on 2026-09-29.
 """
 
 from __future__ import annotations
@@ -22,12 +23,12 @@ def test_the_plan_runs_499s_stacks_in_499s_order() -> None:
     ]
 
 
-def test_the_first_boot_builds_are_used() -> None:
+def test_the_fresh_builds_are_used() -> None:
     argv = {u.name: " ".join(u.argv) for s in m.PLAN for u in s.units}
-    assert "mlx-serve-26.9.4" in argv["834-mlx-serve"]
-    assert "ds4-mainline-8db1d1d1" in argv["834-ds4-server"]
+    assert "mlx-serve-26.9.6" in argv["834-mlx-serve"]
+    assert "ds4-mainline-0aaea5a2" in argv["834-ds4-server"]
     ds4 = next(u for s in m.PLAN for u in s.units if u.name == "834-ds4-server")
-    assert ds4.cwd.name == "ds4-mainline-8db1d1d1"
+    assert ds4.cwd.name == "ds4-mainline-0aaea5a2"
 
 
 def test_run_argv_carries_every_task_and_no_early_stop() -> None:
@@ -37,11 +38,6 @@ def test_run_argv_carries_every_task_and_no_early_stop() -> None:
     assert "--no-early-stop" in argv
     assert argv[argv.index("--trials") + 1] == "3"
     assert argv[argv.index("--backend") + 1] == "qwen38fnq3"
-
-
-def test_the_pinned_client_comes_first_on_path(monkeypatch) -> None:
-    monkeypatch.setenv("PATH", "/usr/bin")
-    assert m.client_env()["PATH"].split(":")[0] == str(m.PINNED_CLIENT)
 
 
 def test_every_backend_exists_in_tasks_toml() -> None:

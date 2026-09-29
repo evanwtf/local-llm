@@ -1,16 +1,17 @@
-"""Rerun #499's three stacks on their macOS-27 first-boot builds, in order. #834
+"""Rerun #499's three stacks on macOS 27 once it has settled, in order. #834
 
 #499 took the macOS 27 rows on first boot, while the upgrade's indexing
 daemons used more than 3 CPU cores. The operator asked for a rerun once the
-machine settled (2026-09-18), and decided on 2026-09-29 to use **the same
-builds** as those first-boot rows, so the comparison isolates "settled" from
-"first boot". This driver is that rerun, and nothing else: each stack's
-servers are started from the argv the first-boot rows recorded, run.py runs
-the same 15 tasks, and the servers are stopped before the next stack.
+machine settled (2026-09-18). On 2026-09-29 the operator asked for it on
+**fresh builds** of every engine ("Don't want to test stale code"), so this
+follows always-latest: llama.cpp at ggml-org master, mlx-serve's latest
+release, ds4 at antirez/ds4 main, and the current OpenCode. The rows carry
+each engine's version, so the report can say which differences are the
+engine's and which the machine's.
 
-The client is pinned too: OpenCode 1.18.31 from a private prefix
-(``~/.local-llm-bench/clients/opencode-1.18.31/bin``), put first on PATH for
-run.py only, so the operator's own OpenCode is not downgraded.
+Each stack's servers start from the argv the first-boot rows recorded, with
+only the build paths changed. run.py runs the same 15 tasks, and the servers
+are stopped before the next stack.
 
 Usage:
 
@@ -24,7 +25,6 @@ from __future__ import annotations
 import argparse
 import dataclasses
 import logging
-import os
 import pathlib
 import socket
 import subprocess
@@ -33,6 +33,8 @@ import time
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
 
+import child
+
 import logs
 
 logger = logging.getLogger(__name__)
@@ -40,8 +42,6 @@ logger = logging.getLogger(__name__)
 REPO = pathlib.Path(__file__).resolve().parents[1]
 HOME = pathlib.Path.home()
 BENCH = HOME / ".local-llm-bench"
-PINNED_CLIENT = BENCH / "clients" / "opencode-1.18.31" / "bin"
-PINNED_CLIENT_VERSION = "1.18.31"
 
 #: The 15 tasks of #499, from its dataset.json.
 TASKS = (
@@ -86,7 +86,8 @@ def _shim(script: str, name: str, port: int, upstream: str) -> Unit:
     )
 
 
-#: In #499's order. Server argv as the first-boot rows recorded it
+#: In #499's order. Server argv as the first-boot rows recorded it, with the
+#: build paths moved to the fresh builds
 #: (`env.server_argv`), or, for mlx-serve, as its log recorded the args.
 PLAN = (
     Stack(
@@ -139,7 +140,7 @@ PLAN = (
                 "834-mlx-serve",
                 (
                     str(
-                        HOME / ".local/opt/mlx-serve-26.9.4/mlx-serve-macos-arm64/"
+                        HOME / ".local/opt/mlx-serve-26.9.6/mlx-serve-macos-arm64/"
                         "mlx-serve"
                     ),
                     "--model",
@@ -172,7 +173,7 @@ PLAN = (
                     "-m",
                     str(
                         HOME
-                        / "git/ds4-mainline-8db1d1d1/gguf/Qwen3.8-Flash-Next-Q4.gguf"
+                        / "git/ds4-mainline-0aaea5a2/gguf/Qwen3.8-Flash-Next-Q4.gguf"
                     ),
                     "--ctx",
                     "100000",
@@ -183,7 +184,7 @@ PLAN = (
                     "8000",
                 ),
                 8000,
-                HOME / "git/ds4-mainline-8db1d1d1",
+                HOME / "git/ds4-mainline-0aaea5a2",
             ),
             _shim(
                 "ds4_qwen_tool_shim.py", "834-qwen-shim", 8101, "http://127.0.0.1:8000"
@@ -213,13 +214,6 @@ def run_argv(stack: Stack, batch: str) -> list[str]:
     for task in TASKS:
         argv += ["--task", task]
     return argv
-
-
-def client_env() -> dict[str, str]:
-    """The environment for run.py: the pinned OpenCode first on PATH."""
-    env = dict(os.environ)
-    env["PATH"] = f"{PINNED_CLIENT}{os.pathsep}{env.get('PATH', '')}"
-    return env
 
 
 def listening(port: int) -> bool:
@@ -266,15 +260,7 @@ def run_stack(stack: Stack, stamp: str) -> int:
         batch = f"0929-834-{stack.backend}"
         log = BENCH / "logs" / f"834-{stack.backend}-{stamp}.log"
         logger.info("run.py for %s, batch %s, log %s", stack.backend, batch, log)
-        with log.open("w") as fh:
-            code = subprocess.run(
-                run_argv(stack, batch),
-                cwd=REPO,
-                env=client_env(),
-                stdout=fh,
-                stderr=subprocess.STDOUT,
-                check=False,
-            ).returncode
+        code = child.run(run_argv(stack, batch), cwd=REPO, log=log)
         logger.info("run.py for %s exited %d", stack.backend, code)
         return code
     finally:
@@ -309,16 +295,6 @@ def main() -> int:
         )
     if args.dry_run:
         return 0
-    got = subprocess.run(
-        [str(PINNED_CLIENT / "opencode"), "--version"],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if got.stdout.strip() != PINNED_CLIENT_VERSION:
-        raise SystemExit(
-            f"pinned client reports {got.stdout.strip()!r}, not {PINNED_CLIENT_VERSION}"
-        )
     stamp = time.strftime("%Y%m%dT%H%M%S")
     failed = [s.backend for s in plan if run_stack(s, stamp) != 0]
     if failed:

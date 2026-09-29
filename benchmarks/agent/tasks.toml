@@ -2702,7 +2702,9 @@ model = "qwen3.8-flash-next-q4"
 opencode_model = "ds4qwenshim/qwen3.8-flash-next-q4"
 context_tokens = 100000
 engine = "ds4"
-engine_tree = "~/git/ds4-mainline-8db1d1d1"
+# The tree follows antirez/ds4 main. 0aaea5a2 is main as of 2026-09-29 (#834);
+# 8db1d1d1 was main for #499.
+engine_tree = "~/git/ds4-mainline-0aaea5a2"
 
 [backend.qwen38fnds4shim]
 description = "Qwen3.8-Flash-Next Q4 fast-pack on ds4-metal ba01f5d via the tool-format shim (non-streaming upstream), MTP off"
