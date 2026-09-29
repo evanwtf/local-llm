@@ -2830,6 +2830,10 @@ HOME_READABLE = (
     "Library/org.swift.swiftpm",
     "Library/Developer",
     ".local-llm-bench/shims",
+    # A pinned client for a comparison that must match an older client
+    # version, installed here so the operator's own client is not downgraded
+    # (#834).
+    ".local-llm-bench/clients",
 )
 
 

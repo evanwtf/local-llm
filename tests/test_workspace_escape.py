@@ -218,3 +218,13 @@ def test_the_hosted_reference_keeps_the_shell_environment(monkeypatch) -> None:
     """A hosted arm's login lives in the environment; #780 leaves it alone."""
     monkeypatch.setenv("LOCAL_LLM_SERVER_HOST", "srv")
     assert run.agent_env({"model": "claude-opus-5"})["LOCAL_LLM_SERVER_HOST"] == "srv"
+
+
+def test_a_pinned_client_is_readable_in_the_sandbox() -> None:
+    """#834 runs a pinned OpenCode from ~/.local-llm-bench/clients so the
+    operator's own client is not downgraded. Under the home allow-list (#786)
+    a trial that cannot read its client binary dies before its first step."""
+    profile, _ = run.sandbox_profile(
+        "/tmp/worktree", str(pathlib.Path.home() / "git/gmail-archive")
+    )
+    assert str(pathlib.Path.home() / ".local-llm-bench/clients") in profile
