@@ -3733,6 +3733,31 @@ topology = "remote"
 recipe_dir = "~/glm53-exl3"
 image = "ghcr.io/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-instanttensor"
 
+# #806 (P1, operator-approved 2026-09-29): vr8vr8's Qwen3.8-Flash-Next two-Spark
+# recipe, myllmbox/qwen38-flash-next-cluster-recipe (v4.1), with its own weights
+# (myllmbox/Qwen3.8-Flash-Next-hibrid48, NVFP4 output head) and image
+# (myllmbox/qwen38-flash-next-cluster-vllm:v6 = vLLM 0.30.0 + patches). Reported
+# at ~2x the decode of MiaAI-Lab @d2f54b7 (our qwen38fnnvfp4dual2xrc* rows).
+# Departures from recipe.yaml, all to match the other two-node arms: port 8888 on
+# 0.0.0.0; served as qwen3.8-flash-next (so the client entry and its 262,144
+# output cap are the NVFP4 arm's); reasoning_effort low server-side. Everything
+# else as shipped: MTP K=5, bf16 KV, qwen3_xml tool parser, the recipe's own
+# single interconnect pick.
+[backend.qwen38fnhibrid48dual2xrc]
+description = "Qwen3.8-Flash-Next hibrid48 (myllmbox/Qwen3.8-Flash-Next-hibrid48, custom quant with an NVFP4 output head) across TWO DGX Sparks on vr8vr8's recipe myllmbox/qwen38-flash-next-cluster-recipe v4.1: image myllmbox/qwen38-flash-next-cluster-vllm:v6 (vLLM 0.30.0 + patches), MTP K=5 (block rejection, probabilistic draft), bf16 KV, 262144 context, tool parser qwen3_xml, reasoning_effort low server-side; served as qwen3.8-flash-next on :8888. REMOTE CLIENT (#562/#649), 12 GiB kernel-enforced client container"
+tier = "gb10-spark-x2"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "vllm"
+model = "qwen3.8-flash-next"
+aider_model = "openai/qwen3.8-flash-next"
+opencode_model = "vllm8888/qwen3.8-flash-next"
+context_tokens = 262144
+topology = "remote"
+# #726 gate (2026-09-28): server_facts.py refuses while these are behind upstream.
+recipe_dir = "~/hibrid-dual"
+image = "myllmbox/qwen38-flash-next-cluster-vllm:v6"
+
 # #726: the latest of everything, with OpenCode's per-step output cap raised
 # from 16,384 to 65,536 tokens (the GLM server's own default, mt_default=65536).
 # The cap cut 2 of 132 GLM trials (span tasks, `reason: length`) while NVFP4 ran
