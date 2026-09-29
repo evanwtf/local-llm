@@ -7,6 +7,9 @@ meaningless rows -- so the cases that matter are the ones where it must say no.
 
 from __future__ import annotations
 
+import json
+from typing import Self
+
 import pytest
 import smoke
 
@@ -327,3 +330,68 @@ def test_the_edges_are_covered():
     assert "''" in _assertion("reverse")
     assert "[]" in _assertion("mergesorted")
     assert "fib(0)" in _assertion("fib")
+
+
+class _Response:
+    def __init__(self, payload: dict) -> None:
+        self._data = json.dumps(payload).encode()
+
+    def read(self) -> bytes:
+        return self._data
+
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        return None
+
+
+def test_openai_probe_reads_content_not_reasoning(monkeypatch) -> None:
+    """#798: an OpenCode-only backend is probed on /v1/chat/completions, and
+    only message.content counts as the answer."""
+    seen = {}
+
+    def fake(request, timeout):
+        seen["url"] = request.full_url
+        return _Response(
+            {
+                "choices": [
+                    {
+                        "message": {
+                            "content": "def f(): return 1",
+                            "reasoning_content": "thinking...",
+                        },
+                        "finish_reason": "stop",
+                    }
+                ]
+            }
+        )
+
+    monkeypatch.setattr(smoke.urllib.request, "urlopen", fake)
+    text, stop = smoke._post_openai("http://h:8888/", "t", "m", "p", 5)
+    assert seen["url"] == "http://h:8888/v1/chat/completions"
+    assert text == "def f(): return 1"
+    assert stop == "stop"
+
+
+def test_openai_length_reads_as_max_tokens(monkeypatch) -> None:
+    """A budget spent thinking must read the same on both protocols."""
+    monkeypatch.setattr(
+        smoke.urllib.request,
+        "urlopen",
+        lambda request, timeout: _Response(
+            {"choices": [{"message": {"content": None}, "finish_reason": "length"}]}
+        ),
+    )
+    text, stop = smoke._post_openai("http://h", "t", "m", "p", 5)
+    assert (text, stop) == ("", "max_tokens")
+
+
+def test_backend_protocol_selects_the_probe() -> None:
+    assert smoke._post_for({}) is smoke._post
+    assert smoke._post_for({"smoke_protocol": "openai"}) is smoke._post_openai
+
+
+def test_unknown_protocol_is_refused_not_defaulted() -> None:
+    with pytest.raises(ValueError, match="unknown smoke_protocol"):
+        smoke._post_for({"smoke_protocol": "opanai"})

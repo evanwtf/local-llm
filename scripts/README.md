@@ -71,6 +71,7 @@ Each script explains itself in full at the top of its own file -- what it comput
 | `machine_health.py` | any | Is this machine in a state to start work, and did the work actually start? |
 | `machine_state.py` | any | Is the machine busy, and who says so? One answer, for every agent. |
 | `machines.py` | any | The hardware this project manages -- the single source of truth (#302). |
+| `macos_settled_rerun.py` | any | Rerun #499's three stacks on macOS 27 once it has settled, in order. #834 |
 | `make_next.py` | any | Print what to do next, live from the open issues' labels. |
 | `make_scripts_readme.py` | any | Generate scripts/README.md from each script's own first docstring line. |
 | `memory_gate.py` | nvidia | Wait for memory to be safe before starting the next trial. |
@@ -140,6 +141,7 @@ Each script explains itself in full at the top of its own file -- what it comput
 | `verify_replay_tasks.py` | any | Check that each replay task (#714, #726) is a valid task before any trial runs it. |
 | `vllm_compat_proxy.py` | any | Strip non-standard fields from a vLLM fork's chat responses so a strict |
 | `vllm_load.py` | nvidia | Aggregate throughput against a vLLM server at a given concurrency (#334). |
+| `weights_report.py` | any | Advisory report: every model on disk, its size, and a verdict with a reason. #464 |
 | `ds4-fast.sh` | mac | Metal 4 TensorOps: ~21% faster, not bit-exact. See scripts/ds4_serve.py. |
 | `ds4-vanilla.sh` | mac | Reference kernels: bit-exact, slower. See scripts/ds4_serve.py. |
 | `install-metal-ceiling.sh` | mac | Persist the Metal wired limit across reboots. |

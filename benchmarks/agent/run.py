@@ -1765,6 +1765,67 @@ def opencode_argv(task, backend, worktree=None):
     ]
 
 
+def opencode_contract_flags():
+    """The flags opencode_argv passes, read from opencode_argv itself (#263).
+
+    Derived rather than listed, so a flag added to the argv is checked by
+    opencode_cli_gaps() without anyone remembering to add it there too.
+    """
+    argv = opencode_argv({"prompt": "x"}, {"opencode_model": "p/m"}, "/w")
+    return [a for a in argv if a.startswith("--")]
+
+
+def opencode_cli_gaps(help_text):
+    """What opencode_argv passes that `opencode run --help` does not list.
+
+    #263: OpenCode's CLI contract has cost this project more than any engine.
+    A dropped --dir voided 130 trials, and it did not fail: the client ran
+    and wrote the answer elsewhere (#67). A new major version is where that
+    comes back, so check each flag, and the one --format value we parse.
+    """
+    gaps = [
+        flag
+        for flag in opencode_contract_flags()
+        if not re.search(rf"(?<![\w-]){re.escape(flag)}(?![\w-])", help_text)
+    ]
+    if "--format" not in gaps and '"json"' not in help_text:
+        gaps.append('--format "json"')
+    return gaps
+
+
+def _opencode_run_help():
+    try:
+        got = subprocess.run(
+            ["opencode", "run", "--help"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            stdin=subprocess.DEVNULL,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return (got.stdout or "") + (got.stderr or "")
+
+
+def opencode_cli_gate(clients):
+    """Why this batch's OpenCode would not honor our argv, or None (#263)."""
+    if "opencode" not in clients:
+        return None
+    help_text = _opencode_run_help()
+    if help_text is None:
+        return None
+    gaps = opencode_cli_gaps(help_text)
+    if not gaps:
+        return None
+    return (
+        f"the installed OpenCode no longer lists {', '.join(gaps)} in "
+        "`opencode run --help`. run.py passes them on every trial. A client "
+        "that ignores --dir writes the answer elsewhere and the row reads as "
+        "a model failure (#67). Check the new CLI before running (#263)."
+    )
+
+
 def aider_argv(task, backend, worktree=None):
     """Aider, one-shot and headless (#61).
 
@@ -2738,6 +2799,13 @@ def paths_outside(stdout, worktree):
         if CLIENT_INSTALL_RE.search(full):
             continue
         parts = full[len(home) + 1 :].split("/")[:2]
+        # #780: the ledger is public, and a trial once listed archive files in
+        # a download folder by name. Keep the second segment only where it is
+        # evidence and not personal content: a dot-directory (a tool's config)
+        # or ~/git (the repository #54 diagnoses). The first segment always
+        # stays, so ANSWER_TREES still recognises the escape.
+        if len(parts) == 2 and not (parts[0].startswith(".") or parts[0] == "git"):
+            parts[1] = "<redacted>"
         tree = f"{home}/" + "/".join(parts)
         seen[tree] = seen.get(tree, 0) + 1
     return sorted(seen, key=lambda k: -seen[k])
@@ -5461,6 +5529,9 @@ def main():
     # it. Runs before the smoke gate because it needs no model resident --
     # llama-bench --list-devices is the whole probe.
     if (why := tensor_gate(backends)) is not None:
+        raise SystemExit(f"REFUSING: {why}")
+    # #263: the client's CLI contract, checked before any model is loaded.
+    if (why := opencode_cli_gate(clients)) is not None:
         raise SystemExit(f"REFUSING: {why}")
 
     # #63: preflight proves the machine is ready; this proves the *model* is.
