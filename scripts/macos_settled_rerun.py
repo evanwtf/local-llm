@@ -30,6 +30,8 @@ import socket
 import subprocess
 import sys
 import time
+import urllib.error
+import urllib.request
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
 
@@ -63,6 +65,9 @@ TASKS = (
 )
 TRIALS = 3
 
+DS4_TREE = HOME / "git/ds4-mainline-0aaea5a2"
+DS4_GGUF = DS4_TREE / "gguf/Qwen3.8-Flash-Next-Q4.gguf"
+
 
 @dataclasses.dataclass(frozen=True)
 class Unit:
@@ -70,12 +75,16 @@ class Unit:
     argv: tuple[str, ...]
     port: int
     cwd: pathlib.Path = REPO
+    # An HTTP path that returns 200 only once the model is loaded. None means
+    # the port alone is the signal (the server loads before it listens).
+    ready_path: str | None = None
 
 
 @dataclasses.dataclass(frozen=True)
 class Stack:
     backend: str
     units: tuple[Unit, ...]  # started in order, stopped in reverse
+    env: dict[str, str] = dataclasses.field(default_factory=dict)  # for run.py
 
 
 def _shim(script: str, name: str, port: int, upstream: str) -> Unit:
@@ -123,6 +132,9 @@ PLAN = (
                     "0.0",
                 ),
                 8020,
+                # llama-server listens while it loads and answers 503 until
+                # the model is in; the smoke gate hit that on 2026-09-29.
+                ready_path="/health",
             ),
             # run.py's smoke gate speaks the Anthropic wire to base_url :11500.
             _shim(
@@ -171,10 +183,7 @@ PLAN = (
                     "./ds4-server",
                     "--metal",
                     "-m",
-                    str(
-                        HOME
-                        / "git/ds4-mainline-0aaea5a2/gguf/Qwen3.8-Flash-Next-Q4.gguf"
-                    ),
+                    str(DS4_GGUF),
                     "--ctx",
                     "100000",
                     "--warm-weights",
@@ -184,12 +193,15 @@ PLAN = (
                     "8000",
                 ),
                 8000,
-                HOME / "git/ds4-mainline-0aaea5a2",
+                DS4_TREE,
             ),
             _shim(
                 "ds4_qwen_tool_shim.py", "834-qwen-shim", 8101, "http://127.0.0.1:8000"
             ),
         ),
+        # run.py's #149 route gate reads these, not the backend's engine_tree.
+        # Without them it checked ~/git/ds4-metal and refused as "stale".
+        env={"DS4_TREE": str(DS4_TREE), "DS4_TEST_MODEL": str(DS4_GGUF)},
     ),
 )
 
@@ -228,6 +240,17 @@ def unitctl(*args: str) -> None:
     )
 
 
+def answering(port: int, path: str | None) -> bool:
+    """True once `path` returns 200, or at once when there is no path."""
+    if path is None:
+        return True
+    try:
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}{path}", timeout=5) as r:
+            return bool(r.status == 200)
+    except (urllib.error.URLError, OSError):
+        return False
+
+
 def start(unit: Unit, stamp: str, ready_timeout: float = 900.0) -> None:
     if listening(unit.port):
         raise SystemExit(
@@ -238,7 +261,7 @@ def start(unit: Unit, stamp: str, ready_timeout: float = 900.0) -> None:
         "start", unit.name, "--log", str(log), "--cwd", str(unit.cwd), "--", *unit.argv
     )
     deadline = time.monotonic() + ready_timeout
-    while not listening(unit.port):
+    while not (listening(unit.port) and answering(unit.port, unit.ready_path)):
         if time.monotonic() > deadline:
             raise SystemExit(
                 f"{unit.name} did not listen on :{unit.port} within {ready_timeout:.0f} s; see {log}"
@@ -260,7 +283,7 @@ def run_stack(stack: Stack, stamp: str) -> int:
         batch = f"0929-834-{stack.backend}"
         log = BENCH / "logs" / f"834-{stack.backend}-{stamp}.log"
         logger.info("run.py for %s, batch %s, log %s", stack.backend, batch, log)
-        code = child.run(run_argv(stack, batch), cwd=REPO, log=log)
+        code = child.run(run_argv(stack, batch), cwd=REPO, log=log, env=stack.env)
         logger.info("run.py for %s exited %d", stack.backend, code)
         return code
     finally:
