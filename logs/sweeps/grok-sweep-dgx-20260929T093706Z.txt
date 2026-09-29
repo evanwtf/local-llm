@@ -1,0 +1,8 @@
+# grok sweep (dgx lane), rerun after a gather that returned only narration
+# requested window: last 24 hours
+# written:  2026-09-29T09:37:06Z  (local: 2026-09-29 05:37:06 EDT)
+# query:    (see sweep record)
+
+I'll search those accounts for DGX Spark and GB10 serving posts from the last 24 hours.The first pass found several Spark posts. I'll check the clock and pull the rest of those accounts so the 24-hour window is complete.
+
+# grok exit: 0
