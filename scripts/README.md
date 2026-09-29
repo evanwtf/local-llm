@@ -141,6 +141,7 @@ Each script explains itself in full at the top of its own file -- what it comput
 | `verify_replay_tasks.py` | any | Check that each replay task (#714, #726) is a valid task before any trial runs it. |
 | `vllm_compat_proxy.py` | any | Strip non-standard fields from a vLLM fork's chat responses so a strict |
 | `vllm_load.py` | nvidia | Aggregate throughput against a vLLM server at a given concurrency (#334). |
+| `weights_report.py` | any | Advisory report: every model on disk, its size, and a verdict with a reason. #464 |
 | `ds4-fast.sh` | mac | Metal 4 TensorOps: ~21% faster, not bit-exact. See scripts/ds4_serve.py. |
 | `ds4-vanilla.sh` | mac | Reference kernels: bit-exact, slower. See scripts/ds4_serve.py. |
 | `install-metal-ceiling.sh` | mac | Persist the Metal wired limit across reboots. |
