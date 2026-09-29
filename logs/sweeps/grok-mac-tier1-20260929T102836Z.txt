@@ -1,0 +1,90 @@
+# grok sweep (mac, Tier 1)
+# requested window: last 24 hours
+# written:  2026-09-29T10:28:36Z  (local: 2026-09-29 06:28:36 EDT)
+# query:    Search X for posts and replies from @antirez, @ivanfioravanti, @ddalcu, @Beamsters1, @Spangler3000, @jundotkim, @ggerganov and @korale77 in the last 24 hours about local LLM inference on Apple Silicon (MLX, Metal, llama.cpp, ds4, mlx-serve, Sushi, oMLX, M5 Max, quantization, MTP, speculative decoding, prefix caching, coding agents). Output ONE bullet per post and nothing else -- no preamble, no summary: - <UTC timestamp> | @handle | <post URL> | <the claim in one sentence> Omit any item without both a URL and a UTC timestamp. If nothing matches, output exactly: NO RESULTS
+
+I'll search X for posts and replies from those accounts in the last 24 hours on local LLM inference.The first pass missed several accounts. I'll search each handle for the last 24 hours.- 2026-09-29T10:09:04Z | @Beamsters1 | https://x.com/Beamsters1/status/2104876103081066682 | Local inference went from a toy to a free token substitute for about 80% of the work.
+- 2026-09-29T09:56:30Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2104872941322407997 | He bets KL divergence will not stay the same in that quantization comparison.
+- 2026-09-29T09:07:52Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2104860700963405962 | The test uses standard MLX 4-bit quantization, which he says is not the best available.
+- 2026-09-29T08:34:20Z | @Beamsters1 | https://x.com/Beamsters1/status/2104852262019555760 | He puts M5 Ultra prefill near 5k for Qwen Flash, 2k for GLM Flash, and 3k for MiMo Flash, and says optimization is just starting.
+- 2026-09-29T08:02:31Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2104844257085591844 | TensorFold is fast on Apple Silicon and DGX Spark, but it is a different quantization, and he wants evals rather than vibe checks.
+- 2026-09-29T07:49:42Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2104841030663012591 | On the new MLX build, prefill gets slower at smaller contexts.
+- 2026-09-29T07:10:39Z | @antirez | https://x.com/antirez/status/2104831205560770805 | Local hardware cost is bounded, and DwarfStar already has company users sharing instances for useful work.
+- 2026-09-29T07:09:51Z | @antirez | https://x.com/antirez/status/2104831002128637970 | A company can keep going on a fleet of DGX Sparks and Mac Ultras when API quota runs out.
+- 2026-09-29T07:06:57Z | @antirez | https://x.com/antirez/status/2104830274299125939 | Small models on a DGX Spark cluster can cover accessory jobs, while interactive coding agents are a different case from in-app API use.
+- 2026-09-29T06:48:43Z | @Beamsters1 | https://x.com/Beamsters1/status/2104825682287333465 | He says Qwen4 27B is the model that fits that Apple exl3 path.
+- 2026-09-29T06:43:13Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2104824298766803178 | He has the M5 Ultra TensorFold run queued for today and asks which model to use.
+- 2026-09-29T06:41:29Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2104823864312168722 | He hopes M5 manufacturing speeds up next year.
+- 2026-09-29T06:36:27Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2104822596701425902 | MLX 0.32.3 is out with faster MoE and optimizations for M5 Ultra.
+- 2026-09-29T06:19:13Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2104818259342279091 | He says the M5 Ultra prefill result is only the beginning and asks if the other person will get one.
+- 2026-09-29T06:08:51Z | @Beamsters1 | https://x.com/Beamsters1/status/2104815651781214564 | Those M5 numbers still do not unlock the dual Apple Neural Engine path.
+- 2026-09-29T06:07:38Z | @Beamsters1 | https://x.com/Beamsters1/status/2104815345697722810 | He asks whether the M5 Ultra run is on 64 GPU cores or 80.
+- 2026-09-29T05:31:46Z | @Beamsters1 | https://x.com/Beamsters1/status/2104806319941398988 | mlx-serve can load that GGUF through llama.cpp, but there is no special kernel for it.
+- 2026-09-29T05:30:30Z | @Beamsters1 | https://x.com/Beamsters1/status/2104805998154461611 | He suggests an n-gram injection into layer 1 to limit the early-layer weight problem.
+- 2026-09-29T05:26:16Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2104804933081997429 | Prefill on M5 Ultra is acceptable now.
+- 2026-09-29T05:19:36Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2104803255889035499 | He will try TensorFold 0.3.6.2 and says the M5 Ultra is strong.
+- 2026-09-29T05:01:23Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2104798671842017410 | He asks when the new Macs arrive and wants to see them pushed hard.
+- 2026-09-29T04:55:58Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2104797308508389520 | An ordered M5 Ultra would arrive in mid-January.
+- 2026-09-29T02:51:10Z | @Beamsters1 | https://x.com/Beamsters1/status/2104765900847276151 | The redundant-weight effect did not show up on Flash MOPD, and he suggests trying Pro-MOPD.
+- 2026-09-29T02:46:14Z | @Beamsters1 | https://x.com/Beamsters1/status/2104764660897685788 | CUDA should run EXL3 directly because the Metal ALU is weaker.
+- 2026-09-29T02:40:58Z | @Beamsters1 | https://x.com/Beamsters1/status/2104763334117740921 | He ported exllamav3 to Apple Silicon and built a hybrid affine-EXL3 quant from that work.
+- 2026-09-29T02:39:03Z | @Beamsters1 | https://x.com/Beamsters1/status/2104762852016087524 | mlx-serve will run Sushi soon, and Sushi can also run on its own.
+- 2026-09-29T02:37:49Z | @Beamsters1 | https://x.com/Beamsters1/status/2104762544086995064 | Weights under 1e-6 are basically silent.
+- 2026-09-29T02:00:33Z | @Beamsters1 | https://x.com/Beamsters1/status/2104753165493219480 | He posted Qwen3.8-Flash-Next Sushi models with max context per Apple machine and user-reported speed.
+- 2026-09-29T01:01:55Z | @Spangler3000 | https://x.com/Spangler3000/status/2104738409931784599 | Gains may be slight, some apply to M5 Max, and the M5 series wins on the neural accelerators.
+- 2026-09-29T00:46:11Z | @Spangler3000 | https://x.com/Spangler3000/status/2104734448214499708 | He answers "80c" on his oMLX M5 Ultra thread.
+- 2026-09-29T00:19:54Z | @ddalcu | https://x.com/ddalcu/status/2104727833960738914 | He points people to existing MLX-Serve uploads on Hugging Face instead of building that quant himself.
+- 2026-09-29T00:18:47Z | @ddalcu | https://x.com/ddalcu/status/2104727555546996968 | The agent harness must be set in config, and the built-in launcher should set it.
+- 2026-09-28T23:15:15Z | @Beamsters1 | https://x.com/Beamsters1/status/2104711564062531807 | He asks why not use 2.6 bpw, which is the same size as the 384 and diverges by only 0.012.
+- 2026-09-28T23:12:44Z | @Beamsters1 | https://x.com/Beamsters1/status/2104710931926471128 | He calls that Sushi quant near-lossless.
+- 2026-09-28T23:12:18Z | @Beamsters1 | https://x.com/Beamsters1/status/2104710821633028201 | 2.6 bpw is the right fit for 64 GB and is better than Sushi 2.
+- 2026-09-28T22:59:19Z | @Spangler3000 | https://x.com/Spangler3000/status/2104707553599041773 | He points to jonathan308/omlx-fusion until the next main oMLX release.
+- 2026-09-28T22:58:18Z | @Spangler3000 | https://x.com/Spangler3000/status/2104707300913287462 | The next oMLX release should reach near 6k tok/s prefill on Qwen 3.8 Next.
+- 2026-09-28T22:43:10Z | @Spangler3000 | https://x.com/Spangler3000/status/2104703491881251206 | Coming from an M3 Ultra, he says the new machines are hard to believe and he wants them pushed to the max.
+- 2026-09-28T22:41:39Z | @Spangler3000 | https://x.com/Spangler3000/status/2104703109658533985 | He asks if the unboxed Mac is another M5 Max and whether an M5 Ultra is coming.
+- 2026-09-28T21:34:00Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2104686084060004446 | netrunner is using his brother's M5 Ultra in spare time, and his own machine should go further.
+- 2026-09-28T21:23:45Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2104683506442162270 | Almost nobody has that class of self-hosted hardware at home.
+- 2026-09-28T20:30:02Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2104669987398877416 | Multi-machine linking does not work on M3 Ultra, which is why he thinks Apple is adding NVIDIA networking.
+- 2026-09-28T20:29:03Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2104669739025060051 | He is weighing two 256 GB machines against one 512 GB machine.
+- 2026-09-28T20:21:43Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2104667892533043370 | He says trying TensorFold feels like having an M4 Ultra.
+- 2026-09-28T20:09:42Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2104664868263796853 | He credits netrunner for the oMLX inference upgrades behind the M5 Ultra gains.
+- 2026-09-28T20:06:46Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2104664133715321059 | The oMLX GLM-5.3-Flash speedup is only week one, and he asks Apple for an M5 Ultra.
+- 2026-09-28T20:05:38Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2104663846073815149 | He wants an M5 Ultra after the latest oMLX GLM-5.3-Flash gains.
+- 2026-09-28T19:59:19Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2104662256961060906 | He credits Ash Hart for the TensorFold 0.3.6 result.
+- 2026-09-28T19:59:07Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2104662205425914128 | TensorFold 0.3.6 beats 0.3.4.1 on Qwen3.8 Flash Next 4-bit on a 512 GB M3 Ultra, and batch inference now works.
+- 2026-09-28T19:47:32Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2104659291944767649 | He says the TensorFold speedup feels like having an M5 Ultra.
+- 2026-09-28T19:47:10Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2104659198697230651 | He asks whether that TensorFold result is already past version 0.3.6.
+- 2026-09-28T18:29:13Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2104639584424624533 | He is ready to test the new GLM Flash recipe.
+- 2026-09-28T18:28:45Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2104639467025789286 | He says MLX is back.
+- 2026-09-28T18:24:54Z | @ddalcu | https://x.com/ddalcu/status/2104638498011541739 | The new architecture may make a 27B model obsolete.
+- 2026-09-28T17:57:13Z | @Beamsters1 | https://x.com/Beamsters1/status/2104631529871904945 | A 27B KV cache and prefill get unbearable as context grows, Flash stays nearly flat to 1M with QSA, and Qwen4-27B may fix the rest.
+- 2026-09-28T17:48:43Z | @Beamsters1 | https://x.com/Beamsters1/status/2104629390730743982 | At 4K, 16K, and 64K he reports decode of 54.7, 54.7, and 49.0 tok/s, prefill of 944, 911, and 880 tok/s, and TTFT of 4.5, 18.1, and 74.5 s.
+- 2026-09-28T17:32:07Z | @Spangler3000 | https://x.com/Spangler3000/status/2104625213203984514 | He points readers back to his oMLX M5 Ultra prefill and MTP numbers.
+- 2026-09-28T17:12:44Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2104620335958196337 | He hopes someone keeps optimizing the M5 Ultra MLX prefill path.
+- 2026-09-28T16:55:36Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2104616024171540544 | He expects Federico to publish a new M5 Ultra review after the MLX prefill gains.
+- 2026-09-28T16:55:16Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2104615941548253231 | After the oMLX optimizations, the M5 Ultra behaves like a different machine.
+- 2026-09-28T16:54:20Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2104615704364216599 | He regrets skipping a 256 GB M5 Ultra to wait for 512 GB.
+- 2026-09-28T16:35:44Z | @ddalcu | https://x.com/ddalcu/status/2104611023252767068 | New TensorFold kernels make the 27B much faster because of DFlash2.
+- 2026-09-28T16:34:14Z | @Beamsters1 | https://x.com/Beamsters1/status/2104610648265211995 | Sushi is his runner for now, and mlx-serve integration comes next.
+- 2026-09-28T16:14:48Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2104605754778861784 | The M5 Ultra delivery date he got is mid-January 2027.
+- 2026-09-28T16:13:01Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2104605307909582895 | The MLX MoE layer is 1.5x faster from better tile scheduling in grouped matmul.
+- 2026-09-28T15:19:05Z | @Beamsters1 | https://x.com/Beamsters1/status/2104591732625363324 | A 27B at 8-bit would be about half the speed, an M5 Max runs Flash Next at 120 tok/s, and quality still needs a benchmark.
+- 2026-09-28T15:14:19Z | @ddalcu | https://x.com/ddalcu/status/2104590535956832507 | He asks how Sushi compares with Qwen 27B 8-bit on a 48 GB machine.
+- 2026-09-28T15:11:56Z | @Beamsters1 | https://x.com/Beamsters1/status/2104589935877767286 | He puts that Sushi weight at about 43 GB.
+- 2026-09-28T15:08:32Z | @Beamsters1 | https://x.com/Beamsters1/status/2104589078188720581 | The KLD chart shows quality near a 50 GB IQ3.3 bpw quant while using only 35 GB of RAM.
+- 2026-09-28T15:06:06Z | @Beamsters1 | https://x.com/Beamsters1/status/2104588465849688277 | Qwen3.8 Flash Sushi 2 bpw runs on 48 GB Apple Silicon with 128k context.
+- 2026-09-28T14:48:04Z | @ddalcu | https://x.com/ddalcu/status/2104583927977656735 | He runs abenzerps/Spark-X2.5-4B-MLX-4bit on desktop and iOS without mlx-lm.
+- 2026-09-28T14:45:05Z | @Spangler3000 | https://x.com/Spangler3000/status/2104583177259897336 | His latest oMLX work is almost 6k tok/s on Qwen 3.8 Next, 2.3k on GLM Flash, and 3k on MiMo 2.6 Flash.
+- 2026-09-28T14:38:07Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2104581425668252121 | He says they will add a local model to that tool as well.
+- 2026-09-28T14:21:28Z | @ddalcu | https://x.com/ddalcu/status/2104577236011790765 | He tells users to try the new MLX-Serve beta or turn off the memory check.
+- 2026-09-28T14:19:55Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2104576846415237611 | He already sees interesting results from the local-model SVG benchmark.
+- 2026-09-28T13:38:20Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2104566380666487169 | He will run the skateboarder prompts on his local models.
+- 2026-09-28T12:58:38Z | @Beamsters1 | https://x.com/Beamsters1/status/2104556388148298098 | The quant is not a bad model, an M5 Pro does 50–60 tok/s on it, an M1 Max does 30–35, and matching 27B 8-bit is a separate question.
+- 2026-09-28T11:40:36Z | @Spangler3000 | https://x.com/Spangler3000/status/2104536751285076406 | He thanks Jun Kim for reviewing and merging the oMLX M5 Ultra pull requests quickly.
+- 2026-09-28T11:33:38Z | @Beamsters1 | https://x.com/Beamsters1/status/2104534996602237123 | He could make that smaller quant, but quality should be much worse than a 27B.
+- 2026-09-28T11:32:44Z | @Beamsters1 | https://x.com/Beamsters1/status/2104534771271680189 | A MiMo Sushi build is coming this week.
+- 2026-09-28T11:19:21Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2104531404591652952 | He will try the GLM-5.3-Flash quality recipe in the next few days.
+- 2026-09-28T11:19:05Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2104531336426045519 | He praises the direct quality measurements on the GLM-5.3-Flash quant recipe.
+- 2026-09-28T11:13:28Z | @ivanfioravanti | https://x.com/ivanfioravanti/status/2104529923461546415 | He will not sell his M3 Ultra.
+- 2026-09-28T10:59:11Z | @ddalcu | https://x.com/ddalcu/status/2104526329466986953 | That path is an alternative to llama.cpp for MLX-Serve running GGUF.
+- 2026-09-28T10:57:47Z | @ddalcu | https://x.com/ddalcu/status/2104525974981464573 | The small MLX model is good, runs on the phone, and beats most models of that size.

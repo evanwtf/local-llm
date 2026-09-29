@@ -80,7 +80,7 @@ def test_build_splits_a_cell_and_counts_what_it_drops():
         row(AFTER, "27.0", backend="other"),  # not asked for
     ]
     records, dropped = os_compare.build(rows, ("qwen38fnq3",))
-    assert dropped == {"conflict": 1, "unplaced": 1}
+    assert dropped == {"conflict": 1, "unplaced": 1, "interim": 0}
     assert len(records) == 1
     r = records[0]
     a, b = r["macos26"]["latest"], r["macos27"]["latest"]
@@ -228,3 +228,54 @@ def test_render_has_no_percent_for_a_one_sided_cell():
     doc = os_compare.dataset(records, dropped, ("qwen38fnq3",), "opencode")
     md = os_compare.render(doc)
     assert "| parser-date | 1/1 | 100.0 | 0/0 | — | — |" in md
+
+
+SETTLED = "2026-09-29T09:00:00-04:00"
+INTERIM = "2026-09-25T12:00:00-04:00"
+
+
+def test_a_27_row_is_first_boot_settled_or_interim():
+    """#834: #499's 27 rows ran on first boot, 2026-09-18. The settled rerun
+    began 2026-09-29T07:51:52. A 27 row between the two is neither."""
+    assert os_compare.state(row(AFTER, "27.0")) == "27"
+    assert os_compare.state(row(SETTLED, "27.0.1")) == "27s"
+    assert os_compare.state(row(INTERIM, "27.0")) is None
+    assert os_compare.state(row(BEFORE, "26.6.2")) == "26"
+    assert os_compare.state(row(os_compare.SETTLED_27.isoformat(), "27.0.1")) == "27s"
+
+
+def test_build_adds_the_settled_state_and_counts_interim_rows():
+    rows = [
+        row(BEFORE, "26.6.2", wall=200.0, engine="a"),
+        row(AFTER, "27.0", wall=100.0, engine="b"),
+        row(INTERIM, "27.0", wall=999.0, engine="b"),
+        row(SETTLED, "27.0.1", wall=80.0, engine="c"),
+    ]
+    records, dropped = os_compare.build(rows, ("qwen38fnq3",))
+    assert dropped == {"conflict": 0, "unplaced": 0, "interim": 1}
+    r = records[0]
+    assert r["macos27"]["latest"]["median_wall_s"] == 100.0
+    assert r["macos27_settled"]["latest"]["median_wall_s"] == 80.0
+    assert r["macos27_settled"]["latest"]["engine_versions"] == ["c"]
+    assert r["settled_engine_changed"] is True
+
+
+def test_render_gives_the_settled_state_against_26_and_first_boot():
+    rows = [
+        row(BEFORE, "26.6.2", wall=200.0, engine="a"),
+        row(AFTER, "27.0", wall=100.0, engine="b"),
+        row(SETTLED, "27.0.1", wall=80.0, engine="c"),
+    ]
+    records, dropped = os_compare.build(rows, ("qwen38fnq3",))
+    md = os_compare.render(
+        os_compare.dataset(records, dropped, ("qwen38fnq3",), "opencode")
+    )
+    # settled 80 s: 40% of 26's 200 s, 80% of first boot's 100 s.
+    assert (
+        "| parser-date | 1/1 | 200.0 | 1/1 | 100.0 | 50% | 1/1 | 80.0 | 40% | 80% |"
+        in md
+    )
+    assert (
+        "| qwen38fnq3 | 1/1 | 1/1 | 200.0 | 100.0 | 50% | 1/1 | 80.0 | 40% | 80% |"
+        in md
+    )
