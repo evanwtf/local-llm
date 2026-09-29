@@ -57,6 +57,41 @@ def test_each_escape_is_reported_once() -> None:
     assert run.paths_outside(log, "/nowhere") == [f"{HOME}/git/gmail-archive"]
 
 
+def test_a_personal_file_name_is_redacted() -> None:
+    """#780: the ledger is public. A trial listed archive files in a download
+    folder, and their names reached results.jsonl. The folder stays, so the row
+    still shows what the sandbox let through; the name does not."""
+    log = f"{HOME}/Downloads/DATA_SNAPSHOT_2026-09-08.zip {HOME}/Documents/taxes.pdf"
+    assert run.paths_outside(log, "/nowhere") == [
+        f"{HOME}/Downloads/<redacted>",
+        f"{HOME}/Documents/<redacted>",
+    ]
+
+
+def test_tool_config_and_repo_names_are_kept() -> None:
+    """A dot-directory is a tool's config, and a ~/git name is the repository
+    #54 diagnoses. Both carry the evidence and neither is personal content."""
+    log = (
+        f"{HOME}/.config/opencode/x {HOME}/.claude/skills/y {HOME}/git/gmail-archive/z"
+    )
+    assert run.paths_outside(log, "/nowhere") == [
+        f"{HOME}/.config/opencode",
+        f"{HOME}/.claude/skills",
+        f"{HOME}/git/gmail-archive",
+    ]
+
+
+def test_a_file_directly_in_home_is_kept_as_one_segment() -> None:
+    assert run.paths_outside(f"{HOME}/reverse.py", "/nowhere") == [f"{HOME}/reverse.py"]
+
+
+def test_redaction_keeps_an_answer_tree_recognisable() -> None:
+    """The answer-exposure check reads the recorded escape, so redaction must
+    leave the first segment alone."""
+    [escape] = run.paths_outside(f"{HOME}/bench-solutions/t1/patch", "/nowhere")
+    assert run.ANSWER_TREES.intersection(escape.split("/"))
+
+
 def test_a_tree_holding_answers_is_recognised() -> None:
     """~/bench-solutions holds one correct patch per trial; ~/git/local-llm's
     tracked results.jsonl records their absolute paths. Either one can hand the
