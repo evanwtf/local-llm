@@ -3755,6 +3755,9 @@ aider_model = "openai/GLM-5.3-Flash-EXL3"
 opencode_model = "tf8888/GLM-5.3-Flash-EXL3"
 context_tokens = 262144
 topology = "remote"
+# TensorFold serves no /v1/messages; this cell is OpenCode-only, so the smoke
+# gate probes the road OpenCode takes (#798).
+smoke_protocol = "openai"
 # #726 gate (2026-09-28): server_facts.py refuses while these are behind upstream.
 # No image: it is built locally from this recipe, so the recipe pin is the check.
 recipe_dir = "~/jay-tensorfold"

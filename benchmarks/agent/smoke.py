@@ -230,6 +230,56 @@ def _post(
     return text, payload.get("stop_reason")
 
 
+def _post_openai(
+    base_url: str, token: str, model: str, prompt: str, timeout: int
+) -> tuple[str, str | None]:
+    """The same probe over `/v1/chat/completions`, for OpenCode-only backends.
+
+    The gate travels the client's road (see the module docstring). A backend
+    whose only client is OpenCode, on an engine with no `/v1/messages`
+    (TensorFold, #798), is reached over the OpenAI route, so that is the road
+    to test. Only `message.content` is answer text; `reasoning_content` is the
+    OpenAI-side equivalent of a thinking block. `finish_reason: "length"` is
+    reported as `max_tokens`, so `_ran_out` reads both protocols the same way.
+    """
+    body = {
+        "model": model,
+        "max_tokens": MAX_TOKENS,
+        "temperature": 0,
+        "messages": [{"role": "user", "content": prompt}],
+    }
+    request = urllib.request.Request(
+        f"{base_url.rstrip('/')}/v1/chat/completions",
+        data=json.dumps(body).encode(),
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {token}",
+        },
+    )
+    with urllib.request.urlopen(request, timeout=timeout) as response:
+        payload = json.loads(response.read().decode(), strict=False)
+    choice = (payload.get("choices") or [{}])[0]
+    text = (choice.get("message") or {}).get("content") or ""
+    finish = choice.get("finish_reason")
+    return text, "max_tokens" if finish == "length" else finish
+
+
+#: `smoke_protocol` in a backend's tasks.toml entry -> the probe to send.
+#: Absent means Anthropic, the road Claude Code takes.
+PROTOCOLS = {"anthropic": _post, "openai": _post_openai}
+
+
+def _post_for(backend: dict) -> Callable[..., tuple[str, str | None]]:
+    """The probe for this backend's declared protocol. An unknown name raises:
+    a typo must not silently fall back to a road the client never takes."""
+    name = backend.get("smoke_protocol", "anthropic")
+    if name not in PROTOCOLS:
+        raise ValueError(
+            f"unknown smoke_protocol {name!r}; expected one of {sorted(PROTOCOLS)}"
+        )
+    return PROTOCOLS[name]
+
+
 def _ran_out(row: dict) -> bool:
     """True when the model was still working, not wrong: a timeout or an
     exhausted token budget. Distinct from producing a bad answer."""
@@ -263,9 +313,10 @@ def _unavailable(row: dict) -> bool:
 def check(
     backend: dict,
     deadline: int = DEADLINE_SECONDS,
-    post: Callable[..., tuple[str, str | None]] = _post,
+    post: Callable[..., tuple[str, str | None]] | None = None,
 ) -> list[dict]:
     """Run the three exercises. Returns one row per task; never raises."""
+    post = post or _post_for(backend)
     rows = []
     for name, prompt, assertion in SMOKE_TASKS:
         started = time.monotonic()
@@ -306,7 +357,7 @@ def gate(
     backend: dict,
     name: str,
     deadline: int = DEADLINE_SECONDS,
-    post: Callable[..., tuple[str, str | None]] = _post,
+    post: Callable[..., tuple[str, str | None]] | None = None,
 ) -> list[dict]:
     """Refuse to start a batch against a backend that cannot do the basics.
 
