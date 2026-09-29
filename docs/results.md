@@ -185,7 +185,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 
 ### Cortex-X925-128GB-GB10-x2
 
-*Generated from `hardware/Cortex-X925-128GB-GB10-x2/results.jsonl` — 998 rows, sha256 fd846845bea6.*
+*Generated from `hardware/Cortex-X925-128GB-GB10-x2/results.jsonl` — 1019 rows, sha256 4bd5f3ec039c.*
 
 #### Every stack measured under OpenCode
 
@@ -209,7 +209,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | mimo26fdual2xrcthink @ Corei3-7100-16GB+image | 30/30 | 310s | 749s | 6.9x |
 | mimo26fdual2xrc @ Corei3-7100-16GB+image | 2/2 | 370s | 592s | 4.0x |
 
-**Rows here were not all taken under one client.** dsv41fexl3dual2xrc, dsv4flashvisiondspark2xrc, glm53fexl3dual2xrc, glm53fexl3dual2xrcctx, mimo26fdual2xrc, mimo26fdual2xrcthink, qwen38fnnvfp4dual2xrc, qwen38fnnvfp4dual2xrcflags under 1.18.31; the rest under 1.18.32. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: dsv41fexl3dual2xrc (1.18.31, 1.18.32); dsv4flashvisiondspark2xrc (1.18.31, 1.18.32); glm53fexl3dual2xrcctx (1.18.31, 1.18.32); mimo26fdual2xrcthink (1.18.31, 1.18.32); qwen38fnnvfp4dual2xrcflags (1.18.31, 1.18.32).
+**Rows here were not all taken under one client.** dsv41fexl3dual2xrc, dsv4flashvisiondspark2xrc, glm53fexl3dual2xrc, glm53fexl3dual2xrcctx, mimo26fdual2xrc, mimo26fdual2xrcthink, qwen38fnnvfp4dual2xrc, qwen38fnnvfp4dual2xrcflags under 1.18.31; glm53fexl3dual2xrclatestout64k under 1.18.33; the rest under 1.18.32. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: dsv41fexl3dual2xrc (1.18.31, 1.18.32); dsv4flashvisiondspark2xrc (1.18.31, 1.18.32); glm53fexl3dual2xrcctx (1.18.31, 1.18.32); mimo26fdual2xrcthink (1.18.31, 1.18.32); qwen38fnnvfp4dual2xrcflags (1.18.31, 1.18.32).
 
 Excision tasks only; `script-*` excluded because they are a different class. **Spread is worst / best on the same task**, and it is the column most people forget to ask for.
 
@@ -233,11 +233,14 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 
 | stack | passed | hidden passed | median | worst | spread |
 |---|---|---|---|---|---|
-| glm53fexl3dual2xrcctx | 41/42 | 4/42 | 492s | 2067s | 14.3x |
-| glm53fexl3dual2xrclatest | 19/21 | 4/21 | 515s | 2046s | 15.6x |
-| dsv4flashvisiondspark2xrc | 40/42 | 0/42 | 786s | 3557s | 12.7x |
-| qwen38fnnvfp4dual2xrcflags | 42/42 | 2/42 | 788s | 2557s | 9.4x |
-| dsv41fexl3dual2xrc | 16/17 | 2/17 | 1140s | 3471s | 9.6x |
+| glm53fexl3dual2xrclatestout64k @ Corei3-7100-16GB+image | 21/21 | 2/21 | 360s | 1596s | 9.7x |
+| glm53fexl3dual2xrcctx @ Corei3-7100-16GB+image | 41/42 | 4/42 | 492s | 2067s | 14.3x |
+| glm53fexl3dual2xrclatest @ Corei3-7100-16GB+image | 19/21 | 4/21 | 515s | 2046s | 15.6x |
+| dsv4flashvisiondspark2xrc @ Corei3-7100-16GB+image | 40/42 | 0/42 | 786s | 3557s | 12.7x |
+| qwen38fnnvfp4dual2xrcflags @ Corei3-7100-16GB+image | 42/42 | 2/42 | 788s | 2557s | 9.4x |
+| dsv41fexl3dual2xrc @ Corei3-7100-16GB+image | 16/17 | 2/17 | 1140s | 3471s | 9.6x |
+
+**Rows here were not all taken under one client.** glm53fexl3dual2xrclatestout64k under 1.18.33; the rest under 1.18.32. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name.
 
 `passed` is the tests the agent could see. **`hidden passed` is tests it never saw**, run only by the oracle, over the trials whose task holds tests out; a dash means none did. Kept apart from the table above so its seven tasks stay comparable.
 
@@ -248,6 +251,7 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 | dsv4flashvisiondspark2xrc @ Corei3-7100-16GB+image | 27s |
 | dsv4flashvisiondspark2xrc @ Corei3-7100-16GB+image@10g | 30s |
 | mimo26fdual2xrc @ Corei3-7100-16GB+image@10g | 38s |
+| glm53fexl3dual2xrclatestout64k @ Corei3-7100-16GB+image | 39s |
 | mimo26fdual2xrc @ Corei3-7100-16GB+image | 40s |
 | mimo26fdual2xrcthink @ Corei3-7100-16GB+image@10g | 44s |
 | glm53fexl3dual2xrclatest @ Corei3-7100-16GB+image | 45s |
@@ -264,7 +268,7 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 | glm53fexl3dual2xrcctx @ Corei3-7100-16GB+image | 85s |
 | glm53fexl3dual2xrc @ Corei3-7100-16GB+image@24g | 88s |
 
-**Rows here were not all taken under one client.** dsv41fexl3dual2xrc, dsv4flashvisiondspark2xrc, glm53fexl3dual2xrc, glm53fexl3dual2xrcctx, mimo26fdual2xrc, mimo26fdual2xrcthink, qwen38fnnvfp4dual2xrc, qwen38fnnvfp4dual2xrcflags under 1.18.31; the rest under 1.18.32. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: dsv41fexl3dual2xrc (1.18.31, 1.18.32); dsv4flashvisiondspark2xrc (1.18.31, 1.18.32); glm53fexl3dual2xrcctx (1.18.31, 1.18.32); mimo26fdual2xrcthink (1.18.31, 1.18.32); qwen38fnnvfp4dual2xrcflags (1.18.31, 1.18.32).
+**Rows here were not all taken under one client.** dsv41fexl3dual2xrc, dsv4flashvisiondspark2xrc, glm53fexl3dual2xrc, glm53fexl3dual2xrcctx, mimo26fdual2xrc, mimo26fdual2xrcthink, qwen38fnnvfp4dual2xrc, qwen38fnnvfp4dual2xrcflags under 1.18.31; glm53fexl3dual2xrclatestout64k under 1.18.33; the rest under 1.18.32. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: dsv41fexl3dual2xrc (1.18.31, 1.18.32); dsv4flashvisiondspark2xrc (1.18.31, 1.18.32); glm53fexl3dual2xrcctx (1.18.31, 1.18.32); mimo26fdual2xrcthink (1.18.31, 1.18.32); qwen38fnnvfp4dual2xrcflags (1.18.31, 1.18.32).
 
 ### MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A
 
