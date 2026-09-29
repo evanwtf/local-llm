@@ -1,0 +1,10 @@
+[Unit]
+Description=Run the local-llm preflight once a day
+
+[Timer]
+OnCalendar=daily
+RandomizedDelaySec=900
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -22,8 +22,31 @@ sys.path.insert(0, str(REPO / "scripts"))
 sys.path.insert(0, str(REPO / "benchmarks" / "agent"))
 
 import cluster_id
+import currency
 import hardware_id
 import preflight
+from lib import logs
+
+
+def check_current(
+    backend: str, spec: dict, run: currency.Runner = currency._run
+) -> str | None:
+    """None if the backend's recipe and image are the latest, else the refusal.
+
+    The operator's rule since 2026-09-28: the server does not serve a batch on
+    a stale recipe or image. A remote backend that declares neither
+    `recipe_dir` nor `image` refuses too -- otherwise a stack could skip the
+    check just by not saying what it runs.
+    """
+    items = currency.backend_items(spec, run)
+    if not items:
+        if spec.get("topology") == "remote":
+            return (
+                f"preflight: backend {backend!r} declares no recipe_dir or image in "
+                "tasks.toml, so its currency cannot be checked; add them"
+            )
+        return None
+    return currency.gate(f"server:{backend}", items)
 
 
 def collect(
@@ -81,7 +104,20 @@ def main(argv: list[str] | None = None) -> int:
         "single-node name (#647)",
     )
     args = p.parse_args(argv)
+    import tomllib
+
+    logs.configure()
+    spec = tomllib.loads(args.tasks_file.read_text())["backend"].get(args.backend)
+    if spec is None:
+        raise SystemExit(f"unknown backend {args.backend!r} in {args.tasks_file}")
+    why = check_current(args.backend, spec)
+    if why:
+        print(why, file=sys.stderr)
+        return 2
     data = collect(args.backend, args.tasks_file, args.cluster_peer)
+    # Checked by client_container.py before every client batch, so a facts
+    # file reused from an earlier batch cannot skip this server's gate.
+    data["currency"] = currency.facts_record(args.backend, currency.backend_items(spec))
     args.out.write_text(json.dumps(data, indent=2, default=str) + "\n")
     print(
         json.dumps(

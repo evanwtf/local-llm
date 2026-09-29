@@ -1,5 +1,11 @@
 """Read the recorded agent client versions, and say which have moved (#131).
 
+**Superseded 2026-09-28 for currency (#726).** The operator reversed the
+no-refusal rule below: "it should not be 'advisory'. It should require pulling
+the latest versions and using them." `benchmarks/agent/currency.py` is the gate;
+`client_container.py` and `server_facts.py` refuse through it, and
+`scripts/preflight_daily.py` runs it daily. The recording below still holds.
+
 Every backend comparison assumes the client is a constant. #104 measured
 OpenCode 1.18.26 -> 1.18.27 roughly doubling median turns with everything
 else held, and no row recorded a client version at the time, so the finding

@@ -1,0 +1,21 @@
+# #726: the daily currency check, on every machine in use.
+#
+# The operator's rule, 2026-09-28: preflight runs at least once per day on any
+# machine we are running, and it refuses on anything out of date. The batch
+# entry points refuse too; this catches a machine that sat idle for a day.
+# A failed run shows in `systemctl --user --failed` and in the journal.
+#
+# Install (as the operator's user; linger must be on):
+#   cp systemd/local-llm-preflight.* ~/.config/systemd/user/
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now local-llm-preflight.timer
+[Unit]
+Description=local-llm daily preflight: refuse on out-of-date clients, recipes and images
+Documentation=https://github.com/evanwtf/local-llm/issues/726
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/git/local-llm
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=%h/.local/bin/uv run --frozen python scripts/preflight_daily.py
+TimeoutStartSec=900

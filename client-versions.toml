@@ -1,3 +1,10 @@
+# **Superseded 2026-09-28 for currency (#726).** The operator: "Preflight should
+# be run at least once per day, on any machine we're running. And it should
+# not be 'advisory'. It should require pulling the latest versions and using
+# them." `benchmarks/agent/currency.py` now refuses a batch while a client
+# image, recipe or serving image is behind its latest release. Recording below
+# still holds; the no-refusal rule does not.
+#
 # Agent client versions: RECORDED, not pinned (#131).
 #
 # This machine is a daily driver first and a benchmark rig second. Pinning

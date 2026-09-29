@@ -37,7 +37,83 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from lib import child
+sys.path.insert(
+    0, str(pathlib.Path(__file__).resolve().parents[1] / "benchmarks" / "agent")
+)
+import currency
+from lib import child, logs
+
+#: The image's own record of what it pins (docker/opencode-client/Dockerfile).
+PIN_ENV = {
+    "LOCAL_LLM_PINNED_OPENCODE": "opencode",
+    "LOCAL_LLM_PINNED_UV": "uv",
+    "LOCAL_LLM_PINNED_PYTHON": "python",
+}
+
+
+def image_pins(
+    image: str, run: currency.Runner = currency._run
+) -> dict[str, str] | None:
+    """What `image` pins, read from its environment, or None if unreadable.
+
+    Read from the image rather than from build_client_image.PINS: the gate is
+    about what this batch will actually run, and an old tag passed with
+    --image must be caught even when the repo's pins are current.
+    """
+    got = run(
+        ["docker", "image", "inspect", image, "--format", "{{json .Config.Env}}"], 30
+    )
+    if not got:
+        return None
+    import json
+
+    try:
+        env = json.loads(got)
+    except json.JSONDecodeError:
+        return None
+    pins = {}
+    for entry in env or []:
+        key, _, value = entry.partition("=")
+        if key in PIN_ENV and value:
+            pins[PIN_ENV[key]] = value
+    return pins or None
+
+
+def backend_of(command: list[str]) -> str | None:
+    """The `--backend` value among the run.py arguments, if there is one."""
+    for i, arg in enumerate(command):
+        if arg == "--backend" and i + 1 < len(command):
+            return command[i + 1]
+        if arg.startswith("--backend="):
+            return arg.split("=", 1)[1]
+    return None
+
+
+def check_facts_current(facts: pathlib.Path, command: list[str]) -> str | None:
+    """None if the server facts carry a fresh currency pass for this backend."""
+    import json
+
+    try:
+        data = json.loads(facts.read_text())
+    except (OSError, ValueError) as exc:
+        return f"preflight: cannot read the server facts {facts}: {exc}"
+    return currency.check_facts(data, backend_of(command))
+
+
+def check_image_current(image: str, run: currency.Runner = currency._run) -> str | None:
+    """None if every pin in `image` is the latest release, else the refusal.
+
+    The operator's rule since 2026-09-28: a batch does not start on anything
+    out of date. An image whose pins cannot be read refuses too.
+    """
+    pins = image_pins(image, run)
+    if pins is None:
+        return (
+            f"preflight: cannot read the pins of {image}; build it with "
+            "`uv run python scripts/build_client_image.py`"
+        )
+    return currency.gate("client-image", currency.pin_items(pins, run))
+
 
 #: Host paths the harness reads or writes, mounted at the same path under the
 #: container's HOME. A missing one fails as a model problem rather than a
@@ -184,7 +260,7 @@ def docker_argv(
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    p.add_argument("--image", default="local-llm-client:1.18.32")
+    p.add_argument("--image", default="local-llm-client:1.18.33")
     p.add_argument("--server", required=True)
     p.add_argument("--facts", type=pathlib.Path, required=True)
     p.add_argument("--home", type=pathlib.Path, default=pathlib.Path.home())
@@ -205,6 +281,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("command", nargs=argparse.REMAINDER)
     args = p.parse_args(argv)
 
+    logs.configure()
     command = args.command[1:] if args.command[:1] == ["--"] else args.command
     if not command:
         p.error("pass the run.py arguments after --")
@@ -216,6 +293,13 @@ def main(argv: list[str] | None = None) -> int:
     if not args.facts.exists():
         print(f"missing facts file: {args.facts}", file=sys.stderr)
         return 1
+    if not args.print:
+        why = check_image_current(args.image) or check_facts_current(
+            args.facts, command
+        )
+        if why:
+            print(why, file=sys.stderr)
+            return 1
 
     full = docker_argv(
         image=args.image,

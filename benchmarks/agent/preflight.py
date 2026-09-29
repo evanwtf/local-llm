@@ -1517,6 +1517,10 @@ def _now_iso() -> str:
 def check_client_versions(offline: bool = False) -> bool:
     """Record every client's version and name any that moved (#131).
 
+    Currency is now refused elsewhere (#726, 2026-09-28): see
+    `currency.py`, called from `client_container.py` and `server_facts.py`.
+    This function still only records.
+
     **This never refuses.** It used to: an installed client that differed
     from its pin returned True and `main` exited 1. On 2026-09-04 the
     operator removed the pinning and kept the recording, because this laptop
