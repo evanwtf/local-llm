@@ -386,6 +386,12 @@ The filter is the platform's, from the top of this skill.
 - **A lead, not noise** — a result on an M3 or M4. Most developers have no M5,
   and an improvement there usually shows up here. Do not dismiss a finding for
   being on the wrong Apple chip.
+- **A lead, and the closest one** — a result on an **M5 Ultra**. It is the same
+  GPU generation as the M5 Max, with the same neural accelerators (NAX), and it
+  is two M5 Max dies. A kernel or scheduler tuned on an M5 Ultra usually runs
+  the same code path here (operator, 2026-09-29: "presumably performance tweaks
+  for ultra will trickle down for us"). File the mechanism. Do not carry the
+  number over: an Ultra has twice the GPU cores and twice the memory bandwidth.
 
 **On a `dgx` sweep** — *would this change a number on a GB10 Spark under CUDA?*
 The signs invert, so read the DGX Spark sources section of SOURCES.md, not the
