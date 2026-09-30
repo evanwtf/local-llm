@@ -185,7 +185,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 
 ### Cortex-X925-128GB-GB10-x2
 
-*Generated from `hardware/Cortex-X925-128GB-GB10-x2/results.jsonl` — 1216 rows, sha256 b70910fc61e6.*
+*Generated from `hardware/Cortex-X925-128GB-GB10-x2/results.jsonl` — 1237 rows, sha256 93409c15a6c4.*
 
 #### Every stack measured under OpenCode
 
@@ -245,11 +245,12 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 | glm53fexl3dual2xrcctx @ Corei3-7100-16GB+image | 41/42 | 4/42 | 492s | 2067s | 14.3x |
 | glm53fexl3dual2xrclatest @ Corei3-7100-16GB+image | 21/21 | 2/21 | 505s | 1659s | 13.6x |
 | glm53fexl3dual2xrclatest @ Corei3-7100-16GB+image | 19/21 | 4/21 | 515s | 2046s | 15.6x |
+| qwen38fnhibrid48dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 20/21 | 2/21 | 743s | 1714s | 7.9x |
 | dsv4flashvisiondspark2xrc @ Corei3-7100-16GB+image | 40/42 | 0/42 | 786s | 3557s | 12.7x |
 | qwen38fnnvfp4dual2xrcflags @ Corei3-7100-16GB+image | 42/42 | 2/42 | 788s | 2557s | 9.4x |
 | dsv41fexl3dual2xrc @ Corei3-7100-16GB+image | 16/17 | 2/17 | 1140s | 3471s | 9.6x |
 
-**Rows here were not all taken under one client.** glm53fexl3dual2xrclatest, glm53fexl3dual2xrclatestout64k, glm53ftfjaydual2xrc under 1.18.33; the rest under 1.18.32. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: glm53fexl3dual2xrclatest (1.18.32, 1.18.33).
+**Rows here were not all taken under one client.** glm53fexl3dual2xrclatest, glm53fexl3dual2xrclatestout64k, glm53ftfjaydual2xrc, qwen38fnhibrid48dual2xrc under 1.18.33; the rest under 1.18.32. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: glm53fexl3dual2xrclatest (1.18.32, 1.18.33).
 
 `passed` is the tests the agent could see. **`hidden passed` is tests it never saw**, run only by the oracle, over the trials whose task holds tests out; a dash means none did. Kept apart from the table above so its seven tasks stay comparable.
 
@@ -267,6 +268,7 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 | glm53fexl3dual2xrclatest @ Corei3-7100-16GB+image | 43s |
 | mimo26fdual2xrcthink @ Corei3-7100-16GB+image@10g | 44s |
 | glm53fexl3dual2xrclatest @ Corei3-7100-16GB+image | 45s |
+| qwen38fnhibrid48dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 45s |
 | ling30fdual2xrc @ Corei3-7100-16GB+image | 45s |
 | mimo26fdual2xrcthink @ Corei3-7100-16GB+image | 45s |
 | glm53fexl3dual2xrcctx @ Corei3-7100-16GB+image | 50s |
