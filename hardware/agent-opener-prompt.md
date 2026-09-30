@@ -657,6 +657,11 @@ pushes: two sessions have fixed the same red `main` in parallel before.
   harness defect needs no machine label, but it carries a type label (`bug`,
   `enhancement`, `documentation`).
 - **New work becomes an issue first**, before it is a TODO or a note.
+- **A new stack goes through the #762 screen** (`benchmarks/agent/METHODOLOGY.md`,
+  "Screening a new stack"): the Stage 0 card checklist before any download,
+  one run with the early stop on, then `scripts/screen_stacks.py`. Only kept
+  stacks get runs 2 and 3. Never pass `--no-early-stop` except for a leader's
+  own baseline.
 - **An issue is a public work log:** results in the order they happened, with
   absolute numbers and command lines. Put no opinions about process in it and
   no draft of an upstream reply. Check the issue's premise before posting, and
