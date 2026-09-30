@@ -582,18 +582,23 @@ def main(argv: Sequence[str] | None = None) -> int:
     logs.configure(fmt=logs.PLAIN)
     now = dt.datetime.now().astimezone()
 
+    stamp = now.isoformat(timespec="seconds")
+    # --armed is a tick too: step 0 starts the watchdog next, and a state
+    # with no tick_at makes it fire at once (the DGX, 2026-09-30).
+    keys = ["tick_at"] + (["loop_armed_at"] if args.armed else [])
+    pulse = dict.fromkeys(keys, stamp) if args.tick or args.armed else {}
     if args.set is not None:
         updates = json.loads(args.set)
         if not isinstance(updates, dict):
             ap.error("--set takes a JSON object")
-        logger.info("%s", json.dumps(write_state(args.state, updates, now), indent=2))
+        # `--tick --set` must record the tick too. It once returned here first,
+        # so the M5 Max's 07:41 tick was dropped and the watchdog fired at
+        # 08:00 on a loop that had run (2026-09-30, #860).
+        state = write_state(args.state, updates | pulse, now)
+        logger.info("%s", json.dumps(state, indent=2))
         return 0
-    stamp = now.isoformat(timespec="seconds")
-    if args.tick or args.armed:
-        # --armed is a tick too: step 0 starts the watchdog next, and a state
-        # with no tick_at makes it fire at once (the DGX, 2026-09-30).
-        keys = ["tick_at"] + (["loop_armed_at"] if args.armed else [])
-        write_state(args.state, dict.fromkeys(keys, stamp), now, stamp=False)
+    if pulse:
+        write_state(args.state, pulse, now, stamp=False)
         logger.info("%s %s", " ".join(keys), stamp)
         return 0
     if args.watchdog:
