@@ -185,7 +185,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 
 ### Cortex-X925-128GB-GB10-x2
 
-*Generated from `hardware/Cortex-X925-128GB-GB10-x2/results.jsonl` — 1124 rows, sha256 d13ed0c3dd8e.*
+*Generated from `hardware/Cortex-X925-128GB-GB10-x2/results.jsonl` — 1174 rows, sha256 a5e4071749fb.*
 
 #### Every stack measured under OpenCode
 
@@ -217,6 +217,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 
 | stack | passed | median | worst | spread |
 |---|---|---|---|---|
+| glm53ftfjaydual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 21/21 | 144s | 402s | 18.3x |
 | glm53ftfjaydual2xrc @ Corei3-7100-16GB+image | 21/21 | 156s | 470s | 21.4x |
 | glm53fexl3dual2xrclatest @ Corei3-7100-16GB+image | 20/21 | 189s | 548s | 19.0x |
 | glm53fexl3dual2xrcctx @ Corei3-7100-16GB+image | 63/63 | 216s | 608s | 23.9x |
@@ -238,6 +239,7 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 
 | stack | passed | hidden passed | median | worst | spread |
 |---|---|---|---|---|---|
+| glm53ftfjaydual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 21/21 | 2/21 | 326s | 1376s | 12.8x |
 | glm53ftfjaydual2xrc @ Corei3-7100-16GB+image | 20/21 | 2/21 | 355s | 1297s | 16.9x |
 | glm53fexl3dual2xrclatestout64k @ Corei3-7100-16GB+image | 21/21 | 2/21 | 360s | 1596s | 9.7x |
 | glm53fexl3dual2xrcctx @ Corei3-7100-16GB+image | 41/42 | 4/42 | 492s | 2067s | 14.3x |
@@ -256,6 +258,7 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 | stack | seconds per 1k output tokens |
 |---|---|
 | dsv4flashvisiondspark2xrc @ Corei3-7100-16GB+image | 27s |
+| glm53ftfjaydual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 29s |
 | dsv4flashvisiondspark2xrc @ Corei3-7100-16GB+image@10g | 30s |
 | glm53ftfjaydual2xrc @ Corei3-7100-16GB+image | 31s |
 | mimo26fdual2xrc @ Corei3-7100-16GB+image@10g | 38s |
