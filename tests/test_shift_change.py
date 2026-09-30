@@ -127,7 +127,15 @@ def test_the_script_renders_the_same_order_the_opener_states() -> None:
         alerts=[],
     )
     labels = re.findall(r"^- \*\*([^*]+):\*\*", body, flags=re.MULTILINE)
-    assert labels == ["Task", "Sensors", "Disk", "PRs", "Next", "Questions for you"]
+    assert labels == [
+        "Task",
+        "Timing",  # started and ETA, operator 2026-09-30
+        "Sensors",
+        "Disk",
+        "PRs",
+        "Next",
+        "Questions for you",
+    ]
 
 
 def test_every_operator_machine_has_a_section() -> None:

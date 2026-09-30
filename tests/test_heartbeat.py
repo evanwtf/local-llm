@@ -27,6 +27,8 @@ def ago(minutes: float) -> str:
 
 
 BUSY = {"issue": 840, "task": "#840 server compiling, then 3 trials", "updated": ago(5)}
+#: started 30 min ago, due in 60: satisfies the no-ETA flag without firing past-ETA
+TIMED = {"started_at": ago(30), "eta": ago(-60)}
 
 
 def test_fields_come_in_the_operators_order() -> None:
@@ -154,7 +156,7 @@ def test_quiet_log_is_flagged_only_for_a_busy_task() -> None:
         "last written 25 min ago" in f
         for f in hb.flags(BUSY, NOW, gpu_idle=False, log_age_min=25)
     )
-    idle = {"task": "idle: weekly cap until 08:18 (#762)", "updated": ago(1)}
+    idle = {"task": "idle: weekly cap until 08:18 (#762)", "updated": ago(1)} | TIMED
     assert hb.flags(idle, NOW, gpu_idle=True, log_age_min=90) == []
 
 
@@ -168,7 +170,7 @@ def test_idle_needs_a_reason_or_a_question() -> None:
         {"task": "idle", "updated": ago(1)}, NOW, gpu_idle=True, log_age_min=None
     )
     assert any("Idle, no reason" in f for f in bare)
-    asked = {"task": "idle", "updated": ago(1), "questions": ["approve #451?"]}
+    asked = {"task": "idle", "updated": ago(1), "questions": ["approve #451?"]} | TIMED
     assert hb.flags(asked, NOW, gpu_idle=True, log_age_min=None) == []
 
 
@@ -308,3 +310,97 @@ def test_fans_round_to_the_nearest_100_rpm() -> None:
     assert hb.format_rpm([3642]) == "3,600 rpm"
     assert hb.format_rpm([3650, 7290, 0]) == "3,700 / 7,300 / 0 rpm"
     assert hb.format_rpm([]) == "n/a"
+
+
+# -- timing and the signature (#860) -------------------------------------------
+
+
+def test_timing_shows_start_and_eta_with_spans() -> None:
+    got = hb.format_timing({"started_at": ago(126), "eta": ago(-114)}, NOW)
+    assert got == "started 03:31 (2 h 6 min ago) · ETA 07:31 (in 1 h 54 min)"
+
+
+def test_timing_says_what_is_missing_and_what_has_passed() -> None:
+    assert hb.format_timing({}, NOW) == "started not recorded · ETA not recorded"
+    got = hb.format_timing({"started_at": ago(90), "eta": ago(15)}, NOW)
+    assert got.endswith("ETA 05:22 (passed 15 min ago)")
+
+
+def test_timing_carries_the_date_when_it_is_not_today() -> None:
+    got = hb.format_timing({"started_at": "2026-09-29T22:00:00-04:00"}, NOW)
+    assert got.startswith("started 2026-09-29 22:00 (7 h 37 min ago)")
+
+
+def test_the_timing_line_follows_the_task() -> None:
+    body = hb.render(
+        NOW, "M5 Max", BUSY | TIMED, sensors=["s"], disk="d", prs="p", alerts=[]
+    )
+    lines = body.splitlines()
+    task = next(i for i, ln in enumerate(lines) if ln.startswith("- **Task:**"))
+    assert lines[task + 1].startswith("- **Timing:** started 05:07")
+
+
+def test_a_task_without_start_or_eta_is_flagged() -> None:
+    got = hb.flags(BUSY, NOW, gpu_idle=False, log_age_min=None)
+    assert any("No ETA" in f for f in got)
+    assert not any(
+        "No ETA" in f
+        for f in hb.flags(BUSY | TIMED, NOW, gpu_idle=False, log_age_min=None)
+    )
+
+
+def test_a_passed_eta_is_flagged() -> None:
+    late = BUSY | {"started_at": ago(200), "eta": ago(25)}
+    got = hb.flags(late, NOW, gpu_idle=False, log_age_min=None)
+    assert any("Past ETA" in f and "25 min ago" in f for f in got)
+
+
+def _body() -> str:
+    return hb.render(
+        NOW,
+        "DGX cluster",
+        BUSY | TIMED,
+        sensors=["**outlet** 180 W"],
+        disk="d",
+        prs="p",
+        alerts=[],
+    )
+
+
+def test_a_signed_heartbeat_verifies() -> None:
+    assert hb.verify(hb.sign(_body(), "scripts/cluster_heartbeat.py")) is None
+
+
+def test_lines_around_the_heartbeat_are_allowed() -> None:
+    msg = (
+        "Tick done.\n\n"
+        + hb.sign(_body(), "scripts/heartbeat.py")
+        + "\n\n#840 trial 21 started."
+    )
+    assert hb.verify(msg) is None
+
+
+def test_trailing_spaces_and_blank_lines_do_not_break_it() -> None:
+    signed = hb.sign(_body(), "scripts/heartbeat.py")
+    assert hb.verify(signed.replace("\n", "  \n\n")) is None
+
+
+def test_an_edited_body_fails() -> None:
+    signed = hb.sign(_body(), "scripts/heartbeat.py")
+    assert "does not match" in (hb.verify(signed.replace("180 W", "150 W")) or "")
+
+
+def test_a_hand_written_heartbeat_fails() -> None:
+    """The DGX's 08:04 tick on 2026-09-30: bullets, no outlet, no signature."""
+    freehand = (
+        "2026-09-30 08:04 EDT — DGX cluster\n\n"
+        "* On GPU: #840 glm53ftfjaydual2xrc, 20/42 trials\n"
+        "* Sensors: both ~63 °C\n* Disk: head 648 GB (16% free)"
+    )
+    assert "no signature" in (hb.verify(freehand) or "")
+
+
+def test_a_copied_signature_under_a_hand_written_body_fails() -> None:
+    sig = hb.sign(_body(), "scripts/heartbeat.py").splitlines()[-1]
+    fake = "**2026-09-30 08:04** — DGX cluster\n\n- **Task:** fine\n\n" + sig
+    assert "does not match" in (hb.verify(fake) or "")
