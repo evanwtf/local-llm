@@ -72,3 +72,24 @@ def test_the_key_names_the_row_and_its_patch_hash() -> None:
         "started": "2026-09-27T00:10:40-04:00",
         "solution_sha256": "abc",
     }
+
+
+def test_patch_dir_finds_a_container_path_by_name(tmp_path: pathlib.Path) -> None:
+    """The cluster records /root/bench-solutions/..., which no host has."""
+    (tmp_path / "x.patch").write_text("diff\n")
+    r = row(
+        pathlib.Path("/root/bench-solutions/x.patch"),
+        hashlib.sha256(b"diff\n").hexdigest(),
+    )
+    assert rh.match(r) is None
+    assert rh.match(r, tmp_path) == tmp_path / "x.patch"
+
+
+def test_patch_dir_still_refuses_another_clients_patch(tmp_path: pathlib.Path) -> None:
+    """Two clients wrote patches with the same name; only the hash tells them apart."""
+    (tmp_path / "x.patch").write_text("the other client's diff\n")
+    r = row(
+        pathlib.Path("/root/bench-solutions/x.patch"),
+        hashlib.sha256(b"diff\n").hexdigest(),
+    )
+    assert rh.match(r, tmp_path) is None

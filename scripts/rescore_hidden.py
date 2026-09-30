@@ -21,6 +21,10 @@ to `--out` as its own record, keyed to the row it grades.
 
     uv run python scripts/rescore_hidden.py --task replay-web-auth-hidden \\
         --ledger hardware/<machine>/results.jsonl --dry-run
+
+The DGX cluster's rows record the client container's path. Run the script on
+each client machine that ran trials, with `--patch-dir ~/bench-solutions`:
+the sha256 check then keeps apart two clients' patches with the same name.
 """
 
 from __future__ import annotations
@@ -61,12 +65,22 @@ def key(row: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def match(row: dict[str, Any]) -> pathlib.Path | None:
-    """The row's own saved patch, or None when it is gone or overwritten."""
+def match(
+    row: dict[str, Any], patch_dir: pathlib.Path | None = None
+) -> pathlib.Path | None:
+    """The row's own saved patch, or None when it is gone or overwritten.
+
+    `patch_dir` looks the patch up by file name in that directory instead of
+    at the recorded path. The cluster's rows record the client container's
+    path (/root/bench-solutions/...), which exists on no host; the files are
+    in ~/bench-solutions on whichever client machine ran the trial.
+    """
     raw = row.get("solution_patch")
     if not raw or not row.get("solution_sha256"):
         return None
     path = pathlib.Path(raw).expanduser()
+    if patch_dir is not None:
+        path = patch_dir.expanduser() / path.name
     if not path.is_file():
         return None
     if hashlib.sha256(path.read_bytes()).hexdigest() != row["solution_sha256"]:
@@ -131,6 +145,13 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--ledger", type=pathlib.Path, required=True)
     ap.add_argument("--tasks-file", type=pathlib.Path, default=AGENT / "tasks.toml")
     ap.add_argument("--source", type=pathlib.Path, help="repository to read")
+    ap.add_argument(
+        "--patch-dir",
+        type=pathlib.Path,
+        help="find each patch by file name here, not at the recorded path"
+        " (the cluster's rows record a container path; run on each client with"
+        " --patch-dir ~/bench-solutions)",
+    )
     ap.add_argument("--out", type=pathlib.Path, default=OUT)
     ap.add_argument("--reason", default="#801: held-out import fixed (PR #867)")
     ap.add_argument("--dry-run", action="store_true", help="grade; append nothing")
@@ -148,7 +169,7 @@ def main(argv: list[str] | None = None) -> int:
     records, lost = [], 0
     rows = rows_for(args.ledger, args.task)
     for row in rows:
-        patch = match(row)
+        patch = match(row, args.patch_dir)
         label = f"{row.get('backend')} trial {row.get('trial')} {row.get('started')}"
         if patch is None:
             lost += 1
