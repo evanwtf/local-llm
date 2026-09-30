@@ -191,3 +191,49 @@ def test_malformed_entries_are_skipped_not_fatal():
         )
         == []
     )
+
+
+def _git(*args: str, cwd) -> None:
+    import subprocess
+
+    subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True)
+
+
+def test_a_worktree_reports_its_own_fetch_age_not_the_main_repos(tmp_path):
+    """#259: FETCH_HEAD is per worktree, and a worktree's `.git` is a file.
+
+    The old path, `<repo>/.git/FETCH_HEAD`, does not exist in a worktree, so the
+    age was None. `--git-common-dir` would be worse: it gives the main repo's
+    fetch age, a confident wrong value. The answer is `--git-dir`.
+    """
+    import os
+    import time
+
+    origin = tmp_path / "origin"
+    origin.mkdir()
+    _git("init", "-q", "-b", "main", cwd=origin)
+    _git(
+        "-c",
+        "user.name=t",
+        "-c",
+        "user.email=t@t",
+        "commit",
+        "-q",
+        "--allow-empty",
+        "-m",
+        "c",
+        cwd=origin,
+    )
+    main = tmp_path / "main"
+    _git("clone", "-q", str(origin), str(main), cwd=tmp_path)
+    _git("fetch", "-q", cwd=main)
+    ten_days_ago = time.time() - 10 * 86400
+    os.utime(main / ".git" / "FETCH_HEAD", (ten_days_ago, ten_days_ago))
+    tree = tmp_path / "tree"
+    _git("worktree", "add", "-q", "--detach", str(tree), cwd=main)
+    _git("fetch", "-q", cwd=tree)
+
+    assert staleness.git_drift(main)["fetched_days_ago"] > 9.9
+    age = staleness.git_drift(tree)["fetched_days_ago"]
+    assert age is not None
+    assert age < 0.01
