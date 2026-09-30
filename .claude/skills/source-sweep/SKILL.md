@@ -63,7 +63,7 @@ directly.
 ### 1a. Mentions and replies — last 24 hours, read included, CI excluded
 
 ```sh
-SINCE=$(date -u -v-24H +%Y-%m-%dT%H:%M:%SZ)
+SINCE=$(date -u -v-24H +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)  # BSD, then GNU
 gh api "notifications?all=true&since=$SINCE&per_page=100" --paginate \
   --jq '.[] | select(.reason != "ci_activity")
       | "\(.updated_at) unread=\(.unread) \(.repository.full_name) [\(.reason)] \(.subject.type) \(.subject.url // "" | sub(".*/";"")) :: \(.subject.title[:80])"'

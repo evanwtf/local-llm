@@ -182,3 +182,17 @@ def test_the_closer_writes_where_the_opener_reads() -> None:
 def test_no_doc_links_a_deleted_opener(path: str) -> None:
     text = (HARDWARE / path).read_text()
     assert not re.search(r"agent-opener-prompt-[\w-]+\.md", text), path
+
+
+def test_the_opener_says_where_macos_and_linux_differ() -> None:
+    """The DGX head's harness kills a background task at ~30 min; the M5 Max's
+    does not (2026-09-30). A loop rule tuned on one broke on the other."""
+    section = TEXT[TEXT.index("### macOS and Linux") : TEXT.index("## 1. The opening")]
+    for row in (
+        "a `run_in_background` task",
+        "the watchdog ends by",
+        "a scheduler outside the session",
+        "a command with a time limit",
+        "engine and tool upgrades",
+    ):
+        assert row in section, row

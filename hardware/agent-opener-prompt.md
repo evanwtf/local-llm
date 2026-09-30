@@ -129,6 +129,45 @@ Codex has no loop job. Your own control flow is the loop:
 - Skip `--armed` and the watchdog: there is no job to expire, and nothing can
   wake you.
 
+### macOS and Linux
+
+The M5 Max runs macOS. The DGX head and the Ryzen run Linux. The loop and the
+watchdog behave differently on the two, and so do several shell commands. Do
+not carry a command or a timing from one to the other without checking this
+table.
+
+**The loop and its wake paths** (observed 2026-09-30):
+
+| | macOS (M5 Max) | Linux (DGX head, Ryzen) |
+|---|---|---|
+| `/loop` tick job | the same: a Claude Code `CronCreate` job; it fires only between tool calls | the same |
+| a `run_in_background` task | runs to completion: a 31-minute `sleep` ran to the end, four times | the DGX head's harness kills it at about 30 min |
+| the watchdog ends by | its own 35-min stale check, with a "no tick since" line | the ~30-min kill, with no line; treat that wake as a watchdog wake (step 0) |
+| a scheduler outside the session | none: a system cron job was refused and `crontab` hung on a permission prompt (#704) | `systemd --user` timers: the DGX heartbeat timer (§10). The Ryzen has none yet |
+| the heartbeat | `scripts/heartbeat.py` (the exporter, via `mac_dash.py`) | DGX: `scripts/cluster_heartbeat.py`; Ryzen: `scripts/heartbeat.py --platform nvidia` |
+
+Check the second row on a new harness or a new machine before you rely on the
+watchdog: start `sleep 1900; echo done` in the background and see whether
+`done` arrives.
+
+**Commands** (BSD tools on macOS, GNU tools on Linux):
+
+| need | macOS | Linux |
+|---|---|---|
+| a command with a time limit | no `timeout`; use a bounded loop, or `run_in_background` and a deadline | `timeout <s> <cmd>` |
+| a time 24 hours ago | `date -u -v-24H +%Y-%m-%dT%H:%M:%SZ` | `date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ` |
+| free disk in bytes | `df -k <path>` (1 KiB blocks) | `df -B1 --output=avail <path>` |
+| a file's size / mtime | `stat -f %z` / `stat -f %m` | `stat -c %s` / `stat -c %Y` |
+| edit a file in place | `sed -i '' ...` | `sed -i ...` |
+| last boot | `sysctl -n kern.boottime` | `uv run python scripts/machine_health.py boot` or `uptime -s` |
+| CPU busy | `top -l 2 -n 0` (the second sample) | `/proc/stat`, two reads |
+| engine and tool upgrades | Homebrew; Ollama through its app, never the CLI. Homebrew refuses every upgrade while the Command Line Tools predate macOS 27 (2026-09-30), and the fix needs the operator's `sudo` | `apt` (the operator's), `uv`, container images, and each recipe's own update step |
+| `sudo` | only the commands the sudoers file allows without a password; check with `sudo -n <cmd>` and ask for the rest | check with `sudo -n true`; do not assume one node matches the other |
+
+Anything that must run on both belongs in a Python script, not in shell
+(`AGENTS.md`, #235): the heartbeat scripts read `/proc` or `top` by platform
+for this reason.
+
 ## 1. The opening routine: the same steps, every time
 
 The first tick runs §1. Openers mop, cut the vegetables, and set the tables,
