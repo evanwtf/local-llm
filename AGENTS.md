@@ -52,7 +52,7 @@ uv run python benchmarks/agent/preflight.py        # servers, memory ceiling, ve
 uv run python benchmarks/agent/run.py --backend <name> --client opencode --trials 3
 uv run python benchmarks/agent/splice_tables.py    # regenerate docs/results.md tables after new rows land
 uv run python scripts/report.py --backend <name>   # summarize or compare cells, with #23's resolution rule
-uv run python scripts/coherence_check.py ~/models/<model>.gguf  # temp-0 coherence check before a batch (ds4-served models, #287)
+uv run python scripts/coherence_check.py ~/models/<model>.gguf  # temp-0 coherence check before a batch (--tree: a ds4 or llama.cpp tree, #287)
 uv run python benchmarks/agent/model_inventory.py  # census every runtime's model tree before saying a model is absent
 uv run pytest -m fast -q                           # the push gate: ~180 repo-contract guards, seconds
 uv run pytest -q                                   # the whole suite (~3,500); read the exit code, never `| tail`
