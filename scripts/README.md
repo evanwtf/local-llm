@@ -111,6 +111,7 @@ Each script explains itself in full at the top of its own file -- what it comput
 | `release_notes.py` | any | Print the changelog section for a release, or refuse. |
 | `relevance_score.py` | any | Score how relevant an outside claim is to THIS project, procedurally (#230). |
 | `report.py` | any | Summarize and compare measured cells, with the resolution rule applied. |
+| `rescore_hidden.py` | any | Re-grade the hidden tests of saved replay patches with the current grader. |
 | `restart_between_trials.py` | any | Restart-between-trials: does server state degrade a session? #112, #77. |
 | `route_ab_report.py` | mac | Attribute #149 route-A/B rows to sweep windows and evaluate the screens. |
 | `route_agent_ab.py` | mac | ds4's Metal 4 TensorOps route against the withheld one, on the agent bench. |
