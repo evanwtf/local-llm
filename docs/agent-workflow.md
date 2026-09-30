@@ -277,6 +277,25 @@ which went stale between regenerations and covered only macOS. The durable
 machine operations live in [`m5max-runbook.md`](m5max-runbook.md) and
 [`dgx-spark-runbook.md`](dgx-spark-runbook.md); the traps live in the topic docs.
 
+**Every open issue carries these labels** (`scripts/audit_labels.py` checks
+them, and the issue-sweep skill runs it):
+
+| label | how many | what it decides |
+|---|---|---|
+| `P0`–`P3` | exactly one | the order in the queue |
+| `platform:macOS`, `platform:Nvidia` | one or both, when the work costs machine time | which machine's queue shows it |
+| `hardware:*` | per machine the work runs on | which box; the DGX is `hardware:Cortex-X925-GB10-x2` (the single-Spark label is retired, #860) |
+| `bug`, `enhancement`, `documentation`, `question` | at least one, for repo work with no platform | what kind of work it is |
+| `model:*`, `engine:*` | any number; required when the title names one | the family, so one query finds a model's history (#465) |
+
+The family labels name a family, not a build: `model:qwen`, `model:glm`,
+`model:deepseek`, `model:nemotron`, `model:gptoss`, `model:gemma`,
+`model:llama`, `model:minimax`, `model:other`; `engine:vllm`,
+`engine:llamacpp`, `engine:dwarfstar` (antirez's ds4 engine, not the DeepSeek
+family), `engine:mlx` (MLX, oMLX, mlx-serve, mtplx), `engine:ollama`,
+`engine:sglang`, `engine:trtllm`, `engine:exl3`. The quant and revision go in
+the body.
+
 **Close the loop the same day you finish.** When a task lands:
 
 1. **Comment on the issue** with what was found -- including the parts that

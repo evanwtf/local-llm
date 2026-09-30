@@ -109,36 +109,13 @@ changes.
 
 ## 5. The mechanical checks, on the way
 
-```python
-import json, os, pathlib
-
-d = json.loads(pathlib.Path(os.environ["TMPDIR"], "issues.json").read_text())
-PRIO = {"P0", "P1", "P2", "P3"}
-PLAT = {"platform:macOS", "platform:Nvidia"}
-TYPES = {"bug", "documentation", "enhancement", "question"}
-for i in d:
-    L = {l["name"] for l in i["labels"]}
-    p, pl = L & PRIO, L & PLAT
-    hw = {x for x in L if x.startswith("hardware:")}
-    if not p:
-        print(f"#{i['number']} NO priority   {i['title'][:60]}")
-    elif len(p) > 1:
-        print(f"#{i['number']} MULTI {sorted(p)} {i['title'][:60]}")
-    if len(pl) > 1:
-        print(f"#{i['number']} MULTI platform {sorted(pl)}")
-    elif not pl and not (L & TYPES):
-        print(f"#{i['number']} NO platform and NO type  {i['title'][:40]}")
-    if pl and not hw:
-        print(f"#{i['number']} platform but NO hardware label  {i['title'][:40]}")
-    mac_hw = any("M5-Max" in x for x in hw)
-    nv_hw = any("M5-Max" not in x for x in hw)
-    if (mac_hw and "platform:macOS" not in pl) or (
-        nv_hw and "platform:Nvidia" not in pl
-    ):
-        print(
-            f"#{i['number']} hardware {sorted(hw)} disagrees with platform {sorted(pl)}"
-        )
+```sh
+uv run python scripts/audit_labels.py         # one line per broken rule
 ```
+
+The script holds the rules and their tests (`tests/test_audit_labels.py`), so
+this skill and the script cannot drift apart. It reads the open issues live.
+Its findings, and what to do with each:
 
 - **No priority** — in no queue at all; give it one as part of this sweep.
 - **Two priorities** — `make_next.py` drops it rather than guess.
@@ -148,6 +125,11 @@ for i in d:
   cross-machine work, otherwise pick the machine.
 - **Platform but no hardware label** — the class label names a vendor, not the
   box.
+- **Retired** — `hardware:Cortex-X925-GB10` on open work. Every DGX test runs
+  on both Sparks now; use `hardware:Cortex-X925-GB10-x2`.
+- **Family** — the title names a model or engine and the `model:*` or
+  `engine:*` label is missing (#465). Add it; the family labels are how a
+  person or a script finds a model's history.
 
 ## 6. Propose, then stop
 
