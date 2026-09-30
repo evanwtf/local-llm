@@ -106,6 +106,15 @@ with a ready server (§3, "The failure this loop prevents").
    exit wakes the session even when the loop job is gone or skipped. When it
    wakes you: run a tick now, run `CronList`, re-arm the loop if it is gone,
    and start a new watchdog. Keep **one** watchdog per session.
+
+   Some Claude Code harnesses kill a background task after about 30 minutes
+   (the DGX head, 2026-09-30); the M5 Max's does not. Where the harness kills
+   it, the watchdog ends by that kill before its 35-minute threshold. The kill
+   still wakes the session, so it still works as a second wake path, but it
+   prints no "no tick since" line. Treat that wake like a watchdog wake: run a
+   tick, check `CronList`, and start a new watchdog. Do not lower
+   `--stale-min` below the loop's 30 minutes, or it fires before every normal
+   tick.
 4. On the DGX cluster, also check the heartbeat timer (§10, step 0).
 
 ### Codex
