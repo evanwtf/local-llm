@@ -254,6 +254,22 @@ def test_tick_records_only_the_pulse(tmp_path: pathlib.Path) -> None:
     assert hb.minutes_since(s["tick_at"], dt.datetime.now().astimezone()) < 1
 
 
+def test_tick_with_set_records_both(tmp_path: pathlib.Path) -> None:
+    """--set once returned before --tick, so the tick was lost (#860)."""
+    p = tmp_path / "hb.json"
+    assert hb.main(["--state", str(p), "--tick", "--set", '{"task": "b"}']) == 0
+    s = hb.read_state(p)
+    assert s["task"] == "b"
+    assert hb.minutes_since(s["tick_at"], dt.datetime.now().astimezone()) < 1
+
+
+def test_set_alone_is_not_a_tick(tmp_path: pathlib.Path) -> None:
+    """A mid-turn state write must not silence the watchdog."""
+    p = tmp_path / "hb.json"
+    assert hb.main(["--state", str(p), "--set", '{"task": "c"}']) == 0
+    assert "tick_at" not in hb.read_state(p)
+
+
 def test_concurrent_writers_lose_no_update(tmp_path: pathlib.Path) -> None:
     """The session and the cluster timer write one file (Codex review, #851)."""
     import multiprocessing as mp
