@@ -68,6 +68,7 @@ sys.path.insert(0, str(REPO / "scripts" / "lib"))
 sys.path.insert(0, str(REPO / "scripts"))
 sys.path.insert(0, str(REPO / "benchmarks" / "agent"))
 
+import ab_driver
 import child
 import metal_knob
 import outdir_guard
@@ -375,18 +376,19 @@ def sweep(
                 value = on_value if label == "on" else off_value
                 with (out / "run-order.txt").open("a") as handle:
                     handle.write(f"rep={rep} position={position} of 2 label={label}\n")
-                run_arm(
-                    knob,
-                    label,
-                    value,
-                    rep,
-                    position,
-                    out=out,
-                    tree=tree,
-                    gguf=gguf,
-                    prompt=prompt,
-                    ctx_max=ctx_max,
-                )
+                with ab_driver.sweep_window(out, f"{label}-rep{rep}"):
+                    run_arm(
+                        knob,
+                        label,
+                        value,
+                        rep,
+                        position,
+                        out=out,
+                        tree=tree,
+                        gguf=gguf,
+                        prompt=prompt,
+                        ctx_max=ctx_max,
+                    )
     logger.info("done: %s", out)
     return 0
 

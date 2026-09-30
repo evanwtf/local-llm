@@ -221,21 +221,22 @@ def sweep(
         # cwd=tree: ds4-bench resolves metal/*.metal relative to its own tree,
         # and running both arms from one tree is how an engine A/B silently
         # compares a build against itself.
-        rc = child.run(
-            decode_ab.bench_argv(
-                gguf,
-                csv,
-                prompt,
-                binary=tree / "ds4-bench",
-                ctx_start=ctx_start,
-                ctx_max=ctx_max,
-                step=step,
-                gen=gen,
-                chunk=chunk,
-            ),
-            cwd=tree,
-            log=log,
-        )
+        with ab_driver.sweep_window(out, f"{arm.name}-rep{rep}"):
+            rc = child.run(
+                decode_ab.bench_argv(
+                    gguf,
+                    csv,
+                    prompt,
+                    binary=tree / "ds4-bench",
+                    ctx_start=ctx_start,
+                    ctx_max=ctx_max,
+                    step=step,
+                    gen=gen,
+                    chunk=chunk,
+                ),
+                cwd=tree,
+                log=log,
+            )
         if rc != 0:
             # The failure text is in the log, not on stdout, so say where it
             # went and show the tail rather than dying silently.
