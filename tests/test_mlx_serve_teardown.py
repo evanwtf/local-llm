@@ -177,3 +177,29 @@ def test_the_pattern_does_not_match_a_shell_that_merely_mentions_the_server():
 def test_the_shell_it_guards_is_still_here():
     """When `stack_agent_ab.sh` is ported and deleted, this file goes too."""
     assert (REPO / "vault" / "stack_agent_ab.sh").exists()
+
+
+def test_an_interrupt_between_two_commands_still_exits_nonzero(fake_ps):
+    """#735, the twin of ds4's: `$?` in a signal trap is the last command's."""
+    code, _, _ = run_script(
+        fake_ps,
+        """
+        mlx_serve_arm_stop_trap
+        kill -INT $$
+        echo "not reached"
+    """,
+    )
+    assert code == 130
+
+
+def test_an_interrupt_still_runs_the_chained_exit_handler(fake_ps):
+    code, _, _ = run_script(
+        fake_ps,
+        f"""
+        trap 'echo released > {fake_ps}/lock' EXIT
+        mlx_serve_arm_stop_trap
+        kill -TERM $$
+    """,
+    )
+    assert code == 143
+    assert (fake_ps / "lock").read_text().strip() == "released"

@@ -75,5 +75,11 @@ mlx_serve_arm_stop_trap() {
   else
     trap mlx_serve_stop_on_exit EXIT
   fi
-  trap mlx_serve_stop_on_exit INT TERM
+  # A signal only exits, with the signal's status; the EXIT trap above then
+  # does the whole teardown, chain included (#735). Calling the teardown
+  # here read `$?`, the last command's status -- 0 when the signal landed
+  # between two commands -- and cleared the EXIT trap, so a chained
+  # handler (the preflight lock's release) never ran.
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
 }
