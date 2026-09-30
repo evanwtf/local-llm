@@ -71,15 +71,19 @@ flags and the same field order, with two nodes in place of one.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import datetime as dt
+import fcntl
 import json
 import logging
+import os
 import pathlib
 import platform
 import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 from collections.abc import Sequence
 from dataclasses import dataclass, field
@@ -135,16 +139,29 @@ def write_state(
     `stamp` sets `updated`, which is the session's own progress clock. The
     script's bookkeeping (heartbeat_at, idle_power_since) passes stamp=False,
     or every heartbeat would reset the staleness it is meant to measure.
+
+    Two processes write this file: the session (--set, --tick) and, on the
+    cluster, the timer. So the whole read-merge-write holds an exclusive lock
+    on a sibling `.lock` file, and each writer renames its own temp file. With
+    one shared `.tmp` path, one writer's rename removed the other's file.
     """
-    state = read_state(path) | updates
-    if stamp:
-        state["updated"] = now.isoformat(timespec="seconds")
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(".tmp")
-    tmp.write_text(json.dumps(state, indent=2) + "\n")
-    tmp.replace(path)
-    if read_state(path) != state:  # a write that is not read back is a guess
-        raise RuntimeError(f"{path} did not read back as written")
+    lock = path.with_name(path.name + ".lock")
+    with lock.open("a") as held:
+        fcntl.flock(held, fcntl.LOCK_EX)
+        state = read_state(path) | updates
+        if stamp:
+            state["updated"] = now.isoformat(timespec="seconds")
+        fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=path.name, suffix=".tmp")
+        try:
+            with os.fdopen(fd, "w") as f:
+                f.write(json.dumps(state, indent=2) + "\n")
+            os.replace(tmp, path)
+        finally:
+            with contextlib.suppress(FileNotFoundError):
+                os.unlink(tmp)
+        if read_state(path) != state:  # a write that is not read back is a guess
+            raise RuntimeError(f"{path} did not read back as written")
     return state
 
 

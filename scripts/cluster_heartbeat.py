@@ -39,7 +39,7 @@ import re
 import subprocess
 import sys
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
@@ -66,8 +66,10 @@ PROBE = (
     " echo mem_kib=$(awk '/MemAvailable/{print $2}' /proc/meminfo);"
     " echo disk_free_b=$(df -B1 --output=avail / | tail -1 | tr -d ' ');"
     " echo disk_total_b=$(df -B1 --output=size / | tail -1 | tr -d ' ');"
-    " echo fan_rpm=$(cat /sys/class/hwmon/hwmon*/fan*_input 2>/dev/null"
-    " | sort -n | tail -1);"
+    # every fan the nvfanread hwmon exposes (the head: two); none on node B
+    # until its MOK-signed driver is installed (dgx-spark-fan-override#14)
+    " echo fans=$(cat /sys/class/hwmon/hwmon*/fan*_input 2>/dev/null"
+    " | paste -sd, -);"
     " echo earlyoom=$(systemctl is-active earlyoom 2>/dev/null || true);"
     " c=0; for i in " + " ".join(FABRIC_IFACES) + "; do"
     ' [ "$(cat /sys/class/net/$i/carrier 2>/dev/null)" = 1 ] && c=$((c+1)); done;'
@@ -97,7 +99,7 @@ class Node:
     mem_gib: float | None = None
     disk_free_gb: float | None = None
     disk_total_gb: float | None = None
-    fan_rpm: float | None = None
+    fans: list[float] = field(default_factory=list)
     earlyoom: str | None = None
     links_up: int | None = None
     links_total: int | None = None
@@ -127,7 +129,7 @@ def parse_probe(text: str) -> Node:
         n.disk_free_gb = d / 1e9
     if (d := _num(kv.get("disk_total_b", ""))) is not None:
         n.disk_total_gb = d / 1e9
-    n.fan_rpm = _num(kv.get("fan_rpm", ""))
+    n.fans = [f for v in kv.get("fans", "").split(",") if (f := _num(v)) is not None]
     n.earlyoom = kv.get("earlyoom") or None
     for key in ("links_up", "links_total", "roce_active"):
         if (v := _num(kv.get(key, ""))) is not None:
@@ -158,7 +160,8 @@ def node_header(name: str, n: Node) -> str:
         return f"**{name}** UNREACHABLE"
     return (
         f"**{name}** {_f(n.power_w, '{:.0f}')} W, {_f(n.temp_c, '{:.0f}')} °C,"
-        f" fan {_f(n.fan_rpm, '{:,.0f} rpm')}, {_f(n.mem_gib, '{:.1f}')} GiB avail"
+        f" fans {' / '.join(f'{f:,.0f}' for f in n.fans) + ' rpm' if n.fans else 'n/a'},"
+        f" {_f(n.mem_gib, '{:.1f}')} GiB avail"
     )
 
 
@@ -220,6 +223,7 @@ def render(
     state: dict,
     serving: str | None,
     prs: str = "n/a",
+    log_age_min: float | None = None,
 ) -> str:
     """The heartbeat body, in the operator's field order. Pure."""
     hw, ww = outlet.get("wall_w"), outlet.get("worker_wall_w")
@@ -273,7 +277,7 @@ def render(
             state,
             now,
             gpu_idle=gpus_idle(head, worker),
-            log_age_min=None,
+            log_age_min=log_age_min,
             stale_min=STALE_NOTES_MIN,
         ),
         extra=extra,
@@ -344,6 +348,7 @@ def gather(peer: str, rtt_target: str, state: dict) -> tuple[str, dict]:
         merged,
         serving,
         prs=hb.format_prs(hb.read_prs()),
+        log_age_min=hb.log_age(state, now),  # a log on the head; not the client's
     )
     return body, {k: merged.get(k) for k in ("idle_power_since",)}
 

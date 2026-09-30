@@ -252,3 +252,25 @@ def test_tick_records_only_the_pulse(tmp_path: pathlib.Path) -> None:
     s = hb.read_state(p)
     assert s["task"] == "a" and s["updated"] == NOW.isoformat(timespec="seconds")
     assert hb.minutes_since(s["tick_at"], dt.datetime.now().astimezone()) < 1
+
+
+def test_concurrent_writers_lose_no_update(tmp_path: pathlib.Path) -> None:
+    """The session and the cluster timer write one file (Codex review, #851)."""
+    import multiprocessing as mp
+
+    p = tmp_path / "hb.json"
+    ctx = mp.get_context("spawn")
+    procs = [ctx.Process(target=_write_key, args=(str(p), f"k{i}")) for i in range(8)]
+    for proc in procs:
+        proc.start()
+    for proc in procs:
+        proc.join(30)
+        assert proc.exitcode == 0
+    state = hb.read_state(p)
+    assert {f"k{i}" for i in range(8)} <= set(state)
+    assert not list(tmp_path.glob("*.tmp"))
+
+
+def _write_key(path: str, key: str) -> None:
+    for n in range(20):
+        hb.write_state(pathlib.Path(path), {key: n}, NOW, stamp=False)
