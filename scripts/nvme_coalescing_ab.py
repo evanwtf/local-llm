@@ -83,12 +83,16 @@ def summarize(fio: dict[str, Any]) -> dict[str, float]:
 def nvme_interrupts(proc_interrupts: str, controller: str) -> int:
     """Total interrupts on the controller's I/O queues (q1..). q0 is admin."""
     pattern = re.compile(rf"\b{re.escape(controller)}q([1-9]\d*)$")
+    lines = proc_interrupts.splitlines()
+    # The header names one column per CPU. Only those columns are counts: the
+    # chip's hwirq number follows them ("ITS-MSI 1 Edge") and must not be summed.
+    ncpu = len(lines[0].split()) if lines else 0
     total = 0
-    for line in proc_interrupts.splitlines():
+    for line in lines[1:]:
         fields = line.split()
         if not fields or not pattern.search(fields[-1]):
             continue
-        total += sum(int(f) for f in fields[1:] if f.isdigit())
+        total += sum(int(f) for f in fields[1 : 1 + ncpu])
     return total
 
 
