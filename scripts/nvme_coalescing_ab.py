@@ -11,7 +11,7 @@ reported ~56 us -> ~200 us per 4K read. DeepSeek V4.1 EXL3 (#685) reads its
 file-backed Engram rows from the head's NVMe during prefill and decode, so it
 is the stack this could move.
 
-Four arms, on/off/on/off, so drift cannot pass for an effect. Each arm runs
+Six arms, on/off three times, so drift cannot pass for an effect. Each arm runs
 three fio jobs against existing files, read-only and O_DIRECT:
 
 - qd1:  random 4K reads, one in flight   (the Engram-miss pattern)
@@ -54,7 +54,7 @@ import logs
 logger = logging.getLogger(__name__)
 
 SERVICE = "nvidia-nvme-interrupt-coalescing"
-ARMS = ("on", "off", "on", "off")
+ARMS = ("on", "off", "on", "off", "on", "off")  # three per state (no claim on fewer)
 STATE_VALUE = {"on": 0x107, "off": 0}
 JOBS = {
     "qd1-randread-4k": ["--rw=randread", "--bs=4k", "--iodepth=1"],

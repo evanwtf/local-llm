@@ -92,6 +92,6 @@ def test_new_files_names_only_what_appeared(tmp_path: pathlib.Path) -> None:
 
 
 def test_arm_states_alternate_and_end_on() -> None:
-    # on/off/on/off, then the script's own restore leaves the drive at NVIDIA's value.
-    assert ab.ARMS == ("on", "off", "on", "off")
+    # on/off three times: three datapoints per state; then the script's own restore leaves the drive at NVIDIA's value.
+    assert ab.ARMS == ("on", "off", "on", "off", "on", "off")
     assert ab.STATE_VALUE == {"on": 0x107, "off": 0}
