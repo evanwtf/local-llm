@@ -2997,9 +2997,7 @@ def socket_rule_paths(paths):
     return out
 
 
-def sandbox_profile(
-    worktree, repo, home=None, system_tmp=None, sockets=None, tmp_root=None
-):
+def sandbox_profile(worktree, repo, home=None, sockets=None, tmp_root=None):
     """A macOS sandbox profile that hides every other copy of the answer.
 
     #54: OpenCode is not confined to its workspace. `opencode run` is headless,
@@ -3033,10 +3031,10 @@ def sandbox_profile(
     over one for `file-read*`, so a wildcard deny alone would lose to the
     allows above it (verified on macOS 27).
 
-    #780, second half: the trial writes only to its worktree, its own TMPDIR
-    and HOME_WRITABLE, and cannot connect to a container daemon's socket.
-    `system_tmp`, `sockets` and `tmp_root` default to the host's; tests
-    pass their own.
+    #780, second half: under $HOME and /private/tmp the trial writes only to
+    its worktree, its own TMPDIR and HOME_WRITABLE, and it cannot connect to
+    a container daemon's socket.
+    `sockets` and `tmp_root` default to the host's; tests pass their own.
     """
     home = pathlib.Path(home).resolve() if home else pathlib.Path.home()
     keep = str(pathlib.Path(worktree).resolve())
@@ -3120,12 +3118,18 @@ def sandbox_profile(
         for d in denied
         for op in ("file-read*", "file-read-data")
     ]
-    # #780: writes. Deny under $HOME, /private/tmp and the shared $TMPDIR;
-    # allow the tool caches, then the worktree and the trial's own TMPDIR
-    # last, since the last matching rule wins and both sit inside the shared
-    # $TMPDIR. The per-user cache dir beside it (`.../C`) stays writable:
-    # Metal and clang keep their caches there.
-    shared_tmp = os.path.realpath(system_tmp or tempfile.gettempdir())
+    # #780: writes. Deny under $HOME and /private/tmp; allow the tool caches,
+    # then the worktree and the trial's own TMPDIR last, since the last
+    # matching rule wins.
+    #
+    # The shared per-user temp dir ($TMPDIR, /var/folders/.../T) stays
+    # writable. The trial's TMPDIR points elsewhere, so a tool that honors
+    # it never writes there; but macOS tools use that dir whatever TMPDIR
+    # says, and three cuts that denied it each broke `swift build` on a
+    # different one (batches 0929-780w, -w2, -w3): xcrun's `xcrun_db`,
+    # Foundation's atomic-write staging in `TemporaryItems`, and the Swift
+    # build system's `swbuild.tmp.*`. swift-csv-text took 1,102.9 s with 147
+    # `swift build` calls, against 2 to 4 in each #834 trial.
     writable = []
     for entry in (home / rel for rel in HOME_WRITABLE):
         for path in readable_targets(entry):
@@ -3135,22 +3139,11 @@ def sandbox_profile(
         [
             f'(deny file-write* (subpath "{home}"))',
             '(deny file-write* (subpath "/private/tmp"))',
-            f'(deny file-write* (subpath "{shared_tmp}"))',
         ]
         + [f'(allow file-write* ({kind(p)} "{p}"))' for p in writable]
         + [
             f'(allow file-write* (subpath "{keep}"))',
             f'(allow file-write* (subpath "{trial_tmp(keep, tmp_root)}"))',
-            # macOS tools use the per-user temp dir whatever TMPDIR says, so
-            # two names in it are allowed back. xcrun writes `xcrun_db-XXXX`
-            # and renames it to `xcrun_db`; refused, every swift call logged
-            # an error (batch 0929-780w). Foundation stages every atomic
-            # write in `TemporaryItems`; refused, the Swift build service
-            # could not write its own manifest.json into the worktree, and
-            # swift-csv-text took 1,102.9 s with 147 `swift build` calls
-            # against 2 to 4 (batch 0929-780w2).
-            f'(allow file-write* (regex #"^{re.escape(shared_tmp)}/xcrun_db"))',
-            f'(allow file-write* (subpath "{shared_tmp}/TemporaryItems"))',
         ]
     )
     # #780: container daemons act on the host outside the sandbox.

@@ -46,7 +46,7 @@ def layout(tmp_path: pathlib.Path, home: pathlib.Path) -> dict[str, pathlib.Path
     system_tmp = (tmp_path / "T").resolve()
     worktree = system_tmp / "agent-bench" / "trial-1" / "repo"
     worktree.mkdir(parents=True)
-    tmp_root = system_tmp / "agent-bench" / "trial-tmp"
+    tmp_root = system_tmp / "agent-bench" / "trial-tmp"  # as TRIAL_TMP_ROOT
     trial_tmp = run.trial_tmp(worktree, tmp_root)
     trial_tmp.mkdir(parents=True)
     return {
@@ -62,7 +62,6 @@ def _profile(tmp_path, home, layout, sockets=()) -> pathlib.Path:
         layout["worktree"],
         home / "git" / "target",
         home=home,
-        system_tmp=layout["system_tmp"],
         sockets=sockets,
         tmp_root=layout["tmp_root"],
     )
@@ -89,12 +88,14 @@ def test_a_write_under_home_is_refused(tmp_path, home, layout):
 
 
 @needs_sandbox
-def test_a_write_to_the_shared_temp_dir_is_refused(tmp_path, home, layout):
-    """The 2026-09-25 extraction landed here."""
-    target = layout["system_tmp"] / "extracted.mbox"
+def test_the_shared_per_user_temp_dir_stays_writable(tmp_path, home, layout):
+    """macOS tools write there whatever TMPDIR says: xcrun's xcrun_db,
+    Foundation's TemporaryItems, the Swift build system's swbuild.tmp.*.
+    Three cuts that denied it each broke swift build (#780, 0929-780w..w3).
+    The worktree fixture lives inside a fake one, so write a sibling."""
+    target = layout["worktree"].parent.parent / "swbuild.tmp.AbC123"
     result = _touch(_profile(tmp_path, home, layout), target)
-    assert result.returncode != 0
-    assert not target.exists()
+    assert result.returncode == 0, result.stderr
 
 
 @needs_sandbox
@@ -214,7 +215,6 @@ def test_a_stash_layout_trial_can_read_back_its_temp_files(tmp_path, home, layou
         worktree,
         home / "git" / "target",
         home=home,
-        system_tmp=layout["system_tmp"],
         sockets=(),
         tmp_root=layout["tmp_root"],
     )
@@ -232,22 +232,6 @@ def test_a_stash_layout_trial_can_read_back_its_temp_files(tmp_path, home, layou
     assert result.stdout == "obj\n"
 
 
-@needs_sandbox
-@pytest.mark.parametrize("name", ["xcrun_db-AbC123", "xcrun_db"])
-def test_xcruns_cache_file_may_be_written_to_the_shared_tmp(
-    tmp_path, home, layout, name
-):
-    """xcrun writes xcrun_db-XXXX, then renames it to xcrun_db."""
-    ok = _touch(_profile(tmp_path, home, layout), layout["system_tmp"] / name)
-    assert ok.returncode == 0, ok.stderr
-
-
-@needs_sandbox
-def test_any_other_name_in_the_shared_tmp_is_refused(tmp_path, home, layout):
-    target = layout["system_tmp"] / "not-xcrun_db-AbC123"
-    assert _touch(_profile(tmp_path, home, layout), target).returncode != 0
-
-
 SWIFTC = shutil.which("swiftc") or shutil.which("xcrun")
 
 
@@ -256,8 +240,8 @@ SWIFTC = shutil.which("swiftc") or shutil.which("xcrun")
 def test_a_foundation_atomic_write_into_the_worktree_succeeds(tmp_path):
     """Foundation stages an atomic write in <per-user temp>/TemporaryItems,
     whatever TMPDIR says. Refused, the Swift build service could not write
-    its manifest into the worktree (batch 0929-780w2). The real per-user
-    temp dir, since that is the one Foundation uses."""
+    its manifest into the worktree (batch 0929-780w2). Runs against the real
+    per-user temp dir, since that is the one Foundation uses."""
     src = tmp_path / "aw.swift"
     src.write_text(
         "import Foundation\n"
