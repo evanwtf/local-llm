@@ -55,6 +55,7 @@ sys.path.insert(
     0, str(pathlib.Path(__file__).resolve().parents[1] / "benchmarks" / "agent")
 )
 
+import platform_guard
 import provenance
 
 logger = logging.getLogger(__name__)
@@ -159,6 +160,7 @@ def build_command(mode: str, args: argparse.Namespace, extra: list[str]) -> list
 
 
 def main(argv: list[str] | None = None) -> int:
+    platform_guard.require_darwin("ds4_serve.py")
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("mode", choices=sorted(MARKERS))
     parser.add_argument("--tree", type=pathlib.Path, default=DEFAULT_TREE)

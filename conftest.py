@@ -227,6 +227,16 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
 
 
 @pytest.fixture(autouse=True)
+def _metal_drivers_run_anywhere(monkeypatch):
+    """The Metal drivers refuse off macOS (#325); the suite fakes every engine.
+
+    CI runs on Linux, and dozens of tests call a driver's `main`. The env var,
+    not a patched `sys.platform`, so a driver run as a subprocess inherits it.
+    """
+    monkeypatch.setenv("LOCAL_LLM_ANY_PLATFORM", "1")
+
+
+@pytest.fixture(autouse=True)
 def _isolate_unit_records(tmp_path, monkeypatch):
     """No test writes a unit record into the real machine's state.
 

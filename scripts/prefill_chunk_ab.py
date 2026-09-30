@@ -51,6 +51,7 @@ sys.path.insert(0, str(REPO / "benchmarks" / "agent"))
 import ab_driver
 import child
 import decode_ab
+import platform_guard
 
 import logs
 
@@ -257,6 +258,7 @@ def sweep(
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    platform_guard.require_darwin("prefill_chunk_ab.py")
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("tree", type=pathlib.Path)
     p.add_argument("gguf", type=pathlib.Path)

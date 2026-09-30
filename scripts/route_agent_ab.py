@@ -72,6 +72,7 @@ import child
 import ds4_server
 import metal_equivalence
 import metal_route
+import platform_guard
 import ports
 import preflight
 import provenance
@@ -545,6 +546,7 @@ def sweep(sweeps: int, trials: int, out: pathlib.Path) -> int:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    platform_guard.require_darwin("route_agent_ab.py")
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument(
         "--sweeps-per-arm",

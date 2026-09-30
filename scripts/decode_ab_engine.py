@@ -66,6 +66,7 @@ import ab_driver
 import child
 import decode_ab
 import outdir_guard
+import platform_guard
 
 import logs
 
@@ -257,6 +258,7 @@ def sweep(
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    platform_guard.require_darwin("decode_ab_engine.py")
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("label_a")
     p.add_argument("tree_a", type=pathlib.Path)

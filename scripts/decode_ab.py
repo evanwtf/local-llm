@@ -62,6 +62,7 @@ sys.path.insert(0, str(REPO / "benchmarks" / "agent"))
 import ab_driver
 import child
 import outdir_guard
+import platform_guard
 import preflight
 
 import logs
@@ -366,6 +367,7 @@ def stamp_prompt(
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    platform_guard.require_darwin("decode_ab.py")
     p = argparse.ArgumentParser(description="Paired decode-rate A/B (#48).")
     p.add_argument("label_a")
     p.add_argument("gguf_a", type=pathlib.Path)

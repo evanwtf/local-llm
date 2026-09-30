@@ -71,6 +71,7 @@ sys.path.insert(0, str(REPO / "benchmarks" / "agent"))
 import child
 import metal_knob
 import outdir_guard
+import platform_guard
 import preflight
 import prompt_meta
 
@@ -391,6 +392,7 @@ def sweep(
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    platform_guard.require_darwin("metal_knob_ab.py")
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("knob")
     p.add_argument("on_value")

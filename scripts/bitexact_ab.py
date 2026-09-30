@@ -70,6 +70,8 @@ import time
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
 
+import platform_guard
+
 import logs
 
 logger = logging.getLogger(__name__)
@@ -957,6 +959,7 @@ def report_lines(report: dict) -> list[str]:
 
 
 def main(argv: list[str] | None = None) -> int:
+    platform_guard.require_darwin("bitexact_ab.py")
     logs.configure()
     args = parse_args(argv)
     try:
