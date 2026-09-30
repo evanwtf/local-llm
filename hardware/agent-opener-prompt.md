@@ -468,9 +468,11 @@ Do these in order, every tick:
    `task` in full every tick (issue, model slug, N/M trials, start time),
    even when you changed only another key: the DGX timer posts `task`
    verbatim, and on 2026-09-30 it showed the previous issue's task beside the
-   new occupant. Also `next`, `notes` (what changed, counts read from the
-   log), `questions`, and for a wait, `expect_by` and `log`. Clear `expect_by`
-   when the wait ends.
+   new occupant. Also `started_at` and `eta` (when this task started, and
+   when it should finish; an idle task's `eta` is when the idle ends), `next`,
+   `notes` (what changed, counts read from the log), `questions`, and for a
+   wait, `expect_by` and `log`. Clear `expect_by` when the wait ends. Change
+   `started_at` only when the task changes.
 8. **The heartbeat.** End the turn with the §3a heartbeat as your final
    message.
 
@@ -562,7 +564,8 @@ may never reach the operator: on 2026-09-24 they saw none of three heartbeats
 sent that way. No code block.
 
 **Generate it; do not write it by hand.** Run the script, and send its output
-as your final message:
+as your final message, unedited: do not reword, reorder, trim or reformat it.
+To change what it says, change the state with `--set` and run it again.
 
 ```sh
 uv run python scripts/heartbeat.py            # M5 Max and Ryzen: renders, and records the tick
@@ -574,17 +577,34 @@ The script reads every field fresh and puts them in the operator's order
 
 1. **The time**, bold, `YYYY-MM-DD HH:MM`, from this machine's `date`, with
    the machine's name.
-2. **Task:** the current task (issue, model slug, progress, ETA) and what is on
-   the GPU, or `idle: <reason>`. Any flag follows it at once.
+2. **Task:** the current task (issue, model slug, progress) and what is on
+   the GPU, or `idle: <reason>`. **Timing** follows it: when the task started
+   and its ETA, from `started_at` and `eta` (operator, 2026-09-30). Any flag
+   follows at once; a missing or passed ETA is a flag.
 3. **Sensors:** power in watts (the GPU or SoC, and the outlet or input where
    the machine has one), temperature, fans, and CPU busy. **No GPU
-   utilization.**
+   utilization.** On the DGX cluster the wall-outlet reading (gcx) is the
+   most accurate measure of load, so it is always in the heartbeat when it
+   can be read (operator, 2026-09-30).
 4. **Disk:** free space in GB and as a percentage, and the machine's
    threshold.
 5. **PRs:** every open PR, with its merge state and auto-merge.
 6. **Next:** the next task, and why it is next.
 7. **Questions for you:** each decision the operator must make, numbered, with
    its issue; or "none".
+
+The output ends with a signature line, `-- heartbeat <hash> · scripts/...`.
+The hash covers the body. **A Stop hook checks it:** `scripts/heartbeat_gate.py`
+refuses to end a tick turn whose final message has no heartbeat, or one whose
+body differs from its signature. On 2026-09-30 the DGX session hand-wrote its
+08:04 tick and dropped the outlet power, the questions and the timing; the
+M5 Max session reworded its 08:11 tick. Each machine wires the hook in its
+user settings:
+
+```json
+{"hooks": {"Stop": [{"hooks": [{"type": "command",
+  "command": "python3 ~/git/local-llm/scripts/heartbeat_gate.py"}]}]}}
+```
 
 Then add, below the script's output, one line per event since the last
 heartbeat that the operator needs: a completion, a failure, a blocker, an

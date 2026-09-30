@@ -5,7 +5,7 @@ The operator reads one heartbeat every 30 minutes from each machine
 (operator, 2026-09-30):
 
     1. the time, from this machine's clock
-    2. the current task, if any
+    2. the current task, if any, and its timing: when it started, its ETA
     3. sensors: power (W), temperature, fans, CPU busy
     4. free disk, in GB and as a percentage
     5. open PRs
@@ -36,7 +36,18 @@ disagree:
 * **idle, no reason** -- no task, no question for the operator, and no reason
   written: an idle tick must launch work, ask, or say why it may not (opener §3);
 * **loop expiring** -- the session's recurring loop job is near its 7-day
-  expiry.
+  expiry;
+* **no ETA** -- the task lacks `started_at` or `eta`. Every heartbeat says
+  when the current task started and when it should finish (operator,
+  2026-09-30), idle included: an idle task's `eta` is when it ends;
+* **past ETA** -- `eta` has passed and the task has not changed.
+
+Every rendered heartbeat ends with a signature line, `-- heartbeat <hash> ·
+scripts/<name>`, whose hash covers the body. `scripts/heartbeat_gate.py` (a
+Claude Code Stop hook) refuses to end a tick turn whose final message lacks a
+body that matches its signature: on 2026-09-30 the DGX session hand-wrote its
+tick and dropped the outlet power and the questions, although the script
+prints both.
 
 State file (JSON, default ~/.local-llm-bench/heartbeat.json). The session
 writes its half with `--set`; this script adds `heartbeat_at` and
@@ -46,7 +57,11 @@ writes its half with `--set`; this script adds `heartbeat_at` and
      "next": "#737 oMLX release", "notes": ["what changed"],
      "questions": ["#451: approve the 115 GB download?"],
      "expect_by": "2026-09-30T08:10:00-04:00", "log": "~/.local-llm-bench/logs/x.log",
+     "started_at": "2026-09-30T06:05:00-04:00", "eta": "2026-09-30T10:05:00-04:00",
      "loop_armed_at": "2026-09-30T06:40:00-04:00"}
+
+`expect_by` is the deadline of the current wait (a server load, a download);
+`eta` is when the whole task should finish. Both can be set.
 
 Modes:
 
@@ -74,6 +89,7 @@ import argparse
 import contextlib
 import datetime as dt
 import fcntl
+import hashlib
 import json
 import logging
 import os
@@ -241,6 +257,17 @@ def flags(
             "**Idle, no reason:** nothing is running, nothing is asked, and the"
             " task gives no reason. Launch the next task, ask the operator, or"
             ' write why (task: "idle: <reason, until when>").'
+        )
+    if not state.get("started_at") or not state.get("eta"):
+        out.append(
+            "**No ETA:** the task has no `started_at` or no `eta`. Set both with"
+            " --set: when this task started, and when it should finish."
+        )
+    past = minutes_since(state.get("eta"), now)
+    if past is not None and past > 0:
+        out.append(
+            f"**Past ETA:** the task was due {past:.0f} min ago. Diagnose it, or"
+            " set a new `eta` and say why in `notes`."
         )
     loop_age = minutes_since(state.get("loop_armed_at"), now)
     if loop_age is not None and loop_age > LOOP_WARN_DAYS * 1440:
@@ -473,6 +500,87 @@ def log_age(state: dict[str, Any], now: dt.datetime) -> float | None:
 # -- render -------------------------------------------------------------------
 
 
+def _clock(stamp: str | None, now: dt.datetime) -> str | None:
+    """HH:MM in `now`'s zone; with the date when it is not today."""
+    if not stamp:
+        return None
+    try:
+        t = dt.datetime.fromisoformat(stamp)
+    except ValueError:
+        return None
+    if t.tzinfo is None:
+        return None
+    t = t.astimezone(now.tzinfo)
+    return t.strftime("%H:%M" if t.date() == now.date() else "%Y-%m-%d %H:%M")
+
+
+def _span(minutes: float) -> str:
+    m = round(abs(minutes))
+    return f"{m // 60} h {m % 60} min" if m >= 60 else f"{m} min"
+
+
+def format_timing(state: dict[str, Any], now: dt.datetime) -> str:
+    """'started 06:05 (2 h 6 min ago) · ETA 10:05 (in 1 h 54 min)'. Pure."""
+    start, eta = state.get("started_at"), state.get("eta")
+    parts = []
+    s = _clock(start, now)
+    ago = minutes_since(start, now)
+    if s is None or ago is None:
+        parts.append("started not recorded")
+    else:
+        parts.append(f"started {s} ({_span(ago)} ago)")
+    e = _clock(eta, now)
+    left = minutes_since(eta, now)
+    if e is None or left is None:
+        parts.append("ETA not recorded")
+    elif left > 0:
+        parts.append(f"ETA {e} (passed {_span(left)} ago)")
+    else:
+        parts.append(f"ETA {e} (in {_span(left)})")
+    return " · ".join(parts)
+
+
+SIGNATURE = re.compile(
+    r"^-- heartbeat ([0-9a-f]{8}) · (scripts/(?:cluster_)?heartbeat\.py)\b.*$",
+    re.MULTILINE,
+)
+TIME_LINE = re.compile(r"^\*\*\d{4}-\d{2}-\d{2} \d{2}:\d{2}\*\* — ", re.MULTILINE)
+
+
+def body_hash(body: str) -> str:
+    """8 hex digits over the body, blind to trailing spaces and blank lines."""
+    lines = [ln.rstrip() for ln in body.strip().splitlines()]
+    text = "\n".join(ln for ln in lines if ln)
+    return hashlib.sha256(text.encode()).hexdigest()[:8]
+
+
+def sign(body: str, script: str, note: str = "") -> str:
+    """The body and its signature line, which heartbeat_gate.py checks."""
+    tail = f" {note}" if note else ""
+    return f"{body}\n\n-- heartbeat {body_hash(body)} · {script}{tail}"
+
+
+def verify(message: str) -> str | None:
+    """None if `message` carries a signed heartbeat intact; else why not.
+
+    Text above the heartbeat's time line and below its signature is allowed:
+    the opener asks for one line per event under the script's output.
+    """
+    sig = None
+    for sig in SIGNATURE.finditer(message):
+        pass
+    if sig is None:
+        return "no signature line (-- heartbeat <hash> · scripts/...)"
+    head = message[: sig.start()]
+    starts = list(TIME_LINE.finditer(head))
+    if not starts:
+        return "no heartbeat time line above the signature"
+    body = head[starts[-1].start() :]
+    if body_hash(body) != sig.group(1):
+        return "the body does not match its signature: it was edited or hand-written"
+    return None
+
+
 def render(
     now: dt.datetime,
     machine: str,
@@ -494,6 +602,7 @@ def render(
         task += f" · on GPU: {on_gpu}"
     lines = [f"**{now.strftime('%Y-%m-%d %H:%M')}** — {machine}", ""]
     lines.append(f"- **Task:** {task}")
+    lines.append(f"- **Timing:** {format_timing(state, now)}")
     lines += [f"- ⚠ {a}" for a in alerts]
     lines += [f"- **Changed:** {n}" for n in state.get("notes") or []]
     for i, s in enumerate(sensors):
@@ -607,7 +716,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     state = read_state(args.state)
     body, book = gather(args.platform, state, now)
-    logger.info("%s", body)
+    logger.info("%s", sign(body, "scripts/heartbeat.py"))
     if not args.dry_run:
         write_state(
             args.state,
