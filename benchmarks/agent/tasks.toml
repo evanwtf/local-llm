@@ -1967,6 +1967,21 @@ props_url = "http://127.0.0.1:8020"
 context_tokens = 131072
 opencode_model = "llamacpp/qwen3.8-flash-next-iq4xs"
 
+# #3: Devstral Small 2 (Mistral, 24B dense), Q4_K_M via Ollama. The issue
+# named the 2505 build (`devstral:24b`, 46.8% SWE-Bench Verified as reported);
+# the library's newest is Devstral Small 2, so by the always-latest rule this
+# backend runs that. A different lineage from every Qwen/DeepSeek/GLM arm here.
+# 131072 context: a dense 24B at 262k would hold about 43 GB of fp16 KV for
+# prompts our tasks do not reach.
+[backend.devstralsmall2]
+description = "Devstral Small 2 24B, Q4_K_M, via Ollama"
+base_url = "http://127.0.0.1:11434"
+auth_token = "ollama"
+engine = "ollama"
+model = "devstral-small-2:24b"
+context_tokens = 131072
+opencode_model = "ollama/devstral-small-2:24b"
+
 [backend.ornith15]
 description = "Ornith-1.5-35B-A3B, Q4_K_M, via Ollama"
 base_url = "http://127.0.0.1:11434"
