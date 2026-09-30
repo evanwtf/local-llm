@@ -353,6 +353,72 @@ def normalize(row: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
+#: A line carrying this key is a record about the file, not a trial (#305).
+#: The machine header is the one kind so far: firmware and OS facts, written
+#: when a ledger starts and again when they change. `load()` skips every such
+#: line; `header()` returns the one in force at a row.
+RECORD_KEY = "record"
+MACHINE_HEADER = "machine-header"
+
+
+def is_record(obj: Any) -> bool:
+    return isinstance(obj, dict) and RECORD_KEY in obj
+
+
+def header_problems(obj: dict[str, Any]) -> list[str]:
+    """What is wrong with a machine-header record; empty when it holds.
+
+    Four fixed keys, and `facts` a flat object of scalars. `facts` has no
+    schema on purpose: each machine records what it can answer (#305).
+    """
+    if obj.get(RECORD_KEY) != MACHINE_HEADER:
+        return [f"unknown record kind {obj.get(RECORD_KEY)!r}"]
+    problems = [
+        f"{MACHINE_HEADER}: {key} must be {kind.__name__}"
+        for key, kind in (("v", int), ("at", str), ("machine", str), ("facts", dict))
+        if not isinstance(obj.get(key), kind)
+    ]
+    facts = obj.get("facts")
+    if isinstance(facts, dict):
+        problems.extend(
+            f"{MACHINE_HEADER}: facts.{k} is not a scalar"
+            for k, v in facts.items()
+            if not isinstance(v, str | int | float | bool | type(None))
+        )
+    return problems
+
+
+def header(path: pathlib.Path, row: int | None = None) -> dict[str, Any] | None:
+    """The machine header in force at `load(path)[row]`, or the last one.
+
+    None means unknown: the rows before a ledger's first header, and every row
+    of a ledger that has none, were not recorded -- not "no firmware". Never
+    backfill a header over older rows (#305).
+    """
+    path = pathlib.Path(path)
+    if not path.exists():
+        return None
+    current: dict[str, Any] | None = None
+    seen = 0
+    with path.open() as fh:
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                obj = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if is_record(obj):
+                if obj.get(RECORD_KEY) == MACHINE_HEADER:
+                    current = obj
+                continue
+            if row is not None and seen == row:
+                return current
+            seen += 1
+    return current
+
+
 def load(path: pathlib.Path) -> list[dict[str, Any]]:
     """Read every row, normalized to v2 shape in memory.
 
@@ -375,9 +441,14 @@ def load(path: pathlib.Path) -> list[dict[str, Any]]:
             if not line:
                 continue
             try:
-                rows.append(normalize(json.loads(line)))
+                obj = json.loads(line)
             except json.JSONDecodeError:
                 logger.error("%s line %d: unparseable, skipped", path, n)
+                continue
+            # A record about the file is not a trial. Normalized, it would read
+            # as a failed `claude` trial with no `passed` (#305).
+            if not is_record(obj):
+                rows.append(normalize(obj))
     return rows
 
 
