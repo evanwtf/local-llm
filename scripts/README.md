@@ -12,6 +12,7 @@ Each script explains itself in full at the top of its own file -- what it comput
 | `ab_status.py` | any | One status line for a set of decode-A/B run directories. |
 | `archive_pre_dir_rows.py` | any | Move every pre---dir OpenCode row out of results.jsonl into the archive. |
 | `arm_order_effect.py` | any | How much does running second inside a rep cost? (#130) |
+| `audit_labels.py` | any | Check every open issue's labels against the rules the queue depends on. |
 | `backfill_client_version.py` | any | Fill `client_version` on rows that predate it, and only where it is known. |
 | `backfill_gates_inapplicable.py` | any | Mark the Python-gate results on Swift rows as not measured (#46). |
 | `backfill_iso8601.py` | any | Convert existing timestamps to ISO 8601 with an explicit offset. |
