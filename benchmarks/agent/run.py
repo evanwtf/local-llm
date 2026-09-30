@@ -4607,6 +4607,16 @@ def one_trial(
                 replay.track_new_files(worktree)
             diff = git(["diff", "HEAD", "--stat", "--", "tests/"], worktree)
             result["touched_tests"] = bool(diff)
+            # #770 (#55 A/2): did the agent change anything but the tests? A
+            # cell whose failures all left the source as the harness gave it
+            # is a plumbing verdict -- edits never reached the disk -- not a
+            # model that wrote wrong code. HEAD is the starting state for both
+            # kinds of task (the excision is committed; a replay's new files
+            # were just made visible above).
+            edited = git(
+                ["diff", "HEAD", "--stat", "--", ".", ":(exclude)tests/"], worktree
+            )
+            result["edited_source"] = bool(edited)
         # #726: the held-out tests, after touched_tests has judged only what
         # the agent could see. They go back in for this one run and come out
         # again, so the gates, recall and saved patch below read the agent's

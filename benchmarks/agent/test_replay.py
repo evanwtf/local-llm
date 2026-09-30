@@ -356,6 +356,8 @@ def test_a_solved_replay_trial_records_the_verdict_and_recall(
     )
     assert results.verdict(row) is True
     assert row["touched_tests"] is False
+    # #770: a changed file and a created one, both outside tests/.
+    assert row["edited_source"] is True
     assert row["restored_verbatim"] is True
     assert row["replay"]["parent"] == parent
     assert [f["verbatim"] for f in row["replay"]["recall"]] == [True, True]
@@ -374,6 +376,8 @@ def test_a_replay_trial_that_edits_the_test_is_flagged(history, tmp_path, monkey
     )
     row = _trial(repo, commit, tmp_path, dry_run=False, client="cheat", sandbox=False)
     assert row["touched_tests"] is True
+    # #770: it edited only tests/, so the source is as the harness gave it.
+    assert row["edited_source"] is False
     assert results.verdict(row) is False
 
 

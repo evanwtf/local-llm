@@ -143,6 +143,17 @@ and they are narrower than they look:
 Our own measurement is the bar for **publishing** a claim (#59). It is not a
 filter on what is worth trying.
 
+## An outside number carries its own version (#770)
+
+When an outside source calibrates a result — an upstream PR's table, a post, a
+vendor card — write the source's version beside the version under test: the
+engine release or commit the source measured, and the one we ran. A gap
+between "upstream says X t/s" and "we measured Y" means nothing when the two
+ran different releases: ollama#18550's +14–19% prefill shipped in 0.34.4-rc0, so a
+row from an earlier release cannot calibrate against it (#692). When the
+source names no version, say so, and
+treat the comparison as a lead, not a calibration.
+
 ## Stamp every line with the code that produced it
 
 **Never call `logging.basicConfig`. Inside `benchmarks/agent`, call
