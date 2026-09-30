@@ -28,7 +28,8 @@ from __future__ import annotations
 import json
 import pathlib
 import sys
-from collections.abc import Iterable
+import time
+from collections.abc import Callable, Iterable
 from typing import Any
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
@@ -89,21 +90,40 @@ def read_transcript(path: pathlib.Path) -> list[dict[str, Any]]:
     return out
 
 
-def decide(hook: dict[str, Any]) -> str | None:
+def decide(
+    hook: dict[str, Any],
+    *,
+    reader: Callable[[pathlib.Path], list[dict[str, Any]]] = read_transcript,
+    sleep: Callable[[float], None] | None = None,
+    tries: int = 12,
+    pause: float = 0.5,
+) -> str | None:
     """None to allow the stop; else the reason to block it."""
     if hook.get("stop_hook_active"):
         return None
     path = hook.get("transcript_path")
     if not path:
         return None
-    try:
-        entries = read_transcript(pathlib.Path(path).expanduser())
-    except OSError:
-        return None
-    prompt, final = last_turn(entries)
-    if TICK_MARK not in prompt:
-        return None
-    why = hb.verify(final)
+    # The hook can run before Claude Code writes the final message to the
+    # transcript. On 2026-09-30 it read the text before a correct heartbeat
+    # and blocked it. So take the message from the hook's input when it is
+    # there, and otherwise re-read the transcript for a few seconds.
+    nap = sleep or time.sleep
+    given = hook.get("last_assistant_message")
+    why = "no transcript"
+    for attempt in range(tries):
+        if attempt:
+            nap(pause)
+        try:
+            entries = reader(pathlib.Path(path).expanduser())
+        except OSError:
+            return None
+        prompt, final = last_turn(entries)
+        if TICK_MARK not in prompt:
+            return None
+        why = hb.verify(given if isinstance(given, str) else final)
+        if why is None or isinstance(given, str):
+            break
     if why is None:
         return None
     return (

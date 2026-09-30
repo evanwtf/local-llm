@@ -12,6 +12,8 @@ import pathlib
 import subprocess
 import sys
 
+import pytest
+
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "scripts"))
 
 import heartbeat as hb
@@ -20,6 +22,12 @@ import heartbeat_gate as gate
 TICK = "local-llm operator tick: read ~/git/local-llm/hardware/agent-opener-prompt.md"
 NOW = dt.datetime(2026, 9, 30, 8, 4, tzinfo=dt.timezone(dt.timedelta(hours=-4)))
 SCRIPT = pathlib.Path(__file__).resolve().parents[1] / "scripts" / "heartbeat_gate.py"
+
+
+@pytest.fixture(autouse=True)
+def no_naps(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The retries would sleep 5.5 s in every blocking test."""
+    monkeypatch.setattr(gate.time, "sleep", lambda _: None)
 
 
 def signed() -> str:
@@ -104,6 +112,7 @@ def test_a_missing_transcript_allows_the_stop(tmp_path) -> None:
 
 def test_the_hook_exits_2_with_the_reason_on_stderr(tmp_path) -> None:
     hook = transcript(tmp_path, [user(TICK), said("freehand")])
+    hook["last_assistant_message"] = "freehand"  # final as given: no retries
     p = subprocess.run(
         [sys.executable, str(SCRIPT)],
         input=json.dumps(hook),
@@ -123,3 +132,37 @@ def test_the_hook_exits_0_on_bad_input() -> None:
         check=False,
     )
     assert p.returncode == 0
+
+
+def test_a_final_message_written_after_the_hook_starts_is_seen(tmp_path) -> None:
+    """The hook ran before the transcript held the final message and blocked a
+    correct heartbeat (M5 Max, 2026-09-30 08:41). It must re-read."""
+    early = [user(TICK), said("working"), tool_use(), tool_result()]
+    reads = iter([early, early, [*early, said(signed())]])
+    naps: list[float] = []
+    got = gate.decide(
+        {"transcript_path": str(tmp_path / "t.jsonl")},
+        reader=lambda _: next(reads),
+        sleep=naps.append,
+    )
+    assert got is None and naps == [0.5, 0.5]
+
+
+def test_a_hand_written_tick_is_still_blocked_after_the_retries(tmp_path) -> None:
+    entries = [user(TICK), said("freehand")]
+    naps: list[float] = []
+    got = gate.decide(
+        {"transcript_path": "x"}, reader=lambda _: entries, sleep=naps.append, tries=3
+    )
+    assert got is not None and len(naps) == 2
+
+
+def test_the_hooks_own_last_message_wins_over_the_transcript(tmp_path) -> None:
+    stale = [user(TICK), said("working")]
+    hook = {"transcript_path": "x", "last_assistant_message": signed()}
+    naps: list[float] = []
+    assert gate.decide(hook, reader=lambda _: stale, sleep=naps.append) is None
+    assert naps == []
+    bad = hook | {"last_assistant_message": "freehand"}
+    assert gate.decide(bad, reader=lambda _: stale, sleep=naps.append) is not None
+    assert naps == []  # the hook's own text is final; no waiting
