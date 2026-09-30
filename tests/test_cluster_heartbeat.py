@@ -45,7 +45,7 @@ def node(power: float) -> hb.Node:
     return hb.Node(
         disk_free_gb=1267.4,
         disk_total_gb=2000.0,
-        fans=[2100.0],
+        fans=[2142.0],
         util=90,
         power_w=power,
         temp_c=60,

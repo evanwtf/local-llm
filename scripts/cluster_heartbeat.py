@@ -160,7 +160,7 @@ def node_header(name: str, n: Node) -> str:
         return f"**{name}** UNREACHABLE"
     return (
         f"**{name}** {_f(n.power_w, '{:.0f}')} W, {_f(n.temp_c, '{:.0f}')} °C,"
-        f" fans {' / '.join(f'{f:,.0f}' for f in n.fans) + ' rpm' if n.fans else 'n/a'},"
+        f" fans {hb.format_rpm(n.fans)},"
         f" {_f(n.mem_gib, '{:.1f}')} GiB avail"
     )
 

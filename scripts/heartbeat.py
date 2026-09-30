@@ -272,6 +272,14 @@ def _f(v: float | None, fmt: str) -> str:
     return "n/a" if v is None else fmt.format(v)
 
 
+def format_rpm(values: list[float]) -> str:
+    """Fan speeds to the nearest 100 rpm (operator, 2026-09-30): 3,642 -> 3,600.
+    Half rounds up; Python's round() would send 3,650 to 3,600."""
+    if not values:
+        return "n/a"
+    return " / ".join(f"{int(v / 100 + 0.5) * 100:,}" for v in values) + " rpm"
+
+
 def format_sensors(s: Sensors) -> str:
     parts = [f"{s.gpu_label} {_f(s.gpu_w, '{:.0f}')} W"]
     if s.wall_w is not None:
@@ -391,7 +399,7 @@ def read_mac() -> Sensors:
         wall_label="input",
         gpu_c=temp.get("gpu"),
         cpu_c=temp.get("cpu"),
-        fans=[f"{fan[k]:,.0f} rpm" for k in sorted(fan)],
+        fans=[format_rpm([fan[k] for k in sorted(fan)])] if fan else [],
         cpu_busy_pct=parse_top_cpu(
             _run(["top", "-l", "2", "-n", "0", "-s", "1"]) or ""
         ),
