@@ -1,5 +1,13 @@
 # local-llm
 
+[![CI](https://github.com/evanwtf/local-llm/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/evanwtf/local-llm/actions/workflows/test.yml)
+[![no session IDs](https://github.com/evanwtf/local-llm/actions/workflows/no-session-ids.yml/badge.svg)](https://github.com/evanwtf/local-llm/actions/workflows/no-session-ids.yml)
+[![latest release](https://img.shields.io/github/v/release/evanwtf/local-llm?sort=semver)](https://github.com/evanwtf/local-llm/releases)
+[![last commit](https://img.shields.io/github/last-commit/evanwtf/local-llm)](https://github.com/evanwtf/local-llm/commits/main)
+[![commit activity](https://img.shields.io/github/commit-activity/w/evanwtf/local-llm)](https://github.com/evanwtf/local-llm/pulse)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)](pyproject.toml)
+[![License: MIT](https://img.shields.io/github/license/evanwtf/local-llm)](LICENSE)
+
 Find and document the best **model + engine + harness** combination for running
 a coding agent locally, judged on code quality, problem solving, and speed. The
 answer is a combination, not a model: the same weights that are slowest under
@@ -10,11 +18,14 @@ a collection of Python scripts and shell wrappers run from a checkout, plus the
 
 Measurements come from a registered set of machines
 ([hardware/MACHINES.md](hardware/MACHINES.md)): the **M5 Max MacBook Pro**
-(128 GiB, macOS 26), the **DGX Spark** (GB10, 128 GiB, Linux/aarch64), and the
-Ryzen / RTX 3080 Ti desktop. Every number belongs to the machine that produced
-it and is never pooled across machines. The M5 Max is the primary coding-agent
-machine, and the examples below are its; the DGX Spark serves over the LAN and
-has its own recipes (linked below).
+(128 GiB, macOS 26), a **two-node DGX Spark cluster** (2 × GB10, 2 × 128 GiB,
+200 Gb/s RoCE, Linux/aarch64), and the Ryzen / RTX 3080 Ti desktop. Every
+number belongs to the machine that produced it and is never pooled across
+machines. The M5 Max is the primary coding-agent machine, and the examples
+below are its. The cluster serves one model across both nodes to a coding
+agent on another machine, and has its own picks (linked below). Since
+2026-09-30 every DGX test runs on both Sparks together; single-Spark results
+are history.
 
 | axis | what it means | example |
 |---|---|---|
@@ -24,8 +35,8 @@ has its own recipes (linked below).
 
 **Which model should I run?** See
 [RECOMMENDATIONS.md](RECOMMENDATIONS.md) -- current picks for the M5 Max, the
-evidence behind them, and the gaps still open. The DGX Spark's picks are in
-[hardware/Cortex-X925-128GB-GB10/RECOMMENDATIONS.md](hardware/Cortex-X925-128GB-GB10/RECOMMENDATIONS.md).
+evidence behind them, and the gaps still open. The cluster's picks are in
+[hardware/Cortex-X925-128GB-GB10-x2/RECOMMENDATIONS.md](hardware/Cortex-X925-128GB-GB10-x2/RECOMMENDATIONS.md).
 
 ## Usage
 
