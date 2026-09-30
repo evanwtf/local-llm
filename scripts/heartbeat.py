@@ -53,7 +53,7 @@ Modes:
     heartbeat.py                 render, print, record heartbeat_at and tick_at
     heartbeat.py --dry-run       render and print; record nothing
     heartbeat.py --set JSON      merge JSON into the state file
-    heartbeat.py --armed         record loop_armed_at (step 0, after /loop)
+    heartbeat.py --armed         record loop_armed_at and tick_at (step 0)
     heartbeat.py --tick          record tick_at only (the cluster's tick, whose
                                  heartbeat the timer posts)
     heartbeat.py --watchdog      block until the last tick is STALE_HEARTBEAT_MIN
@@ -582,9 +582,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
     stamp = now.isoformat(timespec="seconds")
     if args.tick or args.armed:
-        key = "tick_at" if args.tick else "loop_armed_at"
-        write_state(args.state, {key: stamp}, now, stamp=False)
-        logger.info("%s %s", key, stamp)
+        # --armed is a tick too: step 0 starts the watchdog next, and a state
+        # with no tick_at makes it fire at once (the DGX, 2026-09-30).
+        keys = ["tick_at"] + (["loop_armed_at"] if args.armed else [])
+        write_state(args.state, dict.fromkeys(keys, stamp), now, stamp=False)
+        logger.info("%s %s", " ".join(keys), stamp)
         return 0
     if args.watchdog:
         logger.info("%s", watchdog(args.state, args.stale_min, args.poll_s))

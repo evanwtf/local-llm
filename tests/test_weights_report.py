@@ -156,3 +156,30 @@ def test_the_report_never_deletes() -> None:
     source = (pathlib.Path(w.__file__)).read_text()
     for call in ("unlink(", "rmtree(", "os.remove(", '"rm"', "'rm'"):
         assert call not in source
+
+
+def test_a_symlink_into_another_entry_is_not_a_saving(tmp_path: pathlib.Path) -> None:
+    """LM Studio's Q3_K_XL links into ~/models; its 90 GB was counted twice."""
+    gguf = tmp_path / "models" / "Qwen3.8-Flash-Next-GGUF"
+    (gguf / "UD-Q3_K_XL").mkdir(parents=True)
+    lms = tmp_path / "lmstudio" / "Qwen3.8-Flash-Next-UD-Q3_K_XL"
+    lms.parent.mkdir()
+    lms.symlink_to(gguf / "UD-Q3_K_XL")
+    other = tmp_path / "models" / "REAP320"
+    other.mkdir()
+    a = w.Item("gguf", gguf)
+    b = w.Item("lmstudio", lms)
+    c = w.Item("gguf", other)
+    items = [a, b, c]
+    real = {i: i.path.resolve() for i in items}
+    assert w.link_targets(items, real) == {b: a}
+
+
+def test_two_entries_with_one_real_path_keep_the_first(tmp_path: pathlib.Path) -> None:
+    d = tmp_path / "m"
+    d.mkdir()
+    link = tmp_path / "l"
+    link.symlink_to(d)
+    a, b = w.Item("x", d), w.Item("y", link)
+    real = {i: i.path.resolve() for i in (a, b)}
+    assert w.link_targets([a, b], real) == {b: a}

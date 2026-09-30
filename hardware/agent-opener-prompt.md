@@ -89,7 +89,8 @@ with a ready server (§3, "The failure this loop prevents").
      ends that chain silently. That is exactly how the DGX cluster lost
      2 h 40 min on 2026-09-30.
 2. Record when the loop was armed. A recurring job expires after 7 days, and
-   the heartbeat warns on day 6:
+   the heartbeat warns on day 6. This also records the first tick, which the
+   watchdog needs:
 
    ```sh
    uv run python scripts/heartbeat.py --armed
@@ -415,10 +416,13 @@ Do these in order, every tick:
      the next item that does not. A question never stops the loop.
 6. **The flags.** Act on every flag the preview printed (§3, "Waiting without
    stalling"). A flag is an instruction, not a report.
-7. **The state.** Write what is true now with `heartbeat.py --set`: `task`
-   (issue, model slug, N/M trials, start time), `next`, `notes` (what changed,
-   counts read from the log), `questions`, and for a wait, `expect_by` and
-   `log`. Clear `expect_by` when the wait ends.
+7. **The state.** Write what is true now with `heartbeat.py --set`. Rewrite
+   `task` in full every tick (issue, model slug, N/M trials, start time),
+   even when you changed only another key: the DGX timer posts `task`
+   verbatim, and on 2026-09-30 it showed the previous issue's task beside the
+   new occupant. Also `next`, `notes` (what changed, counts read from the
+   log), `questions`, and for a wait, `expect_by` and `log`. Clear `expect_by`
+   when the wait ends.
 8. **The heartbeat.** End the turn with the §3a heartbeat as your final
    message.
 
