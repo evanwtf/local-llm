@@ -141,19 +141,63 @@ def test_a_ds4_that_is_not_executable_is_named(tmp_path, gguf) -> None:
     assert "not an executable" in coherence_check.check_inputs(tree, [gguf])[0]
 
 
-def test_a_llama_cpp_tree_is_refused_as_an_unsupported_engine(tmp_path, gguf) -> None:
-    """#287: pointing --tree at a llama.cpp checkout used to fail with
-    '<tree>/ds4 is not an executable file', which reads as a missing binary
-    rather than the truth -- this gate runs only ds4, so no llama.cpp-served
-    model can pass it. The refusal must name the engine and #287 so the gap is
-    loud, not silently satisfied."""
+def test_a_llama_cpp_tree_without_llama_completion_is_named(tmp_path, gguf) -> None:
+    """#287: a llama.cpp checkout with only llama-cli used to read as a
+    missing ds4. The refusal names the engine and the target to build."""
     tree = tmp_path / "llama.cpp-upstream"
     (tree / "build" / "bin").mkdir(parents=True)
     (tree / "build" / "bin" / "llama-cli").write_text("#!/bin/sh\n")
     problem = coherence_check.check_inputs(tree, [gguf])[0]
     assert "llama.cpp" in problem
+    assert "llama-completion" in problem
     assert "#287" in problem
     assert "is not an executable file" not in problem
+
+
+def _llama_tree(root: pathlib.Path, rel: str) -> pathlib.Path:
+    binary = root / rel
+    binary.parent.mkdir(parents=True)
+    binary.write_text("#!/bin/sh\n")
+    binary.chmod(0o755)
+    return binary
+
+
+@pytest.mark.parametrize("rel", coherence_check.LLAMA_COMPLETION)
+def test_a_llama_cpp_tree_runs_llama_completion(tmp_path, gguf, rel) -> None:
+    """#287 option 1: dispatch on the tree. A source build and a Homebrew
+    prefix both carry llama-completion; either one passes the input check."""
+    tree = tmp_path / "llama"
+    binary = _llama_tree(tree, rel)
+    assert coherence_check.check_inputs(tree, [gguf]) == []
+    assert coherence_check.engine_of(tree) == ("llama.cpp", binary)
+
+
+def test_the_llama_cpp_command_is_greedy_bounded_and_one_shot(tmp_path, gguf) -> None:
+    """Greedy, a token budget on the generation, and -no-cnv so it exits
+    instead of waiting for a second turn."""
+    tree = tmp_path / "llama"
+    binary = _llama_tree(tree, "build/bin/llama-completion")
+    argv = coherence_check.argv_for(tree, gguf, prompt="hi", tokens=50, ctx=4096)
+    assert argv == [
+        str(binary),
+        "-m",
+        str(gguf),
+        "-p",
+        "hi",
+        "--temp",
+        "0",
+        "-n",
+        "50",
+        "-c",
+        "4096",
+        "-no-cnv",
+    ]
+
+
+def test_ds4_wins_when_a_tree_has_both(tree, gguf) -> None:
+    _llama_tree(tree, "build/bin/llama-completion")
+    argv = coherence_check.argv_for(tree, gguf, prompt="hi", tokens=50, ctx=4096)
+    assert argv[0] == str(tree / "ds4")
 
 
 def test_a_bare_tree_still_reads_as_a_failed_ds4_build(tmp_path, gguf) -> None:

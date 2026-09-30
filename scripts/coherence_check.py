@@ -10,6 +10,14 @@ your own eyes. A benchmark cannot tell prose from gibberish.
 
     uv run python scripts/coherence_check.py ~/models/qwen-Q4_K.gguf
 
+## Two engines, chosen by the tree (#287)
+
+`--tree` picks the engine. A tree with an executable `ds4` runs ds4. A tree
+with `build/bin/llama-completion` (a source build) or `bin/llama-completion`
+(a Homebrew prefix) runs llama.cpp, with `-n` as the token budget and
+`-no-cnv` so it exits after one answer. Ollama-served models are still not
+covered: Ollama has no one-shot CLI that takes a GGUF path.
+
 ## Every refusal happens before the first model loads
 
 The shell looped and let each `ds4` invocation fail on its own, so a typo in
@@ -94,26 +102,46 @@ def other_engine_tree(tree: pathlib.Path) -> tuple[str, str] | None:
     return None
 
 
+#: llama.cpp's one-shot generator, relative to a tree: a source build, or a
+#: Homebrew prefix (`--tree /opt/homebrew`). `llama-completion`, not
+#: `llama-cli`: its own --help gives `-n 128 -no-cnv` for text generation, and
+#: `llama-cli` is the interactive chat tool, which would wait for input (#287).
+LLAMA_COMPLETION = ("build/bin/llama-completion", "bin/llama-completion")
+
+
+def _executable(path: pathlib.Path) -> bool:
+    return path.is_file() and shutil.which(str(path)) is not None
+
+
+def engine_of(tree: pathlib.Path) -> tuple[str, pathlib.Path] | None:
+    """(engine, binary) for a tree this check can run, else None (#287)."""
+    if _executable(tree / "ds4"):
+        return "ds4", tree / "ds4"
+    for rel in LLAMA_COMPLETION:
+        if _executable(tree / rel):
+            return "llama.cpp", tree / rel
+    return None
+
+
 def check_inputs(tree: pathlib.Path, ggufs: Sequence[pathlib.Path]) -> list[str]:
     """Everything wrong that is knowable without loading a model."""
     problems = []
     binary = tree / "ds4"
     if not tree.is_dir():
         problems.append(f"no ds4 tree at {tree}")
-    elif not (binary.is_file() and shutil.which(str(binary))):
-        # A missing ds4 in a ds4 tree is a failed build and says so. A tree that
-        # is plainly a DIFFERENT engine is a different problem: this gate runs
-        # only ds4 (#287), so llama.cpp- and ollama-served models cannot pass it
-        # and must not be recorded as having done so. Name the engine rather
-        # than a missing file, or the gap reads as satisfied.
+    elif engine_of(tree) is None:
+        # A missing ds4 in a ds4 tree is a failed build and says so. A llama.cpp
+        # tree without llama-completion is a different problem: name the
+        # engine and the missing target, not a missing ds4, or the reader looks
+        # for the wrong file (#287).
         other = other_engine_tree(tree)
         if other:
             engine, marker = other
             problems.append(
-                f"{tree} is a {engine} tree (found {marker}), but this coherence "
-                f"check runs only ds4 (#287): {engine}- and ollama-served models "
-                f"are not covered by the #25/#48 gate yet, so do not record them "
-                f"as having passed it"
+                f"{tree} is a {engine} tree (found {marker}) with no executable "
+                f"{' or '.join(LLAMA_COMPLETION)}: this check runs "
+                f"llama-completion, so build it "
+                f"(cmake --build build --target llama-completion) (#287)"
             )
         else:
             problems.append(f"{binary} is not an executable file")
@@ -137,7 +165,27 @@ def argv_for(
 
     `--temp 0` is the whole point: #25's noise was not reproducible under
     sampling, so a check that sampled could not be re-run against a fix.
+    The engine comes from the tree (#287); a tree with neither binary gets
+    ds4's command, and `check_inputs` has already refused it.
     """
+    found = engine_of(tree)
+    if found and found[0] == "llama.cpp":
+        # `-n` bounds the generation, as ds4's `--tokens` does; `-no-cnv`
+        # keeps it one-shot, so it exits instead of waiting for a next turn.
+        return [
+            str(found[1]),
+            "-m",
+            str(gguf),
+            "-p",
+            prompt,
+            "--temp",
+            "0",
+            "-n",
+            str(tokens),
+            "-c",
+            str(ctx),
+            "-no-cnv",
+        ]
     return [
         str(tree / "ds4"),
         "-m",
@@ -163,13 +211,13 @@ def check_one(
     ctx: int,
     timeout: float | None,
 ) -> int:
-    """Run one model and show what it said. Returns ds4's exit status."""
+    """Run one model and show what it said. Returns the engine's exit status."""
     stamp = time.strftime("%Y%m%dT%H%M%S")
     log = log_dir / f"{stamp}-{gguf.stem}.log"
     logger.info("MODEL %s", gguf.name)
     logger.info("log %s", log)
-    # cwd is the ds4 tree: ds4 resolves metal/*.metal relative to its own
-    # tree, so a run started anywhere else loads no Metal kernels.
+    # cwd is the engine's tree: ds4 resolves metal/*.metal relative to its
+    # own tree, so a run started anywhere else loads no Metal kernels.
     status = child.run(
         argv_for(tree, gguf, prompt=prompt, tokens=tokens, ctx=ctx),
         cwd=tree,
@@ -182,7 +230,8 @@ def check_one(
     transcript.info("%s", log.read_text(errors="replace").rstrip())
     transcript.info("")
     if status != 0:
-        logger.error("%s: ds4 exited %d -- read %s", gguf.name, status, log)
+        engine = (engine_of(tree) or ("ds4", tree))[0]
+        logger.error("%s: %s exited %d -- read %s", gguf.name, engine, status, log)
     return status
 
 
