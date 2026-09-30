@@ -1615,8 +1615,10 @@ def agent_env(backend, worktree=None):
         # #780: the sandbox refuses writes to the shared $TMPDIR, so the
         # trial's tools need their own. It sits beside the worktree and goes
         # when the trial directory does.
+        # Recreated empty, so nothing one trial leaves reaches the next.
         private = trial_tmp(worktree)
-        private.mkdir(parents=True, exist_ok=True)
+        shutil.rmtree(private, ignore_errors=True)
+        private.mkdir(parents=True)
         env["TMPDIR"] = str(private)
     if SWIFT_SHIM:
         install_shims()
@@ -2947,9 +2949,22 @@ HOME_WRITABLE = (
 )
 
 
-def trial_tmp(worktree):
-    """The trial's private TMPDIR, beside its worktree (#780)."""
-    return pathlib.Path(worktree).resolve().parent / "tmp"
+#: #780: parent of every trial's private TMPDIR. Outside $HOME on purpose.
+#: The first cut put it beside the worktree, but a stash-layout worktree is the
+#: real checkout (~/git/monitor), so every trial shared ~/git/tmp. That path is
+#: under $HOME, where reads are denied, and `ld` then failed to open its own
+#: object files (batch 0929-780w: swift-scaleladder-snap took 497.8 s against a
+#: 42.8 s median, with 26 `swift build` attempts).
+TRIAL_TMP_ROOT = (
+    pathlib.Path(os.path.realpath(tempfile.gettempdir())) / "agent-bench" / "trial-tmp"
+)
+
+
+def trial_tmp(worktree, root=None):
+    """The trial's private TMPDIR: one per worktree name, outside $HOME (#780)."""
+    return (pathlib.Path(root) if root else TRIAL_TMP_ROOT) / pathlib.Path(
+        worktree
+    ).name
 
 
 def mac_container_sockets(home=None):
@@ -2982,7 +2997,9 @@ def socket_rule_paths(paths):
     return out
 
 
-def sandbox_profile(worktree, repo, home=None, system_tmp=None, sockets=None):
+def sandbox_profile(
+    worktree, repo, home=None, system_tmp=None, sockets=None, tmp_root=None
+):
     """A macOS sandbox profile that hides every other copy of the answer.
 
     #54: OpenCode is not confined to its workspace. `opencode run` is headless,
@@ -3018,7 +3035,8 @@ def sandbox_profile(worktree, repo, home=None, system_tmp=None, sockets=None):
 
     #780, second half: the trial writes only to its worktree, its own TMPDIR
     and HOME_WRITABLE, and cannot connect to a container daemon's socket.
-    `system_tmp` and `sockets` default to the host's; tests pass their own.
+    `system_tmp`, `sockets` and `tmp_root` default to the host's; tests
+    pass their own.
     """
     home = pathlib.Path(home).resolve() if home else pathlib.Path.home()
     keep = str(pathlib.Path(worktree).resolve())
@@ -3089,6 +3107,7 @@ def sandbox_profile(worktree, repo, home=None, system_tmp=None, sockets=None):
         *(home / rel for rel in HOME_READABLE),
         HERE.resolve().parent.parent,
         pathlib.Path(keep),
+        trial_tmp(keep, tmp_root),
     ]:
         for path in readable_targets(entry):
             if path not in readable:
@@ -3121,7 +3140,11 @@ def sandbox_profile(worktree, repo, home=None, system_tmp=None, sockets=None):
         + [f'(allow file-write* ({kind(p)} "{p}"))' for p in writable]
         + [
             f'(allow file-write* (subpath "{keep}"))',
-            f'(allow file-write* (subpath "{trial_tmp(keep)}"))',
+            f'(allow file-write* (subpath "{trial_tmp(keep, tmp_root)}"))',
+            # xcrun ignores TMPDIR and writes its cache beside it, in the
+            # per-user temp dir. Refused, every swift call logged an error
+            # (batch 0929-780w). Only that file name is allowed back.
+            f'(allow file-write* (regex #"^{re.escape(shared_tmp)}/xcrun_db-"))',
         ]
     )
     # #780: container daemons act on the host outside the sandbox.

@@ -46,9 +46,15 @@ def layout(tmp_path: pathlib.Path, home: pathlib.Path) -> dict[str, pathlib.Path
     system_tmp = (tmp_path / "T").resolve()
     worktree = system_tmp / "agent-bench" / "trial-1" / "repo"
     worktree.mkdir(parents=True)
-    trial_tmp = run.trial_tmp(worktree)
-    trial_tmp.mkdir()
-    return {"system_tmp": system_tmp, "worktree": worktree, "trial_tmp": trial_tmp}
+    tmp_root = system_tmp / "agent-bench" / "trial-tmp"
+    trial_tmp = run.trial_tmp(worktree, tmp_root)
+    trial_tmp.mkdir(parents=True)
+    return {
+        "system_tmp": system_tmp,
+        "worktree": worktree,
+        "trial_tmp": trial_tmp,
+        "tmp_root": tmp_root,
+    }
 
 
 def _profile(tmp_path, home, layout, sockets=()) -> pathlib.Path:
@@ -58,6 +64,7 @@ def _profile(tmp_path, home, layout, sockets=()) -> pathlib.Path:
         home=home,
         system_tmp=layout["system_tmp"],
         sockets=sockets,
+        tmp_root=layout["tmp_root"],
     )
     path = tmp_path / "confine.sb"
     path.write_text(profile)
@@ -167,21 +174,73 @@ def test_the_mac_socket_list_covers_the_common_runtimes():
     assert "/Users/x/.colima/default/docker.sock" in listed
 
 
-def test_the_trial_gets_its_own_tmpdir(tmp_path):
+def test_the_trial_gets_its_own_empty_tmpdir(tmp_path, monkeypatch):
+    monkeypatch.setattr(run, "TRIAL_TMP_ROOT", tmp_path / "trial-tmp")
     worktree = tmp_path / "trial-1" / "repo"
     worktree.mkdir(parents=True)
-    env = run.agent_env(
-        {
-            "base_url": "http://127.0.0.1:1",
-            "auth_token": "t",
-            "model": "m",
-            "context_tokens": 1000,
-        },
-        worktree,
-    )
-    assert env["TMPDIR"] == str(run.trial_tmp(worktree))
+    stale = run.trial_tmp(worktree) / "left-by-the-last-trial"
+    stale.parent.mkdir(parents=True)
+    stale.write_text("x")
+    backend = {
+        "base_url": "http://127.0.0.1:1",
+        "auth_token": "t",
+        "model": "m",
+        "context_tokens": 1000,
+    }
+    env = run.agent_env(backend, worktree)
+    assert env["TMPDIR"] == str(tmp_path / "trial-tmp" / "repo")
     assert pathlib.Path(env["TMPDIR"]).is_dir()
-    assert run.trial_tmp(worktree).parent == worktree.resolve().parent
+    assert not stale.exists()
+
+
+def test_a_stash_layout_trial_tmp_is_not_beside_the_checkout():
+    """A stash-layout worktree IS the real checkout, ~/git/monitor. The first
+    cut put the TMPDIR at its parent, so every trial shared ~/git/tmp."""
+    home = pathlib.Path.home()
+    tmp = run.trial_tmp(home / "git" / "monitor")
+    assert not str(tmp).startswith(str(home) + "/")
+    assert tmp != home / "git" / "tmp"
+
+
+@needs_sandbox
+def test_a_stash_layout_trial_can_read_back_its_temp_files(tmp_path, home, layout):
+    """`ld` writes object files to TMPDIR and opens them again. Under $HOME
+    the write was allowed and the read denied, and every swift build failed."""
+    worktree = home / "git" / "monitor"
+    worktree.mkdir(parents=True)
+    trial_tmp = run.trial_tmp(worktree, layout["tmp_root"])
+    trial_tmp.mkdir(parents=True)
+    profile, _ = run.sandbox_profile(
+        worktree,
+        home / "git" / "target",
+        home=home,
+        system_tmp=layout["system_tmp"],
+        sockets=(),
+        tmp_root=layout["tmp_root"],
+    )
+    path = tmp_path / "stash.sb"
+    path.write_text(profile)
+    obj = trial_tmp / "BuildStamp-1.o"
+    script = f"echo obj > {obj} && cat {obj}"
+    result = subprocess.run(
+        [str(SANDBOX_EXEC), "-f", str(path), "/bin/sh", "-c", script],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "obj\n"
+
+
+@needs_sandbox
+def test_only_xcruns_cache_file_may_be_written_to_the_shared_tmp(
+    tmp_path, home, layout
+):
+    profile = _profile(tmp_path, home, layout)
+    ok = _touch(profile, layout["system_tmp"] / "xcrun_db-AbC123")
+    assert ok.returncode == 0, ok.stderr
+    refused = _touch(profile, layout["system_tmp"] / "not-xcrun_db-AbC123")
+    assert refused.returncode != 0
 
 
 def test_the_stamp_records_the_new_policy():
