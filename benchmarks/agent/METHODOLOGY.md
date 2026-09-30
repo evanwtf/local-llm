@@ -617,6 +617,77 @@ the whole interface. Set `context_tokens` to the server's *real* window.
 For Ollama ≤ 0.32.13, point `base_url` at the shim on `:11500` rather than
 Ollama directly; see the repo README.
 
+### Screening a new stack (#762)
+
+Compute time is finite, and a bad model must cost a fraction of a run, not
+three full runs (operator, 2026-09-25 and 2026-09-27). Every new stack goes
+through four stages. The same rule applies on every machine; only the
+thresholds marked "per machine" differ.
+
+**Stage 0: the card screen, before any download.** Read the model card and
+answer each item. A "no" on items 1–3 is a veto; record it on the issue and
+download nothing.
+
+1. **Coding or agentic work is in the card's headline claim.** Vendor
+   benchmark scores are not evidence, but a card that leads with something
+   else (MiMo-V2.6-Flash led with "Native Omnimodal") is flagged.
+2. **The active parameters are under the machine's line (per machine).**
+   Decode reads the active weights once per token on both the GB10 and Apple
+   silicon, so active parameters predict speed better than anything else on a
+   card. No line is fixed yet; the cluster proposal is about 20–25B, and the
+   M5 Max leader is 6B active.
+3. **The best first-party quant fits** in the machine's usable memory and under
+   its download cap (`CONVENTIONS.md`).
+4. Noted, not a veto: weights only from a third party (they need operator
+   approval anyway), and a reasoning effort that defaults to max (large models
+   launch at `low`).
+
+**Stage 1: one full run, with the early stop on.** `run.py` stops a run against
+the leader on the same task set and client in the machine's ledger
+(`benchmarks/agent/screening.py`):
+
+- **Failure stop**, checked after every trial, from the first: at
+  `ceil(0.30 × leader passes)`, with the leader's pass rate scaled to this
+  run's planned trials. A 21/21 replay leader stops a 21-trial run at its 7th
+  failure. A timeout, a failed suite, and a pass that edited the tests are all
+  failures.
+- **Time stop**, once every task has run one trial: at 2× the leader's time on
+  the same (task, trial) pairs. A timeout counts at its full limit.
+- The stop is on by default. `--no-early-stop` is for a leader's own baseline
+  run. Without a leader in the ledger, the run logs that and the stop stays
+  off.
+- **A stop on a first run means "check the configuration" before it means
+  "veto":** the chat template, the reasoning and tool-call parsers, the
+  reasoning effort, the context length, the sampler. It becomes a veto only
+  when a rerun with a checked configuration fails the same way. The abort
+  record says which state it is in.
+- A void run or an infrastructure fault is rerun, never counted as a veto.
+
+**Stage 2: the cut**, after one full run.
+`uv run python scripts/screen_stacks.py --results <ledger>` prints keep, cut or
+screened out per stack, with its numbers:
+
+- **Gate:** a pass rate of 90% or better, and a sum of per-task medians under
+  2× the leader's. A stack that misses either is "screened out after 1 run",
+  not ranked.
+- **Rank** the rest by sum of per-task medians. Keep the fastest 3, and any
+  stack within 25% of the third, up to 5. One run cannot separate stacks that
+  close.
+
+**Stage 3: runs 2 and 3, for kept stacks only.** A stack that was cut or
+screened out gets one line in the machine's RECOMMENDATIONS saying why. On the
+M5 Max, each model or engine runs at most once a week, so Stage 3 there takes
+three weeks (operator, 2026-09-27).
+
+**Why a one-run veto is allowed.** It is a screening decision, not a published
+result: "if it fails every test, or takes 6 hours, there's no point continuing
+to waste time" (operator, 2026-09-25). A ranking between stacks still needs
+three runs.
+
+**Re-entry.** A veto holds for that model on that engine release. A new release
+tag or a fixed recipe starts a new series at Stage 1. A new commit on an engine
+built from git is not a new release.
+
 ### The target repository is on its own branch
 
 `~/git/gmail-archive` sits on **`local-llm-benchmark`**, a branch pinned at
