@@ -2,9 +2,11 @@
 
 > **Superseded 2026-09-22.** A second Spark joined this one as a two-node
 > cluster, and the pair replaced the single box as the DGX lane — there is no
-> single-vs-dual A/B programme and no separate single-Spark queue. Paste
-> [`../Cortex-X925-128GB-GB10-x2/agent-opener-prompt-dgx-cluster.md`](../Cortex-X925-128GB-GB10-x2/agent-opener-prompt-dgx-cluster.md)
-> instead.
+> single-vs-dual A/B programme and no separate single-Spark queue. **Do not
+> paste this file.** Use the stub in
+> [`../agent-opener-prompt.md`](../agent-opener-prompt.md), whose §10 covers
+> the cluster (every machine shares that one opener since 2026-09-30). The
+> heartbeat and loop instructions below are out of date.
 >
 > This file is kept for two reasons: it states the shared rules (unified-memory
 > OOM, launch safety, measurement discipline, ticket operations) at more length

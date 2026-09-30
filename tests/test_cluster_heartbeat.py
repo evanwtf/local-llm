@@ -23,6 +23,8 @@ NOW = dt.datetime(2026, 9, 24, 9, 40, tzinfo=EDT)
 # Captured from the head, 2026-09-24, idle.
 PROBE_IDLE = """gpu=0,3.88,39
 mem_kib=121424384
+disk_total_b=3940000000000
+fan_rpm=1830
 earlyoom=active
 disk_free_b=1267400000000
 links_up=4
@@ -42,6 +44,8 @@ MACHINE_STATE = (
 def node(power: float) -> hb.Node:
     return hb.Node(
         disk_free_gb=1267.4,
+        disk_total_gb=2000.0,
+        fan_rpm=2100,
         util=90,
         power_w=power,
         temp_c=60,
@@ -58,6 +62,8 @@ def test_parse_probe_reads_every_field():
     assert (n.util, n.power_w, n.temp_c) == (0, 3.88, 39)
     assert n.mem_gib == pytest.approx(115.8, abs=0.05)  # 121424384 KiB, a known value
     assert n.disk_free_gb == pytest.approx(1267.4)  # decimal GB, as df -B1 counts
+    assert n.disk_total_gb == pytest.approx(3940.0)
+    assert n.fan_rpm == 1830
     assert (n.earlyoom, n.links_up, n.links_total, n.roce_active) == ("active", 4, 4, 4)
 
 
@@ -111,7 +117,7 @@ def render(state: dict, worker: hb.Node | None = None) -> str:
     )
 
 
-def test_render_opens_with_the_occupant_and_names_both_nodes():
+def test_render_opens_with_the_time_and_names_both_nodes():
     body = render(
         {
             "issue": 711,
@@ -120,16 +126,35 @@ def test_render_opens_with_the_occupant_and_names_both_nodes():
             "updated": NOW.isoformat(),
         }
     )
-    first, header = body.split("\n\n")[:2]
-    assert first == "**Currently on GPU:** vllm pid 12, 104 GiB (#711)"
-    assert header.startswith(
-        "**09:40 EDT** — **head** util 90%, 51W, 60ºC, 13.9 GiB avail"
+    lines = body.splitlines()
+    # the operator's order: time first, then the task (2026-09-30)
+    assert lines[0] == "**2026-09-24 09:40** — DGX cluster"
+    assert lines[2] == "- **Task:** #711 (glm), 3/30 · on GPU: vllm pid 12, 104 GiB"
+    assert (
+        "- **Sensors:** **head** 51 W, 60 °C, fan 2,100 rpm, 13.9 GiB avail"
+        " · **worker** 44 W" in body
     )
-    assert "**worker** util 90%, 44W" in header
+    assert "util" not in body  # utilization is not a heartbeat field
     # both outlets and their sum, always (opener §3a)
-    assert "**outlet** 152W + 143W = 295W pair" in header
-    assert "RoCE 4/4 ACTIVE, RTT 0.43 ms" in header
-    assert "**task** #711 (glm), 3/30" in header
+    assert "**outlet** 152 W + 143 W = 295 W pair (30-min peaks 188 / 182 W)" in body
+    assert "RoCE 4/4 ACTIVE, RTT 0.43 ms" in body
+    order = [
+        "- **Task:**",
+        "- **Sensors:**",
+        "- **Disk:**",
+        "- **PRs:**",
+        "- **Next:** x",
+        "- **Questions for you:**",
+    ]
+    positions = [body.index(o) for o in order]
+    assert positions == sorted(positions)
+
+
+def test_the_2026_09_30_idle_pair_reads_as_idle():
+    """10 W and 14 W is the idle floor. The old 10 W line called it working."""
+    assert hb.gpus_idle(node(10), node(14)) is True
+    assert "idle floor" in hb.power_reason(node(10), node(14), "idle")
+    assert hb.gpus_idle(node(45), node(14)) is False
 
 
 def test_render_reports_an_unreachable_worker():
@@ -155,7 +180,7 @@ def test_render_flags_earlyoom_down():
 
 def test_render_flags_stale_notes():
     old = (NOW - dt.timedelta(minutes=90)).isoformat()
-    assert "last updated 90 min ago" in render({"issue": 711, "updated": old})
+    assert "last updated its task 90 min ago" in render({"issue": 711, "updated": old})
     fresh = NOW.isoformat()
     assert "Stale" not in render({"issue": 711, "updated": fresh})
 
@@ -176,10 +201,10 @@ def test_the_peer_address_is_never_rendered():
 
 def test_render_shows_disk_free_and_flags_it_below_600_gb():
     body = render({"issue": 711})
-    assert "13.9 GiB avail, 1,267 GB disk free" in body
+    assert "- **Disk:** head 1,267 GB (63% free) · worker 1,267 GB (63% free)" in body
     assert "Disk critical" not in body
     w = node(44)
     w.disk_free_gb = 598.0
     low = render({"issue": 711}, worker=w)
-    assert "598 GB disk free **(CRITICAL)**" in low
+    assert "worker 598 GB (30% free) **(CRITICAL)**" in low
     assert "**Disk critical:** worker below 600 GB free" in low

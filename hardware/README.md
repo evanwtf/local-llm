@@ -62,30 +62,41 @@ to `hardware/<id>/`. Per-machine `results.jsonl` files never share a path, so
 two machines never conflict. See CONVENTIONS.md, "One main, machines are
 directories", for why the ledgers are not `merge=union`.
 
-## Openers and the closer
+## The opener and the closer
 
-Each machine directory holds an **opener**, `agent-opener-prompt-<short>.md`:
-the prompt that starts an agent session on that machine. One shared **closer**,
-[`agent-closer-prompt.md`](agent-closer-prompt.md), ends a session on any
-machine and leaves a closer log for the next one (#556, #558).
+One **opener**, [`agent-opener-prompt.md`](agent-opener-prompt.md), starts an
+agent session on any operator machine. The operator pastes its short stub; the
+stub arms the 30-minute loop first, then sends the session to the file. The
+common part applies everywhere, and one section per machine adds what differs.
+One shared **closer**, [`agent-closer-prompt.md`](agent-closer-prompt.md), ends
+a session on any machine and leaves a closer log for the next one (#556, #558).
 
-An opener must keep five rules:
+Until 2026-09-30 each machine had its own opener. The three copies drifted:
+each fixed its heartbeat its own way, and none carried the fix to the others.
+The single-Spark one is kept as history in
+`Cortex-X925-128GB-GB10/history-opener-dgx-spark.md`.
 
-1. **It works from nothing.** Its §1, the opening routine, starts from a
-   machine with no clone, no `~/.local-llm-bench/`, no worktrees, no memory,
-   and no closer log. It does not assume `~/git/local-llm` exists.
-2. **It runs the same routine every time.** Every step is a check followed by
+The opener keeps six rules:
+
+1. **The loop comes first.** Step 0 arms the recurring 30-minute loop before
+   the opening routine, and a watchdog backs it up. A chain of one-shot
+   wakeups is not a loop (the DGX, 2026-09-30).
+2. **It works from nothing.** §1, the opening routine, starts from a machine
+   with no clone, no `~/.local-llm-bench/`, no worktrees, no memory, and no
+   closer log. It does not assume `~/git/local-llm` exists.
+3. **It runs the same routine every time.** Every step is a check followed by
    a fix, and no step is skipped. A new machine, a good close, and a crash all
    go through the same ten steps.
-3. **It reads a closer log but never depends on one.** No log is the normal
+4. **It reads a closer log but never depends on one.** No log is the normal
    case. When there is a log, its claims are checked against the machine.
-4. **The machine beats the documents.** When the machine, the log, and the
+5. **The machine beats the documents.** When the machine, the log, and the
    prompt disagree, trust the machine, then the issue, then `AGENTS.md`, then
    the log.
-5. **It is public.** No hostnames, LAN addresses, or private paths.
+6. **It is public.** No hostnames, LAN addresses, or private paths.
 
-`tests/test_shift_change.py` checks that every opener carries the ten steps
-and links the closer, and that the closer names every opener.
+`tests/test_shift_change.py` checks the step order, the stub, a section for
+every operator machine, and that the closer links the opener and stops the
+loop.
 
 ### A new machine
 
@@ -94,27 +105,19 @@ and links the closer, and that the closer names every opener.
    `uv run python scripts/machines.py` to regenerate `MACHINES.md`. Create its
    `hardware/<id>/` directory and its `hardware:<slug>` GitHub label.
    `tests/test_machines.py` checks that the three agree.
-3. Copy the M5 Max opener as the starting point. Change what is specific to the
-   machine:
-
-   | section | what changes |
-   |---|---|
-   | preamble | the machine, its label, the placeholders |
-   | §0 tool mapping | how to wait, how to find peers, where the metrics come from |
-   | §1 opening routine | the commands in step 2 (reboot), step 4 (servers), and step 9 (queue); keep the ten steps and their order |
-   | §2 hard rules | the machine's first rule and its server tooling |
-   | §3a heartbeat | where each number comes from |
-   | §4 queue | the `hardware:` label and `make_next.py --platform` |
-   | §7 contracts | what is parked or promised on this machine |
-
+3. Add its section to the opener, after the last one, and a row to the
+   machine table in §1, step 1. Give it: the label, what to read, the commands
+   for steps 2, 4, 5, 7 and 9, its hard rules, where its heartbeat readings
+   come from (and a `scripts/heartbeat.py` reader if it needs one), how to
+   record a run's envelope, and its standing contracts.
 4. Add the machine's column to the table of machine commands in the closer,
-   and a row for its opener at the top of the closer.
+   and a row for its section at the top of the closer.
 5. Run the suite. `tests/test_shift_change.py` fails until the opener and the
    closer agree.
 
 ### Rewriting an opener
 
 Take the rules from `AGENTS.md` on `origin/main`, not from memory or from an
-old session. Change a rule in `AGENTS.md` and in the openers in the same PR.
+old session. Change a rule in `AGENTS.md` and in the opener in the same PR.
 Then follow §1 by hand from a scratch clone, and note each step that assumes
 something an earlier session left behind.

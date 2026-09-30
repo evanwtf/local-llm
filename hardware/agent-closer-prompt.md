@@ -2,22 +2,23 @@
 
 This file is a **prompt**. Paste everything below the line into a session you
 are about to end, on any machine in [`MACHINES.md`](MACHINES.md). It is the
-other half of each machine's opener (#556):
+other half of the opener, [`agent-opener-prompt.md`](agent-opener-prompt.md),
+which every machine shares (#556):
 
-| machine | opener |
+| machine | opener section |
 |---|---|
-| M5 Max MacBook Pro | [`agent-opener-prompt-m5-max.md`](MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/agent-opener-prompt-m5-max.md) |
-| dual DGX Spark cluster | [`agent-opener-prompt-dgx-cluster.md`](Cortex-X925-128GB-GB10-x2/agent-opener-prompt-dgx-cluster.md) |
-| DGX Spark (superseded by the cluster above) | [`agent-opener-prompt-dgx-spark.md`](Cortex-X925-128GB-GB10/agent-opener-prompt-dgx-spark.md) |
-| Ryzen / RTX 3080 Ti desktop | [`agent-opener-prompt-ryzen-3080ti.md`](Ryzen9-7900X-32GB-RTX3080Ti-12GB/agent-opener-prompt-ryzen-3080ti.md) |
+| M5 Max MacBook Pro | [§9](agent-opener-prompt.md#9-the-m5-max-macbook-pro-128-gb) |
+| dual DGX Spark cluster | [§10](agent-opener-prompt.md#10-the-dual-dgx-spark-cluster) |
+| Ryzen / RTX 3080 Ti desktop | [§11](agent-opener-prompt.md#11-the-ryzen-9-7900x--rtx-3080-ti-desktop) |
 
 Think of a restaurant crew. At the end of the night the closers clean the
 station and write the log. In the morning the openers read the log, check the
 station for themselves, and start service. A good close leaves the openers
 little to clean up.
 
-**Terms.** The **closer** is this prompt. The **opener** is each machine's
-start prompt, which was called the handoff prompt until #556.
+**Terms.** The **closer** is this prompt. The **opener** is the start prompt
+every machine shares, which was called the handoff prompt until #556 and was
+one file per machine until 2026-09-30.
 
 - **The closer ends a session.** The departing session stops taking new work.
   It accounts for everything in flight, puts each piece in a durable place, and
@@ -51,8 +52,8 @@ knows only what the disk, git, GitHub, and your closer log tell it. Your
 memory of this conversation dies with you. Write down everything the next
 session needs before you stop.
 
-The rules in `AGENTS.md` and in this machine's opener (§2, the hard
-rules) still apply while you close. In particular: no session URLs or IDs
+The rules in `AGENTS.md` and in the opener (§2 and this machine's section)
+still apply while you close. In particular: no session URLs or IDs
 anywhere, nothing private in the public repo, and no commits in a checkout that
 a live run has frozen.
 
@@ -99,7 +100,10 @@ gh pr list --state open --json number,title,headRefName,mergeStateStatus,autoMer
 gh run list --limit 10 --json conclusion,status,headBranch,displayTitle
 ```
 
-In Claude Code, also run `CronList`, `TaskList`, and `ListAgents`. Print the
+In Claude Code, also run `CronList`, `TaskList`, and `ListAgents`, and
+`uv run python scripts/heartbeat.py --dry-run` (the DGX:
+`scripts/cluster_heartbeat.py --dry-run`) for the state the next session will
+read. Print the
 queue with this machine's queue command.
 
 Then go back through this conversation. List every item that is not finished:
@@ -175,7 +179,13 @@ Work that lives only in your context or in an uncommitted file is lost.
   in the log.
 - Release your machine claim if no live run needs it:
   `uv run python scripts/machine_claim.py release`.
-- Delete your heartbeat job (`CronDelete <id>`) and stop your loops.
+- **Stop the loop.** The opener's loop runs until the session ends, the
+  machine reboots, or this step. Delete the tick job (`CronList`, then
+  `CronDelete <id>`), stop the watchdog (`TaskStop`), and say so in the log.
+  Then record the close, so the heartbeat names it instead of flagging an idle
+  machine:
+  `uv run python scripts/heartbeat.py --set '{"task": "idle: session closed, closer log <path>", "questions": []}'`.
+  On the DGX cluster the timer keeps posting with that task.
 - Leave `~/git/local-llm` on `main`. Do not switch it under a live run.
 - Do not run `git stash`, `git clean`, or `git reset --hard` to tidy up.
 
