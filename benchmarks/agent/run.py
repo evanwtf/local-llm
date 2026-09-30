@@ -3141,10 +3141,16 @@ def sandbox_profile(
         + [
             f'(allow file-write* (subpath "{keep}"))',
             f'(allow file-write* (subpath "{trial_tmp(keep, tmp_root)}"))',
-            # xcrun ignores TMPDIR and writes its cache beside it, in the
-            # per-user temp dir. Refused, every swift call logged an error
-            # (batch 0929-780w). Only that file name is allowed back.
-            f'(allow file-write* (regex #"^{re.escape(shared_tmp)}/xcrun_db-"))',
+            # macOS tools use the per-user temp dir whatever TMPDIR says, so
+            # two names in it are allowed back. xcrun writes `xcrun_db-XXXX`
+            # and renames it to `xcrun_db`; refused, every swift call logged
+            # an error (batch 0929-780w). Foundation stages every atomic
+            # write in `TemporaryItems`; refused, the Swift build service
+            # could not write its own manifest.json into the worktree, and
+            # swift-csv-text took 1,102.9 s with 147 `swift build` calls
+            # against 2 to 4 (batch 0929-780w2).
+            f'(allow file-write* (regex #"^{re.escape(shared_tmp)}/xcrun_db"))',
+            f'(allow file-write* (subpath "{shared_tmp}/TemporaryItems"))',
         ]
     )
     # #780: container daemons act on the host outside the sandbox.

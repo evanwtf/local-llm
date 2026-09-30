@@ -233,14 +233,67 @@ def test_a_stash_layout_trial_can_read_back_its_temp_files(tmp_path, home, layou
 
 
 @needs_sandbox
-def test_only_xcruns_cache_file_may_be_written_to_the_shared_tmp(
-    tmp_path, home, layout
+@pytest.mark.parametrize("name", ["xcrun_db-AbC123", "xcrun_db"])
+def test_xcruns_cache_file_may_be_written_to_the_shared_tmp(
+    tmp_path, home, layout, name
 ):
-    profile = _profile(tmp_path, home, layout)
-    ok = _touch(profile, layout["system_tmp"] / "xcrun_db-AbC123")
+    """xcrun writes xcrun_db-XXXX, then renames it to xcrun_db."""
+    ok = _touch(_profile(tmp_path, home, layout), layout["system_tmp"] / name)
     assert ok.returncode == 0, ok.stderr
-    refused = _touch(profile, layout["system_tmp"] / "not-xcrun_db-AbC123")
-    assert refused.returncode != 0
+
+
+@needs_sandbox
+def test_any_other_name_in_the_shared_tmp_is_refused(tmp_path, home, layout):
+    target = layout["system_tmp"] / "not-xcrun_db-AbC123"
+    assert _touch(_profile(tmp_path, home, layout), target).returncode != 0
+
+
+SWIFTC = shutil.which("swiftc") or shutil.which("xcrun")
+
+
+@needs_sandbox
+@pytest.mark.skipif(SWIFTC is None, reason="needs swiftc")
+def test_a_foundation_atomic_write_into_the_worktree_succeeds(tmp_path):
+    """Foundation stages an atomic write in <per-user temp>/TemporaryItems,
+    whatever TMPDIR says. Refused, the Swift build service could not write
+    its manifest into the worktree (batch 0929-780w2). The real per-user
+    temp dir, since that is the one Foundation uses."""
+    src = tmp_path / "aw.swift"
+    src.write_text(
+        "import Foundation\n"
+        'try! "x".write(toFile: CommandLine.arguments[1], atomically: true,'
+        " encoding: .utf8)\n"
+    )
+    binary = tmp_path / "aw"
+    build = subprocess.run(
+        ["xcrun", "swiftc", str(src), "-o", str(binary)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert build.returncode == 0, build.stderr
+    worktree = pathlib.Path(tempfile.mkdtemp(prefix="lllm-780-")).resolve() / "repo"
+    try:
+        worktree.mkdir()
+        profile, _ = run.sandbox_profile(
+            worktree,
+            tmp_path / "home" / "git" / "target",
+            home=tmp_path / "home",
+            sockets=(),
+            tmp_root=tmp_path / "trial-tmp",
+        )
+        path = tmp_path / "real.sb"
+        path.write_text(profile)
+        result = subprocess.run(
+            [str(SANDBOX_EXEC), "-f", str(path), str(binary), str(worktree / "a.txt")],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert result.returncode == 0, result.stderr
+        assert (worktree / "a.txt").read_text() == "x"
+    finally:
+        shutil.rmtree(worktree.parent, ignore_errors=True)
 
 
 def test_the_stamp_records_the_new_policy():
