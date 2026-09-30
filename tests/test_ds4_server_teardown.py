@@ -257,3 +257,55 @@ def test_the_interrupt_waits_for_the_trap_to_be_armed(fake_ps):
     )
     assert state == "stopped"
     assert code != 0
+
+
+def test_an_interrupt_between_two_commands_still_exits_nonzero(fake_ps):
+    """#735: a signal trap's `$?` is the last command's status, not the signal's.
+
+    `kill -INT $$` returns 0, and bash runs the INT trap right after it. The
+    trap used to hand that 0 to the teardown, so an interrupted run exited 0.
+    This is the race the flaky test above hit about 1 run in 3-6, made certain.
+    """
+    code, _, state = run_script(
+        fake_ps,
+        """
+        ds4_arm_stop_trap
+        kill -INT $$
+        echo "not reached"
+    """,
+    )
+    assert state == "stopped"
+    assert code == 130
+
+
+def test_a_terminate_exits_143(fake_ps):
+    code, _, state = run_script(
+        fake_ps,
+        """
+        ds4_arm_stop_trap
+        kill -TERM $$
+        echo "not reached"
+    """,
+    )
+    assert state == "stopped"
+    assert code == 143
+
+
+def test_an_interrupt_still_runs_the_chained_exit_handler(fake_ps):
+    """#735: the INT trap cleared the EXIT trap before exiting.
+
+    So an interrupt skipped the handler `ds4_arm_stop_trap` chained onto --
+    `restart_between_trials.sh` releases the preflight lock there. The signal
+    trap now exits, and the EXIT trap does the whole teardown.
+    """
+    code, _, state = run_script(
+        fake_ps,
+        f"""
+        trap 'echo released > {fake_ps}/lock' EXIT
+        ds4_arm_stop_trap
+        kill -INT $$
+    """,
+    )
+    assert state == "stopped"
+    assert code == 130
+    assert (fake_ps / "lock").read_text().strip() == "released"
