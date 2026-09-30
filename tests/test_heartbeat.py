@@ -285,3 +285,10 @@ def test_armed_records_a_tick_so_the_watchdog_can_start(
     s = hb.read_state(p)
     assert s["tick_at"] == s["loop_armed_at"]
     assert "updated" not in s  # bookkeeping, not the session's progress clock
+
+
+def test_fans_round_to_the_nearest_100_rpm() -> None:
+    # the operator, 2026-09-30: "3642 rpm would just be 3600rpm"
+    assert hb.format_rpm([3642]) == "3,600 rpm"
+    assert hb.format_rpm([3650, 7290, 0]) == "3,700 / 7,300 / 0 rpm"
+    assert hb.format_rpm([]) == "n/a"
