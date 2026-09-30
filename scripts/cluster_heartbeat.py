@@ -283,10 +283,7 @@ def render(
         extra=extra,
         on_gpu=occupant,
     )
-    return (
-        body
-        + "\n\n-- automatic heartbeat (scripts/cluster_heartbeat.py, systemd timer)"
-    )
+    return body
 
 
 def _run(cmd: Sequence[str], timeout: int = 60) -> str:
@@ -391,13 +388,14 @@ def main(argv: Sequence[str] | None = None) -> int:
             stamp=False,
         )
     if args.dry_run or not state.get("issue"):
+        body = hb.sign(body, "scripts/cluster_heartbeat.py")
         print(body)
         if not state.get("issue"):
             logger.warning("no issue in %s; printed instead of posting", args.state)
         return 0
     out = subprocess.run(
         ["gh", "issue", "comment", str(state["issue"]), "--repo", args.repo, "-F", "-"],
-        input=body,
+        input=hb.sign(body, "scripts/cluster_heartbeat.py", "(systemd timer)"),
         capture_output=True,
         text=True,
         timeout=120,

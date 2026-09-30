@@ -62,6 +62,7 @@ Each script explains itself in full at the top of its own file -- what it comput
 | `greedy_mtp_ab.py` | mac | The first ds4 MTP arm that can actually draft, against its own control. |
 | `hardware_id.py` | any | Derive a machine's results-directory name from the machine itself. |
 | `heartbeat.py` | any | Render the 30-minute operator heartbeat, and flag a session that stopped working. |
+| `heartbeat_gate.py` | any | Stop hook: a tick turn must end with the heartbeat script's own output. |
 | `hf_sweep.py` | any | Watch Hugging Face for new quants of the models we actually run. |
 | `hidden_test_candidates.py` | any | Pick a replay task's held-out tests (#726) by measuring each test, not guessing. |
 | `kv_prefix_audit.py` | mac | Measure how much prefill a stalled KV prefix costs (#64, #50). |
