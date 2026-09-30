@@ -322,9 +322,13 @@ def git_drift(repo: pathlib.Path) -> dict[str, Any] | None:
             behind = int(got)
             break
     dirty = _run(["git", "-C", str(repo), "status", "--porcelain"])
-    fetch_head = repo / ".git" / "FETCH_HEAD"
+    # FETCH_HEAD is per worktree, and a worktree's `.git` is a file, so ask git
+    # where this checkout's git dir is. `--git-dir`, never `--git-common-dir`:
+    # the common dir holds the main repo's fetch, a confident wrong age (#259).
+    git_dir = _run(["git", "-C", str(repo), "rev-parse", "--git-dir"])
+    fetch_head = (repo / git_dir / "FETCH_HEAD") if git_dir else None
     age = None
-    if fetch_head.is_file():
+    if fetch_head is not None and fetch_head.is_file():
         age = (time.time() - fetch_head.stat().st_mtime) / 86400
     branch = _run(["git", "-C", str(repo), "rev-parse", "--abbrev-ref", "HEAD"])
     # `_run` falls back to stderr, and `@{u}` on a branch with no upstream
