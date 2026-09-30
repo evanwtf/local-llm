@@ -148,6 +148,7 @@ be drawn from — OpenCode, after the `--dir` cutover, not excluded.
 | `qwen36coding` | `qwen3.6:27b-coding-mxfp8` | Ollama | 31 GB | 24 |
 | `ornith15` | `ornith-1.5:35b` | Ollama | 22 GB | 21 |
 | `gemma4` | `gemma4:31b-mxfp8` | Ollama | 32 GB | 12 |
+| `devstralsmall2` | `devstral-small-2:24b` (Devstral Small 2, Mistral 24B dense, Q4_K_M) — #3 | Ollama | 15 GB | 0 |
 | `ds4anthropic` | DeepSeek-V4-Flash 0731 | ds4 (Anthropic wire) | 90.9 GiB | 18 |
 | `qwen38fnds4shim` | Qwen3.8-Flash-Next DS4-Q4 fast-pack, MTP off | ds4 (via tool shim) | 113 GB | 135 |
 | `qwen38fnds4mtp7shim` | the same fast-pack, MTP `--mtp-draft 7` | ds4 (via tool shim) | 113 GB | 90 |
