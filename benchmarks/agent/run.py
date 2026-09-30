@@ -4331,6 +4331,8 @@ def one_trial(
                     ),
                     "hidden": replay.hide(worktree, hidden),
                 }
+                if drop := task.get("hidden_drop_imports"):
+                    result["hidden"]["drop_imports"] = drop  # #801
                 if left := replay.still_visible(worktree, hidden):
                     raise SystemExit(
                         f"{name}: hidden tests still visible after hiding: {left}"
@@ -4612,7 +4614,11 @@ def one_trial(
         # memory-killed: the row is excluded anyway.
         if "hidden" in result and not result.get("oracle_killed"):
             with replay.hidden_restored(
-                worktree, source, result["hidden"]["ref"], result["hidden"]["tests"]
+                worktree,
+                source,
+                result["hidden"]["ref"],
+                result["hidden"]["tests"],
+                result["hidden"].get("drop_imports", ()),
             ):
                 h_passed, h_summary, h_killed = tests_pass(
                     worktree,

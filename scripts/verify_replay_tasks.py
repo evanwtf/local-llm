@@ -116,7 +116,7 @@ def _check_hidden(
         why.append(f"hidden tests still visible: {', '.join(left)}")
     runs = []
     for _ in range(2):
-        with replay.hidden_restored(tree, source, ref, hidden):
+        with replay.hidden_restored(tree, source, ref, hidden, _drop(task)):
             runs.append(run_tests(tree, command, hidden))
     first, second = runs
     if not _passes(first):
@@ -129,6 +129,11 @@ def _check_hidden(
         "hidden_at": first,
         "hidden_repeat_same": first == second,
     }, why
+
+
+def _drop(task: dict) -> list[str]:
+    """Names the task strips from its held-out file's imports (#801)."""
+    return list(task.get("hidden_drop_imports") or [])
 
 
 def visible_text(task: dict, tree: pathlib.Path) -> str:
@@ -151,7 +156,8 @@ def unseen(
     hidden = {}
     for node in task["hidden_tests"]:
         blob = replay.blob(source, ref, node.split("::")[0])
-        hidden[node] = (blob or b"").decode(errors="replace")
+        text = (blob or b"").decode(errors="replace")
+        hidden[node] = replay.drop_imports(text, _drop(task)) if blob else text
     return replay.unseen_api(hidden, visible_text(task, tree), project)
 
 
@@ -189,7 +195,9 @@ def verify(cfg: dict, task: dict, source: pathlib.Path, work: pathlib.Path) -> d
                 "hidden tests use names the agent cannot read: "
                 + "; ".join(f"{k} ({', '.join(v)})" for k, v in missing.items())
             )
-        with replay.hidden_restored(tree, source, ref, task["hidden_tests"]):
+        with replay.hidden_restored(
+            tree, source, ref, task["hidden_tests"], _drop(task)
+        ):
             got["hidden_after"] = run_tests(tree, command, task["hidden_tests"])
         if got["hidden_after"]["returncode"] == 0:
             why.append("hidden tests still pass after the revert")

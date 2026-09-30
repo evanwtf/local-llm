@@ -839,3 +839,76 @@ def test_the_real_harder_tasks_are_in_their_own_suite():
     for task in cfg["task"]:
         if task.get("hidden_tests") or task.get("span_start"):
             assert replay.suite(task) == "hard", task["name"]
+
+
+# -- #801: a held-out file's module-level imports -------------------------------
+
+HELD_OUT = '''"""Web auth tests."""
+
+from gmail_archive.web.app import _client_id, app
+import pytest
+
+
+class TestLogin:
+    def test_ok(self):
+        assert app
+
+
+class TestThrottle:
+    def test_uses_private(self):
+        assert _client_id
+'''
+
+
+def test_module_imports_are_the_names_a_file_binds_at_the_top():
+    assert replay.module_imports(HELD_OUT) == {"_client_id", "app", "pytest"}
+
+
+def test_a_module_import_the_agent_cannot_read_is_unseen_for_every_test():
+    """#801: the import runs at collection, whichever test is selected."""
+    got = replay.unseen_api(
+        {"t.py::TestLogin::test_ok": HELD_OUT},
+        "from x import app",
+        {"app", "_client_id"},
+    )
+    assert got == {"t.py::TestLogin::test_ok": ["_client_id"]}
+
+
+def test_drop_imports_takes_out_only_the_named_names():
+    out = replay.drop_imports(HELD_OUT, ["_client_id"])
+    assert "from gmail_archive.web.app import app\n" in out
+    assert "_client_id," not in out and "import pytest" in out
+    assert replay.module_imports(out) == {"app", "pytest"}
+
+
+def test_drop_imports_removes_a_statement_left_empty():
+    out = replay.drop_imports("from a import _x\nimport os\n", ["_x"])
+    assert out == "import os\n"
+
+
+def test_drop_imports_with_nothing_to_drop_is_the_identity():
+    assert replay.drop_imports(HELD_OUT, []) == HELD_OUT
+    assert replay.drop_imports(HELD_OUT, ["absent"]) == HELD_OUT
+
+
+def test_a_bad_hidden_drop_imports_is_refused():
+    assert any(
+        "must be a list of names" in e
+        for e in replay.validate(
+            {**GOOD, "hidden_tests": ["t.py"], "hidden_drop_imports": "x"}
+        )
+    )
+    assert any(
+        "without `hidden_tests`" in e
+        for e in replay.validate({**GOOD, "hidden_drop_imports": ["x"]})
+    )
+
+
+def test_hidden_restored_applies_the_drop(tmp_path, monkeypatch):
+    monkeypatch.setattr(replay, "blob", lambda *_: HELD_OUT.encode())
+    target = tmp_path / "tests" / "test_web_auth.py"
+    with replay.hidden_restored(
+        tmp_path, tmp_path, "ref", ["tests/test_web_auth.py"], ["_client_id"]
+    ):
+        assert "_client_id," not in target.read_text()
+    assert not target.exists()

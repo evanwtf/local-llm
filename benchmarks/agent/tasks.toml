@@ -673,6 +673,11 @@ tests = ["tests/test_web_auth.py"]
 # refuses; `scripts/hidden_test_candidates.py --task replay-web-auth --later
 # 46215f2` lists them.
 hidden_ref = "46215f2"
+# The file at 46215f2 also imports `_client_id` at module level, for those
+# three excluded tests. The import alone stopped the whole file collecting,
+# so no hidden test ran for any stack (#801). The grader and the verifier
+# strip it from the restored file.
+hidden_drop_imports = ["_client_id"]
 hidden_tests = [
     "tests/test_web_auth.py::TestDenyByDefault::test_every_data_route_is_protected",
     "tests/test_web_auth.py::TestDenyByDefault::test_static_assets_stay_open",

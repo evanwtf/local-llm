@@ -44,7 +44,7 @@ import difflib
 import pathlib
 import re
 import subprocess
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from typing import Any
 
 KIND = "replay"
@@ -98,6 +98,13 @@ def validate(task: dict[str, Any]) -> list[str]:
             errors.append(
                 f"{name}: replay task restores whole files; `{key}` is for excision"
             )
+    drop = task.get("hidden_drop_imports")
+    if drop is not None and not (
+        isinstance(drop, list) and drop and all(isinstance(d, str) and d for d in drop)
+    ):
+        errors.append(f"{name}: `hidden_drop_imports` must be a list of names")
+    if drop is not None and "hidden_tests" not in task:
+        errors.append(f"{name}: `hidden_drop_imports` without `hidden_tests`")
     for key in ("span_start", "hidden_ref", "suite"):
         if key in task and not (isinstance(task[key], str) and task[key]):
             errors.append(f"{name}: `{key}` must be a non-empty string")
@@ -457,7 +464,11 @@ def still_visible(worktree: pathlib.Path, hidden: list[str]) -> list[str]:
 
 @contextlib.contextmanager
 def hidden_restored(
-    worktree: pathlib.Path, source: pathlib.Path, ref: str, hidden: list[str]
+    worktree: pathlib.Path,
+    source: pathlib.Path,
+    ref: str,
+    hidden: list[str],
+    drop: Sequence[str] = (),
 ) -> Iterator[None]:
     """Put the hidden tests' files back, at `ref`, for the duration.
 
@@ -471,6 +482,8 @@ def hidden_restored(
             content = blob(source, ref, rel)
             if content is None:
                 raise RuntimeError(f"{rel} is not in {ref}")
+            if drop:
+                content = drop_imports(content.decode(), drop).encode()
             path = worktree / rel
             saved[path] = path.read_bytes() if path.exists() else None
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -527,6 +540,52 @@ def project_names(tree: pathlib.Path) -> set[str]:
     return names - {"__init__"}
 
 
+def module_imports(text: str) -> set[str]:
+    """The names a file binds with module-level imports.
+
+    They run when pytest collects the file, whichever test is selected. So a
+    held-out file that imports a name the agent cannot read fails to collect
+    at all, and every held-out test in it reports an error (#801).
+    """
+    out = set()
+    for node in ast.parse(text).body:
+        if isinstance(node, ast.Import | ast.ImportFrom):
+            for alias in node.names:
+                out.add((alias.asname or alias.name).split(".")[-1])
+    return out
+
+
+def drop_imports(text: str, drop: Sequence[str]) -> str:
+    """`text` with the `drop` names taken out of its module-level imports.
+
+    For a held-out file read from a later commit that imports a private name
+    only its excluded tests use (#801). A statement left with no names goes.
+    Tests that call a dropped name must not be in `hidden_tests`; the file
+    still collects, and the dropped name fails only a test that is not run.
+    """
+    if not drop:
+        return text
+    module = ast.parse(text)
+    lines = text.splitlines(keepends=True)
+    for node in reversed(module.body):
+        if not isinstance(node, ast.Import | ast.ImportFrom):
+            continue
+        kept = [
+            a for a in node.names if (a.asname or a.name).split(".")[-1] not in drop
+        ]
+        if len(kept) == len(node.names):
+            continue
+        first, last = node.lineno - 1, node.end_lineno or node.lineno
+        repl = []
+        if kept:
+            node.names = kept
+            repl = [ast.unparse(node) + "\n"]
+        lines[first:last] = repl
+    out = "".join(lines)
+    ast.parse(out)  # a rewrite that breaks the file must fail here, not in a trial
+    return out
+
+
 def names_used(text: str, names: list[str]) -> set[str]:
     """Every identifier one test (or, with no `names`, one file) refers to."""
     module = ast.parse(text)
@@ -560,10 +619,9 @@ def unseen_api(
     out = {}
     for node, text in hidden.items():
         _path, names = _split(node)
+        used = names_used(text, names) | module_imports(text)  # #801
         missing = sorted(
-            n
-            for n in names_used(text, names) & project
-            if not re.search(rf"\b{re.escape(n)}\b", visible)
+            n for n in used & project if not re.search(rf"\b{re.escape(n)}\b", visible)
         )
         if missing:
             out[node] = missing
