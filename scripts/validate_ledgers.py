@@ -29,6 +29,7 @@ sys.path.insert(0, str(REPO / "benchmarks" / "agent"))
 
 import archive_pre_dir_rows as apdr  # is_pre_dir + fixed_commits (unions #355 allowlist)
 import machines
+import results
 
 ARCHIVE = REPO / "docs" / "archive" / "results-opencode-pre-dir.jsonl"
 
@@ -51,9 +52,16 @@ def _parse(path: pathlib.Path) -> tuple[list[dict], list[str]]:
         if not line.strip():
             continue
         try:
-            rows.append(json.loads(line))
+            obj = json.loads(line)
         except json.JSONDecodeError as e:
             errs.append(f"line {i}: malformed JSON ({e})")
+            continue
+        # A machine header is a record about the file, not a row (#305): check
+        # its shape, and keep it out of the duplicate and belonging checks.
+        if results.is_record(obj):
+            errs.extend(f"line {i}: {p}" for p in results.header_problems(obj))
+            continue
+        rows.append(obj)
     return rows, errs
 
 

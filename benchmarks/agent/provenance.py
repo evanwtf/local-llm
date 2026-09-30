@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import functools
 import hashlib
+import json
 import logging
 import pathlib
 import subprocess
@@ -239,8 +240,22 @@ def fingerprint(path: pathlib.Path) -> str:
     if not path.exists():
         return "absent"
     raw = path.read_bytes()
-    rows = raw.count(b"\n")
+    # Lines, less any record about the file (#305): a machine header is not a
+    # row. Only lines naming the key are parsed, so the common case stays a
+    # byte count.
+    records = sum(
+        1 for line in raw.splitlines() if b'"record"' in line and _is_record_line(line)
+    )
+    rows = raw.count(b"\n") - records
     return f"{rows} rows, sha256 {hashlib.sha256(raw).hexdigest()[:12]}"
+
+
+def _is_record_line(line: bytes) -> bool:
+    try:
+        obj = json.loads(line)
+    except ValueError:
+        return False
+    return isinstance(obj, dict) and "record" in obj
 
 
 # --- the banner every script prints -----------------------------------------
