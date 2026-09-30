@@ -236,7 +236,7 @@ SWIFTC = shutil.which("swiftc") or shutil.which("xcrun")
 
 
 @needs_sandbox
-@pytest.mark.skipif(SWIFTC is None, reason="needs swiftc")
+@pytest.mark.skipif(SWIFTC is None, reason="needs a swift toolchain")
 def test_a_foundation_atomic_write_into_the_worktree_succeeds(tmp_path):
     """Foundation stages an atomic write in <per-user temp>/TemporaryItems,
     whatever TMPDIR says. Refused, the Swift build service could not write
