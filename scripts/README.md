@@ -94,6 +94,7 @@ Each script explains itself in full at the top of its own file -- what it comput
 | `paired_ab_report.py` | any | Read out a paired two-arm A/B from the ledger. #240 |
 | `peer_brief.py` | any | Generate the state half of a handoff as Markdown. #160 |
 | `peer_status.py` | any | One deterministic status line for the peer work. #160 |
+| `platform_guard.py` | any | Refuse to run a Metal-lane tool off macOS (#325). |
 | `post_ab_run.py` | any | Post one completed decode-A/B run to a GitHub issue, once. |
 | `prefill_chunk_ab.py` | mac | Paired A/B for one ds4-bench --prefill-chunk value within one tree. #267 |
 | `prefill_depth.py` | any | Cold prefill against appended-token prefill at depth, one ds4 tree. #158 |
