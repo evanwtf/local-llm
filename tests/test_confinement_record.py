@@ -53,12 +53,12 @@ def test_an_unconfined_trial_says_so_explicitly():
     assert record["denied_count"] == 0
 
 
-def test_tmp_and_network_are_recorded_as_unenforced_today():
-    """Both are reachable on both machines right now, and the two #389
-    failures were a `/tmp` write nothing refused. Recording "unenforced" is
-    what stops a later, stricter row being pooled with this one."""
+def test_network_is_recorded_as_unenforced_today():
+    """The network is reachable on both machines right now. Recording
+    "unenforced" is what stops a later, stricter row being pooled with this
+    one. `tmp` was unenforced on macOS too until #780 made it private."""
     record = run.confinement_record("sandbox-exec", ["/x"], 24)
-    assert record["tmp"] == "unenforced"
+    assert record["tmp"] == "private"
     assert record["network"] == "unenforced"
 
 
@@ -116,7 +116,8 @@ def test_the_bwrap_row_records_a_private_tmp():
     """The stamp must distinguish this from the Mac's shared /tmp, or rows
     taken under the two policies get pooled (#477)."""
     assert run.confinement_record("bwrap", ["/x"], 24)["tmp"] == "private"
-    assert run.confinement_record("sandbox-exec", ["/x"], 24)["tmp"] == "unenforced"
+    assert run.confinement_record("sandbox-exec", ["/x"], 24)["tmp"] == "private"
+    assert run.confinement_record("none", [], 24)["tmp"] == "unenforced"
     # Shared on every mechanism today: the server is outside the sandbox.
     assert run.confinement_record("bwrap", ["/x"], 24)["network"] == "unenforced"
 

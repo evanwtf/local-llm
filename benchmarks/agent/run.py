@@ -1611,6 +1611,13 @@ def agent_env(backend, worktree=None):
     # there. A local backend gets only what the trial needs (#780).
     env = trial_env() if backend.get("base_url") else clean_env()
     env["PATH"] = trial_path(env.get("PATH", ""), worktree)
+    if worktree is not None:
+        # #780: the sandbox refuses writes to the shared $TMPDIR, so the
+        # trial's tools need their own. It sits beside the worktree and goes
+        # when the trial directory does.
+        private = trial_tmp(worktree)
+        private.mkdir(parents=True, exist_ok=True)
+        env["TMPDIR"] = str(private)
     if SWIFT_SHIM:
         install_shims()
         env["PATH"] = with_swift_shim(env["PATH"], worktree)
@@ -2918,7 +2925,64 @@ def readable_targets(entry):
     return out
 
 
-def sandbox_profile(worktree, repo, home=None):
+#: #780: where a trial may write under $HOME. Everything else under $HOME,
+#: /private/tmp and the shared $TMPDIR is read-only to it; the worktree and the
+#: trial's own TMPDIR (`trial_tmp`) are added in `sandbox_profile`. On
+#: 2026-09-25 a trial extracted about 18 GB of a personal archive into the
+#: shared $TMPDIR. These are the client's state and the tool caches the trial's
+#: own tools write to. Caches only: nothing here is read back as an answer.
+HOME_WRITABLE = (
+    ".opencode",
+    ".config/opencode",
+    ".local/share/opencode",
+    ".local/state/opencode",
+    ".cache",
+    ".bun",
+    ".npm",
+    ".local/share/uv",
+    ".swiftpm",
+    "Library/Caches",
+    "Library/org.swift.swiftpm",
+    "Library/Developer",
+)
+
+
+def trial_tmp(worktree):
+    """The trial's private TMPDIR, beside its worktree (#780)."""
+    return pathlib.Path(worktree).resolve().parent / "tmp"
+
+
+def mac_container_sockets(home=None):
+    """Container-daemon sockets on macOS, present or not (#780).
+
+    None is installed on the M5 Max today. The rule costs nothing when the
+    socket is absent, and it stays in force if OrbStack or Docker Desktop is
+    installed later, which would otherwise reopen the 2026-09-18 hole
+    silently (see CONTAINER_DAEMON_SOCKETS).
+    """
+    home = pathlib.Path(home) if home else pathlib.Path.home()
+    return [
+        pathlib.Path("/var/run/docker.sock"),
+        home / ".orbstack/run/docker.sock",
+        home / ".docker/run/docker.sock",
+        home / ".colima/default/docker.sock",
+        home / ".colima/docker.sock",
+        home / ".rd/docker.sock",
+        home / ".local/share/containers/podman/machine/podman.sock",
+    ]
+
+
+def socket_rule_paths(paths):
+    """Each socket path, plus where it resolves: the sandbox checks the real one."""
+    out = []
+    for path in paths:
+        for candidate in (str(path), os.path.realpath(path)):
+            if candidate not in out:
+                out.append(candidate)
+    return out
+
+
+def sandbox_profile(worktree, repo, home=None, system_tmp=None, sockets=None):
     """A macOS sandbox profile that hides every other copy of the answer.
 
     #54: OpenCode is not confined to its workspace. `opencode run` is headless,
@@ -2951,6 +3015,10 @@ def sandbox_profile(worktree, repo, home=None):
     rule for an operation, and a rule for `file-read-data` takes precedence
     over one for `file-read*`, so a wildcard deny alone would lose to the
     allows above it (verified on macOS 27).
+
+    #780, second half: the trial writes only to its worktree, its own TMPDIR
+    and HOME_WRITABLE, and cannot connect to a container daemon's socket.
+    `system_tmp` and `sockets` default to the host's; tests pass their own.
     """
     home = pathlib.Path(home).resolve() if home else pathlib.Path.home()
     keep = str(pathlib.Path(worktree).resolve())
@@ -3033,7 +3101,38 @@ def sandbox_profile(worktree, repo, home=None):
         for d in denied
         for op in ("file-read*", "file-read-data")
     ]
-    rules = "\n".join(home_rules + answer_rules)
+    # #780: writes. Deny under $HOME, /private/tmp and the shared $TMPDIR;
+    # allow the tool caches, then the worktree and the trial's own TMPDIR
+    # last, since the last matching rule wins and both sit inside the shared
+    # $TMPDIR. The per-user cache dir beside it (`.../C`) stays writable:
+    # Metal and clang keep their caches there.
+    shared_tmp = os.path.realpath(system_tmp or tempfile.gettempdir())
+    writable = []
+    for entry in (home / rel for rel in HOME_WRITABLE):
+        for path in readable_targets(entry):
+            if path not in writable:
+                writable.append(path)
+    write_rules = (
+        [
+            f'(deny file-write* (subpath "{home}"))',
+            '(deny file-write* (subpath "/private/tmp"))',
+            f'(deny file-write* (subpath "{shared_tmp}"))',
+        ]
+        + [f'(allow file-write* ({kind(p)} "{p}"))' for p in writable]
+        + [
+            f'(allow file-write* (subpath "{keep}"))',
+            f'(allow file-write* (subpath "{trial_tmp(keep)}"))',
+        ]
+    )
+    # #780: container daemons act on the host outside the sandbox.
+    socket_paths = socket_rule_paths(
+        mac_container_sockets(home) if sockets is None else sockets
+    )
+    socket_rules = [
+        f'(deny network-outbound (remote unix-socket (path-literal "{p}")))'
+        for p in socket_paths
+    ]
+    rules = "\n".join(home_rules + answer_rules + write_rules + socket_rules)
     return f"(version 1)\n(allow default)\n{rules}\n", denied
 
 
@@ -3183,7 +3282,7 @@ def bwrap_argv(argv, worktree, repo, denied):
 #:   tmp      -- whether /tmp outside the trial is reachable
 #:   network  -- whether anything but the model server's loopback port is
 #:   memory   -- whether the client dies at a cap, and who enforces it
-CONFINEMENT_DIMENSIONS = ("paths", "tmp", "network", "memory")
+CONFINEMENT_DIMENSIONS = ("paths", "tmp", "writes", "sockets", "network", "memory")
 
 
 def confinement_record(mechanism, denied, memory_cap_gib):
@@ -3213,7 +3312,16 @@ def confinement_record(mechanism, denied, memory_cap_gib):
         "denied_count": len(denied),
         # bwrap gives the trial its own /tmp and /dev/shm; sandbox-exec does
         # not, and an unconfined trial shares the host's (#476).
-        "tmp": "private" if mechanism == "bwrap" else "unenforced",
+        # #780: sandbox-exec now gives the trial its own TMPDIR and refuses
+        # writes to /private/tmp and the shared one.
+        "tmp": "private" if mechanism in ("bwrap", "sandbox-exec") else "unenforced",
+        # #780: writes outside the worktree, the trial's TMPDIR and the tool
+        # caches. Recorded for sandbox-exec only; bwrap's binds are not
+        # audited for this yet.
+        "writes": "allow-list" if mechanism == "sandbox-exec" else "unenforced",
+        # Container-daemon sockets: bwrap covers them (CONTAINER_DAEMON_SOCKETS),
+        # sandbox-exec denies the connect (#780).
+        "sockets": "denied" if mechanism in ("bwrap", "sandbox-exec") else "unenforced",
         # Both mechanisms share the host network namespace today: the model
         # server is outside the sandbox on :8030 (#477).
         "network": "unenforced",

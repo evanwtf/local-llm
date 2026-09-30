@@ -1,0 +1,221 @@
+"""Tests for #780's last two items: private TMPDIR, writes, container sockets.
+
+On 2026-09-25 a trial extracted about 18 GB of a personal mail archive into
+the shared $TMPDIR. #786 closed the read; these close the write and the
+daemon. A trial writes only to its worktree, its own TMPDIR and the tool
+caches, and cannot connect to a container daemon's socket, which would act
+on the host outside the sandbox. Like test_home_read_allowlist.py, the
+sandbox tests run the real profile under `sandbox-exec`, so they check the
+kernel's decision, not the profile's text.
+"""
+
+from __future__ import annotations
+
+import pathlib
+import shutil
+import socket
+import subprocess
+import sys
+import tempfile
+
+import pytest
+
+sys.path.insert(
+    0, str(pathlib.Path(__file__).resolve().parents[1] / "benchmarks" / "agent")
+)
+
+import run
+
+SANDBOX_EXEC = pathlib.Path("/usr/bin/sandbox-exec")
+needs_sandbox = pytest.mark.skipif(
+    not SANDBOX_EXEC.exists(), reason="needs sandbox-exec (macOS)"
+)
+
+
+@pytest.fixture
+def home(tmp_path: pathlib.Path) -> pathlib.Path:
+    root = (tmp_path / "home").resolve()
+    (root / "Downloads").mkdir(parents=True)
+    (root / ".cache" / "uv").mkdir(parents=True)
+    return root
+
+
+@pytest.fixture
+def layout(tmp_path: pathlib.Path, home: pathlib.Path) -> dict[str, pathlib.Path]:
+    """A fake system temp dir holding a trial dir, as `$TMPDIR/agent-bench` does."""
+    system_tmp = (tmp_path / "T").resolve()
+    worktree = system_tmp / "agent-bench" / "trial-1" / "repo"
+    worktree.mkdir(parents=True)
+    trial_tmp = run.trial_tmp(worktree)
+    trial_tmp.mkdir()
+    return {"system_tmp": system_tmp, "worktree": worktree, "trial_tmp": trial_tmp}
+
+
+def _profile(tmp_path, home, layout, sockets=()) -> pathlib.Path:
+    profile, _ = run.sandbox_profile(
+        layout["worktree"],
+        home / "git" / "target",
+        home=home,
+        system_tmp=layout["system_tmp"],
+        sockets=sockets,
+    )
+    path = tmp_path / "confine.sb"
+    path.write_text(profile)
+    return path
+
+
+def _touch(profile: pathlib.Path, target: pathlib.Path) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        [str(SANDBOX_EXEC), "-f", str(profile), "/usr/bin/touch", str(target)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+@needs_sandbox
+def test_a_write_under_home_is_refused(tmp_path, home, layout):
+    target = home / "Downloads" / "extracted.mbox"
+    result = _touch(_profile(tmp_path, home, layout), target)
+    assert result.returncode != 0
+    assert not target.exists()
+
+
+@needs_sandbox
+def test_a_write_to_the_shared_temp_dir_is_refused(tmp_path, home, layout):
+    """The 2026-09-25 extraction landed here."""
+    target = layout["system_tmp"] / "extracted.mbox"
+    result = _touch(_profile(tmp_path, home, layout), target)
+    assert result.returncode != 0
+    assert not target.exists()
+
+
+@needs_sandbox
+def test_a_write_to_slash_tmp_is_refused(tmp_path, home, layout):
+    target = pathlib.Path("/private/tmp") / f"lllm-780-{tmp_path.name}"
+    try:
+        result = _touch(_profile(tmp_path, home, layout), target)
+        assert result.returncode != 0
+        assert not target.exists()
+    finally:
+        target.unlink(missing_ok=True)
+
+
+@needs_sandbox
+@pytest.mark.parametrize("where", ["worktree", "trial_tmp"])
+def test_the_trial_can_write_its_worktree_and_its_tmp(tmp_path, home, layout, where):
+    target = layout[where] / "out.txt"
+    result = _touch(_profile(tmp_path, home, layout), target)
+    assert result.returncode == 0, result.stderr
+    assert target.exists()
+
+
+@needs_sandbox
+def test_a_tool_cache_stays_writable(tmp_path, home, layout):
+    target = home / ".cache" / "uv" / "wheel.txt"
+    result = _touch(_profile(tmp_path, home, layout), target)
+    assert result.returncode == 0, result.stderr
+
+
+@needs_sandbox
+def test_a_container_socket_cannot_be_reached(tmp_path, home, layout):
+    """A daemon acts on the host outside the sandbox (2026-09-18: a trial's
+    `docker compose up` created a root-owned dir at a real repo path)."""
+    short = pathlib.Path(tempfile.mkdtemp(dir="/tmp"))  # AF_UNIX paths are short
+    try:
+        sock_path = short / "docker.sock"
+        server = socket.socket(socket.AF_UNIX)
+        server.bind(str(sock_path))
+        server.listen(1)  # a connect succeeds without accept()
+        profile = _profile(tmp_path, home, layout, sockets=(str(sock_path),))
+        client = (
+            "import socket,sys\n"
+            "s=socket.socket(socket.AF_UNIX)\n"
+            f"s.connect({str(sock_path)!r})\n"
+        )
+        result = subprocess.run(
+            [str(SANDBOX_EXEC), "-f", str(profile), sys.executable, "-c", client],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert result.returncode != 0
+        assert "Operation not permitted" in result.stderr
+        server.close()
+    finally:
+        shutil.rmtree(short, ignore_errors=True)
+
+
+def test_the_socket_rules_name_the_real_path_too(tmp_path):
+    """The sandbox checks the resolved path. OrbStack's /var/run/docker.sock
+    is a symlink into ~/.orbstack, so both names are denied."""
+    real = tmp_path / "real.sock"
+    real.write_text("")
+    link = tmp_path / "link.sock"
+    link.symlink_to(real)
+    paths = run.socket_rule_paths([str(link)])
+    assert str(link) in paths
+    assert str(real.resolve()) in paths
+
+
+def test_the_mac_socket_list_covers_the_common_runtimes():
+    home = pathlib.Path("/Users/x")
+    listed = {str(p) for p in run.mac_container_sockets(home)}
+    assert "/var/run/docker.sock" in listed
+    assert "/Users/x/.orbstack/run/docker.sock" in listed
+    assert "/Users/x/.docker/run/docker.sock" in listed
+    assert "/Users/x/.colima/default/docker.sock" in listed
+
+
+def test_the_trial_gets_its_own_tmpdir(tmp_path):
+    worktree = tmp_path / "trial-1" / "repo"
+    worktree.mkdir(parents=True)
+    env = run.agent_env(
+        {
+            "base_url": "http://127.0.0.1:1",
+            "auth_token": "t",
+            "model": "m",
+            "context_tokens": 1000,
+        },
+        worktree,
+    )
+    assert env["TMPDIR"] == str(run.trial_tmp(worktree))
+    assert pathlib.Path(env["TMPDIR"]).is_dir()
+    assert run.trial_tmp(worktree).parent == worktree.resolve().parent
+
+
+def test_the_stamp_records_the_new_policy():
+    """New values, so rows under this policy never pool with older ones (#477)."""
+    rec = run.confinement_record("sandbox-exec", ["/x"], 24)
+    assert rec["tmp"] == "private"
+    assert rec["writes"] == "allow-list"
+    assert rec["sockets"] == "denied"
+    assert run.confinement_record("none", [], 24)["writes"] == "unenforced"
+    assert run.confinement_record("none", [], 24)["sockets"] == "unenforced"
+
+
+@needs_sandbox
+def test_the_socket_control_connects_without_the_rule(tmp_path, home, layout):
+    """The control for the test above: the same connect, no socket rule."""
+    short = pathlib.Path(tempfile.mkdtemp(dir="/tmp"))
+    try:
+        sock_path = short / "docker.sock"
+        server = socket.socket(socket.AF_UNIX)
+        server.bind(str(sock_path))
+        server.listen(1)
+        profile = _profile(tmp_path, home, layout, sockets=())
+        client = (
+            "import socket\n"
+            "s=socket.socket(socket.AF_UNIX)\n"
+            f"s.connect({str(sock_path)!r})\n"
+        )
+        result = subprocess.run(
+            [str(SANDBOX_EXEC), "-f", str(profile), sys.executable, "-c", client],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert result.returncode == 0, result.stderr
+        server.close()
+    finally:
+        shutil.rmtree(short, ignore_errors=True)
