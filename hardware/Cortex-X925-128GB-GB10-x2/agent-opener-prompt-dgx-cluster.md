@@ -347,6 +347,19 @@ when the timer posts. Then post the **first** heartbeat yourself, with what
 steps 1–9 found and fixed, the fabric numbers from step 2b, and the task you
 are launching now.
 
+**The timer only posts what you last wrote.** It reads `heartbeat.json`; it
+does no work and learns nothing new. If you do not advance the state file and
+act on completions on your own cadence, every post repeats the same stale line
+and the 45-minute flag fires while you believe the heartbeat is "working"
+(2026-09-29: the timer posted on time for 90 minutes while the state said
+"download finishing, ETA 19:09" the whole time — the download was long done).
+So the work tick is not optional and it is not a one-shot watcher: **set the
+recurring `/loop` (or an external cron) the moment the window opens, before the
+first launch**, and never substitute a single background waiter for it — a
+waiter can die silently (see the `pgrep` rule in §2), the recurring tick cannot.
+Every tick, re-read the clock, advance `heartbeat.json`, and act on any finished
+run.
+
 ## 2. Hard rules — never break these
 
 Everything in the single-Spark opener's §2 still applies, **on both nodes**.
@@ -404,6 +417,16 @@ Cluster-specific rules on top:
   [`docs/dgx-cluster-setup.md`](../../docs/dgx-cluster-setup.md).
 - **Do not commit while a run holds the lock**, and do not run `pytest` or
   `ruff` during a measurement, on either node.
+- **Never build a waiter, poller, or completion check on `ps`, `pgrep`, or
+  `grep` of the process table.** The `never pgrep/pkill` rule for servers
+  (step 4) extends to *waiters*: a `pgrep -f <pattern>` matches the watcher's
+  own command line, so `until ! pgrep -f <pattern>; do sleep; done` never exits
+  and the session goes silent while the GPUs sit idle (90 minutes lost this
+  way, 2026-09-29 — the download had finished; only the watcher was stuck).
+  To wait on something, launch it as a `systemd-run --user` unit and poll the
+  unit with `systemctl --user is-active`, or grep the **log's** own
+  start/finish line — never the process list. To ask "is the pair busy", read
+  `scripts/machine_state.py`, not `ps`.
 
 ## 3. The autonomous loop
 
