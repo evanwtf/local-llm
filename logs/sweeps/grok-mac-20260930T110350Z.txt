@@ -1,0 +1,40 @@
+# grok sweep
+# requested window: last 24 hours
+# written:  2026-09-30T11:03:50Z  (local: 2026-09-30 07:03:50 EDT)
+# query:    Search X for posts and replies from @_ARahim_ @0xkydo @0xSero @0xZKnw @13scoobie @alexziskind1 @andresy @angeloskath @antirez @ARahim3 @ashxhart @atomic_chat_hq @AtomicBot @awni @awnihannun @azisk @Badtheorylabs @beamivalice @Beamsters1 @Blaizzy @bleys @bleysg @Brooooook_lyn @Brooooooklyn @davidtai @ddalcu @DiganiJagrit @digitalix @eclaire @Eschalabs @ggerganov @glaforge @googlegemma @Guikingone @ivanfioravanti @jagrit06 @jayleaton @jonathan308 @jundot @jundotkim @Kevrsub @korale77 @ldreisi @liuliu @lmstudio @mitja @MitjaMartini @mweinbach @N8Programs @N8python @no_stp_on_snek @onthehub97 @onthexitter69 @OrcaRouter @Prince_Canuma @rapidmlx @Raullen @raullenchai @redp314 @RevTheD3v @sanchitmonga22 @Sean74695991625 @ShankPeople @Spangler3000 @sudoingX @techowknow @TeksEdge @thdxr @TheDavidTai @TheTom @trebolloc @trycua @trymirai @unslothai @UnslothAI @YJesus @youssofal @Youssofal_ @yukonresearch @zcbenz  in the last 24 hours about local LLM inference on Apple Silicon (MLX, Metal, llama.cpp, ds4, oMLX, mlx-serve, Ollama, M5 Max, M5 Ultra, quantization, speculative decoding, prefix caching, coding agents). Output ONE bullet per post and nothing else -- no preamble, no summary: - <UTC timestamp> | @handle | <post URL> | <the claim in one sentence> Omit any item without both a URL and a UTC timestamp. If nothing matches, output exactly: NO RESULTS
+
+I'll search X for posts and replies from those accounts in the last 24 hours, then keep only items with a URL and UTC timestamp.Several accounts returned hits; I'll search the remaining handles and pull extra posts from the accounts that hit the 10-result cap.- 2026-09-30 11:03:03 UTC | @Beamsters1 | https://x.com/Beamsters1/status/2105252076976742576 | Sushi versions 2 and 2.6 already use the new quantization tuning technique.
+- 2026-09-30 09:33:22 UTC | @ivanfioravanti | https://x.com/ivanfioravanti/status/2105229508156559418 | Plain affine quantization is the bad MLX 4-bit path.
+- 2026-09-30 09:18:33 UTC | @Beamsters1 | https://x.com/Beamsters1/status/2105225779235741756 | Local inference can be benched with `npx llmprobe --bench-only` pointed at the local host.
+- 2026-09-30 08:39:47 UTC | @Beamsters1 | https://x.com/Beamsters1/status/2105216020730564713 | The Sushi MiMo-V2.6-Flash run uses xhigh thinking.
+- 2026-09-30 08:22:28 UTC | @Beamsters1 | https://x.com/Beamsters1/status/2105211664467722712 | MiMo-V2.6-Flash on Sushi is in the same class as the compared model but writes better English.
+- 2026-09-30 08:17:07 UTC | @Beamsters1 | https://x.com/Beamsters1/status/2105210317076922796 | MiMo long-context prefill is steep after 500k tokens, but agentic use with on-disk prefix cache stays usable to 500k.
+- 2026-09-30 07:47:54 UTC | @Beamsters1 | https://x.com/Beamsters1/status/2105202966013813113 | Qwen at 4 bpw needs xhigh thinking on this stack.
+- 2026-09-30 07:38:57 UTC | @ivanfioravanti | https://x.com/ivanfioravanti/status/2105200713756205425 | He is against plain affine MLX 4-bit and says GGUF is another league.
+- 2026-09-30 07:18:08 UTC | @Beamsters1 | https://x.com/Beamsters1/status/2105195474655617337 | Sushi v1.1 runs MiMo-V2.6-Flash at 2.3 bpw on an M5 Max 128GB at 1132 tok/s prefill and 70 tok/s gen with 1M max context.
+- 2026-09-30 07:05:20 UTC | @Beamsters1 | https://x.com/Beamsters1/status/2105192252448682079 | The mlx-serve change lands in 26.9.7 or 26.10.1 if it slips a day.
+- 2026-09-30 06:39:46 UTC | @liuliu | https://x.com/liuliu/status/2105185818382065866 | Affine quants in MLX are the problem, while llama.cpp Q4_K and IQ4_XS 4-bit (and mixed quants) are fine for real use.
+- 2026-09-30 06:37:34 UTC | @ddalcu | https://x.com/ddalcu/status/2105185266944426485 | mlx-serve 26.9.7 will change the charts, and a 27B 4/6/8-bit DFlash2 bench would help.
+- 2026-09-30 06:11:19 UTC | @ivanfioravanti | https://x.com/ivanfioravanti/status/2105178658667119051 | Plain MLX 4-bit quants have never been good enough for real work and get terrible at longer contexts.
+- 2026-09-30 06:10:08 UTC | @ivanfioravanti | https://x.com/ivanfioravanti/status/2105178362842914918 | Pure MLX 4-bit is not good enough for large-context agentic work, and future oMLX will add more quants so comparisons can be fair.
+- 2026-09-30 04:42:17 UTC | @Spangler3000 | https://x.com/Spangler3000/status/2105156255102988683 | The M5 Ultra is a beast.
+- 2026-09-30 04:00:58 UTC | @ddalcu | https://x.com/ddalcu/status/2105145857725305287 | Local Qwen on an M5 Ultra built a game in 49 seconds and he prefers it to cloud for speed.
+- 2026-09-30 03:43:34 UTC | @Beamsters1 | https://x.com/Beamsters1/status/2105141475646558597 | Sushi4 is currently best for quality and memory, unless you want about 15% more speed from a 4/8-bit mlx-serve pack.
+- 2026-09-30 03:26:13 UTC | @ddalcu | https://x.com/ddalcu/status/2105137109044764682 | He will keep old Macs around for 24/7 local testing.
+- 2026-09-30 00:29:55 UTC | @ddalcu | https://x.com/ddalcu/status/2105092743806566855 | He posted a photo of his local Mac inference machine.
+- 2026-09-30 00:23:04 UTC | @ddalcu | https://x.com/ddalcu/status/2105091017837862964 | M5 Ultra cooling is enough with fans kicking in at 60C, and he may add an optional fan-control toggle to mlx-serve.
+- 2026-09-30 00:06:28 UTC | @Beamsters1 | https://x.com/Beamsters1/status/2105086843465470455 | Latest Qwen3.8-Flash-Next prefill is running on MLX-Serve.
+- 2026-09-30 00:01:53 UTC | @ddalcu | https://x.com/ddalcu/status/2105085687867318633 | M5 Ultra local-inference numbers are looking good.
+- 2026-09-30 00:00:35 UTC | @ddalcu | https://x.com/ddalcu/status/2105085360158200190 | He had to fix his mlx-serve bench and is not done yet.
+- 2026-09-29 21:20:13 UTC | @ddalcu | https://x.com/ddalcu/status/2105045004129390746 | A LiquidAI model needs to be added to MLX-Serve and may be the best one.
+- 2026-09-29 18:16:26 UTC | @ivanfioravanti | https://x.com/ivanfioravanti/status/2104998754692612185 | He will present local AI on Apple Silicon at a business event.
+- 2026-09-29 18:04:33 UTC | @mweinbach | https://x.com/mweinbach/status/2104995762388025821 | Most of the workload he describes is on an M5 Ultra and he is happy with it.
+- 2026-09-29 18:00:38 UTC | @mweinbach | https://x.com/mweinbach/status/2104994775627862527 | The M5 Ultra’s CPU plus GPU makes it more valuable as a machine you can delegate coding agents to than as a desk-only inference GPU.
+- 2026-09-29 16:25:24 UTC | @YJesus | https://x.com/YJesus/status/2104970809173324171 | He will run before/after oQ4 numbers on an M3 Ultra 256GB when the change lands.
+- 2026-09-29 16:22:18 UTC | @YJesus | https://x.com/YJesus/status/2104970029943173492 | On TensorFold, Flash Next reads prompts at about 1,000 tok/s while GLM-5.3 is about 400 tok/s.
+- 2026-09-29 16:07:14 UTC | @YJesus | https://x.com/YJesus/status/2104966240314048551 | TensorFold mixed-precision on MLX is GLM-only for now, so Flash Next should stay on uniform 4-bit-MTP.
+- 2026-09-29 15:32:01 UTC | @YJesus | https://x.com/YJesus/status/2104957378311462984 | After a config.json mlp_layer_types trim, GLM-5.3-Flash-MLX-oQ4-MTP on TensorFold 0.3.6 on an M3 Ultra 256GB runs about 42–45 tok/s with thinking at 45–165k context and about 400 tok/s prefill.
+- 2026-09-29 14:42:39 UTC | @digitalix | https://x.com/digitalix/status/2104944953747034555 | He added a three-way TensorFold comparison that includes his M5 Ultra run.
+- 2026-09-29 13:39:42 UTC | @ldreisi | https://x.com/ldreisi/status/2104929113303552402 | He wants a model he can run on an M5 Max MacBook that matches Sonnet 5.5.
+- 2026-09-29 13:15:51 UTC | @Spangler3000 | https://x.com/Spangler3000/status/2104923110394990653 | The M5 Ultra was at full load with the GPU at 80C.
+- 2026-09-29 12:41:00 UTC | @ddalcu | https://x.com/ddalcu/status/2104914337148063902 | MiMo Qwen 9B punches above its weight for coding, and Pi agent is the better coding harness with MLX-Serve.app than the built-in Swift tools list because of prefill cost.
