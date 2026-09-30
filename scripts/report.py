@@ -295,6 +295,29 @@ def untouched_cells(by_cell):
     return suspect
 
 
+def unedited_cells(by_cell):
+    """Cells whose failures all left the source unedited (#770, #55 A/2).
+
+    `edited_source` says whether `git diff HEAD` showed any change outside
+    tests/ after the agent ran. When every failed trial in a cell changed
+    nothing, the failures say the edits never reached the disk -- the client,
+    its tools or the sandbox -- not that the model wrote wrong code. A cell
+    with no failures is not flagged: an all-pass cell has passed == edited on
+    every trial, and that is not plumbing. Rows from before the field, and
+    excluded rows, are not judged. Returns (backend, task, failures, trials),
+    counted over the rows that carry the field.
+    """
+    suspect = []
+    for (backend, task), rows in by_cell.items():
+        judged = [
+            r for r in rows if "edited_source" in r and not results.is_excluded(r)
+        ]
+        failed = [r for r in judged if not results.verdict(r)]
+        if failed and not any(r["edited_source"] for r in failed):
+            suspect.append((backend, task, len(failed), len(judged)))
+    return suspect
+
+
 def render(by_cell, backends) -> list[str]:
     tasks = sorted({task for _, task in by_cell})
     out = [f"| task | {' | '.join(backends)} |", "|---" * (len(backends) + 1) + "|"]
@@ -528,6 +551,24 @@ def main() -> int:
         )
         for backend, task, out in untouched:
             logger.warning("  %s %s: %s", backend, task, out[:80])
+
+    # #770 (#55 A/2): failures that edited nothing are plumbing, not a model.
+    unedited = unedited_cells(by_cell)
+    if unedited:
+        logger.warning("")
+        logger.warning(
+            "%d cell(s) failed only by EDITING NOTHING -- every failed trial left "
+            "the source unchanged, so the edits never reached the disk (#770):",
+            len(unedited),
+        )
+        for backend, task, failures, trials in unedited:
+            logger.warning(
+                "  %s %s: %d of %d trials failed, none edited the source",
+                backend,
+                task,
+                failures,
+                trials,
+            )
 
     # #55 A4: saturation is not excellence. A 100% cell says the task is too
     # easy for this backend to fail, which is a property of the task, not the

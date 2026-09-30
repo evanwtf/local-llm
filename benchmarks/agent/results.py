@@ -98,6 +98,9 @@ OPTIONAL: dict[str, type | tuple[type, ...]] = {
     # hidden_verdict().
     "hidden": dict,
     "hidden_passed": bool,
+    # #770. Whether `git diff HEAD` shows any change outside tests/ after the
+    # agent ran. Absent on script tasks and on every row before it.
+    "edited_source": bool,
 }
 
 

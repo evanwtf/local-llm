@@ -101,6 +101,7 @@ def test_a_solved_trial_records_a_verdict_and_every_measurement(
     assert row["control_fails_as_expected"] is True
     assert results.verdict(row) is True
     assert row["touched_tests"] is False
+    assert row["edited_source"] is True
     assert row["source_repo_intact"] is True
 
     # Restoring the original file byte for byte is exactly what recall looks
