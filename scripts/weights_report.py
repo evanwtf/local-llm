@@ -118,6 +118,26 @@ def verdict(f: Facts) -> tuple[str, str]:
     return UNKNOWN, "no backend, ledger row, or issue names it"
 
 
+def link_targets(items: list[Item], real: dict[Item, pathlib.Path]) -> dict[Item, Item]:
+    """Entries whose real path lies inside another entry's: deleting one frees
+    nothing. LM Studio's `Qwen3.8-Flash-Next-UD-Q3_K_XL` is a symlink into
+    `~/models/Qwen3.8-Flash-Next-GGUF`, and the report once listed its 90 GB
+    as a second saving (2026-09-30). Of two entries with one real path, the
+    first is kept. Pure: `real` maps each entry to its resolved path."""
+    out: dict[Item, Item] = {}
+    order = [i for i in items if i in real]
+    for n, item in enumerate(order):
+        r = real[item]
+        for m, other in enumerate(order):
+            if other is item:
+                continue
+            ro = real[other]
+            if ro in r.parents or (ro == r and m < n):
+                out[item] = other
+                break
+    return out
+
+
 def repo_id(path: pathlib.Path) -> str:
     """`org/name` for a Hugging Face cache dir `models--org--name`, else ''."""
     if not path.name.startswith(HF_PREFIX):
@@ -289,6 +309,8 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     items = inventory()
+    aliases = link_targets(items, {i: i.path.resolve() for i in items if not i.ollama})
+    items = [i for i in items if i not in aliases]
     backends = tomllib.loads((REPO / "benchmarks/agent/tasks.toml").read_text())[
         "backend"
     ]
@@ -368,6 +390,12 @@ def main(argv: list[str] | None = None) -> int:
                 )
             if cmd := reacquire(item):
                 logger.info("    re-download: %s", cmd)
+
+    if aliases:
+        logger.info("")
+        logger.info("## Links: %d entries; deleting one frees nothing", len(aliases))
+        for link, target in aliases.items():
+            logger.info("- %s -> inside %s", link.path, target.path)
 
     logger.info("")
     logger.info("## Totals by root")

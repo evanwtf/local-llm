@@ -274,3 +274,14 @@ def test_concurrent_writers_lose_no_update(tmp_path: pathlib.Path) -> None:
 def _write_key(path: str, key: str) -> None:
     for n in range(20):
         hb.write_state(pathlib.Path(path), {key: n}, NOW, stamp=False)
+
+
+def test_armed_records_a_tick_so_the_watchdog_can_start(
+    tmp_path: pathlib.Path,
+) -> None:
+    """With no tick_at the watchdog fires at once (the DGX, 2026-09-30)."""
+    p = tmp_path / "hb.json"
+    assert hb.main(["--state", str(p), "--armed"]) == 0
+    s = hb.read_state(p)
+    assert s["tick_at"] == s["loop_armed_at"]
+    assert "updated" not in s  # bookkeeping, not the session's progress clock
