@@ -219,6 +219,24 @@ def machine_lock(what: str, owner_pid: int, preflight_module: object) -> Iterato
         logger.info("machine lock released=%s: %s", released, why)
 
 
+@contextlib.contextmanager
+def sweep_window(out: pathlib.Path, tag: str) -> Iterator[None]:
+    """Record `tag HH:MM:SS HH:MM:SS` in `out/sweep-order.txt` around one arm.
+
+    `sensor_windows.py <out>/sweep-order.txt <sensors.csv>` reads it directly,
+    so every A/B carries its thermal trace (#367). `run-order.txt` keeps the
+    order and position; it has no times. The window is written even when the
+    arm fails: the trace matters most for the arm that died.
+    """
+    start = datetime.datetime.now().astimezone().strftime("%H:%M:%S")
+    try:
+        yield
+    finally:
+        finish = datetime.datetime.now().astimezone().strftime("%H:%M:%S")
+        with (out / "sweep-order.txt").open("a") as handle:
+            handle.write(f"{tag} {start} {finish}\n")
+
+
 def stamp() -> str:
     """A local, timezone-aware stamp for a log directory name.
 

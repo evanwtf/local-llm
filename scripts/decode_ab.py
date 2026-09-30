@@ -306,21 +306,22 @@ def sweep(
         # ds4-bench resolves metal/*.metal relative to its own tree, so run
         # from there. Without this it dies with
         # "metal/activations.metal not found".
-        rc = child.run(
-            bench_argv(
-                pathlib.Path(arm.backend),
-                csv,
-                prompt,
-                binary=binary,
-                ctx_start=ctx_start,
-                ctx_max=ctx_max,
-                step=step,
-                gen=gen,
-                chunk=chunk,
-            ),
-            cwd=ds4,
-            log=log,
-        )
+        with ab_driver.sweep_window(out, f"{arm.name}-rep{rep}"):
+            rc = child.run(
+                bench_argv(
+                    pathlib.Path(arm.backend),
+                    csv,
+                    prompt,
+                    binary=binary,
+                    ctx_start=ctx_start,
+                    ctx_max=ctx_max,
+                    step=step,
+                    gen=gen,
+                    chunk=chunk,
+                ),
+                cwd=ds4,
+                log=log,
+            )
         if rc != 0:
             logger.error("FAILED: %s rep %d -- see %s", arm.name, rep, log)
             for line in log.read_text(errors="replace").splitlines()[-20:]:

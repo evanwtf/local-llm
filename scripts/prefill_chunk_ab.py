@@ -211,21 +211,22 @@ def sweep(
             chunk,
             csv,
         )
-        rc = child.run(
-            decode_ab.bench_argv(
-                gguf,
-                csv,
-                prompt,
-                binary=tree / "ds4-bench",
-                ctx_start=ctx_start,
-                ctx_max=ctx_max,
-                step=step,
-                gen=gen,
-                chunk=chunk,
-            ),
-            cwd=tree,
-            log=log,
-        )
+        with ab_driver.sweep_window(out, f"{arm.name}-rep{rep}"):
+            rc = child.run(
+                decode_ab.bench_argv(
+                    gguf,
+                    csv,
+                    prompt,
+                    binary=tree / "ds4-bench",
+                    ctx_start=ctx_start,
+                    ctx_max=ctx_max,
+                    step=step,
+                    gen=gen,
+                    chunk=chunk,
+                ),
+                cwd=tree,
+                log=log,
+            )
         if rc != 0:
             logger.error("FAILED: %s rep %d -- see %s", arm.name, rep, log)
             for line in log.read_text(errors="replace").splitlines()[-20:]:

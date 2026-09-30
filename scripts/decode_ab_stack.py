@@ -226,7 +226,8 @@ def sweep(
         # ds4-bench with it (#268). cwd=tree: ds4-bench resolves metal/*.metal
         # relative to its own tree, so running both arms from one tree would
         # silently compare a build against itself (#118).
-        rc = child.run(argv, cwd=tree, log=log)
+        with ab_driver.sweep_window(out, f"{arm.name}-rep{rep}"):
+            rc = child.run(argv, cwd=tree, log=log)
         if rc != 0:
             logger.error("FAILED: %s rep %d -- see %s", arm.name, rep, log)
             for line in log.read_text(errors="replace").splitlines()[-20:]:
