@@ -95,7 +95,7 @@ MACHINES: tuple[Machine, ...] = (
         memory="128 GiB unified",
         tier="gb10-spark",
         classes=("platform:Nvidia",),
-        note="DGX Spark; unified memory, so a VRAM-based judgement does not apply. Now node A of the dual-Spark cluster: it keeps this ledger for single-node results, but its work queue moved to Cortex-X925-GB10-x2 (#646)",
+        note="DGX Spark; unified memory, so a VRAM-based judgement does not apply. Now node A of the dual-Spark cluster: its single-node ledger is closed: from 2026-09-30 every DGX test, a single-Spark idea included, runs on both Sparks as the Cortex-X925-GB10-x2 cluster (operator; #646)",
     ),
     Machine(
         slug="Cortex-X925-GB10-x2",

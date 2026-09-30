@@ -91,7 +91,7 @@ work**:
 | the work | platform | machine label |
 |---|---|---|
 | Metal / MLX / oMLX / ds4-metal, M5 Max thermals | `platform:macOS` | `hardware:M5-Max-128GB` |
-| CUDA / vLLM / TRT-LLM / SGLang / NVFP4, GB10 ops, the DGX's OOM layers | `platform:Nvidia` | `hardware:Cortex-X925-GB10` |
+| CUDA / vLLM / TRT-LLM / SGLang / NVFP4, GB10 ops, the DGX's OOM layers | `platform:Nvidia` | `hardware:Cortex-X925-GB10-x2` (the cluster; the single-Spark `hardware:Cortex-X925-GB10` is retired, #646) |
 | the Ryzen / RTX 3080 Ti desktop | `platform:Nvidia` | that machine's `hardware:` slug (`hardware/MACHINES.md`) |
 | genuinely both (a model to measure on each, a cross-machine doc) | both platform labels | both machine labels |
 | repo, CI, harness code that runs anywhere | none | none — a type label instead |
