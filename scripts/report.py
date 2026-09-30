@@ -530,6 +530,15 @@ def main() -> int:
             cheats,
             retired,
         )
+    # #801: re-graded held-out verdicts, applied to the rows they match by
+    # patch sha256. The ledger is never rewritten; the record says why.
+    rows, regraded = results.apply_hidden_rescores(rows)
+    if regraded:
+        logger.info(
+            "  hidden: %d row(s) re-graded from %s (#801)",
+            regraded,
+            results.RESCORES.name,
+        )
     rows = window(rows, args.since, args.until)
     by_cell = cells(rows, set(args.backend), args.client)
     if not by_cell:

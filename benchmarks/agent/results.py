@@ -24,6 +24,7 @@ Schema v2 rules, for rows written from 2026-08-28:
 
 from __future__ import annotations
 
+import datetime
 import json
 import logging
 import pathlib
@@ -499,6 +500,67 @@ def hidden_verdict(row: dict[str, Any]) -> bool | None:
     if row.get("control_fails_as_expected") is False:
         return False
     return row.get("hidden_passed") is True
+
+
+#: Re-graded held-out verdicts, append-only (scripts/rescore_hidden.py, #801).
+RESCORES = pathlib.Path(__file__).resolve().parent / "rescores" / "hidden.jsonl"
+
+
+def _rescore_key(row: dict[str, Any]) -> tuple[Any, ...]:
+    return (
+        row.get("backend"),
+        row.get("task"),
+        row.get("trial"),
+        row.get("started"),
+        row.get("solution_sha256"),
+    )
+
+
+def apply_hidden_rescores(
+    rows: list[dict[str, Any]], path: pathlib.Path = RESCORES
+) -> tuple[list[dict[str, Any]], int]:
+    """Rows with each re-graded held-out verdict applied, and how many (#801).
+
+    A record applies only to the row with the same backend, task, trial,
+    start time and patch sha256: a patch file a later trial overwrote graded
+    that trial, not this one, and `rescore_hidden.py` refuses it on the same
+    key. The newest record for a row wins. Matching rows are copied, never
+    mutated; `hidden.rescored` carries when, why, and what the verdict was.
+    The ledger itself is never rewritten.
+    """
+    newest: dict[tuple[Any, ...], dict[str, Any]] = {}
+    path = pathlib.Path(path)
+    if path.exists():
+        for line in path.read_text().splitlines():
+            if not line.strip():
+                continue
+            rec = json.loads(line)
+            key = _rescore_key(rec["row"])
+            if key[-1] is None:
+                continue
+            old = newest.get(key)
+            if old is None or _parse_ts(rec["rescored_at"]) > _parse_ts(
+                old["rescored_at"]
+            ):
+                newest[key] = rec
+    out, applied = [], 0
+    for row in rows:
+        rec = newest.get(_rescore_key(row)) if row.get("solution_sha256") else None
+        if rec is None:
+            out.append(row)
+            continue
+        hidden = dict(row.get("hidden") or {})
+        hidden["counts"] = rec["hidden_counts"]
+        hidden["rescored"] = {
+            k: rec.get(k) for k in ("rescored_at", "reason", "was", "harness_head")
+        }
+        out.append(row | {"hidden": hidden, "hidden_passed": rec["hidden_passed"]})
+        applied += 1
+    return out, applied
+
+
+def _parse_ts(value: str) -> datetime.datetime:
+    return datetime.datetime.fromisoformat(value)
 
 
 def trials(path: pathlib.Path) -> list[dict[str, Any]]:
