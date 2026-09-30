@@ -279,7 +279,7 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 
 ### MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A
 
-*Generated from `hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/results.jsonl` — 4754 rows, sha256 446579a9fbc5.*
+*Generated from `hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/results.jsonl` — 4798 rows, sha256 d52a1d512b2b.*
 
 #### Every stack measured under OpenCode
 
@@ -289,7 +289,7 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 |---|---|---|---|---|
 | qwen38fnsushi4 | 132/135 | 28s | 155s | 14.4x |
 | qwen38fnmlxservenopld | 74/75 | 47s | 1391s | 68.2x |
-| qwen38fnmlxserve | 609/615 | 50s | 1377s | 67.5x |
+| qwen38fnmlxserve | 624/630 | 50s | 1377s | 67.5x |
 | qwen38fnmlxserve-git | 74/75 | 52s | 402s | 18.5x |
 | ornith15 | 60/66 | 61s | 573s | 36.5x |
 | qwen38fnds4kimat | 586/586 | 91s | 775s | 27.0x |
