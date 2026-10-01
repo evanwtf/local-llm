@@ -218,3 +218,28 @@ def test_a_quiet_log_on_the_head_is_flagged():
     args = (NOW, node(51), node(44), 0.43, {}, "vllm pid 12", busy, None)
     assert "Quiet log" in hb.render(*args, log_age_min=25)
     assert "Quiet log" not in hb.render(*args, log_age_min=5)
+
+
+# #884: NVIDIA's nvidia-nvme-interrupt-coalescing.service is masked on both
+# nodes (docs/dgx-spark-nvme-coalescing.md). A package upgrade or a rebuilt node
+# could bring 0x107 back silently; the heartbeat is where that must show.
+def test_parse_probe_reads_nvme_coalescing():
+    assert hb.parse_probe("nvme_coalescing=00000000\n").nvme_coalescing == 0
+    assert hb.parse_probe("nvme_coalescing=0x00000107\n").nvme_coalescing == 0x107
+    # No passwordless sudo, or no nvme-cli: unknown, not "off".
+    assert hb.parse_probe("nvme_coalescing=\n").nvme_coalescing is None
+
+
+def test_render_flags_nvme_coalescing_back_on():
+    w = node(4)
+    w.nvme_coalescing = 0x107
+    body = render({"issue": 711}, worker=w)
+    assert "**NVMe coalescing ON:** worker (0x107)" in body
+    assert "docs/dgx-spark-nvme-coalescing.md" in body
+
+
+def test_render_is_quiet_when_coalescing_is_off_or_unknown():
+    off, unknown = node(4), node(4)
+    off.nvme_coalescing = 0
+    assert "NVMe coalescing" not in render({"issue": 711}, worker=off)
+    assert "NVMe coalescing" not in render({"issue": 711}, worker=unknown)
