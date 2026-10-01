@@ -3929,6 +3929,32 @@ recipe_dir = "~/miaai-tf-glm"
 # output cap are the NVFP4 arm's); reasoning_effort low server-side. Everything
 # else as shipped: MTP K=5, bf16 KV, qwen3_xml tool parser, the recipe's own
 # single interconnect pick.
+
+[backend.glm53fexl3tfmiaaiv132dual2xrc]
+description = "Recipe v1.3.2 @92bf731 (was 978b225 in glm53fexl3tfmiaaidual2xrc): same image and patches (ae8d1c789b47) and weights; new start defaults TF_GLM_CACHE_ENTRIES 32 (was TensorFold 8) and TF_GLM_MULTI_LONE 0 (was 1). Leader repeat under #762. GLM-5.3-Flash EXL3 TR3 4bpw (Mia-AiLab/GLM-5.3-Flash-EXL3-TR3-4bpw, pinned by the recipe) on TensorFold v0.6.0 + MiaAI patches across TWO DGX Sparks via MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks-TensorFold (image built locally, PULL=0): 4 requests, 1,048,576-token window, FP8 KV with a shared pool, 4-bit dense weights, DFlash2 + copy drafts, RoCE all-gather, :8888. reasoning_effort low sent per request by the client (no server default). REMOTE CLIENT (#562/#649), 12 GiB kernel-enforced client container; OpenCode output cap 32,768 (the recipe's MAX_TOKENS)"
+tier = "gb10-spark-x2"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "tensorfold"
+model = "GLM-5.3-Flash-EXL3"
+active_params_b = 18
+aider_model = "openai/GLM-5.3-Flash-EXL3"
+opencode_model = "tfmia8888/GLM-5.3-Flash-EXL3"
+context_tokens = 262144
+topology = "remote"
+smoke_protocol = "openai"
+recipe_dir = "~/miaai-tf-glm"
+
+# #806 (P1, operator-approved 2026-09-29): vr8vr8's Qwen3.8-Flash-Next two-Spark
+# recipe, myllmbox/qwen38-flash-next-cluster-recipe (v4.1), with its own weights
+# (myllmbox/Qwen3.8-Flash-Next-hibrid48, NVFP4 output head) and image
+# (myllmbox/qwen38-flash-next-cluster-vllm:v6 = vLLM 0.30.0 + patches). Reported
+# at ~2x the decode of MiaAI-Lab @d2f54b7 (our qwen38fnnvfp4dual2xrc* rows).
+# Departures from recipe.yaml, all to match the other two-node arms: port 8888 on
+# 0.0.0.0; served as qwen3.8-flash-next (so the client entry and its 262,144
+# output cap are the NVFP4 arm's); reasoning_effort low server-side. Everything
+# else as shipped: MTP K=5, bf16 KV, qwen3_xml tool parser, the recipe's own
+# single interconnect pick.
 [backend.qwen38fnhibrid48dual2xrc]
 description = "Qwen3.8-Flash-Next hibrid48 (myllmbox/Qwen3.8-Flash-Next-hibrid48, custom quant with an NVFP4 output head) across TWO DGX Sparks on vr8vr8's recipe myllmbox/qwen38-flash-next-cluster-recipe v4.1: image myllmbox/qwen38-flash-next-cluster-vllm:v6 (vLLM 0.30.0 + patches), MTP K=5 (block rejection, probabilistic draft), bf16 KV, 262144 context, tool parser qwen3_xml, reasoning_effort low server-side; served as qwen3.8-flash-next on :8888. REMOTE CLIENT (#562/#649), 12 GiB kernel-enforced client container"
 tier = "gb10-spark-x2"
