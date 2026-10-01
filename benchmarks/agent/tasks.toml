@@ -3895,6 +3895,30 @@ smoke_protocol = "openai"
 # No image: it is built locally from this recipe, so the recipe pin is the check.
 recipe_dir = "~/jay-tensorfold"
 
+# #892 (operator-approved 2026-10-01, later commits included; image built
+# locally, never MiaAI's prebuilt ghcr image): MiaAI-Lab's own two-Spark
+# TensorFold recipe for GLM-5.3-Flash, on the same TR3 4bpw checkpoint as our
+# GLM pick (glm53fexl3dual2xrc, vLLM). So the pair isolates the engine; the
+# jayleaton arms above serve a different (abliterated) checkpoint.
+# The recipe has no server-side default effort (GLM's template falls back to
+# max), so the client sends reasoning_effort low on every request: the
+# tfmia8888 provider sets the model option reasoningEffort=low, verified in a
+# captured OpenCode 1.18.34 request body on 2026-10-01.
+[backend.glm53fexl3tfmiaaidual2xrc]
+description = "GLM-5.3-Flash EXL3 TR3 4bpw (Mia-AiLab/GLM-5.3-Flash-EXL3-TR3-4bpw, pinned by the recipe) on TensorFold v0.6.0 + MiaAI patches across TWO DGX Sparks via MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks-TensorFold (image built locally, PULL=0): 4 requests, 1,048,576-token window, FP8 KV with a shared pool, 4-bit dense weights, DFlash2 + copy drafts, RoCE all-gather, :8888. reasoning_effort low sent per request by the client (no server default). REMOTE CLIENT (#562/#649), 12 GiB kernel-enforced client container; OpenCode output cap 32,768 (the recipe's MAX_TOKENS)"
+tier = "gb10-spark-x2"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "tensorfold"
+model = "GLM-5.3-Flash-EXL3"
+active_params_b = 18
+aider_model = "openai/GLM-5.3-Flash-EXL3"
+opencode_model = "tfmia8888/GLM-5.3-Flash-EXL3"
+context_tokens = 262144
+topology = "remote"
+smoke_protocol = "openai"
+recipe_dir = "~/miaai-tf-glm"
+
 # #806 (P1, operator-approved 2026-09-29): vr8vr8's Qwen3.8-Flash-Next two-Spark
 # recipe, myllmbox/qwen38-flash-next-cluster-recipe (v4.1), with its own weights
 # (myllmbox/Qwen3.8-Flash-Next-hibrid48, NVFP4 output head) and image
