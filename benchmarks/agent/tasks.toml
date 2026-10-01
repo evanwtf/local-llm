@@ -3870,6 +3870,31 @@ smoke_protocol = "openai"
 # No image: it is built locally from this recipe, so the recipe pin is the check.
 recipe_dir = "~/jay-tensorfold"
 
+# #840 effort arm (2026-10-01): the same stack as glm53ftfjaydual2xrc's W20
+# series (tool fixes all), with the server's default reasoning effort HIGH
+# instead of the house default low (feedback: higher effort is its own arm).
+# jayleaton's W21 sweep scored low best on tool-calling but recommends high for
+# real coding work; this tests that on our agent suite. A separate backend name,
+# because a row records only the client's effort, never the server's.
+[backend.glm53ftfjaydual2xrchigh]
+description = "GLM-5.3-Flash (abliterated EXL3, neko-legends/GLM-5.3-Flash-Uncensored-EXL3 @07135ec) on TensorFold v0.3.4 + 57 patches across TWO DGX Sparks via jayleaton/glm53-tensorfold-spark @ad63acf: 4 requests over a shared 1,048,576-token FP8 latent KV pool, RoCE all-gather, DFlash2 drafter @7d74cdd, reasoning effort HIGH server-side (GLM53_TF_DEFAULT_EFFORT=high), tool fixes all (GLM53_TF_TOOL_FIXES=all), :8888. REMOTE CLIENT (#562/#649), 12 GiB kernel-enforced client container; OpenCode output cap 32,768 (the recipe's MAX_TOKENS)"
+tier = "gb10-spark-x2"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "tensorfold"
+model = "GLM-5.3-Flash-EXL3"
+active_params_b = 18
+aider_model = "openai/GLM-5.3-Flash-EXL3"
+opencode_model = "tf8888/GLM-5.3-Flash-EXL3"
+context_tokens = 262144
+topology = "remote"
+# TensorFold serves no /v1/messages; this cell is OpenCode-only, so the smoke
+# gate probes the road OpenCode takes (#798).
+smoke_protocol = "openai"
+# #726 gate (2026-09-28): server_facts.py refuses while these are behind upstream.
+# No image: it is built locally from this recipe, so the recipe pin is the check.
+recipe_dir = "~/jay-tensorfold"
+
 # #806 (P1, operator-approved 2026-09-29): vr8vr8's Qwen3.8-Flash-Next two-Spark
 # recipe, myllmbox/qwen38-flash-next-cluster-recipe (v4.1), with its own weights
 # (myllmbox/Qwen3.8-Flash-Next-hibrid48, NVFP4 output head) and image
