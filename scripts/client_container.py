@@ -40,6 +40,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 sys.path.insert(
     0, str(pathlib.Path(__file__).resolve().parents[1] / "benchmarks" / "agent")
 )
+import build_client_image
 import currency
 from lib import child, logs
 
@@ -258,9 +259,14 @@ def docker_argv(
     ]
 
 
+#: The image `build_client_image.py` builds by default. Derived from its pin,
+#: never typed: a literal here was missed by the 1.18.34 bump (2026-09-30).
+DEFAULT_IMAGE = f"local-llm-client:{build_client_image.PINS['opencode']}"
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    p.add_argument("--image", default="local-llm-client:1.18.33")
+    p.add_argument("--image", default=DEFAULT_IMAGE)
     p.add_argument("--server", required=True)
     p.add_argument("--facts", type=pathlib.Path, required=True)
     p.add_argument("--home", type=pathlib.Path, default=pathlib.Path.home())
