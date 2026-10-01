@@ -158,3 +158,15 @@ def test_the_memory_limit_can_be_changed_or_disabled():
 def test_the_limit_is_a_docker_flag_not_harness_argv():
     argv = _argv()
     assert argv.index("--memory") < argv.index("img")
+
+
+def test_default_image_follows_the_build_pin():
+    # The default was a literal "local-llm-client:1.18.33" that no bump touched,
+    # so after the 1.18.34 bump every launch was refused as BEHIND (2026-09-30).
+    import build_client_image
+
+    assert (
+        mod.DEFAULT_IMAGE == f"local-llm-client:{build_client_image.PINS['opencode']}"
+    )
+    src = pathlib.Path(mod.__file__).read_text()
+    assert 'default="local-llm-client:' not in src
