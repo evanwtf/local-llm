@@ -71,6 +71,10 @@ PROBE = (
     " echo fans=$(cat /sys/class/hwmon/hwmon*/fan*_input 2>/dev/null"
     " | paste -sd, -);"
     " echo earlyoom=$(systemctl is-active earlyoom 2>/dev/null || true);"
+    # NVMe feature 0x08 (#884): must read 0. NVIDIA's coalescing service, masked
+    # on both nodes, writes 0x107 and makes a QD1 read take 369% as long.
+    " echo nvme_coalescing=$(sudo -n nvme get-feature /dev/nvme0 -f 8 2>/dev/null"
+    " | sed -n 's/.*Current value://p');"
     " c=0; for i in " + " ".join(FABRIC_IFACES) + "; do"
     ' [ "$(cat /sys/class/net/$i/carrier 2>/dev/null)" = 1 ] && c=$((c+1)); done;'
     " echo links_up=$c; echo links_total=" + str(len(FABRIC_IFACES)) + ";"
@@ -101,6 +105,7 @@ class Node:
     disk_total_gb: float | None = None
     fans: list[float] = field(default_factory=list)
     earlyoom: str | None = None
+    nvme_coalescing: int | None = None
     links_up: int | None = None
     links_total: int | None = None
     roce_active: int | None = None
@@ -131,6 +136,10 @@ def parse_probe(text: str) -> Node:
         n.disk_total_gb = d / 1e9
     n.fans = [f for v in kv.get("fans", "").split(",") if (f := _num(v)) is not None]
     n.earlyoom = kv.get("earlyoom") or None
+    try:
+        n.nvme_coalescing = int(kv.get("nvme_coalescing", ""), 16)
+    except ValueError:
+        n.nvme_coalescing = None  # no passwordless sudo or nvme-cli: unknown
     for key in ("links_up", "links_total", "roce_active"):
         if (v := _num(kv.get(key, ""))) is not None:
             setattr(n, key, int(v))
@@ -258,6 +267,16 @@ def render(
         f"**Safety:** earlyoom: {', '.join(eo)}"
         + (" — **DOWN, fix before the next launch**." if down else ".")
     )
+    on = [
+        f"{name} ({n.nvme_coalescing:#x})"
+        for name, n in (("head", head), ("worker", worker))
+        if n.reachable and n.nvme_coalescing
+    ]
+    if on:
+        extra.append(
+            f"**NVMe coalescing ON:** {' and '.join(on)}. It should read 0: re-mask"
+            " the service (docs/dgx-spark-nvme-coalescing.md, #884)."
+        )
     low = [name for name, n in (("head", head), ("worker", worker)) if disk_critical(n)]
     if low:
         extra.append(

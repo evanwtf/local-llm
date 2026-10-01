@@ -113,6 +113,20 @@ the LAN name.
 
 ## 6. Reboot both nodes
 
+First, on each node, turn off NVMe interrupt coalescing for good (#884). NVIDIA's
+boot service turns it on, and it makes a single 4K read take 369% as long.
+Why, and the measurement: [`dgx-spark-nvme-coalescing.md`](dgx-spark-nvme-coalescing.md).
+
+```sh
+sudo systemctl stop nvidia-nvme-interrupt-coalescing
+sudo systemctl disable nvidia-nvme-interrupt-coalescing
+sudo systemctl mask nvidia-nvme-interrupt-coalescing
+sudo systemctl daemon-reload
+sudo nvme get-feature /dev/nvme0 -f 8      # Current value:00000000
+```
+
+Then reboot.
+
 Before measuring anything. Configuration churn leaves a node in a state that
 passes every functional check while running the collective at 13% of the
 link, and `nmcli con down/up` does not clear it.

@@ -22,7 +22,9 @@ The toggle is `systemctl stop|start nvidia-nvme-interrupt-coalescing`: its
 ExecStop writes 0 and its ExecStart writes 0x107. `set-feature` does not
 persist, and the service restores 0x107 at boot, so no reboot is needed.
 The script reads the value back after every toggle, and **always restores
-"on" at the end**, even on failure.
+the state it found** at the end, even on failure. The cluster's standing
+state is off with the service masked (docs/dgx-spark-nvme-coalescing.md), so
+it refuses while the service is masked: unmask, run, and mask again.
 
 Without `--apply` it prints the plan and changes nothing. It refuses while
 any GPU process runs: an idle machine is part of the measurement.
@@ -214,6 +216,21 @@ def main(argv: Sequence[str] | None = None) -> int:
     if busy:
         logger.error("refusing: GPU processes running: %s", "; ".join(busy))
         return 1
+    enabled = subprocess.run(
+        ["systemctl", "is-enabled", SERVICE],
+        capture_output=True,
+        text=True,
+        check=False,
+    ).stdout.strip()
+    if enabled == "masked":
+        logger.error(
+            "refusing: %s is masked, so it cannot be toggled. Unmask it, run, then"
+            " mask it again (docs/dgx-spark-nvme-coalescing.md)",
+            SERVICE,
+        )
+        return 1
+    found = "on" if feature_value(args.device) else "off"
+    logger.info("found coalescing %s; the run ends there", found)
 
     args.out.mkdir(parents=True)
     dirs = {f.parent for f in files} | {args.out, pathlib.Path.cwd()}
@@ -253,7 +270,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     row["irq_per_s"],
                 )
     finally:
-        set_state("on", args.device)
+        set_state(found, args.device)
         ours = {
             args.out / f"arm{i}-{s}-{n}.json"
             for i, s in enumerate(ARMS, 1)
