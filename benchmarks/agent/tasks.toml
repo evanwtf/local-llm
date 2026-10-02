@@ -3945,6 +3945,26 @@ topology = "remote"
 smoke_protocol = "openai"
 recipe_dir = "~/miaai-tf-glm"
 
+# #896 (operator-approved 2026-10-01): kindlingai/glm-5.3-flash-gx10 @c748079,
+# GLM-5.3-Flash on NVIDIA's own NVFP4 weights at TP=2, an unmodified vLLM nightly
+# (vllm/vllm-openai:nightly-ddd6fbca148a) plus the recipe's experimental/ overlays,
+# with mentat 0.17.1 in place of Ray. Image spark-glm53:v9 built on the head and
+# loaded on the worker. Clients reach mentatd-serve on :6381, model "glm53".
+[backend.glm53fnvfp4kindlingdual2xrc]
+description = "#896: GLM-5.3-Flash NVFP4 (nvidia/GLM-5.3-Flash-NVFP4) + DFlash2 (incoai/GLM-5.3-Flash-DFlash2) on vLLM nightly-ddd6fbca148a + kindlingai overlays (adaptive-k DFlash, RDMA collectives) across TWO DGX Sparks via kindlingai/glm-5.3-flash-gx10 @c748079, mentat 0.17.1 launcher, TP=2, 524,288-token window, fp8 KV. Image spark-glm53:v9 built locally. reasoning_effort low sent per request by the client (the server default is max). REMOTE CLIENT (#562/#649), 12 GiB kernel-enforced client container; OpenCode output cap 32,768, as the pick"
+tier = "gb10-spark-x2"
+base_url = "http://127.0.0.1:6381"
+auth_token = "local"
+engine = "vllm"
+model = "glm53"
+active_params_b = 18
+aider_model = "openai/glm53"
+opencode_model = "kindling6381/glm53"
+context_tokens = 262144
+topology = "remote"
+smoke_protocol = "openai"
+recipe_dir = "~/glm-5.3-flash-gx10"
+
 # #806 (P1, operator-approved 2026-09-29): vr8vr8's Qwen3.8-Flash-Next two-Spark
 # recipe, myllmbox/qwen38-flash-next-cluster-recipe (v4.1), with its own weights
 # (myllmbox/Qwen3.8-Flash-Next-hibrid48, NVFP4 output head) and image
