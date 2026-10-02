@@ -365,6 +365,8 @@ explains why the effort setting matters.
 | tool | used for these results | latest on 2026-10-01 | status |
 |---|---|---|---|
 | OpenCode | 1.18.31 → 1.18.34 | [1.18.34][opencode-rel] | current |
+| uv, in the client image | 0.12.13 → 0.12.21 | [0.12.22][uv-rel], released 2026-10-01T20:20-0400 | **behind**; the client gate refuses a batch until the image moves |
+| CPython, in the client image | 3.14.4 → 3.14.7 | [3.14.8][py-rel] | **behind**; same gate |
 | vLLM | dev builds in the recipe images; 0.30.0 in two | [0.30.0][vllm-rel] | current where the recipe allows |
 | TensorFold | v0.6.0 (pick), v0.3.4 (jayleaton) | [v0.6.1][tf-rel], released 2026-10-01 | the pick's recipe pins v0.6.0 |
 | MiaAI TensorFold recipe | @`978b225`, @`92bf731` | @`92bf731` | current |
@@ -383,7 +385,8 @@ re-run of the pick.
 ## 7. Open, and what would change this page
 
 - **A third run of the pick** on recipe v1.3.2, to meet the three-run rule.
-  Next on the cluster.
+  Next on the cluster. It waits on a client image with uv 0.12.22 and CPython
+  3.14.8: the client gate refused the launch at 2026-10-01T23:03-0400.
 - **[#896][i896]:** GLM-5.3-Flash on NVIDIA's own NVFP4 weights, served by vLLM
   nightly with [kindlingai's launcher][r-kindling]. It claims large prefill
   gains at TP=2. Not approved yet. Needs 190.4 GiB per node.
@@ -442,6 +445,8 @@ re-run of the pick.
 [sglang]: https://github.com/sgl-project/sglang
 [opencode]: https://github.com/anomalyco/opencode
 [opencode-rel]: https://github.com/anomalyco/opencode/releases
+[uv-rel]: https://github.com/astral-sh/uv/releases
+[py-rel]: https://www.python.org/downloads/
 [gmail-archive]: https://github.com/evanwtf/gmail-archive
 [i23]: https://github.com/evanwtf/local-llm/issues/23
 [i54]: https://github.com/evanwtf/local-llm/issues/54
