@@ -25,6 +25,51 @@ picks in `RECOMMENDATIONS.md`, and the current queue from
 
 ---
 
+## v1.1.0 — 2026-10-01
+
+The first release since v1.0.1, after 534 merged pull requests. It marks the
+two-Spark cluster's first full set of picks.
+
+**The cluster has a pick.**
+`hardware/Cortex-X925-128GB-GB10-x2/RECOMMENDATIONS.md` is rewritten from the
+whole ledger: 1,405 rows from 2026-09-22 to 2026-10-01, 18 stack
+configurations. The pick is GLM-5.3-Flash EXL3 TR3 on TensorFold v0.6.0,
+through MiaAI-Lab's recipe. It passed 83 of 84 replay and hard-set trials, and
+took 57% of vLLM's time on the same weights: 3,885.1 s against 6,811.6 s over
+14 tasks. It is provisional at two runs of the three the method asks for. The
+page states the test environment, and every recipe commit, image, weight
+revision and client version behind the numbers. It also lists the tools that
+were behind on the day.
+
+**The cluster.** Two DGX Sparks over 200 Gb/s RoCE. Its rows go to their own
+ledger, behind a verified identity (#647). An all-reduce gate checks the fabric
+before a batch (#646). A systemd timer posts the heartbeat, not a session
+(#691).
+
+**Remote clients.** The agent runs on a separate machine and calls the head
+node's API (#562). The client is a pinned image with a 12 GiB memory cap, and
+every row records the cap (#611, #637). Linux trials run in a bwrap sandbox,
+with a private `/tmp` and the answers hidden (#476, #780).
+
+**Harder tasks.** The replay set rebuilds real commits from their tests (#714).
+The hard set adds held-out tests and multi-commit spans (#726). The standard
+set no longer separates the main stacks on pass rate.
+
+**Screening.** `scripts/screen_stacks.py` ranks stacks by their sum of median
+trial times (#762, #813). `run.py` stops a run early when its failures reach
+30% of the leader's passes, or its time reaches 200% of the leader's (#812). A
+replay plus hard launch now counts as one run, so the early stop works for it
+(#900, #902).
+
+**Reporting.** `report.py --results` reads any ledger, so a cluster readout is
+one command (#903). Every row records whether a failed trial edited source
+(#770). Re-graded held-out verdicts apply in reports (#801).
+
+**Known gaps.** Cluster rows record the client host's vLLM version, not the
+serving image's (#904). TensorFold builds record as `unknown` (#320).
+
+---
+
 ## v1.0.1 — 2026-09-07
 
 Three defects in the release machinery v1.0.0 shipped, all found by using it.
