@@ -86,7 +86,12 @@ def _run(argv: list[str], **kw) -> subprocess.CompletedProcess:
 
 def build(tag: str, context: pathlib.Path = CONTEXT) -> int:
     print(f"building {tag} for {platform.machine()} from {context}", flush=True)
-    got = subprocess.run(["docker", "build", "-t", tag, str(context)], check=False)
+    # --pull and --no-cache: every rebuild takes the newest base image and the
+    # newest packages, never a cached apt layer from an earlier build.
+    got = subprocess.run(
+        ["docker", "build", "--pull", "--no-cache", "-t", tag, str(context)],
+        check=False,
+    )
     return got.returncode
 
 

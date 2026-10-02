@@ -42,7 +42,10 @@ ENV DEBIAN_FRONTEND=noninteractive \
 # `lsof` and `procps` are not optional: preflight.py reads listening ports
 # from `lsof -nP -iTCP -sTCP:LISTEN` and processes from `ps -eo ...`, and a
 # missing one aborts the batch with FileNotFoundError rather than degrading.
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# `apt-get upgrade` brings the base image's own packages current too: install
+# alone left them at the base image's versions (rust-coreutils, 2026-10-01).
+RUN apt-get update && apt-get upgrade -y \
+    && apt-get install -y --no-install-recommends \
         ca-certificates curl git bubblewrap \
         lsof procps \
         build-essential pkg-config \
