@@ -279,5 +279,41 @@ def test_suite_map_splits_the_714_set_from_the_hard_set() -> None:
         loose("replay-a", 1, "2026-09-24T13:00:00-0400"),
         loose("replay-b-hidden", 1, "2026-09-24T13:20:00-0400"),
     ]
-    assert len(sc.runs(rows, suites)) == 2
-    assert len(sc.runs(rows)) == 1  # the name fallback cannot tell them apart
+    # #900: replay and hard share one launch (--replay --replay-hard), so they
+    # group as one run. Only standard is split off.
+    assert len(sc.runs(rows, suites)) == 1
+    assert len(sc.runs(rows)) == 1
+
+
+def test_a_replay_plus_hard_launch_is_one_run_and_a_leader_900() -> None:
+    # The #892 shape: 7 replay tasks and 7 hard tasks, interleaved in one
+    # launch, no batch. Before #900 the suite split made two 7-task runs, so
+    # pick_leader never found a run with all 14 and early stop stayed off.
+    replay_set = [f"replay-r{i}" for i in range(7)]
+    hard_set = [f"replay-h{i}-hidden" for i in range(7)]
+    suites = {t: "replay" for t in replay_set} | {t: "hard" for t in hard_set}
+    tasks = replay_set + hard_set
+    rows = [
+        loose(t, 1, f"2026-10-01T14:{i * 3:02d}:00-0400") for i, t in enumerate(tasks)
+    ]
+    got = sc.runs(rows, suites)
+    assert list(got) == ["glm@2026-10-01T14:00"]
+    assert len(got["glm@2026-10-01T14:00"]) == 14
+    lead = sc.pick_leader(rows, tasks, "opencode", None, suites=suites)
+    assert lead is not None
+    assert (lead.batch, lead.passes, lead.rows) == ("glm@2026-10-01T14:00", 14, 14)
+    # The same launch still leads a run of either half on its own.
+    half = sc.pick_leader(rows, hard_set, "opencode", None, suites=suites)
+    assert half is not None
+    assert (half.passes, half.rows) == (7, 7)
+
+
+def test_standard_still_splits_from_a_replay_plus_hard_launch_900() -> None:
+    suites = {"defang": "standard", "replay-a": "replay", "replay-b-hidden": "hard"}
+    rows = [
+        loose("defang", 1, "2026-10-01T14:00:00-0400"),
+        loose("replay-a", 1, "2026-10-01T14:10:00-0400"),
+        loose("replay-b-hidden", 1, "2026-10-01T14:20:00-0400"),
+    ]
+    got = sc.runs(rows, suites)
+    assert sorted(len(v) for v in got.values()) == [1, 2]

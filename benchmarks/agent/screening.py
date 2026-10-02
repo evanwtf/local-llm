@@ -122,6 +122,7 @@ def runs(
     The suite split comes first because a standard run and a replay run
     launched back to back share no task names and sit under the gap: without
     it, the cluster's runs fused into 17-task groups that matched neither set.
+    "hard" groups with "replay", though: one launch runs both (#900).
     ``suites`` maps task name to suite (``suite_map``); a task missing from it
     falls back to its name: "replay" for ``replay-*``, else "standard".
     """
@@ -131,7 +132,7 @@ def runs(
         if r.get("batch"):
             out.setdefault(r["batch"], []).append(r)
         else:
-            key = (r.get("backend", "?"), r.get("client", "?"), _suite(r, suites))
+            key = (r.get("backend", "?"), r.get("client", "?"), _family(r, suites))
             loose.setdefault(key, []).append(r)
     for (backend, _client, _set), rs in loose.items():
         rs.sort(key=lambda r: _when(r))
@@ -166,6 +167,17 @@ def _suite(row: Row, suites: dict[str, str] | None) -> str:
     if suites and task in suites:
         return suites[task]
     return "replay" if task.startswith("replay-") else "standard"
+
+
+def _family(row: Row, suites: dict[str, str] | None) -> str:
+    """The suite for grouping runs: "hard" counts as "replay" (#900).
+
+    One launch runs both with ``--replay --replay-hard``. Split apart, a
+    14-task launch became two 7-task runs, so no run held all 14 tasks and
+    the early stop never found a leader.
+    """
+    suite = _suite(row, suites)
+    return "replay" if suite == "hard" else suite
 
 
 def _when(row: Row) -> datetime.datetime:
