@@ -21,10 +21,10 @@ FROM ubuntu:26.04
 
 # Pins. Every one of these is a variable a row would otherwise carry silently.
 ARG OPENCODE_VERSION=1.18.34
-ARG UV_VERSION=0.12.21
+ARG UV_VERSION=0.12.22
 # The interpreter uv hands the trial's venv. Pinned so the same target commit
 # resolves the same Python on every client.
-ARG PYTHON_VERSION=3.14.7
+ARG PYTHON_VERSION=3.14.8
 
 # The OpenCode installer hardcodes INSTALL_DIR=$HOME/.opencode/bin and honours
 # no override, so the binary's location is a property of HOME, not a choice.

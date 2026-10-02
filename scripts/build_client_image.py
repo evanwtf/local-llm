@@ -30,8 +30,8 @@ CONTEXT = REPO / "docker" / "opencode-client"
 #: test failure rather than a surprise at build time.
 PINS = {
     "opencode": "1.18.34",
-    "uv": "0.12.21",
-    "python": "3.14.7",
+    "uv": "0.12.22",
+    "python": "3.14.8",
 }
 
 #: uname -m values this image is expected to build on, and the Docker platform
