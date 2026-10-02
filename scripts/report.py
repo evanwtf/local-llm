@@ -14,6 +14,11 @@ comparison the night this was written.
 
     uv run python scripts/report.py --backend gemma426
     uv run python scripts/report.py --backend qwen --backend qwen36
+    uv run python scripts/report.py \\
+        --results hardware/Cortex-X925-128GB-GB10-x2/results.jsonl --backend glm53...
+
+`--results` reads another machine's ledger. The two-Spark cluster needs it: on
+its head node the default is the single Spark's ledger.
 """
 
 from __future__ import annotations
@@ -501,9 +506,15 @@ def window(rows, since=None, until=None):
     return rows
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--backend", action="append", required=True)
+    p.add_argument(
+        "--results",
+        type=pathlib.Path,
+        default=RESULTS,
+        help="the ledger to read (default: this machine's results.jsonl)",
+    )
     p.add_argument("--client", default="opencode")
     p.add_argument("--since", help="ISO timestamp; only rows started after it")
     p.add_argument(
@@ -512,7 +523,7 @@ def main() -> int:
         "brackets a window -- e.g. to isolate one build of a force-pushed "
         "backend, whose engine_version changes under a fixed name (#328).",
     )
-    args = p.parse_args()
+    args = p.parse_args(argv)
 
     provenance.configure()
     log_file = provenance.tee("report", machine_specific=True)
@@ -522,7 +533,7 @@ def main() -> int:
     # normalizes `passed` through verdict() so a timeout lands as False rather
     # than vanishing from the denominator. Reading results.jsonl any other way
     # is how fourteen legacy-keyed rows got counted (#29).
-    rows, discarded, retired, cheats = ledger_summary.load(RESULTS)
+    rows, discarded, retired, cheats = ledger_summary.load(args.results)
     if discarded or cheats:
         logger.info(
             "  dropped: %d control-did-not-fail, %d touched tests; %d excluded/dry-run",
