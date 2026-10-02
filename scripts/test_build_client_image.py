@@ -69,3 +69,25 @@ def test_a_missing_tool_is_a_failure_with_a_readable_detail():
     got = {name: (ok, detail) for name, ok, detail in mod.check_pins({}, mod.PINS)}
     assert got["uv"][0] is False
     assert "missing" in got["uv"][1] and f"pinned {mod.PINS['uv']}" in got["uv"][1]
+
+
+def test_build_pulls_the_base_and_skips_the_cache(monkeypatch, tmp_path):
+    """A rebuild on 2026-10-01 took uv and CPython current but left
+    rust-coreutils at the base image's version: `docker build` reused a cached
+    apt layer. Every rebuild now pulls the base and skips the cache."""
+    seen = []
+
+    def run(argv, **_):
+        seen.append(argv)
+        return mod.subprocess.CompletedProcess(argv, 0)
+
+    monkeypatch.setattr(mod.subprocess, "run", run)
+    assert mod.build("t:1", tmp_path) == 0
+    assert seen[0][:2] == ["docker", "build"]
+    assert "--pull" in seen[0]
+    assert "--no-cache" in seen[0]
+
+
+def test_dockerfile_upgrades_the_base_packages():
+    """Install alone leaves the base image's own packages at its versions."""
+    assert "apt-get upgrade -y" in DOCKERFILE.read_text()
