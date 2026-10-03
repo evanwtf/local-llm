@@ -161,6 +161,7 @@ window. We built the image locally (`PULL=0`).
 | **GLM TensorFold, MiaAI** (`glm53fexl3tfmiaaidual2xrc`, `…v132…`) | [MiaAI-Lab TensorFold][r-tf-mia] @`978b225`, @`92bf731` | TensorFold v0.6.0 + 53 patches, built locally | [TR3 4bpw][w-tr3] @`9eaebb7`, [DFlash2][w-dflash2] @`bf582e4` | 1.18.34 | 10-01 |
 | GLM TensorFold, jayleaton (`glm53ftfjaydual2xrc`) | [jayleaton/glm53-tensorfold-spark][r-tf-jay] @`e9c8cbb` | TensorFold v0.3.4 + 57 patches | [neko-legends abliterated EXL3][w-neko] @`07135ec` (**different weights**) | 1.18.33 | 09-29 → 09-30 |
 | … same, effort `high` (`…high`) | same @`ad63acf` | same | same | 1.18.34 | 10-01 |
+| GLM vLLM NVFP4, kindlingai (`glm53fnvfp4kindlingdual2xrc`) | [kindlingai/glm-5.3-flash-gx10][r-kindling] @`c748079` | vLLM nightly `ddd6fbca148a` + kindlingai overlays, image `spark-glm53:v9` built locally | [nvidia/GLM-5.3-Flash-NVFP4][w-glm-nvfp4] (**different weights**), [DFlash2][w-dflash2] | 1.18.34 | 10-02 → 10-03 |
 | **GLM vLLM, MiaAI** (`glm53fexl3dual2xrc*`) | [MiaAI-Lab vLLM][r-glm-vllm] @`c1b7d4c` → `0f49cfd` → `943912c` → `94ae731` | `ghcr.io/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-instanttensor`, digest `447114ee` from 09-28; vLLM `0.1.dev20051+g487ecf187` | [TR3 4bpw][w-tr3] @`25a44fd`, [DFlash2][w-dflash2] @`dc77ff1` | 1.18.31 → 1.18.33 | 09-22 → 09-30 |
 | Qwen3.8-Flash-Next hibrid48 (`qwen38fnhibrid48dual2xrc`) | [myllmbox/qwen38-flash-next-cluster-recipe][r-hibrid] v4.1 @`4e4747b` | `myllmbox/qwen38-flash-next-cluster-vllm:v6`, vLLM 0.30.0 + patches | [myllmbox/Qwen3.8-Flash-Next-hibrid48][w-hibrid] | 1.18.33 | 09-29 → 09-30 |
 | Qwen3.8-Flash-Next NVFP4 (`qwen38fnnvfp4dual2xrcflags`) | [MiaAI-Lab Qwen dual][r-qwen] @`d2f54b7` | `vllm/vllm-openai:qwen38-flash-next`, vLLM `0.1.dev20073+g8e685d198` | [nvidia/Qwen3.8-Flash-Next-NVFP4][w-nvfp4] | 1.18.31, 1.18.32 | 09-22 → 09-28 |
@@ -189,6 +190,7 @@ matters, this page names both.
 | **GLM TensorFold, MiaAI** @`978b225` | 1 | 21/21 | **1,013.5 s** | 100% | keep |
 | GLM TensorFold, MiaAI @`92bf731` | 2 | 42/42 | 1,125.0 s | 111% | keep |
 | GLM TensorFold, jayleaton | 3 | 62/63 | 1,183.3 s | 117% | keep |
+| GLM vLLM NVFP4, kindlingai | 3 | 63/63 | 1,301.6 s | 128% | keep |
 | GLM vLLM @`943912c` | 2 | 39/42 | 1,802.3 s | 178% | cut |
 | GLM vLLM @`0f49cfd` | 3 | 63/63 | 1,901.1 s | 188% | cut |
 | GLM TensorFold, jayleaton, effort `high` | 1 | 21/21 | 1,916.8 s | 189% | cut |
@@ -208,6 +210,7 @@ matters, this page names both.
 | **GLM TensorFold, MiaAI** @`978b225` | 1 | 21/21 | **2,871.6 s** | 100% | 283/390 (72.6%) | keep |
 | GLM TensorFold, MiaAI @`92bf731` | 2 | 40/42 | 3,036.8 s | 106% | 557/780 (71.4%) | keep |
 | GLM TensorFold, jayleaton | 3 | 61/63 | 3,464.6 s | 121% | 746/1,084 (68.8%) | keep |
+| GLM vLLM NVFP4, kindlingai | 3 | 57/63 | 3,570.5 s | 124% | 873/1,170 (74.6%) | keep |
 | GLM vLLM @`94ae731`, output cap 65,536 | 1 | 20/21 | 4,177.3 s | 145% | 296/390 (75.9%) | keep |
 | GLM vLLM @`943912c` | 2 | 39/42 | 5,009.3 s | 174% | 210/292 (71.9%) | cut |
 | GLM vLLM @`0f49cfd` | 2 | 40/42 | 5,338.0 s | 186% | 497/682 (72.9%) | cut |
@@ -388,9 +391,11 @@ re-run of the pick.
 ## 7. Open, and what would change this page
 
 - **[#896][i896]:** GLM-5.3-Flash on NVIDIA's own NVFP4 weights, served by vLLM
-  nightly with [kindlingai's launcher][r-kindling]. It claims large prefill
-  gains at TP=2. Approved 2026-10-01; next on the cluster. Needs 190.4 GiB per
-  node.
+  nightly with [kindlingai's launcher][r-kindling]. Measured 2026-10-02 →
+  10-03 over 3 runs: 120 of 126 trials passed (95.2%, 95% CI 90.0–97.8%), in
+  4,872.1 s against the pick's 3,885.1 s (125%). The screen keeps it at rank 4,
+  4.8% behind jayleaton's TensorFold stack. It does not change the pick. Its
+  hidden-test rate on the hard set, 74.6%, is level with the other stacks.
 - **[#897][i897]:** MiaAI-Lab's announced two-Spark TensorFold recipe for
   Qwen3.8-Flash-Next. If TensorFold does for Qwen what it did for GLM, Qwen's
   slightly higher hidden-test rate could make it the pick. Approved
@@ -409,7 +414,8 @@ re-run of the pick.
 [MiaAI-Lab Qwen dual][r-qwen] ·
 [MiaAI-Lab DSV4 DSpark][r-dsv4v] ·
 [MiaAI-Lab DSV4.1 EXL3][r-dsv41] ·
-[MiaAI-Lab MiMo][r-mimo]
+[MiaAI-Lab MiMo][r-mimo] ·
+[kindlingai GLM NVFP4][r-kindling]
 
 **Engines and client:** [TensorFold][tensorfold] · [vLLM][vllm] ·
 [SGLang][sglang] · [OpenCode][opencode]
@@ -432,6 +438,7 @@ re-run of the pick.
 [w-tr3]: https://huggingface.co/Mia-AiLab/GLM-5.3-Flash-EXL3-TR3-4bpw
 [w-dflash2]: https://huggingface.co/incoai/GLM-5.3-Flash-DFlash2
 [w-neko]: https://huggingface.co/neko-legends/GLM-5.3-Flash-Uncensored-EXL3
+[w-glm-nvfp4]: https://huggingface.co/nvidia/GLM-5.3-Flash-NVFP4
 [w-hibrid]: https://huggingface.co/myllmbox/Qwen3.8-Flash-Next-hibrid48
 [w-nvfp4]: https://huggingface.co/nvidia/Qwen3.8-Flash-Next-NVFP4
 [w-fp8]: https://huggingface.co/Qwen/Qwen3.8-Flash-Next-FP8
