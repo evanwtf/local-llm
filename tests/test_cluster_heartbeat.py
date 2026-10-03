@@ -243,3 +243,26 @@ def test_render_is_quiet_when_coalescing_is_off_or_unknown():
     off.nvme_coalescing = 0
     assert "NVMe coalescing" not in render({"issue": 711}, worker=off)
     assert "NVMe coalescing" not in render({"issue": 711}, worker=unknown)
+
+
+def test_render_gives_the_inlet_and_each_gpu_rise_over_it():
+    """Operator, 2026-10-03: the PWS indoor sensor sits at the DGX's inlet. A
+    GPU reading means more as a rise over inlet air than as an absolute."""
+    body = hb.render(
+        NOW,
+        node(51),
+        node(44),
+        0.43,
+        {},
+        "vllm pid 12, 104 GiB",
+        {"updated": NOW.isoformat()},
+        None,
+        ambient_f=72.5,
+    )
+    # node() reads 60 °C; 72.5 °F is 22.5 °C, so each GPU is 37.5 °C over the inlet
+    assert "**inlet** 72.5 °F (22.5 °C); GPUs +38 / +38 °C over it" in body
+
+
+def test_render_inlet_is_na_when_the_sensor_is_silent():
+    body = render({"updated": NOW.isoformat()})
+    assert "**inlet** n/a" in body

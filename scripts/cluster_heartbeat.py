@@ -222,6 +222,22 @@ def gpus_idle(head: Node, worker: Node) -> bool | None:
     return all(p <= IDLE_W for p in powers)  # type: ignore[operator]
 
 
+def inlet_line(ambient_f: float | None, head: Node, worker: Node) -> str:
+    """The inlet air's temperature and each GPU's rise over it. A GPU at 80 °C
+    means something different with 20 °C air than with 30 °C air (operator,
+    2026-10-03: the PWS indoor sensor sits at the front of the DGX, "presumably
+    the inlet")."""
+    if ambient_f is None:
+        return "**inlet** n/a (the PWS indoor sensor gave no reading in 30 min)"
+    c = (ambient_f - 32) * 5 / 9
+    rise = [
+        "n/a" if n.temp_c is None else f"{n.temp_c - c:+.0f}" for n in (head, worker)
+    ]
+    return (
+        f"**inlet** {ambient_f:.1f} °F ({c:.1f} °C); GPUs {' / '.join(rise)} °C over it"
+    )
+
+
 def render(
     now: dt.datetime,
     head: Node,
@@ -233,6 +249,7 @@ def render(
     serving: str | None,
     prs: str = "n/a",
     log_age_min: float | None = None,
+    ambient_f: float | None = None,
 ) -> str:
     """The heartbeat body, in the operator's field order. Pure."""
     hw, ww = outlet.get("wall_w"), outlet.get("worker_wall_w")
@@ -253,6 +270,7 @@ def render(
             f" (head/worker), RoCE {'/'.join(_f(r, '{}') for r in roce)} ACTIVE,"
             f" RTT {_f(rtt_ms, '{:.2f}')} ms"
         ),
+        inlet_line(ambient_f, head, worker),
         power_reason(head, worker, occupant),
     ]
     extra = []
@@ -342,6 +360,11 @@ def gather(peer: str, rtt_target: str, state: dict) -> tuple[str, dict]:
     except Exception as e:  # noqa: BLE001 -- a missing plug must not stop the post
         logger.warning("outlet read failed: %s", e)
         outlet = {}
+    try:
+        ambient_f = dgx_metrics.inlet_air_f()
+    except Exception as e:  # noqa: BLE001 -- a silent sensor must not stop the post
+        logger.warning("inlet sensor read failed: %s", e)
+        ambient_f = None
     serving = None
     if state.get("serving_model"):
         try:
@@ -365,6 +388,7 @@ def gather(peer: str, rtt_target: str, state: dict) -> tuple[str, dict]:
         serving,
         prs=hb.format_prs(hb.read_prs()),
         log_age_min=hb.log_age(state, now),  # a log on the head; not the client's
+        ambient_f=ambient_f,
     )
     return body, {k: merged.get(k) for k in ("idle_power_since",)}
 
