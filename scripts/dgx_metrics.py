@@ -70,6 +70,10 @@ OUTLET_ENTITY = "dgx_current_consumption"
 #: both outlets and their sum (hardware/Cortex-X925-128GB-GB10-x2 opener, §3a);
 #: reading only the head's hid the worker's half of every two-node run.
 WORKER_OUTLET_ENTITY = "dgx_2_current_consumption"
+#: The Sparks' inlet air: the weather station's indoor sensor, in °F. It sits
+#: at the front of the DGX (operator, 2026-10-03). The office AC's own sensor
+#: (sensibo_office) is across the room and barely tracks it.
+AMBIENT_ENTITY = "evan_s_pws_inside_temperature"
 
 
 def _gcx_env() -> dict[str, str]:
@@ -143,16 +147,24 @@ def flux_query(flux: str) -> str:
     return out.stdout
 
 
-def outlet_flux(window: str, agg: str, entity: str = OUTLET_ENTITY) -> str:
-    """Flux for the outlet reading over `window`, reduced by `agg` (last/max)."""
+def sensor_flux(entity: str, unit: str, window: str, agg: str) -> str:
+    """Flux for one Home Assistant sensor over `window`, reduced by `agg`.
+
+    Home Assistant names each measurement after its unit ("W", "°F").
+    """
     return (
         'from(bucket: "home_assistant/autogen")'
         f" |> range(start: -{window})"
-        ' |> filter(fn: (r) => r["_measurement"] == "W"'
+        f' |> filter(fn: (r) => r["_measurement"] == "{unit}"'
         f' and r["entity_id"] == "{entity}"'
         ' and r["_field"] == "value")'
         f" |> {agg}()"
     )
+
+
+def outlet_flux(window: str, agg: str, entity: str = OUTLET_ENTITY) -> str:
+    """Flux for the outlet reading over `window`, reduced by `agg` (last/max)."""
+    return sensor_flux(entity, "W", window, agg)
 
 
 def outlet_value(gcx_json: str) -> float | None:
@@ -183,6 +195,11 @@ def wall_power(window: str) -> dict[str, float | None]:
         "worker_wall_w": outlet_value(flux_query(outlet_flux("10m", "last", w))),
         "worker_wall_peak_w": outlet_value(flux_query(outlet_flux(window, "max", w))),
     }
+
+
+def inlet_air_f() -> float | None:
+    """The inlet air in °F: the last sample in 30 min, or None."""
+    return outlet_value(flux_query(sensor_flux(AMBIENT_ENTITY, "°F", "30m", "last")))
 
 
 def _sum(a: float | None, b: float | None) -> float | None:

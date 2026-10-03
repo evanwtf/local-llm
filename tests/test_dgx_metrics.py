@@ -134,3 +134,26 @@ def test_format_line_wall_missing_reading_shows_na():
 def test_format_line_includes_ttft_only_when_present():
     assert "TTFT" not in dm.format_line({"gen_tps": 10.0})
     assert "TTFT p50 0.52s" in dm.format_line({"gen_tps": 10.0, "ttft_p50_s": 0.5172})
+
+
+# A real gcx Flux table for the inlet sensor, captured 2026-10-03T16:02-0400.
+AMBIENT = '{"columns":["Time","value","domain","entity_id"],"rows":[["2026-10-03T20:02:50Z",72.3,"sensor","evan_s_pws_inside_temperature"]]}'
+
+
+def test_sensor_flux_targets_the_inlet_sensor_in_fahrenheit():
+    q = dm.sensor_flux(dm.AMBIENT_ENTITY, "°F", "30m", "last")
+    assert 'r["_measurement"] == "°F"' in q
+    assert 'r["entity_id"] == "evan_s_pws_inside_temperature"' in q
+    assert "range(start: -30m)" in q
+    assert q.endswith("|> last()")
+
+
+def test_outlet_flux_is_sensor_flux_in_watts():
+    """The refactor must not change the outlet query by a character."""
+    assert dm.outlet_flux("10m", "last") == dm.sensor_flux(
+        dm.OUTLET_ENTITY, "W", "10m", "last"
+    )
+
+
+def test_ambient_reading_parses_with_the_outlet_parser():
+    assert dm.outlet_value(AMBIENT) == 72.3
