@@ -76,7 +76,7 @@ import pathlib
 import platform
 import subprocess
 import sys
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "scripts" / "lib"))
@@ -515,18 +515,27 @@ def unrecorded(claims: Sequence[Claim], procs: Sequence[preflight.Proc]) -> list
             p.pid,
             UNRECORDED,
             "a resident model server that no record mentions",
-            resident_gib=round(p.rss_gib, 1),
+            resident_gib=round(p.resident_gib, 1),
             held_s=p.age_s,
         )
         for p in procs
-        if p.pid not in known and p.rss_gib >= RESIDENT_GIB
+        if p.pid not in known and p.resident_gib >= RESIDENT_GIB
     ]
+
+
+def with_gpu_memory(
+    procs: Sequence[preflight.Proc], gpu: Mapping[int, float]
+) -> list[preflight.Proc]:
+    """Attach each process's GPU memory, so a server whose model is not in its
+    RSS still counts as resident (#935)."""
+    return [dataclasses.replace(p, gpu_gib=gpu.get(p.pid, 0.0)) for p in procs]
 
 
 def servers() -> list[preflight.Proc]:
     """The live census, via preflight so there is one definition of a server."""
-    return preflight.parse_ps(
-        preflight._capture(["ps", "-eo", "pid,rss,etime,command"])
+    return with_gpu_memory(
+        preflight.parse_ps(preflight._capture(["ps", "-eo", "pid,rss,etime,command"])),
+        preflight.gpu_memory_by_pid(),
     )
 
 
