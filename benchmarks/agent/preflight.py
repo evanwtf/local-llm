@@ -108,6 +108,15 @@ class Proc:
     command: str
     port: int | None = None
     age_s: int | None = None
+    #: GPU memory from `nvidia-smi --query-compute-apps`. On GB10 unified
+    #: memory a container's CUDA allocations do not show in RSS: a Docker
+    #: llama-server held 19,440 MiB here while `ps` said 0.92 GiB (#935).
+    gpu_gib: float = 0.0
+
+    @property
+    def resident_gib(self) -> float:
+        """What the process holds: the larger of RSS and GPU memory."""
+        return max(self.rss_gib, self.gpu_gib)
 
     @property
     def short(self) -> str:
@@ -376,6 +385,41 @@ def ceiling_gib(text: str) -> float:
     """The Metal ceiling actually in force: the override, or the stock value."""
     got = parse_wired_limit(text)
     return got if got is not None else STOCK_CEILING_GIB
+
+
+def parse_compute_apps(text: str) -> dict[int, float]:
+    """Read `nvidia-smi --query-compute-apps=pid,process_name,used_memory
+    --format=csv,noheader` into GPU GiB per pid.
+
+    A row whose memory reads `[N/A]`, or any row that does not parse, is
+    skipped rather than guessed (#935).
+    """
+    gpu: dict[int, float] = {}
+    for line in text.splitlines():
+        fields = [f.strip() for f in line.split(",")]
+        if len(fields) != 3 or not fields[2].endswith(" MiB"):
+            continue
+        try:
+            gpu[int(fields[0])] = int(fields[2].removesuffix(" MiB")) / 1024
+        except ValueError:
+            continue
+    return gpu
+
+
+def gpu_memory_by_pid() -> dict[int, float]:
+    """GPU GiB per pid on this host; empty where there is no nvidia-smi."""
+    try:
+        return parse_compute_apps(
+            _capture(
+                [
+                    "nvidia-smi",
+                    "--query-compute-apps=pid,process_name,used_memory",
+                    "--format=csv,noheader",
+                ]
+            )
+        )
+    except (OSError, subprocess.SubprocessError):
+        return {}
 
 
 def parse_ps(text: str, markers: Sequence[str] = INFERENCE) -> list[Proc]:

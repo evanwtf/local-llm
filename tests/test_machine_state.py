@@ -752,3 +752,41 @@ def test_no_benchmark_leaves_the_survey_free(tmp_path, peer_file) -> None:
         bench_text="  PID    RSS  ELAPSED COMMAND\n",
     )
     assert got["verdict"] == ms.FREE
+
+
+# --- GPU memory: a container's CUDA allocations miss RSS on GB10 (#935) -----
+
+# Measured 2026-10-04 on the cluster head: a Docker llama-server held
+# 19,440 MiB of GPU memory while `ps` showed 0.92 GiB RSS for the same pid.
+SMI_COMPUTE_APPS = "2857621, llama-server, 19440 MiB\n"
+
+
+def test_compute_apps_gives_each_pid_its_gpu_memory_in_gib() -> None:
+    assert preflight.parse_compute_apps(SMI_COMPUTE_APPS) == {2857621: 18.984375}
+
+
+def test_compute_apps_skips_lines_it_cannot_read() -> None:
+    text = "\n123, x, [N/A]\nnot a row\n456, y, 2048 MiB\n"
+    assert preflight.parse_compute_apps(text) == {456: 2.0}
+
+
+def test_resident_memory_is_the_larger_of_rss_and_gpu() -> None:
+    p = preflight.Proc(pid=1, rss_gib=0.92, command="llama-server", gpu_gib=18.98)
+    assert p.resident_gib == 18.98
+    assert proc(1, 74.2).resident_gib == 74.2
+
+
+def test_with_gpu_memory_attaches_only_the_pids_nvidia_smi_names() -> None:
+    procs = [proc(2857621, 0.92, "llama-server --port 8020"), proc(7, 74.2)]
+    got = ms.with_gpu_memory(procs, {2857621: 18.984375})
+    assert [p.gpu_gib for p in got] == [18.984375, 0.0]
+
+
+def test_a_container_server_with_little_rss_is_unrecorded_by_its_gpu_memory() -> None:
+    procs = ms.with_gpu_memory(
+        [proc(2857621, 0.92, "llama-server --port 8020")],
+        preflight.parse_compute_apps(SMI_COMPUTE_APPS),
+    )
+    got = ms.unrecorded([], procs)
+    assert [c.status for c in got] == [ms.UNRECORDED]
+    assert got[0].resident_gib == 19.0
