@@ -1,0 +1,268 @@
+# xurl sweep (dgx lane); grok 402
+# written: 2026-10-04T02:12:22Z
+# query: (from:miaai_lab OR from:jayleaton OR from:0xsero OR from:HandwerkAiLab OR from:ashhart) -is:retweet (since 2026-10-03T02:12:22Z)
+{
+  "data":[
+    {
+      "author_id":"2017869474536579072",
+      "created_at":"2026-10-04T01:45:12.000Z",
+      "edit_history_tweet_ids":[
+        "2106561240294359529"
+      ],
+      "id":"2106561240294359529",
+      "text":"@PlusTen_AI OMG, thank you! I just saw that I was like Who the hell is buying me coffee lol"
+    },
+    {
+      "author_id":"2017869474536579072",
+      "created_at":"2026-10-04T01:44:28.000Z",
+      "edit_history_tweet_ids":[
+        "2106561054377721991"
+      ],
+      "id":"2106561054377721991",
+      "text":"@PlusTen_AI Memory should be good in the latest version. Are you on the latest update?"
+    },
+    {
+      "author_id":"2017869474536579072",
+      "created_at":"2026-10-04T01:32:46.000Z",
+      "edit_history_tweet_ids":[
+        "2106558111914078520"
+      ],
+      "id":"2106558111914078520",
+      "text":"@niklaslenz_ai @aienscore I get the same guy in my comments and they feel totally automated too."
+    },
+    {
+      "author_id":"2017869474536579072",
+      "created_at":"2026-10-04T01:30:39.000Z",
+      "edit_history_tweet_ids":[
+        "2106557579552059855"
+      ],
+      "id":"2106557579552059855",
+      "text":"@xinghen14671484 That’s great news! Thanks for giving it a shot."
+    },
+    {
+      "author_id":"2017869474536579072",
+      "created_at":"2026-10-04T01:30:04.000Z",
+      "edit_history_tweet_ids":[
+        "2106557433443459169"
+      ],
+      "id":"2106557433443459169",
+      "text":"@PlusTen_AI Nice results. I will look at the prefill as I was seeing higher numbers."
+    },
+    {
+      "author_id":"2017869474536579072",
+      "created_at":"2026-10-04T01:28:56.000Z",
+      "edit_history_tweet_ids":[
+        "2106557149111533807"
+      ],
+      "id":"2106557149111533807",
+      "text":"@niklaslenz_ai Nice work dude, I dare say you can push it further. Iv removed comfy ui and built my own OpenAI endpoint stack into my homelab and it’s even faster.. \n\n@elonmusk really needs a get a hold of these bots haha. They are everywhere."
+    },
+    {
+      "author_id":"1550009227493752834",
+      "created_at":"2026-10-03T23:45:29.000Z",
+      "edit_history_tweet_ids":[
+        "2106531050163761201",
+        "2106531115108561221"
+      ],
+      "id":"2106531115108561221",
+      "text":"I wasn't intending to renew it this month, but Opus 5.5 is so good that it’s well worth the price.\n\nIt is what it is! https://t.co/vh771LljT2"
+    },
+    {
+      "author_id":"1550009227493752834",
+      "created_at":"2026-10-03T23:45:14.000Z",
+      "edit_history_tweet_ids":[
+        "2106531050163761201",
+        "2106531115108561221"
+      ],
+      "id":"2106531050163761201",
+      "text":"I wasn't intending to renew it this month, but Opus 5.5 is so good that it’s well worth the price.\n\nI'd it what it is! https://t.co/vh771LkM3u"
+    },
+    {
+      "author_id":"1550009227493752834",
+      "created_at":"2026-10-03T23:23:54.000Z",
+      "edit_history_tweet_ids":[
+        "2106525681236451524"
+      ],
+      "id":"2106525681236451524",
+      "text":"Sounds interesting, but I won't be testing it, nor develop a recipe.\n\nBut I guess I'm glad Europe is doing stuff?? https://t.co/uv2v18qINB"
+    },
+    {
+      "author_id":"1550009227493752834",
+      "created_at":"2026-10-03T23:00:01.000Z",
+      "edit_history_tweet_ids":[
+        "2106519672451727804"
+      ],
+      "id":"2106519672451727804",
+      "text":"@recursive_wave @ashxhart few days after probably"
+    }
+  ],
+  "includes":{
+    "users":[
+      {
+        "id":"2017869474536579072",
+        "name":"JJ Eaton",
+        "username":"jayleaton"
+      },
+      {
+        "id":"1550009227493752834",
+        "name":"Mia",
+        "username":"MiaAI_lab"
+      }
+    ]
+  },
+  "meta":{
+    "newest_id":"2106561240294359529",
+    "next_token":"b26v89c19zqg8o3juziybe2kg7cf637zmh0ubue3677gd",
+    "oldest_id":"2106519672451727804",
+    "result_count":10
+  }
+}
+
+# query: "DGX Spark" (TensorFold OR vLLM OR SGLang OR NVFP4 OR EXL3) -is:retweet (since 2026-10-03T02:12:22Z)
+{
+  "data":[
+    {
+      "author_id":"2085833273486585856",
+      "created_at":"2026-10-04T02:10:54.000Z",
+      "edit_history_tweet_ids":[
+        "2106567476817657954",
+        "2106567707621761484"
+      ],
+      "id":"2106567707621761484",
+      "text":"DeepSeek-V4.1-Flash on just 2× DGX Spark — with our own engine.\n\nWe wrote a clean-room deepseek_v41 family for TensorFold (by @ashxhart): tensor-parallel over two GB10s, from DeepSeek's MIT inference code + tech report.\n\nMeasured on the release build: \n• 60.5 tok/s code / 74.5"
+    },
+    {
+      "author_id":"2085833273486585856",
+      "created_at":"2026-10-04T02:09:59.000Z",
+      "edit_history_tweet_ids":[
+        "2106567476817657954",
+        "2106567707621761484"
+      ],
+      "id":"2106567476817657954",
+      "text":"DeepSeek-V4.1-Flash on just 2× DGX Spark — with our own engine.\n\nWe wrote a clean-room deepseek_v41 family for TensorFold (by @ashxhart): tensor-parallel over two GB10s, from DeepSeek's MIT inference code + tech report.\n\nMeasured on the release build: \n• 60.5 tok/s code / 74.5"
+    },
+    {
+      "author_id":"22507731",
+      "created_at":"2026-10-04T01:36:45.000Z",
+      "edit_history_tweet_ids":[
+        "2106559116197933522"
+      ],
+      "id":"2106559116197933522",
+      "text":"Same GLM-5.3-Flash + DFlash2 drafter on 2× DGX Spark (TP=2), MT-Bench, greedy, concurrency 2:\n\nvLLM → tensorfold\n24.6 → 43.2 tok/s per request\n45 → 78 tok/s total (1.74×)\n\nFewer tokens accepted per step (3.4 → 3.0), but each step costs half (143 → 67 ms)\n\n@ashxhart https://t.co/Hx4gby42Nn https://t.co/ogLyptKsdU"
+    },
+    {
+      "author_id":"2024365384493912071",
+      "created_at":"2026-10-04T00:06:13.000Z",
+      "edit_history_tweet_ids":[
+        "2106536331593601241"
+      ],
+      "id":"2106536331593601241",
+      "text":"@mfranz_on I've worked with LoRA and love the ability to use a model like Qwen 35B with multiple LoRA served concurrently for different specialized jobs. It's super efficient for that purpose while the main unedited model is also still available at the endpoint in vllm. This has been my"
+    },
+    {
+      "author_id":"1129972609",
+      "created_at":"2026-10-03T23:13:41.000Z",
+      "edit_history_tweet_ids":[
+        "2106523110891548819"
+      ],
+      "id":"2106523110891548819",
+      "text":"Got Aleph Alpha's new Kolibri 1 running on a single DGX Spark the day it came out.\nTheir container is x86 only, so I built vLLM 0.29.0 (arm64) + their aleph-alpha-inference plugin. FP8 weights (74 GB) and an FP8 KV cache, 164K context. The FP8 kernels worked on GB10 even though https://t.co/ifhtby166x https://t.co/uJsWHfogmF"
+    },
+    {
+      "author_id":"1579155234642972672",
+      "created_at":"2026-10-03T22:53:11.000Z",
+      "edit_history_tweet_ids":[
+        "2106517951415280125"
+      ],
+      "id":"2106517951415280125",
+      "text":"vLLM on NVIDIA DGX Spark: Full Docker Setup \u0026amp; API Test https://t.co/KvyxAZl2BG via @YouTube"
+    },
+    {
+      "author_id":"971791615005257734",
+      "created_at":"2026-10-03T21:44:52.000Z",
+      "edit_history_tweet_ids":[
+        "2106500759290568900"
+      ],
+      "id":"2106500759290568900",
+      "text":"We ran @Aleph__Alpha Kolibri-1 through the same evals we use for our local agents. Short version: impressive German and speed, but not safe enough for tool use yet.\n\nSetup: one DGX Spark, vLLM 0.29 + Aleph Alpha's plugin, FP8 weights. Use case: two @NousResearch assistants"
+    },
+    {
+      "author_id":"2022330991709245440",
+      "created_at":"2026-10-03T21:40:13.000Z",
+      "edit_history_tweet_ids":[
+        "2106499589440495798"
+      ],
+      "id":"2106499589440495798",
+      "text":"Checkout Travis Wichert’s deepseek-ai/DeepSeek-V4.1-Flash running on a 4-node NVIDIA DGX Spark Cluster with SGLang.\n\nFull benchmark at: https://t.co/n5MLFM2NzQ"
+    },
+    {
+      "author_id":"3268075538",
+      "created_at":"2026-10-03T21:26:20.000Z",
+      "edit_history_tweet_ids":[
+        "2106496096193454160"
+      ],
+      "id":"2106496096193454160",
+      "text":"🚀🚀🚀 Full GLM-5.3 (743B), #uncensored, running on 4× DGX Spark 🚀🚀🚀\n\nEXL3 3bpw · TP4 · MTP spec-decode · 200k ctx. Code decode ~25 tok/s single-stream → 70 tok/s at c8. \n\nThe only part that we introduce: making exllamav3 1.4.5 compile on GB10/aarch64. The rest is giants. https://t.co/edAvlsxSiC"
+    },
+    {
+      "author_id":"2022330991709245440",
+      "created_at":"2026-10-03T21:08:33.000Z",
+      "edit_history_tweet_ids":[
+        "2106491617888870446"
+      ],
+      "id":"2106491617888870446",
+      "text":"Check  Mike Pfaffenberger’s nvidia/GLM-5.3-Flash-NVFP4 on a 4-node NVIDIA DGX Spark cluster with vLLM\n\nView full benchmark at https://t.co/iYKikYv8vc"
+    }
+  ],
+  "includes":{
+    "users":[
+      {
+        "id":"2085833273486585856",
+        "name":"Bertholomus AI",
+        "username":"bertholomusai"
+      },
+      {
+        "id":"22507731",
+        "name":"Can GULDOGAN",
+        "username":"cguldogan"
+      },
+      {
+        "id":"2024365384493912071",
+        "name":"Engineer It!",
+        "username":"3nG1n33R_IT"
+      },
+      {
+        "id":"1129972609",
+        "name":"Wësche",
+        "username":"WescheNex1q"
+      },
+      {
+        "id":"1579155234642972672",
+        "name":"MadTc",
+        "username":"MadTc74"
+      },
+      {
+        "id":"971791615005257734",
+        "name":"Thomas Halwax",
+        "username":"ThomasHalwax"
+      },
+      {
+        "id":"2022330991709245440",
+        "name":"sparkarena",
+        "username":"spark_arena"
+      },
+      {
+        "id":"3268075538",
+        "name":"Norsyx",
+        "username":"norsyx"
+      }
+    ]
+  },
+  "meta":{
+    "newest_id":"2106567707621761484",
+    "next_token":"b26v89c19zqg8o3juziybc08a5eb2nz2qvbnxqa0v51fh",
+    "oldest_id":"2106491617888870446",
+    "result_count":10
+  }
+}
+

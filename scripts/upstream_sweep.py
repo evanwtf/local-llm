@@ -134,6 +134,29 @@ WATCHED: dict[str, tuple[str, tuple[str, ...]]] = {
         "DeepSeek V4.1 Flash EXL3 on two Sparks: a candidate arm, not yet run",
         (DGX,),
     ),
+    # TensorFold: the engine under the cluster's leading arms (#892), and the
+    # recipes built on it. Two sweeps on 2026-10-03 had to check these by hand;
+    # v0.6.2 to v0.6.5 shipped in two days.
+    "ashhart/TensorFold": (
+        "the engine under the cluster's leading GLM arms (#892, #897)",
+        (DGX,),
+    ),
+    "MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks-TensorFold": (
+        "the cluster pick's recipe: GLM-5.3-Flash EXL3 on TensorFold (#892)",
+        (DGX,),
+    ),
+    "jayleaton/glm53-tensorfold-spark": (
+        "GLM-5.3-Flash on TensorFold, a kept arm (#840)",
+        (DGX,),
+    ),
+    "jayleaton/deepseek-v41-tensorfold-spark": (
+        "DeepSeek-V4.1-Flash on TensorFold: a lead, unapproved (#919)",
+        (DGX,),
+    ),
+    "kindlingai/glm-5.3-flash-gx10": (
+        "GLM-5.3-Flash NVFP4 on vLLM, cut by the screen (#896)",
+        (DGX,),
+    ),
 }
 
 
