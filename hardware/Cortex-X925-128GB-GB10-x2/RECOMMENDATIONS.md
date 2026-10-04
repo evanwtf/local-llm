@@ -1,16 +1,18 @@
 # What to run on the dual DGX Spark cluster
 
-> **Ledger read 2026-10-02, 03:20 EDT.** 1,447 rows in
-> [`results.jsonl`](results.jsonl), from 2026-09-22T04:13-0400 to
-> 2026-10-02T02:51-0400: ten days of continuous testing, 18 stack
-> configurations of 9 checkpoints on 3 engines. This page was rewritten from scratch
-> on 2026-10-01, and the pick's third run added on 2026-10-02. The previous version (2026-09-29) is in git history.
+> **Ledger read 2026-10-02, 03:20 EDT; the pick restamped 2026-10-03, 23:30 EDT.**
+> 1,447 rows in [`results.jsonl`](results.jsonl) at the first read, from
+> 2026-09-22T04:13-0400 to 2026-10-02T02:51-0400: ten days of continuous
+> testing, 18 stack configurations of 9 checkpoints on 3 engines. This page was
+> rewritten from scratch on 2026-10-01. On 2026-10-03 the pick moved to the
+> recipe's v1.5 release, measured over 3 runs ([#892][i892]). The previous
+> version (2026-09-29) is in git history.
 
 ## The short answer
 
 | you want | run | evidence |
 |---|---|---|
-| **A coding agent (the pick)** | **GLM-5.3-Flash EXL3 TR3 4bpw on TensorFold v0.6.0**, [MiaAI-Lab recipe][r-tf-mia] | 124 of 126 replay and hard-set trials passed over 3 runs. The fastest stack measured on both task sets, in every run: 57–62% of vLLM's time on the same weights. Hidden-test pass rate level with every other stack. |
+| **A coding agent (the pick)** | **GLM-5.3-Flash EXL3 TR3 4bpw on TensorFold v0.6.0**, [MiaAI-Lab recipe][r-tf-mia] v1.5 @`1576746` | 124 of 126 replay and hard-set trials passed over 3 runs of v1.5 (95% CI 94.4–99.6%). The fastest engine measured on both task sets, in every run: 59–62% of vLLM's time on the same weights. Hidden-test pass rate level with every other stack. |
 | The most-measured fallback | The same weights on vLLM, [MiaAI-Lab vLLM recipe][r-glm-vllm] | 3 standard, 5 replay and 5 hard-set runs. It passed every standard trial and was the fastest stack on that set. On replay it took 178% of the pick's time. |
 | Image input, or more than 262k tokens of context | DeepSeek-V4-Flash-Vision-Exp on vLLM, [MiaAI-Lab DSpark recipe][r-dsv4v] | 1M context, vision. Passed 63 of 63 replay trials, at 272% of the pick's time. |
 | One Spark, not two | See the [single-Spark picks](../Cortex-X925-128GB-GB10/RECOMMENDATIONS.md) | Qwen3.8-Flash-Next NVFP4 fits one node. |
@@ -110,7 +112,8 @@ Later runs launch replay and hard together, 14 tasks. Task details are in
 ## 2. The pick: GLM-5.3-Flash on TensorFold, MiaAI-Lab recipe
 
 [`MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks-TensorFold`][r-tf-mia] runs
-[TensorFold][tensorfold] v0.6.0 plus 53 patches on both nodes, in NVIDIA's
+[TensorFold][tensorfold] v0.6.0 plus the recipe's patches on both nodes (70 at
+v1.5, patch-set hash `9f73cca659a1`), in NVIDIA's
 PyTorch container (`nvcr.io/nvidia/pytorch:26.07-py3`). It serves the TR3 4bpw
 EXL3 checkpoint ([`Mia-AiLab/GLM-5.3-Flash-EXL3-TR3-4bpw`][w-tr3] @`9eaebb7`)
 with the DFlash2 drafter ([`incoai/GLM-5.3-Flash-DFlash2`][w-dflash2]
@@ -119,35 +122,50 @@ window. We built the image locally (`PULL=0`).
 
 | run | recipe | passed | replay, sum of medians | hard, sum of medians | hidden tests |
 |---|---|---|---|---|---|
-| 2026-10-01, 14:10 EDT | v1.3 @`978b225` | **42/42** | 1,013.5 s | 2,871.6 s | 283/390 (72.6%) |
+| **2026-10-03, 09:51 EDT** | **v1.5 @`1576746`** | **41/42** | **1,025.1 s** | **3,221.1 s** | **284/390 (72.8%)** |
+| **2026-10-03, 13:51 EDT** | **v1.5 @`1576746`** | **42/42** | **997.4 s** | **3,074.4 s** | **281/390 (72.1%)** |
+| **2026-10-03, 17:37 EDT** | **v1.5 @`1576746`** | **41/42** | **1,064.1 s** | **2,949.5 s** | **288/390 (73.8%)** |
+| 2026-10-03, 02:02 EDT | v1.4 @`cf28cc4` | 42/42 | 1,119.8 s | 2,923.0 s | 289/390 (74.1%) |
+| 2026-10-03, 05:36 EDT | v1.4 @`cf28cc4` | 40/42 | 1,126.5 s | 2,913.4 s | 287/390 (73.6%) |
+| 2026-10-01, 14:10 EDT | v1.3 @`978b225` | 42/42 | 1,013.5 s | 2,871.6 s | 283/390 (72.6%) |
 | 2026-10-01, 17:54 EDT | v1.3.2 @`92bf731` | 41/42 | 1,140.4 s | 3,053.2 s | 274/390 (70.3%) |
 | 2026-10-01, 23:29 EDT | v1.3.2 @`92bf731` | 41/42 | 1,060.1 s | 3,050.2 s | 283/390 (72.6%) |
+
+**Why v1.5, not v1.3 @`978b225`.** The two cannot be told apart. Over the 14
+tasks, v1.5's three runs took 4,246.2 s, 4,071.8 s and 4,013.6 s (sum of
+per-task medians over all three: 4,061.5 s); v1.3's one run took 3,885.1 s, a
+4.5% gap, far inside the ~56% two 3-trial medians need. Every release from
+v1.3 to v1.5 falls within 7%. v1.5 is the current release, it is the only one
+with three runs, and the client's currency gate ([#820][i820]) will not run an
+older commit again.
 
 **Why it is the pick:**
 
 - **It is the fastest stack measured, by a margin that clears the noise.** On
   the same checkpoint, vLLM took 178% of its replay time (1,802.3 s against
   1,013.5 s) and 145% of its hard-set time on vLLM's fastest run (4,177.3 s
-  against 2,871.6 s). Over the 14 tasks, the pick took 57%, 62% and 60% of
-  vLLM's 6,811.6 s in its three runs (3,885.1 s, 4,193.6 s and 4,110.3 s).
+  against 2,871.6 s). Over the 14 tasks, v1.5 took 62%, 60% and 59% of
+  vLLM's 6,811.6 s in its three runs (4,246.2 s, 4,071.8 s and 4,013.6 s), and
+  every earlier release of the recipe took 57–62%.
 - **The speed comes from the engine, not the weights.** Same TR3 checkpoint,
   same client, same tasks. Only the engine changed.
-- **Its pass rate is the best measured:** 124 of 126 trials. One fail was
-  gmail-api-sources-hidden, which failed 1 of 16 visible tests. In the other,
-  web-auth-hidden passed its suite but the agent edited a test file, so the
-  guard fails it.
-- **Its hidden-test rate is level with the rest:** 72.6%, 70.3% and 72.6%
-  (840/1,170 over three runs), against
-  68.8–76.7% for every other stack with comparable counts (section 3).
-- **The three runs agree.** v1.3.2 changed two start defaults (32 kept prompt
-  states instead of 8, and `TF_GLM_MULTI_LONE` 0 instead of 1). It took 108% of
-  the first run's 14-task time, and its second run 106%. Between the first two
-  runs, three tasks cleared the 56% gap, and they pointed both ways.
+- **Its pass rate is the best measured:** 124 of 126 trials over v1.5's three
+  runs. Both misses were touched-tests guards: the suite passed, but the agent
+  edited a test file, so the guard fails the trial. v1.3 and v1.3.2 also
+  passed 124 of 126 together.
+- **Its hidden-test rate is level with the rest:** 72.8%, 72.1% and 73.8%
+  (853/1,170 over v1.5's three runs), against 68.8–76.7% for every other stack
+  with comparable counts (section 3).
+- **The runs agree.** Eight runs over five recipe commits, 2026-10-01 to 10-03,
+  span 3,885.1 s to 4,246.2 s over the 14 tasks. v1.4 made a new checkpoint the
+  recipe's default; this page kept TR3 4bpw @`9eaebb7` for every run. v1.5 adds
+  eight decode streams and a serial stop (patches 0069 and 0070).
 
 **What to keep in mind:**
 
-- **The engine is new.** TensorFold has few users yet, and the recipe adds 53
-  patches of its own.
+- **The engine is new.** TensorFold has few users yet, and the recipe adds 70
+  patches of its own, against a TensorFold release (v0.6.0) five releases
+  behind the latest (v0.6.5).
 - **Rows do not record the engine build** (`tensorfold_version=unknown`,
   [#320][i320]). The recipe commit and the patch-set hash above are the record.
 - **No standard-set run.** No TensorFold stack has run the 10 excision tasks.
@@ -158,7 +176,7 @@ window. We built the image locally (`PULL=0`).
 
 | stack (backend name) | recipe | engine and image | weights | OpenCode | dates |
 |---|---|---|---|---|---|
-| **GLM TensorFold, MiaAI** (`glm53fexl3tfmiaaidual2xrc`, `…v132…`) | [MiaAI-Lab TensorFold][r-tf-mia] @`978b225`, @`92bf731` | TensorFold v0.6.0 + 53 patches, built locally | [TR3 4bpw][w-tr3] @`9eaebb7`, [DFlash2][w-dflash2] @`bf582e4` | 1.18.34 | 10-01 |
+| **GLM TensorFold, MiaAI** (`glm53fexl3tfmiaaiv15dual2xrc`; earlier `glm53fexl3tfmiaaidual2xrc`, `…v132…`, `…v14…`) | [MiaAI-Lab TensorFold][r-tf-mia] v1.5 @`1576746`; earlier @`978b225`, @`92bf731`, @`cf28cc4` | TensorFold v0.6.0 + 70 patches at v1.5 (53 at v1.3), built locally | [TR3 4bpw][w-tr3] @`9eaebb7`, [DFlash2][w-dflash2] @`bf582e4` | 1.18.34 | 10-01 → 10-03 |
 | GLM TensorFold, jayleaton (`glm53ftfjaydual2xrc`) | [jayleaton/glm53-tensorfold-spark][r-tf-jay] @`e9c8cbb` | TensorFold v0.3.4 + 57 patches | [neko-legends abliterated EXL3][w-neko] @`07135ec` (**different weights**) | 1.18.33 | 09-29 → 09-30 |
 | … same, effort `high` (`…high`) | same @`ad63acf` | same | same | 1.18.34 | 10-01 |
 | GLM vLLM NVFP4, kindlingai (`glm53fnvfp4kindlingdual2xrc`) | [kindlingai/glm-5.3-flash-gx10][r-kindling] @`c748079` | vLLM nightly `ddd6fbca148a` + kindlingai overlays, image `spark-glm53:v9` built locally | [nvidia/GLM-5.3-Flash-NVFP4][w-glm-nvfp4] (**different weights**), [DFlash2][w-dflash2] | 1.18.34 | 10-02 → 10-03 |
@@ -185,10 +203,12 @@ matters, this page names both.
 
 ### Replay set: 7 tasks
 
-| stack | runs | passed | sum of medians | % of the pick | screen |
+| stack | runs | passed | sum of medians | % of v1.3 @`978b225` | screen |
 |---|---|---|---|---|---|
-| **GLM TensorFold, MiaAI** @`978b225` | 1 | 21/21 | **1,013.5 s** | 100% | keep |
-| GLM TensorFold, MiaAI @`92bf731` | 2 | 42/42 | 1,125.0 s | 111% | keep |
+| **GLM TensorFold, MiaAI v1.5** @`1576746` (the pick) | 3 | 63/63 | **1,017.2 s** | 100% | keep |
+| GLM TensorFold, MiaAI v1.3 @`978b225` | 1 | 21/21 | 1,013.5 s | 100% | keep |
+| GLM TensorFold, MiaAI v1.4 @`cf28cc4` | 2 | 42/42 | 1,124.0 s | 111% | keep |
+| GLM TensorFold, MiaAI v1.3.2 @`92bf731` | 2 | 42/42 | 1,125.0 s | 111% | keep |
 | GLM TensorFold, jayleaton | 3 | 62/63 | 1,183.3 s | 117% | keep |
 | GLM vLLM NVFP4, kindlingai | 3 | 63/63 | 1,301.6 s | 128% | keep |
 | GLM vLLM @`943912c` | 2 | 39/42 | 1,802.3 s | 178% | cut |
@@ -205,10 +225,12 @@ matters, this page names both.
 
 ### Hard set: 7 tasks, 5 with hidden tests
 
-| stack | runs | passed | sum of medians | % of the pick | hidden tests passed | screen |
+| stack | runs | passed | sum of medians | % of v1.3 @`978b225` | hidden tests passed | screen |
 |---|---|---|---|---|---|---|
-| **GLM TensorFold, MiaAI** @`978b225` | 1 | 21/21 | **2,871.6 s** | 100% | 283/390 (72.6%) | keep |
-| GLM TensorFold, MiaAI @`92bf731` | 2 | 40/42 | 3,036.8 s | 106% | 557/780 (71.4%) | keep |
+| **GLM TensorFold, MiaAI v1.5** @`1576746` (the pick) | 3 | 61/63 | **3,044.3 s** | 106% | 853/1,170 (72.9%) | keep |
+| GLM TensorFold, MiaAI v1.3 @`978b225` | 1 | 21/21 | 2,871.6 s | 100% | 283/390 (72.6%) | keep |
+| GLM TensorFold, MiaAI v1.4 @`cf28cc4` | 2 | 40/42 | 2,945.4 s | 103% | 576/780 (73.8%) | keep |
+| GLM TensorFold, MiaAI v1.3.2 @`92bf731` | 2 | 40/42 | 3,036.8 s | 106% | 557/780 (71.4%) | keep |
 | GLM TensorFold, jayleaton | 3 | 61/63 | 3,464.6 s | 121% | 746/1,084 (68.8%) | keep |
 | GLM vLLM NVFP4, kindlingai | 3 | 57/63 | 3,570.5 s | 124% | 873/1,170 (74.6%) | keep |
 | GLM vLLM @`94ae731`, output cap 65,536 | 1 | 20/21 | 4,177.3 s | 145% | 296/390 (75.9%) | keep |
@@ -374,8 +396,8 @@ explains why the effort setting matters.
 | uv, in the client image | 0.12.13 → 0.12.21 | [0.12.22][uv-rel], released 2026-10-01T20:20-0400 | **behind**; the client gate refuses a batch until the image moves |
 | CPython, in the client image | 3.14.4 → 3.14.7 | [3.14.8][py-rel] | **behind**; same gate |
 | vLLM | dev builds in the recipe images; 0.30.0 in two | [0.30.0][vllm-rel] | current where the recipe allows |
-| TensorFold | v0.6.0 (pick), v0.3.4 (jayleaton) | [v0.6.1][tf-rel], released 2026-10-01 | the pick's recipe pins v0.6.0 |
-| MiaAI TensorFold recipe | @`978b225`, @`92bf731` | @`92bf731` | current |
+| TensorFold | v0.6.0 (pick), v0.3.4 (jayleaton) | [v0.6.5][tf-rel], released 2026-10-03 (checked 2026-10-03) | the pick's recipe pins v0.6.0 |
+| MiaAI TensorFold recipe | @`978b225` → `1576746` (v1.5) | @`a152824` (checked 2026-10-03; CHANGELOG only since v1.5) | current |
 | MiaAI vLLM GLM recipe | @`94ae731` at its last run | @`6278ecb` | behind; not re-run |
 | MiaAI Qwen dual recipe | @`d23790b` at its last run | @`cd839d0` | behind; not re-run |
 | DGX OS | OTA 7.6.0 | 7.6.0 | current |
@@ -400,7 +422,9 @@ re-run of the pick.
   Qwen3.8-Flash-Next. If TensorFold does for Qwen what it did for GLM, Qwen's
   slightly higher hidden-test rate could make it the pick. Approved
   2026-10-01; it runs once the recipe is published.
-- **TensorFold v0.6.1** is out. The pick moves when its recipe does.
+- **TensorFold v0.6.5** is out (2026-10-03), five releases past the v0.6.0
+  the recipe pins. The pick moves when its recipe does. Whether the recipe's
+  70 patches apply to v0.6.5 is being checked before any run.
 - **[#904][i904]:** rows should record the serving engine's version.
 - **Not measured:** several clients at once, and code quality beyond the tests.
 
