@@ -157,3 +157,8 @@ def test_outlet_flux_is_sensor_flux_in_watts():
 
 def test_ambient_reading_parses_with_the_outlet_parser():
     assert dm.outlet_value(AMBIENT) == 72.3
+
+
+def test_inlet_window_outlasts_a_steady_room():
+    """The sensor records only on change; 30 min read n/a on a steady room."""
+    assert dm.INLET_WINDOW == "2h"

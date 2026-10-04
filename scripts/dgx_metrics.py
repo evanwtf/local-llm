@@ -74,6 +74,10 @@ WORKER_OUTLET_ENTITY = "dgx_2_current_consumption"
 #: at the front of the DGX (operator, 2026-10-03). The office AC's own sensor
 #: (sensibo_office) is across the room and barely tracks it.
 AMBIENT_ENTITY = "evan_s_pws_inside_temperature"
+#: How far back to look for its last sample. Home Assistant records the sensor
+#: only when the value changes, so a steady room goes quiet: on 2026-10-03 it
+#: sat at 74.3 F with no sample for 34 min, and a 30 min window read n/a.
+INLET_WINDOW = "2h"
 
 
 def _gcx_env() -> dict[str, str]:
@@ -198,8 +202,10 @@ def wall_power(window: str) -> dict[str, float | None]:
 
 
 def inlet_air_f() -> float | None:
-    """The inlet air in °F: the last sample in 30 min, or None."""
-    return outlet_value(flux_query(sensor_flux(AMBIENT_ENTITY, "°F", "30m", "last")))
+    """The inlet air in °F: the last sample in INLET_WINDOW, or None."""
+    return outlet_value(
+        flux_query(sensor_flux(AMBIENT_ENTITY, "°F", INLET_WINDOW, "last"))
+    )
 
 
 def _sum(a: float | None, b: float | None) -> float | None:

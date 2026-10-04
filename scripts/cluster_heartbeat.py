@@ -228,7 +228,7 @@ def inlet_line(ambient_f: float | None, head: Node, worker: Node) -> str:
     2026-10-03: the PWS indoor sensor sits at the front of the DGX, "presumably
     the inlet")."""
     if ambient_f is None:
-        return "**inlet** n/a (the PWS indoor sensor gave no reading in 30 min)"
+        return "**inlet** n/a (the PWS indoor sensor gave no reading in 2 h)"
     c = (ambient_f - 32) * 5 / 9
     rise = [
         "n/a" if n.temp_c is None else f"{n.temp_c - c:+.0f}" for n in (head, worker)
