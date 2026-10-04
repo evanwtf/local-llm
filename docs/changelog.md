@@ -25,6 +25,48 @@ picks in `RECOMMENDATIONS.md`, and the current queue from
 
 ---
 
+## v1.2.0 — 2026-10-03
+
+The coding-agent test on the two-Spark cluster is done for now (operator,
+2026-10-03). This release closes it: the pick is restamped on three runs, the
+last candidates are measured, and the heartbeat reads the room the Sparks
+breathe.
+
+**The cluster pick is the MiaAI TensorFold recipe v1.5.** Same weights (TR3
+4bpw) and engine (TensorFold v0.6.0 plus the recipe's patches) as v1.1.0's
+pick, now at recipe v1.5 @`1576746` over 3 runs: 124 of 126 trials passed
+(95% CI 94.4–99.6%), in 4,246.2 s, 4,071.8 s and 4,013.6 s over the 14 tasks,
+59–62% of vLLM's 6,811.6 s on the same weights. Hidden tests 853/1,170
+(72.9%). v1.3's single run (3,885.1 s) is 4.5% faster, inside the noise, and
+the currency gate will not run it again. Recipe v1.4 is also measured, over 2
+runs: 82/84 in 4,069.4 s (#892, #918, #920, #922, #923, #925, #927, #929,
+#932).
+
+**GLM-5.3-Flash on NVIDIA's NVFP4 weights, via kindlingai's vLLM launcher**:
+3 runs, 120/126, 4,872.1 s (125% of the pick). The screen cuts it (#896,
+#910, #911, #913, #916, #917).
+
+**TensorFold v0.6.5 is not run.** The recipe's 70 patches apply 70/70 to
+v0.6.0 and 42/70 to v0.6.5; we wait for the recipe to rebase rather than port
+them (#892).
+
+**The heartbeat reads the inlet air.** The weather station's indoor sensor sits
+at the front of the Sparks. Each update gives its temperature and each GPU's
+rise over it, looking back 2 h because Home Assistant records the sensor only
+on change (#928, #933).
+
+**Sources.** The upstream sweep watches TensorFold and the four recipes built
+on it (#931). Three DeepSeek-V4.1 two-Spark routes are filed as leads (#919,
+#924, #930), parked with #897, #912 and #811 for a later round.
+
+**Client image.** uv 0.12.23 and CPython 3.14.8, after the currency gate
+refused the older image twice (#907, #908, #926).
+
+**Known gaps.** Unchanged from v1.1.0: cluster rows record the client host's
+vLLM version (#904), and TensorFold builds record as `unknown` (#320).
+
+---
+
 ## v1.1.0 — 2026-10-01
 
 The first release since v1.0.1, after 534 merged pull requests. It marks the
