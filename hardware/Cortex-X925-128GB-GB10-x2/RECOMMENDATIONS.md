@@ -423,8 +423,11 @@ re-run of the pick.
   slightly higher hidden-test rate could make it the pick. Approved
   2026-10-01; it runs once the recipe is published.
 - **TensorFold v0.6.5** is out (2026-10-03), five releases past the v0.6.0
-  the recipe pins. The pick moves when its recipe does. Whether the recipe's
-  70 patches apply to v0.6.5 is being checked before any run.
+  the recipe pins. The pick moves when its recipe does. The recipe's 70
+  patches do not carry over: applied in order to v0.6.5, 28 fail and its build
+  stops at patch 0002. Only one (0058) is already upstream. We wait for the
+  recipe to rebase rather than port the patches ourselves (operator,
+  2026-10-03).
 - **[#904][i904]:** rows should record the serving engine's version.
 - **Not measured:** several clients at once, and code quality beyond the tests.
 
