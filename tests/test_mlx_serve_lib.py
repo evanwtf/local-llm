@@ -414,3 +414,33 @@ def test_model_dir_of_extracts_the_model_path():
         pathlib.Path("/x/y")
     )
     assert mlx_serve.model_dir_of(["mlx-serve", "--serve"]) is None
+
+
+# --- the arm's environment (review) ------------------------------------------
+
+
+def test_the_arm_environment_reaches_the_server(state, tmp_path, monkeypatch) -> None:
+    """`env` sets and `unset` removes, as for ds4 (#149-style presence/value).
+
+    stack_agent_ab.py accepted NEW_ENV/NEW_UNSET for an mlx-serve arm and the
+    run record printed them, but nothing handed them to the server. Two arms
+    that differed only by env ran the same configuration under two labels.
+    """
+    monkeypatch.setenv("MLX_REVIEW_INHERITED", "leak")
+    seen = tmp_path / "env.txt"
+    command = ["sh", "-c", f"env > {seen}.tmp && mv {seen}.tmp {seen}; exec sleep 60"]
+    with mlx_serve.serving(
+        command,
+        tmp_path / "s.log",
+        cwd=ROOT,
+        env={"MLX_REVIEW_SET": "96"},
+        unset=("MLX_REVIEW_INHERITED",),
+        state_dir=state,
+    ):
+        for _ in range(100):
+            if seen.exists():
+                break
+            subprocess.run(["sleep", "0.05"], check=True)
+        lines = seen.read_text().splitlines()
+    assert "MLX_REVIEW_SET=96" in lines
+    assert not any(line.startswith("MLX_REVIEW_INHERITED=") for line in lines)
