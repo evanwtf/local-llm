@@ -2865,3 +2865,323 @@ def test_a_real_run_still_writes_the_live_ledger(tmp_path):
 )
 def test_the_plausibility_gate_skips_a_dry_run(allow_implausible, dry_run, applies):
     assert run.plausibility_applies(allow_implausible, dry_run) is applies
+
+
+# --- review: the oracle is judged against the starting commit ---------------
+#
+# touched_tests, edited_source and the saved patch were all read from
+# `git diff HEAD`. The agent has a shell in a real git repository, and agents
+# commit: a 2026-09-18 DGX transcript (storage-blob-put, opencode, trial 3)
+# runs `git commit` in the trial checkout, and nine passing rows across the
+# ledgers carry `solution_empty`. A commit moves HEAD, so a test edit committed
+# with the solution read as touched_tests=false and the solution as empty.
+
+ORACLE_CHECK = (
+    "import pathlib, sys\n"
+    "sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))\n"
+    "import mod\n"
+    "assert mod.target_fn() == 1\n"
+)
+SOLVE = "printf 'def target_fn():\\n    return 1\\n' > mod.py"
+COMMIT = "git add -A && git -c user.email=a@b -c user.name=a commit -qm agent"
+
+
+def _oracle_repo(tmp_path):
+    """A one-commit repo whose oracle is tests/check.py."""
+    repo = tmp_path / "monitor"
+    (repo / "tests").mkdir(parents=True)
+    (repo / "mod.py").write_text("def target_fn():\n    return 1\n")
+    (repo / "tests" / "check.py").write_text(ORACLE_CHECK)
+    (repo / ".gitignore").write_text("__pycache__/\n")
+    (repo / "pyproject.toml").write_text(
+        '[project]\nname = "m"\n\n[tool.pytest.ini_options]\naddopts = "-q"\n'
+    )
+    run.git(["init", "-q", "-b", "main"], repo)
+    run.git(["add", "-A"], repo)
+    run.git(
+        ["-c", "user.email=a@b", "-c", "user.name=a", "commit", "-q", "-m", "init"],
+        repo,
+    )
+    run.git(["update-ref", "refs/remotes/origin/main", "HEAD"], repo)
+    return repo, run.git(["rev-parse", "HEAD"], repo)
+
+
+def _agent_trial(tmp_path, monkeypatch, shell, **kw):
+    """One real trial whose agent is a shell command run in the checkout."""
+    repo, commit = _oracle_repo(tmp_path)
+    monkeypatch.setitem(
+        run.CLIENTS,
+        "agent",
+        (
+            lambda task, backend, worktree=None: ["sh", "-c", shell],
+            lambda _out, **_: {},
+        ),
+    )
+    return run.one_trial(
+        {"repo": str(repo), "base_commit": commit},
+        {
+            "name": "seam",
+            "file": "mod.py",
+            "symbol": "target_fn",
+            "tests": [],
+            "test_command": "python3 tests/check.py",
+        },
+        "seam",
+        {"model": "stub", "context_tokens": 1},
+        trial=1,
+        workdir=tmp_path / "work",
+        timeout=60,
+        dry_run=False,
+        client="agent",
+        solutions=tmp_path / "solutions",
+        gates=False,
+        sandbox=False,
+        prepare_env_first=False,
+        idle_watchdog=False,
+        **kw,
+    )
+
+
+def test_a_committed_test_edit_still_touches_the_tests(tmp_path, monkeypatch):
+    row = _agent_trial(
+        tmp_path, monkeypatch, f"printf 'pass\\n' > tests/check.py && {COMMIT}"
+    )
+    assert row["passed"] is True, row["pytest"]
+    assert row["touched_tests"] is True
+    assert results.verdict(row) is False
+
+
+def test_a_committed_solution_is_still_the_solution(tmp_path, monkeypatch):
+    row = _agent_trial(tmp_path, monkeypatch, f"{SOLVE} && {COMMIT}")
+    assert results.verdict(row) is True, row["pytest"]
+    assert row["touched_tests"] is False
+    assert row["edited_source"] is True
+    assert "solution_empty" not in row
+    assert "return 1" in pathlib.Path(row["solution_patch"]).read_text()
+
+
+def test_an_untracked_conftest_touches_the_tests(tmp_path, monkeypatch):
+    """`git diff` lists no untracked file, and only replay tasks registered
+    them. An excision agent could add tests/conftest.py unseen."""
+    row = _agent_trial(
+        tmp_path,
+        monkeypatch,
+        f"{SOLVE} && printf 'collect_ignore = []\\n' > tests/conftest.py",
+    )
+    assert row["touched_tests"] is True
+
+
+# --- review: the oracle's whole surface, not only tests/ --------------------
+
+
+@pytest.mark.parametrize(
+    ("path", "text"),
+    [
+        ("conftest.py", "collect_ignore = ['tests']\n"),
+        ("tests/unit/conftest.py", "x = 1\n"),
+        ("pytest.ini", "[pytest]\naddopts = -k nothing\n"),
+        ("setup.cfg", "[tool:pytest]\naddopts = -k nothing\n"),
+        ("tox.ini", "[pytest]\naddopts = -k nothing\n"),
+        ("Tests/AppTests/AppTests.swift", "// SwiftPM's tests\n"),
+    ],
+)
+def test_a_new_file_the_oracle_reads_touches_it(tmp_path, path, text):
+    repo, base = _oracle_repo(tmp_path)
+    (repo / path).parent.mkdir(parents=True, exist_ok=True)
+    (repo / path).write_text(text)
+    assert run.oracle_touched(repo, base) is True
+
+
+def test_the_pytest_section_of_pyproject_is_part_of_the_oracle(tmp_path):
+    repo, base = _oracle_repo(tmp_path)
+    (repo / "pyproject.toml").write_text(
+        '[project]\nname = "m"\n\n'
+        '[tool.pytest.ini_options]\naddopts = "-q --deselect tests/check.py"\n'
+    )
+    assert run.oracle_touched(repo, base) is True
+
+
+def test_a_dependency_in_pyproject_does_not_touch_the_oracle(tmp_path):
+    """Only the pytest section is the oracle. An agent that adds a dependency
+    has changed the environment, not the tests."""
+    repo, base = _oracle_repo(tmp_path)
+    (repo / "pyproject.toml").write_text(
+        '[project]\nname = "m"\ndependencies = ["attrs"]\n\n'
+        '[tool.pytest.ini_options]\naddopts = "-q"\n'
+    )
+    assert run.oracle_touched(repo, base) is False
+
+
+def test_a_setup_cfg_without_a_pytest_section_does_not_touch_it(tmp_path):
+    repo, base = _oracle_repo(tmp_path)
+    (repo / "setup.cfg").write_text("[flake8]\nmax-line-length = 99\n")
+    assert run.oracle_touched(repo, base) is False
+
+
+def test_source_edits_and_ignored_caches_do_not_touch_the_oracle(tmp_path):
+    repo, base = _oracle_repo(tmp_path)
+    (repo / "mod.py").write_text("def target_fn():\n    return 2\n")
+    (repo / "tests" / "__pycache__").mkdir()
+    (repo / "tests" / "__pycache__" / "check.cpython-313.pyc").write_bytes(b"\0")
+    assert run.oracle_touched(repo, base) is False
+
+
+def test_a_committed_and_then_reverted_head_is_judged_from_the_base(tmp_path):
+    """Judged against the base sha, not HEAD: a commit cannot hide an edit."""
+    repo, base = _oracle_repo(tmp_path)
+    (repo / "tests" / "check.py").write_text("pass\n")
+    run.git(["add", "-A"], repo)
+    run.git(
+        ["-c", "user.email=a@b", "-c", "user.name=a", "commit", "-q", "-m", "x"],
+        repo,
+    )
+    assert run.oracle_touched(repo, base) is True
+
+
+# --- review: a draft refusal keeps the row it refused on ---------------------
+#
+# --require-draft raised SystemExit inside one_trial, after the trial had run
+# and its checkout was deleted, so main() never reached finish_row and the
+# measured trial left no row at all.
+
+
+class _Bypassed:
+    """Counters shaped like mtp_timing.Counters: accepted, never drafted."""
+
+    cycles = tuple(range(244))
+    drafting = 0
+    bypassed = 244
+    accepted = 800
+    proposed = 1000
+    accept_rate = 0.8
+    used = True
+    drafting_share = 0.0
+    spec_misses = 0
+
+
+class _Probe:
+    source = "ds4-mtp-timing"
+    counters_requested = True
+
+    def sample(self):
+        return _Bypassed()
+
+
+def test_a_draft_refusal_returns_an_excluded_row(tmp_path, monkeypatch):
+    monkeypatch.setattr(run, "counters_on", lambda *a, **k: True)
+    row = _agent_trial(
+        tmp_path, monkeypatch, SOLVE, draft_probe=_Probe(), require_draft=True
+    )
+    assert row["passed"] is True, "the trial ran to its verdict"
+    assert row["excluded"] is True
+    assert "#210" in row["exclusion_reason"]
+    assert "#210" in row["draft_refusal"]
+
+
+def test_finish_row_writes_the_refused_row_then_stops(tmp_path, monkeypatch):
+    monkeypatch.setattr(run, "backend_answers", lambda backend: True)
+    ledger = tmp_path / "results.jsonl"
+    row = results.new_row(
+        task="t",
+        backend="b",
+        client="opencode",
+        trial=1,
+        model="m",
+        context_tokens=1,
+        effort=None,
+        env={"opencode": "1.0"},
+    )
+    row.update(
+        finished=results.now(),
+        excluded=True,
+        exclusion_reason="draft head bypassed (#210)",
+        draft_refusal="refusing to continue (#210)",
+    )
+    with pytest.raises(SystemExit, match="#210"):
+        run.finish_row(row, "b", {}, None, ledger, False)
+    written = results.load(ledger)
+    assert len(written) == 1
+    assert written[0]["excluded"] is True
+
+
+# --- review: one client's stop is not another client's stop -----------------
+#
+# The early stop judges a (backend, client) cell but stopped the backend, so a
+# second client lost every later task. The timeout breaker summed both
+# clients' rows against one client's planned size.
+
+
+def test_a_stopped_cell_leaves_the_other_client_running():
+    stops = run.CellStops()
+    stops.stop("b", "opencode")
+    assert stops.stopped("b", "opencode")
+    assert not stops.stopped("b", "claude")
+
+
+def test_the_timeout_breaker_counts_each_client_alone():
+    stops = run.CellStops()
+    assert stops.count("b", "opencode", {"error": "timeout"}) == (1, 1)
+    assert stops.count("b", "opencode", {"error": "timeout"}) == (2, 2)
+    assert stops.count("b", "claude", {"passed": True}) == (1, 0)
+
+
+# --- review: each backend's rows carry that backend's launch argv -----------
+#
+# capture_versions() stored one server_argv for the whole batch, and vLLM's
+# block took the first `vllm serve` process on the box. A batch with two
+# backends stamped one server's launch on the other's rows.
+
+VLLM_PS = (
+    "sshd\n"
+    "/usr/bin/python3 /usr/local/bin/vllm serve org/A --served-model-name a "
+    "--port 8000 --max-model-len 4096\n"
+    "/usr/bin/python3 /usr/local/bin/vllm serve org/B --served-model-name b "
+    "--port 8030 --max-model-len 32768\n"
+)
+
+
+def test_serving_vllm_picks_the_process_serving_the_backends_model(monkeypatch):
+    monkeypatch.setattr(run.subprocess, "run", lambda *a, **k: _Ps(VLLM_PS))
+    got = run.serving_vllm({"model": "b", "base_url": "http://127.0.0.1:8030"})
+    assert got is not None
+    assert "--max-model-len 32768" in got["server_argv"]
+
+
+def test_serving_vllm_tells_one_model_on_two_ports_apart(monkeypatch):
+    ps = VLLM_PS.replace("--served-model-name b", "--served-model-name a")
+    monkeypatch.setattr(run.subprocess, "run", lambda *a, **k: _Ps(ps))
+    got = run.serving_vllm({"model": "a", "base_url": "http://127.0.0.1:8030"})
+    assert got is not None
+    assert "--port 8030" in got["server_argv"]
+
+
+def test_serving_vllm_refuses_to_guess_between_two_servers(monkeypatch):
+    monkeypatch.setattr(run.subprocess, "run", lambda *a, **k: _Ps(VLLM_PS))
+    assert run.serving_vllm({"model": "c", "base_url": "http://h:9000"}) is None
+
+
+def test_one_vllm_server_still_answers_for_its_backend(monkeypatch):
+    """A container maps its own port: one server is unambiguous whatever the
+    backend's base_url says, as every vLLM row so far was recorded."""
+    line = "/usr/bin/python3 /usr/local/bin/vllm serve org/A --port 8000\n"
+    monkeypatch.setattr(run.subprocess, "run", lambda *a, **k: _Ps(line))
+    got = run.serving_vllm({"model": "x", "base_url": "http://127.0.0.1:8030"})
+    assert got == {"server_argv": line.strip()}
+
+
+def test_each_backend_gets_its_own_launch_argv():
+    versions = {"server_argv": "first", "vllm": "0.1"}
+    per = run.versions_per_backend(
+        versions, ["a", "b", "hosted"], {"a": "argv-a", "b": "argv-b"}
+    )
+    assert per["a"]["server_argv"] == "argv-a"
+    assert per["b"]["server_argv"] == "argv-b"
+    assert "server_argv" not in per["hosted"], "unknown, never another's"
+    assert per["a"]["vllm"] == "0.1"
+    assert versions["server_argv"] == "first", "the batch env is not mutated"
+
+
+def test_a_single_backend_batch_keeps_the_batch_env():
+    versions = {"server_argv": "only"}
+    per = run.versions_per_backend(versions, ["a"], {})
+    assert per["a"] is versions

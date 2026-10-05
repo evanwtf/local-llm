@@ -414,6 +414,43 @@ def test_a_new_file_under_tests_counts_as_touching_them(history, tmp_path, monke
     assert results.verdict(row) is False
 
 
+def test_track_new_files_reports_a_failure(tmp_path):
+    """A stale index.lock makes `git add --intent-to-add` fail. The return
+    code was discarded, so every later diff silently missed the new files."""
+    repo = tmp_path / "r"
+    repo.mkdir()
+    run.git(["init", "-q", "-b", "main"], repo)
+    (repo / "new.py").write_text("x = 1\n")
+    (repo / ".git" / "index.lock").write_text("")
+    assert "index.lock" in replay.track_new_files(repo)
+
+
+def test_track_new_files_is_quiet_on_success(tmp_path):
+    repo = tmp_path / "r"
+    repo.mkdir()
+    run.git(["init", "-q", "-b", "main"], repo)
+    (repo / "new.py").write_text("x = 1\n")
+    assert replay.track_new_files(repo) is None
+    assert "new.py" in run.git(["diff", "--stat"], repo)
+
+
+def test_a_failed_new_file_scan_excludes_the_row(history, tmp_path, monkeypatch):
+    """The saved patch and edited_source cannot be trusted, so the row stays
+    out of every aggregate and says why."""
+    repo, _parent, commit = history
+    monkeypatch.setattr(
+        run.replay, "track_new_files", lambda wt: "fatal: Unable to create index.lock"
+    )
+    monkeypatch.setitem(
+        run.CLIENTS,
+        "noop",
+        (lambda t, b, w=None: ["python3", "-c", "pass"], lambda _o, **_: {}),
+    )
+    row = _trial(repo, commit, tmp_path, dry_run=False, client="noop", sandbox=False)
+    assert row["excluded"] is True
+    assert "index.lock" in row["exclusion_reason"]
+
+
 # --- spans (#726) ---------------------------------------------------------------
 
 

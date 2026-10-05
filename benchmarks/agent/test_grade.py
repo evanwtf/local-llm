@@ -294,3 +294,46 @@ def test_verbatim_uses_the_right_parser_for_the_language(tmp_path):
     p = tmp_path / "X.swift"
     p.write_text("enum X {\n    static func f() -> Int {\n        return 1\n    }\n}\n")
     assert grade.restored_verbatim(p, "X.f", "\n        return 1\n    ") is True
+
+
+# --- review: a later batch never overwrites an earlier patch ----------------
+#
+# The patch was named for the trial alone, so the next batch of the same cell
+# rewrote the file. The earlier row kept its path and its hash, and the bytes
+# that hash described were gone.
+
+
+def test_a_second_save_of_one_trial_keeps_the_first(worktree, tmp_path):
+    out = tmp_path / "solutions"
+    _solve(worktree, ORIGINAL)
+    first = grade.save_solution(out, "t1", worktree)
+    _solve(worktree, "    return b + a\n")
+    second = grade.save_solution(out, "t1", worktree)
+    assert first["solution_patch"] != second["solution_patch"]
+    kept = pathlib.Path(first["solution_patch"]).read_bytes()
+    assert grade.hashlib.sha256(kept).hexdigest() == first["solution_sha256"]
+
+
+def test_the_run_tag_names_the_patch(worktree, tmp_path):
+    _solve(worktree, ORIGINAL)
+    got = grade.save_solution(tmp_path / "s", "t1", worktree, tag="1.18-abc-T1Z")
+    assert pathlib.Path(got["solution_patch"]).name == "t1-1.18-abc-T1Z.patch"
+
+
+def test_the_patch_is_taken_against_the_base_commit(worktree, tmp_path):
+    """A commit by the agent moves HEAD; the base sha does not move."""
+    base = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=worktree,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    _solve(worktree, ORIGINAL)
+    subprocess.run(
+        ["git", "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qam", "a"],
+        cwd=worktree,
+        check=True,
+    )
+    got = grade.save_solution(tmp_path / "s", "t1", worktree, base=base)
+    assert "return a + b" in pathlib.Path(got["solution_patch"]).read_text()
