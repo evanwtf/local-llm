@@ -7,6 +7,7 @@ import pathlib
 import sys
 import types
 
+import pytest
 import remote
 import run
 
@@ -273,3 +274,139 @@ def test_the_servers_own_cap_never_lands_on_a_remote_row():
     assert "client_mem_cap_gib" not in out, "the server's cap leaked onto the row"
     assert "client_image" not in out
     assert out["vllm"] == "0.29.0"
+
+
+# --- tier vs ledger (#647): the facts' machine must own the backend's tier --
+
+
+def test_a_cluster_backend_on_single_spark_facts_is_refused():
+    """Facts taken without --cluster-peer name the single Spark. A two-node
+    backend's rows would then join that ledger, and the foreign-hardware
+    check cannot see it: the head node's facts are the same either way."""
+    why = remote.tier_mismatch(
+        "pair", {"tier": "gb10-spark-x2"}, "Cortex-X925-128GB-GB10"
+    )
+    assert why and "Cortex-X925-128GB-GB10-x2" in why and "--cluster-peer" in why
+
+
+def test_a_single_spark_backend_on_cluster_facts_is_refused():
+    why = remote.tier_mismatch(
+        "single", {"tier": "gb10-spark"}, "Cortex-X925-128GB-GB10-x2"
+    )
+    assert why and "Cortex-X925-128GB-GB10" in why
+
+
+def test_a_backend_on_its_own_machine_passes():
+    assert (
+        remote.tier_mismatch(
+            "pair", {"tier": "gb10-spark-x2"}, "Cortex-X925-128GB-GB10-x2"
+        )
+        is None
+    )
+    assert (
+        remote.tier_mismatch("single", {"tier": "gb10-spark"}, "Cortex-X925-128GB-GB10")
+        is None
+    )
+
+
+def test_an_unregistered_server_with_an_unowned_tier_is_not_judged():
+    """Anyone may run this code; a machine we do not manage has no tier to
+    compare, and refusing it would say nothing about its rows."""
+    assert remote.tier_mismatch("b", {}, "Some-Other-Box") is None
+
+
+def test_every_remote_row_already_sits_in_its_tiers_ledger():
+    """The rule matches every remote row on record, so it refuses nothing that
+    was ever accepted."""
+    import json
+    import tomllib
+
+    repo = pathlib.Path(run.__file__).resolve().parents[2]
+    cfg = tomllib.loads((repo / "benchmarks" / "agent" / "tasks.toml").read_text())
+    for ledger in sorted((repo / "hardware").glob("*/results.jsonl")):
+        for line in ledger.read_text().splitlines():
+            row = json.loads(line)
+            env = row.get("env") or {}
+            spec = cfg["backend"].get(row.get("backend"))
+            if env.get("topology") != "remote" or spec is None:
+                continue
+            assert (
+                remote.tier_mismatch(row["backend"], spec, ledger.parent.name) is None
+            )
+
+
+# --- live server identity vs saved facts (finding 3 of the 2026-10-05 review) --
+
+
+def test_saved_facts_cannot_overwrite_a_different_live_server():
+    """The facts are reusable for six hours. A server restarted on other
+    weights under the same backend name must not be described by the old
+    file: the live probe disagrees, so the run refuses."""
+    env = {"servers": {"b": {"served_model_id": "glm-new", "sampling": {}}}}
+    facts = {
+        "directory": "d",
+        "env": {"servers": {"b": {"served_model_id": "glm-old", "sampling": {}}}},
+    }
+    with pytest.raises(SystemExit) as exc:
+        remote.stamp(env, facts)
+    assert "served_model_id" in str(exc.value)
+    assert "glm-new" in str(exc.value) and "glm-old" in str(exc.value)
+
+
+def test_the_live_probe_wins_and_the_servers_own_build_is_kept():
+    """HTTP answers are live; the build identity is only visible on the server.
+    The client's engine identity describes the client's disk, and goes."""
+    env = {
+        "servers": {
+            "b": {
+                "served_model_id": "m",
+                "context_length": 131072,
+                "engine_name": "vllm",
+                "engine_version": "0.0.1-on-the-client",
+            }
+        }
+    }
+    facts = {
+        "directory": "d",
+        "env": {
+            "servers": {
+                "b": {
+                    "served_model_id": "m",
+                    "engine_name": "vllm",
+                    "engine_version": "0.29.0",
+                }
+            }
+        },
+    }
+    out = remote.stamp(env, facts)
+    assert out["servers"] == {
+        "b": {
+            "served_model_id": "m",
+            "context_length": 131072,
+            "engine_name": "vllm",
+            "engine_version": "0.29.0",
+        }
+    }
+
+
+# --- client engine provenance (finding 4 of the 2026-10-05 review) ----------
+
+
+def test_client_engine_provenance_never_lands_on_a_remote_row():
+    """The client probed its own disk and process table. A vLLM venv or a
+    `vllm serve` on the client says nothing about the server, and must not
+    erase the server's own honest `unknown` either."""
+    env = {
+        "vllm": "0.11.0",
+        "vllm_torch": "2.9.0",
+        "server_argv": "vllm serve some-client-model",
+        "llamacpp_head": "c0ffee1",
+        "digest_b": "sha256:client",
+        "opencode": "1.18.34",
+    }
+    facts = {"directory": "d", "env": {"vllm_version": "unknown"}}
+    out = remote.stamp(env, facts)
+    for key in ("vllm", "vllm_torch", "server_argv", "llamacpp_head", "digest_b"):
+        assert key not in out, key
+    assert out["vllm_version"] == "unknown"
+    assert out["opencode"] == "1.18.34"

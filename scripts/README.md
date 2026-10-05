@@ -133,6 +133,7 @@ Each script explains itself in full at the top of its own file -- what it comput
 | `targets_ab.py` | any | Does the sandbox target layout change the pass rate? #146 |
 | `test_build_client_image.py` | any | The client image's pins are only worth having if a drift is a test failure. |
 | `test_client_container.py` | any | The container invocation is where a silent confound would hide. #611 |
+| `test_server_facts.py` | any | The server facts decide which ledger a remote row joins. #562, #647 |
 | `thermals.py` | mac | Read this machine's temperatures, with a timestamp, without sudo. |
 | `thermals_summary.py` | any | Summarize a `thermals.py --watch --json` log into a run's thermal envelope. |
 | `tm_model_guard.py` | mac | Fail if Time Machine would back up a model file. #440 |
