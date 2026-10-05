@@ -205,6 +205,12 @@ def run_date(run_dir: pathlib.Path) -> dt.date | None:
     return started.date() if started else None
 
 
+#: How far back a time of day may step before it is read as the next day. A
+#: sweep is about 40 minutes; a step back of hours is midnight, and a step
+#: back of minutes is a corrupt or interleaved file.
+MIDNIGHT_STEP = dt.timedelta(hours=12)
+
+
 class Sweep:
     def __init__(
         self, tag: str, start: dt.datetime, finish: dt.datetime | None = None
@@ -224,10 +230,11 @@ def sweep_windows(run_dir: pathlib.Path) -> list[Sweep] | None:
     like every other: a row written after the final sweep's finish fits no
     window, so a follow-up run or smoke test cannot leak into the tally.
     """
-    date = run_date(run_dir)
-    if date is None:
+    began_at = run_started(run_dir)
+    if began_at is None:
         logger.error("run-record.txt has no parseable started line: %s", run_dir)
         return None
+    date = began_at.date()
     order = run_dir / "sweep-order.txt"
     try:
         lines = [ln for ln in record_lines(order) if ln and not ln.startswith("#")]
@@ -244,6 +251,21 @@ def sweep_windows(run_dir: pathlib.Path) -> list[Sweep] | None:
             return dt.datetime.combine(date, dt.time(hh, mm, ss))
         except ValueError:
             return None
+
+    # The file holds times of day, written in order. Date them in that order:
+    # a time far earlier than the one before it is the next day. Only the
+    # first rollover used to be corrected, so a sweep that STARTED after
+    # midnight kept the run's date, sorted first and owned none of its rows
+    # (review). A small backward step is not midnight; it stays put, so the
+    # interleave check below still sees it.
+    clock = began_at.replace(tzinfo=None)
+
+    def forward(when: dt.datetime) -> dt.datetime:
+        nonlocal clock
+        while clock - when > MIDNIGHT_STEP:
+            when += dt.timedelta(days=1)
+        clock = max(clock, when)
+        return when
 
     sweeps: list[Sweep] = []
     # Two shapes. "tag start finish" is what stack_agent_ab.sh writes now.
@@ -262,13 +284,11 @@ def sweep_windows(run_dir: pathlib.Path) -> list[Sweep] | None:
             if start is None or finish is None:
                 logger.error("unparsable time in sweep-order line: %r", line)
                 return None
-            if finish < start:
-                # A finish that rolls past midnight parses as earlier than its
-                # start. The finish is load-bearing now, so an inverted window
-                # matches nothing and the sweep's rows vanish. Correct the
-                # rollover; a start sequence that crosses midnight is still
-                # not handled.
-                finish += dt.timedelta(days=1)
+            # A finish that rolls past midnight parses as earlier than its
+            # start, and an inverted window matches nothing. `forward` dates
+            # the start and the finish against everything recorded before.
+            start = forward(start)
+            finish = forward(finish)
             sweeps.append(Sweep(tag, start, finish))
         elif len(parts) == 2:
             tag, finish_s = parts
@@ -276,7 +296,7 @@ def sweep_windows(run_dir: pathlib.Path) -> list[Sweep] | None:
             if finish is None:
                 logger.error("unparsable time in sweep-order line: %r", line)
                 return None
-            legacy.append((tag, finish))
+            legacy.append((tag, forward(finish)))
         else:
             logger.error("unparsable sweep-order line: %r", line)
             return None
@@ -287,8 +307,7 @@ def sweep_windows(run_dir: pathlib.Path) -> list[Sweep] | None:
         # Each sweep ENDS at its recorded time, so it starts when the previous
         # one ended -- and the first starts when the run did.
         legacy.sort(key=lambda pair: pair[1])
-        began = run_started(run_dir) or legacy[0][1]
-        previous = began
+        previous = began_at.replace(tzinfo=None)
         for tag, finish in legacy:
             sweeps.append(Sweep(tag, previous, finish))
             previous = finish
@@ -512,9 +531,9 @@ def pass_pairs(sweeps: list[Sweep]) -> list[tuple[str, int, int, int, int]]:
         out.append(
             (
                 task,
-                sum(1 for r in n_rows if r.get("passed")),
+                sum(1 for r in n_rows if passes(r)),
                 len(n_rows),
-                sum(1 for r in o_rows if r.get("passed")),
+                sum(1 for r in o_rows if passes(r)),
                 len(o_rows),
             )
         )
@@ -755,7 +774,9 @@ def main(argv: list[str] | None = None) -> int:
 
     raw = load_raw(args.ledger, BACKENDS, cut)
     per_backend = {b: sum(1 for r in raw if r["backend"] == b) for b in BACKENDS}
-    excluded = sum(1 for r in raw if r.get("excluded"))
+    # `results.is_excluded()`, not the `excluded` key alone: a legacy row
+    # marked `confound` or `contaminated` is a hole as well (review).
+    excluded = sum(1 for r in raw if results_mod.is_excluded(r))
     dry = sum(1 for r in raw if r.get("dry_run"))
     logger.info(
         "raw rows: %d (new %d, old %d); excluded %d; dry %d",
@@ -778,7 +799,7 @@ def main(argv: list[str] | None = None) -> int:
     # Excluded and dry rows are holes in n, not passes or fails: they are
     # counted in the raw line above and dropped before assignment, so a hole
     # shows up as a short sweep cell, which void_checks refuses on.
-    usable = [r for r in raw if not r.get("excluded") and not r.get("dry_run")]
+    usable = [r for r in raw if not results_mod.is_excluded(r) and not r.get("dry_run")]
     leftover = assign(usable, sweeps)
     failures = void_checks(raw, sweeps, leftover, args.allow_harness_split)
     for s in sweeps:

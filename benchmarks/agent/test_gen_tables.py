@@ -206,3 +206,27 @@ def test_harder_replay_rows_get_a_table_with_a_hidden_column(tmp_path):
 
 def test_the_hidden_cell_is_a_dash_when_nothing_was_held_out():
     assert gen_tables._hidden_cell([{"passed": True}]) == "—"
+
+
+# --- a guard failure is a failure, whatever `passed` says (review) -----------
+
+
+def test_a_pass_that_edited_the_tests_is_not_counted_as_a_pass():
+    """`passed` is the raw oracle. `results.verdict()` adds the guards.
+
+    A trial that edited the tests reads `passed: true` and has no verdict
+    worth the name. The table counted it 1/1 and timed it as a pass.
+    """
+    rigged = _trial("qwen") | {"touched_tests": True}
+    out = "\n".join(gen_tables.stack_table([rigged], {}))
+    assert "| qwen | 0/1 | — | — | — |" in out
+
+
+def test_every_guard_fails_the_timing_as_well_as_the_count():
+    rows = [
+        _trial("qwen", wall=50.0),
+        _trial("qwen", wall=10.0) | {"source_repo_intact": False},
+        _trial("qwen", wall=20.0) | {"control_fails_as_expected": False},
+    ]
+    out = "\n".join(gen_tables.stack_table(rows, {}))
+    assert "| qwen | 1/3 | 50s | 50s | 1.0x |" in out

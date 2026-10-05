@@ -302,6 +302,7 @@ def start(
     *,
     cwd: pathlib.Path,
     env: dict[str, str] | None = None,
+    unset: Sequence[str] = (),
     allow_foreign: bool = False,
     state_dir: pathlib.Path | None = None,
 ) -> unitctl.Unit:
@@ -311,6 +312,9 @@ def start(
     `lib/ds4_server.py` gives: "an arm starts from a clean slate" is the
     invariant this module exists to hold, and a driver that forgets it
     reproduces #145.
+
+    `env` sets and `unset` removes, as `ds4_server.start` does: an arm can be
+    defined by a variable's absence, which a dict cannot say.
     """
     stop("leftover from an earlier run", state_dir=state_dir)
     resident = foreign(state_dir)
@@ -322,7 +326,13 @@ def start(
             "deliberately, or pass allow_foreign=True if that is the intent."
         )
     return unitctl.start(
-        UNIT, list(command), log=log, cwd=cwd, env=env, state_dir=state_dir
+        UNIT,
+        list(command),
+        log=log,
+        cwd=cwd,
+        env=env,
+        unset=unset,
+        state_dir=state_dir,
     )
 
 
@@ -333,6 +343,7 @@ def serving(
     *,
     cwd: pathlib.Path,
     env: dict[str, str] | None = None,
+    unset: Sequence[str] = (),
     allow_foreign: bool = False,
     state_dir: pathlib.Path | None = None,
 ) -> Iterator[unitctl.Unit]:
@@ -348,6 +359,7 @@ def serving(
         log,
         cwd=cwd,
         env=env,
+        unset=unset,
         allow_foreign=allow_foreign,
         state_dir=state_dir,
     )
