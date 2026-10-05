@@ -16,6 +16,11 @@ row and the generated table can never disagree about what "median" means:
   trial that dies early is quick (#142).
 - **turns**: median agent turns over the same timed trials.
 
+Replay trials (`gen_tables.is_replay`, #714/#726) are left out of every column,
+as they are left out of the generated table's ordinary rows. A replay runs
+5-20x as long as an excision, so pooling them moved a quoted median by
+minutes (review of b7a366b, finding 4).
+
     uv run python scripts/reco_rows.py --results hardware/Cortex-X925-128GB-GB10/results.jsonl \\
         qwen36a3bnvfp4dgx qwen3827bsglangdsparknothinkdgx
 """
@@ -44,7 +49,10 @@ def row(rows: list[dict], backend: str, client: tuple[str, ...] | None = None) -
     mechanism, so a pooled median here is the least visible way to be wrong
     (#562).
     """
-    mine = [r for r in rows if r.get("backend") == backend]
+    # Replays get their own generated tables; the ordinary row excludes them.
+    mine = [
+        r for r in rows if r.get("backend") == backend and not gen_tables.is_replay(r)
+    ]
     if client is not None:
         mine = [r for r in mine if results.client_identity(r) == client]
     timed = [

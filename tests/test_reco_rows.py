@@ -49,3 +49,23 @@ def test_a_backend_with_no_timed_trial_reports_none():
     got = reco_rows.row([_r("mbox-scan", False, 30.0, 5)], "b")
     assert got["median_s"] is None and got["turns"] is None
     assert got["passed"] == 0 and got["trials"] == 1
+
+
+def test_replay_trials_stay_out_of_the_excision_figures():
+    """Review of b7a366b, finding 4. A replay trial (#714) runs 5-20x as long
+    as an excision; gen_tables gives replays their own table and keeps them out
+    of the ordinary one. Pooled here, one 1,000 s replay moved the median from
+    40 s to 520 s and the turns from 4 to 22."""
+    replay = _r("replay-gmail-archive-01", True, 1000.0, 40)
+    rows = [_r("mbox-scan", True, 40.0, 4), replay]
+    got = reco_rows.row(rows, "b")
+    assert got["median_s"] == 40.0
+    assert got["worst_s"] == 40.0
+    assert got["turns"] == 4
+    assert got["passed"] == 1 and got["trials"] == 1
+
+
+def test_a_replay_is_known_by_its_task_kind_too():
+    replay = dict(_r("rebuild-x", True, 1000.0, 40), task_kind="replay")
+    got = reco_rows.row([_r("mbox-scan", True, 40.0, 4), replay], "b")
+    assert got["trials"] == 1 and got["median_s"] == 40.0
