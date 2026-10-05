@@ -59,6 +59,7 @@ def _quiet_machine(monkeypatch, tmp_path):
     monkeypatch.setattr(machine_health, "LOCK", tmp_path / "run-lock.json")
     monkeypatch.setattr(machine_health, "tree_dirty", lambda: "")
     monkeypatch.setattr(machine_health, "served_model", lambda port: None)
+    monkeypatch.setattr(machine_health, "port_open", lambda port: False)
 
 
 def test_server_launch_blocked_while_departing_memory_is_held(monkeypatch, tmp_path):
@@ -101,3 +102,62 @@ def test_unreadable_meminfo_never_blocks_a_launch(monkeypatch, tmp_path):
     _quiet_machine(monkeypatch, tmp_path)
     monkeypatch.setattr(machine_health, "mem_held_gib", lambda: None)
     assert machine_health.check("server") == []
+
+
+def test_a_bound_port_that_does_not_answer_models_blocks_a_server_launch(
+    monkeypatch, tmp_path
+):
+    """A server still loading answers /v1/models with 503 (or nothing) while it
+    holds the port. Read as free, the next launch dies with EADDRINUSE."""
+    _quiet_machine(monkeypatch, tmp_path)
+    monkeypatch.setattr(machine_health, "port_open", lambda port: port == 8030)
+    monkeypatch.setattr(machine_health, "mem_held_gib", lambda: 5.0)
+    problems = machine_health.check("server")
+    assert len(problems) == 1 and "port 8030" in problems[0], problems
+    # A run against it is still the right action.
+    assert machine_health.check("run") == []
+
+
+def test_port_open_sees_a_listening_socket():
+    import socket
+
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        s.listen()
+        port = s.getsockname()[1]
+        assert machine_health.port_open(port)
+    assert not machine_health.port_open(port)
+
+
+def _git(monkeypatch, returncode=0, stdout="", exc=None):
+    class Done:
+        pass
+
+    def run(*a, **k):
+        if exc:
+            raise exc
+        d = Done()
+        d.returncode, d.stdout, d.stderr = returncode, stdout, "fatal: x"
+        return d
+
+    monkeypatch.setattr(machine_health.subprocess, "run", run)
+
+
+def test_tree_dirty_distinguishes_clean_dirty_and_unknown(monkeypatch):
+    _git(monkeypatch)
+    assert machine_health.tree_dirty() == ""
+    _git(monkeypatch, stdout=" M x.py\n")
+    assert machine_health.tree_dirty() == "M x.py"
+    # git refusing (dubious ownership is exit 128 with empty stdout) is not clean.
+    _git(monkeypatch, returncode=128)
+    assert machine_health.tree_dirty() is None
+    _git(monkeypatch, exc=machine_health.subprocess.TimeoutExpired("git", 30))
+    assert machine_health.tree_dirty() is None
+
+
+def test_an_unverifiable_tree_blocks_a_launch(monkeypatch, tmp_path):
+    _quiet_machine(monkeypatch, tmp_path)
+    monkeypatch.setattr(machine_health, "tree_dirty", lambda: None)
+    monkeypatch.setattr(machine_health, "mem_held_gib", lambda: 5.0)
+    problems = machine_health.check("run")
+    assert len(problems) == 1 and "could not" in problems[0], problems

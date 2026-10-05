@@ -535,6 +535,11 @@ def apply_hidden_rescores(
             if not line.strip():
                 continue
             rec = json.loads(line)
+            if "hidden_counts" not in rec or "hidden_passed" not in rec:
+                # A failed re-grade is not a verdict: it must neither crash
+                # the reader nor, as the newest record, supersede one.
+                logger.warning("%s: skipping a record with no verdict", path.name)
+                continue
             key = _rescore_key(rec["row"])
             if key[-1] is None:
                 continue

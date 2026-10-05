@@ -207,19 +207,29 @@ def sweep(
     restart_units: bool = True,
     state_path: pathlib.Path = STATE_PATH,
 ) -> dict:
-    """One pass: report OOM events in the window, restart what is down."""
+    """One pass: report new OOM events in the window, restart what is down.
+
+    The timer fires every minute over a ten-minute window, so each kill is in
+    ten windows. A pass reports only events the previous pass did not see:
+    the state's `seen` holds the last window's lines, and a journal line
+    (timestamp, host, pid, text) does not change between reads. `seen` also
+    keeps the whole window on disk for an incident write-up.
+    """
     found = events(read_journal(since))
+    already = {e.get("line") for e in load_state(state_path).get("seen") or []}
+    new = [e for e in found if e["line"] not in already]
     statuses = {unit: unit_active(unit) for unit in GUARDED_UNITS}
     restarted = []
     for unit, active in statuses.items():
         if active is False and restart_units and restart(unit, dry_run):
             restarted.append(unit)
-    for event in found:
+    for event in new:
         logger.warning("%s: %s", event["kind"], event["line"][:300])
     result = {
         "checked": datetime.datetime.now().astimezone().isoformat(timespec="seconds"),
         "since": since,
-        "events": found,
+        "events": new,
+        "seen": found,
         "units": {unit: state for unit, state in statuses.items()},
         "restarted": restarted,
     }
@@ -233,7 +243,9 @@ def main(argv: list[str] | None = None) -> int:
         "--since",
         default="-10min",
         help=(
-            "journal window to scan (default -10min, the timer's period). "
+            "journal window to scan (default -10min: ten of the timer's "
+            "one-minute periods, so a missed pass loses nothing; an event the "
+            "last pass saw is not reported again). "
             "A relative window starts with a dash, so it needs --since=-24h: "
             "argparse reads a bare -24h as another flag."
         ),
@@ -246,7 +258,9 @@ def main(argv: list[str] | None = None) -> int:
     # wrong for `--json`: the caller gets log lines before the object and
     # cannot parse it. Send them to stderr in that mode only.
     logs.configure(stream=sys.stderr if args.json else None)
-    result = sweep(args.since, dry_run=args.dry_run)
+    # STATE_PATH read here, not bound as sweep's default at import, so a test
+    # that redirects it does not write the live box's state file.
+    result = sweep(args.since, dry_run=args.dry_run, state_path=STATE_PATH)
     if args.json:
         print(json.dumps(result, indent=2))
     elif not result["events"] and not result["restarted"]:

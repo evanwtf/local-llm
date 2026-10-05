@@ -157,3 +157,37 @@ def test_check_exits_1_on_drift_and_0_when_the_box_agrees(tmp_path, monkeypatch)
     defaults.write_text(se.defaults_file())
     dropin.write_text(se.dropin_file())
     assert se.main([]) == 0
+
+
+def _box(tmp_path, monkeypatch, defaults_text):
+    defaults = tmp_path / "earlyoom"
+    dropin = tmp_path / "priority.conf"
+    monkeypatch.setattr(se, "DEFAULTS_PATH", defaults)
+    monkeypatch.setattr(se, "DROPIN_PATH", dropin)
+    defaults.write_text(defaults_text)
+    dropin.write_text(se.dropin_file())
+
+
+def test_a_later_assignment_that_overrides_the_managed_one_is_drift(
+    tmp_path, monkeypatch
+):
+    """systemd's EnvironmentFile keeps the LAST assignment, so this file runs
+    earlyoom at -m 1 -s 20 -- the unfireable 2026-09-17 setting -- while a
+    substring check found the managed line and reported no drift."""
+    _box(tmp_path, monkeypatch, se.defaults_file() + 'EARLYOOM_ARGS="-m 1 -s 20"\n')
+    reported = se.drift()
+    assert len(reported) == 1 and "2 active" in reported[0], reported
+
+
+def test_the_managed_line_only_in_a_comment_is_drift(tmp_path, monkeypatch):
+    want = f'EARLYOOM_ARGS="{se.earlyoom_args()}"'
+    _box(tmp_path, monkeypatch, f'# {want}\nEARLYOOM_ARGS="-m 1 -s 20"\n')
+    reported = se.drift()
+    assert len(reported) == 1 and "-m 1 -s 20" in reported[0], reported
+    _box(tmp_path, monkeypatch, f"#{want}\n")
+    assert se.drift() == [f"{se.DEFAULTS_PATH}: (no EARLYOOM_ARGS line)"]
+
+
+def test_an_indented_managed_line_still_agrees(tmp_path, monkeypatch):
+    _box(tmp_path, monkeypatch, f'  EARLYOOM_ARGS="{se.earlyoom_args()}"\n')
+    assert se.drift() == []

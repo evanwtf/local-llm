@@ -29,6 +29,7 @@ import json
 import logging
 import os
 import pathlib
+import socket
 import subprocess
 import sys
 import time
@@ -105,6 +106,20 @@ def served_model(port: int) -> str | None:
         return None
 
 
+def port_open(port: int) -> bool:
+    """Whether something accepts connections on `port`, whatever it answers.
+
+    Separate from `served_model`: a server still loading holds its port and
+    answers /v1/models with 503 or nothing, and a second launch onto it dies
+    with EADDRINUSE all the same.
+    """
+    try:
+        with socket.create_connection(("127.0.0.1", port), timeout=1):
+            return True
+    except OSError:
+        return False
+
+
 def mem_held_gib() -> float | None:
     """Memory genuinely in use right now, in GiB, or None if unreadable.
 
@@ -128,18 +143,26 @@ def mem_held_gib() -> float | None:
         return None
 
 
-def tree_dirty() -> str:
+def tree_dirty() -> str | None:
+    """`git status --porcelain`: "" when clean, None when git cannot say.
+
+    None is not clean. git refuses a tree it calls dubious ownership with exit
+    128 and empty stdout, which once read as a clean tree.
+    """
     try:
-        return subprocess.run(
+        proc = subprocess.run(
             ["git", "status", "--porcelain"],
             cwd=REPO,
             capture_output=True,
             text=True,
             timeout=30,
             check=False,
-        ).stdout.strip()
+        )
     except (OSError, subprocess.SubprocessError):
-        return ""
+        return None
+    if proc.returncode != 0:
+        return None
+    return proc.stdout.strip()
 
 
 def lock_state() -> dict | None:
@@ -212,7 +235,13 @@ def check(intent: str = "server") -> list[str]:
     teaches people to ignore it.
     """
     problems = []
-    if tree_dirty():
+    dirty = tree_dirty()
+    if dirty is None:
+        problems.append(
+            "could not establish whether the tree is clean (git status failed) "
+            "-- a dirty tree stamps every row harness_dirty. Fix git first."
+        )
+    elif dirty:
         problems.append(
             "the tree is dirty -- every row would be stamped harness_dirty and "
             "may not be published. Commit first."
@@ -228,12 +257,20 @@ def check(intent: str = "server") -> list[str]:
         )
     any_serving = False
     for port in PORTS:
+        # The port decides; the model probe only names the occupant. A server
+        # still loading holds the port and answers /v1/models with 503.
         model = served_model(port)
-        if model:
-            any_serving = True
-        if model and intent == "server":
+        if not model and not port_open(port):
+            continue
+        any_serving = True
+        if intent == "server":
+            what = (
+                f"already serving {model!r}"
+                if model
+                else "already bound, but not answering /v1/models (still loading?)"
+            )
             problems.append(
-                f"port {port} is already serving {model!r} -- reuse it rather than "
+                f"port {port} is {what} -- reuse it rather than "
                 f"launching a second server, which dies with EADDRINUSE while a "
                 f"wait loop polls for a readiness line that never comes"
             )

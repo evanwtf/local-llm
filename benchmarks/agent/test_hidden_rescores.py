@@ -90,3 +90,20 @@ def test_the_committed_file_applies_to_the_mac_ledger():
     )
     _rows, n = results.apply_hidden_rescores(mac)
     assert n == 6
+
+
+def test_an_error_record_neither_crashes_nor_supersedes(tmp_path):
+    """rescore_hidden.py once appended `{"error": ...}` when `git apply` or
+    `uv sync` failed. Read as a verdict it raised KeyError on hidden_counts,
+    and as the newest record it would have replaced a valid re-grade."""
+    good = record()
+    failed = {
+        "row": record()["row"],
+        "error": "git apply failed: corrupt patch",
+        "rescored_at": "2026-10-01T09:00:00-04:00",
+        "reason": "#801",
+        "was": "1 error",
+    }
+    rows, n = results.apply_hidden_rescores([ROW], write(tmp_path, good, failed))
+    assert n == 1
+    assert rows[0]["hidden"]["counts"]["passed"] == 22
