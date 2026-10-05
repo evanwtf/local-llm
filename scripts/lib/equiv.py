@@ -226,6 +226,43 @@ def wait_for_program(out: pathlib.Path, program: str, timeout: float = 10.0) -> 
     return False
 
 
+def own_server_barrier(
+    out: pathlib.Path, arm: str, program: str = "ds4-server", timeout: float = 15.0
+) -> Callable[..., bool]:
+    """A readiness stub that waits for THIS arm's next `program` record.
+
+    `wait_for_program` returns as soon as any record exists, and a
+    differential runs the shell first against the same `out`. The port's
+    readiness poll then returned at once, and its graph assertion read the
+    log before the port's own fake had written to it. While the assertion
+    read the whole log it passed on the SHELL's line; once it reads only the
+    current launch's part (`ds4_server.serving` takes the offset), it fails.
+
+    Counting this arm's records and waiting for one more than last time is
+    `test_targets_ab_equiv._own_server_barrier`, made shared.
+    """
+    seen = 0
+
+    def ready(*args: object, **kwargs: object) -> bool:
+        import time
+
+        nonlocal seen
+        want = seen + 1
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            got = sum(1 for i in load(out) if i.program == program and i.arm == arm)
+            if got >= want:
+                seen = got
+                return True
+            time.sleep(0.02)
+        raise AssertionError(
+            f"the {arm} side's {program} {want} never recorded itself; the "
+            "readiness barrier would have let the driver read an empty log"
+        )
+
+    return ready
+
+
 # ------------------------------------------------------------------ the shim
 
 

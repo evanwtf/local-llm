@@ -459,6 +459,36 @@ def _signal_group(pid: int, sig: int) -> None:
         return
 
 
+def log_offset(log: pathlib.Path) -> int:
+    """The size of `log` now, so a reader can skip what came before. 0 if absent.
+
+    `start` APPENDS to a unit's log, so a restart into the same path keeps the
+    previous launch's lines ahead of the new ones. A check that reads the first
+    matching line then inspects the OLD launch. Take this before `start` and
+    pass it to `read_since`.
+    """
+    try:
+        return log.stat().st_size
+    except OSError:
+        return 0
+
+
+def read_since(log: pathlib.Path, offset: int = 0) -> str | None:
+    """The text written to `log` after byte `offset`, or None if unreadable.
+
+    A file now shorter than `offset` was replaced or truncated, so all of it
+    is new and all of it is returned.
+    """
+    try:
+        with log.open("rb") as handle:
+            data = handle.read()
+    except OSError:
+        return None
+    if len(data) >= offset:
+        data = data[offset:]
+    return data.decode(errors="replace")
+
+
 def units(state_dir: pathlib.Path | None = None) -> list[str]:
     directory = state_dir or STATE_DIR
     if not directory.is_dir():
