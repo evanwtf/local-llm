@@ -433,3 +433,40 @@ def test_assets_of_an_embedded_ple_arm_need_only_the_gguf(tmp_path) -> None:
     gguf = tmp_path / "model.gguf"
     gguf.write_text("x")
     stack_arm.check_assets(ds4_arm(gguf=gguf, ple=None, ple_embedded=True))
+
+
+# --- review finding, 2026-10-05: two spellings of one KV directory -----------
+
+
+def test_a_dotted_spelling_of_the_same_kv_dir_is_refused(tmp_path) -> None:
+    """`/x/cache` and `/x/../x/cache` are one directory. The lexical compare
+    passed them, and both arms read each other's checkpoints."""
+    kv = tmp_path / "cache"
+    alias = tmp_path / ".." / tmp_path.name / "cache"
+    with pytest.raises(stack_arm.InvalidPair, match="KV"):
+        stack_arm.check_pair(ds4_arm("new", kv=kv), ds4_arm("old", kv=alias))
+
+
+def test_a_symlinked_kv_dir_is_refused(tmp_path) -> None:
+    real = tmp_path / "real-kv"
+    real.mkdir()
+    link = tmp_path / "link-kv"
+    link.symlink_to(real)
+    with pytest.raises(stack_arm.InvalidPair, match="KV"):
+        stack_arm.check_pair(ds4_arm("new", kv=real), ds4_arm("old", kv=link))
+
+
+def test_a_relative_kv_dir_resolves_against_the_servers_tree(tmp_path) -> None:
+    """ds4-server runs with cwd=arm.tree, so `kv` there IS `<tree>/kv`."""
+    tree = tmp_path / "ds4"
+    tree.mkdir()
+    new = ds4_arm("new", tree=tree, kv=pathlib.Path("kv"))
+    old = ds4_arm("old", tree=tree, kv=tree / "kv")
+    with pytest.raises(stack_arm.InvalidPair, match="KV"):
+        stack_arm.check_pair(new, old)
+
+
+def test_the_same_relative_name_in_two_trees_is_two_dirs(tmp_path) -> None:
+    new = ds4_arm("new", tree=tmp_path / "a", kv=pathlib.Path("kv"))
+    old = ds4_arm("old", tree=tmp_path / "b", kv=pathlib.Path("kv"))
+    stack_arm.check_pair(new, old)

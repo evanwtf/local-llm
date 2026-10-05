@@ -124,8 +124,46 @@ def model_dir_of(command: Sequence[str]) -> pathlib.Path | None:
     return pathlib.Path(argv[argv.index("--model") + 1]) if "--model" in argv else None
 
 
+def resolve_model_dir(
+    model_dir: pathlib.Path | None, cwd: pathlib.Path | None = None
+) -> pathlib.Path | None:
+    """The model directory as the SERVER sees it, or None if it is not known.
+
+    A relative `--model` is relative to the server's working directory, not to
+    whoever is asking. Checked from another directory it names some other path
+    or none, and a missing `mtp/` head is then inferred from the wrong place.
+    So a relative path with no `cwd`, or a path that is not a directory, is
+    None: unknown, never "no head".
+    """
+    if model_dir is None:
+        return None
+    if not model_dir.is_absolute():
+        if cwd is None:
+            return None
+        model_dir = cwd / model_dir
+    return model_dir if model_dir.is_dir() else None
+
+
+def _draft_source(
+    model_dir: pathlib.Path | None,
+    settings: dict[str, object],
+    cwd: pathlib.Path | None,
+) -> str:
+    """`resolve_draft_source` on the resolved directory, or "unknown"."""
+    resolved = resolve_model_dir(model_dir, cwd)
+    if resolved is None:
+        return "unknown"
+    return resolve_draft_source(
+        has_mtp=(resolved / "mtp" / "weights.safetensors").exists(),
+        has_drafter=(resolved / "drafter").is_dir(),
+        pld_enabled=bool(settings["pld_enabled"]),
+    )
+
+
 def draft_provenance_fields(
-    model_dir: pathlib.Path | None, command: Sequence[str]
+    model_dir: pathlib.Path | None,
+    command: Sequence[str],
+    cwd: pathlib.Path | None = None,
 ) -> dict[str, object]:
     """Structured launch provenance for the draft path, for a row to carry (#262).
 
@@ -141,23 +179,24 @@ def draft_provenance_fields(
     proof the request drafted: PLD self-gates per request, so a row saying
     `draft_source=pld` still needs the per-trial draft observation (#262 phase 2)
     to say whether it actually drafted.
+
+    `cwd` is the server's working directory, for a relative `--model`. When the
+    directory cannot be established, `draft_source` is `unknown`; see
+    `resolve_model_dir`.
     """
     settings = draft_settings(command)
-    has_mtp = bool(model_dir and (model_dir / "mtp" / "weights.safetensors").exists())
-    has_drafter = bool(model_dir and (model_dir / "drafter").is_dir())
-    source = resolve_draft_source(
-        has_mtp=has_mtp,
-        has_drafter=has_drafter,
-        pld_enabled=bool(settings["pld_enabled"]),
-    )
     return {
-        "draft_source": source.lower(),
+        "draft_source": _draft_source(model_dir, settings, cwd).lower(),
         "pld_draft_len": settings["pld_draft_len"],
         "pld_key_len": settings["pld_key_len"],
     }
 
 
-def draft_provenance(model_dir: pathlib.Path | None, command: Sequence[str]) -> str:
+def draft_provenance(
+    model_dir: pathlib.Path | None,
+    command: Sequence[str],
+    cwd: pathlib.Path | None = None,
+) -> str:
     """One line naming the draft source and PLD settings, for the caller to log.
 
     Mirrors `ds4_server.assert_graph` returning the graph line: a later reader
@@ -166,13 +205,7 @@ def draft_provenance(model_dir: pathlib.Path | None, command: Sequence[str]) -> 
     `draft_provenance_fields`; this is the human log line.
     """
     settings = draft_settings(command)
-    has_mtp = bool(model_dir and (model_dir / "mtp" / "weights.safetensors").exists())
-    has_drafter = bool(model_dir and (model_dir / "drafter").is_dir())
-    source = resolve_draft_source(
-        has_mtp=has_mtp,
-        has_drafter=has_drafter,
-        pld_enabled=bool(settings["pld_enabled"]),
-    )
+    source = _draft_source(model_dir, settings, cwd)
     return (
         f"draft_source={source} "
         f"pld={'on' if settings['pld_enabled'] else 'off'} "
@@ -320,7 +353,9 @@ def serving(
     )
     # #262: say what will draft, beside the run. mlx-serve's default is PLD on,
     # and a silent PLD row is the mirror of #151's silent MTP claim.
-    logger.info("mlx-serve %s", draft_provenance(model_dir_of(command), command))
+    logger.info(
+        "mlx-serve %s", draft_provenance(model_dir_of(command), command, cwd=cwd)
+    )
     try:
         yield unit
     finally:

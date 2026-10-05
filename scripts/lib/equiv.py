@@ -827,12 +827,21 @@ def canonical(
     the very thing #264 is about (a driver passing a flag run.py dropped). The
     following non-flag tokens are its values. Returns a sorted tuple of pairs,
     so order between pairs compares by equality while order inside a pair holds.
+
+    **Order between repeats of ONE flag is kept.** `--backend a --backend b`
+    selects `b` and the reverse selects `a`, so sorting the pairs made a
+    backend change compare equal. The second and later occurrences of a flag
+    carry their position (`--backend#2`), which also keeps how many times a
+    flag appears -- most callers compare `set(canonical(...))`, and a set
+    would otherwise fold a repeat into one.
     """
     pairs: list[list[str]] = []
     cur: list[str] | None = None
+    seen: dict[str, int] = {}
     for tok in argv:
         if tok.startswith("-"):
-            cur = [tok]
+            seen[tok] = seen.get(tok, 0) + 1
+            cur = [tok if seen[tok] == 1 else f"{tok}#{seen[tok]}"]
             pairs.append(cur)
         elif cur is not None:
             cur.append(tok)

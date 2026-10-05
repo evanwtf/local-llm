@@ -55,10 +55,12 @@ STATE_DIR = STATE_FILE.parent
 
 def _snapshot(repo: pathlib.Path) -> dict:
     """The signals worth watching, as a comparable dict."""
+    # None from any of these is "could not read", and stays None here: the
+    # diff skips an unread signal rather than reporting everything in it gone.
     branches = peer_state.peer_branches(repo)
     prs = peer_state.open_prs()
     top = peer_state.next_top10()
-    issues = [i["issue"] for i in top]
+    issues = [i["issue"] for i in top or []]
     comments = peer_state.comment_counts(issues)
     trees = {
         t.name: (peer_state.tree_drift(t) or {}).get("head")
@@ -87,8 +89,12 @@ def _snapshot(repo: pathlib.Path) -> dict:
         # When this was true. A reader that has to stat the file to find out
         # is a reader that will not bother.
         "written_at": dt.datetime.now(dt.UTC).astimezone().strftime(logs.DATEFMT),
-        "branches": {b["name"]: b["head"] for b in branches},
-        "prs": {str(p.get("number")): p.get("title") for p in prs},
+        "branches": (
+            None if branches is None else {b["name"]: b["head"] for b in branches}
+        ),
+        "prs": (
+            None if prs is None else {str(p.get("number")): p.get("title") for p in prs}
+        ),
         # str keys, because the snapshot round-trips through JSON and JSON
         # object keys are always strings. comment_counts() returns ints, so
         # without this every run compares this run's int keys against the
@@ -120,11 +126,35 @@ def _str_keys(d: dict) -> dict:
     return {str(k): v for k, v in d.items()}
 
 
+#: Signals a snapshot may hold as None, meaning "could not be read this time".
+UNREAD_OK = ("branches", "prs")
+
+
+def _carry_forward(prev: dict, cur: dict) -> dict:
+    """The snapshot to save: an unread signal keeps its last good value.
+
+    Saving None would make the next good read diff against nothing, and every
+    change made while `gh` was down would go unreported.
+    """
+    out = dict(cur)
+    for key in UNREAD_OK:
+        if out.get(key) is None and prev.get(key) is not None:
+            out[key] = prev[key]
+    return out
+
+
 def _diff(prev: dict, cur: dict) -> list[str]:
-    """Human lines for what changed between two snapshots."""
+    """Human lines for what changed between two snapshots.
+
+    A signal that is None on either side was not read, so nothing can be said
+    about it. Treating it as empty reported every PR closed and every peer
+    branch gone whenever `gh` or `git` failed.
+    """
     out: list[str] = []
-    prev_b = prev.get("branches", {})
-    cur_b = cur.get("branches", {})
+    prev_b = prev.get("branches") or {}
+    cur_b = cur.get("branches") or {}
+    if prev.get("branches", {}) is None or cur.get("branches", {}) is None:
+        prev_b, cur_b = {}, {}
     for name in sorted(set(prev_b) | set(cur_b)):
         if prev_b.get(name) != cur_b.get(name):
             out.append(
@@ -133,8 +163,10 @@ def _diff(prev: dict, cur: dict) -> list[str]:
     # Same treatment, and here the failure was quieter: mismatched key types
     # made every PR read as both opened and closed on every run, rather than
     # raising. A crash is the better of the two.
-    prev_p = _str_keys(prev.get("prs", {}))
-    cur_p = _str_keys(cur.get("prs", {}))
+    prev_p = _str_keys(prev.get("prs") or {})
+    cur_p = _str_keys(cur.get("prs") or {})
+    if prev.get("prs", {}) is None or cur.get("prs", {}) is None:
+        prev_p, cur_p = {}, {}
     for num in sorted(set(prev_p) | set(cur_p), key=lambda n: int(n)):
         if prev_p.get(num) != cur_p.get(num):
             out.append(
@@ -173,8 +205,9 @@ def _diff(prev: dict, cur: dict) -> list[str]:
 
 def _summary(cur: dict) -> str:
     """The one-line summary, always printed."""
-    n_branches = len(cur.get("branches", {}))
-    n_prs = len(cur.get("prs", {}))
+    branches, prs = cur.get("branches", {}), cur.get("prs", {})
+    n_branches = "unknown" if branches is None else len(branches)
+    n_prs = "unknown" if prs is None else len(prs)
     n_comments = sum(cur.get("comments", {}).values())
     n_servers = len(cur.get("servers", []))
     gib = sum(s["gib"] for s in cur.get("servers", []))
@@ -197,11 +230,12 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     logs.configure(fmt="%(asctime)s %(agent)s %(name)s %(levelname)s %(message)s")
     current = _snapshot(args.repo)
-    changed = _diff(_load_previous(), current)
+    previous = _load_previous()
+    changed = _diff(previous, current)
     logger.info("peer status: %s", _summary(current))
     for line in changed:
         logger.info("  changed: %s", line)
-    _save(current)
+    _save(_carry_forward(previous, current))
     return 0
 
 
