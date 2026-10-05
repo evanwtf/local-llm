@@ -88,8 +88,23 @@ time" on its own. Absolute numbers come first here too (issues are work logs).
 
 **A dispersion ratio is not a comparison and needs no rewriting.** "An 18x
 spread on one task" is worst-over-best *within a single cell* — a statement
-about how unstable one thing is, not a claim that A beats B. The `spread`
-column in `../RECOMMENDATIONS.md` stays as it is.
+about how unstable one thing is, not a claim that A beats B.
+
+The generated tables in [`results.md`](results.md) print three dispersion
+columns. Name the column whenever you quote one:
+
+- **`spread (worst task)`**: for each task with two or more passing trials,
+  the slowest pass over the fastest pass; the column shows the largest. Look
+  here to see how bad one task can get.
+- **`spread (typical task)`**: the median of the same per-task ratios. Look
+  here to see how consistent the stack usually is.
+- **`range (all tasks)`**: the slowest pass of any task over the fastest pass
+  of any task. It measures how different the tasks are, so it is mostly task
+  mix, not consistency. Never quote it as a spread.
+
+Both spreads show a dash when no task has two passes. Until 2026-10-05 the one
+`spread` column held the range under a caption that said "on the same task"
+(review finding 9, #944).
 
 ## One definition of "done", in one place (2026-09-04, three times)
 
