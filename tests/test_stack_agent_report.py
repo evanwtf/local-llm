@@ -859,3 +859,52 @@ def test_a_legacy_exclusion_is_a_hole_too(tmp_path, caplog, key):
     assert code == 2
     assert "excluded 1" in out
     assert "has 14 rows" in out
+
+
+def _overnight_run_dir(tmp_path, order: str) -> pathlib.Path:
+    run_dir = tmp_path / "138-stack-ab"
+    run_dir.mkdir()
+    (run_dir / "run-record.txt").write_text(
+        producer_started_line(dt.datetime(2026, 9, 4, 22, 39, 0)) + "\n"
+        "NEW backend=qwen38fnds4kimat engine=x @ bd9cfbc\n"
+        "OLD backend=qwen38fnds4shim engine=y @ ba01f5d\n"
+    )
+    (run_dir / "sweep-order.txt").write_text(order)
+    return run_dir
+
+
+def test_a_sweep_that_starts_after_midnight_is_dated_the_next_day(tmp_path):
+    """Only the first rollover was corrected. A sweep that STARTED after
+    midnight kept the run's date, so it sorted first and owned none of its
+    rows, and the run read VOID (review)."""
+    run_dir = _overnight_run_dir(
+        tmp_path,
+        "new-sweep1 22:40:00 23:20:00\n"
+        "old-sweep1 23:30:00 00:30:00\n"
+        "new-sweep2 00:40:00 01:20:00\n"
+        "old-sweep2 01:30:00 02:10:00\n",
+    )
+    sweeps = sar.sweep_windows(run_dir)
+    assert sweeps is not None
+    assert [s.tag for s in sweeps] == [
+        "new-sweep1",
+        "old-sweep1",
+        "new-sweep2",
+        "old-sweep2",
+    ]
+    new2 = next(s for s in sweeps if s.tag == "new-sweep2")
+    assert new2.start == dt.datetime(2026, 9, 5, 0, 40)
+    rows = [row("qwen38fnds4kimat", "task-00", "2026-09-05T00:50:00-04:00")]
+    assert sar.assign(rows, sweeps) == []
+    assert len(new2.rows) == 1
+
+
+def test_a_small_backward_step_is_still_corruption_not_midnight(tmp_path, caplog):
+    """The rollover must not hide the interleave check: a finish five minutes
+    after the next start is two runs in one file, not a new day."""
+    run_dir = _overnight_run_dir(
+        tmp_path,
+        "new-sweep1 22:40:00 23:25:00\nold-sweep1 23:20:00 23:59:00\n",
+    )
+    assert sar.sweep_windows(run_dir) is None
+    assert "interleaved" in caplog.text
