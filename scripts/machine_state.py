@@ -641,7 +641,10 @@ def survey(
 ) -> dict[str, object]:
     """The whole answer, as the JSON both agents read."""
     live = list(procs) if procs is not None else servers()
-    resident = {p.pid: round(p.rss_gib, 1) for p in live}
+    # `resident_gib`, not `rss_gib`: a container's model sits in GPU memory,
+    # not RSS (#935). With RSS here a recorded server read 0.9 GiB, and
+    # `unrecorded()` skips recorded pids, so nothing counted its 19 GiB.
+    resident = {p.pid: round(p.resident_gib, 1) for p in live}
     # A server occupies the machine for as long as it is up, so `ps` has
     # already answered "how long has it held" -- it is the same number that
     # renders as "(up 10m)". No second lookup, and nothing to disagree with.

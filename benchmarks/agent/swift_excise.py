@@ -129,6 +129,44 @@ def _matching_close(source: str, open_idx: int) -> int:
     raise TargetNotFound("unbalanced braces; body never closes")
 
 
+def _masked(source: str) -> list[tuple[int, int]]:
+    """Spans of comments and string literals, in order, by the scanner's rules."""
+    spans, i, n = [], 0, len(source)
+    while i < n:
+        if source[i] == '"':
+            end = _skip_string(source, i)
+        elif source.startswith("//", i):
+            nl = source.find("\n", i)
+            end = n if nl == -1 else nl
+        elif source.startswith("/*", i):
+            end = _skip_block_comment(source, i)
+        else:
+            i += 1
+            continue
+        spans.append((i, end))
+        i = end
+    return spans
+
+
+def _search(
+    pattern: re.Pattern[str], source: str, start: int = 0, end: int | None = None
+) -> re.Match[str] | None:
+    """The first match that is code, not inside a comment or a string.
+
+    A raw regex search found `func f() { return 1 }` in a usage example inside
+    a block comment before the real `f`, and excised the example (code review,
+    2026-10-05). The span is still an offset into the original source.
+    """
+    masked = _masked(source)
+    for match in pattern.finditer(source, start, len(source) if end is None else end):
+        # The pattern may begin with indentation; what matters is where the
+        # declaration's first word is.
+        at = match.start() + len(match.group()) - len(match.group().lstrip())
+        if not any(a <= at < b for a, b in masked):
+            return match
+    return None
+
+
 def _doc_comment_start(source: str, decl_start: int) -> int:
     """Start of the `///` block immediately above a declaration, else decl_start."""
     lines_before = source[:decl_start].splitlines(keepends=True)
@@ -154,7 +192,7 @@ def _span(source: str, symbol: str, keep_docstring: bool = True) -> tuple[int, i
     parts = symbol.split(".")
     region_start, region_end = 0, len(source)
     if len(parts) == 2:
-        tmatch = _type_pattern(parts[0]).search(source)
+        tmatch = _search(_type_pattern(parts[0]), source)
         if not tmatch:
             raise TargetNotFound(f"no type {parts[0]!r}")
         region_start = _skip_to_body_open(source, tmatch.start())
@@ -162,7 +200,7 @@ def _span(source: str, symbol: str, keep_docstring: bool = True) -> tuple[int, i
     elif len(parts) != 1:
         raise TargetNotFound(f"cannot address {symbol!r}")
 
-    fmatch = _func_pattern(parts[-1]).search(source, region_start, region_end)
+    fmatch = _search(_func_pattern(parts[-1]), source, region_start, region_end)
     if not fmatch:
         raise TargetNotFound(f"no func {symbol!r}")
 
@@ -192,7 +230,8 @@ def excise(path: pathlib.Path, symbol: str, keep_docstring: bool = True) -> str:
         path.write_text(source[:start] + stub + source[end:])
     else:
         # The doc comment and body both went; put the signature back with a stub.
-        sig_start = _func_pattern(symbol.split(".")[-1]).search(source, start)
+        sig_start = _search(_func_pattern(symbol.split(".")[-1]), source, start)
+        assert sig_start is not None  # _span just found it
         head = source[sig_start.start() : source.index("{", sig_start.start()) + 1]
         stub = head + '\n        fatalError("removed for benchmark")\n    '
         path.write_text(source[:start] + stub + source[end:])

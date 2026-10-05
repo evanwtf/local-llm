@@ -790,3 +790,30 @@ def test_a_container_server_with_little_rss_is_unrecorded_by_its_gpu_memory() ->
     got = ms.unrecorded([], procs)
     assert [c.status for c in got] == [ms.UNRECORDED]
     assert got[0].resident_gib == 19.0
+
+
+def test_a_recorded_server_holding_gpu_memory_makes_the_survey_busy(
+    tmp_path, peer_file
+) -> None:
+    """A record that names a server must not hide its GPU memory (review, #935).
+
+    The census knew the pid held 19 GiB of GPU memory, but `survey()` attached
+    the 0.92 GiB RSS to the record. `unrecorded()` then skipped the pid because
+    a record named it, so nothing counted the 19 GiB and the survey said FREE.
+    """
+    write_peer(peer_file, [{"short": "python", "pid": os.getpid(), "gib": 19.0}])
+    later = dt.datetime.now(dt.UTC) + dt.timedelta(hours=1)
+    os.utime(peer_file, (later.timestamp(), later.timestamp()))
+    server = preflight.Proc(
+        pid=os.getpid(), rss_gib=0.92, command="python", age_s=600, gpu_gib=18.98
+    )
+    got = ms.survey(
+        lock_path=tmp_path / "no-lock.json",
+        peer_path=peer_file,
+        unit_dir=tmp_path / "units",
+        procs=[server],
+    )
+    rows = [c for c in got["claims"] if c["source"] == "peer-status"]
+    assert rows[0]["resident_gib"] == 19.0
+    assert got["verdict"] == ms.BUSY
+    assert got["occupant"]["pid"] == os.getpid()

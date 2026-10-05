@@ -58,14 +58,14 @@ def row(rows: list[dict], backend: str, client: tuple[str, ...] | None = None) -
     timed = [
         r
         for r in gen_tables._excision(mine)
-        if r.get("passed") and r.get("wall_seconds")
+        if results.verdict(r) and r.get("wall_seconds")
     ]
     walls = [r["wall_seconds"] for r in timed]
     turns = [r["num_turns"] for r in timed if r.get("num_turns") is not None]
     return {
         "backend": backend,
         "client": client,
-        "passed": sum(1 for r in mine if r.get("passed")),
+        "passed": sum(1 for r in mine if results.verdict(r)),
         "trials": len(mine),
         "median_s": round(statistics.median(walls), 1) if walls else None,
         "worst_s": round(max(walls), 1) if walls else None,

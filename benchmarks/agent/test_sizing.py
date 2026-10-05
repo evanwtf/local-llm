@@ -94,3 +94,32 @@ def test_suite_precision_declines_with_more_tasks():
     assert sizing.suite_precision(
         wide, tasks=10, n=3, draws=800, seed=5
     ) < sizing.suite_precision(wide, tasks=2, n=3, draws=800, seed=5)
+
+
+# --- code review, 2026-10-05 ---------------------------------------------
+
+
+def test_a_cell_with_one_failure_needs_eighteen_more_passes_not_zero():
+    """34/35 has a lower bound of 0.855. The old arithmetic assumed every
+    trial so far had passed, subtracted 35 from 35, and said "needs 0 more"."""
+    assert round(sizing.wilson_lower(34, 35), 3) == 0.855
+    assert sizing.more_passes_needed(34, 35, 0.90) == 18
+    assert sizing.wilson_lower(34 + 18, 35 + 18) >= 0.90
+    assert sizing.wilson_lower(34 + 17, 35 + 17) < 0.90
+
+
+def test_more_passes_needed_matches_the_closed_form_when_unbroken():
+    assert sizing.more_passes_needed(0, 0, 0.90) == sizing.trials_for(0.90) == 35
+    assert sizing.more_passes_needed(20, 20, 0.90) == 15
+    assert sizing.more_passes_needed(35, 35, 0.90) == 0
+
+
+def test_the_default_ledger_is_this_machines(monkeypatch, tmp_path):
+    """The default was benchmarks/agent/results.jsonl, which no longer exists;
+    an absent ledger reads as empty, so every published cell went missing."""
+    ledger = tmp_path / "results.jsonl"
+    seen: list[object] = []
+    monkeypatch.setattr(sizing.results, "default_path", lambda: ledger)
+    monkeypatch.setattr(sizing, "report", lambda path: seen.append(path))
+    assert sizing.main([]) == 0
+    assert seen == [ledger]
