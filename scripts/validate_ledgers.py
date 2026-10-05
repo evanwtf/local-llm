@@ -130,6 +130,18 @@ def validate_ledger(
                     f"row {n} ({k}): arch {arch!r} != {directory}'s {machine.arch!r} "
                     f"(cross-machine contamination)"
                 )
+            # 7. The server machine, when the row names one, must be this
+            #    directory. Both Sparks report aarch64, so check 6 alone let a
+            #    two-node row publish under the single-node machine. Rows
+            #    before remote.py stamped the field carry none, and pass.
+            #    Every committed row that carries it matches (2026-10-05), so
+            #    no row needs a grandfather entry.
+            server = (row.get("env") or {}).get("server_machine")
+            if server and server != directory:
+                v.append(
+                    f"row {n} ({k}): server_machine {server!r} != {directory!r} "
+                    f"(the row belongs in hardware/{server}/)"
+                )
     return v
 
 

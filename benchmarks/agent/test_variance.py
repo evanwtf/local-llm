@@ -81,3 +81,21 @@ def test_pearson_is_minus_one_when_inverted():
 def test_pearson_is_nan_when_a_series_never_moves():
     """A constant series has no spread to correlate; it must not divide by zero."""
     assert pearson([1, 2, 3], [5, 5, 5]) != pearson([1, 2, 3], [5, 5, 5])
+
+
+def test_constant_turns_do_not_crash_the_driver_report(caplog):
+    """Four trials at two turns each: turns never move, so their correlation
+    is undefined, while tokens still correlate. The report took the median of
+    the empty turns list and raised StatisticsError (review)."""
+    import logging
+
+    import variance
+
+    cell = [
+        {"wall_seconds": w, "num_turns": 2, "output_tokens": t}
+        for w, t in ((10.0, 100), (20.0, 210), (30.0, 290), (40.0, 420))
+    ]
+    caplog.set_level(logging.INFO, logger="variance")
+    variance.report_drivers({("b", "opencode", "t"): cell})
+    assert "correlation with output tokens : 1.00" in caplog.text
+    assert "correlation with turns         : n/a" in caplog.text

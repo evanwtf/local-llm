@@ -266,3 +266,29 @@ def test_render_gives_the_inlet_and_each_gpu_rise_over_it():
 def test_render_inlet_is_na_when_the_sensor_is_silent():
     body = render({"updated": NOW.isoformat()})
     assert "**inlet** n/a" in body
+
+
+# --- half a cluster is not an idle cluster (review) --------------------------
+
+
+def test_an_unreachable_worker_does_not_make_the_pair_idle():
+    """The head at 10 W says nothing about a worker nobody could read.
+
+    Both functions used to drop the unreachable node and then judge the head
+    alone, so the heartbeat said "Both GPUs read the idle floor" and the idle
+    bookkeeping started its clock on half an observation.
+    """
+    lost = hb.Node(reachable=False)
+    assert hb.gpus_idle(node(10), lost) is None
+    assert hb.gpus_idle(lost, node(10)) is None
+    reason = hb.power_reason(node(10), lost, "idle")
+    assert "Both GPUs" not in reason
+    assert "worker" in reason and "unreachable" in reason
+    assert "head" in reason and "10 W" in reason
+
+
+def test_a_missing_power_read_on_either_node_is_unknown():
+    blind = node(10)
+    blind.power_w = None
+    assert hb.gpus_idle(node(10), blind) is None
+    assert "Both GPUs" not in hb.power_reason(node(10), blind, "idle")
