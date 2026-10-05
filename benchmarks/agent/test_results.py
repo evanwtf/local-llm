@@ -387,6 +387,47 @@ def test_a_crashed_client_is_excluded_automatically() -> None:
     assert "never ran" in row["exclusion_reason"]
 
 
+def test_a_client_that_errored_after_the_model_worked_is_a_failure() -> None:
+    """agent_error alone does not mean the client never ran.
+
+    unreal_parse sets it when any response failed, after real turns, and
+    Claude Code sets is_error on a run that hit its turn limit. A model that
+    produced tokens made an attempt, and a failed attempt belongs in the pass
+    rate. Excluding it would drop a real failure from the denominator.
+    """
+    row = normalize(
+        {
+            "task": "t",
+            "agent_error": True,
+            "passed": False,
+            "num_turns": 11,
+            "output_tokens": 2282,
+        }
+    )
+    assert row["excluded"] is False
+
+
+def test_tool_calls_alone_are_a_model_attempt() -> None:
+    row = normalize(
+        {"task": "t", "agent_error": True, "passed": False, "tool_items": 3}
+    )
+    assert row["excluded"] is False
+
+
+def test_a_client_that_died_with_no_output_is_still_excluded() -> None:
+    """The 2026-08-30 opus5 rows: one turn, zero output tokens."""
+    row = normalize(
+        {
+            "task": "t",
+            "agent_error": True,
+            "passed": False,
+            "num_turns": 1,
+            "output_tokens": 0,
+        }
+    )
+    assert row["excluded"] is True
+
+
 def test_a_client_that_errored_but_still_passed_is_kept() -> None:
     """If the oracle passed, the trial produced a real result."""
     row = normalize({"task": "t", "agent_error": True, "passed": True})

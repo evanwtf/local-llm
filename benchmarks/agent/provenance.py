@@ -91,8 +91,11 @@ def code_is_dirty(cwd: pathlib.Path, *, untracked: bool = True) -> bool:
     if not status:
         return False
     for line in status.splitlines():
-        code = line[:2]
-        path = line[3:].strip().strip('"')
+        # Split on whitespace rather than slicing columns: `_git` strips the
+        # output, which eats the leading space of a first " M path" line and
+        # shifts every column by one.
+        code, _, rest = line.strip().partition(" ")
+        path = rest.strip().strip('"')
         # A rename is "old -> new"; judge the destination.
         path = path.split(" -> ")[-1]
         if path.startswith(DATA_PREFIXES):
