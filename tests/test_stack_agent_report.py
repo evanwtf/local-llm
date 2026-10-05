@@ -847,3 +847,15 @@ def test_pass_pairs_judge_with_the_verdict_not_the_raw_flag():
     old = sar.Sweep("old-sweep1", dt.datetime(2026, 9, 7, 9, 28))
     old.rows = [{"task": "t", "passed": True}]
     assert sar.pass_pairs([new, old]) == [("t", 0, 1, 1, 1)]
+
+
+@pytest.mark.parametrize("key", ["confound", "contaminated", "exclude_reason"])
+def test_a_legacy_exclusion_is_a_hole_too(tmp_path, caplog, key):
+    """`results.is_excluded()` owns what an exclusion is. A row marked with a
+    legacy key and no `excluded: true` was counted as a pass (review)."""
+    rows = full_rows()
+    rows[0][key] = "the server was swapped mid-sweep"
+    code, out = run_report(tmp_path, rows, caplog)
+    assert code == 2
+    assert "excluded 1" in out
+    assert "has 14 rows" in out

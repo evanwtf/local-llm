@@ -755,7 +755,9 @@ def main(argv: list[str] | None = None) -> int:
 
     raw = load_raw(args.ledger, BACKENDS, cut)
     per_backend = {b: sum(1 for r in raw if r["backend"] == b) for b in BACKENDS}
-    excluded = sum(1 for r in raw if r.get("excluded"))
+    # `results.is_excluded()`, not the `excluded` key alone: a legacy row
+    # marked `confound` or `contaminated` is a hole as well (review).
+    excluded = sum(1 for r in raw if results_mod.is_excluded(r))
     dry = sum(1 for r in raw if r.get("dry_run"))
     logger.info(
         "raw rows: %d (new %d, old %d); excluded %d; dry %d",
@@ -778,7 +780,7 @@ def main(argv: list[str] | None = None) -> int:
     # Excluded and dry rows are holes in n, not passes or fails: they are
     # counted in the raw line above and dropped before assignment, so a hole
     # shows up as a short sweep cell, which void_checks refuses on.
-    usable = [r for r in raw if not r.get("excluded") and not r.get("dry_run")]
+    usable = [r for r in raw if not results_mod.is_excluded(r) and not r.get("dry_run")]
     leftover = assign(usable, sweeps)
     failures = void_checks(raw, sweeps, leftover, args.allow_harness_split)
     for s in sweeps:
