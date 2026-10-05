@@ -337,6 +337,26 @@ def test_declared_run_flags_reads_live_source(tmp_path) -> None:
         assert want in flags
 
 
+def test_declared_run_flags_skips_a_flag_named_by_a_variable(tmp_path) -> None:
+    """A non-literal flag is left out, never a crash.
+
+    `ast.Name` has no `.value`, so reading it before the `ast.Constant` check
+    raised AttributeError on `add_argument(FLAG)`. That is the very case
+    `non_literal_flag_tests` exists to report; the reader must survive it.
+    """
+    fake = tmp_path / "run.py"
+    fake.write_text(
+        "import argparse\n"
+        "FLAG = '--hidden'\n"
+        "p = argparse.ArgumentParser()\n"
+        "p.add_argument(FLAG, action='store_true')\n"
+        "p.add_argument('--trials', type=int, default=1)\n"
+    )
+    flags = equiv.declared_run_flags(fake)
+    assert "--trials" in flags
+    assert "--hidden" not in flags
+
+
 def test_run_py_declares_the_ports_flag_not_the_shells():
     flags = equiv.declared_run_flags()
     assert "--allow-unverified-route" in flags

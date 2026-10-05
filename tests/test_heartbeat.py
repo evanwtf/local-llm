@@ -253,7 +253,8 @@ def test_tick_records_only_the_pulse(tmp_path: pathlib.Path) -> None:
     assert hb.main(["--state", str(p), "--tick"]) == 0
     s = hb.read_state(p)
     assert s["task"] == "a" and s["updated"] == NOW.isoformat(timespec="seconds")
-    assert hb.minutes_since(s["tick_at"], dt.datetime.now().astimezone()) < 1
+    since = hb.minutes_since(s["tick_at"], dt.datetime.now().astimezone())
+    assert since is not None and since < 1
 
 
 def test_tick_with_set_records_both(tmp_path: pathlib.Path) -> None:
@@ -262,7 +263,8 @@ def test_tick_with_set_records_both(tmp_path: pathlib.Path) -> None:
     assert hb.main(["--state", str(p), "--tick", "--set", '{"task": "b"}']) == 0
     s = hb.read_state(p)
     assert s["task"] == "b"
-    assert hb.minutes_since(s["tick_at"], dt.datetime.now().astimezone()) < 1
+    since = hb.minutes_since(s["tick_at"], dt.datetime.now().astimezone())
+    assert since is not None and since < 1
 
 
 def test_set_alone_is_not_a_tick(tmp_path: pathlib.Path) -> None:

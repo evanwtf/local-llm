@@ -77,6 +77,7 @@ import platform
 import subprocess
 import sys
 from collections.abc import Mapping, Sequence
+from typing import Any, TypedDict
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "scripts" / "lib"))
@@ -204,7 +205,7 @@ class Claim:
             return True
         return (self.resident_gib or 0.0) >= RESIDENT_GIB
 
-    def as_dict(self) -> dict[str, object]:
+    def as_dict(self) -> dict[str, Any]:
         return dataclasses.asdict(self)
 
     def line(self) -> str:
@@ -631,6 +632,18 @@ def verdict(claims: Sequence[Claim]) -> tuple[str, str]:
     return FREE, "no lock is held, and no model server is resident"
 
 
+class Survey(TypedDict):
+    """What `survey` returns, and what `--json` prints."""
+
+    checked_at: str
+    hostname: str
+    verdict: str
+    why: str
+    occupant: dict[str, Any] | None
+    occupant_line: str
+    claims: list[dict[str, Any]]
+
+
 def survey(
     *,
     lock_path: pathlib.Path | None = None,
@@ -638,7 +651,7 @@ def survey(
     unit_dir: pathlib.Path | None = None,
     procs: Sequence[preflight.Proc] | None = None,
     bench_text: str | None = None,
-) -> dict[str, object]:
+) -> Survey:
     """The whole answer, as the JSON both agents read."""
     live = list(procs) if procs is not None else servers()
     # `resident_gib`, not `rss_gib`: a container's model sits in GPU memory,
@@ -707,9 +720,14 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.pid is not None:
         status, detail, by = check_pid(args.pid, expect=args.expect)
-        got = {"pid": args.pid, "status": status, "detail": detail, "confirmed_by": by}
+        checked = {
+            "pid": args.pid,
+            "status": status,
+            "detail": detail,
+            "confirmed_by": by,
+        }
         logger.info(
-            "%s", json.dumps(got, indent=2) if args.json else f"{status}: {detail}"
+            "%s", json.dumps(checked, indent=2) if args.json else f"{status}: {detail}"
         )
         return PID_EXIT[status]
 

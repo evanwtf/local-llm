@@ -96,6 +96,7 @@ def test_walk_converts_the_env_mtime_fields_and_counts_them():
         },
     }
     out = bf.walk(row, bf.ZONE, counts=counts)
+    assert isinstance(out, dict)
     assert out["env"] == {
         "gguf_mtime": "2026-09-02T18:58:50-0400",
         "ds4_server_mtime": "2026-08-16T06:53:08-0400",

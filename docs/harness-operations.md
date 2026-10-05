@@ -405,6 +405,14 @@ whichever one you happened to remember.
 `error` is deliberately *not* an exclusion. A timeout is a real outcome — the
 trial genuinely failed and belongs in the pass rate.
 
+**A script that rewrites a ledger** (a backfill, `exclude_rows.py`, the
+archiver) holds `results.ledger_lock(path)` from its read to its write, and
+writes with `results.replace_ledger(path, text)`. `write_row` takes the same
+lock, so a row `run.py` appends meanwhile waits instead of vanishing from the
+replacement. `replace_ledger` writes a temp file and `os.replace`s it, so a full
+disk or a kill leaves the old ledger, never half of one. Never `write_text` a
+ledger: it truncates first.
+
 Rows written from 2026-08-28 are schema v2 and carry `schema_version`. Older
 rows are v1 and are **not rewritten**: the file is append-only evidence.
 `load()` normalizes them in memory instead.

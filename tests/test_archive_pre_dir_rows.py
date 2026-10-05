@@ -174,3 +174,63 @@ def test_archiver_agrees_with_dirfix_on_the_orphaned_shas():
         assert not apdr.is_pre_dir(row, after), (
             f"post-fix orphan sha {sha} would be wrongly archived as pre-dir"
         )
+
+
+# --- Review of b7a366b, finding 5: a restored row is archived once, not twice.
+# A merge that restores an archived row, or a run killed after the archive
+# write and before the ledger write, leaves the same trial in both files. The
+# archiver appended it again, and dirfix.py then counted the trial twice.
+
+
+def _trial(**over):
+    row = {
+        "task": "mbox-scan",
+        "backend": "qwen",
+        "client": "opencode",
+        "trial": 1,
+        "started": "2026-08-17T10:11:13",
+        "wall_seconds": 61.0,
+        "env": {"harness_head": "0000000"},
+    }
+    row.update(over)
+    return json.dumps(row) + "\n"
+
+
+def test_a_row_already_in_the_archive_is_not_archived_again(monkeypatch, tmp_path):
+    ledger, archive = _point_at(monkeypatch, tmp_path, POST + _trial())
+    archive.write_text(_trial())
+    assert apdr.main([]) == 0
+    assert ledger.read_text() == POST
+    assert archive.read_text() == _trial()
+
+
+def test_the_same_trial_with_a_rewritten_timestamp_is_still_one_trial(
+    monkeypatch, tmp_path
+):
+    """The live ledgers were moved to offset timestamps (#209); the archive was
+    not. One instant in two spellings is one trial, and the copies disagree in
+    bytes, so the archiver refuses rather than choose."""
+    live = _trial(started="2026-08-17T10:11:13-0400")
+    ledger, archive = _point_at(monkeypatch, tmp_path, POST + live)
+    archive.write_text(_trial())
+    assert apdr.main([]) == 1
+    assert ledger.read_text() == POST + live
+    assert archive.read_text() == _trial()
+
+
+def test_a_conflicting_copy_is_refused_and_nothing_moves(monkeypatch, tmp_path):
+    """Same trial, different measurement: one of them is wrong, and the
+    archiver cannot know which. Write nothing; say which rows."""
+    ledger, archive = _point_at(monkeypatch, tmp_path, POST + _trial(wall_seconds=9))
+    archive.write_text(_trial())
+    assert apdr.main([]) == 1
+    assert ledger.read_text() == POST + _trial(wall_seconds=9)
+    assert archive.read_text() == _trial()
+
+
+def test_a_new_trial_still_moves(monkeypatch, tmp_path):
+    ledger, archive = _point_at(monkeypatch, tmp_path, POST + _trial(trial=2))
+    archive.write_text(_trial())
+    assert apdr.main([]) == 0
+    assert ledger.read_text() == POST
+    assert archive.read_text() == _trial() + _trial(trial=2)

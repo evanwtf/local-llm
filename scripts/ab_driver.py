@@ -36,6 +36,7 @@ import datetime
 import logging
 import pathlib
 from collections.abc import Callable, Iterator, Sequence
+from typing import Protocol
 
 logger = logging.getLogger(__name__)
 
@@ -188,8 +189,18 @@ def nothing(tag: str = "") -> Iterator[None]:
     yield
 
 
+class LockModule(Protocol):
+    """The two calls `machine_lock` makes on preflight, or on a test's fake."""
+
+    def acquire_lock(self, what: str, *, pid: int) -> tuple[bool, str]: ...
+
+    def release_lock(self, *, pid: int) -> tuple[bool, str]: ...
+
+
 @contextlib.contextmanager
-def machine_lock(what: str, owner_pid: int, preflight_module: object) -> Iterator[None]:
+def machine_lock(
+    what: str, owner_pid: int, preflight_module: LockModule
+) -> Iterator[None]:
     """Hold the machine lock for a whole driver run, released last (#268).
 
     A driver runs many `run.py` children with the server stopped between arms,

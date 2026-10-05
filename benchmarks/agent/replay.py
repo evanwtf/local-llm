@@ -330,7 +330,7 @@ def recall(
     size of what the agent wrote in that file.
     """
     parent = parent_of(source, start or commit)
-    files = []
+    files: list[dict[str, str | bool | int | None]] = []
     for rel in paths:
         path = worktree / rel
         try:
@@ -369,19 +369,17 @@ def hidden_files(hidden: list[str]) -> list[str]:
     return sorted({_split(node)[0] for node in hidden})
 
 
-def _find(tree: ast.Module, names: list[str]) -> tuple[ast.stmt, list[ast.stmt]] | None:
+_Def = ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef
+
+
+def _find(tree: ast.Module, names: list[str]) -> tuple[_Def, list[ast.stmt]] | None:
     """The def or class `names` points at, and the body that holds it."""
     body: list[ast.stmt] = tree.body
     holder = body
-    found: ast.stmt | None = None
+    found: _Def | None = None
     for depth, name in enumerate(names):
         found = next(
-            (
-                n
-                for n in body
-                if isinstance(n, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef)
-                and n.name == name
-            ),
+            (n for n in body if isinstance(n, _Def) and n.name == name),
             None,
         )
         if found is None:

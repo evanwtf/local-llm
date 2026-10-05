@@ -39,6 +39,7 @@ def test_fxtwitter_keeps_the_quoted_post():
             }
         }
     )
+    assert got is not None
     assert got["author"] == "kydo"
     assert got["quoted_author"] == "googlegemma"
     assert "Gemma 4" in got["quoted_text"]
@@ -49,6 +50,7 @@ def test_a_reply_is_labelled_a_reply():
     got = vp._from_fxtwitter(
         {"tweet": {"author": {"screen_name": "a"}, "replying_to": "b", "text": "x"}}
     )
+    assert got is not None
     assert got["is_reply"] is True
 
 
@@ -61,6 +63,7 @@ def test_syndication_shape_is_understood():
             "text": "hello",
         }
     )
+    assert got is not None
     assert got["author"] == "a"
     assert got["is_reply"] is False
 

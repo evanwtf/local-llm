@@ -170,7 +170,7 @@ def test_measure_with_a_log_reader_attributes_events_to_requests(monkeypatch):
     """The log is read between the warm and reading requests, so the store is
     attributed to the warm request and the hit to the reading request."""
 
-    class FakeReader:
+    class FakeReader(kpr.LogReader):
         def __init__(self):
             self.reads = 0
 
@@ -207,7 +207,7 @@ def test_measure_with_a_log_reader_attributes_events_to_requests(monkeypatch):
 def test_build_row_carries_the_reason_and_file():
     """A row must name the mechanism that produced its reuse, not just the
     number -- that is how the first #190 read-out published a wrong one."""
-    got = {
+    got: kpr.Measurement = {
         "prompt_tokens": 11045,
         "cached_tokens": 10240,
         "cache_write_tokens": 805,
@@ -225,7 +225,7 @@ def test_build_row_carries_the_reason_and_file():
 def test_build_row_flags_cross_size_reuse():
     """A hit whose file was written during a different size's measurement must
     be flagged in the row itself, not inferred later from timestamps."""
-    got = {
+    got: kpr.Measurement = {
         "prompt_tokens": 29845,
         "cached_tokens": 10240,
         "cache_write_tokens": 19605,
@@ -251,7 +251,7 @@ def test_build_row_matches_the_store_by_length_not_by_recency():
     the evict entry, which it was not -- and that label was published on #190
     before the log was read carefully.
     """
-    got = {
+    got: kpr.Measurement = {
         "prompt_tokens": 29845,
         "cached_tokens": 10240,
         "cache_write_tokens": 19605,
@@ -274,7 +274,7 @@ def test_build_row_says_so_when_no_store_matches_the_hit():
     """A hit on an entry written before this run began has no store line to
     match. That is a fact about the row, not a license to guess -- reporting
     the nearest store would invent a mechanism."""
-    got = {
+    got: kpr.Measurement = {
         "prompt_tokens": 29845,
         "cached_tokens": 20480,
         "cache_write_tokens": 9365,
@@ -291,7 +291,7 @@ def test_build_row_says_so_when_no_store_matches_the_hit():
 def test_build_row_prefers_the_most_recent_store_of_a_repeated_length():
     """A length can be stored more than once; the entry on disk came from the
     latest of them."""
-    got = {
+    got: kpr.Measurement = {
         "prompt_tokens": 11045,
         "cached_tokens": 10240,
         "cache_write_tokens": 805,
@@ -308,7 +308,7 @@ def test_build_row_prefers_the_most_recent_store_of_a_repeated_length():
 def test_build_row_with_no_hit_has_no_mechanism():
     """A 0% reading has no hit, so no reason and no file -- the honest answer
     for a cache that did not reuse anything."""
-    got = {
+    got: kpr.Measurement = {
         "prompt_tokens": 5000,
         "cached_tokens": 0,
         "cache_write_tokens": 5000,
@@ -340,7 +340,7 @@ def test_isolate_mode_has_no_cross_size_reuse():
     This is the property #190 assumed and did not have. The same reading that
     is cross_size=True in sequential mode must be cross_size=False here.
     """
-    got = {
+    got: kpr.Measurement = {
         "prompt_tokens": 29845,
         "cached_tokens": 10240,
         "cache_write_tokens": 19605,
@@ -377,11 +377,12 @@ def test_start_server_wipes_the_kv_dir(monkeypatch, tmp_path):
     that wipe is the mutation this test guards against."""
     wiped = []
     real_rmtree = shutil.rmtree
-    monkeypatch.setattr(
-        shutil,
-        "rmtree",
-        lambda p, **kw: wiped.append(str(p)) or real_rmtree(p, **kw),
-    )
+
+    def fake_rmtree(p, **kw):
+        wiped.append(str(p))
+        real_rmtree(p, **kw)
+
+    monkeypatch.setattr(shutil, "rmtree", fake_rmtree)
     monkeypatch.setattr(
         kpr.subprocess,
         "Popen",

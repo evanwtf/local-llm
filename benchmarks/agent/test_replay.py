@@ -422,7 +422,9 @@ def test_track_new_files_reports_a_failure(tmp_path):
     run.git(["init", "-q", "-b", "main"], repo)
     (repo / "new.py").write_text("x = 1\n")
     (repo / ".git" / "index.lock").write_text("")
-    assert "index.lock" in replay.track_new_files(repo)
+    error = replay.track_new_files(repo)
+    assert error is not None
+    assert "index.lock" in error
 
 
 def test_track_new_files_is_quiet_on_success(tmp_path):
@@ -546,6 +548,7 @@ class TestBox:
 
 def test_remove_test_cuts_a_function_with_its_decorators_and_comment():
     out = replay.remove_test(TESTS, ["test_cut"])
+    assert out is not None
     assert "test_cut" not in out
     assert "says what" not in out
     assert "parametrize" not in out
@@ -554,18 +557,22 @@ def test_remove_test_cuts_a_function_with_its_decorators_and_comment():
 
 def test_remove_test_cuts_a_method_and_leaves_its_class():
     out = replay.remove_test(TESTS, ["TestBox", "test_one"])
+    assert out is not None
     assert "test_one" not in out
     assert "def test_two" in out
 
 
 def test_remove_test_refuses_to_empty_a_class():
     once = replay.remove_test(TESTS, ["TestBox", "test_one"])
+    assert once is not None
     with pytest.raises(ValueError, match="hide the class"):
         replay.remove_test(once, ["TestBox", "test_two"])
 
 
 def test_remove_test_cuts_a_whole_class():
-    assert "TestBox" not in replay.remove_test(TESTS, ["TestBox"])
+    out = replay.remove_test(TESTS, ["TestBox"])
+    assert out is not None
+    assert "TestBox" not in out
 
 
 def test_remove_test_reports_an_absent_name():

@@ -278,7 +278,9 @@ def test_ps_failing_at_spawn_still_reads_running(state_dir, monkeypatch):
     unitctl.start("probe", ["sleep", "60"], state_dir=state_dir)
     monkeypatch.undo()
     try:
-        assert unitctl.read("probe", state_dir).start_key is None
+        unit = unitctl.read("probe", state_dir)
+        assert unit is not None
+        assert unit.start_key is None
         assert unitctl.state(unitctl.read("probe", state_dir)) == unitctl.RUNNING
     finally:
         unitctl.stop("probe", timeout=5, state_dir=state_dir)

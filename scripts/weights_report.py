@@ -403,10 +403,10 @@ def main(argv: list[str] | None = None) -> int:
         total = sum(r[3].size or 0 for r in rated if r[2].root == root)
         logger.info("- %s: %.1f GB", root, total / GB)
     seen: set[int] = set()
-    for root in model_inventory.default_roots():
-        if not root.path.exists():
+    for inventory_root in model_inventory.default_roots():
+        if not inventory_root.path.exists():
             continue
-        real = root.path.resolve()
+        real = inventory_root.path.resolve()
         dev = real.stat().st_dev
         if dev in seen:
             continue

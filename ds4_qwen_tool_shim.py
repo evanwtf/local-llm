@@ -77,6 +77,7 @@ from __future__ import annotations
 
 import argparse
 import dataclasses
+import http.client
 import http.server
 import json
 import logging
@@ -604,7 +605,7 @@ class Proxy(http.server.BaseHTTPRequestHandler):
         finally:
             response.close()
 
-    def _synthesise(self, response: object) -> None:
+    def _synthesise(self, response: http.client.HTTPResponse) -> None:
         """Relay a non-streaming upstream answer as the SSE stream we promised."""
         try:
             raw = response.read()

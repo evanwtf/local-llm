@@ -42,6 +42,7 @@ import re
 import subprocess
 import sys
 import urllib.request
+from typing import TypedDict
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
 
@@ -140,6 +141,16 @@ _LABEL = re.compile(r'(\w+)="((?:[^"\\]|\\.)*)"')
 Series = dict[tuple[tuple[str, str], ...], float]
 
 
+class Snapshot(TypedDict):
+    """One reading of the dashboard's numbers, from either source."""
+
+    gpu_util: float | None
+    vram_bytes: float | None
+    temp: dict[str, float]
+    fan: dict[str, float]
+    power: dict[str, float]
+
+
 def parse_exposition(text: str) -> dict[str, Series]:
     """Prometheus text format -> {metric: {sorted label pairs: value}}.
 
@@ -159,7 +170,7 @@ def parse_exposition(text: str) -> dict[str, Series]:
     return out
 
 
-def snapshot_from_exposition(text: str) -> dict[str, object]:
+def snapshot_from_exposition(text: str) -> Snapshot:
     """The same shape as `snapshot_via_gcx`, from the exporter's own text."""
     got = parse_exposition(text)
 
@@ -195,12 +206,12 @@ def fetch_exposition(url: str = EXPORTER_URL) -> str:
         return ""
 
 
-def snapshot() -> dict[str, object]:
+def snapshot() -> Snapshot:
     """The current values, read from the exporter on this machine."""
     return snapshot_from_exposition(fetch_exposition())
 
 
-def snapshot_via_gcx() -> dict[str, object]:
+def snapshot_via_gcx() -> Snapshot:
     """The current values through Grafana. Needs `MAC_DASH_INSTANCE`."""
     return {
         "gpu_util": scalar(query(_sel("macos_gpu_utilization_ratio"))),
@@ -245,13 +256,13 @@ def _fmt(value: float | None, suffix: str = "", scale: float = 1.0) -> str:
     return "n/a" if value is None else f"{value * scale:.1f}{suffix}"
 
 
-def render_snapshot(snap: dict[str, object]) -> list[str]:
+def render_snapshot(snap: Snapshot) -> list[str]:
     """A compact heartbeat line plus an issue-ready block."""
     gpu = snap["gpu_util"]
     vram = snap["vram_bytes"]
-    temp: dict[str, float] = snap["temp"]  # type: ignore[assignment]
-    fan: dict[str, float] = snap["fan"]  # type: ignore[assignment]
-    power: dict[str, float] = snap["power"]  # type: ignore[assignment]
+    temp = snap["temp"]
+    fan = snap["fan"]
+    power = snap["power"]
     gpu_pct = "n/a" if gpu is None else f"{gpu * 100:.0f}%"
     vram_gib = "n/a" if vram is None else f"{vram / 1024**3:.1f} GiB"
     return [

@@ -123,7 +123,7 @@ def assign_to_trials(
 ) -> list[list[Event]]:
     """Bucket events into trials by time window [prev verdict, this verdict]."""
     bounds = [sweep_start] + [t.end for t in trials]
-    windows = [[] for _ in trials]
+    windows: list[list[Event]] = [[] for _ in trials]
     for ev in events:
         for i, trial in enumerate(trials):
             if bounds[i] <= ev.at <= bounds[i + 1]:

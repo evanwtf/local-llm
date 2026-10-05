@@ -20,6 +20,7 @@ import time
 import tomllib
 import types
 import urllib.error
+from typing import Any
 
 import pytest
 import results
@@ -1008,7 +1009,7 @@ def test_foreign_hardware_is_detected():
         {"env": {"arch": "arm64", "cpu": "Apple M5 Max"}},
         {"env": {"arch": "x86_64", "cpu": "AMD Ryzen 9 7900X 12-Core Processor"}},
     ]
-    facts = {"arch": "arm64", "cpu": "Apple M5 Max"}
+    facts: dict[str, object] = {"arch": "arm64", "cpu": "Apple M5 Max"}
     assert results.foreign_hardware(rows, facts) == {
         ("x86_64", "AMD Ryzen 9 7900X 12-Core Processor")
     }
@@ -1016,7 +1017,7 @@ def test_foreign_hardware_is_detected():
 
 def test_same_hardware_is_not_foreign():
     rows = [{"env": {"arch": "arm64", "cpu": "Apple M5 Max"}}] * 3
-    facts = {"arch": "arm64", "cpu": "Apple M5 Max"}
+    facts: dict[str, object] = {"arch": "arm64", "cpu": "Apple M5 Max"}
     assert results.foreign_hardware(rows, facts) == set()
 
 
@@ -1027,8 +1028,8 @@ def test_rows_that_do_not_say_are_not_treated_as_foreign():
     project's entire history would make the guard the first thing anyone
     disabled.
     """
-    rows = [{"env": {"claude": "2.1.252"}}, {"env": {}}, {}]
-    facts = {"arch": "arm64", "cpu": "Apple M5 Max"}
+    rows: list[dict[str, Any]] = [{"env": {"claude": "2.1.252"}}, {"env": {}}, {}]
+    facts: dict[str, object] = {"arch": "arm64", "cpu": "Apple M5 Max"}
     assert results.foreign_hardware(rows, facts) == set()
 
 
@@ -1201,32 +1202,32 @@ def test_write_row_creates_the_machine_directory(tmp_path):
 
 def test_odd_trials_run_the_backends_in_order():
     """#130: position bias is real, so the order must not be constant."""
-    backends = {"a": {}, "b": {}, "c": {}}
+    backends: dict[str, dict[str, Any]] = {"a": {}, "b": {}, "c": {}}
     assert [n for n, _ in run.trial_order(backends, 1)] == ["a", "b", "c"]
     assert [n for n, _ in run.trial_order(backends, 3)] == ["a", "b", "c"]
 
 
 def test_even_trials_reverse_the_backends():
-    backends = {"a": {}, "b": {}, "c": {}}
+    backends: dict[str, dict[str, Any]] = {"a": {}, "b": {}, "c": {}}
     assert [n for n, _ in run.trial_order(backends, 2)] == ["c", "b", "a"]
 
 
 def test_no_backend_holds_the_last_position_in_every_trial():
     """The bias lands on whichever arm always runs last. None may."""
-    backends = {"a": {}, "b": {}}
+    backends: dict[str, dict[str, Any]] = {"a": {}, "b": {}}
     last = {run.trial_order(backends, t)[-1][0] for t in (1, 2, 3, 4)}
     assert last == {"a", "b"}
 
 
 def test_ordering_does_not_drop_or_duplicate_a_backend():
-    backends = {"a": {}, "b": {}, "c": {}, "d": {}}
+    backends: dict[str, dict[str, Any]] = {"a": {}, "b": {}, "c": {}, "d": {}}
     for trial in range(1, 6):
         names = [n for n, _ in run.trial_order(backends, trial)]
         assert sorted(names) == ["a", "b", "c", "d"]
 
 
 def test_a_single_backend_is_unaffected_by_alternation():
-    backends = {"only": {}}
+    backends: dict[str, dict[str, Any]] = {"only": {}}
     for trial in (1, 2, 3):
         assert [n for n, _ in run.trial_order(backends, trial)] == ["only"]
 
@@ -2083,7 +2084,7 @@ def test_legacy_ds4_alias_still_says_ds4():
 
 
 def test_engine_provenance_stamps_unknown_for_an_unprobed_engine():
-    env = {}
+    env: dict[str, Any] = {}
     gaps = run.engine_provenance({"b": {"engine": "vllm"}}, env)
     assert env["vllm_version"] == "unknown"
     assert len(gaps) == 1 and "vllm" in gaps[0]
@@ -2123,7 +2124,7 @@ def test_engine_provenance_accepts_the_backends_own_server_identity():
 
 def test_engine_provenance_server_entry_without_a_build_is_still_unknown():
     # A server record that names no engine_version recorded no build.
-    env = {"servers": {"b": {"metal_route": "tensor"}}}
+    env: dict[str, Any] = {"servers": {"b": {"metal_route": "tensor"}}}
     gaps = run.engine_provenance({"b": {"engine": "ds4"}}, env)
     assert env["ds4_version"] == "unknown"
     assert len(gaps) == 1
@@ -2132,7 +2133,7 @@ def test_engine_provenance_server_entry_without_a_build_is_still_unknown():
 def test_engine_provenance_another_backends_server_does_not_count():
     # Two ds4 backends in one run: one server's build must not vouch for the
     # other backend, whose tree may be a different commit.
-    env = {"servers": {"a": {"engine_version": "6c1e836"}}}
+    env: dict[str, Any] = {"servers": {"a": {"engine_version": "6c1e836"}}}
     backends = {"a": {"engine": "ds4"}, "b": {"engine": "ds4"}}
     gaps = run.engine_provenance(backends, env)
     assert env["ds4_version"] == "unknown"
@@ -2141,7 +2142,7 @@ def test_engine_provenance_another_backends_server_does_not_count():
 
 def test_engine_provenance_exempts_the_hosted_backend():
     # No engine declared, no build to pin; `hosted_unpinned` covers it.
-    env = {}
+    env: dict[str, Any] = {}
     assert run.engine_provenance({"hosted": {"model": "claude"}}, env) == []
     assert env == {}
 
@@ -2149,7 +2150,7 @@ def test_engine_provenance_exempts_the_hosted_backend():
 def test_engine_provenance_catches_the_next_new_engine():
     # The point of the table's fall-through: an engine nobody has taught the
     # harness to probe is loud on the first row, not silent for a whole run.
-    env = {}
+    env: dict[str, Any] = {}
     gaps = run.engine_provenance({"b": {"engine": "sglang"}}, env)
     assert env["sglang_version"] == "unknown"
     assert gaps
@@ -2515,7 +2516,7 @@ def test_prepare_env_does_not_inherit_the_shells_uv_project_environment(
     `python`. Scrubbing it only in agent_env left this door open."""
     monkeypatch.setenv("UV_PROJECT_ENVIRONMENT", "/opt/harness-venv")
     monkeypatch.setenv("VIRTUAL_ENV", "/somewhere/else")
-    seen = {}
+    seen: dict[str, Any] = {}
 
     def fake_run(argv, **kw):
         seen["env"] = kw.get("env")
@@ -2727,6 +2728,7 @@ def _swift_shim():
     path = run.SHIM_SRC / "swift"
     loader = importlib.machinery.SourceFileLoader("swift_shim", str(path))
     spec = importlib.util.spec_from_loader("swift_shim", loader)
+    assert spec is not None
     module = importlib.util.module_from_spec(spec)
     loader.exec_module(module)
     return module
