@@ -94,12 +94,13 @@ def test_a_missing_shim_refuses_before_the_lock(monkeypatch, tmp_path) -> None:
     and OpenCode would talk to the wrong thing. It must refuse before claiming
     the machine, not after."""
     taken: list[str] = []
+
+    def acquire_lock(*a, **k) -> tuple[bool, str]:
+        taken.append("x")
+        return True, "ours"
+
     monkeypatch.setattr(rbt, "port_answers", lambda *a, **k: False)
-    monkeypatch.setattr(
-        rbt.preflight,
-        "acquire_lock",
-        lambda *a, **k: taken.append("x") or (True, "ours"),
-    )
+    monkeypatch.setattr(rbt.preflight, "acquire_lock", acquire_lock)
     with pytest.raises(rbt.Refusal, match="8101"):
         rbt.cycle(rbt.ARMS["A"], tmp_path, tmp_path, 4242)
     assert taken == [], "the machine was claimed by a run that then refused"
@@ -222,16 +223,17 @@ def _last(items: list[str], value: str) -> int:
 def _wire(monkeypatch, tmp_path, *, rc: int = 0, server_logs: list | None = None):
     events: list[str] = []
     monkeypatch.setattr(rbt, "port_answers", lambda *a, **k: True)
-    monkeypatch.setattr(
-        rbt.preflight,
-        "acquire_lock",
-        lambda *a, **k: (events.append("lock-acquire"), (True, "ours"))[1],
-    )
-    monkeypatch.setattr(
-        rbt.preflight,
-        "release_lock",
-        lambda *a, **k: (events.append("lock-release"), (True, "released"))[1],
-    )
+
+    def acquire_lock(*a, **k) -> tuple[bool, str]:
+        events.append("lock-acquire")
+        return True, "ours"
+
+    def release_lock(*a, **k) -> tuple[bool, str]:
+        events.append("lock-release")
+        return True, "released"
+
+    monkeypatch.setattr(rbt.preflight, "acquire_lock", acquire_lock)
+    monkeypatch.setattr(rbt.preflight, "release_lock", release_lock)
 
     @contextlib.contextmanager
     def fake_serving(command, log, **kw):

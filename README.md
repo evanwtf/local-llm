@@ -149,8 +149,9 @@ uv run pytest -q        # the full suite (2,600+ tests)
 ```
 
 CI (`.github/workflows/test.yml`) runs `uv sync`, `uv run pre-commit install`,
-`uv run pytest -q`, `ruff format --check`, `ruff check`, and a `sh -n` syntax
-check. **`mypy` is not yet in CI** -- see #154.
+`uv run pytest -q`, `ruff format --check`, `ruff check`, `mypy`, and a `sh -n`
+syntax check. `uv run mypy` reads its scope from `[tool.mypy]` in
+`pyproject.toml`; the pre-commit hook runs the same command.
 
 `pre-commit` is a dev dependency. `uv run pre-commit install` writes its git
 hook; the first hook in `.pre-commit-config.yaml` refuses a commit while a

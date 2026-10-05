@@ -46,7 +46,7 @@ def _run(argv: list[str]) -> str:
     return r.stdout if r.returncode == 0 else ""
 
 
-def installed_memory_gb(usable_bytes: int) -> int:
+def installed_memory_gb(usable_bytes: float) -> int:
     """Round usable memory up to the size that is actually installed.
 
     Never rounds down: a machine reporting 30.5 GiB has 32 GB in its slots, and

@@ -87,6 +87,7 @@ import subprocess
 import sys
 import time
 from collections.abc import Sequence
+from typing import NotRequired, TypedDict
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "scripts" / "lib"))
@@ -269,12 +270,32 @@ def now() -> str:
     return dt.datetime.now().astimezone().strftime("%Y-%m-%dT%H:%M:%S%z")
 
 
+class Cooldown(TypedDict):
+    """What one cooldown wait did, as the manifest records it."""
+
+    outcome: str  # plateau, timeout, no_fit, or no_sensor
+    waited_s: int
+    started_iso: str
+    ended_iso: str
+    start_die_c: float | None
+    end_die_c: float | None
+    last_slope_c_per_min: float | None
+    samples: int
+    evaluations: int
+    settle: dict[str, object]
+    # main() adds these after the wait, before a phase starts.
+    cooled_on: NotRequired[str]
+    segment: NotRequired[int]
+    settle_in_s: NotRequired[int]
+    die_after_settle_in_c: NotRequired[float | None]
+
+
 def cool_to_plateau(
     label: str,
     min_s: int = SETTLE_MIN_S,
     timeout_s: int = SETTLE_TIMEOUT_S,
     max_slope: float = SETTLE_MAX_SLOPE,
-) -> dict[str, object]:
+) -> Cooldown:
     """Wait until the die temperature stops falling. Returns what happened.
 
     Least-squares slope over the trailing `SETTLE_WINDOW_S` seconds; settled
@@ -350,8 +371,23 @@ def cool_to_plateau(
         time.sleep(FALLBACK_COOLDOWN_S)
         waited = int(time.monotonic() - began)
 
+    if outcome == "timeout" and evaluations == 0:
+        # Never evaluated. Say so as its own outcome rather than letting it
+        # read as "the die was still falling for seven minutes". Decided
+        # before the record is built, so the manifest carries it too.
+        outcome = "no_fit"
+        logger.error(
+            "%s: the settle test never evaluated in %ds -- %d readings, and a "
+            "%ds window never held enough to fit. This phase begins on an "
+            "UNKNOWN thermal state, not a hot one",
+            label,
+            waited,
+            len(samples),
+            SETTLE_WINDOW_S,
+        )
+
     last = die_c()
-    record: dict[str, object] = {
+    record: Cooldown = {
         "outcome": outcome,
         "waited_s": waited,
         "started_iso": began_iso,
@@ -372,19 +408,6 @@ def cool_to_plateau(
             "timeout_s": timeout_s,
         },
     }
-    if outcome == "timeout" and evaluations == 0:
-        # Never evaluated. Say so as its own outcome rather than letting it
-        # read as "the die was still falling for seven minutes".
-        outcome = "no_fit"
-        logger.error(
-            "%s: the settle test never evaluated in %ds -- %d readings, and a "
-            "%ds window never held enough to fit. This phase begins on an "
-            "UNKNOWN thermal state, not a hot one",
-            label,
-            waited,
-            len(samples),
-            SETTLE_WINDOW_S,
-        )
     level = logger.warning if outcome in ("timeout", "no_fit") else logger.info
     level(
         "%s: %s after %ds -- die %s -> %s, last slope %s (bound %.2f C/min)",
@@ -415,13 +438,14 @@ def one_phase(
         _fan("max")
     else:
         _fan("auto")
+    rep_records: list[dict[str, object]] = []
     record: dict[str, object] = {
         "phase": index,
         "condition": condition,
         "started_iso": now(),
         "start_die_c": started_c,
         "fans_at_start": fan_status(),
-        "reps": [],
+        "reps": rep_records,
     }
     logger.info(
         "phase %d/%d condition=%s start_die=%s",
@@ -457,7 +481,7 @@ def one_phase(
             "csv": csv.name,
             "rc": rc,
         }
-        record["reps"].append(rep_rec)  # type: ignore[union-attr]
+        rep_records.append(rep_rec)
         logger.info(
             "  %s rep %d -> rc=%d die=%s",
             tag,
@@ -551,6 +575,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     for sig in (signal.SIGINT, signal.SIGTERM):
         signal.signal(sig, stop)
 
+    phases: list[dict[str, object]] = []
     manifest: dict[str, object] = {
         "issue": 276,
         "started_iso": now(),
@@ -579,7 +604,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "sample_s": SETTLE_SAMPLE_S,
         },
         "sweep": {"ctx_start": CTX_START, "ctx_max": CTX_MAX, "step": STEP, "gen": GEN},
-        "phases": [],
+        "phases": phases,
     }
     rc = 0
     try:
@@ -622,7 +647,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 cooled["die_after_settle_in_c"] = die_c()
                 rc, record = one_phase(i, condition, tree, gguf, prompt, args.reps, out)
                 record["cooldown"] = cooled
-                manifest["phases"].append(record)  # type: ignore[union-attr]
+                phases.append(record)
                 (out / "fan-ab-manifest.json").write_text(
                     json.dumps(manifest, indent=2)
                 )

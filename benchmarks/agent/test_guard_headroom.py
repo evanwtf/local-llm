@@ -10,6 +10,7 @@ dead server. These tests pin both halves.
 from __future__ import annotations
 
 import argparse
+import email.message
 import json
 import pathlib
 import sys
@@ -105,7 +106,7 @@ def test_an_http_error_is_still_a_live_server(monkeypatch):
     """A GET-blind shim answers 405. That is an answer."""
 
     def boom(*a, **k):
-        raise urllib.error.HTTPError("u", 405, "no", None, None)
+        raise urllib.error.HTTPError("u", 405, "no", email.message.Message(), None)
 
     monkeypatch.setattr(run.urllib.request, "urlopen", boom)
     assert run.backend_answers({"base_url": "http://127.0.0.1:1"}, wait=0)

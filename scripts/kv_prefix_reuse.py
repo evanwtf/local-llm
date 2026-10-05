@@ -55,6 +55,7 @@ import subprocess
 import sys
 import urllib.request
 from dataclasses import dataclass
+from typing import IO, NotRequired, TypedDict
 
 sys.path.insert(
     0, str(pathlib.Path(__file__).resolve().parents[1] / "benchmarks" / "agent")
@@ -102,7 +103,28 @@ def build_prompt(n_defs: int) -> str:
     return f"Consider this Python module:\n{body}\n\nHow many functions? One number."
 
 
-def post_chat(port: int, model: str, prompt: str) -> dict[str, object]:
+class Usage(TypedDict):
+    """The token counts one chat request reports."""
+
+    prompt_tokens: int
+    cached_tokens: int
+    cache_write_tokens: int
+
+
+class Measurement(Usage):
+    """`measure`'s reading: the second request's usage, and what it means."""
+
+    n_defs: NotRequired[int]
+    reused_pct: NotRequired[float]
+    reprefilled: NotRequired[int]
+    # Only with a log reader: the server's own store and hit events.
+    warm_stores: NotRequired[list[StoreEvent]]
+    warm_hits: NotRequired[list[HitEvent]]
+    reading_stores: NotRequired[list[StoreEvent]]
+    reading_hits: NotRequired[list[HitEvent]]
+
+
+def post_chat(port: int, model: str, prompt: str) -> Usage:
     body = json.dumps(
         {
             "model": model,
@@ -132,7 +154,7 @@ def measure(
     model: str,
     n_defs: int,
     log_reader: LogReader | None = None,
-) -> dict[str, object]:
+) -> Measurement:
     """Two identical requests; the second one is the reading.
 
     The first request's cached_tokens is always 0 on a cold cache and reporting
@@ -150,15 +172,20 @@ def measure(
     if log_reader is not None:
         warm_stores, warm_hits = parse_log(log_reader.read_since_mark())
         log_reader.mark()
-    got = post_chat(port, model, prompt)
+    usage = post_chat(port, model, prompt)
+    got: Measurement = {
+        "prompt_tokens": usage["prompt_tokens"],
+        "cached_tokens": usage["cached_tokens"],
+        "cache_write_tokens": usage["cache_write_tokens"],
+    }
     if log_reader is not None:
         reading_stores, reading_hits = parse_log(log_reader.read_since_mark())
         got["warm_stores"] = warm_stores
         got["warm_hits"] = warm_hits
         got["reading_stores"] = reading_stores
         got["reading_hits"] = reading_hits
-    total = int(got["prompt_tokens"])
-    cached = int(got["cached_tokens"])
+    total = got["prompt_tokens"]
+    cached = got["cached_tokens"]
     got["n_defs"] = n_defs
     got["reused_pct"] = round(100.0 * cached / total, 1) if total else 0.0
     got["reprefilled"] = total - cached
@@ -232,7 +259,7 @@ class LogReader:
 
 
 def build_row(
-    n: int, got: dict[str, object], all_stores: list[tuple[int, str, int]]
+    n: int, got: Measurement, all_stores: list[tuple[int, str, int]]
 ) -> dict[str, object]:
     """Build the JSON row for size n.
 
@@ -256,7 +283,7 @@ def build_row(
     size's measurement. In isolate mode the history is only this size's own
     stores, so cross_size is always False.
     """
-    row = {
+    row: dict[str, object] = {
         "n_defs": n,
         "prompt_tokens": got["prompt_tokens"],
         "cached_tokens": got["cached_tokens"],
@@ -339,7 +366,7 @@ def build_server_cmd(args: argparse.Namespace, kv_dir: pathlib.Path) -> list[str
 
 def start_server(
     args: argparse.Namespace, kv_dir: pathlib.Path, log_path: pathlib.Path
-) -> tuple[subprocess.Popen, object, LogReader]:
+) -> tuple[subprocess.Popen[bytes], IO[str], LogReader]:
     """Start ds4-server against a wiped kv dir and a fresh log.
 
     Returns (proc, log, reader). The caller must stop the server with
@@ -359,7 +386,7 @@ def start_server(
     return proc, log, LogReader(log_path)
 
 
-def stop_server(proc: subprocess.Popen, log: object) -> None:
+def stop_server(proc: subprocess.Popen[bytes], log: IO[str]) -> None:
     proc.terminate()
     try:
         proc.wait(timeout=30)
@@ -482,8 +509,8 @@ def main(argv: list[str] | None = None) -> int:
                 # Isolate mode: each size has its own server and kv dir, so the
                 # store history is only this size's own stores -- no cross-size
                 # reuse is possible.
-                all_stores = [(n, s.reason, s.tokens) for s in got["warm_stores"]]
-                row = build_row(n, got, all_stores)
+                own_stores = [(n, s.reason, s.tokens) for s in got["warm_stores"]]
+                row = build_row(n, got, own_stores)
                 rows.append(row)
                 logger.info(
                     "n_defs=%-6d prompt=%-6d cached=%-6d reused=%5.1f%% "

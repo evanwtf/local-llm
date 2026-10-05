@@ -108,10 +108,11 @@ def reps_in(outdir: pathlib.Path) -> dict[int, list[tuple[float, str, pathlib.Pa
         found.setdefault(rep, []).append((path.stat().st_mtime, arm, path))
     for rep, entries in found.items():
         positions = [recorded.get((rep, arm)) for _, arm, _ in entries]
-        if all(p is not None for p in positions):
+        known = [p for p in positions if p is not None]
+        if len(known) == len(positions):
             entries[:] = [
                 (float(pos), arm, path)
-                for pos, (_, arm, path) in zip(positions, entries, strict=True)
+                for pos, (_, arm, path) in zip(known, entries, strict=True)
             ]
         entries.sort()
     return found

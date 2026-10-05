@@ -276,14 +276,14 @@ def evaluate(
     lines.append("per-task wall_seconds (t then r, sweep order 1-2-3):")
     for task in tasks:
 
-        def wall(tag: str, task: str = task) -> str:
+        def wall_of(tag: str, task: str = task) -> str:
             rows = [r for r in per[tag] if r["task"] == task]
             if len(rows) != 1:
                 return "--"
             return f"{float(rows[0]['wall_seconds']):.0f}"
 
-        tw = "/".join(wall(t_by_idx[idx]) for idx in shared)
-        rw = "/".join(wall(r_by_idx[idx]) for idx in shared)
+        tw = "/".join(wall_of(t_by_idx[idx]) for idx in shared)
+        rw = "/".join(wall_of(r_by_idx[idx]) for idx in shared)
         lines.append(f"  {task}: t={tw} r={rw}")
 
     screen1 = bool(flips_t)

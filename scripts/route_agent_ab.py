@@ -53,6 +53,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import functools
 import logging
 import os
 import pathlib
@@ -266,7 +267,7 @@ def validate_routes(out: pathlib.Path) -> None:
     if GATE_OK not in text:
         raise Refusing(f"no {GATE_OK!r} verdict in {log}")
     sig = signature(text)
-    if not signature_ok(sig):
+    if sig is None or not signature_ok(sig):
         raise Refusing(
             f"the {OPTIN_ROUTE} signature is outside the pre-registered bands "
             f"(rms {RMS_BAND}, max_abs {MAX_ABS_BAND}): got {sig}; see {log}"
@@ -352,7 +353,7 @@ def arms(out: pathlib.Path) -> list[ab_driver.Arm]:
         ab_driver.Arm(
             name=arm,
             backend=BACKEND,
-            serve=lambda tag, arm=arm: serve_arm(arm, tag, out),
+            serve=functools.partial(serve_arm, arm, out=out),
         )
         for arm in metal_route.ARMS
     ]

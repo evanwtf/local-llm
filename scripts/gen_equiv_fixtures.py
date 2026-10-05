@@ -97,8 +97,8 @@ def write_header(path: pathlib.Path, source: str) -> None:
 
 def record_port_side() -> None:
     """Record the python port's real emissions through the shim."""
-    with hostile_env(), tempfile.TemporaryDirectory(prefix="equiv-port-") as tmp:
-        tmp = pathlib.Path(tmp)
+    with hostile_env(), tempfile.TemporaryDirectory(prefix="equiv-port-") as tmpdir:
+        tmp = pathlib.Path(tmpdir)
         shim = equiv.write_shim(
             tmp / "shim", tmp / "probe"
         )  # EQUIV_OUT is set per-spawn

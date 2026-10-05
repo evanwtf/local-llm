@@ -34,7 +34,9 @@ sys.path.insert(0, str(REPO / "benchmarks" / "agent"))
 import build_client_image
 import client_container
 import currency
-from lib import logs
+
+sys.path.insert(0, str(REPO / "scripts" / "lib"))
+import logs
 
 logger = logging.getLogger(__name__)
 
