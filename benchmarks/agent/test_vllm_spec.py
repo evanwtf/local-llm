@@ -71,11 +71,13 @@ def test_first_read_reports_nothing_then_deltas(monkeypatch):
     vllm_spec.reset()
     _scrape(monkeypatch, SCRAPE)
     first = vllm_spec.read_since("http://127.0.0.1:8030")
+    assert first.counters is not None
     assert first.counters.accepted == 0, "the first read is a baseline, not data"
 
     grown = SCRAPE.replace("1615.0", "1700.0").replace("3556.0", "3700.0")
     _scrape(monkeypatch, grown)
     second = vllm_spec.read_since("http://127.0.0.1:8030", first.offset)
+    assert second.counters is not None
     assert second.counters.accepted == 85
     assert second.counters.drafted == 144
     assert second.counters.used
@@ -89,6 +91,7 @@ def test_an_arm_that_accepted_nothing_is_still_caught(monkeypatch):
     drafted_more = SCRAPE.replace("3556.0", "3700.0")  # accepted unchanged
     _scrape(monkeypatch, drafted_more)
     got = vllm_spec.read_since("http://127.0.0.1:8030").counters
+    assert got is not None
     assert got.drafted == 144
     assert got.accepted == 0
     assert not got.used
@@ -100,13 +103,15 @@ def test_a_restarted_server_rebaselines_instead_of_going_negative(monkeypatch):
     vllm_spec.read_since("http://127.0.0.1:8030")
     _scrape(monkeypatch, SCRAPE.replace("1615.0", "3.0").replace("3556.0", "9.0"))
     got = vllm_spec.read_since("http://127.0.0.1:8030").counters
+    assert got is not None
     assert got.accepted == 0 and got.drafted == 0
 
 
 def test_an_unreachable_server_does_not_take_a_run_down(monkeypatch):
     vllm_spec.reset()
     _scrape(monkeypatch, "")
-    assert vllm_spec.read_since("http://127.0.0.1:8030").counters is vllm_spec.EMPTY
+    # None, not EMPTY: run.py records nothing for the trial and refuses nothing.
+    assert vllm_spec.read_since("http://127.0.0.1:8030").counters is None
 
 
 # --- the wiring into run.py ------------------------------------------------
@@ -161,6 +166,7 @@ def test_generated_tokens_are_read_beside_the_spec_family(monkeypatch):
         (SCRAPE + GEN).replace("5000.0", "5684.0").replace("1615.0", "2000.0"),
     )
     got = vllm_spec.read_since("http://127.0.0.1:8888").counters
+    assert got is not None
     assert got.generated == 684
     assert got.accepted == 385
 
@@ -170,6 +176,7 @@ def test_a_trial_that_generated_nothing_is_no_traffic_not_a_broken_arm(monkeypat
     _scrape(monkeypatch, SCRAPE + GEN)
     vllm_spec.read_since("http://127.0.0.1:8888")
     got = vllm_spec.read_since("http://127.0.0.1:8888").counters  # nothing moved
+    assert got is not None
     assert got.generated == 0
     assert run.draft_verdict(got, counters_on=True) == "no-traffic"
     assert "no-traffic" in run.DRAFT_VERDICTS
@@ -185,6 +192,7 @@ def test_generating_without_accepting_is_still_caught(monkeypatch):
         (SCRAPE + GEN).replace("5000.0", "5400.0").replace("3556.0", "3700.0"),
     )
     got = vllm_spec.read_since("http://127.0.0.1:8888").counters
+    assert got is not None
     assert got.generated == 400 and got.accepted == 0
     assert run.draft_verdict(got, counters_on=True) == "not-used"
 
@@ -196,5 +204,45 @@ def test_a_server_without_the_generation_counter_reports_none_not_zero(monkeypat
     _scrape(monkeypatch, SCRAPE)
     vllm_spec.read_since("http://127.0.0.1:8888")
     got = vllm_spec.read_since("http://127.0.0.1:8888").counters
+    assert got is not None
     assert got.generated is None
     assert run.draft_verdict(got, counters_on=True) == "not-used"
+
+
+# --- a missed scrape is unknown, not zero (code review, 2026-10-05) ----------
+#
+# A failed scrape used to return EMPTY, whose `generated=0` reads as
+# `no-traffic` for a trial that did generate, and it kept the old baseline, so
+# the next successful scrape credited two trials' counters to one row.
+
+
+def test_a_missed_scrape_is_unknown_and_the_next_read_rebaselines(monkeypatch):
+    url = "http://127.0.0.1:8031"
+    vllm_spec.reset()
+    _scrape(monkeypatch, SCRAPE + GEN)
+    vllm_spec.read_since(url)  # baseline: accepted 1615
+    _scrape(monkeypatch, "")
+    missed = vllm_spec.read_since(url).counters
+    assert missed is None, "an unreachable server says nothing, not zero"
+    # Two trials' worth of growth lands before the server answers again.
+    recovered = (SCRAPE + GEN).replace("1615.0", "1635.0").replace("5000.0", "5900.0")
+    _scrape(monkeypatch, recovered)
+    assert vllm_spec.read_since(url).counters is None, (
+        "the first read after a miss is a new baseline, not a two-trial delta"
+    )
+    later = recovered.replace("1635.0", "1640.0").replace("5900.0", "6000.0")
+    _scrape(monkeypatch, later)
+    got = vllm_spec.read_since(url).counters
+    assert got is not None
+    assert got is not None
+    assert got.accepted == 5 and got.generated == 100
+
+
+def test_a_missed_scrape_records_no_draft_verdict(monkeypatch):
+    """None is what run.py reads as "no counters this trial": no `draft`
+    field on the row and no verdict, so neither `no-traffic` nor a refusal."""
+    vllm_spec.reset()
+    _scrape(monkeypatch, SCRAPE + GEN)
+    probe = run.DraftProbe("http://127.0.0.1:8032", "vllm")
+    _scrape(monkeypatch, "")
+    assert probe.sample() is None

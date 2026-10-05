@@ -21,8 +21,9 @@ import logging
 import pathlib
 import statistics
 import sys
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
+from typing import Any
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
 
@@ -105,24 +106,18 @@ def within(
 
 
 def envelope(
-    samples: Sequence[dict[str, object]], busy_util: int = BUSY_UTIL_PCT
+    # Mapping[str, Any]: each sample is a parsed JSON object, numbers inside.
+    samples: Sequence[Mapping[str, Any]],
+    busy_util: int = BUSY_UTIL_PCT,
 ) -> Envelope:
     if not samples:
         raise ValueError("no GPU samples in the log")
-    temps = [float(s["gpu0_temp_c"]) for s in samples]  # type: ignore[arg-type]
-    powers = [float(s["gpu0_power_w"]) for s in samples]  # type: ignore[arg-type]
-    busy = [
-        s
-        for s in samples
-        if float(s.get("gpu0_util_pct", 0)) >= busy_util  # type: ignore[arg-type]
-    ]
-    busy_temps = [float(s["gpu0_temp_c"]) for s in busy]  # type: ignore[arg-type]
-    busy_powers = [float(s["gpu0_power_w"]) for s in busy]  # type: ignore[arg-type]
-    busy_clocks = [
-        int(s["gpu0_clock_mhz"])  # type: ignore[call-overload]
-        for s in busy
-        if "gpu0_clock_mhz" in s
-    ]
+    temps = [float(s["gpu0_temp_c"]) for s in samples]
+    powers = [float(s["gpu0_power_w"]) for s in samples]
+    busy = [s for s in samples if float(s.get("gpu0_util_pct", 0)) >= busy_util]
+    busy_temps = [float(s["gpu0_temp_c"]) for s in busy]
+    busy_powers = [float(s["gpu0_power_w"]) for s in busy]
+    busy_clocks = [int(s["gpu0_clock_mhz"]) for s in busy if "gpu0_clock_mhz" in s]
     return Envelope(
         samples=len(samples),
         busy_samples=len(busy),

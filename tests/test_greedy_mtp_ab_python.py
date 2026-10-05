@@ -87,7 +87,12 @@ def test_an_odd_round_count_can_be_forced() -> None:
     """Refusing is right; refusing without a way through is how a guard gets
     deleted instead of satisfied."""
     calls: list[int] = []
-    with _patched(driver, "sweep", lambda r, *a, **k: calls.append(r) or 0):
+
+    def fake_sweep(r, *a, **k):
+        calls.append(r)
+        return 0
+
+    with _patched(driver, "sweep", fake_sweep):
         assert driver.main(["--rounds", "3", "--allow-odd-rounds"]) == 0
     assert calls == [3]
 
@@ -280,11 +285,12 @@ def _wire(
     monkeypatch.setattr(
         driver.preflight, "acquire_lock", lambda *a, **k: (True, "ours")
     )
-    monkeypatch.setattr(
-        driver.preflight,
-        "release_lock",
-        lambda *a, **k: (events.append("lock-release"), (True, "released"))[1],
-    )
+
+    def fake_release_lock(*a, **k):
+        events.append("lock-release")
+        return (True, "released")
+
+    monkeypatch.setattr(driver.preflight, "release_lock", fake_release_lock)
 
     class FakeUnit:
         pid = 4243
@@ -294,9 +300,12 @@ def _wire(
         return FakeUnit()
 
     monkeypatch.setattr(driver.unitctl, "start", fake_start)
-    monkeypatch.setattr(
-        driver.unitctl, "stop", lambda *a, **k: events.append("shim-stop") or "stopped"
-    )
+
+    def fake_stop(*a, **k):
+        events.append("shim-stop")
+        return "stopped"
+
+    monkeypatch.setattr(driver.unitctl, "stop", fake_stop)
     monkeypatch.setattr(driver.unitctl, "read", lambda *a, **k: None)
     monkeypatch.setattr(driver.unitctl, "state", lambda *a: driver.unitctl.RUNNING)
     monkeypatch.setattr(driver, "port_answers", lambda *a, **k: shim_ready)

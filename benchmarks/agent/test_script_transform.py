@@ -41,11 +41,9 @@ def apply(text: str, ops: list[str]) -> str:
 
 
 def test_the_sent_prompt_matches_the_published_one() -> None:
-    published = (
-        re.search(r"## The prompt.*?```text\n(.*?)```", SPEC.read_text(), re.DOTALL)
-        .group(1)
-        .rstrip("\n")
-    )
+    match = re.search(r"## The prompt.*?```text\n(.*?)```", SPEC.read_text(), re.DOTALL)
+    assert match is not None, "SCRIPT-TRANSFORM.md lost its prompt block"
+    published = match.group(1).rstrip("\n")
     assert task()["prompt"] == published
 
 

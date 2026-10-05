@@ -152,7 +152,7 @@ def test_the_112_verdict_is_not_printed_over_another_experiment():
 def test_the_conditional_is_read_for_whatever_arms_the_manifest_names():
     """An empty table under a heading reads as "no failures", not as "wrong
     arm names". #146's first read-out printed exactly that."""
-    assert report.arms_in({e["arm"]: None for e in MANIFEST}) == ["on", "off"]
+    assert report.arms_in({str(e["arm"]): None for e in MANIFEST}) == ["on", "off"]
     targets = [{"arm": "sandbox"}, {"arm": "legacy"}]
     assert report.arms_in({e["arm"]: None for e in targets}) == ["legacy", "sandbox"]
 

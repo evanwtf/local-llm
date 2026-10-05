@@ -43,7 +43,11 @@ sys.path.insert(
 )
 import build_client_image
 import currency
-from lib import child, logs
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+import child
+
+import logs
 
 logger = logging.getLogger(__name__)
 

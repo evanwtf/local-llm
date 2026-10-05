@@ -14,31 +14,41 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 sys.path.insert(0, str(ROOT / "benchmarks" / "agent"))
 
+import currency
 import preflight_daily as pd
 
 DOCKER = "/usr/bin/docker"
 
 
+def answering(out: str | None) -> currency.Runner:
+    """A docker runner that returns `out` for every command."""
+
+    def run(argv: list[str], timeout: int = 30) -> str | None:
+        return out
+
+    return run
+
+
 def test_a_failed_inventory_is_none_not_empty() -> None:
     """Docker present but the daemon down or access denied (review)."""
-    got = pd.client_images(lambda argv, timeout=30: None, which=lambda _: DOCKER)
+    got = pd.client_images(answering(None), which=lambda _: DOCKER)
     assert got is None
 
 
 def test_an_empty_inventory_is_an_empty_set() -> None:
-    got = pd.client_images(lambda argv, timeout=30: "", which=lambda _: DOCKER)
+    got = pd.client_images(answering(""), which=lambda _: DOCKER)
     assert got == set()
 
 
 def test_no_docker_at_all_is_nothing_to_check() -> None:
     """A machine with no docker holds no client image to be stale."""
-    got = pd.client_images(lambda argv, timeout=30: None, which=lambda _: None)
+    got = pd.client_images(answering(None), which=lambda _: None)
     assert got == set()
 
 
 def test_the_inventory_names_only_client_images() -> None:
     out = "local-llm-client:1.18.33\nlocal-llm-client:1.18.32\nother:1\n"
-    got = pd.client_images(lambda argv, timeout=30: out, which=lambda _: DOCKER)
+    got = pd.client_images(answering(out), which=lambda _: DOCKER)
     assert got == {"local-llm-client:1.18.33", "local-llm-client:1.18.32"}
 
 

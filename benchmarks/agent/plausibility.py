@@ -40,6 +40,8 @@ import collections
 import logging
 from typing import Any
 
+import results
+
 logger = logging.getLogger(__name__)
 
 # Enough trials that a bad streak is not just variance. #23 puts a 3-trial
@@ -63,8 +65,24 @@ MIN_PRIOR = 8
 STRONG = 0.75
 
 
+def trials(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The rows that have a verdict: a dry run is a setup check, not a trial."""
+    return [r for r in rows if not r.get("dry_run")]
+
+
+def passes(rows: list[dict[str, Any]]) -> int:
+    """Passes by `results.verdict()`, never the raw `passed` flag.
+
+    A pass that edited the tests, left the sandbox, or met an invisible
+    excision is a failure. Read raw, four such rows against an 8/8 prior
+    raised nothing (code review, 2026-10-05).
+    """
+    return sum(results.verdict(r) for r in trials(rows))
+
+
 def rate(rows: list[dict[str, Any]]) -> float:
-    return sum(1 for r in rows if r.get("passed")) / len(rows) if rows else 0.0
+    counted = trials(rows)
+    return passes(counted) / len(counted) if counted else 0.0
 
 
 def prior_by_client(
@@ -104,24 +122,25 @@ def implausible(
     `history` is every trustworthy row already on disk -- callers pass rows
     already filtered through `results.is_excluded`.
     """
+    current = trials(current)
     if len(current) < MIN_TRIALS:
         return None
     here = rate(current)
     if here > COLLAPSE_CEILING:
         return None
 
-    tasks = {r.get("task") for r in current if r.get("task")}
+    tasks: set[str] = {r["task"] for r in current if r.get("task")}
     prior = prior_by_client(history, backend, client, tasks or None)
-    for other, rows in sorted(prior.items()):
+    for other, every in sorted(prior.items()):
+        rows = trials(every)
         if len(rows) < MIN_PRIOR:
             continue
         there = rate(rows)
         if there >= STRONG and here <= there * COLLAPSE_FRACTION:
-            passed = sum(1 for r in current if r.get("passed"))
             return (
-                f"{backend} x {client} is {passed}/{len(current)} "
+                f"{backend} x {client} is {passes(current)}/{len(current)} "
                 f"({here:.0%}) in this batch, but {backend} x {other} is "
-                f"{sum(1 for r in rows if r.get('passed'))}/{len(rows)} "
+                f"{passes(rows)}/{len(rows)} "
                 f"({there:.0%}) on record. Same weights, same server, different "
                 f"client -- that is the shape a harness bug makes, not a model "
                 f"difference. Find the cause before spending more trials; "

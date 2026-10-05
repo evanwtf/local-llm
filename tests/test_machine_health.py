@@ -130,15 +130,12 @@ def test_port_open_sees_a_listening_socket():
 
 
 def _git(monkeypatch, returncode=0, stdout="", exc=None):
-    class Done:
-        pass
-
     def run(*a, **k):
         if exc:
             raise exc
-        d = Done()
-        d.returncode, d.stdout, d.stderr = returncode, stdout, "fatal: x"
-        return d
+        return machine_health.subprocess.CompletedProcess(
+            a[0] if a else [], returncode, stdout, "fatal: x"
+        )
 
     monkeypatch.setattr(machine_health.subprocess, "run", run)
 

@@ -71,11 +71,16 @@ jobs:
       # CI ran the formatter but never the linter, so 24 lint findings
       # accumulated in files nobody staged -- the pre-commit hook only lints
       # staged files, so it could not see them (#233). The status is collected
-      # across both so one run reports every problem rather than stopping at the
-      # first, the way CLAUDE.md's baseline job does.
-      - name: Check lint and formatting
+      # across all three so one run reports every problem rather than stopping
+      # at the first, the way CLAUDE.md's baseline job does.
+      #
+      # mypy reads its scope from [tool.mypy] in pyproject.toml. It runs here,
+      # in the required job, so a type error blocks the merge the way a lint
+      # error does; `--strict` is the follow-up, not this gate.
+      - name: Check lint, formatting and types
         run: |
           status=0
           uv run --frozen ruff format --check . || status=$?
           uv run --frozen ruff check . || status=$?
+          uv run --frozen mypy || status=$?
           exit "$status"

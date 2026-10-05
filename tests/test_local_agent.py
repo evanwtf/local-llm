@@ -46,13 +46,16 @@ def test_stack_table_values_match_the_shell() -> None:
     assert fast.engine_port == 8000
     assert fast.shim_port == 8101
     assert fast.ctx == 100000
+    assert fast.engine_tree is not None
     assert fast.engine_tree.endswith("/git/ds4-ivan-qwen38fn")
     assert fast.engine_branch == "qwen3.8-flash-next"
+    assert fast.model_file is not None
     assert fast.model_file.endswith(
         "/qwen3.8-flash-next-ds4-q4k-imatrix/"
         "Qwen3.8-Flash-Next-Q4KImatrixExperts-MXFP4Down-BF16Emb-BF16Control-"
         "Q8GDN-Q8QSA-Q8Shared-Q8Out.gguf"
     )
+    assert fast.ple_file is not None
     assert fast.ple_file.endswith("/Qwen3.8-Flash-Next-PLE-Q4_1.gguf")
     assert fast.hf_repo == "ivanfioravanti/Qwen3.8-Flash-Next-DS4-Q4"
     assert fast.opencode_baseurl == "http://127.0.0.1:8101/v1"
@@ -73,6 +76,7 @@ def test_stack_table_values_match_the_shell() -> None:
     assert lineage.engine == "ds4"
     assert lineage.engine_port == 8000
     assert lineage.ctx == 100000
+    assert lineage.model_file is not None
     assert lineage.model_file.endswith("-chat-v2-imatrix-fixed-0731.gguf")
     assert lineage.ple_file is None
     assert lineage.claude_upstream is None

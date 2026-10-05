@@ -29,9 +29,10 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from lib import agent_identity, peer_state
-
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+import agent_identity
+import peer_state
+
 # preflight owns the ~/.local-llm-bench state paths, including where peer
 # bookkeeping lives (#238).
 sys.path.insert(

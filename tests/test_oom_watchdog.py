@@ -73,10 +73,15 @@ def test_events_keeps_order_and_kind():
 
 
 def test_an_inactive_unit_is_restarted(tmp_path, monkeypatch):
-    restarted = []
+    restarted: list[str] = []
+
+    def restart(unit: str, dry: bool) -> bool:
+        restarted.append(unit)
+        return True
+
     monkeypatch.setattr(ow, "read_journal", lambda since: "")
     monkeypatch.setattr(ow, "unit_active", lambda unit: unit != "ssh.service")
-    monkeypatch.setattr(ow, "restart", lambda unit, dry: restarted.append(unit) or True)
+    monkeypatch.setattr(ow, "restart", restart)
     result = ow.sweep("-10min", state_path=tmp_path / "s.json")
     assert restarted == ["ssh.service"]
     assert result["restarted"] == ["ssh.service"]
@@ -162,7 +167,7 @@ def test_a_relative_window_is_passed_through(tmp_path, monkeypatch):
     """`--since=-24h` must reach journalctl verbatim. It needs the `=`, since
     argparse reads a bare `-24h` as another flag -- which is a usage error, not
     a quiet default, so this pins the working form."""
-    seen = {}
+    seen: dict[str, str] = {}
     monkeypatch.setattr(ow, "STATE_PATH", tmp_path / "s.json")
     monkeypatch.setattr(
         ow, "read_journal", lambda since: seen.setdefault("since", since) or ""

@@ -47,7 +47,9 @@ def test_an_empty_read_is_empty_not_zero():
 
 def test_a_reading_carries_the_system_clock():
     got = thermals.reading()
-    assert got["utc"].endswith("Z") and "T" in got["utc"]
+    utc = got["utc"]
+    assert isinstance(utc, str)
+    assert utc.endswith("Z") and "T" in utc
     assert got["local"]
 
 
@@ -64,9 +66,17 @@ def test_the_machine_reports_plausible_die_temperatures():
     not a passing test: on the machine that owns the sensors this still runs.
     """
     got = thermals.reading()
-    assert got.get("sensors", 0) > 0, "no thermal sensors readable"
-    assert 10.0 < got["die_max_c"] < 120.0
-    assert got["die_mean_c"] <= got["die_max_c"]
+    sensors, die_max, die_mean = (
+        got.get("sensors", 0),
+        got.get("die_max_c"),
+        got.get("die_mean_c"),
+    )
+    assert isinstance(sensors, int | float) and sensors > 0, (
+        "no thermal sensors readable"
+    )
+    assert isinstance(die_max, int | float) and isinstance(die_mean, int | float)
+    assert 10.0 < die_max < 120.0
+    assert die_mean <= die_max
 
 
 def test_fan_rpm_is_absent_rather_than_wrong_when_fancontrol_fails(monkeypatch):
@@ -188,7 +198,9 @@ def test_the_gpu_reports_a_plausible_temperature():
     """
     got = thermals.reading()
     assert "gpu_temp_max_c" in got, "nvidia-smi returned no temperature"
-    assert 10.0 < got["gpu_temp_max_c"] < 110.0
+    gpu_max = got["gpu_temp_max_c"]
+    assert isinstance(gpu_max, int | float)
+    assert 10.0 < gpu_max < 110.0
 
 
 def test_thermals_never_sets_a_fan():

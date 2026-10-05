@@ -219,7 +219,12 @@ def test_the_tag_identifies_the_round_and_the_arm() -> None:
     """One log and one ledger row per arm per round. A tag that collides
     across rounds makes `assert_graph` read the previous round's line."""
     tags: list[str] = []
-    ab_driver.run([A, B], 2, lambda a, tag, r: tags.append(tag) or 0)
+
+    def record(a, tag, r):
+        tags.append(tag)
+        return 0
+
+    ab_driver.run([A, B], 2, record)
     assert tags == ["r1-a", "r1-b", "r2-b", "r2-a"]
     assert len(set(tags)) == 4
 
@@ -292,7 +297,12 @@ def test_the_default_tag_is_unchanged() -> None:
     # Four drivers already read these names off disk.
     arms = [arm("mtp"), arm("plain")]
     seen: list[str] = []
-    ab_driver.run(arms, 2, lambda a, tag, n: seen.append(tag) or 0)
+
+    def record(a, tag, n):
+        seen.append(tag)
+        return 0
+
+    ab_driver.run(arms, 2, record)
     assert seen == ["r1-mtp", "r1-plain", "r2-plain", "r2-mtp"]
 
 
@@ -366,7 +376,7 @@ def test_machine_lock_releases_only_after_the_child_tree_is_reaped(tmp_path) -> 
     real_popen = subprocess.Popen
     interrupted: dict[str, bool] = {}
 
-    class Interrupting(real_popen):  # type: ignore[misc]
+    class Interrupting(subprocess.Popen):
         def wait(self, timeout=None):
             if not interrupted:
                 interrupted["yes"] = True
@@ -396,7 +406,7 @@ def test_machine_lock_releases_only_after_the_child_tree_is_reaped(tmp_path) -> 
             return True, "released"
 
     pf = ReleaseChecksTheTree()
-    subprocess.Popen = Interrupting  # type: ignore[misc]
+    subprocess.Popen = Interrupting  # type: ignore[misc]  # swap the class in place
     try:
         with (
             pytest.raises(KeyboardInterrupt),
@@ -406,5 +416,5 @@ def test_machine_lock_releases_only_after_the_child_tree_is_reaped(tmp_path) -> 
                 [sys.executable, "-c", script], cwd=tmp_path, log=tmp_path / "t.log"
             )
     finally:
-        subprocess.Popen = real_popen  # type: ignore[misc]
+        subprocess.Popen = real_popen  # type: ignore[misc]  # restore the real class
     assert pf.released, "the lock never released -- the ordering assert did not run"

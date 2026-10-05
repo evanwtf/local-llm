@@ -9,10 +9,11 @@ from __future__ import annotations
 
 import json
 import pathlib
+from typing import Any
 
 import results
 
-ROW = {
+ROW: dict[str, Any] = {
     "backend": "b",
     "task": "replay-web-auth-hidden",
     "trial": 1,

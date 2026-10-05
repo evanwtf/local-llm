@@ -23,6 +23,10 @@ __pycache__/
 # #133: the run lock is a claim on ONE machine, not a fact about the repo.
 # Syncing it would let a lock taken on the M5 Max wedge the Linux tier.
 .run-lock.json
+# results.ledger_lock: the sibling lock every ledger append and rewrite holds.
+# Empty, per machine, and never evidence.
+*.jsonl.lock
+*.json.lock
 
 # The harness's own checkouts of the target repositories (#146).
 #

@@ -123,7 +123,7 @@ def test_newest_is_by_start_time_not_by_ledger_order():
 
 def test_a_cell_with_one_side_only_is_kept_with_an_empty_side():
     records, _ = os_compare.build([row(BEFORE, "26.6.2")], ("qwen38fnq3",))
-    empty = {
+    empty: dict[str, object] = {
         "n": 0,
         "passed": 0,
         "median_wall_s": None,

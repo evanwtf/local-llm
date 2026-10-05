@@ -344,7 +344,7 @@ def main(argv: list[str] | None = None) -> NoReturn:
             logger.error("%s: %s", path, exc)
             failures += 1
             continue
-        row = row_from_calls(path, calls)
+        row: dict[str, object] = dict(row_from_calls(path, calls))
         if args.infer_retries:
             row["retried"] = infer_retries(calls)
         if args.errors:

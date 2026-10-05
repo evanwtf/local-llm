@@ -6,6 +6,7 @@ import json
 import pathlib
 import subprocess
 import sys
+from typing import Any
 
 import pytest
 
@@ -51,7 +52,7 @@ def test_heavy_server_requires_a_memory_ceiling(tmp_path, monkeypatch):
 
 
 def test_start_records_scope_pid_unit_port_and_model(tmp_path, monkeypatch):
-    seen = {}
+    seen: dict[str, Any] = {}
 
     class Proc:
         pid = 77
@@ -115,13 +116,12 @@ def test_stop_addresses_recorded_unit_and_waits_for_port_and_memory(
     )
     (state / "vllm.json").write_text(json.dumps(server.as_dict()))
     calls = []
-    monkeypatch.setattr(
-        dgx_server,
-        "_systemctl",
-        lambda *args: (
-            calls.append(args) or subprocess.CompletedProcess(args, 0, "", "")
-        ),
-    )
+
+    def fake_systemctl(*args):
+        calls.append(args)
+        return subprocess.CompletedProcess(args, 0, "", "")
+
+    monkeypatch.setattr(dgx_server, "_systemctl", fake_systemctl)
     monkeypatch.setattr(dgx_server, "_unit_live", lambda unit: False)
     monkeypatch.setattr(dgx_server, "_port_open", lambda port: False)
     monkeypatch.setattr(dgx_server, "_mem_held_gib", lambda: 3.0)
@@ -208,7 +208,7 @@ def test_start_caps_max_jobs_by_default(tmp_path, monkeypatch):
     """An unset MAX_JOBS let ninja run ~22 nvcc jobs during vLLM's warmup, on
     top of 69.6 GiB of loaded weights -- that, not the model, exhausted the
     pool twice on 2026-09-17 (#406)."""
-    seen = {}
+    seen: dict[str, Any] = {}
     _stub_launch(monkeypatch, seen)
     dgx_server.start(
         "vllm",
@@ -223,7 +223,7 @@ def test_start_caps_max_jobs_by_default(tmp_path, monkeypatch):
 
 def test_an_explicit_max_jobs_in_the_command_wins(tmp_path, monkeypatch):
     """The caller said something deliberate; do not override it."""
-    seen = {}
+    seen: dict[str, Any] = {}
     _stub_launch(monkeypatch, seen)
     dgx_server.start(
         "vllm",
@@ -237,7 +237,7 @@ def test_an_explicit_max_jobs_in_the_command_wins(tmp_path, monkeypatch):
 
 
 def test_max_jobs_can_be_disabled(tmp_path, monkeypatch):
-    seen = {}
+    seen: dict[str, Any] = {}
     _stub_launch(monkeypatch, seen)
     dgx_server.start(
         "vllm",
@@ -252,7 +252,7 @@ def test_max_jobs_can_be_disabled(tmp_path, monkeypatch):
 
 
 def test_a_heavy_server_records_its_floor_and_spawns_a_watcher(tmp_path, monkeypatch):
-    seen = {}
+    seen: dict[str, Any] = {}
     _stub_launch(monkeypatch, seen)
     monkeypatch.setattr(dgx_server, "_spawn_watcher", lambda name, floor, log, d: 4242)
     server = dgx_server.start(
@@ -273,7 +273,7 @@ def test_a_heavy_server_records_its_floor_and_spawns_a_watcher(tmp_path, monkeyp
 def test_a_light_server_gets_no_watcher(tmp_path, monkeypatch):
     """`clip` holds no model, so a MemAvailable floor would only add a process
     that can stop it for someone else's allocation."""
-    seen = {}
+    seen: dict[str, Any] = {}
     _stub_launch(monkeypatch, seen)
     monkeypatch.setattr(
         dgx_server, "_spawn_watcher", lambda *a: pytest.fail("no watcher for clip")
@@ -291,7 +291,7 @@ def test_a_light_server_gets_no_watcher(tmp_path, monkeypatch):
 
 
 def test_a_zero_floor_disables_the_watcher(tmp_path, monkeypatch):
-    seen = {}
+    seen: dict[str, Any] = {}
     _stub_launch(monkeypatch, seen)
     monkeypatch.setattr(
         dgx_server, "_spawn_watcher", lambda *a: pytest.fail("floor 0 means no watcher")
@@ -311,7 +311,7 @@ def test_a_zero_floor_disables_the_watcher(tmp_path, monkeypatch):
 def test_a_failed_watcher_spawn_does_not_fail_the_launch(tmp_path, monkeypatch):
     """The server is the point; the watcher is the net. Losing the net is a
     warning, not a reason to have no server."""
-    seen = {}
+    seen: dict[str, Any] = {}
     _stub_launch(monkeypatch, seen)
     monkeypatch.setattr(dgx_server, "_spawn_watcher", lambda *a: None)
     server = dgx_server.start(
@@ -391,7 +391,9 @@ def test_mem_available_reads_meminfo(monkeypatch, tmp_path):
     fake = tmp_path / "meminfo"
     fake.write_text("MemTotal:  127654321 kB\nMemAvailable:  29360128 kB\n")
     monkeypatch.setattr(dgx_server.pathlib, "Path", lambda p: fake)
-    assert abs(dgx_server.mem_available_gib() - 28.0) < 0.01
+    gib = dgx_server.mem_available_gib()
+    assert gib is not None
+    assert abs(gib - 28.0) < 0.01
 
 
 def test_status_reports_memavailable_and_whether_the_watcher_is_alive(
@@ -441,7 +443,7 @@ def test_the_watcher_reads_the_state_dir_the_server_was_recorded_in(
     """`start --state-dir D` recorded the server in D, but the watcher was
     spawned without it, read the default directory, found no record, and
     exited 2: the server ran with no memory floor (review of #456)."""
-    seen = {}
+    seen: dict[str, Any] = {}
 
     class Proc:
         pid = 4242
@@ -454,7 +456,7 @@ def test_the_watcher_reads_the_state_dir_the_server_was_recorded_in(
     state = tmp_path / "state"
     assert dgx_server._spawn_watcher("vllm", 14.0, tmp_path / "s.log", state) == 4242
     # The child parses its own argv: hand it to main and see what it watches.
-    got = {}
+    got: dict[str, Any] = {}
     monkeypatch.setattr(
         dgx_server,
         "watch",
@@ -467,7 +469,7 @@ def test_the_watcher_reads_the_state_dir_the_server_was_recorded_in(
 
 
 def test_start_hands_its_state_dir_to_the_watcher(tmp_path, monkeypatch):
-    seen = {}
+    seen: dict[str, Any] = {}
     _stub_launch(monkeypatch, seen)
     monkeypatch.setattr(
         dgx_server,

@@ -24,12 +24,16 @@ Schema v2 rules, for rows written from 2026-08-28:
 
 from __future__ import annotations
 
+import contextlib
 import datetime
+import fcntl
 import json
 import logging
+import os
 import pathlib
+import tempfile
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -289,9 +293,79 @@ def write_row(row: dict[str, Any], path: pathlib.Path) -> dict[str, Any]:
     # exist at all. Creating it here means a per-machine run needs no setup
     # step that someone can forget (#85).
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a") as fh:
+    # The lock is what stops a rewriter (a backfill, exclude_rows.py, the
+    # archiver) from reading the ledger, then replacing it with a copy that
+    # lacks this row. Held only for the append, so it costs nothing.
+    with ledger_lock(path), path.open("a") as fh:
         fh.write(json.dumps(row) + "\n")
     return row
+
+
+def lock_path(path: pathlib.Path) -> pathlib.Path:
+    """The sibling file a ledger's lock is held on: `results.jsonl.lock`.
+
+    Not the ledger itself. `replace_ledger` swaps in a new inode, so a lock on
+    the old one would protect a file that is no longer the ledger. The lock
+    file is empty, outlives every swap, and is gitignored.
+    """
+    path = pathlib.Path(path)
+    return path.with_name(path.name + ".lock")
+
+
+@contextlib.contextmanager
+def ledger_lock(path: pathlib.Path) -> Iterator[None]:
+    """Hold an exclusive lock on a ledger for every append and every rewrite.
+
+    `write_row` takes it for each append. A script that rewrites a ledger must
+    hold it from the read to the `replace_ledger`: otherwise a row `run.py`
+    appends in between is missing from the replacement and is lost for good
+    (review of b7a366b, finding 2). The same pattern as heartbeat.py's state
+    file. It blocks; it does not time out, because an append takes
+    milliseconds and a rewrite seconds.
+
+    This is not the run lock (`~/.local-llm-bench`), which says a benchmark
+    owns the machine. This one says somebody is writing this one file.
+    """
+    path = pathlib.Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with lock_path(path).open("a") as held:
+        fcntl.flock(held, fcntl.LOCK_EX)
+        yield
+
+
+def replace_ledger(path: pathlib.Path, text: str) -> None:
+    """Replace a ledger's whole content in one step, or not at all.
+
+    `Path.write_text` truncates first, so a full disk or a kill part-way
+    leaves an empty or half-written ledger: published measurements gone
+    (review of b7a366b, finding 1). This writes a temp file in the same
+    directory, flushes it to disk, and `os.replace`s it over the ledger. A
+    failure at any step leaves the old file and removes the temp one.
+
+    Call it inside `ledger_lock(path)`. The mode of an existing ledger is kept;
+    `mkstemp` would otherwise make it 0600.
+    """
+    path = pathlib.Path(path)
+    mode = path.stat().st_mode & 0o7777 if path.exists() else 0o644
+    fd, name = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.", suffix=".tmp")
+    tmp = pathlib.Path(name)
+    try:
+        with os.fdopen(fd, "w") as fh:
+            fh.write(text)
+            fh.flush()
+            os.fsync(fh.fileno())
+        tmp.chmod(mode)
+        os.replace(tmp, path)
+    except BaseException:
+        with contextlib.suppress(FileNotFoundError):
+            tmp.unlink()
+        raise
+    # The rename is durable only once the directory entry is on disk.
+    dirfd = os.open(path.parent, os.O_RDONLY)
+    try:
+        os.fsync(dirfd)
+    finally:
+        os.close(dirfd)
 
 
 def is_excluded(row: dict[str, Any]) -> bool:

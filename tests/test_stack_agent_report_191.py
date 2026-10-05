@@ -229,6 +229,7 @@ def test_a_task_that_failed_on_one_arm_does_not_pair(tmp_path):
             r.update(passed=False, solution_empty=False, wall_seconds=400)
     run_dir = write_run_dir(tmp_path)
     sweeps = sib.rep.sweep_windows(run_dir)
+    assert sweeps is not None
     sib.rep.assign(rows, sweeps)
     paired = sib.pairs_by_task(sweeps)
     assert "task-00" not in [t for t, _, _ in paired]

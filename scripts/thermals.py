@@ -38,6 +38,7 @@ import subprocess
 import sys
 import time
 from ctypes import c_char_p, c_double, c_int, c_uint32, c_uint64, c_void_p
+from typing import Any
 
 sys.path.insert(
     0, str(pathlib.Path(__file__).resolve().parent.parent / "benchmarks" / "agent")
@@ -59,6 +60,9 @@ PLAUSIBLE = (0.0, 150.0)
 def _frameworks():
     iokit = ctypes.CDLL(ctypes.util.find_library("IOKit"))
     cf = ctypes.CDLL(ctypes.util.find_library("CoreFoundation"))
+    # Declared once: the two tables below share these loop names, and the
+    # second one has a function returning void (None).
+    res: type[Any] | None
     for fn, res, args in (
         ("CFStringCreateWithCString", c_void_p, [c_void_p, c_char_p, c_uint32]),
         ("CFDictionaryCreateMutable", c_void_p, [c_void_p, c_int, c_void_p, c_void_p]),
@@ -161,7 +165,7 @@ def summarize(sensors: list[tuple[str, float]]) -> dict[str, float | int]:
     }
 
 
-def fan_rpm() -> dict[str, float | int]:
+def fan_rpm() -> dict[str, float | int | str]:
     """Fan speeds, read through `fancontrol status` (#116). Empty on failure.
 
     Temperature alone cannot tell a throttled run from a well-cooled one: a
@@ -187,8 +191,8 @@ def fan_rpm() -> dict[str, float | int]:
         fans = json.loads(got.stdout).get("fans") or []
     except (OSError, subprocess.SubprocessError, ValueError, AttributeError):
         return {}
-    out: dict[str, float | int] = {}
-    actual = []
+    out: dict[str, float | int | str] = {}
+    actual: list[float | int] = []
     for fan in fans:
         if not isinstance(fan, dict):
             continue
@@ -198,7 +202,7 @@ def fan_rpm() -> dict[str, float | int]:
             actual.append(rpm)
         mode = fan.get("mode")
         if isinstance(mode, str):
-            out[f"fan{fan.get('index', len(actual) - 1)}_mode"] = mode  # type: ignore[assignment]
+            out[f"fan{fan.get('index', len(actual) - 1)}_mode"] = mode
     if actual:
         out["fan_rpm_max"] = max(actual)
     return out

@@ -5,8 +5,7 @@
 #
 # This hook is FIRST because it must run before anything can reformat or write
 # a file: a reformat is exactly the kind of worktree write a live run must not
-# have to survive. Only the refusal hook is added here; the rest of the
-# conventional stack (ruff, mypy, the check-* addons) is a separate change.
+# have to survive.
 #
 # `language: python` is deliberate, not `system`. pre-commit builds a hermetic
 # environment, so `uv run pre-commit run` and a bare `git commit` invoke the
@@ -77,6 +76,17 @@ repos:
         entry: uv run --frozen ruff check --force-exclude
         language: system
         types: [python]
+        require_serial: true
+      # The local mirror of CI's mypy gate. `pass_filenames: false` is the
+      # point: mypy must see the whole tree from [tool.mypy] in pyproject.toml,
+      # because a change to one module breaks its callers, and checking only
+      # the staged files would never look at them.
+      - id: mypy
+        name: mypy (mirrors the CI gate)
+        entry: uv run --frozen mypy
+        language: system
+        types: [python]
+        pass_filenames: false
         require_serial: true
       # #394: validate every committed ledger before it lands, so a machine-local
       # break (a pre-dir straggler, a duplicate, an archive overlap, a

@@ -58,8 +58,13 @@ def test_a_reused_outdir_is_refused_before_sweep(driver, tmp_path, monkeypatch):
 
 @pytest.mark.parametrize("driver", DRIVERS, ids=lambda d: d.__name__)
 def test_reuse_outdir_reaches_sweep(driver, tmp_path, monkeypatch):
-    calls = []
-    monkeypatch.setattr(driver, "sweep", lambda *a, **k: calls.append(1) or 0)
+    calls: list[int] = []
+
+    def sweep(*a, **k) -> int:
+        calls.append(1)
+        return 0
+
+    monkeypatch.setattr(driver, "sweep", sweep)
     out = _reused(tmp_path)
     argv = [*_argv(driver, tmp_path, out), "--reuse-outdir"]
     assert driver.main(argv) == 0
@@ -68,7 +73,12 @@ def test_reuse_outdir_reaches_sweep(driver, tmp_path, monkeypatch):
 
 @pytest.mark.parametrize("driver", DRIVERS, ids=lambda d: d.__name__)
 def test_a_fresh_outdir_reaches_sweep(driver, tmp_path, monkeypatch):
-    calls = []
-    monkeypatch.setattr(driver, "sweep", lambda *a, **k: calls.append(1) or 0)
+    calls: list[int] = []
+
+    def sweep(*a, **k) -> int:
+        calls.append(1)
+        return 0
+
+    monkeypatch.setattr(driver, "sweep", sweep)
     assert driver.main(_argv(driver, tmp_path, tmp_path / "new")) == 0
     assert calls == [1]
