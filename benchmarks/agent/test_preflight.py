@@ -1017,3 +1017,83 @@ def test_a_sushi_server_counts_as_inference():
         "  501 67108864 01:00 /Users/x/git/sushi/zig-out/bin/sushi serve --model m\n"
     )
     assert [p.pid for p in preflight.parse_ps(ps)] == [501]
+
+
+# --- Python-hosted engines: vLLM, SGLang, TensorFold ----------------------
+#
+# Each runs as a Python interpreter, so the executable is `python3` and the
+# engine is the module after `-m` or the console script after the interpreter.
+# Matching the executable alone made all three invisible: a stale one holding
+# 48 GiB reported 0 GiB and no refusal. They run in Docker as root here, where
+# `lsof` as the benchmark user sees no listener at all, so the port comes from
+# the server's own `--port` when `lsof` cannot say.
+
+PY_SERVERS_PS = """\
+  PID    RSS  ELAPSED COMMAND
+51001 50331648 02:10:00 /usr/bin/python3 -m vllm.entrypoints.openai.api_server --model /models/m --port 8030
+51002 50331648 02:10:00 python3 -m sglang.launch_server --model-path /models/m --port 30000
+51003 50331648 02:10:00 /usr/bin/python3 /usr/local/bin/tensorfold serve /models/m --tp 2 --rank 0 --master 127.0.0.1 --master-port 29500 --host 0.0.0.0 --port 8888
+51004 50331648 02:10:00 /usr/bin/python3 /usr/local/bin/vllm serve /models/m --port 8000
+"""
+
+NO_LISTENERS = "COMMAND PID USER FD TYPE DEVICE SIZE/OFF NODE NAME\n"
+
+
+def test_python_hosted_servers_are_found_by_module_or_script():
+    got = preflight.parse_ps(PY_SERVERS_PS)
+    assert [p.pid for p in got] == [51001, 51002, 51003, 51004]
+    assert [p.short for p in got] == ["vllm", "sglang", "tensorfold", "vllm"]
+
+
+def test_a_stale_python_server_is_counted_and_refused():
+    """The finding's case: a resident vLLM nobody selected must refuse."""
+    ps = PY_SERVERS_PS.splitlines()[0] + "\n" + PY_SERVERS_PS.splitlines()[1] + "\n"
+    report = preflight.check(ps, NO_LISTENERS, expected_ports={8888})
+    assert round(report.total_gib) == 48
+    assert [p.pid for p in report.stale] == [51001]
+    assert preflight.refuse_unless_empty(report, {"b": {}}) is not None
+
+
+def test_the_runs_own_tensorfold_server_passes_the_gate():
+    """The DGX cluster's run: a remote OpenCode client against TensorFold's
+    rank 0 on :8888, in a root container that `lsof` cannot see. It holds
+    memory, it is the run's own server, and the gate must let it through."""
+    tf = PY_SERVERS_PS.splitlines()[0] + "\n" + PY_SERVERS_PS.splitlines()[3] + "\n"
+    backends = {
+        "glm53tf": {
+            "base_url": "http://127.0.0.1:8888",
+            "engine": "tensorfold",
+            "topology": "remote",
+        }
+    }
+    report = preflight.check(
+        tf, NO_LISTENERS, expected_ports=preflight.backend_ports(backends)
+    )
+    assert report.stale == [] and report.unmatched == []
+    assert round(report.total_gib) == 48
+    assert preflight.refuse_unless_empty(report, backends) is None
+
+
+def test_lsof_still_wins_over_argv_for_a_python_server():
+    ps = PY_SERVERS_PS.splitlines()[0] + "\n" + PY_SERVERS_PS.splitlines()[1] + "\n"
+    lsof = NO_LISTENERS + (
+        "python3 51001 e 9u IPv4 0x1 0t0 TCP 127.0.0.1:8031 (LISTEN)\n"
+    )
+    assert [p.port for p in preflight.check(ps, lsof, {8030}).stale] == [8031]
+
+
+def test_python_running_some_other_script_is_not_a_server():
+    """A harness script or a test run that mentions an engine is not one."""
+    ps = (
+        "  PID    RSS  ELAPSED COMMAND\n"
+        "61001 50331648 00:10 /usr/bin/python3 scripts/stack_agent_ab.py --engine vllm\n"
+        "61002 50331648 00:10 python3 -m pytest benchmarks/agent/test_vllm_spec.py\n"
+        "61003 50331648 00:10 python3 benchmarks/agent/vllm_spec.py\n"
+        "61004 50331648 00:10 /home/e/vllm/bin/python3 -c import vllm\n"
+    )
+    assert preflight.parse_ps(ps) == []
+
+
+def test_python_server_recognition_does_not_leak_into_other_markers():
+    """machine_state passes its own markers (#277); a vLLM is not a bench."""
+    assert preflight.parse_ps(PY_SERVERS_PS, markers=("ds4-bench",)) == []
