@@ -190,6 +190,105 @@ CLIENT_KEYS = frozenset(
 )
 
 
+#: Engine provenance `run.capture_versions` reads from the local disk and
+#: process table. On the client these describe the client's own engines, if
+#: any, never the server's: a client vLLM venv stamped `vllm` on a remote row,
+#: and that in turn deleted the server's honest `vllm_version: unknown`
+#: (review of 2026-10-05). Only the server's facts may supply them. `ollama`
+#: stays in CLIENT_KEYS, as before.
+CLIENT_ENGINE_KEYS = frozenset(
+    {
+        "server_argv",
+        "ds4_head",
+        "ds4_dirty",
+        "ds4_server_mtime",
+        "gguf_path",
+        "gguf_bytes",
+        "gguf_mtime",
+        "llamacpp_head",
+        "llamacpp_dirty",
+        "llamacpp_server_mtime",
+        "vllm",
+        "vllm_torch",
+        "vllm_torch_cuda",
+        "sglang",
+        "sglang_image",
+        "lmstudio_cli",
+        "lmstudio_runtimes",
+        "mtplx",
+        "metal_route",
+    }
+)
+
+#: The `servers` fields that come from the server's HTTP answers
+#: (`run.probe_server`, `probe_openai_models`, `probe_ollama`). The client
+#: asks the live server for these, so its values are current. Every other
+#: field in a client's `servers` entry was read off the client's own disk
+#: (`engine_identity`, the ds4 route and strip records) and is dropped.
+#: `sampling_source` is not here: for Ollama it names the local Ollama
+#: version, which on the client is the client's.
+HTTP_PROBE_KEYS = frozenset(
+    {
+        "model_path",
+        "model_alias",
+        "build_info",
+        "total_slots",
+        "sampling",
+        "served_model_id",
+        "accepts_sampling",
+        "context_length",
+        "quantization",
+        "arch",
+        "publisher",
+        "state",
+        "max_context_length",
+        "advertised_models",
+        "requested_model",
+    }
+)
+
+#: The HTTP fields that identify what is serving. The live probe and the saved
+#: facts must agree on each one both carry, or the facts describe a server
+#: that is no longer the one answering.
+IDENTITY_KEYS = HTTP_PROBE_KEYS - {"state", "requested_model"}
+
+
+def merge_servers(live: dict, saved: dict) -> dict:
+    """The row's `servers`: the saved entry, with the live HTTP answers on top.
+
+    `saved` is what the server probed when `scripts/server_facts.py` ran, and
+    the facts are reusable for six hours. `live` is what the client probed
+    just now. A server restarted on other weights or flags under the same
+    backend name is caught here: its live identity disagrees with the saved
+    one, and the run refuses rather than describe the old configuration.
+    """
+    merged = {}
+    for name in sorted(set(live) | set(saved)):
+        entry = dict(saved.get(name) or {})
+        fresh = {
+            k: v for k, v in (live.get(name) or {}).items() if k in HTTP_PROBE_KEYS
+        }
+        differ = sorted(
+            k
+            for k in IDENTITY_KEYS
+            if k in entry and k in fresh and entry[k] != fresh[k]
+        )
+        if differ:
+            detail = "; ".join(
+                f"{k}: saved {entry[k]!r}, live {fresh[k]!r}" for k in differ
+            )
+            raise SystemExit(
+                f"the server facts describe a different {name!r} from the one "
+                f"serving now ({detail}). The server was restarted or changed "
+                "since scripts/server_facts.py ran; run it again on the server "
+                "and copy the new file to the client."
+            )
+        entry.update(fresh)
+        if entry:
+            merged[name] = entry
+    return merged
+
+
 def stamp(env: dict, facts: dict) -> dict:
     """`env` re-described for a remote run: server hardware, client kept aside.
 
@@ -197,8 +296,15 @@ def stamp(env: dict, facts: dict) -> dict:
     `env["client_machine"]`; the server's hardware facts and its engine
     provenance (from `scripts/server_facts.py`) take their place, so the row's
     hardware identity is the server's and it belongs in the server's ledger.
+
+    Raises SystemExit when the live server disagrees with the saved facts
+    (`merge_servers`).
     """
-    out = dict(env)
+    out = {
+        k: v
+        for k, v in env.items()
+        if k not in CLIENT_ENGINE_KEYS and not k.startswith("digest_")
+    }
     # "client_image" travels with the client's facts or the grouping key reads
     # None for it and a containerised row pools with a bare-metal one (#611).
     out["client_machine"] = {
@@ -221,6 +327,12 @@ def stamp(env: dict, facts: dict) -> dict:
     out.update(
         {k: v for k, v in (facts.get("facts") or {}).items() if k in SERVER_FACT_KEYS}
     )
+    servers = merge_servers(
+        env.get("servers") or {}, (facts.get("env") or {}).get("servers") or {}
+    )
+    out.pop("servers", None)
+    if servers:
+        out["servers"] = servers
     # The client probed for engines it cannot see and stamped
     # `<engine>_version: unknown` (#320's loud fallback). The server has since
     # answered, so drop an "unknown" the server's own env contradicts -- a row
@@ -250,3 +362,49 @@ def topology_mismatch(backends: dict[str, dict], remote_mode: bool) -> list[str]
 def results_path(repo: pathlib.Path, facts: dict) -> pathlib.Path:
     """The server's ledger: rows describe the server, so they live there."""
     return repo / "hardware" / facts["directory"] / "results.jsonl"
+
+
+def tier_mismatch(backend: str, spec: dict, directory: str) -> str | None:
+    """None if `directory` is the machine that owns `backend`'s tier, else why not.
+
+    The facts name the ledger, and a row in the wrong one cannot be repaired.
+    Facts taken without `--cluster-peer` name the single Spark, because the
+    head node probes the same either way, so a two-node backend's rows would
+    join the single-Spark ledger. The foreign-hardware check cannot see it:
+    the hardware facts are the head's in both cases (#647). So the tier, which
+    `tasks.toml` declares per backend and `scripts/machines.py` maps to one
+    machine, must match the machine the facts name.
+
+    A machine outside the registry, with a tier no registered machine owns, is
+    not judged: there is nothing to compare it against.
+    """
+    import sys
+
+    scripts = str(pathlib.Path(__file__).resolve().parents[2] / "scripts")
+    if scripts not in sys.path:
+        sys.path.insert(0, scripts)
+    import machines
+
+    tier = spec.get("tier") or None
+    owners = sorted(m.directory for m in machines.MACHINES if m.tier == tier)
+    here = machines.by_directory(directory)
+    if here is not None and here.tier == tier:
+        return None
+    if here is None and (tier is None or not owners):
+        return None
+    if not owners:
+        return (
+            f"backend {backend!r} declares tier {tier!r}, which no registered "
+            f"machine carries, but the server facts name {directory}"
+        )
+    # A cluster's directory is its node's plus `-x<nodes>` (cluster_id).
+    hint = (
+        " Pass --cluster-peer <peer> to scripts/server_facts.py for a multi-node "
+        "server."
+        if any(re.search(r"-x\d+$", o) for o in owners)
+        else " Regenerate the facts without --cluster-peer for a one-node server."
+    )
+    return (
+        f"backend {backend!r} declares tier {tier!r}, whose rows belong in "
+        f"{', '.join(owners)}, but the server facts name {directory}.{hint}"
+    )

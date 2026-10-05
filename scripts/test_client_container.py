@@ -170,3 +170,59 @@ def test_default_image_follows_the_build_pin():
     )
     src = pathlib.Path(mod.__file__).read_text()
     assert 'default="local-llm-client:' not in src
+
+
+def test_an_equals_form_host_path_is_translated_too():
+    """`--results=PATH` stayed a host path, so the harness wrote every row to a
+    container-local file that `--rm` then deleted. The space form was the only
+    one translated; argparse accepts both, and so must the wrapper."""
+    got = mod.translate_paths(
+        [
+            f"--results={HOME}/git/local-llm/hardware/X/results.jsonl",
+            f"--client-log={HOME}/bench-logs/run1",
+            "--trials=3",
+        ],
+        HOME,
+    )
+    assert got == [
+        f"--results={mod.CONTAINER_HOME}/git/local-llm/hardware/X/results.jsonl",
+        f"--client-log={mod.CONTAINER_HOME}/bench-logs/run1",
+        "--trials=3",
+    ]
+
+
+def test_an_output_path_the_container_cannot_keep_is_named():
+    """An output outside every writable mount is deleted with the container.
+    The rows or transcripts vanish while the run looks complete, so the
+    wrapper names such a path before it starts the run."""
+    got = mod.lost_outputs(
+        [
+            "--results",
+            "/tmp/rows.jsonl",
+            f"--client-log={HOME}/elsewhere/run1",
+            "--solutions",
+            f"{HOME}/bench-solutions/run1",
+            "--results=hardware/X/results.jsonl",
+            "--backend",
+            "/not/an/output",
+        ],
+        HOME,
+    )
+    assert got == ["--results /tmp/rows.jsonl", f"--client-log {HOME}/elsewhere/run1"]
+
+
+def test_the_documented_invocation_loses_nothing():
+    """hardware/agent-opener-prompt.md, "One arm, start to finish"."""
+    command = [
+        "--backend",
+        "b",
+        "--client",
+        "opencode",
+        "--trials",
+        "3",
+        "--targets",
+        "sandbox",
+        "--replay",
+    ]
+    assert mod.lost_outputs(command, HOME) == []
+    assert mod.translate_paths(command, HOME) == command

@@ -32,6 +32,16 @@ class _Clock:
         return t
 
 
+class _Now:
+    """A clock the test sets by hand, however many times the code reads it."""
+
+    def __init__(self) -> None:
+        self.t = 0.0
+
+    def __call__(self) -> float:
+        return self.t
+
+
 class _Sampler:
     """A watts sampler that yields a scripted sequence and holds at the last."""
 
@@ -94,7 +104,7 @@ def test_ceil_boundary_is_explicit():
 
 
 def test_sustained_idle_reaches_the_window_and_stalls():
-    clock = _Clock([0.0, 0.0, 300.0, 600.0])
+    clock = _Now()
     wd = IdleStallWatchdog(
         _Sampler([5.0]),  # always idle
         idle_floor_watts=20.0,
@@ -103,9 +113,11 @@ def test_sustained_idle_reaches_the_window_and_stalls():
     )
     wd.sample()  # t=0
     assert wd.stalled() is False
-    wd.sample()  # t=300
+    clock.t = 300.0
+    wd.sample()
     assert wd.stalled() is False
-    wd.sample()  # t=600 -> 600s continuous idle
+    clock.t = 600.0
+    wd.sample()  # 600s continuous idle
     assert wd.stalled() is True
 
 
@@ -165,6 +177,47 @@ def test_a_none_after_idle_holds_and_does_not_fabricate_a_stall():
         wd.sample()
         assert wd.stalled() is False
     assert wd.idle_seconds() == 0.0
+
+
+def test_an_unreadable_gap_between_idle_readings_is_not_counted_as_idle():
+    """10 W, then unreadable through a stretch of real GPU work, then 10 W
+    601 s later. The gap is unknown, not idle: counting it fabricated a
+    601 s stall and killed a run that may have been working."""
+    clock = _Now()
+    wd = IdleStallWatchdog(
+        _Sampler([10.0, None, 10.0]),
+        idle_floor_watts=20.0,
+        idle_stall_secs=600.0,
+        monotonic=clock,
+    )
+    wd.sample()  # t=0, idle
+    clock.t = 300.0
+    wd.sample()  # unreadable, while the GPU worked
+    clock.t = 601.0
+    wd.sample()  # idle again
+    assert wd.idle_seconds() == 0.0
+    assert wd.stalled() is False
+
+
+def test_idle_seen_on_both_sides_of_a_gap_still_adds_up():
+    """Held, not erased: the readable idle time before and after a gap counts,
+    the gap itself does not. 300 s + (gap) + 300 s is a 600 s stall."""
+    clock = _Now()
+    wd = IdleStallWatchdog(
+        _Sampler([5.0, 5.0, None, 5.0, 5.0]),
+        idle_floor_watts=20.0,
+        idle_stall_secs=600.0,
+        monotonic=clock,
+    )
+    for t in (0.0, 300.0, 600.0, 1000.0):  # idle, idle, unreadable, idle
+        clock.t = t
+        wd.sample()
+    assert wd.idle_seconds() == 300.0
+    assert wd.stalled() is False
+    clock.t = 1300.0
+    wd.sample()
+    assert wd.idle_seconds() == 600.0
+    assert wd.stalled() is True
 
 
 # --- (A) run_client_with_watchdog -------------------------------------------
@@ -304,3 +357,25 @@ def test_a_row_without_a_timeout_reason_still_validates():
 def test_a_wrongly_typed_timeout_reason_is_a_violation():
     row = _verdict_row(error="timeout", timeout_reason=123)
     assert any("timeout_reason" in e for e in results.validate(row))
+
+
+def test_a_child_that_outlives_its_deadline_is_timed_out():
+    """The deadline was checked only after a poll timed out, so a child that
+    exited inside the poll window after its deadline returned as a clean run.
+    The watched path must time out where the plain path would."""
+    wd = IdleStallWatchdog(
+        _Sampler([80.0]),  # busy: only the wall clock can end this run
+        idle_floor_watts=20.0,
+        idle_stall_secs=600.0,
+    )
+    result = run_client_with_watchdog(
+        [sys.executable, "-c", "import time; time.sleep(1.0)"],
+        cwd=None,
+        env=None,
+        timeout=0.05,
+        watchdog=wd,
+        poll_secs=5.0,
+        grace_secs=2.0,
+    )
+    assert result.timed_out is True
+    assert result.idle_stalled is False
