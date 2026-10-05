@@ -169,6 +169,7 @@ def test_next_top10_ranks_one_platform_p0_before_p1(monkeypatch):
         ],
     )
     items = peer_state.next_top10("platform:Nvidia")
+    assert items is not None
     assert [i["issue"] for i in items] == [100, 200, 300]
     assert [i["rank"] for i in items] == [1, 2, 3]
     assert [i["priority"] for i in items] == ["P0", "P1", "P1"]
@@ -181,9 +182,9 @@ def test_next_top10_defaults_to_this_hosts_platform(monkeypatch):
         lambda: [_issue(1, "P0", "platform:macOS"), _issue(2, "P0", "platform:Nvidia")],
     )
     monkeypatch.setattr(peer_state.platform, "system", lambda: "Linux")
-    assert [i["issue"] for i in peer_state.next_top10()] == [2]
+    assert [i["issue"] for i in peer_state.next_top10() or []] == [2]
     monkeypatch.setattr(peer_state.platform, "system", lambda: "Darwin")
-    assert [i["issue"] for i in peer_state.next_top10()] == [1]
+    assert [i["issue"] for i in peer_state.next_top10() or []] == [1]
 
 
 def test_open_p0p1_asks_for_either_label_not_both(monkeypatch):

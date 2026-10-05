@@ -240,6 +240,7 @@ def _port(tmp_path, out, shim_dir, monkeypatch, *, no_strip_exported=False) -> N
         driver.preflight, "release_lock", lambda *a, **k: (True, "released")
     )
     monkeypatch.setattr(wait_ready, "ready", _own_server_barrier(out, "port"))
+
     # The SPAWN is real and the POLL is stubbed, which is the shape every
     # differential here uses. `tool_shim.serving` starts the shim through
     # `unitctl.start`, so the fake records the argv and env the port actually
@@ -253,11 +254,11 @@ def _port(tmp_path, out, shim_dir, monkeypatch, *, no_strip_exported=False) -> N
     # RUNNING (which is why the fake holds) and still reads the mode line out
     # of the log, so the strip-ON assertion remains a real check against the
     # recorded fixture rather than something this stub waves through.
-    monkeypatch.setattr(
-        tool_shim.ports,
-        "holder",
-        lambda port: tool_shim.unitctl.read(tool_shim.unit_name(port)).pid,
-    )
+    def _shim_pid(port: int) -> int | None:
+        unit = tool_shim.unitctl.read(tool_shim.unit_name(port))
+        return None if unit is None else unit.pid
+
+    monkeypatch.setattr(tool_shim.ports, "holder", _shim_pid)
     monkeypatch.setattr(driver, "DS4_TREE", home / "git" / "ds4-metal")
     models = home / "models" / "qwen3.8-flash-next-ds4-q4"
     monkeypatch.setattr(
