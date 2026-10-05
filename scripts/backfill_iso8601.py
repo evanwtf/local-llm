@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import argparse
 import collections
+import contextlib
 import datetime
 import json
 import logging
@@ -35,6 +36,11 @@ import sys
 from zoneinfo import ZoneInfo
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+sys.path.insert(
+    0, str(pathlib.Path(__file__).resolve().parents[1] / "benchmarks" / "agent")
+)
+
+import results
 
 import logs
 
@@ -174,36 +180,45 @@ def main() -> int:
 
     changed = 0
     for path in sorted(p for g in DATA_GLOBS for p in ROOT.glob(g)):
-        rel = path.relative_to(ROOT)
-        zone = zone_for(rel)
-        counts: collections.Counter[str] = collections.Counter()
-        text = path.read_text()
-        if path.suffix == ".json":
-            out = json.dumps(walk(json.loads(text), zone, counts=counts), indent=2)
-            out += "\n"
-        else:
-            lines = [ln for ln in text.splitlines() if ln.strip()]
-            out = "".join(
-                json.dumps(
-                    walk(json.loads(ln), zone, counts=counts), separators=(", ", ": ")
-                )
-                + "\n"
-                for ln in lines
-            )
-        if out == text:
-            continue
-        changed += 1
-        logger.info(
-            "%s (%s): %s %s",
-            rel,
-            zone.key,
-            "would rewrite" if args.dry_run else "rewriting",
-            ", ".join(f"{k}={v}" for k, v in sorted(counts.items())) or "format only",
-        )
-        if args.write:
-            path.write_text(out)
+        # --write holds the file's lock from the read to the replace, so a row
+        # run.py appends meanwhile waits rather than vanishes (b7a366b, #2).
+        held = results.ledger_lock(path) if args.write else None
+        with held or contextlib.nullcontext():
+            changed += _convert(path, write=args.write)
     logger.info("%d file(s) %s", changed, "would change" if args.dry_run else "changed")
     return 0
+
+
+def _convert(path: pathlib.Path, *, write: bool) -> int:
+    """Convert one file; 1 if it changed (or would), else 0."""
+    rel = path.relative_to(ROOT)
+    zone = zone_for(rel)
+    counts: collections.Counter[str] = collections.Counter()
+    text = path.read_text()
+    if path.suffix == ".json":
+        out = json.dumps(walk(json.loads(text), zone, counts=counts), indent=2)
+        out += "\n"
+    else:
+        lines = [ln for ln in text.splitlines() if ln.strip()]
+        out = "".join(
+            json.dumps(
+                walk(json.loads(ln), zone, counts=counts), separators=(", ", ": ")
+            )
+            + "\n"
+            for ln in lines
+        )
+    if out == text:
+        return 0
+    logger.info(
+        "%s (%s): %s %s",
+        rel,
+        zone.key,
+        "rewriting" if write else "would rewrite",
+        ", ".join(f"{k}={v}" for k, v in sorted(counts.items())) or "format only",
+    )
+    if write:
+        results.replace_ledger(path, out)
+    return 1
 
 
 if __name__ == "__main__":
