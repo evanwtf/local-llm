@@ -135,13 +135,18 @@ def report_drivers(grouped: dict[tuple[str, str, str], list[dict[str, Any]]]) ->
                 (slow["wall_seconds"] / slow["num_turns"])
                 / (fast["wall_seconds"] / fast["num_turns"])
             )
-    if corr_tokens:
-        logger.info(
-            "  correlation with output tokens : %.2f", statistics.median(corr_tokens)
-        )
-        logger.info(
-            "  correlation with turns         : %.2f", statistics.median(corr_turns)
-        )
+    # Each list on its own: a cell whose turns never move has a token
+    # correlation and no turn correlation, and the median of an empty list
+    # raised StatisticsError (review). Say "n/a" rather than skip the line.
+    if corr_tokens or corr_turns:
+        for label, acc in (
+            ("correlation with output tokens", corr_tokens),
+            ("correlation with turns        ", corr_turns),
+        ):
+            if acc:
+                logger.info("  %s : %.2f", label, statistics.median(acc))
+            else:
+                logger.info("  %s : n/a (no cell where it varies)", label)
     if wall_r:
         logger.info("")
         logger.info("  Slowest vs fastest trial in each cell:")

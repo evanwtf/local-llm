@@ -195,9 +195,24 @@ def power_reason(head: Node, worker: Node, occupant: str) -> str:
     """Why the GPU power reads what it does. A reading without its reason is
     unreadable a day later (opener §3a), and an asymmetric pair is a finding."""
     idle = occupant.lower().startswith("idle")
-    powers = [n.power_w for n in (head, worker) if n.reachable]
+    lost = [name for name, n in (("head", head), ("worker", worker)) if not n.reachable]
+    if lost:
+        # Half a cluster is not evidence about the whole. Say what was seen,
+        # and never "Both GPUs ..." on one reading (review of b7a366b).
+        seen = [
+            f"{name} reads {_f(n.power_w, '{:.0f}')} W"
+            for name, n in (("head", head), ("worker", worker))
+            if n.reachable
+        ]
+        return (
+            f"The {' and the '.join(lost)} {'is' if len(lost) == 1 else 'are'}"
+            " unreachable"
+            + (f"; the {', '.join(seen)}" if seen else "")
+            + ". The pair's GPU state is unknown."
+        )
+    powers = [head.power_w, worker.power_w]
     read = [p for p in powers if p is not None]
-    if len(read) != len(powers) or not powers:
+    if len(read) != len(powers):
         return "GPU power could not be read on every node."
     low = [p <= IDLE_W for p in read]
     if all(low):
@@ -216,10 +231,16 @@ def power_reason(head: Node, worker: Node, occupant: str) -> str:
 
 
 def gpus_idle(head: Node, worker: Node) -> bool | None:
-    """Every reachable GPU at the idle floor; None if a power read failed."""
-    powers = [n.power_w for n in (head, worker) if n.reachable]
+    """Both GPUs at the idle floor; None unless both nodes gave a power read.
+
+    An unreachable node is unknown, not idle: dropping it judged the pair on
+    the head alone and started the idle clock on half an observation.
+    """
+    if not (head.reachable and worker.reachable):
+        return None
+    powers = [head.power_w, worker.power_w]
     read = [p for p in powers if p is not None]
-    if not powers or len(read) != len(powers):
+    if len(read) != len(powers):
         return None
     return all(p <= IDLE_W for p in read)
 

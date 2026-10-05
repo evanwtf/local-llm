@@ -123,3 +123,18 @@ def test_the_real_committed_ledgers_hold():
     """The live invariant: every committed hardware/*/results.jsonl passes. This
     is the check CI was blind to -- here it runs regardless of the runner."""
     assert vl.main([]) == 0
+
+
+def test_a_two_node_row_in_the_single_node_ledger_is_flagged(tmp_path):
+    """Both Sparks report aarch64, so the arch check cannot tell one Spark from
+    two. A row that names its server machine must name this directory's."""
+    row = _row()
+    row["env"]["server_machine"] = "Cortex-X925-128GB-GB10-x2"
+    got = vl.validate_ledger(_write(tmp_path, [row]), AFTER, set())
+    assert any("server_machine" in x and "-x2" in x for x in got), got
+
+
+def test_a_row_naming_its_own_server_machine_holds(tmp_path):
+    row = _row()
+    row["env"]["server_machine"] = DGX_DIR
+    assert vl.validate_ledger(_write(tmp_path, [row]), AFTER, set()) == []

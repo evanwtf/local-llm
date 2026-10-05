@@ -104,3 +104,41 @@ def test_markdown_mode_also_completes(tmp_path) -> None:
     got = _run(_ledger(tmp_path), "--markdown")
     assert got.returncode == 0, got.stderr
     assert "TypeError" not in got.stderr
+
+
+def test_two_harnesses_on_one_backend_are_two_rows(tmp_path) -> None:
+    """A backend is not a stack: the harness is one of the three axes.
+
+    summarize.py grouped by backend alone, so a 10 s OpenCode pass and a 100 s
+    Claude Code failure read as one backend at 1/2 and 55 s (review).
+    """
+    base = {"schema_version": 2, "task": "mbox-scan", "backend": "b1", "trial": 1}
+    rows = [
+        base | {"client": "opencode", "passed": True, "wall_seconds": 10.0},
+        base | {"client": "claude", "passed": False, "wall_seconds": 100.0},
+    ]
+    path = tmp_path / "results.jsonl"
+    path.write_text("".join(json.dumps(r) + "\n" for r in rows))
+    got = _run(path)
+    assert got.returncode == 0, got.stderr
+    combined = got.stdout + got.stderr
+    assert "1/2 passed" not in combined, combined
+    assert "55.0s" not in combined, combined
+    assert "b1 · opencode 1/1 passed   median 10.0s" in combined, combined
+    assert "b1 · claude 0/1 passed   median 100.0s" in combined, combined
+
+
+def test_two_client_machines_are_named_apart() -> None:
+    """The same backend and harness from two client machines is two samples
+    (#562); the label says which machine when there is more than one."""
+    import summarize
+
+    local = {"backend": "b1", "client": "opencode"}
+    remote = local | {
+        "env": {"client_machine": {"cpu": "Intel Core i3-7100", "memory_gib": 16}}
+    }
+    keys = summarize.stacks([local, remote])
+    assert len(keys) == 2
+    names = summarize.stack_names([local, remote])
+    assert len(set(names.values())) == 2
+    assert names[summarize.stack_key(local)] == "b1 · opencode"

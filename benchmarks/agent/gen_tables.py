@@ -126,11 +126,14 @@ def _timed(rows: list[dict[str, Any]]) -> list[float]:
     down and promotes the row up a table sorted by median, which is the column
     a reader scans for "which is quickest" (#142). Every stack that passes
     everything is unaffected -- its two medians are the same number.
+
+    "Passed" is `results.verdict()`, never the raw `passed`: a trial that
+    edited the tests reads `passed: true` and proves nothing.
     """
     return [
         x["wall_seconds"]
         for x in _excision(rows)
-        if x.get("passed") and x.get("wall_seconds")
+        if results.verdict(x) and x.get("wall_seconds")
     ]
 
 
@@ -205,7 +208,7 @@ def stack_table(
     for name, rs in rank:
         if not [x for x in _excision(rs) if x.get("wall_seconds")]:
             continue
-        p = sum(1 for x in rs if x.get("passed"))
+        p = sum(1 for x in rs if results.verdict(x))
         w = _timed(rs)
         if w:
             timing = (

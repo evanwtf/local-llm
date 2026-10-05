@@ -22,8 +22,10 @@ from __future__ import annotations
 import argparse
 import logging
 import pathlib
+import shutil
 import sys
 import tomllib
+from collections.abc import Callable
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "scripts"))
@@ -55,8 +57,19 @@ def targets(cfg: dict) -> tuple[set[pathlib.Path], set[str]]:
     return recipes, images
 
 
-def client_images(run: currency.Runner = currency._run) -> set[str]:
-    """Every local-llm-client:<tag> image on this machine."""
+def client_images(
+    run: currency.Runner = currency._run,
+    which: Callable[[str], str | None] = shutil.which,
+) -> set[str] | None:
+    """Every local-llm-client:<tag> image on this machine, or None.
+
+    None when docker is installed but the listing failed (daemon down, access
+    denied). That is "could not look", not "no images": read as an empty set,
+    a client machine with a broken docker passed the gate (review). A machine
+    with no docker at all holds no client image, so it has nothing to check.
+    """
+    if which("docker") is None:
+        return set()
     got = run(
         [
             "docker",
@@ -68,9 +81,9 @@ def client_images(run: currency.Runner = currency._run) -> set[str]:
         ],
         30,
     )
-    return {
-        line for line in (got or "").split() if line.startswith("local-llm-client:")
-    }
+    if got is None:
+        return None
+    return {line for line in got.split() if line.startswith("local-llm-client:")}
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -95,7 +108,12 @@ def main(argv: list[str] | None = None) -> int:
             refusals.append(why)
     tag = f"local-llm-client:{build_client_image.PINS['opencode']}"
     others = client_images()
-    if client_container.image_pins(tag) is not None:
+    if others is None:
+        refusals.append(
+            "preflight: cannot list the client images (`docker image ls` failed);"
+            " start docker or fix access, then rerun"
+        )
+    elif client_container.image_pins(tag) is not None:
         why = client_container.check_image_current(tag)
         if why:
             refusals.append(why)

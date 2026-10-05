@@ -143,6 +143,8 @@ def image_runner(local: str, raw: str | None):
         {
             "imagetools": raw,
             "image inspect": json.dumps([f"ghcr.io/a/b@{local}"]),
+            # Success with no containers. A missing answer is a failed probe.
+            "docker ps -q": "",
         }
     )
 
@@ -294,3 +296,36 @@ def test_the_backend_is_read_from_the_run_arguments():
     assert client_container.backend_of(["--backend", "x", "--trials", "3"]) == "x"
     assert client_container.backend_of(["--backend=y"]) == "y"
     assert client_container.backend_of(["--trials", "3"]) is None
+
+
+def _current_image_with(**probes: str | None):
+    raw = '{"schemaVersion":2}'
+    digest = "sha256:" + hashlib.sha256(raw.encode()).hexdigest()
+    answers: dict[str, str | None] = {
+        "imagetools": raw,
+        "{{json .RepoDigests}}": json.dumps([f"ghcr.io/a/b@{digest}"]),
+        "{{.Id}}": "sha256:new",
+    }
+    answers.update(probes)
+    return currency.image_item("ghcr.io/a/b:tag", fake(answers))
+
+
+def test_a_failed_container_listing_is_unknown_not_current():
+    """`docker ps` failing is not "no container runs an old image" (review).
+
+    An older container may still be serving; the gate cannot see it, so it
+    must refuse rather than read the tag's digest as the server's.
+    """
+    item = _current_image_with(**{"docker ps -q": None})
+    assert item.state == "unknown"
+    assert not item.ok
+
+
+def test_a_failed_container_inspect_is_unknown_not_current():
+    item = _current_image_with(**{"docker ps -q": "c1", "inspect c1": None})
+    assert item.state == "unknown"
+    assert not item.ok
+
+
+def test_no_running_containers_is_current():
+    assert _current_image_with(**{"docker ps -q": ""}).state == "current"
