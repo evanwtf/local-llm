@@ -83,7 +83,10 @@ EMPTY = Counters(
 
 @dataclasses.dataclass(frozen=True)
 class Reading:
-    counters: Counters
+    #: None when this read cannot say what the trial did: the scrape failed,
+    #: or it is the first read after one. run.py then records no `draft`
+    #: field and no verdict, rather than a zero that reads as `no-traffic`.
+    counters: Counters | None
     offset: int
 
 
@@ -95,6 +98,10 @@ class Reading:
 _GENERATED = "vllm:generation_tokens_total"
 # base_url -> the cumulative values seen at the previous read.
 _BASELINE: dict[str, dict[str, int]] = {}
+# Endpoints whose last scrape failed. Their baseline is gone, so the next
+# successful read only re-establishes one: a delta over a missed scrape would
+# credit two trials' counters to the second row (code review, 2026-10-05).
+_MISSED: set[str] = set()
 
 
 def parse(text: str) -> dict[str, int]:
@@ -175,11 +182,22 @@ def read_since(base_url, offset: int = 0) -> Reading:
     """
     url = str(base_url)
     text = scrape(url)
-    if not text or not present(text):
+    if not text:
+        # Unknown, not zero. EMPTY carries generated=0, which run.py reads as
+        # "the client never reached the server" for a trial that may have
+        # generated thousands of tokens. And the baseline goes: it no longer
+        # marks the start of the next trial.
+        _BASELINE.pop(url, None)
+        _MISSED.add(url)
+        return Reading(counters=None, offset=offset)
+    if not present(text):
         return Reading(counters=EMPTY, offset=offset)
     now = parse(text)
     before = _BASELINE.get(url)
     _BASELINE[url] = now
+    if before is None and url in _MISSED:
+        _MISSED.discard(url)
+        return Reading(counters=None, offset=now["drafted"])
     if before is None:
         # First read: establish the baseline and report nothing. Anything the
         # server did before this point -- startup, the smoke gate -- belongs to
@@ -219,5 +237,7 @@ def reset(base_url: str | None = None) -> None:
     """Forget the baseline, for a test or a deliberate re-arm."""
     if base_url is None:
         _BASELINE.clear()
+        _MISSED.clear()
     else:
         _BASELINE.pop(str(base_url), None)
+        _MISSED.discard(str(base_url))

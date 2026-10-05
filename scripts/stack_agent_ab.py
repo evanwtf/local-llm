@@ -275,7 +275,11 @@ def serving(arm: stack_arm.Arm, tag: str, out: pathlib.Path) -> Iterator[object]
         ) as unit:
             yield unit
         return
-    with mlx_serve.serving(command, log, cwd=REPO) as unit:
+    # The same per-arm env/unset the ds4 arm gets. Without it an mlx arm's
+    # NEW_ENV reached the run record but not the server (review of b7a366b).
+    with mlx_serve.serving(
+        command, log, cwd=REPO, env=dict(arm.env), unset=arm.unset
+    ) as unit:
         # No route recording: the Metal route is a ds4 concept, and a row for
         # this arm must read `unrecorded` rather than inherit ds4's provenance
         # (#149).

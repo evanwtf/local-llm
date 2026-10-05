@@ -86,3 +86,17 @@ def test_a_tool_is_averaged_only_over_rows_that_ran_it():
     assert got["swift"] == 3
     assert got["ruff"] is None
     assert got["mypy"] is None
+
+
+def test_the_default_ledger_is_this_machines(monkeypatch, tmp_path):
+    """Code review, 2026-10-05: the default was benchmarks/agent/results.jsonl,
+    which no longer exists, and an absent ledger reads as empty history -- so a
+    bare `quality.py` reported no measurements at all."""
+    import results
+
+    ledger = tmp_path / "results.jsonl"
+    seen: list[object] = []
+    monkeypatch.setattr(results, "default_path", lambda: ledger)
+    monkeypatch.setattr(results, "trials", lambda path: seen.append(path) or [])
+    assert quality.main([]) == 0
+    assert seen == [ledger]
