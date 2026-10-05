@@ -126,3 +126,58 @@ def test_the_result_still_parses_as_balanced_braces(sample):
     excise(sample, "Downsample.buckets")
     text = sample.read_text()
     assert text.count("{") == text.count("}")
+
+
+# --- a declaration inside a comment or string (code review, 2026-10-05) ------
+#
+# The declaration search ran over raw source, so an example in a block comment
+# or a multi-line string was found first: its body was "excised" and the real
+# function was left intact.
+
+COMMENTED = """\
+/*
+ Usage:
+   func topLevel() -> Int { return 99 }
+*/
+let help = \"\"\"
+    func label(_ s: String) -> String { return "" }
+    enum Downsample { }
+    \"\"\"
+
+public enum Downsample {
+    static func label(_ s: String) -> String {
+        return s + "!"
+    }
+}
+
+func topLevel() -> Int {
+    return 1
+}
+"""
+
+
+def test_a_func_in_a_block_comment_is_not_the_target(tmp_path):
+    p = tmp_path / "C.swift"
+    p.write_text(COMMENTED)
+    removed = excise(p, "topLevel")
+    assert "return 1" in removed and "return 99" not in removed
+    after = p.read_text()
+    assert "return 99" in after and "return 1\n" not in after
+
+
+def test_a_type_or_func_in_a_string_is_not_the_target(tmp_path):
+    p = tmp_path / "C.swift"
+    p.write_text(COMMENTED)
+    assert 'return s + "!"' in body_source(p, "Downsample.label")
+    assert 'return s + "!"' in body_source(p, "Downsample.label", keep_docstring=False)
+    excise(p, "Downsample.label", keep_docstring=False)
+    after = p.read_text()
+    assert 'return s + "!"' not in after
+    assert 'func label(_ s: String) -> String { return "" }' in after
+
+
+def test_a_commented_out_only_declaration_is_not_found(tmp_path):
+    p = tmp_path / "C.swift"
+    p.write_text("/* func ghost() { return } */\nfunc real() {\n    return\n}\n")
+    with pytest.raises(TargetNotFound):
+        body_source(p, "ghost")
