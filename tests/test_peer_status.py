@@ -69,7 +69,7 @@ def test_diff_detects_new_comment():
 
 
 def test_diff_detects_new_pr():
-    prev = {"prs": {}}
+    prev: dict[str, dict[str, str]] = {"prs": {}}
     cur = {"prs": {"161": "evidence"}}
     changed = peer_status._diff(prev, cur)
     assert any("PR #161: opened -> evidence" in c for c in changed)
@@ -83,7 +83,7 @@ def test_diff_detects_branch_moved():
 
 
 def test_diff_detects_server_up():
-    prev = {"servers": []}
+    prev: dict[str, list[dict[str, object]]] = {"servers": []}
     cur = {"servers": [{"short": "ds4-server", "pid": 42}]}
     changed = peer_status._diff(prev, cur)
     assert any("server up: ds4-server (pid 42)" in c for c in changed)
@@ -91,7 +91,7 @@ def test_diff_detects_server_up():
 
 def test_diff_detects_server_down():
     prev = {"servers": [{"short": "ds4-server", "pid": 42}]}
-    cur = {"servers": []}
+    cur: dict[str, list[dict[str, object]]] = {"servers": []}
     changed = peer_status._diff(prev, cur)
     assert any("server down: ds4-server (pid 42)" in c for c in changed)
 
@@ -136,7 +136,7 @@ def test_diff_survives_a_snapshot_that_came_back_from_json():
 
 
 def test_diff_orders_issues_numerically():
-    prev = {"comments": {}}
+    prev: dict[str, dict[str, int]] = {"comments": {}}
     cur = {"comments": {"9": 1, "112": 1, "39": 1}}
     changed = peer_status._diff(prev, cur)
     issues = [c for c in changed if c.startswith("issue #")]

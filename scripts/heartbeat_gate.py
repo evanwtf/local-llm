@@ -110,7 +110,7 @@ def decide(
     # there, and otherwise re-read the transcript for a few seconds.
     nap = sleep or time.sleep
     given = hook.get("last_assistant_message")
-    why = "no transcript"
+    why: str | None = "no transcript"
     for attempt in range(tries):
         if attempt:
             nap(pause)

@@ -127,12 +127,14 @@ def test_the_stamp_wins_over_the_sidecar(tmp_path):
 
 
 def test_one_prompt_across_runs_is_reported_as_one(tmp_path):
-    refs = [prompt_meta.PromptRef("p.txt", 100, None, False)] * 3
+    refs: list[prompt_meta.PromptRef | None] = [
+        prompt_meta.PromptRef("p.txt", 100, None, False)
+    ] * 3
     assert prompt_meta.agree(refs) is not None
 
 
 def test_mixed_prompts_across_runs_do_not_agree(tmp_path):
-    refs = [
+    refs: list[prompt_meta.PromptRef | None] = [
         prompt_meta.PromptRef("p.txt", 100, None, False),
         prompt_meta.PromptRef("q.txt", 400000, None, False),
     ]

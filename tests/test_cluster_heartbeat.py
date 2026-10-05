@@ -101,7 +101,7 @@ def test_power_reason_working():
 
 
 def render(state: dict, worker: hb.Node | None = None) -> str:
-    outlet = {
+    outlet: dict[str, float | None] = {
         "wall_w": 152.0,
         "worker_wall_w": 143.0,
         "wall_peak_w": 188.0,
@@ -215,7 +215,8 @@ def test_render_shows_disk_free_and_flags_it_below_600_gb():
 def test_a_quiet_log_on_the_head_is_flagged():
     """The quiet-log check reaches the cluster too (Codex review, #851)."""
     busy = {"issue": 840, "task": "#840 serving", "updated": NOW.isoformat()}
-    args = (NOW, node(51), node(44), 0.43, {}, "vllm pid 12", busy, None)
+    outlet: dict[str, float | None] = {}
+    args = (NOW, node(51), node(44), 0.43, outlet, "vllm pid 12", busy, None)
     assert "Quiet log" in hb.render(*args, log_age_min=25)
     assert "Quiet log" not in hb.render(*args, log_age_min=5)
 

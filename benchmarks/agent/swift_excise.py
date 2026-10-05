@@ -193,6 +193,8 @@ def excise(path: pathlib.Path, symbol: str, keep_docstring: bool = True) -> str:
     else:
         # The doc comment and body both went; put the signature back with a stub.
         sig_start = _func_pattern(symbol.split(".")[-1]).search(source, start)
+        if sig_start is None:  # _span found this signature; it cannot vanish
+            raise TargetNotFound(f"no func {symbol!r} after the doc comment")
         head = source[sig_start.start() : source.index("{", sig_start.start()) + 1]
         stub = head + '\n        fatalError("removed for benchmark")\n    '
         path.write_text(source[:start] + stub + source[end:])

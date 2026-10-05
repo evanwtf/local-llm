@@ -333,7 +333,7 @@ def check_no_backup_running() -> list[str]:
     backup would have completed successfully and been missing the models it was
     taken to preserve, which is worse than either outcome alone.
     """
-    found = []
+    found: list[str] = []
     probe = subprocess.run(
         ["ps", "-Ao", "pid,command"], capture_output=True, text=True, check=False
     )

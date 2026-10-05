@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import pathlib
 import tomllib
+from collections.abc import Mapping
 
 DEFAULT_RECORD = pathlib.Path(__file__).resolve().parent.parent / "client-versions.toml"
 
@@ -99,7 +100,7 @@ OPENCODE_CONFIG = pathlib.Path.home() / ".config" / "opencode" / "opencode.json"
 
 
 def opencode_autoupdate_disabled(
-    env: dict[str, str] | None = None, config: pathlib.Path | None = None
+    env: Mapping[str, str] | None = None, config: pathlib.Path | None = None
 ) -> tuple[bool, str]:
     """Is OpenCode's self-update turned off? Returns (disabled, how we know).
 
@@ -117,8 +118,8 @@ def opencode_autoupdate_disabled(
     """
     import os
 
-    env = os.environ if env is None else env
-    if env.get(OPENCODE_AUTOUPDATE_ENV):
+    environ: Mapping[str, str] = os.environ if env is None else env
+    if environ.get(OPENCODE_AUTOUPDATE_ENV):
         return True, f"off ({OPENCODE_AUTOUPDATE_ENV} is set)"
     path = OPENCODE_CONFIG if config is None else config
     try:
@@ -146,7 +147,7 @@ CODEX_CONFIG = pathlib.Path.home() / ".codex" / "config.toml"
 
 
 def claude_autoupdate_disabled(
-    env: dict[str, str] | None = None, config: pathlib.Path | None = None
+    env: Mapping[str, str] | None = None, config: pathlib.Path | None = None
 ) -> tuple[bool, str]:
     """Is Claude Code's self-update off? Returns (disabled, how we know).
 
@@ -161,8 +162,8 @@ def claude_autoupdate_disabled(
     """
     import os
 
-    env = os.environ if env is None else env
-    if env.get(CLAUDE_AUTOUPDATE_ENV):
+    environ: Mapping[str, str] = os.environ if env is None else env
+    if environ.get(CLAUDE_AUTOUPDATE_ENV):
         return True, f"off ({CLAUDE_AUTOUPDATE_ENV} is set)"
     path = CLAUDE_SETTINGS if config is None else config
     try:

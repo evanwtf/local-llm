@@ -8,6 +8,7 @@ failed its smoke gate three times in the same second.
 
 from __future__ import annotations
 
+import email.message
 import urllib.error
 
 import wait_ready
@@ -76,7 +77,9 @@ def test_a_refused_connection_is_just_not_ready_yet(monkeypatch) -> None:
 
 def test_an_http_error_is_reported_with_its_code(monkeypatch) -> None:
     def boom(*a, **k):
-        raise urllib.error.HTTPError("u", 503, "Service Unavailable", {}, None)
+        raise urllib.error.HTTPError(
+            "u", 503, "Service Unavailable", email.message.Message(), None
+        )
 
     monkeypatch.setattr(wait_ready.urllib.request, "urlopen", boom)
     ok, detail = wait_ready.serves("http://x", "m", "t")

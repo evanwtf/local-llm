@@ -217,6 +217,7 @@ def test_sweep_windows_come_from_the_order_file_not_from_gaps(tmp_path):
     rows = full_rows()
     run_dir = write_run_dir(tmp_path)
     sweeps = sar.sweep_windows(run_dir)
+    assert sweeps is not None
     leftover = sar.assign(rows, sweeps)
     assert leftover == []
     counts = {s.tag: len(s.rows) for s in sweeps}
@@ -278,6 +279,7 @@ def test_a_finish_that_rolls_past_midnight_is_corrected(tmp_path):
     sweeps = sar.sweep_windows(run_dir)
     assert sweeps is not None
     old2 = next(s for s in sweeps if s.tag == "old-sweep2")
+    assert old2.finish is not None
     assert old2.finish > old2.start  # forward window, not inverted
     rows = [row("qwen38fnds4shim", "task-00", "2026-09-04T23:31:00-04:00")]
     leftover = sar.assign(rows, sweeps)
@@ -483,6 +485,19 @@ def test_a_client_version_split_is_void(tmp_path, caplog):
     code, out = run_report(tmp_path, rows, caplog)
     assert code == 2
     assert "client_version" in out
+
+
+def test_a_row_with_no_client_version_is_void_not_a_crash(tmp_path, caplog):
+    """A row that never recorded its client is a split, and the report says so.
+
+    The versions set then holds None beside a string, and `sorted` raised
+    TypeError on it, so the report died instead of voiding the batch.
+    """
+    rows = full_rows()
+    del rows[0]["client_version"]
+    code, out = run_report(tmp_path, rows, caplog)
+    assert "client_version varies across rows" in out, out
+    assert code == 2, out
 
 
 def test_a_dirty_harness_row_is_void(tmp_path, caplog):

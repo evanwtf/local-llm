@@ -56,6 +56,7 @@ def test_a_total_failure_has_a_zero_lower_bound():
 def test_a_tight_distribution_needs_few_trials_to_pin_its_median():
     tight = [100.0, 101.0, 99.0, 100.5, 100.2] * 8
     got = sizing.median_precision(tight, n=5, draws=400, seed=1)
+    assert got is not None
     assert got < 0.05, "a 2% spread should pin the median inside 5%"
 
 
@@ -64,6 +65,7 @@ def test_a_wide_distribution_needs_many():
     wide = [100.0, 120.0, 95.0, 300.0, 105.0, 700.0, 110.0, 98.0] * 5
     at_3 = sizing.median_precision(wide, n=3, draws=400, seed=1)
     at_20 = sizing.median_precision(wide, n=20, draws=400, seed=1)
+    assert at_3 is not None and at_20 is not None
     assert at_3 > at_20, "more trials must not make the estimate worse"
     assert at_3 > 0.15, "three trials on this spread cannot be tight"
 
@@ -74,6 +76,7 @@ def test_precision_is_reported_relative_to_the_median_not_in_seconds():
     fast = [100.0, 120.0, 95.0, 300.0, 105.0] * 5
     a = sizing.median_precision(slow, n=5, draws=400, seed=7)
     b = sizing.median_precision(fast, n=5, draws=400, seed=7)
+    assert a is not None and b is not None
     assert abs(a - b) < 1e-9
 
 
@@ -86,11 +89,13 @@ def test_a_suite_total_is_tighter_than_any_one_task_median():
     wide = [100.0, 120.0, 95.0, 300.0, 105.0, 700.0, 110.0, 98.0] * 5
     one = sizing.median_precision(wide, n=3, draws=800, seed=3)
     suite = sizing.suite_precision(wide, tasks=5, n=3, draws=800, seed=3)
+    assert one is not None and suite is not None
     assert suite < one, "summing independent medians must not add relative error"
 
 
 def test_suite_precision_declines_with_more_tasks():
     wide = [100.0, 120.0, 95.0, 300.0, 105.0, 700.0] * 6
-    assert sizing.suite_precision(
-        wide, tasks=10, n=3, draws=800, seed=5
-    ) < sizing.suite_precision(wide, tasks=2, n=3, draws=800, seed=5)
+    ten = sizing.suite_precision(wide, tasks=10, n=3, draws=800, seed=5)
+    two = sizing.suite_precision(wide, tasks=2, n=3, draws=800, seed=5)
+    assert ten is not None and two is not None
+    assert ten < two

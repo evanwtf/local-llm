@@ -56,6 +56,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import functools
 import logging
 import os
 import pathlib
@@ -255,6 +256,7 @@ def serving(arm: stack_arm.Arm, tag: str, out: pathlib.Path) -> Iterator[object]
     )
     if arm.is_ds4:
         assert arm.kv is not None
+        assert arm.tree is not None  # arm_from_env sets TREE on every arm
         arm.kv.mkdir(parents=True, exist_ok=True)
         with ds4_server.serving(
             command,
@@ -456,7 +458,7 @@ def run(sweeps: int, out: pathlib.Path) -> int:
         ab_driver.Arm(
             name=a.name,
             backend=a.backend,
-            serve=lambda tag, a=a: serving(a, tag, out),
+            serve=functools.partial(serving, a, out=out),
         )
         for a in (new, old)
     ]

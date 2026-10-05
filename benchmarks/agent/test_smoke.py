@@ -251,10 +251,13 @@ def test_a_server_still_loading_is_reported_as_unavailable_not_wrong() -> None:
     reader to check the model alias and the thinking mode when the real problem
     is that nothing has answered at all.
     """
+    import email.message
     import urllib.error
 
     def post(base_url, token, model, prompt, timeout):
-        raise urllib.error.HTTPError("u", 503, "Service Unavailable", {}, None)
+        raise urllib.error.HTTPError(
+            "u", 503, "Service Unavailable", email.message.Message(), None
+        )
 
     with pytest.raises(smoke.SmokeFailure, match="did not answer"):
         smoke.gate(BACKEND, "loading", deadline=5, post=post)

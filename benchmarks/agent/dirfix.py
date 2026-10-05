@@ -100,7 +100,7 @@ def tally(rows: list[dict], after: set[str]) -> dict[tuple[str, str, str], list[
         # miscounted fourteen rows once; see RESULTS.md.
         if r.get("client") != "opencode" or results.is_excluded(r):
             continue
-        cell = out[(r.get("backend"), task_class(r), era(r, after))]
+        cell = out[(r["backend"], task_class(r), era(r, after))]
         cell[0] += bool(r.get("passed"))
         cell[1] += 1
     return dict(out)

@@ -11,6 +11,7 @@ import hashlib
 import json
 import pathlib
 import sys
+from collections.abc import Mapping
 
 import pytest
 
@@ -23,7 +24,7 @@ import currency
 import server_facts
 
 
-def fake(answers: dict[str, str | None]):
+def fake(answers: Mapping[str, str | None]):
     """A runner that answers by the first key found in the joined argv."""
 
     def run(argv: list[str], timeout: int = 30) -> str | None:
@@ -54,7 +55,8 @@ def test_current_pins_pass_and_stamp(tmp_path):
     )
     assert [i.state for i in items] == ["current", "current", "current"]
     assert currency.gate("client-image", items, stamp) is None
-    assert currency.stamp_age_hours("client-image", stamp) < 0.01
+    age = currency.stamp_age_hours("client-image", stamp)
+    assert age is not None and age < 0.01
 
 
 def test_a_behind_pin_refuses_and_does_not_stamp(tmp_path):
@@ -245,6 +247,7 @@ def test_a_container_still_running_the_old_image_refuses():
     )
     item = currency.image_item("ghcr.io/a/b:tag", run)
     assert item.state == "behind"
+    assert item.installed is not None
     assert "glm-head runs an older image" in item.installed
 
 
@@ -254,12 +257,14 @@ def test_fresh_facts_for_this_backend_pass():
 
 
 def test_facts_without_a_currency_pass_refuse():
-    assert "no currency pass" in currency.check_facts({}, "b")
+    why = currency.check_facts({}, "b")
+    assert why is not None and "no currency pass" in why
 
 
 def test_facts_for_another_backend_refuse():
     facts = {"currency": {"backend": "a", "passed_at": 1000.0}}
-    assert "not 'b'" in currency.check_facts(facts, "b", now=1000.0)
+    why = currency.check_facts(facts, "b", now=1000.0)
+    assert why is not None and "not 'b'" in why
 
 
 def test_facts_older_than_the_limit_refuse():

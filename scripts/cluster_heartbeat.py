@@ -196,9 +196,10 @@ def power_reason(head: Node, worker: Node, occupant: str) -> str:
     unreadable a day later (opener §3a), and an asymmetric pair is a finding."""
     idle = occupant.lower().startswith("idle")
     powers = [n.power_w for n in (head, worker) if n.reachable]
-    if any(p is None for p in powers) or not powers:
+    read = [p for p in powers if p is not None]
+    if len(read) != len(powers) or not powers:
         return "GPU power could not be read on every node."
-    low = [p <= IDLE_W for p in powers]  # type: ignore[operator]
+    low = [p <= IDLE_W for p in read]
     if all(low):
         if idle:
             return "Both GPUs read the idle floor: no model is loaded."
@@ -217,9 +218,10 @@ def power_reason(head: Node, worker: Node, occupant: str) -> str:
 def gpus_idle(head: Node, worker: Node) -> bool | None:
     """Every reachable GPU at the idle floor; None if a power read failed."""
     powers = [n.power_w for n in (head, worker) if n.reachable]
-    if not powers or any(p is None for p in powers):
+    read = [p for p in powers if p is not None]
+    if not powers or len(read) != len(powers):
         return None
-    return all(p <= IDLE_W for p in powers)  # type: ignore[operator]
+    return all(p <= IDLE_W for p in read)
 
 
 def inlet_line(ambient_f: float | None, head: Node, worker: Node) -> str:

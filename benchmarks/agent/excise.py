@@ -17,7 +17,7 @@ class TargetNotFound(Exception):
     pass
 
 
-def find(tree: ast.Module, symbol: str) -> ast.FunctionDef:
+def find(tree: ast.Module, symbol: str) -> ast.FunctionDef | ast.AsyncFunctionDef:
     """Locate `func` or `Class.method` in a parsed module."""
     parts = symbol.split(".")
     if len(parts) == 1:
@@ -75,6 +75,7 @@ def _span(
 
     start = first.lineno - 1  # 0-indexed, inclusive
     end = node.body[-1].end_lineno  # 1-indexed, exclusive once used as a slice
+    assert end is not None  # ast.parse sets end_lineno on every statement
     return start, end, " " * first.col_offset
 
 

@@ -92,7 +92,8 @@ def main(argv: list[str] | None = None) -> int:
             med = f"{r['median_s']} s" if r["median_s"] is not None else "—"
             worst = f"{r['worst_s']} s" if r["worst_s"] is not None else "—"
             turns = r["turns"] if r["turns"] is not None else "—"
-            cell = f" {names.get(client, 'local')} |" if split else ""
+            # `client` is None only when the table is not split by client.
+            cell = f" {names.get(client, 'local')} |" if client is not None else ""
             print(
                 f"| {name} |{cell} {r['passed']}/{r['trials']} | "
                 f"{med} | {worst} | {turns} |"

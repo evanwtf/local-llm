@@ -233,7 +233,11 @@ def test_a_worktree_reports_its_own_fetch_age_not_the_main_repos(tmp_path):
     _git("worktree", "add", "-q", "--detach", str(tree), cwd=main)
     _git("fetch", "-q", cwd=tree)
 
-    assert staleness.git_drift(main)["fetched_days_ago"] > 9.9
-    age = staleness.git_drift(tree)["fetched_days_ago"]
+    main_drift = staleness.git_drift(main)
+    assert main_drift is not None
+    assert main_drift["fetched_days_ago"] > 9.9
+    tree_drift = staleness.git_drift(tree)
+    assert tree_drift is not None
+    age = tree_drift["fetched_days_ago"]
     assert age is not None
     assert age < 0.01

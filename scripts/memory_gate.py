@@ -178,7 +178,7 @@ def gate(
         not_falling = prev_avail is None or avail >= prev_avail - 0.5
         good = good + 1 if (above and not_falling) else 0
         settled = good >= settle_readings
-        record = {
+        record: dict[str, object] = {
             "t": t,
             **m,
             "min_avail_gib": min_avail_gib,

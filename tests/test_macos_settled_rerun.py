@@ -67,10 +67,13 @@ def test_llama_server_waits_for_health_not_the_port() -> None:
 
 
 def test_ready_needs_a_200(monkeypatch) -> None:
+    import email.message
     import urllib.error
 
     def refuse(url, timeout):
-        raise urllib.error.HTTPError(url, 503, "Loading model", {}, None)
+        raise urllib.error.HTTPError(
+            url, 503, "Loading model", email.message.Message(), None
+        )
 
     monkeypatch.setattr(m.urllib.request, "urlopen", refuse)
     assert m.answering(8020, "/health") is False

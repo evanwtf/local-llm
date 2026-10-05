@@ -698,8 +698,12 @@ def test_an_upgrade_that_stays_below_the_boundary_says_nothing():
     import logging
 
     records: list[logging.LogRecord] = []
-    handler = logging.Handler()
-    handler.emit = records.append  # type: ignore[method-assign]
+
+    class Collect(logging.Handler):
+        def emit(self, record: logging.LogRecord) -> None:
+            records.append(record)
+
+    handler = Collect()
     preflight.logger.addHandler(handler)
     try:
         preflight.warn_if_ollama_upgrade_changes_the_sampler("0.33.0", "0.33.2")

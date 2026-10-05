@@ -63,7 +63,7 @@ def test_filter_injects_agent_into_every_record(monkeypatch):
     monkeypatch.setenv(agent_identity.EFFORT_VAR, "high")
     record = logging.LogRecord("m", logging.INFO, "f", 1, "msg", (), None)
     assert agent_identity.AgentFilter().filter(record)
-    assert record.agent == "opus-llama/claude-opus-5/effort=high"
+    assert record.__dict__["agent"] == "opus-llama/claude-opus-5/effort=high"
 
 
 def test_install_warns_once_when_unidentified(monkeypatch, caplog):
