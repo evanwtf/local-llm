@@ -211,11 +211,28 @@ def test_client_image_pins_are_read_from_the_image_itself():
 
 
 def test_an_old_client_image_refuses():
-    env = json.dumps(["LOCAL_LLM_PINNED_OPENCODE=1.18.32"])
+    env = json.dumps(
+        [
+            "LOCAL_LLM_PINNED_OPENCODE=1.18.32",
+            "LOCAL_LLM_PINNED_UV=0.12.19",
+            "LOCAL_LLM_PINNED_PYTHON=3.14.7",
+        ]
+    )
     why = client_container.check_image_current(
         "local-llm-client:1.18.32", fake({"image inspect": env, **RELEASES})
     )
     assert why is not None and "BEHIND" in why
+
+
+def test_an_image_missing_a_pin_refuses():
+    """A current OpenCode pin alone must not pass: the uv and Python pins it
+    omits would go unchecked, and the gate would vouch for them anyway."""
+    env = json.dumps(["LOCAL_LLM_PINNED_OPENCODE=1.18.33"])
+    why = client_container.check_image_current(
+        "img", fake({"image inspect": env, **RELEASES})
+    )
+    assert why is not None
+    assert "uv" in why and "python" in why
 
 
 def test_an_image_whose_pins_cannot_be_read_refuses():

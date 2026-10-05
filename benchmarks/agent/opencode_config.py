@@ -184,7 +184,7 @@ def sampling_for(model: str, config: pathlib.Path | None = None) -> dict | None:
 
 
 def small_model_conflict(selected: set[str], config: pathlib.Path = CONFIG):
-    """A complaint when `small_model` names a model no selected backend serves.
+    """A complaint when `small_model` is set and is not the one model selected.
 
     #301. OpenCode uses `small_model` for incidental work -- session titles,
     summaries -- *during* a session whose main model is whatever the harness
@@ -197,8 +197,11 @@ def small_model_conflict(selected: set[str], config: pathlib.Path = CONFIG):
     engines on a 121.7 GiB machine, and the kernel OOM-killed llama-server.
 
     Absent is safe and is the configuration this checks for. A value equal to
-    one of the selected backends' own models is also safe -- it is the model
-    already resident. Anything else is the failure.
+    the model of EVERY selected backend is also safe -- it is the model
+    already resident. Anything else is the failure. Equal to only one of them
+    is not enough: while another backend is measured it is a second model.
+    Preflight passes the whole registry, so "any selected backend" accepted
+    every registered small_model (review of 2026-10-05).
 
     Returns None when there is nothing to say, so the caller can `if`.
     """
@@ -208,11 +211,12 @@ def small_model_conflict(selected: set[str], config: pathlib.Path = CONFIG):
         # Same rule as declared_models: "cannot tell" is not "nothing set".
         return None
     small = data.get("small_model")
-    if not small or small in selected:
+    if not small or set(selected) == {small}:
         return None
     return (
-        f"opencode small_model is {small!r}, which no selected backend serves "
-        f"({sorted(selected)}). OpenCode loads it BESIDE the backend under "
+        f"opencode small_model is {small!r}, a second model beside the "
+        f"selected backends ({sorted(selected)}) unless it is the only one "
+        f"measured. OpenCode loads it BESIDE the backend under "
         f"measurement, on whatever engine it names -- 109 GB across two "
         f"engines is what OOM-killed llama-server in #301. Remove it from "
         f"{config}, or point it at the model being measured."

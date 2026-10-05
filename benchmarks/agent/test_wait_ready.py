@@ -9,8 +9,11 @@ failed its smoke gate three times in the same second.
 from __future__ import annotations
 
 import email.message
+import io
+import json
 import urllib.error
 
+import pytest
 import wait_ready
 
 
@@ -94,3 +97,51 @@ def test_health_never_raises(monkeypatch) -> None:
 
     monkeypatch.setattr(wait_ready.urllib.request, "urlopen", boom)
     assert isinstance(wait_ready.health("http://x"), str)
+
+
+def _answer(monkeypatch, body) -> None:
+    monkeypatch.setattr(
+        wait_ready.urllib.request,
+        "urlopen",
+        lambda *a, **k: io.BytesIO(json.dumps(body).encode()),
+    )
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"error": "model unavailable"},
+        {"error": {"message": "loading", "code": 503}},
+        {},
+        {"choices": []},
+        {"choices": [{"index": 0}]},
+        [],
+    ],
+)
+def test_a_200_that_is_not_a_completion_is_not_ready(monkeypatch, body) -> None:
+    """HTTP 200 with an error body, or with no choice in it, proves nothing
+    about inference -- the same trap as /health, one layer down."""
+    _answer(monkeypatch, body)
+    ok, detail = wait_ready.serves("http://x", "m", "t")
+    assert not ok, detail
+
+
+def test_a_reasoning_only_completion_is_ready(monkeypatch) -> None:
+    """One token of a reasoning model is often all reasoning, no content."""
+    _answer(
+        monkeypatch,
+        {
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {
+                        "role": "assistant",
+                        "content": None,
+                        "reasoning_content": "Hm",
+                    },
+                    "finish_reason": "length",
+                }
+            ]
+        },
+    )
+    assert wait_ready.serves("http://x", "m", "t") == (True, "ok")

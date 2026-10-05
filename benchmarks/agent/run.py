@@ -5485,6 +5485,13 @@ def main():
                 f"but this run selects {sorted(backends)}. Remote mode runs one "
                 "backend, the one the server is serving."
             )
+        # #647: the facts name the ledger. A two-node backend on facts taken
+        # without --cluster-peer would land in the single-Spark one, and no
+        # later check can tell: the hardware facts are the head node's either
+        # way. Checked here too, so a facts file from older code cannot slip by.
+        for name, spec in backends.items():
+            if why := remote.tier_mismatch(name, spec, server_facts["directory"]):
+                raise SystemExit(why)
         backends = {k: remote.rewrite(v, server) for k, v in backends.items()}
         if args.results == RESULTS:
             args.results = remote.results_path(HERE.parents[1], server_facts)
