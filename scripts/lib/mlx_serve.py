@@ -248,8 +248,16 @@ def stop_and_prove(why: str = "", state_dir: pathlib.Path | None = None) -> str:
     reports the state it ended in, so the sleeps are gone -- but the *check*
     is not, because a stop that is not verified is a stop that reports success
     while 100 GiB stays resident.
+
+    The proof comes from `unitctl.stop` itself, which raises and KEEPS the
+    record when the group survives or a signal fails. Re-reading the record
+    afterwards proves nothing on its own: until 2026-10-05 `stop` deleted it
+    whatever happened, so this check read an absent record as a stopped server.
     """
-    state = stop(why, state_dir=state_dir)
+    try:
+        state = stop(why, state_dir=state_dir)
+    except (unitctl.StillRunning, OSError) as exc:
+        raise WouldNotStop(f"{UNIT} would not stop: {exc}") from exc
     if running(state_dir):
         raise WouldNotStop(f"{UNIT} would not stop; it is still running")
     return state

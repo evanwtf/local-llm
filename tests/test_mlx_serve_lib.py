@@ -414,3 +414,31 @@ def test_model_dir_of_extracts_the_model_path():
         pathlib.Path("/x/y")
     )
     assert mlx_serve.model_dir_of(["mlx-serve", "--serve"]) is None
+
+
+def test_stop_and_prove_does_not_trust_a_deleted_record(monkeypatch, state, tmp_path):
+    """The signals land nowhere and the server stays up.
+
+    `unitctl.stop` deleted the record anyway, and `stop_and_prove` then
+    re-read that deleted record, found nothing, and declared the server
+    stopped while ~100 GiB stayed resident.
+    """
+    unit = mlx_serve.start(SERVER, tmp_path / "s.log", cwd=ROOT, state_dir=state)
+    real_stop = unitctl.stop
+    try:
+        monkeypatch.setattr(unitctl, "_signal_group", lambda pid, sig: None)
+        monkeypatch.setattr(unitctl, "KILL_WAIT_S", 0.2, raising=False)
+        monkeypatch.setattr(
+            mlx_serve.unitctl,
+            "stop",
+            lambda name, state_dir=None: real_stop(
+                name, timeout=0.2, state_dir=state_dir
+            ),
+        )
+        with pytest.raises(mlx_serve.WouldNotStop):
+            mlx_serve.stop_and_prove("test", state_dir=state)
+        assert alive(unit.pid)
+    finally:
+        monkeypatch.undo()
+        unitctl.stop(mlx_serve.UNIT, state_dir=state)
+    assert not alive(unit.pid)

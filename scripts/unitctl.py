@@ -303,7 +303,10 @@ def start(
             name,
             proc.pid,
         )
-        _signal_group(proc.pid, signal.SIGKILL)
+        try:
+            _signal_group(proc.pid, signal.SIGKILL)
+        except OSError:
+            logger.exception("could not SIGKILL %s (pid %d)", name, proc.pid)
         _OWNED.pop(name, None)
         try:
             proc.wait(timeout=5)
@@ -313,6 +316,22 @@ def start(
         raise
     logger.info("started %s as pid %d: %s", name, unit.pid, " ".join(command))
     return unit
+
+
+class StillRunning(RuntimeError):
+    """The unit was signalled and some of its process group is still alive.
+
+    The record is KEPT when this is raised. Deleting it would leave a live
+    process that nothing can find: `stop` reads the record, `start` sees no
+    unit, and a second server starts beside the first.
+    """
+
+
+#: How long the group gets to die after SIGKILL before `stop` gives up and
+#: raises. SIGKILL cannot be caught, so a group still present after this is
+#: one we cannot reach (a process in uninterruptible sleep, or a signal that
+#: never landed), not one that is finishing a write.
+KILL_WAIT_S = 5.0
 
 
 def stop(
@@ -325,22 +344,29 @@ def stop(
     TERM to the process group, then KILL if it outlasts `timeout`. Signalling
     the group is what reaps `uv run python server.py`, where the recorded pid
     is `uv` and the server is its child.
+
+    Both waits watch the GROUP, not the recorded pid. The leader can die on
+    SIGTERM while a child that ignores it keeps the port and the memory; a
+    wait on the leader alone then skips SIGKILL and reports a clean stop.
+
+    The record is deleted only once the group is gone. A signal that cannot
+    be sent raises `OSError`, and a group still alive after SIGKILL raises
+    `StillRunning`; both keep the record, so the next `start` refuses rather
+    than launching a second server.
     """
     unit = read(name, state_dir)
     found = state(unit)
     if found == RUNNING:
         assert unit is not None
         _signal_group(unit.pid, signal.SIGTERM)
-        deadline = time.monotonic() + timeout
-        while time.monotonic() < deadline:
-            _reap(name)
-            if not alive(unit.pid):
-                break
-            time.sleep(0.05)
-        if alive(unit.pid):
+        if not _wait_gone(name, unit.pid, timeout):
             logger.warning("%s ignored SIGTERM for %.0fs; sending KILL", name, timeout)
             _signal_group(unit.pid, signal.SIGKILL)
-            _reap(name, block=True)
+            if not _wait_gone(name, unit.pid, KILL_WAIT_S):
+                raise StillRunning(
+                    f"{name} (pid {unit.pid}) still has live processes "
+                    f"{KILL_WAIT_S:.0f}s after SIGKILL; keeping its record"
+                )
         logger.info("stopped %s (pid %d)", name, unit.pid)
     elif found == STALE:
         assert unit is not None
@@ -355,6 +381,38 @@ def stop(
     _OWNED.pop(name, None)
     record_path(name, state_dir).unlink(missing_ok=True)
     return found
+
+
+def group_alive(pgid: int) -> bool:
+    """Whether any process is still in group `pgid`. EPERM counts as alive.
+
+    A unit's pgid is its recorded pid (`start_new_session=True`), and it stays
+    reserved for as long as any member lives, even after the leader exits. So
+    a live answer is about our group and not a recycled pid.
+    """
+    try:
+        os.killpg(pgid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def _wait_gone(name: str, pid: int, timeout: float) -> bool:
+    """Wait up to `timeout` for the leader AND its group to go. True if so.
+
+    `_reap` runs on each pass: our own leader is a zombie until reaped, and a
+    zombie still answers signal 0.
+    """
+    deadline = time.monotonic() + timeout
+    while True:
+        _reap(name)
+        if not alive(pid) and not group_alive(pid):
+            return True
+        if time.monotonic() >= deadline:
+            return False
+        time.sleep(0.05)
 
 
 def _reap(name: str, block: bool = False) -> None:
@@ -378,14 +436,27 @@ def _reap(name: str, block: bool = False) -> None:
 
 
 def _signal_group(pid: int, sig: int) -> None:
-    """Signal the process group led by `pid`, falling back to the pid alone."""
+    """Signal the process group led by `pid`. Raises when the signal fails.
+
+    `pid` is the pgid: every unit starts in a new session, so its leader's pid
+    is its group id. Asking `getpgid(pid)` instead would aim the signal at
+    whatever group a recycled pid happens to sit in.
+
+    A group that no longer exists falls back to the pid alone, for a record
+    whose process is not a group leader. A pid that is gone too is the one
+    silent case: there is nothing left to stop. Every other error -- EPERM
+    above all -- propagates, because a signal that did not land must not read
+    as a stop that worked.
+    """
     try:
-        os.killpg(os.getpgid(pid), sig)
-    except OSError:
-        try:
-            os.kill(pid, sig)
-        except OSError:
-            pass
+        os.killpg(pid, sig)
+        return
+    except ProcessLookupError:
+        pass
+    try:
+        os.kill(pid, sig)
+    except ProcessLookupError:
+        return
 
 
 def units(state_dir: pathlib.Path | None = None) -> list[str]:
@@ -466,7 +537,11 @@ def main(argv: list[str] | None = None) -> int:
         return EXIT_RUNNING
 
     if args.action == "stop":
-        stop(args.name, timeout=args.timeout, state_dir=args.state_dir)
+        try:
+            stop(args.name, timeout=args.timeout, state_dir=args.state_dir)
+        except (StillRunning, OSError) as exc:
+            logger.error("%s", exc)
+            return EXIT_ERROR
         return EXIT_RUNNING
 
     if args.action == "list":
