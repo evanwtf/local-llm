@@ -127,13 +127,26 @@ def runs(
     falls back to its name: "replay" for ``replay-*``, else "standard".
     """
     out: dict[str, list[Row]] = {}
+    batched: dict[str, dict[Any, list[Row]]] = {}
     loose: dict[tuple[str, str, str], list[Row]] = {}
     for r in rows:
         if r.get("batch"):
-            out.setdefault(r["batch"], []).append(r)
+            batched.setdefault(r["batch"], {}).setdefault(r.get("backend"), []).append(
+                r
+            )
         else:
             key = (r.get("backend", "?"), r.get("client", "?"), _family(r, suites))
             loose.setdefault(key, []).append(r)
+    # One launch can name two backends on one engine, and both stamp the same
+    # batch. A run is one stack, so they split; a single-backend batch keeps
+    # its plain name, which is what the log prints and --early-stop-leader
+    # selects by (code review, 2026-10-05).
+    for batch, by_backend in batched.items():
+        if len(by_backend) == 1:
+            out[batch] = next(iter(by_backend.values()))
+            continue
+        for backend, rs in by_backend.items():
+            out[f"{batch}/{backend}"] = rs
     for (backend, _client, _set), rs in loose.items():
         rs.sort(key=lambda r: _when(r))
         current: list[Row] = []
@@ -211,6 +224,10 @@ def pick_leader(
         for key, rows in runs(pool, suites).items()
         if {r["task"] for r in rows} == wanted
     ]
+    # A leader that never passed sets a failure threshold of ceil(0.30 x 0) =
+    # 0, which stops a new run after its first trial, a pass included. It is
+    # no bar to clear, so it is no leader (code review, 2026-10-05).
+    candidates = [c for c in candidates if c.passes > 0]
     if not candidates:
         return None
     return max(candidates, key=lambda c: (c.passes / c.rows, -c.total))

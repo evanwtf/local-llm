@@ -82,7 +82,13 @@ def compare(installed: str | None, latest: str | None) -> str:
     return "behind" if a < b else "ahead"
 
 
-def _run(argv: list[str], timeout: int = 15) -> str | None:
+def _output(argv: list[str], timeout: int = 15) -> str | None:
+    """A command's whole output, stdout else stderr; None when it has none.
+
+    Every line. `_run` below picks one version-bearing line, which is right
+    for `--version` and wrong for a branch list or a JSON body: those lost
+    every line but one (code review, 2026-10-05).
+    """
     try:
         got = subprocess.run(
             argv,
@@ -95,6 +101,12 @@ def _run(argv: list[str], timeout: int = 15) -> str | None:
     except (OSError, subprocess.SubprocessError):
         return None
     out = (got.stdout or got.stderr or "").strip()
+    return out or None
+
+
+def _run(argv: list[str], timeout: int = 15) -> str | None:
+    """One line of a command's output: the first that carries a version."""
+    out = _output(argv, timeout)
     if not out:
         return None
     # The first line that actually carries a version, not simply the first
@@ -248,15 +260,26 @@ def interesting_notifications(items, repos, reasons=NOTIFY_REASONS):
 def fetch_notifications(days: int = 14) -> list[dict[str, Any]]:
     """Recent notifications including read ones. [] on any failure."""
     since = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(time.time() - days * 86400))
-    out = _run(
+    out = _output(
         ["gh", "api", f"notifications?all=true&since={since}", "--paginate"], timeout=25
     )
     if not out or not out.startswith("["):
         return []
+    # `--paginate` prints one JSON array per page, back to back.
+    decoder = json.JSONDecoder()
+    items: list[dict[str, Any]] = []
+    at = 0
     try:
-        return json.loads(out)
+        while at < len(out):
+            page, at = decoder.raw_decode(out, at)
+            if not isinstance(page, list):
+                return []
+            items.extend(page)
+            while at < len(out) and out[at].isspace():
+                at += 1
     except json.JSONDecodeError:
         return []
+    return items
 
 
 def new_remote_branches(
@@ -272,7 +295,7 @@ def new_remote_branches(
     Offline -- reads refs already fetched, so it is only as fresh as the last
     `git fetch`, which `git_drift` reports separately.
     """
-    out = _run(
+    out = _output(
         [
             "git",
             "-C",
