@@ -254,7 +254,7 @@ def test_max_jobs_can_be_disabled(tmp_path, monkeypatch):
 def test_a_heavy_server_records_its_floor_and_spawns_a_watcher(tmp_path, monkeypatch):
     seen: dict[str, Any] = {}
     _stub_launch(monkeypatch, seen)
-    monkeypatch.setattr(dgx_server, "_spawn_watcher", lambda name, floor, log: 4242)
+    monkeypatch.setattr(dgx_server, "_spawn_watcher", lambda name, floor, log, d: 4242)
     server = dgx_server.start(
         "vllm",
         ["vllm", "serve", "x"],
@@ -435,3 +435,53 @@ def test_a_record_written_before_the_watcher_still_loads(tmp_path):
     assert server is not None
     assert server.watcher_pid is None
     assert server.mem_floor_gib is None
+
+
+def test_the_watcher_reads_the_state_dir_the_server_was_recorded_in(
+    tmp_path, monkeypatch
+):
+    """`start --state-dir D` recorded the server in D, but the watcher was
+    spawned without it, read the default directory, found no record, and
+    exited 2: the server ran with no memory floor (review of #456)."""
+    seen: dict[str, Any] = {}
+
+    class Proc:
+        pid = 4242
+
+    def popen(argv, **kwargs):
+        seen["argv"] = argv
+        return Proc()
+
+    monkeypatch.setattr(dgx_server.subprocess, "Popen", popen)
+    state = tmp_path / "state"
+    assert dgx_server._spawn_watcher("vllm", 14.0, tmp_path / "s.log", state) == 4242
+    # The child parses its own argv: hand it to main and see what it watches.
+    got: dict[str, Any] = {}
+    monkeypatch.setattr(
+        dgx_server,
+        "watch",
+        lambda name, floor_gib, poll_seconds, state_dir: (
+            got.update(name=name, state_dir=state_dir) or 0
+        ),
+    )
+    assert dgx_server.main(seen["argv"][2:]) == 0
+    assert got == {"name": "vllm", "state_dir": state}
+
+
+def test_start_hands_its_state_dir_to_the_watcher(tmp_path, monkeypatch):
+    seen: dict[str, Any] = {}
+    _stub_launch(monkeypatch, seen)
+    monkeypatch.setattr(
+        dgx_server,
+        "_spawn_watcher",
+        lambda name, floor, log, state_dir: seen.setdefault("dir", state_dir) and 1,
+    )
+    dgx_server.start(
+        "vllm",
+        ["vllm", "serve", "x"],
+        "x",
+        "108G",
+        tmp_path / "s.log",
+        state_dir=tmp_path / "state",
+    )
+    assert seen["dir"] == tmp_path / "state"

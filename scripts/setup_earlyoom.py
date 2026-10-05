@@ -143,6 +143,10 @@ def drift() -> list[str]:
     Compares the `EARLYOOM_ARGS` line rather than the whole defaults file, so
     a comment edit is not reported as a drifted safety setting -- but the
     drop-in is compared whole, because every line in it is load-bearing.
+
+    Only an active assignment counts, and there must be exactly one: systemd's
+    EnvironmentFile ignores comments and keeps the LAST assignment, so a
+    substring match passed a file whose later line overrode the managed one.
     """
     out = []
     current = _read(DEFAULTS_PATH)
@@ -150,16 +154,20 @@ def drift() -> list[str]:
         out.append(f"{DEFAULTS_PATH} is missing")
     else:
         want = f'EARLYOOM_ARGS="{earlyoom_args()}"'
-        if want not in current:
-            have = next(
-                (
-                    line.strip()
-                    for line in current.splitlines()
-                    if line.startswith("EARLYOOM_ARGS=")
-                ),
-                "(no EARLYOOM_ARGS line)",
+        active = [
+            line.strip()
+            for line in current.splitlines()
+            if line.strip().startswith("EARLYOOM_ARGS=")
+        ]
+        if not active:
+            out.append(f"{DEFAULTS_PATH}: (no EARLYOOM_ARGS line)")
+        elif len(active) > 1:
+            out.append(
+                f"{DEFAULTS_PATH}: {len(active)} active EARLYOOM_ARGS lines; "
+                f"the last wins: {active[-1]}"
             )
-            out.append(f"{DEFAULTS_PATH}: {have}")
+        elif active[0] != want:
+            out.append(f"{DEFAULTS_PATH}: {active[0]}")
     dropin = _read(DROPIN_PATH)
     if dropin is None:
         out.append(f"{DROPIN_PATH} is missing")

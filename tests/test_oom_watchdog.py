@@ -237,3 +237,32 @@ def test_the_watchdog_reads_the_two_sources_separately(monkeypatch):
     assert len(calls) == 2
     assert not any("-k" in c and "earlyoom.service" in c for c in calls)
     assert "kernel-line" in text and "earlyoom-line" in text
+
+
+def test_an_event_is_reported_once_across_overlapping_windows(tmp_path, monkeypatch):
+    """The timer fires every minute over a ten-minute window, so each kill
+    used to be reported ten times. A pass reports only what the last pass
+    did not already see."""
+    state = tmp_path / "s.json"
+    monkeypatch.setattr(ow, "unit_active", lambda unit: True)
+    monkeypatch.setattr(ow, "read_journal", lambda since: KERNEL_LINE)
+    first = ow.sweep("-10min", state_path=state)
+    assert [e["line"] for e in first["events"]] == [KERNEL_LINE]
+    second = ow.sweep("-10min", state_path=state)
+    assert second["events"] == []
+    # A new kill in the same window is still news; the old one is not.
+    monkeypatch.setattr(
+        ow, "read_journal", lambda since: KERNEL_LINE + "\n" + EARLYOOM_KILL_LINE
+    )
+    third = ow.sweep("-10min", state_path=state)
+    assert [e["kind"] for e in third["events"]] == ["earlyoom-kill"]
+    # The window's full record stays in the state file for a write-up.
+    assert len(json.loads(state.read_text())["seen"]) == 2
+
+
+def test_main_exits_0_on_a_kill_it_already_reported(tmp_path, monkeypatch):
+    monkeypatch.setattr(ow, "STATE_PATH", tmp_path / "s.json")
+    monkeypatch.setattr(ow, "read_journal", lambda since: KERNEL_LINE)
+    monkeypatch.setattr(ow, "unit_active", lambda unit: True)
+    assert ow.main(["--once"]) == 1
+    assert ow.main(["--once"]) == 0

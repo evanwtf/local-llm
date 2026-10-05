@@ -38,3 +38,35 @@ def test_sizes_span_latency_and_bandwidth_regimes() -> None:
     """
     assert min(cluster_allreduce.DEFAULT_SIZES) <= 1 << 20
     assert max(cluster_allreduce.DEFAULT_SIZES) >= 1 << 30
+
+
+def test_a_correct_reduction_passes() -> None:
+    assert cluster_allreduce.reduction_error(2.0, 2.0, True, 2.0) is None
+
+
+def test_a_wrong_element_anywhere_fails() -> None:
+    """The old check read check[0] only; one bad element elsewhere passed.
+    The caller passes the buffer's min and max, so any element counts."""
+    assert cluster_allreduce.reduction_error(2.0, 3.0, True, 2.0)
+    assert cluster_allreduce.reduction_error(0.0, 2.0, True, 2.0)
+
+
+def test_nan_fails() -> None:
+    """abs(nan - 2) > 1e-3 is False, so NaN passed the old check."""
+    nan = float("nan")
+    assert cluster_allreduce.reduction_error(nan, nan, False, 2.0)
+    # min/max propagate NaN; even if a reduction hid it, `finite` does not.
+    assert cluster_allreduce.reduction_error(2.0, 2.0, False, 2.0)
+    assert cluster_allreduce.reduction_error(nan, 2.0, True, 2.0)
+
+
+def test_every_measured_size_is_checked() -> None:
+    """A link fine at 1 MiB can be wrong at 1 GiB; the check lives in the
+    per-size loop, after the timed samples, not once on a 2 KiB buffer."""
+    src = pathlib.Path(cluster_allreduce.__file__).read_text()
+    loop = src.split("for size in sizes:", 1)[1].split("dist.destroy_process_group", 1)[
+        0
+    ]
+    timed = loop.index("samples.append")
+    assert loop.index("reduction_error(") > timed
+    assert "torch.ones(1024" not in src

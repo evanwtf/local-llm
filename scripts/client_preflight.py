@@ -79,6 +79,22 @@ def _get(url: str, timeout: float = 10.0) -> str | None:
         return None
 
 
+def serves_model(body: str | None, model: str) -> bool:
+    """Whether a `/v1/models` answer lists `model` as an exact `data[].id`.
+
+    A substring test took `qwen3.8-flash-next-q3-nothink` for
+    `qwen3.8-flash-next-q3`, and would take a weights path in vLLM's `root`
+    for the served id. A malformed answer verifies nothing.
+    """
+    try:
+        data = json.loads(body or "").get("data")
+    except (ValueError, AttributeError):
+        return False
+    if not isinstance(data, list):
+        return False
+    return any(isinstance(m, dict) and m.get("id") == model for m in data)
+
+
 def trial_environment(cfg: dict, task: dict, backend: dict, rep: Report) -> None:
     """Build one trial workspace the harness's way and run the agent's command."""
     target = run.task_target(cfg, task)
@@ -188,7 +204,7 @@ def main(argv: list[str] | None = None) -> int:
     models = _get(f"{backend['base_url'].rstrip('/').removesuffix('/v1')}/v1/models")
     rep.check(
         "backend answers with its model",
-        bool(models and backend["model"] in models),
+        serves_model(models, backend["model"]),
         f"{backend['base_url']} serves {backend['model']}" if models else "no answer",
     )
     if server:

@@ -81,9 +81,15 @@ def match(
     path = pathlib.Path(raw).expanduser()
     if patch_dir is not None:
         path = patch_dir.expanduser() / path.name
-    if not path.is_file():
+    try:
+        # On a Linux host /root exists and is unreadable; before Python 3.14,
+        # is_file() raises PermissionError there instead of returning False.
+        if not path.is_file():
+            return None
+        digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    except OSError:
         return None
-    if hashlib.sha256(path.read_bytes()).hexdigest() != row["solution_sha256"]:
+    if digest != row["solution_sha256"]:
         return None
     return path
 
@@ -100,19 +106,59 @@ def rows_for(ledger: pathlib.Path, task: str) -> list[dict[str, Any]]:
     return out
 
 
+def provenance_mismatch(row: dict[str, Any], rebuilt: dict[str, Any]) -> list[str]:
+    """How the rebuilt tree differs from the one the row's trial was handed.
+
+    The patch's sha256 proves the patch is the row's own, not that it lands on
+    the same source. If the task's base commit, revert set, span or hidden
+    tests changed after the trial, a re-grade would grade other code, so it is
+    refused. Only the grader -- `hidden_ref` and `hidden_drop_imports` -- may
+    differ, and each re-grade record carries both.
+    """
+    recorded = row.get("replay")
+    if not isinstance(recorded, dict):
+        return ["the row records no replay provenance"]
+    tests = (row.get("hidden") or {}).get("tests")
+    pairs = (
+        ("commit", recorded.get("commit"), rebuilt["commit"]),
+        ("reverted", recorded.get("reverted"), rebuilt["reverted"]),
+        ("span_start", recorded.get("span_start"), rebuilt["span_start"]),
+        ("hidden tests", tests, rebuilt["hidden_tests"]),
+    )
+    return [
+        f"{name}: the trial had {was!r}, the task now gives {now!r}"
+        for name, was, now in pairs
+        if was != now
+    ]
+
+
 def regrade(
     cfg: dict[str, Any],
     task: dict[str, Any],
     source: pathlib.Path,
     patch: pathlib.Path,
     work: pathlib.Path,
+    row: dict[str, Any],
 ) -> dict[str, Any]:
-    """Rebuild the handed tree, apply the patch, run the hidden tests."""
+    """Rebuild the handed tree, apply the patch, run the hidden tests.
+
+    Returns {"error": ...} when the tree differs from the trial's or the
+    patch cannot be graded; such a result is never a verdict.
+    """
     target = harness.task_target(cfg, task)
     commit = target["base_commit"]
     hidden = task["hidden_tests"]
+    start = task.get("span_start")
     harness.build_checkout(source, commit, work)
-    replay.revert(source, commit, task["revert"], work, task.get("span_start"))
+    reverted = replay.revert(source, commit, task["revert"], work, start)
+    rebuilt = {
+        "commit": replay.resolve(source, commit),
+        "reverted": reverted,
+        "span_start": replay.resolve(source, start) if start else None,
+        "hidden_tests": hidden,
+    }
+    if problems := provenance_mismatch(row, rebuilt):
+        return {"error": "task changed since the trial: " + "; ".join(problems)}
     replay.hide(work, hidden)
     # build_checkout exports with `git archive`: no .git, by design. `git
     # apply` outside a repository patches the files directly.
@@ -166,7 +212,7 @@ def main(argv: list[str] | None = None) -> int:
         ["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, capture_output=True,
         text=True, check=False,
     ).stdout.strip()  # fmt: skip
-    records, lost = [], 0
+    records, lost, failed = [], 0, 0
     rows = rows_for(args.ledger, args.task)
     for row in rows:
         patch = match(row, args.patch_dir)
@@ -176,8 +222,14 @@ def main(argv: list[str] | None = None) -> int:
             logger.info("%s: unrecoverable (patch gone or overwritten)", label)
             continue
         with tempfile.TemporaryDirectory(prefix="rescore-") as tmp:
-            got = regrade(cfg, task, source, patch, pathlib.Path(tmp) / "t")
+            got = regrade(cfg, task, source, patch, pathlib.Path(tmp) / "t", row)
         before = (row.get("hidden") or {}).get("pytest")
+        if "error" in got:
+            # Not a verdict. Appended, it broke the reader (no hidden_counts)
+            # and, as the newest record, would supersede a valid re-grade.
+            failed += 1
+            logger.error("%s: not re-graded: %s", label, got["error"])
+            continue
         logger.info("%s: was %r -> %s", label, before, got)
         now = dt.datetime.now().astimezone().isoformat(timespec="seconds")
         records.append(
@@ -185,7 +237,11 @@ def main(argv: list[str] | None = None) -> int:
              "rescored_at": now, "was": before} | got
         )  # fmt: skip
     logger.info(
-        "%d rows: %d re-graded, %d unrecoverable", len(rows), len(records), lost
+        "%d rows: %d re-graded, %d unrecoverable, %d failed",
+        len(rows),
+        len(records),
+        lost,
+        failed,
     )
     if records and not args.dry_run:
         args.out.parent.mkdir(parents=True, exist_ok=True)
@@ -193,7 +249,7 @@ def main(argv: list[str] | None = None) -> int:
             for r in records:
                 f.write(json.dumps(r, sort_keys=True) + "\n")
         logger.info("appended %d records to %s", len(records), args.out)
-    return 0
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":

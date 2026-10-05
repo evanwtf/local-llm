@@ -270,16 +270,24 @@ def watch(
         time.sleep(poll_seconds)
 
 
-def _spawn_watcher(name: str, floor_gib: float, log: pathlib.Path) -> int | None:
+def _spawn_watcher(
+    name: str, floor_gib: float, log: pathlib.Path, state_dir: pathlib.Path
+) -> int | None:
     """Start `watch` as a detached child. Returns its pid, or None on failure.
 
     Deliberately not inside the server's own scope: a watcher there would be
     stopped by the very `systemctl stop` it issues, and would also count
     against the scope it is watching.
+
+    `state_dir` is where the server was recorded. Without it the child read
+    the default directory, found no record, and exited 2, so a server started
+    with `--state-dir` ran with no memory floor.
     """
     argv = [
         sys.executable,
         str(pathlib.Path(__file__).resolve()),
+        "--state-dir",
+        str(state_dir),
         "watch",
         name,
         "--floor-gib",
@@ -396,7 +404,7 @@ def start(
         _systemctl("stop", unit)
         raise
     if server.mem_floor_gib is not None:
-        watcher = _spawn_watcher(name, server.mem_floor_gib, log)
+        watcher = _spawn_watcher(name, server.mem_floor_gib, log, directory)
         if watcher is not None:
             server = dataclasses.replace(server, watcher_pid=watcher)
             try:

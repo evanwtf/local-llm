@@ -57,6 +57,23 @@ def bus_bandwidth_gbps(size_bytes: int, seconds: float, world: int) -> float:
     return algbw * 2 * (world - 1) / world
 
 
+def reduction_error(
+    lowest: float, highest: float, finite: bool, expected: float
+) -> str | None:
+    """Why a reduced buffer is wrong, or None when every element is right.
+
+    The caller passes the buffer's min, max and whether every element is
+    finite, so one bad element anywhere counts. Written as `<=`, so a NaN
+    fails: `abs(nan - x) > tol` is False, which let NaN through before.
+    """
+    if not finite:
+        return f"non-finite element (min {lowest}, max {highest})"
+    tol = 1e-3
+    if abs(lowest - expected) <= tol and abs(highest - expected) <= tol:
+        return None
+    return f"elements span [{lowest}, {highest}], expected {expected}"
+
+
 def run(sizes: tuple[int, ...], iters: int, warmup: int) -> list[dict[str, float]]:
     import torch
     import torch.distributed as dist
@@ -94,6 +111,23 @@ def run(sizes: tuple[int, ...], iters: int, warmup: int) -> list[dict[str, float
             "busbw_gbps": bus_bandwidth_gbps(size, secs, world),
         }
         rows.append(row)
+
+        # Correctness, not just speed, at every size and outside the timing:
+        # a link fine at 1 MiB can be wrong at 1 GiB. Every rank contributes
+        # ones, so every element must equal the world size. A collective that
+        # returns fast and wrong is worse than one that hangs, because nothing
+        # downstream notices.
+        buf.fill_(1)
+        dist.all_reduce(buf)
+        torch.cuda.synchronize()
+        bad = reduction_error(
+            float(buf.min().item()),
+            float(buf.max().item()),
+            bool(torch.isfinite(buf).all().item()),
+            float(world),
+        )
+        if bad:
+            raise SystemExit(f"all_reduce at {size:,} bytes: {bad}")
         if rank == 0:
             print(
                 f"{size:>12,}  {secs * 1e3:>9.3f} ms  "
@@ -101,17 +135,8 @@ def run(sizes: tuple[int, ...], iters: int, warmup: int) -> list[dict[str, float
                 flush=True,
             )
 
-    # Correctness, not just speed: every rank contributed ones, so every
-    # element must equal the world size. A collective that returns fast and
-    # wrong is worse than one that hangs, because nothing downstream notices.
-    check = torch.ones(1024, dtype=torch.bfloat16, device="cuda")
-    dist.all_reduce(check)
-    expected = float(world)
-    got = float(check[0].item())
-    if abs(got - expected) > 1e-3:
-        raise SystemExit(f"all_reduce returned {got}, expected {expected}")
     if rank == 0:
-        print(f"correctness: all_reduce of ones == {got} across {world} ranks")
+        print(f"correctness: every element == {world} at every size")
 
     dist.destroy_process_group()
     return rows
