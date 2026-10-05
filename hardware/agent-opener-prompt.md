@@ -1069,7 +1069,9 @@ A row cannot be repaired afterwards: nothing in it records the topology.
   `uv run python scripts/server_facts.py --backend <name> --cluster-peer <peer> --out /tmp/cluster-facts.json`.
   `--cluster-peer` checks that the peer answers, is the same hardware, and has
   an ACTIVE RDMA link, and **refuses rather than falling back** to the
-  single-node name.
+  single-node name. Both `server_facts.py` and `run.py` also refuse a
+  `gb10-spark-x2` backend whose facts lack `--cluster-peer`, and a
+  `gb10-spark` backend whose facts have it.
 - **A run on the head alone** goes to `hardware/Cortex-X925-128GB-GB10/`,
   beside the 4,000+ rows it is comparable to. Do not "upgrade" it to the
   cluster ledger.

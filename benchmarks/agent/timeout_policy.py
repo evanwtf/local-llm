@@ -86,9 +86,16 @@ class IdleStallWatchdog:
     reading is *held* -- the stretch neither resets nor grows, because an
     unreadable GPU is not evidence of idleness and must never trigger an abort.
 
+    Held means the unreadable interval is not counted at all. Idle time is the
+    sum of the intervals between two consecutive idle readings with nothing
+    unreadable between them. Measuring from the stretch's first reading
+    instead counted the whole gap: 10 W, then None through real GPU work, then
+    10 W 601 s later read as 601 s idle and killed the trial (review of
+    2026-10-05).
+
     The clock is injectable so the whole thing is testable without sleeping.
-    :meth:`stalled` reads no clock of its own: it measures against the instant
-    of the last real sample, so one poll costs exactly one clock read.
+    :meth:`stalled` reads no clock of its own, so one poll costs exactly one
+    clock read.
     """
 
     def __init__(
@@ -105,39 +112,43 @@ class IdleStallWatchdog:
         self.idle_stall_secs = idle_stall_secs
         self.poll_secs = poll_secs
         self._monotonic = monotonic
-        #: Start of the current continuous idle stretch, or None when the last
-        #: known state was busy (or nothing has been sampled yet).
-        self._idle_since: float | None = None
-        #: The instant of the last readable sample, so stalled() needs no clock.
-        self._last: float = monotonic()
+        #: True while the last readable sample was idle: a stretch is open.
+        self._idle = False
+        #: Idle seconds counted in the open stretch, unreadable gaps excluded.
+        self._idle_secs = 0.0
+        #: The instant of the last idle reading with no unreadable one since,
+        #: or None. The next idle reading counts the time from here.
+        self._idle_at: float | None = None
 
     def sample(self) -> float | None:
         """Take one reading and fold it into the idle-stretch state."""
         watts = self._watts()
         if watts is None:
-            # Unknown: hold. Do not reset the stretch, do not extend it, and do
-            # not advance the reference instant -- so a run of Nones cannot make
-            # an idle stretch appear to grow, nor erase one that had begun.
+            # Unknown: hold. Keep the idle time already counted, and drop the
+            # reference instant, so the gap up to the next reading is never
+            # counted -- a run of Nones cannot make the stretch grow, nor
+            # erase one that had begun.
+            self._idle_at = None
             return None
         now = self._monotonic()
-        self._last = now
         if watts >= self.idle_floor_watts:
-            self._idle_since = None
-        elif self._idle_since is None:
-            self._idle_since = now
+            self._idle = False
+            self._idle_secs = 0.0
+            self._idle_at = None
+            return watts
+        if self._idle and self._idle_at is not None:
+            self._idle_secs += now - self._idle_at
+        self._idle = True
+        self._idle_at = now
         return watts
 
     def idle_seconds(self) -> float:
-        """Length of the current continuous idle stretch, as of the last read."""
-        if self._idle_since is None:
-            return 0.0
-        return self._last - self._idle_since
+        """Idle seconds in the current stretch, as of the last readable sample."""
+        return self._idle_secs if self._idle else 0.0
 
     def stalled(self) -> bool:
-        """True once the GPU has been continuously idle for the full window."""
-        return self._idle_since is not None and (
-            self.idle_seconds() >= self.idle_stall_secs
-        )
+        """True once the stretch's counted idle time reaches the full window."""
+        return self._idle and self._idle_secs >= self.idle_stall_secs
 
 
 @dataclass
@@ -251,11 +262,19 @@ def run_client_with_watchdog(
     # overshoots far past the cap; otherwise keep the coarse power-poll cadence.
     wait_secs = min(poll_secs, DEFAULT_MEM_POLL_SECS) if memory_cap_gib else poll_secs
     while True:
+        # Never wait past the deadline. A child that exited inside a poll
+        # window after its deadline returned as a clean run, so the watched
+        # path gave up to `wait_secs` more than the plain path (review of
+        # 2026-10-05). At the deadline the wait times out and the check below
+        # ends the run.
+        wait = wait_secs
+        if timeout is not None:
+            wait = max(0.0, min(wait_secs, timeout - (time.monotonic() - start)))
         try:
             # communicate() drains the pipes while it waits, so the child never
             # blocks on a full buffer; retrying after a timeout keeps the output
             # already read. On a clean exit this returns and we are done.
-            stdout, stderr = proc.communicate(timeout=wait_secs)
+            stdout, stderr = proc.communicate(timeout=wait)
             break
         except subprocess.TimeoutExpired:
             pass
