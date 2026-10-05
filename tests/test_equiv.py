@@ -632,3 +632,29 @@ def test_a_bare_uv_run_python_does_not_crash_the_fake(tmp_path, write) -> None:
     )
     assert got.returncode == 0, got.stderr
     assert [r.program for r in equiv.load(out)] == ["uv"]
+
+
+def test_canonical_keeps_the_order_of_a_repeated_flag():
+    """`--backend a --backend b` selects b; the reverse selects a. Sorting
+    the pairs made the two identical, so the gate passed a backend change."""
+    first = ["--backend", "a", "--backend", "b"]
+    second = ["--backend", "b", "--backend", "a"]
+    assert set(equiv.canonical(first, frozenset())) != set(
+        equiv.canonical(second, frozenset())
+    )
+    shell_only, py_only = equiv.argv_difference(first, second, frozenset())
+    assert shell_only and py_only
+
+
+def test_canonical_keeps_how_often_a_flag_repeats():
+    once = ["--tag", "x"]
+    twice = ["--tag", "x", "--tag", "x"]
+    assert set(equiv.canonical(once, frozenset())) != set(
+        equiv.canonical(twice, frozenset())
+    )
+
+
+def test_canonical_still_ignores_order_between_different_flags():
+    a = ["--backend", "a", "--backend", "b", "--trials", "3"]
+    b = ["--trials", "3", "--backend", "a", "--backend", "b"]
+    assert equiv.canonical(a, frozenset()) == equiv.canonical(b, frozenset())

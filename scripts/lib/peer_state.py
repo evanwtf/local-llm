@@ -40,6 +40,12 @@ def _run(argv: list[str]) -> str | None:
 
     A failure is an absence, not an error: an offline `gh` or a missing tree
     must read as "unknown", never as a crash.
+
+    None means the command FAILED -- it could not start, timed out, or exited
+    non-zero. A command that succeeded with no output returns "". The two used
+    to be one value, so a timed-out `git status` read as a clean tree and a
+    failed `gh` query as an empty queue. Callers keep them apart: their own
+    None is "unknown", their [] is "observed empty".
     """
     try:
         proc = subprocess.run(
@@ -47,7 +53,9 @@ def _run(argv: list[str]) -> str | None:
         )
     except (OSError, subprocess.TimeoutExpired):
         return None
-    return proc.stdout.strip() or None
+    if proc.returncode != 0:
+        return None
+    return proc.stdout.strip()
 
 
 def ds4_trees() -> list[pathlib.Path]:
@@ -77,22 +85,22 @@ def servers() -> list[preflight.Proc]:
 
 def git_head(repo: pathlib.Path) -> str | None:
     """Short HEAD rev, or None when the repo is missing."""
-    return _run(["git", "-C", str(repo), "rev-parse", "--short", "HEAD"])
+    return _run(["git", "-C", str(repo), "rev-parse", "--short", "HEAD"]) or None
 
 
-def git_dirty(repo: pathlib.Path) -> list[str]:
-    """Porcelain dirty paths, or [] when clean."""
+def git_dirty(repo: pathlib.Path) -> list[str] | None:
+    """Porcelain dirty paths, [] when clean, None when `git status` failed."""
     out = _run(["git", "-C", str(repo), "status", "--porcelain"])
-    if not out:
-        return []
+    if out is None:
+        return None
     return [line for line in out.splitlines() if line.strip()]
 
 
-def commits_since(repo: pathlib.Path, ref: str) -> list[str]:
-    """One-line commit subjects since `ref`, newest first. [] on failure."""
+def commits_since(repo: pathlib.Path, ref: str) -> list[str] | None:
+    """One-line commit subjects since `ref`, newest first. None on failure."""
     out = _run(["git", "-C", str(repo), "log", "--oneline", f"{ref}..HEAD"])
-    if not out:
-        return []
+    if out is None:
+        return None
     return [line for line in out.splitlines() if line.strip()]
 
 
@@ -101,17 +109,23 @@ def host_platform_label() -> str:
     return "platform:macOS" if platform.system() == "Darwin" else "platform:Nvidia"
 
 
-def next_top10(label: str | None = None) -> list[dict]:
+def next_top10(label: str | None = None) -> list[dict] | None:
     """This host's queue as [{rank, issue, priority, title}], in rank order.
 
     Read live from the labels, the same rule `scripts/make_next.py` prints:
     P0 before P1, then by issue number, for one platform. The committed
     NEXT.md this used to parse went stale between regenerations and covered
     only macOS (#463).
+
+    None when the issue list could not be read: an unread queue is not an
+    empty one.
     """
     label = label or host_platform_label()
+    issues = open_p0p1()
+    if issues is None:
+        return None
     rows = []
-    for issue in open_p0p1():
+    for issue in issues:
         names = {lab["name"] for lab in issue.get("labels", [])}
         prio = sorted(names & {"P0", "P1"})
         if label not in names or len(prio) != 1:
@@ -124,8 +138,8 @@ def next_top10(label: str | None = None) -> list[dict]:
     ]
 
 
-def open_p0p1() -> list[dict]:
-    """Open P0 and P1 issues as [{number, title, labels}]. [] on failure.
+def open_p0p1() -> list[dict] | None:
+    """Open P0 and P1 issues as [{number, title, labels}]. None on failure.
 
     `--limit 200` is deliberate: `gh issue list` defaults to 30 and silently
     undercounts, and a P0 that never appears is a P0 nobody acts on.
@@ -151,18 +165,11 @@ def open_p0p1() -> list[dict]:
             "number,title,labels",
         ]
     )
-    if not out:
-        return []
-    try:
-        import json
-
-        return json.loads(out)
-    except ValueError:
-        return []
+    return _json_list(out)
 
 
-def peer_branches(repo: pathlib.Path = REPO) -> list[dict]:
-    """Local `peer/*` branches as [{name, head}], sorted by name. [] on failure."""
+def peer_branches(repo: pathlib.Path = REPO) -> list[dict] | None:
+    """Local `peer/*` branches as [{name, head}], sorted by name. None on failure."""
     out = _run(
         [
             "git",
@@ -173,8 +180,8 @@ def peer_branches(repo: pathlib.Path = REPO) -> list[dict]:
             "refs/heads/peer/*",
         ]
     )
-    if not out:
-        return []
+    if out is None:
+        return None
     branches = []
     for line in out.splitlines():
         name, _, head = line.partition("\t")
@@ -183,8 +190,8 @@ def peer_branches(repo: pathlib.Path = REPO) -> list[dict]:
     return branches
 
 
-def open_prs() -> list[dict]:
-    """Open PRs as [{number, title, headRefName}]. [] on failure."""
+def open_prs() -> list[dict] | None:
+    """Open PRs as [{number, title, headRefName}]. None on failure."""
     out = _run(
         [
             "gh",
@@ -200,14 +207,22 @@ def open_prs() -> list[dict]:
             "number,title,headRefName",
         ]
     )
+    return _json_list(out)
+
+
+def _json_list(out: str | None) -> list[dict] | None:
+    """A `gh --json` list, [] for no output, None when the call or parse failed."""
+    if out is None:
+        return None
     if not out:
         return []
     try:
         import json
 
-        return json.loads(out)
+        got = json.loads(out)
     except ValueError:
-        return []
+        return None
+    return got if isinstance(got, list) else None
 
 
 def comment_counts(issues: list[int]) -> dict[int, int]:

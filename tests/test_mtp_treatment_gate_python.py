@@ -482,9 +482,10 @@ def _port_run_invs(
     home = tmp_path / "home"
     monkeypatch.setattr(gate, "run_lock", _null_context)
     monkeypatch.setattr(gate, "shim", _null_context)
-    monkeypatch.setattr(
-        wait_ready, "ready", lambda *a, **k: equiv.wait_for_program(out, "ds4-server")
-    )
+    # Narrowed to the port's record: the shell already wrote one to `out`, and
+    # an unnarrowed barrier returned before the port's fake had logged its
+    # graph line -- the assertion then passed on the SHELL's line.
+    monkeypatch.setattr(wait_ready, "ready", equiv.own_server_barrier(out, "port"))
     # The shell resolves these against $HOME; the port computed them at import
     # from the real home. Point them at the tmp home so the server argv agrees.
     monkeypatch.setattr(gate, "DS4_TREE", home / "git" / "ds4-metal")

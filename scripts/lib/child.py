@@ -31,6 +31,7 @@ import os
 import pathlib
 import signal
 import subprocess
+import time
 from collections.abc import Mapping, Sequence
 
 logger = logging.getLogger(__name__)
@@ -112,14 +113,58 @@ def run(
         terminate(proc)
 
 
+def group_alive(pgid: int) -> bool:
+    """Whether any process is still in group `pgid`. EPERM counts as alive.
+
+    Signal 0 to the GROUP, not to the leader. The leader is `run.py`; the
+    thing that writes rows after a teardown is the `opencode` it spawned, and
+    that grandchild stays in the group after the leader has exited.
+
+    The group id cannot be handed to a new process while any member is alive
+    (POSIX keeps a pgid reserved for as long as the group exists), so a live
+    answer here is about our group and not a recycled pid.
+    """
+    try:
+        os.killpg(pgid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def _wait_group(proc: subprocess.Popen[bytes], grace: float) -> bool:
+    """Wait up to `grace` seconds for the whole group to go. True if it did.
+
+    `proc.poll()` reaps the leader on each pass: an unreaped leader is a
+    zombie, a zombie still answers signal 0, and the group would then read as
+    alive for the whole grace period.
+    """
+    deadline = time.monotonic() + grace
+    while True:
+        proc.poll()
+        if not group_alive(proc.pid):
+            return True
+        if time.monotonic() >= deadline:
+            return False
+        time.sleep(0.05)
+
+
 def terminate(proc: subprocess.Popen[bytes], grace: float = GRACE_S) -> None:
-    """Stop `proc`'s process group. A no-op when it has already exited.
+    """Stop `proc`'s process group. A no-op when the whole group has exited.
+
+    The test is the GROUP, never the leader alone. A leader that has exited --
+    on its own, or on the SIGTERM below -- can leave a grandchild running, and
+    until 2026-10-05 this returned as soon as the leader was gone: the group
+    was never signalled, or never escalated to SIGKILL, and a `run.py` that
+    exited while its `opencode` kept going was #268 over again.
 
     Never raises: this runs in a `finally`, often while an exception is already
     propagating, and a failure to reap must not replace the reason the driver
     is stopping.
     """
-    if proc.poll() is not None:
+    proc.poll()
+    if not group_alive(proc.pid):
         return
     for sig in (signal.SIGTERM, signal.SIGKILL):
         try:
@@ -146,9 +191,6 @@ def terminate(proc: subprocess.Popen[bytes], grace: float = GRACE_S) -> None:
             )
             return
         logger.info("sent %s to pid %d's group", sig.name, proc.pid)
-        try:
-            proc.wait(grace)
+        if _wait_group(proc, grace):
             return
-        except subprocess.TimeoutExpired:
-            continue
-    logger.warning("pid %d survived SIGKILL", proc.pid)
+    logger.warning("pid %d's group survived SIGKILL", proc.pid)
