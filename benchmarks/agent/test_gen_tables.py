@@ -219,7 +219,7 @@ def test_a_pass_that_edited_the_tests_is_not_counted_as_a_pass():
     """
     rigged = _trial("qwen") | {"touched_tests": True}
     out = "\n".join(gen_tables.stack_table([rigged], {}))
-    assert "| qwen | 0/1 | — | — | — |" in out
+    assert "| qwen | 0/1 | — | — | — | — | — |" in out
 
 
 def test_every_guard_fails_the_timing_as_well_as_the_count():
@@ -229,30 +229,89 @@ def test_every_guard_fails_the_timing_as_well_as_the_count():
         _trial("qwen", wall=20.0) | {"control_fails_as_expected": False},
     ]
     out = "\n".join(gen_tables.stack_table(rows, {}))
-    assert "| qwen | 1/3 | 50s | 50s | \u2014 |" in out
+    assert "| qwen | 1/3 | 50s | 50s | \u2014 | \u2014 | 1.0x |" in out
 
 
-# --- spread is within one task (review, finding 9) ---------------------------
+# --- three spread measures, each named (review finding 9; owner, 2026-10-05) --
+
+#: Three tasks, two passes each: within-task ratios 2.0, 1.5 and 4.0. The
+#: slowest pass of any task over the fastest of any task is 1500 / 10.
+THREE_TASKS = [
+    ("mbox-scan", 10.0),
+    ("mbox-scan", 20.0),
+    ("parser-date", 1000.0),
+    ("parser-date", 1500.0),
+    ("storage-blob-put", 100.0),
+    ("storage-blob-put", 400.0),
+]
 
 
-def test_spread_is_worst_over_best_on_the_same_task():
-    """The caption says "worst / best on the same task". Pooling every task
-    reported task difficulty as trial variability: a 10 s task and a 1,000 s
-    task read as a 100x spread with no trial varying at all."""
-    rows = [
-        _trial("qwen", wall=10.0) | {"task": "mbox-scan"},
-        _trial("qwen", wall=20.0) | {"task": "mbox-scan"},
-        _trial("qwen", wall=1000.0) | {"task": "parser-date"},
-        _trial("qwen", wall=1500.0) | {"task": "parser-date"},
+def _tasks(pairs):
+    return [_trial("qwen", wall=w) | {"task": t} for t, w in pairs]
+
+
+def test_worst_task_spread_is_the_largest_within_task_ratio():
+    """How bad one task can get: slowest / fastest pass of the same task,
+    the largest over the tasks with two passes."""
+    assert gen_tables.spread_worst(_tasks(THREE_TASKS)) == 4.0
+
+
+def test_typical_task_spread_is_the_median_within_task_ratio():
+    """How consistent the stack usually is: the median of the same ratios."""
+    assert gen_tables.spread_typical(_tasks(THREE_TASKS)) == 2.0
+    two = [("mbox-scan", 10.0), ("mbox-scan", 20.0)]
+    two += [("parser-date", 100.0), ("parser-date", 400.0)]
+    assert gen_tables.spread_typical(_tasks(two)) == 3.0
+
+
+def test_range_is_slowest_pass_over_fastest_pass_across_tasks():
+    """The figure the old `spread` column printed. It is mostly task mix: a
+    10 s task beside a 1,500 s task reads 150x with little trial variation."""
+    assert gen_tables.task_range(_tasks(THREE_TASKS)) == 150.0
+
+
+def test_both_spreads_are_a_dash_without_two_passes_on_one_task():
+    one_each = _tasks([("mbox-scan", 10.0), ("parser-date", 1000.0)])
+    assert gen_tables.spread_worst(one_each) is None
+    assert gen_tables.spread_typical(one_each) is None
+    out = "\n".join(gen_tables.stack_table(one_each, {}))
+    assert "| qwen | 2/2 | 505s | 1000s | — | — | 100.0x |" in out
+
+
+def test_the_range_is_a_dash_without_a_pass():
+    assert gen_tables.task_range([_trial("qwen", passed=False)]) is None
+
+
+def test_failures_never_enter_a_spread():
+    rows = _tasks(THREE_TASKS) + [
+        _trial("qwen", wall=5000.0, passed=False) | {"task": "mbox-scan"}
     ]
-    out = "\n".join(gen_tables.stack_table(rows, {}))
-    assert "| qwen | 4/4 | 510s | 1500s | 2.0x |" in out
+    assert gen_tables.spread_worst(rows) == 4.0
+    assert gen_tables.task_range(rows) == 150.0
 
 
-def test_spread_needs_two_passes_on_one_task():
-    rows = [
-        _trial("qwen", wall=10.0) | {"task": "mbox-scan"},
-        _trial("qwen", wall=1000.0) | {"task": "parser-date"},
+def test_the_table_prints_all_three_in_named_columns():
+    out = gen_tables.stack_table(_tasks(THREE_TASKS), {})
+    assert out[0] == (
+        "| stack | passed | median | worst | spread (worst task) "
+        "| spread (typical task) | range (all tasks) |"
+    )
+    assert "| qwen | 6/6 | 250s | 1500s | 4.0x | 2.0x | 150.0x |" in out
+
+
+def test_every_stack_table_is_followed_by_the_three_definitions(tmp_path):
+    """Each generated table explains its own columns; the old caption, "Spread
+    is worst / best on the same task", described none of them correctly."""
+    path = tmp_path / "results.jsonl"
+    path.write_text("")
+    rows = _tasks(THREE_TASKS)
+    rows += [r | {"task": "replay-defang", "task_kind": "replay"} for r in rows[:2]]
+    rows += [
+        r | {"task": "replay-web-auth-hidden", "replay": {"suite": "hard"}}
+        for r in rows[:2]
     ]
-    out = "\n".join(gen_tables.stack_table(rows, {}))
-    assert "| qwen | 2/2 | 505s | 1000s | — |" in out
+    text = "\n".join(gen_tables.machine_section("Ryzen", path, rows))
+    assert text.count("**spread (worst task)**") == 3
+    assert text.count("**spread (typical task)**") == 3
+    assert text.count("**range (all tasks)**") == 3
+    assert "Spread is worst / best on the same task" not in text

@@ -137,20 +137,68 @@ def _timed(rows: list[dict[str, Any]]) -> list[float]:
     ]
 
 
-def spread(rows: list[dict[str, Any]]) -> float | None:
-    """The largest worst / best over passing trials **of one task**.
-
-    `max / min` over every task reported task difficulty as trial
-    variability: a 10 s task beside a 1,000 s task read as 100x with no trial
-    varying at all, under a caption that says "on the same task" (review of
-    b7a366b). None when no task has two passing trials to compare.
-    """
+def _passing_walls(rows: list[dict[str, Any]]) -> dict[str, list[float]]:
+    """Wall times of the passing excision trials, per task."""
     by_task: dict[str, list[float]] = collections.defaultdict(list)
     for x in _excision(rows):
         if results.verdict(x) and x.get("wall_seconds"):
             by_task[str(x.get("task"))].append(x["wall_seconds"])
-    ratios = [max(w) / min(w) for w in by_task.values() if len(w) >= 2]
+    return by_task
+
+
+def _task_ratios(rows: list[dict[str, Any]]) -> list[float]:
+    """Slowest / fastest pass of each task that has two or more passes."""
+    return [max(w) / min(w) for w in _passing_walls(rows).values() if len(w) >= 2]
+
+
+# Three measures, because one number answered three questions badly (review of
+# b7a366b, finding 9; the operator chose all three, 2026-10-05). The old column
+# was `task_range` under a caption that said "on the same task": it reported
+# task difficulty as trial variability.
+
+
+def spread_worst(rows: list[dict[str, Any]]) -> float | None:
+    """How bad one task can get: the largest within-task slowest / fastest.
+
+    None when no task has two passing trials to compare.
+    """
+    ratios = _task_ratios(rows)
     return max(ratios) if ratios else None
+
+
+def spread_typical(rows: list[dict[str, Any]]) -> float | None:
+    """How consistent the stack usually is: the median within-task ratio.
+
+    None when no task has two passing trials to compare.
+    """
+    ratios = _task_ratios(rows)
+    return statistics.median(ratios) if ratios else None
+
+
+def task_range(rows: list[dict[str, Any]]) -> float | None:
+    """Slowest pass of any task over the fastest pass of any task.
+
+    Mostly the task mix, not consistency: a 10 s task beside a 1,000 s task
+    reads 100x with no trial varying at all. None without a passing trial.
+    """
+    walls = [w for ws in _passing_walls(rows).values() for w in ws]
+    return max(walls) / min(walls) if walls else None
+
+
+#: Printed under every stack table, so each table explains its own columns.
+SPREAD_NOTE = (
+    "**spread (worst task)** is the slowest pass of one task over its fastest "
+    "pass, for the task where that ratio is largest: how bad one task can get. "
+    "**spread (typical task)** is the median of the same per-task ratios: how "
+    "consistent the stack usually is. Both need a task with two passes, or "
+    "show a dash. **range (all tasks)** is the slowest pass of any task over "
+    "the fastest pass of any task: how different the tasks are. It is mostly "
+    "task mix, not consistency."
+)
+
+
+def _ratio_cell(value: float | None) -> str:
+    return "\u2014" if value is None else f"{value:.1f}x"
 
 
 def stack_key(row: dict[str, Any]) -> tuple[str, tuple[str, ...]]:
@@ -210,13 +258,19 @@ def stack_table(
     names = client_names(rows)
     if hidden:
         out = [
-            "| stack | passed | hidden passed | median | worst | spread |",
-            "|---|---|---|---|---|---|",
+            (
+                "| stack | passed | hidden passed | median | worst "
+                "| spread (worst task) | spread (typical task) | range (all tasks) |"
+            ),
+            "|---|---|---|---|---|---|---|---|",
         ]
     else:
         out = [
-            "| stack | passed | median | worst | spread |",
-            "|---|---|---|---|---|",
+            (
+                "| stack | passed | median | worst "
+                "| spread (worst task) | spread (typical task) | range (all tasks) |"
+            ),
+            "|---|---|---|---|---|---|---|",
         ]
     # A stack with no passing trial has no timing at all. It keeps its row --
     # the pass column is the whole point of it -- and sorts last.
@@ -227,11 +281,14 @@ def stack_table(
         p = sum(1 for x in rs if results.verdict(x))
         w = _timed(rs)
         if w:
-            sp = spread(rs)
-            sp_cell = "\u2014" if sp is None else f"{sp:.1f}x"
-            timing = f"{statistics.median(w):.0f}s | {max(w):.0f}s | {sp_cell} |"
+            timing = (
+                f"{statistics.median(w):.0f}s | {max(w):.0f}s | "
+                f"{_ratio_cell(spread_worst(rs))} | "
+                f"{_ratio_cell(spread_typical(rs))} | "
+                f"{_ratio_cell(task_range(rs))} |"
+            )
         else:
-            timing = "\u2014 | \u2014 | \u2014 |"
+            timing = "\u2014 | \u2014 | \u2014 | \u2014 | \u2014 |"
         extra = f" {_hidden_cell(rs)} |" if hidden else ""
         out.append(
             f"| {stack_name(name, labels, split, names)} | {p}/{len(rs)} |{extra} "
@@ -505,7 +562,7 @@ def machine_section(
     # before the rows do.
     out += [
         (
-            "**The three timing columns count only trials that passed.** A "
+            "**The timing columns count only trials that passed.** A "
             "trial that dies early is quick, so counting failures would "
             "reward a stack for failing fast and lift it up a table sorted "
             "by median. Read the `passed` column first."
@@ -520,11 +577,10 @@ def machine_section(
         "",
         (
             "Excision tasks only; `script-*` excluded because they are a "
-            "different class. **Spread is worst / best on the same task**: "
-            "the largest such ratio over the tasks with two or more passing "
-            "trials, or a dash when none has two. It is the column most "
-            "people forget to ask for."
+            "different class."
         ),
+        "",
+        SPREAD_NOTE,
         "",
     ]
     replay = [r for r in rows if is_replay(r) and not is_hard_replay(r)]
@@ -540,6 +596,8 @@ def machine_section(
                 "lines each. The target repo is public, so a pass may be "
                 "partly recall; see each row's `replay` record."
             ),
+            "",
+            SPREAD_NOTE,
             "",
         ]
     if valid_opencode(hard):
@@ -558,6 +616,8 @@ def machine_section(
                 "Kept apart from the table above so its seven tasks stay "
                 "comparable."
             ),
+            "",
+            SPREAD_NOTE,
             "",
         ]
     # The two-engine table is a Mac-only comparison (llama.cpp vs LM Studio on
