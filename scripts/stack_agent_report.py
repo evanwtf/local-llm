@@ -512,9 +512,9 @@ def pass_pairs(sweeps: list[Sweep]) -> list[tuple[str, int, int, int, int]]:
         out.append(
             (
                 task,
-                sum(1 for r in n_rows if r.get("passed")),
+                sum(1 for r in n_rows if passes(r)),
                 len(n_rows),
-                sum(1 for r in o_rows if r.get("passed")),
+                sum(1 for r in o_rows if passes(r)),
                 len(o_rows),
             )
         )

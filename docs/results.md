@@ -108,11 +108,11 @@ other is telling you something.
 | qwen36nvfp4dgx | 60/60 | 175s | 845s | 13.2x |
 | qwen36nvfp4v1dgx | 29/30 | 190s | 832s | 12.3x |
 | glm53flashexl3k2nothinkrcdgx @ Ryzen9-7900X-32GB+image@24g | 14/18 | 190s | 570s | 3.7x |
-| qwen38fnexl3nomtpnothinkdgx | 4/6 | 196s | 1696s | 16.5x |
 | nemotroncascade2 | 2/10 | 197s | 197s | 1.0x |
 | nemotron3super120bdgx | 28/30 | 212s | 1364s | 12.3x |
 | qwen36nvfp4specdgx | 28/42 | 241s | 1094s | 24.3x |
 | ds4dgx | 60/60 | 248s | 493s | 6.1x |
+| qwen38fnexl3nomtpnothinkdgx | 3/6 | 260s | 1696s | 16.5x |
 | glm53flashexl3k2nothinkdgx | 1/1 | 274s | 274s | 1.0x |
 | nemotron3super120bmtpnopcdgx | 29/30 | 374s | 1154s | 7.7x |
 | qwen36bf16dgx | 30/30 | 432s | 1335s | 6.7x |
@@ -222,7 +222,7 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 | glm53fexl3tfmiaaiv15dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 42/42 | 134s | 362s | 19.4x |
 | glm53fexl3tfmiaaiv14dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 42/42 | 144s | 351s | 19.0x |
 | glm53ftfjaydual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 42/42 | 145s | 402s | 18.3x |
-| glm53ftfjaydual2xrc @ Corei3-7100-16GB+image | 21/21 | 156s | 470s | 21.4x |
+| glm53ftfjaydual2xrc @ Corei3-7100-16GB+image | 20/21 | 157s | 470s | 21.4x |
 | glm53fnvfp4kindlingdual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 63/63 | 157s | 408s | 18.2x |
 | glm53fexl3tfmiaaiv132dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 21/21 | 162s | 328s | 17.8x |
 | glm53fexl3tfmiaaiv15dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 21/21 | 162s | 319s | 16.9x |
@@ -248,23 +248,23 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 
 | stack | passed | hidden passed | median | worst | spread |
 |---|---|---|---|---|---|
-| glm53fexl3tfmiaaiv132dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 21/21 | 4/21 | 256s | 1131s | 10.8x |
-| glm53fexl3tfmiaaiv14dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 42/42 | 0/42 | 268s | 1143s | 16.9x |
-| glm53fexl3tfmiaaiv15dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 21/21 | 1/21 | 269s | 1178s | 15.9x |
-| glm53fexl3tfmiaaiv15dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 42/42 | 3/42 | 295s | 1061s | 14.2x |
+| glm53fexl3tfmiaaiv132dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 20/21 | 4/21 | 250s | 1131s | 10.8x |
+| glm53fexl3tfmiaaiv15dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 20/21 | 1/21 | 262s | 1178s | 15.9x |
+| glm53fexl3tfmiaaiv14dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 40/42 | 0/42 | 266s | 1143s | 16.9x |
+| glm53fexl3tfmiaaiv15dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 41/42 | 3/42 | 286s | 1061s | 14.2x |
 | glm53fexl3tfmiaaiv132dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 20/21 | 3/21 | 302s | 1130s | 10.9x |
 | glm53fexl3tfmiaaidual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 21/21 | 2/21 | 310s | 1030s | 18.5x |
+| glm53fexl3dual2xrclatestout64k @ Corei3-7100-16GB+image | 20/21 | 2/21 | 355s | 1596s | 9.7x |
 | glm53ftfjaydual2xrc @ Corei3-7100-16GB+image | 20/21 | 2/21 | 355s | 1297s | 16.9x |
-| glm53fexl3dual2xrclatestout64k @ Corei3-7100-16GB+image | 21/21 | 2/21 | 360s | 1596s | 9.7x |
+| glm53fnvfp4kindlingdual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 57/63 | 7/63 | 364s | 1478s | 13.7x |
 | glm53ftfjaydual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 41/42 | 4/42 | 366s | 1376s | 12.8x |
-| glm53fnvfp4kindlingdual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 61/63 | 7/63 | 385s | 1478s | 13.7x |
 | glm53ftfjaydual2xrchigh @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 15/21 | 1/21 | 459s | 965s | 5.6x |
-| glm53fexl3dual2xrcctx @ Corei3-7100-16GB+image | 41/42 | 4/42 | 492s | 2067s | 14.3x |
 | glm53fexl3dual2xrclatest @ Corei3-7100-16GB+image | 21/21 | 2/21 | 505s | 1659s | 13.6x |
-| glm53fexl3dual2xrclatest @ Corei3-7100-16GB+image | 19/21 | 4/21 | 515s | 2046s | 15.6x |
+| glm53fexl3dual2xrclatest @ Corei3-7100-16GB+image | 18/21 | 4/21 | 511s | 2046s | 15.6x |
+| glm53fexl3dual2xrcctx @ Corei3-7100-16GB+image | 40/42 | 4/42 | 518s | 2067s | 14.3x |
 | qwen38fnhibrid48dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 20/21 | 2/21 | 743s | 1714s | 7.9x |
 | dsv4flashvisiondspark2xrc @ Corei3-7100-16GB+image | 40/42 | 0/42 | 786s | 3557s | 12.7x |
-| qwen38fnnvfp4dual2xrcflags @ Corei3-7100-16GB+image | 42/42 | 2/42 | 788s | 2557s | 9.4x |
+| qwen38fnnvfp4dual2xrcflags @ Corei3-7100-16GB+image | 40/42 | 2/42 | 788s | 2557s | 9.4x |
 | dsv41fexl3dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 13/19 | 5/19 | 1005s | 1428s | 3.9x |
 | dsv41fexl3dual2xrc @ Corei3-7100-16GB+image | 16/17 | 2/17 | 1140s | 3471s | 9.6x |
 
@@ -338,7 +338,7 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 | qwen38fnds4shim | 387/427 | 123s | 792s | 25.5x |
 | qwen38fnds4greedy | 64/70 | 142s | 806s | 18.2x |
 | qwen38fnds4q4exp | 151/151 | 149s | 572s | 11.7x |
-| qwen38fnds4q4exppr5 | 45/45 | 149s | 367s | 7.4x |
+| qwen38fnds4q4exppr5 | 44/45 | 149s | 367s | 7.4x |
 | gemma426 | 11/11 | 150s | 160s | 1.7x |
 | qwen36 | 11/12 | 159s | 352s | 3.6x |
 | qwen38fnds4mtpauto | 60/60 | 168s | 310s | 3.3x |
@@ -360,8 +360,8 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 
 | stack | passed | median | worst | spread |
 |---|---|---|---|---|
-| qwen38fnsushi4 | 38/41 | 237s | 1460s | 61.9x |
-| qwen38fnmlxserve | 39/41 | 307s | 1726s | 32.1x |
+| qwen38fnsushi4 | 36/41 | 213s | 1460s | 61.9x |
+| qwen38fnmlxserve | 36/41 | 288s | 1726s | 32.1x |
 
 Seven commits from gmail-archive's history, 60-600 changed lines each. The target repo is public, so a pass may be partly recall; see each row's `replay` record.
 
@@ -369,8 +369,8 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 
 | stack | passed | hidden passed | median | worst | spread |
 |---|---|---|---|---|---|
-| qwen38fnsushi4 | 32/42 | 3/42 | 687s | 1734s | 13.9x |
-| qwen38fnmlxserve | 36/41 | 2/41 | 725s | 1706s | 7.8x |
+| qwen38fnsushi4 | 26/42 | 3/42 | 552s | 1597s | 12.8x |
+| qwen38fnmlxserve | 25/41 | 2/41 | 590s | 1594s | 7.3x |
 
 `passed` is the tests the agent could see. **`hidden passed` is tests it never saw**, run only by the oracle, over the trials whose task holds tests out; a dash means none did. Kept apart from the table above so its seven tasks stay comparable.
 
@@ -436,8 +436,8 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 | dtornith159b | 49/67 | 93s | 534s | 16.2x |
 | dtbonsai27bllamacpp | 26/38 | 117s | 335s | 6.0x |
 | dtqwen359bq8 | 20/41 | 120s | 157s | 1.8x |
+| dtbonsai27b | 18/38 | 132s | 132s | 1.0x |
 | dtsparkx254b | 21/54 | 173s | 207s | 1.3x |
-| dtbonsai27b | 19/38 | 185s | 238s | 1.8x |
 | dtgemma412b | 9/42 | 209s | 209s | 1.0x |
 | dtternarybonsai227b | 14/30 | 273s | 711s | 15.7x |
 | dtternarybonsai2ptq127b | 17/30 | 353s | 1036s | 11.7x |

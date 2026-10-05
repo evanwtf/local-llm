@@ -837,3 +837,13 @@ def test_the_override_does_not_lift_other_voids():
     short.rows = [{"task": "t"}]
     got = sar.void_checks(rows_at_heads("abc1234", "def5678"), [short], [], "docs only")
     assert any("expected" in f for f in got), got
+
+
+def test_pass_pairs_judge_with_the_verdict_not_the_raw_flag():
+    """tally() counts a guard flip as a failure; the paired sign test must
+    too, or the two halves of one report disagree about the same row."""
+    new = sar.Sweep("new-sweep1", dt.datetime(2026, 9, 7, 8, 43))
+    new.rows = [{"task": "t", "passed": True, "touched_tests": True}]
+    old = sar.Sweep("old-sweep1", dt.datetime(2026, 9, 7, 9, 28))
+    old.rows = [{"task": "t", "passed": True}]
+    assert sar.pass_pairs([new, old]) == [("t", 0, 1, 1, 1)]
