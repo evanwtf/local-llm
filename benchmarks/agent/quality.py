@@ -76,14 +76,16 @@ def summarize(rows: list[dict[str, Any]]) -> dict[tuple[str, str, str], dict]:
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    p.add_argument(
-        "--results", default=str(pathlib.Path(__file__).parent / "results.jsonl")
-    )
+    # This machine's ledger. The old default, benchmarks/agent/results.jsonl,
+    # no longer exists, and an absent ledger reads as no history at all.
+    p.add_argument("--results", default=None, help="default: this machine's ledger")
     p.add_argument("--task", action="append", help="repeatable; default all")
     args = p.parse_args(argv)
     provenance.configure()
 
-    rows = results.trials(pathlib.Path(args.results))
+    rows = results.trials(
+        pathlib.Path(args.results) if args.results else results.default_path()
+    )
     if args.task:
         rows = [r for r in rows if r["task"] in args.task]
     got = summarize(rows)

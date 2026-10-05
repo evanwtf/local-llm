@@ -100,8 +100,13 @@ def tally(rows: list[dict], after: set[str]) -> dict[tuple[str, str, str], list[
         # miscounted fourteen rows once; see RESULTS.md.
         if r.get("client") != "opencode" or results.is_excluded(r):
             continue
+        # A dry run is a setup check with no verdict, and a pass is
+        # results.verdict()'s, guards included: a row that edited the tests
+        # passed nothing (code review, 2026-10-05).
+        if r.get("dry_run"):
+            continue
         cell = out[(r["backend"], task_class(r), era(r, after))]
-        cell[0] += bool(r.get("passed"))
+        cell[0] += results.verdict(r)
         cell[1] += 1
     return dict(out)
 

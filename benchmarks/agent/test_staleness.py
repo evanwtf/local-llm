@@ -241,3 +241,59 @@ def test_a_worktree_reports_its_own_fetch_age_not_the_main_repos(tmp_path):
     age = tree_drift["fetched_days_ago"]
     assert age is not None
     assert age < 0.01
+
+
+# --- multi-line output is read whole (code review, 2026-10-05) ---------------
+#
+# _run picks one version-bearing line, which is right for `--version` and
+# wrong for everything else: new_remote_branches saw one branch, and
+# fetch_notifications got one line of pretty-printed JSON and returned [].
+
+
+def _stdout(monkeypatch, text):
+    import subprocess
+
+    monkeypatch.setattr(
+        staleness.subprocess,
+        "run",
+        lambda argv, **kw: subprocess.CompletedProcess(argv, 0, stdout=text, stderr=""),
+    )
+
+
+def test_every_fresh_remote_branch_is_reported(monkeypatch, tmp_path):
+    import time
+
+    now = int(time.time())
+    _stdout(
+        monkeypatch,
+        f"origin/feature-a\t{now}\norigin/feature-b\t{now - 60}\n"
+        f"origin/main\t{now}\norigin/stale\t{now - 90 * 86400}\n",
+    )
+    assert staleness.new_remote_branches(tmp_path) == ["feature-a", "feature-b"]
+
+
+def test_pretty_printed_notifications_are_parsed(monkeypatch):
+    import json
+
+    _stdout(monkeypatch, json.dumps(NOTIFS, indent=2) + "\n")
+    got = staleness.fetch_notifications()
+    assert len(got) == len(NOTIFS)
+    assert got[0]["subject"]["title"].startswith("metal: scale GLM 5.3")
+
+
+def test_paginated_notifications_are_all_parsed(monkeypatch):
+    """`gh api --paginate` prints one JSON array per page, back to back."""
+    import json
+
+    pages = json.dumps(NOTIFS[:2], indent=2) + "\n" + json.dumps(NOTIFS[2:], indent=2)
+    _stdout(monkeypatch, pages + "\n")
+    assert len(staleness.fetch_notifications()) == len(NOTIFS)
+
+
+def test_a_version_is_still_read_from_its_own_line(monkeypatch):
+    _stdout(
+        monkeypatch,
+        "Warning: could not connect to a running Ollama instance\n"
+        "ollama version is 0.12.3\n",
+    )
+    assert staleness._run(["ollama", "--version"]) == "ollama version is 0.12.3"

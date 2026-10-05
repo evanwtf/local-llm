@@ -145,3 +145,82 @@ def test_a_docstring_only_function_can_still_be_hollowed_out(tmp_path):
     removed = excise(p, "f", keep_docstring=False)
     assert "Just this." in removed
     assert "NotImplementedError" in p.read_text()
+
+
+# --- a body on the header's line (code review, 2026-10-05) -------------------
+#
+# The span started at the body's line, and excise() replaced whole lines, so an
+# inline `def f(): return 1` lost its signature and left an indented `raise` at
+# module scope: an invalid target.
+
+
+def _stubbed(path: pathlib.Path, name: str) -> None:
+    """The excised module runs, and calling `name` raises the stub's error."""
+    namespace: dict[str, object] = {}
+    exec(path.read_text(), namespace)  # noqa: S102 - this test's own fixture
+    target = namespace[name]
+    assert callable(target)
+    with pytest.raises(NotImplementedError):
+        target(*([None] * target.__code__.co_argcount))  # type: ignore[attr-defined]
+
+
+INLINE = """\
+def keep_me():
+    return 1
+
+
+def target(a, b): return a + b
+
+
+class Holder:
+    def method(self, x): return x * 2
+"""
+
+
+def test_an_inline_body_keeps_its_signature(tmp_path):
+    p = tmp_path / "mod.py"
+    p.write_text(INLINE)
+    removed = excise(p, "target")
+    assert removed == "return a + b\n"
+    assert "def target(a, b):" in p.read_text()
+    _stubbed(p, "target")
+    assert "def keep_me():\n    return 1" in p.read_text()
+
+
+def test_an_inline_method_keeps_its_signature(tmp_path):
+    p = tmp_path / "mod.py"
+    p.write_text(INLINE)
+    assert body_source(p, "Holder.method") == "return x * 2\n"
+    assert excise(p, "Holder.method") == "return x * 2\n"
+    namespace: dict[str, object] = {}
+    exec(p.read_text(), namespace)  # noqa: S102 - this test's own fixture
+    with pytest.raises(NotImplementedError):
+        namespace["Holder"]().method(1)  # type: ignore[operator]
+
+
+def test_a_docstring_with_a_statement_on_its_line_keeps_the_docstring(tmp_path):
+    p = tmp_path / "mod.py"
+    p.write_text('def target(a):\n    """Doc."""; return a\n')
+    assert body_source(p, "target") == "return a\n"
+    assert excise(p, "target") == "return a\n"
+    after = p.read_text()
+    assert '"""Doc."""' in after
+    _stubbed(p, "target")
+
+
+def test_an_inline_body_without_its_docstring_kept(tmp_path):
+    p = tmp_path / "mod.py"
+    p.write_text('def target(a): """Doc."""; return a\n')
+    removed = excise(p, "target", keep_docstring=False)
+    assert removed == '"""Doc."""; return a\n'
+    assert "Doc." not in p.read_text()
+    _stubbed(p, "target")
+
+
+def test_the_common_layout_is_byte_identical_to_before(sample):
+    """The fix touches only bodies that share a line with code before them."""
+    excise(sample, "target")
+    assert sample.read_text() == SAMPLE.replace(
+        "    total = a + b\n    return total\n",
+        '    raise NotImplementedError("removed for benchmark")\n',
+    )

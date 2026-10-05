@@ -151,3 +151,47 @@ def test_rows_without_a_client_are_ignored() -> None:
 
 def test_rate_of_nothing_is_zero_not_a_crash() -> None:
     assert plausibility.rate([]) == 0.0
+
+
+# --- the verdict, not the raw flag (code review, 2026-10-05) -----------------
+
+
+def test_a_pass_that_broke_a_guard_counts_as_a_failure() -> None:
+    """Four "passes" that edited the tests, left the sandbox, or met an
+    invisible excision are four failures. Read raw, the cell looked healthy
+    and the collapse check stayed quiet."""
+    current = [
+        {"backend": "ds4", "client": "opencode", "passed": True, "touched_tests": True},
+        {
+            "backend": "ds4",
+            "client": "opencode",
+            "passed": True,
+            "source_repo_intact": False,
+        },
+        {
+            "backend": "ds4",
+            "client": "opencode",
+            "passed": True,
+            "control_fails_as_expected": False,
+        },
+        {"backend": "ds4", "client": "opencode", "passed": True, "touched_tests": True},
+    ]
+    why = plausibility.implausible(
+        current, rows(8, 8, client="claude"), "ds4", "opencode"
+    )
+    assert why and "0/4" in why and "8/8" in why
+
+
+def test_a_guarded_prior_is_not_a_strong_prior() -> None:
+    prior = rows(8, 8, client="claude")
+    for r in prior:
+        r["touched_tests"] = True
+    assert plausibility.rate(prior) == 0.0
+
+
+def test_a_dry_run_is_not_counted() -> None:
+    """A dry run has no verdict; it must not raise or count."""
+    prior = rows(8, 8, client="claude") + [
+        {"backend": "ds4", "client": "claude", "passed": None, "dry_run": True}
+    ]
+    assert plausibility.rate(prior) == 1.0
