@@ -517,12 +517,19 @@ one changes what you would have to build to see the same result:
 * [The build behind `qwen38fnds4shim` has been withdrawn](#the-ds4-shim-rows-were-measured-on-a-build-its-author-has-withdrawn)
   — the Q4_0 file it measured is no longer offered on Hugging Face.
 
-**Reading the spread column.** It is the worst run divided by the best run *on
-the same task*. Anything near 4x is ordinary — these models sample at
-temperature and sometimes write four times as much code to solve the same
-problem. The two at 12x and 18x are different in kind: on one task, GLM-5.3 took
-**99 seconds once and 1,227 seconds another time**. It got the right answer both
-times.
+**Reading the spread columns.** *Spread (worst task)* is the slowest passing
+run divided by the fastest passing run of the same task, taken on the stack's
+least consistent task. *Spread (typical task)* is the median of those per-task
+ratios. *Range (all tasks)* compares different tasks, so it mostly shows how
+varied the task set is. A worst-task spread near 4x is ordinary: these models
+sample at temperature and sometimes write four times as much code for the same
+problem. GLM-5.3 on ds4 is different in kind: on `mbox-strip-envelope` it
+passed in **68 seconds once and 687 seconds another time** (10.1x), though its
+typical task is steady at 1.9x.
+
+*Correction (2026-10-05):* an earlier version said GLM-5.3 took 99 s and
+1,227 s on one task and passed both times. The 99 s run failed. The 12x and
+18x it quoted were all-task ranges, not same-task spreads.
 
 **That variance is the agent, not the machine.** We checked. Across 113 trials,
 wall time correlates with output tokens at **0.97** and with turns taken at
@@ -531,9 +538,9 @@ wall time correlates with output tokens at **0.97** and with turns taken at
 where the computer was busy.
 
 **Which is why GLM-5.3-Flash is not in the top three.** It serves tokens faster
-than almost anything here (47s per 1k) and it passes 16/18. But you cannot plan
-around it: a task that usually takes 90 seconds will occasionally take twenty
-minutes.
+than almost anything here (47s per 1k) and it passes 16/18. But one of its
+tasks ran ten times slower on one pass than on another, so a task that usually
+takes about a minute can occasionally take more than ten.
 
 ---
 
