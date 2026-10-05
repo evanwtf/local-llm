@@ -401,3 +401,28 @@ def test_the_sweep_hands_run_py_its_arms_gate_env(tmp_path, monkeypatch) -> None
     sab.sweep(sab.arm_from_env("NEW"), "new-sweep1", tmp_path, "abc")
     assert seen["DS4_TREE"] == "/trees/main"
     assert seen["DS4_TEST_MODEL"] == "/models/main.gguf"
+
+
+def test_an_mlx_arm_hands_its_env_and_unset_to_the_server(tmp_path, monkeypatch):
+    """The run record names an mlx arm's env; the server must receive it."""
+    monkeypatch.setenv("NEW_ENGINE", "mlx-serve")
+    monkeypatch.setenv("NEW_MLX_MODEL", "/packs/qwen38fn")
+    monkeypatch.setenv("NEW_ENV", "MLX_METAL_MEMORY_LIMIT=96")
+    monkeypatch.setenv("NEW_UNSET", "MLX_REVIEW_OFF")
+    seen: dict = {}
+
+    import contextlib
+
+    @contextlib.contextmanager
+    def fake_serving(command, log, **kwargs):
+        seen.update(kwargs)
+        yield object()
+
+    monkeypatch.setattr(sab.ds4_server, "stop", lambda *a, **k: None)
+    monkeypatch.setattr(sab.mlx_serve, "stop_and_prove", lambda *a, **k: None)
+    monkeypatch.setattr(sab.mlx_serve, "serving", fake_serving)
+    monkeypatch.setattr(sab.wait_ready, "ready", lambda *a, **k: True)
+    with sab.serving(sab.arm_from_env("NEW"), "new-sweep1", tmp_path):
+        pass
+    assert seen["env"] == {"MLX_METAL_MEMORY_LIMIT": "96"}
+    assert tuple(seen["unset"]) == ("MLX_REVIEW_OFF",)

@@ -49,3 +49,15 @@ def test_a_backend_with_no_timed_trial_reports_none():
     got = reco_rows.row([_r("mbox-scan", False, 30.0, 5)], "b")
     assert got["median_s"] is None and got["turns"] is None
     assert got["passed"] == 0 and got["trials"] == 1
+
+
+def test_a_guard_failure_is_not_a_pass():
+    """reco_rows quotes what gen_tables prints, so it judges the same way:
+    results.verdict(), never the raw `passed` (review)."""
+    rows = [
+        _r("mbox-scan", True, 40.0, 10),
+        _r("parser-date", True, 5.0, 2) | {"touched_tests": True},
+    ]
+    got = reco_rows.row(rows, "b")
+    assert got["passed"] == 1 and got["trials"] == 2
+    assert got["median_s"] == 40.0 and got["worst_s"] == 40.0

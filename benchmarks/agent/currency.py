@@ -233,17 +233,21 @@ def image_digest_local(ref: str, run: Runner = _run) -> str | None:
     return None
 
 
-def stale_containers(ref: str, run: Runner = _run) -> list[str]:
+def stale_containers(ref: str, run: Runner = _run) -> list[str] | None:
     """Running containers started from `ref` but not from its current image.
 
     Pulling a newer image moves the tag, not a container already running; a
     server launched before the pull still serves the old image while the tag
     reads current.
+
+    None when any probe failed. "" from `docker ps -q` is success with no
+    containers; None is a probe that could not run. Reading a failure as an
+    empty list passed the gate while an old container might still serve.
     """
     tag_id = run(["docker", "image", "inspect", ref, "--format", "{{.Id}}"], 30)
     ids = run(["docker", "ps", "-q"], 30)
-    if not tag_id or not ids:
-        return []
+    if not tag_id or ids is None:
+        return None
     stale = []
     for cid in ids.split():
         got = run(
@@ -257,7 +261,7 @@ def stale_containers(ref: str, run: Runner = _run) -> list[str]:
             30,
         )
         if not got or got.count("|") != 2:
-            continue
+            return None
         cname, image, running = got.split("|")
         if image == ref and running != tag_id:
             stale.append(cname.lstrip("/"))
@@ -276,6 +280,14 @@ def image_item(ref: str, run: Runner = _run) -> Item:
         )
     if here == there:
         stale = stale_containers(ref, run)
+        if stale is None:
+            return Item(
+                name,
+                here[:19],
+                there[:19],
+                "unknown",
+                f"could not list the running containers of {ref}; is docker up?",
+            )
         if stale:
             return Item(
                 name,

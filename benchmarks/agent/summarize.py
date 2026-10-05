@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Summarize results.jsonl into a table you can paste into a report.
 
-Reports pass rate, median wall time and median turns per (task, backend), plus
-a per-backend total. Medians rather than means: these runs have a fat right
+Reports pass rate, median wall time and median turns per (task, stack), plus
+a per-stack total. A stack is a backend under one harness on one client
+machine: the ranking inverts across harnesses, so a backend alone is not a
+result (AGENTS.md). Medians rather than means: these runs have a fat right
 tail -- an agent that thrashes can take five times as long as one that does
 not, and a single such run drags a mean somewhere unrepresentative.
 
@@ -62,6 +64,39 @@ def load(path):
     return rows, discarded, retired, cheats
 
 
+def stack_key(row):
+    """What a column is: backend, harness, and the client machine (#562).
+
+    Grouping by backend alone pooled Claude Code, Codex and OpenCode trials
+    into one pass rate and one median (review of b7a366b).
+    """
+    return (row["backend"], row.get("client") or "?", results.client_identity(row))
+
+
+def stacks(rows):
+    """Rows grouped by `stack_key`, in sorted order."""
+    by = defaultdict(list)
+    for r in rows:
+        by[stack_key(r)].append(r)
+    return dict(sorted(by.items()))
+
+
+def stack_names(rows):
+    """A display name per stack. The client machine is named only when the
+    rows hold more than one, the way gen_tables names it."""
+    keys = stacks(rows)
+    split = len({k[2] for k in keys}) > 1
+    labels = {results.client_identity(r): results.client_label(r) for r in rows}
+    out = {}
+    for key in keys:
+        backend, client, machine = key
+        name = f"{backend} · {client}"
+        if split and machine != results.LOCAL_CLIENT:
+            name += f" @ {labels[machine]}"
+        out[key] = name
+    return out
+
+
 def med(values):
     vals = [v for v in values if v is not None]
     return statistics.median(vals) if vals else None
@@ -103,15 +138,18 @@ def main():
     if cheats:
         logger.info(f"WARNING: {cheats} row(s) edited the tests; counted as failures")
 
-    backends = sorted({r["backend"] for r in rows})
+    names = stack_names(rows)
+    backends = list(names)
     tasks = list(dict.fromkeys(r["task"] for r in rows))
     by = defaultdict(list)
     for r in rows:
-        by[(r["task"], r["backend"])].append(r)
+        by[(r["task"], stack_key(r))].append(r)
 
     sep = " | " if args.markdown else "  "
     head = (
-        ["task"] + [f"{b} pass" for b in backends] + [f"{b} median s" for b in backends]
+        ["task"]
+        + [f"{names[b]} pass" for b in backends]
+        + [f"{names[b]} median s" for b in backends]
     )
     if args.markdown:
         logger.info("| " + " | ".join(head) + " |")
@@ -145,11 +183,11 @@ def main():
     # so every run crashed after emitting the table.
     logger.info("")
     for b in backends:
-        rs = [r for r in rows if r["backend"] == b]
+        rs = [r for r in rows if stack_key(r) == b]
         passed = sum(bool(r.get("passed")) for r in rs)
         timeouts = sum(r.get("error") == "timeout" for r in rs)
         logger.info(
-            f"{b:<6} {passed}/{len(rs)} passed"
+            f"{names[b]:<6} {passed}/{len(rs)} passed"
             f"   median {fmt(med([r.get('wall_seconds') for r in rs]), 's')}"
             f"   median turns {fmt(med([r.get('num_turns') for r in rs]), '', 0)}"
             f"   timeouts {timeouts}"
