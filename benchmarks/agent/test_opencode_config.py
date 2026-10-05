@@ -126,6 +126,15 @@ def test_a_small_model_already_being_measured_is_not_a_second_model(tmp_path):
     assert opencode_config.small_model_conflict({"vllm/qwen3.6-27b-nvfp4"}, cfg) is None
 
 
+def test_a_small_model_is_a_second_model_beside_another_backend(tmp_path):
+    """Equal to one selected model is not enough: while c/d is measured, a/b
+    is a second model on the box. And preflight passes the whole registry, so
+    "any registered model" silenced the check for every small_model at all."""
+    cfg = _cfg(tmp_path, {"small_model": "a/b"})
+    got = opencode_config.small_model_conflict({"a/b", "c/d"}, cfg)
+    assert got and "a/b" in got and "c/d" in got
+
+
 def test_an_unreadable_config_says_nothing_rather_than_accusing(tmp_path):
     """Same rule as declared_models: cannot tell is not the same as unsafe."""
     missing_file = tmp_path / "nope.json"

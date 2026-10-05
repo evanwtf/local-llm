@@ -76,6 +76,16 @@ def collect(
         if cluster_peer
         else hardware_id.directory_name(facts, platform)
     )
+    # The other half of #647: the peer check proves a cluster exists, and this
+    # proves the backend needs one. A two-node backend without --cluster-peer
+    # gets the single-Spark name and its rows the single-Spark ledger, and a
+    # one-node backend with it gets the cluster's. Refuse both here, before
+    # the file exists; run.py checks again when it reads the file.
+    import remote
+
+    why = remote.tier_mismatch(backend, cfg["backend"][backend], directory)
+    if why:
+        raise SystemExit(f"server_facts: {why}")
     return {
         "directory": directory,
         "backend": backend,

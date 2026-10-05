@@ -33,6 +33,7 @@ decision that would otherwise be made wrong silently:
 from __future__ import annotations
 
 import argparse
+import logging
 import pathlib
 import sys
 
@@ -43,6 +44,8 @@ sys.path.insert(
 import build_client_image
 import currency
 from lib import child, logs
+
+logger = logging.getLogger(__name__)
 
 #: The image's own record of what it pins (docker/opencode-client/Dockerfile).
 PIN_ENV = {
@@ -111,6 +114,16 @@ def check_image_current(image: str, run: currency.Runner = currency._run) -> str
     if pins is None:
         return (
             f"preflight: cannot read the pins of {image}; build it with "
+            "`uv run python scripts/build_client_image.py`"
+        )
+    # Every pin, or the gate checks only the ones present and vouches for the
+    # rest: an image declaring OpenCode alone passed with uv and Python
+    # unchecked (review of 2026-10-05).
+    absent = sorted(set(PIN_ENV.values()) - set(pins))
+    if absent:
+        return (
+            f"preflight: {image} does not declare its {', '.join(absent)} pin(s), "
+            "so their currency cannot be checked; rebuild it with "
             "`uv run python scripts/build_client_image.py`"
         )
     return currency.gate("client-image", currency.pin_items(pins, run))
@@ -183,12 +196,56 @@ def translate_paths(command: list[str], home: pathlib.Path) -> list[str]:
     discarded when the container exited. The rows survived -- the ledger is
     inside the mounted repo -- so the run LOOKED complete while the per-trial
     evidence was gone (#611).
+
+    `--option=PATH` is translated too. argparse accepts it, and
+    `--results=PATH` left untranslated wrote every row to a file the
+    container's `--rm` deleted (review of 2026-10-05).
     """
     prefix = f"{home}/"
-    return [
-        f"{CONTAINER_HOME}/{arg[len(prefix) :]}" if arg.startswith(prefix) else arg
-        for arg in command
-    ]
+
+    def one(value: str) -> str:
+        if value.startswith(prefix):
+            return f"{CONTAINER_HOME}/{value[len(prefix) :]}"
+        return value
+
+    out = []
+    for arg in command:
+        option, eq, value = arg.partition("=")
+        if arg.startswith("--") and eq:
+            out.append(f"{option}={one(value)}")
+        else:
+            out.append(one(arg))
+    return out
+
+
+#: run.py options whose value is where a run's output lands.
+OUTPUT_OPTIONS = ("--results", "--client-log", "--solutions")
+
+
+def lost_outputs(command: list[str], home: pathlib.Path, mounts=MOUNTS) -> list[str]:
+    """Output options whose path the container deletes when it exits.
+
+    An absolute path outside every read-write mount lives only in the
+    container, and `--rm` removes it: the rows or transcripts vanish while the
+    run looks complete. A relative path resolves inside the mounted repo, the
+    container's working directory, so it survives.
+    """
+    keep = [f"{home / rel}" for rel, mode in mounts if mode == "rw"]
+    lost = []
+    for i, arg in enumerate(command):
+        option, eq, value = arg.partition("=")
+        if eq and option in OUTPUT_OPTIONS:
+            path = value
+        elif arg in OUTPUT_OPTIONS and i + 1 < len(command):
+            option, path = arg, command[i + 1]
+        else:
+            continue
+        if not path.startswith("/"):
+            continue
+        if any(path == root or path.startswith(f"{root}/") for root in keep):
+            continue
+        lost.append(f"{option} {path}")
+    return lost
 
 
 def memory_args(limit_gib: float | None) -> list[str]:
@@ -298,6 +355,15 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     if not args.facts.exists():
         print(f"missing facts file: {args.facts}", file=sys.stderr)
+        return 1
+    lost = lost_outputs(command, args.home)
+    if lost:
+        logger.error(
+            "these outputs are outside every writable mount, so the container "
+            "deletes them on exit: %s. Put them under %s.",
+            "; ".join(lost),
+            ", ".join(str(args.home / rel) for rel, mode in MOUNTS if mode == "rw"),
+        )
         return 1
     if not args.print:
         why = check_image_current(args.image) or check_facts_current(
