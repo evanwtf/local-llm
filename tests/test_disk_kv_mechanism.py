@@ -125,9 +125,7 @@ def _port(
     home = tmp_path / "home"
     monkeypatch.setattr(tool_shim, "require_running", lambda port=0: "shim ok")
     monkeypatch.setattr(driver.tool_shim, "require_running", lambda port=0: "shim ok")
-    monkeypatch.setattr(
-        wait_ready, "ready", lambda *a, **k: equiv.wait_for_program(out, "ds4-server")
-    )
+    monkeypatch.setattr(wait_ready, "ready", equiv.own_server_barrier(out, "port"))
     monkeypatch.setattr(driver, "DS4_TREE", home / "git" / "ds4-metal")
     models = home / "models" / "qwen3.8-flash-next-ds4-q4"
     monkeypatch.setattr(
