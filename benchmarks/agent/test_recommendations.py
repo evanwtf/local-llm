@@ -362,7 +362,9 @@ def test_a_stack_that_passes_everything_keeps_the_number_it_had():
         "3/3",
         "90s",
         "300s",
-        "7.5x",
+        "7.5x",  # spread (worst task): one task here
+        "7.5x",  # spread (typical task)
+        "7.5x",  # range (all tasks)
     ]
 
 
@@ -379,7 +381,7 @@ def test_a_stack_with_no_passing_trial_keeps_its_row_and_sorts_last():
     ]
     body = gen_tables.stack_table(rows, {})[2:]
     assert [_cells(line)[0] for line in body] == ["fine", "hopeless"]
-    assert _cells(body[1]) == ["hopeless", "0/2", "—", "—", "—"]
+    assert _cells(body[1]) == ["hopeless", "0/2", "—", "—", "—", "—", "—"]
 
 
 def test_a_timed_out_trial_is_not_a_timing():
@@ -398,7 +400,9 @@ def test_a_timed_out_trial_is_not_a_timing():
         "2/3",
         "110s",
         "120s",
-        "1.2x",
+        "1.2x",  # spread (worst task): one task here
+        "1.2x",  # spread (typical task)
+        "1.2x",  # range (all tasks)
     ]
 
 
