@@ -387,6 +387,47 @@ def test_a_crashed_client_is_excluded_automatically() -> None:
     assert "never ran" in row["exclusion_reason"]
 
 
+def test_a_client_that_errored_after_the_model_worked_is_a_failure() -> None:
+    """agent_error alone does not mean the client never ran.
+
+    unreal_parse sets it when any response failed, after real turns, and
+    Claude Code sets is_error on a run that hit its turn limit. A model that
+    produced tokens made an attempt, and a failed attempt belongs in the pass
+    rate. Excluding it would drop a real failure from the denominator.
+    """
+    row = normalize(
+        {
+            "task": "t",
+            "agent_error": True,
+            "passed": False,
+            "num_turns": 11,
+            "output_tokens": 2282,
+        }
+    )
+    assert row["excluded"] is False
+
+
+def test_tool_calls_alone_are_a_model_attempt() -> None:
+    row = normalize(
+        {"task": "t", "agent_error": True, "passed": False, "tool_items": 3}
+    )
+    assert row["excluded"] is False
+
+
+def test_a_client_that_died_with_no_output_is_still_excluded() -> None:
+    """The 2026-08-30 opus5 rows: one turn, zero output tokens."""
+    row = normalize(
+        {
+            "task": "t",
+            "agent_error": True,
+            "passed": False,
+            "num_turns": 1,
+            "output_tokens": 0,
+        }
+    )
+    assert row["excluded"] is True
+
+
 def test_a_client_that_errored_but_still_passed_is_kept() -> None:
     """If the oracle passed, the trial produced a real result."""
     row = normalize({"task": "t", "agent_error": True, "passed": True})
@@ -823,6 +864,58 @@ def test_the_label_says_when_a_row_came_from_the_image():
     )
     assert client_label(bare) == "Corei3-7100-16GB"
     assert client_label(boxed) == "Corei3-7100-16GB+image"
+
+
+# --- review: a schema-invalid row stays out of every aggregate ---------------
+#
+# write_row stores a row that fails validation, stamped schema_valid=false, so
+# a 30-minute trial is not lost. Nothing then kept it out: usable() ignored the
+# flag and verdict() passed a row with passed=true and no touched_tests.
+
+
+def test_a_schema_invalid_row_is_excluded(tmp_path):
+    path = tmp_path / "r.jsonl"
+    row = good_row(passed=True, client_version="codex-cli 0.152.0")
+    del row["touched_tests"]
+    write_row(row, path)
+    got = load(path)[0]
+    assert got["schema_valid"] is False
+    assert got["excluded"] is True
+    assert "touched_tests" in got["exclusion_reason"]
+
+
+def test_a_row_without_the_flag_is_not_excluded_for_it():
+    """v1 rows predate the stamp. Absent is not false."""
+    row = good_row()
+    row.pop("schema_valid", None)
+    assert not is_excluded(row)
+
+
+# --- review: the pooling guard reads every argv spelling --------------------
+
+
+def test_an_equals_form_flag_is_a_graph_flag():
+    a = {"env": {"server_argv": f"{_VLLM_BASE} --max-model-len=4096"}}
+    b = {"env": {"server_argv": f"{_VLLM_BASE} --max-model-len=32768"}}
+    assert graph_flags(a["env"]["server_argv"]) == {"--max-model-len": "4096"}
+    assert not server_argv_compatible(a, b)
+
+
+def test_the_two_spellings_of_one_value_pool():
+    a = {"env": {"server_argv": f"{_VLLM_BASE} --max-model-len=4096"}}
+    b = {"env": {"server_argv": f"{_VLLM_BASE} --max-model-len 4096"}}
+    assert server_argv_compatible(a, b)
+
+
+def test_a_spaced_speculative_config_is_read_whole():
+    """30 DGX rows carry `{"method": "mtp", "num_speculative_tokens": 2}`:
+    ps joins argv with spaces, so the JSON arrives in several tokens."""
+    two = '{"method": "mtp", "num_speculative_tokens": 2}'
+    three = '{"method": "mtp", "num_speculative_tokens": 3}'
+    a = {"env": {"server_argv": f"{_VLLM_BASE} --speculative-config {two} --x"}}
+    b = {"env": {"server_argv": f"{_VLLM_BASE} --speculative-config {three} --x"}}
+    assert graph_flags(a["env"]["server_argv"])["--speculative-config"] == two
+    assert not server_argv_compatible(a, b)
 
 
 # --- Rewriting a ledger without losing a row (review of b7a366b, 1 and 2) ---

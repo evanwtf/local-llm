@@ -26,6 +26,7 @@ Results append to results.jsonl. Nothing is overwritten, so runs accumulate.
 
 import argparse
 import atexit
+import configparser
 import functools
 import json
 import logging
@@ -41,7 +42,7 @@ import time
 import tomllib
 import urllib.error
 import urllib.request
-from typing import ClassVar
+from typing import Any, ClassVar
 from urllib.parse import urlparse
 
 import ds4_route
@@ -319,7 +320,14 @@ def script_checks(worktree, entrypoint, checks, timeout):
         except subprocess.TimeoutExpired:
             return False, f"{entrypoint} {' '.join(argv)!r} timed out"
         got = proc.stdout
-        if got.strip() != want:
+        if proc.returncode != 0:
+            # The right stdout from a process that then crashed or exited
+            # nonzero is not a working command-line tool. The return code was
+            # never read, so a script that printed and raised passed.
+            shown = " ".join(argv)
+            tail = (proc.stderr.strip().splitlines() or [""])[-1]
+            failures.append(f"{shown!r} -> exit {proc.returncode} {tail[:60]!r}")
+        elif got.strip() != want:
             detail = (
                 (got.strip() or proc.stderr.strip().splitlines()[-1:] or [""])[0]
                 if not got.strip()
@@ -405,6 +413,103 @@ def tests_pass(worktree, tests, timeout, command="uv run pytest -q"):
             True,
         )
     return r.returncode == 0, summarize_run(r.stdout, r.stderr), False
+
+
+#: Everything the visible oracle reads, besides the test files. pytest takes
+#: collection hooks from any conftest.py and options from its ini files, so an
+#: agent can skip or deselect the tests without editing one. `Tests/` is
+#: SwiftPM's spelling of the test directory. Root files are named literally:
+#: pytest looks for its config only in the rootdir and the test directories.
+ORACLE_PATHSPECS = (
+    "tests/",
+    "Tests/",
+    "conftest.py",
+    "pytest.ini",
+    ".pytest.ini",
+    "pytest.toml",
+    ".pytest.toml",
+)
+
+#: Shared config files whose pytest section only is part of the oracle. An
+#: agent that adds a dependency to pyproject.toml has changed the environment,
+#: not the tests, so the rest of the file does not count.
+PYTEST_SECTIONS = {
+    "pyproject.toml": ("toml", ("tool", "pytest")),
+    "setup.cfg": ("ini", "tool:pytest"),
+    "tox.ini": ("ini", "pytest"),
+}
+
+
+def _pytest_section(text, kind, key):
+    """The pytest section of one config file's text, or None when absent.
+
+    A file that does not parse is compared as raw text, so breaking it counts
+    as a change and an unchanged broken file does not.
+    """
+    if text is None:
+        return None
+    if kind == "toml":
+        try:
+            data: Any = tomllib.loads(text)
+        except tomllib.TOMLDecodeError:
+            return text
+        for part in key:
+            data = data.get(part) if isinstance(data, dict) else None
+        return data
+    parser = configparser.ConfigParser(interpolation=None)
+    try:
+        parser.read_string(text)
+    except configparser.Error:
+        return text
+    return dict(parser[key]) if parser.has_section(key) else None
+
+
+def oracle_touched(worktree, base):
+    """Did the agent change anything the visible oracle reads?
+
+    Judged against `base`, the sha of the trial's starting commit, and never
+    against HEAD: the agent has a shell in a real repository, and a commit
+    moves HEAD. A 2026-09-18 DGX transcript shows an agent commit its work,
+    and a test edit committed with it read as touched_tests=false.
+
+    Untracked files count. `git diff` lists none, and before this only a
+    replay task registered them, so an excision agent could add
+    tests/conftest.py unseen.
+    """
+    worktree = pathlib.Path(worktree)
+    if git(["diff", base, "--stat", "--", *ORACLE_PATHSPECS], worktree):
+        return True
+    untracked = ["ls-files", "--others", "--exclude-standard", "--"]
+    if git([*untracked, *ORACLE_PATHSPECS], worktree):
+        return True
+    for name, (kind, key) in PYTEST_SECTIONS.items():
+        shown = run(["git", "show", f"{base}:{name}"], worktree)
+        before = shown.stdout if shown.returncode == 0 else None
+        path = worktree / name
+        after = path.read_text() if path.is_file() else None
+        if _pytest_section(before, kind, key) != _pytest_section(after, kind, key):
+            return True
+    return False
+
+
+def register_new_files(result, worktree, name):
+    """Make the agent's new files visible to the diffs, or exclude the row.
+
+    `git add --intent-to-add` can fail -- a stale index.lock is enough -- and
+    its return code was discarded, so the saved patch and edited_source
+    silently left out every file the agent created. Neither can be trusted
+    then, so the row stays out of every aggregate and says why.
+    """
+    error = replay.track_new_files(worktree)
+    if error is None:
+        return
+    logger.error("%s: could not register the agent's new files: %s", name, error)
+    result["excluded"] = True
+    if not result.get("exclusion_reason"):
+        result["exclusion_reason"] = (
+            "git add --intent-to-add failed, so the saved patch and "
+            f"edited_source miss the agent's new files: {error[:200]}"
+        )
 
 
 def summarize_run(stdout, stderr):
@@ -834,7 +939,7 @@ def serving_gguf(root=None):
     return None
 
 
-def serving_vllm():
+def serving_vllm(backend=None):
     """The argv of the running `vllm serve`, for `env['server_argv']` (#332).
 
     vLLM's behavior is set almost entirely at launch -- prefix caching, KV
@@ -846,18 +951,75 @@ def serving_vllm():
     which is what the kernel was given and cannot drift from what is serving.
     Returns None when no vLLM is up, so a row the harness did not serve records
     nothing rather than a guess.
+
+    With `backend`, the process is the one serving that backend, not the first
+    one found: two vLLM servers in one batch stamped the first one's launch on
+    both backends' rows. See `_pick_vllm`.
     """
     try:
         out = subprocess.run(
             ["ps", "ax", "-o", "command="], capture_output=True, text=True, check=False
         ).stdout
-        for line in out.splitlines():
-            if "vllm serve" not in line:
-                continue
-            return {"server_argv": " ".join(line.split())}
     except Exception:  # noqa: BLE001 - provenance is best-effort
         return None
-    return None
+    lines = [" ".join(ln.split()) for ln in out.splitlines() if "vllm serve" in ln]
+    line = _pick_vllm(lines, backend)
+    return {"server_argv": line} if line else None
+
+
+def _pick_vllm(lines, backend):
+    """The one `vllm serve` command line that serves `backend`, or None.
+
+    One server is unambiguous: a container maps its own port, so its argv can
+    say :8000 while the backend reaches :8030, and every vLLM row so far was
+    stamped that way. With several, match the served model name, then the
+    port; still more than one, or none, is None -- unknown, never a guess.
+    """
+    if not lines:
+        return None
+    if backend is None or len(lines) == 1:
+        return lines[0]
+    named = [ln for ln in lines if backend.get("model") in _vllm_names(ln)]
+    pool = named or lines
+    if len(pool) == 1:
+        return pool[0]
+    port = route_query_port(backend)
+    on_port = [ln for ln in pool if _vllm_port(ln) == port]
+    return on_port[0] if len(on_port) == 1 else None
+
+
+def _vllm_names(line):
+    """The model names a `vllm serve` command line answers to."""
+    tokens = line.split()
+    names = []
+    for i, tok in enumerate(tokens):
+        if tok.startswith("--served-model-name="):
+            names.append(tok.split("=", 1)[1])
+        elif tok == "--served-model-name":
+            # nargs="+": every name up to the next flag.
+            for name in tokens[i + 1 :]:
+                if name.startswith("-"):
+                    break
+                names.append(name)
+    if not names and "serve" in tokens:
+        after = tokens.index("serve") + 1
+        if after < len(tokens):
+            names.append(tokens[after])
+    return names
+
+
+def _vllm_port(line):
+    """The port a `vllm serve` command line listens on; vLLM's default 8000."""
+    tokens = line.split()
+    for i, tok in enumerate(tokens):
+        value = None
+        if tok.startswith("--port="):
+            value = tok.split("=", 1)[1]
+        elif tok == "--port" and i + 1 < len(tokens):
+            value = tokens[i + 1]
+        if value is not None:
+            return int(value) if value.isdigit() else None
+    return 8000
 
 
 def _sglang_container(models, inspect_all):
@@ -1007,7 +1169,7 @@ def metal_ceiling_mb():
         return None
 
 
-def capture_versions(cfg, backends, allow_unstamped=False):
+def capture_versions(cfg, backends, allow_unstamped=False, argv_by_backend=None):
     """Record the software stack, once, into every row of this run.
 
     Without this, results.jsonl is undated evidence: six months on there is no
@@ -1018,7 +1180,14 @@ def capture_versions(cfg, backends, allow_unstamped=False):
     Refuses (SystemExit) when a backend with a base_url answers no identity
     probe, unless `allow_unstamped` -- see the refusal block below for why the
     escape exists and how it is recorded.
+
+    `argv_by_backend`, when given, is filled with each backend's own launch
+    argv. `server_argv` here is one value for the whole batch, and a batch
+    with two servers stamped one of them on every row; the caller gives each
+    backend's rows their own with `versions_per_backend`.
     """
+    if argv_by_backend is None:
+        argv_by_backend = {}
 
     def out(cmd):
         try:
@@ -1124,6 +1293,10 @@ def capture_versions(cfg, backends, allow_unstamped=False):
         weights = serving_gguf()
         if weights:
             env.update(weights)
+            if weights.get("server_argv"):
+                for name, b in backends.items():
+                    if route_query_port(b) == 8000:
+                        argv_by_backend.setdefault(name, weights["server_argv"])
 
         server = ds4_root / "ds4-server"
         if server.exists():
@@ -1165,6 +1338,11 @@ def capture_versions(cfg, backends, allow_unstamped=False):
             argv = llamacpp_argv(ps_text, port)
             if argv:
                 env.setdefault("server_argv", argv)
+            for name, b in backends.items():
+                bport = urlparse(b.get("base_url") or "").port
+                lport = LLAMACPP_PORTS.get(bport) if bport is not None else None
+                if lport is not None and (own := llamacpp_argv(ps_text, lport)):
+                    argv_by_backend.setdefault(name, own)
     # vLLM is a wheel, not a checkout, so there is no commit to pin and the
     # ~/git/<engine> shape the two blocks above rely on does not exist. What
     # identifies the build is the wheel version plus the torch underneath it:
@@ -1212,9 +1390,13 @@ def capture_versions(cfg, backends, allow_unstamped=False):
         # is "how invoked", the half #213 showed is missing on every engine.
         # env-level, next to `server_argv` from the ds4 path, because the
         # pooling guard reads it there.
-        vllm_argv = serving_vllm()
-        if vllm_argv:
-            env.update(vllm_argv)
+        for name, b in backends.items():
+            if (b.get("engine") or "").lower() != "vllm":
+                continue
+            vllm_argv = serving_vllm(b)
+            if vllm_argv:
+                env.update(vllm_argv)
+                argv_by_backend[name] = vllm_argv["server_argv"]
 
     # SGLang runs from a container image, not a venv or a checkout, so the
     # build is the image (and the `sglang` package inside it) and the launch
@@ -1226,7 +1408,14 @@ def capture_versions(cfg, backends, allow_unstamped=False):
         if str(b.get("engine") or "").lower() == "sglang" and b.get("model")
     }
     if sglang_models:
-        env.update(serving_sglang(sglang_models))
+        got = serving_sglang(sglang_models)
+        env.update(got)
+        for name, b in backends.items():
+            if str(b.get("engine") or "").lower() != "sglang":
+                continue
+            own = got if len(sglang_models) == 1 else serving_sglang({b.get("model")})
+            if own.get("server_argv"):
+                argv_by_backend[name] = own["server_argv"]
 
     # Which GGUF is in service comes from the server itself, below. An earlier
     # revision globbed `GGUF_ROOT/*/*.gguf`, which spans every quant sitting in
@@ -4348,6 +4537,7 @@ def one_trial(
         # row because it starts a new series.
         if prepare_env_first:
             result.update(prepare_env(worktree))
+    base = "HEAD"  # replaced by the starting commit's sha once it exists
     try:
         if not is_script:
             # 1. Hollow out the target, then make it the repository's only commit.
@@ -4391,6 +4581,10 @@ def one_trial(
                 ],
                 worktree,
             )
+            # The starting state, by sha. Every later diff -- touched_tests,
+            # edited_source, the saved patch -- is taken against this and never
+            # against HEAD, which the agent moves when it commits.
+            base = git(["rev-parse", "HEAD"], worktree)
 
             # 2. Control: the tests must fail now, or the task proves nothing.
             # A memcap kill here would mean the control check itself hit the cap,
@@ -4611,19 +4805,20 @@ def one_trial(
             result["touched_tests"] = False
         else:
             if is_replay:
-                # A new file under tests/ (a conftest.py) counts as touching
-                # them; `git diff HEAD` alone does not list untracked files.
-                replay.track_new_files(worktree)
-            diff = git(["diff", "HEAD", "--stat", "--", "tests/"], worktree)
-            result["touched_tests"] = bool(diff)
+                # The modules the commit created are new files; register them
+                # so edited_source and the patch see them (#714).
+                register_new_files(result, worktree, name)
+            # Tests, conftest.py, and pytest's config, tracked or not, judged
+            # against the starting sha (review findings 1 and 2).
+            result["touched_tests"] = oracle_touched(worktree, base)
             # #770 (#55 A/2): did the agent change anything but the tests? A
             # cell whose failures all left the source as the harness gave it
             # is a plumbing verdict -- edits never reached the disk -- not a
-            # model that wrote wrong code. HEAD is the starting state for both
-            # kinds of task (the excision is committed; a replay's new files
-            # were just made visible above).
+            # model that wrote wrong code. `base` is the starting state for
+            # both kinds of task (the excision is committed; a replay's new
+            # files were just made visible above).
             edited = git(
-                ["diff", "HEAD", "--stat", "--", ".", ":(exclude)tests/"], worktree
+                ["diff", base, "--stat", "--", ".", ":(exclude)tests/"], worktree
             )
             result["edited_source"] = bool(edited)
         # #726: the held-out tests, after touched_tests has judged only what
@@ -4753,8 +4948,10 @@ def one_trial(
             if is_replay:
                 # The modules the commit created are new files; without this
                 # the patch leaves them out (#714).
-                replay.track_new_files(worktree)
-            result.update(grade.save_solution(solutions, name, worktree))
+                register_new_files(result, worktree, name)
+            result.update(
+                grade.save_solution(solutions, name, worktree, base=base, tag=run_tag)
+            )
         shutil.rmtree(worktree, ignore_errors=True)
     # #266: prefill-failure 500s the server threw during THIS trial, which the
     # client retried silently. None when no server log was given (unknown, not
@@ -5341,6 +5538,55 @@ def plausibility_applies(allow_implausible, dry_run) -> bool:
     return not allow_implausible and not dry_run
 
 
+def versions_per_backend(versions, names, argv_by_backend):
+    """Each backend's row env: the batch's, with that backend's own launch.
+
+    A one-backend batch keeps the batch env as it is. With more than one, a
+    backend gets the argv captured for it, or none: unknown is honest, and
+    another server's launch on the row is not.
+    """
+    names = list(names)
+    if len(names) <= 1:
+        return {name: versions for name in names}
+    out = {}
+    for name in names:
+        env = {k: v for k, v in versions.items() if k != "server_argv"}
+        if argv_by_backend.get(name):
+            env["server_argv"] = argv_by_backend[name]
+        out[name] = env
+    return out
+
+
+class CellStops:
+    """Which (backend, client) cells a batch has stopped scheduling.
+
+    #366's timeout breaker and #762's early stop each judge one cell: one
+    backend under one client, whose planned size is tasks x trials. Both used
+    to key on the backend alone, so one client's stop skipped every later task
+    for the other client too, and the breaker summed both clients' rows
+    against one client's planned size.
+    """
+
+    def __init__(self) -> None:
+        self._done: dict[tuple[str, str], int] = {}
+        self._timeouts: dict[tuple[str, str], int] = {}
+        self._stopped: set[tuple[str, str]] = set()
+
+    def count(self, backend: str, client: str, row: dict) -> tuple[int, int]:
+        """Count one written row; return the cell's (rows, timeouts)."""
+        key = (backend, client)
+        self._done[key] = self._done.get(key, 0) + 1
+        if row.get("error") == "timeout":
+            self._timeouts[key] = self._timeouts.get(key, 0) + 1
+        return self._done[key], self._timeouts.get(key, 0)
+
+    def stop(self, backend: str, client: str) -> None:
+        self._stopped.add((backend, client))
+
+    def stopped(self, backend: str, client: str) -> bool:
+        return (backend, client) in self._stopped
+
+
 def finish_row(r, bname, backend, headroom, results_path, dry_run) -> None:
     """Stamp the headroom, write the row, and stop if the server died. #485
 
@@ -5790,10 +6036,17 @@ def main():
         # pid liveness and not this is what makes a stale lock recoverable.
         atexit.register(lambda: logger.info("%s", preflight.release_lock()[1]))
 
-    versions = capture_versions(cfg, backends, allow_unstamped=args.allow_unstamped)
+    argv_by_backend: dict[str, str] = {}
+    versions = capture_versions(
+        cfg,
+        backends,
+        allow_unstamped=args.allow_unstamped,
+        argv_by_backend=argv_by_backend,
+    )
     if server_facts is not None:
         versions = remote.stamp(versions, server_facts)
     versions["client"] = ",".join(clients)
+    env_for = versions_per_backend(versions, backends, argv_by_backend)
 
     # #54: every target at a known commit that exists upstream, with no strays,
     # before a single trial runs. A benchmark that starts from an unknown state
@@ -5833,14 +6086,12 @@ def main():
 
     history = [r for r in results.trials(args.results) if not results.is_excluded(r)]
     cell: dict[tuple[str, str], list[dict]] = {}
-    # #366. Per-cell timeout circuit-breaker state, keyed by backend. A cell's
-    # planned size is every task run every trial; once enough of it has run and
-    # more than half timed out, stop scheduling the rest of that cell and fall
-    # through to the normal clean shutdown (lock release / repo restore still
-    # happen -- nothing here bypasses cleanup).
-    cb_done: dict[str, int] = {}
-    cb_timeouts: dict[str, int] = {}
-    cb_aborted: set[str] = set()
+    # #366. Per-cell timeout circuit-breaker state, keyed by (backend, client).
+    # A cell's planned size is every task run every trial; once enough of it has
+    # run and more than half timed out, stop scheduling the rest of that cell and
+    # fall through to the normal clean shutdown (lock release / repo restore
+    # still happen -- nothing here bypasses cleanup).
+    stops = CellStops()
     cb_planned_per_backend = len(tasks) * args.trials
     # #762. The early stop's leader, per client, chosen once from the ledger.
     task_names = [t["name"] for t in tasks]
@@ -5893,14 +6144,16 @@ def main():
         ordered = trial_order(backends, trial)
         for task in tasks:
             for position, (bname, backend) in enumerate(ordered, start=1):
-                # #366. A cell the circuit-breaker tripped schedules no more
-                # trials; existing rows are kept and never excluded.
-                if bname in cb_aborted:
-                    continue
                 # Clients innermost: the same task runs back to back on each,
                 # so server state drifts across the pair rather than between
                 # two runs hours apart.
                 for client in clients:
+                    # #366, #762. A cell the circuit-breaker or the early stop
+                    # tripped schedules no more trials; existing rows are kept
+                    # and never excluded. Per client: a cell is one backend
+                    # under one client, and the other client's cell runs on.
+                    if stops.stopped(bname, client):
+                        continue
                     _memory_gate(args.memory_gate_gib, args.timeout)
                     headroom = _headroom_gate(args)
                     # #444 step 3: the engine's own TTFT for this trial, as the
@@ -5922,7 +6175,7 @@ def main():
                         workdir,
                         args.timeout,
                         args.dry_run,
-                        versions,
+                        env_for[bname],
                         client=client,
                         client_log=client_log,
                         solutions=solutions,
@@ -5970,30 +6223,33 @@ def main():
                             logger.error("IMPLAUSIBLE: %s", why)
                             raise SystemExit("halted by the plausibility gate (#55)")
 
-                    # #366. After every written row, ask whether this backend's
-                    # cell is timing out so persistently that scheduling more
-                    # trials only burns machine-hours. Keyed by backend, judged
-                    # against the planned cell size (tasks x trials).
+                    # #366. After every written row, ask whether this cell is
+                    # timing out so persistently that scheduling more trials
+                    # only burns machine-hours. Keyed by (backend, client),
+                    # judged against the planned cell size (tasks x trials).
                     if not args.no_cell_circuit_breaker:
-                        cb_done[bname] = cb_done.get(bname, 0) + 1
-                        if r.get("error") == "timeout":
-                            cb_timeouts[bname] = cb_timeouts.get(bname, 0) + 1
+                        done_n, timeouts_n = stops.count(bname, client, r)
                         abort, reason = timeout_policy.cell_should_abort(
-                            cb_done[bname],
+                            done_n,
                             cb_planned_per_backend,
-                            cb_timeouts.get(bname, 0),
+                            timeouts_n,
                             min_fraction=args.cell_min_fraction,
                             timeout_fraction=args.cell_timeout_fraction,
                         )
                         if abort:
-                            logger.error("CELL CIRCUIT BREAKER (%s): %s", bname, reason)
-                            cb_aborted.add(bname)
+                            logger.error(
+                                "CELL CIRCUIT BREAKER (%s, %s): %s",
+                                bname,
+                                client,
+                                reason,
+                            )
+                            stops.stop(bname, client)
 
                     # #762. After every written row, ask whether this cell can
                     # still earn a place against the leader. The rows already
                     # written stay in the ledger; the stop only schedules no more.
                     lead = leaders.get(client)
-                    if lead is not None and bname not in cb_aborted:
+                    if lead is not None and not stops.stopped(bname, client):
                         done = cell[(bname, client)]
                         stop, why = screening.should_stop(
                             done, lead, task_names, cb_planned_per_backend, args.timeout
@@ -6019,7 +6275,7 @@ def main():
                             logger.error(
                                 "EARLY STOP (%s, %s): %s (#762)", bname, client, why
                             )
-                            cb_aborted.add(bname)
+                            stops.stop(bname, client)
 
 
 if __name__ == "__main__":

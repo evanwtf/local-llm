@@ -419,7 +419,9 @@ rows are v1 and are **not rewritten**: the file is append-only evidence.
 
 A row that fails validation is still written, stamped `schema_valid: false` with
 the violations, and logged at ERROR. A trial costs up to half an hour; losing one
-to a schema bug is worse than storing a flagged row. Check for them with:
+to a schema bug is worse than storing a flagged row. `is_excluded()` keeps such a
+row out of every aggregate; a row with no `schema_valid` key (v1) is not affected.
+Check for them with:
 
 ```sh
 grep -c '"schema_valid": false' benchmarks/agent/results.jsonl
