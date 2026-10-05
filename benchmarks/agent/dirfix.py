@@ -105,7 +105,7 @@ def tally(rows: list[dict], after: set[str]) -> dict[tuple[str, str, str], list[
         # passed nothing (code review, 2026-10-05).
         if r.get("dry_run"):
             continue
-        cell = out[(r.get("backend"), task_class(r), era(r, after))]
+        cell = out[(r["backend"], task_class(r), era(r, after))]
         cell[0] += results.verdict(r)
         cell[1] += 1
     return dict(out)

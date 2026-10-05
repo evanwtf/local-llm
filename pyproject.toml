@@ -15,6 +15,8 @@ dev = [
     # must run) or a bare `git commit` never invokes it. Floor 3.2 is where the
     # `pre-commit` stage name replaced the deprecated `commit`.
     "pre-commit>=3.2",
+    "mypy>=2.3.1",
+    "types-pyyaml>=6.0.12.20260906",
 ]
 
 # Supply-chain cooldown: do not resolve any package published in the last 7
@@ -91,3 +93,38 @@ extend-exclude = ["benchmarks/agent/PROMPTS.md", "hardware/"]
 # `date +%H:%M:%S` -- naive by construction. A tz-aware anchor here would be
 # the wrong fixture, not the safe one.
 "tests/test_stack_agent_ab_python.py" = ["DTZ001"]
+
+[tool.mypy]
+# The same target as ruff's: the interpreter this project runs on. The code
+# already uses 3.12+ f-string syntax, so a 3.11 target would not parse it.
+python_version = "3.13"
+# Scripts import each other bare, with their own directory on sys.path, so
+# mypy needs the same roots. scripts/lib comes first: its modules are imported
+# as `logs`, `child`, never as `lib.logs` (two names for one file loads it
+# twice at runtime, and mypy refuses it). tests/ is a root because pytest puts
+# it on sys.path and the tests import their helpers (`source_text`) bare.
+mypy_path = ["scripts/lib", "scripts", "benchmarks/agent", "tests"]
+explicit_package_bases = true
+files = [
+    "scripts",
+    "benchmarks/agent",
+    "tests",
+    "ds4_claude_shim.py",
+    "ds4_qwen_tool_shim.py",
+    "ollama_claude_shim.py",
+    "test_ollama_claude_shim.py",
+]
+# The root conftest.py and benchmarks/agent/conftest.py are both the module
+# `conftest` under explicit_package_bases, and mypy refuses a duplicate module
+# name. pytest keeps them apart by rootdir; mypy cannot.
+exclude = ['^conftest\.py$']
+warn_unused_ignores = true
+warn_redundant_casts = true
+strict_equality = true
+check_untyped_defs = true
+
+# torch is installed only on the DGX nodes that run the all-reduce probe
+# (scripts/cluster_allreduce.py), never in this project's environment.
+[[tool.mypy.overrides]]
+module = ["torch", "torch.*"]
+ignore_missing_imports = true

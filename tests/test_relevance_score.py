@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import pathlib
 import sys
+from typing import Any
 
 import pytest
 
@@ -223,7 +224,7 @@ def test_the_same_claim_from_anyone_is_yellow_not_green():
     """Identical on all four axes; the only difference is that anyone could
     have run it. Exclusivity is urgency, not relevance -- it is what separates
     "spend the machine now" from "worth doing, will keep"."""
-    common = {
+    common: dict[str, Any] = {
         "hardware": "M5 Max MacBook Pro",
         "model": "qwen3.8-flash-next",
         "engine": "ds4",
@@ -241,7 +242,7 @@ def test_each_rate_metric_carries_only_the_caveat_it_earned():
     """Decode rate has a measured negative result behind it. Prefill does not,
     and citing #138/#146/#225 for prefill would be citing them for something
     they never tested -- the failure #182 exists to stop."""
-    common = {
+    common: dict[str, Any] = {
         "hardware": "M5 Max",
         "model": "qwen3.8-flash-next",
         "engine": "ds4",

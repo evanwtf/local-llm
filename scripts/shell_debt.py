@@ -42,6 +42,7 @@ import pathlib
 import re
 import subprocess
 import sys
+from typing import TypedDict
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
 
@@ -270,8 +271,70 @@ def vaulted(path: str) -> bool:
     return path.startswith(VAULT)
 
 
-def survey(root: pathlib.Path = ROOT) -> dict[str, object]:
-    files = []
+class FileRow(TypedDict):
+    """One tracked shell file, as `survey` reports it."""
+
+    path: str
+    lines: int
+    by_name: int
+    replaced_by: str | None
+    replacement_exists: bool
+    evidence: str | None
+    vaulted: bool
+
+
+class PathLines(TypedDict):
+    path: str
+    lines: int
+
+
+class Waiting(PathLines):
+    blocked_on: list[str]
+
+
+class Keep(PathLines):
+    why: str
+
+
+# `with` is a keyword, so this one needs the functional form.
+DiesWith = TypedDict("DiesWith", {"path": str, "lines": int, "with": tuple[str, ...]})
+
+
+class Deviation(TypedDict):
+    path: str
+    why: str
+
+
+class Survey(TypedDict):
+    """What `survey` returns: the --json document and the report's input."""
+
+    vaulted_files: int
+    vaulted_lines: int
+    live_lines: int
+    cleared: list[PathLines]
+    waiting: list[Waiting]
+    lines_if_cleared_deleted: int
+    keep: list[Keep]
+    dies_with: list[DiesWith]
+    deviations: list[Deviation]
+    portable: list[PathLines]
+    portable_lines: int
+    floor_lines: int
+    target_reachable: bool
+    scope: tuple[str, ...]
+    files: list[FileRow]
+    total_lines: int
+    total_by_name: int
+    baseline_lines: int
+    target_lines: int
+    reduction_pct: float
+    by_name_unreplaced: int
+    lines_if_replaced_deleted: int
+    by_name_if_replaced_deleted: int
+
+
+def survey(root: pathlib.Path = ROOT) -> Survey:
+    files: list[FileRow] = []
     for rel in shell_files(root):
         text = (root / rel).read_text()
         replacement = REPLACED.get(rel)
@@ -293,20 +356,20 @@ def survey(root: pathlib.Path = ROOT) -> dict[str, object]:
                 "vaulted": vaulted(rel),
             }
         )
-    lines = sum(int(f["lines"]) for f in files)
-    vault_lines = sum(int(f["lines"]) for f in files if f["vaulted"])
+    lines = sum(f["lines"] for f in files)
+    vault_lines = sum(f["lines"] for f in files if f["vaulted"])
     live_lines = lines - vault_lines
-    by_name = sum(int(f["by_name"]) for f in files)
+    by_name = sum(f["by_name"] for f in files)
     unreplaced = [f for f in files if not f["replacement_exists"]]
     keep = [f for f in unreplaced if f["path"] in KEEP]
     dies = [f for f in unreplaced if f["path"] in DIES_WITH]
     portable = [
         f for f in unreplaced if f["path"] not in KEEP and f["path"] not in DIES_WITH
     ]
-    floor = sum(int(f["lines"]) for f in keep)
+    floor = sum(f["lines"] for f in keep)
     replaced = [f for f in files if f["replacement_exists"]]
 
-    def is_cleared(f: dict[str, object]) -> bool:
+    def is_cleared(f: FileRow) -> bool:
         """Whether this file is defensible to delete today.
 
         Three ways, and the third is the library case. A driver clears on its
@@ -320,14 +383,14 @@ def survey(root: pathlib.Path = ROOT) -> dict[str, object]:
         as its sourcers land. `lib/ds4_server.sh` has eight; a table would
         have to be re-edited eight times and would be wrong in between.
         """
-        path = str(f["path"])
+        path = f["path"]
         if f["evidence"] or path in DEVIATIONS:
             return True
-        owners = DIES_WITH.get(path)
+        owners = DIES_WITH.get(path, ())
         return bool(owners) and all(
-            g["evidence"] or str(g["path"]) in DEVIATIONS
+            g["evidence"] or g["path"] in DEVIATIONS
             for g in files
-            if str(g["path"]) in owners
+            if g["path"] in owners
         )
 
     cleared = [f for f in replaced if is_cleared(f)]
@@ -350,8 +413,8 @@ def survey(root: pathlib.Path = ROOT) -> dict[str, object]:
                 "lines": f["lines"],
                 "blocked_on": [
                     o
-                    for o in DIES_WITH.get(str(f["path"]), ())
-                    if o in {str(g["path"]) for g in waiting}
+                    for o in DIES_WITH.get(f["path"], ())
+                    if o in {g["path"] for g in waiting}
                 ],
             }
             for f in waiting
@@ -359,22 +422,22 @@ def survey(root: pathlib.Path = ROOT) -> dict[str, object]:
         # The honest progress number. `reduction_pct` is 0.0 and will stay
         # there until files are actually deleted; this says how much of the
         # deletion is currently defensible.
-        "lines_if_cleared_deleted": lines - sum(int(f["lines"]) for f in cleared),
+        "lines_if_cleared_deleted": lines - sum(f["lines"] for f in cleared),
         "keep": [
-            {"path": f["path"], "lines": f["lines"], "why": KEEP[str(f["path"])]}
+            {"path": f["path"], "lines": f["lines"], "why": KEEP[f["path"]]}
             for f in keep
         ],
         "dies_with": [
             {
                 "path": f["path"],
                 "lines": f["lines"],
-                "with": DIES_WITH[str(f["path"])],
+                "with": DIES_WITH[f["path"]],
             }
             for f in dies
         ],
         "deviations": [{"path": path, "why": why} for path, why in DEVIATIONS.items()],
         "portable": [{"path": f["path"], "lines": f["lines"]} for f in portable],
-        "portable_lines": sum(int(f["lines"]) for f in portable),
+        "portable_lines": sum(f["lines"] for f in portable),
         # What is left when every portable file is ported and every replaced
         # file retired. If this exceeds the target, the target is unreachable
         # without porting something in KEEP, and that is a decision for a
@@ -388,17 +451,17 @@ def survey(root: pathlib.Path = ROOT) -> dict[str, object]:
         "baseline_lines": BASELINE,
         "target_lines": TARGET,
         "reduction_pct": round(100 * (1 - lines / BASELINE), 1),
-        "by_name_unreplaced": sum(int(f["by_name"]) for f in unreplaced),
-        "lines_if_replaced_deleted": sum(int(f["lines"]) for f in unreplaced),
-        "by_name_if_replaced_deleted": sum(int(f["by_name"]) for f in unreplaced),
+        "by_name_unreplaced": sum(f["by_name"] for f in unreplaced),
+        "lines_if_replaced_deleted": sum(f["lines"] for f in unreplaced),
+        "by_name_if_replaced_deleted": sum(f["by_name"] for f in unreplaced),
     }
 
 
-def report(s: dict[str, object]) -> None:
+def report(s: Survey) -> None:
     logger.info("scope: git ls-files %s", s["scope"])
     logger.info(
         "now:    %d files, %s lines, %s pgrep/pkill calls",
-        len(s["files"]),  # type: ignore[arg-type]
+        len(s["files"]),
         s["total_lines"],
         s["total_by_name"],
     )
@@ -410,7 +473,7 @@ def report(s: dict[str, object]) -> None:
         "        of which %s lines in %d vaulted files (archived, never run); "
         "%s lines still in service",
         s["vaulted_lines"],
-        s["vaulted_files"],  # type: ignore[arg-type]
+        s["vaulted_files"],
         s["live_lines"],
     )
     logger.info(
@@ -421,13 +484,13 @@ def report(s: dict[str, object]) -> None:
     )
     logger.info("")
     logger.info("%-46s %6s %6s  %s", "file", "lines", "byname", "replaced by")
-    for f in sorted(s["files"], key=lambda f: -int(f["lines"])):  # type: ignore[arg-type]
+    for row in sorted(s["files"], key=lambda row: -row["lines"]):
         logger.info(
             "%-46s %6s %6s  %s",
-            f["path"],
-            f["lines"],
-            f["by_name"] or "",
-            f["replaced_by"] if f["replacement_exists"] else "-- NOT REPLACED",
+            row["path"],
+            row["lines"],
+            row["by_name"] or "",
+            row["replaced_by"] if row["replacement_exists"] else "-- NOT REPLACED",
         )
     logger.info("")
     logger.info(
@@ -443,42 +506,44 @@ def report(s: dict[str, object]) -> None:
         )
     logger.info("")
     logger.info("of what is left:")
-    for f in s["portable"]:  # type: ignore[union-attr]
-        logger.info("  %4s  port it        %s", f["lines"], f["path"])
-    for f in s["dies_with"]:  # type: ignore[union-attr]
+    for port in s["portable"]:
+        logger.info("  %4s  port it        %s", port["lines"], port["path"])
+    for dies in s["dies_with"]:
         # The whole list, not the first name. A library whose last sourcer is
         # gone is deletable and one with seven left is not, and a line that
         # showed only one could not tell them apart.
         logger.info(
             "  %4s  dies with      %s  (%s)",
-            f["lines"],
-            f["path"],
-            ", ".join(f["with"]),  # type: ignore[arg-type]
+            dies["lines"],
+            dies["path"],
+            ", ".join(dies["with"]),
         )
-    for f in s["deviations"]:  # type: ignore[union-attr]
-        logger.info("  %4s  DEVIATION      %s  -- %s", 0, f["path"], f["why"])
-    for f in s["keep"]:  # type: ignore[union-attr]
-        logger.info("  %4s  STAYS SHELL    %s  -- %s", f["lines"], f["path"], f["why"])
+    for dev in s["deviations"]:
+        logger.info("  %4s  DEVIATION      %s  -- %s", 0, dev["path"], dev["why"])
+    for keep in s["keep"]:
+        logger.info(
+            "  %4s  STAYS SHELL    %s  -- %s", keep["lines"], keep["path"], keep["why"]
+        )
     logger.info("")
     logger.info(
         "retirement: %d of %d replaced files are cleared to delete; "
         "deleting those leaves %s lines",
-        len(s["cleared"]),  # type: ignore[arg-type]
-        len(s["cleared"]) + len(s["waiting"]),  # type: ignore[arg-type]
+        len(s["cleared"]),
+        len(s["cleared"]) + len(s["waiting"]),
         s["lines_if_cleared_deleted"],
     )
-    for f in s["waiting"]:  # type: ignore[union-attr]
-        blocked = f["blocked_on"]
+    for wait in s["waiting"]:
+        blocked = wait["blocked_on"]
         if blocked:
             logger.info(
                 "  %4s  WAITS ON %-2s   %s  (%s)",
-                f["lines"],
-                len(blocked),  # type: ignore[arg-type]
-                f["path"],
-                ", ".join(pathlib.Path(o).name for o in blocked),  # type: ignore
+                wait["lines"],
+                len(blocked),
+                wait["path"],
+                ", ".join(pathlib.Path(o).name for o in blocked),
             )
         else:
-            logger.info("  %4s  NO EVIDENCE    %s", f["lines"], f["path"])
+            logger.info("  %4s  NO EVIDENCE    %s", wait["lines"], wait["path"])
     logger.info("")
     logger.info(
         "porting the %s portable lines leaves %s, against a target of %s: %s",

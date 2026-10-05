@@ -356,11 +356,12 @@ def test_legacy_median_divides_two_independent_medians(tmp_path):
         (d / f"a-rep{rep}.csv").write_text(head + f"2048,100.0,{av}\n")
         (d / f"b-rep{rep}.csv").write_text(head + f"2048,100.0,{bv}\n")
     data = report.load(d)
-    assert abs(report.legacy_median(data) - 0.5) < 1e-9
+    legacy = report.legacy_median(data)
+    assert legacy is not None
+    assert abs(legacy - 0.5) < 1e-9
     # The paired statistic pairs within each rep: 4.0, 0.5, 0.333 -> median 0.5
     # here by coincidence of this fixture; what matters is that they are
     # computed differently, which the next test pins.
-    assert report.legacy_median(data) is not None
 
 
 def test_legacy_and_paired_disagree_when_arms_drift_apart(tmp_path):
@@ -377,7 +378,9 @@ def test_legacy_and_paired_disagree_when_arms_drift_apart(tmp_path):
     data = report.load(d)
     paired = report.summarize(data).median
     assert abs(paired - 1.0) < 1e-9
-    assert abs(report.legacy_median(data) - 4.0) < 1e-9
+    legacy = report.legacy_median(data)
+    assert legacy is not None
+    assert abs(legacy - 4.0) < 1e-9
 
 
 def test_legacy_needs_two_arms():

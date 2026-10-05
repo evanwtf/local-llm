@@ -32,11 +32,10 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from lib import agent_identity, peer_state
-
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
-
+import agent_identity
 import machine_state
+import peer_state
 
 import logs
 
@@ -121,7 +120,7 @@ def _labels_by_issue() -> dict[int, str]:
     out: dict[int, str] = {}
     for issue in peer_state.open_p0p1():
         names = [l.get("name", "") for l in issue.get("labels", [])]
-        out[issue.get("number")] = ",".join(n for n in names if n)
+        out[issue["number"]] = ",".join(n for n in names if n)
     return out
 
 

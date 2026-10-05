@@ -75,7 +75,7 @@ def test_each_arm_runs_from_its_own_tree_with_its_own_binary(
     of the arm: each arm must use its OWN tree's binary and run from that tree.
     """
     a, _b, arms = fake_arms(tmp_path)
-    seen: list[tuple[list[str], pathlib.Path]] = []
+    seen: list[tuple[list[str], pathlib.Path, pathlib.Path]] = []
 
     def capture(argv, *, cwd, log, **k):
         seen.append((argv, cwd, log))

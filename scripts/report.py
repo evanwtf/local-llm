@@ -246,7 +246,7 @@ def _hidden_cell(got: HiddenSummary) -> str:
     return " · ".join(parts)
 
 
-def distinguishable(a: float, b: float) -> bool:
+def distinguishable(a: float | None, b: float | None) -> bool:
     """Whether two medians differ by enough for three trials to tell them apart."""
     if not a or not b:
         return False

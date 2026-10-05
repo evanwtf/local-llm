@@ -812,7 +812,7 @@ def _capture(argv: list[str]) -> str:
     return got.stdout
 
 
-def metal_ceiling() -> tuple[float, bool]:
+def metal_ceiling() -> tuple[float | None, bool]:
     """(ceiling in GiB, whether an override is in force) for this machine now.
 
     This is the machine fact that silently decides whether a large model loads,

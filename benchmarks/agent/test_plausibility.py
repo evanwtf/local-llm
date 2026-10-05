@@ -28,6 +28,7 @@ def test_the_message_names_both_cells_and_the_escape_hatch() -> None:
     why = plausibility.implausible(
         rows(15, 1), rows(46, 46, client="claude"), "ds4", "opencode"
     )
+    assert why is not None
     assert "ds4 x opencode" in why and "ds4 x claude" in why
     assert "--allow-implausible" in why
 

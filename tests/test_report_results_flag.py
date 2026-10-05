@@ -25,7 +25,7 @@ import report
 def seen(monkeypatch: pytest.MonkeyPatch) -> list[pathlib.Path]:
     got: list[pathlib.Path] = []
 
-    def load(path: pathlib.Path):  # type: ignore[no-untyped-def]
+    def load(path: pathlib.Path) -> tuple[list[dict[str, object]], int, int, int]:
         got.append(pathlib.Path(path))
         return [], 0, 0, 0
 

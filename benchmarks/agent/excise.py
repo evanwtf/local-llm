@@ -18,7 +18,7 @@ class TargetNotFound(Exception):
     pass
 
 
-def find(tree: ast.Module, symbol: str) -> ast.FunctionDef:
+def find(tree: ast.Module, symbol: str) -> ast.FunctionDef | ast.AsyncFunctionDef:
     """Locate `func` or `Class.method` in a parsed module."""
     parts = symbol.split(".")
     if len(parts) == 1:

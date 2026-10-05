@@ -91,9 +91,8 @@ import preflight
 # (#160 amendment 1 & 2). Every logger in the peer tooling carries it via a
 # filter, so no call site passes it.
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from lib import agent_identity
-
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+import agent_identity
 
 import logs
 
@@ -604,16 +603,21 @@ def run_compose(
                 f"cannot compare {lhs!r} and {rhs!r}: one is a timestamp, the other is not"
             )
             continue
-        if isinstance(lhs_v, datetime.datetime) and (lhs_v.tzinfo is None) != (
-            rhs_v.tzinfo is None
+        if isinstance(lhs_v, datetime.datetime) and isinstance(
+            rhs_v, datetime.datetime
         ):
-            # #209: `<` raises TypeError here, and no zone may be assumed.
-            failures.append(
-                f"cannot compare {lhs!r} and {rhs!r}: one carries an offset, "
-                "the other does not"
-            )
-            continue
-        if not lhs_v < rhs_v:
+            if (lhs_v.tzinfo is None) != (rhs_v.tzinfo is None):
+                # #209: `<` raises TypeError here, and no zone may be assumed.
+                failures.append(
+                    f"cannot compare {lhs!r} and {rhs!r}: one carries an offset, "
+                    "the other does not"
+                )
+                continue
+            before = lhs_v < rhs_v
+        else:
+            # Both are strings: the type check above refused a mixed pair.
+            before = str(lhs_v) < str(rhs_v)
+        if not before:
             failures.append(f"{lhs!r} is not before {rhs!r}")
         detail.append(f"{lhs} < {rhs}")
     return failures, "; ".join(detail)

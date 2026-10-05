@@ -271,7 +271,7 @@ def start(
         )
         _OWNED[name] = proc
     finally:
-        if handle is not subprocess.DEVNULL:
+        if not isinstance(handle, int):  # subprocess.DEVNULL is an int
             handle.close()
 
     # Spawn-then-record is two steps, and everything between them must be
