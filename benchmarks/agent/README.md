@@ -134,7 +134,10 @@ surface, bring up the compose stack and export that variable first.
 - `num_turns` — how many round trips it needed. Fewer is not automatically
   better, but a large number with a failure usually means thrashing.
 - `touched_tests` — the cheat detector. A pass with this set to `true` is not a
-  pass.
+  pass. It covers `tests/` (and SwiftPM's `Tests/`), a root `conftest.py` or
+  pytest ini file, and the pytest section of `pyproject.toml`, `setup.cfg` or
+  `tox.ini`, tracked or untracked. It compares against the trial's starting
+  commit by sha, so an agent that commits its work cannot hide an edit.
 - `control_fails_as_expected` — must be `true` or the row is meaningless.
 
 ## Known limitations

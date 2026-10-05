@@ -19,7 +19,8 @@ Schema v2 rules, for rows written from 2026-08-28:
     because v1 rows are evidence and are not rewritten.
   * A row that fails validation is still written, stamped `schema_valid: false`
     with the specific violations. A trial costs up to half an hour; losing one
-    to a schema bug is worse than storing a flagged row.
+    to a schema bug is worse than storing a flagged row. It is excluded from
+    every aggregate.
 """
 
 from __future__ import annotations
@@ -376,6 +377,11 @@ def is_excluded(row: dict[str, Any]) -> bool:
     """
     if row.get("excluded"):
         return True
+    if row.get("schema_valid") is False:
+        # write_row keeps a row that fails validation rather than lose the
+        # trial, and the flag is what keeps it out of a pass rate. `is False`:
+        # v1 rows predate the stamp, and absent is not false.
+        return True
     if _client_never_ran(row):
         return True
     return any(row.get(k) for k in LEGACY_EXCLUSION_KEYS if k != "excluded")
@@ -395,8 +401,26 @@ def _client_never_ran(row: dict[str, Any]) -> bool:
 
     Guarded by `not passed`: if the client errored and the oracle passed
     anyway, the trial produced a real result and stays.
+
+    Guarded too by the model's own output. `agent_error` is also set after
+    real work: unreal_parse sets it when any response failed, and Claude Code
+    reports is_error on a run that hit its turn limit. A model that produced
+    tokens or called a tool made an attempt, and a failed attempt belongs in
+    the pass rate. No committed row changes: every row this predicate alone
+    excluded on 2026-10-05 had no output from the model.
     """
-    return bool(row.get("agent_error")) and not row.get("passed")
+    if not row.get("agent_error") or row.get("passed"):
+        return False
+    return not _model_attempted(row)
+
+
+def _model_attempted(row: dict[str, Any]) -> bool:
+    """True if the model produced output tokens or called a tool."""
+    for key in ("output_tokens", "reasoning_tokens", "tool_items"):
+        value = row.get(key)
+        if isinstance(value, int | float) and not isinstance(value, bool) and value > 0:
+            return True
+    return False
 
 
 def normalize(row: dict[str, Any]) -> dict[str, Any]:
@@ -409,7 +433,14 @@ def normalize(row: dict[str, Any]) -> dict[str, Any]:
 
     excluded = is_excluded(out)
     out["excluded"] = excluded
-    if excluded and not out.get("exclusion_reason") and _client_never_ran(out):
+    if (
+        excluded
+        and not out.get("exclusion_reason")
+        and out.get("schema_valid") is False
+    ):
+        errors = "; ".join(out.get("schema_errors") or []) or "no errors recorded"
+        out["exclusion_reason"] = f"schema_valid: false ({errors})"
+    elif excluded and not out.get("exclusion_reason") and _client_never_ran(out):
         out["exclusion_reason"] = (
             "agent_error: the client never ran, so no model attempt was made"
         )
@@ -773,15 +804,36 @@ def graph_flags(argv: str) -> dict[str, str]:
     i = 0
     while i < len(tokens):
         tok = tokens[i]
-        if tok in GRAPH_VALUE_FLAGS:
-            if i + 1 < len(tokens):
-                out[tok] = tokens[i + 1]
-                i += 2
+        # `--flag=value` is the same flag as `--flag value`; it used to vanish.
+        flag, eq, inline = tok.partition("=")
+        if flag in GRAPH_VALUE_FLAGS:
+            if eq:
+                parts, i = [inline], i + 1
+            elif i + 1 < len(tokens):
+                parts, i = [tokens[i + 1]], i + 2
+            else:
+                i += 1
                 continue
-        elif tok.startswith(GRAPH_BOOLEAN_PREFIXES):
+            # A JSON value with spaces arrives in several tokens, because the
+            # argv is read back from `ps`, which joins it with spaces. Keep
+            # reading until its brackets balance, or two configs that differ
+            # only after the first space compare equal.
+            depth = _bracket_depth(parts[0])
+            while depth > 0 and i < len(tokens):
+                parts.append(tokens[i])
+                depth += _bracket_depth(tokens[i])
+                i += 1
+            out[flag] = " ".join(parts)
+            continue
+        if tok.startswith(GRAPH_BOOLEAN_PREFIXES):
             out[tok] = "1"
         i += 1
     return out
+
+
+def _bracket_depth(token: str) -> int:
+    """Opening minus closing JSON brackets in one argv token."""
+    return token.count("{") + token.count("[") - token.count("}") - token.count("]")
 
 
 def server_argv_compatible(a: dict[str, Any], b: dict[str, Any]) -> bool:
