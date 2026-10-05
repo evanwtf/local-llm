@@ -97,11 +97,14 @@ def strip_env(strip: bool) -> tuple[dict[str, str], tuple[str, ...]]:
     return {"SHIM_NO_STRIP": "1"}, ()
 
 
-def mode_line(log: pathlib.Path) -> str | None:
-    """The shim's own `scaffolding strip: ...` line, or None if it has not said."""
-    try:
-        text = log.read_text(errors="replace")
-    except OSError:
+def mode_line(log: pathlib.Path, offset: int = 0) -> str | None:
+    """The shim's own `scaffolding strip: ...` line, or None if it has not said.
+
+    `offset` skips what earlier launches wrote: `unitctl.start` appends, so a
+    reused log holds the previous shim's mode line ahead of this one's.
+    """
+    text = unitctl.read_since(log, offset)
+    if text is None:
         return None
     for line in text.splitlines():
         if STRIP_MARK in line:
@@ -156,6 +159,9 @@ def serving(
     unitctl.stop(name)
     set_env, unset = strip_env(bool(strip)) if strip is not None else ({}, ())
     merged = {**set_env, **dict(env or {})}
+    # Where this launch's output starts. The mode line already in a reused log
+    # is the previous shim's, and it is evidence of nothing now.
+    offset = unitctl.log_offset(log)
     unit = unitctl.start(
         name,
         argv(port, upstream_port),
@@ -165,35 +171,60 @@ def serving(
         unset=unset,
     )
     try:
-        _wait(name, log, port, strip, timeout)
-        logger.info("shim up on :%d (pid %d): %s", port, unit.pid, mode_line(log) or "")
+        _wait(name, log, port, strip, timeout, offset)
+        logger.info(
+            "shim up on :%d (pid %d): %s", port, unit.pid, mode_line(log, offset) or ""
+        )
         yield unit
     finally:
         unitctl.stop(name)
 
 
 def _wait(
-    name: str, log: pathlib.Path, port: int, strip: bool | None, timeout: float
+    name: str,
+    log: pathlib.Path,
+    port: int,
+    strip: bool | None,
+    timeout: float,
+    offset: int = 0,
 ) -> None:
-    """Wait for the port and, when asked, for the right mode. Raises.
+    """Wait for OUR shim to hold the port and, when asked, for its mode. Raises.
 
     Inside `serving`'s `try`, so a refusal here still stops the shim. A raise
     placed before the `try` leaked a payload-dumping shim in #256, one failure
     mode over from the one it was fixing.
+
+    "Something answers on the port" is not readiness. Another process can
+    already hold it while the new shim is still alive and about to fail its
+    bind, and trials would then run against that process. So the listener must
+    be in the unit's process group, and the mode must come from this launch's
+    part of the log (`offset`).
     """
     deadline = time.monotonic() + timeout
+    why = f"nothing listened on :{port}"
     while time.monotonic() < deadline:
-        if unitctl.state(unitctl.read(name)) != unitctl.RUNNING:
+        unit = unitctl.read(name)
+        if unitctl.state(unit) != unitctl.RUNNING or unit is None:
             raise NeverReady(f"the shim exited; see {log}")
-        if ports.answers(port) and (strip is None or mode_line(log)):
-            break
+        holder = ports.holder(port)
+        if holder is not None:
+            group = ports.group_of(holder)
+            if group == unit.pid:
+                if strip is None or mode_line(log, offset):
+                    break
+                why = f"the shim on :{port} has not reported its mode"
+            else:
+                why = (
+                    f":{port} is held by pid {holder} (group {group}), not by "
+                    f"the shim's group {unit.pid}"
+                )
         time.sleep(0.25)
     else:
-        raise NeverReady(f"the shim did not answer on :{port} within {timeout}s")
+        raise NeverReady(f"the shim was not ready within {timeout}s: {why}")
     if strip is None:
         return
     want = STRIP_ON if strip else STRIP_OFF
-    got = mode_line(log)
+    got = mode_line(log, offset)
     if got is None or want not in got:
         raise WrongMode(
             f"the shim did not report {want!r}; it said {got!r}. The strip is "

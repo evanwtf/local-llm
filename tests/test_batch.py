@@ -294,3 +294,73 @@ def test_a_leftover_from_a_killed_run_is_not_this_runs_evidence(tmp_path) -> Non
     assert batchlib.collect(b, destination, since) == 1
     assert (destination / fresh.name).exists()
     assert stale.exists()
+
+
+# --- review findings, 2026-10-05 ---------------------------------------------
+
+
+def _batch(tmp_path: pathlib.Path) -> batchlib.Batch:
+    bench = tmp_path / "bench-logs"
+    bench.mkdir(exist_ok=True)
+    return batchlib.Batch(
+        repo=ROOT,
+        results=tmp_path / "r.jsonl",
+        manifest=tmp_path / "m.jsonl",
+        logdir=tmp_path / "logs",
+        bench_logs=bench,
+        batch="1005-0700",
+        harness_head="h",
+        backend="qwen38fnds4shim",
+        prefix="146-targets",
+    )
+
+
+def test_a_run_that_exits_nonzero_voids_the_read_out(tmp_path, monkeypatch) -> None:
+    """run.py died after part of a sweep. The manifest got an ordinary entry,
+    and `strip_ab_report` then reported the partial sweep as a result."""
+    b = _batch(tmp_path)
+    monkeypatch.setattr(batchlib.child, "run", lambda *a, **k: 2)
+    assert batchlib.run_one(b, 1, "legacy") == 2
+    entries = [json.loads(line) for line in b.manifest.read_text().splitlines()]
+    assert any(e["arm"] == "legacy" for e in entries), "the window is still kept"
+    reason = strip_ab_report.void_reason(entries)
+    assert reason is not None and "run 1" in reason
+    assert "exited 2" in reason
+
+
+def test_a_clean_run_is_not_voided(tmp_path, monkeypatch) -> None:
+    b = _batch(tmp_path)
+    monkeypatch.setattr(batchlib.child, "run", lambda *a, **k: 0)
+    assert batchlib.run_one(b, 1, "legacy") == 0
+    entries = [json.loads(line) for line in b.manifest.read_text().splitlines()]
+    assert strip_ab_report.void_reason(entries) is None
+
+
+def test_every_trials_transcripts_are_collected(tmp_path) -> None:
+    """With trials=3 the glob was `*-opencode-3*`, so trials 1 and 2 stayed
+    behind and a transcript report read one trial of three."""
+    import time as _time
+
+    b = _batch(tmp_path)
+    since = _time.time()
+    _time.sleep(0.01)
+    names = [
+        f"parser-date-qwen38fnds4shim-opencode-{n}-tag.stdout.jsonl" for n in (1, 2, 3)
+    ]
+    for name in names:
+        (b.bench_logs / name).write_text("{}")
+    destination = tmp_path / "run1"
+    assert batchlib.collect(b, destination, since, trials=3) == 3
+    assert sorted(p.name for p in destination.iterdir()) == sorted(names)
+
+
+def test_trial_one_does_not_claim_trial_ten(tmp_path) -> None:
+    import time as _time
+
+    b = _batch(tmp_path)
+    since = _time.time()
+    _time.sleep(0.01)
+    ten = b.bench_logs / "parser-date-qwen38fnds4shim-opencode-10.stdout.jsonl"
+    ten.write_text("{}")
+    assert batchlib.collect(b, tmp_path / "run1", since, trials=1) == 0
+    assert ten.exists()

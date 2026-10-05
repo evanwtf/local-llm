@@ -429,3 +429,76 @@ def test_a_shell_that_merely_mentions_the_server_is_not_one() -> None:
         preflight.Proc(pid=2, rss_gib=97.9, command="/g/ds4/ds4-server --metal"),
     ]
     assert [p.pid for p in census if ds4_server.PROCESS in p.short] == [2]
+
+
+# --- review findings, 2026-10-05 ---------------------------------------------
+
+
+@pytest.mark.parametrize("want", [True, False], ids=["mtp-arm", "control-arm"])
+def test_a_line_with_no_mtp_state_satisfies_neither_arm(paths, want):
+    """The diagnostics line says nothing about MTP. Reading "no MTP=off" as
+    "MTP on" passed an MTP arm on no evidence and refused a healthy control
+    arm for an MTP head it never loaded. Unknown is its own answer."""
+    paths["log"].write_text(DIAG_LINE + "\n")
+    with pytest.raises(ds4_server.MtpUnknown) as caught:
+        ds4_server.assert_graph(paths["log"], want_mtp=want)
+    assert "loaded an MTP head" not in str(caught.value)
+
+
+def test_mtp_state_reads_three_ways():
+    assert ds4_server.mtp_state(PLAIN_LINE) is False
+    assert ds4_server.mtp_state(MTP_LINE) is True
+    assert ds4_server.mtp_state(DIAG_LINE) is None
+
+
+def restart_into(monkeypatch, new_line: str) -> None:
+    """A `start` that APPENDS, as unitctl does, so the old launch stays in
+    the log ahead of the new one."""
+
+    def fake_start(
+        command, log, *, cwd, allow_foreign=False, env=None, unset=(), state_dir=None
+    ):
+        with pathlib.Path(log).open("a") as handle:
+            handle.write(new_line + "\n")
+        return unitctl.Unit(
+            name=ds4_server.UNIT,
+            pid=4242,
+            command=list(command),
+            cwd=str(cwd),
+            log=str(log),
+            started="2026-10-05T07:00:00-04:00",
+            start_key="k",
+            hostname="test",
+        )
+
+    monkeypatch.setattr(ds4_server, "start", fake_start)
+    monkeypatch.setattr(ds4_server, "stop", lambda why="", state_dir=None: "stopped")
+    monkeypatch.setattr(ds4_server.wait_ready, "ready", lambda *a, **k: True)
+    monkeypatch.setattr(ds4_server, "record_route", lambda *a, **k: True)
+
+
+def test_a_reused_log_is_read_from_this_launch_only(monkeypatch, tmp_path):
+    """The previous launch said MTP=off; this one loaded the head. The
+    assertion read the first graph line in the file, which is the old one."""
+    log = tmp_path / "s.log"
+    log.write_text(PLAIN_LINE + "\n")
+    restart_into(monkeypatch, MTP_LINE)
+    with ds4_server.serving(
+        ["ds4-server"], log, cwd=tmp_path, model_id="m", want_mtp=True
+    ):
+        pass
+
+
+def test_a_previous_launch_cannot_vouch_for_this_one(monkeypatch, tmp_path):
+    """The mirror case, and the dangerous one: the old launch had MTP on, the
+    new one did not, and the MTP arm was accepted on the old line."""
+    log = tmp_path / "s.log"
+    log.write_text(MTP_LINE + "\n")
+    restart_into(monkeypatch, PLAIN_LINE)
+    with (
+        pytest.raises(ds4_server.GraphMismatch),
+        ds4_server.serving(
+            ["ds4-server"], log, cwd=tmp_path, model_id="m", want_mtp=True
+        ),
+    ):
+        pass
