@@ -327,8 +327,26 @@ def _client_never_ran(row: dict[str, Any]) -> bool:
 
     Guarded by `not passed`: if the client errored and the oracle passed
     anyway, the trial produced a real result and stays.
+
+    Guarded too by the model's own output. `agent_error` is also set after
+    real work: unreal_parse sets it when any response failed, and Claude Code
+    reports is_error on a run that hit its turn limit. A model that produced
+    tokens or called a tool made an attempt, and a failed attempt belongs in
+    the pass rate. No committed row changes: every row this predicate alone
+    excluded on 2026-10-05 had no output from the model.
     """
-    return bool(row.get("agent_error")) and not row.get("passed")
+    if not row.get("agent_error") or row.get("passed"):
+        return False
+    return not _model_attempted(row)
+
+
+def _model_attempted(row: dict[str, Any]) -> bool:
+    """True if the model produced output tokens or called a tool."""
+    for key in ("output_tokens", "reasoning_tokens", "tool_items"):
+        value = row.get(key)
+        if isinstance(value, int | float) and not isinstance(value, bool) and value > 0:
+            return True
+    return False
 
 
 def normalize(row: dict[str, Any]) -> dict[str, Any]:
