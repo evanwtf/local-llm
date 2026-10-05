@@ -38,6 +38,7 @@ import math
 import pathlib
 import re
 import sys
+from collections.abc import Mapping
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
@@ -266,7 +267,7 @@ def verdict(on_f: int, off_f: int, p: float) -> str:
     )
 
 
-def arms_in(*sources: dict[str, object]) -> list[str]:
+def arms_in(*sources: Mapping[str, object]) -> list[str]:
     """The arms present, with the #112 pair kept in its published order.
 
     Any other experiment's arms are sorted, so this reads out `targets_ab.sh`

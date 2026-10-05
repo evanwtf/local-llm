@@ -2168,10 +2168,10 @@ def unreal_runner_version(binary: pathlib.Path) -> str | None:
 
 
 def parse_go_buildinfo(text: str) -> str | None:
-    fields = dict(
-        m.groups()
+    fields = {
+        m.group(1): m.group(2)
         for m in re.finditer(r"^\s*build\s+(vcs\.\w+)=(\S+)", text, re.MULTILINE)
-    )
+    }
     sha = fields.get("vcs.revision")
     if not sha:
         return None
@@ -3076,8 +3076,8 @@ def sandbox_profile(worktree, repo, home=None, sockets=None, tmp_root=None):
         # cwd OpenCode lstats is benchmarks/agent, not sandbox/.
         SANDBOX_ROOT,
     ]
-    for path in candidates:
-        path = str(path)
+    for candidate in candidates:
+        path = str(candidate)
         if path == keep or keep.startswith(path + "/"):
             continue  # never hide the tree the trial is supposed to edit
         if path not in denied:
@@ -3092,8 +3092,8 @@ def sandbox_profile(worktree, repo, home=None, sockets=None, tmp_root=None):
     # for answer exposure, leaving nothing citable about the project's own
     # designated primary harness. Denying the two files rather than the tree
     # keeps OpenCode able to start while closing the leak.
-    for leak in (HERE / "tasks.toml", RESULTS):
-        leak = str(leak.resolve())
+    for leak_file in (HERE / "tasks.toml", RESULTS):
+        leak = str(leak_file.resolve())
         if not keep.startswith(leak) and leak not in denied:
             denied.append(leak)
 
@@ -3630,7 +3630,7 @@ def resolve_counter_sources(draft_log_engine, server_log, metrics_url):
     return draft_value, prefill_log
 
 
-COUNTER_SWITCHES = {
+COUNTER_SWITCHES: dict[str, dict[str, str | None]] = {
     "ds4": {"env": "DS4_MTP_TIMING", "argv": "--mtp-timing"},
     "mtplx": {"env": "MTPLX_DECODE_TRACE_JSONL", "argv": "--decode-trace-jsonl"},
     # vLLM needs no switch: it exports the spec_decode family whenever a
@@ -3698,6 +3698,7 @@ class DraftProbe:
         # a quiet engine rather than a broken probe -- the exact confusion #148
         # exists to prevent. Engines whose counters live behind HTTP keep the
         # string (#319).
+        self.path: str | pathlib.Path | None
         if engine in URL_PROBED_ENGINES:
             self.path = str(path) if path else None
         else:
@@ -3762,16 +3763,21 @@ def counters_on(engine, ps_text=None):
     # An engine whose counters are unconditional has nothing to switch on, so
     # there is nothing to observe on the command line either. Saying "off"
     # here would refuse every vLLM speculative arm forever (#319).
-    if switch["env"] is None and switch["argv"] is None:
+    env, argv = switch["env"], switch["argv"]
+    if env is None and argv is None:
         return True
-    if os.environ.get(switch["env"]):
+    # Either half may be absent on its own: an engine with only a server flag
+    # has no env var to read, and one with only an env var has no argv to find.
+    if env is not None and os.environ.get(env):
         return True
+    if argv is None:
+        return False
     text = (
         ps_text
         if ps_text is not None
         else preflight._capture(["ps", "-eo", "pid,rss,etime,command"])
     )
-    return any(switch["argv"] in proc.command for proc in preflight.parse_ps(text))
+    return any(argv in proc.command for proc in preflight.parse_ps(text))
 
 
 def speculative_preconditions(backends, server_log, ps_text=None, clients=()):
@@ -4521,8 +4527,10 @@ def one_trial(
                     reason = "gpu-idle-stall"
                 else:
                     reason = "wall-clock"
-                exc.timeout_reason = reason  # type: ignore[attr-defined]
-                exc.client_peak_rss_gib = proc.peak_rss_gib  # type: ignore[attr-defined]
+                # Extra facts ride on the stdlib exception; the handler reads
+                # them back with getattr and a default.
+                exc.timeout_reason = reason  # type: ignore[attr-defined]  # see above
+                exc.client_peak_rss_gib = proc.peak_rss_gib  # type: ignore[attr-defined]  # see above
                 raise exc
         else:
             proc = run(
@@ -4536,10 +4544,11 @@ def one_trial(
             exc = subprocess.TimeoutExpired(
                 cmd=argv, timeout=timeout, output=proc.stdout, stderr=proc.stderr
             )
-            exc.timeout_reason = "memory-cap"  # type: ignore[attr-defined]
+            # Facts on the stdlib exception, read back with getattr (as above).
+            exc.timeout_reason = "memory-cap"  # type: ignore[attr-defined]  # see above
             peak_seen = getattr(proc, "peak_rss_gib", 0.0)
-            exc.client_peak_rss_gib = peak_seen  # type: ignore[attr-defined]
-            exc.kernel_oom_kills = oom_after - oom_before  # type: ignore[attr-defined]
+            exc.client_peak_rss_gib = peak_seen  # type: ignore[attr-defined]  # see above
+            exc.kernel_oom_kills = oom_after - oom_before  # type: ignore[attr-defined]  # see above
             raise exc
         result["wall_seconds"] = round(time.monotonic() - t0, 1)
         # A failed row records that the agent did not fix the code, never why.

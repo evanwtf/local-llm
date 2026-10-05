@@ -22,6 +22,7 @@ counters are switched on. Then silence means one thing.
 from __future__ import annotations
 
 import json
+from typing import Any
 
 import opencode_config
 import pytest
@@ -430,7 +431,7 @@ def backend(**kw):
 def config_with(options, tmp_path):
     """An OpenCode config declaring one model with `options`."""
     path = tmp_path / "opencode.json"
-    spec = {"models": {"qwen3.8-flash-next-q4": {}}}
+    spec: dict[str, Any] = {"models": {"qwen3.8-flash-next-q4": {}}}
     if options is not None:
         spec["models"]["qwen3.8-flash-next-q4"] = {"options": options}
     path.write_text(json.dumps({"provider": {"ds4qwenshim": spec}}))
@@ -536,3 +537,32 @@ def test_the_declaration_does_not_replace_the_post_trial_proof():
     """A declaration is what someone wrote in a config file. #210's gate is
     what the engine did. Both, or the first one is a claim."""
     assert run.require_draft_default({"greedy": backend(pinned_temperature=0)})
+
+
+def test_an_argv_only_switch_reads_the_argv_and_not_the_environment(monkeypatch):
+    """An engine whose counters have a server flag but no env var.
+
+    `COUNTER_SWITCHES` allows either half to be None, and vLLM already has
+    both None. With only `env` None, `os.environ.get(None)` raised TypeError
+    before the argv was ever read, so the gate crashed instead of answering.
+    """
+    monkeypatch.setitem(
+        run.COUNTER_SWITCHES, "argvonly", {"env": None, "argv": "--mtp-timing"}
+    )
+    assert run.counters_on("argvonly", PS_MTP_SERVER) is True
+    assert run.counters_on("argvonly", PS_PLAIN_SERVER) is False
+
+
+def test_an_env_only_switch_with_the_env_unset_is_off(monkeypatch):
+    """The mirror case: an env var and no server flag to look for.
+
+    With the env var unset, `None in proc.command` raised TypeError for the
+    first process in the table instead of reporting the counters off.
+    """
+    monkeypatch.delenv("ENVONLY_COUNTERS", raising=False)
+    monkeypatch.setitem(
+        run.COUNTER_SWITCHES, "envonly", {"env": "ENVONLY_COUNTERS", "argv": None}
+    )
+    assert run.counters_on("envonly", PS_MTP_SERVER) is False
+    monkeypatch.setenv("ENVONLY_COUNTERS", "1")
+    assert run.counters_on("envonly", PS_PLAIN_SERVER) is True

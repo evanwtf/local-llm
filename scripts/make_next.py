@@ -164,7 +164,7 @@ def is_provenance(block: str) -> bool:
     return bool(PROVENANCE.match(stripped))
 
 
-def substance(body: str) -> str:
+def substance(body: str | None) -> str:
     """The body with its leading provenance blocks removed.
 
     Only leading ones. A `Verified` line further down is a correction on a
@@ -177,7 +177,7 @@ def substance(body: str) -> str:
     return "\n\n".join(blocks[i:]) if i < len(blocks) else (body or "")
 
 
-def summarize(body: str, words: int = SUMMARY_WORDS) -> str:
+def summarize(body: str | None, words: int = SUMMARY_WORDS) -> str:
     """The issue's own opening, flattened to one line.
 
     Markdown structure is stripped rather than rendered: this lands inside a

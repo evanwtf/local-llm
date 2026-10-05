@@ -122,12 +122,16 @@ def test_a_version_with_no_section_is_refused() -> None:
 def test_a_section_does_not_match_by_prefix() -> None:
     # v1.0.1 must not be satisfied by v1.0.10's section. Publishing the wrong
     # release's notes is worse than publishing none.
-    assert rn.section("v1.0.1", CHANGELOG).strip() == "The one."
-    assert rn.section("v1.0.10", CHANGELOG).strip() == "The ten."
+    one = rn.section("v1.0.1", CHANGELOG)
+    ten = rn.section("v1.0.10", CHANGELOG)
+    assert one is not None and ten is not None
+    assert one.strip() == "The one."
+    assert ten.strip() == "The ten."
 
 
 def test_a_section_stops_at_the_next_heading() -> None:
     body = rn.section("v1.0.1", CHANGELOG)
+    assert body is not None
     assert "Older" not in body
     assert "The ten" not in body
 

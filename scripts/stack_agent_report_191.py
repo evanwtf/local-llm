@@ -107,7 +107,7 @@ def passed_wall(rows: list[dict[str, Any]]) -> float | None:
     passed trial has no wall, and pairs with nothing.
     """
     walls = [
-        r.get("wall_seconds")
+        r["wall_seconds"]
         for r in rows
         if rep.passes(r)
         and isinstance(r.get("wall_seconds"), (int, float))
@@ -131,11 +131,11 @@ def pairs_by_task(sweeps: list[rep.Sweep]) -> list[tuple[str, float, float]]:
         bucket = new if sweep.arm == "new" else old
         for row in sweep.rows:
             bucket.setdefault(row.get("task") or "?", []).append(row)
-    for task, bucket in list(new.items()):
-        new[task] = rep.results_mod.compatible_subset(bucket)
+    for task, task_rows in list(new.items()):
+        new[task] = rep.results_mod.compatible_subset(task_rows)
         rep.log_if_unknown(rep.NEW_BACKEND, task, new[task])
-    for task, bucket in list(old.items()):
-        old[task] = rep.results_mod.compatible_subset(bucket)
+    for task, task_rows in list(old.items()):
+        old[task] = rep.results_mod.compatible_subset(task_rows)
         rep.log_if_unknown(rep.OLD_BACKEND, task, old[task])
     out = []
     for task in sorted(new):

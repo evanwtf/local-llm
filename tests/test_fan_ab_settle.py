@@ -188,6 +188,23 @@ def test_a_timeout_that_never_evaluated_is_its_own_outcome(
     assert got["evaluations"] == 0
 
 
+def test_a_sparse_sensor_records_no_fit_in_the_returned_record(
+    monkeypatch: pytest.MonkeyPatch, clock: FakeClock
+) -> None:
+    """The record must say `no_fit`, not only the log line.
+
+    A sensor that answers once every 200 s never puts two readings in one
+    180 s window, so the slope never fits. The record was built before the
+    outcome was renamed, so the manifest said `timeout` while the log said
+    `no_fit`, and fan_ab_report's `no_fit` warning could never fire.
+    """
+    temps(monkeypatch, clock, lambda t: 40.0 if t % 200 == 0 else None)
+    got = fan_ab.cool_to_plateau("t", min_s=60, timeout_s=600)
+    assert got["evaluations"] == 0
+    assert got["samples"] == 3
+    assert got["outcome"] == "no_fit"
+
+
 def test_a_real_timeout_records_the_evaluations_that_refused_it(
     monkeypatch: pytest.MonkeyPatch, clock: FakeClock
 ) -> None:

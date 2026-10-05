@@ -63,7 +63,7 @@ def test_filter_injects_agent_into_every_record(monkeypatch):
     monkeypatch.setenv(agent_identity.EFFORT_VAR, "high")
     record = logging.LogRecord("m", logging.INFO, "f", 1, "msg", (), None)
     assert agent_identity.AgentFilter().filter(record)
-    assert record.agent == "opus-llama/claude-opus-5/effort=high"
+    assert record.__dict__["agent"] == "opus-llama/claude-opus-5/effort=high"
 
 
 def test_install_warns_once_when_unidentified(monkeypatch, caplog):
@@ -71,6 +71,11 @@ def test_install_warns_once_when_unidentified(monkeypatch, caplog):
     monkeypatch.delenv(agent_identity.AGENT_VAR, raising=False)
     monkeypatch.delenv(agent_identity.MODEL_VAR, raising=False)
     monkeypatch.delenv(agent_identity.EFFORT_VAR, raising=False)
+    # The once-flag is module state. Any script that calls install() at import
+    # (evidence.py, peer_status.py, ...) sets it first when collected earlier in
+    # the same run. It hid while those scripts loaded a second copy of this
+    # module as `lib.agent_identity`.
+    monkeypatch.setattr(agent_identity, "_warned", False)
     logger = logging.getLogger("test_identity_warn")
     logger.handlers.clear()
     with caplog.at_level(logging.WARNING, logger="test_identity_warn"):

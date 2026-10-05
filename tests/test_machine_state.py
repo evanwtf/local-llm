@@ -456,6 +456,7 @@ def test_the_survey_names_the_occupant(tmp_path, peer_file) -> None:
         procs=[proc(4242, 74.2)],
     )
     assert got["verdict"] == ms.BUSY
+    assert got["occupant"] is not None
     assert got["occupant"]["pid"] == 4242
     assert got["occupant"]["resident_gib"] == 74.2
 
@@ -654,6 +655,7 @@ def test_a_servers_hold_time_is_its_lifetime_because_that_is_the_occupation(
         unit_dir=tmp_path / "units",
         procs=[dataclasses.replace(proc(4242, 74.2), age_s=4 * 60)],
     )
+    assert got["occupant"] is not None
     held = got["occupant"]["held_s"]
     assert held is not None and held < 10 * 60
 
@@ -672,6 +674,7 @@ def test_an_unreadable_start_time_leaves_the_hold_unstated(tmp_path, peer_file) 
         unit_dir=tmp_path / "units",
         procs=[dataclasses.replace(proc(4242, 74.2), age_s=None)],
     )
+    assert got["occupant"] is not None
     assert got["occupant"]["held_s"] is None
     assert " for " not in str(got["occupant_line"])
 
@@ -704,6 +707,7 @@ def test_a_benchmark_occupies_even_below_the_resident_model_bar() -> None:
         "72405 50000   00:02 /x/ds4-bench -m /m/model.gguf --metal\n"
     )
     claim = ms.bench_claims(tiny)[0]
+    assert claim.resident_gib is not None
     assert claim.resident_gib < ms.RESIDENT_GIB
     assert claim.occupies
 
@@ -816,4 +820,5 @@ def test_a_recorded_server_holding_gpu_memory_makes_the_survey_busy(
     rows = [c for c in got["claims"] if c["source"] == "peer-status"]
     assert rows[0]["resident_gib"] == 19.0
     assert got["verdict"] == ms.BUSY
+    assert got["occupant"] is not None
     assert got["occupant"]["pid"] == os.getpid()

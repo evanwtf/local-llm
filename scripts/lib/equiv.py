@@ -705,13 +705,12 @@ def declared_run_flags(run_py: pathlib.Path = RUN_PY) -> frozenset[str]:
         if not isinstance(func, ast.Attribute) or func.attr != "add_argument":
             continue
         for arg in node.args:
+            # Only a literal string is read here; a Name has no `.value` at
+            # all, and non_literal_flag_tests reports those separately.
+            if not isinstance(arg, ast.Constant):
+                continue
             value = arg.value
-            if (
-                isinstance(arg, ast.Constant)
-                and isinstance(value, str)
-                and value.startswith("-")
-                and value != "-"
-            ):
+            if isinstance(value, str) and value.startswith("-") and value != "-":
                 flags.add(value)
     # argparse adds the help option to every parser.
     flags.add("-h")

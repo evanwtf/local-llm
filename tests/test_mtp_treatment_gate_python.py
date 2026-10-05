@@ -369,14 +369,17 @@ def _wire_shim(monkeypatch) -> list[str]:
     monkeypatch.setattr(gate.unitctl, "read", lambda *a, **k: None)
     monkeypatch.setattr(gate, "port_answers", lambda *a, **k: False)
     monkeypatch.setattr(gate, "_wait_for_port", lambda *a, **k: True)
-    monkeypatch.setattr(
-        gate.unitctl,
-        "start",
-        lambda *a, **k: events.append("shim-start") or _FakeUnit(),
-    )
-    monkeypatch.setattr(
-        gate.unitctl, "stop", lambda *a, **k: events.append("shim-stop") or "stopped"
-    )
+
+    def start(*a, **k) -> _FakeUnit:
+        events.append("shim-start")
+        return _FakeUnit()
+
+    def stop(*a, **k) -> str:
+        events.append("shim-stop")
+        return "stopped"
+
+    monkeypatch.setattr(gate.unitctl, "start", start)
+    monkeypatch.setattr(gate.unitctl, "stop", stop)
     return events
 
 

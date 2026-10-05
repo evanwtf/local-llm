@@ -32,6 +32,7 @@ import pathlib
 import shlex
 import subprocess
 import sys
+from typing import Any
 
 import pytest
 
@@ -80,9 +81,9 @@ def _shell_server_argv(call: list[str], env: dict[str, str] | None = None) -> li
     return done.stdout.strip().split()
 
 
-def _arm(**kw: object) -> stack_arm.Arm:
+def _arm(**kw: Any) -> stack_arm.Arm:
     """A port-side arm with #138's defaults, overridden per test."""
-    base: dict[str, object] = {
+    base: dict[str, Any] = {
         "name": "new",
         "backend": "qwen38fnds4kimat",
         "engine": stack_arm.DS4,
@@ -97,7 +98,7 @@ def _arm(**kw: object) -> stack_arm.Arm:
         "mlx_bin": stack_arm.MLX_SERVE,
     }
     base.update(kw)
-    return stack_arm.Arm(**base)  # type: ignore[arg-type]
+    return stack_arm.Arm(**base)
 
 
 def test_the_script_parses() -> None:

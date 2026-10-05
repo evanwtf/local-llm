@@ -140,7 +140,8 @@ def main() -> int:
         return 1
 
     today = dt.datetime.now(dt.UTC).strftime("%Y-%m-%d")
-    results, ok = [], True
+    results: list[dict[str, object]] = []
+    ok = True
     for post_id in posts:
         status, got = verify(post_id)
         if status != "ok":
@@ -148,6 +149,7 @@ def main() -> int:
             logger.info("%s  %s -- %s", post_id, status, got)
             results.append({"id": post_id, "status": status, "reason": got})
             continue
+        assert isinstance(got, dict)  # an "ok" verdict always carries the facts
         kind = "reply" if got["is_reply"] else "post"
         logger.info(
             "%s  VERIFIED %s  @%s  %s  via %s",

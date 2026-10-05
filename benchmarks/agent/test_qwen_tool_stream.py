@@ -25,6 +25,7 @@ from __future__ import annotations
 import json
 import pathlib
 import sys
+from typing import Any
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 
@@ -289,7 +290,7 @@ def test_usage_is_carried_through_when_present() -> None:
 
 def test_an_xml_fallback_response_becomes_a_real_tool_call() -> None:
     """End to end over the exact shape ds4 returns when it gives up."""
-    body = {
+    body: dict[str, Any] = {
         "id": "x",
         "model": "m",
         "created": 1,

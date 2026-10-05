@@ -10,6 +10,7 @@ _spec = importlib.util.spec_from_file_location(
     "vllm_compat_proxy",
     pathlib.Path(__file__).resolve().parents[1] / "scripts" / "vllm_compat_proxy.py",
 )
+assert _spec is not None and _spec.loader is not None
 proxy = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(proxy)
 

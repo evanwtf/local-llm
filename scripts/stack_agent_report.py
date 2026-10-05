@@ -393,7 +393,7 @@ def tally(rows: list[dict[str, Any]]) -> dict[str, int]:
 def task_wall(rows: list[dict[str, Any]]) -> float | None:
     """Geometric-mean wall for one (task, arm) over wall-eligible trials."""
     walls = [
-        r.get("wall_seconds")
+        r["wall_seconds"]
         for r in rows
         if not r.get("solution_empty")
         and isinstance(r.get("wall_seconds"), (int, float))
@@ -424,8 +424,8 @@ def log_if_unknown(backend: str, task: str, rows: list[dict[str, Any]]) -> None:
 
 def pairs_by_task(sweeps: list[Sweep]) -> list[tuple[str, float, float]]:
     """(task, wall_new, wall_old) for every task with walls on both arms."""
-    new: dict[str, dict[str, Any]] = {}
-    old: dict[str, dict[str, Any]] = {}
+    new: dict[str, list[dict[str, Any]]] = {}
+    old: dict[str, list[dict[str, Any]]] = {}
     for sweep in sweeps:
         bucket = new if sweep.arm == "new" else old
         for row in sweep.rows:
@@ -433,11 +433,11 @@ def pairs_by_task(sweeps: list[Sweep]) -> list[tuple[str, float, float]]:
     # #213: a bucket that mixes graph-changing server_argv is two different
     # models. Keep the largest self-consistent group; the dropped rows are
     # holes in n, not passes or fails.
-    for task, bucket in list(new.items()):
-        new[task] = results_mod.compatible_subset(bucket)
+    for task, task_rows in list(new.items()):
+        new[task] = results_mod.compatible_subset(task_rows)
         log_if_unknown(NEW_BACKEND, task, new[task])
-    for task, bucket in list(old.items()):
-        old[task] = results_mod.compatible_subset(bucket)
+    for task, task_rows in list(old.items()):
+        old[task] = results_mod.compatible_subset(task_rows)
         log_if_unknown(OLD_BACKEND, task, old[task])
     out = []
     for task in sorted(new):
@@ -657,7 +657,11 @@ def void_checks(
     # version that ran is on every row and in client-versions.toml, so nothing
     # is lost from the record by dropping the literal.
     if len(versions) > 1:
-        failures.append(f"client_version varies across rows: {sorted(versions)}")
+        # str(): a row with no client_version contributes None, and None does
+        # not sort against a version string.
+        failures.append(
+            f"client_version varies across rows: {sorted(str(v) for v in versions)}"
+        )
     old_rows = [r for s in sweeps if s.arm == "old" for r in s.rows]
     old_passes = sum(1 for r in old_rows if passes(r))
     if old_rows and old_passes < OLD_ARM_CONTROL:

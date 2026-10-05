@@ -97,6 +97,11 @@ def test_the_default_ledger_is_this_machines(monkeypatch, tmp_path):
     ledger = tmp_path / "results.jsonl"
     seen: list[object] = []
     monkeypatch.setattr(results, "default_path", lambda: ledger)
-    monkeypatch.setattr(results, "trials", lambda path: seen.append(path) or [])
+
+    def trials(path: object) -> list[object]:
+        seen.append(path)
+        return []
+
+    monkeypatch.setattr(results, "trials", trials)
     assert quality.main([]) == 0
     assert seen == [ledger]

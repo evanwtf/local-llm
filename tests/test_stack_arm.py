@@ -122,7 +122,7 @@ def test_an_arm_is_immutable() -> None:
     each branch "so a mistyped engine cannot leave a stale array from the
     previous call" -- a hazard that exists only because the value was shared."""
     with pytest.raises(dataclasses_error()):
-        ds4_arm().backend = "other"  # type: ignore[misc]
+        ds4_arm().backend = "other"  # type: ignore[misc]  # the write must fail
 
 
 def dataclasses_error():
@@ -324,7 +324,7 @@ def test_a_dirty_engine_tree_is_marked() -> None:
     import stack_arm as sa
 
     original = sa.engine_identity.identity
-    sa.engine_identity.identity = lambda e, tree=None: {
+    sa.engine_identity.identity = lambda engine, tree=None: {
         "engine_tree": "/g/ds4",
         "engine_version": "abc1234",
         "engine_dirty": True,

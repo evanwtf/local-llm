@@ -127,6 +127,7 @@ def test_every_recommended_stack_has_a_declared_opencode_model() -> None:
 
     ref = pathlib.Path(__file__).resolve().parents[2] / "config/opencode.json"
     declared = opencode_config.declared_models(ref)
+    assert declared is not None, "config/opencode.json is unreadable"
     with (pathlib.Path(__file__).parent / "tasks.toml").open("rb") as fh:
         backends = tomllib.load(fh)["backend"]
     for name in ("qwen38fnq3", "ds4", "qwen36coding", "ornith15"):
