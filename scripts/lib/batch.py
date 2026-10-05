@@ -188,7 +188,15 @@ def collect(b: Batch, destination: pathlib.Path, since: float, trials: int = 1) 
     """
     destination.mkdir(parents=True, exist_ok=True)
     moved = 0
-    for path in sorted(b.bench_logs.glob(f"*{b.backend}-opencode-{trials}*")):
+    # Every trial, 1 through `trials`. run.py names a transcript by its own
+    # trial number (`<task>-<backend>-opencode-<n>[-<tag>].stdout.jsonl`), and
+    # a glob on `-opencode-{trials}` claimed only the last trial of a
+    # multi-trial run. The `[-.]` after the number keeps trial 1 from also
+    # claiming trial 10.
+    found: set[pathlib.Path] = set()
+    for trial in range(1, trials + 1):
+        found.update(b.bench_logs.glob(f"*{b.backend}-opencode-{trial}[-.]*"))
+    for path in sorted(found):
         if path.is_dir() or path.stat().st_mtime <= since:
             continue
         shutil.move(str(path), str(destination / path.name))
@@ -207,7 +215,8 @@ def run_one(
     """One run: measure, claim the transcripts, record the window. Returns rc.
 
     A non-zero exit keeps whatever the run wrote. The rows that exist are still
-    rows; what must not happen is the batch reporting itself clean.
+    rows; what must not happen is the batch reporting itself clean, so a VOID
+    entry follows the run's window in the manifest.
     """
     destination = b.run_dir(run, arm)
     destination.mkdir(parents=True, exist_ok=True)
@@ -233,6 +242,15 @@ def run_one(
             "batch": b.batch,
         },
     )
+    if rc != 0:
+        # The window above stays, so its rows still map to an arm. The VOID
+        # entry is what stops a read-out: `strip_ab_report` refuses a manifest
+        # holding one, the same way it refuses a cutoff. Without it the driver
+        # exited non-zero and the partial sweep was reported as a result.
+        append(
+            b.manifest,
+            {"run": run, "arm": "VOID", "reason": f"run.py exited {rc}", "rc": rc},
+        )
     logger.info("run %d done, %d transcripts", run, moved)
     return rc
 

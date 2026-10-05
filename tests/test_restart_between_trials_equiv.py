@@ -134,7 +134,7 @@ def _port(
     )
     monkeypatch.setattr(driver, "kv_prefix_audit", lambda *a, **k: None)
     monkeypatch.setattr(
-        wait_ready, "ready", lambda *a, **k: equiv.wait_for_program(out, "ds4-server")
+        wait_ready, "ready", equiv.own_server_barrier(out, f"port{arm}")
     )
     monkeypatch.setattr(driver, "DS4_TREE", home / "git" / "ds4-metal")
     models = home / "models" / "qwen3.8-flash-next-ds4-q4"

@@ -257,9 +257,7 @@ def _port_run_invs(
     home = tmp_path / "home"
     monkeypatch.setattr(driver, "run_lock", _noop)
     monkeypatch.setattr(driver, "greedy_shim", _noop)
-    monkeypatch.setattr(
-        wait_ready, "ready", lambda *a, **k: equiv.wait_for_program(out, "ds4-server")
-    )
+    monkeypatch.setattr(wait_ready, "ready", equiv.own_server_barrier(out, "port"))
     # The shell resolves these against $HOME; the port computed them at import
     # from the real home. Point them at the tmp home so the server argv agrees.
     monkeypatch.setattr(driver, "DS4_TREE", home / "git" / "ds4-metal")

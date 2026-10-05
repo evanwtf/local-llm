@@ -41,6 +41,7 @@ from __future__ import annotations
 import contextlib
 import logging
 import pathlib
+import re
 import sys
 from collections.abc import Iterator, Sequence
 
@@ -74,6 +75,9 @@ GRAPH_MARKERS = (
 )
 GRAPH_MARKER = GRAPH_MARKERS[0]  # representative, for messages and back-compat
 MTP_OFF = "MTP=off"
+#: The MTP field of a graph line: `MTP=off`, or the head's quant types
+#: (`MTP=Q4_K/Q8_0/BF16`) when one is loaded.
+MTP_FIELD = re.compile(r"\bMTP=(\S+)")
 
 
 class ServerNeverStarted(RuntimeError):
@@ -96,6 +100,16 @@ class ForeignServer(RuntimeError):
 
 class GraphMismatch(RuntimeError):
     """The server started and loaded something other than the arm requires."""
+
+
+class MtpUnknown(GraphMismatch):
+    """The graph line carries no MTP state, so no MTP assertion can pass.
+
+    The diagnostics marker (`GRAPH_MARKERS[1]`) says nothing about MTP. Reading
+    "no `MTP=off`" as "MTP on" passed an MTP arm on no evidence and refused a
+    healthy control arm for a head it never loaded. A subclass, so a caller
+    that refuses on `GraphMismatch` still refuses.
+    """
 
 
 class NotReady(RuntimeError):
@@ -250,7 +264,7 @@ def start(
     )
 
 
-def graph_line(log: pathlib.Path) -> str | None:
+def graph_line(log: pathlib.Path, offset: int = 0) -> str | None:
     """The graph-allocation line, or None when the log does not have one.
 
     None covers three cases that look identical from here and all mean the same
@@ -259,10 +273,13 @@ def graph_line(log: pathlib.Path) -> str | None:
     Accepts either marker in `GRAPH_MARKERS`, and prefers the earlier one when
     both appear, because only the old `Qwen graph allocated` line carries the
     MTP state that `assert_graph` reads for a `want_mtp` check.
+
+    `offset` skips the bytes a previous launch wrote. `unitctl.start` appends,
+    so a restart into the same log keeps the old graph line ahead of the new
+    one, and the first match is then the wrong launch.
     """
-    try:
-        text = log.read_text(errors="replace")
-    except OSError:
+    text = unitctl.read_since(log, offset)
+    if text is None:
         return None
     lines = text.splitlines()
     for marker in GRAPH_MARKERS:
@@ -272,20 +289,31 @@ def graph_line(log: pathlib.Path) -> str | None:
     return None
 
 
-def assert_graph(log: pathlib.Path, *, want_mtp: bool | None) -> str:
+def mtp_state(line: str) -> bool | None:
+    """True when the graph line names an MTP head, False for `MTP=off`, None
+    when it does not say."""
+    found = MTP_FIELD.search(line)
+    if found is None:
+        return None
+    return found.group(1) != "off"
+
+
+def assert_graph(log: pathlib.Path, *, want_mtp: bool | None, offset: int = 0) -> str:
     """Check the arm loaded what it claims. Returns the graph line.
 
-    Raises ServerNeverStarted when there is no line to read, and GraphMismatch
-    when there is one and it disagrees. Never reports the second in place of
-    the first.
+    Raises ServerNeverStarted when there is no line to read, MtpUnknown when
+    the line does not state MTP either way, and GraphMismatch when it states
+    the wrong one. Never reports the second or third in place of the first.
 
     `want_mtp=None` asserts nothing and returns the line to be logged. It is
     for a harness whose arms differ BY configuration: `stack_agent_ab` runs
     #210/#151's MTP-on against MTP-off in the same tree, so there is no single
     answer for it to hold. The absent-line failure is still raised, because
     "the server never started" is true whatever the arm expected.
+
+    `offset` is where this launch's output starts; see `graph_line`.
     """
-    line = graph_line(log)
+    line = graph_line(log, offset)
     if line is None:
         raise ServerNeverStarted(
             f"no graph line ({' / '.join(repr(m) for m in GRAPH_MARKERS)}) in "
@@ -294,7 +322,12 @@ def assert_graph(log: pathlib.Path, *, want_mtp: bool | None) -> str:
         )
     if want_mtp is None:
         return line
-    has_mtp = MTP_OFF not in line
+    has_mtp = mtp_state(line)
+    if has_mtp is None:
+        raise MtpUnknown(
+            f"the graph line states no MTP state, so the "
+            f"{'MTP' if want_mtp else 'control'} arm cannot be confirmed: {line}"
+        )
     if want_mtp and not has_mtp:
         raise GraphMismatch(f"the MTP arm reports {MTP_OFF}: {line}")
     if not want_mtp and has_mtp:
@@ -339,6 +372,9 @@ def serving(
     yield. The stop is in a `finally`, so it happens on every exit path --
     which is the #145 fix, expressed once instead of in eight drivers.
     """
+    # Where this launch's output starts: `unitctl.start` appends, and the graph
+    # line a reused log already holds belongs to the previous launch.
+    offset = unitctl.log_offset(log)
     unit = start(
         command,
         log,
@@ -352,7 +388,8 @@ def serving(
         base_url = f"http://127.0.0.1:{port}"
         if not wait_ready.ready(base_url, model_id, timeout=timeout):
             raise NotReady(f"{base_url} did not serve {model_id} within {timeout}s")
-        logger.info("graph(%s): %s", UNIT, assert_graph(log, want_mtp=want_mtp))
+        graph = assert_graph(log, want_mtp=want_mtp, offset=offset)
+        logger.info("graph(%s): %s", UNIT, graph)
         record_route(log, port, unit.pid)
         yield unit
     finally:
