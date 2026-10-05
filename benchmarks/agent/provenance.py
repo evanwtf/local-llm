@@ -68,6 +68,13 @@ DATA_SUFFIXES = (".jsonl", ".log", ".csv")
 # results.jsonl: a flag set on every row it appears on says nothing.
 DATA_PREFIXES = ("benchmarks/ds4/",)
 
+# What a run writes inside its output directory, besides DATA_SUFFIXES. The
+# prefix rule used to excuse every path under it, so a staged edit to a
+# script there -- benchmarks/ds4/266-mtp-history-repro/repro.py -- left the
+# tree "clean". Now the prefix excuses an untracked run directory and these
+# output files only; code under it counts like code anywhere else.
+OUTPUT_SUFFIXES = (".txt", ".json", ".md", ".count", ".trace")
+
 
 def code_is_dirty(cwd: pathlib.Path, *, untracked: bool = True) -> bool:
     """Uncommitted CODE, ignoring the data files a run appends to.
@@ -84,11 +91,17 @@ def code_is_dirty(cwd: pathlib.Path, *, untracked: bool = True) -> bool:
     if not status:
         return False
     for line in status.splitlines():
+        code = line[:2]
         path = line[3:].strip().strip('"')
         # A rename is "old -> new"; judge the destination.
         path = path.split(" -> ")[-1]
         if path.startswith(DATA_PREFIXES):
-            continue
+            # git collapses a new run's output to one untracked directory.
+            if code == "??" and path.endswith("/"):
+                continue
+            if path.endswith(DATA_SUFFIXES + OUTPUT_SUFFIXES):
+                continue
+            return True
         if not path.endswith(DATA_SUFFIXES):
             return True
     return False

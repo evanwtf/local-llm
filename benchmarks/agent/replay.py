@@ -257,7 +257,7 @@ def revert(
     return done
 
 
-def track_new_files(worktree: pathlib.Path) -> None:
+def track_new_files(worktree: pathlib.Path) -> str | None:
     """Make files the agent created visible to `git diff HEAD`.
 
     The harness reads both the saved patch and `touched_tests` from
@@ -267,10 +267,17 @@ def track_new_files(worktree: pathlib.Path) -> None:
     omit most of the solution, and a conftest.py the agent added under tests/
     would not count as touching the tests. `add --intent-to-add` records only
     that the path exists, respects .gitignore (caches stay out), and changes
-    no file content. Failure-tolerant: it runs after a trial has already cost
+    no file content. It never raises: it runs after a trial has already cost
     its wall clock.
+
+    Returns None on success, else git's error. The return code used to be
+    discarded, so a stale index.lock left every new file out of the diffs
+    with nothing on the row to say so. The caller decides what to do.
     """
-    _git(["add", "--intent-to-add", "--all", "."], worktree)
+    got = _git(["add", "--intent-to-add", "--all", "."], worktree)
+    if got.returncode == 0:
+        return None
+    return got.stderr.decode("utf-8", "replace").strip() or f"exit {got.returncode}"
 
 
 def commit_size(
