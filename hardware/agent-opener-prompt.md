@@ -925,7 +925,7 @@ chat heartbeat (§3a).
   again before you blame the engine.
 - **Step 3.** Also `gh issue list --label wip --state open`. The lock lives on
   the head. **A remote-client run does not take the head's lock**: the harness
-  runs in the client container on the Core i3-7100, so `machine_state.py` reads
+  runs in the client container on the client machine, so `machine_state.py` reads
   FREE mid-run (#680). Before you launch trials, claim the head:
   `LOCAL_LLM_AGENT=… uv run python scripts/machine_claim.py acquire --what "<issue> <model> remote-client trials" --expected-finish HH:MM`,
   and `release` it when the pair is free again.
@@ -951,7 +951,7 @@ chat heartbeat (§3a).
   (`sudo -E uv run python scripts/setup_earlyoom.py --apply`).
 - **Step 5.** `ls -1t ~/bench-logs/*.log | head -3`. Trials run on the
   **client**, not here. Their verdicts are in `~/bench-logs/client-container.log`
-  on the Core i3-7100 (one `<task>-<backend>-opencode-<n>: PASS|FAIL in N s`
+  on the client (one `<task>-<backend>-opencode-<n>: PASS|FAIL in N s`
   line per trial). A live run is a `docker ps` container there. Rows
   accumulate in **the client checkout's** ledger until they are landed.
 - **Step 7.** Weights, images and engines, **on both nodes**:
@@ -1032,6 +1032,14 @@ chat heartbeat (§3a).
    If KV memory is short, vLLM names the gap. Raise that arm's GPU memory
    utilization through a per-launch override, not the shared `.env`, and record
    the value in its backend.
+   **Which client.** The cluster's client is the **Core i9-13900H laptop**
+   (20 threads, 64 GB). It has been the client since 2026-09-30, and every
+   MiaAI #892 row ran on it. The Core i3-7100 is the fallback only. Run every
+   arm of one comparison on the same client: a row's times compare only with
+   rows from the same client. Before the launch, check that the client's
+   OpenCode config defines the backend's `opencode_model` provider (#956);
+   without it, every trial fails in about 2 s and no request reaches the
+   server.
 3. **Facts and client, in that same turn:** run
    `server_facts.py --backend <name> --cluster-peer spark-b-cx7` and copy the
    facts file to the client. On the client, `git pull` and
