@@ -129,3 +129,15 @@ def test_no_pre_dir_opencode_rows_remain_in_results() -> None:
         and dirfix.era(json.loads(x), heads) == "before"
     ]
     assert not stragglers, f"{len(stragglers)} pre---dir rows still in results.jsonl"
+
+
+def test_a_pass_that_edited_the_tests_is_not_a_win() -> None:
+    """Code review, 2026-10-05: `passed` alone counted a test-editing row as a
+    win. results.verdict() decides, with its guards."""
+    got = dirfix.tally([row(head="x"), row(head="x", touched_tests=True)], {"x"})
+    assert got[("ds4", "excision", "after")] == [1, 2]
+
+
+def test_a_dry_run_is_not_a_trial() -> None:
+    got = dirfix.tally([row(head="x"), row(head="x", passed=None, dry_run=True)], {"x"})
+    assert got[("ds4", "excision", "after")] == [1, 1]

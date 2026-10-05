@@ -18,8 +18,14 @@ here -- an earlier attempt to recompute a stored field corrupted 30 rows.
 Idempotent: a row already excluded is left alone, including its reason.
 
     uv run python scripts/exclude_rows.py <ledger> --backend qwen38fnds4kimat \\
-        --since 2026-09-04T20:57 --until 2026-09-04T21:27 \\
+        --since 2026-09-04T20:57-0400 --until 2026-09-04T21:27-0400 \\
         --reason "aborted sweep (#138)" --apply
+
+Both bounds need a UTC offset. The window is compared by instant, not by
+string: the ledgers hold `-0400` and `+0000` rows, and as strings
+`2026-10-05T12:30:00+0000` sorts after `2026-10-05T09:00:00-0400` although it
+is half an hour earlier. A bound or a selected row with no offset names no
+instant, and is refused rather than guessed into a zone.
 
 `--until` is REQUIRED for `--apply`, and the reason is this example. Written
 without it, the same command re-run after the relaunch finished would have
@@ -31,14 +37,19 @@ closed interval; say where it ends.
 from __future__ import annotations
 
 import argparse
+import datetime
 import json
 import logging
-import os
 import pathlib
 import subprocess
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+sys.path.insert(
+    0, str(pathlib.Path(__file__).resolve().parents[1] / "benchmarks" / "agent")
+)
+
+import results
 
 import logs
 
@@ -51,6 +62,10 @@ def _harness_running() -> bool:
     The run lock is not the check: the A/B protocol runs `run.py --no-lock`,
     which is exactly why the lock read as free during the 2026-09-04 incident.
     Ask the process table instead.
+
+    Fails closed. A missing pgrep, a timeout, or pgrep's own error (exit 2 or
+    3) is no answer, and no answer must not authorize a rewrite. pgrep exits 1
+    for "no match", and that is the only "not running".
     """
     try:
         out = subprocess.run(
@@ -60,9 +75,36 @@ def _harness_running() -> bool:
             timeout=10,
             check=False,
         )
-    except (OSError, subprocess.SubprocessError):
+    except (OSError, subprocess.SubprocessError) as exc:
+        logger.error("cannot tell whether run.py is running (%s); assuming it is", exc)
+        return True
+    if out.returncode == 1:
         return False
-    return bool(out.stdout.strip())
+    if out.returncode != 0:
+        logger.error(
+            "pgrep exited %d (%s); assuming run.py is running",
+            out.returncode,
+            out.stderr.strip(),
+        )
+    return True
+
+
+def instant(value: str, what: str) -> datetime.datetime:
+    """Parse an ISO 8601 timestamp that carries a UTC offset.
+
+    Raises ValueError on a naive one. It names no instant, and the ledgers
+    hold two zones (`-0400` on the M5 Max and the Spark, `+0000` on the
+    cluster and the Ryzen), so any guess is four hours wrong on one of them.
+    """
+    try:
+        parsed = datetime.datetime.fromisoformat(value)
+    except ValueError as exc:
+        raise ValueError(f"{what} {value!r} is not an ISO 8601 timestamp") from exc
+    if parsed.utcoffset() is None:
+        raise ValueError(
+            f"{what} {value!r} has no UTC offset; write it as e.g. {value}-0400"
+        )
+    return parsed
 
 
 def selects(
@@ -70,18 +112,21 @@ def selects(
 ) -> bool:
     """Whether this row is in the window being excluded.
 
-    String comparison on ISO timestamps is deliberate: the ledger writes local
-    ISO without a zone, and parsing then re-serialising invites a timezone bug
-    in a tool whose whole job is not to alter rows.
+    Compared as instants, never as strings (review of b7a366b, finding 3).
+    The parse is for the comparison only: the row is never re-serialized, so
+    its stored timestamp keeps its own spelling.
     """
     if backend and row.get("backend") != backend:
         return False
     started = row.get("started")
     if not isinstance(started, str):
         return False
-    if since and started < since:
+    if not (since or until):
+        return True
+    at = instant(started, f"row {row.get('task')}-{row.get('trial')} started")
+    if since and at < instant(since, "--since"):
         return False
-    return not (until and started >= until)
+    return not (until and at >= instant(until, "--until"))
 
 
 def mark(
@@ -93,7 +138,25 @@ def mark(
     reason: str,
     apply: bool,
 ) -> tuple[int, int]:
-    """(newly excluded, already excluded). Writes only when `apply`."""
+    """(newly excluded, already excluded). Writes only when `apply`.
+
+    With `apply`, the ledger lock is held from the read to the replace, so a
+    row `run.py` appends meanwhile waits for the rewrite instead of vanishing.
+    """
+    if apply:
+        with results.ledger_lock(ledger):
+            return _mark(ledger, backend, since, until, reason, apply)
+    return _mark(ledger, backend, since, until, reason, apply)
+
+
+def _mark(
+    ledger: pathlib.Path,
+    backend: str | None,
+    since: str | None,
+    until: str | None,
+    reason: str,
+    apply: bool,
+) -> tuple[int, int]:
     lines = ledger.read_text().splitlines()
     out: list[str] = []
     newly = already = 0
@@ -115,14 +178,8 @@ def mark(
         newly += 1
         out.append(json.dumps(row))
     if apply and newly:
-        # Atomic. read -> transform -> write_text truncates the ledger first,
-        # so a crash mid-write loses it entirely. os.replace swaps a complete
-        # file in one step. It does NOT make the read-modify-write safe against
-        # a concurrent append -- that is what the harness check in main() is
-        # for -- it makes the failure mode "old file" instead of "half a file".
-        tmp = ledger.with_suffix(ledger.suffix + ".tmp")
-        tmp.write_text("\n".join(out) + "\n")
-        os.replace(tmp, ledger)
+        # Atomic: a crash mid-write leaves the old file, never half of one.
+        results.replace_ledger(ledger, "\n".join(out) + "\n")
     return newly, already
 
 
@@ -131,8 +188,8 @@ def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("ledger", type=pathlib.Path)
     p.add_argument("--backend")
-    p.add_argument("--since", help="ISO start, inclusive")
-    p.add_argument("--until", help="ISO end, exclusive")
+    p.add_argument("--since", help="ISO start with offset, inclusive")
+    p.add_argument("--until", help="ISO end with offset, exclusive")
     p.add_argument("--reason", required=True)
     p.add_argument("--apply", action="store_true", help="write; otherwise report only")
     args = p.parse_args(argv)
@@ -151,6 +208,13 @@ def main(argv: list[str] | None = None) -> int:
             "command also excludes rows that do not exist yet."
         )
         return 2
+    try:
+        for flag, value in (("--since", args.since), ("--until", args.until)):
+            if value:
+                instant(value, flag)
+    except ValueError as exc:
+        logger.error("%s", exc)
+        return 2
     # Only writing is gated. Reporting while a batch runs is safe and useful --
     # it is how you decide what to exclude once the batch ends.
     if args.apply and _harness_running():
@@ -160,14 +224,18 @@ def main(argv: list[str] | None = None) -> int:
             "write would be destroyed. Wait for the batch to finish."
         )
         return 2
-    newly, already = mark(
-        args.ledger,
-        backend=args.backend,
-        since=args.since,
-        until=args.until,
-        reason=args.reason,
-        apply=args.apply,
-    )
+    try:
+        newly, already = mark(
+            args.ledger,
+            backend=args.backend,
+            since=args.since,
+            until=args.until,
+            reason=args.reason,
+            apply=args.apply,
+        )
+    except ValueError as exc:
+        logger.error("refusing: %s", exc)
+        return 2
     logger.info(
         "%s %d row(s); %d already excluded",
         "excluded" if args.apply else "would exclude",

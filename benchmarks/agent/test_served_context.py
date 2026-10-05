@@ -110,3 +110,52 @@ def _fake(payload):
             return json.dumps(payload).encode()
 
     return lambda *a, **k: FakeResponse()
+
+
+# --- the model is matched by its full name (code review, 2026-10-05) --------
+
+
+def test_a_sibling_tag_is_not_read_as_the_requested_model(monkeypatch):
+    """qwen:8b listed first at 131072 must not vouch for qwen:32b at 4096."""
+    import urllib.request
+
+    monkeypatch.setattr(
+        urllib.request,
+        "urlopen",
+        _fake(
+            {
+                "models": [
+                    {"name": "qwen:8b", "context_length": 131072},
+                    {"name": "qwen:32b", "context_length": 4096},
+                ]
+            }
+        ),
+    )
+    assert preflight.served_context("qwen:32b", "http://127.0.0.1:11434") == 4096
+    gaps = preflight.check_served_context({"b": {**BACKEND, "model": "qwen:32b"}})
+    assert len(gaps) == 1 and "4096" in gaps[0]
+
+
+def test_a_sibling_tag_alone_is_cannot_tell_not_a_refusal(monkeypatch):
+    """Only qwen:8b resident: nothing says what qwen:32b will load with."""
+    import urllib.request
+
+    monkeypatch.setattr(
+        urllib.request,
+        "urlopen",
+        _fake({"models": [{"name": "qwen:8b", "context_length": 4096}]}),
+    )
+    assert preflight.served_context("qwen:32b", "http://127.0.0.1:11434") is None
+
+
+def test_an_omitted_tag_still_matches_latest(monkeypatch):
+    """Ollama names `m` as `m:latest`; that spelling is the same model."""
+    import urllib.request
+
+    monkeypatch.setattr(
+        urllib.request,
+        "urlopen",
+        _fake({"models": [{"name": "m:latest", "context_length": 4096}]}),
+    )
+    assert preflight.served_context("m", "http://127.0.0.1:11434") == 4096
+    assert preflight.served_context("m:latest", "http://127.0.0.1:11434") == 4096

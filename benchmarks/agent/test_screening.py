@@ -317,3 +317,37 @@ def test_standard_still_splits_from_a_replay_plus_hard_launch_900() -> None:
     ]
     got = sc.runs(rows, suites)
     assert sorted(len(v) for v in got.values()) == [1, 2]
+
+
+# --- code review, 2026-10-05 ---------------------------------------------
+
+
+def test_two_backends_sharing_a_batch_do_not_fuse_into_one_leader() -> None:
+    """One run.py launch may name two backends on one engine, and both stamp
+    the same --batch. A stitched "leader" made of A's t1 and B's t2 is no
+    stack at all."""
+    a = row("t1", 1, batch="shared")
+    a["backend"] = "A"
+    b = row("t2", 1, batch="shared")
+    b["backend"] = "B"
+    assert sc.pick_leader([a, b], ["t1", "t2"], "opencode", exclude_batch=None) is None
+    got = sc.runs([a, b])
+    assert sorted(got) == ["shared/A", "shared/B"]
+
+
+def test_a_batch_with_one_backend_keeps_its_name() -> None:
+    """The leader's name is what the log and the abort record print, and what
+    --early-stop-leader selects by."""
+    rows = leader_rows(["t1", "t2"], 2)
+    for r in rows:
+        r["backend"] = "A"
+    lead = sc.pick_leader(rows, ["t1", "t2"], "opencode", exclude_batch=None)
+    assert lead is not None and lead.batch == "lead"
+    assert (lead.passes, lead.rows) == (4, 4)
+
+
+def test_a_leader_with_no_passes_is_no_leader() -> None:
+    """Its threshold is ceil(0.30 x 0) = 0, so `0 failures >= 0` stopped a new
+    run after its first trial -- a pass included."""
+    rows = leader_rows(["t1", "t2"], 2, fails=4)
+    assert sc.pick_leader(rows, ["t1", "t2"], "opencode", exclude_batch=None) is None

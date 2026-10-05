@@ -39,6 +39,13 @@ def payload():
     }
 
 
+def _ablated(base: dict, name: str) -> dict:
+    """An ablation these tests expect to change something: never None."""
+    got = rp.ablate(base, name)
+    assert got is not None, name
+    return got
+
+
 def test_verbatim_is_the_payload_unchanged():
     assert rp.ablate(payload(), "verbatim") == payload()
 
@@ -47,17 +54,17 @@ def test_each_ablation_removes_exactly_one_property():
     """Always from the original, never cumulatively -- two ablations applied
     in sequence can mask each other, and the table would not say so."""
     base = payload()
-    assert "tools" not in rp.ablate(base, "no-tools")
-    assert len(rp.ablate(base, "one-tool")["tools"]) == 1
+    assert "tools" not in _ablated(base, "no-tools")
+    assert len(_ablated(base, "one-tool")["tools"]) == 1
     assert not [
-        m for m in rp.ablate(base, "no-system")["messages"] if m["role"] == "system"
+        m for m in _ablated(base, "no-system")["messages"] if m["role"] == "system"
     ]
     assert not [
-        m for m in rp.ablate(base, "no-tool-results")["messages"] if m["role"] == "tool"
+        m for m in _ablated(base, "no-tool-results")["messages"] if m["role"] == "tool"
     ]
     # And none of them touched anything else.
     for name in ("no-tools", "one-tool", "no-system", "no-tool-results"):
-        got = rp.ablate(base, name)
+        got = _ablated(base, name)
         assert got["model"] == "m", name
     assert base == payload(), "the source payload was mutated"
 
@@ -65,12 +72,12 @@ def test_each_ablation_removes_exactly_one_property():
 def test_no_tools_removes_tool_choice_with_it():
     """`tool_choice` without `tools` is a request no client sends, and the
     engine's handling of it would be a fourth thing being varied."""
-    got = rp.ablate(payload(), "no-tools")
+    got = _ablated(payload(), "no-tools")
     assert "tool_choice" not in got
 
 
 def test_last_message_only_keeps_the_last_user_turn():
-    got = rp.ablate(payload(), "last-message-only")
+    got = _ablated(payload(), "last-message-only")
     assert got["messages"] == [{"role": "user", "content": "continue"}]
 
 
@@ -119,13 +126,13 @@ def test_the_request_level_ablations_change_one_field_each():
     no stream_options; the captured payload does the opposite of all three,
     and that is the whole of the remaining difference."""
     base = dict(payload(), max_tokens=32000, stream_options={"include_usage": True})
-    temp = rp.ablate(base, "temperature-zero")
+    temp = _ablated(base, "temperature-zero")
     assert temp["temperature"] == 0
     assert temp["max_tokens"] == 32000, "one field at a time"
-    cap = rp.ablate(base, "max-tokens-200")
+    cap = _ablated(base, "max-tokens-200")
     assert cap["max_tokens"] == 200
     assert "temperature" not in cap
-    opts = rp.ablate(base, "no-stream-options")
+    opts = _ablated(base, "no-stream-options")
     assert "stream_options" not in opts
     assert opts["max_tokens"] == 32000
 

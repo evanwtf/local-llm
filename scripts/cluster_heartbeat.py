@@ -211,9 +211,10 @@ def power_reason(head: Node, worker: Node, occupant: str) -> str:
             + ". The pair's GPU state is unknown."
         )
     powers = [head.power_w, worker.power_w]
-    if any(p is None for p in powers):
+    read = [p for p in powers if p is not None]
+    if len(read) != len(powers):
         return "GPU power could not be read on every node."
-    low = [p <= IDLE_W for p in powers]  # type: ignore[operator]
+    low = [p <= IDLE_W for p in read]
     if all(low):
         if idle:
             return "Both GPUs read the idle floor: no model is loaded."
@@ -238,9 +239,10 @@ def gpus_idle(head: Node, worker: Node) -> bool | None:
     if not (head.reachable and worker.reachable):
         return None
     powers = [head.power_w, worker.power_w]
-    if any(p is None for p in powers):
+    read = [p for p in powers if p is not None]
+    if len(read) != len(powers):
         return None
-    return all(p <= IDLE_W for p in powers)  # type: ignore[operator]
+    return all(p <= IDLE_W for p in read)
 
 
 def inlet_line(ambient_f: float | None, head: Node, worker: Node) -> str:

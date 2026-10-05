@@ -123,7 +123,7 @@ def summarize(path: pathlib.Path, misses: list[Miss], prefill_tps: float) -> str
         return f"{path.name}: no cache-miss lines"
     runs = stalled_runs(misses)
     waste = wasted_tokens(misses)
-    reasons = {}
+    reasons: dict[str, int] = {}
     for m in misses:
         reasons[m.reason] = reasons.get(m.reason, 0) + 1
     top = ", ".join(

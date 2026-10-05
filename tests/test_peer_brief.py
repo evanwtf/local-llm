@@ -18,7 +18,9 @@ sys.path.insert(
 )
 
 import peer_brief
-from lib import peer_state
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "scripts" / "lib"))
+import peer_state
 
 
 def _monkey_state(monkeypatch, **overrides) -> None:
@@ -126,3 +128,33 @@ def test_lock_line_held(monkeypatch):
     assert peer_brief._lock_line("held", "pid 1 is running a batch") == (
         "held (pid 1 is running a batch)"
     )
+
+
+def test_a_failed_git_status_does_not_read_as_clean(monkeypatch):
+    """`git status` timed out and `git_dirty` returned [], so the brief told
+    the next agent the tree was clean."""
+    _monkey_state(monkeypatch, git_dirty=lambda repo: None)
+    out = peer_brief.brief(pathlib.Path("/x/local-llm"), None)
+    assert "Dirty: clean" not in out
+    assert "Dirty: unknown" in out
+
+
+def test_an_unread_queue_is_not_an_empty_queue(monkeypatch):
+    _monkey_state(
+        monkeypatch, next_top10=lambda label=None: None, open_p0p1=lambda: None
+    )
+    out = peer_brief.brief(pathlib.Path("/x/local-llm"), None)
+    assert "queue unreadable" in out
+    assert "P0/P1 list unreadable" in out
+
+
+def test_an_empty_queue_says_so(monkeypatch):
+    _monkey_state(monkeypatch, next_top10=lambda label=None: [], open_p0p1=list)
+    out = peer_brief.brief(pathlib.Path("/x/local-llm"), None)
+    assert "unreadable" not in out
+
+
+def test_unread_commits_are_not_none(monkeypatch):
+    _monkey_state(monkeypatch, commits_since=lambda repo, ref: None)
+    out = peer_brief.brief(pathlib.Path("/x/local-llm"), "9ab7053")
+    assert "unknown (git log failed)" in out

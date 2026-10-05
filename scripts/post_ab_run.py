@@ -31,10 +31,8 @@ logger = logging.getLogger(__name__)
 MARKER = "<!-- ab-run-report: {name} -->"
 
 
-def _gh(args: list[str], **kw: object) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        ["gh", *args], capture_output=True, text=True, check=False, **kw
-    )
+def _gh(args: list[str]) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(["gh", *args], capture_output=True, text=True, check=False)
 
 
 def already_posted(issue: int, name: str, repo: str | None = None) -> bool:

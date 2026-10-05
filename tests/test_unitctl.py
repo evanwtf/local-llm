@@ -8,6 +8,7 @@ the operating system does with pids, process groups and signals, and a mocked
 from __future__ import annotations
 
 import json
+import os
 import pathlib
 import signal
 import subprocess
@@ -278,7 +279,9 @@ def test_ps_failing_at_spawn_still_reads_running(state_dir, monkeypatch):
     unitctl.start("probe", ["sleep", "60"], state_dir=state_dir)
     monkeypatch.undo()
     try:
-        assert unitctl.read("probe", state_dir).start_key is None
+        unit = unitctl.read("probe", state_dir)
+        assert unit is not None
+        assert unit.start_key is None
         assert unitctl.state(unitctl.read("probe", state_dir)) == unitctl.RUNNING
     finally:
         unitctl.stop("probe", timeout=5, state_dir=state_dir)
@@ -394,3 +397,97 @@ def test_start_can_remove_a_variable_the_parent_exported(tmp_path, monkeypatch) 
     while time.monotonic() < deadline and not log.read_text():
         time.sleep(0.05)
     assert log.read_text().strip() == "(None, 'yes')"
+
+
+# --- stop must prove the GROUP is gone (review findings, 2026-10-05) ---------
+
+#: A grandchild that ignores SIGTERM and writes its pid once that is in place.
+STUBBORN = (
+    "import os, pathlib, signal, sys, time\n"
+    "signal.signal(signal.SIGTERM, signal.SIG_IGN)\n"
+    "pathlib.Path(sys.argv[1]).write_text(str(os.getpid()))\n"
+    "time.sleep(120)\n"
+)
+
+
+def _pid_alive(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+    except OSError:
+        return False
+    return True
+
+
+def test_stop_kills_a_grandchild_that_outlives_its_leader(state_dir, tmp_path):
+    """The leader honors SIGTERM; the server it spawned does not.
+
+    `stop` watched only the recorded pid, so it saw the leader die, skipped
+    SIGKILL, and deleted the record while the grandchild kept the port and
+    the memory.
+    """
+    marker = tmp_path / "grandchild.pid"
+    leader = (
+        "import pathlib, subprocess, sys, time\n"
+        f"subprocess.Popen([sys.executable, '-c', {STUBBORN!r}, {str(marker)!r}])\n"
+        "time.sleep(120)\n"
+    )
+    unitctl.start("probe", [sys.executable, "-c", leader], state_dir=state_dir)
+    deadline = time.monotonic() + 10
+    while time.monotonic() < deadline and not marker.exists():
+        time.sleep(0.05)
+    grandchild = int(marker.read_text())
+    try:
+        unitctl.stop("probe", timeout=0.5, state_dir=state_dir)
+        deadline = time.monotonic() + 3
+        while time.monotonic() < deadline and _pid_alive(grandchild):
+            time.sleep(0.05)
+        assert not _pid_alive(grandchild), "the grandchild survived stop"
+    finally:
+        if _pid_alive(grandchild):
+            os.kill(grandchild, signal.SIGKILL)
+
+
+def test_a_signal_that_cannot_be_sent_keeps_the_record(state_dir, monkeypatch):
+    """Every signal fails with EPERM. `_signal_group` swallowed that, and
+    `stop` then deleted the record of a process it never reached."""
+    started = unitctl.start("probe", ["sleep", "60"], state_dir=state_dir)
+    real_killpg, real_kill = os.killpg, os.kill
+
+    def refuse(real):
+        def fake(pid: int, sig: int) -> None:
+            if sig == 0:
+                return real(pid, sig)
+            raise PermissionError(1, "Operation not permitted")
+
+        return fake
+
+    try:
+        monkeypatch.setattr(unitctl.os, "killpg", refuse(real_killpg))
+        monkeypatch.setattr(unitctl.os, "kill", refuse(real_kill))
+        with pytest.raises(OSError):
+            unitctl.stop("probe", timeout=0.2, state_dir=state_dir)
+        monkeypatch.undo()
+        assert unitctl.read("probe", state_dir) is not None, "the record was lost"
+        assert unitctl.alive(started.pid)
+    finally:
+        monkeypatch.undo()
+        unitctl.stop("probe", timeout=5, state_dir=state_dir)
+
+
+def test_a_unit_that_survives_sigkill_keeps_its_record(state_dir, monkeypatch):
+    """The signals land nowhere, so the unit is still up after the KILL wait.
+
+    `stop` deleted the record anyway, and the next `start` then saw no unit
+    and launched a second server beside the first.
+    """
+    started = unitctl.start("probe", ["sleep", "60"], state_dir=state_dir)
+    try:
+        monkeypatch.setattr(unitctl, "_signal_group", lambda pid, sig: None)
+        monkeypatch.setattr(unitctl, "KILL_WAIT_S", 0.2, raising=False)
+        with pytest.raises(unitctl.StillRunning):
+            unitctl.stop("probe", timeout=0.2, state_dir=state_dir)
+        assert unitctl.read("probe", state_dir) is not None
+        assert unitctl.alive(started.pid)
+    finally:
+        monkeypatch.undo()
+        unitctl.stop("probe", timeout=5, state_dir=state_dir)

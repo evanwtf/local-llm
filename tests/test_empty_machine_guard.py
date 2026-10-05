@@ -85,6 +85,7 @@ def test_the_refusal_names_every_foreign_process():
         unmatched=[proc(2, 30.0, "/b/llama-server -m y")],
     )
     msg = preflight.refuse_unless_empty(report, None)
+    assert msg is not None
     assert "ds4-server" in msg and "llama-server" in msg
     assert "(pid 1)" in msg and "(pid 2)" in msg
 
@@ -107,6 +108,7 @@ def test_the_two_engine_refusal_names_the_sequential_alternative():
     """An operator who is refused must be told what to run instead."""
     backends = {"a": {"base_url": "http://h:1"}, "b": {"base_url": "http://h:2"}}
     msg = preflight.refuse_unless_empty(empty_report(), backends)
+    assert msg is not None
     assert "stack_agent_ab.py" in msg
 
 
@@ -117,6 +119,7 @@ def test_three_engines_refuses_and_counts_them():
         "c": {"base_url": "http://h:3"},
     }
     msg = preflight.refuse_unless_empty(empty_report(), backends)
+    assert msg is not None
     assert "3 engines" in msg
 
 
@@ -168,7 +171,7 @@ def test_shared_base_url_but_different_engines_refuses():
 
 def test_a_hosted_backend_with_no_url_does_not_crash():
     """A hosted backend has no base_url at all; it holds no local memory."""
-    backends = {"sonnet": {}, "opus": {}}
+    backends: dict[str, dict[str, str]] = {"sonnet": {}, "opus": {}}
     # Both key to the same "?" bucket: neither loads a model on this machine.
     assert preflight.refuse_unless_empty(empty_report(), backends) is None
 

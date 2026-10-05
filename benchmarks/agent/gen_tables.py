@@ -242,7 +242,9 @@ def stack_table(
 
 def engine_table(rows: list[dict[str, Any]], a: str, b: str) -> list[str]:
     """Identical weights, two engines, per task."""
-    by = collections.defaultdict(dict)
+    by: collections.defaultdict[str, dict[str, list[float]]] = collections.defaultdict(
+        dict
+    )
     for r in valid_opencode(rows):
         if r["backend"] in (a, b) and r.get("wall_seconds"):
             by[r["task"]].setdefault(r["backend"], []).append(r["wall_seconds"])
@@ -311,12 +313,11 @@ def client_caveat(
     # Name the minority versions and let the majority be "the rest". Listing
     # all eleven 1.18.25 backends is accurate and unreadable, and a caveat
     # nobody finishes reading does not caveat anything.
-    majority = max(by_version, key=lambda v: len(by_version[v]))
+    top = max(by_version, key=lambda v: len(by_version[v]))
     # Only collapse when the majority is genuinely a majority. On an even
     # split, "the rest" would name one side and hide the other, which reads
     # as though the unnamed side were the norm.
-    if len(by_version[majority]) < 3:
-        majority = None
+    majority = top if len(by_version[top]) >= 3 else None
     parts = [
         f"{', '.join(labels.get(b, b) for b in sorted(names))} under {v}"
         for v, names in sorted(by_version.items())

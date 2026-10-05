@@ -251,10 +251,13 @@ def test_a_server_still_loading_is_reported_as_unavailable_not_wrong() -> None:
     reader to check the model alias and the thinking mode when the real problem
     is that nothing has answered at all.
     """
+    import email.message
     import urllib.error
 
     def post(base_url, token, model, prompt, timeout):
-        raise urllib.error.HTTPError("u", 503, "Service Unavailable", {}, None)
+        raise urllib.error.HTTPError(
+            "u", 503, "Service Unavailable", email.message.Message(), None
+        )
 
     with pytest.raises(smoke.SmokeFailure, match="did not answer"):
         smoke.gate(BACKEND, "loading", deadline=5, post=post)
@@ -395,3 +398,47 @@ def test_backend_protocol_selects_the_probe() -> None:
 def test_unknown_protocol_is_refused_not_defaulted() -> None:
     with pytest.raises(ValueError, match="unknown smoke_protocol"):
         smoke._post_for({"smoke_protocol": "opanai"})
+
+
+# --- generated code runs outside the harness (code review, 2026-10-05) -------
+#
+# verify() exec'd the model's code inside the harness process. A function that
+# never returns hung the gate for good -- the HTTP timeout bounds the request,
+# not the execution -- and a `SystemExit` in the answer ended the harness.
+
+
+def _verify_bounded(text: str, assertion: str, limit: float = 20.0) -> bool | None:
+    """verify() on a daemon thread; None if it has not returned by `limit`."""
+    import threading
+
+    got: list[bool] = []
+    worker = threading.Thread(
+        target=lambda: got.append(smoke.verify(text, assertion)), daemon=True
+    )
+    worker.start()
+    worker.join(limit)
+    return got[0] if got else None
+
+
+def test_a_function_that_never_returns_fails_instead_of_hanging(monkeypatch):
+    monkeypatch.setattr(smoke, "VERIFY_TIMEOUT_SECONDS", 2, raising=False)
+    looping = _fenced("def fib(n):\n    while True:\n        pass")
+    assert _verify_bounded(looping, _assertion("fib")) is False
+
+
+def test_an_answer_that_raises_systemexit_fails_and_the_harness_survives():
+    exiting = _fenced("def reverse_string(s):\n    raise SystemExit(0)")
+    assert smoke.verify(exiting, _assertion("reverse")) is False
+
+
+def test_an_answer_that_exits_cleanly_before_the_assertions_is_not_a_pass():
+    """Exit status 0 is not proof: the assertions have to have run."""
+    for body in ("import sys\nsys.exit(0)", "import os\nos._exit(0)"):
+        assert smoke.verify(_fenced(body), _assertion("reverse")) is False
+
+
+def test_a_slow_but_correct_naive_fib_still_passes():
+    """_fib_cases keeps n <= 20 so the exponential version is not a failure;
+    the execution limit must not make it one."""
+    naive = _fenced("def fib(n):\n    return n if n < 2 else fib(n - 1) + fib(n - 2)")
+    assert smoke.verify(naive, _assertion("fib")) is True

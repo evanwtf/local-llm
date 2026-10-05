@@ -119,6 +119,7 @@ def test_the_exclusion_reason_carries_the_peak_and_cap() -> None:
         "oracle_killed": True,
     }
     reason = row["exclusion_reason"]
+    assert isinstance(reason, str)
     assert "GiB" in reason
     assert "cap" in reason
     assert "killed" in reason.lower()

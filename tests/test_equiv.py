@@ -337,6 +337,26 @@ def test_declared_run_flags_reads_live_source(tmp_path) -> None:
         assert want in flags
 
 
+def test_declared_run_flags_skips_a_flag_named_by_a_variable(tmp_path) -> None:
+    """A non-literal flag is left out, never a crash.
+
+    `ast.Name` has no `.value`, so reading it before the `ast.Constant` check
+    raised AttributeError on `add_argument(FLAG)`. That is the very case
+    `non_literal_flag_tests` exists to report; the reader must survive it.
+    """
+    fake = tmp_path / "run.py"
+    fake.write_text(
+        "import argparse\n"
+        "FLAG = '--hidden'\n"
+        "p = argparse.ArgumentParser()\n"
+        "p.add_argument(FLAG, action='store_true')\n"
+        "p.add_argument('--trials', type=int, default=1)\n"
+    )
+    flags = equiv.declared_run_flags(fake)
+    assert "--trials" in flags
+    assert "--hidden" not in flags
+
+
 def test_run_py_declares_the_ports_flag_not_the_shells():
     flags = equiv.declared_run_flags()
     assert "--allow-unverified-route" in flags
@@ -612,3 +632,29 @@ def test_a_bare_uv_run_python_does_not_crash_the_fake(tmp_path, write) -> None:
     )
     assert got.returncode == 0, got.stderr
     assert [r.program for r in equiv.load(out)] == ["uv"]
+
+
+def test_canonical_keeps_the_order_of_a_repeated_flag():
+    """`--backend a --backend b` selects b; the reverse selects a. Sorting
+    the pairs made the two identical, so the gate passed a backend change."""
+    first = ["--backend", "a", "--backend", "b"]
+    second = ["--backend", "b", "--backend", "a"]
+    assert set(equiv.canonical(first, frozenset())) != set(
+        equiv.canonical(second, frozenset())
+    )
+    shell_only, py_only = equiv.argv_difference(first, second, frozenset())
+    assert shell_only and py_only
+
+
+def test_canonical_keeps_how_often_a_flag_repeats():
+    once = ["--tag", "x"]
+    twice = ["--tag", "x", "--tag", "x"]
+    assert set(equiv.canonical(once, frozenset())) != set(
+        equiv.canonical(twice, frozenset())
+    )
+
+
+def test_canonical_still_ignores_order_between_different_flags():
+    a = ["--backend", "a", "--backend", "b", "--trials", "3"]
+    b = ["--trials", "3", "--backend", "a", "--backend", "b"]
+    assert equiv.canonical(a, frozenset()) == equiv.canonical(b, frozenset())

@@ -43,6 +43,7 @@ answer; it does not re-derive it.
 from __future__ import annotations
 
 import dataclasses
+import os
 import pathlib
 import shlex
 import shutil
@@ -233,6 +234,39 @@ def identity_line(arm: Arm) -> str:
     return f"{tree} @ {version}{dirty}" if tree else f"{arm.engine} @ {version}"
 
 
+def kv_dir(arm: Arm) -> pathlib.Path | None:
+    """The KV directory as the SERVER sees it: canonical, symlinks resolved.
+
+    ds4-server runs with `cwd=arm.tree`, so a relative `kv` names a directory
+    under the tree, not under whatever directory the driver started in.
+    """
+    if arm.kv is None:
+        return None
+    path = arm.kv
+    if not path.is_absolute() and arm.tree is not None:
+        path = arm.tree / path
+    return pathlib.Path(os.path.realpath(path))
+
+
+def same_kv_dir(new: Arm, old: Arm) -> bool:
+    """Whether two arms name one KV directory, however each spells it.
+
+    A lexical compare passed `/x/cache` against `/x/../x/cache`, or a symlink
+    against its target, and both arms then shared one disk cache. `realpath`
+    folds `..` and symlinks; `samefile` also catches a hard link or a second
+    mount of one directory when both exist.
+    """
+    a, b = kv_dir(new), kv_dir(old)
+    if a is None or b is None:
+        return a == b
+    if a == b:
+        return True
+    try:
+        return a.exists() and b.exists() and a.samefile(b)
+    except OSError:
+        return False
+
+
 def check_pair(new: Arm, old: Arm) -> None:
     """Refuse two arms that cannot be compared. Raises InvalidPair.
 
@@ -247,7 +281,7 @@ def check_pair(new: Arm, old: Arm) -> None:
     # A ds4-only concern. mlx-serve keeps no disk KV directory we manage, so a
     # guard written for ds4 would either refuse a legitimate run or pass while
     # checking nothing.
-    if new.is_ds4 and old.is_ds4 and new.kv == old.kv:
+    if new.is_ds4 and old.is_ds4 and same_kv_dir(new, old):
         raise InvalidPair(
             f"both arms share KV dir {new.kv} -- ds4-server's disk cache runs "
             "cross-quant=accept, so one arm would read the other's checkpoints "

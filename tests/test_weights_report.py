@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import pathlib
 import sys
+from typing import Any
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "scripts"))
 
@@ -18,8 +19,8 @@ import weights_report as w
 GB = 10**9
 
 
-def facts(size: int | None, **kw: object) -> w.Facts:
-    base: dict[str, object] = {
+def facts(size: int | None, **kw: Any) -> w.Facts:
+    base: dict[str, Any] = {
         "size": size,
         "incomplete": 0,
         "has_weights": True,
@@ -29,7 +30,7 @@ def facts(size: int | None, **kw: object) -> w.Facts:
         "issues": None,
     }
     base.update(kw)
-    return w.Facts(**base)  # type: ignore[arg-type]
+    return w.Facts(**base)
 
 
 def test_a_partial_download_is_delete_whatever_its_size() -> None:

@@ -32,11 +32,10 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from lib import agent_identity, peer_state
-
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
-
+import agent_identity
 import machine_state
+import peer_state
 
 import logs
 
@@ -44,7 +43,9 @@ logger = logging.getLogger(__name__)
 agent_identity.install(logger)
 
 
-def _dirty_line(paths: list[str]) -> str:
+def _dirty_line(paths: list[str] | None) -> str:
+    if paths is None:
+        return "unknown (git status failed)"
     if not paths:
         return "clean"
     # Porcelain is `XY path`; the path is everything after the two status
@@ -107,8 +108,10 @@ def _tree_lines() -> list[str]:
 
 def _top10_lines() -> list[str]:
     items = peer_state.next_top10()
-    if not items:
+    if items is None:
         return ["queue unreadable (gh offline?)"]
+    if not items:
+        return ["queue empty for this platform"]
     labels = _labels_by_issue()
     return [
         f"{i['rank']}. #{i['issue']} ({labels.get(i['issue'], '?')}) -- {i['title']}"
@@ -119,16 +122,18 @@ def _top10_lines() -> list[str]:
 def _labels_by_issue() -> dict[int, str]:
     """{issue: comma-joined labels} from the open P0/P1 list."""
     out: dict[int, str] = {}
-    for issue in peer_state.open_p0p1():
+    for issue in peer_state.open_p0p1() or []:
         names = [l.get("name", "") for l in issue.get("labels", [])]
-        out[issue.get("number")] = ",".join(n for n in names if n)
+        out[issue["number"]] = ",".join(n for n in names if n)
     return out
 
 
 def _p0p1_lines() -> list[str]:
     issues = peer_state.open_p0p1()
+    if issues is None:
+        return ["P0/P1 list unreadable (gh offline?)"]
     if not issues:
-        return ["gh issue list returned nothing (offline?)"]
+        return ["none open"]
     return [
         f"#{i.get('number')} [{','.join(l.get('name', '') for l in i.get('labels', []))}] -- {i.get('title')}"
         for i in sorted(issues, key=lambda i: i.get("number", 0))
@@ -156,7 +161,10 @@ def brief(repo: pathlib.Path, since: str | None) -> str:
     ]
     if since:
         commits = peer_state.commits_since(repo, since)
-        commit_lines = [f"- {c}" for c in commits] or ["none"]
+        if commits is None:
+            commit_lines = ["unknown (git log failed)"]
+        else:
+            commit_lines = [f"- {c}" for c in commits] or ["none"]
         lines += ["", f"## Commits since {since}", *commit_lines]
     lines += [
         "",

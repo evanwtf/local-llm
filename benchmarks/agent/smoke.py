@@ -53,6 +53,9 @@ from __future__ import annotations
 import json
 import logging
 import re
+import secrets
+import subprocess
+import sys
 import time
 import urllib.error
 import urllib.request
@@ -178,14 +181,50 @@ def extract_code(text: str) -> str:
     return blocks[0] if blocks else text
 
 
+#: Wall-clock limit on running one answer and its assertions. The checks are
+#: trivial -- a naive exponential fib(20) takes well under a second -- so this
+#: only ever stops code that will not finish.
+VERIFY_TIMEOUT_SECONDS = 30
+
+# Runs in a fresh interpreter. The token is written only after the assertions
+# pass, so an answer that calls sys.exit(0) or os._exit(0) before them reads
+# as a failure, not as exit status 0.
+_RUNNER = """
+import json, sys
+code, assertion, token = json.loads(sys.stdin.read())
+namespace = {}
+try:
+    exec(code, namespace)
+    exec(assertion, namespace)
+except BaseException:
+    raise SystemExit(1)
+sys.stdout.write(token)
+sys.stdout.flush()
+"""
+
+
 def verify(text: str, assertion: str) -> bool:
-    namespace: dict = {}
+    """Run the answer and its assertions in a child interpreter.
+
+    Never in this process (code review, 2026-10-05). The model's code used to
+    be exec'd here: a function that never returns hung the gate with no bound
+    -- the HTTP timeout covers the request, not the execution -- and a
+    `SystemExit` in the answer ended the harness. A child that times out,
+    crashes or exits early is a failed check.
+    """
+    token = secrets.token_hex(16)
     try:
-        exec(extract_code(text), namespace)  # noqa: S102 - our own prompt, local server
-        exec(assertion, namespace)  # noqa: S102
-    except Exception:  # noqa: BLE001 - any failure to run is a failed check
+        got = subprocess.run(
+            [sys.executable, "-I", "-c", _RUNNER],
+            input=json.dumps([extract_code(text), assertion, token]),
+            capture_output=True,
+            text=True,
+            timeout=VERIFY_TIMEOUT_SECONDS,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
         return False
-    return True
+    return got.returncode == 0 and got.stdout.endswith(token)
 
 
 def _post(

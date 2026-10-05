@@ -20,6 +20,7 @@ process, never a search across all of them.
 from __future__ import annotations
 
 import logging
+import os
 import socket
 import subprocess
 
@@ -60,6 +61,20 @@ def holder(port: int) -> int | None:
         return None
     first = done.stdout.split()
     return int(first[0]) if first and first[0].isdigit() else None
+
+
+def group_of(pid: int) -> int | None:
+    """The process group of `pid`, or None when it is gone or unreadable.
+
+    A unit started by `unitctl` leads its own group, so "is this port holder
+    ours" is "is its group the unit's pid". The holder is usually a child --
+    `uv run python shim.py` records `uv`, and the python child binds -- so
+    comparing the holder's pid to the unit's would refuse our own shim.
+    """
+    try:
+        return os.getpgid(pid)
+    except OSError:
+        return None
 
 
 def command_of(pid: int) -> str | None:

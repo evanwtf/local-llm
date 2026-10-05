@@ -275,7 +275,7 @@ def _pct(new: float | None, old: float | None) -> str:
 
 
 SETTLED_KEY = STATES["27s"]
-_EMPTY = {
+_EMPTY: dict[str, Any] = {
     "n": 0,
     "passed": 0,
     "median_wall_s": None,

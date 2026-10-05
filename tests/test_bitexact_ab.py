@@ -773,7 +773,9 @@ def test_compare_flags_a_tokenizer_disagreement():
         "ctx": 2240,
         "steps": [{"step": 0, "selected": " x", "top_logprobs": []}],
     }
-    kind, step, detail = ab.first_divergence(a, b)
+    got = ab.first_divergence(a, b)
+    assert got is not None
+    kind, step, detail = got
     assert kind == "prompt_tokens"
     assert step == "prefill"
     assert "tokenizers disagree" in detail
@@ -783,7 +785,9 @@ def test_compare_reports_a_length_mismatch_as_a_divergence():
     steps = [{"step": 0, "selected": " x", "top_logprobs": []}]
     a = {"prompt_tokens": 8, "ctx": 24, "steps": steps}
     b = {"prompt_tokens": 8, "ctx": 24, "steps": steps + steps}
-    kind, step, _detail = ab.first_divergence(a, b)
+    got = ab.first_divergence(a, b)
+    assert got is not None
+    kind, step, _detail = got
     assert kind == "length"
     assert step == 1
 

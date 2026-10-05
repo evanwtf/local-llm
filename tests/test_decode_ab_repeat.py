@@ -75,7 +75,7 @@ def test_a_completed_run_is_skipped_not_clobbered(tmp_path, monkeypatch) -> None
 def test_the_harness_child_goes_through_child_run(tmp_path, monkeypatch) -> None:
     """#268: a driver stopped mid-repeat must take the harness with it."""
     harness = fake_harness(tmp_path)
-    seen: list[tuple[list[str], pathlib.Path]] = []
+    seen: list[tuple[list[str], pathlib.Path, pathlib.Path]] = []
 
     def capture(argv, *, cwd, log, **k):
         seen.append((argv, cwd, log))

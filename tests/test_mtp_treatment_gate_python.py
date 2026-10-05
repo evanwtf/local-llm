@@ -369,14 +369,17 @@ def _wire_shim(monkeypatch) -> list[str]:
     monkeypatch.setattr(gate.unitctl, "read", lambda *a, **k: None)
     monkeypatch.setattr(gate, "port_answers", lambda *a, **k: False)
     monkeypatch.setattr(gate, "_wait_for_port", lambda *a, **k: True)
-    monkeypatch.setattr(
-        gate.unitctl,
-        "start",
-        lambda *a, **k: events.append("shim-start") or _FakeUnit(),
-    )
-    monkeypatch.setattr(
-        gate.unitctl, "stop", lambda *a, **k: events.append("shim-stop") or "stopped"
-    )
+
+    def start(*a, **k) -> _FakeUnit:
+        events.append("shim-start")
+        return _FakeUnit()
+
+    def stop(*a, **k) -> str:
+        events.append("shim-stop")
+        return "stopped"
+
+    monkeypatch.setattr(gate.unitctl, "start", start)
+    monkeypatch.setattr(gate.unitctl, "stop", stop)
     return events
 
 
@@ -479,9 +482,10 @@ def _port_run_invs(
     home = tmp_path / "home"
     monkeypatch.setattr(gate, "run_lock", _null_context)
     monkeypatch.setattr(gate, "shim", _null_context)
-    monkeypatch.setattr(
-        wait_ready, "ready", lambda *a, **k: equiv.wait_for_program(out, "ds4-server")
-    )
+    # Narrowed to the port's record: the shell already wrote one to `out`, and
+    # an unnarrowed barrier returned before the port's fake had logged its
+    # graph line -- the assertion then passed on the SHELL's line.
+    monkeypatch.setattr(wait_ready, "ready", equiv.own_server_barrier(out, "port"))
     # The shell resolves these against $HOME; the port computed them at import
     # from the real home. Point them at the tmp home so the server argv agrees.
     monkeypatch.setattr(gate, "DS4_TREE", home / "git" / "ds4-metal")

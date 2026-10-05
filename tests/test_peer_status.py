@@ -19,7 +19,9 @@ sys.path.insert(
 
 import peer_status
 import preflight
-from lib import peer_state
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "scripts" / "lib"))
+import peer_state
 
 _REPO = pathlib.Path(__file__).resolve().parents[1]
 
@@ -67,7 +69,7 @@ def test_diff_detects_new_comment():
 
 
 def test_diff_detects_new_pr():
-    prev = {"prs": {}}
+    prev: dict[str, dict[str, str]] = {"prs": {}}
     cur = {"prs": {"161": "evidence"}}
     changed = peer_status._diff(prev, cur)
     assert any("PR #161: opened -> evidence" in c for c in changed)
@@ -81,7 +83,7 @@ def test_diff_detects_branch_moved():
 
 
 def test_diff_detects_server_up():
-    prev = {"servers": []}
+    prev: dict[str, list[dict[str, object]]] = {"servers": []}
     cur = {"servers": [{"short": "ds4-server", "pid": 42}]}
     changed = peer_status._diff(prev, cur)
     assert any("server up: ds4-server (pid 42)" in c for c in changed)
@@ -89,7 +91,7 @@ def test_diff_detects_server_up():
 
 def test_diff_detects_server_down():
     prev = {"servers": [{"short": "ds4-server", "pid": 42}]}
-    cur = {"servers": []}
+    cur: dict[str, list[dict[str, object]]] = {"servers": []}
     changed = peer_status._diff(prev, cur)
     assert any("server down: ds4-server (pid 42)" in c for c in changed)
 
@@ -134,7 +136,7 @@ def test_diff_survives_a_snapshot_that_came_back_from_json():
 
 
 def test_diff_orders_issues_numerically():
-    prev = {"comments": {}}
+    prev: dict[str, dict[str, int]] = {"comments": {}}
     cur = {"comments": {"9": 1, "112": 1, "39": 1}}
     changed = peer_status._diff(prev, cur)
     issues = [c for c in changed if c.startswith("issue #")]
@@ -167,6 +169,7 @@ def test_next_top10_ranks_one_platform_p0_before_p1(monkeypatch):
         ],
     )
     items = peer_state.next_top10("platform:Nvidia")
+    assert items is not None
     assert [i["issue"] for i in items] == [100, 200, 300]
     assert [i["rank"] for i in items] == [1, 2, 3]
     assert [i["priority"] for i in items] == ["P0", "P1", "P1"]
@@ -179,9 +182,9 @@ def test_next_top10_defaults_to_this_hosts_platform(monkeypatch):
         lambda: [_issue(1, "P0", "platform:macOS"), _issue(2, "P0", "platform:Nvidia")],
     )
     monkeypatch.setattr(peer_state.platform, "system", lambda: "Linux")
-    assert [i["issue"] for i in peer_state.next_top10()] == [2]
+    assert [i["issue"] for i in peer_state.next_top10() or []] == [2]
     monkeypatch.setattr(peer_state.platform, "system", lambda: "Darwin")
-    assert [i["issue"] for i in peer_state.next_top10()] == [1]
+    assert [i["issue"] for i in peer_state.next_top10() or []] == [1]
 
 
 def test_open_p0p1_asks_for_either_label_not_both(monkeypatch):
@@ -197,3 +200,59 @@ def test_open_p0p1_asks_for_either_label_not_both(monkeypatch):
     assert peer_state.open_p0p1() == []
     assert "label:P0,P1" in seen["cmd"]
     assert "--label" not in seen["cmd"]
+
+
+# --- review finding, 2026-10-05: a failed read is unknown, not empty ---------
+
+
+def _completed(rc: int, stdout: str):
+    import subprocess
+
+    return subprocess.CompletedProcess(args=[], returncode=rc, stdout=stdout, stderr="")
+
+
+def test_run_refuses_output_from_a_failed_command(monkeypatch):
+    """`_run` ignored the exit status whenever stdout was non-empty."""
+    monkeypatch.setattr(
+        peer_state.subprocess, "run", lambda *a, **k: _completed(128, "partial")
+    )
+    assert peer_state._run(["git", "status"]) is None
+
+
+def test_a_failed_git_status_is_unknown_not_clean(monkeypatch):
+    monkeypatch.setattr(peer_state, "_run", lambda argv: None)
+    assert peer_state.git_dirty(_REPO) is None
+    monkeypatch.setattr(peer_state, "_run", lambda argv: "")
+    assert peer_state.git_dirty(_REPO) == []
+
+
+def test_a_failed_gh_query_is_unknown_not_empty(monkeypatch):
+    monkeypatch.setattr(peer_state, "_run", lambda argv: None)
+    assert peer_state.open_prs() is None
+    assert peer_state.open_p0p1() is None
+    assert peer_state.next_top10("platform:Nvidia") is None
+    assert peer_state.peer_branches(_REPO) is None
+    monkeypatch.setattr(peer_state, "_run", lambda argv: "[]")
+    assert peer_state.open_prs() == []
+
+
+def test_an_unread_pr_list_does_not_close_every_pr():
+    """A gh failure became `{}` and the diff reported every open PR closed."""
+    changed = peer_status._diff({"prs": {"161": "evidence"}}, {"prs": None})
+    assert not any("closed" in c for c in changed)
+
+
+def test_the_summary_says_unknown_for_an_unread_signal():
+    line = peer_status._summary({"branches": None, "prs": None})
+    assert "0 PR(s)" not in line
+    assert "unknown" in line
+
+
+def test_an_unread_signal_keeps_the_last_good_value_on_disk():
+    """Saving `None` would make the next good read diff against nothing, and
+    every change made while gh was down would go unreported."""
+    prev = {"prs": {"161": "evidence"}, "branches": {"peer/1": "abc"}}
+    cur = {"prs": None, "branches": {"peer/1": "def"}}
+    saved = peer_status._carry_forward(prev, cur)
+    assert saved["prs"] == {"161": "evidence"}
+    assert saved["branches"] == {"peer/1": "def"}

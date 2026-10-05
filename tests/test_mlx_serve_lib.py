@@ -416,6 +416,77 @@ def test_model_dir_of_extracts_the_model_path():
     assert mlx_serve.model_dir_of(["mlx-serve", "--serve"]) is None
 
 
+def test_stop_and_prove_does_not_trust_a_deleted_record(monkeypatch, state, tmp_path):
+    """The signals land nowhere and the server stays up.
+
+    `unitctl.stop` deleted the record anyway, and `stop_and_prove` then
+    re-read that deleted record, found nothing, and declared the server
+    stopped while ~100 GiB stayed resident.
+    """
+    unit = mlx_serve.start(SERVER, tmp_path / "s.log", cwd=ROOT, state_dir=state)
+    real_stop = unitctl.stop
+    try:
+        monkeypatch.setattr(unitctl, "_signal_group", lambda pid, sig: None)
+        monkeypatch.setattr(unitctl, "KILL_WAIT_S", 0.2, raising=False)
+        monkeypatch.setattr(
+            mlx_serve.unitctl,
+            "stop",
+            lambda name, state_dir=None: real_stop(
+                name, timeout=0.2, state_dir=state_dir
+            ),
+        )
+        with pytest.raises(mlx_serve.WouldNotStop):
+            mlx_serve.stop_and_prove("test", state_dir=state)
+        assert alive(unit.pid)
+    finally:
+        monkeypatch.undo()
+        unitctl.stop(mlx_serve.UNIT, state_dir=state)
+    assert not alive(unit.pid)
+
+
+# --- review finding, 2026-10-05: a relative --model resolves against the server
+
+
+def _pack_with_mtp(root: pathlib.Path) -> pathlib.Path:
+    model = root / "models" / "pack"
+    (model / "mtp").mkdir(parents=True)
+    (model / "mtp" / "weights.safetensors").write_bytes(b"")
+    return model
+
+
+def test_a_relative_model_resolves_against_the_servers_cwd(tmp_path, monkeypatch):
+    """The server ran from `tmp_path`; the observer runs from elsewhere. The
+    check looked for `models/pack` under the OBSERVER's cwd, found no MTP head,
+    and with --no-pld recorded `none` for a server drafting with MTP."""
+    _pack_with_mtp(tmp_path)
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    monkeypatch.chdir(elsewhere)
+    argv = ["mlx-serve", "--model", "models/pack", "--no-pld"]
+    fields = mlx_serve.draft_provenance_fields(
+        mlx_serve.model_dir_of(argv), argv, cwd=tmp_path
+    )
+    assert fields["draft_source"] == "mtp"
+
+
+def test_a_relative_model_with_no_known_cwd_is_unknown(tmp_path, monkeypatch):
+    """Without the server's cwd the directory cannot be established, and an
+    absent head must not be inferred from a path nobody resolved."""
+    _pack_with_mtp(tmp_path)
+    monkeypatch.chdir(tmp_path)  # the observer's cwd happens to resolve it
+    argv = ["mlx-serve", "--model", "models/pack", "--no-pld"]
+    fields = mlx_serve.draft_provenance_fields(mlx_serve.model_dir_of(argv), argv)
+    assert fields["draft_source"] == "unknown"
+
+
+def test_a_model_dir_that_is_not_there_is_unknown(tmp_path):
+    argv = ["mlx-serve", "--model", str(tmp_path / "gone"), "--no-pld"]
+    fields = mlx_serve.draft_provenance_fields(mlx_serve.model_dir_of(argv), argv)
+    assert fields["draft_source"] == "unknown"
+    line = mlx_serve.draft_provenance(mlx_serve.model_dir_of(argv), argv)
+    assert line.startswith("draft_source=unknown")
+
+
 # --- the arm's environment (review) ------------------------------------------
 
 

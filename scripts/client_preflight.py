@@ -188,7 +188,7 @@ def main(argv: list[str] | None = None) -> int:
     models = _get(f"{backend['base_url'].rstrip('/').removesuffix('/v1')}/v1/models")
     rep.check(
         "backend answers with its model",
-        bool(models) and backend["model"] in models,
+        bool(models and backend["model"] in models),
         f"{backend['base_url']} serves {backend['model']}" if models else "no answer",
     )
     if server:

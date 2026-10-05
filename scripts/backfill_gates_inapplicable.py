@@ -18,12 +18,18 @@ a gate delta. Dry by default; `--apply` rewrites the file.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import logging
 import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+sys.path.insert(
+    0, str(pathlib.Path(__file__).resolve().parents[1] / "benchmarks" / "agent")
+)
+
+import results
 
 import logs
 
@@ -75,8 +81,16 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--apply", action="store_true")
     args = p.parse_args(argv)
 
+    # --apply holds the ledger lock from this read to the replace below, so a
+    # row run.py appends meanwhile waits rather than vanishes (b7a366b, #2).
+    held = results.ledger_lock(args.results) if args.apply else None
+    with held or contextlib.nullcontext():
+        return _run(args.results, apply=args.apply)
+
+
+def _run(path: pathlib.Path, *, apply: bool) -> int:
     try:
-        lines = args.results.read_text().splitlines()
+        lines = path.read_text().splitlines()
     except OSError as exc:
         logger.error("%s", exc)
         return 1
@@ -91,14 +105,14 @@ def main(argv: list[str] | None = None) -> int:
         counts["other"],
         counts["unparsed"],
     )
-    if not args.apply:
+    if not apply:
         logger.info("dry run; pass --apply to write")
         return 0
     if not counts["marked"]:
         logger.info("nothing to write")
         return 0
-    args.results.write_text("\n".join(rewritten) + "\n")
-    logger.info("wrote %s", args.results)
+    results.replace_ledger(path, "\n".join(rewritten) + "\n")
+    logger.info("wrote %s", path)
     return 0
 
 

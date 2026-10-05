@@ -102,7 +102,7 @@ def test_an_interruption_still_reaps_the_tree(tmp_path) -> None:
     started: dict[str, int] = {}
     real_popen = subprocess.Popen
 
-    class Interrupting(real_popen):  # type: ignore[misc]
+    class Interrupting(subprocess.Popen):
         def wait(self, timeout=None):
             if "pid" not in started:
                 started["pid"] = self.pid
@@ -114,7 +114,7 @@ def test_an_interruption_still_reaps_the_tree(tmp_path) -> None:
                 raise KeyboardInterrupt
             return super().wait(timeout)
 
-    subprocess.Popen = Interrupting  # type: ignore[misc]
+    subprocess.Popen = Interrupting  # type: ignore[misc]  # swap the class in place
     try:
         with pytest.raises(KeyboardInterrupt):
             child.run(
@@ -123,7 +123,7 @@ def test_an_interruption_still_reaps_the_tree(tmp_path) -> None:
                 log=tmp_path / "i.log",
             )
     finally:
-        subprocess.Popen = real_popen  # type: ignore[misc]
+        subprocess.Popen = real_popen  # type: ignore[misc]  # restore the real class
 
     assert marker.exists(), "grandchild never started; the test proved nothing"
     grandchild = int(marker.read_text())
@@ -409,3 +409,90 @@ def test_the_default_still_truncates(tmp_path) -> None:
     log.write_text("stale\n")
     child.run([sys.executable, "-c", "print('fresh')"], cwd=tmp_path, log=log)
     assert log.read_text() == "fresh\n"
+
+
+# --- the group outlives its leader (review finding, 2026-10-05) ---------------
+
+#: A grandchild that writes its pid once it is ready, then sleeps. With
+#: `ignore_term` it installs SIG_IGN for SIGTERM first, so only SIGKILL ends it.
+GRANDCHILD = (
+    "import pathlib, signal, sys, time\n"
+    "if sys.argv[2] == 'ignore':\n"
+    "    signal.signal(signal.SIGTERM, signal.SIG_IGN)\n"
+    "pathlib.Path(sys.argv[1]).write_text(str(__import__('os').getpid()))\n"
+    "time.sleep(120)\n"
+)
+
+
+def leader_script(marker: pathlib.Path, *, ignore_term: bool, linger: bool) -> str:
+    """A leader that starts GRANDCHILD and then either exits or sleeps."""
+    mode = "ignore" if ignore_term else "honor"
+    tail = "time.sleep(120)\n" if linger else ""
+    return (
+        "import subprocess, pathlib, sys, time\n"
+        f"subprocess.Popen([sys.executable, '-c', {GRANDCHILD!r}, "
+        f"{str(marker)!r}, {mode!r}])\n"
+        f"while not pathlib.Path({str(marker)!r}).exists():\n"
+        "    time.sleep(0.02)\n" + tail
+    )
+
+
+def wait_gone(pid: int, seconds: float = 10.0) -> bool:
+    deadline = time.monotonic() + seconds
+    while time.monotonic() < deadline:
+        if not alive(pid):
+            return True
+        time.sleep(0.05)
+    return not alive(pid)
+
+
+def test_a_grandchild_left_behind_by_an_exited_leader_is_reaped(tmp_path) -> None:
+    """The leader exits on its own; its grandchild is still running.
+
+    `terminate` returned at once when the leader had exited, so the group was
+    never signalled. A `run.py` that exits while `opencode` keeps writing is
+    #268 again, with the lock already released.
+    """
+    marker = tmp_path / "grandchild.pid"
+    rc = child.run(
+        [sys.executable, "-c", leader_script(marker, ignore_term=False, linger=False)],
+        cwd=tmp_path,
+        log=tmp_path / "leader.log",
+    )
+    grandchild = int(marker.read_text())
+    try:
+        assert rc == 0
+        assert wait_gone(grandchild), "the grandchild outlived child.run"
+    finally:
+        if alive(grandchild):
+            os.kill(grandchild, 9)
+
+
+def test_a_grandchild_that_ignores_sigterm_is_killed(tmp_path) -> None:
+    """The leader dies on SIGTERM; its grandchild ignores it.
+
+    `terminate` stopped escalating when the LEADER died, so SIGKILL was never
+    sent and the grandchild kept running.
+    """
+    marker = tmp_path / "grandchild.pid"
+    proc = subprocess.Popen(
+        [sys.executable, "-c", leader_script(marker, ignore_term=True, linger=True)],
+        cwd=tmp_path,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.STDOUT,
+        start_new_session=True,
+    )
+    deadline = time.monotonic() + 10
+    while time.monotonic() < deadline and not marker.exists():
+        time.sleep(0.05)
+    grandchild = int(marker.read_text())
+    try:
+        child.terminate(proc, grace=0.5)
+        assert proc.poll() is not None
+        assert wait_gone(grandchild, 3.0), "SIGKILL never reached the grandchild"
+    finally:
+        if alive(grandchild):
+            os.kill(grandchild, 9)
+        if proc.poll() is None:
+            proc.kill()
+            proc.wait()

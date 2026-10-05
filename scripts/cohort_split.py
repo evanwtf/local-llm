@@ -57,7 +57,9 @@ def split(
     rows: list[dict[str, Any]], moment: dt.datetime
 ) -> tuple[list[dict], list[dict], list[dict]]:
     """(before, after, undated). Undated rows are reported, never assigned."""
-    before, after, undated = [], [], []
+    before: list[dict] = []
+    after: list[dict] = []
+    undated: list[dict] = []
     for row in rows:
         when = started(row)
         if when is None:

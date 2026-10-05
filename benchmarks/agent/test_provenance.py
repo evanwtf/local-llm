@@ -140,7 +140,12 @@ def test_no_entry_point_calls_basicConfig_directly() -> None:
     assert not offenders, f"{offenders} bypass provenance.configure()"
 
 
-def _repo(tmp_path):
+def _dirt_repo(tmp_path: pathlib.Path) -> pathlib.Path:
+    """A one-commit repository rooted at tmp_path, for code_is_dirty().
+
+    Named apart from _repo above: it once reused that name, so it replaced
+    _repo at import and the head() tests ran against this fixture instead.
+    """
     import subprocess
 
     def git(*a):
@@ -160,39 +165,39 @@ def test_appending_to_a_data_file_is_not_dirty(tmp_path) -> None:
     """A benchmark writes results.jsonl on its first trial. If that counted as
     dirty, every run after the first would be flagged and the flag would stop
     being read."""
-    repo = _repo(tmp_path)
+    repo = _dirt_repo(tmp_path)
     (repo / "results.jsonl").write_text('{"a":1}\n{"a":2}\n')
     assert not provenance.code_is_dirty(repo)
 
 
 def test_changing_code_is_dirty(tmp_path) -> None:
-    repo = _repo(tmp_path)
+    repo = _dirt_repo(tmp_path)
     (repo / "code.py").write_text("x = 2\n")
     assert provenance.code_is_dirty(repo)
 
 
 def test_a_new_untracked_source_file_is_dirty(tmp_path) -> None:
-    repo = _repo(tmp_path)
+    repo = _dirt_repo(tmp_path)
     (repo / "new.py").write_text("y = 1\n")
     assert provenance.code_is_dirty(repo)
 
 
 def test_a_new_log_file_is_not_dirty(tmp_path) -> None:
-    repo = _repo(tmp_path)
+    repo = _dirt_repo(tmp_path)
     (repo / "run.log").write_text("noise\n")
     assert not provenance.code_is_dirty(repo)
 
 
 def test_code_and_data_together_are_dirty(tmp_path) -> None:
     """The data change must not mask the code change."""
-    repo = _repo(tmp_path)
+    repo = _dirt_repo(tmp_path)
     (repo / "results.jsonl").write_text('{"a":9}\n')
     (repo / "code.py").write_text("x = 3\n")
     assert provenance.code_is_dirty(repo)
 
 
 def test_a_clean_tree_is_clean(tmp_path) -> None:
-    assert not provenance.code_is_dirty(_repo(tmp_path))
+    assert not provenance.code_is_dirty(_dirt_repo(tmp_path))
 
 
 # --- a log line must name its machine (#85) ---------------------------------
@@ -229,9 +234,9 @@ def test_every_log_line_carries_commit_and_machine(caplog):
     stamp = provenance._Stamp("abc1234")
     record = logging.LogRecord("t", logging.INFO, __file__, 1, "hello", None, None)
     assert stamp.filter(record) is True
-    assert record.harness == "abc1234"
-    assert record.machine
-    assert record.machine != "unknown-machine"
+    assert record.__dict__["harness"] == "abc1234"
+    assert record.__dict__["machine"]
+    assert record.__dict__["machine"] != "unknown-machine"
 
 
 def test_the_log_format_includes_both():
@@ -275,7 +280,7 @@ def test_harness_dirty_ignores_the_results_file(tmp_path, monkeypatch) -> None:
     """
     import run
 
-    repo = _repo(tmp_path)
+    repo = _dirt_repo(tmp_path)
     (repo / "results.jsonl").write_text('{}\n{"row": 2}\n')
     monkeypatch.setattr(run, "HERE", repo)
     assert run.provenance.code_is_dirty(repo) is False
@@ -292,7 +297,7 @@ def test_an_untracked_run_directory_is_not_code_dirt(tmp_path) -> None:
     refuses on dirty code, so an untracked-sensitive check there would refuse
     every multi-run A/B -- the comparisons the pin exists to protect.
     """
-    repo = _repo(tmp_path)
+    repo = _dirt_repo(tmp_path)
     (repo / "benchmarks-ds4-run1").mkdir()
     (repo / "benchmarks-ds4-run1" / "a.csv").write_text("x\n")
     assert provenance.code_is_dirty(repo, untracked=False) is False
@@ -316,7 +321,7 @@ def test_a_runs_own_output_directory_is_not_code_dirt(tmp_path) -> None:
     no suffix rule matches. The rows that carry this flag are the ones quoted
     in issues, so a flag that is always set is worse than no flag.
     """
-    repo = _repo(tmp_path)
+    repo = _dirt_repo(tmp_path)
     # benchmarks/ds4/ must already be tracked, or git collapses the report to
     # the topmost untracked directory ("?? benchmarks/") and the test would be
     # measuring the fixture rather than the rule.
@@ -339,7 +344,7 @@ def test_a_runs_own_output_directory_is_not_code_dirt(tmp_path) -> None:
 
 def test_a_csv_outside_the_output_tree_still_counts(tmp_path) -> None:
     """The prefix rule is scoped; it does not excuse data anywhere at all."""
-    repo = _repo(tmp_path)
+    repo = _dirt_repo(tmp_path)
     (repo / "new_module.py").write_text("x = 3\n")
     assert provenance.code_is_dirty(repo) is True
 
@@ -377,4 +382,4 @@ def test_every_line_carries_the_draft_path(monkeypatch):
     monkeypatch.setattr(provenance, "_pld_cache", (time.monotonic(), "off"))
     record = logging.LogRecord("n", logging.INFO, __file__, 1, "m", None, None)
     provenance._Stamp("abc1234").filter(record)
-    assert record.pld == "off"
+    assert record.__dict__["pld"] == "off"
