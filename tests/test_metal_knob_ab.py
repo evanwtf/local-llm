@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import pathlib
 import sys
+from collections.abc import Sequence
 
 import pytest
 
@@ -536,7 +537,7 @@ def _fake_bench(tree: pathlib.Path, out: pathlib.Path) -> pathlib.Path:
     return bench
 
 
-def _csv_of(argv: list[str]) -> str:
+def _csv_of(argv: Sequence[str]) -> str:
     return argv[argv.index("--csv") + 1]
 
 

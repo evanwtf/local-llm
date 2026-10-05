@@ -823,3 +823,80 @@ def test_the_label_says_when_a_row_came_from_the_image():
     )
     assert client_label(bare) == "Corei3-7100-16GB"
     assert client_label(boxed) == "Corei3-7100-16GB+image"
+
+
+# --- Rewriting a ledger without losing a row (review of b7a366b, 1 and 2) ---
+
+
+def test_replace_ledger_swaps_in_the_whole_file_and_keeps_its_mode(tmp_path):
+    import results
+
+    ledger = tmp_path / "results.jsonl"
+    ledger.write_text('{"a": 1}\n')
+    ledger.chmod(0o644)
+    results.replace_ledger(ledger, '{"a": 1}\n{"b": 2}\n')
+    assert ledger.read_text() == '{"a": 1}\n{"b": 2}\n'
+    assert ledger.stat().st_mode & 0o777 == 0o644
+    assert [p.name for p in tmp_path.iterdir()] == ["results.jsonl"]
+
+
+@pytest.mark.parametrize("fails", ["fsync", "replace"])
+def test_replace_ledger_keeps_the_old_file_when_the_write_fails(
+    tmp_path, monkeypatch, fails
+):
+    """A full disk or an I/O error leaves the old ledger, never half of one."""
+    import errno
+    import os
+
+    import results
+
+    ledger = tmp_path / "results.jsonl"
+    ledger.write_text('{"a": 1}\n')
+
+    def boom(*args, **kwargs):
+        raise OSError(errno.ENOSPC, "No space left on device")
+
+    monkeypatch.setattr(os, fails, boom)
+    with pytest.raises(OSError):
+        results.replace_ledger(ledger, '{"b": 2}\n')
+    monkeypatch.undo()
+    assert ledger.read_text() == '{"a": 1}\n'
+    assert [p.name for p in tmp_path.iterdir()] == ["results.jsonl"]
+
+
+def test_write_row_waits_for_a_held_ledger_lock(tmp_path):
+    """The append and every rewriter take the same lock, so an append cannot
+    land between a rewriter's read and its replace."""
+    import threading
+
+    import results
+
+    ledger = tmp_path / "results.jsonl"
+    ledger.write_text("")
+    with results.ledger_lock(ledger):
+        t = threading.Thread(target=write_row, args=(good_row(), ledger), daemon=True)
+        t.start()
+        t.join(timeout=0.3)
+        assert t.is_alive(), "write_row appended while the lock was held"
+        assert ledger.read_text() == ""
+    t.join(timeout=10)
+    assert not t.is_alive()
+    assert len(ledger.read_text().splitlines()) == 1
+
+
+def test_the_lock_file_is_a_sibling_and_is_gitignored(tmp_path):
+    """The lock outlives the ledger's inode: os.replace swaps the ledger, so a
+    lock on the ledger itself would protect the old file only."""
+    import subprocess
+
+    import results
+
+    assert results.lock_path(tmp_path / "results.jsonl") == (
+        tmp_path / "results.jsonl.lock"
+    )
+    repo = pathlib.Path(__file__).resolve().parents[2]
+    probe = "hardware/SomeMachine/results.jsonl.lock"
+    r = subprocess.run(
+        ["git", "-C", str(repo), "check-ignore", "-q", probe], check=False
+    )
+    assert r.returncode == 0, f"{probe} is not ignored; it would be committed"

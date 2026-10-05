@@ -77,6 +77,7 @@ def test_a_short_numeric_array_is_kept_whole(sample):
 def test_a_long_string_array_is_summarized_not_expanded(sample):
     """A 250k-token vocabulary must not be printed or held."""
     got = gguf_meta.read(sample)["tokenizer.ggml.tokens"]
+    assert isinstance(got, str)
     assert "6 strings" in got
 
 

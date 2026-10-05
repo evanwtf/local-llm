@@ -113,8 +113,11 @@ def report_drivers(grouped: dict[tuple[str, str, str], list[dict[str, Any]]]) ->
     """Split each cell's spread into work done and time per unit of work."""
     logger.info("")
     logger.info("Within a cell, what does wall time track?")
-    corr_turns, corr_tokens = [], []
-    wall_r, turn_r, spt_r = [], [], []
+    corr_turns: list[float] = []
+    corr_tokens: list[float] = []
+    wall_r: list[float] = []
+    turn_r: list[float] = []
+    spt_r: list[float] = []
     for rows in grouped.values():
         usable = [r for r in rows if r.get("num_turns") and r.get("output_tokens")]
         if len(usable) >= 4:

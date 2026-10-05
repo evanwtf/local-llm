@@ -102,7 +102,7 @@ def test_an_interruption_still_reaps_the_tree(tmp_path) -> None:
     started: dict[str, int] = {}
     real_popen = subprocess.Popen
 
-    class Interrupting(real_popen):  # type: ignore[misc]
+    class Interrupting(subprocess.Popen):
         def wait(self, timeout=None):
             if "pid" not in started:
                 started["pid"] = self.pid
@@ -114,7 +114,7 @@ def test_an_interruption_still_reaps_the_tree(tmp_path) -> None:
                 raise KeyboardInterrupt
             return super().wait(timeout)
 
-    subprocess.Popen = Interrupting  # type: ignore[misc]
+    subprocess.Popen = Interrupting  # type: ignore[misc]  # swap the class in place
     try:
         with pytest.raises(KeyboardInterrupt):
             child.run(
@@ -123,7 +123,7 @@ def test_an_interruption_still_reaps_the_tree(tmp_path) -> None:
                 log=tmp_path / "i.log",
             )
     finally:
-        subprocess.Popen = real_popen  # type: ignore[misc]
+        subprocess.Popen = real_popen  # type: ignore[misc]  # restore the real class
 
     assert marker.exists(), "grandchild never started; the test proved nothing"
     grandchild = int(marker.read_text())

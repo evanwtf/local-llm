@@ -534,7 +534,10 @@ def start_server(stack: Stack) -> None:
         "ds4": "ds4-server.log",
         "llamacpp": "llama-server.log",
     }.get(stack.engine, "ollama.log")
-    cwd = pathlib.Path(stack.engine_tree) if stack.engine == "ds4" else None
+    cwd = None
+    if stack.engine == "ds4":
+        assert stack.engine_tree  # every ds4 stack names its tree
+        cwd = pathlib.Path(stack.engine_tree)
     unitctl.start(unit, server_command(stack), log=logs / log, cwd=cwd)
     wait_ready(stack.engine_port, stack.engine, 900)
 

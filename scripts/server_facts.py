@@ -25,7 +25,9 @@ import cluster_id
 import currency
 import hardware_id
 import preflight
-from lib import logs
+
+sys.path.insert(0, str(REPO / "scripts" / "lib"))
+import logs
 
 
 def check_current(

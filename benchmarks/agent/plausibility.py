@@ -129,7 +129,7 @@ def implausible(
     if here > COLLAPSE_CEILING:
         return None
 
-    tasks = {r.get("task") for r in current if r.get("task")}
+    tasks: set[str] = {r["task"] for r in current if r.get("task")}
     prior = prior_by_client(history, backend, client, tasks or None)
     for other, every in sorted(prior.items()):
         rows = trials(every)

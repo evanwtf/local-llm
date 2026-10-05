@@ -144,7 +144,7 @@ def save_solution(
     except (OSError, subprocess.SubprocessError) as exc:
         logger.debug("cannot save solution for %s: %s", name, exc)
         return {}
-    got = {
+    got: dict[str, Any] = {
         "solution_patch": str(out),
         "solution_sha256": hashlib.sha256(patch.encode()).hexdigest(),
     }

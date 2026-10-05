@@ -54,7 +54,7 @@ def _base_env(out: pathlib.Path, shim_dir: pathlib.Path) -> dict[str, str]:
 
 def _shell_shim_envs(
     tmp_path: pathlib.Path, out: pathlib.Path, shim_dir: pathlib.Path
-) -> dict[str, str]:
+) -> dict[str, dict[str, str]]:
     """Run the real `.sh`'s `start_shim` for both arms; return env by arm."""
     logdir = tmp_path / "logs"
     logdir.mkdir()
@@ -62,7 +62,7 @@ def _shell_shim_envs(
     env["LOGDIR"] = str(logdir)
     env["REPO"] = str(ROOT)
     env["SHIM_PORT"] = "8101"
-    got: dict[str, str] = {}
+    got: dict[str, dict[str, str]] = {}
     for arm in ("on", "off"):
         bash = (
             f"eval \"$(sed -n '/^start_shim()/,/^}}/p' {SCRIPT})\"\n"
@@ -87,7 +87,7 @@ def _port_shim_envs(
     out: pathlib.Path,
     shim_dir: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
-) -> dict[str, str]:
+) -> dict[str, dict[str, str]]:
     """Run the port's `tool_shim.serving` for both arms; return env by arm."""
     # `unitctl.STATE_DIR` is read at import, so an env var set here would not
     # reach it; patch the module constant so the unit record stays in tmp.
@@ -98,7 +98,7 @@ def _port_shim_envs(
     # The fake shim exits immediately, so the readiness wait would raise
     # NeverReady. The differential is about the env, not readiness; skip it.
     monkeypatch.setattr(tool_shim, "_wait", lambda *a, **k: None)
-    got: dict[str, str] = {}
+    got: dict[str, dict[str, str]] = {}
     for arm, strip in (("on", True), ("off", False)):
         log = tmp_path / f"shim-{arm}.log"
         before = len(equiv.by_program(equiv.load(out), "ds4_qwen_tool_shim.py"))

@@ -174,6 +174,14 @@ def manifest_of(outdir: pathlib.Path) -> dict[str, object] | None:
     return got if isinstance(got, dict) else None
 
 
+def _phases(manifest: dict[str, object]) -> list[dict[str, object]]:
+    """The manifest's phase records; anything that is not one is skipped."""
+    phases = manifest.get("phases")
+    if not isinstance(phases, list):
+        return []
+    return [phase for phase in phases if isinstance(phase, dict)]
+
+
 def cooldown_outcomes(manifest: dict[str, object] | None) -> dict[int, str]:
     """phase index -> how its cooldown ended.
 
@@ -184,9 +192,7 @@ def cooldown_outcomes(manifest: dict[str, object] | None) -> dict[int, str]:
     if not manifest:
         return {}
     out = {}
-    for phase in manifest.get("phases") or []:
-        if not isinstance(phase, dict):
-            continue
+    for phase in _phases(manifest):
         index, cooled = phase.get("phase"), phase.get("cooldown")
         if isinstance(index, int) and isinstance(cooled, dict):
             out[index] = str(cooled.get("outcome", "?"))
@@ -197,9 +203,7 @@ def start_die(manifest: dict[str, object] | None) -> dict[int, float]:
     if not manifest:
         return {}
     out = {}
-    for phase in manifest.get("phases") or []:
-        if not isinstance(phase, dict):
-            continue
+    for phase in _phases(manifest):
         index, die = phase.get("phase"), phase.get("start_die_c")
         if isinstance(index, int) and isinstance(die, int | float):
             out[index] = float(die)

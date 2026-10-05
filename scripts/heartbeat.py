@@ -416,9 +416,9 @@ def read_mac() -> Sensors:
     import mac_dash  # the exporter on this machine; imported here so tests need none
 
     snap = mac_dash.snapshot()
-    temp: dict[str, float] = snap["temp"]  # type: ignore[assignment]
-    fan: dict[str, float] = snap["fan"]  # type: ignore[assignment]
-    power: dict[str, float] = snap["power"]  # type: ignore[assignment]
+    temp = snap["temp"]
+    fan = snap["fan"]
+    power = snap["power"]
     return Sensors(
         gpu_w=power.get("soc"),
         gpu_label="SoC",

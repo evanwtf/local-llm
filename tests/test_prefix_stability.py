@@ -13,7 +13,7 @@ COUNTER = "<total_tokens>{n} tokens left</total_tokens>"
 
 
 def payload(system: str, user: str, cache_at: int | None = 0):
-    msgs = [
+    msgs: list[dict[str, object]] = [
         {"role": "system", "content": system},
         {"role": "user", "content": user},
     ]

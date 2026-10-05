@@ -67,6 +67,7 @@ def test_a_record_round_trips(tmp_path):
     path = tmp_path / "route.json"
     ds4_route.write_record(path, mode="fast", port=8000, pid=4242, log="/tmp/x.log")
     got = ds4_route.read_record(path)
+    assert got is not None
     assert got["mode"] == "fast"
     assert got["port"] == 8000 and got["pid"] == 4242
     assert got["started_at"], "a record with no timestamp cannot be judged stale"
@@ -130,7 +131,9 @@ def test_recording_from_a_log_reads_the_route_out_of_it(tmp_path):
     log.write_text(FAST_LOG)
     path = tmp_path / "route.json"
     assert ds4_route.record_from_log(log, port=8000, pid=4242, record_path=path)
-    assert ds4_route.read_record(path)["mode"] == "fast"
+    got = ds4_route.read_record(path)
+    assert got is not None
+    assert got["mode"] == "fast"
 
 
 def test_recording_from_a_log_with_no_route_line_writes_nothing(tmp_path):

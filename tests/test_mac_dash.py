@@ -50,7 +50,7 @@ def test_labeled_on_empty_is_an_empty_map() -> None:
 
 
 def test_render_snapshot_formats_a_heartbeat_line_and_block() -> None:
-    snap = {
+    snap: mac_dash.Snapshot = {
         "gpu_util": 0.95,
         "vram_bytes": 79.7 * 1024**3,
         "temp": {"gpu": 73.0, "cpu": 64.7, "enclosure": 32.0},
@@ -67,7 +67,7 @@ def test_render_snapshot_formats_a_heartbeat_line_and_block() -> None:
 
 def test_render_snapshot_shows_na_for_a_missing_metric() -> None:
     """When gcx returns nothing for GPU util, the line says n/a, not 0%."""
-    snap = {
+    snap: mac_dash.Snapshot = {
         "gpu_util": None,
         "vram_bytes": None,
         "temp": {},
@@ -80,7 +80,7 @@ def test_render_snapshot_shows_na_for_a_missing_metric() -> None:
 
 
 def test_render_envelope_reports_peaks_and_the_util_floor() -> None:
-    env = {
+    env: dict[str, float | None] = {
         "gpu_temp_max": 98.5,
         "cpu_temp_max": 98.9,
         "power_max": 134.8,

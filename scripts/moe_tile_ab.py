@@ -269,9 +269,8 @@ def probe_arms(
     the drift half of #328. A probe that produces no text at all is still a
     failure -- the model did not run.
     """
-    kw = {"out": out, "tree": tree, "gguf": gguf, "ple": ple}
-    a_text = probe("a", a_value, **kw)
-    b_text = probe("b", b_value, **kw)
+    a_text = probe("a", a_value, out=out, tree=tree, gguf=gguf, ple=ple)
+    b_text = probe("b", b_value, out=out, tree=tree, gguf=gguf, ple=ple)
     if not a_text or not b_text:
         raise Refusing(
             "a probe produced no generated text; the model did not run "

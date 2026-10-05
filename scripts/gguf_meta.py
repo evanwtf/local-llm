@@ -16,6 +16,7 @@ import logging
 import pathlib
 import struct
 import sys
+from typing import Literal, overload
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
 
@@ -40,11 +41,31 @@ SCALAR = {
 }
 
 
+#: (name, dims, ggml type) for one tensor in the table.
+Tensor = tuple[str, list[int], int]
+
+
+@overload
+def read(
+    path: pathlib.Path,
+    with_tensors: Literal[False] = False,
+    expand: str | None = None,
+) -> dict[str, object]: ...
+
+
+@overload
+def read(
+    path: pathlib.Path,
+    with_tensors: Literal[True],
+    expand: str | None = None,
+) -> tuple[dict[str, object], list[Tensor]]: ...
+
+
 def read(
     path: pathlib.Path,
     with_tensors: bool = False,
     expand: str | None = None,
-) -> dict[str, object] | tuple[dict[str, object], list[tuple[str, list[int], int]]]:
+) -> dict[str, object] | tuple[dict[str, object], list[Tensor]]:
     """Parse the header. Arrays are summarized, not expanded.
 
     `with_tensors` also returns the tensor table as (name, dims, type). Tensor
@@ -99,7 +120,7 @@ def read(
         if not with_tensors:
             return out
 
-        tensors = []
+        tensors: list[Tensor] = []
         for _ in range(n_tensors):
             name = string()
             n_dims = struct.unpack("<I", fh.read(4))[0]

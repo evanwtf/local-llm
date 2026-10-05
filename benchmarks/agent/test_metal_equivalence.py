@@ -188,7 +188,9 @@ def test_the_label_survives_so_a_reader_knows_which_model(tmp_path):
     me.write_verdict(
         path, fingerprint="glm", verdict="fail", summary={}, label="GLM-5.3-Flash-Q2"
     )
-    assert me.cached_entry(path, "glm")["label"] == "GLM-5.3-Flash-Q2"
+    entry = me.cached_entry(path, "glm")
+    assert entry is not None
+    assert entry["label"] == "GLM-5.3-Flash-Q2"
 
 
 # ------------------------------------- a model the instrument cannot load

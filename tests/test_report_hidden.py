@@ -55,12 +55,14 @@ def counts(passed=0, failed=0, errors=0, skipped=0):
 
 def test_tests_passed_counts_passed_over_passed_plus_failed() -> None:
     got = report.hidden_summary([row("t", 1, counts=counts(passed=12, failed=5))])
+    assert got is not None
     assert (got.tests_passed, got.tests_total) == (12, 17)
     assert got.invalid == 0
 
 
 def test_a_collection_error_is_invalid_not_zero_of_n() -> None:
     got = report.hidden_summary([row("t", 1, counts=counts(errors=1))])
+    assert got is not None
     assert (got.tests_passed, got.tests_total) == (0, 0)
     assert got.invalid == 1
     assert got.whole == 0
@@ -68,6 +70,7 @@ def test_a_collection_error_is_invalid_not_zero_of_n() -> None:
 
 def test_a_timeout_has_no_hidden_result() -> None:
     got = report.hidden_summary([row("t", 1, timeout=True)])
+    assert got is not None
     assert got.no_result == 1
     assert (got.tests_passed, got.tests_total, got.invalid) == (0, 0, 0)
 
@@ -80,6 +83,7 @@ def test_whole_task_pass_uses_hidden_verdict_and_its_guards() -> None:
         row("t", 3, counts=counts(passed=7, failed=1), hidden_passed=False),
     ]
     got = report.hidden_summary(rows)
+    assert got is not None
     assert got.whole == 1
     assert got.rows == 3
     assert (got.tests_passed, got.tests_total) == (23, 24)

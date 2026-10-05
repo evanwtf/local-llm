@@ -46,7 +46,7 @@ def test_filter_selector():
 
 
 def test_format_line_full():
-    snap = {
+    snap: dict[str, float | None] = {
         "gen_tps": 53.2,
         "prefill_peak_tps": 14458.4,
         "prefix_hit_pct": 92.1,

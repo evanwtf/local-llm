@@ -56,13 +56,14 @@ uv run python scripts/coherence_check.py ~/models/<model>.gguf  # temp-0 coheren
 uv run python benchmarks/agent/model_inventory.py  # census every runtime's model tree before saying a model is absent
 uv run pytest -m fast -q                           # the push gate: ~180 repo-contract guards, seconds
 uv run pytest -q                                   # the whole suite (~3,500); read the exit code, never `| tail`
+uv run mypy                                        # type check; scope in [tool.mypy], same as CI and the hook
 ```
 
 `uv` manages the environment (`requires-python = ">=3.11"`); engines and weights
 live outside this checkout, found via `DS4_ROOT`. CI
 (`.github/workflows/test.yml`) runs on push to `main` and on `pull_request`, on
-the self-hosted Linux runner: `pytest`, `ruff format --check`, and `ruff check`.
-`mypy` is not yet in CI (#154). **Do not
+the self-hosted Linux runner: `pytest`, `ruff format --check`, `ruff check`,
+and `mypy` (scope in `[tool.mypy]`; `--strict` is not on yet). **Do not
 run `pytest` or `ruff` on this Mac while a benchmark holds the run lock** — a
 suite run voids the measurement, and CI on another host covers a branch
 meanwhile.
