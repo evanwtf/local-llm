@@ -68,12 +68,36 @@ def serves(
     )
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
-            json.loads(response.read().decode(errors="replace"), strict=False)
-        return True, "ok"
+            answer = json.loads(response.read().decode(errors="replace"), strict=False)
     except urllib.error.HTTPError as exc:
         return False, f"HTTP {exc.code}"
     except Exception as exc:  # noqa: BLE001 - any failure means not ready yet
         return False, type(exc).__name__
+    why = not_a_completion(answer)
+    return (False, why) if why else (True, "ok")
+
+
+def not_a_completion(answer: object) -> str | None:
+    """None if `answer` is a chat completion, else what it is instead.
+
+    A 200 is not a completion. A server can answer 200 with
+    `{"error": "model unavailable"}`, or with JSON holding no choice at all,
+    and parsing alone called that ready -- the /health trap one layer down
+    (review of 2026-10-05). A completion has a first choice with a message.
+    Its content may be empty or null: one token of a reasoning model is often
+    reasoning only.
+    """
+    if not isinstance(answer, dict):
+        return f"not a completion: {type(answer).__name__}"
+    if answer.get("error"):
+        return f"error: {str(answer['error'])[:120]}"
+    choices = answer.get("choices")
+    if not isinstance(choices, list) or not choices:
+        return "not a completion: no choices"
+    first = choices[0]
+    if not isinstance(first, dict) or not isinstance(first.get("message"), dict):
+        return "not a completion: no message"
+    return None
 
 
 def ready(
