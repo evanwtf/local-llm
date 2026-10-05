@@ -60,7 +60,9 @@ nodes' memory holds only the server.
 | dates | client machine | client image |
 |---|---|---|
 | 2026-09-22 → 2026-09-30, 06:41 | Intel Core i3-7100, 2 cores, 16 GB | OpenCode 1.18.31 → 1.18.33, uv 0.12.13 → 0.12.21, CPython 3.14.4 → 3.14.7 |
-| 2026-09-30, 10:12 → 2026-10-01 | Intel Core i9-13900H laptop, 20 threads, 64 GB, Linux 7.0.0-34-generic | `local-llm-client:1.18.34`: OpenCode 1.18.34, uv 0.12.21, CPython 3.14.7 |
+| 2026-09-30, 10:12 → 2026-10-03 | Intel Core i9-13900H laptop, 20 threads, 64 GB, Linux 7.0.0-34-generic | `local-llm-client:1.18.34`: OpenCode 1.18.34, uv 0.12.21, CPython 3.14.7 |
+| 2026-10-05, 12:44 → 16:38 | Intel Core i3-7100, 2 cores, 16 GB (#912 arm A on recipe v1.7 only) | `local-llm-client:1.18.34`: OpenCode 1.18.34, uv 0.12.23, CPython 3.14.8 |
+| 2026-10-05, 18:25 → | Intel Core i9-13900H laptop, 20 threads, 64 GB | `local-llm-client:1.18.34`: OpenCode 1.18.34, uv 0.12.23, CPython 3.14.8 |
 
 From 2026-09-22T23:48-0400 the client runs in a Docker container limited to
 12 GiB, with the kernel enforcing the limit ([#683][i683]). 160 earlier rows ran
