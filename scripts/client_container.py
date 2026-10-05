@@ -42,7 +42,11 @@ sys.path.insert(
 )
 import build_client_image
 import currency
-from lib import child, logs
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+import child
+
+import logs
 
 #: The image's own record of what it pins (docker/opencode-client/Dockerfile).
 PIN_ENV = {

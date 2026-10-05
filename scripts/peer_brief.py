@@ -32,11 +32,10 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from lib import agent_identity, peer_state
-
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
-
+import agent_identity
 import machine_state
+import peer_state
 
 import logs
 

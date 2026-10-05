@@ -46,9 +46,8 @@ import preflight
 
 # The agent identity comes from the environment, never from introspection.
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from lib import agent_identity
-
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+import agent_identity
 
 import logs
 

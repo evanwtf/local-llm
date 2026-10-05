@@ -91,9 +91,8 @@ import preflight
 # (#160 amendment 1 & 2). Every logger in the peer tooling carries it via a
 # filter, so no call site passes it.
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from lib import agent_identity
-
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
+import agent_identity
 
 import logs
 

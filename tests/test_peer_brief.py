@@ -18,7 +18,9 @@ sys.path.insert(
 )
 
 import peer_brief
-from lib import peer_state
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "scripts" / "lib"))
+import peer_state
 
 
 def _monkey_state(monkeypatch, **overrides) -> None:
