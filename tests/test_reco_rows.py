@@ -81,3 +81,82 @@ def test_a_guard_failure_is_not_a_pass():
     got = reco_rows.row(rows, "b")
     assert got["passed"] == 1 and got["trials"] == 2
     assert got["median_s"] == 40.0 and got["worst_s"] == 40.0
+
+
+# --- Replay and hard-replay rows, labeled apart (owner decision on #949) ---
+# A backend measured only on replay tasks printed nothing at all once replays
+# left the excision row. It now gets its own labeled row, split the way
+# gen_tables splits its tables, by gen_tables' own predicates.
+
+
+def _replay(task, passed, wall, turns, hard=False, backend="b"):
+    row = _r(task, passed, wall, turns, backend=backend)
+    row["task_kind"] = "replay"
+    if hard:
+        row["replay"] = {"suite": "hard"}
+    return row
+
+
+def _cells(lines):
+    """Table body rows as lists of stripped cells, header and rule dropped."""
+    return [[c.strip() for c in x.strip("|").split("|")] for x in lines[2:]]
+
+
+def test_a_replay_only_backend_gets_a_labeled_replay_row():
+    rows = [
+        _replay("replay-a", True, 300.0, 20),
+        _replay("replay-b", True, 500.0, 30),
+    ]
+    lines = reco_rows.render(rows, ["b"])
+    assert lines[0] == "| backend | tasks | pass | median | worst | turns |"
+    assert _cells(lines) == [["b", "replay", "2/2", "400.0 s", "500.0 s", "25.0"]]
+
+
+def test_a_backend_with_both_gets_an_ordinary_row_and_a_replay_row():
+    rows = [
+        _r("mbox-scan", True, 40.0, 4),
+        _replay("replay-a", True, 1000.0, 40),
+    ]
+    assert _cells(reco_rows.render(rows, ["b"])) == [
+        ["b", "excision", "1/1", "40.0 s", "40.0 s", "4"],
+        ["b", "replay", "1/1", "1000.0 s", "1000.0 s", "40"],
+    ]
+
+
+def test_hard_replay_is_its_own_row():
+    rows = [
+        _replay("replay-a", True, 300.0, 20),
+        _replay("replay-hard-a", False, 900.0, 60, hard=True),
+        _replay("replay-hard-b", True, 700.0, 50, hard=True),
+    ]
+    assert _cells(reco_rows.render(rows, ["b"])) == [
+        ["b", "replay", "1/1", "300.0 s", "300.0 s", "20"],
+        ["b", "hard replay", "1/2", "700.0 s", "700.0 s", "50"],
+    ]
+
+
+def test_the_split_is_gen_tables_own():
+    """One classifier, so reco_rows and the generated tables cannot disagree."""
+    import gen_tables
+
+    for row in (
+        _r("mbox-scan", True, 1.0, 1),
+        _replay("replay-a", True, 1.0, 1),
+        _replay("replay-h", True, 1.0, 1, hard=True),
+        dict(_r("replay-by-name", True, 1.0, 1)),
+    ):
+        want = (
+            "hard replay"
+            if gen_tables.is_hard_replay(row)
+            else "replay"
+            if gen_tables.is_replay(row)
+            else "excision"
+        )
+        assert reco_rows.task_set(row) == want
+
+
+def test_an_excision_only_ledger_prints_what_it_printed_before():
+    """No replay rows, no tasks column: pasted rows keep their shape."""
+    lines = reco_rows.render([_r("mbox-scan", True, 40.0, 4)], ["b"])
+    assert lines[0] == "| backend | pass | median | worst | turns |"
+    assert _cells(lines) == [["b", "1/1", "40.0 s", "40.0 s", "4"]]
