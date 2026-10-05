@@ -137,6 +137,22 @@ def _timed(rows: list[dict[str, Any]]) -> list[float]:
     ]
 
 
+def spread(rows: list[dict[str, Any]]) -> float | None:
+    """The largest worst / best over passing trials **of one task**.
+
+    `max / min` over every task reported task difficulty as trial
+    variability: a 10 s task beside a 1,000 s task read as 100x with no trial
+    varying at all, under a caption that says "on the same task" (review of
+    b7a366b). None when no task has two passing trials to compare.
+    """
+    by_task: dict[str, list[float]] = collections.defaultdict(list)
+    for x in _excision(rows):
+        if results.verdict(x) and x.get("wall_seconds"):
+            by_task[str(x.get("task"))].append(x["wall_seconds"])
+    ratios = [max(w) / min(w) for w in by_task.values() if len(w) >= 2]
+    return max(ratios) if ratios else None
+
+
 def stack_key(row: dict[str, Any]) -> tuple[str, tuple[str, ...]]:
     """What a table row is: a backend **on one client machine** (#562).
 
@@ -211,10 +227,9 @@ def stack_table(
         p = sum(1 for x in rs if results.verdict(x))
         w = _timed(rs)
         if w:
-            timing = (
-                f"{statistics.median(w):.0f}s | {max(w):.0f}s | "
-                f"{max(w) / min(w):.1f}x |"
-            )
+            sp = spread(rs)
+            sp_cell = "\u2014" if sp is None else f"{sp:.1f}x"
+            timing = f"{statistics.median(w):.0f}s | {max(w):.0f}s | {sp_cell} |"
         else:
             timing = "\u2014 | \u2014 | \u2014 |"
         extra = f" {_hidden_cell(rs)} |" if hidden else ""
@@ -504,8 +519,10 @@ def machine_section(
         "",
         (
             "Excision tasks only; `script-*` excluded because they are a "
-            "different class. **Spread is worst / best on the same task**, "
-            "and it is the column most people forget to ask for."
+            "different class. **Spread is worst / best on the same task**: "
+            "the largest such ratio over the tasks with two or more passing "
+            "trials, or a dash when none has two. It is the column most "
+            "people forget to ask for."
         ),
         "",
     ]

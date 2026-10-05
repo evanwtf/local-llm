@@ -229,4 +229,30 @@ def test_every_guard_fails_the_timing_as_well_as_the_count():
         _trial("qwen", wall=20.0) | {"control_fails_as_expected": False},
     ]
     out = "\n".join(gen_tables.stack_table(rows, {}))
-    assert "| qwen | 1/3 | 50s | 50s | 1.0x |" in out
+    assert "| qwen | 1/3 | 50s | 50s | \u2014 |" in out
+
+
+# --- spread is within one task (review, finding 9) ---------------------------
+
+
+def test_spread_is_worst_over_best_on_the_same_task():
+    """The caption says "worst / best on the same task". Pooling every task
+    reported task difficulty as trial variability: a 10 s task and a 1,000 s
+    task read as a 100x spread with no trial varying at all."""
+    rows = [
+        _trial("qwen", wall=10.0) | {"task": "mbox-scan"},
+        _trial("qwen", wall=20.0) | {"task": "mbox-scan"},
+        _trial("qwen", wall=1000.0) | {"task": "parser-date"},
+        _trial("qwen", wall=1500.0) | {"task": "parser-date"},
+    ]
+    out = "\n".join(gen_tables.stack_table(rows, {}))
+    assert "| qwen | 4/4 | 510s | 1500s | 2.0x |" in out
+
+
+def test_spread_needs_two_passes_on_one_task():
+    rows = [
+        _trial("qwen", wall=10.0) | {"task": "mbox-scan"},
+        _trial("qwen", wall=1000.0) | {"task": "parser-date"},
+    ]
+    out = "\n".join(gen_tables.stack_table(rows, {}))
+    assert "| qwen | 2/2 | 505s | 1000s | — |" in out

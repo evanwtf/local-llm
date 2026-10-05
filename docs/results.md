@@ -67,62 +67,62 @@ other is telling you something.
 
 | stack | passed | median | worst | spread |
 |---|---|---|---|---|
-| qwen36a3bsglangdgx | 90/90 | 28s | 136s | 17.3x |
-| qwen36a3bsglangfmrcdgx @ Ryzen9-7900X-32GB+image | 89/89 | 30s | 207s | 25.5x |
-| qwen36a3bnvfp4dgx | 379/402 | 35s | 318s | 31.5x |
-| qwen36a3bnvfp4fmrcdgx @ Corei3-7100-16GB | 82/89 | 39s | 104s | 7.9x |
-| qwen36a3bsglangfmrcdgx @ Corei3-7100-16GB | 89/90 | 39s | 226s | 19.2x |
-| qwen36a3bsglangrcdgx @ Corei3-7100-16GB | 89/89 | 41s | 158s | 12.7x |
-| qwen3827bsglangdflash2nothinkdgx | 90/90 | 44s | 279s | 22.0x |
-| ornith15a3bdgx | 30/30 | 49s | 571s | 28.8x |
-| qwen3827bsglangdsparkpinnednothinkdgx | 89/90 | 54s | 191s | 12.3x |
-| qwen38fnq3nothinktopkdgx | 30/30 | 54s | 136s | 3.8x |
-| qwen38fnnvfp4miaainothinkdgx | 88/90 | 55s | 1657s | 71.4x |
-| qwen38fnq3nothinkkv8dgx | 90/90 | 61s | 1528s | 43.9x |
-| qwen38fnq3nothinkrcdgx @ Ryzen9-7900X-32GB+image | 180/181 | 63s | 394s | 17.6x |
-| qwen3827bsglangdsparknothinkdgx | 90/90 | 66s | 278s | 11.7x |
-| qwen3827bsglangdflash2nothinkfmrcdgx @ Corei3-7100-16GB | 90/90 | 66s | 260s | 10.1x |
-| qwen38fnnvidianvfp4nothinkfmrcdgx @ Ryzen9-7900X-32GB+image | 89/90 | 66s | 772s | 35.9x |
-| qwen38fnq3nothinkdgx | 331/331 | 67s | 1059s | 43.8x |
-| qwen38fnnvidianvfp4nothinkdgx | 90/90 | 68s | 1115s | 48.5x |
-| qwen38fnnvidianvfp4nothinkfmrcdgx @ Corei3-7100-16GB | 89/90 | 69s | 1627s | 63.8x |
-| qwen38fnexl3nothinkrcdgx @ Ryzen9-7900X-32GB+image@24g | 25/29 | 81s | 1713s | 51.1x |
-| qwen38fnq3nothinkrcdgx @ Corei3-7100-16GB+image | 91/91 | 82s | 225s | 8.8x |
-| qwen38fnq3nothinkub2048dgx | 4/4 | 82s | 475s | 14.2x |
-| qwen38fnq3nothinkrcdgx @ Corei3-7100-16GB | 179/180 | 88s | 792s | 19.6x |
-| qwen38fnnvfp4dgx | 60/60 | 95s | 338s | 9.5x |
-| qwen38fnq3nothinkkv8rcdgx @ Corei3-7100-16GB | 90/90 | 96s | 594s | 13.0x |
-| qwen38fnnvidianvfp4nothinkfmrcdgx @ Corei3-7100-16GB+image | 90/90 | 97s | 757s | 28.8x |
-| qwen38fnq3nothinkrcdgx @ Ryzen9-7900X-32GB | 179/180 | 98s | 612s | 16.8x |
-| gptoss20bdgx | 24/30 | 99s | 159s | 4.6x |
-| qwen3827bnvfp4miaainothinkdgx | 30/30 | 113s | 317s | 7.6x |
-| qwen38fnnvidianvfp4dgx | 90/90 | 121s | 281s | 7.5x |
-| nemotron35lightninga3bdgx | 26/30 | 125s | 377s | 11.8x |
-| qwen38fnq3dgx | 118/119 | 127s | 394s | 8.9x |
-| qwen38fnexl3nothinkdgx | 4/5 | 132s | 1768s | 20.5x |
-| qwen36nvfp4nothinkdgx | 60/60 | 136s | 268s | 5.2x |
-| qwen36codinggguf | 49/50 | 147s | 286s | 4.1x |
-| qwen38fnnvfp4miaaidgx | 30/30 | 150s | 367s | 6.5x |
-| qwen3827bsglangdflash2dgx | 89/90 | 157s | 581s | 18.3x |
-| qwen38fnq3rcdgx @ Corei3-7100-16GB | 90/90 | 162s | 452s | 7.7x |
-| qwen36nvfp4dgx | 60/60 | 175s | 845s | 13.2x |
-| qwen36nvfp4v1dgx | 29/30 | 190s | 832s | 12.3x |
-| glm53flashexl3k2nothinkrcdgx @ Ryzen9-7900X-32GB+image@24g | 14/18 | 190s | 570s | 3.7x |
-| nemotroncascade2 | 2/10 | 197s | 197s | 1.0x |
-| nemotron3super120bdgx | 28/30 | 212s | 1364s | 12.3x |
-| qwen36nvfp4specdgx | 28/42 | 241s | 1094s | 24.3x |
-| ds4dgx | 60/60 | 248s | 493s | 6.1x |
-| qwen38fnexl3nomtpnothinkdgx | 3/6 | 260s | 1696s | 16.5x |
-| glm53flashexl3k2nothinkdgx | 1/1 | 274s | 274s | 1.0x |
-| nemotron3super120bmtpnopcdgx | 29/30 | 374s | 1154s | 7.7x |
-| qwen36bf16dgx | 30/30 | 432s | 1335s | 6.7x |
-| nemotron3nano | 8/10 | 580s | 1212s | 8.5x |
-| glm53flashexl3k2nothinkrcdgx @ Ryzen9-7900X-32GB+image | 1/1 | 1379s | 1379s | 1.0x |
+| qwen36a3bsglangdgx | 90/90 | 28s | 136s | 4.5x |
+| qwen36a3bsglangfmrcdgx @ Ryzen9-7900X-32GB+image | 89/89 | 30s | 207s | 11.3x |
+| qwen36a3bnvfp4dgx | 379/402 | 35s | 318s | 23.4x |
+| qwen36a3bnvfp4fmrcdgx @ Corei3-7100-16GB | 82/89 | 39s | 104s | 3.9x |
+| qwen36a3bsglangfmrcdgx @ Corei3-7100-16GB | 89/90 | 39s | 226s | 12.9x |
+| qwen36a3bsglangrcdgx @ Corei3-7100-16GB | 89/89 | 41s | 158s | 6.7x |
+| qwen3827bsglangdflash2nothinkdgx | 90/90 | 44s | 279s | 12.0x |
+| ornith15a3bdgx | 30/30 | 49s | 571s | 16.7x |
+| qwen3827bsglangdsparkpinnednothinkdgx | 89/90 | 54s | 191s | 5.3x |
+| qwen38fnq3nothinktopkdgx | 30/30 | 54s | 136s | 3.3x |
+| qwen38fnnvfp4miaainothinkdgx | 88/90 | 55s | 1657s | 33.7x |
+| qwen38fnq3nothinkkv8dgx | 90/90 | 61s | 1528s | 36.5x |
+| qwen38fnq3nothinkrcdgx @ Ryzen9-7900X-32GB+image | 180/181 | 63s | 394s | 12.3x |
+| qwen3827bsglangdsparknothinkdgx | 90/90 | 66s | 278s | 8.0x |
+| qwen3827bsglangdflash2nothinkfmrcdgx @ Corei3-7100-16GB | 90/90 | 66s | 260s | 4.8x |
+| qwen38fnnvidianvfp4nothinkfmrcdgx @ Ryzen9-7900X-32GB+image | 89/90 | 66s | 772s | 14.1x |
+| qwen38fnq3nothinkdgx | 331/331 | 67s | 1059s | 37.3x |
+| qwen38fnnvidianvfp4nothinkdgx | 90/90 | 68s | 1115s | 28.1x |
+| qwen38fnnvidianvfp4nothinkfmrcdgx @ Corei3-7100-16GB | 89/90 | 69s | 1627s | 26.5x |
+| qwen38fnexl3nothinkrcdgx @ Ryzen9-7900X-32GB+image@24g | 25/29 | 81s | 1713s | 32.3x |
+| qwen38fnq3nothinkrcdgx @ Corei3-7100-16GB+image | 91/91 | 82s | 225s | 3.7x |
+| qwen38fnq3nothinkub2048dgx | 4/4 | 82s | 475s | — |
+| qwen38fnq3nothinkrcdgx @ Corei3-7100-16GB | 179/180 | 88s | 792s | 12.8x |
+| qwen38fnnvfp4dgx | 60/60 | 95s | 338s | 6.1x |
+| qwen38fnq3nothinkkv8rcdgx @ Corei3-7100-16GB | 90/90 | 96s | 594s | 6.6x |
+| qwen38fnnvidianvfp4nothinkfmrcdgx @ Corei3-7100-16GB+image | 90/90 | 97s | 757s | 13.1x |
+| qwen38fnq3nothinkrcdgx @ Ryzen9-7900X-32GB | 179/180 | 98s | 612s | 9.0x |
+| gptoss20bdgx | 24/30 | 99s | 159s | 2.1x |
+| qwen3827bnvfp4miaainothinkdgx | 30/30 | 113s | 317s | 2.7x |
+| qwen38fnnvidianvfp4dgx | 90/90 | 121s | 281s | 3.1x |
+| nemotron35lightninga3bdgx | 26/30 | 125s | 377s | 5.9x |
+| qwen38fnq3dgx | 118/119 | 127s | 394s | 4.0x |
+| qwen38fnexl3nothinkdgx | 4/5 | 132s | 1768s | — |
+| qwen36nvfp4nothinkdgx | 60/60 | 136s | 268s | 2.1x |
+| qwen36codinggguf | 49/50 | 147s | 286s | 2.4x |
+| qwen38fnnvfp4miaaidgx | 30/30 | 150s | 367s | 2.7x |
+| qwen3827bsglangdflash2dgx | 89/90 | 157s | 581s | 11.2x |
+| qwen38fnq3rcdgx @ Corei3-7100-16GB | 90/90 | 162s | 452s | 2.7x |
+| qwen36nvfp4dgx | 60/60 | 175s | 845s | 6.6x |
+| qwen36nvfp4v1dgx | 29/30 | 190s | 832s | 2.8x |
+| glm53flashexl3k2nothinkrcdgx @ Ryzen9-7900X-32GB+image@24g | 14/18 | 190s | 570s | 3.6x |
+| nemotroncascade2 | 2/10 | 197s | 197s | — |
+| nemotron3super120bdgx | 28/30 | 212s | 1364s | 5.2x |
+| qwen36nvfp4specdgx | 28/42 | 241s | 1094s | 9.0x |
+| ds4dgx | 60/60 | 248s | 493s | 3.7x |
+| qwen38fnexl3nomtpnothinkdgx | 3/6 | 260s | 1696s | 6.5x |
+| glm53flashexl3k2nothinkdgx | 1/1 | 274s | 274s | — |
+| nemotron3super120bmtpnopcdgx | 29/30 | 374s | 1154s | 3.1x |
+| qwen36bf16dgx | 30/30 | 432s | 1335s | 3.0x |
+| nemotron3nano | 8/10 | 580s | 1212s | — |
+| glm53flashexl3k2nothinkrcdgx @ Ryzen9-7900X-32GB+image | 1/1 | 1379s | 1379s | — |
 | nemotron33 | 1/10 | — | — | — |
 
 **Rows here were not all taken under one client.** ds4dgx, nemotron33, nemotron3nano, nemotroncascade2, ornith15a3bdgx, qwen36a3bnvfp4dgx, qwen36bf16dgx, qwen36codinggguf, qwen36nvfp4dgx, qwen36nvfp4nothinkdgx, qwen36nvfp4specdgx, qwen36nvfp4v1dgx, qwen38fnnvfp4dgx, qwen38fnq3dgx, qwen38fnq3nothinkdgx, qwen38fnq3nothinkkv8dgx, qwen38fnq3nothinktopkdgx, qwen38fnq3nothinkub2048dgx under 1.18.30; the rest under 1.18.31. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: qwen36a3bnvfp4dgx (1.18.30, 1.18.31); qwen38fnq3nothinkdgx (1.18.30, 1.18.31).
 
-Excision tasks only; `script-*` excluded because they are a different class. **Spread is worst / best on the same task**, and it is the column most people forget to ask for.
+Excision tasks only; `script-*` excluded because they are a different class. **Spread is worst / best on the same task**: the largest such ratio over the tasks with two or more passing trials, or a dash when none has two. It is the column most people forget to ask for.
 
 #### How fast each stack actually serves tokens
 
@@ -193,52 +193,52 @@ Excision tasks only; `script-*` excluded because they are a different class. **S
 
 | stack | passed | median | worst | spread |
 |---|---|---|---|---|
-| glm53fexl3dual2xrcctx @ Corei3-7100-16GB+image | 30/30 | 48s | 96s | 4.0x |
-| glm53fexl3dual2xrcctx @ Corei3-7100-16GB+image | 30/30 | 49s | 123s | 4.0x |
-| glm53fexl3dual2xrc @ Corei3-7100-16GB+image@24g | 30/30 | 62s | 130s | 4.3x |
-| dsv41fexl3dual2xrc @ Corei3-7100-16GB+image | 30/30 | 75s | 214s | 5.8x |
-| dsv41fexl3dual2xrc @ Corei3-7100-16GB+image | 60/60 | 77s | 330s | 9.4x |
-| dsv4flashvisiondspark2xrc @ Corei3-7100-16GB+image@10g | 40/40 | 82s | 187s | 6.6x |
-| dsv4flashvisiondspark2xrc @ Corei3-7100-16GB+image | 60/60 | 85s | 347s | 13.5x |
-| qwen38fnnvfp4dual2xrcflags @ Corei3-7100-16GB+image@10g | 30/30 | 86s | 412s | 12.4x |
-| mimo26fdual2xrc @ Corei3-7100-16GB+image@10g | 23/28 | 86s | 862s | 24.0x |
-| qwen38fnfp8dual2xrc @ Corei3-7100-16GB+image | 30/30 | 93s | 278s | 6.3x |
-| qwen38fnnvfp4dual2xrc @ Corei3-7100-16GB+image@10g | 30/30 | 99s | 178s | 5.5x |
-| qwen38fnnvfp4dual2xrcflags @ Corei3-7100-16GB+image | 30/30 | 114s | 304s | 8.9x |
-| mimo26fdual2xrcthink @ Corei3-7100-16GB+image@10g | 30/30 | 211s | 796s | 11.7x |
-| mimo26fdual2xrcthink @ Corei3-7100-16GB+image | 30/30 | 310s | 749s | 6.9x |
-| mimo26fdual2xrc @ Corei3-7100-16GB+image | 2/2 | 370s | 592s | 4.0x |
+| glm53fexl3dual2xrcctx @ Corei3-7100-16GB+image | 30/30 | 48s | 96s | 2.0x |
+| glm53fexl3dual2xrcctx @ Corei3-7100-16GB+image | 30/30 | 49s | 123s | 2.2x |
+| glm53fexl3dual2xrc @ Corei3-7100-16GB+image@24g | 30/30 | 62s | 130s | 2.9x |
+| dsv41fexl3dual2xrc @ Corei3-7100-16GB+image | 30/30 | 75s | 214s | 2.1x |
+| dsv41fexl3dual2xrc @ Corei3-7100-16GB+image | 60/60 | 77s | 330s | 2.5x |
+| dsv4flashvisiondspark2xrc @ Corei3-7100-16GB+image@10g | 40/40 | 82s | 187s | 2.3x |
+| dsv4flashvisiondspark2xrc @ Corei3-7100-16GB+image | 60/60 | 85s | 347s | 4.3x |
+| qwen38fnnvfp4dual2xrcflags @ Corei3-7100-16GB+image@10g | 30/30 | 86s | 412s | 3.3x |
+| mimo26fdual2xrc @ Corei3-7100-16GB+image@10g | 23/28 | 86s | 862s | 12.4x |
+| qwen38fnfp8dual2xrc @ Corei3-7100-16GB+image | 30/30 | 93s | 278s | 2.8x |
+| qwen38fnnvfp4dual2xrc @ Corei3-7100-16GB+image@10g | 30/30 | 99s | 178s | 2.2x |
+| qwen38fnnvfp4dual2xrcflags @ Corei3-7100-16GB+image | 30/30 | 114s | 304s | 2.4x |
+| mimo26fdual2xrcthink @ Corei3-7100-16GB+image@10g | 30/30 | 211s | 796s | 4.1x |
+| mimo26fdual2xrcthink @ Corei3-7100-16GB+image | 30/30 | 310s | 749s | 2.6x |
+| mimo26fdual2xrc @ Corei3-7100-16GB+image | 2/2 | 370s | 592s | — |
 
 **Rows here were not all taken under one client.** dsv41fexl3dual2xrc, dsv4flashvisiondspark2xrc, glm53fexl3dual2xrc, glm53fexl3dual2xrcctx, mimo26fdual2xrc, mimo26fdual2xrcthink, qwen38fnnvfp4dual2xrc, qwen38fnnvfp4dual2xrcflags under 1.18.31; glm53fexl3dual2xrclatest, glm53fexl3dual2xrclatestout64k, glm53ftfjaydual2xrc, qwen38fnhibrid48dual2xrc under 1.18.33; dsv41fexl3dual2xrc, glm53fexl3tfmiaaidual2xrc, glm53fexl3tfmiaaiv132dual2xrc, glm53fexl3tfmiaaiv14dual2xrc, glm53fexl3tfmiaaiv15dual2xrc, glm53fnvfp4kindlingdual2xrc, glm53ftfjaydual2xrchigh under 1.18.34; the rest under 1.18.32. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: dsv41fexl3dual2xrc (1.18.31, 1.18.32, 1.18.34); dsv4flashvisiondspark2xrc (1.18.31, 1.18.32); glm53fexl3dual2xrcctx (1.18.31, 1.18.32); glm53fexl3dual2xrclatest (1.18.32, 1.18.33); mimo26fdual2xrcthink (1.18.31, 1.18.32); qwen38fnnvfp4dual2xrcflags (1.18.31, 1.18.32).
 
-Excision tasks only; `script-*` excluded because they are a different class. **Spread is worst / best on the same task**, and it is the column most people forget to ask for.
+Excision tasks only; `script-*` excluded because they are a different class. **Spread is worst / best on the same task**: the largest such ratio over the tasks with two or more passing trials, or a dash when none has two. It is the column most people forget to ask for.
 
 #### Replay tasks: rebuild a real commit from its tests (#714)
 
 | stack | passed | median | worst | spread |
 |---|---|---|---|---|
-| glm53fexl3tfmiaaidual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 21/21 | 113s | 353s | 18.5x |
-| glm53fexl3tfmiaaiv132dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 21/21 | 124s | 344s | 17.8x |
-| glm53fexl3tfmiaaiv15dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 42/42 | 134s | 362s | 19.4x |
-| glm53fexl3tfmiaaiv14dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 42/42 | 144s | 351s | 19.0x |
-| glm53ftfjaydual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 42/42 | 145s | 402s | 18.3x |
-| glm53ftfjaydual2xrc @ Corei3-7100-16GB+image | 20/21 | 157s | 470s | 21.4x |
-| glm53fnvfp4kindlingdual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 63/63 | 157s | 408s | 18.2x |
-| glm53fexl3tfmiaaiv132dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 21/21 | 162s | 328s | 17.8x |
-| glm53fexl3tfmiaaiv15dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 21/21 | 162s | 319s | 16.9x |
-| glm53fexl3dual2xrclatest @ Corei3-7100-16GB+image | 20/21 | 189s | 548s | 19.0x |
-| glm53fexl3dual2xrcctx @ Corei3-7100-16GB+image | 63/63 | 216s | 608s | 23.9x |
-| glm53ftfjaydual2xrchigh @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 21/21 | 243s | 511s | 10.0x |
-| glm53fexl3dual2xrclatest @ Corei3-7100-16GB+image | 19/21 | 261s | 592s | 18.7x |
-| qwen38fnhibrid48dual2xrc @ Corei3-7100-16GB+image | 21/21 | 344s | 693s | 14.2x |
-| qwen38fnnvfp4dual2xrcflags @ Corei3-7100-16GB+image | 63/63 | 404s | 1082s | 24.9x |
-| dsv41fexl3dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 21/21 | 409s | 1002s | 21.9x |
-| dsv41fexl3dual2xrc @ Corei3-7100-16GB+image | 63/63 | 410s | 999s | 23.8x |
-| dsv4flashvisiondspark2xrc @ Corei3-7100-16GB+image | 63/63 | 435s | 923s | 31.0x |
-| qwen38fnnvfp4dual2xrcv030 @ Corei3-7100-16GB+image | 21/21 | 438s | 1081s | 21.4x |
-| qwen38fnfp8dual2xrc @ Corei3-7100-16GB+image | 21/21 | 502s | 1152s | 20.9x |
-| ling30fdual2xrc @ Corei3-7100-16GB+image | 3/4 | 530s | 633s | 1.9x |
-| mimo26fdual2xrcthink @ Corei3-7100-16GB+image | 11/19 | 531s | 1467s | 12.1x |
+| glm53fexl3tfmiaaidual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 21/21 | 113s | 353s | 2.7x |
+| glm53fexl3tfmiaaiv132dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 21/21 | 124s | 344s | 2.9x |
+| glm53fexl3tfmiaaiv15dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 42/42 | 134s | 362s | 2.7x |
+| glm53fexl3tfmiaaiv14dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 42/42 | 144s | 351s | 2.8x |
+| glm53ftfjaydual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 42/42 | 145s | 402s | 2.1x |
+| glm53ftfjaydual2xrc @ Corei3-7100-16GB+image | 20/21 | 157s | 470s | 1.7x |
+| glm53fnvfp4kindlingdual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 63/63 | 157s | 408s | 2.6x |
+| glm53fexl3tfmiaaiv132dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 21/21 | 162s | 328s | 1.8x |
+| glm53fexl3tfmiaaiv15dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 21/21 | 162s | 319s | 2.4x |
+| glm53fexl3dual2xrclatest @ Corei3-7100-16GB+image | 20/21 | 189s | 548s | 2.3x |
+| glm53fexl3dual2xrcctx @ Corei3-7100-16GB+image | 63/63 | 216s | 608s | 2.6x |
+| glm53ftfjaydual2xrchigh @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 21/21 | 243s | 511s | 1.3x |
+| glm53fexl3dual2xrclatest @ Corei3-7100-16GB+image | 19/21 | 261s | 592s | 2.3x |
+| qwen38fnhibrid48dual2xrc @ Corei3-7100-16GB+image | 21/21 | 344s | 693s | 2.2x |
+| qwen38fnnvfp4dual2xrcflags @ Corei3-7100-16GB+image | 63/63 | 404s | 1082s | 3.5x |
+| dsv41fexl3dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 21/21 | 409s | 1002s | 1.9x |
+| dsv41fexl3dual2xrc @ Corei3-7100-16GB+image | 63/63 | 410s | 999s | 2.0x |
+| dsv4flashvisiondspark2xrc @ Corei3-7100-16GB+image | 63/63 | 435s | 923s | 3.1x |
+| qwen38fnnvfp4dual2xrcv030 @ Corei3-7100-16GB+image | 21/21 | 438s | 1081s | 1.7x |
+| qwen38fnfp8dual2xrc @ Corei3-7100-16GB+image | 21/21 | 502s | 1152s | 1.7x |
+| ling30fdual2xrc @ Corei3-7100-16GB+image | 3/4 | 530s | 633s | — |
+| mimo26fdual2xrcthink @ Corei3-7100-16GB+image | 11/19 | 531s | 1467s | 1.7x |
 
 **Rows here were not all taken under one client.** glm53fexl3dual2xrclatest, glm53ftfjaydual2xrc, qwen38fnhibrid48dual2xrc under 1.18.33; dsv41fexl3dual2xrc, glm53fexl3tfmiaaidual2xrc, glm53fexl3tfmiaaiv132dual2xrc, glm53fexl3tfmiaaiv14dual2xrc, glm53fexl3tfmiaaiv15dual2xrc, glm53fnvfp4kindlingdual2xrc, glm53ftfjaydual2xrchigh under 1.18.34; the rest under 1.18.32. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: dsv41fexl3dual2xrc (1.18.32, 1.18.34); glm53fexl3dual2xrclatest (1.18.32, 1.18.33).
 
@@ -248,25 +248,25 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 
 | stack | passed | hidden passed | median | worst | spread |
 |---|---|---|---|---|---|
-| glm53fexl3tfmiaaiv132dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 20/21 | 4/21 | 250s | 1131s | 10.8x |
-| glm53fexl3tfmiaaiv15dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 20/21 | 1/21 | 262s | 1178s | 15.9x |
-| glm53fexl3tfmiaaiv14dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 40/42 | 0/42 | 266s | 1143s | 16.9x |
-| glm53fexl3tfmiaaiv15dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 41/42 | 3/42 | 286s | 1061s | 14.2x |
-| glm53fexl3tfmiaaiv132dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 20/21 | 3/21 | 302s | 1130s | 10.9x |
-| glm53fexl3tfmiaaidual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 21/21 | 2/21 | 310s | 1030s | 18.5x |
-| glm53fexl3dual2xrclatestout64k @ Corei3-7100-16GB+image | 20/21 | 2/21 | 355s | 1596s | 9.7x |
-| glm53ftfjaydual2xrc @ Corei3-7100-16GB+image | 20/21 | 2/21 | 355s | 1297s | 16.9x |
-| glm53fnvfp4kindlingdual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 57/63 | 7/63 | 364s | 1478s | 13.7x |
-| glm53ftfjaydual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 41/42 | 4/42 | 366s | 1376s | 12.8x |
-| glm53ftfjaydual2xrchigh @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 15/21 | 1/21 | 459s | 965s | 5.6x |
-| glm53fexl3dual2xrclatest @ Corei3-7100-16GB+image | 21/21 | 2/21 | 505s | 1659s | 13.6x |
-| glm53fexl3dual2xrclatest @ Corei3-7100-16GB+image | 18/21 | 4/21 | 511s | 2046s | 15.6x |
-| glm53fexl3dual2xrcctx @ Corei3-7100-16GB+image | 40/42 | 4/42 | 518s | 2067s | 14.3x |
-| qwen38fnhibrid48dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 20/21 | 2/21 | 743s | 1714s | 7.9x |
-| dsv4flashvisiondspark2xrc @ Corei3-7100-16GB+image | 40/42 | 0/42 | 786s | 3557s | 12.7x |
-| qwen38fnnvfp4dual2xrcflags @ Corei3-7100-16GB+image | 40/42 | 2/42 | 788s | 2557s | 9.4x |
-| dsv41fexl3dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 13/19 | 5/19 | 1005s | 1428s | 3.9x |
-| dsv41fexl3dual2xrc @ Corei3-7100-16GB+image | 16/17 | 2/17 | 1140s | 3471s | 9.6x |
+| glm53fexl3tfmiaaiv132dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 20/21 | 4/21 | 250s | 1131s | 1.7x |
+| glm53fexl3tfmiaaiv15dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 20/21 | 1/21 | 262s | 1178s | 1.6x |
+| glm53fexl3tfmiaaiv14dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 40/42 | 0/42 | 266s | 1143s | 2.1x |
+| glm53fexl3tfmiaaiv15dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 41/42 | 3/42 | 286s | 1061s | 1.8x |
+| glm53fexl3tfmiaaiv132dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 20/21 | 3/21 | 302s | 1130s | 1.4x |
+| glm53fexl3tfmiaaidual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 21/21 | 2/21 | 310s | 1030s | 1.4x |
+| glm53fexl3dual2xrclatestout64k @ Corei3-7100-16GB+image | 20/21 | 2/21 | 355s | 1596s | 1.6x |
+| glm53ftfjaydual2xrc @ Corei3-7100-16GB+image | 20/21 | 2/21 | 355s | 1297s | 2.2x |
+| glm53fnvfp4kindlingdual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 57/63 | 7/63 | 364s | 1478s | 3.4x |
+| glm53ftfjaydual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 41/42 | 4/42 | 366s | 1376s | 1.9x |
+| glm53ftfjaydual2xrchigh @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 15/21 | 1/21 | 459s | 965s | 2.1x |
+| glm53fexl3dual2xrclatest @ Corei3-7100-16GB+image | 21/21 | 2/21 | 505s | 1659s | 1.5x |
+| glm53fexl3dual2xrclatest @ Corei3-7100-16GB+image | 18/21 | 4/21 | 511s | 2046s | 2.0x |
+| glm53fexl3dual2xrcctx @ Corei3-7100-16GB+image | 40/42 | 4/42 | 518s | 2067s | 1.8x |
+| qwen38fnhibrid48dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 20/21 | 2/21 | 743s | 1714s | 2.9x |
+| dsv4flashvisiondspark2xrc @ Corei3-7100-16GB+image | 40/42 | 0/42 | 786s | 3557s | 2.0x |
+| qwen38fnnvfp4dual2xrcflags @ Corei3-7100-16GB+image | 40/42 | 2/42 | 788s | 2557s | 4.1x |
+| dsv41fexl3dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 13/19 | 5/19 | 1005s | 1428s | 1.9x |
+| dsv41fexl3dual2xrc @ Corei3-7100-16GB+image | 16/17 | 2/17 | 1140s | 3471s | 3.2x |
 
 **Rows here were not all taken under one client.** dsv41fexl3dual2xrc, dsv4flashvisiondspark2xrc, glm53fexl3dual2xrcctx, glm53fexl3dual2xrclatest, qwen38fnnvfp4dual2xrcflags under 1.18.32; glm53fexl3dual2xrclatest, glm53fexl3dual2xrclatestout64k, glm53ftfjaydual2xrc, qwen38fnhibrid48dual2xrc under 1.18.33; the rest under 1.18.34. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: dsv41fexl3dual2xrc (1.18.32, 1.18.34); glm53fexl3dual2xrclatest (1.18.32, 1.18.33).
 
@@ -322,46 +322,46 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 
 | stack | passed | median | worst | spread |
 |---|---|---|---|---|
-| qwen38fnsushi4 | 132/135 | 28s | 155s | 14.4x |
-| qwen38fnmlxservenopld | 74/75 | 47s | 1391s | 68.2x |
-| qwen38fnmlxserve | 624/630 | 50s | 1377s | 67.5x |
-| qwen38fnmlxserve-git | 74/75 | 52s | 402s | 18.5x |
-| ornith15 | 60/66 | 61s | 573s | 36.5x |
-| qwen38fnds4kimat | 586/586 | 91s | 775s | 27.0x |
+| qwen38fnsushi4 | 132/135 | 28s | 155s | 7.2x |
+| qwen38fnmlxservenopld | 74/75 | 47s | 1391s | 35.7x |
+| qwen38fnmlxserve | 624/630 | 50s | 1377s | 41.6x |
+| qwen38fnmlxserve-git | 74/75 | 52s | 402s | 9.7x |
+| ornith15 | 60/66 | 61s | 573s | 14.7x |
+| qwen38fnds4kimat | 586/586 | 91s | 775s | 13.9x |
 | qwen38fnds4main | 222/225 | 102s | 329s | 9.8x |
-| Qwen3.8-Flash-Next Q3 - llama.cpp | 180/180 | 108s | 361s | 9.5x |
-| DeepSeek-V4-Flash - ds4 (Anthropic wire) | 18/18 | 110s | 221s | 4.3x |
-| qwen38fnq3reap | 21/21 | 110s | 261s | 6.8x |
-| qwen38fniq4 | 45/45 | 111s | 310s | 6.2x |
-| DeepSeek-V4-Flash - ds4 | 30/30 | 115s | 230s | 4.3x |
-| Qwen3.8-Flash-Next Q3 - LM Studio | 21/21 | 122s | 261s | 4.2x |
-| qwen38fnds4shim | 387/427 | 123s | 792s | 25.5x |
-| qwen38fnds4greedy | 64/70 | 142s | 806s | 18.2x |
-| qwen38fnds4q4exp | 151/151 | 149s | 572s | 11.7x |
-| qwen38fnds4q4exppr5 | 44/45 | 149s | 367s | 7.4x |
-| gemma426 | 11/11 | 150s | 160s | 1.7x |
+| Qwen3.8-Flash-Next Q3 - llama.cpp | 180/180 | 108s | 361s | 4.1x |
+| DeepSeek-V4-Flash - ds4 (Anthropic wire) | 18/18 | 110s | 221s | 2.6x |
+| qwen38fnq3reap | 21/21 | 110s | 261s | 1.8x |
+| qwen38fniq4 | 45/45 | 111s | 310s | 2.5x |
+| DeepSeek-V4-Flash - ds4 | 30/30 | 115s | 230s | 1.8x |
+| Qwen3.8-Flash-Next Q3 - LM Studio | 21/21 | 122s | 261s | 1.9x |
+| qwen38fnds4shim | 387/427 | 123s | 792s | 14.3x |
+| qwen38fnds4greedy | 64/70 | 142s | 806s | 6.6x |
+| qwen38fnds4q4exp | 151/151 | 149s | 572s | 4.0x |
+| qwen38fnds4q4exppr5 | 44/45 | 149s | 367s | 1.8x |
+| gemma426 | 11/11 | 150s | 160s | 1.6x |
 | qwen36 | 11/12 | 159s | 352s | 3.6x |
-| qwen38fnds4mtpauto | 60/60 | 168s | 310s | 3.3x |
-| qwen38fnds4mtp7shim | 72/127 | 177s | 638s | 11.4x |
-| qwen38fnds4mtp7greedy | 72/90 | 194s | 1003s | 21.3x |
-| qwen | 56/57 | 240s | 479s | 10.6x |
-| Qwen3.6-27B-coding - Ollama | 79/84 | 269s | 1371s | 24.6x |
-| bonsai2mlxserve | 27/44 | 326s | 1718s | 38.5x |
-| GLM-5.3-Flash - ds4 | 22/24 | 369s | 1227s | 18.0x |
-| gemma4 | 12/12 | 383s | 1316s | 4.8x |
+| qwen38fnds4mtpauto | 60/60 | 168s | 310s | 1.9x |
+| qwen38fnds4mtp7shim | 72/127 | 177s | 638s | 3.4x |
+| qwen38fnds4mtp7greedy | 72/90 | 194s | 1003s | 3.6x |
+| qwen | 56/57 | 240s | 479s | 4.3x |
+| Qwen3.6-27B-coding - Ollama | 79/84 | 269s | 1371s | 14.3x |
+| bonsai2mlxserve | 27/44 | 326s | 1718s | 8.6x |
+| GLM-5.3-Flash - ds4 | 22/24 | 369s | 1227s | 10.1x |
+| gemma4 | 12/12 | 383s | 1316s | 4.1x |
 
 **Rows here were not all taken under one client.** qwen38fnq3reap under 1.18.26; qwen38fnds4kimat, qwen38fnds4mtp7shim, qwen38fnds4shim under 1.18.27; qwen38fnds4greedy, qwen38fnds4kimat, qwen38fnds4mtp7greedy, qwen38fnds4mtp7shim, qwen38fnds4shim, qwen38fnmlxserve, qwen38fnmlxserve-git, Qwen3.8-Flash-Next Q3 - llama.cpp under 1.18.29; qwen38fnds4greedy, qwen38fnds4kimat, qwen38fnds4mtp7greedy, qwen38fnds4mtpauto, qwen38fnds4q4exp, qwen38fnds4q4exppr5, qwen38fnds4shim, qwen38fniq4, qwen38fnmlxserve, qwen38fnmlxservenopld under 1.18.30; bonsai2mlxserve, ornith15, qwen38fnds4kimat, qwen38fnds4main, qwen38fnmlxserve, Qwen3.8-Flash-Next Q3 - llama.cpp under 1.18.31; qwen, Qwen3.6-27B-coding - Ollama, qwen38fnmlxserve, qwen38fnsushi4 under 1.18.32; qwen38fnds4main, qwen38fnmlxserve, Qwen3.8-Flash-Next Q3 - llama.cpp under 1.18.33; the rest under 1.18.25. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: ornith15 (1.18.25, 1.18.31); qwen (1.18.25, 1.18.32); Qwen3.6-27B-coding - Ollama (1.18.25, 1.18.32); qwen38fnds4greedy (1.18.29, 1.18.30); qwen38fnds4kimat (1.18.27, 1.18.29, 1.18.30, 1.18.31); qwen38fnds4main (1.18.31, 1.18.33); qwen38fnds4mtp7greedy (1.18.29, 1.18.30); qwen38fnds4mtp7shim (1.18.27, 1.18.29); qwen38fnds4shim (1.18.27, 1.18.29, 1.18.30); qwen38fnmlxserve (1.18.29, 1.18.30, 1.18.31, 1.18.32, 1.18.33); Qwen3.8-Flash-Next Q3 - llama.cpp (1.18.25, 1.18.29, 1.18.31, 1.18.33).
 
 **The `bonsai2mlxserve`, `qwen38fnmlxserve`, `qwen38fnmlxserve-git`, `qwen38fnmlxservenopld` rows are PLD-on.** mlx-serve turns on Prompt Lookup Decoding by default, and every mlx-serve row here was taken with it on. The `qwen38fnmlxserve`, `qwen38fnmlxserve-git`, `qwen38fnmlxservenopld` pack ships no MTP head or drafter, so PLD is its only draft source ([#262](https://github.com/evanwtf/local-llm/issues/262)). For `bonsai2mlxserve`, mlx-serve also grafts an MTP head (depth 2, from ddalcu/Qwen3.8-27B-MLX-Serve-4bit; [#479](https://github.com/evanwtf/local-llm/issues/479)). That is the engine's own default — "what you get when you install it," which is what this project measures — but the speculation was never recorded, so these rows are not a no-speculation baseline against the ds4 arms whose MTP state we set explicitly.
 
-Excision tasks only; `script-*` excluded because they are a different class. **Spread is worst / best on the same task**, and it is the column most people forget to ask for.
+Excision tasks only; `script-*` excluded because they are a different class. **Spread is worst / best on the same task**: the largest such ratio over the tasks with two or more passing trials, or a dash when none has two. It is the column most people forget to ask for.
 
 #### Replay tasks: rebuild a real commit from its tests (#714)
 
 | stack | passed | median | worst | spread |
 |---|---|---|---|---|
-| qwen38fnsushi4 | 36/41 | 213s | 1460s | 61.9x |
-| qwen38fnmlxserve | 36/41 | 288s | 1726s | 32.1x |
+| qwen38fnsushi4 | 36/41 | 213s | 1460s | 8.7x |
+| qwen38fnmlxserve | 36/41 | 288s | 1726s | 5.8x |
 
 Seven commits from gmail-archive's history, 60-600 changed lines each. The target repo is public, so a pass may be partly recall; see each row's `replay` record.
 
@@ -369,8 +369,8 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 
 | stack | passed | hidden passed | median | worst | spread |
 |---|---|---|---|---|---|
-| qwen38fnsushi4 | 26/42 | 3/42 | 552s | 1597s | 12.8x |
-| qwen38fnmlxserve | 25/41 | 2/41 | 590s | 1594s | 7.3x |
+| qwen38fnsushi4 | 26/42 | 3/42 | 552s | 1597s | 7.2x |
+| qwen38fnmlxserve | 25/41 | 2/41 | 590s | 1594s | 4.4x |
 
 `passed` is the tests the agent could see. **`hidden passed` is tests it never saw**, run only by the oracle, over the trials whose task holds tests out; a dash means none did. Kept apart from the table above so its seven tasks stay comparable.
 
@@ -431,21 +431,21 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 | stack | passed | median | worst | spread |
 |---|---|---|---|---|
 | dtgemma4e4b | 14/42 | 26s | 32s | 1.7x |
-| dtqwen359b | 21/42 | 85s | 156s | 2.7x |
+| dtqwen359b | 21/42 | 85s | 156s | 2.4x |
 | dtternarybonsai27b | 33/41 | 86s | 422s | 13.4x |
 | dtornith159b | 49/67 | 93s | 534s | 16.2x |
 | dtbonsai27bllamacpp | 26/38 | 117s | 335s | 6.0x |
 | dtqwen359bq8 | 20/41 | 120s | 157s | 1.8x |
-| dtbonsai27b | 18/38 | 132s | 132s | 1.0x |
-| dtsparkx254b | 21/54 | 173s | 207s | 1.3x |
-| dtgemma412b | 9/42 | 209s | 209s | 1.0x |
-| dtternarybonsai227b | 14/30 | 273s | 711s | 15.7x |
+| dtbonsai27b | 18/38 | 132s | 132s | — |
+| dtsparkx254b | 21/54 | 173s | 207s | 1.1x |
+| dtgemma412b | 9/42 | 209s | 209s | — |
+| dtternarybonsai227b | 14/30 | 273s | 711s | 3.5x |
 | dtternarybonsai2ptq127b | 17/30 | 353s | 1036s | 11.7x |
 | dtmistralnemo | 0/12 | — | — | — |
 
 **Rows here were not all taken under one client.** dtbonsai27b, dtbonsai27bllamacpp, dtsparkx254b, dtternarybonsai27b under 1.18.27; dtbonsai27b, dtgemma412b, dtgemma4e4b, dtmistralnemo, dtornith159b, dtqwen359b, dtqwen359bq8 under unrecorded; the rest under 1.18.31. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: dtbonsai27b (1.18.27, unrecorded); dtgemma412b (1.18.31, unrecorded); dtgemma4e4b (1.18.31, unrecorded); dtornith159b (1.18.31, unrecorded); dtqwen359b (1.18.31, unrecorded); dtqwen359bq8 (1.18.31, unrecorded); dtsparkx254b (1.18.27, 1.18.31).
 
-Excision tasks only; `script-*` excluded because they are a different class. **Spread is worst / best on the same task**, and it is the column most people forget to ask for.
+Excision tasks only; `script-*` excluded because they are a different class. **Spread is worst / best on the same task**: the largest such ratio over the tasks with two or more passing trials, or a dash when none has two. It is the column most people forget to ask for.
 
 #### How fast each stack actually serves tokens
 
