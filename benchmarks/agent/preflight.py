@@ -67,6 +67,16 @@ logger = logging.getLogger(__name__)
 # row. `mlx-serve` was added for #191 before its first measurement.
 INFERENCE = ("llama-server", "ollama", "ds4-server", "mtplx", "mlx-serve", "sushi")
 
+# Engines that run as a Python program. Their executable is `python3`, so the
+# executable match above never saw them: vLLM, SGLang and TensorFold were all
+# invisible to this gate, and a stale one holding 48 GiB read as 0 GiB with no
+# refusal (code review, 2026-10-05). They are matched on the module after `-m`
+# or the console script after the interpreter -- an exact name, never a
+# substring, so `python3 scripts/stack_agent_ab.py --engine vllm` and
+# `pytest test_vllm_spec.py` stay what they are. Only with the default
+# `INFERENCE` markers: a caller asking for its own list gets only that list.
+PYTHON_SERVERS = ("vllm", "sglang", "tensorfold")
+
 # The tool shim's script name. The shim is not an inference process, but it
 # knows where the real server lives: its --upstream names the port that a
 # shim-backed run depends on (#132).
@@ -112,6 +122,9 @@ class Proc:
     #: memory a container's CUDA allocations do not show in RSS: a Docker
     #: llama-server held 19,440 MiB here while `ps` said 0.92 GiB (#935).
     gpu_gib: float = 0.0
+    #: The engine for a Python-hosted server (`PYTHON_SERVERS`), whose
+    #: executable is only `python3`; None for every other process.
+    engine: str | None = None
 
     @property
     def resident_gib(self) -> float:
@@ -120,6 +133,8 @@ class Proc:
 
     @property
     def short(self) -> str:
+        if self.engine is not None:
+            return self.engine
         return self.command.split()[0].rsplit("/", 1)[-1]
 
     @property
@@ -422,6 +437,46 @@ def gpu_memory_by_pid() -> dict[int, float]:
         return {}
 
 
+def _is_python(executable: str) -> bool:
+    """`python`, `python3`, `python3.13`, or macOS's framework `Python`."""
+    name = executable.lower()
+    return name == "python" or (
+        name.startswith("python") and name[6:].replace(".", "").isdigit()
+    )
+
+
+def python_server(command: str) -> str | None:
+    """The `PYTHON_SERVERS` engine this command line runs, else None.
+
+    `python3 -m vllm.entrypoints.openai.api_server` is vLLM by its module;
+    `/usr/bin/python3 /usr/local/bin/tensorfold serve` is TensorFold by its
+    console script, which is how a shebang script appears in `ps`. A bare
+    `vllm serve` is matched by its executable. `-c` code is never a server.
+    """
+    tokens = command.split()
+    if not tokens:
+        return None
+    executable = pathlib.PurePath(tokens[0]).name
+    if executable in PYTHON_SERVERS:
+        return executable
+    if not _is_python(executable):
+        return None
+    rest = tokens[1:]
+    # Interpreter options come before the module or script. -X and -W take a
+    # value as the next token.
+    while rest and rest[0].startswith("-") and rest[0] != "-m":
+        if rest[0] == "-c":
+            return None
+        rest = rest[2:] if rest[0] in ("-X", "-W") else rest[1:]
+    if not rest:
+        return None
+    if rest[0] == "-m":
+        target = rest[1].split(".")[0] if len(rest) > 1 else ""
+    else:
+        target = pathlib.PurePath(rest[0]).name
+    return target if target in PYTHON_SERVERS else None
+
+
 def parse_ps(text: str, markers: Sequence[str] = INFERENCE) -> list[Proc]:
     """Read `ps -eo pid,rss,etime,command`, keeping processes matching `markers`.
 
@@ -445,6 +500,9 @@ def parse_ps(text: str, markers: Sequence[str] = INFERENCE) -> list[Proc]:
             f"ps header has no ELAPSED column, so this is not "
             f"`ps -eo pid,rss,etime,command`: {lines[0]!r}"
         )
+    # Python-hosted engines only for the default census: `machine_state`'s
+    # bench list and `samplers` ask for their own names and nothing else.
+    python_hosted = tuple(markers) == INFERENCE
     procs = []
     for line in lines[1:]:  # skip the header
         parts = line.split(None, 3)
@@ -457,7 +515,8 @@ def parse_ps(text: str, markers: Sequence[str] = INFERENCE) -> list[Proc]:
         # invoked it. That is the same self-match NEXT.md records for
         # `pgrep -f run.py`, and it is worth not rediscovering twice.
         binary = command.split()[0] if command.split() else ""
-        if not any(marker in binary for marker in markers):
+        engine = python_server(command) if python_hosted else None
+        if engine is None and not any(marker in binary for marker in markers):
             continue
         try:
             procs.append(
@@ -466,6 +525,7 @@ def parse_ps(text: str, markers: Sequence[str] = INFERENCE) -> list[Proc]:
                     int(rss) / KIB_PER_GIB,
                     command.strip(),
                     age_s=parse_etime(etime),
+                    engine=engine,
                 )
             )
         except ValueError:
@@ -556,6 +616,15 @@ def _argv_value(command: str, flag: str) -> str | None:
     return None
 
 
+def _argv_port(command: str) -> int | None:
+    """The `--port` a command line names, or None."""
+    value = _argv_value(command, "--port")
+    try:
+        return int(value) if value is not None else None
+    except ValueError:
+        return None
+
+
 def shim_upstream_ports(ps_text: str, selected_ports: set[int]) -> set[int]:
     """Ports held by the upstream of a selected backend's shim.
 
@@ -637,6 +706,12 @@ def check(
     for proc in parse_ps(ps_text):
         total += proc.rss_gib
         port = by_pid.get(proc.pid)
+        if port is None and proc.engine is not None:
+            # A Python-hosted engine runs in a root container here, and `lsof`
+            # as the benchmark user sees no listener for it. Its own `--port`
+            # is then the truthful answer: without it, the run's own TensorFold
+            # on :8888 would read as "not listening" and refuse the run.
+            port = _argv_port(proc.command)
         if port is None:
             # A server still loading holds real memory; a process holding
             # nothing is not worth a sentence either way.
@@ -1895,12 +1970,25 @@ def served_context(model: str, base_url: str) -> int | None:
             data = json.loads(fh.read())
     except (OSError, urllib.error.URLError, json.JSONDecodeError, ValueError):
         return None
+    # The full name, tag included. Matching the part before the colon let
+    # `qwen:8b` at 131072 vouch for `qwen:32b` at 4096 whenever it was listed
+    # first (code review, 2026-10-05). Only the omitted default tag is
+    # normalized: Ollama names `m` as `m:latest`.
+    want = _ollama_tagged(model)
     for entry in data.get("models") or []:
-        name = str(entry.get("name", ""))
-        if name == model or name.split(":")[0] == model.split(":")[0]:
+        if _ollama_tagged(str(entry.get("name", ""))) == want:
             got = entry.get("context_length")
             return int(got) if got is not None else None
     return None
+
+
+def _ollama_tagged(name: str) -> str:
+    """`name` with Ollama's default `:latest` tag made explicit.
+
+    The tag is after the last `/`, so a registry port (`host:5000/m`) is not
+    mistaken for one.
+    """
+    return name if ":" in name.rsplit("/", 1)[-1] else f"{name}:latest"
 
 
 def check_served_context(backends: dict[str, dict]) -> list[str]:

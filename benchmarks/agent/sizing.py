@@ -74,6 +74,23 @@ def trials_for(target: float, z: float = Z95) -> int:
     return math.ceil(target * z * z / (1 - target))
 
 
+def more_passes_needed(passes: int, trials: int, target: float, z: float = Z95) -> int:
+    """Consecutive passes still needed before this cell's lower bound clears
+    `target`, counting its failures so far.
+
+    `trials_for(target) - trials` assumed every trial so far had passed: 34/35
+    sits at 0.855 and was reported as "needs 0 more" when it needs 18 (code
+    review, 2026-10-05). The bound rises toward 1 with every added pass, so
+    the search ends.
+    """
+    if not 0 < target < 1:
+        raise ValueError("target must be a probability")
+    more = 0
+    while wilson_lower(passes + more, trials + more, z) < target:
+        more += 1
+    return more
+
+
 def median_precision(
     samples: list[float], n: int, draws: int = 2000, seed: int = 20260828
 ) -> float | None:
@@ -151,7 +168,7 @@ def report(path: pathlib.Path) -> None:
         need = (
             ""
             if lower >= 0.90
-            else f"  (needs {max(0, trials_for(0.90) - n)} more if unbroken)"
+            else f"  (needs {more_passes_needed(k, n, 0.90)} more if unbroken)"
         )
         logger.info(
             "  %-14s x %-8s %3d/%-3d  lower bound %.3f%s",
@@ -189,12 +206,12 @@ def report(path: pathlib.Path) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    p.add_argument(
-        "--results", default=str(pathlib.Path(__file__).parent / "results.jsonl")
-    )
+    # This machine's ledger. The old default, benchmarks/agent/results.jsonl,
+    # no longer exists, and an absent ledger reads as no history at all.
+    p.add_argument("--results", default=None, help="default: this machine's ledger")
     args = p.parse_args(argv)
     provenance.configure()
-    report(pathlib.Path(args.results))
+    report(pathlib.Path(args.results) if args.results else results.default_path())
     return 0
 
 
