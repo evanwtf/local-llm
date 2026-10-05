@@ -91,3 +91,12 @@ def test_the_task_is_declared_and_its_checks_avoid_the_prompt_example() -> None:
     assert "hello" in task["prompt"] and "olleh" in task["prompt"]
     for arg, want in task["checks"]:
         assert arg != "hello" and want != "olleh", "the checked case is given away"
+
+
+def test_a_script_that_crashes_after_printing_fails(workdir) -> None:
+    """The right stdout from a process that then raised is not a working
+    command-line tool. The return code was never read."""
+    write(workdir, "import sys\nprint(sys.argv[1][::-1])\nraise SystemExit(1)\n")
+    ok, summary = run.script_checks(workdir, "reverse.py", CHECKS, 30)
+    assert not ok
+    assert "exit 1" in summary

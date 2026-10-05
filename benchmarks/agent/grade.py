@@ -98,7 +98,12 @@ def restored_verbatim(
 
 
 def save_solution(
-    dest: pathlib.Path, name: str, worktree: pathlib.Path
+    dest: pathlib.Path,
+    name: str,
+    worktree: pathlib.Path,
+    *,
+    base: str = "HEAD",
+    tag: str = "",
 ) -> dict[str, Any]:
     """Keep the agent's diff, and hash it.
 
@@ -119,12 +124,18 @@ def save_solution(
     fired, and four trials across two different tasks shared one
     `solution_sha256` because the identical lock hunk was their whole content
     (#112's `solution_empty`, #278's empty-rate).
+
+    `base` is the trial's starting sha. HEAD moves when the agent commits, and
+    a committed solution then read as empty. `tag` names the run, so a later
+    batch of the same cell writes a new file: the patch was named for the trial
+    alone, and the next batch overwrote it under the earlier row's hash. An
+    existing file is never replaced either way.
     """
     try:
         proc = subprocess.run(
             # `-- .` then exclude uv.lock at any depth: the positive pathspec is
             # required for `:(exclude)` to have something to subtract from.
-            ["git", "diff", "HEAD", "--", ".", ":(exclude,glob)**/uv.lock"],
+            ["git", "diff", base, "--", ".", ":(exclude,glob)**/uv.lock"],
             cwd=worktree,
             capture_output=True,
             text=True,
@@ -139,7 +150,12 @@ def save_solution(
         if not patch.strip():
             return {"solution_empty": True}
         dest.mkdir(parents=True, exist_ok=True)
-        out = dest / f"{name}.patch"
+        stem = f"{name}-{tag}" if tag else name
+        out = dest / f"{stem}.patch"
+        n = 1
+        while out.exists():
+            out = dest / f"{stem}.{n}.patch"
+            n += 1
         out.write_text(patch)
     except (OSError, subprocess.SubprocessError) as exc:
         logger.debug("cannot save solution for %s: %s", name, exc)

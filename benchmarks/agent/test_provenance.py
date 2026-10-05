@@ -383,3 +383,44 @@ def test_every_line_carries_the_draft_path(monkeypatch):
     record = logging.LogRecord("n", logging.INFO, __file__, 1, "m", None, None)
     provenance._Stamp("abc1234").filter(record)
     assert record.__dict__["pld"] == "off"
+
+
+# --- review: the output tree excuses output, not code ------------------------
+#
+# Every path under benchmarks/ds4/ was exempt, so a staged edit to
+# benchmarks/ds4/266-mtp-history-repro/repro.py left the tree "clean" and the
+# pinned-harness guard accepted code that exists in no commit.
+
+
+def _ds4_run_dir(tmp_path):
+    repo = _repo(tmp_path)
+    out = repo / "benchmarks" / "ds4" / "266-mtp-history-repro"
+    out.mkdir(parents=True)
+    (out / "repro.py").write_text("x = 1\n")
+    (out / "summary.json").write_text("{}\n")
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-qm", "repro"], cwd=repo, check=True, capture_output=True
+    )
+    return repo, out
+
+
+def test_a_staged_code_change_under_the_output_tree_is_dirty(tmp_path) -> None:
+    repo, out = _ds4_run_dir(tmp_path)
+    (out / "repro.py").write_text("x = 2\n")
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True, capture_output=True)
+    assert provenance.code_is_dirty(repo) is True
+    assert provenance.code_is_dirty(repo, untracked=False) is True
+
+
+def test_a_new_script_in_a_tracked_output_dir_is_dirty(tmp_path) -> None:
+    repo, out = _ds4_run_dir(tmp_path)
+    (out / "probe.py").write_text("y = 1\n")
+    assert provenance.code_is_dirty(repo) is True
+
+
+def test_a_runs_own_files_in_a_tracked_output_dir_are_not_dirty(tmp_path) -> None:
+    repo, out = _ds4_run_dir(tmp_path)
+    (out / "summary.json").write_text('{"tps": 1}\n')
+    (out / "notes.txt").write_text("run 2\n")
+    assert provenance.code_is_dirty(repo) is False
