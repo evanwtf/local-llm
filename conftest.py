@@ -184,6 +184,8 @@ EXPECTED_SKIPS = (
     r"needs a swift toolchain",
     # #780: the home allow-list is a sandbox-exec profile; Linux has bwrap.
     r"needs sandbox-exec \(macOS\)",
+    # #968: the tool self-test runs the pinned client image; CI builds none.
+    r"docker or local-llm-client:\S+ is not available here",
 )
 
 

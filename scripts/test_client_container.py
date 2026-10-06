@@ -226,3 +226,65 @@ def test_the_documented_invocation_loses_nothing():
     ]
     assert mod.lost_outputs(command, HOME) == []
     assert mod.translate_paths(command, HOME) == command
+
+
+def _batch(tmp_path, monkeypatch, smoke_failures):
+    """main() up to the docker launch, with every gate but the smoke faked."""
+    import client_tool_smoke
+
+    for rel, _ in mod.MOUNTS:
+        (tmp_path / rel).mkdir(parents=True, exist_ok=True)
+    facts = tmp_path / "facts.json"
+    facts.write_text("{}")
+    monkeypatch.setattr(mod, "check_image_current", lambda image: None)
+    monkeypatch.setattr(mod, "check_facts_current", lambda facts, command: None)
+    smoked, launched = [], []
+
+    def smoke(image, **kw):
+        smoked.append(image)
+        return smoke_failures
+
+    def launch(argv, **kw):
+        launched.append(argv)
+        return 0
+
+    monkeypatch.setattr(client_tool_smoke, "run_in_image", smoke)
+    monkeypatch.setattr(mod.child, "run", launch)
+    argv = ["--server", "s", "--facts", str(facts), "--home", str(tmp_path)]
+    argv += ["--image", "img", "--log", str(tmp_path / "client.log")]
+    return argv, smoked, launched
+
+
+def test_every_batch_runs_the_tool_self_test_first(tmp_path, monkeypatch):
+    """#968: grep and glob failed on every call for two weeks of batches."""
+    argv, smoked, launched = _batch(tmp_path, monkeypatch, [])
+    assert mod.main([*argv, "--", "--backend", "b"]) == 0
+    assert smoked == ["img"]
+    assert len(launched) == 1
+
+
+def test_a_failed_tool_self_test_refuses_the_batch(tmp_path, monkeypatch):
+    argv, smoked, launched = _batch(tmp_path, monkeypatch, ["grep: error: tar"])
+    assert mod.main([*argv, "--", "--backend", "b"]) == 1
+    assert smoked == ["img"]
+    assert launched == []
+
+
+def test_the_self_test_is_skipped_only_when_asked(tmp_path, monkeypatch):
+    argv, smoked, launched = _batch(tmp_path, monkeypatch, ["grep: error: tar"])
+    assert mod.main([*argv, "--skip-tool-smoke", "--", "--backend", "b"]) == 0
+    assert smoked == []
+    assert len(launched) == 1
+
+
+def test_an_image_must_declare_its_ripgrep():
+    """#968: the pin that tells a fixed image from a broken one."""
+    assert mod.PIN_ENV["LOCAL_LLM_PINNED_RIPGREP"] == "ripgrep"
+
+
+def test_the_harness_and_the_self_test_share_one_container_posture():
+    argv = _argv()
+    base = mod.container_argv(image="img", home=HOME, command=["true"])
+    assert argv[: argv.index("-v")] == base[: base.index("-v")]
+    for entry in mod.BASE_ENV:
+        assert entry in argv and entry in base

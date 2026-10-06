@@ -12,7 +12,7 @@ never looked at the cluster recipes or the pinned client image.
 
 What is checked, and where:
 
-- **Client image pins** (OpenCode, uv, CPython), against their latest
+- **Client image pins** (OpenCode, uv, CPython, ripgrep), against their latest
   releases. `client_container.py` runs this before every client batch.
 - **Engine recipe checkouts** (a backend's `recipe_dir`), against their
   upstream default branch after a fresh `git fetch`. `server_facts.py` runs
@@ -55,6 +55,8 @@ MAX_FACTS_AGE_HOURS = 6.0
 RELEASE_REPOS = {
     "opencode": "sst/opencode",
     "uv": "astral-sh/uv",
+    # #968: the `rg` the image puts on PATH for OpenCode's grep and glob.
+    "ripgrep": "BurntSushi/ripgrep",
 }
 #: Where uv gets its CPython builds. The newest patch release of the pinned
 #: minor that this repo ships is the target: a CPython minor upgrade is a

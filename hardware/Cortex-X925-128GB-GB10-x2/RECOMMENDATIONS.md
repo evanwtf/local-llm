@@ -71,6 +71,14 @@ sandbox. **The change of client machine did not move the times.** The jayleaton
 TensorFold stack ran on both. Its median replay trial was 156 s on the i3 and
 145 s on the i9. Its median hard-set trial was 355 s and 366 s.
 
+**Rows from 2026-09-22 until the #968 fix ran with OpenCode's `grep` and
+`glob` tools unavailable** ([#968][i968]). In the client image, all 731 `grep`
+calls and all 3,829 `glob` calls in that period failed, so the model fell back
+to `bash`. Arms within that period compare with each other, not with rows
+after the fix. A row from the fixed image carries `ripgrep=` in its client
+image, so the tables keep the two apart. Since the fix, the image build and
+every batch run a tool self-test that refuses an image with a broken tool.
+
 ### The tasks
 
 All tasks run against [gmail-archive][gmail-archive] at commit `56e55cc`, 3
@@ -516,3 +524,4 @@ re-run of the pick.
 [i900]: https://github.com/evanwtf/local-llm/issues/900
 [pr902]: https://github.com/evanwtf/local-llm/pull/902
 [i904]: https://github.com/evanwtf/local-llm/issues/904
+[i968]: https://github.com/evanwtf/local-llm/issues/968

@@ -11,6 +11,11 @@ linux/arm64 server box. Nothing in the Dockerfile branches on architecture --
 the OpenCode and uv installers resolve it themselves -- so the same command
 runs on either, and this script records which one it ran on.
 
+A fresh build is checked under a candidate tag: the pins, the arch, and then
+every OpenCode tool the trials use (`client_tool_smoke.py`, #968). Only a
+build that passes all of them is tagged; a failed one never becomes the image
+`client_container.py` runs.
+
     uv run python scripts/build_client_image.py
     uv run python scripts/build_client_image.py --tag local-llm-client:test
 """
@@ -32,6 +37,8 @@ PINS = {
     "opencode": "1.18.34",
     "uv": "0.12.23",
     "python": "3.14.8",
+    # #968: on PATH, so OpenCode's grep and glob never unpack their own.
+    "ripgrep": "15.2.0",
 }
 
 #: uname -m values this image is expected to build on, and the Docker platform
@@ -40,7 +47,7 @@ PINS = {
 ARCHES = {"x86_64": "linux/amd64", "aarch64": "linux/arm64"}
 
 #: Tools whose --version puts the number in the second field.
-_VERSION_IS_SECOND_TOKEN = frozenset({"uv", "python"})
+_VERSION_IS_SECOND_TOKEN = frozenset({"uv", "python", "ripgrep"})
 
 
 def platform_for(machine: str) -> str | None:
@@ -101,11 +108,14 @@ def inspect(tag: str) -> dict[str, str]:
         "opencode --version; uv --version; "
         f"uv python find {PINS['python']} >/dev/null && "
         f"$(uv python find {PINS['python']}) --version; "
-        "git --version; uname -m"
+        "git --version; uname -m; "
+        # Last, and one line whatever happens: `rg --version` prints several,
+        # and an image without rg (#968) must not shift the keys above.
+        "{ rg --version 2>/dev/null || echo 'ripgrep missing'; } | head -n 1"
     )
     got = _run(["docker", "run", "--rm", "--entrypoint", "sh", tag, "-c", script])
     lines = [ln for ln in got.stdout.splitlines() if ln.strip()]
-    keys = ["opencode", "uv", "python", "git", "machine"]
+    keys = ["opencode", "uv", "python", "git", "machine", "ripgrep"]
     return dict(zip(keys, lines))
 
 
@@ -122,15 +132,50 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     print(f"PASS  architecture: {machine} -> {docker_platform}")
 
-    if not args.skip_build and build(args.tag) != 0:
+    candidate = candidate_tag(args.tag)
+    if not args.skip_build and build(candidate) != 0:
         print("FAIL  build: docker build returned non-zero")
         return 1
 
-    raw = inspect(args.tag)
+    # A fresh build is checked under a candidate tag and only then given the
+    # real one, so a build that fails a check never becomes the image
+    # client_container.py runs (#968).
+    subject = args.tag if args.skip_build else candidate
+    failed = verify(subject, machine)
+    if args.skip_build:
+        print(f"{'OK' if not failed else 'FAILED'}: {failed} check(s) failed")
+        return 1 if failed else 0
+    if failed:
+        _run(["docker", "rmi", candidate])
+        print(
+            f"FAILED: {failed} check(s) failed; the build is NOT tagged {args.tag} "
+            "and its candidate tag is removed"
+        )
+        return 1
+    tagged = _run(["docker", "tag", candidate, args.tag])
+    _run(["docker", "rmi", candidate])  # only the tag: the image keeps args.tag
+    if tagged.returncode != 0:
+        print(f"FAIL  tag: docker tag {candidate} {args.tag}: {tagged.stderr.strip()}")
+        return 1
+    print(f"OK: every check passed; tagged {args.tag}")
+    return 0
+
+
+def candidate_tag(tag: str) -> str:
+    """The tag a build is checked under before it earns `tag`."""
+    name, sep, version = tag.rpartition(":")
+    if sep and "/" not in version:
+        return f"{name}:{version}-candidate"
+    return f"{tag}:candidate"
+
+
+def verify(tag: str, machine: str) -> int:
+    """How many checks `tag` fails: its pins, its arch, and its tools."""
+    raw = inspect(tag)
     if not raw:
         print("FAIL  inspect: the image produced no output")
         return 1
-    seen = parse_versions({k: raw.get(k, "") for k in ("opencode", "uv", "python")})
+    seen = parse_versions({k: raw.get(k, "") for k in PINS})
     failed = 0
     for name, ok, detail in check_pins(seen, PINS):
         print(f"{'PASS' if ok else 'FAIL'}  {name}: {detail}")
@@ -144,9 +189,28 @@ def main(argv: list[str] | None = None) -> int:
     failed += 0 if same else 1
 
     print(f"PASS  git: {raw.get('git', 'unknown')}")
-    print(json.dumps({"tag": args.tag, "host": machine, "seen": seen}))
-    print(f"{'OK' if not failed else 'FAILED'}: {failed} check(s) failed")
-    return 1 if failed else 0
+    print(json.dumps({"tag": tag, "host": machine, "seen": seen}))
+
+    # #968: pins and arch were all this checked, and an image whose grep and
+    # glob failed on every call passed it for two weeks. Run every tool.
+    failures = tool_smoke(tag)
+    for failure in failures:
+        print(f"FAIL  tool {failure}")
+    if not failures:
+        print("PASS  tools: every OpenCode tool the trials use works in the image")
+    return failed + len(failures)
+
+
+def tool_smoke(tag: str) -> list[str]:
+    """The tool self-test's failures for `tag` (scripts/client_tool_smoke.py)."""
+    # Imported here: the self-test imports client_container, which imports
+    # this module for its pins.
+    import client_tool_smoke
+
+    import logs
+
+    logs.configure()
+    return client_tool_smoke.run_in_image(tag)
 
 
 if __name__ == "__main__":

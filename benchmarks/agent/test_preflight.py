@@ -1101,3 +1101,18 @@ def test_python_running_some_other_script_is_not_a_server():
 def test_python_server_recognition_does_not_leak_into_other_markers():
     """machine_state passes its own markers (#277); a vLLM is not a bench."""
     assert preflight.parse_ps(PY_SERVERS_PS, markers=("ds4-bench",)) == []
+
+
+def test_the_client_image_names_its_ripgrep_so_the_fix_splits_the_rows(monkeypatch):
+    """#968: grep and glob failed in every image before the one with ripgrep.
+    The pin in the client identity keeps those rows from pooling with later
+    ones on the same OpenCode version."""
+    monkeypatch.setenv("LOCAL_LLM_CLIENT_IMAGE", "1")
+    monkeypatch.setenv("LOCAL_LLM_PINNED_OPENCODE", "1.18.34")
+    monkeypatch.setenv("LOCAL_LLM_PINNED_UV", "0.12.23")
+    monkeypatch.setenv("LOCAL_LLM_PINNED_PYTHON", "3.14.8")
+    monkeypatch.delenv("LOCAL_LLM_PINNED_RIPGREP", raising=False)
+    before = preflight.client_image()
+    assert before == "opencode=1.18.34 uv=0.12.23 python=3.14.8"
+    monkeypatch.setenv("LOCAL_LLM_PINNED_RIPGREP", "15.2.0")
+    assert preflight.client_image() == f"{before} ripgrep=15.2.0"
