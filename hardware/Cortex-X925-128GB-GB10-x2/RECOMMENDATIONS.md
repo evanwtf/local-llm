@@ -117,7 +117,10 @@ Later runs launch replay and hard together, 14 tasks. Task details are in
 [TensorFold][tensorfold] v0.6.0 plus the recipe's patches on both nodes (70 at
 v1.5, patch-set hash `9f73cca659a1`), in NVIDIA's
 PyTorch container (`nvcr.io/nvidia/pytorch:26.07-py3`). It serves the TR3 4bpw
-EXL3 checkpoint ([`Mia-AiLab/GLM-5.3-Flash-EXL3-TR3-4bpw`][w-tr3] @`9eaebb7`)
+EXL3 checkpoint (`Mia-AiLab/GLM-5.3-Flash-EXL3-TR3-4bpw` @`9eaebb7`; that repo
+has left the Hub, so download it from its author,
+[`brandonmusic/GLM-5.3-Flash-tr3-4bpw`][w-tr3] @`a5fee929`, whose 120 weight
+shards, config and tokenizer are byte-identical by sha256 to `9eaebb7` (#937))
 with the DFlash2 drafter ([`incoai/GLM-5.3-Flash-DFlash2`][w-dflash2]
 @`bf582e4`), an FP8 KV cache shared by 4 requests, and a 1,048,576-token
 window. We built the image locally (`PULL=0`).
@@ -345,11 +348,15 @@ On the head node, as the user that owns Docker:
    WORKER=<user>@<worker-fabric-address>
    PULL=0
    WORKER_WEIGHTS=copy
+   MODEL_ID=brandonmusic/GLM-5.3-Flash-tr3-4bpw
+   MODEL_REVISION=a5fee929cf4888b1824323e33e8a19b60129e025
    ```
 
-3. Run `./scripts/prepare.sh`. It downloads the pinned weights and drafter on
-   both nodes (about 176 GB each), builds the image, and checks that both nodes
-   hold the same image.
+   Set `MODEL_ID` and `MODEL_REVISION`. Without them the recipe downloads its
+   own default, the TensorFold quant, which is not the pick (#912).
+3. Run `./scripts/prepare.sh`. It downloads the weights named in `local.sh` and
+   the drafter on both nodes (about 176 GB each), builds the image, and checks
+   that both nodes hold the same image.
 4. Run `./start.sh`. The first start compiles CUDA kernels for GB10, about 6
    minutes; later starts use the cache. The API listens on `:8888` as model
    `GLM-5.3-Flash-EXL3`.
@@ -464,7 +471,7 @@ re-run of the pick.
 [r-dsv41]: https://github.com/MiaAI-Lab/DeepSeek-v4.1-Flash-EXL3-2x-DGX-Sparks
 [r-mimo]: https://github.com/MiaAI-Lab/MiMo-V2.6-Flash-2x-DGX-Sparks
 [r-kindling]: https://github.com/kindlingai/glm-5.3-flash-gx10
-[w-tr3]: https://huggingface.co/Mia-AiLab/GLM-5.3-Flash-EXL3-TR3-4bpw
+[w-tr3]: https://huggingface.co/brandonmusic/GLM-5.3-Flash-tr3-4bpw
 [w-dflash2]: https://huggingface.co/incoai/GLM-5.3-Flash-DFlash2
 [w-neko]: https://huggingface.co/neko-legends/GLM-5.3-Flash-Uncensored-EXL3
 [w-glm-nvfp4]: https://huggingface.co/nvidia/GLM-5.3-Flash-NVFP4
