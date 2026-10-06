@@ -3596,6 +3596,30 @@ def sandboxed(argv, worktree, repo, tmpdir):
     return argv, [], "none"
 
 
+def client_launch_argv(build_argv, task, backend, worktree, repo, sandbox=True):
+    """The client's argv exactly as a trial launches it.
+
+    Returns `(argv, denied, mechanism, container_limit_gib)`. The argv is the
+    client's own, wrapped in this platform's sandbox (`sandboxed`), and then,
+    in a memory-limited container, launched OOM-first (#680).
+
+    One function, because two callers need the same answer:
+    `one_trial` and `scripts/client_tool_smoke.py` (#968). The self-test is
+    worth nothing if it runs the client under a copy of these rules that has
+    drifted from the real ones.
+    """
+    worktree = pathlib.Path(worktree)
+    argv, denied, mechanism = (
+        sandboxed(build_argv(task, backend, worktree), worktree, repo, worktree.parent)
+        if sandbox
+        else (build_argv(task, backend, worktree), [], "none")
+    )
+    container_limit = memcap.cgroup_limit_gib()
+    if container_limit is not None:
+        argv = memcap.oom_first(argv)
+    return argv, denied, mechanism, container_limit
+
+
 def _transcript_slug(value):
     """A filesystem-safe token for a transcript filename (#103)."""
     if not value:
@@ -4639,15 +4663,8 @@ def one_trial(
         # sandbox=False only for the integration fixtures, whose stub agent
         # "solves" a task by copying from the un-excised reference -- the very
         # shortcut this confinement exists to stop.
-        argv, denied, mechanism = (
-            sandboxed(
-                build_argv(task, backend, worktree),
-                worktree,
-                target["repo"],
-                worktree.parent,
-            )
-            if sandbox
-            else (build_argv(task, backend, worktree), [], "none")
+        argv, denied, mechanism, container_limit = client_launch_argv(
+            build_argv, task, backend, worktree, target["repo"], sandbox=sandbox
         )
         if denied:
             result["sandbox_denied"] = denied
@@ -4686,8 +4703,7 @@ def one_trial(
         # enforces the limit. Make the client tree its first victim, record the
         # limit on the row, and count kernel kills around the client phase so
         # one is recorded as a memory kill, never as the model's failure.
-        if (container_limit := memcap.cgroup_limit_gib()) is not None:
-            argv = memcap.oom_first(argv)
+        if container_limit is not None:
             result["client_mem_limit_gib"] = round(container_limit, 2)
         oom_before = memcap.cgroup_oom_kills()
         if idle_watchdog:

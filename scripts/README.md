@@ -27,6 +27,7 @@ Each script explains itself in full at the top of its own file -- what it comput
 | `client_container.py` | any | Run the harness inside the pinned client image. #611 |
 | `client_effort.py` | any | Turns and tokens per task, per client, for one backend (#707). |
 | `client_preflight.py` | any | Check a remote client is fit to run trials against the server. #562/#579 |
+| `client_tool_smoke.py` | any | Run every OpenCode tool the trials use, in the client image, with no GPU. #968 |
 | `client_version_split.py` | any | Which client version took which rows, and what that confounds (#137, #131). |
 | `client_versions.py` | any | Read the recorded agent client versions, and say which have moved (#131). |
 | `cluster_allreduce.py` | any | Measure NCCL all-reduce bandwidth across the DGX Spark cluster's nodes. |
@@ -134,6 +135,7 @@ Each script explains itself in full at the top of its own file -- what it comput
 | `targets_ab.py` | any | Does the sandbox target layout change the pass rate? #146 |
 | `test_build_client_image.py` | any | The client image's pins are only worth having if a drift is a test failure. |
 | `test_client_container.py` | any | The container invocation is where a silent confound would hide. #611 |
+| `test_client_tool_smoke.py` | any | The OpenCode tool self-test must fail loudly on a broken tool. #968 |
 | `test_server_facts.py` | any | The server facts decide which ledger a remote row joins. #562, #647 |
 | `thermals.py` | mac | Read this machine's temperatures, with a timestamp, without sudo. |
 | `thermals_summary.py` | any | Summarize a `thermals.py --watch --json` log into a run's thermal envelope. |

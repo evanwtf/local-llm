@@ -91,3 +91,80 @@ def test_build_pulls_the_base_and_skips_the_cache(monkeypatch, tmp_path):
 def test_dockerfile_upgrades_the_base_packages():
     """Install alone leaves the base image's own packages at its versions."""
     assert "apt-get upgrade -y" in DOCKERFILE.read_text()
+
+
+def test_ripgrep_is_pinned_and_parsed():
+    """#968: OpenCode's grep and glob need `rg` on PATH in the image."""
+    assert "ripgrep" in mod.PINS
+    got = mod.parse_versions({"ripgrep": "ripgrep 15.2.0 (rev abc123)"})
+    assert got == {"ripgrep": "15.2.0"}
+    missing = mod.parse_versions({"ripgrep": "ripgrep missing"})
+    assert missing["ripgrep"] != mod.PINS["ripgrep"]
+
+
+def test_the_image_puts_rg_on_path_and_records_its_pin():
+    text = DOCKERFILE.read_text()
+    assert "LOCAL_LLM_PINNED_RIPGREP=${RIPGREP_VERSION}" in text
+    assert "install -m 0755" in text and "/usr/local/bin/rg" in text
+
+
+def test_a_build_is_checked_under_a_candidate_tag():
+    assert mod.candidate_tag("local-llm-client:1.18.34") == (
+        "local-llm-client:1.18.34-candidate"
+    )
+    assert mod.candidate_tag("local-llm-client") == "local-llm-client:candidate"
+
+
+def _fake_docker(monkeypatch, *, smoke_failures):
+    calls = []
+
+    def run(argv, **_):
+        calls.append(argv)
+        return mod.subprocess.CompletedProcess(argv, 0, "", "")
+
+    def build(tag, context=None):
+        calls.append(["build", tag])
+        return 0
+
+    def smoke(tag):
+        calls.append(["smoke", tag])
+        return smoke_failures
+
+    seen = {
+        "opencode": mod.PINS["opencode"],
+        "uv": f"uv {mod.PINS['uv']} (x86_64-unknown-linux-gnu)",
+        "python": f"Python {mod.PINS['python']}",
+        "git": "git version 2.53.0",
+        "machine": "x86_64",
+        "ripgrep": f"ripgrep {mod.PINS['ripgrep']} (rev 1)",
+    }
+    monkeypatch.setattr(mod.platform, "machine", lambda: "x86_64")
+    monkeypatch.setattr(mod, "build", build)
+    monkeypatch.setattr(mod, "inspect", lambda tag: seen)
+    monkeypatch.setattr(mod, "tool_smoke", smoke)
+    monkeypatch.setattr(mod, "_run", run)
+    return calls
+
+
+def test_a_build_whose_tools_fail_is_never_tagged(monkeypatch):
+    """#968: such a build must not become the image client_container.py runs."""
+    calls = _fake_docker(monkeypatch, smoke_failures=["grep: error: tar"])
+    assert mod.main(["--tag", "local-llm-client:9"]) == 1
+    assert ["build", "local-llm-client:9-candidate"] in calls
+    assert ["smoke", "local-llm-client:9-candidate"] in calls
+    assert not any(c[:2] == ["docker", "tag"] for c in calls)
+    assert ["docker", "rmi", "local-llm-client:9-candidate"] in calls
+
+
+def test_a_build_that_passes_every_check_gets_its_tag(monkeypatch):
+    calls = _fake_docker(monkeypatch, smoke_failures=[])
+    assert mod.main(["--tag", "local-llm-client:9"]) == 0
+    tag = ["docker", "tag", "local-llm-client:9-candidate", "local-llm-client:9"]
+    assert tag in calls
+    assert calls.index(["smoke", "local-llm-client:9-candidate"]) < calls.index(tag)
+
+
+def test_skip_build_still_runs_the_tool_self_test(monkeypatch):
+    calls = _fake_docker(monkeypatch, smoke_failures=["glob: error: tar"])
+    assert mod.main(["--tag", "local-llm-client:9", "--skip-build"]) == 1
+    assert ["smoke", "local-llm-client:9"] in calls

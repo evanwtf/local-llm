@@ -12,6 +12,28 @@ Build and verify, on either architecture:
 uv run python scripts/build_client_image.py
 ```
 
+The build checks the pins and the arch from inside the image. It then runs
+the **tool self-test** (`scripts/client_tool_smoke.py`, #968): a scripted stub
+server drives the real `opencode run` through bash, read, write, edit, grep,
+glob, todowrite, skill and webfetch, inside the image, under the trial's
+sandbox, privileges and mounts. A tool that errors, or completes without its
+effect on disk, fails the build. The build is checked under a `-candidate`
+tag, and only a build that passes every check gets the real tag.
+
+`scripts/client_container.py` runs the same self-test before **every batch**
+and refuses the batch on a failure. It takes about 8 seconds and needs no
+server or GPU. Run it by hand with:
+
+```sh
+uv run python scripts/client_tool_smoke.py --image local-llm-client:<tag>
+```
+
+Why it exists: from 2026-09-22 to the #968 fix, every OpenCode `grep` and
+`glob` call in this image failed. OpenCode found no `rg` on PATH and unpacked
+its own ripgrep with `tar`, which could not restore the file owner under bwrap.
+Nothing refused, because nothing ran a tool. The image now installs ripgrep at
+`/usr/local/bin/rg`, pinned like OpenCode, uv and CPython.
+
 Verified builds:
 
 | arch | built | opencode | uv | python | git |

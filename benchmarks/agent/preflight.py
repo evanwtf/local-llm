@@ -265,6 +265,12 @@ def client_image() -> str | None:
         f"uv={os.environ.get('LOCAL_LLM_PINNED_UV', '?')}",
         f"python={os.environ.get('LOCAL_LLM_PINNED_PYTHON', '?')}",
     ]
+    # #968: only the images that carry their own ripgrep declare it, and in
+    # the ones before, OpenCode's grep and glob failed on every call. So the
+    # pin splits a row's client identity at the fix, and rows from before it
+    # cannot pool with rows after it on the same OpenCode version.
+    if ripgrep := os.environ.get("LOCAL_LLM_PINNED_RIPGREP"):
+        parts.append(f"ripgrep={ripgrep}")
     return " ".join(parts)
 
 

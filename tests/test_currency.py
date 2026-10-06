@@ -40,6 +40,7 @@ def fake(answers: Mapping[str, str | None]):
 RELEASES = {
     "--repo sst/opencode --json tagName": "v1.18.33",
     "--repo astral-sh/uv --json tagName": "0.12.19",
+    "--repo BurntSushi/ripgrep --json tagName": "15.2.0",
     "--repo astral-sh/python-build-standalone": (
         "cpython-3.14.7+20260924-x86_64-unknown-linux-gnu.tar.gz\n"
         "cpython-3.14.5+20260924-aarch64-apple-darwin.tar.gz\n"
@@ -218,12 +219,54 @@ def test_an_old_client_image_refuses():
             "LOCAL_LLM_PINNED_OPENCODE=1.18.32",
             "LOCAL_LLM_PINNED_UV=0.12.19",
             "LOCAL_LLM_PINNED_PYTHON=3.14.7",
+            "LOCAL_LLM_PINNED_RIPGREP=15.2.0",
         ]
     )
     why = client_container.check_image_current(
         "local-llm-client:1.18.32", fake({"image inspect": env, **RELEASES})
     )
     assert why is not None and "BEHIND" in why
+
+
+def test_an_image_with_every_pin_current_passes(monkeypatch, tmp_path):
+    monkeypatch.setattr(currency, "STAMP", tmp_path / "stamp.json")
+    env = json.dumps(
+        [
+            "LOCAL_LLM_PINNED_OPENCODE=1.18.33",
+            "LOCAL_LLM_PINNED_UV=0.12.19",
+            "LOCAL_LLM_PINNED_PYTHON=3.14.7",
+            "LOCAL_LLM_PINNED_RIPGREP=15.2.0",
+        ]
+    )
+    assert (
+        client_container.check_image_current(
+            "img", fake({"image inspect": env, **RELEASES})
+        )
+        is None
+    )
+
+
+def test_an_image_without_its_own_ripgrep_refuses():
+    """#968: the images before the fix had no `rg`, so OpenCode unpacked its
+    own under bwrap and every grep and glob call failed. Their pins were all
+    current, so only the missing ripgrep pin can refuse them."""
+    env = json.dumps(
+        [
+            "LOCAL_LLM_PINNED_OPENCODE=1.18.33",
+            "LOCAL_LLM_PINNED_UV=0.12.19",
+            "LOCAL_LLM_PINNED_PYTHON=3.14.7",
+        ]
+    )
+    why = client_container.check_image_current(
+        "local-llm-client:1.18.33", fake({"image inspect": env, **RELEASES})
+    )
+    assert why is not None and "ripgrep" in why
+
+
+def test_a_behind_ripgrep_refuses():
+    items = currency.pin_items({"ripgrep": "15.1.0"}, fake(RELEASES))
+    assert items[0].name == "client image ripgrep"
+    assert items[0].state == "behind"
 
 
 def test_an_image_missing_a_pin_refuses():

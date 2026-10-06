@@ -56,6 +56,10 @@ PIN_ENV = {
     "LOCAL_LLM_PINNED_OPENCODE": "opencode",
     "LOCAL_LLM_PINNED_UV": "uv",
     "LOCAL_LLM_PINNED_PYTHON": "python",
+    # #968: OpenCode's grep and glob run `rg`. The images before it had none,
+    # and every grep and glob call failed from 2026-09-22. An image that does
+    # not declare its ripgrep is refused like any other missing pin.
+    "LOCAL_LLM_PINNED_RIPGREP": "ripgrep",
 }
 
 
@@ -176,12 +180,20 @@ DEFAULT_MEM_LIMIT_GIB = 12.0
 PROJECT_ENV = "/opt/harness-venv"
 
 
-def mount_args(home: pathlib.Path, mounts=MOUNTS) -> list[str]:
-    """`-v host:container` for each mount, same relative path under HOME."""
+def mount_args(
+    home: pathlib.Path, mounts=MOUNTS, sources: dict[str, pathlib.Path] | None = None
+) -> list[str]:
+    """`-v host:container` for each mount, same relative path under HOME.
+
+    `sources` replaces the host side of a mount, by its relative path. The
+    tool self-test (#968) mounts the checkout it runs from at the harness's
+    path, so a worktree tests its own code. The container side never moves.
+    """
     out = []
     for rel, mode in mounts:
         suffix = ":ro" if mode == "ro" else ""
-        out += ["-v", f"{home / rel}:{CONTAINER_HOME}/{rel}{suffix}"]
+        host = (sources or {}).get(rel, home / rel)
+        out += ["-v", f"{host}:{CONTAINER_HOME}/{rel}{suffix}"]
     return out
 
 
@@ -260,6 +272,63 @@ def memory_args(limit_gib: float | None) -> list[str]:
     return ["--memory", size, "--memory-swap", size]
 
 
+#: The environment every container gets, a trial's or the self-test's.
+BASE_ENV = (
+    # The mounted repo is owned by the host user and the container runs as
+    # root, so git refuses every operation on it with "detected dubious
+    # ownership". The harness clones the sandbox target for each trial, so
+    # this is not cosmetic: without it no trial can start. Passed as
+    # environment rather than baked into the image, so the image stays
+    # usable by a non-root user later.
+    "GIT_CONFIG_COUNT=1",
+    "GIT_CONFIG_KEY_0=safe.directory",
+    "GIT_CONFIG_VALUE_0=*",
+    f"HOME={CONTAINER_HOME}",
+    f"UV_PROJECT_ENVIRONMENT={PROJECT_ENV}",
+)
+
+
+def container_argv(
+    *,
+    image: str,
+    home: pathlib.Path,
+    command: list[str],
+    env: list[str] | tuple[str, ...] = (),
+    volumes: list[str] | tuple[str, ...] = (),
+    mem_limit_gib: float | None = DEFAULT_MEM_LIMIT_GIB,
+    name: str | None = None,
+    mounts=MOUNTS,
+    sources: dict[str, pathlib.Path] | None = None,
+) -> list[str]:
+    """`docker run` with a trial's posture: user, privileges, mounts, limit.
+
+    Everything a trial's container is, except the command it runs. The
+    harness (`docker_argv`) and the tool self-test (`client_tool_smoke.py`,
+    #968) both build on this, so the self-test cannot pass under a posture
+    the trials do not have. `env` takes `KEY=value` strings.
+    """
+    env_args = []
+    for entry in (*BASE_ENV, *env):
+        env_args += ["-e", entry]
+    return [
+        "docker",
+        "run",
+        "--rm",
+        *(["--name", name] if name else []),
+        "--network",
+        "host",
+        *PRIVILEGES,
+        *memory_args(mem_limit_gib),
+        *mount_args(home, mounts, sources),
+        *volumes,
+        *env_args,
+        "-w",
+        f"{CONTAINER_HOME}/git/local-llm",
+        image,
+        *command,
+    ]
+
+
 def docker_argv(
     *,
     image: str,
@@ -273,51 +342,26 @@ def docker_argv(
 ) -> list[str]:
     """The full `docker run` for one harness invocation."""
     env = [
-        # The mounted repo is owned by the host user and the container runs as
-        # root, so git refuses every operation on it with "detected dubious
-        # ownership". The harness clones the sandbox target for each trial, so
-        # this is not cosmetic: without it no trial can start. Passed as
-        # environment rather than baked into the image, so the image stays
-        # usable by a non-root user later.
-        "-e",
-        "GIT_CONFIG_COUNT=1",
-        "-e",
-        "GIT_CONFIG_KEY_0=safe.directory",
-        "-e",
-        "GIT_CONFIG_VALUE_0=*",
-        "-e",
-        f"HOME={CONTAINER_HOME}",
-        "-e",
-        f"UV_PROJECT_ENVIRONMENT={PROJECT_ENV}",
-        "-e",
         f"LOCAL_LLM_SERVER_HOST={server}",
-        "-e",
         f"LOCAL_LLM_SERVER_FACTS={CONTAINER_HOME}/{facts.name}",
     ]
     if mem_cap_gib is not None:
-        env += ["-e", f"LOCAL_LLM_CLIENT_MEM_CAP_GIB={mem_cap_gib}"]
-    return [
-        "docker",
-        "run",
-        "--rm",
-        *(["--name", name] if name else []),
-        "--network",
-        "host",
-        *PRIVILEGES,
-        *memory_args(mem_limit_gib),
-        *mount_args(home),
-        "-v",
-        f"{facts}:{CONTAINER_HOME}/{facts.name}:ro",
-        *env,
-        "-w",
-        f"{CONTAINER_HOME}/git/local-llm",
-        image,
-        "uv",
-        "run",
-        "python",
-        "benchmarks/agent/run.py",
-        *translate_paths(command, home),
-    ]
+        env.append(f"LOCAL_LLM_CLIENT_MEM_CAP_GIB={mem_cap_gib}")
+    return container_argv(
+        image=image,
+        home=home,
+        command=[
+            "uv",
+            "run",
+            "python",
+            "benchmarks/agent/run.py",
+            *translate_paths(command, home),
+        ],
+        env=env,
+        volumes=["-v", f"{facts}:{CONTAINER_HOME}/{facts.name}:ro"],
+        mem_limit_gib=mem_limit_gib,
+        name=name,
+    )
 
 
 #: The image `build_client_image.py` builds by default. Derived from its pin,
@@ -345,6 +389,15 @@ def main(argv: list[str] | None = None) -> int:
         default=pathlib.Path.home() / "bench-logs" / "client-container.log",
     )
     p.add_argument("--print", action="store_true", help="print the argv, do not run")
+    p.add_argument(
+        "--skip-tool-smoke",
+        action="store_true",
+        help="skip the OpenCode tool self-test (#968). The test runs every tool "
+        "the trials use, inside the image under the trial sandbox, against a "
+        "scripted stub server, in seconds. Without it, an image whose grep and "
+        "glob fail runs batch after batch and the rows read as model failures. "
+        "Skip it only to measure a client known to be broken.",
+    )
     p.add_argument("command", nargs=argparse.REMAINDER)
     args = p.parse_args(argv)
 
@@ -376,6 +429,29 @@ def main(argv: list[str] | None = None) -> int:
         if why:
             print(why, file=sys.stderr)
             return 1
+        if args.skip_tool_smoke:
+            logger.warning(
+                "tool self-test SKIPPED (--skip-tool-smoke): nothing has checked "
+                "that OpenCode's tools work in %s (#968)",
+                args.image,
+            )
+        else:
+            # Imported here: the self-test builds its container from this
+            # module, so a top-level import would be circular.
+            import client_tool_smoke
+
+            failures = client_tool_smoke.run_in_image(
+                args.image, home=args.home, mem_limit_gib=args.mem_limit_gib
+            )
+            if failures:
+                logger.error(
+                    "tool self-test FAILED in %s, so the batch is refused (#968). "
+                    "Every trial would hand the model a broken tool and score "
+                    "the result as the model's failure:\n  %s",
+                    args.image,
+                    "\n  ".join(failures),
+                )
+                return 1
 
     full = docker_argv(
         image=args.image,
