@@ -187,7 +187,7 @@ Excision tasks only; `script-*` excluded because they are a different class.
 
 ### Cortex-X925-128GB-GB10-x2
 
-*Generated from `hardware/Cortex-X925-128GB-GB10-x2/results.jsonl` — 1825 rows, sha256 e9322550e15c.*
+*Generated from `hardware/Cortex-X925-128GB-GB10-x2/results.jsonl` — 1867 rows, sha256 db0959429402.*
 
 #### Every stack measured under OpenCode
 
@@ -211,7 +211,7 @@ Excision tasks only; `script-*` excluded because they are a different class.
 | mimo26fdual2xrcthink @ Corei3-7100-16GB+image | 30/30 | 310s | 749s | 2.6x | 1.4x | 6.9x |
 | mimo26fdual2xrc @ Corei3-7100-16GB+image | 2/2 | 370s | 592s | — | — | 4.0x |
 
-**Rows here were not all taken under one client.** dsv41fexl3dual2xrc, dsv4flashvisiondspark2xrc, glm53fexl3dual2xrc, glm53fexl3dual2xrcctx, mimo26fdual2xrc, mimo26fdual2xrcthink, qwen38fnnvfp4dual2xrc, qwen38fnnvfp4dual2xrcflags under 1.18.31; glm53fexl3dual2xrclatest, glm53fexl3dual2xrclatestout64k, glm53ftfjaydual2xrc, qwen38fnhibrid48dual2xrc under 1.18.33; dsv41fexl3dual2xrc, glm53fexl3tfmiaaidual2xrc, glm53fexl3tfmiaaiv132dual2xrc, glm53fexl3tfmiaaiv14dual2xrc, glm53fexl3tfmiaaiv15dual2xrc, glm53fexl3tfmiaaiv17dual2xrc, glm53fnvfp4kindlingdual2xrc, glm53ftfjaydual2xrchigh under 1.18.34; the rest under 1.18.32. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: dsv41fexl3dual2xrc (1.18.31, 1.18.32, 1.18.34); dsv4flashvisiondspark2xrc (1.18.31, 1.18.32); glm53fexl3dual2xrcctx (1.18.31, 1.18.32); glm53fexl3dual2xrclatest (1.18.32, 1.18.33); mimo26fdual2xrcthink (1.18.31, 1.18.32); qwen38fnnvfp4dual2xrcflags (1.18.31, 1.18.32).
+**Rows here were not all taken under one client.** dsv41fexl3dual2xrc, dsv4flashvisiondspark2xrc, glm53fexl3dual2xrc, glm53fexl3dual2xrcctx, mimo26fdual2xrc, mimo26fdual2xrcthink, qwen38fnnvfp4dual2xrc, qwen38fnnvfp4dual2xrcflags under 1.18.31; glm53fexl3dual2xrclatest, glm53fexl3dual2xrclatestout64k, glm53ftfjaydual2xrc, qwen38fnhibrid48dual2xrc under 1.18.33; dsv41fexl3dual2xrc, glm53fexl3tfmiaaidual2xrc, glm53fexl3tfmiaaiv132dual2xrc, glm53fexl3tfmiaaiv14dual2xrc, glm53fexl3tfmiaaiv15dual2xrc, glm53fexl3tfmiaaiv17dual2xrc, glm53fexl3tfqmiaaiv171dual2xrc, glm53fnvfp4kindlingdual2xrc, glm53ftfjaydual2xrchigh under 1.18.34; the rest under 1.18.32. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: dsv41fexl3dual2xrc (1.18.31, 1.18.32, 1.18.34); dsv4flashvisiondspark2xrc (1.18.31, 1.18.32); glm53fexl3dual2xrcctx (1.18.31, 1.18.32); glm53fexl3dual2xrclatest (1.18.32, 1.18.33); mimo26fdual2xrcthink (1.18.31, 1.18.32); qwen38fnnvfp4dual2xrcflags (1.18.31, 1.18.32).
 
 Excision tasks only; `script-*` excluded because they are a different class.
 
@@ -222,6 +222,7 @@ Excision tasks only; `script-*` excluded because they are a different class.
 | stack | passed | median | worst | spread (worst task) | spread (typical task) | range (all tasks) |
 |---|---|---|---|---|---|---|
 | glm53fexl3tfmiaaidual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 21/21 | 113s | 353s | 2.7x | 1.6x | 18.5x |
+| glm53fexl3tfqmiaaiv171dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 21/21 | 122s | 338s | 2.3x | 1.3x | 17.8x |
 | glm53fexl3tfmiaaiv132dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 21/21 | 124s | 344s | 2.9x | 1.2x | 17.8x |
 | glm53fexl3tfmiaaiv15dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 42/42 | 134s | 362s | 2.7x | 1.7x | 19.4x |
 | glm53fexl3tfmiaaiv14dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 42/42 | 144s | 351s | 2.8x | 1.8x | 19.0x |
@@ -245,7 +246,7 @@ Excision tasks only; `script-*` excluded because they are a different class.
 | ling30fdual2xrc @ Corei3-7100-16GB+image | 3/4 | 530s | 633s | — | — | 1.9x |
 | mimo26fdual2xrcthink @ Corei3-7100-16GB+image | 11/19 | 531s | 1467s | 1.7x | 1.5x | 12.1x |
 
-**Rows here were not all taken under one client.** glm53fexl3dual2xrclatest, glm53ftfjaydual2xrc, qwen38fnhibrid48dual2xrc under 1.18.33; dsv41fexl3dual2xrc, glm53fexl3tfmiaaidual2xrc, glm53fexl3tfmiaaiv132dual2xrc, glm53fexl3tfmiaaiv14dual2xrc, glm53fexl3tfmiaaiv15dual2xrc, glm53fexl3tfmiaaiv17dual2xrc, glm53fnvfp4kindlingdual2xrc, glm53ftfjaydual2xrchigh under 1.18.34; the rest under 1.18.32. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: dsv41fexl3dual2xrc (1.18.32, 1.18.34); glm53fexl3dual2xrclatest (1.18.32, 1.18.33).
+**Rows here were not all taken under one client.** glm53fexl3dual2xrclatest, glm53ftfjaydual2xrc, qwen38fnhibrid48dual2xrc under 1.18.33; dsv41fexl3dual2xrc, glm53fexl3tfmiaaidual2xrc, glm53fexl3tfmiaaiv132dual2xrc, glm53fexl3tfmiaaiv14dual2xrc, glm53fexl3tfmiaaiv15dual2xrc, glm53fexl3tfmiaaiv17dual2xrc, glm53fexl3tfqmiaaiv171dual2xrc, glm53fnvfp4kindlingdual2xrc, glm53ftfjaydual2xrchigh under 1.18.34; the rest under 1.18.32. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: dsv41fexl3dual2xrc (1.18.32, 1.18.34); glm53fexl3dual2xrclatest (1.18.32, 1.18.33).
 
 Seven commits from gmail-archive's history, 60-600 changed lines each. The target repo is public, so a pass may be partly recall; see each row's `replay` record.
 
@@ -256,6 +257,7 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 | stack | passed | hidden passed | median | worst | spread (worst task) | spread (typical task) | range (all tasks) |
 |---|---|---|---|---|---|---|---|
 | glm53fexl3tfmiaaiv132dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 20/21 | 4/21 | 250s | 1131s | 1.7x | 1.2x | 10.8x |
+| glm53fexl3tfqmiaaiv171dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 19/21 | 2/21 | 258s | 895s | 1.6x | 1.4x | 8.7x |
 | glm53fexl3tfmiaaiv15dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 20/21 | 1/21 | 262s | 1178s | 1.6x | 1.3x | 15.9x |
 | glm53fexl3tfmiaaiv14dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 40/42 | 0/42 | 266s | 1143s | 2.1x | 1.6x | 16.9x |
 | glm53fexl3tfmiaaiv15dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 41/42 | 3/42 | 286s | 1061s | 1.8x | 1.4x | 14.2x |
@@ -293,6 +295,7 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 | glm53ftfjaydual2xrc @ Corei3-7100-16GB+image | 31s |
 | mimo26fdual2xrc @ Corei3-7100-16GB+image@10g | 38s |
 | glm53fexl3dual2xrclatestout64k @ Corei3-7100-16GB+image | 39s |
+| glm53fexl3tfqmiaaiv171dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 40s |
 | mimo26fdual2xrc @ Corei3-7100-16GB+image | 40s |
 | glm53fexl3tfmiaaiv15dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 41s |
 | glm53fexl3tfmiaaidual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 42s |
@@ -321,7 +324,7 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 | dsv41fexl3dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 86s |
 | glm53fexl3dual2xrc @ Corei3-7100-16GB+image@24g | 88s |
 
-**Rows here were not all taken under one client.** dsv41fexl3dual2xrc, dsv4flashvisiondspark2xrc, glm53fexl3dual2xrc, glm53fexl3dual2xrcctx, mimo26fdual2xrc, mimo26fdual2xrcthink, qwen38fnnvfp4dual2xrc, qwen38fnnvfp4dual2xrcflags under 1.18.31; glm53fexl3dual2xrclatest, glm53fexl3dual2xrclatestout64k, glm53ftfjaydual2xrc, qwen38fnhibrid48dual2xrc under 1.18.33; dsv41fexl3dual2xrc, glm53fexl3tfmiaaidual2xrc, glm53fexl3tfmiaaiv132dual2xrc, glm53fexl3tfmiaaiv14dual2xrc, glm53fexl3tfmiaaiv15dual2xrc, glm53fexl3tfmiaaiv17dual2xrc, glm53fnvfp4kindlingdual2xrc, glm53ftfjaydual2xrchigh under 1.18.34; the rest under 1.18.32. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: dsv41fexl3dual2xrc (1.18.31, 1.18.32, 1.18.34); dsv4flashvisiondspark2xrc (1.18.31, 1.18.32); glm53fexl3dual2xrcctx (1.18.31, 1.18.32); glm53fexl3dual2xrclatest (1.18.32, 1.18.33); mimo26fdual2xrcthink (1.18.31, 1.18.32); qwen38fnnvfp4dual2xrcflags (1.18.31, 1.18.32).
+**Rows here were not all taken under one client.** dsv41fexl3dual2xrc, dsv4flashvisiondspark2xrc, glm53fexl3dual2xrc, glm53fexl3dual2xrcctx, mimo26fdual2xrc, mimo26fdual2xrcthink, qwen38fnnvfp4dual2xrc, qwen38fnnvfp4dual2xrcflags under 1.18.31; glm53fexl3dual2xrclatest, glm53fexl3dual2xrclatestout64k, glm53ftfjaydual2xrc, qwen38fnhibrid48dual2xrc under 1.18.33; dsv41fexl3dual2xrc, glm53fexl3tfmiaaidual2xrc, glm53fexl3tfmiaaiv132dual2xrc, glm53fexl3tfmiaaiv14dual2xrc, glm53fexl3tfmiaaiv15dual2xrc, glm53fexl3tfmiaaiv17dual2xrc, glm53fexl3tfqmiaaiv171dual2xrc, glm53fnvfp4kindlingdual2xrc, glm53ftfjaydual2xrchigh under 1.18.34; the rest under 1.18.32. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: dsv41fexl3dual2xrc (1.18.31, 1.18.32, 1.18.34); dsv4flashvisiondspark2xrc (1.18.31, 1.18.32); glm53fexl3dual2xrcctx (1.18.31, 1.18.32); glm53fexl3dual2xrclatest (1.18.32, 1.18.33); mimo26fdual2xrcthink (1.18.31, 1.18.32); qwen38fnnvfp4dual2xrcflags (1.18.31, 1.18.32).
 
 ### MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A
 
