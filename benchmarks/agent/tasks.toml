@@ -4145,6 +4145,49 @@ topology = "remote"
 recipe_dir = "~/hibrid-dual"
 image = "myllmbox/qwen38-flash-next-cluster-vllm:v6"
 
+# #977 (operator scope 2026-10-06: one round of each thinking level). The same
+# hibrid48 weights as #806 (@e316057d), now on recipe v5.2 @d2721ec: image
+# myllmbox/qwen38-flash-next-cluster-vllm:v5.2 (vLLM 0.30.0 + patches), dynamic
+# MTP draft depth up to 7 in full CUDA graphs, one-shot RoCE all-reduce, both
+# ConnectX rails. The recipe's v5.2 default is INT4-AutoRound, which is not
+# approved; recipe.yaml sets `model:` to hibrid48 and its kv-cache-memory line
+# (33G per box). Departures from recipe.yaml, as in #806: port 8888 on 0.0.0.0,
+# served as qwen3.8-flash-next (the client's vllm8888 entry). The two arms
+# differ in one line, `default-chat-template-kwargs`: the template defaults to
+# reasoning_effort xhigh, so the ON arm sets low (as #806 did and as every large
+# model here runs), and the OFF arm sets enable_thinking false.
+[backend.qwen38fnhibrid48v52dual2xrc]
+description = "Qwen3.8-Flash-Next hibrid48 (myllmbox/Qwen3.8-Flash-Next-hibrid48 @e316057d) across TWO DGX Sparks on myllmbox/qwen38-flash-next-cluster-recipe v5.2 @d2721ec: image myllmbox/qwen38-flash-next-cluster-vllm:v5.2 (vLLM 0.30.0 + patches), MTP up to 7 with dynamic depth, RoCE all-reduce, dual rail, 33G KV per box, 262144 context, tool parser qwen3_xml; thinking ON with reasoning_effort low server-side (default-chat-template-kwargs); served as qwen3.8-flash-next on :8888. REMOTE CLIENT (#562/#649), 12 GiB kernel-enforced client container"
+tier = "gb10-spark-x2"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "vllm"
+model = "qwen3.8-flash-next"
+active_params_b = 6
+aider_model = "openai/qwen3.8-flash-next"
+opencode_model = "vllm8888/qwen3.8-flash-next"
+context_tokens = 262144
+topology = "remote"
+recipe_dir = "~/hibrid-dual"
+image = "myllmbox/qwen38-flash-next-cluster-vllm:v5.2"
+
+# #977, the OFF arm: the same server as qwen38fnhibrid48v52dual2xrc except
+# default-chat-template-kwargs '{"enable_thinking": false}'.
+[backend.qwen38fnhibrid48v52nothinkdual2xrc]
+description = "Qwen3.8-Flash-Next hibrid48 (myllmbox/Qwen3.8-Flash-Next-hibrid48 @e316057d) across TWO DGX Sparks on myllmbox/qwen38-flash-next-cluster-recipe v5.2 @d2721ec: image myllmbox/qwen38-flash-next-cluster-vllm:v5.2 (vLLM 0.30.0 + patches), MTP up to 7 with dynamic depth, RoCE all-reduce, dual rail, 33G KV per box, 262144 context, tool parser qwen3_xml; thinking OFF server-side (default-chat-template-kwargs enable_thinking false); served as qwen3.8-flash-next on :8888. REMOTE CLIENT (#562/#649), 12 GiB kernel-enforced client container"
+tier = "gb10-spark-x2"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "vllm"
+model = "qwen3.8-flash-next"
+active_params_b = 6
+aider_model = "openai/qwen3.8-flash-next"
+opencode_model = "vllm8888/qwen3.8-flash-next"
+context_tokens = 262144
+topology = "remote"
+recipe_dir = "~/hibrid-dual"
+image = "myllmbox/qwen38-flash-next-cluster-vllm:v5.2"
+
 # #726: the latest of everything, with OpenCode's per-step output cap raised
 # from 16,384 to 65,536 tokens (the GLM server's own default, mt_default=65536).
 # The cap cut 2 of 132 GLM trials (span tasks, `reason: length`) while NVFP4 ran
