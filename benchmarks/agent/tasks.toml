@@ -4188,6 +4188,31 @@ topology = "remote"
 recipe_dir = "~/hibrid-dual"
 image = "myllmbox/qwen38-flash-next-cluster-vllm:v5.2"
 
+# #897 (operator-approved 2026-10-01, published 2026-10-07): MiaAI-Lab's two-Spark
+# Qwen3.8-Flash-Next recipe on TensorFold's Zig engine (tensorfold-native, branch
+# zig-flashnext @db281878 + recipe patches 0001-0009), image built locally (PULL=0).
+# The recipe default QUANT=nvfp4: nvidia/Qwen3.8-Flash-Next-NVFP4 @fc694b54, the same
+# weights as qwen38fnnvfp4dual2xrc*, so the engine is the variable. Recipe defaults
+# otherwise (PARALLEL 16, FP8 KV, 1M window, MTP + copy drafts, thinking on). The
+# checkpoint's template defaults to reasoning_effort xhigh and the recipe has no
+# server default, so the client sends low per request (vector's tfmia8888 entry), as
+# for the GLM TensorFold arms. WORKER_WEIGHTS=copy, no NFS export.
+[backend.qwen38fnnvfp4tfmiaaidual2xrc]
+description = "Qwen3.8-Flash-Next NVFP4 (nvidia/Qwen3.8-Flash-Next-NVFP4 @fc694b54, ~124 GiB) across TWO DGX Sparks on TensorFold's Zig engine via MiaAI-Lab/Qwen3.8-Flash-Dual-DGX-Sparks-TensorFold @cbfc429: tensorfold-native (zig-flashnext @db281878 + recipe patches 0001-0009) on nvcr.io/nvidia/pytorch:26.07-py3, image built locally (PULL=0) as tensorfold-qwen38fn:zig-db28187. Recipe defaults: 16 requests, FP8 KV, 1,048,576-token window, MTP + copy drafts, RoCE all-gather, thinking on; reasoning_effort low sent per request by the client (no server default); served as Qwen3.8-Flash-Next on :8888. REMOTE CLIENT (#562/#649), 12 GiB kernel-enforced client container; OpenCode context 262,144 and output cap 32,768 (the recipe's MAX_TOKENS)"
+tier = "gb10-spark-x2"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "tensorfold"
+model = "Qwen3.8-Flash-Next"
+active_params_b = 6
+aider_model = "openai/Qwen3.8-Flash-Next"
+opencode_model = "tfmia8888/Qwen3.8-Flash-Next"
+context_tokens = 262144
+topology = "remote"
+smoke_protocol = "openai"
+recipe_dir = "~/miaai-tf-qwen"
+image = "tensorfold-qwen38fn:zig-db28187"
+
 # #726: the latest of everything, with OpenCode's per-step output cap raised
 # from 16,384 to 65,536 tokens (the GLM server's own default, mt_default=65536).
 # The cap cut 2 of 132 GLM trials (span tasks, `reason: length`) while NVFP4 ran
