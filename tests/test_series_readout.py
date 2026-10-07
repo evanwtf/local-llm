@@ -119,3 +119,13 @@ def test_an_empty_run_file_is_refused(tmp_path: pathlib.Path) -> None:
     empty.write_text("")
     with pytest.raises(ValueError, match="no usable rows"):
         series_readout.read_run(empty)
+
+
+def test_a_timeout_counts_at_the_full_limit(tmp_path: pathlib.Path) -> None:
+    """A timed-out row has no wall; dropping it or reading None would hide the
+    slowest trial of the arm (#977)."""
+    timed_out = {"backend": "a", "task": "t1", "error": "timeout", "passed": None}
+    run = series_readout.read_run(write(tmp_path, "a", [row("t2", 10), timed_out]))
+    stats = series_readout.arm_stats("a", [run], timeout=1800.0)
+    assert stats.sum_of_medians == 1810.0
+    assert stats.passes == 1

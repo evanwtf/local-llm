@@ -8,7 +8,9 @@ pools a backend across clients. This script reads only the files it is given.
 Per arm it reports passes (by `results.verdict`, so a pass that edited the
 tests is a failure), the median trial wall, output tokens, and the **sum of
 medians**: the median wall of each task over every trial of that arm, summed
-over tasks. Failed trials count in the walls: their time is real.
+over tasks. Failed trials count in the walls: their time is real. A timed-out
+trial has no wall of its own and counts at the full `--timeout` limit, as the
+screen counts it (`screening.seconds`).
 
 It then applies the pre-registered rule of #970: B wins if it is not worse on
 passes and its sum of medians is at most `--max-slowdown` above A's.
@@ -38,6 +40,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "lib"))
 sys.path.insert(0, str(ROOT / "benchmarks" / "agent"))
 
 import results
+import screening
 
 import logs
 
@@ -80,15 +83,23 @@ def read_run(path: pathlib.Path) -> Run:
     return Run(path, rows)
 
 
-def sum_of_medians(rows: Sequence[dict[str, Any]]) -> float:
+#: The client wall-clock limit a timed-out trial counts at (run.py's default).
+DEFAULT_TIMEOUT = 1800.0
+
+
+def sum_of_medians(
+    rows: Sequence[dict[str, Any]], timeout: float = DEFAULT_TIMEOUT
+) -> float:
     """The median wall of each task, summed over tasks."""
     by_task: dict[str, list[float]] = {}
     for row in rows:
-        by_task.setdefault(row["task"], []).append(float(row["wall_seconds"]))
+        by_task.setdefault(row["task"], []).append(screening.seconds(row, timeout))
     return sum(statistics.median(walls) for walls in by_task.values())
 
 
-def arm_stats(name: str, runs: Sequence[Run]) -> ArmStats:
+def arm_stats(
+    name: str, runs: Sequence[Run], timeout: float = DEFAULT_TIMEOUT
+) -> ArmStats:
     rows = [row for run in runs for row in run.rows]
     backends = {row["backend"] for row in rows}
     if len(backends) != 1:
@@ -98,9 +109,9 @@ def arm_stats(name: str, runs: Sequence[Run]) -> ArmStats:
         trials=len(rows),
         passes=sum(results.verdict(row) for row in rows),
         run_passes=[sum(results.verdict(row) for row in run.rows) for run in runs],
-        sum_of_medians=sum_of_medians(rows),
-        run_sums_of_medians=[sum_of_medians(run.rows) for run in runs],
-        median_trial=statistics.median(float(row["wall_seconds"]) for row in rows),
+        sum_of_medians=sum_of_medians(rows, timeout),
+        run_sums_of_medians=[sum_of_medians(run.rows, timeout) for run in runs],
+        median_trial=statistics.median(screening.seconds(r, timeout) for r in rows),
         output_tokens=sum(int(row.get("output_tokens") or 0) for row in rows),
         tasks=frozenset(row["task"] for row in rows),
     )
@@ -138,6 +149,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         default=0.05,
         help="largest fraction B's sum of medians may sit above A's (default 0.05)",
     )
+    parser.add_argument(
+        "--timeout",
+        type=float,
+        default=DEFAULT_TIMEOUT,
+        help="seconds a timed-out trial counts at (default %(default)s)",
+    )
     args = parser.parse_args(argv)
     logs.configure(fmt=logs.PLAIN)
     if len(args.arm) != 2:
@@ -145,7 +162,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 2
     try:
         a, b = (
-            arm_stats(name, [read_run(p) for p in paths]) for name, paths in args.arm
+            arm_stats(name, [read_run(p) for p in paths], args.timeout)
+            for name, paths in args.arm
         )
     except (OSError, ValueError, KeyError) as exc:
         logger.error("%s", exc)
