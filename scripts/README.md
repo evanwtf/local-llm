@@ -121,6 +121,7 @@ Each script explains itself in full at the top of its own file -- what it comput
 | `route_agent_ab.py` | mac | ds4's Metal 4 TensorOps route against the withheld one, on the agent bench. |
 | `screen_stacks.py` | any | #762 Stage 2: which stacks earn more runs after one full run, and which are cut. |
 | `sensor_windows.py` | mac | Join a monitord sensor series to benchmark sweep windows. |
+| `series_readout.py` | any | Read out an interleaved two-arm series from saved row files (#970). |
 | `server_facts.py` | any | Write the facts a remote client needs about this server. #562 |
 | `session_decay.py` | any | Does a session get worse the longer the server runs? (#120) |
 | `setup_earlyoom.py` | any | Put earlyoom's configuration in the repo, and check the box still matches. #458 |
