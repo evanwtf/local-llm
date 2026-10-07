@@ -1,0 +1,223 @@
+2026-10-07T18:32:35-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a] 2026-10-07T22:32:35Z (18:32:35 EDT) | harness e2c6dd6
+2026-10-07T18:32:35-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]   machine: aarch64, ?, 20 cores, 121.7 GiB, NVIDIA GB10, [N/A], confinement bwrap
+2026-10-07T18:32:35-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a] Upstream sweep since 2026-10-06T22:32:35Z (24h) -- dgx: 19 repos
+
+2026-10-07T18:32:36-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a] == antirez/ds4 -- our primary engine; the only one that runs DeepSeek-V4-Flash and GLM-5.3
+2026-10-07T18:32:36-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #1194 responses: heal the forked live checkpoint on a token-mismatch miss
+2026-10-07T18:32:36-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #1193 rocm: fix host-side rsqrtf() call that breaks the ROCm build
+2026-10-07T18:32:36-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #1192 metal: use shuffle network for non-causal top-k block sort
+2026-10-07T18:32:36-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #1191 Add qwen35moe CPU support for Qwen3.6 and Ornith
+2026-10-07T18:32:36-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #1190 Fix RTX PRO 6000 Blackwell CUDA builds by gating native FP4 MMQfix(cuda): reso
+2026-10-07T18:32:36-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #1183 Add Kolibri-1 support
+2026-10-07T18:32:36-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a] 
+2026-10-07T18:32:38-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a] == ggml-org/llama.cpp -- our fast pick's engine; `qwen4exp` IS Qwen3.8-Flash-Next
+2026-10-07T18:32:38-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    releases: b11476, b11475, b11474, b11472, b11471, b11469, b11468, b11467, b11466, b11465
+2026-10-07T18:32:38-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    chat: fix jinja parser for TranslateGemma (#30096)
+2026-10-07T18:32:38-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    chat : name tool and argument parser rules by index (#30088)
+2026-10-07T18:32:38-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    model : add LiquidAI/d1-3B decision model (#30110)
+2026-10-07T18:32:38-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    cuda: FWHT kernels for block widths above 512 (#29100)
+2026-10-07T18:32:38-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    mtmd: add cohere2 vision support (#30062)
+2026-10-07T18:32:38-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    llama : add a GPU cache for MoE experts kept in host memory (#29887)
+2026-10-07T18:32:38-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    cuda: update uncoalesced memory reads in pool2d (#29425)
+2026-10-07T18:32:38-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    server : accumulate generated text and tokens as parse input (#29876)
+2026-10-07T18:32:38-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    llama: share the nextn tensor flags between models (#30097)
+2026-10-07T18:32:38-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    metal : few-row MMA mat-mul for the remaining src0 types (#30065)
+2026-10-07T18:32:38-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    metal : fix MUL_MAT+ADD fusion when the residual is itself a MUL_MAT (#30100)
+2026-10-07T18:32:38-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    feat: add GLM5Next MTP, optimize (#29928)
+2026-10-07T18:32:38-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    ... and 15 more
+2026-10-07T18:32:38-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #30112 llama: support MoE cache over multiple GPUs
+2026-10-07T18:32:38-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #30117 grammar : add support for multi-token matching
+2026-10-07T18:32:38-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #29050 CUDA/HIP: matrix-core (MFMA) lightning indexer for CDNA2 (gfx90a)
+2026-10-07T18:32:38-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #26430 opencl: extend, speed up and widen the MQ/cluster decode flash-attention (head
+2026-10-07T18:32:38-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #27286 ggml-cpu : validate expert id in mul_mat_id
+2026-10-07T18:32:38-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #30124 sampling : skip zero-probability candidates in typical entropy
+2026-10-07T18:32:38-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #27285 mtmd : check for missing optional tensors before deref
+2026-10-07T18:32:38-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #30114 model : add LiquidAI/d1-omni-600M decision model
+2026-10-07T18:32:38-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    ... and 42 more open PRs
+2026-10-07T18:32:38-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a] 
+2026-10-07T18:32:40-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a] == ollama/ollama -- the 31 GB entry point; MLX runtime on the Mac, cuda_v13 on the DGX
+2026-10-07T18:32:40-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    mlx: drop carried metal residency patch now that it is upstream (#18854)
+2026-10-07T18:32:40-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    Merge pull request #18233 from chenlichao/fix/app-readme-download-links
+2026-10-07T18:32:40-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    Merge pull request #18814 from aniketkrs/docs/readme-dead-links
+2026-10-07T18:32:40-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    manifest: avoid symlinks on Windows (#18852)
+2026-10-07T18:32:40-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    cmd: remove account step from CLI onboarding (#18826)
+2026-10-07T18:32:40-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    llama: fix clef head reads past 2GiB on windows (#18777)
+2026-10-07T18:32:40-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    server: proxy cloud usage and balance APIs (#18829)
+2026-10-07T18:32:40-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #17360 fix(llm): only feed content-carrying events to the repeat detector
+2026-10-07T18:32:40-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #17828 launch: fill cloud model metadata gaps from show on config writes
+2026-10-07T18:32:40-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #18851 docs: adding research agent sample project
+2026-10-07T18:32:40-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #18828 docs: restructuring and adding sample project
+2026-10-07T18:32:40-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #18849 llm: report transport errors instead of JSON errors on truncated llama-server 
+2026-10-07T18:32:40-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #18848 compatmigrate: fix Statfs space math on FreeBSD
+2026-10-07T18:32:40-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #18845 docs: fix min_p formatting in modelfile
+2026-10-07T18:32:40-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #18684 cli: adaptive Simplified Chinese localization (zh-CN, English elsewhere)
+2026-10-07T18:32:40-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    ... and 25 more open PRs
+2026-10-07T18:32:40-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a] 
+2026-10-07T18:32:41-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a] == anomalyco/opencode -- our only client
+2026-10-07T18:32:41-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    chore: generate
+2026-10-07T18:32:41-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    feat(console): show Haiku 5.5 across Go pages
+2026-10-07T18:32:41-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    docs(web): add Haiku 5.5 to Go model tables
+2026-10-07T18:32:41-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    docs(web): add Haiku 5.5 to Zen model tables
+2026-10-07T18:32:41-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    feat(console): capture monthly inference spend (#53637)
+2026-10-07T18:32:41-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    feat(console): proxy keyless Zen requests to new inference per model (#53717)
+2026-10-07T18:32:41-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    fix(stats): attribute exo usage to an unknown provider (#53621)
+2026-10-07T18:32:41-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #53820 fix(core): recognize Claude Bedrock family metadata
+2026-10-07T18:32:41-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #53685 fix(core): reject malformed tool arguments and settle unfinished calls
+2026-10-07T18:32:41-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #53817 fix(core): reuse Console config across startup activations
+2026-10-07T18:32:41-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #53798 feat(core): add Google Cloud credential setup for Vertex
+2026-10-07T18:32:41-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #53233 fix(core): honor compaction retained-text budget
+2026-10-07T18:32:41-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #53736 feat(sdk): expose the embedded instance's HTTP app with password auth
+2026-10-07T18:32:41-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #53422 fix(cli): give plugins the host's Effect
+2026-10-07T18:32:41-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #53816 fix(session-ui): expand tool error cards to full input and error
+2026-10-07T18:32:41-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    ... and 42 more open PRs
+2026-10-07T18:32:41-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a] 
+2026-10-07T18:32:42-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a] == evanwtf/local-llm -- this project
+2026-10-07T18:32:42-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    Merge pull request #985 from evanwtf/scripts/series-readout-timeouts
+2026-10-07T18:32:42-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    rows: #977 hibrid48 thinking ON on recipe v5.2 (14 trials, early stop); series_readout counts timeouts
+2026-10-07T18:32:42-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    Merge pull request #984 from evanwtf/rows/977-off
+2026-10-07T18:32:42-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    rows: #977 hibrid48 thinking OFF on recipe v5.2 (14 trials, early stop)
+2026-10-07T18:32:42-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    Merge pull request #983 from evanwtf/docs/970-pick
+2026-10-07T18:32:42-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    Merge branch 'main' into docs/970-pick
+2026-10-07T18:32:42-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    Merge pull request #982 from evanwtf/backends/977-hibrid48-v52
+2026-10-07T18:32:42-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    Merge branch 'main' into docs/970-pick
+2026-10-07T18:32:42-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    Merge branch 'main' into backends/977-hibrid48-v52
+2026-10-07T18:32:42-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    RECOMMENDATIONS: the TensorFold quant becomes the GLM pick (#970)
+2026-10-07T18:32:42-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    backends: hibrid48 on recipe v5.2, thinking on and off (#977)
+2026-10-07T18:32:42-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    Merge pull request #981 from evanwtf/scripts/series-readout
+2026-10-07T18:32:42-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    ... and 7 more
+2026-10-07T18:32:42-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a] 
+2026-10-07T18:32:43-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a] == evanwtf/gmail-archive -- the excision tasks' target repository
+2026-10-07T18:32:43-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    (quiet)
+2026-10-07T18:32:43-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a] 
+2026-10-07T18:32:44-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a] == evanwtf/ds4 -- our ds4 fork (#27 asks whether it can be retired)
+2026-10-07T18:32:44-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    (quiet)
+2026-10-07T18:32:44-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a] 
+2026-10-07T18:32:46-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a] == vllm-project/vllm -- NVFP4/FP8 serving on Blackwell; the #299 single-Spark recipe
+2026-10-07T18:32:46-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    [Bugfix][DSv4.1] Skip SWA bounded replay for KV loads that carry the window (#59197)
+2026-10-07T18:32:46-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    [Docs] Add disagg PD flow-example guidance to /pr-checklist skill (#60111)
+2026-10-07T18:32:46-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    [quantization] Add per-token NVFP4 quantization MoE support for ReLU2 (#56740)
+2026-10-07T18:32:46-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    [Model] Streamline EmbeddingGemma 2 config resolution and harmonize Triton prefill attention (#60289)
+2026-10-07T18:32:46-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    [CI] Fix failing test_deepseek_v4_rocm_dspark* tests (#60462)
+2026-10-07T18:32:46-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    [CI] Stamp provenance labels on the torch-nightly image so Initialized Snapshot E2E can run (#59487)
+2026-10-07T18:32:46-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    [Bugfix] Limit GlmMoeDsaForCausalLM fp8 KV cache default to SM100 (#60281)
+2026-10-07T18:32:46-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    [Bugfix][KV Offload] Restore KVCR construction through the secondary-tier factory (#58088)
+2026-10-07T18:32:46-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    [UX] Skip checkpoint shards an MTP head does not load  (#60152)
+2026-10-07T18:32:46-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    [KV Offload] Update KVCR adapter to pool-and-index API (#59899)
+2026-10-07T18:32:46-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    [Bugfix] Respect Inductor deterministic mode in combo-kernel defaults (#59074)
+2026-10-07T18:32:46-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    [Bugfix][Quantization] Accept folded NVFP4 scales for Humming A16 (#60337)
+2026-10-07T18:32:46-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    ... and 44 more
+2026-10-07T18:32:46-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #60490 [Bugfix][Qwen4Exp] Reserve QSA indexer prefill workspace during memory profili
+2026-10-07T18:32:46-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #59723 [Bugfix][Frontend] Fix Responses namespace aliases in named tool calling
+2026-10-07T18:32:46-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #53981 [Bugfix] Route directly constructed embeddings through CPU offload
+2026-10-07T18:32:46-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #60491 [Model][Qwen4Exp] fp8_e5m2 KV cache on the QSA path for SM80/SM86
+2026-10-07T18:32:46-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #59330 [Bugfix][KV Connector] Stop P/D transfers short of the last prompt token
+2026-10-07T18:32:46-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #54846 [Model] Qwen4Exp: fp8_e4m3 and nvfp4 KV cache on the QSA path
+2026-10-07T18:32:46-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #60113 [Core][NIXL] Transfer KV between different P/D KV cache group plans
+2026-10-07T18:32:46-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #60398 [Core] Bound execute_dummy_batch RPC waits by the execute-model timeout
+2026-10-07T18:32:46-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    ... and 42 more open PRs
+2026-10-07T18:32:46-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a] 
+2026-10-07T18:32:48-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a] == NVIDIA/TensorRT-LLM -- the other CUDA-native path to NVFP4 on the Spark (#293, #299)
+2026-10-07T18:32:48-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    [https://nvbugs/6838021][test] Unwaive MiniMax-M3 MXFP8 piecewise CUDA graph test on B300 (#19810)
+2026-10-07T18:32:48-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    [None][fix] Cache resolved MegaMoE kernel descriptors across forwards (#19901)
+2026-10-07T18:32:48-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    [None][fix] OpenEngine: release completed results and honor TRTLLM_SERVER_DISABLE_GC (#19858)
+2026-10-07T18:32:48-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    [TRTLLM-16772][fix] Release async IPC payloads with garbage collection disabled (#19869)
+2026-10-07T18:32:48-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    [TRTLLM-15261][feat] Test stale pointers held by captured graph in metadata (#19306)
+2026-10-07T18:32:48-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    [None][ci] waive pre-existing test failures on main (#19931)
+2026-10-07T18:32:48-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    [#19225][fix] Keep markdown fences in DeepSeek V3 streamed content (#19226)
+2026-10-07T18:32:48-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    [TRTLLM-16569][infra] finalize existing logs after capture errors (#19622)
+2026-10-07T18:32:48-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    [None][chore] Remove unused negative-test helpers (#19927)
+2026-10-07T18:32:48-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    [TRTLLM-16217][test] Add VR200 4-GPU serve perf cases for DeepSeek V4 Pro and Kimi K3 (#19260)
+2026-10-07T18:32:48-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    [TRTLLM-16614][chore] Remove more TRT leftovers (#19583)
+2026-10-07T18:32:48-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    [#19756][fix] Parse hyphenated function names in the Kimi K2 tool parser (#19758)
+2026-10-07T18:32:48-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    ... and 8 more
+2026-10-07T18:32:48-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #19440 [None][feat] Stream native KV events and expose routing load
+2026-10-07T18:32:48-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #19941 [None][infra] Use per cluster test duration files for test sharding
+2026-10-07T18:32:48-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #19171 [TRTLLM-12891][feat] Integrate Mooncake connector into KVCMv2
+2026-10-07T18:32:48-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #19745 [None][fix] Admit unpaired draft KV mirrors at scheduling time and recompute a
+2026-10-07T18:32:48-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #19679 [TRTLLMINF-474][infra] Upgrade NGC PyTorch base image to 26.09
+2026-10-07T18:32:48-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #17773 [None][fix] page-lock large host KV cache pools in chunks
+2026-10-07T18:32:48-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #19739 [None][fix] Make the waiting-for-feedback stale PR lifecycle bot-aware
+2026-10-07T18:32:48-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #19562 [None][infra] Reuse PLC pipeline result if commit not changed
+2026-10-07T18:32:48-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    ... and 42 more open PRs
+2026-10-07T18:32:48-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a] 
+2026-10-07T18:32:49-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a] == sgl-project/sglang -- aggregate multi-stream serving; the DGX's throughput emphasis (#307)
+2026-10-07T18:32:49-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    [HiCache] Add SeaweedFS L3 storage backend (#42399)
+2026-10-07T18:32:49-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    [diffusion] CI: warm up CI cases at the request's quality level (#42958)
+2026-10-07T18:32:49-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    [diffusion] fix: reset DiT cache state at the start of each request (#42437)
+2026-10-07T18:32:49-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    [GLM-V] Shard the vision tower over the attention-TP group under DP attention (#42931)
+2026-10-07T18:32:49-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    [diffusion] fix: fix hybrid SP+TP for I2V models   (#41917)
+2026-10-07T18:32:49-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    [Bugfix] Return None for empty reasoning_content outside K2 Horizon (#42962)
+2026-10-07T18:32:49-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    [CI] keep diffusion-only kernels and tests out of the srt stages (#42706)
+2026-10-07T18:32:49-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    [diffusion] fix: do not interleave comfy-kitchen MXFP8 scales twice (#38028)
+2026-10-07T18:32:49-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    [AMD][diffusion] Route bf16 fuse_scale_shift to the native fallback on gfx1250 (#42859)
+2026-10-07T18:32:49-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    [AMD][diffusion] VAE attention to the math SDPA backend on gfx1250 (#42858)
+2026-10-07T18:32:49-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    [deps] bump transformers to 5.19.0 (#42784)
+2026-10-07T18:32:49-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    The sgalng api specs (#41585)
+2026-10-07T18:32:49-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    ... and 35 more
+2026-10-07T18:32:49-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #42838 [sglang-miles] Return output top logprobs as flat base64 arrays on request
+2026-10-07T18:32:49-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #42890 [Feature] Return output top logprobs as flat base64 arrays on request
+2026-10-07T18:32:49-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #42044 [CP] GLM-5.3-Flash Prefill CP implemented on layer boundaries
+2026-10-07T18:32:49-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #42690 [Debug] Add opt-in NaN detection before sampling
+2026-10-07T18:32:49-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #42822 [Scheduler] Replace `extend_range` with `extend_end` derived from `prefix_len`
+2026-10-07T18:32:49-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #42923 [MemCache] Return only the matched length from `match_prefix`; read KV indices
+2026-10-07T18:32:49-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #41845 [Fix] MiniMax-M3: default to the breakable prefill CUDA graph
+2026-10-07T18:32:49-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #39475 Cosmos Dreams and Cosmos Multiview
+2026-10-07T18:32:49-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    ... and 42 more open PRs
+2026-10-07T18:32:49-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a] 
+2026-10-07T18:32:50-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a] == MiaAI-Lab/Qwen3.8-Flash-Next-Dual-DGX-Sparks -- the Qwen3.8-Flash-Next two-node recipe we run (#663, #664)
+2026-10-07T18:32:50-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #80 feat: Turkish draft vocab (tr_en_code_65k), measured A-B-A on TP=2
+2026-10-07T18:32:50-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a] 
+2026-10-07T18:32:51-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a] == MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks -- the GLM-5.3-Flash EXL3 two-node recipe we run (#648)
+2026-10-07T18:32:51-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    (quiet)
+2026-10-07T18:32:51-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a] 
+2026-10-07T18:32:52-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a] == MiaAI-Lab/MiMo-V2.6-Flash-2x-DGX-Sparks -- the MiMo-V2.6-Flash SGLang two-node recipe we run (#672)
+2026-10-07T18:32:52-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    (quiet)
+2026-10-07T18:32:52-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a] 
+2026-10-07T18:32:53-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a] == MiaAI-Lab/DeepSeek-v4.1-Flash-EXL3-2x-DGX-Sparks -- DeepSeek V4.1 Flash EXL3 on two Sparks: a candidate arm, not yet run
+2026-10-07T18:32:53-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    (quiet)
+2026-10-07T18:32:53-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a] 
+2026-10-07T18:32:55-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a] == ashhart/TensorFold -- the engine under the cluster's leading GLM arms (#892, #897)
+2026-10-07T18:32:55-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    releases: v1.0.2, v1.0.1, v1.0.0
+2026-10-07T18:32:55-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    TensorFold 1.0.2: GLM-5.3-Flash concurrency, two-Mac tensor parallel, prompt caching and --learn
+2026-10-07T18:32:55-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    --learn: a disk cap, and learned states survive upgrades that compute the same bits
+2026-10-07T18:32:55-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    README and changelog: GLM concurrency, two-Mac tensor parallel, prompt caching and --learn
+2026-10-07T18:32:55-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    --learn: shared prompt states on disk, so fresh sessions resume their harness after a restart
+2026-10-07T18:32:55-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    Fresh chat sessions resume their whole harness from the prompt cache
+2026-10-07T18:32:55-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    GLM-5.3-Flash: TP2 splits the dense MLP layers too
+2026-10-07T18:32:55-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    GLM-5.3-Flash: TP2 in speed-up mode
+2026-10-07T18:32:55-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    GLM-5.3-Flash: exact prompt caching
+2026-10-07T18:32:55-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    GLM-5.3-Flash: the draft head writes every row's cache, attends for drafting rows
+2026-10-07T18:32:55-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    GLM-5.3-Flash: every stream's MTP head in one batch
+2026-10-07T18:32:55-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    GLM-5.3-Flash: concurrent requests share rounds on the lane core
+2026-10-07T18:32:55-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    TensorFold 1.0.1: tensorfold-native has models, info and pull
+2026-10-07T18:32:55-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    ... and 88 more
+2026-10-07T18:32:55-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #463 Add model-free Zig HIP runtime and GPU qualification
+2026-10-07T18:32:55-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #489 server: a streamed tool reply sends whitespace the whole reply does not have
+2026-10-07T18:32:55-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #488 fix(cluster): refuse headers whose byte counts or offsets overflow
+2026-10-07T18:32:55-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #487 CUDA (GB10): Nemotron KV caches in the display carveout, opt-in
+2026-10-07T18:32:55-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #477 fix(core): avoid leaks when checkpoint appends fail
+2026-10-07T18:32:55-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #486 core: the direct_io test's reference read goes through the page cache
+2026-10-07T18:32:55-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #485 tools: verify cache state and retain benchmark evidence
+2026-10-07T18:32:55-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #484 server: expose process memory peaks and applied prefix budgets
+2026-10-07T18:32:55-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    ... and 10 more open PRs
+2026-10-07T18:32:55-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a] 
+2026-10-07T18:32:56-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a] == MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks-TensorFold -- the cluster pick's recipe: GLM-5.3-Flash EXL3 on TensorFold (#892)
+2026-10-07T18:32:56-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #95 Patch 0084: launch order of the expert decode kernel (TF_GLM_EXL3_ORDER, off b
+2026-10-07T18:32:56-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #98 Patch 0086: long-context cold prefill - the indexer's prompt scoring takes one
+2026-10-07T18:32:56-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #97 Patch 0085: long-context decode - the split selection's last pass sums only th
+2026-10-07T18:32:56-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #96 Patch 0084: DISPLAY_KV_MIB on kindling spark-os (DISPLAY_KV_BACKEND=dispram, o
+2026-10-07T18:32:56-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a] 
+2026-10-07T18:32:56-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a] == jayleaton/glm53-tensorfold-spark -- GLM-5.3-Flash on TensorFold, a kept arm (#840)
+2026-10-07T18:32:57-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    (quiet)
+2026-10-07T18:32:57-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a] 
+2026-10-07T18:32:57-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a] == jayleaton/deepseek-v41-tensorfold-spark -- DeepSeek-V4.1-Flash on TensorFold: a lead, unapproved (#919)
+2026-10-07T18:32:57-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    Merge pull request #14 from Capicua25x/fix/greedy-startup-warning
+2026-10-07T18:32:57-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    Merge pull request #12 from Capicua25x/docs/sampling
+2026-10-07T18:32:57-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #6 Four DGX Sparks (TP=4): patch 0003, launcher, docs, results
+2026-10-07T18:32:57-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #17 DeepSeek-V4.1: per-expert counts without bincount's host sync
+2026-10-07T18:32:57-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    PR #16 DeepSeek-V4.1: /health drafted_total and accepted_total
+2026-10-07T18:32:57-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a] 
+2026-10-07T18:32:59-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a] == kindlingai/glm-5.3-flash-gx10 -- GLM-5.3-Flash NVFP4 on vLLM, cut by the screen (#896)
+2026-10-07T18:32:59-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a]    (quiet)
+2026-10-07T18:32:59-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a] 
+2026-10-07T18:32:59-0400 INFO [e2c6dd6@Cortex-X925-GB10 none pld=n/a] log: /home/evan/git/local-llm/logs/sweeps/upstream-sweep-Cortex-X925-GB10-20261007T223235Z.log

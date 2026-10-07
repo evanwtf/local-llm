@@ -1,0 +1,207 @@
+# grok sweep (dgx lane)
+# requested window: last 24 hours
+# written:  2026-10-07T22:34:52Z  (local: 2026-10-07 18:34:52 EDT)
+# query:    Search X for posts and replies from @MiaAI_lab, @jayleaton, @sudoingX, @no_stp_on_snek, @0xSero, @Raullen, @Brooooook_lyn, @bleysg, and posts mentioning 'DGX Spark' with TensorFold, vLLM, SGLang, NVFP4, GLM-5.3-Flash, Qwen3.8-Flash-Next or DeepSeek-V4.1-Flash, in the last 24 hours. Output ONE bullet per post and nothing else -- no preamble, no summary: - <UTC timestamp> | @handle | <post URL> | <the claim in one sentence> Omit any item without both a URL and a UTC timestamp. If nothing matches, output exactly: NO RESULTS
+
+I'll search X for those accounts and the DGX Spark mentions in the last 24 hours, then list only matching posts.Several accounts hit the 10-post cap, so I’m paging older results in the same 24-hour window.Still paging through the remaining account timelines and the DGX Spark keyword results.Paging the remaining timelines so the list covers the full 24-hour window.- 2026-10-07 22:30:14 UTC | @0xSero | https://x.com/0xSero/status/2107961727203647930 | Exl3-3bpw beats most 4-bit quants on Hugging Face.
+- 2026-10-07 22:30:00 UTC | @sudoingX | https://x.com/sudoingX/status/2107961668965925007 | Asks how much people spent on AI subscriptions last month.
+- 2026-10-07 22:05:02 UTC | @0xSero | https://x.com/0xSero/status/2107955384296358278 | Says the issue is fixed.
+- 2026-10-07 22:02:29 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107954742345204190 | Posts a crystal-ball emoji as a reply.
+- 2026-10-07 22:02:13 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107954678696935849 | Says there are no stats yet.
+- 2026-10-07 22:02:04 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107954637898948816 | Says the architecture is MoE.
+- 2026-10-07 22:01:52 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107954587592491254 | Guesses the model is MoE.
+- 2026-10-07 22:01:07 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107954398936600946 | Hopes the upcoming model is awesome.
+- 2026-10-07 22:00:02 UTC | @sudoingX | https://x.com/sudoingX/status/2107954128378790265 | Nous Research raised $90M with 22 million downloads and backers including NVIDIA, Microsoft M12, Samsung, YC, USV and Menlo.
+- 2026-10-07 21:59:47 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107954065275842906 | DGX Spark at 273 GB/s versus M5 Ultra at 1.2 TB/s means the Mac should far outperform Spark on prose (67 vs 80).
+- 2026-10-07 21:58:01 UTC | @0xSero | https://x.com/0xSero/status/2107953620335624530 | Asks whether the other person means man flu.
+- 2026-10-07 21:57:24 UTC | @0xSero | https://x.com/0xSero/status/2107953462931497042 | Inference battery life is bad, but the machine is still nice.
+- 2026-10-07 21:56:10 UTC | @0xSero | https://x.com/0xSero/status/2107953153660649674 | Asks how the other person knows so much magic.
+- 2026-10-07 21:55:18 UTC | @0xSero | https://x.com/0xSero/status/2107952937502941269 | GLM-5.3-Flash on 2x RTX 3090 with 32 GB DDR4, NVMe offload and 3-bit EXL3 scores 42 on Artificial Analysis.
+- 2026-10-07 21:55:13 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107952913746121139 | Says you can probably install Linux on it.
+- 2026-10-07 21:53:43 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107952539547373703 | Says this already runs on Zig.
+- 2026-10-07 21:51:41 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107952027657548072 | TensorFold now runs on Zig for extra performance gains, with updates incoming.
+- 2026-10-07 21:49:04 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107951365729476959 | The recipe is not updated yet but will be soon.
+- 2026-10-07 21:48:09 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107951136762192224 | Says it is too pricey for her personally.
+- 2026-10-07 21:44:17 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107950164589810088 | Corrects a prior reply to “not”.
+- 2026-10-07 21:43:41 UTC | @no_stp_on_snek | https://x.com/no_stp_on_snek/status/2107950013037068328 | Pooled Claude Max/Team API credits will be spent after two complex prompts.
+- 2026-10-07 21:43:17 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107949910792306689 | Says she does not think so.
+- 2026-10-07 21:39:42 UTC | @no_stp_on_snek | https://x.com/no_stp_on_snek/status/2107949010510327868 | Unboxed a Strix Halo to test what it can do.
+- 2026-10-07 21:33:36 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107947475315065103 | Calls the suggestion a good idea.
+- 2026-10-07 21:30:13 UTC | @0xSero | https://x.com/0xSero/status/2107946622143373354 | Asks what 1 Samuel 18:3 meant.
+- 2026-10-07 21:27:21 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107945902791102476 | Answers no.
+- 2026-10-07 21:26:41 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107945733014065235 | Prefers GLM, but would switch if she needs more concurrency.
+- 2026-10-07 21:25:59 UTC | @no_stp_on_snek | https://x.com/no_stp_on_snek/status/2107945560028377436 | Would enjoy contributing AI/coding work to that project.
+- 2026-10-07 21:25:53 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107945534036357297 | Posts prayer-hands as thanks.
+- 2026-10-07 21:25:13 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107945365060104467 | Wants to see an M5 Ultra 256 do 60+ tok/s prose single-stream on GLM-5.3-Flash.
+- 2026-10-07 21:24:08 UTC | @0xSero | https://x.com/0xSero/status/2107945091243680190 | Likes Aella as a sloperator with a strong survey dataset.
+- 2026-10-07 21:23:09 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107944844111077575 | Says it is not there right now but she will add it soon.
+- 2026-10-07 21:23:07 UTC | @0xSero | https://x.com/0xSero/status/2107944838910103741 | Shows a 4x DGX Spark setup with a MikroTik CRS812 and GSFP56-DD links.
+- 2026-10-07 21:22:09 UTC | @sudoingX | https://x.com/sudoingX/status/2107944593383899282 | Anthropic’s Haiku 5.5 tops GPT-6 Luna on every row Luna appears in.
+- 2026-10-07 21:14:40 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107942709113545199 | Qwen3.8-Flash-Next on 2x DGX Sparks with TensorFold has NVFP4 (67.4 tok/s prose) and Int4 AutoRound (89 tok/s prose) options.
+- 2026-10-07 21:12:09 UTC | @0xSero | https://x.com/0xSero/status/2107942076474339592 | Says he lives in ecstasy and already has everything he needs.
+- 2026-10-07 21:08:31 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107941162648744219 | Tensor-parallel 2 brings more speed.
+- 2026-10-07 21:01:33 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107939408905142358 | Confirms with “Yep”.
+- 2026-10-07 21:01:13 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107939324402552968 | Says she will check it.
+- 2026-10-07 21:00:36 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107939171356557774 | Says it is actually pretty awesome.
+- 2026-10-07 21:00:01 UTC | @sudoingX | https://x.com/sudoingX/status/2107939024019071292 | The cone with the canopy floating above it is Haiku 4.5 next to GLM-5.3-Flash on the same prompt.
+- 2026-10-07 21:00:01 UTC | @sudoingX | https://x.com/sudoingX/status/2107939023205314743 | Haiku 4.5 failed the floating-tree visual gate and reported success, while open-weight models finished the build.
+- 2026-10-07 20:57:41 UTC | @0xSero | https://x.com/0xSero/status/2107938434429907026 | Local AI v6.11.2 on Omarchy runs GLM-5.3-Flash on a single RTX 3090 at EXL3-3bpw with NVMe and DDR4 offload.
+- 2026-10-07 20:36:38 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107933141021217221 | Posts thinking-face emojis as a reply.
+- 2026-10-07 20:33:08 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107932257881387512 | Asks if people are buying the $5,899 RTX Spark Surface Ultra 128 GB, saying Qwen3.8-Flash-Next would fit.
+- 2026-10-07 20:25:57 UTC | @sudoingX | https://x.com/sudoingX/status/2107930450262114571 | Says he can hear that in the author’s voice and a llama.cpp maintainer just smiled.
+- 2026-10-07 20:24:12 UTC | @sudoingX | https://x.com/sudoingX/status/2107930010552316033 | A 70B Nemotron quantized to 2-bit (~20 GB) lands October 15 and will fit a 24 GB card, a 5090 laptop, and a DGX Spark.
+- 2026-10-07 20:20:29 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107929075259982134 | Calls it an impressive model overall and very cheap.
+- 2026-10-07 20:14:35 UTC | @sudoingX | https://x.com/sudoingX/status/2107927590438903946 | Mistral Large 4 on high wrote zero files in 37 minutes after two 15–16 minute thinking calls.
+- 2026-10-07 20:14:01 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107927446435832081 | GLM-5.3-Flash hits 114 tok/s on dual M5 Ultras with TensorFold.
+- 2026-10-07 20:06:55 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107925659108757751 | Answers “probably”.
+- 2026-10-07 20:06:45 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107925619791028550 | Sees no reason it would not be possible.
+- 2026-10-07 20:05:22 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107925272301355355 | Haiku 5.5 created 100 unbroken HTML files, beating GPT-6 Luna while costing less.
+- 2026-10-07 20:02:30 UTC | @sudoingX | https://x.com/sudoingX/status/2107924548859625831 | The most-downloaded Gemma 4 E4B GGUF this month is the uncensored build, and Qwen 3.8 27B’s top GGUFs are mostly uncensored too.
+- 2026-10-07 19:55:30 UTC | @shesaidmewakeup | https://x.com/shesaidmewakeup/status/2107922787968938028 | Asks what TensorFold Studio’s Mac GUI covers and whether the DGX Spark port will match that feature set.
+- 2026-10-07 19:54:13 UTC | @0xSero | https://x.com/0xSero/status/2107922464630309034 | Claims he is usurping the #1 sloptuber spot.
+- 2026-10-07 19:53:33 UTC | @Moehrenmann | https://x.com/Moehrenmann/status/2107922295150837944 | Qwen3.8-Flash-Next on 2x DGX Spark built a GitHub recipe cleanly, unlike nine months ago when every parameter had to be checked.
+- 2026-10-07 19:46:06 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107920422935142711 | Clarifies the comparison as in the DGX Spark.
+- 2026-10-07 19:36:46 UTC | @sudoingX | https://x.com/sudoingX/status/2107918073739239600 | Replies “winning”.
+- 2026-10-07 19:36:39 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107918044852887582 | Hopes NVIDIA nailed it this time.
+- 2026-10-07 19:35:02 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107917637070254555 | Posts the Microsoft Store pre-order link for Surface Laptop Ultra.
+- 2026-10-07 19:35:01 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107917633873944593 | RTX Spark Surface Ultra 128 GB costs $5,899.
+- 2026-10-07 19:29:25 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107916225456013763 | Says it could be different this time and hopes so.
+- 2026-10-07 19:26:10 UTC | @hypermac6502 | https://x.com/hypermac6502/status/2107915407277621484 | An 8x DGX Spark cluster running nvidia/GLM-5.3-NVFP4 on Eugr’s spark-vllm-docker hits 40–52 tok/s and a 96 benchmark score, unlike Flash.
+- 2026-10-07 19:21:07 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107914135099023723 | Hopes it is good.
+- 2026-10-07 19:16:26 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107912956922961976 | Replies “Me too”.
+- 2026-10-07 19:16:20 UTC | @sudoingX | https://x.com/sudoingX/status/2107912931832971265 | Publishes the one-file floating-tree prompt at github.com/sudoingX/floating-tree.
+- 2026-10-07 19:16:20 UTC | @sudoingX | https://x.com/sudoingX/status/2107912929094123759 | DeepSeek-V4.1-Flash scored 39 and 12/12 in an hour on two Sparks, second place with more taste.
+- 2026-10-07 19:16:19 UTC | @sudoingX | https://x.com/sudoingX/status/2107912926132924439 | GLM-5.3-Flash scored 42, holds the crown after 4.5 hours on two Sparks with 12/12 tests and the fullest canopy.
+- 2026-10-07 19:16:18 UTC | @sudoingX | https://x.com/sudoingX/status/2107912923058499607 | The last four floating-tree models ranked GLM, DeepSeek, Qwen, then Haiku.
+- 2026-10-07 19:16:17 UTC | @sudoingX | https://x.com/sudoingX/status/2107912918931288225 | Is about to hand Mistral Large 4 the same floating-tree prompt already run on GLM, DeepSeek, Qwen, Ling and StepFun locally.
+- 2026-10-07 19:09:11 UTC | @u1tra_instinct | https://x.com/u1tra_instinct/status/2107911130110894258 | Keys Mac TensorFold Studio v1.8-dev is in final testing and a DGX Spark version will be ported.
+- 2026-10-07 19:07:24 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107910681555075340 | The NVIDIA 70B Nemotron is probably targeted at 64 GB DGX / RTX Sparks.
+- 2026-10-07 19:05:59 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107910328273297490 | Congratulates and tells them to keep at it.
+- 2026-10-07 18:59:16 UTC | @Tech2Wild | https://x.com/Tech2Wild/status/2107908637335146799 | GLM-5.3 743B on 4x DGX Spark gained a DCP4+NVFP4 KV lane with a 689,772-token KV pool and 54 tok/s decode.
+- 2026-10-07 18:58:25 UTC | @0xSero | https://x.com/0xSero/status/2107908423727677609 | Disagrees and says the orchestrator was amazing.
+- 2026-10-07 18:57:09 UTC | @0xSero | https://x.com/0xSero/status/2107908104209989841 | Says open source will win because they have the numbers.
+- 2026-10-07 18:55:31 UTC | @mmastrac | https://x.com/mmastrac/status/2107907692593635468 | Boots is using Qwen3.8-Flash on a single DGX Spark to boot the KindlingAI GLM-5.3-Flash recipe, and the new --gui option looks pleasant.
+- 2026-10-07 18:55:14 UTC | @BTCXoomer | https://x.com/BTCXoomer/status/2107907620279562541 | TensorFold on DGX Spark uses an MLX quant, while vLLM recipes would use NVFP4 or EXL3, which would not be A2A.
+- 2026-10-07 18:32:37 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107901929590538433 | Says it looks awesome for the price.
+- 2026-10-07 18:30:30 UTC | @0xSero | https://x.com/0xSero/status/2107901394422247725 | GLM-5.3-Flash for 1x 3090 is live on Omarchy.
+- 2026-10-07 18:23:26 UTC | @0xSero | https://x.com/0xSero/status/2107899617560178778 | Asks who uses Haiku and notes 5.5 is live now.
+- 2026-10-07 18:16:00 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107897747378766138 | Confirms Haiku 5.5 is live.
+- 2026-10-07 18:15:23 UTC | @0xSero | https://x.com/0xSero/status/2107897590398197977 | Calls Nous Research undervalued.
+- 2026-10-07 18:14:28 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107897363562209596 | The price difference versus Sonnet 5.5 is massive.
+- 2026-10-07 18:14:27 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107897357383975024 | Anthropic is single-handedly destroying OpenAI.
+- 2026-10-07 18:08:36 UTC | @sudoingX | https://x.com/sudoingX/status/2107895887196479503 | VRAM comes first, bandwidth second.
+- 2026-10-07 18:07:52 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107895698951671898 | Shares the Claude Haiku 5.5 announcement link.
+- 2026-10-07 18:02:17 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107894295009370180 | Says she is ready for the Nemotron drop.
+- 2026-10-07 18:01:45 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107894162582360429 | Claude Haiku 5.5 is now live and she has been testing it.
+- 2026-10-07 17:52:05 UTC | @0xSero | https://x.com/0xSero/status/2107891729189794134 | Posts a broken-heart emoji.
+- 2026-10-07 17:43:53 UTC | @0xSero | https://x.com/0xSero/status/2107889663969222719 | Asks for a link and which terminal that is.
+- 2026-10-07 17:43:26 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107889551465238799 | Replies “Yeah”.
+- 2026-10-07 17:42:41 UTC | @0xSero | https://x.com/0xSero/status/2107889362994143707 | Heard from a birdie that the NVIDIA 70B Nemotron is very good.
+- 2026-10-07 17:41:03 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107888951079862536 | A new NVIDIA 70B Nemotron model drops on October 15.
+- 2026-10-07 17:40:37 UTC | @0xSero | https://x.com/0xSero/status/2107888844305506766 | Posts “Chudding out” with a video.
+- 2026-10-07 17:38:55 UTC | @0xSero | https://x.com/0xSero/status/2107888414330585129 | Says we need to breathe it in.
+- 2026-10-07 17:32:05 UTC | @0xSero | https://x.com/0xSero/status/2107886693583868180 | Man cold still forces him to push forward and change diapers.
+- 2026-10-07 17:28:53 UTC | @0xSero | https://x.com/0xSero/status/2107885890898964626 | Says his clankers educate him.
+- 2026-10-07 17:20:45 UTC | @0xSero | https://x.com/0xSero/status/2107883845131641227 | Says the Exo Labs Spark article is out.
+- 2026-10-07 17:04:10 UTC | @0xSero | https://x.com/0xSero/status/2107879668703695234 | Replies “128k”.
+- 2026-10-07 16:49:45 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107876043017363641 | That build is NVIDIA NVFP4; a single Spark will use a different quant.
+- 2026-10-07 16:39:11 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107873384063533544 | Says up-only for all builders.
+- 2026-10-07 16:37:51 UTC | @0xSero | https://x.com/0xSero/status/2107873048091390007 | Ranking is Claude, then DeepSeek-V4.1, then GLM.
+- 2026-10-07 16:34:46 UTC | @sudoingX | https://x.com/sudoingX/status/2107872269712412783 | Then your own fab, then your own sand.
+- 2026-10-07 16:34:38 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107872238972117081 | Cheers the other person’s news.
+- 2026-10-07 16:34:10 UTC | @sudoingX | https://x.com/sudoingX/status/2107872122005860427 | This peasant runs a 27B on a gaming card while the rich keep the datacenter.
+- 2026-10-07 16:33:06 UTC | @sudoingX | https://x.com/sudoingX/status/2107871849770365195 | Says for now they are just getting started.
+- 2026-10-07 16:30:28 UTC | @0xSero | https://x.com/0xSero/status/2107871190446436665 | You would not use the smartest model at 2 tokens a second.
+- 2026-10-07 16:29:54 UTC | @sudoingX | https://x.com/sudoingX/status/2107871047810957430 | The sun does not send invoices.
+- 2026-10-07 16:28:52 UTC | @sudoingX | https://x.com/sudoingX/status/2107870788535955854 | Calls it a local turbine.
+- 2026-10-07 16:26:29 UTC | @sudoingX | https://x.com/sudoingX/status/2107870185143382265 | Start with #1 in each VRAM tier.
+- 2026-10-07 16:24:35 UTC | @sudoingX | https://x.com/sudoingX/status/2107869706548027436 | That post has almost 2x more bookmarks than likes.
+- 2026-10-07 16:15:32 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107867428994854990 | She usually uses GLM.
+- 2026-10-07 16:15:05 UTC | @Raullen | https://x.com/Raullen/status/2107867317745144024 | Fully supports Drake’s bunker-mode call to migrate funds to hashed addresses because AI math may break ECDSA in months.
+- 2026-10-07 16:10:18 UTC | @NURM_Dima | https://x.com/NURM_Dima/status/2107866114105479389 | Unofficial GLM5.3-Flash-E224-DGX-Spark prunes to 224 experts in NVFP4 so 141 GiB fits two DGX Sparks, with GPQA-Diamond 90.9% on a B200.
+- 2026-10-07 16:02:57 UTC | @jayleaton | https://x.com/jayleaton/status/2107864265495663008 | Someone already told him about that.
+- 2026-10-07 16:02:10 UTC | @jayleaton | https://x.com/jayleaton/status/2107864067444818120 | He runs 3–5 leader agents, usually one per project per day, each with implementation agents and subagents.
+- 2026-10-07 15:56:45 UTC | @micachi_net | https://x.com/micachi_net/status/2107862705847828681 | The DGX Spark Strata PR only made prefill ~10x faster with no meaningful decode change, so TensorFold users may see little impact.
+- 2026-10-07 15:55:46 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107862458199331149 | The quant is different too, and MLX had issues.
+- 2026-10-07 15:55:15 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107862326493827547 | Says it should work 100%.
+- 2026-10-07 15:51:44 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107861439503372723 | The numbers she posted are not final.
+- 2026-10-07 15:50:57 UTC | @jayleaton | https://x.com/jayleaton/status/2107861243558268934 | All his comparisons use the same quant, device, and setup.
+- 2026-10-07 15:49:30 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107860879568203947 | Agrees with 100.
+- 2026-10-07 15:49:03 UTC | @0xSero | https://x.com/0xSero/status/2107860767277990035 | He muted those people and anyone who mentions him under them.
+- 2026-10-07 15:48:15 UTC | @jayleaton | https://x.com/jayleaton/status/2107860563997188186 | T3 is not a harness; use OpenCode with an OpenAI endpoint after Claude or Codex sets up local mode.
+- 2026-10-07 15:47:57 UTC | @0xSero | https://x.com/0xSero/status/2107860490865221978 | For him the annoying posts are virtue-signalling ones.
+- 2026-10-07 15:46:18 UTC | @0xSero | https://x.com/0xSero/status/2107860072542114248 | Muting hides them, their friends, and people interested in them.
+- 2026-10-07 15:42:07 UTC | @0xSero | https://x.com/0xSero/status/2107859020849795252 | Blocking and muting anyone trying to upset him made him happy.
+- 2026-10-07 15:41:14 UTC | @jayleaton | https://x.com/jayleaton/status/2107858798627139631 | The new Cloudflare one is getting really good reviews.
+- 2026-10-07 15:38:43 UTC | @Bale4President | https://x.com/Bale4President/status/2107858167829049419 | Asks why 2x DGX Spark NVFP4 is 68 tok/s on C1 while 1x DGX is 66 tok/s and whether 2x can be pushed further.
+- 2026-10-07 15:34:14 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107857037501894805 | Posts fire emojis as a reply.
+- 2026-10-07 15:32:08 UTC | @0xSero | https://x.com/0xSero/status/2107856510130982945 | Tells them to use Claude Code.
+- 2026-10-07 15:31:33 UTC | @0xSero | https://x.com/0xSero/status/2107856361157468644 | CPU and SSD offloading is now on Omarchy, currently for 3090s, with a path to Kimi-K3 on 4x RTX Pro 6000.
+- 2026-10-07 15:30:02 UTC | @Brooooook_lyn | https://x.com/Brooooook_lyn/status/2107855980956615028 | Never use Python syntax to define a tool call again.
+- 2026-10-07 15:30:01 UTC | @sudoingX | https://x.com/sudoingX/status/2107855975382127073 | Picked the best uncensored and abliterated Hugging Face models for each VRAM tier from 8 GB to 24 GB.
+- 2026-10-07 15:26:17 UTC | @0xSero | https://x.com/0xSero/status/2107855038530121988 | Julia Turc makes the best educational videos and people should subscribe.
+- 2026-10-07 15:25:31 UTC | @0xSero | https://x.com/0xSero/status/2107854843092066403 | Answers yes.
+- 2026-10-07 15:22:25 UTC | @hakimieiqbal | https://x.com/hakimieiqbal/status/2107854064830628224 | TensorFold on a single DGX Spark is a strong claim and he wants to see the update before calling it next.
+- 2026-10-07 15:21:39 UTC | @0xSero | https://x.com/0xSero/status/2107853872593043790 | Claude Code Warsaw is the most important one yet, with a monumental capability jump from Opus.
+- 2026-10-07 15:16:37 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107852603107201507 | It also now changes depending on the theme used.
+- 2026-10-07 15:15:59 UTC | @0xSero | https://x.com/0xSero/status/2107852443258155346 | Omarchy’s Local AI plugin is adding CPU/NVMe recipes for GLM-Flash, DS4.1-Flash and Qwen, plus stats, harness updates and a desktop UI.
+- 2026-10-07 15:13:44 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107851879917219910 | Qwen3.8-Flash-Next on a single DGX Spark with TensorFold has an update coming soon.
+- 2026-10-07 15:02:39 UTC | @0xSero | https://x.com/0xSero/status/2107849087785803888 | An 8-year-old GTX 1650 Super does 21 tok/s decode and 110 tok/s prefill at iq2m with 128K KV.
+- 2026-10-07 14:52:09 UTC | @0xSero | https://x.com/0xSero/status/2107846445768331461 | His agents talk to and manage each other through portable skill cartridges built from traces.
+- 2026-10-07 14:50:03 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107845917193728093 | Posts an embarrassed emoji.
+- 2026-10-07 14:46:55 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107845128802963465 | Says up only, my friend.
+- 2026-10-07 14:39:54 UTC | @0xSero | https://x.com/0xSero/status/2107843363487580424 | Third interview with Mario and first with Armin covers Pi Durable agents that survive crashes.
+- 2026-10-07 14:38:35 UTC | @0xSero | https://x.com/0xSero/status/2107843033601372357 | Quotes “my favorite black and white pfp guy” as grabbing at his heart.
+- 2026-10-07 14:37:46 UTC | @0xSero | https://x.com/0xSero/status/2107842826319143215 | Always use EXL3-3bpw.
+- 2026-10-07 14:36:44 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107842565726712145 | Agrees.
+- 2026-10-07 14:35:48 UTC | @no_stp_on_snek | https://x.com/no_stp_on_snek/status/2107842332783522264 | Scoring-versus-generation comparisons oversell the advantage because scoring is not free inference, citing SGLang’s paper.
+- 2026-10-07 14:35:07 UTC | @jayleaton | https://x.com/jayleaton/status/2107842160041377867 | It is coming; he is building some final bits now.
+- 2026-10-07 14:34:54 UTC | @jayleaton | https://x.com/jayleaton/status/2107842105028804752 | Tells them to check his TensorFold version.
+- 2026-10-07 14:34:20 UTC | @PSueoka55133 | https://x.com/PSueoka55133/status/2107841962846065148 | Asks if that is GLM-5.3-Flash, not full GLM-5.3, and wants to know if non-Flash GLM runs on 2x DGX Spark.
+- 2026-10-07 14:20:26 UTC | @sudoingX | https://x.com/sudoingX/status/2107838464813359189 | Asks whether governments should subsidize domestic AI compute.
+- 2026-10-07 14:04:42 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107834504622620717 | Posts rocket emojis as a reply.
+- 2026-10-07 13:53:43 UTC | @sudoingX | https://x.com/sudoingX/status/2107831741910249687 | Tells them to ask Europe about 2022.
+- 2026-10-07 13:52:05 UTC | @sudoingX | https://x.com/sudoingX/status/2107831330046431564 | They are about to be his AMD test pilot and asks 16 GB or 8 GB.
+- 2026-10-07 13:50:45 UTC | @sudoingX | https://x.com/sudoingX/status/2107830994673999956 | A 5070 Ti should outrun his 67 tok/s given 896 vs 448 GB/s bandwidth.
+- 2026-10-07 13:49:22 UTC | @sudoingX | https://x.com/sudoingX/status/2107830645921906718 | The 27B went on a 5.95 GB diet so four agents could split the rest of the card.
+- 2026-10-07 13:48:58 UTC | @jayleaton | https://x.com/jayleaton/status/2107830547678663007 | Congratulates them on nice work.
+- 2026-10-07 13:48:48 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107830504711979495 | Cheers them to go.
+- 2026-10-07 13:28:42 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107825446918459635 | Confirms with “Yep”.
+- 2026-10-07 13:16:43 UTC | @jayleaton | https://x.com/jayleaton/status/2107822432149291067 | Would run T3 ring config and one as pocket-knife models.
+- 2026-10-07 13:15:31 UTC | @jayleaton | https://x.com/jayleaton/status/2107822127802163486 | He does not have those models but they might adapt his recipe with rewrites once he finishes it.
+- 2026-10-07 13:13:53 UTC | @0xSero | https://x.com/0xSero/status/2107821716835578107 | Thanks @mitsuhiko and @badlogicgames for their time and work.
+- 2026-10-07 13:13:04 UTC | @0xSero | https://x.com/0xSero/status/2107821513114325228 | He reads Pi because the code is simple and good, and sat down with Armin and Mario about its roadmap.
+- 2026-10-07 13:03:31 UTC | @sudoingX | https://x.com/sudoingX/status/2107819107794161946 | He wrote an article on running local AI on small GPUs from 8 GB to 24 GB.
+- 2026-10-07 13:03:30 UTC | @sudoingX | https://x.com/sudoingX/status/2107819104724025425 | Four agents run concurrently on a single 5060 Ti, building four games locally with Bonsai 2 at 5.95 GB.
+- 2026-10-07 13:03:21 UTC | @0xSero | https://x.com/0xSero/status/2107819068208075176 | Replies “love you king”.
+- 2026-10-07 12:57:47 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107817665465303088 | Shares a Rumble video calling TensorFold a breakthrough inference engine.
+- 2026-10-07 12:57:34 UTC | @0xSero | https://x.com/0xSero/status/2107817611987984641 | Will reassess in a week because he needs something less evil.
+- 2026-10-07 12:56:30 UTC | @0xSero | https://x.com/0xSero/status/2107817342507929810 | Says he likes it.
+- 2026-10-07 12:54:00 UTC | @no_stp_on_snek | https://x.com/no_stp_on_snek/status/2107816711470592214 | Got the Codex reset last night and is already at 0 after work that used to last three days.
+- 2026-10-07 12:48:44 UTC | @grok | https://x.com/grok/status/2107815387001655318 | For this 2x DGX Spark TensorFold recipe the server defaults to a 32,768-token reply cap, with decode benchmarked to 58k tokens.
+- 2026-10-07 12:48:23 UTC | @0xSero | https://x.com/0xSero/status/2107815301534659014 | Jokes that the post loses all his followers instantly.
+- 2026-10-07 12:47:22 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107815046055387237 | Says yes, it is integrated into sparkDash.
+- 2026-10-07 12:47:17 UTC | @SabinDeus | https://x.com/SabinDeus/status/2107815022852440191 | Asks whether Strata is faster on DGX Spark than vLLM despite a single memory pool.
+- 2026-10-07 12:46:16 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107814767914336285 | Calls what they did a pretty insane big flex move.
+- 2026-10-07 12:39:40 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107813105317351647 | Cheers “Let’s goooo”.
+- 2026-10-07 12:20:03 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107808170936508746 | GLM-5.3-Flash can do anything, so enjoy.
+- 2026-10-07 12:15:55 UTC | @NFT_Chen | https://x.com/NFT_Chen/status/2107807129944105260 | TensorFold on two DGX Sparks offers NVFP4 full Qwen3.8-Flash-Next at ~69 tok/s or INT4-AutoRound at ~88 tok/s with 1M context.
+- 2026-10-07 12:11:31 UTC | @jayleaton | https://x.com/jayleaton/status/2107806022148730975 | Replies “Sorry not sorry”.
+- 2026-10-07 11:59:44 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107803058109636723 | Asks which rack-mount shelves they use.
+- 2026-10-07 11:57:14 UTC | @wikiwayne | https://x.com/wikiwayne/status/2107802427768410147 | Wired GLM-5.3-Flash into Blender 5.1 on a DGX Spark so a one-sentence brief becomes a rendered scene with no human viewport edits.
+- 2026-10-07 11:49:21 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107800444592656506 | Replies “lol”.
+- 2026-10-07 11:48:35 UTC | @sudoingX | https://x.com/sudoingX/status/2107800252229329154 | If Korean reports are right, Samsung is tying HBM supply to AMD using Samsung foundry, and memory is now the leverage as DGX Spark jumped from $3,999 to $6,950.
+- 2026-10-07 11:47:13 UTC | @0xSero | https://x.com/0xSero/status/2107799907134316604 | Needs a box to SSH into.
+- 2026-10-07 11:46:22 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2107799693413466445 | As far as she understands, Opus 5.5 is only for Grok bot.
+- 2026-10-07 11:45:06 UTC | @sudoingX | https://x.com/sudoingX/status/2107799374147559667 | Says he appreciates it.
+- 2026-10-07 11:44:11 UTC | @sudoingX | https://x.com/sudoingX/status/2107799144823996798 | On Flash-Next TensorFold uses 1 to 6 drafts a round with a 70% cutoff, and drafts never changed a token in 70 of 70.
+- 2026-10-07 11:38:05 UTC | @sudoingX | https://x.com/sudoingX/status/2107797607800340646 | Nobody replaces CUDA; it gets slowly abstracted away by PyTorch, Triton and Vulkan.
+- 2026-10-07 11:37:10 UTC | @sudoingX | https://x.com/sudoingX/status/2107797376924827911 | All three are arguing over who rewrites CUDA.
+- 2026-10-07 11:36:24 UTC | @sudoingX | https://x.com/sudoingX/status/2107797183722647600 | China has the models covered; somebody just has to rewrite CUDA by Friday.
+- 2026-10-07 11:34:45 UTC | @0xSero | https://x.com/0xSero/status/2107796768377413927 | Collecting and deeply analysing traces is making his work faster and will be training data when continual learning is solved.
+- 2026-10-07 11:33:40 UTC | @sudoingX | https://x.com/sudoingX/status/2107796496796234047 | GPUs are forever and motherboards are a phase: 3090s from step 1 still run at step 5.
+- 2026-10-07 11:31:57 UTC | @sudoingX | https://x.com/sudoingX/status/2107796063268856214 | Everything tuned for 24 GB runs better on 48 GB, where a 27B can go Q4 to Q8 with long context and a drafter.
+- 2026-10-07 11:30:49 UTC | @sudoingX | https://x.com/sudoingX/status/2107795781453480208 | Two DDR4 boxes talking over Ethernet is a great way to learn patience.
+- 2026-10-07 11:30:46 UTC | @AbdulazizSmdry | https://x.com/AbdulazizSmdry/status/2107795766324383791 | Thanks Mia for NVFP4 quality or INT4 extra speed on 2x DGX Sparks.
+- 2026-10-07 11:29:00 UTC | @0xSero | https://x.com/0xSero/status/2107795322877465067 | If you have a GPU he does not cover, install OpenCode, point it at his GitHub, and have it write and test a recipe.
+- 2026-10-07 11:28:39 UTC |
