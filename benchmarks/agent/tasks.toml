@@ -4211,7 +4211,9 @@ context_tokens = 262144
 topology = "remote"
 smoke_protocol = "openai"
 recipe_dir = "~/miaai-tf-qwen"
-image = "tensorfold-qwen38fn:zig-db28187"
+# No `image`: the currency gate checks a declared image against its registry, and
+# this one is built locally from the recipe (PULL=0), so it has none. The recipe
+# check above covers it, as for the GLM TensorFold arms.
 
 # #726: the latest of everything, with OpenCode's per-step output cap raised
 # from 16,384 to 65,536 tokens (the GLM server's own default, mt_default=65536).
