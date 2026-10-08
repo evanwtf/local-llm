@@ -4,7 +4,8 @@
 > [`results.jsonl`](results.jsonl), from 2026-09-22T04:13-0400 to
 > 2026-10-07T23:34-0400: 16 days of testing, 29 stack configurations. This page
 > was rewritten from scratch on 2026-10-08. The previous version (2026-10-07)
-> is in git history.
+> is in git history. **Updated 2026-10-08, 19:40 EDT** with [#997][i997]: the
+> pick on recipe v1.10.
 >
 > **The ledger has two halves that do not compare.** Until 2026-10-06 09:14 EDT,
 > OpenCode's `grep` and `glob` tools failed on every call in the client
@@ -16,15 +17,16 @@
 
 | you want | run | evidence |
 |---|---|---|
-| **A coding agent (the pick)** | **GLM-5.3-Flash EXL3 4bpw TensorFold quant on TensorFold v0.6.0**, [MiaAI-Lab recipe][r-tf-mia] v1.8 @`33b50fd` | 124 of 126 replay and hard-set trials passed over 3 runs on the fixed client ([#970][i970]). Fastest stack measured: sum of medians 4,111.1 s on 14 tasks. |
+| **A coding agent (the pick)** | **GLM-5.3-Flash EXL3 4bpw TensorFold quant on TensorFold v0.6.0**, [MiaAI-Lab recipe][r-tf-mia] v1.10 @`549fdc5` | 123 of 126 replay and hard-set trials passed over 3 runs on v1.10 ([#997][i997]), sum of medians 3,951.8 s on 14 tasks. On v1.8: 124 of 126 and 4,111.1 s ([#970][i970]). The two versions are the same within run-to-run noise. Fastest stack measured. |
 | The measured alternative | the same recipe with the **TR3 4bpw** checkpoint | 122 of 126 over the same 3 interleaved runs, 4,271.0 s (104% of the pick). |
 | Image input, or more than 262k tokens of context | DeepSeek-V4-Flash-Vision-Exp on vLLM, [MiaAI-Lab DSpark recipe][r-dsv4v] | 1M context, vision. 63 of 63 replay trials, at 272% of TensorFold's replay time. Broken client only (section 4). |
 | One Spark, not two | See the [single-Spark picks](../Cortex-X925-128GB-GB10/RECOMMENDATIONS.md) | Qwen3.8-Flash-Next NVFP4 fits one node. |
 
 **Not recommended for coding on this cluster: Qwen3.8-Flash-Next.** Every
 Qwen stack passes nearly every trial, but none finishes the set in less than
-188% of the pick's time. The time goes to reasoning: a median of about 14,000
-reasoning tokens per trial, against the pick's 2,800 (section 3).
+188% of the pick's time on v1.8 (196% on v1.10). The time goes to reasoning: a
+median of about 14,000 reasoning tokens per trial, against the pick's 2,800 on
+v1.8 and 3,500 on v1.10 (section 3).
 
 **What "best" means here.** Each stack runs [OpenCode][opencode] as a coding
 agent on real tasks, and must pass the task's test suite. We rank on pass rate
@@ -146,8 +148,8 @@ trials a run. Task details are in
 
 [`MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks-TensorFold`][r-tf-mia] runs
 [TensorFold][tensorfold] v0.6.0, TensorFold's Python engine, plus the recipe's
-82 patches at v1.8 @`33b50fd`. The image tag is
-`tensorfold-glm53:v0.6.0-31557ed1cef6`, which carries the hash of the patches;
+96 patches at v1.10 @`549fdc5` (v1.8 @`33b50fd` had 82). The image tag is
+`tensorfold-glm53:v0.6.0-a1897d591f70` (v1.8: `v0.6.0-31557ed1cef6`), which carries the hash of the patches;
 it runs in NVIDIA's PyTorch container (`nvcr.io/nvidia/pytorch:26.07-py3`). We
 built it locally (`PULL=0`). It serves the TensorFold quant,
 [`Mia-AiLab/GLM-5.3-Flash-EXL3-4bpw-TensorFold`][w-tfq] @`76c0b517`: the
@@ -191,6 +193,33 @@ worse on passes and its sum of medians is at most 5% above A's. 124 ≥ 122, and
   95.7% of TR3's), but its median single trial was longer. It is faster on the
   long tasks, which dominate the sum.
 
+### #997: recipe v1.10
+
+[#997][i997] ran the pick, unchanged weights, on recipe v1.10. v1.9 turned on
+`TENSORFOLD_NUCLEUS_UNION=1` by default: a fix for sampled decoding, which
+OpenCode uses because it sends this model no temperature. Three runs, the same
+client host and image as #970. Bar fixed before the first run: one run counts
+as faster below 3,900 s; between that and 4,154 s it is no change.
+
+| | v1.8 ([#970][i970]) | v1.10 ([#997][i997]) |
+|---|---|---|
+| passed, by verdict | 124/126 (42, 41, 41) | 123/126 (42, 41, 40) |
+| 95% CI (Wilson) | 94.4–99.6% | 93.2–99.2% |
+| sum of medians, 14 tasks × 9 trials | 4,111.1 s | 3,951.8 s (96.1%) |
+| sum of medians, per run | 4,154.1 · 4,123.0 · 4,062.5 s | 3,882.8 · 3,914.7 · 4,124.4 s |
+| hidden tests passed | 878/1,170 (75.0%) | 841/1,170 (71.9%) |
+| median reasoning tokens a trial | 2,815.5 | 3,454.0 |
+
+**No change.** One v1.10 run is under the bar, by 17.2 s; the other two are in
+the no-change band. The pass-rate intervals overlap. v1.10 is the pick's
+recipe now because the preflight runs the latest recipe, not because it
+measured faster.
+
+- **Failures.** `replay-gmail-api-sources-hidden` trial 1 failed in runs 2 and
+  3, on 1 of 16 tests each time. In run 3, `replay-span-web-ui` trial 2 passed
+  its suite, but the agent edited a test file.
+- **Spread.** The v1.10 runs spread 6.2%, against v1.8's 2.3%.
+
 **TR3's original repository has left the Hub.** Download it from its author,
 [`brandonmusic/GLM-5.3-Flash-tr3-4bpw`][w-tr3] @`a5fee929`, which is
 byte-identical by sha256 to `9eaebb7` (#937). Section 6 shows the override.
@@ -198,7 +227,7 @@ byte-identical by sha256 to `9eaebb7` (#937). Section 6 shows the override.
 **What to keep in mind:**
 
 - **The engine is new and the recipe carries it.** TensorFold has few users,
-  and the recipe's 82 patches sit on v0.6.0. TensorFold has since moved to
+  and the recipe's 96 patches (v1.10) sit on v0.6.0. TensorFold has since moved to
   v0.6.6 on its Python line and to a native Zig engine in v1.0 (2026-10-07).
   The native engine does not yet serve GLM on the GB10 ([#986][i986]). The
   recipe's patches did not apply to v0.6.5 (28 of 70 failed), so the pick
@@ -210,11 +239,14 @@ byte-identical by sha256 to `9eaebb7` (#937). Section 6 shows the override.
 
 ## 3. Every stack on the fixed client
 
-Five stacks ran the 14 replay + hard tasks after the #968 fix:
+Six stack configurations ran the 14 replay + hard tasks after the #968 fix.
+Percentages are of the pick's v1.8 measurement, the reference for the rows
+below it:
 
 | stack (backend) | runs | passed | 95% CI | sum of medians | % of the pick | median reasoning tokens a trial | hidden tests | replay files restored verbatim | screen |
 |---|---|---|---|---|---|---|---|---|---|
-| **GLM TensorFold quant, MiaAI v1.8** (`glm53fexl3tfqmiaaiv18dual2xrc`), the pick | 3 | 124/126 | 94.4–99.6% | **4,111.1 s** | 100% | 2,815.5 | 878/1,170 (75.0%) | 12/927 (1.3%) | keep |
+| **GLM TensorFold quant, MiaAI v1.10** (`glm53fexl3tfqmiaaiv110dual2xrc`), the pick ([#997][i997]) | 3 | 123/126 | 93.2–99.2% | **3,951.8 s** | 96% | 3,454.0 | 841/1,170 (71.9%) | 15/927 (1.6%) | keep |
+| GLM TensorFold quant, MiaAI v1.8 (`glm53fexl3tfqmiaaiv18dual2xrc`), the pick until #997 | 3 | 124/126 | 94.4–99.6% | **4,111.1 s** | 100% | 2,815.5 | 878/1,170 (75.0%) | 12/927 (1.3%) | keep |
 | GLM TensorFold TR3, MiaAI v1.8 (`glm53fexl3tfmiaaiv18dual2xrc`) | 3 | 122/126 | 92.1–98.8% | 4,271.0 s | 104% | 3,319.5 | 851/1,170 (72.7%) | 15/927 (1.6%) | keep |
 | Qwen3.8-Flash-Next NVFP4 on TensorFold Zig, MiaAI ([#897][i897]) (`qwen38fnnvfp4tfmiaaidual2xrc`) | 1, stopped at 25 of 42 | 25/25 | 86.7–100% | 7,746.8 s | 188% | 13,991 | 160/194 (82.5%) | 6/167 (3.6%) | stopped early |
 | Qwen3.8-Flash-Next hibrid48, thinking on, vLLM v5.2 ([#977][i977]) (`qwen38fnhibrid48v52dual2xrc`) | 1, stopped at 14 of 42 | 13/14 | 68.5–98.7% | 8,138.6 s | 198% | 15,570 | 87/101 (86.1%) | 6/86 (7.0%) | stopped early |
@@ -547,6 +579,7 @@ was built and measured on it.
 [i968]: https://github.com/evanwtf/local-llm/issues/968
 [i969]: https://github.com/evanwtf/local-llm/issues/969
 [i970]: https://github.com/evanwtf/local-llm/issues/970
+[i997]: https://github.com/evanwtf/local-llm/issues/997
 [i977]: https://github.com/evanwtf/local-llm/issues/977
 [i986]: https://github.com/evanwtf/local-llm/issues/986
 [i992]: https://github.com/evanwtf/local-llm/issues/992
