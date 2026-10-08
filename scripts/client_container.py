@@ -33,9 +33,13 @@ decision that would otherwise be made wrong silently:
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import pathlib
 import sys
+import tomllib
+import urllib.parse
+from typing import Any
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 sys.path.insert(
@@ -135,6 +139,91 @@ def check_image_current(image: str, run: currency.Runner = currency._run) -> str
             "`uv run python scripts/build_client_image.py`"
         )
     return currency.gate("client-image", currency.pin_items(pins, run))
+
+
+#: Where run.py reads the backend declarations, relative to the repository.
+TASKS_FILE = pathlib.Path(__file__).resolve().parents[1] / "benchmarks/agent/tasks.toml"
+#: The OpenCode config the container mounts read-only (MOUNTS below).
+OPENCODE_CONFIG = pathlib.Path(".config/opencode/opencode.json")
+
+
+def _port(url: str) -> int | None:
+    parsed = urllib.parse.urlparse(url)
+    try:
+        if parsed.port is not None:
+            return parsed.port
+    except ValueError:
+        return None
+    return {"http": 80, "https": 443}.get(parsed.scheme)
+
+
+def check_opencode_provider(
+    name: str,
+    backend: dict[str, Any] | None,
+    config_text: str | None,
+    config_path: pathlib.Path,
+) -> str | None:
+    """None if OpenCode can reach this backend, else the refusal. #956
+
+    On 2026-10-05 a batch ran with the backend's provider missing from the
+    client's opencode.json: every trial failed in about 2 s with OpenCode's
+    "UnknownError: Unexpected server error", and the rows read as model
+    failures. The provider must exist, declare the model, and point at the
+    backend's port.
+    """
+    if backend is None:
+        return f"preflight: backend {name!r} is not in {TASKS_FILE.name}"
+    model = backend.get("opencode_model")
+    if not model:
+        return None
+    provider_id, _, model_id = str(model).partition("/")
+    if config_text is None:
+        return f"preflight: cannot read the OpenCode config {config_path}"
+    try:
+        config = json.loads(config_text)
+    except ValueError as exc:
+        return f"preflight: cannot parse the OpenCode config {config_path}: {exc}"
+    providers = config.get("provider") if isinstance(config, dict) else None
+    provider = providers.get(provider_id) if isinstance(providers, dict) else None
+    if not isinstance(provider, dict):
+        return (
+            f"preflight: backend {name!r} uses OpenCode provider {provider_id!r}, "
+            f"which {config_path} does not define. Add its provider block (the "
+            "machine's RECOMMENDATIONS.md shows one), or every trial fails in "
+            "seconds and reads as a model failure (#956)"
+        )
+    models = provider.get("models")
+    if not isinstance(models, dict) or model_id not in models:
+        return (
+            f"preflight: OpenCode provider {provider_id!r} in {config_path} does "
+            f"not declare model {model_id!r}, which backend {name!r} uses (#956)"
+        )
+    options = provider.get("options")
+    base = options.get("baseURL") if isinstance(options, dict) else None
+    want = _port(str(backend.get("base_url", "")))
+    have = _port(str(base)) if base else None
+    if want is not None and have is not None and want != have:
+        return (
+            f"preflight: OpenCode provider {provider_id!r} points at port {have} "
+            f"({base}), but backend {name!r} serves on port {want} (#956)"
+        )
+    return None
+
+
+def check_provider_for(
+    command: list[str], home: pathlib.Path, tasks_file: pathlib.Path = TASKS_FILE
+) -> str | None:
+    """`check_opencode_provider` for the run.py arguments, from the mounted files."""
+    name = backend_of(command)
+    if name is None:
+        return None
+    backends = tomllib.loads(tasks_file.read_text()).get("backend", {})
+    path = home / OPENCODE_CONFIG
+    try:
+        text: str | None = path.read_text()
+    except OSError:
+        text = None
+    return check_opencode_provider(name, backends.get(name), text, path)
 
 
 #: Host paths the harness reads or writes, mounted at the same path under the
@@ -423,8 +512,10 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 1
     if not args.print:
-        why = check_image_current(args.image) or check_facts_current(
-            args.facts, command
+        why = (
+            check_image_current(args.image)
+            or check_facts_current(args.facts, command)
+            or check_provider_for(command, args.home)
         )
         if why:
             print(why, file=sys.stderr)
