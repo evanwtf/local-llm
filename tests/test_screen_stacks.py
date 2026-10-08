@@ -154,3 +154,67 @@ def test_a_stacks_runs_pool_into_one_row() -> None:
         "dsv4vision",
         "qwen38fnnvfp4",
     ]
+
+
+# --since: the #968 client fix splits the cluster ledger at 2026-10-06 09:14 EDT,
+# and rows on either side do not compare. Rows record UTC ("+0000"); the cut is
+# given in New York time. A string compare puts 13:10+0000 (09:10 EDT, before
+# the cut) after 09:14-0400, so the filter must compare instants.
+def test_since_compares_instants_not_strings() -> None:
+    rows = [
+        {"started": "2026-10-06T13:10:00+0000", "task": "a"},  # 09:10 EDT: before
+        {"started": "2026-10-06T13:20:00+0000", "task": "b"},  # 09:20 EDT: after
+    ]
+    kept = ss.since(rows, "2026-10-06T09:14:00-0400")
+    assert [r["task"] for r in kept] == ["b"]
+
+
+def test_since_keeps_a_row_started_exactly_at_the_cut() -> None:
+    rows = [{"started": "2026-10-06T13:14:00+0000", "task": "a"}]
+    assert ss.since(rows, "2026-10-06T09:14:00-0400") == rows
+
+
+def test_since_drops_a_row_with_no_parseable_start() -> None:
+    rows = [{"task": "a"}, {"started": "", "task": "b"}, {"started": "x", "task": "c"}]
+    assert ss.since(rows, "2026-10-06T09:14:00-0400") == []
+
+
+def test_since_refuses_a_bound_without_an_offset() -> None:
+    import pytest
+
+    with pytest.raises(ValueError, match="offset"):
+        ss.since([], "2026-10-06T09:14:00")
+
+
+def test_before_is_the_exact_complement_of_since_at_one_cut() -> None:
+    rows = [
+        {"started": "2026-10-06T13:13:59+0000", "task": "a"},  # 09:13:59 EDT
+        {"started": "2026-10-06T13:14:00+0000", "task": "b"},  # 09:14:00 EDT
+        {"started": "2026-10-06T09:20:00+0000", "task": "c"},  # 05:20 EDT
+    ]
+    cut = "2026-10-06T09:14:00-0400"
+    assert [r["task"] for r in ss.before(rows, cut)] == ["a", "c"]
+    assert [r["task"] for r in ss.since(rows, cut)] == ["b"]
+
+
+def test_before_refuses_a_bound_without_an_offset() -> None:
+    import pytest
+
+    with pytest.raises(ValueError, match="offset"):
+        ss.before([], "2026-10-06")
+
+
+# Reasoning volume, not decode speed, separated Qwen from GLM on the cluster
+# (#897: a median of 13,991 reasoning tokens a trial against the pick's
+# 2,815.5), so the screen reports it beside the time.
+def test_verdict_carries_the_median_reasoning_tokens_a_trial() -> None:
+    rows = batch_rows("b-glm", "glm53exl3", 1856.9)
+    for i, r in enumerate(rows):
+        r["reasoning_tokens"] = 1000 + 100 * i  # 21 rows: median is the 11th
+    v = verdicts(rows)["b-glm"]
+    assert v.reasoning_median == 2000.0
+
+
+def test_reasoning_median_is_none_when_no_row_records_it() -> None:
+    v = verdicts(batch_rows("b-glm", "glm53exl3", 1856.9))["b-glm"]
+    assert v.reasoning_median is None
