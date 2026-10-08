@@ -238,6 +238,7 @@ def _batch(tmp_path, monkeypatch, smoke_failures):
     facts.write_text("{}")
     monkeypatch.setattr(mod, "check_image_current", lambda image: None)
     monkeypatch.setattr(mod, "check_facts_current", lambda facts, command: None)
+    monkeypatch.setattr(mod, "check_provider_for", lambda command, home: None)
     smoked, launched = [], []
 
     def smoke(image, **kw):
@@ -288,3 +289,91 @@ def test_the_harness_and_the_self_test_share_one_container_posture():
     assert argv[: argv.index("-v")] == base[: base.index("-v")]
     for entry in mod.BASE_ENV:
         assert entry in argv and entry in base
+
+
+# #956: on 2026-10-05 a batch started with the backend's OpenCode provider
+# (`tfmia8888`) missing from the client's opencode.json. Every trial failed in
+# ~2 s with "UnknownError: Unexpected server error", and the rows read as model
+# failures. The preflight now refuses that before the first trial.
+_BACKEND = {
+    "base_url": "http://127.0.0.1:8888",
+    "opencode_model": "tfmia8888/GLM-5.3-Flash-EXL3",
+}
+_CONFIG = """{
+  "provider": {
+    "tfmia8888": {
+      "options": {"baseURL": "http://head.example:8888/v1"},
+      "models": {"GLM-5.3-Flash-EXL3": {}}
+    }
+  }
+}"""
+_PATH = pathlib.Path("/home/someone/.config/opencode/opencode.json")
+
+
+def test_provider_check_passes_when_provider_model_and_port_match():
+    assert mod.check_opencode_provider("b", _BACKEND, _CONFIG, _PATH) is None
+
+
+def test_provider_check_refuses_a_missing_provider_and_names_it():
+    backend = {**_BACKEND, "opencode_model": "vllm8001/some-model"}
+    why = mod.check_opencode_provider("b", backend, _CONFIG, _PATH)
+    assert why is not None
+    assert "vllm8001" in why and str(_PATH) in why
+
+
+def test_provider_check_refuses_a_model_the_provider_does_not_declare():
+    backend = {**_BACKEND, "opencode_model": "tfmia8888/Qwen3.8-Flash-Next"}
+    why = mod.check_opencode_provider("b", backend, _CONFIG, _PATH)
+    assert why is not None and "Qwen3.8-Flash-Next" in why
+
+
+def test_provider_check_refuses_a_port_that_differs_from_the_backend():
+    backend = {**_BACKEND, "base_url": "http://127.0.0.1:8030"}
+    why = mod.check_opencode_provider("b", backend, _CONFIG, _PATH)
+    assert why is not None and "8030" in why and "8888" in why
+
+
+def test_provider_check_refuses_an_unreadable_config():
+    why = mod.check_opencode_provider("b", _BACKEND, None, _PATH)
+    assert why is not None and str(_PATH) in why
+    why = mod.check_opencode_provider("b", _BACKEND, "{not json", _PATH)
+    assert why is not None and str(_PATH) in why
+
+
+def test_provider_check_refuses_an_unknown_backend():
+    why = mod.check_opencode_provider("nope", None, _CONFIG, _PATH)
+    assert why is not None and "nope" in why
+
+
+def test_provider_check_skips_a_backend_with_no_opencode_model():
+    backend = {"base_url": "http://127.0.0.1:8888"}
+    assert mod.check_opencode_provider("b", backend, _CONFIG, _PATH) is None
+
+
+def test_provider_check_reads_the_files_the_container_mounts(tmp_path):
+    (tmp_path / ".config" / "opencode").mkdir(parents=True)
+    (tmp_path / ".config" / "opencode" / "opencode.json").write_text(_CONFIG)
+    tasks = tmp_path / "tasks.toml"
+    tasks.write_text(
+        '[backend.good]\nbase_url = "http://127.0.0.1:8888"\n'
+        'opencode_model = "tfmia8888/GLM-5.3-Flash-EXL3"\n'
+        '[backend.bad]\nbase_url = "http://127.0.0.1:8888"\n'
+        'opencode_model = "absent/x"\n'
+    )
+    assert mod.check_provider_for(["--backend", "good"], tmp_path, tasks) is None
+    assert "absent" in (
+        mod.check_provider_for(["--backend", "bad"], tmp_path, tasks) or ""
+    )
+    # No --backend: nothing to check here; run.py validates its own arguments.
+    assert mod.check_provider_for(["--trials", "3"], tmp_path, tasks) is None
+
+
+def test_a_missing_provider_refuses_the_batch_before_any_trial(tmp_path, monkeypatch):
+    """#956: the refusal comes before the self-test and the launch."""
+    argv, smoked, launched = _batch(tmp_path, monkeypatch, [])
+    monkeypatch.setattr(
+        mod, "check_provider_for", lambda command, home: "preflight: no provider"
+    )
+    assert mod.main([*argv, "--", "--backend", "b"]) == 1
+    assert smoked == []
+    assert launched == []
