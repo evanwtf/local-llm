@@ -20,12 +20,18 @@ run-time early stop (``benchmarks/agent/screening.py``). A timeout counts at
 its own.
 
     uv run python scripts/screen_stacks.py --results hardware/<machine>/results.jsonl
+
+``--since`` keeps the rows started at or after an instant, and ``--before`` the
+rows started before one. The cluster needs them: the #968 client fix splits its
+ledger at 2026-10-06 09:14 EDT, and runs on either side of that cut do not
+compare.
 """
 
 from __future__ import annotations
 
 import argparse
 import dataclasses
+import datetime
 import logging
 import pathlib
 import statistics
@@ -57,6 +63,45 @@ class Verdict:
     result: str  # "keep", "cut", or "screened out"
     reason: str
     runs: int = 1
+    #: Median reasoning tokens a trial, over the rows that record them.
+    reasoning_median: float | None = None
+
+
+def _instant(stamp: str) -> datetime.datetime | None:
+    try:
+        t = datetime.datetime.fromisoformat(stamp)
+    except ValueError:
+        return None
+    return t if t.tzinfo else None
+
+
+def _split(rows: Iterable[Row], bound: str, flag: str) -> tuple[list[Row], list[Row]]:
+    """(rows started before ``bound``, rows started at or after it), as instants.
+
+    Rows record UTC and a bound is usually New York time, so a string compare
+    is wrong for four hours either side of a cut. A row with no parseable start
+    is dropped: it cannot be placed on either side.
+    """
+    cut = _instant(bound)
+    if cut is None:
+        raise ValueError(f"{flag} needs an ISO timestamp with an offset: {bound!r}")
+    early: list[Row] = []
+    late: list[Row] = []
+    for r in rows:
+        t = _instant(r.get("started") or "")
+        if t is not None:
+            (late if t >= cut else early).append(r)
+    return early, late
+
+
+def since(rows: Iterable[Row], bound: str) -> list[Row]:
+    """Rows started at or after ``bound``."""
+    return _split(rows, bound, "--since")[1]
+
+
+def before(rows: Iterable[Row], bound: str) -> list[Row]:
+    """Rows started before ``bound``: the complement of ``since`` at one cut."""
+    return _split(rows, bound, "--before")[0]
 
 
 def _batches(
@@ -80,6 +125,16 @@ def _batches(
         for b, rs in screening.runs(pool, suites).items()
         if {r["task"] for r in rs} == wanted
     }
+
+
+def _reasoning_median(rows: Sequence[Row]) -> float | None:
+    got = [
+        float(r["reasoning_tokens"])
+        for r in rows
+        if isinstance(r.get("reasoning_tokens"), (int, float))
+        and not isinstance(r.get("reasoning_tokens"), bool)
+    ]
+    return statistics.median(got) if got else None
 
 
 def _sum_medians(rows: Sequence[Row], timeout: float) -> float:
@@ -112,8 +167,10 @@ def screen(
     for key, rs in _batches(rows, tasks, client, suites).items():
         by_stack.setdefault(rs[0].get("backend", "?"), []).append((key, rs))
     stats = []
+    reasoning: dict[str, float | None] = {}
     for backend, stack_runs in by_stack.items():
         rs = [r for _, run_rows in stack_runs for r in run_rows]
+        reasoning[backend] = _reasoning_median(rs)
         label = stack_runs[0][0] if len(stack_runs) == 1 else f"{len(stack_runs)} runs"
         passes = sum(1 for r in rs if not screening.is_failure(r))
         stats.append(
@@ -203,7 +260,10 @@ def screen(
                     nruns,
                 )
             )
-    return kept + cut + out
+    return [
+        dataclasses.replace(v, reasoning_median=reasoning[v.backend])
+        for v in kept + cut + out
+    ]
 
 
 def main() -> int:
@@ -232,10 +292,22 @@ def main() -> int:
     p.add_argument("--keep-min", type=int, default=3)
     p.add_argument("--keep-max", type=int, default=5)
     p.add_argument("--band", type=float, default=0.25)
+    p.add_argument(
+        "--since",
+        help="ISO timestamp with an offset; only rows started at or after it",
+    )
+    p.add_argument(
+        "--before",
+        help="ISO timestamp with an offset; only rows started before it",
+    )
     args = p.parse_args()
 
     provenance.configure()
     rows = results.trials(args.results)
+    if args.since:
+        rows = since(rows, args.since)
+    if args.before:
+        rows = before(rows, args.before)
     suites = screening.suite_map(tomllib.loads(args.tasks_file.read_text()))
     names = {
         r["task"] for r in rows if r.get("client") == args.client and r.get("task")
@@ -276,12 +348,13 @@ def main() -> int:
             args.client,
         )
         logger.info(
-            "| result | backend | runs | first started | passed | sum of medians | why |"
+            "| result | backend | runs | first started | passed | sum of medians "
+            "| median reasoning tokens | why |"
         )
-        logger.info("|---|---|---|---|---|---|---|")
+        logger.info("|---|---|---|---|---|---|---|---|")
         for v in verdicts:
             logger.info(
-                "| %s | `%s` | %s | %s | %d/%d | %.1f s | %s |",
+                "| %s | `%s` | %s | %s | %d/%d | %.1f s | %s | %s |",
                 v.result,
                 v.backend,
                 f"1 (`{v.batch}`)" if v.runs == 1 else str(v.runs),
@@ -289,6 +362,7 @@ def main() -> int:
                 v.passes,
                 v.rows,
                 v.sum_medians,
+                "—" if v.reasoning_median is None else f"{v.reasoning_median:,.1f}",
                 v.reason,
             )
     return 0
