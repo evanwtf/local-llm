@@ -46,6 +46,7 @@ sys.path.insert(0, str(HERE.parent / "benchmarks" / "agent"))
 import provenance
 import results
 import screening
+import sizing
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +66,17 @@ class Verdict:
     runs: int = 1
     #: Median reasoning tokens a trial, over the rows that record them.
     reasoning_median: float | None = None
+    #: Wilson 95% interval of the pass rate (#866).
+    ci_low: float = 0.0
+    ci_high: float = 1.0
+    #: Whether that interval overlaps the leader's: if it does, one run cannot
+    #: say this stack passes less often than the leader.
+    overlaps_leader: bool = True
+    #: Replay files restored byte-for-byte, of the files the replay reverted,
+    #: over every trial. gmail-archive is public, so a pass may be partly
+    #: recall; this is the caveat beside the pass rate (#866).
+    verbatim_files: int = 0
+    recall_files: int = 0
 
 
 def _instant(stamp: str) -> datetime.datetime | None:
@@ -137,6 +149,19 @@ def _reasoning_median(rows: Sequence[Row]) -> float | None:
     return statistics.median(got) if got else None
 
 
+def _recall(rows: Sequence[Row]) -> tuple[int, int]:
+    """(files restored verbatim, files reverted), over every replay trial."""
+    verbatim = total = 0
+    for r in rows:
+        replay = r.get("replay")
+        recall = replay.get("recall") if isinstance(replay, dict) else None
+        for f in recall or []:
+            if isinstance(f, dict):
+                total += 1
+                verbatim += f.get("verbatim") is True
+    return verbatim, total
+
+
 def _sum_medians(rows: Sequence[Row], timeout: float) -> float:
     by_task: dict[str, list[float]] = {}
     for r in rows:
@@ -168,9 +193,11 @@ def screen(
         by_stack.setdefault(rs[0].get("backend", "?"), []).append((key, rs))
     stats = []
     reasoning: dict[str, float | None] = {}
+    recall: dict[str, tuple[int, int]] = {}
     for backend, stack_runs in by_stack.items():
         rs = [r for _, run_rows in stack_runs for r in run_rows]
         reasoning[backend] = _reasoning_median(rs)
+        recall[backend] = _recall(rs)
         label = stack_runs[0][0] if len(stack_runs) == 1 else f"{len(stack_runs)} runs"
         passes = sum(1 for r in rs if not screening.is_failure(r))
         stats.append(
@@ -260,10 +287,24 @@ def screen(
                     nruns,
                 )
             )
-    return [
-        dataclasses.replace(v, reasoning_median=reasoning[v.backend])
-        for v in kept + cut + out
-    ]
+    lead_low = sizing.wilson_lower(leader[3], leader[4])
+    lead_high = sizing.wilson_upper(leader[3], leader[4])
+    done = []
+    for v in kept + cut + out:
+        low = sizing.wilson_lower(v.passes, v.rows)
+        high = sizing.wilson_upper(v.passes, v.rows)
+        done.append(
+            dataclasses.replace(
+                v,
+                reasoning_median=reasoning[v.backend],
+                ci_low=low,
+                ci_high=high,
+                overlaps_leader=low <= lead_high and lead_low <= high,
+                verbatim_files=recall[v.backend][0],
+                recall_files=recall[v.backend][1],
+            )
+        )
+    return done
 
 
 def main() -> int:
@@ -348,21 +389,26 @@ def main() -> int:
             args.client,
         )
         logger.info(
-            "| result | backend | runs | first started | passed | sum of medians "
-            "| median reasoning tokens | why |"
+            "| result | backend | runs | first started | passed | 95% CI "
+            "| CI overlaps the leader's | sum of medians | median reasoning tokens "
+            "| replay files restored verbatim | why |"
         )
-        logger.info("|---|---|---|---|---|---|---|---|")
+        logger.info("|---|---|---|---|---|---|---|---|---|---|---|")
         for v in verdicts:
             logger.info(
-                "| %s | `%s` | %s | %s | %d/%d | %.1f s | %s | %s |",
+                "| %s | `%s` | %s | %s | %d/%d | %.1f–%.1f%% | %s | %.1f s | %s | %s | %s |",
                 v.result,
                 v.backend,
                 f"1 (`{v.batch}`)" if v.runs == 1 else str(v.runs),
                 v.started[:10],
                 v.passes,
                 v.rows,
+                100 * v.ci_low,
+                100 * v.ci_high,
+                "yes" if v.overlaps_leader else "no",
                 v.sum_medians,
                 "—" if v.reasoning_median is None else f"{v.reasoning_median:,.1f}",
+                f"{v.verbatim_files}/{v.recall_files}" if v.recall_files else "—",
                 v.reason,
             )
     return 0

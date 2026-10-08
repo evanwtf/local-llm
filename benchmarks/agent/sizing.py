@@ -42,6 +42,18 @@ logger = logging.getLogger(__name__)
 Z95 = 1.959963984540054
 
 
+def _wilson(passes: int, trials: int, z: float) -> tuple[float, float]:
+    p = passes / trials
+    z2 = z * z
+    centre = (p + z2 / (2 * trials)) / (1 + z2 / trials)
+    half = (
+        z
+        * math.sqrt(p * (1 - p) / trials + z2 / (4 * trials * trials))
+        / (1 + z2 / trials)
+    )
+    return centre, half
+
+
 def wilson_lower(passes: int, trials: int, z: float = Z95) -> float:
     """Lower bound of the Wilson score interval.
 
@@ -51,15 +63,20 @@ def wilson_lower(passes: int, trials: int, z: float = Z95) -> float:
     """
     if trials <= 0:
         return 0.0
-    p = passes / trials
-    z2 = z * z
-    centre = (p + z2 / (2 * trials)) / (1 + z2 / trials)
-    half = (
-        z
-        * math.sqrt(p * (1 - p) / trials + z2 / (4 * trials * trials))
-        / (1 + z2 / trials)
-    )
+    centre, half = _wilson(passes, trials, z)
     return max(0.0, centre - half)
+
+
+def wilson_upper(passes: int, trials: int, z: float = Z95) -> float:
+    """Upper bound of the Wilson score interval; 1.0 when there are no trials.
+
+    The pair says whether two pass rates can be told apart: where two
+    intervals overlap, the ranking between them is not established (#866).
+    """
+    if trials <= 0 or passes >= trials:
+        return 1.0  # exact; the arithmetic lands a hair under it
+    centre, half = _wilson(passes, trials, z)
+    return min(1.0, centre + half)
 
 
 def trials_for(target: float, z: float = Z95) -> int:
