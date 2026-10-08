@@ -4081,6 +4081,22 @@ topology = "remote"
 smoke_protocol = "openai"
 recipe_dir = "~/miaai-tf-glm"
 
+# #999 (operator-approved 2026-10-08): SparkGLM, the NVIDIA NVFP4 weights on Enntity's Atlas fork.
+[backend.glm53fnvfp4sparkglmdual2xrc]
+description = "#999: GLM-5.3-Flash NVFP4 (nvidia/GLM-5.3-Flash-NVFP4 @423acf37) with incoai/GLM-5.3-Flash-DFlash2 @7d74cdd8 drafts, across TWO DGX Sparks via Enntity/sparkglm @cd6b47d on the Atlas engine fork Enntity/atlas @7838b34c (branch sparkglm/atlas-20261007-strings; AGPL-3.0), image built locally from source (BUILD=1), tagged ghcr.io/enntity/atlas-sparkglm:7f3caf44f308 but never pulled. Tensor and expert parallel over RoCE, FP8-latent KV pool shared with the prefix cache, recipe default profile 4x512k (4 requests, 512K each), GPU_MEMORY_UTILIZATION default, prefix cache on disk off, display carveout off; FABRIC_HCA set to the cabled port. The engine listens on loopback only, so a plain TCP relay on the head's LAN address carries the remote client to the same port. reasoning_effort low sent per request by the client; no temperature sent. REMOTE CLIENT (#562/#649), 12 GiB kernel-enforced client container; OpenCode output cap 32,768, context 262,144 (as the other cluster arms)"
+tier = "gb10-spark-x2"
+base_url = "http://127.0.0.1:8893"
+auth_token = "local"
+engine = "atlas"
+model = "glm-5.3-flash-atlas"
+active_params_b = 18
+aider_model = "openai/glm-5.3-flash-atlas"
+opencode_model = "atlas8893/glm-5.3-flash-atlas"
+context_tokens = 262144
+topology = "remote"
+smoke_protocol = "openai"
+recipe_dir = "~/sparkglm"
+
 # #997 (operator go 2026-10-08): the cluster pick on recipe v1.10. Its control is
 # glm53fexl3tfqmiaaiv18dual2xrc: the same weights, client host and image, recipe v1.8.
 [backend.glm53fexl3tfqmiaaiv110dual2xrc]
