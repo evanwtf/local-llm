@@ -6126,6 +6126,8 @@ def main():
                 args.batch,
                 args.timeout,
                 suites=screening.suite_map(cfg),
+                # #992: a leader from a client whose tools worked like ours.
+                tools_broken=screening.image_tools_broken(preflight.client_image()),
             )
             lead = leaders[client]
             if lead is None:

@@ -197,6 +197,23 @@ def _when(row: Row) -> datetime.datetime:
     return datetime.datetime.fromisoformat(row["started"])
 
 
+def image_tools_broken(image: str | None) -> bool:
+    """Whether a client image ran OpenCode with grep and glob failing. #968
+
+    The images before the fix carried no ripgrep, and every grep and glob call
+    failed; the fixed images declare ``ripgrep=``. A row with no image ran on
+    bare metal, where OpenCode's own ripgrep worked.
+    """
+    return bool(image) and "ripgrep=" not in str(image)
+
+
+def _row_image(row: Row) -> str | None:
+    env = row.get("env")
+    machine = env.get("client_machine") if isinstance(env, dict) else None
+    image = machine.get("client_image") if isinstance(machine, dict) else None
+    return image if isinstance(image, str) else None
+
+
 def pick_leader(
     history: Iterable[Row],
     tasks: Sequence[str],
@@ -204,8 +221,13 @@ def pick_leader(
     exclude_batch: str | None,
     timeout: float = 1800.0,
     suites: dict[str, str] | None = None,
+    tools_broken: bool | None = None,
 ) -> Leader | None:
     """The best earlier run that ran every one of ``tasks`` on ``client``.
+
+    ``tools_broken``, when given, keeps only runs whose client's tools worked
+    the same way as this run's (``image_tools_broken``). Without it, the
+    cluster judged fixed-client runs against a broken-client leader (#992).
 
     None when no run qualifies; the caller runs without an early stop.
     """
@@ -218,6 +240,7 @@ def pick_leader(
         and r.get("task") in wanted
         and not r.get("dry_run")
         and not results.is_excluded(r)
+        and (tools_broken is None or image_tools_broken(_row_image(r)) == tools_broken)
     ]
     candidates = [
         leader_from_rows(rows, key, timeout)

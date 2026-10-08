@@ -351,3 +351,50 @@ def test_a_leader_with_no_passes_is_no_leader() -> None:
     run after its first trial -- a pass included."""
     rows = leader_rows(["t1", "t2"], 2, fails=4)
     assert sc.pick_leader(rows, ["t1", "t2"], "opencode", exclude_batch=None) is None
+
+
+# --- #992: the leader comes from a client whose tools worked the same way -----
+# Until 2026-10-06 09:14 EDT the cluster's client image had no ripgrep, and
+# OpenCode's grep and glob failed on every call (#968). The early stop kept
+# judging fixed-client runs against a broken-client run of 2026-10-01
+# (42/42, 3,953.4 s), not the fixed-client pick (4,111.1 s).
+BROKEN = "opencode=1.18.34 uv=0.12.21 python=3.14.7"
+FIXED = "opencode=1.18.35 uv=0.12.23 python=3.14.8 ripgrep=15.2.0"
+
+
+def _on_image(rows, image):
+    for r in rows:
+        r["env"] = {"client_machine": {"client_image": image}}
+    return rows
+
+
+def test_an_image_without_ripgrep_had_broken_tools() -> None:
+    assert sc.image_tools_broken(BROKEN) is True
+    assert sc.image_tools_broken(FIXED) is False
+    # Bare metal: no image, OpenCode's own ripgrep worked (the Mac lane).
+    assert sc.image_tools_broken(None) is False
+
+
+def test_a_fixed_client_run_is_judged_against_a_fixed_client_leader() -> None:
+    history = _on_image(
+        leader_rows(TASKS14, 3, secs=90.0, batch="broken-fast"), BROKEN
+    ) + _on_image(leader_rows(TASKS14, 3, secs=100.0, batch="fixed-pick"), FIXED)
+    lead = sc.pick_leader(history, TASKS14, "opencode", "now", tools_broken=False)
+    assert lead is not None and lead.batch == "fixed-pick"
+    assert round(lead.total, 1) == 1400.0  # 14 tasks x 100 s
+
+
+def test_a_broken_client_run_is_judged_against_a_broken_client_leader() -> None:
+    history = _on_image(
+        leader_rows(TASKS14, 3, secs=90.0, batch="broken-fast"), BROKEN
+    ) + _on_image(leader_rows(TASKS14, 3, secs=100.0, batch="fixed-pick"), FIXED)
+    lead = sc.pick_leader(history, TASKS14, "opencode", "now", tools_broken=True)
+    assert lead is not None and lead.batch == "broken-fast"
+
+
+def test_without_the_filter_the_leader_is_unchanged() -> None:
+    history = _on_image(
+        leader_rows(TASKS14, 3, secs=90.0, batch="broken-fast"), BROKEN
+    ) + _on_image(leader_rows(TASKS14, 3, secs=100.0, batch="fixed-pick"), FIXED)
+    lead = sc.pick_leader(history, TASKS14, "opencode", "now")
+    assert lead is not None and lead.batch == "broken-fast"
