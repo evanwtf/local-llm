@@ -111,9 +111,17 @@ trials a run. Task details are in
   two stacks need about a 56% gap on a task before it is real. A sum over 14
   tasks is steadier than one task, but we still ask for three runs before a
   firm claim.
+- **95% CI** is the Wilson interval of the pass rate ([#866][i866]). Where two
+  stacks' intervals overlap, the pass rates do not rank them.
 - **Hidden tests** are counted per test, over the trials whose task holds tests
   out. Tests in one trial are not independent, and a trial with no result drops
   out of the count.
+- **Recall.** [gmail-archive][gmail-archive] is public, so a model may have
+  seen the commits a replay task rebuilds. "Replay files restored verbatim"
+  counts the reverted files the agent wrote back byte-for-byte, over every
+  trial. It stays between 0.6% and 7.0% for every stack that ran all 14 tasks:
+  the passes are new code, not recalled files. One stack, DeepSeek V4.1, restored
+  every file of a task verbatim in 6 trials.
 - **The screen ([#762][i762]).** A stack needs 90% or more passed and a sum of
   medians under 200% of the leader's, or it is "screened out". Then the fastest
   3 are kept, plus any within 25% of the third, up to 5. The rest are "cut":
@@ -204,16 +212,20 @@ byte-identical by sha256 to `9eaebb7` (#937). Section 6 shows the override.
 
 Five stacks ran the 14 replay + hard tasks after the #968 fix:
 
-| stack (backend) | runs | passed | sum of medians | % of the pick | median reasoning tokens a trial | hidden tests | screen |
-|---|---|---|---|---|---|---|---|
-| **GLM TensorFold quant, MiaAI v1.8** (`glm53fexl3tfqmiaaiv18dual2xrc`), the pick | 3 | 124/126 | **4,111.1 s** | 100% | 2,815.5 | 878/1,170 (75.0%) | keep |
-| GLM TensorFold TR3, MiaAI v1.8 (`glm53fexl3tfmiaaiv18dual2xrc`) | 3 | 122/126 | 4,271.0 s | 104% | 3,319.5 | 851/1,170 (72.7%) | keep |
-| Qwen3.8-Flash-Next NVFP4 on TensorFold Zig, MiaAI ([#897][i897]) (`qwen38fnnvfp4tfmiaaidual2xrc`) | 1, stopped at 25 of 42 | 25/25 | 7,746.8 s | 188% | 13,991 | 160/194 (82.5%) | stopped early |
-| Qwen3.8-Flash-Next hibrid48, thinking on, vLLM v5.2 ([#977][i977]) (`qwen38fnhibrid48v52dual2xrc`) | 1, stopped at 14 of 42 | 13/14 | 8,138.6 s | 198% | 15,570 | 87/101 (86.1%) | stopped early |
-| Qwen3.8-Flash-Next hibrid48, thinking off, vLLM v5.2 ([#977][i977]) (`qwen38fnhibrid48v52nothinkdual2xrc`) | 1, stopped at 14 of 42 | 12/14 | 10,889.4 s | 265% | 0 | 59/78 (75.6%) | screened out |
+| stack (backend) | runs | passed | 95% CI | sum of medians | % of the pick | median reasoning tokens a trial | hidden tests | replay files restored verbatim | screen |
+|---|---|---|---|---|---|---|---|---|---|
+| **GLM TensorFold quant, MiaAI v1.8** (`glm53fexl3tfqmiaaiv18dual2xrc`), the pick | 3 | 124/126 | 94.4–99.6% | **4,111.1 s** | 100% | 2,815.5 | 878/1,170 (75.0%) | 12/927 (1.3%) | keep |
+| GLM TensorFold TR3, MiaAI v1.8 (`glm53fexl3tfmiaaiv18dual2xrc`) | 3 | 122/126 | 92.1–98.8% | 4,271.0 s | 104% | 3,319.5 | 851/1,170 (72.7%) | 15/927 (1.6%) | keep |
+| Qwen3.8-Flash-Next NVFP4 on TensorFold Zig, MiaAI ([#897][i897]) (`qwen38fnnvfp4tfmiaaidual2xrc`) | 1, stopped at 25 of 42 | 25/25 | 86.7–100% | 7,746.8 s | 188% | 13,991 | 160/194 (82.5%) | 6/167 (3.6%) | stopped early |
+| Qwen3.8-Flash-Next hibrid48, thinking on, vLLM v5.2 ([#977][i977]) (`qwen38fnhibrid48v52dual2xrc`) | 1, stopped at 14 of 42 | 13/14 | 68.5–98.7% | 8,138.6 s | 198% | 15,570 | 87/101 (86.1%) | 6/86 (7.0%) | stopped early |
+| Qwen3.8-Flash-Next hibrid48, thinking off, vLLM v5.2 ([#977][i977]) (`qwen38fnhibrid48v52nothinkdual2xrc`) | 1, stopped at 14 of 42 | 12/14 | 60.1–96.0% | 10,889.4 s | 265% | 0 | 59/78 (75.6%) | 2/77 (2.6%) | screened out |
 
 A timeout counts at the 1,800 s limit in every sum. A run stopped early has
 fewer trials behind each median.
+
+**Every pass-rate interval overlaps the pick's.** On pass rate, no stack here
+can be told apart from the pick; the ranking rests on time. The Qwen runs have
+too few trials for their intervals to say more.
 
 `screen_stacks.py` marks the two early-stopped Qwen runs "keep" here, because
 only four stacks pass its gate on this side of the cut and it keeps the fastest
@@ -268,6 +280,10 @@ numbers stand; the history of how the pick was chosen lives here.
 ² Different weights: jayleaton serves the
 [neko-legends abliterated EXL3][w-neko]; kindlingai serves
 [nvidia/GLM-5.3-Flash-NVFP4][w-glm-nvfp4].
+
+Every pass-rate interval in this table overlaps the leader's (TR3 on v1.3,
+42/42, 91.6–100%), so pass rates do not rank these stacks; time does. Replay
+files restored verbatim range from 2/309 (0.6%) to 29/927 (3.1%).
 
 **Why the quant on v1.7.1 does not rank first overall.** It was one run, on
 the broken client. On the fixed client, three runs of the quant on v1.8 took
@@ -522,6 +538,7 @@ was built and measured on it.
 [i798]: https://github.com/evanwtf/local-llm/issues/798
 [i840]: https://github.com/evanwtf/local-llm/issues/840
 [i865]: https://github.com/evanwtf/local-llm/issues/865
+[i866]: https://github.com/evanwtf/local-llm/issues/866
 [i892]: https://github.com/evanwtf/local-llm/issues/892
 [i894]: https://github.com/evanwtf/local-llm/pull/894
 [i897]: https://github.com/evanwtf/local-llm/issues/897

@@ -128,3 +128,26 @@ def test_the_default_ledger_is_this_machines(monkeypatch, tmp_path):
     monkeypatch.setattr(sizing, "report", lambda path: seen.append(path))
     assert sizing.main([]) == 0
     assert seen == [ledger]
+
+
+# #866: the cluster page reports the whole interval, and says where two stacks'
+# intervals overlap. Anchors are #970's own read-out: the pick passed 124/126
+# (94.4-99.6%) and TR3 122/126 (92.1-98.8%).
+def test_wilson_upper_matches_the_970_readout() -> None:
+    assert round(sizing.wilson_lower(124, 126), 3) == 0.944
+    assert round(sizing.wilson_upper(124, 126), 3) == 0.996
+    assert round(sizing.wilson_lower(122, 126), 3) == 0.921
+    assert round(sizing.wilson_upper(122, 126), 3) == 0.988
+
+
+def test_a_perfect_run_has_an_upper_bound_of_one() -> None:
+    assert sizing.wilson_upper(25, 25) == 1.0
+
+
+def test_a_total_failure_has_the_closed_form_upper_bound() -> None:
+    z2 = sizing.Z95**2
+    assert abs(sizing.wilson_upper(0, 10) - z2 / (10 + z2)) < 1e-12
+
+
+def test_the_upper_bound_is_one_for_no_trials() -> None:
+    assert sizing.wilson_upper(0, 0) == 1.0

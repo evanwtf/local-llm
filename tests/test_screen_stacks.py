@@ -218,3 +218,33 @@ def test_verdict_carries_the_median_reasoning_tokens_a_trial() -> None:
 def test_reasoning_median_is_none_when_no_row_records_it() -> None:
     v = verdicts(batch_rows("b-glm", "glm53exl3", 1856.9))["b-glm"]
     assert v.reasoning_median is None
+
+
+# #866: a pass rate carries its Wilson 95% interval, and whether it overlaps the
+# leader's; and the replay recall caveat (gmail-archive is public, so a pass may
+# be partly recall) is reported as files restored byte-for-byte.
+def test_verdict_carries_the_wilson_interval_and_leader_overlap() -> None:
+    v = verdicts(CLUSTER + batch_rows("b-few", "few", 1900.0, fails=2))
+    lead = v["b-glm"]
+    assert (round(lead.ci_low, 3), lead.ci_high) == (0.845, 1.0)  # 21/21
+    few = v["b-few"]  # 19/21
+    assert (round(few.ci_low, 3), round(few.ci_high, 3)) == (0.711, 0.973)
+    assert few.overlaps_leader is True
+
+
+def test_verdict_counts_files_restored_verbatim() -> None:
+    rows = batch_rows("b-glm", "glm53exl3", 1856.9)
+    for i, r in enumerate(rows):
+        r["replay"] = {
+            "recall": [
+                {"path": "a.py", "verbatim": i == 0},
+                {"path": "b.py", "verbatim": False},
+            ]
+        }
+    v = verdicts(rows)["b-glm"]
+    assert (v.verbatim_files, v.recall_files) == (1, 42)
+
+
+def test_verbatim_is_unknown_when_no_row_records_recall() -> None:
+    v = verdicts(batch_rows("b-glm", "glm53exl3", 1856.9))["b-glm"]
+    assert (v.verbatim_files, v.recall_files) == (0, 0)
