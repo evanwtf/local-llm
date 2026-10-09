@@ -97,14 +97,38 @@ def test_an_arm_that_accepted_nothing_is_still_caught(monkeypatch):
     assert not got.used
 
 
-def test_a_restarted_server_rebaselines_instead_of_going_negative(monkeypatch):
+def test_a_server_restarted_mid_trial_reads_as_unknown_not_no_traffic(monkeypatch):
+    """#953: the counters reset, so this trial's delta cannot be known. EMPTY
+    carries generated=0, which run.py reads as `no-traffic`: a verdict about a
+    trial that may have generated thousands of tokens."""
     vllm_spec.reset()
     _scrape(monkeypatch, SCRAPE)
     vllm_spec.read_since("http://127.0.0.1:8030")
     _scrape(monkeypatch, SCRAPE.replace("1615.0", "3.0").replace("3556.0", "9.0"))
+    assert vllm_spec.read_since("http://127.0.0.1:8030").counters is None
+
+
+def test_the_read_after_a_restart_reports_a_real_delta_again(monkeypatch):
+    vllm_spec.reset()
+    _scrape(monkeypatch, SCRAPE)
+    vllm_spec.read_since("http://127.0.0.1:8030")
+    low = SCRAPE.replace("1615.0", "3.0").replace("3556.0", "9.0")
+    _scrape(monkeypatch, low)
+    vllm_spec.read_since("http://127.0.0.1:8030")
+    _scrape(monkeypatch, low.replace("3.0", "5.0").replace("9.0", "13.0"))
     got = vllm_spec.read_since("http://127.0.0.1:8030").counters
-    assert got is not None
-    assert got.accepted == 0 and got.drafted == 0
+    assert got is not None and got.records == 1
+
+
+def test_a_generation_counter_that_went_backwards_is_a_restart_too(monkeypatch):
+    """A server restarted before it drafted anything resets only the counter
+    every vLLM exports; the speculative ones read the same before and after."""
+    vllm_spec.reset()
+    gen = 'vllm:generation_tokens_total{engine="0",model_name="m"} %s\n'
+    _scrape(monkeypatch, SCRAPE + gen % "40.0")
+    vllm_spec.read_since("http://127.0.0.1:8030")
+    _scrape(monkeypatch, SCRAPE + gen % "2.0")
+    assert vllm_spec.read_since("http://127.0.0.1:8030").counters is None
 
 
 def test_an_unreachable_server_does_not_take_a_run_down(monkeypatch):

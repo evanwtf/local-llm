@@ -203,14 +203,25 @@ def read_since(base_url, offset: int = 0) -> Reading:
         # server did before this point -- startup, the smoke gate -- belongs to
         # no trial.
         return Reading(counters=EMPTY, offset=now["drafted"])
-    if any(now[k] < before[k] for k in _METRICS):
+    # The generation counter too: a server restarted before it drafted
+    # anything resets only that one.
+    keys = [
+        *_METRICS,
+        *(["generated"] if "generated" in now and "generated" in before else []),
+    ]
+    if any(now[k] < before[k] for k in keys):
         logger.warning(
             "vllm spec counters went backwards (%s -> %s) -- the server "
-            "restarted; re-baselining rather than reporting a negative delta",
+            "restarted; this trial reads as unknown and the next read starts "
+            "from the new baseline",
             before,
             now,
         )
-        return Reading(counters=EMPTY, offset=now["drafted"])
+        # Unknown, not EMPTY: EMPTY carries generated=0, which run.py reads
+        # as `no-traffic` for a trial that may have generated thousands of
+        # tokens before the restart (#953). The baseline is already the new
+        # value, so the next trial gets a real delta.
+        return Reading(counters=None, offset=now["drafted"])
     delta = {k: now[k] - before[k] for k in _METRICS}
     generated = (
         now["generated"] - before["generated"]
