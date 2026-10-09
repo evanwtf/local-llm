@@ -1212,3 +1212,58 @@ def test_no_gpu_table_is_todays_behavior():
     assert preflight.check(TF_ONLY, NO_LISTENERS, {8888}) == preflight.check(
         TF_ONLY, NO_LISTENERS, {8888}, gpu={}
     )
+
+
+# --- #565: Ollama's model runner is Ollama's, not a stray llama.cpp ---------
+#
+# Ollama 0.34 serves each model through a bundled `llama-server`, a child of
+# `ollama serve` on a random loopback port. Matched by name alone it read as a
+# foreign llama.cpp server and refused the next Ollama arm.
+
+OLLAMA_PS = """\
+  PID    RSS  ELAPSED COMMAND
+ 8777  262144 05:00:00 /usr/local/bin/ollama serve
+72058 9122611    50:05 /usr/local/lib/ollama/llama-server --model /usr/share/ollama/.ollama/models/blobs/sha256-dec52a44 --port 33567 --host 127.0.0.1 --no-webui --offline -c 32768
+"""
+OLLAMA_LSOF = (
+    "COMMAND PID USER FD TYPE DEVICE SIZE/OFF NODE NAME\n"
+    "ollama 8777 ollama 3u IPv4 0t0 0t0 TCP 127.0.0.1:11434 (LISTEN)\n"
+    "llama-ser 72058 ollama 3u IPv4 0t0 0t0 TCP 127.0.0.1:33567 (LISTEN)\n"
+)
+OLLAMA_PARENTS = {72058: 8777, 8777: 1}.get
+
+
+def test_ollamas_runner_counts_as_ollamas_own_model():
+    report = preflight.check(OLLAMA_PS, OLLAMA_LSOF, {11434}, parent_of=OLLAMA_PARENTS)
+    assert report.stale == [] and report.unmatched == []
+    assert report.total_gib == pytest.approx(8.95, abs=0.01)
+    assert preflight.refuse_unless_empty(report, {"q": {}}) is None
+
+
+def test_ollamas_runner_is_stale_for_a_run_on_another_engine():
+    """The model is still resident, so another engine's run refuses; it names
+    Ollama, the process to act on, not the runner."""
+    report = preflight.check(OLLAMA_PS, OLLAMA_LSOF, {8030}, parent_of=OLLAMA_PARENTS)
+    assert [p.pid for p in report.stale] == [8777]
+    assert report.stale[0].resident_gib == pytest.approx(8.95, abs=0.01)
+
+
+def test_without_parents_the_runner_reads_as_before():
+    report = preflight.check(OLLAMA_PS, OLLAMA_LSOF, {11434})
+    assert [p.pid for p in report.stale] == [72058]
+
+
+def test_a_refusal_over_ollama_says_how_to_unload_the_model():
+    report = preflight.check(OLLAMA_PS, OLLAMA_LSOF, {8030}, parent_of=OLLAMA_PARENTS)
+    why = preflight.refuse_unless_empty(report, {"b": {}})
+    assert (
+        why and "ollama stop <model>" in why and "ollama (pid 8777) holding 8.9" in why
+    )
+
+
+def test_a_refusal_states_what_a_server_holds_on_the_gpu():
+    """#1009 counted GPU memory; the message must say it, not the RSS."""
+    report = preflight.check(SMALL_TF, NO_LISTENERS, {8030}, gpu={51003: 98.0})
+    why = preflight.refuse_unless_empty(report, {"b": {}})
+    assert why and "holding 98.0 GiB" in why
+    assert "holding 98.0 GiB" in " ".join(report.warnings())

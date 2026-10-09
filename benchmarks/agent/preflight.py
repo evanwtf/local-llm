@@ -676,12 +676,12 @@ class Report:
         for p in self.stale:
             out.append(
                 f"{p.short} (pid {p.pid}) is listening on :{p.port} and holding "
-                f"{p.rss_gib:.1f} GiB after {p.age}, but no selected backend uses "
+                f"{p.resident_gib:.1f} GiB after {p.age}, but no selected backend uses "
                 f"that port. Stop it, or this batch measures a contended machine."
             )
         for p in self.unmatched:
             out.append(
-                f"{p.short} (pid {p.pid}) is holding {p.rss_gib:.1f} GiB after "
+                f"{p.short} (pid {p.pid}) is holding {p.resident_gib:.1f} GiB after "
                 f"{p.age} and is not listening yet -- still loading, or wedged."
             )
         return out
@@ -753,6 +753,31 @@ def check(
     # RSS does not show, and a renamed worker holds them for its engine. A GPU
     # holder that descends from no known server is counted on its own.
     known = {p.pid: p for p in parse_ps(ps_text)}
+    # #565: a server that descends from another is part of it. Ollama serves
+    # each model through a bundled `llama-server`, a child of `ollama serve` on
+    # a random port; matched by name it read as a stray llama.cpp server and
+    # refused the next Ollama arm. Folded into Ollama, it is Ollama's model:
+    # expected for an Ollama run, stale for any other.
+    if parent_of is not None:
+        for pid in sorted(known):
+            parent = parent_of(pid)
+            owner = _owner(parent, known, parent_of) if parent else None
+            seen = {pid}
+            while owner is not None and owner not in seen and owner in known:
+                seen.add(owner)
+                grand = parent_of(owner)
+                up = _owner(grand, known, parent_of) if grand else None
+                if up is None:
+                    break
+                owner = up
+            if owner is None or owner == pid or owner not in known:
+                continue
+            child, root = known.pop(pid), known[owner]
+            known[owner] = dataclasses.replace(
+                root,
+                rss_gib=root.rss_gib + child.rss_gib,
+                gpu_gib=root.gpu_gib + child.gpu_gib,
+            )
     orphans: list[Proc] = []
     for pid, gib in (gpu or {}).items():
         owner = _owner(pid, known, parent_of)
@@ -835,12 +860,21 @@ def refuse_unless_empty(report: Report, backends: dict[str, dict] | None) -> str
     foreign = report.stale + report.unmatched
     if foreign:
         lines = "; ".join(
-            f"{p.short} (pid {p.pid}) holding {p.rss_gib:.1f} GiB" for p in foreign
+            f"{p.short} (pid {p.pid}) holding {p.resident_gib:.1f} GiB" for p in foreign
+        )
+        # #565: Ollama keeps a model resident for its keep-alive after a run;
+        # stopping the daemon is not the fix, unloading the model is.
+        ollama = (
+            " For Ollama, `ollama ps` names the resident model and "
+            "`ollama stop <model>` unloads it."
+            if any(p.short == "ollama" for p in foreign)
+            else ""
         )
         return (
             f"REFUSING: the machine is not empty -- {lines}. A model test runs "
             "with only its own model resident; a second one evicts and swaps "
             "without appearing in any column of the row. Stop it and re-run."
+            f"{ollama}"
         )
     if backends and len(backends) > 1:
         engines = engines_a_run_would_need(backends)
