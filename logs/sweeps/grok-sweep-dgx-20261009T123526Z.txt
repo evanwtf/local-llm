@@ -1,0 +1,91 @@
+# grok sweep (dgx, rerun: the first gather returned no output)
+# requested window: last 36 hours
+# written:  2026-10-09T12:35:26Z  (local: 2026-10-09 08:35:26 EDT)
+# query:    Search X for posts and replies in the last 36 hours about running LLMs on NVIDIA DGX Spark or GB10 (vLLM, SGLang, TensorFold, NVFP4, two-Spark clusters, GLM-5.3-Flash, DeepSeek-V4.1-Flash), including from @MiaAI_lab @jayleaton @sudoingX @0xSero @NVIDIAAIDev @jmacftw @johncodes @mmastrac. Output ONE bullet per post and nothing else -- no preamble, no summary: - <UTC timestamp> | @handle | <post URL> | <the claim in one sentence> Omit any item without both a URL and a UTC timestamp. If nothing matches, output exactly: NO RESULTS
+
+I'll search X for the last 36 hours on DGX Spark and GB10, including those accounts.The first pass only covered the newest posts. I'll page back through the 36-hour window and check the named accounts.I need the current UTC time so the 36-hour cutoff is exact, and I’ll keep paging for the named accounts.- 2026-10-09 12:22:00 UTC | @wikiwayne | https://x.com/wikiwayne/status/2108533435216298157 | MiMo-V2.6-Flash-RL (309B, about 15B active, EXL3) is running on one DGX Spark and built eight games locally.
+- 2026-10-09 12:21:23 UTC | @R0u9h | https://x.com/R0u9h/status/2108533279385371007 | There is still no inference runtime that runs cleanly on two DGX Sparks.
+- 2026-10-09 12:15:18 UTC | @MichaelZima | https://x.com/MichaelZima/status/2108531748539858991 | A new GB10 owner asks whether to start on TensorFold or learn vLLM first.
+- 2026-10-09 12:13:08 UTC | @greatYiTin | https://x.com/greatYiTin/status/2108531206447157655 | He hopes the DGX Spark build picks up the Zig optimizations.
+- 2026-10-09 12:13:00 UTC | @wei_wang | https://x.com/wei_wang/status/2108531171986407711 | A single-Spark test of Qwen3.8-27B with thinking on compared eight setups by time to a complete correct answer, not tok/s.
+- 2026-10-09 11:46:29 UTC | @niklaslenz_ai | https://x.com/niklaslenz_ai/status/2108524496621539492 | On one DGX Spark, RED-SNOW GLM-5.3-Flash held about 33 tok/s and CYBER-FROST about 55 tok/s on code, both within 7% of the published numbers.
+- 2026-10-09 11:44:25 UTC | @andersjw_ | https://x.com/andersjw_/status/2108523979250278551 | Kolibri reached 140 tok/s on 2x DGX Spark, and he still wants to see it inside a coding harness.
+- 2026-10-09 11:19:43 UTC | @sfxnz | https://x.com/sfxnz/status/2108517761022329269 | Concurrency and decode improvements are coming for DeepSeek-V4.1-Flash on TensorFold across 2x DGX Sparks, the only model he runs.
+- 2026-10-09 11:01:18 UTC | @pjhauser1 | https://x.com/pjhauser1/status/2108513128120029383 | Precomputed KV cache plus TensorFold serves Qwen 3.8 Flash Next on one DGX Spark at 0.08s TTFT and over 50 tok/s.
+- 2026-10-09 09:59:04 UTC | @ktolis | https://x.com/ktolis/status/2108497464609100283 | He compares stock TensorFold Python on Qwen 3.8-Flash-Next EXL3 3.05bpw on a DGX Spark with a patch of his own.
+- 2026-10-09 09:20:10 UTC | @grok | https://x.com/grok/status/2108487674604523873 | A TensorFold recipe bundles quantized weights, the engine, launch scripts, and benchmarks for hardware such as a DGX Spark.
+- 2026-10-09 08:54:04 UTC | @MichaelZima | https://x.com/MichaelZima/status/2108481108950298974 | He bought his first GB10 and asks where a CUDA beginner should start for Qwen Next and DeepSeek.
+- 2026-10-09 08:49:13 UTC | @AgentSparko | https://x.com/AgentSparko/status/2108479887145115854 | Spark talk moved from linking two boxes, to four-node clusters, to a 36-node DGX Spark cluster.
+- 2026-10-09 07:38:28 UTC | @francip | https://x.com/francip/status/2108462083235000534 | Neither Qwen 3.8 Flash Next nor GLM 5.3 Flash on one DGX Spark has finished a medium coding task, so he will try both on two Sparks.
+- 2026-10-09 05:52:48 UTC | @DevRico003 | https://x.com/DevRico003/status/2108435489225068782 | He runs full GLM-5.3 at 2.75bpw on three of four Sparks and is looking at the 319 GB quant with 92.98% top-1 agreement.
+- 2026-10-09 05:36:02 UTC | @DevRico003 | https://x.com/DevRico003/status/2108431271324008635 | On two of four Sparks, GLM 5.3 Flash at 4bpw does 65–90 tok/s on code and holds up on long context.
+- 2026-10-09 05:12:14 UTC | @thegiive | https://x.com/thegiive/status/2108425282332008895 | On DGX Spark, GLM-5.3-Flash on TensorFold led single-stream speed at 52.56 tok/s, while Qwen3.8-Flash-Next NVFP4 on vLLM led eight-way concurrency at 134.57 tok/s.
+- 2026-10-09 04:39:08 UTC | @mmastrac | https://x.com/mmastrac/status/2108416953471975788 | GLM 5.3 full on two Sparks is too hard without a 1-bit quant.
+- 2026-10-09 03:53:13 UTC | @nunomo1 | https://x.com/nunomo1/status/2108405396142711150 | A custom DeepSeek-V4.1 engine for two DGX Sparks does 31.0 tok/s prose and 46.7 tok/s code, with EXL3 or MXFP4 and adaptive expert loading.
+- 2026-10-09 02:49:51 UTC | @jayleaton | https://x.com/jayleaton/status/2108389449713520859 | On his two-machine DeepSeek setup the KV cache was stored on both nodes, and he removed the duplicate.
+- 2026-10-09 02:47:20 UTC | @greatYiTin | https://x.com/greatYiTin/status/2108388818646880689 | A CJK draft vocabulary on Mia's Qwen3.8-Flash-Next TensorFold recipe for 2× DGX Spark raised Chinese decode 38–107% with byte-identical replies.
+- 2026-10-09 01:10:42 UTC | @mmastrac | https://x.com/mmastrac/status/2108364496817561804 | GLM 5.3 full at TP4 now boots in 30 seconds, which he calls the physics floor.
+- 2026-10-09 01:07:54 UTC | @mmastrac | https://x.com/mmastrac/status/2108363792149344305 | GLM 5.3 full needs at least three Sparks unless a sub-2-bit quant works.
+- 2026-10-09 00:33:53 UTC | @mmastrac | https://x.com/mmastrac/status/2108355233105789365 | They will ship calibrated GLM 5.3 quants that users can retune from their own expert profile.
+- 2026-10-09 00:30:50 UTC | @mmastrac | https://x.com/mmastrac/status/2108354464319160603 | The EXLR8 quant is DGX Spark specific for now.
+- 2026-10-09 00:24:39 UTC | @mmastrac | https://x.com/mmastrac/status/2108352910363185409 | EXLR8 for GLM 5.3 full should beat EXL3 on quality, speed, and boot time, with a cold start near 30 seconds.
+- 2026-10-08 23:25:18 UTC | @jaiball7 | https://x.com/jaiball7/status/2108337973536411788 | Local GLM 5.3 Flash at 227 tok/s is surprising, and so is four DGX Sparks costing about 6 million yen.
+- 2026-10-08 23:17:10 UTC | @Tech2Wild | https://x.com/Tech2Wild/status/2108335925789089802 | He points to a video that calls GLM 5.3 Flash the best local model on DGX Spark at 174 tok/s.
+- 2026-10-08 21:04:02 UTC | @SympathyLabs | https://x.com/SympathyLabs/status/2108302420719861922 | spark-scope's SSH key for monitoring local vLLM on a DGX Spark can run anything that account can, so use a low-privilege user.
+- 2026-10-08 20:58:37 UTC | @FT_IOxCS | https://x.com/FT_IOxCS/status/2108301061102424403 | GLM-5.3-Flash NVFP4 on four GB10 Sparks at TP4 over RoCE, on vLLM, hit 183 tok/s structured, 86.7 tok/s prose, and about 4.6k tok/s prefill at 128k.
+- 2026-10-08 20:51:14 UTC | @mmastrac | https://x.com/mmastrac/status/2108299200714924498 | Prefill at TP=6 makes full GLM 5.3 much more usable on the Spark engine.
+- 2026-10-08 20:32:46 UTC | @calvarado2004 | https://x.com/calvarado2004/status/2108294552465338375 | GLM 5.3 Flash NVFP4 on three DGX Sparks sustains 50–60 tok/s prose on one stream.
+- 2026-10-08 20:28:09 UTC | @DevRico003 | https://x.com/DevRico003/status/2108293392387998046 | Someone's 72.1 tok/s prose sits under the 77 tok/s he sees on code with Flash Next on one of four Sparks.
+- 2026-10-08 20:26:15 UTC | @mmastrac | https://x.com/mmastrac/status/2108292915370000483 | He posted a draft EXLR8 spec for the GLM 5.3 Spark quant.
+- 2026-10-08 20:22:37 UTC | @DevRico003 | https://x.com/DevRico003/status/2108291997739987179 | On two of four Sparks his daily driver is 4bpw GLM-5.3 Flash at 65–90 tok/s on code, with Mia's Flash Next at 77 tok/s as the one-box fallback.
+- 2026-10-08 20:19:16 UTC | @DevRico003 | https://x.com/DevRico003/status/2108291157423759612 | Text-only Flash does 65–90 tok/s on code across two of his four Sparks, and he asks what vision costs in decode.
+- 2026-10-08 20:14:28 UTC | @DevRico003 | https://x.com/DevRico003/status/2108289949367775697 | He got Flash Next serving at 77 tok/s on one Spark before running full GLM-5.3 on three.
+- 2026-10-08 20:11:31 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2108289207659888769 | GLM-5.3-Flash EXL3 with TensorFold is the best model to run on 2x DGX Sparks.
+- 2026-10-08 19:53:34 UTC | @mmastrac | https://x.com/mmastrac/status/2108284689601716272 | The fast GLM 5.3 kernel is not released yet, and he hoped to ship it the same day.
+- 2026-10-08 19:12:00 UTC | @WescheNex1q | https://x.com/WescheNex1q/status/2108274227170464037 | ViC305's GLM-5.3 753B recipe scored 84.4 on a 4-Spark cluster after four fixes, and the scripts are open.
+- 2026-10-08 19:11:54 UTC | @mmastrac | https://x.com/mmastrac/status/2108274205074792732 | The GLM 5.3 pack prunes no experts, ships 2-bit, 3.25-bit, and 3.75-bit presets, and fast vLLM kernels are coming.
+- 2026-10-08 19:11:54 UTC | @mmastrac | https://x.com/mmastrac/status/2108274203372007876 | He released an EXLR8 quant so an unreleased GLM 5.3 Full engine can run fast at TP=3/4/5/6 on DGX Spark.
+- 2026-10-08 18:10:37 UTC | @WescheNex1q | https://x.com/WescheNex1q/status/2108258779532018022 | Switching to SAGE MixedK 3.38bpw lifted full GLM-5.3 from 70.8 to 84.4 on Spark-Bench on 4x DGX Spark with TensorFold TP4 and DFlash2.
+- 2026-10-08 17:57:37 UTC | @ViC305 | https://x.com/ViC305/status/2108255509539410025 | Full GLM-5.3 SAGE EXL3 at 3.38bpw fits in 319 GB on four DGX Sparks, around 41 tok/s average with DFlash2, with 256K context demonstrated.
+- 2026-10-08 16:42:50 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2108236688468160604 | GLM 5.3 Flash EXL3 with TensorFold is running on four switchless DGX Sparks at eight concurrent streams with thinking on.
+- 2026-10-08 16:42:49 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2108236685951819990 | She posts that demo and says it is why DGX Spark prices have skyrocketed.
+- 2026-10-08 16:17:00 UTC | @WescheNex1q | https://x.com/WescheNex1q/status/2108230186978492861 | On 2× DGX Spark, GLM-5.3-Flash scored 84.8 on the same 80-test bench, against 79.4 for Qwen on vLLM and 77.9 on TensorFold.
+- 2026-10-08 15:55:56 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2108224886086713733 | The new GLM 5.3 Flash update for 2x DGX Sparks on TensorFold is fast enough that a 10-person crew felt it was about twice as quick.
+- 2026-10-08 15:42:22 UTC | @DevRico003 | https://x.com/DevRico003/status/2108221471588049295 | GLM-5.3 Flash at 4bpw does 65–90 tok/s in coding sessions on two of his four Sparks with TensorFold.
+- 2026-10-08 15:19:26 UTC | @DevRico003 | https://x.com/DevRico003/status/2108215702632931479 | Flash Next did 77 tok/s on code on one Spark with a vLLM recipe, so Mia's 64.4 tok/s prose figure is not a direct comparison.
+- 2026-10-08 14:39:59 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2108205772135899515 | The 227 tok/s GLM 5.3 Flash figure is from four DGX Sparks.
+- 2026-10-08 14:31:22 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2108203605685596490 | Qwen3.8 Flash Next on TensorFold Zig for one DGX Spark does 64.4 tok/s prose on one stream and 200 tok/s at eight streams.
+- 2026-10-08 13:47:37 UTC | @jayleaton | https://x.com/jayleaton/status/2108192595415576952 | TensorFold roughly doubled the value of their DGX Spark purchases.
+- 2026-10-08 13:36:19 UTC | @sudoingX | https://x.com/sudoingX/status/2108189749454504068 | He asks NVIDIA for two more Sparks so he can publish 1x-to-4x numbers on the same models, up to 512 GB.
+- 2026-10-08 13:36:18 UTC | @sudoingX | https://x.com/sudoingX/status/2108189744488382605 | Two Sparks (256 GB) fit neither Nemotron 3 Ultra at NVFP4 nor GLM 5.3 Flash at FP8, and four Sparks (512 GB) fit both.
+- 2026-10-08 13:13:39 UTC | @olekslev69 | https://x.com/olekslev69/status/2108184048514584897 | Qwen3.8-27B on a DGX Spark hits 46 tok/s with DFlash2 and SGLang, ahead of vLLM with MTP on the NVFP4 weights.
+- 2026-10-08 12:54:48 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2108179300901896477 | GLM 5.3 Flash hits 227 tok/s on DGX Sparks across four mixed concurrent streams.
+- 2026-10-08 12:54:01 UTC | @andersjw_ | https://x.com/andersjw_/status/2108179104189284385 | Three harness settings each cut agent token spend about 30% for GLM-5.3 Flash on 2x DGX Spark across 110 passing runs.
+- 2026-10-08 12:52:37 UTC | @andersjw_ | https://x.com/andersjw_/status/2108178752912199905 | Kolibri-1 on 2x DGX Spark with TensorFold reaches 316 tok/s aggregate, about double a single Spark.
+- 2026-10-08 12:44:19 UTC | @sudoingX | https://x.com/sudoingX/status/2108176665176326592 | Nemotron 3.5 Lightning already ships with a drafter built for the Spark.
+- 2026-10-08 12:44:03 UTC | @DevRico003 | https://x.com/DevRico003/status/2108176596695962050 | Decode stays in the same band from 77 tok/s on one Spark to DeepSeek V4.1 Flash on all four over a TP4 ring, so extra boxes buy a bigger model, not more tok/s.
+- 2026-10-08 12:29:21 UTC | @jayleaton | https://x.com/jayleaton/status/2108172898905288841 | He rents a 6000-class GPU to run tests before spending DGX Spark time.
+- 2026-10-08 11:57:50 UTC | @filicroval | https://x.com/filicroval/status/2108164968247947316 | GLM-5.3 Flash runs on one GB10 at 30 tok/s with 262K context, using an EXL3 mosaic and four TensorFold patches.
+- 2026-10-08 11:54:58 UTC | @dedene | https://x.com/dedene/status/2108164245607383405 | Underdog Saluki 27B runs at about 22 tok/s with 262k context on a DGX Spark and leaves 87 GB free.
+- 2026-10-08 11:49:04 UTC | @motch_dev | https://x.com/motch_dev/status/2108162760655962344 | He is trying Strix plus GLM-5.3-Flash on two DGX Sparks.
+- 2026-10-08 11:34:48 UTC | @yama_boku | https://x.com/yama_boku/status/2108159169077641618 | An 8-bit GLM-5.3-Flash pack aimed at DGX Spark (autotrust/GLM5.3-Flash-E224-DGX-Spark) is drawing downloads on Hugging Face.
+- 2026-10-08 11:16:50 UTC | @LionMoo08085029 | https://x.com/LionMoo08085029/status/2108154648334942400 | Local models such as Qwen and Gemma do run on a Mac Studio or an NVIDIA DGX Spark.
+- 2026-10-08 11:04:11 UTC | @DevRico003 | https://x.com/DevRico003/status/2108151465445351697 | Base Flash Next does 77 tok/s on code on one of his Sparks with a different recipe.
+- 2026-10-08 10:53:44 UTC | @jayleaton | https://x.com/jayleaton/status/2108148834874569118 | Mia's GLM 5.3 Flash v1.10 is the best GLM build for 2x Sparks, and he will point his own recipe at it.
+- 2026-10-08 10:51:36 UTC | @DevRico003 | https://x.com/DevRico003/status/2108148296611176768 | Full GLM-5.3 runs on three of his Sparks only because the weights are open.
+- 2026-10-08 10:45:08 UTC | @Rimusz | https://x.com/Rimusz/status/2108146672945729875 | DeepSeek V4 Flash runs on his DGX Spark and is reachable over Tailscale for private work.
+- 2026-10-08 10:42:13 UTC | @DevRico003 | https://x.com/DevRico003/status/2108145938166399333 | Three of his Sparks run full GLM-5.3 (753B) together, which depends on the ConnectX-7 link.
+- 2026-10-08 10:30:29 UTC | @DevRico003 | https://x.com/DevRico003/status/2108142982876872877 | The Spark's 273 GB/s memory bandwidth is what limits decode on big MoE models.
+- 2026-10-08 10:00:00 UTC | @niklaslenz_ai | https://x.com/niklaslenz_ai/status/2108135312543346794 | On a GB10, TensorFold 1.0.1 decodes Nemotron 3.5 Lightning 12–16% faster than 0.6.6 from 8k to 128k, with bit-identical answers.
+- 2026-10-08 08:21:02 UTC | @PlusTen_AI | https://x.com/PlusTen_AI/status/2108110408905343456 | He points people at a DeepSeek-V4.1 TensorFold recipe for 2x DGX Spark.
+- 2026-10-08 08:16:04 UTC | @majewskizby | https://x.com/majewskizby/status/2108109156842344775 | His fifth DGX Spark will stay online as a Hermes agent on Qwen Flash Next and can call the other four, which run GLM 5.3 Full.
+- 2026-10-08 07:22:32 UTC | @MiaAI_lab | https://x.com/MiaAI_lab/status/2108095683181822423 | GLM 5.3 Flash on 2x DGX Sparks v1.10 is out, with faster 500k-token chats and a disk cache that resumes in 0.2s instead of 11s.
+- 2026-10-08 07:22:07 UTC | @mox_vc | https://x.com/mox_vc/status/2108095579276632158 | GLM 5.3 Flash EXL3 on 2x DGX Spark found a backdoor in code delivered from offshore.
+- 2026-10-08 06:44:19 UTC | @jmacftw | https://x.com/jmacftw/status/2108086066725130577 | That SparkGLM run had a 524,288 context ceiling and about 9.2 GB of KV per rank after the GB10's 2 GiB display carveout.
+- 2026-10-08 06:00:00 UTC | @sudoingX | https://x.com/sudoingX/status/2108074915316605254 | Qwen 3.8 Flash Next finished the build on his DGX Spark in 2.5 hours, and GLM 5.3 Flash and DeepSeek V4.1 Flash did too, all local.
+- 2026-10-08 05:32:32 UTC | @mitesh_dev | https://x.com/mitesh_dev/status/2108068002356957269 | He uses OpenWhispr with Parakeet and Qwen Next on his DGX Spark.
+- 2026-10-08 05:31:57 UTC | @tamanekokoro | https://x.com/tamanekokoro/status/2108067854205730821 | He asks whether TensorFold on a DGX Spark, or Strata with an external GPU, is the better setup.
+- 2026-10-08 05:21:00 UTC | @tvytlx | https://x.com/tvytlx/status/2108065100028359092 | A two-Spark DeepSeek-V4.1-Flash TensorFold recipe beat a tuned vLLM setup on prefill, structured output (97 vs 83 tok/s), and prose (56 vs 48 tok/s), and found a needle in 1.03M tokens.
+- 2026-10-08 03:19:00 UTC | @sudoingX | https://x.com/sudoingX/status/2108034396984934746 | His GB10 measures 273 GB/s, and he expects a 128 GB Spark-class machine to run DeepSeek V4 Flash at 3-bit around 16.5 tok/s.
+- 2026-10-08 03:06:43 UTC | @jmacftw | https://x.com/jmacftw/status/2108031306064150622 | SparkGLM's NVFP4 path is about as fast as EXL3 and a bit better under staggered concurrency.
+- 2026-10-08 02:48:03 UTC | @jmacftw | https://x.com/jmacftw/status/2108026609873854702 | SparkGLM runs GLM 5.3 Flash NVFP4 weights on two DGX Sparks through an Atlas fork, and it is their daily driver.
