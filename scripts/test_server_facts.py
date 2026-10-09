@@ -24,6 +24,13 @@ topology = "remote"
 model = "m"
 base_url = "http://127.0.0.1:8888"
 
+[backend.tf]
+tier = "gb10-spark-x2"
+topology = "remote"
+engine = "tensorfold"
+model = "m"
+base_url = "http://127.0.0.1:8888/v1"
+
 [backend.single]
 tier = "gb10-spark"
 topology = "remote"
@@ -70,3 +77,27 @@ def test_each_backend_on_its_own_machine_passes(tasks):
         CLUSTER
     )
     assert server_facts.collect("single", tasks)["directory"] == SINGLE
+
+
+def test_the_facts_record_the_server_instance(tasks, monkeypatch):
+    """#948: the client compares this marker with the live one before a batch."""
+    import remote
+
+    monkeypatch.setattr(remote, "_fetch", lambda url, timeout: '{"requests_total": 7}')
+    got = server_facts.collect("tf", tasks, cluster_peer="peer")["instance"]
+    assert got == {"engine": "tensorfold", "kind": "counter", "value": 7}
+
+
+def test_the_facts_refuse_a_server_that_does_not_answer_its_marker(tasks, monkeypatch):
+    import remote
+
+    def down(url, timeout):
+        raise OSError("connection refused")
+
+    monkeypatch.setattr(remote, "_fetch", down)
+    with pytest.raises(SystemExit, match="start the server first"):
+        server_facts.collect("tf", tasks, cluster_peer="peer")
+
+
+def test_an_engine_without_a_marker_records_none(tasks):
+    assert server_facts.collect("pair", tasks, cluster_peer="peer")["instance"] is None

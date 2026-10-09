@@ -410,3 +410,106 @@ def test_client_engine_provenance_never_lands_on_a_remote_row():
         assert key not in out, key
     assert out["vllm_version"] == "unknown"
     assert out["opencode"] == "1.18.34"
+
+
+# --- #948: a server restarted under the same name ---------------------------
+
+#: Trimmed from a live TensorFold v0.6.0 server, 2026-10-08.
+TF_HEALTH = (
+    '{"ok": true, "backend": "tensorfold", "busy": false, "requests_running": 0, '
+    '"requests_total": 2304, "rounds_total": 309914, "context_length": 1048576}'
+)
+
+
+def test_tensorfold_health_yields_its_request_counter():
+    assert remote.parse_instance("counter", TF_HEALTH) == 2304
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "",
+        "not json",
+        "[]",
+        '{"ok": true}',
+        '{"requests_total": "many"}',
+        '{"requests_total": -1}',
+        '{"requests_total": true}',
+    ],
+)
+def test_an_unreadable_health_answer_yields_no_value(text):
+    assert remote.parse_instance("counter", text) is None
+
+
+def test_read_instance_asks_the_health_route_at_the_server_root():
+    asked = []
+
+    def fetch(url, timeout):
+        asked.append(url)
+        return TF_HEALTH
+
+    got = remote.read_instance("http://srv:8888/v1", "tensorfold", fetch)
+    assert asked == ["http://srv:8888/health"]
+    assert got == {"engine": "tensorfold", "kind": "counter", "value": 2304}
+
+
+def test_read_instance_records_a_failed_probe_as_no_value():
+    def fetch(url, timeout):
+        raise OSError("connection refused")
+
+    got = remote.read_instance("http://srv:8888", "tensorfold", fetch)
+    assert got == {"engine": "tensorfold", "kind": "counter", "value": None}
+
+
+def test_an_engine_without_a_marker_is_not_probed():
+    def fetch(url, timeout):
+        raise AssertionError("must not be called")
+
+    assert remote.read_instance("http://srv:8030", "llama.cpp", fetch) is None
+
+
+def _inst(value, kind="counter"):
+    return {"engine": "tensorfold", "kind": kind, "value": value}
+
+
+def test_a_counter_that_grew_is_the_same_server():
+    assert remote.instance_mismatch(_inst(2304), _inst(2310), "tensorfold") is None
+    assert remote.instance_mismatch(_inst(2304), _inst(2304), "tensorfold") is None
+
+
+def test_a_counter_that_went_down_is_a_restart():
+    why = remote.instance_mismatch(_inst(2304), _inst(3), "tensorfold")
+    assert why and "restarted" in why and "2304" in why and "3" in why
+
+
+def test_facts_without_a_marker_refuse_for_an_engine_that_has_one():
+    why = remote.instance_mismatch(None, _inst(5), "tensorfold")
+    assert why and "server_facts.py" in why
+
+
+def test_a_marker_that_cannot_be_read_now_refuses():
+    assert remote.instance_mismatch(_inst(2304), _inst(None), "tensorfold")
+    assert remote.instance_mismatch(_inst(None), _inst(5), "tensorfold")
+
+
+def test_a_marker_of_another_kind_refuses():
+    assert remote.instance_mismatch(_inst(1.0, "start_time"), _inst(5), "tensorfold")
+
+
+def test_an_engine_without_a_marker_passes_unchecked():
+    assert remote.instance_mismatch(None, None, "llama.cpp") is None
+
+
+def test_check_instance_refuses_a_restarted_tensorfold():
+    facts = {"backend": "b", "instance": _inst(2304)}
+    backends = {"b": {"engine": "tensorfold", "base_url": "http://srv:8888"}}
+    with pytest.raises(SystemExit, match="restarted"):
+        remote.check_instance(
+            facts, backends, lambda url, timeout: '{"requests_total": 1}'
+        )
+
+
+def test_check_instance_passes_the_same_tensorfold():
+    facts = {"backend": "b", "instance": _inst(2304)}
+    backends = {"b": {"engine": "tensorfold", "base_url": "http://srv:8888"}}
+    remote.check_instance(facts, backends, lambda url, timeout: TF_HEALTH)
