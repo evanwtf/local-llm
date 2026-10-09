@@ -1116,3 +1116,99 @@ def test_the_client_image_names_its_ripgrep_so_the_fix_splits_the_rows(monkeypat
     assert before == "opencode=1.18.34 uv=0.12.23 python=3.14.8"
     monkeypatch.setenv("LOCAL_LLM_PINNED_RIPGREP", "15.2.0")
     assert preflight.client_image() == f"{before} ripgrep=15.2.0"
+
+
+# --- #953: memory on the GPU, and workers renamed by setproctitle ------------
+#
+# On GB10 unified memory a server's weights sit in CUDA allocations that RSS
+# does not show: the cluster pick held 98 GiB on the GPU and 4.4 GiB of RSS.
+# vLLM's engine worker renames itself `VLLM::EngineCore`, so no executable or
+# module match sees it, and it is the process that holds the model.
+
+TF_ONLY = "  PID    RSS  ELAPSED COMMAND\n" + PY_SERVERS_PS.splitlines()[3] + "\n"
+SMALL_TF = TF_ONLY.replace("51003 50331648", "51003 4632848")
+VLLM_API = (
+    "  PID    RSS  ELAPSED COMMAND\n"
+    "51001 1048576 02:10:00 /usr/bin/python3 -m vllm.entrypoints.openai.api_server"
+    " --model /models/m --port 8030\n"
+    "51010 2097152 02:09:00 VLLM::EngineCore\n"
+)
+
+
+def test_gpu_memory_counts_toward_what_a_server_holds():
+    report = preflight.check(SMALL_TF, NO_LISTENERS, {8888}, gpu={51003: 98.0})
+    assert round(report.total_gib) == 98
+    assert report.stale == [] and report.unmatched == []
+
+
+def test_a_stale_server_whose_weights_are_on_the_gpu_is_refused():
+    """4.4 GiB of RSS is under SIGNIFICANT_GIB; 98 GiB on the GPU is not."""
+    report = preflight.check(SMALL_TF, NO_LISTENERS, {8030}, gpu={51003: 98.0})
+    assert [p.pid for p in report.stale] == [51003]
+
+
+def test_a_renamed_worker_counts_toward_its_engine():
+    """The run's own vLLM: the GPU memory is the worker's, the port the API
+    server's. Attributed to its ancestor, it is expected, not a stranger."""
+    report = preflight.check(
+        VLLM_API,
+        NO_LISTENERS,
+        {8030},
+        gpu={51010: 60.0},
+        parent_of={51010: 51001}.get,
+    )
+    assert report.stale == [] and report.unmatched == []
+    # max(RSS, GPU) for the engine that owns the worker: 60, not 1 + 60.
+    assert round(report.total_gib) == 60
+
+
+def test_a_renamed_worker_of_a_stale_engine_makes_it_stale():
+    report = preflight.check(
+        VLLM_API,
+        NO_LISTENERS,
+        {8888},
+        gpu={51010: 60.0},
+        parent_of={51010: 51001}.get,
+    )
+    assert [p.pid for p in report.stale] == [51001]
+
+
+def test_a_gpu_holder_with_no_engine_ancestor_is_unmatched():
+    """An orphaned worker whose API server died: no port, 60 GiB held."""
+    report = preflight.check(
+        "  PID    RSS  ELAPSED COMMAND\n",
+        NO_LISTENERS,
+        {8888},
+        gpu={51010: 60.0},
+        parent_of={51010: 1}.get,
+    )
+    assert [(p.pid, round(p.resident_gib)) for p in report.unmatched] == [(51010, 60)]
+    assert preflight.refuse_unless_empty(report, {"b": {}}) is not None
+
+
+def test_a_small_gpu_holder_is_not_worth_a_sentence():
+    report = preflight.check(
+        "  PID    RSS  ELAPSED COMMAND\n",
+        NO_LISTENERS,
+        {8888},
+        gpu={51010: 1.0},
+        parent_of={51010: 1}.get,
+    )
+    assert report.unmatched == []
+
+
+def test_an_ancestor_loop_ends():
+    report = preflight.check(
+        "  PID    RSS  ELAPSED COMMAND\n",
+        NO_LISTENERS,
+        {8888},
+        gpu={51010: 60.0},
+        parent_of={51010: 51011, 51011: 51010}.get,
+    )
+    assert [p.pid for p in report.unmatched] == [51010]
+
+
+def test_no_gpu_table_is_todays_behavior():
+    assert preflight.check(TF_ONLY, NO_LISTENERS, {8888}) == preflight.check(
+        TF_ONLY, NO_LISTENERS, {8888}, gpu={}
+    )

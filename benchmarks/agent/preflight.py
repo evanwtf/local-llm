@@ -43,7 +43,7 @@ import platform
 import subprocess
 import sys
 import time
-from collections.abc import Sequence
+from collections.abc import Callable, Mapping, Sequence
 from urllib.parse import urlparse
 
 import memcap
@@ -687,11 +687,50 @@ class Report:
         return out
 
 
+def _owner(
+    pid: int, known: Mapping[int, Proc], parent_of: Callable[[int], int | None] | None
+) -> int | None:
+    """`pid` or its nearest ancestor among the known servers, else None.
+
+    A worker that renamed itself (`VLLM::EngineCore`, `ray::...`) matches no
+    executable or module name, but it descends from the server that does
+    (#953). The walk stops at init, at an unreadable parent, and at a loop.
+    """
+    seen: set[int] = set()
+    while pid not in known:
+        if parent_of is None or pid in seen or pid <= 1:
+            return None
+        seen.add(pid)
+        parent = parent_of(pid)
+        if parent is None:
+            return None
+        pid = parent
+    return pid
+
+
+def parent_pid(pid: int) -> int | None:
+    """The parent of `pid` from /proc, or None where /proc cannot say."""
+    try:
+        stat = pathlib.Path(f"/proc/{pid}/stat").read_text()
+    except OSError:
+        return None
+    # The command name sits in parentheses and may contain spaces or ")";
+    # the fields after the last ")" are state, then ppid.
+    fields = stat[stat.rfind(")") + 1 :].split()
+    try:
+        return int(fields[1])
+    except (IndexError, ValueError):
+        return None
+
+
 def check(
     ps_text: str,
     lsof_text: str,
     expected_ports: set[int] | None,
     ceiling_gib: float = DEFAULT_CEILING_GIB,
+    *,
+    gpu: Mapping[int, float] | None = None,
+    parent_of: Callable[[int], int | None] | None = None,
 ) -> Report:
     """Compare what is running against what this run expects to use.
 
@@ -709,8 +748,21 @@ def check(
         expected_ports = expected_ports | shim_upstream_ports(ps_text, expected_ports)
     by_pid = {pid: port for port, pid in listeners.items()}
     stale, unmatched, total = [], [], 0.0
-    for proc in parse_ps(ps_text):
-        total += proc.rss_gib
+    # #953: memory held on the GPU counts, and goes to the server it belongs
+    # to. On GB10 unified memory a server's weights are CUDA allocations that
+    # RSS does not show, and a renamed worker holds them for its engine. A GPU
+    # holder that descends from no known server is counted on its own.
+    known = {p.pid: p for p in parse_ps(ps_text)}
+    orphans: list[Proc] = []
+    for pid, gib in (gpu or {}).items():
+        owner = _owner(pid, known, parent_of)
+        if owner is None:
+            orphans.append(Proc(pid, 0.0, f"pid {pid} (GPU memory only)", gpu_gib=gib))
+        else:
+            held = known[owner]
+            known[owner] = dataclasses.replace(held, gpu_gib=held.gpu_gib + gib)
+    for proc in [*known.values(), *orphans]:
+        total += proc.resident_gib
         port = by_pid.get(proc.pid)
         if port is None and proc.engine is not None:
             # A Python-hosted engine runs in a root container here, and `lsof`
@@ -721,12 +773,12 @@ def check(
         if port is None:
             # A server still loading holds real memory; a process holding
             # nothing is not worth a sentence either way.
-            if proc.rss_gib >= SIGNIFICANT_GIB:
+            if proc.resident_gib >= SIGNIFICANT_GIB:
                 unmatched.append(proc)
         elif (
             expected_ports is not None
             and port not in expected_ports
-            and proc.rss_gib >= SIGNIFICANT_GIB
+            and proc.resident_gib >= SIGNIFICANT_GIB
         ):
             stale.append(dataclasses.replace(proc, port=port))
     return Report(stale, unmatched, total, ceiling_gib - total)
@@ -912,6 +964,8 @@ def inspect(backends: dict[str, dict] | None = None) -> Report:
         _capture(["lsof", "-nP", "-iTCP", "-sTCP:LISTEN"]),
         None if backends is None else backend_ports(backends),
         ceiling_gib=metal_ceiling()[0] or DEFAULT_CEILING_GIB,
+        gpu=gpu_memory_by_pid(),
+        parent_of=parent_pid,
     )
 
 
