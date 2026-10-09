@@ -88,7 +88,19 @@ def collect(
     why = remote.tier_mismatch(backend, cfg["backend"][backend], directory)
     if why:
         raise SystemExit(f"server_facts: {why}")
+    # #948: the marker of the server instance answering now. The client
+    # refuses a batch when the live marker says the server restarted since.
+    spec = cfg["backend"][backend]
+    instance = remote.read_instance(
+        str(spec.get("base_url", "")), str(spec.get("engine", ""))
+    )
+    if instance is not None and instance["value"] is None:
+        raise SystemExit(
+            f"server_facts: cannot read the {instance['engine']} instance marker "
+            f"from {spec.get('base_url')}; start the server first (#948)"
+        )
     return {
+        "instance": instance,
         "directory": directory,
         "backend": backend,
         "facts": preflight.machine_facts(),

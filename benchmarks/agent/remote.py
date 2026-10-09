@@ -289,6 +289,99 @@ def merge_servers(live: dict, saved: dict) -> dict:
     return merged
 
 
+#: How each engine marks one server instance over HTTP (#948): the kind of
+#: marker and the route that carries it. A `counter` only grows while one
+#: server runs and starts over after a restart. Only engines checked against a
+#: live server are listed. vLLM may not export `process_start_time_seconds`
+#: in Prometheus multiprocess mode, and a guessed metric name would refuse
+#: every batch, so vLLM, SGLang and llama.cpp wait for a live check.
+INSTANCE_PROBES: dict[str, tuple[str, str]] = {
+    "tensorfold": ("counter", "/health"),  # requests_total, v0.6.0
+}
+
+
+def parse_instance(kind: str, text: str) -> int | None:
+    """The instance marker in a server's answer, or None if it is unreadable."""
+    if kind != "counter":
+        return None
+    try:
+        data = json.loads(text)
+    except ValueError:
+        return None
+    value = data.get("requests_total") if isinstance(data, dict) else None
+    # bool is an int in Python; a true/false counter is not a counter.
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        return None
+    return value
+
+
+def _fetch(url: str, timeout: float) -> str:
+    with urllib.request.urlopen(url, timeout=timeout) as resp:
+        return resp.read().decode("utf-8", "replace")
+
+
+def read_instance(
+    base_url: str, engine: str, fetch=None, timeout: float = 5.0
+) -> dict | None:
+    """The live instance marker of the server at `base_url`, or None.
+
+    None means the engine has no marker. A marker the server does not answer
+    is recorded with `value: None`, so the check refuses rather than passes.
+    """
+    probe = INSTANCE_PROBES.get(engine)
+    if probe is None:
+        return None
+    kind, route = probe
+    fetch = fetch or _fetch  # looked up at call time, so a test can stub it
+    parts = urllib.parse.urlsplit(base_url)
+    url = urllib.parse.urlunsplit((parts.scheme, parts.netloc, route, "", ""))
+    try:
+        value = parse_instance(kind, fetch(url, timeout))
+    except (OSError, urllib.error.URLError, ValueError):
+        value = None
+    return {"engine": engine, "kind": kind, "value": value}
+
+
+def instance_mismatch(saved: dict | None, live: dict | None, engine: str) -> str | None:
+    """Why `live` is not the server instance `saved` describes, or None."""
+    if engine not in INSTANCE_PROBES:
+        return None
+    if not saved or saved.get("value") is None:
+        return (
+            f"the server facts carry no {engine} instance marker (#948); run "
+            "scripts/server_facts.py on the server again and copy the new file "
+            "to the client"
+        )
+    if not live or live.get("value") is None:
+        return f"cannot read the live {engine} instance marker (#948)"
+    if saved.get("kind") != live.get("kind"):
+        return (
+            f"the server facts record a {saved.get('kind')!r} marker, but {engine} "
+            f"answers with a {live.get('kind')!r} one (#948)"
+        )
+    if live["value"] < saved["value"]:
+        return (
+            f"the {engine} server restarted since scripts/server_facts.py ran: "
+            f"its request counter went from {saved['value']} to {live['value']} "
+            "(#948). Run it again on the server and copy the new file to the client."
+        )
+    return None
+
+
+def check_instance(facts: dict, backends: dict[str, dict], fetch=None) -> None:
+    """Refuse when the server answering is not the one the facts describe (#948).
+
+    The HTTP identity check in `merge_servers` compares only what the server
+    advertises, and a server restarted under the same name with other flags
+    advertises the same. A restart resets its instance marker.
+    """
+    for name, spec in backends.items():
+        engine = str(spec.get("engine", ""))
+        live = read_instance(str(spec.get("base_url", "")), engine, fetch)
+        if why := instance_mismatch(facts.get("instance"), live, engine):
+            raise SystemExit(f"backend {name!r}: {why}")
+
+
 def stamp(env: dict, facts: dict) -> dict:
     """`env` re-described for a remote run: server hardware, client kept aside.
 

@@ -5755,6 +5755,9 @@ def main():
             if why := remote.tier_mismatch(name, spec, server_facts["directory"]):
                 raise SystemExit(why)
         backends = {k: remote.rewrite(v, server) for k, v in backends.items()}
+        # #948: a server restarted under the same name since the facts were
+        # written advertises the same identity; its instance marker does not.
+        remote.check_instance(server_facts, backends)
         if args.results == RESULTS:
             args.results = remote.results_path(HERE.parents[1], server_facts)
         logger.info(
