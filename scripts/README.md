@@ -10,6 +10,7 @@ Each script explains itself in full at the top of its own file -- what it comput
 |---|---|---|
 | `ab_driver.py` | any | The arm-alternation loop every A/B driver in this repo re-implements. #235 stage 3. |
 | `ab_status.py` | any | One status line for a set of decode-A/B run directories. |
+| `archive_manifest.py` | any | Merge model-archive manifests without losing the archive's own copy (#999). |
 | `archive_pre_dir_rows.py` | any | Move every pre---dir OpenCode row out of results.jsonl into the archive. |
 | `arm_order_effect.py` | any | How much does running second inside a rep cost? (#130) |
 | `audit_labels.py` | any | Check every open issue's labels against the rules the queue depends on. |
