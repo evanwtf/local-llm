@@ -409,7 +409,7 @@ def gather(peer: str, rtt_target: str, state: dict) -> tuple[str, dict]:
         occupant,
         merged,
         serving,
-        prs=hb.format_prs(hb.read_prs()),
+        prs=hb.format_prs(hb.read_prs(), now),
         log_age_min=hb.log_age(state, now),  # a log on the head; not the client's
         ambient_f=ambient_f,
     )

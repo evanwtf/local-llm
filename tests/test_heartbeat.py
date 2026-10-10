@@ -107,6 +107,71 @@ def test_prs_list_state_and_auto_merge() -> None:
     assert hb.format_prs(None) == "n/a (gh failed)"
 
 
+def _check(name: str, status: str, conclusion: str = "", started: float = 3) -> dict:
+    return {
+        "__typename": "CheckRun",
+        "name": name,
+        "status": status,
+        "conclusion": conclusion,
+        "startedAt": ago(started),
+    }
+
+
+def _pr(rollup: list[dict], state: str = "BLOCKED", opened: float = 10) -> dict:
+    return {
+        "number": 882,
+        "title": "t",
+        "mergeStateStatus": state,
+        "autoMergeRequest": {"x": 1},
+        "createdAt": ago(opened),
+        "statusCheckRollup": rollup,
+    }
+
+
+def test_a_blocked_pr_with_running_checks_says_running_and_for_how_long() -> None:
+    """#883: on 2026-09-30 the heartbeat showed #882 as BLOCKED 28 s after
+    pytest started; BLOCKED alone cannot tell running from failed."""
+    pr = _pr(
+        [
+            _check("pytest", "IN_PROGRESS", started=4),
+            _check("lint", "COMPLETED", "SUCCESS"),
+        ]
+    )
+    assert (
+        hb.format_prs([pr], NOW)
+        == "#882 t [CI running 4 min, auto-merge, opened 10 min ago]"
+    )
+
+
+def test_a_failed_check_is_named() -> None:
+    pr = _pr([_check("pytest", "COMPLETED", "FAILURE"), _check("lint", "IN_PROGRESS")])
+    assert hb.format_prs([pr], NOW) == (
+        "#882 t [CI failed: pytest, auto-merge, opened 10 min ago]"
+    )
+
+
+def test_passed_checks_keep_a_merge_state_that_still_blocks() -> None:
+    """Once CI has passed, BLOCKED means something else (a review, a rule),
+    so it stays; BEHIND likewise, since auto-merge stalls on it."""
+    done = [_check("pytest", "COMPLETED", "SUCCESS")]
+    assert hb.format_prs([_pr(done)], NOW) == (
+        "#882 t [CI passed, BLOCKED, auto-merge, opened 10 min ago]"
+    )
+    assert hb.format_prs([_pr(done, "BEHIND", 90)], NOW) == (
+        "#882 t [CI passed, BEHIND, auto-merge, opened 1 h 30 min ago]"
+    )
+    assert hb.format_prs([_pr(done, "CLEAN")], NOW) == (
+        "#882 t [CI passed, CLEAN, auto-merge, opened 10 min ago]"
+    )
+
+
+def test_a_queued_check_and_a_failed_status_context() -> None:
+    queued = {"__typename": "CheckRun", "name": "pytest", "status": "QUEUED"}
+    assert "CI queued" in hb.format_prs([_pr([queued])], NOW)
+    ctx = {"__typename": "StatusContext", "context": "ci/x", "state": "ERROR"}
+    assert "CI failed: ci/x" in hb.format_prs([_pr([ctx])], NOW)
+
+
 # -- the stall flags ----------------------------------------------------------
 
 

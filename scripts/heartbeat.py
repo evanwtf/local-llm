@@ -341,7 +341,58 @@ def format_disk(
     return f"{free_b / 1e9:,.0f} GB{pct} on {where}{below}"
 
 
-def format_prs(prs: list[dict[str, Any]] | None) -> str:
+#: Check outcomes that count as a failure, for a CheckRun's `conclusion` or a
+#: StatusContext's `state`.
+_CHECK_FAILED = frozenset(
+    {"FAILURE", "ERROR", "TIMED_OUT", "CANCELLED", "ACTION_REQUIRED", "STARTUP_FAILURE"}
+)
+
+
+def ci_state(
+    rollup: list[dict[str, Any]] | None, now: dt.datetime | None
+) -> str | None:
+    """'CI failed: pytest', 'CI running 4 min', 'CI queued', 'CI passed', or None.
+
+    #883: GitHub's BLOCKED only says the required checks have not passed. On
+    2026-09-30 a heartbeat showed #882 BLOCKED 28 s after pytest started, and
+    the operator asked whether it would be read as stuck forever. The check
+    rollup tells running from failed. A failure is named first, because it is
+    the one that needs a person.
+    """
+    if not rollup:
+        return None
+    failed, running, queued = [], [], False
+    for check in rollup:
+        name = str(check.get("name") or check.get("context") or "?")
+        if check.get("__typename") == "StatusContext":
+            state = str(check.get("state") or "").upper()
+            if state in _CHECK_FAILED:
+                failed.append(name)
+            elif state in ("PENDING", "EXPECTED"):
+                running.append(check)
+            continue
+        status = str(check.get("status") or "").upper()
+        if status == "COMPLETED":
+            if str(check.get("conclusion") or "").upper() in _CHECK_FAILED:
+                failed.append(name)
+        elif status == "IN_PROGRESS" and check.get("startedAt"):
+            running.append(check)
+        else:
+            queued = True
+    if failed:
+        return "CI failed: " + ", ".join(sorted(set(failed)))
+    if running:
+        ages = [
+            m
+            for c in running
+            if now is not None
+            and (m := minutes_since(str(c.get("startedAt") or ""), now)) is not None
+        ]
+        return f"CI running {_span(max(ages))}" if ages else "CI running"
+    return "CI queued" if queued else "CI passed"
+
+
+def format_prs(prs: list[dict[str, Any]] | None, now: dt.datetime | None = None) -> str:
     if prs is None:
         return "n/a (gh failed)"
     if not prs:
@@ -350,10 +401,17 @@ def format_prs(prs: list[dict[str, Any]] | None) -> str:
     for pr in sorted(prs, key=lambda p: int(p["number"])):
         state = str(pr.get("mergeStateStatus") or "").upper()
         tags = ["draft"] if pr.get("isDraft") else []
-        if state:
+        ci = ci_state(pr.get("statusCheckRollup"), now)
+        if ci:
+            tags.append(ci)
+        # While CI runs or has failed, BLOCKED only repeats that; once it has
+        # passed, BLOCKED means a rule or a review, and BEHIND stalls auto-merge.
+        if state and not (state == "BLOCKED" and ci and ci != "CI passed"):
             tags.append(state)
         if pr.get("autoMergeRequest"):
             tags.append("auto-merge")
+        if now is not None and (age := minutes_since(pr.get("createdAt"), now)):
+            tags.append(f"opened {_span(age)} ago")
         out.append(f"#{pr['number']} {pr.get('title', '')} [{', '.join(tags)}]")
     return "; ".join(out)
 
@@ -477,7 +535,7 @@ def read_prs(repo: str = REPO) -> list[dict[str, Any]] | None:
             "--state",
             "open",
             "--json",
-            "number,title,isDraft,mergeStateStatus,autoMergeRequest",
+            "number,title,isDraft,mergeStateStatus,autoMergeRequest,createdAt,statusCheckRollup",
         ]
     )
     if out is None:
@@ -643,7 +701,7 @@ def gather(
         merged,
         sensors=[format_sensors(s)],
         disk=format_disk(usage.free, usage.total, str(where)),
-        prs=format_prs(read_prs()),
+        prs=format_prs(read_prs(), now),
         alerts=flags(merged, now, gpu_idle=gpu_idle, log_age_min=log_age(state, now)),
     )
     return body, book
