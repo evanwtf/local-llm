@@ -1109,6 +1109,97 @@ def serving_sglang(models, inspect_all=_docker_inspect_all):
     return got
 
 
+def _vllm_container(models, inspect_all, fallback_single=False):
+    """(id, image, command) of the container serving one of `models`, or None.
+
+    A recipe often wraps `vllm serve` in `bash -c "..."`, so the served name is
+    looked for in the whitespace-split joined command, not only as its own argv
+    entry. With `fallback_single`, the one vLLM container on the box serves
+    when no name matches; two or more without a match is None -- unknown,
+    never a guess, the rule `_pick_vllm` keeps for bare processes.
+    """
+    vllm = [
+        (cid, image, cmd) for cid, image, cmd in inspect_all if "vllm" in " ".join(cmd)
+    ]
+    for cid, image, cmd in vllm:
+        tokens = " ".join(cmd).split()
+        for i, tok in enumerate(tokens):
+            name = None
+            if tok.startswith("--served-model-name="):
+                name = tok.split("=", 1)[1]
+            elif tok == "--served-model-name" and i + 1 < len(tokens):
+                name = tokens[i + 1]
+            if name in models:
+                return cid, image, cmd
+    if fallback_single and len(vllm) == 1:
+        return vllm[0]
+    return None
+
+
+def serving_vllm_container(models, inspect_all=_docker_inspect_all):
+    """The image, vLLM build and launch argv of the serving container (#904).
+
+    A backend that declares `image` runs vLLM in a container, so the build is
+    the `vllm` package inside that image, read with `docker exec`. The head's
+    own venv says nothing about it: every two-Spark vLLM row recorded the
+    venv's 0.29.0 while the container ran 0.30.0. Best-effort, like
+    `serving_sglang`: an empty dict when no container matches, and no
+    `vllm` key when the version cannot be read, so the row says unknown
+    (`engine_provenance`) rather than carrying the venv's guess.
+    """
+    hit = _vllm_container(models, inspect_all(), fallback_single=True)
+    if hit is None:
+        return {}
+    cid, image, cmd = hit
+    got = {"vllm_image": image, "server_argv": " ".join(cmd)}
+    try:
+        probe = subprocess.run(
+            [
+                "docker",
+                "exec",
+                cid,
+                "python3",
+                "-c",
+                (
+                    "import vllm, torch; print(vllm.__version__, "
+                    "torch.__version__, torch.version.cuda or '', sep='|')"
+                ),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=60,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return got
+    lines = probe.stdout.strip().splitlines() if probe.returncode == 0 else []
+    parts = lines[-1].split("|") if lines else []
+    for key, value in zip(("vllm", "vllm_torch", "vllm_torch_cuda"), parts):
+        if value:
+            got[key] = value
+    return got
+
+
+def vllm_venv_trees(backends):
+    """The venvs to read for the vLLM backends that run bare, not in an image."""
+    return [
+        b.get("engine_tree")
+        for b in backends.values()
+        if (b.get("engine") or "").lower() == "vllm" and not b.get("image")
+    ]
+
+
+def vllm_image_models(backends):
+    """The served models of the vLLM backends that run from a container image."""
+    return {
+        b.get("model")
+        for b in backends.values()
+        if (b.get("engine") or "").lower() == "vllm"
+        and b.get("image")
+        and b.get("model")
+    }
+
+
 #: The port llama-server listens on when started without --port.
 LLAMACPP_DEFAULT_PORT = 8080
 
@@ -1355,11 +1446,11 @@ def capture_versions(cfg, backends, allow_unstamped=False, argv_by_backend=None)
     # stamped by neither and the first NVFP4 rows carried no engine at all
     # (#320). A port is a deployment detail; `engine` is what the backend
     # actually claims to be.
-    vllm_trees = [
-        b.get("engine_tree")
-        for b in backends.values()
-        if (b.get("engine") or "").lower() == "vllm"
-    ]
+    #
+    # A backend that declares `image` is served from a container, and the
+    # head's venv says nothing about it (#904); `serving_vllm_container`
+    # below reads that build from inside the image instead.
+    vllm_trees = vllm_venv_trees(backends)
     if vllm_trees:
         tree = pathlib.Path(vllm_trees[0] or "~/venvs/vllm").expanduser()
         py = tree / "bin" / "python"
@@ -1391,12 +1482,29 @@ def capture_versions(cfg, backends, allow_unstamped=False, argv_by_backend=None)
         # env-level, next to `server_argv` from the ds4 path, because the
         # pooling guard reads it there.
         for name, b in backends.items():
-            if (b.get("engine") or "").lower() != "vllm":
+            if (b.get("engine") or "").lower() != "vllm" or b.get("image"):
                 continue
             vllm_argv = serving_vllm(b)
             if vllm_argv:
                 env.update(vllm_argv)
                 argv_by_backend[name] = vllm_argv["server_argv"]
+
+    # vLLM from a container image (#904): the build and the launch both come
+    # from the serving container, the same shape as SGLang below.
+    image_models = vllm_image_models(backends)
+    if image_models:
+        got = serving_vllm_container(image_models)
+        env.update(got)
+        for name, b in backends.items():
+            if (b.get("engine") or "").lower() != "vllm" or not b.get("image"):
+                continue
+            own = (
+                got
+                if len(image_models) == 1
+                else serving_vllm_container({b.get("model")})
+            )
+            if own.get("server_argv"):
+                argv_by_backend[name] = own["server_argv"]
 
     # SGLang runs from a container image, not a venv or a checkout, so the
     # build is the image (and the `sglang` package inside it) and the launch

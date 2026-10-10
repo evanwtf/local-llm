@@ -211,6 +211,7 @@ CLIENT_ENGINE_KEYS = frozenset(
         "vllm",
         "vllm_torch",
         "vllm_torch_cuda",
+        "vllm_image",
         "sglang",
         "sglang_image",
         "lmstudio_cli",
