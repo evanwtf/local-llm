@@ -13,7 +13,7 @@ trial has no wall of its own and counts at the full `--timeout` limit, as the
 screen counts it (`screening.seconds`).
 
 It then applies the pre-registered rule of #970: B wins if it is not worse on
-passes and its sum of medians is at most `--max-slowdown` above A's.
+pass rate and its sum of medians is at most `--max-slowdown` above A's.
 
     uv run python scripts/series_readout.py \\
         --arm TR3=a1.jsonl,a2.jsonl,a3.jsonl \\
@@ -117,10 +117,17 @@ def arm_stats(
     )
 
 
+def passes_at_least(b: ArmStats, a: ArmStats) -> bool:
+    """B's pass rate is at least A's. Rates, not counts (#1023): one run of
+    B against three of A compared 42 passes with 123. Cross-multiplied, so
+    equal trial counts reduce to the old count comparison exactly."""
+    return b.passes * a.trials >= a.passes * b.trials
+
+
 def rule_picks_b(a: ArmStats, b: ArmStats, max_slowdown: float) -> bool:
-    """The #970 rule: B is not worse on passes, and not more than
+    """The #970 rule: B is not worse on pass rate, and not more than
     `max_slowdown` slower on the sum of medians."""
-    if b.passes < a.passes:
+    if not passes_at_least(b, a):
         return False
     return b.sum_of_medians <= a.sum_of_medians * (1 + max_slowdown)
 
@@ -190,13 +197,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
     ceiling = a.sum_of_medians * (1 + args.max_slowdown)
     logger.info(
-        "rule: %s passes %d >= %s passes %d: %s; %s sum %.1f s <= ceiling %.1f s "
-        "(%s + %.0f%%): %s",
+        "rule: %s passes %d/%d >= %s passes %d/%d (as rates): %s; "
+        "%s sum %.1f s <= ceiling %.1f s (%s + %.0f%%): %s",
         b.name,
         b.passes,
+        b.trials,
         a.name,
         a.passes,
-        "yes" if b.passes >= a.passes else "no",
+        a.trials,
+        "yes" if passes_at_least(b, a) else "no",
         b.name,
         b.sum_of_medians,
         ceiling,
