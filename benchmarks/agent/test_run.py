@@ -2508,6 +2508,82 @@ def test_serving_sglang_records_image_and_argv(monkeypatch):
     assert run.serving_sglang({"nope"}, inspect_all=lambda: containers) == {}
 
 
+_VLLM_IMAGE = "vllm/vllm-openai:v0.30.0"
+
+
+def _vllm_containers():
+    return [
+        ("aaa", "postgres:18", ["docker-entrypoint.sh", "postgres"]),
+        (
+            "ccc",
+            _VLLM_IMAGE,
+            ["bash", "-c", "vllm serve /models/q --served-model-name m1 --port 8888"],
+        ),
+    ]
+
+
+def test_the_vllm_container_is_found_by_its_served_model():
+    """#904: a recipe's container may wrap `vllm serve` in `bash -c`, so the
+    served name is matched inside the joined command, not as its own argv."""
+    containers = _vllm_containers()
+    assert run._vllm_container({"m1"}, containers)[0] == "ccc"
+    assert run._vllm_container({"other"}, containers) is None
+
+
+def test_the_one_vllm_container_serves_when_no_name_matches_two_would_not():
+    one = _vllm_containers()
+    two = [*one, ("ddd", _VLLM_IMAGE, ["vllm", "serve", "/models/r"])]
+    # One vLLM container is unambiguous even if its served name differs.
+    assert run._vllm_container({"other"}, one, fallback_single=True)[0] == "ccc"
+    # Two are not: unknown, never a guess.
+    assert run._vllm_container({"other"}, two, fallback_single=True) is None
+
+
+def test_serving_vllm_container_reads_the_version_inside_the_image(monkeypatch):
+    """#904: the version comes from the serving container, never the head's
+    venv -- every cluster vLLM row said 0.29.0 while the image ran 0.30.0."""
+    seen: list[list[str]] = []
+
+    def fake_run(argv, **kw):
+        seen.append(argv)
+        return subprocess.CompletedProcess(argv, 0, stdout="0.30.0|2.9.1|13.0\n")
+
+    monkeypatch.setattr(run.subprocess, "run", fake_run)
+    got = run.serving_vllm_container({"m1"}, inspect_all=_vllm_containers)
+    assert got["vllm_image"] == _VLLM_IMAGE
+    assert got["vllm"] == "0.30.0"
+    assert got["vllm_torch"] == "2.9.1"
+    assert got["vllm_torch_cuda"] == "13.0"
+    assert "--served-model-name m1" in got["server_argv"]
+    assert seen[0][:3] == ["docker", "exec", "ccc"]
+
+
+def test_serving_vllm_container_records_no_version_it_could_not_read(monkeypatch):
+    monkeypatch.setattr(
+        run.subprocess,
+        "run",
+        lambda *a, **k: subprocess.CompletedProcess(a[0], 1, stdout=""),
+    )
+    got = run.serving_vllm_container({"m1"}, inspect_all=_vllm_containers)
+    assert got["vllm_image"] == _VLLM_IMAGE
+    assert "vllm" not in got
+    no_vllm = [c for c in _vllm_containers() if "vllm" not in " ".join(c[2])]
+    assert run.serving_vllm_container({"m1"}, inspect_all=lambda: no_vllm) == {}
+
+
+def test_a_vllm_backend_with_an_image_never_reads_the_local_venv():
+    """#904: a backend that declares `image` is served from a container, so
+    the head's ~/venvs/vllm says nothing about it."""
+    backends = {
+        "boxed": {"engine": "vllm", "image": _VLLM_IMAGE, "model": "m1"},
+        "local": {"engine": "vllm", "engine_tree": "~/venvs/vllm", "model": "m2"},
+        "other": {"engine": "sglang", "model": "m3"},
+    }
+    assert run.vllm_venv_trees(backends) == ["~/venvs/vllm"]
+    assert run.vllm_venv_trees({"boxed": backends["boxed"]}) == []
+    assert run.vllm_image_models(backends) == {"m1"}
+
+
 def test_prepare_env_does_not_inherit_the_shells_uv_project_environment(
     monkeypatch, tmp_path
 ):
