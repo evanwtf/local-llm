@@ -4114,6 +4114,21 @@ topology = "remote"
 smoke_protocol = "openai"
 recipe_dir = "~/miaai-tf-glm"
 
+[backend.glm53fexl3tfqmiaai20261010dual2xrc]
+description = "#1018: GLM-5.3-Flash EXL3 4bpw TensorFold quant (Mia-AiLab/GLM-5.3-Flash-EXL3-4bpw-TensorFold @76c0b517, the same weights as #997) across TWO DGX Sparks via MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks-TensorFold recipe main @b5808ac (2026-10-10, Unreleased: FILL_ROWS=2048, patches 0100-0103) on TensorFold v0.6.0 + 107 MiaAI patches, image built locally (PULL=0), tagged tensorfold-glm53:v0.6.0-e66c657a433d. 4 requests, FP8 KV with a shared pool, DFlash2 + copy drafts, RoCE all-gather, :8888. reasoning_effort low sent per request by the client (no server default); no temperature sent, so the server samples at temperature 1, top_p 0.95. REMOTE CLIENT (#562/#649), 12 GiB kernel-enforced client container; OpenCode output cap 32,768 (the recipe's MAX_TOKENS)"
+tier = "gb10-spark-x2"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "tensorfold"
+model = "GLM-5.3-Flash-EXL3"
+active_params_b = 18
+aider_model = "openai/GLM-5.3-Flash-EXL3"
+opencode_model = "tfmia8888/GLM-5.3-Flash-EXL3"
+context_tokens = 262144
+topology = "remote"
+smoke_protocol = "openai"
+recipe_dir = "~/miaai-tf-glm"
+
 # #940 (operator-approved 2026-10-05): the abliterated quant on the #912 v1.8 build. Its
 # control is glm53fexl3tfqmiaaiv18dual2xrc, the parent quant on the same build and client.
 [backend.glm53fexl3tfablitmiaaiv18dual2xrc]
