@@ -57,10 +57,10 @@ def test_excluded_rows_are_dropped(tmp_path: pathlib.Path) -> None:
     assert len(run.rows) == 1
 
 
-def stats(passes: int, total: float) -> series_readout.ArmStats:
+def stats(passes: int, total: float, trials: int = 42) -> series_readout.ArmStats:
     return series_readout.ArmStats(
         name="x",
-        trials=42,
+        trials=trials,
         passes=passes,
         run_passes=[passes],
         sum_of_medians=total,
@@ -84,6 +84,15 @@ def stats(passes: int, total: float) -> series_readout.ArmStats:
 def test_the_rule(b_passes: int, b_total: float, expected: bool) -> None:
     a = stats(42, 1000.0)
     assert series_readout.rule_picks_b(a, stats(b_passes, b_total), 0.05) is expected
+
+
+def test_the_rule_compares_pass_rates_when_run_counts_differ() -> None:
+    """#1023: one run of B against three of A compared 42 passes with 123,
+    so a perfect B could never win."""
+    a = stats(123, 3951.8, trials=126)
+    assert series_readout.rule_picks_b(a, stats(42, 3738.2, trials=42), 0.05)
+    # 40/42 (95.2%) is below 123/126 (97.6%): still a loss
+    assert not series_readout.rule_picks_b(a, stats(40, 3738.2, trials=42), 0.05)
 
 
 def test_two_backends_in_one_arm_are_refused(tmp_path: pathlib.Path) -> None:
