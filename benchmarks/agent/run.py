@@ -1180,6 +1180,92 @@ def serving_vllm_container(models, inspect_all=_docker_inspect_all):
     return got
 
 
+def serving_tensorfold(models, inspect_all=_docker_inspect_all):
+    """The image, TensorFold build and launch argv of the serving container.
+
+    #213/#647: no TensorFold row recorded a `server_argv`, so none said how
+    the engine was split (`--tp`) or which patched build served it; rows read
+    `tensorfold_version=unknown` (#320). The recipe runs `tensorfold serve`
+    in a container named for the model with `--name`. The image tag carries
+    the recipe's patch hash, so it is recorded beside the package version.
+    An empty dict when no container matches, as `serving_sglang` does.
+    """
+    hit = None
+    for cid, image, cmd in inspect_all():
+        if "tensorfold" not in " ".join(cmd) or "serve" not in cmd:
+            continue
+        for i, tok in enumerate(cmd):
+            if tok == "--name" and i + 1 < len(cmd) and cmd[i + 1] in models:
+                hit = (cid, image, cmd)
+    if hit is None:
+        return {}
+    cid, image, cmd = hit
+    got = {"tensorfold_image": image, "server_argv": " ".join(cmd)}
+    try:
+        probe = subprocess.run(
+            [
+                "docker",
+                "exec",
+                cid,
+                "python3",
+                "-c",
+                "import tensorfold; print(tensorfold.__version__)",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=60,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return got
+    lines = probe.stdout.strip().splitlines() if probe.returncode == 0 else []
+    if lines and lines[-1].strip():
+        got["tensorfold"] = lines[-1].strip()
+    return got
+
+
+#: Launch flags that set how a server splits the model, per engine, mapped to
+#: one vocabulary. A store-true flag maps to True; a valued flag to its int.
+_PARALLEL_FLAGS = {
+    "--tp": "tensor",  # TensorFold, SGLang
+    "--tp-size": "tensor",  # SGLang
+    "--tensor-parallel-size": "tensor",  # vLLM
+    "-tp": "tensor",  # vLLM short form
+    "--pipeline-parallel-size": "pipeline",  # vLLM
+    "-pp": "pipeline",
+    "--pp-size": "pipeline",  # SGLang
+    "--data-parallel-size": "data",  # vLLM
+    "--dp-size": "data",  # SGLang
+    "--ep-size": "expert",  # SGLang: an int
+    "--enable-expert-parallel": "expert",  # vLLM: store-true
+    "--nnodes": "nodes",  # SGLang
+}
+
+
+def parallelism(argv):
+    """How the server split the model, read from its own launch argv (#647).
+
+    Only what the command line states: a flag left at its default is absent,
+    never filled in as 1, because the default differs by engine and version.
+    `{}` for no argv, so a row without one stays visibly unrecorded.
+    """
+    if not argv:
+        return {}
+    tokens = argv.split()
+    got = {}
+    for i, tok in enumerate(tokens):
+        flag, _, inline = tok.partition("=")
+        key = _PARALLEL_FLAGS.get(flag)
+        if key is None:
+            continue
+        value = inline or (tokens[i + 1] if i + 1 < len(tokens) else "")
+        if value.isdigit():
+            got[key] = int(value)
+        elif not inline and (not value or value.startswith("-")):
+            got[key] = True
+    return got
+
+
 def vllm_venv_trees(backends):
     """The venvs to read for the vLLM backends that run bare, not in an image."""
     return [
@@ -1506,6 +1592,23 @@ def capture_versions(cfg, backends, allow_unstamped=False, argv_by_backend=None)
             if own.get("server_argv"):
                 argv_by_backend[name] = own["server_argv"]
 
+    # TensorFold from the recipe's container (#213, #647): its build and its
+    # launch, which carries the tensor split.
+    tf_models = {
+        b.get("model")
+        for b in backends.values()
+        if (b.get("engine") or "").lower() == "tensorfold" and b.get("model")
+    }
+    if tf_models:
+        got = serving_tensorfold(tf_models)
+        env.update(got)
+        for name, b in backends.items():
+            if (b.get("engine") or "").lower() != "tensorfold":
+                continue
+            own = got if len(tf_models) == 1 else serving_tensorfold({b.get("model")})
+            if own.get("server_argv"):
+                argv_by_backend[name] = own["server_argv"]
+
     # SGLang runs from a container image, not a venv or a checkout, so the
     # build is the image (and the `sglang` package inside it) and the launch
     # is the container's command. Rows before this carried
@@ -1696,6 +1799,10 @@ def capture_versions(cfg, backends, allow_unstamped=False, argv_by_backend=None)
 
     if servers:
         env["servers"] = servers
+    # #647: the split the server was launched with, from its own argv. A row
+    # with no argv gets no key, so "unrecorded" stays distinct from "TP=1".
+    if split := parallelism(env.get("server_argv")):
+        env["parallelism"] = split
     return {k: v for k, v in env.items() if v is not None}
 
 
@@ -1710,6 +1817,7 @@ ENGINE_VERSION_KEYS = {
     "ollama": ("ollama",),
     "vllm": ("vllm",),
     "sglang": ("sglang", "sglang_image"),
+    "tensorfold": ("tensorfold",),
     "mtplx": ("mtplx",),
     "lmstudio": ("lmstudio_runtimes",),
 }

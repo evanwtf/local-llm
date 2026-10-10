@@ -2571,6 +2571,69 @@ def test_serving_vllm_container_records_no_version_it_could_not_read(monkeypatch
     assert run.serving_vllm_container({"m1"}, inspect_all=lambda: no_vllm) == {}
 
 
+_TF_IMAGE = "tensorfold-glm53:v0.6.0-a1897d591f70"
+#: The pick's rank-0 command, as `docker inspect` gave it on 2026-10-10.
+_TF_CMD = [
+    "tensorfold",
+    "serve",
+    "/root/.cache/huggingface/hub/models--Mia-AiLab--GLM/snapshots/76c0b517",
+    "--tp",
+    "2",
+    "--rank",
+    "0",
+    "--name",
+    "GLM-5.3-Flash-EXL3",
+    "--port",
+    "8888",
+    "--parallel",
+    "4",
+]
+
+
+def test_serving_tensorfold_records_image_version_and_argv(monkeypatch):
+    """#213/#647: no TensorFold row carried a server_argv, so none recorded
+    its tensor parallelism or its build; the container holds both."""
+    containers = [
+        ("aaa", "postgres:18", ["postgres"]),
+        ("tf0", _TF_IMAGE, _TF_CMD),
+    ]
+    seen: list[list[str]] = []
+
+    def fake_run(argv, **kw):
+        seen.append(argv)
+        return subprocess.CompletedProcess(argv, 0, stdout="0.6.0\n")
+
+    monkeypatch.setattr(run.subprocess, "run", fake_run)
+    got = run.serving_tensorfold({"GLM-5.3-Flash-EXL3"}, inspect_all=lambda: containers)
+    assert got["tensorfold_image"] == _TF_IMAGE
+    assert got["tensorfold"] == "0.6.0"
+    assert "--tp 2" in got["server_argv"]
+    assert seen[0][:3] == ["docker", "exec", "tf0"]
+    assert run.serving_tensorfold({"x"}, inspect_all=lambda: containers[:1]) == {}
+
+
+def test_parallelism_is_read_from_each_engines_launch_flags():
+    """#647: two recipes for one model with different TP/EP layouts were told
+    apart only by backend name. The argv is what the engine was told."""
+    assert run.parallelism(" ".join(_TF_CMD)) == {"tensor": 2}
+    vllm = (
+        "vllm serve /m --tensor-parallel-size 2 --pipeline-parallel-size=1 "
+        "--enable-expert-parallel --data-parallel-size 1"
+    )
+    assert run.parallelism(vllm) == {
+        "tensor": 2,
+        "pipeline": 1,
+        "data": 1,
+        "expert": True,
+    }
+    sglang = "python3 -m sglang.launch_server --tp-size 2 --ep-size 2 --nnodes 2"
+    assert run.parallelism(sglang) == {"tensor": 2, "expert": 2, "nodes": 2}
+    assert run.parallelism("vllm serve /m -tp 4") == {"tensor": 4}
+    # Nothing on the command line is nothing recorded, never a default of 1.
+    assert run.parallelism("vllm serve /m --port 8000") == {}
+    assert run.parallelism(None) == {}
+
+
 def test_a_vllm_backend_with_an_image_never_reads_the_local_venv():
     """#904: a backend that declares `image` is served from a container, so
     the head's ~/venvs/vllm says nothing about it."""
