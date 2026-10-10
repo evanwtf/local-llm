@@ -5,11 +5,16 @@
 > 2026-10-07T23:34-0400: 16 days of testing, 29 stack configurations. This page
 > was rewritten from scratch on 2026-10-08. The previous version (2026-10-07)
 > is in git history. **Updated 2026-10-08, 19:40 EDT** with [#997][i997]: the
-> pick on recipe v1.10.
+> pick on recipe v1.10. **Audited 2026-10-10** against the ledger: 2,429 rows,
+> to 2026-10-08T18:34-0400. The 131 rows since the 00:30 read are #997's 126
+> and 5 from [#999][i999] (section 4, "Dropped"). Every pass count, sum of
+> medians, percentage, hidden-test count and screen verdict in sections 2–4
+> reproduces from the commands in section 1 and, for the per-run figures,
+> `scripts/series_readout.py` on the saved row files of #970 and #997.
 >
 > **The ledger has two halves that do not compare.** Until 2026-10-06 09:14 EDT,
 > OpenCode's `grep` and `glob` tools failed on every call in the client
-> ([#968][i968]): 1,993 rows. After the fix: 305 rows. Section 3 ranks the
+> ([#968][i968]): 1,993 rows. After the fix: 436 rows. Section 3 ranks the
 > stacks measured after the fix; section 4 keeps the earlier results, compared
 > only with each other.
 
@@ -18,7 +23,7 @@
 | you want | run | evidence |
 |---|---|---|
 | **A coding agent (the pick)** | **GLM-5.3-Flash EXL3 4bpw TensorFold quant on TensorFold v0.6.0**, [MiaAI-Lab recipe][r-tf-mia] v1.10 @`549fdc5` | 123 of 126 replay and hard-set trials passed over 3 runs on v1.10 ([#997][i997]), sum of medians 3,951.8 s on 14 tasks. On v1.8: 124 of 126 and 4,111.1 s ([#970][i970]). The two versions are the same within run-to-run noise. Fastest stack measured. |
-| The measured alternative | the same recipe with the **TR3 4bpw** checkpoint | 122 of 126 over the same 3 interleaved runs, 4,271.0 s (104% of the pick). |
+| The measured alternative | the same recipe with the **TR3 4bpw** checkpoint | 122 of 126 over the same 3 interleaved runs, 4,271.0 s (104% of the pick on v1.8, 108% of the pick on v1.10). |
 | Image input, or more than 262k tokens of context | DeepSeek-V4-Flash-Vision-Exp on vLLM, [MiaAI-Lab DSpark recipe][r-dsv4v] | 1M context, vision. 63 of 63 replay trials, at 272% of TensorFold's replay time. Broken client only (section 4). |
 | One Spark, not two | See the [single-Spark picks](../Cortex-X925-128GB-GB10/RECOMMENDATIONS.md) | Qwen3.8-Flash-Next NVFP4 fits one node. |
 
@@ -259,9 +264,10 @@ fewer trials behind each median.
 can be told apart from the pick; the ranking rests on time. The Qwen runs have
 too few trials for their intervals to say more.
 
-`screen_stacks.py` marks the two early-stopped Qwen runs "keep" here, because
-only four stacks pass its gate on this side of the cut and it keeps the fastest
-three. They do not earn more runs. The run-time early stop ended each one at
+`screen_stacks.py` marks the two early-stopped Qwen runs "cut": they rank 4th
+and 5th, behind the three GLM stacks it keeps. (Before #997 added the v1.10
+stack, only four stacks passed its gate here, and it marked them "keep".) They
+do not earn more runs. The run-time early stop ended each one at
 over 200% of its leader on the same trials. That leader was the broken-client
 run of 2026-10-01 (3,953.4 s), not the fixed-client pick ([#992][i992]). Against
 the pick, they are at 188% and 198%: no verdict changes.
@@ -373,6 +379,7 @@ stacks on speed only. No TensorFold stack ran it.
 |---|---|---|
 | MiMo-V2.6-Flash | 11 of 19 on replay: 6 timeouts and 2 collection errors. | [#717][i717] |
 | Ling-3.0-flash FP8 | 507% of GLM vLLM's time on the first 4 replay tasks; stopped at 3 of 4 passed. | [#752][i752] |
+| GLM-5.3-Flash NVFP4 on Enntity's Atlas fork (`glm53fnvfp4sparkglmdual2xrc`), fixed client | 3 of 5 replay trials passed. Atlas drops tool calls over about 1,024 tokens at the recipe's settings, so OpenCode cannot use it. | [#999][i999] |
 | TensorFold v0.3.5 on a GLM 4-bit MLX build | The largest context that fit was about 36k tokens, too small for 19 of 63 replay trials. | [#798][i798] |
 | GLM TensorFold, effort `high` | 15 of 21 on the hard set; span tasks 0 of 6. | [#840][i840] |
 
@@ -391,8 +398,10 @@ stacks on speed only. No TensorFold stack ran it.
   `high` took 171% of `low`'s time on the 12 non-span tasks and passed 0 of 6
   span trials ([#840][i840], [#894][i894]). GLM's template falls back to `max`
   when nothing is set; Qwen3.8-Flash-Next's falls back to `xhigh`.
-- **Hidden tests separate the stacks little.** Every GLM stack lands between
-  68.3% and 75.9%. Qwen sits higher (section 3), on few trials.
+- **Hidden tests separate the stacks little.** Every GLM stack at effort `low`
+  lands between 68.3% and 75.9%. The one GLM stack at `high` (jayleaton) reached
+  88.0%, 190/216, but 5 of its trials gave no result. Qwen sits higher
+  (section 3), on few trials.
 - **Two task traps cost some trials on every stack:**
   - gmail-api-sources builds a source from `tests/fixtures/simple.mbox`, which
     the target repository's `.gitignore` excludes. An agent that reads the
@@ -580,6 +589,7 @@ was built and measured on it.
 [i969]: https://github.com/evanwtf/local-llm/issues/969
 [i970]: https://github.com/evanwtf/local-llm/issues/970
 [i997]: https://github.com/evanwtf/local-llm/issues/997
+[i999]: https://github.com/evanwtf/local-llm/issues/999
 [i977]: https://github.com/evanwtf/local-llm/issues/977
 [i986]: https://github.com/evanwtf/local-llm/issues/986
 [i992]: https://github.com/evanwtf/local-llm/issues/992
