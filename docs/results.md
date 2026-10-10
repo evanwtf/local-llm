@@ -187,7 +187,7 @@ Excision tasks only; `script-*` excluded because they are a different class.
 
 ### Cortex-X925-128GB-GB10-x2
 
-*Generated from `hardware/Cortex-X925-128GB-GB10-x2/results.jsonl` — 2513 rows, sha256 1f035cd2cfe4.*
+*Generated from `hardware/Cortex-X925-128GB-GB10-x2/results.jsonl` — 2555 rows, sha256 de0d8e633199.*
 
 #### Every stack measured under OpenCode
 
@@ -223,7 +223,7 @@ Excision tasks only; `script-*` excluded because they are a different class.
 |---|---|---|---|---|---|---|
 | glm53fnvfp4sparkglmdual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 3/5 | 61s | 129s | — | — | 5.2x |
 | glm53fexl3tfmiaaidual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 21/21 | 113s | 353s | 2.7x | 1.6x | 18.5x |
-| glm53fexl3tfqmiaai20261010dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 42/42 | 120s | 330s | 2.3x | 1.3x | 17.9x |
+| glm53fexl3tfqmiaai20261010dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 63/63 | 120s | 330s | 2.6x | 1.3x | 18.1x |
 | glm53fexl3tfqmiaaiv171dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 21/21 | 122s | 338s | 2.3x | 1.3x | 17.8x |
 | glm53fexl3tfmiaaiv132dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 21/21 | 124s | 344s | 2.9x | 1.2x | 17.8x |
 | glm53fexl3tfablitmiaaiv18dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 20/21 | 130s | 432s | 2.6x | 1.6x | 22.6x |
@@ -277,8 +277,8 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 | glm53fexl3tfmiaaiv14dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 40/42 | 0/42 | 266s | 1143s | 2.1x | 1.6x | 16.9x |
 | glm53fexl3tfmiaaiv18dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 20/21 | 0/21 | 269s | 1358s | 1.7x | 1.4x | 12.5x |
 | glm53fexl3tfmiaaiv18dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 40/42 | 3/42 | 270s | 1234s | 2.0x | 1.6x | 12.3x |
+| glm53fexl3tfqmiaai20261010dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 63/63 | 3/63 | 275s | 1655s | 2.4x | 1.7x | 31.4x |
 | glm53fexl3tfqmiaaiv110dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 60/63 | 6/63 | 276s | 1064s | 2.3x | 1.7x | 17.2x |
-| glm53fexl3tfqmiaai20261010dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 42/42 | 2/42 | 278s | 1655s | 2.4x | 1.7x | 31.4x |
 | glm53fexl3tfmiaaiv18dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 21/21 | 0/21 | 284s | 1190s | 1.6x | 1.3x | 15.9x |
 | glm53fexl3tfmiaaiv15dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 41/42 | 3/42 | 286s | 1061s | 1.8x | 1.4x | 14.2x |
 | glm53fexl3tfqmiaaiv18dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 21/21 | 2/21 | 294s | 1112s | 1.9x | 1.3x | 14.7x |
@@ -320,7 +320,7 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 | dsv4flashvisiondspark2xrc @ Corei3-7100-16GB+image@10g | 30s |
 | glm53ftfjaydual2xrc @ Corei3-7100-16GB+image | 31s |
 | mimo26fdual2xrc @ Corei3-7100-16GB+image@10g | 38s |
-| glm53fexl3tfqmiaai20261010dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 38s |
+| glm53fexl3tfqmiaai20261010dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 39s |
 | glm53fexl3dual2xrclatestout64k @ Corei3-7100-16GB+image | 39s |
 | glm53fexl3tfqmiaaiv171dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 40s |
 | mimo26fdual2xrc @ Corei3-7100-16GB+image | 40s |
