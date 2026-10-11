@@ -236,6 +236,20 @@ def worktree_state() -> tuple[bool, str]:
     return True, "clean"
 
 
+def prepare_kv(arm: stack_arm.Arm) -> pathlib.Path:
+    """Create the arm's KV directory where the SERVER will write it (#954).
+
+    ds4-server runs with cwd=arm.tree, so a relative `kv` is `<tree>/kv`. The
+    driver used to create it against its own cwd: two directories, and a
+    warm-cache arm that read a cold one. `stack_arm.kv_dir` is the one
+    resolver, shared with the pair check, so the two cannot drift.
+    """
+    path = stack_arm.kv_dir(arm)
+    assert path is not None
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
 @contextlib.contextmanager
 def serving(arm: stack_arm.Arm, tag: str, out: pathlib.Path) -> Iterator[object]:
     """This arm's engine for one sweep, with the other engine stopped first.
@@ -257,7 +271,7 @@ def serving(arm: stack_arm.Arm, tag: str, out: pathlib.Path) -> Iterator[object]
     if arm.is_ds4:
         assert arm.kv is not None
         assert arm.tree is not None  # arm_from_env sets TREE on every arm
-        arm.kv.mkdir(parents=True, exist_ok=True)
+        prepare_kv(arm)
         with ds4_server.serving(
             command,
             log,
