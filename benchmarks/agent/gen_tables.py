@@ -213,9 +213,50 @@ def stack_key(row: dict[str, Any]) -> tuple[str, tuple[str, ...]]:
     return (row["backend"], results.client_identity(row))
 
 
+def _telling_apart(value: str, others: list[str]) -> str:
+    """The part of `value` that the colliding identities' values lack.
+
+    For a `k=v k=v` list (the client image's tool versions) that is the
+    tokens no other value carries; otherwise the whole value.
+    """
+    mine = value.split()
+    theirs = {t for o in others for t in o.split()}
+    unique = [t for t in mine if t not in theirs]
+    return " ".join(unique) if unique else value
+
+
 def client_names(rows: list[dict[str, Any]]) -> dict[tuple[str, ...], str]:
-    """A short name per client identity, taken from the rows themselves."""
-    return {results.client_identity(r): results.client_label(r) for r in rows}
+    """A short name per client identity, taken from the rows themselves.
+
+    Two identities can share a label: the label drops fields the identity
+    keeps, such as the client image's tool versions. #955 found one table
+    showing "...-64GB+image" twice with different numbers. When labels
+    collide, each one gains the first identity field that tells them apart,
+    so every name in a table is unique.
+    """
+    names = {results.client_identity(r): results.client_label(r) for r in rows}
+    by_label: dict[str, list[tuple[str, ...]]] = collections.defaultdict(list)
+    for ident, label in names.items():
+        by_label[label].append(ident)
+    for label, idents in by_label.items():
+        if len(idents) < 2:
+            continue
+        # Add differing fields in identity order until every name is unique:
+        # with three or more clients, the first field may still leave a pair.
+        fields: list[int] = []
+        for i in range(len(idents[0])):
+            if len({k[i] for k in idents}) < 2:
+                continue
+            fields.append(i)
+            if len({tuple(k[f] for f in fields) for k in idents}) == len(idents):
+                break
+        for ident in idents:
+            parts = [
+                _telling_apart(ident[f], [k[f] for k in idents if k[f] != ident[f]])
+                for f in fields
+            ]
+            names[ident] = f"{label} ({', '.join(parts)})"
+    return names
 
 
 def stack_name(

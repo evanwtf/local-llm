@@ -195,21 +195,21 @@ Excision tasks only; `script-*` excluded because they are a different class.
 
 | stack | passed | median | worst | spread (worst task) | spread (typical task) | range (all tasks) |
 |---|---|---|---|---|---|---|
-| glm53fexl3dual2xrcctx @ Corei3-7100-16GB+image | 30/30 | 48s | 96s | 2.0x | 1.5x | 4.0x |
-| glm53fexl3dual2xrcctx @ Corei3-7100-16GB+image | 30/30 | 49s | 123s | 2.2x | 1.5x | 4.0x |
+| glm53fexl3dual2xrcctx @ Corei3-7100-16GB+image (opencode=1.18.32) | 30/30 | 48s | 96s | 2.0x | 1.5x | 4.0x |
+| glm53fexl3dual2xrcctx @ Corei3-7100-16GB+image (opencode=1.18.31) | 30/30 | 49s | 123s | 2.2x | 1.5x | 4.0x |
 | glm53fexl3dual2xrc @ Corei3-7100-16GB+image@24g | 30/30 | 62s | 130s | 2.9x | 1.5x | 4.3x |
-| dsv41fexl3dual2xrc @ Corei3-7100-16GB+image | 30/30 | 75s | 214s | 2.1x | 1.8x | 5.8x |
-| dsv41fexl3dual2xrc @ Corei3-7100-16GB+image | 60/60 | 77s | 330s | 2.5x | 1.9x | 9.4x |
+| dsv41fexl3dual2xrc @ Corei3-7100-16GB+image (opencode=1.18.31) | 30/30 | 75s | 214s | 2.1x | 1.8x | 5.8x |
+| dsv41fexl3dual2xrc @ Corei3-7100-16GB+image (opencode=1.18.32) | 60/60 | 77s | 330s | 2.5x | 1.9x | 9.4x |
 | dsv4flashvisiondspark2xrc @ Corei3-7100-16GB+image@10g | 40/40 | 82s | 187s | 2.3x | 1.8x | 6.6x |
-| dsv4flashvisiondspark2xrc @ Corei3-7100-16GB+image | 60/60 | 85s | 347s | 4.3x | 2.0x | 13.5x |
+| dsv4flashvisiondspark2xrc @ Corei3-7100-16GB+image (opencode=1.18.32) | 60/60 | 85s | 347s | 4.3x | 2.0x | 13.5x |
 | qwen38fnnvfp4dual2xrcflags @ Corei3-7100-16GB+image@10g | 30/30 | 86s | 412s | 3.3x | 1.7x | 12.4x |
 | mimo26fdual2xrc @ Corei3-7100-16GB+image@10g | 23/28 | 86s | 862s | 12.4x | 2.9x | 24.0x |
-| qwen38fnfp8dual2xrc @ Corei3-7100-16GB+image | 30/30 | 93s | 278s | 2.8x | 1.7x | 6.3x |
+| qwen38fnfp8dual2xrc @ Corei3-7100-16GB+image (opencode=1.18.32) | 30/30 | 93s | 278s | 2.8x | 1.7x | 6.3x |
 | qwen38fnnvfp4dual2xrc @ Corei3-7100-16GB+image@10g | 30/30 | 99s | 178s | 2.2x | 1.3x | 5.5x |
-| qwen38fnnvfp4dual2xrcflags @ Corei3-7100-16GB+image | 30/30 | 114s | 304s | 2.4x | 1.9x | 8.9x |
+| qwen38fnnvfp4dual2xrcflags @ Corei3-7100-16GB+image (opencode=1.18.32) | 30/30 | 114s | 304s | 2.4x | 1.9x | 8.9x |
 | mimo26fdual2xrcthink @ Corei3-7100-16GB+image@10g | 30/30 | 211s | 796s | 4.1x | 2.2x | 11.7x |
-| mimo26fdual2xrcthink @ Corei3-7100-16GB+image | 30/30 | 310s | 749s | 2.6x | 1.4x | 6.9x |
-| mimo26fdual2xrc @ Corei3-7100-16GB+image | 2/2 | 370s | 592s | — | — | 4.0x |
+| mimo26fdual2xrcthink @ Corei3-7100-16GB+image (opencode=1.18.32) | 30/30 | 310s | 749s | 2.6x | 1.4x | 6.9x |
+| mimo26fdual2xrc @ Corei3-7100-16GB+image (opencode=1.18.31) | 2/2 | 370s | 592s | — | — | 4.0x |
 
 **Rows here were not all taken under one client.** dsv41fexl3dual2xrc, dsv4flashvisiondspark2xrc, glm53fexl3dual2xrc, glm53fexl3dual2xrcctx, mimo26fdual2xrc, mimo26fdual2xrcthink, qwen38fnnvfp4dual2xrc, qwen38fnnvfp4dual2xrcflags under 1.18.31; dsv41fexl3dual2xrc, dsv4flashvisiondspark2xrc, glm53fexl3dual2xrcctx, glm53fexl3dual2xrclatest, ling30fdual2xrc, mimo26fdual2xrcthink, qwen38fnfp8dual2xrc, qwen38fnnvfp4dual2xrcflags, qwen38fnnvfp4dual2xrcv030 under 1.18.32; glm53fexl3dual2xrclatest, glm53fexl3dual2xrclatestout64k, glm53ftfjaydual2xrc, qwen38fnhibrid48dual2xrc under 1.18.33; glm53fexl3tfmiaaiv18dual2xrc, glm53fexl3tfqmiaai20261010dual2xrc, glm53fexl3tfqmiaaiv110dual2xrc, glm53fexl3tfqmiaaiv18dual2xrc, glm53fnvfp4sparkglmdual2xrc, qwen38fnhibrid48v52dual2xrc, qwen38fnhibrid48v52nothinkdual2xrc, qwen38fnnvfp4tfmiaaidual2xrc under 1.18.35; the rest under 1.18.34. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: dsv41fexl3dual2xrc (1.18.31, 1.18.32, 1.18.34); dsv4flashvisiondspark2xrc (1.18.31, 1.18.32); glm53fexl3dual2xrcctx (1.18.31, 1.18.32); glm53fexl3dual2xrclatest (1.18.32, 1.18.33); glm53fexl3tfmiaaiv18dual2xrc (1.18.34, 1.18.35); glm53fexl3tfqmiaaiv18dual2xrc (1.18.34, 1.18.35); mimo26fdual2xrcthink (1.18.31, 1.18.32); qwen38fnnvfp4dual2xrcflags (1.18.31, 1.18.32).
 
@@ -221,43 +221,43 @@ Excision tasks only; `script-*` excluded because they are a different class.
 
 | stack | passed | median | worst | spread (worst task) | spread (typical task) | range (all tasks) |
 |---|---|---|---|---|---|---|
-| glm53fnvfp4sparkglmdual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 3/5 | 61s | 129s | — | — | 5.2x |
-| glm53fexl3tfmiaaidual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 21/21 | 113s | 353s | 2.7x | 1.6x | 18.5x |
-| glm53fexl3tfqmiaai20261010dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 63/63 | 120s | 330s | 2.6x | 1.3x | 18.1x |
-| glm53fexl3tfqmiaaiv171dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 21/21 | 122s | 338s | 2.3x | 1.3x | 17.8x |
-| glm53fexl3tfmiaaiv132dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 21/21 | 124s | 344s | 2.9x | 1.2x | 17.8x |
-| glm53fexl3tfablitmiaaiv18dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 20/21 | 130s | 432s | 2.6x | 1.6x | 22.6x |
-| glm53fexl3tfmiaaiv18dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 40/42 | 133s | 417s | 2.6x | 1.6x | 22.5x |
-| glm53fexl3tfqmiaaiv18dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 20/21 | 133s | 386s | 1.8x | 1.2x | 21.3x |
-| glm53fexl3tfmiaaiv15dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 42/42 | 134s | 362s | 2.7x | 1.7x | 19.4x |
-| glm53fexl3tfqmiaaiv18dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 21/21 | 140s | 350s | 1.9x | 1.3x | 19.4x |
-| glm53fexl3tfqmiaaiv110dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 63/63 | 141s | 422s | 3.2x | 2.1x | 23.4x |
-| glm53fexl3tfmiaaiv14dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 42/42 | 144s | 351s | 2.8x | 1.8x | 19.0x |
-| glm53fexl3tfmiaaiv17dual2xrc @ Corei3-7100-16GB+image | 21/21 | 145s | 434s | 2.4x | 1.7x | 18.6x |
-| glm53ftfjaydual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 42/42 | 145s | 402s | 2.1x | 1.6x | 18.3x |
-| glm53fexl3tfmiaaiv18dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 21/21 | 147s | 387s | 1.6x | 1.4x | 20.6x |
-| glm53fexl3tfmiaaiv18dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 21/21 | 149s | 371s | 1.9x | 1.3x | 20.0x |
-| glm53fexl3tfqmiaaiv18dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 42/42 | 156s | 320s | 3.4x | 1.7x | 16.3x |
-| glm53ftfjaydual2xrc @ Corei3-7100-16GB+image | 20/21 | 157s | 470s | 1.7x | 1.5x | 21.4x |
-| glm53fnvfp4kindlingdual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 63/63 | 157s | 408s | 2.6x | 1.7x | 18.2x |
-| glm53fexl3tfmiaaiv132dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 21/21 | 162s | 328s | 1.8x | 1.2x | 17.8x |
-| glm53fexl3tfmiaaiv15dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 21/21 | 162s | 319s | 2.4x | 1.4x | 16.9x |
-| glm53fexl3dual2xrclatest @ Corei3-7100-16GB+image | 20/21 | 189s | 548s | 2.3x | 1.3x | 19.0x |
-| glm53fexl3dual2xrcctx @ Corei3-7100-16GB+image | 63/63 | 216s | 608s | 2.6x | 1.9x | 23.9x |
-| glm53ftfjaydual2xrchigh @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 21/21 | 243s | 511s | 1.3x | 1.2x | 10.0x |
-| glm53fexl3dual2xrclatest @ Corei3-7100-16GB+image | 19/21 | 261s | 592s | 2.3x | 2.1x | 18.7x |
-| qwen38fnhibrid48v52nothinkdual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 7/7 | 289s | 1330s | — | — | 24.7x |
-| qwen38fnhibrid48v52dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 7/7 | 294s | 703s | — | — | 10.2x |
-| qwen38fnnvfp4tfmiaaidual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 14/14 | 308s | 685s | 1.6x | 1.2x | 12.5x |
-| qwen38fnhibrid48dual2xrc @ Corei3-7100-16GB+image | 21/21 | 344s | 693s | 2.2x | 1.4x | 14.2x |
-| qwen38fnnvfp4dual2xrcflags @ Corei3-7100-16GB+image | 63/63 | 404s | 1082s | 3.5x | 1.8x | 24.9x |
-| dsv41fexl3dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 21/21 | 409s | 1002s | 1.9x | 1.4x | 21.9x |
-| dsv41fexl3dual2xrc @ Corei3-7100-16GB+image | 63/63 | 410s | 999s | 2.0x | 1.7x | 23.8x |
-| dsv4flashvisiondspark2xrc @ Corei3-7100-16GB+image | 63/63 | 435s | 923s | 3.1x | 1.8x | 31.0x |
-| qwen38fnnvfp4dual2xrcv030 @ Corei3-7100-16GB+image | 21/21 | 438s | 1081s | 1.7x | 1.4x | 21.4x |
-| qwen38fnfp8dual2xrc @ Corei3-7100-16GB+image | 21/21 | 502s | 1152s | 1.7x | 1.3x | 20.9x |
-| ling30fdual2xrc @ Corei3-7100-16GB+image | 3/4 | 530s | 633s | — | — | 1.9x |
-| mimo26fdual2xrcthink @ Corei3-7100-16GB+image | 11/19 | 531s | 1467s | 1.7x | 1.5x | 12.1x |
+| glm53fnvfp4sparkglmdual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.35 uv=0.12.23 python=3.14.8 ripgrep=15.2.0) | 3/5 | 61s | 129s | — | — | 5.2x |
+| glm53fexl3tfmiaaidual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.34 uv=0.12.21 python=3.14.7) | 21/21 | 113s | 353s | 2.7x | 1.6x | 18.5x |
+| glm53fexl3tfqmiaai20261010dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (uv=0.13.0) | 63/63 | 120s | 330s | 2.6x | 1.3x | 18.1x |
+| glm53fexl3tfqmiaaiv171dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.34 uv=0.12.23 python=3.14.8) | 21/21 | 122s | 338s | 2.3x | 1.3x | 17.8x |
+| glm53fexl3tfmiaaiv132dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (uv=0.12.22) | 21/21 | 124s | 344s | 2.9x | 1.2x | 17.8x |
+| glm53fexl3tfablitmiaaiv18dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.34 uv=0.12.23 python=3.14.8) | 20/21 | 130s | 432s | 2.6x | 1.6x | 22.6x |
+| glm53fexl3tfmiaaiv18dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.35 uv=0.12.23 python=3.14.8 ripgrep=15.2.0) | 40/42 | 133s | 417s | 2.6x | 1.6x | 22.5x |
+| glm53fexl3tfqmiaaiv18dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.34 uv=0.12.23 python=3.14.8) | 20/21 | 133s | 386s | 1.8x | 1.2x | 21.3x |
+| glm53fexl3tfmiaaiv15dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.34 uv=0.12.23 python=3.14.8) | 42/42 | 134s | 362s | 2.7x | 1.7x | 19.4x |
+| glm53fexl3tfqmiaaiv18dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.34 uv=0.12.23 python=3.14.8 ripgrep=15.2.0) | 21/21 | 140s | 350s | 1.9x | 1.3x | 19.4x |
+| glm53fexl3tfqmiaaiv110dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.35 uv=0.12.23 python=3.14.8 ripgrep=15.2.0) | 63/63 | 141s | 422s | 3.2x | 2.1x | 23.4x |
+| glm53fexl3tfmiaaiv14dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (uv=0.12.22) | 42/42 | 144s | 351s | 2.8x | 1.8x | 19.0x |
+| glm53fexl3tfmiaaiv17dual2xrc @ Corei3-7100-16GB+image (opencode=1.18.34 uv=0.12.23 python=3.14.8) | 21/21 | 145s | 434s | 2.4x | 1.7x | 18.6x |
+| glm53ftfjaydual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.33) | 42/42 | 145s | 402s | 2.1x | 1.6x | 18.3x |
+| glm53fexl3tfmiaaiv18dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.34 uv=0.12.23 python=3.14.8) | 21/21 | 147s | 387s | 1.6x | 1.4x | 20.6x |
+| glm53fexl3tfmiaaiv18dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.34 uv=0.12.23 python=3.14.8 ripgrep=15.2.0) | 21/21 | 149s | 371s | 1.9x | 1.3x | 20.0x |
+| glm53fexl3tfqmiaaiv18dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.35 uv=0.12.23 python=3.14.8 ripgrep=15.2.0) | 42/42 | 156s | 320s | 3.4x | 1.7x | 16.3x |
+| glm53ftfjaydual2xrc @ Corei3-7100-16GB+image (uv=0.12.20) | 20/21 | 157s | 470s | 1.7x | 1.5x | 21.4x |
+| glm53fnvfp4kindlingdual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (uv=0.12.22) | 63/63 | 157s | 408s | 2.6x | 1.7x | 18.2x |
+| glm53fexl3tfmiaaiv132dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.34 uv=0.12.21 python=3.14.7) | 21/21 | 162s | 328s | 1.8x | 1.2x | 17.8x |
+| glm53fexl3tfmiaaiv15dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (uv=0.12.22) | 21/21 | 162s | 319s | 2.4x | 1.4x | 16.9x |
+| glm53fexl3dual2xrclatest @ Corei3-7100-16GB+image (uv=0.12.21) | 20/21 | 189s | 548s | 2.3x | 1.3x | 19.0x |
+| glm53fexl3dual2xrcctx @ Corei3-7100-16GB+image (opencode=1.18.32 uv=0.12.13 python=3.14.4) | 63/63 | 216s | 608s | 2.6x | 1.9x | 23.9x |
+| glm53ftfjaydual2xrchigh @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.34 uv=0.12.21 python=3.14.7) | 21/21 | 243s | 511s | 1.3x | 1.2x | 10.0x |
+| glm53fexl3dual2xrclatest @ Corei3-7100-16GB+image (opencode=1.18.32 uv=0.12.13 python=3.14.4) | 19/21 | 261s | 592s | 2.3x | 2.1x | 18.7x |
+| qwen38fnhibrid48v52nothinkdual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.35 uv=0.12.23 python=3.14.8 ripgrep=15.2.0) | 7/7 | 289s | 1330s | — | — | 24.7x |
+| qwen38fnhibrid48v52dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.35 uv=0.12.23 python=3.14.8 ripgrep=15.2.0) | 7/7 | 294s | 703s | — | — | 10.2x |
+| qwen38fnnvfp4tfmiaaidual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.35 uv=0.12.23 python=3.14.8 ripgrep=15.2.0) | 14/14 | 308s | 685s | 1.6x | 1.2x | 12.5x |
+| qwen38fnhibrid48dual2xrc @ Corei3-7100-16GB+image (uv=0.12.20) | 21/21 | 344s | 693s | 2.2x | 1.4x | 14.2x |
+| qwen38fnnvfp4dual2xrcflags @ Corei3-7100-16GB+image (opencode=1.18.32 uv=0.12.13 python=3.14.4) | 63/63 | 404s | 1082s | 3.5x | 1.8x | 24.9x |
+| dsv41fexl3dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.34 uv=0.12.21 python=3.14.7) | 21/21 | 409s | 1002s | 1.9x | 1.4x | 21.9x |
+| dsv41fexl3dual2xrc @ Corei3-7100-16GB+image (opencode=1.18.32 uv=0.12.13 python=3.14.4) | 63/63 | 410s | 999s | 2.0x | 1.7x | 23.8x |
+| dsv4flashvisiondspark2xrc @ Corei3-7100-16GB+image (opencode=1.18.32 uv=0.12.13 python=3.14.4) | 63/63 | 435s | 923s | 3.1x | 1.8x | 31.0x |
+| qwen38fnnvfp4dual2xrcv030 @ Corei3-7100-16GB+image (opencode=1.18.32 uv=0.12.13 python=3.14.4) | 21/21 | 438s | 1081s | 1.7x | 1.4x | 21.4x |
+| qwen38fnfp8dual2xrc @ Corei3-7100-16GB+image (opencode=1.18.32 uv=0.12.13 python=3.14.4) | 21/21 | 502s | 1152s | 1.7x | 1.3x | 20.9x |
+| ling30fdual2xrc @ Corei3-7100-16GB+image (opencode=1.18.32 uv=0.12.13 python=3.14.4) | 3/4 | 530s | 633s | — | — | 1.9x |
+| mimo26fdual2xrcthink @ Corei3-7100-16GB+image (opencode=1.18.32 uv=0.12.13 python=3.14.4) | 11/19 | 531s | 1467s | 1.7x | 1.5x | 12.1x |
 
 **Rows here were not all taken under one client.** dsv41fexl3dual2xrc, dsv4flashvisiondspark2xrc, glm53fexl3dual2xrcctx, glm53fexl3dual2xrclatest, ling30fdual2xrc, mimo26fdual2xrcthink, qwen38fnfp8dual2xrc, qwen38fnnvfp4dual2xrcflags, qwen38fnnvfp4dual2xrcv030 under 1.18.32; glm53fexl3dual2xrclatest, glm53ftfjaydual2xrc, qwen38fnhibrid48dual2xrc under 1.18.33; glm53fexl3tfmiaaiv18dual2xrc, glm53fexl3tfqmiaai20261010dual2xrc, glm53fexl3tfqmiaaiv110dual2xrc, glm53fexl3tfqmiaaiv18dual2xrc, glm53fnvfp4sparkglmdual2xrc, qwen38fnhibrid48v52dual2xrc, qwen38fnhibrid48v52nothinkdual2xrc, qwen38fnnvfp4tfmiaaidual2xrc under 1.18.35; the rest under 1.18.34. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: dsv41fexl3dual2xrc (1.18.32, 1.18.34); glm53fexl3dual2xrclatest (1.18.32, 1.18.33); glm53fexl3tfmiaaiv18dual2xrc (1.18.34, 1.18.35); glm53fexl3tfqmiaaiv18dual2xrc (1.18.34, 1.18.35).
 
@@ -269,39 +269,39 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 
 | stack | passed | hidden passed | median | worst | spread (worst task) | spread (typical task) | range (all tasks) |
 |---|---|---|---|---|---|---|---|
-| glm53fexl3tfablitmiaaiv18dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 15/21 | 1/21 | 175s | 1019s | 3.3x | 1.5x | 14.8x |
-| glm53fexl3tfmiaaiv132dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 20/21 | 4/21 | 250s | 1131s | 1.7x | 1.2x | 10.8x |
-| glm53fexl3tfqmiaaiv18dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 40/42 | 3/42 | 254s | 1282s | 2.0x | 1.8x | 18.6x |
-| glm53fexl3tfqmiaaiv171dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 19/21 | 2/21 | 258s | 895s | 1.6x | 1.4x | 8.7x |
-| glm53fexl3tfmiaaiv15dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 20/21 | 1/21 | 262s | 1178s | 1.6x | 1.3x | 15.9x |
-| glm53fexl3tfmiaaiv14dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 40/42 | 0/42 | 266s | 1143s | 2.1x | 1.6x | 16.9x |
-| glm53fexl3tfmiaaiv18dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 20/21 | 0/21 | 269s | 1358s | 1.7x | 1.4x | 12.5x |
-| glm53fexl3tfmiaaiv18dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 40/42 | 3/42 | 270s | 1234s | 2.0x | 1.6x | 12.3x |
-| glm53fexl3tfqmiaai20261010dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 63/63 | 3/63 | 275s | 1655s | 2.4x | 1.7x | 31.4x |
-| glm53fexl3tfqmiaaiv110dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 60/63 | 6/63 | 276s | 1064s | 2.3x | 1.7x | 17.2x |
-| glm53fexl3tfmiaaiv18dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 21/21 | 0/21 | 284s | 1190s | 1.6x | 1.3x | 15.9x |
-| glm53fexl3tfmiaaiv15dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 41/42 | 3/42 | 286s | 1061s | 1.8x | 1.4x | 14.2x |
-| glm53fexl3tfqmiaaiv18dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 21/21 | 2/21 | 294s | 1112s | 1.9x | 1.3x | 14.7x |
-| glm53fexl3tfmiaaiv17dual2xrc @ Corei3-7100-16GB+image | 21/21 | 3/21 | 298s | 1388s | 1.7x | 1.4x | 11.7x |
-| glm53fexl3tfmiaaiv132dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 20/21 | 3/21 | 302s | 1130s | 1.4x | 1.3x | 10.9x |
-| glm53fexl3tfmiaaidual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 21/21 | 2/21 | 310s | 1030s | 1.4x | 1.3x | 18.5x |
-| glm53fexl3tfqmiaaiv18dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 21/21 | 2/21 | 332s | 1120s | 1.9x | 1.4x | 14.2x |
-| glm53fexl3dual2xrclatestout64k @ Corei3-7100-16GB+image | 20/21 | 2/21 | 355s | 1596s | 1.6x | 1.2x | 9.7x |
-| glm53ftfjaydual2xrc @ Corei3-7100-16GB+image | 20/21 | 2/21 | 355s | 1297s | 2.2x | 1.5x | 16.9x |
-| glm53fnvfp4kindlingdual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 57/63 | 7/63 | 364s | 1478s | 3.4x | 1.8x | 13.7x |
-| glm53ftfjaydual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 41/42 | 4/42 | 366s | 1376s | 1.9x | 1.3x | 12.8x |
-| qwen38fnhibrid48v52dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 6/7 | 2/7 | 422s | 1709s | — | — | 8.5x |
-| glm53ftfjaydual2xrchigh @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 15/21 | 1/21 | 459s | 965s | 2.1x | 2.1x | 5.6x |
-| glm53fexl3dual2xrclatest @ Corei3-7100-16GB+image | 21/21 | 2/21 | 505s | 1659s | 1.5x | 1.3x | 13.6x |
-| glm53fexl3dual2xrclatest @ Corei3-7100-16GB+image | 18/21 | 4/21 | 511s | 2046s | 2.0x | 1.1x | 15.6x |
-| glm53fexl3dual2xrcctx @ Corei3-7100-16GB+image | 40/42 | 4/42 | 518s | 2067s | 1.8x | 1.4x | 14.3x |
-| qwen38fnnvfp4tfmiaaidual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 11/11 | 0/11 | 528s | 1321s | 2.0x | 1.7x | 4.7x |
-| qwen38fnhibrid48v52nothinkdual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 5/7 | 1/7 | 577s | 1625s | — | — | 4.3x |
-| qwen38fnhibrid48dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 20/21 | 2/21 | 743s | 1714s | 2.9x | 1.3x | 7.9x |
-| dsv4flashvisiondspark2xrc @ Corei3-7100-16GB+image | 40/42 | 0/42 | 786s | 3557s | 2.0x | 1.6x | 12.7x |
-| qwen38fnnvfp4dual2xrcflags @ Corei3-7100-16GB+image | 40/42 | 2/42 | 788s | 2557s | 4.1x | 1.6x | 9.4x |
-| dsv41fexl3dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 13/19 | 5/19 | 1005s | 1428s | 1.9x | 1.4x | 3.9x |
-| dsv41fexl3dual2xrc @ Corei3-7100-16GB+image | 16/17 | 2/17 | 1140s | 3471s | 3.2x | 1.7x | 9.6x |
+| glm53fexl3tfablitmiaaiv18dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.34 uv=0.12.23 python=3.14.8) | 15/21 | 1/21 | 175s | 1019s | 3.3x | 1.5x | 14.8x |
+| glm53fexl3tfmiaaiv132dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (uv=0.12.22) | 20/21 | 4/21 | 250s | 1131s | 1.7x | 1.2x | 10.8x |
+| glm53fexl3tfqmiaaiv18dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.35 uv=0.12.23 python=3.14.8 ripgrep=15.2.0) | 40/42 | 3/42 | 254s | 1282s | 2.0x | 1.8x | 18.6x |
+| glm53fexl3tfqmiaaiv171dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.34 uv=0.12.23 python=3.14.8) | 19/21 | 2/21 | 258s | 895s | 1.6x | 1.4x | 8.7x |
+| glm53fexl3tfmiaaiv15dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (uv=0.12.22) | 20/21 | 1/21 | 262s | 1178s | 1.6x | 1.3x | 15.9x |
+| glm53fexl3tfmiaaiv14dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (uv=0.12.22) | 40/42 | 0/42 | 266s | 1143s | 2.1x | 1.6x | 16.9x |
+| glm53fexl3tfmiaaiv18dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.34 uv=0.12.23 python=3.14.8) | 20/21 | 0/21 | 269s | 1358s | 1.7x | 1.4x | 12.5x |
+| glm53fexl3tfmiaaiv18dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.35 uv=0.12.23 python=3.14.8 ripgrep=15.2.0) | 40/42 | 3/42 | 270s | 1234s | 2.0x | 1.6x | 12.3x |
+| glm53fexl3tfqmiaai20261010dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (uv=0.13.0) | 63/63 | 3/63 | 275s | 1655s | 2.4x | 1.7x | 31.4x |
+| glm53fexl3tfqmiaaiv110dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.35 uv=0.12.23 python=3.14.8 ripgrep=15.2.0) | 60/63 | 6/63 | 276s | 1064s | 2.3x | 1.7x | 17.2x |
+| glm53fexl3tfmiaaiv18dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.34 uv=0.12.23 python=3.14.8 ripgrep=15.2.0) | 21/21 | 0/21 | 284s | 1190s | 1.6x | 1.3x | 15.9x |
+| glm53fexl3tfmiaaiv15dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.34 uv=0.12.23 python=3.14.8) | 41/42 | 3/42 | 286s | 1061s | 1.8x | 1.4x | 14.2x |
+| glm53fexl3tfqmiaaiv18dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.34 uv=0.12.23 python=3.14.8 ripgrep=15.2.0) | 21/21 | 2/21 | 294s | 1112s | 1.9x | 1.3x | 14.7x |
+| glm53fexl3tfmiaaiv17dual2xrc @ Corei3-7100-16GB+image (opencode=1.18.34 uv=0.12.23 python=3.14.8) | 21/21 | 3/21 | 298s | 1388s | 1.7x | 1.4x | 11.7x |
+| glm53fexl3tfmiaaiv132dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.34 uv=0.12.21 python=3.14.7) | 20/21 | 3/21 | 302s | 1130s | 1.4x | 1.3x | 10.9x |
+| glm53fexl3tfmiaaidual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.34 uv=0.12.21 python=3.14.7) | 21/21 | 2/21 | 310s | 1030s | 1.4x | 1.3x | 18.5x |
+| glm53fexl3tfqmiaaiv18dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.34 uv=0.12.23 python=3.14.8) | 21/21 | 2/21 | 332s | 1120s | 1.9x | 1.4x | 14.2x |
+| glm53fexl3dual2xrclatestout64k @ Corei3-7100-16GB+image (uv=0.12.20) | 20/21 | 2/21 | 355s | 1596s | 1.6x | 1.2x | 9.7x |
+| glm53ftfjaydual2xrc @ Corei3-7100-16GB+image (uv=0.12.20) | 20/21 | 2/21 | 355s | 1297s | 2.2x | 1.5x | 16.9x |
+| glm53fnvfp4kindlingdual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (uv=0.12.22) | 57/63 | 7/63 | 364s | 1478s | 3.4x | 1.8x | 13.7x |
+| glm53ftfjaydual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.33) | 41/42 | 4/42 | 366s | 1376s | 1.9x | 1.3x | 12.8x |
+| qwen38fnhibrid48v52dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.35 uv=0.12.23 python=3.14.8 ripgrep=15.2.0) | 6/7 | 2/7 | 422s | 1709s | — | — | 8.5x |
+| glm53ftfjaydual2xrchigh @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.34 uv=0.12.21 python=3.14.7) | 15/21 | 1/21 | 459s | 965s | 2.1x | 2.1x | 5.6x |
+| glm53fexl3dual2xrclatest @ Corei3-7100-16GB+image (uv=0.12.21) | 21/21 | 2/21 | 505s | 1659s | 1.5x | 1.3x | 13.6x |
+| glm53fexl3dual2xrclatest @ Corei3-7100-16GB+image (opencode=1.18.32 uv=0.12.13 python=3.14.4) | 18/21 | 4/21 | 511s | 2046s | 2.0x | 1.1x | 15.6x |
+| glm53fexl3dual2xrcctx @ Corei3-7100-16GB+image (opencode=1.18.32 uv=0.12.13 python=3.14.4) | 40/42 | 4/42 | 518s | 2067s | 1.8x | 1.4x | 14.3x |
+| qwen38fnnvfp4tfmiaaidual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.35 uv=0.12.23 python=3.14.8 ripgrep=15.2.0) | 11/11 | 0/11 | 528s | 1321s | 2.0x | 1.7x | 4.7x |
+| qwen38fnhibrid48v52nothinkdual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.35 uv=0.12.23 python=3.14.8 ripgrep=15.2.0) | 5/7 | 1/7 | 577s | 1625s | — | — | 4.3x |
+| qwen38fnhibrid48dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.33) | 20/21 | 2/21 | 743s | 1714s | 2.9x | 1.3x | 7.9x |
+| dsv4flashvisiondspark2xrc @ Corei3-7100-16GB+image (opencode=1.18.32 uv=0.12.13 python=3.14.4) | 40/42 | 0/42 | 786s | 3557s | 2.0x | 1.6x | 12.7x |
+| qwen38fnnvfp4dual2xrcflags @ Corei3-7100-16GB+image (opencode=1.18.32 uv=0.12.13 python=3.14.4) | 40/42 | 2/42 | 788s | 2557s | 4.1x | 1.6x | 9.4x |
+| dsv41fexl3dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.34 uv=0.12.21 python=3.14.7) | 13/19 | 5/19 | 1005s | 1428s | 1.9x | 1.4x | 3.9x |
+| dsv41fexl3dual2xrc @ Corei3-7100-16GB+image (opencode=1.18.32 uv=0.12.13 python=3.14.4) | 16/17 | 2/17 | 1140s | 3471s | 3.2x | 1.7x | 9.6x |
 
 **Rows here were not all taken under one client.** dsv41fexl3dual2xrc, dsv4flashvisiondspark2xrc, glm53fexl3dual2xrcctx, glm53fexl3dual2xrclatest, qwen38fnnvfp4dual2xrcflags under 1.18.32; glm53fexl3dual2xrclatest, glm53fexl3dual2xrclatestout64k, glm53ftfjaydual2xrc, qwen38fnhibrid48dual2xrc under 1.18.33; glm53fexl3tfmiaaiv18dual2xrc, glm53fexl3tfqmiaai20261010dual2xrc, glm53fexl3tfqmiaaiv110dual2xrc, glm53fexl3tfqmiaaiv18dual2xrc, qwen38fnhibrid48v52dual2xrc, qwen38fnhibrid48v52nothinkdual2xrc, qwen38fnnvfp4tfmiaaidual2xrc under 1.18.35; the rest under 1.18.34. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: dsv41fexl3dual2xrc (1.18.32, 1.18.34); glm53fexl3dual2xrclatest (1.18.32, 1.18.33); glm53fexl3tfmiaaiv18dual2xrc (1.18.34, 1.18.35); glm53fexl3tfqmiaaiv18dual2xrc (1.18.34, 1.18.35).
 
@@ -313,53 +313,53 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 
 | stack | seconds per 1k output tokens |
 |---|---|
-| qwen38fnhibrid48v52nothinkdual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 21s |
-| glm53ftfjaydual2xrchigh @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 25s |
-| dsv4flashvisiondspark2xrc @ Corei3-7100-16GB+image | 27s |
-| glm53ftfjaydual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 29s |
+| qwen38fnhibrid48v52nothinkdual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.35 uv=0.12.23 python=3.14.8 ripgrep=15.2.0) | 21s |
+| glm53ftfjaydual2xrchigh @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.34 uv=0.12.21 python=3.14.7) | 25s |
+| dsv4flashvisiondspark2xrc @ Corei3-7100-16GB+image (opencode=1.18.32) | 27s |
+| glm53ftfjaydual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.33) | 29s |
 | dsv4flashvisiondspark2xrc @ Corei3-7100-16GB+image@10g | 30s |
-| glm53ftfjaydual2xrc @ Corei3-7100-16GB+image | 31s |
+| glm53ftfjaydual2xrc @ Corei3-7100-16GB+image (uv=0.12.20) | 31s |
 | mimo26fdual2xrc @ Corei3-7100-16GB+image@10g | 38s |
-| glm53fexl3tfqmiaai20261010dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 39s |
-| glm53fexl3dual2xrclatestout64k @ Corei3-7100-16GB+image | 39s |
-| glm53fexl3tfqmiaaiv171dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 40s |
-| mimo26fdual2xrc @ Corei3-7100-16GB+image | 40s |
-| glm53fexl3tfmiaaiv15dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 41s |
-| glm53fexl3tfqmiaaiv110dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 41s |
-| glm53fexl3tfqmiaaiv18dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 41s |
-| glm53fexl3tfqmiaaiv18dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 42s |
-| glm53fexl3tfmiaaidual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 42s |
-| glm53fexl3tfmiaaiv14dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 42s |
-| glm53fexl3tfmiaaiv15dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 42s |
-| glm53fexl3tfmiaaiv18dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 43s |
-| glm53fexl3dual2xrclatest @ Corei3-7100-16GB+image | 43s |
-| glm53fexl3tfmiaaiv132dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 43s |
-| glm53fexl3tfmiaaiv18dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 43s |
-| glm53fexl3tfmiaaiv18dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 43s |
+| glm53fexl3tfqmiaai20261010dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (uv=0.13.0) | 39s |
+| glm53fexl3dual2xrclatestout64k @ Corei3-7100-16GB+image (uv=0.12.20) | 39s |
+| glm53fexl3tfqmiaaiv171dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.34 uv=0.12.23 python=3.14.8) | 40s |
+| mimo26fdual2xrc @ Corei3-7100-16GB+image (opencode=1.18.31) | 40s |
+| glm53fexl3tfmiaaiv15dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (uv=0.12.22) | 41s |
+| glm53fexl3tfqmiaaiv110dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.35 uv=0.12.23 python=3.14.8 ripgrep=15.2.0) | 41s |
+| glm53fexl3tfqmiaaiv18dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.34 uv=0.12.23 python=3.14.8 ripgrep=15.2.0) | 41s |
+| glm53fexl3tfqmiaaiv18dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.35 uv=0.12.23 python=3.14.8 ripgrep=15.2.0) | 42s |
+| glm53fexl3tfmiaaidual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.34 uv=0.12.21 python=3.14.7) | 42s |
+| glm53fexl3tfmiaaiv14dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (uv=0.12.22) | 42s |
+| glm53fexl3tfmiaaiv15dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.34 uv=0.12.23 python=3.14.8) | 42s |
+| glm53fexl3tfmiaaiv18dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.34 uv=0.12.23 python=3.14.8 ripgrep=15.2.0) | 43s |
+| glm53fexl3dual2xrclatest @ Corei3-7100-16GB+image (uv=0.12.21) | 43s |
+| glm53fexl3tfmiaaiv132dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.34 uv=0.12.21 python=3.14.7) | 43s |
+| glm53fexl3tfmiaaiv18dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.35 uv=0.12.23 python=3.14.8 ripgrep=15.2.0) | 43s |
+| glm53fexl3tfmiaaiv18dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.34 uv=0.12.23 python=3.14.8) | 43s |
 | mimo26fdual2xrcthink @ Corei3-7100-16GB+image@10g | 44s |
-| glm53fexl3tfqmiaaiv18dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 44s |
-| glm53fexl3tfmiaaiv17dual2xrc @ Corei3-7100-16GB+image | 45s |
-| glm53fexl3tfablitmiaaiv18dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 45s |
-| glm53fexl3dual2xrclatest @ Corei3-7100-16GB+image | 45s |
-| glm53fexl3tfmiaaiv132dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 45s |
-| qwen38fnhibrid48dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 45s |
-| ling30fdual2xrc @ Corei3-7100-16GB+image | 45s |
-| mimo26fdual2xrcthink @ Corei3-7100-16GB+image | 45s |
-| qwen38fnhibrid48v52dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 48s |
-| glm53fnvfp4kindlingdual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 49s |
-| glm53fexl3dual2xrcctx @ Corei3-7100-16GB+image | 50s |
-| qwen38fnnvfp4tfmiaaidual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 52s |
-| glm53fnvfp4sparkglmdual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 53s |
-| qwen38fnhibrid48dual2xrc @ Corei3-7100-16GB+image | 53s |
-| qwen38fnnvfp4dual2xrcv030 @ Corei3-7100-16GB+image | 62s |
-| qwen38fnnvfp4dual2xrcflags @ Corei3-7100-16GB+image | 68s |
-| dsv41fexl3dual2xrc @ Corei3-7100-16GB+image | 68s |
+| glm53fexl3tfqmiaaiv18dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.34 uv=0.12.23 python=3.14.8) | 44s |
+| glm53fexl3tfmiaaiv17dual2xrc @ Corei3-7100-16GB+image (opencode=1.18.34 uv=0.12.23 python=3.14.8) | 45s |
+| glm53fexl3tfablitmiaaiv18dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.34 uv=0.12.23 python=3.14.8) | 45s |
+| glm53fexl3dual2xrclatest @ Corei3-7100-16GB+image (opencode=1.18.32) | 45s |
+| glm53fexl3tfmiaaiv132dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (uv=0.12.22) | 45s |
+| qwen38fnhibrid48dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.33) | 45s |
+| ling30fdual2xrc @ Corei3-7100-16GB+image (opencode=1.18.32) | 45s |
+| mimo26fdual2xrcthink @ Corei3-7100-16GB+image (opencode=1.18.32) | 45s |
+| qwen38fnhibrid48v52dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.35 uv=0.12.23 python=3.14.8 ripgrep=15.2.0) | 48s |
+| glm53fnvfp4kindlingdual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (uv=0.12.22) | 49s |
+| glm53fexl3dual2xrcctx @ Corei3-7100-16GB+image (opencode=1.18.32) | 50s |
+| qwen38fnnvfp4tfmiaaidual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.35 uv=0.12.23 python=3.14.8 ripgrep=15.2.0) | 52s |
+| glm53fnvfp4sparkglmdual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.35 uv=0.12.23 python=3.14.8 ripgrep=15.2.0) | 53s |
+| qwen38fnhibrid48dual2xrc @ Corei3-7100-16GB+image (uv=0.12.20) | 53s |
+| qwen38fnnvfp4dual2xrcv030 @ Corei3-7100-16GB+image (opencode=1.18.32) | 62s |
+| qwen38fnnvfp4dual2xrcflags @ Corei3-7100-16GB+image (opencode=1.18.32) | 68s |
+| dsv41fexl3dual2xrc @ Corei3-7100-16GB+image (opencode=1.18.31) | 68s |
 | qwen38fnnvfp4dual2xrcflags @ Corei3-7100-16GB+image@10g | 76s |
-| dsv41fexl3dual2xrc @ Corei3-7100-16GB+image | 77s |
+| dsv41fexl3dual2xrc @ Corei3-7100-16GB+image (opencode=1.18.32) | 77s |
 | qwen38fnnvfp4dual2xrc @ Corei3-7100-16GB+image@10g | 78s |
-| qwen38fnfp8dual2xrc @ Corei3-7100-16GB+image | 83s |
-| glm53fexl3dual2xrcctx @ Corei3-7100-16GB+image | 85s |
-| dsv41fexl3dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 86s |
+| qwen38fnfp8dual2xrc @ Corei3-7100-16GB+image (opencode=1.18.32) | 83s |
+| glm53fexl3dual2xrcctx @ Corei3-7100-16GB+image (opencode=1.18.31) | 85s |
+| dsv41fexl3dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.34 uv=0.12.21 python=3.14.7) | 86s |
 | glm53fexl3dual2xrc @ Corei3-7100-16GB+image@24g | 88s |
 
 **Rows here were not all taken under one client.** dsv41fexl3dual2xrc, dsv4flashvisiondspark2xrc, glm53fexl3dual2xrc, glm53fexl3dual2xrcctx, mimo26fdual2xrc, mimo26fdual2xrcthink, qwen38fnnvfp4dual2xrc, qwen38fnnvfp4dual2xrcflags under 1.18.31; dsv41fexl3dual2xrc, dsv4flashvisiondspark2xrc, glm53fexl3dual2xrcctx, glm53fexl3dual2xrclatest, ling30fdual2xrc, mimo26fdual2xrcthink, qwen38fnfp8dual2xrc, qwen38fnnvfp4dual2xrcflags, qwen38fnnvfp4dual2xrcv030 under 1.18.32; glm53fexl3dual2xrclatest, glm53fexl3dual2xrclatestout64k, glm53ftfjaydual2xrc, qwen38fnhibrid48dual2xrc under 1.18.33; glm53fexl3tfmiaaiv18dual2xrc, glm53fexl3tfqmiaai20261010dual2xrc, glm53fexl3tfqmiaaiv110dual2xrc, glm53fexl3tfqmiaaiv18dual2xrc, glm53fnvfp4sparkglmdual2xrc, qwen38fnhibrid48v52dual2xrc, qwen38fnhibrid48v52nothinkdual2xrc, qwen38fnnvfp4tfmiaaidual2xrc under 1.18.35; the rest under 1.18.34. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: dsv41fexl3dual2xrc (1.18.31, 1.18.32, 1.18.34); dsv4flashvisiondspark2xrc (1.18.31, 1.18.32); glm53fexl3dual2xrcctx (1.18.31, 1.18.32); glm53fexl3dual2xrclatest (1.18.32, 1.18.33); glm53fexl3tfmiaaiv18dual2xrc (1.18.34, 1.18.35); glm53fexl3tfqmiaaiv18dual2xrc (1.18.34, 1.18.35); mimo26fdual2xrcthink (1.18.31, 1.18.32); qwen38fnnvfp4dual2xrcflags (1.18.31, 1.18.32).

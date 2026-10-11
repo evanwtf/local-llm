@@ -315,3 +315,48 @@ def test_every_stack_table_is_followed_by_the_three_definitions(tmp_path):
     assert text.count("**spread (typical task)**") == 3
     assert text.count("**range (all tasks)**") == 3
     assert "Spread is worst / best on the same task" not in text
+
+
+def _client_row(image: str, cap: float | None = None) -> dict:
+    machine = {
+        "arch": "x86_64",
+        "cpu": "13th Gen Intel(R) Core(TM) i9-13900H",
+        "memory_gib": 61.2,
+        "confinement": "bwrap",
+        "client_image": image,
+    }
+    if cap:
+        machine["client_mem_cap_gib"] = cap
+    return {"backend": "b", "env": {"topology": "remote", "client_machine": machine}}
+
+
+def test_two_clients_never_share_a_label() -> None:
+    """#955: two images, one label, so one table showed the same client twice."""
+    old = _client_row("opencode=1.18.34 uv=0.12.22 python=3.14.8")
+    new = _client_row("opencode=1.18.34 uv=0.12.23 python=3.14.8")
+    names = gen_tables.client_names([old, new])
+    assert len(names) == 2
+    assert len(set(names.values())) == 2
+    by_image = {k[5]: v for k, v in names.items()}
+    assert by_image["opencode=1.18.34 uv=0.12.22 python=3.14.8"].endswith(
+        "+image (uv=0.12.22)"
+    )
+    assert by_image["opencode=1.18.34 uv=0.12.23 python=3.14.8"].endswith(
+        "+image (uv=0.12.23)"
+    )
+
+
+def test_a_label_without_a_collision_is_unchanged() -> None:
+    row = _client_row("opencode=1.18.35 uv=0.13.0 python=3.14.8")
+    [name] = gen_tables.client_names([row, row]).values()
+    assert name == "13th-Gen-Intel-Corei9-13900H-64GB+image"
+
+
+def test_three_clients_get_as_many_fields_as_it_takes() -> None:
+    rows = [
+        _client_row("opencode=1.18.34 uv=0.12.22 python=3.14.8"),
+        _client_row("opencode=1.18.34 uv=0.12.23 python=3.14.8"),
+        _client_row("opencode=1.18.34 uv=0.12.23 python=3.14.8", cap=16),
+    ]
+    names = gen_tables.client_names(rows)
+    assert len(set(names.values())) == 3
