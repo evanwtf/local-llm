@@ -426,3 +426,27 @@ def test_an_mlx_arm_hands_its_env_and_unset_to_the_server(tmp_path, monkeypatch)
         pass
     assert seen["env"] == {"MLX_METAL_MEMORY_LIMIT": "96"}
     assert tuple(seen["unset"]) == ("MLX_REVIEW_OFF",)
+
+
+def test_a_relative_kv_dir_is_created_in_the_servers_tree(tmp_path, monkeypatch):
+    """#954: the driver made `kv` against its own cwd, while ds4-server (run
+    with cwd=tree) wrote `<tree>/kv`: a warm-cache arm measured a cold one."""
+    tree = tmp_path / "ds4"
+    tree.mkdir()
+    elsewhere = tmp_path / "driver-cwd"
+    elsewhere.mkdir()
+    monkeypatch.chdir(elsewhere)
+    arm = stack_arm.Arm(
+        name="new",
+        backend="b",
+        engine="ds4",
+        tree=tree,
+        gguf=pathlib.Path("/m/x.gguf"),
+        ple=None,
+        kv=pathlib.Path("kv"),
+    )
+    made = sab.prepare_kv(arm)
+    assert made == pathlib.Path(os.path.realpath(tree / "kv"))
+    assert made.is_dir()
+    assert not (elsewhere / "kv").exists()
+    assert made == stack_arm.kv_dir(arm)
