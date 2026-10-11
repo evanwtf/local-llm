@@ -447,3 +447,39 @@ def test_a_missing_provider_refuses_the_batch_before_any_trial(tmp_path, monkeyp
     assert mod.main([*argv, "--", "--backend", "b"]) == 1
     assert smoked == []
     assert launched == []
+
+
+# #959 item 3: the client container mounts no credentials and passes none, and
+# a change that adds one is refused before the batch, not found 16 days later.
+
+
+def test_the_shipped_container_carries_no_credentials():
+    assert mod.credential_leaks(_argv(), HOME) == []
+
+
+def test_a_mounted_ssh_dir_is_a_leak():
+    argv = [*_argv()[:3], "-v", f"{HOME}/.ssh:/root/.ssh:ro", *_argv()[3:]]
+    assert mod.credential_leaks(argv, HOME) == [f"mount {HOME}/.ssh"]
+
+
+def test_mounting_the_whole_home_is_a_leak():
+    argv = ["docker", "run", "-v", f"{HOME}:/root", "img"]
+    assert mod.credential_leaks(argv, HOME) == [f"mount {HOME}"]
+
+
+def test_a_credential_variable_is_a_leak():
+    argv = ["docker", "run", "-e", "SSH_AUTH_SOCK=/tmp/agent", "-e", "GH_TOKEN", "img"]
+    assert mod.credential_leaks(argv, HOME) == ["env SSH_AUTH_SOCK", "env GH_TOKEN"]
+
+
+def test_the_credential_list_matches_the_trial_sandboxes():
+    import run
+
+    assert mod.CREDENTIAL_PATHS == run.CREDENTIAL_PATHS
+
+
+def test_a_leak_refuses_the_batch(tmp_path, monkeypatch):
+    argv, _, launched = _batch(tmp_path, monkeypatch, [])
+    monkeypatch.setattr(mod, "credential_leaks", lambda full, home: ["env GH_TOKEN"])
+    assert mod.main([*argv, "--", "--backend", "b"]) == 1
+    assert launched == []

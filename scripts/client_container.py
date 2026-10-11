@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import argparse
 import datetime
+import itertools
 import json
 import logging
 import pathlib
@@ -484,6 +485,42 @@ def audit_batch(backend: str, since: str, home: pathlib.Path, log: pathlib.Path)
     )
 
 
+#: #959: what can authenticate to GitHub. On 2026-09-18 a trial on a host
+#: holding these force-pushed a real repository's main. The container mounts
+#: none of them and passes none; `credential_leaks` refuses a batch the day a
+#: change adds one. Kept equal to run.CREDENTIAL_PATHS by a test.
+CREDENTIAL_PATHS = (
+    ".ssh",
+    ".config/gh",
+    ".git-credentials",
+    ".config/git/credentials",
+    ".netrc",
+)
+CREDENTIAL_ENV = frozenset(
+    {"SSH_AUTH_SOCK", "GH_TOKEN", "GITHUB_TOKEN", "GH_ENTERPRISE_TOKEN", "GIT_ASKPASS"}
+)
+
+
+def credential_leaks(argv: list[str], home: pathlib.Path) -> list[str]:
+    """Each mount or variable in a `docker run` argv that carries a credential.
+
+    A mount leaks when its host source is a credential path, lies inside one,
+    or contains one (the whole home, say).
+    """
+    creds = [home / rel for rel in CREDENTIAL_PATHS]
+    leaks = []
+    for flag, value in itertools.pairwise(argv):
+        if flag == "-v":
+            source = pathlib.Path(value.split(":", 1)[0])
+            if any(
+                source == c or c in source.parents or source in c.parents for c in creds
+            ):
+                leaks.append(f"mount {source}")
+        elif flag == "-e" and value.split("=", 1)[0] in CREDENTIAL_ENV:
+            leaks.append(f"env {value.split('=', 1)[0]}")
+    return leaks
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("--image", default=DEFAULT_IMAGE)
@@ -580,6 +617,13 @@ def main(argv: list[str] | None = None) -> int:
         mem_limit_gib=args.mem_limit_gib,
         name=args.name,
     )
+    if leaks := credential_leaks(full, args.home):
+        logger.error(
+            "REFUSING: the client container would carry GitHub credentials "
+            "(%s). A trial with them can push to real repositories (#959).",
+            ", ".join(leaks),
+        )
+        return 1
     if args.print:
         print(" ".join(full))
         return 0
