@@ -2353,6 +2353,48 @@ def test_sandboxed_uses_bwrap_when_the_probe_succeeds(tmp_path, monkeypatch):
     assert wrapped[-2:] == argv
 
 
+# --- Credentials are a way out of the sandbox (#959) -------------------------
+#
+# 2026-09-18: a legacy-target trial on a host with a github.com SSH key and an
+# authenticated gh force-pushed evanwtf/gmail-archive main. The trial env drops
+# SSH_AUTH_SOCK and tokens (#780), but bwrap only covered the answers, so the
+# key files themselves stayed readable.
+
+
+def test_credential_paths_name_the_github_logins_that_exist(tmp_path):
+    (tmp_path / ".ssh").mkdir()
+    (tmp_path / ".config" / "gh").mkdir(parents=True)
+    (tmp_path / ".git-credentials").write_text("x")
+    got = run.credential_paths(tmp_path)
+    assert got == [
+        str(tmp_path / ".ssh"),
+        str(tmp_path / ".config" / "gh"),
+        str(tmp_path / ".git-credentials"),
+    ]
+    assert run.credential_paths(tmp_path / "empty") == []
+
+
+def test_bwrap_covers_the_credentials(tmp_path, monkeypatch):
+    repo, _commit = _tiny_repo(tmp_path)
+    fake_bwrap = tmp_path / "bwrap"
+    fake_bwrap.write_text("")
+    home = tmp_path / "home"
+    (home / ".ssh").mkdir(parents=True)
+    (home / ".netrc").write_text("x")
+    monkeypatch.setattr(run, "BWRAP", fake_bwrap)
+    monkeypatch.setattr(run, "bwrap_works", lambda: True)
+    real = run.credential_paths
+    monkeypatch.setattr(run, "credential_paths", lambda home_=None: real(home))
+    wrapped, denied, mechanism = run.sandboxed(["opencode"], repo, repo, tmp_path)
+    assert mechanism == "bwrap"
+    assert str(home / ".ssh") in denied
+    assert str(home / ".netrc") in denied
+    i = wrapped.index(str(home / ".ssh"))
+    assert wrapped[i - 1] == "--tmpfs"
+    j = wrapped.index(str(home / ".netrc"))
+    assert wrapped[j - 2 : j] == ["--ro-bind", "/dev/null"]
+
+
 # --- A container daemon is a way out of the sandbox --------------------------
 #
 # 2026-09-18: a trial ran `docker compose up` inside bwrap. The daemon runs as

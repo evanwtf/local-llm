@@ -3582,6 +3582,25 @@ CONTAINER_DAEMON_SOCKETS = (
 )
 
 
+#: #959: what can authenticate to GitHub from a home directory. On
+#: 2026-09-18 a trial on a host holding these force-pushed a real repository's
+#: main. The trial env already drops SSH_AUTH_SOCK and tokens (#780); these
+#: are the files that work without them.
+CREDENTIAL_PATHS = (
+    ".ssh",
+    ".config/gh",
+    ".git-credentials",
+    ".config/git/credentials",
+    ".netrc",
+)
+
+
+def credential_paths(home=None):
+    """The credential paths that exist under `home` (default: the user's)."""
+    home = pathlib.Path(home) if home else pathlib.Path.home()
+    return [str(home / rel) for rel in CREDENTIAL_PATHS if (home / rel).exists()]
+
+
 def container_daemon_sockets(candidates=CONTAINER_DAEMON_SOCKETS):
     """The daemon sockets present on this host, deduplicated by real path.
 
@@ -3795,7 +3814,14 @@ def sandboxed(argv, worktree, repo, tmpdir):
         )
     if BWRAP.exists() and bwrap_works():
         _, denied_paths = sandbox_profile(worktree, repo)
-        denied_paths = [*denied_paths, *container_daemon_sockets()]
+        # The Mac profile denies reads under $HOME except an allow-list
+        # (#780), which already covers these. bwrap covers only what it is
+        # told, so the credentials are named here (#959).
+        denied_paths = [
+            *denied_paths,
+            *container_daemon_sockets(),
+            *credential_paths(),
+        ]
         return bwrap_argv(argv, worktree, repo, denied_paths), denied_paths, "bwrap"
     if BWRAP.exists():
         logger.warning(
