@@ -33,6 +33,7 @@ decision that would otherwise be made wrong silently:
 from __future__ import annotations
 
 import argparse
+import datetime
 import json
 import logging
 import pathlib
@@ -458,6 +459,31 @@ def docker_argv(
 DEFAULT_IMAGE = f"local-llm-client:{build_client_image.PINS['opencode']}"
 
 
+def audit_batch(backend: str, since: str, home: pathlib.Path, log: pathlib.Path) -> int:
+    """Audit the batch's OpenCode transcripts for harness faults (#969).
+
+    Reads every transcript under the host's bench-logs for `backend` from
+    `since`, and writes the summary beside the batch log as
+    `<log stem>-audit.json`. Returns audit_transcripts' exit status: 0 clean,
+    1 a harness fault, 2 nothing readable.
+    """
+    import audit_transcripts
+
+    return audit_transcripts.main(
+        [
+            "--logs",
+            str(home / "bench-logs"),
+            "--backend",
+            backend,
+            "--since",
+            since,
+            "--markdown",
+            "--json",
+            str(log.with_name(f"{log.stem}-audit.json")),
+        ]
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("--image", default=DEFAULT_IMAGE)
@@ -563,7 +589,27 @@ def main(argv: list[str] | None = None) -> int:
     # inside dies with the wrapper instead of writing rows against a server
     # the driver has already stopped.
     args.log.parent.mkdir(parents=True, exist_ok=True)
-    return child.run(full, cwd=pathlib.Path.cwd(), log=args.log, append=True)
+    # The audit's window opens before the launch, with an offset, so it
+    # cannot miss the first trial or be read in the wrong zone.
+    since = datetime.datetime.now().astimezone().isoformat(timespec="seconds")
+    status = child.run(full, cwd=pathlib.Path.cwd(), log=args.log, append=True)
+    backend = backend_of(command)
+    if backend is None:
+        return status
+    # #969: the transcript audit ran only when someone remembered it. It runs
+    # here, after every batch, so a broken tool cannot hide behind model
+    # failures again (#968 ran two weeks unseen).
+    verdict = audit_batch(backend, since, args.home, args.log)
+    if verdict == 1:
+        logger.error(
+            "transcript audit found a harness fault in this batch (#969); its "
+            "rows are suspect until the fault is explained: see %s",
+            args.log.with_name(f"{args.log.stem}-audit.json"),
+        )
+        return status or 1
+    if verdict != 0:
+        logger.warning("transcript audit read nothing for %s since %s", backend, since)
+    return status
 
 
 if __name__ == "__main__":

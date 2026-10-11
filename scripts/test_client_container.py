@@ -7,6 +7,7 @@ weaker privilege posture than the one bwrap was measured to require.
 
 from __future__ import annotations
 
+import datetime as dt
 import pathlib
 
 import client_container as mod
@@ -251,9 +252,78 @@ def _batch(tmp_path, monkeypatch, smoke_failures):
 
     monkeypatch.setattr(client_tool_smoke, "run_in_image", smoke)
     monkeypatch.setattr(mod.child, "run", launch)
+    monkeypatch.setattr(mod, "audit_batch", lambda *a, **kw: 0)
     argv = ["--server", "s", "--facts", str(facts), "--home", str(tmp_path)]
     argv += ["--image", "img", "--log", str(tmp_path / "client.log")]
     return argv, smoked, launched
+
+
+def _audited(monkeypatch, verdict):
+    calls = []
+
+    def audit(backend, since, home, log):
+        calls.append((backend, since, home, log))
+        return verdict
+
+    monkeypatch.setattr(mod, "audit_batch", audit)
+    return calls
+
+
+def test_every_batch_ends_with_the_transcript_audit(tmp_path, monkeypatch):
+    """#969: the audit ran only when someone remembered it. On 2026-10-10 it
+    ran on #1018's 126 trials only because a label sweep named the issue."""
+    argv, _, launched = _batch(tmp_path, monkeypatch, [])
+    calls = _audited(monkeypatch, 0)
+    assert mod.main([*argv, "--", "--backend", "b"]) == 0
+    assert len(launched) == 1
+    [(backend, since, home, log)] = calls
+    assert backend == "b"
+    assert home == tmp_path
+    assert log == tmp_path / "client.log"
+    # The window opens before the launch, with an offset, so it cannot miss
+    # the first trial or be read in the wrong zone.
+    assert dt.datetime.fromisoformat(since).tzinfo is not None
+
+
+def test_a_harness_fault_fails_the_batch(tmp_path, monkeypatch):
+    argv, _, _ = _batch(tmp_path, monkeypatch, [])
+    _audited(monkeypatch, 1)
+    assert mod.main([*argv, "--", "--backend", "b"]) == 1
+
+
+def test_an_unreadable_audit_does_not_fail_a_good_batch(tmp_path, monkeypatch):
+    """No transcripts (a refused run, an early stop at zero) is not a fault."""
+    argv, _, _ = _batch(tmp_path, monkeypatch, [])
+    _audited(monkeypatch, 2)
+    assert mod.main([*argv, "--", "--backend", "b"]) == 0
+
+
+def test_no_audit_when_the_batch_never_ran(tmp_path, monkeypatch):
+    argv, _, launched = _batch(tmp_path, monkeypatch, ["grep: error: tar"])
+    calls = _audited(monkeypatch, 0)
+    assert mod.main([*argv, "--", "--backend", "b"]) == 1
+    assert launched == [] and calls == []
+    argv, _, _ = _batch(tmp_path, monkeypatch, [])
+    calls = _audited(monkeypatch, 0)
+    assert mod.main([*argv, "--print", "--", "--backend", "b"]) == 0
+    assert calls == []
+
+
+def test_the_audit_summary_lands_beside_the_batch_log(tmp_path, monkeypatch):
+    seen: list[list[str]] = []
+    import audit_transcripts
+
+    def fake_main(argv: list[str]) -> int:
+        seen.append(argv)
+        return 0
+
+    monkeypatch.setattr(audit_transcripts, "main", fake_main)
+    log = tmp_path / "1018-r1-client.log"
+    assert mod.audit_batch("b", "2026-10-10T09:40:00-04:00", tmp_path, log) == 0
+    [argv] = seen
+    assert argv[argv.index("--json") + 1] == str(tmp_path / "1018-r1-client-audit.json")
+    assert argv[argv.index("--logs") + 1] == str(tmp_path / "bench-logs")
+    assert argv[argv.index("--backend") + 1] == "b"
 
 
 def test_every_batch_runs_the_tool_self_test_first(tmp_path, monkeypatch):
