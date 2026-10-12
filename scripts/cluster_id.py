@@ -87,6 +87,31 @@ def peer_lan_name(peer: str) -> str:
     return _ssh(peer, "hostname")
 
 
+PEER_FACTS_COMMAND = "nproc; grep MemTotal /proc/meminfo"
+
+
+def parse_peer_facts(output: str) -> dict[str, float | int]:
+    """`cpu_count` and `memory_gib` from `PEER_FACTS_COMMAND`'s output.
+
+    The same two figures `preflight.machine_facts` records for the head, so
+    the worker's read the same way (#680 finding 3). Raises rather than guess.
+    """
+    lines = output.split("\n")
+    try:
+        cpus = int(lines[0].strip())
+        kib = int(lines[1].split()[1])
+    except (IndexError, ValueError) as exc:
+        raise ClusterVerificationError(
+            f"cannot read the peer's CPUs and memory from {output!r}"
+        ) from exc
+    return {"cpu_count": cpus, "memory_gib": round(kib / (1024 * 1024), 1)}
+
+
+def peer_facts(peer: str) -> dict[str, float | int]:
+    """The peer's CPU count and memory, read over ssh (#680 finding 3)."""
+    return parse_peer_facts(_ssh(peer, PEER_FACTS_COMMAND))
+
+
 def active_rdma_links(rdma_output: str) -> list[str]:
     """The netdev names whose RDMA link is ACTIVE, from `rdma link show`.
 

@@ -50,6 +50,7 @@ def tasks(tmp_path, monkeypatch) -> pathlib.Path:
     monkeypatch.setattr(server_facts.hardware_id, "directory_name", lambda f, p: SINGLE)
     monkeypatch.setattr(server_facts.cluster_id, "verify_and_name", lambda p: CLUSTER)
     monkeypatch.setattr(server_facts.cluster_id, "peer_lan_name", lambda p: "w.lan")
+    monkeypatch.setattr(server_facts.cluster_id, "peer_facts", lambda p: {})
     monkeypatch.setattr(server_facts.preflight, "machine_facts", dict)
     monkeypatch.setattr(run, "capture_versions", lambda *a, **k: {})
     path = tmp_path / "tasks.toml"
@@ -110,3 +111,16 @@ def test_the_facts_name_the_worker_for_the_client(tasks):
 
 def test_an_engine_without_a_marker_records_none(tasks):
     assert server_facts.collect("pair", tasks, cluster_peer="peer")["instance"] is None
+
+
+def test_cluster_facts_describe_every_node(tasks, monkeypatch):
+    """#680 finding 3: memory_gib stays per node, so rows compare across
+    batches; env.cluster says how many nodes and what the worker has."""
+    monkeypatch.setattr(
+        server_facts.cluster_id,
+        "peer_facts",
+        lambda p: {"cpu_count": 20, "memory_gib": 121.7},
+    )
+    got = server_facts.collect("pair", tasks, cluster_peer="peer")["env"]["cluster"]
+    assert got == {"nodes": 2, "peer": {"cpu_count": 20, "memory_gib": 121.7}}
+    assert "cluster" not in server_facts.collect("single", tasks)["env"]

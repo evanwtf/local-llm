@@ -86,3 +86,14 @@ def test_a_mismatched_peer_refuses(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_more_than_two_nodes_is_refused_not_guessed() -> None:
     with pytest.raises(cluster_id.ClusterVerificationError, match="2-node"):
         cluster_id.verify_and_name("peer", nodes=3)
+
+
+def test_peer_facts_parse_cpu_count_and_memory() -> None:
+    """#680 finding 3: cluster rows recorded the head's memory and CPUs only."""
+    out = "20\nMemTotal:       127608752 kB\n"
+    assert cluster_id.parse_peer_facts(out) == {"cpu_count": 20, "memory_gib": 121.7}
+
+
+def test_unparseable_peer_facts_are_refused() -> None:
+    with pytest.raises(cluster_id.ClusterVerificationError):
+        cluster_id.parse_peer_facts("garbage\n")
