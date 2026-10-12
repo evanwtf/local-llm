@@ -121,6 +121,18 @@ def mem_available_gib(server: str) -> float | None:
     return server_meminfo(server).get("MemAvailable")
 
 
+def peer_host() -> str | None:
+    """The worker node's LAN name from the server facts, or None.
+
+    `server_facts.py --cluster-peer` records it, so a two-node run finds its
+    worker with nothing to pass by hand. The memory gates read the head only
+    before this, and a worker OOM takes its sshd with it (#680 finding 9).
+    """
+    facts = server_facts()
+    value = (facts or {}).get("peer_host")
+    return str(value) if value else None
+
+
 def parse_dcgm_watts(text: str) -> float | None:
     """Summed `DCGM_FI_DEV_POWER_USAGE` across GPUs, or None if absent."""
     values = [

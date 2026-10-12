@@ -98,9 +98,11 @@ def _darwin_sources() -> tuple[str, int]:
     return vm.stdout, int(size.stdout.strip())
 
 
-#: #562: when set, read the pool from this node_exporter instead of locally --
-#: the harness runs on a client and the pool to protect is the server's.
-NODE_EXPORTER: str | None = None
+#: #562: when set, read the pool from these node_exporters instead of locally --
+#: the harness runs on a client and the pool to protect is the server's. A
+#: two-node server lists both nodes, and the tightest one decides (#680
+#: finding 9): the worker can run out while the head has room.
+NODE_EXPORTERS: list[str] = []
 
 
 def _node_exporter_meminfo(url: str) -> dict[str, float]:
@@ -136,8 +138,11 @@ def _summarize(fields: dict[str, float]) -> dict[str, float]:
 
 
 def _meminfo() -> dict[str, float]:
-    if NODE_EXPORTER:
-        return _node_exporter_meminfo(NODE_EXPORTER)
+    if NODE_EXPORTERS:
+        return min(
+            (_node_exporter_meminfo(url) for url in NODE_EXPORTERS),
+            key=lambda m: m["avail_gib"],
+        )
     if sys.platform == "darwin":
         return parse_vm_stat(*_darwin_sources())
     return _linux_meminfo()
@@ -217,13 +222,15 @@ def main(argv: list[str] | None = None) -> int:
     )
     p.add_argument(
         "--node-exporter",
-        default=None,
+        action="append",
+        default=[],
         help="read memory from this node_exporter /metrics URL instead of this "
-        "machine (#562: the harness is on a client, the pool is the server's)",
+        "machine (#562: the harness is on a client, the pool is the server's). "
+        "Repeat it for each node of a cluster; the tightest node decides",
     )
     args = p.parse_args(argv)
-    global NODE_EXPORTER
-    NODE_EXPORTER = args.node_exporter
+    global NODE_EXPORTERS
+    NODE_EXPORTERS = args.node_exporter
     ready = gate(args.min_avail_gib, args.timeout, args.interval, args.settle_readings)
     return 0 if ready else 1
 

@@ -102,6 +102,9 @@ def collect(
     return {
         "instance": instance,
         "directory": directory,
+        # The worker's LAN name, so the client's memory gates read both nodes
+        # (#680 finding 9). None on a single node.
+        "peer_host": cluster_id.peer_lan_name(cluster_peer) if cluster_peer else None,
         "backend": backend,
         "facts": preflight.machine_facts(),
         "env": run.capture_versions(
