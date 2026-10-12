@@ -216,6 +216,10 @@ def test_the_mtp_arms_declare_themselves():
         # arm saw 2 of its first 5 trials produce corrupted generation, so
         # this arm must prove it drafted just as loudly.
         "qwen38fnexl3nothinkrcdgx": "vllm",
+        # #865: the two-node NVIDIA vs RedHatAI NVFP4 A/B. Both run MTP-3 and
+        # read vLLM's counters from /metrics on the head (#680 finding 7).
+        "qwen38fnnvfp4nv2xspec": "vllm",
+        "qwen38fnnvfp4rh2xspec": "vllm",
     }
 
 

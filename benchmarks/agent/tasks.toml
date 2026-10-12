@@ -3729,6 +3729,52 @@ topology = "remote"
 recipe_dir = "~/qwen38-dual-latest"
 image = "vllm/vllm-openai:v0.30.0"
 
+# #865: a second NVFP4 quant of Qwen3.8-Flash-Next, A/B against NVIDIA's, on the
+# i9 client. Two arms, run back to back on one recipe checkout and one image, so
+# the weights are the only difference:
+#   qwen38fnnvfp4nv2xspec -- control, nvidia/Qwen3.8-Flash-Next-NVFP4.
+#   qwen38fnnvfp4rh2xspec -- treatment, RedHatAI/Qwen3.8-Flash-Next-NVFP4
+#     (snapshot c8f2fb1b, 186,452,447,212 bytes on both nodes), launched with
+#     OVERRIDE_MODEL_ID. Approved 2026-09-29 (on #583).
+# The earlier nvidia arms (qwen38fnnvfp4dual2xrc*) ran on the Core i3-7100, and a
+# row compares only with rows from the same client, so the control is re-run.
+# Both declare MTP with draft_engine "vllm" and run with --metrics-url, so each
+# trial records draft acceptance (#680 finding 7): a different quant can change
+# how often the MTP head's drafts are accepted.
+[backend.qwen38fnnvfp4nv2xspec]
+description = "#865 control: nvidia/Qwen3.8-Flash-Next-NVFP4 across TWO DGX Sparks, MiaAI-Lab Qwen3.8-Flash-Next-Dual-DGX-Sparks (start-v030.sh, vllm/vllm-openai:v0.30.0), vLLM TP=2 + expert parallel + MTP 3, GPU_MEMORY_UTILIZATION 0.78, reasoning_effort low server-side, 262144 context. REMOTE CLIENT: the Core i9-13900H, 12 GiB kernel-enforced client container"
+tier = "gb10-spark-x2"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "vllm"
+model = "qwen3.8-flash-next"
+active_params_b = 6
+aider_model = "openai/qwen3.8-flash-next"
+opencode_model = "vllm8888/qwen3.8-flash-next"
+context_tokens = 262144
+topology = "remote"
+speculative = "MTP k=3 (checkpoint MTP head), recipe draft vocab files/draft_vocab_en_code_47k.txt; counters from :8888/metrics"
+draft_engine = "vllm"
+recipe_dir = "~/qwen38-dual-latest"
+image = "vllm/vllm-openai:v0.30.0"
+
+[backend.qwen38fnnvfp4rh2xspec]
+description = "#865 treatment: RedHatAI/Qwen3.8-Flash-Next-NVFP4 (snapshot c8f2fb1b) in place of NVIDIA's quant; everything else as qwen38fnnvfp4nv2xspec -- MiaAI-Lab dual recipe start-v030.sh with OVERRIDE_MODEL_ID, vllm/vllm-openai:v0.30.0, vLLM TP=2 + expert parallel + MTP 3, GPU_MEMORY_UTILIZATION 0.78, reasoning_effort low server-side, 262144 context. REMOTE CLIENT: the Core i9-13900H, 12 GiB kernel-enforced client container"
+tier = "gb10-spark-x2"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "vllm"
+model = "qwen3.8-flash-next"
+active_params_b = 6
+aider_model = "openai/qwen3.8-flash-next"
+opencode_model = "vllm8888/qwen3.8-flash-next"
+context_tokens = 262144
+topology = "remote"
+speculative = "MTP k=3 (checkpoint MTP head), recipe draft vocab files/draft_vocab_en_code_47k.txt; counters from :8888/metrics"
+draft_engine = "vllm"
+recipe_dir = "~/qwen38-dual-latest"
+image = "vllm/vllm-openai:v0.30.0"
+
 # #721: the OFFICIAL FP8 checkpoint (Qwen/Qwen3.8-Flash-Next-FP8, 172.8 GiB) of
 # the same model, same recipe (MiaAI-Lab Qwen3.8-Flash-Next-Dual-DGX-Sparks,
 # ./start-fp8.sh), same launch patch as the flags arm. The quality-first ranking
