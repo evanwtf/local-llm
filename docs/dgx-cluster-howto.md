@@ -222,7 +222,10 @@ Recipes differ; the constants on this pair are:
   on a real completion.
 - **Lower `GPU_MEMORY_UTILIZATION` below the recipe's default** if the head
   also runs the harness and monitoring. 0.835 hit `NVRM: Out of memory` on
-  this pair; 0.78 works.
+  this pair while the harness ran on the head; 0.78 works. Since #562 the
+  harness runs on a separate client machine and only monitoring stays on the
+  head, so the recipe default may fit again. Nobody has measured it; keep
+  0.78 until a run shows otherwise (#680, finding 17).
 - **Leave `earlyoom` running, at 1.0 / 0.5 GiB, on both nodes (#700).** At its
   old 5% line (~6.1 GiB) it killed large two-node models at rest (GLM-5.3-Flash
   idles at 2.7 GiB on the head), so it used to be stopped for every run. Since

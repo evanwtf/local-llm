@@ -158,3 +158,23 @@ def test_an_unverifiable_tree_blocks_a_launch(monkeypatch, tmp_path):
     monkeypatch.setattr(machine_health, "mem_held_gib", lambda: 5.0)
     problems = machine_health.check("run")
     assert len(problems) == 1 and "could not" in problems[0], problems
+
+
+def test_every_dgx_backend_port_is_checked():
+    """The launch gate sees only the ports in PORTS. The cluster served on 8888
+    for weeks while PORTS stopped at 8030, so a second launch there read FREE
+    (#680, finding 18). Derive the list from the backends, not from memory.
+    Ollama's 11434 is left out: the head runs it as a system daemon, so it is
+    always bound and would block every launch."""
+    import tomllib
+
+    repo = pathlib.Path(__file__).resolve().parent.parent
+    tasks = repo / "benchmarks" / "agent" / "tasks.toml"
+    backends = tomllib.loads(tasks.read_text())["backend"]
+    ports = {
+        int(b["base_url"].rsplit(":", 1)[1].split("/")[0])
+        for b in backends.values()
+        if str(b.get("tier", "")).startswith("gb10") and "base_url" in b
+    }
+    missing = sorted(ports - {11434} - set(machine_health.PORTS))
+    assert not missing, f"add these DGX backend ports to PORTS: {missing}"
