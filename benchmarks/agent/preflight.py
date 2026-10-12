@@ -1888,6 +1888,66 @@ def log_ci_status(offline: bool = False) -> None:
         )
 
 
+def engine_release_items(backends: dict, run=None) -> list:
+    """Every engine this machine can serve, against its newest release (#1049).
+
+    The operator, 2026-10-12: "Preflight should make sure we're on the latest
+    version of all software." Until then nothing compared an engine with its
+    releases: vllm/vllm-openai:v0.30.0 passed every gate for a week after
+    v0.31.0 shipped. Covered here: the images of backends whose recipe is
+    checked out on this machine (the same set `preflight_daily.py` gates), and
+    each venv engine tree that exists here.
+    """
+    import currency
+
+    kwargs = {"run": run} if run else {}
+    items, seen = [], set()
+    for spec in backends.values():
+        recipe = spec.get("recipe_dir")
+        image = spec.get("image")
+        if image and recipe and pathlib.Path(recipe).expanduser().is_dir():
+            if image in seen:
+                continue
+            seen.add(image)
+            item = currency.engine_release_item(image, **kwargs)
+            if item is not None:
+                items.append(item)
+            continue
+        engine = str(spec.get("engine") or "").lower()
+        tree = spec.get("engine_tree")
+        if image or engine not in currency.VENV_ENGINE_REPOS or not tree:
+            continue
+        path = pathlib.Path(tree).expanduser()
+        if (path / "bin" / "python").exists() and str(path) not in seen:
+            seen.add(str(path))
+            items.append(currency.venv_engine_item(engine, path, **kwargs))
+    return items
+
+
+def check_engine_releases(backends: dict, run=None) -> bool:
+    """Log each engine's release currency; False when any is behind or unknown."""
+    items = engine_release_items(backends, run)
+    for item in items:
+        if item.ok:
+            logger.info(
+                "preflight: %s: %s (here %s, latest %s)",
+                item.name,
+                item.state,
+                item.installed,
+                item.latest,
+            )
+        else:
+            logger.error(
+                "preflight: %s is %s (here %s, latest %s) -- fix: %s (#1049)",
+                item.name,
+                item.state.upper(),
+                item.installed or "unknown",
+                item.latest or "unknown",
+                item.fix,
+            )
+    return all(item.ok for item in items)
+
+
 def main() -> int:
     # #54: a run killed mid-batch leaves the real repositories moved aside at
     # <name>-real with the export standing in their place. Restore before
@@ -1985,6 +2045,18 @@ def main() -> int:
         # means "report running servers only", and that is not a mode that
         # should reach the network.
         log_ci_status(offline=args.offline)
+    # #1049: an engine behind its newest release refuses, unlike the clients
+    # above: the operator's rule is the latest version of all software.
+    engines_ok = True
+    if not args.no_versions and not args.offline:
+        try:
+            import tomllib
+
+            with (pathlib.Path(__file__).parent / "tasks.toml").open("rb") as fh:
+                engines_ok = check_engine_releases(tomllib.load(fh).get("backend", {}))
+        except Exception as exc:  # noqa: BLE001 -- unreadable is not current
+            logger.error("preflight: could not check engine releases: %s", exc)
+            engines_ok = False
     # #69: an opencode_model that OpenCode cannot resolve makes the client
     # exit in 0.6s, and the row reads as a model failure. Cheap to check here.
     try:
@@ -2026,6 +2098,12 @@ def main() -> int:
             "preflight: run this from run.py, or pass the backends you "
             "plan to use, to be told which of these is unexpected"
         )
+    if not engines_ok:
+        logger.error(
+            "preflight: REFUSING -- an engine is behind its latest release or "
+            "unreadable; update it and rerun (#1049)"
+        )
+        return 1
     return 0
 
 

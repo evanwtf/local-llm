@@ -308,13 +308,84 @@ def image_item(ref: str, run: Runner = _run) -> Item:
     )
 
 
+#: Engine image repository -> (engine name, GitHub repo whose latest release is
+#: the target). #1049: the digest check above only proves a tag is not stale
+#: for itself; a pinned `v0.30.0` passed it for a week after `v0.31.0` shipped.
+ENGINE_IMAGE_REPOS = {
+    "vllm/vllm-openai": ("vllm", "vllm-project/vllm"),
+    "lmsysorg/sglang": ("sglang", "sgl-project/sglang"),
+}
+
+#: Engines served from a venv (`engine_tree`), and their release repo (#1049).
+VENV_ENGINE_REPOS = {"vllm": "vllm-project/vllm"}
+
+
+def _is_version_tag(tag: str) -> bool:
+    return staleness.parse(tag) is not None and tag.lstrip("v")[:1].isdigit()
+
+
+def engine_release_item(ref: str, run: Runner = _run) -> Item | None:
+    """An engine image's version tag against the engine's newest release.
+
+    None when the image is not a known engine's, or its tag is not a version
+    (a nightly or a custom build): the digest check still covers those.
+    """
+    repo, _, tag = ref.rpartition(":")
+    if repo not in ENGINE_IMAGE_REPOS or not _is_version_tag(tag):
+        return None
+    engine, release_repo = ENGINE_IMAGE_REPOS[repo]
+    want = latest_release(release_repo, run)
+    state = staleness.compare(tag, want)
+    fix = (
+        f"serve {repo}:{want} (pull it on every node, and point the backend's "
+        "`image` and the launch at it); a new engine version starts a new series"
+        if state in ("behind", "unknown")
+        else ""
+    )
+    return Item(f"engine {engine} ({ref})", tag, want, state, fix)
+
+
+def venv_engine_item(engine: str, tree: pathlib.Path, run: Runner = _run) -> Item:
+    """A venv-served engine's installed version against its newest release."""
+    name = f"engine {engine} (venv {tree})"
+    have = run(
+        [
+            str(tree / "bin" / "python"),
+            "-c",
+            f"import {engine}; print({engine}.__version__)",
+        ],
+        60,
+    )
+    want = latest_release(VENV_ENGINE_REPOS[engine], run)
+    if not have:
+        return Item(
+            name, None, want, "unknown", f"could not import {engine} from {tree}"
+        )
+    state = staleness.compare(have, want)
+    fix = (
+        f"`{tree}/bin/pip install -U {engine}=={(want or '').lstrip('v')}`"
+        if state in ("behind", "unknown")
+        else ""
+    )
+    return Item(name, have, want, state, fix)
+
+
 def backend_items(backend: dict, run: Runner = _run) -> list[Item]:
-    """The recipe and image a backend declares. None declared, none checked."""
+    """The recipe, image and engine a backend declares. None declared, none
+    checked."""
     items = []
     if backend.get("recipe_dir"):
         items.append(recipe_item(pathlib.Path(backend["recipe_dir"]).expanduser(), run))
     if backend.get("image"):
         items.append(image_item(backend["image"], run))
+        engine_item = engine_release_item(backend["image"], run)
+        if engine_item is not None:
+            items.append(engine_item)
+    else:
+        engine = str(backend.get("engine") or "").lower()
+        if engine in VENV_ENGINE_REPOS and backend.get("engine_tree"):
+            tree = pathlib.Path(backend["engine_tree"]).expanduser()
+            items.append(venv_engine_item(engine, tree, run))
     return items
 
 

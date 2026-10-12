@@ -1267,3 +1267,48 @@ def test_a_refusal_states_what_a_server_holds_on_the_gpu():
     why = preflight.refuse_unless_empty(report, {"b": {}})
     assert why and "holding 98.0 GiB" in why
     assert "holding 98.0 GiB" in " ".join(report.warnings())
+
+
+# #1049: preflight compared no engine with its releases.
+def _fake_run(answers):
+    def run(argv, timeout=30):
+        joined = " ".join(argv)
+        for key, value in answers.items():
+            if key in joined:
+                return value
+        return None
+
+    return run
+
+
+def test_engine_releases_cover_present_recipes_and_venvs_only(tmp_path):
+    recipe = tmp_path / "recipe"
+    recipe.mkdir()
+    venv = tmp_path / "venv"
+    (venv / "bin").mkdir(parents=True)
+    (venv / "bin" / "python").write_text("")
+    backends = {
+        "here": {"recipe_dir": str(recipe), "image": "vllm/vllm-openai:v0.30.0"},
+        "same": {"recipe_dir": str(recipe), "image": "vllm/vllm-openai:v0.30.0"},
+        "gone": {
+            "recipe_dir": str(tmp_path / "x"),
+            "image": "vllm/vllm-openai:v0.28.0",
+        },
+        "venv": {"engine": "vllm", "engine_tree": str(venv)},
+        "novenv": {"engine": "vllm", "engine_tree": str(tmp_path / "none")},
+    }
+    run = _fake_run({"--repo vllm-project/vllm": "v0.31.0", "import vllm": "0.29.0"})
+    items = preflight.engine_release_items(backends, run)
+    assert sorted((i.installed, i.state) for i in items) == [
+        ("0.29.0", "behind"),
+        ("v0.30.0", "behind"),
+    ]
+    assert preflight.check_engine_releases(backends, run) is False
+
+
+def test_engine_releases_pass_when_everything_is_latest(tmp_path):
+    recipe = tmp_path / "recipe"
+    recipe.mkdir()
+    backends = {"a": {"recipe_dir": str(recipe), "image": "vllm/vllm-openai:v0.31.0"}}
+    run = _fake_run({"--repo vllm-project/vllm": "v0.31.0"})
+    assert preflight.check_engine_releases(backends, run) is True
