@@ -5022,9 +5022,10 @@ def one_trial(
             watchdog = timeout_policy.IdleStallWatchdog(
                 watts_sampler
                 or (
-                    # #562: the GPU that goes idle is the server's.
-                    functools.partial(remote.gpu_watts, server)
-                    if (server := remote.host())
+                    # #562: the GPU that goes idle is the server's; on a
+                    # two-node server, both (#680 finding 10).
+                    functools.partial(remote.cluster_gpu_watts, nodes)
+                    if (nodes := _server_nodes())
                     else timeout_policy.gpu_watts
                 ),
                 idle_floor_watts=idle_floor_watts,

@@ -161,6 +161,17 @@ def gpu_watts(server: str, timeout: float = 5.0) -> float | None:
         return None
 
 
+def cluster_gpu_watts(nodes: list[str]) -> float | None:
+    """The busiest node's GPU power, or None when no node can be read.
+
+    The idle-stall watchdog's sampler for a server of one or more nodes. It
+    read the head only (#680 finding 10). The maximum, not the sum: a run is
+    idle only when every GPU is at its idle floor, and the floor is per GPU.
+    """
+    readings = [w for w in (gpu_watts(node) for node in nodes) if w is not None]
+    return max(readings) if readings else None
+
+
 def server_facts(path: str | None = None) -> dict | None:
     """The facts `scripts/server_facts.py` wrote on the server, or None."""
     path = path or os.environ.get(ENV_FACTS)

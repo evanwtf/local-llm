@@ -166,6 +166,25 @@ def test_memory_gate_reads_a_node_exporter(monkeypatch):
     assert got["avail_gib"] == 24.1 and got["total_gib"] == 121.7
 
 
+def test_the_cluster_is_busy_while_either_gpu_is(monkeypatch):
+    """#680 finding 10: the idle-stall watchdog read the head's GPU only. The
+    busier node decides, so a run is idle only when both GPUs are."""
+    watts: dict[str, float | None] = {"head": 4.0, "worker": 38.0}
+    monkeypatch.setattr(remote, "gpu_watts", lambda server, timeout=5.0: watts[server])
+    assert remote.cluster_gpu_watts(["head", "worker"]) == 38.0
+    watts["worker"] = None
+    assert remote.cluster_gpu_watts(["head", "worker"]) == 4.0
+    watts["head"] = None
+    # Unknown, never idle: the watchdog holds on None.
+    assert remote.cluster_gpu_watts(["head", "worker"]) is None
+
+
+def test_the_watchdog_samples_every_server_node(monkeypatch):
+    monkeypatch.setenv(remote.ENV_HOST, "head")
+    monkeypatch.setattr(remote, "peer_host", lambda: "worker")
+    assert run._server_nodes() == ["head", "worker"]
+
+
 def test_the_servers_gpu_power_is_read_from_dcgm():
     text = (
         'DCGM_FI_DEV_POWER_USAGE{gpu="0",modelName="NVIDIA GB10"} 9.823000\n'
