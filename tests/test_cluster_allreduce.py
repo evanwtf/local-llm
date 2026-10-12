@@ -70,3 +70,25 @@ def test_every_measured_size_is_checked() -> None:
     timed = loop.index("samples.append")
     assert loop.index("reduction_error(") > timed
     assert "torch.ones(1024" not in src
+
+
+def test_identical_fingerprints_pass() -> None:
+    fp = cluster_allreduce.fingerprint(b"source", 20, 5)
+    assert cluster_allreduce.fingerprint_mismatch([fp, fp]) is None
+
+
+def test_a_different_script_on_one_rank_is_refused() -> None:
+    """#1035: the worker ran a 2026-09-24 copy without the per-size
+    correctness all_reduce, and both ranks hung after "Connected all rings"."""
+    head = cluster_allreduce.fingerprint(b"new source", 20, 5)
+    worker = cluster_allreduce.fingerprint(b"old source", 20, 5)
+    why = cluster_allreduce.fingerprint_mismatch([head, worker])
+    assert why is not None and "rank 1" in why and worker in why
+
+
+def test_different_iteration_counts_are_refused() -> None:
+    """Unequal --iters or --warmup also leave one rank waiting on a collective
+    the other never issues."""
+    a = cluster_allreduce.fingerprint(b"source", 20, 5)
+    b = cluster_allreduce.fingerprint(b"source", 10, 5)
+    assert cluster_allreduce.fingerprint_mismatch([a, b]) is not None
