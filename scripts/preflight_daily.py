@@ -103,7 +103,12 @@ def main(argv: list[str] | None = None) -> int:
         if why:
             refusals.append(why)
     for ref in sorted(images):
-        why = currency.gate(f"image:{ref}", [currency.image_item(ref)])
+        items = [currency.image_item(ref)]
+        # #1049: the digest alone passed v0.30.0 a week after v0.31.0 shipped.
+        engine_item = currency.engine_release_item(ref)
+        if engine_item is not None:
+            items.append(engine_item)
+        why = currency.gate(f"image:{ref}", items)
         if why:
             refusals.append(why)
     tag = f"local-llm-client:{build_client_image.PINS['opencode']}"

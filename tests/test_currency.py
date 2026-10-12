@@ -372,3 +372,64 @@ def test_a_failed_container_inspect_is_unknown_not_current():
 
 def test_no_running_containers_is_current():
     assert _current_image_with(**{"docker ps -q": ""}).state == "current"
+
+
+# #1049: a pinned engine tag passed the digest check while a newer release was
+# out -- vllm/vllm-openai:v0.30.0 ran on 2026-10-12, a week after v0.31.0.
+VLLM_LATEST = {"--repo vllm-project/vllm --json tagName": "v0.31.0"}
+
+
+def test_an_engine_image_behind_its_latest_release_refuses():
+    item = currency.engine_release_item("vllm/vllm-openai:v0.30.0", fake(VLLM_LATEST))
+    assert item is not None
+    assert item.state == "behind"
+    assert not item.ok
+    assert "v0.31.0" in item.fix
+
+
+def test_an_engine_image_at_its_latest_release_passes():
+    item = currency.engine_release_item("vllm/vllm-openai:v0.31.0", fake(VLLM_LATEST))
+    assert item is not None and item.state == "current"
+
+
+def test_an_unreadable_engine_release_is_unknown_and_refuses():
+    item = currency.engine_release_item("vllm/vllm-openai:v0.30.0", fake({}))
+    assert item is not None
+    assert item.state == "unknown"
+    assert not item.ok
+
+
+def test_a_nightly_or_custom_engine_tag_is_not_compared_by_version():
+    for ref in ("vllm/vllm-openai:nightly", "vllm/vllm-openai:qwen38-flash-next"):
+        assert currency.engine_release_item(ref, fake(VLLM_LATEST)) is None
+
+
+def test_an_image_from_an_unmapped_repository_is_not_compared():
+    assert currency.engine_release_item("ghcr.io/a/b:v1.0.0", fake({})) is None
+
+
+def test_backend_items_include_the_engine_release_for_an_image():
+    backend = {"image": "vllm/vllm-openai:v0.30.0"}
+    run = fake({**VLLM_LATEST, "imagetools": None})
+    names = [i.name for i in currency.backend_items(backend, run)]
+    assert "engine vllm (vllm/vllm-openai:v0.30.0)" in names
+
+
+def test_a_venv_vllm_behind_its_latest_release_refuses(tmp_path):
+    py = tmp_path / "bin" / "python"
+    py.parent.mkdir(parents=True)
+    py.write_text("")
+    backend = {"engine": "vllm", "engine_tree": str(tmp_path)}
+    run = fake({**VLLM_LATEST, "import vllm": "0.29.0"})
+    items = currency.backend_items(backend, run)
+    assert [i.state for i in items] == ["behind"]
+    assert "0.29.0" in (items[0].installed or "")
+
+
+def test_a_venv_vllm_that_cannot_be_read_is_unknown(tmp_path):
+    py = tmp_path / "bin" / "python"
+    py.parent.mkdir(parents=True)
+    py.write_text("")
+    backend = {"engine": "vllm", "engine_tree": str(tmp_path)}
+    items = currency.backend_items(backend, fake(VLLM_LATEST))
+    assert [i.state for i in items] == ["unknown"]
