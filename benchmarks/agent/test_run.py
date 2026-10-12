@@ -3349,3 +3349,25 @@ def test_a_single_backend_batch_keeps_the_batch_env():
     versions = {"server_argv": "only"}
     per = run.versions_per_backend(versions, ["a"], {})
     assert per["a"] is versions
+
+
+# #1045: `--draft-log-engine` defaulted to ds4 whatever the backend declared, so
+# a vLLM MTP arm with --metrics-url was refused until the flag was typed by hand.
+def test_draft_log_engine_comes_from_the_backend_when_not_given():
+    backends = {"a": {"draft_engine": "vllm"}}
+    assert run.default_draft_log_engine(backends, None) == "vllm"
+
+
+def test_an_explicit_draft_log_engine_wins():
+    backends = {"a": {"draft_engine": "vllm"}}
+    assert run.default_draft_log_engine(backends, "ds4") == "ds4"
+
+
+def test_no_declared_draft_engine_keeps_the_ds4_default():
+    assert run.default_draft_log_engine({"a": {}}, None) == "ds4"
+
+
+def test_backends_that_disagree_on_the_draft_engine_are_refused():
+    backends = {"a": {"draft_engine": "vllm"}, "b": {"draft_engine": "mtplx"}}
+    with pytest.raises(SystemExit, match="draft_engine"):
+        run.default_draft_log_engine(backends, None)
