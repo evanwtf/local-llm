@@ -99,6 +99,14 @@ def collect(
             f"server_facts: cannot read the {instance['engine']} instance marker "
             f"from {spec.get('base_url')}; start the server first (#948)"
         )
+    env = run.capture_versions(
+        cfg, {backend: cfg["backend"][backend]}, allow_unstamped=True
+    )
+    if cluster_peer:
+        # #680 finding 3: `facts` (memory_gib, cpu_count) describe the head
+        # alone and stay per node, so a cluster row compares with the rows
+        # before it. This says the server had two nodes and what the other had.
+        env["cluster"] = {"nodes": 2, "peer": cluster_id.peer_facts(cluster_peer)}
     return {
         "instance": instance,
         "directory": directory,
@@ -107,9 +115,7 @@ def collect(
         "peer_host": cluster_id.peer_lan_name(cluster_peer) if cluster_peer else None,
         "backend": backend,
         "facts": preflight.machine_facts(),
-        "env": run.capture_versions(
-            cfg, {backend: cfg["backend"][backend]}, allow_unstamped=True
-        ),
+        "env": env,
     }
 
 
