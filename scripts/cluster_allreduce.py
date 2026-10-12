@@ -26,8 +26,10 @@ one path walls at about 112 Gb/s -- naming a single interface silently costs
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
+import pathlib
 import statistics
 import sys
 import time
@@ -74,6 +76,31 @@ def reduction_error(
     return f"elements span [{lowest}, {highest}], expected {expected}"
 
 
+def fingerprint(source: bytes, iters: int, warmup: int) -> str:
+    """What must match on every rank for the collectives to line up: this
+    script's bytes and the loop counts."""
+    digest = hashlib.sha256(source)
+    digest.update(f"iters={iters} warmup={warmup}".encode())
+    return digest.hexdigest()[:12]
+
+
+def fingerprint_mismatch(fingerprints: list[str]) -> str | None:
+    """Why the ranks cannot run together, or None when every rank matches.
+
+    Each node runs this script from its own checkout. On 2026-10-12 the worker's
+    copy was a week old and issued one all_reduce fewer per size than the
+    head's, so both ranks hung after "Connected all rings", with nothing in
+    the logs, and it looked like a fabric fault (#1035).
+    """
+    if len(set(fingerprints)) <= 1:
+        return None
+    ranks = ", ".join(f"rank {r} {fp}" for r, fp in enumerate(fingerprints))
+    return (
+        f"the ranks run different copies of this script or different "
+        f"--iters/--warmup ({ranks}); update every node's checkout first"
+    )
+
+
 def run(sizes: tuple[int, ...], iters: int, warmup: int) -> list[dict[str, float]]:
     import torch
     import torch.distributed as dist
@@ -82,6 +109,15 @@ def run(sizes: tuple[int, ...], iters: int, warmup: int) -> list[dict[str, float
     rank = dist.get_rank()
     world = dist.get_world_size()
     torch.cuda.set_device(0)
+
+    # One small collective that every version from here on issues first, so
+    # a mismatch refuses in seconds instead of hanging (#1035).
+    mine = fingerprint(pathlib.Path(__file__).read_bytes(), iters, warmup)
+    gathered: list[str] = [""] * world
+    dist.all_gather_object(gathered, mine)
+    bad_ranks = fingerprint_mismatch(gathered)
+    if bad_ranks:
+        raise SystemExit(bad_ranks)
 
     rows: list[dict[str, float]] = []
     for size in sizes:
