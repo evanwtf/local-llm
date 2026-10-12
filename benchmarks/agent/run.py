@@ -4119,6 +4119,27 @@ class CounterSourceError(ValueError):
     """A --server-log / --metrics-url combination no reader can use (#356)."""
 
 
+def default_draft_log_engine(backends, given):
+    """The engine whose draft counters this batch reads (#1045).
+
+    An explicit --draft-log-engine wins. Otherwise the selected backends'
+    `draft_engine` decides: the option used to default to ds4 whatever they
+    declared, so a vLLM MTP arm with --metrics-url was refused until the flag
+    was typed by hand. Backends that declare different engines cannot share one
+    reader, so that is refused rather than guessed.
+    """
+    if given:
+        return given
+    declared = {b["draft_engine"] for b in backends.values() if b.get("draft_engine")}
+    if len(declared) > 1:
+        raise SystemExit(
+            f"REFUSING: the selected backends declare different draft_engine values "
+            f"{sorted(declared)}; run them in separate batches or pass "
+            "--draft-log-engine"
+        )
+    return declared.pop() if declared else "ds4"
+
+
 def resolve_counter_sources(draft_log_engine, server_log, metrics_url):
     """Route --server-log / --metrics-url to the two readers (#356).
 
@@ -5547,7 +5568,9 @@ def build_parser():
         # probe was unreachable. Deriving the choices makes that drift
         # impossible -- a new reader engine is a valid choice automatically.
         choices=sorted(DraftProbe.SOURCES),
-        default="ds4",
+        # #1045: absent means "the backends' draft_engine, else ds4" -- resolved
+        # in main() by default_draft_log_engine once the backends are known.
+        default=None,
         help="which engine wrote --server-log. ds4 and mtplx count differently "
         "-- ds4's `committed` includes a first token verified for free and "
         "mtplx's exported counter already excludes it -- so the wrong choice "
@@ -6311,6 +6334,7 @@ def main():
     # #356: one flag cannot be both a file and a URL. Route --server-log /
     # --metrics-url to the draft reader and the (file-only) prefill scanner, and
     # refuse a wrong-type combination with a plain message.
+    args.draft_log_engine = default_draft_log_engine(backends, args.draft_log_engine)
     try:
         draft_value, prefill_log = resolve_counter_sources(
             args.draft_log_engine, args.server_log, args.metrics_url
