@@ -64,3 +64,21 @@ def test_a_client_machine_whose_docker_fails_refuses(
     caplog.set_level(logging.INFO, logger=pd.__name__)
     assert pd.main(["--tasks-file", str(tasks)]) == 1
     assert "cannot list the client images" in caplog.text
+
+
+def test_a_retired_backend_is_not_a_daily_target(tmp_path):
+    recipe = tmp_path / "recipe"
+    recipe.mkdir()
+    cfg = {
+        "backend": {
+            "old": {
+                "recipe_dir": str(recipe),
+                "image": "vllm/vllm-openai:v0.30.0",
+                "retired": "superseded",
+            },
+            "new": {"recipe_dir": str(recipe), "image": "vllm/vllm-openai:v0.31.0"},
+        }
+    }
+    recipes, images = pd.targets(cfg)
+    assert recipes == {recipe}
+    assert images == {"vllm/vllm-openai:v0.31.0"}

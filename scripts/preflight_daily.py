@@ -47,7 +47,9 @@ def targets(cfg: dict) -> tuple[set[pathlib.Path], set[str]]:
     images: set[str] = set()
     for spec in cfg.get("backend", {}).values():
         raw = spec.get("recipe_dir")
-        if not raw:
+        # A retired backend is out of the matrix (run.py); its old image must
+        # not hold the gate shut (#1049).
+        if not raw or spec.get("retired"):
             continue
         path = pathlib.Path(raw).expanduser()
         if path.is_dir():

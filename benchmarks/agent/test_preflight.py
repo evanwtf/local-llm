@@ -1312,3 +1312,22 @@ def test_engine_releases_pass_when_everything_is_latest(tmp_path):
     backends = {"a": {"recipe_dir": str(recipe), "image": "vllm/vllm-openai:v0.31.0"}}
     run = _fake_run({"--repo vllm-project/vllm": "v0.31.0"})
     assert preflight.check_engine_releases(backends, run) is True
+
+
+def test_a_retired_backend_is_not_gated(tmp_path):
+    """A retired backend keeps its config as the record of its rows, and run.py
+    leaves it out of the matrix; it must not hold the gate shut either."""
+    recipe = tmp_path / "recipe"
+    recipe.mkdir()
+    backends = {
+        "old": {
+            "recipe_dir": str(recipe),
+            "image": "vllm/vllm-openai:v0.30.0",
+            "retired": "superseded",
+        },
+        "new": {"recipe_dir": str(recipe), "image": "vllm/vllm-openai:v0.31.0"},
+    }
+    run = _fake_run({"--repo vllm-project/vllm": "v0.31.0"})
+    assert [i.installed for i in preflight.engine_release_items(backends, run)] == [
+        "v0.31.0"
+    ]
