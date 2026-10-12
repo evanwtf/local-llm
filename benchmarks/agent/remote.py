@@ -199,6 +199,8 @@ CLIENT_KEYS = frozenset(
 CLIENT_ENGINE_KEYS = frozenset(
     {
         "server_argv",
+        "server_env",
+        "server_cap_add",
         "ds4_head",
         "ds4_dirty",
         "ds4_server_mtime",

@@ -1076,6 +1076,73 @@ def _docker_inspect_all():
     return found
 
 
+#: Env prefixes that change how an engine runs (#680, finding 2). The argv was
+#: captured, but the #664 flags reached the server as env vars and IPC_LOCK as
+#: a capability, so two arms with identical argv read as one.
+_ENGINE_ENV_PREFIXES = (
+    "VLLM_",
+    "NCCL_",
+    "SGLANG_",
+    "TENSORFOLD_",
+    "TORCH_",
+    "PYTORCH_",
+    "CUDA_",
+    "TRITON_",
+    "FLASHINFER_",
+    "OMP_",
+    "UCX_",
+    "GLOO_",
+)
+#: The repo is public. A secret is dropped by its name, whatever its prefix
+#: (VLLM_API_KEY is a VLLM_ variable).
+_SECRET_NAME = re.compile(r"TOKEN|KEY|SECRET|PASS|CREDENTIAL", re.IGNORECASE)
+_IPV4 = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
+
+
+def container_settings_from(info: dict) -> dict:
+    """`server_env` and `server_cap_add` from one `docker inspect` record.
+
+    Only engine variables, with secrets dropped by name and IPv4 addresses
+    masked, because rows are published (#680 findings 2 and 19). Empty keys
+    are left out, so a row says unknown rather than "none".
+    """
+    got: dict[str, Any] = {}
+    # A mapping, not a joined string: values such as TORCH_CUDA_ARCH_LIST
+    # ("8.0 8.7 9.0") hold spaces.
+    env: dict[str, str] = {}
+    for item in (info.get("Config") or {}).get("Env") or []:
+        name, _, value = str(item).partition("=")
+        if not name.startswith(_ENGINE_ENV_PREFIXES) or _SECRET_NAME.search(name):
+            continue
+        env[name] = _IPV4.sub("<ipv4>", value)
+    if env:
+        got["server_env"] = dict(sorted(env.items()))
+    caps = (info.get("HostConfig") or {}).get("CapAdd") or []
+    if caps:
+        got["server_cap_add"] = ",".join(sorted(str(c) for c in caps))
+    return got
+
+
+def container_settings(cid: str) -> dict:
+    """`container_settings_from` for a running container, or {} if unreadable.
+
+    The head's container only: a worker rank runs its own container, and
+    nothing here reads it yet (#680, finding 2).
+    """
+    try:
+        out = subprocess.run(
+            ["docker", "inspect", "--format", "{{json .}}", cid],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        ).stdout
+        info = json.loads(out)
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return {}
+    return container_settings_from(info) if isinstance(info, dict) else {}
+
+
 def serving_sglang(models, inspect_all=_docker_inspect_all):
     """The image, SGLang version and launch argv of the serving container.
 
@@ -1106,6 +1173,7 @@ def serving_sglang(models, inspect_all=_docker_inspect_all):
         version = ""
     if version:
         got["sglang"] = version.splitlines()[-1]
+    got.update(container_settings(cid))
     return got
 
 
@@ -1171,12 +1239,13 @@ def serving_vllm_container(models, inspect_all=_docker_inspect_all):
             check=False,
         )
     except (OSError, subprocess.SubprocessError):
-        return got
-    lines = probe.stdout.strip().splitlines() if probe.returncode == 0 else []
+        probe = None
+    lines = probe.stdout.strip().splitlines() if probe and probe.returncode == 0 else []
     parts = lines[-1].split("|") if lines else []
     for key, value in zip(("vllm", "vllm_torch", "vllm_torch_cuda"), parts):
         if value:
             got[key] = value
+    got.update(container_settings(cid))
     return got
 
 
@@ -1217,10 +1286,11 @@ def serving_tensorfold(models, inspect_all=_docker_inspect_all):
             check=False,
         )
     except (OSError, subprocess.SubprocessError):
-        return got
-    lines = probe.stdout.strip().splitlines() if probe.returncode == 0 else []
+        probe = None
+    lines = probe.stdout.strip().splitlines() if probe and probe.returncode == 0 else []
     if lines and lines[-1].strip():
         got["tensorfold"] = lines[-1].strip()
+    got.update(container_settings(cid))
     return got
 
 
