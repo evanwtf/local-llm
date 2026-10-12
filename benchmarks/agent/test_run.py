@@ -3371,3 +3371,22 @@ def test_backends_that_disagree_on_the_draft_engine_are_refused():
     backends = {"a": {"draft_engine": "vllm"}, "b": {"draft_engine": "mtplx"}}
     with pytest.raises(SystemExit, match="draft_engine"):
         run.default_draft_log_engine(backends, None)
+
+
+# #1045: a container vLLM row recorded engine_version 0.29.0 from the head's
+# ~/venvs/vllm while the server ran vllm/vllm-openai:v0.30.0.
+def test_an_image_backend_takes_its_engine_version_from_the_container():
+    env = {"vllm": "0.30.0", "vllm_image": "vllm/vllm-openai:v0.30.0"}
+    got = run.image_engine_identity("vllm", "vllm/vllm-openai:v0.30.0", env)
+    assert got == {
+        "engine_name": "vllm",
+        "engine_image": "vllm/vllm-openai:v0.30.0",
+        "engine_version": "0.30.0",
+    }
+
+
+def test_an_image_backend_without_a_container_probe_records_no_version():
+    got = run.image_engine_identity("vllm", "vllm/vllm-openai:v0.30.0", {})
+    assert "engine_version" not in got, "never the head venv's version"
+    assert "engine_tree" not in got
+    assert got["engine_image"] == "vllm/vllm-openai:v0.30.0"
