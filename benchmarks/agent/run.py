@@ -1794,9 +1794,14 @@ def capture_versions(cfg, backends, allow_unstamped=False, argv_by_backend=None)
         # reserved for a server the harness did not start.
         engine = backend.get("engine")
         if engine and name in servers:
-            servers[name].update(
-                engine_identity.identity(engine, backend.get("engine_tree"))
-            )
+            if backend.get("image"):
+                servers[name].update(
+                    image_engine_identity(engine, backend["image"], env)
+                )
+            else:
+                servers[name].update(
+                    engine_identity.identity(engine, backend.get("engine_tree"))
+                )
     routes = {s["metal_route"] for s in servers.values() if s.get("metal_route")} - {
         ds4_route.UNRECORDED
     }
@@ -1891,6 +1896,20 @@ ENGINE_VERSION_KEYS = {
     "mtplx": ("mtplx",),
     "lmstudio": ("lmstudio_runtimes",),
 }
+
+
+def image_engine_identity(engine, image, env):
+    """The build identity of an engine served from a container image (#1045).
+
+    The head's engine tree says nothing about a container: a v0.30.0 image row
+    once carried engine_version 0.29.0 from ~/venvs/vllm. The version comes
+    from the container probe (`env[engine]`, e.g. `env["vllm"]`, #904) or is
+    left out -- never read from a tree the server did not run.
+    """
+    got = {"engine_name": engine, "engine_image": image}
+    if env.get(engine):
+        got["engine_version"] = env[engine]
+    return got
 
 
 def engine_provenance(backends, env):
