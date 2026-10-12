@@ -2600,6 +2600,53 @@ def test_serving_vllm_container_reads_the_version_inside_the_image(monkeypatch):
     assert seen[0][:3] == ["docker", "exec", "ccc"]
 
 
+_INSPECT = {
+    "Config": {
+        "Env": [
+            "PATH=/usr/bin",
+            "VLLM_NVFP4_GEMM_BACKEND=marlin",
+            "NCCL_SOCKET_IFNAME=enp1s0f1np1,enP2p1s0f1np1",
+            "VLLM_HOST_IP=10.0.0.1",
+            "HF_TOKEN=hf_secret",
+            "NCCL_IB_HCA=rocep1s0f1",
+            "VLLM_API_KEY=local-key",
+            "CUDA_VERSION=13.0.1",
+        ]
+    },
+    "HostConfig": {"CapAdd": ["IPC_LOCK", "SYS_NICE"]},
+}
+
+
+def test_container_settings_keep_engine_env_and_drop_secrets():
+    """#680 finding 2: a row named the argv but not the container's env, so
+    the #664 flags (VLLM_NVFP4_GEMM_BACKEND, IPC_LOCK) were invisible."""
+    got = run.container_settings_from(_INSPECT)
+    env = got["server_env"]
+    assert env == {
+        "CUDA_VERSION": "13.0.1",
+        "NCCL_IB_HCA": "rocep1s0f1",
+        "NCCL_SOCKET_IFNAME": "enp1s0f1np1,enP2p1s0f1np1",
+        # The repo is public: an address is masked (#680 finding 19).
+        "VLLM_HOST_IP": "<ipv4>",
+        "VLLM_NVFP4_GEMM_BACKEND": "marlin",
+    }
+    # Secrets by name never reach a public row, whatever their prefix
+    # (VLLM_API_KEY, HF_TOKEN); PATH is not an engine variable.
+    assert "hf_secret" not in json.dumps(got) and "local-key" not in json.dumps(got)
+    assert got["server_cap_add"] == "IPC_LOCK,SYS_NICE"
+
+
+def test_container_settings_from_an_empty_inspect_is_empty():
+    assert run.container_settings_from({}) == {}
+    assert run.container_settings_from({"Config": {"Env": ["PATH=/x"]}}) == {}
+
+
+def test_remote_rows_take_container_settings_from_the_server_only():
+    import remote
+
+    assert {"server_env", "server_cap_add"} <= remote.CLIENT_ENGINE_KEYS
+
+
 def test_serving_vllm_container_records_no_version_it_could_not_read(monkeypatch):
     monkeypatch.setattr(
         run.subprocess,
