@@ -3765,9 +3765,12 @@ topology = "remote"
 #   Max and a 600-token request ends at the cap with the answer truncated.
 #
 # Speculative decoding (DFlash, 7 tokens) is on but not declared as
-# `speculative`, for the same reason as the Qwen two-node arm: the client is
-# remote and cannot read the server's argv. vLLM exports its spec_decode
-# counters on :8888/metrics.
+# `speculative`, so no row of this arm records draft acceptance. The reason
+# once given here, that a remote client cannot read the server's argv, does
+# not hold: vLLM's counters are unconditional (`counters_on` needs no argv)
+# and are read from :8888/metrics over HTTP. A new remote vLLM arm should
+# declare `speculative` with `draft_engine = "vllm"` and pass `--metrics-url`
+# (#680 finding 7). Not changed on this arm, so its rows stay one series.
 [backend.glm53fexl3dual2xrc]
 description = "GLM-5.3-Flash EXL3 4bpw (Mia-AiLab/GLM-5.3-Flash-EXL3-TR3-4bpw rev 25a44fd, 164 GiB) across TWO DGX Sparks: EXL3 vLLM TP=2 over 200 Gb/s ConnectX-7 RoCE via MiaAI-Lab/GLM-5.3-Flash-2x-DGX-Sparks @c1b7d4c, image ghcr.io/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-instanttensor built from the recipe Dockerfile (sha256:6cb72b36), DFlash speculative decoding with incoai/GLM-5.3-Flash-DFlash2 rev dc77ff1 (7 tokens, draft TP=2), fp8 KV, 262144 context, max-num-seqs 4, GPU_MEM_UTIL 0.86, reasoning_effort low as a server default. Measured KV pool on the pair: 393,928 tokens, 1.50x concurrency at a 262k request; MemAvailable with the server idle 3.3 GiB head, 4.0 GiB worker. REMOTE CLIENT (#562/#649): OpenCode and the harness run on the Core i3-7100 client over the LAN. The single-Spark comparison is #298, GLM-5.3-Flash Q2 on ds4 at 16k context"
 tier = "gb10-spark-x2"
