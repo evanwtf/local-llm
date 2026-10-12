@@ -3715,6 +3715,7 @@ image = "vllm/vllm-openai:qwen38-flash-next"
 
 [backend.qwen38fnnvfp4dual2xrcv030]
 description = "qwen38fnnvfp4dual2xrcflags moved to the latest recipe and engine (#717, 2026-09-26): MiaAI-Lab Qwen3.8-Flash-Next-Dual-DGX-Sparks @d23790b, vLLM 0.30.0 lane (start-v030.sh, stock vllm/vllm-openai:v0.30.0), MTP block drop disabled + index share on (the recipe multi-turn change), BF16 KV, GMU 0.78, the #664 flags via the local start.sh patch (upstream EXTRA_DOCKER_ARGS is still not applied to the vllm-fn docker run). Same weights (nvidia/Qwen3.8-Flash-Next-NVFP4), same client. REMOTE CLIENT (#562/#649), 12 GiB kernel-enforced client container"
+retired = "vLLM 0.30.0; v0.31.0 shipped 2026-10-05 and preflight refuses an engine behind its latest release (#1049). Successor: qwen38fnnvfp4nv2xspec031 (2026-10-12)"
 tier = "gb10-spark-x2"
 base_url = "http://127.0.0.1:8888"
 auth_token = "local"
@@ -3743,6 +3744,7 @@ image = "vllm/vllm-openai:v0.30.0"
 # how often the MTP head's drafts are accepted.
 [backend.qwen38fnnvfp4nv2xspec]
 description = "#865 control: nvidia/Qwen3.8-Flash-Next-NVFP4 across TWO DGX Sparks, MiaAI-Lab Qwen3.8-Flash-Next-Dual-DGX-Sparks (start-v030.sh, vllm/vllm-openai:v0.30.0), vLLM TP=2 + expert parallel + MTP 3, GPU_MEMORY_UTILIZATION 0.78, reasoning_effort low server-side, 262144 context. REMOTE CLIENT: the Core i9-13900H, 12 GiB kernel-enforced client container"
+retired = "vLLM 0.30.0, screened out 2026-10-12 (#865: 248.2% of the leader, PR #1046); v0.31.0 shipped 2026-10-05 (#1049). Successor: qwen38fnnvfp4nv2xspec031"
 tier = "gb10-spark-x2"
 base_url = "http://127.0.0.1:8888"
 auth_token = "local"
@@ -3758,8 +3760,71 @@ draft_engine = "vllm"
 recipe_dir = "~/qwen38-dual-latest"
 image = "vllm/vllm-openai:v0.30.0"
 
+# #865 / #1049: the control on the latest vLLM. Same recipe and lane
+# (start-v030.sh; its overlays are 0.30 backports), launched with
+# OVERRIDE_IMAGE=vllm/vllm-openai:v0.31.0 and OVERRIDE_GPU_MEMORY_UTILIZATION=0.78.
+# A new engine version is a new series: its rows do not pool with the v0.30.0 arm.
+[backend.qwen38fnnvfp4nv2xspec031]
+description = "#865 control on vLLM 0.31.0: nvidia/Qwen3.8-Flash-Next-NVFP4 across TWO DGX Sparks, MiaAI-Lab dual recipe start-v030.sh with OVERRIDE_IMAGE=vllm/vllm-openai:v0.31.0, vLLM TP=2 + expert parallel + MTP 3, GPU_MEMORY_UTILIZATION 0.78, reasoning_effort low server-side, 262144 context. REMOTE CLIENT: the Core i9-13900H, 12 GiB kernel-enforced client container"
+retired = "never ran: the operator moved #865 to vLLM main the same hour (2026-10-12), so both arms share one build. Successors: qwen38fnnvfp4nv2xspecmain, qwen38fnnvfp4rh2xspecmain"
+tier = "gb10-spark-x2"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "vllm"
+model = "qwen3.8-flash-next"
+active_params_b = 6
+aider_model = "openai/qwen3.8-flash-next"
+opencode_model = "vllm8888/qwen3.8-flash-next"
+context_tokens = 262144
+topology = "remote"
+speculative = "MTP k=3 (checkpoint MTP head), recipe draft vocab files/draft_vocab_en_code_47k.txt; counters from :8888/metrics"
+draft_engine = "vllm"
+recipe_dir = "~/qwen38-dual-latest"
+image = "vllm/vllm-openai:v0.31.0"
+
+# #865 on vLLM main (operator, 2026-10-12: "865 - use main"). RedHatAI's
+# compressed-tensors PLE loads only on a build with vllm#59431 (main since
+# 2026-09-30, in no release yet), so both arms run on one pinned nightly of
+# main and the weights stay the only difference. Same recipe lane as above
+# (start-v030.sh), launched with OVERRIDE_IMAGE=<image below> and
+# OVERRIDE_GPU_MEMORY_UTILIZATION=0.78; the treatment adds OVERRIDE_MODEL_ID.
+[backend.qwen38fnnvfp4nv2xspecmain]
+description = "#865 control on vLLM main (nightly fe4df3df, 2026-10-12): nvidia/Qwen3.8-Flash-Next-NVFP4 across TWO DGX Sparks, MiaAI-Lab dual recipe start-v030.sh with OVERRIDE_IMAGE, vLLM TP=2 + expert parallel + MTP 3, GPU_MEMORY_UTILIZATION 0.78, reasoning_effort low server-side, 262144 context. REMOTE CLIENT: the Core i9-13900H, 12 GiB kernel-enforced client container"
+tier = "gb10-spark-x2"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "vllm"
+model = "qwen3.8-flash-next"
+active_params_b = 6
+aider_model = "openai/qwen3.8-flash-next"
+opencode_model = "vllm8888/qwen3.8-flash-next"
+context_tokens = 262144
+topology = "remote"
+speculative = "MTP k=3 (checkpoint MTP head), recipe draft vocab files/draft_vocab_en_code_47k.txt; counters from :8888/metrics"
+draft_engine = "vllm"
+recipe_dir = "~/qwen38-dual-latest"
+image = "vllm/vllm-openai:nightly-fe4df3df0eb703862c686b256e9fe44fa94c8945"
+
+[backend.qwen38fnnvfp4rh2xspecmain]
+description = "#865 treatment on vLLM main (nightly fe4df3df, 2026-10-12): RedHatAI/Qwen3.8-Flash-Next-NVFP4 (snapshot c8f2fb1b, compressed-tensors, BF16 PLE) via OVERRIDE_MODEL_ID; everything else as qwen38fnnvfp4nv2xspecmain. REMOTE CLIENT: the Core i9-13900H, 12 GiB kernel-enforced client container"
+tier = "gb10-spark-x2"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "vllm"
+model = "qwen3.8-flash-next"
+active_params_b = 6
+aider_model = "openai/qwen3.8-flash-next"
+opencode_model = "vllm8888/qwen3.8-flash-next"
+context_tokens = 262144
+topology = "remote"
+speculative = "MTP k=3 (checkpoint MTP head), recipe draft vocab files/draft_vocab_en_code_47k.txt; counters from :8888/metrics"
+draft_engine = "vllm"
+recipe_dir = "~/qwen38-dual-latest"
+image = "vllm/vllm-openai:nightly-fe4df3df0eb703862c686b256e9fe44fa94c8945"
+
 [backend.qwen38fnnvfp4rh2xspec]
 description = "#865 treatment: RedHatAI/Qwen3.8-Flash-Next-NVFP4 (snapshot c8f2fb1b) in place of NVIDIA's quant; everything else as qwen38fnnvfp4nv2xspec -- MiaAI-Lab dual recipe start-v030.sh with OVERRIDE_MODEL_ID, vllm/vllm-openai:v0.30.0, vLLM TP=2 + expert parallel + MTP 3, GPU_MEMORY_UTILIZATION 0.78, reasoning_effort low server-side, 262144 context. REMOTE CLIENT: the Core i9-13900H, 12 GiB kernel-enforced client container"
+retired = "never ran: vLLM 0.30.0 and 0.31.0 refuse the checkpoint at model init (Qwen4Exp PLE embedding does not support CompressedTensorsConfig, #865, 2026-10-12)"
 tier = "gb10-spark-x2"
 base_url = "http://127.0.0.1:8888"
 auth_token = "local"

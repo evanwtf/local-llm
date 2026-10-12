@@ -220,6 +220,11 @@ def test_the_mtp_arms_declare_themselves():
         # read vLLM's counters from /metrics on the head (#680 finding 7).
         "qwen38fnnvfp4nv2xspec": "vllm",
         "qwen38fnnvfp4rh2xspec": "vllm",
+        # #1049: the control on vLLM 0.31.0, then both arms on one vLLM main
+        # build (operator, 2026-10-12: "865 - use main").
+        "qwen38fnnvfp4nv2xspec031": "vllm",
+        "qwen38fnnvfp4nv2xspecmain": "vllm",
+        "qwen38fnnvfp4rh2xspecmain": "vllm",
     }
 
 

@@ -1903,6 +1903,10 @@ def engine_release_items(backends: dict, run=None) -> list:
     kwargs = {"run": run} if run else {}
     items, seen = [], set()
     for spec in backends.values():
+        if spec.get("retired"):
+            # Out of the matrix (run.py); its old engine is the record of its
+            # rows, not something this machine will serve again.
+            continue
         recipe = spec.get("recipe_dir")
         image = spec.get("image")
         if image and recipe and pathlib.Path(recipe).expanduser().is_dir():
