@@ -102,6 +102,50 @@ def test_mem_available_reads_the_server_in_remote_mode(monkeypatch):
     assert run.mem_available_gib() == 42.0
 
 
+def test_the_worker_is_found_in_the_server_facts(monkeypatch):
+    """#680 finding 9: the memory gates read the head only."""
+    monkeypatch.setattr(remote, "server_facts", lambda: {"peer_host": "w.lan"})
+    assert remote.peer_host() == "w.lan"
+    monkeypatch.setattr(remote, "server_facts", lambda: {"directory": "x"})
+    assert remote.peer_host() is None
+    monkeypatch.setattr(remote, "server_facts", lambda: None)
+    assert remote.peer_host() is None
+
+
+def test_mem_available_is_the_tighter_node_on_a_cluster(monkeypatch):
+    """A two-node recipe can exhaust the worker while the head has room; the
+    OOM killer then takes the worker's sshd mid-run (#680 finding 9)."""
+    monkeypatch.setenv(remote.ENV_HOST, "head")
+    monkeypatch.setattr(remote, "peer_host", lambda: "worker")
+    avail = {"head": 30.0, "worker": 6.5}
+    monkeypatch.setattr(remote, "mem_available_gib", lambda s: avail[s])
+    assert run.mem_available_gib() == 6.5
+
+
+def test_an_unreadable_worker_does_not_hide_the_head(monkeypatch):
+    monkeypatch.setenv(remote.ENV_HOST, "head")
+    monkeypatch.setattr(remote, "peer_host", lambda: "worker")
+    avail = {"head": 30.0, "worker": None}
+    monkeypatch.setattr(remote, "mem_available_gib", lambda s: avail[s])
+    assert run.mem_available_gib() == 30.0
+
+
+def test_memory_gate_reads_the_tightest_of_several_exporters(monkeypatch):
+    import urllib.request
+
+    texts = {
+        "http://head:9100/metrics": NODE,
+        "http://worker:9100/metrics": NODE.replace("2.5832173568e+10", "5.0e+09"),
+    }
+    monkeypatch.setattr(
+        urllib.request,
+        "urlopen",
+        lambda url, timeout=5: io.BytesIO(texts[url].encode()),
+    )
+    monkeypatch.setattr(memory_gate, "NODE_EXPORTERS", list(texts))
+    assert memory_gate._meminfo()["avail_gib"] == 4.7
+
+
 def test_the_headroom_gate_ignores_the_client_cap_in_remote_mode(monkeypatch):
     """The trial's memory is on the client, so it cannot push the server down."""
     monkeypatch.setenv(remote.ENV_HOST, "srv")

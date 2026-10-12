@@ -77,6 +77,16 @@ def _ssh(peer: str, command: str) -> str:
     return r.stdout.strip()
 
 
+def peer_lan_name(peer: str) -> str:
+    """The peer's own hostname, which the client can resolve on the LAN.
+
+    `peer` is usually a fabric name (`spark-b-cx7`) that only the head can
+    reach. A remote client reads the worker's node_exporter by this name
+    (#680 finding 9).
+    """
+    return _ssh(peer, "hostname")
+
+
 def active_rdma_links(rdma_output: str) -> list[str]:
     """The netdev names whose RDMA link is ACTIVE, from `rdma link show`.
 

@@ -5703,6 +5703,15 @@ def build_parser():
     return p
 
 
+def _server_nodes() -> list[str]:
+    """The remote server's nodes, head first, or [] for a local run."""
+    server = remote.host()
+    if not server:
+        return []
+    peer = remote.peer_host()
+    return [server, peer] if peer else [server]
+
+
 def _memory_gate(min_avail_gib: float | None, timeout: int) -> None:
     """Refuse to start a trial until memory is safe, when a floor is set.
 
@@ -5725,11 +5734,12 @@ def _memory_gate(min_avail_gib: float | None, timeout: int) -> None:
             str(min_avail_gib),
             "--timeout",
             str(max(30, timeout)),
-            # #562: gate on the server's pool, not the client's.
+            # #562: gate on the server's pool, not the client's; on a
+            # two-node server, on both nodes (#680 finding 9).
             *(
-                ["--node-exporter", remote.node_exporter_url(server)]
-                if (server := remote.host())
-                else []
+                arg
+                for node in _server_nodes()
+                for arg in ("--node-exporter", remote.node_exporter_url(node))
             ),
         ],
         capture_output=True,
@@ -5750,10 +5760,13 @@ def mem_available_gib() -> float | None:
     """`MemAvailable` in GiB, or None where there is no /proc/meminfo.
 
     In remote mode (#562) the pool that needs protecting is the **server's**,
-    so it is read from the server's node_exporter rather than from here.
+    so it is read from the server's node_exporter rather than from here. On a
+    two-node server it is the tighter node's (#680 finding 9); a node that
+    cannot be read is skipped rather than allowed to hide the other.
     """
-    if server := remote.host():
-        return remote.mem_available_gib(server)
+    if nodes := _server_nodes():
+        readings = [v for v in map(remote.mem_available_gib, nodes) if v is not None]
+        return min(readings) if readings else None
     try:
         text = pathlib.Path("/proc/meminfo").read_text()
     except OSError:
