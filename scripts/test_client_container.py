@@ -239,7 +239,7 @@ def _batch(tmp_path, monkeypatch, smoke_failures):
     facts.write_text("{}")
     monkeypatch.setattr(mod, "check_image_current", lambda image: None)
     monkeypatch.setattr(mod, "check_facts_current", lambda facts, command: None)
-    monkeypatch.setattr(mod, "check_provider_for", lambda command, home: None)
+    monkeypatch.setattr(mod, "check_provider_for", lambda command, home, **kw: None)
     smoked, launched = [], []
 
     def smoke(image, **kw):
@@ -403,6 +403,28 @@ def test_provider_check_refuses_a_port_that_differs_from_the_backend():
     assert why is not None and "8030" in why and "8888" in why
 
 
+def test_provider_check_refuses_a_host_that_differs_from_the_server():
+    """#680 finding 14: the port matched but the host was never compared, so a
+    provider aimed at another machine on the same port passed."""
+    why = mod.check_opencode_provider(
+        "b", _BACKEND, _CONFIG, _PATH, server="other.example"
+    )
+    assert why is not None and "head.example" in why and "other.example" in why
+    ok = mod.check_opencode_provider(
+        "b", _BACKEND, _CONFIG, _PATH, server="HEAD.example"
+    )
+    assert ok is None
+
+
+def test_provider_check_refuses_loopback_in_the_client_container():
+    """Inside the client container 127.0.0.1 is the client, not the server."""
+    config = _CONFIG.replace("head.example", "127.0.0.1")
+    why = mod.check_opencode_provider(
+        "b", _BACKEND, config, _PATH, server="head.example"
+    )
+    assert why is not None and "127.0.0.1" in why
+
+
 def test_provider_check_refuses_an_unreadable_config():
     why = mod.check_opencode_provider("b", _BACKEND, None, _PATH)
     assert why is not None and str(_PATH) in why
@@ -442,7 +464,7 @@ def test_a_missing_provider_refuses_the_batch_before_any_trial(tmp_path, monkeyp
     """#956: the refusal comes before the self-test and the launch."""
     argv, smoked, launched = _batch(tmp_path, monkeypatch, [])
     monkeypatch.setattr(
-        mod, "check_provider_for", lambda command, home: "preflight: no provider"
+        mod, "check_provider_for", lambda command, home, **kw: "preflight: no provider"
     )
     assert mod.main([*argv, "--", "--backend", "b"]) == 1
     assert smoked == []

@@ -164,6 +164,7 @@ def check_opencode_provider(
     backend: dict[str, Any] | None,
     config_text: str | None,
     config_path: pathlib.Path,
+    server: str | None = None,
 ) -> str | None:
     """None if OpenCode can reach this backend, else the refusal. #956
 
@@ -209,11 +210,22 @@ def check_opencode_provider(
             f"preflight: OpenCode provider {provider_id!r} points at port {have} "
             f"({base}), but backend {name!r} serves on port {want} (#956)"
         )
+    # #680 finding 14: the port alone let a provider aimed at another machine
+    # pass. Inside the client container a loopback host is the client itself.
+    host = urllib.parse.urlsplit(str(base)).hostname if base else None
+    if server and host and host.lower() != server.lower():
+        return (
+            f"preflight: OpenCode provider {provider_id!r} points at host {host!r} "
+            f"({base}), but this batch's server is {server!r} (#680)"
+        )
     return None
 
 
 def check_provider_for(
-    command: list[str], home: pathlib.Path, tasks_file: pathlib.Path = TASKS_FILE
+    command: list[str],
+    home: pathlib.Path,
+    tasks_file: pathlib.Path = TASKS_FILE,
+    server: str | None = None,
 ) -> str | None:
     """`check_opencode_provider` for the run.py arguments, from the mounted files."""
     name = backend_of(command)
@@ -225,7 +237,7 @@ def check_provider_for(
         text: str | None = path.read_text()
     except OSError:
         text = None
-    return check_opencode_provider(name, backends.get(name), text, path)
+    return check_opencode_provider(name, backends.get(name), text, path, server)
 
 
 #: Host paths the harness reads or writes, mounted at the same path under the
@@ -578,7 +590,7 @@ def main(argv: list[str] | None = None) -> int:
         why = (
             check_image_current(args.image)
             or check_facts_current(args.facts, command)
-            or check_provider_for(command, args.home)
+            or check_provider_for(command, args.home, server=args.server)
         )
         if why:
             print(why, file=sys.stderr)
