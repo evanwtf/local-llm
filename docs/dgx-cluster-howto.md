@@ -111,6 +111,18 @@ in both directions. Each is a separate host identity from the LAN name. A
 `Host key verification failed`, because SSH had only ever been verified by
 the LAN name.
 
+Turn on lingering for your user, on **both** nodes:
+
+```sh
+loginctl enable-linger "$USER"
+loginctl show-user "$USER" -p Linger   # must print Linger=yes, on each node
+```
+
+Long jobs run as `systemd-run --user` units (#691). Without lingering, the
+worker's user manager stops every such unit when the ssh session that started
+it ends. On 2026-10-12 the worker had `Linger=no`, and that stopped a
+`docker pull` after 18 s and a #919 engine rank after 10 s.
+
 ## 6. Reboot both nodes
 
 First, on each node, turn off NVMe interrupt coalescing for good (#884). NVIDIA's
