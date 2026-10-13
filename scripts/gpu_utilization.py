@@ -160,7 +160,17 @@ def _resident_gib() -> float:
     total = 0
     for line in out.splitlines()[1:]:
         rss, _, cmd = line.strip().partition(" ")
-        if any(k in cmd for k in ("vllm", "llama-server", "ds4-server", "ollama")):
+        if any(
+            k in cmd
+            for k in (
+                "vllm",
+                "llama-server",
+                "ds4-server",
+                "ollama",
+                "tensorfold",
+                "tf-dsv41",
+            )
+        ):
             try:
                 total += int(rss)
             except ValueError:

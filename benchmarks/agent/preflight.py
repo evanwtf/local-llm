@@ -65,7 +65,18 @@ logger = logging.getLogger(__name__)
 # undetectable while under-reporting headroom by the size of a model. Add an
 # engine here the moment it can run on this machine, not the moment it earns a
 # row. `mlx-serve` was added for #191 before its first measurement.
-INFERENCE = ("llama-server", "ollama", "ds4-server", "mtplx", "mlx-serve", "sushi")
+# `tensorfold-dsv41` and `tf-dsv41-m1` are the native TensorFold Zig ranks
+# (#919): rank 0 serves, rank 1 follows on the other node (#680 finding 21).
+INFERENCE = (
+    "llama-server",
+    "ollama",
+    "ds4-server",
+    "mtplx",
+    "mlx-serve",
+    "sushi",
+    "tensorfold-dsv41",
+    "tf-dsv41-m1",
+)
 
 # Engines that run as a Python program. Their executable is `python3`, so the
 # executable match above never saw them: vLLM, SGLang and TensorFold were all

@@ -1043,6 +1043,23 @@ PY_SERVERS_PS = """\
 NO_LISTENERS = "COMMAND PID USER FD TYPE DEVICE SIZE/OFF NODE NAME\n"
 
 
+def test_the_tensorfold_zig_ranks_are_servers():
+    """#680 finding 21: the #919 engine is two native binaries, not Python.
+
+    Rank 0 serves (`scripts/run-zig.sh` in jayleaton/deepseek-v41-tensorfold-
+    spark @2dcce03); rank 1 follows on the worker and holds as much memory.
+    Neither name contains `tensorfold` as a Python console script would.
+    """
+    ps = (
+        "  PID    RSS  ELAPSED COMMAND\n"
+        "61001 4400000 01:00:00 tensorfold-dsv41 serve /model --host 0.0.0.0 --port 8888\n"
+        "61002 4400000 01:00:00 tf-dsv41-m1 follow /model\n"
+        "61003 1000 00:01:00 bash scripts/run-zig.sh 0\n"
+    )
+    got = preflight.parse_ps(ps)
+    assert [p.pid for p in got] == [61001, 61002]
+
+
 def test_python_hosted_servers_are_found_by_module_or_script():
     got = preflight.parse_ps(PY_SERVERS_PS)
     assert [p.pid for p in got] == [51001, 51002, 51003, 51004]
