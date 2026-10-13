@@ -2701,6 +2701,58 @@ def test_serving_tensorfold_records_image_version_and_argv(monkeypatch):
     assert run.serving_tensorfold({"x"}, inspect_all=lambda: containers[:1]) == {}
 
 
+#: The #919 rank-0 command and image labels, as `docker inspect` gave them on
+#: 2026-10-12/13: the Zig engine has no Python package to import.
+_TF_ZIG_CMD = [
+    "tensorfold-dsv41",
+    "serve",
+    "/model",
+    "--port",
+    "8888",
+    "--name",
+    "DeepSeek-V4.1-Flash-TF",
+]
+_TF_ZIG_LABELS = (
+    '{"org.opencontainers.image.version":"24.04",'
+    '"org.tensorfold.zig-commit":"2dcce0303451da2a59f80e6c7413da8b3b0f7a57"}\n'
+)
+
+
+def test_a_zig_tensorfold_build_is_read_from_its_image_label(monkeypatch):
+    """#680 finding 22: `import tensorfold` fails in the Zig image, so every
+    #919 row said tensorfold_version=unknown while the label held the commit."""
+    containers = [("tfz", "tensorfold-dsv41-zig:local", _TF_ZIG_CMD)]
+
+    def fake_run(argv, **kw):
+        if argv[:2] == ["docker", "exec"]:
+            return subprocess.CompletedProcess(argv, 1, stdout="", stderr="no module")
+        if "{{json .Config.Labels}}" in argv:
+            return subprocess.CompletedProcess(argv, 0, stdout=_TF_ZIG_LABELS)
+        return subprocess.CompletedProcess(argv, 0, stdout="{}")
+
+    monkeypatch.setattr(run.subprocess, "run", fake_run)
+    got = run.serving_tensorfold(
+        {"DeepSeek-V4.1-Flash-TF"}, inspect_all=lambda: containers
+    )
+    assert got["tensorfold"] == "zig@2dcce0303451"
+
+
+def test_a_zig_image_without_the_label_stays_unknown(monkeypatch):
+    """No label is no version: the row must say unknown, never a guess."""
+    containers = [("tfz", "tensorfold-dsv41-zig:local", _TF_ZIG_CMD)]
+
+    def fake_run(argv, **kw):
+        if argv[:2] == ["docker", "exec"]:
+            return subprocess.CompletedProcess(argv, 1, stdout="")
+        return subprocess.CompletedProcess(argv, 0, stdout="{}\n")
+
+    monkeypatch.setattr(run.subprocess, "run", fake_run)
+    got = run.serving_tensorfold(
+        {"DeepSeek-V4.1-Flash-TF"}, inspect_all=lambda: containers
+    )
+    assert "tensorfold" not in got
+
+
 def test_parallelism_is_read_from_each_engines_launch_flags():
     """#647: two recipes for one model with different TP/EP layouts were told
     apart only by backend name. The argv is what the engine was told."""

@@ -1290,8 +1290,35 @@ def serving_tensorfold(models, inspect_all=_docker_inspect_all):
     lines = probe.stdout.strip().splitlines() if probe and probe.returncode == 0 else []
     if lines and lines[-1].strip():
         got["tensorfold"] = lines[-1].strip()
+    else:
+        # The Zig engine (#919) has no Python package, so the import fails;
+        # the recipe stamps its commit on the image instead (#680 finding 22).
+        commit = _image_label(cid, TENSORFOLD_ZIG_LABEL)
+        if commit:
+            got["tensorfold"] = f"zig@{commit[:12]}"
     got.update(container_settings(cid))
     return got
+
+
+#: The label jayleaton/deepseek-v41-tensorfold-spark puts the engine commit in.
+TENSORFOLD_ZIG_LABEL = "org.tensorfold.zig-commit"
+
+
+def _image_label(cid: str, key: str) -> str | None:
+    """One label of a running container's image, or None if unreadable."""
+    try:
+        out = subprocess.run(
+            ["docker", "inspect", "--format", "{{json .Config.Labels}}", cid],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        ).stdout
+        labels = json.loads(out)
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return None
+    value = labels.get(key) if isinstance(labels, dict) else None
+    return value.strip() or None if isinstance(value, str) else None
 
 
 #: Launch flags that set how a server splits the model, per engine, mapped to
