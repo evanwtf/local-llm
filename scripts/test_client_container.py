@@ -8,6 +8,7 @@ weaker privilege posture than the one bwrap was measured to require.
 from __future__ import annotations
 
 import datetime as dt
+import json
 import pathlib
 
 import client_container as mod
@@ -289,6 +290,97 @@ def test_a_harness_fault_fails_the_batch(tmp_path, monkeypatch):
     argv, _, _ = _batch(tmp_path, monkeypatch, [])
     _audited(monkeypatch, 1)
     assert mod.main([*argv, "--", "--backend", "b"]) == 1
+
+
+def _faulted(tmp_path, ledger_rows):
+    """A client home with one ledger, and a facts file that names it."""
+    d = tmp_path / "git" / "local-llm" / "hardware" / "X2"
+    d.mkdir(parents=True)
+    ledger = d / "results.jsonl"
+    ledger.write_text("".join(json.dumps(r) + "\n" for r in ledger_rows))
+    facts = tmp_path / "facts.json"
+    facts.write_text(json.dumps({"directory": "X2"}))
+    audit = tmp_path / "b1-audit.json"
+    audit.write_text(json.dumps({"backends": []}))
+    return ledger, facts, audit
+
+
+_ROW_IN = {"backend": "b", "started": "2026-10-13T09:10:00-0400", "task": "t1"}
+_ROW_BEFORE = {"backend": "b", "started": "2026-10-13T08:00:00-0400", "task": "t0"}
+_ROW_OTHER = {"backend": "c", "started": "2026-10-13T09:10:00-0400", "task": "t1"}
+
+
+def test_a_faulted_batch_has_its_rows_excluded(tmp_path):
+    """#969 item 2: rows from a batch with a broken tool must not land quietly."""
+    ledger, facts, audit = _faulted(tmp_path, [_ROW_BEFORE, _ROW_IN, _ROW_OTHER])
+    n = mod.quarantine_batch(
+        tmp_path,
+        facts,
+        "b",
+        "2026-10-13T09:00:00-04:00",
+        "2026-10-13T10:00:00-04:00",
+        audit,
+        None,
+    )
+    rows = [json.loads(line) for line in ledger.read_text().splitlines()]
+    assert n == 1
+    assert [r.get("excluded", False) for r in rows] == [False, True, False]
+    assert "#969" in rows[1]["exclusion_reason"]
+    assert str(audit) in rows[1]["exclusion_reason"]
+    # Annotated, never rewritten: every measured field is unchanged.
+    assert {k: rows[1][k] for k in _ROW_IN} == _ROW_IN
+
+
+def test_an_override_keeps_the_rows_and_records_the_reason(tmp_path):
+    ledger, facts, audit = _faulted(tmp_path, [_ROW_IN])
+    before = ledger.read_text()
+    n = mod.quarantine_batch(
+        tmp_path,
+        facts,
+        "b",
+        "2026-10-13T09:00:00-04:00",
+        "2026-10-13T10:00:00-04:00",
+        audit,
+        "glob fails only on a path the task never uses",
+    )
+    assert n == 0
+    assert ledger.read_text() == before
+    assert json.loads(audit.read_text())["override_fault"] == (
+        "glob fails only on a path the task never uses"
+    )
+
+
+def test_a_facts_file_without_a_directory_excludes_nothing_but_says_so(
+    tmp_path, caplog
+):
+    facts = tmp_path / "facts.json"
+    facts.write_text("{}")
+    n = mod.quarantine_batch(
+        tmp_path,
+        facts,
+        "b",
+        "2026-10-13T09:00:00-04:00",
+        "2026-10-13T10:00:00-04:00",
+        tmp_path / "a.json",
+        None,
+    )
+    assert n == 0
+    assert "NOT excluded" in caplog.text
+
+
+def test_a_harness_fault_quarantines_the_batch(tmp_path, monkeypatch):
+    argv, _, _ = _batch(tmp_path, monkeypatch, [])
+    _audited(monkeypatch, 1)
+    seen = []
+
+    def quarantine(*a):
+        seen.append(a)
+        return 0
+
+    monkeypatch.setattr(mod, "quarantine_batch", quarantine)
+    assert mod.main([*argv, "--override-fault", "why", "--", "--backend", "b"]) == 1
+    [args] = seen
+    assert args[2] == "b" and args[-1] == "why"
 
 
 def test_an_unreadable_audit_does_not_fail_a_good_batch(tmp_path, monkeypatch):

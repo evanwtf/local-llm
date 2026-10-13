@@ -497,6 +497,64 @@ def audit_batch(backend: str, since: str, home: pathlib.Path, log: pathlib.Path)
     )
 
 
+def quarantine_batch(
+    home: pathlib.Path,
+    facts: pathlib.Path,
+    backend: str,
+    since: str,
+    until: str,
+    audit_json: pathlib.Path,
+    override: str | None,
+) -> int:
+    """Exclude a faulted batch's rows from the ledger, unless overridden (#969).
+
+    A row from a batch with a broken tool scores the harness as the model's
+    failure, and #968 ran two weeks before anyone looked. So the rows are
+    marked `excluded` the moment the audit finds the fault, through
+    `exclude_rows.mark`, which annotates and never rewrites a measured field.
+    `--override-fault REASON` keeps them, and the reason goes into the audit
+    summary beside the batch log. Returns the number of rows excluded.
+    """
+    if override:
+        logger.warning("harness fault overridden, rows kept: %s", override)
+        try:
+            summary = json.loads(audit_json.read_text())
+        except (OSError, ValueError):
+            summary = {}
+        summary["override_fault"] = override
+        audit_json.write_text(json.dumps(summary, indent=2) + "\n")
+        return 0
+    try:
+        directory = json.loads(facts.read_text())["directory"]
+    except (OSError, ValueError, KeyError, TypeError):
+        logger.error(
+            "cannot find this batch's ledger in %s, so its rows are NOT excluded; "
+            "exclude them with scripts/exclude_rows.py before they land",
+            facts,
+        )
+        return 0
+    import exclude_rows
+    import remote
+
+    ledger = remote.results_path(home / "git" / "local-llm", {"directory": directory})
+    newly, _ = exclude_rows.mark(
+        ledger,
+        backend=backend,
+        since=since,
+        until=until,
+        reason=f"harness fault in the transcript audit (#969): {audit_json}",
+        apply=True,
+    )
+    logger.error(
+        "excluded %d rows of %s in %s. To keep them, rerun with "
+        "--override-fault REASON once the fault is explained",
+        newly,
+        backend,
+        ledger,
+    )
+    return newly
+
+
 #: #959: what can authenticate to GitHub. On 2026-09-18 a trial on a host
 #: holding these force-pushed a real repository's main. The container mounts
 #: none of them and passes none; `credential_leaks` refuses a batch the day a
@@ -561,6 +619,14 @@ def main(argv: list[str] | None = None) -> int:
         "scripted stub server, in seconds. Without it, an image whose grep and "
         "glob fail runs batch after batch and the rows read as model failures. "
         "Skip it only to measure a client known to be broken.",
+    )
+    p.add_argument(
+        "--override-fault",
+        metavar="REASON",
+        default=None,
+        help="keep this batch's rows even if the transcript audit finds a "
+        "harness fault (#969). Without it, a faulted batch's rows are marked "
+        "excluded. The reason is written into the audit summary.",
     )
     p.add_argument("command", nargs=argparse.REMAINDER)
     args = p.parse_args(argv)
@@ -657,10 +723,20 @@ def main(argv: list[str] | None = None) -> int:
     # failures again (#968 ran two weeks unseen).
     verdict = audit_batch(backend, since, args.home, args.log)
     if verdict == 1:
+        until = datetime.datetime.now().astimezone().isoformat(timespec="seconds")
+        audit_json = args.log.with_name(f"{args.log.stem}-audit.json")
         logger.error(
-            "transcript audit found a harness fault in this batch (#969); its "
-            "rows are suspect until the fault is explained: see %s",
-            args.log.with_name(f"{args.log.stem}-audit.json"),
+            "transcript audit found a harness fault in this batch (#969): see %s",
+            audit_json,
+        )
+        quarantine_batch(
+            args.home,
+            args.facts,
+            backend,
+            since,
+            until,
+            audit_json,
+            args.override_fault,
         )
         return status or 1
     if verdict != 0:
