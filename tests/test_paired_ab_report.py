@@ -238,3 +238,76 @@ def test_main_reads_out_a_healthy_run(tmp_path):
         )
         == 0
     )
+
+
+# --- tool reliability (#969 item 4) ------------------------------------------
+
+_T0 = 1_790_409_961_000
+_RIPGREP = (
+    "tar: ripgrep-14.1.1-x86_64-unknown-linux-musl/doc/CHANGELOG.md: Cannot "
+    "change ownership to uid 1000, gid 1000: Operation not permitted"
+)
+
+
+def _call(name: str, at: int, error: str | None = None) -> dict:
+    state: dict = {"status": "error" if error else "completed", "input": {}}
+    if error:
+        state["error"] = error
+    return {
+        "type": "tool_use",
+        "timestamp": _T0 + at * 1000,
+        "sessionID": "s",
+        "part": {"type": "tool", "tool": name, "callID": f"c{at}", "state": state},
+    }
+
+
+def _with_transcripts(tmp_path, broken_arm: str | None) -> pathlib.Path:
+    """A balanced A/B whose rows name real transcripts; one arm's grep broken."""
+    rows = []
+    for r in balanced(4):
+        name = f"{r['task']}-{r['backend']}"
+        events = [_call("read", 1), _call("edit", 2), _call("bash", 40)]
+        if r["backend"] == broken_arm:
+            events += [_call("grep", 3 + i, _RIPGREP) for i in range(3)]
+        path = tmp_path / "logs" / f"{name}.stdout.jsonl"
+        path.parent.mkdir(exist_ok=True)
+        path.write_text("".join(json.dumps(e) + "\n" for e in events))
+        r["client_log"] = str(path)
+        r["started"] = "2026-10-13T09:00:00-0400"
+        rows.append(r)
+    return ledger(tmp_path, rows)
+
+
+def test_clean_tools_in_both_arms_read_out_and_pass(tmp_path):
+    path = _with_transcripts(tmp_path, None)
+    lines, void = report.tool_reliability(path, "b", ARMS, tmp_path)
+    assert not void
+    assert any(x.startswith("mtp") and "harness faults: none" in x for x in lines)
+    assert any(x.startswith("plain") and "12 calls" in x for x in lines)
+
+
+def test_a_harness_fault_in_one_arm_voids_the_comparison(tmp_path):
+    """#968: every A/B in those two weeks compared arms with no working grep."""
+    path = _with_transcripts(tmp_path, "plain")
+    lines, void = report.tool_reliability(path, "b", ARMS, tmp_path)
+    assert void
+    assert any("VOID" in x and "plain" in x for x in lines)
+    argv = ["--batch", "b", "--treatment", "mtp", "--control", "plain"]
+    assert report.main([*argv, "--ledger", str(path), "--home", str(tmp_path)]) == 2
+
+
+def test_no_transcripts_here_voids_nothing(tmp_path):
+    """The read-out is often run on the server; the transcripts are on the client."""
+    path = ledger(tmp_path, balanced(4))
+    lines, void = report.tool_reliability(path, "b", ARMS, tmp_path)
+    assert not void
+    assert lines == ["tool reliability: no transcripts on this machine"]
+
+
+def test_a_transcript_named_but_missing_voids_nothing_and_says_so(tmp_path):
+    rows = balanced(1)
+    for r in rows:
+        r["client_log"] = str(tmp_path / "gone.stdout.jsonl")
+    lines, void = report.tool_reliability(ledger(tmp_path, rows), "b", ARMS, tmp_path)
+    assert not void
+    assert lines[0].startswith("tool reliability: not read on this machine")

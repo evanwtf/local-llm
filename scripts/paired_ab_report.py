@@ -223,6 +223,55 @@ def render(rows: list[dict], arms: tuple[str, str]) -> tuple[list[str], int]:
     return out, 0
 
 
+def tool_reliability(
+    ledger: pathlib.Path, batch: str, arms: tuple[str, str], home: pathlib.Path
+) -> tuple[list[str], bool]:
+    """(lines, void) for the arms' OpenCode tool calls (#969 item 4).
+
+    #968 ran two weeks with every grep and glob failing, and every A/B read
+    out in that time compared two arms that searched through bash. So the
+    read-out audits the arms' own transcripts, through each row's
+    `client_log`, with `audit_transcripts` -- the same code the batch-end
+    audit runs. A harness fault in either arm voids the comparison. A machine
+    without the transcripts says so and voids nothing: the read-out is often
+    run on the server, and the transcripts live on the client.
+    """
+    import audit_transcripts as audit
+
+    selection = audit.Selection(backends=frozenset(arms), batch=batch)
+    try:
+        trials = audit.select_from_ledgers([ledger], selection, home=home)
+    except audit.MissingTranscriptError as exc:
+        return [f"tool reliability: not read on this machine ({exc})"], False
+    if not trials:
+        return ["tool reliability: no transcripts on this machine"], False
+    summary = audit.summarize(trials, audit.Thresholds())
+    out = ["", "tool reliability (#969):"]
+    void = []
+    for arm in arms:
+        b = summary["backends"].get(arm)
+        if b is None:
+            out.append(f"{arm:26} no transcripts")
+            continue
+        calls = b["tool_calls"]
+        rate = 100.0 * b["tool_errors"] / calls if calls else 0.0
+        faults = ", ".join(b["harness_fault_tools"]) or "none"
+        out.append(
+            f"{arm:26} {b['trials']:3} trials {calls:6} calls  "
+            f"errors {rate:4.1f}%  harness faults: {faults}  "
+            f"format-break trials {b['format_break_trials']}  "
+            f"model tool errors {b['model_tool_errors_per_100_calls']}/100 calls"
+        )
+        if b["harness_fault"]:
+            void.append(arm)
+    if void:
+        out.append(
+            f"VOID: a harness fault in {', '.join(void)}; its tool failures "
+            "would read as the model's (#968). See audit_transcripts.py."
+        )
+    return out, bool(void)
+
+
 def main(argv: list[str] | None = None) -> int:
     repo = pathlib.Path(__file__).resolve().parent.parent
     p = argparse.ArgumentParser(description=__doc__)
@@ -234,6 +283,12 @@ def main(argv: list[str] | None = None) -> int:
     # other host -- the same shape as peer_state's `~/git/local-llm` (#237's
     # sibling bug, which reddened CI).
     p.add_argument("--ledger", type=pathlib.Path, default=None)
+    p.add_argument(
+        "--home",
+        type=pathlib.Path,
+        default=pathlib.Path.home(),
+        help="host home for a client_log recorded inside the client container",
+    )
     args = p.parse_args(argv)
     ledger = args.ledger
     if ledger is None:
@@ -246,7 +301,12 @@ def main(argv: list[str] | None = None) -> int:
     if not rows:
         logger.error("no rows in batch %r", args.batch)
         return 2
-    lines, code = render(rows, (args.treatment, args.control))
+    arms = (args.treatment, args.control)
+    lines, code = render(rows, arms)
+    if code == 0:
+        tools, void = tool_reliability(ledger, args.batch, arms, args.home)
+        lines += tools
+        code = 2 if void else 0
     for line in lines:
         logger.info("%s", line)
     return code
