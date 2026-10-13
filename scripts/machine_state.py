@@ -525,11 +525,50 @@ def unrecorded(claims: Sequence[Claim], procs: Sequence[preflight.Proc]) -> list
 
 
 def with_gpu_memory(
-    procs: Sequence[preflight.Proc], gpu: Mapping[int, float]
+    procs: Sequence[preflight.Proc],
+    gpu: Mapping[int, float],
+    parents: Mapping[int, int] | None = None,
 ) -> list[preflight.Proc]:
     """Attach each process's GPU memory, so a server whose model is not in its
-    RSS still counts as resident (#935)."""
-    return [dataclasses.replace(p, gpu_gib=gpu.get(p.pid, 0.0)) for p in procs]
+    RSS still counts as resident (#935).
+
+    A server is credited with the GPU memory of its descendants too: vLLM's
+    memory sits in `VLLM::Worker_*`, two levels below the `vllm serve` process
+    the census recognises, and without it a serving vLLM read 0.9 GiB and was
+    dropped as not resident (#680 finding 20).
+    """
+    parents = parents or {}
+    servers_ = {p.pid for p in procs}
+
+    def owner(pid: int) -> int | None:
+        """The first ancestor of `pid` (or itself) that is a server."""
+        seen: set[int] = set()
+        while pid not in seen:
+            if pid in servers_:
+                return pid
+            seen.add(pid)
+            parent = parents.get(pid)
+            if parent is None:
+                return None
+            pid = parent
+        return None  # a cycle in the listing
+
+    total: dict[int, float] = {}
+    for pid, gib in gpu.items():
+        top = owner(pid)
+        if top is not None:
+            total[top] = total.get(top, 0.0) + gib
+    return [dataclasses.replace(p, gpu_gib=total.get(p.pid, 0.0)) for p in procs]
+
+
+def parent_pids(ps_text: str) -> dict[int, int]:
+    """`ps -eo pid,ppid` as {pid: ppid}; unreadable lines are skipped."""
+    out: dict[int, int] = {}
+    for line in ps_text.splitlines():
+        parts = line.split()
+        if len(parts) == 2 and parts[0].isdigit() and parts[1].isdigit():
+            out[int(parts[0])] = int(parts[1])
+    return out
 
 
 def servers() -> list[preflight.Proc]:
@@ -537,6 +576,7 @@ def servers() -> list[preflight.Proc]:
     return with_gpu_memory(
         preflight.parse_ps(preflight._capture(["ps", "-eo", "pid,rss,etime,command"])),
         preflight.gpu_memory_by_pid(),
+        parent_pids(preflight._capture(["ps", "-eo", "pid,ppid"])),
     )
 
 
