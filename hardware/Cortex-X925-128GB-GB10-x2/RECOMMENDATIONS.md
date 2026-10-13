@@ -9,14 +9,19 @@
 > to 2026-10-08T18:34-0400. The 131 rows since the 00:30 read are #997's 126
 > and 5 from [#999][i999] (section 4, "Dropped"). **Updated 2026-10-10,
 > 20:00 EDT** with [#1018][i1018]: the pick on recipe `main` @`b5808ac`, 126
-> rows, to 2026-10-10T19:52-0400 (2,555 rows in all). Every pass count, sum of
+> rows, to 2026-10-10T19:52-0400 (2,555 rows in all). **Updated 2026-10-13**
+> with 70 rows to 2026-10-13T01:11-0400 (2,625 in all): [#865][i865] arm 1 on
+> vLLM 0.31.0 and on the vLLM main nightly (14 rows each), and [#919][i919],
+> DeepSeek V4.1 on TensorFold Zig (42 rows). The pick does not change. Every pass count, sum of
 > medians, percentage, hidden-test count and screen verdict in sections 2–4
 > reproduces from the commands in section 1 and, for the per-run figures,
 > `scripts/series_readout.py` on the saved row files of #970, #997 and #1018.
 >
 > **The ledger has two halves that do not compare.** Until 2026-10-06 09:14 EDT,
 > OpenCode's `grep` and `glob` tools failed on every call in the client
-> ([#968][i968]): 1,993 rows. After the fix: 562 rows. Section 3 ranks the
+> ([#968][i968]): 1,993 rows. After the fix: 632 rows. A transcript audit of
+> every post-fix trial on the client ([#969][i969], 2026-10-13) read 632
+> trials and found no harness fault. Section 3 ranks the
 > stacks measured after the fix; section 4 keeps the earlier results, compared
 > only with each other.
 
@@ -26,14 +31,15 @@
 |---|---|---|
 | **A coding agent (the pick)** | **GLM-5.3-Flash EXL3 4bpw TensorFold quant on TensorFold v0.6.0**, [MiaAI-Lab recipe][r-tf-mia] `main` @`b5808ac` (2026-10-10) | 126 of 126 replay and hard-set trials passed over 3 runs ([#1018][i1018]), sum of medians 3,825.7 s on 14 tasks. On v1.10: 123 of 126 and 3,951.8 s ([#997][i997]); on v1.8: 124 of 126 and 4,111.1 s ([#970][i970]). The three recipe versions are the same within run-to-run noise. Fastest stack measured. |
 | The measured alternative | the same recipe with the **TR3 4bpw** checkpoint | 122 of 126 over 3 interleaved runs on v1.8, 4,271.0 s (104% of the pick on v1.8, 112% of the pick on `main`). |
-| Image input, or more than 262k tokens of context | DeepSeek-V4-Flash-Vision-Exp on vLLM, [MiaAI-Lab DSpark recipe][r-dsv4v] | 1M context, vision. 63 of 63 replay trials, at 272% of TensorFold's replay time. Broken client only (section 4). |
+| Image input, or more than 262k tokens of context | DeepSeek-V4-Flash-Vision-Exp on vLLM, [MiaAI-Lab DSpark recipe][r-dsv4v] | 1M context, vision. 63 of 63 replay trials, at 272% of TensorFold's replay time. Broken client only (section 4). For text only, DeepSeek V4.1 on TensorFold Zig ([#919][i919]) also serves 1M tokens and was measured on the fixed client: 39 of 40 at 164% of the pick (section 3). It does not take images. |
 | One Spark, not two | See the [single-Spark picks](../Cortex-X925-128GB-GB10/RECOMMENDATIONS.md) | Qwen3.8-Flash-Next NVFP4 fits one node. |
 
 **Not recommended for coding on this cluster: Qwen3.8-Flash-Next.** Every
 Qwen stack passes nearly every trial, but none finishes the set in less than
 188% of the pick's time on v1.8 (202% on `main`). The time goes to reasoning: a
-median of about 14,000 reasoning tokens per trial, against the pick's 2,800 to
-3,500 (section 3).
+median of 14,000 to 16,800 reasoning tokens per trial, against the pick's 2,800
+to 3,500 (section 3). RedHat's NVFP4 build ([#865][i865]) does not load on two
+Sparks with vLLM main: three launches ran out of memory.
 
 **What "best" means here.** Each stack runs [OpenCode][opencode] as a coding
 agent on real tasks, and must pass the task's test suite. We rank on pass rate
@@ -128,9 +134,10 @@ trials a run. Task details are in
 - **Recall.** [gmail-archive][gmail-archive] is public, so a model may have
   seen the commits a replay task rebuilds. "Replay files restored verbatim"
   counts the reverted files the agent wrote back byte-for-byte, over every
-  trial. It stays between 0.6% and 7.0% for every stack that ran all 14 tasks:
-  the passes are new code, not recalled files. One stack, DeepSeek V4.1, restored
-  every file of a task verbatim in 6 trials.
+  trial. It stays between 0.6% and 8.1% for every stack that ran all 14 tasks
+  but one: the passes are new code, not recalled files. The exception is
+  DeepSeek V4.1. On EXL3 it restored every file of a task verbatim in 6 trials,
+  and on TensorFold Zig ([#919][i919]) it restored 81 of 268 files (30.2%).
 - **The screen ([#762][i762]).** A stack needs 90% or more passed and a sum of
   medians under 200% of the leader's, or it is "screened out". Then the fastest
   3 are kept, plus any within 25% of the third, up to 5. The rest are "cut":
@@ -279,7 +286,7 @@ byte-identical by sha256 to `9eaebb7` (#937). Section 6 shows the override.
 
 ## 3. Every stack on the fixed client
 
-Seven stack configurations ran the 14 replay + hard tasks after the #968 fix.
+Ten stack configurations ran the 14 replay + hard tasks after the #968 fix.
 Percentages are of the pick's v1.8 measurement, the reference for the rows
 below it:
 
@@ -289,6 +296,9 @@ below it:
 | GLM TensorFold quant, MiaAI v1.10 (`glm53fexl3tfqmiaaiv110dual2xrc`), the pick until #1018 ([#997][i997]) | 3 | 123/126 | 93.2–99.2% | **3,951.8 s** | 96% | 3,454.0 | 841/1,170 (71.9%) | 15/927 (1.6%) | keep |
 | GLM TensorFold quant, MiaAI v1.8 (`glm53fexl3tfqmiaaiv18dual2xrc`), the pick until #997 | 3 | 124/126 | 94.4–99.6% | **4,111.1 s** | 100% | 2,815.5 | 878/1,170 (75.0%) | 12/927 (1.3%) | keep |
 | GLM TensorFold TR3, MiaAI v1.8 (`glm53fexl3tfmiaaiv18dual2xrc`) | 3 | 122/126 | 92.1–98.8% | 4,271.0 s | 104% | 3,319.5 | 851/1,170 (72.7%) | 15/927 (1.6%) | keep |
+| DeepSeek V4.1 Flash EXL3 2.8 bpw on TensorFold Zig, jayleaton ([#919][i919]) (`dsv41ftfzigjaydual2xrc`) | 2 (one after an engine crash) | 39/40 | 87.1–99.6% | 6,262.9 s | 152% | 0 recorded | 299/315 (94.9%) | 81/268 (30.2%) | cut |
+| Qwen3.8-Flash-Next NVFP4 (nvidia), MTP, vLLM 0.31.0 ([#865][i865]) (`qwen38fnnvfp4nv2xspec`) | 1, stopped at 14 of 42 | 13/14 | 68.5–98.7% | 9,205.3 s | 224% | 15,466 | 86/101 (85.1%) | 2/86 (2.3%) | screened out |
+| Qwen3.8-Flash-Next NVFP4 (nvidia), MTP, vLLM main nightly ([#865][i865]) (`qwen38fnnvfp4nv2xspecmain`) | 1, stopped at 14 of 42 | 13/14 | 68.5–98.7% | 9,526.9 s | 232% | 16,806 | 79/101 (78.2%) | 7/86 (8.1%) | screened out |
 | Qwen3.8-Flash-Next NVFP4 on TensorFold Zig, MiaAI ([#897][i897]) (`qwen38fnnvfp4tfmiaaidual2xrc`) | 1, stopped at 25 of 42 | 25/25 | 86.7–100% | 7,746.8 s | 188% | 13,991 | 160/194 (82.5%) | 6/167 (3.6%) | screened out |
 | Qwen3.8-Flash-Next hibrid48, thinking on, vLLM v5.2 ([#977][i977]) (`qwen38fnhibrid48v52dual2xrc`) | 1, stopped at 14 of 42 | 13/14 | 68.5–98.7% | 8,138.6 s | 198% | 15,570 | 87/101 (86.1%) | 6/86 (7.0%) | screened out |
 | Qwen3.8-Flash-Next hibrid48, thinking off, vLLM v5.2 ([#977][i977]) (`qwen38fnhibrid48v52nothinkdual2xrc`) | 1, stopped at 14 of 42 | 12/14 | 60.1–96.0% | 10,889.4 s | 265% | 0 | 59/78 (75.6%) | 2/77 (2.6%) | screened out |
@@ -326,6 +336,25 @@ changes.
   72.7–75.0% for GLM. But that is 11 and 7 trials, and tests in one trial are
   not independent. It is a reason to look again with a faster Qwen stack, not
   a result.
+
+**What the DeepSeek V4.1 run shows ([#919][i919]):**
+
+- **Second-fastest family, still well behind.** 6,262.9 s is 164% of the
+  pick on `main` and 52.3% behind the third-ranked stack, so the screen marks
+  it "cut": it passes, but it does not earn more runs. The engine crashed once
+  on a 201,049-token prompt (`PoolExhausted`), and the cell finished on a
+  restart. It served prompts up to 219,326 tokens before that.
+- **The highest hidden-test rate measured, with a caveat.** 299 of 315 hidden
+  tests (94.9%), against 72.7–75.0% for GLM. But it also restored 30.2% of the
+  replay files verbatim, against 1.6% for the pick. Part of that hidden-test
+  rate may be recall, not new code.
+- **No reasoning count.** Every scored row records 0 reasoning tokens, at
+  server reasoning effort `low`. Whether the model did not reason or the engine
+  does not report it is not checked, so the column does not compare with the
+  others.
+- 40 of 42 trials are scored. Two are excluded for answer exposure (#54): the
+  agent worked in the harness checkout, which could disclose an earlier
+  trial's patch.
 
 ## 4. Before the fix (broken client)
 
@@ -546,9 +575,15 @@ was built and measured on it.
   per the recipe) is not approved. Faster decode alone would not close a 2x gap
   that comes from reasoning volume.
 - **[#992][i992]:** the early stop's leader should be the fixed-client pick.
-- **[#865][i865]:** RedHat's Qwen3.8-Flash-Next NVFP4 build against MiaAI's.
-  MiaAI says its Qwen quant will change soon.
-- **[#904][i904]:** rows should record the serving engine's version.
+- **[#865][i865]:** RedHat's Qwen3.8-Flash-Next NVFP4 build against nvidia's.
+  Arm 1 (nvidia, section 3) is screened out. Arm 2 (RedHat) does not fit in
+  memory on two Sparks with vLLM main, and waits on the operator's decision.
+- **[#904][i904]:** done (closed 2026-10-13). Rows now record the serving
+  image's vLLM build. All 14 rows of #865 arm 1 on main read
+  `0.31.1rc1.dev296+gfe4df3df0`. Older vLLM rows keep the head's `0.29.0`.
+- **[#626][i626]:** done (closed 2026-10-13). The Qwen NVFP4 + MTP stack on
+  vLLM main hit the prefix-cache ceiling on 54 of 54 replays, so prefix caching
+  works there, as section 5 assumes.
 - **Not measured:** several clients at once, and code quality beyond the tests.
 
 ## References
@@ -573,7 +608,9 @@ was built and measured on it.
 [#840][i840] jayleaton TensorFold · [#892][i892] MiaAI TensorFold ·
 [#968][i968] client tools · [#970][i970] TR3 against the quant ·
 [#977][i977] hibrid48 v5.2 · [#897][i897] Qwen on TensorFold ·
-[#986][i986] · [#992][i992] · [#904][i904]
+[#986][i986] · [#992][i992] · [#904][i904] ·
+[#865][i865] RedHat Qwen NVFP4 · [#919][i919] DeepSeek V4.1 on TensorFold Zig ·
+[#626][i626] prefix cache · [#969][i969] transcript audit
 
 [r-tf-mia]: https://github.com/MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks-TensorFold
 [r-tf-qwen]: https://github.com/MiaAI-Lab/Qwen3.8-Flash-Dual-DGX-Sparks-TensorFold
@@ -621,6 +658,8 @@ was built and measured on it.
 [i894]: https://github.com/evanwtf/local-llm/pull/894
 [i897]: https://github.com/evanwtf/local-llm/issues/897
 [i904]: https://github.com/evanwtf/local-llm/issues/904
+[i919]: https://github.com/evanwtf/local-llm/issues/919
+[i626]: https://github.com/evanwtf/local-llm/issues/626
 [i940]: https://github.com/evanwtf/local-llm/issues/940
 [i968]: https://github.com/evanwtf/local-llm/issues/968
 [i969]: https://github.com/evanwtf/local-llm/issues/969
