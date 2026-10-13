@@ -786,6 +786,35 @@ def test_with_gpu_memory_attaches_only_the_pids_nvidia_smi_names() -> None:
     assert [p.gpu_gib for p in got] == [18.984375, 0.0]
 
 
+def test_a_server_is_credited_with_its_workers_gpu_memory() -> None:
+    """#680 finding 20, read off a live vLLM on the DGX head, 2026-10-13.
+
+    nvidia-smi charged 64,322 MiB to `VLLM::Worker_TP0_EP0`, two levels below
+    the `vllm serve` process the census recognises (0.9 GiB RSS). Without the
+    worker's memory the server read 0.9 GiB, under RESIDENT_GIB, and dropped
+    out of the survey while it held the GPU.
+    """
+    parents = {1135487: 1135342, 1135342: 1135069, 1135069: 1135046, 1135046: 1}
+    procs = [proc(1135069, 0.9, "/usr/bin/python3 /usr/local/bin/vllm serve m")]
+    got = ms.with_gpu_memory(procs, {1135487: 64322 / 1024}, parents)
+    assert got[0].gpu_gib == pytest.approx(62.81, abs=0.01)
+    assert [c.status for c in ms.unrecorded([], got)] == [ms.UNRECORDED]
+
+
+def test_a_process_outside_the_server_tree_is_not_credited() -> None:
+    parents = {11: 10, 10: 1, 21: 20, 20: 1}
+    procs = [proc(10, 0.5, "vllm serve a")]
+    got = ms.with_gpu_memory(procs, {11: 30.0, 21: 40.0}, parents)
+    assert got[0].gpu_gib == 30.0
+
+
+def test_a_parent_cycle_does_not_hang_the_census() -> None:
+    """A pid reused mid-listing can make `ps` report a loop."""
+    parents = {11: 12, 12: 11}
+    got = ms.with_gpu_memory([proc(10, 0.5, "vllm serve a")], {11: 5.0}, parents)
+    assert got[0].gpu_gib == 0.0
+
+
 def test_a_container_server_with_little_rss_is_unrecorded_by_its_gpu_memory() -> None:
     procs = ms.with_gpu_memory(
         [proc(2857621, 0.92, "llama-server --port 8020")],
