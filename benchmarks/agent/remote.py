@@ -321,16 +321,21 @@ def merge_servers(live: dict, saved: dict) -> dict:
 #: How each engine marks one server instance over HTTP (#948): the kind of
 #: marker and the route that carries it. A `counter` only grows while one
 #: server runs and starts over after a restart. Only engines checked against a
-#: live server are listed. vLLM may not export `process_start_time_seconds`
-#: in Prometheus multiprocess mode, and a guessed metric name would refuse
-#: every batch, so vLLM, SGLang and llama.cpp wait for a live check.
+#: live server are listed. A `start_time` is the server's own start and must
+#: match exactly. SGLang and llama.cpp wait for a live check.
 INSTANCE_PROBES: dict[str, tuple[str, str]] = {
     "tensorfold": ("counter", "/health"),  # requests_total, v0.6.0
+    # One `process_start_time_seconds` line on /metrics, read live from the
+    # two-Spark nightly fe4df3df (0.31.1rc1.dev296) on 2026-10-13: 22 s after
+    # its launch, so it is the API server's start, not a worker's.
+    "vllm": ("start_time", "/metrics"),
 }
 
 
-def parse_instance(kind: str, text: str) -> int | None:
+def parse_instance(kind: str, text: str) -> float | None:
     """The instance marker in a server's answer, or None if it is unreadable."""
+    if kind == "start_time":
+        return _start_time(text)
     if kind != "counter":
         return None
     try:
@@ -342,6 +347,26 @@ def parse_instance(kind: str, text: str) -> int | None:
     if isinstance(value, bool) or not isinstance(value, int) or value < 0:
         return None
     return value
+
+
+def _start_time(metrics: str) -> float | None:
+    """`process_start_time_seconds` from a Prometheus text page, or None.
+
+    The API server's own start, in Unix seconds: one value per server
+    instance, and a new one after a restart. Two values, as a multiprocess
+    export could give, are refused as unreadable rather than one picked.
+    """
+    found = []
+    for line in metrics.splitlines():
+        name, _, value = line.partition(" ")
+        if name.split("{", 1)[0] == "process_start_time_seconds":
+            try:
+                found.append(float(value.split()[0]))
+            except (ValueError, IndexError):
+                return None
+    if len(found) != 1 or found[0] <= 0:
+        return None
+    return found[0]
 
 
 def _fetch(url: str, timeout: float) -> str:
@@ -388,7 +413,14 @@ def instance_mismatch(saved: dict | None, live: dict | None, engine: str) -> str
             f"the server facts record a {saved.get('kind')!r} marker, but {engine} "
             f"answers with a {live.get('kind')!r} one (#948)"
         )
-    if live["value"] < saved["value"]:
+    if saved.get("kind") == "start_time" and live["value"] != saved["value"]:
+        return (
+            f"the {engine} server restarted since scripts/server_facts.py ran: "
+            f"it started at {saved['value']:.0f} then and at {live['value']:.0f} "
+            "now (#948). Run it again on the server and copy the new file to "
+            "the client."
+        )
+    if saved.get("kind") == "counter" and live["value"] < saved["value"]:
         return (
             f"the {engine} server restarted since scripts/server_facts.py ran: "
             f"its request counter went from {saved['value']} to {live['value']} "
