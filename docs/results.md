@@ -187,7 +187,7 @@ Excision tasks only; `script-*` excluded because they are a different class.
 
 ### Cortex-X925-128GB-GB10-x2
 
-*Generated from `hardware/Cortex-X925-128GB-GB10-x2/results.jsonl` — 2610 rows, sha256 2f67c156eb0e.*
+*Generated from `hardware/Cortex-X925-128GB-GB10-x2/results.jsonl` — 2625 rows, sha256 c83d94d34b08.*
 
 #### Every stack measured under OpenCode
 
@@ -244,8 +244,8 @@ Excision tasks only; `script-*` excluded because they are a different class.
 | glm53fexl3tfmiaaiv15dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (uv=0.12.22) | 21/21 | 162s | 319s | 2.4x | 1.4x | 16.9x |
 | glm53fexl3dual2xrclatest @ Corei3-7100-16GB+image (uv=0.12.21) | 20/21 | 189s | 548s | 2.3x | 1.3x | 19.0x |
 | glm53fexl3dual2xrcctx @ Corei3-7100-16GB+image (opencode=1.18.32 uv=0.12.13 python=3.14.4) | 63/63 | 216s | 608s | 2.6x | 1.9x | 23.9x |
+| dsv41ftfzigjaydual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.19.0) | 21/21 | 228s | 475s | 2.3x | 1.4x | 21.1x |
 | glm53ftfjaydual2xrchigh @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.34 uv=0.12.21 python=3.14.7) | 21/21 | 243s | 511s | 1.3x | 1.2x | 10.0x |
-| dsv41ftfzigjaydual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.19.0) | 14/14 | 245s | 475s | 1.8x | 1.2x | 19.6x |
 | glm53fexl3dual2xrclatest @ Corei3-7100-16GB+image (opencode=1.18.32 uv=0.12.13 python=3.14.4) | 19/21 | 261s | 592s | 2.3x | 2.1x | 18.7x |
 | qwen38fnhibrid48v52nothinkdual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.35 uv=0.12.23 python=3.14.8 ripgrep=15.2.0) | 7/7 | 289s | 1330s | — | — | 24.7x |
 | qwen38fnnvfp4nv2xspecmain @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.19.0) | 7/7 | 291s | 668s | — | — | 17.6x |
@@ -299,7 +299,7 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 | glm53fexl3dual2xrclatest @ Corei3-7100-16GB+image (opencode=1.18.32 uv=0.12.13 python=3.14.4) | 18/21 | 4/21 | 511s | 2046s | 2.0x | 1.1x | 15.6x |
 | glm53fexl3dual2xrcctx @ Corei3-7100-16GB+image (opencode=1.18.32 uv=0.12.13 python=3.14.4) | 40/42 | 4/42 | 518s | 2067s | 1.8x | 1.4x | 14.3x |
 | qwen38fnnvfp4tfmiaaidual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.35 uv=0.12.23 python=3.14.8 ripgrep=15.2.0) | 11/11 | 0/11 | 528s | 1321s | 2.0x | 1.7x | 4.7x |
-| dsv41ftfzigjaydual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.19.0) | 10/11 | 6/11 | 567s | 1277s | 2.0x | 1.8x | 5.5x |
+| dsv41ftfzigjaydual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.19.0) | 18/19 | 12/19 | 557s | 1711s | 2.8x | 2.2x | 8.6x |
 | qwen38fnhibrid48v52nothinkdual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.35 uv=0.12.23 python=3.14.8 ripgrep=15.2.0) | 5/7 | 1/7 | 577s | 1625s | — | — | 4.3x |
 | qwen38fnhibrid48dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.33) | 20/21 | 2/21 | 743s | 1714s | 2.9x | 1.3x | 7.9x |
 | qwen38fnnvfp4nv2xspecmain @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.19.0) | 6/7 | 1/7 | 765s | 1671s | — | — | 5.6x |
