@@ -572,6 +572,66 @@ def test_check_instance_refuses_a_restarted_tensorfold():
         )
 
 
+#: The marker lines of /metrics from a live two-Spark vLLM, 2026-10-13.
+VLLM_METRICS = """\
+# HELP process_start_time_seconds Start time of the process since unix epoch in seconds.
+# TYPE process_start_time_seconds gauge
+process_start_time_seconds 1.79188873703e+09
+vllm:prefix_cache_hits_total{engine="0",model_name="qwen3.8-flash-next"} 0.0
+"""
+
+
+def test_vllm_start_time_is_read_from_metrics():
+    assert remote.parse_instance("start_time", VLLM_METRICS) == 1791888737.03
+
+
+def test_two_start_times_are_unreadable_not_picked():
+    """A multiprocess export could list one per process; neither is the server."""
+    text = "process_start_time_seconds 1.0e9\nprocess_start_time_seconds 2.0e9\n"
+    assert remote.parse_instance("start_time", text) is None
+
+
+def test_no_start_time_is_unreadable():
+    assert remote.parse_instance("start_time", "vllm:x_total 1.0\n") is None
+
+
+def test_read_instance_asks_vllm_metrics_at_the_server_root():
+    asked = []
+
+    def fetch(url, timeout):
+        asked.append(url)
+        return VLLM_METRICS
+
+    got = remote.read_instance("http://srv:8888/v1", "vllm", fetch)
+    assert asked == ["http://srv:8888/metrics"]
+    assert got == {"engine": "vllm", "kind": "start_time", "value": 1791888737.03}
+
+
+def _vinst(value):
+    return {"engine": "vllm", "kind": "start_time", "value": value}
+
+
+def test_the_same_start_time_is_the_same_vllm():
+    assert remote.instance_mismatch(_vinst(1.5e9), _vinst(1.5e9), "vllm") is None
+
+
+def test_a_later_start_time_is_a_restart():
+    why = remote.instance_mismatch(_vinst(1.5e9), _vinst(1.5e9 + 600), "vllm")
+    assert why and "restarted" in why and "1500000000" in why
+
+
+def test_an_earlier_start_time_is_also_a_different_server():
+    """A start time is an identity, not a counter: any change refuses."""
+    assert remote.instance_mismatch(_vinst(1.5e9), _vinst(1.4e9), "vllm")
+
+
+def test_check_instance_refuses_a_restarted_vllm():
+    facts = {"backend": "b", "instance": _vinst(1.0e9)}
+    backends = {"b": {"engine": "vllm", "base_url": "http://srv:8888/v1"}}
+    with pytest.raises(SystemExit, match="restarted"):
+        remote.check_instance(facts, backends, lambda url, timeout: VLLM_METRICS)
+
+
 def test_check_instance_passes_the_same_tensorfold():
     facts = {"backend": "b", "instance": _inst(2304)}
     backends = {"b": {"engine": "tensorfold", "base_url": "http://srv:8888"}}
