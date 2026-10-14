@@ -433,3 +433,36 @@ def test_a_venv_vllm_that_cannot_be_read_is_unknown(tmp_path):
     backend = {"engine": "vllm", "engine_tree": str(tmp_path)}
     items = currency.backend_items(backend, fake(VLLM_LATEST))
     assert [i.state for i in items] == ["unknown"]
+
+
+TF_LATEST = {"--repo ashhart/TensorFold --json tagName": "v1.0.9"}
+
+
+def _tf_tree(root: pathlib.Path, version: str | None) -> pathlib.Path:
+    """A release-archive tree: `VERSION` beside `bin/` (#1066)."""
+    (root / "bin").mkdir(parents=True)
+    if version is not None:
+        (root / "VERSION").write_text(version + "\n")
+    return root
+
+
+def test_a_release_archive_tensorfold_at_the_latest_release_passes(tmp_path):
+    backend = {"engine": "tensorfold", "engine_tree": str(_tf_tree(tmp_path, "1.0.9"))}
+    items = currency.backend_items(backend, fake(TF_LATEST))
+    assert [(i.state, i.installed, i.latest) for i in items] == [
+        ("current", "1.0.9", "v1.0.9")
+    ]
+
+
+def test_a_release_archive_tensorfold_behind_its_latest_release_refuses(tmp_path):
+    backend = {"engine": "tensorfold", "engine_tree": str(_tf_tree(tmp_path, "1.0.8"))}
+    items = currency.backend_items(backend, fake(TF_LATEST))
+    assert [i.state for i in items] == ["behind"]
+    assert "tensorfold-1.0.9-linux" in items[0].fix
+
+
+def test_a_release_archive_without_a_version_file_is_unknown(tmp_path):
+    backend = {"engine": "tensorfold", "engine_tree": str(_tf_tree(tmp_path, None))}
+    items = currency.backend_items(backend, fake(TF_LATEST))
+    assert [i.state for i in items] == ["unknown"]
+    assert currency.refusal(items) is not None
