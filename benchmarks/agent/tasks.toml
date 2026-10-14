@@ -4523,6 +4523,7 @@ tier = "gb10-spark"
 base_url = "http://127.0.0.1:8030"
 auth_token = "local"
 engine = "vllm"
+engine_tree = "~/venvs/vllm"
 model = "nemotron-3.5-lightning-30b-a3b"
 active_params_b = 3
 aider_model = "openai/nemotron-3.5-lightning-30b-a3b"
@@ -4536,6 +4537,8 @@ tier = "gb10-spark"
 base_url = "http://127.0.0.1:8030"
 auth_token = "local"
 engine = "tensorfold"
+# The unpacked release archive; currency reads its VERSION file (#1066).
+engine_tree = "~/engines/tensorfold-dl-1.0.9/tensorfold-1.0.9-linux-aarch64"
 model = "nemotron-3.5-lightning-30b-a3b"
 active_params_b = 3
 aider_model = "openai/nemotron-3.5-lightning-30b-a3b"

@@ -319,6 +319,10 @@ ENGINE_IMAGE_REPOS = {
 #: Engines served from a venv (`engine_tree`), and their release repo (#1049).
 VENV_ENGINE_REPOS = {"vllm": "vllm-project/vllm"}
 
+#: Engines run from an unpacked release archive (`engine_tree`, with a `VERSION`
+#: file at its root), and their release repo (#1066).
+ARCHIVE_ENGINE_REPOS = {"tensorfold": "ashhart/TensorFold"}
+
 
 def _is_version_tag(tag: str) -> bool:
     return staleness.parse(tag) is not None and tag.lstrip("v")[:1].isdigit()
@@ -370,6 +374,27 @@ def venv_engine_item(engine: str, tree: pathlib.Path, run: Runner = _run) -> Ite
     return Item(name, have, want, state, fix)
 
 
+def archive_engine_item(engine: str, tree: pathlib.Path, run: Runner = _run) -> Item:
+    """A release-archive engine's `VERSION` against its newest release."""
+    name = f"engine {engine} (archive {tree})"
+    repo = ARCHIVE_ENGINE_REPOS[engine]
+    want = latest_release(repo, run)
+    version_file = tree / "VERSION"
+    have = version_file.read_text().strip() if version_file.is_file() else None
+    if not have:
+        return Item(name, None, want, "unknown", f"no VERSION file in {tree}")
+    state = staleness.compare(have, want)
+    v = (want or "").lstrip("v")
+    fix = (
+        f"download {engine}-{v}-linux-<arch>.tar.gz and its .sha256 from "
+        f"https://github.com/{repo}/releases/tag/v{v}, check it, unpack it, and "
+        "point the backend's `engine_tree` at it; a new version starts a new series"
+        if state in ("behind", "unknown")
+        else ""
+    )
+    return Item(name, have, want, state, fix)
+
+
 def backend_items(backend: dict, run: Runner = _run) -> list[Item]:
     """The recipe, image and engine a backend declares. None declared, none
     checked."""
@@ -386,6 +411,9 @@ def backend_items(backend: dict, run: Runner = _run) -> list[Item]:
         if engine in VENV_ENGINE_REPOS and backend.get("engine_tree"):
             tree = pathlib.Path(backend["engine_tree"]).expanduser()
             items.append(venv_engine_item(engine, tree, run))
+        elif engine in ARCHIVE_ENGINE_REPOS and backend.get("engine_tree"):
+            tree = pathlib.Path(backend["engine_tree"]).expanduser()
+            items.append(archive_engine_item(engine, tree, run))
     return items
 
 
