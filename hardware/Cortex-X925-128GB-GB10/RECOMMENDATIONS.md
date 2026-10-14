@@ -115,7 +115,7 @@ box; "turns" is the median agent turn count.
 | **…and the KV cache halved** | same, `q8_0` KV | llama.cpp, port 8022 | **90/90** | 61.4 s | 1,528 s | 9 | quality-neutral memory win ([#344]) |
 | **you want a dense model** | Qwen3.8-**27B** `NVFP4` (RadixArk BF16-head), thinking off | **SGLang** nightly + **DFlash2** drafter (MiaAI-Lab `start-dflash.sh`) | **90/90** | 44.2 s | 279 s | 8 | 34.2 tok/s single-stream, 198.6 at 8 streams, 247 at 12. The DSpark drafter on the same image is 89/90, 53.7 s; on the older image, 65.6 s: the image and the drafter each account for about half the gap ([#303]). Recipe ships `--mem-fraction-static 0.90`; run it at 0.70 so an agent client fits beside it ([#350]) |
 | **you want a larger model / 262K context** | Flash-Next `NVFP4` (NVIDIA's own checkpoint), thinking off | vLLM (MiaAI-Lab recipe), MTP-3 | **90/90** | 68.0 s | 1,115 s | 13.5 | the big-model lane. Thinking off is the fastest median but carries a long tail on the parser tasks; **thinking on** is 90/90, 120.8 s median, worst 281 s — the predictable choice ([#493]). The older styles01 build is 60/60, 95.4 s ([#331]) |
-| **you want a second, non-Qwen lineage** | DeepSeek-V4-Flash Q2 | ds4 CUDA sm_121a | **60/60** | 247.6 s | 493 s | 10 | the only non-Qwen 100%-pass option ([#369] opens SSD streaming) |
+| **you want a second, non-Qwen lineage** | Nemotron-3.5-**Lightning**-30B-A3B `NVFP4` (nvidia), thinking off, 262K context | **TensorFold 1.0.11** native CUDA engine (release archive), MTP drafts | **30/30** | 33.7 s | 236.5 s | 11.5 | replaced DeepSeek-V4-Flash Q2 on ds4 (60/60, 247.6 s median, 493 s worst) on 2026-10-14. Remote client; 30 trials, not 60. On the replay set (1.0.10): 16/21. vLLM 0.31.0 + DSpark on the same weights early-stopped at 235% of its time ([#1066]) |
 | **you want it to show its work** | Flash-Next Q3, thinking on | llama.cpp CUDA sm_121 | **118/119 (99%)** | 127.4 s | 394 s | 10 | reasoning in the transcript, at 193% of the thinking-off Q3 row's wall ([#333]) |
 
 Every row is regenerated from the ledger by `uv run python scripts/reco_rows.py
@@ -278,3 +278,4 @@ model, thinking off), then fewer turns.
 [#389]: https://github.com/evanwtf/local-llm/issues/389
 [#553]: https://github.com/evanwtf/local-llm/issues/553
 [#562]: https://github.com/evanwtf/local-llm/issues/562
+[#1066]: https://github.com/evanwtf/local-llm/issues/1066
