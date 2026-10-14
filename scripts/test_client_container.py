@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import os
 import pathlib
 
 import client_container as mod
@@ -597,3 +598,46 @@ def test_a_leak_refuses_the_batch(tmp_path, monkeypatch):
     monkeypatch.setattr(mod, "credential_leaks", lambda full, home: ["env GH_TOKEN"])
     assert mod.main([*argv, "--", "--backend", "b"]) == 1
     assert launched == []
+
+
+# #1066: two of 21 trials hit "maximum context length is N tokens, but the
+# rendered prompt has N tokens and requests N reply tokens": the provider's
+# output limit was 131072, the whole window, so any long session overflowed.
+def _with_limits(context, output):
+    return json.dumps(
+        {
+            "provider": {
+                "tfmia8888": {
+                    "options": {"baseURL": "http://head.example:8888/v1"},
+                    "models": {
+                        "GLM-5.3-Flash-EXL3": {
+                            "limit": {"context": context, "output": output}
+                        }
+                    },
+                }
+            }
+        }
+    )
+
+
+def test_provider_check_refuses_an_output_limit_that_fills_the_context():
+    why = mod.check_opencode_provider(
+        "b", _BACKEND, _with_limits(131072, 131072), _PATH
+    )
+    assert why is not None and "131072" in why and "#1066" in why
+
+
+def test_provider_check_passes_an_output_limit_below_the_context():
+    config = _with_limits(131072, 32768)
+    assert mod.check_opencode_provider("b", _BACKEND, config, _PATH) is None
+
+
+# #1066: the container runs as root and created the ledger's lock file, so the
+# host-side quarantine could not open it and the faulted batch stayed unexcluded.
+def test_the_ledger_lock_is_created_by_the_host_before_the_container(tmp_path):
+    facts = tmp_path / "facts.json"
+    facts.write_text(json.dumps({"directory": "Cortex-X925-128GB-GB10"}))
+    lock = mod.prepare_ledger_lock(tmp_path, facts)
+    assert lock is not None and lock.exists()
+    assert lock.name == "results.jsonl.lock"
+    assert lock.stat().st_uid == os.getuid()

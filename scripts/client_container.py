@@ -201,6 +201,20 @@ def check_opencode_provider(
             f"preflight: OpenCode provider {provider_id!r} in {config_path} does "
             f"not declare model {model_id!r}, which backend {name!r} uses (#956)"
         )
+    # #1066: an output limit as large as the window leaves no room for the
+    # prompt, and the server refuses the request mid-session.
+    limit = (
+        models[model_id].get("limit") if isinstance(models[model_id], dict) else None
+    )
+    if isinstance(limit, dict):
+        ctx, out = limit.get("context"), limit.get("output")
+        if isinstance(ctx, int) and isinstance(out, int) and out >= ctx:
+            return (
+                f"preflight: OpenCode model {model!r} in {config_path} has output "
+                f"limit {out} against context {ctx}; a long session asks for more "
+                "than the window holds and the server refuses it. Set the output "
+                "limit below the context, e.g. 32768 (#1066)"
+            )
     options = provider.get("options")
     base = options.get("baseURL") if isinstance(options, dict) else None
     want = _port(str(backend.get("base_url", "")))
@@ -497,6 +511,27 @@ def audit_batch(backend: str, since: str, home: pathlib.Path, log: pathlib.Path)
     )
 
 
+def prepare_ledger_lock(home: pathlib.Path, facts: pathlib.Path) -> pathlib.Path | None:
+    """Create this batch's ledger lock as the host user, before the container runs.
+
+    #1066: the container runs as root, and the first append created the lock
+    file root-owned, so the host-side quarantine could not open it and a
+    faulted batch stayed unexcluded. A lock that already exists is left alone.
+    """
+    try:
+        directory = json.loads(facts.read_text())["directory"]
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+    import remote
+    import results
+
+    ledger = remote.results_path(home / "git" / "local-llm", {"directory": directory})
+    lock = results.lock_path(ledger)
+    lock.parent.mkdir(parents=True, exist_ok=True)
+    lock.touch(exist_ok=True)
+    return lock
+
+
 def quarantine_batch(
     home: pathlib.Path,
     facts: pathlib.Path,
@@ -713,6 +748,7 @@ def main(argv: list[str] | None = None) -> int:
     args.log.parent.mkdir(parents=True, exist_ok=True)
     # The audit's window opens before the launch, with an offset, so it
     # cannot miss the first trial or be read in the wrong zone.
+    prepare_ledger_lock(args.home, args.facts)
     since = datetime.datetime.now().astimezone().isoformat(timespec="seconds")
     status = child.run(full, cwd=pathlib.Path.cwd(), log=args.log, append=True)
     backend = backend_of(command)
