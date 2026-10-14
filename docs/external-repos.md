@@ -64,6 +64,7 @@ branch, and the sha lives on the row, not in this doc.
 | `~/git/sushi` | `beamivalice/sushi` | — | sushi | `v1.0.2` (`1a5332d`) | Sushi, a detached mlx-serve fork for Qwen3.8-Flash-Next EXL3 packs, built with the repo's pinned Zig 0.17 nightly and MLX submodules; the `qwen38fnsushi4` tree (#749) |
 | `~/venvs/vllm` | pip (`vllm`) | — | vllm | release | the vLLM engine — a Python virtualenv, **not a git checkout**; the DGX Spark lane |
 | `~/engines/tensorfold-dl-1.0.9/tensorfold-1.0.9-linux-aarch64` | release archive (`ashhart/TensorFold`) | — | tensorfold | `v1.0.9` | the TensorFold release archive for linux-aarch64, sha256-checked against the release; **not a git checkout**; currency reads its `VERSION` file; the `nemotron35ltf109rcdgx` tree on the DGX head (#1066) |
+| `~/engines/tensorfold-dl-1.0.10/tensorfold-1.0.10-linux-aarch64` | release archive (`ashhart/TensorFold`) | — | tensorfold | `v1.0.10` | the TensorFold release archive for linux-aarch64, sha256-checked against the release; **not a git checkout**; currency reads its `VERSION` file; the `nemotron35ltf1010rcdgx` tree on the DGX head (#1066) |
 
 Notes on the shape of this list:
 
