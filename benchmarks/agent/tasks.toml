@@ -4616,3 +4616,18 @@ opencode_model = "vllm/nemotron-3.5-lightning-30b-a3b"
 context_tokens = 262144
 topology = "remote"
 smoke_protocol = "openai"
+
+# #1067: TandemLLM, an engine for Qwen3.8-27B on one Spark (approved 2026-10-14).
+[backend.qwen3827btandem083nvfp4nothinkrcdgx]
+description = "#1067: Qwen3.8-27B on TandemLLM 0.8.3 (0xBakeer/TandemLLM, AGPL, install.sh --ref v0.8.3 = 792087c, user-local, no unit), profile nvfp4: 0xBakeer/TandemLLM-Qwen3.8-27B-NVFP4 @ab09c92 over Qwen/Qwen3.8-27B-FP8 @017b9c7, DFlash2 drafters b8 @ecf60b9 and b16 @98759a4 with the StairCut router and the lookup drafter, as shipped (conductor on: it injects about 1,205 hidden tokens per request). Thinking off per request: the OpenCode provider sends chat_template_kwargs.enable_thinking=false, because the server has no off value (--reasoning-effort low|medium|xhigh). --max-len 262144, :8030. REMOTE CLIENT (#562)"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8030"
+auth_token = "none"
+engine = "tandemllm"
+engine_tree = "~/engines/tandemllm-0.8.3/src"
+model = "qwen3.8-27b-tandem"
+active_params_b = 27
+aider_model = "openai/qwen3.8-27b-tandem"
+opencode_model = "tandem/qwen3.8-27b-tandem"
+context_tokens = 262144
+topology = "remote"

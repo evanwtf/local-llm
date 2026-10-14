@@ -668,3 +668,30 @@ def test_check_instance_passes_the_same_tensorfold():
     facts = {"backend": "b", "instance": _inst(2304)}
     backends = {"b": {"engine": "tensorfold", "base_url": "http://srv:8888"}}
     remote.check_instance(facts, backends, lambda url, timeout: TF_HEALTH)
+
+
+#: Trimmed from the live TandemLLM 0.8.3 server, 2026-10-14 (#1067). Its
+#: /health has no counter; `qse_requests_total` is split by finish reason.
+TANDEM_METRICS = """\
+# HELP qse_requests_total Requests finished.
+qse_requests_total{finish_reason="stop"} 3
+qse_requests_total{finish_reason="length"} 2
+qse_request_success_total 5
+qse_requests_total_bogus 900
+"""
+
+
+def test_tandemllm_metrics_yield_the_summed_request_counter():
+    assert remote.parse_instance("counter", TANDEM_METRICS) == 5
+
+
+def test_tandemllm_reads_its_counter_from_metrics():
+    asked = []
+
+    def fetch(url, timeout):
+        asked.append(url)
+        return TANDEM_METRICS
+
+    got = remote.read_instance("http://srv:8030/v1", "tandemllm", fetch)
+    assert asked == ["http://srv:8030/metrics"]
+    assert got == {"engine": "tandemllm", "kind": "counter", "value": 5}

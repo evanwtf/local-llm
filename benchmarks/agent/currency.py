@@ -321,7 +321,20 @@ VENV_ENGINE_REPOS = {"vllm": "vllm-project/vllm"}
 
 #: Engines run from an unpacked release archive (`engine_tree`, with a `VERSION`
 #: file at its root), and their release repo (#1066).
-ARCHIVE_ENGINE_REPOS = {"tensorfold": "ashhart/TensorFold"}
+ARCHIVE_ENGINE_REPOS = {
+    "tensorfold": "ashhart/TensorFold",
+    # #1067: a tagged git checkout from `install.sh --ref`, VERSION at its root.
+    "tandemllm": "0xBakeer/TandemLLM",
+}
+
+#: How to update an archive-style engine other than by a release tarball.
+ENGINE_UPDATE_HINTS = {
+    "tandemllm": (
+        "run TandemLLM's `install.sh --ref v{v} --dir <a new dir> --no-start`, and "
+        "point the backend's `engine_tree` at its `src`; a new version starts a new "
+        "series"
+    ),
+}
 
 
 def _is_version_tag(tag: str) -> bool:
@@ -385,10 +398,15 @@ def archive_engine_item(engine: str, tree: pathlib.Path, run: Runner = _run) -> 
         return Item(name, None, want, "unknown", f"no VERSION file in {tree}")
     state = staleness.compare(have, want)
     v = (want or "").lstrip("v")
+    hint = ENGINE_UPDATE_HINTS.get(engine)
     fix = (
-        f"download {engine}-{v}-linux-<arch>.tar.gz and its .sha256 from "
-        f"https://github.com/{repo}/releases/tag/v{v}, check it, unpack it, and "
-        "point the backend's `engine_tree` at it; a new version starts a new series"
+        (
+            hint.format(v=v)
+            if hint
+            else f"download {engine}-{v}-linux-<arch>.tar.gz and its .sha256 from "
+            f"https://github.com/{repo}/releases/tag/v{v}, check it, unpack it, and "
+            "point the backend's `engine_tree` at it; a new version starts a new series"
+        )
         if state in ("behind", "unknown")
         else ""
     )

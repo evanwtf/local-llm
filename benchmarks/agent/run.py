@@ -1347,6 +1347,52 @@ def serving_tensorfold_native(models):
     return {}
 
 
+def serving_tandemllm(models):
+    """The build and launch argv of a TandemLLM server on the host (#1067).
+
+    TandemLLM runs `server/app.py` from its own venv inside a tagged engine
+    checkout (`install.sh --ref`). The process is matched by its
+    `--served-model`; the build is the checkout's `VERSION` and commit, read
+    from the process's working directory. An empty dict when no such process
+    serves one of `models`.
+    """
+    try:
+        out = subprocess.run(
+            ["ps", "ax", "-o", "pid=,command="],
+            capture_output=True,
+            text=True,
+            check=False,
+        ).stdout
+    except (OSError, subprocess.SubprocessError):
+        return {}
+    for line in out.splitlines():
+        pid, _, command = line.strip().partition(" ")
+        parts = command.split()
+        if "server/app.py" not in parts or "--served-model" not in parts[:-1]:
+            continue
+        if parts[parts.index("--served-model") + 1] not in models:
+            continue
+        got = {"server_argv": " ".join(parts)}
+        try:
+            tree = pathlib.Path(os.readlink(f"/proc/{pid}/cwd"))
+            version = (tree / "VERSION").read_text().strip()
+        except OSError:
+            return got
+        try:
+            sha = subprocess.run(
+                ["git", "-C", str(tree), "rev-parse", "--short=8", "HEAD"],
+                capture_output=True,
+                text=True,
+                timeout=30,
+                check=False,
+            ).stdout.strip()
+        except (OSError, subprocess.SubprocessError):
+            sha = ""
+        got["tandemllm"] = f"{version}@{sha}" if sha else version
+        return got
+    return {}
+
+
 #: The label jayleaton/deepseek-v41-tensorfold-spark puts the engine commit in.
 TENSORFOLD_ZIG_LABEL = "org.tensorfold.zig-commit"
 
@@ -1754,6 +1800,24 @@ def capture_versions(cfg, backends, allow_unstamped=False, argv_by_backend=None)
                 if len(tf_models) == 1
                 else serving_tensorfold({b.get("model")})
                 or serving_tensorfold_native({b.get("model")})
+            )
+            if own.get("server_argv"):
+                argv_by_backend[name] = own["server_argv"]
+
+    # TandemLLM from its checkout on the host (#1067).
+    tandem_models = {
+        b.get("model")
+        for b in backends.values()
+        if str(b.get("engine") or "").lower() == "tandemllm" and b.get("model")
+    }
+    if tandem_models:
+        got = serving_tandemllm(tandem_models)
+        env.update(got)
+        for name, b in backends.items():
+            if str(b.get("engine") or "").lower() != "tandemllm":
+                continue
+            own = (
+                got if len(tandem_models) == 1 else serving_tandemllm({b.get("model")})
             )
             if own.get("server_argv"):
                 argv_by_backend[name] = own["server_argv"]

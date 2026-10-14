@@ -239,6 +239,7 @@ CLIENT_ENGINE_KEYS = frozenset(
         "vllm_image",
         "tensorfold",
         "tensorfold_image",
+        "tandemllm",
         "parallelism",
         "sglang",
         "sglang_image",
@@ -329,6 +330,8 @@ INSTANCE_PROBES: dict[str, tuple[str, str]] = {
     # two-Spark nightly fe4df3df (0.31.1rc1.dev296) on 2026-10-13: 22 s after
     # its launch, so it is the API server's start, not a worker's.
     "vllm": ("start_time", "/metrics"),
+    # #1067: `qse_requests_total` on /metrics; its /health has only uptime.
+    "tandemllm": ("counter", "/metrics"),
 }
 
 #: A second route for an engine whose builds differ (#1066): the native
@@ -356,15 +359,24 @@ def parse_instance(kind: str, text: str) -> float | None:
     return value
 
 
-def _metrics_counter(metrics: str) -> int | None:
-    """The sum of `tensorfold:requests_total` lines on a Prometheus page, or None.
+#: Request counters by metric name: native TensorFold 1.0.x (#1066) and
+#: TandemLLM (#1067). Matched by exact name, so a longer name is not counted.
+_COUNTER_NAMES = frozenset({"tensorfold:requests_total", "qse_requests_total"})
 
-    The native server splits the counter by API key and status; every series
-    only grows while one server runs, so their sum does too.
+
+def _metrics_counter(metrics: str) -> int | None:
+    """The sum of request-counter lines on a Prometheus page, or None.
+
+    Each server splits the counter by labels (TensorFold by API key and
+    status, TandemLLM by finish reason); every series only grows while one
+    server runs, so their sum does too.
     """
     total, found = 0, False
     for line in metrics.splitlines():
-        if not line.startswith("tensorfold:requests_total"):
+        if line.startswith("#"):
+            continue
+        name = line.split("{", 1)[0].split(None, 1)[0] if line.strip() else ""
+        if name not in _COUNTER_NAMES:
             continue
         try:
             total += int(float(line.rsplit(None, 1)[1]))

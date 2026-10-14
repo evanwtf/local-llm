@@ -466,3 +466,25 @@ def test_a_release_archive_without_a_version_file_is_unknown(tmp_path):
     items = currency.backend_items(backend, fake(TF_LATEST))
     assert [i.state for i in items] == ["unknown"]
     assert currency.refusal(items) is not None
+
+
+# #1067: TandemLLM installs a tagged git checkout (`install.sh --ref vX.Y.Z`)
+# whose root carries a `VERSION` file, so it is checked like an archive, and
+# the fix names its installer rather than a tarball.
+TANDEM_LATEST = {"--repo 0xBakeer/TandemLLM --json tagName": "v0.8.3"}
+
+
+def test_a_tandemllm_checkout_at_the_latest_release_passes(tmp_path):
+    backend = {"engine": "tandemllm", "engine_tree": str(_tf_tree(tmp_path, "0.8.3"))}
+    items = currency.backend_items(backend, fake(TANDEM_LATEST))
+    assert [(i.state, i.installed, i.latest) for i in items] == [
+        ("current", "0.8.3", "v0.8.3")
+    ]
+
+
+def test_a_tandemllm_checkout_behind_names_its_installer(tmp_path):
+    backend = {"engine": "tandemllm", "engine_tree": str(_tf_tree(tmp_path, "0.8.2"))}
+    items = currency.backend_items(backend, fake(TANDEM_LATEST))
+    assert [i.state for i in items] == ["behind"]
+    assert "install.sh" in items[0].fix and "--ref v0.8.3" in items[0].fix
+    assert "tar.gz" not in items[0].fix
