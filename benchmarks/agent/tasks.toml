@@ -4598,3 +4598,21 @@ opencode_model = "vllm/nemotron-3.5-lightning-30b-a3b"
 context_tokens = 262144
 topology = "remote"
 smoke_protocol = "openai"
+
+# 1.0.11 (2026-10-14T12:39:01Z): CUDA kernels byte for byte 1.0.10, same tokens on a GB10
+# per its notes; still a new series.
+[backend.nemotron35ltf1011c262rcdgx]
+description = "#1066: Nemotron-3.5-Lightning-30B-A3B NVFP4 (nvidia/ModelOpt @bee75962) on TensorFold 1.0.11's native CUDA engine (ashhart release archive tensorfold-1.0.11-linux-aarch64, sha256-checked; built-in sm_121 kernels), served as stored, MTP drafts on, --no-thinking, --context 262144, --alias nemotron-3.5-lightning-30b-a3b, --metrics-open (the #948 instance marker is on /metrics), :8030. REMOTE CLIENT (#562)"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8030"
+auth_token = "local"
+engine = "tensorfold"
+# The unpacked release archive; currency reads its VERSION file (#1066).
+engine_tree = "~/engines/tensorfold-dl-1.0.11/tensorfold-1.0.11-linux-aarch64"
+model = "nemotron-3.5-lightning-30b-a3b"
+active_params_b = 3
+aider_model = "openai/nemotron-3.5-lightning-30b-a3b"
+opencode_model = "vllm/nemotron-3.5-lightning-30b-a3b"
+context_tokens = 262144
+topology = "remote"
+smoke_protocol = "openai"
