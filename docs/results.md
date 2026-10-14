@@ -59,7 +59,7 @@ other is telling you something.
 
 ### Cortex-X925-128GB-GB10
 
-*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 4062 rows, sha256 0c2df5c53c6e.*
+*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 4132 rows, sha256 cf01a19fee81.*
 
 #### Every stack measured under OpenCode
 
@@ -120,9 +120,20 @@ other is telling you something.
 | glm53flashexl3k2nothinkrcdgx @ Ryzen9-7900X-32GB+image | 1/1 | 1379s | 1379s | — | — | 1.0x |
 | nemotron33 | 1/10 | — | — | — | — | — |
 
-**Rows here were not all taken under one client.** ds4dgx, nemotron33, nemotron3nano, nemotroncascade2, ornith15a3bdgx, qwen36a3bnvfp4dgx, qwen36bf16dgx, qwen36codinggguf, qwen36nvfp4dgx, qwen36nvfp4nothinkdgx, qwen36nvfp4specdgx, qwen36nvfp4v1dgx, qwen38fnnvfp4dgx, qwen38fnq3dgx, qwen38fnq3nothinkdgx, qwen38fnq3nothinkkv8dgx, qwen38fnq3nothinktopkdgx, qwen38fnq3nothinkub2048dgx under 1.18.30; the rest under 1.18.31. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: qwen36a3bnvfp4dgx (1.18.30, 1.18.31); qwen38fnq3nothinkdgx (1.18.30, 1.18.31).
+**Rows here were not all taken under one client.** ds4dgx, nemotron33, nemotron3nano, nemotroncascade2, ornith15a3bdgx, qwen36a3bnvfp4dgx, qwen36bf16dgx, qwen36codinggguf, qwen36nvfp4dgx, qwen36nvfp4nothinkdgx, qwen36nvfp4specdgx, qwen36nvfp4v1dgx, qwen38fnnvfp4dgx, qwen38fnq3dgx, qwen38fnq3nothinkdgx, qwen38fnq3nothinkkv8dgx, qwen38fnq3nothinktopkdgx, qwen38fnq3nothinkub2048dgx under 1.18.30; nemotron35ltf1010c262rcdgx, nemotron35lvllm262rcdgx under 1.19.0; the rest under 1.18.31. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: qwen36a3bnvfp4dgx (1.18.30, 1.18.31); qwen38fnq3nothinkdgx (1.18.30, 1.18.31).
 
 Excision tasks only; `script-*` excluded because they are a different class.
+
+**spread (worst task)** is the slowest pass of one task over its fastest pass, for the task where that ratio is largest: how bad one task can get. **spread (typical task)** is the median of the same per-task ratios: how consistent the stack usually is. Both need a task with two passes, or show a dash. **range (all tasks)** is the slowest pass of any task over the fastest pass of any task: how different the tasks are. It is mostly task mix, not consistency.
+
+#### Replay tasks: rebuild a real commit from its tests (#714)
+
+| stack | passed | median | worst | spread (worst task) | spread (typical task) | range (all tasks) |
+|---|---|---|---|---|---|---|
+| nemotron35lvllm262rcdgx | 3/7 | 238s | 330s | — | — | 10.9x |
+| nemotron35ltf1010c262rcdgx | 16/21 | 277s | 1323s | 3.2x | 1.8x | 102.6x |
+
+Seven commits from gmail-archive's history, 60-600 changed lines each. The target repo is public, so a pass may be partly recall; see each row's `replay` record.
 
 **spread (worst task)** is the slowest pass of one task over its fastest pass, for the task where that ratio is largest: how bad one task can get. **spread (typical task)** is the median of the same per-task ratios: how consistent the stack usually is. Both need a task with two passes, or show a dash. **range (all tasks)** is the slowest pass of any task over the fastest pass of any task: how different the tasks are. It is mostly task mix, not consistency.
 
@@ -130,6 +141,7 @@ Excision tasks only; `script-*` excluded because they are a different class.
 
 | stack | seconds per 1k output tokens |
 |---|---|
+| nemotron35ltf1010c262rcdgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 12s |
 | nemotron33 | 15s |
 | nemotroncascade2 | 17s |
 | qwen36a3bsglangfmrcdgx @ Ryzen9-7900X-32GB+image | 19s |
@@ -138,6 +150,7 @@ Excision tasks only; `script-*` excluded because they are a different class.
 | qwen36a3bsglangdgx | 20s |
 | qwen36a3bnvfp4dgx | 22s |
 | qwen36a3bsglangrcdgx @ Corei3-7100-16GB | 23s |
+| nemotron35lvllm262rcdgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 24s |
 | qwen36a3bnvfp4fmrcdgx @ Corei3-7100-16GB | 24s |
 | qwen36a3bsglangfmrcdgx @ Corei3-7100-16GB | 24s |
 | gptoss20bdgx | 25s |
@@ -183,7 +196,7 @@ Excision tasks only; `script-*` excluded because they are a different class.
 | qwen36bf16dgx | 409s |
 | glm53flashexl3k2nothinkdgx | 463s |
 
-**Rows here were not all taken under one client.** ds4dgx, nemotron33, nemotron3nano, nemotroncascade2, ornith15a3bdgx, qwen36a3bnvfp4dgx, qwen36bf16dgx, qwen36codinggguf, qwen36nvfp4dgx, qwen36nvfp4nothinkdgx, qwen36nvfp4specdgx, qwen36nvfp4v1dgx, qwen38fnnvfp4dgx, qwen38fnq3dgx, qwen38fnq3nothinkdgx, qwen38fnq3nothinkkv8dgx, qwen38fnq3nothinktopkdgx, qwen38fnq3nothinkub2048dgx under 1.18.30; the rest under 1.18.31. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: qwen36a3bnvfp4dgx (1.18.30, 1.18.31); qwen38fnq3nothinkdgx (1.18.30, 1.18.31).
+**Rows here were not all taken under one client.** ds4dgx, nemotron33, nemotron3nano, nemotroncascade2, ornith15a3bdgx, qwen36a3bnvfp4dgx, qwen36bf16dgx, qwen36codinggguf, qwen36nvfp4dgx, qwen36nvfp4nothinkdgx, qwen36nvfp4specdgx, qwen36nvfp4v1dgx, qwen38fnnvfp4dgx, qwen38fnq3dgx, qwen38fnq3nothinkdgx, qwen38fnq3nothinkkv8dgx, qwen38fnq3nothinktopkdgx, qwen38fnq3nothinkub2048dgx under 1.18.30; nemotron35ltf1010c262rcdgx, nemotron35lvllm262rcdgx under 1.19.0; the rest under 1.18.31. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: qwen36a3bnvfp4dgx (1.18.30, 1.18.31); qwen38fnq3nothinkdgx (1.18.30, 1.18.31).
 
 ### Cortex-X925-128GB-GB10-x2
 
