@@ -524,6 +524,38 @@ def test_read_instance_records_a_failed_probe_as_no_value():
     assert got == {"engine": "tensorfold", "kind": "counter", "value": None}
 
 
+#: Trimmed from a live native TensorFold 1.0.9 CUDA server, 2026-10-14 (#1066).
+#: Its /health answers only {"status": "ok"}; the counter is on /metrics.
+TF_NATIVE_METRICS = """\
+# HELP tensorfold:requests_total Requests answered.
+tensorfold:requests_total{key="cli-1",status="200"} 6
+tensorfold:requests_total{key="unauthenticated",status="200"} 2
+tensorfold:requests_total{key="unauthenticated",status="401"} 408
+tensorfold:requests_running 0
+tensorfold:prompt_tokens_total 81
+"""
+
+
+def test_native_tensorfold_metrics_yield_the_summed_request_counter():
+    assert remote.parse_instance("counter", TF_NATIVE_METRICS) == 416
+
+
+def test_a_metrics_page_without_the_request_counter_yields_no_value():
+    assert remote.parse_instance("counter", "tensorfold:requests_running 0\n") is None
+
+
+def test_read_instance_falls_back_to_metrics_when_health_has_no_counter():
+    asked = []
+
+    def fetch(url, timeout):
+        asked.append(url)
+        return '{"status": "ok"}' if url.endswith("/health") else TF_NATIVE_METRICS
+
+    got = remote.read_instance("http://srv:8030/v1", "tensorfold", fetch)
+    assert asked == ["http://srv:8030/health", "http://srv:8030/metrics"]
+    assert got == {"engine": "tensorfold", "kind": "counter", "value": 416}
+
+
 def test_an_engine_without_a_marker_is_not_probed():
     def fetch(url, timeout):
         raise AssertionError("must not be called")
