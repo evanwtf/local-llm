@@ -1300,6 +1300,53 @@ def serving_tensorfold(models, inspect_all=_docker_inspect_all):
     return got
 
 
+def serving_tensorfold_native(models):
+    """The build and launch argv of a native TensorFold server on the host (#1066).
+
+    The 1.0.x release archive runs `bin/tensorfold-native serve` with no
+    container, so `serving_tensorfold` finds nothing and the row would read
+    `tensorfold_version=unknown`. The process is matched by its `--alias` or
+    `--name`; the build is the running binary's own `--version`. An empty dict
+    when no such process serves one of `models`.
+    """
+    try:
+        out = subprocess.run(
+            ["ps", "ax", "-o", "command="], capture_output=True, text=True, check=False
+        ).stdout
+    except (OSError, subprocess.SubprocessError):
+        return {}
+    for line in out.splitlines():
+        parts = line.split()
+        if (
+            not parts
+            or not parts[0].endswith("tensorfold-native")
+            or "serve" not in parts
+        ):
+            continue
+        names = {
+            parts[i + 1]
+            for i, tok in enumerate(parts[:-1])
+            if tok in ("--alias", "--name")
+        }
+        if not names & set(models):
+            continue
+        got = {"server_argv": " ".join(parts)}
+        try:
+            ver = subprocess.run(
+                [parts[0], "--version"],
+                capture_output=True,
+                text=True,
+                timeout=30,
+                check=False,
+            ).stdout.split()
+        except (OSError, subprocess.SubprocessError):
+            ver = []
+        if ver:
+            got["tensorfold"] = ver[-1]
+        return got
+    return {}
+
+
 #: The label jayleaton/deepseek-v41-tensorfold-spark puts the engine commit in.
 TENSORFOLD_ZIG_LABEL = "org.tensorfold.zig-commit"
 
@@ -1697,12 +1744,17 @@ def capture_versions(cfg, backends, allow_unstamped=False, argv_by_backend=None)
         if (b.get("engine") or "").lower() == "tensorfold" and b.get("model")
     }
     if tf_models:
-        got = serving_tensorfold(tf_models)
+        got = serving_tensorfold(tf_models) or serving_tensorfold_native(tf_models)
         env.update(got)
         for name, b in backends.items():
             if (b.get("engine") or "").lower() != "tensorfold":
                 continue
-            own = got if len(tf_models) == 1 else serving_tensorfold({b.get("model")})
+            own = (
+                got
+                if len(tf_models) == 1
+                else serving_tensorfold({b.get("model")})
+                or serving_tensorfold_native({b.get("model")})
+            )
             if own.get("server_argv"):
                 argv_by_backend[name] = own["server_argv"]
 
