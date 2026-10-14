@@ -118,8 +118,9 @@ HARNESS_SIGNATURES: tuple[tuple[str, re.Pattern[str]], ...] = (
 #: Signatures that mean "the network", which only count against the harness
 #: when the call went to the model server. `webfetch` reaches outside sites,
 #: so a refused connection or a 503 there is the internet, not the client.
+#: OpenCode 2.x adds `websearch`, which reaches out the same way (#1086).
 NETWORK_SIGNATURES = frozenset({"connection"})
-EXTERNAL_TOOLS = frozenset({"webfetch"})
+EXTERNAL_TOOLS = frozenset({"webfetch", "websearch"})
 
 #: OpenCode's text for a call the trial sandbox refused by rule. On purpose,
 #: so it is neither a fault nor a model error; it is reported on its own.

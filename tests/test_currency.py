@@ -38,7 +38,8 @@ def fake(answers: Mapping[str, str | None]):
 
 
 RELEASES = {
-    "--repo sst/opencode --json tagName": "v1.18.33",
+    # OpenCode's target is npm @opencode/cli, not a GitHub release (#1086).
+    "registry.npmjs.org/@opencode%2fcli/latest": '{"name":"@opencode/cli","version":"1.18.33"}',
     "--repo astral-sh/uv --json tagName": "0.12.19",
     "--repo BurntSushi/ripgrep --json tagName": "15.2.0",
     "--repo astral-sh/python-build-standalone": (
@@ -65,7 +66,7 @@ def test_a_behind_pin_refuses_and_does_not_stamp(tmp_path):
     items = currency.pin_items({"opencode": "1.18.32"}, fake(RELEASES))
     why = currency.gate("client-image", items, stamp)
     assert why is not None
-    assert "client image opencode: BEHIND (here 1.18.32, latest v1.18.33)" in why
+    assert "client image opencode: BEHIND (here 1.18.32, latest 1.18.33)" in why
     assert "build_client_image.py" in why
     assert not stamp.exists()
 
@@ -81,6 +82,39 @@ def test_a_build_newer_than_the_release_passes():
     items = currency.pin_items({"opencode": "1.18.34"}, fake(RELEASES))
     assert items[0].state == "ahead"
     assert currency.refusal(items) is None
+
+
+NPM_2_0_29 = {
+    "registry.npmjs.org/@opencode%2fcli/latest": (
+        '{"name":"@opencode/cli","version":"2.0.29"}'
+    ),
+    # The GitHub releases stop at 1.19.0; consulting them is the bug.
+    "--repo sst/opencode --json tagName": "v1.19.0",
+    "--repo anomalyco/opencode --json tagName": "v1.19.0",
+}
+
+
+def test_opencode_1_19_is_behind_npm_2_0_29():
+    """#1086: 2.0.29 shipped only on npm; 1.19.0 read as current for six days."""
+    items = currency.pin_items({"opencode": "1.19.0"}, fake(NPM_2_0_29))
+    assert (items[0].installed, items[0].latest, items[0].state) == (
+        "1.19.0",
+        "2.0.29",
+        "behind",
+    )
+    assert currency.refusal(items) is not None
+
+
+def test_opencode_2_0_29_is_current_against_npm():
+    items = currency.pin_items({"opencode": "2.0.29"}, fake(NPM_2_0_29))
+    assert items[0].state == "current"
+
+
+def test_a_registry_answer_that_is_not_json_is_unknown():
+    bad = {"registry.npmjs.org/@opencode%2fcli/latest": "<html>502</html>"}
+    items = currency.pin_items({"opencode": "2.0.29"}, fake(bad))
+    assert items[0].state == "unknown"
+    assert currency.refusal(items) is not None
 
 
 def test_python_target_is_the_newest_patch_of_the_same_minor():

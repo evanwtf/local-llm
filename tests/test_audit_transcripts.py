@@ -593,3 +593,19 @@ def test_main_renders_a_markdown_table(
     table = [r.getMessage() for r in caplog.records if r.getMessage().startswith("|")]
     assert table[0].startswith("| backend |")
     assert any(line.startswith("| a | 3 |") for line in table)
+
+
+def test_a_refused_websearch_is_the_internet_not_the_harness():
+    """#1086: OpenCode 2.x's `websearch` reaches outside, like `webfetch`."""
+    kind, _sig = audit.classify_tool_error("websearch", "ECONNREFUSED 1.2.3.4:443")
+    assert kind == "model"
+
+
+def test_a_2x_question_cancellation_is_not_a_harness_fault():
+    """A headless 2.x run cancels `question`; the model chose to ask."""
+    kind, _sig = audit.classify_tool_error(
+        "question",
+        "This non-interactive run cannot ask the user questions, so the question "
+        "was cancelled.",
+    )
+    assert kind == "model"

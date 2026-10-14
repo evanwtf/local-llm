@@ -34,6 +34,7 @@ import pathlib
 import re
 import subprocess
 import time
+from collections.abc import Callable
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -47,9 +48,22 @@ _NUMBERS = re.compile(r"(\d+(?:\.\d+)+)")
 TOOLS: dict[str, tuple[list[str], str]] = {
     "ollama": (["ollama", "--version"], "ollama/ollama"),
     "codex": (["codex", "--version"], "openai/codex"),
-    "opencode": (["opencode", "--version"], "sst/opencode"),
+    "opencode": (["opencode", "--version"], ""),  # npm, see NPM_PACKAGES
     "claude": (["claude", "--version"], ""),  # npm, not a GitHub release
 }
+
+# name -> the npm package whose `latest` dist-tag is the newest release.
+#
+# OpenCode 2.x ships only on npm, as `@opencode/cli` (#1086). Its GitHub
+# releases, the `opencode-ai` npm package and opencode.ai/install all stop at
+# 1.19.0, so a check against any of them read 1.19.0 as current on
+# 2026-10-14, while 2.0.26 to 2.0.29 had been out for six days.
+NPM_PACKAGES: dict[str, str] = {
+    "opencode": "@opencode/cli",
+    "claude": "@anthropic-ai/claude-code",
+}
+
+NPM_REGISTRY = "https://registry.npmjs.org"
 
 CACHE = pathlib.Path.home() / ".cache" / "local-llm" / "upstream-versions.json"
 CACHE_TTL_SECONDS = 3600
@@ -119,6 +133,26 @@ def _run(argv: list[str], timeout: int = 15) -> str | None:
     return out.splitlines()[0]
 
 
+def npm_latest(
+    package: str, run: Callable[[list[str], int], str | None] | None = None
+) -> str | None:
+    """The `latest` dist-tag of an npm package, read from the registry.
+
+    curl rather than `npm view`, so a machine without Node can still answer.
+    `run(argv, timeout)` returns stdout, or None when the command failed.
+    """
+    url = f"{NPM_REGISTRY}/{package.replace('/', '%2f')}/latest"
+    body = (run or _output)(["curl", "-fsSL", "--max-time", "20", url], 30)
+    if not body:
+        return None
+    try:
+        got = json.loads(body)
+    except json.JSONDecodeError:
+        return None
+    version = got.get("version") if isinstance(got, dict) else None
+    return version if isinstance(version, str) and parse(version) else None
+
+
 def installed_versions() -> dict[str, str | None]:
     return {name: _run(argv) for name, (argv, _repo) in TOOLS.items()}
 
@@ -143,13 +177,8 @@ def latest_versions(offline: bool = False) -> dict[str, str | None]:
     versions: dict[str, str | None] = {}
     for name, (_argv, repo) in TOOLS.items():
         if not repo:
-            versions[name] = (
-                _run(
-                    ["npm", "view", "@anthropic-ai/claude-code", "version"], timeout=20
-                )
-                if name == "claude"
-                else None
-            )
+            package = NPM_PACKAGES.get(name)
+            versions[name] = npm_latest(package) if package else None
             continue
         versions[name] = _run(
             [

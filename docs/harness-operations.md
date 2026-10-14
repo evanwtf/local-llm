@@ -165,6 +165,43 @@ Two rules follow, and they generalize past OpenCode:
   is a request, not a contract; any client with a daemon, a server, or a
   session can hold its own. Assert the workspace, do not assume it.
 
+### OpenCode 2.x calls differently (2026-10-14, #1086)
+
+2.0 ships only on npm, as `@opencode/cli` with one binary package per
+platform. Its GitHub releases, the `opencode-ai` package and
+opencode.ai/install stop at 1.19.0, so the currency check reads npm, and the
+client image installs the binary from the registry tarball after a sha512
+check (`docker/opencode-client/install_opencode.py`). `run.py` builds the
+argv for the installed major:
+
+```sh
+cd "$WORKTREE" && opencode run --standalone --model "$MODEL" --format json --auto "$PROMPT"
+```
+
+- **No `--dir`.** 2.x works in its process's cwd, which `run.py` sets to the
+  worktree. The #67 shape still applies, so it is checked, not assumed: after
+  each trial `opencode session export --standalone <id>` gives the session's
+  `info.location.directory`, and a row whose session ran anywhere else is
+  excluded as a harness fault.
+- **`--standalone` on every call**, `run` and `session export` alike. Without
+  it the client starts a background `opencode serve --service` that outlives
+  the trial, shares state between trials, and left later runs hanging with no
+  output.
+- **The final `step_finish` is missing** from `--format json`
+  (anomalyco/opencode#53207, open at 2.0.29). The stream undercounts turns by
+  one and loses the last step's tokens. The export has every step, so the row
+  takes its turn and token counts from it and records `token_source`. TTFT
+  still comes from the stream.
+- **New tools.** 2.0.29 offers `edit`, `execute` (JavaScript), `glob`,
+  `grep`, `question`, `read`, `shell` (was `bash`), `skill`, `subagent` (was
+  `task`), `webfetch`, `websearch` and `write`; `todowrite` is gone. A
+  headless run cancels `question` with an error and the agent continues; the
+  tool self-test checks that it still does.
+- **Model keys.** 2.x drops `temperature` and `reasoning` from a model entry
+  as unsupported legacy settings. It sends no temperature anyway, as 1.x did
+  with `temperature: false`. The output cap goes as `max_completion_tokens`
+  from `limit.output` (1.x sent `max_tokens: 32000`).
+
 Whether OpenCode is good enough to be the tier-1 harness in practice is **still
 open**: the corrected evidence is 3/3 on one cell of one model. #67 is the
 re-measurement that answers it. Do not restate the old numbers, and do not

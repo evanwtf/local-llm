@@ -168,3 +168,11 @@ def test_skip_build_still_runs_the_tool_self_test(monkeypatch):
     calls = _fake_docker(monkeypatch, smoke_failures=["glob: error: tar"])
     assert mod.main(["--tag", "local-llm-client:9", "--skip-build"]) == 1
     assert ["smoke", "local-llm-client:9"] in calls
+
+
+def test_opencode_2x_version_output_is_parsed():
+    """#1086: 2.x prints "opencode v2.0.29"; 1.x printed "1.19.0"."""
+    assert mod.parse_versions({"opencode": "opencode v2.0.29"}) == {
+        "opencode": "2.0.29"
+    }
+    assert mod.parse_versions({"opencode": "1.19.0"}) == {"opencode": "1.19.0"}

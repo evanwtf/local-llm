@@ -53,11 +53,13 @@ MAX_FACTS_AGE_HOURS = 6.0
 
 # name -> GitHub repo whose latest release is the target version.
 RELEASE_REPOS = {
-    "opencode": "sst/opencode",
     "uv": "astral-sh/uv",
     # #968: the `rg` the image puts on PATH for OpenCode's grep and glob.
     "ripgrep": "BurntSushi/ripgrep",
 }
+# name -> npm package whose `latest` dist-tag is the target version. OpenCode
+# 2.x is published only there (#1086): its GitHub releases stop at 1.19.0.
+NPM_RELEASES = {"opencode": staleness.NPM_PACKAGES["opencode"]}
 #: Where uv gets its CPython builds. The newest patch release of the pinned
 #: minor that this repo ships is the target: a CPython minor upgrade is a
 #: deliberate change, a patch release is not.
@@ -154,6 +156,8 @@ def pin_items(pins: dict[str, str], run: Runner = _run) -> list[Item]:
         if name == "python":
             minor = ".".join(have.split(".")[:2])
             want = latest_python_patch(minor, run)
+        elif name in NPM_RELEASES:
+            want = staleness.npm_latest(NPM_RELEASES[name], run)
         elif name in RELEASE_REPOS:
             want = latest_release(RELEASE_REPOS[name], run)
         else:

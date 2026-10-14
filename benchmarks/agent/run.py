@@ -2373,7 +2373,42 @@ def claude_parse(stdout, **_):
     }
 
 
-def opencode_argv(task, backend, worktree=None):
+#: The first OpenCode major whose `run` has no --dir (#1086). From 2.0 the
+#: client runs in its process's cwd, and a call without --standalone attaches
+#: to a background service instead of a private server.
+OPENCODE_STANDALONE_MAJOR = 2
+
+
+@functools.cache
+def installed_opencode_major() -> int | None:
+    """The major version of the `opencode` on PATH, or None if unreadable."""
+    try:
+        got = subprocess.run(
+            ["opencode", "--version"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            stdin=subprocess.DEVNULL,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    found = re.search(r"(\d+)\.\d+", (got.stdout or "") + (got.stderr or ""))
+    return int(found.group(1)) if found else None
+
+
+def opencode_major(major=None) -> int:
+    """`major` if given, else the installed client's; 1 when neither is known.
+
+    1 because an unreadable version is also a missing binary, which fails
+    louder at the first trial than any argv shape would.
+    """
+    if major is not None:
+        return int(major)
+    return installed_opencode_major() or 1
+
+
+def opencode_argv(task, backend, worktree=None, major=None):
     model = backend.get("opencode_model")
     if not model:
         raise SystemExit(
@@ -2397,6 +2432,27 @@ def opencode_argv(task, backend, worktree=None):
             "opencode_argv requires a worktree: without --dir the client writes "
             "to the server's directory and every trial scores as a model failure (#67)"
         )
+    if opencode_major(major) >= OPENCODE_STANDALONE_MAJOR:
+        # #1086: 2.x has no --dir. A run works in its process's cwd, which
+        # one_trial sets to the worktree, and the session export proves it
+        # afterwards (`opencode_session_check`). The worktree refusal above
+        # stays: the cwd is still the thing that must not default.
+        #
+        # --standalone on EVERY 2.x call. Without it the client attaches to
+        # a background `opencode serve --service` that outlives the trial,
+        # shares state between trials, and left later runs hanging with no
+        # output (measured 2026-10-14).
+        return [
+            "opencode",
+            "run",
+            "--standalone",
+            "--model",
+            model,
+            "--format",
+            "json",
+            "--auto",
+            task["prompt"],
+        ]
     return [
         "opencode",
         "run",
@@ -2411,17 +2467,18 @@ def opencode_argv(task, backend, worktree=None):
     ]
 
 
-def opencode_contract_flags():
+def opencode_contract_flags(major=None):
     """The flags opencode_argv passes, read from opencode_argv itself (#263).
 
     Derived rather than listed, so a flag added to the argv is checked by
-    opencode_cli_gaps() without anyone remembering to add it there too.
+    opencode_cli_gaps() without anyone remembering to add it there too. Per
+    major version, because 1.x and 2.x get different argv (#1086).
     """
-    argv = opencode_argv({"prompt": "x"}, {"opencode_model": "p/m"}, "/w")
+    argv = opencode_argv({"prompt": "x"}, {"opencode_model": "p/m"}, "/w", major)
     return [a for a in argv if a.startswith("--")]
 
 
-def opencode_cli_gaps(help_text):
+def opencode_cli_gaps(help_text, major=None):
     """What opencode_argv passes that `opencode run --help` does not list.
 
     #263: OpenCode's CLI contract has cost this project more than any engine.
@@ -2431,10 +2488,15 @@ def opencode_cli_gaps(help_text):
     """
     gaps = [
         flag
-        for flag in opencode_contract_flags()
+        for flag in opencode_contract_flags(major)
         if not re.search(rf"(?<![\w-]){re.escape(flag)}(?![\w-])", help_text)
     ]
-    if "--format" not in gaps and '"json"' not in help_text:
+    # 1.x quotes the choices (`[choices: "default", "json"]`); 2.x does not
+    # (`(choices: default, json)`).
+    json_listed = '"json"' in help_text or re.search(
+        r"choices:[^)\]\n]*\bjson\b", help_text
+    )
+    if "--format" not in gaps and not json_listed:
         gaps.append('--format "json"')
     return gaps
 
@@ -2461,7 +2523,7 @@ def opencode_cli_gate(clients):
     help_text = _opencode_run_help()
     if help_text is None:
         return None
-    gaps = opencode_cli_gaps(help_text)
+    gaps = opencode_cli_gaps(help_text, installed_opencode_major())
     if not gaps:
         return None
     return (
@@ -2565,7 +2627,100 @@ def aider_parse(stdout, **_):
     return out
 
 
-def opencode_parse(stdout, launched_ms=None, **_):
+def opencode_session_id(stdout):
+    """The session id the first event of an OpenCode JSON stream names."""
+    for line in (stdout or "").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(event, dict) and isinstance(event.get("sessionID"), str):
+            return event["sessionID"]
+    return None
+
+
+def opencode_session_export(stdout, worktree, env=None, timeout=120):
+    """`opencode session export` of the trial's session, or None (#1086).
+
+    Two reasons to read it after every 2.x trial. OpenCode 2.x drops the
+    final `step_finish` from `run --format json` (anomalyco/opencode#53207,
+    open at 2.0.29), so the stream undercounts turns and the last step's
+    tokens; the export has every step. And 2.x has no --dir, so the export's
+    `info.location.directory` is the evidence that the run worked in the
+    worktree (#67).
+
+    Same cwd and env as the trial, so it reads the same state database. Not
+    sandboxed: it only reads. --standalone, as every 2.x call must be (see
+    opencode_argv).
+    """
+    sid = opencode_session_id(stdout)
+    if not sid:
+        return None
+    try:
+        got = subprocess.run(
+            ["opencode", "session", "export", "--standalone", sid],
+            cwd=worktree,
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            stdin=subprocess.DEVNULL,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        logger.warning("opencode session export %s failed: %s", sid, exc)
+        return None
+    if got.returncode != 0:
+        logger.warning(
+            "opencode session export %s exited %s: %s",
+            sid,
+            got.returncode,
+            (got.stderr or "")[-300:],
+        )
+        return None
+    try:
+        export = json.loads(got.stdout)
+    except json.JSONDecodeError:
+        logger.warning("opencode session export %s is not JSON", sid)
+        return None
+    return export if isinstance(export, dict) else None
+
+
+def opencode_export_steps(export):
+    """The export's assistant steps that carry token accounting, in order."""
+    steps = []
+    for message in (export or {}).get("messages") or []:
+        if not isinstance(message, dict) or message.get("type") != "assistant":
+            continue
+        tokens = message.get("tokens")
+        if isinstance(tokens, dict):
+            steps.append(tokens)
+    return steps
+
+
+def opencode_session_check(export, worktree):
+    """Why this 2.x session did not run in `worktree`, or None (#67, #1086).
+
+    Only a confirmed mismatch is a reason. A missing export is recorded by
+    the caller but cannot prove anything either way.
+    """
+    if not export:
+        return None
+    directory = ((export.get("info") or {}).get("location") or {}).get("directory")
+    if not directory:
+        return None
+    if os.path.realpath(directory) != os.path.realpath(str(worktree)):
+        return (
+            f"opencode session ran in {directory}, not the trial worktree "
+            f"{worktree}: a harness fault, not a model failure (#67, #1086)"
+        )
+    return None
+
+
+def opencode_parse(stdout, launched_ms=None, export=None, **_):
     """Sum OpenCode's per-step accounting into one row.
 
     OpenCode emits a JSON event stream, not a summary object. Each assistant
@@ -2649,6 +2804,21 @@ def opencode_parse(stdout, launched_ms=None, **_):
                 peak_input = max(peak_input or 0, tokens["input"])
             current_step_open = None
             current_step_saw_content = False
+    token_source = None
+    if export is not None:
+        # #1086: OpenCode 2.x omits the final step_finish (#53207). The
+        # export has every step, so when it has more than the stream, the
+        # turn and token counts come from it. Same fields, same meaning:
+        # `input` excludes cache reads in both versions.
+        steps = opencode_export_steps(export)
+        token_source = "stream"
+        if len(steps) > turns:
+            token_source = "export"
+            turns = len(steps)
+            out_tokens = sum(t.get("output") or 0 for t in steps)
+            reasoning = sum(t.get("reasoning") or 0 for t in steps)
+            inputs = [t["input"] for t in steps if t.get("input")]
+            peak_input = max(inputs) if inputs else None
     if not turns:
         raise json.JSONDecodeError("no step_finish events", stdout[:200], 0)
 
@@ -2658,6 +2828,8 @@ def opencode_parse(stdout, launched_ms=None, **_):
         "output_tokens": out_tokens,
         "reasoning_tokens": reasoning,
     }
+    if token_source:
+        row["token_source"] = token_source
     # A trial with no timestamps (a very old transcript, or a client that
     # emits none) records no TTFT rather than a bogus zero. Absence is a
     # different signal than "0 ms".
@@ -5271,8 +5443,24 @@ def one_trial(
             worktree=worktree,
             run_tag=run_tag,
         )
+        parse_extra = {}
+        if (
+            client == "opencode"
+            and opencode_major() >= OPENCODE_STANDALONE_MAJOR
+            and (proc.stdout or "").strip()
+        ):
+            export = opencode_session_export(
+                proc.stdout, worktree, agent_env(backend, worktree)
+            )
+            parse_extra["export"] = export
+            result["opencode_export"] = "read" if export else "missing"
+            wrong_dir = opencode_session_check(export, worktree)
+            if wrong_dir:
+                logger.error("%s: %s", name, wrong_dir)
+                result["excluded"] = True
+                result["exclusion_reason"] = wrong_dir
         try:
-            result.update(parse(proc.stdout, launched_ms=launched_ms))
+            result.update(parse(proc.stdout, launched_ms=launched_ms, **parse_extra))
         except json.JSONDecodeError:
             result["agent_error"] = True
             result["stderr_tail"] = proc.stderr[-400:]

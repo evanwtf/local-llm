@@ -8,8 +8,8 @@ decision that would otherwise be made wrong silently:
 
 * **HOME=/root.** `tasks.toml` declares targets as `~/git/gmail-archive` and
   the harness expands them, so the mounts do not have to mimic the host's
-  home -- they have to land where `$HOME` points. /root is also where the
-  OpenCode installer puts its binary (it hardcodes `$HOME/.opencode/bin`).
+  home -- they have to land where `$HOME` points. (OpenCode 1.x also lived
+  under it, in `$HOME/.opencode/bin`; 2.x is in /usr/local/bin, #1086.)
 * **A container-local project environment.** Mounting the repo brings the
   host's `.venv` with it, so `uv run` would execute the HOST's interpreter and
   the image's Python would never be used -- the run would measure nothing new.

@@ -34,7 +34,7 @@ CONTEXT = REPO / "docker" / "opencode-client"
 #: What the Dockerfile pins. Kept here as well so a drift between the two is a
 #: test failure rather than a surprise at build time.
 PINS = {
-    "opencode": "1.19.0",
+    "opencode": "2.0.29",
     "uv": "0.13.1",
     "python": "3.14.8",
     # #968: on PATH, so OpenCode's grep and glob never unpack their own.
@@ -70,10 +70,13 @@ def parse_versions(raw: dict[str, str]) -> dict[str, str]:
             out[name] = ""
             continue
         # `uv --version` prints "uv 0.12.13 (<triple>)" and `python --version`
-        # prints "Python 3.14.4" -- both put the number second. OpenCode
-        # prints the bare number.
+        # prints "Python 3.14.4" -- both put the number second. OpenCode 1.x
+        # prints the bare number; 2.x prints "opencode v2.0.29" (#1086).
         second = name in _VERSION_IS_SECOND_TOKEN and len(token) >= 2
-        out[name] = token[1] if second else token[0]
+        version = token[1] if second else token[0]
+        if name == "opencode" and len(token) >= 2 and token[0] == "opencode":
+            version = token[1]
+        out[name] = version.removeprefix("v") if name == "opencode" else version
     return out
 
 

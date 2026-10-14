@@ -384,3 +384,78 @@ def test_the_pinned_image_passes_the_self_test():
     if not _docker_image(image):
         pytest.skip(f"docker or {image} is not available here")
     assert mod.run_in_image(image) == []
+
+
+# --- OpenCode 2.x (#1086) -------------------------------------------------------
+
+#: 2.0.29's real error text for a `question` call in a headless run.
+QUESTION_ERROR = (
+    "This non-interactive run cannot ask the user questions, so the question was "
+    "cancelled. Continue without an answer; make reasonable assumptions and state "
+    "them."
+)
+
+
+def _healthy_2x(workdir: pathlib.Path) -> str:
+    outputs = {
+        "shell": "",
+        "read": f"1: NEEDLE = '{TOKEN}'",
+        "write": "Wrote file successfully: written.txt",
+        "edit": "Edit applied successfully.",
+        "grep": f"{workdir}/needle.py:1: NEEDLE",
+        "glob": f"{workdir}/deep/nested/planted.marker",
+        "skill": f"Skill body {TOKEN}.",
+        "webfetch": mod.page_text(TOKEN),
+    }
+    (workdir / "shell-wrote.txt").write_text(TOKEN)
+    (workdir / "written.txt").write_text(f"written {TOKEN}\n")
+    (workdir / "edit_me.txt").write_text(f"after {TOKEN}\n")
+    lines = []
+    for n, tool in enumerate(mod.TOOLS_2X):
+        if tool == "question":
+            lines.append(_event(tool, "error", error=QUESTION_ERROR, n=n))
+        else:
+            lines.append(_event(tool, "completed", output=outputs[tool], n=n))
+    return "\n".join(lines) + "\n"
+
+
+def test_the_2x_script_uses_the_2x_tool_names():
+    assert "bash" not in mod.TOOLS_2X and "todowrite" not in mod.TOOLS_2X
+    assert {"shell", "read", "write", "edit", "grep", "glob", "question"} <= set(
+        mod.TOOLS_2X
+    )
+
+
+def test_a_healthy_2x_transcript_passes(workdir):
+    script = mod.steps(workdir, TOKEN, major=2)
+    assert mod.check(_healthy_2x(workdir), workdir, script) == []
+
+
+def test_a_question_that_completes_fails(workdir):
+    """A question that got an answer means something answered for the user."""
+    transcript = _healthy_2x(workdir).replace(
+        _event("question", "error", error=QUESTION_ERROR, n=len(mod.TOOLS_2X) - 1),
+        _event("question", "completed", output="a", n=len(mod.TOOLS_2X) - 1),
+    )
+    failures = mod.check(transcript, workdir, mod.steps(workdir, TOKEN, major=2))
+    assert len(failures) == 1 and failures[0].startswith("question: completed")
+
+
+def test_a_question_cancelled_for_another_reason_fails(workdir):
+    transcript = _healthy_2x(workdir).replace(QUESTION_ERROR, "permission denied")
+    failures = mod.check(transcript, workdir, mod.steps(workdir, TOKEN, major=2))
+    assert failures == [
+        (
+            "question: error, but its output does not contain the non-interactive "
+            f"cancellation ({mod.QUESTION_CANCELLED!r})"
+        )
+    ]
+
+
+def test_a_failed_2x_shell_call_is_named(workdir):
+    transcript = _healthy_2x(workdir).replace(
+        _event("shell", "completed", output="", n=0),
+        _event("shell", "error", error="bwrap: denied", n=0),
+    )
+    failures = mod.check(transcript, workdir, mod.steps(workdir, TOKEN, major=2))
+    assert any(f.startswith("shell: error") for f in failures)
