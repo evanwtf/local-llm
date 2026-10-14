@@ -495,7 +495,7 @@ def _opencode_backend():
 
 
 def test_opencode_is_told_where_to_work(tmp_path) -> None:
-    argv = run.opencode_argv({"prompt": "go"}, _opencode_backend(), tmp_path)
+    argv = run.opencode_argv({"prompt": "go"}, _opencode_backend(), tmp_path, major=1)
     assert "--dir" in argv
     assert argv[argv.index("--dir") + 1] == str(tmp_path)
 
@@ -507,12 +507,12 @@ def test_opencode_refuses_to_run_without_a_worktree() -> None:
     signature. For OpenCode specifically, defaulting is the bug.
     """
     with pytest.raises(SystemExit, match="--dir"):
-        run.opencode_argv({"prompt": "go"}, _opencode_backend(), None)
+        run.opencode_argv({"prompt": "go"}, _opencode_backend(), None, major=1)
 
 
 def test_the_directory_precedes_the_prompt() -> None:
     """--dir is a flag on `run`, so it cannot follow the positional prompt."""
-    argv = run.opencode_argv({"prompt": "go"}, _opencode_backend(), "/w")
+    argv = run.opencode_argv({"prompt": "go"}, _opencode_backend(), "/w", major=1)
     assert argv.index("--dir") < argv.index("go")
     assert argv[-1] == "go"
 
@@ -533,29 +533,31 @@ _HELP_1_18 = """
 
 
 def test_the_current_help_satisfies_the_contract() -> None:
-    assert run.opencode_cli_gaps(_HELP_1_18) == []
+    assert run.opencode_cli_gaps(_HELP_1_18, major=1) == []
 
 
 def test_a_dropped_flag_is_named() -> None:
     help_text = _HELP_1_18.replace("--dir ", "--cwd ")
-    assert run.opencode_cli_gaps(help_text) == ["--dir"]
+    assert run.opencode_cli_gaps(help_text, major=1) == ["--dir"]
 
 
 def test_a_dropped_format_value_is_named() -> None:
     help_text = _HELP_1_18.replace('"json"', '"jsonl"')
-    assert run.opencode_cli_gaps(help_text) == ['--format "json"']
+    assert run.opencode_cli_gaps(help_text, major=1) == ['--format "json"']
 
 
 def test_the_contract_is_read_from_the_argv_builder() -> None:
     """The flag list is derived, not copied, so a flag added to opencode_argv
     is checked without anyone remembering to add it here."""
-    argv = run.opencode_argv({"prompt": "go"}, _opencode_backend(), "/w")
-    flags = {a for a in argv if a.startswith("--")}
-    assert flags == set(run.opencode_contract_flags())
+    for major in (1, 2):
+        argv = run.opencode_argv({"prompt": "go"}, _opencode_backend(), "/w", major)
+        flags = {a for a in argv if a.startswith("--")}
+        assert flags == set(run.opencode_contract_flags(major))
 
 
 def test_the_gate_refuses_only_for_opencode(monkeypatch) -> None:
     monkeypatch.setattr(run, "_opencode_run_help", lambda: "no flags here")
+    monkeypatch.setattr(run, "installed_opencode_major", lambda: 1)
     assert run.opencode_cli_gate(["aider"]) is None
     why = run.opencode_cli_gate(["opencode"])
     assert why is not None and "--dir" in why

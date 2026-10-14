@@ -139,6 +139,7 @@ Each script explains itself in full at the top of its own file -- what it comput
 | `test_build_client_image.py` | any | The client image's pins are only worth having if a drift is a test failure. |
 | `test_client_container.py` | any | The container invocation is where a silent confound would hide. #611 |
 | `test_client_tool_smoke.py` | any | The OpenCode tool self-test must fail loudly on a broken tool. #968 |
+| `test_install_opencode.py` | any | The image's OpenCode installer must refuse anything it cannot verify (#1086). |
 | `test_server_facts.py` | any | The server facts decide which ledger a remote row joins. #562, #647 |
 | `thermals.py` | mac | Read this machine's temperatures, with a timestamp, without sudo. |
 | `thermals_summary.py` | any | Summarize a `thermals.py --watch --json` log into a run's thermal envelope. |

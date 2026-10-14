@@ -90,7 +90,11 @@ class Step:
     tool: str
     args: dict[str, Any]
     #: (workdir, the tool's output) -> why the effect is missing, or None.
+    #: For a step that expects `error`, it is handed the error text instead.
     effect: Callable[[pathlib.Path, str], str | None]
+    #: The status the call must end in. `question` must end in `error`: a
+    #: headless 2.x run cancels it rather than wait for an answer (#1086).
+    expect: str = "completed"
 
 
 def _file_is(path: pathlib.Path, want: str) -> str | None:
@@ -137,7 +141,10 @@ PAGE_PATH = "/smoke-page"
 
 
 def steps(
-    workdir: pathlib.Path, token: str, base_url: str = "http://127.0.0.1:1/v1"
+    workdir: pathlib.Path,
+    token: str,
+    base_url: str = "http://127.0.0.1:1/v1",
+    major: int = 1,
 ) -> list[Step]:
     """One call per tool the trials use, in the order the stub sends them.
 
@@ -149,6 +156,8 @@ def steps(
     cannot pass for this one. `base_url` is the stub's, which serves the
     page `webfetch` reads.
     """
+    if major >= 2:
+        return steps_2x(workdir, token, base_url)
     written = workdir / "written.txt"
     edited = workdir / "edit_me.txt"
     marker = workdir / "bash-wrote.txt"
@@ -216,6 +225,96 @@ def steps(
                 "format": "text",
             },
             _output_has(token, "the stub's page"),
+        ),
+    ]
+
+
+#: What a headless 2.x run answers a `question` call with (2.0.29).
+QUESTION_CANCELLED = "non-interactive run cannot ask the user questions"
+
+
+def steps_2x(workdir: pathlib.Path, token: str, base_url: str) -> list[Step]:
+    """The same checks for OpenCode 2.x, whose tools and arguments changed (#1086).
+
+    2.0.29 offers edit, execute, glob, grep, question, read, shell, skill,
+    subagent, webfetch, websearch and write. `bash` is now `shell`, file
+    arguments are `path` (was `filePath`), `skill` takes `id` (was `name`),
+    and `todowrite` is gone. `subagent` starts a second session and
+    `execute` runs JavaScript, so neither is a trial's edit path; `websearch`
+    needs a search integration the trials do not configure.
+
+    `question` is checked because it could hang a trial: a model that asks
+    the user would wait for an answer nobody gives. A headless 2.0.29 run
+    cancels the call with an error and the agent continues; the step passes
+    only if that still happens.
+    """
+    written = workdir / "written.txt"
+    edited = workdir / "edit_me.txt"
+    marker = workdir / "shell-wrote.txt"
+    return [
+        Step(
+            "shell",
+            {"command": f"printf %s {token} > {marker}"},
+            lambda _w, _o: _file_is(marker, token),
+        ),
+        Step(
+            "read",
+            {"path": str(workdir / "needle.py")},
+            _output_has(token, "the planted file's text"),
+        ),
+        Step(
+            "write",
+            {"path": str(written), "content": f"written {token}\n"},
+            lambda _w, _o: _file_is(written, f"written {token}\n"),
+        ),
+        Step(
+            "edit",
+            {
+                "path": str(edited),
+                "oldString": f"before {token}",
+                "newString": f"after {token}",
+            },
+            lambda _w, _o: _file_is(edited, f"after {token}\n"),
+        ),
+        Step(
+            "grep",
+            {"pattern": token, "path": str(workdir), "include": "*.py"},
+            _output_has("needle.py", "the planted file"),
+        ),
+        Step(
+            "glob",
+            {"pattern": "**/*.marker", "path": str(workdir)},
+            _output_has("planted.marker", "the planted file"),
+        ),
+        Step(
+            "skill",
+            {"id": SKILL_NAME},
+            _output_has(token, "the planted skill's body"),
+        ),
+        Step(
+            "webfetch",
+            {
+                "url": base_url.removesuffix("/v1") + PAGE_PATH,
+                "format": "text",
+            },
+            _output_has(token, "the stub's page"),
+        ),
+        Step(
+            "question",
+            {
+                "questions": [
+                    {
+                        "question": f"Which file? {token}",
+                        "header": "File",
+                        "options": [
+                            {"label": "a", "description": "a"},
+                            {"label": "b", "description": "b"},
+                        ],
+                    }
+                ]
+            },
+            _output_has(QUESTION_CANCELLED, "the non-interactive cancellation"),
+            expect="error",
         ),
     ]
 
@@ -469,12 +568,18 @@ def check(transcript: str, workdir: pathlib.Path, script: list[Step]) -> list[st
             failures.append(f"{step.tool}: never ran (no tool part in the transcript)")
             continue
         remaining.remove(part)
-        if part.status != "completed":
-            failures.append(f"{step.tool}: {part.status}: {_first_line(part.error)}")
+        if part.status != step.expect:
+            detail = part.error if part.status != "completed" else part.output
+            failures.append(
+                f"{step.tool}: {part.status} (expected {step.expect}): "
+                f"{_first_line(detail)}"
+            )
             continue
-        why = step.effect(workdir, part.output)
+        why = step.effect(
+            workdir, part.output if step.expect == "completed" else part.error
+        )
         if why:
-            failures.append(f"{step.tool}: completed, but {why}")
+            failures.append(f"{step.tool}: {part.status}, but {why}")
     for part in remaining:
         failures.append(
             f"{part.tool}: unexpected call, {part.status}: "
@@ -513,6 +618,7 @@ class Outcome:
     seconds: float
     mechanism: str
     requests: int
+    tools: list[str] = dataclasses.field(default_factory=list)
 
 
 def run_inside(timeout: int = DEFAULT_TIMEOUT) -> Outcome:
@@ -546,8 +652,10 @@ def run_inside(timeout: int = DEFAULT_TIMEOUT) -> Outcome:
             "-m",
             "tool smoke: starting state",
         )
+        major = run.opencode_major()
+        logger.info("OpenCode major version: %d", major)
         with StubServer(page=page_text(token)) as stub:
-            script = steps(workdir, token, stub.base_url)
+            script = steps(workdir, token, stub.base_url, major)
             stub.httpd.script = script
             config.write_text(json.dumps(opencode_config(stub.base_url)))
             backend = {
@@ -588,7 +696,13 @@ def run_inside(timeout: int = DEFAULT_TIMEOUT) -> Outcome:
             logger.info("opencode %s after %d request(s)", exit_note, requests)
             for line in stderr.strip().splitlines()[-15:]:
                 logger.info("opencode stderr: %s", line)
-        return Outcome(failures, round(time.monotonic() - t0, 1), mechanism, requests)
+        return Outcome(
+            failures,
+            round(time.monotonic() - t0, 1),
+            mechanism,
+            requests,
+            [s.tool for s in script],
+        )
     finally:
         shutil.rmtree(workdir, ignore_errors=True)
         shutil.rmtree(run.trial_tmp(workdir), ignore_errors=True)
@@ -606,15 +720,16 @@ def inside_main(timeout: int) -> int:
     for failure in outcome.failures:
         logger.error("FAIL  %s", failure)
     if not outcome.failures:
-        logger.info("PASS  every tool: %s", ", ".join(TOOLS))
+        logger.info("PASS  every tool: %s", ", ".join(outcome.tools))
     # The host half reads this line, so it goes to stdout as-is.
     sys.stdout.write(RESULT_PREFIX + json.dumps(dataclasses.asdict(outcome)) + "\n")
     sys.stdout.flush()
     return 1 if outcome.failures else 0
 
 
-#: The tools the script exercises, in order.
+#: The tools each major's script exercises, in order.
 TOOLS = tuple(s.tool for s in steps(pathlib.Path("/"), "token"))
+TOOLS_2X = tuple(s.tool for s in steps(pathlib.Path("/"), "token", major=2))
 
 
 # --- on the host ------------------------------------------------------------

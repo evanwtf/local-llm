@@ -297,3 +297,26 @@ def test_a_version_is_still_read_from_its_own_line(monkeypatch):
         "ollama version is 0.12.3\n",
     )
     assert staleness._run(["ollama", "--version"]) == "ollama version is 0.12.3"
+
+
+def test_npm_latest_reads_the_registry_version():
+    """#1086: OpenCode 2.x is published only as npm @opencode/cli."""
+    seen: list[list[str]] = []
+
+    def run(argv: list[str], timeout: int = 30) -> str | None:
+        seen.append(argv)
+        return '{"name": "@opencode/cli", "version": "2.0.29"}'
+
+    assert staleness.npm_latest("@opencode/cli", run) == "2.0.29"
+    assert seen[0][-1] == "https://registry.npmjs.org/@opencode%2fcli/latest"
+
+
+def test_npm_latest_is_none_when_the_lookup_fails_or_is_garbage():
+    assert staleness.npm_latest("@opencode/cli", lambda a, t: None) is None
+    assert staleness.npm_latest("@opencode/cli", lambda a, t: "<html>") is None
+    assert staleness.npm_latest("@opencode/cli", lambda a, t: '{"version": 7}') is None
+
+
+def test_opencode_is_read_from_npm_not_github_releases():
+    assert staleness.TOOLS["opencode"][1] == ""
+    assert staleness.NPM_PACKAGES["opencode"] == "@opencode/cli"

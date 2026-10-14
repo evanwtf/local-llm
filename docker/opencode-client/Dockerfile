@@ -13,7 +13,7 @@
 # installers both resolve it themselves, and every other component comes from
 # the base image's own arch.
 #
-#   docker build -t local-llm-client:1.19.0 docker/opencode-client
+#   docker build -t local-llm-client:2.0.29 docker/opencode-client
 #
 # Build with scripts/build_client_image.py, not by hand: it checks the pinned
 # versions from inside the image and runs every OpenCode tool the trials use
@@ -22,7 +22,7 @@
 FROM ubuntu:26.04
 
 # Pins. Every one of these is a variable a row would otherwise carry silently.
-ARG OPENCODE_VERSION=1.19.0
+ARG OPENCODE_VERSION=2.0.29
 ARG UV_VERSION=0.13.1
 # The interpreter uv hands the trial's venv. Pinned so the same target commit
 # resolves the same Python on every client.
@@ -30,12 +30,10 @@ ARG PYTHON_VERSION=3.14.8
 # The `rg` OpenCode's grep and glob tools run (#968). See the RUN below.
 ARG RIPGREP_VERSION=15.2.0
 
-# The OpenCode installer hardcodes INSTALL_DIR=$HOME/.opencode/bin and honours
-# no override, so the binary's location is a property of HOME, not a choice.
-# The image runs as root, so that is /root/.opencode/bin -- on PATH here. A
-# future non-root user would need this re-pointed, not just a USER line.
+# OpenCode goes to /usr/local/bin (see the install step below), already on
+# PATH for every user.
 ENV DEBIAN_FRONTEND=noninteractive \
-    PATH=/root/.opencode/bin:/opt/uv/bin:$PATH \
+    PATH=/opt/uv/bin:$PATH \
     UV_INSTALL_DIR=/opt/uv/bin \
     UV_PYTHON_INSTALL_DIR=/opt/uv/python
 
@@ -58,9 +56,6 @@ RUN apt-get update && apt-get upgrade -y \
 RUN curl -fsSL https://astral.sh/uv/${UV_VERSION}/install.sh | sh \
     && uv --version
 
-# The installer resolves linux-x64 / linux-arm64 from `uname -m` itself.
-RUN curl -fsSL https://opencode.ai/install | bash -s -- --version ${OPENCODE_VERSION} \
-    && opencode --version
 
 # ripgrep on PATH, so OpenCode never unpacks its own (#968). OpenCode 1.18.34
 # resolves `rg` in this order: `which rg`, then $XDG_DATA_HOME/opencode/bin/rg,
@@ -90,6 +85,19 @@ RUN arch="$(uname -m)" \
 # and never falls back to a system Python that differs between clients.
 RUN uv python install ${PYTHON_VERSION} \
     && uv python find ${PYTHON_VERSION}
+
+# OpenCode from npm, not opencode.ai/install (#1086). 2.x ships only as the
+# npm package `@opencode/cli`, with one binary package per platform. Its
+# GitHub releases, the `opencode-ai` npm package and opencode.ai/install all
+# stop at 1.19.0. install_opencode.py picks the linux-x64 or linux-arm64
+# package from `uname -m`, refuses a tarball whose sha512 differs from the
+# registry's `dist.integrity`, and installs only `package/bin/opencode`. It
+# runs on the pinned interpreter above, so the image gains no system Python.
+COPY install_opencode.py /tmp/install_opencode.py
+RUN "$(uv python find ${PYTHON_VERSION})" -I /tmp/install_opencode.py \
+        ${OPENCODE_VERSION} /usr/local/bin/opencode \
+    && rm /tmp/install_opencode.py \
+    && opencode --version
 
 # Recorded so the running container can say what it is without re-deriving it.
 ENV LOCAL_LLM_CLIENT_IMAGE=1 \
