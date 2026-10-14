@@ -331,6 +331,13 @@ INSTANCE_PROBES: dict[str, tuple[str, str]] = {
     "vllm": ("start_time", "/metrics"),
 }
 
+#: A second route for an engine whose builds differ (#1066): the native
+#: TensorFold 1.0.x server answers /health with only {"status": "ok"} and
+#: keeps the same counter on /metrics as `tensorfold:requests_total` lines.
+INSTANCE_FALLBACKS: dict[str, tuple[str, str]] = {
+    "tensorfold": ("counter", "/metrics"),
+}
+
 
 def parse_instance(kind: str, text: str) -> float | None:
     """The instance marker in a server's answer, or None if it is unreadable."""
@@ -341,12 +348,30 @@ def parse_instance(kind: str, text: str) -> float | None:
     try:
         data = json.loads(text)
     except ValueError:
-        return None
+        return _metrics_counter(text)
     value = data.get("requests_total") if isinstance(data, dict) else None
     # bool is an int in Python; a true/false counter is not a counter.
     if isinstance(value, bool) or not isinstance(value, int) or value < 0:
         return None
     return value
+
+
+def _metrics_counter(metrics: str) -> int | None:
+    """The sum of `tensorfold:requests_total` lines on a Prometheus page, or None.
+
+    The native server splits the counter by API key and status; every series
+    only grows while one server runs, so their sum does too.
+    """
+    total, found = 0, False
+    for line in metrics.splitlines():
+        if not line.startswith("tensorfold:requests_total"):
+            continue
+        try:
+            total += int(float(line.rsplit(None, 1)[1]))
+        except (IndexError, ValueError):
+            return None
+        found = True
+    return total if found else None
 
 
 def _start_time(metrics: str) -> float | None:
@@ -393,6 +418,13 @@ def read_instance(
         value = parse_instance(kind, fetch(url, timeout))
     except (OSError, urllib.error.URLError, ValueError):
         value = None
+    fallback = INSTANCE_FALLBACKS.get(engine)
+    if value is None and fallback is not None and fallback[0] == kind:
+        url = urllib.parse.urlunsplit((parts.scheme, parts.netloc, fallback[1], "", ""))
+        try:
+            value = parse_instance(kind, fetch(url, timeout))
+        except (OSError, urllib.error.URLError, ValueError):
+            value = None
     return {"engine": engine, "kind": kind, "value": value}
 
 

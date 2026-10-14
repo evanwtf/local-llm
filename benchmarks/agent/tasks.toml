@@ -4532,7 +4532,7 @@ context_tokens = 131072
 topology = "remote"
 
 [backend.nemotron35ltf109rcdgx]
-description = "#1066: Nemotron-3.5-Lightning-30B-A3B NVFP4 (nvidia/ModelOpt @bee75962) on TensorFold 1.0.9's native CUDA engine (ashhart release archive tensorfold-1.0.9-linux-aarch64, sha256-checked; built-in sm_121 kernels), served as stored, MTP drafts on, --thinking off, --context 131072, --alias nemotron-3.5-lightning-30b-a3b, :8030. REMOTE CLIENT (#562)"
+description = "#1066: Nemotron-3.5-Lightning-30B-A3B NVFP4 (nvidia/ModelOpt @bee75962) on TensorFold 1.0.9's native CUDA engine (ashhart release archive tensorfold-1.0.9-linux-aarch64, sha256-checked; built-in sm_121 kernels), served as stored, MTP drafts on, --no-thinking, --context 131072, --alias nemotron-3.5-lightning-30b-a3b, --metrics-open (the #948 instance marker is on /metrics), :8030. REMOTE CLIENT (#562)"
 tier = "gb10-spark"
 base_url = "http://127.0.0.1:8030"
 auth_token = "local"
