@@ -4510,3 +4510,36 @@ aider_model = "openai/Ling-3.0-flash"
 opencode_model = "vllm8888/Ling-3.0-flash"
 context_tokens = 262144
 topology = "remote"
+
+# #1066 (operator-approved 2026-10-13): an engine-only A/B for Nemotron-3.5-Lightning
+# on one Spark, both arms driven from the same remote client (#562) after the #968
+# grep/glob fix, so #404's 2026-09-16 rows do not compare. Same weights
+# (nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-NVFP4 @bee75962), same port and the
+# same OpenCode provider entry ("vllm" -> dgx.internal:8030), thinking off as in #404,
+# 131072 context. Only the server differs. Restart the server between arms.
+[backend.nemotron35lvllmrcdgx]
+description = "#1066 control: Nemotron-3.5-Lightning-30B-A3B NVFP4 (nvidia/ModelOpt @bee75962) on vLLM latest (preflight), CUDA sm_121, thinking off, 131072 ctx, :8030. REMOTE CLIENT (#562)"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8030"
+auth_token = "local"
+engine = "vllm"
+model = "nemotron-3.5-lightning-30b-a3b"
+active_params_b = 3
+aider_model = "openai/nemotron-3.5-lightning-30b-a3b"
+opencode_model = "vllm/nemotron-3.5-lightning-30b-a3b"
+context_tokens = 131072
+topology = "remote"
+
+[backend.nemotron35ltf109rcdgx]
+description = "#1066: Nemotron-3.5-Lightning-30B-A3B NVFP4 (nvidia/ModelOpt @bee75962) on TensorFold 1.0.9's native CUDA engine (ashhart release archive tensorfold-1.0.9-linux-aarch64, sha256-checked; built-in sm_121 kernels), served as stored, MTP drafts on, --thinking off, --context 131072, --alias nemotron-3.5-lightning-30b-a3b, :8030. REMOTE CLIENT (#562)"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8030"
+auth_token = "local"
+engine = "tensorfold"
+model = "nemotron-3.5-lightning-30b-a3b"
+active_params_b = 3
+aider_model = "openai/nemotron-3.5-lightning-30b-a3b"
+opencode_model = "vllm/nemotron-3.5-lightning-30b-a3b"
+context_tokens = 131072
+topology = "remote"
+smoke_protocol = "openai"
