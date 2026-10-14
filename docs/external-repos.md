@@ -66,6 +66,7 @@ branch, and the sha lives on the row, not in this doc.
 | `~/engines/tensorfold-dl-1.0.9/tensorfold-1.0.9-linux-aarch64` | release archive (`ashhart/TensorFold`) | — | tensorfold | `v1.0.9` | the TensorFold release archive for linux-aarch64, sha256-checked against the release; **not a git checkout**; currency reads its `VERSION` file; the `nemotron35ltf109rcdgx` tree on the DGX head (#1066) |
 | `~/engines/tensorfold-dl-1.0.10/tensorfold-1.0.10-linux-aarch64` | release archive (`ashhart/TensorFold`) | — | tensorfold | `v1.0.10` | the TensorFold release archive for linux-aarch64, sha256-checked against the release; **not a git checkout**; currency reads its `VERSION` file; the `nemotron35ltf1010rcdgx` tree on the DGX head (#1066) |
 | `~/engines/tensorfold-dl-1.0.11/tensorfold-1.0.11-linux-aarch64` | release archive (`ashhart/TensorFold`) | — | tensorfold | `v1.0.11` | the TensorFold release archive for linux-aarch64, sha256-checked against the release; **not a git checkout**; currency reads its `VERSION` file; the `nemotron35ltf1010rcdgx` tree on the DGX head (#1066) |
+| `~/engines/tandemllm-0.8.3/src` | `0xBakeer/TandemLLM` | — | tandemllm | `v0.8.3` (`792087c`) | TandemLLM, cloned and set up by its own `install.sh --ref v0.8.3 --dir ~/engines/tandemllm-0.8.3 --no-start` (venv, lookup corpus and config beside `src`); currency reads `src/VERSION`; the `qwen3827btandem083nvfp4nothinkrcdgx` tree (#1067) |
 
 Notes on the shape of this list:
 

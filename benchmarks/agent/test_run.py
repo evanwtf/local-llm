@@ -3471,3 +3471,31 @@ def test_a_native_tensorfold_server_records_its_binary_version_and_argv(monkeypa
     assert "--alias nemotron-3.5-lightning-30b-a3b" in got["server_argv"]
     assert ["/home/u/engines/tf/bin/tensorfold-native", "--version"] in seen
     assert run.serving_tensorfold_native({"other-model"}) == {}
+
+
+#: The #1067 launch as `ps ax -o pid=,command=` shows it: TandemLLM's
+#: `server/app.py` from its venv, run in the engine checkout.
+_TANDEM_PS = (
+    "  101 /usr/bin/postgres -D /data\n"
+    "  954042 /home/u/tandem/venv/bin/python -u server/app.py --host 0.0.0.0 "
+    "--port 8030 --served-model qwen3.8-27b-tandem --max-len 262144\n"
+)
+
+
+def test_a_tandemllm_server_records_its_version_commit_and_argv(monkeypatch, tmp_path):
+    """#1067: no container; the build is the checkout's VERSION and commit."""
+    (tmp_path / "VERSION").write_text("0.8.3\n")
+
+    def fake_run(argv, **kw):
+        if argv[:2] == ["ps", "ax"]:
+            return subprocess.CompletedProcess(argv, 0, stdout=_TANDEM_PS)
+        if argv[:1] == ["git"]:
+            return subprocess.CompletedProcess(argv, 0, stdout="792087c0\n")
+        raise AssertionError(argv)
+
+    monkeypatch.setattr(run.subprocess, "run", fake_run)
+    monkeypatch.setattr(run.os, "readlink", lambda p: str(tmp_path))
+    got = run.serving_tandemllm({"qwen3.8-27b-tandem"})
+    assert got["tandemllm"] == "0.8.3@792087c0"
+    assert "--served-model qwen3.8-27b-tandem" in got["server_argv"]
+    assert run.serving_tandemllm({"other-model"}) == {}
