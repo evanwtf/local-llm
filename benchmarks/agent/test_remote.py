@@ -695,3 +695,21 @@ def test_tandemllm_reads_its_counter_from_metrics():
     got = remote.read_instance("http://srv:8030/v1", "tandemllm", fetch)
     assert asked == ["http://srv:8030/metrics"]
     assert got == {"engine": "tandemllm", "kind": "counter", "value": 5}
+
+
+#: A TandemLLM server restarted a moment ago: `qse_requests_total` has no
+#: sample until the first request finishes, but the page is TandemLLM's (#1067).
+TANDEM_FRESH_METRICS = """\
+# HELP qse_requests_running generations the engine is working on
+# TYPE qse_requests_running gauge
+qse_requests_running 0
+qse_requests_refused_total{reason="queue"} 0
+"""
+
+
+def test_a_fresh_tandemllm_server_reads_as_zero_requests():
+    assert remote.parse_instance("counter", TANDEM_FRESH_METRICS) == 0
+
+
+def test_a_page_with_no_known_counter_family_still_yields_no_value():
+    assert remote.parse_instance("counter", "other_metric 3\n") is None

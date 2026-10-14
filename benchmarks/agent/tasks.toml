@@ -4629,5 +4629,7 @@ model = "qwen3.8-27b-tandem"
 active_params_b = 27
 aider_model = "openai/qwen3.8-27b-tandem"
 opencode_model = "tandem/qwen3.8-27b-tandem"
+# TandemLLM serves no /v1/messages; OpenCode is the only client.
+smoke_protocol = "openai"
 context_tokens = 262144
 topology = "remote"
