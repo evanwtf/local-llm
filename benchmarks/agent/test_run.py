@@ -3442,3 +3442,32 @@ def test_an_image_backend_without_a_container_probe_records_no_version():
     assert "engine_version" not in got, "never the head venv's version"
     assert "engine_tree" not in got
     assert got["engine_image"] == "vllm/vllm-openai:v0.30.0"
+
+
+#: The #1066 launch as `ps ax -o command=` shows it: the native TensorFold
+#: 1.0.9 release binary on the host, no container.
+_TF_NATIVE_PS = (
+    "/usr/bin/postgres -D /data\n"
+    "/home/u/engines/tf/bin/tensorfold-native serve /home/u/snap --host 0.0.0.0 "
+    "--port 8030 --alias nemotron-3.5-lightning-30b-a3b --api-key local "
+    "--metrics-open --context 131072 --no-thinking --no-update-check\n"
+)
+
+
+def test_a_native_tensorfold_server_records_its_binary_version_and_argv(monkeypatch):
+    """#1066: the release binary runs on the host, so there is no container to
+    inspect; the build is the binary's own `--version`."""
+    seen: list[list[str]] = []
+
+    def fake_run(argv, **kw):
+        seen.append(argv)
+        if argv[:2] == ["ps", "ax"]:
+            return subprocess.CompletedProcess(argv, 0, stdout=_TF_NATIVE_PS)
+        return subprocess.CompletedProcess(argv, 0, stdout="tensorfold-native 1.0.9\n")
+
+    monkeypatch.setattr(run.subprocess, "run", fake_run)
+    got = run.serving_tensorfold_native({"nemotron-3.5-lightning-30b-a3b"})
+    assert got["tensorfold"] == "1.0.9"
+    assert "--alias nemotron-3.5-lightning-30b-a3b" in got["server_argv"]
+    assert ["/home/u/engines/tf/bin/tensorfold-native", "--version"] in seen
+    assert run.serving_tensorfold_native({"other-model"}) == {}
