@@ -363,6 +363,11 @@ def parse_instance(kind: str, text: str) -> float | None:
 #: TandemLLM (#1067). Matched by exact name, so a longer name is not counted.
 _COUNTER_NAMES = frozenset({"tensorfold:requests_total", "qse_requests_total"})
 
+#: A gauge each server always prints, beside a counter it prints only after
+#: the first request finishes: its presence means "this server, 0 requests".
+#: TandemLLM restarted a moment ago has no `qse_requests_total` line (#1067).
+_ZERO_MARKERS = frozenset({"qse_requests_running"})
+
 
 def _metrics_counter(metrics: str) -> int | None:
     """The sum of request-counter lines on a Prometheus page, or None.
@@ -371,11 +376,12 @@ def _metrics_counter(metrics: str) -> int | None:
     status, TandemLLM by finish reason); every series only grows while one
     server runs, so their sum does too.
     """
-    total, found = 0, False
+    total, found, fresh = 0, False, False
     for line in metrics.splitlines():
         if line.startswith("#"):
             continue
         name = line.split("{", 1)[0].split(None, 1)[0] if line.strip() else ""
+        fresh = fresh or name in _ZERO_MARKERS
         if name not in _COUNTER_NAMES:
             continue
         try:
@@ -383,6 +389,8 @@ def _metrics_counter(metrics: str) -> int | None:
         except (IndexError, ValueError):
             return None
         found = True
+    if not found and fresh:
+        return 0
     return total if found else None
 
 
