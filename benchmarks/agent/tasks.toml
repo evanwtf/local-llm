@@ -4531,6 +4531,23 @@ opencode_model = "vllm/nemotron-3.5-lightning-30b-a3b"
 context_tokens = 131072
 topology = "remote"
 
+# #1066: both 131072-context batches were void (#969: context overflow, 2 and 3
+# trials, with OpenCode output limits of 131072 and then 32768). Both arms move to
+# 262144, the cluster pick's window; output stays 32768. New names: a new config.
+[backend.nemotron35lvllm262rcdgx]
+description = "#1066 control: Nemotron-3.5-Lightning-30B-A3B NVFP4 (nvidia/ModelOpt @bee75962) on vLLM latest (preflight), CUDA sm_121, thinking off, 262144 ctx, :8030. REMOTE CLIENT (#562)"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8030"
+auth_token = "local"
+engine = "vllm"
+engine_tree = "~/venvs/vllm"
+model = "nemotron-3.5-lightning-30b-a3b"
+active_params_b = 3
+aider_model = "openai/nemotron-3.5-lightning-30b-a3b"
+opencode_model = "vllm/nemotron-3.5-lightning-30b-a3b"
+context_tokens = 262144
+topology = "remote"
+
 [backend.nemotron35ltf109rcdgx]
 description = "#1066: Nemotron-3.5-Lightning-30B-A3B NVFP4 (nvidia/ModelOpt @bee75962) on TensorFold 1.0.9's native CUDA engine (ashhart release archive tensorfold-1.0.9-linux-aarch64, sha256-checked; built-in sm_121 kernels), served as stored, MTP drafts on, --no-thinking, --context 131072, --alias nemotron-3.5-lightning-30b-a3b, --metrics-open (the #948 instance marker is on /metrics), :8030. REMOTE CLIENT (#562)"
 tier = "gb10-spark"
@@ -4563,5 +4580,21 @@ active_params_b = 3
 aider_model = "openai/nemotron-3.5-lightning-30b-a3b"
 opencode_model = "vllm/nemotron-3.5-lightning-30b-a3b"
 context_tokens = 131072
+topology = "remote"
+smoke_protocol = "openai"
+
+[backend.nemotron35ltf1010c262rcdgx]
+description = "#1066: Nemotron-3.5-Lightning-30B-A3B NVFP4 (nvidia/ModelOpt @bee75962) on TensorFold 1.0.10's native CUDA engine (ashhart release archive tensorfold-1.0.10-linux-aarch64, sha256-checked; built-in sm_121 kernels), served as stored, MTP drafts on, --no-thinking, --context 262144, --alias nemotron-3.5-lightning-30b-a3b, --metrics-open (the #948 instance marker is on /metrics), :8030. REMOTE CLIENT (#562)"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8030"
+auth_token = "local"
+engine = "tensorfold"
+# The unpacked release archive; currency reads its VERSION file (#1066).
+engine_tree = "~/engines/tensorfold-dl-1.0.10/tensorfold-1.0.10-linux-aarch64"
+model = "nemotron-3.5-lightning-30b-a3b"
+active_params_b = 3
+aider_model = "openai/nemotron-3.5-lightning-30b-a3b"
+opencode_model = "vllm/nemotron-3.5-lightning-30b-a3b"
+context_tokens = 262144
 topology = "remote"
 smoke_protocol = "openai"
