@@ -59,7 +59,7 @@ other is telling you something.
 
 ### Cortex-X925-128GB-GB10
 
-*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 4214 rows, sha256 bac813088b9c.*
+*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 4244 rows, sha256 07feded9e23a.*
 
 #### Every stack measured under OpenCode
 
@@ -69,11 +69,12 @@ other is telling you something.
 |---|---|---|---|---|---|---|
 | qwen36a3bsglangdgx | 90/90 | 28s | 136s | 4.5x | 3.1x | 17.3x |
 | qwen36a3bsglangfmrcdgx @ Ryzen9-7900X-32GB+image | 89/89 | 30s | 207s | 11.3x | 2.7x | 25.5x |
-| nemotron35ltf1011c262rcdgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 30/30 | 34s | 236s | 16.5x | 2.5x | 22.7x |
+| nemotron35ltf1011c262rcdgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.19.0) | 30/30 | 34s | 236s | 16.5x | 2.5x | 22.7x |
 | qwen36a3bnvfp4dgx | 379/402 | 35s | 318s | 23.4x | 3.8x | 31.5x |
 | qwen36a3bnvfp4fmrcdgx @ Corei3-7100-16GB | 82/89 | 39s | 104s | 3.9x | 2.5x | 7.9x |
 | qwen36a3bsglangfmrcdgx @ Corei3-7100-16GB | 89/90 | 39s | 226s | 12.9x | 2.7x | 19.2x |
 | qwen36a3bsglangrcdgx @ Corei3-7100-16GB | 89/89 | 41s | 158s | 6.7x | 2.9x | 12.7x |
+| nemotron35ltf1011c262rcdgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.0.29) | 30/30 | 44s | 191s | 6.7x | 2.1x | 16.9x |
 | qwen3827bsglangdflash2nothinkdgx | 90/90 | 44s | 279s | 12.0x | 3.5x | 22.0x |
 | ornith15a3bdgx | 30/30 | 49s | 571s | 16.7x | 1.9x | 28.8x |
 | qwen3827bsglangdsparkpinnednothinkdgx | 89/90 | 54s | 191s | 5.3x | 2.6x | 12.3x |
@@ -88,7 +89,7 @@ other is telling you something.
 | qwen38fnnvidianvfp4nothinkdgx | 90/90 | 68s | 1115s | 28.1x | 3.6x | 48.5x |
 | qwen38fnnvidianvfp4nothinkfmrcdgx @ Corei3-7100-16GB | 89/90 | 69s | 1627s | 26.5x | 2.5x | 63.8x |
 | qwen38fnexl3nothinkrcdgx @ Ryzen9-7900X-32GB+image@24g | 25/29 | 81s | 1713s | 32.3x | 1.8x | 51.1x |
-| qwen3827btandem083nvfp4nothinkrcdgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image | 8/10 | 82s | 132s | — | — | 2.6x |
+| qwen3827btandem083nvfp4nothinkrcdgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.19.0) | 8/10 | 82s | 132s | — | — | 2.6x |
 | qwen38fnq3nothinkrcdgx @ Corei3-7100-16GB+image | 91/91 | 82s | 225s | 3.7x | 2.4x | 8.8x |
 | qwen38fnq3nothinkub2048dgx | 4/4 | 82s | 475s | — | — | 14.2x |
 | qwen38fnq3nothinkrcdgx @ Corei3-7100-16GB | 179/180 | 88s | 792s | 12.8x | 2.3x | 19.6x |
