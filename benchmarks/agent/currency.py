@@ -417,6 +417,67 @@ def archive_engine_item(engine: str, tree: pathlib.Path, run: Runner = _run) -> 
     return Item(name, have, want, state, fix)
 
 
+#: Engines built from a git checkout of a release tag (`engine_tree`), and the
+#: repo whose newest release tag is the target (#1089). llama.cpp cuts a
+#: `bNNNNN` build tag several times a day, but its "Latest" release flag sat
+#: on v0.6.0 (2026-10-05), so `gh release view` would pass a weeks-old build.
+#: The target is the newest tag in the release list instead.
+TAG_ENGINE_REPOS = {"llama.cpp": "ggml-org/llama.cpp"}
+
+
+def newest_release_tag(repo: str, run: Runner = _run) -> str | None:
+    """The newest release's tag by date, ignoring the "Latest" flag."""
+    return run(
+        [
+            "gh",
+            "release",
+            "list",
+            "--repo",
+            repo,
+            "--limit",
+            "1",
+            "--json",
+            "tagName",
+            "-q",
+            ".[0].tagName",
+        ],
+        30,
+    )
+
+
+def _build_number(tag: str | None) -> int | None:
+    if tag and tag[:1] == "b" and tag[1:].isdigit():
+        return int(tag[1:])
+    return None
+
+
+def tag_engine_item(engine: str, tree: pathlib.Path, run: Runner = _run) -> Item:
+    """A tag-built engine checkout against the newest release tag."""
+    name = f"engine {engine} (tag build {tree})"
+    repo = TAG_ENGINE_REPOS[engine]
+    have = run(["git", "-C", str(tree), "describe", "--tags", "--exact-match"], 30)
+    want = newest_release_tag(repo, run)
+    h, w = _build_number(have), _build_number(want)
+    if h is None or w is None:
+        state = "unknown"
+    elif h == w:
+        state = "current"
+    else:
+        state = "behind" if h < w else "ahead"
+    fix = (
+        f"`git clone --depth 1 --branch {want} https://github.com/{repo}` into a new "
+        "dir, build it with the backend's flags, and point the backend's "
+        "`engine_tree` at it; a new build starts a new series"
+        if state in ("behind", "unknown") and want
+        else (
+            f"could not read a build tag from {tree} or {repo}"
+            if state == "unknown"
+            else ""
+        )
+    )
+    return Item(name, have, want, state, fix)
+
+
 def backend_items(backend: dict, run: Runner = _run) -> list[Item]:
     """The recipe, image and engine a backend declares. None declared, none
     checked."""
@@ -436,6 +497,9 @@ def backend_items(backend: dict, run: Runner = _run) -> list[Item]:
         elif engine in ARCHIVE_ENGINE_REPOS and backend.get("engine_tree"):
             tree = pathlib.Path(backend["engine_tree"]).expanduser()
             items.append(archive_engine_item(engine, tree, run))
+        elif engine in TAG_ENGINE_REPOS and backend.get("engine_tree"):
+            tree = pathlib.Path(backend["engine_tree"]).expanduser()
+            items.append(tag_engine_item(engine, tree, run))
     return items
 
 

@@ -522,3 +522,48 @@ def test_a_tandemllm_checkout_behind_names_its_installer(tmp_path):
     assert [i.state for i in items] == ["behind"]
     assert "install.sh" in items[0].fix and "--ref v0.8.3" in items[0].fix
     assert "tar.gz" not in items[0].fix
+
+
+# #1089: llama.cpp built from a release tag (`git clone --branch bNNNNN`). Its
+# "Latest" GitHub release flag points at v0.6.0 (2026-10-05) while the build
+# tags move several times a day, so the target is the newest tag in the
+# release list, not `gh release view`.
+LCPP = {
+    "describe --tags --exact-match": "b11632",
+    "release list --repo ggml-org/llama.cpp": "b11632",
+    "release view --repo ggml-org/llama.cpp": "v0.6.0",
+}
+
+
+def _lcpp(answers):
+    backend = {"engine": "llama.cpp", "engine_tree": "/engines/llama.cpp-b11632"}
+    return currency.backend_items(backend, fake(answers))
+
+
+def test_a_llamacpp_tag_build_at_the_newest_build_tag_passes():
+    items = _lcpp(LCPP)
+    assert [(i.installed, i.latest, i.state) for i in items] == [
+        ("b11632", "b11632", "current")
+    ]
+
+
+def test_a_llamacpp_tag_build_behind_the_newest_build_tag_refuses():
+    items = _lcpp({**LCPP, "release list --repo ggml-org/llama.cpp": "b11640"})
+    assert [(i.installed, i.latest, i.state) for i in items] == [
+        ("b11632", "b11640", "behind")
+    ]
+    assert "--branch b11640" in items[0].fix
+    assert currency.refusal(items) is not None
+
+
+def test_a_llamacpp_tree_not_on_a_tag_is_unknown_not_current():
+    items = _lcpp({**LCPP, "describe --tags --exact-match": None})
+    assert items[0].state == "unknown"
+    assert currency.refusal(items) is not None
+
+
+def test_the_latest_flag_v0_6_0_is_never_the_llamacpp_target():
+    # Only `gh release view` answers v0.6.0; the check must not use it.
+    items = _lcpp({**LCPP, "release list --repo ggml-org/llama.cpp": None})
+    assert items[0].latest is None
+    assert items[0].state == "unknown"
