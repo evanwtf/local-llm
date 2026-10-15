@@ -211,6 +211,8 @@ be drawn from — OpenCode, after the `--dir` cutover, not excluded.
 | `qwen38fnq3nothinkb11642rcdgx` | #1089 refresh: Flash-Next Q3, thinking off, on **upstream llama.cpp b11642** with the card's non-thinking sampler (temp 0.7, top_p 0.8, top_k 20, presence 1.5), remote client | llama.cpp b11642 CUDA sm_121 | 83.8 GiB | 0 |
 | `qwen38fnq3nothinkkv8b11642rcdgx` | #1090 refresh: the q8_0-KV Q3 row on b11642, card non-thinking sampler, remote client | llama.cpp b11642 CUDA sm_121 | 83.8 GiB | 0 |
 | `qwen38fnq3b11642rcdgx` | #1094 refresh: Flash-Next Q3, thinking on, on b11642 with the GGUF's thinking-mode sampler, remote client | llama.cpp b11642 CUDA sm_121 | 83.8 GiB | 0 |
+| `nemotron35boltdflashnothinkrcdgx` | #1103 screen: NVIDIA Nemotron 3.5 Bolt 74B-A9B 24GB (IQ2 QAT), thinking off, the card's 128 GB recipe with the DFlash drafter, remote client | llama.cpp b11669 CUDA sm_121 | 23.0 GiB | 0 |
+| `nemotron35boltdflashrcdgx` | #1103 screen: Nemotron 3.5 Bolt, thinking on, same recipe, remote client | llama.cpp b11669 CUDA sm_121 | 23.0 GiB | 0 |
 | `qwen38fnexl3nothinkdgx` | Qwen3.8-Flash-Next as **EXL3 3.05 bpw** (turboderp's pack) via vLLM + vllm-exl3, MTP k=3, n-gram table on disk, thinking off (#434) | vLLM 0.29.0 + vllm-exl3 CUDA sm_121 | 80 GB | 5 |
 | `qwen38fnexl3nothinkrcdgx` | the EXL3 row above from a **remote client** (#562), identical server config (ngram on disk, GMU 0.60) so the rows pool; the 80 GB pack no longer shares the pool with a trial | vLLM 0.29.0 + vllm-exl3 CUDA sm_121 | ~80 GB | 0 |
 | `qwen38fnexl3nomtpnothinkdgx` | the EXL3 row above with **MTP off**: isolates whether the drafter causes its corrupted generations (#434) | vLLM 0.29.0 + vllm-exl3 CUDA sm_121 | 80 GB | 6 |

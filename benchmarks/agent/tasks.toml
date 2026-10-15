@@ -4658,6 +4658,34 @@ context_tokens = 131072
 topology = "remote"
 engine_tree = "~/engines/llama.cpp-b11642"
 
+[backend.nemotron35boltdflashnothinkrcdgx]
+description = "#1103: NVIDIA Nemotron 3.5 Bolt 74B-A9B 24GB (IQ2 QAT GGUF), upstream llama.cpp b11669 CUDA sm_121, thinking OFF, card 128 GB recipe: ctx 262144, -np 1, batch 4096 / ubatch 2048, flash-attn, DFlash drafter LiLiCorr n-max 7, mmproj, temp 1.0 top_p 0.95; REMOTE CLIENT"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8020"
+auth_token = "local"
+engine = "llama.cpp"
+model = "nemotron-3.5-bolt-nothink"
+active_params_b = 9
+aider_model = "openai/nemotron-3.5-bolt-nothink"
+opencode_model = "llamacpp/nemotron-3.5-bolt-nothink"
+context_tokens = 262144
+topology = "remote"
+engine_tree = "~/engines/llama.cpp-b11669"
+
+[backend.nemotron35boltdflashrcdgx]
+description = "#1103: NVIDIA Nemotron 3.5 Bolt 74B-A9B 24GB (IQ2 QAT GGUF), upstream llama.cpp b11669 CUDA sm_121, thinking ON, card 128 GB recipe: ctx 262144, -np 1, batch 4096 / ubatch 2048, flash-attn, DFlash drafter LiLiCorr n-max 7, mmproj, temp 1.0 top_p 0.95; REMOTE CLIENT"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8020"
+auth_token = "local"
+engine = "llama.cpp"
+model = "nemotron-3.5-bolt"
+active_params_b = 9
+aider_model = "openai/nemotron-3.5-bolt"
+opencode_model = "llamacpp/nemotron-3.5-bolt"
+context_tokens = 262144
+topology = "remote"
+engine_tree = "~/engines/llama.cpp-b11669"
+
 [backend.qwen38fnq3nothinkkv8b11642rcdgx]
 description = "#1090: Qwen3.8-Flash-Next UD-Q3_K_XL, upstream llama.cpp b11642 CUDA sm_121, thinking OFF, q8_0 KV cache, card sampler (temp 0.7, top_p 0.8, top_k 20, presence 1.5); REMOTE CLIENT"
 tier = "gb10-spark"
