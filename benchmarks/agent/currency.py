@@ -29,6 +29,7 @@ refuse when no check has passed in the last day.
 
 from __future__ import annotations
 
+import calendar
 import dataclasses
 import hashlib
 import json
@@ -75,14 +76,16 @@ class Item:
     name: str
     installed: str | None
     latest: str | None
-    state: str  # current / behind / ahead / unknown
+    state: str  # current / behind / ahead / unknown / grace (tag builds)
     fix: str = ""
 
     @property
     def ok(self) -> bool:
         # "ahead" is a build newer than the last release (a main-branch
         # install); it is not stale, so it passes.
-        return self.state in ("current", "ahead")
+        # "grace" is a tag build whose first newer tag is under
+        # TAG_GRACE_HOURS old (#1089).
+        return self.state in ("current", "ahead", "grace")
 
 
 def _run(argv: list[str], timeout: int = 30) -> str | None:
@@ -424,10 +427,20 @@ def archive_engine_item(engine: str, tree: pathlib.Path, run: Runner = _run) -> 
 #: The target is the newest tag in the release list instead.
 TAG_ENGINE_REPOS = {"llama.cpp": "ggml-org/llama.cpp"}
 
+#: How long a tag build stays current after the first newer tag appears
+#: (#1089). Tags came 15 to 40 minutes apart on 2026-10-15 (b11632, b11635,
+#: b11642, b11643), and a CUDA build takes about 25 minutes, so "the newest
+#: tag only" never lets a launch through. Past the window the gate refuses;
+#: every row still stamps the exact tag it ran.
+TAG_GRACE_HOURS = 12.0
 
-def newest_release_tag(repo: str, run: Runner = _run) -> str | None:
-    """The newest release's tag by date, ignoring the "Latest" flag."""
-    return run(
+
+def release_tags(repo: str, run: Runner = _run) -> list[tuple[str, str]]:
+    """(tag, publishedAt) for the newest releases by date, newest first.
+
+    Ignores the "Latest" flag, which is not the newest release here.
+    """
+    out = run(
         [
             "gh",
             "release",
@@ -435,14 +448,20 @@ def newest_release_tag(repo: str, run: Runner = _run) -> str | None:
             "--repo",
             repo,
             "--limit",
-            "1",
+            "50",
             "--json",
-            "tagName",
+            "tagName,publishedAt",
             "-q",
-            ".[0].tagName",
+            '.[] | .tagName + " " + .publishedAt',
         ],
         30,
     )
+    pairs = []
+    for line in (out or "").splitlines():
+        parts = line.split()
+        if len(parts) == 2:
+            pairs.append((parts[0], parts[1]))
+    return pairs
 
 
 def _build_number(tag: str | None) -> int | None:
@@ -451,19 +470,46 @@ def _build_number(tag: str | None) -> int | None:
     return None
 
 
-def tag_engine_item(engine: str, tree: pathlib.Path, run: Runner = _run) -> Item:
-    """A tag-built engine checkout against the newest release tag."""
+def _hours_since(stamp: str, now: float) -> float | None:
+    try:
+        then = calendar.timegm(time.strptime(stamp, "%Y-%m-%dT%H:%M:%SZ"))
+    except ValueError:
+        return None
+    return (now - then) / 3600.0
+
+
+def tag_engine_item(
+    engine: str,
+    tree: pathlib.Path,
+    run: Runner = _run,
+    now: float | None = None,
+) -> Item:
+    """A tag-built engine checkout against the newest release tag.
+
+    `grace` (passes) while the first tag newer than ours is under
+    TAG_GRACE_HOURS old; `behind` (refuses) after that.
+    """
     name = f"engine {engine} (tag build {tree})"
     repo = TAG_ENGINE_REPOS[engine]
     have = run(["git", "-C", str(tree), "describe", "--tags", "--exact-match"], 30)
-    want = newest_release_tag(repo, run)
+    tags = release_tags(repo, run)
+    want = tags[0][0] if tags else None
     h, w = _build_number(have), _build_number(want)
     if h is None or w is None:
         state = "unknown"
     elif h == w:
         state = "current"
+    elif h > w:
+        state = "ahead"
     else:
-        state = "behind" if h < w else "ahead"
+        newer = [(t, at) for t, at in tags if (_build_number(t) or 0) > h]
+        first_newer_at = newer[-1][1] if newer else None
+        age = (
+            _hours_since(first_newer_at, time.time() if now is None else now)
+            if first_newer_at
+            else None
+        )
+        state = "grace" if age is not None and age < TAG_GRACE_HOURS else "behind"
     fix = (
         f"`git clone --depth 1 --branch {want} https://github.com/{repo}` into a new "
         "dir, build it with the backend's flags, and point the backend's "

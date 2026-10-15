@@ -528,16 +528,25 @@ def test_a_tandemllm_checkout_behind_names_its_installer(tmp_path):
 # "Latest" GitHub release flag points at v0.6.0 (2026-10-05) while the build
 # tags move several times a day, so the target is the newest tag in the
 # release list, not `gh release view`.
+NOW = 1792058400.0  # 2026-10-15T10:00:00Z
+LIST = "release list --repo ggml-org/llama.cpp"
 LCPP = {
     "describe --tags --exact-match": "b11632",
-    "release list --repo ggml-org/llama.cpp": "b11632",
+    LIST: "b11632 2026-10-15T03:20:55Z\nb11630 2026-10-15T00:32:18Z",
     "release view --repo ggml-org/llama.cpp": "v0.6.0",
 }
 
 
 def _lcpp(answers):
     backend = {"engine": "llama.cpp", "engine_tree": "/engines/llama.cpp-b11632"}
-    return currency.backend_items(backend, fake(answers))
+    tree = currency.pathlib.Path(backend["engine_tree"])
+    return [currency.tag_engine_item("llama.cpp", tree, fake(answers), now=NOW)]
+
+
+def test_a_llamacpp_tag_build_reaches_the_check_through_backend_items():
+    backend = {"engine": "llama.cpp", "engine_tree": "/engines/llama.cpp-b11632"}
+    items = currency.backend_items(backend, fake(LCPP))
+    assert [i.installed for i in items] == ["b11632"]
 
 
 def test_a_llamacpp_tag_build_at_the_newest_build_tag_passes():
@@ -547,8 +556,18 @@ def test_a_llamacpp_tag_build_at_the_newest_build_tag_passes():
     ]
 
 
-def test_a_llamacpp_tag_build_behind_the_newest_build_tag_refuses():
-    items = _lcpp({**LCPP, "release list --repo ggml-org/llama.cpp": "b11640"})
+def test_a_newer_tag_under_the_grace_window_still_passes():
+    # b11633 appeared 2 h before NOW: inside the 12 h window.
+    listing = "b11640 2026-10-15T09:00:00Z\nb11633 2026-10-15T08:00:00Z\n" + LCPP[LIST]
+    items = _lcpp({**LCPP, LIST: listing})
+    assert [(i.latest, i.state) for i in items] == [("b11640", "grace")]
+    assert currency.refusal(items) is None
+
+
+def test_a_newer_tag_past_the_grace_window_refuses():
+    # The first tag after ours is 13 h old at NOW, though the newest is fresh.
+    listing = "b11640 2026-10-15T09:00:00Z\nb11633 2026-10-14T21:00:00Z\n" + LCPP[LIST]
+    items = _lcpp({**LCPP, LIST: listing})
     assert [(i.installed, i.latest, i.state) for i in items] == [
         ("b11632", "b11640", "behind")
     ]
@@ -564,6 +583,6 @@ def test_a_llamacpp_tree_not_on_a_tag_is_unknown_not_current():
 
 def test_the_latest_flag_v0_6_0_is_never_the_llamacpp_target():
     # Only `gh release view` answers v0.6.0; the check must not use it.
-    items = _lcpp({**LCPP, "release list --repo ggml-org/llama.cpp": None})
+    items = _lcpp({**LCPP, LIST: None})
     assert items[0].latest is None
     assert items[0].state == "unknown"
