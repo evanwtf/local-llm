@@ -492,7 +492,9 @@ def tag_engine_item(
     name = f"engine {engine} (tag build {tree})"
     repo = TAG_ENGINE_REPOS[engine]
     have = run(["git", "-C", str(tree), "describe", "--tags", "--exact-match"], 30)
-    tags = release_tags(repo, run)
+    # Build tags only: llama.cpp also publishes semver releases (v0.7.0) on
+    # a commit that already has a build tag, and those are not newer (#1103).
+    tags = [(t, at) for t, at in release_tags(repo, run) if _build_number(t)]
     want = tags[0][0] if tags else None
     h, w = _build_number(have), _build_number(want)
     if h is None or w is None:
