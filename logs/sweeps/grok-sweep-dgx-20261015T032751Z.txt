@@ -1,0 +1,11 @@
+# grok sweep (dgx lane)
+# requested window: last 24 hours
+# written:  2026-10-15T03:27:51Z  (local: 2026-10-14 23:27:51 EDT)
+# query:    Search X for posts and replies in the last 24 hours about running LLMs on NVIDIA DGX Spark or GB10 (one or two Sparks): new inference engines, vLLM/SGLang/TensorRT-LLM/TensorFold/llama.cpp recipes and recommended launch parameters, NVFP4 or EXL3 quants, new open coding-agent models that fit 128-256 GB, OpenCode 2.0 with local models, multi-stream serving throughput. Include @MiaAI_lab, @sudoingx, @0xSero, @jayleaton, @NVIDIAAIDev, @vllm_project, @lmsysorg, @ashhart. Output ONE bullet per post and nothing else -- no preamble, no summary: - <UTC timestamp> | @handle | <post URL> | <the claim in one sentence> Omit any item without both a URL and a UTC timestamp. If nothing matches, output exactly: NO RESULTS
+
+I'll search X for the last 24 hours on DGX Spark and GB10 inference, including the accounts you named.The first pass is mostly Oct 14–15. I'll narrow to the last 24 hours and pull the named accounts plus engine and quant threads.- 2026-10-15T03:14:06Z | @techowknow | https://x.com/techowknow/status/2110569881666298351 | TensorFold on a DGX Spark often hits NV_ERR_NO_MEMORY, and leaving it up turns into an nvidia-smi GPU error that needs a restart or a forced power-off.
+- 2026-10-15T03:09:16Z | @tsodeyama | https://x.com/tsodeyama/status/2110568661606134192 | They will serve DeepSeek-V4.1-Flash EXL3 on TensorFold across two DGX Sparks and compare it with Qwen3.8-Flash-Next NVFP4 on one Spark.
+- 2026-10-15T03:00:37Z | @someRandomDev5 | https://x.com/someRandomDev5/status/2110566487509684413 | A new Rust inference server runs GLM 5.3 Flash on four DGX Sparks.
+- 2026-10-15T02:40:57Z | @AutoTrustAI | https://x.com/AutoTrustAI/status/2110561537127776354 | GLM5.3-Flash-E192 is a 124 GiB NVFP4 agent build aimed at two DGX Sparks, and its MTP draft was 1.80× faster single-stream in a B200 test.
+- 2026-10-15T02:22:36Z | @jayleaton | https://x.com/jayleaton/status/2110556917466829171 | A Qwen near 100B parameters would fit a 64 GB DGX Spark.
+- 2026-10-15T01:25:51Z | @B
