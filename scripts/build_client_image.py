@@ -34,7 +34,7 @@ CONTEXT = REPO / "docker" / "opencode-client"
 #: What the Dockerfile pins. Kept here as well so a drift between the two is a
 #: test failure rather than a surprise at build time.
 PINS = {
-    "opencode": "2.0.29",
+    "opencode": "2.0.30",
     "uv": "0.13.1",
     "python": "3.14.8",
     # #968: on PATH, so OpenCode's grep and glob never unpack their own.
