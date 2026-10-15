@@ -11,7 +11,7 @@ the sha512 matches the registry's `dist.integrity`, and extract only
 `package/bin/opencode`. Standard library only: the image runs it before
 anything else is installed.
 
-    python3 install_opencode.py 2.0.29 /usr/local/bin/opencode
+    python3 install_opencode.py 2.0.30 /usr/local/bin/opencode
 """
 
 from __future__ import annotations
