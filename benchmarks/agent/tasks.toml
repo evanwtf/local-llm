@@ -4633,3 +4633,55 @@ opencode_model = "tandem/qwen3.8-27b-tandem"
 smoke_protocol = "openai"
 context_tokens = 262144
 topology = "remote"
+
+# #1086 refresh (S3 #1089, S4 #1090, S8 #1094): the same three llama.cpp
+# stacks on upstream llama.cpp at the newest build tag at launch (b11642
+# for this series), built -DGGML_CUDA=ON
+# -DCMAKE_CUDA_ARCHITECTURES=121, not our fork at d3f3811 on 481c65f. A
+# new engine version starts a new series, so the names carry the build.
+# Sampling follows the Unsloth / Qwen card (2026-10-06 revision 766911a6b7):
+# thinking OFF launches with --temp 0.7 --top-p 0.8 --top-k 20 --min-p 0
+# --presence-penalty 1.5; thinking ON keeps the GGUF's embedded thinking-mode
+# sampler (temp 1.0, top_p 0.95, top_k 20), which matches the card. The old
+# rows set no sampler flag. The server argv is stamped on every row.
+[backend.qwen38fnq3nothinkb11642rcdgx]
+description = "#1089: Qwen3.8-Flash-Next UD-Q3_K_XL, upstream llama.cpp b11642 CUDA sm_121, thinking OFF, card sampler (temp 0.7, top_p 0.8, top_k 20, presence 1.5); REMOTE CLIENT"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8020"
+auth_token = "local"
+engine = "llama.cpp"
+model = "qwen3.8-flash-next-q3-nothink"
+active_params_b = 6
+aider_model = "openai/qwen3.8-flash-next-q3-nothink"
+opencode_model = "llamacpp/qwen3.8-flash-next-q3-nothink"
+context_tokens = 131072
+topology = "remote"
+engine_tree = "~/engines/llama.cpp-b11642"
+
+[backend.qwen38fnq3nothinkkv8b11642rcdgx]
+description = "#1090: Qwen3.8-Flash-Next UD-Q3_K_XL, upstream llama.cpp b11642 CUDA sm_121, thinking OFF, q8_0 KV cache, card sampler (temp 0.7, top_p 0.8, top_k 20, presence 1.5); REMOTE CLIENT"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8022"
+auth_token = "local"
+engine = "llama.cpp"
+model = "qwen3.8-flash-next-q3-nothink-kv8"
+active_params_b = 6
+aider_model = "openai/qwen3.8-flash-next-q3-nothink-kv8"
+opencode_model = "llamacpp8022/qwen3.8-flash-next-q3-nothink-kv8"
+context_tokens = 131072
+topology = "remote"
+engine_tree = "~/engines/llama.cpp-b11642"
+
+[backend.qwen38fnq3b11642rcdgx]
+description = "#1094: Qwen3.8-Flash-Next 125B-A6B, Unsloth UD-Q3_K_XL, upstream llama.cpp b11642 CUDA sm_121, thinking ON, GGUF thinking-mode sampler (temp 1.0, top_p 0.95, top_k 20); REMOTE CLIENT"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8020"
+auth_token = "local"
+engine = "llama.cpp"
+model = "qwen3.8-flash-next-q3"
+active_params_b = 6
+aider_model = "openai/qwen3.8-flash-next-q3"
+opencode_model = "llamacpp/qwen3.8-flash-next-q3"
+context_tokens = 131072
+topology = "remote"
+engine_tree = "~/engines/llama.cpp-b11642"
