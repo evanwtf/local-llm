@@ -586,3 +586,14 @@ def test_the_latest_flag_v0_6_0_is_never_the_llamacpp_target():
     items = _lcpp({**LCPP, LIST: None})
     assert items[0].latest is None
     assert items[0].state == "unknown"
+
+
+def test_a_semver_release_is_not_the_llamacpp_build_target():
+    # #1103: v0.7.0 was published at 17:13Z on the same commit as b11669
+    # (16:10Z). The target stays the newest build tag, so b11669 is current.
+    listing = "v0.7.0 2026-10-15T09:30:00Z\n" + LCPP[LIST]
+    items = _lcpp({**LCPP, LIST: listing})
+    assert [(i.installed, i.latest, i.state) for i in items] == [
+        ("b11632", "b11632", "current")
+    ]
+    assert currency.refusal(items) is None
