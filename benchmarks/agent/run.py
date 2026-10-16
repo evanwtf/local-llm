@@ -6071,8 +6071,10 @@ def build_parser():
     p.add_argument(
         "--early-stop-leader",
         metavar="BATCH",
-        help="compare against this batch instead of the automatic leader (the "
-        "best pass rate on the same task set and client, then the fastest) (#762).",
+        help="compare against this batch, run key (backend@YYYY-MM-DDTHH:MM) or "
+        "backend instead of the automatic leader (the best pass rate on the same "
+        "task set and client, then the fastest). Default: the machine's "
+        "[early_stop.leader] entry in tasks.toml, if any (#762).",
     )
     return p
 
@@ -6817,9 +6819,14 @@ def main():
     leaders: dict[str, screening.Leader | None] = {}
     if not args.no_early_stop and not args.dry_run:
         for client in clients:
+            # #762: a leader the operator pinned (the flag, else the machine's
+            # default in tasks.toml) beats the automatic one.
+            pinned = args.early_stop_leader or screening.default_leader(
+                cfg, pathlib.Path(args.results).parent.name
+            )
             pool = (
-                [r for r in history if r.get("batch") == args.early_stop_leader]
-                if args.early_stop_leader
+                screening.leader_pool(history, pinned, screening.suite_map(cfg))
+                if pinned
                 else history
             )
             leaders[client] = screening.pick_leader(

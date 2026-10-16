@@ -398,3 +398,63 @@ def test_without_the_filter_the_leader_is_unchanged() -> None:
     ) + _on_image(leader_rows(TASKS14, 3, secs=100.0, batch="fixed-pick"), FIXED)
     lead = sc.pick_leader(history, TASKS14, "opencode", "now")
     assert lead is not None and lead.batch == "broken-fast"
+
+
+# --- a pinned leader (#762, operator 2026-10-16: "s3") ----------------------
+
+
+def test_a_pinned_backend_selects_its_batchless_runs() -> None:
+    # The DGX ledger has no batches, so a batch name can never pin a leader
+    # there. The operator's choice is a stack, so a backend name must work.
+    s3 = [
+        loose(t, 1, f"2026-10-15T10:{i:02d}:00-0400", backend="s3")
+        for i, t in enumerate(TASKS14)
+    ]
+    old = [
+        loose(t, 1, f"2026-09-19T08:{i:02d}:00-0400", backend="sglang")
+        for i, t in enumerate(TASKS14)
+    ]
+    pool = sc.leader_pool(old + s3, "s3")
+    assert {r["backend"] for r in pool} == {"s3"}
+    lead = sc.pick_leader(pool, TASKS14, "opencode", exclude_batch=None)
+    assert lead is not None
+    assert lead.batch == "s3@2026-10-15T10:00"
+
+
+def test_a_pinned_run_key_selects_that_run_only() -> None:
+    first = [
+        loose(t, 1, f"2026-10-15T10:{i:02d}:00-0400", backend="s3")
+        for i, t in enumerate(TASKS14)
+    ]
+    second = [
+        loose(t, 1, f"2026-10-15T11:{i:02d}:00-0400", backend="s3")
+        for i, t in enumerate(TASKS14)
+    ]
+    pool = sc.leader_pool(first + second, "s3@2026-10-15T11:00")
+    assert len(pool) == 14
+    assert all(r["started"].startswith("2026-10-15T11") for r in pool)
+
+
+def test_a_pinned_batch_still_selects_by_batch() -> None:
+    rows = leader_rows(TASKS14, 1, batch="lead") + leader_rows(
+        TASKS14, 1, batch="other"
+    )
+    assert {r["batch"] for r in sc.leader_pool(rows, "lead")} == {"lead"}
+
+
+def test_an_unknown_pin_selects_nothing() -> None:
+    # Nothing to compare against means no early stop, never a silent fallback
+    # to the automatic leader the operator ruled out.
+    assert sc.leader_pool(leader_rows(TASKS14, 1), "no-such-stack") == []
+
+
+def test_the_dgx_default_leader_is_s3() -> None:
+    import pathlib
+    import tomllib
+
+    cfg = tomllib.loads((pathlib.Path(sc.__file__).parent / "tasks.toml").read_text())
+    assert (
+        sc.default_leader(cfg, "Cortex-X925-128GB-GB10")
+        == "qwen38fnq3nothinkb11642rcdgx"
+    )
+    assert sc.default_leader(cfg, "some-other-machine") is None

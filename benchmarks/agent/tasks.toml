@@ -1005,6 +1005,14 @@ cannot see."""
 # below its capability is not a fair comparison, and exceeding it makes
 # auto-compact fire after the server has already truncated.
 
+# #762: the early stop's leader, pinned per machine (keyed by the ledger's
+# directory name). Without a pin, the leader is the best run on the ledger,
+# which on the single Spark was a 2026-09-19 SGLang run at 300.0 s that every
+# current stack tripped in round 1, 10/10 passes included (S3, Bolt, Super VL,
+# 251-792%). The operator chose the current pick instead, 2026-10-16: "s3".
+[early_stop.leader]
+"Cortex-X925-128GB-GB10" = "qwen38fnq3nothinkb11642rcdgx"
+
 [backend.ds4]
 description = "DeepSeek V4 Flash mixed q2/q4 0731 via ds4-server"
 base_url = "http://127.0.0.1:8000"
