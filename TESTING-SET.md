@@ -209,6 +209,7 @@ be drawn from — OpenCode, after the `--dir` cutover, not excluded.
 | `ds4rcdgx` | DeepSeek-V4-Flash on ds4, remote client (#562) | ds4 CUDA sm_121a | 80.8 GiB | 0 |
 | `qwen38fnq3rcdgx` | Flash-Next Q3 llama.cpp, thinking on, remote client (#562) | llama.cpp CUDA sm_121 | 83.8 GiB | 90 |
 | `qwen38fnq3nothinkb11642rcdgx` | #1089 refresh: Flash-Next Q3, thinking off, on **upstream llama.cpp b11642** with the card's non-thinking sampler (temp 0.7, top_p 0.8, top_k 20, presence 1.5), remote client | llama.cpp b11642 CUDA sm_121 | 83.8 GiB | 0 |
+| `qwen38fnq3nothinkkv8b11700rcdgx` | #1090 refresh: the q8_0-KV Q3 row on b11700, card non-thinking sampler, remote client | llama.cpp b11700 CUDA sm_121 | 83.8 GiB | 0 |
 | `qwen38fnq3nothinkkv8b11642rcdgx` | #1090 refresh: the q8_0-KV Q3 row on b11642, card non-thinking sampler, remote client | llama.cpp b11642 CUDA sm_121 | 83.8 GiB | 0 |
 | `qwen38fnq3b11642rcdgx` | #1094 refresh: Flash-Next Q3, thinking on, on b11642 with the GGUF's thinking-mode sampler, remote client | llama.cpp b11642 CUDA sm_121 | 83.8 GiB | 0 |
 | `nemotron35boltdflashnothinkrcdgx` | #1103 screen: NVIDIA Nemotron 3.5 Bolt 74B-A9B 24GB (IQ2 QAT), thinking off, the card's 128 GB recipe with the DFlash drafter, remote client | llama.cpp b11669 CUDA sm_121 | 23.0 GiB | 0 |
