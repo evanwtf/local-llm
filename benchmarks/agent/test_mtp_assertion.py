@@ -225,6 +225,12 @@ def test_the_mtp_arms_declare_themselves():
         "qwen38fnnvfp4nv2xspec031": "vllm",
         "qwen38fnnvfp4nv2xspecmain": "vllm",
         "qwen38fnnvfp4rh2xspecmain": "vllm",
+        # #1109: Super VL with the LiLiCorr DFlash drafter, both reasoning modes.
+        "nemotron35supervldflashrcdgx": "vllm",
+        "nemotron35supervldflashnothinkrcdgx": "vllm",
+        # #1108: FP4-Local with its checkpoint MTP head, both thinking modes.
+        "qwen38fnfp4localrcdgx": "vllm",
+        "qwen38fnfp4localnothinkrcdgx": "vllm",
     }
 
 
