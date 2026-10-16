@@ -214,6 +214,32 @@ def _row_image(row: Row) -> str | None:
     return image if isinstance(image, str) else None
 
 
+def leader_pool(
+    history: Iterable[Row], selector: str, suites: dict[str, str] | None = None
+) -> list[Row]:
+    """The rows a pinned leader may come from (#762).
+
+    ``selector`` is a batch name, a run key (``backend@YYYY-MM-DDTHH:MM``, as
+    the log prints it), or a backend name. The DGX ledger has no batches, so a
+    batch alone could never pin a leader there. An unknown selector gives no
+    rows, so the run has no early stop rather than the automatic leader.
+    """
+    rows = list(history)
+    batch = [r for r in rows if r.get("batch") == selector]
+    if batch:
+        return batch
+    if "@" in selector:
+        return list(runs(rows, suites).get(selector, []))
+    return [r for r in rows if r.get("backend") == selector]
+
+
+def default_leader(cfg: dict[str, Any], machine: str) -> str | None:
+    """The operator's pinned leader for ``machine``, from tasks.toml (#762)."""
+    pinned = cfg.get("early_stop", {}).get("leader", {})
+    value = pinned.get(machine)
+    return str(value) if value else None
+
+
 def pick_leader(
     history: Iterable[Row],
     tasks: Sequence[str],
