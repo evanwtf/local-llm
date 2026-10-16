@@ -231,6 +231,8 @@ def test_the_mtp_arms_declare_themselves():
         # #1108: FP4-Local with its checkpoint MTP head, both thinking modes.
         "qwen38fnfp4localrcdgx": "vllm",
         "qwen38fnfp4localnothinkrcdgx": "vllm",
+        # #1111: Comet with its checkpoint MTP head.
+        "comet60bnvfp4mtpnothinkrcdgx": "vllm",
     }
 
 
