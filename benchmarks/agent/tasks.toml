@@ -4774,6 +4774,20 @@ speculative = "MTP, 4 speculative tokens (checkpoint MTP head)"
 draft_engine = "vllm"
 image = "eugr/spark-vllm-b12x:latest"
 
+[backend.qwen38fnq3nothinkkv8b11700rcdgx]
+description = "#1090: Qwen3.8-Flash-Next UD-Q3_K_XL, upstream llama.cpp b11700 CUDA sm_121, thinking OFF, q8_0 KV cache (--cache-type-k q8_0 --cache-type-v q8_0), card sampler (temp 0.7, top_p 0.8, top_k 20, min_p 0, presence 1.5); otherwise S3's launch (#1089); REMOTE CLIENT"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8022"
+auth_token = "local"
+engine = "llama.cpp"
+model = "qwen3.8-flash-next-q3-nothink-kv8"
+active_params_b = 6
+aider_model = "openai/qwen3.8-flash-next-q3-nothink-kv8"
+opencode_model = "llamacpp8022/qwen3.8-flash-next-q3-nothink-kv8"
+context_tokens = 131072
+topology = "remote"
+engine_tree = "~/engines/llama.cpp-b11700"
+
 [backend.qwen38fnq3nothinkkv8b11642rcdgx]
 description = "#1090: Qwen3.8-Flash-Next UD-Q3_K_XL, upstream llama.cpp b11642 CUDA sm_121, thinking OFF, q8_0 KV cache, card sampler (temp 0.7, top_p 0.8, top_k 20, presence 1.5); REMOTE CLIENT"
 tier = "gb10-spark"
