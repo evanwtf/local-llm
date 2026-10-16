@@ -373,6 +373,20 @@ def _iso(when: datetime.datetime | None) -> str | None:
     return when.astimezone(NEW_YORK).strftime("%Y-%m-%dT%H:%M:%S%z")
 
 
+#: OpenCode's reply when a model calls a tool the client does not offer.
+UNKNOWN_TOOL_PREFIX = "No tool named "
+
+
+def _only_unknown_tool(messages: collections.Counter[str]) -> bool:
+    """Every error of this tool was the client refusing a tool it never offered.
+
+    That is a model error: the model invented the tool's name. #1109's Super VL
+    called "bash" 32 times against OpenCode 2.0's "shell", and the 100% error
+    rate excluded 41 good rows as a harness fault.
+    """
+    return bool(messages) and all(m.startswith(UNKNOWN_TOOL_PREFIX) for m in messages)
+
+
 def audit_group(
     backend: str, trials: Sequence[Trial], thresholds: Thresholds
 ) -> dict[str, Any]:
@@ -431,6 +445,7 @@ def audit_group(
         if tool != INVALID_TOOL
         and row["calls"] >= thresholds.min_calls
         and row["errors"] / row["calls"] >= thresholds.fault_rate
+        and not _only_unknown_tool(messages[tool])
     )
     faults: list[str] = []
     for tool in fault_tools:

@@ -218,6 +218,40 @@ def test_a_tool_that_always_fails_is_a_fault_at_the_call_floor(
     assert report["harness_fault"] is True
 
 
+def test_a_tool_the_client_never_offered_is_a_model_error_not_a_fault(
+    tmp_path: pathlib.Path,
+) -> None:
+    """#1109: Super VL called "bash" 32 times; OpenCode 2.0 offers "shell".
+
+    Every call failed with OpenCode's unknown-tool reply, so the tool sat at a
+    100% error rate and the audit excluded 41 good rows. The client did what
+    it should: it refused a tool it does not have.
+    """
+    unknown = (
+        'No tool named "bash" is currently available. Please use a tool from '
+        "the available tool list."
+    )
+    events = [step(0)] + [tool("bash", "error", unknown, at=i + 1) for i in range(32)]
+    events += [tool("shell", at=40 + i) for i in range(10)]
+    report = report_for([write(tmp_path, events)])
+    assert report["harness_fault_tools"] == []
+    assert report["harness_fault"] is False
+    assert report["model_tool_errors"] == 32
+
+
+def test_an_offered_tool_that_always_fails_is_still_a_fault(
+    tmp_path: pathlib.Path,
+) -> None:
+    # One unknown-tool reply among real failures does not excuse the tool.
+    unknown = 'No tool named "shell" is currently available.'
+    events = [step(0)] + [
+        tool("shell", "error", "spawn /bin/sh ENOENT", at=i + 1) for i in range(5)
+    ]
+    events.append(tool("shell", "error", unknown, at=10))
+    report = report_for([write(tmp_path, events)])
+    assert report["harness_fault_tools"] == ["shell"]
+
+
 def test_below_the_call_floor_a_failing_tool_is_not_a_fault(
     tmp_path: pathlib.Path,
 ) -> None:
