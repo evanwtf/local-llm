@@ -4686,6 +4686,70 @@ context_tokens = 262144
 topology = "remote"
 engine_tree = "~/engines/llama.cpp-b11669"
 
+[backend.nemotron35supervldflashrcdgx]
+description = "#1109: NVIDIA Nemotron 3.5 Super VL 120B-A12B NVFP4 (rev 579ffa0b65) + LiLiCorr DFlash drafter (rev 7c7221aeb4, 7 tokens), the model card's DGX Spark vLLM recipe verbatim (max-num-seqs 1, GMU 0.75, flashinfer mamba backend, qwen3_coder tool parser, nemotron_v3 reasoning parser); reasoning on (the card default); REMOTE CLIENT"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "vllm"
+model = "nemotron-3.5-super-vl"
+active_params_b = 12
+aider_model = "openai/nemotron-3.5-super-vl"
+opencode_model = "vllm8888/nemotron-3.5-super-vl"
+context_tokens = 1048576
+topology = "remote"
+speculative = "DFlash, LiLiCorr drafter, 7 speculative tokens"
+draft_engine = "vllm"
+image = "vllm/vllm-openai:nightly-3f1bcfd82bb2e93fcd364fc7a5491718453a77e2"
+
+[backend.nemotron35supervldflashnothinkrcdgx]
+description = "#1109: NVIDIA Nemotron 3.5 Super VL 120B-A12B NVFP4 (rev 579ffa0b65) + LiLiCorr DFlash drafter (rev 7c7221aeb4, 7 tokens), the model card's DGX Spark vLLM recipe verbatim (max-num-seqs 1, GMU 0.75, flashinfer mamba backend, qwen3_coder tool parser, nemotron_v3 reasoning parser); reasoning off via --default-chat-template-kwargs enable_thinking=false; REMOTE CLIENT"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "vllm"
+model = "nemotron-3.5-super-vl-nothink"
+active_params_b = 12
+aider_model = "openai/nemotron-3.5-super-vl-nothink"
+opencode_model = "vllm8888/nemotron-3.5-super-vl-nothink"
+context_tokens = 1048576
+topology = "remote"
+speculative = "DFlash, LiLiCorr drafter, 7 speculative tokens"
+draft_engine = "vllm"
+image = "vllm/vllm-openai:nightly-3f1bcfd82bb2e93fcd364fc7a5491718453a77e2"
+
+[backend.qwen38fnfp4localrcdgx]
+description = "#1108: nvidia/Qwen3.8-Flash-Next-FP4-Local (rev b9ce18a688, QAD FP4), the model card's DGX Spark recipe verbatim in the community container eugr/spark-vllm-b12x (b12x load format, MTP 4, fp8 KV, max-num-seqs 8, GMU 0.8, 262k ctx), plus VLLM_ENGINE_READY_TIMEOUT_S=3600; thinking on (the card default); REMOTE CLIENT"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "vllm"
+model = "qwen3.8-flash-next-fp4-local"
+active_params_b = 6
+aider_model = "openai/qwen3.8-flash-next-fp4-local"
+opencode_model = "vllm8888/qwen3.8-flash-next-fp4-local"
+context_tokens = 262144
+topology = "remote"
+speculative = "MTP, 4 speculative tokens (checkpoint MTP head)"
+draft_engine = "vllm"
+image = "eugr/spark-vllm-b12x:latest"
+
+[backend.qwen38fnfp4localnothinkrcdgx]
+description = "#1108: nvidia/Qwen3.8-Flash-Next-FP4-Local (rev b9ce18a688, QAD FP4), the model card's DGX Spark recipe verbatim in the community container eugr/spark-vllm-b12x (b12x load format, MTP 4, fp8 KV, max-num-seqs 8, GMU 0.8, 262k ctx), plus VLLM_ENGINE_READY_TIMEOUT_S=3600; thinking off via --default-chat-template-kwargs enable_thinking=false; REMOTE CLIENT"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "vllm"
+model = "qwen3.8-flash-next-fp4-local-nothink"
+active_params_b = 6
+aider_model = "openai/qwen3.8-flash-next-fp4-local-nothink"
+opencode_model = "vllm8888/qwen3.8-flash-next-fp4-local-nothink"
+context_tokens = 262144
+topology = "remote"
+speculative = "MTP, 4 speculative tokens (checkpoint MTP head)"
+draft_engine = "vllm"
+image = "eugr/spark-vllm-b12x:latest"
+
 [backend.qwen38fnq3nothinkkv8b11642rcdgx]
 description = "#1090: Qwen3.8-Flash-Next UD-Q3_K_XL, upstream llama.cpp b11642 CUDA sm_121, thinking OFF, q8_0 KV cache, card sampler (temp 0.7, top_p 0.8, top_k 20, presence 1.5); REMOTE CLIENT"
 tier = "gb10-spark"
