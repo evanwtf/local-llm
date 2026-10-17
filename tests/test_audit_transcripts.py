@@ -446,6 +446,49 @@ def test_a_sandbox_rule_block_is_neither_a_fault_nor_a_model_error(
     assert report["harness_fault"] is False
 
 
+def test_a_cancelled_websearch_is_a_block_not_a_dead_tool(
+    tmp_path: pathlib.Path,
+) -> None:
+    """#1136: the offline sandbox has no search provider, so every call fails.
+
+    On 2026-10-17 nine such calls made a 39-trial #1108 run a harness fault,
+    and client_container.py excluded every row of it.
+    """
+    events = [step(0)] + [
+        tool("websearch", "error", "Web search cancelled", at=i + 1) for i in range(9)
+    ]
+    events.append(tool("bash", at=60))
+    report = report_for([write(tmp_path, events)])
+    assert report["sandbox_blocks"] == 9
+    assert report["model_tool_errors"] == 0
+    assert report["harness_fault_tools"] == []
+    assert report["harness_fault"] is False
+
+
+def test_a_tool_the_sandbox_always_refuses_is_not_a_dead_tool(
+    tmp_path: pathlib.Path,
+) -> None:
+    blocked = "The user has specified a rule which prevents you from using this"
+    events = [step(0)] + [tool("bash", "error", blocked, at=i + 1) for i in range(5)]
+    events.append(tool("read", at=60))
+    report = report_for([write(tmp_path, events)])
+    assert report["harness_fault_tools"] == []
+    assert report["harness_fault"] is False
+
+
+def test_a_dead_tool_still_counts_its_real_failures_beside_blocks(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Blocks leave the rate; the tool's other failures still decide it."""
+    events = [step(0), tool("websearch", "error", "Web search cancelled", at=1)]
+    events += [
+        tool("websearch", "error", "some new failure", at=i + 2) for i in range(5)
+    ]
+    events.append(tool("bash", at=60))
+    report = report_for([write(tmp_path, events)])
+    assert report["harness_fault_tools"] == ["websearch"]
+
+
 def test_messages_are_normalized_for_the_top_list() -> None:
     a = audit.normalize_message("File not found: /root/git/a/src/x.py")
     b = audit.normalize_message("File not found: /root/git/b/tests/test_y.py")
