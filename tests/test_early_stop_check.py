@@ -90,3 +90,22 @@ def test_an_unknown_pin_has_no_leader() -> None:
         LEADER + cand([100.0, 100.0]), "cand", "replay", SUITES, "nobody"
     )
     assert status == 1 and "no leader" in reason
+
+
+def test_record_abort_appends_one_record_when_the_rule_stops(tmp_path) -> None:
+    out = tmp_path / "screening-aborts.jsonl"
+    rows = LEADER + cand([200.0, 200.0])
+    status, _ = esc.check(rows, "cand", "replay", SUITES, "lead", abort_path=out)
+    assert status == esc.STOP
+    [line] = out.read_text().splitlines()
+    rec = __import__("json").loads(line)
+    assert rec["backend"] == "cand" and rec["trials_done"] == 2
+    assert rec["state"] == "screened out" and "time stop" in rec["reason"]
+    assert rec["reason"].startswith("stopped by hand")
+
+
+def test_record_abort_writes_nothing_when_the_run_continues(tmp_path) -> None:
+    out = tmp_path / "screening-aborts.jsonl"
+    rows = LEADER + cand([150.0, 150.0])
+    status, _ = esc.check(rows, "cand", "replay", SUITES, "lead", abort_path=out)
+    assert status == 0 and not out.exists()
