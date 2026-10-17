@@ -126,6 +126,12 @@ EXTERNAL_TOOLS = frozenset({"webfetch", "websearch"})
 #: so it is neither a fault nor a model error; it is reported on its own.
 SANDBOX_BLOCK = "The user has specified a rule which prevents you"
 
+#: OpenCode 2.x's text for a `websearch` the client could not run: the trial
+#: sandbox is offline and has no search provider, so every call ends this way
+#: (`providerCall.executed: false`). A block by design, like SANDBOX_BLOCK. On
+#: 2026-10-17 nine of them made a 39-trial #1108 run a "dead tool" (#1136).
+SEARCH_UNAVAILABLE = "Web search cancelled"
+
 #: Raw tool-call markup in assistant text: the model wrote its call as prose
 #: and the server's parser did not turn it into a call (#940's Ablit).
 FORMAT_MARKERS = (
@@ -244,6 +250,8 @@ def normalize_message(text: str) -> str:
 def classify_tool_error(tool: str, error: str) -> tuple[str, str | None]:
     """(kind, signature) for one failed call's error text."""
     if SANDBOX_BLOCK in error:
+        return "sandbox", None
+    if tool == "websearch" and SEARCH_UNAVAILABLE in error:
         return "sandbox", None
     for name, pattern in HARNESS_SIGNATURES:
         if name in NETWORK_SIGNATURES and tool in EXTERNAL_TOOLS:
@@ -420,6 +428,8 @@ def audit_group(
                 model_errors += 1
             elif call.kind == "sandbox":
                 sandbox += 1
+                # #1136: a refusal by design is not the tool failing.
+                row["blocked"] = row.get("blocked", 0) + 1
             elif call.kind == "format":
                 invalid += 1
         for err in trial.session_errors:
@@ -443,8 +453,8 @@ def audit_group(
         tool
         for tool, row in per_tool.items()
         if tool != INVALID_TOOL
-        and row["calls"] >= thresholds.min_calls
-        and row["errors"] / row["calls"] >= thresholds.fault_rate
+        and (attempts := row["calls"] - row.get("blocked", 0)) >= thresholds.min_calls
+        and (row["errors"] - row.get("blocked", 0)) / attempts >= thresholds.fault_rate
         and not _only_unknown_tool(messages[tool])
     )
     faults: list[str] = []
