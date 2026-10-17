@@ -656,8 +656,13 @@ the leader on the same task set and client in the machine's ledger
 - **The stop is on for every run, re-checks of standing picks included**
   (operator, 2026-10-16). A re-check that trips it has lost its place as a
   pick, and its remaining trials would only buy timeouts. The #1086 refresh
-  ran its first re-checks with the stop off; S4's replay set then spent two
-  hours on four timeouts, at an estimated 174% of S3's time.
+  ran its first re-checks with the stop off. S4's replay set then spent
+  3.5 hours on 7 timeouts in its first 15 trials, at 145.5% of S3's time on
+  the same trials: under the stop, but only a run with the stop on is held
+  to it.
+- **A run started without the stop** cannot switch it on.
+  `scripts/early_stop_check.py --backend <name> --set replay` applies the same
+  rule to the rows it has written so far; exit status 3 means stop it by hand.
 - **Turning it off needs a reason on the record:** `run.py` refuses
   `--no-early-stop` without `--no-early-stop-reason "<why>"` and logs the
   reason at the start of the run. A leader's own baseline run is the usual
