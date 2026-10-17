@@ -220,6 +220,8 @@ def run_argv(stack: Stack, batch: str) -> list[str]:
         "--trials",
         str(TRIALS),
         "--no-early-stop",
+        "--no-early-stop-reason",
+        "#499 settled rerun: every stack runs the full fixed set",
         "--batch",
         batch,
     ]

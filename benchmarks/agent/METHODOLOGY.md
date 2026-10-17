@@ -653,9 +653,20 @@ the leader on the same task set and client in the machine's ledger
   failures.
 - **Time stop**, once every task has run one trial: at 2× the leader's time on
   the same (task, trial) pairs. A timeout counts at its full limit.
-- The stop is on by default. `--no-early-stop` is for a leader's own baseline
-  run. Without a leader in the ledger, the run logs that and the stop stays
+- **The stop is on for every run, re-checks of standing picks included**
+  (operator, 2026-10-16). A re-check that trips it has lost its place as a
+  pick, and its remaining trials would only buy timeouts. The #1086 refresh
+  ran its first re-checks with the stop off; S4's replay set then spent two
+  hours on four timeouts, at an estimated 174% of S3's time.
+- **Turning it off needs a reason on the record:** `run.py` refuses
+  `--no-early-stop` without `--no-early-stop-reason "<why>"` and logs the
+  reason at the start of the run. A leader's own baseline run is the usual
+  reason. Without a leader in the ledger, the run logs that and the stop stays
   off.
+- **The leader** is the machine's `[early_stop.leader]` pin in `tasks.toml`
+  when it has one (on the single Spark: S3, `qwen38fnq3nothinkb11642rcdgx`,
+  operator 2026-10-16), else the best pass rate on the same task set and
+  client, then the fastest. `--early-stop-leader` overrides both for one run.
 - **A stop on a first run means "check the configuration" before it means
   "veto":** the chat template, the reasoning and tool-call parsers, the
   reasoning effort, the context length, the sampler. It becomes a veto only
@@ -687,6 +698,47 @@ three runs.
 **Re-entry.** A veto holds for that model on that engine release. A new release
 tag or a fixed recipe starts a new series at Stage 1. A new commit on an engine
 built from git is not a new release.
+
+### The step timeout: a flat 1,800 s
+
+Every agent step has the same wall-clock limit, `run.py --timeout`, 1,800 s by
+default. A test pins the default (`test_the_step_timeout_is_a_flat_1800_seconds`).
+A trial that hits it is a failure, and the early stop counts it at the full
+1,800 s.
+
+**Why not lower.** On the single Spark's ledger (2026-10-16, 4,382 OpenCode
+trials), 27 passes took 20–30 minutes. That is 0.6% of all passes, but 17 of
+the 150 replay + hard passes, or 11%, and most of them belong to the leaders:
+
+| stack | replay score | at a 25-min limit | at a 20-min limit |
+|---|---|---|---|
+| S3 `qwen38fnq3nothinkb11642rcdgx` | 32/42 | 28/42 | 23/42 |
+| Bolt `nemotron35boltdflashnothinkrcdgx` | 37/42 | 35/42 | 32/42 |
+| Super VL `nemotron35supervldflashnothinkrcdgx` | 31/41 | 30/41 | 29/41 |
+
+At 20 minutes S3 would fall behind Super VL: the limit, not the model, would
+set the ranking.
+
+**Why not per task.** A limit of k × the task's median pass, clamped to
+600–1,800 s, loses 33 passes for k = 3, 4 or 5 and saves about a third of the
+time spent in timeouts (21,414 of 63,000 s across the whole ledger). Three
+costs outweigh that:
+
+- the timeouts sit on tasks whose passes are slow too (the two
+  `replay-span-web-ui` tasks have 12 of the 35, 6 each, and their passes
+  take about 25 minutes), so their limit stays at
+  1,800 s and saves nothing;
+- it turns slow passes into failures, which mixes speed into the pass rate;
+- it drifts as rows land, and each change would start a new series.
+
+**What saves the time instead** is stopping the stack, not the step: the early
+stop above, against the leader's time on the same trials, and the #366 guards
+in `benchmarks/agent/timeout_policy.py` (an idle-GPU watchdog per trial, and a
+circuit breaker for a cell that mostly times out).
+
+Rerun the evidence when the ledger grows:
+
+    uv run python scripts/timeout_sizing.py --results hardware/<machine>/results.jsonl
 
 ### The target repository is on its own branch
 

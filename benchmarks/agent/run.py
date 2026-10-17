@@ -6066,7 +6066,14 @@ def build_parser():
         "--no-early-stop",
         action="store_true",
         help="disable the #762 early stop (failure and time stops against the "
-        "leader). Use it for a leader's own baseline run.",
+        "leader). Use it for a leader's own baseline run. Needs "
+        "--no-early-stop-reason.",
+    )
+    p.add_argument(
+        "--no-early-stop-reason",
+        metavar="TEXT",
+        help="why this run goes without the early stop. Required with "
+        "--no-early-stop, and logged at the start of the run (#762).",
     )
     p.add_argument(
         "--early-stop-leader",
@@ -6077,6 +6084,27 @@ def build_parser():
         "[early_stop.leader] entry in tasks.toml, if any (#762).",
     )
     return p
+
+
+def check_early_stop_args(args: Any) -> str | None:
+    """The reason the early stop is off, or None when it is on.
+
+    #762, operator 2026-10-16: the stop is on for every run, re-checks of
+    standing picks included. A run that turns it off must say why, so the
+    exception is a decision on the record and not a habit.
+    """
+    reason = (args.no_early_stop_reason or "").strip()
+    if args.no_early_stop and not reason:
+        raise SystemExit(
+            "--no-early-stop needs --no-early-stop-reason: the early stop is on "
+            "for every run, re-checks included (#762). Say why this one is not."
+        )
+    if reason and not args.no_early_stop:
+        raise SystemExit(
+            "--no-early-stop-reason was given without --no-early-stop; drop it "
+            "or add the flag."
+        )
+    return reason or None
 
 
 def _server_nodes() -> list[str]:
@@ -6332,6 +6360,7 @@ def finish_row(r, bname, backend, headroom, results_path, dry_run) -> None:
 
 def main():
     args = build_parser().parse_args()
+    early_stop_off = check_early_stop_args(args)
     args.results = dry_run_results(
         args.results, RESULTS, args.dry_run, time.strftime("%Y%m%dT%H%M%S")
     )
@@ -6359,6 +6388,8 @@ def main():
             )
 
     provenance.configure()
+    if early_stop_off:
+        logger.warning("early stop OFF by request (#762): %s", early_stop_off)
     cfg = tomllib.loads(pathlib.Path(args.tasks_file).read_text())
     tasks = [t for t in cfg["task"] if not args.task or t["name"] in args.task]
     # A task may pin itself to a platform. The Swift excisions target

@@ -3501,3 +3501,54 @@ def test_a_tandemllm_server_records_its_version_commit_and_argv(monkeypatch, tmp
     assert got["tandemllm"] == "0.8.3@792087c0"
     assert "--served-model qwen3.8-27b-tandem" in got["server_argv"]
     assert run.serving_tandemllm({"other-model"}) == {}
+
+
+# #762, operator 2026-10-16: the early stop is on for every run, re-checks of
+# standing picks included. Turning it off must name why, so a run cannot drop
+# it by habit (the #1086 refresh did, and spent hours on timeouts).
+def test_no_early_stop_without_a_reason_is_refused() -> None:
+    args = run.build_parser().parse_args(["--backend", "b", "--no-early-stop"])
+    with pytest.raises(SystemExit, match="--no-early-stop-reason"):
+        run.check_early_stop_args(args)
+
+
+def test_no_early_stop_with_a_blank_reason_is_refused() -> None:
+    args = run.build_parser().parse_args(
+        ["--backend", "b", "--no-early-stop", "--no-early-stop-reason", "  "]
+    )
+    with pytest.raises(SystemExit, match="--no-early-stop-reason"):
+        run.check_early_stop_args(args)
+
+
+def test_a_reason_without_the_flag_is_refused() -> None:
+    args = run.build_parser().parse_args(
+        ["--backend", "b", "--no-early-stop-reason", "leader baseline"]
+    )
+    with pytest.raises(SystemExit, match="--no-early-stop"):
+        run.check_early_stop_args(args)
+
+
+def test_no_early_stop_with_a_reason_is_accepted() -> None:
+    args = run.build_parser().parse_args(
+        [
+            "--backend",
+            "b",
+            "--no-early-stop",
+            "--no-early-stop-reason",
+            "leader baseline for the new pin",
+        ]
+    )
+    assert run.check_early_stop_args(args) == "leader baseline for the new pin"
+
+
+def test_the_early_stop_is_on_by_default() -> None:
+    args = run.build_parser().parse_args(["--backend", "b"])
+    assert args.no_early_stop is False
+    assert run.check_early_stop_args(args) is None
+
+
+def test_the_step_timeout_is_a_flat_1800_seconds() -> None:
+    # A flat limit keeps the pass rate one measure across tasks and months;
+    # scripts/timeout_sizing.py holds the evidence against a per-task limit
+    # (METHODOLOGY.md, "The step timeout").
+    assert run.build_parser().parse_args(["--backend", "b"]).timeout == 1800
