@@ -59,7 +59,7 @@ other is telling you something.
 
 ### Cortex-X925-128GB-GB10
 
-*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 4566 rows, sha256 bbf3c51d5bc7.*
+*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 4605 rows, sha256 13897eb6104f.*
 
 #### Every stack measured under OpenCode
 
@@ -142,13 +142,14 @@ Excision tasks only; `script-*` excluded because they are a different class.
 |---|---|---|---|---|---|---|
 | nemotron35lvllm262rcdgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.19.0) | 3/7 | 238s | 330s | — | — | 10.9x |
 | nemotron35ltf1011c262rcdgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.0.29) | 18/21 | 243s | 586s | 2.7x | 1.5x | 41.9x |
+| qwen38fnfp4localnothinkrcdgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.0.32) | 16/20 | 250s | 1743s | 9.1x | 2.0x | 34.1x |
 | nemotron35ltf1010c262rcdgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.19.0) | 16/21 | 277s | 1323s | 3.2x | 1.8x | 102.6x |
 | nemotron35supervldflashnothinkrcdgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.0.30) | 19/21 | 399s | 989s | 1.5x | 1.2x | 19.7x |
 | qwen38fnq3nothinkb11642rcdgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.0.29) | 20/21 | 413s | 1570s | 2.6x | 1.3x | 19.9x |
 | nemotron35boltdflashnothinkrcdgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.0.30) | 19/21 | 436s | 1380s | 1.5x | 1.3x | 34.9x |
 | qwen38fnq3nothinkkv8b11700rcdgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.0.31) | 12/14 | 639s | 1661s | 1.5x | 1.2x | 19.0x |
 
-**Rows here were not all taken under one client.** nemotron35ltf1010c262rcdgx, nemotron35lvllm262rcdgx under 1.19.0; nemotron35ltf1011c262rcdgx, qwen38fnq3nothinkb11642rcdgx under opencode v2.0.29; nemotron35boltdflashnothinkrcdgx, nemotron35supervldflashnothinkrcdgx under opencode v2.0.30; qwen38fnq3nothinkkv8b11700rcdgx under opencode v2.0.31. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name.
+**Rows here were not all taken under one client.** nemotron35ltf1010c262rcdgx, nemotron35lvllm262rcdgx under 1.19.0; nemotron35ltf1011c262rcdgx, qwen38fnq3nothinkb11642rcdgx under opencode v2.0.29; nemotron35boltdflashnothinkrcdgx, nemotron35supervldflashnothinkrcdgx under opencode v2.0.30; qwen38fnq3nothinkkv8b11700rcdgx under opencode v2.0.31; qwen38fnfp4localnothinkrcdgx under opencode v2.0.32. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name.
 
 Seven commits from gmail-archive's history, 60-600 changed lines each. The target repo is public, so a pass may be partly recall; see each row's `replay` record.
 
@@ -163,8 +164,9 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 | nemotron35boltdflashnothinkrcdgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.0.30) | 18/21 | 0/21 | 780s | 1565s | 1.5x | 1.4x | 6.8x |
 | qwen38fnq3nothinkkv8b11700rcdgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.0.31) | 5/13 | 1/13 | 802s | 1768s | 1.8x | 1.7x | 8.3x |
 | qwen38fnq3nothinkb11642rcdgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.0.29) | 12/21 | 1/21 | 823s | 1655s | 3.5x | 1.7x | 7.6x |
+| qwen38fnfp4localnothinkrcdgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.0.32) | 11/17 | 1/17 | 940s | 1597s | 4.9x | 1.3x | 9.4x |
 
-**Rows here were not all taken under one client.** nemotron35ltf1011c262rcdgx, qwen38fnq3nothinkb11642rcdgx under opencode v2.0.29; nemotron35boltdflashnothinkrcdgx, nemotron35supervldflashnothinkrcdgx under opencode v2.0.30; qwen38fnq3nothinkkv8b11700rcdgx under opencode v2.0.31. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name.
+**Rows here were not all taken under one client.** nemotron35ltf1011c262rcdgx, qwen38fnq3nothinkb11642rcdgx under opencode v2.0.29; nemotron35boltdflashnothinkrcdgx, nemotron35supervldflashnothinkrcdgx under opencode v2.0.30; qwen38fnq3nothinkkv8b11700rcdgx under opencode v2.0.31; qwen38fnfp4localnothinkrcdgx under opencode v2.0.32. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name.
 
 `passed` is the tests the agent could see. **`hidden passed` is tests it never saw**, run only by the oracle, over the trials whose task holds tests out; a dash means none did. Kept apart from the table above so its seven tasks stay comparable.
 
@@ -191,7 +193,7 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 | qwen36a3bsglangfmrcdgx @ Corei3-7100-16GB | 24s |
 | gptoss20bdgx | 25s |
 | nemotron35boltdflashrcdgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.0.30) | 26s |
-| qwen38fnfp4localnothinkrcdgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.0.32) | 29s |
+| qwen38fnfp4localnothinkrcdgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.0.32) | 27s |
 | nemotron35supervldflashnothinkrcdgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.0.30) | 31s |
 | qwen3827bsglangdflash2dgx | 35s |
 | ornith15a3bdgx | 35s |
