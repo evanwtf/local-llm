@@ -50,6 +50,7 @@ Each script explains itself in full at the top of its own file -- what it comput
 | `disk_kv_mechanism.py` | mac | Is the disk-KV budget what makes arm A decline by trial 3? #112 |
 | `ds4_serve.py` | mac | Start ds4-server on one of two Metal kernel routes, and prove which one ran. |
 | `ds4serve_turns.py` | any | Per-turn re-prefill from a ds4-server log, bucketed by context. #158 |
+| `early_stop_check.py` | any | Would the #762 early stop end this run now? For a run already in flight. |
 | `engine_timing.py` | any | Per-request engine timing from a llama.cpp server log, for #346. |
 | `env_file.py` | any | Set and verify keys in a shell-sourced `.env`, so a value cannot go missing. |
 | `equiv_five_report.py` | any | Report the argv/env equivalence diff for the five non-route_agent ports. #235, #264, #149 |
