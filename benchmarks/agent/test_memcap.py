@@ -162,3 +162,24 @@ def test_a_kernel_kill_is_named_in_the_run_log():
         },
     )
     assert "kernel" in line and "12.0 GiB" in line and "excluded" in line
+
+
+def test_a_kernel_kill_names_the_container_limit_on_the_row():
+    """#1135: the row read "exceeded the 0 GiB memory cap (peak 0.0 GiB)"."""
+    import run
+
+    reason = run.memory_kill_reason(
+        {"kernel_oom_kills": 1, "client_mem_limit_gib": 12.0}, cap_gib=0.0, peak=0.0
+    )
+    assert "12.0 GiB" in reason and "kernel" in reason and "#680" in reason
+    assert "0 GiB" not in reason.replace("12.0 GiB", "")
+
+
+def test_a_watcher_kill_keeps_the_cap_and_peak_on_the_row():
+    import run
+
+    reason = run.memory_kill_reason({}, cap_gib=24.0, peak=24.3)
+    assert reason == (
+        "client process tree exceeded the 24 GiB memory cap (peak 24.3 GiB); "
+        "killed to prevent a global OOM (#379)"
+    )

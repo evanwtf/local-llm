@@ -5037,6 +5037,26 @@ def record_source_repo(result, repo, target, name, target_layout="legacy"):
         )
 
 
+def memory_kill_reason(result: dict, cap_gib: float, peak: float) -> str:
+    """The row's exclusion_reason for a client killed for memory.
+
+    #1135: in the client container the kernel kills first (#680), so the
+    watcher's cap is 0 and no peak was sampled. Name the container limit then,
+    as timeout_message does for the run log.
+    """
+    if result.get("kernel_oom_kills"):
+        limit = result.get("client_mem_limit_gib")
+        return (
+            f"client OOM-killed by the kernel at the container's {limit} GiB "
+            "limit (#680); not a verdict about the model"
+        )
+    return (
+        f"client process tree exceeded the {cap_gib:.0f} GiB "
+        f"memory cap (peak {peak:.1f} GiB); killed to prevent a global "
+        "OOM (#379)"
+    )
+
+
 def timeout_message(name: str, timeout: float, result: dict) -> str:
     """The run-log line for a trial the harness stopped, naming why.
 
@@ -5611,10 +5631,8 @@ def one_trial(
                 result["kernel_oom_kills"] = kills
             result["peak_rss_gib"] = peak
             result["excluded"] = True
-            result["exclusion_reason"] = (
-                f"client process tree exceeded the {CLIENT_MEM_CAP_GIB:.0f} GiB "
-                f"memory cap (peak {peak:.1f} GiB); killed to prevent a global "
-                "OOM (#379)"
+            result["exclusion_reason"] = memory_kill_reason(
+                result, cap_gib=CLIENT_MEM_CAP_GIB, peak=peak
             )
 
         # The killed process still has whatever it emitted before the deadline,
