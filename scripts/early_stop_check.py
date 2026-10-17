@@ -15,12 +15,18 @@ leader's tasks in that set, and the planned trials ``--trials`` per task.
 
 Exit status: 0 keep going, 3 the rule says stop, 1 no leader or no run.
 
+``--record-abort`` appends the same record ``run.py`` writes when it stops a
+run itself (``screening.write_abort``, to ``screening-aborts.jsonl`` beside the
+ledger), but only when the rule says stop. Stop the client and the server
+first; the record says the run was stopped by hand.
+
     uv run python scripts/early_stop_check.py --backend <name> --set replay
 """
 
 from __future__ import annotations
 
 import argparse
+import datetime
 import logging
 import pathlib
 import sys
@@ -66,6 +72,7 @@ def check(
     client: str = "opencode",
     trials: int = 3,
     timeout: float = 1800.0,
+    abort_path: pathlib.Path | None = None,
 ) -> tuple[int, str]:
     """(exit status, the reason with its numbers)."""
     run = latest_run(rows, backend, family, suites)
@@ -83,6 +90,19 @@ def check(
     stop, reason = screening.should_stop(
         mine, lead, tasks, len(tasks) * trials, timeout
     )
+    if stop and abort_path is not None:
+        screening.write_abort(
+            abort_path,
+            batch=mine[0].get("batch"),
+            backend=backend,
+            client=client,
+            tasks=tasks,
+            done=mine,
+            leader=lead,
+            reason=f"stopped by hand, scripts/early_stop_check.py ({key}): {reason}",
+            first_run=False,
+            when=datetime.datetime.now().astimezone().isoformat(timespec="seconds"),
+        )
     return (STOP if stop else 0), f"{key}: {len(mine)} rows; {reason}"
 
 
@@ -97,6 +117,11 @@ def main() -> int:
     p.add_argument("--client", default="opencode")
     p.add_argument("--trials", type=int, default=3)
     p.add_argument("--timeout", type=float, default=1800.0)
+    p.add_argument(
+        "--record-abort",
+        action="store_true",
+        help="when the rule says stop, append the abort record beside the ledger",
+    )
     p.add_argument(
         "--tasks-file",
         type=pathlib.Path,
@@ -116,6 +141,7 @@ def main() -> int:
         args.client,
         args.trials,
         args.timeout,
+        args.results.with_name("screening-aborts.jsonl") if args.record_abort else None,
     )
     log = logger.warning if status else logger.info
     log("%s (leader pin: %s)", reason, pinned or "none")
