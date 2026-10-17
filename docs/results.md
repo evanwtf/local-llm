@@ -59,7 +59,7 @@ other is telling you something.
 
 ### Cortex-X925-128GB-GB10
 
-*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 4509 rows, sha256 5b825054fa9e.*
+*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 4536 rows, sha256 3e8450133f8e.*
 
 #### Every stack measured under OpenCode
 
@@ -145,8 +145,9 @@ Excision tasks only; `script-*` excluded because they are a different class.
 | nemotron35supervldflashnothinkrcdgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.0.30) | 19/21 | 399s | 989s | 1.5x | 1.2x | 19.7x |
 | qwen38fnq3nothinkb11642rcdgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.0.29) | 20/21 | 413s | 1570s | 2.6x | 1.3x | 19.9x |
 | nemotron35boltdflashnothinkrcdgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.0.30) | 19/21 | 436s | 1380s | 1.5x | 1.3x | 34.9x |
+| qwen38fnq3nothinkkv8b11700rcdgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.0.31) | 12/14 | 639s | 1661s | 1.5x | 1.2x | 19.0x |
 
-**Rows here were not all taken under one client.** nemotron35ltf1010c262rcdgx, nemotron35lvllm262rcdgx under 1.19.0; nemotron35ltf1011c262rcdgx, qwen38fnq3nothinkb11642rcdgx under opencode v2.0.29; nemotron35boltdflashnothinkrcdgx, nemotron35supervldflashnothinkrcdgx under opencode v2.0.30. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name.
+**Rows here were not all taken under one client.** nemotron35ltf1010c262rcdgx, nemotron35lvllm262rcdgx under 1.19.0; nemotron35ltf1011c262rcdgx, qwen38fnq3nothinkb11642rcdgx under opencode v2.0.29; nemotron35boltdflashnothinkrcdgx, nemotron35supervldflashnothinkrcdgx under opencode v2.0.30; qwen38fnq3nothinkkv8b11700rcdgx under opencode v2.0.31. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name.
 
 Seven commits from gmail-archive's history, 60-600 changed lines each. The target repo is public, so a pass may be partly recall; see each row's `replay` record.
 
@@ -159,9 +160,10 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 | nemotron35ltf1011c262rcdgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.0.29) | 13/21 | 0/21 | 324s | 992s | 3.0x | 2.2x | 10.0x |
 | nemotron35supervldflashnothinkrcdgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.0.30) | 12/20 | 1/20 | 514s | 1748s | 1.6x | 1.6x | 6.2x |
 | nemotron35boltdflashnothinkrcdgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.0.30) | 18/21 | 0/21 | 780s | 1565s | 1.5x | 1.4x | 6.8x |
+| qwen38fnq3nothinkkv8b11700rcdgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.0.31) | 5/13 | 1/13 | 802s | 1768s | 1.8x | 1.7x | 8.3x |
 | qwen38fnq3nothinkb11642rcdgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.0.29) | 12/21 | 1/21 | 823s | 1655s | 3.5x | 1.7x | 7.6x |
 
-**Rows here were not all taken under one client.** nemotron35ltf1011c262rcdgx, qwen38fnq3nothinkb11642rcdgx under opencode v2.0.29; nemotron35boltdflashnothinkrcdgx, nemotron35supervldflashnothinkrcdgx under opencode v2.0.30. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name.
+**Rows here were not all taken under one client.** nemotron35ltf1011c262rcdgx, qwen38fnq3nothinkb11642rcdgx under opencode v2.0.29; nemotron35boltdflashnothinkrcdgx, nemotron35supervldflashnothinkrcdgx under opencode v2.0.30; qwen38fnq3nothinkkv8b11700rcdgx under opencode v2.0.31. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name.
 
 `passed` is the tests the agent could see. **`hidden passed` is tests it never saw**, run only by the oracle, over the trials whose task holds tests out; a dash means none did. Kept apart from the table above so its seven tasks stay comparable.
 
@@ -204,7 +206,7 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 | qwen38fnnvidianvfp4nothinkfmrcdgx @ Corei3-7100-16GB+image | 50s |
 | qwen38fnnvidianvfp4nothinkfmrcdgx @ Corei3-7100-16GB | 55s |
 | qwen38fnexl3nothinkdgx | 56s |
-| qwen38fnq3nothinkkv8b11700rcdgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.0.31) | 58s |
+| qwen38fnq3nothinkkv8b11700rcdgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.0.31) | 56s |
 | qwen38fnq3dgx | 59s |
 | qwen38fnnvfp4dgx | 59s |
 | qwen38fnq3nothinkrcdgx @ Ryzen9-7900X-32GB+image | 61s |
