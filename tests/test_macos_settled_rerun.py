@@ -36,6 +36,7 @@ def test_run_argv_carries_every_task_and_no_early_stop() -> None:
     assert len(m.TASKS) == 15
     assert [argv[i + 1] for i, a in enumerate(argv) if a == "--task"] == list(m.TASKS)
     assert "--no-early-stop" in argv
+    assert argv[argv.index("--no-early-stop-reason") + 1].startswith("#499")
     assert argv[argv.index("--trials") + 1] == "3"
     assert argv[argv.index("--backend") + 1] == "qwen38fnq3"
 

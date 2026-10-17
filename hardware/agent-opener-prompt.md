@@ -660,8 +660,9 @@ pushes: two sessions have fixed the same red `main` in parallel before.
 - **A new stack goes through the #762 screen** (`benchmarks/agent/METHODOLOGY.md`,
   "Screening a new stack"): the Stage 0 card checklist before any download,
   one run with the early stop on, then `scripts/screen_stacks.py`. Only kept
-  stacks get runs 2 and 3. Never pass `--no-early-stop` except for a leader's
-  own baseline.
+  stacks get runs 2 and 3. The early stop stays on for re-checks of standing
+  picks too. Pass `--no-early-stop` only for a leader's own baseline, and
+  `run.py` refuses it without `--no-early-stop-reason`.
 - **An issue is a public work log:** results in the order they happened, with
   absolute numbers and command lines. Put no opinions about process in it and
   no draft of an upstream reply. Check the issue's premise before posting, and

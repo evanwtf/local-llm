@@ -143,6 +143,7 @@ Each script explains itself in full at the top of its own file -- what it comput
 | `test_server_facts.py` | any | The server facts decide which ledger a remote row joins. #562, #647 |
 | `thermals.py` | mac | Read this machine's temperatures, with a timestamp, without sudo. |
 | `thermals_summary.py` | any | Summarize a `thermals.py --watch --json` log into a run's thermal envelope. |
+| `timeout_sizing.py` | any | Would a lower or per-task step timeout cost passes? The evidence for the flat 1,800 s. |
 | `tm_model_guard.py` | mac | Fail if Time Machine would back up a model file. #440 |
 | `tool_error_conditional.py` | any | Does a tool error make the NEXT tool call more likely to fail? (#112) |
 | `tool_retry_count.py` | any | Count tool-call outcomes from an OpenCode client transcript. |
