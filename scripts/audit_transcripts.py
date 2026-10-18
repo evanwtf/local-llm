@@ -442,9 +442,12 @@ def audit_group(
         markup.update(trial.markup)
         if trial.markup or any(c.kind == "format" for c in trial.calls):
             format_break_trials += 1
+        # A trial that printed tool-call markup ran: the model broke format
+        # and is counted above as a format break, not a dead client (#1127).
         if (
             not trial.calls
             and not trial.partial
+            and not trial.markup
             and trial.duration_s < thresholds.quick_exit_seconds
         ):
             quick_exits.append(trial.path.name)
