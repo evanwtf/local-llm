@@ -4815,3 +4815,23 @@ opencode_model = "llamacpp/qwen3.8-flash-next-q3"
 context_tokens = 131072
 topology = "remote"
 engine_tree = "~/engines/llama.cpp-b11642"
+
+# #1127 (2026-10-18): Nemotron 3.5 Bolt on MiaAI's TensorFold recipe, one Spark,
+# thinking off, against #1103's llama.cpp + DFlash arm. The recipe is built
+# locally (PULL=0), so the recipe pin is the currency check.
+[backend.nemotron35bolttfnothinkrcdgx]
+description = "#1127: NVIDIA Nemotron 3.5 Bolt 74B-A9B 24GB (nvidia rev a326822a, IQ2_XXS+NVFP4+Q8_0) + LiLiCorr drafter (rev 4c6a5613) on TensorFold zig 46a08c18 via MiaAI-Lab Bolt recipe @6f61d77 (image tensorfold-nemotron-bolt:zig-46a08c1, built locally), one Spark: THINKING=0, DRAFTS=1, PARALLEL=16, ctx 262144, temperature 1.0 / top_p 0.95 (the recipe's); REMOTE CLIENT"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "tensorfold"
+model = "nemotron-3.5-bolt-tf-nothink"
+active_params_b = 9
+aider_model = "openai/nemotron-3.5-bolt-tf-nothink"
+opencode_model = "vllm8888/nemotron-3.5-bolt-tf-nothink"
+context_tokens = 262144
+topology = "remote"
+speculative = "LiLiCorr drafter (the recipe's DRAFTS=1)"
+# TensorFold serves no /v1/messages; this cell is OpenCode-only (#798).
+smoke_protocol = "openai"
+recipe_dir = "~/engines/bolt-tf-recipe"
