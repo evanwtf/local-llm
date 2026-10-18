@@ -544,6 +544,28 @@ def test_a_metrics_page_without_the_request_counter_yields_no_value():
     assert remote.parse_instance("counter", "tensorfold:requests_running 0\n") is None
 
 
+#: Trimmed from a live TensorFold zig 46a08c18 server (MiaAI's Bolt recipe),
+#: 2026-10-18 (#1127). It prints no `tensorfold:requests_total` line; the
+#: end-to-end latency histogram counts every answered request instead.
+TF_ZIG_BOLT_METRICS = """\
+tensorfold:requests_running 0
+tensorfold:request_latency_seconds_count 4
+tensorfold:e2e_request_latency_seconds_bucket{le="+Inf"} 4
+tensorfold:e2e_request_latency_seconds_count 4
+tensorfold:e2e_request_latency_seconds_sum 3.1
+tensorfold:prompt_tokens_total 81
+"""
+
+
+def test_a_build_without_requests_total_counts_its_e2e_latency_histogram():
+    assert remote.parse_instance("counter", TF_ZIG_BOLT_METRICS) == 4
+
+
+def test_requests_total_wins_over_the_latency_histogram():
+    page = TF_NATIVE_METRICS + "tensorfold:e2e_request_latency_seconds_count 7\n"
+    assert remote.parse_instance("counter", page) == 416
+
+
 def test_read_instance_falls_back_to_metrics_when_health_has_no_counter():
     asked = []
 
