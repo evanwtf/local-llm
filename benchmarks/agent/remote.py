@@ -363,6 +363,11 @@ def parse_instance(kind: str, text: str) -> float | None:
 #: TandemLLM (#1067). Matched by exact name, so a longer name is not counted.
 _COUNTER_NAMES = frozenset({"tensorfold:requests_total", "qse_requests_total"})
 
+#: Read only when no `_COUNTER_NAMES` line is on the page. TensorFold zig
+#: 46a08c18 (MiaAI's Bolt recipe, #1127) prints no `requests_total`; its
+#: end-to-end latency histogram counts every answered request and only grows.
+_FALLBACK_COUNTER_NAMES = frozenset({"tensorfold:e2e_request_latency_seconds_count"})
+
 #: A gauge each server always prints, beside a counter it prints only after
 #: the first request finishes: its presence means "this server, 0 requests".
 #: TandemLLM restarted a moment ago has no `qse_requests_total` line (#1067).
@@ -391,6 +396,24 @@ def _metrics_counter(metrics: str) -> int | None:
         found = True
     if not found and fresh:
         return 0
+    if not found:
+        return _fallback_counter(metrics)
+    return total
+
+
+def _fallback_counter(metrics: str) -> int | None:
+    """The sum of `_FALLBACK_COUNTER_NAMES` lines, or None if there are none."""
+    total, found = 0, False
+    for line in metrics.splitlines():
+        if line.startswith("#") or not line.strip():
+            continue
+        if line.split("{", 1)[0].split(None, 1)[0] not in _FALLBACK_COUNTER_NAMES:
+            continue
+        try:
+            total += int(float(line.rsplit(None, 1)[1]))
+        except (IndexError, ValueError):
+            return None
+        found = True
     return total if found else None
 
 
