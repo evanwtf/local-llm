@@ -4831,7 +4831,6 @@ aider_model = "openai/nemotron-3.5-bolt-tf-nothink"
 opencode_model = "vllm8888/nemotron-3.5-bolt-tf-nothink"
 context_tokens = 262144
 topology = "remote"
-speculative = "LiLiCorr drafter (the recipe's DRAFTS=1)"
 # TensorFold serves no /v1/messages; this cell is OpenCode-only (#798).
 smoke_protocol = "openai"
 recipe_dir = "~/engines/bolt-tf-recipe"
