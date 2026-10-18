@@ -389,6 +389,20 @@ def test_an_empty_transcript_is_a_quick_exit(tmp_path: pathlib.Path) -> None:
     assert report["harness_fault"] is True
 
 
+def test_a_fast_end_on_unparsed_tool_markup_is_a_format_break_not_a_fault(
+    tmp_path: pathlib.Path,
+) -> None:
+    # #1127, 2026-10-18: replay-web-auth-hidden #3 ended in 7.0 s because the
+    # model printed its call as text (`<tool_call><function=bash>`) and the
+    # server did not parse it. The client ran; the model broke format.
+    call = "<tool_call>\n<function=bash>\n<parameter=command>\nls\n</parameter>"
+    events = [step(0), text(call + "\n</function>\n</tool_call>", at=3)]
+    report = report_for([write(tmp_path, events)])
+    assert report["quick_exits"] == 0
+    assert report["harness_fault"] is False
+    assert report["format_break_markup"]["<tool_call>"] == 1
+
+
 def test_a_long_trial_with_no_tool_call_is_not_a_quick_exit(
     tmp_path: pathlib.Path,
 ) -> None:
