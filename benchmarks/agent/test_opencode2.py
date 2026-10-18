@@ -242,3 +242,52 @@ def test_a_failed_export_is_none(monkeypatch, tmp_path) -> None:
         lambda argv, **kw: subprocess.CompletedProcess(argv, 1, "", "boom"),
     )
     assert run.opencode_session_export(STREAM_2_0_29, tmp_path) is None
+
+
+# --- #1149: a move the model made itself is its own failure --------------------
+
+
+def _tool_event(tool: str, inp: dict) -> str:
+    """One OpenCode 2.x `tool_use` event line, trimmed from #1149's transcript."""
+    part = {
+        "type": "tool",
+        "tool": tool,
+        "state": {"status": "completed", "input": inp},
+    }
+    return json.dumps({"type": "tool_use", "part": part})
+
+
+#: The two calls replay-web-auth #1 made on 2026-10-18 (#1149), through the
+#: code-mode `execute` tool, before every edit went to the new worktree.
+MOVE_STREAM = "\n".join(
+    [
+        _tool_event("read", {"path": "/w/app.py"}),
+        _tool_event(
+            "execute", {"code": 'tools.opencode.worktree_create({"name": "x"})'}
+        ),
+        _tool_event("execute", {"code": 'tools.opencode.session_move({"to": "x"})'}),
+        _tool_event("edit", {"path": "/root/.local/share/opencode/worktree/9b/x/a.py"}),
+    ]
+)
+
+
+def test_a_model_that_moved_its_session_is_named() -> None:
+    why = run.opencode_model_moved(MOVE_STREAM)
+    assert why is not None
+    assert "worktree_create" in why and "session_move" in why
+
+
+def test_a_stream_without_move_calls_names_nothing() -> None:
+    stream = _tool_event("execute", {"code": "tools.opencode.read({})"})
+    assert run.opencode_model_moved(stream) is None
+    assert run.opencode_model_moved("") is None
+
+
+def test_a_direct_move_tool_counts_too() -> None:
+    assert (
+        run.opencode_model_moved(_tool_event("session_move", {"to": "x"})) is not None
+    )
+
+
+def test_noise_lines_do_not_break_the_scan() -> None:
+    assert run.opencode_model_moved("not json\n" + MOVE_STREAM) is not None

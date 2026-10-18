@@ -2720,6 +2720,39 @@ def opencode_session_check(export, worktree):
     return None
 
 
+#: OpenCode 2.x API calls that move a session out of its directory (#1149).
+_SESSION_MOVE_CALLS = ("worktree_create", "session_move")
+
+
+def opencode_model_moved(stdout):
+    """Which session-moving calls the model made in this stream, or None (#1149).
+
+    OpenCode 2.x lets the model create a worktree and move its own session
+    there, through the code-mode `execute` tool (`tools.opencode.worktree_create`,
+    `tools.opencode.session_move`) or a tool of that name. The #67 check reads
+    any directory mismatch as a harness fault; when the model moved itself, the
+    edits it left outside the trial worktree are its own failure, not ours.
+    """
+    found = []
+    for line in (stdout or "").splitlines():
+        try:
+            event = json.loads(line)
+        except ValueError:
+            continue
+        part = event.get("part") if isinstance(event, dict) else None
+        if not isinstance(part, dict) or part.get("type") != "tool":
+            continue
+        tool = part.get("tool") or ""
+        text = tool + " " + json.dumps((part.get("state") or {}).get("input") or {})
+        found += [c for c in _SESSION_MOVE_CALLS if c in text and c not in found]
+    if not found:
+        return None
+    return (
+        f"the model moved its own session ({', '.join(found)}); its work outside "
+        "the trial worktree is scored as its failure (#1149)"
+    )
+
+
 def opencode_parse(stdout, launched_ms=None, export=None, **_):
     """Sum OpenCode's per-step accounting into one row.
 
@@ -5475,7 +5508,13 @@ def one_trial(
             parse_extra["export"] = export
             result["opencode_export"] = "read" if export else "missing"
             wrong_dir = opencode_session_check(export, worktree)
-            if wrong_dir:
+            moved = opencode_model_moved(proc.stdout) if wrong_dir else None
+            if moved:
+                # #1149: the model left the worktree on purpose, so the verdict
+                # from the trial worktree stands and the row is counted.
+                logger.warning("%s: %s", name, moved)
+                result["model_moved_session"] = moved
+            elif wrong_dir:
                 logger.error("%s: %s", name, wrong_dir)
                 result["excluded"] = True
                 result["exclusion_reason"] = wrong_dir
