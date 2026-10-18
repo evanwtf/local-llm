@@ -129,7 +129,7 @@ reset, not a drop to idle.
 Prometheus had `vllm dgx.internal:8030` and `llamacpp dgx.internal:8020`
 configured and both sat at `up=0`, because nothing they pointed at was
 reachable. *A monitoring system reporting nothing looks exactly like one
-reporting nothing wrong.* The machine is `dgx.internal` / 192.168.1.180.
+reporting nothing wrong.* The machine is `dgx.internal`.
 
 **`scripts/local_agent.py` stays on `127.0.0.1`** — it is what
 `RECOMMENDATIONS.md` tells a stranger to run, and their network is not this LAN.

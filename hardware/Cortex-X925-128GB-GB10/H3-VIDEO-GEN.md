@@ -187,7 +187,7 @@ viewer is a scoped static server (LAN only):
 
 ```bash
 python3 -m http.server 8041 --bind 0.0.0.0 --directory /home/evan/h3-clips
-# open http://dgx.internal:8041/  (192.168.1.180) in a browser
+# open http://dgx.internal:8041/ in a browser
 ```
 
 **Output naming convention (this session):** save as
