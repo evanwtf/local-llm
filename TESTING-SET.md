@@ -215,6 +215,7 @@ be drawn from — OpenCode, after the `--dir` cutover, not excluded.
 | `nemotron35boltdflashnothinkrcdgx` | #1103 screen: NVIDIA Nemotron 3.5 Bolt 74B-A9B 24GB (IQ2 QAT), thinking off, the card's 128 GB recipe with the DFlash drafter, remote client | llama.cpp b11669 CUDA sm_121 | 23.0 GiB | 0 |
 | `nemotron35boltdflashrcdgx` | #1103 screen: Nemotron 3.5 Bolt, thinking on, same recipe, remote client | llama.cpp b11669 CUDA sm_121 | 23.0 GiB | 0 |
 | `comet60bnvfp4mtpnothinkrcdgx` | #1111 screen: Multiverse Comet 60B-A12B NVFP4 (compressed Super VL) + MTP, card recipe + Super VL prefix flags, reasoning off, remote client | vLLM nightly 3f1bcfd | 37.7 GiB | 0 |
+| `nemotron35bolttfnothinkrcdgx` | #1127 screen: NVIDIA Nemotron 3.5 Bolt 74B-A9B 24GB + LiLiCorr drafter on MiaAI's TensorFold recipe, thinking off, remote client | TensorFold zig 46a08c18 (built locally) | 23.9 GiB | 0 |
 | `nemotron35supervldflashrcdgx` | #1109 screen: NVIDIA Nemotron 3.5 Super VL 120B-A12B NVFP4 + LiLiCorr DFlash, the card's Spark recipe, reasoning on, remote client | vLLM nightly 3f1bcfd | 71.1 GiB | 0 |
 | `nemotron35supervldflashnothinkrcdgx` | #1109 screen: Super VL, reasoning off, same recipe, remote client | vLLM nightly 3f1bcfd | 71.1 GiB | 0 |
 | `qwen38fnfp4localrcdgx` | #1108 screen: nvidia Qwen3.8-Flash-Next-FP4-Local (QAD FP4), the card's Spark recipe, thinking on, remote client | vLLM in eugr/spark-vllm-b12x | 95.2 GiB | 0 |
