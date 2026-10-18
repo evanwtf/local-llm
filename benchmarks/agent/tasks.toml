@@ -4834,3 +4834,21 @@ topology = "remote"
 # TensorFold serves no /v1/messages; this cell is OpenCode-only (#798).
 smoke_protocol = "openai"
 recipe_dir = "~/engines/bolt-tf-recipe"
+
+# #1142 (2026-10-18): DeepSeek-V4.1-Flash-1017 on the same two-Spark recipe as
+# #919, with jayleaton's own 1017 pack (flash17) and its profile: the 1017 Engram
+# shards, the pack's own image biases, and a 2.1M-token pool. Same served name.
+[backend.dsv41f1017tfzigjaydual2xrc]
+description = "DeepSeek V4.1 Flash 1017 EXL3 2.8 bpw (jayleaton/DeepSeek-V4.1-Flash-1017-EXL3-2.8bpw @9e7c02ec06, flash17 / q28-v3a) plus packed native 1017 Engram shards (deepseek-ai/DeepSeek-V4.1-Flash-1017 @1bae0e10) on the TensorFold CUDA Zig engine across TWO DGX Sparks via jayleaton/deepseek-v41-tensorfold-spark @853310d (image built locally), prod-zig-flash17 profile: TP=2 over RoCE, 2.1M-token pool, 1,048,576-token context, :8888. REMOTE CLIENT: the Core i9-13900H; OpenCode context 262,144, output cap 32,768"
+tier = "gb10-spark-x2"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "tensorfold"
+model = "DeepSeek-V4.1-Flash-TF"
+aider_model = "openai/DeepSeek-V4.1-Flash-TF"
+opencode_model = "tf8888/DeepSeek-V4.1-Flash-TF"
+context_tokens = 262144
+topology = "remote"
+# TensorFold serves no /v1/messages; OpenCode-only (#798).
+smoke_protocol = "openai"
+recipe_dir = "~/deepseek-v41-tensorfold-spark"
