@@ -299,6 +299,7 @@ FAST_MODULES = frozenset(
         "benchmarks/agent/test_testing_set.py",  # live backends are documented
         "benchmarks/agent/test_active_params.py",  # the #762 Stage 0 field
         "tests/test_currency.py",  # the version gate refuses stale and unknown
+        "tests/test_no_lan_addresses.py",  # no LAN address in a public repo (#1151)
     }
 )
 
