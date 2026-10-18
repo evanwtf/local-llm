@@ -410,10 +410,16 @@ def _healthy_2x(workdir: pathlib.Path) -> str:
     (workdir / "shell-wrote.txt").write_text(TOKEN)
     (workdir / "written.txt").write_text(f"written {TOKEN}\n")
     (workdir / "edit_me.txt").write_text(f"after {TOKEN}\n")
+    refusals = iter(
+        f"Unknown tool 'opencode.{name}'. Use search to find available tools."
+        for name in mod.SESSION_MOVE_TOOLS
+    )
     lines = []
     for n, tool in enumerate(mod.TOOLS_2X):
         if tool == "question":
             lines.append(_event(tool, "error", error=QUESTION_ERROR, n=n))
+        elif tool == "execute":
+            lines.append(_event(tool, "completed", output=next(refusals), n=n))
         else:
             lines.append(_event(tool, "completed", output=outputs[tool], n=n))
     return "\n".join(lines) + "\n"
@@ -459,3 +465,37 @@ def test_a_failed_2x_shell_call_is_named(workdir):
     )
     failures = mod.check(transcript, workdir, mod.steps(workdir, TOKEN, major=2))
     assert any(f.startswith("shell: error") for f in failures)
+
+
+# --- #1149: the session-move tools stay denied ----------------------------------
+
+
+def test_the_2x_script_asks_for_both_session_move_tools():
+    assert mod.TOOLS_2X.count("execute") == len(mod.SESSION_MOVE_TOOLS) == 2
+
+
+def test_a_worktree_create_that_works_fails_the_self_test(workdir):
+    """2.0.32's default: the call succeeds and returns a new directory."""
+    n = mod.TOOLS_2X.index("execute")
+    transcript = _healthy_2x(workdir).replace(
+        _event(
+            "execute",
+            "completed",
+            output="Unknown tool 'opencode.worktree_create'. Use search to find "
+            "available tools.",
+            n=n,
+        ),
+        _event(
+            "execute",
+            "completed",
+            output='{"directory": "/root/.local/share/opencode/worktree/d4/selftest"}',
+            n=n,
+        ),
+    )
+    failures = mod.check(transcript, workdir, mod.steps(workdir, TOKEN, major=2))
+    assert failures == [
+        (
+            "execute: completed, but its output does not contain a refusal of "
+            "tools.opencode.worktree_create (\"Unknown tool 'opencode.worktree_create'\")"
+        )
+    ]

@@ -232,6 +232,22 @@ def steps(
 #: What a headless 2.x run answers a `question` call with (2.0.29).
 QUESTION_CANCELLED = "non-interactive run cannot ask the user questions"
 
+#: Code Mode tools that move a session out of the trial worktree (#1149). The
+#: trial config denies them (`"permission": {"opencode_<name>": "deny"}`), and
+#: a denied Code Mode tool is gone: `execute` answers "Unknown tool".
+SESSION_MOVE_TOOLS = ("worktree_create", "session_move")
+
+
+def _move_call(name: str) -> str:
+    args = "{name: 'selftest'}" if name == "worktree_create" else "{directory: '/tmp'}"
+    return f"return await tools.opencode.{name}({args})"
+
+
+def _refused(name: str) -> Callable[[pathlib.Path, str], str | None]:
+    return _output_has(
+        f"Unknown tool 'opencode.{name}'", f"a refusal of tools.opencode.{name}"
+    )
+
 
 def steps_2x(workdir: pathlib.Path, token: str, base_url: str) -> list[Step]:
     """The same checks for OpenCode 2.x, whose tools and arguments changed (#1086).
@@ -247,6 +263,10 @@ def steps_2x(workdir: pathlib.Path, token: str, base_url: str) -> list[Step]:
     the user would wait for an answer nobody gives. A headless 2.0.29 run
     cancels the call with an error and the agent continues; the step passes
     only if that still happens.
+
+    The two `execute` steps prove the trial config still denies the Code Mode
+    tools that let a model move its session out of the worktree (#1149). In
+    2.0.32 both work by default, so a config without the deny fails here.
     """
     written = workdir / "written.txt"
     edited = workdir / "edit_me.txt"
@@ -298,6 +318,10 @@ def steps_2x(workdir: pathlib.Path, token: str, base_url: str) -> list[Step]:
                 "format": "text",
             },
             _output_has(token, "the stub's page"),
+        ),
+        *(
+            Step("execute", {"code": _move_call(name)}, _refused(name))
+            for name in SESSION_MOVE_TOOLS
         ),
         Step(
             "question",

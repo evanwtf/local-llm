@@ -4,7 +4,10 @@
   "permission": {
     "external_directory": {
       "*": "deny"
-    }
+    },
+    "opencode_worktree_create": "deny",
+    "opencode_worktree_remove": "deny",
+    "opencode_session_move": "deny"
   },
   "provider": {
     "ds4": {
