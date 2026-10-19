@@ -69,15 +69,19 @@ Modes:
     heartbeat.py --dry-run       render and print; record nothing
     heartbeat.py --set JSON      merge JSON into the state file
     heartbeat.py --armed         record loop_armed_at and tick_at (step 0)
-    heartbeat.py --tick          record tick_at only (the cluster's tick, whose
-                                 heartbeat the timer posts)
+    heartbeat.py --tick          record tick_at only (the cluster's tick)
+    heartbeat.py --due           say whether this tick must send the heartbeat:
+                                 SEND_EVERY_MIN after `sent_at`, which the Stop
+                                 hook (heartbeat_gate.py) records on each send
     heartbeat.py --watchdog      block until the last tick is STALE_HEARTBEAT_MIN
                                  old, then print what to do and exit. Run it in
                                  the background: its exit wakes the session.
 
 `tick_at` is the session's own pulse, separate from `heartbeat_at`: on the
-cluster the timer posts heartbeats whether or not the session is alive, so only
-the session can say that the session ticked.
+cluster the timer renders heartbeats whether or not the session is alive, so
+only the session can say that the session ticked. `sent_at` is when the
+operator last got one in chat. The loop ticks every 10 minutes; a heartbeat
+goes to the operator only every SEND_EVERY_MIN (operator, 2026-10-19).
 
 The cluster (scripts/cluster_heartbeat.py) uses the same state file, the same
 flags and the same field order, with two nodes in place of one.
@@ -121,6 +125,10 @@ STALE_MIN = 45
 LOG_QUIET_MIN = 20
 #: The watchdog fires when the last tick is this old (one missed tick).
 STALE_HEARTBEAT_MIN = 35
+#: The tick runs every 10 minutes, but the operator gets a heartbeat only when
+#: this long has passed since the last one sent (operator, 2026-10-19). One
+#: under 30 so a send stays on a 30-minute rhythm despite tick jitter.
+SEND_EVERY_MIN = 29
 #: A Claude Code recurring job expires after 7 days; warn a day before.
 LOOP_WARN_DAYS = 6
 
@@ -710,6 +718,12 @@ def gather(
     return body, book
 
 
+def send_due(state: dict[str, Any], now: dt.datetime) -> bool:
+    """True when the operator is owed a heartbeat: none sent, or SEND_EVERY_MIN ago."""
+    age = minutes_since(state.get("sent_at"), now)
+    return age is None or age >= SEND_EVERY_MIN
+
+
 # -- watchdog -----------------------------------------------------------------
 
 
@@ -745,6 +759,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     ap.add_argument(
         "--armed", action="store_true", help="record loop_armed_at and exit"
     )
+    ap.add_argument(
+        "--due",
+        action="store_true",
+        help="say whether this tick must send the heartbeat (SEND_EVERY_MIN)",
+    )
     ap.add_argument("--watchdog", action="store_true", help="wait for a missed tick")
     ap.add_argument("--stale-min", type=float, default=STALE_HEARTBEAT_MIN)
     ap.add_argument("--poll-s", type=float, default=60.0)
@@ -770,6 +789,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     if pulse:
         write_state(args.state, pulse, now, stamp=False)
         logger.info("%s %s", " ".join(keys), stamp)
+        return 0
+    if args.due:
+        state = read_state(args.state)
+        sent = state.get("sent_at") or "never"
+        due = "due" if send_due(state, now) else "not due"
+        logger.info(
+            "heartbeat %s (last sent %s; gap %d min)", due, sent, SEND_EVERY_MIN
+        )
         return 0
     if args.watchdog:
         logger.info("%s", watchdog(args.state, args.stale_min, args.poll_s))

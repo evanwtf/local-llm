@@ -30,7 +30,7 @@ You are the autonomous operator for evanwtf/local-llm on this machine.
 Do these two things first, in this order, before you read anything else:
 
 1. Claude Code: run this slash command now, exactly as written (fixed interval, not dynamic):
-   /loop 30m local-llm operator tick: read ~/git/local-llm/hardware/agent-opener-prompt.md (git clone https://github.com/evanwtf/local-llm ~/git/local-llm first if it is missing) and do its §3 "The tick"; end the turn with the §3a heartbeat.
+   /loop 10m local-llm operator tick: read ~/git/local-llm/hardware/agent-opener-prompt.md (git clone https://github.com/evanwtf/local-llm ~/git/local-llm first if it is missing) and do its §3 "The tick"; end the turn with the §3a heartbeat.
    Codex: read §0 of that file for the Codex loop, and start it.
 2. Follow the file: step 0, then §1 inside the first tick, then §3 for as long as the session lives.
 
@@ -83,7 +83,7 @@ with a ready server (§3, "The failure this loop prevents").
    older prompt (`CronDelete`); two loops send two heartbeats.
    - No such job: invoke `/loop` now with the stub's line.
    - The job is **not recurring**, or `/loop` ran in dynamic mode (no
-     interval, `ScheduleWakeup`): delete it and arm the fixed `/loop 30m`.
+     interval, `ScheduleWakeup`): delete it and arm the fixed `/loop 10m`.
      **Never drive this loop with `ScheduleWakeup` or a chain of one-shot
      jobs.** One missed firing, or one turn that ends without re-arming,
      ends that chain silently. That is exactly how the DGX cluster lost
@@ -113,8 +113,8 @@ with a ready server (§3, "The failure this loop prevents").
    still wakes the session, so it still works as a second wake path, but it
    prints no "no tick since" line. Treat that wake like a watchdog wake: run a
    tick, check `CronList`, and start a new watchdog. Do not lower
-   `--stale-min` below the loop's 30 minutes, or it fires before every normal
-   tick.
+   `--stale-min` to the loop's 10 minutes or less, or it fires before every
+   normal tick.
 4. On the DGX cluster, also check the heartbeat timer (§10, step 0).
 
 ### Codex
@@ -122,7 +122,7 @@ with a ready server (§3, "The failure this loop prevents").
 Codex has no loop job. Your own control flow is the loop:
 
 - Never end your turn. After each tick (§3), wait with a bounded command until
-  the next tick is due (at most 30 minutes; for example `sleep 1500`), then run
+  the next tick is due (at most 10 minutes; for example `sleep 600`), then run
   the next tick.
 - Put every long job in the background and poll it inside the tick. Never let
   one command block past the next tick.
@@ -430,9 +430,17 @@ The machine sections add their own. Never break these.
 
 ## 3. The autonomous loop
 
-The loop job fires every 30 minutes and runs **the tick**. Other turns happen
-in between, when a background job exits or a message arrives. Each of those
-turns does its work and ends; the next tick is already scheduled.
+The loop job fires every **10 minutes** and runs **the tick**: the internal
+check. The operator gets the heartbeat only when **29 minutes or more** have
+passed since the last one sent (operator, 2026-10-19), so most ticks end
+quietly. Other turns happen in between, when a background job exits or a
+message arrives. Each of those turns does its work and ends; the next tick is
+already scheduled.
+
+**Tick updates never go to a GitHub issue** (operator, 2026-10-19). The
+heartbeat goes to the operator in chat only. An issue carries the work log:
+results, a failure or blocker, a decision. The DGX timer that once commented
+the heartbeat on the task's issue now posts nowhere (§10).
 
 ### The tick
 
@@ -466,15 +474,20 @@ Do these in order, every tick:
    stalling"). A flag is an instruction, not a report.
 7. **The state.** Write what is true now with `heartbeat.py --set`. Rewrite
    `task` in full every tick (issue, model slug, N/M trials, start time),
-   even when you changed only another key: the DGX timer posts `task`
+   even when you changed only another key: the heartbeat prints `task`
    verbatim, and on 2026-09-30 it showed the previous issue's task beside the
    new occupant. Also `started_at` and `eta` (when this task started, and
    when it should finish; an idle task's `eta` is when the idle ends), `next`,
    `notes` (what changed, counts read from the log), `questions`, and for a
    wait, `expect_by` and `log`. Clear `expect_by` when the wait ends. Change
    `started_at` only when the task changes.
-8. **The heartbeat.** End the turn with the §3a heartbeat as your final
-   message.
+8. **The heartbeat, when it is due.** Run
+   `uv run python scripts/heartbeat.py --due`. **Due:** end the turn with the
+   §3a heartbeat as your final message. **Not due:** end the turn with no
+   message at all; the operator heard from you less than 29 minutes ago. An
+   event the operator needs (a run finished, a failure, a blocker, a
+   question) is still reported at once, in one or two lines, due or not. The
+   Stop hook enforces both halves (§3a).
 
 **After you launch a run, confirm that it started measuring.** Within a few
 minutes, check that its first sweep passed preflight and that the client
@@ -556,10 +569,12 @@ The loop runs until one of these, and nothing else:
 A finished task, an empty queue, a night, a question waiting for an answer, a
 long run, or 30 heartbeats in a row with nothing to report do not stop it.
 
-### 3a. The heartbeat: every 30 minutes, idle included
+### 3a. The heartbeat: every 29 minutes or more, idle included
 
-The loop job's tick ends with it. Send it to the operator in chat as **regular
-text**, as **the last message of the turn**. Text written between tool calls
+A tick ends with it when it is due: none sent yet, or the last one sent 29
+minutes ago or more (`heartbeat.SEND_EVERY_MIN`; `heartbeat.py --due` says
+which). Send it to the operator in chat as **regular text**, as **the last
+message of the turn**. Never post it to an issue. Text written between tool calls
 may never reach the operator: on 2026-09-24 they saw none of three heartbeats
 sent that way. No code block.
 
@@ -595,8 +610,10 @@ The script reads every field fresh and puts them in the operator's order
 
 The output ends with a signature line, `-- heartbeat <hash> · scripts/...`.
 The hash covers the body. **A Stop hook checks it:** `scripts/heartbeat_gate.py`
-refuses to end a tick turn whose final message has no heartbeat, or one whose
-body differs from its signature. On 2026-09-30 the DGX session hand-wrote its
+refuses to end a tick turn whose final message has no heartbeat while one is
+due, or whose heartbeat body differs from its signature. When it passes a
+heartbeat it records `sent_at`, which starts the next 29-minute gap; a tick
+inside the gap may end with no message. On 2026-09-30 the DGX session hand-wrote its
 08:04 tick and dropped the outlet power, the questions and the timing; the
 M5 Max session reworded its 08:11 tick. Each machine wires the hook in its
 user settings:
@@ -866,21 +883,21 @@ NCCL, Ray and engine configuration must name **all** the fabric interfaces and
 
 ### Step 0, on this machine: the timer and the tick
 
-**The issue heartbeat comes from a `systemd --user` timer, not from the
-session.** `local-llm-cluster-heartbeat.timer` runs
-`scripts/cluster_heartbeat.py` at :07 and :37. It reads every field fresh on
-both nodes and posts to the issue named in `~/.local-llm-bench/heartbeat.json`.
-It keeps posting when the session is dead, and its flags then show it.
+**A `systemd --user` timer keeps the sensor book fresh; it posts nowhere.**
+`local-llm-cluster-heartbeat.timer` runs `scripts/cluster_heartbeat.py` at
+:07 and :37. It reads every field fresh on both nodes and records the readings
+in `~/.local-llm-bench/heartbeat.json`. Until 2026-10-19 it also commented the
+heartbeat on the task's issue; the operator does not want tick updates in
+issues, so it no longer does.
 
 ```sh
 systemctl --user is-enabled local-llm-cluster-heartbeat.timer   # install steps are in the unit file
-journalctl --user -u local-llm-cluster-heartbeat.service -n 3    # the last post succeeded
+journalctl --user -u local-llm-cluster-heartbeat.service -n 3    # the last run succeeded
 ```
 
-The timer only posts what the session last wrote, plus fresh readings. It does
-no work. So the session still needs its own recurring loop (step 0, above).
-Each tick records `--tick`, updates the state, and ends the turn with the
-chat heartbeat (§3a).
+The timer does no work and tells no one. The session needs its own recurring
+loop (step 0, above). Each tick records `--tick`, updates the state, and ends
+the turn with the chat heartbeat when it is due (§3a).
 
 ### Steps, on this machine
 

@@ -10,7 +10,11 @@ stdin (`transcript_path`, `stop_hook_active`). The hook reads the transcript:
 
 - the turn's prompt is not a local-llm tick → allow;
 - the final message carries a heartbeat whose body matches its signature
-  (`heartbeat.verify`) → allow;
+  (`heartbeat.verify`) → record `sent_at` and allow;
+- the final message carries no heartbeat, and one was sent less than
+  `heartbeat.SEND_EVERY_MIN` ago → allow. The loop ticks every 10 minutes but
+  the operator wants a heartbeat only every ~30 (2026-10-19), so a quiet tick
+  ends without one. A hand-edited heartbeat is still blocked;
 - otherwise → exit 2. Claude Code then keeps the turn open and shows the
   session the reason on stderr, so it runs the script and sends its output.
 
@@ -25,6 +29,7 @@ Wire it in the user settings of each machine that runs the loop:
 
 from __future__ import annotations
 
+import datetime as dt
 import json
 import pathlib
 import sys
@@ -39,6 +44,10 @@ import heartbeat as hb
 
 #: Every tick prompt carries this (the opener's /loop line).
 TICK_MARK = "local-llm operator tick"
+#: The signature line every rendered heartbeat ends with.
+SIGNATURE_MARK = "-- heartbeat "
+#: Where `sent_at` lives (tests point this at a temporary file).
+STATE_PATH = hb.STATE_PATH
 
 FIX = (
     "Run the heartbeat script and send its output, unedited, as the final"
@@ -97,6 +106,7 @@ def decide(
     sleep: Callable[[float], None] | None = None,
     tries: int = 12,
     pause: float = 0.5,
+    now: dt.datetime | None = None,
 ) -> str | None:
     """None to allow the stop; else the reason to block it."""
     if hook.get("stop_hook_active"):
@@ -124,7 +134,19 @@ def decide(
         why = hb.verify(given if isinstance(given, str) else final)
         if why is None or isinstance(given, str):
             break
+    when = now or dt.datetime.now().astimezone()
+    text = given if isinstance(given, str) else final
     if why is None:
+        hb.write_state(
+            STATE_PATH,
+            {"sent_at": when.isoformat(timespec="seconds")},
+            when,
+            stamp=False,
+        )
+        return None
+    if SIGNATURE_MARK not in (text or "") and not hb.send_due(
+        hb.read_state(STATE_PATH), when
+    ):
         return None
     return (
         f"This tick's final message is not the heartbeat script's output: {why}. {FIX}"

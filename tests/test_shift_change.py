@@ -65,9 +65,9 @@ def test_there_is_one_opener() -> None:
 
 def test_the_stub_arms_a_fixed_interval_loop_before_anything_else() -> None:
     stub = TEXT[TEXT.index("## The stub to paste") : TEXT.index("\n---\n")]
-    assert "/loop 30m local-llm operator tick" in stub
+    assert "/loop 10m local-llm operator tick" in stub
     # the loop is the first thing the stub does, before reading the file
-    assert stub.index("/loop 30m") < stub.index("2. Follow the file")
+    assert stub.index("/loop 10m") < stub.index("2. Follow the file")
     assert "{DEADLINE}" not in TEXT  # the loop has no deadline; it stops on 3 events
 
 

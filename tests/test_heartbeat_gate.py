@@ -25,6 +25,14 @@ SCRIPT = pathlib.Path(__file__).resolve().parents[1] / "scripts" / "heartbeat_ga
 
 
 @pytest.fixture(autouse=True)
+def state_file(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> pathlib.Path:
+    """Never read or stamp the real ~/.local-llm-bench state from a test."""
+    p = tmp_path / "heartbeat.json"
+    monkeypatch.setattr(gate, "STATE_PATH", p)
+    return p
+
+
+@pytest.fixture(autouse=True)
 def no_naps(monkeypatch: pytest.MonkeyPatch) -> None:
     """The retries would sleep 5.5 s in every blocking test."""
     monkeypatch.setattr(gate.time, "sleep", lambda _: None)
@@ -161,8 +169,64 @@ def test_the_hooks_own_last_message_wins_over_the_transcript(tmp_path) -> None:
     stale = [user(TICK), said("working")]
     hook = {"transcript_path": "x", "last_assistant_message": signed()}
     naps: list[float] = []
-    assert gate.decide(hook, reader=lambda _: stale, sleep=naps.append) is None
+    assert gate.decide(hook, reader=lambda _: stale, sleep=naps.append, now=NOW) is None
     assert naps == []
     bad = hook | {"last_assistant_message": "freehand"}
-    assert gate.decide(bad, reader=lambda _: stale, sleep=naps.append) is not None
+    later = NOW + dt.timedelta(minutes=hb.SEND_EVERY_MIN)  # past the send gap
+    assert (
+        gate.decide(bad, reader=lambda _: stale, sleep=naps.append, now=later)
+        is not None
+    )
     assert naps == []  # the hook's own text is final; no waiting
+
+
+# -- the 29-minute send gap (operator, 2026-10-19) ------------------------------
+
+
+def test_a_quiet_tick_may_end_without_a_heartbeat_inside_the_gap(
+    tmp_path, state_file
+) -> None:
+    sent = NOW - dt.timedelta(minutes=10)
+    hb.write_state(state_file, {"sent_at": sent.isoformat()}, NOW, stamp=False)
+    hook = transcript(tmp_path, [user(TICK), tool_use(), tool_result()])
+    assert gate.decide(hook, now=NOW) is None
+
+
+def test_a_tick_must_send_once_the_gap_has_passed(tmp_path, state_file) -> None:
+    sent = NOW - dt.timedelta(minutes=29)
+    hb.write_state(state_file, {"sent_at": sent.isoformat()}, NOW, stamp=False)
+    hook = transcript(tmp_path, [user(TICK), said("quiet")])
+    assert gate.decide(hook, now=NOW) is not None
+
+
+def test_a_tick_with_no_record_of_a_send_must_send(tmp_path) -> None:
+    hook = transcript(tmp_path, [user(TICK), said("quiet")])
+    assert gate.decide(hook, now=NOW) is not None
+
+
+def test_a_sent_heartbeat_starts_the_gap(tmp_path, state_file) -> None:
+    hook = transcript(tmp_path, [user(TICK), said(signed())])
+    assert gate.decide(hook, now=NOW) is None
+    assert hb.read_state(state_file)["sent_at"] == NOW.isoformat(timespec="seconds")
+    quiet = transcript(tmp_path, [user(TICK), said("")])
+    later = NOW + dt.timedelta(minutes=10)
+    assert gate.decide(quiet, now=later) is None
+
+
+def test_a_hand_written_heartbeat_is_still_blocked_inside_the_gap(
+    tmp_path, state_file
+) -> None:
+    """Inside the gap a tick may say nothing, but not a fake heartbeat."""
+    sent = NOW - dt.timedelta(minutes=10)
+    hb.write_state(state_file, {"sent_at": sent.isoformat()}, NOW, stamp=False)
+    fake = signed().replace("#840", "#999")
+    hook = transcript(tmp_path, [user(TICK), said(fake)])
+    assert gate.decide(hook, now=NOW) is not None
+
+
+def test_send_due_reads_the_gap() -> None:
+    assert hb.send_due({}, NOW)
+    assert not hb.send_due(
+        {"sent_at": (NOW - dt.timedelta(minutes=28)).isoformat()}, NOW
+    )
+    assert hb.send_due({"sent_at": (NOW - dt.timedelta(minutes=29)).isoformat()}, NOW)
