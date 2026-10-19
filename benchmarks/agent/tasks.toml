@@ -4852,3 +4852,27 @@ topology = "remote"
 # TensorFold serves no /v1/messages; OpenCode-only (#798).
 smoke_protocol = "openai"
 recipe_dir = "~/deepseek-v41-tensorfold-spark"
+
+
+# #1160 (operator 2026-10-18 20:40: approved, build locally): the same
+# 1017 checkpoint as #1142 on a different engine. 0xSero's EXL3 2.7 bpw quant
+# (0xSero/DeepSeek-V4.1-Flash-1017-EXL3-2.7bpw @e34ef55bda) on sudoingX's vLLM
+# stack (sudoingX/dgx-spark-deepseek-v41 @cc59c360: vLLM 6e517b15 + patches,
+# exllamav3 1.6.0, vllm_exl3_moe; dsv41-serve:v4 built locally by install.sh).
+# Launched with scripts/launch/dsv41_tp2.sh as shipped except PORT 8888, the
+# served name, and EXTRA --default-chat-template-kwargs reasoning_effort low
+# (the template defaults to high; #1142 ran low). DSpark drafting is on and,
+# as for the other DeepSeek arms, not declared `speculative`.
+[backend.dsv41f1017exl3serodual2xrc]
+description = "DeepSeek V4.1 Flash 1017 EXL3 2.7 bpw (0xSero/DeepSeek-V4.1-Flash-1017-EXL3-2.7bpw @e34ef55bda, 184.9 GiB) plus the native 1017 Engram shards (deepseek-ai/DeepSeek-V4.1-Flash-1017 @1bae0e10) across TWO DGX Sparks: vLLM TP=2 + ExLlamaV3 via sudoingX/dgx-spark-deepseek-v41 @cc59c360 (image dsv41-serve:v4 built locally), DSpark speculation, 262144 context, max-num-seqs 2, GPU util 0.88, reasoning_effort low server-side, :8888. REMOTE CLIENT: the Core i9-13900H; OpenCode context 262,144, output cap 16,384"
+tier = "gb10-spark-x2"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "vllm"
+model = "DeepSeek-V4.1-Flash-1017-EXL3"
+aider_model = "openai/DeepSeek-V4.1-Flash-1017-EXL3"
+opencode_model = "vllm8888/DeepSeek-V4.1-Flash-1017-EXL3"
+context_tokens = 262144
+topology = "remote"
+smoke_protocol = "openai"
+recipe_dir = "~/dsv41_recipe"
