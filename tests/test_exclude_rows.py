@@ -292,3 +292,80 @@ def test_pgrep_exit_status_is_read(monkeypatch, code, running):
 
     monkeypatch.setattr(exclude_rows.subprocess, "run", fake)
     assert exclude_rows._harness_running() is running
+
+
+# -- reinstating an explained audit fault (#1168) --------------------------------
+
+AUDITED = dict(
+    ROW,
+    excluded=True,
+    exclusion_reason="harness fault in the transcript audit (#969): /x/audit.json",
+)
+
+
+def test_reinstate_lifts_only_an_audit_exclusion(tmp_path):
+    other = dict(ROW, excluded=True, exclusion_reason="aborted sweep (#138)")
+    p = ledger(tmp_path, [AUDITED, other])
+    lifted = exclude_rows.reinstate(
+        p, backend="kimat", since=None, until=None, apply=True
+    )
+    assert lifted == 1
+    got = [json.loads(line) for line in p.read_text().splitlines()]
+    assert got[0]["excluded"] is False and got[0]["exclusion_reason"] is None
+    assert got[1]["excluded"] is True  # a void run stays void
+    assert got[1]["exclusion_reason"] == "aborted sweep (#138)"
+
+
+def test_reinstate_never_touches_a_measured_field(tmp_path):
+    p = ledger(tmp_path, [AUDITED])
+    exclude_rows.reinstate(p, backend="kimat", since=None, until=None, apply=True)
+    got = json.loads(p.read_text().strip())
+    assert got["wall_seconds"] == 123.4 and got["passed"] is True
+
+
+def test_reinstate_reports_without_apply(tmp_path):
+    p = ledger(tmp_path, [AUDITED])
+    before = p.read_text()
+    assert (
+        exclude_rows.reinstate(p, backend="kimat", since=None, until=None, apply=False)
+        == 1
+    )
+    assert p.read_text() == before
+
+
+def test_reinstate_respects_the_window(tmp_path):
+    p = ledger(tmp_path, [AUDITED])
+    lifted = exclude_rows.reinstate(
+        p,
+        backend="kimat",
+        since="2026-09-04T21:30-0400",
+        until="2026-09-04T22:00-0400",
+        apply=True,
+    )
+    assert lifted == 0
+    assert json.loads(p.read_text().strip())["excluded"] is True
+
+
+def test_the_audit_reason_matches_what_the_quarantine_writes():
+    """reinstate() keys on this prefix; client_container.py writes it."""
+    src = (
+        pathlib.Path(__file__).resolve().parents[1] / "scripts" / "client_container.py"
+    ).read_text()
+    assert exclude_rows.AUDIT_REASON_PREFIX in src
+
+
+def test_the_cli_reinstate_needs_a_reason_and_an_end(tmp_path):
+    p = ledger(tmp_path, [AUDITED])
+    script = pathlib.Path(exclude_rows.__file__)
+    run = [sys.executable, str(script), str(p), "--backend", "kimat", "--reinstate"]
+    no_reason = subprocess.run(
+        run + ["--apply"], capture_output=True, text=True, check=False
+    )
+    assert no_reason.returncode == 2
+    no_end = subprocess.run(
+        run + ["--reason", "model quick exit", "--apply"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert no_end.returncode == 2
