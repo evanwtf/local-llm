@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import os
 import pathlib
 import subprocess
 import sys
@@ -121,12 +122,15 @@ def test_a_missing_transcript_allows_the_stop(tmp_path) -> None:
 def test_the_hook_exits_2_with_the_reason_on_stderr(tmp_path) -> None:
     hook = transcript(tmp_path, [user(TICK), said("freehand")])
     hook["last_assistant_message"] = "freehand"  # final as given: no retries
+    # HOME is the test's own: the hook reads ~/.local-llm-bench/heartbeat.json,
+    # and a machine whose real state says "sent 5 min ago" let this stop pass.
     p = subprocess.run(
         [sys.executable, str(SCRIPT)],
         input=json.dumps(hook),
         capture_output=True,
         text=True,
         check=False,
+        env={**os.environ, "HOME": str(tmp_path)},
     )
     assert p.returncode == 2 and "heartbeat script's output" in p.stderr
 
@@ -230,3 +234,20 @@ def test_send_due_reads_the_gap() -> None:
         {"sent_at": (NOW - dt.timedelta(minutes=28)).isoformat()}, NOW
     )
     assert hb.send_due({"sent_at": (NOW - dt.timedelta(minutes=29)).isoformat()}, NOW)
+
+
+def test_a_heartbeat_sent_outside_a_tick_still_starts_the_gap(
+    tmp_path, state_file
+) -> None:
+    """A heartbeat sent in a background-notification turn counts (2026-10-19)."""
+    hook = transcript(tmp_path, [user("task finished"), said(signed())])
+    assert gate.decide(hook, now=NOW) is None
+    assert hb.read_state(state_file)["sent_at"] == NOW.isoformat(timespec="seconds")
+
+
+def test_a_non_tick_turn_without_a_heartbeat_records_nothing(
+    tmp_path, state_file
+) -> None:
+    hook = transcript(tmp_path, [user("hello"), said("hi")])
+    assert gate.decide(hook, now=NOW) is None
+    assert "sent_at" not in hb.read_state(state_file)
