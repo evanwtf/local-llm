@@ -1,4 +1,9 @@
-"""Post the two-Spark cluster heartbeat from a timer, independent of any agent session.
+"""Render the two-Spark cluster heartbeat; a timer keeps its sensor book fresh.
+
+**It posts nowhere** (operator, 2026-10-19). Until then the timer commented the
+heartbeat on the current task's issue every 30 minutes; the operator does not
+want tick updates in issues. The session sends the heartbeat in chat, at most
+every `heartbeat.SEND_EVERY_MIN`. The history below is why the timer exists.
 
 Why this exists (#691, failure 3): the 30-minute heartbeat was a session cron
 job, and a session scheduler silently skips ticks -- 17:37, 18:07, 20:07 and
@@ -25,7 +30,7 @@ it with `--set`):
 Format: §3a of hardware/agent-opener-prompt.md -- the same field order and the
 same stall flags as the single-node `scripts/heartbeat.py`, with both nodes in
 the sensors and disk fields. The peer's address is taken from the command line
-and never printed: the repo is public and the post goes to a public issue.
+and never printed: the repo is public, and the text once went to a public issue.
 """
 
 from __future__ import annotations
@@ -425,8 +430,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--rtt-target", default="10.0.0.2", help="worker fabric address (not printed)"
     )
     ap.add_argument("--state", type=pathlib.Path, default=STATE_PATH)
-    ap.add_argument("--repo", default="evanwtf/local-llm")
-    ap.add_argument("--dry-run", action="store_true", help="print, do not post")
+    ap.add_argument("--dry-run", action="store_true", help="print; record nothing")
     ap.add_argument(
         "--set",
         metavar="JSON",
@@ -453,24 +457,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             now,
             stamp=False,
         )
-    if args.dry_run or not state.get("issue"):
-        body = hb.sign(body, "scripts/cluster_heartbeat.py")
-        print(body)
-        if not state.get("issue"):
-            logger.warning("no issue in %s; printed instead of posting", args.state)
-        return 0
-    out = subprocess.run(
-        ["gh", "issue", "comment", str(state["issue"]), "--repo", args.repo, "-F", "-"],
-        input=hb.sign(body, "scripts/cluster_heartbeat.py", "(systemd timer)"),
-        capture_output=True,
-        text=True,
-        timeout=120,
-        check=False,
-    )
-    if out.returncode != 0:
-        logger.error("gh issue comment failed: %s", out.stderr.strip())
-        return 1
-    logger.info("posted %s", out.stdout.strip())
+    # The timer never posts to an issue: tick updates go to the operator in
+    # chat, from the session, at most every SEND_EVERY_MIN (operator,
+    # 2026-10-19). Issues carry results, blockers and decisions only. A timer
+    # run still records the sensor book above; its output goes to the journal.
+    print(hb.sign(body, "scripts/cluster_heartbeat.py"))
     return 0
 
 

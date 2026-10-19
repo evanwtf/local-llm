@@ -185,7 +185,8 @@ Work that lives only in your context or in an uncommitted file is lost.
   Then record the close, so the heartbeat names it instead of flagging an idle
   machine:
   `uv run python scripts/heartbeat.py --set '{"task": "idle: session closed, closer log <path>", "questions": []}'`.
-  On the DGX cluster the timer keeps posting with that task.
+  On the DGX cluster the timer keeps recording sensors; it posts nowhere
+  (2026-10-19), so the next session's first heartbeat is the operator's signal.
 - Leave `~/git/local-llm` on `main`. Do not switch it under a live run.
 - Do not run `git stash`, `git clean`, or `git reset --hard` to tidy up.
 
