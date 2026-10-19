@@ -471,3 +471,15 @@ def test_a_copied_signature_under_a_hand_written_body_fails() -> None:
     sig = hb.sign(_body(), "scripts/heartbeat.py").splitlines()[-1]
     fake = "**2026-09-30 08:04** — DGX cluster\n\n- **Task:** fine\n\n" + sig
     assert "does not match" in (hb.verify(fake) or "")
+
+
+def test_a_pr_with_a_url_renders_as_a_link() -> None:
+    pr = {
+        "number": 1167,
+        "title": "results",
+        "url": "https://github.com/evanwtf/local-llm/pull/1167",
+        "mergeStateStatus": "CLEAN",
+    }
+    assert hb.format_prs([pr]) == (
+        "[#1167](https://github.com/evanwtf/local-llm/pull/1167) results [CLEAN]"
+    )

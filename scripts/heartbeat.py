@@ -412,7 +412,10 @@ def format_prs(prs: list[dict[str, Any]] | None, now: dt.datetime | None = None)
             tags.append("auto-merge")
         if now is not None and (age := minutes_since(pr.get("createdAt"), now)):
             tags.append(f"opened {_span(age)} ago")
-        out.append(f"#{pr['number']} {pr.get('title', '')} [{', '.join(tags)}]")
+        # A link, so the operator can tap through from a phone (2026-10-19).
+        num = f"#{pr['number']}"
+        label = f"[{num}]({pr['url']})" if pr.get("url") else num
+        out.append(f"{label} {pr.get('title', '')} [{', '.join(tags)}]")
     return "; ".join(out)
 
 
@@ -535,7 +538,7 @@ def read_prs(repo: str = REPO) -> list[dict[str, Any]] | None:
             "--state",
             "open",
             "--json",
-            "number,title,isDraft,mergeStateStatus,autoMergeRequest,createdAt,statusCheckRollup",
+            "number,title,url,isDraft,mergeStateStatus,autoMergeRequest,createdAt,statusCheckRollup",
         ]
     )
     if out is None:
