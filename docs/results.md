@@ -255,7 +255,7 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 
 ### Cortex-X925-128GB-GB10-x2
 
-*Generated from `hardware/Cortex-X925-128GB-GB10-x2/results.jsonl` — 2799 rows, sha256 fafd0a85e980.*
+*Generated from `hardware/Cortex-X925-128GB-GB10-x2/results.jsonl` — 2841 rows, sha256 51c4b7916a01.*
 
 #### Every stack measured under OpenCode
 
@@ -309,6 +309,7 @@ Excision tasks only; `script-*` excluded because they are a different class.
 | glm53fexl3tfmiaaiv18dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.34 uv=0.12.23 python=3.14.8) | 21/21 | 147s | 387s | 1.6x | 1.4x | 20.6x |
 | glm53fexl3tfmiaaiv18dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.34 uv=0.12.23 python=3.14.8 ripgrep=15.2.0) | 21/21 | 149s | 371s | 1.9x | 1.3x | 20.0x |
 | glm53fexl3tfqmiaaiv18dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.35 uv=0.12.23 python=3.14.8 ripgrep=15.2.0) | 42/42 | 156s | 320s | 3.4x | 1.7x | 16.3x |
+| glm53fexl3tfqmiaai20261010dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.0.32 uv=0.13.1) | 21/21 | 157s | 360s | 3.7x | 1.2x | 24.8x |
 | glm53ftfjaydual2xrc @ Corei3-7100-16GB+image (uv=0.12.20) | 20/21 | 157s | 470s | 1.7x | 1.5x | 21.4x |
 | glm53fnvfp4kindlingdual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (uv=0.12.22) | 63/63 | 157s | 408s | 2.6x | 1.7x | 18.2x |
 | glm53fexl3tfmiaaiv132dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.34 uv=0.12.21 python=3.14.7) | 21/21 | 162s | 328s | 1.8x | 1.2x | 17.8x |
@@ -335,7 +336,7 @@ Excision tasks only; `script-*` excluded because they are a different class.
 | ling30fdual2xrc @ Corei3-7100-16GB+image (opencode=1.18.32 uv=0.12.13 python=3.14.4) | 3/4 | 530s | 633s | — | — | 1.9x |
 | mimo26fdual2xrcthink @ Corei3-7100-16GB+image (opencode=1.18.32 uv=0.12.13 python=3.14.4) | 11/19 | 531s | 1467s | 1.7x | 1.5x | 12.1x |
 
-**Rows here were not all taken under one client.** dsv41fexl3dual2xrc, dsv4flashvisiondspark2xrc, glm53fexl3dual2xrcctx, glm53fexl3dual2xrclatest, ling30fdual2xrc, mimo26fdual2xrcthink, qwen38fnfp8dual2xrc, qwen38fnnvfp4dual2xrcflags, qwen38fnnvfp4dual2xrcv030 under 1.18.32; glm53fexl3dual2xrclatest, glm53ftfjaydual2xrc, qwen38fnhibrid48dual2xrc under 1.18.33; glm53fexl3tfmiaaiv18dual2xrc, glm53fexl3tfqmiaai20261010dual2xrc, glm53fexl3tfqmiaaiv110dual2xrc, glm53fexl3tfqmiaaiv18dual2xrc, glm53fnvfp4sparkglmdual2xrc, qwen38fnhibrid48v52dual2xrc, qwen38fnhibrid48v52nothinkdual2xrc, qwen38fnnvfp4tfmiaaidual2xrc under 1.18.35; dsv41ftfzigjaydual2xrc, qwen38fnnvfp4nv2xspec, qwen38fnnvfp4nv2xspecmain under 1.19.0; dsv41f1017exl3serodual2xrc, dsv41f1017tfzigjaydual2xrc under opencode v2.0.32; the rest under 1.18.34. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: dsv41fexl3dual2xrc (1.18.32, 1.18.34); glm53fexl3dual2xrclatest (1.18.32, 1.18.33); glm53fexl3tfmiaaiv18dual2xrc (1.18.34, 1.18.35); glm53fexl3tfqmiaaiv18dual2xrc (1.18.34, 1.18.35).
+**Rows here were not all taken under one client.** dsv41fexl3dual2xrc, dsv4flashvisiondspark2xrc, glm53fexl3dual2xrcctx, glm53fexl3dual2xrclatest, ling30fdual2xrc, mimo26fdual2xrcthink, qwen38fnfp8dual2xrc, qwen38fnnvfp4dual2xrcflags, qwen38fnnvfp4dual2xrcv030 under 1.18.32; glm53fexl3dual2xrclatest, glm53ftfjaydual2xrc, qwen38fnhibrid48dual2xrc under 1.18.33; glm53fexl3tfmiaaiv18dual2xrc, glm53fexl3tfqmiaai20261010dual2xrc, glm53fexl3tfqmiaaiv110dual2xrc, glm53fexl3tfqmiaaiv18dual2xrc, glm53fnvfp4sparkglmdual2xrc, qwen38fnhibrid48v52dual2xrc, qwen38fnhibrid48v52nothinkdual2xrc, qwen38fnnvfp4tfmiaaidual2xrc under 1.18.35; dsv41ftfzigjaydual2xrc, qwen38fnnvfp4nv2xspec, qwen38fnnvfp4nv2xspecmain under 1.19.0; dsv41f1017exl3serodual2xrc, dsv41f1017tfzigjaydual2xrc, glm53fexl3tfqmiaai20261010dual2xrc under opencode v2.0.32; the rest under 1.18.34. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: dsv41fexl3dual2xrc (1.18.32, 1.18.34); glm53fexl3dual2xrclatest (1.18.32, 1.18.33); glm53fexl3tfmiaaiv18dual2xrc (1.18.34, 1.18.35); glm53fexl3tfqmiaai20261010dual2xrc (1.18.35, opencode v2.0.32); glm53fexl3tfqmiaaiv18dual2xrc (1.18.34, 1.18.35).
 
 Seven commits from gmail-archive's history, 60-600 changed lines each. The target repo is public, so a pass may be partly recall; see each row's `replay` record.
 
@@ -362,6 +363,7 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 | glm53fexl3tfmiaaiv132dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.34 uv=0.12.21 python=3.14.7) | 20/21 | 3/21 | 302s | 1130s | 1.4x | 1.3x | 10.9x |
 | glm53fexl3tfmiaaidual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.34 uv=0.12.21 python=3.14.7) | 21/21 | 2/21 | 310s | 1030s | 1.4x | 1.3x | 18.5x |
 | glm53fexl3tfqmiaaiv18dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.34 uv=0.12.23 python=3.14.8) | 21/21 | 2/21 | 332s | 1120s | 1.9x | 1.4x | 14.2x |
+| glm53fexl3tfqmiaai20261010dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.0.32 uv=0.13.1) | 21/21 | 1/21 | 336s | 1244s | 2.5x | 1.4x | 13.5x |
 | glm53fexl3dual2xrclatestout64k @ Corei3-7100-16GB+image (uv=0.12.20) | 20/21 | 2/21 | 355s | 1596s | 1.6x | 1.2x | 9.7x |
 | glm53ftfjaydual2xrc @ Corei3-7100-16GB+image (uv=0.12.20) | 20/21 | 2/21 | 355s | 1297s | 2.2x | 1.5x | 16.9x |
 | glm53fnvfp4kindlingdual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (uv=0.12.22) | 57/63 | 7/63 | 364s | 1478s | 3.4x | 1.8x | 13.7x |
@@ -384,7 +386,7 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 | dsv41fexl3dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.34 uv=0.12.21 python=3.14.7) | 13/19 | 5/19 | 1005s | 1428s | 1.9x | 1.4x | 3.9x |
 | dsv41fexl3dual2xrc @ Corei3-7100-16GB+image (opencode=1.18.32 uv=0.12.13 python=3.14.4) | 16/17 | 2/17 | 1140s | 3471s | 3.2x | 1.7x | 9.6x |
 
-**Rows here were not all taken under one client.** dsv41fexl3dual2xrc, dsv4flashvisiondspark2xrc, glm53fexl3dual2xrcctx, glm53fexl3dual2xrclatest, qwen38fnnvfp4dual2xrcflags under 1.18.32; glm53fexl3dual2xrclatest, glm53fexl3dual2xrclatestout64k, glm53ftfjaydual2xrc, qwen38fnhibrid48dual2xrc under 1.18.33; glm53fexl3tfmiaaiv18dual2xrc, glm53fexl3tfqmiaai20261010dual2xrc, glm53fexl3tfqmiaaiv110dual2xrc, glm53fexl3tfqmiaaiv18dual2xrc, qwen38fnhibrid48v52dual2xrc, qwen38fnhibrid48v52nothinkdual2xrc, qwen38fnnvfp4tfmiaaidual2xrc under 1.18.35; dsv41ftfzigjaydual2xrc, qwen38fnnvfp4nv2xspec, qwen38fnnvfp4nv2xspecmain under 1.19.0; dsv41f1017exl3serodual2xrc, dsv41f1017tfzigjaydual2xrc under opencode v2.0.32; the rest under 1.18.34. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: dsv41fexl3dual2xrc (1.18.32, 1.18.34); glm53fexl3dual2xrclatest (1.18.32, 1.18.33); glm53fexl3tfmiaaiv18dual2xrc (1.18.34, 1.18.35); glm53fexl3tfqmiaaiv18dual2xrc (1.18.34, 1.18.35).
+**Rows here were not all taken under one client.** dsv41fexl3dual2xrc, dsv4flashvisiondspark2xrc, glm53fexl3dual2xrcctx, glm53fexl3dual2xrclatest, qwen38fnnvfp4dual2xrcflags under 1.18.32; glm53fexl3dual2xrclatest, glm53fexl3dual2xrclatestout64k, glm53ftfjaydual2xrc, qwen38fnhibrid48dual2xrc under 1.18.33; glm53fexl3tfmiaaiv18dual2xrc, glm53fexl3tfqmiaai20261010dual2xrc, glm53fexl3tfqmiaaiv110dual2xrc, glm53fexl3tfqmiaaiv18dual2xrc, qwen38fnhibrid48v52dual2xrc, qwen38fnhibrid48v52nothinkdual2xrc, qwen38fnnvfp4tfmiaaidual2xrc under 1.18.35; dsv41ftfzigjaydual2xrc, qwen38fnnvfp4nv2xspec, qwen38fnnvfp4nv2xspecmain under 1.19.0; dsv41f1017exl3serodual2xrc, dsv41f1017tfzigjaydual2xrc, glm53fexl3tfqmiaai20261010dual2xrc under opencode v2.0.32; the rest under 1.18.34. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: dsv41fexl3dual2xrc (1.18.32, 1.18.34); glm53fexl3dual2xrclatest (1.18.32, 1.18.33); glm53fexl3tfmiaaiv18dual2xrc (1.18.34, 1.18.35); glm53fexl3tfqmiaai20261010dual2xrc (1.18.35, opencode v2.0.32); glm53fexl3tfqmiaaiv18dual2xrc (1.18.34, 1.18.35).
 
 `passed` is the tests the agent could see. **`hidden passed` is tests it never saw**, run only by the oracle, over the trials whose task holds tests out; a dash means none did. Kept apart from the table above so its seven tasks stay comparable.
 
@@ -404,9 +406,9 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 | glm53ftfjaydual2xrc @ Corei3-7100-16GB+image (uv=0.12.20) | 31s |
 | dsv41f1017exl3serodual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.0.32 uv=0.13.1) | 36s |
 | mimo26fdual2xrc @ Corei3-7100-16GB+image@10g | 38s |
+| glm53fexl3tfqmiaai20261010dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.0.32 uv=0.13.1) | 38s |
 | glm53fexl3tfqmiaai20261010dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.35 uv=0.13.0 python=3.14.8 ripgrep=15.2.0) | 39s |
 | glm53fexl3dual2xrclatestout64k @ Corei3-7100-16GB+image (uv=0.12.20) | 39s |
-| glm53fexl3tfqmiaai20261010dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.0.32 uv=0.13.1) | 40s |
 | glm53fexl3tfqmiaaiv171dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.18.34 uv=0.12.23 python=3.14.8) | 40s |
 | mimo26fdual2xrc @ Corei3-7100-16GB+image (opencode=1.18.31) | 40s |
 | glm53fexl3tfmiaaiv15dual2xrc @ 13th-Gen-Intel-Corei9-13900H-64GB+image (uv=0.12.22) | 41s |
