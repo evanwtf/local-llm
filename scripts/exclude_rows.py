@@ -32,6 +32,22 @@ without it, the same command re-run after the relaunch finished would have
 excluded the good rows too: `--since` alone is a forward-open window, and
 idempotency only protects rows that are already excluded. A void run is a
 closed interval; say where it ends.
+
+**`--reinstate`** is the one way back, and it is narrow (#1168). It lifts only
+an exclusion the post-run transcript audit wrote (`AUDIT_REASON_PREFIX`), once
+the operator has decided the fault is explained: the same decision
+`client_container.py --override-fault REASON` takes at run time, made after
+the batch ended. Every other exclusion (an aborted or void run) stays. The
+reason is required and goes into the audit JSON as `override_fault`, as the
+run-time override records it (`--audit-json`); the rows return to the shape
+of a counted batch. On 2026-10-19 two trials whose first reply was
+`finish=stop` with no tool call quarantined a 42-row batch; the server log
+showed the model had answered, so the operator counted it.
+
+    uv run python scripts/exclude_rows.py <ledger> --backend <name> \\
+        --since <start> --until <end> --reinstate \\
+        --reason "quick exits are model stops (#1168)" \\
+        --audit-json ~/bench-logs/client-container-audit.json --apply
 """
 
 from __future__ import annotations
@@ -183,6 +199,66 @@ def _mark(
     return newly, already
 
 
+#: The exclusion reason the post-run transcript audit writes
+#: (client_container.quarantine_batch); `--reinstate` lifts only these.
+AUDIT_REASON_PREFIX = "harness fault in the transcript audit (#969)"
+
+
+def reinstate(
+    ledger: pathlib.Path,
+    *,
+    backend: str | None,
+    since: str | None,
+    until: str | None,
+    apply: bool,
+) -> int:
+    """Rows whose audit exclusion was (or would be) lifted. Writes only when `apply`."""
+    if apply:
+        with results.ledger_lock(ledger):
+            return _reinstate(ledger, backend, since, until, apply)
+    return _reinstate(ledger, backend, since, until, apply)
+
+
+def _reinstate(
+    ledger: pathlib.Path,
+    backend: str | None,
+    since: str | None,
+    until: str | None,
+    apply: bool,
+) -> int:
+    out: list[str] = []
+    lifted = 0
+    for line in ledger.read_text().splitlines():
+        try:
+            row = json.loads(line)
+        except ValueError:
+            out.append(line)
+            continue
+        reason = row.get("exclusion_reason")
+        if (
+            not selects(row, backend, since, until)
+            or not row.get("excluded")
+            or not isinstance(reason, str)
+            or not reason.startswith(AUDIT_REASON_PREFIX)
+        ):
+            out.append(line)
+            continue
+        row["excluded"] = False
+        row["exclusion_reason"] = None
+        lifted += 1
+        out.append(json.dumps(row))
+    if apply and lifted:
+        results.replace_ledger(ledger, "\n".join(out) + "\n")
+    return lifted
+
+
+def record_override(audit_json: pathlib.Path, reason: str) -> None:
+    """Write `override_fault` into the audit summary, as the run-time override does."""
+    summary = json.loads(audit_json.read_text())
+    summary["override_fault"] = reason
+    audit_json.write_text(json.dumps(summary, indent=2) + "\n")
+
+
 def main(argv: list[str] | None = None) -> int:
     logs.configure(fmt=logs.PLAIN)
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
@@ -192,6 +268,16 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--until", help="ISO end with offset, exclusive")
     p.add_argument("--reason", required=True)
     p.add_argument("--apply", action="store_true", help="write; otherwise report only")
+    p.add_argument(
+        "--reinstate",
+        action="store_true",
+        help="lift only transcript-audit exclusions (#969) the operator has explained",
+    )
+    p.add_argument(
+        "--audit-json",
+        type=pathlib.Path,
+        help="with --reinstate: record --reason there as override_fault",
+    )
     args = p.parse_args(argv)
 
     if not (args.backend or args.since):
@@ -224,6 +310,27 @@ def main(argv: list[str] | None = None) -> int:
             "write would be destroyed. Wait for the batch to finish."
         )
         return 2
+    if args.reinstate:
+        try:
+            lifted = reinstate(
+                args.ledger,
+                backend=args.backend,
+                since=args.since,
+                until=args.until,
+                apply=args.apply,
+            )
+        except ValueError as exc:
+            logger.error("refusing: %s", exc)
+            return 2
+        if args.apply and lifted and args.audit_json:
+            record_override(args.audit_json, args.reason)
+        logger.info(
+            "%s %d audit-excluded row(s): %s",
+            "reinstated" if args.apply else "would reinstate",
+            lifted,
+            args.reason,
+        )
+        return 0
     try:
         newly, already = mark(
             args.ledger,
