@@ -4853,6 +4853,21 @@ topology = "remote"
 smoke_protocol = "openai"
 recipe_dir = "~/deepseek-v41-tensorfold-spark"
 
+[backend.dsv41f1017eaqtfmiaaidual2xrc]
+description = "DeepSeek V4.1 Flash 1017 EXL3-EAQ-v1 2.9 bpw (Mia-AiLab/DeepSeek-V4.1-Flash-1017-EXL3-EAQ-v1-2.9-bpw @6d54be4fca) plus unquantized 1017 Engram shards 47/48 (@1bae0e10) on MiaAI's TensorFold recipe (MiaAI-Lab/DeepSeek-v4.1-Flash-1017-2x-DGX-Sparks @1afc891, image tensorfold-dsv41:exl3-tp2-1cbf54e3684f built locally), BOTH Sparks, 1M-token pool, 4 streams (#1168)"
+tier = "gb10-spark-x2"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "tensorfold"
+model = "DeepSeek-V4.1-Flash-1017"
+aider_model = "openai/DeepSeek-V4.1-Flash-1017"
+opencode_model = "tf8888/DeepSeek-V4.1-Flash-1017"
+context_tokens = 262144
+topology = "remote"
+# TensorFold serves no /v1/messages; OpenCode-only (#798).
+smoke_protocol = "openai"
+recipe_dir = "~/miaai-dsv41-1017"
+
 
 # #1160 (operator 2026-10-18 20:40: approved, build locally): the same
 # 1017 checkpoint as #1142 on a different engine. 0xSero's EXL3 2.7 bpw quant
