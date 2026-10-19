@@ -255,7 +255,7 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 
 ### Cortex-X925-128GB-GB10-x2
 
-*Generated from `hardware/Cortex-X925-128GB-GB10-x2/results.jsonl` — 2841 rows, sha256 51c4b7916a01.*
+*Generated from `hardware/Cortex-X925-128GB-GB10-x2/results.jsonl` — 2883 rows, sha256 eee25fe470b3.*
 
 #### Every stack measured under OpenCode
 
