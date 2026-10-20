@@ -137,17 +137,25 @@ def save_solution(
             # required for `:(exclude)` to have something to subtract from.
             ["git", "diff", base, "--", ".", ":(exclude,glob)**/uv.lock"],
             cwd=worktree,
+            # Bytes, not text: an agent's edit can hold bytes that are not
+            # UTF-8, and decoding them raised out of here and ended a 42-trial
+            # batch at trial 24 (#1091, 2026-10-20). The file is saved as git
+            # wrote it; the text copy below is only for the shape measures.
             capture_output=True,
-            text=True,
             timeout=60,
             stdin=subprocess.DEVNULL,
             check=False,
         )
         if proc.returncode != 0:
-            logger.debug("git diff failed in %s: %s", worktree, proc.stderr.strip())
+            logger.debug(
+                "git diff failed in %s: %s",
+                worktree,
+                proc.stderr.decode(errors="replace").strip(),
+            )
             return {}
-        patch = proc.stdout
-        if not patch.strip():
+        raw = proc.stdout
+        patch = raw.decode(errors="replace")
+        if not raw.strip():
             return {"solution_empty": True}
         dest.mkdir(parents=True, exist_ok=True)
         stem = f"{name}-{tag}" if tag else name
@@ -156,13 +164,15 @@ def save_solution(
         while out.exists():
             out = dest / f"{stem}.{n}.patch"
             n += 1
-        out.write_text(patch)
+        out.write_bytes(raw)
     except (OSError, subprocess.SubprocessError) as exc:
         logger.debug("cannot save solution for %s: %s", name, exc)
         return {}
     got: dict[str, Any] = {
         "solution_patch": str(out),
-        "solution_sha256": hashlib.sha256(patch.encode()).hexdigest(),
+        # sha256 of the bytes: for a UTF-8 patch these equal patch.encode(),
+        # so hashes already in the ledgers still compare.
+        "solution_sha256": hashlib.sha256(raw).hexdigest(),
     }
     # #4: when every backend passes, pass/fail has stopped separating them.
     # These are structural proxies over the lines the agent ADDED, recorded

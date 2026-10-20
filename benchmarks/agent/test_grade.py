@@ -7,6 +7,7 @@ of them may change a verdict -- the oracle stays binary and stays the authority.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import pathlib
 import shutil
@@ -93,6 +94,24 @@ def test_two_identical_solutions_hash_the_same(worktree, tmp_path):
     a = grade.save_solution(tmp_path / "a", "t1", worktree)
     b = grade.save_solution(tmp_path / "b", "t2", worktree)
     assert a["solution_sha256"] == b["solution_sha256"]
+
+
+def test_a_diff_that_is_not_utf8_is_saved_byte_for_byte(worktree, tmp_path):
+    """#1091, 2026-10-20: a byte 0xfa in an agent's edit raised UnicodeDecodeError
+    out of save_solution and killed a 42-trial batch at trial 24."""
+    (worktree / "src" / "m.py").write_bytes(b"# caf\xfa latin-1\n")
+    got = grade.save_solution(tmp_path / "solutions", "t1", worktree)
+    patch = pathlib.Path(got["solution_patch"]).read_bytes()
+    assert b"caf\xfa latin-1" in patch
+    assert got["solution_sha256"] == hashlib.sha256(patch).hexdigest()
+
+
+def test_a_utf8_patch_keeps_the_hash_it_had_before(worktree, tmp_path):
+    """Hashes in the ledger were sha256(text.encode()); raw bytes must match."""
+    _solve(worktree, ORIGINAL)
+    got = grade.save_solution(tmp_path / "solutions", "t1", worktree)
+    text = pathlib.Path(got["solution_patch"]).read_text()
+    assert got["solution_sha256"] == hashlib.sha256(text.encode()).hexdigest()
 
 
 def test_saving_never_raises_when_the_destination_is_unusable(worktree, tmp_path):
