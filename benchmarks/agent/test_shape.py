@@ -115,7 +115,7 @@ def test_save_solution_records_shape_beside_the_patch(tmp_path, monkeypatch):
         subprocess,
         "run",
         lambda *a, **k: type(
-            "R", (), {"returncode": 0, "stdout": patch, "stderr": ""}
+            "R", (), {"returncode": 0, "stdout": patch.encode(), "stderr": b""}
         )(),
     )
     got = grade.save_solution(tmp_path, "t", tmp_path)
@@ -135,7 +135,11 @@ def test_shape_failure_never_costs_the_trial(tmp_path, monkeypatch):
         lambda *a, **k: type(
             "R",
             (),
-            {"returncode": 0, "stdout": "+++ b/x\n+not (valid python\n", "stderr": ""},
+            {
+                "returncode": 0,
+                "stdout": b"+++ b/x\n+not (valid python\n",
+                "stderr": b"",
+            },
         )(),
     )
     got = grade.save_solution(tmp_path, "t", tmp_path)
