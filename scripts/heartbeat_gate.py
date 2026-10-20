@@ -130,6 +130,18 @@ def decide(
             return None
         prompt, final = last_turn(entries)
         if TICK_MARK not in prompt:
+            # Not a tick, so never blocked. But a heartbeat sent here (a turn
+            # woken by a finished job, 2026-10-19) still reached the operator:
+            # record it, or the next tick sends another a minute later.
+            text = given if isinstance(given, str) else final
+            if SIGNATURE_MARK in (text or "") and hb.verify(text) is None:
+                when = now or dt.datetime.now().astimezone()
+                hb.write_state(
+                    STATE_PATH,
+                    {"sent_at": when.isoformat(timespec="seconds")},
+                    when,
+                    stamp=False,
+                )
             return None
         why = hb.verify(given if isinstance(given, str) else final)
         if why is None or isinstance(given, str):
