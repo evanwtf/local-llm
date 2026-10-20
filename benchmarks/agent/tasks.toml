@@ -3303,6 +3303,7 @@ aider_model = "openai/qwen3.6-35b-a3b-sglang"
 opencode_model = "vllm8888/qwen3.6-35b-a3b-sglang"
 context_tokens = 262144
 topology = "remote"
+image = "lmsysorg/sglang:nightly-cu134-20261017-a126e8d"
 [backend.qwen36a3bnvfp4fmrcdgx]
 description = "Qwen3.6-35B-A3B NVFP4 (nvidia/ModelOpt) via vLLM 0.29.0, CUDA sm_121, thinking off -- the NVIDIA CLI-agent default the box skipped (#335); REMOTE CLIENT (#562): OpenCode and the harness run on another machine and reach this server over the LAN; FULL MEMORY (#562): server-only box, harness memory gates off, per-server watcher floor 8 GiB; gpu-memory-utilization 0.85 (was 0.6)"
 tier = "gb10-spark"
