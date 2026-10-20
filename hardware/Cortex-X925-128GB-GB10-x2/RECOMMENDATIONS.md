@@ -17,6 +17,14 @@
 > reproduces from the commands in section 1 and, for the per-run figures,
 > `scripts/series_readout.py` on the saved row files of #970, #997 and #1018.
 >
+> **Updated 2026-10-19 with the operator's decision of that day.** The pick
+> moves from GLM-5.3-Flash to DeepSeek-V4.1-Flash-1017 on vLLM
+> ([#1160][i1160]). GLM stays as the fast option. Ledger read 2026-10-19:
+> 2,893 rows, the last one finished at 2026-10-19T18:37:35-0400. The 268 rows
+> from 2026-10-18T14:39-0400 on ran OpenCode 2.0.32, and they compare only with
+> each other (sections 2 and 3). The figures from before this update reproduce
+> when the section 3 command gets `--before 2026-10-18T00:00:00-0400`.
+>
 > **The ledger has two halves that do not compare.** Until 2026-10-06 09:14 EDT,
 > OpenCode's `grep` and `glob` tools failed on every call in the client
 > ([#968][i968]): 1,993 rows. After the fix: 632 rows. A transcript audit of
@@ -29,21 +37,39 @@
 
 | you want | run | evidence |
 |---|---|---|
-| **A coding agent (the pick)** | **GLM-5.3-Flash EXL3 4bpw TensorFold quant on TensorFold v0.6.0**, [MiaAI-Lab recipe][r-tf-mia] `main` @`b5808ac` (2026-10-10) | 126 of 126 replay and hard-set trials passed over 3 runs ([#1018][i1018]), sum of medians 3,825.7 s on 14 tasks. On v1.10: 123 of 126 and 3,951.8 s ([#997][i997]); on v1.8: 124 of 126 and 4,111.1 s ([#970][i970]). The three recipe versions are the same within run-to-run noise. Fastest stack measured. |
-| The measured alternative | the same recipe with the **TR3 4bpw** checkpoint | 122 of 126 over 3 interleaved runs on v1.8, 4,271.0 s (104% of the pick on v1.8, 112% of the pick on `main`). |
-| Image input, or more than 262k tokens of context | DeepSeek-V4-Flash-Vision-Exp on vLLM, [MiaAI-Lab DSpark recipe][r-dsv4v] | 1M context, vision. 63 of 63 replay trials, at 272% of TensorFold's replay time. Broken client only (section 4). For text only, DeepSeek V4.1 on TensorFold Zig ([#919][i919]) also serves 1M tokens and was measured on the fixed client: 39 of 40 at 164% of the pick (section 3). It does not take images. |
+| **A coding agent (the pick)** | **DeepSeek-V4.1-Flash-1017 EXL3 2.7 bpw ([0xSero][w-sero1017]) on vLLM + ExLlamaV3**, [sudoingX stack][r-sudoingx] @`cc59c360` with the [sybil-solutions recipe][r-sybil] ([#1160][i1160]) | The best correctness with no model fault and no server fault. Replay + hard: 41 of 41 counted (1 excluded), sum of medians 4,782.4 s. Hidden re-grade ([#726][i726]): 17 of 20 whole tasks, 369 of 380 tests (97.1%). Standard set: 30 of 30, sum of medians 504.4 s. One run of each set, on OpenCode 2.0.32. |
+| The fast option | **GLM-5.3-Flash EXL3 4bpw TensorFold quant on TensorFold v0.6.0**, [MiaAI-Lab recipe][r-tf-mia] (the pick until 2026-10-19; [#1095][i1095], [#1018][i1018]) | On the same client: standard set 30 of 30 in 266.6 s, 52.9% of the pick's time. Replay + hard 42 of 42 in 4,358.7 s, 91.1% of the pick's time. **But it misses held-out tests:** 1 of 21 whole hidden tasks, 284 of 390 hidden tests (72.8%). Use it when the visible test suite covers the whole job. |
+| The most hidden tests passed | DeepSeek-V4.1-Flash-1017 EXL3-EAQ-v1 2.9 bpw on TensorFold, [MiaAI-Lab recipe][r-dsv41-1017-mia] ([#1168][i1168]) | Hidden: 19 of 21 whole tasks, 361 of 361 tests (100.0%), 1 trial with no result. Visible: 38 of 42. Two trials stopped on the first turn with no tool call, one timed out, and one edited a test file. Replay + hard 6,226.4 s, 130.2% of the pick's time. The standard set hit the early time stop after round 1: 10 of 10, 660.4 s. |
+| Image input, or more than 262k tokens of context | Images: DeepSeek-V4-Flash-Vision-Exp on vLLM, [MiaAI-Lab DSpark recipe][r-dsv4v]. Text only: DeepSeek-1017 on TensorFold ([#1142][i1142] or [#1168][i1168]) | Vision-Exp: 1M context, vision. 63 of 63 replay trials, at 272% of TensorFold's replay time. Broken client only (section 4). The pick on vLLM serves 262,144 tokens. On TensorFold, #1142's profile serves 1,048,576 tokens, and #1168's recipe has a 1M-token pool with 512K a stream as its stated practical limit. Our client sends at most 262,144, so long context is not measured. DeepSeek-1017 does not take images. |
 | One Spark, not two | See the [single-Spark picks](../Cortex-X925-128GB-GB10/RECOMMENDATIONS.md) | Qwen3.8-Flash-Next NVFP4 fits one node. |
+
+**TR3 4bpw is off this table.** It was "the measured alternative" until
+2026-10-19: the GLM pick's recipe with another checkpoint, 122 of 126 and
+4,271.0 s on v1.8. The fast option now fills that place. Its figures stay in
+sections 2 and 3.
+
+**Why the pick moved.** The operator's rule: "Pure correctness has to win, but
+saving ~50% on time is also very valuable." On the visible suites, the stacks
+cannot be told apart: every 95% interval overlaps. The hidden re-grade does
+separate them. The three DeepSeek-1017 arms pass 97.1% to 100.0% of the
+held-out tests, and GLM passes 72.8%. Among the 1017 arms, #1160 is the one
+with no model fault, no server fault and one excluded row. Each 1017 arm has
+one run, so the order among them is not firm (section 2). One caveat: #1160
+and #1168 wrote back 43.0% and 43.5% of the replay files verbatim, against
+1.0% for GLM. Part of the hidden-test lead may be recall, not new code
+(section 1, "Recall").
 
 **Not recommended for coding on this cluster: Qwen3.8-Flash-Next.** Every
 Qwen stack passes nearly every trial, but none finishes the set in less than
-188% of the pick's time on v1.8 (202% on `main`). The time goes to reasoning: a
-median of 14,000 to 16,800 reasoning tokens per trial, against the pick's 2,800
+188% of GLM's time on v1.8 (202% on `main`). The time goes to reasoning: a
+median of 14,000 to 16,800 reasoning tokens per trial, against GLM's 2,800
 to 3,500 (section 3). RedHat's NVFP4 build ([#865][i865]) does not load on two
 Sparks with vLLM main: three launches ran out of memory.
 
 **What "best" means here.** Each stack runs [OpenCode][opencode] as a coding
-agent on real tasks, and must pass the task's test suite. We rank on pass rate
-first, then wall-clock time. Code quality beyond "passes the suite" is not
+agent on real tasks, and must pass the task's test suite. We rank on
+correctness first: the visible verdict and the hidden re-grade ([#726][i726]).
+Then we rank on wall-clock time. Code quality beyond "passes the tests" is not
 measured. Throughput with several clients at once is not measured either: there
 is one client.
 
@@ -84,7 +110,8 @@ the LAN and calls the head node's OpenAI-compatible API ([#562][i562],
 | 2026-09-30, 10:12 → 2026-10-03 | Intel Core i9-13900H laptop, 20 threads, 64 GB, Linux 7.0.0-34-generic | `local-llm-client:1.18.34`: OpenCode 1.18.34, uv 0.12.21, CPython 3.14.7 |
 | 2026-10-05, 12:44 → 16:38 | Intel Core i3-7100 (#912 arm A on recipe v1.7 only) | `local-llm-client:1.18.34`: OpenCode 1.18.34, uv 0.12.23, CPython 3.14.8 |
 | 2026-10-05, 18:25 → 2026-10-06, 09:13 | Intel Core i9-13900H laptop | the same image |
-| **2026-10-06, 09:14 →** | **Intel Core i9-13900H laptop** | **the #968 fix:** `local-llm-client:1.18.34`, then `:1.18.35` from 16:54: OpenCode 1.18.34 → 1.18.35, uv 0.12.23, CPython 3.14.8, ripgrep 15.2.0 |
+| 2026-10-06, 09:14 → 2026-10-13, 01:11 | Intel Core i9-13900H laptop | **the #968 fix:** `local-llm-client:1.18.34`, then `:1.18.35` from 16:54: OpenCode 1.18.34 → 1.18.35, uv 0.12.23 → 0.13.0, CPython 3.14.8, ripgrep 15.2.0. #919's second run (2026-10-12/13) used OpenCode 1.19.0 |
+| **2026-10-18, 14:39 →** | **Intel Core i9-13900H laptop** | **OpenCode 2.0.32**, uv 0.13.1 (0.13.2 for #1168's standard set), CPython 3.14.8, ripgrep 15.2.0 |
 
 From 2026-09-22T23:48-0400 the client runs in a Docker container limited to
 12 GiB, with the kernel enforcing the limit ([#683][i683]). Each trial runs
@@ -134,10 +161,12 @@ trials a run. Task details are in
 - **Recall.** [gmail-archive][gmail-archive] is public, so a model may have
   seen the commits a replay task rebuilds. "Replay files restored verbatim"
   counts the reverted files the agent wrote back byte-for-byte, over every
-  trial. It stays between 0.6% and 8.1% for every stack that ran all 14 tasks
-  but one: the passes are new code, not recalled files. The exception is
-  DeepSeek V4.1. On EXL3 it restored every file of a task verbatim in 6 trials,
+  trial. It stays between 0.6% and 8.1% for every GLM and Qwen stack that ran
+  all 14 tasks: the passes are new code, not recalled files. The exception is
+  DeepSeek. On EXL3, V4.1 restored every file of a task verbatim in 6 trials,
   and on TensorFold Zig ([#919][i919]) it restored 81 of 268 files (30.2%).
+  DeepSeek-1017 restored 131 of 305 (43.0%) on vLLM ([#1160][i1160]) and 127
+  of 292 (43.5%) on TensorFold ([#1168][i1168]).
 - **The screen ([#762][i762]).** A stack needs 90% or more passed and a sum of
   medians under 200% of the leader's, or it is "screened out". Then the fastest
   3 are kept, plus any within 25% of the third, up to 5. The rest are "cut":
@@ -148,7 +177,10 @@ trials a run. Task details are in
   ```sh
   L=hardware/Cortex-X925-128GB-GB10-x2/results.jsonl
   CUT=2026-10-06T09:14:00-0400                                       # the #968 fix
-  uv run python scripts/screen_stacks.py --results $L --since $CUT   # section 3
+  OC2=2026-10-18T00:00:00-0400                                       # OpenCode 2.0.32
+  uv run python scripts/screen_stacks.py --results $L --since $CUT --before $OC2  # section 3, 1.18.x
+  uv run python scripts/screen_stacks.py --results $L --since $OC2   # sections 2 and 3, 2.0.32
+  uv run python scripts/screen_stacks.py --results $L --since $OC2 --standard
   uv run python scripts/screen_stacks.py --results $L --before $CUT  # section 4
   uv run python scripts/screen_stacks.py --results $L --before $CUT --standard
   uv run python scripts/report.py --results $L --backend <name> \
@@ -156,10 +188,98 @@ trials a run. Task details are in
   ```
 
   `report.py` compares its bounds as strings, so give them in UTC (`+0000`),
-  the form the rows use ([#992][i992]).
+  the form the rows use ([#992][i992]). For GLM's 2.0.32 rows, use
+  `--since 2026-10-19T09:00:00+0000`, and for its 1.18.35 rows,
+  `--until 2026-10-19T09:00:00+0000`. Without a bound, the screen pools GLM's
+  two clients (168 of 168, 3,847.9 s). Do not quote that pooled figure. The
+  2026-10-19 hidden-test figures come from `report.py` on the client machine,
+  at harness `c65086b`.
 
-## 2. The pick: GLM-5.3-Flash on TensorFold, MiaAI-Lab recipe
+## 2. The pick: DeepSeek-V4.1-Flash-1017 on vLLM, and the GLM fast option
 
+### Four stacks on OpenCode 2.0.32
+
+Every row from 2026-10-18T14:39-0400 on ran OpenCode 2.0.32 on the i9 client.
+These rows compare with each other, not with the 1.18.x rows. Each stack ran
+one replay + hard run and one standard run, with the early stop on. All three
+DeepSeek-1017 arms serve the same checkpoint,
+`deepseek-ai/DeepSeek-V4.1-Flash-1017` @`1bae0e10`, with its native Engram
+shards 47 and 48. The quants differ.
+
+| | **DeepSeek-1017 on vLLM** ([#1160][i1160]), the pick | DeepSeek-1017 EAQ-v1 on TensorFold ([#1168][i1168]) | DeepSeek-1017 on TensorFold Zig ([#1142][i1142]) | GLM on TensorFold ([#1095][i1095]), the fast option |
+|---|---|---|---|---|
+| backend | `dsv41f1017exl3serodual2xrc` | `dsv41f1017eaqtfmiaaidual2xrc` | `dsv41f1017tfzigjaydual2xrc` | `glm53fexl3tfqmiaai20261010dual2xrc` |
+| weights | [0xSero EXL3 2.7 bpw][w-sero1017] @`e34ef55bda` | [Mia-AiLab EXL3-EAQ-v1 2.9 bpw][w-eaq1017] @`6d54be4fca` | jayleaton EXL3 2.8 bpw @`9e7c02ec06` | [Mia-AiLab 4bpw TensorFold quant][w-tfq] @`76c0b517` |
+| replay + hard, passed by verdict | **41/41** (1 excluded) | 38/42 | 34/35 (7 excluded) | 42/42 |
+| 95% CI (Wilson) | 91.4–100% | 77.9–96.2% | 85.5–99.5% | 91.6–100% |
+| replay + hard, sum of medians | 4,782.4 s | 6,226.4 s | no 14-task sum: every `gmail-api-sources-hidden` trial was excluded | **4,358.7 s** |
+| hidden tests: whole tasks | 17/20 | **19/21**, 1 no result | 12/14, 1 no result | 1/21 |
+| hidden tests: tests | 369/380 (97.1%) | **361/361 (100.0%)** | 270/274 (98.5%) | 284/390 (72.8%) |
+| replay files restored verbatim | 131/305 (43.0%) | 127/292 (43.5%) | not in the screen | 3/309 (1.0%) |
+| standard set, passed | 30/30 | 10/10, time-stopped after round 1 | 28/28 | 30/30 |
+| standard set, sum of medians | 504.4 s | 660.4 s (one trial a task) | 463.8 s | **266.6 s** |
+
+**How the rule ranks them.** Correctness first, then time.
+
+- **Visible verdicts do not rank them.** Every interval overlaps the others.
+- **The hidden re-grade does.** The three 1017 arms pass 97.1% to 100.0% of
+  the held-out tests. GLM passes 72.8%, and 1 of 21 whole tasks. The gap is not
+  new to this client: GLM's 126 rows on OpenCode 1.18.35 ([#1018][i1018])
+  re-grade to 3 of 63 whole tasks and 864 of 1,170 tests (73.8%). That is four
+  GLM runs that agree.
+- **#1160 over #1168.** #1168 has the best hidden result, but 4 visible
+  failures:
+  - `replay-relative-dates` #2 (7.3 s) and `replay-defang` #2 (12.4 s): the
+    model answered the first request with `finish=stop` and no tool call. The
+    operator counts these as FAILs ([#1177][i1177]).
+  - `replay-span-web-ui-no-test-names` #2 timed out at 1,800 s.
+  - `replay-span-web-ui-no-test-names` #1 passed its suite in 1,213.6 s, but
+    the agent edited a test file, so the verdict is FAIL.
+
+  Its standard set ran on a newer recipe (`e65785c`) than its replay set
+  (`2b906fd`). The early stop ended it after round 1: 660.4 s against GLM's
+  274.4 s on the same trials (240.7%, limit 200%).
+- **#1160 over #1142.** #1142's server crashed with `PoolExhausted` after 5 h
+  7 min, and 7 of its 42 replay + hard rows were excluded (6 for answer
+  exposure, 1 for a dead server). #1160 ran with no server fault and 1
+  exclusion (answer exposure).
+- **Time.** GLM took 52.9% of the pick's time on the standard set (266.6 s
+  against 504.4 s), and 91.1% on replay + hard (4,358.7 s against 4,782.4 s).
+  The large saving is on short tasks. On the long tasks the two are close.
+
+**Keep the claim small.**
+
+- **One run per 1017 arm.** We ask for three runs before a firm claim. The
+  GLM gap rests on four runs; the order among the 1017 arms does not.
+- **Recall.** #1160 and #1168 wrote back 43% of the replay files verbatim,
+  against 1.0% for GLM (section 1). The commits are public, so part of the
+  hidden-test lead may be recall.
+- **Quant, not only engine.** The three 1017 arms use 2.7, 2.8 and 2.9 bpw
+  quants by three authors. They separate the engines only up to the quant.
+
+### #1160: the pick
+
+The weights are [`0xSero/DeepSeek-V4.1-Flash-1017-EXL3-2.7bpw`][w-sero1017]
+@`e34ef55bda` (184.9 GiB): routed experts at 2.70 bpw on average, and
+attention, shared expert and LM head at EXL3 K4. The Engram shards 47 and 48
+come from the DeepSeek checkpoint. The engine is vLLM `6e517b15` for sm_121
+with exllamav3 1.6.0, the `vllm_exl3_moe` plugin and the patch series of
+[`sudoingX/dgx-spark-deepseek-v41`][r-sudoingx] @`cc59c360`. Its `install.sh`
+built the image `dsv41-serve:v4` locally. The server runs TP=2 over RoCE, a
+262,144-token window, 2 sequences, DSpark speculative decoding and reasoning
+effort `low` set on the server. The 1017 template defaults to high.
+
+- **Failures.** None in 41 counted trials. The hidden re-grade misses are
+  `replay-defang-hidden` (1 of 2 whole, 17/20 tests),
+  `replay-search-operators-hidden` (2 of 3, 40/42) and `replay-span-web-ui`
+  (2 of 3, 81/87).
+- **Memory.** MemAvailable held at 4.3–6.5 GiB on the head and 6.2–7.3 GiB on
+  the worker. The GPUs peaked at 85 °C with no throttle reasons (#1160).
+- **Text only.** The launcher stubs out the vision tower by default.
+
+### GLM-5.3-Flash on TensorFold, MiaAI-Lab recipe: the fast option
+
+GLM-5.3-Flash on this recipe was the pick until 2026-10-19.
 [`MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks-TensorFold`][r-tf-mia] runs
 [TensorFold][tensorfold] v0.6.0, TensorFold's Python engine, plus the recipe's
 107 patches at `main` @`b5808ac` (v1.10 @`549fdc5` had 96, v1.8 @`33b50fd` 82). The image tag is
@@ -172,7 +292,7 @@ same weights; the later commits change only the model card. The drafter is
 DFlash2 ([`incoai/GLM-5.3-Flash-DFlash2`][w-dflash2] @`bf582e4`). The server
 runs an FP8 KV cache shared by 4 requests and a 1,048,576-token window.
 
-### #970: the quant against TR3, on the fixed client
+#### #970: the quant against TR3, on the fixed client
 
 [#970][i970] was pre-registered on 2026-10-06. It ran the two checkpoints
 interleaved, A B A B A B, 3 runs per arm, on replay + hard. All six runs used
@@ -207,7 +327,7 @@ worse on passes and its sum of medians is at most 5% above A's. 124 ≥ 122, and
   95.7% of TR3's), but its median single trial was longer. It is faster on the
   long tasks, which dominate the sum.
 
-### #997: recipe v1.10
+#### #997: recipe v1.10
 
 [#997][i997] ran the pick, unchanged weights, on recipe v1.10. v1.9 turned on
 `TENSORFOLD_NUCLEUS_UNION=1` by default: a fix for sampled decoding, which
@@ -234,7 +354,7 @@ measured faster.
   its suite, but the agent edited a test file.
 - **Spread.** The v1.10 runs spread 6.2%, against v1.8's 2.3%.
 
-### #1018: recipe `main` @`b5808ac`
+#### #1018: recipe `main` @`b5808ac`
 
 [#1018][i1018] ran the pick, unchanged weights, on the recipe's 2026-10-10
 `main`: 53 commits past v1.10, all under "Unreleased" in its changelog. They add
@@ -258,7 +378,7 @@ change.
 
 **No change.** One run is under the bar (3,538.0 s); the three-run sum,
 3,825.7 s, is in the no-change band. The pass-rate intervals overlap. `main`
-is the pick's recipe now because the preflight runs the latest recipe.
+became the pick's recipe because the preflight runs the latest recipe.
 
 - **Failures.** None in 126 trials.
 - **Spread.** The runs spread 9.1%, against v1.10's 6.2%.
@@ -266,6 +386,20 @@ is the pick's recipe now because the preflight runs the latest recipe.
 - **The rows record the build.** From #1018 every row carries `tensorfold`
   (0.6.0), `tensorfold_image`, `server_argv` and `parallelism` (`{"tensor": 2}`),
   read from the container ([#1017][pr1017]).
+
+#### #1095: OpenCode 2.0.32
+
+[#1095][i1095] ran the same backend, weights and image on OpenCode 2.0.32, on
+2026-10-19. The recipe moved to `3fd60df`, a README change only, so every
+default stayed the same. One standard run and one replay + hard run.
+
+- **Standard set:** 30 of 30, sum of medians 266.6 s. This is the stack's
+  first standard-set run.
+- **Replay + hard:** 42 of 42, sum of medians 4,358.7 s. That is 113.9% of the
+  #1018 sum on OpenCode 1.18.35 (3,825.7 s). The client changed, so this does
+  not rank the two.
+- **Hidden re-grade:** 1 of 21 whole tasks, 284 of 390 tests (72.8%). Only
+  `replay-gmail-api-sources-hidden` passed one whole trial.
 
 **TR3's original repository has left the Hub.** Download it from its author,
 [`brandonmusic/GLM-5.3-Flash-tr3-4bpw`][w-tr3] @`a5fee929`, which is
@@ -277,22 +411,44 @@ byte-identical by sha256 to `9eaebb7` (#937). Section 6 shows the override.
   and the recipe's 107 patches (`main` @`b5808ac`) sit on v0.6.0. TensorFold has since moved to
   v0.6.6 on its Python line and to a native Zig engine in v1.0 (2026-10-07).
   The native engine does not yet serve GLM on the GB10 ([#986][i986]). The
-  recipe's patches did not apply to v0.6.5 (28 of 70 failed), so the pick
+  recipe's patches did not apply to v0.6.5 (28 of 70 failed), so the stack
   moves when its recipe does.
 - **Rows before #1018 do not record the engine build**
   (`tensorfold_version=unknown`, [#320][i320]). For those, the recipe commit
   and the image tag are the record.
-- **No standard-set run.** No TensorFold stack has run the 10 excision tasks.
+- **The visible suite is not the whole answer.** GLM passes the tests it can
+  see and misses about a quarter of the held-out ones, on every run.
 
 ## 3. Every stack on the fixed client
 
-Ten stack configurations ran the 14 replay + hard tasks after the #968 fix.
-Percentages are of the pick's v1.8 measurement, the reference for the rows
-below it:
+The fixed client has two series. They do not compare: OpenCode 2.0.32 alone
+moved GLM's replay + hard sum from 3,825.7 s to 4,358.7 s (section 2).
 
-| stack (backend) | runs | passed | 95% CI | sum of medians | % of the pick | median reasoning tokens a trial | hidden tests | replay files restored verbatim | screen |
+### OpenCode 2.0.32, from 2026-10-18
+
+Four stack configurations, one run each. The order is this page's: correctness
+first, with the hidden re-grade, then time. The screen's own order is by time.
+Percentages are of GLM's sum on the same client, 4,358.7 s:
+
+| stack (backend) | runs | passed | 95% CI | sum of medians | % of GLM | median reasoning tokens a trial | hidden: whole tasks | hidden: tests | replay files restored verbatim | screen |
+|---|---|---|---|---|---|---|---|---|---|---|
+| **DeepSeek-1017 EXL3 2.7 bpw (0xSero) on vLLM + ExLlamaV3** (`dsv41f1017exl3serodual2xrc`), the pick ([#1160][i1160]) | 1, 1 row excluded | 41/41 | 91.4–100% | 4,782.4 s | 109.7% | 7,157 | 17/20 | 369/380 (97.1%) | 131/305 (43.0%) | keep |
+| DeepSeek-1017 EXL3-EAQ-v1 2.9 bpw (MiaAI) on TensorFold (`dsv41f1017eaqtfmiaaidual2xrc`) ([#1168][i1168]) | 1 | 38/42 | 77.9–96.2% | 6,226.4 s | 142.8% | 9,698 | 19/21, 1 no result | 361/361 (100.0%) | 127/292 (43.5%) | keep |
+| DeepSeek-1017 EXL3 2.8 bpw (jayleaton) on TensorFold Zig (`dsv41f1017tfzigjaydual2xrc`) ([#1142][i1142]) | 1, 7 rows excluded | 34/35 | 85.5–99.5% | no 14-task sum | — | — | 12/14, 1 no result | 270/274 (98.5%) | — | not screened: no counted `gmail-api-sources-hidden` trial |
+| GLM TensorFold quant, MiaAI (`glm53fexl3tfqmiaai20261010dual2xrc`), the fast option ([#1095][i1095]) | 1 | 42/42 | 91.6–100% | **4,358.7 s** | 100% | 3,938 | 1/21 | 284/390 (72.8%) | 3/309 (1.0%) | keep |
+
+On the standard set (`--standard`), GLM leads at 266.6 s. #1142 took 463.8 s
+(174.0% of GLM's), #1160 504.4 s (189.2%), and #1168 660.4 s (247.7%), which
+the screen marks "screened out". #1168's figure is one trial a task.
+
+### OpenCode 1.18.x and 1.19.0, 2026-10-06 to 2026-10-13
+
+Ten stack configurations ran the 14 replay + hard tasks. Percentages are of GLM
+on v1.8, the reference for the rows below it:
+
+| stack (backend) | runs | passed | 95% CI | sum of medians | % of GLM v1.8 | median reasoning tokens a trial | hidden tests | replay files restored verbatim | screen |
 |---|---|---|---|---|---|---|---|---|---|
-| **GLM TensorFold quant, MiaAI `main` @`b5808ac`** (`glm53fexl3tfqmiaai20261010dual2xrc`), the pick ([#1018][i1018]) | 3 | 126/126 | 97.0–100% | **3,825.7 s** | 93% | 2,829.5 | 864/1,170 (73.8%) | 15/927 (1.6%) | keep |
+| **GLM TensorFold quant, MiaAI `main` @`b5808ac`** (`glm53fexl3tfqmiaai20261010dual2xrc`), the pick until 2026-10-19 ([#1018][i1018]) | 3 | 126/126 | 97.0–100% | **3,825.7 s** | 93% | 2,829.5 | 864/1,170 (73.8%) | 15/927 (1.6%) | keep |
 | GLM TensorFold quant, MiaAI v1.10 (`glm53fexl3tfqmiaaiv110dual2xrc`), the pick until #1018 ([#997][i997]) | 3 | 123/126 | 93.2–99.2% | **3,951.8 s** | 96% | 3,454.0 | 841/1,170 (71.9%) | 15/927 (1.6%) | keep |
 | GLM TensorFold quant, MiaAI v1.8 (`glm53fexl3tfqmiaaiv18dual2xrc`), the pick until #997 | 3 | 124/126 | 94.4–99.6% | **4,111.1 s** | 100% | 2,815.5 | 878/1,170 (75.0%) | 12/927 (1.3%) | keep |
 | GLM TensorFold TR3, MiaAI v1.8 (`glm53fexl3tfmiaaiv18dual2xrc`) | 3 | 122/126 | 92.1–98.8% | 4,271.0 s | 104% | 3,319.5 | 851/1,170 (72.7%) | 15/927 (1.6%) | keep |
@@ -306,24 +462,24 @@ below it:
 A timeout counts at the 1,800 s limit in every sum. A run stopped early has
 fewer trials behind each median.
 
-**Every pass-rate interval overlaps the pick's.** On pass rate, no stack here
-can be told apart from the pick; the ranking rests on time. The Qwen runs have
+**Every pass-rate interval overlaps GLM `main`'s.** On pass rate, no stack here
+can be told apart from it; the ranking rests on time. The Qwen runs have
 too few trials for their intervals to say more.
 
 `screen_stacks.py` now screens out the two early-stopped Qwen runs: against
-its new leader, the pick on `main` (3,825.7 s), they are at 202.5% and 212.7%,
+its leader in this series, GLM on `main` (3,825.7 s), they are at 202.5% and 212.7%,
 over its 200% limit. (Before #1018 they ranked 4th and 5th and were marked
 "cut"; before #997, "keep".) They do not earn more runs. The run-time early
 stop ended each one at over 200% of its leader on the same trials. That leader
-was the broken-client run of 2026-10-01 (3,953.4 s), not the fixed-client pick
-([#992][i992]). Against the pick on v1.8 they are at 188% and 198%: no verdict
+was the broken-client run of 2026-10-01 (3,953.4 s), not the fixed-client GLM
+run ([#992][i992]). Against GLM on v1.8 they are at 188% and 198%: no verdict
 changes.
 
 **What the Qwen runs show:**
 
 - **Qwen passes, but slowly.** 25 of 25 and 13 of 14 visible verdicts, and the
   #897 run passed `replay-span-web-ui-no-test-names` (1,321.3 s), which
-  hibrid48 timed out on. But every trial carries about 5 times the pick's
+  hibrid48 timed out on. But every trial carries about 5 times GLM's
   reasoning tokens.
 - **Thinking off is slower, not faster.** Without reasoning, hibrid48 took about
   three times as many steps (the #977 read-out), 134% of the thinking-on time,
@@ -331,22 +487,23 @@ changes.
 - **The engine is not the gap.** On the same NVFP4 weights and the 7 replay
   tasks, the Zig engine's sum of medians was 2,359.6 s, against 3,157.4 s on
   vLLM 0.30 (`qwen38fnnvfp4dual2xrcv030`): 75%. That compares across the
-  client fix, so it is indicative only. The gap to the pick is about 2x.
-- **Qwen's hidden-test rate is the highest measured**, 82.5% and 86.1%, against
-  72.7–75.0% for GLM. But that is 11 and 7 trials, and tests in one trial are
+  client fix, so it is indicative only. Qwen's sums are still 188% to 265%
+  of GLM's.
+- **Qwen's hidden-test rate is above GLM's**, 82.5% and 86.1%, against
+  72.7–75.0% for GLM. DeepSeek-1017 is higher still (section 2). But that is 11 and 7 trials, and tests in one trial are
   not independent. It is a reason to look again with a faster Qwen stack, not
   a result.
 
 **What the DeepSeek V4.1 run shows ([#919][i919]):**
 
-- **Second-fastest family, still well behind.** 6,262.9 s is 164% of the
-  pick on `main` and 52.3% behind the third-ranked stack, so the screen marks
+- **Second-fastest family, still well behind.** 6,262.9 s is 164% of GLM
+  on `main` and 52.3% behind the third-ranked stack, so the screen marks
   it "cut": it passes, but it does not earn more runs. The engine crashed once
   on a 201,049-token prompt (`PoolExhausted`), and the cell finished on a
   restart. It served prompts up to 219,326 tokens before that.
-- **The highest hidden-test rate measured, with a caveat.** 299 of 315 hidden
+- **A high hidden-test rate, with a caveat.** 299 of 315 hidden
   tests (94.9%), against 72.7–75.0% for GLM. But it also restored 30.2% of the
-  replay files verbatim, against 1.6% for the pick. Part of that hidden-test
+  replay files verbatim, against 1.6% for GLM. Part of that hidden-test
   rate may be recall, not new code.
 - **No reasoning count.** Every scored row records 0 reasoning tokens, at
   server reasoning effort `low`. Whether the model did not reason or the engine
@@ -449,12 +606,12 @@ stacks on speed only. No TensorFold stack ran it.
 | TensorFold v0.3.5 on a GLM 4-bit MLX build | The largest context that fit was about 36k tokens, too small for 19 of 63 replay trials. | [#798][i798] |
 | GLM TensorFold, effort `high` | 15 of 21 on the hard set; span tasks 0 of 6. | [#840][i840] |
 
-## 5. What sixteen days of data show
+## 5. What four weeks of data show
 
 - **The engine matters more than the quantization.** The same TR3 weights took
   57–65% of vLLM's time on TensorFold. No change of quantization came close.
 - **Reasoning volume decides the Qwen–GLM gap.** Qwen3.8-Flash-Next takes
-  about twice as long a task as the pick, and reasons about 5 times as many
+  about twice as long a task as GLM, and reasons about 5 times as many
   tokens (13,991 against 2,815.5 a trial). Turning thinking off made it slower
   still: it took about three times as many steps.
 - **Agent time is mostly re-reading context.** Prefill and prefix caching
@@ -464,23 +621,75 @@ stacks on speed only. No TensorFold stack ran it.
   `high` took 171% of `low`'s time on the 12 non-span tasks and passed 0 of 6
   span trials ([#840][i840], [#894][i894]). GLM's template falls back to `max`
   when nothing is set; Qwen3.8-Flash-Next's falls back to `xhigh`.
-- **Hidden tests separate the stacks little.** Every GLM stack at effort `low`
-  lands between 68.3% and 75.9%. The one GLM stack at `high` (jayleaton) reached
-  88.0%, 190/216, but 5 of its trials gave no result. Qwen sits higher
-  (section 3), on few trials.
+- **Hidden tests separate the model families, not the stacks within one.**
+  Every GLM stack at effort `low` lands between 68.3% and 75.9%. The one GLM
+  stack at `high` (jayleaton) reached 88.0%, 190/216, but 5 of its trials gave
+  no result. Qwen sits higher (section 3), on few trials. DeepSeek-1017 lands
+  at 97.1–100.0% on three quants and two engines (section 2). The visible
+  suites do not show this gap.
 - **Two task traps cost some trials on every stack:**
   - gmail-api-sources builds a source from `tests/fixtures/simple.mbox`, which
     the target repository's `.gitignore` excludes. An agent that reads the
     file early fails one visible test.
   - OpenCode's per-step output cap cut a few span-task steps at 16,384 tokens.
-    The pick runs at 32,768.
+    The GLM recipe runs at 32,768, and the pick's client provider at 16,384.
 
-## 6. How to run the pick
+## 6. How to run the pick and the fast option
+
+### The pick: DeepSeek-1017 on vLLM
+
+The [stack's README][r-sudoingx] has the full quickstart. These are the steps
+#1160 ran, with the 1017 weights in place of the stack's V4.1 weights:
+
+1. Clone the stack on both Sparks. The scripts expect `~/dsv41_recipe`:
+
+   ```sh
+   git clone https://github.com/sudoingX/dgx-spark-deepseek-v41 ~/dsv41_recipe
+   cd ~/dsv41_recipe && git checkout cc59c360
+   ```
+
+2. Build the images locally, on one Spark, with no other heavy work on either.
+   `install.sh` refuses while any GPU container runs, monitoring containers
+   included:
+
+   ```sh
+   PEER=<worker> ./install.sh
+   ```
+
+3. Download the weights on both Sparks, at the same absolute path. The Engram
+   tables stay in DeepSeek's own shards 47 and 48:
+
+   ```sh
+   hf download 0xSero/DeepSeek-V4.1-Flash-1017-EXL3-2.7bpw --revision e34ef55bda7c37d17d8dcc86a8a64e7cb875481e \
+     --local-dir ~/models/dsv41-1017-exl3
+   hf download deepseek-ai/DeepSeek-V4.1-Flash-1017 \
+     model-00047-of-00048.safetensors model-00048-of-00048.safetensors \
+     --revision 1bae0e1088993b9b82de08f59de5be5a34e42170 --local-dir ~/models/dsv41-1017-exl3
+   ```
+
+4. Start both ranks from the head. Set reasoning effort `low` on the server:
+   the 1017 template defaults to high.
+
+   ```sh
+   HEAD=<head> WORKER=<worker> PORT=8888 SERVED=DeepSeek-V4.1-Flash-1017-EXL3 \
+     MODEL_DIR=$HOME/models/dsv41-1017-exl3 \
+     EXTRA='--default-chat-template-kwargs {"reasoning_effort":"low"}' \
+     ./scripts/launch/dsv41_tp2.sh up
+   ```
+
+5. Stop it with `./scripts/launch/dsv41_tp2.sh down`.
+
+The first boot in #1160 was ready after 537 s. On the client, use the provider
+block below with `"baseURL": "http://<head-node>:8888/v1"`, the model name
+`DeepSeek-V4.1-Flash-1017-EXL3`, and `"limit": { "context": 262144, "output":
+16384 }`. Leave out `options`: the server sets the effort.
+
+### The fast option: GLM on TensorFold
 
 On the head node, as the user that owns Docker:
 
-1. Clone the recipe at its latest commit. The pick was last measured at
-   `main` @`b5808ac` (#1018):
+1. Clone the recipe at its latest commit. GLM was last measured at `main`
+   @`3fd60df` (#1095), with the same defaults as @`b5808ac` (#1018):
 
    ```sh
    git clone https://github.com/MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks-TensorFold ~/miaai-tf-glm
@@ -497,7 +706,7 @@ On the head node, as the user that owns Docker:
    MODEL_REVISION=76c0b5173166d2795dd48860f45d8224817f894c
    ```
 
-   Do not set `MODEL_ID`: the recipe's default checkpoint is the pick.
+   Do not set `MODEL_ID`: the recipe's default checkpoint is the GLM quant.
    `MODEL_REVISION` selects the exact snapshot #970, #997 and #1018 measured; it is optional.
    For TR3, set both instead:
 
@@ -544,6 +753,9 @@ recipe has no server default for reasoning effort, so the client must send
 
 ## 7. Tool versions, checked 2026-10-08
 
+This table was not checked again on 2026-10-19. The 2.0.32 rows record their
+own client and engine versions (sections 1 and 2).
+
 | tool | used for these results | latest | status |
 |---|---|---|---|
 | OpenCode | 1.18.31 → 1.18.35 | [1.18.35][opencode-rel], 2026-10-06 | current |
@@ -568,9 +780,15 @@ was built and measured on it.
 
 ## 8. Open, and what would change this page
 
+- **More runs of the 1017 arms.** Each has one run on OpenCode 2.0.32. Two
+  more runs of #1160 would make the pick firm. A second #1168 run on one recipe
+  commit would show whether its first-turn stops repeat.
+- **[#1177][i1177]:** closed 2026-10-19. By the operator's decision, a quick
+  exit that the model answered with `finish=stop` and no tool call counts as a
+  model FAIL, not a harness fault. #1168's two such trials score that way.
 - **[#986][i986]:** a MiaAI GLM recipe on TensorFold's native engine. If native
   prompt caching comes with it, agent turns could get faster.
-- **A faster Qwen stack.** Qwen's hidden-test rate leads, on few trials. The
+- **A faster Qwen stack.** Qwen's hidden-test rate is above GLM's, on few trials. The
   #897 recipe's INT4-AutoRound quant (5 of 10 experts, about 32% faster decode
   per the recipe) is not approved. Faster decode alone would not close a 2x gap
   that comes from reasoning volume.
@@ -589,6 +807,9 @@ was built and measured on it.
 ## References
 
 **Recipes:**
+[sudoingX DeepSeek V4.1 vLLM][r-sudoingx] ·
+[sybil-solutions DeepSeek-1017 EXL3][r-sybil] ·
+[MiaAI-Lab DeepSeek-1017 TensorFold][r-dsv41-1017-mia] ·
 [MiaAI-Lab TensorFold GLM][r-tf-mia] ·
 [MiaAI-Lab TensorFold Qwen][r-tf-qwen] ·
 [MiaAI-Lab vLLM GLM][r-glm-vllm] ·
@@ -610,7 +831,10 @@ was built and measured on it.
 [#977][i977] hibrid48 v5.2 · [#897][i897] Qwen on TensorFold ·
 [#986][i986] · [#992][i992] · [#904][i904] ·
 [#865][i865] RedHat Qwen NVFP4 · [#919][i919] DeepSeek V4.1 on TensorFold Zig ·
-[#626][i626] prefix cache · [#969][i969] transcript audit
+[#626][i626] prefix cache · [#969][i969] transcript audit ·
+[#1095][i1095] GLM on OpenCode 2.0.32 · [#1142][i1142] DeepSeek-1017 on TensorFold Zig ·
+[#1160][i1160] DeepSeek-1017 on vLLM · [#1168][i1168] DeepSeek-1017 EAQ-v1 on TensorFold ·
+[#1177][i1177] first-turn stops
 
 [r-tf-mia]: https://github.com/MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks-TensorFold
 [r-tf-qwen]: https://github.com/MiaAI-Lab/Qwen3.8-Flash-Dual-DGX-Sparks-TensorFold
@@ -622,6 +846,11 @@ was built and measured on it.
 [r-dsv41]: https://github.com/MiaAI-Lab/DeepSeek-v4.1-Flash-EXL3-2x-DGX-Sparks
 [r-mimo]: https://github.com/MiaAI-Lab/MiMo-V2.6-Flash-2x-DGX-Sparks
 [r-kindling]: https://github.com/kindlingai/glm-5.3-flash-gx10
+[r-sudoingx]: https://github.com/sudoingX/dgx-spark-deepseek-v41
+[r-sybil]: https://github.com/sybil-solutions/deepseek-v4.1-flash-1017-exl3-spark
+[r-dsv41-1017-mia]: https://github.com/MiaAI-Lab/DeepSeek-v4.1-Flash-1017-2x-DGX-Sparks
+[w-sero1017]: https://huggingface.co/0xSero/DeepSeek-V4.1-Flash-1017-EXL3-2.7bpw
+[w-eaq1017]: https://huggingface.co/Mia-AiLab/DeepSeek-V4.1-Flash-1017-EXL3-EAQ-v1-2.9-bpw
 [w-tfq]: https://huggingface.co/Mia-AiLab/GLM-5.3-Flash-EXL3-4bpw-TensorFold
 [w-tr3]: https://huggingface.co/brandonmusic/GLM-5.3-Flash-tr3-4bpw
 [w-dflash2]: https://huggingface.co/incoai/GLM-5.3-Flash-DFlash2
@@ -671,3 +900,8 @@ was built and measured on it.
 [i977]: https://github.com/evanwtf/local-llm/issues/977
 [i986]: https://github.com/evanwtf/local-llm/issues/986
 [i992]: https://github.com/evanwtf/local-llm/issues/992
+[i1095]: https://github.com/evanwtf/local-llm/issues/1095
+[i1142]: https://github.com/evanwtf/local-llm/issues/1142
+[i1160]: https://github.com/evanwtf/local-llm/issues/1160
+[i1168]: https://github.com/evanwtf/local-llm/issues/1168
+[i1177]: https://github.com/evanwtf/local-llm/issues/1177
