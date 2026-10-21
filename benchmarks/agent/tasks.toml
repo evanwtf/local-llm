@@ -4927,7 +4927,7 @@ recipe_dir = "~/miaai-dsv41-1017"
 # (the template defaults to high; #1142 ran low). DSpark drafting is on and,
 # as for the other DeepSeek arms, not declared `speculative`.
 [backend.glm53ffp4localdual2xrc]
-description = "#1128: nvidia/GLM-5.3-Flash-FP4-Local (rev 76348ddb2b, QAD FP4, 165.3 GiB) across TWO DGX Sparks: vLLM TP=2 in eugr/spark-vllm-b12x (pulled by the recipe's build-and-copy.sh --exp-b12x) via the eugr/spark-vllm-docker recipe recipes/glm-5.3-flash.yaml @0bdc9c9 verbatim (block 256, max-model-len 500000, max-num-seqs 4, MTP 5, fp8 KV, GMU 0.87, glm45 reasoning = thinking on like C1, glm47 tools); changed only the model path (~/models copy), served name and port 8888; launched with the recipe's launch-cluster.sh from the head; REMOTE CLIENT; operator approval 2026-10-17 (#1128)"
+description = "#1128: nvidia/GLM-5.3-Flash-FP4-Local (rev 76348ddb2b, QAD FP4, 165.3 GiB) across TWO DGX Sparks: vLLM TP=2 in eugr/spark-vllm-b12x (pulled by the recipe's build-and-copy.sh --exp-b12x) via the eugr/spark-vllm-docker recipe recipes/glm-5.3-flash.yaml @0bdc9c9 (block 256, max-model-len 500000, max-num-seqs 4, MTP 5, fp8 KV, glm45 reasoning = thinking on like C1, glm47 tools); changed the model path (~/models copy), served name, port 8888, and GMU 0.87 -> 0.77 (at 0.87 MemAvailable fell to 3.6 GiB on the head and 5.4 GiB on the worker, under the 14 GiB floor); launched with the recipe's launch-cluster.sh from the head; REMOTE CLIENT; operator approval 2026-10-17 (#1128)"
 tier = "gb10-spark-x2"
 base_url = "http://127.0.0.1:8888"
 auth_token = "local"
