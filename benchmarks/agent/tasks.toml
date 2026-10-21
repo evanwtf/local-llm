@@ -4865,6 +4865,24 @@ topology = "remote"
 smoke_protocol = "openai"
 recipe_dir = "~/engines/bolt-tf-recipe"
 
+# #1143 (2026-10-20): the FP4-Local weights of #1108 on TensorFold's Zig engine
+# instead of vLLM b12x, via MiaAI-Lab's single-Spark TensorFold recipe. Head node.
+[backend.qwen38fnfp4localtfnothinkrcdgx]
+description = "#1143: nvidia/Qwen3.8-Flash-Next-FP4-Local rev b9ce18a688 (the #1108 weights) on TensorFold zig db281878 + patches 0001-0015 via MiaAI-Lab single-Spark TensorFold recipe @656879f (image tensorfold-qwen38:zig-db28187, built locally, PULL=0), one Spark (head): THINKING=0, PARALLEL=5, fp8 KV, MTP drafts, 262k ctx; remote client"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "tensorfold"
+model = "qwen3.8-flash-next-tf-nothink"
+active_params_b = 6
+aider_model = "openai/qwen3.8-flash-next-tf-nothink"
+opencode_model = "vllm8888/qwen3.8-flash-next-tf-nothink"
+context_tokens = 262144
+topology = "remote"
+# TensorFold serves no /v1/messages; this cell is OpenCode-only (#798).
+smoke_protocol = "openai"
+recipe_dir = "~/engines/miaai-qwen38fn-tf"
+
 # #1142 (2026-10-18): DeepSeek-V4.1-Flash-1017 on the same two-Spark recipe as
 # #919, with jayleaton's own 1017 pack (flash17) and its profile: the 1017 Engram
 # shards, the pack's own image biases, and a 2.1M-token pool. Same served name.
