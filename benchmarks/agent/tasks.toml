@@ -4926,6 +4926,22 @@ recipe_dir = "~/miaai-dsv41-1017"
 # served name, and EXTRA --default-chat-template-kwargs reasoning_effort low
 # (the template defaults to high; #1142 ran low). DSpark drafting is on and,
 # as for the other DeepSeek arms, not declared `speculative`.
+[backend.glm53ffp4localdual2xrc]
+description = "#1128: nvidia/GLM-5.3-Flash-FP4-Local (rev 76348ddb2b, QAD FP4, 165.3 GiB) across TWO DGX Sparks: vLLM TP=2 in eugr/spark-vllm-b12x (pulled by the recipe's build-and-copy.sh --exp-b12x) via the eugr/spark-vllm-docker recipe recipes/glm-5.3-flash.yaml @0bdc9c9 (block 256, max-model-len 500000, max-num-seqs 4, MTP 5, fp8 KV, glm45 reasoning = thinking on like C1, glm47 tools); changed the model path (~/models copy), served name, port 8888, and GMU 0.87 -> 0.79 (at 0.87 MemAvailable fell to 3.6 GiB on the head and 5.4 GiB on the worker, under the 14 GiB floor; 0.77 failed at startup, its KV smaller than one 500k request; 0.79 gives 649,253 KV tokens and 15.6 / 17.4 GiB available); launched with the recipe's launch-cluster.sh from the head; REMOTE CLIENT; operator approval 2026-10-17 (#1128)"
+tier = "gb10-spark-x2"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "vllm"
+model = "GLM-5.3-Flash-FP4-Local"
+active_params_b = 18
+aider_model = "openai/GLM-5.3-Flash-FP4-Local"
+opencode_model = "vllm8888/GLM-5.3-Flash-FP4-Local"
+context_tokens = 500000
+topology = "remote"
+smoke_protocol = "openai"
+recipe_dir = "~/engines/eugr-spark-vllm-docker"
+image = "eugr/spark-vllm-b12x:latest"
+
 [backend.dsv41f1017exl3serodual2xrc]
 description = "DeepSeek V4.1 Flash 1017 EXL3 2.7 bpw (0xSero/DeepSeek-V4.1-Flash-1017-EXL3-2.7bpw @e34ef55bda, 184.9 GiB) plus the native 1017 Engram shards (deepseek-ai/DeepSeek-V4.1-Flash-1017 @1bae0e10) across TWO DGX Sparks: vLLM TP=2 + ExLlamaV3 via sudoingX/dgx-spark-deepseek-v41 @cc59c360 (image dsv41-serve:v4 built locally), DSpark speculation, 262144 context, max-num-seqs 2, GPU util 0.88, reasoning_effort low server-side, :8888. REMOTE CLIENT: the Core i9-13900H; OpenCode context 262,144, output cap 16,384"
 tier = "gb10-spark-x2"
