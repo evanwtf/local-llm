@@ -4941,6 +4941,8 @@ topology = "remote"
 smoke_protocol = "openai"
 recipe_dir = "~/engines/eugr-spark-vllm-docker"
 image = "eugr/spark-vllm-b12x:latest"
+speculative = "MTP, 5 speculative tokens (checkpoint MTP head, humming MoE backend)"
+draft_engine = "vllm"
 
 [backend.dsv41f1017exl3serodual2xrc]
 description = "DeepSeek V4.1 Flash 1017 EXL3 2.7 bpw (0xSero/DeepSeek-V4.1-Flash-1017-EXL3-2.7bpw @e34ef55bda, 184.9 GiB) plus the native 1017 Engram shards (deepseek-ai/DeepSeek-V4.1-Flash-1017 @1bae0e10) across TWO DGX Sparks: vLLM TP=2 + ExLlamaV3 via sudoingX/dgx-spark-deepseek-v41 @cc59c360 (image dsv41-serve:v4 built locally), DSpark speculation, 262144 context, max-num-seqs 2, GPU util 0.88, reasoning_effort low server-side, :8888. REMOTE CLIENT: the Core i9-13900H; OpenCode context 262,144, output cap 16,384"

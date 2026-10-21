@@ -233,6 +233,9 @@ def test_the_mtp_arms_declare_themselves():
         "qwen38fnfp4localnothinkrcdgx": "vllm",
         # #1111: Comet with its checkpoint MTP head.
         "comet60bnvfp4mtpnothinkrcdgx": "vllm",
+        # #1128: GLM-5.3-Flash FP4-Local on two Sparks, MTP-5 in the eugr
+        # b12x image.
+        "glm53ffp4localdual2xrc": "vllm",
     }
 
 
