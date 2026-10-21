@@ -6,8 +6,15 @@ was measured by `benchmarks/agent/` on this machine with **OpenCode** — the on
 client this file uses, so there is no client column. Nothing here is from a model
 card. Paste section 1, pick a row in section 2, or read what does not help in 3.
 
-**Ledger last read 2026-09-19** (#524). A read date more than a couple of weeks old means
-re-check `results.jsonl` before trusting these rows.
+**Ledger last read 2026-10-21** (the S1–S8 refresh, [#1087]–[#1094]; Bolt, [#1103],
+[#1127]; FP4-Local, [#1108], [#1143]). A read date more than a couple of weeks old
+means re-check `results.jsonl` before trusting these rows.
+
+> **Visible tests overstate every row here.** On the replay and hard sets, no
+> one-Spark stack passed the held-out tests ([#726]) on more than 1 of 21 whole
+> tasks. The fastest row, S1, passed every visible test and had the lowest
+> held-out rate. Read [the table under section 2](#replay-hard-and-the-held-out-tests-2026-10-21)
+> before you trust an agent's work unreviewed.
 
 > **The one thing nobody has measured: the LAN round trip.** Every median here
 > was taken on the box (loopback). This file's deployment shape is a laptop
@@ -90,6 +97,11 @@ without creating `transform.py` ([#389], [#477]). SGLang passed that task 9 of 9
 Replace `SPARK-IP` with the Spark's LAN address; the WiFi round trip is on top
 and unmeasured ([#562]).
 
+**Refreshed 2026-10-20 on the latest SGLang** ([#1087]): standard 30/30, 34.8 s
+median; replay + hard 42/42. But on held-out tests it passed 0 of 21 whole tasks
+and 223 of 382 tests (58.4%), the lowest rate measured on either machine. It is
+the fastest row, not the most correct one. Review its work.
+
 **Prefer a plain binary?** The **llama.cpp Q3** row in section 2 is 236% of the
 wall time but a single self-contained `llama-server`: no container, no venv, no
 `nvcc`/`ninja`, no MoE quirks. If standing up SGLang or vLLM is friction, start there.
@@ -113,7 +125,8 @@ box; "turns" is the median agent turn count.
 | **you want a pip-installed engine, or the most multi-client throughput** | same model | vLLM 0.29.0, MARLIN | **379/402 (94%)** | 35.3 s | 318 s | 11 | 452 tok/s at 16 concurrent streams with `--max-num-seqs 16` ([#335], [#308]). Misses `script-transform` systematically ([#477]); its same-day control against the SGLang row was 83/90, 30.9 s ([#553]) |
 | **you want the simplest server to stand up** | Flash-Next `UD-Q3_K_XL`, thinking off | llama.cpp CUDA sm_121 | **331/331** | 67.3 s | 1,059 s | 10 | one `llama-server` binary, no venv. Re-measured 2026-09-19 on the current harness: 90/90, 69.6 s, worst 340 s ([#524]) |
 | **…and the KV cache halved** | same, `q8_0` KV | llama.cpp, port 8022 | **90/90** | 61.4 s | 1,528 s | 9 | quality-neutral memory win ([#344]) |
-| **you want a dense model** | Qwen3.8-**27B** `NVFP4` (RadixArk BF16-head), thinking off | **SGLang** nightly + **DFlash2** drafter (MiaAI-Lab `start-dflash.sh`) | **90/90** | 44.2 s | 279 s | 8 | 34.2 tok/s single-stream, 198.6 at 8 streams, 247 at 12. The DSpark drafter on the same image is 89/90, 53.7 s; on the older image, 65.6 s: the image and the drafter each account for about half the gap ([#303]). Recipe ships `--mem-fraction-static 0.90`; run it at 0.70 so an agent client fits beside it ([#350]) |
+| **you want long tasks finished, with an NVIDIA model** | Nemotron-3.5-**Bolt**-74B-A9B 24GB (IQ2 QAT GGUF), thinking off | llama.cpp b11669 CUDA + LiLiCorr DFlash drafter (n-max 7) | **30/30** | 85.7 s | 123.9 s | 8.5 | replay 19/21, hard 18/21: the most hard-set passes after S1. Held-out: 0/21 whole tasks, 203/315 tests (64.4%) ([#1103]). TensorFold on the same weights: 29/30, then 35/42 on replay + hard ([#1127]) |
+| **you want a dense model** | Qwen3.8-**27B** `NVFP4` (RadixArk BF16-head), thinking off | **SGLang** nightly + **DFlash2** drafter (MiaAI-Lab `start-dflash.sh`) | **90/90** | 44.2 s | 279 s | 8 | 34.2 tok/s single-stream, 198.6 at 8 streams, 247 at 12. The DSpark drafter on the same image is 89/90, 53.7 s; on the older image, 65.6 s: the image and the drafter each account for about half the gap ([#303]). Recipe ships `--mem-fraction-static 0.90`; run it at 0.70 so an agent client fits beside it ([#350]). Refreshed 2026-10-20: replay + hard 36/42; held-out 0/21 whole tasks, 172/266 tests (64.7%) ([#1091]) |
 | **you want a larger model / 262K context** | Flash-Next `NVFP4` (NVIDIA's own checkpoint), thinking off | vLLM (MiaAI-Lab recipe), MTP-3 | **90/90** | 68.0 s | 1,115 s | 13.5 | the big-model lane. Thinking off is the fastest median but carries a long tail on the parser tasks; **thinking on** is 90/90, 120.8 s median, worst 281 s — the predictable choice ([#493]). The older styles01 build is 60/60, 95.4 s ([#331]) |
 | **you want a second, non-Qwen lineage** | Nemotron-3.5-**Lightning**-30B-A3B `NVFP4` (nvidia), thinking off, 262K context | **TensorFold 1.0.11** native CUDA engine (release archive), MTP drafts | **30/30** | 33.7 s | 236.5 s | 11.5 | replaced DeepSeek-V4-Flash Q2 on ds4 (60/60, 247.6 s median, 493 s worst) on 2026-10-14. Remote client; 30 trials, not 60. On the replay set (1.0.10): 16/21. vLLM 0.31.0 + DSpark on the same weights early-stopped at 235% of its time ([#1066]) |
 | **you want it to show its work** | Flash-Next Q3, thinking on | llama.cpp CUDA sm_121 | **118/119 (99%)** | 127.4 s | 394 s | 10 | reasoning in the transcript, at 193% of the thinking-off Q3 row's wall ([#333]) |
@@ -124,8 +137,44 @@ Every row is regenerated from the ledger by `uv run python scripts/reco_rows.py
 only the non-script tasks that *passed*, the same basis as the generated tables
 in `docs/results.md` (a trial that dies early is quick, [#142]). That basis is
 why these medians differ from the full-suite figures this file quoted before
-2026-09-18. All eight rows clear [#23]'s bar for a **>90%** claim; the
-one-command Ollama option below (84%) does not.
+2026-09-18. All nine rows clear [#23]'s bar for a **>90%** claim on the standard
+set; the one-command Ollama option below (84%) does not.
+
+### Replay, hard, and the held-out tests (2026-10-21)
+
+The standard set above is short tasks. The replay and hard sets replay real
+commits, up to 30 minutes each, and the held-out tests ([#726]) check each
+answer against tests the agent never saw. The same i9 client ran every row, on
+OpenCode 2.0.29 to 2.1.1; medians are of passing trials.
+
+| stack | standard | replay | hard | held-out: whole tasks | held-out: tests |
+|---|---|---|---|---|---|
+| S1: A3B NVFP4, SGLang ([#1087]) | 30/30, 34.8 s | **21/21**, 219.4 s | **21/21**, 377.2 s | 0/21 | 223/382 (58.4%) |
+| Bolt, llama.cpp + DFlash ([#1103]) | 30/30, 85.7 s | 19/21, 435.5 s | 18/21, 780.1 s | 0/21 | 203/315 (64.4%) |
+| S5: 27B NVFP4, SGLang + DFlash2 ([#1091]) | 30/30, 78.2 s | 20/21, 500.2 s | 16/21, 946.2 s | 0/21 | 172/266 (64.7%) |
+| Bolt, TensorFold ([#1127]) | 29/30, 95.6 s | 20/21, 496.9 s | 15/21, 681.4 s | 0/21 | 156/222 (70.3%), 2 invalid |
+| S3: Flash-Next Q3, llama.cpp ([#1089]) | 29/30, 70.5 s | 20/21, 413.0 s | 12/21, 823.4 s | 1/21 | 150/199 (75.4%) |
+| Flash-Next FP4-Local, vLLM ([#1108]) | 30/30, 40.5 s | 16/20 | 11/17 | 1/17 | 146/175 (83.4%) |
+| Flash-Next FP4-Local, TensorFold ([#1143]) | 30/30, 36.8 s | 11/14 | 7/14 | 1/14 | 89/101 (88.1%) |
+
+Both FP4-Local rows stopped early: the failure stop ([#762]) fired after 10
+failures, so they ran fewer trials.
+
+**How to read the last column.** A trial that times out has no held-out result,
+so a stack that fails the long tasks is graded on fewer, shorter ones. The
+FP4-Local rows have the highest rates over the fewest tests (101 and 175),
+and S1 has the lowest rate over the most (382). The whole-task column does not
+have this bias, and it is 0 or 1 for every stack.
+
+- **No row is safe unreviewed on long work.** Every stack passed most visible
+  replay tests and almost no whole task on the held-out ones.
+- **S1 is fastest and passes every visible test.** It is also the least correct
+  on held-out tests. Take it when you check the result yourself.
+- **Bolt on llama.cpp is the long-task row after S1:** 37 of 42 on replay +
+  hard, and 18 of 21 on the hard set alone, against S3's 12 of 21.
+- **FP4-Local is fast on short tasks only.** Both engines beat every row in this
+  table but S1 on the standard set, and both hit the failure stop on replay. On
+  TensorFold, 8 of the 10 failures were 30-minute timeouts on the longest tasks.
 
 **The one-command option, and why it is not a row above.** `ollama pull
 qwen3.6:27b-coding` (~20 GiB, smallest download, no flags) gets you an agent —
@@ -160,6 +209,14 @@ is counted — the 125B-A6B Flash-Next has twice A3B's active params. [#354] als
 speculation can *itself* multiply agent turn count here, so the extra turns are not
 cleanly attributable to one cause. If a benchmark
 tweet quotes tok/s, it is not quoting what finishes your task.
+
+**Measured and not recommended, 2026-10-21.**
+
+- **Flash-Next FP4-Local (NVIDIA's QAD FP4 checkpoint), thinking off, for long
+  tasks.** Standard set 30/30 on both engines: TensorFold took 329.4 s over the
+  set, 86.1% of vLLM's 382.6 s, and 42.5% of S3's 775.2 s. Both early-stopped on
+  replay + hard: TensorFold at 18 of 28, vLLM at 27 of 37 ([#1143], [#1108]).
+  Thinking on was stopped by the time rule at 270% of S3 ([#1108]).
 
 **Measured and not recommended, 2026-09-19.**
 
@@ -279,3 +336,13 @@ model, thinking off), then fewer turns.
 [#553]: https://github.com/evanwtf/local-llm/issues/553
 [#562]: https://github.com/evanwtf/local-llm/issues/562
 [#1066]: https://github.com/evanwtf/local-llm/issues/1066
+[#726]: https://github.com/evanwtf/local-llm/issues/726
+[#762]: https://github.com/evanwtf/local-llm/issues/762
+[#1087]: https://github.com/evanwtf/local-llm/issues/1087
+[#1089]: https://github.com/evanwtf/local-llm/issues/1089
+[#1091]: https://github.com/evanwtf/local-llm/issues/1091
+[#1094]: https://github.com/evanwtf/local-llm/issues/1094
+[#1103]: https://github.com/evanwtf/local-llm/issues/1103
+[#1108]: https://github.com/evanwtf/local-llm/issues/1108
+[#1127]: https://github.com/evanwtf/local-llm/issues/1127
+[#1143]: https://github.com/evanwtf/local-llm/issues/1143
