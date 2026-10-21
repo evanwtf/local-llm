@@ -3552,3 +3552,35 @@ def test_the_step_timeout_is_a_flat_1800_seconds() -> None:
     # scripts/timeout_sizing.py holds the evidence against a per-task limit
     # (METHODOLOGY.md, "The step timeout").
     assert run.build_parser().parse_args(["--backend", "b"]).timeout == 1800
+
+
+# The per-trial log line reads the verdict, not the oracle alone (#1143:
+# search-operators #2 logged PASS after editing its tests).
+def test_outcome_word_pass():
+    assert run.outcome_word({"passed": True, "touched_tests": False}) == "PASS"
+
+
+def test_outcome_word_suite_fail():
+    assert run.outcome_word({"passed": False}) == "FAIL"
+
+
+def test_outcome_word_guard_fail_names_the_guard():
+    row = {"passed": True, "touched_tests": True}
+    assert run.outcome_word(row) == "FAIL (suite passed; touched_tests)"
+
+
+def test_outcome_word_names_every_failed_guard():
+    row = {
+        "passed": True,
+        "touched_tests": True,
+        "source_repo_intact": False,
+        "control_fails_as_expected": False,
+    }
+    assert run.outcome_word(row) == (
+        "FAIL (suite passed; touched_tests, source_repo_intact,"
+        " control_fails_as_expected)"
+    )
+
+
+def test_outcome_word_dry_run_has_no_verdict():
+    assert run.outcome_word({"dry_run": True, "passed": True}) == "DRY RUN"

@@ -148,6 +148,32 @@ def git(args, cwd):
     return r.stdout.strip()
 
 
+# The guards results.verdict() checks after the oracle, with the value that
+# fails each one.
+GUARD_FAILS = {
+    "touched_tests": True,
+    "source_repo_intact": False,
+    "control_fails_as_expected": False,
+}
+
+
+def outcome_word(result):
+    """PASS or FAIL for the per-trial log line, from the verdict.
+
+    The oracle alone is not the verdict: a suite that passed after the agent
+    edited its tests is a failure. The log said PASS for one (#1143,
+    search-operators #2), so name the guard that failed.
+    """
+    if result.get("dry_run"):
+        return "DRY RUN"
+    if results.verdict(result):
+        return "PASS"
+    if not result.get("passed"):
+        return "FAIL"
+    failed = [k for k, bad in GUARD_FAILS.items() if result.get(k) is bad]
+    return f"FAIL (suite passed; {', '.join(failed)})"
+
+
 # Which excision implementation reads which language. Dispatching on the file
 # extension rather than guessing: handing a .swift file to the Python `ast`
 # parser does not crash, it finds nothing -- and a task that excises nothing
@@ -5646,7 +5672,7 @@ def one_trial(
         logger.info(
             "%s: %s in %ss (%s)",
             name,
-            "PASS" if passed else "FAIL",
+            outcome_word(result),
             result.get("wall_seconds"),
             summary,
         )
