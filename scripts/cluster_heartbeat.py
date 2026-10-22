@@ -90,6 +90,10 @@ PROBE = (
 #: work 35-83 W. The old line, 10 W, read the 10-14 W of the 2026-09-30 idle
 #: window as "working power".
 IDLE_W = hb.IDLE_FLOOR_W["gb10"]
+#: At or below this 30-min outlet peak a Spark is idle. Measured 2026-10-22: an
+#: idle Spark reads about 45 W, one with a model loaded but no requests peaks at
+#: 57-66 W, and one serving trials peaks at 147-197 W.
+OUTLET_IDLE_W = 90.0
 #: Free space on / below this is critical (operator, 2026-09-24): the weights for
 #: the next arm, a worker copy, or a log burst must never be what fills a node.
 #: Decimal GB, as `df -B1` counts it.
@@ -250,6 +254,20 @@ def gpus_idle(head: Node, worker: Node) -> bool | None:
     return all(p <= IDLE_W for p in read)
 
 
+def pair_idle(outlet: dict, head: Node, worker: Node) -> bool | None:
+    """The pair is idle: from the outlets' 30-min peaks where both plugs read,
+    else from GPU power (`gpus_idle`).
+
+    Operator, 2026-10-22: outlet power is the idleness signal. GPU watts read
+    the idle floor between requests, and a one-Spark run leaves the other GPU
+    at the floor by design, so the GPU check called a working pair idle.
+    """
+    peaks = [outlet.get("wall_peak_w"), outlet.get("worker_wall_peak_w")]
+    if all(p is not None for p in peaks):
+        return all(p <= OUTLET_IDLE_W for p in peaks if p is not None)
+    return gpus_idle(head, worker)
+
+
 def inlet_line(ambient_f: float | None, head: Node, worker: Node) -> str:
     """The inlet air's temperature and each GPU's rise over it. A GPU at 80 °C
     means something different with 20 °C air than with 30 °C air (operator,
@@ -341,7 +359,7 @@ def render(
         alerts=hb.flags(
             state,
             now,
-            gpu_idle=gpus_idle(head, worker),
+            gpu_idle=pair_idle(outlet, head, worker),
             log_age_min=log_age_min,
             stale_min=STALE_NOTES_MIN,
         ),
@@ -404,7 +422,8 @@ def gather(peer: str, rtt_target: str, state: dict) -> tuple[str, dict]:
         [sys.executable, str(REPO_ROOT / "scripts" / "machine_state.py")], timeout=120
     )
     occupant = parse_occupant(ms) or "unknown (machine_state.py gave no answer)"
-    merged = state | hb.idle_power_updates(state, gpus_idle(head, worker), now)
+    idle = pair_idle(outlet, head, worker)
+    merged = state | hb.idle_power_updates(state, idle, now)
     body = render(
         now,
         head,
