@@ -3320,9 +3320,14 @@ topology = "remote"
 
 # #1088, the S2 refresh of qwen36a3bnvfp4fmrcdgx: the same weights and flags on
 # vLLM 0.32.0 from PyPI (a new venv, ~/venvs/vllm-0.32.0, on the worker Spark).
-# Launch, on the worker:
+# Build the venv on a uv-managed Python (`uv venv --managed-python --python 3.12`):
+# the worker has no python3-dev, and Triton compiles a helper against Python.h at
+# start. Containers that ran as root left ~/.triton/cache and ~/.cache/vllm
+# root-owned on the worker, so every cache goes to a fresh user-owned root.
+# Launch, on the worker (C=$HOME/.cache-user/vllm-0.32.0):
 #   PATH=$HOME/venvs/vllm-0.32.0/bin:/usr/local/cuda/bin:$PATH \
-#   CUDACXX=/usr/local/cuda/bin/nvcc \
+#   CUDACXX=/usr/local/cuda/bin/nvcc XDG_CACHE_HOME=$C/xdg \
+#   VLLM_CACHE_ROOT=$C/vllm TRITON_CACHE_DIR=$C/triton \
 #   vllm serve ~/models/nvidia--Qwen3.6-35B-A3B-NVFP4-1355db6a \
 #     --served-model-name qwen3.6-35b-a3b-nvfp4 --host 0.0.0.0 --port 8888 \
 #     --gpu-memory-utilization 0.85 --max-model-len 262144 --max-num-seqs 8 \
