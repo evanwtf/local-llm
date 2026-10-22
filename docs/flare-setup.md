@@ -22,7 +22,7 @@ is node B, rank 1. The steps never use a host name from this cluster.
 
 | part | version |
 |---|---|
-| Flare | `main` at `5f37bd1406` (2026-10-21, "Clarify project status") |
+| Flare | `main` at `947a5a6d` (2026-10-22). The morning pin `5f37bd1406` cannot load the GLM checkpoint (see "Problems hit") |
 | FlashInfer fork (pinned by Flare's `pyproject.toml`) | `local-inference-lab/flashinfer` at `03de0b663abe8f5dc69d4e10118587ab459b13eb` |
 | Python | 3.12 (Flare's `.python-version`) |
 | Rust | 1.99.1 (rustup; the same on both nodes) |
@@ -79,7 +79,7 @@ Flare's native CLI is a Cargo project. Install Rust with rustup, not with
    cd ~/git
    git clone https://github.com/NVIDIA/flare-local-inference
    cd flare-local-inference
-   git checkout 5f37bd1406
+   git checkout 947a5a6d
    ```
 
 ## 4. Install the Python environment (both nodes)
@@ -94,6 +94,13 @@ Flare's native CLI is a Cargo project. Install Rust with rustup, not with
 
    This downloads PyTorch and the pinned FlashInfer fork. Do it between
    benchmark runs: a run that overlaps a download on either node is void.
+
+2. Install the native Python extension. `uv sync` does not rebuild it, so
+   do this after every checkout change:
+
+   ```sh
+   uv pip install --python .venv/bin/python --no-deps ./heliopause
+   ```
 
 ## 5. Build the native CLI (both nodes)
 
@@ -140,3 +147,30 @@ that serves the run.
 ## 10. Stop and clean up
 
 ## Problems hit, and their fixes
+
+**`GLM linear_num_heads requires 64, got None`** (Flare `5f37bd1`). The
+recipe pins `nvidia/GLM-5.3-Flash-FP4-Local@76348ddb`, but that loader cannot
+read the checkpoint's config or quantization layout. Upstream fixed it on
+2026-10-22 (NVIDIA/flare-local-inference#17). Use a later `main`. A config
+patch is not enough: the next failure is
+`f_b_proj: missing quantized_layers declaration`.
+
+**`AttributeError: module 'flare_heliopause' has no attribute ...`.** The
+native extension is older than the checkout. Run step 4.2 again.
+
+**`PermissionError` under `~/.cache`** (for example `~/.cache/b12x`).
+Containers left root-owned directories in the home cache. Fix it on each
+node:
+
+```sh
+sudo chown -R "$USER:$USER" ~/.cache ~/.triton
+```
+
+**`rank zero rejected rank 1: source identity differs`.** The two checkouts
+differ, even by one local line. Make `git status` clean and the commit equal on
+both nodes.
+
+**`BrokenPipeError` at "Load weights"** (Flare `947a5a6d` and `fea9d61d`,
+2026-10-22). Not solved yet. Rank 1's checkpoint reads fail about 11 s after
+inspection. Each side reports that the other closed. One transfer stream fails
+the same way. See #1207.
