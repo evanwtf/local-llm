@@ -3318,6 +3318,35 @@ opencode_model = "vllm/qwen3.6-35b-a3b-nvfp4"
 context_tokens = 262144
 topology = "remote"
 
+# #1088, the S2 refresh of qwen36a3bnvfp4fmrcdgx: the same weights and flags on
+# vLLM 0.32.0 from PyPI (a new venv, ~/venvs/vllm-0.32.0, on the worker Spark).
+# Build the venv on a uv-managed Python (`uv venv --managed-python --python 3.12`):
+# the worker has no python3-dev, and Triton compiles a helper against Python.h at
+# start. Containers that ran as root left ~/.triton/cache and ~/.cache/vllm
+# root-owned on the worker, so every cache goes to a fresh user-owned root.
+# Launch, on the worker (C=$HOME/.cache-user/vllm-0.32.0):
+#   PATH=$HOME/venvs/vllm-0.32.0/bin:/usr/local/cuda/bin:$PATH \
+#   CUDACXX=/usr/local/cuda/bin/nvcc XDG_CACHE_HOME=$C/xdg \
+#   VLLM_CACHE_ROOT=$C/vllm TRITON_CACHE_DIR=$C/triton \
+#   vllm serve ~/models/nvidia--Qwen3.6-35B-A3B-NVFP4-1355db6a \
+#     --served-model-name qwen3.6-35b-a3b-nvfp4 --host 0.0.0.0 --port 8888 \
+#     --gpu-memory-utilization 0.85 --max-model-len 262144 --max-num-seqs 8 \
+#     --kv-cache-dtype fp8 --enable-auto-tool-choice --tool-call-parser qwen3_coder \
+#     --reasoning-parser qwen3 --default-chat-template-kwargs '{"enable_thinking": false}'
+[backend.qwen36a3bnvfp4vllm032dgx]
+description = "Qwen3.6-35B-A3B NVFP4 (nvidia/Qwen3.6-35B-A3B-NVFP4 @1355db6a) via vLLM 0.32.0 (PyPI, torch 2.13.0+cu130), CUDA sm_121, thinking off; the S2 refresh (#1088) of qwen36a3bnvfp4fmrcdgx, same parameters, served on the worker Spark: 262k ctx, fp8 KV, max-num-seqs 8, gpu-memory-utilization 0.85, tool-call parser qwen3_coder, reasoning parser qwen3; REMOTE CLIENT (#562): OpenCode and the harness run on another machine and reach this server over the LAN; FULL MEMORY (#562): server-only box, harness memory gates off, per-server watcher floor 8 GiB"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "vllm"
+engine_tree = "~/venvs/vllm-0.32.0"
+model = "qwen3.6-35b-a3b-nvfp4"
+active_params_b = 3
+aider_model = "openai/qwen3.6-35b-a3b-nvfp4"
+opencode_model = "dgx2vllm8888/qwen3.6-35b-a3b-nvfp4"
+context_tokens = 262144
+topology = "remote"
+
 [backend.qwen3827bsglangdflash2nothinkfmrcdgx]
 description = "Qwen3.8-27B NVFP4 (RadixArk/Qwen3.8-27B-NVFP4-BF16-LMHead) on SGLang via MiaAI-Lab/Qwen3.8-27B-SGLang-DGX-Spark @9fb18ed start-dflash.sh: DFlash2 drafter z-lab/Qwen3.8-27B-DFlash2 @50307d4, 8 draft tokens, official lmsysorg dev image pinned by digest; mem-fraction-static 0.85, NOT the recipe's 0.90: at 0.90 this server runs the box down to 6351 MiB MemAvailable under load, below earlyoom's own SIGTERM line (5% of 121.7 GiB, ~6.2 GiB), so the box-wide killer would take it mid-batch (#582); thinking off via --default-chat-template-kwargs. Speculative decoding on but not declared `speculative`: no SGLang draft-counter reader exists; REMOTE CLIENT (#562): OpenCode and the harness run on another machine and reach this server over the LAN; FULL MEMORY (#562): server-only box, harness memory gates off, per-server watcher floor 8 GiB"
 tier = "gb10-spark"
