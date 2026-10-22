@@ -201,6 +201,7 @@ be drawn from — OpenCode, after the `--dir` cutover, not excluded.
 | `qwen36a3bsglangrcdgx` | the #553 A3B SGLang arm unchanged, OpenCode on a **remote client**: the topology A/B (#562) | SGLang dev image CUDA sm_121 | 22 GB | 90 |
 | `qwen36a3bsglangfmrcdgx` | A3B SGLang, remote client, **full memory** (mem-fraction 0.85) (#562) | SGLang dev image CUDA sm_121 | 22 GB | 180 |
 | `qwen36a3bsglang1017dgx` | A3B SGLang nightly 2026-10-17, S1 refresh (#1087), remote client, full memory (mem-fraction 0.85) | SGLang nightly-cu134-20261017-a126e8d | 22 GB | 0 |
+| `qwen36a3bnvfp4vllm032dgx` | A3B NVFP4 vLLM 0.32.0 (PyPI), S2 refresh (#1088), remote client, full memory (GMU 0.85) | vLLM 0.32.0 | 22 GB | 0 |
 | `qwen36a3bnvfp4fmrcdgx` | A3B vLLM, remote client, **full memory** (gpu-memory-utilization 0.85) (#562) | vLLM 0.29.0 CUDA sm_121 | 24.2 GiB | 90 |
 | `qwen3827bsglangdflash2nothinkfmrcdgx` | 27B SGLang + DFlash2, remote client, **full memory** (0.85; the recipe's 0.90 drops the box under earlyoom's line, #582) (#562) | SGLang dev image CUDA sm_121 | 24 GB + 2.6 GB draft | 90 |
 | `qwen3827bsglangdflash2nothink1017dgx` | 27B SGLang + DFlash2 nightly 2026-10-17, S5 refresh (#1091), worker Spark, remote client, full memory (0.85) | SGLang nightly-cu134-20261017-a126e8d | 31 GB | 0 |
