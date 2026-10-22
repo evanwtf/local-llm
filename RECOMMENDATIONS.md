@@ -11,7 +11,7 @@ map; the numbers live in the per-machine files.
 |---|---|---|
 | **M5 Max** MacBook Pro · 128 GB · macOS | `brew install ollama && ollama pull qwen3.6:27b-coding-mxfp8`, then point OpenCode at it — a complete agent, **24/24**, 31 GB | [`hardware/MacBook-Pro-M5-Max-…/RECOMMENDATIONS.md`](hardware/MacBook-Pro-M5-Max-128GB-Z1MZ0002NLL_A/RECOMMENDATIONS.md) |
 | **DGX Spark** · GB10 · 128 GB · Linux | serve on the box, drive from your laptop: llama.cpp CUDA + Qwen3.8-Flash-Next `UD-Q3_K_XL`, thinking off — **331/331**, 67.3 s median (loopback; the LAN hop is on top). Fastest: the A3B on SGLang, 90/90, 28.5 s | [`hardware/Cortex-X925-128GB-GB10/RECOMMENDATIONS.md`](hardware/Cortex-X925-128GB-GB10/RECOMMENDATIONS.md) |
-| **Two DGX Sparks, clustered** · 2 × GB10 · 200 Gb/s RoCE · Linux | GLM-5.3-Flash EXL3 TR3 on **TensorFold v0.6.0** via MiaAI-Lab's recipe, across both nodes — **124/126** replay and hard-set trials over 3 runs, the fastest stack measured (57–62% of vLLM's time on the same weights). The same weights on vLLM are the most-measured fallback. Served to a remote OpenCode client | [`hardware/Cortex-X925-128GB-GB10-x2/RECOMMENDATIONS.md`](hardware/Cortex-X925-128GB-GB10-x2/RECOMMENDATIONS.md) |
+| **Two DGX Sparks, clustered** · 2 × GB10 · 200 Gb/s RoCE · Linux | DeepSeek-V4.1-Flash-1017 EXL3 2.7 bpw on **vLLM + ExLlamaV3** across both nodes, the pick since 2026-10-19 (#1160): 41/41 replay and hard-set trials, 369 of 380 hidden tests. GLM-5.3-Flash on TensorFold v0.6.0 is the fast option: 52.9% of the pick's time on the standard set, but 72.8% of hidden tests. Served to a remote OpenCode client | [`hardware/Cortex-X925-128GB-GB10-x2/RECOMMENDATIONS.md`](hardware/Cortex-X925-128GB-GB10-x2/RECOMMENDATIONS.md) |
 | **Ryzen + RTX 3080 Ti** · 12 GB VRAM · Linux | secondary tier, not always on — the 12 GB-VRAM / 30 GB-RAM MoE-offload experiment (#20); no picks file yet | [`hardware/Ryzen9-7900X-32GB-RTX3080Ti-12GB/`](hardware/Ryzen9-7900X-32GB-RTX3080Ti-12GB/RESULTS.md) |
 
 **Numbers never cross machines.** The M5 Max runs Metal / MLX, the DGX Spark
@@ -22,6 +22,7 @@ machine's own file, and never quote a median from one box on another.
 
 | | |
 |---|---|
+| every pick stood up step by step, per machine | [`docs/howto.md`](docs/howto.md) |
 | every backend's numbers, split per machine | [`docs/results.md`](docs/results.md) |
 | running each stack by hand, and the reasoning | [`docs/stacks.md`](docs/stacks.md) |
 | what the benchmark does, task by task | [`benchmarks/agent/METHODOLOGY.md`](benchmarks/agent/METHODOLOGY.md) |
