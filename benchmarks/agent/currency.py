@@ -128,33 +128,36 @@ def latest_release(
 ) -> str | None:
     """The tag of `repo`'s latest GitHub release, or None.
 
-    Where `gh` is not installed (the worker Spark, #1088), read the public REST
-    API instead; without this, every venv engine served there reads "unknown"
-    and the server gate refuses the batch. A failing `gh` is not bypassed.
+    Where `gh` is not installed or gives no answer (the worker Spark had no
+    `gh`, then an unauthenticated one, #1088), read the public REST API
+    instead; without this, every venv engine served there reads "unknown" and
+    the server gate refuses the batch.
     """
     if have_gh is None:
         import shutil
 
         # An injected runner (a test's fake) answers for `gh` itself.
         have_gh = run is not _run or shutil.which("gh") is not None
-    if not have_gh:
-        body = fetch(f"https://api.github.com/repos/{repo}/releases/latest")
-        tag = body.get("tag_name") if isinstance(body, dict) else None
-        return tag if isinstance(tag, str) and tag else None
-    return run(
-        [
-            "gh",
-            "release",
-            "view",
-            "--repo",
-            repo,
-            "--json",
-            "tagName",
-            "-q",
-            ".tagName",
-        ],
-        30,
-    )
+    if have_gh:
+        got = run(
+            [
+                "gh",
+                "release",
+                "view",
+                "--repo",
+                repo,
+                "--json",
+                "tagName",
+                "-q",
+                ".tagName",
+            ],
+            30,
+        )
+        if got or run is not _run:
+            return got
+    body = fetch(f"https://api.github.com/repos/{repo}/releases/latest")
+    tag = body.get("tag_name") if isinstance(body, dict) else None
+    return tag if isinstance(tag, str) and tag else None
 
 
 def latest_python_patch(minor: str, run: Runner = _run) -> str | None:

@@ -618,9 +618,21 @@ def test_latest_release_reads_the_api_when_gh_is_missing():
     assert urls == ["https://api.github.com/repos/vllm-project/vllm/releases/latest"]
 
 
-def test_latest_release_does_not_bypass_a_failing_gh():
+def test_latest_release_reads_the_api_when_the_real_gh_gives_no_answer(monkeypatch):
+    # An installed but unauthenticated gh fails; the public API still answers.
+    monkeypatch.setattr(currency, "_run", lambda argv, timeout=30: None)
+    got = currency.latest_release(
+        "a/b",
+        currency._run,
+        have_gh=True,
+        fetch=lambda url: {"tag_name": "v1.2.3"},
+    )
+    assert got == "v1.2.3"
+
+
+def test_an_injected_runner_that_fails_is_not_bypassed():
     def fetch(url):
-        raise AssertionError("must not fall back while gh is installed")
+        raise AssertionError("a test fake answers for gh; no network")
 
     assert currency.latest_release("a/b", fake({}), have_gh=True, fetch=fetch) is None
 
