@@ -161,7 +161,7 @@ lists every other script.
 
 | | |
 |---|---|
-| running each stack by hand, and why this ranking | [`docs/stacks.md`](../../docs/stacks.md) |
+| every row step by step from a clean Mac; each stack by hand, and why this ranking | [`howto.md`](howto.md) · [`docs/stacks.md`](../../docs/stacks.md) |
 | every backend's numbers, and what they cannot say | [`docs/results.md`](../../docs/results.md) |
 | what the benchmark does, task by task | [`benchmarks/agent/METHODOLOGY.md`](../../benchmarks/agent/METHODOLOGY.md) |
 | the machine, and what a comparison must do | [`docs/m5max-runbook.md`](../../docs/m5max-runbook.md) |
