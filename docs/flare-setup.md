@@ -95,9 +95,23 @@ Flare's native CLI is a Cargo project. Install Rust with rustup, not with
    This downloads PyTorch and the pinned FlashInfer fork. Do it between
    benchmark runs: a run that overlaps a download on either node is void.
 
-*Steps 5 onward have not run yet.*
-
 ## 5. Build the native CLI (both nodes)
+
+1. On each node, run:
+
+   ```sh
+   cd ~/git/flare-local-inference
+   export PATH=$HOME/.cargo/bin:$HOME/.local/bin:/usr/local/cuda/bin:$PATH
+   cargo build --release --manifest-path flare/Cargo.toml
+   ```
+
+2. Check the result: `ls -la flare/target/release/flare`.
+
+On 2026-10-22 the head node built it in 39.6 s, and the binary is 20,410,608
+bytes. The worker node builds after the current benchmark run ends: a compile
+loads the CPU of the node that serves the run.
+
+*Steps 6 onward have not run yet.*
 
 ## 6. Prepare a TP2 GLM package across both nodes
 
