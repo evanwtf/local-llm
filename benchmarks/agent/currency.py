@@ -107,22 +107,57 @@ def _run(argv: list[str], timeout: int = 30) -> str | None:
     return got.stdout.strip()
 
 
-def latest_release(repo: str, run: Runner = _run) -> str | None:
-    """The tag of `repo`'s latest GitHub release, or None."""
-    return run(
-        [
-            "gh",
-            "release",
-            "view",
-            "--repo",
-            repo,
-            "--json",
-            "tagName",
-            "-q",
-            ".tagName",
-        ],
-        30,
-    )
+def _fetch_json(url: str) -> object | None:
+    """The JSON body at `url`, or None on any failure."""
+    import urllib.request
+
+    req = urllib.request.Request(url, headers={"Accept": "application/vnd.github+json"})
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            return json.loads(resp.read())
+    except (OSError, ValueError):
+        return None
+
+
+def latest_release(
+    repo: str,
+    run: Runner = _run,
+    *,
+    have_gh: bool | None = None,
+    fetch: Callable[[str], object | None] = _fetch_json,
+) -> str | None:
+    """The tag of `repo`'s latest GitHub release, or None.
+
+    Where `gh` is not installed or gives no answer (the worker Spark had no
+    `gh`, then an unauthenticated one, #1088), read the public REST API
+    instead; without this, every venv engine served there reads "unknown" and
+    the server gate refuses the batch.
+    """
+    if have_gh is None:
+        import shutil
+
+        # An injected runner (a test's fake) answers for `gh` itself.
+        have_gh = run is not _run or shutil.which("gh") is not None
+    if have_gh:
+        got = run(
+            [
+                "gh",
+                "release",
+                "view",
+                "--repo",
+                repo,
+                "--json",
+                "tagName",
+                "-q",
+                ".tagName",
+            ],
+            30,
+        )
+        if got or run is not _run:
+            return got
+    body = fetch(f"https://api.github.com/repos/{repo}/releases/latest")
+    tag = body.get("tag_name") if isinstance(body, dict) else None
+    return tag if isinstance(tag, str) and tag else None
 
 
 def latest_python_patch(minor: str, run: Runner = _run) -> str | None:
