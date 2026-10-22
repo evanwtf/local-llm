@@ -25,7 +25,7 @@ is node B, rank 1. The steps never use a host name from this cluster.
 | Flare | `main` at `5f37bd1406` (2026-10-21, "Clarify project status") |
 | FlashInfer fork (pinned by Flare's `pyproject.toml`) | `local-inference-lab/flashinfer` at `03de0b663abe8f5dc69d4e10118587ab459b13eb` |
 | Python | 3.12 (Flare's `.python-version`) |
-| Rust | 1.98.1 (rustup) |
+| Rust | 1.99.1 (rustup; the same on both nodes) |
 | OS packages | protoc 3.21.12, ninja 1.11.1 (Ubuntu 24.04) |
 | weights | `nvidia/GLM-5.3-Flash-FP4-Local` at `76348ddb2b`, 166 GiB, already in `~/models` on both nodes (#1128) |
 
@@ -107,9 +107,25 @@ Flare's native CLI is a Cargo project. Install Rust with rustup, not with
 
 2. Check the result: `ls -la flare/target/release/flare`.
 
-On 2026-10-22 the head node built it in 39.6 s, and the binary is 20,410,608
-bytes. The worker node builds after the current benchmark run ends: a compile
-loads the CPU of the node that serves the run.
+3. Check that both nodes built the same thing. The binary size and
+   `flare --version` must match on both nodes:
+
+   ```sh
+   ls -la flare/target/release/flare
+   ./flare/target/release/flare --version
+   ```
+
+On 2026-10-22, each node built it in about 37 s, and both binaries are
+20,410,792 bytes (`flare 0.1.0`).
+
+**Use the same Rust version on both nodes.** The worker node had no Rust, and
+rustup installed 1.99.1 there; the head node had 1.98.1. Run
+`rustup update stable` on the older node and build again. Flare rejects
+preparation hosts whose sources do not match, and the same toolchain removes
+one difference before it can matter.
+
+**Do not build while a benchmark runs.** A compile loads the CPU of the node
+that serves the run.
 
 *Steps 6 onward have not run yet.*
 
