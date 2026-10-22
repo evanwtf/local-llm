@@ -544,7 +544,7 @@ The heartbeat flags, and what each tick does about them:
 
 | flag | means | do now |
 |---|---|---|
-| **Idle power, busy task** | the GPU read the idle floor on two heartbeats in a row while `task` says work runs | find what the job is doing; if it is waiting on nothing, launch the next step |
+| **Idle power, busy task** | power read the idle floor for 20 minutes while `task` says work runs: the outlet's 30-min peak where a plug reads (the DGX cluster), else GPU watts | find what the job is doing; if it is waiting on nothing, launch the next step |
 | **Overdue** | `expect_by` has passed | diagnose the wait (above) |
 | **Quiet log** | the job's `log` has not been written for 20 minutes | read its last lines; is the process alive? |
 | **Stale state** | `task` was not updated for 45 minutes | update it with what is true now |
@@ -556,6 +556,14 @@ loads and 0% mid-trial; power and temperature tell you whether work is
 happening (the operator, 2026-09-30). Loading weights is disk-bound and reads
 near idle too, so check whether a server process exists and does not answer
 yet before you call it stuck.
+
+**Outlet power is the idleness signal where a plug reads it** (operator,
+2026-10-22). On the DGX cluster, each node's 30-minute outlet peak decides it,
+and the line is 90 W (`cluster_heartbeat.OUTLET_IDLE_W`). GPU watts fall to the
+idle floor between requests, and a one-Spark run leaves the other GPU at the
+floor by design. On 2026-10-22 that called a working pair idle for hours while
+the worker's outlet read 131-173 W. GPU watts are the fallback when a plug
+gives no reading.
 
 ### When the loop stops
 

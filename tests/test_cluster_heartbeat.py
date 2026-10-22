@@ -293,3 +293,28 @@ def test_a_missing_power_read_on_either_node_is_unknown():
     blind.power_w = None
     assert hb.gpus_idle(node(10), blind) is None
     assert "Both GPUs" not in hb.power_reason(node(10), blind, "idle")
+
+
+# Operator, 2026-10-22: use outlet power, where it can be read, as the idle
+# signal, not GPU watts. On 2026-10-22 a one-Spark run on the worker read the
+# head's GPU at 4 W and the worker's between requests at 15 W; the GPU check
+# called the pair idle for hours while the worker's outlet read 131-173 W.
+
+
+def outlet(head_peak, worker_peak):
+    return {"wall_peak_w": head_peak, "worker_wall_peak_w": worker_peak}
+
+
+def test_outlet_decides_idleness_when_both_plugs_read():
+    # GPUs both read the idle floor, but the worker's outlet peaked at 182 W.
+    assert hb.pair_idle(outlet(57.0, 182.0), node(4), node(15)) is False
+
+
+def test_both_outlets_at_the_idle_line_are_idle():
+    # A loaded but idle Spark peaks at 57-66 W; the line is 90 W.
+    assert hb.pair_idle(outlet(66.0, 63.0), node(45), node(45)) is True
+
+
+def test_a_missing_outlet_falls_back_to_gpu_power():
+    assert hb.pair_idle(outlet(None, 182.0), node(10), node(14)) is True
+    assert hb.pair_idle({}, node(45), node(14)) is False

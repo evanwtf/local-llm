@@ -237,7 +237,7 @@ def flags(
     idle_age = minutes_since(state.get("idle_power_since"), now)
     if busy and gpu_idle and idle_age is not None and idle_age >= 20:
         out.append(
-            f"**Idle power, busy task:** the GPU has read the idle floor for"
+            f"**Idle power, busy task:** power has read the idle floor for"
             f" {idle_age:.0f} min while the task says work is running."
             " Check the job now: is it waiting on nothing?"
         )
