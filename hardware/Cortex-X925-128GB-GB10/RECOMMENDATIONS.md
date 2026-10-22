@@ -303,6 +303,7 @@ model, thinking off), then fewer turns.
 
 | for | see |
 |---|---|
+| every row stood up step by step, from a clean Spark | [`howto.md`](howto.md) |
 | operating the box: ports, Prometheus, the vLLM venv + `nvcc`/`ninja` launch | [`docs/dgx-spark-runbook.md`](../../docs/dgx-spark-runbook.md) |
 | the A3B NVFP4 recipe and full run | [#335], `benchmarks/agent/tasks.toml` → `qwen36a3bnvfp4dgx` |
 | the served-endpoint deployment and the unmeasured WiFi cost | [#342], [#308] |

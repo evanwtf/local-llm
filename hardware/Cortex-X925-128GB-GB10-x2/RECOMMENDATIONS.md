@@ -636,6 +636,9 @@ stacks on speed only. No TensorFold stack ran it.
 
 ## 6. How to run the pick and the fast option
 
+All four stacks of "The short answer", step by step from two clean Sparks,
+are in [`howto.md`](howto.md). This section keeps the short form.
+
 ### The pick: DeepSeek-1017 on vLLM
 
 The [stack's README][r-sudoingx] has the full quickstart. These are the steps
