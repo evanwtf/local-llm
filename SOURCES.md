@@ -463,6 +463,9 @@ NVFP4/FP8 serving on Blackwell; the #299 single-Spark recipe
 * **[`NVIDIA/TensorRT-LLM`](https://github.com/NVIDIA/TensorRT-LLM)**  
 the other CUDA-native path to NVFP4 on the Spark (#293, #299)
 
+* **[`NVIDIA/flare-local-inference`](https://github.com/NVIDIA/flare-local-inference)**  
+NVIDIA Flare: a Rust local server for SM121, built for coding agents (#1207)
+
 * **[`sgl-project/sglang`](https://github.com/sgl-project/sglang)**  
 aggregate multi-stream serving; the DGX's throughput emphasis (#307)
 
