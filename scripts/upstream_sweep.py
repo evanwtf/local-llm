@@ -111,6 +111,10 @@ WATCHED: dict[str, tuple[str, tuple[str, ...]]] = {
         "the other CUDA-native path to NVFP4 on the Spark (#293, #299)",
         (DGX,),
     ),
+    "NVIDIA/flare-local-inference": (
+        "NVIDIA Flare: a Rust local server for SM121, built for coding agents (#1207)",
+        (DGX,),
+    ),
     "sgl-project/sglang": (
         "aggregate multi-stream serving; the DGX's throughput emphasis (#307)",
         (DGX,),
