@@ -59,7 +59,7 @@ other is telling you something.
 
 ### Cortex-X925-128GB-GB10
 
-*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 5118 rows, sha256 d44e452ffb3f.*
+*Generated from `hardware/Cortex-X925-128GB-GB10/results.jsonl` — 5178 rows, sha256 ee681b9a2565.*
 
 #### Every stack measured under OpenCode
 
@@ -79,15 +79,16 @@ other is telling you something.
 | qwen36a3bsglangrcdgx @ Corei3-7100-16GB | 89/89 | 41s | 158s | 6.7x | 2.9x | 12.7x |
 | nemotron35ltf1011c262rcdgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.0.29) | 30/30 | 44s | 191s | 6.7x | 2.1x | 16.9x |
 | qwen3827bsglangdflash2nothinkdgx | 90/90 | 44s | 279s | 12.0x | 3.5x | 22.0x |
-| qwen36a3bnvfp4vllm032dgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.1.3 uv=0.13.5 python=3.14.9) | 30/30 | 46s | 100s | 2.2x | 1.6x | 5.9x |
+| qwen36a3bnvfp4vllm032dgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.1.3) | 30/30 | 46s | 100s | 2.2x | 1.6x | 5.9x |
 | ornith15a3bdgx | 30/30 | 49s | 571s | 16.7x | 1.9x | 28.8x |
+| qwen3827bsglangdflash2nothink1021dgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.1.4) | 29/30 | 53s | 145s | 3.2x | 2.0x | 5.2x |
 | qwen3827bsglangdsparkpinnednothinkdgx | 89/90 | 54s | 191s | 5.3x | 2.6x | 12.3x |
 | qwen38fnq3nothinktopkdgx | 30/30 | 54s | 136s | 3.3x | 1.3x | 3.8x |
 | qwen38fnnvfp4miaainothinkdgx | 88/90 | 55s | 1657s | 33.7x | 6.7x | 71.4x |
 | qwen38fnq3nothinkkv8dgx | 90/90 | 61s | 1528s | 36.5x | 2.3x | 43.9x |
 | qwen38fnq3nothinkkv8b11700rcdgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.0.31) | 30/30 | 62s | 138s | 1.8x | 1.4x | 5.5x |
 | qwen38fnq3nothinkrcdgx @ Ryzen9-7900X-32GB+image | 180/181 | 63s | 394s | 12.3x | 3.1x | 17.6x |
-| qwen38fnq3nothinkkv8b11827rcdgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.1.3 uv=0.13.5 python=3.14.9) | 30/30 | 64s | 212s | 4.6x | 1.7x | 10.3x |
+| qwen38fnq3nothinkkv8b11827rcdgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.1.3) | 30/30 | 64s | 212s | 4.6x | 1.7x | 10.3x |
 | qwen3827bsglangdsparknothinkdgx | 90/90 | 66s | 278s | 8.0x | 3.1x | 11.7x |
 | qwen3827bsglangdflash2nothinkfmrcdgx @ Corei3-7100-16GB | 90/90 | 66s | 260s | 4.8x | 3.4x | 10.1x |
 | qwen38fnnvidianvfp4nothinkfmrcdgx @ Ryzen9-7900X-32GB+image | 89/90 | 66s | 772s | 14.1x | 5.7x | 35.9x |
@@ -97,6 +98,7 @@ other is telling you something.
 | qwen38fnq3nothinkb11642rcdgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.0.29) | 29/30 | 70s | 438s | 5.7x | 1.4x | 18.9x |
 | comet60bnvfp4mtpnothinkrcdgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.0.32 uv=0.13.1 python=3.14.8 ripgrep=15.2.0) | 30/30 | 76s | 226s | 4.9x | 1.7x | 9.3x |
 | qwen3827bsglangdflash2nothink1017dgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (uv=0.13.3) | 30/30 | 78s | 256s | 3.3x | 1.6x | 10.0x |
+| qwen3827bnvfp4headsglangdflash2nothink1021dgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.1.4) | 30/30 | 80s | 805s | 15.2x | 2.1x | 26.9x |
 | qwen38fnexl3nothinkrcdgx @ Ryzen9-7900X-32GB+image@24g | 25/29 | 81s | 1713s | 32.3x | 1.8x | 51.1x |
 | qwen3827btandem083nvfp4nothinkrcdgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.19.0) | 8/10 | 82s | 132s | — | — | 2.6x |
 | qwen38fnq3nothinkrcdgx @ Corei3-7100-16GB+image | 91/91 | 82s | 225s | 3.7x | 2.4x | 8.8x |
@@ -132,14 +134,14 @@ other is telling you something.
 | ds4dgx | 60/60 | 248s | 493s | 3.7x | 2.0x | 6.1x |
 | qwen38fnexl3nomtpnothinkdgx | 3/6 | 260s | 1696s | 6.5x | 6.5x | 16.5x |
 | glm53flashexl3k2nothinkdgx | 1/1 | 274s | 274s | — | — | 1.0x |
-| dsv41f1017sage162exl3rcdgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.1.3 uv=0.13.5 python=3.14.9) | 4/6 | 304s | 1063s | — | — | 16.2x |
+| dsv41f1017sage162exl3rcdgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.1.3) | 4/6 | 304s | 1063s | — | — | 16.2x |
 | nemotron3super120bmtpnopcdgx | 29/30 | 374s | 1154s | 3.1x | 1.7x | 7.7x |
 | qwen36bf16dgx | 30/30 | 432s | 1335s | 3.0x | 1.4x | 6.7x |
 | nemotron3nano | 8/10 | 580s | 1212s | — | — | 8.5x |
 | glm53flashexl3k2nothinkrcdgx @ Ryzen9-7900X-32GB+image | 1/1 | 1379s | 1379s | — | — | 1.0x |
 | nemotron33 | 1/10 | — | — | — | — | — |
 
-**Rows here were not all taken under one client.** ds4dgx, nemotron33, nemotron3nano, nemotroncascade2, ornith15a3bdgx, qwen36a3bnvfp4dgx, qwen36bf16dgx, qwen36codinggguf, qwen36nvfp4dgx, qwen36nvfp4nothinkdgx, qwen36nvfp4specdgx, qwen36nvfp4v1dgx, qwen38fnnvfp4dgx, qwen38fnq3dgx, qwen38fnq3nothinkdgx, qwen38fnq3nothinkkv8dgx, qwen38fnq3nothinktopkdgx, qwen38fnq3nothinkub2048dgx under 1.18.30; nemotron35ltf1010c262rcdgx, nemotron35ltf1011c262rcdgx, nemotron35lvllm262rcdgx, qwen3827btandem083nvfp4nothinkrcdgx under 1.19.0; nemotron35ltf1011c262rcdgx, qwen38fnq3nothinkb11642rcdgx under opencode v2.0.29; nemotron35boltdflashnothinkrcdgx, nemotron35boltdflashrcdgx, nemotron35supervldflashnothinkrcdgx under opencode v2.0.30; nemotron35supervldflashrcdgx, qwen38fnq3nothinkkv8b11700rcdgx under opencode v2.0.31; comet60bnvfp4mtpnothinkrcdgx, nemotron35bolttfnothinkrcdgx, qwen36a3bsglang1017dgx, qwen3827bsglangdflash2nothink1017dgx, qwen38fnfp4localnothinkrcdgx, qwen38fnfp4localrcdgx under opencode v2.0.32; qwen3827bsglangdflash2nothink1017dgx under opencode v2.1.0; qwen38fnfp4localtfnothinkrcdgx under opencode v2.1.1; dsv41f1017sage162exl3rcdgx, qwen36a3bnvfp4vllm032dgx, qwen38fnq3nothinkkv8b11827rcdgx under opencode v2.1.3; the rest under 1.18.31. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: nemotron35ltf1011c262rcdgx (1.19.0, opencode v2.0.29); qwen36a3bnvfp4dgx (1.18.30, 1.18.31); qwen3827bsglangdflash2nothink1017dgx (opencode v2.0.32, opencode v2.1.0); qwen38fnq3nothinkdgx (1.18.30, 1.18.31).
+**Rows here were not all taken under one client.** ds4dgx, nemotron33, nemotron3nano, nemotroncascade2, ornith15a3bdgx, qwen36a3bnvfp4dgx, qwen36bf16dgx, qwen36codinggguf, qwen36nvfp4dgx, qwen36nvfp4nothinkdgx, qwen36nvfp4specdgx, qwen36nvfp4v1dgx, qwen38fnnvfp4dgx, qwen38fnq3dgx, qwen38fnq3nothinkdgx, qwen38fnq3nothinkkv8dgx, qwen38fnq3nothinktopkdgx, qwen38fnq3nothinkub2048dgx under 1.18.30; nemotron35ltf1010c262rcdgx, nemotron35ltf1011c262rcdgx, nemotron35lvllm262rcdgx, qwen3827btandem083nvfp4nothinkrcdgx under 1.19.0; nemotron35ltf1011c262rcdgx, qwen38fnq3nothinkb11642rcdgx under opencode v2.0.29; nemotron35boltdflashnothinkrcdgx, nemotron35boltdflashrcdgx, nemotron35supervldflashnothinkrcdgx under opencode v2.0.30; nemotron35supervldflashrcdgx, qwen38fnq3nothinkkv8b11700rcdgx under opencode v2.0.31; comet60bnvfp4mtpnothinkrcdgx, nemotron35bolttfnothinkrcdgx, qwen36a3bsglang1017dgx, qwen3827bsglangdflash2nothink1017dgx, qwen38fnfp4localnothinkrcdgx, qwen38fnfp4localrcdgx under opencode v2.0.32; qwen3827bsglangdflash2nothink1017dgx under opencode v2.1.0; qwen38fnfp4localtfnothinkrcdgx under opencode v2.1.1; dsv41f1017sage162exl3rcdgx, qwen36a3bnvfp4vllm032dgx, qwen38fnq3nothinkkv8b11827rcdgx under opencode v2.1.3; qwen3827bnvfp4headsglangdflash2nothink1021dgx, qwen3827bsglangdflash2nothink1021dgx under opencode v2.1.4; the rest under 1.18.31. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: nemotron35ltf1011c262rcdgx (1.19.0, opencode v2.0.29); qwen36a3bnvfp4dgx (1.18.30, 1.18.31); qwen3827bsglangdflash2nothink1017dgx (opencode v2.0.32, opencode v2.1.0); qwen38fnq3nothinkdgx (1.18.30, 1.18.31).
 
 Excision tasks only; `script-*` excluded because they are a different class.
 
@@ -207,7 +209,7 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 | nemotron35bolttfnothinkrcdgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.0.32 uv=0.13.1 python=3.14.8 ripgrep=15.2.0) | 18s |
 | qwen36a3bsglang1017dgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (uv=0.13.2) | 18s |
 | qwen36a3bsglangfmrcdgx @ Ryzen9-7900X-32GB+image | 19s |
-| qwen36a3bnvfp4vllm032dgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.1.3 uv=0.13.5 python=3.14.9) | 19s |
+| qwen36a3bnvfp4vllm032dgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.1.3) | 19s |
 | nemotron3nano | 19s |
 | nemotron35boltdflashnothinkrcdgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.0.30) | 20s |
 | nemotron35lightninga3bdgx | 20s |
@@ -224,10 +226,12 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 | comet60bnvfp4mtpnothinkrcdgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.0.32 uv=0.13.1 python=3.14.8 ripgrep=15.2.0) | 29s |
 | nemotron35supervldflashnothinkrcdgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.0.30) | 31s |
 | qwen3827bsglangdflash2nothink1017dgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.1.0) | 33s |
+| qwen3827bnvfp4headsglangdflash2nothink1021dgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.1.4) | 34s |
 | qwen3827bsglangdflash2dgx | 35s |
 | ornith15a3bdgx | 35s |
 | qwen3827bsglangdflash2nothink1017dgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.0.32 uv=0.13.3 python=3.14.8 ripgrep=15.2.0) | 37s |
 | qwen3827bsglangdflash2nothinkdgx | 39s |
+| qwen3827bsglangdflash2nothink1021dgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.1.4) | 40s |
 | qwen38fnnvfp4miaainothinkdgx | 43s |
 | qwen38fnnvidianvfp4nothinkfmrcdgx @ Ryzen9-7900X-32GB+image | 45s |
 | qwen3827btandem083nvfp4nothinkrcdgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=1.19.0) | 47s |
@@ -238,7 +242,7 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 | qwen3827bsglangdflash2nothinkfmrcdgx @ Corei3-7100-16GB | 50s |
 | qwen38fnq3nothinkb11642rcdgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.0.29) | 50s |
 | qwen38fnnvidianvfp4nothinkfmrcdgx @ Corei3-7100-16GB+image | 50s |
-| qwen38fnq3nothinkkv8b11827rcdgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.1.3 uv=0.13.5 python=3.14.9) | 53s |
+| qwen38fnq3nothinkkv8b11827rcdgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.1.3) | 53s |
 | qwen38fnnvidianvfp4nothinkfmrcdgx @ Corei3-7100-16GB | 55s |
 | qwen38fnexl3nothinkdgx | 56s |
 | qwen38fnq3nothinkkv8b11700rcdgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.0.31) | 56s |
@@ -268,13 +272,13 @@ Seven commits from gmail-archive's history, 60-600 changed lines each. The targe
 | qwen36nvfp4specdgx | 119s |
 | qwen36nvfp4dgx | 150s |
 | qwen36nvfp4v1dgx | 160s |
-| dsv41f1017sage162exl3rcdgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.1.3 uv=0.13.5 python=3.14.9) | 181s |
+| dsv41f1017sage162exl3rcdgx @ 13th-Gen-Intel-Corei9-13900H-64GB+image (opencode=2.1.3) | 181s |
 | glm53flashexl3k2nothinkrcdgx @ Ryzen9-7900X-32GB+image@24g | 293s |
 | glm53flashexl3k2nothinkrcdgx @ Ryzen9-7900X-32GB+image | 358s |
 | qwen36bf16dgx | 409s |
 | glm53flashexl3k2nothinkdgx | 463s |
 
-**Rows here were not all taken under one client.** ds4dgx, nemotron33, nemotron3nano, nemotroncascade2, ornith15a3bdgx, qwen36a3bnvfp4dgx, qwen36bf16dgx, qwen36codinggguf, qwen36nvfp4dgx, qwen36nvfp4nothinkdgx, qwen36nvfp4specdgx, qwen36nvfp4v1dgx, qwen38fnnvfp4dgx, qwen38fnq3dgx, qwen38fnq3nothinkdgx, qwen38fnq3nothinkkv8dgx, qwen38fnq3nothinktopkdgx, qwen38fnq3nothinkub2048dgx under 1.18.30; nemotron35ltf1010c262rcdgx, nemotron35ltf1011c262rcdgx, nemotron35lvllm262rcdgx, qwen3827btandem083nvfp4nothinkrcdgx under 1.19.0; nemotron35ltf1011c262rcdgx, qwen38fnq3nothinkb11642rcdgx under opencode v2.0.29; nemotron35boltdflashnothinkrcdgx, nemotron35boltdflashrcdgx, nemotron35supervldflashnothinkrcdgx under opencode v2.0.30; nemotron35supervldflashrcdgx, qwen38fnq3nothinkkv8b11700rcdgx under opencode v2.0.31; comet60bnvfp4mtpnothinkrcdgx, nemotron35bolttfnothinkrcdgx, qwen36a3bsglang1017dgx, qwen3827bsglangdflash2nothink1017dgx, qwen38fnfp4localnothinkrcdgx, qwen38fnfp4localrcdgx under opencode v2.0.32; qwen3827bsglangdflash2nothink1017dgx under opencode v2.1.0; qwen38fnfp4localtfnothinkrcdgx under opencode v2.1.1; dsv41f1017sage162exl3rcdgx, qwen36a3bnvfp4vllm032dgx, qwen38fnq3nothinkkv8b11827rcdgx under opencode v2.1.3; the rest under 1.18.31. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: nemotron35ltf1011c262rcdgx (1.19.0, opencode v2.0.29); qwen36a3bnvfp4dgx (1.18.30, 1.18.31); qwen3827bsglangdflash2nothink1017dgx (opencode v2.0.32, opencode v2.1.0); qwen38fnq3nothinkdgx (1.18.30, 1.18.31).
+**Rows here were not all taken under one client.** ds4dgx, nemotron33, nemotron3nano, nemotroncascade2, ornith15a3bdgx, qwen36a3bnvfp4dgx, qwen36bf16dgx, qwen36codinggguf, qwen36nvfp4dgx, qwen36nvfp4nothinkdgx, qwen36nvfp4specdgx, qwen36nvfp4v1dgx, qwen38fnnvfp4dgx, qwen38fnq3dgx, qwen38fnq3nothinkdgx, qwen38fnq3nothinkkv8dgx, qwen38fnq3nothinktopkdgx, qwen38fnq3nothinkub2048dgx under 1.18.30; nemotron35ltf1010c262rcdgx, nemotron35ltf1011c262rcdgx, nemotron35lvllm262rcdgx, qwen3827btandem083nvfp4nothinkrcdgx under 1.19.0; nemotron35ltf1011c262rcdgx, qwen38fnq3nothinkb11642rcdgx under opencode v2.0.29; nemotron35boltdflashnothinkrcdgx, nemotron35boltdflashrcdgx, nemotron35supervldflashnothinkrcdgx under opencode v2.0.30; nemotron35supervldflashrcdgx, qwen38fnq3nothinkkv8b11700rcdgx under opencode v2.0.31; comet60bnvfp4mtpnothinkrcdgx, nemotron35bolttfnothinkrcdgx, qwen36a3bsglang1017dgx, qwen3827bsglangdflash2nothink1017dgx, qwen38fnfp4localnothinkrcdgx, qwen38fnfp4localrcdgx under opencode v2.0.32; qwen3827bsglangdflash2nothink1017dgx under opencode v2.1.0; qwen38fnfp4localtfnothinkrcdgx under opencode v2.1.1; dsv41f1017sage162exl3rcdgx, qwen36a3bnvfp4vllm032dgx, qwen38fnq3nothinkkv8b11827rcdgx under opencode v2.1.3; qwen3827bnvfp4headsglangdflash2nothink1021dgx, qwen3827bsglangdflash2nothink1021dgx under opencode v2.1.4; the rest under 1.18.31. A comparison across that split also compares the client ([#137](https://github.com/evanwtf/local-llm/issues/137)). No (backend, task) cell here holds both versions, so the client's own effect is unmeasured on this machine — there is nothing to correct for, only a boundary to name. Measured under more than one: nemotron35ltf1011c262rcdgx (1.19.0, opencode v2.0.29); qwen36a3bnvfp4dgx (1.18.30, 1.18.31); qwen3827bsglangdflash2nothink1017dgx (opencode v2.0.32, opencode v2.1.0); qwen38fnq3nothinkdgx (1.18.30, 1.18.31).
 
 ### Cortex-X925-128GB-GB10-x2
 
