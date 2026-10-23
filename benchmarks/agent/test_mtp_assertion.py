@@ -236,6 +236,8 @@ def test_the_mtp_arms_declare_themselves():
         # #1128: GLM-5.3-Flash FP4-Local on two Sparks, MTP-5 in the eugr
         # b12x image.
         "glm53ffp4localdual2xrc": "vllm",
+        # #1208: DeepSeek-1017 SAGE-EXL3 1.62 bpw on one Spark, DSpark k=5.
+        "dsv41f1017sage162exl3rcdgx": "vllm",
     }
 
 
