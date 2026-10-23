@@ -96,6 +96,22 @@ def test_power_reason_flags_asymmetry():
     assert "Asymmetric" in hb.power_reason(node(45), node(4), "vllm pid 12")
 
 
+def test_power_reason_single_node_task_is_not_asymmetric():
+    # The S4 refresh serves on the head only; the worker idles by design.
+    got = hb.power_reason(node(59), node(5), "llama-server pid 1", "head")
+    assert got == "Single-Spark task on the head: the worker is idle by design."
+
+
+def test_power_reason_single_node_on_the_wrong_node_still_flags():
+    # The state says the head, but the worker is the one working: a finding.
+    got = hb.power_reason(node(4), node(57), "vllm pid 12", "head")
+    assert "Asymmetric" in got
+
+
+def test_power_reason_asymmetry_names_the_fix():
+    assert "single_node" in hb.power_reason(node(45), node(4), "vllm pid 12")
+
+
 def test_power_reason_working():
     assert "working" in hb.power_reason(node(45), node(43), "vllm pid 12")
 
