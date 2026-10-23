@@ -3377,7 +3377,7 @@ image = "lmsysorg/sglang:nightly-cu134-20261017-a126e8d"
 recipe_dir = "~/engines/miaai-qwen3827b-sglang"
 
 [backend.qwen3827bsglangdflash2nothink1021dgx]
-description = "#1220 arm A: the S5 stack (qwen3827bsglangdflash2nothink1017dgx, #1091) on the worker Spark with only the image changed, to IMAGE=lmsysorg/sglang:nightly-cu134-20261021-2e7c9d8 (sha256:ad578bff8703), the latest nightly on 2026-10-23; the BF16-LM-head control for arm B. The old stack: Qwen3.8-27B NVFP4 (RadixArk/Qwen3.8-27B-NVFP4-BF16-LMHead) on SGLang via MiaAI-Lab/Qwen3.8-27B-SGLang-DGX-Spark @9fb18ed start-dflash.sh: DFlash2 drafter z-lab/Qwen3.8-27B-DFlash2 @50307d4, 8 draft tokens, official lmsysorg dev image pinned by digest; mem-fraction-static 0.85, NOT the recipe's 0.90: at 0.90 this server runs the box down to 6351 MiB MemAvailable under load, below earlyoom's own SIGTERM line (5% of 121.7 GiB, ~6.2 GiB), so the box-wide killer would take it mid-batch (#582); thinking off via --default-chat-template-kwargs. Speculative decoding on but not declared `speculative`: no SGLang draft-counter reader exists; REMOTE CLIENT (#562): OpenCode and the harness run on another machine and reach this server over the LAN; FULL MEMORY (#562): server-only box, harness memory gates off, per-server watcher floor 8 GiB"
+description = "#1220 arm A: the S5 stack (qwen3827bsglangdflash2nothink1017dgx, #1091) on the worker Spark on S5's own image IMAGE=lmsysorg/sglang:nightly-cu134-20261017-a126e8d (sha256:522ef38b7b0a, Triton 3.8.0): the 20261020 and 20261021 nightlies ship Triton 3.9.0, which removed tl.make_block_ptr, and SGLang's fla l2norm kernel for the gated-delta attention dies at its first compile (#1220); the BF16-LM-head control for arm B. The old stack: Qwen3.8-27B NVFP4 (RadixArk/Qwen3.8-27B-NVFP4-BF16-LMHead) on SGLang via MiaAI-Lab/Qwen3.8-27B-SGLang-DGX-Spark @9fb18ed start-dflash.sh: DFlash2 drafter z-lab/Qwen3.8-27B-DFlash2 @50307d4, 8 draft tokens, official lmsysorg dev image pinned by digest; mem-fraction-static 0.85, NOT the recipe's 0.90: at 0.90 this server runs the box down to 6351 MiB MemAvailable under load, below earlyoom's own SIGTERM line (5% of 121.7 GiB, ~6.2 GiB), so the box-wide killer would take it mid-batch (#582); thinking off via --default-chat-template-kwargs. Speculative decoding on but not declared `speculative`: no SGLang draft-counter reader exists; REMOTE CLIENT (#562): OpenCode and the harness run on another machine and reach this server over the LAN; FULL MEMORY (#562): server-only box, harness memory gates off, per-server watcher floor 8 GiB"
 tier = "gb10-spark"
 base_url = "http://127.0.0.1:8888"
 auth_token = "local"
@@ -3388,7 +3388,7 @@ aider_model = "openai/qwen3.8-27b-sglang"
 opencode_model = "dgx2vllm8888/qwen3.8-27b-sglang"
 context_tokens = 262144
 topology = "remote"
-image = "lmsysorg/sglang:nightly-cu134-20261021-2e7c9d8"
+image = "lmsysorg/sglang:nightly-cu134-20261017-a126e8d"
 recipe_dir = "~/engines/miaai-qwen3827b-sglang"
 
 
@@ -3404,7 +3404,7 @@ aider_model = "openai/qwen3.8-27b-sglang"
 opencode_model = "dgx2vllm8888/qwen3.8-27b-sglang"
 context_tokens = 262144
 topology = "remote"
-image = "lmsysorg/sglang:nightly-cu134-20261021-2e7c9d8"
+image = "lmsysorg/sglang:nightly-cu134-20261017-a126e8d"
 recipe_dir = "~/engines/miaai-qwen3827b-sglang"
 
 
