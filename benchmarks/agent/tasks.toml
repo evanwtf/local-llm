@@ -3376,6 +3376,38 @@ topology = "remote"
 image = "lmsysorg/sglang:nightly-cu134-20261017-a126e8d"
 recipe_dir = "~/engines/miaai-qwen3827b-sglang"
 
+[backend.qwen3827bsglangdflash2nothink1021dgx]
+description = "#1220 arm A: the S5 stack (qwen3827bsglangdflash2nothink1017dgx, #1091) on the worker Spark with only the image changed, to IMAGE=lmsysorg/sglang:nightly-cu134-20261021-2e7c9d8 (sha256:ad578bff8703), the latest nightly on 2026-10-23; the BF16-LM-head control for arm B. The old stack: Qwen3.8-27B NVFP4 (RadixArk/Qwen3.8-27B-NVFP4-BF16-LMHead) on SGLang via MiaAI-Lab/Qwen3.8-27B-SGLang-DGX-Spark @9fb18ed start-dflash.sh: DFlash2 drafter z-lab/Qwen3.8-27B-DFlash2 @50307d4, 8 draft tokens, official lmsysorg dev image pinned by digest; mem-fraction-static 0.85, NOT the recipe's 0.90: at 0.90 this server runs the box down to 6351 MiB MemAvailable under load, below earlyoom's own SIGTERM line (5% of 121.7 GiB, ~6.2 GiB), so the box-wide killer would take it mid-batch (#582); thinking off via --default-chat-template-kwargs. Speculative decoding on but not declared `speculative`: no SGLang draft-counter reader exists; REMOTE CLIENT (#562): OpenCode and the harness run on another machine and reach this server over the LAN; FULL MEMORY (#562): server-only box, harness memory gates off, per-server watcher floor 8 GiB"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "sglang"
+model = "qwen3.8-27b-sglang"
+active_params_b = 27
+aider_model = "openai/qwen3.8-27b-sglang"
+opencode_model = "dgx2vllm8888/qwen3.8-27b-sglang"
+context_tokens = 262144
+topology = "remote"
+image = "lmsysorg/sglang:nightly-cu134-20261021-2e7c9d8"
+recipe_dir = "~/engines/miaai-qwen3827b-sglang"
+
+
+[backend.qwen3827bnvfp4headsglangdflash2nothink1021dgx]
+description = "#1220 arm B: arm A with only the checkpoint changed, to nvidia/Qwen3.8-27B-NVFP4@482ca0f3 (NVFP4 LM head, 20.4 GiB; served as a local dir in the recipe cache, --model-path via DF_EXTRA). Arm A is the S5 stack (qwen3827bsglangdflash2nothink1017dgx, #1091) on the worker Spark with only the image changed, to IMAGE=lmsysorg/sglang:nightly-cu134-20261021-2e7c9d8 (sha256:ad578bff8703), the latest nightly on 2026-10-23. The old stack: Qwen3.8-27B NVFP4 (RadixArk/Qwen3.8-27B-NVFP4-BF16-LMHead) on SGLang via MiaAI-Lab/Qwen3.8-27B-SGLang-DGX-Spark @9fb18ed start-dflash.sh: DFlash2 drafter z-lab/Qwen3.8-27B-DFlash2 @50307d4, 8 draft tokens, official lmsysorg dev image pinned by digest; mem-fraction-static 0.85, NOT the recipe's 0.90: at 0.90 this server runs the box down to 6351 MiB MemAvailable under load, below earlyoom's own SIGTERM line (5% of 121.7 GiB, ~6.2 GiB), so the box-wide killer would take it mid-batch (#582); thinking off via --default-chat-template-kwargs. Speculative decoding on but not declared `speculative`: no SGLang draft-counter reader exists; REMOTE CLIENT (#562): OpenCode and the harness run on another machine and reach this server over the LAN; FULL MEMORY (#562): server-only box, harness memory gates off, per-server watcher floor 8 GiB"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "sglang"
+model = "qwen3.8-27b-sglang"
+active_params_b = 27
+aider_model = "openai/qwen3.8-27b-sglang"
+opencode_model = "dgx2vllm8888/qwen3.8-27b-sglang"
+context_tokens = 262144
+topology = "remote"
+image = "lmsysorg/sglang:nightly-cu134-20261021-2e7c9d8"
+recipe_dir = "~/engines/miaai-qwen3827b-sglang"
+
+
 [backend.qwen38fnnvidianvfp4nothinkfmrcdgx]
 description = "nvidia/Qwen3.8-Flash-Next-NVFP4 rev fc694b5 (NVIDIA's mixed-precision quant: NVFP4 routed experts, BF16 attention/shared experts, FP8 MTP, FP8 PLE table) served by the MiaAI recipe (#468) with TP1_MODEL_ID set, HOST_RESERVE_GIB=30, PLE_GIB=47.68, MTP_WEIGHTS_GIB=2.34, thinking off via --default-chat-template-kwargs.enable_thinking=false; KV target 10 reduced to 8.6 GiB, GMU 0.753, max-num-seqs 4, 262k ctx; REMOTE CLIENT (#562): OpenCode and the harness run on another machine and reach this server over the LAN; FULL MEMORY (#562): server-only box, harness memory gates off, per-server watcher floor 8 GiB; HOST_RESERVE_GIB 30, the same as the local arm and the value the recipe itself prescribes for this checkpoint: at 26 its own measurements put the driver 5.5 GiB past a 95.65 GiB budget with MemFree at 1.07 GiB and 12 NV_ERR_NO_MEMORY during capture, and that overshoot is the driver's, not the client's, so moving the harness off the box does not buy it back (#583). This arm therefore isolates topology, not memory; recipe at 6b50864"
 tier = "gb10-spark"
