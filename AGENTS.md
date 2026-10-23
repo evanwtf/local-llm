@@ -106,6 +106,7 @@ doc.
 - Update every component before a batch (`preflight.py`), never after; a version change starts a new series.
 - `opencode run` ignores the caller's working directory — **always pass `--dir`**. Measure OpenCode unless the run is specifically about another client.
 - Start from a clean reference repo on the pinned commit; restart the server between arms; wait on a real completion, never on `/health`.
+- **Get weights in this order: the NAS archive, then one internet download, then node-to-node copies** (operator, 2026-10-22). First look in the NAS archive: its `dgx/manifest.json` records each item's origin, revision and per-file sha256. Only if the artifact is not there, download it **once**, on one node. Copy it to the other node over the ConnectX fabric (10.0.0.x; LAN if the fabric is down), and verify the sha256 on every node. On 2026-10-22 a 165.5 GiB checkpoint was downloaded on both Sparks at once, and the two downloads saturated the home internet link. A copy is bulk traffic too, so it never overlaps a benchmark.
 - **On the M5 Max, model weights live on the `Models` volume** (`/Volumes/Models`, excluded from Time Machine), never on the Data volume. A new engine's model or cache directory moves there before its first download, with a symlink left at the default path. A local snapshot ignores exclusions and pins a deleted file for a day (#755). How: [`docs/m5max-runbook.md`](docs/m5max-runbook.md#weights-live-on-the-models-volume-755).
 
 ## The working loop
