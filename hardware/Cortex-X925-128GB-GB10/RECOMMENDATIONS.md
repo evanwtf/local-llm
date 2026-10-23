@@ -10,6 +10,24 @@ card. Paste section 1, pick a row in section 2, or read what does not help in 3.
 [#1127]; FP4-Local, [#1108], [#1143]). A read date more than a couple of weeks old
 means re-check `results.jsonl` before trusting these rows.
 
+**What S1–S8 and C1–C3 mean.** They are labels for the picks in the
+[#1086] refresh, one issue per pick. **S** is a **single-Spark** pick (this
+page). **C** is a **cluster** pick that runs on both Sparks
+([the two-Spark page](../Cortex-X925-128GB-GB10-x2/RECOMMENDATIONS.md)). The
+number is the pick's place in #1086's list, not a rank.
+
+| label | row in section 2 | issue |
+|---|---|---|
+| S1 | you want the agent done fastest | [#1087] |
+| S2 | you want a pip-installed engine, or the most multi-client throughput | [#1088] |
+| S3 | you want the simplest server to stand up | [#1089] |
+| S4 | …and the KV cache halved (S3 with `q8_0` KV) | [#1090] |
+| S5 | you want a dense model | [#1091] |
+| S6 | you want a larger model / 262K context | [#1092] |
+| S7 | you want a second, non-Qwen lineage | [#1093] |
+| S8 | you want it to show its work (S3 with thinking on) | [#1094] |
+| C1–C3 | the cluster picks | [#1095], [#1096], [#1097] |
+
 > **Visible tests overstate every row here.** On the replay and hard sets, no
 > one-Spark stack passed the held-out tests ([#726]) on more than 1 of 21 whole
 > tasks. The fastest row, S1, passed every visible test and had the lowest
@@ -347,3 +365,11 @@ model, thinking off), then fewer turns.
 [#1108]: https://github.com/evanwtf/local-llm/issues/1108
 [#1127]: https://github.com/evanwtf/local-llm/issues/1127
 [#1143]: https://github.com/evanwtf/local-llm/issues/1143
+[#1086]: https://github.com/evanwtf/local-llm/issues/1086
+[#1088]: https://github.com/evanwtf/local-llm/issues/1088
+[#1090]: https://github.com/evanwtf/local-llm/issues/1090
+[#1092]: https://github.com/evanwtf/local-llm/issues/1092
+[#1093]: https://github.com/evanwtf/local-llm/issues/1093
+[#1095]: https://github.com/evanwtf/local-llm/issues/1095
+[#1096]: https://github.com/evanwtf/local-llm/issues/1096
+[#1097]: https://github.com/evanwtf/local-llm/issues/1097
