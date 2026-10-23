@@ -4987,6 +4987,23 @@ image = "eugr/spark-vllm-b12x:latest"
 speculative = "MTP, 5 speculative tokens (checkpoint MTP head, humming MoE backend)"
 draft_engine = "vllm"
 
+[backend.dsv41f1017sage162exl3rcdgx]
+description = "#1208: DeepSeek V4.1 Flash 1017 SAGE-EXL3 1.62 bpw (vcruz305/DSV4.1-Flash-1017-SAGE-EXL3-1.62bpw @c852150e06, 304.2 GiB incl. Engram tables) on ONE DGX Spark (the worker): vLLM TP=1 + ExLlamaV3 via vcruz305/DSV4.1-Flash-1017-EXL3-Spark-recipe @6bfd102 (base dsv41-1017-ds41f:r6w and serving dsv41-1017-exl3:r6w built locally; vllm-exl3 30e8b94, exllamav3 909ad85), cold-expert alias side file, DSpark speculation k=5, max-model-len 262144 (recipe default 524288), max-num-seqs 1, KV pool 1 GiB, GPU util 0.90, prefix caching on, reasoning off; worker earlyoom lowered to 0.3/0.2 GiB for the run (ready leaves ~0.6 GiB); REMOTE CLIENT"
+tier = "gb10-spark"
+base_url = "http://127.0.0.1:8888"
+auth_token = "local"
+engine = "vllm"
+model = "dsv41"
+aider_model = "openai/dsv41"
+opencode_model = "dgx2vllm8888/dsv41"
+context_tokens = 262144
+topology = "remote"
+smoke_protocol = "openai"
+recipe_dir = "~/git/DSV4.1-Flash-1017-EXL3-Spark-recipe"
+image = "dsv41-1017-exl3:r6w"
+speculative = "DSpark, 5 speculative tokens"
+draft_engine = "vllm"
+
 [backend.dsv41f1017exl3serodual2xrc]
 description = "DeepSeek V4.1 Flash 1017 EXL3 2.7 bpw (0xSero/DeepSeek-V4.1-Flash-1017-EXL3-2.7bpw @e34ef55bda, 184.9 GiB) plus the native 1017 Engram shards (deepseek-ai/DeepSeek-V4.1-Flash-1017 @1bae0e10) across TWO DGX Sparks: vLLM TP=2 + ExLlamaV3 via sudoingX/dgx-spark-deepseek-v41 @cc59c360 (image dsv41-serve:v4 built locally), DSpark speculation, 262144 context, max-num-seqs 2, GPU util 0.88, reasoning_effort low server-side, :8888. REMOTE CLIENT: the Core i9-13900H; OpenCode context 262,144, output cap 16,384"
 tier = "gb10-spark-x2"
